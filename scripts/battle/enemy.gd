@@ -109,6 +109,7 @@ var is_exposed: bool = false          # True once armor has been broken to 0
 var last_player_hit_damage: int = 0   # Raw damage of the player's most recent hit (for on-expose passives)
 var player_hit_modifier: Callable       # (enemy, amount) -> amount: skill-tree % mods on the player's direct hits (set by main)
 var has_been_damaged: bool = false      # any damage from any source has landed (Surprise Opener's first-source check)
+var last_hit_from_player: bool = false  # the most recent hit was the player's own (card, gauntlet skill, auto attack), not a tick or summon
 var next_action_tempo_tax: int = 0      # Haunted Rebuke: the next action (sync or async) winds up this much longer
 var bonus_damage_next_hit: int = 0    # Applied on the next take_damage call, then cleared
 var premeditated_card_bonus: int = 0  # Premeditated: +15 onto the next card that targets this enemy
@@ -4649,6 +4650,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	# hits health (Neither Man nor Beast "ignoring all resistances and armor").
 	if is_dead:
 		return false
+	last_hit_from_player = from_player
 
 	# Per-type resistance: percent reduction from damage_resistances (empty for
 	# most enemies today — Blue Robe reads this table for its adaptive type).

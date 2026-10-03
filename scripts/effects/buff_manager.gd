@@ -480,7 +480,12 @@ func get_strengthen_bonus() -> int:
 	return strengthen.value if strengthen else 0
 
 func consume_strengthen() -> int:
-	# Returns bonus and uses a charge
+	# Returns bonus and uses a charge. Strengthen is "+X on your next
+	# offensive cards": a resolving card that is not offensive (a damaging
+	# utility without the rider) neither gains nor spends it.
+	if owner_stats and "st_pre_attack_armed" in owner_stats and owner_stats.st_pre_attack_armed \
+			and not owner_stats.st_pre_attack_is_offensive:
+		return 0
 	var strengthen = get_buff(Buff.BuffType.STRENGTHEN)
 	if strengthen:
 		var bonus = strengthen.value
@@ -534,7 +539,7 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	# Redemption (Brad): armed by a heal he performed, spent on this roll —
 	# its own number on top of any Enlightened, never merged into it.
 	var rd_crit = 0
-	if owner_stats and "st_redemption_crit" in owner_stats:
+	if owner_stats and "st_redemption_crit" in owner_stats and owner_stats.st_pre_attack_is_offensive:
 		rd_crit = owner_stats.st_redemption_crit
 	# Tactician's Eye (WIS keystone): crit chance scaling with cards in hand.
 	var hand_crit = 0

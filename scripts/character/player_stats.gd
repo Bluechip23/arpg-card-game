@@ -44,6 +44,10 @@ static var heal_to_damage: bool = false
 ## Harnessed Power (Jeremy): while one of his cards resolves with the bonus,
 ## every point of damage, armor and healing it produces is scaled by this.
 static var harnessed_mult: float = 1.0
+## The hit being applied comes from an OFFENSIVE card or the auto attack
+## (main sets it around a card's resolution and the auto attack's hit);
+## Solemn Independence's bonus reads it.
+static var hit_source_offensive: bool = false
 
 static func apply_cover(victim, amount: int) -> int:
 	if amount <= 0 or not incoming_mitigation_hook.is_valid():
@@ -539,6 +543,8 @@ var st_scouted_hits: int = 0          # Scouted: consecutive hits on the same en
 var st_scouted_bonus_active: bool = false  # Scouted: +6 range and auto-crit ready
 var st_exposed_blind_spot_crit: float = 0.0  # Exposed Blind Spot: bonus crit % for the next ATTACK roll (fractional, as written)
 var st_pre_attack_is_attack: bool = false  # the crit roll in flight belongs to an Attack card / the auto attack
+var st_pre_attack_is_offensive: bool = false  # …or to an OFFENSIVE card (attack or tagged spell) / the auto attack
+var st_pre_attack_armed: bool = false      # a card (or the auto attack) is resolving between arm and clear
 var st_skilled_momentum_echo: bool = false  # Skilled Momentum: main runs the resolving attack a second time
 var st_lethal_resource_attacking: bool = false  # Lethal Resourcefulness: guard against recursion
 var st_dominate_cooldown: int = 0     # Dominate: remaining cooldown tempo

@@ -11,7 +11,7 @@ extends RefCounted
 # rank; everything else reads PassiveScaling's "cooldown" table.
 const _FIXED_TOTAL := {
 	"eye_scrape": 10,
-	"skilled_momentum": 5,
+	"skilled_momentum": 10,
 	"dominate": 5,
 	"in_the_trenches": 10,
 	"expel_negativity": 10,

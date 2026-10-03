@@ -629,7 +629,7 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 	# Nimble Assault: cards in hand but no Defense cards → draw on attack.
 	# An empty hand does NOT qualify — there must be cards, just no Defense.
 	# Rank-scaled tempo cooldown (15..8).
-	if stats.has_skill_tree_passive("nimble_assault") and card.card_type == Card.CardType.ATTACK \
+	if stats.has_skill_tree_passive("nimble_assault") and card.is_offensive() \
 			and main.deck_manager.hand.size() > 0:
 		var na_cooldown: int = PassiveScaling.value("nimble_assault", "cooldown", stats.get_passive_level("nimble_assault"))
 		if main.tempo_manager.get_global_tempo() - stats.st_nimble_last_tempo >= na_cooldown:
@@ -852,8 +852,9 @@ func modify_player_hit(enemy: Enemy, amount: int) -> int:
 	# multiplier is armed (main sets it around the card's execution).
 	if PlayerStats.harnessed_mult > 1.0:
 		out = floori(out * PlayerStats.harnessed_mult)
-	# Solemn Independence (Brad): +5%..12% on every attack while surrounded.
-	if stats.has_skill_tree_passive("solemn_independence"):
+	# Solemn Independence (Brad): +5%..12% on every OFFENSIVE hit (an offensive
+	# card or the auto attack) while surrounded.
+	if stats.has_skill_tree_passive("solemn_independence") and PlayerStats.hit_source_offensive:
 		stats.solemn_active = _solemn_surrounded()
 		if stats.solemn_active:
 			var si_pct: int = PassiveScaling.value("solemn_independence", "damage_percent", stats.get_passive_level("solemn_independence"))
@@ -1189,16 +1190,17 @@ func _trigger_skill_tree_brad_on_cycle() -> void:
 			var aa_heal: int = PassiveScaling.value("ancestral_aid", "heal", aa_lvl)
 			var attack_count = 0
 			var defense_count = 0
+			# "Offensive" is the rider: Attack cards and offensive-tagged spells.
 			for c in main.deck_manager.hand:
-				if c.card_type == Card.CardType.ATTACK:
+				if c.is_offensive():
 					attack_count += 1
 				elif c.card_type == Card.CardType.DEFENSE:
 					defense_count += 1
 			if attack_count > defense_count:
-				# Discount a random attack card (capped at the card's remaining cost)
+				# Discount a random offensive card (capped at the card's remaining cost)
 				var attacks: Array[Card] = []
 				for c in main.deck_manager.hand:
-					if c.card_type == Card.CardType.ATTACK and c.mana_cost > 0:
+					if c.is_offensive() and c.mana_cost > 0:
 						attacks.append(c)
 				if attacks.size() > 0:
 					var target_card = attacks[randi() % attacks.size()]
@@ -1329,12 +1331,12 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target) -> int:
 			stats.st_scouted_hits = 1
 
 	# Skilled Momentum: after a rank-scaled streak of attacks (10..3), the next
-	# plays twice. 5 tempo cooldown.
+	# plays twice. 10 tempo cooldown.
 	if stats.has_skill_tree_passive("skilled_momentum") and card.card_type == Card.CardType.ATTACK:
 		var sm_required: int = PassiveScaling.value("skilled_momentum", "attacks_required", stats.get_passive_level("skilled_momentum"))
 		stats.st_consecutive_attacks += 1
 		if stats.st_consecutive_attacks >= sm_required + 1 \
-				and main.tempo_manager.get_global_tempo() - stats.st_skilled_momentum_last_tempo >= 5:
+				and main.tempo_manager.get_global_tempo() - stats.st_skilled_momentum_last_tempo >= 10:
 			stats.st_consecutive_attacks = 0
 			stats.st_skilled_momentum_last_tempo = main.tempo_manager.get_global_tempo()
 			# The card is played again, in full (its own crit roll, riders and
@@ -1377,6 +1379,9 @@ func arm_basic_attack_roll(target) -> void:
 	if not stats:
 		return
 	stats.st_pre_attack_is_attack = true
+	stats.st_pre_attack_is_offensive = true
+	stats.st_pre_attack_armed = true
+	PlayerStats.hit_source_offensive = true
 	stats.st_deadly_crit_active = stats.has_skill_tree_passive("deadly") and _deadly_isolated(target)
 
 func _deadly_isolated(target) -> bool:
@@ -1403,8 +1408,11 @@ func arm_pre_attack_passives(card: Card, target) -> void:
 		return
 	var is_attack: bool = card != null and card.card_type == Card.CardType.ATTACK
 	var is_offensive: bool = card != null and card.is_offensive()
-	# Exposed Blind Spot's crit is spent by an Attack's roll only.
+	# Exposed Blind Spot's crit is spent by an Attack's roll only; Redemption's
+	# and Strengthen by an offensive card's.
 	stats.st_pre_attack_is_attack = is_attack
+	stats.st_pre_attack_is_offensive = is_offensive
+	stats.st_pre_attack_armed = true
 
 	# Deadly (Stephen): rank-scaled bonus crit damage vs a target with no allies
 	# within 2 cells — on any offensive card, attack or spell.
@@ -1442,6 +1450,8 @@ func clear_pre_attack_passives() -> void:
 		stats.st_deadly_crit_active = false
 		stats.st_scouted_crit_active = false
 		stats.st_pre_attack_is_attack = false
+		stats.st_pre_attack_is_offensive = false
+		stats.st_pre_attack_armed = false
 
 func _trigger_skill_tree_stephen_on_ranged_attack(_card: Card, _target) -> void:
 	# Laced Arrow is now handled via _on_enemy_debuff_applied to add +1 when applying burn/cold/shock
@@ -1713,8 +1723,10 @@ func _trigger_skill_tree_cory_on_kill(enemy: Enemy) -> void:
 	if not stats:
 		return
 
-	# Eat: killing enemies heals a rank-scaled % of YOUR max HP (1%..15%)
-	if stats.has_skill_tree_passive("eat"):
+	# Eat: killing an enemy with a card, a gauntlet skill or the auto attack
+	# (its last hit was the player's own, not a tick or a summon) heals a
+	# rank-scaled % of YOUR max HP (1%..15%)
+	if stats.has_skill_tree_passive("eat") and bool(enemy.get("last_hit_from_player")):
 		var eat_heal_pct: int = PassiveScaling.value("eat", "heal_percent", stats.get_passive_level("eat"))
 		var heal_amount = max(1, floori(stats.max_health * eat_heal_pct / 100.0))
 		stats.heal(heal_amount)
@@ -1925,10 +1937,10 @@ func _trigger_skill_tree_jeremy_on_card_play(card: Card, target, aim_world = nul
 				debuff_mgr.remove_debuff(removed.debuff_type)
 				main.add_battle_log("Fresh Start: cleansed %s!" % removed.debuff_name, Color(0.8, 0.4, 0.9))
 
-	# Seance: a spell aimed at an EMPTY tile (a point-targeted cast whose
+	# Seance: an OFFENSIVE card aimed at an EMPTY tile (a point-targeted cast whose
 	# tile holds no unit) raises a Specter on that tile: a summon enemies
 	# target by proximity, 25 tempo, HP and death damage 5..33 by rank.
-	if stats.has_skill_tree_passive("seance") and card.school == Card.CardSchool.SPELL \
+	if stats.has_skill_tree_passive("seance") and card.is_offensive() \
 			and "point" in card.target_types and aim_world != null and main.grid_manager:
 		var cell: Vector2i = main.grid_manager.world_to_grid(aim_world)
 		if main._cell_is_empty_for_summon(cell):

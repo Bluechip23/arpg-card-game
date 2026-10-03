@@ -132,6 +132,7 @@ func _test_redemption(stats, pt) -> void:
 	_check(bm.get_buff(Buff.BuffType.ENLIGHTENED).value == 10 and stats.st_redemption_crit == 15,
 		"it sits beside an Enlightened buff instead of merging into it")
 	var crits := 0
+	stats.st_pre_attack_is_offensive = true  # an offensive card's roll
 	for _i in range(40):
 		stats.st_redemption_crit = 90
 		bm.remove_buff(Buff.BuffType.ENLIGHTENED)
@@ -140,6 +141,11 @@ func _test_redemption(stats, pt) -> void:
 			crits += 1
 	_check(crits == 40, "10%% Enlightened + 90%% Redemption always crits (%d/40)" % crits)
 	_check(stats.st_redemption_crit == 0, "the roll spends it")
+	stats.st_redemption_crit = 15
+	stats.st_pre_attack_is_offensive = false
+	bm.roll_crit()
+	_check(stats.st_redemption_crit == 15, "a non-offensive card's roll neither uses nor spends it")
+	stats.st_redemption_crit = 0
 	bm.remove_buff(Buff.BuffType.ENLIGHTENED)
 	stats.skill_tree_passives.erase("redemption")
 
@@ -177,8 +183,14 @@ func _test_solemn(stats, pt, dummies: Array) -> void:
 	var b: Enemy = dummies[1]
 	var hp_a: int = a.current_health
 	var hp_b: int = b.current_health
+	PlayerStats.hit_source_offensive = true  # hits from an offensive card
 	a.take_damage(100, true)
 	b.take_damage(100, true)
+	var hp_c0: int = dummies[2].current_health
+	PlayerStats.hit_source_offensive = false
+	dummies[2].take_damage(100, true)
+	_check(hp_c0 - dummies[2].current_health == 100, "a hit from something that is not an offensive card (a gauntlet skill) gets no Solemn bonus")
+	PlayerStats.hit_source_offensive = true
 	_check(hp_a - a.current_health == 112 and hp_b - b.current_health == 112,
 		"every enemy hit takes +12%% (%d and %d)" % [hp_a - a.current_health, hp_b - b.current_health])
 	stats.current_health = 1
@@ -200,6 +212,7 @@ func _test_solemn(stats, pt, dummies: Array) -> void:
 	var hp_c: int = c.current_health
 	c.take_damage(100, true)
 	_check(hp_c - c.current_health == 100, "…and hits are plain again")
+	PlayerStats.hit_source_offensive = false
 	stats.skill_tree_passives.erase("solemn_independence")
 
 func _test_self_reliance_cost(stats, pt) -> void:
