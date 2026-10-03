@@ -41,6 +41,9 @@ static var incoming_mitigation_hook: Callable = Callable()
 ## performs lands as damage instead (on you, allies and summons alike).
 ## Card.execute sets it for the play; main clears it when the play resolves.
 static var heal_to_damage: bool = false
+## Harnessed Power (Jeremy): while one of his cards resolves with the bonus,
+## every point of damage, armor and healing it produces is scaled by this.
+static var harnessed_mult: float = 1.0
 
 static func apply_cover(victim, amount: int) -> int:
 	if amount <= 0 or not incoming_mitigation_hook.is_valid():
@@ -112,6 +115,10 @@ var temp_hand_modifier: int = 0    # card effects (Try This, etc.)
 const mana_regen_tempo_interval: float = 5.0
 ## Accumulator for tempo-based mana regen
 var _tempo_until_mana_regen: float = 0.0
+## Tempo that must not move the regen countdown (gear swaps): main adds the
+## swap's cost here just before advancing the clock, and process_tempo
+## skips that much of the next advance.
+var regen_frozen_tempo: int = 0
 
 var current_armor: int = 0
 const armor_decay_per_cycle: int = 2
@@ -520,6 +527,7 @@ var st_ladder_banked: int = 0          # Ladder Work: last cycle's count, spent 
 var st_defense_cards_played: int = 0  # The Way of the Plate: counts defense cards toward the rank-scaled refund
 var st_consecutive_defense: int = 0   # Pristine Armor: counts consecutive defense cards for 3-in-a-row bonus
 var st_ancestral_cycle_counter: int = 0  # Ancestral Aid: counts cycles toward the every-5-cycles trigger
+var st_pre_attack_damaged: bool = false  # Surprise Opener: had the target taken ANY damage before this strike?
 var st_itt_charges: int = 2            # In the Trenches: shared charge pool (2 max)
 var st_itt_spent: Array = []           # In the Trenches: global tempo each spent charge was used (each returns 10 later)
 var st_redemption_crit: int = 0        # Redemption: crit % armed for the next attack roll (on top of Enlightened)
@@ -529,7 +537,9 @@ var st_consecutive_attacks: int = 0   # Skilled Momentum: tracks consecutive att
 var st_scouted_target_id: int = -1    # Scouted: instance_id of the enemy being tracked
 var st_scouted_hits: int = 0          # Scouted: consecutive hits on the same enemy
 var st_scouted_bonus_active: bool = false  # Scouted: +6 range and auto-crit ready
-var st_exposed_blind_spot_crit: int = 0  # Exposed Blind Spot: bonus crit % for next attack
+var st_exposed_blind_spot_crit: float = 0.0  # Exposed Blind Spot: bonus crit % for the next ATTACK roll (fractional, as written)
+var st_pre_attack_is_attack: bool = false  # the crit roll in flight belongs to an Attack card / the auto attack
+var st_skilled_momentum_echo: bool = false  # Skilled Momentum: main runs the resolving attack a second time
 var st_lethal_resource_attacking: bool = false  # Lethal Resourcefulness: guard against recursion
 var st_dominate_cooldown: int = 0     # Dominate: remaining cooldown tempo
 var st_deadly_crit_active: bool = false  # Deadly: rank-scaled bonus crit damage while resolving an attack on an isolated target
@@ -1614,7 +1624,12 @@ func process_tempo(amount: int) -> void:
 		temp_mana_tempo_remaining = max(0, temp_mana_tempo_remaining - amount)
 		if temp_mana_tempo_remaining <= 0:
 			_expire_temp_mana()
-	_tempo_until_mana_regen -= float(amount)
+	var regen_amount: int = amount
+	if regen_frozen_tempo > 0:
+		var frozen: int = mini(regen_frozen_tempo, amount)
+		regen_frozen_tempo -= frozen
+		regen_amount -= frozen
+	_tempo_until_mana_regen -= float(regen_amount)
 	if _tempo_until_mana_regen <= 0.0:
 		_tempo_until_mana_regen += mana_regen_tempo_interval
 		var mana_regen = get_effective_mana_regen()
@@ -1907,7 +1922,7 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 		add_armor(wf_armor)
 		st_whispers_active = false
 		st_whispers_tempo = 0
-		st_whispers_cooldown = _whispers_scaled("cooldown")
+		# (The cooldown began when the mark card was granted.)
 		health_changed.emit(current_health, max_health)
 		_pay_whispers_cost()
 		shepherds_mark_triggered.emit()
@@ -2017,7 +2032,7 @@ func take_direct_damage(amount: int) -> void:
 		add_armor(wf_armor)
 		st_whispers_active = false
 		st_whispers_tempo = 0
-		st_whispers_cooldown = _whispers_scaled("cooldown")
+		# (The cooldown began when the mark card was granted.)
 		health_changed.emit(current_health, max_health)
 		_pay_whispers_cost()
 		shepherds_mark_triggered.emit()
@@ -2083,6 +2098,15 @@ func heal(amount: int, from_ally: bool = false, sanguine_applied: bool = false) 
 		from_ally = true
 	# Solemn Independence: block ally healing from any source while active
 	if from_ally and solemn_active:
+		return
+	# Poisoned Blood (PlayerStats.heal_to_damage, armed by the heal card's
+	# execute): the healing lands as damage on whoever it was meant for.
+	if harnessed_mult > 1.0 and amount > 0:
+		amount = floori(amount * harnessed_mult)
+	if heal_to_damage and amount > 0:
+		var poisoned: int = get_effective_heal_amount(amount)
+		print("[STATS] Poisoned Blood: %d healing becomes damage" % poisoned)
+		take_damage(poisoned)
 		return
 	# Friendship: the partner receives the same base heal (their modifiers apply).
 	if friendship_partner and not _friendship_echo and amount > 0:
@@ -2155,6 +2179,8 @@ func apply_life_steal(amount: int) -> void:
 		_passive_heal = false
 
 func add_armor(amount: int) -> void:
+	if harnessed_mult > 1.0 and amount > 0:
+		amount = floori(amount * harnessed_mult)
 	var total = amount + enchantment_block_bonus + sphere_bonus_block
 	# Burgonet / Thick Steel: the resolving DEFENSE card's first armor grant
 	# carries the equipment bonus, whichever executor granted it.

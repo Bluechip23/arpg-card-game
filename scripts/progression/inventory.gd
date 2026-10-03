@@ -1724,9 +1724,13 @@ func _carry_change_allowed(load_delta: int, two_handing_after: bool) -> bool:
 # EQUIPMENT SWAP TEMPO COSTS
 # ============================================
 
-## In-combat tempo price for changing what's worn in a slot. Removing an item
-## without replacing it is half price (rounded down). Out of combat swaps are
-## free — main.gd only charges these while enemies are in aggro range.
+## In-combat tempo price for changing what's worn in a slot: the slot's base
+## price plus one. Removing an item without replacing it is half the base
+## price (rounded down) plus one. Out of combat swaps are free — main.gd
+## only charges these while enemies are in aggro range. Every paid swap also
+## costs half the character's mana (get_swap_mana_cost), bar Stephen's hands.
+const SWAP_TEMPO_SURCHARGE := 1
+
 func get_swap_tempo_cost(item_type: ItemData.ItemType, unequip_only: bool = false) -> int:
 	var cost = 2
 	match item_type:
@@ -1739,7 +1743,19 @@ func get_swap_tempo_cost(item_type: ItemData.ItemType, unequip_only: bool = fals
 			cost = 3
 		ItemData.ItemType.CHEST:
 			cost = 8
-	return floori(cost / 2.0) if unequip_only else cost
+	return (floori(cost / 2.0) if unequip_only else cost) + SWAP_TEMPO_SURCHARGE
+
+## Half the character's current mana, rounded down: the mana price of any
+## paid gear change in combat.
+func get_swap_mana_cost() -> int:
+	if player_stats == null:
+		return 0
+	return floori(player_stats.current_mana / 2.0)
+
+## Stephen's hands are his trade: weapon-slot swaps pay tempo only. A
+## build switch or rack exchange (item_type -1) always pays.
+func swap_costs_mana(item_type: int) -> bool:
+	return not (weapon_swap_discount and item_type == ItemData.ItemType.WEAPON)
 
 #endregion
 #region EQUIPMENT BUILDS (loadouts I / II / III)

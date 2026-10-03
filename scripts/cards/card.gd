@@ -583,6 +583,11 @@ var temp_hand_tempo_reduction: int = 0
 var temp_mana_discount: int = 0
 var temp_block_bonus: int = 0
 var temp_mod_tempo_left: int = 0
+## A flat "gain X block" granted once when the card resolves (Clean
+## Exchange) — separate from the card's own block, so a card that blocks 5
+## twice blocks 5 twice and then gains X, and an attack deals its damage
+## and gains X.
+var temp_flat_block: int = 0
 ## Empower: this attack card was one of the next attacks drawn while Empower
 ## was up — it deals +3 when played. Reset on every draw.
 var draw_empowered: bool = false
@@ -592,6 +597,11 @@ func apply_temp_mod(mana_off: int, tempo_off: int, block_on: int, tempo: int = 5
 	temp_hand_tempo_reduction += tempo_off
 	temp_block_bonus += block_on
 	block += block_on
+	temp_mod_tempo_left = maxi(temp_mod_tempo_left, tempo)
+
+## A timed flat block grant (see temp_flat_block), on the shared temp-mod timer.
+func apply_flat_block_mod(amount: int, tempo: int = 5) -> void:
+	temp_flat_block += amount
 	temp_mod_tempo_left = maxi(temp_mod_tempo_left, tempo)
 
 ## An untimed in-hand mana discount (Self Reliance): it rides the card until
@@ -605,6 +615,7 @@ func clear_temp_mods() -> void:
 	temp_hand_tempo_reduction = 0
 	temp_mana_discount = 0
 	temp_block_bonus = 0
+	temp_flat_block = 0
 	temp_mod_tempo_left = 0
 
 # --- Shared statics (moved up from the factory tail so all class state lives together) ---
@@ -2194,7 +2205,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		"magic_barrier":
 			_execute_magic_barrier(player_stats)
 		"shepherds_mark":
-			_execute_shepherds_mark(player_stats, deck_manager)
+			_execute_shepherds_mark(target, player_stats, deck_manager)
 		# === Previously unimplemented effects ===
 		"heavy_swing", "specific_strike", "spark", "sprinkle":
 			# Straight single-target damage (base_damage carries the value;
@@ -2770,10 +2781,12 @@ func get_burden_mana_cost() -> int:
 		return mana_cost + burden_plays * 10
 	return mana_cost
 
-## "Offensive card" as the item specs use the term: anything that deals damage,
-## not just CardType.ATTACK — a damaging utility/spell counts too.
+## "Offensive" is a rider on the card, not a property of dealing damage:
+## every Attack card carries it, and any other card (a spell, a utility)
+## only when the sheet tags it `offensive`. A damaging utility without the
+## tag is not offensive. Items and passives that say "offensive" read this.
 func is_offensive() -> bool:
-	return card_type == CardType.ATTACK or damage > 0 or base_damage > 0
+	return card_type == CardType.ATTACK or has_keyword("offensive")
 
 func get_burden_tempo_cost() -> int:
 	var cost := tempo_cost
@@ -5790,9 +5803,18 @@ func _execute_magic_barrier(player_stats: PlayerStats) -> void:
 		player_stats.add_armor(block)
 	print("[CARD] Magic Barrier: +%d armor!" % block)
 
-func _execute_shepherds_mark(player_stats: PlayerStats, deck_manager = null) -> void:
+func _execute_shepherds_mark(target, player_stats: PlayerStats, deck_manager = null) -> void:
 	# player_stats is the MARK TARGET (rerouted to the ally when ally-targeted).
 	# The caster — who pays the 8 HP when the mark triggers — is the deck's owner.
+	# A summon (wolf, specter) carries the mark on its own fields.
+	if target != null and not (target is Player) and "shepherd_mark_caster" in target:
+		var mark_caster = deck_manager.player_stats if (deck_manager and deck_manager.player_stats) else player_stats
+		target.shepherd_mark_caster = mark_caster
+		# The armor comes from the caster's rank, as it does for a marked player.
+		target.shepherd_mark_armor = int(PassiveScaling.value("whispers_of_the_flock", "armor", mark_caster.get_passive_level("whispers_of_the_flock"))) if mark_caster else 0
+		target.shepherd_mark_tempo = 10
+		print("[CARD] Shepherd's Mark: summon marked for 10 tempo!")
+		return
 	if player_stats:
 		player_stats.st_whispers_active = true
 		player_stats.st_whispers_tempo = 10
@@ -6067,7 +6089,7 @@ static func create_magic_barrier(armor: int = 8) -> Card:
 	card.base_block = armor
 	card.heal_amount = 0
 	card.erase_on_play = true  # consumed when it triggers, not while waiting
-	card.reaction_trigger = "on_damage_taken"
+	card.reaction_trigger = "on_incoming_attack"  # fires as the enemy swings, before the hit lands
 	card.target_types = ["self"]
 	card.keywords = ["reaction", "spell"]
 	return card

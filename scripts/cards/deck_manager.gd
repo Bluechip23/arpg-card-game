@@ -969,7 +969,7 @@ func process_turn() -> void:
 
 	# Process Erase: tick down erase timers on all cards and delete expired ones
 	_process_erase_timers()
-	_process_temp_mods()
+	# (Timed in-hand tweaks tick per tempo in tick_temp_mods, not per cycle.)
 
 	# Djinn Wishes: every wish held in hand sears its holder once per cycle.
 	if player_stats:
@@ -1020,13 +1020,16 @@ func _process_erase_timers() -> void:
 	if hand_changed:
 		hand_updated.emit()
 
-func _process_temp_mods() -> void:
-	## Timed in-hand tweaks (Ancestral Aid, Clean Exchange, Keep Them Guessing)
-	## run out after their tempo — 5 for now, so they expire at the next cycle.
+## Timed in-hand tweaks (Ancestral Aid, Clean Exchange, Keep Them Guessing)
+## run out after their exact tempo: main ticks this on every tempo step.
+func tick_temp_mods(amount: int) -> void:
+	_process_temp_mods(amount)
+
+func _process_temp_mods(amount: int = 5) -> void:
 	var changed := false
 	for card in hand:
 		if card.temp_mod_tempo_left > 0:
-			card.temp_mod_tempo_left -= 5
+			card.temp_mod_tempo_left -= amount
 			if card.temp_mod_tempo_left <= 0:
 				card.clear_temp_mods()
 				changed = true

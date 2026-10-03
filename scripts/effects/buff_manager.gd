@@ -526,10 +526,11 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	# Smoke bomb zone: crit while standing in the cloud
 	if owner_stats and "aura_crit_bonus" in owner_stats:
 		sphere_crit += owner_stats.aura_crit_bonus
-	# Exposed Blind Spot: one-time crit bonus from being attacked
-	var ebs_crit = 0
-	if owner_stats and "st_exposed_blind_spot_crit" in owner_stats:
-		ebs_crit = owner_stats.st_exposed_blind_spot_crit
+	# Exposed Blind Spot: one-time crit bonus from being struck — spent on the
+	# next ATTACK roll only (a spell's roll neither gains nor spends it).
+	var ebs_crit: float = 0.0
+	if owner_stats and "st_exposed_blind_spot_crit" in owner_stats and owner_stats.st_pre_attack_is_attack:
+		ebs_crit = float(owner_stats.st_exposed_blind_spot_crit)
 	# Redemption (Brad): armed by a heal he performed, spent on this roll —
 	# its own number on top of any Enlightened, never merged into it.
 	var rd_crit = 0
@@ -544,16 +545,18 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	var keen_buff = get_buff(Buff.BuffType.KEEN)
 	if keen_buff:
 		keen_crit = keen_buff.value
-	var total_chance = innate_crit + base_crit_chance + get_enlightened_crit_chance() + int(sphere_crit) + ebs_crit + rd_crit + hand_crit + keen_crit
-	if total_chance <= 0:
+	var total_chance: float = float(innate_crit + base_crit_chance + get_enlightened_crit_chance() + int(sphere_crit) + rd_crit + hand_crit + keen_crit) + ebs_crit
+	if total_chance <= 0.0:
 		return false
 
-	var roll = randi() % 100
+	# A continuous roll so fractional sources (Exposed Blind Spot's 1.25%/card)
+	# count exactly as written.
+	var roll: float = randf() * 100.0
 	var is_crit = roll < total_chance
 
-	# Consume Exposed Blind Spot bonus after rolling (win or lose)
-	if ebs_crit > 0 and owner_stats:
-		owner_stats.st_exposed_blind_spot_crit = 0
+	# Consume Exposed Blind Spot bonus after an attack's roll (win or lose)
+	if ebs_crit > 0.0 and owner_stats:
+		owner_stats.st_exposed_blind_spot_crit = 0.0
 	if rd_crit > 0 and owner_stats:
 		owner_stats.st_redemption_crit = 0
 
@@ -566,7 +569,7 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 			remove_buff(Buff.BuffType.ENLIGHTENED)
 
 	if is_crit:
-		print("[BUFF] CRITICAL HIT! (rolled %d < %d)" % [roll, total_chance])
+		print("[BUFF] CRITICAL HIT! (rolled %.1f < %.2f)" % [roll, total_chance])
 		last_crit_hit = true
 
 	return is_crit

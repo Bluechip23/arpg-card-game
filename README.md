@@ -171,7 +171,7 @@ Your deck is your moveset. Cards move between several zones during combat:
 | **Enchantment** | Cannot be played. Provides a passive buff *while in your hand*, then auto-discards after 2 cycles. |
 | **Unplayable** | Dead weight and takes up a hand slot. Usually inflicted by enemies. |
 
-Every card also carries its design **tags** from the card sheet's Type column (`Card.keywords`, e.g. `Attack, melee`, `Utility, ally, ranged 5`, `Reaction, defense`): its type (a second type marks a dual role, like Parry's defense-that-attacks), its delivery (**spell**, **offensive**, **melee** / **ranged N** / **conditional**, **aoe**), and its targeting (**self**, **ally** / **allies**, **enemy**, **point click**, **no target**). Every attack card is also offensive. Items, passives, and UI can key off them with `has_keyword()`. When a card makes an ally draw, the *ally* draws from their own deck into their own hand and the caster draws nothing. The tags describe the card's wiring rather than replace it, and `tests/test_card_keywords.gd` fails if a card's tags and its actual type, school, range, or targets ever disagree.
+Every card also carries its design **tags** from the card sheet's Type column (`Card.keywords`, e.g. `Attack, melee`, `Utility, ally, ranged 5`, `Reaction, defense`): its type (a second type marks a dual role, like Parry's defense-that-attacks), its delivery (**spell**, **offensive**, **melee** / **ranged N** / **conditional**, **aoe**), and its targeting (**self**, **ally** / **allies**, **enemy**, **point click**, **no target**). Every attack card is also offensive. **Offensive is a rider, not a measure of damage**: an Attack card always carries it, any other card (a spell, a utility) only when the sheet tags it `offensive`, and a damaging utility without the tag is not offensive. Every item and passive that speaks of "offensive cards" reads that rider. Items, passives, and UI can key off them with `has_keyword()`. When a card makes an ally draw, the *ally* draws from their own deck into their own hand and the caster draws nothing. The tags describe the card's wiring rather than replace it, and `tests/test_card_keywords.gd` fails if a card's tags and its actual type, school, range, or targets ever disagree.
 
 ### Drawing and overflow
 
@@ -302,13 +302,13 @@ Every item has weight. Your capacity is **50 + 10 per point of Strength**. You c
 
 ### Equipment builds (loadouts I / II / III)
 
-You can save **three equipment builds** and switch between them. Switching swaps every changed piece at once and re-applies your two-handed grip. **Every changed slot costs tempo**:
+You can save **three equipment builds** and switch between them. Switching swaps every changed piece at once and re-applies your two-handed grip. **In combat, every changed slot costs tempo, and any paid gear change (swap, removal, build switch, paid War Rack exchange) also costs half the mana you are holding.** That tempo never advances the mana regen countdown, so a swap can't buy a regen tick. Out of combat, gear changes are free. Changing gear mid-fight is meant to hurt; Stephen's weapon swaps (tempo only, at a discount) and Brad's free War Rack exchange are the exceptions.
 
 | Slot | Swap cost (tempo) | Remove-only |
 |---|---|---|
-| Helm, Ring, Hand items | 2 | 1 |
-| Gauntlets, Belt, Boots | 3 | 1 |
-| Chest | 8 | 4 |
+| Helm, Ring, Hand items | 3 (Stephen's hands: 2) | 2 (Stephen's hands: 1) |
+| Gauntlets, Belt, Boots | 4 | 2 |
+| Chest | 9 | 5 |
 
 The switch validates the end state as a whole (weight, storage space) before anything moves — you'll never get stranded half-dressed.
 

@@ -648,7 +648,10 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 	# Healing another player with a card: the ally-heal passives (Redemption,
 	# Whispers of the Flock) hear it here — the healed ally's own `healed`
 	# signal never reaches the caster's hooks.
-	var healed_ally: bool = target is Player and target != main.player and card.heal_amount > 0
+	# "Ally" is anyone friendly but Jeremy himself: another player, a dojo
+	# practice ally, or a summon (wolf, specter, penguin…).
+	var healed_ally: bool = card.heal_amount > 0 and target != null and target != main.player \
+			and (target is Player or main._is_summon(target))
 	if healed_ally:
 		_trigger_skill_tree_brad_on_heal_ally(target.name)
 		_trigger_skill_tree_jeremy_on_heal_ally()
@@ -720,25 +723,29 @@ func _trigger_skill_tree_on_draw(card: Card) -> void:
 		stats.st_self_reliance_discount = false
 		_self_reliance_apply(stats, card)
 
-	# Clean Exchange: draw Defense after playing Attack (or vice versa) → drawn
-	# card gets -1t, and a drawn Defense card also gains rank-scaled block (1..8)
+	# Clean Exchange: draw Defense after playing an offensive card (or vice
+	# versa) → the drawn card gets -1t and a flat +1..8 block it gains when it
+	# resolves, whatever it is: an attack deals its damage and gains the
+	# block, a card that blocks 5 twice blocks 5 twice and then gains it.
 	if stats.has_skill_tree_passive("clean_exchange") and _last_played_card:
+		# "Offensive" is the rider: Attack cards and offensive-tagged spells.
 		var drawn_is_defense = card.card_type == Card.CardType.DEFENSE
-		var drawn_is_attack = card.card_type == Card.CardType.ATTACK
-		var last_was_attack = _last_played_card.card_type == Card.CardType.ATTACK
+		var drawn_is_attack = card.is_offensive()
+		var last_was_attack = _last_played_card.is_offensive()
 		var last_was_defense = _last_played_card.card_type == Card.CardType.DEFENSE
 		if (drawn_is_defense and last_was_attack) or (drawn_is_attack and last_was_defense):
 			var ce_msg := ""
 			var ce_tempo: int = 1 if card.tempo_cost > 0 else 0
-			var ce_block: int = 0
+			var ce_block: int = PassiveScaling.value("clean_exchange", "block", stats.get_passive_level("clean_exchange"))
 			if ce_tempo > 0:
 				ce_msg = "-1t"
-			if drawn_is_defense:
-				ce_block = PassiveScaling.value("clean_exchange", "block", stats.get_passive_level("clean_exchange"))
+			if ce_block > 0:
 				ce_msg += (", " if ce_msg != "" else "") + "+%d block" % ce_block
-			if ce_tempo > 0 or ce_block > 0:
-				# Timed (5 tempo) and in-hand only — never a permanent rewrite.
-				card.apply_temp_mod(0, ce_tempo, ce_block)
+			# Timed (5 tempo) and in-hand only — never a permanent rewrite.
+			if ce_tempo > 0:
+				card.apply_temp_mod(0, ce_tempo, 0)
+			if ce_block > 0:
+				card.apply_flat_block_mod(ce_block)
 			if ce_msg != "":
 				main.add_battle_log("Clean Exchange: %s %s for 5 tempo" % [card.card_name, ce_msg], Color(0.3, 0.7, 1.0))
 
@@ -749,13 +756,15 @@ func _trigger_skill_tree_on_draw(card: Card) -> void:
 		if stats.st_from_hip_card != null and is_instance_valid(stats.st_from_hip_card):
 			stats.st_from_hip_card.mana_cost = stats.st_from_hip_original_cost
 			stats.st_from_hip_card.tempo_cost = stats.st_from_hip_original_tempo
-		# Apply new discount
-		if card.mana_cost > 0:
-			var fh_lvl: int = stats.get_passive_level("from_the_hip")
-			var fh_mana: int = PassiveScaling.value("from_the_hip", "mana", fh_lvl)
-			var fh_tempo: int = PassiveScaling.value("from_the_hip", "tempo", fh_lvl)
+		# Apply new discount: the mana cut needs a mana cost to cut, the tempo
+		# cut (ranks 11+) applies to any attack card drawn.
+		var fh_lvl: int = stats.get_passive_level("from_the_hip")
+		var fh_mana: int = PassiveScaling.value("from_the_hip", "mana", fh_lvl)
+		var fh_tempo: int = PassiveScaling.value("from_the_hip", "tempo", fh_lvl)
+		if card.mana_cost > 0 or (fh_tempo > 0 and card.tempo_cost > 0):
 			stats.st_from_hip_original_cost = card.mana_cost
 			stats.st_from_hip_original_tempo = card.tempo_cost
+			fh_mana = mini(fh_mana, card.mana_cost)
 			card.mana_cost = maxi(0, card.mana_cost - fh_mana)
 			if fh_tempo > 0:
 				card.tempo_cost = maxi(0, card.tempo_cost - fh_tempo)
@@ -776,18 +785,19 @@ func _trigger_skill_tree_on_attack(card: Card, target) -> void:
 		if enemy_id not in stats.st_enemy_first_strikes:
 			stats.st_enemy_first_strikes[enemy_id] = true
 			var pre_armor = target.current_armor
-			var pre_health = target.current_health
+			var pre_damaged: bool = target.has_been_damaged
 			if stats.st_pre_attack_target_id == enemy_id:
 				pre_armor = stats.st_pre_attack_armor
-				pre_health = stats.st_pre_attack_health
+				pre_damaged = stats.st_pre_attack_damaged
 			# All three bonuses scale with rank: first strike 1..8, no armor
 			# 1..15, first source of damage 3..17
 			var so_lvl: int = stats.get_passive_level("surprise_opener")
 			var bonus: int = PassiveScaling.value("surprise_opener", "first_strike", so_lvl)
 			if pre_armor <= 0:
 				bonus += int(PassiveScaling.value("surprise_opener", "no_armor", so_lvl))
-			# First source of damage: they were still at full HP before this hit
-			if pre_health >= target.max_health:
+			# First source of damage: nothing at all had hurt them before this hit
+			# (an ally's blow, your own poison tick — any damage disqualifies).
+			if not pre_damaged:
 				bonus += int(PassiveScaling.value("surprise_opener", "first_source", so_lvl))
 			target.take_damage(bonus, true)
 			main.add_battle_log("Surprise Opener: +%d bonus damage!" % bonus, Color(0.8, 0.4, 0.9))
@@ -838,6 +848,10 @@ func modify_player_hit(enemy: Enemy, amount: int) -> int:
 			# Integer math (hundredths of a percent) so 10 × 1.20 is 12, not 11.999.
 			out = (out * (10000 + roundi(bonus_pct * 100.0))) / 10000
 			main.add_battle_log("Eat: +%d%% damage on weakened prey" % roundi(bonus_pct), Color(0.3, 0.7, 1.0))
+	# Harnessed Power (Jeremy): the resolving card's damage scales while its
+	# multiplier is armed (main sets it around the card's execution).
+	if PlayerStats.harnessed_mult > 1.0:
+		out = floori(out * PlayerStats.harnessed_mult)
 	# Solemn Independence (Brad): +5%..12% on every attack while surrounded.
 	if stats.has_skill_tree_passive("solemn_independence"):
 		stats.solemn_active = _solemn_surrounded()
@@ -1267,18 +1281,22 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target) -> int:
 		return 0
 	var bonus = 0
 
+	# "Damage" and "offensive" in Stephen's text mean the OFFENSIVE rider:
+	# Attack cards and offensive-tagged spells alike. Scouted and Skilled
+	# Momentum speak of attacks and stay Attack-type only.
+	var offensive: bool = card.is_offensive()
+
 	# Deadly: rank-scaled +2..16 damage (and +2%..30% crit damage, applied via
-	# st_deadly_crit_active) when the target has no allies within 2 tiles
-	if stats.has_skill_tree_passive("deadly") and _deadly_isolated(target):
-		var deadly_dmg: int = PassiveScaling.value("deadly", "damage", stats.get_passive_level("deadly"))
-		bonus += deadly_dmg
-		main.add_battle_log("Deadly: +%d damage (isolated target)" % deadly_dmg, Color(0.9, 0.3, 0.3))
+	# st_deadly_crit_active) when the target has no allies within 2 cells
+	if offensive:
+		bonus += deadly_flat_bonus(target)
 
 	# Eagle Eye: ranged offensive cards deal additional damage based on their
-	# range (rank-scaled 100%..142% of the card's range)
-	if stats.has_skill_tree_passive("eagle_eye") and card.is_ranged and card.is_offensive():
+	# range (rank-scaled 100%..142% of the card's full range: the base 5, its
+	# own modifier, and every in-play range bonus on top)
+	if stats.has_skill_tree_passive("eagle_eye") and card.is_ranged and offensive:
 		var ee_mult: int = PassiveScaling.value("eagle_eye", "multiplier", stats.get_passive_level("eagle_eye"))
-		var ee_range: int = maxi(1, 5 + card.range_modifier)
+		var ee_range: int = maxi(1, main._ranged_card_max_range(card))
 		var ee_bonus: int = maxi(1, roundi(ee_range * ee_mult / 100.0))
 		bonus += ee_bonus
 		main.add_battle_log("Eagle Eye: +%d damage (range %d)" % [ee_bonus, ee_range], Color(0.4, 0.9, 0.4))
@@ -1319,21 +1337,47 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target) -> int:
 				and main.tempo_manager.get_global_tempo() - stats.st_skilled_momentum_last_tempo >= 5:
 			stats.st_consecutive_attacks = 0
 			stats.st_skilled_momentum_last_tempo = main.tempo_manager.get_global_tempo()
-			# Deal the card's damage again
-			if target and target.has_method("take_damage"):
-				var extra_dmg = card.last_damage_dealt if card.last_damage_dealt > 0 else stats.get_effective_physical_damage(card.base_damage)
-				target.take_damage(extra_dmg, true)
-				main.add_battle_log("Skilled Momentum: double strike for %d!" % extra_dmg, Color(0.9, 0.3, 0.3))
+			# The card is played again, in full (its own crit roll, riders and
+			# debuffs), for no tempo: main runs the second execution.
+			stats.st_skilled_momentum_echo = true
+			main.add_battle_log("Skilled Momentum: %s plays twice!" % card.card_name, Color(0.9, 0.3, 0.3))
 
-	# Swing for the Fences: cards with >4 tempo cost deal their tempo cost times
-	# a rank-scaled multiplier (100%..380%) as additional damage
+	# Swing for the Fences: ANY card with >4 tempo cost deals its tempo cost
+	# times a rank-scaled multiplier (100%..380%) as additional damage — to
+	# the card's enemy target, or to the nearest enemy when it has none.
 	if stats.has_skill_tree_passive("swing_for_the_fences") and card.tempo_cost > 4:
 		var sf_mult: int = PassiveScaling.value("swing_for_the_fences", "multiplier", stats.get_passive_level("swing_for_the_fences"))
 		var sf_bonus: int = maxi(1, roundi(card.tempo_cost * sf_mult / 100.0))
-		bonus += sf_bonus
-		main.add_battle_log("Swing for the Fences: +%d damage!" % sf_bonus, Color(0.8, 0.4, 0.9))
+		if target is Enemy and is_instance_valid(target):
+			bonus += sf_bonus
+			main.add_battle_log("Swing for the Fences: +%d damage!" % sf_bonus, Color(0.8, 0.4, 0.9))
+		else:
+			var sf_target = main._get_nearest_enemy()
+			if sf_target and sf_target.has_method("take_damage"):
+				sf_target.take_damage(sf_bonus, true)
+				main.add_battle_log("Swing for the Fences: %d damage to %s!" % [sf_bonus, sf_target.enemy_name], Color(0.8, 0.4, 0.9))
 
 	return bonus
+
+## Deadly's flat bonus for a hit on `target` (0 when the passive is absent
+## or the target has company). The auto attack reads this too.
+func deadly_flat_bonus(target) -> int:
+	var stats = main.player.get_stats() if main.player else null
+	if not stats or not stats.has_skill_tree_passive("deadly") or not _deadly_isolated(target):
+		return 0
+	var deadly_dmg: int = PassiveScaling.value("deadly", "damage", stats.get_passive_level("deadly"))
+	main.add_battle_log("Deadly: +%d damage (isolated target)" % deadly_dmg, Color(0.9, 0.3, 0.3))
+	return deadly_dmg
+
+## Arm an attack's crit roll: Deadly's crit damage vs an isolated target and
+## the Attack-only gate Exposed Blind Spot reads. The auto attack calls this
+## around its roll; cards go through arm_pre_attack_passives.
+func arm_basic_attack_roll(target) -> void:
+	var stats = main.player.get_stats() if main.player else null
+	if not stats:
+		return
+	stats.st_pre_attack_is_attack = true
+	stats.st_deadly_crit_active = stats.has_skill_tree_passive("deadly") and _deadly_isolated(target)
 
 func _deadly_isolated(target) -> bool:
 	## Deadly: true when the target has no living allies within 2 tiles of it.
@@ -1342,7 +1386,11 @@ func _deadly_isolated(target) -> bool:
 	if not main.enemy_spawner:
 		return true
 	for enemy in main.enemy_spawner.get_living_enemies():
-		if enemy != target and target.position.distance_to(enemy.position) <= 2.0:
+		if enemy == target:
+			continue
+		# Grid cells, as every other "within N spaces" is measured (height ignored).
+		var cells: int = main.grid_manager.get_distance_in_cells(target.position, enemy.position) if main.grid_manager else int(round(target.position.distance_to(enemy.position)))
+		if cells <= 2:
 			return false
 	return true
 
@@ -1354,10 +1402,13 @@ func arm_pre_attack_passives(card: Card, target) -> void:
 	if not stats:
 		return
 	var is_attack: bool = card != null and card.card_type == Card.CardType.ATTACK
+	var is_offensive: bool = card != null and card.is_offensive()
+	# Exposed Blind Spot's crit is spent by an Attack's roll only.
+	stats.st_pre_attack_is_attack = is_attack
 
 	# Deadly (Stephen): rank-scaled bonus crit damage vs a target with no allies
-	# within 2 tiles.
-	stats.st_deadly_crit_active = is_attack \
+	# within 2 cells — on any offensive card, attack or spell.
+	stats.st_deadly_crit_active = is_offensive \
 		and stats.has_skill_tree_passive("deadly") and _deadly_isolated(target)
 
 	# Scouted (Stephen): the scouted strike carries rank-scaled bonus crit damage.
@@ -1370,6 +1421,7 @@ func arm_pre_attack_passives(card: Card, target) -> void:
 		stats.st_pre_attack_target_id = target.get_instance_id()
 		stats.st_pre_attack_armor = target.current_armor
 		stats.st_pre_attack_health = target.current_health
+		stats.st_pre_attack_damaged = bool(target.get("has_been_damaged")) if target is Enemy else false
 	else:
 		stats.st_pre_attack_target_id = -1
 
@@ -1389,6 +1441,7 @@ func clear_pre_attack_passives() -> void:
 	if stats:
 		stats.st_deadly_crit_active = false
 		stats.st_scouted_crit_active = false
+		stats.st_pre_attack_is_attack = false
 
 func _trigger_skill_tree_stephen_on_ranged_attack(_card: Card, _target) -> void:
 	# Laced Arrow is now handled via _on_enemy_debuff_applied to add +1 when applying burn/cold/shock
@@ -1425,8 +1478,9 @@ func _trigger_skill_tree_stephen_on_attacked(attacker) -> void:
 				non_attack_count += 1
 		if non_attack_count > 0:
 			var ebs_per: float = PassiveScaling.value("exposed_blind_spot", "crit_per_card", stats.get_passive_level("exposed_blind_spot"))
-			stats.st_exposed_blind_spot_crit = maxi(1, roundi(non_attack_count * ebs_per))
-			main.add_battle_log("Exposed Blind Spot: +%d%% crit on next attack!" % stats.st_exposed_blind_spot_crit, Color(0.3, 0.7, 1.0))
+			# Exactly as written (1.25%/card stays 1.25); a new strike overwrites.
+			stats.st_exposed_blind_spot_crit = non_attack_count * ebs_per
+			main.add_battle_log("Exposed Blind Spot: +%.2f%% crit on next attack!" % stats.st_exposed_blind_spot_crit, Color(0.3, 0.7, 1.0))
 
 func _trigger_skill_tree_stephen_on_card_play(card: Card) -> void:
 	var stats = main.player.get_stats()
@@ -1443,16 +1497,22 @@ func _trigger_skill_tree_stephen_on_card_play(card: Card) -> void:
 		var lr_cooldown: int = PassiveScaling.value("lethal_resourcefulness", "cooldown", stats.get_passive_level("lethal_resourcefulness"))
 		if card.card_type != Card.CardType.ATTACK and main.deck_manager.hand.size() <= 3 \
 				and main.tempo_manager.get_global_tempo() - stats.st_lethal_last_tempo >= lr_cooldown:
-			var target = main._get_nearest_enemy()
-			if target and target.has_method("take_damage"):
-				var dist = main.player.position.distance_to(target.position)
-				if dist <= 2.0:  # Melee range
-					stats.st_lethal_last_tempo = main.tempo_manager.get_global_tempo()
-					stats.st_lethal_resource_attacking = true
-					var dmg = stats.get_effective_physical_damage(0)
-					target.take_damage(dmg, true)
-					main.add_battle_log("Lethal Resourcefulness: free attack for %d!" % dmg, Color(0.3, 0.7, 1.0))
-					stats.st_lethal_resource_attacking = false
+			# A real auto attack — the weapon decides the reach (a bow shoots 5,
+			# a blade the next tile) — at the nearest enemy inside it, for no tempo.
+			var reach: int = main._basic_attack_reach()
+			var target = null
+			var best: int = reach + 1
+			for e in main.enemy_spawner.get_living_enemies():
+				var d: int = main._get_distance_to_target(e)
+				if d <= reach and d < best:
+					best = d
+					target = e
+			if target:
+				stats.st_lethal_last_tempo = main.tempo_manager.get_global_tempo()
+				stats.st_lethal_resource_attacking = true
+				main.add_battle_log("Lethal Resourcefulness: free attack on %s!" % target.enemy_name, Color(0.3, 0.7, 1.0))
+				main._execute_basic_attack(target, true)
+				stats.st_lethal_resource_attacking = false
 
 func _trigger_skill_tree_stephen_on_glut(glut_amount: int) -> void:
 	var stats = main.player.get_stats()
@@ -1462,16 +1522,18 @@ func _trigger_skill_tree_stephen_on_glut(glut_amount: int) -> void:
 	# Patience is a Virtue: on receiving Glut, deal the Glut amount times a
 	# rank-scaled multiplier (10%..290%) to a melee enemy, then halve the Glut.
 	# Normal rounding: .5 rounds up.
+	# Any Glut, from any card; the nearest enemy anywhere takes the damage,
+	# and the Glut is halved whether or not an enemy stood to take it.
 	if stats.has_skill_tree_passive("patience_is_a_virtue") and glut_amount > 0:
+		var pv_mult: int = PassiveScaling.value("patience_is_a_virtue", "multiplier", stats.get_passive_level("patience_is_a_virtue"))
+		var pv_damage: int = maxi(1, roundi(glut_amount * pv_mult / 100.0))
 		var target = main._get_nearest_enemy()
+		main.glut_tempo_remaining = max(0, main.glut_tempo_remaining / 2)
 		if target and target.has_method("take_damage"):
-			var dist = main.player.position.distance_to(target.position)
-			if dist <= 2.0:  # Melee range
-				var pv_mult: int = PassiveScaling.value("patience_is_a_virtue", "multiplier", stats.get_passive_level("patience_is_a_virtue"))
-				var pv_damage: int = maxi(1, roundi(glut_amount * pv_mult / 100.0))
-				target.take_damage(pv_damage, true)
-				main.glut_tempo_remaining = max(0, main.glut_tempo_remaining / 2)
-				main.add_battle_log("Patience is a Virtue: %d damage, Glut halved!" % pv_damage, Color(0.8, 0.4, 0.9))
+			target.take_damage(pv_damage, true)
+			main.add_battle_log("Patience is a Virtue: %d damage to %s, Glut halved!" % [pv_damage, target.enemy_name], Color(0.8, 0.4, 0.9))
+		else:
+			main.add_battle_log("Patience is a Virtue: Glut halved.", Color(0.8, 0.4, 0.9))
 
 func _trigger_skill_tree_stephen_on_dex_proc() -> void:
 	var stats = main.player.get_stats()
@@ -1782,27 +1844,52 @@ func _territorial_death_reapply(enemy: Enemy, log_suffix: String) -> void:
 # JEREMY SKILL TREE PASSIVE TRIGGERS
 # ============================================
 
-func _trigger_skill_tree_jeremy_on_card_play(card: Card, target) -> void:
+## I Heal You: 3 HP to every ally within 3 cells (Manhattan) of Jeremy —
+## other players, the dojo's practice allies, and every summon (wolves,
+## specters, the penguin…). Returns how many were healed.
+func _i_heal_you_pulse() -> int:
+	var healed := 0
+	var gm = main.grid_manager
+	if gm == null:
+		return 0
+	for ally in main._all_allies():
+		if ally == main.player or ally == null or not is_instance_valid(ally) or not ally.has_method("get_stats"):
+			continue
+		var a_stats = ally.get_stats()
+		if a_stats and a_stats.current_health > 0 and gm.get_distance_in_cells(main.player.position, ally.position) <= 3:
+			a_stats.heal(3, true)  # an ally heal: Solemn Independence refuses it
+			healed += 1
+	if main.enemy_spawner:
+		for s in main.enemy_spawner.summons:
+			if s == null or not is_instance_valid(s) or not s.has_method("heal") or bool(s.get("is_dead")):
+				continue
+			if gm.get_distance_in_cells(main.player.position, s.position) <= 3:
+				s.heal(3)
+				healed += 1
+	return healed
+
+## A card's wind-up has begun (its first tick; a 0-tempo card at play).
+## Arcane Overflow reads the mana pool HERE: a spell that starts ticking
+## with the caster at 0 mana primes the next spell for -1 tempo.
+func on_card_ticks_started(card: Card) -> void:
+	var stats = main.player.get_stats() if main.player else null
+	if not stats or card == null:
+		return
+	if stats.has_skill_tree_passive("arcane_overflow") and card.school == Card.CardSchool.SPELL \
+			and card.mana_cost > 0 and stats.current_mana <= 0:
+		var ao_cooldown: int = PassiveScaling.value("arcane_overflow", "cooldown", stats.get_passive_level("arcane_overflow"))
+		if main.tempo_manager.get_global_tempo() - stats.st_arcane_overflow_last_tempo >= ao_cooldown:
+			stats.st_arcane_overflow_last_tempo = main.tempo_manager.get_global_tempo()
+			stats.st_arcane_overflow_discount = true
+			main.add_battle_log("Arcane Overflow: 0 mana! Next spell -1 tempo", Color(0.9, 0.3, 0.3))
+
+func _trigger_skill_tree_jeremy_on_card_play(card: Card, target, aim_world = null) -> void:
 	var stats = main.player.get_stats()
 	if not stats:
 		return
 
-	# Arcane Overflow: consume discount if active, then check if we hit 0 mana for next spell
-	# "Spell" = school tag, so offensive spells (Fireball) count too.
-	# Priming is on a rank-scaled tempo cooldown (20..6).
-	if stats.has_skill_tree_passive("arcane_overflow"):
-		# Apply stored discount from previous spell
-		if stats.st_arcane_overflow_discount and card.school == Card.CardSchool.SPELL:
-			# Discount was already applied at card play time via _get_arcane_overflow_discount()
-			stats.st_arcane_overflow_discount = false
-			main.add_battle_log("Arcane Overflow: -1 tempo!", Color(0.9, 0.3, 0.3))
-		# Check if casting this spell left us at 0 mana → prime next spell
-		if card.school == Card.CardSchool.SPELL and card.mana_cost > 0 and stats.current_mana == 0:
-			var ao_cooldown: int = PassiveScaling.value("arcane_overflow", "cooldown", stats.get_passive_level("arcane_overflow"))
-			if main.tempo_manager.get_global_tempo() - stats.st_arcane_overflow_last_tempo >= ao_cooldown:
-				stats.st_arcane_overflow_last_tempo = main.tempo_manager.get_global_tempo()
-				stats.st_arcane_overflow_discount = true
-				main.add_battle_log("Arcane Overflow: 0 mana! Next spell -1 tempo", Color(0.9, 0.3, 0.3))
+	# (Arcane Overflow primes in on_card_ticks_started and is spent at play
+	# time in main.play_selected_card — one spell, once.)
 
 	# Mana Surge: track mana spending, 10 mana in 5 tempo → add Mana Surge card
 	if stats.has_skill_tree_passive("mana_surge") and card.mana_cost > 0:
@@ -1838,84 +1925,16 @@ func _trigger_skill_tree_jeremy_on_card_play(card: Card, target) -> void:
 				debuff_mgr.remove_debuff(removed.debuff_type)
 				main.add_battle_log("Fresh Start: cleansed %s!" % removed.debuff_name, Color(0.8, 0.4, 0.9))
 
-	# Seance: casting a spell that targets an empty tile → summon a Specter
-	if stats.has_skill_tree_passive("seance") and card.school == Card.CardSchool.SPELL:
-		# Check if the spell targeted an empty tile (no enemy target)
-		if target == null or not (target is Enemy):
-			var spawn_pos = main.player.position + Vector3(randf_range(-1.5, 1.5), 0, randf_range(-1.5, 1.5))
-			if main.grid_manager:
-				spawn_pos = main.grid_manager.snap_to_grid(spawn_pos)
-			_spawn_seance_specter(stats, spawn_pos)
-
-func _spawn_seance_specter(stats: PlayerStats, pos: Vector3) -> void:
-	## Spawns a Specter for Seance passive: 25 tempo lifetime; its HP and the
-	## damage it deals to its killer on death both scale with rank (5..33).
-	var sp_value: int = PassiveScaling.value("seance", "specter", stats.get_passive_level("seance"))
-	var marker = MeshInstance3D.new()
-	var mesh = BoxMesh.new()
-	mesh.size = Vector3(0.4, 0.8, 0.4)
-	marker.mesh = mesh
-	var mat = StandardMaterial3D.new()
-	mat.albedo_color = Color(0.5, 0.3, 0.7, 0.7)  # Ghostly purple
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	marker.material_override = mat
-	marker.position = Vector3(pos.x, 0.4, pos.z)
-	add_child(marker)
-
-	var label = Label3D.new()
-	label.text = "Specter (%d HP)" % sp_value
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.font_size = 12
-	label.modulate = Color(0.7, 0.5, 1.0)
-	label.position = Vector3(0, 0.7, 0)
-	WorldText.crisp(label)
-	marker.add_child(label)
-
-	stats.st_seance_specters.append({
-		"node": marker,
-		"label": label,
-		"hp": sp_value,
-		"max_hp": sp_value,
-		"death_damage": sp_value,
-		"tempo_remaining": 25,
-		"position": pos,
-	})
-	main.add_battle_log("Seance: Specter summoned! (%d HP, 25 tempo)" % sp_value, Color(0.7, 0.5, 1.0))
-
-func _tick_seance_specters(stats: PlayerStats) -> void:
-	## Tick Seance specters: decrement tempo, remove expired ones.
-	var to_remove: Array = []
-	for specter in stats.st_seance_specters:
-		specter["tempo_remaining"] -= 5
-		if specter["tempo_remaining"] <= 0 or specter["hp"] <= 0:
-			to_remove.append(specter)
-		else:
-			# Update label
-			var label = specter.get("label")
-			if label and is_instance_valid(label):
-				label.text = "Specter (%d HP)" % specter["hp"]
-
-	for specter in to_remove:
-		# On death (not expiry): deal the rank-scaled damage to the nearest enemy
-		if specter["hp"] <= 0:
-			var sp_damage: int = specter.get("death_damage", 4)
-			var enemies = main.enemy_spawner.get_living_enemies() if main.enemy_spawner else []
-			if enemies.size() > 0:
-				var nearest: Enemy = null
-				var nearest_dist = 999.0
-				for e in enemies:
-					var d = (e.position - specter["position"]).length()
-					if d < nearest_dist:
-						nearest_dist = d
-						nearest = e
-				if nearest:
-					nearest.take_damage(sp_damage, true)
-					main.add_battle_log("Seance: Specter destroyed! %d damage to %s!" % [sp_damage, nearest.enemy_name], Color(0.7, 0.5, 1.0))
-		# Remove the visual marker
-		var node = specter.get("node")
-		if node and is_instance_valid(node):
-			node.queue_free()
-		stats.st_seance_specters.erase(specter)
+	# Seance: a spell aimed at an EMPTY tile (a point-targeted cast whose
+	# tile holds no unit) raises a Specter on that tile: a summon enemies
+	# target by proximity, 25 tempo, HP and death damage 5..33 by rank.
+	if stats.has_skill_tree_passive("seance") and card.school == Card.CardSchool.SPELL \
+			and "point" in card.target_types and aim_world != null and main.grid_manager:
+		var cell: Vector2i = main.grid_manager.world_to_grid(aim_world)
+		if main._cell_is_empty_for_summon(cell):
+			var sp_value: int = PassiveScaling.value("seance", "specter", stats.get_passive_level("seance"))
+			if main._spawn_specter(cell, sp_value):
+				main.add_battle_log("Seance: Specter raised on the empty tile (%d HP, 25 tempo)" % sp_value, Color(0.7, 0.5, 1.0))
 
 func _trigger_skill_tree_jeremy_on_cycle() -> void:
 	var stats = main.player.get_stats()
@@ -1926,9 +1945,7 @@ func _trigger_skill_tree_jeremy_on_cycle() -> void:
 	# on raw tempo in _trigger_skill_tree_on_tempo — their rank-scaled values
 	# are not multiples of 5.)
 
-	# Seance: tick specter durations
-	if stats.st_seance_specters.size() > 0:
-		_tick_seance_specters(stats)
+	# (Seance specters are summon nodes now: main ticks them per tempo.)
 
 ## Every raw tempo tick: the timers whose rank-scaled values are exact tempo
 ## counts (cooldowns 25→11, intervals 18→4…) — a 5-tempo cycle step would
@@ -1953,10 +1970,10 @@ func _trigger_skill_tree_on_tempo(amount: int) -> void:
 		stats.st_whispers_tempo -= amount
 		if stats.st_whispers_tempo <= 0:
 			stats.st_whispers_active = false
-			# Mark expired without triggering — no penalty (rank-scaled cooldown 60..46)
+			# Mark expired without triggering — no penalty; the cooldown has
+			# been running since the card was granted.
 			main.add_battle_log("Whispers of the Flock: mark expired.", Color(0.3, 0.7, 1.0))
-			stats.st_whispers_cooldown = PassiveScaling.value("whispers_of_the_flock", "cooldown", stats.get_passive_level("whispers_of_the_flock"))
-	elif stats.st_whispers_cooldown > 0:
+	if stats.st_whispers_cooldown > 0:
 		stats.st_whispers_cooldown = maxi(0, stats.st_whispers_cooldown - amount)
 
 	# I Heal You: heal nearby allies 3 HP on a rank-scaled interval (every
@@ -1967,26 +1984,9 @@ func _trigger_skill_tree_on_tempo(amount: int) -> void:
 		stats.st_i_heal_you_tempo += amount
 		if stats.st_i_heal_you_tempo >= ihy_interval:
 			stats.st_i_heal_you_tempo = 0
-			var healed_any = false
-			for specter in stats.st_seance_specters:
-				if specter.get("hp", 0) > 0:
-					var max_hp = specter.get("max_hp", 5)
-					specter["hp"] = min(max_hp, specter["hp"] + 3)
-					healed_any = true
-			# Co-op partner: whichever player node isn't the passive's owner.
-			var partner = main._p2_player if main.player == main._p1_player else main._p1_player
-			if partner == main.player:
-				partner = null
-			if partner and is_instance_valid(partner) and partner.has_method("get_stats"):
-				var p_stats = partner.get_stats()
-				var diff = partner.position - main.player.position
-				if p_stats and p_stats.current_health > 0 and Vector3(diff.x, 0, diff.z).length() <= 3.0:
-					# An ally heal — Solemn Independence's "cannot be healed by
-					# allies" applies; the aura tick carries no Sanguine boost.
-					p_stats.heal(3, true)
-					healed_any = true
-			if healed_any:
-				main.add_battle_log("I Heal You: healed allies 3 HP", Color(0.3, 0.7, 1.0))
+			var healed_any: int = _i_heal_you_pulse()
+			if healed_any > 0:
+				main.add_battle_log("I Heal You: healed %d all%s 3 HP" % [healed_any, "y" if healed_any == 1 else "ies"], Color(0.3, 0.7, 1.0))
 
 	# Kinetic Armor: track armor retention, apply shock after a rank-scaled
 	# hold (30..16 tempo)
@@ -1994,7 +1994,7 @@ func _trigger_skill_tree_on_tempo(amount: int) -> void:
 		if stats.current_armor > 0:
 			var ka_tempo: int = PassiveScaling.value("kinetic_armor", "tempo", stats.get_passive_level("kinetic_armor"))
 			stats.st_kinetic_armor_tempo += amount
-			if stats.st_kinetic_armor_tempo >= ka_tempo and not stats.st_kinetic_armor_triggered:
+			if stats.st_kinetic_armor_tempo > ka_tempo and not stats.st_kinetic_armor_triggered:
 				stats.st_kinetic_armor_triggered = true
 				# Count defense cards across entire deck
 				var defense_count = 0
@@ -2041,7 +2041,7 @@ func _trigger_skill_tree_jeremy_on_enemy_attacked(enemy: Enemy) -> void:
 			# Its next action is pushed back 3 tempo on the action clock itself
 			# (the Slow debuff only taxes movement, so it would never delay an
 			# attack).
-			enemy.delay_next_action(3)
+			enemy.next_action_tempo_tax += 3
 			main.add_battle_log("Haunted Rebuke: %s's next action delayed 3 tempo!" % enemy.enemy_name, Color(0.4, 0.9, 0.4))
 
 func _trigger_skill_tree_jeremy_on_rng_reroll() -> void:
@@ -2074,6 +2074,8 @@ func _trigger_skill_tree_jeremy_on_heal_ally() -> void:
 			var wf_armor: int = PassiveScaling.value("whispers_of_the_flock", "armor", stats.get_passive_level("whispers_of_the_flock"))
 			var mark_card = Card.create_shepherds_mark(wf_armor)
 			main.deck_manager.add_card_to_hand(mark_card)
+			# The cooldown (60..46) starts the moment the card is granted.
+			stats.st_whispers_cooldown = PassiveScaling.value("whispers_of_the_flock", "cooldown", stats.get_passive_level("whispers_of_the_flock"))
 			main.add_battle_log("Whispers of the Flock: Shepherd's Mark added to hand!", Color(0.3, 0.7, 1.0))
 
 func _get_jeremy_harnessed_power_multiplier() -> float:

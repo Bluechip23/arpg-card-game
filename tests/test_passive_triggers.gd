@@ -73,9 +73,11 @@ func _test_tempo_cooldowns(stats, pt) -> void:
 	_check(stats.st_i_heal_you_tempo == 0, "the 4th tempo fires the aura and restarts the interval")
 	stats.st_whispers_active = true
 	stats.st_whispers_tempo = 2
+	stats.st_whispers_cooldown = 40
 	pt._trigger_skill_tree_on_tempo(2)
-	_check(not stats.st_whispers_active and stats.st_whispers_cooldown == PassiveScaling.value("whispers_of_the_flock", "cooldown", 0),
-		"a Shepherd's Mark expires on its exact tempo and starts the cooldown")
+	_check(not stats.st_whispers_active and stats.st_whispers_cooldown == 38,
+		"a Shepherd's Mark expires on its exact tempo while the cooldown (running since the grant) keeps counting")
+	stats.st_whispers_cooldown = 0
 
 func _test_keep_them_guessing(stats, pt) -> void:
 	print("-- Keep Them Guessing --")
@@ -119,12 +121,12 @@ func _test_last_played(stats, pt, dummy: Enemy) -> void:
 	var base_block: int = block.block
 	var base_tempo: int = block.tempo_cost
 	pt._trigger_skill_tree_on_draw(block)
-	_check(block.block == base_block + PassiveScaling.value("clean_exchange", "block", 15) \
+	_check(block.block == base_block and block.temp_flat_block == PassiveScaling.value("clean_exchange", "block", 15) \
 			and block.tempo_cost == base_tempo and block.temp_hand_tempo_reduction == 1 and block.temp_mod_tempo_left == 5,
-		"drawing a Defense after playing an Attack: -1t and rank-15 block, both timed (5 tempo)")
+		"drawing a Defense after playing an Attack: -1t and a separate flat rank-15 block, both timed (5 tempo), the card's own block untouched")
 	block.clear_temp_mods()
-	_check(block.block == base_block and block.temp_hand_tempo_reduction == 0,
-		"clearing the Clean Exchange tweak restores the printed block and tempo")
+	_check(block.temp_flat_block == 0 and block.temp_hand_tempo_reduction == 0,
+		"clearing the Clean Exchange tweak drops the flat block and the tempo cut")
 	_grant(stats, "mad_scientist")
 	var bm = main.player.get_buff_manager()
 	for b in bm.buffs.duplicate():
@@ -202,8 +204,10 @@ func _test_haunted_rebuke(stats, pt, dummy: Enemy) -> void:
 		main.deck_manager.hand.append(Card.create_block())
 	dummy.action_tempo_counter = 0
 	dummy.slow_stacks = 0
+	dummy.next_action_tempo_tax = 0
 	pt._trigger_skill_tree_jeremy_on_enemy_attacked(dummy)
-	_check(dummy.action_tempo_counter == -3, "the enemy's action clock is set back 3 tempo")
+	_check(dummy.next_action_tempo_tax == 3 and dummy.action_tempo_counter == 0, "the enemy's next action winds up 3 tempo longer")
+	dummy.next_action_tempo_tax = 0
 	_check(dummy.slow_stacks == 0, "no Slow stacks (Slow only taxes movement)")
 	_check(stats.st_haunted_rebuke_cooldown == PassiveScaling.value("haunted_rebuke", "cooldown", 15), "the rank-15 cooldown starts")
 

@@ -24,6 +24,7 @@ signal tempo_advanced(global_total: int, amount: int)  # Fires on every tempo ad
 
 # Tick system signals
 signal card_resolved(card: Card)  # Fired when a card's resolve_tick is reached
+signal card_started(card: Card)   # Fired on a card's first tick: its wind-up has begun
 signal ticking_finished()  # All pending ticks have been processed
 
 ## How many global tempo = 1 cycle (used for mana regen, card draw, buff tick)
@@ -131,6 +132,8 @@ func _process_one_tick() -> void:
 
 		if entry["ticks_elapsed"] < entry["total_ticks"]:
 			entry["ticks_elapsed"] += 1
+			if entry["ticks_elapsed"] == 1:
+				card_started.emit(entry["card"])
 
 			# Check if this card should resolve on this tick
 			if entry["ticks_elapsed"] == entry["resolve_tick"] and not entry["resolved"]:

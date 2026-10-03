@@ -57,9 +57,9 @@ correctly.
 ## Jeremy — empty everything, then get paid for it
 
 Jeremy is for players who like riding the edge of zero. His passives explicitly reward being
-*out* of resources: **cards gain 18%→32% effectiveness while you hold 2 or fewer cards**
-(*Harnessed Power*), ending a cast at exactly 0 mana discounts your next spell's tempo
-(*Arcane Overflow*, on a rank-scaled 20→6 tempo cooldown), spending 10 mana inside 5 tempo
+*out* of resources: **your damage, armor gain and healing gain 18%→32% effectiveness when the card you play is one of 2 or fewer in hand**
+(*Harnessed Power*), a spell whose wind-up begins with you at 0 mana discounts your next spell's tempo
+(*Arcane Overflow*, on a rank-scaled 20→6 tempo cooldown), spending 100 mana inside 5 tempo
 hands you a free Mana Surge attack that refunds mana, and playing the card that empties your
 hand cleanses a debuff (*Fresh Start*, cooldown 25→11 tempo).
 Where other characters build up, Jeremy *spends down* — the kit is strongest at the bottom of
@@ -106,7 +106,7 @@ whip a Dagger Throw at the archer in the back; triggering an attack-speed proc m
 30-mana/0-tempo basic attack and rank-scaled Strengthen, at most once per 5 tempo
 (*Dominate*). Alternating also
 pays: drawing a Defense card right after playing an attack (or vice versa) discounts its tempo,
-and a drawn Defense card gains +1→8 block (*Clean Exchange*). This is a build about not
+and the drawn card also gains a flat +1→8 block when it resolves, attacks included (*Clean Exchange*). This is a build about not
 breaking stride. And positioning is damage too: *Deadly* grants +2→16 damage and +2%→30% crit
 damage against a target with **no allies within 2 spaces** — picking off stragglers, or
 splitting a pack before the kill, is part of the rhythm.

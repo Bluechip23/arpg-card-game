@@ -13,6 +13,7 @@ signal debuff_applied(enemy: Enemy, debuff_name: String, value: int)
 signal debuff_expired(enemy: Enemy, debuff_name: String)
 signal exposed(enemy: Enemy)
 signal attacked_player(enemy: Enemy)
+signal attacking_player(enemy: Enemy)  # about to hit the player: reactions that mitigate the blow fire here
 signal barricade_attacked(enemy, cell: Vector2i)  # blocked: swings at a barricade toward its target
 signal movement_completed(enemy: Enemy)
 
@@ -107,6 +108,8 @@ var current_armor: int = 0
 var is_exposed: bool = false          # True once armor has been broken to 0
 var last_player_hit_damage: int = 0   # Raw damage of the player's most recent hit (for on-expose passives)
 var player_hit_modifier: Callable       # (enemy, amount) -> amount: skill-tree % mods on the player's direct hits (set by main)
+var has_been_damaged: bool = false      # any damage from any source has landed (Surprise Opener's first-source check)
+var next_action_tempo_tax: int = 0      # Haunted Rebuke: the next action (sync or async) winds up this much longer
 var bonus_damage_next_hit: int = 0    # Applied on the next take_damage call, then cleared
 var premeditated_card_bonus: int = 0  # Premeditated: +15 onto the next card that targets this enemy
 var target: Node3D = null
@@ -2361,7 +2364,7 @@ func _move_target_for(player_node: Node3D) -> Node3D:
 func _effective_cost(action: Dictionary) -> int:
 	## Wind-up tempo for an action, plus the debuff taxes that delay it: Sword
 	## Breaker on the next melee swing, Slowed on a movement action.
-	var cost: int = windup_of(action)
+	var cost: int = windup_of(action) + next_action_tempo_tax
 	if next_melee_tempo_tax > 0 and not NON_MELEE_ACTIONS.has(str(action["name"])):
 		cost += next_melee_tempo_tax
 	if slow_stacks > 0 and MOVEMENT_ACTIONS.has(str(action["name"])):
@@ -2370,6 +2373,9 @@ func _effective_cost(action: Dictionary) -> int:
 
 func _consume_fire_taxes(action: Dictionary) -> void:
 	## The taxes above are paid when the action actually fires.
+	if next_action_tempo_tax > 0:
+		print("[%s] Haunted Rebuke: action delayed %d tempo" % [enemy_name, next_action_tempo_tax])
+		next_action_tempo_tax = 0
 	if next_melee_tempo_tax > 0 and not NON_MELEE_ACTIONS.has(str(action["name"])):
 		print("[%s] Sword Breaker: swing delayed %d tempo" % [enemy_name, next_melee_tempo_tax])
 		next_melee_tempo_tax = 0
@@ -4107,6 +4113,8 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 	# Summon targets (Frankensteins Monster, surfaced Bull Worms) have no player
 	# stat pipeline — the hit goes straight through their own take_damage.
 	if not player_node.has_method("get_stats") and player_node.has_method("take_damage"):
+		if "last_attacker" in player_node:
+			player_node.last_attacker = self  # a destroyed Specter answers its killer
 		if effective_damage > 0:
 			player_node.take_damage(effective_damage)
 		return
@@ -4117,6 +4125,9 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 		if player_stats_ref and "last_attacker" in player_stats_ref:
 			player_stats_ref.last_attacker = self
 		if player_stats_ref and effective_damage > 0:
+			# The blow is coming: reactions that shield against it (Magic
+			# Barrier) raise their armor now, before the damage math.
+			attacking_player.emit(self)
 			var debuff_mgr = null
 			var buff_mgr = null
 			if player_node.has_method("get_debuff_manager"):
@@ -4656,6 +4667,8 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	# auto attack — never on DoT ticks, which pass from_player = false.
 	if from_player and player_hit_modifier.is_valid():
 		amount = int(player_hit_modifier.call(self, amount))
+	if amount > 0:
+		has_been_damaged = true
 
 	# Raw post-resist size of this hit, for the elite threshold reactions
 	# (Ifrit backflip, Minotaur leap, Djinn wishes, bear strengthen).
