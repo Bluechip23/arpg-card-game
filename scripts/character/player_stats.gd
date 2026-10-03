@@ -41,6 +41,9 @@ static var incoming_mitigation_hook: Callable = Callable()
 ## performs lands as damage instead (on you, allies and summons alike).
 ## Card.execute sets it for the play; main clears it when the play resolves.
 static var heal_to_damage: bool = false
+## Harnessed Power (Jeremy): while one of his cards resolves with the bonus,
+## every point of damage, armor and healing it produces is scaled by this.
+static var harnessed_mult: float = 1.0
 
 static func apply_cover(victim, amount: int) -> int:
 	if amount <= 0 or not incoming_mitigation_hook.is_valid():
@@ -524,6 +527,7 @@ var st_ladder_banked: int = 0          # Ladder Work: last cycle's count, spent 
 var st_defense_cards_played: int = 0  # The Way of the Plate: counts defense cards toward the rank-scaled refund
 var st_consecutive_defense: int = 0   # Pristine Armor: counts consecutive defense cards for 3-in-a-row bonus
 var st_ancestral_cycle_counter: int = 0  # Ancestral Aid: counts cycles toward the every-5-cycles trigger
+var st_pre_attack_damaged: bool = false  # Surprise Opener: had the target taken ANY damage before this strike?
 var st_itt_charges: int = 2            # In the Trenches: shared charge pool (2 max)
 var st_itt_spent: Array = []           # In the Trenches: global tempo each spent charge was used (each returns 10 later)
 var st_redemption_crit: int = 0        # Redemption: crit % armed for the next attack roll (on top of Enlightened)
@@ -1916,7 +1920,7 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 		add_armor(wf_armor)
 		st_whispers_active = false
 		st_whispers_tempo = 0
-		st_whispers_cooldown = _whispers_scaled("cooldown")
+		# (The cooldown began when the mark card was granted.)
 		health_changed.emit(current_health, max_health)
 		_pay_whispers_cost()
 		shepherds_mark_triggered.emit()
@@ -2026,7 +2030,7 @@ func take_direct_damage(amount: int) -> void:
 		add_armor(wf_armor)
 		st_whispers_active = false
 		st_whispers_tempo = 0
-		st_whispers_cooldown = _whispers_scaled("cooldown")
+		# (The cooldown began when the mark card was granted.)
 		health_changed.emit(current_health, max_health)
 		_pay_whispers_cost()
 		shepherds_mark_triggered.emit()
@@ -2095,6 +2099,8 @@ func heal(amount: int, from_ally: bool = false, sanguine_applied: bool = false) 
 		return
 	# Poisoned Blood (PlayerStats.heal_to_damage, armed by the heal card's
 	# execute): the healing lands as damage on whoever it was meant for.
+	if harnessed_mult > 1.0 and amount > 0:
+		amount = floori(amount * harnessed_mult)
 	if heal_to_damage and amount > 0:
 		var poisoned: int = get_effective_heal_amount(amount)
 		print("[STATS] Poisoned Blood: %d healing becomes damage" % poisoned)
@@ -2171,6 +2177,8 @@ func apply_life_steal(amount: int) -> void:
 		_passive_heal = false
 
 func add_armor(amount: int) -> void:
+	if harnessed_mult > 1.0 and amount > 0:
+		amount = floori(amount * harnessed_mult)
 	var total = amount + enchantment_block_bonus + sphere_bonus_block
 	# Burgonet / Thick Steel: the resolving DEFENSE card's first armor grant
 	# carries the equipment bonus, whichever executor granted it.

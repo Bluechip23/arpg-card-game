@@ -74,6 +74,9 @@ var _wolves: Array = []          # Gauntlets of Dungeon Mastering: summoned wolv
 var _penguin = null              # Nine Ruins of Sanguine: the blood penguin (one at a time)
 const PenguinScript = preload("res://scripts/battle/sanguine_penguin.gd")
 const WolfScript = preload("res://scripts/battle/summoned_wolf.gd")
+const SpecterScript = preload("res://scripts/battle/summoned_specter.gd")
+var _specters: Array = []        # Seance: specters raised on empty tiles
+var _last_aim_world = null       # the tile a point-targeted card was aimed at
 var _smoke_zones: Array = []     # smoke bomb: {position, tempo}
 var _skeletons: Array = []       # Sack of Bone Arrows: raised skeletons (cap 3)
 const SkeletonScript = preload("res://scripts/battle/summoned_skeleton.gd")
@@ -545,6 +548,7 @@ func _ready() -> void:
 	tempo_manager.tempo_changed.connect(_on_tempo_changed)
 	tempo_manager.tempo_advanced.connect(_on_tempo_advanced)
 	tempo_manager.card_resolved.connect(_on_card_tick_resolved)
+	tempo_manager.card_started.connect(_on_card_ticks_started)
 	tempo_manager.ticking_finished.connect(_on_ticking_finished)
 	draw_timer.turn_ended.connect(_on_turn_ended)
 	manifest_ui.manifest_card_clicked.connect(_on_manifest_card_clicked)
@@ -4811,6 +4815,16 @@ func _open_trade_ui(a: Player, b: Player) -> void:
 
 ## Returns the player character whose tile is at/near the world position, or null.
 ## Used for co-op ally targeting (click the partner to heal/buff them).
+## The living summon standing on the clicked tile, if any (ally targeting).
+func _summon_at_position(world_pos: Vector3) -> Node3D:
+	if not grid_manager or not enemy_spawner:
+		return null
+	var cell: Vector2i = grid_manager.world_to_grid(world_pos)
+	for s in enemy_spawner.summons:
+		if s is Node3D and is_instance_valid(s) and not bool(s.get("is_dead")) and grid_manager.world_to_grid(s.position) == cell:
+			return s
+	return null
+
 func _player_at_position(world_pos: Vector3) -> Player:
 	var best: Player = null
 	var best_d := 1.2  # within ~1 tile of the click
@@ -5997,7 +6011,7 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Sync enemy positions so they don't stack on each other
 	_sync_occupied_tiles()
 	# Summons are ordinary units to enemy target selection
-	enemy_spawner.summons = _frankensteins + _summoned_worms + _wolves \
+	enemy_spawner.summons = _frankensteins + _summoned_worms + _wolves + _specters \
 		+ _skeletons + _spirit_bows + _clones \
 		+ ([_penguin] if (_penguin != null and is_instance_valid(_penguin)) else [])
 	# Each enemy manages its own action counter independently
@@ -6021,6 +6035,16 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_update_penguin(amount)
 	# Wolves hunt on their own cadence; smoke clouds shelter then disperse.
 	_update_wolves(amount)
+	_update_specters(amount)
+	for w in _wolves:
+		if is_instance_valid(w) and w.has_method("tick_shepherd_mark"):
+			w.tick_shepherd_mark(amount)
+	# Timed in-hand card tweaks (Keep Them Guessing, Clean Exchange, Ancestral
+	# Aid) run on exact tempo.
+	for tp in _all_players():
+		var tdm = _deck_for_player(tp)
+		if tdm:
+			tdm.tick_temp_mods(amount)
 	_update_smoke_zones(amount)
 	# Bone-arrow skeletons sprint at whatever their quiver's kill left behind.
 	_update_skeletons(amount)
@@ -6062,8 +6086,6 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 			var mat = mesh_node.get_surface_override_material(0) as StandardMaterial3D
 			if mat and mat.albedo_color.a < 1.0:
 				_set_player_invisible(false)
-				# Reappearing from invisibility counts as displacement
-				progression_triggers._trigger_skill_tree_on_displacement()
 
 	# Always update the 20-tick global counter (fills on ALL tempo sources)
 	if tempo_manager.is_ticking():
@@ -6091,6 +6113,7 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	enemy.debuff_expired.connect(_on_enemy_debuff_expired)
 	enemy.exposed.connect(_on_enemy_exposed)
 	enemy.attacked_player.connect(_on_enemy_attacked_player)
+	enemy.attacking_player.connect(_on_enemy_attacking_player)
 	enemy.damaged.connect(_on_enemy_damaged.bind(enemy))
 	enemy.movement_completed.connect(_on_enemy_movement_completed)
 	enemy.barricade_attacked.connect(_on_enemy_barricade_attacked)
@@ -6259,6 +6282,16 @@ func _on_enemy_damaged(damage: int, enemy: Enemy) -> void:
 		_fire_instant_site_effect(rt_card, {"target": enemy})
 		_reapers_taking_firing = false
 
+## An enemy is about to land a hit: instants that shield against it
+## (Magic Barrier) fire now so their armor is up before the damage math.
+func _on_enemy_attacking_player(_enemy: Enemy) -> void:
+	if deck_manager == null:
+		return
+	for rc in deck_manager.trigger_reactions("on_incoming_attack"):
+		rc.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
+		add_battle_log("%s! (instant)" % rc.card_name, Color(0.6, 0.8, 1.0))
+	_on_hand_updated()
+
 func _on_enemy_attacked_player(enemy: Enemy) -> void:
 	progression_triggers._trigger_skill_tree_brad_on_attacked(enemy)
 	progression_triggers._trigger_skill_tree_stephen_on_attacked(enemy)
@@ -6337,6 +6370,7 @@ func _on_all_enemies_defeated() -> void:
 	_clear_bullet_casings()
 	_clear_penguin()
 	_clear_wolves()
+	_clear_specters()
 	_smoke_zones.clear()
 	# Bone-arrow skeletons and Draupnir duplicates deliberately survive the
 	# wave — "lives until killed": one cumulative journey, no battle resets.
@@ -8712,6 +8746,8 @@ func play_selected_card(target) -> void:
 		if card.school == Card.CardSchool.SPELL:
 			tempo_cost = maxi(0, tempo_cost - 1)
 			resolve_tick = mini(resolve_tick, tempo_cost)
+			ao_stats.st_arcane_overflow_discount = false  # one spell gets it
+			add_battle_log("Arcane Overflow: -1 tempo!", Color(0.9, 0.3, 0.3))
 
 	var debuff_mgr = player.get_debuff_manager()
 	var buff_mgr = player.get_buff_manager()
@@ -8741,20 +8777,11 @@ func play_selected_card(target) -> void:
 		add_battle_log("High Ground! +4 damage" + (", +2 range" if hg_range > 0 else ""), Color(1.0, 0.9, 0.4))
 		print("[MAIN] High Ground bonus applied: +4 damage, +2 range")
 
-	# Harnessed Power: +30% effectiveness with 2 or fewer cards in hand
-	var harnessed_power_applied = false
-	var harnessed_bonus_damage = 0
-	var harnessed_bonus_heal = 0
-	var harnessed_bonus_block = 0
-	var hp_mult = progression_triggers._get_jeremy_harnessed_power_multiplier()
-	if hp_mult > 1.0:
-		harnessed_power_applied = true
-		harnessed_bonus_damage = floori(card.base_damage * (hp_mult - 1.0))
-		harnessed_bonus_heal = floori(card.heal_amount * (hp_mult - 1.0))
-		harnessed_bonus_block = floori(card.base_block * (hp_mult - 1.0))
-		card.bonus_damage += harnessed_bonus_damage
-		card.heal_amount += harnessed_bonus_heal
-		card.block += harnessed_bonus_block
+	# Harnessed Power: decided now (this card is one of at most 2 in hand),
+	# applied while it resolves — every point of damage, armor and healing
+	# it produces is scaled, whatever card computes it (PlayerStats.harnessed_mult).
+	var hp_mult: float = progression_triggers._get_jeremy_harnessed_power_multiplier()
+	var harnessed_power_applied: bool = hp_mult > 1.0
 
 	# Capture the card UI before playing for animation. The selected card is
 	# always its stack's representative, so its CardUI is the one on screen.
@@ -8787,6 +8814,7 @@ func play_selected_card(target) -> void:
 		if target is Enemy:
 			target_name = " on %s" % target.enemy_name
 		if resolve_tick <= 1:
+			progression_triggers.on_card_ticks_started(card)
 			add_battle_log("Played %s%s" % [card.card_name, target_name], Color(0.4, 1.0, 0.5))
 		else:
 			add_battle_log("Winding up %s%s (resolves tick %d/%d)" % [card.card_name, target_name, resolve_tick, tempo_cost], Color(1.0, 0.85, 0.4))
@@ -8801,9 +8829,8 @@ func play_selected_card(target) -> void:
 				"high_ground_applied": high_ground_applied,
 				"high_ground_range": hg_range,
 				"harnessed_power_applied": harnessed_power_applied,
-				"harnessed_bonus_damage": harnessed_bonus_damage,
-				"harnessed_bonus_heal": harnessed_bonus_heal,
-				"harnessed_bonus_block": harnessed_bonus_block,
+				"harnessed_mult": hp_mult,
+				"aim_world": _last_aim_world,
 				"is_ranged_attack": is_ranged_attack,
 				"half_tempo": result["half_tempo"],
 				"mana_spent": result.get("mana_spent", 0),
@@ -8859,6 +8886,11 @@ func play_selected_card(target) -> void:
 			card.range_modifier -= hg_range
 
 # ---- Ticked Tempo: Card Resolution Handlers ----
+
+## A queued card's first tick: its wind-up has begun (Arcane Overflow).
+func _on_card_ticks_started(card: Card) -> void:
+	if progression_triggers:
+		progression_triggers.on_card_ticks_started(card)
 
 func _on_card_tick_resolved(card: Card) -> void:
 	## Called by TempoManager when a card's resolve_tick is reached. In co-op the
@@ -9001,14 +9033,12 @@ func _undo_card_temp_mods(card: Card, data: Dictionary) -> void:
 	if data.get("high_ground_applied", false):
 		card.bonus_damage -= 4
 		card.range_modifier -= int(data.get("high_ground_range", 2))
-	if data.get("harnessed_power_applied", false):
-		card.bonus_damage -= data["harnessed_bonus_damage"]
-		card.heal_amount -= data["harnessed_bonus_heal"]
-		card.block -= data["harnessed_bonus_block"]
+	# (Harnessed Power no longer edits the card: nothing to undo.)
 
 func _resolve_queued_card(resolved_card: Card) -> void:
 	## Find the matching card in the pending queue and execute its effect.
 	_phoenix_singed_this_play = false  # Phoenix Feather backlash: once per play
+	PlayerStats.harnessed_mult = 1.0
 	var queue_index := -1
 	for i in range(_pending_resolve_queue.size()):
 		if _pending_resolve_queue[i]["card"] == resolved_card:
@@ -9082,6 +9112,9 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	# rather than back when the card was played and the wind-up began.
 	_play_card_animation(card, target)
 
+	# Harnessed Power (Jeremy): scale everything this card produces.
+	if data.get("harnessed_power_applied", false):
+		PlayerStats.harnessed_mult = float(data.get("harnessed_mult", 1.0))
 	# Execute the card's effect (damage, block, heal, etc.)
 	# Arm passives the in-execution crit roll needs to see (Deadly's isolated
 	# +50% crit damage, Serial Killer's ambush auto-crit).
@@ -9114,7 +9147,8 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	progression_triggers._trigger_skill_tree_on_card_play(card, target)
 	progression_triggers._trigger_skill_tree_stephen_on_card_play(card)
 	progression_triggers._trigger_skill_tree_cory_on_card_play(card)
-	progression_triggers._trigger_skill_tree_jeremy_on_card_play(card, target)
+	progression_triggers._trigger_skill_tree_jeremy_on_card_play(card, target, data.get("aim_world", null))
+	PlayerStats.harnessed_mult = 1.0
 	if card.card_type == Card.CardType.ATTACK:
 		progression_triggers._trigger_skill_tree_on_attack(card, target)
 		var brad_bonus = progression_triggers._trigger_skill_tree_brad_on_attack(card, target)
@@ -9772,6 +9806,70 @@ func _spawn_wolf() -> void:
 	wolf.died.connect(func(w): _garmr_death_stack(w.position); _wolves.erase(w))
 	_wolves.append(wolf)
 	add_battle_log("A wolf answers the call! (%d in the pack)" % _wolves.size(), Color(0.7, 0.7, 0.8))
+
+## Seance: raise a Specter on `cell`. Returns the node, or null when the
+## tile is unusable.
+func _spawn_specter(cell: Vector2i, hp: int) -> Node3D:
+	if not grid_manager:
+		return null
+	_specters = _specters.filter(func(s): return is_instance_valid(s) and not s.is_dead)
+	var sp = SpecterScript.new()
+	add_child(sp)
+	sp.setup(grid_manager, grid_manager.grid_to_world(cell), hp)
+	sp.died.connect(_on_specter_died)
+	_specters.append(sp)
+	return sp
+
+func _on_specter_died(sp, killed: bool) -> void:
+	_specters.erase(sp)
+	if not killed:
+		add_battle_log("The Specter fades.", Color(0.6, 0.5, 0.8))
+		return
+	var killer = sp.last_attacker
+	if killer != null and is_instance_valid(killer) and killer.has_method("take_damage") and not bool(killer.get("is_dead")):
+		killer.take_damage(sp.death_damage, true)
+		add_battle_log("Seance: the Specter is destroyed — %d damage to %s!" % [sp.death_damage, killer.enemy_name if "enemy_name" in killer else "its killer"], Color(0.7, 0.5, 1.0))
+
+func _update_specters(amount: int) -> void:
+	for sp in _specters.duplicate():
+		if is_instance_valid(sp) and not sp.is_dead:
+			sp.tick(amount)
+
+func _clear_specters() -> void:
+	for sp in _specters:
+		if is_instance_valid(sp):
+			sp.queue_free()
+	_specters.clear()
+
+## True when `cell` is walkable and holds no enemy, player or summon.
+func _cell_is_empty_for_summon(cell: Vector2i) -> bool:
+	if not grid_manager or cell.x < 0 or cell.y < 0 or cell.x >= grid_manager.grid_width or cell.y >= grid_manager.grid_height:
+		return false
+	if player and (cell in player.blocked_tiles):
+		return false
+	if cell in _living_enemy_cells():
+		return false
+	for p in _all_players() + _dojo_allies:
+		if is_instance_valid(p) and grid_manager.world_to_grid(p.position) == cell:
+			return false
+	for s in _all_summon_nodes():
+		if is_instance_valid(s) and not bool(s.get("is_dead")) and grid_manager.world_to_grid(s.position) == cell:
+			return false
+	return true
+
+## Every living summon node right now (the EnemySpawner list is only
+## refreshed per tempo).
+func _all_summon_nodes() -> Array:
+	var out: Array = _frankensteins + _summoned_worms + _wolves + _specters + _skeletons + _spirit_bows + _clones
+	if _penguin != null and is_instance_valid(_penguin):
+		out.append(_penguin)
+	return out
+
+## Is this node one of the player's summons (wolf, specter, worm…)?
+func _is_summon(node) -> bool:
+	if node == null or not is_instance_valid(node):
+		return false
+	return node in _all_summon_nodes() or (enemy_spawner != null and node in enemy_spawner.summons)
 
 func _clear_wolves() -> void:
 	for w in _wolves:
@@ -13008,6 +13106,11 @@ func _input(event: InputEvent) -> void:
 					# clicking yourself or empty ground defaults to self.
 					var tgt_player := _player_at_position(mouse_pos)
 					var tgt = tgt_player if tgt_player else player
+					if tgt_player == null and "ally" in tt:
+						# A summon on the tile is an ally too (Shepherd's Mark on a wolf).
+						var tgt_summon = _summon_at_position(mouse_pos)
+						if tgt_summon:
+							tgt = tgt_summon
 					if tgt != player and card.is_ranged and not _is_target_in_card_range(card, tgt):
 						add_battle_log("Out of range! %s is too far (max range: %d)" % [tgt.name, card.get_effective_range()], Color(1.0, 0.4, 0.4))
 					elif card.card_id == "friendship":
@@ -13054,6 +13157,8 @@ func _input(event: InputEvent) -> void:
 				elif "all_nearby" in tt:
 					play_selected_card(player)
 				elif "point" in tt:
+					# Remember the aimed tile for riders that need it (Seance).
+					_last_aim_world = grid_manager.snap_to_grid(mouse_pos)
 					# Blink lands on the clicked tile, so its reach is a hard cap
 					# (aim-only point cards — lines, cones — take any click).
 					if card.card_id == "blink" and grid_manager.get_distance_in_cells(player.position, grid_manager.snap_to_grid(mouse_pos)) > card.get_effective_range():

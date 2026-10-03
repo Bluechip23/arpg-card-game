@@ -628,7 +628,7 @@ static func create_jeremy_tree(max_level: int = 20) -> SkillTreeData:
 			description = "When a card rerolls to a different outcome in your hand, put a Magic Barrier in your hand. 0m/0t Instant: when targeted by an enemy attack, gain 2→16 armor (scales with rank). Only triggers once per reroll batch.",
 			color = Color(0.8, 0.4, 0.9)},
 		{level = 7, slot = 1, archetype = "Evocation", name = "Harnessed Power",
-			description = "Cards gain 18%→32% effectiveness (scales with rank) when you have 2 or less cards in your hand",
+			description = "Your damage, armor gain, and healing gain 18%→32% effectiveness (scales with rank) when you have 2 or less cards in your hand",
 			color = Color(0.9, 0.3, 0.3)},
 		{level = 8, slot = 0, archetype = "Shepherd", name = "Whispers of the Flock",
 			description = "When you heal an ally, add a Shepherd's Mark card to your hand (Erase 10). Play it on the healed ally to mark them for 10 tempo. If the marked ally would take lethal damage, they survive at 1 HP and gain 5→19 armor instead (scales with rank), but Jeremy takes 8 damage. Cooldown: 60→46 tempo.",

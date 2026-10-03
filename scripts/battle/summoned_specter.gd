@@ -1,28 +1,24 @@
 extends Node3D
 
-## Wolf summoned by Gauntlets of Dungeon Mastering (on-self: slotted card play).
+## Specter summoned by Jeremy's Seance: a spell cast at an empty tile raises
+## one there for 25 tempo. It cannot act — it stands, soaks attention, and
+## when an enemy destroys it, its HP comes back out as damage on the killer.
+## Enemies treat it as an ordinary summon (main lists it in
+## EnemySpawner.summons), so it is targeted by proximity like a wolf.
 ##
-## Stat block (per the item): 20 HP, attacks every 5 tempo, moves 2 spaces every
-## 3 tempo, attacks apply bleed. Wolfpack: each OTHER friendly wolf grants +20%
-## attack damage and +1 bleed (computed by main at attack time).
-##
-## This node owns visuals/health/movement; main.gd drives per-tempo decisions
-## (_update_wolves) via the cadence accumulators.
+## This node owns visuals/health/lifetime; main.gd ticks it per tempo
+## (_update_specters) and pays out the death damage.
 
-signal died(wolf)
+signal died(specter, killed: bool)
 
-const BASE_ATTACK := 5      # confirmed: wolves hit for 5 before pack bonuses
-const MOVE_INTERVAL := 3    # tempo between moves
-const MOVE_STEPS := 2       # tiles per move
-const ATTACK_INTERVAL := 5  # tempo between attacks
+const LIFETIME_TEMPO := 25
 
-var max_health: int = 20
-var health: int = 20
+var max_health: int = 5
+var health: int = 5
+var death_damage: int = 5
+var tempo_remaining: int = LIFETIME_TEMPO
 var grid_manager: GridManager = null
 var is_dead: bool = false
-var move_accum: int = 0
-var attack_accum: int = 0
-
 var last_attacker = null   # set by Enemy before it hits a summon
 
 # Shepherd's Mark on a summon (Whispers of the Flock): survive one lethal
@@ -32,74 +28,62 @@ var shepherd_mark_caster = null
 var shepherd_mark_armor: int = 0
 var shepherd_mark_tempo: int = 0
 
-var _target_position: Vector3 = Vector3.ZERO
-var _is_moving: bool = false
 var _health_label: Label3D = null
 
-func setup(gm: GridManager, spawn_pos: Vector3) -> void:
+func setup(gm: GridManager, spawn_pos: Vector3, hp: int) -> void:
 	grid_manager = gm
+	max_health = maxi(1, hp)
+	health = max_health
+	death_damage = max_health
 	position = Vector3(spawn_pos.x, 0.0, spawn_pos.z)
-	_target_position = position
 	_build_visuals()
 	_update_health_label()
 
 func _build_visuals() -> void:
-	var fur := StandardMaterial3D.new()
-	fur.albedo_color = Color(0.45, 0.45, 0.5)  # grey wolf
-	fur.roughness = 1.0
+	var shade := StandardMaterial3D.new()
+	shade.albedo_color = Color(0.7, 0.5, 1.0, 0.55)
+	shade.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	shade.emission_enabled = true
+	shade.emission = Color(0.5, 0.3, 0.9)
+	shade.emission_energy_multiplier = 0.6
 	var body := MeshInstance3D.new()
-	var body_mesh := CapsuleMesh.new()
-	body_mesh.radius = 0.18
-	body_mesh.height = 0.7
-	body.mesh = body_mesh
-	body.material_override = fur
-	body.rotation_degrees = Vector3(90, 0, 0)
-	body.position = Vector3(0, 0.3, 0)
+	var mesh := CapsuleMesh.new()
+	mesh.radius = 0.2
+	mesh.height = 0.9
+	body.mesh = mesh
+	body.material_override = shade
+	body.position = Vector3(0, 0.55, 0)
 	add_child(body)
-	var head := MeshInstance3D.new()
-	var head_mesh := BoxMesh.new()
-	head_mesh.size = Vector3(0.22, 0.2, 0.3)
-	head.mesh = head_mesh
-	head.material_override = fur
-	head.position = Vector3(0, 0.42, -0.42)
-	add_child(head)
 	_health_label = Label3D.new()
 	_health_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_health_label.font_size = 24
 	_health_label.pixel_size = 0.005
-	_health_label.position = Vector3(0, 1.1, 0)
-	_health_label.modulate = Color(0.8, 0.8, 0.9)
+	_health_label.position = Vector3(0, 1.3, 0)
+	_health_label.modulate = Color(0.85, 0.7, 1.0)
 	WorldText.crisp(_health_label)
 	add_child(_health_label)
 
 func _update_health_label() -> void:
 	if _health_label:
-		_health_label.text = "Wolf %d/%d" % [max(health, 0), max_health]
-
-func _process(delta: float) -> void:
-	if not _is_moving:
-		return
-	position.x = move_toward(position.x, _target_position.x, 4.0 * delta)
-	position.z = move_toward(position.z, _target_position.z, 4.0 * delta)
-	if abs(position.x - _target_position.x) < 0.01 and abs(position.z - _target_position.z) < 0.01:
-		position.x = _target_position.x
-		position.z = _target_position.z
-		_is_moving = false
+		var armor_txt := " +%d" % armor if armor > 0 else ""
+		_health_label.text = "Specter %d/%d%s" % [max(health, 0), max_health, armor_txt]
 
 func get_cell() -> Vector2i:
 	if grid_manager:
 		return grid_manager.world_to_grid(position)
 	return Vector2i.ZERO
 
-func move_to_cell(cell: Vector2i) -> void:
-	if not grid_manager or is_dead:
-		return
-	var world = grid_manager.grid_to_world(cell)
-	_target_position = Vector3(world.x, 0.0, world.z)
-	_is_moving = true
-
 func get_health_percent() -> float:
 	return float(health) / float(max_health) if max_health > 0 else 0.0
+
+## Lifetime and the mark run on raw tempo (main calls this every tick).
+func tick(amount: int) -> void:
+	if is_dead:
+		return
+	tick_shepherd_mark(amount)
+	tempo_remaining -= amount
+	if tempo_remaining <= 0:
+		die(false)
 
 func tick_shepherd_mark(amount: int) -> void:
 	if shepherd_mark_tempo > 0:
@@ -139,14 +123,14 @@ func take_damage(amount: int) -> void:
 		shepherd_mark_tempo = 0
 		if caster and caster.has_method("take_direct_damage"):
 			caster.take_direct_damage(8)
-		print("[WOLF] Shepherd's Mark: survived at 1 HP")
+		print("[SPECTER] Shepherd's Mark: survived at 1 HP")
 	_update_health_label()
 	if health <= 0:
-		die()
+		die(true)
 
-func die() -> void:
+func die(killed: bool) -> void:
 	if is_dead:
 		return
 	is_dead = true
-	died.emit(self)
+	died.emit(self, killed)
 	queue_free()

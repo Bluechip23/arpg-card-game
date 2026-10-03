@@ -2194,7 +2194,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		"magic_barrier":
 			_execute_magic_barrier(player_stats)
 		"shepherds_mark":
-			_execute_shepherds_mark(player_stats, deck_manager)
+			_execute_shepherds_mark(target, player_stats, deck_manager)
 		# === Previously unimplemented effects ===
 		"heavy_swing", "specific_strike", "spark", "sprinkle":
 			# Straight single-target damage (base_damage carries the value;
@@ -5790,9 +5790,18 @@ func _execute_magic_barrier(player_stats: PlayerStats) -> void:
 		player_stats.add_armor(block)
 	print("[CARD] Magic Barrier: +%d armor!" % block)
 
-func _execute_shepherds_mark(player_stats: PlayerStats, deck_manager = null) -> void:
+func _execute_shepherds_mark(target, player_stats: PlayerStats, deck_manager = null) -> void:
 	# player_stats is the MARK TARGET (rerouted to the ally when ally-targeted).
 	# The caster — who pays the 8 HP when the mark triggers — is the deck's owner.
+	# A summon (wolf, specter) carries the mark on its own fields.
+	if target != null and not (target is Player) and "shepherd_mark_caster" in target:
+		var mark_caster = deck_manager.player_stats if (deck_manager and deck_manager.player_stats) else player_stats
+		target.shepherd_mark_caster = mark_caster
+		# The armor comes from the caster's rank, as it does for a marked player.
+		target.shepherd_mark_armor = int(PassiveScaling.value("whispers_of_the_flock", "armor", mark_caster.get_passive_level("whispers_of_the_flock"))) if mark_caster else 0
+		target.shepherd_mark_tempo = 10
+		print("[CARD] Shepherd's Mark: summon marked for 10 tempo!")
+		return
 	if player_stats:
 		player_stats.st_whispers_active = true
 		player_stats.st_whispers_tempo = 10
@@ -6067,7 +6076,7 @@ static func create_magic_barrier(armor: int = 8) -> Card:
 	card.base_block = armor
 	card.heal_amount = 0
 	card.erase_on_play = true  # consumed when it triggers, not while waiting
-	card.reaction_trigger = "on_damage_taken"
+	card.reaction_trigger = "on_incoming_attack"  # fires as the enemy swings, before the hit lands
 	card.target_types = ["self"]
 	card.keywords = ["reaction", "spell"]
 	return card
