@@ -106,7 +106,7 @@ whip a Dagger Throw at the archer in the back; triggering an attack-speed proc m
 30-mana/0-tempo basic attack and rank-scaled Strengthen, at most once per 5 tempo
 (*Dominate*). Alternating also
 pays: drawing a Defense card right after playing an attack (or vice versa) discounts its tempo,
-and a drawn Defense card gains +1→8 block (*Clean Exchange*). This is a build about not
+and the drawn card also gains a flat +1→8 block when it resolves, attacks included (*Clean Exchange*). This is a build about not
 breaking stride. And positioning is damage too: *Deadly* grants +2→16 damage and +2%→30% crit
 damage against a target with **no allies within 2 spaces** — picking off stragglers, or
 splitting a pack before the kill, is part of the rhythm.

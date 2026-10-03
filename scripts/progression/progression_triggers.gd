@@ -723,8 +723,10 @@ func _trigger_skill_tree_on_draw(card: Card) -> void:
 		stats.st_self_reliance_discount = false
 		_self_reliance_apply(stats, card)
 
-	# Clean Exchange: draw Defense after playing Attack (or vice versa) → drawn
-	# card gets -1t, and a drawn Defense card also gains rank-scaled block (1..8)
+	# Clean Exchange: draw Defense after playing an offensive card (or vice
+	# versa) → the drawn card gets -1t and a flat +1..8 block it gains when it
+	# resolves, whatever it is: an attack deals its damage and gains the
+	# block, a card that blocks 5 twice blocks 5 twice and then gains it.
 	if stats.has_skill_tree_passive("clean_exchange") and _last_played_card:
 		# "Offensive" is the rider: Attack cards and offensive-tagged spells.
 		var drawn_is_defense = card.card_type == Card.CardType.DEFENSE
@@ -734,15 +736,16 @@ func _trigger_skill_tree_on_draw(card: Card) -> void:
 		if (drawn_is_defense and last_was_attack) or (drawn_is_attack and last_was_defense):
 			var ce_msg := ""
 			var ce_tempo: int = 1 if card.tempo_cost > 0 else 0
-			var ce_block: int = 0
+			var ce_block: int = PassiveScaling.value("clean_exchange", "block", stats.get_passive_level("clean_exchange"))
 			if ce_tempo > 0:
 				ce_msg = "-1t"
-			if drawn_is_defense:
-				ce_block = PassiveScaling.value("clean_exchange", "block", stats.get_passive_level("clean_exchange"))
+			if ce_block > 0:
 				ce_msg += (", " if ce_msg != "" else "") + "+%d block" % ce_block
-			if ce_tempo > 0 or ce_block > 0:
-				# Timed (5 tempo) and in-hand only — never a permanent rewrite.
-				card.apply_temp_mod(0, ce_tempo, ce_block)
+			# Timed (5 tempo) and in-hand only — never a permanent rewrite.
+			if ce_tempo > 0:
+				card.apply_temp_mod(0, ce_tempo, 0)
+			if ce_block > 0:
+				card.apply_flat_block_mod(ce_block)
 			if ce_msg != "":
 				main.add_battle_log("Clean Exchange: %s %s for 5 tempo" % [card.card_name, ce_msg], Color(0.3, 0.7, 1.0))
 

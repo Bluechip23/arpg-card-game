@@ -104,7 +104,23 @@ func _test_clean_exchange(stats, pt) -> void:
 	var drawn := Card.create_harden()
 	main.deck_manager.hand.append(drawn)
 	pt._trigger_skill_tree_on_draw(drawn)
-	_check(drawn.temp_hand_tempo_reduction == 1, "a Defense drawn after an offensive spell gets -1t")
+	_check(drawn.temp_hand_tempo_reduction == 1 and drawn.temp_flat_block == 8, "a Defense drawn after an offensive spell gets -1t and a flat +8 block")
+	pt._last_played_card = Card.create_harden()
+	var atk := Card.create_slash()
+	main.deck_manager.hand.append(atk)
+	pt._trigger_skill_tree_on_draw(atk)
+	_check(atk.temp_hand_tempo_reduction == 1 and atk.temp_flat_block == 8 and atk.block == 0, "an attack drawn after a Defense gets -1t and the same flat +8 block, its own block still 0")
+	var gm = main.grid_manager
+	var dummies: Array = main.enemy_spawner.get_living_enemies()
+	_place(gm, dummies[0], gm.world_to_grid(main.player.position) + Vector2i(1, 0))
+	stats.current_armor = 0
+	var hp0: int = dummies[0].current_health
+	main._pending_resolve_queue.append({"card": atk, "target": dummies[0], "owner_index": 0, "data": {}})
+	main._resolve_queued_card(atk)
+	_check(dummies[0].current_health < hp0 and stats.current_armor >= 8, "resolving it deals the damage and gains the 8 block once (%d armor)" % stats.current_armor)
+	_check(atk.temp_flat_block == 0, "…and the grant is spent")
+	stats.current_armor = 0
+	dummies[0].current_health = dummies[0].max_health
 	pt._last_played_card = Card.create_volatile_mixture()  # damaging, not offensive
 	var drawn2 := Card.create_harden()
 	main.deck_manager.hand.append(drawn2)

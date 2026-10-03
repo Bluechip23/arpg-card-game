@@ -121,12 +121,12 @@ func _test_last_played(stats, pt, dummy: Enemy) -> void:
 	var base_block: int = block.block
 	var base_tempo: int = block.tempo_cost
 	pt._trigger_skill_tree_on_draw(block)
-	_check(block.block == base_block + PassiveScaling.value("clean_exchange", "block", 15) \
+	_check(block.block == base_block and block.temp_flat_block == PassiveScaling.value("clean_exchange", "block", 15) \
 			and block.tempo_cost == base_tempo and block.temp_hand_tempo_reduction == 1 and block.temp_mod_tempo_left == 5,
-		"drawing a Defense after playing an Attack: -1t and rank-15 block, both timed (5 tempo)")
+		"drawing a Defense after playing an Attack: -1t and a separate flat rank-15 block, both timed (5 tempo), the card's own block untouched")
 	block.clear_temp_mods()
-	_check(block.block == base_block and block.temp_hand_tempo_reduction == 0,
-		"clearing the Clean Exchange tweak restores the printed block and tempo")
+	_check(block.temp_flat_block == 0 and block.temp_hand_tempo_reduction == 0,
+		"clearing the Clean Exchange tweak drops the flat block and the tempo cut")
 	_grant(stats, "mad_scientist")
 	var bm = main.player.get_buff_manager()
 	for b in bm.buffs.duplicate():

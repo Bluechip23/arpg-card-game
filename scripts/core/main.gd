@@ -8689,6 +8689,9 @@ func get_card_vacuum_values(card: Card) -> Dictionary:
 			total_block += buff_mgr.get_bolster_bonus()
 		out["block"] = total_block
 		out["block_base"] = block_base
+	# Clean Exchange's flat grant shows on any card, attacks included.
+	if card.temp_flat_block > 0:
+		out["block"] = int(out.get("block", 0)) + card.temp_flat_block
 
 	# Heal — the full heal() pipeline: on-self item bonus, Harnessed Power's
 	# heal leg, Blood Libation stacks, then INT/equipment/percent scaling.
@@ -9128,6 +9131,14 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	progression_triggers.arm_pre_attack_passives(card, target)
 	deck_manager.execute_deferred_card(card, target, player)
 	progression_triggers.clear_pre_attack_passives()
+	# Clean Exchange's flat block: a separate "gain X block" on top of whatever
+	# the card did, granted once, whatever card it rode in on.
+	if card.temp_flat_block > 0:
+		var ce_stats = player.get_stats()
+		if ce_stats:
+			ce_stats.add_armor(card.temp_flat_block)
+			add_battle_log("%s: +%d block (Clean Exchange)" % [card.card_name, card.temp_flat_block], Color(0.3, 0.7, 1.0))
+		card.temp_flat_block = 0
 
 	var debuff_mgr = player.get_debuff_manager()
 	var buff_mgr = player.get_buff_manager()

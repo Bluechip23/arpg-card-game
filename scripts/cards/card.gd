@@ -583,6 +583,11 @@ var temp_hand_tempo_reduction: int = 0
 var temp_mana_discount: int = 0
 var temp_block_bonus: int = 0
 var temp_mod_tempo_left: int = 0
+## A flat "gain X block" granted once when the card resolves (Clean
+## Exchange) — separate from the card's own block, so a card that blocks 5
+## twice blocks 5 twice and then gains X, and an attack deals its damage
+## and gains X.
+var temp_flat_block: int = 0
 ## Empower: this attack card was one of the next attacks drawn while Empower
 ## was up — it deals +3 when played. Reset on every draw.
 var draw_empowered: bool = false
@@ -592,6 +597,11 @@ func apply_temp_mod(mana_off: int, tempo_off: int, block_on: int, tempo: int = 5
 	temp_hand_tempo_reduction += tempo_off
 	temp_block_bonus += block_on
 	block += block_on
+	temp_mod_tempo_left = maxi(temp_mod_tempo_left, tempo)
+
+## A timed flat block grant (see temp_flat_block), on the shared temp-mod timer.
+func apply_flat_block_mod(amount: int, tempo: int = 5) -> void:
+	temp_flat_block += amount
 	temp_mod_tempo_left = maxi(temp_mod_tempo_left, tempo)
 
 ## An untimed in-hand mana discount (Self Reliance): it rides the card until
@@ -605,6 +615,7 @@ func clear_temp_mods() -> void:
 	temp_hand_tempo_reduction = 0
 	temp_mana_discount = 0
 	temp_block_bonus = 0
+	temp_flat_block = 0
 	temp_mod_tempo_left = 0
 
 # --- Shared statics (moved up from the factory tail so all class state lives together) ---

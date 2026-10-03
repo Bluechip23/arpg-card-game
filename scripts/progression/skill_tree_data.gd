@@ -361,7 +361,7 @@ static func create_stephen_tree(max_level: int = 20) -> SkillTreeData:
 			description = "+2→16 damage and +2%→30% crit damage (scales with rank) when the target has no allies within 2 spaces",
 			color = Color(0.9, 0.3, 0.3)},
 		{level = 3, slot = 1, archetype = "Sentinel", name = "Clean Exchange",
-			description = "Anytime you draw a Defense card and the last card you played was an offensive card, or vice versa, give the drawn card -1 tempo for 5 tempo — a drawn Defense card also gains +1→8 block for those 5 tempo (scales with rank)",
+			description = "Anytime you draw a Defense card and the last card you played was an offensive card, or vice versa, give the drawn card -1 tempo for 5 tempo and a flat +1→8 block it gains when played (scales with rank) — on top of whatever the card does, attacks included",
 			color = Color(0.3, 0.7, 1.0)},
 		{level = 4, slot = 2, archetype = "Ranger", name = "Eagle Eye",
 			description = "Ranged offensive cards deal additional damage equal to 100%→142% of their range (scales with rank)",
