@@ -1411,6 +1411,9 @@ func _setup_tick_bar() -> void:
 	_queue_toggle_btn.add_theme_font_size_override("font_size", 11)
 	_queue_toggle_btn.flat = true
 	_queue_toggle_btn.pressed.connect(_toggle_action_queue)
+	# The queue stays reachable while the game is paused: pause, open it,
+	# pull a queued action — the pause button itself works the same way.
+	_queue_toggle_btn.process_mode = Node.PROCESS_MODE_ALWAYS
 	label_row.add_child(_queue_toggle_btn)
 
 	# Speed tiers live on the counter itself: tap an arrow to change the tick
@@ -1440,6 +1443,7 @@ func _setup_tick_bar() -> void:
 	_queue_panel = PanelContainer.new()
 	_queue_panel.name = "ActionQueuePanel"
 	_queue_panel.visible = false
+	_queue_panel.process_mode = Node.PROCESS_MODE_ALWAYS  # its rows and ✕ buttons inherit this
 	var q_style := StyleBoxFlat.new()
 	q_style.bg_color = Color(0.09, 0.07, 0.05, 0.95)
 	q_style.border_color = Color(0.82, 0.66, 0.28)
