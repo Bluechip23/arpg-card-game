@@ -3781,6 +3781,7 @@ func _on_gauntlet_skill_activated(gauntlet: ItemData) -> void:
 ## Pay the skill's costs and run it. Callers have already validated the target,
 ## so a no-op can no longer eat the cooldown.
 func _fire_gauntlet_skill(gauntlet: ItemData, target) -> void:
+	PlayerStats.hit_source_offensive = false  # a skill is not an offensive card
 	var inventory = player.get_inventory()
 	if inventory and inventory.use_gauntlet_skill(gauntlet, target):
 		tempo_manager.add_tempo(1)  # Skills cost 1 tempo
@@ -8753,7 +8754,7 @@ func play_selected_card(target) -> void:
 	# Arcane Overflow: -1 tempo on spells when primed (had 0 mana after previous spell)
 	var ao_stats = player.get_stats()
 	if ao_stats and ao_stats.has_skill_tree_passive("arcane_overflow") and ao_stats.st_arcane_overflow_discount:
-		if card.school == Card.CardSchool.SPELL:
+		if card.is_offensive():  # the next OFFENSIVE card, attack or tagged spell
 			tempo_cost = maxi(0, tempo_cost - 1)
 			resolve_tick = mini(resolve_tick, tempo_cost)
 			ao_stats.st_arcane_overflow_discount = false  # one spell gets it
@@ -9087,6 +9088,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 			if target is Node3D and is_instance_valid(target) and player.has_method("face_toward"):
 				player.face_toward(target.position)
 		var damage = data["basic_attack_damage"]
+		PlayerStats.hit_source_offensive = true  # the auto attack is offensive
 		target.take_damage(damage, true)
 		progression_triggers.brad_life_steal(damage)
 
@@ -9125,6 +9127,8 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	# Harnessed Power (Jeremy): scale everything this card produces.
 	if data.get("harnessed_power_applied", false):
 		PlayerStats.harnessed_mult = float(data.get("harnessed_mult", 1.0))
+	# Solemn Independence reads whether this hit comes from an offensive card.
+	PlayerStats.hit_source_offensive = card.is_offensive()
 	# Execute the card's effect (damage, block, heal, etc.)
 	# Arm passives the in-execution crit roll needs to see (Deadly's isolated
 	# +50% crit damage, Serial Killer's ambush auto-crit).
@@ -9217,6 +9221,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 			if card.last_damage_dealt > 0:
 				add_battle_log("%s again — %d damage" % [card.card_name, card.last_damage_dealt], Color(0.9, 0.3, 0.3))
 
+	PlayerStats.hit_source_offensive = false
 	# Undo temporary card modifications (tighten, high ground, harnessed power)
 	_undo_card_temp_mods(card, data)
 

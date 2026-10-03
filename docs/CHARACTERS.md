@@ -24,7 +24,7 @@ Everything that slips out of his hand sideways sharpens the opening knife.
 
 His second axis is *sequencing*. Several passives care about what you just did, not what you're
 doing: *From the Hip* discounts your most recently drawn attack until you play anything,
-*Nimble Assault* rewards holding a hand with no Defense cards in it by turning attacks
+*Nimble Assault* rewards holding a hand with no Defense cards in it by turning offensive cards
 into draws (on a rank-scaled 15→8 tempo cooldown), *Surprise Opener* front-loads his
 aggression (rank-scaled: +1→8 on his first strike against an enemy, +1→15 more if they had no
 armor, +3→17 more if he's the first thing to touch them — up to +40 for a clean max-rank
@@ -59,7 +59,7 @@ correctly.
 Jeremy is for players who like riding the edge of zero. His passives explicitly reward being
 *out* of resources: **your damage, armor gain and healing gain 18%→32% effectiveness when the card you play is one of 2 or fewer in hand**
 (*Harnessed Power*), a spell whose wind-up begins with you at 0 mana discounts your next spell's tempo
-(*Arcane Overflow*, on a rank-scaled 20→6 tempo cooldown), spending 100 mana inside 5 tempo
+(*Arcane Overflow*, on a rank-scaled 20→6 tempo cooldown; the cut lands on the next offensive card), spending 100 mana inside 5 tempo
 hands you a free Mana Surge attack that refunds mana, and playing the card that empties your
 hand cleanses a debuff (*Fresh Start*, cooldown 25→11 tempo).
 Where other characters build up, Jeremy *spends down* — the kit is strongest at the bottom of
@@ -206,7 +206,7 @@ cards spend the pile: **Shield Slam** (damage based on current armor, lose half)
 **Internal Combustion** (sacrifice half your armor for AOE damage), **Tower Shield** (+40
 armor at the cost of being staggered), **Shield of Growth** (converts incoming damage *into*
 armor). Armor in, armor out. Being swarmed is a buff — *Solemn Independence* grants +5%→12%
-on every hit (each enemy an AoE touches) and armor-per-cycle when 3+ enemies are close (at the cost of all ally
+on every offensive hit (each enemy an AoE touches; the auto attack too) and armor-per-cycle when 3+ enemies are close (at the cost of all ally
 healing, from any source), and *In the Trenches* gives free attacks and knockbacks against anyone who steps
 adjacent — two charges shared between the two, each returning 10 tempo after it is spent.
 
