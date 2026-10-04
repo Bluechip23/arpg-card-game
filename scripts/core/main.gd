@@ -2273,6 +2273,7 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 			player.play_animation("attack_slash", _facing_dir_toward(target))
 		target.take_damage(damage, true)
 		progression_triggers.brad_life_steal(damage)
+		_basic_attack_armor_shred(target)
 		if buff_mgr.last_crit_hit:
 			buff_mgr.last_crit_hit = false
 			progression_triggers._trigger_skill_tree_on_crit(target)
@@ -2282,6 +2283,7 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 			if stats.consume_free_hand_echo() and is_instance_valid(target):
 				target.take_damage(damage, true)
 				progression_triggers.brad_life_steal(damage)
+				_basic_attack_armor_shred(target)
 				add_battle_log("Free hand echo! The strike lands twice.", Color(1.0, 0.9, 0.4))
 		if debuff_mgr:
 			debuff_mgr.on_attack()
@@ -2294,6 +2296,7 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 			player.play_animation("attack_slash", _facing_dir_toward(target))
 		target.take_damage(damage, true)
 		progression_triggers.brad_life_steal(damage)
+		_basic_attack_armor_shred(target)
 		if buff_mgr and buff_mgr.last_crit_hit:
 			buff_mgr.last_crit_hit = false
 			progression_triggers._trigger_skill_tree_on_crit(target)
@@ -6048,6 +6051,8 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Wolves hunt on their own cadence; smoke clouds shelter then disperse.
 	_update_wolves(amount)
 	_update_specters(amount)
+	_update_vitality_window(amount)
+	_update_bastion_return(amount)
 	for w in _wolves:
 		if is_instance_valid(w) and w.has_method("tick_shepherd_mark"):
 			w.tick_shepherd_mark(amount)
@@ -6071,8 +6076,8 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_check_berry_bushels()
 	# Territorial Mark: refresh which enemies stand in the blue smoke.
 	_update_mark_zones(amount)
-	# Close is Favored: any enemy inside melee reach springs the trap.
-	_check_melee_range_reactions()
+	# (Close is Favored springs from _update_enemy_melee_state when an enemy
+	# ENTERS the next tile — never on one already standing there.)
 	# Draupnir duplicates fight on their own cadence.
 	_update_clones(amount)
 
@@ -6270,6 +6275,7 @@ func _update_enemy_melee_state(enemy: Enemy, enemy_moved: bool) -> void:
 		progression_triggers._trigger_skill_tree_cory_on_enemy_enter_melee(enemy)
 		if enemy_moved:
 			progression_triggers._trigger_skill_tree_brad_itt_on_enter(enemy)
+			_fire_melee_range_reactions(enemy)
 	elif was_in_melee and not in_melee:
 		progression_triggers._trigger_skill_tree_cory_on_enemy_leave_melee(enemy)
 
@@ -8349,6 +8355,19 @@ func _get_basic_attack_display_damage() -> int:
 			damage += inv.get_single_hand_weight_damage_bonus()
 	return damage
 
+## Armor Chopper: the auto attack (a melee attack) shreds extra enemy armor.
+func _basic_attack_armor_shred(target) -> void:
+	var stats = player.get_stats() if player else null
+	if not stats or stats.equipment_armor_shred <= 0 or target == null or not is_instance_valid(target):
+		return
+	if _basic_attack_reach() > 1:
+		return  # a bow's shot is not a melee attack
+	if "current_armor" in target and target.current_armor > 0:
+		target.current_armor = max(0, target.current_armor - stats.equipment_armor_shred)
+		if target.has_method("_update_armor_bar"):
+			target._update_armor_bar()
+		print("[MAIN] Armor Chopper: auto attack shredded %d armor" % stats.equipment_armor_shred)
+
 ## Auto attack reach in tiles: 1 in melee, 5 with a bow.
 func _basic_attack_reach() -> int:
 	var inv = player.get_inventory() if player else null
@@ -9095,6 +9114,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		PlayerStats.hit_source_offensive = true  # the auto attack is offensive
 		target.take_damage(damage, true)
 		progression_triggers.brad_life_steal(damage)
+		_basic_attack_armor_shred(target)
 
 		var ba_buff_mgr = player.get_buff_manager()
 		var ba_debuff_mgr = player.get_debuff_manager()
@@ -9112,6 +9132,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 			if ba_stats.consume_free_hand_echo() and is_instance_valid(target):
 				target.take_damage(damage, true)
 				progression_triggers.brad_life_steal(damage)
+				_basic_attack_armor_shred(target)
 				add_battle_log("Free hand echo! The strike lands twice.", Color(1.0, 0.9, 0.4))
 
 		if ba_debuff_mgr:
@@ -9122,6 +9143,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 			target_name = target.enemy_name
 		add_battle_log("Attack: %d damage to %s" % [damage, target_name], Color(0.4, 1.0, 0.5))
 		print("[MAIN] Basic Attack resolved: dealt %d damage to %s" % [damage, target_name])
+		_belthronding_share(player.position, damage, player)
 		return
 
 	# The action happens NOW — play the character's animation at resolution
@@ -9157,6 +9179,8 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		target_name = " on %s" % target.enemy_name
 	if card.last_damage_dealt > 0:
 		add_battle_log("%s resolved — %d damage%s" % [card.card_name, card.last_damage_dealt, target_name], Color(0.4, 1.0, 0.5))
+		# Another player's damage near a Belthronding wearer: the wearer takes 10%.
+		_belthronding_share(player.position, card.last_damage_dealt, player)
 
 	# Sphere grid passive triggers for card play
 	progression_triggers._trigger_sphere_passives("on_card_play", {"card": card, "target": target})
@@ -9377,8 +9401,8 @@ func _helm_range_bonus(card) -> int:
 			if mc and mc.card_id == "twenty_twenty":
 				bonus += 3
 				break
-	# Tigers Sunday Red: +range on ALL ranged offensive cards while equipped.
-	if card.is_ranged and player and player.get_stats():
+	# Tigers Sunday Red: +range on ranged OFFENSIVE cards while equipped.
+	if card.is_ranged and card.is_offensive() and player and player.get_stats():
 		bonus += maxi(0, player.get_stats().equipment_ranged_range_bonus)
 	return bonus
 
@@ -9620,6 +9644,64 @@ func _clear_bullet_casings() -> void:
 # SANGUINE THE PENGUIN (Nine Ruins of Sanguine)
 # ============================================
 
+const VITALITY_WINDOW_TEMPO := 5
+const BASTION_FLIGHT_TEMPO := 5
+var _bastion_armor_out: int = 0        # Bouncing Shield: the armor that left with the shield
+var _bastion_return_tempo: int = 0
+
+## Bouncing Shield: the shield returns after its flight and the armor it
+## took with it comes back, straight to the pile (no armor-gain riders).
+func _update_bastion_return(amount: int) -> void:
+	if _bastion_armor_out <= 0:
+		return
+	_bastion_return_tempo -= amount
+	if _bastion_return_tempo > 0:
+		return
+	var st = player.get_stats() if player else null
+	if st:
+		st.current_armor += _bastion_armor_out
+		st.armor_changed.emit(st.current_armor)
+		add_battle_log("The shield returns — %d armor back on your arm." % _bastion_armor_out, Color(0.6, 0.75, 1.0))
+	_bastion_armor_out = 0
+
+var _vitality_window: Dictionary = {}   # Nine Ruins: {weapon, tempo} while the nine stacks wait for Sanguine's card
+
+## Nine Ruins at 9 Vitality: fire Sanguine's instant if it is in hand and
+## call the penguin. Returns false when the card is not there.
+func _try_call_penguin(vw: ItemData) -> bool:
+	var vt = deck_manager.trigger_reactions("on_vitality_9")
+	if vt.is_empty():
+		return false
+	for vt_card in vt:
+		vt_card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
+	vw.vitality_stacks = 0
+	_vitality_window = {}
+	_summon_penguin()
+	return true
+
+## The 5-tempo window after Vitality peaks: the card arriving in hand calls
+## the penguin; the window closing purges the stacks and discards the card.
+func _update_vitality_window(amount: int) -> void:
+	if _vitality_window.is_empty():
+		return
+	var vw: ItemData = _vitality_window.get("weapon")
+	if vw == null or not (vw in player.get_inventory().equipped_weapons):
+		_vitality_window = {}
+		return
+	if _try_call_penguin(vw):
+		return
+	_vitality_window["tempo"] = int(_vitality_window["tempo"]) - amount
+	if int(_vitality_window["tempo"]) > 0:
+		return
+	vw.vitality_stacks = 0
+	_vitality_window = {}
+	for c in deck_manager.draw_pile.duplicate():
+		if c.card_type == Card.CardType.REACTION and c.reaction_trigger == "on_vitality_9":
+			deck_manager.draw_pile.erase(c)
+			deck_manager.discard_pile.append(c)
+	add_battle_log("The Vitality fades — Sanguine's card was not drawn in time.", Color(0.6, 0.6, 0.7))
+	update_deck_info()
+
 func _summon_penguin() -> void:
 	if _penguin != null and is_instance_valid(_penguin):
 		return
@@ -9779,14 +9861,12 @@ func _weapon_post_card_effects(card: Card, target) -> void:
 					if not penguin_alive and vw.vitality_stacks < 9:
 						vw.vitality_stacks += 1
 						if vw.vitality_stacks >= 9:
-							vw.vitality_stacks = 0
-							var vt = deck_manager.trigger_reactions("on_vitality_9")
-							for vt_card in vt:
-								vt_card.execute(null, stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
-							if vt.size() > 0:
-								_summon_penguin()  # only when Sanguine's card was in hand to fire
-							else:
-								add_battle_log("Vitality peaks — but Sanguine's card is not in hand.", Color(0.6, 0.6, 0.7))
+							# The nine hold for 5 tempo: Sanguine's card in hand within
+							# that window calls him; otherwise the stacks purge, the card
+							# is discarded and no penguin comes (_update_vitality_window).
+							if not _try_call_penguin(vw):
+								_vitality_window = {"weapon": vw, "tempo": VITALITY_WINDOW_TEMPO}
+								add_battle_log("Vitality peaks — Sanguine waits %d tempo for his card." % VITALITY_WINDOW_TEMPO, Color(0.6, 0.6, 0.7))
 						else:
 							print("[MAIN] %s: Vitality %d/9" % [vw.item_name, vw.vitality_stacks])
 					break
@@ -10297,23 +10377,53 @@ func _update_spirit_bows(amount: int) -> void:
 				b.move_to_cell(nxt)
 	_refresh_bow_instances()
 
-## Belthronding: when an ally (summons included) deals damage within the bow's
-## radius of the wielder, the wielder takes a share of it as well.
-func _belthronding_share(dealer_pos: Vector3, damage: int) -> void:
-	if damage <= 0 or not player or not is_instance_valid(player) or not grid_manager:
+## Shove an enemy inside a rectangular burst to its nearest edge cell (the
+## outer ring of the box), along the axis with the shortest way out. One
+## already on the edge stays put.
+func _shove_to_burst_edge(en: Enemy, box_min: Vector2i, box_max: Vector2i) -> void:
+	if not grid_manager or en == null or not is_instance_valid(en):
 		return
-	var inv = player.get_inventory()
-	if inv == null:
+	var c: Vector2i = grid_manager.world_to_grid(en.position)
+	var to_left: int = c.x - box_min.x
+	var to_right: int = box_max.x - c.x
+	var to_top: int = c.y - box_min.y
+	var to_bottom: int = box_max.y - c.y
+	var best: int = mini(mini(to_left, to_right), mini(to_top, to_bottom))
+	if best <= 0:
+		return  # already on the edge
+	var dir := Vector2i.ZERO
+	if best == to_left:
+		dir = Vector2i(-1, 0)
+	elif best == to_right:
+		dir = Vector2i(1, 0)
+	elif best == to_top:
+		dir = Vector2i(0, -1)
+	else:
+		dir = Vector2i(0, 1)
+	en.knock_dir(dir, best)
+
+## Belthronding: "when an ally deals damage within 3 squares of you, you take
+## 10% of it". An ally is anyone friendly but the wearer: a summon, a dojo
+## ally, or the other player — `dealer` (when known) is never charged for
+## their own damage.
+func _belthronding_share(dealer_pos: Vector3, damage: int, dealer = null) -> void:
+	if damage <= 0 or not grid_manager:
 		return
-	for w in inv.equipped_weapons:
-		if w != null and w is ItemData and w.ally_damage_share_percent > 0.0:
-			if grid_manager.get_distance_in_cells(dealer_pos, player.position) <= w.ally_damage_share_radius:
-				var share: int = maxi(1, floori(damage * w.ally_damage_share_percent / 100.0))
-				var st = player.get_stats()
-				if st:
-					st.take_direct_damage(share)
-					add_battle_log("Belthronding drinks the echo — you take %d." % share, Color(0.8, 0.6, 0.6))
-			return
+	for wearer in _all_players() + _dojo_allies:
+		if wearer == null or not is_instance_valid(wearer) or wearer == dealer or not wearer.has_method("get_inventory"):
+			continue
+		var inv = wearer.get_inventory()
+		if inv == null:
+			continue
+		for w in inv.equipped_weapons:
+			if w != null and w is ItemData and w.ally_damage_share_percent > 0.0:
+				if grid_manager.get_distance_in_cells(dealer_pos, wearer.position) <= w.ally_damage_share_radius:
+					var share: int = maxi(1, floori(damage * w.ally_damage_share_percent / 100.0))
+					var st = wearer.get_stats()
+					if st:
+						st.take_direct_damage(share)
+						add_battle_log("Belthronding drinks the echo — %s takes %d." % [wearer.name, share], Color(0.8, 0.6, 0.6))
+				break
 
 ## Territorial Mark (Bow of Arash): the corridor of cells within 2 squares of
 ## the arrow's flight line, shooter to target.
@@ -10571,24 +10681,11 @@ func _update_mark_zones(amount: int) -> void:
 					break
 			e.zone_weakened = inside
 
-## Close is Favored (Belthronding): the trap in the hand springs on the first
-## enemy found inside melee reach.
-func _check_melee_range_reactions() -> void:
-	if deck_manager == null or enemy_spawner == null or player == null or not grid_manager:
-		return
-	var has_trap := false
-	for c in deck_manager.hand:
-		if c.card_type == Card.CardType.REACTION and c.reaction_trigger == "on_enemy_melee_range":
-			has_trap = true
-			break
-	if not has_trap:
-		return
-	var adj = null
-	for e in enemy_spawner.get_living_enemies():
-		if grid_manager.get_distance_in_cells(e.position, player.position) <= 1:
-			adj = e
-			break
-	if adj == null:
+## Close is Favored (Belthronding): the trap in the hand springs on the enemy
+## that has just stepped onto a tile next to the player. One already
+## standing there when the card arrives never trips it.
+func _fire_melee_range_reactions(adj: Enemy) -> void:
+	if deck_manager == null or player == null or adj == null or not is_instance_valid(adj) or adj.is_dead:
 		return
 	var fired = deck_manager.trigger_reactions("on_enemy_melee_range")
 	for card in fired:
@@ -12190,6 +12287,10 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				var bs_lost: int = floori(bs_stats.current_armor / 2.0)
 				bs_stats.current_armor -= bs_lost
 				bs_stats.armor_changed.emit(bs_stats.current_armor)
+				# The shield is in the air BASTION_FLIGHT_TEMPO; the armor comes back
+				# with it (_update_bastion_return).
+				_bastion_armor_out += bs_lost
+				_bastion_return_tempo = BASTION_FLIGHT_TEMPO
 			var bs_hit: Array = []
 			var bs_from = target
 			while bs_from != null and is_instance_valid(bs_from) and bs_hit.size() < 5:
@@ -12252,8 +12353,8 @@ func _apply_card_world_effects(card: Card, target) -> void:
 						if ws_ec.x >= ws_cell.x - 1 and ws_ec.x <= ws_cell.x + 2 \
 								and ws_ec.y >= ws_cell.y - 1 and ws_ec.y <= ws_cell.y + 2:
 							ws_en.take_damage(ws_dmg, true)
-							if is_instance_valid(ws_en) and ws_en.has_method("knockback"):
-								ws_en.knockback(ws_pos, 2)
+							if is_instance_valid(ws_en) and not ws_en.is_dead:
+								_shove_to_burst_edge(ws_en, Vector2i(ws_cell.x - 1, ws_cell.y - 1), Vector2i(ws_cell.x + 2, ws_cell.y + 2))
 							ws_hits += 1
 							ws_hit_list.append(ws_en)
 				_apply_misery_spread(ws_hit_list)

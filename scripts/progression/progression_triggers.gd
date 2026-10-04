@@ -848,6 +848,10 @@ func modify_player_hit(enemy: Enemy, amount: int) -> int:
 			# Integer math (hundredths of a percent) so 10 × 1.20 is 12, not 11.999.
 			out = (out * (10000 + roundi(bonus_pct * 100.0))) / 10000
 			main.add_battle_log("Eat: +%d%% damage on weakened prey" % roundi(bonus_pct), Color(0.3, 0.7, 1.0))
+	# Megingjörð: a slotted card's hits are doubled here, after stat scaling
+	# and every rider — the whole hit, not its base.
+	if PlayerStats.hit_multiplier > 1.0:
+		out = floori(out * PlayerStats.hit_multiplier)
 	# Harnessed Power (Jeremy): the resolving card's damage scales while its
 	# multiplier is armed (main sets it around the card's execution).
 	if PlayerStats.harnessed_mult > 1.0:

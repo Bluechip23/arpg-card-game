@@ -48,6 +48,12 @@ static var harnessed_mult: float = 1.0
 ## (main sets it around a card's resolution and the auto attack's hit);
 ## Solemn Independence's bonus reads it.
 static var hit_source_offensive: bool = false
+## Megingjörð: the resolving slotted card's hits are multiplied at the end of
+## the pipeline (Enemy.take_damage, via the hit modifier) — a true double.
+static var hit_multiplier: float = 1.0
+## Blue Robe: the resolving slotted card's hits each take the type the enemy
+## they strike resists least — re-rolled per enemy inside Enemy.take_damage.
+static var adaptive_damage_type: bool = false
 
 static func apply_cover(victim, amount: int) -> int:
 	if amount <= 0 or not incoming_mitigation_hook.is_valid():
@@ -299,7 +305,7 @@ var equipment_crit_bonus: float = 0.0        # +% crit chance from gear (Monocle
 var equipment_lifesteal_bonus: float = 0.0   # +% attack damage healed from gear (Hannibals Mask)
 var equipment_resistance_bonus: float = 0.0  # +% all-damage resistance from gear (Thick Steel Helm)
 var equipment_defense_card_block: int = 0    # +armor added when a DEFENSE card grants armor (Burgonet, Thick Steel)
-var defense_card_bonus_pending: bool = false  # armed by Card.execute for a DEFENSE card; spent by its first armor gain
+var defense_card_bonus_pending: bool = false  # armed by Card.execute for ANY card; spent by its first armor gain, cleared when the card finishes
 var equipment_armorless_defense_block: int = 0  # armor granted by DEFENSE cards that grant none themselves (Burgonet)
 var temp_on_self_crit_bonus: float = 0.0     # one-shot +% crit for the card currently resolving (Monocle on-self)
 var temp_crit_damage_bonus: float = 0.0      # one-shot +crit-damage multiplier for the resolving card (Feathered Hat 0.10)
@@ -2188,8 +2194,8 @@ func add_armor(amount: int) -> void:
 	if harnessed_mult > 1.0 and amount > 0:
 		amount = floori(amount * harnessed_mult)
 	var total = amount + enchantment_block_bonus + sphere_bonus_block
-	# Burgonet / Thick Steel: the resolving DEFENSE card's first armor grant
-	# carries the equipment bonus, whichever executor granted it.
+	# Thick Steel / Earth Book: the resolving card's first armor grant carries
+	# the equipment bonus, whatever the card's type and whichever executor granted it.
 	if defense_card_bonus_pending and amount > 0:
 		defense_card_bonus_pending = false
 		total = maxi(0, total + equipment_defense_card_block)

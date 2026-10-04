@@ -1326,12 +1326,12 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 	# Empower's +3 already rides in bonus_damage (see execute); the executors'
 	# own is_empowered branch stays off so it is never counted twice.
 	var is_empowered = false
-	# Burgonet / Thick Steel: "+X armor on every armor-granting defense card".
-	# Armed here and spent by the first armor the card grants (PlayerStats.
-	# add_armor), so cards that add armor outside _execute_block get it too.
+	# Thick Steel / Earth Book: "+X armor on every armor-granting card", any
+	# type. Armed here, spent by the first armor the card grants (PlayerStats.
+	# add_armor), and cleared when the card finishes so a card that grants no
+	# armor never leaves it waiting for the next unrelated gain.
 	if player_stats:
-		player_stats.defense_card_bonus_pending = card_type == CardType.DEFENSE \
-			and player_stats.equipment_defense_card_block != 0
+		player_stats.defense_card_bonus_pending = player_stats.equipment_defense_card_block != 0
 
 	# Apply on-self bonuses from the item this card is slotted in
 	var on_self = get_on_self_bonus()
@@ -1402,11 +1402,11 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		if int(on_self.get("damage_while_invisible", 0)) > 0 and buff_mgr and buff_mgr.has_buff(Buff.BuffType.INVISIBLE):
 			_gauntlet_bonus_applied += int(on_self["damage_while_invisible"])
 		# Megingjord: double damage (mana doubling lives in the cost calc). The
-		# extra is folded into bonus_damage and tracked for cleanup.
+		# multiplier is applied at the END of the hit pipeline, after stat
+		# scaling and every rider, so the hit really is doubled.
 		var _dmg_mult: float = float(on_self.get("damage_multiplier", 1.0))
-		if _dmg_mult > 1.0:
-			var _mult_extra: int = floori((base_damage + bonus_damage + _gauntlet_bonus_applied) * (_dmg_mult - 1.0))
-			_gauntlet_bonus_applied += _mult_extra
+		if _dmg_mult > 1.0 and is_offensive():
+			PlayerStats.hit_multiplier = _dmg_mult
 		# Feathered Hat: slotted cards get +10% crit damage for this play, and
 		# playing them drains the flash-crit counter by 2.
 		if on_self.get("crit_damage_percent", 0.0) > 0.0 and player_stats:
@@ -1470,10 +1470,14 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			print("[CARD] On-Self: %s healed %d (offensive)" % [slotted_in_item.item_name, tsr_heal])
 		# Blue Robe: the slotted card deals the type its target resists LEAST
 		# (fire checked first, so ties break toward fire). Restored in cleanup.
-		if bool(on_self.get("adaptive_damage_type", false)) and target and target.has_method("get_lowest_resistance_type"):
-			_adaptive_type_prev = damage_type
-			damage_type = target.get_lowest_resistance_type()
-			print("[CARD] On-Self: %s adapts to %s damage" % [slotted_in_item.item_name, DamageTypes.type_name(damage_type)])
+		if bool(on_self.get("adaptive_damage_type", false)):
+			# Every enemy this play strikes is re-read on the hit (AoE and multi-hit
+			# cards adapt per enemy: Enemy.take_damage reads the flag).
+			PlayerStats.adaptive_damage_type = true
+			if target and target.has_method("get_lowest_resistance_type"):
+				_adaptive_type_prev = damage_type
+				damage_type = target.get_lowest_resistance_type()
+				print("[CARD] On-Self: %s adapts to %s damage" % [slotted_in_item.item_name, DamageTypes.type_name(damage_type)])
 		# Rusty Dagger: flat crit chance for the slotted play.
 		if on_self.get("crit_percent", 0.0) > 0.0 and player_stats:
 			_temp_crit_applied += on_self["crit_percent"]
@@ -1569,7 +1573,9 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 	# Gauntlet flat riders on this play (tracked for cleanup)
 	if player_stats:
 		# Generic +X on attack cards (no current item; kept wired).
-		if card_type == CardType.ATTACK and player_stats.equipment_attack_card_damage > 0:
+		# Fire/Frost Book, Ice Orb…: "+N damage" on every damaging OFFENSIVE card
+		# (attacks and tagged spells alike).
+		if is_offensive() and (base_damage > 0 or damage > 0) and player_stats.equipment_attack_card_damage > 0:
 			_gauntlet_bonus_applied += player_stats.equipment_attack_card_damage
 		# Brass Knuckles: +X on melee offensive cards only.
 		if is_offensive() and not is_ranged and player_stats.equipment_melee_card_damage > 0:
@@ -1624,8 +1630,9 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			_gauntlet_bonus_applied += pwp_bonus
 			print("[CARD] Purge Wrath: +%d damage (+%d%%)" % [pwp_bonus, player_stats.pending_wrath_percent])
 			player_stats.pending_wrath_percent = 0
-		# Armor Chopper: attacks shred extra enemy armor (armor only).
-		if is_offensive() and player_stats.equipment_armor_shred > 0 and target \
+		# Armor Chopper: MELEE ATTACK cards (and the auto attack, in main) shred
+		# extra enemy armor (armor only).
+		if card_type == CardType.ATTACK and not is_ranged and player_stats.equipment_armor_shred > 0 and target \
 				and "current_armor" in target and target.current_armor > 0:
 			target.current_armor = max(0, target.current_armor - player_stats.equipment_armor_shred)
 			if target.has_method("_update_armor_bar"):
@@ -2378,7 +2385,10 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		if is_offensive() and int(osb_g.get("taunt_cycles", 0)) > 0 and target.has_method("apply_taunt") and buff_mgr:
 			target.apply_taunt(buff_mgr.owner_node, int(osb_g["taunt_cycles"]) * 5)
 			print("[CARD] On-Self: %s taunts the target" % slotted_in_item.item_name)
-		if not is_offensive() and int(osb_g.get("support_heal", 0)) > 0:
+		# A card can be an instant AND a utility/defense card — the tags decide.
+		var _girdle_support: bool = card_type == CardType.UTILITY or card_type == CardType.DEFENSE \
+				or has_keyword("utility") or has_keyword("defense")
+		if _girdle_support and not is_offensive() and int(osb_g.get("support_heal", 0)) > 0:
 			var heal_who = target if (target.has_method("get_stats") and target.get_stats()) else null
 			if heal_who:
 				heal_who.get_stats().heal(int(osb_g["support_heal"]))
@@ -2532,6 +2542,10 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		player_stats.temp_crit_damage_bonus = max(0.0, player_stats.temp_crit_damage_bonus - _temp_crit_dmg_applied)
 	if _adaptive_type_prev != -999:
 		damage_type = _adaptive_type_prev  # Blue Robe: the type swap never sticks to the card
+	PlayerStats.adaptive_damage_type = false
+	PlayerStats.hit_multiplier = 1.0
+	if player_stats:
+		player_stats.defense_card_bonus_pending = false  # an armorless card leaves nothing waiting
 
 	# Wizard Hat: a spell card consumes the armed spell-power bonus on play.
 	if school == CardSchool.SPELL and player_stats and player_stats.pending_spell_power_bonus > 0:

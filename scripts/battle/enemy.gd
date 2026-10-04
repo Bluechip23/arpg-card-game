@@ -4651,6 +4651,9 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	if is_dead:
 		return false
 	last_hit_from_player = from_player
+	# Blue Robe: each enemy a slotted card strikes takes the type IT resists least.
+	if from_player and PlayerStats.adaptive_damage_type and not ignore_armor:
+		damage_type = get_lowest_resistance_type()
 
 	# Per-type resistance: percent reduction from damage_resistances (empty for
 	# most enemies today — Blue Robe reads this table for its adaptive type).
@@ -5239,6 +5242,15 @@ func knockback(away_from: Vector3, spaces: int = 1) -> void:
 		dir_z = 1 if diff.z > 0 else -1
 	if dir_x == 0 and dir_z == 0:
 		return
+	knock_dir(Vector2i(dir_x, dir_z), spaces)
+
+## Shove `spaces` tiles along `dir` (a unit grid step, diagonals allowed),
+## stopping short of blocked or occupied tiles.
+func knock_dir(dir: Vector2i, spaces: int) -> void:
+	if is_dead or not grid_manager or spaces <= 0 or dir == Vector2i.ZERO:
+		return
+	var dir_x: int = dir.x
+	var dir_z: int = dir.y
 	# Step tile-by-tile, stopping at blocked or occupied tiles
 	var current_cell = grid_manager.world_to_grid(position)
 	var last_valid_cell = current_cell

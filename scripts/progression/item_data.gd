@@ -1202,11 +1202,7 @@ static func create_burgonet() -> ItemData:
 	item.special_effect = SpecialEffect.ARMOR_PER_TURN
 	item.special_effect_value = 2
 	item.armor_per_tempo_interval = 5
-	item.block_bonus_to_defense_cards = 2      # armor-granting defense cards: +2 on top
-	item.block_to_armorless_defense_cards = 2  # armorless defense cards: grant 2
-	# Both riders are wired: armorless defense cards grant the flat amount in
-	# Card.execute; armor-granting ones get +2 via PlayerStats.add_armor.
-	item.description = "Gain 2 unerring armor every 5 tempo while equipped (resets if unequipped). All defensive cards grant 2 armor (additional 2 if they already grant armor)."
+	item.description = "Gain 2 unerring armor every 5 tempo while equipped (resets if unequipped)."
 	return item
 
 static func create_summoners_cap() -> ItemData:
@@ -1224,7 +1220,7 @@ static func create_thick_steel_helm() -> ItemData:
 	item.health_bonus = 25
 	item.all_resistance_percent = 10.0
 	item.block_bonus_to_defense_cards = 2
-	item.description = "+25 health, 10% resistance to all damage. Armor-providing cards grant 2 additional armor."
+	item.description = "+25 health, 10% resistance to all damage. Armor-providing cards of any type grant 2 additional armor."
 	return item
 
 static func create_monocle() -> ItemData:
@@ -1582,7 +1578,7 @@ static func create_gravity_gauntlets() -> ItemData:
 	item.wisdom_bonus = 3
 	item.agility_bonus = 2
 	item.on_self_root_offensive = 1  # hold for 1 cycle (5 tempo)
-	_set_skill(item, "Suck", "Pull enemies within 2 squares into the target area.", "suck", 2, 15)
+	_set_skill(item, "Suck", "Pull enemies within 2 squares into the target area.", "suck", 2, 10)
 	item.description = "+6 INT, +3 WIS, +2 AGI. On-self: offensive cards hold the target in place for 5 tempo (attacks/casts fine, no movement). Skill — Suck: pull enemies into the target area, 2-square AOE (10 tempo CD)."
 	return item
 
@@ -1595,8 +1591,8 @@ static func create_spiked_mitts() -> ItemData:
 	item.on_self_armor_any = 5  # ANY slotted card grants +5 armor
 	item.armor_gain_thorns_threshold = 25
 	item.armor_gain_thorns_amount = 5
-	_set_skill(item, "Well placed guard", "Gain 5 thorns.", "well_placed_guard", 3, 10)
-	item.description = "+10 health, +5 STR, -2 DEX. On-self: ANY card provides +5 armor. Every 25 armor gained, gain 5 thorns. Skill — Well placed guard: gain 5 thorns (15 tempo CD)."
+	_set_skill(item, "Well placed guard", "Gain 5 thorns.", "well_placed_guard", 3, 15)
+	item.description = "+10 health, +5 STR, -2 DEX. On-self: ANY card provides +5 armor. Every 25 armor gained, gain 5 thorns. Skill — Well placed guard: gain 5 thorns (15 mana, 15 tempo CD)."
 	return item
 
 static func create_momentum_mits() -> ItemData:
@@ -1659,12 +1655,12 @@ static func create_cuffs_of_current() -> ItemData:
 	item.intelligence_bonus = 6
 	item.hand_size_bonus = 2
 	item.draw_every_cycles = 3
-	_set_skill(item, "Zeet", "Deal damage equal to your INT / 2.", "zeet", 3, 15)
+	_set_skill(item, "Zeet", "Deal damage equal to your INT / 2.", "zeet", 3, 35)
 	item.level_3_overrides = {"intelligence_bonus": 8}
 	item.level_3_description = "+8 INT, +2 hand size. Draw 1 card every 3 cycles. Skill — Zeet: deal INT/2 damage; bounces once, dealing 1/4 damage to an enemy near the target (15 tempo CD)."
 	_set_appearance(item, "cuffs_of_current",
 		"Four gold rings — one at each wrist and one just below each elbow — with light blue electricity coming off them.")
-	item.description = "+6 INT, +2 hand size. Draw 1 card every 3 cycles. Skill — Zeet: deal damage equal to your INT / 2 (15 tempo CD)."
+	item.description = "+6 INT, +2 hand size. Draw 1 card every 3 cycles. Skill — Zeet: deal damage equal to your INT / 2 (35 mana, 15 tempo CD)."
 	return item
 
 static func create_concealed_carry() -> ItemData:
@@ -1709,16 +1705,16 @@ static func create_copper_bracers() -> ItemData:
 	item.strength_bonus = 2
 	item.agility_bonus = 1
 	item.wisdom_bonus = 3
-	_set_skill(item, "Clang", "Gain 8 armor.", "clang", 3, 15)
-	item.description = "+10 life, +2 STR, +1 AGI, +3 WIS. Skill — Clang: gain 8 armor (15 tempo CD)."
+	_set_skill(item, "Clang", "Gain 8 armor.", "clang", 3, 25)
+	item.description = "+10 life, +2 STR, +1 AGI, +3 WIS. Skill — Clang: gain 8 armor (25 mana, 15 tempo CD)."
 	return item
 
 static func create_fanned_bracers() -> ItemData:
 	var item = _new_gauntlet("Fanned Bracers", Rarity.RARE, 15)
 	item.health_bonus = 20
 	item.hand_size_bonus = 1
-	_set_skill(item, "Fan Save", "Inflict 1 stack of Weaken (target deals 30% less damage; a stack is consumed per attack).", "fan_save", 2, 10)
-	item.description = "+20 life, +1 hand size. Skill — Fan Save: inflict 1 Weaken — the enemy deals 30% less damage, one stack consumed per attack (10 tempo CD)."
+	_set_skill(item, "Fan Save", "Inflict 1 stack of Weaken (target deals 30% less damage; a stack is consumed per attack).", "fan_save", 2, 25)
+	item.description = "+20 life, +1 hand size. Skill — Fan Save: inflict 1 Weaken — the enemy deals 30% less damage, one stack consumed per attack (25 mana, 10 tempo CD)."
 	return item
 
 #endregion
@@ -2032,7 +2028,7 @@ static func create_armor_chopper() -> ItemData:
 	item.health_bonus = 5
 	item.strength_bonus = 3
 	item.bonus_damage_to_armor = 10
-	item.description = "+5 health, +3 STR. Your attacks deal an additional 10 damage to enemy armor."
+	item.description = "+5 health, +3 STR. Your melee attack cards and auto attack deal an additional 10 damage to enemy armor."
 	return item
 
 static func create_lions_halberd() -> ItemData:
@@ -2149,7 +2145,7 @@ static func create_nine_ruins_of_sanguine() -> ItemData:
 	item.vitality_weapon = true
 	var nr_cards: Array[String] = ["sanguine_the_penguin"]
 	item.granted_card_ids = nr_cards
-	item.description = "+7 DEX, +2 WIS. Every attack grants 1 Vitality (max 9): each stack gives +1% lifesteal and +2 attack damage. At 9, the stacks purge and Sanguine the blood penguin waddles forth — 50 HP, stays beside you, 8 damage every 5 tempo, can be hit (even by you); damage HE takes heals YOU half as much. No Vitality while he lives."
+	item.description = "+7 DEX, +2 WIS. Every attack grants 1 Vitality (max 9): each stack gives +1% lifesteal and +2 attack damage. At 9 the stacks hold for 5 tempo: if Sanguine's card is in your hand in that time, the stacks purge and Sanguine the blood penguin waddles forth — 50 HP, stays beside you, 8 damage every 5 tempo, can be hit (even by you); damage HE takes heals YOU half as much. If it is not, the stacks purge, the card is discarded, and no penguin comes. No Vitality while he lives."
 	return item
 
 static func create_sabre_tooth() -> ItemData:
@@ -2946,7 +2942,7 @@ static func create_frost_book() -> ItemData:
 	item.health_bonus = 5
 	item.attack_apply_cold = 1
 	item.damage_bonus_to_attack_cards = 1
-	item.description = "+2 INT, +1 WIS, +5 health. 1 card slot. Your damaging attacks apply 1 Cold and deal +1 damage."
+	item.description = "+2 INT, +1 WIS, +5 health. 1 card slot. Your damaging offensive cards apply 1 Cold and deal +1 damage."
 	return item
 
 static func create_fire_book() -> ItemData:
@@ -2956,7 +2952,7 @@ static func create_fire_book() -> ItemData:
 	item.intelligence_bonus = 2
 	item.attack_apply_burn = 1
 	item.damage_bonus_to_attack_cards = 1
-	item.description = "+3 AGI, +2 INT. 1 card slot. Your damaging attacks apply 1 Burn and deal +1 damage."
+	item.description = "+3 AGI, +2 INT. 1 card slot. Your damaging offensive cards apply 1 Burn and deal +1 damage."
 	return item
 
 static func create_earth_book() -> ItemData:
@@ -2966,7 +2962,7 @@ static func create_earth_book() -> ItemData:
 	item.block_bonus_to_defense_cards = 1
 	item.on_self_armor_any = 3
 	item.damage_bonus_to_attack_cards = 1
-	item.description = "+2 INT. 1 card slot. Your block-providing cards grant +1 block and your attacks deal +1 damage. On-self: gain 3 armor."
+	item.description = "+2 INT. 1 card slot. Your armor-granting cards grant +1 block and your offensive cards deal +1 damage. On-self: gain 3 armor."
 	return item
 
 static func create_magic_staff() -> ItemData:
@@ -2997,7 +2993,7 @@ static func create_ice_orb() -> ItemData:
 	item.mana_bonus = 20
 	item.attack_apply_cold = 2
 	item.damage_bonus_to_attack_cards = 2
-	item.description = "+10 health, +3 INT, +1 WIS, +20 mana. 2 card slots. Your damaging attacks apply 2 Cold and deal +2 damage."
+	item.description = "+10 health, +3 INT, +1 WIS, +20 mana. 2 card slots. Your damaging offensive cards apply 2 Cold and deal +2 damage."
 	return item
 
 static func create_car_battery() -> ItemData:
