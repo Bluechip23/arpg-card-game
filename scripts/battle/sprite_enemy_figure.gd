@@ -63,6 +63,11 @@ const NPC_WALK_TIME := 0.18
 ##                     facing, flipped for west — like the MonsterKit battlers)
 ## MonsterKit battler: {cell: Vector2i(col,row), tint?: Color, scale?: float}
 ## Generated battler:  {tex: "<name>", tint?: Color, scale?: float}
+## Craftpix icon:      {icon: "<pack>/<file>", faces?: "left"|"right"|"front",
+##                     tint?, scale?} (a single 32x32 monster icon used as a
+##                     static battler; flipped for the far side like the
+##                     MonsterKit battlers. 32 px tall at PIXEL_SIZE is a
+##                     human, so these carry a scale.)
 ## NPC humanoid:       {npc: "<path>", tint?: Color, scale?: float}
 const KINDS := {
 	# --- direct battler matches ---
@@ -95,11 +100,11 @@ const KINDS := {
 	"ice_troll": {"fr": "mountain_monsters/Yeti", "scale": 1.05},
 	"granite_colossus": {"cp": "golem/Golem1", "scale": 1.6},
 	"grave_titan": {"cp": "golem/Golem2", "scale": 1.35, "tint": Color(0.9, 0.92, 0.88)},
-	"inflamed_minotaur": {"tex": "inflamed_minotaur", "scale": 1.25},
+	"inflamed_minotaur": {"icon": "chaos_monsters/Icon37", "faces": "right", "scale": 2.4},  # winged beast up on its hind legs
 	"demon": {"cp": "demons/Demon1", "scale": 0.85},
 	"pit_fiend": {"cp": "demons/Demon3"},
 	"bugbear": {"cp": "gnolls/Gnoll2", "scale": 1.2},
-	"ifrit": {"cp": "demons/Demon2", "scale": 0.9, "tint": Color(1.2, 0.8, 0.55)},
+	"ifrit": {"icon": "chaos_monsters/Icon27", "faces": "right", "scale": 2.2},  # the standing three-headed hound
 	"snow_wraith": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},
 	"hydra": {"tex": "hydra", "scale": 1.4},
 	"white_manticore": {"tex": "white_manticore", "scale": 1.3},
@@ -112,7 +117,7 @@ const KINDS := {
 	"sabertooth": {"cell": Vector2i(3, 1), "tint": Color(1.05, 0.95, 0.75), "scale": 1.2},
 	"weregoat": {"cp": "gnolls/Gnoll3", "scale": 1.1, "tint": Color(0.85, 0.85, 0.9)},
 	"roc": {"fr": "mountain_monsters/Bird", "scale": 1.0, "tint": Color(1.05, 0.95, 0.85)},
-	"ash_harpy": {"fr": "mountain_monsters/Bird", "scale": 0.6, "tint": Color(0.75, 0.65, 0.7)},
+	"ash_harpy": {"icon": "chaos_monsters/Icon42", "faces": "front", "scale": 1.6},  # the winged, tailed flyer
 	"magma_spider": {"cell": Vector2i(3, 0), "tint": Color(1.35, 0.75, 0.6)},
 	# (Every roster kind now has a sprite; ART_TODO.md still tracks hand-drawn
 	# replacements for the generated first-pass battlers above.)
@@ -127,7 +132,7 @@ const KINDS := {
 	"vampire": {"npc": NPC2 + "/npc dandy v01.png", "tint": Color(0.85, 0.78, 0.88)},
 	"zombie": {"cp": "zombie/Zombie1", "scale": 1.25},
 	"infected_hunter": {"cp": "zombie/Zombie3", "scale": 1.3, "tint": Color(0.9, 1.0, 0.85)},
-	"succubus": {"npc": NPC1 + "/npc dancer A v01.png", "tint": Color(1.15, 0.7, 0.9)},
+	"succubus": {"icon": "chaos_monsters/Icon14", "faces": "front", "scale": 1.7},  # the purple-winged temptress
 	"cherub": {"npc": NPC1 + "/npc baby A v01.png", "tint": Color(1.15, 1.1, 0.9)},
 	"corrupted_archangel": {"npc": NPC1 + "/npc king A v01.png", "tint": Color(0.75, 0.6, 0.9), "scale": 1.2},
 	# --- the dojo's enemy training dummies ---
@@ -139,7 +144,7 @@ const PIXEL_SIZE := 0.03125
 
 ## Kinds whose battler art already contains a painted contact shadow
 ## (the flyers) — these must not get a second blob shadow.
-const PAINTED_SHADOW_KINDS := ["swarm", "giant_hawk", "roc", "ash_harpy",
+const PAINTED_SHADOW_KINDS := ["swarm", "giant_hawk", "roc",
 		"screecher", "djinn", "specter", "snow_wraith"]
 
 var _sprite: Sprite3D = null
@@ -149,6 +154,7 @@ var _highlighted := false
 var _walking := false
 var _time := 0.0
 var _facing_x := -1.0    # battlers are drawn facing left; flip for east
+var _icon_faces := "left"  # icon battlers: the side the art faces ("front" never flips)
 var _npc_mode := false
 var _npc_facing := 0     # CharacterAnimator.Direction
 var _walk_clock := 0.0
@@ -200,6 +206,12 @@ func setup(kind: String) -> void:
 		_sprite.texture = load("res://assets/sprites/generated/monsters/%s.png" % cfg["tex"])
 		_sprite.pixel_size = PIXEL_SIZE
 		_sprite.region_rect = Rect2(0, 0, 64, 64)
+	elif cfg.has("icon"):
+		# A Craftpix monster icon as a static battler (single 32x32 PNG).
+		_sprite.texture = load("%s/%s.png" % [CP, cfg["icon"]])
+		_sprite.pixel_size = PIXEL_SIZE
+		_sprite.region_rect = Rect2(0, 0, 32, 32)
+		_icon_faces = cfg.get("faces", "left")
 	else:
 		_sprite.texture = load(SHEET)
 		_sprite.pixel_size = PIXEL_SIZE
@@ -574,8 +586,14 @@ func _apply_npc_frame(col: int) -> void:
 
 func _update_flip() -> void:
 	if _sprite:
-		# Battlers are drawn facing left; the mountain frame packs face right.
-		_sprite.flip_h = (_facing_x < 0.0) if _fr_mode else (_facing_x > 0.0)
+		# Battlers are drawn facing left; the mountain frame packs and some
+		# icons face right; a front-on icon never flips.
+		if _icon_faces == "front":
+			_sprite.flip_h = false
+		elif _fr_mode or _icon_faces == "right":
+			_sprite.flip_h = _facing_x < 0.0
+		else:
+			_sprite.flip_h = _facing_x > 0.0
 
 
 func set_quadruped(_on: bool) -> void:
