@@ -741,13 +741,14 @@ func _trigger_skill_tree_on_draw(card: Card) -> void:
 				ce_msg = "-1t"
 			if ce_block > 0:
 				ce_msg += (", " if ce_msg != "" else "") + "+%d block" % ce_block
-			# Timed (5 tempo) and in-hand only — never a permanent rewrite.
+			# No time limit: the tweak rides the card until it is played (or
+			# leaves the hand) — in-hand only, never a permanent rewrite.
 			if ce_tempo > 0:
-				card.apply_temp_mod(0, ce_tempo, 0)
+				card.apply_untimed_tempo_cut(ce_tempo)
 			if ce_block > 0:
-				card.apply_flat_block_mod(ce_block)
+				card.apply_untimed_flat_block(ce_block)
 			if ce_msg != "":
-				main.add_battle_log("Clean Exchange: %s %s for 5 tempo" % [card.card_name, ce_msg], Color(0.3, 0.7, 1.0))
+				main.add_battle_log("Clean Exchange: %s %s until played" % [card.card_name, ce_msg], Color(0.3, 0.7, 1.0))
 
 	# From the Hip: if an attack card, discount the most recently drawn card's
 	# mana (rank-scaled 10..75m) and, at high ranks, tempo (1..2t)
@@ -807,7 +808,7 @@ func _trigger_skill_tree_on_attack(card: Card, target) -> void:
 	# Ladder Work: the first attack each cycle spends the banked count of cards
 	# that hit the discard pile without being played last cycle (rank-scaled
 	# 1..6 damage each)
-	if stats.has_skill_tree_passive("ladder_work") and stats.st_ladder_banked > 0 \
+	if stats.has_skill_tree_passive("ladder_work") and stats.st_ladder_banked > 0 and card.is_attack() \
 			and target and target is Enemy and target.has_method("take_damage"):
 		var lw_per: int = PassiveScaling.value("ladder_work", "damage_per_discard", stats.get_passive_level("ladder_work"))
 		var lw_bonus = stats.st_ladder_banked * lw_per
@@ -1889,19 +1890,24 @@ func _i_heal_you_pulse() -> int:
 	var gm = main.grid_manager
 	if gm == null:
 		return 0
+	var me = main.player.get_stats()
 	for ally in main._all_allies():
-		if ally == main.player or ally == null or not is_instance_valid(ally) or not ally.has_method("get_stats"):
+		if ally == null or not is_instance_valid(ally) or not ally.has_method("get_stats"):
 			continue
 		var a_stats = ally.get_stats()
 		if a_stats and a_stats.current_health > 0 and gm.get_distance_in_cells(main.player.position, ally.position) <= 3:
-			a_stats.heal(3, true)  # an ally heal: Solemn Independence refuses it
+			if ally == main.player:
+				a_stats.heal(3)  # Jeremy heals himself too (his own heal)
+			else:
+				# An ally heal Jeremy performs: his Blood Libation stacks boost it.
+				a_stats.heal(me.boost_performed_heal(3) if me else 3, true, true)
 			healed += 1
 	if main.enemy_spawner:
 		for s in main.enemy_spawner.summons:
 			if s == null or not is_instance_valid(s) or not s.has_method("heal") or bool(s.get("is_dead")):
 				continue
 			if gm.get_distance_in_cells(main.player.position, s.position) <= 3:
-				s.heal(3)
+				s.heal(me.boost_performed_heal(3) if me else 3)
 				healed += 1
 	return healed
 

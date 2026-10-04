@@ -53,6 +53,10 @@ static var hit_source_offensive: bool = false
 ## fire spots) land outside it. Cory's Eat reads this: "a card, a gauntlet
 ## skill, or auto attack... keeping things like DoT out of it".
 static var hit_source_direct: bool = false
+## The caster whose card is healing an ALLY right now (deck_manager sets it
+## around an ally-targeted play): Blood Libation boosts the heals Jeremy
+## performs on others with HIS stacks, not the receiver's.
+static var ally_heal_caster: PlayerStats = null
 ## Megingjörð: the resolving slotted card's hits are multiplied at the end of
 ## the pipeline (Enemy.take_damage, via the hit modifier) — a true double.
 static var hit_multiplier: float = 1.0
@@ -2139,6 +2143,8 @@ func heal(amount: int, from_ally: bool = false, sanguine_applied: bool = false) 
 	# receiver's own stacks (the caster's stacks are applied at the call site).
 	if not from_ally and not sanguine_applied:
 		amount = boost_performed_heal(amount)
+	elif from_ally and not sanguine_applied and ally_heal_caster != null and ally_heal_caster != self:
+		amount = ally_heal_caster.boost_performed_heal(amount)  # the performer's Blood Libation
 	# Curse of the Living (Coffin Lid, maintained): the dead take half of
 	# everything you are given and pass half of the rest to your allies. The
 	# share is emitted for main to deliver — allies aren't reachable from here.

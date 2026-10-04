@@ -899,7 +899,9 @@ func execute_deferred_card(card: Card, target, player_node = null) -> void:
 	var ally_cast: bool = effect_stats != null and effect_stats != player_stats
 	if ally_cast:
 		effect_stats._ally_cast = true
+		PlayerStats.ally_heal_caster = player_stats  # Blood Libation boosts heals Jeremy performs on others
 	card.execute(target, effect_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
+	PlayerStats.ally_heal_caster = null
 
 	if dex_flat_bonus > 0:
 		card.bonus_damage -= dex_flat_bonus
@@ -1036,7 +1038,7 @@ func _process_temp_mods(amount: int = 5) -> void:
 		if card.temp_mod_tempo_left > 0:
 			card.temp_mod_tempo_left -= amount
 			if card.temp_mod_tempo_left <= 0:
-				card.clear_temp_mods()
+				card.clear_timed_mods()  # Clean Exchange's untimed share stays
 				changed = true
 	if changed:
 		hand_updated.emit()

@@ -588,6 +588,14 @@ var temp_mod_tempo_left: int = 0
 ## twice blocks 5 twice and then gains X, and an attack deals its damage
 ## and gains X.
 var temp_flat_block: int = 0
+## Untimed shares of the tweaks above (Clean Exchange: "lasts until the
+## affected card is played") — they survive the timer and end only when
+## the card leaves the hand.
+var untimed_tempo_reduction: int = 0
+var untimed_flat_block: int = 0
+## Life Swap: the HP the swap cost, dealt to a chosen enemy in melee range
+## by main once the player picks one.
+var pending_life_swap: int = 0
 ## Empower: this attack card was one of the next attacks drawn while Empower
 ## was up — it deals +3 when played. Reset on every draw.
 var draw_empowered: bool = false
@@ -609,14 +617,30 @@ func apply_flat_block_mod(amount: int, tempo: int = 5) -> void:
 func apply_hand_discount(mana_off: int) -> void:
 	temp_mana_discount += mana_off
 
-func clear_temp_mods() -> void:
+## Clean Exchange: an untimed tempo cut and flat block — until the card is played.
+func apply_untimed_tempo_cut(tempo_off: int) -> void:
+	temp_hand_tempo_reduction += tempo_off
+	untimed_tempo_reduction += tempo_off
+
+func apply_untimed_flat_block(amount: int) -> void:
+	temp_flat_block += amount
+	untimed_flat_block += amount
+
+## The timer ran out: the timed tweaks end, the untimed ones stay.
+func clear_timed_mods() -> void:
 	if temp_block_bonus != 0:
 		block -= temp_block_bonus
-	temp_hand_tempo_reduction = 0
+	temp_hand_tempo_reduction = untimed_tempo_reduction
 	temp_mana_discount = 0
 	temp_block_bonus = 0
-	temp_flat_block = 0
+	temp_flat_block = untimed_flat_block
 	temp_mod_tempo_left = 0
+
+## The card left the hand (played, discarded, drawn afresh): everything ends.
+func clear_temp_mods() -> void:
+	untimed_tempo_reduction = 0
+	untimed_flat_block = 0
+	clear_timed_mods()
 
 # --- Shared statics (moved up from the factory tail so all class state lives together) ---
 static var _factory_map: Dictionary = {}  # card_id -> factory method name
@@ -3179,10 +3203,10 @@ func _execute_life_swap(target, player_stats: PlayerStats, buff_mgr: BuffManager
 	player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
 	player_stats.current_mana = new_mana
 	player_stats.mana_changed.emit(player_stats.current_mana, player_stats.max_mana)
-	# Deal damage equal to life lost
-	if life_lost > 0 and target and target.has_method("take_damage"):
-		target.take_damage(life_lost, true)
-	print("[CARD] Life Swap! HP: %d→%d, Mana: %d→%d, dealt %d damage" % [old_health, new_health, old_mana, new_mana, life_lost])
+	# The damage goes to an enemy in melee range the player chooses (main's
+	# life_swap world case: one enemy hits at once, several ask for a click).
+	pending_life_swap = life_lost
+	print("[CARD] Life Swap! HP: %d→%d, Mana: %d→%d, %d damage to deal" % [old_health, new_health, old_mana, new_mana, life_lost])
 
 func _execute_wear_down(_target, _player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if buff_mgr:
@@ -3915,13 +3939,13 @@ static func create_life_swap() -> Card:
 	var card = Card.new()
 	card.card_id = "life_swap"
 	card.card_name = "Life Swap"
-	card.description = "Exchange HP and mana pools (1 mana = 1 HP). Deal damage equal to HP lost to a selected target in melee range."
+	card.description = "Exchange HP and mana pools (1 mana = 1 HP), then deal damage equal to the HP lost to an enemy you choose in melee range."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 40
 	card.tempo_cost = 4
-	card.target_types = ["enemy"]
-	card.keywords = ["utility", "enemy"]
+	card.target_types = ["self"]
+	card.keywords = ["utility", "self"]
 	return card
 
 static func create_wear_down() -> Card:
@@ -7721,7 +7745,7 @@ static func create_healthy_bliss() -> Card:
 	card.card_name = "Healthy Bliss"
 	card.description = "Instant: Once this has been in your hand for 20 tempo, automatically heal all allies for 10 health."
 	card.card_type = CardType.REACTION
-	card.card_type_name = "Reaction"
+	card.card_type_name = "Instant"
 	card.reaction_trigger = "healthy_bliss_timer"  # fired by its own clock, never by an event
 	card.mana_cost = 0
 	card.tempo_cost = 0
@@ -7731,7 +7755,7 @@ static func create_healthy_bliss() -> Card:
 	card.base_block = 0
 	card.heal_amount = 10
 	card.target_types = ["ally"]
-	card.keywords = ["reaction", "spell"]
+	card.keywords = ["reaction", "utility", "spell"]  # an instant that is also a utility spell
 	return card
 
 # ============================================

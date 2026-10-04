@@ -180,6 +180,7 @@ const CARD_KEYS = [
 
 var selected_card_index: int = -1
 var _basic_attack_pending: bool = false  # Attack button armed — next enemy click swings
+var _pending_enemy_pick: Dictionary = {}  # a resolved card waiting for the player to choose its enemy (Life Swap)
 var _pending_gauntlet_skill: ItemData = null  # Targeted gauntlet skill armed — next click picks its target
 
 # Gauntlet skills that need a target picked by clicking (like cards do).
@@ -2170,6 +2171,15 @@ func _on_attack_pressed() -> void:
 		update_card_highlights()
 	_set_basic_attack_pending(true)
 	add_battle_log("Attack armed — click an enemy within reach.", Color(1.0, 0.85, 0.4))
+
+## Life Swap's chosen enemy takes the swapped HP as the player's own hit.
+func _life_swap_strike(enemy: Enemy, amount: int) -> void:
+	if enemy == null or not is_instance_valid(enemy) or enemy.is_dead:
+		return
+	PlayerStats.hit_source_direct = true
+	enemy.take_damage(amount, true)
+	PlayerStats.hit_source_direct = false
+	add_battle_log("Life Swap: %d damage to %s." % [amount, enemy.enemy_name], Color(0.8, 0.4, 0.5))
 
 func _set_basic_attack_pending(pending: bool) -> void:
 	_basic_attack_pending = pending
@@ -9246,10 +9256,11 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		progression_triggers._trigger_sphere_passives("on_spell_cast", {"card": card, "target": target})
 		_try_arcane_echo(player.get_stats())
 
-	# "Attack" passives (Ladder Work, Surprise Opener): attacks, not spells.
-	if card.is_attack():
+	# Surprise Opener fires on any offensive card; Ladder Work (inside) on
+	# attacks only, not spells.
+	if card.is_offensive():
 		progression_triggers._trigger_skill_tree_on_attack(card, target)
-		if card.is_ranged:
+		if card.is_ranged and card.is_attack():
 			progression_triggers._trigger_skill_tree_stephen_on_ranged_attack(card, target)
 	if card.card_type == Card.CardType.DEFENSE:
 		progression_triggers._trigger_skill_tree_brad_on_defense_card_play(card)
@@ -12366,6 +12377,24 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				add_battle_log("Huck! %d damage to %s — the wall is gone" % [hk_armor, target.enemy_name],
 					Color(0.8, 0.7, 0.5))
 
+		"life_swap":
+			# The HP the swap cost goes to an enemy in melee range the player
+			# chooses: one candidate hits at once, several arm a click.
+			var ls_dmg: int = card.pending_life_swap
+			card.pending_life_swap = 0
+			if ls_dmg > 0:
+				var ls_adjacent: Array = []
+				for ls_en in enemy_spawner.get_living_enemies():
+					if ls_en and is_instance_valid(ls_en) and _get_distance_to_target(ls_en) <= 1:
+						ls_adjacent.append(ls_en)
+				if ls_adjacent.is_empty():
+					add_battle_log("Life Swap: no enemy in melee range to take the %d." % ls_dmg, Color(0.7, 0.6, 0.5))
+				elif ls_adjacent.size() == 1:
+					_life_swap_strike(ls_adjacent[0], ls_dmg)
+				else:
+					_pending_enemy_pick = {"damage": ls_dmg, "allowed": ls_adjacent, "what": "Life Swap"}
+					add_battle_log("Life Swap: click an enemy in melee range to take the %d." % ls_dmg, Color(1.0, 0.85, 0.4))
+
 		"bouncing_shield":
 			# Steve Rodgers: the shield leaves your arm (half your armor goes
 			# with it), then chains from body to body, each one sending back
@@ -12528,6 +12557,8 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			player.position = roll_final
 			player.target_position = roll_final
 			print("[MAIN] Roll: moved to %s (max %d tiles)" % [roll_final, roll_max])
+			if roll_final != roll_start:
+				progression_triggers._trigger_skill_tree_on_displacement()  # Now You See Me: a roll is a displacement
 
 		"misery_loves_company":
 			_misery_active = true
@@ -12833,6 +12864,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			leap_target = grid_manager.snap_to_grid(leap_target)
 			# Teleport player to landing spot (passes through all units freely)
 			player.position = leap_target
+			progression_triggers._trigger_skill_tree_on_displacement()  # Now You See Me: a leap is a displacement
 			player.target_position = leap_target
 			# Damage scales with the distance ACTUALLY leaped (3 per tile), not the
 			# max STR leap — a short hop hits softer, as the card describes.
@@ -13272,6 +13304,17 @@ func _input(event: InputEvent) -> void:
 			return
 
 		# Basic attack armed: this click picks the enemy to swing at.
+		# A card waiting for its enemy (Life Swap): the click picks one of the
+		# candidates it offered; a click elsewhere is simply ignored.
+		if not _pending_enemy_pick.is_empty():
+			var pick_enemy = enemy_spawner.get_enemy_at_position(get_mouse_world_position())
+			if pick_enemy and pick_enemy in _pending_enemy_pick.get("allowed", []):
+				var pick = _pending_enemy_pick
+				_pending_enemy_pick = {}
+				_life_swap_strike(pick_enemy, int(pick["damage"]))
+			else:
+				add_battle_log("%s: pick one of the enemies in melee range." % str(_pending_enemy_pick.get("what", "")), Color(1.0, 0.6, 0.3))
+			return
 		if _basic_attack_pending:
 			var atk_mouse_pos = get_mouse_world_position()
 			var atk_enemy = enemy_spawner.get_enemy_at_position(atk_mouse_pos)
