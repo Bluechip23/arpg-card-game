@@ -495,6 +495,11 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		print("[DECK] %s must be engraved into an item before it can be played" % card.card_name)
 		return { "played": false, "half_tempo": false }
 
+	# A world state holding the card (the Bastion's shield still in flight).
+	if card.world_block_reason() != "":
+		print("[DECK] %s cannot be played: %s" % [card.card_name, card.world_block_reason()])
+		return { "played": false, "half_tempo": false }
+
 	if debuff_mgr:
 		if debuff_mgr.is_card_locked(index):
 			print("[DECK] Cannot play card - Locked!")

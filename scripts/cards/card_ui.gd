@@ -118,7 +118,8 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 		is_locked = debuff_mgr.is_card_locked(index)
 
 	# Engrave: unusable until slotted into an equipped item — greyed like Locked.
-	var needs_engraving := card.requires_engraving and card.slotted_in_item == null
+	var needs_engraving := (card.requires_engraving and card.slotted_in_item == null) \
+			or card.world_block_reason() != ""
 
 	# Costs live in the corner badges (mana drop / sand timer); the old title-bar
 	# cost text only surfaces the maintain cost now.
