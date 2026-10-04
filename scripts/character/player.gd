@@ -483,6 +483,9 @@ func blink_to(target_pos: Vector3) -> void:
 	is_moving = false
 	move_path.clear()
 	print("[PLAYER] Blinked to %s" % target_pos)
+	# A teleport is a completed move: fog, zones, pickups and the melee-range
+	# edges (Territorial Death, In the Trenches) all refresh.
+	move_completed.emit()
 
 var deck_manager_ref: DeckManager = null
 

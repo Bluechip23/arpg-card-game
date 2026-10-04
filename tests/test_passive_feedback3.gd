@@ -167,16 +167,17 @@ func _test_exposed_blind_spot(stats, pt, dummy: Enemy) -> void:
 	var gm = main.grid_manager
 	_place(gm, dummy, gm.world_to_grid(main.player.position) + Vector2i(1, 0))
 	main.deck_manager.hand.clear()
-	main.deck_manager.hand.append(Card.create_fireball())   # an Attack-type spell: not "non-attack"
+	main.deck_manager.hand.append(Card.create_fireball())   # an offensive SPELL: non-attack ("a hand full of offensive spells works")
 	main.deck_manager.hand.append(Card.create_harden())     # non-attack
-	main.deck_manager.hand.append(Card.create_energy_ball() if false else Card.create_healing_potion())  # non-attack
+	main.deck_manager.hand.append(Card.create_healing_potion())  # non-attack
+	main.deck_manager.hand.append(Card.create_slash())      # an attack: not counted
 	stats.st_exposed_blind_spot_crit = 0.0
 	pt._trigger_skill_tree_stephen_on_attacked(dummy)
-	_check(is_equal_approx(stats.st_exposed_blind_spot_crit, 2.5), "two non-attack cards at rank 2 arm 2.50%% (%.2f)" % stats.st_exposed_blind_spot_crit)
+	_check(is_equal_approx(stats.st_exposed_blind_spot_crit, 3.75), "three non-attack cards (the offensive spell among them) at rank 2 arm 3.75%% — the Slash is not counted (%.2f)" % stats.st_exposed_blind_spot_crit)
 	var bm = main.player.get_buff_manager()
 	stats.st_pre_attack_is_attack = false
 	bm.roll_crit()
-	_check(is_equal_approx(stats.st_exposed_blind_spot_crit, 2.5), "a spell's roll neither uses nor spends it")
+	_check(is_equal_approx(stats.st_exposed_blind_spot_crit, 3.75), "a spell's roll neither uses nor spends it")
 	stats.st_pre_attack_is_attack = true
 	bm.roll_crit()
 	_check(is_equal_approx(stats.st_exposed_blind_spot_crit, 0.0), "an attack's roll spends it")
@@ -233,8 +234,8 @@ func _test_lethal(stats, pt, dummy: Enemy) -> void:
 	_check(dummy.current_health == hp0 and stats.st_lethal_last_tempo == -100, "bare-handed, an enemy 3 tiles off is out of reach: no attack, no cooldown spent")
 	var inv = main.player.get_inventory()
 	_check(inv.equip_item(ItemData.create_short_bow(), 0), "a bow equips")
-	pt._trigger_skill_tree_stephen_on_card_play(Card.create_fireball())  # a spell is a non-attack card? no — Attack type
-	_check(dummy.current_health == hp0, "an Attack-type card (a spell too) does not trigger it")
+	pt._trigger_skill_tree_stephen_on_card_play(Card.create_slash())  # an attack never triggers it
+	_check(dummy.current_health == hp0, "an attack card does not trigger it")
 	pt._trigger_skill_tree_stephen_on_card_play(Card.create_harden())
 	_check(dummy.current_health < hp0, "with a bow the free auto attack reaches 3 tiles (%d damage)" % (hp0 - dummy.current_health))
 	_check(stats.st_lethal_last_tempo != -100, "…and the cooldown is spent")

@@ -50,7 +50,7 @@ func _run() -> void:
 	_check(Card.create_oops().base_damage == 3, "Oops hits for 3")
 	_check(not Card.create_worms_armageddon().is_aoe, "Worms Armageddon is single target")
 	_check(Card.create_charge().target_types == ["point"], "Charge needs no target — a direction")
-	_check(Card.create_armor_break().card_type == Card.CardType.UTILITY, "Armor Break is a Utility self-buff")
+	_check(Card.create_armor_break().card_type == Card.CardType.ATTACK and Card.create_armor_break().is_attack(), "Armor Break is an Attack (the sheet's type), cast on yourself")
 	_check(Card.create_healthy_bliss().card_type == Card.CardType.REACTION, "Healthy Bliss is an instant")
 	_check(Card.create_meditate().glut_tempo == 5, "Meditate: Glut 5")
 	var ba = Card.create_by_id("basic_attack")

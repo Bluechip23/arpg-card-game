@@ -1297,6 +1297,9 @@ func is_heal_card() -> bool:
 	return heal_amount > 0 or card_id in HEAL_CARD_IDS
 
 func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
+	_exec_depth += 1
+	_scope_snapshot = {"adaptive": PlayerStats.adaptive_damage_type, "mult": PlayerStats.hit_multiplier,
+		"pending": player_stats.defense_card_bonus_pending if player_stats else false}
 	last_damage_dealt = 0
 
 	# Premeditated: the first card to target an exposed-by-Premeditated enemy
@@ -2302,8 +2305,9 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		if dealt > 0:
 			buff_mgr.consume_life_steal(dealt)
 
-	# Life Steal passive (Brad): all attacks heal for 1%..8% (rank-scaled) of damage dealt.
-	if card_type == CardType.ATTACK and player_stats and player_stats.has_skill_tree_passive("life_steal"):
+	# Life Steal passive (Brad): all ATTACKS (not spells) heal for 1%..8%
+	# (rank-scaled) of damage dealt.
+	if is_attack() and player_stats and player_stats.has_skill_tree_passive("life_steal"):
 		var ls_dealt = last_damage_dealt if last_damage_dealt > 0 else damage
 		if ls_dealt > 0:
 			var ls_passive_pct: float = PassiveScaling.value("life_steal", "percent", player_stats.get_passive_level("life_steal"))
@@ -2392,18 +2396,21 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 
 	# Girdle of Aphrodite: offensive slotted cards Taunt their enemy target;
 	# utility/defense slotted cards heal their (ally/self) target.
-	if slotted_in_item and target:
+	if slotted_in_item:
 		var osb_g = get_on_self_bonus()
-		if is_offensive() and int(osb_g.get("taunt_cycles", 0)) > 0 and target.has_method("apply_taunt") and buff_mgr:
+		if is_offensive() and int(osb_g.get("taunt_cycles", 0)) > 0 and target and target.has_method("apply_taunt") and buff_mgr:
 			target.apply_taunt(buff_mgr.owner_node, int(osb_g["taunt_cycles"]) * 5)
 			print("[CARD] On-Self: %s taunts the target" % slotted_in_item.item_name)
 		# A card can be an instant AND a utility/defense card — the tags decide.
 		var _girdle_support: bool = card_type == CardType.UTILITY or card_type == CardType.DEFENSE \
 				or has_keyword("utility") or has_keyword("defense")
 		if _girdle_support and not is_offensive() and int(osb_g.get("support_heal", 0)) > 0:
-			var heal_who = target if (target.has_method("get_stats") and target.get_stats()) else null
-			if heal_who:
-				heal_who.get_stats().heal(int(osb_g["support_heal"]))
+			# "Heal their target": a card with no target (Hold the Line) heals its caster.
+			var heal_stats: PlayerStats = player_stats
+			if target and target.has_method("get_stats") and target.get_stats():
+				heal_stats = target.get_stats()
+			if heal_stats:
+				heal_stats.heal(int(osb_g["support_heal"]))
 			elif player_stats:
 				player_stats.heal(int(osb_g["support_heal"]))
 			print("[CARD] On-Self: %s heals %d" % [slotted_in_item.item_name, int(osb_g["support_heal"])])
@@ -2490,6 +2497,8 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			for sw in player_stats.inventory.equipped_weapons:
 				if sw == null:
 					continue
+				if sw.attack_debuffs_on_self_only and slotted_in_item != sw:
+					continue  # Car Battery: only cards slotted in it carry its Shock
 				for sw_pair in [["burn", sw.attack_apply_burn], ["cold", sw.attack_apply_cold],
 						["shock", sw.attack_apply_shock], ["silenced", sw.attack_apply_silence],
 						["vulnerable", sw.attack_apply_vulnerable]]:
@@ -2554,10 +2563,21 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		player_stats.temp_crit_damage_bonus = max(0.0, player_stats.temp_crit_damage_bonus - _temp_crit_dmg_applied)
 	if _adaptive_type_prev != -999:
 		damage_type = _adaptive_type_prev  # Blue Robe: the type swap never sticks to the card
-	PlayerStats.adaptive_damage_type = false
-	PlayerStats.hit_multiplier = 1.0
-	if player_stats:
-		player_stats.defense_card_bonus_pending = false  # an armorless card leaves nothing waiting
+	_exec_depth -= 1
+	if _exec_depth > 0:
+		# An instant fired inside another card's play: hand the outer card
+		# its riders back.
+		PlayerStats.adaptive_damage_type = _scope_snapshot["adaptive"]
+		PlayerStats.hit_multiplier = _scope_snapshot["mult"]
+		if player_stats:
+			player_stats.defense_card_bonus_pending = _scope_snapshot["pending"]
+	elif not play_scope_open:
+		# A bare execute (no world-effects step follows): clean up here.
+		PlayerStats.adaptive_damage_type = false
+		PlayerStats.hit_multiplier = 1.0
+		if player_stats:
+			player_stats.defense_card_bonus_pending = false  # an armorless card leaves nothing waiting
+	# (Inside an open scope main closes it after the world effects.)
 
 	# Wizard Hat: a spell card consumes the armed spell-power bonus on play.
 	if school == CardSchool.SPELL and player_stats and player_stats.pending_spell_power_bonus > 0:
@@ -2791,6 +2811,11 @@ func _execute_heal_with_poison_check(target, player_stats: PlayerStats, buff_mgr
 			dmg = player_stats.get_effective_heal_amount(heal_amount)
 		target.take_damage(dmg, true)
 		print("[CARD] Poisoned Blood: %s dealt %d damage!" % [card_name, dmg])
+	elif target != null and not target.has_method("get_stats") and target.has_method("heal"):
+		# A summon (wolf, specter, penguin...) heals on its own body.
+		var s_amt: int = player_stats.get_effective_heal_amount(heal_amount) if player_stats else heal_amount
+		target.heal(s_amt)
+		print("[CARD] %s healed a summon for %d" % [card_name, s_amt])
 	elif player_stats:
 		player_stats.heal(heal_amount)
 		print("[CARD] %s restored health!" % card_name)
@@ -2813,6 +2838,36 @@ func get_burden_mana_cost() -> int:
 ## tag is not offensive. Items and passives that say "offensive" read this.
 func is_offensive() -> bool:
 	return card_type == CardType.ATTACK or has_keyword("offensive")
+
+## "Attack" on the sheet is narrower than "offensive": an Attack card that
+## is not a spell, or any card the sheet tags `attack` (Parry, If Pigs Could
+## Fly). A Fireball is a spell — offensive, but not an attack — so passives
+## worded "attack" (Exposed Blind Spot's crit, Lethal Resourcefulness's
+## "non-attack", Skilled Momentum's streak, Life Steal) read this.
+func is_attack() -> bool:
+	if has_keyword("attack"):
+		return true
+	return card_type == CardType.ATTACK and school != CardSchool.SPELL
+
+# --- The play scope -------------------------------------------------------
+# A card's slotted-item riders (Megingjörð's x2, Blue Robe's per-enemy type,
+# Thick Steel's armor rider) and the armed passives must cover EVERYTHING
+# the card produces — including damage and armor dealt afterwards in
+# main._apply_card_world_effects. Main opens the scope around a full
+# resolution (execute + world effects) and closes it with close_play_scope;
+# a bare execute() (an instant firing on its own) still cleans up after
+# itself, and one nested inside another card's scope restores the outer
+# card's riders when it finishes.
+static var play_scope_open: bool = false
+static var _exec_depth: int = 0
+static var _scope_snapshot: Dictionary = {}
+
+static func close_play_scope(player_stats: PlayerStats) -> void:
+	play_scope_open = false
+	PlayerStats.adaptive_damage_type = false
+	PlayerStats.hit_multiplier = 1.0
+	if player_stats:
+		player_stats.defense_card_bonus_pending = false
 
 func get_burden_tempo_cost() -> int:
 	var cost := tempo_cost
@@ -2900,7 +2955,7 @@ static func create_basic_attack(damage_amount: int = 10) -> Card:
 	var card = create_slash()
 	card.card_id = "basic_attack"
 	card.card_name = "Basic Attack"
-	card.description = "Free basic attack generated by passives and procs. %d damage." % damage_amount
+	card.description = "A basic attack with your weapon. %d damage." % damage_amount
 	card.mana_cost = 0
 	card.tempo_cost = 5
 	card.damage = damage_amount
@@ -3012,7 +3067,6 @@ static func create_empower() -> Card:
 static func create_blink() -> Card:
 	var card = Card.new()
 	card.card_id = "blink"
-	card.school = CardSchool.SPELL
 	card.card_name = "Blink"
 	card.description = "Teleport to a point up to 7 spaces away."
 	card.card_type = CardType.UTILITY
@@ -3027,7 +3081,7 @@ static func create_blink() -> Card:
 	card.range_modifier = 2
 	card.target_types = ["point"]
 	card.heal_amount = 0
-	card.keywords = ["utility", "ranged", "spell"]
+	card.keywords = ["utility", "ranged"]
 	return card
 
 static func create_heal() -> Card:
@@ -3948,14 +4002,14 @@ static func create_armor_break() -> Card:
 	card.card_id = "armor_break"
 	card.card_name = "Armor Break"
 	card.description = "Next attack deals double damage to armor only. Does nothing to unarmored enemies."
-	card.card_type = CardType.UTILITY  # a self-buff; the NEXT attack carries it
-	card.card_type_name = "Utility"
+	card.card_type = CardType.ATTACK  # the sheet's type; a self-cast whose NEXT attack carries it
+	card.card_type_name = "Attack"
 	card.mana_cost = 30
 	card.tempo_cost = 4
 	card.damage = 0
 	card.base_damage = 0
 	card.target_types = ["self"]
-	card.keywords = ["utility", "self"]
+	card.keywords = ["attack", "melee", "offensive", "self"]
 	return card
 
 static func create_charge() -> Card:
@@ -4392,7 +4446,6 @@ static func create_reposition() -> Card:
 static func create_volatile_mixture() -> Card:
 	var card = Card.new()
 	card.card_id = "volatile_mixture"
-	card.school = CardSchool.SPELL
 	card.card_name = "Volatile Mixture"
 	card.description = "On Discard: deal 8 damage to the nearest enemy. If this card is in hand for 5 tempo, deal 8 self-damage then discard the card."
 	card.card_type = CardType.UTILITY
@@ -4403,7 +4456,7 @@ static func create_volatile_mixture() -> Card:
 	card.base_damage = 8
 	card.target_types = ["self"]
 	card.is_ranged = true
-	card.keywords = ["utility", "ranged", "spell"]
+	card.keywords = ["utility", "ranged"]
 	return card
 
 static func create_understanding() -> Card:
@@ -4489,7 +4542,6 @@ static func create_mark() -> Card:
 static func create_rise() -> Card:
 	var card = Card.new()
 	card.card_id = "rise"
-	card.school = CardSchool.SPELL
 	card.card_name = "Rise"
 	card.description = "Lift the earth creating a structure on the map."
 	card.card_type = CardType.UTILITY
@@ -4499,7 +4551,7 @@ static func create_rise() -> Card:
 	card.target_types = ["point"]
 	card.is_ranged = true
 	card.range_modifier = 3
-	card.keywords = ["utility", "point", "ranged", "spell"]
+	card.keywords = ["utility", "point", "ranged"]
 	return card
 
 static func create_quick_shot() -> Card:
@@ -4577,7 +4629,6 @@ static func create_down_town() -> Card:
 static func create_barricade() -> Card:
 	var card = Card.new()
 	card.card_id = "barricade"
-	card.school = CardSchool.SPELL
 	card.card_name = "Barricade"
 	card.description = "Create a barricade of land that is 3 tiles wide in front of you."
 	card.card_type = CardType.UTILITY
@@ -4587,7 +4638,7 @@ static func create_barricade() -> Card:
 	card.target_types = ["point"]
 	card.is_ranged = true
 	card.range_modifier = -4
-	card.keywords = ["utility", "point", "ranged", "spell"]
+	card.keywords = ["utility", "point", "ranged"]
 	return card
 
 static func create_sky_fall() -> Card:
@@ -5316,7 +5367,6 @@ static func create_self_infliction() -> Card:
 static func create_fountain_of_life() -> Card:
 	var card = Card.new()
 	card.card_id = "fountain_of_life"
-	card.school = CardSchool.SPELL
 	card.card_name = "Fountain of Health"
 	card.description = "Maintain 3M: Every cycle, deal 2 damage to self and draw a card."
 	card.card_type = CardType.POWER
@@ -5330,7 +5380,7 @@ static func create_fountain_of_life() -> Card:
 	card.heal_amount = 0
 	card.maintain_cost = 30
 	card.target_types = ["self"]
-	card.keywords = ["power", "self", "spell"]
+	card.keywords = ["power", "self"]
 	return card
 
 func _execute_fountain_of_life(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -5841,6 +5891,9 @@ func _execute_shepherds_mark(target, player_stats: PlayerStats, deck_manager = n
 		target.shepherd_mark_tempo = 10
 		print("[CARD] Shepherd's Mark: summon marked for 10 tempo!")
 		return
+	if target != null and not (target is Player) and target.has_method("take_damage"):
+		print("[CARD] Shepherd's Mark: %s cannot carry the mark" % target.name)
+		return  # a summon without mark fields — never the caster by mistake
 	if player_stats:
 		player_stats.st_whispers_active = true
 		player_stats.st_whispers_tempo = 10
@@ -5985,7 +6038,7 @@ func _execute_living_armor(buff_mgr: BuffManager) -> void:
 	var regen = buff_mgr.get_buff(Buff.BuffType.REGEN)
 	var have: int = regen.value if regen else 0
 	if mark > have:
-		buff_mgr.apply_buff(Buff.create_regen(mark - have, 15, "Living Armor"))
+		buff_mgr.apply_buff(Buff.create_regen(mark - have, 5, "Living Armor"))  # no timeframe written: the 5-tempo default
 	print("[CARD] Living Armor! Regen %d -> %d (Fortify mark %d)" % [have, maxi(have, mark), mark])
 
 func _execute_multi_hit(target, hits: int, player_stats: PlayerStats, damage_reduction_pct: float, buff_mgr: BuffManager, crit_step: int) -> int:
@@ -6837,7 +6890,6 @@ static func create_living_armor() -> Card:
 static func create_the_lights_favor() -> Card:
 	var card = Card.new()
 	card.card_id = "the_lights_favor"
-	card.school = CardSchool.SPELL
 	card.card_name = "The Light's Favor"
 	card.description = "Heal 5 and draw a card."
 	card.card_type = CardType.UTILITY
@@ -6852,7 +6904,7 @@ static func create_the_lights_favor() -> Card:
 	card.target_types = ["self", "ally"]
 	card.is_ranged = true
 	card.range_modifier = -1
-	card.keywords = ["utility", "allies", "ranged", "spell"]
+	card.keywords = ["utility", "allies", "ranged"]
 	return card
 
 static func create_hunker_down() -> Card:

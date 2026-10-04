@@ -424,6 +424,7 @@ var vitality_stacks: int = 0    # Nine Ruins: current Vitality
 @export var attack_apply_burn: int = 0        # your damaging attacks apply X Burn (Fire Book 1)
 @export var attack_apply_cold: int = 0        # ... X Cold (Frost Book 1, Ice Orb 2)
 @export var attack_apply_shock: int = 0       # ... X Shock (Car Battery 3)
+@export var attack_debuffs_on_self_only: bool = false  # the attack_apply_* riders only ride cards slotted in this item (Car Battery)
 @export var attack_apply_silence: int = 0     # ... X Silence (Circe's Wand 1)
 @export var attack_apply_vulnerable: int = 0  # ... X Vulnerable (Reaper Scythe 1)
 
@@ -1579,7 +1580,7 @@ static func create_gravity_gauntlets() -> ItemData:
 	item.agility_bonus = 2
 	item.on_self_root_offensive = 1  # hold for 1 cycle (5 tempo)
 	_set_skill(item, "Suck", "Pull enemies within 2 squares into the target area.", "suck", 2, 10)
-	item.description = "+6 INT, +3 WIS, +2 AGI. On-self: offensive cards hold the target in place for 5 tempo (attacks/casts fine, no movement). Skill — Suck: pull enemies into the target area, 2-square AOE (10 tempo CD)."
+	item.description = "+6 INT, +3 WIS, +2 AGI. On-self: offensive cards hold the target in place for 5 tempo (attacks/casts fine, no movement). Skill — Suck: pull enemies into the target area, 2-square AOE (10 mana, 10 tempo CD)."
 	return item
 
 static func create_spiked_mitts() -> ItemData:
@@ -3003,7 +3004,8 @@ static func create_car_battery() -> ItemData:
 	item.agility_bonus = 3
 	item.dexterity_bonus = 3
 	item.attack_apply_shock = 3
-	item.description = "+3 INT, +3 AGI, +3 DEX. 2 card slots. Two-handed. Your damaging attacks apply 3 Shock."
+	item.attack_debuffs_on_self_only = true
+	item.description = "+3 INT, +3 AGI, +3 DEX. 2 card slots. Two-handed. On-self: damaging offensive cards slotted here apply 3 Shock."
 	return item
 
 static func create_abjurers_cane() -> ItemData:

@@ -252,7 +252,13 @@ func _test_eat(stats, pt, dummy: Enemy) -> void:
 	dummy.take_damage(10, true)
 	_check(dummy.max_health - dummy.current_health == 10, "at full health a 10 damage hit is 10")
 	dummy.current_health = hp0
+	# A summon's bite or a zone tick (no direct flag) gets no Eat.
 	dummy.take_damage(10, true)
+	_check(hp0 - dummy.current_health == 10, "a hit that is not Cory's own action (a summon, a tick) is not boosted (%d)" % (hp0 - dummy.current_health))
+	dummy.current_health = hp0
+	PlayerStats.hit_source_direct = true  # a card / skill / auto attack hit
+	dummy.take_damage(10, true)
+	PlayerStats.hit_source_direct = false
 	_check(hp0 - dummy.current_health == expected, "at %d%% health the same hit is %d (%d)" % [roundi(pre_pct), expected, hp0 - dummy.current_health])
 	dummy.current_health = hp0
 	dummy.take_damage(10, false)

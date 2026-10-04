@@ -504,6 +504,7 @@ func world_to_screen(world_pos: Vector3) -> Vector2:
 #region READY & CORE WIRING
 func _ready() -> void:
 	PlayerStats.incoming_mitigation_hook = _cover_mitigation
+	call_deferred("_sync_bastion_flag")  # a shield still in flight from the last area
 	_setup_world_viewport()
 	_unify_lighting()
 	# Initialize extracted managers
@@ -2247,8 +2248,9 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 	if debuff_mgr:
 		tempo_cost += debuff_mgr.get_tempo_increase()
 
-	# Dex proc: halve basic attack tempo
-	var basic_attack_proc = deck_manager.next_attack_half_tempo
+	# Dex proc: halve basic attack tempo (a free passive swing costs no
+	# tempo, so it leaves the proc for a real swing)
+	var basic_attack_proc = deck_manager.next_attack_half_tempo and not free
 	if basic_attack_proc:
 		tempo_cost = tempo_cost / 2
 		deck_manager.next_attack_half_tempo = false
@@ -2290,6 +2292,9 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 		add_battle_log("Attack: %d damage to %s (Steady!)" % [damage, target.enemy_name], Color(0.4, 1.0, 0.5))
 		print("[MAIN] Basic Attack (Steady): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
 		_ring_note_big_hit(damage)
+		_belthronding_share(player.position, damage, player)
+		PlayerStats.hit_source_offensive = false
+		PlayerStats.hit_source_direct = false
 	elif tempo_cost <= 0:
 		# Dex proc reduced tempo to 0: resolve immediately
 		if player.has_method("play_animation"):
@@ -2306,8 +2311,14 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 		add_battle_log("Attack: %d damage to %s (Proc!)" % [damage, target.enemy_name], Color(1.0, 0.3, 0.3))
 		print("[MAIN] Basic Attack (Dex Proc): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
 		_ring_note_big_hit(damage)
+		_belthronding_share(player.position, damage, player)
+		PlayerStats.hit_source_offensive = false
+		PlayerStats.hit_source_direct = false
 	else:
-		# Queue basic attack through the ticked tempo system.
+		# Queue basic attack through the ticked tempo system (the resolve
+		# raises the hit-source flags again when the swing lands).
+		PlayerStats.hit_source_offensive = false
+		PlayerStats.hit_source_direct = false
 		# Damage resolves on tick 1; remaining ticks are cooldown.
 		# The swing rides the ticker as an Attack card (no separate "Basic
 		# Attack" card exists any more): the queue only needs a carrier with
@@ -3789,8 +3800,11 @@ func _on_gauntlet_skill_activated(gauntlet: ItemData) -> void:
 ## so a no-op can no longer eat the cooldown.
 func _fire_gauntlet_skill(gauntlet: ItemData, target) -> void:
 	PlayerStats.hit_source_offensive = false  # a skill is not an offensive card
+	PlayerStats.hit_source_direct = true      # ...but it is the player's own action (Eat)
 	var inventory = player.get_inventory()
-	if inventory and inventory.use_gauntlet_skill(gauntlet, target):
+	var skill_used: bool = inventory != null and inventory.use_gauntlet_skill(gauntlet, target)
+	PlayerStats.hit_source_direct = false
+	if skill_used:
 		tempo_manager.add_tempo(1)  # Skills cost 1 tempo
 		# A little gauntlet pops over the user's head (like the heal heart).
 		player.show_gauntlet_skill()
@@ -6302,15 +6316,21 @@ func _on_enemy_damaged(damage: int, enemy: Enemy) -> void:
 
 ## An enemy is about to land a hit: instants that shield against it
 ## (Magic Barrier) fire now so their armor is up before the damage math.
-func _on_enemy_attacking_player(_enemy: Enemy) -> void:
-	if deck_manager == null:
-		return
+func _on_enemy_attacking_player(_enemy: Enemy, victim = null) -> void:
+	if deck_manager == null or (victim != null and victim != player):
+		return  # a partner or a dojo ally being hit is not "you"
 	for rc in deck_manager.trigger_reactions("on_incoming_attack"):
 		rc.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
 		add_battle_log("%s! (instant)" % rc.card_name, Color(0.6, 0.8, 1.0))
+		if rc.erase_on_play:
+			# Consumed, not discarded — trigger_reactions parked it in the discard pile.
+			deck_manager.discard_pile.erase(rc)
+			deck_manager.card_erased.emit(rc)
 	_on_hand_updated()
 
-func _on_enemy_attacked_player(enemy: Enemy) -> void:
+func _on_enemy_attacked_player(enemy: Enemy, victim = null) -> void:
+	if victim != null and victim != player:
+		return  # "when an enemy attacks you": not the partner, not a dojo ally
 	progression_triggers._trigger_skill_tree_brad_on_attacked(enemy)
 	progression_triggers._trigger_skill_tree_stephen_on_attacked(enemy)
 	progression_triggers._trigger_skill_tree_jeremy_on_enemy_attacked(enemy)
@@ -8783,11 +8803,13 @@ func play_selected_card(target) -> void:
 
 	# Arcane Overflow: -1 tempo on spells when primed (had 0 mana after previous spell)
 	var ao_stats = player.get_stats()
+	var ao_spent := false
 	if ao_stats and ao_stats.has_skill_tree_passive("arcane_overflow") and ao_stats.st_arcane_overflow_discount:
 		if card.is_offensive():  # the next OFFENSIVE card, attack or tagged spell
 			tempo_cost = maxi(0, tempo_cost - 1)
 			resolve_tick = mini(resolve_tick, tempo_cost)
-			ao_stats.st_arcane_overflow_discount = false  # one spell gets it
+			ao_stats.st_arcane_overflow_discount = false  # one card gets it
+			ao_spent = true
 			add_battle_log("Arcane Overflow: -1 tempo!", Color(0.9, 0.3, 0.3))
 
 	var debuff_mgr = player.get_debuff_manager()
@@ -8854,8 +8876,11 @@ func play_selected_card(target) -> void:
 		var target_name = ""
 		if target is Enemy:
 			target_name = " on %s" % target.enemy_name
-		if resolve_tick <= 1:
+		if tempo_cost <= 0:
+			# A 0-tempo card begins the moment it is played; any other card
+			# begins on its first tick (TempoManager.card_started).
 			progression_triggers.on_card_ticks_started(card)
+		if resolve_tick <= 1:
 			add_battle_log("Played %s%s" % [card.card_name, target_name], Color(0.4, 1.0, 0.5))
 		else:
 			add_battle_log("Winding up %s%s (resolves tick %d/%d)" % [card.card_name, target_name, resolve_tick, tempo_cost], Color(1.0, 0.85, 0.4))
@@ -8919,6 +8944,8 @@ func play_selected_card(target) -> void:
 				s_ui.show_sticky_counter(card.consecutive_uses, card.sticky)
 	else:
 		# Card didn't play - undo temporary modifications
+		if ao_spent and ao_stats:
+			ao_stats.st_arcane_overflow_discount = true  # the play failed: keep the discount
 		if tighten_applied:
 			card.bonus_damage -= 6
 			card.range_modifier -= 6
@@ -9119,6 +9146,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 				player.face_toward(target.position)
 		var damage = data["basic_attack_damage"]
 		PlayerStats.hit_source_offensive = true  # the auto attack is offensive
+		PlayerStats.hit_source_direct = true     # ...and the player's own action
 		target.take_damage(damage, true)
 		progression_triggers.brad_life_steal(damage)
 		_basic_attack_armor_shred(target)
@@ -9151,6 +9179,8 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		add_battle_log("Attack: %d damage to %s" % [damage, target_name], Color(0.4, 1.0, 0.5))
 		print("[MAIN] Basic Attack resolved: dealt %d damage to %s" % [damage, target_name])
 		_belthronding_share(player.position, damage, player)
+		PlayerStats.hit_source_offensive = false
+		PlayerStats.hit_source_direct = false
 		return
 
 	# The action happens NOW — play the character's animation at resolution
@@ -9160,14 +9190,30 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	# Harnessed Power (Jeremy): scale everything this card produces.
 	if data.get("harnessed_power_applied", false):
 		PlayerStats.harnessed_mult = float(data.get("harnessed_mult", 1.0))
-	# Solemn Independence reads whether this hit comes from an offensive card.
+	# Solemn Independence reads whether this hit comes from an offensive card;
+	# Eat reads that it is the player's own action (not a summon or a tick).
 	PlayerStats.hit_source_offensive = card.is_offensive()
-	# Execute the card's effect (damage, block, heal, etc.)
-	# Arm passives the in-execution crit roll needs to see (Deadly's isolated
-	# +50% crit damage, Serial Killer's ambush auto-crit).
+	PlayerStats.hit_source_direct = true
+	# The play scope: the slotted item's riders (Megingjörð, Blue Robe, Thick
+	# Steel) and the armed passives cover the card's executor AND its world
+	# effects (AoE splashes, chains, armor granted there). Closed at the end.
+	Card.play_scope_open = true
 	progression_triggers.arm_pre_attack_passives(card, target)
+	# Bonus-damage passives (Deadly, Eagle Eye, Swing for the Fences) ride the
+	# card's own damage, folded in before it executes, so every enemy an AoE
+	# or a chain touches gets them and a second play (Skilled Momentum) too.
+	# A point-aimed card judges Deadly's isolation on the enemy nearest its aim.
+	var bonus_ref = target
+	if not (target is Enemy):
+		bonus_ref = _nearest_living_enemy_to(data.get("aim_world", null))
+	var passive_bonus: int = progression_triggers._trigger_skill_tree_stephen_on_attack(card, target, bonus_ref)
+	if card.is_attack():
+		passive_bonus += progression_triggers._trigger_skill_tree_brad_on_attack(card, target)
+		passive_bonus += progression_triggers._trigger_skill_tree_cory_on_attack(card, target)
+	if passive_bonus > 0:
+		card.bonus_damage += passive_bonus
+	# Execute the card's effect (damage, block, heal, etc.)
 	deck_manager.execute_deferred_card(card, target, player)
-	progression_triggers.clear_pre_attack_passives()
 	# Clean Exchange's flat block: a separate "gain X block" on top of whatever
 	# the card did, granted once, whatever card it rode in on.
 	if card.temp_flat_block > 0:
@@ -9200,24 +9246,11 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		progression_triggers._trigger_sphere_passives("on_spell_cast", {"card": card, "target": target})
 		_try_arcane_echo(player.get_stats())
 
-	# Skill tree passive triggers for card play
-	progression_triggers._trigger_skill_tree_on_card_play(card, target)
-	progression_triggers._trigger_skill_tree_stephen_on_card_play(card)
-	progression_triggers._trigger_skill_tree_cory_on_card_play(card)
-	progression_triggers._trigger_skill_tree_jeremy_on_card_play(card, target, data.get("aim_world", null))
-	PlayerStats.harnessed_mult = 1.0
-	if card.card_type == Card.CardType.ATTACK:
+	# "Attack" passives (Ladder Work, Surprise Opener): attacks, not spells.
+	if card.is_attack():
 		progression_triggers._trigger_skill_tree_on_attack(card, target)
 		if card.is_ranged:
 			progression_triggers._trigger_skill_tree_stephen_on_ranged_attack(card, target)
-	# Bonus-damage passives see every card: each gates itself (Deadly and
-	# Eagle Eye on the offensive rider, Swing for the Fences on tempo,
-	# Scouted and Skilled Momentum on Attack cards).
-	var brad_bonus = progression_triggers._trigger_skill_tree_brad_on_attack(card, target) if card.card_type == Card.CardType.ATTACK else 0
-	var stephen_bonus = progression_triggers._trigger_skill_tree_stephen_on_attack(card, target)
-	var cory_bonus = progression_triggers._trigger_skill_tree_cory_on_attack(card, target) if card.card_type == Card.CardType.ATTACK else 0
-	if (brad_bonus + stephen_bonus + cory_bonus) > 0 and target is Enemy and is_instance_valid(target) and not target.is_dead:
-		target.take_damage(brad_bonus + stephen_bonus + cory_bonus, true)
 	if card.card_type == Card.CardType.DEFENSE:
 		progression_triggers._trigger_skill_tree_brad_on_defense_card_play(card)
 	else:
@@ -9246,17 +9279,33 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	if sm_stats and sm_stats.st_skilled_momentum_echo:
 		sm_stats.st_skilled_momentum_echo = false
 		if not (target is Enemy) or (is_instance_valid(target) and not target.is_dead):
-			if data.get("harnessed_power_applied", false):
-				PlayerStats.harnessed_mult = float(data.get("harnessed_mult", 1.0))
 			progression_triggers.arm_pre_attack_passives(card, target)
 			deck_manager.execute_deferred_card(card, target, player)
-			progression_triggers.clear_pre_attack_passives()
+			if card.is_attack() and sm_stats.has_method("register_attack"):
+				sm_stats.register_attack()  # a second attack for the DEX counter
 			_apply_card_world_effects(card, target)
-			PlayerStats.harnessed_mult = 1.0
 			if card.last_damage_dealt > 0:
 				add_battle_log("%s again — %d damage" % [card.card_name, card.last_damage_dealt], Color(0.9, 0.3, 0.3))
+			if buff_mgr and buff_mgr.last_crit_hit:
+				buff_mgr.last_crit_hit = false
+				progression_triggers._trigger_skill_tree_on_crit(target)
 
+	# The play is over: undo the folded bonus, disarm the passives, close
+	# the scope and drop the hit-source flags.
+	if passive_bonus > 0:
+		card.bonus_damage -= passive_bonus
+	progression_triggers.clear_pre_attack_passives()
+	Card.close_play_scope(player.get_stats())
+	PlayerStats.harnessed_mult = 1.0
 	PlayerStats.hit_source_offensive = false
+	PlayerStats.hit_source_direct = false
+	# Skill tree card-play triggers run AFTER the world effects: Seance's
+	# specter lands where Jeremy ends up (after a leap), and Lethal
+	# Resourcefulness's free swing runs outside this card's riders.
+	progression_triggers._trigger_skill_tree_on_card_play(card, target)
+	progression_triggers._trigger_skill_tree_stephen_on_card_play(card)
+	progression_triggers._trigger_skill_tree_cory_on_card_play(card)
+	progression_triggers._trigger_skill_tree_jeremy_on_card_play(card, target, data.get("aim_world", null))
 	# Undo temporary card modifications (tighten, high ground, harnessed power)
 	_undo_card_temp_mods(card, data)
 
@@ -9339,7 +9388,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	# Lethal Recall: replay last card's effect 2 times
 	if card.card_id == "lethal_recall" and _last_played_card:
 		var replay_card = _last_played_card
-		var replay_target = _last_played_target
+		var replay_target = _last_played_target if is_instance_valid(_last_played_target) else null
 		var stats = player.get_stats()
 		var damage_reduction = 0.0
 		var self_damage = 0.0
@@ -9653,35 +9702,45 @@ func _clear_bullet_casings() -> void:
 
 const VITALITY_WINDOW_TEMPO := 5
 const BASTION_FLIGHT_TEMPO := 10
-var _bastion_armor_out: int = 0        # Bouncing Shield: the armor that left with the shield
-var _bastion_flight_tempo: int = 0     # > 0 while the shield is in the air
 
-## Bouncing Shield: the shield leaves the arm for BASTION_FLIGHT_TEMPO. While
-## it is away the card cannot be played again (Card.bastion_shield_in_flight);
+## Bouncing Shield: the shield leaves the arm for BASTION_FLIGHT_TEMPO. The
+## flight and the banked armor live on the thrower's PlayerStats (they
+## survive a change of area); while it is away the card cannot be played
+## again (Card.bastion_shield_in_flight, synced from the active player);
 ## when it returns the armor it took comes back, straight to the pile (no
 ## armor-gain riders).
 func _throw_bastion(armor_out: int) -> void:
-	_bastion_armor_out += armor_out
-	_bastion_flight_tempo = BASTION_FLIGHT_TEMPO
-	Card.bastion_shield_in_flight = true
+	var st = player.get_stats() if player else null
+	if st == null:
+		return
+	st.bastion_armor_out += armor_out
+	st.bastion_flight_tempo = BASTION_FLIGHT_TEMPO
+	_sync_bastion_flag()
 	_on_hand_updated()  # grey a Bouncing Shield already in hand
 
-func _update_bastion_return(amount: int) -> void:
-	if _bastion_flight_tempo <= 0:
-		return
-	_bastion_flight_tempo -= amount
-	if _bastion_flight_tempo > 0:
-		return
-	_bastion_flight_tempo = 0
-	Card.bastion_shield_in_flight = false
+func _sync_bastion_flag() -> void:
 	var st = player.get_stats() if player else null
-	if st and _bastion_armor_out > 0:
-		st.current_armor += _bastion_armor_out
+	Card.bastion_shield_in_flight = st != null and st.bastion_flight_tempo > 0
+
+func _update_bastion_return(amount: int) -> void:
+	var st = player.get_stats() if player else null
+	if st == null:
+		return
+	_sync_bastion_flag()
+	if st.bastion_flight_tempo <= 0:
+		return
+	st.bastion_flight_tempo -= amount
+	if st.bastion_flight_tempo > 0:
+		return
+	st.bastion_flight_tempo = 0
+	Card.bastion_shield_in_flight = false
+	if st.bastion_armor_out > 0:
+		st.current_armor += st.bastion_armor_out
 		st.armor_changed.emit(st.current_armor)
-		add_battle_log("The shield returns — %d armor back on your arm." % _bastion_armor_out, Color(0.6, 0.75, 1.0))
+		add_battle_log("The shield returns — %d armor back on your arm." % st.bastion_armor_out, Color(0.6, 0.75, 1.0))
 	else:
 		add_battle_log("The shield returns to your arm.", Color(0.6, 0.75, 1.0))
-	_bastion_armor_out = 0
+	st.bastion_armor_out = 0
 	_on_hand_updated()
 
 var _vitality_window: Dictionary = {}   # Nine Ruins: {weapon, tempo} while the nine stacks wait for Sanguine's card
@@ -11651,14 +11710,15 @@ func _helm_crit_fire_cone(target) -> void:
 ## A ranged card's full reach right now: the base 5, its own modifier and
 ## every in-play bonus (Tighten String, high ground, Scouted, sphere Range,
 ## helm). The range check and Eagle Eye both read this.
-func _ranged_card_max_range(card: Card) -> int:
+func _ranged_card_max_range(card: Card, in_play: bool = false) -> int:
 	var max_range: int = 5 + card.range_modifier
-	# Tighten String: +6 range on ranged attacks
+	# Tighten String (+6) and High Ground (+2) are folded into the card's
+	# range_modifier at play time, so a card being resolved already carries
+	# them (`in_play`); the preview adds them here.
 	var buff_mgr = player.get_buff_manager() if player else null
-	if buff_mgr and buff_mgr.tighten_string_charges > 0 and card.card_type == Card.CardType.ATTACK:
+	if not in_play and buff_mgr and buff_mgr.tighten_string_charges > 0 and card.card_type == Card.CardType.ATTACK:
 		max_range += 6
-	# High Ground: +2 range
-	if card.card_type == Card.CardType.ATTACK and player and _is_on_high_ground(player.position):
+	if not in_play and card.card_type == Card.CardType.ATTACK and player and _is_on_high_ground(player.position):
 		max_range += 2
 	var st_stats = player.get_stats() if player else null
 	# Scouted: rank-scaled bonus range (2..6) on next attack after 3 consecutive hits
@@ -11701,6 +11761,14 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 		if card.card_id == "crack_of_mintaka" and deck_manager:
 			melee_range += float(deck_manager.hand.size())
 		return distance_tiles <= melee_range
+
+## The living enemy nearest a world point (the player's position when the
+## point is null), or null with no enemies on the field.
+func _nearest_living_enemy_to(where) -> Enemy:
+	var from: Vector3 = where if where is Vector3 else (player.position if player else Vector3.ZERO)
+	if not enemy_spawner:
+		return null
+	return _nearest_enemy_to(from, enemy_spawner.get_living_enemies())
 
 func _get_nearest_enemy() -> Enemy:
 	## Returns the nearest living enemy to the player, or null if none.
@@ -13330,10 +13398,15 @@ func _input(event: InputEvent) -> void:
 				elif "point" in tt:
 					# Remember the aimed tile for riders that need it (Seance).
 					_last_aim_world = grid_manager.snap_to_grid(mouse_pos)
-					# Blink lands on the clicked tile, so its reach is a hard cap
-					# (aim-only point cards — lines, cones — take any click).
-					if card.card_id == "blink" and grid_manager.get_distance_in_cells(player.position, grid_manager.snap_to_grid(mouse_pos)) > card.get_effective_range():
-						add_battle_log("Out of range! Blink reaches %d spaces." % card.get_effective_range(), Color(1.0, 0.4, 0.4))
+					# A card that LANDS at the clicked tile (Blink, a circle burst,
+					# a ranged point effect) has its range as a hard cap; aim-only
+					# point cards — lines, cones — take any click.
+					var pc_dist: int = grid_manager.get_distance_in_cells(player.position, grid_manager.snap_to_grid(mouse_pos))
+					var pc_capped: bool = card.card_id == "blink" \
+							or (card.is_ranged and card.range_modifier < Card.INFINITE_RANGE \
+								and (not card.is_aoe or _aoe_follows_cursor(card)))
+					if pc_capped and pc_dist > card.get_effective_range():
+						add_battle_log("Out of range! %s reaches %d spaces." % [card.card_name, card.get_effective_range()], Color(1.0, 0.4, 0.4))
 					else:
 						play_selected_card(player)
 				elif "enemy" in tt:
@@ -14025,9 +14098,11 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 	# Execute the card
 	var damage_reduction = debuff_mgr.get_damage_reduction_percent() if debuff_mgr else 0.0
 	var self_damage = debuff_mgr.get_self_damage_percent() if debuff_mgr else 0.0
+	PlayerStats.hit_source_offensive = card.is_offensive()
+	PlayerStats.hit_source_direct = true
+	Card.play_scope_open = true
 	progression_triggers.arm_pre_attack_passives(card, target)
 	card.execute(target, stats, deck_manager, damage_reduction, self_damage, buff_mgr)
-	progression_triggers.clear_pre_attack_passives()
 
 	# Register attack for attack speed counter (DEX proc)
 	if card.card_type == Card.CardType.ATTACK:
@@ -14049,6 +14124,18 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 
 	# Apply card world effects
 	_apply_card_world_effects(card, target)
+	progression_triggers.clear_pre_attack_passives()
+	Card.close_play_scope(stats)
+	PlayerStats.hit_source_offensive = false
+	PlayerStats.hit_source_direct = false
+	# A Manifest play is a card play: the per-character card-play passives
+	# (The Way of the Plate, Self Reliance, Budding...) see it too.
+	if card.card_type == Card.CardType.DEFENSE:
+		progression_triggers._trigger_skill_tree_brad_on_defense_card_play(card)
+	progression_triggers._trigger_skill_tree_on_card_play(card, target)
+	progression_triggers._trigger_skill_tree_stephen_on_card_play(card)
+	progression_triggers._trigger_skill_tree_cory_on_card_play(card)
+	progression_triggers._trigger_skill_tree_jeremy_on_card_play(card, target, null)
 
 	# Notify inventory
 	if deck_manager.inventory:
@@ -15135,8 +15222,8 @@ func _fire_instant_site_effect(card: Card, ctx: Dictionary) -> void:
 	if card == null:
 		return
 	var target = ctx.get("target")
-	if target != null and not is_instance_valid(target):
-		target = null
+	if not is_instance_valid(target):
+		target = null  # (a freed enemy compares equal to null, so test validity alone)
 	if card.card_id != "lethal_recall" and not bool(ctx.get("replay", false)):
 		_last_played_card = card
 		_last_played_target = target
@@ -15164,6 +15251,7 @@ func _fire_instant_site_effect(card: Card, ctx: Dictionary) -> void:
 				if not (rt_c in player.blocked_tiles) and not (rt_c in _living_enemy_cells()):
 					if player.has_method("blink_to"):
 						player.blink_to(grid_manager.grid_to_world(rt_c))
+						progression_triggers._trigger_skill_tree_on_displacement()
 					break
 			var rt_dmg: int = 35 if (card.granted_by_item and card.granted_by_item.item_level >= 3) else 20
 			rt_enemy.take_damage(rt_dmg, true)
