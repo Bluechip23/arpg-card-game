@@ -376,16 +376,42 @@ func _test_wrath_edge(dummies: Array) -> void:
 	_check(bc == bmin + Vector2i(3, 2), "an enemy already on the edge stays put (%s)" % str(bc - bmin))
 
 func _test_bastion(stats, d: Enemy) -> void:
-	print("-- Bouncing Shield: the armor comes back with the shield --")
+	print("-- Bouncing Shield: 10 tempo in the air, the card held, the armor back --")
 	_reset_dummy(d)
+	var dm = main.deck_manager
 	stats.current_armor = 20
 	main._bastion_armor_out = 0
-	main._apply_card_world_effects(Card.create_bouncing_shield(), d)
+	main._bastion_flight_tempo = 0
+	Card.bastion_shield_in_flight = false
+	var bs := Card.create_bouncing_shield()
+	_check(bs.world_block_reason() == "", "on the arm, the card may be played")
+	main._apply_card_world_effects(bs, d)
 	var in_flight: int = stats.current_armor
 	_check(main._bastion_armor_out == 10, "half the armor (10) leaves with the shield (%d)" % main._bastion_armor_out)
-	main._update_bastion_return(3)
-	_check(stats.current_armor == in_flight, "3 tempo in it is still away (%d)" % stats.current_armor)
-	main._update_bastion_return(2)
-	_check(stats.current_armor == in_flight + 10 and main._bastion_armor_out == 0, "after 5 tempo the 10 armor returns (%d)" % stats.current_armor)
+	_check(Card.bastion_shield_in_flight and Card.create_bouncing_shield().world_block_reason() != "",
+		"a Bouncing Shield drawn now is unplayable")
+	dm.hand.clear()
+	var redrawn := Card.create_bouncing_shield()
+	dm.hand.append(redrawn)
+	var before_mana: int = stats.current_mana
+	var res: Dictionary = dm.play_card(0, d, main.player, true)
+	_check(not res["played"] and dm.hand.size() == 1 and stats.current_mana == before_mana,
+		"the deck refuses the play and keeps the card in hand")
+	main.select_card(0)
+	_check(main.selected_card_index == -1, "it cannot be selected either")
+	main._update_bastion_return(5)
+	_check(stats.current_armor == in_flight and Card.bastion_shield_in_flight, "5 tempo in it is still away (%d)" % stats.current_armor)
+	main._update_bastion_return(4)
+	_check(stats.current_armor == in_flight and Card.bastion_shield_in_flight, "9 tempo in, still away")
+	main._update_bastion_return(1)
+	_check(stats.current_armor == in_flight + 10 and main._bastion_armor_out == 0, "after 10 tempo the 10 armor returns (%d)" % stats.current_armor)
+	_check(not Card.bastion_shield_in_flight and redrawn.world_block_reason() == "", "and the card in hand is playable again")
+	# A throw with no armor still keeps the card away for the flight.
+	stats.current_armor = 0
+	main._apply_card_world_effects(Card.create_bouncing_shield(), d)
+	_check(Card.bastion_shield_in_flight and main._bastion_armor_out == 0, "an armorless throw still puts the shield in the air")
+	main._update_bastion_return(10)
+	_check(not Card.bastion_shield_in_flight, "and it comes back empty-handed after 10")
+	dm.hand.clear()
 	stats.current_armor = 0
 	_reset_dummy(d)

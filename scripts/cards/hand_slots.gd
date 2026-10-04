@@ -122,7 +122,7 @@ func _pick_rep(cards: Array, hand: Array, locked_index: int) -> Card:
 	## The card a stack's button plays: prefer a copy that can actually be
 	## played (not jailed, not the Locked card).
 	for c in cards:
-		if c.is_jailed():
+		if c.is_jailed() or c.world_block_reason() != "":
 			continue
 		if locked_index >= 0 and hand.find(c) == locked_index:
 			continue

@@ -8485,6 +8485,13 @@ func select_card(index: int) -> void:
 		update_card_highlights()
 		return
 
+	var blocked_why: String = deck_manager.hand[index].world_block_reason()
+	if blocked_why != "":
+		add_battle_log("%s — %s" % [deck_manager.hand[index].card_name, blocked_why], Color(1.0, 0.6, 0.4))
+		selected_card_index = -1
+		update_card_highlights()
+		return
+
 	selected_card_index = index
 	update_card_highlights()
 
@@ -9645,24 +9652,37 @@ func _clear_bullet_casings() -> void:
 # ============================================
 
 const VITALITY_WINDOW_TEMPO := 5
-const BASTION_FLIGHT_TEMPO := 5
+const BASTION_FLIGHT_TEMPO := 10
 var _bastion_armor_out: int = 0        # Bouncing Shield: the armor that left with the shield
-var _bastion_return_tempo: int = 0
+var _bastion_flight_tempo: int = 0     # > 0 while the shield is in the air
 
-## Bouncing Shield: the shield returns after its flight and the armor it
-## took with it comes back, straight to the pile (no armor-gain riders).
+## Bouncing Shield: the shield leaves the arm for BASTION_FLIGHT_TEMPO. While
+## it is away the card cannot be played again (Card.bastion_shield_in_flight);
+## when it returns the armor it took comes back, straight to the pile (no
+## armor-gain riders).
+func _throw_bastion(armor_out: int) -> void:
+	_bastion_armor_out += armor_out
+	_bastion_flight_tempo = BASTION_FLIGHT_TEMPO
+	Card.bastion_shield_in_flight = true
+	_on_hand_updated()  # grey a Bouncing Shield already in hand
+
 func _update_bastion_return(amount: int) -> void:
-	if _bastion_armor_out <= 0:
+	if _bastion_flight_tempo <= 0:
 		return
-	_bastion_return_tempo -= amount
-	if _bastion_return_tempo > 0:
+	_bastion_flight_tempo -= amount
+	if _bastion_flight_tempo > 0:
 		return
+	_bastion_flight_tempo = 0
+	Card.bastion_shield_in_flight = false
 	var st = player.get_stats() if player else null
-	if st:
+	if st and _bastion_armor_out > 0:
 		st.current_armor += _bastion_armor_out
 		st.armor_changed.emit(st.current_armor)
 		add_battle_log("The shield returns — %d armor back on your arm." % _bastion_armor_out, Color(0.6, 0.75, 1.0))
+	else:
+		add_battle_log("The shield returns to your arm.", Color(0.6, 0.75, 1.0))
 	_bastion_armor_out = 0
+	_on_hand_updated()
 
 var _vitality_window: Dictionary = {}   # Nine Ruins: {weapon, tempo} while the nine stacks wait for Sanguine's card
 
@@ -12283,14 +12303,14 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# with it), then chains from body to body, each one sending back
 			# block and temporary mana.
 			var bs_stats = player.get_stats()
+			var bs_lost: int = 0
 			if bs_stats and bs_stats.current_armor > 0:
-				var bs_lost: int = floori(bs_stats.current_armor / 2.0)
+				bs_lost = floori(bs_stats.current_armor / 2.0)
 				bs_stats.current_armor -= bs_lost
 				bs_stats.armor_changed.emit(bs_stats.current_armor)
-				# The shield is in the air BASTION_FLIGHT_TEMPO; the armor comes back
-				# with it (_update_bastion_return).
-				_bastion_armor_out += bs_lost
-				_bastion_return_tempo = BASTION_FLIGHT_TEMPO
+			# The shield is in the air BASTION_FLIGHT_TEMPO: the card is held
+			# until it returns, and the armor comes back with it.
+			_throw_bastion(bs_lost)
 			var bs_hit: Array = []
 			var bs_from = target
 			while bs_from != null and is_instance_valid(bs_from) and bs_hit.size() < 5:

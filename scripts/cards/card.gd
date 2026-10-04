@@ -632,6 +632,18 @@ static var elixir_poison_heals: bool = false
 # Element Pollination (Elemental Weaver maintain): recomputed by main every
 # tempo tick off the maintained pile; enemies read it during debuff ticking.
 static var element_pollination_active: bool = false
+# Steve Rodgers Bastion: true while the thrown shield is in the air. Main
+# sets it on the throw and clears it when the shield returns; a Bouncing
+# Shield drawn in the meantime cannot be played (world_block_reason).
+static var bastion_shield_in_flight: bool = false
+
+## Why the world refuses this card right now ("" = it may be played): a
+## state outside the card — gear in flight, say — that greys it in the hand
+## and stops the play, the way Engrave and Jail do.
+func world_block_reason() -> String:
+	if card_id == "bouncing_shield" and bastion_shield_in_flight:
+		return "The shield is still in the air."
+	return ""
 
 # The colored-slot element table shared by Feral Evocation's engine.
 const ELEMENT_DEBUFFS := {"red": "burn", "blue": "cold", "yellow": "shock", "green": "poison"}
@@ -8556,7 +8568,7 @@ static func create_bouncing_shield() -> Card:
 	var card = Card.new()
 	card.card_id = "bouncing_shield"
 	card.card_name = "Bouncing Shield"
-	card.description = "Throw the shield: 5 damage to each enemy it bounces through (up to 5, each within 5 squares of the last). Every target hit returns 5 block and 10 temporary mana that may sit above your maximum, for 15 tempo. Throwing it costs half your armor."
+	card.description = "Throw the shield: 5 damage to each enemy it bounces through (up to 5, each within 5 squares of the last). Every target hit returns 5 block and 10 temporary mana that may sit above your maximum, for 15 tempo. It is in the air for 10 tempo: half your armor goes with it and returns when it does, and it cannot be thrown again until then."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 55
