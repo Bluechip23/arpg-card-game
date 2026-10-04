@@ -1,7 +1,7 @@
 extends SceneTree
 
-## Dev helper: the four chaos-monster icon battlers beside the demon and
-## cerberus battlers for a size check. Run under xvfb + software GL.
+## Dev helper: the chaos-monster icon battlers and the vampire beside the
+## demon battlers for a size check. Run under xvfb + software GL.
 ##   ... --script tests/_capture_chaos.gd -- <out.png>
 
 var _frames := 0
@@ -25,8 +25,8 @@ func _initialize() -> void:
 	ground.material_override = StandardMaterial3D.new()
 	(ground.material_override as StandardMaterial3D).albedo_color = Color(0.18, 0.2, 0.22)
 	root3d.add_child(ground)
-	var kinds := ["succubus", "ifrit", "inflamed_minotaur", "ash_harpy", "demon", "cerberus", "vampire"]
-	var x := -6.0
+	var kinds := ["succubus", "cerberus", "ifrit", "inflamed_minotaur", "ash_harpy", "vampire", "demon", "pit_fiend"]
+	var x := -7.0
 	for k in kinds:
 		var f := SpriteEnemyFigure.new()
 		f.position = Vector3(x, 0, 0)

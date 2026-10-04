@@ -33,6 +33,7 @@ D = "tileset_desert/Objects_separately"
 W = "tileset_winter/Objects_separately"  # sub-folders by cell size
 T = "treasure_32x32"
 A = "armor_weapons_icons"
+R = "rocks_stones"  # free rocks & stones top-down pack (8 styles x 5 sizes)
 
 # role -> {"scale": base scale applied to every variant, "src": [paths]}
 # 128px trees are drawn for 16px tiles; at the game's 32-texel unit they
@@ -122,6 +123,17 @@ ROLES = {
     "winter_snowman": {"scale": 1.0, "src": [f"{W}/64/Snowmen_snow_shadow1.png", f"{W}/64/Snowmen_snow_shadow2.png", f"{W}/64/Snowmen_snow_shadow3.png", f"{W}/64/Snowmen_snow_shadow4.png", f"{W}/32/Snowmen_snow_shadow5.png", f"{W}/32/Snowmen_snow_shadow6.png"]},
     "winter_ruin": {"scale": 0.8, "src": [f"{W}/64/Ruins1_snow_shadow3.png", f"{W}/64/Ruins1_snow_shadow4.png", f"{W}/64/Ruins2_snow_shadow3.png", f"{W}/32/Ruins1_snow_shadow5.png", f"{W}/32/Ruins2_snow_shadow4.png", f"{W}/128/Ruins1_snow_shadow1.png", f"{W}/128/Ruins2_snow_shadow1.png"]},
     "winter_idol": {"scale": 0.8, "src": [f"{W}/64/Idols_snow_shadow2.png", f"{W}/128/Idols_snow_shadow1.png"]},
+    # --- Wall boulders (rocks_stones pack): one style per zone, five
+    # sizes each, no painted shadow (they pile on the wall cap).
+    # DungeonManager._build_rock_walls dresses every wall tile near floor.
+    "wallrock_pale": {"scale": 0.7, "src": [f"{R}/Rock1_{i}_no_shadow.png" for i in range(1, 6)]},
+    "wallrock_rust": {"scale": 0.7, "src": [f"{R}/Rock2_{i}_no_shadow.png" for i in range(1, 6)]},
+    "wallrock_snow": {"scale": 0.7, "src": [f"{R}/Rock3_{i}_no_shadow.png" for i in range(1, 6)]},
+    "wallrock_moss": {"scale": 0.7, "src": [f"{R}/Rock4_{i}_no_shadow.png" for i in range(1, 6)]},
+    "wallrock_grey": {"scale": 0.7, "src": [f"{R}/Rock5_{i}_no_shadow.png" for i in range(1, 6)]},
+    "wallrock_sand": {"scale": 0.7, "src": [f"{R}/Rock6_{i}_no_shadow.png" for i in range(1, 6)]},
+    "wallrock_dark": {"scale": 0.7, "src": [f"{R}/Rock7_{i}_no_shadow.png" for i in range(1, 6)]},
+    "wallrock_lava": {"scale": 0.7, "src": [f"{R}/Rock8_{i}_no_shadow.png" for i in range(1, 6)]},
 }
 
 # Atlas cells (sheet, x, y, w, h) cropped straight out of a packed sheet.

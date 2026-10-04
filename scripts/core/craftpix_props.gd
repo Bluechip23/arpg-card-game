@@ -80,6 +80,14 @@ const PROPS := {
 	"winter_snowman": {"scale": 1.00, "variants": [{"path": DIR + "winter_snowman_0.png", "w": 31, "h": 48}, {"path": DIR + "winter_snowman_1.png", "w": 28, "h": 50}, {"path": DIR + "winter_snowman_2.png", "w": 44, "h": 54}, {"path": DIR + "winter_snowman_3.png", "w": 35, "h": 34}, {"path": DIR + "winter_snowman_4.png", "w": 22, "h": 26}, {"path": DIR + "winter_snowman_5.png", "w": 18, "h": 22}]},
 	"winter_ruin": {"scale": 0.80, "variants": [{"path": DIR + "winter_ruin_0.png", "w": 58, "h": 60}, {"path": DIR + "winter_ruin_1.png", "w": 44, "h": 47}, {"path": DIR + "winter_ruin_2.png", "w": 59, "h": 54}, {"path": DIR + "winter_ruin_3.png", "w": 27, "h": 32}, {"path": DIR + "winter_ruin_4.png", "w": 28, "h": 23}, {"path": DIR + "winter_ruin_5.png", "w": 107, "h": 99}, {"path": DIR + "winter_ruin_6.png", "w": 104, "h": 98}]},
 	"winter_idol": {"scale": 0.80, "variants": [{"path": DIR + "winter_idol_0.png", "w": 30, "h": 63}, {"path": DIR + "winter_idol_1.png", "w": 54, "h": 74}]},
+	"wallrock_pale": {"scale": 0.70, "variants": [{"path": DIR + "wallrock_pale_0.png", "w": 46, "h": 58}, {"path": DIR + "wallrock_pale_1.png", "w": 31, "h": 43}, {"path": DIR + "wallrock_pale_2.png", "w": 26, "h": 31}, {"path": DIR + "wallrock_pale_3.png", "w": 16, "h": 22}, {"path": DIR + "wallrock_pale_4.png", "w": 13, "h": 15}]},
+	"wallrock_rust": {"scale": 0.70, "variants": [{"path": DIR + "wallrock_rust_0.png", "w": 53, "h": 55}, {"path": DIR + "wallrock_rust_1.png", "w": 43, "h": 42}, {"path": DIR + "wallrock_rust_2.png", "w": 28, "h": 30}, {"path": DIR + "wallrock_rust_3.png", "w": 15, "h": 20}, {"path": DIR + "wallrock_rust_4.png", "w": 10, "h": 13}]},
+	"wallrock_snow": {"scale": 0.70, "variants": [{"path": DIR + "wallrock_snow_0.png", "w": 50, "h": 58}, {"path": DIR + "wallrock_snow_1.png", "w": 44, "h": 46}, {"path": DIR + "wallrock_snow_2.png", "w": 29, "h": 30}, {"path": DIR + "wallrock_snow_3.png", "w": 20, "h": 22}, {"path": DIR + "wallrock_snow_4.png", "w": 12, "h": 15}]},
+	"wallrock_moss": {"scale": 0.70, "variants": [{"path": DIR + "wallrock_moss_0.png", "w": 52, "h": 50}, {"path": DIR + "wallrock_moss_1.png", "w": 42, "h": 38}, {"path": DIR + "wallrock_moss_2.png", "w": 30, "h": 30}, {"path": DIR + "wallrock_moss_3.png", "w": 22, "h": 22}, {"path": DIR + "wallrock_moss_4.png", "w": 15, "h": 14}]},
+	"wallrock_grey": {"scale": 0.70, "variants": [{"path": DIR + "wallrock_grey_0.png", "w": 53, "h": 62}, {"path": DIR + "wallrock_grey_1.png", "w": 39, "h": 52}, {"path": DIR + "wallrock_grey_2.png", "w": 28, "h": 31}, {"path": DIR + "wallrock_grey_3.png", "w": 20, "h": 25}, {"path": DIR + "wallrock_grey_4.png", "w": 13, "h": 15}]},
+	"wallrock_sand": {"scale": 0.70, "variants": [{"path": DIR + "wallrock_sand_0.png", "w": 53, "h": 54}, {"path": DIR + "wallrock_sand_1.png", "w": 41, "h": 42}, {"path": DIR + "wallrock_sand_2.png", "w": 30, "h": 31}, {"path": DIR + "wallrock_sand_3.png", "w": 22, "h": 25}, {"path": DIR + "wallrock_sand_4.png", "w": 12, "h": 14}]},
+	"wallrock_dark": {"scale": 0.70, "variants": [{"path": DIR + "wallrock_dark_0.png", "w": 52, "h": 52}, {"path": DIR + "wallrock_dark_1.png", "w": 38, "h": 41}, {"path": DIR + "wallrock_dark_2.png", "w": 24, "h": 24}, {"path": DIR + "wallrock_dark_3.png", "w": 13, "h": 16}, {"path": DIR + "wallrock_dark_4.png", "w": 9, "h": 9}]},
+	"wallrock_lava": {"scale": 0.70, "variants": [{"path": DIR + "wallrock_lava_0.png", "w": 61, "h": 56}, {"path": DIR + "wallrock_lava_1.png", "w": 49, "h": 48}, {"path": DIR + "wallrock_lava_2.png", "w": 30, "h": 28}, {"path": DIR + "wallrock_lava_3.png", "w": 30, "h": 29}, {"path": DIR + "wallrock_lava_4.png", "w": 14, "h": 14}]},
 	"goods_barrel": {"scale": 1.00, "variants": [{"path": DIR + "goods_barrel_0.png", "w": 30, "h": 32}, {"path": DIR + "goods_barrel_1.png", "w": 31, "h": 32}]},
 	"goods_sack": {"scale": 1.00, "variants": [{"path": DIR + "goods_sack_0.png", "w": 29, "h": 31}, {"path": DIR + "goods_sack_1.png", "w": 26, "h": 31}, {"path": DIR + "goods_sack_2.png", "w": 27, "h": 28}]},
 	"goods_crate": {"scale": 1.00, "variants": [{"path": DIR + "goods_crate_0.png", "w": 32, "h": 31}, {"path": DIR + "goods_crate_1.png", "w": 31, "h": 28}]},
@@ -95,28 +103,6 @@ const PROPS := {
 	"waypoint_totem": {"scale": 1.00, "variants": [{"path": DIR + "waypoint_totem_0.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_1.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_2.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_3.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_4.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_5.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_6.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_7.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_8.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_9.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_10.png", "w": 96, "h": 88}, {"path": DIR + "waypoint_totem_11.png", "w": 96, "h": 88}]},
 }
 
-
-## A billboard sprite of one prop variant, feet on the origin, the way the
-## dungeon dresses its rooms — shared so town, loot and portals use the same
-## pixel-art props instead of primitive meshes.
-static func make_sprite(role: String, scale: float = 1.0, k: int = 0, lift: float = CameraView.SPRITE_LIFT) -> Sprite3D:
-	if not has(role):
-		return null
-	var cfg: Dictionary = PROPS[role]
-	var v: Dictionary = cfg["variants"][k % cfg["variants"].size()]
-	var sprite := Sprite3D.new()
-	sprite.texture = load(v["path"])
-	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
-	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	sprite.shaded = false
-	sprite.pixel_size = 0.03125
-	sprite.centered = false
-	sprite.offset = Vector2(-float(v["w"]) * 0.5, 0)
-	var sc: float = scale * float(cfg["scale"])
-	sprite.scale = Vector3(sc, sc, sc)
-	sprite.position = Vector3(0, lift, 0)
-	return sprite
 
 static func has(role: String) -> bool:
 	return PROPS.has(role)
