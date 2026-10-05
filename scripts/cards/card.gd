@@ -1305,7 +1305,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		PlayerStats.heal_to_damage = true
 		print("[CARD] Poisoned Blood: %s heals as damage" % card_name)
 	var empower_added := 0
-	if draw_empowered and card_type == CardType.ATTACK and player_stats:
+	if draw_empowered and is_attack() and player_stats:
 		empower_added = player_stats.empower_damage_bonus
 		bonus_damage += empower_added
 	_execute_card(target, player_stats, deck_manager, damage_reduction_pct, self_damage_percent, buff_mgr)
@@ -1711,14 +1711,15 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		bonus_damage += _deadeye_delta
 
 	# Wear Down: apply debuff BEFORE attack execution so the first hit stacks reduction
-	if card_type == CardType.ATTACK and buff_mgr and buff_mgr.has_wear_down():
+	# ("each attack": the Attack shape, not spells)
+	if is_attack() and buff_mgr and buff_mgr.has_wear_down():
 		if target and target.has_method("apply_wear_down"):
 			target.apply_wear_down(15)
 			print("[CARD] Wear Down triggered! Enemy attack will be reduced")
 
 	# Armor Break: flag enemy so take_damage uses armor-only double-damage logic
 	var armor_break_consumed = false
-	if card_type == CardType.ATTACK and buff_mgr and buff_mgr.has_armor_break():
+	if is_attack() and buff_mgr and buff_mgr.has_armor_break():  # "next attack": not a spell
 		if target and target.has_method("set_armor_break_incoming"):
 			target.set_armor_break_incoming(true)
 			buff_mgr.consume_armor_break()
@@ -6808,7 +6809,7 @@ static func create_heavy_swing() -> Card:
 	var card = Card.new()
 	card.card_id = "heavy_swing"
 	card.card_name = "Heavy Swing"
-	card.description = "Can only be played if only attack cards are in your hand. Deal 20 damage."
+	card.description = "Can only be played if only offensive cards are in your hand. Deal 20 damage."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 30

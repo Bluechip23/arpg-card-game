@@ -3544,7 +3544,7 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 	# One compact info line: type · cost · melee/range (dex-proc aware).
 	var preview_mana = card.mana_cost
 	var preview_tempo = card.tempo_cost
-	var preview_proc = deck_manager.next_attack_half_tempo and card.card_type == Card.CardType.ATTACK
+	var preview_proc = deck_manager.next_attack_half_tempo and card.is_attack()
 	if preview_proc:
 		preview_mana = max(0, preview_mana - deck_manager.next_attack_mana_discount)
 		preview_tempo = preview_tempo / 2
@@ -8556,10 +8556,10 @@ func select_card(index: int) -> void:
 		var effective_range = float(card.get_effective_range())
 		# Include Tighten String bonus if active
 		var buff_mgr = player.get_buff_manager() if player else null
-		if buff_mgr and buff_mgr.tighten_string_charges > 0 and card.card_type == Card.CardType.ATTACK:
-			effective_range += 6
+		if buff_mgr and buff_mgr.tighten_string_charges > 0 and card.is_attack():
+			effective_range += 6  # ranged ATTACKS, not spells
 		# Include High Ground bonus if on pillar or elevated terrain
-		if card.card_type == Card.CardType.ATTACK and _is_on_high_ground(player.position):
+		if card.is_attack() and _is_on_high_ground(player.position):
 			effective_range += 2
 		# (Eagle Eye no longer grants range — it now deals range-scaled bonus
 		# damage on ranged offensive cards.)
@@ -8599,7 +8599,7 @@ func calculate_damage_preview(card: Card, target_enemy: Enemy) -> int:
 	if not player.get_stats():
 		return 0
 	var buff_mgr = player.get_buff_manager()
-	var is_ranged_attack = card.is_ranged and card.card_type == Card.CardType.ATTACK
+	var is_ranged_attack = card.is_ranged and card.is_attack()  # the Attack shape: a spell is not an attack
 
 	# High Ground is the one position-dependent flat the vacuum number skips;
 	# feed it through the shared pipeline so Cursed still reduces it.
@@ -8682,7 +8682,7 @@ func _card_player_damage(card: Card, extra_flat: int = 0) -> int:
 		total = stats.get_effective_physical_damage(total)
 
 	# Standing buffs.
-	if card.draw_empowered and card.card_type == Card.CardType.ATTACK:
+	if card.draw_empowered and card.is_attack():
 		total += stats.empower_damage_bonus
 	if buff_mgr:
 		total += buff_mgr.get_strengthen_bonus()
@@ -8809,7 +8809,7 @@ func play_selected_card(target) -> void:
 	if card.card_id == "specific_strike":
 		tempo_cost += max(0, deck_manager.hand.size() - 1)
 	var resolve_tick = mini(card.resolve_tick, tempo_cost)  # Clamp resolve_tick to tempo_cost
-	var is_ranged_attack = card.is_ranged and card.card_type == Card.CardType.ATTACK
+	var is_ranged_attack = card.is_ranged and card.is_attack()  # Tighten String / High Ground: ranged ATTACKS
 
 	# Arcane Overflow: -1 tempo on spells when primed (had 0 mana after previous spell)
 	var ao_stats = player.get_stats()
@@ -9365,7 +9365,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 			if collected >= 2 or not ca_fallback:
 				break
 			var discard_card = deck_manager.discard_pile[i]
-			if discard_card.card_type == Card.CardType.ATTACK:
+			if discard_card.is_attack():  # attack-specific: not offensive spells
 				deck_manager.discard_pile.remove_at(i)
 				deck_manager.hand.append(discard_card)
 				collected += 1
@@ -11727,9 +11727,9 @@ func _ranged_card_max_range(card: Card, in_play: bool = false) -> int:
 	# range_modifier at play time, so a card being resolved already carries
 	# them (`in_play`); the preview adds them here.
 	var buff_mgr = player.get_buff_manager() if player else null
-	if not in_play and buff_mgr and buff_mgr.tighten_string_charges > 0 and card.card_type == Card.CardType.ATTACK:
+	if not in_play and buff_mgr and buff_mgr.tighten_string_charges > 0 and card.is_attack():
 		max_range += 6
-	if not in_play and card.card_type == Card.CardType.ATTACK and player and _is_on_high_ground(player.position):
+	if not in_play and card.is_attack() and player and _is_on_high_ground(player.position):
 		max_range += 2
 	var st_stats = player.get_stats() if player else null
 	# Scouted: rank-scaled bonus range (2..6) on next attack after 3 consecutive hits
@@ -13422,7 +13422,7 @@ func _input(event: InputEvent) -> void:
 								card.picked_card = picks[0] if picks.size() > 0 else null
 								play_selected_card(tgt))
 					elif card.card_id == "collect_arrows":
-						var ca_pool: Array = deck_manager.discard_pile.filter(func(dc): return dc.card_type == Card.CardType.ATTACK)
+						var ca_pool: Array = deck_manager.discard_pile.filter(func(dc): return dc.is_attack())  # attacks, not spells
 						show_full_card_picker("Collect Arrows — take back two attack cards", ca_pool, 2,
 							func(picks: Array):
 								card.picked_cards = picks
@@ -14147,8 +14147,8 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 	progression_triggers.arm_pre_attack_passives(card, target)
 	card.execute(target, stats, deck_manager, damage_reduction, self_damage, buff_mgr)
 
-	# Register attack for attack speed counter (DEX proc)
-	if card.card_type == Card.CardType.ATTACK:
+	# Register attack for attack speed counter (DEX proc): attacks, not spells
+	if card.is_attack():
 		stats.register_attack()
 		# Free hand: the 12th attack echoes — the card runs again, free.
 		if stats.consume_free_hand_echo():

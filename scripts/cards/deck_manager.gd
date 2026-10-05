@@ -374,7 +374,7 @@ func draw_card() -> Card:
 
 	# Empower: the next attack cards drawn carry +3 damage until played.
 	card.draw_empowered = false
-	if card.card_type == Card.CardType.ATTACK and player_stats \
+	if card.is_attack() and player_stats \
 			and player_stats.is_empowered() and player_stats.consume_empower():
 		card.draw_empowered = true
 
@@ -523,16 +523,16 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 			print("[DECK] Cannot play spell cards - Silenced!")
 			return { "played": false, "half_tempo": false }
 	
-	# Heavy Swing: only playable when the hand holds nothing but attack cards.
+	# Heavy Swing: only playable when the hand holds nothing but OFFENSIVE cards.
 	if card.card_id == "heavy_swing":
 		for hc in hand:
-			if hc != card and hc.card_type != Card.CardType.ATTACK:
-				print("[DECK] Heavy Swing needs an all-attack hand")
+			if hc != card and not hc.is_offensive():
+				print("[DECK] Heavy Swing needs an all-offensive hand")
 				return { "played": false, "half_tempo": false }
 
 	var mana_cost = card.get_burden_mana_cost()  # Burden: +1m per prior play
 	mana_cost -= card.temp_mana_discount  # timed passive discount (Ancestral Aid)
-	if card.card_type == Card.CardType.ATTACK:
+	if card.is_attack():  # the DEX proc discounts attacks, not spells
 		mana_cost -= next_attack_mana_discount
 
 	# Specific Strike: +10 mana per OTHER card in hand.
@@ -707,7 +707,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 				else:
 					cw.last_color_played = ""
 
-	var was_half_tempo = next_attack_half_tempo and card.card_type == Card.CardType.ATTACK
+	var was_half_tempo = next_attack_half_tempo and card.is_attack()  # DEX: attacks only
 
 	# Only consume proc bonus when an attack card is played
 	if card.card_type == Card.CardType.ATTACK:
@@ -759,7 +759,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		# Killing Rhythm (DEX keystone): fold the armed bonus into this attack, then
 		# strip it back off so the card's own bonus_damage isn't permanently changed.
 		var dex_flat_bonus = 0
-		if card.card_type == Card.CardType.ATTACK and player_stats:
+		if card.is_attack() and player_stats:
 			dex_flat_bonus = player_stats.consume_pending_dex_bonus_damage()
 			if dex_flat_bonus > 0:
 				card.bonus_damage += dex_flat_bonus
@@ -777,8 +777,8 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 
 		# Register attack for attack speed counter (DEX proc) - all attack cards count
 		# Proc-bonus attacks don't count towards the next cycle
-		if card.card_type == Card.CardType.ATTACK and player_stats and not was_half_tempo:
-			player_stats.register_attack()
+		if card.is_attack() and player_stats and not was_half_tempo:
+			player_stats.register_attack()  # DEX attack speed: attacks, not spells
 			# Free hand: the 12th attack echoes — the card runs again, free.
 			if player_stats.consume_free_hand_echo():
 				card.execute(target, player_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
@@ -889,7 +889,7 @@ func execute_deferred_card(card: Card, target, player_node = null) -> void:
 
 	# Killing Rhythm (DEX keystone): spend any armed bonus on this attack.
 	var dex_flat_bonus = 0
-	if card.card_type == Card.CardType.ATTACK and player_stats:
+	if card.is_attack() and player_stats:
 		dex_flat_bonus = player_stats.consume_pending_dex_bonus_damage()
 		if dex_flat_bonus > 0:
 			card.bonus_damage += dex_flat_bonus
@@ -906,8 +906,8 @@ func execute_deferred_card(card: Card, target, player_node = null) -> void:
 	if dex_flat_bonus > 0:
 		card.bonus_damage -= dex_flat_bonus
 
-	# Register attack for attack speed counter (DEX proc)
-	if card.card_type == Card.CardType.ATTACK and player_stats:
+	# Register attack for attack speed counter (DEX proc): attacks, not spells
+	if card.is_attack() and player_stats:
 		player_stats.register_attack()
 		# Free hand: the 12th attack echoes — the card runs again, free.
 		if player_stats.consume_free_hand_echo():

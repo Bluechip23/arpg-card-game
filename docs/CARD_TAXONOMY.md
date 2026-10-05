@@ -52,5 +52,14 @@ helpers above are what passives, items and riders read, never the raw
 type. Disarm blocks the Attack shape only (`school == PHYSICAL`); Silence
 blocks the Spell school in any role.
 
+## Rulings on "attack"-worded systems
+
+Settled by the designer (2026-10-05): these read the **Attack shape**
+(`is_attack()`), never offensive spells — Tighten String and the High Ground
+bonus (ranged attacks), Empower, Wear Down, Armor Break, the DEX attack-speed
+counter and its proc (half tempo, mana discount, Killing Rhythm), Collect
+Arrows. **Heavy Swing** is worded "offensive" and reads `is_offensive()`.
+Disarm blocks the Attack shape; Silence blocks the Spell school.
+
 Open questions for the designer are tracked in `docs/CARD_REFERENCE.md`
 (the per-card "Mismatch" lines).
