@@ -8924,6 +8924,15 @@ func get_rarity_name() -> String:
 		Rarity.MYTHIC: return "Mythic"
 	return "Unknown"
 
+## The card's rarity colour — the same palette items use (Common grey, Rare
+## orange, Legendary purple, Mythic pink); Basic reads as Common.
+func get_rarity_color() -> Color:
+	match get_rarity():
+		Rarity.RARE: return ItemData.rarity_color_of(ItemData.Rarity.RARE)
+		Rarity.LEGENDARY: return ItemData.rarity_color_of(ItemData.Rarity.LEGENDARY)
+		Rarity.MYTHIC: return ItemData.rarity_color_of(ItemData.Rarity.MYTHIC)
+	return ItemData.rarity_color_of(ItemData.Rarity.COMMON)
+
 ## Card ids of the given rarity that are allowed in random drops.
 static func get_droppable_ids_of_rarity(r: Rarity) -> Array:
 	var ids: Array = []

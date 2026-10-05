@@ -467,6 +467,12 @@ func _build_p2_card_preview_content(card: Card, preview: PanelContainer) -> void
 	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
 	vbox.add_child(cost_lbl)
 
+	var rarity_lbl = Label.new()
+	rarity_lbl.text = "Rarity: %s" % card.get_rarity_name()
+	rarity_lbl.add_theme_font_size_override("font_size", 12)
+	rarity_lbl.add_theme_color_override("font_color", card.get_rarity_color())
+	vbox.add_child(rarity_lbl)
+
 	if card.is_ranged:
 		var range_lbl = Label.new()
 		range_lbl.text = card.get_range_display()

@@ -59,6 +59,42 @@ static func get_glyph(key: String) -> Texture2D:
 	return tex
 
 
+## The T&O sigil as a smooth (anti-aliased) seal at an exact pixel height —
+## the card emblem and the crest on tooltips / hover windows. Wider than the
+## 24px glyph (4:3), drawn at 4x and box-filtered down so its edges are
+## soft instead of stair-stepped; cached per height so it is never rescaled
+## at draw time.
+static var _sigil_cache: Dictionary = {}
+
+static func get_sigil(height: int) -> Texture2D:
+	height = maxi(8, height)
+	if _sigil_cache.has(height):
+		return _sigil_cache[height]
+	var w := int(round(height * 4.0 / 3.0))
+	var ss := 4  # supersample factor
+	var big := Image.create(w * ss, height * ss, false, Image.FORMAT_RGBA8)
+	big.fill(Color(0, 0, 0, 0))
+	_draw_to_sigil_wide(big, float(height * ss) / 24.0)
+	var img := Image.create(w, height, false, Image.FORMAT_RGBA8)
+	# Alpha-weighted box filter: transparent texels carry no colour, so the
+	# edges fade cleanly instead of fringing dark.
+	for y in range(height):
+		for x in range(w):
+			var rgb := Vector3.ZERO
+			var a_sum := 0.0
+			for sy in range(ss):
+				for sx in range(ss):
+					var c := big.get_pixel(x * ss + sx, y * ss + sy)
+					rgb += Vector3(c.r, c.g, c.b) * c.a
+					a_sum += c.a
+			if a_sum > 0.0:
+				rgb /= a_sum
+			img.set_pixel(x, y, Color(rgb.x, rgb.y, rgb.z, a_sum / float(ss * ss)))
+	var tex := ImageTexture.create_from_image(img)
+	_sigil_cache[height] = tex
+	return tex
+
+
 ## The glyph key representing an item's slot type — a kite shield for shields,
 ## a bow for bows, a sword for swords, a ring for rings… Used by the slotted-
 ## card badge so a card shows WHICH kind of item it is enchanted into.
@@ -94,7 +130,7 @@ static func item_glyph_key(item) -> String:
 # =============================================================
 
 static func _px(img: Image, x: int, y: int, c: Color) -> void:
-	if x >= 0 and x < SZ and y >= 0 and y < SZ:
+	if x >= 0 and x < img.get_width() and y >= 0 and y < img.get_height():
 		img.set_pixel(x, y, c)
 
 
@@ -434,6 +470,29 @@ static func _draw_to_sigil(img: Image) -> void:
 	_rect(img, 10, 11, 4, 6, green)
 	_tri(img, Vector2(9, 17), Vector2(15, 17), Vector2(12, 23), green)
 	_line(img, 12, 12, 12, 20, green_dark, 1.0)  # blade fuller
+
+static func _draw_to_sigil_wide(img: Image, u: float) -> void:
+	## The same sigil on a wider 32x24-unit canvas (u = pixels per unit): a
+	## broad crossbar, the silver O threaded on the blade. Same layering as
+	## the 24px glyph: the O's top passes in front of the stem, its bottom
+	## behind the blade.
+	var green := Color(0.3, 0.8, 0.35)
+	var green_dark := Color(0.16, 0.5, 0.22)
+	var silver := Color(0.8, 0.82, 0.88)
+	var silver_dark := Color(0.55, 0.58, 0.66)
+	var cx := 16.0 * u
+	# Crossbar with its shaded underside.
+	_rect(img, int(round(3.0 * u)), int(round(1.0 * u)), int(round(26.0 * u)), int(round(3.5 * u)), green)
+	_rect(img, int(round(3.0 * u)), int(round(4.5 * u)), int(round(26.0 * u)), int(round(1.0 * u)), green_dark)
+	# Stem doubling as the blade.
+	_rect(img, int(round(13.6 * u)), int(round(5.5 * u)), int(round(4.8 * u)), int(round(12.0 * u)), green)
+	# Silver O in front of the stem, with an outer rim shade.
+	_ring(img, cx, 13.2 * u, 7.0 * u, 3.0 * u, silver)
+	_ring(img, cx, 13.2 * u, 8.6 * u, 1.0 * u, silver_dark)
+	# Lower blade and tip drawn back over the ring's bottom arc.
+	_rect(img, int(round(13.6 * u)), int(round(12.0 * u)), int(round(4.8 * u)), int(round(5.8 * u)), green)
+	_tri(img, Vector2(12.6 * u, 17.6 * u), Vector2(19.4 * u, 17.6 * u), Vector2(cx, 23.4 * u), green)
+	_line(img, cx, 13.0 * u, cx, 20.5 * u, green_dark, maxf(1.0, 0.9 * u))  # blade fuller
 
 static func _draw_flash_bolt(img: Image) -> void:
 	## Gold lightning bolt (flash points — Agility's quickness resource).

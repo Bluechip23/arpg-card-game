@@ -14,6 +14,9 @@ signal swap_tempo_spent(cost: int, action: String, item_type: int)
 # Godot's global class cache on first run (matches the pattern in main.gd).
 const EquipmentSlotCellScript = preload("res://scripts/character/equipment_slot_cell.gd")
 const StorageItemCellScript = preload("res://scripts/character/storage_item_cell.gd")
+# Preloaded (not referenced by class_name) so this script compiles before the
+# global class cache has picked the new class up.
+const SplitBorderStyleBoxScript = preload("res://scripts/ui/split_border_style_box.gd")
 
 @onready var panel: PanelContainer = $Panel
 @onready var name_label: Label = $Panel/MarginContainer/VBox/NameLabel
@@ -1307,18 +1310,10 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 	_detail_panel = PanelContainer.new()
 	_detail_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 
-	# Fully opaque style
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.1, 0.15, 1.0)
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
-	style.border_color = _get_item_type_color(item.item_type)
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
+	# Fully opaque style; the frame is the item's type colour on the left
+	# half and its rarity colour on the right, like its inventory cell.
+	var style = SplitBorderStyleBoxScript.new(Color(0.1, 0.1, 0.15, 1.0),
+		_get_item_type_color(item.item_type), item.get_rarity_color(), 2, 6)
 	style.content_margin_left = 12.0
 	style.content_margin_right = 12.0
 	style.content_margin_top = 10.0
@@ -1357,6 +1352,13 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 	type_lbl.add_theme_font_size_override("font_size", 12)
 	type_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
 	vbox.add_child(type_lbl)
+
+	# Rarity, in its colour
+	var rarity_lbl = Label.new()
+	rarity_lbl.text = "Rarity: %s" % item.get_rarity_name()
+	rarity_lbl.add_theme_font_size_override("font_size", 12)
+	rarity_lbl.add_theme_color_override("font_color", item.get_rarity_color())
+	vbox.add_child(rarity_lbl)
 
 	vbox.add_child(_make_separator())
 
@@ -2170,30 +2172,22 @@ func _create_storage_cell(index: int) -> PanelContainer:
 	var cell = StorageItemCellScript.new()
 	cell.custom_minimum_size = Vector2(62, 48)
 
-	var style = StyleBoxFlat.new()
-	style.corner_radius_top_left = 3
-	style.corner_radius_top_right = 3
-	style.corner_radius_bottom_left = 3
-	style.corner_radius_bottom_right = 3
-
 	var item: ItemData = null
 	if index < inventory.stored_items.size():
 		item = inventory.stored_items[index]
 
+	var style: StyleBox
 	if item:
-		style.bg_color = Color(0.18, 0.18, 0.25, 1.0)
-		style.border_width_left = 1
-		style.border_width_right = 1
-		style.border_width_top = 1
-		style.border_width_bottom = 1
-		style.border_color = _get_item_type_color(item.item_type)
+		# Outline: item type on the left half, rarity on the right half.
+		style = SplitBorderStyleBoxScript.new(Color(0.18, 0.18, 0.25, 1.0),
+			_get_item_type_color(item.item_type), item.get_rarity_color(), 1, 3)
 	else:
-		style.bg_color = Color(0.1, 0.1, 0.12, 1.0)
-		style.border_width_left = 1
-		style.border_width_right = 1
-		style.border_width_top = 1
-		style.border_width_bottom = 1
-		style.border_color = Color(0.2, 0.2, 0.25)
+		var flat = StyleBoxFlat.new()
+		flat.set_corner_radius_all(3)
+		flat.set_border_width_all(1)
+		flat.bg_color = Color(0.1, 0.1, 0.12, 1.0)
+		flat.border_color = Color(0.2, 0.2, 0.25)
+		style = flat
 
 	cell.add_theme_stylebox_override("panel", style)
 
@@ -2341,6 +2335,14 @@ func _show_card_confirm_modal(card: Card) -> void:
 	type_label.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
 	type_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	info_vbox.add_child(type_label)
+
+	# Rarity
+	var rarity_label = Label.new()
+	rarity_label.text = "Rarity: %s" % card.get_rarity_name()
+	rarity_label.add_theme_font_size_override("font_size", 11)
+	rarity_label.add_theme_color_override("font_color", card.get_rarity_color())
+	rarity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	info_vbox.add_child(rarity_label)
 
 	# Mana / Tempo cost
 	var cost_label = Label.new()

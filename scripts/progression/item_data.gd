@@ -581,10 +581,15 @@ func get_rarity_color() -> Color:
 	# Town scrolls read maroon in the inventory, whatever their rarity.
 	if special_id == "return_scroll":
 		return Color(0.55, 0.12, 0.18)
-	match rarity:
-		Rarity.COMMON: return Color(0.45, 0.85, 0.45)
-		Rarity.RARE: return Color(0.4, 0.6, 1.0)
-		Rarity.LEGENDARY: return Color(1.0, 0.6, 0.2)
+	return rarity_color_of(rarity)
+
+## The rarity palette (shared with cards): Common grey, Rare orange,
+## Legendary purple, Mythic pink.
+static func rarity_color_of(r: Rarity) -> Color:
+	match r:
+		Rarity.COMMON: return Color(0.62, 0.62, 0.66)
+		Rarity.RARE: return Color(1.0, 0.6, 0.2)
+		Rarity.LEGENDARY: return Color(0.6, 0.4, 0.95)
 		Rarity.MYTHIC: return Color(0.9, 0.35, 0.9)
 	return Color.WHITE
 

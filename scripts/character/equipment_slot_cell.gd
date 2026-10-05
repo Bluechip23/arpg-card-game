@@ -19,6 +19,7 @@ const SLOT_SIZE := Vector2(84, 84)
 const ItemSilhouetteScript = preload("res://scripts/character/item_silhouette.gd")
 const InventoryCardSlotScript = preload("res://scripts/character/inventory_card_slot.gd")
 const UIGlyphsScript = preload("res://scripts/ui/ui_glyphs.gd")
+const SplitBorderStyleBoxScript = preload("res://scripts/ui/split_border_style_box.gd")
 
 var _panel = null  # CharacterPanel
 var item_type: int = 0
@@ -38,15 +39,18 @@ func setup(char_panel, i_type: int, i_index: int, itm: ItemData, cell_size: Vect
 	_build_children()
 
 func _apply_style() -> void:
-	var style := StyleBoxFlat.new()
-	style.set_corner_radius_all(4)
-	style.set_border_width_all(2)
+	var style: StyleBox
 	if item:
-		style.bg_color = Color(0.16, 0.16, 0.22, 1.0)
-		style.border_color = _panel._get_item_type_color(item.item_type)
+		# Outline: item type on the left half, rarity on the right half.
+		style = SplitBorderStyleBoxScript.new(Color(0.16, 0.16, 0.22, 1.0),
+			_panel._get_item_type_color(item.item_type), item.get_rarity_color(), 2, 4)
 	else:
-		style.bg_color = Color(0.09, 0.09, 0.12, 1.0)
-		style.border_color = Color(0.22, 0.22, 0.28)
+		var flat := StyleBoxFlat.new()
+		flat.set_corner_radius_all(4)
+		flat.set_border_width_all(2)
+		flat.bg_color = Color(0.09, 0.09, 0.12, 1.0)
+		flat.border_color = Color(0.22, 0.22, 0.28)
+		style = flat
 	add_theme_stylebox_override("panel", style)
 
 func _build_children() -> void:
@@ -230,7 +234,7 @@ func _build_item_tooltip() -> String:
 	var type_line := item.get_type_name()
 	if item.item_type == ItemData.ItemType.WEAPON:
 		type_line = ItemData.get_weapon_subtype_name(item.weapon_subtype)
-	var lines: Array[String] = [item.item_name, type_line]
+	var lines: Array[String] = [item.item_name, "%s %s" % [item.get_rarity_name(), type_line]]
 	if item.appearance != "":
 		lines.append(item.appearance)
 	if item.description != "":

@@ -6,6 +6,12 @@ extends PanelContainer
 ## CanvasLayer above everything else; badges call show_for() on mouse-enter
 ## and hide_for() on mouse-exit. The remaining-duration line is re-read
 ## every frame while the window is open, so it counts down live.
+##
+## This is the ONLY window a badge opens: the badges set no tooltip_text and
+## define no _make_custom_tooltip, so the engine's own tooltip never doubles
+## it. The frame is the game's crested tooltip frame (T&O seal on top).
+
+const CREST_SIZE := 30.0
 
 static var _inst: StatusHoverPopup = null
 
@@ -31,9 +37,9 @@ static func show_for(anchor: Control, title: String, color: Color, desc: String,
 	p._desc.visible = desc != ""
 	p._extra.text = extra
 	p._extra.visible = extra != ""
-	var style := p.get_theme_stylebox("panel") as StyleBoxFlat
+	var style := p.get_theme_stylebox("panel") as CrestStyleBox
 	if style:
-		style.border_color = color
+		style.panel.border_color = color
 	p._tick()
 	p.visible = true
 	p.reset_size()
@@ -65,13 +71,10 @@ static func _instance_for(anchor: Control) -> StatusHoverPopup:
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.08, 0.08, 0.12, 0.96)
-	style.set_border_width_all(2)
-	style.set_corner_radius_all(4)
+	var style := CrestStyleBox.new(Color(0.08, 0.08, 0.12, 0.96), Color(0.5, 0.5, 0.6), 4, 2)
+	style.crest_size = CREST_SIZE
 	style.content_margin_left = 10
 	style.content_margin_right = 10
-	style.content_margin_top = 7
 	style.content_margin_bottom = 7
 	add_theme_stylebox_override("panel", style)
 	var vbox := VBoxContainer.new()
@@ -120,8 +123,8 @@ func _place() -> void:
 		return
 	var r := _anchor.get_global_rect()
 	var vp := get_viewport_rect().size
-	var pos := Vector2(r.position.x, r.end.y + 6)
+	var pos := Vector2(r.position.x, r.end.y + 8)
 	if pos.y + size.y > vp.y:
-		pos.y = r.position.y - size.y - 6
+		pos.y = r.position.y - size.y - 8
 	pos.x = clampf(pos.x, 4, maxf(4, vp.x - size.x - 4))
 	global_position = pos
