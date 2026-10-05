@@ -134,7 +134,44 @@ ROLES = {
     "wallrock_sand": {"scale": 0.7, "src": [f"{R}/Rock6_{i}_no_shadow.png" for i in range(1, 6)]},
     "wallrock_dark": {"scale": 0.7, "src": [f"{R}/Rock7_{i}_no_shadow.png" for i in range(1, 6)]},
     "wallrock_lava": {"scale": 0.7, "src": [f"{R}/Rock8_{i}_no_shadow.png" for i in range(1, 6)]},
+    # --- Hell (World 4): the cave pack's volcanic and demonic pieces join the
+    # cursed-land flesh (Emberfall is where both belong).
+    "hell_spire": {"scale": 1.0, "src": [f"{C}/Red_stone_vertical{i}.png" for i in range(1, 5)] + [f"{C}/black_stalagmites_light_shadow{i}.png" for i in range(1, 6)]},
+    "hell_rock": {"scale": 1.0, "src": [f"{C}/Red_stone_light_shadow{i}.png" for i in range(1, 5)] + [f"{X}/Rock2_shadow2_{i}.png" for i in range(1, 6)]},
+    "hell_demon": {"scale": 0.8, "src": [f"{C}/Demon_head_light_shadow_frame1.png", f"{C}/Demon_hand_light_shadow_frame1.png", f"{C}/Demon_tail_light_shadow_frame1.png"]},
+    "hell_volcano": {"scale": 1.0, "src": [f"{C}/Volcano1_light_shadow_frame1.png", f"{C}/Volcano2_light_shadow_frame1.png", f"{C}/Volcano4_light_shadow_frame1.png", f"{C}/Volcano5_light_shadow_frame1.png"]},
+    "hell_vent": {"scale": 1.0, "src": [f"{C}/Volcano3_light_shadow_frame1.png"]},
+    "hell_pustule": {"scale": 1.0, "src": [f"{X}/Pustules_shadow1_{i}.png" for i in range(1, 4)]},
+    "hell_veins": {"scale": 0.6, "src": [f"{X}/Veins_shadow1_{i}.png" for i in range(1, 5)]},
+    "hell_fetus": {"scale": 0.8, "src": [f"{X}/Fetus_shadow1_{i}.png" for i in range(1, 4)]},
 }
+
+# Frame strips for the animated landmarks (AnimatedSprite3D via
+# DungeonManager._make_pixel_anim): name -> [frame files], written to
+# assets/textures/props/<name>_strip.png, frames side by side, uncropped.
+STRIPS = {
+    "hell_volcano1": [f"{C}/Volcano1_light_shadow_frame{i}.png" for i in range(1, 7)],
+    "hell_volcano2": [f"{C}/Volcano2_light_shadow_frame{i}.png" for i in range(1, 7)],
+    "hell_volcano4": [f"{C}/Volcano4_light_shadow_frame{i}.png" for i in range(1, 7)],
+    "hell_demon_head": [f"{C}/Demon_head_light_shadow_frame{i}.png" for i in range(1, 7)],
+    "hell_demon_hand": [f"{C}/Demon_hand_light_shadow_frame{i}.png" for i in range(1, 7)],
+    "hell_demon_tail": [f"{C}/Demon_tail_light_shadow_frame{i}.png" for i in range(1, 7)],
+}
+
+
+def build_strips():
+    for name, files in STRIPS.items():
+        frames = [Image.open(os.path.join(SRC, f)).convert("RGBA") for f in files]
+        # Crop every frame by the UNION bbox so the animation stays aligned.
+        boxes = [f.getbbox() for f in frames if f.getbbox()]
+        x0 = min(b[0] for b in boxes); y0 = min(b[1] for b in boxes)
+        x1 = max(b[2] for b in boxes); y1 = max(b[3] for b in boxes)
+        w, h = x1 - x0, y1 - y0
+        strip = Image.new("RGBA", (w * len(frames), h))
+        for i, f in enumerate(frames):
+            strip.paste(f.crop((x0, y0, x1, y1)), (i * w, 0))
+        strip.save(os.path.join(OUT, f"{name}_strip.png"))
+        print(f"{name}_strip.png: {len(frames)} frames of {w}x{h}")
 
 # Atlas cells (sheet, x, y, w, h) cropped straight out of a packed sheet.
 CELLS = {
@@ -329,5 +366,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+    build_strips()
     build_ui_icons()
     build_skill_icons()

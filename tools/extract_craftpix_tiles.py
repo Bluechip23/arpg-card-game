@@ -65,6 +65,8 @@ THEMES = {
 # pack's water colour, sampled from its coast tiles, with foam crops on top.
 # name -> (coast sheet, foam sheet)
 WATER = {
+    # Hell's rivers are lava: the cave pack's lava body under its glowing surface.
+    "water_lava":    ("tileset_cave/water_n_lava_coasts_source.png", "tileset_cave/lava_detilazation_source.png"),
     "water_field":   ("tileset_grassland/Water_coasts.png", "tileset_grassland/water_detilazation.png"),
     "water_forest":  ("tileset_forest/Water_coasts.png", "tileset_forest/water_detilazation.png"),
     "water_cave":    ("tileset_cave/water_n_lava_coasts_source.png", "tileset_cave/water_detilazation_source.png"),
@@ -253,6 +255,8 @@ def build(name, sheet, fills, tol):
 def water_colour(foam_sheet):
     """The water body under a pack's foam overlay: the foam is a lighter tint
     of it, so the mean foam colour darkened reads as the still water."""
+    if "lava" in foam_sheet:
+        return (168, 62, 18)  # molten body under the yellow crust
     img = Image.open(os.path.join(SRC, foam_sheet)).convert("RGBA")
     px = img.load()
     acc = [0, 0, 0]

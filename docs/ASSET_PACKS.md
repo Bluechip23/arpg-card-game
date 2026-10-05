@@ -124,6 +124,16 @@ billboard.
   the camera-side edge so nothing leans over the walkable ground). Caves,
   sewers, Hell and the barrows keep their packs' rock and vein masses
   through the cliff autotile below.
+- **Emberfall (World 4).** Hell is the cursed-land pack plus the cave pack's
+  volcanic and demonic pieces: the flesh ground and vein masses (cliff
+  autotile) from the cursed pack; `hell_spire` (red stone pillars, black
+  stalagmites), `hell_rock`, `hell_pustule`, `hell_veins`, `hell_fetus` and
+  the vent (`Volcano3`) join the cursed prop families; animated volcanoes
+  and demon idols (`hell_*_strip.png`, 6 frames, `_place_hell_landmarks`)
+  stand on the edge of the ground, never on the camera side; the roads are
+  the deep-red vein floor; and `_place_lava_pools` sinks a few impassable
+  lava pools (cave-pack lava body under its glowing crust, `water_lava`)
+  into the open ground, drawn through the water row of the ground autotile.
 - **Terrain fills.** The packs draw their grounds FLAT — one plain grass /
   dirt / stone tile — and break the flatness with separate "spots" sheets.
   Each floor fill is therefore the pack's single flattest tile on every
