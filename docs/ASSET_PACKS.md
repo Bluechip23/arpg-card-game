@@ -69,7 +69,7 @@ Per-variant sheet widths in px (height = 4 rows × cell; 64-px packs are
 
 | Folder | Sheet | Grid | Contents | Candidate use | Status |
 |---|---|---|---|---|---|
-| `rocks_stones/` | 40 single 64×64 PNGs (`Rock1..8_1..5_no_shadow`) | Eight boulder styles in five sizes: pale limestone, rust, snow-capped, mossy grey, pale grey, sandstone, dark plum, lava | Wall boulders per zone | **in game**: cropped to `wallrock_<style>` prop roles; `DungeonManager._build_rock_walls` piles them on every wall tile near floor — moss (Rock4) in World 1's fields, rust (Rock2) in the Greenwood, grey (Rock5) in caves, dark (Rock7) in sewers and World 5's barrows, sand (Rock6) in the Amber Wastes, snow (Rock3) in Frostreach, lava (Rock8) in Hell. Pale (Rock1) is staged |
+| `rocks_stones/` | 40 single 64×64 PNGs (`Rock1..8_1..5_no_shadow`) | Eight boulder styles in five sizes: pale limestone, rust, snow-capped, mossy grey, pale grey, sandstone, dark plum, lava | Wall boulders per zone | cropped to `wallrock_<style>` prop roles (moss, rust, grey, dark, sand, snow, lava, pale) — **staged**: the boulder-wall pass was dropped (random rocks everywhere read wrong); outdoor boundaries use each pack's own trees, rocks and bushes instead (`DungeonManager._build_boundary_props`) |
 | `chaos_monsters/` | 48 single 32×32 PNGs (`Icon1..48`) | Painted demons, hounds, flyers, slimes, eyes, spiders — a bestiary of Hell-flavoured monsters, one still each | Act 2 (Hell) enemies as static battlers (the rig's `icon` source: a 32-px still scaled ×1.6–2.4 and flipped for the far side like the MonsterKit battlers) | **in game**: `succubus` = Icon14 (purple-winged, ×1.7), `cerberus` = Icon27 (the standing three-headed hound, ×2.2), `ifrit` = Icon47 (the living flame, ×2.0), `inflamed_minotaur` = Icon37 (the winged beast up on its hind legs, ×2.4), `ash_harpy` = Icon22 (the winged demon in flight, tail trailing, ×1.6). The other 43 are staged |
 | `treasure_32x32/` | `chests.png` 320×128 | 32×32, 10 cols × 4 rows | 10 chest designs (wood, iron, gold, ornate, teal-crystal…) × 4 states per column (closed → open/lit) | Dungeon loot chests; act-themed chest tiers | staged |
 | | `Icons.png` 480×224 | 32×32, 15 × 7 | Keys, coins, coin piles, gem shards, bags, sacks, pouches, jars, rings, orbs, potions, feathers, scrolls | Inventory / vendor / resource icons (base-builder resources sent home, currency, keys); card cost glyphs | staged |
@@ -115,7 +115,23 @@ billboard.
 
 ## Integration notes
 
-- **Terrain fills.** `tools/extract_craftpix_tiles.py` cuts each tileset's
+- **Outdoor boundaries.** The fields, the Greenwood, the Amber Wastes and
+  Frostreach have no drawn walls: the ground runs on under the blocked
+  tiles (plain variants, three tiles deep) and the edge of the walkable
+  land is a line of the zone's trees, rocks and bushes
+  (`DungeonManager._build_boundary_props`: one big prop per edge tile, a
+  thinner stand of trees behind it fading into the fog, low props only on
+  the camera-side edge so nothing leans over the walkable ground). Caves,
+  sewers, Hell and the barrows keep their packs' rock and vein masses
+  through the cliff autotile below.
+- **Terrain fills.** The packs draw their grounds FLAT — one plain grass /
+  dirt / stone tile — and break the flatness with separate "spots" sheets.
+  Each floor fill is therefore the pack's single flattest tile on every
+  variant (stone floors keep their textured tile), with one of the pack's
+  own spots baked onto three of the sixteen (none on the field: its
+  variation comes from the scattered tufts and flowers), and the palette
+  cast on pack fills is down to 10% so their colours are the packs' own.
+  `tools/extract_craftpix_tiles.py` also cuts each tileset's
   interior 16-px fill tiles and composes them into 4×4 × 32-px variant
   sheets (`assets/textures/craftpix/`): grass, smooth dirt (trails), the
   cobbled cliff face (walls, cliffs, boulders) and a composed water sheet
