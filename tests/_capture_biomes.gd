@@ -42,6 +42,10 @@ func _next() -> void:
 		quit(0)
 		return
 	var cfg: Dictionary = CONFIGS[_idx]
+	var only_args := OS.get_cmdline_user_args()
+	if only_args.size() > 1 and only_args[1] != "" and cfg["name"] != only_args[1]:
+		_next()
+		return
 	_holder = Node3D.new()
 	get_root().add_child(_holder)
 	var env := WorldEnvironment.new()
@@ -72,7 +76,11 @@ func _next() -> void:
 	var start: Vector2i = _dm.player_start
 	# Look a little way into the map from the start so walls, trails and
 	# props all land in frame.
-	var focus := Vector3(start.x + 6.0, 0, start.y)
+	# Optional args after the out dir: a config name to shoot alone, and an
+	# x offset (tiles) to look further into the map.
+	var args := OS.get_cmdline_user_args()
+	var shift: float = float(args[2]) if args.size() > 2 else 0.0
+	var focus := Vector3(start.x + 6.0 + shift, 0, start.y)
 	CameraView.apply(_cam, focus, 2.0, 720.0)
 	_cam.current = true
 	_frames = 0

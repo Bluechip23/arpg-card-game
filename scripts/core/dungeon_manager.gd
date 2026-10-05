@@ -92,6 +92,8 @@ const WORLD_PALETTES := {
 	},
 	4: {
 		"name": "Emberfall",
+		"water": Color(0.66, 0.24, 0.07),      # lava
+		"water_edge": Color(1.0, 0.72, 0.2),   # its glowing crust
 		"ground": Color(0.10, 0.08, 0.08),
 		"floor_a": Color(0.26, 0.21, 0.20),
 		"floor_b": Color(0.19, 0.16, 0.16),
@@ -512,6 +514,10 @@ func trail_texture_path() -> String:
 		return CP_TEX + "/floor_desert_sand.png"  # sand tracks through the scrub
 	if world_level == 3:
 		return CP_TEX + "/floor_undead_sand.png"  # trodden grey slush through the snow
+	if world_level == 4:
+		return CP_TEX + "/floor_cursed_dark.png"  # the deep-red vein floor (cursed pack)
+	if world_level == 5:
+		return CP_TEX + "/floor_undead_sand.png"  # the barrow land's pale cobbles
 	return CP_TEX + "/floor_dirt_field.png"
 
 
@@ -547,7 +553,7 @@ func water_texture_path() -> String:
 			return CP_TEX + "/water_forest.png"
 	match world_level:
 		4:
-			return CP_TEX + "/water_cursed.png"
+			return CP_TEX + "/water_lava.png"  # Emberfall's rivers are lava (cave pack)
 		5:
 			return CP_TEX + "/water_undead.png"
 		2:
@@ -603,9 +609,9 @@ const PROP_ROLES := {
 		"berry": ["undead_bush"], "fern": ["undead_bush"], "flower": ["undead_crystal"], "tuft": ["undead_bones"],
 		"shroom": ["undead_skulls"], "pebble": ["undead_bones"], "bones": ["undead_bones"], "reeds": ["forest_reeds"],
 		"wallrock": ["wallrock_dark"]},
-	"cursed": {"tree": ["cursed_tree"], "stump": ["cursed_eye"], "rock": ["cursed_rock"], "bush": ["cursed_plant"],
-		"berry": ["cursed_plant"], "fern": ["cursed_plant"], "flower": ["cursed_plant"], "tuft": ["cursed_bones"],
-		"shroom": ["cursed_plant"], "pebble": ["cursed_bones"], "bones": ["cursed_bones"], "reeds": ["forest_reeds"],
+	"cursed": {"tree": ["cursed_tree", "hell_spire"], "stump": ["cursed_eye", "hell_vent"], "rock": ["cursed_rock", "hell_rock"],
+		"bush": ["cursed_plant", "hell_veins"], "berry": ["hell_pustule"], "fern": ["cursed_plant"], "flower": ["cursed_plant", "hell_pustule"],
+		"tuft": ["cursed_bones"], "shroom": ["hell_fetus"], "pebble": ["cursed_bones"], "bones": ["cursed_bones"], "reeds": ["forest_reeds"],
 		"wallrock": ["wallrock_lava"]},
 	"desert": {"tree": ["desert_tree"], "stump": ["desert_tree_dead"], "rock": ["desert_rock", "desert_mesa"], "bush": ["desert_bush"],
 		"berry": ["desert_cactus"], "fern": ["desert_bush"], "flower": ["desert_flower"], "tuft": ["desert_tuft"],
@@ -832,6 +838,8 @@ func _generate_overworld_layout() -> void:
 		for x in range(maxi(0, rect.position.x), mini(rect.end.x, GRID_W)):
 			for z in range(maxi(0, rect.position.y), mini(rect.end.y, GRID_H)):
 				trail[x][z] = false
+	if world_level == 4:
+		_place_lava_pools()  # Emberfall: molten pools in the open ground
 
 func _connect_rooms(a: Rect2i, b: Rect2i) -> void:
 	## Carves a 2-wide L-shaped corridor between the centers of two rooms.
@@ -1647,6 +1655,20 @@ func _build_autotile_ground() -> void:
 	for x in range(GRID_W):
 		for z in range(GRID_H):
 			if grid[x][z] != Tile.FLOOR:
+				if grid[x][z] == Tile.WALL and is_water(Vector2i(x, z)):
+					# An impassable pool (Emberfall's lava): water with a rim
+					# wherever the neighbour is not water.
+					var lm := 0
+					if not is_water(Vector2i(x, z - 1)): lm |= 1
+					if not is_water(Vector2i(x + 1, z)): lm |= 2
+					if not is_water(Vector2i(x, z + 1)): lm |= 4
+					if not is_water(Vector2i(x - 1, z)): lm |= 8
+					var lcol := lm
+					if lm == 0:
+						lcol = ATLAS_MASKS + int(_tile_noise(x, z, 11) * ATLAS_VARIANTS) % ATLAS_VARIANTS
+					_ground_quad(st, x, z, -0.02, lcol * tw, Terrain.WATER * th, tw, th)
+					count += 1
+					continue
 				# Outdoors the land runs on under the blocked tiles: plain
 				# ground there too, so the tree line stands on grass, not void.
 				if natural and grid[x][z] == Tile.WALL and not site_tiles.has(Vector2i(x, z)) \
@@ -1872,6 +1894,8 @@ func _build_walls() -> void:
 			_build_boundary_props()
 		else:
 			_build_cliff_walls()
+			if world_level == 4 and interior_kind == "":
+				_place_hell_landmarks()
 		return
 	var items: Array = []
 	var site_tiles = _all_site_footprint_tiles()
@@ -2083,6 +2107,8 @@ func _build_cliff_walls() -> void:
 				continue
 			if site_tiles.has(Vector2i(x, z)):
 				continue  # Site structures draw their own exteriors
+			if is_water(Vector2i(x, z)):
+				continue  # a lava pool: the ground autotile draws it
 			var y: float = _max_adjacent_floor_elevation(x, z) * ELEV_STEP + 0.012
 			var face := _is_face_tile(x, z)
 			var n_f := _is_floor_at(x, z - 1)
@@ -2212,6 +2238,82 @@ func _build_boundary_props() -> void:
 	_add_prop_decos(rocks, "rock", "res://assets/textures/props/rock.png", 32, 24)
 	_add_prop_decos(bushes, "bush", "res://assets/textures/props/bush.png", 32, 24)
 	print("[DUNGEON] Natural boundary: %d trees, %d rocks, %d bushes (%s)" % [trees.size(), rocks.size(), bushes.size(), get_location_name()])
+
+## Emberfall's skyline: animated volcanoes and demon idols (cave pack) on
+## the blocked tiles along the edge of the ground, well apart, never on the
+## camera side of the land.
+func _place_hell_landmarks() -> void:
+	var site_tiles = _all_site_footprint_tiles()
+	var strips: Array = [
+		["res://assets/textures/craftpix/props/hell_volcano1_strip.png", 52, 50, 1.0],
+		["res://assets/textures/craftpix/props/hell_volcano2_strip.png", 64, 58, 1.0],
+		["res://assets/textures/craftpix/props/hell_demon_head_strip.png", 141, 84, 0.7],
+		["res://assets/textures/craftpix/props/hell_demon_hand_strip.png", 65, 81, 0.8],
+		["res://assets/textures/craftpix/props/hell_demon_tail_strip.png", 55, 97, 0.8],
+		["res://assets/textures/craftpix/props/hell_volcano4_strip.png", 31, 30, 1.0],
+	]
+	var placed: Array = []
+	var count := 0
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if grid[x][z] != Tile.WALL or site_tiles.has(Vector2i(x, z)) or not _has_adjacent_floor(x, z) or is_water(Vector2i(x, z)):
+				continue
+			if _is_floor_at(x, z - 1) or _is_floor_at(x, z - 2):
+				continue  # the camera side: a tall idol would lean over the ground
+			if _tile_noise(x, z, 251) > 0.16:
+				continue
+			var too_close := false
+			for p in placed:
+				if absi(p.x - x) < 7 and absi(p.y - z) < 7:
+					too_close = true
+					break
+			if too_close:
+				continue
+			var spec: Array = strips[int(_tile_noise(x, z, 257) * strips.size()) % strips.size()]
+			var spr := _make_pixel_anim(spec[0], spec[1], spec[2], 5.0)
+			spr.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+			spr.centered = false
+			spr.offset = Vector2(-float(spec[1]) * 0.5, 0)
+			var sc: float = spec[3]
+			spr.scale = Vector3(sc, sc, sc)
+			var y: float = _max_adjacent_floor_elevation(x, z) * ELEV_STEP + CameraView.SPRITE_LIFT
+			spr.position = Vector3(x + 0.5, y, z + 0.5)
+			_visuals_root.add_child(spr)
+			placed.append(Vector2i(x, z))
+			count += 1
+	print("[DUNGEON] Emberfall: %d volcanoes and idols on the edge" % count)
+
+## Emberfall's lava: a few molten pools in the open ground (flagged water,
+## drawn with the lava fill). Called by the overworld generator for World 4.
+func _place_lava_pools() -> void:
+	# Pools are blocked tiles flagged water: nobody wades lava. They sit in
+	# open ground (never on a road, never touching the edge, never in the
+	# start field) so they never cut a route.
+	var pools := 6 + _rng.randi_range(0, 4)
+	var made := 0
+	for _i in range(pools * 4):
+		if made >= pools:
+			break
+		var cx = _rng.randi_range(12, GRID_W - 5)
+		var cz = _rng.randi_range(4, GRID_H - 5)
+		var r = _rng.randi_range(1, 2)
+		var open := true
+		for dx in range(-r - 1, r + 2):
+			for dz in range(-r - 1, r + 2):
+				var q = Vector2i(cx + dx, cz + dz)
+				if not is_floor(q) or trail[q.x][q.y] or is_water(q):
+					open = false
+		if not open:
+			continue
+		for dx in range(-r, r + 1):
+			for dz in range(-r, r + 1):
+				if dx * dx + dz * dz > r * r + 1 or _rng.randf() > 0.85:
+					continue
+				var p = Vector2i(cx + dx, cz + dz)
+				grid[p.x][p.y] = Tile.WALL
+				water[p.x][p.y] = true
+		made += 1
+	print("[DUNGEON] Emberfall: %d lava pools" % made)
 
 func _has_adjacent_floor(x: int, z: int) -> bool:
 	for dx in [-1, 0, 1]:
