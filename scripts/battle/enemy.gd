@@ -12,8 +12,8 @@ signal turn_completed  # Kept for compat
 signal debuff_applied(enemy: Enemy, debuff_name: String, value: int)
 signal debuff_expired(enemy: Enemy, debuff_name: String)
 signal exposed(enemy: Enemy)
-signal attacked_player(enemy: Enemy)
-signal attacking_player(enemy: Enemy)  # about to hit the player: reactions that mitigate the blow fire here
+signal attacked_player(enemy: Enemy, victim)
+signal attacking_player(enemy: Enemy, victim)  # about to hit `victim`: reactions that mitigate the blow fire here
 signal barricade_attacked(enemy, cell: Vector2i)  # blocked: swings at a barricade toward its target
 signal movement_completed(enemy: Enemy)
 
@@ -110,6 +110,7 @@ var last_player_hit_damage: int = 0   # Raw damage of the player's most recent h
 var player_hit_modifier: Callable       # (enemy, amount) -> amount: skill-tree % mods on the player's direct hits (set by main)
 var has_been_damaged: bool = false      # any damage from any source has landed (Surprise Opener's first-source check)
 var last_hit_from_player: bool = false  # the most recent hit was the player's own (card, gauntlet skill, auto attack), not a tick or summon
+var last_hit_direct: bool = false  # ...and from the player's own action (card, skill, auto attack), not a summon or zone tick
 var next_action_tempo_tax: int = 0      # Haunted Rebuke: the next action (sync or async) winds up this much longer
 var bonus_damage_next_hit: int = 0    # Applied on the next take_damage call, then cleared
 var premeditated_card_bonus: int = 0  # Premeditated: +15 onto the next card that targets this enemy
@@ -4128,7 +4129,7 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 		if player_stats_ref and effective_damage > 0:
 			# The blow is coming: reactions that shield against it (Magic
 			# Barrier) raise their armor now, before the damage math.
-			attacking_player.emit(self)
+			attacking_player.emit(self, player_node)
 			var debuff_mgr = null
 			var buff_mgr = null
 			if player_node.has_method("get_debuff_manager"):
@@ -4205,7 +4206,7 @@ func _finish_player_hit(player_node: Node3D) -> void:
 	# Trigger on_attacked passives (thorns, In the Trenches, etc.)
 	if player_node.has_method("on_attacked_by"):
 		player_node.on_attacked_by(self)
-	attacked_player.emit(self)
+	attacked_player.emit(self, player_node)
 
 ## A barricade wall in the way: when no step toward the target is possible,
 ## swing at an adjacent blocked tile that lies toward it. Main decides whether
@@ -4651,6 +4652,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	if is_dead:
 		return false
 	last_hit_from_player = from_player
+	last_hit_direct = from_player and PlayerStats.hit_source_direct
 	# Blue Robe: each enemy a slotted card strikes takes the type IT resists least.
 	if from_player and PlayerStats.adaptive_damage_type and not ignore_armor:
 		damage_type = get_lowest_resistance_type()
@@ -5264,6 +5266,10 @@ func knock_dir(dir: Vector2i, spaces: int) -> void:
 	position = new_pos
 	target_position = new_pos
 	print("[%s] Knocked back %d space(s)" % [enemy_name, spaces])
+	if last_valid_cell != current_cell:
+		# A shove is a move too: melee-range edges (Territorial Death, In the
+		# Trenches, Close is Favored) and terrain traps see the new tile.
+		movement_completed.emit(self)
 
 #endregion
 #region HEALTH & DISPLAY

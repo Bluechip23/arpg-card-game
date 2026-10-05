@@ -1,6 +1,6 @@
 extends SceneTree
 
-## The four Hell enemies drawn from the chaos-monster icon pack: each spawns
+## The Hell enemies drawn from the chaos-monster icon pack: each spawns
 ## with the icon rig, a portrait, and the facing rule its art needs.
 ## Run: godot --headless --path . --script tests/test_chaos_icons.gd
 
@@ -27,9 +27,10 @@ func _run() -> void:
 		await process_frame
 	var want := {
 		Enemy.EnemyType.SUCCUBUS: ["chaos_monsters/Icon14", "front"],
-		Enemy.EnemyType.IFRIT: ["chaos_monsters/Icon27", "right"],
+		Enemy.EnemyType.CERBERUS: ["chaos_monsters/Icon27", "right"],
+		Enemy.EnemyType.IFRIT: ["chaos_monsters/Icon47", "front"],
 		Enemy.EnemyType.INFLAMED_MINOTAUR: ["chaos_monsters/Icon37", "right"],
-		Enemy.EnemyType.ASH_HARPY: ["chaos_monsters/Icon42", "front"],
+		Enemy.EnemyType.ASH_HARPY: ["chaos_monsters/Icon22", "front"],
 	}
 	var x := 2.0
 	for t in want:

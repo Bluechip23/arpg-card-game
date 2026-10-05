@@ -77,6 +77,7 @@ func _run() -> void:
 	_test_nine_ruins(stats, dm, inv, dummies[0])
 	_test_wrath_edge(dummies)
 	_test_bastion(stats, dummies[0])
+	_test_play_scope(stats, dm, bm, dummies)
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
@@ -380,14 +381,14 @@ func _test_bastion(stats, d: Enemy) -> void:
 	_reset_dummy(d)
 	var dm = main.deck_manager
 	stats.current_armor = 20
-	main._bastion_armor_out = 0
-	main._bastion_flight_tempo = 0
+	stats.bastion_armor_out = 0
+	stats.bastion_flight_tempo = 0
 	Card.bastion_shield_in_flight = false
 	var bs := Card.create_bouncing_shield()
 	_check(bs.world_block_reason() == "", "on the arm, the card may be played")
 	main._apply_card_world_effects(bs, d)
 	var in_flight: int = stats.current_armor
-	_check(main._bastion_armor_out == 10, "half the armor (10) leaves with the shield (%d)" % main._bastion_armor_out)
+	_check(stats.bastion_armor_out == 10, "half the armor (10) leaves with the shield (%d)" % stats.bastion_armor_out)
 	_check(Card.bastion_shield_in_flight and Card.create_bouncing_shield().world_block_reason() != "",
 		"a Bouncing Shield drawn now is unplayable")
 	dm.hand.clear()
@@ -404,14 +405,68 @@ func _test_bastion(stats, d: Enemy) -> void:
 	main._update_bastion_return(4)
 	_check(stats.current_armor == in_flight and Card.bastion_shield_in_flight, "9 tempo in, still away")
 	main._update_bastion_return(1)
-	_check(stats.current_armor == in_flight + 10 and main._bastion_armor_out == 0, "after 10 tempo the 10 armor returns (%d)" % stats.current_armor)
+	_check(stats.current_armor == in_flight + 10 and stats.bastion_armor_out == 0, "after 10 tempo the 10 armor returns (%d)" % stats.current_armor)
 	_check(not Card.bastion_shield_in_flight and redrawn.world_block_reason() == "", "and the card in hand is playable again")
 	# A throw with no armor still keeps the card away for the flight.
 	stats.current_armor = 0
 	main._apply_card_world_effects(Card.create_bouncing_shield(), d)
-	_check(Card.bastion_shield_in_flight and main._bastion_armor_out == 0, "an armorless throw still puts the shield in the air")
+	_check(Card.bastion_shield_in_flight and stats.bastion_armor_out == 0, "an armorless throw still puts the shield in the air")
 	main._update_bastion_return(10)
 	_check(not Card.bastion_shield_in_flight, "and it comes back empty-handed after 10")
 	dm.hand.clear()
 	stats.current_armor = 0
 	_reset_dummy(d)
+
+## A card resolved the way main resolves it: executor, then the world
+## effects, inside one play scope.
+func _resolve_like_main(card: Card, target, stats, dm, bm) -> void:
+	PlayerStats.hit_source_offensive = card.is_offensive()
+	PlayerStats.hit_source_direct = true
+	Card.play_scope_open = true
+	card.execute(target, stats, dm, 0.0, 0.0, bm)
+	main._apply_card_world_effects(card, target)
+	Card.close_play_scope(stats)
+	PlayerStats.hit_source_offensive = false
+	PlayerStats.hit_source_direct = false
+
+func _test_play_scope(stats, dm, bm, dummies: Array) -> void:
+	print("-- The play scope: riders cover the world-effects step --")
+	var a: Enemy = dummies[0]
+	var b: Enemy = dummies[1]
+	var gm = main.grid_manager
+	var pcell: Vector2i = gm.world_to_grid(main.player.position)
+	_place(gm, a, pcell + Vector2i(2, 0))
+	_place(gm, b, pcell + Vector2i(3, 0))
+	# Fireball's splash lands in main: Megingjörð must double it.
+	_reset_dummy(a)
+	_reset_dummy(b)
+	_resolve_like_main(Card.create_fireball(), a, stats, dm, bm)
+	var fa_plain: int = 1000 - a.current_health
+	var fb_plain: int = 1000 - b.current_health
+	var belt := ItemData.create_megingjord()
+	_reset_dummy(a)
+	_reset_dummy(b)
+	_resolve_like_main(_slot(Card.create_fireball(), belt), a, stats, dm, bm)
+	_check(fa_plain > 0 and 1000 - a.current_health == fa_plain * 2, "a slotted Fireball's splash is doubled on its target (%d vs %d)" % [1000 - a.current_health, fa_plain])
+	_check(fb_plain > 0 and 1000 - b.current_health == fb_plain * 2, "...and on the enemy beside it (%d vs %d)" % [1000 - b.current_health, fb_plain])
+	_check(PlayerStats.hit_multiplier == 1.0 and not Card.play_scope_open, "the scope closes clean")
+	# Blue Robe: the splash re-rolls per enemy (a physical-resister takes fire).
+	var robe := ItemData.create_blue_robe()
+	_reset_dummy(a)
+	_reset_dummy(b)
+	b.damage_resistances = {DamageTypes.Type.FIRE: 0.0, DamageTypes.Type.PHYSICAL: 50.0}
+	_resolve_like_main(_slot(Card.create_fireball(), robe), a, stats, dm, bm)
+	_check(1000 - b.current_health == fb_plain, "Blue Robe: the splash on a physical-resister lands unresisted (%d vs %d)" % [1000 - b.current_health, fb_plain])
+	# Thick Steel / Earth Book: armor granted in the world effects carries the rider.
+	stats.equipment_defense_card_block = 2
+	stats.current_armor = 0
+	_resolve_like_main(Card.create_defensive_awareness(), main.player, stats, dm, bm)
+	var da_on: int = stats.current_armor
+	stats.equipment_defense_card_block = 0
+	stats.current_armor = 0
+	_resolve_like_main(Card.create_defensive_awareness(), main.player, stats, dm, bm)
+	_check(da_on == stats.current_armor + 2, "Defensive Awareness (armor granted in main) gets the +2 (%d vs %d)" % [da_on, stats.current_armor])
+	_check(not stats.defense_card_bonus_pending, "and nothing is left armed")
+	stats.current_armor = 0
+	_reset_dummy(a)
+	_reset_dummy(b)

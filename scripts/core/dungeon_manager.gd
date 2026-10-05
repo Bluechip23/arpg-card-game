@@ -591,27 +591,32 @@ const PROP_ROLES := {
 	"field": {"tree": ["field_tree", "field_tree_small", "field_tree_fruit"], "stump": ["field_stump"], "rock": ["field_rock"],
 		"bush": ["field_bush"], "berry": ["field_berry"], "fern": ["field_fern"], "flower": ["field_flower"],
 		"tuft": ["field_tuft"], "shroom": ["field_shroom"], "pebble": ["field_pebble"], "log": ["forest_log"],
-		"bones": ["undead_bones"], "reeds": ["forest_reeds"]},
+		"bones": ["undead_bones"], "reeds": ["forest_reeds"], "wallrock": ["wallrock_moss"]},
 	"forest": {"tree": ["forest_tree"], "tree_big": ["forest_tree_big"], "stump": ["forest_stump"], "log": ["forest_log"],
 		"rock": ["forest_rock"], "bush": ["forest_bush"], "berry": ["field_berry"], "fern": ["forest_fern"],
 		"flower": ["field_flower"], "tuft": ["field_tuft"], "shroom": ["forest_shroom"], "pebble": ["forest_pebble"],
-		"reeds": ["forest_reeds"], "bones": ["undead_bones"]},
+		"reeds": ["forest_reeds"], "bones": ["undead_bones"], "wallrock": ["wallrock_rust"]},
 	"cave": {"stalagmite": ["cave_stalagmite"], "stalactite": ["cave_rock"], "rock": ["cave_rock"], "shroom": ["cave_shroom"],
-		"crystal": ["cave_crystal"], "pebble": ["cave_pebble"], "bones": ["undead_bones"], "web": ["cave_web"]},
+		"crystal": ["cave_crystal"], "pebble": ["cave_pebble"], "bones": ["undead_bones"], "web": ["cave_web"],
+		"wallrock": ["wallrock_grey"]},
 	"undead": {"tree": ["undead_tree"], "stump": ["undead_stump"], "rock": ["undead_rock"], "bush": ["undead_bush"],
 		"berry": ["undead_bush"], "fern": ["undead_bush"], "flower": ["undead_crystal"], "tuft": ["undead_bones"],
-		"shroom": ["undead_skulls"], "pebble": ["undead_bones"], "bones": ["undead_bones"], "reeds": ["forest_reeds"]},
+		"shroom": ["undead_skulls"], "pebble": ["undead_bones"], "bones": ["undead_bones"], "reeds": ["forest_reeds"],
+		"wallrock": ["wallrock_dark"]},
 	"cursed": {"tree": ["cursed_tree"], "stump": ["cursed_eye"], "rock": ["cursed_rock"], "bush": ["cursed_plant"],
 		"berry": ["cursed_plant"], "fern": ["cursed_plant"], "flower": ["cursed_plant"], "tuft": ["cursed_bones"],
-		"shroom": ["cursed_plant"], "pebble": ["cursed_bones"], "bones": ["cursed_bones"], "reeds": ["forest_reeds"]},
+		"shroom": ["cursed_plant"], "pebble": ["cursed_bones"], "bones": ["cursed_bones"], "reeds": ["forest_reeds"],
+		"wallrock": ["wallrock_lava"]},
 	"desert": {"tree": ["desert_tree"], "stump": ["desert_tree_dead"], "rock": ["desert_rock", "desert_mesa"], "bush": ["desert_bush"],
 		"berry": ["desert_cactus"], "fern": ["desert_bush"], "flower": ["desert_flower"], "tuft": ["desert_tuft"],
-		"shroom": ["desert_cactus"], "pebble": ["desert_pebble"], "bones": ["desert_bones"], "reeds": ["desert_tuft"]},
+		"shroom": ["desert_cactus"], "pebble": ["desert_pebble"], "bones": ["desert_bones"], "reeds": ["desert_tuft"],
+		"wallrock": ["wallrock_sand"]},
 	"winter": {"tree": ["winter_tree", "winter_tree_big"], "stump": ["winter_snowman"], "rock": ["winter_rock"], "bush": ["winter_shroom"],
 		"berry": ["winter_flower"], "fern": ["winter_crystal"], "flower": ["winter_flower"], "tuft": ["winter_pebble"],
-		"shroom": ["winter_shroom"], "pebble": ["winter_pebble"], "bones": ["undead_bones"], "reeds": ["winter_ice_tree"]},
+		"shroom": ["winter_shroom"], "pebble": ["winter_pebble"], "bones": ["undead_bones"], "reeds": ["winter_ice_tree"],
+		"wallrock": ["wallrock_snow"]},
 	"goods": {"crate": ["goods_crate", "goods_sack"], "barrel": ["goods_barrel", "goods_rack", "goods_table"]},
-	"sewer": {"bones": ["undead_bones"], "reeds": ["forest_reeds"]},
+	"sewer": {"bones": ["undead_bones"], "reeds": ["forest_reeds"], "wallrock": ["wallrock_dark"]},
 }
 
 
@@ -1831,6 +1836,7 @@ func _build_walls() -> void:
 	var is_building = interior_kind == "building" or interior_kind == "dojo"
 	if not is_building:
 		_build_cliff_walls()
+		_build_rock_walls()
 		return
 	var items: Array = []
 	var site_tiles = _all_site_footprint_tiles()
@@ -2120,6 +2126,43 @@ func _build_cliff_walls() -> void:
 	mi.material_override = mat
 	_visuals_root.add_child(mi)
 	print("[DUNGEON] Built %d cliff wall tiles (%s %dx%d)" % [count, get_location_name(), GRID_W, GRID_H])
+
+## The wall mass as boulders: every wall tile within two of floor carries a
+## rock from the zone's style (rocks_stones pack via the `wallrock` prop
+## family — mossy grey in the fields, rust in the Greenwood, grey in the
+## caves, dark in the sewers and barrows, sandstone in the wastes, snow-
+## capped in Frostreach, lava in Hell), scattered with a little jitter and
+## size variance so the piles read as rubble, not a grid. They stand on
+## the plateau cap, which still shows between them.
+func _build_rock_walls() -> void:
+	var variants := _prop_variants("wallrock")
+	if variants.is_empty():
+		return
+	var site_tiles = _all_site_footprint_tiles()
+	var items: Array = []
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if grid[x][z] != Tile.WALL or site_tiles.has(Vector2i(x, z)):
+				continue
+			var near_floor := false
+			for dx in range(-2, 3):
+				for dz in range(-2, 3):
+					if _is_floor_at(x + dx, z + dz):
+						near_floor = true
+						break
+				if near_floor:
+					break
+			if not near_floor:
+				continue
+			var y: float = _max_adjacent_floor_elevation(x, z) * ELEV_STEP + 0.012
+			var jx: float = (_tile_noise(x, z, 211) - 0.5) * 0.5
+			var jz: float = (_tile_noise(x, z, 223) - 0.5) * 0.5
+			var sc: float = 0.85 + _tile_noise(x, z, 227) * 0.4
+			items.append({"pos": Vector3(x + 0.5 + jx, y, z + 0.5 + jz), "scale": sc})
+	if items.is_empty():
+		return
+	_add_prop_decos(items, "wallrock", "", 0, 0)
+	print("[DUNGEON] Piled %d wall boulders (%s)" % [items.size(), get_location_name()])
 
 func _has_adjacent_floor(x: int, z: int) -> bool:
 	for dx in [-1, 0, 1]:

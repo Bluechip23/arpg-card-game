@@ -103,7 +103,7 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 	var is_dex_proc = false
 
 	# Dex proc preview: show reduced mana and half tempo for attack cards
-	if dex_proc_active and card.card_type == Card.CardType.ATTACK:
+	if dex_proc_active and card.is_attack():  # the DEX proc is for attacks, not spells
 		display_mana = max(0, display_mana - 20)  # the proc's real discount (x10 mana scale)
 		display_tempo = display_tempo / 2
 		# Pocket Knife: additional -2 tempo and resolve on first tick

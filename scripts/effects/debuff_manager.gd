@@ -104,7 +104,7 @@ func apply_debuff(debuff: Debuff) -> void:
 	# of max HP) is possible.
 	if owner_stats and owner_stats.has_method("has_skill_tree_passive"):
 		if owner_stats.has_skill_tree_passive("point_to_prove"):
-			if debuff.debuff_type == Debuff.DebuffType.STUN or debuff.debuff_type == Debuff.DebuffType.DISARM:
+			if debuff.debuff_type in [Debuff.DebuffType.STUN, Debuff.DebuffType.DISARM, Debuff.DebuffType.SILENCE]:
 				var ptp_pct: int = PassiveScaling.value("point_to_prove", "hp_percent", owner_stats.get_passive_level("point_to_prove"))
 				var ptp_cost: int = maxi(1, ceili(owner_stats.max_health * ptp_pct / 100.0))
 				if owner_stats.current_health > ptp_cost:

@@ -183,17 +183,17 @@ static func create_stephen() -> CharacterData:
 			{"name": "Skilled Momentum", "description": "If you have played 4 attacks in a row, your 5th will be played twice"},
 		]},
 		{"name": "Sentinel", "description": "Melee engagements are your bread and butter. No one can out duel you, scratching your armor is a feat itself.", "abilities": [
-			{"name": "Clean Exchange", "description": "Anytime you draw a Defense card and the last card you played was an offensive card, or vice versa, give the drawn card -1 tempo"},
+			{"name": "Clean Exchange", "description": "Anytime you draw a Defense card and the last card you played was an offensive card, or vice versa, give the drawn card -1 tempo and +1 block"},
 			{"name": "Exposed Blind Spot", "description": "When struck with a melee attack, gain crit chance on your next attack equal to the number of non-attack cards in your hand"},
 			{"name": "Lethal Resourcefulness", "description": "If you have 3 or less cards in your hand, playing a non-attack card triggers a free basic attack"},
 		]},
 		{"name": "Ranger", "description": "Striking from a distance, manipulating elements and situations to make your arrows and attacks stronger.", "abilities": [
-			{"name": "Eagle Eye", "description": "+2 range on ranged attacks"},
+			{"name": "Eagle Eye", "description": "Ranged offensive cards deal bonus damage based on their range"},
 			{"name": "Scouted", "description": "Hitting the same enemy 3 times in a row grants +6 range on your next attack and it auto-crits — usable against any enemy"},
 			{"name": "Laced Arrow", "description": "When applying burn, cold, or shock, apply 1 additional instance"},
 		]},
 		{"name": "Avenger", "description": "Large, potent, and devastating. Unfortunately you tire quick, making timing and execution vital.", "abilities": [
-			{"name": "Patience is a Virtue", "description": "When receiving Glut, deal that much damage to an enemy in melee range and halve the Glut"},
+			{"name": "Patience is a Virtue", "description": "When receiving Glut, deal that much damage to the nearest enemy and halve the Glut"},
 			{"name": "Swing for the Fences", "description": "Cards that have >4 tempo cost deal their tempo cost as additional damage"},
 			{"name": "Dominate", "description": "When triggering an attack speed proc, the proc resolves normally and you also gain a 30m/0t basic attack card and Strengthen for 3 attacks (5 tempo cooldown)"},
 		]},

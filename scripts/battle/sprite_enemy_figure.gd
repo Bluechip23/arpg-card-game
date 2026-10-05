@@ -46,6 +46,7 @@ const CP_ROWS := {
 	"swordsman_lvl4_6": "FBLR",
 	"skeletons": "FBLR",
 	"goblins": "FBLR",
+	"vampires": "FBLR",
 }
 ## Frames per second per Craftpix animation. One-shots (Attack, Hurt, Death)
 ## return to Idle/Walk when they finish; Death holds its last frame.
@@ -104,7 +105,7 @@ const KINDS := {
 	"demon": {"cp": "demons/Demon1", "scale": 0.85},
 	"pit_fiend": {"cp": "demons/Demon3"},
 	"bugbear": {"cp": "gnolls/Gnoll2", "scale": 1.2},
-	"ifrit": {"icon": "chaos_monsters/Icon27", "faces": "right", "scale": 2.2},  # the standing three-headed hound
+	"ifrit": {"icon": "chaos_monsters/Icon47", "faces": "front", "scale": 2.0},  # the living flame
 	"snow_wraith": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},
 	"hydra": {"tex": "hydra", "scale": 1.4},
 	"white_manticore": {"tex": "white_manticore", "scale": 1.3},
@@ -112,12 +113,12 @@ const KINDS := {
 	"large_bear": {"fr": "mountain_monsters/Bear", "scale": 0.65},
 	"bone_dragon": {"tex": "bone_dragon", "scale": 1.6},
 	"wyvern": {"cell": Vector2i(7, 2), "tint": Color(0.9, 0.75, 1.05), "scale": 1.35},
-	"cerberus": {"cell": Vector2i(3, 1), "tint": Color(0.85, 0.5, 0.45), "scale": 1.5},
+	"cerberus": {"icon": "chaos_monsters/Icon27", "faces": "right", "scale": 2.2},  # the standing three-headed hound
 	"werewolf": {"cell": Vector2i(3, 1), "tint": Color(0.6, 0.6, 0.68), "scale": 1.25},
 	"sabertooth": {"cell": Vector2i(3, 1), "tint": Color(1.05, 0.95, 0.75), "scale": 1.2},
 	"weregoat": {"cp": "gnolls/Gnoll3", "scale": 1.1, "tint": Color(0.85, 0.85, 0.9)},
 	"roc": {"fr": "mountain_monsters/Bird", "scale": 1.0, "tint": Color(1.05, 0.95, 0.85)},
-	"ash_harpy": {"icon": "chaos_monsters/Icon42", "faces": "front", "scale": 1.6},  # the winged, tailed flyer
+	"ash_harpy": {"icon": "chaos_monsters/Icon22", "faces": "front", "scale": 1.6},  # the winged demon in flight, tail trailing
 	"magma_spider": {"cell": Vector2i(3, 0), "tint": Color(1.35, 0.75, 0.6)},
 	# (Every roster kind now has a sprite; ART_TODO.md still tracks hand-drawn
 	# replacements for the generated first-pass battlers above.)
@@ -129,7 +130,7 @@ const KINDS := {
 	"earth_mage": {"npc": NPC1 + "/npc mystic A v01.png", "tint": Color(0.9, 1.0, 0.7)},
 	"necromancer": {"cp": "lich/Lich2", "scale": 1.1},
 	"spirit_collector": {"cp": "lich/Lich1", "tint": Color(0.8, 0.9, 1.15)},
-	"vampire": {"npc": NPC2 + "/npc dandy v01.png", "tint": Color(0.85, 0.78, 0.88)},
+	"vampire": {"cp": "vampires/Vampires3", "scale": 1.1},  # the red-caped lord on spire legs
 	"zombie": {"cp": "zombie/Zombie1", "scale": 1.25},
 	"infected_hunter": {"cp": "zombie/Zombie3", "scale": 1.3, "tint": Color(0.9, 1.0, 0.85)},
 	"succubus": {"icon": "chaos_monsters/Icon14", "faces": "front", "scale": 1.7},  # the purple-winged temptress

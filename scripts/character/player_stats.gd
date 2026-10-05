@@ -48,6 +48,15 @@ static var harnessed_mult: float = 1.0
 ## (main sets it around a card's resolution and the auto attack's hit);
 ## Solemn Independence's bonus reads it.
 static var hit_source_offensive: bool = false
+## True while a hit comes from the player's own ACTION — a card resolving,
+## a gauntlet skill, the auto attack. Summon swings and zone ticks (vines,
+## fire spots) land outside it. Cory's Eat reads this: "a card, a gauntlet
+## skill, or auto attack... keeping things like DoT out of it".
+static var hit_source_direct: bool = false
+## The caster whose card is healing an ALLY right now (deck_manager sets it
+## around an ally-targeted play): Blood Libation boosts the heals Jeremy
+## performs on others with HIS stacks, not the receiver's.
+static var ally_heal_caster: PlayerStats = null
 ## Megingjörð: the resolving slotted card's hits are multiplied at the end of
 ## the pipeline (Enemy.take_damage, via the hit modifier) — a true double.
 static var hit_multiplier: float = 1.0
@@ -306,6 +315,8 @@ var equipment_lifesteal_bonus: float = 0.0   # +% attack damage healed from gear
 var equipment_resistance_bonus: float = 0.0  # +% all-damage resistance from gear (Thick Steel Helm)
 var equipment_defense_card_block: int = 0    # +armor added when a DEFENSE card grants armor (Burgonet, Thick Steel)
 var defense_card_bonus_pending: bool = false  # armed by Card.execute for ANY card; spent by its first armor gain, cleared when the card finishes
+var bastion_flight_tempo: int = 0   # Steve Rodgers: tempo left before the thrown shield returns (0 = on the arm)
+var bastion_armor_out: int = 0      # the armor that left with it, returned when it does
 var equipment_armorless_defense_block: int = 0  # armor granted by DEFENSE cards that grant none themselves (Burgonet)
 var temp_on_self_crit_bonus: float = 0.0     # one-shot +% crit for the card currently resolving (Monocle on-self)
 var temp_crit_damage_bonus: float = 0.0      # one-shot +crit-damage multiplier for the resolving card (Feathered Hat 0.10)
@@ -2124,7 +2135,7 @@ func heal(amount: int, from_ally: bool = false, sanguine_applied: bool = false) 
 	if friendship_partner and not _friendship_echo and amount > 0:
 		_friendship_echo = true
 		friendship_partner._friendship_echo = true
-		friendship_partner.heal(amount, from_ally)
+		friendship_partner.heal(amount, true)  # the echo comes from an ally (Solemn refuses it)
 		_friendship_echo = false
 		friendship_partner._friendship_echo = false
 	# Blood Libation boosts healing this character PERFORMS: self-performed
@@ -2132,6 +2143,8 @@ func heal(amount: int, from_ally: bool = false, sanguine_applied: bool = false) 
 	# receiver's own stacks (the caster's stacks are applied at the call site).
 	if not from_ally and not sanguine_applied:
 		amount = boost_performed_heal(amount)
+	elif from_ally and not sanguine_applied and ally_heal_caster != null and ally_heal_caster != self:
+		amount = ally_heal_caster.boost_performed_heal(amount)  # the performer's Blood Libation
 	# Curse of the Living (Coffin Lid, maintained): the dead take half of
 	# everything you are given and pass half of the rest to your allies. The
 	# share is emitted for main to deliver — allies aren't reachable from here.

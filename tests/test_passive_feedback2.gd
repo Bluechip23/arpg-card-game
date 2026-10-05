@@ -107,10 +107,23 @@ func _test_i_heal_you(stats, pt) -> void:
 	main._on_tempo_advanced(main.tempo_manager.global_tempo, 1)  # refresh the summons list
 	near.health = 10
 	far.health = 10
+	stats.max_health = maxi(stats.max_health, 100)
+	stats.current_health = 50
 	var healed: int = pt._i_heal_you_pulse()
 	_check(near.health == 13, "a wolf 3 cells away is healed 3 (%d)" % near.health)
 	_check(far.health == 10, "a wolf 5 cells away is not")
-	_check(healed >= 1, "the pulse reports what it healed (%d)" % healed)
+	_check(stats.current_health >= 53, "Jeremy himself is a target (%d)" % stats.current_health)
+	_check(healed >= 2, "the pulse reports what it healed (%d)" % healed)
+	# Blood Libation: Jeremy's stacks boost the heals he performs on others.
+	_grant(stats, "blood_libation", 15)
+	stats.sanguine_stacks = 2
+	var bl_per: int = PassiveScaling.value("blood_libation", "heal_per_stack", 15)
+	near.health = 1
+	pt._i_heal_you_pulse()
+	var bl_expect: int = mini(int(near.max_health), 1 + 3 + 2 * bl_per)
+	_check(near.health == bl_expect, "two Sanguine stacks add +%d to the wolf's pulse (%d, capped at %d)" % [2 * bl_per, near.health, near.max_health])
+	stats.sanguine_stacks = 0
+	stats.skill_tree_passives.erase("blood_libation")
 	main._clear_wolves()
 	stats.skill_tree_passives.erase("i_heal_you")
 

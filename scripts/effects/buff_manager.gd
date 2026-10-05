@@ -341,7 +341,7 @@ func sync_flag_buffs() -> void:
 
 	# Tighten String — next N ranged attacks buffed (charge-based).
 	_sync_generic("tighten_string", tighten_string_charges > 0, "Tighten String",
-		"Next %d ranged attacks: +3 tempo, +6 dmg, +6 range, +10%% crit" % tighten_string_charges,
+		"Next %d ranged attacks: +3 tempo, +6 dmg, +6 range, +20%% crit" % tighten_string_charges,
 		Color(0.95, 0.77, 0.09), -1, tighten_string_charges)
 
 	# Loaded Die / House Money — next RNG roll boosted (owner_stats).
