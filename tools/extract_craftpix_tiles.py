@@ -74,6 +74,82 @@ WATER = {
 }
 
 
+# The packs draw their grounds FLAT — one plain grass / dirt / stone tile —
+# and break the flatness with separate "spots" sheets (darker patches of
+# earth, lighter blotches of sand or snow). Mixing a pack's differently
+# shaded tiles into one sheet produced a checkerboard; so every floor fill
+# is built from the pack's single flattest tile, and a few of the 16
+# variants carry one of the pack's own spots. name -> (spots sheet,
+# reference colour the blob must be near, tolerance, max blob size)
+SPOTS = {
+    "floor_grass_field":  ("tileset_grassland/Details.png", (176, 118, 64), 26, 26),
+    "floor_grass_forest": ("tileset_forest/spots_lianas.png", (132, 136, 70), 40, 28),
+    "floor_dirt_forest":  ("tileset_forest/spots_lianas.png", (132, 136, 70), 40, 28),
+    "floor_desert":       ("tileset_desert/spots.png", (196, 160, 96), 40, 28),
+    "floor_desert_sand":  ("tileset_desert/spots.png", (196, 160, 96), 40, 28),
+    "floor_cursed":       ("tileset_cursed_land/spots.png", (222, 160, 118), 48, 28),
+    "floor_cave":         ("tileset_cave/spots_source.png", (96, 72, 58), 40, 28),
+    "floor_glowing_cave": ("tileset_cave/spots_source.png", (96, 72, 58), 40, 28),
+}
+SPOT_VARIANTS = 3   # of the 16 variants, how many carry a spot
+# The grassland pack has no spots sheet (its Details are pebble clusters,
+# which read as litter when tiled): the field stays plain and gets its
+# variation from the scattered tufts, flowers and stones.
+SPOT_VARIANTS_BY_NAME = {"floor_grass_field": 0}
+# Stone floors keep the pack's textured tile (cracks, cobbles) rather than
+# its flattest one: the texture IS the ground there.
+TEXTURED = {"floor_undead", "floor_undead_sand", "floor_cursed_dark"}
+SPOT_MIN_AREA = 40  # texels — skips the Details sheets' tufts and flowers
+
+
+def tile_variance(px, x, y, w, h):
+    m = tile_mean(px, x, y, w, h)
+    acc = 0.0
+    for j in range(h):
+        for i in range(w):
+            p = px[x + i, y + j]
+            acc += (p[0] - m[0]) ** 2 + (p[1] - m[1]) ** 2 + (p[2] - m[2]) ** 2
+    return acc / (w * h)
+
+
+def spot_blobs(sheet, ref, tol, max_size):
+    """Connected opaque blobs on a spots sheet, near `ref` in colour and no
+    bigger than max_size — the pack's ground patches, cropped tight."""
+    img = Image.open(os.path.join(SRC, sheet)).convert("RGBA")
+    px = img.load()
+    w, h = img.size
+    seen = set()
+    blobs = []
+    for y0 in range(h):
+        for x0 in range(w):
+            if (x0, y0) in seen or px[x0, y0][3] == 0:
+                continue
+            stack = [(x0, y0)]
+            seen.add((x0, y0))
+            pts = []
+            while stack:
+                x, y = stack.pop()
+                pts.append((x, y))
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in seen and px[nx, ny][3] > 0:
+                        seen.add((nx, ny))
+                        stack.append((nx, ny))
+            xs = [q[0] for q in pts]
+            ys = [q[1] for q in pts]
+            bw, bh = max(xs) - min(xs) + 1, max(ys) - min(ys) + 1
+            if len(pts) < SPOT_MIN_AREA or bw > max_size or bh > max_size:
+                continue
+            m = [0, 0, 0]
+            for x, y in pts:
+                q = px[x, y]
+                m[0] += q[0]; m[1] += q[1]; m[2] += q[2]
+            m = [c / len(pts) for c in m]
+            if dist(m, ref) > tol:
+                continue
+            blobs.append(img.crop((min(xs), min(ys), max(xs) + 1, max(ys) + 1)))
+    return blobs
+
+
 def tile_mean(px, x, y, w, h):
     sm = [0, 0, 0]
     for j in range(h):
@@ -130,6 +206,31 @@ def build(name, sheet, fills, tol):
         raise SystemExit(f"{name}: no interior tiles near {fills} in {sheet}")
     rng = random.Random(name)
     out = Image.new("RGBA", (N * GRID, N * GRID))
+    if name.startswith("floor_"):
+        # A floor: the pack's flattest tile everywhere, then its own spots
+        # on a few variants (no checkerboard of mixed shades).
+        if name in TEXTURED:
+            flattest = max(pool, key=lambda t: tile_variance(t.load(), 0, 0, T, T))
+        else:
+            flattest = min(pool, key=lambda t: tile_variance(t.load(), 0, 0, T, T))
+        for v in range(GRID * GRID):
+            ox, oy = (v % GRID) * N, (v // GRID) * N
+            for dy in (0, T):
+                for dx in (0, T):
+                    out.paste(flattest, (ox + dx, oy + dy))
+        spots = spot_blobs(*SPOTS[name]) if name in SPOTS else []
+        if spots:
+            spotted = list(range(GRID * GRID))
+            rng.shuffle(spotted)
+            for v in spotted[:SPOT_VARIANTS_BY_NAME.get(name, SPOT_VARIANTS)]:
+                blob = spots[rng.randrange(len(spots))]
+                ox, oy = (v % GRID) * N, (v // GRID) * N
+                bx = ox + rng.randrange(0, max(1, N - blob.width + 1))
+                by = oy + rng.randrange(0, max(1, N - blob.height + 1))
+                out.alpha_composite(blob, (bx, by))
+        out.save(os.path.join(OUT, name + ".png"))
+        print(f"{name:22s} <- {sheet:44s} flat tile + {len(spots)} spots")
+        return
     # Every pool tile appears at least once; the rest is a seeded shuffle.
     order = list(range(len(pool)))
     slots = GRID * GRID * 4

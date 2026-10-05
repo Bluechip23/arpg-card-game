@@ -1470,7 +1470,9 @@ func _add_multimesh(mesh: Mesh, items: Array, shaded: bool = true, rough: float 
 ## theme cast to sit the bright pack grass into the world's light, not enough
 ## to repaint it).
 static func _tint_weight(texture_path: String) -> float:
-	return 0.35 if texture_path.begins_with(CP_TEX) else 0.5
+	# The purchased fills keep their own colour (a whisper of the world's
+	# cast); the generated grayscale sheets still take the palette.
+	return 0.1 if texture_path.begins_with(CP_TEX) else 0.5
 
 
 ## Billboard sprite props (trees, bushes, rocks, stumps, ferns): a QuadMesh
@@ -1640,9 +1642,19 @@ func _build_autotile_ground() -> void:
 	var tw := 1.0 / ATLAS_COLS
 	var th := 1.0 / Terrain.size()
 	var count := 0
+	var natural := _natural_boundary()
+	var site_tiles = _all_site_footprint_tiles() if natural else {}
 	for x in range(GRID_W):
 		for z in range(GRID_H):
 			if grid[x][z] != Tile.FLOOR:
+				# Outdoors the land runs on under the blocked tiles: plain
+				# ground there too, so the tree line stands on grass, not void.
+				if natural and grid[x][z] == Tile.WALL and not site_tiles.has(Vector2i(x, z)) \
+						and _near_floor(x, z, 3):
+					var wv := ATLAS_MASKS + int(_tile_noise(x, z, 11) * ATLAS_VARIANTS) % ATLAS_VARIANTS
+					var wy: float = _max_adjacent_floor_elevation(x, z) * ELEV_STEP + 0.004
+					_ground_quad(st, x, z, wy, wv * tw, Terrain.GRASS * th, tw, th)
+					count += 1
 				continue
 			var t := _terrain_of(x, z)
 			var mask := 0
@@ -1657,21 +1669,7 @@ func _build_autotile_ground() -> void:
 			if mask == 0:
 				# Open ground: one of the sheet's 16 variants, by cell hash.
 				col = ATLAS_MASKS + int(_tile_noise(x, z, 11) * ATLAS_VARIANTS) % ATLAS_VARIANTS
-			var u0 := col * tw
-			var v0 := t * th
-			var u1 := u0 + tw
-			var v1 := v0 + th
-			var a := Vector3(x, y, z)
-			var b := Vector3(x + 1, y, z)
-			var c := Vector3(x + 1, y, z + 1)
-			var d := Vector3(x, y, z + 1)
-			st.set_normal(Vector3.UP)
-			st.set_uv(Vector2(u0, v0)); st.add_vertex(a)
-			st.set_uv(Vector2(u1, v0)); st.add_vertex(b)
-			st.set_uv(Vector2(u1, v1)); st.add_vertex(c)
-			st.set_uv(Vector2(u0, v0)); st.add_vertex(a)
-			st.set_uv(Vector2(u1, v1)); st.add_vertex(c)
-			st.set_uv(Vector2(u0, v1)); st.add_vertex(d)
+			_ground_quad(st, x, z, y, col * tw, t * th, tw, th)
 			count += 1
 	var mesh := st.commit()
 	var mi := MeshInstance3D.new()
@@ -1687,6 +1685,30 @@ func _build_autotile_ground() -> void:
 	mi.material_override = mat
 	_visuals_root.add_child(mi)
 	print("[DUNGEON] Autotiled %d ground tiles (%s)" % [count, pal.get("name", "")])
+
+## One ground tile quad with its atlas cell.
+static func _ground_quad(st: SurfaceTool, x: int, z: int, y: float, u0: float, v0: float, tw: float, th: float) -> void:
+	var u1 := u0 + tw
+	var v1 := v0 + th
+	var a := Vector3(x, y, z)
+	var b := Vector3(x + 1, y, z)
+	var c := Vector3(x + 1, y, z + 1)
+	var d := Vector3(x, y, z + 1)
+	st.set_normal(Vector3.UP)
+	st.set_uv(Vector2(u0, v0)); st.add_vertex(a)
+	st.set_uv(Vector2(u1, v0)); st.add_vertex(b)
+	st.set_uv(Vector2(u1, v1)); st.add_vertex(c)
+	st.set_uv(Vector2(u0, v0)); st.add_vertex(a)
+	st.set_uv(Vector2(u1, v1)); st.add_vertex(c)
+	st.set_uv(Vector2(u0, v1)); st.add_vertex(d)
+
+## True when a floor tile lies within `r` (Chebyshev) of (x, z).
+func _near_floor(x: int, z: int, r: int) -> bool:
+	for dx in range(-r, r + 1):
+		for dz in range(-r, r + 1):
+			if _is_floor_at(x + dx, z + dz):
+				return true
+	return false
 
 static func _px_hash(x: int, y: int, salt: int) -> float:
 	var h := int((x * 73856093) ^ (y * 19349663) ^ (salt * 83492791)) & 0x7fffffff
@@ -1820,6 +1842,17 @@ func _min_adjacent_floor_elevation(x: int, z: int) -> int:
 					min_elev = mini(min_elev, elevation[nx][nz])
 	return 0 if min_elev == 99 else min_elev
 
+## Outdoor zones have no "walls": the ground runs on under the blocked
+## tiles and the edge of the walkable land is a line of trees, rocks and
+## bushes (the way the packs' fields and forests read). Caves, sewers, the
+## hellscape and the barrows keep their packs' rock and vein masses.
+func _natural_boundary() -> bool:
+	if interior_kind in ["cave", "sewer", "building", "dojo", "graveyard"]:
+		return false
+	if interior_kind == "forest":
+		return true
+	return world_level in [1, 2, 3]
+
 func _build_walls() -> void:
 	## Rock walls drawn the way the packs draw cliffs: a flat autotiled mesh
 	## on the ground plane. Every wall tile beside floor is four 16px quads —
@@ -1835,8 +1868,10 @@ func _build_walls() -> void:
 	var pal = get_palette()
 	var is_building = interior_kind == "building" or interior_kind == "dojo"
 	if not is_building:
-		_build_cliff_walls()
-		_build_rock_walls()
+		if _natural_boundary():
+			_build_boundary_props()
+		else:
+			_build_cliff_walls()
 		return
 	var items: Array = []
 	var site_tiles = _all_site_footprint_tiles()
@@ -2127,42 +2162,56 @@ func _build_cliff_walls() -> void:
 	_visuals_root.add_child(mi)
 	print("[DUNGEON] Built %d cliff wall tiles (%s %dx%d)" % [count, get_location_name(), GRID_W, GRID_H])
 
-## The wall mass as boulders: every wall tile within two of floor carries a
-## rock from the zone's style (rocks_stones pack via the `wallrock` prop
-## family — mossy grey in the fields, rust in the Greenwood, grey in the
-## caves, dark in the sewers and barrows, sandstone in the wastes, snow-
-## capped in Frostreach, lava in Hell), scattered with a little jitter and
-## size variance so the piles read as rubble, not a grid. They stand on
-## the plateau cap, which still shows between them.
-func _build_rock_walls() -> void:
-	var variants := _prop_variants("wallrock")
-	if variants.is_empty():
-		return
+## The edge of the land, outdoors: every blocked tile touching the walkable
+## ground carries one big prop — a tree, a rock or a bush of the zone — and
+## the row behind it a thinner stand of trees fading into the fog, so the
+## boundary reads as landscape, not a wall. Blocked tiles SOUTH of the
+## ground (the row nearest the camera) take low props only (rocks, bushes),
+## so nothing tall stands between the camera and a character at the edge.
+func _build_boundary_props() -> void:
 	var site_tiles = _all_site_footprint_tiles()
-	var items: Array = []
+	var trees: Array = []
+	var rocks: Array = []
+	var bushes: Array = []
+	var biome := _prop_biome()
+	# Family weights on the edge row: [tree, rock, bush] out of 100.
+	var weights: Array = [50, 25, 25]
+	match biome:
+		"forest": weights = [70, 10, 20]
+		"desert": weights = [25, 50, 25]
+		"winter": weights = [55, 30, 15]
 	for x in range(GRID_W):
 		for z in range(GRID_H):
 			if grid[x][z] != Tile.WALL or site_tiles.has(Vector2i(x, z)):
 				continue
-			var near_floor := false
-			for dx in range(-2, 3):
-				for dz in range(-2, 3):
-					if _is_floor_at(x + dx, z + dz):
-						near_floor = true
-						break
-				if near_floor:
-					break
-			if not near_floor:
+			var edge := _has_adjacent_floor(x, z)
+			var back := not edge and _near_floor(x, z, 2)
+			if not edge and not back:
 				continue
 			var y: float = _max_adjacent_floor_elevation(x, z) * ELEV_STEP + 0.012
-			var jx: float = (_tile_noise(x, z, 211) - 0.5) * 0.5
-			var jz: float = (_tile_noise(x, z, 223) - 0.5) * 0.5
-			var sc: float = 0.85 + _tile_noise(x, z, 227) * 0.4
-			items.append({"pos": Vector3(x + 0.5 + jx, y, z + 0.5 + jz), "scale": sc})
-	if items.is_empty():
-		return
-	_add_prop_decos(items, "wallrock", "", 0, 0)
-	print("[DUNGEON] Piled %d wall boulders (%s)" % [items.size(), get_location_name()])
+			var jx: float = (_tile_noise(x, z, 211) - 0.5) * 0.4
+			var jz: float = (_tile_noise(x, z, 223) - 0.5) * 0.4
+			var pos := Vector3(x + 0.5 + jx, y, z + 0.5 + jz)
+			var roll: float = _tile_noise(x, z, 229) * 100.0
+			if back:
+				# The stand behind the edge: trees only, every other tile — and
+				# never on the camera side of the ground, where a tall sprite
+				# would lean over the walkable edge.
+				if not _is_floor_at(x, z - 1) and not _is_floor_at(x, z - 2) and _tile_noise(x, z, 233) < 0.5:
+					trees.append({"pos": pos, "scale": 1.0 + _tile_noise(x, z, 239) * 0.3, "color": Color.WHITE})
+				continue
+			# A tile just south of the ground faces the camera: keep it low.
+			var faces_camera: bool = _is_floor_at(x, z - 1)
+			if not faces_camera and roll < weights[0]:
+				trees.append({"pos": pos, "scale": 1.05 + _tile_noise(x, z, 239) * 0.3, "color": Color.WHITE})
+			elif roll < weights[0] + weights[1] or faces_camera and roll < 60:
+				rocks.append({"pos": pos, "scale": 1.1 + _tile_noise(x, z, 241) * 0.4, "color": Color.WHITE})
+			else:
+				bushes.append({"pos": pos, "scale": 1.1 + _tile_noise(x, z, 243) * 0.4, "color": Color.WHITE})
+	_add_prop_decos(trees, "tree", "res://assets/textures/props/tree.png", 48, 64)
+	_add_prop_decos(rocks, "rock", "res://assets/textures/props/rock.png", 32, 24)
+	_add_prop_decos(bushes, "bush", "res://assets/textures/props/bush.png", 32, 24)
+	print("[DUNGEON] Natural boundary: %d trees, %d rocks, %d bushes (%s)" % [trees.size(), rocks.size(), bushes.size(), get_location_name()])
 
 func _has_adjacent_floor(x: int, z: int) -> bool:
 	for dx in [-1, 0, 1]:
