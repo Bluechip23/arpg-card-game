@@ -69,24 +69,57 @@ func _build_badge() -> void:
 	_glyph_rect.offset_bottom = -4
 	_glyph_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(_glyph_rect)
-	_count_label = Label.new()
-	_count_label.add_theme_font_size_override("font_size", 11)
-	_count_label.add_theme_color_override("font_color", Color(1, 1, 1))
-	_count_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
-	_count_label.add_theme_constant_override("outline_size", 4)
-	_count_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_count_label.offset_left = -18
-	_count_label.offset_top = -14
-	_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_count_label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
-	_count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# xN count: a pill centred on the badge's bottom edge.
+	_count_label = _make_count_pill()
 	holder.add_child(_count_label)
 
+static func _make_count_pill() -> Label:
+	## The "xN" chip: a small dark pill centred on the badge's bottom edge,
+	## hanging a few pixels below the circle so the count reads as a label
+	## under the effect rather than a scribble over its glyph.
+	var lbl := Label.new()
+	lbl.add_theme_font_size_override("font_size", 10)
+	lbl.add_theme_color_override("font_color", Color(1, 1, 1))
+	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	lbl.add_theme_constant_override("outline_size", 2)
+	var st := StyleBoxFlat.new()
+	st.bg_color = Color(0.06, 0.06, 0.09, 0.95)
+	st.set_border_width_all(1)
+	st.border_color = Color(0.8, 0.8, 0.8)
+	st.set_corner_radius_all(6)
+	st.content_margin_left = 4
+	st.content_margin_right = 4
+	st.content_margin_top = 0
+	st.content_margin_bottom = 0
+	lbl.add_theme_stylebox_override("normal", st)
+	lbl.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	lbl.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	lbl.grow_vertical = Control.GROW_DIRECTION_END
+	lbl.offset_left = -11
+	lbl.offset_right = 11
+	lbl.offset_top = -10
+	lbl.offset_bottom = 3
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lbl.z_index = 1
+	return lbl
+
+## Debuffs that only run on the clock (or whose value is not a count, like
+## Hexed's +X mana): they show no xN — the hover window has the clock.
+const NO_COUNT_TYPES := [Debuff.DebuffType.STUN, Debuff.DebuffType.SILENCE, Debuff.DebuffType.DISARM,
+	Debuff.DebuffType.FROZEN, Debuff.DebuffType.ROOTED, Debuff.DebuffType.CURSED, Debuff.DebuffType.CUFFED,
+	Debuff.DebuffType.LOCKED, Debuff.DebuffType.HEXED]
+
 func _badge_count() -> int:
-	## xN: stacks when >1, else the value (e.g. Bleed 3), else nothing.
+	## xN — what is left of the debuff: stacks when >1, else its value (the
+	## charges of Bleed 3, Poison 2, ...). Timed-only debuffs (Stun, Silence,
+	## a clock-timed Slowed) show no count; the hover window has the clock.
 	if debuff.stacks > 1:
 		return debuff.stacks
-	if debuff.value > 1:
+	if debuff.clock_timed or debuff.debuff_type in NO_COUNT_TYPES:
+		return -1
+	if debuff.value > 0:
 		return debuff.value
 	return -1
 
@@ -116,63 +149,11 @@ func update_display() -> void:
 
 	var n := _badge_count()
 	_count_label.text = ("x%d" % n) if n > 0 else ""
+	_count_label.visible = n > 0
+	var pill := _count_label.get_theme_stylebox("normal") as StyleBoxFlat
+	if pill:
+		pill.border_color = col.lightened(0.2)
 
-	tooltip_text = ""  # the StatusHoverPopup window replaces the engine tooltip
-
-func _make_custom_tooltip(for_text: String) -> Control:
-	if not debuff:
-		return null
-
-	var panel = PanelContainer.new()
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.1, 0.15, 0.95)
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
-	style.border_color = debuff.get_icon_color()
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
-	style.content_margin_left = 10
-	style.content_margin_right = 10
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
-	panel.add_theme_stylebox_override("panel", style)
-
-	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 4)
-	panel.add_child(vbox)
-
-	var title = Label.new()
-	title.text = debuff.debuff_name
-	title.add_theme_color_override("font_color", debuff.get_icon_color())
-	title.add_theme_font_size_override("font_size", 16)
-	vbox.add_child(title)
-
-	var desc = Label.new()
-	desc.text = debuff.description
-	desc.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
-	desc.add_theme_font_size_override("font_size", 13)
-	desc.autowrap_mode = TextServer.AUTOWRAP_WORD
-	desc.custom_minimum_size.x = 200
-	vbox.add_child(desc)
-
-	var dur = Label.new()
-	if debuff.duration < 0:
-		dur.text = "Duration: Permanent"
-	else:
-		dur.text = "Remaining: %d tempo" % debuff.duration
-	dur.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
-	dur.add_theme_font_size_override("font_size", 12)
-	vbox.add_child(dur)
-
-	if debuff.stacks > 1:
-		var stacks_label = Label.new()
-		stacks_label.text = "Stacks: %d" % debuff.stacks
-		stacks_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
-		stacks_label.add_theme_font_size_override("font_size", 12)
-		vbox.add_child(stacks_label)
-
-	return panel
+	# No engine tooltip: the StatusHoverPopup window is the badge's one and
+	# only hover window (and this script defines no _make_custom_tooltip).
+	tooltip_text = ""

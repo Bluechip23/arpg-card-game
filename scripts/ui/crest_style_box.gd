@@ -7,7 +7,12 @@ extends StyleBox
 ## family keeps its own accent (gold tooltips, arcane-blue Olorin, ...).
 
 var panel := StyleBoxFlat.new()
-var crest_size: float = 20.0
+## Height of the crest in pixels (it is 4:3, so a 24px crest is 32px wide).
+## Setting it keeps the top content margin clear of the crest.
+var crest_size: float = 24.0:
+	set(v):
+		crest_size = v
+		content_margin_top = crest_size + 4.0
 
 func _init(bg := Color(0.08, 0.08, 0.14, 0.98), border := Color(0.5, 0.4, 0.2),
 		radius := 8, border_width := 2) -> void:
@@ -22,9 +27,12 @@ func _init(bg := Color(0.08, 0.08, 0.14, 0.98), border := Color(0.5, 0.4, 0.2),
 
 func _draw(to_canvas_item: RID, rect: Rect2) -> void:
 	panel.draw(to_canvas_item, rect)
-	var sigil: Texture2D = UIGlyphs.get_glyph("to_sigil")
+	# The smooth seal at its exact pixel size — no runtime scaling, so the
+	# edges stay soft rather than stair-stepped.
+	var sigil: Texture2D = UIGlyphs.get_sigil(int(round(crest_size)))
 	if sigil:
+		var sz: Vector2 = sigil.get_size()
 		var pos := Vector2(
-			rect.position.x + (rect.size.x - crest_size) * 0.5,
+			rect.position.x + (rect.size.x - sz.x) * 0.5,
 			rect.position.y + 1.0)
-		sigil.draw_rect(to_canvas_item, Rect2(pos, Vector2(crest_size, crest_size)), false)
+		sigil.draw_rect(to_canvas_item, Rect2(pos, sz), false)

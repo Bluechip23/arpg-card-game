@@ -3595,6 +3595,12 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 		range_lbl.add_theme_color_override("font_color", Color(0.8, 0.6, 0.3))
 	info_row.add_child(range_lbl)
 
+	var rarity_lbl = Label.new()
+	rarity_lbl.text = card.get_rarity_name()
+	rarity_lbl.add_theme_font_size_override("font_size", 11)
+	rarity_lbl.add_theme_color_override("font_color", card.get_rarity_color())
+	info_row.add_child(rarity_lbl)
+
 	# Separator
 	var sep = HSeparator.new()
 	vbox.add_child(sep)

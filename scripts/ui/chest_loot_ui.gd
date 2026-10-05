@@ -421,11 +421,7 @@ func _show_pack_results(pack: CardPack, cards: Array) -> void:
 		var lbl = Label.new()
 		lbl.text = "%s  (%s)" % [pc.card_name, pc.get_rarity_name()]
 		lbl.add_theme_font_size_override("font_size", 14)
-		match pc.get_rarity():
-			Card.Rarity.RARE: lbl.add_theme_color_override("font_color", Color(0.4, 0.6, 1.0))
-			Card.Rarity.LEGENDARY: lbl.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
-			Card.Rarity.MYTHIC: lbl.add_theme_color_override("font_color", Color(0.9, 0.35, 0.9))
-			_: lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+		lbl.add_theme_color_override("font_color", pc.get_rarity_color())
 		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		vbox.add_child(lbl)
 	var close = Button.new()

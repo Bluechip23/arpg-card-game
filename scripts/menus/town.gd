@@ -1797,6 +1797,14 @@ func _show_card_detail_modal(card: Card, is_sell: bool, sell_index: int = -1) ->
 	type_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(type_lbl)
 
+	# --- Rarity ---
+	var rarity_lbl = Label.new()
+	rarity_lbl.text = "Rarity: %s" % card.get_rarity_name()
+	rarity_lbl.add_theme_font_size_override("font_size", 13)
+	rarity_lbl.add_theme_color_override("font_color", card.get_rarity_color())
+	rarity_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(rarity_lbl)
+
 	vbox.add_child(HSeparator.new())
 
 	# --- Description ---

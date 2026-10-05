@@ -299,6 +299,12 @@ func _on_card_entry_hovered(card: Card, entry: PanelContainer) -> void:
 	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
 	vbox.add_child(cost_lbl)
 
+	var rarity_lbl = Label.new()
+	rarity_lbl.text = "Rarity: %s" % card.get_rarity_name()
+	rarity_lbl.add_theme_font_size_override("font_size", 13)
+	rarity_lbl.add_theme_color_override("font_color", card.get_rarity_color())
+	vbox.add_child(rarity_lbl)
+
 	if card.damage > 0:
 		var dmg_lbl = Label.new()
 		dmg_lbl.text = "Damage: %d" % card.damage
