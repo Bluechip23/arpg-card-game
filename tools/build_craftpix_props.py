@@ -234,6 +234,35 @@ def build_skill_icons():
     print(f"{n} skill icons -> {ICON_OUT}")
 
 
+# The static helpers every consumer (town, loot, portals, the dungeon) calls
+# on the manifest; emitted after the table so a regeneration keeps them.
+MANIFEST_HELPERS = """## A billboard sprite of one prop variant, feet on the origin, the way the
+## dungeon dresses its rooms — shared so town, loot and portals use the same
+## pixel-art props instead of primitive meshes.
+static func make_sprite(role: String, scale: float = 1.0, k: int = 0, lift: float = CameraView.SPRITE_LIFT) -> Sprite3D:
+	if not has(role):
+		return null
+	var cfg: Dictionary = PROPS[role]
+	var v: Dictionary = cfg["variants"][k % cfg["variants"].size()]
+	var sprite := Sprite3D.new()
+	sprite.texture = load(v["path"])
+	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	sprite.shaded = false
+	sprite.pixel_size = 0.03125
+	sprite.centered = false
+	sprite.offset = Vector2(-float(v["w"]) * 0.5, 0)
+	var sc: float = scale * float(cfg["scale"])
+	sprite.scale = Vector3(sc, sc, sc)
+	sprite.position = Vector3(0, lift, 0)
+	return sprite
+
+static func has(role: String) -> bool:
+	return PROPS.has(role)
+"""
+
+
 def crop_bbox(img):
     bb = img.getbbox()
     return img.crop(bb) if bb else img
@@ -292,9 +321,7 @@ def main():
     for role, (scale, variants) in manifest.items():
         vs = ", ".join('{"path": DIR + "%s", "w": %d, "h": %d}' % v for v in variants)
         lines.append('\t"%s": {"scale": %.2f, "variants": [%s]},' % (role, scale, vs))
-    lines += ["}", "", "",
-              "static func has(role: String) -> bool:",
-              "\treturn PROPS.has(role)", ""]
+    lines += ["}", "", ""] + MANIFEST_HELPERS.splitlines() + [""]
     with open(MANIFEST, "w") as f:
         f.write("\n".join(lines))
     print(f"{sum(len(v[1]) for v in manifest.values())} sprites in {len(manifest)} roles -> {OUT}, manifest {MANIFEST}")
