@@ -486,7 +486,7 @@ func _build_panel(title: String, paragraphs: Array, icon: Control, icon_after_pa
 
 	# Arcane-blue frame with the T&O crest mounted top-center on the border.
 	var style = CrestStyleBox.new(Color(0.07, 0.08, 0.12, 0.98), Color(0.55, 0.7, 1.0), 10)
-	style.crest_size = 30.0
+	style.crest_size = 26.0
 	style.content_margin_top = 28.0
 	panel.add_theme_stylebox_override("panel", style)
 
