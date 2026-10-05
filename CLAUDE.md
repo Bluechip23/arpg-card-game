@@ -36,6 +36,10 @@ Things the designer asked to be raised again when the related system is reworked
 
 - **Buff / debuff rework → revisit Cory's *Wither*.** It adds "+1 charge" via `enemy.apply_debuff(name, 1)`, which is a no-op on timer-style debuffs (stun, silence, root, curse) and shortens Disarm / Mark instead of extending them, and it fires on debuffs from any source, not only Cory's. Decide what a charge means per debuff when the debuff model changes.
 
+## Card Taxonomy
+
+The designer's card web — Playable (Power / Offensive / Defensive / Utility), Instant, Unplayable, Enchantment; Attack and Spell as the shapes under Offensive; tags, not behaviour, decide — is written down in [`docs/CARD_TAXONOMY.md`](docs/CARD_TAXONOMY.md). Read it before adding a card or anything that says "attack", "spell" or "offensive", and use `Card.is_offensive()` / `Card.is_attack()` rather than the raw `card_type`.
+
 ## Narrative Canon
 
 The story, world, and characters are documented in [`docs/STORY.md`](docs/STORY.md) — the canonical worldbuilding bible (Olorin, the four Acts, the bestiary, the City end-game, and how the narrative maps to existing systems). Read it before adding story, quest, world-theme, or enemy content, and keep it updated when story decisions are made.

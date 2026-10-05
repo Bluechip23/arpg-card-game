@@ -3035,6 +3035,8 @@ static func create_fleet_etching() -> Card:
 	card.card_keyword = CardKeyword.SWIFT
 	card.requires_engraving = true
 	card.target_types = ["self"]
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_regal_etching() -> Card:
@@ -3050,6 +3052,8 @@ static func create_regal_etching() -> Card:
 	card.card_keyword = CardKeyword.CROWN
 	card.requires_engraving = true
 	card.target_types = ["self"]
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_draw() -> Card:
@@ -4175,7 +4179,7 @@ static func create_surrounding_ice() -> Card:
 	card.card_name = "Surrounding Ice"
 	card.description = "Ice stalagmites deal heavy damage two squares around you. 30% miss chance per enemy."
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.mana_cost = 30
 	card.tempo_cost = 4
 	card.damage = 15
@@ -4350,7 +4354,7 @@ static func create_snowballs_chance() -> Card:
 	card.card_name = "A Snowball's Chance"
 	card.description = "Searing fire 3 spaces forward dealing 10 damage to all enemies in its path. 50% to also spread shot 5 snowballs in front of you, each dealing 4 damage (range 5, each stops at the first enemy it hits)."
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.mana_cost = 20
 	card.tempo_cost = 3
 	card.damage = 10
@@ -4829,7 +4833,7 @@ static func create_choke() -> Card:
 	card.damage = 0
 	card.base_damage = 0
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.mana_cost = 30
 	card.tempo_cost = 4
 	card.sticky = 3
@@ -5455,7 +5459,7 @@ static func create_absorb_essence() -> Card:
 	card.card_name = "Absorb Essence"
 	card.description = "Deal 1 damage to all things with health on the battlefield. Delay: 10 tempo, obtain Energy Ball."
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.mana_cost = 50
 	card.tempo_cost = 5
 	card.damage = 1
@@ -5483,7 +5487,7 @@ static func create_energy_ball() -> Card:
 	card.card_name = "Energy Ball"
 	card.description = "Deal X damage where X = total damage done by Absorb Essence. Erased after use."
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.mana_cost = 10
 	card.tempo_cost = 1
 	card.damage = 0
@@ -6160,7 +6164,7 @@ static func create_mana_surge(damage_amount: int = 5) -> Card:
 	card.card_name = "Mana Surge"
 	card.description = "Deal %d damage, gain 1 mana. Erased after play." % damage_amount
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.mana_cost = 0
 	card.tempo_cost = 2
 	card.damage = damage_amount
@@ -6596,7 +6600,7 @@ static func create_harness_lightning() -> Card:
 	card.base_block = 0
 	card.heal_amount = 0
 	card.target_types = ["self"]
-	card.keywords = ["offensive", "spell", "self"]
+	card.keywords = ["utility", "offensive", "spell", "self"]
 	return card
 
 static func create_deep_pockets() -> Card:
@@ -6704,7 +6708,7 @@ static func create_vines() -> Card:
 	card.card_name = "Vines"
 	card.description = "Summon vines holding an enemy in place for 3 turns. Deal 4 damage per turn the enemy is held still."
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.mana_cost = 20
 	card.tempo_cost = 3
 	card.damage = 4
@@ -6748,7 +6752,7 @@ static func create_internal_combustion() -> Card:
 	card.card_name = "Internal Combustion"
 	card.description = "Remove half your armor and deal damage around you based on the amount."
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.mana_cost = 40
 	card.tempo_cost = 5
 	card.damage = 0
@@ -7083,7 +7087,7 @@ static func create_fireball() -> Card:
 	card.description = "Hurl a massive fireball. Range +5, 12 damage, apply 3 burn. Costs 1 less mana for each other fire spell cast this turn. AOE circle 4 squares. Can crit."
 	card.is_fire_spell = true
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.mana_cost = 80
 	card.tempo_cost = 8
 	card.damage = 12
@@ -7222,7 +7226,7 @@ static func create_spark() -> Card:
 	card.card_name = "Spark"
 	card.description = "Deal 3 damage. Subtract 2 tempo from 2 random cards in your hand. In 15 tempo, add 2 tempo to two random cards in your hand."
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.mana_cost = 10
 	card.tempo_cost = 3
 	card.damage = 3
@@ -7243,7 +7247,7 @@ static func create_god_of_thunder() -> Card:
 	card.card_name = "God of Thunder"
 	card.description = "Absorb all shock on enemies within a diameter of 8 and cast down a massive bolt of lightning dealing damage based on the amount of shock absorbed."
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.mana_cost = 50
 	card.tempo_cost = 10
 	card.damage = 0
@@ -7305,6 +7309,8 @@ static func create_out_of_guesses() -> Card:
 	card.target_types = ["self"]
 	card.damage = 0
 	card.base_damage = 0
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_twenty_twenty() -> Card:
@@ -7334,6 +7340,8 @@ static func create_its_alive() -> Card:
 	card.target_types = ["point"]
 	card.damage = 0
 	card.base_damage = 0
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_protection_from_alnitak() -> Card:
@@ -7350,6 +7358,8 @@ static func create_protection_from_alnitak() -> Card:
 	card.damage = 0
 	card.base_damage = 0
 	card.target_types = ["self"]
+	card.keywords = ["defense"]
+
 	return card
 
 static func create_balance_of_alnilam() -> Card:
@@ -7364,6 +7374,8 @@ static func create_balance_of_alnilam() -> Card:
 	card.damage = 0
 	card.base_damage = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_crack_of_mintaka() -> Card:
@@ -7392,6 +7404,8 @@ static func create_serene_center() -> Card:
 	card.damage = 0
 	card.base_damage = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_stone_encase() -> Card:
@@ -7406,6 +7420,8 @@ static func create_stone_encase() -> Card:
 	card.damage = 0
 	card.base_damage = 0
 	card.target_types = ["self"]
+	card.keywords = ["defense"]
+
 	return card
 
 static func create_m_for_mini() -> Card:
@@ -7429,13 +7445,15 @@ static func create_hemotoxins() -> Card:
 	card.card_name = "Hemotoxins"
 	card.description = "Apply 10 Poison. If the target is below 50% health, apply 20 instead."
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.school = CardSchool.SPELL
 	card.mana_cost = 50
 	card.tempo_cost = 5
 	card.damage = 0
 	card.base_damage = 0
 	card.target_types = ["enemy"]
+	card.keywords = ["offensive", "spell"]
+
 	return card
 
 static func create_poof_and_weave() -> Card:
@@ -7450,6 +7468,8 @@ static func create_poof_and_weave() -> Card:
 	card.damage = 0
 	card.base_damage = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_healing_tonic() -> Card:
@@ -7467,6 +7487,8 @@ static func create_healing_tonic() -> Card:
 	card.damage = 0
 	card.base_damage = 0
 	card.target_types = ["ally", "self"]
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_poison_bomb() -> Card:
@@ -7476,7 +7498,7 @@ static func create_poison_bomb() -> Card:
 	card.card_name = "Poison Bomb"
 	card.description = "A cloud of poison: all enemies in a 2-square radius gain 6 Poison."
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.school = CardSchool.SPELL
 	card.card_keyword = CardKeyword.POCKET
 	card.mana_cost = 10
@@ -7489,6 +7511,8 @@ static func create_poison_bomb() -> Card:
 	card.damage = 0
 	card.base_damage = 0
 	card.target_types = ["point"]
+	card.keywords = ["offensive", "spell"]
+
 	return card
 
 static func create_chain_lightning() -> Card:
@@ -7498,7 +7522,7 @@ static func create_chain_lightning() -> Card:
 	card.card_name = "Chain Lightning"
 	card.description = "Deal 10 damage, then bounce to nearby enemies, losing 2 damage per bounce until it reaches zero."
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.school = CardSchool.SPELL
 	card.mana_cost = 50
 	card.tempo_cost = 8
@@ -7507,6 +7531,8 @@ static func create_chain_lightning() -> Card:
 	card.damage = 10
 	card.base_damage = 10
 	card.target_types = ["enemy"]
+	card.keywords = ["offensive", "spell"]
+
 	return card
 
 static func create_ice_grenade() -> Card:
@@ -7516,7 +7542,7 @@ static func create_ice_grenade() -> Card:
 	card.card_name = "Ice Grenade"
 	card.description = "Deal 5 damage and apply 2 Cold in a 2-square radius. Two shots — each aimed separately."
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.school = CardSchool.SPELL
 	card.mana_cost = 10
 	card.tempo_cost = 2
@@ -7529,6 +7555,8 @@ static func create_ice_grenade() -> Card:
 	card.damage = 5
 	card.base_damage = 5
 	card.target_types = ["point"]
+	card.keywords = ["offensive", "spell"]
+
 	return card
 
 static func create_fire_punch() -> Card:
@@ -7557,6 +7585,8 @@ static func create_gift_from_the_gods() -> Card:
 	card.damage = 0
 	card.base_damage = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_stance_switch() -> Card:
@@ -7615,6 +7645,8 @@ static func create_smoke_bomb() -> Card:
 	card.target_types = ["point"]
 	card.damage = 0
 	card.base_damage = 0
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_tight_rope() -> Card:
@@ -7644,6 +7676,8 @@ static func create_shift() -> Card:
 	card.target_types = ["point"]
 	card.damage = 0
 	card.base_damage = 0
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_donate_cleats() -> Card:
@@ -7658,6 +7692,8 @@ static func create_donate_cleats() -> Card:
 	card.target_types = ["ally", "self"]
 	card.damage = 0
 	card.base_damage = 0
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_terrain_formation() -> Card:
@@ -7672,6 +7708,8 @@ static func create_terrain_formation() -> Card:
 	card.target_types = ["point"]
 	card.damage = 0
 	card.base_damage = 0
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_escape_and_bewilder() -> Card:
@@ -7686,6 +7724,8 @@ static func create_escape_and_bewilder() -> Card:
 	card.target_types = ["point"]
 	card.damage = 0
 	card.base_damage = 0
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_mend() -> Card:
@@ -7700,6 +7740,8 @@ static func create_mend() -> Card:
 	card.target_types = ["self"]
 	card.damage = 0
 	card.base_damage = 0
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_shiv() -> Card:
@@ -7723,7 +7765,7 @@ static func create_worms_armageddon() -> Card:
 	card.card_name = "Worms Armageddon"
 	card.description = "Rain a massive meteor dealing 23 damage to a single target. 10% to summon two Alaskan Bull Worms (12 HP, 6 damage, burrowed until attacking, untargetable while burrowed, 1 movement per tempo)."
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.mana_cost = 50
 	card.tempo_cost = 10
 	card.damage = 23
@@ -7870,6 +7912,8 @@ static func create_purge_wrath() -> Card:
 	card.damage = 0
 	card.base_damage = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_sanguine_the_penguin() -> Card:
@@ -7893,7 +7937,7 @@ static func create_wrath_of_the_sea() -> Card:
 	card.card_name = "Wrath of the Sea"
 	card.description = "Spend HALF your current mana. Blink to a point and deal the mana spent (plus STR) to every enemy in a 4x4 sea burst; all of them are shoved to its edge. Gain 15 mana per enemy hit."
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.mana_cost = 0
 	card.percent_mana_cost = 0.5
 	card.tempo_cost = 8
@@ -7904,6 +7948,8 @@ static func create_wrath_of_the_sea() -> Card:
 	card.aoe_range = 2.0
 	card.school = CardSchool.SPELL
 	card.target_types = ["point"]
+	card.keywords = ["offensive", "spell"]
+
 	return card
 
 static func create_monk_of_the_night() -> Card:
@@ -7941,6 +7987,8 @@ static func create_clang_up() -> Card:
 	card.block = 10
 	card.base_block = 10
 	card.target_types = ["self"]
+	card.keywords = ["defense"]
+
 	return card
 
 static func create_negotiate() -> Card:
@@ -7956,6 +8004,8 @@ static func create_negotiate() -> Card:
 	card.base_damage = 0
 	card.is_ranged = true
 	card.target_types = ["enemy"]
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_detonova() -> Card:
@@ -7964,7 +8014,7 @@ static func create_detonova() -> Card:
 	card.card_name = "Detonova"
 	card.description = "Purge the cuirass's stacks and deal the absorbed total as fire damage to all enemies within 2 squares of you. Does NOT scale with INT."
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.mana_cost = 60
 	card.tempo_cost = 5
 	card.damage = 0
@@ -7975,6 +8025,8 @@ static func create_detonova() -> Card:
 	card.damage_type = DamageTypes.Type.FIRE
 	card.school = CardSchool.SPELL
 	card.target_types = ["self"]
+	card.keywords = ["offensive", "spell"]
+
 	return card
 
 static func create_mind_mend() -> Card:
@@ -7990,6 +8042,8 @@ static func create_mind_mend() -> Card:
 	card.damage = 0
 	card.base_damage = 0
 	card.target_types = ["self"]
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_deep_breaths() -> Card:
@@ -8005,6 +8059,8 @@ static func create_deep_breaths() -> Card:
 	card.base_damage = 0
 	card.heal_amount = 20
 	card.target_types = ["self"]
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_vined_encasing() -> Card:
@@ -8019,6 +8075,8 @@ static func create_vined_encasing() -> Card:
 	card.damage = 0
 	card.base_damage = 0
 	card.target_types = ["self"]
+	card.keywords = ["defense"]
+
 	return card
 
 static func create_adimantium_wall() -> Card:
@@ -8036,6 +8094,8 @@ static func create_adimantium_wall() -> Card:
 	card.base_block = 40
 	card.jail_on_play = 40
 	card.target_types = ["self"]
+	card.keywords = ["defense"]
+
 	return card
 
 static func create_preemptive_answer() -> Card:
@@ -8066,6 +8126,8 @@ static func create_ragnarok() -> Card:
 	card.base_damage = 0
 	card.jail_on_play = 30
 	card.target_types = ["self"]
+	card.keywords = ["utility"]
+
 	return card
 
 # ============================================
@@ -8253,7 +8315,7 @@ static func create_sprinkle_bomb() -> Card:
 	card.card_name = "Sprinkle Bomb"
 	card.description = "Deal 25 damage to every enemy in a 2-tile radius. Erased after play. AOE circle."
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.mana_cost = 0
 	card.tempo_cost = 0
 	card.damage = 25
@@ -8265,6 +8327,8 @@ static func create_sprinkle_bomb() -> Card:
 	card.target_types = ["point"]
 	card.erase_on_play = true
 	card.shop_excluded = true
+	card.keywords = ["offensive", "spell"]
+
 	return card
 
 # ============================================
@@ -8458,6 +8522,8 @@ static func create_tricks_of_alberich() -> Card:
 	card.base_damage = 0
 	card.target_types = ["self"]
 	card.shop_excluded = true
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_the_nibelung_curse() -> Card:
@@ -8543,6 +8609,8 @@ static func create_song_of_a_swords_sing() -> Card:
 	card.is_ranged = false
 	card.target_types = ["enemy"]
 	card.shop_excluded = true
+	card.keywords = ["utility"]
+
 	return card
 
 static func create_curse_of_the_living() -> Card:
@@ -8578,6 +8646,8 @@ static func create_bark_up() -> Card:
 	card.base_damage = 0
 	card.target_types = ["self"]
 	card.shop_excluded = true
+	card.keywords = ["defense"]
+
 	return card
 
 static func create_cinquedea() -> Card:
@@ -8670,6 +8740,8 @@ static func create_mind_over_matter() -> Card:
 	card.base_damage = 0
 	card.target_types = ["self"]
 	card.shop_excluded = true
+	card.keywords = ["defense"]
+
 	return card
 
 # ============================================
@@ -8711,6 +8783,8 @@ static func create_from_the_ashes() -> Card:
 	card.base_damage = 0
 	card.target_types = ["self"]
 	card.shop_excluded = true
+	card.keywords = ["utility", "spell"]
+
 	return card
 
 static func create_polymorph() -> Card:
@@ -8749,6 +8823,8 @@ static func create_clear_mind() -> Card:
 	card.base_damage = 0
 	card.target_types = ["self"]
 	card.shop_excluded = true
+	card.keywords = ["utility", "spell"]
+
 	return card
 
 static func create_grounding() -> Card:
@@ -8760,7 +8836,7 @@ static func create_grounding() -> Card:
 	card.card_name = "Grounding"
 	card.description = "Absorb every Shock within 10 squares of you — enemies, allies and yourself — and deal 10 damage to each enemy in that radius, shocked or not. Costs 5 less mana per Shock absorbed."
 	card.card_type = CardType.ATTACK
-	card.card_type_name = "Attack"
+	card.card_type_name = "Spell"  # an offensive SPELL: Offensive → Spell on the card web, not an Attack
 	card.school = CardSchool.SPELL
 	card.mana_cost = 200
 	card.tempo_cost = 10
@@ -8770,6 +8846,8 @@ static func create_grounding() -> Card:
 	card.is_aoe = true
 	card.target_types = ["self"]
 	card.shop_excluded = true
+	card.keywords = ["offensive", "spell"]
+
 	return card
 
 static func create_defensive_sacrifice() -> Card:
@@ -8805,6 +8883,8 @@ static func create_crops() -> Card:
 	card.base_damage = 0
 	card.target_types = ["self"]
 	card.shop_excluded = true
+	card.keywords = ["utility", "spell"]
+
 	return card
 
 static func create_reapers_taking() -> Card:
