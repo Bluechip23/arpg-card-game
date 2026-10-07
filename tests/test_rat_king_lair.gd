@@ -42,7 +42,7 @@ func _build(interior: String, cleared: bool = false) -> DungeonManager:
 	var dm = DungeonManager.new()
 	holder.add_child(dm)
 	dm._opened_chests_ref = {}
-	dm.boss_cleared = cleared
+	dm.cleared_bosses = ["ratking"] if cleared else []
 	dm.initialize(gm, parent, 1, interior)
 	return dm
 
@@ -56,13 +56,18 @@ func _test_layout() -> void:
 	_check(dm.get_site_by_id("exit") < 0, "no exit: the room is sealed")
 	_check(dm.spawn_zones.is_empty() and dm.chest_nodes.is_empty(), "no zones and no chests — main stands the fight up")
 	_check(dm.rat_cliffs.size() == 3, "three cliffs")
-	var all_raised := true
+	var pack_cliffs := true
 	for rect in dm.rat_cliffs:
 		for x in range(rect.position.x, rect.end.x):
 			for z in range(rect.position.y, rect.end.y):
-				if not dm.is_floor(Vector2i(x, z)) or dm.get_elevation(Vector2i(x, z)) != 1:
-					all_raised = false
-	_check(all_raised, "every cliff tile is raised floor")
+				var c := Vector2i(x, z)
+				if z == rect.end.y - 1:
+					# The cliff face row: a wall tile the pack's cliff strip is drawn on.
+					if dm.is_floor(c):
+						pack_cliffs = false
+				elif not dm.is_floor(c) or dm.get_elevation(c) != 1:
+					pack_cliffs = false
+	_check(pack_cliffs, "each cliff is a pack cliff: a wall face row under two raised, walkable rows")
 	var middle: Rect2i = dm.rat_cliffs[1]
 	_check(middle.get_center().x == dm.RK_CENTER.x and middle.get_center().y < dm.RK_CENTER.y, "the middle cliff stands straight across from the king (north)")
 	_check(dm.rat_cliffs[0].get_center().x < dm.RK_CENTER.x and dm.rat_cliffs[2].get_center().x > dm.RK_CENTER.x, "the other two flank it 45 degrees to each side")
@@ -77,11 +82,8 @@ func _test_layout() -> void:
 		if not dm.is_floor(cell) or dm.get_elevation(cell) != 0:
 			at_base = false
 		var rect: Rect2i = dm.rat_cliffs[i]
-		var touching := false
-		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-			if rect.has_point(cell + d):
-				touching = true
-		if not touching:
+		# At the foot of the cliff face: directly south of the face row.
+		if not rect.has_point(cell + Vector2i(0, -1)) or cell.y != rect.end.y:
 			at_base = false
 		if not rect.has_point(n["perch"]):
 			at_base = false
@@ -89,7 +91,7 @@ func _test_layout() -> void:
 			ordered = false
 	_check(pcts == [0.2, 0.3, 0.5], "the nests heal 20%% / 30%% / 50%% left to right (%s)" % [pcts])
 	_check(ordered, "the nests run left to right")
-	_check(at_base, "each nest sits on flat floor at the foot of its cliff, its perch on top")
+	_check(at_base, "each nest sits on flat floor at the foot of its cliff face, its perch on top")
 	var pl: Dictionary = dm.rat_king_placements
 	var king: Vector2i = pl["king"]
 	_check(dm.is_floor(king) and king.y > dm.RK_CENTER.y and king.x == dm.RK_CENTER.x, "the king stands at the bottom middle")
@@ -113,7 +115,7 @@ func _test_layout() -> void:
 			if dm.is_floor(nxt) and not seen.has(nxt):
 				seen[nxt] = true
 				frontier.append(nxt)
-	_check(seen.size() == dm.get_floor_tiles().size(), "the whole den is reachable from the door")
+	_check(seen.size() == dm.get_floor_tiles().size(), "the whole den, cliff tops included, is reachable from the door")
 	var cleared := _build("ratking_lair", true)
 	_check(cleared.get_site_by_id("exit") >= 0, "a lair whose king is already dead opens with its exit in place")
 
@@ -212,9 +214,14 @@ func _test_lair_fight() -> void:
 			perched = e
 	_check(perched != null and perched.perch_cell == nest_mid.nest_perch, "the released archer is bound to the nest's cliff top")
 	if perched:
-		for _i in range(4):
+		for _i in range(5):
 			main.tempo_manager.add_tempo(2)
 			await _settle(2)
+			# Headless frames outrun the glide: stand it where its route ends.
+			perched.position = main._ground_pos(perched.intended_cell())
+			perched.target_position = perched.position
+			perched.is_moving = false
+			perched._move_path.clear()
 		_check(perched.intended_cell() == perched.perch_cell, "it walks up to the top of the high ground (%s -> %s)" % [perched.intended_cell(), perched.perch_cell])
 		_check(main.dungeon_manager.get_elevation(perched.perch_cell) == 1, "the perch is high ground")
 
@@ -268,7 +275,7 @@ func _test_lair_fight() -> void:
 	king.take_damage(10000, true)
 	await _settle(2)
 	_check(main.dungeon_manager.get_site_by_id("exit") >= 0, "the exit appears when the king dies")
-	_check(main.current_character.defeated_monster_ids.has("Rat King"), "the character remembers the kill")
+	_check(main.current_character.has_defeated_boss("ratking"), "the character remembers the lair as cleared")
 	main.queue_free()
 	await _settle()
 
@@ -321,7 +328,7 @@ func _test_sewer_round_trip() -> void:
 		await _dismiss(back)
 		var cell: Vector2i = back.grid_manager.world_to_grid(back.player.position)
 		_check(cell == door, "at the lair door (%s vs %s)" % [cell, door])
-		_check(back.dungeon_manager.boss_cleared, "the sewer knows the king is dead")
+		_check(back.dungeon_manager.cleared_bosses.has("ratking"), "the sewer knows the king is dead")
 		_check(_count(back, Enemy.EnemyType.RAT_KING) == 0, "no second Rat King")
 		back.queue_free()
 	await _settle()

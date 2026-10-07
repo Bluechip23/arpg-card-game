@@ -301,6 +301,7 @@ original flavor note. Everything else is `[TBD]` theme/mechanics.
 - **Screeches** — *a soul-like creature that can only be seen from its noise*
 - **Vampire** — *in code*. Elite. Bite **life-steals 100% of health damage** (armor heals nothing); below 50% HP, **Bat Form** flits 6 squares away (2 charges, never recharge), always followed by **Absorb** — draining the healthiest player-side unit on the map (20, then 10).
 - **Necromancer** — *in code*. Elite. **Bolt** (range 10) also **Hexes 2 cards** in the hand (each +30 mana until played); **Summon** raises undead (first-pass roster: skeletons/zombies) — after **5 of its summons die it raises a Bone Dragon**.
+- **Bone Dragon** — *in code*. Elite (150 HP, resists 45% physical / 45% fire; Bite 12, Breath Swarm down a 6-tile line). Raised by the Necromancer in the field, and fought as the **second boss** in the **Boneyard** (`interior_kind == "boneyard"`, through a door at the east end of the Old Graveyard's deepest crypt): a large walled square gated on the west, with twelve **gravestones** (10 HP) in rows across it. The fight is meant to open with the **Necromancer** — the player's job is to stop him raising the dead, and what he leaves behind is those twelve stones (*the Necromancer part is not yet specified; the room is built in its post-prelude state*). Then the dragon: for every gravestone still standing he has **1 regen that never decays** (1 health a cycle per stone — shown as *Gravebound*); the only way to lower it is to break the stones. The catch: **grave diggers** (20 HP, three in all, only one out at a time) come out of the crypt door and repair a broken stone back to full in **8 tempo**, then vanish. Kill the stones, kill the diggers, and the dragon is beatable.
 - **Bone dragon** — *in code*. Elite. **Breath Swarm**: 12 damage down a 6-tile line, hatching a **Swarm** beside every unit hit.
 - **Grave digger**
 - **The Consumed** — *a golem-like creature but far worse: something that has had its spirit consumed and is now flesh and hatred*
@@ -345,7 +346,10 @@ original flavor note. Everything else is `[TBD]` theme/mechanics.
 > **Nothing resets on the threshold:** the player's hand is exactly what it was
 > outside, and every buff and debuff on them carries in (`main._enter_interior`
 > hands the live effects over; `DungeonManager.is_boss_room` marks the rooms).
-> The first one built is the **Rat King's Lair** (below).
+> Built so far: the **Rat King's Lair** (Sewer) and the **Boneyard** (Old
+> Graveyard, Bone Dragon) — see the bestiary entries. Rooms are dressed only
+> with the purchased packs (cliff tiles, headstones, gates): nothing is
+> modelled by hand.
 
 #### Sewer
 *The game's opening dungeon — see **The Sewers (Act 1, Part 1)** below for the
@@ -354,7 +358,7 @@ built level. The roster is themed and in code:*
 - **Sludge Being** — *in code*. Minion. **Ranged ooze** (10 HP): wades close or spits acid from range 6. The "oozes" the player fights alongside the rats at the entrance.
 - **Pipe Crawler** — *in code*. Minion. **Fast skirmisher** (20 HP): creeps out of the wall pipes, moves on a cheap 2-tempo so it closes quickly; its claw can disarm you.
 - **Sewer Cobra** — *in code*. Elite. **Armored ambusher** (40 HP, 20 armor, 12 dmg): lurks in the channels; break its armor to expose it, or its bite hurts. Guards the deepest chamber.
-- **Rat King** — *in code*. Elite, **first mini-boss** (90 HP, 10 armor) and the game's **first boss room**: the **Rat King's Lair**, entered through a door in the central cistern (`interior_kind == "ratking"`). A round den, entered from the west; the king waits at the bottom with three Wererats in front of him and two Archer Rats behind. Straight across the room stands a cliff of high ground, with two more cliffs 45° to either side, and a **rat nest** (15 HP) at the foot of each. Treading on a nest sends its Archer Rat up to the top of the cliff, where it holds the high ground. At **50%, then 30%, then 30% again** of his health the king bolts for a random untouched nest and feeds on it — the left nest restores 20% of his health, the middle 30%, the right 50% — and a nest he has fed on is spent; he never revisits one. Tear the nests down first and he has nowhere to run. Bites and repositions relentlessly otherwise.
+- **Rat King** — *in code*. Elite, **first mini-boss** (90 HP, 10 armor) and the game's **first boss room**: the **Rat King's Lair**, entered through a door in the central cistern (`interior_kind == "ratking"`). A round den, entered from the west; the king waits at the bottom with three Wererats in front of him and two Archer Rats behind. Straight across the room stands a cliff of high ground, with two more cliffs 45° to either side — each the pack's own cliff tile, a face row under a walkable top — and a **rat nest** (15 HP) at the foot of each face. Treading on a nest sends its Archer Rat up to the top of the cliff, where it holds the high ground. At **50%, then 30%, then 30% again** of his health the king bolts for a random untouched nest and feeds on it — the left nest restores 20% of his health, the middle 30%, the right 50% — and a nest he has fed on is spent; he never revisits one. Tear the nests down first and he has nowhere to run. Bites and repositions relentlessly otherwise.
 - **Swarm** — *in code*. Minion. **Fast swarm** (10 HP): one creature rendered as a boil of vermin/insects; blitzes 8 tiles at a time. *one creature, but a bunch of bugs representing one*
 - **Faithless cultist** — `[TBD]`.
 - **The drowned** — `[TBD]`.

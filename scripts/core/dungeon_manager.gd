@@ -287,6 +287,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		interior_kind = "dojo"
 	elif interior_id.begins_with("ratking"):
 		interior_kind = "ratking"  # the Rat King's Lair (boss room off the sewer)
+	elif interior_id.begins_with("boneyard"):
+		interior_kind = "boneyard"  # the Boneyard: the Bone Dragon's graveyard (boss room off the Old Graveyard)
 
 	# Fog scales with how lit the place is: tight, lightless sewers reveal least,
 	# the bright open forest reveals most, everything else uses the default.
@@ -297,8 +299,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 			fog_reveal_radius = 9
 		"dojo":
 			fog_reveal_radius = 64  # a lit hall: nothing to explore, nothing hidden
-		"ratking":
-			fog_reveal_radius = 64  # a boss arena: the whole den is in view from the door
+		"ratking", "boneyard":
+			fog_reveal_radius = 64  # a boss arena: the whole room is in view from the gate
 		_:
 			fog_reveal_radius = FOG_REVEAL_RADIUS
 
@@ -332,6 +334,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 			_generate_dojo_layout()
 		"ratking":
 			_generate_rat_king_layout()
+		"boneyard":
+			_generate_boneyard_layout()
 		_:
 			_generate_overworld_layout()
 	_generate_elevation()
@@ -350,15 +354,19 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 	if interior_kind == "":
 		_place_waypoints()
 		_place_sites()
-	elif interior_kind == "ratking":
+	elif is_boss_room(interior_id):
 		# A boss room is sealed behind the player; main opens the exit when
-		# the king dies (already-cleared lairs open from the start).
-		if boss_cleared:
+		# the boss dies (an already-cleared room opens from the start).
+		if is_boss_cleared():
 			_place_exit_site()
 	else:
 		_place_exit_site()
 		if interior_kind == "sewer":
-			_place_lair_door()
+			# The far wall of the central cistern: the Rat King's Lair.
+			_place_boss_door("arena", "far_wall", "ratking_lair", "ratking", "Rat King's Lair", Color(1.0, 0.8, 0.7), Color(1.0, 0.55, 0.4))
+		elif interior_kind == "graveyard":
+			# The east end of the deepest crypt: the Boneyard.
+			_place_boss_door("deep", "east", "boneyard", "boneyard", "The Boneyard", Color(0.8, 0.95, 0.85), Color(0.5, 1.0, 0.6))
 	_place_chests()
 	_place_fountains()
 	_place_shrine()
@@ -392,6 +400,12 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		spawn_zones.size(), site_nodes.size()])
 
 func _set_world_size() -> void:
+	if interior_kind == "boneyard":
+		# One walled square; the player enters through the gate on the west.
+		GRID_W = BY_SIZE
+		GRID_H = BY_SIZE
+		player_start = Vector2i(BY_FLOOR.position.x + 1, BY_FLOOR.get_center().y)
+		return
 	if interior_kind == "ratking":
 		# One round den; the player enters from the west edge.
 		GRID_W = RK_SIZE
@@ -470,7 +484,7 @@ func _get_graveyard_palette() -> Dictionary:
 func get_palette() -> Dictionary:
 	if interior_kind == "cave":
 		return CAVE_PALETTE
-	if interior_kind == "graveyard":
+	if interior_kind == "graveyard" or interior_kind == "boneyard":
 		return _get_graveyard_palette()
 	if interior_kind == "building" or interior_kind == "dojo":
 		return BUILDING_PALETTE
@@ -489,6 +503,8 @@ const CP_TEX := "res://assets/textures/craftpix"
 
 func floor_texture_path() -> String:
 	match interior_kind:
+		"boneyard":
+			return CP_TEX + "/floor_undead.png"  # graveyard soil (undead land pack)
 		"sewer", "ratking":
 			return CP_TEX + "/floor_glowing_cave.png"  # wet stone (glowing-cave pack; the plain cave fill went black under the sewer's dim light)
 		"building", "dojo":
@@ -527,6 +543,8 @@ func trail_texture_path() -> String:
 			return CP_TEX + "/floor_dirt_forest.png"
 		"cave", "sewer", "building", "ratking":
 			return CP_TEX + "/floor_dirt_forest.png"  # trodden dark earth
+		"boneyard":
+			return CP_TEX + "/floor_undead_sand.png"  # the barrow land's pale cobbles
 	if world_level == 1:
 		return CP_TEX + "/floor_dirt_field.png"
 	if world_level == 2:
@@ -543,6 +561,8 @@ func trail_texture_path() -> String:
 ## Cliff faces / rock walls: the matching pack's cobbled cliff fill.
 func wall_texture_path() -> String:
 	match interior_kind:
+		"boneyard":
+			return CP_TEX + "/wall_undead.png"  # grey barrow stone
 		"sewer", "ratking":
 			return CP_TEX + "/wall_cave.png"  # dark cave rock
 		"building":
@@ -566,6 +586,8 @@ func wall_texture_path() -> String:
 ## Still water: the pack's water colour under its foam overlay.
 func water_texture_path() -> String:
 	match interior_kind:
+		"boneyard":
+			return CP_TEX + "/water_undead.png"
 		"cave", "sewer", "ratking":
 			return CP_TEX + "/water_cave.png"
 		"forest":
@@ -597,6 +619,8 @@ func _prop_biome() -> String:
 			return "goods"
 		"sewer", "ratking":
 			return "sewer"
+		"boneyard":
+			return "undead"
 	match world_level:
 		2:
 			return "desert"
@@ -743,6 +767,8 @@ func get_location_name() -> String:
 		return "Dojo"
 	if interior_kind == "ratking":
 		return "Rat King's Lair"
+	if interior_kind == "boneyard":
+		return "The Boneyard"
 	var pal = get_palette()
 	return "World %d — %s" % [world_level, pal.get("name", "")]
 
@@ -775,13 +801,24 @@ var rat_cliffs: Array = []
 var rat_nests: Array = []
 ## Where main stands the king and his guard.
 var rat_king_placements: Dictionary = {}
-## Set by main before initialize(): the king is already dead for this
-## character, so the lair opens with its exit in place.
-var boss_cleared: bool = false
+## Set by main before initialize(): the boss rooms this character has
+## already cleared (CharacterData.defeated_bosses). A cleared room opens
+## with its exit in place; the door to it outside reads as cleared.
+var cleared_bosses: Array = []
 
 ## Interiors that are boss rooms (cutscene fights behind a sealed door).
 static func is_boss_room(id: String) -> bool:
-	return id.begins_with("ratking")
+	return id.begins_with("ratking") or id.begins_with("boneyard")
+
+## The boss-room key of an interior id ("ratking_lair" -> "ratking").
+static func boss_room_key(id: String) -> String:
+	for key in ["ratking", "boneyard"]:
+		if id.begins_with(key):
+			return key
+	return ""
+
+func is_boss_cleared() -> bool:
+	return cleared_bosses.has(boss_room_key(interior_id))
 
 func _generate_rat_king_layout() -> void:
 	_init_grid_walls()
@@ -796,7 +833,12 @@ func _generate_rat_king_layout() -> void:
 	rooms.append({"rect": _circle_rect(RK_CENTER, RK_RADIUS), "kind": "boss", "elev": 0})
 
 	# Cliffs: straight across from the king (north), then 45 degrees to each
-	# side of it. Each is a 3x3 top two tiles in from the wall.
+	# side of it. Each is the pack's own cliff: a 3-wide plateau whose SOUTH
+	# row is a wall tile that _build_cliff_walls draws as the cliff face
+	# (the undead/cave strip, fringe over base), with two raised, walkable
+	# rows behind it — the high ground the nest's archer climbs onto from
+	# the sides. Nothing is modelled: the face, the cap outline and the top
+	# all come from the biome's sheets.
 	var reach := RK_RADIUS - 2
 	var cliff_centres := {
 		"left": RK_CENTER + Vector2i(-roundi(reach * 0.7071), -roundi(reach * 0.7071)),
@@ -805,14 +847,25 @@ func _generate_rat_king_layout() -> void:
 	}
 	for key in ["left", "middle", "right"]:
 		var cc: Vector2i = cliff_centres[key]
-		rat_cliffs.append(Rect2i(cc.x - RK_CLIFF_HALF, cc.y - RK_CLIFF_HALF, RK_CLIFF_HALF * 2 + 1, RK_CLIFF_HALF * 2 + 1))
-	# A nest at the base of each cliff, on the side that faces the room:
-	# the left nest heals 20% of the king's health, the middle 30%, the right 50%.
-	rat_nests = [
-		{"cell": cliff_centres["left"] + Vector2i(RK_CLIFF_HALF + 1, 0), "perch": cliff_centres["left"], "heal_pct": 0.20, "label": "left"},
-		{"cell": cliff_centres["middle"] + Vector2i(0, RK_CLIFF_HALF + 1), "perch": cliff_centres["middle"], "heal_pct": 0.30, "label": "middle"},
-		{"cell": cliff_centres["right"] + Vector2i(-(RK_CLIFF_HALF + 1), 0), "perch": cliff_centres["right"], "heal_pct": 0.50, "label": "right"},
-	]
+		var rect := Rect2i(cc.x - RK_CLIFF_HALF, cc.y - RK_CLIFF_HALF, RK_CLIFF_HALF * 2 + 1, RK_CLIFF_HALF * 2 + 1)
+		rat_cliffs.append(rect)
+		for x in range(rect.position.x, rect.end.x):
+			grid[x][rect.end.y - 1] = Tile.WALL  # the cliff face row
+	# A nest at the foot of each cliff face: the left nest heals 20% of the
+	# king's health, the middle 30%, the right 50%.
+	rat_nests = []
+	for entry in [["left", 0.20], ["middle", 0.30], ["right", 0.50]]:
+		var cc: Vector2i = cliff_centres[entry[0]]
+		# The archer rounds the cliff on the side nearer the room's centre
+		# (the floor beside the top rows), then steps up onto the perch.
+		var side := 1 if cc.x < RK_CENTER.x else -1
+		if entry[0] == "middle":
+			side = -1
+		rat_nests.append({
+			"cell": cc + Vector2i(0, RK_CLIFF_HALF + 1), "perch": cc,
+			"approach": cc + Vector2i(side * (RK_CLIFF_HALF + 1), 0),
+			"heal_pct": entry[1], "label": entry[0],
+		})
 	# The king at the bottom middle, three rats in front of him (toward the
 	# door side of the room) and two archers behind him against the wall.
 	var king := RK_CENTER + Vector2i(0, RK_RADIUS - 3)
@@ -839,7 +892,16 @@ func _build_rat_king_decorations() -> void:
 				var fdir = _adjacent_floor_dir(x, z)
 				if fdir != Vector2i.ZERO:
 					wall_edges.append({"pos": Vector2i(x, z), "dir": fdir})
-	_place_sewer_torches(wall_edges, pal, 10, 6, 14)
+	# (Cliff faces inside the room are walls too — no torches on them.)
+	var room_walls: Array = []
+	for e in wall_edges:
+		var inside := false
+		for rect in rat_cliffs:
+			if (rect as Rect2i).has_point(e["pos"]):
+				inside = true
+		if not inside:
+			room_walls.append(e)
+	_place_sewer_torches(room_walls, pal, 10, 6, 14)
 	# The nests and the king's places stay clear of any scatter.
 	for n in rat_nests:
 		_reserve_area(n["cell"], 1)
@@ -847,45 +909,55 @@ func _build_rat_king_decorations() -> void:
 		if cell is Vector2i and cell.x >= 0:
 			_reserve_area(cell, 0)
 
-func _place_lair_door() -> void:
-	## Inside the sewer: the door to the Rat King's Lair, on the far wall of
-	## the central cistern (away from its access shaft). Shift opens it.
-	var arena: Rect2i = Rect2i()
+func _place_boss_door(room_kind: String, where: String, target_id: String, room_key: String,
+		display_name: String, tint: Color, glow_color: Color) -> void:
+	## Inside an interior: the door into a boss room, standing in the room of
+	## `room_kind` — on its far wall (away from the access shaft) or at its
+	## east end. Shift opens it (_enter_interior with `target_id`).
+	var room_rect: Rect2i = Rect2i()
 	var found := false
 	for room in rooms:
-		if room["kind"] == "arena":
-			arena = room["rect"]
+		if room["kind"] == room_kind:
+			room_rect = room["rect"]
 			found = true
 			break
 	if not found:
 		return
-	var above := arena.get_center().y < GRID_H / 2
-	var door := Vector2i(arena.get_center().x, arena.position.y if above else arena.end.y - 1)
+	var above := room_rect.get_center().y < GRID_H / 2
+	var door: Vector2i
+	var against := Vector3.ZERO  # offset of the sprite toward the wall behind the tile
+	if where == "east":
+		door = Vector2i(room_rect.end.x - 1, room_rect.get_center().y)
+		var guard := 0
+		while not is_floor(door) and guard < 8:
+			door.x -= 1
+			guard += 1
+		against = Vector3(0.6, 0, 0)
+	else:
+		door = Vector2i(room_rect.get_center().x, room_rect.position.y if above else room_rect.end.y - 1)
+		against = Vector3(0, 0, -0.6 if above else 0.6)
 	if not is_floor(door):
 		return
 	_reserve_area(door, 1)
 
 	var site_root = Node3D.new()
-	site_root.name = "Site_ratking_lair"
-	var world_pos = grid_manager.grid_to_world(door)
-	world_pos.z += -0.6 if above else 0.6  # against the wall behind the tile
-	site_root.position = world_pos
+	site_root.name = "Site_%s" % target_id
+	site_root.position = grid_manager.grid_to_world(door) + against
 	var portal := _make_prop_sprite("gate_small", 1.3)
 	if portal:
-		portal.modulate = Color(1.0, 0.8, 0.7)
+		portal.modulate = tint
 		site_root.add_child(portal)
 		var glow = OmniLight3D.new()
-		glow.light_color = Color(1.0, 0.55, 0.4)
+		glow.light_color = glow_color
 		glow.light_energy = 0.9
 		glow.omni_range = 3.0
 		glow.position = Vector3(0, 0.6, 0.4)
 		site_root.add_child(glow)
-	var display_name := "Rat King's Lair" + (" (cleared)" if boss_cleared else "")
 	var label = Label3D.new()
-	label.text = display_name
+	label.text = display_name + (" (cleared)" if cleared_bosses.has(room_key) else "")
 	label.font_size = 20
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.modulate = Color(1.0, 0.8, 0.75)
+	label.modulate = tint
 	label.position = Vector3(0, 2.0, 0)
 	WorldText.crisp(label)
 	site_root.add_child(label)
@@ -904,12 +976,117 @@ func _place_lair_door() -> void:
 	site_nodes.append({
 		"node": site_root,
 		"grid_pos": door,
-		"id": "ratking_lair",
-		"kind": "ratking",
-		"display_name": "Rat King's Lair",
+		"id": target_id,
+		"kind": room_key,
+		"display_name": display_name,
 		"label_node": interact_label,
 		"footprint": [],
 	})
+
+# ============================================
+# THE BONEYARD (interior_kind "boneyard", id "boneyard")
+# The Bone Dragon's graveyard, off the Old Graveyard's deepest crypt: one
+# large walled square entered through an iron-dark stone gate on the west.
+# Twelve gravestones stand in rows across it; a crypt door in the north-east
+# corner is where the grave diggers come out. The room is sealed until the
+# dragon is dead. (The Necromancer prelude — stopping him raising the dead,
+# which is what leaves these twelve stones — is the designer's to specify;
+# main stands the yard up in its post-prelude state. See STORY.md.)
+# ============================================
+const BY_SIZE := 29
+const BY_FLOOR := Rect2i(3, 3, 23, 23)
+const BY_GRAVE_COLS := [8, 12, 16, 20]
+const BY_GRAVE_ROWS := [9, 14, 19]
+
+## The twelve gravestone cells, the dragon's cell, and the crypt-door cell
+## (inside the north-east corner) the grave diggers emerge from.
+var gravestone_cells: Array = []
+var boneyard_dragon_cell: Vector2i = Vector2i(-1, -1)
+var boneyard_crypt_cell: Vector2i = Vector2i(-1, -1)
+
+func _generate_boneyard_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	gravestone_cells.clear()
+	_carve_rect(BY_FLOOR)
+	# The gateway on the west: the start tile and the one behind it.
+	for x in range(1, player_start.x + 1):
+		grid[x][player_start.y] = Tile.FLOOR
+	rooms.append({"rect": BY_FLOOR, "kind": "boss", "elev": 0})
+	for z in BY_GRAVE_ROWS:
+		for x in BY_GRAVE_COLS:
+			gravestone_cells.append(Vector2i(x, z))
+	boneyard_dragon_cell = Vector2i(BY_FLOOR.end.x - 3, BY_FLOOR.get_center().y)
+	boneyard_crypt_cell = Vector2i(BY_FLOOR.end.x - 1, BY_FLOOR.position.y + 2)
+	_enforce_border_walls()
+
+func _build_boneyard_decorations() -> void:
+	## Everything here is the undead land pack: the gate arch over the way
+	## in, broken iron-dark posts along the walls like a fallen fence, dead
+	## trees leaning in over them, a skull-mouth crypt door where the diggers
+	## come out, and bones in the grass between the graves.
+	for n_cell in gravestone_cells:
+		_reserve_area(n_cell, 1)
+	_reserve_area(boneyard_dragon_cell, 1)
+	_reserve_area(boneyard_crypt_cell, 1)
+	# The gate: the pack's stone arch straddling the doorway tile, a
+	# colonnade piece to either side of it on the wall.
+	var gate_cell := Vector2i(player_start.x - 1, player_start.y)
+	var arch := _make_prop_sprite("undead_ruin", 1.7, 1)
+	if arch:
+		arch.position = grid_manager.grid_to_world(gate_cell) + Vector3(0, CameraView.SPRITE_LIFT, 0.5)
+		_visuals_root.add_child(arch)
+	for dz in [-1, 1]:
+		var pillar := _make_prop_sprite("undead_ruin", 1.1, 0)
+		if pillar:
+			pillar.position = grid_manager.grid_to_world(gate_cell + Vector2i(0, dz)) + Vector3(0, CameraView.SPRITE_LIFT, 0.5)
+			_visuals_root.add_child(pillar)
+	# The crypt door in the north-east corner, on the wall above its cell.
+	var crypt := _make_prop_sprite("undead_skull_door", 1.2)
+	if crypt:
+		crypt.position = grid_manager.grid_to_world(boneyard_crypt_cell + Vector2i(0, -1)) + Vector3(0, CameraView.SPRITE_LIFT, 0.6)
+		_visuals_root.add_child(crypt)
+	# Fallen fence posts and dead trees along the walls (never on the row
+	# nearest the camera, where a tall sprite would stand over the ground).
+	var posts := 0
+	var trees := 0
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			if grid[x][z] != Tile.WALL or not _has_adjacent_floor(x, z):
+				continue
+			var pos := Vector2i(x, z)
+			if pos == gate_cell or (pos - gate_cell).length() < 2.5 or _is_floor_at(x, z - 1):
+				continue
+			var n := _tile_noise(x, z, 311)
+			var world := grid_manager.grid_to_world(pos) + Vector3(0, CameraView.SPRITE_LIFT, 0.3)
+			if n < 0.55:
+				var post := _make_prop_sprite("undead_ruin", 1.0, 2)
+				if post:
+					post.position = world
+					_visuals_root.add_child(post)
+					posts += 1
+			elif n < 0.75:
+				var tree := _make_prop_sprite("undead_tree", 1.0, int(n * 100) % 5)
+				if tree:
+					tree.position = world + Vector3(0, 0, -0.4)
+					_visuals_root.add_child(tree)
+					trees += 1
+	# Bones and skulls in the grass between the graves.
+	var bones := 0
+	for x in range(BY_FLOOR.position.x, BY_FLOOR.end.x):
+		for z in range(BY_FLOOR.position.y, BY_FLOOR.end.y):
+			var pos := Vector2i(x, z)
+			if _reserved.has(pos) or pos == player_start:
+				continue
+			var n := _tile_noise(x, z, 331)
+			if n < 0.06:
+				var k := int(_tile_noise(x, z, 337) * 11)
+				var bone := _make_prop_sprite("undead_bones", 0.9, k)
+				if bone:
+					bone.position = grid_manager.grid_to_world(pos) + Vector3((_tile_noise(x, z, 341) - 0.5) * 0.4, CameraView.SPRITE_LIFT, (_tile_noise(x, z, 347) - 0.5) * 0.4)
+					_visuals_root.add_child(bone)
+					bones += 1
+	print("[DUNGEON] Boneyard dressed: %d posts, %d dead trees, %d bone piles" % [posts, trees, bones])
 
 const DOJO_W := 18
 const DOJO_H := 14
@@ -1491,8 +1668,11 @@ func _generate_elevation() -> void:
 		return  # Buildings and the dojo are flat inside
 	if interior_kind == "sewer":
 		return  # Sewers are flat; channels are carved into the floor, not raised
+	if interior_kind == "boneyard":
+		return  # a walled graveyard square: flat
 	if interior_kind == "ratking":
-		# The lair's three cliffs: raised stone the nests' archers climb.
+		# The lair's three cliffs: the walkable top rows behind each cliff
+		# face (the face row itself is a wall tile; see _generate_rat_king_layout).
 		for rect in rat_cliffs:
 			_set_elevation_rect(rect, 1)
 		return
@@ -2053,7 +2233,7 @@ func _min_adjacent_floor_elevation(x: int, z: int) -> int:
 ## bushes (the way the packs' fields and forests read). Caves, sewers, the
 ## hellscape and the barrows keep their packs' rock and vein masses.
 func _natural_boundary() -> bool:
-	if interior_kind in ["cave", "sewer", "building", "dojo", "graveyard", "ratking"]:
+	if interior_kind in ["cave", "sewer", "building", "dojo", "graveyard", "ratking", "boneyard"]:
 		return false
 	if interior_kind == "forest":
 		return true
@@ -2134,6 +2314,8 @@ func cliff_strip_path() -> String:
 	match interior_kind:
 		"sewer", "cave", "ratking":
 			return CP_TEX + "/cliff_cave.png"
+		"boneyard":
+			return CP_TEX + "/cliff_undead.png"
 		"forest":
 			return CP_TEX + "/cliff_forest.png"
 	match world_level:
@@ -2525,6 +2707,11 @@ func _max_adjacent_floor_elevation(x: int, z: int) -> int:
 func _build_elevation_visuals() -> void:
 	## Elevated terrain rendered as rocky cliff faces with a soil top surface,
 	## plus carved stone steps wherever a walkable 1-level transition exists.
+	if interior_kind == "ratking":
+		# The lair's cliffs are authored as pack cliff tiles (a wall face row
+		# under a raised top), drawn by _build_cliff_walls and the ground
+		# autotile — nothing procedural rises here.
+		return
 	var pal = get_palette()
 	var cliff_items: Array = []
 	var top_items: Array = []
@@ -2631,6 +2818,9 @@ func _build_decorations() -> void:
 		return  # bare boards: the dummies are the furniture
 	if interior_kind == "ratking":
 		_build_rat_king_decorations()
+		return
+	if interior_kind == "boneyard":
+		_build_boneyard_decorations()
 		return
 	var pal = get_palette()
 	var _deco_trees: Array = []
@@ -5114,8 +5304,8 @@ func _define_spawn_zones() -> void:
 
 	if interior_kind == "dojo":
 		return  # nothing lives here but the dummies main places
-	if interior_kind == "ratking":
-		return  # the king, his guard and the nests are placed by main up front
+	if interior_kind == "ratking" or interior_kind == "boneyard":
+		return  # the boss, its guard and its structures are placed by main up front
 
 	if interior_kind == "sewer":
 		_define_sewer_spawn_zones()
@@ -5860,8 +6050,8 @@ func disarm_trap(index: int) -> bool:
 const FOUNTAIN_ROOM_KINDS := ["field", "chamber", "room", "deep", "clearing"]
 
 func _place_fountains() -> void:
-	if interior_kind == "dojo" or interior_kind == "ratking":
-		return  # the dojo is a room, not a pilgrimage; the lair is a fight
+	if interior_kind == "dojo" or is_boss_room(interior_id):
+		return  # the dojo is a room, not a pilgrimage; a boss room is a fight
 	var want: int = 2 if interior_kind == "" else 1
 	var candidates: Array = []
 	for room in rooms:

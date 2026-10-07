@@ -110,6 +110,9 @@ var parent_interior_id: String = ""
 var carried_statuses: Dictionary = {}
 var boss_room_mode: bool = false   # inside a boss room (sealed until the boss dies)
 var _rat_nests: Array = []         # the lair's nest structures (Enemy, RAT_NEST)
+var _gravestones: Array = []       # the Boneyard's stones: [{cell: Vector2i, enemy: Enemy or null}]
+var _grave_diggers_left: int = 0   # diggers still in the crypt
+var _active_digger: Enemy = null   # the one digger out at a time
 # When returning from an interior, respawn at that site's entrance
 var return_from_interior_id: String = ""
 
@@ -702,7 +705,7 @@ func _ready() -> void:
 	if dojo_mode:
 		_setup_dojo()
 	if boss_room_mode:
-		_setup_rat_king_lair()
+		_setup_boss_room()
 
 	# Co-op: now that the dungeon has placed Player 1, seat Player 2 beside them.
 	if is_multiplayer and _p2_player:
@@ -6399,9 +6402,17 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 			dungeon_manager.interior_kind if dungeon_manager else "",
 			_is_on_high_ground(player.position))
 
-	# A boss room opens the moment its boss falls: the way out appears.
-	if boss_room_mode and enemy.enemy_type == Enemy.EnemyType.RAT_KING:
+	# A boss room opens the moment its boss falls: the way out appears, and
+	# the character remembers the room as cleared.
+	if boss_room_mode and enemy.enemy_type == _boss_room_boss_type():
+		if current_character:
+			current_character.mark_boss_defeated(DungeonManager.boss_room_key(current_interior_id))
 		_open_boss_room_exit()
+	# The Boneyard: a fallen digger leaves the broken stone to the next one.
+	if boss_room_mode and enemy.enemy_type == Enemy.EnemyType.GRAVE_DIGGER:
+		if _active_digger == enemy:
+			_active_digger = null
+		call_deferred("_maybe_send_grave_digger")
 
 	# City loop: every kill adds habitat resources to the satchel headed home,
 	# and ticks any brewing trial's countdown (STORY.md §6).
@@ -13577,7 +13588,7 @@ func _setup_dungeon() -> void:
 	dungeon_manager.loot_salt = current_character.get_loot_seed() if current_character else randi()
 	# A boss already slain by this character stays slain: its room opens
 	# with the exit in place and the door outside reads as cleared.
-	dungeon_manager.boss_cleared = _rat_king_defeated()
+	dungeon_manager.cleared_bosses = current_character.defeated_bosses.duplicate() if current_character else []
 	add_child(dungeon_manager)
 	dungeon_manager.initialize(grid_manager, self, current_world_level, current_interior_id)
 
@@ -13862,7 +13873,7 @@ func _apply_world_ambience() -> void:
 	var pal: Dictionary = dungeon_manager.get_palette()
 	var in_cave = current_interior_id.begins_with("cave")
 	var in_building = current_interior_id.begins_with("building")
-	var in_sewer = current_interior_id.begins_with("sewer") or DungeonManager.is_boss_room(current_interior_id)
+	var in_sewer = current_interior_id.begins_with("sewer") or current_interior_id.begins_with("ratking")
 	var in_forest = current_interior_id.begins_with("forest")
 
 	var world_env = get_node_or_null("WorldEnvironment") as WorldEnvironment
@@ -16271,12 +16282,23 @@ func _spawn_dojo_dummy(cell: Vector2i) -> void:
 # DungeonManager; main stands the units up and runs the nests.
 # ============================================
 
-func _rat_king_defeated() -> bool:
-	return current_character != null and current_character.defeated_monster_ids.has("Rat King")
+func _boss_cleared(room_key: String) -> bool:
+	return current_character != null and current_character.has_defeated_boss(room_key)
+
+func _boss_room_boss_type() -> int:
+	match DungeonManager.boss_room_key(current_interior_id):
+		"ratking": return Enemy.EnemyType.RAT_KING
+		"boneyard": return Enemy.EnemyType.BONE_DRAGON
+	return -1
+
+func _setup_boss_room() -> void:
+	match DungeonManager.boss_room_key(current_interior_id):
+		"ratking": _setup_rat_king_lair()
+		"boneyard": _setup_boneyard()
 
 func _setup_rat_king_lair() -> void:
 	_rat_nests.clear()
-	if _rat_king_defeated():
+	if _boss_cleared("ratking"):
 		add_battle_log("The Rat King's Lair lies empty — the king is dead.", Color(0.8, 0.8, 0.95))
 		return
 	var placements: Dictionary = dungeon_manager.rat_king_placements
@@ -16287,6 +16309,7 @@ func _setup_rat_king_lair() -> void:
 			nest.nest_heal_pct = n["heal_pct"]
 			nest.nest_label = n["label"]
 			nest.nest_perch = n["perch"]
+			nest.nest_perch_approach = n.get("approach", Vector2i(-1, -1))
 			_rat_nests.append(nest)
 	var king := _spawn_lair_unit(Enemy.EnemyType.RAT_KING, placements["king"])
 	if king:
@@ -16333,6 +16356,7 @@ func _check_rat_nest_step(cell: Vector2i) -> void:
 		var archer := _spawn_lair_unit(Enemy.EnemyType.ARCHER_RAT, cell)
 		if archer:
 			archer.perch_cell = nest.nest_perch
+			archer.perch_approach = nest.nest_perch_approach
 			archer.enemy_name = "Nest Archer"
 			archer.update_name_display()
 		_sync_dungeon_blocked_tiles()
@@ -16344,7 +16368,113 @@ func _open_boss_room_exit() -> void:
 	if dungeon_manager.get_site_by_id("exit") >= 0:
 		return
 	dungeon_manager._place_exit_site()
-	add_battle_log("The Rat King is dead. The way out opens.", Color(0.7, 1.0, 0.7))
+	add_battle_log("The way out opens.", Color(0.7, 1.0, 0.7))
+
+# ---- The Boneyard: the Bone Dragon, twelve gravestones, three grave diggers ----
+# The dragon regenerates 1 health a cycle per standing gravestone (never
+# fades). Breaking a stone (10 HP) lowers it, but a grave digger (20 HP)
+# walks out of the crypt to the broken stone, takes 8 tempo to set it back
+# to full, and is gone. Three diggers, one out at a time. The Necromancer
+# prelude that is meant to leave these stones behind is not built yet (the
+# designer has not settled it); the yard opens in its post-prelude state.
+
+func _setup_boneyard() -> void:
+	_gravestones.clear()
+	_grave_diggers_left = 0
+	_active_digger = null
+	if _boss_cleared("boneyard"):
+		add_battle_log("The Boneyard is quiet — the dragon's bones lie still.", Color(0.8, 0.8, 0.95))
+		return
+	for cell in dungeon_manager.gravestone_cells:
+		_gravestones.append({"cell": cell, "enemy": _spawn_gravestone(cell)})
+	var dragon := _spawn_lair_unit(Enemy.EnemyType.BONE_DRAGON, dungeon_manager.boneyard_dragon_cell)
+	if dragon:
+		dragon.gravestone_provider = Callable(self, "_standing_gravestones")
+	_grave_diggers_left = 3
+	_sync_dungeon_blocked_tiles()
+	_sync_occupied_tiles()
+	_update_enemy_count()
+	_refresh_unit_tracker()
+	add_battle_log("The Boneyard. The gate shuts behind you; twelve stones feed the dragon.", Color(0.75, 1.0, 0.8))
+
+func _spawn_gravestone(cell: Vector2i) -> Enemy:
+	var stone := _spawn_lair_unit(Enemy.EnemyType.GRAVESTONE, cell)
+	if stone:
+		stone.died.connect(_on_gravestone_destroyed)
+	return stone
+
+func _standing_gravestones() -> int:
+	var n := 0
+	for g in _gravestones:
+		var e = g["enemy"]
+		if e != null and is_instance_valid(e) and e.is_alive():
+			n += 1
+	return n
+
+func _broken_gravestones() -> Array:
+	var out: Array = []
+	for g in _gravestones:
+		var e = g["enemy"]
+		if e == null or not is_instance_valid(e) or not e.is_alive():
+			out.append(g)
+	return out
+
+func _on_gravestone_destroyed(stone: Enemy) -> void:
+	for g in _gravestones:
+		if g["enemy"] == stone:
+			g["enemy"] = null
+	add_battle_log("A gravestone breaks. The dragon's regen falls to %d." % _standing_gravestones(), Color(0.85, 0.95, 0.85))
+	call_deferred("_maybe_send_grave_digger")
+
+func _maybe_send_grave_digger() -> void:
+	## One digger at a time, three in all: whenever a stone lies broken and
+	## no digger is out, the next one walks out of the crypt to it.
+	if not boss_room_mode or _grave_diggers_left <= 0:
+		return
+	if _active_digger != null and is_instance_valid(_active_digger) and _active_digger.is_alive():
+		return
+	var dragon_alive := false
+	for e in enemy_spawner.get_living_enemies():
+		if e.enemy_type == Enemy.EnemyType.BONE_DRAGON:
+			dragon_alive = true
+	if not dragon_alive:
+		return
+	var broken := _broken_gravestones()
+	if broken.is_empty():
+		return
+	var crypt: Vector2i = dungeon_manager.boneyard_crypt_cell
+	# The nearest broken stone to the crypt door.
+	var target: Dictionary = broken[0]
+	for g in broken:
+		if (g["cell"] - crypt).length() < (target["cell"] - crypt).length():
+			target = g
+	var digger := _spawn_lair_unit(Enemy.EnemyType.GRAVE_DIGGER, crypt)
+	if digger == null:
+		return
+	digger.repair_cell = target["cell"]
+	digger.repair_handler = Callable(self, "_on_grave_repaired")
+	_active_digger = digger
+	_grave_diggers_left -= 1
+	_sync_dungeon_blocked_tiles()
+	_sync_occupied_tiles()
+	_refresh_unit_tracker()
+	add_battle_log("A grave digger comes out of the crypt. (%d left)" % _grave_diggers_left, Color(1.0, 0.85, 0.6))
+
+func _on_grave_repaired(digger: Enemy) -> void:
+	## The digger's 8 tempo are up: the stone stands again at full health,
+	## and the digger is gone (no kill, no loot).
+	var cell: Vector2i = digger.repair_cell
+	for g in _gravestones:
+		if g["cell"] == cell and (g["enemy"] == null or not is_instance_valid(g["enemy"]) or not g["enemy"].is_alive()):
+			g["enemy"] = _spawn_gravestone(cell)
+			add_battle_log("The gravestone stands again. The dragon's regen rises to %d." % _standing_gravestones(), Color(1.0, 0.8, 0.6))
+	if _active_digger == digger:
+		_active_digger = null
+	enemy_spawner.despawn_enemy(digger)
+	_sync_dungeon_blocked_tiles()
+	_sync_occupied_tiles()
+	_refresh_unit_tracker()
+	call_deferred("_maybe_send_grave_digger")
 
 func _collect_carried_statuses() -> Dictionary:
 	var bm = player.get_buff_manager()

@@ -23,6 +23,8 @@ func _initialize() -> void:
 	configs.append({"level": 1, "interior": "forest_0"})
 	configs.append({"level": 1, "interior": "forest_1"})
 	configs.append({"level": 1, "interior": "ratking_lair"})
+	configs.append({"level": 1, "interior": "boneyard"})
+	configs.append({"level": 1, "interior": "graveyard_0"})
 
 	for cfg in configs:
 		var sig_a = _build_and_validate(holder, cfg)
@@ -173,6 +175,16 @@ func _validate(dm: DungeonManager, cfg: Dictionary) -> void:
 		_validate_forest(dm, cfg)
 	elif cfg["interior"].begins_with("ratking"):
 		_validate_lair(dm, cfg)
+	elif cfg["interior"].begins_with("boneyard"):
+		_validate_boneyard(dm, cfg)
+	elif cfg["interior"].begins_with("graveyard"):
+		if dm.get_site_by_id("exit") < 0:
+			_fail(cfg, "graveyard has no exit site")
+		if dm.get_site_by_id("boneyard") < 0:
+			_fail(cfg, "graveyard has no door to the Boneyard")
+		print("INFO %s (W%d): %dx%d, %d rooms, %d chests, %d zones" % [
+			cfg["interior"], cfg["level"], dm.GRID_W, dm.GRID_H, dm.rooms.size(),
+			dm.chest_nodes.size(), dm.spawn_zones.size()])
 	else:
 		if dm.get_site_by_id("exit") < 0:
 			_fail(cfg, "interior has no exit site")
@@ -205,6 +217,21 @@ func _validate_lair(dm: DungeonManager, cfg: Dictionary) -> void:
 		_fail(cfg, "the king has no floor to stand on")
 	print("INFO %s (W%d): %dx%d, %d cliffs, %d nests" % [
 		cfg["interior"], cfg["level"], dm.GRID_W, dm.GRID_H, dm.rat_cliffs.size(), dm.rat_nests.size()])
+
+func _validate_boneyard(dm: DungeonManager, cfg: Dictionary) -> void:
+	## The dragon's graveyard: sealed, flat, twelve gravestone cells on floor.
+	if dm.get_site_by_id("exit") >= 0:
+		_fail(cfg, "boneyard has an exit before the dragon is dead")
+	if not dm.spawn_zones.is_empty() or not dm.chest_nodes.is_empty():
+		_fail(cfg, "boneyard has zones or chests (main places the fight)")
+	if dm.gravestone_cells.size() != 12:
+		_fail(cfg, "boneyard needs 12 gravestones (%d)" % dm.gravestone_cells.size())
+	for c in dm.gravestone_cells:
+		if not dm.is_floor(c):
+			_fail(cfg, "gravestone %s is not on floor" % c)
+	if not dm.is_floor(dm.boneyard_dragon_cell) or not dm.is_floor(dm.boneyard_crypt_cell):
+		_fail(cfg, "dragon or crypt cell is not floor")
+	print("INFO %s (W%d): %dx%d, %d gravestones" % [cfg["interior"], cfg["level"], dm.GRID_W, dm.GRID_H, dm.gravestone_cells.size()])
 
 func _validate_sewer(dm: DungeonManager, cfg: Dictionary) -> void:
 	if dm.get_site_by_id("exit") < 0:

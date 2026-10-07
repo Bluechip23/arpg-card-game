@@ -39,7 +39,11 @@ enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_R
 	# The Rat King's nests: a destructible structure (15 HP) that heals the
 	# king when he reaches it and releases an Archer Rat when the player
 	# steps on it. Never acts or moves. Tail-appended (save-compat).
-	RAT_NEST }
+	RAT_NEST,
+	# The Boneyard: a gravestone (10 HP structure; every standing one feeds
+	# the Bone Dragon's regen) and the grave digger who walks out to repair
+	# a broken one (20 HP, 8 tempo of work, then gone). Tail-appended.
+	GRAVESTONE, GRAVE_DIGGER }
 
 ## Intended player level per enemy type — the anchor for the level-gap XP
 ## falloff (PlayerStats.get_xp_multiplier): kills more than a few levels below
@@ -58,6 +62,7 @@ const INTENDED_LEVELS := {
 	EnemyType.CRYPT_CRAWLER: 8, EnemyType.WERERABBIT: 8, EnemyType.CONSUMED: 9,
 	EnemyType.WEREWOLF: 10, EnemyType.VAMPIRE: 10, EnemyType.SPIRIT_COLLECTOR: 10,
 	EnemyType.NECROMANCER: 11, EnemyType.BONE_DRAGON: 12, EnemyType.GRAVE_TITAN: 12,
+	EnemyType.GRAVE_DIGGER: 8,  # the Boneyard's digger: band 8, so his 20 HP are his 20 HP
 	# Cave
 	EnemyType.FIRE_GOBLIN_SOLDIER: 9, EnemyType.FIRE_GOBLIN_MAGE: 9,
 	EnemyType.FIRE_GOBLIN_SHAMAN: 10, EnemyType.ARMORED_TROLL: 12, EnemyType.HYDRA: 14,
@@ -321,7 +326,7 @@ var _action_damage: Dictionary = {}      # action name -> damage taken since its
 ## and the ranged/utility casts.
 const NON_MELEE_ACTIONS := {
 	"move": true, "hydra_move": true, "goblin_move": true, "scurry": true,
-	"seek_nest": true, "nest_heal": true,
+	"seek_nest": true, "nest_heal": true, "dig_walk": true, "repair": true,
 	"scurry_away": true, "get_into_range": true, "flee": true, "vanish": true,
 	"hydra_heal": true, "treant_heal": true, "sear_wounds": true,
 	"collect_soul": true, "summon_skeleton": true, "fire_wall": true,
@@ -918,6 +923,35 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			is_structure = true
 			_set_mesh_color(Color(0.55, 0.42, 0.25))
 
+		EnemyType.GRAVESTONE:
+			# The Boneyard: a headstone. A structure — it holds its tile and
+			# counts for nothing — but every one left standing regenerates
+			# the Bone Dragon 1 health a cycle.
+			enemy_name = "Gravestone"
+			max_health = 10
+			max_armor = 0
+			attack_damage = 0
+			attack_range = 0.0
+			move_distance = 0.0
+			aggro_range = 0.0
+			xp_reward = 0
+			is_structure = true
+			_set_mesh_color(Color(0.55, 0.58, 0.55))
+
+		EnemyType.GRAVE_DIGGER:
+			# The Boneyard: walks out of the crypt to a broken gravestone,
+			# takes 8 tempo to set it right (back to full), and is gone.
+			# Never fights; can be cut down on the way (20 HP).
+			enemy_name = "Grave Digger"
+			max_health = 20
+			max_armor = 0
+			attack_damage = 0
+			attack_range = 0.0
+			move_distance = 2.0
+			aggro_range = 0.0
+			xp_reward = 6
+			_set_mesh_color(Color(0.5, 0.55, 0.45))
+
 		_:
 			# Design mock-ups (stats & moves TBD) have no arm yet. Name them so
 			# a stray spawn is identifiable instead of an anonymous default box;
@@ -989,10 +1023,15 @@ var nest_heal_pct: float = 0.0
 var nest_used: bool = false
 var nest_label: String = ""
 var nest_perch: Vector2i = Vector2i(-1, -1)
+var nest_perch_approach: Vector2i = Vector2i(-1, -1)
 var nest_archer_released: bool = false
 # On an ARCHER_RAT released from a nest: the cliff top it walks up to and
-# then holds (shooting from the high ground instead of kiting).
+# then holds (shooting from the high ground instead of kiting). The cliff
+# face is a wall, so it first rounds the cliff's side (perch_approach) and
+# climbs on from there.
 var perch_cell: Vector2i = Vector2i(-1, -1)
+var perch_approach: Vector2i = Vector2i(-1, -1)
+var _perch_approach_done: bool = false
 # On the RAT_KING: main hands over the live nests; the king flees to a
 # random untouched one at 50%, then 30%, then 30% again (after healing).
 var nest_provider: Callable = Callable()
@@ -1000,6 +1039,16 @@ const NEST_FLIGHT_THRESHOLDS := [0.5, 0.3, 0.3]
 var _nest_flights_done: int = 0
 var _nest_target: Enemy = null
 var _nest_stuck: int = 0
+
+# --- The Boneyard: gravestones, grave diggers and the dragon's regen ---
+# On a GRAVE_DIGGER: the broken gravestone's cell it walks to, and main's
+# handler that rebuilds the stone (and sends the digger away) when its
+# 8-tempo repair fires.
+var repair_cell: Vector2i = Vector2i(-1, -1)
+var repair_handler: Callable = Callable()
+# On the BONE_DRAGON in its yard: main's count of standing gravestones —
+# each one is 1 health of regen a cycle, and it never fades.
+var gravestone_provider: Callable = Callable()
 
 func _setup_sprite() -> void:
 	## Builds a procedural 3D model (EnemyFigure) for enemy types that have one,
@@ -1073,6 +1122,8 @@ func _setup_sprite() -> void:
 		EnemyType.BOSS: kind = "brute_boss"
 		EnemyType.DUMMY: kind = "chicken"
 		EnemyType.RAT_NEST: kind = "rat_nest"
+		EnemyType.GRAVESTONE: kind = "gravestone"
+		EnemyType.GRAVE_DIGGER: kind = "grave_digger"
 		_:
 			return  # Unknown types keep their coloured box
 
@@ -1368,6 +1419,11 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 				{"name": "attack", "tempo_cost": 2},
 				{"name": "move",   "tempo_cost": 3},
 			]
+		EnemyType.GRAVE_DIGGER:
+			actions = [
+				{"name": "dig_walk", "tempo_cost": 2, "label": "Walks to the broken stone"},
+				{"name": "repair",   "tempo_cost": 8, "label": "Repairing the gravestone"},
+			]
 
 		# ===================== MOUNTAINS ACT =====================
 		EnemyType.ICE_TROLL:
@@ -1538,6 +1594,8 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.RING_WRAITH: "Elite",
 		EnemyType.DUMMY: "Minion",
 		EnemyType.RAT_NEST: "Minion",
+		EnemyType.GRAVESTONE: "Minion",
+		EnemyType.GRAVE_DIGGER: "Minion",
 	}
 	var _stats := {
 		EnemyType.MINION: {"name": "Minion", "health": 25, "armor": 0, "damage": 3, "xp": 5},
@@ -1605,6 +1663,8 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.RING_WRAITH: {"name": "Ring Wraith", "health": 100, "armor": 0, "damage": 15, "xp": 0},
 		EnemyType.DUMMY: {"name": "Training Dummy", "health": 500, "armor": 0, "damage": 0, "xp": 0},
 		EnemyType.RAT_NEST: {"name": "Rat Nest", "health": 15, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.GRAVESTONE: {"name": "Gravestone", "health": 10, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.GRAVE_DIGGER: {"name": "Grave Digger", "health": 20, "armor": 0, "damage": 0, "xp": 6},
 	}
 	var _actions := {
 		EnemyType.MINION: [{"name": "Attack", "tempo": 3}, {"name": "Move", "tempo": 5}],
@@ -1665,6 +1725,8 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.RING_WRAITH: [{"name": "Attack", "tempo": 2}, {"name": "Move", "tempo": 4}],
 		EnemyType.DUMMY: [],
 		EnemyType.RAT_NEST: [],
+		EnemyType.GRAVESTONE: [],
+		EnemyType.GRAVE_DIGGER: [{"name": "Walk", "tempo": 2}, {"name": "Repair", "tempo": 8}],
 	}
 	var _specials := {
 		EnemyType.MINION: "Basic enemy.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
@@ -1697,7 +1759,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WERERABBIT: "Loot monster — does not attack.\nFlees for 3 cycles, then Vanishes in a puff of smoke.\nMove (1 tempo): 2 spaces.",
 		EnemyType.VAMPIRE: "Victorian aristocrat with life steal. Resists 10% physical/fire/lightning.\nBite (5 tempo): 10 damage; heals 100% of damage dealt to HEALTH (not armor).\nBat Form (below 50% HP, 2 charges, never recharges): flits 6 squares away...\nAbsorb (3 tempo, always right after Bat Form): drains the healthiest ally on the map (you included) — 20 the first time, then 10.\nMove (5 tempo): 5 spaces.",
 		EnemyType.NECROMANCER: "Hooded caster (range 10) who raises the dead. Resists 15% fire/lightning.\nBolt (5 tempo): 4 damage + Hexes 2 cards in your hand (each +30 mana until played).\nSummon (8 tempo): raises undead (skeletons and zombies, first pass). After 5 of its summons die, it raises a BONE DRAGON.\nMove (6 tempo): 8 spaces.",
-		EnemyType.BONE_DRAGON: "Skeletal wyrm. Summoned by the Necromancer, but also roams freely. Resists 45% physical / 45% fire.\nBite (5 tempo): 12 damage.\nBreath Swarm (6 tempo): 12 damage down a 6-tile line; a Swarm hatches beside everyone it hits.\nMove (5 tempo): 5 spaces.",
+		EnemyType.BONE_DRAGON: "Skeletal wyrm. Summoned by the Necromancer, but also roams freely; fought as a boss in the Boneyard, where every standing gravestone regenerates it 1 health a cycle (Gravebound — break the stones, and kill the diggers who repair them). Resists 45% physical / 45% fire.\nBite (5 tempo): 12 damage.\nBreath Swarm (6 tempo): 12 damage down a 6-tile line; a Swarm hatches beside everyone it hits.\nMove (5 tempo): 5 spaces.",
 		EnemyType.SPIRIT_COLLECTOR: "Lantern-bearer with a soul cage on its back.\nStrike (3 tempo): 8 damage.\nCollect Soul (8 tempo): 8 damage; adds a 'Release Soul' card to your hand (saps 1 damage per tempo — charged 5 per cycle — until played, then is erased).",
 		EnemyType.GRAVE_TITAN: "Yeti-like brute (30 armor) hauling a boulder.\nSmash (8 tempo): 15 damage in front.\nBoulder Roll (range 3, 5 tempo): rolls the boulder for 15 damage.\nMove (8 tempo): 4 spaces.",
 		EnemyType.CRYPT_CRAWLER: "Large spider. After 3 consecutive attacks it webs you.\nBite (3 tempo): 6 damage.\nWeb: adds a 'Paralysis' card to your hand — you cannot move until it is played (other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
@@ -1734,6 +1796,8 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SWARM: "A single creature made of countless biting bugs.\nAttack (2 tempo): 3 damage.\nMove (3 tempo): 8 spaces — very fast.",
 		EnemyType.RING_WRAITH: "The Precious: hunts the ring-bearer through the shadow world. Shadow form does not hide you from these.\nAttack (2 tempo): 15 damage.\nMove (4 tempo): 5 spaces.\nResummons on death — grants no XP.",
 		EnemyType.DUMMY: "The Dojo's training dummy (a chicken, for morale). Stands still, never strikes, and a killing blow only refills it — grants no XP, drops nothing.",
+		EnemyType.GRAVESTONE: "A headstone in the Boneyard. Every one left standing regenerates the Bone Dragon 1 health a cycle, and that regen never fades — break the stones to starve him of it. Grants no XP, drops nothing.",
+		EnemyType.GRAVE_DIGGER: "Walks out of the Boneyard's crypt to a broken gravestone and sets it back to full in 8 tempo, then is gone. Three come in all, one at a time. Cut him down before he finishes.\nWalk (2 tempo): 2 spaces.\nRepair (8 tempo): the stone stands again.",
 		EnemyType.RAT_NEST: "A heap of straw and bones at the foot of a cliff in the Rat King's Lair. Tread on it and its Archer Rat scrambles up to the high ground. The wounded king feeds on an untouched nest (left 20%, middle 30%, right 50% of his health) — tear the nests down and he has nowhere to run. Grants no XP, drops nothing.",
 	}
 
@@ -2076,6 +2140,16 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 		_stinger_cooldown = maxi(0, _stinger_cooldown - amount)
 	if _talon_cooldown > 0:
 		_talon_cooldown = maxi(0, _talon_cooldown - amount)
+
+	# Bone Dragon in the Boneyard: 1 health a cycle for every gravestone
+	# still standing — regen that never decays; only breaking stones lowers it.
+	if enemy_type == EnemyType.BONE_DRAGON and gravestone_provider.is_valid():
+		regen_accumulator += amount
+		while regen_accumulator >= 5:
+			regen_accumulator -= 5
+			var standing: int = int(gravestone_provider.call())
+			if standing > 0:
+				_regenerate(standing)
 
 	# Wolf pack: within 4 tiles of another wolf, regen 2 HP every 5 tempo.
 	if enemy_type == EnemyType.WOLF and _wolf_aura_active():
@@ -2702,6 +2776,8 @@ func _choose_action(player_node: Node3D) -> void:
 			_choose_melee_action(distance, "croc_bite")
 		EnemyType.RAT_KING:
 			_choose_rat_king_action(distance)
+		EnemyType.GRAVE_DIGGER:
+			_choose_grave_digger_action()
 		EnemyType.SWARM:
 			_choose_melee_action(distance, "attack")
 		# ----- Mountains act -----
@@ -2891,6 +2967,40 @@ func _try_nest_heal() -> bool:
 	nest.drain_nest()
 	_regenerate(amount)
 	print("[%s] Feeds on the %s nest: +%d health" % [enemy_name, nest.nest_label, amount])
+	return true
+
+## --- Grave Digger ---
+
+func _choose_grave_digger_action() -> void:
+	## Nothing but the job: walk to the broken stone, then work on it.
+	if repair_cell.x < 0:
+		chosen_action = {}
+		return
+	if _cell_adjacent_to_cell(repair_cell):
+		chosen_action = _get_action("repair")
+	else:
+		chosen_action = _get_action("dig_walk")
+
+func _cell_adjacent_to_cell(cell: Vector2i) -> bool:
+	if grid_manager == null:
+		return false
+	var a := grid_manager.world_to_grid(position)
+	return maxi(absi(a.x - cell.x), absi(a.y - cell.y)) <= 1
+
+func _try_dig_walk() -> bool:
+	if repair_cell.x < 0 or grid_manager == null:
+		return false
+	if not _start_path(_build_greedy_path(position, repair_cell, maxi(1, int(move_distance)))):
+		print("[%s] Cannot get closer to the stone this tempo" % enemy_name)
+	return true
+
+func _try_repair() -> bool:
+	## The 8 tempo are up: the stone stands again, and the digger is done.
+	if repair_cell.x < 0:
+		return false
+	print("[%s] Sets the gravestone at %s right" % [enemy_name, repair_cell])
+	if repair_handler.is_valid():
+		repair_handler.call(self)
 	return true
 
 func drain_nest() -> void:
@@ -3143,6 +3253,10 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 			return _try_seek_nest()
 		"nest_heal":
 			return _try_nest_heal()
+		"dig_walk":
+			return _try_dig_walk()
+		"repair":
+			return _try_repair()
 		"hydra_attack":
 			return _try_hydra_attack(move_target)
 		"hydra_move":
@@ -4213,12 +4327,17 @@ func _try_scurry_away(target_node: Node3D) -> bool:
 
 func _try_get_into_range(target_node: Node3D) -> bool:
 	## Archer Rat: Move 2 tiles toward target to get into shooting range.
-	# A nest's archer walks up to its cliff top instead (3 tiles a step).
+	# A nest's archer walks up to its cliff top instead (3 tiles a step):
+	# round the side of the cliff first, then onto the top.
 	if perch_cell.x >= 0 and not _at_perch() and grid_manager:
-		if not _start_path(_build_greedy_path(position, perch_cell, 3, false, true)):
+		var here := grid_manager.world_to_grid(position)
+		if perch_approach.x >= 0 and here == perch_approach:
+			_perch_approach_done = true
+		var leg := perch_cell if (_perch_approach_done or perch_approach.x < 0) else perch_approach
+		if not _start_path(_build_greedy_path(position, leg, 3, false, true)):
 			print("[%s] Cannot climb to its perch this tempo" % enemy_name)
 		else:
-			print("[%s] Climbs toward the high ground at %s" % [enemy_name, perch_cell])
+			print("[%s] Climbs toward the high ground at %s (via %s)" % [enemy_name, perch_cell, leg])
 		return true
 	if _in_attack_range(target_node):
 		# Already in range, shoot instead
@@ -5670,6 +5789,10 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Rooted", "color": Color(0.4, 0.3, 0.15), "stacks": rooted_tempo})
 	if disarmed_attacks > 0:
 		effects.append({"name": "Disarmed", "color": Color(0.8, 0.3, 0.3), "stacks": disarmed_attacks})
+	if gravestone_provider.is_valid():
+		var standing: int = int(gravestone_provider.call())
+		if standing > 0:
+			effects.append({"name": "Gravebound", "color": Color(0.55, 0.85, 0.6), "stacks": standing})
 
 	return effects
 
@@ -5750,6 +5873,9 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			color = eff["color"]
 			break
 	match eff_name:
+		"Gravebound":
+			desc = "Regenerates 1 health every cycle for each gravestone still standing. It never fades — only breaking the stones lowers it."
+			remaining = "Standing gravestones: %d" % int(gravestone_provider.call()) if gravestone_provider.is_valid() else ""
 		"Taunt":
 			desc = "Must attack whoever taunted it."
 			remaining = "Remaining: %d tempo" % taunt_tempo

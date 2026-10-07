@@ -42,6 +42,18 @@ func get_base_character() -> String:
 # monster-intent reveals; the telegraph UI itself is a later pass.
 @export var defeated_monster_ids: Array = []
 
+# Boss rooms this character has cleared (room keys: "ratking", "boneyard").
+# Separate from the bestiary: a Bone Dragon raised by a Necromancer in the
+# field is a kill, not the boss fight.
+@export var defeated_bosses: Array = []
+
+func has_defeated_boss(room_key: String) -> bool:
+	return defeated_bosses.has(room_key)
+
+func mark_boss_defeated(room_key: String) -> void:
+	if not defeated_bosses.has(room_key):
+		defeated_bosses.append(room_key)
+
 # Tutorial beats Olorin has already shown this character.
 # Stored per-character so each playthrough learns the ropes once.
 @export var seen_tutorial_ids: Array = []

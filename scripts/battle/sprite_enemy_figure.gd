@@ -140,6 +140,9 @@ const KINDS := {
 	"chicken": {"tex": "chicken"},
 	# --- the Rat King's nests (a structure, drawn by tools/generate_rat_nest.gd) ---
 	"rat_nest": {"tex": "rat_nest"},
+	# --- the Boneyard: the undead pack's headstones, and a gravedigger from the NPC pack ---
+	"gravestone": {"prop": "undead_grave", "scale": 1.6},
+	"grave_digger": {"npc": "res://assets/sprites/NPCpackage2/npc man B v01.png", "tint": Color(0.82, 0.88, 0.82)},
 }
 
 # Uniform texel density across every billboard in the game (style guide §1).
@@ -148,7 +151,7 @@ const PIXEL_SIZE := 0.03125
 ## Kinds whose battler art already contains a painted contact shadow
 ## (the flyers) — these must not get a second blob shadow.
 const PAINTED_SHADOW_KINDS := ["swarm", "giant_hawk", "roc",
-		"screecher", "djinn", "specter", "snow_wraith"]
+		"screecher", "djinn", "specter", "snow_wraith", "gravestone"]
 
 var _sprite: Sprite3D = null
 var _rig: Node3D = null
@@ -209,6 +212,14 @@ func setup(kind: String) -> void:
 		_sprite.texture = load("res://assets/sprites/generated/monsters/%s.png" % cfg["tex"])
 		_sprite.pixel_size = PIXEL_SIZE
 		_sprite.region_rect = Rect2(0, 0, 64, 64)
+	elif cfg.has("prop"):
+		# A Craftpix prop (one of the cut variants, picked at random) as a
+		# static structure: a headstone, a nest of the pack's own art.
+		var pcfg: Dictionary = CraftpixProps.PROPS[cfg["prop"]]
+		var v: Dictionary = pcfg["variants"][randi() % pcfg["variants"].size()]
+		_sprite.texture = load(v["path"])
+		_sprite.pixel_size = PIXEL_SIZE
+		_sprite.region_rect = Rect2(0, 0, int(v["w"]), int(v["h"]))
 	elif cfg.has("icon"):
 		# A Craftpix monster icon as a static battler (single 32x32 PNG).
 		_sprite.texture = load("%s/%s.png" % [CP, cfg["icon"]])
