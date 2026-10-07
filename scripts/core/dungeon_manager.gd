@@ -1753,6 +1753,8 @@ func build_high_ground(center: Vector2i, radius: int = 1, elev: int = 1) -> Dict
 				continue  # never stack on / overwrite existing high ground
 			elevation[x][z] = elev
 			handle["cells"].append(Vector2i(x, z))
+			if TOPDOWN_PROTOTYPE:
+				continue  # the pack ledge sheet (rebuilt below) draws the rise
 			var h: float = elev * ELEV_STEP
 			# Cliff body up to just under the top, then a lit top surface.
 			var cliff := MeshInstance3D.new()
@@ -1775,6 +1777,8 @@ func build_high_ground(center: Vector2i, radius: int = 1, elev: int = 1) -> Dict
 			top.material_override = tm
 			_visuals_root.add_child(top)
 			handle["nodes"].append(top)
+	if TOPDOWN_PROTOTYPE and not handle["cells"].is_empty():
+		_rebuild_pack_ledges()
 	return handle
 
 func remove_high_ground(handle: Dictionary) -> void:
@@ -1787,6 +1791,8 @@ func remove_high_ground(handle: Dictionary) -> void:
 	for node in handle.get("nodes", []):
 		if is_instance_valid(node):
 			node.queue_free()
+	if TOPDOWN_PROTOTYPE and not handle.get("cells", []).is_empty():
+		_rebuild_pack_ledges()
 
 
 func get_elevation(grid_pos: Vector2i) -> int:
@@ -2721,13 +2727,85 @@ func _max_adjacent_floor_elevation(x: int, z: int) -> int:
 	return max_elev
 
 func _build_elevation_visuals() -> void:
-	## Elevated terrain rendered as rocky cliff faces with a soil top surface,
-	## plus carved stone steps wherever a walkable 1-level transition exists.
-	if interior_kind == "ratking":
-		# The lair's cliffs are authored as pack cliff tiles (a wall face row
-		# under a raised top), drawn by _build_cliff_walls and the ground
-		# autotile — nothing procedural rises here.
+	## Raised ground. In the top-down prototype the pack draws it: the ground
+	## autotile paints the raised top from the biome's sheet with its edge
+	## bands and lip shadow, and _build_pack_ledges lays the pack's cliff
+	## fringe along every drop to lower floor — no modelled cliff bodies, no
+	## carved steps (packs-first, CLAUDE.md). Rooms whose cliffs are authored
+	## as wall face tiles (the lair) need nothing more.
+	if TOPDOWN_PROTOTYPE:
+		if interior_kind != "ratking":
+			_build_pack_ledges()
 		return
+	_build_modelled_elevation()
+
+## The pack's cliff fringe (the ledge row where a plateau top hangs over the
+## rock) along the south edge of raised ground: wherever a raised floor
+## tile has lower floor directly south, the fringe is drawn across the
+## top half of that lower tile, ends rounded where the ledge stops. The
+## same atlas and material as the cliff walls, so hills, plateaus and wall
+## masses are one cut of stone.
+func _build_pack_ledges() -> void:
+	var pal = get_palette()
+	var atlas := _make_wall_atlas(pal)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var cw := 1.0 / WALL_ATLAS_CELLS
+	var count := 0
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if not _is_drop_south(x, z):
+				continue
+			var y: float = elevation[x][z + 1] * ELEV_STEP + 0.014
+			var l_end := not _is_drop_south(x - 1, z)
+			var r_end := not _is_drop_south(x + 1, z)
+			for qx in range(2):
+				var col: int
+				if qx == 0 and l_end:
+					col = 0
+				elif qx == 1 and r_end:
+					col = WALL_FACE_MIDS + 1
+				else:
+					col = 1 + int(_tile_noise(x * 2 + qx, z, 53) * WALL_FACE_MIDS) % WALL_FACE_MIDS
+				_add_wall_quad(st, (WALL_FACE_FRINGE + col) * cw, cw, x + qx * 0.5, y, z + 1.0)
+			count += 1
+	if count == 0:
+		return
+	var mi := MeshInstance3D.new()
+	mi.name = "PackLedges"
+	mi.mesh = st.commit()
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = atlas
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	mat.alpha_scissor_threshold = 0.5
+	mat.roughness = 1.0
+	mat.albedo_color = Color(1, 1, 1).lerp(pal["floor_a"], _tint_weight(floor_texture_path()))
+	mi.material_override = mat
+	_visuals_root.add_child(mi)
+	print("[DUNGEON] Laid %d pack ledge tiles (%s)" % [count, get_location_name()])
+
+## A raised floor tile whose southern neighbour is lower floor.
+func _is_drop_south(x: int, z: int) -> bool:
+	if x < 0 or x >= GRID_W or z < 0 or z + 1 >= GRID_H:
+		return false
+	if grid[x][z] != Tile.FLOOR or grid[x][z + 1] != Tile.FLOOR:
+		return false
+	return elevation[x][z] > elevation[x][z + 1]
+
+## Re-lay the ledge sheet after runtime high ground comes or goes.
+func _rebuild_pack_ledges() -> void:
+	if _visuals_root == null:
+		return
+	var old := _visuals_root.get_node_or_null("PackLedges")
+	if old:
+		old.name = "PackLedges_old"
+		old.queue_free()
+	_build_pack_ledges()
+
+func _build_modelled_elevation() -> void:
+	## Legacy (non-prototype) renderer: modelled cliff bodies, soil tops and
+	## carved stone steps. Kept for the slab-terrain path only.
 	var pal = get_palette()
 	var cliff_items: Array = []
 	var top_items: Array = []

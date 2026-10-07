@@ -36,6 +36,10 @@ Things the designer asked to be raised again when the related system is reworked
 
 - **Buff / debuff rework → revisit Cory's *Wither*.** It adds "+1 charge" via `enemy.apply_debuff(name, 1)`, which is a no-op on timer-style debuffs (stun, silence, root, curse) and shortens Disarm / Mark instead of extending them, and it fires on debuffs from any source, not only Cory's. Decide what a charge means per debuff when the debuff model changes.
 
+## Art: Packs First
+
+The purchased packs (catalogued in [`docs/ASSET_PACKS.md`](docs/ASSET_PACKS.md): Craftpix tilesets and props, MonsterKit battlers, the NPC packs, the Mana Seed base) are the game's art. **Anything that appears in the world uses a pack piece whenever one exists** — cliffs are the pack's cliff tiles, a gate is the pack's arch, a nest is the pack's bone pile, a digger wears an NPC sheet. Generated or modelled stand-ins (procedural meshes, hand-drawn PNGs, coloured boxes) are a last resort for things no pack covers, and should say so in a comment. The point is one look: everything in unison, nothing that reads as placeholder.
+
 ## Card Taxonomy
 
 The designer's card web — Playable (Power / Offensive / Defensive / Utility), Instant, Unplayable, Enchantment; Attack and Spell as the shapes under Offensive; tags, not behaviour, decide — is written down in [`docs/CARD_TAXONOMY.md`](docs/CARD_TAXONOMY.md). Read it before adding a card or anything that says "attack", "spell" or "offensive", and use `Card.is_offensive()` / `Card.is_attack()` rather than the raw `card_type`.

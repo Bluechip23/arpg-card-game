@@ -347,9 +347,10 @@ original flavor note. Everything else is `[TBD]` theme/mechanics.
 > outside, and every buff and debuff on them carries in (`main._enter_interior`
 > hands the live effects over; `DungeonManager.is_boss_room` marks the rooms).
 > Built so far: the **Rat King's Lair** (Sewer) and the **Boneyard** (Old
-> Graveyard, Bone Dragon) — see the bestiary entries. Rooms are dressed only
-> with the purchased packs (cliff tiles, headstones, gates): nothing is
-> modelled by hand.
+> Graveyard, Bone Dragon) — see the bestiary entries. Like everything in the
+> world, they are dressed with the purchased packs (cliff tiles, headstones,
+> gates, bone piles): nothing is modelled by hand where a pack piece exists
+> (see CLAUDE.md, *Art: Packs First*).
 
 #### Sewer
 *The game's opening dungeon — see **The Sewers (Act 1, Part 1)** below for the
