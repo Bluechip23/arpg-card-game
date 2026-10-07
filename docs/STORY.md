@@ -128,7 +128,7 @@ of the threat.* Think Middle-earth / LOTR.
 - **Habitats it draws from:** Forest, Graveyard, Cave, Sewer, Mountains.
 - **Tone:** familiar, grounded fantasy. The sickness is subtle here — felt by
   Olorin, not yet obvious. This is where the mystery is seeded.
-- **Part slots:** 1) **Town & Sewers** — *the Sewers are built* (the opening dungeon; Olorin's first quests; Rat King mini-boss). See Section 5.4. · 2) Cemetery / Library (first clues) `[TBD]` · 3) **Forests / wilds** — *the Greenwood forest and the Caves are built* (climbable trees, hunters' traps, woodland beasts; dark dripping cave tunnels). See Section 5.4. · 4) Act 1 climax / threshold downward `[TBD]`.
+- **Part slots:** 1) **Town & Sewers** — *the Sewers are built* (the opening dungeon; Olorin's first quests; Rat King mini-boss). See Section 5.4. · 2) Cemetery / Library (first clues) `[TBD]` · 3) **Forests / wilds** — *the Greenwood forest and the Caves are built* (climbable trees, hunters' traps, woodland beasts; dark dripping cave tunnels). See Section 5.4. · 4) Act 1 climax / **threshold downward — Hell's Gate is built** (Cerberus guarding Hell's Door at the bottom of the first world's deepest cave; through the broken door lies the next world) — the climax around it `[TBD]`.
 
 ### Act 2 — Hell: The Underworld
 *The descent. The apparent source of the rot.*
@@ -346,8 +346,9 @@ original flavor note. Everything else is `[TBD]` theme/mechanics.
 > **Nothing resets on the threshold:** the player's hand is exactly what it was
 > outside, and every buff and debuff on them carries in (`main._enter_interior`
 > hands the live effects over; `DungeonManager.is_boss_room` marks the rooms).
-> Built so far: the **Rat King's Lair** (Sewer) and the **Boneyard** (Old
-> Graveyard, Bone Dragon) — see the bestiary entries. Like everything in the
+> Built so far: the **Rat King's Lair** (Sewer), the **Boneyard** (Old
+> Graveyard, Bone Dragon) and **Hell's Gate** (Caves, Cerberus — the one room
+> whose objective is a door, not the boss) — see the bestiary entries. Like everything in the
 > world, they are dressed with the purchased packs (cliff tiles, headstones,
 > gates): nothing is modelled by hand where a pack piece exists, and the few
 > things no pack has (the rat nests) are drawn to match (see CLAUDE.md,
@@ -403,7 +404,7 @@ built level. The roster is themed and in code:*
 - **Sabertooth tiger**
 
 #### Underworld
-- **Cerberus**
+- **Cerberus** — *in code*. Boss (sheet: 250 HP, 50 armor, 25 bites, 6 spaces a move; resists 30% physical / 40% fire / 15% lightning). **Guards Hell's Door** in the **third boss room, Hell's Gate** (`interior_kind == "hellgate"`, through a door at the east end of the first world's deepest cave): one long cavern hall with lava in its corners, the iron door (the cave pack's gate, 150 HP) set in the east wall and the hound before it. **The objective is the door, not the hound**: break it and the way down opens (and the way back) — killing Cerberus is optional, just far easier to work around a corpse. At **75%, 50% and 33%** health the door **seals itself against all damage for 10 tempo**; and the door **counts as Cerberus's ally**, so its drop below half feeds his Guardian of Death. His kit, from the sheet: **Bite** (5 tempo, 25) — below 66% health the **second head** bites too (25 + 5 Bleed), below 33% the **third** as well (25, life-stolen); **Swipe** (8 tempo): 8 Bleed; **Venom Tail** (15 tempo): the victim discards 3 random cards and is stunned 15 tempo, and when that lifts gains 2 Vulnerable and 10 tempo of Cuffed; **Roar** (12 tempo): +25 armor and 25 thorns. Passives: **Guardian of Death** — the first time *he* drops below 50% he gains Brace 30% for 5 incoming hits, and *every* time any other unit within 8 squares drops below 50% (foe or ally; heal back over half and drop again and it counts again) he gains it again; **Deathyard Dog** — whenever a foe heals within 5 squares, +15 Strengthen. Otherwise straightforward, and very hard.
 - **Succubus**
 - **Demon**
 - **Ifrits** — *in code*. Elite. **Fire Breath**: a 5x5 sheet of flame that lingers 3 tempo; **Backflip** springs it 3 squares back from any single blow over 40 damage.

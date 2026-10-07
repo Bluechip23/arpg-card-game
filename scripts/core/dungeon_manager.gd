@@ -289,6 +289,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		interior_kind = "ratking"  # the Rat King's Lair (boss room off the sewer)
 	elif interior_id.begins_with("boneyard"):
 		interior_kind = "boneyard"  # the Boneyard: the Bone Dragon's graveyard (boss room off the Old Graveyard)
+	elif interior_id.begins_with("hellgate"):
+		interior_kind = "hellgate"  # Hell's Gate: Cerberus and the door down (boss room off the caves)
 
 	# Fog scales with how lit the place is: tight, lightless sewers reveal least,
 	# the bright open forest reveals most, everything else uses the default.
@@ -299,7 +301,7 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 			fog_reveal_radius = 9
 		"dojo":
 			fog_reveal_radius = 64  # a lit hall: nothing to explore, nothing hidden
-		"ratking", "boneyard":
+		"ratking", "boneyard", "hellgate":
 			fog_reveal_radius = 64  # a boss arena: the whole room is in view from the gate
 		_:
 			fog_reveal_radius = FOG_REVEAL_RADIUS
@@ -336,6 +338,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 			_generate_rat_king_layout()
 		"boneyard":
 			_generate_boneyard_layout()
+		"hellgate":
+			_generate_hellgate_layout()
 		_:
 			_generate_overworld_layout()
 	_generate_elevation()
@@ -359,6 +363,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		# the boss dies (an already-cleared room opens from the start).
 		if is_boss_cleared():
 			_place_exit_site()
+			if interior_kind == "hellgate":
+				_place_hell_descent()
 	else:
 		_place_exit_site()
 		if interior_kind == "sewer":
@@ -367,6 +373,9 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		elif interior_kind == "graveyard":
 			# The east end of the deepest crypt: the Boneyard.
 			_place_boss_door("deep", "east", "boneyard", "boneyard", "The Boneyard", Color(0.8, 0.95, 0.85), Color(0.5, 1.0, 0.6))
+		elif interior_kind == "cave" and world_level == 1:
+			# The deepest cave of the first world: Hell's Gate, Cerberus's post.
+			_place_boss_door("deep", "east", "hellgate", "hellgate", "Hell's Gate", Color(1.0, 0.6, 0.5), Color(1.0, 0.3, 0.15))
 	_place_chests()
 	_place_fountains()
 	_place_shrine()
@@ -400,6 +409,12 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		spawn_zones.size(), site_nodes.size()])
 
 func _set_world_size() -> void:
+	if interior_kind == "hellgate":
+		# One long cavern hall; the player enters from the west, the door is east.
+		GRID_W = HG_SIZE.x
+		GRID_H = HG_SIZE.y
+		player_start = Vector2i(HG_FLOOR.position.x + 1, HG_FLOOR.get_center().y)
+		return
 	if interior_kind == "boneyard":
 		# One walled square; the player enters through the gate on the west.
 		GRID_W = BY_SIZE
@@ -482,7 +497,7 @@ func _get_graveyard_palette() -> Dictionary:
 	return _graveyard_palette
 
 func get_palette() -> Dictionary:
-	if interior_kind == "cave":
+	if interior_kind == "cave" or interior_kind == "hellgate":
 		return CAVE_PALETTE
 	if interior_kind == "graveyard" or interior_kind == "boneyard":
 		return _get_graveyard_palette()
@@ -509,7 +524,7 @@ func floor_texture_path() -> String:
 			return CP_TEX + "/floor_glowing_cave.png"  # wet stone (glowing-cave pack; the plain cave fill went black under the sewer's dim light)
 		"building", "dojo":
 			return CP_TEX + "/floor_undead.png"  # grey flagstones (undead pack's cracked stone)
-		"cave":
+		"cave", "hellgate":
 			return CP_TEX + "/floor_cave.png"
 		"forest":
 			return CP_TEX + "/floor_grass_forest.png"
@@ -541,7 +556,7 @@ func trail_texture_path() -> String:
 	match interior_kind:
 		"forest":
 			return CP_TEX + "/floor_dirt_forest.png"
-		"cave", "sewer", "building", "ratking":
+		"cave", "sewer", "building", "ratking", "hellgate":
 			return CP_TEX + "/floor_dirt_forest.png"  # trodden dark earth
 		"boneyard":
 			return CP_TEX + "/floor_undead_sand.png"  # the barrow land's pale cobbles
@@ -567,7 +582,7 @@ func wall_texture_path() -> String:
 			return CP_TEX + "/wall_cave.png"  # dark cave rock
 		"building":
 			return CP_TEX + "/wall_undead.png"  # grey barrow stone
-		"cave":
+		"cave", "hellgate":
 			return CP_TEX + "/wall_cave.png"
 		"forest":
 			return CP_TEX + "/wall_forest.png"
@@ -588,6 +603,8 @@ func water_texture_path() -> String:
 	match interior_kind:
 		"boneyard":
 			return CP_TEX + "/water_undead.png"
+		"hellgate":
+			return CP_TEX + "/water_lava.png"  # the pools at Hell's threshold are lava (cave pack)
 		"cave", "sewer", "ratking":
 			return CP_TEX + "/water_cave.png"
 		"forest":
@@ -621,6 +638,8 @@ func _prop_biome() -> String:
 			return "sewer"
 		"boneyard":
 			return "undead"
+		"hellgate":
+			return "cave"
 	match world_level:
 		2:
 			return "desert"
@@ -769,6 +788,8 @@ func get_location_name() -> String:
 		return "Rat King's Lair"
 	if interior_kind == "boneyard":
 		return "The Boneyard"
+	if interior_kind == "hellgate":
+		return "Hell's Gate"
 	var pal = get_palette()
 	return "World %d — %s" % [world_level, pal.get("name", "")]
 
@@ -808,11 +829,11 @@ var cleared_bosses: Array = []
 
 ## Interiors that are boss rooms (cutscene fights behind a sealed door).
 static func is_boss_room(id: String) -> bool:
-	return id.begins_with("ratking") or id.begins_with("boneyard")
+	return id.begins_with("ratking") or id.begins_with("boneyard") or id.begins_with("hellgate")
 
 ## The boss-room key of an interior id ("ratking_lair" -> "ratking").
 static func boss_room_key(id: String) -> String:
-	for key in ["ratking", "boneyard"]:
+	for key in ["ratking", "boneyard", "hellgate"]:
 		if id.begins_with(key):
 			return key
 	return ""
@@ -1103,6 +1124,78 @@ func _build_boneyard_decorations() -> void:
 					_visuals_root.add_child(bone)
 					bones += 1
 	print("[DUNGEON] Boneyard dressed: %d posts, %d dead trees, %d bone piles" % [posts, trees, bones])
+
+# ============================================
+# HELL'S GATE (interior_kind "hellgate", id "hellgate")
+# Cerberus guarding Hell's Door, off the deepest cave of the first world:
+# one long cavern hall entered from the west, the iron door (the cave
+# pack's gate) set in the east wall with the hound before it, lava pools
+# in the corners. The objective is the door, not the hound: break it and
+# the way down opens (and the way back). Cerberus need not die.
+# ============================================
+const HG_SIZE := Vector2i(31, 21)
+const HG_FLOOR := Rect2i(3, 3, 25, 15)
+
+var hellgate_door_cell: Vector2i = Vector2i(-1, -1)
+var hellgate_cerberus_cell: Vector2i = Vector2i(-1, -1)
+
+func _generate_hellgate_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	_carve_rect(HG_FLOOR)
+	for x in range(1, player_start.x + 1):
+		grid[x][player_start.y] = Tile.FLOOR
+	rooms.append({"rect": HG_FLOOR, "kind": "boss", "elev": 0})
+	hellgate_door_cell = Vector2i(HG_FLOOR.end.x - 1, HG_FLOOR.get_center().y)
+	hellgate_cerberus_cell = hellgate_door_cell + Vector2i(-3, 0)
+	# Lava pools in the four corners of the hall.
+	for corner in [Vector2i(HG_FLOOR.position.x, HG_FLOOR.position.y), Vector2i(HG_FLOOR.end.x - 3, HG_FLOOR.position.y),
+			Vector2i(HG_FLOOR.position.x, HG_FLOOR.end.y - 3), Vector2i(HG_FLOOR.end.x - 3, HG_FLOOR.end.y - 3)]:
+		_flag_water_rect(Rect2i(corner, Vector2i(3, 3)))
+	_enforce_border_walls()
+
+func _build_hellgate_decorations() -> void:
+	## The cave pack's hell pieces: spires and red rock along the walls, the
+	## door's own glow. (The door itself is a structure main stands up.)
+	_reserve_area(hellgate_door_cell, 1)
+	_reserve_area(hellgate_cerberus_cell, 1)
+	var spires := 0
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			if grid[x][z] != Tile.WALL or not _has_adjacent_floor(x, z) or _is_floor_at(x, z - 1):
+				continue
+			var pos := Vector2i(x, z)
+			if (pos - hellgate_door_cell).length() < 2.5 or (pos - player_start).length() < 2.5:
+				continue
+			var n := _tile_noise(x, z, 421)
+			var world := grid_manager.grid_to_world(pos) + Vector3(0, CameraView.SPRITE_LIFT, 0.3)
+			if n < 0.4:
+				var spire := _make_prop_sprite("hell_spire", 1.0, int(n * 100))
+				if spire:
+					spire.position = world
+					_visuals_root.add_child(spire)
+					spires += 1
+			elif n < 0.55:
+				var rock := _make_prop_sprite("hell_rock", 0.9, int(n * 100))
+				if rock:
+					rock.position = world
+					_visuals_root.add_child(rock)
+					spires += 1
+	# A hot glow spilling from the door.
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(1.0, 0.35, 0.15)
+	glow.light_energy = 1.4
+	glow.omni_range = 6.0
+	glow.position = grid_manager.grid_to_world(hellgate_door_cell) + Vector3(0, 0.8, 0)
+	_visuals_root.add_child(glow)
+	print("[DUNGEON] Hell's Gate dressed: %d spires and rocks" % spires)
+
+## The way down, once the door is broken: a site standing where the door
+## stood. Shift there descends (main._try_interact_site, kind "descend").
+func _place_hell_descent() -> void:
+	if get_site_by_id("descend") >= 0:
+		return
+	_place_exit_site(hellgate_door_cell, "descend", "descend", "Hell's Door", "[Shift] Descend", Vector3(0.8, 0, 0), Color(1.0, 0.45, 0.3))
 
 const DOJO_W := 18
 const DOJO_H := 14
@@ -1684,8 +1777,8 @@ func _generate_elevation() -> void:
 		return  # Buildings and the dojo are flat inside
 	if interior_kind == "sewer":
 		return  # Sewers are flat; channels are carved into the floor, not raised
-	if interior_kind == "boneyard":
-		return  # a walled graveyard square: flat
+	if interior_kind == "boneyard" or interior_kind == "hellgate":
+		return  # a walled graveyard square / the gate hall: flat
 	if interior_kind == "ratking":
 		# The lair's three cliffs: the walkable top rows behind each cliff
 		# face (the face row itself is a wall tile; see _generate_rat_king_layout).
@@ -2255,7 +2348,7 @@ func _min_adjacent_floor_elevation(x: int, z: int) -> int:
 ## bushes (the way the packs' fields and forests read). Caves, sewers, the
 ## hellscape and the barrows keep their packs' rock and vein masses.
 func _natural_boundary() -> bool:
-	if interior_kind in ["cave", "sewer", "building", "dojo", "graveyard", "ratking", "boneyard"]:
+	if interior_kind in ["cave", "sewer", "building", "dojo", "graveyard", "ratking", "boneyard", "hellgate"]:
 		return false
 	if interior_kind == "forest":
 		return true
@@ -2334,7 +2427,7 @@ var _wall_atlas_cache: Dictionary = {}
 ## The cliff strip for this location (see tools/extract_craftpix_cliffs.py).
 func cliff_strip_path() -> String:
 	match interior_kind:
-		"sewer", "cave", "ratking":
+		"sewer", "cave", "ratking", "hellgate":
 			return CP_TEX + "/cliff_cave.png"
 		"boneyard":
 			return CP_TEX + "/cliff_undead.png"
@@ -2375,7 +2468,7 @@ func _make_wall_atlas(pal: Dictionary) -> ImageTexture:
 	# as solid from above, and a ground-coloured cap left thin walls looking
 	# like floor the player could not step onto.
 	var cap := _sheet_image(cap_texture_path())
-	var is_rock := interior_kind in ["cave", "sewer", "ratking"]
+	var is_rock := interior_kind in ["cave", "sewer", "ratking", "hellgate"]
 	cap.adjust_bcs(0.55 if is_rock else 0.72, 1.0, 0.85)
 	var floor_b: Color = pal.get("floor_b", Color(0.25, 0.42, 0.2))
 	# Outline colours follow the pack art: a dark line the colour of the
@@ -2915,6 +3008,9 @@ func _build_decorations() -> void:
 		return
 	if interior_kind == "boneyard":
 		_build_boneyard_decorations()
+		return
+	if interior_kind == "hellgate":
+		_build_hellgate_decorations()
 		return
 	var pal = get_palette()
 	var _deco_trees: Array = []
@@ -5070,20 +5166,26 @@ func _build_forest_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	opening.position = Vector3(0, 0.75, fp_d / 2.0 - 0.15)
 	root.add_child(opening)
 
-func _place_exit_site() -> void:
-	## Inside an interior: a glowing doorway back to the overworld at the entry.
+func _place_exit_site(at: Vector2i = Vector2i(-9999, -9999), id: String = "exit", kind: String = "exit",
+		text: String = "Exit", prompt: String = "[Shift] Leave", nudge: Vector3 = Vector3(-1, 0, 0),
+		tint: Color = Color(0.8, 0.9, 1.0)) -> void:
+	## Inside an interior: a glowing doorway (the pack archway) at the entry
+	## tile, back the way the player came — or, with `at` / `kind`, another
+	## threshold such as Hell's Door once it is broken.
+	if at.x < -9000:
+		at = player_start
 	var site_root = Node3D.new()
-	site_root.name = "Site_exit"
-	var world_pos = grid_manager.grid_to_world(player_start)
-	world_pos.x -= 1.0  # Sit just behind the entry tile so the player isn't on it
+	site_root.name = "Site_%s" % id
+	var world_pos = grid_manager.grid_to_world(at)
+	world_pos += nudge  # Sit just behind the tile so the player isn't on it
 	site_root.position = world_pos
 
 	var portal := _make_prop_sprite("gate_small", 1.3)  # the pack archway, lit from below
 	if portal:
-		portal.modulate = Color(0.8, 0.9, 1.0)
+		portal.modulate = tint
 		site_root.add_child(portal)
 		var glow = OmniLight3D.new()
-		glow.light_color = Color(0.55, 0.75, 1.0)
+		glow.light_color = tint
 		glow.light_energy = 0.9
 		glow.omni_range = 3.0
 		glow.position = Vector3(0, 0.6, 0.4)
@@ -5102,17 +5204,17 @@ func _place_exit_site() -> void:
 		site_root.add_child(portal_mi)
 
 	var label = Label3D.new()
-	label.text = "Exit"
+	label.text = text
 	label.font_size = 20
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.modulate = Color(0.7, 0.85, 1.0)
+	label.modulate = tint
 	label.position = Vector3(0, 2.0, 0)
 	WorldText.crisp(label)
 	site_root.add_child(label)
 
 	var interact_label = Label3D.new()
 	interact_label.name = "InteractLabel"
-	interact_label.text = "[Shift] Leave"
+	interact_label.text = prompt
 	interact_label.font_size = 16
 	interact_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	interact_label.modulate = Color(1.0, 0.9, 0.4)
@@ -5125,10 +5227,10 @@ func _place_exit_site() -> void:
 
 	site_nodes.append({
 		"node": site_root,
-		"grid_pos": player_start,
-		"id": "exit",
-		"kind": "exit",
-		"display_name": "Exit",
+		"grid_pos": at,
+		"id": id,
+		"kind": kind,
+		"display_name": text,
 		"label_node": interact_label,
 		"footprint": [],
 	})
@@ -5398,7 +5500,7 @@ func _define_spawn_zones() -> void:
 
 	if interior_kind == "dojo":
 		return  # nothing lives here but the dummies main places
-	if interior_kind == "ratking" or interior_kind == "boneyard":
+	if is_boss_room(interior_id):
 		return  # the boss, its guard and its structures are placed by main up front
 
 	if interior_kind == "sewer":

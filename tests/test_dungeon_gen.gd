@@ -24,6 +24,7 @@ func _initialize() -> void:
 	configs.append({"level": 1, "interior": "forest_1"})
 	configs.append({"level": 1, "interior": "ratking_lair"})
 	configs.append({"level": 1, "interior": "boneyard"})
+	configs.append({"level": 1, "interior": "hellgate"})
 	configs.append({"level": 1, "interior": "graveyard_0"})
 
 	for cfg in configs:
@@ -177,6 +178,12 @@ func _validate(dm: DungeonManager, cfg: Dictionary) -> void:
 		_validate_lair(dm, cfg)
 	elif cfg["interior"].begins_with("boneyard"):
 		_validate_boneyard(dm, cfg)
+	elif cfg["interior"].begins_with("hellgate"):
+		if dm.get_site_by_id("exit") >= 0 or dm.get_site_by_id("descend") >= 0:
+			_fail(cfg, "Hell's Gate is open before the door is broken")
+		if not dm.is_floor(dm.hellgate_door_cell) or not dm.is_floor(dm.hellgate_cerberus_cell):
+			_fail(cfg, "door or Cerberus cell is not floor")
+		print("INFO %s (W%d): %dx%d" % [cfg["interior"], cfg["level"], dm.GRID_W, dm.GRID_H])
 	elif cfg["interior"].begins_with("graveyard"):
 		if dm.get_site_by_id("exit") < 0:
 			_fail(cfg, "graveyard has no exit site")
@@ -188,6 +195,8 @@ func _validate(dm: DungeonManager, cfg: Dictionary) -> void:
 	else:
 		if dm.get_site_by_id("exit") < 0:
 			_fail(cfg, "interior has no exit site")
+		if cfg["interior"].begins_with("cave") and cfg["level"] == 1 and dm.get_site_by_id("hellgate") < 0:
+			_fail(cfg, "the first world's cave has no door to Hell's Gate")
 		if dm.waypoint_nodes.size() != 0:
 			_fail(cfg, "interior should not have waypoints")
 		if dm.chest_nodes.size() == 0:

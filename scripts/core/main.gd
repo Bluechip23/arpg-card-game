@@ -13791,6 +13791,10 @@ func _try_interact_site() -> bool:
 			_travel_to_town()  # the dojo's door opens onto the town plaza
 		else:
 			_exit_interior()
+	elif site["kind"] == "descend":
+		# Through Hell's broken door: down to the next world.
+		_deliver_follower()
+		_travel_to_world(current_world_level + 1)
 	else:
 		_enter_interior(site["id"], site["display_name"])
 	return true
@@ -13871,7 +13875,7 @@ func _apply_world_ambience() -> void:
 	if not dungeon_manager:
 		return
 	var pal: Dictionary = dungeon_manager.get_palette()
-	var in_cave = current_interior_id.begins_with("cave")
+	var in_cave = current_interior_id.begins_with("cave") or current_interior_id.begins_with("hellgate")
 	var in_building = current_interior_id.begins_with("building")
 	var in_sewer = current_interior_id.begins_with("sewer") or current_interior_id.begins_with("ratking")
 	var in_forest = current_interior_id.begins_with("forest")
@@ -16286,15 +16290,38 @@ func _boss_cleared(room_key: String) -> bool:
 	return current_character != null and current_character.has_defeated_boss(room_key)
 
 func _boss_room_boss_type() -> int:
+	## The unit whose death clears the room: the boss — or, at Hell's Gate,
+	## the door (Cerberus need not die).
 	match DungeonManager.boss_room_key(current_interior_id):
 		"ratking": return Enemy.EnemyType.RAT_KING
 		"boneyard": return Enemy.EnemyType.BONE_DRAGON
+		"hellgate": return Enemy.EnemyType.HELL_DOOR
 	return -1
 
 func _setup_boss_room() -> void:
 	match DungeonManager.boss_room_key(current_interior_id):
 		"ratking": _setup_rat_king_lair()
 		"boneyard": _setup_boneyard()
+		"hellgate": _setup_hellgate()
+
+# ---- Hell's Gate: Cerberus and the door ----
+# The objective is the door (150 HP; seals itself for 10 tempo at 75/50/33%),
+# not the hound. When it breaks, the way down opens where it stood and the
+# way back opens too. Cerberus is simply very hard (see Enemy: Guardian of
+# Death, Deathyard Dog, Roar, Venom Tail); the door is his ally, so its
+# drop below half feeds his Guardian of Death.
+
+func _setup_hellgate() -> void:
+	if _boss_cleared("hellgate"):
+		add_battle_log("Hell's Gate stands broken — the way down is open.", Color(1.0, 0.6, 0.5))
+		return
+	_spawn_lair_unit(Enemy.EnemyType.HELL_DOOR, dungeon_manager.hellgate_door_cell)
+	_spawn_lair_unit(Enemy.EnemyType.CERBERUS, dungeon_manager.hellgate_cerberus_cell)
+	_sync_dungeon_blocked_tiles()
+	_sync_occupied_tiles()
+	_update_enemy_count()
+	_refresh_unit_tracker()
+	add_battle_log("Hell's Gate. Cerberus guards the door; break it to get through.", Color(1.0, 0.6, 0.5))
 
 func _setup_rat_king_lair() -> void:
 	_rat_nests.clear()
@@ -16365,10 +16392,14 @@ func _check_rat_nest_step(cell: Vector2i) -> void:
 		add_battle_log("An Archer Rat bursts from the %s nest and scrambles for the high ground!" % nest.nest_label, Color(1.0, 0.6, 0.45))
 
 func _open_boss_room_exit() -> void:
+	if DungeonManager.boss_room_key(current_interior_id) == "hellgate":
+		dungeon_manager._place_hell_descent()
+		add_battle_log("Hell's Door breaks. The way down lies open — and the way back.", Color(1.0, 0.7, 0.5))
 	if dungeon_manager.get_site_by_id("exit") >= 0:
 		return
 	dungeon_manager._place_exit_site()
-	add_battle_log("The way out opens.", Color(0.7, 1.0, 0.7))
+	if DungeonManager.boss_room_key(current_interior_id) != "hellgate":
+		add_battle_log("The way out opens.", Color(0.7, 1.0, 0.7))
 
 # ---- The Boneyard: the Bone Dragon, twelve gravestones, three grave diggers ----
 # The dragon regenerates 1 health a cycle per standing gravestone (never

@@ -143,6 +143,8 @@ const KINDS := {
 	"rat_nest": {"tex": "rat_nest"},
 	# --- the Boneyard: the undead pack's headstones, and a gravedigger from the NPC pack ---
 	"gravestone": {"prop": "undead_grave", "scale": 1.6},
+	# --- Hell's Door: the cave pack's iron gate ---
+	"hell_door": {"prop": "cave_gate", "scale": 1.4},
 	"grave_digger": {"npc": "res://assets/sprites/NPCpackage2/npc man B v01.png", "tint": Color(0.82, 0.88, 0.82)},
 }
 
@@ -152,7 +154,7 @@ const PIXEL_SIZE := 0.03125
 ## Kinds whose battler art already contains a painted contact shadow
 ## (the flyers) — these must not get a second blob shadow.
 const PAINTED_SHADOW_KINDS := ["swarm", "giant_hawk", "roc",
-		"screecher", "djinn", "specter", "snow_wraith", "gravestone"]
+		"screecher", "djinn", "specter", "snow_wraith", "gravestone", "hell_door"]
 
 var _sprite: Sprite3D = null
 var _rig: Node3D = null
