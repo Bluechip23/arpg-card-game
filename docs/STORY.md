@@ -337,6 +337,16 @@ original flavor note. Everything else is `[TBD]` theme/mechanics.
 > puddles**, shallow **divots** and scattered rubble. Reached from cave-mouth
 > sites in the overworld.
 
+> **Boss fights — ground rules (designer).** A boss fight is a **cutscene
+> room**: the player steps through a door into the boss's own interior, and
+> cinematics play there (*not yet built*; the hooks are the room's entry).
+> The room is **enclosed** — there is no way out until the boss is dead, when
+> the exit appears and leads back through the door the player came in by.
+> **Nothing resets on the threshold:** the player's hand is exactly what it was
+> outside, and every buff and debuff on them carries in (`main._enter_interior`
+> hands the live effects over; `DungeonManager.is_boss_room` marks the rooms).
+> The first one built is the **Rat King's Lair** (below).
+
 #### Sewer
 *The game's opening dungeon — see **The Sewers (Act 1, Part 1)** below for the
 built level. The roster is themed and in code:*
@@ -344,7 +354,7 @@ built level. The roster is themed and in code:*
 - **Sludge Being** — *in code*. Minion. **Ranged ooze** (10 HP): wades close or spits acid from range 6. The "oozes" the player fights alongside the rats at the entrance.
 - **Pipe Crawler** — *in code*. Minion. **Fast skirmisher** (20 HP): creeps out of the wall pipes, moves on a cheap 2-tempo so it closes quickly; its claw can disarm you.
 - **Sewer Cobra** — *in code*. Elite. **Armored ambusher** (40 HP, 20 armor, 12 dmg): lurks in the channels; break its armor to expose it, or its bite hurts. Guards the deepest chamber.
-- **Rat King** — *in code*. Elite, **first mini-boss** (90 HP, 10 armor). A crowned rat that fights flanked by a summoned-in army of Wererats, Archer Rats and Swarms in the central cistern arena. Bites and repositions relentlessly.
+- **Rat King** — *in code*. Elite, **first mini-boss** (90 HP, 10 armor) and the game's **first boss room**: the **Rat King's Lair**, entered through a door in the central cistern (`interior_kind == "ratking"`). A round den, entered from the west; the king waits at the bottom with three Wererats in front of him and two Archer Rats behind. Straight across the room stands a cliff of high ground, with two more cliffs 45° to either side, and a **rat nest** (15 HP) at the foot of each. Treading on a nest sends its Archer Rat up to the top of the cliff, where it holds the high ground. At **50%, then 30%, then 30% again** of his health the king bolts for a random untouched nest and feeds on it — the left nest restores 20% of his health, the middle 30%, the right 50% — and a nest he has fed on is spent; he never revisits one. Tear the nests down first and he has nowhere to run. Bites and repositions relentlessly otherwise.
 - **Swarm** — *in code*. Minion. **Fast swarm** (10 HP): one creature rendered as a boil of vermin/insects; blitzes 8 tiles at a time. *one creature, but a bunch of bugs representing one*
 - **Faithless cultist** — `[TBD]`.
 - **The drowned** — `[TBD]`.
@@ -358,12 +368,14 @@ built level. The roster is themed and in code:*
 > - **Layout:** a man-made **trunk tunnel** runs the length of the level with a
 >   **water channel down its spine**; brick **cistern chambers** bud off it above
 >   and below, joined by short access shafts. The far-west chamber is the entry;
->   the **central cistern is the Rat King's arena**; the far-east chamber is the
->   deepest, guarded by a Sewer Cobra.
+>   the **central cistern holds the Rat King's door guard and the door to the
+>   Rat King's Lair** (his own sealed boss room, see the bestiary entry); the
+>   far-east chamber is the deepest, guarded by a Sewer Cobra.
 > - **Progression (west → east):** the player opens by **killing rats and fighting
->   oozes** (Wererats, Archer Rats, Sludge Beings), reaches the **Rat King**
->   mini-boss and his rat army in the central arena, then descends into deadlier
->   water — **Sewer Cobras, Swarms and Pipe Crawlers** (plus more sludge).
+>   oozes** (Wererats, Archer Rats, Sludge Beings), reaches the central cistern,
+>   cuts through the guard and steps into the **Rat King's Lair** for the
+>   mini-boss, then descends into deadlier water — **Sewer Cobras, Swarms and
+>   Pipe Crawlers** (plus more sludge).
 > - **Atmosphere:** deliberately **dim and claustrophobic**. Near-lightless ambient
 >   with a thick dank haze; **each player carries their own pool of torchlight**;
 >   **wall torches** throw flickering light over wet brick; **fog of war reveals

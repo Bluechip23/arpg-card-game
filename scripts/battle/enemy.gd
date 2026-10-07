@@ -35,7 +35,11 @@ enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_R
 	RING_WRAITH,
 	# The dojo's training dummy: never acts, never wanders, never dies (a
 	# lethal hit refills it). Appended at the tail for the same reason.
-	DUMMY }
+	DUMMY,
+	# The Rat King's nests: a destructible structure (15 HP) that heals the
+	# king when he reaches it and releases an Archer Rat when the player
+	# steps on it. Never acts or moves. Tail-appended (save-compat).
+	RAT_NEST }
 
 ## Intended player level per enemy type — the anchor for the level-gap XP
 ## falloff (PlayerStats.get_xp_multiplier): kills more than a few levels below
@@ -317,6 +321,7 @@ var _action_damage: Dictionary = {}      # action name -> damage taken since its
 ## and the ranged/utility casts.
 const NON_MELEE_ACTIONS := {
 	"move": true, "hydra_move": true, "goblin_move": true, "scurry": true,
+	"seek_nest": true, "nest_heal": true,
 	"scurry_away": true, "get_into_range": true, "flee": true, "vanish": true,
 	"hydra_heal": true, "treant_heal": true, "sear_wounds": true,
 	"collect_soul": true, "summon_skeleton": true, "fire_wall": true,
@@ -898,6 +903,21 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			is_training_dummy = true
 			_set_mesh_color(Color(0.9, 0.9, 0.85))
 
+		EnemyType.RAT_NEST:
+			# Rat King's Lair: a heap of straw and bones. A structure, not a
+			# creature — it holds its tile, never acts, and counts for nothing
+			# (no XP, no loot, and the wave does not wait on it).
+			enemy_name = "Rat Nest"
+			max_health = 15
+			max_armor = 0
+			attack_damage = 0
+			attack_range = 0.0
+			move_distance = 0.0
+			aggro_range = 0.0
+			xp_reward = 0
+			is_structure = true
+			_set_mesh_color(Color(0.55, 0.42, 0.25))
+
 		_:
 			# Design mock-ups (stats & moves TBD) have no arm yet. Name them so
 			# a stray spawn is identifiable instead of an anonymous default box;
@@ -959,6 +979,27 @@ func _set_mesh_color(color: Color) -> void:
 
 var figure_kind: String = ""  # EnemyFigure kind this enemy renders as ("" = coloured box)
 var is_training_dummy: bool = false  # dojo dummy: absorbs hits and statuses, never acts or dies
+var is_structure: bool = false       # a hittable object on the grid (rat nest): never acts, never wanders, the wave does not wait on it
+
+# --- Rat King's Lair: nests and the king's flight to them ---
+# On a RAT_NEST: how much of the king's max health it restores (left 20%,
+# middle 30%, right 50%), whether it has been drained, and its perch — the
+# cliff-top cell the nest's Archer Rat climbs to when the player disturbs it.
+var nest_heal_pct: float = 0.0
+var nest_used: bool = false
+var nest_label: String = ""
+var nest_perch: Vector2i = Vector2i(-1, -1)
+var nest_archer_released: bool = false
+# On an ARCHER_RAT released from a nest: the cliff top it walks up to and
+# then holds (shooting from the high ground instead of kiting).
+var perch_cell: Vector2i = Vector2i(-1, -1)
+# On the RAT_KING: main hands over the live nests; the king flees to a
+# random untouched one at 50%, then 30%, then 30% again (after healing).
+var nest_provider: Callable = Callable()
+const NEST_FLIGHT_THRESHOLDS := [0.5, 0.3, 0.3]
+var _nest_flights_done: int = 0
+var _nest_target: Enemy = null
+var _nest_stuck: int = 0
 
 func _setup_sprite() -> void:
 	## Builds a procedural 3D model (EnemyFigure) for enemy types that have one,
@@ -1031,6 +1072,7 @@ func _setup_sprite() -> void:
 		EnemyType.ELITE: kind = "brute_elite"
 		EnemyType.BOSS: kind = "brute_boss"
 		EnemyType.DUMMY: kind = "chicken"
+		EnemyType.RAT_NEST: kind = "rat_nest"
 		_:
 			return  # Unknown types keep their coloured box
 
@@ -1317,6 +1359,9 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 			actions = [
 				{"name": "bite", "tempo_cost": 3},
 				{"name": "move", "tempo_cost": 2},
+				# The lair: run for a nest, then feed on it (see _choose_rat_king_action).
+				{"name": "seek_nest", "tempo_cost": 2, "label": "Flees to a nest"},
+				{"name": "nest_heal", "tempo_cost": 2, "label": "Feeds on the nest"},
 			]
 		EnemyType.SWARM:
 			actions = [
@@ -1492,6 +1537,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.CHERUB: "Minion", EnemyType.DJINN: "Elite", EnemyType.CORRUPTED_ARCHANGEL: "Boss",
 		EnemyType.RING_WRAITH: "Elite",
 		EnemyType.DUMMY: "Minion",
+		EnemyType.RAT_NEST: "Minion",
 	}
 	var _stats := {
 		EnemyType.MINION: {"name": "Minion", "health": 25, "armor": 0, "damage": 3, "xp": 5},
@@ -2652,7 +2698,7 @@ func _choose_action(player_node: Node3D) -> void:
 		EnemyType.SEWER_CROC:
 			_choose_melee_action(distance, "croc_bite")
 		EnemyType.RAT_KING:
-			_choose_melee_action(distance, "bite")
+			_choose_rat_king_action(distance)
 		EnemyType.SWARM:
 			_choose_melee_action(distance, "attack")
 		# ----- Mountains act -----
@@ -2732,6 +2778,16 @@ func _choose_troll_action(distance: int) -> void:
 		chosen_action = _get_action("move")
 
 func _choose_archer_rat_action(distance: int) -> void:
+	# A nest's archer climbs to its cliff top and holds it: it walks up first,
+	# then shoots whoever is in range from the high ground and otherwise
+	# waits — no kiting, no chasing.
+	if perch_cell.x >= 0:
+		if _at_perch():
+			_home_cell = perch_cell  # idle pacing stays on the cliff top
+			chosen_action = _get_action("shoot") if distance <= int(attack_range) else {}
+		else:
+			chosen_action = _get_action("get_into_range")
+		return
 	if distance <= 2:
 		# Too close! Scurry away to get distance
 		chosen_action = _get_action("scurry_away")
@@ -2741,6 +2797,106 @@ func _choose_archer_rat_action(distance: int) -> void:
 	else:
 		# In range (3-4 tiles) - shoot!
 		chosen_action = _get_action("shoot")
+
+func _at_perch() -> bool:
+	return grid_manager != null and perch_cell.x >= 0 \
+			and grid_manager.world_to_grid(position) == perch_cell
+
+## --- Rat King ---
+
+func _choose_rat_king_action(distance: int) -> void:
+	## Wounded past a threshold, the king makes for a nest and feeds on it;
+	## otherwise he bites and repositions like any brute.
+	if _nest_target != null and not _nest_available(_nest_target):
+		# The nest he was running for is gone (destroyed, or drained): pick
+		# another untouched one if any remain, else fight on.
+		_nest_target = _pick_nest()
+		_nest_stuck = 0
+	if _nest_target != null:
+		if _cell_adjacent_to(_nest_target):
+			chosen_action = _get_action("nest_heal")
+		else:
+			chosen_action = _get_action("seek_nest")
+		return
+	_choose_melee_action(distance, "bite")
+
+func _nest_available(nest: Enemy) -> bool:
+	return nest != null and is_instance_valid(nest) and nest.is_alive() and not nest.nest_used
+
+func _pick_nest() -> Enemy:
+	## A random untouched, still-standing nest from main's list (null if none).
+	if not nest_provider.is_valid():
+		return null
+	var pool: Array = []
+	for n in nest_provider.call():
+		if n is Enemy and _nest_available(n):
+			pool.append(n)
+	if pool.is_empty():
+		return null
+	return pool[randi() % pool.size()]
+
+func _cell_adjacent_to(node: Node3D) -> bool:
+	if grid_manager == null:
+		return position.distance_to(node.position) <= 1.5
+	var a := grid_manager.world_to_grid(position)
+	var b := grid_manager.world_to_grid(node.position)
+	return maxi(absi(a.x - b.x), absi(a.y - b.y)) <= 1
+
+func _rat_king_consider_nest() -> void:
+	## Called on every hit: at 50%, then 30%, then 30% again (he heals in
+	## between) the king drops what he is doing and bolts for a nest. A
+	## threshold is spent whether or not a nest is left to run to.
+	if enemy_type != EnemyType.RAT_KING or is_dead or _nest_target != null:
+		return
+	if _nest_flights_done >= NEST_FLIGHT_THRESHOLDS.size():
+		return
+	var threshold: float = NEST_FLIGHT_THRESHOLDS[_nest_flights_done]
+	if current_health > max_health * threshold:
+		return
+	_nest_flights_done += 1
+	_nest_target = _pick_nest()
+	_nest_stuck = 0
+	if _nest_target == null:
+		print("[%s] Wounded, but every nest is spent — he fights on!" % enemy_name)
+		return
+	chosen_action = {}
+	action_tempo_counter = 0
+	print("[%s] Bolts for the %s nest! (flight %d of %d)" % [enemy_name, _nest_target.nest_label, _nest_flights_done, NEST_FLIGHT_THRESHOLDS.size()])
+	_dash_towards_target(_nest_target.position, 6)
+
+func _try_seek_nest() -> bool:
+	if _nest_target == null or not _nest_available(_nest_target):
+		return false
+	var before := position
+	_dash_towards_target(_nest_target.position, 5)
+	if not is_moving and before.distance_to(position) < 0.01:
+		# Hemmed in: give the nest up after a few fruitless tries so the king
+		# never idles at a wall while the player stands on the approach.
+		_nest_stuck += 1
+		if _nest_stuck >= 3:
+			print("[%s] Cannot reach the %s nest — gives it up." % [enemy_name, _nest_target.nest_label])
+			_nest_target = null
+	return true
+
+func _try_nest_heal() -> bool:
+	## Feed on the nest: restore its share of max health and drain it for good.
+	var nest := _nest_target
+	_nest_target = null
+	if nest == null or not _nest_available(nest):
+		return false
+	var amount := maxi(1, roundi(max_health * nest.nest_heal_pct))
+	nest.drain_nest()
+	_regenerate(amount)
+	print("[%s] Feeds on the %s nest: +%d health" % [enemy_name, nest.nest_label, amount])
+	return true
+
+func drain_nest() -> void:
+	## A nest the king has fed on: spent, and it reads so (greyed straw).
+	nest_used = true
+	if _enemy_figure and "_sprite" in _enemy_figure and _enemy_figure._sprite:
+		_enemy_figure._sprite.modulate = Color(0.45, 0.42, 0.4)
+	if _enemy_figure and _enemy_figure.has_method("flash"):
+		_enemy_figure.flash(Color(0.4, 0.9, 0.5))
 
 func _choose_hydra_action(distance: int) -> void:
 	# Once enraged (4th hit) she will heal to full when meaningfully hurt.
@@ -2980,6 +3136,10 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 			return _try_scurry_away(move_target)
 		"get_into_range":
 			return _try_get_into_range(move_target)
+		"seek_nest":
+			return _try_seek_nest()
+		"nest_heal":
+			return _try_nest_heal()
 		"hydra_attack":
 			return _try_hydra_attack(move_target)
 		"hydra_move":
@@ -4050,6 +4210,13 @@ func _try_scurry_away(target_node: Node3D) -> bool:
 
 func _try_get_into_range(target_node: Node3D) -> bool:
 	## Archer Rat: Move 2 tiles toward target to get into shooting range.
+	# A nest's archer walks up to its cliff top instead (3 tiles a step).
+	if perch_cell.x >= 0 and not _at_perch() and grid_manager:
+		if not _start_path(_build_greedy_path(position, perch_cell, 3, false, true)):
+			print("[%s] Cannot climb to its perch this tempo" % enemy_name)
+		else:
+			print("[%s] Climbs toward the high ground at %s" % [enemy_name, perch_cell])
+		return true
 	if _in_attack_range(target_node):
 		# Already in range, shoot instead
 		return _try_shoot(target_node)
@@ -4436,8 +4603,8 @@ func _physics_process(delta: float) -> void:
 ## Standing still: face whoever we're sizing up if they're in aggro range,
 ## otherwise pace a tile now and then.
 func _idle_ambient(delta: float) -> void:
-	if is_training_dummy:
-		return  # dummies hold their tile
+	if is_training_dummy or is_structure:
+		return  # dummies and nests hold their tile
 	if _wander_timer > 0.0:
 		_wander_timer -= delta
 	var tgt := _ambient_target()
@@ -4470,6 +4637,8 @@ func _ambient_target() -> Node3D:
 
 func _try_wander() -> void:
 	## One idle step to a free neighbouring tile inside the home leash.
+	if is_structure:
+		return
 	if is_stunned or is_frozen or rooted_tempo > 0 or tree_tempo > 0 or is_moving or is_channeling():
 		return
 	if grid_manager == null:
@@ -4514,11 +4683,13 @@ func _try_wander() -> void:
 func set_target(new_target: Node3D) -> void:
 	target = new_target
 
-func _build_greedy_path(start_pos: Vector3, goal_cell: Vector2i, tiles: int, away: bool = false) -> Array[Vector3]:
+func _build_greedy_path(start_pos: Vector3, goal_cell: Vector2i, tiles: int, away: bool = false,
+		onto_goal: bool = false) -> Array[Vector3]:
 	## Greedy tile-by-tile route toward (or away from) goal_cell, honoring walls
 	## and other enemies. Returns the ordered list of tile-center world positions
 	## so movement follows the actual path instead of gliding straight through
-	## corners/walls. Empty if no step is possible.
+	## corners/walls. Empty if no step is possible. `onto_goal` lets the route
+	## end ON the goal cell (a perch to stand on, not a target to stop beside).
 	var path: Array[Vector3] = []
 	if not grid_manager:
 		return path
@@ -4530,7 +4701,7 @@ func _build_greedy_path(start_pos: Vector3, goal_cell: Vector2i, tiles: int, awa
 		var best_dist := _manhattan_dist(last_cell, goal_cell)
 		for d in dirs:
 			var candidate: Vector2i = last_cell + d
-			if candidate == goal_cell and not away:
+			if candidate == goal_cell and not away and not onto_goal:
 				continue  # Don't step onto the target's tile
 			if candidate in blocked_tiles:
 				continue  # Walls / structures
@@ -4836,6 +5007,8 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 					damage_resistances[DamageTypes.Type.PHYSICAL] = maxf(30.0,
 						float(damage_resistances.get(DamageTypes.Type.PHYSICAL, 0.0)))
 					print("[%s] Hide toughens — 30%% physical resistance, for good!" % enemy_name)
+			EnemyType.RAT_KING:
+				_rat_king_consider_nest()
 			EnemyType.VAMPIRE:
 				# Bat form: below 50% HP, flies 6 squares away (2 charges, no
 				# way to recharge), then Absorb is always the next cast.

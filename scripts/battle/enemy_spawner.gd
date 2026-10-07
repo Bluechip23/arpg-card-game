@@ -172,7 +172,8 @@ func _on_enemy_died(enemy: Enemy) -> void:
 	# Check if all enemies defeated
 	await get_tree().create_timer(0.6).timeout  # Wait for death animation
 
-	var living = get_living_enemies()
+	# Structures (rat nests) are targets, not foes: the wave does not wait on them.
+	var living = get_living_enemies().filter(func(e): return not e.is_structure)
 	if living.size() == 0:
 		all_enemies_defeated.emit()
 		print("[SPAWNER] All enemies defeated!")
@@ -188,8 +189,8 @@ func _generate_loot(enemy: Enemy) -> Dictionary:
 	var loot: Dictionary = {"gold": 0, "item": null, "card": null, "card_pack": null, "culling_stones": 0, "holy_water": 0}
 
 	# Ring Wraiths resummon and grant no XP — no loot either, so the shadow
-	# can never be farmed.
-	if enemy.enemy_type == Enemy.EnemyType.RING_WRAITH:
+	# can never be farmed. Structures (rat nests) are not creatures: nothing.
+	if enemy.enemy_type == Enemy.EnemyType.RING_WRAITH or enemy.is_structure:
 		return {}
 
 	# Gold drop (always). A few types carry hand-tuned amounts; everything
@@ -294,7 +295,7 @@ func get_loot_tier(type: Enemy.EnemyType) -> String:
 		Enemy.EnemyType.MINION, Enemy.EnemyType.WERERAT, Enemy.EnemyType.ARCHER_RAT, \
 		Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.SWARM, Enemy.EnemyType.COYOTE, \
 		Enemy.EnemyType.WERERABBIT, Enemy.EnemyType.SLUDGE, \
-		Enemy.EnemyType.PIPE_CRAWLER, Enemy.EnemyType.SCREECHER:
+		Enemy.EnemyType.PIPE_CRAWLER, Enemy.EnemyType.SCREECHER, Enemy.EnemyType.RAT_NEST:
 			return DropRates.TIER_TRASH
 		Enemy.EnemyType.ELITE, Enemy.EnemyType.ARMORED_TROLL, Enemy.EnemyType.LARGE_BEAR, \
 		Enemy.EnemyType.TREANT, Enemy.EnemyType.BUGBEAR, Enemy.EnemyType.VAMPIRE, \

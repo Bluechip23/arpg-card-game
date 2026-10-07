@@ -138,6 +138,8 @@ const KINDS := {
 	"corrupted_archangel": {"npc": NPC1 + "/npc king A v01.png", "tint": Color(0.75, 0.6, 0.9), "scale": 1.2},
 	# --- the dojo's enemy training dummies ---
 	"chicken": {"tex": "chicken"},
+	# --- the Rat King's nests (a structure, drawn by tools/generate_rat_nest.gd) ---
+	"rat_nest": {"tex": "rat_nest"},
 }
 
 # Uniform texel density across every billboard in the game (style guide §1).
