@@ -113,7 +113,7 @@ const KINDS := {
 	"large_bear": {"fr": "mountain_monsters/Bear", "scale": 0.65},
 	"bone_dragon": {"tex": "bone_dragon", "scale": 1.6},
 	"wyvern": {"cell": Vector2i(7, 2), "tint": Color(0.9, 0.75, 1.05), "scale": 1.35},
-	"cerberus": {"icon": "chaos_monsters/Icon27", "faces": "right", "scale": 2.2},  # the standing three-headed hound
+	"cerberus": {"icon": "chaos_monsters/Icon27", "faces": "right", "scale": 3.2},  # the standing three-headed hound (a tile taller and longer than the 2.2 the icon first got)
 	"werewolf": {"cell": Vector2i(3, 1), "tint": Color(0.6, 0.6, 0.68), "scale": 1.25},
 	"sabertooth": {"cell": Vector2i(3, 1), "tint": Color(1.05, 0.95, 0.75), "scale": 1.2},
 	"weregoat": {"cp": "gnolls/Gnoll3", "scale": 1.1, "tint": Color(0.85, 0.85, 0.9)},
