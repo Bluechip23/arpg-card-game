@@ -995,8 +995,11 @@ func _place_boss_door(room_kind: String, where: String, target_id: String, room_
 # ============================================
 const BY_SIZE := 29
 const BY_FLOOR := Rect2i(3, 3, 23, 23)
-const BY_GRAVE_COLS := [8, 12, 16, 20]
-const BY_GRAVE_ROWS := [9, 14, 19]
+# Twelve stones on a loose 4x3 lattice: the rows sit well apart (the yard is
+# read top to bottom), the columns a little, and every stone is nudged off
+# its lattice point so nothing lines up like a parade ground.
+const BY_GRAVE_COLS := [7, 11, 16, 20]
+const BY_GRAVE_ROWS := [6, 13, 20]
 
 ## The twelve gravestone cells, the dragon's cell, and the crypt-door cell
 ## (inside the north-east corner) the grave diggers emerge from.
@@ -1013,11 +1016,24 @@ func _generate_boneyard_layout() -> void:
 	for x in range(1, player_start.x + 1):
 		grid[x][player_start.y] = Tile.FLOOR
 	rooms.append({"rect": BY_FLOOR, "kind": "boss", "elev": 0})
-	for z in BY_GRAVE_ROWS:
-		for x in BY_GRAVE_COLS:
-			gravestone_cells.append(Vector2i(x, z))
 	boneyard_dragon_cell = Vector2i(BY_FLOOR.end.x - 3, BY_FLOOR.get_center().y)
 	boneyard_crypt_cell = Vector2i(BY_FLOOR.end.x - 1, BY_FLOOR.position.y + 2)
+	var inner := BY_FLOOR.grow(-1)
+	for ri in range(BY_GRAVE_ROWS.size()):
+		for ci in range(BY_GRAVE_COLS.size()):
+			var base := Vector2i(BY_GRAVE_COLS[ci], BY_GRAVE_ROWS[ri])
+			# A deterministic nudge: up to a tile sideways, up to two up or down.
+			var dx := int(_tile_noise(ci, ri, 401) * 3.0) - 1
+			var dz := int(_tile_noise(ci, ri, 409) * 5.0) - 2
+			var cell := base + Vector2i(dx, dz)
+			cell.x = clampi(cell.x, inner.position.x, inner.end.x - 1)
+			cell.y = clampi(cell.y, inner.position.y, inner.end.y - 1)
+			# Never on the player's line in from the gate, the dragon or the crypt door.
+			if cell.y == player_start.y and cell.x <= player_start.x + 2:
+				cell.y += 1
+			if (cell - boneyard_dragon_cell).length() < 2.5 or (cell - boneyard_crypt_cell).length() < 2.5:
+				cell = base
+			gravestone_cells.append(cell)
 	_enforce_border_walls()
 
 func _build_boneyard_decorations() -> void:
