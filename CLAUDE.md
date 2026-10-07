@@ -38,7 +38,7 @@ Things the designer asked to be raised again when the related system is reworked
 
 ## Art: Packs First
 
-The purchased packs (catalogued in [`docs/ASSET_PACKS.md`](docs/ASSET_PACKS.md): Craftpix tilesets and props, MonsterKit battlers, the NPC packs, the Mana Seed base) are the game's art. **Anything that appears in the world uses a pack piece whenever one exists** — cliffs are the pack's cliff tiles, a gate is the pack's arch, a nest is the pack's bone pile, a digger wears an NPC sheet. Generated or modelled stand-ins (procedural meshes, hand-drawn PNGs, coloured boxes) are a last resort for things no pack covers, and should say so in a comment. The point is one look: everything in unison, nothing that reads as placeholder.
+The purchased packs (catalogued in [`docs/ASSET_PACKS.md`](docs/ASSET_PACKS.md): Craftpix tilesets and props, MonsterKit battlers, the NPC packs, the Mana Seed base) are the game's art. **Whenever a pack already shows a thing, use that piece — never design your own version of it.** High ground is the pack's cliff tiles, a gate is the pack's arch, a headstone is the pack's headstone, a digger wears an NPC sheet; procedural meshes or coloured boxes standing in for any of these are wrong. Bespoke art is for what the packs genuinely lack (the Rat King's nest, say): draw it in the packs' palette and texel size so it sits in unison with them, and say in a comment that no pack covers it. The point is one look, with nothing that reads as placeholder.
 
 ## Card Taxonomy
 

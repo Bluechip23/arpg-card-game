@@ -349,8 +349,9 @@ original flavor note. Everything else is `[TBD]` theme/mechanics.
 > Built so far: the **Rat King's Lair** (Sewer) and the **Boneyard** (Old
 > Graveyard, Bone Dragon) — see the bestiary entries. Like everything in the
 > world, they are dressed with the purchased packs (cliff tiles, headstones,
-> gates, bone piles): nothing is modelled by hand where a pack piece exists
-> (see CLAUDE.md, *Art: Packs First*).
+> gates): nothing is modelled by hand where a pack piece exists, and the few
+> things no pack has (the rat nests) are drawn to match (see CLAUDE.md,
+> *Art: Packs First*).
 
 #### Sewer
 *The game's opening dungeon — see **The Sewers (Act 1, Part 1)** below for the

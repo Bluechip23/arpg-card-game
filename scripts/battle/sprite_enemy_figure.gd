@@ -138,8 +138,9 @@ const KINDS := {
 	"corrupted_archangel": {"npc": NPC1 + "/npc king A v01.png", "tint": Color(0.75, 0.6, 0.9), "scale": 1.2},
 	# --- the dojo's enemy training dummies ---
 	"chicken": {"tex": "chicken"},
-	# --- the Rat King's nests: the undead pack's gnawed-bone piles ---
-	"rat_nest": {"prop": "undead_bones", "variants": [6, 3], "scale": 1.3},
+	# --- the Rat King's nests: no pack has a nest, so this one is drawn
+	# (tools/generate_rat_nest.gd) in the packs' palette and texel size ---
+	"rat_nest": {"tex": "rat_nest"},
 	# --- the Boneyard: the undead pack's headstones, and a gravedigger from the NPC pack ---
 	"gravestone": {"prop": "undead_grave", "scale": 1.6},
 	"grave_digger": {"npc": "res://assets/sprites/NPCpackage2/npc man B v01.png", "tint": Color(0.82, 0.88, 0.82)},
@@ -151,7 +152,7 @@ const PIXEL_SIZE := 0.03125
 ## Kinds whose battler art already contains a painted contact shadow
 ## (the flyers) — these must not get a second blob shadow.
 const PAINTED_SHADOW_KINDS := ["swarm", "giant_hawk", "roc",
-		"screecher", "djinn", "specter", "snow_wraith", "gravestone", "rat_nest"]
+		"screecher", "djinn", "specter", "snow_wraith", "gravestone"]
 
 var _sprite: Sprite3D = null
 var _rig: Node3D = null
