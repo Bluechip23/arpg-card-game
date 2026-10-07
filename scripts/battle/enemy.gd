@@ -1604,6 +1604,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.CORRUPTED_ARCHANGEL: {"name": "Corrupted Archangel", "health": 0, "armor": 0, "damage": 0, "xp": 0},
 		EnemyType.RING_WRAITH: {"name": "Ring Wraith", "health": 100, "armor": 0, "damage": 15, "xp": 0},
 		EnemyType.DUMMY: {"name": "Training Dummy", "health": 500, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.RAT_NEST: {"name": "Rat Nest", "health": 15, "armor": 0, "damage": 0, "xp": 0},
 	}
 	var _actions := {
 		EnemyType.MINION: [{"name": "Attack", "tempo": 3}, {"name": "Move", "tempo": 5}],
@@ -1645,7 +1646,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SLUDGE: [{"name": "Melee", "tempo": 5}, {"name": "Spit", "tempo": 6}, {"name": "Move", "tempo": 5}],
 		EnemyType.PIPE_CRAWLER: [{"name": "Claw", "tempo": 5}, {"name": "Move", "tempo": 2}],
 		EnemyType.SEWER_CROC: [{"name": "Bite", "tempo": 6}, {"name": "Move", "tempo": 5}],
-		EnemyType.RAT_KING: [{"name": "Bite", "tempo": 3}, {"name": "Move", "tempo": 2}],
+		EnemyType.RAT_KING: [{"name": "Bite", "tempo": 3}, {"name": "Move", "tempo": 2}, {"name": "Flee to a nest", "tempo": 2}, {"name": "Feed on the nest", "tempo": 2}],
 		EnemyType.SWARM: [{"name": "Attack", "tempo": 2}, {"name": "Move", "tempo": 3}],
 		EnemyType.WEREGOAT: [], EnemyType.ROC: [],
 		EnemyType.WYVERN: [{"name": "Bite", "tempo": 5}, {"name": "Talon Grab", "tempo": 8}, {"name": "Move", "tempo": 4}],
@@ -1663,6 +1664,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.CORRUPTED_ARCHANGEL: [],
 		EnemyType.RING_WRAITH: [{"name": "Attack", "tempo": 2}, {"name": "Move", "tempo": 4}],
 		EnemyType.DUMMY: [],
+		EnemyType.RAT_NEST: [],
 	}
 	var _specials := {
 		EnemyType.MINION: "Basic enemy.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
@@ -1728,10 +1730,11 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SLUDGE: "Gelatinous ooze that strikes up close or at range.\nMelee (5 tempo): 3 damage.\nSpit (range 6, 6 tempo): 3 damage.\nMove (5 tempo): 3 spaces.",
 		EnemyType.PIPE_CRAWLER: "Many-limbed crawler scuttling on all fours.\nClaw (5 tempo): 5 damage; 25% chance to disarm you (5 tempo).\nMove (2 tempo): 2 spaces.",
 		EnemyType.SEWER_CROC: "Armoured ambush predator (20 armor).\nBite (6 tempo): 12 damage.\nMove (5 tempo): 2 spaces.",
-		EnemyType.RAT_KING: "A giant crowned rat that leads the swarm (10 armor).\nBite (3 tempo): 6 damage.\nMove (2 tempo): 2 spaces.",
+		EnemyType.RAT_KING: "A giant crowned rat that leads the swarm (10 armor), fought in his own lair off the sewer's central cistern.\nBite (3 tempo): 6 damage.\nMove (2 tempo): 2 spaces.\nFlee to a nest (2 tempo): at 50%, 30% and 30% health he bolts for an untouched rat nest.\nFeed on the nest (2 tempo): heals 20% / 30% / 50% of his health (left / middle / right nest); a nest feeds him once.",
 		EnemyType.SWARM: "A single creature made of countless biting bugs.\nAttack (2 tempo): 3 damage.\nMove (3 tempo): 8 spaces — very fast.",
 		EnemyType.RING_WRAITH: "The Precious: hunts the ring-bearer through the shadow world. Shadow form does not hide you from these.\nAttack (2 tempo): 15 damage.\nMove (4 tempo): 5 spaces.\nResummons on death — grants no XP.",
 		EnemyType.DUMMY: "The Dojo's training dummy (a chicken, for morale). Stands still, never strikes, and a killing blow only refills it — grants no XP, drops nothing.",
+		EnemyType.RAT_NEST: "A heap of straw and bones at the foot of a cliff in the Rat King's Lair. Tread on it and its Archer Rat scrambles up to the high ground. The wounded king feeds on an untouched nest (left 20%, middle 30%, right 50% of his health) — tear the nests down and he has nowhere to run. Grants no XP, drops nothing.",
 	}
 
 	var result: Array = []
