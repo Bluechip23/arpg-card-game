@@ -101,7 +101,7 @@ const KINDS := {
 	"ice_troll": {"fr": "mountain_monsters/Yeti", "scale": 1.05},
 	"granite_colossus": {"cp": "golem/Golem1", "scale": 1.6},
 	"grave_titan": {"cp": "golem/Golem2", "scale": 1.35, "tint": Color(0.9, 0.92, 0.88)},
-	"inflamed_minotaur": {"icon": "chaos_monsters/Icon37", "faces": "right", "scale": 2.4},  # winged beast up on its hind legs
+	"inflamed_minotaur": {"tex": "inflamed_minotaur", "scale": 0.75},  # the designer's painting, cut out (tools/cut_minotaur.gd); a 173x130 cell
 	"demon": {"cp": "demons/Demon1", "scale": 0.85},
 	"pit_fiend": {"cp": "demons/Demon3"},
 	"bugbear": {"cp": "gnolls/Gnoll2", "scale": 1.2},
@@ -211,10 +211,12 @@ func setup(kind: String) -> void:
 		_sprite.pixel_size = PIXEL_SIZE
 		_sprite.region_rect = Rect2(0, 0, 32, 32)
 	elif cfg.has("tex"):
-		# Baked battler recolor / generated sprite (single 64x64 cell).
-		_sprite.texture = load("res://assets/sprites/generated/monsters/%s.png" % cfg["tex"])
+		# Baked battler recolor / generated sprite / cut-out painting: one
+		# still cell, whatever size the file is (64x64 for the generated set).
+		var tex: Texture2D = load("res://assets/sprites/generated/monsters/%s.png" % cfg["tex"])
+		_sprite.texture = tex
 		_sprite.pixel_size = PIXEL_SIZE
-		_sprite.region_rect = Rect2(0, 0, 64, 64)
+		_sprite.region_rect = Rect2(0, 0, tex.get_width(), tex.get_height()) if tex else Rect2(0, 0, 64, 64)
 	elif cfg.has("prop"):
 		# A Craftpix prop (one of the cut variants, picked at random) as a
 		# static structure: a headstone, a nest of the pack's own art.

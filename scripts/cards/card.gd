@@ -951,7 +951,9 @@ func get_effective_range() -> int:
 func get_range_display() -> String:
 	# Returns display string for card range keyword
 	if conditional_range:
-		return "Conditional (%s)" % ("Ranged" if is_ranged else "Melee")
+		# Just the keyword: a "(Melee)" / "(Ranged)" suffix crowds the T&O seal
+		# on the card's type bar. The legend explains how it resolves.
+		return "Conditional"
 	if not is_ranged:
 		return "Melee"
 	var effective = get_effective_range()
