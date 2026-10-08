@@ -32,7 +32,8 @@ enum DebuffType {
 	BLIND,
 	# Appended at the tail — enum order is save-compat-sensitive.
 	GENERIC,  # bespoke named debuff (Marvolo's Misunderstanding); keeps its custom name/description
-	WEAKENED  # deal WEAKENED_REDUCTION% less damage; 1 stack burns per attack (mirrors enemy-side Weaken)
+	WEAKENED,  # deal WEAKENED_REDUCTION% less damage; 1 stack burns per attack (mirrors enemy-side Weaken)
+	LOST  # Lost in the Labyrinth (the Minotaur's room): hand scrambled, play it left to right, no draws
 }
 
 # Fixed magnitudes for the stack-driven debuffs: the stack COUNT is the only
@@ -154,6 +155,9 @@ func _set_name_and_description() -> void:
 		DebuffType.WEAKENED:
 			debuff_name = "Weakened"
 			description = "Deal %d%% less damage; each attack burns a stack (%d left)" % [WEAKENED_REDUCTION, value]
+		DebuffType.LOST:
+			debuff_name = "Lost in the Labyrinth"
+			description = "Your hand is scrambled: play it left to right. You cannot draw (%d tempo left)" % duration
 
 func advance_time(amount: int) -> bool:
 	# Duration counts RAW tempo, decremented on every tempo advance — so a
@@ -162,7 +166,7 @@ func advance_time(amount: int) -> bool:
 	if duration < 0:
 		return false
 	duration -= amount
-	if clock_timed:
+	if clock_timed or debuff_type == DebuffType.LOST:
 		_set_name_and_description()
 	return duration <= 0
 
@@ -192,6 +196,7 @@ func get_icon_color() -> Color:
 		DebuffType.COLD: return Color(0.4, 0.7, 1.0)
 		DebuffType.BLIND: return Color(0.85, 0.85, 0.4)
 		DebuffType.WEAKENED: return Color(0.5, 0.5, 0.8)
+		DebuffType.LOST: return Color(0.85, 0.55, 0.25)
 	return Color.WHITE
 
 func get_short_display() -> String:

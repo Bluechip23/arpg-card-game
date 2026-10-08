@@ -121,6 +121,20 @@ func build_groups(hand: Array, locked_index: int = -1) -> Array:
 		})
 	return groups
 
+func build_ordered_groups(hand: Array) -> Array:
+	## Lost in the Labyrinth: no stacking and no persistent letters — every
+	## card is its own group in hand order (left to right is the order the
+	## curse makes the player follow), keyed 1, 2, 3… by position. Pure
+	## instants keep their place in the fan but still have no play key.
+	## The persistent slot map is left untouched, so the normal stacks and
+	## their letters come back as they were when the curse lifts.
+	var groups: Array = []
+	for i in range(hand.size()):
+		var card: Card = hand[i]
+		var slot: int = INSTANT_SLOT if is_instant_sig(card.get_stack_signature()) else i
+		groups.append({"slot": slot, "cards": [card], "rep": card})
+	return groups
+
 func _pick_rep(cards: Array, hand: Array, locked_index: int) -> Card:
 	## The card a stack's button plays: prefer a copy that can actually be
 	## played (not jailed, not the Locked card).

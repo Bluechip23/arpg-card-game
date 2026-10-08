@@ -349,6 +349,12 @@ func shuffle_discard_into_draw() -> void:
 	shuffle_draw_pile()
 
 func draw_card() -> Card:
+	# Lost in the Labyrinth (the Inflamed Minotaur's curse): no draw of any
+	# kind — not the tempo draw, not a card's draw effect, not a brain draw.
+	# (Cuffed only stops the tempo and brain draws; this is stricter.)
+	if debuff_manager and debuff_manager.has_method("is_lost") and debuff_manager.is_lost():
+		print("[DECK] Cannot draw — Lost in the Labyrinth!")
+		return null
 	# The hand cap applies to every draw — tempo draws and card effects alike
 	# (only Linger cards may exceed it, via add_card_to_hand). At capacity the
 	# draw routes through the overflow system instead, same as a tempo draw.
@@ -425,9 +431,9 @@ func draw_card() -> Card:
 func attempt_draw() -> void:
 	peaked_card = null
 
-	# Cuffed: cannot draw cards
+	# Cuffed / Lost in the Labyrinth: cannot draw cards
 	if debuff_manager and debuff_manager.has_method("can_draw_cards") and not debuff_manager.can_draw_cards():
-		print("[DECK] Cannot draw - Cuffed!")
+		print("[DECK] Cannot draw - Cuffed or Lost!")
 		return
 
 	# Tempo draws respect reserved slots (queued draw-effect cards); the
@@ -954,6 +960,31 @@ func assign_hexed_locked_cards(debuff_mgr) -> void:
 			index = (index + 1) % hand.size()
 		debuff_mgr.set_locked_card_index(index)
 		print("[DECK] Locked assigned to card %d: %s" % [index, hand[index].card_name])
+
+## Lost in the Labyrinth: the hand is shuffled into a random order. Hexes and
+## the Locked card follow their cards to the new indices rather than landing
+## on whatever slid into the old ones.
+func scramble_hand(debuff_mgr = null) -> void:
+	if hand.size() < 2:
+		hand_updated.emit()
+		return
+	var hex_cards := {}  # Debuff -> Card
+	var locked_card: Card = null
+	if debuff_mgr:
+		for hex in debuff_mgr.get_hexed_debuffs():
+			var hi: int = hex.affected_card_index
+			if hi >= 0 and hi < hand.size():
+				hex_cards[hex] = hand[hi]
+		var li: int = debuff_mgr.get_locked_card_index()
+		if li >= 0 and li < hand.size():
+			locked_card = hand[li]
+	hand.shuffle()
+	for hex in hex_cards:
+		hex.affected_card_index = hand.find(hex_cards[hex])
+	if locked_card != null:
+		debuff_mgr.set_locked_card_index(hand.find(locked_card))
+	print("[DECK] Lost in the Labyrinth — the hand is scrambled")
+	hand_updated.emit()
 
 func apply_dex_proc_bonus() -> void:
 	next_attack_half_tempo = true

@@ -661,10 +661,26 @@ static var element_pollination_active: bool = false
 # Shield drawn in the meantime cannot be played (world_block_reason).
 static var bastion_shield_in_flight: bool = false
 
+# Lost in the Labyrinth (the Inflamed Minotaur's room): while the curse holds,
+# the hand must be played left to right — only `labyrinth_next_card` may be
+# played. Main syncs both from the active player's hand and debuffs.
+static var labyrinth_lost: bool = false
+static var labyrinth_next_card: Card = null
+
 ## Why the world refuses this card right now ("" = it may be played): a
 ## state outside the card — gear in flight, say — that greys it in the hand
 ## and stops the play, the way Engrave and Jail do.
 func world_block_reason() -> String:
+	var own := _own_world_block_reason()
+	if own != "":
+		return own
+	if labyrinth_lost and card_type != CardType.REACTION and labyrinth_next_card != self:
+		return "Lost in the Labyrinth — play your hand left to right."
+	return ""
+
+## The card's own world blocks, before the Labyrinth's turn order is applied
+## (main uses this to pick the next card the Labyrinth lets through).
+func _own_world_block_reason() -> String:
 	if card_id == "bouncing_shield" and bastion_shield_in_flight:
 		return "The shield is still in the air."
 	return ""
