@@ -681,6 +681,13 @@ func get_stack_signature() -> String:
 	## card's face or how it plays (enhance, cost shifts, jailed, slotted)
 	## splits it into its own stack.
 	##
+	## A slotted copy never joins the plain copies of its card: it carries its
+	## item's On-Self bonus, so a Slash enchanted into a sword is not the Slash
+	## in the rest of the deck. The item ITSELF is the key, not merely "is
+	## slotted" — two Slashes in two different swords do two different things,
+	## so each item's copies form their own stack. Copies in the same item
+	## (a two-slot ring with both Gems alike) still stack together.
+	##
 	## Pure instant (reaction) cards can never be played manually — they all
 	## pile together under one un-lettered stack so they don't clutter the hand
 	## or steal a play key (see HandSlots). A card that also plays as a normal
@@ -690,8 +697,17 @@ func get_stack_signature() -> String:
 	return "%s|%s|%d|%d|%d|%d|%s|%s" % [
 		card_id, card_name, mana_cost, tempo_cost,
 		int(is_enhanced), bonus_damage,
-		str(is_jailed()), str(is_slotted()),
+		str(is_jailed()), _slot_signature(),
 	]
+
+## The slotted-in-item part of the stack signature: "" for a deck card, the
+## holding item's instance id otherwise (unique per item for the life of the
+## session; HandSlots' slot map is in-memory only, so it never has to survive
+## a save).
+func _slot_signature() -> String:
+	if slotted_in_item == null:
+		return ""
+	return "item:%d" % slotted_in_item.get_instance_id()
 
 func get_on_self_bonus() -> Dictionary:
 	# Returns the on-self bonus from the item this card is slotted in

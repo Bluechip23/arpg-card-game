@@ -134,5 +134,62 @@ func _initialize() -> void:
 	_check(not HandSlots.is_instant_sig(dual.get_stack_signature()),
 		"playable card with an instant effect is treated as a normal card")
 
+	# --- Slotted copies: a card enchanted into an item plays with that item's
+	# On-Self bonus, so it never stacks with the deck copies of the same card,
+	# and copies in two different items never stack with each other. (Cryonics
+	# carries the Sword label, so it fits a Wooden Sword's slot.)
+	var hs6 := HandSlots.new()
+	var p1 := Card.create_cryonics()
+	var p2 := Card.create_cryonics()
+	var e1 := Card.create_cryonics()
+	var e2 := Card.create_cryonics()
+	var sword_a := ItemData.create_wooden_sword()
+	var sword_b := ItemData.create_wooden_sword()
+	_check(sword_a.slot_card(e1) and sword_b.slot_card(e2), "Cryonics slots into two Wooden Swords")
+	_check(p1.get_stack_signature() == p2.get_stack_signature(), "two deck Cryonics still share a signature")
+	_check(e1.get_stack_signature() != p1.get_stack_signature(), "a slotted copy splits from the deck copies")
+	_check(e1.get_stack_signature() != e2.get_stack_signature(), "copies slotted in two different items split from each other")
+	var hand6: Array = [p1, e1, p2, e2]  # draw order: deck, sword A, deck, sword B
+	groups = _slots(hs6, hand6)
+	_check(groups.size() == 3, "2 deck + 1 in sword A + 1 in sword B -> three stacks")
+	var plain_group = null
+	var a_group = null
+	var b_group = null
+	for g in groups:
+		var r: Card = g["rep"]
+		if r.slotted_in_item == sword_a:
+			a_group = g
+		elif r.slotted_in_item == sword_b:
+			b_group = g
+		else:
+			plain_group = g
+	_check(plain_group != null and plain_group["slot"] == 0 and plain_group["cards"].size() == 2,
+		"deck copies keep slot 1 as an x2 stack")
+	_check(plain_group != null and not plain_group["cards"].has(e1) and not plain_group["cards"].has(e2),
+		"neither slotted copy is in the deck stack")
+	_check(a_group != null and a_group["slot"] == 1 and a_group["cards"] == [e1], "sword A's copy is its own stack on slot 2")
+	_check(b_group != null and b_group["slot"] == 2 and b_group["cards"] == [e2], "sword B's copy is its own stack on slot 3")
+
+	# Two copies in the SAME item share its bonus, so they do stack together.
+	sword_a.card_slots = 2
+	var e3 := Card.create_cryonics()
+	_check(sword_a.slot_card(e3), "a second Cryonics slots into sword A's second slot")
+	_check(e3.get_stack_signature() == e1.get_stack_signature(), "two copies in the same item share a signature")
+	hand6.append(e3)
+	groups = _slots(hs6, hand6)
+	_check(groups.size() == 3, "same-item copies merge: still three stacks")
+	for g in groups:
+		if g["rep"].slotted_in_item == sword_a:
+			_check(g["cards"].size() == 2 and g["slot"] == 1, "sword A's stack is x2 and kept its slot")
+
+	# Extracting the card from its item makes it a plain copy again.
+	sword_b.unslot_card(0)
+	_check(e2.get_stack_signature() == p1.get_stack_signature(), "an extracted copy rejoins the deck stack")
+	groups = _slots(hs6, hand6)
+	_check(groups.size() == 2, "after extraction: deck stack (x3) + sword A stack (x2)")
+	for g in groups:
+		if g["rep"].slotted_in_item == null:
+			_check(g["cards"].size() == 3 and g["slot"] == 0, "deck stack absorbs the extracted copy on slot 1")
+
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

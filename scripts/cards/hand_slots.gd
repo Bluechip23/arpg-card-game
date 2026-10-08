@@ -5,6 +5,9 @@ extends RefCounted
 ##
 ## Identical cards (same stack signature) collapse under one lettered slot, and
 ## a slot keeps its letter until the last copy of its card leaves the hand.
+## A copy enchanted into an item is not identical to the deck copies — it plays
+## with that item's On-Self bonus — so it gets a slot of its own, keyed on the
+## item holding it (see Card.get_stack_signature).
 ## Playing a card therefore never re-letters the others; a genuinely new card
 ## fills the lowest free slot (A, then S, …). This keeps play buttons stable so
 ## the player can spam / combo a card without the key moving underneath them.
