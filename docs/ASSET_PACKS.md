@@ -70,7 +70,7 @@ Per-variant sheet widths in px (height = 4 rows × cell; 64-px packs are
 | Folder | Sheet | Grid | Contents | Candidate use | Status |
 |---|---|---|---|---|---|
 | `rocks_stones/` | 40 single 64×64 PNGs (`Rock1..8_1..5_no_shadow`) | Eight boulder styles in five sizes: pale limestone, rust, snow-capped, mossy grey, pale grey, sandstone, dark plum, lava | Wall boulders per zone | cropped to `wallrock_<style>` prop roles (moss, rust, grey, dark, sand, snow, lava, pale) — **staged**: the boulder-wall pass was dropped (random rocks everywhere read wrong); outdoor boundaries use each pack's own trees, rocks and bushes instead (`DungeonManager._build_boundary_props`) |
-| `chaos_monsters/` | 48 single 32×32 PNGs (`Icon1..48`) | Painted demons, hounds, flyers, slimes, eyes, spiders — a bestiary of Hell-flavoured monsters, one still each | Act 2 (Hell) enemies as static battlers (the rig's `icon` source: a 32-px still scaled ×1.6–2.4 and flipped for the far side like the MonsterKit battlers) | **in game**: `succubus` = Icon14 (purple-winged, ×1.7), `cerberus` = Icon27 (the standing three-headed hound, ×2.2), `ifrit` = Icon47 (the living flame, ×2.0), `inflamed_minotaur` = Icon37 (the winged beast up on its hind legs, ×2.4), `ash_harpy` = Icon22 (the winged demon in flight, tail trailing, ×1.6). The other 43 are staged |
+| `chaos_monsters/` | 48 single 32×32 PNGs (`Icon1..48`) | Painted demons, hounds, flyers, slimes, eyes, spiders — a bestiary of Hell-flavoured monsters, one still each | Act 2 (Hell) enemies as static battlers (the rig's `icon` source: a 32-px still scaled ×1.6–2.4 and flipped for the far side like the MonsterKit battlers) | **in game**: `succubus` = Icon14 (purple-winged, ×1.7), `cerberus` = Icon27 (the standing three-headed hound, ×2.2), `ifrit` = Icon47 (the living flame, ×2.0), `ash_harpy` = Icon22 (the winged demon in flight, tail trailing, ×1.6). The other 44 are staged (Icon37 was the minotaur until the designer's painting replaced it, see *paintings* below) |
 | `treasure_32x32/` | `chests.png` 320×128 | 32×32, 10 cols × 4 rows | 10 chest designs (wood, iron, gold, ornate, teal-crystal…) × 4 states per column (closed → open/lit) | Dungeon loot chests; act-themed chest tiers | staged |
 | | `Icons.png` 480×224 | 32×32, 15 × 7 | Keys, coins, coin piles, gem shards, bags, sacks, pouches, jars, rings, orbs, potions, feathers, scrolls | Inventory / vendor / resource icons (base-builder resources sent home, currency, keys); card cost glyphs | staged |
 | | `Objects.png` 320×240 | 16-px tile grid, most objects 32×32 | Chests, chains & hooks, ore / gem / gold piles, sacks, barrels of loot, candles & censers, coloured keys, key racks | Treasure-room and vault dressing (terrain decoration, ART_TODO #6); City treasury props | staged |
@@ -205,6 +205,16 @@ billboard.
 | Waypoints / Transport Portal | `waypoint_totem` — the glowing-cave `Totem_animation` (12 frames, `SheetAnimSprite`) on a pack-dirt mound |
 | Drowned Shrine | `winter_idol` on a pack-stone plinth |
 | Interiors | sewers: `floor_glowing_cave` + `wall_cave` + `water_cave`; buildings: `floor_undead` + `wall_undead`; trails: `floor_dirt_forest` |
+
+## The designer's own paintings (`assets/sprites/paintings/`)
+
+Finished paintings the designer supplies for a specific monster. The folder
+carries a `.gdignore`: the paintings are source art, not game assets. A tool
+script cuts each one out of its background into the generated-monsters set.
+
+| Painting | Battler | Tool |
+|---|---|---|
+| `inflamed_minotaur.webp` (797×542, flaming armoured minotaur with axe and shield on lava) | `generated/monsters/inflamed_minotaur.png`, 173×130, drawn ×0.75 by `SpriteEnemyFigure` (the `tex` source) | `tools/cut_minotaur.gd` — two traced silhouettes mask the painting, box-filtered down 4× with mask coverage as alpha |
 
 ## Not yet staged
 
