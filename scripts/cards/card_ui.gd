@@ -85,7 +85,7 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 		range_label.visible = true
 		range_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		if card.is_ranged or card.conditional_range:
-			# Conditional cards always show which way the held weapon resolved them.
+			# Conditional cards show the keyword alone (the legend explains the reach).
 			range_label.text = card.get_range_display()
 			range_label.add_theme_color_override("font_color", Color(0.3, 0.8, 0.9))
 		else:

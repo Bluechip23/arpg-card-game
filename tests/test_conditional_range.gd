@@ -27,10 +27,10 @@ func _initialize() -> void:
 	ew.apply_conditional_range(true)
 	_check(ew.is_ranged and ew.get_effective_range() == 5, "a bow makes it ranged at base range 5")
 	_check(ew.get_burden_tempo_cost() == base_cost + 1, "ranged play costs +1 tempo (%d -> %d)" % [base_cost, ew.get_burden_tempo_cost()])
-	_check(ew.get_range_display() == "Conditional (Ranged)", "range label reads Conditional (Ranged)")
+	_check(ew.get_range_display() == "Conditional", "range label reads Conditional with a bow")
 	ew.apply_conditional_range(false)
 	_check(not ew.is_ranged and ew.get_burden_tempo_cost() == base_cost, "a blade makes it melee with no surcharge")
-	_check(ew.get_range_display() == "Conditional (Melee)", "range label reads Conditional (Melee)")
+	_check(ew.get_range_display() == "Conditional", "range label reads Conditional with a sword")
 
 	var poke := Card.create_poke()
 	poke.apply_conditional_range(true)
