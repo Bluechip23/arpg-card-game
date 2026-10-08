@@ -35,7 +35,18 @@ enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_R
 	RING_WRAITH,
 	# The dojo's training dummy: never acts, never wanders, never dies (a
 	# lethal hit refills it). Appended at the tail for the same reason.
-	DUMMY }
+	DUMMY,
+	# The Rat King's nests: a destructible structure (15 HP) that heals the
+	# king when he reaches it and releases an Archer Rat when the player
+	# steps on it. Never acts or moves. Tail-appended (save-compat).
+	RAT_NEST,
+	# The Boneyard: a gravestone (10 HP structure; every standing one feeds
+	# the Bone Dragon's regen) and the grave digger who walks out to repair
+	# a broken one (20 HP, 8 tempo of work, then gone). Tail-appended.
+	GRAVESTONE, GRAVE_DIGGER,
+	# Hell's Door: the gate Cerberus guards (a structure the player breaks
+	# through; seals itself for 10 tempo at 75/50/33%). Tail-appended.
+	HELL_DOOR }
 
 ## Intended player level per enemy type — the anchor for the level-gap XP
 ## falloff (PlayerStats.get_xp_multiplier): kills more than a few levels below
@@ -54,6 +65,7 @@ const INTENDED_LEVELS := {
 	EnemyType.CRYPT_CRAWLER: 8, EnemyType.WERERABBIT: 8, EnemyType.CONSUMED: 9,
 	EnemyType.WEREWOLF: 10, EnemyType.VAMPIRE: 10, EnemyType.SPIRIT_COLLECTOR: 10,
 	EnemyType.NECROMANCER: 11, EnemyType.BONE_DRAGON: 12, EnemyType.GRAVE_TITAN: 12,
+	EnemyType.GRAVE_DIGGER: 8,  # the Boneyard's digger: band 8, so his 20 HP are his 20 HP
 	# Cave
 	EnemyType.FIRE_GOBLIN_SOLDIER: 9, EnemyType.FIRE_GOBLIN_MAGE: 9,
 	EnemyType.FIRE_GOBLIN_SHAMAN: 10, EnemyType.ARMORED_TROLL: 12, EnemyType.HYDRA: 14,
@@ -68,6 +80,7 @@ const INTENDED_LEVELS := {
 	EnemyType.WYVERN: 21, EnemyType.ICE_TROLL: 22, EnemyType.WHITE_MANTICORE: 23,
 	EnemyType.IFRIT: 28, EnemyType.INFLAMED_MINOTAUR: 30,
 	EnemyType.DJINN: 35,
+	EnemyType.CERBERUS: 10,  # the sheet's level column; scaling stays near the sheet's own numbers
 }
 
 func get_intended_level() -> int:
@@ -317,6 +330,7 @@ var _action_damage: Dictionary = {}      # action name -> damage taken since its
 ## and the ranged/utility casts.
 const NON_MELEE_ACTIONS := {
 	"move": true, "hydra_move": true, "goblin_move": true, "scurry": true,
+	"seek_nest": true, "nest_heal": true, "dig_walk": true, "repair": true, "cerberus_roar": true,
 	"scurry_away": true, "get_into_range": true, "flee": true, "vanish": true,
 	"hydra_heal": true, "treant_heal": true, "sear_wounds": true,
 	"collect_soul": true, "summon_skeleton": true, "fire_wall": true,
@@ -898,6 +912,81 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			is_training_dummy = true
 			_set_mesh_color(Color(0.9, 0.9, 0.85))
 
+		EnemyType.RAT_NEST:
+			# Rat King's Lair: a heap of straw and bones. A structure, not a
+			# creature — it holds its tile, never acts, and counts for nothing
+			# (no XP, no loot, and the wave does not wait on it).
+			enemy_name = "Rat Nest"
+			max_health = 15
+			max_armor = 0
+			attack_damage = 0
+			attack_range = 0.0
+			move_distance = 0.0
+			aggro_range = 0.0
+			xp_reward = 0
+			is_structure = true
+			_set_mesh_color(Color(0.55, 0.42, 0.25))
+
+		EnemyType.GRAVESTONE:
+			# The Boneyard: a headstone. A structure — it holds its tile and
+			# counts for nothing — but every one left standing regenerates
+			# the Bone Dragon 1 health a cycle.
+			enemy_name = "Gravestone"
+			max_health = 10
+			max_armor = 0
+			attack_damage = 0
+			attack_range = 0.0
+			move_distance = 0.0
+			aggro_range = 0.0
+			xp_reward = 0
+			is_structure = true
+			_set_mesh_color(Color(0.55, 0.58, 0.55))
+
+		EnemyType.CERBERUS:
+			# The guardian of Hell's Door (design sheet): 250 HP, 50 armor,
+			# 25-damage bites, 6 spaces a move, resists 30% physical / 40%
+			# fire / 15% lightning. Three heads wake as he weakens; Guardian
+			# of Death and Deathyard Dog below.
+			enemy_name = "Cerberus"
+			max_health = 250
+			max_armor = 50
+			attack_damage = 25
+			attack_range = 1.5
+			move_distance = 6.0       # 6 spaces / 3 tempo
+			aggro_range = 16.0
+			xp_reward = 150
+			_set_first_pass_resists(30, 40, 15)
+			_set_mesh_color(Color(0.3, 0.1, 0.12))
+
+		EnemyType.HELL_DOOR:
+			# Hell's Door: the objective, not a creature. A structure the
+			# player breaks through; at 75%, 50% and 33% it seals itself
+			# against all damage for 10 tempo. Counts as Cerberus's ally.
+			enemy_name = "Hell's Door"
+			max_health = 150
+			max_armor = 0
+			attack_damage = 0
+			attack_range = 0.0
+			move_distance = 0.0
+			aggro_range = 0.0
+			xp_reward = 0
+			is_structure = true
+			_set_mesh_color(Color(0.2, 0.08, 0.08))
+
+		EnemyType.GRAVE_DIGGER:
+			# The Boneyard: walks out of the crypt to a broken gravestone,
+			# takes 8 tempo to set it right (back to full), and is gone.
+			# Never fights; can be cut down on the way (20 HP).
+			enemy_name = "Grave Digger"
+			max_health = 20
+			max_armor = 0
+			attack_damage = 0
+			attack_range = 0.0
+			move_distance = 2.0
+			aggro_range = 0.0
+			xp_reward = 6
+			_set_mesh_color(Color(0.5, 0.55, 0.45))
+
 		_:
 			# Design mock-ups (stats & moves TBD) have no arm yet. Name them so
 			# a stray spawn is identifiable instead of an anonymous default box;
@@ -959,6 +1048,65 @@ func _set_mesh_color(color: Color) -> void:
 
 var figure_kind: String = ""  # EnemyFigure kind this enemy renders as ("" = coloured box)
 var is_training_dummy: bool = false  # dojo dummy: absorbs hits and statuses, never acts or dies
+var is_structure: bool = false       # a hittable object on the grid (rat nest): never acts, never wanders, the wave does not wait on it
+
+# --- Rat King's Lair: nests and the king's flight to them ---
+# On a RAT_NEST: how much of the king's max health it restores (left 20%,
+# middle 30%, right 50%), whether it has been drained, and its perch — the
+# cliff-top cell the nest's Archer Rat climbs to when the player disturbs it.
+var nest_heal_pct: float = 0.0
+var nest_used: bool = false
+var nest_label: String = ""
+var nest_perch: Vector2i = Vector2i(-1, -1)
+var nest_perch_approach: Vector2i = Vector2i(-1, -1)
+var nest_archer_released: bool = false
+# On an ARCHER_RAT released from a nest: the cliff top it walks up to and
+# then holds (shooting from the high ground instead of kiting). The cliff
+# face is a wall, so it first rounds the cliff's side (perch_approach) and
+# climbs on from there.
+var perch_cell: Vector2i = Vector2i(-1, -1)
+var perch_approach: Vector2i = Vector2i(-1, -1)
+var _perch_approach_done: bool = false
+# On the RAT_KING: main hands over the live nests; the king flees to a
+# random untouched one at 50%, then 30%, then 30% again (after healing).
+var nest_provider: Callable = Callable()
+const NEST_FLIGHT_THRESHOLDS := [0.5, 0.3, 0.3]
+var _nest_flights_done: int = 0
+var _nest_target: Enemy = null
+var _nest_stuck: int = 0
+
+# --- The Boneyard: gravestones, grave diggers and the dragon's regen ---
+# On a GRAVE_DIGGER: the broken gravestone's cell it walks to, and main's
+# handler that rebuilds the stone (and sends the digger away) when its
+# 8-tempo repair fires.
+var repair_cell: Vector2i = Vector2i(-1, -1)
+var repair_handler: Callable = Callable()
+# On the BONE_DRAGON in its yard: main's count of standing gravestones —
+# each one is 1 health of regen a cycle, and it never fades.
+var gravestone_provider: Callable = Callable()
+
+# --- Hell's Gate: Cerberus and the door ---
+# Cerberus: Guardian of Death (Brace 30% for the next N hits, +5 each time
+# he first drops below half, or any unit — foe or ally, the door included —
+# within 8 squares drops below half); Deathyard Dog (a foe healing within 5
+# squares gives him 15 Strengthen); Roar's thorns (damage back to the
+# player's direct hits, one thorn spent per hit); Venom Tail's aftermath
+# (when the 15-tempo stun ends the victim gains 2 Vulnerable and 10 tempo
+# of Cuffed).
+var _brace_charges: int = 0
+var _guardian_self_used: bool = false
+var _guardian_watch: Dictionary = {}     # unit instance id -> was below half
+var _deathyard_hooked: bool = false
+var enemy_thorns: int = 0
+var _venom_countdown: int = 0
+var _venom_victim: Node3D = null
+const GUARDIAN_RADIUS := 8.0
+const DEATHYARD_RADIUS := 5.0
+# Hell's Door: tempo left on its seal, and which thresholds have fired.
+var door_sealed_tempo: int = 0
+var _door_thresholds_hit: Array = []
+const DOOR_SEAL_THRESHOLDS := [0.75, 0.5, 0.33]
+const DOOR_SEAL_TEMPO := 10
 
 func _setup_sprite() -> void:
 	## Builds a procedural 3D model (EnemyFigure) for enemy types that have one,
@@ -1031,6 +1179,10 @@ func _setup_sprite() -> void:
 		EnemyType.ELITE: kind = "brute_elite"
 		EnemyType.BOSS: kind = "brute_boss"
 		EnemyType.DUMMY: kind = "chicken"
+		EnemyType.RAT_NEST: kind = "rat_nest"
+		EnemyType.GRAVESTONE: kind = "gravestone"
+		EnemyType.GRAVE_DIGGER: kind = "grave_digger"
+		EnemyType.HELL_DOOR: kind = "hell_door"
 		_:
 			return  # Unknown types keep their coloured box
 
@@ -1317,11 +1469,27 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 			actions = [
 				{"name": "bite", "tempo_cost": 3},
 				{"name": "move", "tempo_cost": 2},
+				# The lair: run for a nest, then feed on it (see _choose_rat_king_action).
+				{"name": "seek_nest", "tempo_cost": 2, "label": "Flees to a nest"},
+				{"name": "nest_heal", "tempo_cost": 2, "label": "Feeds on the nest"},
 			]
 		EnemyType.SWARM:
 			actions = [
 				{"name": "attack", "tempo_cost": 2},
 				{"name": "move",   "tempo_cost": 3},
+			]
+		EnemyType.GRAVE_DIGGER:
+			actions = [
+				{"name": "dig_walk", "tempo_cost": 2, "label": "Walks to the broken stone"},
+				{"name": "repair",   "tempo_cost": 8, "label": "Repairing the gravestone"},
+			]
+		EnemyType.CERBERUS:
+			actions = [
+				{"name": "cerberus_bite", "tempo_cost": 5, "label": "Bite"},
+				{"name": "swipe",         "tempo_cost": 8, "label": "Swipe"},
+				{"name": "venom_tail",    "tempo_cost": 15, "label": "Venom Tail"},
+				{"name": "cerberus_roar", "tempo_cost": 12, "label": "Roar"},
+				{"name": "move",          "tempo_cost": 3},
 			]
 
 		# ===================== MOUNTAINS ACT =====================
@@ -1492,6 +1660,10 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.CHERUB: "Minion", EnemyType.DJINN: "Elite", EnemyType.CORRUPTED_ARCHANGEL: "Boss",
 		EnemyType.RING_WRAITH: "Elite",
 		EnemyType.DUMMY: "Minion",
+		EnemyType.RAT_NEST: "Minion",
+		EnemyType.GRAVESTONE: "Minion",
+		EnemyType.GRAVE_DIGGER: "Minion",
+		EnemyType.HELL_DOOR: "Minion",
 	}
 	var _stats := {
 		EnemyType.MINION: {"name": "Minion", "health": 25, "armor": 0, "damage": 3, "xp": 5},
@@ -1543,7 +1715,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.GRANITE_COLOSSUS: {"name": "Granite Colossus", "health": 0, "armor": 0, "damage": 0, "xp": 0},
 		EnemyType.WHITE_MANTICORE: {"name": "White Manticore", "health": 75, "armor": 15, "damage": 15, "xp": 40},
 		EnemyType.SABERTOOTH: {"name": "Sabertooth Tiger", "health": 0, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.CERBERUS: {"name": "Cerberus", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.CERBERUS: {"name": "Cerberus", "health": 250, "armor": 50, "damage": 25, "xp": 150},
 		EnemyType.SUCCUBUS: {"name": "Succubus", "health": 0, "armor": 0, "damage": 0, "xp": 0},
 		EnemyType.DEMON: {"name": "Demon", "health": 0, "armor": 0, "damage": 0, "xp": 0},
 		EnemyType.IFRIT: {"name": "Ifrit", "health": 225, "armor": 0, "damage": 45, "xp": 70},
@@ -1558,6 +1730,10 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.CORRUPTED_ARCHANGEL: {"name": "Corrupted Archangel", "health": 0, "armor": 0, "damage": 0, "xp": 0},
 		EnemyType.RING_WRAITH: {"name": "Ring Wraith", "health": 100, "armor": 0, "damage": 15, "xp": 0},
 		EnemyType.DUMMY: {"name": "Training Dummy", "health": 500, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.RAT_NEST: {"name": "Rat Nest", "health": 15, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.GRAVESTONE: {"name": "Gravestone", "health": 10, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.GRAVE_DIGGER: {"name": "Grave Digger", "health": 20, "armor": 0, "damage": 0, "xp": 6},
+		EnemyType.HELL_DOOR: {"name": "Hell's Door", "health": 150, "armor": 0, "damage": 0, "xp": 0},
 	}
 	var _actions := {
 		EnemyType.MINION: [{"name": "Attack", "tempo": 3}, {"name": "Move", "tempo": 5}],
@@ -1599,7 +1775,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SLUDGE: [{"name": "Melee", "tempo": 5}, {"name": "Spit", "tempo": 6}, {"name": "Move", "tempo": 5}],
 		EnemyType.PIPE_CRAWLER: [{"name": "Claw", "tempo": 5}, {"name": "Move", "tempo": 2}],
 		EnemyType.SEWER_CROC: [{"name": "Bite", "tempo": 6}, {"name": "Move", "tempo": 5}],
-		EnemyType.RAT_KING: [{"name": "Bite", "tempo": 3}, {"name": "Move", "tempo": 2}],
+		EnemyType.RAT_KING: [{"name": "Bite", "tempo": 3}, {"name": "Move", "tempo": 2}, {"name": "Flee to a nest", "tempo": 2}, {"name": "Feed on the nest", "tempo": 2}],
 		EnemyType.SWARM: [{"name": "Attack", "tempo": 2}, {"name": "Move", "tempo": 3}],
 		EnemyType.WEREGOAT: [], EnemyType.ROC: [],
 		EnemyType.WYVERN: [{"name": "Bite", "tempo": 5}, {"name": "Talon Grab", "tempo": 8}, {"name": "Move", "tempo": 4}],
@@ -1607,7 +1783,8 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SNOW_WRAITH: [], EnemyType.GRANITE_COLOSSUS: [],
 		EnemyType.WHITE_MANTICORE: [{"name": "Bite", "tempo": 3}, {"name": "Stinger", "tempo": 5}, {"name": "Move", "tempo": 2}],
 		EnemyType.SABERTOOTH: [],
-		EnemyType.CERBERUS: [], EnemyType.SUCCUBUS: [], EnemyType.DEMON: [],
+		EnemyType.CERBERUS: [{"name": "Bite", "tempo": 5}, {"name": "Swipe", "tempo": 8}, {"name": "Venom Tail", "tempo": 15}, {"name": "Roar", "tempo": 12}, {"name": "Move", "tempo": 3}],
+		EnemyType.SUCCUBUS: [], EnemyType.DEMON: [],
 		EnemyType.IFRIT: [{"name": "Attack", "tempo": 3}, {"name": "Fire Breath", "tempo": 8}, {"name": "Move", "tempo": 4}],
 		EnemyType.MIND_EATER: [], EnemyType.SPECTER: [],
 		EnemyType.MAGMA_SPIDER: [], EnemyType.PIT_FIEND: [], EnemyType.ASH_HARPY: [],
@@ -1617,6 +1794,10 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.CORRUPTED_ARCHANGEL: [],
 		EnemyType.RING_WRAITH: [{"name": "Attack", "tempo": 2}, {"name": "Move", "tempo": 4}],
 		EnemyType.DUMMY: [],
+		EnemyType.RAT_NEST: [],
+		EnemyType.GRAVESTONE: [],
+		EnemyType.GRAVE_DIGGER: [{"name": "Walk", "tempo": 2}, {"name": "Repair", "tempo": 8}],
+		EnemyType.HELL_DOOR: [],
 	}
 	var _specials := {
 		EnemyType.MINION: "Basic enemy.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
@@ -1649,7 +1830,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WERERABBIT: "Loot monster — does not attack.\nFlees for 3 cycles, then Vanishes in a puff of smoke.\nMove (1 tempo): 2 spaces.",
 		EnemyType.VAMPIRE: "Victorian aristocrat with life steal. Resists 10% physical/fire/lightning.\nBite (5 tempo): 10 damage; heals 100% of damage dealt to HEALTH (not armor).\nBat Form (below 50% HP, 2 charges, never recharges): flits 6 squares away...\nAbsorb (3 tempo, always right after Bat Form): drains the healthiest ally on the map (you included) — 20 the first time, then 10.\nMove (5 tempo): 5 spaces.",
 		EnemyType.NECROMANCER: "Hooded caster (range 10) who raises the dead. Resists 15% fire/lightning.\nBolt (5 tempo): 4 damage + Hexes 2 cards in your hand (each +30 mana until played).\nSummon (8 tempo): raises undead (skeletons and zombies, first pass). After 5 of its summons die, it raises a BONE DRAGON.\nMove (6 tempo): 8 spaces.",
-		EnemyType.BONE_DRAGON: "Skeletal wyrm. Summoned by the Necromancer, but also roams freely. Resists 45% physical / 45% fire.\nBite (5 tempo): 12 damage.\nBreath Swarm (6 tempo): 12 damage down a 6-tile line; a Swarm hatches beside everyone it hits.\nMove (5 tempo): 5 spaces.",
+		EnemyType.BONE_DRAGON: "Skeletal wyrm. Summoned by the Necromancer, but also roams freely; fought as a boss in the Boneyard, where every standing gravestone regenerates it 1 health a cycle (Gravebound — break the stones, and kill the diggers who repair them). Resists 45% physical / 45% fire.\nBite (5 tempo): 12 damage.\nBreath Swarm (6 tempo): 12 damage down a 6-tile line; a Swarm hatches beside everyone it hits.\nMove (5 tempo): 5 spaces.",
 		EnemyType.SPIRIT_COLLECTOR: "Lantern-bearer with a soul cage on its back.\nStrike (3 tempo): 8 damage.\nCollect Soul (8 tempo): 8 damage; adds a 'Release Soul' card to your hand (saps 1 damage per tempo — charged 5 per cycle — until played, then is erased).",
 		EnemyType.GRAVE_TITAN: "Yeti-like brute (30 armor) hauling a boulder.\nSmash (8 tempo): 15 damage in front.\nBoulder Roll (range 3, 5 tempo): rolls the boulder for 15 damage.\nMove (8 tempo): 4 spaces.",
 		EnemyType.CRYPT_CRAWLER: "Large spider. After 3 consecutive attacks it webs you.\nBite (3 tempo): 6 damage.\nWeb: adds a 'Paralysis' card to your hand — you cannot move until it is played (other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
@@ -1665,7 +1846,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WHITE_MANTICORE: "A manticore with a snow-leopard body, bat wings and a spiked tail. Flying: ignores your high-ground bonus. Resists 10% physical / 35% fire / 10% lightning.\nBite (3 tempo): 15 damage.\nStinger (5 tempo, then 5-tempo cooldown): 25 damage + Clumsy (3 stacks) + 8 Poison.\nMove (2 tempo): 3 spaces.",
 		EnemyType.SABERTOOTH: "A sabertooth tiger.\n[Design mock-up — stats & moves TBD.]",
 		# --- Underworld (design mock-ups — stats & moves TBD) ---
-		EnemyType.CERBERUS: "Three-headed hound with spiked collars and a chain on the left head.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.CERBERUS: "Three-headed hound with spiked collars and a chain on the left head: the guardian of Hell's Door. Resists 30% physical / 40% fire / 15% lightning. You need not kill him — only break the door he guards — but it is far easier with him dead.\nBite (5 tempo): 25 damage. Below 66% health the second head bites too (25 + 5 Bleed); below 33% the third head as well (25, and he feeds on the wound).\nSwipe (8 tempo): 8 Bleed.\nVenom Tail (15 tempo): you discard 3 random cards and are stunned for 15 tempo; when it lifts, 2 Vulnerable and Cuffed for 10 tempo.\nRoar (12 tempo): +25 armor and 25 thorns.\nMove (3 tempo): 6 spaces.\nGuardian of Death: Brace 30% for 5 hits the first time he drops below half, and again EVERY time any unit within 8 squares — foe or ally, the door included — drops below half.\nDeathyard Dog: a foe healing within 5 squares gives him 15 Strengthen.",
 		EnemyType.SUCCUBUS: "A winged fey: short shorts, sleeveless top, elbow gloves, long boots and small horns.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.DEMON: "A red, thorned demon wielding a dagger and a trident.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.IFRIT: "A muscular bipedal fire-hound, hunched, with long near-ground arms. Resists 20% physical / 15% fire / 15% lightning.\nAttack (3 tempo): 45 damage.\nFire Breath (8 tempo, used from up to 4 tiles out): a 5x5 sheet of flame in front — 20 fire damage + 5 Burn; the tiles keep burning for 3 tempo.\nBackflip (auto): a single blow over 40 damage sends it leaping 3 squares backwards.\nMove (4 tempo): 5 spaces.",
@@ -1682,10 +1863,14 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SLUDGE: "Gelatinous ooze that strikes up close or at range.\nMelee (5 tempo): 3 damage.\nSpit (range 6, 6 tempo): 3 damage.\nMove (5 tempo): 3 spaces.",
 		EnemyType.PIPE_CRAWLER: "Many-limbed crawler scuttling on all fours.\nClaw (5 tempo): 5 damage; 25% chance to disarm you (5 tempo).\nMove (2 tempo): 2 spaces.",
 		EnemyType.SEWER_CROC: "Armoured ambush predator (20 armor).\nBite (6 tempo): 12 damage.\nMove (5 tempo): 2 spaces.",
-		EnemyType.RAT_KING: "A giant crowned rat that leads the swarm (10 armor).\nBite (3 tempo): 6 damage.\nMove (2 tempo): 2 spaces.",
+		EnemyType.RAT_KING: "A giant crowned rat that leads the swarm (10 armor), fought in his own lair off the sewer's central cistern.\nBite (3 tempo): 6 damage.\nMove (2 tempo): 2 spaces.\nFlee to a nest (2 tempo): at 50%, 30% and 30% health he bolts for an untouched rat nest.\nFeed on the nest (2 tempo): heals 20% / 30% / 50% of his health (left / middle / right nest); a nest feeds him once.",
 		EnemyType.SWARM: "A single creature made of countless biting bugs.\nAttack (2 tempo): 3 damage.\nMove (3 tempo): 8 spaces — very fast.",
 		EnemyType.RING_WRAITH: "The Precious: hunts the ring-bearer through the shadow world. Shadow form does not hide you from these.\nAttack (2 tempo): 15 damage.\nMove (4 tempo): 5 spaces.\nResummons on death — grants no XP.",
 		EnemyType.DUMMY: "The Dojo's training dummy (a chicken, for morale). Stands still, never strikes, and a killing blow only refills it — grants no XP, drops nothing.",
+		EnemyType.HELL_DOOR: "The gate Cerberus guards: the way down to Hell. Break it to get through — you need not kill the hound. At 75%, 50% and 33% health it seals itself against all damage for 10 tempo. It counts as Cerberus's ally (its drop below half feeds his Guardian of Death). Grants no XP, drops nothing.",
+		EnemyType.GRAVESTONE: "A headstone in the Boneyard. Every one left standing regenerates the Bone Dragon 1 health a cycle, and that regen never fades — break the stones to starve him of it. Grants no XP, drops nothing.",
+		EnemyType.GRAVE_DIGGER: "Walks out of the Boneyard's crypt to a broken gravestone and sets it back to full in 8 tempo, then is gone. Three come in all, one at a time. Cut him down before he finishes.\nWalk (2 tempo): 2 spaces.\nRepair (8 tempo): the stone stands again.",
+		EnemyType.RAT_NEST: "A heap of straw and bones at the foot of a cliff in the Rat King's Lair. Tread on it and its Archer Rat scrambles up to the high ground. The wounded king feeds on an untouched nest (left 20%, middle 30%, right 50% of his health) — tear the nests down and he has nowhere to run. Grants no XP, drops nothing.",
 	}
 
 	var result: Array = []
@@ -2027,6 +2212,28 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 		_stinger_cooldown = maxi(0, _stinger_cooldown - amount)
 	if _talon_cooldown > 0:
 		_talon_cooldown = maxi(0, _talon_cooldown - amount)
+
+	# Hell's Gate: the door's seal runs down; Cerberus watches for drops below
+	# half, listens for heals, and the venom runs its course.
+	if enemy_type == EnemyType.HELL_DOOR and door_sealed_tempo > 0:
+		door_sealed_tempo = maxi(0, door_sealed_tempo - amount)
+		if door_sealed_tempo == 0:
+			print("[%s] The seal fades" % enemy_name)
+		_update_status_indicators()
+	if enemy_type == EnemyType.CERBERUS:
+		_hook_deathyard_dog()
+		_guardian_scan()
+		_tick_venom(amount)
+
+	# Bone Dragon in the Boneyard: 1 health a cycle for every gravestone
+	# still standing — regen that never decays; only breaking stones lowers it.
+	if enemy_type == EnemyType.BONE_DRAGON and gravestone_provider.is_valid():
+		regen_accumulator += amount
+		while regen_accumulator >= 5:
+			regen_accumulator -= 5
+			var standing: int = int(gravestone_provider.call())
+			if standing > 0:
+				_regenerate(standing)
 
 	# Wolf pack: within 4 tiles of another wolf, regen 2 HP every 5 tempo.
 	if enemy_type == EnemyType.WOLF and _wolf_aura_active():
@@ -2652,7 +2859,11 @@ func _choose_action(player_node: Node3D) -> void:
 		EnemyType.SEWER_CROC:
 			_choose_melee_action(distance, "croc_bite")
 		EnemyType.RAT_KING:
-			_choose_melee_action(distance, "bite")
+			_choose_rat_king_action(distance)
+		EnemyType.GRAVE_DIGGER:
+			_choose_grave_digger_action()
+		EnemyType.CERBERUS:
+			_choose_cerberus_action(distance)
 		EnemyType.SWARM:
 			_choose_melee_action(distance, "attack")
 		# ----- Mountains act -----
@@ -2732,6 +2943,16 @@ func _choose_troll_action(distance: int) -> void:
 		chosen_action = _get_action("move")
 
 func _choose_archer_rat_action(distance: int) -> void:
+	# A nest's archer climbs to its cliff top and holds it: it walks up first,
+	# then shoots whoever is in range from the high ground and otherwise
+	# waits — no kiting, no chasing.
+	if perch_cell.x >= 0:
+		if _at_perch():
+			_home_cell = perch_cell  # idle pacing stays on the cliff top
+			chosen_action = _get_action("shoot") if distance <= int(attack_range) else {}
+		else:
+			chosen_action = _get_action("get_into_range")
+		return
 	if distance <= 2:
 		# Too close! Scurry away to get distance
 		chosen_action = _get_action("scurry_away")
@@ -2741,6 +2962,321 @@ func _choose_archer_rat_action(distance: int) -> void:
 	else:
 		# In range (3-4 tiles) - shoot!
 		chosen_action = _get_action("shoot")
+
+func _at_perch() -> bool:
+	return grid_manager != null and perch_cell.x >= 0 \
+			and grid_manager.world_to_grid(position) == perch_cell
+
+## --- Rat King ---
+
+func _choose_rat_king_action(distance: int) -> void:
+	## Wounded past a threshold, the king makes for a nest and feeds on it;
+	## otherwise he bites and repositions like any brute.
+	if _nest_target != null and not _nest_available(_nest_target):
+		# The nest he was running for is gone (destroyed, or drained): pick
+		# another untouched one if any remain, else fight on.
+		_nest_target = _pick_nest()
+		_nest_stuck = 0
+	if _nest_target != null:
+		if _cell_adjacent_to(_nest_target):
+			chosen_action = _get_action("nest_heal")
+		else:
+			chosen_action = _get_action("seek_nest")
+		return
+	_choose_melee_action(distance, "bite")
+
+func _nest_available(nest: Enemy) -> bool:
+	return nest != null and is_instance_valid(nest) and nest.is_alive() and not nest.nest_used
+
+func _pick_nest() -> Enemy:
+	## A random untouched, still-standing nest from main's list (null if none).
+	if not nest_provider.is_valid():
+		return null
+	var pool: Array = []
+	for n in nest_provider.call():
+		if n is Enemy and _nest_available(n):
+			pool.append(n)
+	if pool.is_empty():
+		return null
+	return pool[randi() % pool.size()]
+
+func _cell_adjacent_to(node: Node3D) -> bool:
+	if grid_manager == null:
+		return position.distance_to(node.position) <= 1.5
+	var a := grid_manager.world_to_grid(position)
+	var b := grid_manager.world_to_grid(node.position)
+	return maxi(absi(a.x - b.x), absi(a.y - b.y)) <= 1
+
+func _rat_king_consider_nest() -> void:
+	## Called on every hit: at 50%, then 30%, then 30% again (he heals in
+	## between) the king drops what he is doing and bolts for a nest. A
+	## threshold is spent whether or not a nest is left to run to.
+	if enemy_type != EnemyType.RAT_KING or is_dead or _nest_target != null:
+		return
+	if _nest_flights_done >= NEST_FLIGHT_THRESHOLDS.size():
+		return
+	var threshold: float = NEST_FLIGHT_THRESHOLDS[_nest_flights_done]
+	if current_health > max_health * threshold:
+		return
+	_nest_flights_done += 1
+	_nest_target = _pick_nest()
+	_nest_stuck = 0
+	if _nest_target == null:
+		print("[%s] Wounded, but every nest is spent — he fights on!" % enemy_name)
+		return
+	chosen_action = {}
+	action_tempo_counter = 0
+	print("[%s] Bolts for the %s nest! (flight %d of %d)" % [enemy_name, _nest_target.nest_label, _nest_flights_done, NEST_FLIGHT_THRESHOLDS.size()])
+	_dash_towards_target(_nest_target.position, 6)
+
+func _try_seek_nest() -> bool:
+	if _nest_target == null or not _nest_available(_nest_target):
+		return false
+	var before := position
+	_dash_towards_target(_nest_target.position, 5)
+	if not is_moving and before.distance_to(position) < 0.01:
+		# Hemmed in: give the nest up after a few fruitless tries so the king
+		# never idles at a wall while the player stands on the approach.
+		_nest_stuck += 1
+		if _nest_stuck >= 3:
+			print("[%s] Cannot reach the %s nest — gives it up." % [enemy_name, _nest_target.nest_label])
+			_nest_target = null
+	return true
+
+func _try_nest_heal() -> bool:
+	## Feed on the nest: restore its share of max health and drain it for good.
+	var nest := _nest_target
+	_nest_target = null
+	if nest == null or not _nest_available(nest):
+		return false
+	var amount := maxi(1, roundi(max_health * nest.nest_heal_pct))
+	nest.drain_nest()
+	_regenerate(amount)
+	print("[%s] Feeds on the %s nest: +%d health" % [enemy_name, nest.nest_label, amount])
+	return true
+
+## --- Grave Digger ---
+
+func _choose_grave_digger_action() -> void:
+	## Nothing but the job: walk to the broken stone, then work on it.
+	if repair_cell.x < 0:
+		chosen_action = {}
+		return
+	if _cell_adjacent_to_cell(repair_cell):
+		chosen_action = _get_action("repair")
+	else:
+		chosen_action = _get_action("dig_walk")
+
+func _cell_adjacent_to_cell(cell: Vector2i) -> bool:
+	if grid_manager == null:
+		return false
+	var a := grid_manager.world_to_grid(position)
+	return maxi(absi(a.x - cell.x), absi(a.y - cell.y)) <= 1
+
+func _try_dig_walk() -> bool:
+	if repair_cell.x < 0 or grid_manager == null:
+		return false
+	if not _start_path(_build_greedy_path(position, repair_cell, maxi(1, int(move_distance)))):
+		print("[%s] Cannot get closer to the stone this tempo" % enemy_name)
+	return true
+
+func _try_repair() -> bool:
+	## The 8 tempo are up: the stone stands again, and the digger is done.
+	if repair_cell.x < 0:
+		return false
+	print("[%s] Sets the gravestone at %s right" % [enemy_name, repair_cell])
+	if repair_handler.is_valid():
+		repair_handler.call(self)
+	return true
+
+## --- Cerberus ---
+
+func _foes_in_play() -> Array:
+	## The players Cerberus watches: the spawner's party in co-op, else the
+	## scene's one player.
+	var main = get_parent()
+	if main == null:
+		return []
+	var out: Array = []
+	if "enemy_spawner" in main and main.enemy_spawner and not main.enemy_spawner.players.is_empty():
+		for p in main.enemy_spawner.players:
+			if is_instance_valid(p) and p.has_method("get_stats") and p.get_stats():
+				out.append(p)
+	elif "player" in main and main.player and is_instance_valid(main.player) and main.player.has_method("get_stats"):
+		out.append(main.player)
+	return out
+
+func _choose_cerberus_action(distance: int) -> void:
+	## Straightforward and vicious: close in and bite. Roar when the thorns
+	## are spent, Swipe for the bleed, and Venom Tail when the last one has
+	## run its course.
+	if distance > 1:
+		if enemy_thorns <= 0 and randf() < 0.25:
+			chosen_action = _get_action("cerberus_roar")
+		else:
+			chosen_action = _get_action("move")
+		return
+	var roll := randf()
+	if _venom_countdown <= 0 and roll < 0.2:
+		chosen_action = _get_action("venom_tail")
+	elif enemy_thorns <= 0 and roll < 0.35:
+		chosen_action = _get_action("cerberus_roar")
+	elif roll < 0.6:
+		chosen_action = _get_action("swipe")
+	else:
+		chosen_action = _get_action("cerberus_bite")
+
+func _try_cerberus_bite(target_node: Node3D) -> bool:
+	## Bite: 25. Below 66% health the second head bites too (25 + 5 Bleed);
+	## below 33% the third head bites as well (25, and the wound feeds him).
+	if is_disarmed or not _in_attack_range(target_node):
+		return _try_move(target_node)
+	var dmg: int = attack_damage + strengthen_stacks
+	_deal_damage_to_player(target_node, dmg, "Bite")
+	if current_health * 3 < max_health * 2:
+		_deal_damage_to_player(target_node, dmg, "Second Head")
+		_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.BLEED, 5, 15))
+	if current_health * 3 < max_health:
+		_deal_damage_to_player(target_node, dmg, "Third Head")
+		_regenerate(dmg)
+	turn_completed.emit()
+	return true
+
+func _try_swipe(target_node: Node3D) -> bool:
+	## Swipe: no wound of its own, but 8 Bleed.
+	return _try_elemental(target_node, 0, "Swipe", {"bleed": 8})
+
+func _try_venom_tail(target_node: Node3D) -> bool:
+	## Venom Tail: the victim discards 3 random cards and is stunned for 15
+	## tempo; when the stun lifts they gain 2 Vulnerable and 10 tempo of Cuffed.
+	if is_disarmed or not _in_attack_range(target_node):
+		return _try_move(target_node)
+	if target_node.has_method("get_deck_manager"):
+		var deck = target_node.get_deck_manager()
+		if deck and "hand" in deck:
+			var dropped := 0
+			for _i in range(3):
+				if deck.hand.is_empty():
+					break
+				var card = deck.hand[randi() % deck.hand.size()]
+				if deck.discard_card_from_hand(card):
+					dropped += 1
+			print("[%s] Venom Tail: %d card(s) knocked from the hand" % [enemy_name, dropped])
+	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.STUN, 0, 15))
+	_venom_countdown = 15
+	_venom_victim = target_node
+	turn_completed.emit()
+	return true
+
+func _tick_venom(amount: int) -> void:
+	if _venom_countdown <= 0:
+		return
+	_venom_countdown -= amount
+	if _venom_countdown > 0:
+		return
+	_venom_countdown = 0
+	if _venom_victim != null and is_instance_valid(_venom_victim):
+		_apply_player_debuff(_venom_victim, Debuff.create(Debuff.DebuffType.VULNERABLE, 2, 15))
+		_apply_player_debuff(_venom_victim, Debuff.create(Debuff.DebuffType.CUFFED, 0, 10))
+		print("[%s] The venom lingers: 2 Vulnerable, Cuffed for 10 tempo" % enemy_name)
+	_venom_victim = null
+
+func _try_cerberus_roar() -> bool:
+	## Roar: 25 armor and 25 thorns.
+	current_armor += 25
+	enemy_thorns += 25
+	update_health_display()
+	_update_status_indicators()
+	print("[%s] ROARS — +25 armor, +25 thorns (%d/%d)" % [enemy_name, current_armor, enemy_thorns])
+	turn_completed.emit()
+	return true
+
+func _gain_guardian_brace(why: String) -> void:
+	_brace_charges += 5
+	print("[%s] Guardian of Death (%s): Brace 30%% for %d hits" % [enemy_name, why, _brace_charges])
+	_update_status_indicators()
+
+func _within_tiles(node: Node3D, radius: float) -> bool:
+	var d := node.position - position
+	return Vector3(d.x, 0, d.z).length() <= radius
+
+func _guardian_scan() -> void:
+	## Guardian of Death: every unit in play — his foes and his allies (the
+	## door among them) — watched for the moment it drops below half health
+	## within 8 squares. Each such drop is another 5 hits of Brace; a unit
+	## that heals back above half and drops again counts again.
+	var units: Array = []
+	for p in _foes_in_play():
+		var st = p.get_stats()
+		units.append([p, st.current_health, st.max_health])
+	for e in _sibling_enemies():
+		if e != self:
+			units.append([e, e.current_health, e.max_health])
+	for u in units:
+		var key: int = u[0].get_instance_id()
+		var below: bool = int(u[1]) * 2 < int(u[2])
+		if _guardian_watch.has(key):
+			if below and not _guardian_watch[key] and _within_tiles(u[0], GUARDIAN_RADIUS):
+				_gain_guardian_brace("%s below half" % (u[0].enemy_name if u[0] is Enemy else "a foe"))
+		_guardian_watch[key] = below
+
+func _hook_deathyard_dog() -> void:
+	## Deathyard Dog: a foe healing within 5 squares gives him 15 Strengthen.
+	if _deathyard_hooked:
+		return
+	var foes := _foes_in_play()
+	if foes.is_empty():
+		return
+	_deathyard_hooked = true
+	for p in foes:
+		var st = p.get_stats()
+		if st.has_signal("healed"):
+			st.healed.connect(_on_foe_healed.bind(p))
+
+func _on_foe_healed(amount: int, who: Node3D) -> void:
+	if is_dead or amount <= 0 or who == null or not is_instance_valid(who):
+		return
+	if not _within_tiles(who, DEATHYARD_RADIUS):
+		return
+	strengthen_stacks += 15
+	print("[%s] Deathyard Dog: a foe heals in reach — +15 Strengthen (%d)" % [enemy_name, strengthen_stacks])
+	_update_status_indicators()
+
+func _thorns_strike_back() -> void:
+	## Roar's thorns: the player's direct hit costs them the thorn damage,
+	## and one thorn is spent per hit.
+	var main = get_parent()
+	if main == null or not ("player" in main) or main.player == null or not is_instance_valid(main.player):
+		return
+	var st = main.player.get_stats() if main.player.has_method("get_stats") else null
+	if st == null:
+		return
+	var dmg := enemy_thorns
+	enemy_thorns -= 1
+	st.take_damage(dmg)
+	print("[%s] Thorns bite back for %d (%d thorns left)" % [enemy_name, dmg, enemy_thorns])
+	_update_status_indicators()
+
+## --- Hell's Door ---
+
+func _door_check_thresholds() -> void:
+	## At 75%, 50% and 33% the door seals itself against all damage for 10 tempo.
+	for t in DOOR_SEAL_THRESHOLDS:
+		if t in _door_thresholds_hit:
+			continue
+		if current_health > 0 and current_health <= max_health * t:
+			_door_thresholds_hit.append(t)
+			door_sealed_tempo = DOOR_SEAL_TEMPO
+			print("[%s] Seals itself at %d%% — invulnerable for %d tempo" % [enemy_name, int(t * 100), DOOR_SEAL_TEMPO])
+	_update_status_indicators()
+
+func drain_nest() -> void:
+	## A nest the king has fed on: spent, and it reads so (greyed straw).
+	nest_used = true
+	if _enemy_figure and "_sprite" in _enemy_figure and _enemy_figure._sprite:
+		_enemy_figure._sprite.modulate = Color(0.45, 0.42, 0.4)
+	if _enemy_figure and _enemy_figure.has_method("flash"):
+		_enemy_figure.flash(Color(0.4, 0.9, 0.5))
 
 func _choose_hydra_action(distance: int) -> void:
 	# Once enraged (4th hit) she will heal to full when meaningfully hurt.
@@ -2980,6 +3516,22 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 			return _try_scurry_away(move_target)
 		"get_into_range":
 			return _try_get_into_range(move_target)
+		"seek_nest":
+			return _try_seek_nest()
+		"nest_heal":
+			return _try_nest_heal()
+		"dig_walk":
+			return _try_dig_walk()
+		"repair":
+			return _try_repair()
+		"cerberus_bite":
+			return _try_cerberus_bite(move_target)
+		"swipe":
+			return _try_swipe(move_target)
+		"venom_tail":
+			return _try_venom_tail(move_target)
+		"cerberus_roar":
+			return _try_cerberus_roar()
 		"hydra_attack":
 			return _try_hydra_attack(move_target)
 		"hydra_move":
@@ -4050,6 +4602,18 @@ func _try_scurry_away(target_node: Node3D) -> bool:
 
 func _try_get_into_range(target_node: Node3D) -> bool:
 	## Archer Rat: Move 2 tiles toward target to get into shooting range.
+	# A nest's archer walks up to its cliff top instead (3 tiles a step):
+	# round the side of the cliff first, then onto the top.
+	if perch_cell.x >= 0 and not _at_perch() and grid_manager:
+		var here := grid_manager.world_to_grid(position)
+		if perch_approach.x >= 0 and here == perch_approach:
+			_perch_approach_done = true
+		var leg := perch_cell if (_perch_approach_done or perch_approach.x < 0) else perch_approach
+		if not _start_path(_build_greedy_path(position, leg, 3, false, true)):
+			print("[%s] Cannot climb to its perch this tempo" % enemy_name)
+		else:
+			print("[%s] Climbs toward the high ground at %s (via %s)" % [enemy_name, perch_cell, leg])
+		return true
 	if _in_attack_range(target_node):
 		# Already in range, shoot instead
 		return _try_shoot(target_node)
@@ -4436,8 +5000,8 @@ func _physics_process(delta: float) -> void:
 ## Standing still: face whoever we're sizing up if they're in aggro range,
 ## otherwise pace a tile now and then.
 func _idle_ambient(delta: float) -> void:
-	if is_training_dummy:
-		return  # dummies hold their tile
+	if is_training_dummy or is_structure:
+		return  # dummies and nests hold their tile
 	if _wander_timer > 0.0:
 		_wander_timer -= delta
 	var tgt := _ambient_target()
@@ -4470,6 +5034,8 @@ func _ambient_target() -> Node3D:
 
 func _try_wander() -> void:
 	## One idle step to a free neighbouring tile inside the home leash.
+	if is_structure:
+		return
 	if is_stunned or is_frozen or rooted_tempo > 0 or tree_tempo > 0 or is_moving or is_channeling():
 		return
 	if grid_manager == null:
@@ -4514,11 +5080,13 @@ func _try_wander() -> void:
 func set_target(new_target: Node3D) -> void:
 	target = new_target
 
-func _build_greedy_path(start_pos: Vector3, goal_cell: Vector2i, tiles: int, away: bool = false) -> Array[Vector3]:
+func _build_greedy_path(start_pos: Vector3, goal_cell: Vector2i, tiles: int, away: bool = false,
+		onto_goal: bool = false) -> Array[Vector3]:
 	## Greedy tile-by-tile route toward (or away from) goal_cell, honoring walls
 	## and other enemies. Returns the ordered list of tile-center world positions
 	## so movement follows the actual path instead of gliding straight through
-	## corners/walls. Empty if no step is possible.
+	## corners/walls. Empty if no step is possible. `onto_goal` lets the route
+	## end ON the goal cell (a perch to stand on, not a target to stop beside).
 	var path: Array[Vector3] = []
 	if not grid_manager:
 		return path
@@ -4530,7 +5098,7 @@ func _build_greedy_path(start_pos: Vector3, goal_cell: Vector2i, tiles: int, awa
 		var best_dist := _manhattan_dist(last_cell, goal_cell)
 		for d in dirs:
 			var candidate: Vector2i = last_cell + d
-			if candidate == goal_cell and not away:
+			if candidate == goal_cell and not away and not onto_goal:
 				continue  # Don't step onto the target's tile
 			if candidate in blocked_tiles:
 				continue  # Walls / structures
@@ -4651,6 +5219,12 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	# hits health (Neither Man nor Beast "ignoring all resistances and armor").
 	if is_dead:
 		return false
+	# Hell's Door, sealed: nothing gets through until the seal fades.
+	if enemy_type == EnemyType.HELL_DOOR and door_sealed_tempo > 0:
+		print("[%s] Sealed — the blow glances off (%d tempo left)" % [enemy_name, door_sealed_tempo])
+		if _enemy_figure and _enemy_figure.has_method("flash"):
+			_enemy_figure.flash(Color(0.9, 0.3, 0.3))
+		return false
 	last_hit_from_player = from_player
 	last_hit_direct = from_player and PlayerStats.hit_source_direct
 	# Blue Robe: each enemy a slotted card strikes takes the type IT resists least.
@@ -4674,6 +5248,12 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	# auto attack — never on DoT ticks, which pass from_player = false.
 	if from_player and player_hit_modifier.is_valid():
 		amount = int(player_hit_modifier.call(self, amount))
+	# Cerberus — Guardian of Death: Brace takes 30% off each of the next hits.
+	if _brace_charges > 0 and amount > 0:
+		amount = floori(amount * 0.7)
+		_brace_charges -= 1
+		print("[%s] Braced! -30%% (%d hits of Brace left)" % [enemy_name, _brace_charges])
+		_update_status_indicators()
 	if amount > 0:
 		has_been_damaged = true
 
@@ -4836,6 +5416,17 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 					damage_resistances[DamageTypes.Type.PHYSICAL] = maxf(30.0,
 						float(damage_resistances.get(DamageTypes.Type.PHYSICAL, 0.0)))
 					print("[%s] Hide toughens — 30%% physical resistance, for good!" % enemy_name)
+			EnemyType.RAT_KING:
+				_rat_king_consider_nest()
+			EnemyType.CERBERUS:
+				# Guardian of Death on himself: the first time below half.
+				if not _guardian_self_used and current_health * 2 < max_health:
+					_guardian_self_used = true
+					_gain_guardian_brace("Cerberus below half")
+				if from_player and last_hit_direct and enemy_thorns > 0 and incoming_hit > 0:
+					_thorns_strike_back()
+			EnemyType.HELL_DOOR:
+				_door_check_thresholds()
 			EnemyType.VAMPIRE:
 				# Bat form: below 50% HP, flies 6 squares away (2 charges, no
 				# way to recharge), then Absorb is always the next cast.
@@ -5494,6 +6085,18 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Rooted", "color": Color(0.4, 0.3, 0.15), "stacks": rooted_tempo})
 	if disarmed_attacks > 0:
 		effects.append({"name": "Disarmed", "color": Color(0.8, 0.3, 0.3), "stacks": disarmed_attacks})
+	if gravestone_provider.is_valid():
+		var standing: int = int(gravestone_provider.call())
+		if standing > 0:
+			effects.append({"name": "Gravebound", "color": Color(0.55, 0.85, 0.6), "stacks": standing})
+	if door_sealed_tempo > 0:
+		effects.append({"name": "Sealed", "color": Color(0.9, 0.35, 0.3), "stacks": door_sealed_tempo})
+	if _brace_charges > 0:
+		effects.append({"name": "Brace", "color": Color(0.5, 0.5, 0.8), "stacks": _brace_charges})
+	if enemy_thorns > 0:
+		effects.append({"name": "Thorns", "color": Color(0.8, 0.4, 0.8), "stacks": enemy_thorns})
+	if strengthen_stacks > 0 and enemy_type == EnemyType.CERBERUS:
+		effects.append({"name": "Strengthen", "color": Color(1.0, 0.5, 0.3), "stacks": strengthen_stacks})
 
 	return effects
 
@@ -5574,6 +6177,21 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			color = eff["color"]
 			break
 	match eff_name:
+		"Sealed":
+			desc = "Hell's Door has sealed itself: no damage gets through until the seal fades. It seals at 75%, 50% and 33% health."
+			remaining = "Remaining: %d tempo" % door_sealed_tempo
+		"Brace":
+			desc = "Guardian of Death: the next hits deal 30% less. Gained whenever he, a foe or an ally within 8 squares first drops below half health."
+			remaining = "Hits left: %d" % _brace_charges
+		"Thorns":
+			desc = "Roar's thorns: every direct hit on him costs the attacker this much; one thorn is spent per hit."
+			remaining = "Thorns: %d" % enemy_thorns
+		"Strengthen":
+			desc = "Deathyard Dog: +15 damage every time a foe heals within 5 squares of him. It does not fade."
+			remaining = "Bonus damage: %d" % strengthen_stacks
+		"Gravebound":
+			desc = "Regenerates 1 health every cycle for each gravestone still standing. It never fades — only breaking the stones lowers it."
+			remaining = "Standing gravestones: %d" % int(gravestone_provider.call()) if gravestone_provider.is_valid() else ""
 		"Taunt":
 			desc = "Must attack whoever taunted it."
 			remaining = "Remaining: %d tempo" % taunt_tempo

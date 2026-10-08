@@ -11,8 +11,6 @@ extends PanelContainer
 ## define no _make_custom_tooltip, so the engine's own tooltip never doubles
 ## it. The frame is the game's crested tooltip frame (T&O seal on top).
 
-const CREST_SIZE := 30.0
-
 static var _inst: StatusHoverPopup = null
 
 var _anchor: Control = null
@@ -72,7 +70,6 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
 	var style := CrestStyleBox.new(Color(0.08, 0.08, 0.12, 0.96), Color(0.5, 0.5, 0.6), 4, 2)
-	style.crest_size = CREST_SIZE
 	style.content_margin_left = 10
 	style.content_margin_right = 10
 	style.content_margin_bottom = 7

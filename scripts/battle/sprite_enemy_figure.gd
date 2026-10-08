@@ -113,7 +113,7 @@ const KINDS := {
 	"large_bear": {"fr": "mountain_monsters/Bear", "scale": 0.65},
 	"bone_dragon": {"tex": "bone_dragon", "scale": 1.6},
 	"wyvern": {"cell": Vector2i(7, 2), "tint": Color(0.9, 0.75, 1.05), "scale": 1.35},
-	"cerberus": {"icon": "chaos_monsters/Icon27", "faces": "right", "scale": 2.2},  # the standing three-headed hound
+	"cerberus": {"icon": "chaos_monsters/Icon27", "faces": "right", "scale": 3.2},  # the standing three-headed hound (a tile taller and longer than the 2.2 the icon first got)
 	"werewolf": {"cell": Vector2i(3, 1), "tint": Color(0.6, 0.6, 0.68), "scale": 1.25},
 	"sabertooth": {"cell": Vector2i(3, 1), "tint": Color(1.05, 0.95, 0.75), "scale": 1.2},
 	"weregoat": {"cp": "gnolls/Gnoll3", "scale": 1.1, "tint": Color(0.85, 0.85, 0.9)},
@@ -138,6 +138,14 @@ const KINDS := {
 	"corrupted_archangel": {"npc": NPC1 + "/npc king A v01.png", "tint": Color(0.75, 0.6, 0.9), "scale": 1.2},
 	# --- the dojo's enemy training dummies ---
 	"chicken": {"tex": "chicken"},
+	# --- the Rat King's nests: no pack has a nest, so this one is drawn
+	# (tools/generate_rat_nest.gd) in the packs' palette and texel size ---
+	"rat_nest": {"tex": "rat_nest"},
+	# --- the Boneyard: the undead pack's headstones, and a gravedigger from the NPC pack ---
+	"gravestone": {"prop": "undead_grave", "scale": 1.6},
+	# --- Hell's Door: the cave pack's iron gate ---
+	"hell_door": {"prop": "cave_gate", "scale": 1.4},
+	"grave_digger": {"npc": "res://assets/sprites/NPCpackage2/npc man B v01.png", "tint": Color(0.82, 0.88, 0.82)},
 }
 
 # Uniform texel density across every billboard in the game (style guide §1).
@@ -146,7 +154,7 @@ const PIXEL_SIZE := 0.03125
 ## Kinds whose battler art already contains a painted contact shadow
 ## (the flyers) — these must not get a second blob shadow.
 const PAINTED_SHADOW_KINDS := ["swarm", "giant_hawk", "roc",
-		"screecher", "djinn", "specter", "snow_wraith"]
+		"screecher", "djinn", "specter", "snow_wraith", "gravestone", "hell_door"]
 
 var _sprite: Sprite3D = null
 var _rig: Node3D = null
@@ -207,6 +215,15 @@ func setup(kind: String) -> void:
 		_sprite.texture = load("res://assets/sprites/generated/monsters/%s.png" % cfg["tex"])
 		_sprite.pixel_size = PIXEL_SIZE
 		_sprite.region_rect = Rect2(0, 0, 64, 64)
+	elif cfg.has("prop"):
+		# A Craftpix prop (one of the cut variants, picked at random) as a
+		# static structure: a headstone, a nest of the pack's own art.
+		var pcfg: Dictionary = CraftpixProps.PROPS[cfg["prop"]]
+		var pool: Array = cfg.get("variants", range(pcfg["variants"].size()))
+		var v: Dictionary = pcfg["variants"][pool[randi() % pool.size()]]
+		_sprite.texture = load(v["path"])
+		_sprite.pixel_size = PIXEL_SIZE
+		_sprite.region_rect = Rect2(0, 0, int(v["w"]), int(v["h"]))
 	elif cfg.has("icon"):
 		# A Craftpix monster icon as a static battler (single 32x32 PNG).
 		_sprite.texture = load("%s/%s.png" % [CP, cfg["icon"]])

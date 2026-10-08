@@ -310,11 +310,8 @@ func set_slotted_item(item) -> void:
 	_slot_badge = chip
 
 
-## "TO" (Trials of Olorin) monogram seal in the middle of the card, riding
-## the type bar like a trading-card set emblem.
-const SEAL_H := 30        # seal height in px (it is 4:3, so 40 wide)
-const SEAL_SLOT_W := 20   # layout width the seal claims on the type bar
-
+## Small "TO" (Trials of Olorin) monogram seal in the middle of the card,
+## riding the type bar like a trading-card set emblem.
 func _ensure_to_logo() -> void:
 	var type_hbox: Node = get_node_or_null("Panel/VBox/TypeBar/TypeHBox")
 	if type_hbox == null or type_hbox.get_node_or_null("TOLogo"):
@@ -324,29 +321,25 @@ func _ensure_to_logo() -> void:
 	# claims almost no layout height so the type bar stays thin; the sigil
 	# itself draws larger than the bar with a drop shadow, so it reads as a
 	# seal risen off the card face.
-	# The seal is the smooth 4:3 sigil rendered at its exact size (no
-	# runtime scaling, no nearest filtering), so it reads as a crisp emblem
-	# rather than a blown-up 24px glyph.
-	var sigil: Texture2D = UIGlyphs.get_sigil(SEAL_H)
-	var seal_size: Vector2 = sigil.get_size() if sigil else Vector2(SEAL_H * 4.0 / 3.0, SEAL_H)
 	var holder := Control.new()
 	holder.name = "TOLogo"
-	holder.custom_minimum_size = Vector2(SEAL_SLOT_W, 0)
+	holder.custom_minimum_size = Vector2(14, 0)
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var seal_pos := Vector2((SEAL_SLOT_W - seal_size.x) * 0.5, -(seal_size.y * 0.5 + 1.0))
 	var shadow := TextureRect.new()
-	shadow.texture = sigil
+	shadow.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
+	shadow.texture = UIGlyphs.get_glyph("to_sigil")
 	shadow.stretch_mode = TextureRect.STRETCH_SCALE
-	shadow.position = seal_pos + Vector2(1.5, 1.5)
-	shadow.size = seal_size
+	shadow.position = Vector2(-4.5, -11.5)
+	shadow.size = Vector2(26, 26)
 	shadow.modulate = Color(0, 0, 0, 0.5)
 	shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(shadow)
 	var seal := TextureRect.new()
-	seal.texture = sigil
+	seal.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
+	seal.texture = UIGlyphs.get_glyph("to_sigil")
 	seal.stretch_mode = TextureRect.STRETCH_SCALE
-	seal.position = seal_pos
-	seal.size = seal_size
+	seal.position = Vector2(-6, -13)
+	seal.size = Vector2(26, 26)
 	seal.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(seal)
 	# Sit between the type text (left, expanding) and the range text (right,

@@ -128,7 +128,7 @@ of the threat.* Think Middle-earth / LOTR.
 - **Habitats it draws from:** Forest, Graveyard, Cave, Sewer, Mountains.
 - **Tone:** familiar, grounded fantasy. The sickness is subtle here — felt by
   Olorin, not yet obvious. This is where the mystery is seeded.
-- **Part slots:** 1) **Town & Sewers** — *the Sewers are built* (the opening dungeon; Olorin's first quests; Rat King mini-boss). See Section 5.4. · 2) Cemetery / Library (first clues) `[TBD]` · 3) **Forests / wilds** — *the Greenwood forest and the Caves are built* (climbable trees, hunters' traps, woodland beasts; dark dripping cave tunnels). See Section 5.4. · 4) Act 1 climax / threshold downward `[TBD]`.
+- **Part slots:** 1) **Town & Sewers** — *the Sewers are built* (the opening dungeon; Olorin's first quests; Rat King mini-boss). See Section 5.4. · 2) Cemetery / Library (first clues) `[TBD]` · 3) **Forests / wilds** — *the Greenwood forest and the Caves are built* (climbable trees, hunters' traps, woodland beasts; dark dripping cave tunnels). See Section 5.4. · 4) Act 1 climax / **threshold downward — Hell's Gate is built** (Cerberus guarding Hell's Door at the bottom of the first world's deepest cave; through the broken door lies the next world) — the climax around it `[TBD]`.
 
 ### Act 2 — Hell: The Underworld
 *The descent. The apparent source of the rot.*
@@ -301,6 +301,7 @@ original flavor note. Everything else is `[TBD]` theme/mechanics.
 - **Screeches** — *a soul-like creature that can only be seen from its noise*
 - **Vampire** — *in code*. Elite. Bite **life-steals 100% of health damage** (armor heals nothing); below 50% HP, **Bat Form** flits 6 squares away (2 charges, never recharge), always followed by **Absorb** — draining the healthiest player-side unit on the map (20, then 10).
 - **Necromancer** — *in code*. Elite. **Bolt** (range 10) also **Hexes 2 cards** in the hand (each +30 mana until played); **Summon** raises undead (first-pass roster: skeletons/zombies) — after **5 of its summons die it raises a Bone Dragon**.
+- **Bone Dragon** — *in code*. Elite (150 HP, resists 45% physical / 45% fire; Bite 12, Breath Swarm down a 6-tile line). Raised by the Necromancer in the field, and fought as the **second boss** in the **Boneyard** (`interior_kind == "boneyard"`, through a door at the east end of the Old Graveyard's deepest crypt): a large walled square gated on the west, with twelve **gravestones** (10 HP) in rows across it. The fight is meant to open with the **Necromancer** — the player's job is to stop him raising the dead, and what he leaves behind is those twelve stones (*the Necromancer part is not yet specified; the room is built in its post-prelude state*). Then the dragon: for every gravestone still standing he has **1 regen that never decays** (1 health a cycle per stone — shown as *Gravebound*); the only way to lower it is to break the stones. The catch: **grave diggers** (20 HP, three in all, only one out at a time) come out of the crypt door and repair a broken stone back to full in **8 tempo**, then vanish. Kill the stones, kill the diggers, and the dragon is beatable.
 - **Bone dragon** — *in code*. Elite. **Breath Swarm**: 12 damage down a 6-tile line, hatching a **Swarm** beside every unit hit.
 - **Grave digger**
 - **The Consumed** — *a golem-like creature but far worse: something that has had its spirit consumed and is now flesh and hatred*
@@ -337,6 +338,22 @@ original flavor note. Everything else is `[TBD]` theme/mechanics.
 > puddles**, shallow **divots** and scattered rubble. Reached from cave-mouth
 > sites in the overworld.
 
+> **Boss fights — ground rules (designer).** A boss fight is a **cutscene
+> room**: the player steps through a door into the boss's own interior, and
+> cinematics play there (*not yet built*; the hooks are the room's entry).
+> The room is **enclosed** — there is no way out until the boss is dead, when
+> the exit appears and leads back through the door the player came in by.
+> **Nothing resets on the threshold:** the player's hand is exactly what it was
+> outside, and every buff and debuff on them carries in (`main._enter_interior`
+> hands the live effects over; `DungeonManager.is_boss_room` marks the rooms).
+> Built so far: the **Rat King's Lair** (Sewer), the **Boneyard** (Old
+> Graveyard, Bone Dragon) and **Hell's Gate** (Caves, Cerberus — the one room
+> whose objective is a door, not the boss) — see the bestiary entries. Like everything in the
+> world, they are dressed with the purchased packs (cliff tiles, headstones,
+> gates): nothing is modelled by hand where a pack piece exists, and the few
+> things no pack has (the rat nests) are drawn to match (see CLAUDE.md,
+> *Art: Packs First*).
+
 #### Sewer
 *The game's opening dungeon — see **The Sewers (Act 1, Part 1)** below for the
 built level. The roster is themed and in code:*
@@ -344,7 +361,7 @@ built level. The roster is themed and in code:*
 - **Sludge Being** — *in code*. Minion. **Ranged ooze** (10 HP): wades close or spits acid from range 6. The "oozes" the player fights alongside the rats at the entrance.
 - **Pipe Crawler** — *in code*. Minion. **Fast skirmisher** (20 HP): creeps out of the wall pipes, moves on a cheap 2-tempo so it closes quickly; its claw can disarm you.
 - **Sewer Cobra** — *in code*. Elite. **Armored ambusher** (40 HP, 20 armor, 12 dmg): lurks in the channels; break its armor to expose it, or its bite hurts. Guards the deepest chamber.
-- **Rat King** — *in code*. Elite, **first mini-boss** (90 HP, 10 armor). A crowned rat that fights flanked by a summoned-in army of Wererats, Archer Rats and Swarms in the central cistern arena. Bites and repositions relentlessly.
+- **Rat King** — *in code*. Elite, **first mini-boss** (90 HP, 10 armor) and the game's **first boss room**: the **Rat King's Lair**, entered through a door in the central cistern (`interior_kind == "ratking"`). A round den, entered from the west; the king waits at the bottom with three Wererats in front of him and two Archer Rats behind. Straight across the room stands a cliff of high ground, with two more cliffs 45° to either side — each the pack's own cliff tile, a face row under a walkable top — and a **rat nest** (15 HP) at the foot of each face. Treading on a nest sends its Archer Rat up to the top of the cliff, where it holds the high ground. At **50%, then 30%, then 30% again** of his health the king bolts for a random untouched nest and feeds on it — the left nest restores 20% of his health, the middle 30%, the right 50% — and a nest he has fed on is spent; he never revisits one. Tear the nests down first and he has nowhere to run. Bites and repositions relentlessly otherwise.
 - **Swarm** — *in code*. Minion. **Fast swarm** (10 HP): one creature rendered as a boil of vermin/insects; blitzes 8 tiles at a time. *one creature, but a bunch of bugs representing one*
 - **Faithless cultist** — `[TBD]`.
 - **The drowned** — `[TBD]`.
@@ -358,12 +375,14 @@ built level. The roster is themed and in code:*
 > - **Layout:** a man-made **trunk tunnel** runs the length of the level with a
 >   **water channel down its spine**; brick **cistern chambers** bud off it above
 >   and below, joined by short access shafts. The far-west chamber is the entry;
->   the **central cistern is the Rat King's arena**; the far-east chamber is the
->   deepest, guarded by a Sewer Cobra.
+>   the **central cistern holds the Rat King's door guard and the door to the
+>   Rat King's Lair** (his own sealed boss room, see the bestiary entry); the
+>   far-east chamber is the deepest, guarded by a Sewer Cobra.
 > - **Progression (west → east):** the player opens by **killing rats and fighting
->   oozes** (Wererats, Archer Rats, Sludge Beings), reaches the **Rat King**
->   mini-boss and his rat army in the central arena, then descends into deadlier
->   water — **Sewer Cobras, Swarms and Pipe Crawlers** (plus more sludge).
+>   oozes** (Wererats, Archer Rats, Sludge Beings), reaches the central cistern,
+>   cuts through the guard and steps into the **Rat King's Lair** for the
+>   mini-boss, then descends into deadlier water — **Sewer Cobras, Swarms and
+>   Pipe Crawlers** (plus more sludge).
 > - **Atmosphere:** deliberately **dim and claustrophobic**. Near-lightless ambient
 >   with a thick dank haze; **each player carries their own pool of torchlight**;
 >   **wall torches** throw flickering light over wet brick; **fog of war reveals
@@ -385,7 +404,7 @@ built level. The roster is themed and in code:*
 - **Sabertooth tiger**
 
 #### Underworld
-- **Cerberus**
+- **Cerberus** — *in code*. Boss (sheet: 250 HP, 50 armor, 25 bites, 6 spaces a move; resists 30% physical / 40% fire / 15% lightning). **Guards Hell's Door** in the **third boss room, Hell's Gate** (`interior_kind == "hellgate"`, through a door at the east end of the first world's deepest cave): one long cavern hall with lava in its corners, the iron door (the cave pack's gate, 150 HP) set in the east wall and the hound before it. **The objective is the door, not the hound**: break it and the way down opens (and the way back) — killing Cerberus is optional, just far easier to work around a corpse. At **75%, 50% and 33%** health the door **seals itself against all damage for 10 tempo**; and the door **counts as Cerberus's ally**, so its drop below half feeds his Guardian of Death. His kit, from the sheet: **Bite** (5 tempo, 25) — below 66% health the **second head** bites too (25 + 5 Bleed), below 33% the **third** as well (25, life-stolen); **Swipe** (8 tempo): 8 Bleed; **Venom Tail** (15 tempo): the victim discards 3 random cards and is stunned 15 tempo, and when that lifts gains 2 Vulnerable and 10 tempo of Cuffed; **Roar** (12 tempo): +25 armor and 25 thorns. Passives: **Guardian of Death** — the first time *he* drops below 50% he gains Brace 30% for 5 incoming hits, and *every* time any other unit within 8 squares drops below 50% (foe or ally; heal back over half and drop again and it counts again) he gains it again; **Deathyard Dog** — whenever a foe heals within 5 squares, +15 Strengthen. Otherwise straightforward, and very hard.
 - **Succubus**
 - **Demon**
 - **Ifrits** — *in code*. Elite. **Fire Breath**: a 5x5 sheet of flame that lingers 3 tempo; **Backflip** springs it 3 squares back from any single blow over 40 damage.

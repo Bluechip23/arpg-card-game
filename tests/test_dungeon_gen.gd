@@ -22,6 +22,10 @@ func _initialize() -> void:
 	configs.append({"level": 1, "interior": "sewer_1"})
 	configs.append({"level": 1, "interior": "forest_0"})
 	configs.append({"level": 1, "interior": "forest_1"})
+	configs.append({"level": 1, "interior": "ratking_lair"})
+	configs.append({"level": 1, "interior": "boneyard"})
+	configs.append({"level": 1, "interior": "hellgate"})
+	configs.append({"level": 1, "interior": "graveyard_0"})
 
 	for cfg in configs:
 		var sig_a = _build_and_validate(holder, cfg)
@@ -170,9 +174,29 @@ func _validate(dm: DungeonManager, cfg: Dictionary) -> void:
 		_validate_sewer(dm, cfg)
 	elif cfg["interior"].begins_with("forest"):
 		_validate_forest(dm, cfg)
+	elif cfg["interior"].begins_with("ratking"):
+		_validate_lair(dm, cfg)
+	elif cfg["interior"].begins_with("boneyard"):
+		_validate_boneyard(dm, cfg)
+	elif cfg["interior"].begins_with("hellgate"):
+		if dm.get_site_by_id("exit") >= 0 or dm.get_site_by_id("descend") >= 0:
+			_fail(cfg, "Hell's Gate is open before the door is broken")
+		if not dm.is_floor(dm.hellgate_door_cell) or not dm.is_floor(dm.hellgate_cerberus_cell):
+			_fail(cfg, "door or Cerberus cell is not floor")
+		print("INFO %s (W%d): %dx%d" % [cfg["interior"], cfg["level"], dm.GRID_W, dm.GRID_H])
+	elif cfg["interior"].begins_with("graveyard"):
+		if dm.get_site_by_id("exit") < 0:
+			_fail(cfg, "graveyard has no exit site")
+		if dm.get_site_by_id("boneyard") < 0:
+			_fail(cfg, "graveyard has no door to the Boneyard")
+		print("INFO %s (W%d): %dx%d, %d rooms, %d chests, %d zones" % [
+			cfg["interior"], cfg["level"], dm.GRID_W, dm.GRID_H, dm.rooms.size(),
+			dm.chest_nodes.size(), dm.spawn_zones.size()])
 	else:
 		if dm.get_site_by_id("exit") < 0:
 			_fail(cfg, "interior has no exit site")
+		if cfg["interior"].begins_with("cave") and cfg["level"] == 1 and dm.get_site_by_id("hellgate") < 0:
+			_fail(cfg, "the first world's cave has no door to Hell's Gate")
 		if dm.waypoint_nodes.size() != 0:
 			_fail(cfg, "interior should not have waypoints")
 		if dm.chest_nodes.size() == 0:
@@ -180,6 +204,43 @@ func _validate(dm: DungeonManager, cfg: Dictionary) -> void:
 		print("INFO %s (W%d): %dx%d, %d rooms, %d chests, %d zones" % [
 			cfg["interior"], cfg["level"], dm.GRID_W, dm.GRID_H, dm.rooms.size(),
 			dm.chest_nodes.size(), dm.spawn_zones.size()])
+
+func _validate_lair(dm: DungeonManager, cfg: Dictionary) -> void:
+	## The boss room: sealed (no exit), no zones or chests, three raised
+	## cliffs each with a nest on flat floor at its foot, the king placed.
+	if dm.get_site_by_id("exit") >= 0:
+		_fail(cfg, "lair has an exit before the king is dead")
+	if not dm.spawn_zones.is_empty():
+		_fail(cfg, "lair has spawn zones (main places the fight)")
+	if not dm.chest_nodes.is_empty():
+		_fail(cfg, "lair has chests")
+	if dm.rat_cliffs.size() != 3 or dm.rat_nests.size() != 3:
+		_fail(cfg, "lair needs 3 cliffs and 3 nests")
+	for n in dm.rat_nests:
+		if not dm.is_floor(n["cell"]) or dm.get_elevation(n["cell"]) != 0:
+			_fail(cfg, "nest %s is not on flat floor" % n["cell"])
+		if dm.get_elevation(n["perch"]) != 1:
+			_fail(cfg, "nest perch %s is not high ground" % n["perch"])
+	var pl: Dictionary = dm.rat_king_placements
+	if not pl.has("king") or not dm.is_floor(pl["king"]):
+		_fail(cfg, "the king has no floor to stand on")
+	print("INFO %s (W%d): %dx%d, %d cliffs, %d nests" % [
+		cfg["interior"], cfg["level"], dm.GRID_W, dm.GRID_H, dm.rat_cliffs.size(), dm.rat_nests.size()])
+
+func _validate_boneyard(dm: DungeonManager, cfg: Dictionary) -> void:
+	## The dragon's graveyard: sealed, flat, twelve gravestone cells on floor.
+	if dm.get_site_by_id("exit") >= 0:
+		_fail(cfg, "boneyard has an exit before the dragon is dead")
+	if not dm.spawn_zones.is_empty() or not dm.chest_nodes.is_empty():
+		_fail(cfg, "boneyard has zones or chests (main places the fight)")
+	if dm.gravestone_cells.size() != 12:
+		_fail(cfg, "boneyard needs 12 gravestones (%d)" % dm.gravestone_cells.size())
+	for c in dm.gravestone_cells:
+		if not dm.is_floor(c):
+			_fail(cfg, "gravestone %s is not on floor" % c)
+	if not dm.is_floor(dm.boneyard_dragon_cell) or not dm.is_floor(dm.boneyard_crypt_cell):
+		_fail(cfg, "dragon or crypt cell is not floor")
+	print("INFO %s (W%d): %dx%d, %d gravestones" % [cfg["interior"], cfg["level"], dm.GRID_W, dm.GRID_H, dm.gravestone_cells.size()])
 
 func _validate_sewer(dm: DungeonManager, cfg: Dictionary) -> void:
 	if dm.get_site_by_id("exit") < 0:
@@ -199,7 +260,8 @@ func _validate_sewer(dm: DungeonManager, cfg: Dictionary) -> void:
 		for z in range(dm.GRID_H):
 			if dm.is_water(Vector2i(x, z)) and not dm.is_floor(Vector2i(x, z)):
 				_fail(cfg, "water tile %s is not floor" % Vector2i(x, z))
-	# There must be a Rat King arena and the King himself must spawn.
+	# There must be a central arena cistern holding the door to the Rat
+	# King's Lair; the King himself waits inside the lair, never in the sewer.
 	var has_arena = false
 	for room in dm.rooms:
 		if room["kind"] == "arena":
@@ -207,6 +269,8 @@ func _validate_sewer(dm: DungeonManager, cfg: Dictionary) -> void:
 			break
 	if not has_arena:
 		_fail(cfg, "sewer has no Rat King arena")
+	if dm.get_site_by_id("ratking_lair") < 0:
+		_fail(cfg, "sewer has no door to the Rat King's Lair")
 	var has_rat_king = false
 	var has_post_boss = false
 	var post_boss_types = [Enemy.EnemyType.SEWER_CROC, Enemy.EnemyType.SWARM, Enemy.EnemyType.PIPE_CRAWLER]
@@ -216,8 +280,8 @@ func _validate_sewer(dm: DungeonManager, cfg: Dictionary) -> void:
 				has_rat_king = true
 			if t in post_boss_types:
 				has_post_boss = true
-	if not has_rat_king:
-		_fail(cfg, "Rat King never spawns in the sewer")
+	if has_rat_king:
+		_fail(cfg, "Rat King spawns in the sewer (he belongs in his lair)")
 	if not has_post_boss:
 		_fail(cfg, "no post-boss sewer enemies (croc/swarm/crawler) spawn")
 	print("INFO %s (W%d): %dx%d, %d rooms, %d chests, %d zones, %d water tiles" % [

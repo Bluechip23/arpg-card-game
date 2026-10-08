@@ -102,6 +102,17 @@ var current_world_level: int = 1
 
 # Interior the player is currently inside ("" = overworld). e.g. "cave_0"
 var current_interior_id: String = ""
+## Boss rooms (the Rat King's Lair) are entered from inside another interior;
+## leaving one returns to that parent interior, at the lair's door.
+var parent_interior_id: String = ""
+## Boss rules: buffs and debuffs ride into a boss room with the player
+## (handed over by _enter_interior, put back by _restore_carried_statuses).
+var carried_statuses: Dictionary = {}
+var boss_room_mode: bool = false   # inside a boss room (sealed until the boss dies)
+var _rat_nests: Array = []         # the lair's nest structures (Enemy, RAT_NEST)
+var _gravestones: Array = []       # the Boneyard's stones: [{cell: Vector2i, enemy: Enemy or null}]
+var _grave_diggers_left: int = 0   # diggers still in the crypt
+var _active_digger: Enemy = null   # the one digger out at a time
 # When returning from an interior, respawn at that site's entrance
 var return_from_interior_id: String = ""
 
@@ -628,10 +639,14 @@ func _ready() -> void:
 		dojo_mode = true
 		_dojo_entry_progression = dojo_snapshot(player_progression)
 		_dojo_entry_quest_state = quest_state.duplicate(true)
+	boss_room_mode = DungeonManager.is_boss_room(current_interior_id)
 
 	# Restore player progression from a world transition (level, stats, passives, sphere grid, etc.)
 	if not player_progression.is_empty():
 		_restore_player_progression(player_progression)
+	# Boss rules: whatever was on the player when they stepped through the
+	# door is still on them.
+	_restore_carried_statuses()
 
 	# Style the hand area with solid background so battlefield doesn't bleed through
 	_setup_hand_area_background()
@@ -689,6 +704,8 @@ func _ready() -> void:
 	_refresh_unit_tracker()
 	if dojo_mode:
 		_setup_dojo()
+	if boss_room_mode:
+		_setup_boss_room()
 
 	# Co-op: now that the dungeon has placed Player 1, seat Player 2 beside them.
 	if is_multiplayer and _p2_player:
@@ -4310,11 +4327,15 @@ func _on_player_tile_reached() -> void:
 	var player_cell = grid_manager.world_to_grid(player.position)
 	var passed_through_enemy = false
 	for enemy in enemy_spawner.get_living_enemies():
+		if enemy.is_structure:
+			continue  # a nest is walked onto, not squeezed past
 		if grid_manager.world_to_grid(enemy.position) == player_cell:
 			passed_through_enemy = true
 			break
 	if passed_through_enemy:
 		tempo_manager.add_pass_through_tempo()
+	# Rat King's Lair: treading on a nest sends its archer up the cliff.
+	_check_rat_nest_step(player_cell)
 
 	# Climbing penalty: going to higher elevation costs +1 extra tempo per tile
 	if dungeon_manager and _player_last_grid_cell.x >= 0:
@@ -6381,9 +6402,21 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 			dungeon_manager.interior_kind if dungeon_manager else "",
 			_is_on_high_ground(player.position))
 
+	# A boss room opens the moment its boss falls: the way out appears, and
+	# the character remembers the room as cleared.
+	if boss_room_mode and enemy.enemy_type == _boss_room_boss_type():
+		if current_character:
+			current_character.mark_boss_defeated(DungeonManager.boss_room_key(current_interior_id))
+		_open_boss_room_exit()
+	# The Boneyard: a fallen digger leaves the broken stone to the next one.
+	if boss_room_mode and enemy.enemy_type == Enemy.EnemyType.GRAVE_DIGGER:
+		if _active_digger == enemy:
+			_active_digger = null
+		call_deferred("_maybe_send_grave_digger")
+
 	# City loop: every kill adds habitat resources to the satchel headed home,
 	# and ticks any brewing trial's countdown (STORY.md §6).
-	if not sandbox_mode and current_character:
+	if not sandbox_mode and current_character and not enemy.is_structure:
 		var zone := CityBridge.zone_for_area(
 			dungeon_manager.interior_kind if dungeon_manager else "", current_world_level)
 		var loot_tier: String = enemy_spawner.get_loot_tier(enemy.enemy_type)
@@ -13553,12 +13586,16 @@ func _setup_dungeon() -> void:
 	# Chest rolls are salted per character so no two characters open the
 	# same chests (sandbox has no character — fresh rolls every time).
 	dungeon_manager.loot_salt = current_character.get_loot_seed() if current_character else randi()
+	# A boss already slain by this character stays slain: its room opens
+	# with the exit in place and the door outside reads as cleared.
+	dungeon_manager.cleared_bosses = current_character.defeated_bosses.duplicate() if current_character else []
 	add_child(dungeon_manager)
 	dungeon_manager.initialize(grid_manager, self, current_world_level, current_interior_id)
 
-	# Move player to dungeon start (or back to the entrance of the interior we just left)
+	# Move player to dungeon start (or back to the entrance of the interior we
+	# just left — the overworld's site, or a boss room's door inside an interior)
 	var start_pos = dungeon_manager.get_player_start_world()
-	if return_from_interior_id != "" and current_interior_id == "":
+	if return_from_interior_id != "":
 		var site_idx = dungeon_manager.get_site_by_id(return_from_interior_id)
 		if site_idx >= 0:
 			var entrance: Vector2i = dungeon_manager.site_nodes[site_idx]["grid_pos"]
@@ -13754,6 +13791,10 @@ func _try_interact_site() -> bool:
 			_travel_to_town()  # the dojo's door opens onto the town plaza
 		else:
 			_exit_interior()
+	elif site["kind"] == "descend":
+		# Through Hell's broken door: down to the next world.
+		_deliver_follower()
+		_travel_to_world(current_world_level + 1)
 	else:
 		_enter_interior(site["id"], site["display_name"])
 	return true
@@ -13768,6 +13809,14 @@ func _enter_interior(interior_id: String, display_name: String = "") -> void:
 	main_scene.is_multiplayer = is_multiplayer
 	main_scene.current_world_level = current_world_level
 	main_scene.current_interior_id = interior_id
+	# A room entered from inside an interior (the Rat King's Lair off the
+	# sewer) remembers where its door is: leaving returns there.
+	main_scene.parent_interior_id = current_interior_id
+	if DungeonManager.is_boss_room(interior_id):
+		# Boss rules: the hand rides along in the deck state; every buff and
+		# debuff on the player rides along too (the managers die with this
+		# scene, so the effects themselves are handed over).
+		main_scene.carried_statuses = _collect_carried_statuses()
 	main_scene.discovered_waypoints = discovered_waypoints
 	main_scene.quest_state = saved_quest_state
 	main_scene.player_progression = saved_progression
@@ -13776,7 +13825,8 @@ func _enter_interior(interior_id: String, display_name: String = "") -> void:
 	queue_free()
 
 func _exit_interior() -> void:
-	print("[MAIN] Leaving %s, returning to World %d" % [current_interior_id, current_world_level])
+	print("[MAIN] Leaving %s, returning to %s" % [current_interior_id,
+		("World %d" % current_world_level) if parent_interior_id == "" else parent_interior_id])
 	_deliver_follower()
 	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
 	var saved_progression = _save_player_progression()
@@ -13785,6 +13835,8 @@ func _exit_interior() -> void:
 	main_scene.player2_character = player2_character
 	main_scene.is_multiplayer = is_multiplayer
 	main_scene.current_world_level = current_world_level
+	# Back out to the parent interior (a boss room's door) or the overworld.
+	main_scene.current_interior_id = parent_interior_id
 	main_scene.return_from_interior_id = current_interior_id
 	main_scene.discovered_waypoints = discovered_waypoints
 	main_scene.quest_state = saved_quest_state
@@ -13823,9 +13875,9 @@ func _apply_world_ambience() -> void:
 	if not dungeon_manager:
 		return
 	var pal: Dictionary = dungeon_manager.get_palette()
-	var in_cave = current_interior_id.begins_with("cave")
+	var in_cave = current_interior_id.begins_with("cave") or current_interior_id.begins_with("hellgate")
 	var in_building = current_interior_id.begins_with("building")
-	var in_sewer = current_interior_id.begins_with("sewer")
+	var in_sewer = current_interior_id.begins_with("sewer") or current_interior_id.begins_with("ratking")
 	var in_forest = current_interior_id.begins_with("forest")
 
 	var world_env = get_node_or_null("WorldEnvironment") as WorldEnvironment
@@ -16223,6 +16275,268 @@ func _spawn_dojo_dummy(cell: Vector2i) -> void:
 	var world = grid_manager.grid_to_world(cell)
 	world.y = dungeon_manager.get_elevation_world_y(cell)
 	enemy_spawner.spawn_enemy(Enemy.EnemyType.DUMMY, world)
+
+#endregion
+#region BOSS ROOMS (the Rat King's Lair)
+# ============================================
+# BOSS ROOMS — the Rat King's Lair
+# Boss fights are cutscene rooms: the door seals behind the player, the hand
+# and every buff/debuff carry in unchanged, and the exit appears when the
+# boss dies. The lair's layout (cliffs, nests, placements) comes from
+# DungeonManager; main stands the units up and runs the nests.
+# ============================================
+
+func _boss_cleared(room_key: String) -> bool:
+	return current_character != null and current_character.has_defeated_boss(room_key)
+
+func _boss_room_boss_type() -> int:
+	## The unit whose death clears the room: the boss — or, at Hell's Gate,
+	## the door (Cerberus need not die).
+	match DungeonManager.boss_room_key(current_interior_id):
+		"ratking": return Enemy.EnemyType.RAT_KING
+		"boneyard": return Enemy.EnemyType.BONE_DRAGON
+		"hellgate": return Enemy.EnemyType.HELL_DOOR
+	return -1
+
+func _setup_boss_room() -> void:
+	match DungeonManager.boss_room_key(current_interior_id):
+		"ratking": _setup_rat_king_lair()
+		"boneyard": _setup_boneyard()
+		"hellgate": _setup_hellgate()
+
+# ---- Hell's Gate: Cerberus and the door ----
+# The objective is the door (150 HP; seals itself for 10 tempo at 75/50/33%),
+# not the hound. When it breaks, the way down opens where it stood and the
+# way back opens too. Cerberus is simply very hard (see Enemy: Guardian of
+# Death, Deathyard Dog, Roar, Venom Tail); the door is his ally, so its
+# drop below half feeds his Guardian of Death.
+
+func _setup_hellgate() -> void:
+	if _boss_cleared("hellgate"):
+		add_battle_log("Hell's Gate stands broken — the way down is open.", Color(1.0, 0.6, 0.5))
+		return
+	_spawn_lair_unit(Enemy.EnemyType.HELL_DOOR, dungeon_manager.hellgate_door_cell)
+	_spawn_lair_unit(Enemy.EnemyType.CERBERUS, dungeon_manager.hellgate_cerberus_cell)
+	_sync_dungeon_blocked_tiles()
+	_sync_occupied_tiles()
+	_update_enemy_count()
+	_refresh_unit_tracker()
+	add_battle_log("Hell's Gate. Cerberus guards the door; break it to get through.", Color(1.0, 0.6, 0.5))
+
+func _setup_rat_king_lair() -> void:
+	_rat_nests.clear()
+	if _boss_cleared("ratking"):
+		add_battle_log("The Rat King's Lair lies empty — the king is dead.", Color(0.8, 0.8, 0.95))
+		return
+	var placements: Dictionary = dungeon_manager.rat_king_placements
+	# The nests first, so the king can be pointed at them.
+	for n in dungeon_manager.rat_nests:
+		var nest := _spawn_lair_unit(Enemy.EnemyType.RAT_NEST, n["cell"])
+		if nest:
+			nest.nest_heal_pct = n["heal_pct"]
+			nest.nest_label = n["label"]
+			nest.nest_perch = n["perch"]
+			nest.nest_perch_approach = n.get("approach", Vector2i(-1, -1))
+			_rat_nests.append(nest)
+	var king := _spawn_lair_unit(Enemy.EnemyType.RAT_KING, placements["king"])
+	if king:
+		king.nest_provider = Callable(self, "_living_rat_nests")
+	for cell in placements["rats"]:
+		_spawn_lair_unit(Enemy.EnemyType.WERERAT, cell)
+	for cell in placements["archers"]:
+		_spawn_lair_unit(Enemy.EnemyType.ARCHER_RAT, cell)
+	_sync_dungeon_blocked_tiles()
+	_sync_occupied_tiles()
+	_update_enemy_count()
+	_refresh_unit_tracker()
+	add_battle_log("The Rat King's Lair. The door seals behind you.", Color(1.0, 0.75, 0.6))
+
+func _spawn_lair_unit(type: Enemy.EnemyType, cell: Vector2i) -> Enemy:
+	var used: Array[Vector2i] = []
+	for e in enemy_spawner.get_living_enemies():
+		used.append(grid_manager.world_to_grid(e.position))
+	used.append(grid_manager.world_to_grid(player.position))
+	cell = _find_valid_spawn_cell(cell, used)
+	var world = grid_manager.grid_to_world(cell)
+	world.y = dungeon_manager.get_elevation_world_y(cell)
+	return enemy_spawner.spawn_enemy(type, world)
+
+func _living_rat_nests() -> Array:
+	## The nests still standing (the king picks among the untouched ones).
+	var out: Array = []
+	for n in _rat_nests:
+		if is_instance_valid(n) and n.is_alive():
+			out.append(n)
+	return out
+
+func _check_rat_nest_step(cell: Vector2i) -> void:
+	## Treading on a nest disturbs it: its Archer Rat leaves and walks up to
+	## the top of the nest's cliff, where it holds the high ground.
+	if not boss_room_mode:
+		return
+	for nest in _rat_nests:
+		if not is_instance_valid(nest) or not nest.is_alive() or nest.nest_archer_released:
+			continue
+		if grid_manager.world_to_grid(nest.position) != cell:
+			continue
+		nest.nest_archer_released = true
+		var archer := _spawn_lair_unit(Enemy.EnemyType.ARCHER_RAT, cell)
+		if archer:
+			archer.perch_cell = nest.nest_perch
+			archer.perch_approach = nest.nest_perch_approach
+			archer.enemy_name = "Nest Archer"
+			archer.update_name_display()
+		_sync_dungeon_blocked_tiles()
+		_sync_occupied_tiles()
+		_refresh_unit_tracker()
+		add_battle_log("An Archer Rat bursts from the %s nest and scrambles for the high ground!" % nest.nest_label, Color(1.0, 0.6, 0.45))
+
+func _open_boss_room_exit() -> void:
+	if DungeonManager.boss_room_key(current_interior_id) == "hellgate":
+		dungeon_manager._place_hell_descent()
+		add_battle_log("Hell's Door breaks. The way down lies open — and the way back.", Color(1.0, 0.7, 0.5))
+	if dungeon_manager.get_site_by_id("exit") >= 0:
+		return
+	dungeon_manager._place_exit_site()
+	if DungeonManager.boss_room_key(current_interior_id) != "hellgate":
+		add_battle_log("The way out opens.", Color(0.7, 1.0, 0.7))
+
+# ---- The Boneyard: the Bone Dragon, twelve gravestones, three grave diggers ----
+# The dragon regenerates 1 health a cycle per standing gravestone (never
+# fades). Breaking a stone (10 HP) lowers it, but a grave digger (20 HP)
+# walks out of the crypt to the broken stone, takes 8 tempo to set it back
+# to full, and is gone. Three diggers, one out at a time. The Necromancer
+# prelude that is meant to leave these stones behind is not built yet (the
+# designer has not settled it); the yard opens in its post-prelude state.
+
+func _setup_boneyard() -> void:
+	_gravestones.clear()
+	_grave_diggers_left = 0
+	_active_digger = null
+	if _boss_cleared("boneyard"):
+		add_battle_log("The Boneyard is quiet — the dragon's bones lie still.", Color(0.8, 0.8, 0.95))
+		return
+	for cell in dungeon_manager.gravestone_cells:
+		_gravestones.append({"cell": cell, "enemy": _spawn_gravestone(cell)})
+	var dragon := _spawn_lair_unit(Enemy.EnemyType.BONE_DRAGON, dungeon_manager.boneyard_dragon_cell)
+	if dragon:
+		dragon.gravestone_provider = Callable(self, "_standing_gravestones")
+	_grave_diggers_left = 3
+	_sync_dungeon_blocked_tiles()
+	_sync_occupied_tiles()
+	_update_enemy_count()
+	_refresh_unit_tracker()
+	add_battle_log("The Boneyard. The gate shuts behind you; twelve stones feed the dragon.", Color(0.75, 1.0, 0.8))
+
+func _spawn_gravestone(cell: Vector2i) -> Enemy:
+	var stone := _spawn_lair_unit(Enemy.EnemyType.GRAVESTONE, cell)
+	if stone:
+		stone.died.connect(_on_gravestone_destroyed)
+	return stone
+
+func _standing_gravestones() -> int:
+	var n := 0
+	for g in _gravestones:
+		var e = g["enemy"]
+		if e != null and is_instance_valid(e) and e.is_alive():
+			n += 1
+	return n
+
+func _broken_gravestones() -> Array:
+	var out: Array = []
+	for g in _gravestones:
+		var e = g["enemy"]
+		if e == null or not is_instance_valid(e) or not e.is_alive():
+			out.append(g)
+	return out
+
+func _on_gravestone_destroyed(stone: Enemy) -> void:
+	for g in _gravestones:
+		if g["enemy"] == stone:
+			g["enemy"] = null
+	add_battle_log("A gravestone breaks. The dragon's regen falls to %d." % _standing_gravestones(), Color(0.85, 0.95, 0.85))
+	call_deferred("_maybe_send_grave_digger")
+
+func _maybe_send_grave_digger() -> void:
+	## One digger at a time, three in all: whenever a stone lies broken and
+	## no digger is out, the next one walks out of the crypt to it.
+	if not boss_room_mode or _grave_diggers_left <= 0:
+		return
+	if _active_digger != null and is_instance_valid(_active_digger) and _active_digger.is_alive():
+		return
+	var dragon_alive := false
+	for e in enemy_spawner.get_living_enemies():
+		if e.enemy_type == Enemy.EnemyType.BONE_DRAGON:
+			dragon_alive = true
+	if not dragon_alive:
+		return
+	var broken := _broken_gravestones()
+	if broken.is_empty():
+		return
+	var crypt: Vector2i = dungeon_manager.boneyard_crypt_cell
+	# The nearest broken stone to the crypt door.
+	var target: Dictionary = broken[0]
+	for g in broken:
+		if (g["cell"] - crypt).length() < (target["cell"] - crypt).length():
+			target = g
+	var digger := _spawn_lair_unit(Enemy.EnemyType.GRAVE_DIGGER, crypt)
+	if digger == null:
+		return
+	digger.repair_cell = target["cell"]
+	digger.repair_handler = Callable(self, "_on_grave_repaired")
+	_active_digger = digger
+	_grave_diggers_left -= 1
+	_sync_dungeon_blocked_tiles()
+	_sync_occupied_tiles()
+	_refresh_unit_tracker()
+	add_battle_log("A grave digger comes out of the crypt. (%d left)" % _grave_diggers_left, Color(1.0, 0.85, 0.6))
+
+func _on_grave_repaired(digger: Enemy) -> void:
+	## The digger's 8 tempo are up: the stone stands again at full health,
+	## and the digger is gone (no kill, no loot).
+	var cell: Vector2i = digger.repair_cell
+	for g in _gravestones:
+		if g["cell"] == cell and (g["enemy"] == null or not is_instance_valid(g["enemy"]) or not g["enemy"].is_alive()):
+			g["enemy"] = _spawn_gravestone(cell)
+			add_battle_log("The gravestone stands again. The dragon's regen rises to %d." % _standing_gravestones(), Color(1.0, 0.8, 0.6))
+	if _active_digger == digger:
+		_active_digger = null
+	enemy_spawner.despawn_enemy(digger)
+	_sync_dungeon_blocked_tiles()
+	_sync_occupied_tiles()
+	_refresh_unit_tracker()
+	call_deferred("_maybe_send_grave_digger")
+
+func _collect_carried_statuses() -> Dictionary:
+	var bm = player.get_buff_manager()
+	var dm = player.get_debuff_manager()
+	return {
+		"buffs": bm.buffs.duplicate() if bm else [],
+		"debuffs": dm.debuffs.duplicate() if dm else [],
+	}
+
+func _restore_carried_statuses() -> void:
+	## Put the effects handed over by _enter_interior back on the player, as
+	## they were (no re-application: no amps, no refresh, no stacking).
+	if carried_statuses.is_empty():
+		return
+	var bm = player.get_buff_manager()
+	var dm = player.get_debuff_manager()
+	if bm:
+		for b in carried_statuses.get("buffs", []):
+			if b is Buff and not bm.buffs.has(b):
+				bm.buffs.append(b)
+		bm._recompute_might()
+		bm.buffs_changed.emit()
+	if dm:
+		for d in carried_statuses.get("debuffs", []):
+			if d is Debuff and not dm.debuffs.has(d):
+				dm.debuffs.append(d)
+		dm.debuffs_changed.emit()
+	var carried: int = carried_statuses.get("buffs", []).size() + carried_statuses.get("debuffs", []).size()
+	carried_statuses = {}
+	if carried > 0:
+		print("[MAIN] Carried %d status effect(s) into %s" % [carried, current_interior_id])
 
 func _spawn_dojo_ally(cell: Vector2i) -> void:
 	## An ally dummy is a real Player (so every self/ally card, heal, buff and
