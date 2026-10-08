@@ -5,8 +5,8 @@ extends SceneTree
 ##    open court with lava in its corners, off the deepest cave of the second
 ##    world; entered from the west; sealed until the Minotaur is dead.
 ##  - The Minotaur (boss sheet, level 9): 350 HP / 100 armor / 35 + 2 Burn;
-##    resists 15 / 50 / 25; Labyrinth Leap on any hit over 20 (14 spaces, one
-##    fewer per Slow), Bull Rush a cycle later (Vulnerable, fire along the
+##    resists 15 / 50 / 25; Labyrinth Leap once he has taken over 20 damage
+##    since his last leap, a running total (14 spaces, one fewer per Slow), Bull Rush a cycle later (Vulnerable, fire along the
 ##    lane), fire in his wake that heals him 10 when it burns a player.
 ##  - Lost in the Labyrinth: every 25 tempo the hand is scrambled, must be
 ##    played left to right, and nothing can be drawn, for 15 tempo. The curse
@@ -170,12 +170,18 @@ func _test_fight() -> void:
 	var bcell: Vector2i = gm.world_to_grid(bull.position)
 	main.player.position = main._ground_pos(bcell + Vector2i(-1, 0))
 	main.player.target_position = main.player.position
-	bull.take_damage(20, true, DamageTypes.Type.PHYSICAL, true)
-	_check(not bull._minotaur_rush_pending and gm.world_to_grid(bull.position) == bcell, "a hit of 20 does not move him")
-	bull.take_damage(21, true, DamageTypes.Type.PHYSICAL, true)
+	bull.take_damage(12, true, DamageTypes.Type.PHYSICAL, true)
+	bull.take_damage(8, true, DamageTypes.Type.PHYSICAL, true)
+	_check(not bull._minotaur_rush_pending and gm.world_to_grid(bull.position) == bcell and bull._minotaur_damage_taken == 20,
+		"12 then 8: twenty damage taken, he holds his ground")
+	bull.take_damage(1, true, DamageTypes.Type.PHYSICAL, true)
 	var leap_cell: Vector2i = gm.world_to_grid(bull.position)
 	_check(bull._minotaur_rush_pending and bull._minotaur_leap_spaces == 14 and leap_cell != bcell,
-		"a hit over 20: Labyrinth Leap, 14 spaces, Bull Rush armed")
+		"one more point: over 20 in total — Labyrinth Leap, 14 spaces, Bull Rush armed")
+	_check(bull._minotaur_damage_taken == 0, "the count starts over after a leap")
+	bull.take_damage(30, true, DamageTypes.Type.PHYSICAL, true)
+	_check(bull._minotaur_rush_pending and gm.world_to_grid(bull.position) == leap_cell and bull._minotaur_damage_taken == 30,
+		"with a Bull Rush owed he does not leap again, but the damage keeps counting")
 	_check(dm.is_floor(leap_cell) and not dm.is_water(leap_cell), "he lands on open floor")
 	_check(bull.chosen_action.get("name", "") == "bull_rush" and bull.chosen_action.get("tempo_cost", 0) == 5 and bull.action_tempo_counter == 0,
 		"the rush comes one cycle after landing")
@@ -202,10 +208,11 @@ func _test_fight() -> void:
 	var rush_cell: Vector2i = gm.world_to_grid(bull.position)
 	_check(bull._wake_prev_cell == rush_cell, "his trail picks up again from where the charge ends")
 
-	# Slow is his weakness: every stack takes a space off the leap.
+	# Slow is his weakness: every stack takes a space off the leap. (The 30
+	# counted during the rush is still on the books: one more point leaps.)
 	bull.slow_stacks = 14
 	var pre: Vector2i = gm.world_to_grid(bull.position)
-	bull.take_damage(21, true, DamageTypes.Type.PHYSICAL, true)
+	bull.take_damage(1, true, DamageTypes.Type.PHYSICAL, true)
 	_check(bull._minotaur_rush_pending and bull._minotaur_leap_spaces == 0 and gm.world_to_grid(bull.position) == pre,
 		"14 Slow: the leap covers no ground at all")
 	bull.slow_stacks = 0

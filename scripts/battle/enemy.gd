@@ -275,6 +275,7 @@ var _stinger_cooldown: int = 0        # White Manticore: raw tempo until Stinger
 var _talon_cooldown: int = 0          # Wyvern: raw tempo until Talon Grab is ready
 var _minotaur_rush_pending: bool = false  # Inflamed Minotaur: Bull Rush queued 1 cycle after the leap
 var _minotaur_leap_spaces: int = 0
+var _minotaur_damage_taken: int = 0  # Inflamed Minotaur: damage from the player since his last leap (over 20 -> Labyrinth Leap)
 var _wake_prev_cell: Vector2i = Vector2i(-9999, -9999)  # Inflamed Minotaur: fire-trail bookkeeping
 var _wererabbit_tempo: int = 0            # Wererabbit: flees 3 cycles (15 tempo), then vanishes
 var _crawler_attack_streak: int = 0       # Crypt Crawler: webs after 3 consecutive bites
@@ -1856,7 +1857,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.MAGMA_SPIDER: "A large tarantula in red, orange and black with glowing seams.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.PIT_FIEND: "A larger, regal demon with a barbed tail and a great whip.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.ASH_HARPY: "A harpy seemingly risen from and made of ash.\n[Design mock-up — stats & moves TBD.]",
-		EnemyType.INFLAMED_MINOTAUR: "The boss of the Labyrinth, off the Underworld's deepest cave: a smouldering minotaur with a fiery axe. Leaves fire in its wake (a trap on every tile it walks off — and along every charge: 10 damage + 2 Burn, lingers 15 tempo) and heals 10 whenever that fire burns a player. Resists 15% physical / 50% fire / 25% lightning. Slow is his weakness: every Slow stack shortens the leap (Sword of Theseus).\nAttack (5 tempo): 35 damage + 2 Burn.\nLabyrinth Leap (auto, on a hit over 20 damage): springs away 14 spaces (minus 1 per Slow) to a random open tile.\nBull Rush (1 cycle after landing): charges the player — damage equals the spaces covered by leap + rush, with a spaces x4% chance to stun (5 tempo) AND weaken; the target and everything trampled en route are left Vulnerable.\nMove (5 tempo): 6 spaces.\nThe room: every 25 tempo you are Lost in the Labyrinth for 15 — your hand is scrambled, must be played left to right, and you cannot draw.",
+		EnemyType.INFLAMED_MINOTAUR: "The boss of the Labyrinth, off the Underworld's deepest cave: a smouldering minotaur with a fiery axe. Leaves fire in its wake (a trap on every tile it walks off — and along every charge: 10 damage + 2 Burn, lingers 15 tempo) and heals 10 whenever that fire burns a player. Resists 15% physical / 50% fire / 25% lightning. Slow is his weakness: every Slow stack shortens the leap (Sword of Theseus).\nAttack (5 tempo): 35 damage + 2 Burn.\nLabyrinth Leap (auto, once he has taken over 20 damage since his last leap — a running total, not one blow): springs away 14 spaces (minus 1 per Slow) to a random open tile.\nBull Rush (1 cycle after landing): charges the player — damage equals the spaces covered by leap + rush, with a spaces x4% chance to stun (5 tempo) AND weaken; the target and everything trampled en route are left Vulnerable.\nMove (5 tempo): 6 spaces.\nThe room: every 25 tempo you are Lost in the Labyrinth for 15 — your hand is scrambled, must be played left to right, and you cannot draw.",
 		# --- Heavens (design mock-ups — stats & moves TBD) ---
 		EnemyType.CHERUB: "An adult cupid — winged archer with a bow.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.DJINN: "A blue genie with bracelets, a black ponytail and a red necklace. Every attack against the Djinn puts 3 WISHES in your hand — each sears you for 1/3 of that attack's damage every cycle it is held, and costs 60 mana (0 tempo) to be rid of. Resists 15% physical/fire/lightning.\nChain Lightning (5 tempo): 35 lightning to everyone it hits — cast reaches 5 squares, each bound arcs 4 from the last one struck.\nMove (3 tempo): 8 spaces.",
@@ -4399,6 +4400,7 @@ func _minotaur_labyrinth_leap() -> void:
 	var spaces: int = maxi(0, 14 - slow_stacks)
 	_minotaur_leap_spaces = spaces
 	_minotaur_rush_pending = true
+	_minotaur_damage_taken = 0  # the count toward the next leap starts over
 	if spaces > 0 and grid_manager:
 		var dest := _random_free_cell_at_distance(grid_manager.world_to_grid(position), spaces)
 		var world = grid_manager.grid_to_world(dest)
@@ -5520,10 +5522,15 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 						knockback(ifrit_main.player.position, 3)
 						print("[%s] Backflips away from the blow!" % enemy_name)
 			EnemyType.INFLAMED_MINOTAUR:
-				# Labyrinth Leap: a blow over 20 springs him away (tempo does
-				# not trigger this — the damage threshold does).
-				if from_player and incoming_hit > 20 and not _minotaur_rush_pending:
-					_minotaur_labyrinth_leap()
+				# Labyrinth Leap: once the damage he has taken from the player
+				# since his last leap passes 20 — a running total, not a single
+				# blow — he springs away (tempo does not trigger this; the
+				# damage threshold does). A Bull Rush still owed goes first;
+				# the total keeps counting underneath it.
+				if from_player and incoming_hit > 0:
+					_minotaur_damage_taken += incoming_hit
+					if _minotaur_damage_taken > 20 and not _minotaur_rush_pending:
+						_minotaur_labyrinth_leap()
 			EnemyType.DJINN:
 				# Every attack on the Djinn grants the attacker 3 Wishes, each
 				# searing the holder for 1/3 of that attack's damage per cycle
