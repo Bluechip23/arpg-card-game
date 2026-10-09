@@ -273,7 +273,7 @@ var _necro_summons_alive: int = 0
 var _treant_thorn_accumulator: int = 0  # Treant: every 10 tempo, strips enemy thorns and heals
 var _stinger_cooldown: int = 0        # White Manticore: raw tempo until Stinger is ready
 var _talon_cooldown: int = 0          # Wyvern: raw tempo until Talon Grab is ready
-var _minotaur_rush_pending: bool = false  # Inflamed Minotaur: Bull Rush queued 1 cycle after the leap
+var _minotaur_rush_pending: bool = false  # Inflamed Minotaur: Bull Rush queued 5-15 tempo after the leap
 var _minotaur_leap_spaces: int = 0
 var _minotaur_damage_taken: int = 0  # Inflamed Minotaur: damage from the player since his last leap (over 20 -> Labyrinth Leap)
 var _wake_prev_cell: Vector2i = Vector2i(-9999, -9999)  # Inflamed Minotaur: fire-trail bookkeeping
@@ -984,7 +984,7 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			max_armor = 0
 			attack_damage = 0
 			attack_range = 0.0
-			move_distance = 2.0
+			move_distance = 6.0       # 6 spaces / 2 tempo: he hurries to the stone
 			aggro_range = 0.0
 			xp_reward = 6
 			_set_mesh_color(Color(0.5, 0.55, 0.45))
@@ -1857,7 +1857,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.MAGMA_SPIDER: "A large tarantula in red, orange and black with glowing seams.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.PIT_FIEND: "A larger, regal demon with a barbed tail and a great whip.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.ASH_HARPY: "A harpy seemingly risen from and made of ash.\n[Design mock-up — stats & moves TBD.]",
-		EnemyType.INFLAMED_MINOTAUR: "The boss of the Labyrinth, off the Underworld's deepest cave: a smouldering minotaur with a fiery axe. Leaves fire in its wake (a trap on every tile it walks off — and along every charge: 10 damage + 2 Burn, lingers 15 tempo) and heals 10 whenever that fire burns a player. Resists 15% physical / 50% fire / 25% lightning. Slow is his weakness: every Slow stack shortens the leap (Sword of Theseus).\nAttack (5 tempo): 35 damage + 2 Burn.\nLabyrinth Leap (auto, once he has taken over 20 damage since his last leap — a running total, not one blow): springs away 14 spaces (minus 1 per Slow) to a random open tile.\nBull Rush (1 cycle after landing): charges the player — damage equals the spaces covered by leap + rush, with a spaces x4% chance to stun (5 tempo) AND weaken; the target and everything trampled en route are left Vulnerable.\nMove (5 tempo): 6 spaces.\nThe room: every 25 tempo you are Lost in the Labyrinth for 15 — your hand is scrambled, must be played left to right, and you cannot draw.",
+		EnemyType.INFLAMED_MINOTAUR: "The boss of the Labyrinth, off the Underworld's deepest cave: a smouldering minotaur with a fiery axe. Leaves fire in its wake (a trap on every tile it walks off — and along every charge: 10 damage + 2 Burn, lingers 15 tempo) and heals 10 whenever that fire burns a player. Resists 15% physical / 50% fire / 25% lightning. Slow is his weakness: every Slow stack shortens the leap (Sword of Theseus).\nAttack (5 tempo): 35 damage + 2 Burn.\nLabyrinth Leap (auto, once he has taken over 20 damage since his last leap — a running total, not one blow): springs away 14 spaces (minus 1 per Slow) to a random open tile.\nBull Rush (a random 5 to 15 tempo after landing): charges the player — damage equals the spaces covered by leap + rush, with a spaces x4% chance to stun (5 tempo) AND weaken; the target and everything trampled en route are left Vulnerable.\nMove (5 tempo): 6 spaces.\nThe room: every 25 tempo you are Lost in the Labyrinth for 15 — your hand is scrambled, must be played left to right, and you cannot draw.",
 		# --- Heavens (design mock-ups — stats & moves TBD) ---
 		EnemyType.CHERUB: "An adult cupid — winged archer with a bow.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.DJINN: "A blue genie with bracelets, a black ponytail and a red necklace. Every attack against the Djinn puts 3 WISHES in your hand — each sears you for 1/3 of that attack's damage every cycle it is held, and costs 60 mana (0 tempo) to be rid of. Resists 15% physical/fire/lightning.\nChain Lightning (5 tempo): 35 lightning to everyone it hits — cast reaches 5 squares, each bound arcs 4 from the last one struck.\nMove (3 tempo): 8 spaces.",
@@ -1871,7 +1871,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.DUMMY: "The Dojo's training dummy (a chicken, for morale). Stands still, never strikes, and a killing blow only refills it — grants no XP, drops nothing.",
 		EnemyType.HELL_DOOR: "The gate Cerberus guards: the way down to Hell. Break it to get through — you need not kill the hound. At 75%, 50% and 33% health it seals itself against all damage for 10 tempo. It counts as Cerberus's ally (its drop below half feeds his Guardian of Death). Grants no XP, drops nothing.",
 		EnemyType.GRAVESTONE: "A headstone in the Boneyard. Every one left standing regenerates the Bone Dragon 1 health a cycle, and that regen never fades — break the stones to starve him of it. Grants no XP, drops nothing.",
-		EnemyType.GRAVE_DIGGER: "Walks out of the Boneyard's crypt to a broken gravestone and sets it back to full in 8 tempo, then is gone. Three come in all, one at a time. Cut him down before he finishes.\nWalk (2 tempo): 2 spaces.\nRepair (8 tempo): the stone stands again.",
+		EnemyType.GRAVE_DIGGER: "Walks out of the Boneyard's crypt to a broken gravestone and sets it back to full in 8 tempo, then is gone. Three come in all, one at a time. Cut him down before he finishes.\nWalk (2 tempo): 6 spaces.\nRepair (8 tempo): the stone stands again.",
 		EnemyType.RAT_NEST: "A heap of straw and bones at the foot of a cliff in the Rat King's Lair. Tread on it and its Archer Rat scrambles up to the high ground. The wounded king feeds on an untouched nest (left 20%, middle 30%, right 50% of his health) — tear the nests down and he has nowhere to run. Grants no XP, drops nothing.",
 	}
 
@@ -4396,7 +4396,8 @@ func _minotaur_labyrinth_leap() -> void:
 	## Labyrinth Leap: springs away 14 spaces to a random unoccupied tile —
 	## minus 1 space per Slow stack. MINOTAUR-SPECIFIC: slow is his weakness
 	## (Sword of Theseus ramps it); this is not a universal slow rule.
-	## Bull Rush fires 1 cycle after landing.
+	## Bull Rush follows a random 5 to 15 tempo after landing — the player
+	## never knows quite when he is coming back.
 	var spaces: int = maxi(0, 14 - slow_stacks)
 	_minotaur_leap_spaces = spaces
 	_minotaur_rush_pending = true
@@ -4412,9 +4413,10 @@ func _minotaur_labyrinth_leap() -> void:
 		_move_path.clear()
 		# A leap is not a walk: the wake picks up again from where he lands.
 		_wake_prev_cell = dest
-	chosen_action = {"name": "bull_rush", "tempo_cost": 5}
+	var delay: int = randi_range(5, 15)
+	chosen_action = {"name": "bull_rush", "tempo_cost": delay}
 	action_tempo_counter = 0
-	print("[%s] LABYRINTH LEAP — springs %d spaces away! (slowed by %d)" % [enemy_name, spaces, slow_stacks])
+	print("[%s] LABYRINTH LEAP — springs %d spaces away! (slowed by %d) Bull Rush in %d tempo" % [enemy_name, spaces, slow_stacks, delay])
 
 func _try_bull_rush(target_node: Node3D) -> bool:
 	## Charges the player: damage scales with the spaces covered by the leap
