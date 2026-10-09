@@ -34,6 +34,12 @@ def deltas(df, key):
 
 def scatter(out, x, xlabel, title, name, rarity_col):
     fig, ax = plt.subplots(figsize=(8, 5))
+    # An item the inventory refused (carry gate, mythic limit, slot) is not a
+    # measurement of the item: hollow marker, left out of the tier band.
+    refused = out[out["clean"] < 1]
+    if not refused.empty:
+        ax.scatter(refused[x], refused["d_dpt"], s=28, facecolors="none", edgecolors=simlib.TEXT_2, linewidths=1, label="equip refused")
+    out = out[out["clean"] >= 1]
     for i, rar in enumerate(simlib.RARITY_ORDER):
         sub = out[out[rarity_col].str.capitalize() == rar]
         if sub.empty:
