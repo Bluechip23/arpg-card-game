@@ -33,7 +33,7 @@ engine start; the first run after adding a `class_name` script needs
 | `tests/sim/sim_runner.gd` | `SimRunner`: boots Main, builds the player, spawns enemies, drives time, records rows |
 | `tests/sim/sim_state.gd` | `SimState`: the snapshot a policy sees, plus `legal_actions()` |
 | `tests/sim/sim_scenario.gd` | `SimScenario`: loads, defaults and validates scenario files |
-| `tests/sim/policies/*.gd` | player policies (`scripted`, `random`, `greedy_dpt`; `lookahead` is Milestone 2) |
+| `tests/sim/policies/*.gd` | player policies: `scripted`, `random`, `greedy_dpt`, `lookahead` |
 | `tests/sim/scenarios/*.gd` | scenario files; `baseline.gd` is the control group |
 | `tests/sim/sweeps/*.txt` | sweep files |
 | `tests/test_sim_determinism.gd`, `tests/test_sim_hand_check.gd` | the harness's own tests |
@@ -133,6 +133,33 @@ crossed with carry-over tempo), end_hp_pct, enemy_actions_by_type
 
 `aggregate.csv` holds `n`, the four outcome rates and mean/std/min/max of
 every numeric summary column over the seeds of that invocation.
+
+## The policies
+
+- **scripted** plays the scenario's action list verbatim.
+- **random** picks uniformly among the legal actions: the floor.
+- **greedy_dpt** is the auto-attacker: the highest damage-per-tempo attack
+  (card or auto attack) against the nearest enemy, else a step toward it,
+  else wait. It never blocks, heals, buffs or kites.
+- **lookahead** is the strategic player. True state cloning was not
+  feasible (the audit's §8: Main is the state, and replaying the seed to
+  clone it costs seconds per candidate), so it is the audit's fallback: a
+  one-step evaluation of every legal action,
+  `(enemy HP removed + control value + mitigation value − HP lost while
+  committed) / tempo`, with a kill bonus (the threat that enemy would still
+  have dealt), a lethal-exposure penalty, and credit for stepping out of a
+  melee hit about to land. It reads only what a human sees: the hover
+  damage preview, the card text (for stun / root / disarm / vulnerable
+  wording), the overhead intent bar, and the inspect panel's base hit and
+  reach. With no threat it reduces to damage per tempo, so it never scores
+  below greedy there. `tests/test_sim_policies.gd` checks the ordering on
+  the skeleton scenario: random < greedy_dpt ≤ lookahead on damage per
+  tempo, lookahead ≥ greedy on win rate and ≤ on damage taken. Measured
+  over 50 seeds (see the Milestone 2 report): on the baseline and the
+  two-rat pressure fight all three win every time and lookahead picks the
+  same actions as greedy; against the Skeleton greedy wins 92%, random 98%
+  (it blocks and heals by accident), lookahead 100% at higher DPT than
+  greedy, blocking before the swing lands and side-stepping it once.
 
 ## Adding a policy
 

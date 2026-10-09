@@ -98,6 +98,10 @@ func refresh() -> void:
 			"intent": e.get_display_action(),
 			"effects": e.get_active_effects(),
 			"structure": e.is_structure,
+			# What the inspect panel prints: the moveset and the base hit.
+			"actions": e.actions,
+			"attack_damage": e.attack_damage,
+			"attack_range": int(e.attack_range),
 		})
 
 	hand.clear()
@@ -123,6 +127,7 @@ func refresh() -> void:
 			"rng_index": c.rng_selected_index if c.has_chance_effect() else null,
 			"rng_chance": c.rng_effective_chance if c.has_chance_effect() else null,
 			"keywords": c.keywords.duplicate(),
+			"description": c.description,   # the card text, the only statement of its effects a player gets
 			"playable": why == "",
 			"why_not": why,
 		})
