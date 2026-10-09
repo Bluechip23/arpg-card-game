@@ -387,8 +387,8 @@ screenshots cost nothing measurable headless.
 
 - XP and level-ups stay as in the game (a mid-fight level-up fully heals);
   nothing zeroes `xp_reward`.
-- Card draw scales with Wisdom again (`PlayerStats.DRAW_TEMPO_PER_WIS`,
-  `MIN_DRAW_TEMPO`); the draw timer still runs on tempo.
+- Card draw stays a flat 25 tempo (a WIS scaling was added, then reverted
+  at the designer's request); the draw timer runs on tempo.
 - The Defensive Sacrifice one-liner was applied (`enemy.gd` uses
   `get_parent()`).
 - Runs re-instantiate `main.tscn` per seed (0.45 s a run) rather than
