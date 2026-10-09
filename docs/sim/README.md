@@ -35,7 +35,9 @@ engine start; the first run after adding a `class_name` script needs
 | `tests/sim/sim_scenario.gd` | `SimScenario`: loads, defaults and validates scenario files |
 | `tests/sim/policies/*.gd` | player policies: `scripted`, `random`, `greedy_dpt`, `lookahead` |
 | `tests/sim/scenarios/*.gd` | scenario files; `baseline.gd` is the control group |
-| `tests/sim/sweeps/*.txt` | sweep files |
+| `tests/sim/sweeps/*.txt` | sweep files (`example.txt` by hand; the rest from `gen_sweeps.py`) |
+| `tests/sim/dump_catalog.gd` | dumps the roster / card / item catalog the sweep generator reads |
+| `tools/sim_analysis/*.py`, `run_sweep.sh` | sweep generator, sharded runner, the five analyses |
 | `tests/test_sim_determinism.gd`, `tests/test_sim_hand_check.gd` | the harness's own tests |
 | `tests/run_all.sh` | runs every `tests/test_*.gd` (`-j N` parallel, `-o dir` logs, `pattern` filter) |
 
@@ -193,12 +195,59 @@ question, hand pickers, Defensive Sacrifice, Life Swap's enemy pick, Point
 to Prove, the donation panel) are answered through `answer_prompt`; the
 default keeps the power, takes the first option, declines donations.
 
-## Adding a sweep
+## Sweeps and analysis (Milestone 3)
 
 A sweep file lists jobs, one per line: `scenario=<path> [policy=<name>]
-[seed=<n> runs=<k> | seeds=<a>-<b>]`, `#` comments. Each job writes to its
-own `<scenario>/<policy>/` folder; the analysis scripts (Milestone 3,
-`tools/sim_analysis/`) read `sim_out/` and write charts to `sim_out/charts/`.
+[seed=<n> runs=<k> | seeds=<a>-<b>] [overrides…]`, `#` comments. Overrides
+sit on top of the scenario file: `enemy=TYPE[,TYPE]` (replaces the enemies;
+melee types stand 3 tiles off, ranged at their own reach), `add_cards=a,b`,
+`add_items=x[:slot]`, `items=x[:slot],y|none` (replaces the loadout),
+`level=N`, `alloc=strength:10,dexterity:5`, `passives=a,b`,
+`character=name`, `name=suffix` (the output folder becomes
+`<scenario>_<suffix>`). `--shard=i/n` makes one process take every n-th
+job, and `tools/sim_analysis/run_sweep.sh <sweep> [shards] [out]` runs a
+sweep across that many processes (4 is right for this container).
+
+```
+godot --headless --path . --script tests/sim/dump_catalog.gd     # sim_out/catalog.json: roster, cards, items
+python3 tools/sim_analysis/gen_sweeps.py                          # writes tests/sim/sweeps/*.txt
+tools/sim_analysis/run_sweep.sh tests/sim/sweeps/build_divergence.txt 4
+python3 tools/sim_analysis/build_divergence.py                    # sim_out/charts/*.png + *.csv
+```
+
+| Sweep (gen_sweeps.py) | Jobs | Analysis | Answers |
+|---|---|---|---|
+| `enemy_strategy.txt` — every acting enemy, solo, × greedy_dpt / lookahead, 200 seeds | 100 | `strategy_index.py` → `strategy_index.png/.csv`, `strategy_taken_gap.png` | Q1: `strategy_gap` = lookahead − greedy win rate (and damage taken), lookahead card entropy, bars to kill. Near-zero gap = meat bag |
+| `combos.txt` — baseline deck + singles and pairs from a pruned pool, lookahead, 3 enemies, 100 seeds | ~230 at pool 12 | `combos.py` → `combos.png/.csv` | Q2: `synergy = DPT(A+B) − DPT(A) − DPT(B) + DPT(base)`; notable above 15 % of base DPT; top/bottom 20 |
+| `card_power.txt`, `item_power.txt` — one card / one item at a time, 3 enemies, 100 seeds | ~700 / ~570 | `card_item_power.py` → `card_power.png`, `card_power_tempo.png`, `item_power.png`, `.csv` | Q3: delta win rate / DPT / damage taken vs control, by rarity; scatter vs mana, tempo, weight with the tier's mean ± 1 sd band |
+| `build_divergence.txt` — 7 allocations × 5 enemies, 100 seeds | 35 | `build_divergence.py` → `build_divergence_win.png`, `_dpt.png`, `.csv` | Q4: heatmap build × enemy; identical rows mean stats don't matter |
+| `progression.txt` — levels 1 / 5 / 10 / 15 / 18 with tier gear × the roster, 100 seeds | 250 | `progression.py` → `progression.png`, `progression_by_enemy.png`, `.csv` | Q5: win rate and bars to kill vs level; flat = progression isn't felt |
+
+Costs at ~0.45 s a run: strategy 2.5 h, combos 2.9 h, cards 8.8 h, items
+7.1 h, builds 0.4 h, progression 3.1 h serial — divide by the shard count.
+`gen_sweeps.py --seeds N --pool-size K --limit M` scales them down.
+
+The combo pool is every Basic/Common/Rare non-engraved, non-item card
+costing ≤ 60 mana, first `--pool-size` by id; the prune rule skips a pair
+when both cards are attacks carrying no keyword beyond
+attack/offensive/melee/ranged/enemy/conditional/self/spell (`--no-prune`
+keeps them all; edit `PLAIN_ATTACK_KEYWORDS` / `card_pool` to change the
+rule). Weapons in the item sweep replace the baseline Short Sword
+(`items=`), everything else is added in slot 0; an equip the inventory
+refuses lands in the summary's `warnings` column and shows as `clean = 0`
+in `item_power.csv`. Progression gear is the first item by id of each slot
+at the level's tier (Common at 5, Rare at 10, Legendary at 15, Mythic at
+18), so it is "typical", not optimised; swap `tier_gear` for the
+`_build_sims.gd` loadouts when you want the designed builds.
+
+Charts are static PNGs (pandas + matplotlib, the repo's existing script
+style) using the validated default palette; the CSV next to each chart has
+every number.
+
+Two things to keep in mind when reading summaries: `end_hp_pct` is 1.0 after
+a fight whose last kill levelled the character (a level-up fully heals, as in
+the game), so judge survival by `total_damage_taken`; and the `warnings`
+column is non-empty when the build was not what the scenario asked for.
 
 ## How time is driven (why the numbers are trustworthy)
 

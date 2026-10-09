@@ -78,6 +78,61 @@ static func script_has(script: Script, method: String) -> bool:
 			return true
 	return false
 
+## Sweep-job overrides on top of a scenario file (tools/sim_analysis/gen_sweeps.py
+## writes these): enemy=TYPE[,TYPE] (replaces the enemies; placed at a
+## sensible range by the runner), add_cards=a,b, add_items=x[:slot],y,
+## items=x[:slot],y|none (replaces the loadout), level=N,
+## alloc=strength:10,dexterity:5 (replaces the allocation),
+## passives=a,b, character=name, name=suffix (output folder becomes
+## <scenario>_<suffix>). Every key is optional.
+static func apply_overrides(sc: Dictionary, job: Dictionary) -> Dictionary:
+	var out := sc.duplicate(true)
+	var p: Dictionary = out["player"]
+	if job.has("enemy"):
+		var es: Array = []
+		var i := 0
+		for t in str(job["enemy"]).split(",", false):
+			var base := cell_of(p["cell"])
+			es.append({"type": t.strip_edges(), "cell": [base.x + 3, base.y + i], "overrides": {}})
+			i += 1
+		out["enemies"] = es
+		out["auto_range"] = true
+	if job.has("add_cards"):
+		for id in str(job["add_cards"]).split(",", false):
+			p["deck"].append(id.strip_edges())
+	if job.has("items"):
+		# Replace the loadout outright (a weapon sweep swaps the baseline sword).
+		var its: Array = []
+		for spec in str(job["items"]).split(",", false):
+			var parts := spec.strip_edges().split(":")
+			if parts[0] != "none":
+				its.append([parts[0], int(parts[1]) if parts.size() > 1 else 0])
+		p["items"] = its
+	if job.has("add_items"):
+		for spec in str(job["add_items"]).split(",", false):
+			var parts := spec.strip_edges().split(":")
+			p["items"].append([parts[0], int(parts[1]) if parts.size() > 1 else 0])
+	if job.has("level"):
+		p["level"] = int(job["level"])
+	if job.has("alloc"):
+		var alloc := {}
+		for kv in str(job["alloc"]).split(",", false):
+			var parts := kv.strip_edges().split(":")
+			if parts.size() == 2:
+				alloc[parts[0]] = int(parts[1])
+		p["allocation"] = alloc
+	if job.has("passives"):
+		var ps: Array = []
+		for id in str(job["passives"]).split(",", false):
+			ps.append(id.strip_edges())
+		p["passives"] = ps
+	if job.has("character"):
+		p["character"] = str(job["character"])
+	if job.has("name"):
+		out["name"] = "%s_%s" % [out["name"], str(job["name"])]
+	out["player"] = p
+	return out
+
 static func cell_of(v) -> Vector2i:
 	if v is Vector2i:
 		return v

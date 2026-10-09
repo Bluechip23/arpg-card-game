@@ -20,7 +20,7 @@ const ROW_COLUMNS := ["bar_index", "tempo_before", "tempo_after", "actor", "acti
 	"damage_dealt", "damage_taken", "buffs_applied", "debuffs_applied", "rng_outcome_used"]
 const SUMMARY_COLUMNS := ["seed", "outcome", "bars_elapsed", "total_damage_dealt", "total_damage_taken",
 	"damage_per_tempo", "cards_played", "distinct_cards_played", "card_entropy", "mana_wasted",
-	"overflow_bars", "end_hp_pct", "enemy_actions_by_type", "global_tempo", "decisions", "error"]
+	"overflow_bars", "end_hp_pct", "enemy_actions_by_type", "global_tempo", "decisions", "error", "warnings"]
 const AGGREGATE_STATS := ["mean", "std", "min", "max"]
 
 var tree: SceneTree
@@ -243,6 +243,13 @@ func _spawn_enemies() -> void:
 		if ov.has("max_health") and not ov.has("current_health"):
 			en.current_health = en.max_health
 		en.update_health_display()
+		if bool(scenario.get("auto_range", false)):
+			# A sweep-spawned enemy: three tiles off for melee, its own reach
+			# for ranged (capped at 6 so it stays inside the hall).
+			var reach: int = int(en.attack_range)
+			var dist: int = 3 if reach <= 1 else clampi(reach, 3, 6)
+			var pc := SimScenario.cell_of(scenario["player"]["cell"])
+			_place(en, Vector2i(pc.x + dist, cell.y))
 		_adopt_enemy(en)
 	main._sync_dungeon_blocked_tiles()
 	for ob in scenario["map"]["obstacles"]:
@@ -793,6 +800,7 @@ func _summary() -> Dictionary:
 		"global_tempo": tm.global_tempo,
 		"decisions": _decisions,
 		"error": error_msg,
+		"warnings": "|".join(warnings),
 	}
 
 # ----------------------------------------------------------------- CSV ----
@@ -824,7 +832,7 @@ static func aggregate_text(summaries: Array) -> String:
 	## mean/std/min/max of every numeric summary column, plus win_rate and n.
 	var numeric: Array = []
 	for c in SUMMARY_COLUMNS:
-		if c in ["seed", "outcome", "enemy_actions_by_type", "error"]:
+		if c in ["seed", "outcome", "enemy_actions_by_type", "error", "warnings"]:
 			continue
 		numeric.append(c)
 	var header: Array = ["n", "win_rate", "loss_rate", "timeout_rate", "error_rate"]

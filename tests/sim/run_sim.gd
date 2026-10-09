@@ -5,7 +5,7 @@ extends SceneTree
 ##   godot --headless --path . --script tests/sim/run_sim.gd -- \
 ##       --scenario=tests/sim/scenarios/baseline.gd --seed=1 --runs=100 \
 ##       --policy=greedy_dpt --out=sim_out/ [--verbose]
-##   godot --headless --path . --script tests/sim/run_sim.gd -- --sweep=tests/sim/sweeps/example.txt
+##   godot --headless --path . --script tests/sim/run_sim.gd -- --sweep=tests/sim/sweeps/example.txt [--shard=0/4]
 ##
 ## Writes sim_out/<scenario>/<policy>/<seed>.csv per run, summary.csv per
 ## scenario × policy, and aggregate.csv over the seeds run. The game's own
@@ -41,6 +41,17 @@ func _go() -> void:
 		printerr("usage: --scenario=<path> [--seed=n] [--runs=k] [--policy=name] [--out=dir] | --sweep=<file>")
 		quit(2)
 		return
+	# --shard=i/n: this process takes every n-th job starting at i (0-based),
+	# so one sweep file can be split across n processes.
+	if _args.has("shard"):
+		var sh := str(_args["shard"]).split("/")
+		var si := int(sh[0])
+		var sn := maxi(1, int(sh[1]) if sh.size() > 1 else 1)
+		var mine: Array = []
+		for k in range(jobs.size()):
+			if k % sn == si:
+				mine.append(jobs[k])
+		jobs = mine
 	var out_dir := str(_args.get("out", "sim_out"))
 	var started := Time.get_ticks_msec()
 	var total_runs := 0
@@ -49,6 +60,7 @@ func _go() -> void:
 		if sc.is_empty():
 			_failures += 1
 			continue
+		sc = SimScenario.apply_overrides(sc, job)
 		var problem := SimScenario.validate(sc)
 		if problem != "":
 			printerr("[SIM] %s: %s" % [job["scenario"], problem])
@@ -71,7 +83,7 @@ func _go() -> void:
 			summaries.append(summary)
 			total_runs += 1
 			for w in _runner.warnings:
-				printerr("[SIM] warning (seed %d): %s" % [s, w])
+				printerr("[SIM] warning (%s seed %d): %s" % [sc["name"], s, w])
 		SimRunner.write_text("%s/aggregate.csv" % dir, SimRunner.aggregate_text(summaries))
 		var wins := 0
 		for s in summaries:
