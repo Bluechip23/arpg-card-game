@@ -291,6 +291,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		interior_kind = "boneyard"  # the Boneyard: the Bone Dragon's graveyard (boss room off the Old Graveyard)
 	elif interior_id.begins_with("hellgate"):
 		interior_kind = "hellgate"  # Hell's Gate: Cerberus and the door down (boss room off the caves)
+	elif interior_id.begins_with("labyrinth"):
+		interior_kind = "labyrinth"  # The Labyrinth: the Inflamed Minotaur (boss room off the second world's caves)
 
 	# Fog scales with how lit the place is: tight, lightless sewers reveal least,
 	# the bright open forest reveals most, everything else uses the default.
@@ -301,7 +303,7 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 			fog_reveal_radius = 9
 		"dojo":
 			fog_reveal_radius = 64  # a lit hall: nothing to explore, nothing hidden
-		"ratking", "boneyard", "hellgate":
+		"ratking", "boneyard", "hellgate", "labyrinth":
 			fog_reveal_radius = 64  # a boss arena: the whole room is in view from the gate
 		_:
 			fog_reveal_radius = FOG_REVEAL_RADIUS
@@ -340,6 +342,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 			_generate_boneyard_layout()
 		"hellgate":
 			_generate_hellgate_layout()
+		"labyrinth":
+			_generate_labyrinth_layout()
 		_:
 			_generate_overworld_layout()
 	_generate_elevation()
@@ -376,6 +380,9 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		elif interior_kind == "cave" and world_level == 1:
 			# The deepest cave of the first world: Hell's Gate, Cerberus's post.
 			_place_boss_door("deep", "east", "hellgate", "hellgate", "Hell's Gate", Color(1.0, 0.6, 0.5), Color(1.0, 0.3, 0.15))
+		elif interior_kind == "cave" and world_level == 2:
+			# The deepest cave of the Underworld: the Labyrinth, the Inflamed Minotaur's maze.
+			_place_boss_door("deep", "east", "labyrinth", "labyrinth", "The Labyrinth", Color(1.0, 0.7, 0.45), Color(1.0, 0.45, 0.1))
 	_place_chests()
 	_place_fountains()
 	_place_shrine()
@@ -409,6 +416,13 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		spawn_zones.size(), site_nodes.size()])
 
 func _set_world_size() -> void:
+	if interior_kind == "labyrinth":
+		# One square maze; the player enters from the west, the Minotaur waits
+		# in the open court at its heart.
+		GRID_W = LB_SIZE
+		GRID_H = LB_SIZE
+		player_start = Vector2i(1, LB_ENTRY_Z)
+		return
 	if interior_kind == "hellgate":
 		# One long cavern hall; the player enters from the west, the door is east.
 		GRID_W = HG_SIZE.x
@@ -497,7 +511,7 @@ func _get_graveyard_palette() -> Dictionary:
 	return _graveyard_palette
 
 func get_palette() -> Dictionary:
-	if interior_kind == "cave" or interior_kind == "hellgate":
+	if interior_kind == "cave" or interior_kind == "hellgate" or interior_kind == "labyrinth":
 		return CAVE_PALETTE
 	if interior_kind == "graveyard" or interior_kind == "boneyard":
 		return _get_graveyard_palette()
@@ -524,7 +538,7 @@ func floor_texture_path() -> String:
 			return CP_TEX + "/floor_glowing_cave.png"  # wet stone (glowing-cave pack; the plain cave fill went black under the sewer's dim light)
 		"building", "dojo":
 			return CP_TEX + "/floor_undead.png"  # grey flagstones (undead pack's cracked stone)
-		"cave", "hellgate":
+		"cave", "hellgate", "labyrinth":
 			return CP_TEX + "/floor_cave.png"
 		"forest":
 			return CP_TEX + "/floor_grass_forest.png"
@@ -556,7 +570,7 @@ func trail_texture_path() -> String:
 	match interior_kind:
 		"forest":
 			return CP_TEX + "/floor_dirt_forest.png"
-		"cave", "sewer", "building", "ratking", "hellgate":
+		"cave", "sewer", "building", "ratking", "hellgate", "labyrinth":
 			return CP_TEX + "/floor_dirt_forest.png"  # trodden dark earth
 		"boneyard":
 			return CP_TEX + "/floor_undead_sand.png"  # the barrow land's pale cobbles
@@ -582,7 +596,7 @@ func wall_texture_path() -> String:
 			return CP_TEX + "/wall_cave.png"  # dark cave rock
 		"building":
 			return CP_TEX + "/wall_undead.png"  # grey barrow stone
-		"cave", "hellgate":
+		"cave", "hellgate", "labyrinth":
 			return CP_TEX + "/wall_cave.png"
 		"forest":
 			return CP_TEX + "/wall_forest.png"
@@ -603,8 +617,8 @@ func water_texture_path() -> String:
 	match interior_kind:
 		"boneyard":
 			return CP_TEX + "/water_undead.png"
-		"hellgate":
-			return CP_TEX + "/water_lava.png"  # the pools at Hell's threshold are lava (cave pack)
+		"hellgate", "labyrinth":
+			return CP_TEX + "/water_lava.png"  # the pools at Hell's threshold, and in the Minotaur's court, are lava (cave pack)
 		"cave", "sewer", "ratking":
 			return CP_TEX + "/water_cave.png"
 		"forest":
@@ -638,7 +652,7 @@ func _prop_biome() -> String:
 			return "sewer"
 		"boneyard":
 			return "undead"
-		"hellgate":
+		"hellgate", "labyrinth":
 			return "cave"
 	match world_level:
 		2:
@@ -790,6 +804,8 @@ func get_location_name() -> String:
 		return "The Boneyard"
 	if interior_kind == "hellgate":
 		return "Hell's Gate"
+	if interior_kind == "labyrinth":
+		return "The Labyrinth"
 	var pal = get_palette()
 	return "World %d — %s" % [world_level, pal.get("name", "")]
 
@@ -829,11 +845,12 @@ var cleared_bosses: Array = []
 
 ## Interiors that are boss rooms (cutscene fights behind a sealed door).
 static func is_boss_room(id: String) -> bool:
-	return id.begins_with("ratking") or id.begins_with("boneyard") or id.begins_with("hellgate")
+	return id.begins_with("ratking") or id.begins_with("boneyard") or id.begins_with("hellgate") \
+		or id.begins_with("labyrinth")
 
 ## The boss-room key of an interior id ("ratking_lair" -> "ratking").
 static func boss_room_key(id: String) -> String:
-	for key in ["ratking", "boneyard", "hellgate"]:
+	for key in ["ratking", "boneyard", "hellgate", "labyrinth"]:
 		if id.begins_with(key):
 			return key
 	return ""
@@ -1196,6 +1213,135 @@ func _place_hell_descent() -> void:
 	if get_site_by_id("descend") >= 0:
 		return
 	_place_exit_site(hellgate_door_cell, "descend", "descend", "Hell's Door", "[Shift] Descend", Vector3(0.8, 0, 0), Color(1.0, 0.45, 0.3))
+
+# ============================================
+# THE LABYRINTH (interior_kind "labyrinth", id "labyrinth")
+# The Inflamed Minotaur's maze, off the deepest cave of the second world
+# (Act 2, through Hell's Door): one walled square of two-wide passages
+# around an open court at its heart, where the bull waits beside four pools
+# of lava. The player enters from the west. Every 25 tempo the maze takes
+# hold of the player (Lost in the Labyrinth — main runs the curse); the
+# room is sealed until the Minotaur is dead. Built from the cave pack's
+# rock, floor and lava like Hell's Gate above it.
+# ============================================
+const LB_CELLS := 12                     # coarse maze cells per side
+const LB_SIZE := 1 + LB_CELLS * 3        # 37: border wall + (2 floor + 1 wall) per cell
+const LB_COURT := Rect2i(13, 13, 12, 12) # the open court: coarse cells 4..7 both ways
+const LB_ENTRY_Z := 17                   # the entry passage's row (inside coarse row 5)
+const LB_LOOP_CHANCE := 0.14             # extra passages knocked through so the maze has loops
+
+var labyrinth_minotaur_cell: Vector2i = Vector2i(-1, -1)
+
+func _lb_is_court(cx: int, cz: int) -> bool:
+	return cx >= 4 and cx <= 7 and cz >= 4 and cz <= 7
+
+func _lb_carve_cell(cx: int, cz: int) -> void:
+	_carve_rect(Rect2i(1 + cx * 3, 1 + cz * 3, 2, 2))
+
+func _lb_open_wall(ax: int, az: int, bx: int, bz: int) -> void:
+	## Knock through the wall between two neighbouring coarse cells.
+	if ax == bx:
+		var wz: int = 3 + 3 * mini(az, bz)
+		for x in range(1 + ax * 3, 3 + ax * 3):
+			grid[x][wz] = Tile.FLOOR
+	else:
+		var wx: int = 3 + 3 * mini(ax, bx)
+		for z in range(1 + az * 3, 3 + az * 3):
+			grid[wx][z] = Tile.FLOOR
+
+func _generate_labyrinth_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	# The court first: one open square (the inner walls go with it).
+	_carve_rect(LB_COURT)
+	rooms.append({"rect": LB_COURT, "kind": "boss", "elev": 0})
+	labyrinth_minotaur_cell = LB_COURT.get_center()
+	# Lava in the court's four corners.
+	for corner in [LB_COURT.position, Vector2i(LB_COURT.end.x - 2, LB_COURT.position.y),
+			Vector2i(LB_COURT.position.x, LB_COURT.end.y - 2), Vector2i(LB_COURT.end.x - 2, LB_COURT.end.y - 2)]:
+		_flag_water_rect(Rect2i(corner, Vector2i(2, 2)))
+
+	# The passages: a recursive backtracker over the coarse cells outside the
+	# court (deterministic — _rng is seeded by the layout seed).
+	var visited := {}
+	var start := Vector2i(0, 5)  # the entry cell, west edge, middle row
+	var stack: Array = [start]
+	visited[start] = true
+	_lb_carve_cell(start.x, start.y)
+	var dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	while not stack.is_empty():
+		var cur: Vector2i = stack[stack.size() - 1]
+		var options: Array = []
+		for d in dirs:
+			var nxt: Vector2i = cur + d
+			if nxt.x < 0 or nxt.y < 0 or nxt.x >= LB_CELLS or nxt.y >= LB_CELLS:
+				continue
+			if _lb_is_court(nxt.x, nxt.y) or visited.has(nxt):
+				continue
+			options.append(nxt)
+		if options.is_empty():
+			stack.pop_back()
+			continue
+		var pick: Vector2i = options[_rng.randi() % options.size()]
+		visited[pick] = true
+		_lb_carve_cell(pick.x, pick.y)
+		_lb_open_wall(cur.x, cur.y, pick.x, pick.y)
+		stack.append(pick)
+
+	# Loops, so a wrong turn is a detour rather than a dead end to walk back.
+	for cx in range(LB_CELLS):
+		for cz in range(LB_CELLS):
+			if _lb_is_court(cx, cz):
+				continue
+			for d in [Vector2i(1, 0), Vector2i(0, 1)]:
+				var nb: Vector2i = Vector2i(cx, cz) + d
+				if nb.x >= LB_CELLS or nb.y >= LB_CELLS or _lb_is_court(nb.x, nb.y):
+					continue
+				if _rng.randf() < LB_LOOP_CHANCE:
+					_lb_open_wall(cx, cz, nb.x, nb.y)
+
+	# Two ways into the court on each side (the middle cells of each face).
+	for i in [5, 6]:
+		_lb_open_wall(3, i, 4, i)   # west face
+		_lb_open_wall(7, i, 8, i)   # east face
+		_lb_open_wall(i, 3, i, 4)   # north face
+		_lb_open_wall(i, 7, i, 8)   # south face
+	_enforce_border_walls()
+
+func _build_labyrinth_decorations() -> void:
+	## The cave pack's hell pieces, sparse along the passage walls so the
+	## maze reads as rock; the court lit by its lava.
+	_reserve_area(labyrinth_minotaur_cell, 1)
+	var props := 0
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			if grid[x][z] != Tile.WALL or not _has_adjacent_floor(x, z) or _is_floor_at(x, z - 1):
+				continue
+			var pos := Vector2i(x, z)
+			if (pos - player_start).length() < 2.5:
+				continue
+			var n := _tile_noise(x, z, 733)
+			var world := grid_manager.grid_to_world(pos) + Vector3(0, CameraView.SPRITE_LIFT, 0.3)
+			if n < 0.1:
+				var spire := _make_prop_sprite("hell_spire", 0.9, int(n * 100))
+				if spire:
+					spire.position = world
+					_visuals_root.add_child(spire)
+					props += 1
+			elif n < 0.2:
+				var rock := _make_prop_sprite("hell_rock", 0.85, int(n * 100))
+				if rock:
+					rock.position = world
+					_visuals_root.add_child(rock)
+					props += 1
+	# The court glows from its lava.
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(1.0, 0.4, 0.15)
+	glow.light_energy = 1.2
+	glow.omni_range = 9.0
+	glow.position = grid_manager.grid_to_world(labyrinth_minotaur_cell) + Vector3(0, 1.0, 0)
+	_visuals_root.add_child(glow)
+	print("[DUNGEON] The Labyrinth dressed: %d spires and rocks" % props)
 
 const DOJO_W := 18
 const DOJO_H := 14
@@ -1777,8 +1923,8 @@ func _generate_elevation() -> void:
 		return  # Buildings and the dojo are flat inside
 	if interior_kind == "sewer":
 		return  # Sewers are flat; channels are carved into the floor, not raised
-	if interior_kind == "boneyard" or interior_kind == "hellgate":
-		return  # a walled graveyard square / the gate hall: flat
+	if interior_kind == "boneyard" or interior_kind == "hellgate" or interior_kind == "labyrinth":
+		return  # a walled graveyard square / the gate hall / the maze: flat
 	if interior_kind == "ratking":
 		# The lair's three cliffs: the walkable top rows behind each cliff
 		# face (the face row itself is a wall tile; see _generate_rat_king_layout).
@@ -2348,7 +2494,7 @@ func _min_adjacent_floor_elevation(x: int, z: int) -> int:
 ## bushes (the way the packs' fields and forests read). Caves, sewers, the
 ## hellscape and the barrows keep their packs' rock and vein masses.
 func _natural_boundary() -> bool:
-	if interior_kind in ["cave", "sewer", "building", "dojo", "graveyard", "ratking", "boneyard", "hellgate"]:
+	if interior_kind in ["cave", "sewer", "building", "dojo", "graveyard", "ratking", "boneyard", "hellgate", "labyrinth"]:
 		return false
 	if interior_kind == "forest":
 		return true
@@ -2427,7 +2573,7 @@ var _wall_atlas_cache: Dictionary = {}
 ## The cliff strip for this location (see tools/extract_craftpix_cliffs.py).
 func cliff_strip_path() -> String:
 	match interior_kind:
-		"sewer", "cave", "ratking", "hellgate":
+		"sewer", "cave", "ratking", "hellgate", "labyrinth":
 			return CP_TEX + "/cliff_cave.png"
 		"boneyard":
 			return CP_TEX + "/cliff_undead.png"
@@ -2468,7 +2614,7 @@ func _make_wall_atlas(pal: Dictionary) -> ImageTexture:
 	# as solid from above, and a ground-coloured cap left thin walls looking
 	# like floor the player could not step onto.
 	var cap := _sheet_image(cap_texture_path())
-	var is_rock := interior_kind in ["cave", "sewer", "ratking", "hellgate"]
+	var is_rock := interior_kind in ["cave", "sewer", "ratking", "hellgate", "labyrinth"]
 	cap.adjust_bcs(0.55 if is_rock else 0.72, 1.0, 0.85)
 	var floor_b: Color = pal.get("floor_b", Color(0.25, 0.42, 0.2))
 	# Outline colours follow the pack art: a dark line the colour of the
@@ -3011,6 +3157,9 @@ func _build_decorations() -> void:
 		return
 	if interior_kind == "hellgate":
 		_build_hellgate_decorations()
+		return
+	if interior_kind == "labyrinth":
+		_build_labyrinth_decorations()
 		return
 	var pal = get_palette()
 	var _deco_trees: Array = []

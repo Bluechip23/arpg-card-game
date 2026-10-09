@@ -34,6 +34,7 @@ var _menu_items: Array[Dictionary] = [
 # The Test submenu: everything used for trying things out.
 var _test_items: Array[Dictionary] = [
 	{"text": "Sandbox", "action": "_on_sandbox"},
+	{"text": "Boss Simulator", "action": "_on_boss_simulator"},
 	{"text": "Animation Lab", "action": "_on_animation_lab"},
 	{"text": "Enemy Lab", "action": "_on_enemy_lab"},
 	{"text": "Back", "action": "_on_test_back"},
@@ -188,6 +189,15 @@ func _on_test_back() -> void:
 func _on_sandbox() -> void:
 	var select_scene = CharacterSelectScene.instantiate()
 	select_scene.game_mode = "sandbox"
+	get_tree().root.add_child(select_scene)
+	queue_free()
+
+func _on_boss_simulator() -> void:
+	## The sandbox, booted straight into a boss-room picker: every sandbox
+	## tool (cards, items, passives, stats, allies) works inside the fight.
+	var select_scene = CharacterSelectScene.instantiate()
+	select_scene.game_mode = "sandbox"
+	select_scene.boss_sim = true
 	get_tree().root.add_child(select_scene)
 	queue_free()
 

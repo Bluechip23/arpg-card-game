@@ -109,6 +109,8 @@ var parent_interior_id: String = ""
 ## (handed over by _enter_interior, put back by _restore_carried_statuses).
 var carried_statuses: Dictionary = {}
 var boss_room_mode: bool = false   # inside a boss room (sealed until the boss dies)
+var _labyrinth_tempo: int = 0      # the Labyrinth: raw tempo toward the next Lost in the Labyrinth (every 25)
+var _labyrinth_lost_shown: bool = false  # whether the hand is currently rendered in the curse's left-to-right order
 var _rat_nests: Array = []         # the lair's nest structures (Enemy, RAT_NEST)
 var _gravestones: Array = []       # the Boneyard's stones: [{cell: Vector2i, enemy: Enemy or null}]
 var _grave_diggers_left: int = 0   # diggers still in the crypt
@@ -206,6 +208,7 @@ var starting_character: CharacterData = null
 var player2_character: CharacterData = null
 var is_multiplayer: bool = false
 var sandbox_mode: bool = false      # Free-play arena launched from the Sandbox menu
+var boss_sim_pick: bool = false     # Boss Simulator: open the sandbox on the boss-room picker
 var sandbox_ui = null                # SandboxUI (preloaded; untyped to avoid class-cache dependency)
 # Ally interaction: right-clicking the co-op partner opens a small menu whose
 # "Trade" entry opens the two-pane trade window (items + gold, both ways).
@@ -4541,8 +4544,9 @@ func _setup_sandbox() -> void:
 		sb_stats.current_mana = 999
 		sb_stats.mana_changed.emit(sb_stats.current_mana, sb_stats.max_mana)
 	var start_cell = grid_manager.world_to_grid(player.position)
-	# Two raised platforms flanking the start so High Ground is always nearby.
-	if dungeon_manager:
+	# Two raised platforms flanking the start so High Ground is always nearby
+	# — in the arena only: a boss room is fought exactly as it is laid out.
+	if dungeon_manager and not boss_room_mode:
 		dungeon_manager.build_high_ground(start_cell + Vector2i(5, -1), 1, 1)
 		dungeon_manager.build_high_ground(start_cell + Vector2i(-4, 3), 2, 1)
 		_sync_dungeon_blocked_tiles()
@@ -4564,8 +4568,36 @@ func _setup_sandbox() -> void:
 	sandbox_ui.refill_requested.connect(_sandbox_refill)
 	sandbox_ui.add_ally_requested.connect(_on_sandbox_add_ally)
 	sandbox_ui.grant_passive_requested.connect(_on_sandbox_grant_passive)
+	sandbox_ui.enter_boss_room_requested.connect(_on_sandbox_enter_boss_room)
+	sandbox_ui.leave_boss_room_requested.connect(_on_sandbox_leave_boss_room)
+	# Boss Simulator: the panel knows which fight it is in (restart / leave).
+	if boss_room_mode and dungeon_manager:
+		sandbox_ui.set_boss_room(current_interior_id, dungeon_manager.get_location_name())
 	sandbox_ui.open()
-	add_battle_log("Sandbox mode: use the panel (top-right) to add cards and spawn enemies.", Color(0.7, 0.85, 1.0))
+	if boss_room_mode:
+		add_battle_log("Boss Simulator: %s. The sandbox panel (top-right) still adds cards, items and passives; Restart or Back there when you are done." % dungeon_manager.get_location_name(), Color(0.7, 0.85, 1.0))
+	else:
+		add_battle_log("Sandbox mode: use the panel (top-right) to add cards and spawn enemies.", Color(0.7, 0.85, 1.0))
+	# Test > Boss Simulator boots straight onto the fight picker.
+	if boss_sim_pick and not boss_room_mode:
+		boss_sim_pick = false
+		sandbox_ui.show_boss_picker()
+
+## Boss Simulator: step into a boss room with every sandbox tool intact.
+## From the arena the room returns to the arena; from inside a boss room
+## (switching fights, or restarting this one) it returns wherever this room
+## would have, so the player never has to walk back out through old fights.
+func _on_sandbox_enter_boss_room(interior_id: String) -> void:
+	if not DungeonManager.is_boss_room(interior_id):
+		add_battle_log("Sandbox: '%s' is not a boss room." % interior_id, Color(1.0, 0.5, 0.4))
+		return
+	_enter_interior(interior_id, interior_id, boss_room_mode)
+
+func _on_sandbox_leave_boss_room() -> void:
+	if not boss_room_mode:
+		add_battle_log("Sandbox: already in the arena.", Color(0.8, 0.8, 0.85))
+		return
+	_exit_interior()
 
 func _sandbox_refill() -> void:
 	## Top health/mana back up WITHOUT touching the character's real stats —
@@ -6095,6 +6127,9 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_update_fire_spots(amount)
 	# Tempo-fused fire walls (Ifrit breath, Minotaur wake) burn down by the clock.
 	_tick_fire_walls(amount)
+	# The Labyrinth: every 25 tempo the maze takes hold; a lapsed hold frees the hand.
+	_tick_labyrinth(amount)
+	_sync_labyrinth_lost()
 	# Chewbaccas Bandolier: casings explode on contact or when their timer runs out.
 	_update_bullet_casings(amount)
 	# Sanguine the penguin waddles after the wielder and pecks on his own clock.
@@ -6405,9 +6440,12 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	# A boss room opens the moment its boss falls: the way out appears, and
 	# the character remembers the room as cleared.
 	if boss_room_mode and enemy.enemy_type == _boss_room_boss_type():
-		if current_character:
+		# A sandbox kill is practice: the character's record is untouched.
+		if current_character and not sandbox_mode:
 			current_character.mark_boss_defeated(DungeonManager.boss_room_key(current_interior_id))
 		_open_boss_room_exit()
+		if enemy.enemy_type == Enemy.EnemyType.INFLAMED_MINOTAUR:
+			_lift_lost_in_labyrinth()
 	# The Boneyard: a fallen digger leaves the broken stone to the next one.
 	if boss_room_mode and enemy.enemy_type == Enemy.EnemyType.GRAVE_DIGGER:
 		if _active_digger == enemy:
@@ -6512,7 +6550,10 @@ func register_fire_wall(tiles: Array, damage: int, burn: int, moves: int = 6,
 			visuals.append(v)
 	_fire_walls.append({"tiles": tiles, "damage": damage, "burn": burn, "moves_left": moves,
 		"tempo_left": tempo, "heal_source": heal_source, "heal_amount": heal_amount, "visuals": visuals})
-	add_battle_log("A wall of fire erupts!", Color(1.0, 0.5, 0.2))
+	# A creature's wake (the Minotaur's trail) lays a tile at every step —
+	# the log would be nothing else; only a cast sheet of flame announces itself.
+	if heal_source == null:
+		add_battle_log("A wall of fire erupts!", Color(1.0, 0.5, 0.2))
 
 func _spawn_fire_wall_visual(cell: Vector2i) -> MeshInstance3D:
 	if not grid_manager:
@@ -7217,6 +7258,9 @@ func _on_hand_updated() -> void:
 	# Assign Hexed/Locked cards if needed
 	deck_manager.assign_hexed_locked_cards(debuff_mgr)
 
+	# Lost in the Labyrinth: which card is next in line (the rest grey out).
+	_labyrinth_lost_shown = _apply_labyrinth_statics(debuff_mgr)
+
 	# Recalculate enchantment bonuses based on current hand contents
 	_recalculate_enchantment_bonuses()
 
@@ -7354,7 +7398,13 @@ func _build_hand_groups(debuff_mgr = null) -> void:
 	var locked_idx: int = -1
 	if debuff_mgr and debuff_mgr.has_method("get_locked_card_index"):
 		locked_idx = debuff_mgr.get_locked_card_index()
-	_hand_groups = _hand_slots.build_groups(deck_manager.hand, locked_idx)
+	# Lost in the Labyrinth: no stacks — every card in hand order, keyed by
+	# position, since the curse makes the player play it left to right. The
+	# slot map above still reconciles, so the stacks return when it lifts.
+	if debuff_mgr and debuff_mgr.has_method("is_lost") and debuff_mgr.is_lost():
+		_hand_groups = _hand_slots.build_ordered_groups(deck_manager.hand)
+	else:
+		_hand_groups = _hand_slots.build_groups(deck_manager.hand, locked_idx)
 	for g in _hand_groups:
 		g["card_ui"] = null
 
@@ -13588,7 +13638,10 @@ func _setup_dungeon() -> void:
 	dungeon_manager.loot_salt = current_character.get_loot_seed() if current_character else randi()
 	# A boss already slain by this character stays slain: its room opens
 	# with the exit in place and the door outside reads as cleared.
-	dungeon_manager.cleared_bosses = current_character.defeated_bosses.duplicate() if current_character else []
+	# (The sandbox / Boss Simulator never treats a room as cleared, so every
+	# boss can be fought again and again.)
+	dungeon_manager.cleared_bosses = [] if sandbox_mode else \
+		(current_character.defeated_bosses.duplicate() if current_character else [])
 	add_child(dungeon_manager)
 	dungeon_manager.initialize(grid_manager, self, current_world_level, current_interior_id)
 
@@ -13799,7 +13852,10 @@ func _try_interact_site() -> bool:
 		_enter_interior(site["id"], site["display_name"])
 	return true
 
-func _enter_interior(interior_id: String, display_name: String = "") -> void:
+func _enter_interior(interior_id: String, display_name: String = "", keep_parent: bool = false) -> void:
+	## `keep_parent`: the new room returns to THIS room's parent rather than
+	## to this room (the Boss Simulator hopping from one boss room straight
+	## into another, or restarting the one it is in).
 	print("[MAIN] Entering %s (%s) in World %d" % [display_name, interior_id, current_world_level])
 	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
 	var saved_progression = _save_player_progression()
@@ -13807,11 +13863,12 @@ func _enter_interior(interior_id: String, display_name: String = "") -> void:
 	main_scene.starting_character = starting_character
 	main_scene.player2_character = player2_character
 	main_scene.is_multiplayer = is_multiplayer
+	main_scene.sandbox_mode = sandbox_mode  # the sandbox's tools follow the player through every door
 	main_scene.current_world_level = current_world_level
 	main_scene.current_interior_id = interior_id
 	# A room entered from inside an interior (the Rat King's Lair off the
 	# sewer) remembers where its door is: leaving returns there.
-	main_scene.parent_interior_id = current_interior_id
+	main_scene.parent_interior_id = parent_interior_id if keep_parent else current_interior_id
 	if DungeonManager.is_boss_room(interior_id):
 		# Boss rules: the hand rides along in the deck state; every buff and
 		# debuff on the player rides along too (the managers die with this
@@ -13834,6 +13891,7 @@ func _exit_interior() -> void:
 	main_scene.starting_character = starting_character
 	main_scene.player2_character = player2_character
 	main_scene.is_multiplayer = is_multiplayer
+	main_scene.sandbox_mode = sandbox_mode
 	main_scene.current_world_level = current_world_level
 	# Back out to the parent interior (a boss room's door) or the overworld.
 	main_scene.current_interior_id = parent_interior_id
@@ -13875,7 +13933,8 @@ func _apply_world_ambience() -> void:
 	if not dungeon_manager:
 		return
 	var pal: Dictionary = dungeon_manager.get_palette()
-	var in_cave = current_interior_id.begins_with("cave") or current_interior_id.begins_with("hellgate")
+	var in_cave = current_interior_id.begins_with("cave") or current_interior_id.begins_with("hellgate") \
+		or current_interior_id.begins_with("labyrinth")
 	var in_building = current_interior_id.begins_with("building")
 	var in_sewer = current_interior_id.begins_with("sewer") or current_interior_id.begins_with("ratking")
 	var in_forest = current_interior_id.begins_with("forest")
@@ -16287,6 +16346,8 @@ func _spawn_dojo_dummy(cell: Vector2i) -> void:
 # ============================================
 
 func _boss_cleared(room_key: String) -> bool:
+	if sandbox_mode:
+		return false  # the Boss Simulator fights every boss fresh, every time
 	return current_character != null and current_character.has_defeated_boss(room_key)
 
 func _boss_room_boss_type() -> int:
@@ -16296,6 +16357,7 @@ func _boss_room_boss_type() -> int:
 		"ratking": return Enemy.EnemyType.RAT_KING
 		"boneyard": return Enemy.EnemyType.BONE_DRAGON
 		"hellgate": return Enemy.EnemyType.HELL_DOOR
+		"labyrinth": return Enemy.EnemyType.INFLAMED_MINOTAUR
 	return -1
 
 func _setup_boss_room() -> void:
@@ -16303,6 +16365,105 @@ func _setup_boss_room() -> void:
 		"ratking": _setup_rat_king_lair()
 		"boneyard": _setup_boneyard()
 		"hellgate": _setup_hellgate()
+		"labyrinth": _setup_labyrinth()
+
+# ---- The Labyrinth: the Inflamed Minotaur ----
+# The bull waits in the open court at the heart of the maze (see
+# DungeonManager._generate_labyrinth_layout). His kit lives on the Enemy
+# (Attack + Burn, Labyrinth Leap on any hit over 20, Bull Rush a cycle
+# later, fire in his wake that heals him). The room itself has one trick:
+# every 25 tempo the player is Lost in the Labyrinth for 15 — the hand is
+# scrambled, must be played left to right, and nothing can be drawn
+# (Debuff LOST; Card.world_block_reason enforces the order). The curse
+# stops, and lifts, when the Minotaur dies.
+const LABYRINTH_LOST_EVERY := 25
+const LABYRINTH_LOST_TEMPO := 15
+
+func _setup_labyrinth() -> void:
+	_labyrinth_tempo = 0
+	if _boss_cleared("labyrinth"):
+		add_battle_log("The Labyrinth is still — the Minotaur's fires are out.", Color(1.0, 0.7, 0.45))
+		return
+	_spawn_lair_unit(Enemy.EnemyType.INFLAMED_MINOTAUR, dungeon_manager.labyrinth_minotaur_cell)
+	_sync_dungeon_blocked_tiles()
+	_sync_occupied_tiles()
+	_update_enemy_count()
+	_refresh_unit_tracker()
+	add_battle_log("The Labyrinth. The passages close behind you; something is burning at its heart.", Color(1.0, 0.7, 0.45))
+
+func _labyrinth_minotaur() -> Enemy:
+	for e in enemy_spawner.get_living_enemies():
+		if e.enemy_type == Enemy.EnemyType.INFLAMED_MINOTAUR:
+			return e
+	return null
+
+func _tick_labyrinth(amount: int) -> void:
+	## The maze's clock: while the Minotaur lives, every 25 raw tempo in the
+	## room casts Lost in the Labyrinth on every living player.
+	if not boss_room_mode or DungeonManager.boss_room_key(current_interior_id) != "labyrinth":
+		return
+	if _labyrinth_minotaur() == null:
+		return
+	_labyrinth_tempo += amount
+	while _labyrinth_tempo >= LABYRINTH_LOST_EVERY:
+		_labyrinth_tempo -= LABYRINTH_LOST_EVERY
+		_cast_lost_in_labyrinth()
+
+func _cast_lost_in_labyrinth() -> void:
+	var debuff_mgr = player.get_debuff_manager() if player else null
+	for p in _all_players():
+		if not is_instance_valid(p):
+			continue
+		var pdm = p.get_debuff_manager()
+		if pdm:
+			pdm.apply_debuff(Debuff.create(Debuff.DebuffType.LOST, 0, LABYRINTH_LOST_TEMPO))
+	# The hand is dealt again in a random order; the curse's order is whatever
+	# comes up (hexes and the Locked card follow their cards).
+	deck_manager.scramble_hand(debuff_mgr)
+	add_battle_log("Lost in the Labyrinth! Your hand is scrambled — play it left to right. No draws for %d tempo." % LABYRINTH_LOST_TEMPO, Color(1.0, 0.65, 0.3))
+
+func _lift_lost_in_labyrinth() -> void:
+	## The Minotaur is dead: the maze lets go of everyone at once.
+	var lifted := false
+	for p in _all_players():
+		if not is_instance_valid(p):
+			continue
+		var pdm = p.get_debuff_manager()
+		if pdm and pdm.is_lost():
+			pdm.remove_debuff(Debuff.DebuffType.LOST)
+			lifted = true
+	if lifted:
+		add_battle_log("The Labyrinth's hold breaks.", Color(1.0, 0.8, 0.5))
+	_sync_labyrinth_lost()
+
+func _sync_labyrinth_lost() -> void:
+	## Keep Card's Lost-in-the-Labyrinth statics in step with the active
+	## player: whether the curse holds, and which card is next in line (the
+	## leftmost card that is not a pure instant and is not otherwise barred —
+	## jailed, Locked, or blocked by the world — so a dead card at the front
+	## never traps the whole hand). A change in whether the curse holds
+	## re-renders the hand, since the curse lays it out in order.
+	var dm = player.get_debuff_manager() if player and is_instance_valid(player) else null
+	var lost := _apply_labyrinth_statics(dm)
+	if lost != _labyrinth_lost_shown and deck_manager:
+		_on_hand_updated()  # sets _labyrinth_lost_shown
+
+func _apply_labyrinth_statics(dm) -> bool:
+	## Point Card's Lost-in-the-Labyrinth statics at the active player's state;
+	## returns whether the curse holds.
+	var lost: bool = dm != null and dm.has_method("is_lost") and dm.is_lost()
+	var next: Card = null
+	if lost and deck_manager:
+		for i in range(deck_manager.hand.size()):
+			var c: Card = deck_manager.hand[i]
+			if c.card_type == Card.CardType.REACTION or c.is_jailed() or c._own_world_block_reason() != "" \
+					or dm.is_card_locked(i):
+				continue
+			next = c
+			break
+	Card.labyrinth_lost = lost
+	Card.labyrinth_next_card = next
+	return lost
 
 # ---- Hell's Gate: Cerberus and the door ----
 # The objective is the door (150 HP; seals itself for 10 tempo at 75/50/33%),
@@ -16398,7 +16559,9 @@ func _open_boss_room_exit() -> void:
 	if dungeon_manager.get_site_by_id("exit") >= 0:
 		return
 	dungeon_manager._place_exit_site()
-	if DungeonManager.boss_room_key(current_interior_id) != "hellgate":
+	if DungeonManager.boss_room_key(current_interior_id) == "labyrinth":
+		add_battle_log("The Minotaur falls. The passages open — the way out lies back the way you came.", Color(1.0, 0.8, 0.5))
+	elif DungeonManager.boss_room_key(current_interior_id) != "hellgate":
 		add_battle_log("The way out opens.", Color(0.7, 1.0, 0.7))
 
 # ---- The Boneyard: the Bone Dragon, twelve gravestones, three grave diggers ----

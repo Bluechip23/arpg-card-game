@@ -302,15 +302,15 @@ func get_loot_tier(type: Enemy.EnemyType) -> String:
 		Enemy.EnemyType.NECROMANCER, Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.SPIRIT_COLLECTOR, \
 		Enemy.EnemyType.SEWER_CROC, Enemy.EnemyType.WYVERN, Enemy.EnemyType.ICE_TROLL, \
 		Enemy.EnemyType.WHITE_MANTICORE, Enemy.EnemyType.GIANT_BEAVER, \
-		Enemy.EnemyType.BONE_DRAGON, Enemy.EnemyType.IFRIT, \
-		Enemy.EnemyType.INFLAMED_MINOTAUR, Enemy.EnemyType.DJINN, \
+		Enemy.EnemyType.BONE_DRAGON, Enemy.EnemyType.IFRIT, Enemy.EnemyType.DJINN, \
 		Enemy.EnemyType.FIRE_GOBLIN_SHAMAN, Enemy.EnemyType.CONSUMED, \
 		Enemy.EnemyType.EARTH_MAGE, Enemy.EnemyType.INFECTED_HUNTER:
 			# Bone Dragon rolls elite loot per the first-pass sheet — it is also
 			# Necromancer-summonable, so boss-tier drops would be farmable.
 			return DropRates.TIER_ELITE
 		Enemy.EnemyType.BOSS, Enemy.EnemyType.HYDRA, \
-		Enemy.EnemyType.GRAVE_TITAN, Enemy.EnemyType.RAT_KING, Enemy.EnemyType.GRANITE_COLOSSUS:
+		Enemy.EnemyType.GRAVE_TITAN, Enemy.EnemyType.RAT_KING, Enemy.EnemyType.GRANITE_COLOSSUS, \
+		Enemy.EnemyType.INFLAMED_MINOTAUR:
 			return DropRates.TIER_BOSS
 	return DropRates.TIER_MID
 

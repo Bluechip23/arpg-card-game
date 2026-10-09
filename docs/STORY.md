@@ -137,7 +137,7 @@ of the threat.* Think Middle-earth / LOTR.
 - **Habitats it draws from:** Underworld (primarily); Cave bleed-over.
 - **Tone:** oppressive and infernal. The player reaches the "source" — and
   learns the corruption is spreading *upward*, not contained here.
-- **Parts 1–4:** `[TBD]`
+- **Part slots:** 1) **The Labyrinth is built** — the Inflamed Minotaur's maze through a door at the east end of the Underworld's deepest cave (see Section 5.4, Underworld); the arrival and the parts around it `[TBD]` · 2–4) `[TBD]`
 
 ### Act 3 — Heaven (Corrupted)
 *The ascent. The Underworld has infiltrated the Heavens; the player climbs to
@@ -414,7 +414,7 @@ built level. The roster is themed and in code:*
 - **Magma Spiders**
 - **Pit Fiends**
 - **Ash Harpies**
-- **Inflamed Minotaur** — *in code*. Elite. Leaves **fire in its wake** (Traps — see 5.1) and heals 10 when the fire burns a player. A hit over 20 damage triggers **Labyrinth Leap** (14 spaces, **minus 1 per Slow stack — Slow is his weakness**, Sword of Theseus applies it; minotaur-specific, not a universal slow rule), then **Bull Rush** one cycle later — damage equal to the spaces covered, spaces×4% chance to stun **and Weaken**, Vulnerable to everything trampled.
+- **Inflamed Minotaur** — *in code*. **Boss** (sheet: level 9, 350 HP, 100 armor, 35 + 2 Burn a hit, 6 spaces a move; resists 15% physical / 50% fire / 25% lightning). Fought in **the fourth boss room, the Labyrinth** (`interior_kind == "labyrinth"`, through a door at the east end of the second world's deepest cave): a square maze of two-wide passages in the cave pack's rock around an open court with lava in its corners, the bull waiting in the court; sealed until he is dead, and his death opens the way out. Leaves **fire in its wake** (Traps — see 5.1; along every charge too) and heals 10 when the fire burns a player. Once he has taken **over 20 damage since his last leap** (a running total across hits, not a single blow) he makes a **Labyrinth Leap** (14 spaces to a random open tile, **minus 1 per Slow stack — Slow is his weakness**, Sword of Theseus applies it; minotaur-specific, not a universal slow rule), then **Bull Rush** one cycle later — damage equal to the spaces covered by leap and rush together, spaces×4% chance to stun **and Weaken** the final target, Vulnerable to the target and everything trampled en route (a player is always preferred over summons). He walks the maze by the real route round its walls. **The room's curse — Lost in the Labyrinth:** every **25 tempo** the player is Lost for **15**: the hand is reshuffled into a random order and **must be played left to right** (the hand shows one card per slot, in order, and only the first in line can be played), and **nothing can be drawn** by any means (Debuff `LOST`). It lifts the moment the Minotaur dies.
 
 #### Heavens
 - **Cherub**

@@ -337,7 +337,13 @@ func can_play_spell_cards() -> bool:
 	return not has_debuff(Debuff.DebuffType.SILENCE)
 
 func can_draw_cards() -> bool:
-	return not has_debuff(Debuff.DebuffType.CUFFED)
+	# Cuffed, or Lost in the Labyrinth (the Minotaur's curse: no draws at all).
+	return not has_debuff(Debuff.DebuffType.CUFFED) and not is_lost()
+
+## Lost in the Labyrinth (Inflamed Minotaur's room): the hand was scrambled
+## and must be played left to right; no card may be drawn by any means.
+func is_lost() -> bool:
+	return has_debuff(Debuff.DebuffType.LOST)
 
 func get_attack_mana_increase() -> int:
 	# Fixed surcharge while any stacks remain; stacks burn per attack card played.

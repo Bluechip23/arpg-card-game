@@ -5,6 +5,9 @@ extends RefCounted
 ##
 ## Identical cards (same stack signature) collapse under one lettered slot, and
 ## a slot keeps its letter until the last copy of its card leaves the hand.
+## A copy enchanted into an item is not identical to the deck copies — it plays
+## with that item's On-Self bonus — so it gets a slot of its own, keyed on the
+## item holding it (see Card.get_stack_signature).
 ## Playing a card therefore never re-letters the others; a genuinely new card
 ## fills the lowest free slot (A, then S, …). This keeps play buttons stable so
 ## the player can spam / combo a card without the key moving underneath them.
@@ -116,6 +119,20 @@ func build_groups(hand: Array, locked_index: int = -1) -> Array:
 			"cards": cards,
 			"rep": _pick_rep(cards, hand, locked_index),
 		})
+	return groups
+
+func build_ordered_groups(hand: Array) -> Array:
+	## Lost in the Labyrinth: no stacking and no persistent letters — every
+	## card is its own group in hand order (left to right is the order the
+	## curse makes the player follow), keyed 1, 2, 3… by position. Pure
+	## instants keep their place in the fan but still have no play key.
+	## The persistent slot map is left untouched, so the normal stacks and
+	## their letters come back as they were when the curse lifts.
+	var groups: Array = []
+	for i in range(hand.size()):
+		var card: Card = hand[i]
+		var slot: int = INSTANT_SLOT if is_instant_sig(card.get_stack_signature()) else i
+		groups.append({"slot": slot, "cards": [card], "rep": card})
 	return groups
 
 func _pick_rep(cards: Array, hand: Array, locked_index: int) -> Card:

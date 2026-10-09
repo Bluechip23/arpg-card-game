@@ -661,10 +661,26 @@ static var element_pollination_active: bool = false
 # Shield drawn in the meantime cannot be played (world_block_reason).
 static var bastion_shield_in_flight: bool = false
 
+# Lost in the Labyrinth (the Inflamed Minotaur's room): while the curse holds,
+# the hand must be played left to right — only `labyrinth_next_card` may be
+# played. Main syncs both from the active player's hand and debuffs.
+static var labyrinth_lost: bool = false
+static var labyrinth_next_card: Card = null
+
 ## Why the world refuses this card right now ("" = it may be played): a
 ## state outside the card — gear in flight, say — that greys it in the hand
 ## and stops the play, the way Engrave and Jail do.
 func world_block_reason() -> String:
+	var own := _own_world_block_reason()
+	if own != "":
+		return own
+	if labyrinth_lost and card_type != CardType.REACTION and labyrinth_next_card != self:
+		return "Lost in the Labyrinth — play your hand left to right."
+	return ""
+
+## The card's own world blocks, before the Labyrinth's turn order is applied
+## (main uses this to pick the next card the Labyrinth lets through).
+func _own_world_block_reason() -> String:
 	if card_id == "bouncing_shield" and bastion_shield_in_flight:
 		return "The shield is still in the air."
 	return ""
@@ -681,6 +697,13 @@ func get_stack_signature() -> String:
 	## card's face or how it plays (enhance, cost shifts, jailed, slotted)
 	## splits it into its own stack.
 	##
+	## A slotted copy never joins the plain copies of its card: it carries its
+	## item's On-Self bonus, so a Slash enchanted into a sword is not the Slash
+	## in the rest of the deck. The item ITSELF is the key, not merely "is
+	## slotted" — two Slashes in two different swords do two different things,
+	## so each item's copies form their own stack. Copies in the same item
+	## (a two-slot ring with both Gems alike) still stack together.
+	##
 	## Pure instant (reaction) cards can never be played manually — they all
 	## pile together under one un-lettered stack so they don't clutter the hand
 	## or steal a play key (see HandSlots). A card that also plays as a normal
@@ -690,8 +713,17 @@ func get_stack_signature() -> String:
 	return "%s|%s|%d|%d|%d|%d|%s|%s" % [
 		card_id, card_name, mana_cost, tempo_cost,
 		int(is_enhanced), bonus_damage,
-		str(is_jailed()), str(is_slotted()),
+		str(is_jailed()), _slot_signature(),
 	]
+
+## The slotted-in-item part of the stack signature: "" for a deck card, the
+## holding item's instance id otherwise (unique per item for the life of the
+## session; HandSlots' slot map is in-memory only, so it never has to survive
+## a save).
+func _slot_signature() -> String:
+	if slotted_in_item == null:
+		return ""
+	return "item:%d" % slotted_in_item.get_instance_id()
 
 func get_on_self_bonus() -> Dictionary:
 	# Returns the on-self bonus from the item this card is slotted in
