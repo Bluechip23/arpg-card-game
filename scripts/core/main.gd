@@ -181,6 +181,7 @@ const CardUIScene = preload("res://scenes/cards/card_ui.tscn")
 # Preloaded so main.gd doesn't depend on these newer class_names being present
 # in Godot's global class cache (avoids "Could not find type" on first run).
 const SandboxUIScript = preload("res://scripts/ui/sandbox_ui.gd")
+const FireTileSpriteScript = preload("res://scripts/effects/fire_tile_sprite.gd")  # fire-tile VFX (preloaded: no class-cache dependency)
 const HudIconBarScript = preload("res://scripts/ui/hud_icon_bar.gd")
 const EnemyInspectUIScript = preload("res://scripts/ui/enemy_inspect_ui.gd")
 const HandSlotsScript = preload("res://scripts/cards/hand_slots.gd")
@@ -6555,26 +6556,17 @@ func register_fire_wall(tiles: Array, damage: int, burn: int, moves: int = 6,
 	if heal_source == null:
 		add_battle_log("A wall of fire erupts!", Color(1.0, 0.5, 0.2))
 
-func _spawn_fire_wall_visual(cell: Vector2i) -> MeshInstance3D:
+func _spawn_fire_wall_visual(cell: Vector2i) -> Node3D:
+	## A tongue of flame on the tile (the demons pack's fire sheet — see
+	## FireTileSprite), replacing the old emissive orange box.
 	if not grid_manager:
 		return null
-	var box := MeshInstance3D.new()
-	var bm := BoxMesh.new()
-	bm.size = Vector3(0.9, 0.7, 0.9)
-	box.mesh = bm
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(1.0, 0.4, 0.1, 0.55)
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.45, 0.1)
-	mat.emission_energy_multiplier = 2.0
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	box.material_override = mat
 	var pos := grid_manager.grid_to_world(cell)
 	if dungeon_manager:
 		pos.y = dungeon_manager.get_elevation_world_y(cell)
-	box.position = pos + Vector3(0, 0.35, 0)
-	add_child(box)
-	return box
+	var flame: Node3D = FireTileSpriteScript.make(pos)
+	add_child(flame)
+	return flame
 
 func _check_fire_walls(player_cell: Vector2i) -> void:
 	if _fire_walls.is_empty():
@@ -9659,19 +9651,8 @@ func _maybe_drop_fire_trail(cell: Vector2i) -> void:
 	_fire_spots.append({"cell": cell, "tempo": persist, "damage": scaled, "node": node})
 
 func _make_fire_spot_visual(world_pos: Vector3) -> Node3D:
-	var n := MeshInstance3D.new()
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = 0.35
-	mesh.bottom_radius = 0.4
-	mesh.height = 0.08
-	n.mesh = mesh
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(1.0, 0.45, 0.1)
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.4, 0.05)
-	n.material_override = mat
-	n.position = Vector3(world_pos.x, 0.05, world_pos.z)
-	return n
+	# The same flame as every fire hazard, a little smaller: a spot, not a wall.
+	return FireTileSpriteScript.make(Vector3(world_pos.x, 0.0, world_pos.z), 0.8)
 
 ## Per-tempo: burn any enemy standing on a fire spot (which then extinguishes),
 ## and age out spots whose timer has run down.
@@ -10722,21 +10703,8 @@ func _create_flame_zone(cells: Array, card: Card) -> void:
 
 ## A burning tile: a translucent ember disc.
 func _make_flame_visual(world_pos: Vector3) -> Node3D:
-	var node := MeshInstance3D.new()
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = 0.4
-	mesh.bottom_radius = 0.46
-	mesh.height = 0.1
-	node.mesh = mesh
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(1.0, 0.45, 0.1, 0.45)
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.35, 0.05)
-	mat.emission_energy_multiplier = 0.9
-	node.material_override = mat
-	node.position = Vector3(world_pos.x, 0.06, world_pos.z)
-	return node
+	# Peshtigo's sheet of flame: the shared fire-tile sprite on every cell.
+	return FireTileSpriteScript.make(Vector3(world_pos.x, 0.0, world_pos.z))
 
 func _clear_flame_zones() -> void:
 	for z in _flame_zones:
