@@ -697,6 +697,10 @@ func _new_row(actor: String, action_id: String, target: String) -> Dictionary:
 		"debuffs_applied": "",
 		"rng_outcome_used": "",
 	}
+	var armor := {}
+	for en in main.enemy_spawner.get_living_enemies():
+		armor[en.get_instance_id()] = en.current_armor
+	row["_armor"] = armor
 	if actor == "player" and target.begins_with("enemy:"):
 		var idx := int(target.substr(6))
 		var living: Array = main.enemy_spawner.get_living_enemies()
@@ -721,6 +725,21 @@ func _finish_row(row: Dictionary) -> void:
 	if row.is_empty() or main == null:
 		return
 	row["tempo_after"] = main.tempo_manager.global_tempo
+	# Armor an enemy lost while this row was open counts as damage dealt
+	# (Enemy.damaged only reports what reached health): to the player when
+	# the player acted, to the enemy itself when it was the one hit back.
+	var armor: Dictionary = row.get("_armor", {})
+	var stripped := 0
+	for e in main.enemy_spawner.enemies:
+		if is_instance_valid(e) and armor.has(e.get_instance_id()):
+			stripped += maxi(0, int(armor[e.get_instance_id()]) - e.current_armor)
+	if stripped > 0:
+		if row["actor"] == "player":
+			row["damage_dealt"] += stripped
+		else:
+			row["damage_taken"] += stripped
+		_total_dealt += stripped
+	row.erase("_armor")
 	var en = row.get("_enemy", null)
 	if en == null and row["enemy_id"] != "":
 		for e in main.enemy_spawner.enemies:

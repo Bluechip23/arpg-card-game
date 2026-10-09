@@ -118,7 +118,7 @@ player action and each enemy action that fired, in order.
 | `player_hp` … `hand_size` | the player's state when the action started |
 | `enemy_id`, `enemy_hp`, `enemy_pos` | the targeted enemy (or the acting one; or the first living one) — HP and cell **after** the action |
 | `player_pos`, `distance` | player cell at the start; cell distance to that enemy after the action |
-| `damage_dealt`, `damage_taken` | from the actor's point of view, summed over the action's window; the game's own numbers (`Enemy.damaged` reports the amount that reached health, including overkill) |
+| `damage_dealt`, `damage_taken` | from the actor's point of view, summed over the action's window: health damage as the game reports it (`Enemy.damaged`, overkill included) plus any enemy armor stripped while the row was open — armor is effective HP, so a swing the troll's plate ate still counts |
 | `buffs_applied`, `debuffs_applied` | names applied during the window, `|`-separated (`player:` / `Name#i:` prefixes on debuffs) |
 | `rng_outcome_used` | the card's pre-rolled outcome index at play time (blank for cards without a chance effect) |
 

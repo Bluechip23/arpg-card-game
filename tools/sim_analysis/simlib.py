@@ -29,6 +29,7 @@ RARITY_ORDER = ["Common", "Rare", "Legendary", "Mythic"]
 
 
 def style():
+    os.makedirs(CHARTS, exist_ok=True)
     plt.rcParams.update({
         "figure.facecolor": SURFACE, "axes.facecolor": SURFACE, "savefig.facecolor": SURFACE,
         "axes.edgecolor": GRID, "axes.labelcolor": TEXT_2, "xtick.color": TEXT_2, "ytick.color": TEXT_2,
