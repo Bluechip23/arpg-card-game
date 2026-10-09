@@ -218,6 +218,16 @@ func _build_deck(ids: Array) -> void:
 	for c in item_cards:
 		dm.draw_pile.append(c)
 	dm.shuffle_draw_pile()
+	# Spotlight cards go on top of the shuffled pile so the opening hand
+	# holds them (draw_card pops from the back).
+	var spot: Array = scenario["player"].get("opening_hand", [])
+	for id in spot:
+		for i in range(dm.draw_pile.size()):
+			if dm.draw_pile[i].card_id == str(id):
+				var c = dm.draw_pile[i]
+				dm.draw_pile.remove_at(i)
+				dm.draw_pile.append(c)
+				break
 	for i in range(mini(dm.get_hand_cap(), dm.draw_pile.size())):
 		dm.draw_card()
 	dm.hand_updated.emit()

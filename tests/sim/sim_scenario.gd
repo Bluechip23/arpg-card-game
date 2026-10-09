@@ -39,6 +39,7 @@ static func with_defaults(sc: Dictionary) -> Dictionary:
 	p["deck"] = p.get("deck", starter_deck())
 	p["cell"] = p.get("cell", [6, 7])
 	p["stat_overrides"] = p.get("stat_overrides", {})
+	p["opening_hand"] = p.get("opening_hand", [])
 	out["player"] = p
 	var m: Dictionary = out.get("map", {})
 	m["interior"] = str(m.get("interior", "dojo"))
@@ -83,7 +84,7 @@ static func script_has(script: Script, method: String) -> bool:
 ## sensible range by the runner), add_cards=a,b, add_items=x[:slot],y,
 ## items=x[:slot],y|none (replaces the loadout), level=N,
 ## alloc=strength:10,dexterity:5 (replaces the allocation),
-## passives=a,b, character=name, name=suffix (output folder becomes
+## passives=a,b, hand=a,b (those cards start in hand), character=name, name=suffix (output folder becomes
 ## <scenario>_<suffix>). Every key is optional.
 static func apply_overrides(sc: Dictionary, job: Dictionary) -> Dictionary:
 	var out := sc.duplicate(true)
@@ -100,6 +101,13 @@ static func apply_overrides(sc: Dictionary, job: Dictionary) -> Dictionary:
 	if job.has("add_cards"):
 		for id in str(job["add_cards"]).split(",", false):
 			p["deck"].append(id.strip_edges())
+	if job.has("hand"):
+		# Spotlight: these cards start in the opening hand (a one-card change
+		# to an 11-card deck is otherwise invisible until it is drawn).
+		var hs: Array = []
+		for id in str(job["hand"]).split(",", false):
+			hs.append(id.strip_edges())
+		p["opening_hand"] = hs
 	if job.has("items"):
 		# Replace the loadout outright (a weapon sweep swaps the baseline sword).
 		var its: Array = []

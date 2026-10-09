@@ -87,12 +87,14 @@ def main():
     ap.add_argument("--pool", default="", help="explicit comma-separated card ids for the combo pool (overrides --pool-size)")
     ap.add_argument("--enemies", default="WERERAT,ARCHER_RAT,RAT_KING", help="melee, ranged, boss for 3b/3c")
     ap.add_argument("--no-prune", action="store_true", help="keep every pair in 3b")
+    ap.add_argument("--no-spotlight", action="store_true", help="3b/3c: do not start the added card(s) in the opening hand")
     ap.add_argument("--limit", type=int, default=0, help="cap cards/items per sweep (0 = all)")
     args = ap.parse_args()
     cat = json.load(open(args.catalog))
     os.makedirs(args.out, exist_ok=True)
     seeds = "seeds=1-%d" % args.seeds
     three = args.enemies.split(",")
+    spot = (lambda ids: "" if args.no_spotlight else " hand=%s" % ids)
     acting = [r["type"] for r in cat["roster"] if r["has_actions"] and r["type"] not in SKIP_TYPES and not r["is_structure"]]
 
     def write(name, lines, note):
@@ -120,10 +122,10 @@ def main():
     for t in three:
         lines.append("scenario=%s policy=lookahead enemy=%s name=e_%s__c_base %s" % (BASELINE, t, t, seeds))
         for c in pool:
-            lines.append("scenario=%s policy=lookahead enemy=%s add_cards=%s name=e_%s__c_%s %s" % (BASELINE, t, c["id"], t, c["id"], seeds))
+            lines.append("scenario=%s policy=lookahead enemy=%s add_cards=%s%s name=e_%s__c_%s %s" % (BASELINE, t, c["id"], spot(c["id"]), t, c["id"], seeds))
         for a, b in itertools.combinations(pool, 2):
             if args.no_prune or can_interact(a, b):
-                lines.append("scenario=%s policy=lookahead enemy=%s add_cards=%s,%s name=e_%s__cc_%s+%s %s" % (BASELINE, t, a["id"], b["id"], t, a["id"], b["id"], seeds))
+                lines.append("scenario=%s policy=lookahead enemy=%s add_cards=%s,%s%s name=e_%s__cc_%s+%s %s" % (BASELINE, t, a["id"], b["id"], spot(a["id"] + "," + b["id"]), t, a["id"], b["id"], seeds))
     write("combos.txt", lines, "3b combo discovery: pool %s" % ",".join(c["id"] for c in pool))
 
     # 3c cards
@@ -134,7 +136,7 @@ def main():
     for t in three:
         lines.append("scenario=%s policy=lookahead enemy=%s name=e_%s__c_base %s" % (BASELINE, t, t, seeds))
         for c in cards:
-            lines.append("scenario=%s policy=lookahead enemy=%s add_cards=%s name=e_%s__c_%s %s" % (BASELINE, t, c["id"], t, c["id"], seeds))
+            lines.append("scenario=%s policy=lookahead enemy=%s add_cards=%s%s name=e_%s__c_%s %s" % (BASELINE, t, c["id"], spot(c["id"]), t, c["id"], seeds))
     write("card_power.txt", lines, "3c card power: baseline deck + one card")
 
     # 3c items (a weapon replaces the Short Sword; everything else is added in slot 0)

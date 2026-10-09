@@ -202,7 +202,8 @@ A sweep file lists jobs, one per line: `scenario=<path> [policy=<name>]
 sit on top of the scenario file: `enemy=TYPE[,TYPE]` (replaces the enemies;
 melee types stand 3 tiles off, ranged at their own reach), `add_cards=a,b`,
 `add_items=x[:slot]`, `items=x[:slot],y|none` (replaces the loadout),
-`level=N`, `alloc=strength:10,dexterity:5`, `passives=a,b`,
+`level=N`, `alloc=strength:10,dexterity:5`, `passives=a,b`, `hand=a,b`
+(those cards start in the opening hand),
 `character=name`, `name=suffix` (the output folder becomes
 `<scenario>_<suffix>`). `--shard=i/n` makes one process take every n-th
 job, and `tools/sim_analysis/run_sweep.sh <sweep> [shards] [out]` runs a
@@ -226,6 +227,12 @@ python3 tools/sim_analysis/build_divergence.py                    # sim_out/char
 Costs at ~0.45 s a run: strategy 2.5 h, combos 2.9 h, cards 8.8 h, items
 7.1 h, builds 0.4 h, progression 3.1 h serial — divide by the shard count.
 `gen_sweeps.py --seeds N --pool-size K --limit M` scales them down.
+
+In the combo and card sweeps the card under test **starts in the opening
+hand** (`hand=`): a one-card change to an 11-card deck is otherwise invisible
+in a two-bar fight, and every added card scored identically on the first
+validation run. It measures the card's power when it is available, not how
+often it shows up; `gen_sweeps.py --no-spotlight` turns it off.
 
 The combo pool is every Basic/Common/Rare non-engraved, non-item card
 costing ≤ 60 mana, first `--pool-size` by id (or exactly `--pool a,b,c`); the prune rule skips a pair
