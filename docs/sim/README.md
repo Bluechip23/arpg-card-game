@@ -251,6 +251,14 @@ Charts are static PNGs (pandas + matplotlib, the repo's existing script
 style) using the validated default palette; the CSV next to each chart has
 every number.
 
+A caveat on the card and combo sweeps: the lookahead plays a card only
+when its evaluation can price it (damage, block, heal, control / amp /
+armor-strip wording, a buff feeding an attack in hand, a draw when the hand
+is thin). A card whose effect it cannot price is never played, so its delta
+is the cost of the hand slot it displaced and nothing else; read a zero
+delta as "unpriced by the policy", not "useless", and add a term to
+`lookahead.gd` when a card family matters to you.
+
 Two things to keep in mind when reading summaries: `end_hp_pct` is 1.0 after
 a fight whose last kill levelled the character (a level-up fully heals, as in
 the game), so judge survival by `total_damage_taken`; and the `warnings`

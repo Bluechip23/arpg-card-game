@@ -123,6 +123,10 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 					gain += _control_value(text, t, tempo) * hp_weight
 					if _mentions_any(text, AMP_WORDS):
 						gain += 0.25 * maxf(1.0, float(dmg))
+					# Armor Break and kin: stripping plate is damage the next hits
+					# no longer have to chew through.
+					if dmg <= 0 and text.find("armor") >= 0:
+						gain += minf(float(state.enemies[idx]["armor"]), 12.0)
 			else:
 				gain += _self_value(c, text, state, threats, tempo, hp_weight)
 		"attack":
@@ -152,6 +156,9 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 	if incoming >= state.player_hp + state.player_armor:
 		loss += 1000.0   # lethal: anything else first
 	var score := (gain - loss) / float(tempo) - mana * MANA_WEIGHT
+	# A free action (0 tempo, 0 mana) costs nothing to take first.
+	if kind == "play" and int(state.hand[a["card"]]["tempo"]) == 0 and mana == 0 and gain >= 0.0:
+		score += 0.5
 	return score
 
 static func _threat_for(threats: Array, index: int) -> Dictionary:
@@ -195,6 +202,16 @@ static func _self_value(c: Dictionary, text: String, state: SimState, threats: A
 		var missing := state.player_max_hp - state.player_hp
 		var w := 1.5 if float(state.player_hp) / float(maxi(1, state.player_max_hp)) < LOW_HP else 0.3
 		v += minf(float(heal), float(missing)) * w
+	# A buff that feeds the next attack (Strengthen, Empower, "+N damage")
+	# is worth a share of the best attack in hand, when there is one to feed.
+	if int(c["damage"]) <= 0 and block <= 0 and heal <= 0 \
+			and (text.find("next attack") >= 0 or text.find("damage") >= 0 or text.find("strength") >= 0 or text.find("empower") >= 0):
+		var best_attack := 0
+		for h in state.hand:
+			if h["playable"] and int(h["damage"]) > best_attack and h["index"] != int(c["index"]):
+				best_attack = int(h["damage"])
+		if best_attack > 0 and state.nearest_enemy_index() >= 0:
+			v += 0.3 * float(best_attack)
 	if text.find("draw") >= 0 and state.hand.size() <= 2:
 		v += 2.0   # a card in hand is worth a little when the hand is thin
 	if text.find("mana") >= 0 and state.player_mana < 20:
