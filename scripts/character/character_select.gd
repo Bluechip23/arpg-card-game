@@ -30,6 +30,7 @@ const CharacterCardScene = preload("res://scenes/character/character_card.tscn")
 const QuestionnaireScene = preload("res://scenes/character/character_questionnaire.tscn")
 
 var game_mode: String = "single_player"  # "single_player", "multiplayer" or "sandbox"
+var boss_sim: bool = false  # sandbox that opens on the boss-fight picker (Test > Boss Simulator)
 var _is_quiz_character: bool = false  # Track if selected character is the quiz option
 var _selected_character: CharacterData = null
 var _name_edit: LineEdit = null        # rename field in the confirm dialog
@@ -534,6 +535,7 @@ func _launch_sandbox(character: CharacterData) -> void:
 	var main_scene = load("res://scenes/core/main.tscn").instantiate()
 	main_scene.starting_character = character
 	main_scene.sandbox_mode = true
+	main_scene.boss_sim_pick = boss_sim
 	get_tree().root.add_child(main_scene)
 	queue_free()
 

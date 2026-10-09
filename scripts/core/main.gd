@@ -208,6 +208,7 @@ var starting_character: CharacterData = null
 var player2_character: CharacterData = null
 var is_multiplayer: bool = false
 var sandbox_mode: bool = false      # Free-play arena launched from the Sandbox menu
+var boss_sim_pick: bool = false     # Boss Simulator: open the sandbox on the boss-room picker
 var sandbox_ui = null                # SandboxUI (preloaded; untyped to avoid class-cache dependency)
 # Ally interaction: right-clicking the co-op partner opens a small menu whose
 # "Trade" entry opens the two-pane trade window (items + gold, both ways).
@@ -4543,8 +4544,9 @@ func _setup_sandbox() -> void:
 		sb_stats.current_mana = 999
 		sb_stats.mana_changed.emit(sb_stats.current_mana, sb_stats.max_mana)
 	var start_cell = grid_manager.world_to_grid(player.position)
-	# Two raised platforms flanking the start so High Ground is always nearby.
-	if dungeon_manager:
+	# Two raised platforms flanking the start so High Ground is always nearby
+	# — in the arena only: a boss room is fought exactly as it is laid out.
+	if dungeon_manager and not boss_room_mode:
 		dungeon_manager.build_high_ground(start_cell + Vector2i(5, -1), 1, 1)
 		dungeon_manager.build_high_ground(start_cell + Vector2i(-4, 3), 2, 1)
 		_sync_dungeon_blocked_tiles()
@@ -4566,8 +4568,36 @@ func _setup_sandbox() -> void:
 	sandbox_ui.refill_requested.connect(_sandbox_refill)
 	sandbox_ui.add_ally_requested.connect(_on_sandbox_add_ally)
 	sandbox_ui.grant_passive_requested.connect(_on_sandbox_grant_passive)
+	sandbox_ui.enter_boss_room_requested.connect(_on_sandbox_enter_boss_room)
+	sandbox_ui.leave_boss_room_requested.connect(_on_sandbox_leave_boss_room)
+	# Boss Simulator: the panel knows which fight it is in (restart / leave).
+	if boss_room_mode and dungeon_manager:
+		sandbox_ui.set_boss_room(current_interior_id, dungeon_manager.get_location_name())
 	sandbox_ui.open()
-	add_battle_log("Sandbox mode: use the panel (top-right) to add cards and spawn enemies.", Color(0.7, 0.85, 1.0))
+	if boss_room_mode:
+		add_battle_log("Boss Simulator: %s. The sandbox panel (top-right) still adds cards, items and passives; Restart or Back there when you are done." % dungeon_manager.get_location_name(), Color(0.7, 0.85, 1.0))
+	else:
+		add_battle_log("Sandbox mode: use the panel (top-right) to add cards and spawn enemies.", Color(0.7, 0.85, 1.0))
+	# Test > Boss Simulator boots straight onto the fight picker.
+	if boss_sim_pick and not boss_room_mode:
+		boss_sim_pick = false
+		sandbox_ui.show_boss_picker()
+
+## Boss Simulator: step into a boss room with every sandbox tool intact.
+## From the arena the room returns to the arena; from inside a boss room
+## (switching fights, or restarting this one) it returns wherever this room
+## would have, so the player never has to walk back out through old fights.
+func _on_sandbox_enter_boss_room(interior_id: String) -> void:
+	if not DungeonManager.is_boss_room(interior_id):
+		add_battle_log("Sandbox: '%s' is not a boss room." % interior_id, Color(1.0, 0.5, 0.4))
+		return
+	_enter_interior(interior_id, interior_id, boss_room_mode)
+
+func _on_sandbox_leave_boss_room() -> void:
+	if not boss_room_mode:
+		add_battle_log("Sandbox: already in the arena.", Color(0.8, 0.8, 0.85))
+		return
+	_exit_interior()
 
 func _sandbox_refill() -> void:
 	## Top health/mana back up WITHOUT touching the character's real stats —
@@ -6410,7 +6440,8 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	# A boss room opens the moment its boss falls: the way out appears, and
 	# the character remembers the room as cleared.
 	if boss_room_mode and enemy.enemy_type == _boss_room_boss_type():
-		if current_character:
+		# A sandbox kill is practice: the character's record is untouched.
+		if current_character and not sandbox_mode:
 			current_character.mark_boss_defeated(DungeonManager.boss_room_key(current_interior_id))
 		_open_boss_room_exit()
 		if enemy.enemy_type == Enemy.EnemyType.INFLAMED_MINOTAUR:
@@ -13607,7 +13638,10 @@ func _setup_dungeon() -> void:
 	dungeon_manager.loot_salt = current_character.get_loot_seed() if current_character else randi()
 	# A boss already slain by this character stays slain: its room opens
 	# with the exit in place and the door outside reads as cleared.
-	dungeon_manager.cleared_bosses = current_character.defeated_bosses.duplicate() if current_character else []
+	# (The sandbox / Boss Simulator never treats a room as cleared, so every
+	# boss can be fought again and again.)
+	dungeon_manager.cleared_bosses = [] if sandbox_mode else \
+		(current_character.defeated_bosses.duplicate() if current_character else [])
 	add_child(dungeon_manager)
 	dungeon_manager.initialize(grid_manager, self, current_world_level, current_interior_id)
 
@@ -13818,7 +13852,10 @@ func _try_interact_site() -> bool:
 		_enter_interior(site["id"], site["display_name"])
 	return true
 
-func _enter_interior(interior_id: String, display_name: String = "") -> void:
+func _enter_interior(interior_id: String, display_name: String = "", keep_parent: bool = false) -> void:
+	## `keep_parent`: the new room returns to THIS room's parent rather than
+	## to this room (the Boss Simulator hopping from one boss room straight
+	## into another, or restarting the one it is in).
 	print("[MAIN] Entering %s (%s) in World %d" % [display_name, interior_id, current_world_level])
 	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
 	var saved_progression = _save_player_progression()
@@ -13826,11 +13863,12 @@ func _enter_interior(interior_id: String, display_name: String = "") -> void:
 	main_scene.starting_character = starting_character
 	main_scene.player2_character = player2_character
 	main_scene.is_multiplayer = is_multiplayer
+	main_scene.sandbox_mode = sandbox_mode  # the sandbox's tools follow the player through every door
 	main_scene.current_world_level = current_world_level
 	main_scene.current_interior_id = interior_id
 	# A room entered from inside an interior (the Rat King's Lair off the
 	# sewer) remembers where its door is: leaving returns there.
-	main_scene.parent_interior_id = current_interior_id
+	main_scene.parent_interior_id = parent_interior_id if keep_parent else current_interior_id
 	if DungeonManager.is_boss_room(interior_id):
 		# Boss rules: the hand rides along in the deck state; every buff and
 		# debuff on the player rides along too (the managers die with this
@@ -13853,6 +13891,7 @@ func _exit_interior() -> void:
 	main_scene.starting_character = starting_character
 	main_scene.player2_character = player2_character
 	main_scene.is_multiplayer = is_multiplayer
+	main_scene.sandbox_mode = sandbox_mode
 	main_scene.current_world_level = current_world_level
 	# Back out to the parent interior (a boss room's door) or the overworld.
 	main_scene.current_interior_id = parent_interior_id
@@ -16307,6 +16346,8 @@ func _spawn_dojo_dummy(cell: Vector2i) -> void:
 # ============================================
 
 func _boss_cleared(room_key: String) -> bool:
+	if sandbox_mode:
+		return false  # the Boss Simulator fights every boss fresh, every time
 	return current_character != null and current_character.has_defeated_boss(room_key)
 
 func _boss_room_boss_type() -> int:

@@ -14,6 +14,16 @@ signal refill_requested
 signal add_ally_requested(character_name: String)
 signal grant_passive_requested(option)  # SkillTreeData.SkillOption
 signal add_item_requested(item_name: String)
+signal enter_boss_room_requested(interior_id: String)  # Boss Simulator: step into a boss room
+signal leave_boss_room_requested                       # Boss Simulator: back to the arena
+
+# The boss rooms the simulator can enter (interior id -> what the player sees).
+const BOSS_ROOMS := [
+	["ratking_lair", "Rat King's Lair", "Sewer — the Rat King, three nests"],
+	["boneyard", "The Boneyard", "Graveyard — the Bone Dragon, twelve stones, three diggers"],
+	["hellgate", "Hell's Gate", "Caves — Cerberus and Hell's Door (break the door)"],
+	["labyrinth", "The Labyrinth", "Underworld — the Inflamed Minotaur, Lost in the Labyrinth"],
+]
 
 # card_id lists grouped by the character whose kit they belong to, matching
 # the canonical cards-and-passives spreadsheet (each character owns their full
@@ -52,6 +62,11 @@ var _item_list: VBoxContainer = null
 const ITEM_TYPE_ORDER := ["Helms", "Chests", "Belts", "Boots", "Gauntlets", "Weapons", "Shields", "Quivers", "Rings", "Other"]
 var _ally_dd: OptionButton = null
 var _ally_btn: Button = null
+var _boss_status: Label = null       # "In: <room>" while inside a boss room
+var _boss_restart_btn: Button = null
+var _boss_leave_btn: Button = null
+var _in_boss_room_id: String = ""
+var _boss_picker: Control = null
 var _open: bool = false
 
 const CHARACTER_ORDER := ["Brad", "Ryan", "Stephen", "Cory", "Jeremy"]
@@ -271,6 +286,44 @@ func _build_ui() -> void:
 
 	vbox.add_child(HSeparator.new())
 
+	# ---- Boss Fights (the Boss Simulator) ----
+	vbox.add_child(_header("Boss Fights"))
+	_boss_status = Label.new()
+	_boss_status.text = "In the arena."
+	_boss_status.add_theme_font_size_override("font_size", 12)
+	_boss_status.add_theme_color_override("font_color", Color(0.6, 0.6, 0.66))
+	_boss_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(_boss_status)
+	for room in BOSS_ROOMS:
+		var btn := Button.new()
+		btn.text = room[1]
+		btn.tooltip_text = room[2]
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.add_theme_font_size_override("font_size", 12)
+		btn.add_theme_color_override("font_color", Color(1.0, 0.75, 0.45))
+		var rid: String = room[0]
+		btn.pressed.connect(func(): enter_boss_room_requested.emit(rid))
+		vbox.add_child(btn)
+	var boss_row := HBoxContainer.new()
+	boss_row.add_theme_constant_override("separation", 6)
+	vbox.add_child(boss_row)
+	_boss_restart_btn = Button.new()
+	_boss_restart_btn.text = "Restart fight"
+	_boss_restart_btn.tooltip_text = "Reload this boss room from scratch (your hand, items and stats stay as they are)"
+	_boss_restart_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_boss_restart_btn.pressed.connect(func():
+		if _in_boss_room_id != "":
+			enter_boss_room_requested.emit(_in_boss_room_id))
+	boss_row.add_child(_boss_restart_btn)
+	_boss_leave_btn = Button.new()
+	_boss_leave_btn.text = "Back to arena"
+	_boss_leave_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_boss_leave_btn.pressed.connect(func(): leave_boss_room_requested.emit())
+	boss_row.add_child(_boss_leave_btn)
+	_boss_restart_btn.visible = false
+	_boss_leave_btn.visible = false
+	vbox.add_child(HSeparator.new())
+
 	# ---- Utility buttons ----
 	var clear_btn := Button.new()
 	clear_btn.text = "Clear All Enemies"
@@ -319,6 +372,97 @@ func _refresh_item_list() -> void:
 		var nm: String = it.item_name
 		btn.pressed.connect(func(): add_item_requested.emit(nm))
 		_item_list.add_child(btn)
+
+func set_boss_room(interior_id: String, room_name: String) -> void:
+	## Called by Main when the sandbox boots inside a boss room: the panel
+	## shows which fight this is and offers Restart / Back.
+	_in_boss_room_id = interior_id
+	if _boss_status:
+		_boss_status.text = "In: %s" % room_name if interior_id != "" else "In the arena."
+		_boss_status.add_theme_color_override("font_color",
+			Color(1.0, 0.85, 0.5) if interior_id != "" else Color(0.6, 0.6, 0.66))
+	if _boss_restart_btn:
+		_boss_restart_btn.visible = interior_id != ""
+	if _boss_leave_btn:
+		_boss_leave_btn.visible = interior_id != ""
+
+func is_in_boss_room() -> bool:
+	return _in_boss_room_id != ""
+
+func show_boss_picker() -> void:
+	## Test > Boss Simulator: a centred "which fight?" card over the arena.
+	## Picking a room enters it with every sandbox tool; "Stay here" keeps
+	## the arena (the Boss Fights section of the panel does the same later).
+	_close_boss_picker()
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.55)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(dim)
+	_boss_picker = dim
+	var card := PanelContainer.new()
+	var st := StyleBoxFlat.new()
+	st.bg_color = Color(0.09, 0.09, 0.13, 0.98)
+	st.border_width_left = 2
+	st.border_width_top = 2
+	st.border_width_bottom = 2
+	st.border_width_right = 2
+	st.border_color = Color(1.0, 0.7, 0.4)
+	st.corner_radius_top_left = 8
+	st.corner_radius_top_right = 8
+	st.corner_radius_bottom_left = 8
+	st.corner_radius_bottom_right = 8
+	st.content_margin_left = 18
+	st.content_margin_right = 18
+	st.content_margin_top = 14
+	st.content_margin_bottom = 14
+	card.add_theme_stylebox_override("panel", st)
+	card.set_anchors_preset(Control.PRESET_CENTER)
+	card.custom_minimum_size = Vector2(460, 0)
+	card.offset_left = -230
+	card.offset_right = 230
+	card.offset_top = -170
+	dim.add_child(card)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 8)
+	card.add_child(col)
+	var title := Label.new()
+	title.text = "BOSS SIMULATOR"
+	title.add_theme_font_size_override("font_size", 22)
+	title.add_theme_color_override("font_color", Color(1.0, 0.8, 0.5))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(title)
+	var blurb := Label.new()
+	blurb.text = "Pick a fight. Every sandbox tool works inside it: add cards, items and passives, edit stats in the character panel (I), spawn an ally. The room is always fresh and nothing is written to a save."
+	blurb.add_theme_font_size_override("font_size", 12)
+	blurb.add_theme_color_override("font_color", Color(0.75, 0.75, 0.8))
+	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(blurb)
+	for room in BOSS_ROOMS:
+		var btn := Button.new()
+		btn.text = "%s  —  %s" % [room[1], room[2]]
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.add_theme_font_size_override("font_size", 13)
+		btn.add_theme_color_override("font_color", Color(1.0, 0.75, 0.45))
+		var rid: String = room[0]
+		btn.pressed.connect(func():
+			_close_boss_picker()
+			enter_boss_room_requested.emit(rid))
+		col.add_child(btn)
+	var stay := Button.new()
+	stay.text = "Stay in the arena"
+	stay.add_theme_font_size_override("font_size", 12)
+	stay.pressed.connect(_close_boss_picker)
+	col.add_child(stay)
+
+func _close_boss_picker() -> void:
+	if _boss_picker and is_instance_valid(_boss_picker):
+		_boss_picker.queue_free()
+	_boss_picker = null
+
+func is_menu_open() -> bool:
+	## Main keeps clicks off the battlefield while the boss picker is up.
+	return _boss_picker != null and is_instance_valid(_boss_picker)
 
 func mark_ally_added() -> void:
 	## Called by Main once an ally is on the field — only one ally is supported.
