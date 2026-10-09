@@ -183,8 +183,9 @@ func _test_fight() -> void:
 	_check(bull._minotaur_rush_pending and gm.world_to_grid(bull.position) == leap_cell and bull._minotaur_damage_taken == 30,
 		"with a Bull Rush owed he does not leap again, but the damage keeps counting")
 	_check(dm.is_floor(leap_cell) and not dm.is_water(leap_cell), "he lands on open floor")
-	_check(bull.chosen_action.get("name", "") == "bull_rush" and bull.chosen_action.get("tempo_cost", 0) == 5 and bull.action_tempo_counter == 0,
-		"the rush comes one cycle after landing")
+	var rush_delay: int = int(bull.chosen_action.get("tempo_cost", 0))
+	_check(bull.chosen_action.get("name", "") == "bull_rush" and rush_delay >= 5 and rush_delay <= 15 and bull.action_tempo_counter == 0,
+		"the rush comes a random 5 to 15 tempo after landing (%d)" % rush_delay)
 
 	# --- Bull Rush: Vulnerable, damage by the ground covered, fire along the lane ---
 	# A known run-up: the bull at the court's east side, the player at its west.
