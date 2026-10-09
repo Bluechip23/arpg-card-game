@@ -383,6 +383,17 @@ screenshots cost nothing measurable headless.
    cards, boss rooms with scripted structures. All reachable later through
    the same entry points.
 
+## After sign-off (Milestone 1 decisions)
+
+- XP and level-ups stay as in the game (a mid-fight level-up fully heals);
+  nothing zeroes `xp_reward`.
+- Card draw scales with Wisdom again (`PlayerStats.DRAW_TEMPO_PER_WIS`,
+  `MIN_DRAW_TEMPO`); the draw timer still runs on tempo.
+- The Defensive Sacrifice one-liner was applied (`enemy.gd` uses
+  `get_parent()`).
+- Runs re-instantiate `main.tscn` per seed (0.45 s a run) rather than
+  resetting one instance: simpler, and provably seed-reproducible.
+
 ## Baseline test state on this checkout
 
 86 of 97 `tests/test_*.gd` pass (221 s wall, serial); 11 fail before any of

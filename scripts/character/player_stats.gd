@@ -1543,11 +1543,16 @@ func get_wisdom_hand_bonus() -> int:
 	# is brain points (1 per point).
 	return floori(wisdom / 10.0)
 
+## Tempo shaved off the auto-draw interval per point of Wisdom, and the floor
+## the interval never drops below. The one place to tune the WIS draw curve.
+const DRAW_TEMPO_PER_WIS: float = 0.5
+const MIN_DRAW_TEMPO: float = 10.0
+
 func get_effective_draw_timer() -> float:
-	## Card-draw interval in GLOBAL TEMPO — a flat base (default 5 cycles =
-	## 25 tempo). WIS no longer accelerates it; extra draws come from
-	## brain-point purchases instead.
-	return max(1.0, base_draw_timer * 5.0)
+	## Card-draw interval in GLOBAL TEMPO: a flat base (default 5 cycles =
+	## 25 tempo) shortened by Wisdom — DRAW_TEMPO_PER_WIS per effective point,
+	## never below MIN_DRAW_TEMPO. Brain-point draws come on top of this.
+	return maxf(MIN_DRAW_TEMPO, base_draw_timer * 5.0 - wisdom * DRAW_TEMPO_PER_WIS)
 
 #endregion
 #region COMBINED CALCULATIONS

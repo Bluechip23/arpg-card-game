@@ -4757,7 +4757,7 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 			# to offer the discard choice. When it does, it owns this hit —
 			# it applies the (possibly halved) damage and calls
 			# _finish_player_hit itself once the player has chosen.
-			var ds_main = get_tree().current_scene
+			var ds_main = get_parent()  # Main (never current_scene: null under headless boots)
 			if ds_main and ds_main.has_method("offer_defensive_sacrifice") \
 					and ds_main.offer_defensive_sacrifice(self, player_node, effective_damage, debuff_mgr, buff_mgr, dmg_type):
 				return

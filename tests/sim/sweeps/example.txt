@@ -1,0 +1,5 @@
+# One job per line: scenario=<path> [policy=<name>] [seed=<n> runs=<k> | seeds=<a>-<b>]
+# Run: godot --headless --path . --script tests/sim/run_sim.gd -- --sweep=tests/sim/sweeps/example.txt --out=sim_out
+scenario=tests/sim/scenarios/baseline.gd policy=random    seeds=1-20
+scenario=tests/sim/scenarios/baseline.gd policy=greedy_dpt seeds=1-20
+scenario=tests/sim/scenarios/hand_check.gd policy=scripted seed=1 runs=1

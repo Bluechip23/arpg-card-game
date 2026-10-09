@@ -3,7 +3,7 @@ extends SceneTree
 ## Verifies the attack-speed threshold — DEX-primary (0.5 tick per point, base
 ## 45, minimum 1) — and the encumbrance penalty per the README: capacity never
 ## speeds attacks up; the penalty scales 0..+7 with the load ratio and is a
-## flat +10 while overburdened. Also the Wisdom draw timer (0.25 tempo/point).
+## flat +10 while overburdened. Also the Wisdom draw timer (WIS-shortened).
 ## Run: godot --headless --path . --script tests/test_attack_speed.gd
 
 var failures := 0
@@ -63,11 +63,15 @@ func _initialize() -> void:
 	_check(stats.get_attack_speed_threshold() == 1,
 		"threshold bottoms out at 1 — proc-per-attack is reachable (%d)" % stats.get_attack_speed_threshold())
 
-	# --- Draw timer: flat 25 tempo; WIS no longer accelerates it (README) ---
+	# --- Draw timer: 25 tempo shortened by WIS (DRAW_TEMPO_PER_WIS per point,
+	# never below MIN_DRAW_TEMPO) — see tests/test_wis_draw_timer.gd ---
 	stats.base_dexterity = 3
-	_check(stats.get_effective_draw_timer() == 25.0, "base draw timer is 25 tempo (5 cycles)")
+	stats.base_wisdom = 3
+	_check(stats.get_effective_draw_timer() == 25.0 - stats.wisdom * PlayerStats.DRAW_TEMPO_PER_WIS,
+		"base draw timer is 25 tempo (5 cycles) less the WIS discount (%.1f at WIS %d)" % [stats.get_effective_draw_timer(), stats.wisdom])
 	stats.base_wisdom = 40
-	_check(stats.get_effective_draw_timer() == 25.0, "WIS does not speed the auto draw — it stays 25 tempo")
+	_check(stats.get_effective_draw_timer() == maxf(PlayerStats.MIN_DRAW_TEMPO, 25.0 - 40.0 * PlayerStats.DRAW_TEMPO_PER_WIS),
+		"WIS 40 speeds the auto draw to %.1f tempo" % stats.get_effective_draw_timer())
 
 	stats.free()
 	print("=== %d failure(s) ===" % failures)
