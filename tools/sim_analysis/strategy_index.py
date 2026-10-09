@@ -40,8 +40,19 @@ def main():
     colors = [simlib.CATEGORICAL[0] if v >= 0 else simlib.CATEGORICAL[7] for v in out["strategy_gap"]]
     ax.bar(out.index, out["strategy_gap"], color=colors, width=0.7)
     ax.axhline(0, color=simlib.TEXT_2, linewidth=0.8)
+    # A zero gap means two different things: both players win (a meat bag)
+    # or both lose (this enemy is simply above the baseline's level). Mark
+    # each so the flat part of the chart still reads.
+    flat = out[out["strategy_gap"].abs() < 0.05]
+    trivial = flat[(flat["lookahead_win"] >= 0.95) & (flat["greedy_win"] >= 0.95)]
+    over = flat[(flat["lookahead_win"] <= 0.05) & (flat["greedy_win"] <= 0.05)]
+    pos = {name: i for i, name in enumerate(out.index)}
+    ax.scatter([pos[n] for n in trivial.index], [-0.06] * len(trivial), marker="v", s=22, color=simlib.CATEGORICAL[2], label="meat bag: both win ≥ 95 %")
+    ax.scatter([pos[n] for n in over.index], [-0.06] * len(over), marker="x", s=22, color=simlib.CATEGORICAL[7], label="above this level: both lose")
+    ax.legend(loc="upper right")
+    ax.set_ylim(-0.12, 1.05)
     ax.set_ylabel("strategy gap (lookahead − greedy win rate)")
-    ax.set_title("Enemy strategy index — enemies near zero are meat bags")
+    ax.set_title("Enemy strategy index — a gap means the enemy rewards play; near zero, see the markers")
     ax.set_xticks(range(len(out)))
     ax.set_xticklabels(out.index, rotation=70, ha="right", fontsize=7)
     ax.grid(axis="x", visible=False)
