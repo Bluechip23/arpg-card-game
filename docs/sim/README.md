@@ -228,7 +228,7 @@ Costs at ~0.45 s a run: strategy 2.5 h, combos 2.9 h, cards 8.8 h, items
 `gen_sweeps.py --seeds N --pool-size K --limit M` scales them down.
 
 The combo pool is every Basic/Common/Rare non-engraved, non-item card
-costing ≤ 60 mana, first `--pool-size` by id; the prune rule skips a pair
+costing ≤ 60 mana, first `--pool-size` by id (or exactly `--pool a,b,c`); the prune rule skips a pair
 when both cards are attacks carrying no keyword beyond
 attack/offensive/melee/ranged/enemy/conditional/self/spell (`--no-prune`
 keeps them all; edit `PLAIN_ATTACK_KEYWORDS` / `card_pool` to change the

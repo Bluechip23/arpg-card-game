@@ -84,6 +84,7 @@ def main():
     ap.add_argument("--seeds-strategy", type=int, default=200)
     ap.add_argument("--seeds", type=int, default=100)
     ap.add_argument("--pool-size", type=int, default=12, help="cards in the combo pool")
+    ap.add_argument("--pool", default="", help="explicit comma-separated card ids for the combo pool (overrides --pool-size)")
     ap.add_argument("--enemies", default="WERERAT,ARCHER_RAT,RAT_KING", help="melee, ranged, boss for 3b/3c")
     ap.add_argument("--no-prune", action="store_true", help="keep every pair in 3b")
     ap.add_argument("--limit", type=int, default=0, help="cap cards/items per sweep (0 = all)")
@@ -110,7 +111,11 @@ def main():
     write("enemy_strategy.txt", lines, "3a enemy strategy index: baseline player vs every acting enemy, solo")
 
     # 3b
-    pool = card_pool(cat["cards"], args.pool_size)
+    if args.pool:
+        by_id = {c["id"]: c for c in cat["cards"]}
+        pool = [by_id[i] for i in args.pool.split(",") if i in by_id]
+    else:
+        pool = card_pool(cat["cards"], args.pool_size)
     lines = []
     for t in three:
         lines.append("scenario=%s policy=lookahead enemy=%s name=e_%s__c_base %s" % (BASELINE, t, t, seeds))
