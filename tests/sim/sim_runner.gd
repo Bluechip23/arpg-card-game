@@ -111,6 +111,8 @@ func run(sc: Dictionary, pol: SimPolicy, p_seed: int) -> Dictionary:
 				error_msg = "illegal action %s: %s" % [SimPolicy.action_label(action), str(_player_row.get("refused", ""))]
 				break
 			_refusals += 1
+			if action.get("type", "") == "play" and action.has("card_id"):
+				SimState.refused_plays[str(action["card_id"])] = main.tempo_manager.global_tempo
 			if _refusals >= 3:
 				# A policy that keeps picking refused actions idles a tempo
 				# so the run cannot spin forever.
@@ -937,6 +939,7 @@ func _reset_counters() -> void:
 	_overflow_bars = 0
 	_decisions = 0
 	_refusals = 0
+	SimState.refused_plays.clear()
 	_aims.clear()
 
 # ------------------------------------------------------------- summary ----

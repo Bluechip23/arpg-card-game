@@ -174,9 +174,22 @@ static func estimate_tempo_cost(c: Card) -> int:
 	return maxi(0, c.get_burden_tempo_cost() + c.get_conditional_tempo_penalty() - c.temp_hand_tempo_reduction)
 
 ## Cards the UI itself would not let through, with the reason. Empty = fine.
+## Plays the game refused this tempo (card_id -> global tempo), set by the
+## runner and cleared per run: a gate the mirror below does not know about
+## stays out of the legal actions instead of being picked again until the
+## tempo idles. Static because the runner rebuilds the state every decision.
+static var refused_plays: Dictionary = {}
+
 func _why_unplayable(c: Card, index: int, dmgr) -> String:
 	if c.card_type in [Card.CardType.UNPLAYABLE, Card.CardType.ENCHANTMENT, Card.CardType.REACTION]:
 		return "not a playable type"
+	if int(refused_plays.get(c.card_id, -1)) == main.tempo_manager.global_tempo:
+		return "refused this tempo"
+	# Heavy Swing: the deck manager's gate — nothing but offensive cards in hand.
+	if c.card_id == "heavy_swing":
+		for hc in main.deck_manager.hand:
+			if hc != c and not hc.is_offensive():
+				return "hand is not all offensive"
 	if c.is_jailed():
 		return "jailed"
 	if c.requires_engraving and c.slotted_in_item == null:
