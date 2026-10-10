@@ -115,6 +115,39 @@ and its basic attack lands under 10 a hit. That is the Sabre Tooth's 10
 base plus no STR, and the policy change does not alter it: the kit's
 damage is the problem, not the play.
 
+## The same builds at level 50
+
+Level 50 means 147 stat points, 49 passive points and three equipped
+mythics per set (the fallbacks drop out). The roster's intended levels
+stop at 35, so these fights use `enemy_scale=hp:2.5,dmg:2` as a stand-in
+for end-game tuning; the numbers say how the builds scale relative to each
+other, not whether a specific boss is right. 30 seeds, `sim_out/ryan50`.
+
+| build | Bugbear | Earth Mage | Large Bear | Wyvern | Treant | Ice Troll | mean DPT |
+|---|---|---|---|---|---|---|---|
+| bruiser | 1.00 | 1.00 | 1.00 | 0.63 | 0.87 | 1.00 | 15.2 |
+| ranged_ambusher | 1.00 | 1.00 | 1.00 | 0.57 | 1.00 | 0.40 | 25.4 |
+| spellslinger | 1.00 | 1.00 | 1.00 | 0.40 | 0.37 | 1.00 | 5.3 |
+| apothecary | 1.00 | 1.00 | 1.00 | 0.13 | 0.03 | 0.00 | 2.5 |
+| card_shark | 1.00 | 0.97 | 0.53 | 0.07 | 0.30 | 0.23 | 8.6 |
+| shadow_blade | 0.83 | 1.00 | 0.03 | 0.00 | 0.00 | 0.03 | 2.1 |
+
+- **The ranged ambusher is the build that scales.** From a 47 % mean at
+  level 18 to 83 %, and its damage per tempo quadruples (6.0 to 25.4;
+  49.8 against the Bugbear). Three mythics (Bow of Arash, Capacious
+  Extremus, Orion's Belt) plus a full Deadeye path turn the bow into the
+  roster's best damage by a wide margin. Worth a look before the Act 2
+  bosses are tuned.
+- **The bruiser scales linearly** (8.4 to 15.2 DPT) and keeps its win
+  rate; it is the stable reference.
+- **The shadow blade does not scale at all** (2.2 to 2.1 DPT, 31 % to 32 %
+  wins). Three mythics of DEX and AGI do nothing for a dagger whose damage
+  has no STR behind it. Whatever fix is chosen for it at level 18 has to
+  hold at 50 too.
+- The apothecary and spellslinger win by outlasting at both levels; the
+  2× enemy damage pushes the apothecary off the Wyvern, Treant and Ice
+  Troll entirely.
+
 ## What each component is worth
 
 - **Item set: the biggest lever.** Across every deck, swapping the gear
