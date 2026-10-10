@@ -90,20 +90,30 @@ enemies). Level 18, one mythic per set, lookahead policy. Charts:
 
 ## Designed builds vs the late-Act-1 roster
 
-| build | Bugbear | Earth Mage | Large Bear | Wyvern | Treant | Ice Troll |
-|---|---|---|---|---|---|---|
-| bruiser | 1.00 | 1.00 | 1.00 | 0.67 | 1.00 | 0.97 |
-| spellslinger | 1.00 | 1.00 | 1.00 | 0.70 | 0.13 | 0.47 |
-| apothecary | 1.00 | 1.00 | 1.00 | 0.67 | 0.00 | 0.00 |
-| ranged_ambusher | 0.83 | 0.83 | 0.87 | 0.10 | 0.13 | 0.03 |
-| card_shark | 1.00 | 0.93 | 0.33 | 0.10 | 0.07 | 0.00 |
-| shadow_blade | 0.93 | 1.00 | 0.10 | 0.00 | 0.00 | 0.00 |
+Win rate at level 18, 30 seeds, lookahead policy (`sim_out/ryan18`, after
+the policy learned to price invisibility, poison stacks, discard engines
+and flash / brain spends):
 
-The bruiser (Sword of Theseus, plate, 30 STR) is the only build that
-beats the whole roster. The three DEX/AGI builds collapse against the
-Treant, Wyvern and Ice Troll, and the shadow blade already loses to the
-Large Bear. The apothecary and spellslinger win by outlasting (damage per
-tempo near 1) rather than killing.
+| build | Bugbear | Earth Mage | Large Bear | Wyvern | Treant | Ice Troll | mean DPT |
+|---|---|---|---|---|---|---|---|
+| bruiser | 1.00 | 1.00 | 1.00 | 0.90 | 0.67 | 1.00 | 8.4 |
+| spellslinger | 1.00 | 1.00 | 1.00 | 0.50 | 0.17 | 0.90 | 2.9 |
+| card_shark | 1.00 | 1.00 | 0.57 | 0.03 | 0.57 | 0.53 | 7.3 |
+| apothecary | 1.00 | 1.00 | 1.00 | 0.53 | 0.00 | 0.13 | 1.6 |
+| ranged_ambusher | 0.87 | 0.83 | 0.83 | 0.10 | 0.13 | 0.07 | 6.0 |
+| shadow_blade | 1.00 | 0.63 | 0.17 | 0.00 | 0.00 | 0.03 | 2.2 |
+
+The bruiser (Sword of Theseus, plate, 30 STR) is still the only build
+that beats the whole roster. Pricing the discard engine lifted the card
+shark from a 7 % to a 57 % Treant and from 0 to 53 % against the Ice
+Troll (its Bugbear damage per tempo is now 16.9, the highest number in
+the sweep), so the earlier card-shark reading was a policy floor, not the
+kit. The shadow blade did not move: against the Large Bear it spends most
+of its decisions walking (234 single-tile moves and 90 flash moves to 130
+basic attacks over 30 fights), plays *Shadows* four times in 30 fights,
+and its basic attack lands under 10 a hit. That is the Sabre Tooth's 10
+base plus no STR, and the policy change does not alter it: the kit's
+damage is the problem, not the play.
 
 ## What each component is worth
 
@@ -121,9 +131,9 @@ tempo near 1) rather than killing.
 - **Passive sets: smaller still.** Swapping all seven passives moves a
   build by at most 1.3 DPT (card shark: `none` 6.3, `relentless` 7.5).
 
-Two caveats before reading these as balance verdicts. The lookahead
-cannot price Ryan's trickier tools (invisibility, poison stacking,
-discard engines, flash spends), so the shadow, apothecary and card-shark
-kits are played more naively than a person would — their numbers are
-floors. And the sphere and passive readings come from 5–10 seeds; the
-full sweeps in `tests/sim/sweeps/ryan_*.txt` are the ones to trust.
+Two caveats before reading these as balance verdicts. The component
+readings above come from the sweep before the policy priced invisibility,
+poison stacking, discard engines and flash / brain spends (the designed
+table has been re-run; the component sweeps have not), and the sphere and
+passive readings come from 5–10 seeds; the full sweeps in
+`tests/sim/sweeps/ryan_*.txt` are the ones to trust.
