@@ -56,7 +56,12 @@ func _go() -> void:
 	var started := Time.get_ticks_msec()
 	var total_runs := 0
 	for job in jobs:
-		var sc := SimScenario.load_file(_to_res(job["scenario"]))
+		var parts := {}
+		for kv in str(job.get("parts", "")).split(",", false):
+			var pair := kv.split(":")
+			if pair.size() == 2:
+				parts[pair[0]] = pair[1]
+		var sc := SimScenario.load_file(_to_res(job["scenario"]), parts)
 		if sc.is_empty():
 			_failures += 1
 			continue

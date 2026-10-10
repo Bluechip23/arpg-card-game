@@ -13,12 +13,19 @@ static func starter_deck() -> Array:
 	## The deck every character starts with (single source: DeckManager).
 	return DeckManager.BASIC_DECK_IDS.duplicate()
 
-static func load_file(path: String) -> Dictionary:
+## `parts` picks components for a scenario that composes builds (a script
+## exposing `static func build_with(parts: Dictionary) -> Dictionary`, see
+## tests/sim/scenarios/ryan/); a plain scenario ignores it.
+static func load_file(path: String, parts: Dictionary = {}) -> Dictionary:
 	var script = load(path)
 	if script == null:
 		push_error("[SIM] cannot load scenario %s" % path)
 		return {}
-	var sc: Dictionary = script.build()
+	var sc: Dictionary
+	if not parts.is_empty() and script_has(script, "build_with"):
+		sc = script.build_with(parts)
+	else:
+		sc = script.build()
 	if not sc.has("name"):
 		sc["name"] = path.get_file().get_basename()
 	return with_defaults(sc)
@@ -40,6 +47,8 @@ static func with_defaults(sc: Dictionary) -> Dictionary:
 	p["cell"] = p.get("cell", [6, 7])
 	p["stat_overrides"] = p.get("stat_overrides", {})
 	p["opening_hand"] = p.get("opening_hand", [])
+	p["sphere_targets"] = p.get("sphere_targets", [])
+	p["slotted"] = p.get("slotted", {})
 	out["player"] = p
 	var m: Dictionary = out.get("map", {})
 	m["interior"] = str(m.get("interior", "dojo"))
@@ -84,7 +93,9 @@ static func script_has(script: Script, method: String) -> bool:
 ## sensible range by the runner), add_cards=a,b, add_items=x[:slot],y,
 ## items=x[:slot],y|none (replaces the loadout), level=N,
 ## alloc=strength:10,dexterity:5 (replaces the allocation),
-## passives=a,b, hand=a,b (those cards start in hand), character=name, name=suffix (output folder becomes
+## passives=a,b, hand=a,b (those cards start in hand), sphere=id,id (node
+## targets), parts=key:value,... (components for a composing scenario),
+## character=name, name=suffix (output folder becomes
 ## <scenario>_<suffix>). Every key is optional.
 static func apply_overrides(sc: Dictionary, job: Dictionary) -> Dictionary:
 	var out := sc.duplicate(true)
@@ -134,6 +145,11 @@ static func apply_overrides(sc: Dictionary, job: Dictionary) -> Dictionary:
 		for id in str(job["passives"]).split(",", false):
 			ps.append(id.strip_edges())
 		p["passives"] = ps
+	if job.has("sphere"):
+		var ts: Array = []
+		for id in str(job["sphere"]).split(",", false):
+			ts.append(int(id))
+		p["sphere_targets"] = ts
 	if job.has("character"):
 		p["character"] = str(job["character"])
 	if job.has("name"):

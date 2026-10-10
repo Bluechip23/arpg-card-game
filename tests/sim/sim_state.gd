@@ -77,7 +77,7 @@ func refresh() -> void:
 		buffs.append(str(b.buff_name))
 	debuffs.clear()
 	for d in dmgr.debuffs:
-		debuffs.append(str(d.get("debuff_name", d.debuff_type)))
+		debuffs.append(str(d.debuff_name))
 
 	enemies.clear()
 	var living: Array = main.enemy_spawner.get_living_enemies()

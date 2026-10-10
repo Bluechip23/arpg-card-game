@@ -34,7 +34,7 @@ engine start; the first run after adding a `class_name` script needs
 | `tests/sim/sim_state.gd` | `SimState`: the snapshot a policy sees, plus `legal_actions()` |
 | `tests/sim/sim_scenario.gd` | `SimScenario`: loads, defaults and validates scenario files |
 | `tests/sim/policies/*.gd` | player policies: `scripted`, `random`, `greedy_dpt`, `lookahead` |
-| `tests/sim/scenarios/*.gd` | scenario files; `baseline.gd` is the control group |
+| `tests/sim/scenarios/*.gd` | scenario files; `baseline.gd` is the control group; `ryan/` is the Ryan build directory |
 | `tests/sim/sweeps/*.txt` | sweep files (`example.txt` by hand; the rest from `gen_sweeps.py`) |
 | `tests/sim/dump_catalog.gd` | dumps the roster / card / item catalog the sweep generator reads |
 | `tools/sim_analysis/*.py`, `run_sweep.sh` | sweep generator, sharded runner, the five analyses |
@@ -263,6 +263,34 @@ Two things to keep in mind when reading summaries: `end_hp_pct` is 1.0 after
 a fight whose last kill levelled the character (a level-up fully heals, as in
 the game), so judge survival by `total_damage_taken`; and the `warnings`
 column is non-empty when the build was not what the scenario asked for.
+
+## Ryan's build directory (`tests/sim/scenarios/ryan/`)
+
+`ryan_builds.gd` is a component library for one character at level 18:
+six **item sets** (one mythic each — the game allows one equipped mythic per
+15 levels — the rest legendary), seven **decks**, six **stat allocations**
+(51 points; even casters keep 6 STR, carry is 50 + 10 per STR), six
+**sphere paths** (node-id targets; the runner lights the shortest gated
+path, three keystones at most), five **passive rank sets** (17 points
+through the real allocator), and per-set **slotted cards** (engraved
+through the real slot rules). `DESIGNED` names the six coherent builds;
+`compose(parts)` mixes any components. Each `<build>.gd` exposes `build()`
+(the designed build) and `build_with(parts)`, so a sweep job can swap any
+part: `parts=items:apothecary,deck:arrows,alloc:str_det,sphere:none,passives:shadow`.
+
+```
+python3 tools/sim_analysis/gen_ryan_sweeps.py [--seeds 100]   # ryan_designed, ryan_items_x_decks, ryan_alloc_x_sphere, ryan_passives
+tools/sim_analysis/run_sweep.sh tests/sim/sweeps/ryan_designed.txt 4
+python3 tools/sim_analysis/ryan_builds.py                     # sim_out/charts/ryan_*.png / .csv
+```
+
+The harness fields behind it (usable in any scenario): `passives` as a
+`{id: rank}` Dictionary, `sphere_targets` (node ids), `slotted` (`{item id:
+[card ids]}`), and the sweep overrides `sphere=` and `parts=`. Every
+refusal (carry weight, the mythic cap, a wrong slot label, an unreachable
+sphere gate, a passive point short) lands in the summary's `warnings`
+column and is starred on the heatmaps, so a build that was not what you
+asked for never passes as one that was.
 
 ## How time is driven (why the numbers are trustworthy)
 

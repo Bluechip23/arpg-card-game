@@ -168,15 +168,47 @@ func _build_player() -> void:
 	var alloc: Dictionary = p["allocation"]
 	if not alloc.is_empty() and not stats.apply_stat_allocation(alloc):
 		warnings.append("stat allocation refused: %s (banked %d)" % [str(alloc), stats.unspent_stat_points])
-	for pid in p["passives"]:
-		stats.add_skill_tree_passive(str(pid))
+	# Passives: a list means rank 1 each (the effect turns on at rank 1); a
+	# Dictionary {id: rank} spends banked passive points through the real
+	# allocator, so a build cannot carry more ranks than its level banks.
+	var passives = p["passives"]
+	if passives is Dictionary:
+		for pid in passives:
+			for i in range(int(passives[pid])):
+				if not stats.allocate_passive_point(str(pid)):
+					warnings.append("passive rank refused: %s rank %d (%d point(s) banked)" % [str(pid), i + 1, stats.unspent_passive_points])
+					break
+	else:
+		for pid in passives:
+			stats.add_skill_tree_passive(str(pid))
+	_unlock_sphere_targets(p.get("sphere_targets", []))
 	var inv = player.get_inventory()
+	var equipped := {}
 	for entry in p["items"]:
 		var id: String = str(entry[0] if entry is Array else entry)
 		var slot: int = int(entry[1]) if (entry is Array and entry.size() > 1) else 0
 		var item: ItemData = (ItemData as Script).call("create_%s" % id)
-		if not inv.equip_item(item, slot):
-			warnings.append("equip refused: %s (slot %d)" % [id, slot])
+		if inv.equip_item(item, slot):
+			equipped[id] = item
+		else:
+			warnings.append("equip refused: %s (slot %d, carry %d/%d)" % [id, slot, stats.current_carry_load, stats.get_carry_capacity()])
+	# Cards engraved into the items' slots: {item id: [card ids]}. Real slot
+	# rules (count, label, feral colour) apply; a slotted card rides the item
+	# and does not count toward the deck cap.
+	var slotted: Dictionary = p.get("slotted", {})
+	for item_id in slotted:
+		if not equipped.has(item_id):
+			warnings.append("slotted: %s is not equipped" % str(item_id))
+			continue
+		for cid in slotted[item_id]:
+			var card = main.deck_manager._create_card_from_id(str(cid))
+			if card == null:
+				warnings.append("slotted: unknown card '%s'" % str(cid))
+			elif equipped[item_id].slot_card(card):
+				main.deck_manager.draw_pile.append(card)
+			else:
+				warnings.append("slotted: %s refused %s (%d/%d slots, needs %s)" % [str(item_id), str(cid),
+					equipped[item_id].slotted_cards.size(), equipped[item_id].card_slots, str(equipped[item_id].allowed_card_keywords)])
 	for k in p["stat_overrides"]:
 		stats.set(k, p["stat_overrides"][k])
 	_build_deck(p["deck"])
@@ -192,6 +224,64 @@ func _build_player() -> void:
 	main._player_last_grid_cell = cell
 	for ob in scenario["map"]["obstacles"]:
 		player.blocked_tiles.append(SimScenario.cell_of(ob))
+
+## Sphere grid: walk the shortest unlockable path from what is already lit
+## to each target node (in order), lighting every node on the way through
+## the real unlock + effect code. Stat gates and the keystone cap are
+## honoured; a target that cannot be reached is a warning.
+func _unlock_sphere_targets(targets: Array) -> void:
+	if targets.is_empty():
+		return
+	var grid = main.sphere_grid_ui.sphere_grid
+	var stats = main.player.get_stats()
+	var lit := 0
+	for target in targets:
+		var tid := int(target)
+		var goal = grid.get_node_by_id(tid)
+		if goal == null:
+			warnings.append("sphere: no node %d" % tid)
+			continue
+		if goal.unlocked:
+			continue
+		# BFS from every unlocked node over nodes whose gate the character meets.
+		var came_from := {}
+		var frontier: Array = []
+		for n in grid.get_all_nodes():
+			if n.unlocked:
+				frontier.append(n.id)
+				came_from[n.id] = -1
+		var found := false
+		while not frontier.is_empty() and not found:
+			var cur: int = frontier.pop_front()
+			for nb in grid.get_connections_for(cur):
+				if came_from.has(nb):
+					continue
+				var node = grid.get_node_by_id(nb)
+				if node == null or not SphereGrid.requirements_met(node, stats):
+					continue
+				if node.node_type == SphereGrid.NodeType.KEYSTONE and nb != tid:
+					continue  # never spend a keystone slot on the way to another
+				came_from[nb] = cur
+				if nb == tid:
+					found = true
+					break
+				frontier.append(nb)
+		if not found:
+			warnings.append("sphere: no unlockable path to %d (%s) — gate %s" % [tid, goal.label, str(goal.requirements)])
+			continue
+		var path: Array = []
+		var at := tid
+		while at != -1 and came_from.get(at, -1) != -1:
+			path.push_front(at)
+			at = came_from[at]
+		for nid in path:
+			if not grid.unlock_node(nid):
+				warnings.append("sphere: unlock refused at %d (%s)" % [nid, grid.get_node_by_id(nid).label])
+				break
+			main.progression_triggers._on_sphere_grid_node_unlocked(nid)
+			lit += 1
+	grid.check_constellation_completion()
+	_log("sphere grid: %d node(s) lit for targets %s" % [lit, str(targets)])
 
 ## The scenario's deck replaces the character's own; cards an equipped item
 ## owns (granted or slotted) ride along, exactly as in play.
@@ -210,11 +300,16 @@ func _build_deck(ids: Array) -> void:
 	dm.peaked_card = null
 	dm.reserved_draw_slots = 0
 	for id in ids:
+		if not dm.can_add_copy(str(id)):
+			warnings.append("deck: copy cap reached for '%s'" % str(id))
+			continue
 		var c = dm._create_card_from_id(str(id))
 		if c:
 			dm.draw_pile.append(c)
 		else:
 			warnings.append("unknown card '%s'" % str(id))
+	if dm.get_deck_size() > DeckManager.MAX_DECK_SIZE:
+		warnings.append("deck: %d base cards over the cap of %d" % [dm.get_deck_size(), DeckManager.MAX_DECK_SIZE])
 	for c in item_cards:
 		dm.draw_pile.append(c)
 	dm.shuffle_draw_pile()
@@ -770,11 +865,7 @@ func _cell_str(world: Vector3) -> String:
 	return "%d:%d" % [c.x, c.y]
 
 func _debuff_name(debuff) -> String:
-	if debuff.get("debuff_name") != null:
-		return str(debuff.debuff_name)
-	if "DebuffType" in Debuff:
-		return str(Debuff.DebuffType.keys()[debuff.debuff_type])
-	return str(debuff.debuff_type)
+	return str(debuff.debuff_name)
 
 static func _join(a: String, b: String) -> String:
 	return b if a == "" else a + "|" + b

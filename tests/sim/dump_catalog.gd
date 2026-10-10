@@ -70,6 +70,8 @@ func _initialize() -> void:
 			"requires_engraving": c.requires_engraving,
 			"shop_excluded": c.shop_excluded,
 			"reaction_trigger": c.reaction_trigger,
+			"slot_labels": c.slot_labels.map(func(k): return Card.keyword_name(int(k))),
+			"slottable": c.is_slottable(),
 			"description": c.description,
 		})
 
@@ -94,11 +96,23 @@ func _initialize() -> void:
 			"weight": it.weight,
 			"card_slots": it.card_slots,
 			"granted_card_ids": it.granted_card_ids,
-			"two_handed": bool(it.get("is_two_handed")) if it.get("is_two_handed") != null else false,
+			"weapon_subtype": ItemData.WeaponSubtype.keys()[it.weapon_subtype] if it.item_type == ItemData.ItemType.WEAPON else "",
+			"two_handed": Inventory.is_two_hand_only(it) if it.item_type in [ItemData.ItemType.WEAPON, ItemData.ItemType.QUIVER] else false,
 		})
 
+	# Sphere grid: every node with its gate, keystone and neighbours.
+	var grid := SphereGrid.new()
+	var nodes: Array = []
+	for n in grid.get_all_nodes():
+		nodes.append({"id": n.id, "type": SphereGrid.NodeType.keys()[n.node_type], "label": n.label,
+			"description": n.description, "ring": n.ring, "requirements": n.requirements,
+			"keystone": n.keystone_id, "connections": n.connections})
+	var constellations: Array = []
+	for c in grid.get_all_constellations():
+		constellations.append({"id": c.id, "name": c.name, "nodes": c.node_ids, "bonus": c.bonus_name, "bonus_description": c.bonus_description})
 	var catalog := {"roster": roster, "cards": cards, "items": items,
-		"basic_deck": DeckManager.BASIC_DECK_IDS}
+		"basic_deck": DeckManager.BASIC_DECK_IDS, "sphere_nodes": nodes, "constellations": constellations,
+		"ryan_components": RyanBuilds.components()}
 	var abs_path := out_path if out_path.is_absolute_path() else ProjectSettings.globalize_path("res://").path_join(out_path)
 	DirAccess.make_dir_recursive_absolute(abs_path.get_base_dir())
 	var f := FileAccess.open(abs_path, FileAccess.WRITE)
