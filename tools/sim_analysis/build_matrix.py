@@ -125,7 +125,16 @@ def main():
     # the designed build on the same enemy when that run is in the snapshot.
     m = df[df["f"].notna()]
     if not m.empty:
-        g = m.groupby(["build", "e", "f"]).agg(win_rate=("win", "mean"), dpt=("damage_per_tempo", "mean"), taken=("total_damage_taken", "mean")).reset_index()
+        # How often the maxed passive itself fired per fight (passive_triggers column, newer runs only).
+        def fired(row):
+            txt = str(row.get("passive_triggers", "")) if "passive_triggers" in row else ""
+            for part in txt.split("|"):
+                k, _, v = part.partition(":")
+                if k == row["f"] and v.strip().lstrip("-").isdigit():
+                    return float(v)
+            return float("nan")
+        m = m.copy(); m["fired"] = m.apply(fired, axis=1) if "passive_triggers" in m.columns else float("nan")
+        g = m.groupby(["build", "e", "f"]).agg(win_rate=("win", "mean"), dpt=("damage_per_tempo", "mean"), taken=("total_damage_taken", "mean"), fired=("fired", "mean")).reset_index()
         base = df[df["f"].isna() & df["p"].isna() & df["i"].isna() & df["d"].isna() & df["a"].isna() & df["s"].isna()]
         if not base.empty:
             b = base.groupby(["build", "e"]).agg(dpt0=("damage_per_tempo", "mean"), win0=("win", "mean")).reset_index()
@@ -138,8 +147,12 @@ def main():
         heatmap(piv, "%s build (rows) x maxed passive (columns) — damage per tempo" % char, "%s_passive_focus_dpt.png" % tag)
         heatmap(per.pivot(index="build", columns="f", values="win_rate"), "%s build (rows) x maxed passive (columns) — win rate" % char, "%s_passive_focus_win.png" % tag)
         if "d_dpt" in g:
-            up = g.groupby("f").agg(d_dpt=("d_dpt", "mean"), d_win=("d_win", "mean")).sort_values("d_dpt", ascending=False)
-            print("\nmaxed passive — mean uplift over the designed build (DPT, win rate):\n", up.round(3).to_string())
+            up = g.groupby("f").agg(d_dpt=("d_dpt", "mean"), d_win=("d_win", "mean"), fired_per_fight=("fired", "mean")).sort_values("d_dpt", ascending=False)
+            print("\nmaxed passive — mean uplift over the designed build (DPT, win rate) and how often it fired per fight (NaN = runs predate the trigger column):\n", up.round(3).to_string())
+        fp = g.pivot_table(index="build", columns="f", values="fired", aggfunc="mean")
+        if not fp.empty and fp.notna().any().any():
+            print("\nbuild x maxed passive — times it fired per fight:\n", fp.round(1).to_string())
+            heatmap(fp, "%s build (rows) x maxed passive (columns) — fired per fight" % char, "%s_passive_focus_fired.png" % tag, fmt="%.1f")
 
 
 def main_effects(g, a, b, la, lb):
