@@ -46,6 +46,20 @@ const ITEM_SETS := {
 		["techno_wraps", 0], ["harnessed_sun", 0], ["legend_has_it", 1]],
 }
 
+## Shape-described decks (see SimDeckBuilder): the generator fills them from
+## the whole card pool, ranked by the single-card sweep once it has run.
+const DECK_RECIPES := {
+	"dagger_rush": {"shape": {"ATTACK": 7, "DEFENSE": 3, "UTILITY": 2}, "school": "PHYSICAL", "reach": "melee",
+		"theme": ["dagger", "slice", "strike", "bleed"]},
+	"poisoner": {"shape": {"ATTACK": 3, "UTILITY": 6, "DEFENSE": 3}, "theme": ["poison", "potion", "toxin"]},
+	"discard_mill": {"shape": {"ATTACK": 3, "UTILITY": 7, "DEFENSE": 2}, "theme": ["discard"]},
+	"ghost": {"shape": {"ATTACK": 5, "UTILITY": 5, "DEFENSE": 2}, "theme": ["invisib", "blink", "shadow", "swap", "displace", "teleport"]},
+	"archer": {"shape": {"ATTACK": 8, "UTILITY": 2, "DEFENSE": 2}, "reach": "ranged", "theme": ["arrow", "shot", "bow"]},
+	"instants": {"shape": {"REACTION": 4, "ATTACK": 5, "DEFENSE": 3}},
+	"caster": {"shape": {"ATTACK": 6, "UTILITY": 4, "DEFENSE": 2}, "school": "SPELL"},
+	"top_twelve": {"shape": {"OFFENSIVE": 6, "DEFENSE": 3, "UTILITY": 3}},
+}
+
 ## Cards engraved into an item set's slots, by item id. Slot labels are the
 ## game's (a helm takes Crown cards, a belt Pocket, boots Swift, gauntlets
 ## Fist, a sword Sword cards, a dagger Dagger, a shield Buckler, a chest

@@ -37,7 +37,16 @@ static func components(character: String) -> Dictionary:
 	return {"items": lib.ITEM_SETS.keys(), "deck": lib.DECKS.keys(), "alloc": lib.ALLOCS.keys(),
 		"sphere": lib.SPHERES.keys(), "passives": lib.PASSIVES.keys(), "designed": lib.DESIGNED.keys(),
 		"designed_parts": lib.DESIGNED, "default_enemy": lib.DEFAULT_ENEMY,
-		"tree_passives": tree_passives(character)}
+		"tree_passives": tree_passives(character),
+		"recipes": recipes(character).keys(), "card_pool": SimDeckBuilder.legal_ids()}
+
+## The library's DECK_RECIPES (shape-described decks), {} when it has none.
+static func recipes(character: String) -> Dictionary:
+	var lib := library(character)
+	if lib == null:
+		return {}
+	var consts: Dictionary = lib.get_script_constant_map()
+	return consts.get("DECK_RECIPES", {})
 
 ## Every upgradeable passive the character's skill tree offers, read from
 ## the tree itself so a passive the designer adds is swept automatically.
@@ -175,6 +184,34 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 	for item_id in lib.SLOTTED.get(slot_name, {}):
 		if worn.has(item_id):
 			slotted[item_id] = (lib.SLOTTED[slot_name][item_id] as Array).duplicate()
+	# The deck: the build's list, a recipe generated from the pool, and/or
+	# one pool card swapped in for the list's last card and spotlighted into
+	# the opening hand (the single-card sweep).
+	var deck: Array = (lib.DECKS[base["deck"]] as Array).duplicate()
+	var opening: Array = []
+	if parts.has("recipe") and str(parts["recipe"]) != "":
+		var rname := str(parts["recipe"])
+		var rec: Dictionary = recipes(character).get(rname, {})
+		if rec.is_empty():
+			push_error("[SIM] %s has no deck recipe '%s'" % [character, rname])
+		else:
+			# Engraved mythic cards use up the deck's mythic room (level / 15).
+			var engraved_mythics := 0
+			var cpool := SimDeckBuilder.pool()
+			for item_id in slotted:
+				for cid in slotted[item_id]:
+					if cpool.has(cid) and cpool[cid]["rarity"] == "Mythic":
+						engraved_mythics += 1
+			deck = SimDeckBuilder.generate(rec, character, build_name, level, maxi(0, int(level / LEVELS_PER_MYTHIC) - engraved_mythics))
+			base["recipe"] = rname
+	if parts.has("swap") and str(parts["swap"]) != "":
+		var card := str(parts["swap"])
+		if not deck.is_empty():
+			deck[deck.size() - 1] = card
+		else:
+			deck.append(card)
+		opening = [card]
+		base["swap"] = card
 	var name := "%s_%s" % [character.to_lower(), build_name]
 	return {
 		"name": name,
@@ -187,7 +224,8 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 			"sphere_targets": (lib.SPHERES[base["sphere"]] as Array).duplicate(),
 			"items": fitted["items"],
 			"slotted": slotted,
-			"deck": (lib.DECKS[base["deck"]] as Array).duplicate(),
+			"deck": deck,
+			"opening_hand": opening,
 			"cell": [6, 7],
 		},
 		"enemies": [{"type": enemy, "cell": [9, 7], "overrides": parts.get("enemy_overrides", {})}],

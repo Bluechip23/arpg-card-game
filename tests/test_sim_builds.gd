@@ -67,6 +67,27 @@ func _run() -> void:
 	for k in ranks:
 		rank_total += int(ranks[k])
 	_check(int(ranks.get("pop_rocks", 0)) == 15 and rank_total == 49 and ranks.size() == 12, "focus on an empty set spreads the rest over the other tree passives (%s)" % str(ranks))
+	# The card pool and the deck recipes.
+	var pool: Array = SimDeckBuilder.legal_ids()
+	var leaks: Array = []
+	for id in pool:
+		if id.ends_with("_copy") or id in ["fireball", "improvised_ammo", "polymorph"]:
+			leaks.append(id)
+	_check(pool.size() >= 150 and leaks.is_empty(), "card pool holds every base-deck-legal card (%d) and no tokens, engraving-only or item-granted cards (%s)" % [pool.size(), str(leaks)])
+	var r1 := CharacterBuilds.compose("ryan", {"build": "shadow_blade", "recipe": "poisoner", "enemy": "WERERAT"})
+	var r2 := CharacterBuilds.compose("ryan", {"build": "shadow_blade", "recipe": "poisoner", "enemy": "WERERAT"})
+	_check(r1["player"]["deck"].size() == 12 and r1["player"]["deck"] == r2["player"]["deck"], "a recipe deck has 12 cards and is deterministic (%s)" % str(r1["player"]["deck"]))
+	var poison_cards := 0
+	for id in r1["player"]["deck"]:
+		if "poison" in id or "potion" in id or "toxin" in id:
+			poison_cards += 1
+	_check(poison_cards >= 5, "the poisoner recipe is on theme (%d poison/potion cards)" % poison_cards)
+	for rname in CharacterBuilds.recipes("ryan"):
+		var rs := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "bruiser", "recipe": rname, "enemy": "WERERAT"}))
+		var rsum: Dictionary = await runner.run(rs, load("res://tests/sim/policies/greedy_dpt.gd").new(), 1)
+		_check(rsum["outcome"] != "error" and runner.warnings.is_empty(), "recipe %s builds and runs with no refusals: %s" % [rname, str(runner.warnings)])
+	var sw := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "bruiser", "swap": "poison_bomb", "enemy": "WERERAT"}))
+	_check(sw["player"]["deck"].back() == "poison_bomb" and sw["player"]["opening_hand"] == ["poison_bomb"] and sw["player"]["deck"].size() == 12, "swap= replaces the last deck card and spotlights it (%s)" % str(sw["player"]["deck"]))
 	# compose swaps components and keeps the rest.
 	var mixed := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "bruiser", "deck": "potions", "alloc": "int_wis", "sphere": "none", "passives": "apothecary", "enemy": "WERERAT"}))
 	_check(mixed["player"]["deck"] == RyanBuilds.DECKS["potions"], "compose swaps the deck")

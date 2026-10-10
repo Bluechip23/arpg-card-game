@@ -64,7 +64,7 @@ def main():
     if df.empty:
         raise SystemExit("no %s_* results under sim_out/ (run tests/sim/sweeps/%s_*.txt first)" % (char, char))
     parts = df["scenario"].apply(lambda n: parse(n, char))
-    for k in ["build", "e", "i", "d", "a", "s", "p", "f", "L"]:
+    for k in ["build", "e", "i", "d", "a", "s", "p", "f", "w", "r", "L"]:
         df[k] = parts.apply(lambda d: d.get(k))
     df = df[df["L"].astype(int) == args.level]
     if df.empty:
@@ -73,7 +73,7 @@ def main():
     df["clean"] = df["warnings"].fillna("").astype(str).str.len().eq(0).astype(float)
 
     # Designed builds x enemies.
-    des = df[df["i"].isna() & df["a"].isna() & df["p"].isna() & df["f"].isna()]
+    des = df[df["i"].isna() & df["a"].isna() & df["p"].isna() & df["f"].isna() & df["w"].isna() & df["r"].isna()]
     if not des.empty:
         g = simlib.per_group(des, ["build", "e"])
         g["clean"] = des.groupby(["build", "e"])["clean"].mean().values
@@ -135,7 +135,7 @@ def main():
             return float("nan")
         m = m.copy(); m["fired"] = m.apply(fired, axis=1) if "passive_triggers" in m.columns else float("nan")
         g = m.groupby(["build", "e", "f"]).agg(win_rate=("win", "mean"), dpt=("damage_per_tempo", "mean"), dpt_median=("damage_per_tempo", "median"), taken=("total_damage_taken", "mean"), fired=("fired", "mean")).reset_index()
-        base = df[df["f"].isna() & df["p"].isna() & df["i"].isna() & df["d"].isna() & df["a"].isna() & df["s"].isna()]
+        base = df[df["f"].isna() & df["p"].isna() & df["i"].isna() & df["d"].isna() & df["a"].isna() & df["s"].isna() & df["w"].isna() & df["r"].isna()]
         if not base.empty:
             b = base.groupby(["build", "e"]).agg(dpt0=("damage_per_tempo", "mean"), dpt0_median=("damage_per_tempo", "median"), win0=("win", "mean")).reset_index()
             g = g.merge(b, on=["build", "e"], how="left")
@@ -156,6 +156,50 @@ def main():
         if not fp.empty and fp.notna().any().any():
             print("\nbuild x maxed passive — times it fired per fight:\n", fp.round(1).to_string())
             heatmap(fp, "%s build (rows) x maxed passive (columns) — fired per fight" % char, "%s_passive_focus_fired.png" % tag, fmt="%.1f")
+
+    # Single-card swap: uplift over the designed build, paired by seed (the
+    # swap runs fewer seeds than the designed run, so compare on shared seeds).
+    des_runs = df[df["i"].isna() & df["a"].isna() & df["p"].isna() & df["f"].isna() & df["w"].isna() & df["r"].isna()]
+    m = df[df["w"].notna() & (df["clean"] == 1.0)]
+    if not m.empty and not des_runs.empty:
+        rows = []
+        bk = des_runs.set_index(["build", "e", "seed"])
+        for (build, e, w), g in m.groupby(["build", "e", "w"]):
+            pairs = [(r["damage_per_tempo"], r["win"], r["total_damage_taken"], bk.loc[(build, e, s)]) for s, r in zip(g["seed"], g.to_dict("records")) if (build, e, s) in bk.index]
+            if not pairs:
+                continue
+            dd = [p[0] - p[3]["damage_per_tempo"] for p in pairs]; dw = [p[1] - p[3]["win"] for p in pairs]; dt = [p[2] - p[3]["total_damage_taken"] for p in pairs]
+            rows.append(dict(build=build, e=e, card=w, n=len(pairs), d_dpt=np.mean(dd), d_dpt_median=np.median(dd), d_win=np.mean(dw), d_taken=np.mean(dt)))
+        sw = pd.DataFrame(rows)
+        per = sw.groupby(["build", "card"]).agg(n=("n", "sum"), d_dpt=("d_dpt", "mean"), d_dpt_median=("d_dpt_median", "mean"), d_win=("d_win", "mean"), d_taken=("d_taken", "mean")).reset_index()
+        per.to_csv(simlib.CHARTS + "/%s_card_swap.csv" % tag, index=False)
+        print("\nsingle-card swap: top and bottom cards per build (uplift over the designed deck, paired seeds):")
+        for build, g in per.groupby("build"):
+            g = g.sort_values("d_dpt_median", ascending=False)
+            top = ", ".join("%s %+.1f" % (r.card, r.d_dpt_median) for r in g.head(8).itertuples())
+            bot = ", ".join("%s %+.1f" % (r.card, r.d_dpt_median) for r in g.tail(4).itertuples())
+            wins = g.sort_values("d_win", ascending=False).head(4)
+            print("  %-18s best DPT: %s\n  %-18s worst DPT: %s\n  %-18s best win rate: %s" % (build, top, "", bot, "", ", ".join("%s %+.0f pts" % (r.card, 100 * r.d_win) for r in wins.itertuples())))
+        uni = per.groupby("card").agg(builds=("build", "nunique"), d_dpt_median=("d_dpt_median", "mean"), d_win=("d_win", "mean"), positive_on=("d_dpt_median", lambda x: int((x > 0).sum()))).reset_index()
+        uni = uni[uni["builds"] >= max(2, uni["builds"].max() - 1)].sort_values("d_dpt_median", ascending=False)
+        uni.to_csv(simlib.CHARTS + "/%s_card_swap_universal.csv" % tag, index=False)
+        print("\ncards that help every build (mean uplift across builds, and on how many builds it is positive):\n", uni.head(15).round(2).to_string(index=False))
+        print("\ncards that hurt every build:\n", uni.tail(8).round(2).to_string(index=False))
+
+    # Recipe decks per build.
+    m = df[df["r"].notna()]
+    if not m.empty:
+        g = m.groupby(["build", "r"]).agg(win_rate=("win", "mean"), dpt=("damage_per_tempo", "mean"), dpt_median=("damage_per_tempo", "median"), taken=("total_damage_taken", "mean")).reset_index()
+        g.to_csv(simlib.CHARTS + "/%s_recipes.csv" % tag, index=False)
+        if not des.empty:
+            b = des.groupby("build").agg(win0=("win", "mean"), dpt0_median=("damage_per_tempo", "median")).reset_index()
+            g = g.merge(b, on="build", how="left")
+            g["d_win"] = g["win_rate"] - g["win0"]; g["d_dpt_median"] = g["dpt_median"] - g["dpt0_median"]
+        print("\nbuild x recipe deck — win rate:\n", g.pivot(index="build", columns="r", values="win_rate").round(2).to_string())
+        print("\nbuild x recipe deck — median DPT:\n", g.pivot(index="build", columns="r", values="dpt_median").round(2).to_string())
+        if "d_win" in g:
+            print("\nrecipe vs the build's own deck (win rate, median DPT):\n", g.groupby("r").agg(d_win=("d_win", "mean"), d_dpt_median=("d_dpt_median", "mean")).round(3).sort_values("d_win", ascending=False).to_string())
+        heatmap(g.pivot(index="build", columns="r", values="win_rate"), "%s build (rows) x recipe deck (columns) — win rate" % char, "%s_recipes_win.png" % tag)
 
 
 def main_effects(g, a, b, la, lb):

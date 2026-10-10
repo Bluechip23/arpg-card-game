@@ -40,3 +40,13 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   the same path and hold only Bulwark cards. Either these want a
   stat-style bonus (every offensive card you play) or a Bulwark card that
   counts as offensive. Not changed.
+
+- **Shop flags on item-granted and conjured cards.** The sim's card pool
+  follows the game's own flags (`requires_engraving`, `shop_excluded`),
+  per the rule that cards are universal unless a passive names them. Two
+  kinds of card are not flagged and so count as dealer-buyable: cards an
+  item grants (Wrath of the Sea from Poseidon's Trident, Hemotoxins from
+  the Alchemist Belt, Resourceful Replenish from Hannibal's Mask) and
+  conjured tokens (Energy Ball from Absorb Essence). If any of these are
+  meant to come only with their item or spell, they want `shop_excluded`
+  — the sweeps will otherwise swap them into decks as ordinary cards.

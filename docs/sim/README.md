@@ -350,6 +350,31 @@ Shadow Cowl's dead on-self bonus was caught (`bugs_found.md`). Keep the
 `before` snapshot of every stored sweep you care about and the question
 "did that change to X fix build Y without moving build Q?" is one command.
 
+### The card pool, single-card swaps and recipe decks
+
+Cards are universal (the designer's rule), so the pool is every card a
+base deck may hold by the game's own flags: playable, not engraving-only,
+not `shop_excluded`, not a token copy — about 200 cards
+(`SimDeckBuilder.legal_ids()`, listed in the catalog as `card_pool`). Two
+parts use it:
+
+- `swap:<card_id>` — the build's deck with its last card replaced by that
+  card, spotlighted into the opening hand. `<char>_card_swap.txt` does
+  this for every pool card on every designed build (the single-card
+  sweep; 10 seeds a card by default, it is the big one). `build_matrix.py`
+  pairs each run with the designed run on the same seed and prints the
+  best and worst cards per build and the cards that help or hurt every
+  build; the per-build table lands in `sim_out/charts/<char>_card_swap.csv`.
+- `recipe:<name>` — a deck generated from the pool by shape instead of a
+  hand-written list (`DECK_RECIPES` in the character's library: cards per
+  type, school, reach, theme words, preferred and excluded cards, copies).
+  Candidates are ranked theme-first, then by the card's measured uplift on
+  that build from the single-card sweep when its CSV exists, else a flat
+  efficiency heuristic, so the deck is deterministic and becomes
+  data-driven once the sweep has run. `<char>_recipes.txt` plays every
+  recipe on every designed build; the matrix compares each against the
+  build's own hand-written deck.
+
 ### Did the passive fire at all?
 
 `summary.csv` carries `passive_triggers`: for every passive the player has
