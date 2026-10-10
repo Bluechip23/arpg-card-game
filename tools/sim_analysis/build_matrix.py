@@ -130,7 +130,7 @@ def main():
             txt = str(row.get("passive_triggers", "")) if "passive_triggers" in row else ""
             for part in txt.split("|"):
                 k, _, v = part.partition(":")
-                if k == row["f"] and v.strip().lstrip("-").isdigit():
+                if k.replace("'", "") == row["f"].replace("'", "") and v.strip().lstrip("-").isdigit():
                     return float(v)
             return float("nan")
         m = m.copy(); m["fired"] = m.apply(fired, axis=1) if "passive_triggers" in m.columns else float("nan")
@@ -145,7 +145,9 @@ def main():
         piv = per.pivot(index="build", columns="f", values="dpt")
         print("\nbuild x maxed passive — damage per tempo:\n", piv.round(2).to_string())
         heatmap(piv, "%s build (rows) x maxed passive (columns) — damage per tempo" % char, "%s_passive_focus_dpt.png" % tag)
-        heatmap(per.pivot(index="build", columns="f", values="win_rate"), "%s build (rows) x maxed passive (columns) — win rate" % char, "%s_passive_focus_win.png" % tag)
+        wpiv = per.pivot(index="build", columns="f", values="win_rate")
+        print("\nbuild x maxed passive — win rate:\n", wpiv.round(2).to_string())
+        heatmap(wpiv, "%s build (rows) x maxed passive (columns) — win rate" % char, "%s_passive_focus_win.png" % tag)
         if "d_dpt" in g:
             up = g.groupby("f").agg(d_dpt=("d_dpt", "mean"), d_win=("d_win", "mean"), fired_per_fight=("fired", "mean")).sort_values("d_dpt", ascending=False)
             print("\nmaxed passive — mean uplift over the designed build (DPT, win rate) and how often it fired per fight (NaN = runs predate the trigger column):\n", up.round(3).to_string())

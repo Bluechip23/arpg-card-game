@@ -148,6 +148,48 @@ other, not whether a specific boss is right. 30 seeds, `sim_out/ryan50`.
   2× enemy damage pushes the apothecary off the Wyvern, Treant and Ice
   Troll entirely.
 
+## One passive maxed: does any single passive carry a build?
+
+Every one of Ryan's 12 tree passives taken to rank 15 on each designed
+build, the remaining 34 points spread over the build's own set, level 50
+against the scaled Large Bear, Earth Mage and Wyvern, 30 seeds
+(`tests/sim/sweeps/ryan_passive_focus_L50.txt`, charts
+`sim_out/charts/ryan_L50_passive_focus_*.png`). Damage per tempo, columns
+are the maxed passive:
+
+| build | surprise_opener | ladder_work | quick_step | nimble_assault | let's_dance | now_you_see_me | eye_scrape | others |
+|---|---|---|---|---|---|---|---|---|
+| ranged_ambusher | **27.4** | **26.6** | **26.1** | 22.1 | 21.1 | 20.8 | 20.6 | 20.2 – 20.5 |
+| bruiser | **16.3** | 15.6 | 14.9 | 15.1 | 15.1 | 14.9 | 15.2 | 14.6 – 15.7 |
+| card_shark | **10.5** | 9.4 | 8.8 | 8.8 | 8.7 | 8.8 | 8.8 | 8.7 – 8.9 |
+| spellslinger | 5.0 | 4.9 | 4.8 | 4.8 | 4.8 | 4.8 | 4.8 | 4.8 – 4.9 |
+| apothecary | 2.9 | 2.7 | 2.7 | 2.7 | 2.7 | 2.7 | 2.6 | 2.6 – 2.8 |
+| shadow_blade | 2.6 | 2.4 | 2.4 | 2.3 | 2.4 | 2.4 | 2.3 | 2.3 – 2.4 |
+
+What it says, as direction rather than verdicts (cards and enemies will
+change under it):
+
+- **No single passive rescues a kit.** Win rates move by at most a few
+  points for any passive on any build; the shadow blade stays at 30–34 %
+  with every one of its passives maxed in turn, including Let's Dance at
+  divisor 1 (it fires 10–18 times a fight and still loses to the bear).
+  The passive tree tunes a build, the gear and the damage stat define it.
+- **Surprise Opener is the only passive that moves every build**, +0.7
+  DPT on average and the best column on five of six builds. It is flat
+  bonus damage on a first strike with no condition the kit has to set up,
+  which is also why it is the one that works everywhere.
+- **Ladder Work and Quick Step are large on the ranged ambusher only**
+  (+30 % DPT). The bow build is the one deck with instants and discards
+  flowing, so the two conditional passives have something to key off.
+- **Maxing usually costs more than it gives.** Against the designed
+  build's own proportional spread, nine of twelve maxed passives come out
+  about 1 DPT lower: the 15 ranks come out of passives that were doing
+  more at rank 6–11. Rank scaling is steep enough on paper (cooldowns
+  19 → 5, divisors 8 → 1) that this is worth a look: the last ten ranks
+  of most passives buy less than the first five.
+- Which maxed passives fire at all (per-fight trigger counts, the
+  `passive_triggers` column) is being re-run and will go here.
+
 ## What each component is worth
 
 - **Item set: the biggest lever.** Across every deck, swapping the gear
