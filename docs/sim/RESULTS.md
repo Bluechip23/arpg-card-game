@@ -356,49 +356,89 @@ sweep; the full three-enemy pass (`ryan_card_swap.txt`, about 36,000
 fights) will re-rank them, and the generated deck changes with every card
 or build change by design.
 
+## Tactics on every build
+
+Invisibility, poison, discarding, mobility and burst are things a player
+bolts onto any build, so each is a *tactic* overlay (a few cards into the
+deck's tail, an item into its slot, ranks into the passives) measured on
+every designed build, level 18, six enemies, 30 seeds
+(`tests/sim/sweeps/ryan_tactics.txt`, `sim_out/charts/ryan_tactics.csv`).
+Win-rate change against the build's own loadout:
+
+| build | burst | poison | invisibility | discard | mobility |
+|---|---|---|---|---|---|
+| shadow_blade | +14 | **+19** | +2 | 0 | −3 |
+| card_shark | **+18** | +8 | −2 | −2 | +2 |
+| spellslinger | +5 | **+10** | +6 | +3 | −1 |
+| ranged_ambusher | **+9** | +4 | +2 | 0 | −9 |
+| apothecary | +4 | **+9** | +3 | 0 | −4 |
+| bruiser | +3 | 0 | −1 | −2 | −1 |
+
+- **Burst (Exhausted Assault, Multishot, Consecutive Snap, Surprise
+  Opener) helps every build**, the card shark by 18 points. Same
+  mechanism as the single-card sweep: per-hit bonuses times hit count.
+- **Poison is the shadow blade's best tactic** (+19, 31 % to 42 %), not
+  invisibility: two Poison Bombs, Hemotoxins and Pop Rocks give its weak
+  hits a damage source that does not depend on the dagger. It also lifts
+  the spellslinger and apothecary by about 10.
+- **Invisibility as a tactic is within a few points on every build.**
+  Bolted onto the bruiser or the bow it is neutral; on the spellslinger
+  +6. It costs tempo and the builds that could use the window are the
+  ones that kill before they need it (the bruiser's fights last 3.4
+  bars).
+- **Mobility costs the ranged ambusher 9 points**: Blink, Reposition and
+  Bob and Weave displace a Houdini's Slippers wearer that wanted to stand
+  still and shoot. Movement is not free for a bow.
+
+With Blink in the deck and the lookahead now pricing a displacement as
+the five invisible tempo Now You See Me grants, the passive fires 9–27
+times per 30 fights on every build (it was 0 before the policy learned
+to play Blink), and the builds go invisible 0.6–2.3 times a fight.
+
 ## Proposed rule: the invisibility draw
 
 The designer's proposal: *whenever the player enters invisibility they
 look at their top card and may choose to draw it; if they do, they must
 discard a separate card.* Implemented in the game (the buff manager
-reports the visible-to-invisible transition, main offers the choice and
-the discard picker) and in the lookahead (draw when the hand is short or
-holds a card worth less than a fresh one, discard the worst card). Then
-the quick-feedback loop: the same runs with the rule reverted and with it
-on, same seeds, same harness (`compare_runs.py`).
+reports the visible-to-invisible transition; main offers the choice,
+then the discard picker — discard first when the hand is full, no
+discard when no other card is in hand) and in the lookahead (draw when
+the hand is short or holds a card worth less than a fresh one, discard
+the worst). Measured on build × invisibility tactic, every build
+carrying Shadows ×2, Blink, the Shadow Obi and Now You See Me, rule
+reverted against rule on, pinned seeds, 30 each:
 
-| build | reached | verdict |
-|---|---|---|
-| shadow_blade | 53 of 190 runs | no significant change: win rate −1 pt, DPT +1.6 %, damage taken ±0 |
-| card_shark | 12 of 190 | no significant change (DPT +1.5 %) |
-| ranged_ambusher | 12 of 190 | no significant change (Poof and Weave from the Shadow Obi, 3 uses in 30 fights) |
-| apothecary | 9 of 190 | no significant change (damage taken −6 %, p = 0.35 on the Shadows swap) |
-| bruiser, spellslinger | 6 and 5 of 190 | no significant change |
-| shadow_blade at 50, Now You See Me / Eye Scrape maxed | 82 of 180 | no significant change (win rate +1 pt, DPT +1.8 %) |
+| build | runs the rule reached | DPT | damage taken | win rate |
+|---|---|---|---|---|
+| shadow_blade | 205 of 360 | +5.5 % | +2.9 % | 0 |
+| spellslinger | 151 of 360 | −0.1 % | +2.5 % | +1 (Treant 27 % → 50 %, p = 0.06) |
+| apothecary | 124 of 360 | +4.7 % | −0.4 % | +1 |
+| card_shark | 103 of 360 | **+10.1 %** | −4.5 % | +4 |
+| bruiser | 97 of 360 | +0.3 % | −3.5 % | 0 |
+| ranged_ambusher | 58 of 360 | +2.7 % | −4.1 % | +4 |
 
-**Verdict: safe, and not enough.** The rule reaches every build that
-has an invisibility source, fires every time (the shadow blade's 11–12
-invisibilities a fight against the bear each became a look and usually a
-draw), and moves nothing by more than noise. The shadow blade's problem is
-that its cards deal under 10; a free look at the next one is another
-sub-10 card. Where the draw could matter — a deck whose cards are strong,
-like the bow build's — the build goes invisible three times in thirty
-fights. The rule is a fine quality-of-life rider and worth keeping for
-feel, but if the aim is to make invisibility *worth its tempo*, the
-payoff has to be damage or safety while invisible (the Shadow Obi's +5 is
-the only such rider today), or Now You See Me needs displacement sources
-to fire on. Both are things the single-card and passive sweeps can test
-the moment they exist.
+**Verdict: a small, consistent plus on every build that goes invisible;
+nothing it rescues.** Damage per tempo rises on five of six builds
+(most on the card shark, whose deck wants cards in hand) and damage
+taken falls on four, but no build's win rate moves significantly at 30
+seeds; the one large swing (spellslinger against the Treant, +23 points)
+is just short of significance and worth 100 seeds before believing. The
+draw is worth adding for feel and it is not a trap. It is not what makes
+invisibility worth its tempo on its own: the tactic table above says the
+Shadows-and-Blink package is neutral on most builds with the draw
+included, while poison and burst move the same builds by 10–19 points.
+If invisibility is to be a tactic a bruiser or an archer reaches for,
+the payoff has to land while invisible (damage, or the first strike out
+of it), which the sweeps can measure the moment a rider exists.
 
-Two harness notes from this run, both fixed before the comparison above
-was taken: the first before/after showed the ranged ambusher +11 win
-points, which turned out to be the refused-play stall fix (the old
-runner let the lookahead re-pick a refused card, idling fights into
-timeouts; the ranged ambusher's deck has two such cards, Lead Arrow and
-Spirit Arrow) and not the rule — the clean before-snapshot was re-run
-with the rule reverted and only then compared. And the runner could
-answer one picker twice in a frame; it now renames a picker once
-answered.
+How this was measured, because the first two attempts were wrong and
+the corrections are part of the tester now: the first comparison only
+looked at builds whose archetype carries invisibility (the tactic layer
+fixes that); the lookahead never played Blink, so Now You See Me read as
+never firing (it now prices a displacement); the "before" snapshot was
+taken against the wrong commit once; and the same seed drifted between
+processes under different CPU load (the runner now re-seeds per decision
+and tick, and runs are byte-identical across processes).
 
 ## What each component is worth
 
