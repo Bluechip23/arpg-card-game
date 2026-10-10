@@ -306,6 +306,54 @@ cannot rise):
   gate and drops any refused play from the legal actions for the rest of
   the tempo; the row above is the corrected one.
 
+## Generated decks against the hand-written ones
+
+Eight deck recipes (shape, school, reach, theme words) filled from the
+whole pool by the generator, ranked by each card's measured uplift on
+that build from the single-card sweep, played on every designed build
+against the six-enemy roster at level 18, 30 seeds
+(`tests/sim/sweeps/ryan_recipes.txt`, `sim_out/charts/ryan_recipes.csv`).
+Win rate; the build's own hand-written deck is the first column:
+
+| build | own deck | caster | top_twelve | ghost | instants | poisoner | dagger_rush | archer | discard_mill |
+|---|---|---|---|---|---|---|---|---|---|
+| spellslinger | 0.76 | **0.97** | 0.89 | 0.89 | 0.81 | 0.81 | 0.78 | 0.78 | 0.79 |
+| card_shark | 0.62 | 0.77 | **0.81** | 0.77 | 0.77 | 0.69 | 0.61 | 0.77 | 0.59 |
+| apothecary | 0.61 | **0.78** | 0.75 | 0.76 | 0.72 | 0.72 | 0.76 | 0.53 | 0.59 |
+| bruiser | 0.93 | 0.96 | 0.94 | **0.97** | 0.95 | 0.89 | 0.92 | 0.91 | 0.91 |
+| ranged_ambusher | 0.47 | **0.55** | 0.54 | 0.55 | 0.53 | 0.51 | 0.48 | 0.45 | 0.49 |
+| shadow_blade | 0.31 | **0.34** | 0.32 | 0.23 | 0.33 | 0.24 | 0.28 | 0.28 | 0.24 |
+
+- **Seven of eight generated decks beat the hand-written decks on
+  average**, and the data-driven ones beat them most: `caster` +11 win
+  points and +2.4 median DPT across the builds, `top_twelve` +9 and +2.2.
+  The hand-written decks are not bad; the pool is just wider than any
+  theme. The one that lost, `discard_mill`, is also the one whose theme
+  words pull in the weakest cards.
+- **The spellslinger wants spells.** The caster recipe (Vines, If Pigs
+  Could Fly, Worms Armageddon, Mana Surge, Spark, Harness Lightning,
+  Cryonics…) takes it from 76 % to 97 % and from 2.7 to 10.0 median DPT:
+  its hand-written potion deck was playing the wrong school for a 27-INT
+  build with the Belt of Scrolls. Same for the apothecary (61 % to 78 %
+  on the caster deck).
+- **The card shark's best deck is the universal top twelve** (Multishot,
+  Consecutive Snap, Exhausted Assault, Vines, Thrown Stone…): 62 % to
+  81 %, 4.4 to 9.3 median DPT. Its discard-engine deck is the one the
+  recipe sweep ranks last for it.
+- **No deck rescues the shadow blade** (23–34 % on all nine decks) or
+  lifts the ranged ambusher past 55 %. For those two the gear and the
+  damage stat are the ceiling, which is the same answer the passive sweep
+  gave.
+- **The instants recipe is the test of Quick Step**: four reaction cards
+  in a 12-card deck is as many as the pool allows, and it ranks fifth of
+  eight. The passive now has something to fire on; whether it is worth
+  ranks is a separate run (`focus:quick_step` with `recipe:instants`).
+
+Caveat: the recipes were ranked by the Large Bear pass of the single-card
+sweep; the full three-enemy pass (`ryan_card_swap.txt`, about 36,000
+fights) will re-rank them, and the generated deck changes with every card
+or build change by design.
+
 ## What each component is worth
 
 - **Item set: the biggest lever.** Across every deck, swapping the gear
