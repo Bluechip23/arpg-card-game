@@ -25,3 +25,18 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   amount applied to health is not clamped before the signal), which only
   matters for anything summing damage from that signal — the harness does
   and says so in its column notes.
+
+- **Shadow Cowl's on-self bonus can never fire.** The cowl's "+2 damage
+  and 2 free tiles for offensive cards" is an `on_self_*` bonus, and
+  `Card.get_on_self_bonus()` (card.gd:728) only ever reads the item the
+  card is *engraved in*. A chest piece takes Bulwark cards, and none of the
+  ten Bulwark-slot cards (approach, armor_patch, best_offense, harden,
+  hold_the_line, hunker_down, roar, shield_of_growth, smith_thy_soul,
+  turtle_up) is offensive, so no card can collect it. Found by the compare
+  tool: raising the bonus from 2 to 6 changed 0 of 90 shadow-blade runs.
+  The same applies to every chest piece with an offensive on-self line:
+  Elvish Cloak (+2 ranged), Chewbacca's Bandolier (+5 ranged, −1 ranged
+  tempo) and Tigers Sunday Red (heal on offensive cards) all read through
+  the same path and hold only Bulwark cards. Either these want a
+  stat-style bonus (every offensive card you play) or a Bulwark card that
+  counts as offensive. Not changed.
