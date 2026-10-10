@@ -206,8 +206,49 @@ change under it):
   were doing more at rank 6–11. Rank scaling is steep on paper (cooldowns
   19 → 5, divisors 8 → 1) and still the last ten ranks of most passives
   buy less than the first five.
-- Which maxed passives fire at all (per-fight trigger counts, the
-  `passive_triggers` column) is being re-run and will go here.
+
+### Does the maxed passive fire at all?
+
+Times the rank-15 passive fired per fight (`passive_triggers`, counted from
+the game's own battle log), rows are the build it was maxed on:
+
+| build | let's_dance | eye_scrape | surprise_opener | from_the_hip | nimble_assault | mad_scientist | stimulant | pop_rocks | keep_them_guessing | ladder_work | now_you_see_me | quick_step |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| apothecary | 22.5 | 3.6 | 0.9 | 0.4 | 0.4 | 1.9 | 1.5 | 1.0 | 0.0 | 0.2 | 0.0 | 0.0 |
+| shadow_blade | 17.6 | 0.6 | 0.9 | 0.7 | 0.8 | 0.2 | 0.2 | 0.0 | 0.0 | 0.1 | 0.0 | 0.0 |
+| spellslinger | 8.1 | 0.4 | 0.9 | 0.5 | 0.6 | 1.6 | 1.2 | 0.2 | 0.0 | 0.0 | 0.2 | 0.0 |
+| card_shark | 6.6 | 0.4 | 1.0 | 1.7 | 0.5 | 0.1 | 0.1 | 0.0 | 0.9 | 0.8 | 0.0 | 0.0 |
+| bruiser | 4.4 | 0.5 | 0.9 | 0.9 | 0.8 | 0.2 | 0.2 | 0.0 | 0.0 | 0.2 | 0.0 | 0.0 |
+| ranged_ambusher | 1.3 | 0.8 | 1.0 | 0.9 | 0.9 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+
+Cues from the trigger counts, which are a different kind of information
+from the damage numbers:
+
+- **Now You See Me fires 0.03 times a fight at rank 15**, zero on the
+  shadow blade it belongs to. Its trigger is displacement (blink, swap,
+  non-standard movement) and the shadow deck's one *Blink* is the only
+  source on any build; at a 1-tempo cooldown it still has nothing to
+  react to. The passive is fine, the kit has no ways to displace.
+- **Quick Step fires 0.0 times on every build**: no instants in any Ryan
+  deck (see above).
+- **Keep Them Guessing fires only on the card shark** (0.9 a fight, needs
+  4 discards at rank 15), **Pop Rocks only on the apothecary** (1.0, needs
+  poison already on the target), **Ladder Work under once a fight
+  anywhere** (its damage rider needs cards hitting the discard pile
+  unplayed; its stat line is what the ranks actually buy). These are
+  archetype-locked by design; the counts say the lock holds.
+- **Eye Scrape fires about once a fight** (3.6 on the apothecary, whose
+  fights are longest) — "every crit" at rank 15 is still gated by the
+  10-tempo cooldown, so the ranks past the cooldown's length do nothing.
+- **Let's Dance fires 4–22 times a fight and still carries nothing**:
+  22.5 triggers on the apothecary against a 2.5× bear are 22 cycles of
+  walking in a fight it cannot finish. Count is not value; the armor it
+  grants is swamped by Arcane Ward and the damage by divisor 1 is spaces
+  moved, which the lookahead keeps to 1–2 a cycle.
+- **Surprise Opener fires 0.9–1.0 times a fight**, exactly once per
+  enemy as written, and is the best passive on five of six builds. One
+  reliable trigger with a flat payoff beats every conditional passive in
+  the tree at these deck sizes.
 
 ## What each component is worth
 
