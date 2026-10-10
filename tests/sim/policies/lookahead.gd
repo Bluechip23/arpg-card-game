@@ -16,6 +16,7 @@ extends SimPolicy
 ## damage per tempo, so it never does worse than greedy_dpt there.
 ##
 ## Beyond raw damage it prices: invisibility (every hit the enemies would
+## have landed, also for a displacement while Now You See Me is ready),
 ## have landed while they cannot see you), poison stacks (the damage they
 ## tick for over the next cycles, plus Pop Rocks), discard engines
 ## (Volatile Mixture, Exacerbate Wounds, Ladder Work, Keep Them Guessing),
@@ -439,6 +440,10 @@ static func _self_value(c: Dictionary, text: String, state: SimState, threats: A
 		if found:
 			dur = maxi(1, int(found.get_string(1)))
 		v += float(_incoming(threats, tempo + dur)) * hp_weight + 1.0
+	# A displacement with Now You See Me ready is five tempo of invisibility
+	# (Blink, Swap, Shift, Smoke Bomb...), priced the same way.
+	if state.nysm_ready and str(c.get("id", "")) in SimState.DISPLACEMENT_CARDS:
+		v += float(_incoming(threats, tempo + 5)) * hp_weight + 1.0
 	var block := int(c["block"])
 	if block > 0:
 		# Armor persists (it decays per cycle), so it covers the next cycle too.

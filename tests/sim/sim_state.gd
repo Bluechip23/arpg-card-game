@@ -48,6 +48,11 @@ var discards_this_cycle: int
 var true_discards_this_cycle: int
 var ladder_banked: int
 var passives: Dictionary = {}      # passive id -> rank
+var nysm_ready: bool = false       # Now You See Me would fire on a displacement right now
+
+## Cards whose play is a displacement in main's world cases (they call
+## _trigger_skill_tree_on_displacement): Now You See Me keys off these.
+const DISPLACEMENT_CARDS := ["blink", "swap", "shift", "escape_and_bewilder", "heroic_leap", "wrath_of_the_sea", "smoke_bomb", "roll"]
 var flash_strike: bool             # Flash Cut keystone: sidestep is a strike
 
 func _init(p_main: Node) -> void:
@@ -102,6 +107,10 @@ func refresh() -> void:
 	passives.clear()
 	for pid in stats.skill_tree_passives:
 		passives[pid] = maxi(1, stats.get_passive_level(pid))
+	nysm_ready = false
+	if stats.has_skill_tree_passive("now_you_see_me"):
+		var cd: int = PassiveScaling.value("now_you_see_me", "cooldown", stats.get_passive_level("now_you_see_me"))
+		nysm_ready = global_tempo - int(stats.st_nysm_last_tempo) >= cd
 	flash_strike = bool(stats.keystone_flash_strike)
 
 	buffs.clear()
