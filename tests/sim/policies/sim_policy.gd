@@ -21,7 +21,11 @@ func choose_action(_state: SimState) -> Variant:
 ## "defensive_sacrifice", "life_swap" (options are enemy labels),
 ## "point_to_prove", "donation". Return the index of the option to take;
 ## -1 declines / cancels.
-func answer_prompt(kind: String, options: Array) -> int:
+## "invisibility_draw" (options: draw the named top card / leave it) and
+## "invisibility_discard" (options: the hand cards' names) come with the
+## current state so a policy can weigh the hand; the base policy draws and
+## discards the first card offered.
+func answer_prompt(kind: String, options: Array, state: SimState = null) -> int:
 	match kind:
 		"maintain": return 0
 		"donation": return -1

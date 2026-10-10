@@ -705,7 +705,20 @@ func _answer_prompts() -> void:
 					options.append(t)
 					option_btns.append(b)
 			var kind := "defensive_sacrifice" if pname == "DefensiveSacrificePrompt" else "picker"
-			var choice := policy.answer_prompt(kind, options)
+			var prompt_state: SimState = null
+			var title := ""
+			for l in node.find_children("*", "Label", true, false):
+				title = str(l.text)
+				break
+			if title.begins_with("Invisibility:"):
+				kind = "invisibility_draw" if title.find("Draw it?") >= 0 else "invisibility_discard"
+				prompt_state = SimState.new(main)
+			if verbose or kind.begins_with("invisibility"):
+				print("[SIM] prompt %s (%s): %s" % [pname, kind, str(options)])
+			var choice := policy.answer_prompt(kind, options, prompt_state)
+			# A pressed picker frees itself deferred; rename it so the next
+			# pass this frame does not answer it a second time.
+			node.name = "AnsweredPicker"
 			if choice >= 0 and choice < option_btns.size():
 				option_btns[choice].pressed.emit()
 			elif cancel:

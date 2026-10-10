@@ -375,6 +375,20 @@ parts use it:
   recipe on every designed build; the matrix compares each against the
   build's own hand-written deck.
 
+### Prompts the policy answers
+
+Some rules ask the player a question mid-fight; the runner finds the
+game's own picker and answers it through `policy.answer_prompt(kind,
+options, state)`. The kinds: `maintain` (keep a power burning), `picker`
+(a generic card or choice picker), `defensive_sacrifice`, `life_swap`,
+`donation`, `point_to_prove`, and the **invisibility draw**: whenever the
+player enters invisibility they see the top card of the draw pile and may
+draw it, discarding a separate card if they do. The lookahead draws when
+the hand is short or holds a card worth less than a fresh one (dead,
+unplayable, or a bare utility) and discards its worst card by the same
+measure, never the drawn one. The base policy draws and discards the
+first card offered.
+
 ### Did the passive fire at all?
 
 `summary.csv` carries `passive_triggers`: for every passive the player has

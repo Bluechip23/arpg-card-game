@@ -77,6 +77,36 @@ func choose_action(state: SimState) -> Variant:
 
 ## The card we would rather lose: Volatile Mixture wants to be discarded;
 ## otherwise the lowest expected value in hand.
+## Invisibility's draw: take the top card when the hand holds something
+## worth less than a fresh card (a dead or unplayable card, a bare utility
+## with no numbers) or the hand is short; discard the worst card by the
+## same measure, never the one just drawn (it is excluded by name).
+func answer_prompt(kind: String, options: Array, state: SimState = null) -> int:
+	if kind == "invisibility_draw":
+		if state == null:
+			return 0
+		if state.hand.size() < 3:
+			return 0
+		var w := _worst_card_index(state, -1)
+		if w < 0:
+			return 0
+		for h in state.hand:
+			if h["index"] == w:
+				var v := float(h["damage"]) + float(h["block"]) + float(h["heal"])
+				return 0 if (not h["playable"] or v <= 0.0) else 1
+		return 0
+	if kind == "invisibility_discard":
+		if state == null or options.is_empty():
+			return 0
+		var w := _worst_card_index(state, -1)
+		for h in state.hand:
+			if h["index"] == w:
+				var oi: int = options.find(h["name"])
+				if oi >= 0:
+					return oi
+		return 0
+	return super.answer_prompt(kind, options, state)
+
 static func _worst_card_index(state: SimState, exclude: int) -> int:
 	var worst := -1
 	var worst_v := INF
