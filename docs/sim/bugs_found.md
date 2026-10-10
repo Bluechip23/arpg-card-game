@@ -30,6 +30,14 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   frees itself deferred, so the next pass of the prompt answerer in the
   same frame found and pressed it again. Pickers are renamed once answered.
 
+- **The same seed drifted between processes.** Enemy rolls and chance
+  cards use the global RNG, and timer-driven code consumes it a frame at a
+  time, so the number of draws before a Treant's slam-or-root roll depended
+  on CPU load; 1–4 seeds in 30 differed between two identical runs. The
+  runner now re-seeds from (run seed, global tempo, step) before every
+  decision and tick; three concurrent processes produce byte-identical
+  run files.
+
 ## Open (not changed)
 
 - **`tests/_build_sims.gd` spelled Ryan's passive `lets_dance`; the game's

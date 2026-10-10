@@ -57,6 +57,17 @@ func _init(p_tree: SceneTree) -> void:
 
 # ---------------------------------------------------------------- run ----
 
+## The game's dice (enemy action rolls, chance cards) are the global RNG,
+## which anything timer-driven also consumes a frame at a time — so under
+## a different CPU load the same seed drifted apart between processes
+## (one Treant rolled slam where the other rolled root). Re-seeding from
+## (run seed, global tempo, step) before every decision and every tick
+## pins the combat stream to the fight itself.
+var _run_seed: int = 0
+
+func _reseed(step: int) -> void:
+	seed(hash("%d:%d:%d" % [_run_seed, main.tempo_manager.global_tempo, step]))
+
 ## Boot, play, tear down. Returns the summary row (see SUMMARY_COLUMNS).
 func run(sc: Dictionary, pol: SimPolicy, p_seed: int) -> Dictionary:
 	scenario = sc
@@ -79,6 +90,7 @@ func run(sc: Dictionary, pol: SimPolicy, p_seed: int) -> Dictionary:
 	_spawn_enemies()
 	_hook_signals()
 	seed(seed_value)  # the combat stream starts here, whatever the boot consumed
+	_run_seed = seed_value
 
 	_log("run start: %s / %s / seed %d" % [sc["name"], policy.name, seed_value])
 	var max_tempo: int = int(sc["max_bars"]) * main.tempo_manager.tempo_threshold
@@ -93,6 +105,7 @@ func run(sc: Dictionary, pol: SimPolicy, p_seed: int) -> Dictionary:
 			outcome = "timeout"
 			error_msg = "decision cap"
 			break
+		_reseed(_decisions)
 		var state := SimState.new(main)
 		var action = policy.choose_action(state)
 		if action == null or not (action is Dictionary):
@@ -609,6 +622,7 @@ func _tick_until_free() -> void:
 	var guard := 0
 	while main.tempo_manager.is_ticking() and outcome != "loss" and guard < 1000:
 		_park_mouse_for_next_resolve()
+		_reseed(10000 + guard)
 		main.tempo_manager._process_one_tick()
 		_settle_all()
 		_answer_prompts()

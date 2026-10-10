@@ -82,6 +82,13 @@ knockback and movement all run through `GridManager` / `DungeonManager`.
 `obstacles` list feeds the former only, so use it for pathing tests and a
 different `interior` for line-of-sight ones.
 
+**Determinism across processes.** The game's dice are the global RNG,
+which timer-driven code also consumes a frame at a time, so under a
+different CPU load the same seed drifted between processes. The runner
+re-seeds from (run seed, global tempo, step) before every decision and
+every tick, which pins the combat stream to the fight: the same seed is
+byte-identical on one core or four, so `compare_runs.py` pairs are real.
+
 **Level-ups and XP** are the game's: real enemies grant XP, a level-up
 during a fight fully heals, exactly as in play (the designer's call).
 
