@@ -64,10 +64,14 @@ func run(sc: Dictionary, pol: SimPolicy, p_seed: int) -> Dictionary:
 	seed_value = p_seed
 	rows.clear()
 	warnings.clear()
+	if str(sc.get("notes", "")) != "":
+		warnings.append(str(sc["notes"]))
 	outcome = ""
 	error_msg = ""
 	_reset_counters()
 	policy.setup(sc)
+	if "debug" in policy:
+		policy.debug = verbose
 
 	seed(seed_value)
 	await _boot()
@@ -214,6 +218,9 @@ func _build_player() -> void:
 	_build_deck(p["deck"])
 	stats.current_health = stats.max_health
 	stats.current_mana = float(stats.get_available_max_mana())
+	# Full point pools at the first bell, as a character walking into a fight has.
+	stats.refresh_flash_points()
+	stats.refresh_brain_points()
 	stats.health_changed.emit(stats.current_health, stats.max_health)
 	stats.mana_changed.emit(stats.current_mana, stats.max_mana)
 	main.draw_timer.initialize(stats, main.deck_manager)
@@ -347,6 +354,11 @@ func _spawn_enemies() -> void:
 			en.set(k, ov[k])
 		if ov.has("max_health") and not ov.has("current_health"):
 			en.current_health = en.max_health
+		var scale: Dictionary = scenario.get("enemy_scale", {})
+		if not scale.is_empty():
+			en.max_health = maxi(1, int(round(en.max_health * float(scale.get("hp", 1.0)))))
+			en.current_health = en.max_health
+			en.attack_damage = maxi(0, int(round(en.attack_damage * float(scale.get("dmg", 1.0)))))
 		en.update_health_display()
 		if bool(scenario.get("auto_range", false)):
 			# A sweep-spawned enemy: three tiles off for melee, its own reach
@@ -418,6 +430,34 @@ func _apply_action(a: Dictionary, state: SimState) -> bool:
 			ok = true
 		"move":
 			ok = _do_move(a, row)
+		"flash_block":
+			var stats = main.player.get_stats()
+			var fp: int = stats.current_flash_points
+			main._on_flash_block_pressed()
+			ok = stats.current_flash_points < fp
+			if not ok:
+				row["refused"] = "flash block refused (%d flash, needs %d)" % [fp, stats.get_flash_block_cost()]
+		"flash_proc":
+			var stats = main.player.get_stats()
+			var fp: int = stats.current_flash_points
+			main._on_flash_proc_pressed()
+			ok = stats.current_flash_points < fp
+			if not ok:
+				row["refused"] = "flash proc tick refused (%d flash)" % fp
+		"brain_draw":
+			var stats = main.player.get_stats()
+			var bp: int = stats.current_brain_points
+			main._on_brain_draw_pressed()
+			ok = stats.current_brain_points < bp
+			if not ok:
+				row["refused"] = "insight refused (%d brain, needs %d, hand %d/%d)" % [bp, stats.get_next_brain_draw_cost(), main.deck_manager.hand.size(), main.deck_manager.get_hand_cap()]
+		"brain_peek":
+			var stats = main.player.get_stats()
+			var bp: int = stats.current_brain_points
+			main._on_brain_peek_pressed()
+			ok = stats.current_brain_points < bp
+			if not ok:
+				row["refused"] = "peek refused (%d brain)" % bp
 		_:
 			row["refused"] = "unknown action type"
 	if ok:
@@ -463,7 +503,9 @@ func _do_play(a: Dictionary, state: SimState, row: Dictionary) -> bool:
 	if a.has("picks"):
 		var picks: Dictionary = a["picks"]
 		if picks.has("picked_card"):
-			card.picked_card = dm.hand[int(picks["picked_card"])]
+			var pi: int = int(picks["picked_card"])
+			if pi >= 0 and pi < dm.hand.size() and pi != idx:
+				card.picked_card = dm.hand[pi]
 		if picks.has("picked_cards"):
 			var arr: Array = []
 			for i in picks["picked_cards"]:
@@ -538,10 +580,20 @@ func _do_move(a: Dictionary, row: Dictionary) -> bool:
 	if spaces <= 0:
 		row["refused"] = "no route to %s" % str(cell)
 		return false
-	if not main.player.move_to_grid(world, spaces):
+	# A flash move: the HUD's lightning toggle on for this order only, so
+	# the tiles spend flash points instead of tempo (TempoManager decides
+	# per tile; it falls back to tempo when the pool runs dry).
+	var stats = main.player.get_stats()
+	var was_flash: bool = stats.flash_movement_enabled
+	stats.flash_movement_enabled = bool(a.get("flash", false))
+	var started: bool = main.player.move_to_grid(world, spaces)
+	if not started:
+		stats.flash_movement_enabled = was_flash
 		row["refused"] = "move refused (stunned, rooted, webbed)"
 		return false
-	row["action_id"] = "move:%d" % spaces
+	_settle_all()
+	stats.flash_movement_enabled = was_flash
+	row["action_id"] = ("flash_move:%d" if a.get("flash", false) else "move:%d") % spaces
 	return true
 
 # --------------------------------------------------------------- time ----

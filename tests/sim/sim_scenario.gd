@@ -95,7 +95,7 @@ static func script_has(script: Script, method: String) -> bool:
 ## alloc=strength:10,dexterity:5 (replaces the allocation),
 ## passives=a,b, hand=a,b (those cards start in hand), sphere=id,id (node
 ## targets), parts=key:value,... (components for a composing scenario),
-## character=name, name=suffix (output folder becomes
+## enemy_scale=hp:1.5,dmg:1.3 (multipliers on every enemy), character=name, name=suffix (output folder becomes
 ## <scenario>_<suffix>). Every key is optional.
 static func apply_overrides(sc: Dictionary, job: Dictionary) -> Dictionary:
 	var out := sc.duplicate(true)
@@ -145,6 +145,19 @@ static func apply_overrides(sc: Dictionary, job: Dictionary) -> Dictionary:
 		for id in str(job["passives"]).split(",", false):
 			ps.append(id.strip_edges())
 		p["passives"] = ps
+	if job.has("enemy_scale"):
+		# enemy_scale=hp:1.5,dmg:1.3 — multipliers on every enemy's max health
+		# and base hit, for difficulty sweeps and for end-game bosses that
+		# have not been scaled yet.
+		var sc_hp := 1.0
+		var sc_dmg := 1.0
+		for kv in str(job["enemy_scale"]).split(",", false):
+			var pr := kv.strip_edges().split(":")
+			if pr.size() == 2 and pr[0] == "hp":
+				sc_hp = float(pr[1])
+			elif pr.size() == 2 and pr[0] == "dmg":
+				sc_dmg = float(pr[1])
+		out["enemy_scale"] = {"hp": sc_hp, "dmg": sc_dmg}
 	if job.has("sphere"):
 		var ts: Array = []
 		for id in str(job["sphere"]).split(",", false):

@@ -112,7 +112,7 @@ func _initialize() -> void:
 		constellations.append({"id": c.id, "name": c.name, "nodes": c.node_ids, "bonus": c.bonus_name, "bonus_description": c.bonus_description})
 	var catalog := {"roster": roster, "cards": cards, "items": items,
 		"basic_deck": DeckManager.BASIC_DECK_IDS, "sphere_nodes": nodes, "constellations": constellations,
-		"ryan_components": RyanBuilds.components()}
+		"builds": CharacterBuilds.all_components()}
 	var abs_path := out_path if out_path.is_absolute_path() else ProjectSettings.globalize_path("res://").path_join(out_path)
 	DirAccess.make_dir_recursive_absolute(abs_path.get_base_dir())
 	var f := FileAccess.open(abs_path, FileAccess.WRITE)

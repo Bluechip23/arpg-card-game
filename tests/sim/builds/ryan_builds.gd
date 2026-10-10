@@ -2,48 +2,47 @@ class_name RyanBuilds
 extends RefCounted
 
 ## Ryan's build library for the simulation harness: named components (item
-## sets, decks, stat allocations, sphere-grid targets, passive rank sets,
-## slotted cards) and the designed builds that combine them. Any component
-## can be swapped for any other through `compose`, which is what the
-## mix-and-match sweeps do (tools/sim_analysis/gen_ryan_sweeps.py).
-##
-## Everything is level 18 (51 stat points, 17 passive points, 3 keystones)
-## with mythic and legendary gear only; Ryan has 2 belt slots, 2 rings,
-## a main hand (0) and an off hand (1), and belt cards cost him 10 less.
+## sets, decks, stat allocation weights, sphere-grid targets, passive rank
+## weights, slotted cards) and the designed builds that combine them.
+## CharacterBuilds.compose("ryan", parts) turns any mix of them into a
+## scenario at any level (tools/sim_analysis/gen_build_sweeps.py drives the
+## mix-and-match sweeps). Mythic and legendary gear only; Ryan has 2 belt
+## slots, 2 rings, a main hand (0) and an off hand (1), and belt cards cost
+## him 10 less.
 
-const LEVEL := 18
 const DEFAULT_ENEMY := "LARGE_BEAR"
 
-## Gear per archetype: [item id, slot]. At level 18 the game allows ONE
-## equipped mythic (one per 15 levels), so each set is built around a single
-## mythic and fills the rest with legendaries. Bows are two-handed and take
-## only a quiver in the off hand; staffs are two-handed. Weight is checked
-## by the inventory at build time (carry = 50 + 10 per STR); a refused
-## piece is a warning in the summary.
+## Gear per archetype: [item id, slot] or [mythic id, slot, legendary
+## fallback]. The game allows one equipped mythic per 15 levels, so the
+## composer keeps the mythics in listed order up to the level's cap and
+## wears the fallback for the rest (level 18: the first; 30: two; 45+:
+## three). Bows are two-handed and take only a quiver in the off hand;
+## staffs are two-handed. Weight is checked by the inventory at build time
+## (carry = 50 + 10 per STR); a refused piece is a warning in the summary.
 const ITEM_SETS := {
 	# Mythic: Sabre Tooth. Dual daggers, light cloth, stealth belts.
 	"shadow_blade": [["sabre_tooth", 0], ["nine_ruins_of_sanguine", 1], ["feathered_hat", 0],
 		["shadow_cowl", 0], ["shadow_obi", 0], ["assasian_belt", 1], ["houdinis_slippers", 0],
-		["momentum_mits", 0], ["legend_has_it", 0], ["marvolo_gaunt", 1]],
+		["concealed_carry", 0, "momentum_mits"], ["the_precious", 0, "legend_has_it"], ["marvolo_gaunt", 1]],
 	# Mythic: Hannibal's Mask. Wands, potion belts, healer's gloves.
-	"apothecary": [["wand_of_clarity", 0], ["reaction_rod", 1], ["hannibals_mask", 0],
+	"apothecary": [["hannibals_mask", 0], ["wand_of_clarity", 0], ["circes_wand_of_cauldron_stirring", 1, "reaction_rod"],
 		["shadow_cowl", 0], ["alchemeist_belt", 0], ["corset_of_cure", 1], ["cyde_livingstons_sneakers", 0],
-		["techno_wraps", 0], ["harnessed_sun", 0], ["marvolo_gaunt", 1]],
+		["techno_wraps", 0], ["ring_of_nibelung", 0, "harnessed_sun"], ["marvolo_gaunt", 1]],
 	# Mythic: The Headbandz (5 slots). Every slot the gear offers, filled.
-	"card_shark": [["wrist_rocket", 0], ["slotted_rope_half_sleeve", 1], ["the_headbandz", 0],
-		["shadow_cowl", 0], ["the_slotted_sash", 0], ["belt_of_wumbology", 1], ["boot_holsters", 0],
+	"card_shark": [["the_headbandz", 0], ["sword_of_theseus", 0, "wrist_rocket"], ["slotted_rope_half_sleeve", 1],
+		["shadow_cowl", 0], ["the_slotted_sash", 0], ["belt_of_wumbology", 1], ["hermes_boots", 0, "boot_holsters"],
 		["spidey_web_shooters", 0], ["legend_has_it", 0], ["cyclops_ring", 1]],
 	# Mythic: Bow of Arash. Bow + quiver, range gear, light feet.
 	"ranged_ambusher": [["bow_of_arash", 0], ["capacious_extremus", 1], ["monocle", 0],
-		["chewbaccas_bandolier", 0], ["equator", 0], ["shadow_obi", 1], ["rollerblades", 0],
+		["chewbaccas_bandolier", 0], ["orions_belt", 0, "equator"], ["shadow_obi", 1], ["jordan_1s", 0, "rollerblades"],
 		["momentum_mits", 0], ["captain_planets_circlet", 0], ["harnessed_sun", 1]],
 	# Mythic: Sword of Theseus (5 slots). Sword and board, plate, heavy boots.
-	"bruiser": [["sword_of_theseus", 0], ["sword_breaker", 1], ["dragon_skull", 0],
-		["smithed_excellence", 0], ["equator", 0], ["belt_of_wumbology", 1], ["titanium_toe_tuckers", 0],
+	"bruiser": [["sword_of_theseus", 0], ["steve_rodgers_bastion", 1, "sword_breaker"], ["dragon_skull", 0],
+		["hide_of_garmr", 0, "smithed_excellence"], ["equator", 0], ["belt_of_wumbology", 1], ["titanium_toe_tuckers", 0],
 		["sleeved_katar", 0], ["ring_of_stone_hide", 0], ["marvolo_gaunt", 1]],
 	# Mythic: Belt of Scrolls (three spells). Wands, robe, caster gloves.
-	"spellslinger": [["wand_of_clarity", 0], ["reaction_rod", 1], ["feathered_hat", 0],
-		["blue_robe", 0], ["belt_of_scrolls", 0], ["corset_of_cure", 1], ["rollerblades", 0],
+	"spellslinger": [["belt_of_scrolls", 0], ["wand_of_the_phoenix_feather", 0, "wand_of_clarity"], ["reaction_rod", 1],
+		["scholars_cap", 0, "feathered_hat"], ["blue_robe", 0], ["corset_of_cure", 1], ["rollerblades", 0],
 		["techno_wraps", 0], ["harnessed_sun", 0], ["legend_has_it", 1]],
 }
 
@@ -62,6 +61,7 @@ const SLOTTED := {
 		"momentum_mits": ["push"],
 	},
 	"apothecary": {
+		"circes_wand_of_cauldron_stirring": ["the_lights_favor"],
 		"wand_of_clarity": ["the_lights_favor"],
 		"hannibals_mask": ["provider", "armor_patch"],
 		"shadow_cowl": ["approach", "armor_patch", "turtle_up", "roar"],
@@ -70,6 +70,8 @@ const SLOTTED := {
 	},
 	"card_shark": {
 		"wrist_rocket": ["savage_strike"],
+		"sword_of_theseus": ["savage_strike", "specific_strike", "life_steal", "parry", "reckless_strike"],
+		"hermes_boots": ["blink", "reposition", "bob_and_weave", "swap"],
 		"slotted_rope_half_sleeve": ["repelled_block", "forever_armor"],
 		"the_headbandz": ["armor_patch", "provider", "barbed_exterior", "snowballs_chance", "forever_armor"],
 		"shadow_cowl": ["approach", "armor_patch", "turtle_up", "roar"],
@@ -84,6 +86,7 @@ const SLOTTED := {
 		"monocle": ["provider"],
 		"chewbaccas_bandolier": ["approach", "armor_patch"],
 		"equator": ["shuriken", "poke"],
+		"orions_belt": [],
 		"shadow_obi": ["thrown_stone", "poke"],
 		"rollerblades": ["blink"],
 		"momentum_mits": ["push"],
@@ -93,6 +96,8 @@ const SLOTTED := {
 		"sword_breaker": ["repelled_block", "hunker_down", "forever_armor"],
 		"dragon_skull": ["provider", "armor_patch"],
 		"smithed_excellence": ["harden", "best_offense", "smith_thy_soul"],
+		"hide_of_garmr": [],
+		"steve_rodgers_bastion": [],
 		"equator": ["shuriken", "poke"],
 		"belt_of_wumbology": ["healing_potion", "discard"],
 		"titanium_toe_tuckers": ["reposition", "swap"],
@@ -100,6 +105,8 @@ const SLOTTED := {
 	},
 	"spellslinger": {
 		"wand_of_clarity": ["the_lights_favor"],
+		"wand_of_the_phoenix_feather": ["the_lights_favor", "provider"],
+		"scholars_cap": ["provider", "snowballs_chance"],
 		"feathered_hat": ["provider", "snowballs_chance"],
 		"blue_robe": ["approach", "hold_the_line"],
 		"corset_of_cure": ["healing_tonic", "healing_potion", "gulped_potion"],
@@ -124,15 +131,16 @@ const DECKS := {
 	"starter": ["slash", "slash", "slash", "block", "block", "block", "draw", "draw", "gain_mana", "heal"],
 }
 
-## 51 points at level 18. Carry capacity is 50 + 10 per STR, so even the
-## casters keep 6 points in STR or they cannot wear their gear.
+## Allocation WEIGHTS, spread over the level's points (3 a level: 51 at 18,
+## 147 at 50). Carry capacity is 50 + 10 per STR, so even the casters keep
+## a share in STR or they cannot wear their gear.
 const ALLOCS := {
 	"dex_agi": {"dexterity": 25, "agility": 20, "strength": 6},
 	"wis_int": {"wisdom": 18, "intelligence": 15, "dexterity": 12, "strength": 6},
 	"dex_wis": {"dexterity": 18, "agility": 12, "wisdom": 15, "strength": 6},
 	"str_det": {"strength": 30, "determination": 15, "agility": 6},
 	"int_wis": {"intelligence": 27, "wisdom": 18, "strength": 6},
-	"even": {"strength": 9, "dexterity": 9, "intelligence": 9, "wisdom": 8, "agility": 8, "determination": 8},
+	"even": {"strength": 1, "dexterity": 1, "intelligence": 1, "wisdom": 1, "agility": 1, "determination": 1},
 }
 
 ## Sphere-grid targets (node ids; the runner lights the shortest gated path
@@ -149,7 +157,8 @@ const SPHERES := {
 	"none": [],
 }
 
-## Passive ranks: 17 points at level 18, spent through the real allocator.
+## Passive rank WEIGHTS, spread over the level's passive points (1 a level,
+## ranks capped at 15) and spent through the real allocator.
 const PASSIVES := {
 	"shadow": {"now_you_see_me": 3, "surprise_opener": 4, "eye_scrape": 2, "quick_step": 3,
 		"ladder_work": 2, "keep_them_guessing": 2, "let's_dance": 1},
@@ -174,39 +183,7 @@ const DESIGNED := {
 }
 
 static func components() -> Dictionary:
-	## Component names, for the sweep generator (dumped into the catalog).
-	return {"items": ITEM_SETS.keys(), "deck": DECKS.keys(), "alloc": ALLOCS.keys(),
-		"sphere": SPHERES.keys(), "passives": PASSIVES.keys(), "designed": DESIGNED.keys(),
-		"designed_parts": DESIGNED}
+	return CharacterBuilds.components("ryan")
 
-## parts: {"build": designed name (defaults every part), "items", "deck",
-## "alloc", "sphere", "passives", "slotted" (item-set name whose engravings
-## to use; defaults to the chosen item set's own), "enemy" (type)}.
 static func compose(parts: Dictionary) -> Dictionary:
-	var base: Dictionary = DESIGNED.get(str(parts.get("build", "shadow_blade")), DESIGNED["shadow_blade"]).duplicate()
-	for k in ["items", "deck", "alloc", "sphere", "passives"]:
-		if parts.has(k):
-			base[k] = str(parts[k])
-	var items_name: String = base["items"]
-	var slot_name: String = str(parts.get("slotted", items_name))
-	var name := "ryan_%s" % str(parts.get("build", "shadow_blade"))
-	var enemy := str(parts.get("enemy", DEFAULT_ENEMY))
-	return {
-		"name": name,
-		"max_bars": 40,
-		"player": {
-			"character": "ryan",
-			"level": LEVEL,
-			"allocation": ALLOCS[base["alloc"]].duplicate(),
-			"passives": PASSIVES[base["passives"]].duplicate(),
-			"sphere_targets": SPHERES[base["sphere"]].duplicate(),
-			"items": ITEM_SETS[items_name].duplicate(true),
-			"slotted": SLOTTED.get(slot_name, {}).duplicate(true),
-			"deck": DECKS[base["deck"]].duplicate(),
-			"cell": [6, 7],
-		},
-		"enemies": [{"type": enemy, "cell": [9, 7]}],
-		"auto_range": true,
-		"policy": "lookahead",
-		"parts": base,
-	}
+	return CharacterBuilds.compose("ryan", parts)

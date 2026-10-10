@@ -33,5 +33,5 @@ static func action_label(a: Dictionary) -> String:
 		"attack": return "attack"
 		"block": return "block"
 		"wait": return "wait"
-		"move": return "move:%s" % str(a.get("cell", ""))
+		"move": return ("flash_move:%s" if a.get("flash", false) else "move:%s") % str(a.get("cell", ""))
 	return str(a.get("type", "?"))

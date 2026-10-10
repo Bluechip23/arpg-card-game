@@ -34,7 +34,9 @@ engine start; the first run after adding a `class_name` script needs
 | `tests/sim/sim_state.gd` | `SimState`: the snapshot a policy sees, plus `legal_actions()` |
 | `tests/sim/sim_scenario.gd` | `SimScenario`: loads, defaults and validates scenario files |
 | `tests/sim/policies/*.gd` | player policies: `scripted`, `random`, `greedy_dpt`, `lookahead` |
-| `tests/sim/scenarios/*.gd` | scenario files; `baseline.gd` is the control group; `ryan/` is the Ryan build directory |
+| `tests/sim/scenarios/*.gd` | scenario files; `baseline.gd` is the control group; `build.gd` runs any stored build; `ryan/` names Ryan's designed builds |
+| `tests/sim/builds/*_builds.gd` | the stored builds: one component library per character, `character_builds.gd` composes them at any level |
+| `tools/sim_analysis/compare_runs.py` | before/after verdicts on a balance change |
 | `tests/sim/sweeps/*.txt` | sweep files (`example.txt` by hand; the rest from `gen_sweeps.py`) |
 | `tests/sim/dump_catalog.gd` | dumps the roster / card / item catalog the sweep generator reads |
 | `tools/sim_analysis/*.py`, `run_sweep.sh` | sweep generator, sharded runner, the five analyses |
@@ -264,33 +266,79 @@ a fight whose last kill levelled the character (a level-up fully heals, as in
 the game), so judge survival by `total_damage_taken`; and the `warnings`
 column is non-empty when the build was not what the scenario asked for.
 
-## Ryan's build directory (`tests/sim/scenarios/ryan/`)
+## Stored builds (`tests/sim/builds/`)
 
-`ryan_builds.gd` is a component library for one character at level 18:
-six **item sets** (one mythic each — the game allows one equipped mythic per
-15 levels — the rest legendary), seven **decks**, six **stat allocations**
-(51 points; even casters keep 6 STR, carry is 50 + 10 per STR), six
-**sphere paths** (node-id targets; the runner lights the shortest gated
-path, three keystones at most), five **passive rank sets** (17 points
-through the real allocator), and per-set **slotted cards** (engraved
-through the real slot rules). `DESIGNED` names the six coherent builds;
-`compose(parts)` mixes any components. Each `<build>.gd` exposes `build()`
-(the designed build) and `build_with(parts)`, so a sweep job can swap any
-part: `parts=items:apothecary,deck:arrows,alloc:str_det,sphere:none,passives:shadow`.
+One component library per character, `tests/sim/builds/<name>_builds.gd`:
+named **item sets** (`[id, slot]`, or `[mythic id, slot, legendary
+fallback]`), **decks**, **allocation weights**, **sphere paths** (node-id
+targets), **passive rank weights**, per-set **slotted cards**, and the
+**designed** builds that combine them. `CharacterBuilds.compose(character,
+parts)` turns any mix into a scenario **at any level**: allocation and
+passive weights are spread over the points that level banks (3 stat and 1
+passive point a level, ranks capped at 15), and the mythic cap is the
+game's (one equipped mythic per 15 levels: one at 18, two at 30, three at
+45+), with the listed fallbacks worn when a mythic does not fit. Ryan's
+library is authored in full; Brad, Jeremy, Stephen and Cory carry the
+designer's `_build_sims.gd` loadouts with placeholder decks, so selection
+works for every character today and each library can be filled in without
+touching the harness.
+
+Everything runs through one scenario, `tests/sim/scenarios/build.gd`:
 
 ```
-python3 tools/sim_analysis/gen_ryan_sweeps.py [--seeds 100]   # ryan_designed, ryan_items_x_decks, ryan_alloc_x_sphere, ryan_passives
-tools/sim_analysis/run_sweep.sh tests/sim/sweeps/ryan_designed.txt 4
-python3 tools/sim_analysis/ryan_builds.py                     # sim_out/charts/ryan_*.png / .csv
+scenario=tests/sim/scenarios/build.gd parts=character:ryan,build:bruiser,level:50 enemy=WYVERN seeds=1-100
+scenario=tests/sim/scenarios/build.gd parts=character:brad,build:immovable_warden,deck:starter,alloc:even enemy=TREANT enemy_scale=hp:2,dmg:1.5 seeds=1-100
 ```
 
-The harness fields behind it (usable in any scenario): `passives` as a
-`{id: rank}` Dictionary, `sphere_targets` (node ids), `slotted` (`{item id:
-[card ids]}`), and the sweep overrides `sphere=` and `parts=`. Every
-refusal (carry weight, the mythic cap, a wrong slot label, an unreachable
-sphere gate, a passive point short) lands in the summary's `warnings`
-column and is starred on the heatmaps, so a build that was not what you
-asked for never passes as one that was.
+`parts` keys: `character`, `build`, `level`, `items`, `deck`, `alloc`,
+`sphere`, `passives`, `slotted`, `enemy`. `enemy_scale=hp:x,dmg:y`
+multiplies every enemy's health and base hit, for difficulty sweeps and for
+end-game bosses that have not been scaled to the level yet (the roster's
+intended levels stop at 35; a level-50 run against unscaled enemies says
+nothing). `tests/test_sim_builds.gd` asserts every designed build of every
+character assembles with zero refusals, and Ryan's at level 50 too.
+
+```
+godot --headless --path . --script tests/sim/dump_catalog.gd                 # catalog incl. every library's component names
+python3 tools/sim_analysis/gen_build_sweeps.py --character ryan --level 50   # <char>_designed / _items_x_decks / _alloc_x_sphere / _passives, "_L50" suffix (level 18 is untagged)
+tools/sim_analysis/run_sweep.sh tests/sim/sweeps/ryan_designed_L50.txt 4
+python3 tools/sim_analysis/build_matrix.py --character ryan --level 50       # sim_out/charts/<char>_L50_*.png / .csv
+```
+
+### Quick feedback on a balance change
+
+Runs are deterministic per seed, so any difference between two snapshots is
+the change itself. The loop:
+
+```
+tools/sim_analysis/run_sweep.sh tests/sim/sweeps/ryan_designed.txt 4 sim_out/before
+# edit the item / card / passive / stat ...
+tools/sim_analysis/run_sweep.sh tests/sim/sweeps/ryan_designed.txt 4 sim_out/after
+python3 tools/sim_analysis/compare_runs.py sim_out/before sim_out/after --md sim_out/change_report.md
+```
+
+`compare_runs.py` pairs every scenario × policy × seed present in both
+snapshots, prints the change in win rate, damage per tempo, damage taken
+and bars with a significance flag, and ends with one verdict line per
+build: "`ryan_apothecary` unchanged (…)" or "`ryan_shadow_blade` win rate
++30 pts; damage taken −22 % — on LARGE_BEAR, WYVERN". Keep the `before`
+snapshot of every stored sweep you care about and the question "did that
+change to X fix build Y without moving build Q?" is one command.
+
+### What the policy prices for these builds
+
+The strategic policy (`lookahead`) values, from what a human sees:
+**invisibility** (every hit the enemies would have landed while they cannot
+see you, from the card text's duration), **poison stacks** (the damage they
+tick for over the next cycles plus Pop Rocks), **discard engines** (Volatile
+Mixture's detonation when it is the card discarded, Exacerbate Wounds, Ladder
+Work's banked damage, Keep Them Guessing), **flash points** (free tiles, so
+stepping out of a hit about to land passes no tempo; the sidestep block;
+proc ticks that bring the DEX proc forward) and **brain points** (Insight
+draws when the hand runs thin), with an opportunity cost on every point
+spent and a commitment cost on long actions equal to what the character
+could otherwise have blocked, sidestepped or walked away from. `--verbose`
+prints its top-scored actions and threat model at every decision.
 
 ## How time is driven (why the numbers are trustworthy)
 

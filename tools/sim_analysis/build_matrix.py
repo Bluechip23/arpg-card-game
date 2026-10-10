@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Ryan build analysis: designed builds vs enemies, and the mix-and-match
-matrices (item set x deck, allocation x sphere path, passive sets).
+"""Stored-build analysis for one character: designed builds vs enemies, and
+the mix-and-match matrices (item set x deck, allocation x sphere path,
+passive sets), optionally at one level.
 
-Reads sim_out/ryan_<build>_e_<ENEMY>[__k_<component>...]/lookahead/summary.csv
-and writes sim_out/charts/ryan_*.png and .csv.
-Usage: python3 tools/sim_analysis/ryan_builds.py
+Reads sim_out/<char>_<build>_e_<ENEMY>[__L_<level>][__k_<component>...]/lookahead/summary.csv
+and writes sim_out/charts/<char>_*.png and .csv.
+Usage: python3 tools/sim_analysis/build_matrix.py --character ryan [--level 18]
 """
+import argparse
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -13,16 +15,16 @@ from matplotlib.colors import LinearSegmentedColormap
 import simlib
 
 
-def parse(name):
-    """ryan_card_shark_e_WYVERN__i_apothecary__d_potions -> dict."""
+def parse(name, char):
+    """ryan_card_shark_e_WYVERN__L_50__i_apothecary__d_potions -> dict."""
     head, *tail = name.split("__")
-    out = {}
+    out = {"L": "18"}
     if "_e_" in head:
         build, enemy = head.split("_e_", 1)
-        out["build"] = build[len("ryan_"):]
+        out["build"] = build[len(char) + 1:]
         out["e"] = enemy
     else:
-        out["build"] = head[len("ryan_"):]
+        out["build"] = head[len(char) + 1:]
     for t in tail:
         k, _, v = t.partition("_")
         out[k] = v
@@ -50,14 +52,23 @@ def heatmap(table, title, name, fmt="%.2f", clean=None):
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--character", default="ryan")
+    ap.add_argument("--level", type=int, default=18)
+    args = ap.parse_args()
+    char = args.character.lower()
     simlib.style()
     df = simlib.load_summaries()
-    df = df[df["scenario"].str.startswith("ryan_") & (df["policy"] == "lookahead")].copy()
+    df = df[df["scenario"].str.startswith(char + "_") & (df["policy"] == "lookahead")].copy()
     if df.empty:
-        raise SystemExit("no ryan_* results under sim_out/ (run tests/sim/sweeps/ryan_*.txt first)")
-    parts = df["scenario"].apply(parse)
-    for k in ["build", "e", "i", "d", "a", "s", "p"]:
+        raise SystemExit("no %s_* results under sim_out/ (run tests/sim/sweeps/%s_*.txt first)" % (char, char))
+    parts = df["scenario"].apply(lambda n: parse(n, char))
+    for k in ["build", "e", "i", "d", "a", "s", "p", "L"]:
         df[k] = parts.apply(lambda d: d.get(k))
+    df = df[df["L"].astype(int) == args.level]
+    if df.empty:
+        raise SystemExit("no %s results at level %d" % (char, args.level))
+    tag = char if args.level == 18 else "%s_L%d" % (char, args.level)
     df["clean"] = df["warnings"].fillna("").astype(str).str.len().eq(0).astype(float)
 
     # Designed builds x enemies.
@@ -65,24 +76,24 @@ def main():
     if not des.empty:
         g = simlib.per_group(des, ["build", "e"])
         g["clean"] = des.groupby(["build", "e"])["clean"].mean().values
-        g.to_csv(simlib.CHARTS + "/ryan_designed.csv", index=False)
+        g.to_csv(simlib.CHARTS + "/%s_designed.csv" % tag, index=False)
         win = g.pivot(index="build", columns="e", values="win_rate")
         dpt = g.pivot(index="build", columns="e", values="dpt")
         cl = g.pivot(index="build", columns="e", values="clean")
         print("designed builds — win rate:\n", win.round(2).to_string())
         print("\ndesigned builds — damage per tempo:\n", dpt.round(2).to_string())
-        heatmap(win, "Ryan designed builds — win rate", "ryan_designed_win.png", clean=cl)
-        heatmap(dpt, "Ryan designed builds — damage per tempo", "ryan_designed_dpt.png", clean=cl)
+        heatmap(win, "%s designed builds — win rate (level %d)" % (char, args.level), "%s_designed_win.png" % tag, clean=cl)
+        heatmap(dpt, "%s designed builds — damage per tempo (level %d)" % (char, args.level), "%s_designed_dpt.png" % tag, clean=cl)
 
     # Item set x deck (enemy-averaged).
     m = df[df["i"].notna() & df["d"].notna()]
     if not m.empty:
         g = m.groupby(["i", "d"]).agg(win_rate=("win", "mean"), dpt=("damage_per_tempo", "mean"), taken=("total_damage_taken", "mean"), clean=("clean", "mean")).reset_index()
-        g.to_csv(simlib.CHARTS + "/ryan_items_x_decks.csv", index=False)
+        g.to_csv(simlib.CHARTS + "/%s_items_x_decks.csv" % tag, index=False)
         for col, title in [("win_rate", "win rate"), ("dpt", "damage per tempo")]:
             piv = g.pivot(index="i", columns="d", values=col)
             print("\nitem set x deck — %s:\n" % title, piv.round(2).to_string())
-            heatmap(piv, "Ryan item set (rows) x deck (columns) — %s, enemy-averaged" % title, "ryan_items_x_decks_%s.png" % col,
+            heatmap(piv, "%s item set (rows) x deck (columns) — %s, enemy-averaged" % (char, title), "%s_items_x_decks_%s.png" % (tag, col),
                     clean=g.pivot(index="i", columns="d", values="clean"))
         main_effects(g, "i", "d", "item set", "deck")
 
@@ -90,24 +101,24 @@ def main():
     m = df[df["a"].notna() & df["s"].notna()]
     if not m.empty:
         g = m.groupby(["a", "s"]).agg(win_rate=("win", "mean"), dpt=("damage_per_tempo", "mean"), clean=("clean", "mean")).reset_index()
-        g.to_csv(simlib.CHARTS + "/ryan_alloc_x_sphere.csv", index=False)
+        g.to_csv(simlib.CHARTS + "/%s_alloc_x_sphere.csv" % tag, index=False)
         piv = g.pivot(index="a", columns="s", values="dpt")
         print("\nallocation x sphere — damage per tempo (all builds, all enemies):\n", piv.round(2).to_string())
-        heatmap(piv, "Ryan allocation (rows) x sphere path (columns) — damage per tempo", "ryan_alloc_x_sphere_dpt.png",
+        heatmap(piv, "%s allocation (rows) x sphere path (columns) — damage per tempo" % char, "%s_alloc_x_sphere_dpt.png" % tag,
                 clean=g.pivot(index="a", columns="s", values="clean"))
-        heatmap(g.pivot(index="a", columns="s", values="win_rate"), "Ryan allocation x sphere path — win rate", "ryan_alloc_x_sphere_win.png")
+        heatmap(g.pivot(index="a", columns="s", values="win_rate"), "%s allocation x sphere path — win rate" % char, "%s_alloc_x_sphere_win.png" % tag)
         per_build = m.groupby(["build", "a"]).agg(dpt=("damage_per_tempo", "mean")).reset_index().pivot(index="build", columns="a", values="dpt")
         print("\nallocation per build — damage per tempo:\n", per_build.round(2).to_string())
-        heatmap(per_build, "Ryan build (rows) x allocation (columns) — damage per tempo", "ryan_build_x_alloc_dpt.png")
+        heatmap(per_build, "%s build (rows) x allocation (columns) — damage per tempo" % char, "%s_build_x_alloc_dpt.png" % tag)
 
     # Passive sets per build.
     m = df[df["p"].notna()]
     if not m.empty:
         g = m.groupby(["build", "p"]).agg(win_rate=("win", "mean"), dpt=("damage_per_tempo", "mean"), taken=("total_damage_taken", "mean")).reset_index()
-        g.to_csv(simlib.CHARTS + "/ryan_passives.csv", index=False)
+        g.to_csv(simlib.CHARTS + "/%s_passives.csv" % tag, index=False)
         piv = g.pivot(index="build", columns="p", values="dpt")
         print("\nbuild x passive set — damage per tempo:\n", piv.round(2).to_string())
-        heatmap(piv, "Ryan build (rows) x passive set (columns) — damage per tempo", "ryan_passives_dpt.png")
+        heatmap(piv, "%s build (rows) x passive set (columns) — damage per tempo" % char, "%s_passives_dpt.png" % tag)
 
 
 def main_effects(g, a, b, la, lb):

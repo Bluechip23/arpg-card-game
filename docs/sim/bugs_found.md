@@ -19,11 +19,9 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
 
 ## Open (not changed)
 
-- **`tests/_build_sims.gd` spells Ryan's passive `lets_dance`; the game's
+- **`tests/_build_sims.gd` spelled Ryan's passive `lets_dance`; the game's
   id is `let's_dance`** (the tree lowercases "Let's Dance" and keeps the
-  apostrophe; `progression_triggers.gd` and `passive_scaling.gd` both use
-  `let's_dance`). The scratch simulator therefore granted a passive that
-  never fires in four of its Ryan builds. Harness builds use the real id. Candidates to watch: `Enemy.damaged` reports overkill (the
+  apostrophe). Fixed in the scratch simulator at the designer's request. Candidates to watch: `Enemy.damaged` reports overkill (the
   amount applied to health is not clamped before the signal), which only
   matters for anything summing damage from that signal — the harness does
   and says so in its column notes.

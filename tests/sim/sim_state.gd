@@ -35,6 +35,20 @@ var hand_cap: int
 var draw_pile_size: int
 var discard_size: int
 var tempo_until_draw: float
+# Ryan's tools (and everyone's): point pools, the attack-speed proc, the
+# discard counters passives read, invisibility, the character's passives.
+var flash_block_cost: int
+var flash_proc_cost: int
+var brain_draw_cost: int
+var brain_peek_cost: int
+var attacks_until_proc: int
+var next_attack_half_tempo: bool
+var invisible_tempo: int          # tempo of invisibility left (0 = visible)
+var discards_this_cycle: int
+var true_discards_this_cycle: int
+var ladder_banked: int
+var passives: Dictionary = {}      # passive id -> rank
+var flash_strike: bool             # Flash Cut keystone: sidestep is a strike
 
 func _init(p_main: Node) -> void:
 	main = p_main
@@ -71,6 +85,24 @@ func refresh() -> void:
 	draw_pile_size = dm.draw_pile.size()
 	discard_size = dm.discard_pile.size()
 	tempo_until_draw = main.draw_timer.tempo_until_draw
+	flash_block_cost = stats.get_flash_block_cost()
+	flash_proc_cost = PlayerStats.FLASH_COST_PROC_TICK
+	brain_draw_cost = stats.get_next_brain_draw_cost()
+	brain_peek_cost = stats.get_next_brain_peek_cost()
+	attacks_until_proc = stats.get_attacks_until_proc()
+	next_attack_half_tempo = dm.next_attack_half_tempo
+	var bm = player.get_buff_manager()
+	invisible_tempo = 0
+	if bm.is_invisible():
+		var inv_buff = bm.get_buff(Buff.BuffType.INVISIBLE)
+		invisible_tempo = maxi(1, int(inv_buff.duration)) if inv_buff else 1
+	discards_this_cycle = dm.discards_this_cycle
+	true_discards_this_cycle = dm.true_discards_this_cycle
+	ladder_banked = int(stats.get("st_ladder_banked")) if stats.get("st_ladder_banked") != null else 0
+	passives.clear()
+	for pid in stats.skill_tree_passives:
+		passives[pid] = maxi(1, stats.get_passive_level(pid))
+	flash_strike = bool(stats.keystone_flash_strike)
 
 	buffs.clear()
 	for b in player.get_buff_manager().buffs:
@@ -97,6 +129,7 @@ func refresh() -> void:
 			"distance": gm.get_distance_in_cells(player.position, e.position),
 			"intent": e.get_display_action(),
 			"effects": e.get_active_effects(),
+			"poison": e.poison_stacks,
 			"structure": e.is_structure,
 			# What the inspect panel prints: the moveset and the base hit.
 			"actions": e.actions,
@@ -167,7 +200,7 @@ func _why_unplayable(c: Card, index: int, dmgr) -> String:
 
 ## Cards whose play opens a picker the policy would have to answer; the
 ## generic policies skip them until they carry picks (docs/sim/README.md).
-const NEEDS_PICK := ["sky_attack", "reposition", "mirror_mirror", "collect_arrows",
+const NEEDS_PICK := ["sky_attack", "mirror_mirror", "collect_arrows",
 	"friendship", "release_tension", "crack_of_mintaka", "life_swap", "communal_donation"]
 
 func hand_index_of(card_id: String) -> int:
@@ -243,10 +276,30 @@ func legal_actions() -> Array:
 					"expected_damage": basic_attack_damage, "tempo": basic_attack_tempo})
 	if has_shield and can_play_cards:
 		out.append({"type": "block"})
+	# Point spends: all instant (no tempo passes).
+	var stats = player.get_stats()
+	# Sidestep — or, with Flash Cut, a strike that needs an enemy within 2.5.
+	var strike_target := false
+	for e in enemies:
+		if e["distance"] <= 2:
+			strike_target = true
+	if flash_points >= flash_block_cost and (not flash_strike or strike_target):
+		out.append({"type": "flash_block"})
+	if flash_points >= flash_proc_cost and attacks_until_proc > 1 and not next_attack_half_tempo:
+		out.append({"type": "flash_proc"})
+	if brain_points >= brain_draw_cost and dmgr.can_draw_cards() and hand.size() < hand_cap \
+			and (draw_pile_size > 0 or discard_size > 0):
+		out.append({"type": "brain_draw"})
+	if brain_points >= brain_peek_cost and dm.brain_peek_depth < draw_pile_size:
+		out.append({"type": "brain_peek"})
 	out.append({"type": "wait"})
 	if can_move and not movement_locked and not player.is_moving:
+		var free_tiles: int = int(stats.free_move_tiles)
 		for cell in walkable_neighbours(player_cell):
 			out.append({"type": "move", "cell": [cell.x, cell.y]})
+			# The same step on flash points: no tempo passes, nobody acts.
+			if flash_points >= PlayerStats.FLASH_COST_MOVE or free_tiles > 0:
+				out.append({"type": "move", "cell": [cell.x, cell.y], "flash": true})
 	return out
 
 func walkable_neighbours(from: Vector2i) -> Array:
@@ -277,4 +330,7 @@ func step_toward(enemy_index: int) -> Dictionary:
 	var first: Vector2i = gm.world_to_grid(path[0])
 	if first == e["cell"]:
 		return {}
-	return {"type": "move", "cell": [first.x, first.y]}
+	var a := {"type": "move", "cell": [first.x, first.y]}
+	if flash_points >= PlayerStats.FLASH_COST_MOVE:
+		a["flash"] = true
+	return a
