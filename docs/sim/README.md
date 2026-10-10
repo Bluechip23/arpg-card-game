@@ -291,7 +291,14 @@ scenario=tests/sim/scenarios/build.gd parts=character:brad,build:immovable_warde
 ```
 
 `parts` keys: `character`, `build`, `level`, `items`, `deck`, `alloc`,
-`sphere`, `passives`, `slotted`, `enemy`. `enemy_scale=hp:x,dmg:y`
+`sphere`, `passives`, `slotted`, `focus`, `enemy`. `passives` names a
+weight set, spread proportionally over the points the level banks (so
+nothing is ever maxed); `focus:<passive_id>` takes that one tree passive to
+rank 15 first and spreads the rest over the build's set, which is how a
+player who commits to a passive builds. The tree passives come from the
+character's skill tree itself (`CharacterBuilds.tree_passives`), so a new
+passive is swept the moment it is added; passives that come with an item
+have no rank and are not part of it. `enemy_scale=hp:x,dmg:y`
 multiplies every enemy's health and base hit, for difficulty sweeps and for
 end-game bosses that have not been scaled to the level yet (the roster's
 intended levels stop at 35; a level-50 run against unscaled enemies says
@@ -300,7 +307,7 @@ character assembles with zero refusals, and Ryan's at level 50 too.
 
 ```
 godot --headless --path . --script tests/sim/dump_catalog.gd                 # catalog incl. every library's component names
-python3 tools/sim_analysis/gen_build_sweeps.py --character ryan --level 50   # <char>_designed / _items_x_decks / _alloc_x_sphere / _passives, "_L50" suffix (level 18 is untagged)
+python3 tools/sim_analysis/gen_build_sweeps.py --character ryan --level 50   # <char>_designed / _items_x_decks / _alloc_x_sphere / _passives / _passive_focus, "_L50" suffix (level 18 is untagged)
 tools/sim_analysis/run_sweep.sh tests/sim/sweeps/ryan_designed_L50.txt 4
 python3 tools/sim_analysis/build_matrix.py --character ryan --level 50       # sim_out/charts/<char>_L50_*.png / .csv
 ```

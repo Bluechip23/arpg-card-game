@@ -36,7 +36,20 @@ static func components(character: String) -> Dictionary:
 		return {}
 	return {"items": lib.ITEM_SETS.keys(), "deck": lib.DECKS.keys(), "alloc": lib.ALLOCS.keys(),
 		"sphere": lib.SPHERES.keys(), "passives": lib.PASSIVES.keys(), "designed": lib.DESIGNED.keys(),
-		"designed_parts": lib.DESIGNED, "default_enemy": lib.DEFAULT_ENEMY}
+		"designed_parts": lib.DESIGNED, "default_enemy": lib.DEFAULT_ENEMY,
+		"tree_passives": tree_passives(character)}
+
+## Every upgradeable passive the character's skill tree offers, read from
+## the tree itself so a passive the designer adds is swept automatically.
+## (Passives that come with an item have no rank and are not here.)
+static func tree_passives(character: String) -> Array:
+	var tree = SkillTreeData.create_tree_for(character.capitalize(), 50)
+	var out: Array = []
+	for row in tree.rows:
+		for opt in row.options:
+			if opt.option_type == SkillTreeData.OptionType.PASSIVE and opt.passive_id != "" and not out.has(opt.passive_id):
+				out.append(opt.passive_id)
+	return out
 
 static func all_components() -> Dictionary:
 	var out := {}
@@ -134,7 +147,26 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 	var fitted := fit_items(lib.ITEM_SETS[items_name], level, mythics)
 	var max_rank: int = PlayerStats.PASSIVE_MAX_LEVEL
 	var alloc := spread(lib.ALLOCS[base["alloc"]], (level - 1) * STAT_POINTS_PER_LEVEL)
-	var ranks := spread(lib.PASSIVES[base["passives"]], (level - 1) * PASSIVE_POINTS_PER_LEVEL, max_rank)
+	var passive_points: int = (level - 1) * PASSIVE_POINTS_PER_LEVEL
+	var ranks: Dictionary
+	if parts.has("focus") and str(parts["focus"]) != "":
+		# One passive maxed first, the rest of the points spread over the
+		# build's own set (or evenly over the other tree passives when the
+		# set is empty) — how a player who commits to a passive builds.
+		var focus := str(parts["focus"])
+		base["focus"] = focus
+		ranks = {focus: mini(passive_points, max_rank)}
+		var rest := {}
+		for k in lib.PASSIVES[base["passives"]]:
+			if str(k) != focus:
+				rest[k] = lib.PASSIVES[base["passives"]][k]
+		if rest.is_empty():
+			for k in tree_passives(character):
+				if str(k) != focus:
+					rest[k] = 1
+		ranks.merge(spread(rest, passive_points - ranks[focus], max_rank))
+	else:
+		ranks = spread(lib.PASSIVES[base["passives"]], passive_points, max_rank)
 	# Slotted cards only for items that made the cut.
 	var slotted := {}
 	var worn := {}

@@ -78,6 +78,9 @@ func _go() -> void:
 			_failures += 1
 			continue
 		var dir := "%s/%s/%s" % [_abs(out_dir), sc["name"], policy_name]
+		if _args.has("skip-done") and _summary_rows("%s/summary.csv" % dir) >= int(job["runs"]):
+			printerr("[SIM] %s / %s: already done, skipped" % [sc["name"], policy_name])
+			continue
 		var summaries: Array = []
 		var t0 := Time.get_ticks_msec()
 		for i in range(int(job["runs"])):
@@ -144,3 +147,13 @@ static func _abs(path: String) -> String:
 	if path.is_absolute_path():
 		return path
 	return ProjectSettings.globalize_path("res://").path_join(path)
+
+## Data rows already in a summary.csv (0 when it does not exist), for --skip-done.
+static func _summary_rows(path: String) -> int:
+	if not FileAccess.file_exists(path):
+		return 0
+	var text := FileAccess.get_file_as_string(path)
+	var n := 0
+	for line in text.split("\n", false):
+		n += 1
+	return maxi(0, n - 1)

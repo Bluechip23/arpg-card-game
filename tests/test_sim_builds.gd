@@ -46,6 +46,27 @@ func _run() -> void:
 		var policy = load("res://tests/sim/policies/lookahead.gd").new()
 		var summary: Dictionary = await runner.run(sc, policy, 1)
 		_check(runner.warnings.is_empty(), "ryan/%s at 50 builds with no refusals: %s" % [build, str(runner.warnings)])
+	# focus= maxes one passive first and spreads the rest over the build's set.
+	var tree: Array = CharacterBuilds.tree_passives("ryan")
+	_check(tree.size() == 12 and tree.has("let's_dance") and tree.has("eye_scrape"), "ryan's tree offers 12 upgradeable passives (%s)" % str(tree))
+	var focused := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "shadow_blade", "level": 50, "focus": "let's_dance", "enemy": "WERERAT"}))
+	var ranks: Dictionary = focused["player"]["passives"]
+	var rank_total := 0
+	for k in ranks:
+		rank_total += int(ranks[k])
+	_check(int(ranks.get("let's_dance", 0)) == 15 and rank_total == 49, "focus at 50: let's_dance 15, all 49 points spent (%s)" % str(ranks))
+	var focused18 := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "bruiser", "focus": "quick_step", "enemy": "WERERAT"}))
+	ranks = focused18["player"]["passives"]
+	rank_total = 0
+	for k in ranks:
+		rank_total += int(ranks[k])
+	_check(int(ranks.get("quick_step", 0)) == 15 and rank_total == 17, "focus at 18: quick_step 15 + 2 spread (%s)" % str(ranks))
+	var focused_none := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "bruiser", "passives": "none", "level": 50, "focus": "pop_rocks", "enemy": "WERERAT"}))
+	ranks = focused_none["player"]["passives"]
+	rank_total = 0
+	for k in ranks:
+		rank_total += int(ranks[k])
+	_check(int(ranks.get("pop_rocks", 0)) == 15 and rank_total == 49 and ranks.size() == 12, "focus on an empty set spreads the rest over the other tree passives (%s)" % str(ranks))
 	# compose swaps components and keeps the rest.
 	var mixed := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "bruiser", "deck": "potions", "alloc": "int_wis", "sphere": "none", "passives": "apothecary", "enemy": "WERERAT"}))
 	_check(mixed["player"]["deck"] == RyanBuilds.DECKS["potions"], "compose swaps the deck")
