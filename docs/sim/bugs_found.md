@@ -17,6 +17,19 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   scaling was added and then reverted at the designer's request: the flat
   25 is the rule, the tooltip is the stale line.
 
+## Harness bugs found by the sweeps (fixed)
+
+- **Refused plays stalled fights.** The lookahead could keep choosing a
+  card the game refused (Heavy Swing without an all-offensive hand, Lead
+  Arrow without high ground); three refusals forced a wait, and the fight
+  idled to a timeout. The state now mirrors Heavy Swing's gate and drops
+  any refused play from the legal actions for the rest of the tempo. The
+  ranged ambusher's level-18 table was the visible casualty (0.83 → 1.00
+  against the Earth Mage, Large Bear and Bugbear after the fix).
+- **A picker could be answered twice in one frame.** A pressed picker
+  frees itself deferred, so the next pass of the prompt answerer in the
+  same frame found and pressed it again. Pickers are renamed once answered.
+
 ## Open (not changed)
 
 - **`tests/_build_sims.gd` spelled Ryan's passive `lets_dance`; the game's

@@ -100,11 +100,13 @@ and flash / brain spends):
 | spellslinger | 1.00 | 1.00 | 1.00 | 0.50 | 0.17 | 0.90 | 2.9 |
 | card_shark | 1.00 | 1.00 | 0.57 | 0.03 | 0.57 | 0.53 | 7.3 |
 | apothecary | 1.00 | 1.00 | 1.00 | 0.53 | 0.00 | 0.13 | 1.6 |
-| ranged_ambusher | 0.87 | 0.83 | 0.83 | 0.10 | 0.13 | 0.07 | 6.0 |
+| ranged_ambusher | 1.00 | 1.00 | 1.00 | 0.17 | 0.13 | 0.07 | 7.0 |
 | shadow_blade | 1.00 | 0.63 | 0.17 | 0.00 | 0.00 | 0.03 | 2.2 |
 
-The bruiser (Sword of Theseus, plate, 30 STR) is still the only build
-that beats the whole roster. Pricing the discard engine lifted the card
+(The ranged ambusher's row is from the re-run after the refused-play fix
+below; its earlier 0.83–0.87 against the first three were harness stalls,
+not losses.) The bruiser (Sword of Theseus, plate, 30 STR) is still the
+only build that beats the whole roster. Pricing the discard engine lifted the card
 shark from a 7 % to a 57 % Treant and from 0 to 53 % against the Ice
 Troll (its Bugbear damage per tempo is now 16.9, the highest number in
 the sweep), so the earlier card-shark reading was a policy floor, not the
@@ -353,6 +355,50 @@ Caveat: the recipes were ranked by the Large Bear pass of the single-card
 sweep; the full three-enemy pass (`ryan_card_swap.txt`, about 36,000
 fights) will re-rank them, and the generated deck changes with every card
 or build change by design.
+
+## Proposed rule: the invisibility draw
+
+The designer's proposal: *whenever the player enters invisibility they
+look at their top card and may choose to draw it; if they do, they must
+discard a separate card.* Implemented in the game (the buff manager
+reports the visible-to-invisible transition, main offers the choice and
+the discard picker) and in the lookahead (draw when the hand is short or
+holds a card worth less than a fresh one, discard the worst card). Then
+the quick-feedback loop: the same runs with the rule reverted and with it
+on, same seeds, same harness (`compare_runs.py`).
+
+| build | reached | verdict |
+|---|---|---|
+| shadow_blade | 53 of 190 runs | no significant change: win rate −1 pt, DPT +1.6 %, damage taken ±0 |
+| card_shark | 12 of 190 | no significant change (DPT +1.5 %) |
+| ranged_ambusher | 12 of 190 | no significant change (Poof and Weave from the Shadow Obi, 3 uses in 30 fights) |
+| apothecary | 9 of 190 | no significant change (damage taken −6 %, p = 0.35 on the Shadows swap) |
+| bruiser, spellslinger | 6 and 5 of 190 | no significant change |
+| shadow_blade at 50, Now You See Me / Eye Scrape maxed | 82 of 180 | no significant change (win rate +1 pt, DPT +1.8 %) |
+
+**Verdict: safe, and not enough.** The rule reaches every build that
+has an invisibility source, fires every time (the shadow blade's 11–12
+invisibilities a fight against the bear each became a look and usually a
+draw), and moves nothing by more than noise. The shadow blade's problem is
+that its cards deal under 10; a free look at the next one is another
+sub-10 card. Where the draw could matter — a deck whose cards are strong,
+like the bow build's — the build goes invisible three times in thirty
+fights. The rule is a fine quality-of-life rider and worth keeping for
+feel, but if the aim is to make invisibility *worth its tempo*, the
+payoff has to be damage or safety while invisible (the Shadow Obi's +5 is
+the only such rider today), or Now You See Me needs displacement sources
+to fire on. Both are things the single-card and passive sweeps can test
+the moment they exist.
+
+Two harness notes from this run, both fixed before the comparison above
+was taken: the first before/after showed the ranged ambusher +11 win
+points, which turned out to be the refused-play stall fix (the old
+runner let the lookahead re-pick a refused card, idling fights into
+timeouts; the ranged ambusher's deck has two such cards, Lead Arrow and
+Spirit Arrow) and not the rule — the clean before-snapshot was re-run
+with the rule reverted and only then compared. And the runner could
+answer one picker twice in a frame; it now renames a picker once
+answered.
 
 ## What each component is worth
 
