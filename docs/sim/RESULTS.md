@@ -80,3 +80,50 @@ The pipeline runs end to end (`combos.png`, `card_power.png`,
 Real answers to Q2 and Q3 need the full sweeps (3–9 h each serial, divide
 by shards) and, for utility-heavy cards, either harder enemies in
 `--enemies` or a lookahead term that prices the effect.
+
+# Ryan build directory — first mix-and-match readings
+
+Reduced runs (designed builds 30 seeds × 6 enemies; item × deck 10 seeds
+and passives 10 seeds × 3 enemies; allocation × sphere 5 seeds × 3
+enemies). Level 18, one mythic per set, lookahead policy. Charts:
+`sim_out/charts/ryan_*.png`, numbers in the CSVs beside them.
+
+## Designed builds vs the late-Act-1 roster
+
+| build | Bugbear | Earth Mage | Large Bear | Wyvern | Treant | Ice Troll |
+|---|---|---|---|---|---|---|
+| bruiser | 1.00 | 1.00 | 1.00 | 0.67 | 1.00 | 0.97 |
+| spellslinger | 1.00 | 1.00 | 1.00 | 0.70 | 0.13 | 0.47 |
+| apothecary | 1.00 | 1.00 | 1.00 | 0.67 | 0.00 | 0.00 |
+| ranged_ambusher | 0.83 | 0.83 | 0.87 | 0.10 | 0.13 | 0.03 |
+| card_shark | 1.00 | 0.93 | 0.33 | 0.10 | 0.07 | 0.00 |
+| shadow_blade | 0.93 | 1.00 | 0.10 | 0.00 | 0.00 | 0.00 |
+
+The bruiser (Sword of Theseus, plate, 30 STR) is the only build that
+beats the whole roster. The three DEX/AGI builds collapse against the
+Treant, Wyvern and Ice Troll, and the shadow blade already loses to the
+Large Bear. The apothecary and spellslinger win by outlasting (damage per
+tempo near 1) rather than killing.
+
+## What each component is worth
+
+- **Item set: the biggest lever.** Across every deck, swapping the gear
+  moves damage per tempo by 8.2 (bruiser 9.5 mean, apothecary 1.3); the
+  deck moves it by 2.9 (daggers 7.0 best, starter 5.0 worst). Decks are
+  mostly interchangeable within a gear set.
+- **Stat allocation: STR wins everywhere**, including the bow build with
+  Deadeye Form lit (ranged ambusher: 11.0 DPT on `str_det` against 6.8 on
+  its own `dex_agi`) and the card shark (8.2 vs 4.9). Nothing a DEX, AGI,
+  INT or WIS spread does for damage competes with 30 STR's +15 per hit.
+- **Sphere path: small.** Within an allocation the paths differ by ≤ 0.8
+  DPT; the only visible pairings are `deadeye` for `dex_agi` (+0.8) and
+  `bulwark` for `str_det` (+0.5).
+- **Passive sets: smaller still.** Swapping all seven passives moves a
+  build by at most 1.3 DPT (card shark: `none` 6.3, `relentless` 7.5).
+
+Two caveats before reading these as balance verdicts. The lookahead
+cannot price Ryan's trickier tools (invisibility, poison stacking,
+discard engines, flash spends), so the shadow, apothecary and card-shark
+kits are played more naively than a person would — their numbers are
+floors. And the sphere and passive readings come from 5–10 seeds; the
+full sweeps in `tests/sim/sweeps/ryan_*.txt` are the ones to trust.
