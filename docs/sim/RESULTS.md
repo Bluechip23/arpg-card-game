@@ -250,6 +250,62 @@ from the damage numbers:
   reliable trigger with a flat payoff beats every conditional passive in
   the tree at these deck sizes.
 
+## Every card, one at a time, on every build
+
+The single-card sweep: each of the 202 base-deck-legal cards swapped for
+the last card of each designed build's deck and spotlighted into the
+opening hand, level 18 against the Large Bear, 10 seeds a card, paired by
+seed against the designed run (`tests/sim/sweeps/ryan_card_swap.txt`, the
+Large Bear pass of it; per-build table in
+`sim_out/charts/ryan_card_swap.csv`). Cards are universal, so the pool is
+the game's own flags, no character filter.
+
+Median uplift in damage per tempo over the build's own deck, and the
+build's win rate change (the apothecary, bruiser, ranged ambusher and
+spellslinger already win 10 of 10 against the bear, so their win rate
+cannot rise):
+
+| card | mean DPT uplift | win rate | positive on | what it is |
+|---|---|---|---|---|
+| exhausted_assault | +7.0 (bruiser **+36**) | +10 pts | 6 of 6 | 4 damage × 3 hits, free at 0 mana |
+| consecutive_snap | +5.7 | +13 pts | 6 of 6 | 3 damage, sticky, +9 per reuse |
+| multishot | +5.1 | +8 pts | 6 of 6 | 7 damage × 3 hits, crit ramps |
+| vines | +1.3 | +5 pts | 4 of 6 | root 3 turns, 4 a turn |
+| mixed_bag, dagger_throw, thrown_stone, quick_arrow | +1.0 – +1.3 | +2 – +3 pts | 6 of 6 | cheap 1–2 tempo hits |
+| if_pigs_could_fly | +1.1 | 0 | 6 of 6 | 15 AOE for 0 tempo |
+| … 170 cards within ±0.5 … | | | | |
+| shadows | −0.7 | −3 pts | 1 of 6 | invisible 10 tempo for 4 tempo |
+| choke, armor_break | −0.9 / −1.0 | −3 / −5 pts | 0 of 6 | silence DoT / armor-only |
+| lead_arrow, spirit_arrow, sky_fall | −0.9 – −1.0 | — | 1 of 6 | needs high ground / line / lands in 10 tempo |
+| heavy_swing | −1.9 (bruiser −6.9) | — | 0 of 6 | 20 damage, all-offensive hand only |
+
+- **Multi-hit cards are the strongest cards in the game for every build,
+  and by a wide margin on the bruiser.** Exhausted Assault's three 4-damage
+  hits each carry the bruiser's full per-hit STR and sphere bonus, so the
+  "4 damage" card lands 133 in three tempo at 30 STR; Multishot and
+  Consecutive Snap work the same way. Flat per-hit bonuses times hit count
+  is the lever, not the cards' printed numbers. The same mechanism makes
+  the bow build's crits one-shot bosses at level 50.
+- **The card shark and shadow blade are the builds a card can rescue.**
+  Consecutive Snap, Multishot or Exhausted Assault in the opening hand turn
+  the card shark's 60 % against the bear into 100 %, and the shadow blade's
+  10 % into 50 %. Nothing else moves a win rate by more than a few points:
+  170 of 202 cards are within ±0.5 DPT of the card they replaced.
+- **Shadows is a net loss on every build but one**, even with the policy
+  pricing invisibility. Four tempo for ten invisible tempo against a bear
+  that mauls every four is two and a half hits avoided for the price of an
+  attack, and the shadow blade cannot use the window because its own
+  attacks do under 10. Invisibility needs a payoff while invisible (Shadow
+  Obi's +5 is the only one) to be worth its tempo.
+- **Cards that never fire on a flat arena**: Lead Arrow (needs high
+  ground) and Armor Break (nothing to break on most of the roster) are dead
+  draws; Sky Fall lands ten tempo later than the policy can plan for.
+- **Heavy Swing read as a 90-point loss before it read as a card**: its
+  all-offensive-hand gate was not mirrored in the harness, the lookahead
+  kept choosing it, and the fight idled out. The harness now mirrors the
+  gate and drops any refused play from the legal actions for the rest of
+  the tempo; the row above is the corrected one.
+
 ## What each component is worth
 
 - **Item set: the biggest lever.** Across every deck, swapping the gear
