@@ -320,10 +320,28 @@ python3 tools/sim_analysis/compare_runs.py sim_out/before sim_out/after --md sim
 `compare_runs.py` pairs every scenario × policy × seed present in both
 snapshots, prints the change in win rate, damage per tempo, damage taken
 and bars with a significance flag, and ends with one verdict line per
-build: "`ryan_apothecary` unchanged (…)" or "`ryan_shadow_blade` win rate
-+30 pts; damage taken −22 % — on LARGE_BEAR, WYVERN". Keep the `before`
-snapshot of every stored sweep you care about and the question "did that
-change to X fix build Y without moving build Q?" is one command.
+build. A real example (Belt of Wumbology +5 → +15 STR, Ryan's designed
+builds against the Bugbear, Large Bear and Treant, 30 seeds):
+
+```
+verdicts:
+  ryan_apothecary              untouched (the change never reached this build: 90 of 90 seed-runs identical)
+  ryan_bruiser                 touched but not significantly (90 of 90 seed-runs differed; DPT +8.6%, damage taken -1.5%, win rate +0 pts; more seeds to confirm)
+  ryan_card_shark              touched but not significantly (74 of 90 seed-runs differed; DPT +9.3%, damage taken -8.5%, win rate +4 pts; more seeds to confirm)
+  ryan_ranged_ambusher         untouched (the change never reached this build: 90 of 90 seed-runs identical)
+  ryan_shadow_blade            untouched (the change never reached this build: 90 of 90 seed-runs identical)
+  ryan_spellslinger            untouched (the change never reached this build: 90 of 90 seed-runs identical)
+```
+
+Three kinds of line: **untouched** (every seed byte-identical, so the
+change cannot reach that build), **touched but not significantly** (the
+runs moved, the effect is within noise at this seed count; the deltas say
+which way), and a significant one such as "`ryan_shadow_blade` win rate
++30 pts; damage taken −22 % — on LARGE_BEAR, WYVERN". An "untouched" line
+on a build that wears the item is itself a finding: that is how the
+Shadow Cowl's dead on-self bonus was caught (`bugs_found.md`). Keep the
+`before` snapshot of every stored sweep you care about and the question
+"did that change to X fix build Y without moving build Q?" is one command.
 
 ### What the policy prices for these builds
 

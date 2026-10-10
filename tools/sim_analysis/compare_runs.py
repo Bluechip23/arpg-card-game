@@ -92,8 +92,14 @@ def main():
     for build, g in df.groupby("build"):
         sig = g[(g["p_win"] < args.alpha) | (g["p_dpt"] < args.alpha) | (g["p_taken"] < args.alpha)]
         if sig.empty:
-            moved = g["changed_seeds"].sum()
-            lines.append("%-28s unchanged (no significant difference over %d scenario(s); %d of %d seed-runs differed at all)" % (build, len(g), moved, g["n"].sum()))
+            moved = int(g["changed_seeds"].sum()); total = int(g["n"].sum())
+            if moved == 0:
+                lines.append("%-28s untouched (the change never reached this build: %d of %d seed-runs identical)" % (build, total, total))
+            else:
+                ddpt = g["d_dpt"].sum() / max(0.1, g["dpt_before"].sum()) * 100
+                dtaken = g["d_taken"].sum() / max(1, g["taken_before"].sum()) * 100
+                lines.append("%-28s touched but not significantly (%d of %d seed-runs differed; DPT %+.1f%%, damage taken %+.1f%%, win rate %+.0f pts; more seeds to confirm)"
+                             % (build, moved, total, ddpt, dtaken, 100 * (g["d_win"] * g["n"]).sum() / total))
             continue
         dwin = sig["d_win"].mean(); ddpt = sig["d_dpt"].mean(); dtaken = sig["d_taken"].mean()
         verdict = []
