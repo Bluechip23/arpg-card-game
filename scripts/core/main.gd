@@ -2142,7 +2142,12 @@ func _on_battle_log_toggle() -> void:
 	else:
 		_battle_log_toggle_btn.text = "_ Log"
 
+## Every battle-log line, for anything that reads the fight without a UI
+## (the headless sim counts passive triggers from it).
+signal battle_logged(msg: String)
+
 func add_battle_log(msg: String, color: Color = Color(0.8, 0.8, 0.85)) -> void:
+	battle_logged.emit(msg)
 	if not battle_log_label:
 		return
 	var hex = color.to_html(false)

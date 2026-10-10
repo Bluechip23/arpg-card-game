@@ -31,14 +31,20 @@ func _go() -> void:
 	if _args.has("sweep"):
 		jobs = parse_sweep(str(_args["sweep"]))
 	elif _args.has("scenario"):
-		jobs.append({
+		# Any other --key=value (parts=, enemy=, level=, enemy_scale=, name=, ...)
+		# is the same override a sweep line would carry.
+		var job := {
 			"scenario": str(_args["scenario"]),
 			"policy": str(_args.get("policy", "")),
 			"seed": int(_args.get("seed", "1")),
 			"runs": int(_args.get("runs", "1")),
-		})
+		}
+		for k in _args:
+			if not job.has(k) and not k in ["out", "shard", "skip-done", "verbose"]:
+				job[k] = str(_args[k])
+		jobs.append(job)
 	else:
-		printerr("usage: --scenario=<path> [--seed=n] [--runs=k] [--policy=name] [--out=dir] | --sweep=<file>")
+		printerr("usage: --scenario=<path> [--seed=n] [--runs=k] [--policy=name] [--out=dir] [--parts=k:v,...] [--enemy=TYPE] [any sweep override] | --sweep=<file>")
 		quit(2)
 		return
 	# --shard=i/n: this process takes every n-th job starting at i (0-based),

@@ -350,6 +350,23 @@ Shadow Cowl's dead on-self bonus was caught (`bugs_found.md`). Keep the
 `before` snapshot of every stored sweep you care about and the question
 "did that change to X fix build Y without moving build Q?" is one command.
 
+### Did the passive fire at all?
+
+`summary.csv` carries `passive_triggers`: for every passive the player has
+ranks in, how many times it fired that run (`let's_dance:18|quick_step:0|…`),
+counted from the game's own battle log through `Main.battle_logged` (every
+tree passive logs itself as "Name: …"). A maxed passive at 0 across a
+sweep is the cue the designer asked for: the kit never gives it a chance
+(Quick Step with no instants in the deck, Now You See Me with no
+displacement), which is a different problem from "it fires and is weak".
+
+A single scenario takes the same overrides a sweep line does:
+
+```
+godot --headless --path . --script tests/sim/run_sim.gd -- --scenario=tests/sim/scenarios/build.gd \
+  --parts=character:ryan,build:shadow_blade,level:50,focus:let\'s_dance --enemy=LARGE_BEAR --enemy_scale=hp:2.5,dmg:2 --seed=1 --runs=3
+```
+
 ### What the policy prices for these builds
 
 The strategic policy (`lookahead`) values, from what a human sees:
