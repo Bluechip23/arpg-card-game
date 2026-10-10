@@ -2142,7 +2142,12 @@ func _on_battle_log_toggle() -> void:
 	else:
 		_battle_log_toggle_btn.text = "_ Log"
 
+## Every battle-log line, for anything that reads the fight without a UI
+## (the headless sim counts passive triggers from it).
+signal battle_logged(msg: String)
+
 func add_battle_log(msg: String, color: Color = Color(0.8, 0.8, 0.85)) -> void:
+	battle_logged.emit(msg)
 	if not battle_log_label:
 		return
 	var hex = color.to_html(false)
@@ -4228,6 +4233,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().marvolo_triggered.connect(_on_marvolo_triggered)
 	player.get_stats().shadow_form_ended.connect(_on_shadow_form_ended)
 	player.get_buff_manager().buff_applied.connect(_on_player_buff_applied_ring)
+	player.get_buff_manager().invisibility_entered.connect(_on_player_entered_invisibility)
 	player.get_debuff_manager().debuff_expired.connect(_on_player_debuff_expired)
 
 	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager, player.get_buff_manager(), player.get_debuff_manager())
@@ -8119,6 +8125,61 @@ func _ally_display_name(a) -> String:
 
 ## A small list-of-names picker: on_pick(index) with the chosen row. One
 ## option resolves at once.
+## Invisibility's draw (designer rule): whenever the player enters
+## invisibility they look at the top card of the draw pile and may draw it;
+## if they do, they must discard a separate card. With a full hand the
+## discard comes first so the draw can land; with no other card in hand
+## there is nothing separate to discard and the draw stands alone.
+func _on_player_entered_invisibility() -> void:
+	if deck_manager == null or deck_manager.draw_pile.is_empty():
+		return
+	if deck_manager.debuff_manager and deck_manager.debuff_manager.has_method("is_lost") and deck_manager.debuff_manager.is_lost():
+		return
+	var top: Card = deck_manager.draw_pile.back()
+	print("[MAIN] Invisibility draw offered: top card %s (hand %d/%d)" % [top.card_name, deck_manager.hand.size(), deck_manager.get_hand_cap()])
+	add_battle_log("Invisibility: the top card is %s" % top.card_name, Color(0.8, 0.4, 0.9))
+	_show_choice_picker("Invisibility: the top card is %s. Draw it? (then discard another card)" % top.card_name,
+		["Draw %s" % top.card_name, "Leave it"], func(i: int):
+			print("[MAIN] Invisibility draw: %s" % ("draw" if i == 0 else "leave it"))
+			if i == 0:
+				_invisibility_draw(top))
+
+func _invisibility_draw(top: Card) -> void:
+	var dm = deck_manager
+	if dm.hand.size() >= dm.get_hand_cap():
+		show_hand_card_picker("Invisibility: discard a card to draw %s" % top.card_name, func(c):
+			if c != null:
+				dm.discard_card_from_hand(c)
+				print("[MAIN] Invisibility draw: discarded %s (full hand)" % c.card_name)
+				add_battle_log("Invisibility: discarded %s" % c.card_name, Color(0.8, 0.4, 0.9))
+			_invisibility_finish_draw(top, null))
+	else:
+		_invisibility_finish_draw(top, top)
+
+func _invisibility_finish_draw(top: Card, then_discard_excluding: Card) -> void:
+	var dm = deck_manager
+	if dm.draw_pile.is_empty() or dm.draw_pile.back() != top:
+		return
+	var drawn: Card = dm.draw_card()
+	if drawn == null:
+		return
+	add_battle_log("Invisibility: drew %s" % drawn.card_name, Color(0.8, 0.4, 0.9))
+	dm.hand_updated.emit()
+	if then_discard_excluding == null:
+		return
+	var others := 0
+	for c in dm.hand:
+		if c != drawn:
+			others += 1
+	if others == 0:
+		return
+	show_hand_card_picker("Invisibility: discard a card (not %s)" % drawn.card_name, func(c):
+		if c != null:
+			dm.discard_card_from_hand(c)
+			print("[MAIN] Invisibility draw: discarded %s" % c.card_name)
+			add_battle_log("Invisibility: discarded %s" % c.card_name, Color(0.8, 0.4, 0.9))
+			dm.hand_updated.emit(), drawn)
+
 func _show_choice_picker(prompt: String, labels: Array, on_pick: Callable) -> void:
 	if labels.is_empty():
 		return

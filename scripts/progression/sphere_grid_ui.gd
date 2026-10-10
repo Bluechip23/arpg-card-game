@@ -1066,9 +1066,9 @@ func _get_stat_detail(label: String) -> String:
 	elif label.begins_with("INT"):
 		return "Intelligence: +spell damage, +mana regen"
 	elif label.begins_with("WIS"):
-		return "Wisdom: +hand size, faster card draw"
+		return "Wisdom: +1 Brain point per point (Peek / Insight draws), +1 hand size per 10"
 	elif label.begins_with("AGI"):
-		return "Agility: +movement per tempo cycle"
+		return "Agility: +1 Flash point per point (tempo-free tiles, sidestep block, attack-speed ticks)"
 	elif label.begins_with("DET"):
 		return "Determination: stats scale with missing HP"
 	elif label.begins_with("HP"):
