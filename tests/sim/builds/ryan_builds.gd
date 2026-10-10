@@ -60,6 +60,22 @@ const DECK_RECIPES := {
 	"top_twelve": {"shape": {"OFFENSIVE": 6, "DEFENSE": 3, "UTILITY": 3}},
 }
 
+## Tactics: overlays any build can take — a few cards into the deck's tail,
+## an item into its slot, ranks into the passives — so a play style is
+## measured on every build, not only the archetype that carries it.
+const TACTICS := {
+	"invisibility": {"deck": ["shadows", "shadows", "blink"], "items": [["shadow_obi", 1]],
+		"passives": {"now_you_see_me": 4, "eye_scrape": 2}, "slotted": {"shadow_obi": ["shuriken", "poke"]}},
+	"poison": {"deck": ["poison_bomb", "poison_bomb", "hemotoxins"], "items": [["alchemeist_belt", 1]],
+		"passives": {"pop_rocks": 4, "mad_scientist": 2}, "slotted": {"alchemeist_belt": ["poison_bomb", "poisoned_blood"]}},
+	"discard": {"deck": ["discard", "volatile_mixture", "volatile_mixture"],
+		"passives": {"keep_them_guessing": 4, "ladder_work": 2}},
+	"mobility": {"deck": ["blink", "reposition", "bob_and_weave"], "items": [["houdinis_slippers", 0]],
+		"passives": {"quick_step": 2, "let's_dance": 4}, "slotted": {"houdinis_slippers": ["blink"]}},
+	"burst": {"deck": ["exhausted_assault", "multishot", "consecutive_snap"],
+		"passives": {"surprise_opener": 4}},
+}
+
 ## Cards engraved into an item set's slots, by item id. Slot labels are the
 ## game's (a helm takes Crown cards, a belt Pocket, boots Swift, gauntlets
 ## Fist, a sword Sword cards, a dagger Dagger, a shield Buckler, a chest

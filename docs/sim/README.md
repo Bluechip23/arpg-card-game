@@ -375,6 +375,22 @@ parts use it:
   recipe on every designed build; the matrix compares each against the
   build's own hand-written deck.
 
+### Tactics: a play style on every build
+
+A tactic is an overlay any build can take, because invisibility, poison,
+discarding, mobility or burst are things a player bolts onto an archer or
+a bruiser as readily as onto the archetype that carries them. `TACTICS`
+in a character's library holds each one as a few cards into the deck's
+tail (copy caps respected), an item into its slot (replacing the same
+type and slot unless already worn), passive weights joining the spread,
+and engravings for the item. `tactic:<name>` applies one;
+`<char>_tactics.txt` plays every tactic on every designed build and the
+matrix prints the win-rate and DPT change against each build's own
+loadout. Ryan's five: `invisibility` (Shadows ×2, Blink, Shadow Obi, Now
+You See Me and Eye Scrape), `poison`, `discard`, `mobility`, `burst`.
+A rule change aimed at one of these is measured on build × tactic, not
+on the one archetype.
+
 ### Prompts the policy answers
 
 Some rules ask the player a question mid-fight; the runner finds the

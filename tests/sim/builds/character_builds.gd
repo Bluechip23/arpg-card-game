@@ -38,7 +38,22 @@ static func components(character: String) -> Dictionary:
 		"sphere": lib.SPHERES.keys(), "passives": lib.PASSIVES.keys(), "designed": lib.DESIGNED.keys(),
 		"designed_parts": lib.DESIGNED, "default_enemy": lib.DEFAULT_ENEMY,
 		"tree_passives": tree_passives(character),
-		"recipes": recipes(character).keys(), "card_pool": SimDeckBuilder.legal_ids()}
+		"recipes": recipes(character).keys(), "card_pool": SimDeckBuilder.legal_ids(),
+		"tactics": tactics(character).keys()}
+
+## The library's TACTICS (overlays any build can take), {} when it has none.
+static func tactics(character: String) -> Dictionary:
+	var lib := library(character)
+	if lib == null:
+		return {}
+	return lib.get_script_constant_map().get("TACTICS", {})
+
+static func _item_type(id: String) -> int:
+	var script: Script = ItemData
+	if not SimScenario.script_has(script, "create_%s" % id):
+		return -1
+	var it = script.call("create_%s" % id)
+	return int(it.item_type) if it is ItemData else -1
 
 ## The library's DECK_RECIPES (shape-described decks), {} when it has none.
 static func recipes(character: String) -> Dictionary:
@@ -150,10 +165,43 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 	var items_name: String = base["items"]
 	var slot_name: String = str(parts.get("slotted", items_name))
 	var enemy := str(parts.get("enemy", lib.DEFAULT_ENEMY))
+	# A tactic overlays the build: its items replace the same-type, same-slot
+	# entries (unless already worn), its passive weights join the set, its
+	# cards replace the deck's tail, its engravings join the slotted map.
+	var entries: Array = (lib.ITEM_SETS[items_name] as Array).duplicate(true)
+	var passive_weights: Dictionary = (lib.PASSIVES[base["passives"]] as Dictionary).duplicate()
+	var tactic: Dictionary = {}
+	if parts.has("tactic") and str(parts["tactic"]) != "":
+		tactic = tactics(character).get(str(parts["tactic"]), {})
+		if tactic.is_empty():
+			push_error("[SIM] %s has no tactic '%s'" % [character, str(parts["tactic"])])
+		else:
+			base["tactic"] = str(parts["tactic"])
+			for ti in tactic.get("items", []):
+				var tid := str(ti[0])
+				var tslot: int = int(ti[1]) if ti.size() > 1 else 0
+				var worn := false
+				for e in entries:
+					if str(e[0]) == tid or (e.size() > 2 and str(e[2]) == tid):
+						worn = true
+				if worn:
+					continue
+				var ttype := _item_type(tid)
+				var replaced := false
+				for i in range(entries.size()):
+					var e: Array = entries[i]
+					if _item_type(str(e[0])) == ttype and (int(e[1]) if e.size() > 1 else 0) == tslot:
+						entries[i] = [tid, tslot]
+						replaced = true
+						break
+				if not replaced:
+					entries.append([tid, tslot])
+			for pid in tactic.get("passives", {}):
+				passive_weights[pid] = float(passive_weights.get(pid, 0)) + float(tactic["passives"][pid])
 	var mythics := {}
-	for e in lib.ITEM_SETS[items_name]:
+	for e in entries:
 		mythics[str(e[0])] = is_mythic(str(e[0]))
-	var fitted := fit_items(lib.ITEM_SETS[items_name], level, mythics)
+	var fitted := fit_items(entries, level, mythics)
 	var max_rank: int = PlayerStats.PASSIVE_MAX_LEVEL
 	var alloc := spread(lib.ALLOCS[base["alloc"]], (level - 1) * STAT_POINTS_PER_LEVEL)
 	var passive_points: int = (level - 1) * PASSIVE_POINTS_PER_LEVEL
@@ -166,16 +214,16 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 		base["focus"] = focus
 		ranks = {focus: mini(passive_points, max_rank)}
 		var rest := {}
-		for k in lib.PASSIVES[base["passives"]]:
+		for k in passive_weights:
 			if str(k) != focus:
-				rest[k] = lib.PASSIVES[base["passives"]][k]
+				rest[k] = passive_weights[k]
 		if rest.is_empty():
 			for k in tree_passives(character):
 				if str(k) != focus:
 					rest[k] = 1
 		ranks.merge(spread(rest, passive_points - ranks[focus], max_rank))
 	else:
-		ranks = spread(lib.PASSIVES[base["passives"]], passive_points, max_rank)
+		ranks = spread(passive_weights, passive_points, max_rank)
 	# Slotted cards only for items that made the cut.
 	var slotted := {}
 	var worn := {}
@@ -184,6 +232,9 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 	for item_id in lib.SLOTTED.get(slot_name, {}):
 		if worn.has(item_id):
 			slotted[item_id] = (lib.SLOTTED[slot_name][item_id] as Array).duplicate()
+	for item_id in tactic.get("slotted", {}):
+		if worn.has(item_id) and not slotted.has(item_id):
+			slotted[item_id] = (tactic["slotted"][item_id] as Array).duplicate()
 	# The deck: the build's list, a recipe generated from the pool, and/or
 	# one pool card swapped in for the list's last card and spotlighted into
 	# the opening hand (the single-card sweep).
@@ -204,6 +255,23 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 						engraved_mythics += 1
 			deck = SimDeckBuilder.generate(rec, character, build_name, level, maxi(0, int(level / LEVELS_PER_MYTHIC) - engraved_mythics))
 			base["recipe"] = rname
+	if not tactic.is_empty():
+		# Copy caps count the deck and the engravings; a tactic card that
+		# would exceed its cap leaves the original tail card in place.
+		var tcards: Array = tactic.get("deck", [])
+		for i in range(tcards.size()):
+			var cid := str(tcards[i])
+			var have := deck.count(cid)
+			for item_id in slotted:
+				have += (slotted[item_id] as Array).count(cid)
+			var cap: int = Card.max_deck_copies(cid)
+			var at: int = deck.size() - tcards.size() + i
+			if cap >= 0 and have >= cap:
+				continue
+			if at >= 0 and at < deck.size():
+				deck[at] = cid
+			else:
+				deck.append(cid)
 	if parts.has("swap") and str(parts["swap"]) != "":
 		var card := str(parts["swap"])
 		if not deck.is_empty():

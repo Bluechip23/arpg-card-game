@@ -88,6 +88,18 @@ func _run() -> void:
 		_check(rsum["outcome"] != "error" and runner.warnings.is_empty(), "recipe %s builds and runs with no refusals: %s" % [rname, str(runner.warnings)])
 	var sw := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "bruiser", "swap": "poison_bomb", "enemy": "WERERAT"}))
 	_check(sw["player"]["deck"].back() == "poison_bomb" and sw["player"]["opening_hand"] == ["poison_bomb"] and sw["player"]["deck"].size() == 12, "swap= replaces the last deck card and spotlights it (%s)" % str(sw["player"]["deck"]))
+	# Tactics overlay any build.
+	var tac := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "bruiser", "tactic": "invisibility", "enemy": "WERERAT"}))
+	var tac_items: Array = []
+	for it in tac["player"]["items"]:
+		tac_items.append(str(it[0]))
+	_check(tac["player"]["deck"].slice(-3) == ["shadows", "shadows", "blink"] and tac["player"]["deck"].size() == 12, "a tactic's cards replace the deck's tail (%s)" % str(tac["player"]["deck"]))
+	_check("shadow_obi" in tac_items and not "belt_of_wumbology" in tac_items and tac_items.size() == 10, "a tactic's item takes the same-type, same-slot entry (%s)" % str(tac_items))
+	_check(int(tac["player"]["passives"].get("now_you_see_me", 0)) > 0, "a tactic's passive weights join the spread (%s)" % str(tac["player"]["passives"]))
+	for tname in CharacterBuilds.tactics("ryan"):
+		var ts := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "spellslinger", "tactic": tname, "enemy": "WERERAT"}))
+		var tsum: Dictionary = await runner.run(ts, load("res://tests/sim/policies/greedy_dpt.gd").new(), 1)
+		_check(tsum["outcome"] != "error" and runner.warnings.is_empty(), "tactic %s builds and runs with no refusals: %s" % [tname, str(runner.warnings)])
 	# compose swaps components and keeps the rest.
 	var mixed := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "bruiser", "deck": "potions", "alloc": "int_wis", "sphere": "none", "passives": "apothecary", "enemy": "WERERAT"}))
 	_check(mixed["player"]["deck"] == RyanBuilds.DECKS["potions"], "compose swaps the deck")

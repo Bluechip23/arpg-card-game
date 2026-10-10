@@ -14,6 +14,7 @@ Sweeps (run with tests/sim/run_sim.gd --sweep=<file> or run_sweep.sh):
   <char>_passive_focus.txt  every tree passive maxed (rank 15) on each designed build, the rest spread
   <char>_card_swap.txt      every pool card swapped into each designed build's deck (last card out, the card spotlighted into the opening hand)
   <char>_recipes.txt        every deck recipe generated on each designed build
+  <char>_tactics.txt        every tactic overlay (invisibility, poison, ...) on each designed build
 Every job runs through tests/sim/scenarios/build.gd with parts=...; the
 sweep file is <char>_<kind>[_L<level>].txt (level 18 untagged); scenario folder is <char>_<build>_e_<ENEMY>[__L_<level>][__k_<component>...]
 so build_matrix.py can pivot on any component.
@@ -108,6 +109,13 @@ def main():
             for e in enemies:
                 lines.append(job(b, e, {"recipe": r}, "__r_%s" % r))
     write("%s_recipes.txt" % char, lines, "%s deck recipes generated from the pool on each designed build" % char)
+
+    lines = []
+    for b in designed:
+        for t in comp.get("tactics", []):
+            for e in enemies:
+                lines.append(job(b, e, {"tactic": t}, "__t_%s" % t))
+    write("%s_tactics.txt" % char, lines, "%s tactic overlays on each designed build" % char)
 
 
 if __name__ == "__main__":
