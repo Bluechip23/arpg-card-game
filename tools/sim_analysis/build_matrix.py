@@ -134,22 +134,23 @@ def main():
                     return float(v)
             return float("nan")
         m = m.copy(); m["fired"] = m.apply(fired, axis=1) if "passive_triggers" in m.columns else float("nan")
-        g = m.groupby(["build", "e", "f"]).agg(win_rate=("win", "mean"), dpt=("damage_per_tempo", "mean"), taken=("total_damage_taken", "mean"), fired=("fired", "mean")).reset_index()
+        g = m.groupby(["build", "e", "f"]).agg(win_rate=("win", "mean"), dpt=("damage_per_tempo", "mean"), dpt_median=("damage_per_tempo", "median"), taken=("total_damage_taken", "mean"), fired=("fired", "mean")).reset_index()
         base = df[df["f"].isna() & df["p"].isna() & df["i"].isna() & df["d"].isna() & df["a"].isna() & df["s"].isna()]
         if not base.empty:
-            b = base.groupby(["build", "e"]).agg(dpt0=("damage_per_tempo", "mean"), win0=("win", "mean")).reset_index()
+            b = base.groupby(["build", "e"]).agg(dpt0=("damage_per_tempo", "mean"), dpt0_median=("damage_per_tempo", "median"), win0=("win", "mean")).reset_index()
             g = g.merge(b, on=["build", "e"], how="left")
-            g["d_dpt"] = g["dpt"] - g["dpt0"]; g["d_win"] = g["win_rate"] - g["win0"]
+            g["d_dpt"] = g["dpt"] - g["dpt0"]; g["d_dpt_median"] = g["dpt_median"] - g["dpt0_median"]; g["d_win"] = g["win_rate"] - g["win0"]
         g.to_csv(simlib.CHARTS + "/%s_passive_focus.csv" % tag, index=False)
-        per = g.groupby(["build", "f"]).agg(dpt=("dpt", "mean"), win_rate=("win_rate", "mean")).reset_index()
+        per = g.groupby(["build", "f"]).agg(dpt=("dpt", "mean"), dpt_median=("dpt_median", "mean"), win_rate=("win_rate", "mean")).reset_index()
         piv = per.pivot(index="build", columns="f", values="dpt")
-        print("\nbuild x maxed passive — damage per tempo:\n", piv.round(2).to_string())
+        print("\nbuild x maxed passive — damage per tempo (mean; one-shot seeds inflate it, see the median table):\n", piv.round(2).to_string())
+        print("\nbuild x maxed passive — damage per tempo (median per enemy, averaged):\n", per.pivot(index="build", columns="f", values="dpt_median").round(2).to_string())
         heatmap(piv, "%s build (rows) x maxed passive (columns) — damage per tempo" % char, "%s_passive_focus_dpt.png" % tag)
         wpiv = per.pivot(index="build", columns="f", values="win_rate")
         print("\nbuild x maxed passive — win rate:\n", wpiv.round(2).to_string())
         heatmap(wpiv, "%s build (rows) x maxed passive (columns) — win rate" % char, "%s_passive_focus_win.png" % tag)
         if "d_dpt" in g:
-            up = g.groupby("f").agg(d_dpt=("d_dpt", "mean"), d_win=("d_win", "mean"), fired_per_fight=("fired", "mean")).sort_values("d_dpt", ascending=False)
+            up = g.groupby("f").agg(d_dpt=("d_dpt", "mean"), d_dpt_median=("d_dpt_median", "mean"), d_win=("d_win", "mean"), fired_per_fight=("fired", "mean")).sort_values("d_dpt_median", ascending=False)
             print("\nmaxed passive — mean uplift over the designed build (DPT, win rate) and how often it fired per fight (NaN = runs predate the trigger column):\n", up.round(3).to_string())
         fp = g.pivot_table(index="build", columns="f", values="fired", aggfunc="mean")
         if not fp.empty and fp.notna().any().any():
