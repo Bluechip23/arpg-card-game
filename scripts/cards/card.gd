@@ -7716,7 +7716,7 @@ static func create_switch_kick() -> Card:
 	var card = Card.new()
 	card.card_id = "switch_kick"
 	card.card_name = "Switch Kick"
-	card.description = "Deal 2 damage and disarm the enemy for 1 attack."
+	card.description = "Deal 2 damage and Disarm the enemy for 5 tempo (it skips its next attack)."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 2
@@ -8708,7 +8708,7 @@ static func create_song_of_a_swords_sing() -> Card:
 	var card = Card.new()
 	card.card_id = "song_of_a_swords_sing"
 	card.card_name = "Song of a Swords Sing"
-	card.description = "Disarm the enemy for 1 attack and gain 2 armor for every KIND of debuff on it (3 burn is one kind; burn + frost + disarm is three)."
+	card.description = "Disarm the enemy for 5 tempo (it skips its next attack) and gain 2 armor for every KIND of debuff on it (3 burn is one kind; burn + frost + disarm is three)."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 35

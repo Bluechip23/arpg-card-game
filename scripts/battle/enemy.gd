@@ -168,23 +168,34 @@ var armor_break_incoming: bool = false
 # Status effects applied by player cards (duration in tempo cycles, 1 cycle = 5 global tempo)
 var taunt_target: Node3D = null
 var taunt_tempo: int = 0       # Remaining tempo cycles for taunt
-# Mad Scientist (Defense→Poison): physical defense lowered by this % for a
-# few tempo — physical hits land that much harder while it lasts.
-var phys_defense_debuff_percent: float = 0.0
-var phys_defense_debuff_tempo: int = 0
+# Lowered Physical Defense (Mad Scientist, Defense→Poison): grouped stacks.
+# Each application is its own group {percent, stacks, clock}; a group sheds
+# one stack per STACK_TEMPO on its own clock, and the reduction in force is
+# the HIGHEST percent among the groups that still hold a stack (the sheet's
+# example: 4 stacks at 10% + 2 at 50% → 50% until those two run out, then 10%
+# for what the first group has left).
+var phys_defense_groups: Array = []
+# The sheet's "a stack is 5 tempo": every stack-clocked status below sheds one
+# stack per STACK_TEMPO of its OWN raw-tempo clock, never by use.
+const STACK_TEMPO := 5
 var attack_reduction: int = 0
-var wear_down_tempo: int = 0   # Remaining tempo cycles for wear down
-# Slowed (enemy version): each MOVEMENT ACTION costs extra tempo
-# (+Debuff.SLOWED_TEMPO_PER_TILE - 1) and burns one stack, regardless of how
-# many tiles the action covers — unlike the player, who pays per tile.
-# Stacks accumulate freely (Sword of Theseus ramps them) — no timed expiry.
+# Wear Down (enemy side): the player's hits under Wear Down raise
+# attack_reduction; the reduction holds for this many enemy ATTACKS (the
+# sheet: 2), refreshed by every hit, spent by every swing.
+var wear_down_attacks: int = 0
+const WEAR_DOWN_ATTACKS := 2
+# Slowed (enemy version): while any stack remains, each MOVEMENT ACTION costs
+# extra tempo (+Debuff.SLOWED_TEMPO_PER_TILE - 1) regardless of how many tiles
+# it covers — unlike the player, who pays per tile. Stacks fall on their own
+# clock (one per STACK_TEMPO); moving never burns them.
 var slow_stacks: int = 0
+var slow_clock: int = 0
 # Cursed (matches the player's): deals 20% less damage and takes 20% of the
 # damage it deals as self-damage — both boosted by the player's Curse Amp /
-# Curse Pain sphere nodes. Counts in raw tempo.
+# Curse Pain sphere nodes. Counts in raw tempo; applications add up.
 var cursed_tempo: int = 0
 var is_disarmed: bool = false   # Cannot attack when disarmed
-var disarmed_tempo: int = 0    # Remaining tempo cycles for disarm
+var disarmed_tempo: int = 0    # Remaining raw tempo of disarm; applications add up
 var is_marked: bool = false    # Takes extra damage from player attacks
 var marked_tempo: int = 0      # Remaining tempo for mark
 const MARKED_BONUS_PERCENT := 15  # Mark: the player's attacks deal +15% to a marked target
@@ -192,7 +203,8 @@ var is_silenced: bool = false  # Cannot cast spells/ranged special attacks when 
 var silenced_tempo: int = 0    # Remaining tempo cycles for silence
 var choke_dot_stacks: int = 0  # Choke: take choke_dot_damage per cycle, lose 1 stack per cycle
 var choke_dot_damage: int = 3  # Set at cast: half the caster's auto-attack damage
-var cold_stacks: int = 0       # Cold stacks - at 5, becomes frozen
+var cold_stacks: int = 0       # Cold stacks - at 5, becomes frozen; thaws COLD_THAW_PER_CYCLE per cycle
+const COLD_THAW_PER_CYCLE := 3
 var is_frozen: bool = false    # Cannot act when frozen
 var frozen_tempo: int = 0      # Remaining tempo for frozen
 var is_stunned: bool = false   # Cannot act when stunned
@@ -202,14 +214,22 @@ var burn_damage_next: int = 1  # Burn damage doubles each cycle (1, 2, 4, 8...)
 var cold_damage_next: int = 1  # Element Pollination: Cold's doubling tick while the Weaver maintain is up
 var polymorph_tempo: int = 0   # Polymorph (Circe's Wand): cycles left as a pig — walk and basic melee only
 var poison_stacks: int = 0     # Poison: take X damage per cycle, lose 1 per cycle
-var shock_stacks: int = 0      # Shock: take X damage per cycle, lose 1 per cycle
+var shock_stacks: int = 0      # Shock: take X damage per cycle AND arc X to the nearest enemy within 2 squares, lose 1 per cycle
+const SHOCK_ARC_RANGE := 2
 var bleed_stacks: int = 0      # Bleed: 1 damage per tile moved; each damage removes a stack
-var vulnerable_stacks: int = 0   # Vulnerable: next hit from the player deals +30%; 1 stack consumed per hit
-var weaken_stacks: int = 0       # Weaken: this enemy deals -30% damage; 1 stack consumed per attack
-var rooted_tempo: int = 0        # Rooted (Gravity Gauntlets): cannot move, can still attack/cast
+var vulnerable_stacks: int = 0   # Vulnerable: every player hit lands +30% while a stack remains; stacks fall on their own clock
+var vulnerable_clock: int = 0
+var weaken_stacks: int = 0       # Weaken: deals -30% damage while a stack remains; stacks fall on their own clock
+var weaken_clock: int = 0
+var rooted_tempo: int = 0        # Rooted (Gravity Gauntlets): cannot move, can still attack/cast; applications add up
 var tripped_tempo: int = 0       # Tripped (Trip): move actions cover TRIP_MOVE_PENALTY fewer tiles
 const TRIP_MOVE_PENALTY := 4
-var disarmed_attacks: int = 0    # Disarm-for-N-attacks (Switch Kick): skip that many attack actions
+# sheet: "Disarm — skips its next attack for 5 tempo per stack". The old
+# attack-skip counter is gone: a "disarm_attacks" application now adds
+# DISARM_TEMPO_PER_STACK tempo of ordinary Disarm per stack. The field stays
+# (always 0) so Misery / Release Tension / count_debuff_kinds keep reading.
+var disarmed_attacks: int = 0
+const DISARM_TEMPO_PER_STACK := 5
 var narashimha_tempo: int = 0    # Narashimha (Mane of Narashimha): cycles the heal cap holds for
 var narashimha_heal_cap: int = -1  # health ceiling while active — the NMnB damage cannot be healed back (-1 = unset)
 # Ranged pass (Cupids Bow / Bow of Arash)
@@ -2087,7 +2107,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.COYOTE: "Fragile nuisance.\nNip (4 tempo): 2 damage.\nMove (3 tempo): 4 spaces.",
 		EnemyType.BUGBEAR: "First Strike: if it hits you before you have hit it, +8 damage.\nStrike (5 tempo): 6 damage.\nMove (4 tempo): 6 spaces.",
 		EnemyType.INFECTED_HUNTER: "Hook (range 2-7, 8 tempo): reels you in beside it. The first hook is ready at once; after each one it takes 8 tempo to recharge.\nCleave (3 tempo): 8 damage to everything on the three squares in front of it.\nNet Throw (2 tempo, within 3 squares, 8-tempo cooldown): Weighted for every card in your hand — each card costs +2 tempo until that many have been played.\nMove (3 tempo): 2 spaces.",
-		EnemyType.GIANT_HAWK: "Flying — ignores your high-ground bonus.\nSwoop (4 tempo, reach 2): 9 damage, 20% to Blind for 5 tempo.\nMove (3 tempo): 8 spaces.",
+		EnemyType.GIANT_HAWK: "Flying — ignores your high-ground bonus.\nSwoop (4 tempo, reach 2): 9 damage, 20% to Blind (1 stack, 5 tempo).\nMove (3 tempo): 8 spaces.",
 		EnemyType.TREANT: "Heals 5 HP every 5 tempo, +2 per 10% HP below 60%. Every 10 tempo, strips all thorns from its enemies and heals for the total. Resists 25% physical / 55% lightning, but takes 10% EXTRA fire damage.\nSlam (10 tempo): 14 earth damage.\nRoot (8 tempo): pins you for 8 tempo (can attack, cannot move).\nHeal (5 tempo): when badly hurt and out of melee, it stops to mend.\nMove (10 tempo): 9 spaces.",
 		EnemyType.ICE_MAGE: "Attacks Slow your movement.\nFrost Bolt (range 3, 3 tempo): 6 ice damage + Slow.\nMove (5 tempo): 3 spaces.",
 		EnemyType.FIRE_MAGE: "Attacks apply 2 Burn.\nFire Bolt (range 2, 3 tempo): 7 fire damage + 2 Burn.\nMove (3 tempo): 2 spaces.",
@@ -2109,10 +2129,10 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WEREGOAT: "Minotaur-built: human torso and arms, goat head and goat hind legs.\nHoof Punch (4 tempo): 6 damage.\nCharge (8 tempo): runs up to 8 squares along the line that crosses the most of your units — 8 damage to everything in its path, and everything within 1 square of where it lands is Stunned for 3 tempo.\nMove (5 tempo): 2 spaces.",
 		EnemyType.WYVERN: "A large serpentine flier with talons and wings — no arms. Flying: ignores your high-ground bonus. Resists 25% physical / 35% fire / 25% lightning.\nBite (5 tempo): 25 damage.\nTalon Grab (8 tempo, then 2-cycle cooldown): flies above its target (reach 3), 25 damage, and drags them to an unoccupied space 8 squares away.\nMove (4 tempo): 6 spaces.",
 		EnemyType.ROC: "An enormous bird with huge talons and a white-checkered mane (15 armor). Flying: ignores your high-ground bonus. It always moves AWAY from you: it dives, then keeps its distance until the dive is ready again.\nDive Bomb (5 tempo, from up to 6 squares): 8 damage; the Roc lands beside you.\nEye Scrape (3 tempo, Async): if you have stayed in melee reach for more than 3 tempo it claws your eyes — 2 Weakened.\nMove away (1 tempo): 1 space.",
-		EnemyType.ICE_TROLL: "Bigger than the Armored Troll — taller, with massive hands and feet; no weapon. Every attack adds a stack of frost (Cold) AND Brittle. Resists 35% physical / 15% fire / 15% lightning.\nClub (4 tempo): 13 damage.\nClobber (auto): 50 damage — triggers instantly whenever an Ice Troll attack FREEZES its target.\nMove (3 tempo): 3 spaces.",
+		EnemyType.ICE_TROLL: "Bigger than the Armored Troll — taller, with massive hands and feet; no weapon. Every attack adds a stack of frost (Cold, 5 tempo) AND a stack of Brittle (5 tempo). Resists 35% physical / 15% fire / 15% lightning.\nClub (4 tempo): 13 damage.\nClobber (auto): 50 damage — triggers instantly whenever an Ice Troll attack FREEZES its target.\nMove (3 tempo): 3 spaces.",
 		EnemyType.SNOW_WRAITH: "A pale mountain spirit trailing tattered cloth (range 5).\nSnowball (8 tempo): Slowed for 3 tempo + 2 Cold.\nIce Blast (5 tempo): 5 ice damage, +3 if you have armor; Slowed for 3 tempo.\nMove (5 tempo): 3 spaces.",
 		EnemyType.GRANITE_COLOSSUS: "A huge rigid figure of mountain stone that emerges from the rock face — hard to spot before it moves. 350 health under 250 armor; resists 65% physical / 50% fire / 50% lightning.\nMove (5 tempo): 3 spaces.\n[Its attacks are still TBD on the design sheet — it only stands.]",
-		EnemyType.WHITE_MANTICORE: "A manticore with a snow-leopard body, bat wings and a spiked tail. Flying: ignores your high-ground bonus. Resists 10% physical / 35% fire / 10% lightning.\nBite (3 tempo): 15 damage.\nStinger (5 tempo, then 5-tempo cooldown): 25 damage + Clumsy for 3 cycles (15 tempo) + 8 Poison.\nMove (2 tempo): 3 spaces.",
+		EnemyType.WHITE_MANTICORE: "A manticore with a snow-leopard body, bat wings and a spiked tail. Flying: ignores your high-ground bonus. Resists 10% physical / 35% fire / 10% lightning.\nBite (3 tempo): 15 damage.\nStinger (5 tempo, then 5-tempo cooldown): 25 damage + 3 Clumsy (3 stacks of 5 tempo = 3 cycles) + 8 Poison.\nMove (2 tempo): 3 spaces.",
 		EnemyType.SABERTOOTH: "A sabertooth tiger. 35% to crit: a crit deals 1.5x and inflicts 6 Bleed.\nTrack (10 tempo, Async): marks the nearest of your units — +15 Strengthen against it, and the tiger must hunt it.\nBite and Claw (5 tempo): bites for 6, then claws for 3 — two separate attacks (each rolls its own crit and spends its own Strengthen).\nSunken Bite (15 tempo, Async): 10 damage + 8 Bleed.\nMove (2 tempo): 2 spaces.",
 		# --- Underworld ---
 		EnemyType.CERBERUS: "Three-headed hound with spiked collars and a chain on the left head: the guardian of Hell's Door. Resists 30% physical / 40% fire / 15% lightning. You need not kill him — only break the door he guards — but it is far easier with him dead.\nBite (5 tempo, Async): 25 damage. Below 66% health the second head bites too (25 + 5 Bleed); below 33% the third head as well (25, and he feeds on the wound). A bite that comes up out of reach is spent.\nSwipe (8 tempo): 8 Bleed.\nVenom Tail (15 tempo, Async): you discard 3 random cards and are stunned for 15 tempo; the moment the stun is gone, 2 Vulnerable and Cuffed for 10 tempo.\nRoar (12 tempo): +25 armor and 25 thorns.\nMove (3 tempo): 6 spaces.\nGuardian of Death: Brace 30% for 5 hits the first time he drops below half, and again EVERY time any unit within 8 squares — foe or ally, the door included — drops below half.\nDeathyard Dog: a foe healing within 5 squares gives him 15 Strengthen.",
@@ -2551,23 +2571,41 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 func _tick_timed_statuses(amount: int) -> void:
 	if amount <= 0:
 		return
-	var any := taunt_tempo > 0 or fear_tempo > 0 or wear_down_tempo > 0 \
+	var any := taunt_tempo > 0 or fear_tempo > 0 \
 		or disarmed_tempo > 0 or marked_tempo > 0 or silenced_tempo > 0 \
 		or frozen_tempo > 0 or stun_tempo > 0 \
 		or rooted_tempo > 0 or narashimha_tempo > 0 or cursed_tempo > 0 \
-		or phys_defense_debuff_tempo > 0 or hidden_tempo > 0 or _screecher_visible_tempo > 0
+		or not phys_defense_groups.is_empty() or hidden_tempo > 0 or _screecher_visible_tempo > 0 \
+		or slow_stacks > 0 or vulnerable_stacks > 0 or weaken_stacks > 0
 	if not any:
 		return
 
 	# Hidden (Specter, Cherub) and the Screecher's window of visibility.
 	_tick_hidden(amount)
 
-	if phys_defense_debuff_tempo > 0:
-		phys_defense_debuff_tempo -= amount
-		if phys_defense_debuff_tempo <= 0:
-			phys_defense_debuff_tempo = 0
-			phys_defense_debuff_percent = 0.0
-			print("[%s] Lowered physical defense expired" % enemy_name)
+	# sheet: "a stack is 5 tempo" — Slow, Vulnerable and Weaken each run their
+	# own raw-tempo clock and shed one stack per STACK_TEMPO. Nothing the enemy
+	# or the player does burns them; only the clock.
+	slow_clock = _tick_stack_clock("slow", "slow_stacks", slow_clock, amount)
+	vulnerable_clock = _tick_stack_clock("vulnerable", "vulnerable_stacks", vulnerable_clock, amount)
+	weaken_clock = _tick_stack_clock("weaken", "weaken_stacks", weaken_clock, amount)
+
+	# Lowered physical defense: every group counts its own clock; a group with
+	# no stacks left drops out, and the strongest survivor sets the reduction.
+	if not phys_defense_groups.is_empty():
+		var before: float = get_phys_defense_debuff_percent()
+		for g in phys_defense_groups:
+			g["clock"] = int(g["clock"]) + amount
+			while int(g["clock"]) >= STACK_TEMPO and int(g["stacks"]) > 0:
+				g["clock"] = int(g["clock"]) - STACK_TEMPO
+				g["stacks"] = int(g["stacks"]) - 1
+		phys_defense_groups = phys_defense_groups.filter(func(g): return int(g["stacks"]) > 0)
+		var after: float = get_phys_defense_debuff_percent()
+		if after != before:
+			if after <= 0.0:
+				print("[%s] Lowered physical defense expired" % enemy_name)
+			else:
+				print("[%s] Lowered physical defense eases to -%.0f%%" % [enemy_name, after])
 
 	if taunt_tempo > 0:
 		taunt_tempo -= amount
@@ -2583,12 +2621,8 @@ func _tick_timed_statuses(amount: int) -> void:
 			fear_source = null
 			print("[%s] Fear expired" % enemy_name)
 
-	if wear_down_tempo > 0:
-		wear_down_tempo -= amount
-		if wear_down_tempo <= 0:
-			wear_down_tempo = 0
-			attack_reduction = 0
-			print("[%s] Wear Down expired, attack restored" % enemy_name)
+	# Wear Down no longer runs on the clock: its charges are spent by the
+	# enemy's own attacks (see _deal_damage_to_player).
 
 	if disarmed_tempo > 0:
 		disarmed_tempo -= amount
@@ -2666,6 +2700,25 @@ func _tick_timed_statuses(amount: int) -> void:
 
 	_update_status_indicators()
 
+## One stack-clocked status (Slow, Vulnerable, Weaken): `clock` gains `amount`
+## raw tempo and the field named by `stack_field` loses a stack per STACK_TEMPO.
+## Returns the clock to store back. The clock resets when the last stack goes
+## so a fresh application starts a full 5 tempo later, not mid-count.
+func _tick_stack_clock(key: String, stack_field: String, clock: int, amount: int) -> int:
+	var stacks: int = int(get(stack_field))
+	if stacks <= 0:
+		return 0
+	clock += amount
+	while clock >= STACK_TEMPO and stacks > 0:
+		clock -= STACK_TEMPO
+		stacks -= 1
+	set(stack_field, stacks)
+	if stacks <= 0:
+		print("[%s] %s worn off" % [enemy_name, key.capitalize()])
+		debuff_expired.emit(self, key)
+		return 0
+	return clock
+
 func _tick_status_durations() -> void:
 	# Choke: deal the caster's half-auto-attack damage per cycle, lose 1 stack
 	if choke_dot_stacks > 0:
@@ -2727,8 +2780,8 @@ func _tick_status_durations() -> void:
 	# Timed statuses (stun, frozen, root, curse...) tick per raw tempo in
 	# _tick_timed_statuses, not here.
 
-	# Cold: thaws 1 stack per cycle so it's a combo window, not a permanent
-	# ratchet toward Frozen (mirrors the player-side Cold expiring over time)
+	# Cold: thaws COLD_THAW_PER_CYCLE stacks per cycle (sheet: 3) so it's a
+	# combo window that has to be fed, not a slow ratchet toward Frozen at 5.
 	if cold_stacks > 0:
 		# Element Pollination: the frost bites — Cold ticks doubling damage
 		# like Burn while the Elemental Weaver's maintain is up.
@@ -2736,16 +2789,23 @@ func _tick_status_durations() -> void:
 			take_damage(cold_damage_next, false)
 			print("[%s] Element Pollination: cold bites for %d (doubles next cycle)" % [enemy_name, cold_damage_next])
 			cold_damage_next *= 2
-		cold_stacks -= 1
+		cold_stacks = maxi(0, cold_stacks - COLD_THAW_PER_CYCLE)
 		if cold_stacks <= 0:
 			cold_damage_next = 1
 			print("[%s] Cold thawed" % enemy_name)
 			debuff_expired.emit(self, "cold")
 
-	# Shock: deal current stacks damage, then lose 1 stack per cycle
+	# Shock: deal current stacks damage to itself AND arc the same to the
+	# nearest other living enemy within SHOCK_ARC_RANGE squares, then lose 1
+	# stack. The arc is plain damage — it does not spread the Shock itself.
 	if shock_stacks > 0:
-		take_damage(shock_stacks, false)
-		print("[%s] Shock deals %d damage" % [enemy_name, shock_stacks])
+		var arc: int = shock_stacks
+		take_damage(arc, false)
+		print("[%s] Shock deals %d damage" % [enemy_name, arc])
+		var arc_target: Enemy = _nearest_other_enemy(SHOCK_ARC_RANGE)
+		if arc_target:
+			arc_target.take_damage(arc, false)
+			print("[%s] Shock arcs %d damage to %s" % [enemy_name, arc, arc_target.enemy_name])
 		shock_stacks -= 1
 		if shock_stacks <= 0:
 			print("[%s] Shock expired" % enemy_name)
@@ -2893,9 +2953,10 @@ func _consume_fire_taxes(action: Dictionary) -> void:
 		print("[%s] Sword Breaker: swing delayed %d tempo" % [enemy_name, next_melee_tempo_tax])
 		next_melee_tempo_tax = 0
 	if slow_stacks > 0 and MOVEMENT_ACTIONS.has(str(action["name"])):
+		# sheet: the move is taxed while any stack remains; the stacks fall on
+		# Slow's own clock (_tick_stack_clock), not with the move.
 		print("[%s] Slowed: move delayed %d extra tempo" % [enemy_name,
 			Debuff.SLOWED_TEMPO_PER_TILE + int(_player_sphere_amp("sphere_slow_amp")) - 1])
-		_consume_slow_stack()
 
 func _fire_ready_sync(player_node: Node3D) -> void:
 	if chosen_action.is_empty():
@@ -3813,6 +3874,20 @@ func _sibling_enemies() -> Array:
 			out.append(child)
 	return out
 
+## The closest OTHER living enemy within `range_cells` squares (grid distance),
+## or null. Ties go to whichever the scene lists first. Shock's arc uses it.
+func _nearest_other_enemy(range_cells: int) -> Enemy:
+	var best: Enemy = null
+	var best_dist: int = range_cells + 1
+	for e in _sibling_enemies():
+		if e == self:
+			continue
+		var d: int = _get_cell_distance(e)
+		if d < best_dist:
+			best_dist = d
+			best = e
+	return best
+
 ## --- Forest-act action selection ---
 
 func _choose_sludge_action(distance: int) -> void:
@@ -4320,15 +4395,11 @@ func _apply_player_debuff(player_node: Node3D, debuff) -> void:
 		if dm:
 			dm.apply_debuff(debuff)
 
-func _blind_player(player_node: Node3D, tempo: int) -> void:
-	## Blind: mechanic lives on PlayerStats (Card.execute reads it); the debuff is
-	## applied too so the status icon shows.
-	if player_node.has_method("get_stats"):
-		var st = player_node.get_stats()
-		if st:
-			st.is_blinded = true
-			st.blind_tempo = tempo
-	_apply_player_debuff(player_node, Debuff.create(Debuff.DebuffType.BLIND, Debuff.BLIND_MISS, tempo))
+func _blind_player(player_node: Node3D, stacks: int = 1) -> void:
+	## Blind: the DebuffManager is the source of truth (Card.execute reads it);
+	## the debuff is stack-clocked — `stacks` stacks, 5 tempo each on its own
+	## clock. The old PlayerStats.is_blinded / blind_tempo flags are not set.
+	_apply_player_debuff(player_node, Debuff.create(Debuff.DebuffType.BLIND, stacks))
 	print("[%s] Blinds the target!" % enemy_name)
 
 ## Generic elemental strike: moves into range if needed, otherwise hits for `dmg`
@@ -4395,7 +4466,7 @@ func _try_swoop(target_node: Node3D) -> bool:
 	if not is_disarmed and _in_attack_range(target_node):
 		_deal_damage_to_player(target_node, attack_damage, "Swoop")
 		if randf() < attack_blind_chance:
-			_blind_player(target_node, 5)
+			_blind_player(target_node, 1)  # sheet: "Blind for 5 tempo" = one 5-tempo stack
 		turn_completed.emit()
 		return true
 	return _try_move(target_node)
@@ -4948,8 +5019,9 @@ func _ice_troll_strike(target_node: Node3D, dmg: int, label: String) -> void:
 	if not dm:
 		return
 	var was_frozen: bool = dm.has_debuff(Debuff.DebuffType.FROZEN)
-	dm.apply_debuff(Debuff.create(Debuff.DebuffType.COLD, 1, 15))
-	dm.apply_debuff(Debuff.create(Debuff.DebuffType.BRITTLE, 1, 15))
+	# sheet: Cold's timer is 5 tempo; Brittle is a 5-tempo stack on its own clock.
+	dm.apply_debuff(Debuff.create(Debuff.DebuffType.COLD, 1, 5))
+	dm.apply_debuff(Debuff.create(Debuff.DebuffType.BRITTLE, 1))
 	if label != "Clobber" and not was_frozen and dm.has_debuff(Debuff.DebuffType.FROZEN):
 		print("[%s] The freeze leaves them wide open — CLOBBER!" % enemy_name)
 		_ice_troll_strike(target_node, maxi(1, roundi(50 * _pps_dmg)), "Clobber")
@@ -4962,9 +5034,9 @@ func _try_stinger(target_node: Node3D) -> bool:
 	_deal_damage_to_player(target_node, maxi(1, roundi(25 * _pps_dmg)), "Stinger")
 	var dm = target_node.get_debuff_manager() if target_node.has_method("get_debuff_manager") else null
 	if dm:
-		# Clumsy for 3 cycles (sheet) = 15 tempo on the clock: no card burns
-		# it, it simply runs out. Poison: 8 stacks.
-		dm.apply_debuff(Debuff.create_timed(Debuff.DebuffType.CLUMSY, 15, enemy_name))
+		# sheet: Clumsy "for 3 cycles" = 3 stacks of 5 tempo each on Clumsy's
+		# own clock (no card burns it). Poison: 8 stacks.
+		dm.apply_debuff(Debuff.create(Debuff.DebuffType.CLUMSY, 3))
 		dm.apply_debuff(Debuff.create(Debuff.DebuffType.POISON, 8, 15))
 	_stinger_cooldown = 5
 	turn_completed.emit()
@@ -5496,7 +5568,7 @@ func _try_snowball(target_node: Node3D) -> bool:
 	if is_silenced or not _in_attack_range(target_node):
 		return _try_move(target_node)
 	_apply_player_debuff(target_node, Debuff.create_timed(Debuff.DebuffType.SLOWED, 3, enemy_name))
-	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.COLD, 2, 15))
+	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.COLD, 2, 5))  # sheet: Cold's timer is 5 tempo
 	print("[%s] Snowball: Slowed 3 tempo + 2 Cold" % enemy_name)
 	turn_completed.emit()
 	return true
@@ -5630,8 +5702,9 @@ const MIMIC_COPIED_FIELDS: Array[String] = [
 	"disarmed_tempo", "is_disarmed", "disarmed_attacks", "marked_tempo", "is_marked",
 	"silenced_tempo", "is_silenced", "cursed_tempo", "rooted_tempo", "tripped_tempo",
 	"polymorph_tempo", "taunt_tempo", "taunt_target", "fear_tempo", "fear_source",
-	"wear_down_tempo", "attack_reduction", "narashimha_tempo", "phys_defense_debuff_tempo",
-	"phys_defense_debuff_percent", "strengthen_stacks", "enemy_thorns", "zone_weakened",
+	"wear_down_attacks", "attack_reduction", "narashimha_tempo", "phys_defense_groups",
+	"slow_clock", "vulnerable_clock", "weaken_clock",
+	"strengthen_stacks", "enemy_thorns", "zone_weakened",
 	"cupid_golden", "cupid_lead", "is_exposed", "has_been_damaged",
 ]
 
@@ -5673,7 +5746,10 @@ func become_mimic_of(src: Enemy) -> void:
 	xp_reward = 0                 # no farming the copies (loot is refused in the spawner too)
 	attack_damage = src.attack_damage
 	for f in MIMIC_COPIED_FIELDS:
-		set(f, src.get(f))
+		var v = src.get(f)
+		# The physical-defense groups are dictionaries in an array: the mimic
+		# needs its own clocks, not a view of the original's.
+		set(f, v.duplicate(true) if v is Array else v)
 	_mirror_health()
 	_update_status_indicators()
 
@@ -5927,11 +6003,8 @@ func _try_attack(target_node: Node3D) -> bool:
 	if is_disarmed:
 		print("[%s] Disarmed - cannot attack!" % enemy_name)
 		return _try_move(target_node)
-	# Switch Kick: disarmed for a number of ATTACKS, not a duration.
-	if disarmed_attacks > 0:
-		disarmed_attacks -= 1
-		print("[%s] Disarmed for this attack! (%d left)" % [enemy_name, disarmed_attacks])
-		return _try_move(target_node)
+	# (Switch Kick's attack-skip counter is gone: "disarm_attacks" now lays
+	# 5 tempo of ordinary Disarm per stack, caught by is_disarmed above.)
 	if _in_attack_range(target_node):
 		_deal_damage_to_player(target_node, attack_damage, "Attack")
 		turn_completed.emit()
@@ -6067,14 +6140,24 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 		_enemy_figure.set_facing_from_velocity(Vector3(face_diff.x, 0, face_diff.z))
 
 	var effective_damage = max(0, base_damage - attack_reduction)
+	# Wear Down (sheet: "lasts 2 enemy attacks"): every swing this enemy makes
+	# spends one charge; at zero the reduction clears. The charge is spent on
+	# the swing that still benefits from the reduction above.
+	if wear_down_attacks > 0:
+		wear_down_attacks -= 1
+		if wear_down_attacks <= 0:
+			attack_reduction = 0
+			print("[%s] Wear Down worn off, attack restored" % enemy_name)
+		else:
+			print("[%s] Wear Down: %d attack(s) left" % [enemy_name, wear_down_attacks])
+		_update_status_indicators()
 	# Weaken (Fan Save): -30% damage dealt (plus the player's Weaken Amp sphere
-	# nodes), one stack consumed per attack.
+	# nodes) on every attack while a stack remains; the stacks fall on Weaken's
+	# own clock, never with the attack.
 	var weaken_percent: float = 30.0 + _player_sphere_amp("sphere_weaken_amp")
 	if weaken_stacks > 0:
 		effective_damage = floori(effective_damage * maxf(0.0, 1.0 - weaken_percent / 100.0))
-		weaken_stacks -= 1
-		print("[%s] Weakened! -%d%% damage (%d stacks left)" % [enemy_name, int(weaken_percent), weaken_stacks])
-		_update_status_indicators()
+		print("[%s] Weakened! -%d%% damage (%d stacks)" % [enemy_name, int(weaken_percent), weaken_stacks])
 	elif zone_weakened:
 		# Territorial Mark: the same reduction, but persistent while inside the
 		# zone — no stack to consume, it lifts the moment the enemy leaves.
@@ -6723,8 +6806,8 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	# ignore_armor hits bypass resistances too (Neither Man nor Beast).
 	if not ignore_armor:
 		var type_resist: float = float(damage_resistances.get(damage_type, 0.0))
-		if damage_type == DamageTypes.Type.PHYSICAL and phys_defense_debuff_tempo > 0:
-			type_resist -= phys_defense_debuff_percent  # lowered defense: below 0 is a vulnerability
+		if damage_type == DamageTypes.Type.PHYSICAL and not phys_defense_groups.is_empty():
+			type_resist -= get_phys_defense_debuff_percent()  # lowered defense: below 0 is a vulnerability
 		if type_resist != 0.0:
 			# Negative resist = vulnerability: the hit lands harder (Treant vs fire).
 			# Percent math before the divide keeps 100 * 115% at exactly 115.
@@ -6775,10 +6858,12 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		_alert_mini_bear_pack()
 
 	# Wear Down stacks only off the player's hits — DoT ticks (poison, burn,
-	# shock) route through take_damage too and must not count as "hits".
-	if from_player and wear_down_tempo > 0:
+	# shock) route through take_damage too and must not count as "hits". Each
+	# hit also refreshes the charges to WEAR_DOWN_ATTACKS (keeping the larger).
+	if from_player and wear_down_attacks > 0:
 		attack_reduction += 1
-		print("[%s] Wear Down stacks! Attack reduced by %d" % [enemy_name, attack_reduction])
+		wear_down_attacks = maxi(wear_down_attacks, WEAR_DOWN_ATTACKS)
+		print("[%s] Wear Down stacks! Attack reduced by %d for its next %d attack(s)" % [enemy_name, attack_reduction, wear_down_attacks])
 		_update_status_indicators()
 
 	# Apply premeditated bonus damage (only from player attacks)
@@ -6798,14 +6883,13 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	if from_player and void_resistance_percent > 0.0:
 		amount = floori(amount * (1.0 + void_resistance_percent / 100.0))
 
-	# Vulnerable: the hit lands 30% harder (plus the player's Vuln Amp sphere
-	# nodes), consuming one stack.
+	# Vulnerable: every player hit lands 30% harder (plus the player's Vuln Amp
+	# sphere nodes) while a stack remains; the stacks fall on Vulnerable's own
+	# clock, never with the hit.
 	if from_player and vulnerable_stacks > 0:
 		var vuln_percent: float = 30.0 + _player_sphere_amp("sphere_vulnerable_amp")
 		amount = floori(amount * (1.0 + vuln_percent / 100.0))
-		vulnerable_stacks -= 1
-		print("[%s] Vulnerable! +%d%% damage (%d stacks left)" % [enemy_name, int(vuln_percent), vulnerable_stacks])
-		_update_status_indicators()
+		print("[%s] Vulnerable! +%d%% damage (%d stacks)" % [enemy_name, int(vuln_percent), vulnerable_stacks])
 
 	# Jordan 1s: below the threshold health %, add rate × missing-health% damage.
 	if from_player and missing_life_damage_rate > 0.0 and max_health > 0:
@@ -7097,12 +7181,32 @@ func hide_damage_preview() -> void:
 # STATUS EFFECTS
 # ============================================
 
-## Lower physical defense by `percent` for `tempo` (a stronger application
-## replaces a weaker one; the timer refreshes either way).
-func apply_phys_defense_debuff(percent: float, tempo: int) -> void:
-	phys_defense_debuff_percent = maxf(phys_defense_debuff_percent, percent)
-	phys_defense_debuff_tempo = maxi(phys_defense_debuff_tempo, tempo)
-	print("[%s] Physical defense -%.0f%% for %d tempo" % [enemy_name, phys_defense_debuff_percent, phys_defense_debuff_tempo])
+## Lower physical defense by `percent` for `stacks` stacks (5 tempo each on
+## the group's own clock). Groups keep their own percent: the reduction in
+## force is the strongest group still holding a stack (sheet: 4 at 10% + 2 at
+## 50% → 50% until those two run out, then 10% for what the first has left).
+func apply_phys_defense_debuff(percent: float, stacks: int = 1) -> void:
+	if percent <= 0.0 or stacks <= 0:
+		return
+	phys_defense_groups.append({"percent": percent, "stacks": stacks, "clock": 0})
+	print("[%s] Physical defense -%.0f%% for %d stack(s); in force: -%.0f%%" % [enemy_name, percent, stacks, get_phys_defense_debuff_percent()])
+	_update_status_indicators()
+
+## The lowered-physical-defense percent in force: the highest among the groups
+## that still hold a stack, 0 when none do.
+func get_phys_defense_debuff_percent() -> float:
+	var best: float = 0.0
+	for g in phys_defense_groups:
+		if int(g["stacks"]) > 0:
+			best = maxf(best, float(g["percent"]))
+	return best
+
+## Total stacks across every lowered-physical-defense group (the badge count).
+func get_phys_defense_debuff_stacks() -> int:
+	var total: int = 0
+	for g in phys_defense_groups:
+		total += maxi(0, int(g["stacks"]))
+	return total
 
 func apply_taunt(taunter: Node3D, tempo: int) -> void:
 	taunt_target = taunter
@@ -7183,9 +7287,13 @@ func _exit_tree_form() -> void:
 func set_armor_break_incoming(value: bool) -> void:
 	armor_break_incoming = value
 
-func apply_wear_down(tempo: int) -> void:
-	wear_down_tempo = max(wear_down_tempo, tempo)
-	print("[%s] Wear Down applied for %d tempo" % [enemy_name, wear_down_tempo])
+## Arms Wear Down for the player's incoming hit: the reduction that hit adds
+## holds for WEAR_DOWN_ATTACKS of this enemy's attacks (keeping the larger).
+## `_tempo` is the old duration argument — card.gd still passes 15; the sheet
+## counts enemy attacks now, so it is ignored.
+func apply_wear_down(_tempo: int = 0) -> void:
+	wear_down_attacks = maxi(wear_down_attacks, WEAR_DOWN_ATTACKS)
+	print("[%s] Wear Down applied for its next %d attack(s)" % [enemy_name, wear_down_attacks])
 	_update_status_indicators()
 
 ## True when a debuff of this apply_debuff key is already active on this enemy.
@@ -7208,7 +7316,7 @@ func has_debuff_type(debuff_name: String) -> bool:
 		"root": return rooted_tempo > 0
 		"trip": return tripped_tempo > 0
 		"cursed": return cursed_tempo > 0
-		"disarm_attacks": return disarmed_attacks > 0
+		"disarm_attacks": return is_disarmed and disarmed_tempo > 0  # it IS the timed disarm now
 		"narashimha": return narashimha_tempo > 0
 		"polymorph": return polymorph_tempo > 0
 	return false
@@ -7238,12 +7346,14 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			_reset_action_clocks()
 			print("[%s] Stunned for %d tempo!" % [enemy_name, stun_tempo])
 		"slow":
-			# Slowed stacks freely: every movement is delayed (+2 tempo) and eats a stack.
+			# sheet: a stack is 5 tempo. More stacks add on; the running clock
+			# keeps counting, so the batch sheds one stack per 5 tempo.
 			slow_stacks += value
-			print("[%s] Slowed! Delayed movement for the next %d movement(s)" % [enemy_name, slow_stacks])
+			print("[%s] Slowed! %d stack(s), every movement delayed while any remain" % [enemy_name, slow_stacks])
 		"disarmed":
+			# sheet: timers add — a second Disarm lengthens the first.
 			is_disarmed = true
-			disarmed_tempo = value + int(_player_sphere_amp("sphere_disarm_amp"))
+			disarmed_tempo += value + int(_player_sphere_amp("sphere_disarm_amp"))
 			print("[%s] Disarmed for %d tempo" % [enemy_name, disarmed_tempo])
 		"marked":
 			is_marked = true
@@ -7300,17 +7410,23 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			tripped_tempo = max(tripped_tempo, value)
 			print("[%s] Tripped! Movement -%d for %d tempo" % [enemy_name, TRIP_MOVE_PENALTY, tripped_tempo])
 		"root":
-			# value is the hold in raw tempo; can attack and cast, cannot move
-			rooted_tempo = max(rooted_tempo, value + int(_player_sphere_amp("sphere_root_amp")))
+			# value is the hold in raw tempo; can attack and cast, cannot move.
+			# sheet: timers add — a second Root lengthens the first.
+			rooted_tempo += value + int(_player_sphere_amp("sphere_root_amp"))
 			print("[%s] Rooted for %d tempo!" % [enemy_name, rooted_tempo])
 		"cursed":
 			# Matches the player's Cursed: deals less damage AND hurts itself on
 			# every attack (base 20%/20%, boosted by Curse Amp / Curse Pain).
-			cursed_tempo = max(cursed_tempo, value)
+			# sheet: timers add — a second Curse lengthens the first.
+			cursed_tempo += value
 			print("[%s] Cursed for %d tempo!" % [enemy_name, cursed_tempo])
 		"disarm_attacks":
-			disarmed_attacks += value
-			print("[%s] Disarmed for %d attack(s)!" % [enemy_name, disarmed_attacks])
+			# sheet: "skips its next attack for 5 tempo per stack" — each stack
+			# is DISARM_TEMPO_PER_STACK tempo of ordinary Disarm (Disarm Amp
+			# applies once per application, as for "disarmed").
+			is_disarmed = true
+			disarmed_tempo += value * DISARM_TEMPO_PER_STACK + int(_player_sphere_amp("sphere_disarm_amp"))
+			print("[%s] Disarmed for %d tempo (%d stack(s))!" % [enemy_name, disarmed_tempo, value])
 		"narashimha":
 			# value is the window in raw tempo. Applied right after the Neither
 			# Man nor Beast hit, so current health IS the ceiling: healing can
@@ -7568,9 +7684,11 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Cupid", "color": Color(1.0, 0.75, 0.8), "stacks": (1 if cupid_golden else 0) + (1 if cupid_lead else 0)})
 	if zone_weakened and weaken_stacks <= 0:
 		effects.append({"name": "Weaken", "color": Color(0.8, 0.5, 0.9), "stacks": 1})
-	if wear_down_tempo > 0:
-		var wd_stacks = attack_reduction if attack_reduction > 0 else wear_down_tempo
+	if wear_down_attacks > 0:
+		var wd_stacks = attack_reduction if attack_reduction > 0 else wear_down_attacks
 		effects.append({"name": "Wear Down", "color": Color(0.9, 0.6, 0.3), "stacks": wd_stacks})
+	if get_phys_defense_debuff_stacks() > 0:
+		effects.append({"name": "Exposed Defense", "color": Color(0.9, 0.75, 0.3), "stacks": get_phys_defense_debuff_stacks()})
 	if slow_stacks > 0:
 		effects.append({"name": "Slow", "color": Color(0.4, 0.6, 1.0), "stacks": slow_stacks})
 	if tripped_tempo > 0:
@@ -7611,8 +7729,7 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Weaken", "color": Color(0.5, 0.5, 0.8), "stacks": weaken_stacks})
 	if rooted_tempo > 0:
 		effects.append({"name": "Rooted", "color": Color(0.4, 0.3, 0.15), "stacks": rooted_tempo})
-	if disarmed_attacks > 0:
-		effects.append({"name": "Disarmed", "color": Color(0.8, 0.3, 0.3), "stacks": disarmed_attacks})
+	# (The old "Disarmed" attack-skip badge folded into "Disarm" above.)
 	if gravestone_provider.is_valid():
 		var standing: int = int(gravestone_provider.call())
 		if standing > 0:
@@ -7633,14 +7750,6 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Strengthen", "color": Color(1.0, 0.5, 0.3), "stacks": strengthen_stacks})
 
 	return effects
-
-## Slowed: every movement action burns one stack; the debuff ends at zero.
-func _consume_slow_stack() -> void:
-	slow_stacks = max(0, slow_stacks - 1)
-	if slow_stacks == 0:
-		print("[%s] Slow worn off, movement restored" % enemy_name)
-		debuff_expired.emit(self, "slow")
-	_update_status_indicators()
 
 func _update_status_indicators() -> void:
 	## Renders colored circles above the enemy's head for active buffs/debuffs.
@@ -7745,23 +7854,23 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			desc = "Struck by a Cupid arrow. Carrying both the Golden and Lead marks turns it into a tree."
 			remaining = "Marks: %d of 2" % ((1 if cupid_golden else 0) + (1 if cupid_lead else 0))
 		"Weaken":
-			desc = "Deals 30% less damage; each attack burns a stack."
+			desc = "Deals 30% less damage while any stack remains; a stack lasts 5 tempo."
 			remaining = ("Stacks: %d" % weaken_stacks) if weaken_stacks > 0 else "While inside the zone"
 		"Wear Down":
-			desc = "Its attacks deal %d less damage." % attack_reduction
-			remaining = "Remaining: %d tempo" % wear_down_tempo
+			desc = "Its attacks deal %d less damage; each of its attacks spends a charge." % attack_reduction
+			remaining = "Attacks left: %d" % wear_down_attacks
+		"Exposed Defense":
+			desc = "Its physical defense is lowered %.0f%% — your physical hits land that much harder. Each stack lasts 5 tempo; the strongest group still standing sets the number." % get_phys_defense_debuff_percent()
+			remaining = "Stacks: %d" % get_phys_defense_debuff_stacks()
 		"Slow":
-			desc = "Movement costs 3 tempo per tile instead of 1; each tile moved burns a stack."
+			desc = "Each movement action costs 2 extra tempo while any stack remains; a stack lasts 5 tempo."
 			remaining = "Stacks: %d" % slow_stacks
 		"Cursed":
-			desc = "Deals 20% less damage and takes 20% of its own damage."
+			desc = "Deals 20% less damage and takes 20% of its own damage. More Curse adds to the timer."
 			remaining = "Remaining: %d tempo" % cursed_tempo
 		"Disarm":
-			desc = "Cannot attack."
+			desc = "Cannot attack. More Disarm adds to the timer (5 tempo per stack)."
 			remaining = "Remaining: %d tempo" % disarmed_tempo
-		"Disarmed":
-			desc = "Its next attacks are skipped."
-			remaining = "Attacks skipped: %d" % disarmed_attacks
 		"Marked":
 			desc = "Takes extra damage from your attacks."
 			remaining = "Remaining: %d tempo" % marked_tempo
@@ -7787,13 +7896,13 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			desc = "Burn damage doubles each cycle (1, 2, 4, 8...); attacking while burning also triggers the current burn damage."
 			remaining = "Stacks: %d" % burn_stacks
 		"Cold":
-			desc = "At 5 stacks it becomes Frozen for 1 cycle."
+			desc = "At 5 stacks it becomes Frozen for 1 cycle; thaws 3 stacks per cycle."
 			remaining = "Stacks: %d of 5" % cold_stacks
 		"Poison":
 			desc = "Takes %d damage per cycle, loses 1 poison each cycle." % poison_stacks
 			remaining = "Stacks: %d" % poison_stacks
 		"Shock":
-			desc = "Arcs %d damage to itself and nearby enemies each cycle, loses 1 per cycle." % shock_stacks
+			desc = "Takes %d damage each cycle and arcs the same to the nearest enemy within 2 squares; loses 1 per cycle." % shock_stacks
 			remaining = "Stacks: %d" % shock_stacks
 		"Bleed":
 			desc = "Takes damage per tile moved; each damage removes a stack."
@@ -7802,10 +7911,10 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			desc = "Its healing is capped by the Mane of Narashimha."
 			remaining = "Remaining: %d tempo" % narashimha_tempo
 		"Vulnerable":
-			desc = "Takes 30% more damage on the next hits; each hit burns a stack."
+			desc = "Takes 30% more damage from your hits while any stack remains; a stack lasts 5 tempo."
 			remaining = "Stacks: %d" % vulnerable_stacks
 		"Rooted":
-			desc = "Cannot move."
+			desc = "Cannot move. More Root adds to the timer."
 			remaining = "Remaining: %d tempo" % rooted_tempo
 		_:
 			desc = ""

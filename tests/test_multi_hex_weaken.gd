@@ -6,7 +6,8 @@ extends SceneTree
 ## clears only the hexes riding it; indices shift when an earlier card leaves
 ## the hand; more hexes than cards stack onto shared cards.
 ## Weakened — -30% damage dealt while stacks remain (stacking with Cursed,
-## capped), one stack burned per attack, expiring at zero.
+## capped); a stack is 5 tempo on the debuff's own clock — attacks never burn
+## one — expiring when the last stack falls.
 ## Run: godot --headless --path . --script tests/test_multi_hex_weaken.gd
 
 var failures := 0
@@ -80,15 +81,18 @@ func _initialize() -> void:
 	dm.remove_hexes_on_card(0)
 	_check(dm.get_hexed_debuffs().is_empty(), "playing the card clears every hex on it")
 
-	# --- Weakened: -30% damage, one stack per attack ---
-	dm.apply_debuff(Debuff.create(Debuff.DebuffType.WEAKENED, 2, -1))
+	# --- Weakened: -30% damage, a stack is 5 tempo (attacks burn nothing) ---
+	dm.apply_debuff(Debuff.create(Debuff.DebuffType.WEAKENED, 2))
 	_check(is_equal_approx(dm.get_damage_reduction_percent(), 0.3), "Weakened reduces damage 30%")
 	dm.on_attack()
 	_check(dm.has_debuff(Debuff.DebuffType.WEAKENED)
-		and dm.get_debuff(Debuff.DebuffType.WEAKENED).value == 1, "first attack burns 1 stack")
+		and dm.get_debuff(Debuff.DebuffType.WEAKENED).value == 2, "an attack burns no stack")
+	dm.advance_time(5)
+	_check(dm.has_debuff(Debuff.DebuffType.WEAKENED)
+		and dm.get_debuff(Debuff.DebuffType.WEAKENED).value == 1, "5 tempo sheds 1 stack")
 	_check(is_equal_approx(dm.get_damage_reduction_percent(), 0.3), "still weakened with 1 stack left")
-	dm.on_attack()
-	_check(not dm.has_debuff(Debuff.DebuffType.WEAKENED), "Weakened gone after its 2 attacks")
+	dm.advance_time(5)
+	_check(not dm.has_debuff(Debuff.DebuffType.WEAKENED), "Weakened gone after 10 tempo")
 	_check(is_equal_approx(dm.get_damage_reduction_percent(), 0.0), "no reduction once worn off")
 
 	# --- Weakened + Cursed stack ---

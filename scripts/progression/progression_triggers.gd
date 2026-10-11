@@ -703,11 +703,12 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 					main.add_battle_log("Mad Scientist: +%d poison stacks!" % ms_poison, Color(0.4, 0.9, 0.4))
 			elif last_type == Card.CardType.DEFENSE:
 				# Defense → Poison: lower enemy physical defense by a rank-scaled %
-				# (1..15) for 5 tempo (no timer was designed; 5 for now).
+				# (1..15) for 1 stack — sheet: a stack is 5 tempo, and each
+				# application is its own group on its own clock.
 				if target and target is Enemy:
 					var ms_def: int = PassiveScaling.value("mad_scientist", "phys_defense", ms_lvl)
-					target.apply_phys_defense_debuff(float(ms_def), 5)
-					main.add_battle_log("Mad Scientist: -%d%% physical defense for 5 tempo!" % ms_def, Color(0.4, 0.9, 0.4))
+					target.apply_phys_defense_debuff(float(ms_def), 1)
+					main.add_battle_log("Mad Scientist: -%d%% physical defense (1 stack, 5 tempo)!" % ms_def, Color(0.4, 0.9, 0.4))
 
 	_last_played_card = card
 
