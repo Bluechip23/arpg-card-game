@@ -5,6 +5,10 @@ extends Node
 
 signal buff_applied(buff: Buff)
 signal buffs_changed
+## Fired when the owner goes from visible to invisible (a refresh while
+## already invisible is not "entering"). Main offers the player the
+## invisibility draw on it.
+signal invisibility_entered
 
 var buffs: Array[Buff] = []
 var owner_stats = null  # PlayerStats - untyped to avoid circular dependency
@@ -48,6 +52,10 @@ func apply_buff(buff: Buff) -> void:
 
 	# Check if buff already exists (refresh or stack)
 	var existing = get_buff(buff.buff_type)
+	if buff.buff_type == Buff.BuffType.INVISIBLE and existing == null:
+		# Deferred so the buff is in place when the handler looks.
+		print("[BUFF] Entering invisibility (%s)" % buff.source_name)
+		emit_signal.call_deferred("invisibility_entered")
 	
 	# Timed and per-attack Strengthen meet: the damage stacks and the clock
 	# wins (every attack gets it until the timer ends).
