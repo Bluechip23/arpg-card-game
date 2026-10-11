@@ -62,6 +62,44 @@ func spawn_enemy(type: Enemy.EnemyType, pos: Vector3) -> Enemy:
 	enemy_spawned.emit(enemy)
 	return enemy
 
+## Rat King's Infest hatching: `count` enemies of `type` on free floor cells
+## ringed around `near` (the holder of the brood), nearest ring first. Taken
+## means any living enemy's intended tile, a player or a summon; floor is
+## the dungeon's word when main has one. Returns what was spawned (fewer
+## than asked when the holder is hemmed in).
+func spawn_hatchlings(near: Node3D, type: Enemy.EnemyType, count: int) -> Array:
+	var out: Array = []
+	if count <= 0 or near == null or not is_instance_valid(near) or grid_manager == null:
+		return out
+	var main = get_parent()
+	var dungeon = main.dungeon_manager if main and "dungeon_manager" in main else null
+	var taken := {}
+	for e in get_living_enemies():
+		taken[e.intended_cell()] = true
+	for u in _living_players() + _living_summons():
+		taken[grid_manager.world_to_grid(u.position)] = true
+	var base: Vector2i = grid_manager.world_to_grid(near.position)
+	taken[base] = true
+	for r in range(1, 4):
+		for dx in range(-r, r + 1):
+			for dz in range(-r, r + 1):
+				if maxi(absi(dx), absi(dz)) != r:
+					continue
+				var cell := base + Vector2i(dx, dz)
+				if taken.has(cell):
+					continue
+				if dungeon and dungeon.has_method("is_floor") and not dungeon.is_floor(cell):
+					continue
+				var pos: Vector3 = main._ground_pos(cell) if main and main.has_method("_ground_pos") else grid_manager.grid_to_world(cell)
+				var e := spawn_enemy(type, pos)
+				if e:
+					out.append(e)
+					taken[cell] = true
+					print("[SPAWNER] A brood hatches: %s at %s" % [e.enemy_name, cell])
+				if out.size() >= count:
+					return out
+	return out
+
 ## Quietly remove an enemy WITHOUT killing it: no loot, no on-kill triggers,
 ## no death animation (The Precious ring wraiths vanish when shadow form
 ## ends). Since no died signal fires, the wave check is re-run here.
@@ -281,8 +319,6 @@ func _get_culling_stone_drop_chance(type: Enemy.EnemyType) -> float:
 		DropRates.TIER_BOSS: return 0.40
 	return 0.05
 
-## Loot tier for an enemy type (see DropRates): trash never rolls high-end
-## loot on its own, bosses roll the richest table. Unlisted types are "mid".
 func _holy_water_drop_chance(type: Enemy.EnemyType) -> float:
 	match get_loot_tier(type):
 		DropRates.TIER_TRASH: return 0.08
@@ -290,27 +326,46 @@ func _holy_water_drop_chance(type: Enemy.EnemyType) -> float:
 		DropRates.TIER_BOSS: return 1.0
 	return 0.15
 
+## Loot tier for an enemy type (see DropRates): trash never rolls high-end
+## loot on its own, bosses roll the richest table. The tiers are the Tier
+## column of the designer's sheet (docs/ENEMY_SHEET.tsv), the same column
+## the compendium shows (Enemy.get_all_enemy_data). Off the sheet — the
+## structures, the dummy, the Ring Wraith (sheet: "Special") — fall through
+## to "mid", though none of them drops anything (see _generate_loot).
 func get_loot_tier(type: Enemy.EnemyType) -> String:
 	match type:
+		# sheet: Trash
 		Enemy.EnemyType.MINION, Enemy.EnemyType.WERERAT, Enemy.EnemyType.ARCHER_RAT, \
-		Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.SWARM, Enemy.EnemyType.COYOTE, \
-		Enemy.EnemyType.WERERABBIT, Enemy.EnemyType.SLUDGE, \
-		Enemy.EnemyType.PIPE_CRAWLER, Enemy.EnemyType.SCREECHER, Enemy.EnemyType.RAT_NEST:
+		Enemy.EnemyType.SLUDGE, Enemy.EnemyType.PIPE_CRAWLER, Enemy.EnemyType.SWARM, \
+		Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.WERERABBIT, Enemy.EnemyType.SCREECHER, \
+		Enemy.EnemyType.FIRE_GOBLIN_SOLDIER, Enemy.EnemyType.COYOTE, Enemy.EnemyType.MINI_BEAR, \
+		Enemy.EnemyType.SNOW_WRAITH, Enemy.EnemyType.ASH_HARPY, Enemy.EnemyType.MAGMA_SPIDER, \
+		Enemy.EnemyType.MIND_EATER, Enemy.EnemyType.SPECTER, Enemy.EnemyType.SUCCUBUS, \
+		Enemy.EnemyType.CHERUB, Enemy.EnemyType.RAT_NEST:
 			return DropRates.TIER_TRASH
-		Enemy.EnemyType.ELITE, Enemy.EnemyType.ARMORED_TROLL, Enemy.EnemyType.LARGE_BEAR, \
-		Enemy.EnemyType.TREANT, Enemy.EnemyType.BUGBEAR, Enemy.EnemyType.VAMPIRE, \
-		Enemy.EnemyType.NECROMANCER, Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.SPIRIT_COLLECTOR, \
-		Enemy.EnemyType.SEWER_CROC, Enemy.EnemyType.WYVERN, Enemy.EnemyType.ICE_TROLL, \
-		Enemy.EnemyType.WHITE_MANTICORE, Enemy.EnemyType.GIANT_BEAVER, \
-		Enemy.EnemyType.BONE_DRAGON, Enemy.EnemyType.IFRIT, Enemy.EnemyType.DJINN, \
-		Enemy.EnemyType.FIRE_GOBLIN_SHAMAN, Enemy.EnemyType.CONSUMED, \
-		Enemy.EnemyType.EARTH_MAGE, Enemy.EnemyType.INFECTED_HUNTER:
-			# Bone Dragon rolls elite loot per the first-pass sheet — it is also
-			# Necromancer-summonable, so boss-tier drops would be farmable.
+		# sheet: Mid-tier
+		Enemy.EnemyType.SEWER_CROC, Enemy.EnemyType.SKELETON, Enemy.EnemyType.CRYPT_CRAWLER, \
+		Enemy.EnemyType.CONSUMED, Enemy.EnemyType.SPIRIT_COLLECTOR, \
+		Enemy.EnemyType.FIRE_GOBLIN_MAGE, Enemy.EnemyType.FIRE_GOBLIN_SHAMAN, \
+		Enemy.EnemyType.WOLF, Enemy.EnemyType.BUGBEAR, Enemy.EnemyType.INFECTED_HUNTER, \
+		Enemy.EnemyType.GIANT_HAWK, Enemy.EnemyType.ICE_MAGE, Enemy.EnemyType.FIRE_MAGE, \
+		Enemy.EnemyType.SPARK_MAGE, Enemy.EnemyType.AIR_MAGE, Enemy.EnemyType.EARTH_MAGE, \
+		Enemy.EnemyType.WEREGOAT, Enemy.EnemyType.ROC, Enemy.EnemyType.SABERTOOTH, \
+		Enemy.EnemyType.DEMON:
+			return DropRates.TIER_MID
+		# sheet: Elite
+		Enemy.EnemyType.ELITE, Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.VAMPIRE, \
+		Enemy.EnemyType.NECROMANCER, Enemy.EnemyType.GRAVE_TITAN, Enemy.EnemyType.ARMORED_TROLL, \
+		Enemy.EnemyType.HYDRA, Enemy.EnemyType.GIANT_BEAVER, Enemy.EnemyType.LARGE_BEAR, \
+		Enemy.EnemyType.TREANT, Enemy.EnemyType.WYVERN, Enemy.EnemyType.ICE_TROLL, \
+		Enemy.EnemyType.WHITE_MANTICORE, Enemy.EnemyType.IFRIT, Enemy.EnemyType.DJINN:
 			return DropRates.TIER_ELITE
-		Enemy.EnemyType.BOSS, Enemy.EnemyType.HYDRA, \
-		Enemy.EnemyType.GRAVE_TITAN, Enemy.EnemyType.RAT_KING, Enemy.EnemyType.GRANITE_COLOSSUS, \
-		Enemy.EnemyType.INFLAMED_MINOTAUR:
+		# sheet: Boss. The Bone Dragon is Necromancer-summonable, so its
+		# boss-tier drops can be farmed by letting the summons die — the
+		# sheet's call, flagged here.
+		Enemy.EnemyType.BOSS, Enemy.EnemyType.RAT_KING, Enemy.EnemyType.BONE_DRAGON, \
+		Enemy.EnemyType.GRANITE_COLOSSUS, Enemy.EnemyType.CERBERUS, Enemy.EnemyType.PIT_FIEND, \
+		Enemy.EnemyType.INFLAMED_MINOTAUR, Enemy.EnemyType.CORRUPTED_ARCHANGEL:
 			return DropRates.TIER_BOSS
 	return DropRates.TIER_MID
 

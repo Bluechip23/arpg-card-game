@@ -50,7 +50,7 @@ func _initialize() -> void:
 	_check(by_name["Treant"]["health"] == 160, "Treant 110x1.45 HP (band 19)")
 	_check(by_name["Coyote"]["health"] == 7, "Coyote stays blowy-uppy (6x1.2 HP)")
 	_check(by_name["Swarm"]["health"] == 9, "Swarm stays blowy-uppy (10x0.9 HP)")
-	_check(by_name["Bugbear"]["type"] == "Elite", "Bugbear display tier fixed to Elite")
+	_check(by_name["Bugbear"]["type"] == "Mid-tier", "Bugbear display tier follows the sheet (Mid-tier)")
 
 	# --- initialize() agrees with the compendium for every implemented enemy ---
 	var mismatches := 0

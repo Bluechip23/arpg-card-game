@@ -1062,6 +1062,32 @@ func _process_erase_timers() -> void:
 ## run out after their exact tempo: main ticks this on every tempo step.
 func tick_temp_mods(amount: int) -> void:
 	_process_temp_mods(amount)
+	_process_hatch_timers(amount)
+
+func _process_hatch_timers(amount: int) -> void:
+	## Rat King's Infest: the fuse (Card.hatch_tempo, 5 on the sheet) counts
+	## down only while the card sits in the HAND — the sheet's "in 5 tempo, if
+	## the infest is still in the player's hand". At zero the card leaves the
+	## hand for good and its hatch_handler runs (the king bound the spawner:
+	## 2 Wererats beside the holder). Playing it (erase_on_play) or discarding
+	## it (discard_card_from_hand erases it) means it is no longer here to tick.
+	var hatched: Array = []
+	for i in range(hand.size() - 1, -1, -1):
+		var card = hand[i]
+		if card.hatch_tempo <= 0:
+			continue
+		card.hatch_tempo_left -= amount
+		if card.hatch_tempo_left <= 0:
+			hand.remove_at(i)
+			hatched.append(card)
+	if hatched.is_empty():
+		return
+	hand_updated.emit()
+	for card in hatched:
+		card_erased.emit(card)
+		print("[DECK] %s hatches!" % card.card_name)
+		if card.hatch_handler.is_valid():
+			card.hatch_handler.call()
 
 func _process_temp_mods(amount: int = 5) -> void:
 	var changed := false
@@ -1197,6 +1223,20 @@ func discard_card_from_hand(card: Card) -> bool:
 		return false
 	hand.remove_at(idx)
 	card.clear_temp_mods()  # in-hand tweaks end on discard
+	if card.hatch_tempo > 0:
+		# sheet: "the player CAN DISCARD the infest out of hand and the rat
+		# production will not carry out." A brood is a token, not a deck
+		# card: discarding it erases it rather than banking it in the
+		# discard pile to be drawn (and hatch) again later.
+		# Still a discard as far as reactions and counters are concerned.
+		discards_this_cycle += 1
+		card_discarded.emit(card)
+		true_discards_this_cycle += 1
+		non_play_discard.emit(card)
+		card_erased.emit(card)
+		hand_updated.emit()
+		print("[DECK] %s discarded — the brood is gone" % card.card_name)
+		return true
 	discard_pile.append(card)
 	discards_this_cycle += 1
 	card_discarded.emit(card)

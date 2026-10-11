@@ -114,7 +114,7 @@ const CARDS := {
 	"grounding": "game_57", "vines": "rpg_63", "vined_encasing": "pack_49",
 	"bark_up": "rpg_63", "crops": "rpg_63", "reverberate_regrowth": "rpg_63",
 	"element_pollination": "rpg_88", "death_vortex": "game_77",
-	"release_soul": "rpg_43", "shadows": "game_78", "invisible": "rpg_43",
+	"release_soul": "rpg_43", "infest": "rpg_43", "shadows": "game_78", "invisible": "rpg_43",
 	"blink": "game_39", "polymorph": "game_10", "mirror_mirror": "game_39",
 	"tricks_of_alberich": "game_39", "escape_and_bewilder": "game_39",
 	"poof_and_weave": "game_39", "detonova": "rpg_55", "internal_combustion": "rpg_27",
