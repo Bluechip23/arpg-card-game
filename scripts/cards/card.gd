@@ -330,7 +330,7 @@ const CARD_RARITIES := {
 	"tighten_string": Rarity.MYTHIC, "worms_armageddon": Rarity.MYTHIC,
 	"composed_reaction": Rarity.BASIC,
 	# --- Off the sheet: item-granted kits, tokens and status cards (86) ---
-	"djinn_wish": Rarity.BASIC, "paralysis": Rarity.BASIC, "release_soul": Rarity.BASIC,
+	"djinn_wish": Rarity.BASIC, "paralysis": Rarity.BASIC, "release_soul": Rarity.BASIC, "infest": Rarity.BASIC,
 	"splinter": Rarity.BASIC,
 	"fleet_etching": Rarity.COMMON, "hard_helmet": Rarity.COMMON, "mixed_bag": Rarity.COMMON,
 	"regal_etching": Rarity.COMMON, "slice": Rarity.COMMON,
@@ -379,7 +379,7 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"minor_wounds": true, "lightly_dazed": true, "djinn_wish": true,
 	"biscuit": true, "basic_attack": true, "energy_ball": true, "quick_arrow": true, "prepare": true,
 	"energy_barrier": true, "mana_surge": true, "magic_barrier": true, "shepherds_mark": true,
-	"paralysis": true, "release_soul": true, "composed_reaction": true,
+	"paralysis": true, "release_soul": true, "infest": true, "composed_reaction": true,
 	# Helm/boot-granted cards only arrive via their item, never from random drops.
 	"neither_man_nor_beast": true, "resourceful_replenish": true,
 	"out_of_guesses": true, "twenty_twenty": true, "its_alive": true,
@@ -482,6 +482,9 @@ var linger: bool = false  # If true, status card can exceed hand size limit when
 var shop_excluded: bool = false  # If true, the card never appears in the Card Dealer's shop (item-generated cards like Sprinkle)
 var erase_on_play: bool = false  # If true, card is erased from the deck entirely the moment it's played (not discarded). Same "erase" concept as erase_tempo, just triggered on play instead of on a timer.
 var held_damage_per_cycle: int = 0  # Djinn Wish: sears the holder this much every cycle it sits in hand (ticked by DeckManager.process_turn)
+var hatch_tempo: int = 0  # Rat King's Infest: > 0 means the card hatches after this many tempo HELD IN HAND (DeckManager.tick_temp_mods counts it down; playing or discarding it cancels the hatch)
+var hatch_tempo_left: int = 0  # Fuse remaining on the hatch
+var hatch_handler: Callable = Callable()  # What hatches: set by whoever put the card in the hand (the Rat King binds the spawner); an invalid handler hatches nothing
 var jail_on_play: int = 0  # If > 0, the card goes to jail for this many tempo after being played (instead of the discard pile)
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 ## Slot labels: every item slot a card may be enchanted into (Pocket, Crown,
@@ -2214,6 +2217,8 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			pass  # Tearing the webbing free IS the effect — erase_on_play removes it
 		"release_soul":
 			pass  # Releasing the soul IS the effect — erase_on_play removes it
+		"infest":
+			pass  # Crushing the brood (the 50 mana) IS the effect — erase_on_play removes it
 		"reckless_strike":
 			_execute_reckless_strike(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		# === Power Cards (Maintain) ===
@@ -5096,6 +5101,33 @@ static func create_release_soul() -> Card:
 	card.held_damage_per_cycle = 5  # 1 per tempo, charged per cycle
 	card.erase_on_play = true
 	card.linger = true
+	card.target_types = ["self"]
+	return card
+
+static func create_infest() -> Card:
+	## Rat King's Infest (sheet): one lands in your hand per rat within 10
+	## squares of the king. Held for 5 tempo it hatches into 2 Wererats
+	## beside you; play it (50 mana, 0 tempo) to crush the brood, or discard
+	## it — either way nothing hatches. The fuse only runs while it is in
+	## the hand. The hatch itself is whatever hatch_handler the king bound
+	## (a card rebuilt by id from a save has none and simply crumbles).
+	var card = Card.new()
+	card.card_id = "infest"
+	card.card_name = "Infest"
+	card.description = "A rat brood squirming in your pack. In 5 tempo, if it is still in your hand, it hatches into 2 Wererats. Play (50 mana, 0 tempo) to erase it, or discard it."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Curse"
+	card.mana_cost = 50
+	card.tempo_cost = 0
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.hatch_tempo = 5
+	card.hatch_tempo_left = 5
+	card.erase_on_play = true
+	card.linger = true  # forced into hand; may exceed the hand cap
 	card.target_types = ["self"]
 	return card
 

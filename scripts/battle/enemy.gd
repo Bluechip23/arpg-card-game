@@ -352,6 +352,8 @@ const NON_MELEE_ACTIONS := {
 	"card_steal": true, "fire_web": true, "mind_slow": true, "mind_cuff": true,
 	"spirit_spit": true, "specter_vanish": true, "mana_drain": true,
 	"damaging_snap": true, "loves_arrow": true,
+	# Act 1a (the enemy sheet): the Rat King's brood, the cobra's spray
+	"infest": true, "venom_spray": true,
 }
 var next_melee_tempo_tax: int = 0
 
@@ -1608,13 +1610,22 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 			]
 		EnemyType.SEWER_CROC:
 			actions = [
-				{"name": "croc_bite", "tempo_cost": 6},
-				{"name": "move",      "tempo_cost": 5},
+				{"name": "croc_bite",   "tempo_cost": 6},
+				# sheet: Venom Spray, 15 tempo, Async — it runs on its own
+				# clock from the first tempo; Bite (Sync) may only START
+				# counting on a tempo where this clock is back at 0
+				# (docs/ENEMY_ACTION_KEYWORDS.md).
+				{"name": "venom_spray", "tempo_cost": 15, "async": true, "label": "Venom Spray"},
+				{"name": "move",        "tempo_cost": 5},
 			]
 		EnemyType.RAT_KING:
 			actions = [
-				{"name": "bite", "tempo_cost": 3},
-				{"name": "move", "tempo_cost": 2},
+				{"name": "bite",   "tempo_cost": 3},
+				# sheet: Infest, 5 tempo — an Infest card per rat within 10
+				# squares (see _try_infest; the hand-side fuse is in
+				# DeckManager._process_hatch_timers).
+				{"name": "infest", "tempo_cost": 5},
+				{"name": "move",   "tempo_cost": 2},
 				# The lair: run for a nest, then feed on it (see _choose_rat_king_action).
 				{"name": "seek_nest", "tempo_cost": 2, "label": "Flees to a nest"},
 				{"name": "nest_heal", "tempo_cost": 2, "label": "Feeds on the nest"},
@@ -1823,62 +1834,90 @@ func get_action_lines() -> Array[String]:
 static func get_all_enemy_data() -> Array:
 	## Returns compendium-friendly data for every enemy type.
 	## Single source of truth — compendium reads from here.
+	# Tier vocabulary = the designer's sheet (docs/ENEMY_SHEET.tsv, Tier
+	# column): Trash / Mid-tier / Elite / Boss, "Special" for the Ring Wraith.
+	# "Mid Tier" / "Mid-Tier" on the sheet are the one word "Mid-tier" here.
+	# Structures and the dojo dummy are not on the sheet: they read "Special"
+	# too (not creatures, no tier). The legacy MINION/ELITE/BOSS boxes keep
+	# the three tiers they stood for. The loot tiers in
+	# EnemySpawner.get_loot_tier follow the same column.
 	var _type_display := {
-		EnemyType.MINION: "Minion",
+		EnemyType.MINION: "Trash",
 		EnemyType.ELITE: "Elite",
 		EnemyType.BOSS: "Boss",
-		EnemyType.WERERAT: "Minion",
-		EnemyType.SKELETON: "Minion",
-		EnemyType.ARMORED_TROLL: "Elite",
-		EnemyType.ARCHER_RAT: "Minion",
-		EnemyType.HYDRA: "Elite",
-		EnemyType.FIRE_GOBLIN_SOLDIER: "Minion",
-		EnemyType.FIRE_GOBLIN_MAGE: "Minion",
-		EnemyType.FIRE_GOBLIN_SHAMAN: "Elite",
-		EnemyType.GIANT_BEAVER: "Elite",
-		EnemyType.MINI_BEAR: "Minion",
-		EnemyType.LARGE_BEAR: "Elite",
-		EnemyType.WOLF: "Minion",
-		EnemyType.COYOTE: "Minion",
-		EnemyType.BUGBEAR: "Elite",
-		EnemyType.INFECTED_HUNTER: "Elite",
-		EnemyType.GIANT_HAWK: "Minion",
-		EnemyType.TREANT: "Elite",
-		EnemyType.ICE_MAGE: "Minion",
-		EnemyType.FIRE_MAGE: "Minion",
-		EnemyType.SPARK_MAGE: "Minion",
-		EnemyType.AIR_MAGE: "Minion",
-		EnemyType.EARTH_MAGE: "Elite",
-		EnemyType.ZOMBIE: "Minion",
+		# --- Sewer ---
+		EnemyType.WERERAT: "Trash",
+		EnemyType.ARCHER_RAT: "Trash",
+		EnemyType.SLUDGE: "Trash",
+		EnemyType.PIPE_CRAWLER: "Trash",
+		EnemyType.SWARM: "Trash",
+		EnemyType.SEWER_CROC: "Mid-tier",
+		EnemyType.RAT_KING: "Boss",
+		# --- Graveyard ---
+		EnemyType.ZOMBIE: "Trash",
+		EnemyType.WERERABBIT: "Trash",
+		EnemyType.SCREECHER: "Trash",
+		EnemyType.SKELETON: "Mid-tier",
+		EnemyType.CRYPT_CRAWLER: "Mid-tier",
+		EnemyType.CONSUMED: "Mid-tier",
+		EnemyType.SPIRIT_COLLECTOR: "Mid-tier",
 		EnemyType.WEREWOLF: "Elite",
-		EnemyType.WERERABBIT: "Minion",
 		EnemyType.VAMPIRE: "Elite",
 		EnemyType.NECROMANCER: "Elite",
-		EnemyType.BONE_DRAGON: "Elite",  # first-pass sheet ranks it an elite, not a boss
-		EnemyType.SPIRIT_COLLECTOR: "Elite",
-		EnemyType.GRAVE_TITAN: "Boss",
-		EnemyType.CRYPT_CRAWLER: "Minion",
-		EnemyType.SCREECHER: "Minion",
-		EnemyType.CONSUMED: "Elite",
-		EnemyType.SLUDGE: "Minion",
-		EnemyType.PIPE_CRAWLER: "Minion",
-		EnemyType.SEWER_CROC: "Elite",
-		EnemyType.RAT_KING: "Elite",
-		EnemyType.SWARM: "Minion",
-		EnemyType.WEREGOAT: "Elite", EnemyType.WYVERN: "Elite", EnemyType.ROC: "Boss",
-		EnemyType.ICE_TROLL: "Elite", EnemyType.SNOW_WRAITH: "Minion", EnemyType.GRANITE_COLOSSUS: "Boss",
-		EnemyType.WHITE_MANTICORE: "Elite", EnemyType.SABERTOOTH: "Minion",
-		EnemyType.CERBERUS: "Boss", EnemyType.SUCCUBUS: "Elite", EnemyType.DEMON: "Elite",
-		EnemyType.IFRIT: "Elite", EnemyType.MIND_EATER: "Elite", EnemyType.SPECTER: "Minion",
-		EnemyType.MAGMA_SPIDER: "Elite", EnemyType.PIT_FIEND: "Boss", EnemyType.ASH_HARPY: "Minion",
+		EnemyType.GRAVE_TITAN: "Elite",
+		EnemyType.BONE_DRAGON: "Boss",
+		# --- Cave ---
+		EnemyType.FIRE_GOBLIN_SOLDIER: "Trash",
+		EnemyType.FIRE_GOBLIN_MAGE: "Mid-tier",
+		EnemyType.FIRE_GOBLIN_SHAMAN: "Mid-tier",
+		EnemyType.ARMORED_TROLL: "Elite",
+		EnemyType.HYDRA: "Elite",
+		# --- Forest ---
+		EnemyType.COYOTE: "Trash",
+		EnemyType.MINI_BEAR: "Trash",
+		EnemyType.WOLF: "Mid-tier",
+		EnemyType.BUGBEAR: "Mid-tier",
+		EnemyType.INFECTED_HUNTER: "Mid-tier",
+		EnemyType.GIANT_HAWK: "Mid-tier",
+		EnemyType.ICE_MAGE: "Mid-tier",
+		EnemyType.FIRE_MAGE: "Mid-tier",
+		EnemyType.SPARK_MAGE: "Mid-tier",
+		EnemyType.AIR_MAGE: "Mid-tier",
+		EnemyType.EARTH_MAGE: "Mid-tier",
+		EnemyType.GIANT_BEAVER: "Elite",
+		EnemyType.LARGE_BEAR: "Elite",
+		EnemyType.TREANT: "Elite",
+		# --- Mountains ---
+		EnemyType.SNOW_WRAITH: "Trash",
+		EnemyType.WEREGOAT: "Mid-tier",
+		EnemyType.ROC: "Mid-tier",
+		EnemyType.SABERTOOTH: "Mid-tier",
+		EnemyType.WYVERN: "Elite",
+		EnemyType.ICE_TROLL: "Elite",
+		EnemyType.WHITE_MANTICORE: "Elite",
+		EnemyType.GRANITE_COLOSSUS: "Boss",
+		# --- Underworld ---
+		EnemyType.ASH_HARPY: "Trash",
+		EnemyType.MAGMA_SPIDER: "Trash",
+		EnemyType.MIND_EATER: "Trash",
+		EnemyType.SPECTER: "Trash",
+		EnemyType.SUCCUBUS: "Trash",
+		EnemyType.DEMON: "Mid-tier",
+		EnemyType.IFRIT: "Elite",
+		EnemyType.CERBERUS: "Boss",
+		EnemyType.PIT_FIEND: "Boss",
 		EnemyType.INFLAMED_MINOTAUR: "Boss",
-		EnemyType.CHERUB: "Minion", EnemyType.DJINN: "Elite", EnemyType.CORRUPTED_ARCHANGEL: "Boss",
-		EnemyType.RING_WRAITH: "Elite",
-		EnemyType.DUMMY: "Minion",
-		EnemyType.RAT_NEST: "Minion",
-		EnemyType.GRAVESTONE: "Minion",
-		EnemyType.GRAVE_DIGGER: "Minion",
-		EnemyType.HELL_DOOR: "Minion",
+		# --- Heavens ---
+		EnemyType.CHERUB: "Trash",
+		EnemyType.DJINN: "Elite",
+		EnemyType.CORRUPTED_ARCHANGEL: "Boss",
+		# --- Off the tier ladder ---
+		EnemyType.RING_WRAITH: "Special",
+		EnemyType.DUMMY: "Special",
+		EnemyType.RAT_NEST: "Special",
+		EnemyType.GRAVESTONE: "Special",
+		EnemyType.GRAVE_DIGGER: "Special",
+		EnemyType.HELL_DOOR: "Special",
 	}
 	var _stats := {
 		EnemyType.MINION: {"name": "Minion", "health": 25, "armor": 0, "damage": 3, "xp": 5},
@@ -1989,8 +2028,8 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.CONSUMED: [{"name": "Attack", "tempo": 5}, {"name": "Move", "tempo": 3}],
 		EnemyType.SLUDGE: [{"name": "Melee", "tempo": 5}, {"name": "Spit", "tempo": 6}, {"name": "Move", "tempo": 5}],
 		EnemyType.PIPE_CRAWLER: [{"name": "Claw", "tempo": 5}, {"name": "Move", "tempo": 2}],
-		EnemyType.SEWER_CROC: [{"name": "Bite", "tempo": 6}, {"name": "Move", "tempo": 5}],
-		EnemyType.RAT_KING: [{"name": "Bite", "tempo": 3}, {"name": "Move", "tempo": 2}, {"name": "Flee to a nest", "tempo": 2}, {"name": "Feed on the nest", "tempo": 2}],
+		EnemyType.SEWER_CROC: [{"name": "Bite", "tempo": 6}, {"name": "Venom Spray", "tempo": 15}, {"name": "Move", "tempo": 5}],
+		EnemyType.RAT_KING: [{"name": "Bite", "tempo": 3}, {"name": "Infest", "tempo": 5}, {"name": "Move", "tempo": 2}, {"name": "Flee to a nest", "tempo": 2}, {"name": "Feed on the nest", "tempo": 2}],
 		EnemyType.SWARM: [{"name": "Attack", "tempo": 2}, {"name": "Move", "tempo": 3}],
 		EnemyType.WEREGOAT: [{"name": "Hoof Punch", "tempo": 4}, {"name": "Charge", "tempo": 8}, {"name": "Move", "tempo": 5}],
 		EnemyType.ROC: [{"name": "Dive Bomb", "tempo": 5}, {"name": "Eye Scrape", "tempo": 3}, {"name": "Move away", "tempo": 1}],
@@ -2083,8 +2122,8 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.CORRUPTED_ARCHANGEL: "Black eyes and long black hair, white wings and robes, wielding a black two-handed sword.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.SLUDGE: "Gelatinous ooze that strikes up close or at range.\nMelee (5 tempo): 3 damage.\nSpit (range 6, 6 tempo): 3 damage.\nMove (5 tempo): 3 spaces.",
 		EnemyType.PIPE_CRAWLER: "Many-limbed crawler scuttling on all fours.\nClaw (5 tempo): 5 damage; 25% chance to disarm you (5 tempo).\nMove (2 tempo): 2 spaces.",
-		EnemyType.SEWER_CROC: "Armoured ambush predator (20 armor).\nBite (6 tempo): 12 damage.\nMove (5 tempo): 2 spaces.",
-		EnemyType.RAT_KING: "A giant crowned rat that leads the swarm (10 armor), fought in his own lair off the sewer's central cistern.\nBite (3 tempo): 6 damage.\nMove (2 tempo): 2 spaces.\nFlee to a nest (2 tempo): at 50%, 30% and 30% health he bolts for an untouched rat nest.\nFeed on the nest (2 tempo): heals 20% / 30% / 50% of his health (left / middle / right nest); a nest feeds him once.",
+		EnemyType.SEWER_CROC: "Armoured sewer serpent (20 armor).\nBite (6 tempo): 12 damage.\nVenom Spray (15 tempo, Async): a cone 5 squares long — one square wide in front of it, five at the far end. Everyone in it takes 8 Poison; anyone with armor also takes 10 damage. No armor, no damage.\nMove (5 tempo): 2 spaces.\nVenomous hide: a hit that costs it health poisons the attacker 3; while it still has armor it has 5 Thorns.\nExposed: when its armor breaks it is stunned for 3 tempo and every clock it was counting resets.",
+		EnemyType.RAT_KING: "A giant crowned rat that leads the swarm (10 armor), fought in his own lair off the sewer's central cistern.\nBite (3 tempo): 6 damage.\nInfest (5 tempo): puts an Infest card in your hand for every rat within 10 squares of him, himself included. Held for 5 tempo, an Infest hatches into 2 Wererats beside you; play it (50 mana, 0 tempo) to erase it, or discard it, and nothing hatches.\nMove (2 tempo): 2 spaces.\nFlee to a nest (2 tempo): at 50%, 30% and 30% health he bolts for an untouched rat nest.\nFeed on the nest (2 tempo): heals 20% / 30% / 50% of his health (left / middle / right nest); a nest feeds him once.",
 		EnemyType.SWARM: "A single creature made of countless biting bugs.\nAttack (2 tempo): 3 damage.\nMove (3 tempo): 8 spaces — very fast.",
 		EnemyType.RING_WRAITH: "The Precious: hunts the ring-bearer through the shadow world. Shadow form does not hide you from these.\nAttack (2 tempo): 15 damage.\nMove (4 tempo): 5 spaces.\nResummons on death — grants no XP.",
 		EnemyType.DUMMY: "The Dojo's training dummy (a chicken, for morale). Stands still, never strikes, and a killing blow only refills it — grants no XP, drops nothing.",
@@ -3090,7 +3129,7 @@ func _choose_action(player_node: Node3D) -> void:
 		EnemyType.SEWER_CROC:
 			_choose_melee_action(distance, "croc_bite")
 		EnemyType.RAT_KING:
-			_choose_rat_king_action(distance)
+			_choose_rat_king_action(distance, player_node)
 		EnemyType.GRAVE_DIGGER:
 			_choose_grave_digger_action()
 		EnemyType.CERBERUS:
@@ -3224,9 +3263,9 @@ func _at_perch() -> bool:
 
 ## --- Rat King ---
 
-func _choose_rat_king_action(distance: int) -> void:
+func _choose_rat_king_action(distance: int, player_node: Node3D = null) -> void:
 	## Wounded past a threshold, the king makes for a nest and feeds on it;
-	## otherwise he bites and repositions like any brute.
+	## otherwise he bites, lays a brood, and repositions like any brute.
 	if _nest_target != null and not _nest_available(_nest_target):
 		# The nest he was running for is gone (destroyed, or drained): pick
 		# another untouched one if any remain, else fight on.
@@ -3237,6 +3276,13 @@ func _choose_rat_king_action(distance: int) -> void:
 			chosen_action = _get_action("nest_heal")
 		else:
 			chosen_action = _get_action("seek_nest")
+		return
+	# sheet: Infest (5 tempo) comes with no selection rule. Ours: he lays the
+	# brood when the player is out of arm's reach and holds no Infest yet;
+	# in reach he bites, and while a brood still squirms in the hand he
+	# closes in like any brute.
+	if distance > 1 and player_node != null and not _hand_has_card_id(player_node, "infest"):
+		chosen_action = _get_action("infest")
 		return
 	_choose_melee_action(distance, "bite")
 
@@ -3309,6 +3355,150 @@ func _try_nest_heal() -> bool:
 	_regenerate(amount)
 	print("[%s] Feeds on the %s nest: +%d health" % [enemy_name, nest.nest_label, amount])
 	return true
+
+## --- Rat King: Infest ---
+
+const INFEST_RADIUS := 10  # sheet: "each rat within a 10 square radius"
+
+func _hand_has_card_id(node: Node3D, cid: String) -> bool:
+	if node == null or not node.has_method("get_deck_manager"):
+		return false
+	var deck = node.get_deck_manager()
+	if deck == null or not ("hand" in deck):
+		return false
+	for c in deck.hand:
+		if c.card_id == cid:
+			return true
+	return false
+
+func _rats_within(radius: int) -> Array:
+	## Living rats within `radius` squares of the king (Manhattan, as every
+	## range here), the king himself included: Wererats and Archer Rats. The
+	## Swarm is bugs and a nest is a structure — neither is a rat (sheet:
+	## "each rat ... including himself").
+	var out: Array = []
+	for e in _sibling_enemies():
+		if e.enemy_type in [EnemyType.WERERAT, EnemyType.ARCHER_RAT, EnemyType.RAT_KING] \
+				and _cells_between(self, e) <= radius:
+			out.append(e)
+	return out
+
+func _try_infest(target_node: Node3D) -> bool:
+	## Infest (5 tempo): one Infest card into the hand per rat within 10
+	## squares, himself included. Each hatches into 2 Wererats beside the
+	## holder if it is still in the hand 5 tempo later (DeckManager counts
+	## the fuse, hand only); playing it for 50 mana or discarding it ends
+	## the brood.
+	var deck = target_node.get_deck_manager() if target_node.has_method("get_deck_manager") else null
+	if deck == null:
+		turn_completed.emit()
+		return true
+	var rats := _rats_within(INFEST_RADIUS)
+	var main = get_parent()
+	var spawner = main.enemy_spawner if main and "enemy_spawner" in main else null
+	for _r in rats:
+		var card: Card = Card.create_infest()
+		if spawner:
+			# Bound to the spawner, not the king: a brood laid by a king
+			# since slain still hatches. Leaving the room frees the spawner,
+			# the handler goes invalid, and the card crumbles unhatched.
+			card.hatch_handler = Callable(spawner, "spawn_hatchlings").bind(target_node, EnemyType.WERERAT, 2)
+		deck.add_card_to_hand(card)
+	print("[%s] INFEST — %d brood(s) squirm into the hand (%d rat(s) within %d)" % [enemy_name, rats.size(), rats.size(), INFEST_RADIUS])
+	turn_completed.emit()
+	return true
+
+## --- Sewer Cobra ---
+
+# sheet: Venom Spray — "range 5 (in a cone, only targeting the immediate
+# square in front of it to 4 squares at range 5)". Read here as a forward
+# cone down the dominant axis toward the target: at forward distance 1..5
+# the half-width is 0, 1, 1, 1, 2 — widths 1, 3, 3, 3, 5 — so it opens from
+# the one square in front to a 5-wide row at range 5. TODO(sheet): "4
+# squares at range 5" may mean a 4-wide far row; the grid has no even,
+# centred row, so the cone ends 5 wide.
+const VENOM_CONE_HALF_WIDTH := [0, 1, 1, 1, 2]
+const VENOM_POISON := 8        # sheet: 8 poison to all targets in the cone
+const VENOM_ARMOR_DAMAGE := 10  # sheet: 10 damage, only to a target with armor
+const COBRA_THORNS := 5        # sheet: 5 thorns while it has armor
+const COBRA_HEALTH_POISON := 3  # sheet: 3 poison when hit directly to health
+const COBRA_EXPOSED_STUN := 3   # sheet: stunned 3 tempo on exposure
+
+func _venom_cone_cells(target_node: Node3D) -> Array:
+	if not grid_manager:
+		return []
+	var my_cell: Vector2i = grid_manager.world_to_grid(position)
+	var t_cell: Vector2i = grid_manager.world_to_grid(target_node.position)
+	var diff: Vector2i = t_cell - my_cell
+	var forward := Vector2i(signi(diff.x), 0) if absi(diff.x) >= absi(diff.y) else Vector2i(0, signi(diff.y))
+	if forward == Vector2i.ZERO:
+		forward = Vector2i(1, 0)
+	var side := Vector2i(-forward.y, forward.x)
+	var cells: Array = []
+	for f in range(1, VENOM_CONE_HALF_WIDTH.size() + 1):
+		var half: int = VENOM_CONE_HALF_WIDTH[f - 1]
+		for l in range(-half, half + 1):
+			cells.append(my_cell + forward * f + side * l)
+	return cells
+
+func _try_venom_spray(target_node: Node3D) -> bool:
+	## Venom Spray (15 tempo, Async): 8 Poison to every player-side unit in
+	## the cone; one that has armor also takes 10 (armor absorbs it first,
+	## as any hit). No armor, no immediate damage — the poison is the bite.
+	## The numbers are the sheet's, flat: the band rebalance scales the
+	## bite, not the venom. A spray that finds nobody is spent all the same
+	## (Async: the clock restarts whether or not it lands).
+	var cells := _venom_cone_cells(target_node)
+	var hit := 0
+	if cells.is_empty():
+		# No grid (bare tests): the spray reaches whoever it is aimed at.
+		if _get_cell_distance(target_node) <= VENOM_CONE_HALF_WIDTH.size():
+			_venom_hit(target_node)
+			hit = 1
+	else:
+		for u in _player_units():
+			if not is_instance_valid(u):
+				continue
+			if grid_manager.world_to_grid(u.position) in cells:
+				_venom_hit(u)
+				hit += 1
+	print("[%s] VENOM SPRAY — %d unit(s) in the cone" % [enemy_name, hit])
+	turn_completed.emit()
+	return true
+
+func _venom_hit(u: Node3D) -> void:
+	_apply_player_debuff(u, Debuff.create(Debuff.DebuffType.POISON, VENOM_POISON, 15))
+	if u.has_method("get_stats"):
+		var st = u.get_stats()
+		if st and st.get_total_armor() > 0:
+			_deal_damage_to_player(u, VENOM_ARMOR_DAMAGE, "Venom Spray")
+
+func _cobra_attacker() -> Node3D:
+	## Who the cobra answers: the player, as Cerberus's Roar thorns read it
+	## (TODO(sheet): co-op — a second player's hit is answered on P1).
+	var main = get_parent()
+	if main == null or not ("player" in main) or main.player == null or not is_instance_valid(main.player):
+		return null
+	return main.player
+
+func _cobra_strike_back(dmg: int) -> void:
+	## The standing thorns: the attacker's direct hit costs them `dmg`.
+	var who := _cobra_attacker()
+	if who == null:
+		return
+	var st = who.get_stats() if who.has_method("get_stats") else null
+	if st == null:
+		return
+	st.take_damage(dmg)
+	print("[%s] Thorns bite back for %d (armored)" % [enemy_name, dmg])
+
+func _cobra_poison_attacker(stacks: int) -> void:
+	## A hit that cost it health: the attacker is poisoned.
+	var who := _cobra_attacker()
+	if who == null:
+		return
+	_apply_player_debuff(who, Debuff.create(Debuff.DebuffType.POISON, stacks, 15))
+	print("[%s] Venom in the wound — %d Poison on the attacker" % [enemy_name, stacks])
 
 ## --- Grave Digger ---
 
@@ -3775,6 +3965,8 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 			return _try_seek_nest()
 		"nest_heal":
 			return _try_nest_heal()
+		"infest":
+			return _try_infest(move_target)
 		"dig_walk":
 			return _try_dig_walk()
 		"repair":
@@ -3884,6 +4076,8 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 			return _try_pipe_claw(move_target)
 		"croc_bite":
 			return _try_elemental(move_target, attack_damage, "Bite")
+		"venom_spray":
+			return _try_venom_spray(move_target)
 		# ----- Mountains act -----
 		"ice_club":
 			return _try_ice_club(move_target)
@@ -5973,6 +6167,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	# (Ifrit backflip, Minotaur leap, Djinn wishes, bear strengthen).
 	var incoming_hit: int = amount
 	var _health_before_hit: int = current_health
+	var _armor_before_hit: int = current_armor  # Sewer Cobra: thorns are judged on the armor it had
 
 	# Remember the raw incoming damage of this hit (before armor math) so
 	# on-expose passives like Easy Target can repeat "your damage".
@@ -6185,6 +6380,25 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 
 	if just_exposed:
 		exposed.emit(self)
+
+	# --- Sewer Cobra (sheet passives) ---
+	if enemy_type == EnemyType.SEWER_CROC and not is_dead:
+		if from_player and last_hit_direct and incoming_hit > 0:
+			# "While the sewer cobra has armor, they have 5 thorns": a flat 5
+			# back at the attacker for every direct hit landed while it was
+			# still armoured — judged before the hit, so the blow that breaks
+			# the armor pays too. Not Roar's decaying enemy_thorns.
+			if _armor_before_hit > 0:
+				_cobra_strike_back(COBRA_THORNS)
+			# "When receiving damage directly to health, the sewer cobra
+			# inflicts 3 poison to the attacker": health lost, not just armor.
+			if current_health < _health_before_hit:
+				_cobra_poison_attacker(COBRA_HEALTH_POISON)
+		if just_exposed and current_health > 0:
+			# "Upon being exposed, the sewer cobra is stunned for 3 tempo and
+			# its tempo counter is completely reset": apply_debuff("stun")
+			# resets every clock, Bite's and Venom Spray's alike.
+			apply_debuff("stun", COBRA_EXPOSED_STUN)
 
 	# Action keywords: Disruptable clocks count this hit; Trigger actions
 	# keyed to being hit, losing armor, or dropping under half health fire.
@@ -6812,6 +7026,10 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Brace", "color": Color(0.5, 0.5, 0.8), "stacks": _brace_charges})
 	if enemy_thorns > 0:
 		effects.append({"name": "Thorns", "color": Color(0.8, 0.4, 0.8), "stacks": enemy_thorns})
+	elif enemy_type == EnemyType.SEWER_CROC and current_armor > 0:
+		# sheet: "While the sewer cobra has armor, they have 5 thorns" — a
+		# standing 5, gone the moment it is exposed.
+		effects.append({"name": "Thorns", "color": Color(0.8, 0.4, 0.8), "stacks": COBRA_THORNS})
 	if strengthen_stacks > 0 and enemy_type == EnemyType.CERBERUS:
 		effects.append({"name": "Strengthen", "color": Color(1.0, 0.5, 0.3), "stacks": strengthen_stacks})
 

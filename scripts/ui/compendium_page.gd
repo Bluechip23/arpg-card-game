@@ -720,11 +720,19 @@ func _create_enemy_entry(enemy_data: Dictionary) -> PanelContainer:
 	var panel = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(250, 100)
 
+	# One colour per sheet tier (Enemy.get_all_enemy_data "type"): Trash
+	# grey, Mid-tier the old red, Elite gold, Boss purple, Special teal.
 	var type_color = Color(0.8, 0.3, 0.3)
-	if enemy_data["type"] == "Elite":
+	if enemy_data["type"] == "Trash":
+		type_color = Color(0.6, 0.6, 0.6)
+	elif enemy_data["type"] == "Mid-tier":
+		type_color = Color(0.8, 0.3, 0.3)
+	elif enemy_data["type"] == "Elite":
 		type_color = Color(0.8, 0.6, 0.2)
 	elif enemy_data["type"] == "Boss":
 		type_color = Color(0.7, 0.2, 0.5)
+	elif enemy_data["type"] == "Special":
+		type_color = Color(0.3, 0.7, 0.8)
 
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.12, 0.12, 0.18, 0.9)
