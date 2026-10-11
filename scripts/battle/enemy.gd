@@ -273,9 +273,9 @@ var _ww_last_target: Node3D = null    # Werewolf: ramping rhythm — same target
 var _ww_streak: int = 0
 var _bat_form_charges: int = 2        # Vampire: bat-form escapes remaining (no way to recharge)
 var _vamp_absorb_pending: bool = false  # Vampire: Absorb always casts right after bat form
-var _necro_summon_deaths: int = 0     # Necromancer: after 5 of its summons die, raises a Bone Dragon
-var _necro_dragon_raised: bool = false
-var _necro_summons_alive: int = 0
+var _necro_summons_alive: int = 0     # Necromancer: his Summon retinue (capped at 3 by the chooser)
+var raised_by: Enemy = null           # the Necromancer whose Summon raised this one (its death costs him 10)
+var necro_risen: bool = false         # a Skeleton risen from a corpse by a Necromancer: rises no further, echoes nothing
 var _treant_thorn_accumulator: int = 0  # Treant: every 10 tempo, strips enemy thorns and heals
 var _stinger_cooldown: int = 0        # White Manticore: raw tempo until Stinger is ready
 var _talon_cooldown: int = 0          # Wyvern: raw tempo until Talon Grab is ready
@@ -2098,8 +2098,8 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WEREWOLF: "Bear-sized grey beast with armor-piercing claws. Resists 25% physical/fire/lightning.\nClaw (5 tempo): 10 damage, +3 vs armor; a debuffed target is raked a SECOND time for half. Each consecutive claw on the same target arms 1 tempo faster (5, 4, 3...); switching targets resets it.\nMove (3 tempo): 3 spaces.",
 		EnemyType.WERERABBIT: "Loot monster — does not attack.\nFlees for 3 cycles, then Vanishes in a puff of smoke.\nMove (1 tempo): 2 spaces.",
 		EnemyType.VAMPIRE: "Victorian aristocrat with life steal. Resists 10% physical/fire/lightning.\nBite (5 tempo): 10 damage; heals 100% of damage dealt to HEALTH (not armor).\nBat Form (below 50% HP, 2 charges, never recharges): flits 6 squares away...\nAbsorb (3 tempo, always right after Bat Form): drains the healthiest ally on the map (you included) — 20 the first time, then 10.\nMove (5 tempo): 5 spaces.",
-		EnemyType.NECROMANCER: "Hooded caster (range 10) who raises the dead. Resists 15% fire/lightning.\nBolt (5 tempo): 4 damage + Hexes 2 cards in your hand (each +30 mana until played).\nSummon (8 tempo): raises undead (skeletons and zombies, first pass). After 5 of its summons die, it raises a BONE DRAGON.\nMove (6 tempo): 8 spaces.",
-		EnemyType.BONE_DRAGON: "Skeletal wyrm. Summoned by the Necromancer, but also roams freely; fought as a boss in the Boneyard, where every standing gravestone regenerates it 1 health a cycle (Gravebound — break the stones, and kill the diggers who repair them). Resists 45% physical / 45% fire.\nBite (5 tempo): 12 damage.\nBreath Swarm (6 tempo): 12 damage down a 6-tile line; a Swarm hatches beside everyone it hits.\nMove (5 tempo): 5 spaces.",
+		EnemyType.NECROMANCER: "Hooded caster (range 10) who raises the dead. Resists 15% fire/lightning.\nBolt (5 tempo): 4 damage + Hexes 2 cards in your hand (each +30 mana until played).\nSummon (8 tempo): raises undead (skeletons and zombies, first pass).\nRaise the Fallen (passive): every summon of his that dies rises again as a Skeleton — and costs him 10 health; any other ally that dies within 8 squares of him rises as a Skeleton too. A risen Skeleton rises no further and costs him nothing.\nMove (6 tempo): 8 spaces.",
+		EnemyType.BONE_DRAGON: "Skeletal wyrm. Fought as a boss in the Boneyard, where every standing gravestone regenerates it 1 health a cycle (Gravebound — break the stones, and kill the diggers who repair them). Resists 45% physical / 45% fire.\nBite (5 tempo): 12 damage.\nBreath Swarm (6 tempo): 12 damage down a 6-tile line; a Swarm hatches beside everyone it hits.\nMove (5 tempo): 5 spaces.",
 		EnemyType.SPIRIT_COLLECTOR: "Lantern-bearer with a soul cage on its back. Strengthen it gains adds to every Strike and Collect Soul and never fades.\nStrike (3 tempo): 8 damage.\nCollect Soul (8 tempo): 8 damage; adds a 'Release Soul' card to your hand. While it is in your hand you are Drained (10 mana a cycle) and it saps 1 damage per tempo (charged 5 at each cycle). Play it (15 mana, 2 tempo) to be rid of it — but releasing the soul gives every living Spirit Collector 5 Strengthen.",
 		EnemyType.GRAVE_TITAN: "Yeti-like brute (30 armor) hauling a boulder.\nSmash (8 tempo): 15 damage in front.\nBoulder Roll (range 3, 5 tempo): rolls the boulder for 15 damage.\nMove (8 tempo): 4 spaces.",
 		EnemyType.CRYPT_CRAWLER: "Large spider. After 3 consecutive attacks it webs you.\nBite (3 tempo): 6 damage.\nWeb: adds a 'Paralysis' card to your hand — you cannot move until it is played (10 mana, 5 tempo; other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
@@ -4819,7 +4819,7 @@ func _try_necro_bolt(target_node: Node3D) -> bool:
 func _try_necro_summon(_target_node: Node3D) -> bool:
 	## Raises undead beside the necromancer. FIRST-PASS PLACEHOLDER roster
 	## (no summon structure has been specced yet): one skeleton or zombie
-	## per cast. After 5 of its summons die, it raises a Bone Dragon.
+	## per cast. What happens when they die is _necro_rise_on_death.
 	if is_silenced:
 		print("[%s] Silenced — the dead stay dead." % enemy_name)
 		turn_completed.emit()
@@ -4837,16 +4837,47 @@ func _necro_spawn(t: EnemyType) -> Enemy:
 	var e: Enemy = main.enemy_spawner.spawn_enemy(t, _free_cell_near(position, 2))
 	if e:
 		_necro_summons_alive += 1
+		e.raised_by = self
 		e.died.connect(_on_necro_summon_died)
 	return e
 
 func _on_necro_summon_died(_e: Enemy) -> void:
 	_necro_summons_alive = maxi(0, _necro_summons_alive - 1)
-	_necro_summon_deaths += 1
-	if _necro_summon_deaths >= 5 and not _necro_dragon_raised and not is_dead:
-		_necro_dragon_raised = true
-		if _necro_spawn(EnemyType.BONE_DRAGON):
-			print("[%s] Five servants fallen — a BONE DRAGON rises!" % enemy_name)
+
+const NECRO_RISE_RANGE := 8            # an ally that falls within this many squares of him rises
+const NECRO_SUMMON_DEATH_DAMAGE := 10  # what every death among his own summons costs him
+
+## The Necromancer's rule (designer, 2026-10-11; replaces the old "five
+## deaths raise a Bone Dragon"): a corpse near a living Necromancer rises
+## as a Skeleton — his own summons wherever they fall, any other ally within
+## 8 squares of him — and every summon of his that dies costs him 10 health.
+## A risen skeleton is neither a summon nor an ally for this rule: it rises
+## no further and its death costs nothing. Called from die() by the corpse.
+func _necro_rise_on_death() -> void:
+	if necro_risen or is_structure or is_training_dummy or is_mimic or enemy_type == EnemyType.RING_WRAITH:
+		return
+	var necro: Enemy = null
+	var echo := false
+	if raised_by != null and is_instance_valid(raised_by) and raised_by.is_alive():
+		necro = raised_by
+		echo = true
+	else:
+		for e in _sibling_enemies():
+			if e != self and e.enemy_type == EnemyType.NECROMANCER and _cells_between(self, e) <= NECRO_RISE_RANGE:
+				necro = e
+				break
+	if necro == null:
+		return
+	var main = get_parent()
+	if main and ("enemy_spawner" in main) and main.enemy_spawner:
+		var sk: Enemy = main.enemy_spawner.spawn_enemy(EnemyType.SKELETON, _free_cell_near(position, 1))
+		if sk:
+			sk.necro_risen = true
+			print("[%s] %s raises the fallen %s as a Skeleton" % [enemy_name, necro.enemy_name, enemy_name])
+	if echo:
+		# The rise comes first: the summon's death and the echo are one moment.
+		print("[%s] A servant falls — %s takes %d" % [enemy_name, necro.enemy_name, NECRO_SUMMON_DEATH_DAMAGE])
+		necro.take_damage(NECRO_SUMMON_DEATH_DAMAGE, false)
 
 ## --- Bone Dragon ---
 
@@ -7448,6 +7479,9 @@ func die() -> void:
 		m.die()
 	_mimics.clear()
 	died.emit(self)
+	# Necromancer: a corpse near him rises as a Skeleton (and his own summons
+	# cost him on the way down).
+	_necro_rise_on_death()
 
 	# Hide tempo bar on death
 	if _tempo_bar_bg:

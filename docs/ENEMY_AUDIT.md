@@ -28,8 +28,8 @@ code was altered in this pass to match; "Built" means the enemy or action did no
   the same column: Trash→TRASH, Mid-tier→MID, Elite→ELITE, Boss→BOSS. Consequences: Bugbear, Infected Hunter,
   Earth Mage, Spirit Collector, The Consumed, Sewer Cobra and Fire Goblin Shaman drop *mid* loot instead of elite;
   Mini Bear and Fire Goblin Soldier drop trash; Hydra drops elite instead of boss; Rat King and **Bone Dragon**
-  drop boss loot. The Bone Dragon used to be held at elite because the Necromancer can raise one after five of its
-  summons die — a boss drop there is farmable in the deep graveyard rooms. Followed the sheet; flagging it.
+  drop boss loot. (The Bone Dragon used to be held at elite because the Necromancer could raise one; that raise
+  is gone, so boss loot on it is no longer farmable.)
 - **Async on the sheet is real Async in code** (`docs/ENEMY_ACTION_KEYWORDS.md`): the action runs its own clock,
   and a Sync action may only *start* while no Async clock is mid-count. Consequences worth a designer look:
   - Cerberus: Bite (5) and Venom Tail (15) are now Async; Swipe / Roar / Move share the Sync clock and can only
@@ -61,7 +61,7 @@ code was altered in this pass to match; "Built" means the enemy or action did no
 | Ice Troll | Elite 7 | Match | Club 13, Cold + Brittle per hit, Clobber 50 auto on freeze. Open: the sheet's "10" tempo on Clobber (it is instant). |
 | Ifrit | Elite 8 | Match (mostly) | Attack 45, Breath 20 + 5 Burn in a 5×5 lingering 3, Backflip over 40. Open: "the breath continues for 6 tempo" — code is one instant hit; left as is pending a ruling (a 6-tempo Channel? tiles that burn each tempo?). |
 | Large Bear | Elite 7 | Match | Maul 12 + 4 Bleed, Roar Vulnerable within 4 (1 stack, 15t, 15-tempo cooldown), permanent 30% physical below half, rage ×1.5 / double bleed / heals from bleed, +1 Strengthen per hit with Mini Bears present. |
-| Necromancer | Elite 8 | Match | Bolt 4 + 2 Hexes of 30 (also expire after 25 tempo), Summon 8 (skeleton/zombie coin flip, cap 3), Bone Dragon on the 5th summon death. Summon roster still owed by the designer. |
+| Necromancer | Elite 8 | Changed | Bolt 4 + 2 Hexes of 30 (also expire after 25 tempo), Summon 8 (skeleton/zombie coin flip, cap 3). The Bone Dragon raise is **gone**; in its place (designer's change, 2026-10-11): a summon of his that dies rises again as a Skeleton and costs him 10 health; any other ally that dies within 8 squares of him rises as a Skeleton; risen Skeletons rise no further and cost nothing. Summon roster still owed by the designer. |
 | Treant | Elite 8 | Match | Slam 14 earth, Root 8 (range 4), heal 5 per 5 tempo (+2 per 10% under 60%), thorn strip every 10. The stray "5" in the sheet's Tempo 3 cell is the Heal action. |
 | Vampire | Elite 8 | Match | Bite 10 heals health damage only; Bat Form is an instant reaction below 50% (2 charges); Absorb 20 then 10 on the healthiest unit. Open: a second Bat Form during the first Absorb's wind-up loses the 20. |
 | Werewolf | Elite 7 | Changed | First claw on a **new** target now costs the full 5 (streak resets when the target changes). +3 vs armor, rake on a debuffed target match. |
@@ -121,7 +121,8 @@ code was altered in this pass to match; "Built" means the enemy or action did no
    1–10 become the band and the scaling be re-tuned?
 2. **Async consequences** (0.1): Cerberus's Swipe/Roar starving, the Cobra's once-per-15 Bite, the Roc crawling at
    1 square per 3 tempo, the Demon's 8-tempo Attack. Intended, or should some of these be Sync?
-3. **Bone Dragon boss loot** via the Necromancer's raise (farmable).
+3. Necromancer's Raise the Fallen: a risen Skeleton is treated as neither summon nor ally (it never rises again,
+   its death costs him nothing) so corpses cannot chain forever; mimics, structures and the dummy never rise.
 4. Numbers the sheet leaves blank: Roc Dive Bomb damage; Snow Wraith Ice Blast tempo and range; Magma Spider web
    size / duration / cast tempo; Succubus and Mind Eater ranges; Net Throw range; Release Soul Strengthen amount;
    Weregoat landing-stun length; Rat King Infest selection rule.

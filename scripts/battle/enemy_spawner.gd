@@ -361,9 +361,7 @@ func get_loot_tier(type: Enemy.EnemyType) -> String:
 		Enemy.EnemyType.TREANT, Enemy.EnemyType.WYVERN, Enemy.EnemyType.ICE_TROLL, \
 		Enemy.EnemyType.WHITE_MANTICORE, Enemy.EnemyType.IFRIT, Enemy.EnemyType.DJINN:
 			return DropRates.TIER_ELITE
-		# sheet: Boss. The Bone Dragon is Necromancer-summonable, so its
-		# boss-tier drops can be farmed by letting the summons die — the
-		# sheet's call, flagged here.
+		# sheet: Boss.
 		Enemy.EnemyType.BOSS, Enemy.EnemyType.RAT_KING, Enemy.EnemyType.BONE_DRAGON, \
 		Enemy.EnemyType.GRANITE_COLOSSUS, Enemy.EnemyType.CERBERUS, Enemy.EnemyType.PIT_FIEND, \
 		Enemy.EnemyType.INFLAMED_MINOTAUR, Enemy.EnemyType.CORRUPTED_ARCHANGEL:
