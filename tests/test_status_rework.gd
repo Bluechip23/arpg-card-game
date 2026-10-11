@@ -4,8 +4,10 @@ extends SceneTree
 ## Buffs — Blessed burns a charge per cycle; Smith decays like Regen; Haste is
 ## charge-based; Poisoned Blood burns a charge per converted heal; Elixir burns
 ## a stack per healed poison tick; Phoenix Grace is charge-based.
-## Debuffs — Bleed 1 dmg/tile consuming stacks; Slowed/Weighted/Staggered/
-## Clumsy burn stacks by use; Blind defaults to 80%.
+## Debuffs — Bleed 1 dmg/tile consuming stacks; Weighted burns stacks by use;
+## Slowed/Staggered/Clumsy hold through use and fall on their own 5-tempo
+## clocks (tests/test_debuff_stack_clocks.gd covers the clocks in depth);
+## Blind misses at 80%.
 ## Run: godot --headless --path . --script tests/test_status_rework.gd
 
 var failures := 0
@@ -83,28 +85,32 @@ func _initialize() -> void:
 	_check(dealt == 1 and not dm.has_debuff(Debuff.DebuffType.BLEED),
 		"Bleed capped at remaining stacks and expired")
 
-	# --- Slowed: stack per tile, never expires by clock ---
+	# --- Slowed: a stack is 5 tempo on the debuff's own clock ---
 	dm.apply_debuff(Debuff.create_slowed(2, "Test"))
 	_check(dm.is_slowed(), "Slowed active")
-	dm.advance_time(50)
-	_check(dm.is_slowed(), "Slowed survives the clock")
-	dm.consume_slowed_stack()
-	dm.consume_slowed_stack()
-	_check(not dm.is_slowed(), "Slowed gone after 2 tiles")
+	dm.advance_time(4)
+	_check(dm.is_slowed() and dm.get_debuff(Debuff.DebuffType.SLOWED).value == 2, "Slowed(2) still whole after 4 tempo")
+	dm.advance_time(1)
+	_check(dm.get_debuff(Debuff.DebuffType.SLOWED).value == 1, "first stack falls on the 5th tempo")
+	dm.advance_time(5)
+	_check(not dm.is_slowed(), "Slowed gone after 10 tempo")
 
-	# --- Staggered / Weighted / Clumsy: fixed magnitudes, burn on plays ---
+	# --- Staggered / Weighted / Clumsy: fixed magnitudes; only Weighted burns on plays ---
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.STAGGERED, 1, -1))
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.WEIGHTED, 2, -1))
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.CLUMSY, 1, -1))
 	_check(dm.get_attack_mana_increase() == Debuff.STAGGERED_MANA, "Staggered charges +15 mana")
 	_check(dm.get_tempo_increase() == Debuff.WEIGHTED_TEMPO, "Weighted charges +2 tempo")
 	_check(dm.get_clumsy_chance() == Debuff.CLUMSY_CHANCE, "Clumsy rolls at 30%")
-	dm.on_card_played(true)   # attack card: burns all three
-	_check(not dm.has_debuff(Debuff.DebuffType.STAGGERED), "Staggered burned by the attack card")
-	_check(not dm.has_debuff(Debuff.DebuffType.CLUMSY), "Clumsy burned by the card")
+	dm.on_card_played(true)   # attack card: only Weighted burns
+	_check(dm.has_debuff(Debuff.DebuffType.STAGGERED), "Staggered holds through the attack card")
+	_check(dm.has_debuff(Debuff.DebuffType.CLUMSY), "Clumsy holds through the card")
 	_check(dm.has_debuff(Debuff.DebuffType.WEIGHTED), "Weighted has a stack left")
 	dm.on_card_played(false)  # non-attack card
 	_check(not dm.has_debuff(Debuff.DebuffType.WEIGHTED), "Weighted burned by the second card")
+	dm.advance_time(5)
+	_check(not dm.has_debuff(Debuff.DebuffType.STAGGERED) and not dm.has_debuff(Debuff.DebuffType.CLUMSY),
+		"Staggered and Clumsy fall on their 5-tempo clocks")
 
 	# --- Per-tempo ticking: a 3-tempo stun works at any granularity ---
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.STUN, 0, 3))
@@ -123,10 +129,14 @@ func _initialize() -> void:
 	bm.advance_time(1)
 	_check(not bm.has_buff(Buff.BuffType.FORTIFY), "Fortify(4) expires on the 4th tempo")
 
-	# --- Blind default is 80% ---
-	var blind = Debuff.create(Debuff.DebuffType.BLIND, 0, 10)
-	_check("80%" in blind.description, "Blind description defaults to 80%")
-	_check(absf(stats.blind_miss_chance - 0.8) < 0.001, "player blind miss chance is 80%")
+	# --- Blind misses at a constant 80%; value is the stack count ---
+	var blind = Debuff.create(Debuff.DebuffType.BLIND, 2)
+	_check("80%" in blind.description and "2 stack(s)" in blind.description, "Blind description: 80% miss, 2 stacks")
+	dm.apply_debuff(blind)
+	_check(dm.is_blinded() and absf(dm.get_blind_miss_chance() - 0.8) < 0.001, "the debuff manager reports an 80% miss chance")
+	_check(dm.get_debuff(Debuff.DebuffType.BLIND).duration == -1, "Blind rides its stack clock, not the shared timer")
+	dm.advance_time(10)
+	_check(not dm.is_blinded() and dm.get_blind_miss_chance() == 0.0, "Blind(2) gone after 10 tempo")
 
 	stats.free()
 	bm.free()

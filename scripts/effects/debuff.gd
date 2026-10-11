@@ -32,7 +32,7 @@ enum DebuffType {
 	BLIND,
 	# Appended at the tail — enum order is save-compat-sensitive.
 	GENERIC,  # bespoke named debuff (Marvolo's Misunderstanding); keeps its custom name/description
-	WEAKENED  # deal WEAKENED_REDUCTION% less damage; 1 stack burns per attack (mirrors enemy-side Weaken)
+	WEAKENED  # deal WEAKENED_REDUCTION% less damage; stacks fall on the 5-tempo clock (mirrors enemy-side Weaken)
 }
 
 # Fixed magnitudes for the stack-driven debuffs: the stack COUNT is the only
@@ -45,10 +45,18 @@ const CLUMSY_CHANCE := 30          # % chance to discard on card play
 const BLIND_MISS := 80             # % chance for attacks to miss
 const WEAKENED_REDUCTION := 30     # % less damage dealt while Weakened (matches the enemy-side Weaken)
 
+## The sheet's "a stack is 5 tempo" rule: every stack-clocked debuff sheds one
+## stack each STACK_TEMPO of its OWN clock (see advance_time), never by use.
+const STACK_TEMPO := 5
+## Cold's default timer on the player (the sheet: 5 tempo).
+const COLD_TEMPO := 5
+## What create()/new() hand a debuff that names no duration.
+const DEFAULT_DURATION := 15
+
 var debuff_type: DebuffType
 var debuff_name: String
 var description: String
-var value: int = 0           # The 'x' value (damage, reduction, etc.)
+var value: int = 0           # The 'x' value (damage, reduction, etc.) — the stack count for stack-clocked types
 var duration: int = 0        # Tempo remaining (-1 for until cleansed)
 var source_name: String = "" # What applied this debuff
 
@@ -58,11 +66,19 @@ var stacks: int = 1          # Some debuffs can stack
 ## set number of tempo (Approach, Tower Shield): the clock expires it and
 ## nothing burns its stacks.
 var clock_timed: bool = false
+## Own clock for the stack-clocked types: raw tempo this instance has lived
+## since its last stack fell. A stack applied at tempo 3 is gone at tempo 8,
+## not at the next global cycle boundary.
+var stack_clock: int = 0
 var affected_card_index: int = -1  # For Hexed/Locked - which card in hand is affected
 
-func _init(type: DebuffType, val: int = 0, dur: int = 15) -> void:
+func _init(type: DebuffType, val: int = 0, dur: int = DEFAULT_DURATION) -> void:
 	debuff_type = type
 	value = val
+	# sheet: Cold's default timer is 5 tempo. A caller that names no duration
+	# (or the old 15) gets the sheet's number; an explicit other timer stands.
+	if type == DebuffType.COLD and dur == DEFAULT_DURATION:
+		dur = COLD_TEMPO
 	duration = dur
 	_set_name_and_description()
 
@@ -74,6 +90,24 @@ static func create_generic(nm: String, desc: String, val: int, dur: int, source:
 	d.description = desc
 	d.source_name = source
 	return d
+
+## The types whose stacks fall on their own 5-tempo clock (the sheet's
+## "a stack is 5 tempo" model). Weighted is NOT one: it still burns per card.
+static func is_stack_clocked(type: DebuffType) -> bool:
+	return type in [DebuffType.VULNERABLE, DebuffType.BLIND, DebuffType.SLOWED,
+		DebuffType.WEAKENED, DebuffType.STAGGERED, DebuffType.CLUMSY, DebuffType.BRITTLE]
+
+## The hard locks whose timers ADD on re-application (Disarm 5 onto 3 left = 8).
+static func is_additive_timer(type: DebuffType) -> bool:
+	return type in [DebuffType.DISARM, DebuffType.ROOTED, DebuffType.SILENCE]
+
+## This instance sheds stacks on its own clock: a stack-clocked type that is
+## not riding a card's fixed timer (Approach's Slowed, Tower Shield's Staggered).
+func uses_stack_clock() -> bool:
+	return is_stack_clocked(debuff_type) and not clock_timed
+
+func _stacks_left_text() -> String:
+	return "%d stack(s), %d tempo each" % [value, STACK_TEMPO]
 
 func _set_name_and_description() -> void:
 	if debuff_type == DebuffType.GENERIC:
@@ -87,10 +121,10 @@ func _set_name_and_description() -> void:
 			description = "Cannot take any actions"
 		DebuffType.DISARM:
 			debuff_name = "Disarm"
-			description = "Cannot play attack cards"
+			description = "Cannot play attack cards or auto attack (%d tempo left)" % duration
 		DebuffType.SILENCE:
 			debuff_name = "Silence"
-			description = "Cannot play spell cards"
+			description = "Cannot play spell cards (%d tempo left)" % duration
 		DebuffType.BURN:
 			debuff_name = "Burn"
 			description = "Burn damage doubles each cycle (1, 2, 4, 8...); attacking also triggers the current burn damage"
@@ -114,13 +148,13 @@ func _set_name_and_description() -> void:
 			if clock_timed:
 				description = "Movement costs %d tempo per tile (%d tempo left)" % [SLOWED_TEMPO_PER_TILE, duration]
 			else:
-				description = "Movement costs %d tempo per tile; each tile burns a stack (%d left)" % [SLOWED_TEMPO_PER_TILE, value]
+				description = "Movement costs %d tempo per tile (%s)" % [SLOWED_TEMPO_PER_TILE, _stacks_left_text()]
 		DebuffType.STAGGERED:
 			debuff_name = "Staggered"
 			if clock_timed:
 				description = "Attack cards cost %d more mana (%d tempo left)" % [STAGGERED_MANA, duration]
 			else:
-				description = "Attack cards cost %d more mana; each attack card burns a stack (%d left)" % [STAGGERED_MANA, value]
+				description = "Attack cards cost %d more mana (%s)" % [STAGGERED_MANA, _stacks_left_text()]
 		DebuffType.DRAIN:
 			debuff_name = "Drain"
 			description = "Lose 10 mana per cycle, lose 1 drain per cycle"
@@ -132,38 +166,51 @@ func _set_name_and_description() -> void:
 			description = "One card in your hand costs +%d mana until it is played" % value
 		DebuffType.LOCKED:
 			debuff_name = "Locked"
-			description = "One random card cannot be played"
+			description = "One random card cannot be played (each Locked holds its own card)"
 		DebuffType.ROOTED:
 			debuff_name = "Rooted"
-			description = "Cannot move"
+			description = "Cannot move (%d tempo left)" % duration
 		DebuffType.CLUMSY:
 			debuff_name = "Clumsy"
-			description = "%d%% chance to discard a random card when playing; each card burns a stack (%d left)" % [CLUMSY_CHANCE, value]
+			if clock_timed:
+				description = "%d%% chance to discard a random card when playing (%d tempo left)" % [CLUMSY_CHANCE, duration]
+			else:
+				description = "%d%% chance to discard a random card when playing (%s)" % [CLUMSY_CHANCE, _stacks_left_text()]
 		DebuffType.VULNERABLE:
 			debuff_name = "Vulnerable"
-			description = "Take 30%% more damage on next %d attack(s)" % value
+			description = "Take 30%% more damage (%s)" % _stacks_left_text()
 		DebuffType.BRITTLE:
 			debuff_name = "Brittle"
-			description = "Armor decays extra 2 per cycle, %d stack(s)" % value
+			description = "Armor decays an extra 2 per cycle (%s)" % _stacks_left_text()
 		DebuffType.COLD:
 			debuff_name = "Cold"
-			description = "At 5 stacks, become Frozen for 1 cycle. Current: %d stack(s)" % value
+			description = "At 5 stacks, become Frozen for 1 cycle. Current: %d stack(s) (%d tempo left)" % [value, duration]
 		DebuffType.BLIND:
 			debuff_name = "Blind"
-			description = "%d%% chance for your attacks to miss" % (value if value > 0 else BLIND_MISS)
+			description = "%d%% chance for your attacks to miss (%s)" % [BLIND_MISS, _stacks_left_text()]
 		DebuffType.WEAKENED:
 			debuff_name = "Weakened"
-			description = "Deal %d%% less damage; each attack burns a stack (%d left)" % [WEAKENED_REDUCTION, value]
+			description = "Deal %d%% less damage (%s)" % [WEAKENED_REDUCTION, _stacks_left_text()]
 
 func advance_time(amount: int) -> bool:
+	# Stack-clocked types (the sheet's "a stack is 5 tempo"): the instance's
+	# own clock runs on raw tempo and sheds one stack per STACK_TEMPO. Expired
+	# once the last stack falls. Returns true when expired.
+	if uses_stack_clock():
+		stack_clock += amount
+		while stack_clock >= STACK_TEMPO and value > 0:
+			stack_clock -= STACK_TEMPO
+			value -= 1
+		_set_name_and_description()
+		return value <= 0
 	# Duration counts RAW tempo, decremented on every tempo advance — so a
 	# 3-tempo stun works. Negative duration = "until cleansed / stack-driven":
-	# never expires here. Returns true when expired.
+	# never expires here.
 	if duration < 0:
 		return false
 	duration -= amount
-	if clock_timed:
-		_set_name_and_description()
+	# Every timed description that shows tempo left stays honest.
+	_set_name_and_description()
 	return duration <= 0
 
 func get_icon_color() -> Color:
@@ -199,7 +246,7 @@ func get_short_display() -> String:
 		return "%s(%d)" % [debuff_name, value]
 	return debuff_name
 
-static func create(type: DebuffType, val: int = 0, dur: int = 15) -> Debuff:
+static func create(type: DebuffType, val: int = 0, dur: int = DEFAULT_DURATION) -> Debuff:
 	return Debuff.new(type, val, dur)
 
 ## Slowed or Staggered on the clock instead of by stacks.
@@ -211,8 +258,8 @@ static func create_timed(type: DebuffType, tempo: int, source: String = "") -> D
 	return debuff
 
 static func create_slowed(stacks_count: int = 2, source: String = "") -> Debuff:
-	# Stack-driven: each tile moved costs SLOWED_TEMPO_PER_TILE tempo and burns
-	# one stack. Never expires by the clock.
+	# Stack form: each tile moved costs SLOWED_TEMPO_PER_TILE tempo; the stacks
+	# fall on the debuff's own 5-tempo clock, never by moving.
 	var debuff = Debuff.new(DebuffType.SLOWED, stacks_count, -1)
 	debuff.source_name = source
 	return debuff

@@ -125,8 +125,9 @@ func _run() -> void:
 	Card.create_approach().execute(null, stats, dm, 0.0, 0.0, bm)
 	var slow = dbm.get_debuff(Debuff.DebuffType.SLOWED)
 	_check(slow != null and slow.clock_timed and slow.duration == 10, "Approach: Slowed for 10 tempo")
-	dbm.consume_slowed_stack()
-	_check(dbm.has_debuff(Debuff.DebuffType.SLOWED), "moving does not burn a timed Slow")
+	dbm.advance_time(5)
+	_check(dbm.has_debuff(Debuff.DebuffType.SLOWED) and slow.value == 1 and slow.duration == 5,
+		"a timed Slow runs its timer, not the stack clock")
 	dbm.clear_all_debuffs()
 
 	print("-- Trip --")

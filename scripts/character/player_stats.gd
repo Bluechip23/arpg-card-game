@@ -229,7 +229,10 @@ func get_chance_boost() -> float:
 var elixir_stacks: int = 0  # Elixir: next N poison ticks heal instead of hurting (1 stack per tick)
 var elixir_tempo: int = 0   # Elixir card: while > 0, any poison applied to you heals you instead
 const ELIXIR_TEMPO := 25    # the Elixir card's window (the span its old 5 ticks covered)
-var is_blinded: bool = false      # Blind (e.g. Giant Hawk): attacks may miss
+# Legacy Blind flags. Blind is a stack-clocked debuff on the DebuffManager now
+# (Debuff.DebuffType.BLIND, 80% miss while any stack remains) and nothing sets
+# these; Card keeps them only as a fallback when no debuff manager is in reach.
+var is_blinded: bool = false
 var blind_tempo: int = 0
 const blind_miss_chance: float = 0.8
 var healing_boost_percent: float = 0.0  # Raged Circulation: +30% healing
