@@ -744,10 +744,11 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 
 	if debuff_mgr:
 		debuff_mgr.remove_hexes_on_card(index)
-		if debuff_mgr.get_locked_card_index() == index:
-			debuff_mgr.remove_debuff(Debuff.DebuffType.LOCKED)
+		# A locked card cannot be played, so this only fires when a bypass
+		# played it anyway — the lock on it is spent either way.
+		debuff_mgr.remove_locks_on_card(index)
 		_update_debuff_card_indices(debuff_mgr, index)
-		# Weighted/Clumsy burn a stack on every card; Staggered on attack cards.
+		# Weighted burns a stack on every card (Staggered/Clumsy ride the clock).
 		debuff_mgr.on_card_played(card.card_type == Card.CardType.ATTACK)
 
 	var damage_reduction_pct = 0.0
@@ -932,10 +933,7 @@ func execute_deferred_card(card: Card, target, player_node = null) -> void:
 
 func _update_debuff_card_indices(debuff_mgr, removed_index: int) -> void:
 	debuff_mgr.shift_hexed_indices(removed_index)
-
-	var locked_index = debuff_mgr.get_locked_card_index()
-	if locked_index > removed_index:
-		debuff_mgr.set_locked_card_index(locked_index - 1)
+	debuff_mgr.shift_locked_indices(removed_index)
 
 func assign_hexed_locked_cards(debuff_mgr) -> void:
 	if hand.size() == 0:
@@ -954,12 +952,24 @@ func assign_hexed_locked_cards(debuff_mgr) -> void:
 		hex.affected_card_index = index
 		print("[DECK] Hexed assigned to card %d: %s" % [index, hand[index].card_name])
 
-	if debuff_mgr.has_debuff(Debuff.DebuffType.LOCKED) and debuff_mgr.get_locked_card_index() == -1:
-		var index = randi() % hand.size()
-		if hand.size() > 1 and debuff_mgr.is_card_hexed(index):
-			index = (index + 1) % hand.size()
-		debuff_mgr.set_locked_card_index(index)
-		print("[DECK] Locked assigned to card %d: %s" % [index, hand[index].card_name])
+	# Every unassigned lock claims its own card too: a card no other lock
+	# holds, and preferably one no hex sits on either. With more locks than
+	# cards they stack onto shared cards — the hand is simply all locked.
+	for lock in debuff_mgr.get_locked_debuffs():
+		if lock.affected_card_index != -1:
+			continue
+		var unlocked: Array = []
+		var unlocked_unhexed: Array = []
+		for i in range(hand.size()):
+			if debuff_mgr.is_card_locked(i):
+				continue
+			unlocked.append(i)
+			if not debuff_mgr.is_card_hexed(i):
+				unlocked_unhexed.append(i)
+		var pool: Array = unlocked_unhexed if not unlocked_unhexed.is_empty() else unlocked
+		var lock_index: int = pool[randi() % pool.size()] if not pool.is_empty() else randi() % hand.size()
+		lock.affected_card_index = lock_index
+		print("[DECK] Locked assigned to card %d: %s" % [lock_index, hand[lock_index].card_name])
 
 ## Lost in the Labyrinth: the hand is shuffled into a random order. Hexes and
 ## the Locked card follow their cards to the new indices rather than landing

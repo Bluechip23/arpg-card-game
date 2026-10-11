@@ -1198,27 +1198,28 @@ static func get_keyword_definitions() -> Dictionary:
 		# Debuffs
 		"bleed": "On movement: take X damage per tile moved",
 		"stun": "Cannot take any actions",
-		"disarm": "Cannot play attack cards",
-		"silence": "Cannot play spell cards",
+		"disarm": "Cannot play attack cards or auto attack for X tempo; re-applying adds the tempo on",
+		"silence": "Cannot play spell cards for X tempo; re-applying adds the tempo on",
 		"burn": "Burn damage doubles each cycle (1, 2, 4, 8...); attacking while burning also triggers the current burn damage",
 		"poison": "Take X damage per cycle, lose 1 poison each cycle",
 		"cursed": "Deal 20% less damage and deal 20% damage to self",
 		"frozen": "Cannot play cards (a frozen enemy cannot act at all)",
 		"cuffed": "Cannot draw cards",
 		"shocked": "Arc X damage to nearby allies per cycle (a shocked enemy takes it itself), lose 1 per cycle",
-		"slowed": "Movement costs 3 tempo per tile instead of 1; each tile moved burns a stack",
-		"staggered": "Attack cards cost 15 more mana; each attack card burns a stack",
+		"slowed": "Movement costs 3 tempo per tile instead of 1. Each stack lasts 5 tempo on its own clock; moving burns nothing",
+		"staggered": "Attack cards cost 15 more mana. Each stack lasts 5 tempo on its own clock; attacking burns nothing",
 		"drain": "Lose 10 mana per cycle, lose 1 drain per cycle",
 		"weighted": "Cards cost 2 more tempo; each card played burns a stack",
 		"hexed": "A random card costs +X mana until played (multiple hexes can sit on different cards)",
-		"locked": "One random card cannot be played",
-		"weakened": "Deal 30% less damage; each attack burns a stack",
-		"rooted": "Cannot move",
-		"clumsy": "30% chance to discard a random card when playing; each card played burns a stack",
-		"vulnerable": "Take 30% more damage on next X attack(s)",
+		"locked": "A random card cannot be played; each Locked holds its own card",
+		"weakened": "Deal 30% less damage. Each stack lasts 5 tempo on its own clock; attacking burns nothing",
+		"rooted": "Cannot move for X tempo; re-applying adds the tempo on",
+		"clumsy": "30% chance to discard a random card when playing. Each stack lasts 5 tempo on its own clock; playing burns nothing",
+		"vulnerable": "Take 30% more damage on every hit. Each stack lasts 5 tempo on its own clock; hits burn nothing",
+		"blind": "80% chance for your attacks to miss. Each stack lasts 5 tempo on its own clock",
 		"exposed": "Your armor was broken through — a hit got past it",
-		"brittle": "Armor decays extra 2 per cycle",
-		"cold": "Stacking debuff. At 5 stacks the target becomes Frozen for 1 cycle",
+		"brittle": "Armor decays an extra 2 per cycle. Each stack lasts 5 tempo on its own clock",
+		"cold": "Stacking debuff, 5 tempo. At 5 stacks the target becomes Frozen for 1 cycle",
 		# Overflow
 		"jailed": "Card goes to jail for 3 turns, cannot be played",
 		"manifest": "Card goes to manifest zone as a token. Click to activate",
@@ -1393,10 +1394,19 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		player_stats.resolving_attack_target = target
 
 	# Blind (e.g. Giant Hawk): an attack against an enemy may miss entirely.
-	# Enemies expose take_damage but not get_stats (players have get_stats).
-	if card_type == CardType.ATTACK and player_stats and player_stats.is_blinded \
+	# The debuff manager is the source of truth (Blind is a stack-clocked
+	# debuff now); PlayerStats.is_blinded is only a legacy fallback for a
+	# caller that hands no deck manager. Enemies expose take_damage but not
+	# get_stats (players have get_stats).
+	if card_type == CardType.ATTACK and player_stats \
 			and target and target.has_method("take_damage") and not target.has_method("get_stats"):
-		if randf() < player_stats.blind_miss_chance:
+		var blind_dm = deck_manager.debuff_manager if deck_manager and "debuff_manager" in deck_manager else null
+		var miss_chance: float = 0.0
+		if blind_dm and blind_dm.has_method("get_blind_miss_chance"):
+			miss_chance = blind_dm.get_blind_miss_chance()
+		elif blind_dm == null and player_stats.is_blinded:
+			miss_chance = player_stats.blind_miss_chance
+		if miss_chance > 0.0 and randf() < miss_chance:
 			print("[CARD] %s missed — blinded!" % card_name)
 			return
 	# Empower's +3 already rides in bonus_damage (see execute); the executors'
