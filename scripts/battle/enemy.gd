@@ -1170,6 +1170,10 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 	if _enemy_figure == null and not has_node("Shadow"):
 		BlobShadow.attach(self, 0.62)
 
+	# The Screecher hunts unseen (sheet: "Invisible until it strikes").
+	if enemy_type == EnemyType.SCREECHER:
+		set_hidden(-1)
+
 	if grid_manager:
 		position = grid_manager.snap_to_grid(position)
 		target_position = position
@@ -1985,7 +1989,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SPIRIT_COLLECTOR: [{"name": "Strike", "tempo": 3}, {"name": "Collect Soul", "tempo": 8}, {"name": "Move", "tempo": 4}],
 		EnemyType.GRAVE_TITAN: [{"name": "Smash", "tempo": 8}, {"name": "Boulder Roll", "tempo": 5}, {"name": "Move", "tempo": 8}],
 		EnemyType.CRYPT_CRAWLER: [{"name": "Bite", "tempo": 3}, {"name": "Web", "tempo": 3}, {"name": "Move", "tempo": 4}],
-		EnemyType.SCREECHER: [{"name": "Screech", "tempo": 5}, {"name": "Drift", "tempo": 2}],
+		EnemyType.SCREECHER: [{"name": "Screech", "tempo": 5}, {"name": "Drift", "tempo": 2}],  # 5 tempo / 2 spaces while seen — see the description
 		EnemyType.CONSUMED: [{"name": "Attack", "tempo": 5}, {"name": "Move", "tempo": 3}],
 		EnemyType.SLUDGE: [{"name": "Melee", "tempo": 5}, {"name": "Spit", "tempo": 6}, {"name": "Move", "tempo": 5}],
 		EnemyType.PIPE_CRAWLER: [{"name": "Claw", "tempo": 5}, {"name": "Move", "tempo": 2}],
@@ -2055,7 +2059,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SPIRIT_COLLECTOR: "Lantern-bearer with a soul cage on its back.\nStrike (3 tempo): 8 damage.\nCollect Soul (8 tempo): 8 damage; adds a 'Release Soul' card to your hand (saps 1 damage per tempo — charged 5 per cycle — until played, then is erased).",
 		EnemyType.GRAVE_TITAN: "Yeti-like brute (30 armor) hauling a boulder.\nSmash (8 tempo): 15 damage in front.\nBoulder Roll (range 3, 5 tempo): rolls the boulder for 15 damage.\nMove (8 tempo): 4 spaces.",
 		EnemyType.CRYPT_CRAWLER: "Large spider. After 3 consecutive attacks it webs you.\nBite (3 tempo): 6 damage.\nWeb: adds a 'Paralysis' card to your hand — you cannot move until it is played (other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
-		EnemyType.SCREECHER: "Soul-creature — a barely-there black void ghost, easiest to spot when it strikes.\nScreech (5 tempo): 5 damage.\nDrift (2 tempo): 4 spaces.",
+		EnemyType.SCREECHER: "Soul-creature — a barely-there black void ghost. Invisible until it strikes: you cannot attack it directly (poison, burn and area damage still land).\nScreech (5 tempo): 5 damage; it is seen for 3 tempo after.\nDrift: 4 spaces / 2 tempo while unseen, 2 spaces / 5 tempo while seen.",
 		EnemyType.CONSUMED: "Flesh-and-hatred golem; muscle shows through its lacerations.\nAttack (5 tempo): 8 damage.\nMove (3 tempo): 5 spaces.\nOn death: explodes for 8 damage to everything nearby.",
 		# --- Mountains ---
 		EnemyType.WEREGOAT: "Minotaur-built: human torso and arms, goat head and goat hind legs.\nHoof Punch (4 tempo): 6 damage.\nCharge (8 tempo): runs up to 8 squares along the line that crosses the most of your units — 8 damage to everything in its path, and everything within 1 square of where it lands is Stunned.\nMove (5 tempo): 2 spaces.",
@@ -2478,12 +2482,20 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 	# 5-tempo accumulator below.
 	_tick_timed_statuses(amount)
 
+	# A demon's mimic keeps its borrowed numbers current.
+	if is_mimic:
+		_mirror_health()
+
 	# Tick per-cycle DOTs/stacks once per tempo cycle (every 5 global tempo)
 	while _cycle_accumulator >= 5:
 		_cycle_accumulator -= 5
 		_tick_status_durations()
 
 	_advance_action_clocks(amount, player_node)
+	# Cherub: the first Love's Arrow flies the moment anyone is within reach —
+	# after the clocks, so the 10-tempo clock behind it starts from nothing.
+	if enemy_type == EnemyType.CHERUB and _cherub_first_arrow:
+		_cherub_watch()
 	_update_tempo_bar()
 
 ## Timed statuses count in RAW TEMPO (any granularity), decremented by every
@@ -2495,9 +2507,12 @@ func _tick_timed_statuses(amount: int) -> void:
 		or disarmed_tempo > 0 or marked_tempo > 0 or silenced_tempo > 0 \
 		or frozen_tempo > 0 or stun_tempo > 0 \
 		or rooted_tempo > 0 or narashimha_tempo > 0 or cursed_tempo > 0 \
-		or phys_defense_debuff_tempo > 0
+		or phys_defense_debuff_tempo > 0 or hidden_tempo > 0 or _screecher_visible_tempo > 0
 	if not any:
 		return
+
+	# Hidden (Specter, Cherub) and the Screecher's window of visibility.
+	_tick_hidden(amount)
 
 	if phys_defense_debuff_tempo > 0:
 		phys_defense_debuff_tempo -= amount
@@ -2809,6 +2824,10 @@ func _effective_cost(action: Dictionary) -> int:
 		cost += next_melee_tempo_tax
 	if slow_stacks > 0 and MOVEMENT_ACTIONS.has(str(action["name"])):
 		cost += Debuff.SLOWED_TEMPO_PER_TILE + int(_player_sphere_amp("sphere_slow_amp")) - 1
+	# Screecher (sheet): Drift is 4 spaces / 2 tempo unseen, 2 spaces / 5 tempo
+	# while its Screech has given it away — the table holds the unseen cost.
+	if enemy_type == EnemyType.SCREECHER and _screecher_visible_tempo > 0 and MOVEMENT_ACTIONS.has(str(action["name"])):
+		cost += 3
 	return cost
 
 func _consume_fire_taxes(action: Dictionary) -> void:
@@ -3874,7 +3893,7 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 		"web":
 			return _try_crawler_web(move_target)
 		"screech":
-			return _try_elemental(move_target, attack_damage, "Screech")
+			return _try_screech(move_target)
 		# ----- Sewer act -----
 		"sludge_melee":
 			return _try_elemental(move_target, attack_damage, "Sludge")
@@ -5018,7 +5037,119 @@ func _try_ice_blast(target_node: Node3D) -> bool:
 # UNDERWORLD & HEAVENS SECOND PASS — docs/ENEMY_SHEET.tsv
 # ============================================
 
+# --- Hidden: an enemy the player cannot point at ---
+# The Specter's Invisible, the Cherub after Love's Arrow and the Screecher
+# before it strikes all share this. While hidden the player's own aimed blows
+# (a clicked card, the auto attack, a gauntlet skill, a summon's pick) find
+# nothing; poison, burn and the rest of the clock damage still tick, and an
+# area effect that sweeps the enemy's square still lands — the sheet is
+# explicit about the Cherub ("can still take poison AOE damage etc").
+
+var hidden_tempo: int = 0           # raw tempo left unseen; -1 = until something reveals it
+var _area_pass_frame: int = -1      # the frame an area sweep last caught this enemy (see note_area_hit)
+var _screecher_visible_tempo: int = 0   # Screecher: how long its Screech keeps it in view
+
+func is_hidden() -> bool:
+	return not is_dead and hidden_tempo != 0
+
+## tempo > 0: unseen for that many raw tempo; -1: until revealed; 0: seen now.
+func set_hidden(tempo: int) -> void:
+	var was := is_hidden()
+	hidden_tempo = tempo
+	if is_hidden() and not was:
+		print("[%s] Fades from sight%s" % [enemy_name, (" (%d tempo)" % tempo) if tempo > 0 else ""])
+	elif was and not is_hidden():
+		print("[%s] Visible again" % enemy_name)
+	_refresh_hidden_visual()
+	_update_status_indicators()
+
+## Area sweeps (radius / line / cone queries) call this on every hidden enemy
+## they return, so the damage that follows in the same frame is let through as
+## area damage rather than refused as a direct blow.
+func note_area_hit() -> void:
+	_area_pass_frame = Engine.get_process_frames()
+
+func _area_hit_this_frame() -> bool:
+	return _area_pass_frame == Engine.get_process_frames()
+
+## The figure goes translucent while unseen (the Rat King's nest greys its
+## sprite the same way): the sprite's alpha for battler sprites, the
+## geometry's transparency for the procedural figures and the coloured box.
+func _refresh_hidden_visual() -> void:
+	var alpha := 0.35 if is_hidden() else 1.0
+	if _enemy_figure and _enemy_figure.has_method("set_ghost_alpha"):
+		_enemy_figure.set_ghost_alpha(alpha)
+	elif _enemy_figure:
+		_set_geometry_transparency(_enemy_figure, 1.0 - alpha)
+	elif mesh:
+		mesh.transparency = 1.0 - alpha
+
+func _set_geometry_transparency(node: Node, t: float) -> void:
+	for child in node.get_children():
+		if child is GeometryInstance3D:
+			child.transparency = t
+		_set_geometry_transparency(child, t)
+
+func _tick_hidden(amount: int) -> void:
+	if hidden_tempo > 0:
+		hidden_tempo -= amount
+		if hidden_tempo <= 0:
+			hidden_tempo = 0
+			print("[%s] Visible again" % enemy_name)
+			_refresh_hidden_visual()
+	if _screecher_visible_tempo > 0:
+		_screecher_visible_tempo -= amount
+		if _screecher_visible_tempo <= 0:
+			_screecher_visible_tempo = 0
+			_screecher_fade()
+
+# --- Screecher (graveyard, but it needs the same system) ---
+# sheet: "Invisible until it strikes"; Screech "becomes visible for 3 tempo";
+# "Drift: 4 sp / 2 tempo invisible, 2 sp / 5 tempo visible".
+
+const SCREECHER_SEEN_TEMPO: int = 3
+const SCREECHER_DRIFT_UNSEEN: float = 4.0   # spaces, on the table's 2-tempo move
+const SCREECHER_DRIFT_SEEN: float = 2.0     # spaces, and the move costs 5 (see _effective_cost)
+
+func _try_screech(target_node: Node3D) -> bool:
+	if is_disarmed or not _in_attack_range(target_node):
+		return _try_move(target_node)
+	_deal_damage_to_player(target_node, attack_damage, "Screech")
+	_screecher_show()
+	turn_completed.emit()
+	return true
+
+## The strike gives it away: seen for 3 tempo, drifting 2 spaces at a time.
+func _screecher_show() -> void:
+	_screecher_visible_tempo = SCREECHER_SEEN_TEMPO
+	move_distance = SCREECHER_DRIFT_SEEN
+	set_hidden(0)
+
+## ...then it is gone again, back to the fast unseen drift.
+func _screecher_fade() -> void:
+	move_distance = SCREECHER_DRIFT_UNSEEN
+	set_hidden(-1)
+
 # --- Demon ---
+
+var is_mimic: bool = false          # a Demon's Mimic: looks like its original, dies to any damage
+var mimic_of: Enemy = null          # the demon this mimic copies
+var _mimics: Array = []             # the living mimics this demon has conjured (sheet: at most 2)
+
+const MIMIC_CAP: int = 2
+# Everything the sheet means by "all health, debuffs, buffs etc carry over":
+# the status counters a mimic copies from its original the moment it appears.
+const MIMIC_COPIED_FIELDS: Array[String] = [
+	"poison_stacks", "burn_stacks", "burn_damage_next", "cold_stacks", "cold_damage_next",
+	"shock_stacks", "bleed_stacks", "vulnerable_stacks", "weaken_stacks", "slow_stacks",
+	"choke_dot_stacks", "choke_dot_damage", "stun_tempo", "is_stunned", "frozen_tempo", "is_frozen",
+	"disarmed_tempo", "is_disarmed", "disarmed_attacks", "marked_tempo", "is_marked",
+	"silenced_tempo", "is_silenced", "cursed_tempo", "rooted_tempo", "tripped_tempo",
+	"polymorph_tempo", "taunt_tempo", "taunt_target", "fear_tempo", "fear_source",
+	"wear_down_tempo", "attack_reduction", "narashimha_tempo", "phys_defense_debuff_tempo",
+	"phys_defense_debuff_percent", "strengthen_stacks", "enemy_thorns", "zone_weakened",
+	"cupid_golden", "cupid_lead", "is_exposed", "has_been_damaged",
+]
 
 func _choose_demon_action(distance: int) -> void:
 	if distance <= 1:
@@ -5026,11 +5157,53 @@ func _choose_demon_action(distance: int) -> void:
 	else:
 		chosen_action = _get_action("move")
 
-## Mimic (sheet, Async 8): a 1-HP duplicate that looks identical (health shown,
-## buffs and debuffs copied) and hits as hard; at most 2 per demon.
-## TODO(sheet): not yet built — see the implementation brief.
+## Mimic (sheet, Async 8): a duplicate that looks identical (health shown,
+## buffs and debuffs copied) and hits as hard; 1 real health; at most 2 per
+## demon. A mimic never mimics itself, and grants no XP or loot.
 func _try_mimic(_target_node: Node3D) -> bool:
-	return false
+	if is_mimic or is_silenced:
+		return false
+	_prune_mimics()
+	if _mimics.size() >= MIMIC_CAP:
+		return false  # both copies still stand — the clock is spent
+	var main = get_parent()
+	if not main or not ("enemy_spawner" in main) or not main.enemy_spawner:
+		return false
+	var m: Enemy = main.enemy_spawner.spawn_enemy(EnemyType.DEMON, _free_cell_near(position, 2))
+	if m == null:
+		return false
+	m.become_mimic_of(self)
+	_mimics.append(m)
+	print("[%s] Mimic: a second demon steps out of the first (%d of %d)" % [enemy_name, _mimics.size(), MIMIC_CAP])
+	turn_completed.emit()
+	return true
+
+func _prune_mimics() -> void:
+	_mimics = _mimics.filter(func(m): return m != null and is_instance_valid(m) and m.is_alive())
+
+## Turn this freshly spawned demon into a copy of `src`: same numbers on the
+## bar, same badges, same damage — and nothing behind them.
+func become_mimic_of(src: Enemy) -> void:
+	is_mimic = true
+	mimic_of = src
+	xp_reward = 0                 # no farming the copies (loot is refused in the spawner too)
+	attack_damage = src.attack_damage
+	for f in MIMIC_COPIED_FIELDS:
+		set(f, src.get(f))
+	_mirror_health()
+	_update_status_indicators()
+
+## The bar and the hover numbers read the original's health; the mimic's own
+## pool is irrelevant because any damage at all kills it (take_damage).
+func _mirror_health() -> void:
+	if mimic_of == null or not is_instance_valid(mimic_of):
+		return
+	max_health = mimic_of.max_health
+	current_health = mimic_of.current_health
+	max_armor = mimic_of.max_armor
+	current_armor = mimic_of.current_armor
+	update_health_display()
+	_update_armor_bar()
 
 ## Cuff (sheet, Async 8): the target cannot draw for 15 tempo.
 func _try_demon_cuff(target_node: Node3D) -> bool:
@@ -5044,6 +5217,8 @@ func _try_demon_cuff(target_node: Node3D) -> bool:
 # --- Ash Harpy ---
 
 var _harpy_steal_used: bool = false   # Ash Harpy: Card Steal fires once per harpy
+var _stolen_card: Card = null         # the card it carries until it dies
+var _stolen_from: Node3D = null       # whose hand it came from
 
 func _choose_harpy_action(distance: int) -> void:
 	if not _harpy_steal_used and distance <= 4:
@@ -5054,12 +5229,55 @@ func _choose_harpy_action(distance: int) -> void:
 		chosen_action = _get_action("move")
 
 ## Card Steal (sheet, 8): spots a card from 4 squares, flies into melee and
-## takes a card from the hand; the card returns when the harpy dies.
-## TODO(sheet): the steal / return is not yet built — flies in only.
+## takes one random card from the hand; the card returns when the harpy dies.
+## The card is lifted, not discarded: no discard count, no discard triggers.
+## sheet: with nothing in the hand to take the harpy pecks instead and keeps
+## its one steal for later.
 func _try_card_steal(target_node: Node3D) -> bool:
+	if _harpy_steal_used:
+		return false
 	if _cells_between(self, target_node) > 1:
 		return _try_move(target_node)
-	return false
+	var dm = target_node.get_deck_manager() if target_node.has_method("get_deck_manager") else null
+	if dm == null or dm.hand.is_empty():
+		return _try_elemental(target_node, attack_damage, "Peck")
+	var idx: int = randi() % dm.hand.size()
+	var card: Card = dm.hand[idx]
+	dm.hand.remove_at(idx)
+	# Hexes riding the stolen card break like they would on a play; the ones
+	# on later cards slide down to follow their cards.
+	var pdm = target_node.get_debuff_manager() if target_node.has_method("get_debuff_manager") else null
+	if pdm:
+		pdm.remove_hexes_on_card(idx)
+		dm._update_debuff_card_indices(pdm, idx)
+	dm.hand_updated.emit()
+	_stolen_card = card
+	_stolen_from = target_node
+	_harpy_steal_used = true
+	print("[%s] Card Steal: snatches %s from the hand" % [enemy_name, card.card_name])
+	turn_completed.emit()
+	return true
+
+## Death, or being swept away without dying (a level change, a despawn):
+## the card comes home either way, past the hand cap if it must — like a
+## queued card returning when its target dies.
+func _harpy_return_card() -> void:
+	if _stolen_card == null:
+		return
+	var card: Card = _stolen_card
+	_stolen_card = null
+	var who := _stolen_from
+	_stolen_from = null
+	if who == null or not is_instance_valid(who) or not who.has_method("get_deck_manager"):
+		return
+	var dm = who.get_deck_manager()
+	if dm == null or not is_instance_valid(dm):
+		return
+	dm.add_card_to_hand(card, true)
+	print("[%s] The stolen %s returns to the hand" % [enemy_name, card.card_name])
+
+func _exit_tree() -> void:
+	_harpy_return_card()
 
 # --- Magma Spider ---
 
@@ -5067,12 +5285,29 @@ func _choose_magma_spider_action(_distance: int) -> void:
 	chosen_action = _get_action("fire_web")
 
 ## Fire Web (sheet): a web of fire on the ground around the spider — inside it
-## the player is Slowed and takes 1 damage every 3 tempo.
-## TODO(sheet): the ground zone is not yet built.
+## the player is Slowed and takes 1 fire damage every 3 tempo. The zone itself
+## lives in main (register_fire_web, beside the Territorial Mark zones).
+## sheet: no size or duration given — the 3x3 around the spider, lasting until
+## the spider dies; one web per spider, a recast lays it afresh.
 func _try_fire_web(_target_node: Node3D) -> bool:
-	return false
+	if is_silenced or grid_manager == null:
+		return false
+	var main = get_parent()
+	if main == null or not main.has_method("register_fire_web"):
+		return false
+	var centre: Vector2i = grid_manager.world_to_grid(position)
+	var cells: Array = []
+	for dx in range(-1, 2):
+		for dz in range(-1, 2):
+			cells.append(centre + Vector2i(dx, dz))
+	main.register_fire_web(self, cells)
+	print("[%s] Fire Web: the ground around it catches" % enemy_name)
+	turn_completed.emit()
+	return true
 
 # --- Mind Eater ---
+
+const MIND_SLOW_SURCHARGE: int = 20
 
 func _choose_mind_eater_action(distance: int) -> void:
 	if is_silenced or distance > int(attack_range):
@@ -5080,10 +5315,26 @@ func _choose_mind_eater_action(distance: int) -> void:
 		return
 	chosen_action = _get_action("mind_slow") if randf() < 0.6 else _get_action("mind_cuff")
 
-## Mind Slow (sheet, 10): every card in the hand costs 20 more mana.
-## TODO(sheet): hand-wide mana tax not yet built.
-func _try_mind_slow(_target_node: Node3D) -> bool:
-	return false
+## Mind Slow (sheet, 10): every card in the hand costs 20 more mana. One Hexed
+## per card (hexes never merge, each claims a card of its own) with no clock —
+## the surcharge lifts only when that card is played.
+func _try_mind_slow(target_node: Node3D) -> bool:
+	if is_silenced or not _in_attack_range(target_node):
+		return false
+	var dm = target_node.get_deck_manager() if target_node.has_method("get_deck_manager") else null
+	var pdm = target_node.get_debuff_manager() if target_node.has_method("get_debuff_manager") else null
+	if dm == null or pdm == null:
+		return false
+	var n: int = dm.hand.size()
+	for i in range(n):
+		var hex: Debuff = Debuff.create(Debuff.DebuffType.HEXED, MIND_SLOW_SURCHARGE, -1)
+		hex.source_name = enemy_name
+		pdm.apply_debuff(hex)
+		hex.affected_card_index = i   # one hex per card, assigned here rather than drawn at random
+	pdm.debuffs_changed.emit()
+	print("[%s] Mind Slow: %d cards in hand cost +%d mana until played" % [enemy_name, n, MIND_SLOW_SURCHARGE])
+	turn_completed.emit()
+	return true
 
 ## Manipulate Mind Space (sheet, 8): Cuffed for 15 tempo.
 func _try_mind_cuff(target_node: Node3D) -> bool:
@@ -5096,6 +5347,8 @@ func _try_mind_cuff(target_node: Node3D) -> bool:
 
 # --- Specter ---
 
+const SPECTER_VANISH_TEMPO: int = 3
+
 func _choose_specter_action(distance: int) -> void:
 	_choose_ranged_action(distance, "spirit_spit")
 
@@ -5106,9 +5359,11 @@ func _try_spirit_spit(target_node: Node3D) -> bool:
 	return _try_elemental(target_node, attack_damage, "Spirit Spit")
 
 ## Invisible (sheet, Async 8): fades out for 3 tempo — cannot be targeted.
-## TODO(sheet): enemy untargetability not yet built.
 func _try_specter_vanish() -> bool:
-	return false
+	if is_hidden():
+		return false  # already unseen; the clock is spent
+	set_hidden(SPECTER_VANISH_TEMPO)
+	return true
 
 # --- Succubus ---
 
@@ -5148,18 +5403,38 @@ func _try_damaging_snap(target_node: Node3D) -> bool:
 
 # --- Cherub ---
 
+const CHERUB_HIDDEN_TEMPO: int = 5
+
 var _cherub_first_arrow: bool = true   # Cherub: the first arrow flies the moment the player enters its reach
 
 func _choose_cherub_action(distance: int) -> void:
 	_choose_ranged_action(distance, "loves_arrow")
 
+## sheet: "First time player enters Cherubs 4 range, from there it is a 10
+## tempo attack". Checked on every tempo advance (entering its reach costs
+## the player tempo, so the moment they arrive is a tempo tick): the first
+## arrow flies at once and the 10-tempo clock starts fresh behind it.
+func _cherub_watch() -> void:
+	if not _cherub_first_arrow or is_stunned or is_frozen or tree_tempo > 0 or is_silenced:
+		return
+	for u in _player_units():
+		if is_instance_valid(u) and _cells_between(self, u) <= int(attack_range):
+			print("[%s] Love's Arrow flies the moment you come within reach" % enemy_name)
+			_try_loves_arrow(u)
+			action_tempo_counter = 0
+			chosen_action = {}
+			return
+
 ## Love's Arrow (sheet): 2 damage; for 5 tempo the Cherub cannot be attacked
 ## directly (poison, burn and area damage still land).
-## TODO(sheet): the untargetable window and the instant first arrow are not yet built.
 func _try_loves_arrow(target_node: Node3D) -> bool:
-	if is_silenced:
+	if is_silenced or not _in_attack_range(target_node):
 		return _try_move(target_node)
-	return _try_elemental(target_node, attack_damage, "Love's Arrow")
+	_deal_damage_to_player(target_node, attack_damage, "Love's Arrow")
+	_cherub_first_arrow = false
+	set_hidden(CHERUB_HIDDEN_TEMPO)
+	turn_completed.emit()
+	return true
 
 #endregion
 #region BASIC ACTIONS
@@ -5937,8 +6212,24 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		if _enemy_figure and _enemy_figure.has_method("flash"):
 			_enemy_figure.flash(Color(0.9, 0.3, 0.3))
 		return false
+	# Unseen (Specter's Invisible, the Cherub after Love's Arrow, the Screecher
+	# before it strikes): the player's own aimed blow finds nothing. Clock
+	# damage (from_player false) and an area sweep that caught this square this
+	# frame (note_area_hit) still land — the sheet keeps poison and AoE honest.
+	if is_hidden() and from_player and PlayerStats.hit_source_direct and not _area_hit_this_frame():
+		print("[%s] Unseen — the blow finds nothing" % enemy_name)
+		return false
 	last_hit_from_player = from_player
 	last_hit_direct = from_player and PlayerStats.hit_source_direct
+	# A Demon's Mimic: 1 real health behind its borrowed numbers (sheet) — any
+	# damage at all, from any source, unmasks and kills it.
+	if is_mimic and amount > 0:
+		has_been_damaged = true
+		current_health = 0
+		print("[%s] The mimic collapses — it was never real" % enemy_name)
+		update_health_display()
+		die()
+		return false
 	# Blue Robe: each enemy a slotted card strikes takes the type IT resists least.
 	if from_player and PlayerStats.adaptive_damage_type and not ignore_armor:
 		damage_type = get_lowest_resistance_type()
@@ -6589,6 +6880,10 @@ func update_health_display() -> void:
 	if health_label:
 		health_label.text = "%d / %d" % [current_health, max_health]
 	_update_health_bar()
+	# A demon's mimics show whatever the original shows.
+	for m in _mimics:
+		if m != null and is_instance_valid(m) and m.is_alive():
+			m._mirror_health()
 
 func reduce_armor(amount: int) -> void:
 	if current_armor > 0:
@@ -6670,6 +6965,14 @@ func die() -> void:
 	print("[%s] Defeated!" % enemy_name)
 	if enemy_type == EnemyType.CONSUMED:
 		_consumed_explode()
+	# Ash Harpy: the stolen card comes home.
+	_harpy_return_card()
+	# Demon: the copies have nothing left to copy. sheet: silent on this — a
+	# mimic is "just a copy", so finding the real one ends the game of guess.
+	_prune_mimics()
+	for m in _mimics:
+		m.die()
+	_mimics.clear()
 	died.emit(self)
 
 	# Hide tempo bar on death
@@ -6808,6 +7111,8 @@ func get_active_effects() -> Array[Dictionary]:
 			effects.append({"name": "Gravebound", "color": Color(0.55, 0.85, 0.6), "stacks": standing})
 	if door_sealed_tempo > 0:
 		effects.append({"name": "Sealed", "color": Color(0.9, 0.35, 0.3), "stacks": door_sealed_tempo})
+	if is_hidden():
+		effects.append({"name": "Invisible", "color": Color(0.7, 0.75, 0.9), "stacks": hidden_tempo if hidden_tempo > 0 else 1})
 	if _brace_charges > 0:
 		effects.append({"name": "Brace", "color": Color(0.5, 0.5, 0.8), "stacks": _brace_charges})
 	if enemy_thorns > 0:
@@ -6897,6 +7202,9 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 		"Sealed":
 			desc = "Hell's Door has sealed itself: no damage gets through until the seal fades. It seals at 75%, 50% and 33% health."
 			remaining = "Remaining: %d tempo" % door_sealed_tempo
+		"Invisible":
+			desc = "Unseen: you cannot attack it directly. Poison, burn and area damage still land."
+			remaining = ("Remaining: %d tempo" % hidden_tempo) if hidden_tempo > 0 else "Until it strikes"
 		"Brace":
 			desc = "Guardian of Death: the next hits deal 30% less. Gained whenever he, a foe or an ally within 8 squares first drops below half health."
 			remaining = "Hits left: %d" % _brace_charges
