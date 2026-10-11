@@ -41,6 +41,13 @@ code was altered in this pass to match; "Built" means the enemy or action did no
   - Sabertooth: Track (10) and Sunken Bite (15) are Async; Bite and Claw (5) waits for both gaps.
   - Demon: Mimic and Cuff (both 8, Async) line up, so Attack (5) starts every 8 tempo.
 - **Distance is Manhattan** on the grid; "radius N" was read as Manhattan N everywhere new.
+- **Status model (2026-10-11, the revised status sheet):** stack debuffs on both sides (Vulnerable, Weakened / Weaken,
+  Slowed / Slow, Staggered, Clumsy, Brittle, Blind) now shed one stack per 5 tempo on the debuff's own clock and are
+  no longer consumed by hits, moves or card plays; Disarm, Rooted, Silence and the enemy Disarm, Root and Curse are
+  additive timers; enemy `disarm_attacks` is 5 tempo of Disarm per stack; enemy Wear Down lasts 2 enemy attacks;
+  enemy Shock also arcs to the nearest enemy within 2 squares; enemy Cold thaws 3 per cycle; Lowered Physical
+  Defense is grouped stacks (highest live percent wins); Locked can hold several cards; Cold on the player defaults
+  to 5 tempo. Tests: `tests/test_debuff_stack_clocks.gd`, `tests/test_enemy_stack_clocks.gd`.
 - **Blank resist cells** were read as 0.
 
 ### 0.2 Per enemy
@@ -65,7 +72,7 @@ code was altered in this pass to match; "Built" means the enemy or action did no
 | Treant | Elite 8 | Match | Slam 14 earth, Root 8 (range 4), heal 5 per 5 tempo (+2 per 10% under 60%), thorn strip every 10. The stray "5" in the sheet's Tempo 3 cell is the Heal action. |
 | Vampire | Elite 8 | Match | Bite 10 heals health damage only; Bat Form is an instant reaction below 50% (2 charges); Absorb 20 then 10 on the healthiest unit. Open: a second Bat Form during the first Absorb's wind-up loses the 20. |
 | Werewolf | Elite 7 | Changed | First claw on a **new** target now costs the full 5 (streak resets when the target changes). +3 vs armor, rake on a debuffed target match. |
-| White Manticore | Elite 8 | Changed | Stinger's Clumsy is now clock-timed for 3 cycles (15 tempo) as written, not 3 stacks. Bite 15, Stinger 25 + 8 Poison, 5-tempo cooldown match. |
+| White Manticore | Elite 8 | Changed | Stinger's Clumsy is 3 stacks that each last 5 tempo on the debuff's own clock (the status sheet's rule), i.e. the sheet's 3 cycles. Bite 15, Stinger 25 + 8 Poison, 5-tempo cooldown match. |
 | Wyvern | Elite 7 | Match | Bite 25, Talon Grab 25 + drag 8 squares, 10-tempo cooldown read as "2 cycles". |
 | Spirit Collector | Mid-tier 5 | Changed | Tier Mid-tier. Release Soul now costs 15 mana / 2 tempo, gives every living Spirit Collector +5 Strengthen when played (their Strike / Collect Soul add it), and holds **Drain** (1 stack, re-applied each cycle) while it is in the hand. Held sap stays 5 per cycle (= 1 per tempo). Open: Strengthen amount (5). |
 | Air / Earth / Fire / Ice / Spark Mage | Mid-tier | Match | Numbers match. Earth Mage and the others never appear in a spawn table. Earth Mage tier → Mid-tier. |
