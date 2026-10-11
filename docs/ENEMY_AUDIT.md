@@ -1,11 +1,136 @@
 # Enemy Audit — stated vs. actual, spawn coverage, and debuff usage
 
-*Generated 2026-10-08 from `scripts/battle/enemy.gd`, `enemy_spawner.gd`, `dungeon_manager.gd`, `main.gd`,
-`effects/debuff.gd`, `effects/debuff_manager.gd` and `docs/STORY.md`. Read-only: nothing was changed to produce it.*
+*Section 0 is the **2026-10-11 sheet pass**: the designer's enemy sheet (`docs/ENEMY_SHEET.tsv`) checked against the
+code, with everything that was changed to match it and every question it leaves open. Sections 1–5 are the
+2026-10-08 read-only audit and are kept for reference; where they disagree with Section 0, Section 0 is current.*
 
-"Stated" means any of: the in-game compendium text (`Enemy.get_all_enemy_data()` → `_specials`), the code
-comments beside a stat, or the bestiary entry in STORY.md §5.4. "Actual" is what `initialize()`, the action
-table, the chooser and the `_try_*` function do when the enemy acts.
+---
+
+## 0. Sheet pass — 2026-10-11
+
+The sheet row is the source of truth. "Match" means the code already did what the row says; "Changed" means the
+code was altered in this pass to match; "Built" means the enemy or action did not exist before this pass;
+"Open" means the sheet leaves something an implementer had to decide (the decision is marked `# sheet:` or
+`TODO(sheet)` in code and listed under *Assumptions* below). Tests for this pass: `tests/test_enemy_sheet_pass.gd`,
+`test_sheet_mountains.gd`, `test_sheet_underworld.gd`, `test_sheet_act1a.gd`, `test_sheet_act1b.gd`.
+
+### 0.1 Rules that apply to every row
+
+- **Level column ≠ level band.** The sheet's *Level* (1–10) is a difficulty rating; the code's `INTENDED_LEVELS`
+  band is the *player* level the enemy is tuned for (Sewer 1–5 … Forest 12–20, Mountains 20+). The band drives XP
+  falloff **and** the HP/damage scaling (`passive_power_scale`). Setting bands to the sheet's levels would clamp
+  nearly every enemy to ×0.9 and start XP falloff at player level ~5, so the bands were **left alone**. Cerberus
+  and the Minotaur already use their sheet level as band; new enemies were banded by zone (Snow Wraith 20,
+  Sabertooth 21, Roc / Weregoat 22, Granite Colossus 25, Magma Spider / Specter / Ash Harpy 26, Succubus / Mind
+  Eater 27, Demon 28, Cherub 33). Every "fought" number below is the sheet's base × that band's multiplier.
+- **Tier vocabulary (Changed).** The compendium now uses the sheet's words exactly — Trash / Mid-tier / Elite /
+  Boss, plus Special for the Ring Wraith, the dummy and the structures — and the loot map (`get_loot_tier`) follows
+  the same column: Trash→TRASH, Mid-tier→MID, Elite→ELITE, Boss→BOSS. Consequences: Bugbear, Infected Hunter,
+  Earth Mage, Spirit Collector, The Consumed, Sewer Cobra and Fire Goblin Shaman drop *mid* loot instead of elite;
+  Mini Bear and Fire Goblin Soldier drop trash; Hydra drops elite instead of boss; Rat King and **Bone Dragon**
+  drop boss loot. The Bone Dragon used to be held at elite because the Necromancer can raise one after five of its
+  summons die — a boss drop there is farmable in the deep graveyard rooms. Followed the sheet; flagging it.
+- **Async on the sheet is real Async in code** (`docs/ENEMY_ACTION_KEYWORDS.md`): the action runs its own clock,
+  and a Sync action may only *start* while no Async clock is mid-count. Consequences worth a designer look:
+  - Cerberus: Bite (5) and Venom Tail (15) are now Async; Swipe / Roar / Move share the Sync clock and can only
+    start right after a Bite fires. Venom Tail recurs every 15 tempo while in reach, so stun → aftermath → next
+    tail can chain.
+  - Sewer Cobra: Venom Spray (15, Async) means Bite (6) and Move (5) can each start only once per spray cycle.
+  - Roc: Eye Scrape (3, Async) is always counting, so the 1-tempo retreat can only start every 3rd tempo — the
+    Roc effectively moves one square per 3 tempo, not per tempo.
+  - Sabertooth: Track (10) and Sunken Bite (15) are Async; Bite and Claw (5) waits for both gaps.
+  - Demon: Mimic and Cuff (both 8, Async) line up, so Attack (5) starts every 8 tempo.
+- **Distance is Manhattan** on the grid; "radius N" was read as Manhattan N everywhere new.
+- **Blank resist cells** were read as 0.
+
+### 0.2 Per enemy
+
+| Enemy | Sheet row | Status | What changed / what is open |
+|---|---|---|---|
+| Cerberus | Boss 10 | Changed | Bite + Venom Tail flagged Async; Venom aftermath (2 Vulnerable, Cuffed 10) now lands the moment the Stun is gone (15 tempo stays the upper bound). Everything else matched (three heads, Swipe 8 Bleed, Roar +25/+25, Guardian of Death incl. re-trigger on heal-and-drop, Deathyard Dog +15). Note: Guardian also counts his allies' drops (incl. Hell's Door); the "life steal" head heals the pre-mitigation 25. |
+| Corrupted Archangel / Pit Fiend / Hades | Boss, TBD | Mock-up | Stats TBD on the sheet; untouched. Hallucination cards not built. |
+| Granite Colossus | Boss 8 | Built (stats) | 350 HP / 250 armor / 3 sp per 5 tempo / 65-50-50 set; actions are "TBD" on the sheet, so it stands. |
+| Rat King | Boss 9 | Changed + Built | Tier Boss. **Infest** built: 5-tempo action, one Infest card per living Wererat / Archer Rat / himself within 10; the card is 50 mana / 0 tempo, erases on play, and if held 5 tempo hatches 2 Wererats beside the player; discarding it erases it (no hatch). Open: selection rule (used when not adjacent and no Infest is already in hand). Nest flight unchanged. |
+| Bone Dragon | Boss 10 | Changed (tier) | Display + loot Boss (see farm note). Bite 12 / Breath Swarm match. Open: Breath is an 8-direction line (a target off-axis is missed). |
+| Inflamed Minotaur | Boss 9 | Match | Leap on cumulative 20, −1 space per Slow, Bull Rush numbers, fire wake heals 10. Open: sheet says Bull Rush "1 cycle after landing"; code waits a random 5–15 tempo (STORY.md agrees with the code). |
+| Hydra | Elite 8 | Changed | HP 80→190, resists 25/25/25 added, +2 strength now on **any** damage source (was player hits only). Heal still gated to ≤50% HP after the 4th hit. |
+| Grave Titan | Elite 10 | Changed (tier) | Display/loot Elite. Open: "15 dmg in front" is single-target in code. Never spawns. |
+| Armored Troll | Elite 7 | Match | Kick 6 / Smash 14 + Lightly Dazed / regen 3 per 6 / 60-40 split. |
+| Djinn | Elite 7 | Match (mostly) | Chain Lightning 35, cast 5 / arc 4. Wishes: 3 per **hit** (a multi-hit card gives 3 per hit), each 1/3 of that hit, 60 mana / 0 tempo, sears on the global 5-tempo cycle. Open: "per attack" vs per hit; wishes always go to player 1. |
+| Giant Beaver | Elite 7 | Match | Chomp 9 + Stun 3, Tail Whip 6 + Vulnerable (5 stacks, 15t) as a forced follow-up. |
+| Ice Troll | Elite 7 | Match | Club 13, Cold + Brittle per hit, Clobber 50 auto on freeze. Open: the sheet's "10" tempo on Clobber (it is instant). |
+| Ifrit | Elite 8 | Match (mostly) | Attack 45, Breath 20 + 5 Burn in a 5×5 lingering 3, Backflip over 40. Open: "the breath continues for 6 tempo" — code is one instant hit; left as is pending a ruling (a 6-tempo Channel? tiles that burn each tempo?). |
+| Large Bear | Elite 7 | Match | Maul 12 + 4 Bleed, Roar Vulnerable within 4 (1 stack, 15t, 15-tempo cooldown), permanent 30% physical below half, rage ×1.5 / double bleed / heals from bleed, +1 Strengthen per hit with Mini Bears present. |
+| Necromancer | Elite 8 | Match | Bolt 4 + 2 Hexes of 30 (also expire after 25 tempo), Summon 8 (skeleton/zombie coin flip, cap 3), Bone Dragon on the 5th summon death. Summon roster still owed by the designer. |
+| Treant | Elite 8 | Match | Slam 14 earth, Root 8 (range 4), heal 5 per 5 tempo (+2 per 10% under 60%), thorn strip every 10. The stray "5" in the sheet's Tempo 3 cell is the Heal action. |
+| Vampire | Elite 8 | Match | Bite 10 heals health damage only; Bat Form is an instant reaction below 50% (2 charges); Absorb 20 then 10 on the healthiest unit. Open: a second Bat Form during the first Absorb's wind-up loses the 20. |
+| Werewolf | Elite 7 | Changed | First claw on a **new** target now costs the full 5 (streak resets when the target changes). +3 vs armor, rake on a debuffed target match. |
+| White Manticore | Elite 8 | Changed | Stinger's Clumsy is now clock-timed for 3 cycles (15 tempo) as written, not 3 stacks. Bite 15, Stinger 25 + 8 Poison, 5-tempo cooldown match. |
+| Wyvern | Elite 7 | Match | Bite 25, Talon Grab 25 + drag 8 squares, 10-tempo cooldown read as "2 cycles". |
+| Spirit Collector | Mid-tier 5 | Changed | Tier Mid-tier. Release Soul now costs 15 mana / 2 tempo, gives every living Spirit Collector +5 Strengthen when played (their Strike / Collect Soul add it), and holds **Drain** (1 stack, re-applied each cycle) while it is in the hand. Held sap stays 5 per cycle (= 1 per tempo). Open: Strengthen amount (5). |
+| Air / Earth / Fire / Ice / Spark Mage | Mid-tier | Match | Numbers match. Earth Mage and the others never appear in a spawn table. Earth Mage tier → Mid-tier. |
+| Bugbear | Mid-tier 5 | Changed (tier) | Mid-tier (was Elite). First Strike +8 matches. |
+| Crypt Crawler | Mid-tier 5 | Changed | Paralysis card is 10 mana / 5 tempo (was 0 / 1). Web after 3 bites matches. |
+| Demon | Mid-tier 6 | Built | Mimic (Async 8): a 1-HP Demon copy with mirrored name / health / statuses that hits as hard; cap 2 per demon, no XP or loot, collapses when the original dies. Cuff (Async 8, Cuffed 15). Attack 8. |
+| Fire Goblin Mage / Shaman / Soldier | Mid / Mid / Trash | Match | Shaman's Fire Wall keeps its Channel 4 / Disruptable 8 tags (not on the sheet). Soldier loot → trash. |
+| Giant Hawk | Mid-tier 5 | Match | Swoop 9 (reach 2), 20% Blind 5t, flier. |
+| Infected Hunter | Mid-tier 5 | Changed + Built | Cleave now hits the three squares in front (adjacent cell toward the target + the two beside it). **Net Throw** built: 2 tempo, 8-tempo cooldown, applies Weighted with one stack per card in the hand (+2 tempo per card until that many cards are played). Hook: starts charged, then recharges 8 tempo after each pull. Open: Net Throw range (3). |
+| Roc | Mid-tier 6 | Built | Dive Bomb from ≤6 squares, lands beside the target, 5-tempo cooldown; Eye Scrape (Async 3) 2 Weakened after >3 tempo adjacent; always retreats otherwise. Open: the sheet gives Dive Bomb **no damage** — 8 used. |
+| Sabertooth Tiger | Mid-tier 6 | Built | Track (Async 10) +15 Strengthen and a hunt lock on the nearest unit; Bite 6 then Claw 3 as two separate attacks; Sunken Bite (Async 15) 10 + 8 Bleed; 35% crit ×1.5 + 6 Bleed on every strike. |
+| Sewer Cobra | Mid-tier 5 | Changed + Built | Tier Mid-tier. **Venom Spray** (Async 15): forward cone widths 1-3-3-3-5 out to 5; 8 Poison to every unit inside; 10 damage only to armored units. Passives built: 3 Poison back on any direct hit that reaches its health; a flat 5 thorns per direct hit while it has armor; on exposure Stun 3 and a full clock reset. Open: the cone's exact shape ("1 square in front to 4 at range 5" has no even-width answer on a grid). |
+| Skeleton / Zombie / Swarm / Sludge / Pipe Crawler / Archer Rat / Coyote / Mini Bear / Wolf / Consumed / Wererabbit | Trash / Mid | Match | Numbers and kits match; only tier words changed. |
+| Screecher | Trash 1 | Built | Invisible until it strikes (cannot be attacked directly; poison, burn and area damage still land), seen for 3 tempo after a Screech, Drift 4 sp / 2 tempo unseen and 2 sp / 5 tempo seen. |
+| Snow Wraith | Trash 3 | Built | Snowball (8): Slowed 3 tempo + 2 Cold; Ice Blast: 5 ice +3 vs armor, Slowed 3 tempo. Open: Ice Blast has no tempo on the sheet (5 used) and no range (5 used). |
+| Specter | Trash 1 | Built | Spirit Spit 2 at range 2; Invisible (Async 8) hides it 3 tempo. |
+| Succubus | Trash 4 | Built | Mana Drain −10; Damaging Snap = missing mana / 20 + 4. Open: no range on the sheet (4 used). |
+| Ash Harpy | Trash 1 | Built | Peck 3; Card Steal once per harpy: flies in from 4, takes a random card out of the hand (not a discard), returns it on death / despawn / save. |
+| Cherub | Trash 4 | Built | Love's Arrow 2 and the Cherub cannot be attacked directly for 5 tempo; the first arrow flies the moment a unit enters range 4, then it is a 10-tempo clock. |
+| Magma Spider | Trash 1 | Built | Fire Web: the 3×3 around the spider; inside it the player is Slowed and takes 1 fire damage every 3 tempo; lasts while the spider lives. Open: size, duration and the cast tempo (8) are all unstated on the sheet. |
+| Mind Eater | Trash 3 | Built | Mind Slow (10): every card in the hand costs +20 mana until played (one Hex per card); Manipulate Mind Space (8): Cuffed 15. Open: range (6). |
+| Wererat | Trash 1 | Open | Sheet: Scurry "dashes away (at range ≥6)"; code dashes 5 tiles **toward** you at range ≥6 (its compendium text says so too). Left as is — fleeing from a target already 6 away reads as a typo. |
+| Ring Wraith | Special | Match | 15 damage / 2 tempo, ignores invisibility and shadow form, 0 XP; "resummons" = comes back fresh at the next shadow form, not during the same one. |
+
+### 0.3 Assumptions made in this pass (all marked in code)
+
+- Weregoat Charge: lanes are the 8 straight directions, up to 8 squares, stopping short of walls and other
+  enemies; the lane with the most player-side units wins (ties: more units stunned at the landing, then the goat's
+  own target); landing stun 3 tempo; 8 damage is flat (no band scaling), like the rest of the second-pass hits.
+- Roc: Dive Bomb 8 damage, 5-tempo cooldown; a cornered Roc holds still rather than approach.
+- Sabertooth: a player Taunt still overrides the Track lock.
+- Snow Wraith: range 5; Ice Blast 5 tempo.
+- Demon mimics copy statuses once at creation and then evolve on their own; only health/armor keep mirroring.
+- Ash Harpy with an empty hand pecks and keeps its steal.
+- Magma Spider web 3×3, one per spider, recast refreshes, dies with the spider; Silence blocks the cast.
+- Mind Eater Mind Slow needs range 6 and not Silenced.
+- Cherub: every arrow (not only the first) hides it for 5 tempo.
+- Rat King Infest: used when the player is not adjacent and no Infest is in the hand; a discarded Infest is erased,
+  never banked in the discard pile; the hatch is bound to the room's spawner, so a brood outlives a slain king.
+- Sewer Cobra: all its new numbers (8 / 10 / 5 / 3 / 3) are flat; thorns are judged on armor *before* the hit, so
+  the breaking blow still pays 5; the attacker is `main.player` (co-op P2 hits are answered on P1).
+- Infected Hunter: Net Throw within 3 squares; "entire hand" = one Weighted stack per card at throw time; Cleave on a
+  diagonal target uses the dominant axis as "front".
+- Spirit Collector: Release Soul Strengthen +5; Drain held at 1 stack (10 mana per cycle) only for the player
+  holding the card.
+- Hydra: "every time she is hit" = any damage > 0, DoT ticks included.
+- "Hidden" enemies (Specter, Cherub, Screecher): any radius / line / cone sweep counts as area and still lands;
+  single-target cards built on a radius query (Flash Cut, Volatile Mixture) can therefore still strike one.
+
+### 0.4 Questions for the designer
+
+1. The **Level column vs the level band** (0.1): keep the bands as player-level pacing, or should the sheet's
+   1–10 become the band and the scaling be re-tuned?
+2. **Async consequences** (0.1): Cerberus's Swipe/Roar starving, the Cobra's once-per-15 Bite, the Roc crawling at
+   1 square per 3 tempo, the Demon's 8-tempo Attack. Intended, or should some of these be Sync?
+3. **Bone Dragon boss loot** via the Necromancer's raise (farmable).
+4. Numbers the sheet leaves blank: Roc Dive Bomb damage; Snow Wraith Ice Blast tempo and range; Magma Spider web
+   size / duration / cast tempo; Succubus and Mind Eater ranges; Net Throw range; Release Soul Strengthen amount;
+   Weregoat landing-stun length; Rat King Infest selection rule.
+5. Ifrit "breath continues for 6 tempo"; Minotaur Bull Rush "1 cycle after landing" vs the code's 5–15; Ice Troll
+   Clobber "10"; Wererat Scurry "away"; Grave Titan Smash "in front"; Djinn wishes per attack vs per hit.
+6. Necromancer summon roster (the sheet says it is still owed).
+7. Spawn tables: no Mountains, Underworld or Heavens zone exists yet, so every new enemy (and the Elemental Mages,
+   Grave Titan, Spirit Collector, The Consumed, Hydra) is reachable only through the Enemy Lab / sandbox and the
+   World 2+ "deep lord" rooms (Ifrit, Minotaur, Djinn).
 
 ---
 
