@@ -2058,13 +2058,13 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SCREECHER: "Soul-creature — a barely-there black void ghost, easiest to spot when it strikes.\nScreech (5 tempo): 5 damage.\nDrift (2 tempo): 4 spaces.",
 		EnemyType.CONSUMED: "Flesh-and-hatred golem; muscle shows through its lacerations.\nAttack (5 tempo): 8 damage.\nMove (3 tempo): 5 spaces.\nOn death: explodes for 8 damage to everything nearby.",
 		# --- Mountains ---
-		EnemyType.WEREGOAT: "Minotaur-built: human torso and arms, goat head and goat hind legs.\nHoof Punch (4 tempo): 6 damage.\nCharge (8 tempo): runs up to 8 squares along the line that crosses the most of your units — 8 damage to everything in its path, and everything within 1 square of where it lands is Stunned.\nMove (5 tempo): 2 spaces.",
+		EnemyType.WEREGOAT: "Minotaur-built: human torso and arms, goat head and goat hind legs.\nHoof Punch (4 tempo): 6 damage.\nCharge (8 tempo): runs up to 8 squares along the line that crosses the most of your units — 8 damage to everything in its path, and everything within 1 square of where it lands is Stunned for 3 tempo.\nMove (5 tempo): 2 spaces.",
 		EnemyType.WYVERN: "A large serpentine flier with talons and wings — no arms. Flying: ignores your high-ground bonus. Resists 25% physical / 35% fire / 25% lightning.\nBite (5 tempo): 25 damage.\nTalon Grab (8 tempo, then 2-cycle cooldown): flies above its target (reach 3), 25 damage, and drags them to an unoccupied space 8 squares away.\nMove (4 tempo): 6 spaces.",
 		EnemyType.ROC: "An enormous bird with huge talons and a white-checkered mane (15 armor). Flying: ignores your high-ground bonus. It always moves AWAY from you: it dives, then keeps its distance until the dive is ready again.\nDive Bomb (5 tempo, from up to 6 squares): 8 damage; the Roc lands beside you.\nEye Scrape (3 tempo, Async): if you have stayed in melee reach for more than 3 tempo it claws your eyes — 2 Weakened.\nMove away (1 tempo): 1 space.",
 		EnemyType.ICE_TROLL: "Bigger than the Armored Troll — taller, with massive hands and feet; no weapon. Every attack adds a stack of frost (Cold) AND Brittle. Resists 35% physical / 15% fire / 15% lightning.\nClub (4 tempo): 13 damage.\nClobber (auto): 50 damage — triggers instantly whenever an Ice Troll attack FREEZES its target.\nMove (3 tempo): 3 spaces.",
 		EnemyType.SNOW_WRAITH: "A pale mountain spirit trailing tattered cloth (range 5).\nSnowball (8 tempo): Slowed for 3 tempo + 2 Cold.\nIce Blast (5 tempo): 5 ice damage, +3 if you have armor; Slowed for 3 tempo.\nMove (5 tempo): 3 spaces.",
 		EnemyType.GRANITE_COLOSSUS: "A huge rigid figure of mountain stone that emerges from the rock face — hard to spot before it moves. 350 health under 250 armor; resists 65% physical / 50% fire / 50% lightning.\nMove (5 tempo): 3 spaces.\n[Its attacks are still TBD on the design sheet — it only stands.]",
-		EnemyType.WHITE_MANTICORE: "A manticore with a snow-leopard body, bat wings and a spiked tail. Flying: ignores your high-ground bonus. Resists 10% physical / 35% fire / 10% lightning.\nBite (3 tempo): 15 damage.\nStinger (5 tempo, then 5-tempo cooldown): 25 damage + Clumsy (3 stacks) + 8 Poison.\nMove (2 tempo): 3 spaces.",
+		EnemyType.WHITE_MANTICORE: "A manticore with a snow-leopard body, bat wings and a spiked tail. Flying: ignores your high-ground bonus. Resists 10% physical / 35% fire / 10% lightning.\nBite (3 tempo): 15 damage.\nStinger (5 tempo, then 5-tempo cooldown): 25 damage + Clumsy for 3 cycles (15 tempo) + 8 Poison.\nMove (2 tempo): 3 spaces.",
 		EnemyType.SABERTOOTH: "A sabertooth tiger. 35% to crit: a crit deals 1.5x and inflicts 6 Bleed.\nTrack (10 tempo, Async): marks the nearest of your units — +15 Strengthen against it, and the tiger must hunt it.\nBite and Claw (5 tempo): bites for 6, then claws for 3 — two separate attacks (each rolls its own crit and spends its own Strengthen).\nSunken Bite (15 tempo, Async): 10 damage + 8 Bleed.\nMove (2 tempo): 2 spaces.",
 		# --- Underworld ---
 		EnemyType.CERBERUS: "Three-headed hound with spiked collars and a chain on the left head: the guardian of Hell's Door. Resists 30% physical / 40% fire / 15% lightning. You need not kill him — only break the door he guards — but it is far easier with him dead.\nBite (5 tempo): 25 damage. Below 66% health the second head bites too (25 + 5 Bleed); below 33% the third head as well (25, and he feeds on the wound).\nSwipe (8 tempo): 8 Bleed.\nVenom Tail (15 tempo): you discard 3 random cards and are stunned for 15 tempo; when it lifts, 2 Vulnerable and Cuffed for 10 tempo.\nRoar (12 tempo): +25 armor and 25 thorns.\nMove (3 tempo): 6 spaces.\nGuardian of Death: Brace 30% for 5 hits the first time he drops below half, and again EVERY time any unit within 8 squares — foe or ally, the door included — drops below half.\nDeathyard Dog: a foe healing within 5 squares gives him 15 Strengthen.",
@@ -2799,6 +2799,12 @@ func _tick_action_clocks(player_node: Node3D) -> void:
 func _move_target_for(player_node: Node3D) -> Node3D:
 	if taunt_target and is_instance_valid(taunt_target):
 		return taunt_target
+	# Sabertooth: Track's quarry overrides whoever the spawner points it at
+	# (a Taunt still wins — it is the player's own forced-target tool).
+	if enemy_type == EnemyType.SABERTOOTH:
+		var quarry := _track_quarry()
+		if quarry != null:
+			return quarry
 	return player_node
 
 func _effective_cost(action: Dictionary) -> int:
@@ -4623,9 +4629,9 @@ func _try_stinger(target_node: Node3D) -> bool:
 	_deal_damage_to_player(target_node, maxi(1, roundi(25 * _pps_dmg)), "Stinger")
 	var dm = target_node.get_debuff_manager() if target_node.has_method("get_debuff_manager") else null
 	if dm:
-		# Clumsy is stack-driven here (burns 1 per card played) — 3 stacks
-		# stands in for the sheet's "3 cycles". Poison: 8 stacks.
-		dm.apply_debuff(Debuff.create(Debuff.DebuffType.CLUMSY, 3, -1))
+		# Clumsy for 3 cycles (sheet) = 15 tempo on the clock: no card burns
+		# it, it simply runs out. Poison: 8 stacks.
+		dm.apply_debuff(Debuff.create_timed(Debuff.DebuffType.CLUMSY, 15, enemy_name))
 		dm.apply_debuff(Debuff.create(Debuff.DebuffType.POISON, 8, 15))
 	_stinger_cooldown = 5
 	turn_completed.emit()
@@ -4846,69 +4852,215 @@ func _hit_unit(u: Node3D, dmg: int, label: String, dmg_type: int = -1) -> void:
 	elif u.has_method("take_damage"):
 		u.take_damage(dmg)
 
+## Put the enemy down on a square at once (a leap or a dive, not a walk). Any
+## glide still queued from an earlier move is dropped, or the physics step
+## would slide it back along the old path from the new spot.
+func _land_at(world_pos: Vector3) -> void:
+	if grid_manager:
+		var cell := grid_manager.world_to_grid(world_pos)
+		world_pos = grid_manager.grid_to_world(cell)
+		if dungeon_manager:
+			world_pos.y = dungeon_manager.get_elevation_world_y(cell)
+	position = world_pos
+	target_position = world_pos
+	is_moving = false
+	_move_path.clear()
+
+## Whether a square can be stood on at all: the floor of the dungeon (or the
+## grid, outdoors), with nothing built, parked or raised on it.
+func _can_stand_on(cell: Vector2i) -> bool:
+	if not _cell_is_free(cell) or cell in pillar_tiles:
+		return false
+	if dungeon_manager != null:
+		return dungeon_manager.is_floor(cell)
+	return cell.x >= 0 and cell.y >= 0 and cell.x < grid_manager.grid_width and cell.y < grid_manager.grid_height
+
+## The player-side units standing within `radius` squares of `cell`.
+func _units_within(units: Array, cell: Vector2i, radius: int) -> Array:
+	var out: Array = []
+	for u in units:
+		if is_instance_valid(u) and _manhattan_dist(grid_manager.world_to_grid(u.position), cell) <= radius:
+			out.append(u)
+	return out
+
 # --- Weregoat ---
+
+const GOAT_CHARGE_SQUARES := 8    # sheet: "Charge up to 8 squares"
+const GOAT_CHARGE_DAMAGE := 8     # sheet: 8 damage to all targets in his path
+# TODO(sheet): the sheet gives no length for the landing stun — 3 tempo, the
+# same stun the Giant Beaver's Chomp deals.
+const GOAT_CHARGE_STUN_TEMPO := 3
 
 func _choose_weregoat_action(distance: int) -> void:
 	if distance <= 1:
 		chosen_action = _get_action("hoof_punch")
-	elif distance <= 8:
+	elif distance <= GOAT_CHARGE_SQUARES:
 		chosen_action = _get_action("goat_charge")
 	else:
 		chosen_action = _get_action("move")
 
-## Charge (sheet): run up to 8 squares along the line that crosses the most of
-## the player's units; 8 damage to everything in the path; everything within
-## 1 square of the landing spot is Stunned.
-## TODO(sheet): path-choice and the landing stun are first-pass stubs — see the
-## implementation brief. For now: a straight line toward the target.
+## Charge (sheet): run up to 8 squares along the straight line that crosses
+## the most of the player's units (any of the 8 directions); 8 damage to
+## everything in the path. The goat pulls up on the first free square past
+## the last unit it ran through, so the landing stun (everything within 1
+## square) catches them. With nobody on any line it charges the route to its
+## target instead and lands beside it — stun only, nothing was in the path.
 func _try_goat_charge(target_node: Node3D) -> bool:
 	if is_disarmed or rooted_tempo > 0:
 		return _try_move(target_node)
-	return _try_elemental(target_node, 8, "Charge")
+	if not grid_manager:
+		return _try_elemental(target_node, GOAT_CHARGE_DAMAGE, "Charge")
+	var my_cell := grid_manager.world_to_grid(position)
+	var units: Array = []
+	var unit_at := {}   # cell -> the player-side unit standing on it
+	for u in _player_units():
+		if is_instance_valid(u):
+			units.append(u)
+			unit_at[grid_manager.world_to_grid(u.position)] = u
+	var best := {}
+	var best_score := -1
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
+			Vector2i(1, 1), Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1)]:
+		var lane := _goat_charge_lane(my_cell, d, unit_at)
+		if lane.is_empty():
+			continue
+		# Most units in the path first; among equal lanes the landing that
+		# stuns the most, then the one that catches the goat's own target.
+		var lane_hits: Array = lane["hits"]
+		var score: int = lane_hits.size() * 100 + _units_within(units, lane["land"], 1).size() * 10
+		if target_node in lane_hits:
+			score += 1
+		if score > best_score:
+			best_score = score
+			best = lane
+	var hits: Array = best.get("hits", [])
+	var land_cell: Vector2i = best.get("land", my_cell)
+	if hits.is_empty() and best_score <= 0:
+		# No line reaches anyone: charge the route to the target and pull up
+		# beside it (or just walk if even that is out of reach).
+		var path := _build_route_path(position, grid_manager.world_to_grid(target_node.position), GOAT_CHARGE_SQUARES)
+		if path.is_empty():
+			return _try_move(target_node)
+		land_cell = grid_manager.world_to_grid(path[path.size() - 1])
+	# The blows land from where the run starts: the lane is clear of walls by
+	# construction, so nothing is hit through one.
+	for u in hits:
+		_hit_unit(u, GOAT_CHARGE_DAMAGE, "Charge")
+	_land_at(grid_manager.grid_to_world(land_cell))
+	var stunned := 0
+	for u in _units_within(units, land_cell, 1):
+		_apply_player_debuff(u, Debuff.create(Debuff.DebuffType.STUN, 0, GOAT_CHARGE_STUN_TEMPO))
+		stunned += 1
+	print("[%s] CHARGE — %d unit(s) trampled, %d stunned where it lands" % [enemy_name, hits.size(), stunned])
+	turn_completed.emit()
+	return true
+
+## One straight charge lane from `from` along `dir`, up to 8 squares. It stops
+## short of walls, other enemies, pillars and the edge of the floor (and never
+## cuts a wall corner on a diagonal); player-side units are run through, not
+## around. Returns {"hits": [units in the path], "land": the square the goat
+## pulls up on}, or {} when it could not take a single step that way. A unit
+## with a wall right behind it is still hit — the goat slams into it and pulls
+## up on the square before.
+func _goat_charge_lane(from: Vector2i, dir: Vector2i, unit_at: Dictionary) -> Dictionary:
+	var hits: Array = []
+	var land := from
+	var landed := false
+	var pulled_up := false   # the landing past the latest victim is already set
+	for i in range(1, GOAT_CHARGE_SQUARES + 1):
+		var c: Vector2i = from + dir * i
+		if unit_at.has(c):
+			hits.append(unit_at[c])
+			pulled_up = false
+			continue
+		if not _can_stand_on(c):
+			break
+		if dungeon_manager != null and not dungeon_manager.has_line_of_sight(from, c):
+			break
+		if hits.is_empty() or not pulled_up:
+			land = c
+			landed = true
+			pulled_up = true
+	if not landed:
+		return {}
+	return {"hits": hits, "land": land}
 
 # --- Roc ---
+
+const ROC_DIVE_SQUARES := 6       # sheet: "attack from up to 6 paces away"
+# TODO(sheet): "move away until dive bomb is once again active" — the sheet
+# gives no length for that wait; one cycle (5 tempo), the dive's own tempo.
+const ROC_DIVE_COOLDOWN := 5
+const ROC_SCRAPE_AFTER := 3       # sheet: "in melee range for more than 3 tempo"
 
 var _dive_cooldown: int = 0        # Roc: raw tempo until Dive Bomb is ready again
 var _roc_melee_tempo: int = 0      # Roc: consecutive tempo a player unit has stood in melee reach
 
+## Dive when it is ready and the target is in reach; every other tempo the
+## Roc backs off (it has no "move": the retreat IS its movement, so the Sync
+## clock is never left without a choice).
 func _choose_roc_action(distance: int) -> void:
-	if distance <= 6 and _dive_cooldown <= 0:
+	if distance <= ROC_DIVE_SQUARES and _dive_cooldown <= 0 and not is_disarmed:
 		chosen_action = _get_action("dive_bomb")
 	else:
 		chosen_action = _get_action("roc_retreat")
 
-## Dive Bomb (sheet): attack from up to 6 squares; the Roc ends beside the player.
+## Dive Bomb (sheet): attack from up to 6 squares; the Roc ends beside the
+## player. Disarmed, out of reach, or with no free square beside the target it
+## backs off instead; Rooted it cannot fly at all.
 ## TODO(sheet): the sheet gives no damage — first-pass attack_damage (8).
 func _try_dive_bomb(target_node: Node3D) -> bool:
-	if is_disarmed:
-		return _try_roc_retreat(target_node)
-	if _cells_between(self, target_node) > 6:
+	if is_disarmed or not is_instance_valid(target_node) or _cells_between(self, target_node) > ROC_DIVE_SQUARES:
 		return _try_roc_retreat(target_node)
 	if _cells_between(self, target_node) > 1:
-		position = _free_cell_near(target_node.position, 1)
-		target_position = position
+		if rooted_tempo > 0:
+			return false
+		var perch := _free_cell_near(target_node.position, 1)
+		if grid_manager and grid_manager.world_to_grid(perch) == grid_manager.world_to_grid(target_node.position):
+			return _try_roc_retreat(target_node)  # nowhere to land beside them
+		_land_at(perch)
 	_deal_damage_to_player(target_node, attack_damage, "Dive Bomb")
-	_dive_cooldown = 5
+	_dive_cooldown = ROC_DIVE_COOLDOWN
 	turn_completed.emit()
 	return true
 
 ## Eye Scrape (sheet, Async 3): only lands if a player unit has been in melee
-## reach for more than 3 tempo — 2 Weakened. _roc_melee_tempo is ticked in
-## on_tempo_advanced.
+## reach for more than 3 tempo — 2 Weakened on whoever is crowding it (the
+## target if it is the one in reach, else any unit beside it). _roc_melee_tempo
+## is ticked in on_tempo_advanced.
 func _try_eye_scrape(target_node: Node3D) -> bool:
-	if is_disarmed or _roc_melee_tempo <= 3 or not _in_attack_range(target_node):
+	if is_disarmed or _roc_melee_tempo <= ROC_SCRAPE_AFTER:
 		return false
-	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.WEAKENED, 2, -1))
+	var victim: Node3D = null
+	if is_instance_valid(target_node) and _in_attack_range(target_node):
+		victim = target_node
+	else:
+		for u in _player_units():
+			if is_instance_valid(u) and _cells_between(self, u) <= 1:
+				victim = u
+				break
+	if victim == null:
+		return false
+	_apply_player_debuff(victim, Debuff.create(Debuff.DebuffType.WEAKENED, 2, -1))
 	print("[%s] Eye Scrape! 2 Weakened" % enemy_name)
 	turn_completed.emit()
 	return true
 
-## The Roc always moves AWAY from the player.
+## The Roc always moves AWAY from the player. Only a Root pins it; cornered
+## (no square is further off — every step changes the distance by one, so
+## there is no sidestep that keeps it) it holds where it is, and a player who
+## crowds it there meets Eye Scrape. Returns false when it could not move,
+## which the Sync clock treats as a spent 1-tempo action: it tries again next
+## tempo rather than idling on a stale choice.
 func _try_roc_retreat(target_node: Node3D) -> bool:
-	if rooted_tempo > 0:
+	if rooted_tempo > 0 or not is_instance_valid(target_node):
 		return false
-	_dash_away_from(target_node.position, maxi(1, int(move_distance)))
-	return true
+	var tiles := maxi(1, int(move_distance))
+	if not grid_manager:
+		_dash_away_from(target_node.position, tiles)
+		return true
+	var threat := grid_manager.world_to_grid(target_node.position)
+	return _start_path(_build_greedy_path(position, threat, tiles, true))
 
 # --- Sabertooth Tiger ---
 
@@ -4916,16 +5068,32 @@ var _track_target: Node3D = null   # Sabertooth: the unit Track marked (it must 
 const SABERTOOTH_CRIT_CHANCE := 0.35
 
 func _choose_sabertooth_action(distance: int) -> void:
+	# Hunting its Track quarry: measure to it, not to the spawner's target
+	# (unless a Taunt is pulling it elsewhere — see _move_target_for).
+	var quarry := _track_quarry()
+	if quarry != null and not (taunt_target and is_instance_valid(taunt_target)):
+		distance = _get_cell_distance(quarry)
 	if distance <= 1:
 		chosen_action = _get_action("bite_and_claw")
 	else:
 		chosen_action = _get_action("move")
 
+## The unit Track marked, while it still stands. The lock clears the moment
+## that unit dies, is freed or becomes untargetable, and the tiger goes back
+## to whoever the spawner points it at.
+func _track_quarry() -> Node3D:
+	if _track_target == null:
+		return null
+	if not is_instance_valid(_track_target) or _track_target.get("is_dead") == true \
+			or _track_target.get("untargetable") == true or _unit_health(_track_target) <= 0:
+		_track_target = null
+		return null
+	return _track_target
+
 ## Track (sheet, Async 10): +15 Strengthen against the nearest unit, which the
-## tiger must then attack.
-## TODO(sheet): the "must attack it" targeting lock is a stub — _track_target is
-## recorded but the chooser still follows the spawner's target.
-func _try_track(_target_node: Node3D) -> bool:
+## tiger must then attack — _track_quarry() steers its moves and strikes from
+## here on (see _move_target_for).
+func _try_track(target_node: Node3D) -> bool:
 	var nearest: Node3D = null
 	var best := 999
 	for u in _player_units():
@@ -4933,6 +5101,8 @@ func _try_track(_target_node: Node3D) -> bool:
 		if d < best:
 			best = d
 			nearest = u
+	if nearest == null and is_instance_valid(target_node):
+		nearest = target_node  # nothing else in sight: the one it was given
 	if nearest == null:
 		return false
 	_track_target = nearest

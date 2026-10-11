@@ -55,9 +55,9 @@ var source_name: String = "" # What applied this debuff
 
 # For tracking
 var stacks: int = 1          # Some debuffs can stack
-## A normally stack-driven debuff (Slowed, Staggered) that instead lasts a
-## set number of tempo (Approach, Tower Shield): the clock expires it and
-## nothing burns its stacks.
+## A normally stack-driven debuff (Slowed, Staggered, Clumsy) that instead
+## lasts a set number of tempo (Approach, Tower Shield, the White Manticore's
+## Stinger): the clock expires it and nothing burns its stacks.
 var clock_timed: bool = false
 var affected_card_index: int = -1  # For Hexed/Locked - which card in hand is affected
 
@@ -139,7 +139,10 @@ func _set_name_and_description() -> void:
 			description = "Cannot move"
 		DebuffType.CLUMSY:
 			debuff_name = "Clumsy"
-			description = "%d%% chance to discard a random card when playing; each card burns a stack (%d left)" % [CLUMSY_CHANCE, value]
+			if clock_timed:
+				description = "%d%% chance to discard a random card when playing (%d tempo left)" % [CLUMSY_CHANCE, duration]
+			else:
+				description = "%d%% chance to discard a random card when playing; each card burns a stack (%d left)" % [CLUMSY_CHANCE, value]
 		DebuffType.VULNERABLE:
 			debuff_name = "Vulnerable"
 			description = "Take 30%% more damage on next %d attack(s)" % value
@@ -207,7 +210,7 @@ func get_short_display() -> String:
 static func create(type: DebuffType, val: int = 0, dur: int = 15) -> Debuff:
 	return Debuff.new(type, val, dur)
 
-## Slowed or Staggered on the clock instead of by stacks.
+## Slowed, Staggered or Clumsy on the clock instead of by stacks.
 static func create_timed(type: DebuffType, tempo: int, source: String = "") -> Debuff:
 	var debuff = Debuff.new(type, 1, tempo)
 	debuff.clock_timed = true
