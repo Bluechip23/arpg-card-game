@@ -30,7 +30,8 @@ func apply_debuff(debuff: Debuff) -> void:
 		return
 	# Stack-driven debuffs never expire by the clock — their stacks are burned
 	# by what they react to (movement, damage, card plays), mirroring Burn.
-	# A clock-timed Slowed/Staggered (Approach, Tower Shield) keeps its duration.
+	# A clock-timed Slowed/Staggered/Clumsy (Approach, Tower Shield, the White
+	# Manticore's Stinger) keeps its duration.
 	match debuff.debuff_type:
 		Debuff.DebuffType.BURN, Debuff.DebuffType.BLEED, Debuff.DebuffType.SLOWED, \
 		Debuff.DebuffType.STAGGERED, Debuff.DebuffType.WEIGHTED, Debuff.DebuffType.CLUMSY, \
@@ -354,7 +355,8 @@ func get_tempo_increase() -> int:
 	return Debuff.WEIGHTED_TEMPO if has_debuff(Debuff.DebuffType.WEIGHTED) else 0
 
 ## Stack bookkeeping when a card is successfully played: Weighted and Clumsy
-## burn on every card, Staggered only on attack cards.
+## burn on every card, Staggered only on attack cards. A clock-timed copy
+## (the Manticore's Clumsy, Approach's Slowed) is left to its timer.
 func on_card_played(is_attack_card: bool) -> void:
 	for entry in [[Debuff.DebuffType.WEIGHTED, true], [Debuff.DebuffType.CLUMSY, true],
 			[Debuff.DebuffType.STAGGERED, is_attack_card]]:
@@ -428,7 +430,8 @@ func is_card_hexed(index: int) -> bool:
 	return false
 
 func get_clumsy_chance() -> int:
-	# Fixed chance while any stacks remain; stacks burn per card played.
+	# Fixed chance while any stacks remain (or the clock still runs); only a
+	# stack-driven Clumsy burns per card played.
 	return Debuff.CLUMSY_CHANCE if has_debuff(Debuff.DebuffType.CLUMSY) else 0
 
 func roll_clumsy() -> bool:
