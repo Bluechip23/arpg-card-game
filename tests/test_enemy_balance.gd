@@ -46,7 +46,7 @@ func _initialize() -> void:
 	_check(by_name["Bone Dragon"]["health"] == 180, "Bone Dragon 150x1.2 HP (band 12)")
 	_check(by_name["Grave Titan"]["health"] == 156 and by_name["Grave Titan"]["armor"] == 36,
 		"Grave Titan 130x1.2 HP / 30x1.2 armor (band 12)")
-	_check(by_name["Hydra"]["health"] == 104, "Hydra 80x1.3 HP (band 14)")
+	_check(by_name["Hydra"]["health"] == 247, "Hydra 190x1.3 HP (band 14; sheet 190)")
 	_check(by_name["Treant"]["health"] == 160, "Treant 110x1.45 HP (band 19)")
 	_check(by_name["Coyote"]["health"] == 7, "Coyote stays blowy-uppy (6x1.2 HP)")
 	_check(by_name["Swarm"]["health"] == 9, "Swarm stays blowy-uppy (10x0.9 HP)")

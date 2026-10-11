@@ -2213,7 +2213,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		"paralysis":
 			pass  # Tearing the webbing free IS the effect — erase_on_play removes it
 		"release_soul":
-			pass  # Releasing the soul IS the effect — erase_on_play removes it
+			_execute_release_soul(target)  # erase_on_play removes the card; the collectors drink the soul
 		"reckless_strike":
 			_execute_reckless_strike(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		# === Power Cards (Maintain) ===
@@ -5059,14 +5059,15 @@ static func create_djinn_wish(sear_per_cycle: int = 3) -> Card:
 static func create_paralysis() -> Card:
 	## Crypt Crawler web: while this sits in your hand you cannot move (other
 	## actions are fine). Playing it tears the webbing free and erases it.
+	## sheet: "Paralysis is 10m/5 Tempo".
 	var card = Card.new()
 	card.card_id = "paralysis"
 	card.card_name = "Paralysis"
-	card.description = "Webbed! You cannot move while this is in your hand. Play (0 mana, 1 tempo) to tear the webbing free."
+	card.description = "Webbed! You cannot move while this is in your hand. Play (10 mana, 5 tempo) to tear the webbing free."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Curse"
-	card.mana_cost = 0
-	card.tempo_cost = 1
+	card.mana_cost = 10
+	card.tempo_cost = 5
 	card.damage = 0
 	card.base_damage = 0
 	card.block = 0
@@ -5077,27 +5078,58 @@ static func create_paralysis() -> Card:
 	card.target_types = ["self"]
 	return card
 
+## Release Soul: how much Strengthen every living Spirit Collector gains when
+## the soul is set free. sheet: "give all soul collectors strengthen" — no
+## amount given, 5 for now. TODO(sheet)
+const RELEASE_SOUL_STRENGTHEN := 5
+
 static func create_release_soul() -> Card:
-	## Spirit Collector: your caged soul saps you every cycle it is held
-	## (1 damage per tempo, ticked once per 5-tempo cycle). Play to release it.
+	## Spirit Collector (sheet): "Release Soul: 15 mana, 2 tempo: give all
+	## soul collectors strengthen". While it is in hand the holder is Drained
+	## (held at 1 stack by Main._sync_held_drain, lifted when the card
+	## leaves) and it "deals 1 dmg per tempo until played" — there is no
+	## per-tempo in-hand tick, so the 5 tempo of a cycle are charged together
+	## through held_damage_per_cycle (DeckManager.process_turn). Erased on play.
 	var card = Card.new()
 	card.card_id = "release_soul"
 	card.card_name = "Release Soul"
-	card.description = "A piece of your soul, caged. Saps 5 damage every cycle it stays in your hand. Play (0 mana, 0 tempo) to release it."
+	card.description = "A piece of your soul, caged. While it is in your hand you are Drained (10 mana a cycle) and it saps 1 damage per tempo (5 at each cycle). Play (15 mana, 2 tempo) to release it — every living Spirit Collector gains %d Strengthen." % RELEASE_SOUL_STRENGTHEN
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Curse"
-	card.mana_cost = 0
-	card.tempo_cost = 0
+	card.mana_cost = 15
+	card.tempo_cost = 2
 	card.damage = 0
 	card.base_damage = 0
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
-	card.held_damage_per_cycle = 5  # 1 per tempo, charged per cycle
+	card.held_damage_per_cycle = 5  # 1 per tempo, charged per 5-tempo cycle
+	card.in_hand_debuff = "drain_1"  # Drain, held at 1 stack while in hand (Main._sync_held_drain)
 	card.erase_on_play = true
 	card.linger = true
 	card.target_types = ["self"]
 	return card
+
+## Playing Release Soul frees the caged soul — and every living Spirit
+## Collector on the field drinks it: +RELEASE_SOUL_STRENGTHEN each, added to
+## their Strike and Collect Soul for the rest of the fight. The field is
+## reached through the player's parent, as _nearest_other_enemy does.
+func _execute_release_soul(target) -> void:
+	if target == null or not is_instance_valid(target) or not (target is Node3D):
+		return
+	var scene = target.get_parent()
+	if scene == null or not ("enemy_spawner" in scene) or scene.enemy_spawner == null:
+		return
+	var fed := 0
+	for e in scene.enemy_spawner.get_living_enemies():
+		if not is_instance_valid(e) or e.enemy_type != Enemy.EnemyType.SPIRIT_COLLECTOR:
+			continue
+		e.strengthen_stacks += RELEASE_SOUL_STRENGTHEN
+		if e.has_method("_update_status_indicators"):
+			e._update_status_indicators()
+		fed += 1
+	if fed > 0:
+		print("[CARD] Release Soul: %d Spirit Collector(s) gain %d Strengthen" % [fed, RELEASE_SOUL_STRENGTHEN])
 
 static func create_thrown_stone() -> Card:
 	var card = Card.new()

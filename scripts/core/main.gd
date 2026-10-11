@@ -7210,6 +7210,9 @@ func _on_hand_updated() -> void:
 	if hand_card_preview:
 		hand_card_preview.visible = false
 	_current_hand_hover_index = -1
+	# Release Soul's Drain follows the card in and out of the hand.
+	if player and deck_manager and player.get_buff_manager():
+		_sync_held_drain(player.get_buff_manager().debuff_manager)
 	# Drawing consumes revealed peek knowledge — keep the NEXT display honest.
 	update_peaked_display()
 
@@ -7868,6 +7871,34 @@ func _apply_in_hand_debuffs() -> void:
 					# "While in hand: Slowed 2" — hold it at 2, never stack it.
 					if not debuff_mgr.has_debuff(Debuff.DebuffType.SLOWED):
 						debuff_mgr.apply_debuff(Debuff.create_slowed(2, card.card_name))
+				"drain_1":
+					pass  # held at 1 stack by _sync_held_drain below, which also runs on every hand change
+	_sync_held_drain(debuff_mgr)
+
+## The source name on the Drain that Release Soul puts there, so only that
+## Drain is lifted when the card leaves — one from another source is kept.
+const HELD_DRAIN_SOURCE := "Release Soul"
+
+func _sync_held_drain(debuff_mgr) -> void:
+	## Spirit Collector (sheet): "While 'Release Soul' is in a player's hand
+	## they are inflicted with Drain." Held at 1 stack — the stack burns each
+	## cycle (10 mana, DebuffManager.process_turn_start) and is put back here
+	## — and lifted the moment the last such card leaves the hand.
+	if debuff_mgr == null:
+		return
+	var held := false
+	for card in deck_manager.hand:
+		if card.in_hand_debuff == "drain_1":
+			held = true
+			break
+	var drain = debuff_mgr.get_debuff(Debuff.DebuffType.DRAIN)
+	if held:
+		if drain == null:
+			var d = Debuff.create(Debuff.DebuffType.DRAIN, 1, 15)
+			d.source_name = HELD_DRAIN_SOURCE
+			debuff_mgr.apply_debuff(d)
+	elif drain != null and drain.source_name == HELD_DRAIN_SOURCE:
+		debuff_mgr.remove_debuff(Debuff.DebuffType.DRAIN)
 
 func _process_enchantment_cycles() -> void:
 	var hand_changed = false

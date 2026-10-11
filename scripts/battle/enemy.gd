@@ -260,7 +260,8 @@ var attack_burn: int = 0                           # Fire Mage: burn stacks appl
 var attack_shock: int = 0                          # Spark Mage: shock stacks applied on hit
 var attack_blind_chance: float = 0.0               # Giant Hawk: chance to Blind on hit
 var _beaver_followup: bool = false                 # Giant Beaver: chomp queues a Tail Whip
-var _hook_charged: bool = true                     # Infected Hunter: starts with a hook prepared
+var _hook_recharge: int = 0                        # Infected Hunter: raw tempo until Hook is ready again (sheet: "starts charged" — 0 at spawn)
+var _net_cooldown: int = 0                         # Infected Hunter: raw tempo until Net Throw is ready again (sheet: cooldown 8)
 var _drops_to_all_fours: bool = false              # Large Bear: posture change below 20% HP (visual)
 var hydra_heal_unlocked: bool = false
 
@@ -343,7 +344,7 @@ const NON_MELEE_ACTIONS := {
 	"collect_soul": true, "summon_skeleton": true, "fire_wall": true,
 	"shoot": true, "ember": true, "dark_bolt": true, "frost_bolt": true,
 	"fire_bolt": true, "spark_bolt": true, "sludge_spit": true, "web": true,
-	"hook": true, "breath_swarm": true, "screech": true, "gust": true,
+	"hook": true, "net_throw": true, "breath_swarm": true, "screech": true, "gust": true,
 	"roar": true, "absorb": true, "chain_lightning": true, "fire_breath": true,
 	"boulder_roll": true,
 	# second pass (the enemy sheet)
@@ -498,12 +499,13 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 
 		EnemyType.HYDRA:
 			enemy_name = "Hydra"
-			max_health = 80
+			max_health = 190          # sheet: 190
 			attack_damage = 7         # +accumulated strength
 			attack_range = 1.5        # Melee
 			move_distance = 3.0       # Moves 3 spaces
 			aggro_range = 12.0
 			xp_reward = 60
+			_set_first_pass_resists(25, 25, 25)  # sheet: 25% physical / fire / lightning
 			_set_mesh_color(Color(0.2, 0.55, 0.35))  # Scaled green
 
 		EnemyType.FIRE_GOBLIN_SOLDIER:
@@ -1489,9 +1491,10 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 			]
 		EnemyType.INFECTED_HUNTER:
 			actions = [
-				{"name": "hook",   "tempo_cost": 8},
-				{"name": "cleave", "tempo_cost": 3},
-				{"name": "move",   "tempo_cost": 3},
+				{"name": "hook",      "tempo_cost": 8},
+				{"name": "cleave",    "tempo_cost": 3},
+				{"name": "net_throw", "tempo_cost": 2},  # sheet: 2 tempo, cooldown 8 (_net_cooldown)
+				{"name": "move",      "tempo_cost": 3},
 			]
 		EnemyType.GIANT_HAWK:
 			actions = [
@@ -1631,9 +1634,11 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 			]
 		EnemyType.CERBERUS:
 			actions = [
-				{"name": "cerberus_bite", "tempo_cost": 5, "label": "Bite"},
+				# sheet: Bite and Venom Tail are Async — their own clocks; the
+				# Sync clock carries only Swipe / Roar / Move.
+				{"name": "cerberus_bite", "tempo_cost": 5, "label": "Bite", "async": true},
 				{"name": "swipe",         "tempo_cost": 8, "label": "Swipe"},
-				{"name": "venom_tail",    "tempo_cost": 15, "label": "Venom Tail"},
+				{"name": "venom_tail",    "tempo_cost": 15, "label": "Venom Tail", "async": true},
 				{"name": "cerberus_roar", "tempo_cost": 12, "label": "Roar"},
 				{"name": "move",          "tempo_cost": 3},
 			]
@@ -1888,7 +1893,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SKELETON: {"name": "Skeleton", "health": 20, "armor": 12, "damage": 6, "xp": 7},
 		EnemyType.ARMORED_TROLL: {"name": "Armored Troll", "health": 60, "armor": 40, "damage": 7, "xp": 30},
 		EnemyType.ARCHER_RAT: {"name": "Archer Rat", "health": 6, "armor": 0, "damage": 2, "xp": 4},
-		EnemyType.HYDRA: {"name": "Hydra", "health": 80, "armor": 0, "damage": 7, "xp": 60},
+		EnemyType.HYDRA: {"name": "Hydra", "health": 190, "armor": 0, "damage": 7, "xp": 60},
 		EnemyType.FIRE_GOBLIN_SOLDIER: {"name": "Fire Goblin Soldier", "health": 6, "armor": 0, "damage": 2, "xp": 3},
 		EnemyType.FIRE_GOBLIN_MAGE: {"name": "Fire Goblin Mage", "health": 10, "armor": 0, "damage": 7, "xp": 8},
 		EnemyType.FIRE_GOBLIN_SHAMAN: {"name": "Fire Goblin Shaman", "health": 16, "armor": 0, "damage": 6, "xp": 12},
@@ -1968,7 +1973,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WOLF: [{"name": "Bite", "tempo": 5}, {"name": "Move", "tempo": 3}],
 		EnemyType.COYOTE: [{"name": "Nip", "tempo": 4}, {"name": "Move", "tempo": 3}],
 		EnemyType.BUGBEAR: [{"name": "Strike", "tempo": 5}, {"name": "Move", "tempo": 4}],
-		EnemyType.INFECTED_HUNTER: [{"name": "Hook", "tempo": 8}, {"name": "Cleave", "tempo": 3}, {"name": "Move", "tempo": 3}],
+		EnemyType.INFECTED_HUNTER: [{"name": "Hook", "tempo": 8}, {"name": "Cleave", "tempo": 3}, {"name": "Net Throw", "tempo": 2}, {"name": "Move", "tempo": 3}],
 		EnemyType.GIANT_HAWK: [{"name": "Swoop", "tempo": 4}, {"name": "Move", "tempo": 3}],
 		EnemyType.TREANT: [{"name": "Slam", "tempo": 10}, {"name": "Root", "tempo": 8}, {"name": "Heal", "tempo": 5}, {"name": "Move", "tempo": 10}],
 		EnemyType.ICE_MAGE: [{"name": "Frost Bolt", "tempo": 3}, {"name": "Move", "tempo": 5}],
@@ -2028,7 +2033,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SKELETON: "Has armor that must be broken.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
 		EnemyType.ARMORED_TROLL: "Regenerates 3 HP every 6 global tempo. Resists 30% physical / 15% fire / 15% lightning.\nAt range ≤1: 60% Smash (5 tempo, 14 dmg + Lightly Dazed card) / 40% Kick (3 tempo, 6 dmg).\nMove (4 tempo): 2 spaces.",
 		EnemyType.ARCHER_RAT: "Ranged attacker (range 4).\nAt range ≤2: Scurries 5 tiles away.\nAt range 3-4: Shoots for 2 damage.\nAt range >4: Moves 2 tiles closer.",
-		EnemyType.HYDRA: "Grows stronger with every hit she takes: +2 strength per hit. On the 4th hit she also gains +40 max HP and unlocks Heal.\nStrike (8 tempo): 7 + strength damage.\nMove (6 tempo): 3 spaces.\nHeal (5 tempo): heals to full (after the 4th hit).",
+		EnemyType.HYDRA: "Resists 25% physical / fire / lightning. Grows stronger with every hit she takes, whoever or whatever lands it: +2 strength per hit. On the 4th hit she also gains +40 max HP and unlocks Heal.\nStrike (8 tempo): 7 + strength damage.\nMove (6 tempo): 3 spaces.\nHeal (5 tempo): heals to full (after the 4th hit).",
 		EnemyType.FIRE_GOBLIN_SOLDIER: "Melee rusher (range 0).\nAttack (3 tempo): 2 damage.\nMove (2 tempo): 4 spaces.",
 		EnemyType.FIRE_GOBLIN_MAGE: "Ranged caster (range 4).\nEmber (4 tempo): 7 damage + 1 burn.\nMove (3 tempo): 2 spaces.",
 		EnemyType.FIRE_GOBLIN_SHAMAN: "Support caster (range 5).\nFire Wall (8 tempo): raises a wall; if the player walks into it they take 6 damage + 3 burn.\nSear Wounds (6 tempo): 2 damage to all allies (can kill), then heals survivors 6.\nMove (3 tempo): 2 spaces.",
@@ -2038,7 +2043,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WOLF: "Within 4 tiles of another wolf: +2 HP regen/cycle and +2 attack damage.\nBite (5 tempo): 7 damage.\nMove (3 tempo): 4 spaces.",
 		EnemyType.COYOTE: "Fragile nuisance.\nNip (4 tempo): 2 damage.\nMove (3 tempo): 4 spaces.",
 		EnemyType.BUGBEAR: "First Strike: if it hits you before you have hit it, +8 damage.\nStrike (5 tempo): 6 damage.\nMove (4 tempo): 6 spaces.",
-		EnemyType.INFECTED_HUNTER: "Hook (range 2-7, 8 tempo): reels you in beside it.\nCleave (3 tempo): 8 damage.\nMove (3 tempo): 2 spaces.",
+		EnemyType.INFECTED_HUNTER: "Hook (range 2-7, 8 tempo): reels you in beside it. The first hook is ready at once; after each one it takes 8 tempo to recharge.\nCleave (3 tempo): 8 damage to everything on the three squares in front of it.\nNet Throw (2 tempo, within 3 squares, 8-tempo cooldown): Weighted for every card in your hand — each card costs +2 tempo until that many have been played.\nMove (3 tempo): 2 spaces.",
 		EnemyType.GIANT_HAWK: "Flying — ignores your high-ground bonus.\nSwoop (4 tempo, reach 2): 9 damage, 20% to Blind for 5 tempo.\nMove (3 tempo): 8 spaces.",
 		EnemyType.TREANT: "Heals 5 HP every 5 tempo, +2 per 10% HP below 60%. Every 10 tempo, strips all thorns from its enemies and heals for the total. Resists 25% physical / 55% lightning, but takes 10% EXTRA fire damage.\nSlam (10 tempo): 14 earth damage.\nRoot (8 tempo): pins you for 8 tempo (can attack, cannot move).\nHeal (5 tempo): when badly hurt and out of melee, it stops to mend.\nMove (10 tempo): 9 spaces.",
 		EnemyType.ICE_MAGE: "Attacks Slow your movement.\nFrost Bolt (range 3, 3 tempo): 6 ice damage + Slow.\nMove (5 tempo): 3 spaces.",
@@ -2052,9 +2057,9 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.VAMPIRE: "Victorian aristocrat with life steal. Resists 10% physical/fire/lightning.\nBite (5 tempo): 10 damage; heals 100% of damage dealt to HEALTH (not armor).\nBat Form (below 50% HP, 2 charges, never recharges): flits 6 squares away...\nAbsorb (3 tempo, always right after Bat Form): drains the healthiest ally on the map (you included) — 20 the first time, then 10.\nMove (5 tempo): 5 spaces.",
 		EnemyType.NECROMANCER: "Hooded caster (range 10) who raises the dead. Resists 15% fire/lightning.\nBolt (5 tempo): 4 damage + Hexes 2 cards in your hand (each +30 mana until played).\nSummon (8 tempo): raises undead (skeletons and zombies, first pass). After 5 of its summons die, it raises a BONE DRAGON.\nMove (6 tempo): 8 spaces.",
 		EnemyType.BONE_DRAGON: "Skeletal wyrm. Summoned by the Necromancer, but also roams freely; fought as a boss in the Boneyard, where every standing gravestone regenerates it 1 health a cycle (Gravebound — break the stones, and kill the diggers who repair them). Resists 45% physical / 45% fire.\nBite (5 tempo): 12 damage.\nBreath Swarm (6 tempo): 12 damage down a 6-tile line; a Swarm hatches beside everyone it hits.\nMove (5 tempo): 5 spaces.",
-		EnemyType.SPIRIT_COLLECTOR: "Lantern-bearer with a soul cage on its back.\nStrike (3 tempo): 8 damage.\nCollect Soul (8 tempo): 8 damage; adds a 'Release Soul' card to your hand (saps 1 damage per tempo — charged 5 per cycle — until played, then is erased).",
+		EnemyType.SPIRIT_COLLECTOR: "Lantern-bearer with a soul cage on its back. Strengthen it gains adds to every Strike and Collect Soul and never fades.\nStrike (3 tempo): 8 damage.\nCollect Soul (8 tempo): 8 damage; adds a 'Release Soul' card to your hand. While it is in your hand you are Drained (10 mana a cycle) and it saps 1 damage per tempo (charged 5 at each cycle). Play it (15 mana, 2 tempo) to be rid of it — but releasing the soul gives every living Spirit Collector 5 Strengthen.",
 		EnemyType.GRAVE_TITAN: "Yeti-like brute (30 armor) hauling a boulder.\nSmash (8 tempo): 15 damage in front.\nBoulder Roll (range 3, 5 tempo): rolls the boulder for 15 damage.\nMove (8 tempo): 4 spaces.",
-		EnemyType.CRYPT_CRAWLER: "Large spider. After 3 consecutive attacks it webs you.\nBite (3 tempo): 6 damage.\nWeb: adds a 'Paralysis' card to your hand — you cannot move until it is played (other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
+		EnemyType.CRYPT_CRAWLER: "Large spider. After 3 consecutive attacks it webs you.\nBite (3 tempo): 6 damage.\nWeb: adds a 'Paralysis' card to your hand — you cannot move until it is played (10 mana, 5 tempo; other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
 		EnemyType.SCREECHER: "Soul-creature — a barely-there black void ghost, easiest to spot when it strikes.\nScreech (5 tempo): 5 damage.\nDrift (2 tempo): 4 spaces.",
 		EnemyType.CONSUMED: "Flesh-and-hatred golem; muscle shows through its lacerations.\nAttack (5 tempo): 8 damage.\nMove (3 tempo): 5 spaces.\nOn death: explodes for 8 damage to everything nearby.",
 		# --- Mountains ---
@@ -2067,7 +2072,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WHITE_MANTICORE: "A manticore with a snow-leopard body, bat wings and a spiked tail. Flying: ignores your high-ground bonus. Resists 10% physical / 35% fire / 10% lightning.\nBite (3 tempo): 15 damage.\nStinger (5 tempo, then 5-tempo cooldown): 25 damage + Clumsy (3 stacks) + 8 Poison.\nMove (2 tempo): 3 spaces.",
 		EnemyType.SABERTOOTH: "A sabertooth tiger. 35% to crit: a crit deals 1.5x and inflicts 6 Bleed.\nTrack (10 tempo, Async): marks the nearest of your units — +15 Strengthen against it, and the tiger must hunt it.\nBite and Claw (5 tempo): bites for 6, then claws for 3 — two separate attacks (each rolls its own crit and spends its own Strengthen).\nSunken Bite (15 tempo, Async): 10 damage + 8 Bleed.\nMove (2 tempo): 2 spaces.",
 		# --- Underworld ---
-		EnemyType.CERBERUS: "Three-headed hound with spiked collars and a chain on the left head: the guardian of Hell's Door. Resists 30% physical / 40% fire / 15% lightning. You need not kill him — only break the door he guards — but it is far easier with him dead.\nBite (5 tempo): 25 damage. Below 66% health the second head bites too (25 + 5 Bleed); below 33% the third head as well (25, and he feeds on the wound).\nSwipe (8 tempo): 8 Bleed.\nVenom Tail (15 tempo): you discard 3 random cards and are stunned for 15 tempo; when it lifts, 2 Vulnerable and Cuffed for 10 tempo.\nRoar (12 tempo): +25 armor and 25 thorns.\nMove (3 tempo): 6 spaces.\nGuardian of Death: Brace 30% for 5 hits the first time he drops below half, and again EVERY time any unit within 8 squares — foe or ally, the door included — drops below half.\nDeathyard Dog: a foe healing within 5 squares gives him 15 Strengthen.",
+		EnemyType.CERBERUS: "Three-headed hound with spiked collars and a chain on the left head: the guardian of Hell's Door. Resists 30% physical / 40% fire / 15% lightning. You need not kill him — only break the door he guards — but it is far easier with him dead.\nBite (5 tempo, Async): 25 damage. Below 66% health the second head bites too (25 + 5 Bleed); below 33% the third head as well (25, and he feeds on the wound). A bite that comes up out of reach is spent.\nSwipe (8 tempo): 8 Bleed.\nVenom Tail (15 tempo, Async): you discard 3 random cards and are stunned for 15 tempo; the moment the stun is gone, 2 Vulnerable and Cuffed for 10 tempo.\nRoar (12 tempo): +25 armor and 25 thorns.\nMove (3 tempo): 6 spaces.\nGuardian of Death: Brace 30% for 5 hits the first time he drops below half, and again EVERY time any unit within 8 squares — foe or ally, the door included — drops below half.\nDeathyard Dog: a foe healing within 5 squares gives him 15 Strengthen.",
 		EnemyType.SUCCUBUS: "A winged fey: short shorts, sleeveless top, elbow gloves, long boots and small horns (5 armor, range 4).\nMana Drain (10 tempo): drains 10 mana from your pool.\nDamaging Snap (6 tempo): damage equal to your missing mana / 20, + 4.\nMove (2 tempo): 1 space.",
 		EnemyType.DEMON: "A red, thorned demon wielding a dagger and a trident.\nMimic (8 tempo, Async): conjures a duplicate of itself — it looks identical (health, buffs and debuffs all copied) but has 1 health, and hits as hard as the real one. At most 2 mimics per demon.\nCuff (8 tempo, Async): you cannot draw for 15 tempo.\nAttack (5 tempo): 8 damage.\nMove (2 tempo): 2 spaces.",
 		EnemyType.IFRIT: "A muscular bipedal fire-hound, hunched, with long near-ground arms. Resists 20% physical / 15% fire / 15% lightning.\nAttack (3 tempo): 45 damage.\nFire Breath (8 tempo, used from up to 4 tiles out): a 5x5 sheet of flame in front — 20 fire damage + 5 Burn; the tiles keep burning for 3 tempo.\nBackflip (auto): a single blow over 40 damage sends it leaping 3 squares backwards.\nMove (4 tempo): 5 spaces.",
@@ -2429,6 +2434,10 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 	# Elite first-pass ability cooldowns run on raw tempo.
 	if _roar_cooldown > 0:
 		_roar_cooldown = maxi(0, _roar_cooldown - amount)
+	if _net_cooldown > 0:
+		_net_cooldown = maxi(0, _net_cooldown - amount)
+	if _hook_recharge > 0:
+		_hook_recharge = maxi(0, _hook_recharge - amount)
 	if _stinger_cooldown > 0:
 		_stinger_cooldown = maxi(0, _stinger_cooldown - amount)
 	if _talon_cooldown > 0:
@@ -3058,7 +3067,7 @@ func _choose_action(player_node: Node3D) -> void:
 		EnemyType.ZOMBIE:
 			_choose_melee_action(distance, "attack")
 		EnemyType.WEREWOLF:
-			_choose_werewolf_action(distance)
+			_choose_werewolf_action(distance, _move_target_for(player_node))
 		EnemyType.WERERABBIT:
 			# Loot monster: flees for 3 cycles (15 tempo), then vanishes in a
 			# puff of smoke — kill it before the clock runs out.
@@ -3362,30 +3371,28 @@ func _foes_in_play() -> Array:
 	return out
 
 func _choose_cerberus_action(distance: int) -> void:
-	## Straightforward and vicious: close in and bite. Roar when the thorns
-	## are spent, Swipe for the bleed, and Venom Tail when the last one has
-	## run its course.
+	## The Sync clock only ever carries Swipe, Roar and Move: Bite and Venom
+	## Tail are Async (sheet) and fire on their own clocks whenever they come
+	## up in reach. Close in; Roar when the thorns are spent, else Swipe.
 	if distance > 1:
 		if enemy_thorns <= 0 and randf() < 0.25:
 			chosen_action = _get_action("cerberus_roar")
 		else:
 			chosen_action = _get_action("move")
 		return
-	var roll := randf()
-	if _venom_countdown <= 0 and roll < 0.2:
-		chosen_action = _get_action("venom_tail")
-	elif enemy_thorns <= 0 and roll < 0.35:
+	if enemy_thorns <= 0 and randf() < 0.35:
 		chosen_action = _get_action("cerberus_roar")
-	elif roll < 0.6:
-		chosen_action = _get_action("swipe")
 	else:
-		chosen_action = _get_action("cerberus_bite")
+		chosen_action = _get_action("swipe")
 
 func _try_cerberus_bite(target_node: Node3D) -> bool:
 	## Bite: 25. Below 66% health the second head bites too (25 + 5 Bleed);
 	## below 33% the third head bites as well (25, and the wound feeds him).
 	if is_disarmed or not _in_attack_range(target_node):
-		return _try_move(target_node)
+		# Async: a bite whose tempo comes up out of reach is spent — the Sync
+		# clock does the walking, so no _try_move here.
+		print("[%s] Bite comes up out of reach — spent" % enemy_name)
+		return false
 	var dmg: int = attack_damage + strengthen_stacks
 	_deal_damage_to_player(target_node, dmg, "Bite")
 	if current_health * 3 < max_health * 2:
@@ -3405,7 +3412,9 @@ func _try_venom_tail(target_node: Node3D) -> bool:
 	## Venom Tail: the victim discards 3 random cards and is stunned for 15
 	## tempo; when the stun lifts they gain 2 Vulnerable and 10 tempo of Cuffed.
 	if is_disarmed or not _in_attack_range(target_node):
-		return _try_move(target_node)
+		# Async: spent when it comes up out of reach (see Bite).
+		print("[%s] Venom Tail comes up out of reach — spent" % enemy_name)
+		return false
 	if target_node.has_method("get_deck_manager"):
 		var deck = target_node.get_deck_manager()
 		if deck and "hand" in deck:
@@ -3424,10 +3433,17 @@ func _try_venom_tail(target_node: Node3D) -> bool:
 	return true
 
 func _tick_venom(amount: int) -> void:
+	## The aftermath lands the moment the victim's Stun is actually gone
+	## (sheet: "once the stun is over") — cleansed early counts; the 15-tempo
+	## countdown stays as the upper bound should the stun never have landed.
 	if _venom_countdown <= 0:
 		return
 	_venom_countdown -= amount
-	if _venom_countdown > 0:
+	var stun_gone := false
+	if _venom_victim != null and is_instance_valid(_venom_victim) and _venom_victim.has_method("get_debuff_manager"):
+		var vdm = _venom_victim.get_debuff_manager()
+		stun_gone = vdm != null and not vdm.has_debuff(Debuff.DebuffType.STUN)
+	if _venom_countdown > 0 and not stun_gone:
 		return
 	_venom_countdown = 0
 	if _venom_victim != null and is_instance_valid(_venom_victim):
@@ -3619,9 +3635,15 @@ func _choose_beaver_action(distance: int) -> void:
 		chosen_action = _get_action("move")
 
 func _choose_hunter_action(distance: int) -> void:
-	# Hook reaches out to 7 tiles (and starts charged); cleave is the melee swipe.
-	if _hook_charged and distance >= 2 and distance <= 7:
+	# Hook reaches out to 7 tiles: ready at once the first time (sheet:
+	# "starts charged"), then 8 tempo to recharge after each one. Net Throw
+	# whenever it is off its 8-tempo cooldown and the target is close
+	# (sheet: no range given — within 3 squares, TODO(sheet)); cleave is the
+	# melee swipe.
+	if _hook_recharge <= 0 and distance >= 2 and distance <= 7:
 		chosen_action = _get_action("hook")
+	elif _net_cooldown <= 0 and distance <= 3:
+		chosen_action = _get_action("net_throw")
 	elif distance <= 1:
 		chosen_action = _get_action("cleave")
 	else:
@@ -3650,10 +3672,15 @@ func _choose_large_bear_action(distance: int) -> void:
 	else:
 		chosen_action = _get_action("move")
 
-func _choose_werewolf_action(distance: int) -> void:
+func _choose_werewolf_action(distance: int, target: Node3D) -> void:
 	# Ramping rhythm: each consecutive claw on the SAME target arms 1 tempo
-	# faster (5, 4, 3...); switching targets resets the rhythm (see
-	# _try_werewolf_claw). Build a fresh dict so the base action stays 5.
+	# faster (5, 4, 3...); switching targets resets the rhythm. The streak is
+	# dropped HERE, when the claw is armed, so the first claw on a new target
+	# takes the full 5 (sheet) rather than inheriting the old streak's pace
+	# (_try_werewolf_claw restarts the count when it lands). Build a fresh
+	# dict so the base action stays 5.
+	if target != _ww_last_target:
+		_ww_streak = 0
 	if distance <= 1:
 		var cost: int = maxi(1, 5 - _ww_streak)
 		chosen_action = {"name": "werewolf_claw", "tempo_cost": cost}
@@ -3821,7 +3848,9 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 		"bugbear_strike":
 			return _try_bugbear_strike(move_target)
 		"cleave":
-			return _try_elemental(move_target, attack_damage, "Cleave")
+			return _try_cleave(move_target)
+		"net_throw":
+			return _try_net_throw(move_target)
 		"swoop":
 			return _try_swoop(move_target)
 		"hook":
@@ -3862,7 +3891,7 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 		"breath_swarm":
 			return _try_breath_swarm(move_target)
 		"collector_swing":
-			return _try_elemental(move_target, attack_damage, "Strike")
+			return _try_elemental(move_target, attack_damage + strengthen_stacks, "Strike")
 		"collect_soul":
 			return _try_collect_soul(move_target)
 		"titan_smash":
@@ -4036,7 +4065,7 @@ func _try_sear_wounds() -> bool:
 	var allies = _sibling_enemies()
 	for a in allies:
 		if is_instance_valid(a):
-			a.take_damage(2, false)  # from_player = false: doesn't enrage a Hydra
+			a.take_damage(2, false)  # from_player = false (a Hydra still counts the hit)
 	for a in allies:
 		if is_instance_valid(a) and a.is_alive():
 			a._regenerate(6)
@@ -4169,6 +4198,65 @@ func _try_hook(target_node: Node3D) -> bool:
 		if "is_moving" in target_node:
 			target_node.is_moving = true
 	print("[%s] Hooks the target and reels them in!" % enemy_name)
+	_hook_recharge = 8  # sheet: Hook's 8 tempo — the next one needs winding again
+	turn_completed.emit()
+	return true
+
+func _try_cleave(target_node: Node3D) -> bool:
+	## Cleave (sheet): 8 damage to the three squares in front of the hunter —
+	## the adjacent cell toward the target and the two beside it, the same row
+	## the Shaman's fire wall uses. Every player-side unit standing there is
+	## hit, summons included. A diagonal target takes the dominant axis as
+	## "front" (ties go to x), which still covers the diagonal cell itself.
+	if is_disarmed or not _in_attack_range(target_node):
+		return _try_move(target_node)
+	if not grid_manager:
+		_deal_damage_to_player(target_node, attack_damage, "Cleave")
+		turn_completed.emit()
+		return true
+	var my_cell: Vector2i = grid_manager.world_to_grid(position)
+	var dir: Vector2i = grid_manager.world_to_grid(target_node.position) - my_cell
+	var step := Vector2i(signi(dir.x), 0) if absi(dir.x) >= absi(dir.y) else Vector2i(0, signi(dir.y))
+	if step == Vector2i.ZERO:
+		step = Vector2i(1, 0)
+	var perp := Vector2i(step.y, step.x)
+	var center := my_cell + step
+	var front: Array = [center, center + perp, center - perp]
+	var hit := 0
+	for u in _player_units():
+		if not is_instance_valid(u):
+			continue
+		if grid_manager.world_to_grid(u.position) in front:
+			_deal_damage_to_player(u, attack_damage, "Cleave")
+			hit += 1
+	if hit == 0:
+		# The target stands in reach but off the three squares (a diagonal
+		# nobody else fills): the swing still lands on them.
+		_deal_damage_to_player(target_node, attack_damage, "Cleave")
+	print("[%s] Cleaves the ground in front — %d caught" % [enemy_name, maxi(1, hit)])
+	turn_completed.emit()
+	return true
+
+func _try_net_throw(target_node: Node3D) -> bool:
+	## Net Throw (sheet): "apply weighted to the target's entire hand" — one
+	## Weighted stack per card held, so every card costs +2 tempo until that
+	## many have been played (the closest the stack-driven debuff comes to a
+	## whole hand). 2 tempo, then 8 tempo of cooldown. The sheet gives no
+	## range: within 3 squares (TODO(sheet)).
+	if is_disarmed or _get_cell_distance(target_node) > 3:
+		return _try_move(target_node)
+	var hand_size := 0
+	if target_node.has_method("get_deck_manager"):
+		var deck = target_node.get_deck_manager()
+		if deck and "hand" in deck:
+			hand_size = deck.hand.size()
+	_net_cooldown = 8
+	if hand_size <= 0:
+		print("[%s] Net Throw finds an empty hand — nothing to weigh down" % enemy_name)
+		turn_completed.emit()
+		return true
+	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.WEIGHTED, hand_size))
+	print("[%s] Net Throw — the whole hand is Weighted (%d)" % [enemy_name, hand_size])
 	turn_completed.emit()
 	return true
 
@@ -4370,11 +4458,12 @@ func _choose_collector_action(distance: int) -> void:
 		chosen_action = _get_action("move")
 
 func _try_collect_soul(target_node: Node3D) -> bool:
-	## 8 damage, and a 'Release Soul' card lands in the hand — it saps the
-	## holder every cycle until played, then is erased.
+	## 8 (+ Strengthen) damage, and a 'Release Soul' card lands in the hand —
+	## it saps and Drains the holder until played (which strengthens every
+	## living collector, see Card._execute_release_soul), then is erased.
 	if is_disarmed or not _in_attack_range(target_node):
 		return _try_move(target_node)
-	_deal_damage_to_player(target_node, attack_damage, "Collect Soul")
+	_deal_damage_to_player(target_node, attack_damage + strengthen_stacks, "Collect Soul")
 	if target_node.has_method("get_deck_manager"):
 		var deck = target_node.get_deck_manager()
 		if deck:
@@ -5979,8 +6068,9 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	if from_player:
 		last_player_hit_damage = amount
 
-	# Hydra: grows stronger with every hit she takes from the player.
-	if enemy_type == EnemyType.HYDRA and from_player:
+	# Hydra: grows stronger with every hit she takes — sheet: "every time she
+	# is hit", so any damage source counts (allies, DoT ticks, self-damage).
+	if enemy_type == EnemyType.HYDRA and amount > 0:
 		hits_taken += 1
 		strength += 2
 		print("[%s] Enraged by hit %d — strength now %d" % [enemy_name, hits_taken, strength])
@@ -6812,7 +6902,7 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Brace", "color": Color(0.5, 0.5, 0.8), "stacks": _brace_charges})
 	if enemy_thorns > 0:
 		effects.append({"name": "Thorns", "color": Color(0.8, 0.4, 0.8), "stacks": enemy_thorns})
-	if strengthen_stacks > 0 and enemy_type == EnemyType.CERBERUS:
+	if strengthen_stacks > 0 and enemy_type in [EnemyType.CERBERUS, EnemyType.SPIRIT_COLLECTOR]:
 		effects.append({"name": "Strengthen", "color": Color(1.0, 0.5, 0.3), "stacks": strengthen_stacks})
 
 	return effects
@@ -6904,7 +6994,10 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			desc = "Roar's thorns: every direct hit on him costs the attacker this much; one thorn is spent per hit."
 			remaining = "Thorns: %d" % enemy_thorns
 		"Strengthen":
-			desc = "Deathyard Dog: +15 damage every time a foe heals within 5 squares of him. It does not fade."
+			if enemy_type == EnemyType.SPIRIT_COLLECTOR:
+				desc = "Released souls: +5 damage to every Strike and Collect Soul each time a 'Release Soul' is played. It does not fade."
+			else:
+				desc = "Deathyard Dog: +15 damage every time a foe heals within 5 squares of him. It does not fade."
 			remaining = "Bonus damage: %d" % strengthen_stacks
 		"Gravebound":
 			desc = "Regenerates 1 health every cycle for each gravestone still standing. It never fades — only breaking the stones lowers it."
