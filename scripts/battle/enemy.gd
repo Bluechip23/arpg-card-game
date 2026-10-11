@@ -78,8 +78,13 @@ const INTENDED_LEVELS := {
 	# Mountains 20-25 (late Act 1), Underworld ~Act 2, Heavens ~Act 3. All are
 	# past the passive_power_scale clamp, so bands here only gate XP falloff.
 	EnemyType.WYVERN: 21, EnemyType.ICE_TROLL: 22, EnemyType.WHITE_MANTICORE: 23,
+	EnemyType.SNOW_WRAITH: 20, EnemyType.SABERTOOTH: 21, EnemyType.ROC: 22,
+	EnemyType.WEREGOAT: 22, EnemyType.GRANITE_COLOSSUS: 25,
 	EnemyType.IFRIT: 28,
+	EnemyType.MAGMA_SPIDER: 26, EnemyType.SPECTER: 26, EnemyType.ASH_HARPY: 26,
+	EnemyType.SUCCUBUS: 27, EnemyType.MIND_EATER: 27, EnemyType.DEMON: 28,
 	EnemyType.DJINN: 35,
+	EnemyType.CHERUB: 33,
 	EnemyType.CERBERUS: 10,  # the sheet's level column; scaling stays near the sheet's own numbers
 	EnemyType.INFLAMED_MINOTAUR: 9,  # likewise: the boss sheet's level column (350 HP / 100 armor / 35)
 }
@@ -341,6 +346,12 @@ const NON_MELEE_ACTIONS := {
 	"hook": true, "breath_swarm": true, "screech": true, "gust": true,
 	"roar": true, "absorb": true, "chain_lightning": true, "fire_breath": true,
 	"boulder_roll": true,
+	# second pass (the enemy sheet)
+	"goat_charge": true, "dive_bomb": true, "roc_retreat": true, "track": true,
+	"snowball": true, "ice_blast": true, "mimic": true, "demon_cuff": true,
+	"card_steal": true, "fire_web": true, "mind_slow": true, "mind_cuff": true,
+	"spirit_spit": true, "specter_vanish": true, "mana_drain": true,
+	"damaging_snap": true, "loves_arrow": true,
 }
 var next_melee_tempo_tax: int = 0
 
@@ -348,7 +359,7 @@ var next_melee_tempo_tax: int = 0
 # Inebriate) — mirrors how the same debuffs treat the player's moves.
 const MOVEMENT_ACTIONS := {
 	"move": true, "hydra_move": true, "goblin_move": true, "scurry": true,
-	"scurry_away": true, "get_into_range": true, "flee": true,
+	"scurry_away": true, "get_into_range": true, "flee": true, "roc_retreat": true,
 }
 
 ## Armored Troll passive: accumulator for regeneration (heals 3 HP every 6 global tempo).
@@ -863,6 +874,63 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			_set_first_pass_resists(25, 35, 25)
 			_set_mesh_color(Color(0.35, 0.45, 0.30))
 
+		# ===================== MOUNTAINS ACT (second pass — the enemy sheet) =====================
+		EnemyType.WEREGOAT:
+			enemy_name = "Weregoat"
+			max_health = 80
+			attack_damage = 6         # Hoof Punch; Charge deals 8 along its path
+			attack_range = 1.5
+			move_distance = 2.0       # 2 spaces / 5 tempo
+			aggro_range = 12.0
+			xp_reward = 20
+			_set_mesh_color(Color(0.55, 0.5, 0.45))
+
+		EnemyType.ROC:
+			enemy_name = "Roc"
+			max_health = 25
+			max_armor = 15
+			attack_damage = 8         # Dive Bomb (the sheet gives no number — first-pass 8)
+			attack_range = 1.5
+			move_distance = 1.0       # 1 space / 1 tempo, always AWAY from the player
+			aggro_range = 12.0
+			xp_reward = 16
+			immune_to_high_ground = true  # flier
+			_set_mesh_color(Color(0.85, 0.75, 0.6))
+
+		EnemyType.SABERTOOTH:
+			enemy_name = "Sabertooth Tiger"
+			max_health = 45
+			attack_damage = 6         # Bite 6 then Claw 3; Sunken Bite 10 + 8 Bleed
+			attack_range = 1.5
+			move_distance = 2.0       # 2 spaces / 2 tempo
+			aggro_range = 12.0
+			xp_reward = 18
+			_set_mesh_color(Color(0.8, 0.65, 0.4))
+
+		EnemyType.SNOW_WRAITH:
+			enemy_name = "Snow Wraith"
+			max_health = 10
+			attack_damage = 5         # Ice Blast; Snowball deals no damage
+			attack_range = 5.0        # the sheet gives no range — thrown, so ranged 5
+			move_distance = 3.0       # 3 spaces / 5 tempo
+			aggro_range = 12.0
+			xp_reward = 8
+			damage_type = DamageTypes.Type.ICE
+			_set_mesh_color(Color(0.8, 0.9, 1.0))
+
+		EnemyType.GRANITE_COLOSSUS:
+			# Stats from the sheet; its moves are still TBD, so it stands.
+			enemy_name = "Granite Colossus"
+			max_health = 350
+			max_armor = 250
+			attack_damage = 0
+			attack_range = 1.5
+			move_distance = 3.0       # 3 spaces / 5 tempo
+			aggro_range = 12.0
+			xp_reward = 120
+			_set_first_pass_resists(65, 50, 50)
+			_set_mesh_color(Color(0.5, 0.5, 0.52))
+
 		# ===================== UNDERWORLD ACT (elite first pass) =====================
 		EnemyType.IFRIT:
 			enemy_name = "Ifrit"
@@ -900,6 +968,82 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			damage_type = DamageTypes.Type.LIGHTNING
 			_set_first_pass_resists(15, 15, 15)
 			_set_mesh_color(Color(0.25, 0.45, 0.85))
+
+		EnemyType.CHERUB:
+			enemy_name = "Cherub"
+			max_health = 14
+			max_armor = 5
+			attack_damage = 2         # Love's Arrow
+			attack_range = 4.0
+			move_distance = 2.0       # 2 spaces / 3 tempo
+			aggro_range = 12.0
+			xp_reward = 10
+			immune_to_high_ground = true  # winged
+			_set_mesh_color(Color(1.0, 0.9, 0.8))
+
+		# ===================== UNDERWORLD ACT (second pass — the enemy sheet) =====================
+		EnemyType.DEMON:
+			enemy_name = "Demon"
+			max_health = 65
+			attack_damage = 8
+			attack_range = 1.5
+			move_distance = 2.0       # 2 spaces / 2 tempo
+			aggro_range = 12.0
+			xp_reward = 24
+			_set_mesh_color(Color(0.7, 0.15, 0.1))
+
+		EnemyType.ASH_HARPY:
+			enemy_name = "Ash Harpy"
+			max_health = 6
+			attack_damage = 3         # Peck
+			attack_range = 1.5
+			move_distance = 1.0       # 1 space / 1 tempo
+			aggro_range = 12.0
+			xp_reward = 4
+			immune_to_high_ground = true  # flier
+			_set_mesh_color(Color(0.4, 0.38, 0.36))
+
+		EnemyType.MAGMA_SPIDER:
+			enemy_name = "Magma Spider"
+			max_health = 4
+			attack_damage = 1         # its Fire Web ticks 1 every 3 tempo
+			attack_range = 1.5
+			move_distance = 0.0       # never moves
+			aggro_range = 8.0
+			xp_reward = 3
+			damage_type = DamageTypes.Type.FIRE
+			_set_mesh_color(Color(0.8, 0.3, 0.1))
+
+		EnemyType.MIND_EATER:
+			enemy_name = "Mind Eater"
+			max_health = 20
+			attack_damage = 0         # it never strikes — it taxes and cuffs
+			attack_range = 6.0        # the sheet gives no range — a caster's 6
+			move_distance = 0.0       # never moves
+			aggro_range = 12.0
+			xp_reward = 12
+			_set_mesh_color(Color(0.6, 0.5, 0.55))
+
+		EnemyType.SPECTER:
+			enemy_name = "Specter"
+			max_health = 10
+			attack_damage = 2         # Spirit Spit
+			attack_range = 2.0
+			move_distance = 1.0       # 1 space / 1 tempo
+			aggro_range = 10.0
+			xp_reward = 4
+			_set_mesh_color(Color(0.2, 0.2, 0.3))
+
+		EnemyType.SUCCUBUS:
+			enemy_name = "Succubus"
+			max_health = 25
+			max_armor = 5
+			attack_damage = 4         # Damaging Snap: missing mana / 20 + 4
+			attack_range = 4.0        # the sheet gives no range — a caster's 4
+			move_distance = 1.0       # 1 space / 2 tempo
+			aggro_range = 12.0
+			xp_reward = 14
+			_set_mesh_color(Color(0.6, 0.2, 0.5))
 
 		EnemyType.DUMMY:
 			# Dojo training dummy: a fat health pool so big hits read as
@@ -1514,8 +1658,70 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 				{"name": "talon_grab",  "tempo_cost": 8},
 				{"name": "move",        "tempo_cost": 4},
 			]
+		# ----- second pass (the enemy sheet) -----
+		EnemyType.WEREGOAT:
+			actions = [
+				{"name": "hoof_punch",  "tempo_cost": 4},
+				{"name": "goat_charge", "tempo_cost": 8},
+				{"name": "move",        "tempo_cost": 5},
+			]
+		EnemyType.ROC:
+			actions = [
+				{"name": "dive_bomb",   "tempo_cost": 5},
+				{"name": "eye_scrape",  "tempo_cost": 3, "async": true},
+				{"name": "roc_retreat", "tempo_cost": 1, "label": "Move away"},
+			]
+		EnemyType.SABERTOOTH:
+			actions = [
+				{"name": "track",          "tempo_cost": 10, "async": true},
+				{"name": "bite_and_claw",  "tempo_cost": 5},
+				{"name": "sunken_bite",    "tempo_cost": 15, "async": true},
+				{"name": "move",           "tempo_cost": 2},
+			]
+		EnemyType.SNOW_WRAITH:
+			actions = [
+				{"name": "snowball",  "tempo_cost": 8},
+				{"name": "ice_blast", "tempo_cost": 5},  # the sheet gives Ice Blast no tempo — first-pass 5
+				{"name": "move",      "tempo_cost": 5},
+			]
+		EnemyType.GRANITE_COLOSSUS:
+			actions = []  # moves TBD on the sheet
 
 		# ===================== UNDERWORLD ACT =====================
+		EnemyType.DEMON:
+			actions = [
+				{"name": "mimic",        "tempo_cost": 8, "async": true},
+				{"name": "demon_cuff",   "tempo_cost": 8, "async": true, "label": "Cuff"},
+				{"name": "demon_attack", "tempo_cost": 5, "label": "Attack"},
+				{"name": "move",         "tempo_cost": 2},
+			]
+		EnemyType.ASH_HARPY:
+			actions = [
+				{"name": "peck",       "tempo_cost": 5},
+				{"name": "card_steal", "tempo_cost": 8},
+				{"name": "move",       "tempo_cost": 1},
+			]
+		EnemyType.MAGMA_SPIDER:
+			actions = [
+				{"name": "fire_web", "tempo_cost": 8},  # the sheet gives no tempo — first-pass 8
+			]
+		EnemyType.MIND_EATER:
+			actions = [
+				{"name": "mind_slow", "tempo_cost": 10},
+				{"name": "mind_cuff", "tempo_cost": 8, "label": "Manipulate Mind Space"},
+			]
+		EnemyType.SPECTER:
+			actions = [
+				{"name": "spirit_spit",    "tempo_cost": 5},
+				{"name": "specter_vanish", "tempo_cost": 8, "async": true, "label": "Invisible"},
+				{"name": "move",           "tempo_cost": 1},
+			]
+		EnemyType.SUCCUBUS:
+			actions = [
+				{"name": "mana_drain",    "tempo_cost": 10},
+				{"name": "damaging_snap", "tempo_cost": 6},
+				{"name": "move",          "tempo_cost": 2},
+			]
 		EnemyType.IFRIT:
 			actions = [
 				{"name": "ifrit_attack", "tempo_cost": 3},
@@ -1534,6 +1740,13 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 			actions = [
 				{"name": "chain_lightning", "tempo_cost": 5},
 				{"name": "move",            "tempo_cost": 3},
+			]
+		EnemyType.CHERUB:
+			actions = [
+				# The first arrow flies the moment the player enters its reach
+				# (see _choose_cherub_action); every one after is on this clock.
+				{"name": "loves_arrow", "tempo_cost": 10, "label": "Love's Arrow"},
+				{"name": "move",        "tempo_cost": 3},
 			]
 	return actions
 
@@ -1709,25 +1922,25 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SEWER_CROC: {"name": "Sewer Cobra", "health": 40, "armor": 20, "damage": 12, "xp": 25},
 		EnemyType.RAT_KING: {"name": "Rat King", "health": 90, "armor": 10, "damage": 6, "xp": 60},
 		EnemyType.SWARM: {"name": "Swarm", "health": 10, "armor": 0, "damage": 3, "xp": 4},
-		EnemyType.WEREGOAT: {"name": "Weregoat", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.WEREGOAT: {"name": "Weregoat", "health": 80, "armor": 0, "damage": 6, "xp": 20},
 		EnemyType.WYVERN: {"name": "Wyvern", "health": 125, "armor": 0, "damage": 25, "xp": 40},
-		EnemyType.ROC: {"name": "Roc", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.ROC: {"name": "Roc", "health": 25, "armor": 15, "damage": 8, "xp": 16},
 		EnemyType.ICE_TROLL: {"name": "Ice Troll", "health": 150, "armor": 55, "damage": 13, "xp": 45},
-		EnemyType.SNOW_WRAITH: {"name": "Snow Wraith", "health": 0, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.GRANITE_COLOSSUS: {"name": "Granite Colossus", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.SNOW_WRAITH: {"name": "Snow Wraith", "health": 10, "armor": 0, "damage": 5, "xp": 8},
+		EnemyType.GRANITE_COLOSSUS: {"name": "Granite Colossus", "health": 350, "armor": 250, "damage": 0, "xp": 120},
 		EnemyType.WHITE_MANTICORE: {"name": "White Manticore", "health": 75, "armor": 15, "damage": 15, "xp": 40},
-		EnemyType.SABERTOOTH: {"name": "Sabertooth Tiger", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.SABERTOOTH: {"name": "Sabertooth Tiger", "health": 45, "armor": 0, "damage": 6, "xp": 18},
 		EnemyType.CERBERUS: {"name": "Cerberus", "health": 250, "armor": 50, "damage": 25, "xp": 150},
-		EnemyType.SUCCUBUS: {"name": "Succubus", "health": 0, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.DEMON: {"name": "Demon", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.SUCCUBUS: {"name": "Succubus", "health": 25, "armor": 5, "damage": 4, "xp": 14},
+		EnemyType.DEMON: {"name": "Demon", "health": 65, "armor": 0, "damage": 8, "xp": 24},
 		EnemyType.IFRIT: {"name": "Ifrit", "health": 225, "armor": 0, "damage": 45, "xp": 70},
-		EnemyType.MIND_EATER: {"name": "Mind Eater", "health": 0, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.SPECTER: {"name": "Specter", "health": 0, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.MAGMA_SPIDER: {"name": "Magma Spider", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.MIND_EATER: {"name": "Mind Eater", "health": 20, "armor": 0, "damage": 0, "xp": 12},
+		EnemyType.SPECTER: {"name": "Specter", "health": 10, "armor": 0, "damage": 2, "xp": 4},
+		EnemyType.MAGMA_SPIDER: {"name": "Magma Spider", "health": 4, "armor": 0, "damage": 1, "xp": 3},
 		EnemyType.PIT_FIEND: {"name": "Pit Fiend", "health": 0, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.ASH_HARPY: {"name": "Ash Harpy", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.ASH_HARPY: {"name": "Ash Harpy", "health": 6, "armor": 0, "damage": 3, "xp": 4},
 		EnemyType.INFLAMED_MINOTAUR: {"name": "Inflamed Minotaur", "health": 350, "armor": 100, "damage": 35, "xp": 90},
-		EnemyType.CHERUB: {"name": "Cherub", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.CHERUB: {"name": "Cherub", "health": 14, "armor": 5, "damage": 2, "xp": 10},
 		EnemyType.DJINN: {"name": "Djinn", "health": 180, "armor": 0, "damage": 35, "xp": 80},
 		EnemyType.CORRUPTED_ARCHANGEL: {"name": "Corrupted Archangel", "health": 0, "armor": 0, "damage": 0, "xp": 0},
 		EnemyType.RING_WRAITH: {"name": "Ring Wraith", "health": 100, "armor": 0, "damage": 15, "xp": 0},
@@ -1779,19 +1992,25 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SEWER_CROC: [{"name": "Bite", "tempo": 6}, {"name": "Move", "tempo": 5}],
 		EnemyType.RAT_KING: [{"name": "Bite", "tempo": 3}, {"name": "Move", "tempo": 2}, {"name": "Flee to a nest", "tempo": 2}, {"name": "Feed on the nest", "tempo": 2}],
 		EnemyType.SWARM: [{"name": "Attack", "tempo": 2}, {"name": "Move", "tempo": 3}],
-		EnemyType.WEREGOAT: [], EnemyType.ROC: [],
+		EnemyType.WEREGOAT: [{"name": "Hoof Punch", "tempo": 4}, {"name": "Charge", "tempo": 8}, {"name": "Move", "tempo": 5}],
+		EnemyType.ROC: [{"name": "Dive Bomb", "tempo": 5}, {"name": "Eye Scrape", "tempo": 3}, {"name": "Move away", "tempo": 1}],
 		EnemyType.WYVERN: [{"name": "Bite", "tempo": 5}, {"name": "Talon Grab", "tempo": 8}, {"name": "Move", "tempo": 4}],
 		EnemyType.ICE_TROLL: [{"name": "Club", "tempo": 4}, {"name": "Move", "tempo": 3}],
-		EnemyType.SNOW_WRAITH: [], EnemyType.GRANITE_COLOSSUS: [],
+		EnemyType.SNOW_WRAITH: [{"name": "Snowball", "tempo": 8}, {"name": "Ice Blast", "tempo": 5}, {"name": "Move", "tempo": 5}],
+		EnemyType.GRANITE_COLOSSUS: [],
 		EnemyType.WHITE_MANTICORE: [{"name": "Bite", "tempo": 3}, {"name": "Stinger", "tempo": 5}, {"name": "Move", "tempo": 2}],
-		EnemyType.SABERTOOTH: [],
+		EnemyType.SABERTOOTH: [{"name": "Track", "tempo": 10}, {"name": "Bite and Claw", "tempo": 5}, {"name": "Sunken Bite", "tempo": 15}, {"name": "Move", "tempo": 2}],
 		EnemyType.CERBERUS: [{"name": "Bite", "tempo": 5}, {"name": "Swipe", "tempo": 8}, {"name": "Venom Tail", "tempo": 15}, {"name": "Roar", "tempo": 12}, {"name": "Move", "tempo": 3}],
-		EnemyType.SUCCUBUS: [], EnemyType.DEMON: [],
+		EnemyType.SUCCUBUS: [{"name": "Mana Drain", "tempo": 10}, {"name": "Damaging Snap", "tempo": 6}, {"name": "Move", "tempo": 2}],
+		EnemyType.DEMON: [{"name": "Mimic", "tempo": 8}, {"name": "Cuff", "tempo": 8}, {"name": "Attack", "tempo": 5}, {"name": "Move", "tempo": 2}],
 		EnemyType.IFRIT: [{"name": "Attack", "tempo": 3}, {"name": "Fire Breath", "tempo": 8}, {"name": "Move", "tempo": 4}],
-		EnemyType.MIND_EATER: [], EnemyType.SPECTER: [],
-		EnemyType.MAGMA_SPIDER: [], EnemyType.PIT_FIEND: [], EnemyType.ASH_HARPY: [],
+		EnemyType.MIND_EATER: [{"name": "Mind Slow", "tempo": 10}, {"name": "Manipulate Mind Space", "tempo": 8}],
+		EnemyType.SPECTER: [{"name": "Spirit Spit", "tempo": 5}, {"name": "Invisible", "tempo": 8}, {"name": "Move", "tempo": 1}],
+		EnemyType.MAGMA_SPIDER: [{"name": "Fire Web", "tempo": 8}],
+		EnemyType.PIT_FIEND: [],
+		EnemyType.ASH_HARPY: [{"name": "Peck", "tempo": 5}, {"name": "Card Steal", "tempo": 8}, {"name": "Move", "tempo": 1}],
 		EnemyType.INFLAMED_MINOTAUR: [{"name": "Attack", "tempo": 5}, {"name": "Bull Rush", "tempo": 5}, {"name": "Move", "tempo": 5}],
-		EnemyType.CHERUB: [],
+		EnemyType.CHERUB: [{"name": "Love's Arrow", "tempo": 10}, {"name": "Move", "tempo": 3}],
 		EnemyType.DJINN: [{"name": "Chain Lightning", "tempo": 5}, {"name": "Move", "tempo": 3}],
 		EnemyType.CORRUPTED_ARCHANGEL: [],
 		EnemyType.RING_WRAITH: [{"name": "Attack", "tempo": 2}, {"name": "Move", "tempo": 4}],
@@ -1838,28 +2057,28 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.CRYPT_CRAWLER: "Large spider. After 3 consecutive attacks it webs you.\nBite (3 tempo): 6 damage.\nWeb: adds a 'Paralysis' card to your hand — you cannot move until it is played (other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
 		EnemyType.SCREECHER: "Soul-creature — a barely-there black void ghost, easiest to spot when it strikes.\nScreech (5 tempo): 5 damage.\nDrift (2 tempo): 4 spaces.",
 		EnemyType.CONSUMED: "Flesh-and-hatred golem; muscle shows through its lacerations.\nAttack (5 tempo): 8 damage.\nMove (3 tempo): 5 spaces.\nOn death: explodes for 8 damage to everything nearby.",
-		# --- Mountains (design mock-ups — stats & moves TBD) ---
-		EnemyType.WEREGOAT: "Minotaur-built: human torso and arms, goat head and goat hind legs.\n[Design mock-up — stats & moves TBD.]",
+		# --- Mountains ---
+		EnemyType.WEREGOAT: "Minotaur-built: human torso and arms, goat head and goat hind legs.\nHoof Punch (4 tempo): 6 damage.\nCharge (8 tempo): runs up to 8 squares along the line that crosses the most of your units — 8 damage to everything in its path, and everything within 1 square of where it lands is Stunned.\nMove (5 tempo): 2 spaces.",
 		EnemyType.WYVERN: "A large serpentine flier with talons and wings — no arms. Flying: ignores your high-ground bonus. Resists 25% physical / 35% fire / 25% lightning.\nBite (5 tempo): 25 damage.\nTalon Grab (8 tempo, then 2-cycle cooldown): flies above its target (reach 3), 25 damage, and drags them to an unoccupied space 8 squares away.\nMove (4 tempo): 6 spaces.",
-		EnemyType.ROC: "An enormous bird with huge talons and a white-checkered mane.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.ROC: "An enormous bird with huge talons and a white-checkered mane (15 armor). Flying: ignores your high-ground bonus. It always moves AWAY from you: it dives, then keeps its distance until the dive is ready again.\nDive Bomb (5 tempo, from up to 6 squares): 8 damage; the Roc lands beside you.\nEye Scrape (3 tempo, Async): if you have stayed in melee reach for more than 3 tempo it claws your eyes — 2 Weakened.\nMove away (1 tempo): 1 space.",
 		EnemyType.ICE_TROLL: "Bigger than the Armored Troll — taller, with massive hands and feet; no weapon. Every attack adds a stack of frost (Cold) AND Brittle. Resists 35% physical / 15% fire / 15% lightning.\nClub (4 tempo): 13 damage.\nClobber (auto): 50 damage — triggers instantly whenever an Ice Troll attack FREEZES its target.\nMove (3 tempo): 3 spaces.",
-		EnemyType.SNOW_WRAITH: "A pale mountain spirit trailing tattered cloth.\n[Design mock-up — stats & moves TBD.]",
-		EnemyType.GRANITE_COLOSSUS: "A huge rigid figure of mountain stone that emerges from the rock face — hard to spot before it moves.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.SNOW_WRAITH: "A pale mountain spirit trailing tattered cloth (range 5).\nSnowball (8 tempo): Slowed for 3 tempo + 2 Cold.\nIce Blast (5 tempo): 5 ice damage, +3 if you have armor; Slowed for 3 tempo.\nMove (5 tempo): 3 spaces.",
+		EnemyType.GRANITE_COLOSSUS: "A huge rigid figure of mountain stone that emerges from the rock face — hard to spot before it moves. 350 health under 250 armor; resists 65% physical / 50% fire / 50% lightning.\nMove (5 tempo): 3 spaces.\n[Its attacks are still TBD on the design sheet — it only stands.]",
 		EnemyType.WHITE_MANTICORE: "A manticore with a snow-leopard body, bat wings and a spiked tail. Flying: ignores your high-ground bonus. Resists 10% physical / 35% fire / 10% lightning.\nBite (3 tempo): 15 damage.\nStinger (5 tempo, then 5-tempo cooldown): 25 damage + Clumsy (3 stacks) + 8 Poison.\nMove (2 tempo): 3 spaces.",
-		EnemyType.SABERTOOTH: "A sabertooth tiger.\n[Design mock-up — stats & moves TBD.]",
-		# --- Underworld (design mock-ups — stats & moves TBD) ---
+		EnemyType.SABERTOOTH: "A sabertooth tiger. 35% to crit: a crit deals 1.5x and inflicts 6 Bleed.\nTrack (10 tempo, Async): marks the nearest of your units — +15 Strengthen against it, and the tiger must hunt it.\nBite and Claw (5 tempo): bites for 6, then claws for 3 — two separate attacks (each rolls its own crit and spends its own Strengthen).\nSunken Bite (15 tempo, Async): 10 damage + 8 Bleed.\nMove (2 tempo): 2 spaces.",
+		# --- Underworld ---
 		EnemyType.CERBERUS: "Three-headed hound with spiked collars and a chain on the left head: the guardian of Hell's Door. Resists 30% physical / 40% fire / 15% lightning. You need not kill him — only break the door he guards — but it is far easier with him dead.\nBite (5 tempo): 25 damage. Below 66% health the second head bites too (25 + 5 Bleed); below 33% the third head as well (25, and he feeds on the wound).\nSwipe (8 tempo): 8 Bleed.\nVenom Tail (15 tempo): you discard 3 random cards and are stunned for 15 tempo; when it lifts, 2 Vulnerable and Cuffed for 10 tempo.\nRoar (12 tempo): +25 armor and 25 thorns.\nMove (3 tempo): 6 spaces.\nGuardian of Death: Brace 30% for 5 hits the first time he drops below half, and again EVERY time any unit within 8 squares — foe or ally, the door included — drops below half.\nDeathyard Dog: a foe healing within 5 squares gives him 15 Strengthen.",
-		EnemyType.SUCCUBUS: "A winged fey: short shorts, sleeveless top, elbow gloves, long boots and small horns.\n[Design mock-up — stats & moves TBD.]",
-		EnemyType.DEMON: "A red, thorned demon wielding a dagger and a trident.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.SUCCUBUS: "A winged fey: short shorts, sleeveless top, elbow gloves, long boots and small horns (5 armor, range 4).\nMana Drain (10 tempo): drains 10 mana from your pool.\nDamaging Snap (6 tempo): damage equal to your missing mana / 20, + 4.\nMove (2 tempo): 1 space.",
+		EnemyType.DEMON: "A red, thorned demon wielding a dagger and a trident.\nMimic (8 tempo, Async): conjures a duplicate of itself — it looks identical (health, buffs and debuffs all copied) but has 1 health, and hits as hard as the real one. At most 2 mimics per demon.\nCuff (8 tempo, Async): you cannot draw for 15 tempo.\nAttack (5 tempo): 8 damage.\nMove (2 tempo): 2 spaces.",
 		EnemyType.IFRIT: "A muscular bipedal fire-hound, hunched, with long near-ground arms. Resists 20% physical / 15% fire / 15% lightning.\nAttack (3 tempo): 45 damage.\nFire Breath (8 tempo, used from up to 4 tiles out): a 5x5 sheet of flame in front — 20 fire damage + 5 Burn; the tiles keep burning for 3 tempo.\nBackflip (auto): a single blow over 40 damage sends it leaping 3 squares backwards.\nMove (4 tempo): 5 spaces.",
-		EnemyType.MIND_EATER: "A gaunt, hunched flesh-horror with long raking claws.\n[Design mock-up — stats & moves TBD.]",
-		EnemyType.SPECTER: "A dark shadow-form of a humanoid.\n[Design mock-up — stats & moves TBD.]",
-		EnemyType.MAGMA_SPIDER: "A large tarantula in red, orange and black with glowing seams.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.MIND_EATER: "A gaunt, hunched flesh-horror with long raking claws. It never moves (range 6).\nMind Slow (10 tempo): every card in your hand costs 20 more mana.\nManipulate Mind Space (8 tempo): you cannot draw for 15 tempo.",
+		EnemyType.SPECTER: "A dark shadow-form of a humanoid.\nSpirit Spit (5 tempo, range 2): 2 damage.\nInvisible (8 tempo, Async): fades out for 3 tempo — it cannot be targeted.\nMove (1 tempo): 1 space.",
+		EnemyType.MAGMA_SPIDER: "A large tarantula in red, orange and black with glowing seams. It never moves.\nFire Web (8 tempo): spins a web of fire on the ground around it — while you stand in it you are Slowed and take 1 fire damage every 3 tempo.",
 		EnemyType.PIT_FIEND: "A larger, regal demon with a barbed tail and a great whip.\n[Design mock-up — stats & moves TBD.]",
-		EnemyType.ASH_HARPY: "A harpy seemingly risen from and made of ash.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.ASH_HARPY: "A harpy seemingly risen from and made of ash. Flying: ignores your high-ground bonus.\nPeck (5 tempo): 3 damage.\nCard Steal (8 tempo, once per harpy): spots a card from 4 squares, flies in to melee and snatches it from your hand; kill the harpy and the card comes back.\nMove (1 tempo): 1 space.",
 		EnemyType.INFLAMED_MINOTAUR: "The boss of the Labyrinth, off the Underworld's deepest cave: a smouldering minotaur with a fiery axe. Leaves fire in its wake (a trap on every tile it walks off — and along every charge: 10 damage + 2 Burn, lingers 15 tempo) and heals 10 whenever that fire burns a player. Resists 15% physical / 50% fire / 25% lightning. Slow is his weakness: every Slow stack shortens the leap (Sword of Theseus).\nAttack (5 tempo): 35 damage + 2 Burn.\nLabyrinth Leap (auto, once he has taken over 20 damage since his last leap — a running total, not one blow): springs away 14 spaces (minus 1 per Slow) to a random open tile.\nBull Rush (a random 5 to 15 tempo after landing): charges the player — damage equals the spaces covered by leap + rush, with a spaces x4% chance to stun (5 tempo) AND weaken; the target and everything trampled en route are left Vulnerable.\nMove (5 tempo): 6 spaces.\nThe room: every 25 tempo you are Lost in the Labyrinth for 15 — your hand is scrambled, must be played left to right, and you cannot draw.",
-		# --- Heavens (design mock-ups — stats & moves TBD) ---
-		EnemyType.CHERUB: "An adult cupid — winged archer with a bow.\n[Design mock-up — stats & moves TBD.]",
+		# --- Heavens ---
+		EnemyType.CHERUB: "An adult cupid — winged archer with a bow (5 armor, range 4).\nLove's Arrow: 2 damage, and for 5 tempo you cannot attack the Cherub directly (poison, burn and area damage still land). The first arrow flies the moment you enter its reach; after that it is a 10-tempo attack.\nMove (3 tempo): 2 spaces.",
 		EnemyType.DJINN: "A blue genie with bracelets, a black ponytail and a red necklace. Every attack against the Djinn puts 3 WISHES in your hand — each sears you for 1/3 of that attack's damage every cycle it is held, and costs 60 mana (0 tempo) to be rid of. Resists 15% physical/fire/lightning.\nChain Lightning (5 tempo): 35 lightning to everyone it hits — cast reaches 5 squares, each bound arcs 4 from the last one struck.\nMove (3 tempo): 8 spaces.",
 		EnemyType.CORRUPTED_ARCHANGEL: "Black eyes and long black hair, white wings and robes, wielding a black two-handed sword.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.SLUDGE: "Gelatinous ooze that strikes up close or at range.\nMelee (5 tempo): 3 damage.\nSpit (range 6, 6 tempo): 3 damage.\nMove (5 tempo): 3 spaces.",
@@ -2214,6 +2433,16 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 		_stinger_cooldown = maxi(0, _stinger_cooldown - amount)
 	if _talon_cooldown > 0:
 		_talon_cooldown = maxi(0, _talon_cooldown - amount)
+	if _dive_cooldown > 0:
+		_dive_cooldown = maxi(0, _dive_cooldown - amount)
+	# Roc: how long a player unit has stood in melee reach (Eye Scrape wants > 3).
+	if enemy_type == EnemyType.ROC:
+		var roc_adjacent := false
+		for ru in _player_units():
+			if _cells_between(self, ru) <= 1:
+				roc_adjacent = true
+				break
+		_roc_melee_tempo = (_roc_melee_tempo + amount) if roc_adjacent else 0
 
 	# Hell's Gate: the door's seal runs down; Cerberus watches for drops below
 	# half, listens for heals, and the venom runs its course.
@@ -2875,14 +3104,38 @@ func _choose_action(player_node: Node3D) -> void:
 			_choose_manticore_action(distance)
 		EnemyType.WYVERN:
 			_choose_wyvern_action(distance)
+		EnemyType.WEREGOAT:
+			_choose_weregoat_action(distance)
+		EnemyType.ROC:
+			_choose_roc_action(distance)
+		EnemyType.SABERTOOTH:
+			_choose_sabertooth_action(distance)
+		EnemyType.SNOW_WRAITH:
+			_choose_snow_wraith_action(distance)
+		EnemyType.GRANITE_COLOSSUS:
+			chosen_action = {}  # moves TBD on the sheet: it stands
 		# ----- Underworld act -----
 		EnemyType.IFRIT:
 			_choose_ifrit_action(distance)
 		EnemyType.INFLAMED_MINOTAUR:
 			_choose_minotaur_action(distance)
+		EnemyType.DEMON:
+			_choose_demon_action(distance)
+		EnemyType.ASH_HARPY:
+			_choose_harpy_action(distance)
+		EnemyType.MAGMA_SPIDER:
+			_choose_magma_spider_action(distance)
+		EnemyType.MIND_EATER:
+			_choose_mind_eater_action(distance)
+		EnemyType.SPECTER:
+			_choose_specter_action(distance)
+		EnemyType.SUCCUBUS:
+			_choose_succubus_action(distance)
 		# ----- Heavens act -----
 		EnemyType.DJINN:
 			_choose_ranged_action(distance, "chain_lightning")
+		EnemyType.CHERUB:
+			_choose_cherub_action(distance)
 		_:
 			_choose_legacy_action(distance)
 
@@ -3654,6 +3907,55 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 		# ----- Heavens act -----
 		"chain_lightning":
 			return _try_chain_lightning(move_target)
+		# ----- Mountains act, second pass (the enemy sheet) -----
+		"hoof_punch":
+			return _try_elemental(move_target, attack_damage, "Hoof Punch")
+		"goat_charge":
+			return _try_goat_charge(move_target)
+		"dive_bomb":
+			return _try_dive_bomb(move_target)
+		"eye_scrape":
+			return _try_eye_scrape(move_target)
+		"roc_retreat":
+			return _try_roc_retreat(move_target)
+		"track":
+			return _try_track(move_target)
+		"bite_and_claw":
+			return _try_bite_and_claw(move_target)
+		"sunken_bite":
+			return _try_sunken_bite(move_target)
+		"snowball":
+			return _try_snowball(move_target)
+		"ice_blast":
+			return _try_ice_blast(move_target)
+		# ----- Underworld act, second pass -----
+		"mimic":
+			return _try_mimic(move_target)
+		"demon_cuff":
+			return _try_demon_cuff(move_target)
+		"demon_attack":
+			return _try_elemental(move_target, attack_damage, "Attack")
+		"peck":
+			return _try_elemental(move_target, attack_damage, "Peck")
+		"card_steal":
+			return _try_card_steal(move_target)
+		"fire_web":
+			return _try_fire_web(move_target)
+		"mind_slow":
+			return _try_mind_slow(move_target)
+		"mind_cuff":
+			return _try_mind_cuff(move_target)
+		"spirit_spit":
+			return _try_spirit_spit(move_target)
+		"specter_vanish":
+			return _try_specter_vanish()
+		"mana_drain":
+			return _try_mana_drain(move_target)
+		"damaging_snap":
+			return _try_damaging_snap(move_target)
+		# ----- Heavens act, second pass -----
+		"loves_arrow":
+			return _try_loves_arrow(move_target)
 		_:
 			push_warning("[%s] Unknown action: %s" % [enemy_name, action_name])
 			return false
@@ -4528,6 +4830,339 @@ func _djinn_zap(u: Node3D) -> void:
 		_deal_damage_to_player(u, attack_damage, "Chain Lightning", DamageTypes.Type.LIGHTNING)
 	elif u.has_method("take_damage"):
 		u.take_damage(attack_damage)
+
+#endregion
+#region MOUNTAINS SECOND PASS (the enemy sheet: Weregoat, Roc, Sabertooth, Snow Wraith)
+# ============================================
+# MOUNTAINS SECOND PASS — docs/ENEMY_SHEET.tsv
+# ============================================
+
+## Hits a player-side unit (player or summon) the same way _djinn_zap does.
+func _hit_unit(u: Node3D, dmg: int, label: String, dmg_type: int = -1) -> void:
+	if not is_instance_valid(u):
+		return
+	if u.has_method("get_stats"):
+		_deal_damage_to_player(u, dmg, label, dmg_type)
+	elif u.has_method("take_damage"):
+		u.take_damage(dmg)
+
+# --- Weregoat ---
+
+func _choose_weregoat_action(distance: int) -> void:
+	if distance <= 1:
+		chosen_action = _get_action("hoof_punch")
+	elif distance <= 8:
+		chosen_action = _get_action("goat_charge")
+	else:
+		chosen_action = _get_action("move")
+
+## Charge (sheet): run up to 8 squares along the line that crosses the most of
+## the player's units; 8 damage to everything in the path; everything within
+## 1 square of the landing spot is Stunned.
+## TODO(sheet): path-choice and the landing stun are first-pass stubs — see the
+## implementation brief. For now: a straight line toward the target.
+func _try_goat_charge(target_node: Node3D) -> bool:
+	if is_disarmed or rooted_tempo > 0:
+		return _try_move(target_node)
+	return _try_elemental(target_node, 8, "Charge")
+
+# --- Roc ---
+
+var _dive_cooldown: int = 0        # Roc: raw tempo until Dive Bomb is ready again
+var _roc_melee_tempo: int = 0      # Roc: consecutive tempo a player unit has stood in melee reach
+
+func _choose_roc_action(distance: int) -> void:
+	if distance <= 6 and _dive_cooldown <= 0:
+		chosen_action = _get_action("dive_bomb")
+	else:
+		chosen_action = _get_action("roc_retreat")
+
+## Dive Bomb (sheet): attack from up to 6 squares; the Roc ends beside the player.
+## TODO(sheet): the sheet gives no damage — first-pass attack_damage (8).
+func _try_dive_bomb(target_node: Node3D) -> bool:
+	if is_disarmed:
+		return _try_roc_retreat(target_node)
+	if _cells_between(self, target_node) > 6:
+		return _try_roc_retreat(target_node)
+	if _cells_between(self, target_node) > 1:
+		position = _free_cell_near(target_node.position, 1)
+		target_position = position
+	_deal_damage_to_player(target_node, attack_damage, "Dive Bomb")
+	_dive_cooldown = 5
+	turn_completed.emit()
+	return true
+
+## Eye Scrape (sheet, Async 3): only lands if a player unit has been in melee
+## reach for more than 3 tempo — 2 Weakened. _roc_melee_tempo is ticked in
+## on_tempo_advanced.
+func _try_eye_scrape(target_node: Node3D) -> bool:
+	if is_disarmed or _roc_melee_tempo <= 3 or not _in_attack_range(target_node):
+		return false
+	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.WEAKENED, 2, -1))
+	print("[%s] Eye Scrape! 2 Weakened" % enemy_name)
+	turn_completed.emit()
+	return true
+
+## The Roc always moves AWAY from the player.
+func _try_roc_retreat(target_node: Node3D) -> bool:
+	if rooted_tempo > 0:
+		return false
+	_dash_away_from(target_node.position, maxi(1, int(move_distance)))
+	return true
+
+# --- Sabertooth Tiger ---
+
+var _track_target: Node3D = null   # Sabertooth: the unit Track marked (it must hunt this one)
+const SABERTOOTH_CRIT_CHANCE := 0.35
+
+func _choose_sabertooth_action(distance: int) -> void:
+	if distance <= 1:
+		chosen_action = _get_action("bite_and_claw")
+	else:
+		chosen_action = _get_action("move")
+
+## Track (sheet, Async 10): +15 Strengthen against the nearest unit, which the
+## tiger must then attack.
+## TODO(sheet): the "must attack it" targeting lock is a stub — _track_target is
+## recorded but the chooser still follows the spawner's target.
+func _try_track(_target_node: Node3D) -> bool:
+	var nearest: Node3D = null
+	var best := 999
+	for u in _player_units():
+		var d := _cells_between(self, u)
+		if d < best:
+			best = d
+			nearest = u
+	if nearest == null:
+		return false
+	_track_target = nearest
+	strengthen_stacks += 15
+	print("[%s] Track: +15 Strengthen against %s" % [enemy_name, nearest.name])
+	_update_status_indicators()
+	return true
+
+## A sabertooth strike: 35% crit for 1.5x and 6 Bleed; spends the Track
+## Strengthen on the first blow that lands.
+func _sabertooth_strike(target_node: Node3D, dmg: int, label: String) -> void:
+	var total := dmg + strengthen_stacks
+	strengthen_stacks = 0
+	if randf() < SABERTOOTH_CRIT_CHANCE:
+		total = ceili(total * 1.5)
+		print("[%s] %s CRITS!" % [enemy_name, label])
+		_deal_damage_to_player(target_node, total, label)
+		_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.BLEED, 6, 15))
+	else:
+		_deal_damage_to_player(target_node, total, label)
+	_update_status_indicators()
+
+## Bite and Claw (sheet, 5): bite 6 then claw 3 — two separate attacks, each
+## with its own crit roll and its own Strengthen.
+func _try_bite_and_claw(target_node: Node3D) -> bool:
+	if is_disarmed or not _in_attack_range(target_node):
+		return _try_move(target_node)
+	_sabertooth_strike(target_node, 6, "Bite")
+	if is_instance_valid(target_node):
+		_sabertooth_strike(target_node, 3, "Claw")
+	turn_completed.emit()
+	return true
+
+## Sunken Bite (sheet, Async 15): 10 damage + 8 Bleed.
+func _try_sunken_bite(target_node: Node3D) -> bool:
+	if is_disarmed or not _in_attack_range(target_node):
+		return false
+	_sabertooth_strike(target_node, 10, "Sunken Bite")
+	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.BLEED, 8, 15))
+	turn_completed.emit()
+	return true
+
+# --- Snow Wraith ---
+
+func _choose_snow_wraith_action(distance: int) -> void:
+	if is_silenced or distance > int(attack_range):
+		chosen_action = _get_action("move")
+		return
+	# Snowball first (it is the slow + frost opener); Ice Blast once they are slowed.
+	var slowed := false
+	if _last_seen_target and _last_seen_target.has_method("get_debuff_manager"):
+		var dm = _last_seen_target.get_debuff_manager()
+		slowed = dm != null and dm.is_slowed()
+	chosen_action = _get_action("ice_blast") if slowed else _get_action("snowball")
+
+## Snowball (sheet, 8): no damage; Slowed for 3 tempo + 2 Cold.
+func _try_snowball(target_node: Node3D) -> bool:
+	if is_silenced or not _in_attack_range(target_node):
+		return _try_move(target_node)
+	_apply_player_debuff(target_node, Debuff.create_timed(Debuff.DebuffType.SLOWED, 3, enemy_name))
+	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.COLD, 2, 15))
+	print("[%s] Snowball: Slowed 3 tempo + 2 Cold" % enemy_name)
+	turn_completed.emit()
+	return true
+
+## Ice Blast (sheet): 5 ice damage, +3 if the target has armor; Slowed 3 tempo.
+func _try_ice_blast(target_node: Node3D) -> bool:
+	if is_silenced or not _in_attack_range(target_node):
+		return _try_move(target_node)
+	var dmg := attack_damage
+	if target_node.has_method("get_stats"):
+		var st = target_node.get_stats()
+		if st and st.has_method("get_total_armor") and st.get_total_armor() > 0:
+			dmg += 3
+	_deal_damage_to_player(target_node, dmg, "Ice Blast", DamageTypes.Type.ICE)
+	_apply_player_debuff(target_node, Debuff.create_timed(Debuff.DebuffType.SLOWED, 3, enemy_name))
+	turn_completed.emit()
+	return true
+
+#endregion
+#region UNDERWORLD & HEAVENS SECOND PASS (Demon, Ash Harpy, Magma Spider, Mind Eater, Specter, Succubus, Cherub)
+# ============================================
+# UNDERWORLD & HEAVENS SECOND PASS — docs/ENEMY_SHEET.tsv
+# ============================================
+
+# --- Demon ---
+
+func _choose_demon_action(distance: int) -> void:
+	if distance <= 1:
+		chosen_action = _get_action("demon_attack")
+	else:
+		chosen_action = _get_action("move")
+
+## Mimic (sheet, Async 8): a 1-HP duplicate that looks identical (health shown,
+## buffs and debuffs copied) and hits as hard; at most 2 per demon.
+## TODO(sheet): not yet built — see the implementation brief.
+func _try_mimic(_target_node: Node3D) -> bool:
+	return false
+
+## Cuff (sheet, Async 8): the target cannot draw for 15 tempo.
+func _try_demon_cuff(target_node: Node3D) -> bool:
+	if is_silenced or not _in_attack_range(target_node):
+		return false
+	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.CUFFED, 0, 15))
+	print("[%s] Cuff: no draws for 15 tempo" % enemy_name)
+	turn_completed.emit()
+	return true
+
+# --- Ash Harpy ---
+
+var _harpy_steal_used: bool = false   # Ash Harpy: Card Steal fires once per harpy
+
+func _choose_harpy_action(distance: int) -> void:
+	if not _harpy_steal_used and distance <= 4:
+		chosen_action = _get_action("card_steal")
+	elif distance <= 1:
+		chosen_action = _get_action("peck")
+	else:
+		chosen_action = _get_action("move")
+
+## Card Steal (sheet, 8): spots a card from 4 squares, flies into melee and
+## takes a card from the hand; the card returns when the harpy dies.
+## TODO(sheet): the steal / return is not yet built — flies in only.
+func _try_card_steal(target_node: Node3D) -> bool:
+	if _cells_between(self, target_node) > 1:
+		return _try_move(target_node)
+	return false
+
+# --- Magma Spider ---
+
+func _choose_magma_spider_action(_distance: int) -> void:
+	chosen_action = _get_action("fire_web")
+
+## Fire Web (sheet): a web of fire on the ground around the spider — inside it
+## the player is Slowed and takes 1 damage every 3 tempo.
+## TODO(sheet): the ground zone is not yet built.
+func _try_fire_web(_target_node: Node3D) -> bool:
+	return false
+
+# --- Mind Eater ---
+
+func _choose_mind_eater_action(distance: int) -> void:
+	if is_silenced or distance > int(attack_range):
+		chosen_action = {}
+		return
+	chosen_action = _get_action("mind_slow") if randf() < 0.6 else _get_action("mind_cuff")
+
+## Mind Slow (sheet, 10): every card in the hand costs 20 more mana.
+## TODO(sheet): hand-wide mana tax not yet built.
+func _try_mind_slow(_target_node: Node3D) -> bool:
+	return false
+
+## Manipulate Mind Space (sheet, 8): Cuffed for 15 tempo.
+func _try_mind_cuff(target_node: Node3D) -> bool:
+	if is_silenced or not _in_attack_range(target_node):
+		return false
+	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.CUFFED, 0, 15))
+	print("[%s] Manipulate Mind Space: no draws for 15 tempo" % enemy_name)
+	turn_completed.emit()
+	return true
+
+# --- Specter ---
+
+func _choose_specter_action(distance: int) -> void:
+	_choose_ranged_action(distance, "spirit_spit")
+
+## Spirit Spit (sheet, 5): 2 damage at range 2.
+func _try_spirit_spit(target_node: Node3D) -> bool:
+	if is_silenced:
+		return _try_move(target_node)
+	return _try_elemental(target_node, attack_damage, "Spirit Spit")
+
+## Invisible (sheet, Async 8): fades out for 3 tempo — cannot be targeted.
+## TODO(sheet): enemy untargetability not yet built.
+func _try_specter_vanish() -> bool:
+	return false
+
+# --- Succubus ---
+
+func _choose_succubus_action(distance: int) -> void:
+	if is_silenced or distance > int(attack_range):
+		chosen_action = _get_action("move")
+		return
+	chosen_action = _get_action("mana_drain") if randf() < 0.5 else _get_action("damaging_snap")
+
+## Mana Drain (sheet, 10): drains 10 mana from the target's pool.
+func _try_mana_drain(target_node: Node3D) -> bool:
+	if is_silenced or not _in_attack_range(target_node):
+		return _try_move(target_node)
+	if target_node.has_method("get_stats"):
+		var st = target_node.get_stats()
+		if st:
+			st.current_mana = maxf(0.0, st.current_mana - 10.0)
+			st.mana_changed.emit(st.current_mana, st.max_mana)
+			if st.current_mana <= 0.0 and st.maintained_mana > 0 and st.has_method("_break_maintained_cards"):
+				st._break_maintained_cards()
+			print("[%s] Mana Drain: -10 mana" % enemy_name)
+	turn_completed.emit()
+	return true
+
+## Damaging Snap (sheet, 6): damage = missing mana / 20, + 4.
+func _try_damaging_snap(target_node: Node3D) -> bool:
+	if is_silenced or not _in_attack_range(target_node):
+		return _try_move(target_node)
+	var dmg := 4
+	if target_node.has_method("get_stats"):
+		var st = target_node.get_stats()
+		if st:
+			dmg += int(floor(maxf(0.0, st.max_mana - st.current_mana) / 20.0))
+	_deal_damage_to_player(target_node, dmg, "Damaging Snap")
+	turn_completed.emit()
+	return true
+
+# --- Cherub ---
+
+var _cherub_first_arrow: bool = true   # Cherub: the first arrow flies the moment the player enters its reach
+
+func _choose_cherub_action(distance: int) -> void:
+	_choose_ranged_action(distance, "loves_arrow")
+
+## Love's Arrow (sheet): 2 damage; for 5 tempo the Cherub cannot be attacked
+## directly (poison, burn and area damage still land).
+## TODO(sheet): the untargetable window and the instant first arrow are not yet built.
+func _try_loves_arrow(target_node: Node3D) -> bool:
+	if is_silenced:
+		return _try_move(target_node)
+	return _try_elemental(target_node, attack_damage, "Love's Arrow")
+
+#endregion
+#region BASIC ACTIONS
 
 func _try_attack(target_node: Node3D) -> bool:
 	if is_disarmed:
