@@ -1206,9 +1206,11 @@ func release_jailed_to_hand(exclude: Card = null) -> int:
 		hand_updated.emit()
 	return released
 
-func add_card_to_hand(card: Card) -> void:
-	# Linger cards can exceed hand size; non-linger cards are blocked at capacity
-	if not card.linger and hand.size() >= get_hand_cap():
+func add_card_to_hand(card: Card, force: bool = false) -> void:
+	# Linger cards can exceed hand size; non-linger cards are blocked at capacity.
+	# `force` is for a card that was already the player's and is coming back
+	# (an Ash Harpy's steal returning on its death): it is never lost to the cap.
+	if not force and not card.linger and hand.size() >= get_hand_cap():
 		print("[DECK] Hand full, cannot add %s (no Linger)" % card.card_name)
 		return
 	_apply_conditional_range(card)

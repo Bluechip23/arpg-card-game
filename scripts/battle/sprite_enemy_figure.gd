@@ -159,6 +159,7 @@ const PAINTED_SHADOW_KINDS := ["swarm", "giant_hawk", "roc",
 var _sprite: Sprite3D = null
 var _rig: Node3D = null
 var _tint := Color.WHITE
+var _ghost_alpha := 1.0   # < 1 while the enemy is hidden (Enemy.set_hidden): it survives flashes and highlights
 var _highlighted := false
 var _walking := false
 var _time := 0.0
@@ -661,7 +662,9 @@ func play_hit() -> void:
 func flash(color: Color) -> void:
 	if not _sprite:
 		return
-	_sprite.modulate = Color(color.r * 4.0, color.g * 4.0, color.b * 4.0) * _tint
+	var hot := Color(color.r * 4.0, color.g * 4.0, color.b * 4.0) * _tint
+	hot.a = _tint.a * _ghost_alpha
+	_sprite.modulate = hot
 	var t := create_tween()
 	t.tween_interval(0.07)
 	t.tween_callback(func():
@@ -675,10 +678,20 @@ func set_highlight(enabled: bool) -> void:
 		_sprite.modulate = _lit_tint()
 
 
+## Translucency for a hidden enemy (Specter, Cherub, Screecher): folded into
+## every tint the sprite takes, so a hit flash or a hover does not undo it.
+func set_ghost_alpha(a: float) -> void:
+	_ghost_alpha = a
+	if _sprite:
+		_sprite.modulate = _lit_tint()
+
+
 func _lit_tint() -> Color:
+	var c := _tint
 	if _highlighted:
-		return Color(_tint.r * 1.45, _tint.g * 1.45, _tint.b * 1.25, _tint.a)
-	return _tint
+		c = Color(_tint.r * 1.45, _tint.g * 1.45, _tint.b * 1.25, _tint.a)
+	c.a *= _ghost_alpha
+	return c
 
 
 func _process(delta: float) -> void:

@@ -228,7 +228,8 @@ func _generate_loot(enemy: Enemy) -> Dictionary:
 
 	# Ring Wraiths resummon and grant no XP — no loot either, so the shadow
 	# can never be farmed. Structures (rat nests) are not creatures: nothing.
-	if enemy.enemy_type == Enemy.EnemyType.RING_WRAITH or enemy.is_structure:
+	# A Demon's mimic is a copy with 1 health: no XP (set on it) and no loot.
+	if enemy.enemy_type == Enemy.EnemyType.RING_WRAITH or enemy.is_structure or enemy.is_mimic:
 		return {}
 
 	# Gold drop (always). A few types carry hand-tuned amounts; everything
@@ -389,9 +390,12 @@ func _get_random_loot_card(type: Enemy.EnemyType) -> Card:
 # SPATIAL QUERIES
 # ============================================
 
+## The enemy under a point — how a click, the auto attack and a gauntlet
+## skill pick their target. A hidden enemy (Specter, Cherub, Screecher)
+## cannot be picked this way; the sweeps below still find it.
 func get_enemy_at_position(pos: Vector3, radius: float = 1.0) -> Enemy:
 	for enemy in enemies:
-		if is_instance_valid(enemy) and enemy.is_alive():
+		if is_instance_valid(enemy) and enemy.is_alive() and not enemy.is_hidden():
 			var diff = enemy.position - pos
 			var flat_dist = Vector3(diff.x, 0, diff.z).length()
 			if flat_dist <= radius:
@@ -406,6 +410,7 @@ func get_enemies_in_radius(pos: Vector3, radius: float) -> Array[Enemy]:
 			var flat_dist = Vector3(diff.x, 0, diff.z).length()
 			if flat_dist <= radius:
 				result.append(enemy)
+				enemy.note_area_hit()  # an area sweep: hidden enemies take it
 	return result
 
 func get_enemies_in_line(start: Vector3, end: Vector3, width: float = 0.6) -> Array[Enemy]:
@@ -424,6 +429,7 @@ func get_enemies_in_line(start: Vector3, end: Vector3, width: float = 0.6) -> Ar
 				var perpendicular_dist = Vector3(diff.x, 0, diff.z).length()
 				if perpendicular_dist <= width:
 					result.append(enemy)
+					enemy.note_area_hit()
 	return result
 
 func get_enemies_in_cone(origin: Vector3, direction: Vector3, length: float, half_angle_deg: float = 30.0) -> Array[Enemy]:
@@ -439,6 +445,7 @@ func get_enemies_in_cone(origin: Vector3, direction: Vector3, length: float, hal
 				var dot = to_enemy_flat.normalized().dot(dir_flat)
 				if dot >= cos_threshold:
 					result.append(enemy)
+					enemy.note_area_hit()
 	return result
 
 func get_enemy_count() -> int:

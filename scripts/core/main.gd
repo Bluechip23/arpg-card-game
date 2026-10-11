@@ -83,6 +83,7 @@ const SkeletonScript = preload("res://scripts/battle/summoned_skeleton.gd")
 var _spirit_bows: Array = []     # Bow of Budding Blasts: maintained spirit bow + budded turrets
 const SpiritBowScript = preload("res://scripts/battle/spirit_bow_summon.gd")
 var _mark_zones: Array = []      # Territorial Mark: {cells: Array[Vector2i], tempo, nodes}
+var _fire_webs: Array = []       # Magma Spider's Fire Web: {owner, cells, nodes, inside_tempo}
 var _flame_zones: Array = []     # Peshtigo's Kiss: {cells: Array[Vector2i], card: Card, nodes}
 var _maintain_prompt: CanvasLayer = null  # "Maintain X?" question after a card that may be kept
 var _clones: Array = []          # Draupnir: duplicates of the bearer (live until killed — no battle-end cleanup)
@@ -6163,6 +6164,8 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_check_berry_bushels()
 	# Territorial Mark: refresh which enemies stand in the blue smoke.
 	_update_mark_zones(amount)
+	# Magma Spider: Fire Webs slow and burn whoever stands in them.
+	_update_fire_webs(amount)
 	# (Close is Favored springs from _update_enemy_melee_state when an enemy
 	# ENTERS the next tile — never on one already standing there.)
 	# Draupnir duplicates fight on their own cadence.
@@ -6502,6 +6505,7 @@ func _on_all_enemies_defeated() -> void:
 	# wave — "lives until killed": one cumulative journey, no battle resets.
 	_clear_spirit_bows()
 	_clear_mark_zones()
+	_clear_fire_webs()
 	_clear_flame_zones()
 	_sync_maintained_passives()
 	# Spell weapons: no element remap or pollination survives the wave, and
@@ -10859,6 +10863,88 @@ func _update_mark_zones(amount: int) -> void:
 					break
 			e.zone_weakened = inside
 
+# ---- Magma Spider: Fire Web ----
+# sheet: "create a web of fire on the ground, while in it the player is
+# slowed and takes 1 damage every 3 tempo". The spider lays the 3x3 around
+# itself (no size on the sheet); the web lasts while the spider lives and a
+# recast lays it afresh. The tiles wear the same tongue of flame as the fire
+# walls (the demons pack's fire sheet) — no new marker.
+
+const FIRE_WEB_TICK_TEMPO: int = 3
+const FIRE_WEB_TICK_DAMAGE: int = 1
+const FIRE_WEB_SLOW_TEMPO: int = 2   # refreshed every tempo inside, so it outlasts the stay by one tick
+
+func register_fire_web(owner: Enemy, cells: Array) -> void:
+	_remove_fire_web_of(owner)
+	var nodes: Array = []
+	for c in cells:
+		var v = _spawn_fire_wall_visual(c)
+		if v:
+			nodes.append(v)
+	_fire_webs.append({"owner": owner, "cells": cells, "nodes": nodes, "inside_tempo": 0})
+	add_battle_log("%s spins a web of fire across the ground!" % owner.enemy_name, Color(1.0, 0.5, 0.2))
+
+func _remove_fire_web_of(owner: Enemy) -> void:
+	var survivors: Array = []
+	for w in _fire_webs:
+		if w["owner"] == owner:
+			_free_fire_web(w)
+		else:
+			survivors.append(w)
+	_fire_webs = survivors
+
+func _free_fire_web(w: Dictionary) -> void:
+	for n in w["nodes"]:
+		if is_instance_valid(n):
+			n.queue_free()
+
+func _clear_fire_webs() -> void:
+	for w in _fire_webs:
+		_free_fire_web(w)
+	_fire_webs.clear()
+
+func _player_in_fire_web(cells: Array) -> bool:
+	if grid_manager == null:
+		return false
+	for p in _all_players():
+		if is_instance_valid(p) and grid_manager.world_to_grid(p.position) in cells:
+			return true
+	return false
+
+## Every tempo: webs of dead spiders burn out; a player standing in one is
+## held Slowed (a 2-tempo clock refreshed each tempo) and takes 1 fire damage
+## for every 3 tempo spent inside. Leaving resets the count.
+func _update_fire_webs(amount: int) -> void:
+	if _fire_webs.is_empty():
+		return
+	var survivors: Array = []
+	for w in _fire_webs:
+		var spider: Enemy = w["owner"]
+		if spider == null or not is_instance_valid(spider) or not spider.is_alive():
+			_free_fire_web(w)
+			continue
+		survivors.append(w)
+		if not _player_in_fire_web(w["cells"]):
+			w["inside_tempo"] = 0
+			continue
+		for p in _all_players():
+			if not is_instance_valid(p) or not (grid_manager.world_to_grid(p.position) in w["cells"]):
+				continue
+			var pdm = p.get_debuff_manager()
+			if pdm:
+				var slowed: Debuff = pdm.get_debuff(Debuff.DebuffType.SLOWED)
+				if slowed and slowed.clock_timed:
+					slowed.duration = maxi(slowed.duration, FIRE_WEB_SLOW_TEMPO)  # hold it, do not pile stacks
+				else:
+					pdm.apply_debuff(Debuff.create_timed(Debuff.DebuffType.SLOWED, FIRE_WEB_SLOW_TEMPO, "Fire Web"))
+		w["inside_tempo"] = int(w["inside_tempo"]) + amount
+		while int(w["inside_tempo"]) >= FIRE_WEB_TICK_TEMPO:
+			w["inside_tempo"] = int(w["inside_tempo"]) - FIRE_WEB_TICK_TEMPO
+			for p in _all_players():
+				if is_instance_valid(p) and grid_manager.world_to_grid(p.position) in w["cells"]:
+					spider._deal_damage_to_player(p, FIRE_WEB_TICK_DAMAGE, "Fire Web", DamageTypes.Type.FIRE)
+	_fire_webs = survivors
+
 ## Close is Favored (Belthronding): the trap in the hand springs on the enemy
 ## that has just stepped onto a tile next to the player. One already
 ## standing there when the card arrives never trips it.
@@ -11833,6 +11919,9 @@ func _ranged_card_max_range(card: Card, in_play: bool = false) -> int:
 func _is_target_in_card_range(card: Card, target) -> bool:
 	if not target or not target is Node3D:
 		return true
+	# Unseen (Specter, Cherub, Screecher): nothing to aim at.
+	if target is Enemy and target.is_hidden():
+		return false
 	# Can't hit an enemy through a wall — needs clear line of sight.
 	if target is Enemy and dungeon_manager and grid_manager:
 		var from_cell = grid_manager.world_to_grid(player.position)
@@ -11879,6 +11968,8 @@ func _get_nearest_enemy() -> Enemy:
 	var nearest: Enemy = null
 	var nearest_dist: float = INF
 	for enemy in enemies:
+		if enemy.is_hidden():
+			continue  # unseen: not a target for the auto-aim
 		var dist = player.position.distance_to(enemy.position)
 		if dist < nearest_dist:
 			nearest_dist = dist
@@ -14580,8 +14671,8 @@ func _nearest_enemy_to(pos: Vector3, enemies: Array) -> Enemy:
 	var nearest: Enemy = null
 	var nearest_dist := INF
 	for e in enemies:
-		if not is_instance_valid(e) or not e.is_alive():
-			continue
+		if not is_instance_valid(e) or not e.is_alive() or e.is_hidden():
+			continue  # the unseen are skipped by summons and auto-aim alike
 		var d = pos.distance_to(e.position)
 		if d < nearest_dist:
 			nearest_dist = d
@@ -16166,6 +16257,12 @@ func _save_player_progression() -> Dictionary:
 		"spheres": sphere_inv.spheres.duplicate(),
 		"retrospective_tokens": sphere_inv.retrospective_tokens,
 	}
+	# A card an Ash Harpy is still carrying comes home first: the enemies
+	# are freed with the scene, after this snapshot, so it would be lost.
+	if enemy_spawner:
+		for harpy in enemy_spawner.enemies:
+			if is_instance_valid(harpy) and harpy.has_method("_harpy_return_card"):
+				harpy._harpy_return_card()
 	# Deck state (each pile saved separately to preserve hand exactly)
 	progression["deck_state"] = deck_manager.save_deck_state()
 	# City-loop state (satchel, city, pending trial) rides along untouched.
