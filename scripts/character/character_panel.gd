@@ -1097,8 +1097,19 @@ func _make_drag_preview(text: String, color: Color) -> Control:
 # Equipment builds (loadouts I / II / III)
 # ---------------------------------------------------------------------------
 
+## Stun stops everything, gear swaps included: a stunned character cannot
+## equip, unequip, move, two-hand, switch builds or work the War Rack. Checked
+## before the inventory is touched, so a refusal changes and costs nothing.
+func _stun_refuses_swap() -> bool:
+	if debuff_manager and debuff_manager.has_method("can_act") and not debuff_manager.can_act():
+		_flash_inventory_message("Stunned — you cannot change gear")
+		return true
+	return false
+
 func _on_build_pressed(index: int) -> void:
 	if not inventory:
+		return
+	if _stun_refuses_swap():
 		return
 	var result: Dictionary = inventory.switch_build(index)
 	if result.get("success", false):
@@ -1148,6 +1159,8 @@ func _on_rack_exchange_pressed() -> void:
 	## cooldown-gated free swap.
 	if not inventory:
 		return
+	if _stun_refuses_swap():
+		return
 	var result: Dictionary = inventory.rack_exchange(false)
 	if result.get("success", false):
 		var cost: int = result.get("tempo_cost", 0)
@@ -1175,6 +1188,8 @@ func _flash_inventory_message(text: String) -> void:
 ## An item was dropped onto an equipment slot of matching type.
 func _handle_item_drop_on_slot(data: Dictionary, target_type: int, target_slot: int) -> void:
 	if not inventory:
+		return
+	if _stun_refuses_swap():
 		return
 	var src = data.get("source")
 	if src == "storage":
@@ -1212,6 +1227,8 @@ func _move_equipped(item_type: int, from_slot: int, to_slot: int) -> bool:
 ## An equipped item was dropped back onto the storage grid -> unequip it.
 func _handle_item_drop_on_storage(data: Dictionary) -> void:
 	if not inventory:
+		return
+	if data.get("source") == "equipped" and _stun_refuses_swap():
 		return
 	if data.get("source") == "equipped":
 		var item: ItemData = data.get("item")
@@ -1522,6 +1539,8 @@ func _on_unequip_item() -> void:
 		return
 	if _detail_slot_index < 0:
 		return
+	if _stun_refuses_swap():
+		return
 
 	if inventory.is_storage_full():
 		print("[PANEL] Cannot unequip - inventory storage is full!")
@@ -1536,6 +1555,8 @@ func _on_unequip_item() -> void:
 
 func _on_toggle_two_handed() -> void:
 	if not inventory or not _detail_item or _detail_slot_index < 0:
+		return
+	if _stun_refuses_swap():
 		return
 	var item = _detail_item
 	var enable = inventory.two_handed_slot != _detail_slot_index
@@ -1558,6 +1579,8 @@ func _on_equip_stored_item() -> void:
 	if not inventory or not _detail_item:
 		return
 	if _detail_storage_index < 0:
+		return
+	if _stun_refuses_swap():
 		return
 
 	# Find first empty slot for this item type
