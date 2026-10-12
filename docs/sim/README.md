@@ -319,6 +319,18 @@ tools/sim_analysis/run_sweep.sh tests/sim/sweeps/ryan_designed_L50.txt 4
 python3 tools/sim_analysis/build_matrix.py --character ryan --level 50       # sim_out/charts/<char>_L50_*.png / .csv
 ```
 
+### What each job leaves behind
+
+Every job directory (`<out>/<scenario>/<policy>/`) holds the per-seed run
+CSVs, `summary.csv`, `aggregate.csv`, and two files that say exactly what
+ran: `loadout.json` (the composed player: deck, items, engravings,
+allocation, passive ranks, sphere targets; the enemies; the parts) and
+`stamp.txt`, a fingerprint of every script and data file under `scripts/`
+and `tests/sim/`. A job always starts clean, so rows from other code never
+mix in; `--skip-done` (which `run_sweep.sh` passes) skips a job only when
+it finished on the same stamp; and `compare_runs.py` warns when a "before"
+and "after" ran on the same code, which means the change was not saved.
+
 ### Quick feedback on a balance change
 
 Runs are deterministic per seed, so any difference between two snapshots is

@@ -20,7 +20,7 @@ const ROW_COLUMNS := ["bar_index", "tempo_before", "tempo_after", "actor", "acti
 	"damage_dealt", "damage_taken", "buffs_applied", "debuffs_applied", "rng_outcome_used"]
 const SUMMARY_COLUMNS := ["seed", "outcome", "bars_elapsed", "total_damage_dealt", "total_damage_taken",
 	"damage_per_tempo", "cards_played", "distinct_cards_played", "card_entropy", "mana_wasted",
-	"overflow_bars", "end_hp_pct", "enemy_actions_by_type", "passive_triggers", "global_tempo", "decisions", "error", "warnings"]
+	"overflow_bars", "end_hp_pct", "enemy_actions_by_type", "passive_triggers", "sphere_nodes", "global_tempo", "decisions", "error", "warnings"]
 const AGGREGATE_STATS := ["mean", "std", "min", "max"]
 
 var tree: SceneTree
@@ -1099,6 +1099,7 @@ func _summary() -> Dictionary:
 		"end_hp_pct": float(stats.current_health) / float(maxi(1, stats.max_health)),
 		"enemy_actions_by_type": "|".join(actions),
 		"passive_triggers": _passive_trigger_text(stats),
+		"sphere_nodes": sphere_lit,
 		"global_tempo": tm.global_tempo,
 		"decisions": _decisions,
 		"error": error_msg,
