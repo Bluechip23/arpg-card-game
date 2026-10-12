@@ -1705,20 +1705,42 @@ func _trigger_skill_tree_cory_on_damage_taken(damage: int) -> void:
 				var target = main._get_nearest_enemy()
 				if target and target.has_method("apply_debuff"):
 					stats.st_expel_charges -= 1
-					target.apply_debuff(PLAYER_DEBUFF_TO_ENEMY_KEY[debuff.debuff_name], maxi(1, debuff.value))
+					var en_key: String = PLAYER_DEBUFF_TO_ENEMY_KEY[debuff.debuff_name]
+					target.apply_debuff(en_key, expel_transfer_amount(debuff, en_key))
 					debuff_mgr.remove_debuff(debuff.debuff_type)
 					main.add_battle_log("Expel Negativity: transferred %s to %s! (%d charge(s) left)" % [debuff.debuff_name, target.enemy_name, stats.st_expel_charges], Color(0.9, 0.3, 0.3))
 					if stats.st_expel_charges <= 0:
 						stats.st_expel_last_used_tempo = main.tempo_manager.get_global_tempo()
 
 ## Player debuff display names → the enemy's apply_debuff keys (Expel
-## Negativity). Anything missing here has no enemy counterpart.
+## Negativity). Anything missing here has no enemy counterpart (Cuffed,
+## Staggered, Clumsy, Brittle, Blind, Weighted, Hexed, Locked, Drain, Lost).
 const PLAYER_DEBUFF_TO_ENEMY_KEY := {
 	"Bleed": "bleed", "Stun": "stun", "Disarm": "disarmed", "Silence": "silenced",
 	"Burn": "burn", "Poison": "poison", "Cursed": "cursed", "Frozen": "cold",
 	"Shocked": "shock", "Slowed": "slow", "Rooted": "root", "Vulnerable": "vulnerable",
 	"Cold": "cold", "Weakened": "weaken",
 }
+## The enemy keys whose apply_debuff value is a timer in raw tempo.
+const EXPEL_TIMER_KEYS := ["stun", "disarmed", "silenced", "root", "cursed"]
+
+## How much of a player debuff Expel Negativity hands over, in the enemy key's
+## own unit. Player timed debuffs (Stun, Disarm, Silence, Rooted, Cursed)
+## carry value 0 and their length in `duration`, so they move as the tempo
+## they had left; stack debuffs move their stacks. A stack debuff riding a
+## fixed timer (Approach's Slowed) moves as the stacks that timer is worth.
+## Frozen has no enemy timer of its own: it arrives as a full 5 Cold, the
+## amount that freezes an enemy.
+static func expel_transfer_amount(d: Debuff, en_key: String) -> int:
+	if d.debuff_type == Debuff.DebuffType.FROZEN:
+		return 5
+	if en_key in EXPEL_TIMER_KEYS:
+		if d.duration > 0:
+			return d.duration
+		return maxi(1, d.value) * Debuff.STACK_TEMPO
+	if d.clock_timed and d.duration > 0:
+		return maxi(1, ceili(d.duration / float(Debuff.STACK_TEMPO)))
+	return maxi(1, d.value)
 
 func _expel_try_refresh_charges(stats: PlayerStats) -> void:
 	## Refresh Expel Negativity charges if 10 tempo has passed since exhaustion.
