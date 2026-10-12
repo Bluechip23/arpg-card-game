@@ -71,7 +71,11 @@ var clock_timed: bool = false
 ## since its last stack fell. A stack applied at tempo 3 is gone at tempo 8,
 ## not at the next global cycle boundary.
 var stack_clock: int = 0
-var affected_card_index: int = -1  # For Hexed/Locked - which card in hand is affected
+## Hexed / Locked: the card in hand this instance claims (null until the
+## hand has one to give). A claim rides the Card itself, not a hand slot, so
+## it follows its card through every reshuffle of the hand and ends when that
+## card leaves it.
+var affected_card: Card = null
 
 func _init(type: DebuffType, val: int = 0, dur: int = DEFAULT_DURATION) -> void:
 	debuff_type = type

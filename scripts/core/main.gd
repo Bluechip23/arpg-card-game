@@ -16506,7 +16506,6 @@ func _tick_labyrinth(amount: int) -> void:
 		_cast_lost_in_labyrinth()
 
 func _cast_lost_in_labyrinth() -> void:
-	var debuff_mgr = player.get_debuff_manager() if player else null
 	for p in _all_players():
 		if not is_instance_valid(p):
 			continue
@@ -16514,8 +16513,8 @@ func _cast_lost_in_labyrinth() -> void:
 		if pdm:
 			pdm.apply_debuff(Debuff.create(Debuff.DebuffType.LOST, 0, LABYRINTH_LOST_TEMPO))
 	# The hand is dealt again in a random order; the curse's order is whatever
-	# comes up (hexes and the Locked card follow their cards).
-	deck_manager.scramble_hand(debuff_mgr)
+	# comes up (hexes and locks belong to their cards, so they follow them).
+	deck_manager.scramble_hand()
 	add_battle_log("Lost in the Labyrinth! Your hand is scrambled — play it left to right. No draws for %d tempo." % LABYRINTH_LOST_TEMPO, Color(1.0, 0.65, 0.3))
 
 func _lift_lost_in_labyrinth() -> void:
