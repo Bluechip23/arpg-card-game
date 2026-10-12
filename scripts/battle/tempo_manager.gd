@@ -296,7 +296,10 @@ func add_card_tempo(tempo_cost: int, card: Card = null, resolve_tick: int = 1, o
 		# Fallback: no card reference, use instant bulk add (basic attacks, etc.)
 		add_tempo(tempo_cost)
 
-func add_movement_tempo() -> void:
+## `slow_source` is the MOVER's DebuffManager: in co-op the partner who
+## stepped is not always the one `debuff_manager` points at, and only their
+## own Slowed may price the tile. Omitted, the wired manager is used.
+func add_movement_tempo(slow_source = null) -> void:
 	spaces_moved_this_cycle += 1
 	# Shadow Cowl shift: free tiles spend neither tempo nor flash.
 	if player_stats and player_stats.free_move_tiles > 0:
@@ -325,7 +328,8 @@ func add_movement_tempo() -> void:
 	# Slowed: the tile costs SLOWED_TEMPO_PER_TILE instead of 1. Moving burns
 	# nothing — the stacks fall on the debuff's own 5-tempo clock.
 	var base_cost := 1
-	if debuff_manager and debuff_manager.is_slowed():
+	var slow_dm = slow_source if slow_source != null else debuff_manager
+	if slow_dm and slow_dm.is_slowed():
 		base_cost = Debuff.SLOWED_TEMPO_PER_TILE
 		print("[TEMPO] Slowed: tile costs %d tempo" % base_cost)
 	add_tempo(base_cost + maxi(0, surcharge))

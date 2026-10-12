@@ -83,7 +83,7 @@ const SkeletonScript = preload("res://scripts/battle/summoned_skeleton.gd")
 var _spirit_bows: Array = []     # Bow of Budding Blasts: maintained spirit bow + budded turrets
 const SpiritBowScript = preload("res://scripts/battle/spirit_bow_summon.gd")
 var _mark_zones: Array = []      # Territorial Mark: {cells: Array[Vector2i], tempo, nodes}
-var _fire_webs: Array = []       # Magma Spider's Fire Web: {owner, cells, nodes, inside_tempo}
+var _fire_webs: Array = []       # Magma Spider's Fire Web: {owner, cells, nodes, inside_tempo: {player id: tempo}}
 var _flame_zones: Array = []     # Peshtigo's Kiss: {cells: Array[Vector2i], card: Card, nodes}
 var _maintain_prompt: CanvasLayer = null  # "Maintain X?" question after a card that may be kept
 var _clones: Array = []          # Draupnir: duplicates of the bearer (live until killed — no battle-end cleanup)
@@ -578,7 +578,7 @@ func _ready() -> void:
 		if _hand_info_popup and _hand_info_popup.visible:
 			_refresh_hand_info_popup())
 	player.move_completed.connect(_on_player_move_completed)
-	player.tile_reached.connect(_on_player_tile_reached)
+	player.tile_reached.connect(_on_player_tile_reached.bind(player))
 	if not is_multiplayer and player.get_stats():
 		# Solo: falling sends the character back to the start of the level
 		# (co-op uses the downed/revive flow in _setup_co_op_defeat instead).
@@ -670,9 +670,11 @@ func _ready() -> void:
 		_p1_deck_manager = deck_manager
 		player2_ui._initialize_player2()
 		# Route Player 2's per-tile movement through the same handlers (they act on
-		# the active player, which is P2 whenever you're controlling it).
+		# the active player, which is P2 whenever you're controlling it; hazards
+		# and Slowed pricing land on the bound stepper either way).
 		if _p2_player:
-			_p2_player.tile_reached.connect(_on_player_tile_reached)
+			_p2_player.tile_reached.connect(_on_player_tile_reached.bind(_p2_player))
+			_wire_marvolo_hooks(_p2_player)
 			_p2_player.move_completed.connect(_on_player_move_completed)
 			# Enemies target the nearest living player; defeat needs both downed.
 			enemy_spawner.players = [_p1_player, _p2_player]
@@ -4292,10 +4294,11 @@ func select_character(character: CharacterData) -> void:
 	# Ring pass 1: bespoke ring procs, counters, and their world-side payloads.
 	if player.get_inventory():
 		player.get_inventory().custom_ring_fired.connect(_on_custom_ring_fired)
-	player.get_stats().marvolo_triggered.connect(_on_marvolo_triggered)
 	player.get_stats().shadow_form_ended.connect(_on_shadow_form_ended)
 	player.get_buff_manager().buff_applied.connect(_on_player_buff_applied_ring)
-	player.get_debuff_manager().debuff_expired.connect(_on_player_debuff_expired)
+	# Marvolo Gaunt's gift and its misunderstanding: wired per character
+	# (a co-op partner gets the same in _wire_marvolo_hooks when they join).
+	_wire_marvolo_hooks(player)
 
 	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager, player.get_buff_manager(), player.get_debuff_manager())
 	character_panel.swap_tempo_spent.connect(_on_swap_tempo_spent)
@@ -4385,7 +4388,10 @@ func select_character(character: CharacterData) -> void:
 #endregion
 #region PLAYER MOVEMENT PIPELINE
 var _player_last_grid_cell: Vector2i = Vector2i(-1, -1)
-func _on_player_tile_reached() -> void:
+## `mover` is the character whose step fired this (each Player's tile_reached
+## is bound to itself); hazards and Slowed land on them, not on whoever holds
+## the controls. Unbound callers fall back to the active player.
+func _on_player_tile_reached(mover: Player = null) -> void:
 	# Scoop up any loot pile on the tile just reached (checked for BOTH players,
 	# and before the batch-move early-out so batch movers loot too). Looting is
 	# tempo-free — only the movement itself costs tempo.
@@ -4427,22 +4433,24 @@ func _on_player_tile_reached() -> void:
 	if _vacated_cell.x >= 0 and _vacated_cell != player_cell:
 		_maybe_drop_fire_trail(_vacated_cell)
 
-	# Fire walls (Fire Goblin Shaman): burn the player if they stepped into one.
-	_check_fire_walls(player_cell)
+	# Fire walls (Fire Goblin Shaman): burn whoever stepped into one.
+	var stepper: Player = mover if mover != null and is_instance_valid(mover) else player
+	var step_cell: Vector2i = grid_manager.world_to_grid(stepper.position)
+	_check_fire_walls(step_cell, stepper)
 
 	# Stepping off a climbed tree drops the player back to the ground.
 	if _climbed_tree_tile.x >= 0 and player_cell != _climbed_tree_tile:
 		_clear_climbed_tree()
 
 	# Forest hazards: bear traps / hunters' darts spring on whoever steps on them.
-	_trigger_terrain_traps_for(player_cell, player, true)
+	_trigger_terrain_traps_for(step_cell, stepper, true)
 	# Crops: stepping onto a berry bushel eats it (checks every ally).
 	_check_berry_bushels()
 
 	# Player Y follows terrain smoothly via ground_y_provider (see player.gd)
 
-	# Normal per-tile tempo
-	tempo_manager.add_movement_tempo()
+	# Normal per-tile tempo (the stepper's own Slowed prices it)
+	tempo_manager.add_movement_tempo(stepper.get_debuff_manager())
 	# Check if player entered a new dungeon zone
 	_check_dungeon_zones()
 	# Reveal fog of war around the player
@@ -4711,7 +4719,8 @@ func _on_sandbox_add_ally(char_name: String) -> void:
 
 	# Same wiring the normal co-op path does in _ready().
 	if _p2_player:
-		_p2_player.tile_reached.connect(_on_player_tile_reached)
+		_p2_player.tile_reached.connect(_on_player_tile_reached.bind(_p2_player))
+		_wire_marvolo_hooks(_p2_player)
 		_p2_player.move_completed.connect(_on_player_move_completed)
 		enemy_spawner.players = [_p1_player, _p2_player]
 		# Cover reactions: each partner can mitigate the other's damage.
@@ -6240,10 +6249,15 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Fire any scheduled delayed card effects whose timer has elapsed.
 	_process_delayed_effects(amount)
 
-	# Mana regen on the player's own tempo interval
-	var stats = player.get_stats()
-	if stats:
-		stats.process_tempo(amount)
+	# Mana regen on each character's own tempo interval — and with it the
+	# raw-tempo stat timers (shadow form, invulnerability, temp mana, temp
+	# Determination). A partner off the controls keeps their own clock: the
+	# active player first, as always, then each other partner once. Raw-tempo
+	# clocks run for a downed partner too, like their buff/debuff timers above.
+	for regen_p in _cycle_status_players(true):
+		var regen_stats = regen_p.get_stats()
+		if regen_stats:
+			regen_stats.process_tempo(amount)
 
 	# Card draw is tracked by draw_timer against its own tempo interval
 	draw_timer.process_tempo(amount)
@@ -6638,13 +6652,15 @@ func _spawn_fire_wall_visual(cell: Vector2i) -> Node3D:
 	add_child(flame)
 	return flame
 
-func _check_fire_walls(player_cell: Vector2i) -> void:
+## `stepper` is the character who walked onto `player_cell` — in co-op not
+## necessarily the one being controlled. Unset, the active player.
+func _check_fire_walls(player_cell: Vector2i, stepper: Player = null) -> void:
 	if _fire_walls.is_empty():
 		return
 	var survivors: Array = []
 	for wall in _fire_walls:
 		if wall["tiles"].has(player_cell):
-			_burn_player_from_fire(wall["damage"], wall["burn"])
+			_burn_player_from_fire(wall["damage"], wall["burn"], stepper)
 			# The Inflamed Minotaur feeds on players burned by his wake.
 			var healer = wall.get("heal_source")
 			if healer and is_instance_valid(healer) and int(wall.get("heal_amount", 0)) > 0 \
@@ -6689,12 +6705,15 @@ func on_player_bled(amount: int) -> void:
 		if e.enemy_type == Enemy.EnemyType.LARGE_BEAR and e.current_health * 2 < e.max_health:
 			e._regenerate(amount)
 
-func _burn_player_from_fire(damage: int, burn: int) -> void:
-	var stats = player.get_stats()
+func _burn_player_from_fire(damage: int, burn: int, victim: Player = null) -> void:
+	# The flames take whoever is standing in them, controlled or not.
+	if victim == null or not is_instance_valid(victim):
+		victim = player
+	var stats = victim.get_stats()
 	if not stats:
 		return
-	var dm = player.get_debuff_manager() if player.has_method("get_debuff_manager") else null
-	var bm = player.get_buff_manager() if player.has_method("get_buff_manager") else null
+	var dm = victim.get_debuff_manager() if victim.has_method("get_debuff_manager") else null
+	var bm = victim.get_buff_manager() if victim.has_method("get_buff_manager") else null
 	stats.take_damage(damage, dm, bm)
 	if dm:
 		for _i in range(burn):
@@ -6741,10 +6760,13 @@ func _spring_trap(trap: Dictionary, unit, is_player: bool) -> void:
 			label = "hunters' darts"
 
 	if is_player:
-		var stats = player.get_stats()
+		# The trap bites the character who sprang it — a co-op partner walking
+		# in while the other is controlled takes it themselves.
+		var victim = unit if unit != null and is_instance_valid(unit) and unit.has_method("get_stats") else player
+		var stats = victim.get_stats()
 		if stats:
-			var dmgr = player.get_debuff_manager() if player.has_method("get_debuff_manager") else null
-			var bmgr = player.get_buff_manager() if player.has_method("get_buff_manager") else null
+			var dmgr = victim.get_debuff_manager() if victim.has_method("get_debuff_manager") else null
+			var bmgr = victim.get_buff_manager() if victim.has_method("get_buff_manager") else null
 			stats.take_damage(dmg, dmgr, bmgr)
 			# Spiked webs snare whoever blunders in.
 			if kind == "web" and dmgr:
@@ -7736,59 +7758,41 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		player.pause_movement()
 
 	for i in range(times):
-		var debuff_mgr = player.get_debuff_manager()
-		var buff_mgr = player.get_buff_manager()
-
 		# Maintained Power card effects (Halo healing, etc.)
 		_process_maintained_card_effects()
 
-		# Sphere-grid regen (e.g. Nature's Grace): heal each cycle, routed through
-		# heal() so Raged Circulation's healing boost applies to it too.
-		var regen_stats = player.get_stats()
-		if regen_stats and regen_stats.sphere_bonus_regen > 0:
-			regen_stats.heal(regen_stats.sphere_bonus_regen)
+		# Statuses belong to the character who carries them, not to whoever
+		# holds the controls: in co-op every living partner's Regen, Burn,
+		# Blessed, temp HP... runs each cycle, each against its own managers.
+		# The active player stays first, so solo play runs exactly as before.
+		var cycle_players: Array = _cycle_status_players()
 
-		# Sphere-grid "Arm/Cyc" nodes: raw armor each cycle (no block-card
-		# bonuses) — into the capped unerring pool, like every armor clock.
-		if regen_stats and regen_stats.sphere_bonus_armor_per_cycle > 0:
-			regen_stats.add_unerring_armor(regen_stats.sphere_bonus_armor_per_cycle)
-
-		# Buff cycle-start effects (REGEN heal, FOCUSED mana, BLESSED draws, SMITH armor)
-		if buff_mgr:
-			var buff_result = buff_mgr.process_turn_start()
-			if buff_result["extra_draws"] > 0:
-				for d in range(buff_result["extra_draws"]):
-					deck_manager.attempt_draw()
-
-		# Debuff cycle-start effects (BURN damage, POISON, DRAIN, SHOCKED)
-		if debuff_mgr:
-			var debuff_result = debuff_mgr.process_turn_start()
-			# Shocked: arc the accumulated damage to nearby allies (within 2 tiles).
-			var ally_dmg: int = debuff_result.get("ally_damage", 0)
-			if ally_dmg > 0:
-				for ally in _all_allies():
-					if ally == player or not is_instance_valid(ally):
-						continue
-					var shock_diff = player.position - ally.position
-					if Vector3(shock_diff.x, 0, shock_diff.z).length() <= grid_manager.grid_size * 2.5 \
-							and ally.has_method("get_stats") and ally.get_stats():
-						ally.get_stats().take_damage(ally_dmg, ally.get_debuff_manager(), ally.get_buff_manager())
-						add_battle_log("Shocked arcs %d damage to an ally!" % ally_dmg, Color(1.0, 0.9, 0.3))
+		# Cycle-start: sphere regen/armor, buff payloads (REGEN heal, FOCUSED
+		# mana, BLESSED draws, SMITH armor), debuff ticks (BURN, POISON, DRAIN,
+		# SHOCKED).
+		for cp in cycle_players:
+			_cycle_status_start(cp)
 
 		deck_manager.process_turn()
 
-		# Armor decay and healing boost tick (mana regen is handled by process_tempo)
-		var stats = player.get_stats()
-		stats.process_turn(debuff_mgr, buff_mgr)
+		# Armor decay, temp HP and healing-boost timers (mana regen is handled
+		# by process_tempo)
+		for cp in cycle_players:
+			var cp_stats = cp.get_stats()
+			if cp_stats:
+				cp_stats.process_turn(cp.get_debuff_manager(), cp.get_buff_manager())
 
 		# Advance cycle counter and process inventory
 		draw_timer.take_turn()
 
-		# Buff/debuff cycle-end effects (MAGNETIZE pull, BRITTLE decay, duration ticks)
-		if debuff_mgr:
-			debuff_mgr.process_turn_end()
-		if buff_mgr:
-			buff_mgr.process_turn_end()
+		# Buff/debuff cycle-end effects (Regen/Smith decay, flag-badge sync)
+		for cp in cycle_players:
+			var end_dm = cp.get_debuff_manager()
+			if end_dm:
+				end_dm.process_turn_end()
+			var end_bm = cp.get_buff_manager()
+			if end_bm:
+				end_bm.process_turn_end()
 
 		_process_pending_sky_falls()
 		_process_pending_absorb_essences()
@@ -7825,6 +7829,63 @@ func _on_tempo_threshold_reached(times: int) -> void:
 
 	if was_moving:
 		player.resume_movement()
+
+## Who the cycle's status step runs for: the active player first (in the
+## order the loop always ran it), then every other partner on their feet.
+## Each appears once, so nothing ticks twice. A downed partner sits out of
+## the cycle's payloads — a Regen tick must not quietly revive them, nor
+## Poison beat on a body at 0 — unless `include_downed` (plain clocks).
+func _cycle_status_players(include_downed: bool = false) -> Array:
+	var out: Array = [player]
+	for p in _all_players():
+		if p == player or not is_instance_valid(p):
+			continue
+		if not include_downed and is_multiplayer and _downed.get(1 if p == _p2_player else 0, false):
+			continue
+		out.append(p)
+	return out
+
+## One character's cycle-start status step, against their own stats, buff
+## and debuff managers — Blessed's extra draws land in their own deck.
+func _cycle_status_start(cp) -> void:
+	var debuff_mgr = cp.get_debuff_manager()
+	var buff_mgr = cp.get_buff_manager()
+	# Sphere-grid regen (e.g. Nature's Grace): heal each cycle, routed through
+	# heal() so Raged Circulation's healing boost applies to it too.
+	var regen_stats = cp.get_stats()
+	if regen_stats and regen_stats.sphere_bonus_regen > 0:
+		regen_stats.heal(regen_stats.sphere_bonus_regen)
+
+	# Sphere-grid "Arm/Cyc" nodes: raw armor each cycle (no block-card
+	# bonuses) — into the capped unerring pool, like every armor clock.
+	if regen_stats and regen_stats.sphere_bonus_armor_per_cycle > 0:
+		regen_stats.add_unerring_armor(regen_stats.sphere_bonus_armor_per_cycle)
+
+	# Buff cycle-start effects (REGEN heal, FOCUSED mana, BLESSED draws, SMITH armor)
+	if buff_mgr:
+		var buff_result = buff_mgr.process_turn_start()
+		if buff_result["extra_draws"] > 0:
+			var own_deck = _deck_for_player(cp)
+			if own_deck:
+				for d in range(buff_result["extra_draws"]):
+					own_deck.attempt_draw()
+
+	# Debuff cycle-start effects (BURN damage, POISON, DRAIN, SHOCKED)
+	if debuff_mgr:
+		var debuff_result = debuff_mgr.process_turn_start()
+		# Shocked: arc the accumulated damage to the carrier's nearby allies
+		# (within 2 tiles), never back onto the carrier.
+		var ally_dmg: int = debuff_result.get("ally_damage", 0)
+		if ally_dmg > 0:
+			for ally in _all_allies():
+				if ally == cp or not is_instance_valid(ally):
+					continue
+				var shock_diff = cp.position - ally.position
+				if Vector3(shock_diff.x, 0, shock_diff.z).length() <= grid_manager.grid_size * 2.5 \
+						and ally.has_method("get_stats") and ally.get_stats():
+					ally.get_stats().take_damage(ally_dmg, ally.get_debuff_manager(), ally.get_buff_manager())
+					add_battle_log("Shocked arcs %d damage to an ally!" % ally_dmg, Color(1.0, 0.9, 0.3))
+
 func _process_maintained_card_effects() -> void:
 	## Process ongoing effects from maintained Power cards each tempo cycle.
 	_burn_flame_zones()
@@ -9242,6 +9303,9 @@ func _switch_active_player() -> void:
 	else:
 		player = _p2_player
 		deck_manager = _p2_deck_manager
+	# Slowed prices the tiles of whoever is walking: the shared tempo bar
+	# reads the newly controlled character's debuffs from here on.
+	tempo_manager.debuff_manager = player.get_debuff_manager()
 
 	# Drive the main hand display from the new active deck.
 	if not deck_manager.hand_updated.is_connected(_on_hand_updated):
@@ -10973,7 +11037,7 @@ func register_fire_web(owner: Enemy, cells: Array) -> void:
 		var v = _spawn_fire_wall_visual(c)
 		if v:
 			nodes.append(v)
-	_fire_webs.append({"owner": owner, "cells": cells, "nodes": nodes, "inside_tempo": 0})
+	_fire_webs.append({"owner": owner, "cells": cells, "nodes": nodes, "inside_tempo": {}})
 	add_battle_log("%s spins a web of fire across the ground!" % owner.enemy_name, Color(1.0, 0.5, 0.2))
 
 func _remove_fire_web_of(owner: Enemy) -> void:
@@ -10995,19 +11059,13 @@ func _clear_fire_webs() -> void:
 		_free_fire_web(w)
 	_fire_webs.clear()
 
-func _player_in_fire_web(cells: Array) -> bool:
-	if grid_manager == null:
-		return false
-	for p in _all_players():
-		if is_instance_valid(p) and grid_manager.world_to_grid(p.position) in cells:
-			return true
-	return false
-
 ## Every tempo: webs of dead spiders burn out; a player standing in one is
 ## held Slowed (a 2-tempo clock refreshed each tempo) and takes 1 fire damage
-## for every 3 tempo spent inside. Leaving resets the count.
+## for every 3 tempo spent inside. Leaving resets the count. Each player keeps
+## their own count (keyed by instance id), so a partner who just stepped in
+## is not singed early on the other's time inside.
 func _update_fire_webs(amount: int) -> void:
-	if _fire_webs.is_empty():
+	if _fire_webs.is_empty() or grid_manager == null:
 		return
 	var survivors: Array = []
 	for w in _fire_webs:
@@ -11016,11 +11074,13 @@ func _update_fire_webs(amount: int) -> void:
 			_free_fire_web(w)
 			continue
 		survivors.append(w)
-		if not _player_in_fire_web(w["cells"]):
-			w["inside_tempo"] = 0
-			continue
+		var inside: Dictionary = w["inside_tempo"]
 		for p in _all_players():
-			if not is_instance_valid(p) or not (grid_manager.world_to_grid(p.position) in w["cells"]):
+			if not is_instance_valid(p):
+				continue
+			var pid: int = p.get_instance_id()
+			if not (grid_manager.world_to_grid(p.position) in w["cells"]):
+				inside.erase(pid)
 				continue
 			var pdm = p.get_debuff_manager()
 			if pdm:
@@ -11029,12 +11089,11 @@ func _update_fire_webs(amount: int) -> void:
 					slowed.duration = maxi(slowed.duration, FIRE_WEB_SLOW_TEMPO)  # hold it, do not pile stacks
 				else:
 					pdm.apply_debuff(Debuff.create_timed(Debuff.DebuffType.SLOWED, FIRE_WEB_SLOW_TEMPO, "Fire Web"))
-		w["inside_tempo"] = int(w["inside_tempo"]) + amount
-		while int(w["inside_tempo"]) >= FIRE_WEB_TICK_TEMPO:
-			w["inside_tempo"] = int(w["inside_tempo"]) - FIRE_WEB_TICK_TEMPO
-			for p in _all_players():
-				if is_instance_valid(p) and grid_manager.world_to_grid(p.position) in w["cells"]:
-					spider._deal_damage_to_player(p, FIRE_WEB_TICK_DAMAGE, "Fire Web", DamageTypes.Type.FIRE)
+			var spent: int = int(inside.get(pid, 0)) + amount
+			while spent >= FIRE_WEB_TICK_TEMPO:
+				spent -= FIRE_WEB_TICK_TEMPO
+				spider._deal_damage_to_player(p, FIRE_WEB_TICK_DAMAGE, "Fire Web", DamageTypes.Type.FIRE)
+			inside[pid] = spent
 	_fire_webs = survivors
 
 ## Close is Favored (Belthronding): the trap in the hand springs on the enemy
@@ -11385,17 +11444,36 @@ func _update_clones(amount: int) -> void:
 
 ## Marvolo Gaunt just saved the bearer — now the ring misunderstands. The
 ## debuff is real and purgeable; only NATURAL expiry detonates it.
-func _on_marvolo_triggered() -> void:
-	var dm = player.get_debuff_manager()
+## Marvolo's ring lives on one character: the refused death and the 25
+## damage it comes back as both belong to its wearer, whoever is controlled.
+## Bound per player so a partner's ring never lands on the active hero.
+func _wire_marvolo_hooks(p: Player) -> void:
+	if p == null or not is_instance_valid(p):
+		return
+	var on_gift: Callable = _on_marvolo_triggered.bind(p)
+	var ps = p.get_stats()
+	if ps and not ps.marvolo_triggered.is_connected(on_gift):
+		ps.marvolo_triggered.connect(on_gift)
+	var on_expiry: Callable = _on_player_debuff_expired.bind(p)
+	var pdm = p.get_debuff_manager()
+	if pdm and not pdm.debuff_expired.is_connected(on_expiry):
+		pdm.debuff_expired.connect(on_expiry)
+
+func _on_marvolo_triggered(wearer: Player = null) -> void:
+	if wearer == null or not is_instance_valid(wearer):
+		wearer = player
+	var dm = wearer.get_debuff_manager()
 	if dm:
 		dm.apply_debuff(Debuff.create_generic("Marvolo's Misunderstanding",
 			"The ring's gift, misunderstood: take 25 damage when this expires — unless it is purged first.",
 			25, 7, "Marvolo Gaunt"))
 	add_battle_log("Marvolo Gaunt refuses your death — but the ring misunderstands.", Color(0.7, 0.9, 0.5))
 
-func _on_player_debuff_expired(debuff: Debuff) -> void:
+func _on_player_debuff_expired(debuff: Debuff, carrier: Player = null) -> void:
+	if carrier == null or not is_instance_valid(carrier):
+		carrier = player
 	if debuff.debuff_type == Debuff.DebuffType.GENERIC and debuff.source_name == "Marvolo Gaunt":
-		player.get_stats().take_direct_damage(debuff.value)
+		carrier.get_stats().take_direct_damage(debuff.value)
 		add_battle_log("Marvolo's Misunderstanding lands: %d damage." % debuff.value, Color(0.9, 0.4, 0.4))
 
 func _on_player_buff_applied_ring(buff: Buff) -> void:
