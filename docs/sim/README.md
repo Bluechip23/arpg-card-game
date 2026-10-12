@@ -331,6 +331,15 @@ mix in; `--skip-done` (which `run_sweep.sh` passes) skips a job only when
 it finished on the same stamp; and `compare_runs.py` warns when a "before"
 and "after" ran on the same code, which means the change was not saved.
 
+### Packs: fights against more than one enemy
+
+Single-enemy fights cannot show what an area card (If Pigs Could Fly,
+Peshtigo's Kiss, Ice Grenade) or a cleave is worth, so the designed,
+tactic and recipe sweeps also fight a pack (`--packs`, default
+`WOLF,WOLF,GIANT_HAWK`; `;` separates several), named `e_PACK_<A>+<B>+<C>`.
+The card and item swaps add the packs with `--swap-packs` (it doubles
+their cost). Any sweep line or single run takes `enemy=A,B,C` directly.
+
 ### The audit test
 
 `tests/test_sim_audit.gd` (about 4 minutes) boots every designed build of
