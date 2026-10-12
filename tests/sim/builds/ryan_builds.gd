@@ -12,6 +12,9 @@ extends RefCounted
 
 const DEFAULT_ENEMY := "LARGE_BEAR"
 
+## Every mythic carries a fallback so the item sweep (which forces the tested
+## item into a mythic slot) never leaves a slot empty; the shadow blade's is
+## a common dagger because Nine Ruins, the only legendary one, is its off hand.
 ## Gear per archetype: [item id, slot] or [mythic id, slot, legendary
 ## fallback]. The game allows one equipped mythic per 15 levels, so the
 ## composer keeps the mythics in listed order up to the level's cap and
@@ -21,27 +24,27 @@ const DEFAULT_ENEMY := "LARGE_BEAR"
 ## (carry = 50 + 10 per STR); a refused piece is a warning in the summary.
 const ITEM_SETS := {
 	# Mythic: Sabre Tooth. Dual daggers, light cloth, stealth belts.
-	"shadow_blade": [["sabre_tooth", 0], ["nine_ruins_of_sanguine", 1], ["feathered_hat", 0],
+	"shadow_blade": [["sabre_tooth", 0, "rusty_dagger"], ["nine_ruins_of_sanguine", 1], ["feathered_hat", 0],
 		["shadow_cowl", 0], ["shadow_obi", 0], ["assasian_belt", 1], ["houdinis_slippers", 0],
 		["concealed_carry", 0, "momentum_mits"], ["the_precious", 0, "legend_has_it"], ["marvolo_gaunt", 1]],
 	# Mythic: Hannibal's Mask. Wands, potion belts, healer's gloves.
-	"apothecary": [["hannibals_mask", 0], ["wand_of_clarity", 0], ["circes_wand_of_cauldron_stirring", 1, "reaction_rod"],
+	"apothecary": [["hannibals_mask", 0, "feathered_hat"], ["wand_of_clarity", 0], ["circes_wand_of_cauldron_stirring", 1, "reaction_rod"],
 		["shadow_cowl", 0], ["alchemeist_belt", 0], ["corset_of_cure", 1], ["cyde_livingstons_sneakers", 0],
 		["techno_wraps", 0], ["ring_of_nibelung", 0, "harnessed_sun"], ["marvolo_gaunt", 1]],
 	# Mythic: The Headbandz (5 slots). Every slot the gear offers, filled.
-	"card_shark": [["the_headbandz", 0], ["sword_of_theseus", 0, "wrist_rocket"], ["slotted_rope_half_sleeve", 1],
+	"card_shark": [["the_headbandz", 0, "frankensteins_screws"], ["sword_of_theseus", 0, "wrist_rocket"], ["slotted_rope_half_sleeve", 1],
 		["shadow_cowl", 0], ["the_slotted_sash", 0], ["belt_of_wumbology", 1], ["hermes_boots", 0, "boot_holsters"],
 		["spidey_web_shooters", 0], ["legend_has_it", 0], ["cyclops_ring", 1]],
 	# Mythic: Bow of Arash. Bow + quiver, range gear, light feet.
-	"ranged_ambusher": [["bow_of_arash", 0], ["capacious_extremus", 1], ["monocle", 0],
+	"ranged_ambusher": [["bow_of_arash", 0, "cupids_bow"], ["capacious_extremus", 1], ["monocle", 0],
 		["chewbaccas_bandolier", 0], ["orions_belt", 0, "equator"], ["shadow_obi", 1], ["jordan_1s", 0, "rollerblades"],
 		["momentum_mits", 0], ["captain_planets_circlet", 0], ["harnessed_sun", 1]],
 	# Mythic: Sword of Theseus (5 slots). Sword and board, plate, heavy boots.
-	"bruiser": [["sword_of_theseus", 0], ["steve_rodgers_bastion", 1, "sword_breaker"], ["dragon_skull", 0],
+	"bruiser": [["sword_of_theseus", 0, "fallens_wrath"], ["steve_rodgers_bastion", 1, "sword_breaker"], ["dragon_skull", 0],
 		["hide_of_garmr", 0, "smithed_excellence"], ["equator", 0], ["belt_of_wumbology", 1], ["titanium_toe_tuckers", 0],
 		["sleeved_katar", 0], ["ring_of_stone_hide", 0], ["marvolo_gaunt", 1]],
 	# Mythic: Belt of Scrolls (three spells). Wands, robe, caster gloves.
-	"spellslinger": [["belt_of_scrolls", 0], ["wand_of_the_phoenix_feather", 0, "wand_of_clarity"], ["reaction_rod", 1],
+	"spellslinger": [["belt_of_scrolls", 0, "alchemeist_belt"], ["wand_of_the_phoenix_feather", 0, "wand_of_clarity"], ["reaction_rod", 1],
 		["scholars_cap", 0, "feathered_hat"], ["blue_robe", 0], ["corset_of_cure", 1], ["rollerblades", 0],
 		["techno_wraps", 0], ["harnessed_sun", 0], ["legend_has_it", 1]],
 }

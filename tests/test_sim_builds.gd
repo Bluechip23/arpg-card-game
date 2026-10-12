@@ -100,6 +100,34 @@ func _run() -> void:
 		var ts := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "spellslinger", "tactic": tname, "enemy": "WERERAT"}))
 		var tsum: Dictionary = await runner.run(ts, load("res://tests/sim/policies/greedy_dpt.gd").new(), 1)
 		_check(tsum["outcome"] != "error" and runner.warnings.is_empty(), "tactic %s builds and runs with no refusals: %s" % [tname, str(runner.warnings)])
+	# Item swaps: the tested item is worn, in its natural slot, and changes nothing else.
+	var item_ids := func(sc: Dictionary) -> Array:
+		var out: Array = []
+		for e in sc["player"]["items"]:
+			out.append(str(e[0]))
+		return out
+	var missing: Array = []
+	for b in RyanBuilds.DESIGNED:
+		for iid in CharacterBuilds.item_pool():
+			var isc := CharacterBuilds.compose("ryan", {"build": b, "item": iid})
+			if not iid in item_ids.call(isc):
+				missing.append("%s+%s" % [b, iid])
+	_check(missing.is_empty(), "every pool item is worn when swapped into every Ryan build (%d missing: %s)" % [missing.size(), str(missing.slice(0, 6))])
+	var base_apo: Array = item_ids.call(CharacterBuilds.compose("ryan", {"build": "apothecary"}))
+	var apo: Array = item_ids.call(CharacterBuilds.compose("ryan", {"build": "apothecary", "item": "monocle"}))
+	var changed: Array = []
+	for iid in apo:
+		if not iid in base_apo:
+			changed.append(iid)
+	_check(changed == ["monocle"] and apo.size() == base_apo.size(), "a legendary in the headline mythic's slot changes only that slot (%s)" % str(changed))
+	var bow: Array = CharacterBuilds.compose("ryan", {"build": "bruiser", "item": "bow_of_arash"})["player"]["items"]
+	var off_hand := false
+	for e in bow:
+		if int(e[1]) == 1 and CharacterBuilds._item_type(str(e[0])) == ItemData.ItemType.WEAPON:
+			off_hand = true
+	_check(not off_hand and bow[0][0] == "bow_of_arash", "a two-handed bow clears the off hand (%s)" % str(bow))
+	var ring: Array = item_ids.call(CharacterBuilds.compose("ryan", {"build": "bruiser", "item": "cyclops_ring"}))
+	_check(ring.count("cyclops_ring") == 1 and ring.has("marvolo_gaunt") and not ring.has("ring_of_stone_hide"), "a ring takes ring slot 0 and keeps slot 1 (%s)" % str(ring))
 	# compose swaps components and keeps the rest.
 	var mixed := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "bruiser", "deck": "potions", "alloc": "int_wis", "sphere": "none", "passives": "apothecary", "enemy": "WERERAT"}))
 	_check(mixed["player"]["deck"] == RyanBuilds.DECKS["potions"], "compose swaps the deck")

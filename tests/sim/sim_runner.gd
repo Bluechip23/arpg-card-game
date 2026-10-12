@@ -231,7 +231,17 @@ func _build_player() -> void:
 		if inv.equip_item(item, slot):
 			equipped[id] = item
 		else:
-			warnings.append("equip refused: %s (slot %d, carry %d/%d)" % [id, slot, stats.current_carry_load, stats.get_carry_capacity()])
+			var why := "over carry capacity %d/%d" % [stats.current_carry_load, stats.get_carry_capacity()]
+			var conflict := str(inv.hand_conflict_reason(item, slot)) if item.item_type in [ItemData.ItemType.WEAPON, ItemData.ItemType.QUIVER] else ""
+			if conflict != "":
+				why = "hand conflict: " + conflict
+			elif item.rarity == ItemData.Rarity.MYTHIC and inv.count_equipped_mythics() >= inv.get_mythic_capacity():
+				why = "mythic cap %d" % inv.get_mythic_capacity()
+			elif slot >= inv._get_max_slots(item.item_type):
+				why = "no slot %d for this character" % slot
+			elif inv._get_slot_array(item.item_type)[slot] != null:
+				why = "slot %d occupied" % slot
+			warnings.append("equip refused: %s (slot %d, %s)" % [id, slot, why])
 	# Cards engraved into the items' slots: {item id: [card ids]}. Real slot
 	# rules (count, label, feral colour) apply; a slotted card rides the item
 	# and does not count toward the deck cap.

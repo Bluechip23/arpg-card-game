@@ -394,6 +394,28 @@ parts use it:
   recipe on every designed build; the matrix compares each against the
   build's own hand-written deck.
 
+### Testing an item: `item:<id>` and the item sweep
+
+`item:<id>` puts one item into a stored build: its natural slot (main hand
+for weapons, off hand for shields and quivers, slot 0 for everything else),
+replacing what the set wears there; a two-handed bow or staff clears the
+off hand (a bow keeps its quiver). The tested item is always worn: a
+mythic takes a mythic slot first and the set's own mythic drops to its
+legendary fallback (every set mythic has one), and no *other* set mythic
+comes off its fallback, so exactly one item changes. The replaced piece's
+engraved cards move onto the new item when its slots accept them.
+
+`<char>_item_swap.txt` does this for every mythic and legendary item (the
+pool is every equippable ItemData factory, so a new item is included the
+moment it exists) on every designed build. `build_matrix.py` pairs each
+run with the designed run on the same seed, prints the best and worst
+items per build and the items that help or hurt every build
+(`sim_out/charts/<char>_item_swap.csv`), and lists the items a build
+cannot wear at all, with the game's reason: over carry capacity, a hand
+conflict (a shield beside a bow), the mythic cap. Those are findings, not
+gaps: "Adimantium cannot be carried by any Ryan build without STR" is a
+balance fact.
+
 ### Tactics: a play style on every build
 
 A tactic is an overlay any build can take, because invisibility, poison,

@@ -8,7 +8,7 @@ extends RefCounted
 const DEFAULT_ENEMY := "LARGE_BEAR"
 
 const ITEM_SETS := {
-	"scroll_evoker": [["belt_of_scrolls", 0], ["blue_robe", 0], ["wizard_hat", 0], ["caster_boots", 0], ["techno_wraps", 0],
+	"scroll_evoker": [["belt_of_scrolls", 0, "alchemeist_belt"], ["blue_robe", 0], ["wizard_hat", 0], ["caster_boots", 0], ["techno_wraps", 0],
 		["wand_of_clarity", 0], ["reaction_rod", 1]],
 	"shepherd": [["guardian_greaves", 0, "caster_boots"], ["blue_robe", 0], ["shamans_mask", 0],
 		["corset_of_cure", 0], ["medic_wraps", 0], ["wand_of_clarity", 0], ["coffin_lid", 1]],
