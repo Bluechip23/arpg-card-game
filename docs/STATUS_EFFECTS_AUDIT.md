@@ -4,6 +4,16 @@
 checked column by column (Effect, Expiry, Default, Stacking, Amp, Sources) against the code. Read-only: nothing was
 changed to produce this list. Line numbers are as of commit `42f89cd`.*
 
+**2026-10-12 follow-up.** The designer ruled on items 1–5, 18, 19, 21, 27–31 and 39; those are fixed (marked below)
+with tests `test_enemy_status_fixes.gd`, `test_buff_instances.gd`, `test_action_gating.gd`, `test_hex_lock_cards.gd`
+and `test_coop_status_ticks.gd`. Rulings: Mark keeps the longer timer; Enlightened and Resilient keep separate
+instances (highest % first; Resilient by damage type); Haste spends a charge on Flash moves too; Stun blocks every
+action except Wait; Blind also misses the auto attack and Flash Cut; Weighted taxes card plays only (Quiver and
+Manifest included, auto attack and Block not); hexes and locks belong to their card and leave with it; Misery spreads
+up to the top value, never past it; Expel moves the remaining duration. Still open in co-op: batch "move together"
+skips per-tile hazards, `tempo_manager.player_stats` (flash moves, free tiles) stays on player 1, player 2's
+shadow-form end is not wired, and Wither / in-hand debuffs / the invisibility check remain active-player only.
+
 **Tags.** **[CODE]** the game does something different from the sheet. **[WORDING]** the behaviour is sensible but
 the sheet (or the in-game text) describes it wrongly or incompletely. **[SOURCE]** a source in the Sources column is
 missing, wrong, or uses different numbers.
@@ -19,17 +29,17 @@ Weakened, Regen Frozen, the four retired debuffs, Cold (enemy), Frozen (enemy), 
 Ordered roughly by how often a player would hit them.
 
 ### Enemy statuses
-1. **Tripped never wears off on its own.** `_tick_timed_statuses` returns early unless another listed timer is
+1. **[Fixed 2026-10-12]** **Tripped never wears off on its own.** `_tick_timed_statuses` returns early unless another listed timer is
    running, and `tripped_tempo` is not in that list (enemy.gd:2574-2580, countdown at 2687). A Trip lasts until
    something else timed lands on the enemy. Its badge also has no hover text.
-2. **Exposed is never cleared.** `is_exposed` is set when armor breaks (enemy.gd:6915, 6928) and nothing ever sets it
+2. **[Fixed 2026-10-12]** **Exposed is never cleared.** `is_exposed` is set when armor breaks (enemy.gd:6915, 6928) and nothing ever sets it
    back, so "until it gains armor again" is false and the badge text promises it.
-3. **Mark is cut to 1 tempo by the "+1" riders.** Mark overwrites its timer (enemy.gd:7360), and Wither
+3. **[Fixed 2026-10-12]** **Mark is cut to 1 tempo by the "+1" riders.** Mark overwrites its timer (enemy.gd:7360), and Wither
    (main.gd:6297) and Territorial Death (progression_triggers.gd:1879) re-apply with value 1.
-4. **Misery Loves Company double-counts the additive timers.** For Disarm, Root and Cursed it now yields current +
+4. **[Fixed 2026-10-12]** **Misery Loves Company double-counts the additive timers.** For Disarm, Root and Cursed it now yields current +
    top (+ amp) instead of top (main.gd:8316-8318); Stun/Silence amps are added twice. Its `disarm_attacks` entry is
    dead (the field is always 0).
-5. **Expel Negativity sends timed debuffs as 1 tempo.** Player timed debuffs carry value 0, and the transfer uses
+5. **[Fixed 2026-10-12]** **Expel Negativity sends timed debuffs as 1 tempo.** Player timed debuffs carry value 0, and the transfer uses
    `maxi(1, value)` (progression_triggers.gd:1708). A 15-tempo Stun arrives as 1.
 6. **Silence and Polymorph drop the queued action but keep its wind-up**, so the replacement fires early
    (enemy.gd:7366, 7442). Silence also drops melee and moves, not only spells, and does not break a running channel.
@@ -54,13 +64,13 @@ Ordered roughly by how often a player would hit them.
 17. **Strengthen (enemy):** Cerberus's Swipe ignores it (enemy.gd:3681).
 
 ### Player buffs
-18. **Enlightened merge stacks the best of both.** A re-apply keeps the higher charge count *and* the higher percent
+18. **[Fixed 2026-10-12]** **Enlightened merge stacks the best of both.** A re-apply keeps the higher charge count *and* the higher percent
     (buff_manager.gd:70, 79-83). A 100% payout (Understanding, Scouted, Serial Killer) landing on Lady Luck's 30%×5
     becomes five guaranteed crits.
-19. **Resilient merge keeps the old damage type.** Harden (10% physical) then Succumb (20% all) becomes 20%
+19. **[Fixed 2026-10-12]** **Resilient merge keeps the old damage type.** Harden (10% physical) then Succumb (20% all) becomes 20%
     physical-only; Smithed Excellence (2% all) then Harden becomes 10% against everything (buff_manager.gd:79-83).
 20. **Thorns merge loses or spreads Vined Encasing's shed-by-damage flag** (buff_manager.gd:67-78).
-21. **Haste:** Flash moves still get the bonus tiles but never spend a charge, so Haste is unlimited while moving on
+21. **[Fixed 2026-10-12]** **Haste:** Flash moves still get the bonus tiles but never spend a charge, so Haste is unlimited while moving on
     Flash (player.gd:334-337, 404-409).
 22. **Bolster** is only consumed by Smith thy Soul, not "the next Y times you gain armor" (player_stats.gd:2241,
     card.gd:5870) — and nothing grants it.
@@ -75,18 +85,18 @@ Ordered roughly by how often a player would hit them.
 26. **Enchanted Quiver / Tighten String** re-applies reset the charges to 3 instead of adding (card.gd:3755, 3761).
 
 ### Player debuffs
-27. **Stun** only blocks movement and card plays. Gauntlet skills, Sidestep / Flash Cut (an attack), Brain
+27. **[Fixed 2026-10-12]** **Stun** only blocks movement and card plays. Gauntlet skills, Sidestep / Flash Cut (an attack), Brain
     draw/peek and gear swaps still work while stunned (debuff_manager.gd:304-334; main.gd:3803, 6961, 7018, 2443).
-28. **Blind** only rolls a miss on Attack-type cards aimed at an enemy (card.gd:1401-1411). The Basic Attack and
+28. **[Fixed 2026-10-12]** **Blind** only rolls a miss on Attack-type cards aimed at an enemy (card.gd:1401-1411). The Basic Attack and
     Flash Cut never miss.
-29. **Weighted's +2 tempo** is also charged on Basic Attack, Basic Block and Manifest/Quiver plays, but those never
+29. **[Fixed 2026-10-12]** **Weighted's +2 tempo** is also charged on Basic Attack, Basic Block and Manifest/Quiver plays, but those never
     burn a stack (main.gd:2281, 2423, 14372).
-30. **Hexed (and Locked) drift onto the wrong card.** Index shifting only runs on a play, a Clumsy discard and a Harpy
+30. **[Fixed 2026-10-12]** **Hexed (and Locked) drift onto the wrong card.** Index shifting only runs on a play, a Clumsy discard and a Harpy
     steal. Venom Tail's knock-out, Shed Weight, enchantment expiry, reactions fired from hand, jailing, Infest hatching
     and on-draw discards leave stale indices; a Clumsy-discarded hexed card passes its hex to the next card; a Sticky
     card's re-insert lands after the shift; and a new hex sits unassigned until the next hand change
     (deck_manager.gd:419, 750, 819, 852, 1039, 1091, 1231-1258, 1272-1335; main.gd:7258).
-31. **Locked:** the Labyrinth's hand scramble only carries the first lock over, and a Harpy steal removes hexes but
+31. **[Fixed 2026-10-12]** **Locked:** the Labyrinth's hand scramble only carries the first lock over, and a Harpy steal removes hexes but
     not locks (deck_manager.gd:984-995; enemy.gd:5811). No live source yet.
 32. **Slowed timer-over-stacks** overwrites rather than extends: Slowed 4 (20 tempo) plus a 3-tempo Snowball leaves 3
     tempo (debuff_manager.gd:49-56). Fire Web's 2-tempo refresh does the same.
@@ -105,7 +115,7 @@ Ordered roughly by how often a player would hit them.
     the card leaves the hand (main.gd:7906). Edge case.
 
 ### Co-op (both sides)
-39. Only the active player's per-cycle buff and debuff effects run (Regen, Focused, Blessed, Smith, Burn, Poison,
+39. **[Fixed 2026-10-12]** Only the active player's per-cycle buff and debuff effects run (Regen, Focused, Blessed, Smith, Burn, Poison,
     Drain, Shocked, temp-HP and Raged Circulation timers), while their timed statuses still tick down
     (main.gd:7650-7713). Slowed movement pricing, Marvolo's expiry hook, fire walls and the Spiked Web are wired to
     player 1 only (main.gd:4175, 4232, 6626-6685).
