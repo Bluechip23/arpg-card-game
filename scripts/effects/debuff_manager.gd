@@ -536,3 +536,20 @@ func on_attack() -> int:
 # ============================================
 # DISPLAY
 # ============================================
+
+# ============================================
+# ACTION QUERIES
+# ============================================
+
+## Stun stops everything: no card, attack, block, move, skill, Flash/Brain
+## spend or gear swap while it holds. Only Wait (passing time) stays open —
+## otherwise a stun could never tick off. Frozen is NOT here: it only stops
+## card plays (can_play_cards).
+func can_act() -> bool:
+	return not has_debuff(Debuff.DebuffType.STUN)
+
+## Blind's miss roll for an attack that is not a card (the auto attack, Flash
+## Cut): the same constant chance an Attack card rolls in Card._execute_card.
+func roll_blind_miss() -> bool:
+	var chance := get_blind_miss_chance()
+	return chance > 0.0 and randf() < chance

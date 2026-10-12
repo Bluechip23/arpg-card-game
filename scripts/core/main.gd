@@ -2159,6 +2159,32 @@ func add_battle_log(msg: String, color: Color = Color(0.8, 0.8, 0.85)) -> void:
 
 #endregion
 #region BASIC ATTACK
+## Stun stops everything (designer's ruling): every player-initiated action —
+## attack, block, Sidestep / Flash Cut, Quick hands, gauntlet skills, Brain
+## draw / peek, gear swaps, Quiver and Manifest plays — asks this first and
+## spends nothing when it refuses. Wait is the one action left open, or a
+## stun could never tick off. Card plays and movement are refused by
+## DebuffManager.can_play_cards / can_move already.
+func _stun_refuses(action: String) -> bool:
+	var dm = player.get_debuff_manager() if player else null
+	if dm and not dm.can_act():
+		add_battle_log("Cannot %s — Stunned!" % action, Color(1.0, 0.4, 0.4))
+		print("[MAIN] %s refused — Stunned" % action)
+		return true
+	return false
+
+## Blind's miss roll for a swing that is not a card (the auto attack, Flash
+## Cut) — the same chance an Attack card rolls. Costs were already paid; a
+## miss only loses the hit, as a blinded card does.
+func _blind_misses(what: String, target) -> bool:
+	var dm = player.get_debuff_manager() if player else null
+	if dm == null or not dm.roll_blind_miss():
+		return false
+	var victim: String = target.enemy_name if target is Enemy and is_instance_valid(target) else "the target"
+	add_battle_log("%s missed %s — Blinded!" % [what, victim], Color(0.85, 0.85, 0.4))
+	print("[MAIN] %s missed — blinded!" % what)
+	return true
+
 func _on_attack_pressed() -> void:
 	## The button works like selecting a card: it arms the attack, and the
 	## player then clicks the enemy they want to hit (see _unhandled_input).
@@ -2171,6 +2197,8 @@ func _on_attack_pressed() -> void:
 	if not stats:
 		return
 
+	if _stun_refuses("attack"):
+		return
 	var debuff_mgr = player.get_debuff_manager()
 	if debuff_mgr:
 		if not debuff_mgr.can_play_cards():
@@ -2219,6 +2247,11 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 	if not stats:
 		return
 
+	# A passive's free swing (Lethal Resourcefulness) is still the stunned
+	# character swinging, so the stun stops it too.
+	if _stun_refuses("attack"):
+		_set_basic_attack_pending(false)
+		return
 	var debuff_mgr = player.get_debuff_manager()
 	if debuff_mgr:
 		if not debuff_mgr.can_play_cards():
@@ -2275,10 +2308,10 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 		if reduction > 0.0:
 			damage = max(1, floori(damage * (1.0 - reduction)))
 
-	# Tempo cost (a bow's draw adds one, like the Attack card when ranged)
+	# Tempo cost (a bow's draw adds one, like the Attack card when ranged).
+	# No Weighted surcharge: Weighted taxes card plays (and burns a stack per
+	# card), and the auto attack is not a card.
 	var tempo_cost = _basic_attack_tempo()
-	if debuff_mgr:
-		tempo_cost += debuff_mgr.get_tempo_increase()
 
 	# Dex proc: halve basic attack tempo (a free passive swing costs no
 	# tempo, so it leaves the proc for a real swing)
@@ -2305,6 +2338,9 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 		# Steady (or a passive's free swing): resolve immediately with no tempo
 		if player.has_method("play_animation"):
 			player.play_animation("attack_slash", _facing_dir_toward(target))
+		if _blind_misses("Attack", target):
+			_basic_attack_whiff(stats, buff_mgr, debuff_mgr, not basic_attack_proc)
+			return
 		target.take_damage(damage, true)
 		progression_triggers.brad_life_steal(damage)
 		_basic_attack_armor_shred(target)
@@ -2331,6 +2367,9 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 		# Dex proc reduced tempo to 0: resolve immediately
 		if player.has_method("play_animation"):
 			player.play_animation("attack_slash", _facing_dir_toward(target))
+		if _blind_misses("Attack", target):
+			_basic_attack_whiff(stats, buff_mgr, debuff_mgr, false)
+			return
 		target.take_damage(damage, true)
 		progression_triggers.brad_life_steal(damage)
 		_basic_attack_armor_shred(target)
@@ -2384,6 +2423,20 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 		add_battle_log("Winding up Attack on %s (resolves tick %d/%d)" % [target.enemy_name, resolve_tick, tempo_cost], Color(1.0, 0.85, 0.4))
 		print("[MAIN] Basic Attack queued: %d damage to %s (%d tempo, resolve tick %d)" % [damage, target.enemy_name, tempo_cost, resolve_tick])
 
+## A blinded swing that missed: like a blinded Attack card it still counts
+## as an attack swung (the DEX counter, Burn's on-attack sting) and keeps
+## the tempo it cost — it only loses the hit and everything riding the hit
+## (crit triggers, life steal, armor shred, the free-hand echo).
+func _basic_attack_whiff(stats, buff_mgr, debuff_mgr, counts_for_cycle: bool) -> void:
+	if buff_mgr:
+		buff_mgr.last_crit_hit = false
+	if stats and counts_for_cycle:
+		stats.register_attack()
+	if debuff_mgr:
+		debuff_mgr.on_attack()
+	PlayerStats.hit_source_offensive = false
+	PlayerStats.hit_source_direct = false
+
 #endregion
 #region BLOCK, WAIT & WAR RACK
 func _on_block_pressed() -> void:
@@ -2391,6 +2444,8 @@ func _on_block_pressed() -> void:
 	if not stats:
 		return
 
+	if _stun_refuses("block"):
+		return
 	var debuff_mgr = player.get_debuff_manager()
 	if debuff_mgr and not debuff_mgr.can_play_cards():
 		add_battle_log("Cannot block — Stunned or Frozen!", Color(1.0, 0.4, 0.4))
@@ -2418,15 +2473,16 @@ func _on_block_pressed() -> void:
 	if player.has_method("play_animation"):
 		player.play_animation("block", CharacterAnimator.Direction.SOUTH)
 
+	# No Weighted surcharge: Weighted taxes card plays, and Block is not one.
 	var tempo_cost = 5
-	if debuff_mgr:
-		tempo_cost += debuff_mgr.get_tempo_increase()
 
 	tempo_manager.add_tempo(tempo_cost)
 
 	print("[MAIN] Basic Block: gained %d armor from %s (%d tempo)" % [block_amount, shield.item_name, tempo_cost])
 
 func _on_wait_pressed() -> void:
+	# Never gated: under Stun, passing time is the only action left, and the
+	# only way the stun ticks off.
 	print("[MAIN] Wait - advancing tempo by 1")
 	tempo_manager.add_tempo(1)
 
@@ -2468,6 +2524,8 @@ func _on_rack_button_pressed() -> void:
 	## single-two-handed-item rule is met); otherwise a normal paid exchange.
 	var inv = player.get_inventory() if player else null
 	if not inv or not inv.has_back_rack:
+		return
+	if _stun_refuses("swap gear"):
 		return
 	var free_check: Dictionary = inv.can_rack_exchange(true)
 	if free_check["ok"]:
@@ -3804,6 +3862,9 @@ func _on_gauntlet_skill_activated(gauntlet: ItemData) -> void:
 	var inventory = player.get_inventory()
 	if not inventory or not inventory.can_use_gauntlet_skill(gauntlet):
 		return
+	if _stun_refuses("use %s" % gauntlet.gauntlet_skill_name):
+		_pending_gauntlet_skill = null
+		return
 	var fx: String = gauntlet.gauntlet_skill_effect_id
 
 	# House Rule: pick the discard card FIRST — mana/cooldown are only paid
@@ -3837,6 +3898,11 @@ func _on_gauntlet_skill_activated(gauntlet: ItemData) -> void:
 ## Pay the skill's costs and run it. Callers have already validated the target,
 ## so a no-op can no longer eat the cooldown.
 func _fire_gauntlet_skill(gauntlet: ItemData, target) -> void:
+	# Re-checked here: an armed skill (or House Rule's picker) can be fired
+	# after a stun lands in between.
+	if _stun_refuses("use %s" % gauntlet.gauntlet_skill_name):
+		_pending_gauntlet_skill = null
+		return
 	PlayerStats.hit_source_offensive = false  # a skill is not an offensive card
 	PlayerStats.hit_source_direct = true      # ...but it is the player's own action (Eat)
 	var inventory = player.get_inventory()
@@ -6962,6 +7028,8 @@ func _on_flash_block_pressed() -> void:
 	var stats = player.get_stats() if player else null
 	if not stats:
 		return
+	if _stun_refuses("Flash Cut" if stats.keystone_flash_strike else "Sidestep"):
+		return
 	# Flash Cut keystone: the Sidestep spend becomes an attack instead of armor.
 	if stats.keystone_flash_strike:
 		_flash_strike(stats)
@@ -6992,6 +7060,10 @@ func _flash_strike(stats) -> void:
 		return
 	if player.has_method("play_animation"):
 		player.play_animation("attack_slash", _facing_dir_toward(target))
+	# Flash Cut is an attack: a blinded cut whiffs, and the flash is spent
+	# all the same (as a blinded card keeps its cost).
+	if _blind_misses("Flash Cut", target):
+		return
 	target.take_damage(PlayerStats.FLASH_STRIKE_DAMAGE, true)
 	add_battle_log("Flash Cut! -%d flash, %d damage to %s." % [
 		stats.get_flash_block_cost(), PlayerStats.FLASH_STRIKE_DAMAGE, target.enemy_name], Color(1.0, 0.9, 0.4))
@@ -7018,6 +7090,8 @@ func _try_arcane_echo(stats) -> void:
 func _on_brain_draw_pressed() -> void:
 	var stats = player.get_stats() if player else null
 	if not stats:
+		return
+	if _stun_refuses("draw"):
 		return
 	var cost = stats.get_next_brain_draw_cost()
 	if stats.current_brain_points < cost:
@@ -7050,6 +7124,8 @@ func _on_brain_draw_pressed() -> void:
 func _on_brain_peek_pressed() -> void:
 	var stats = player.get_stats() if player else null
 	if not stats:
+		return
+	if _stun_refuses("peek"):
 		return
 	var cost = stats.get_next_brain_peek_cost()
 	if stats.current_brain_points < cost:
@@ -7100,6 +7176,8 @@ func _update_brain_button() -> void:
 func _on_flash_proc_pressed() -> void:
 	var stats = player.get_stats() if player else null
 	if not stats:
+		return
+	if _stun_refuses("use Quick hands"):
 		return
 	if stats.spend_flash_for_proc_tick():
 		add_battle_log("Quick hands! -%d flash, %d attacks to proc." % [
@@ -9271,6 +9349,12 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 			if target is Node3D and is_instance_valid(target) and player.has_method("face_toward"):
 				player.face_toward(target.position)
 		var damage = data["basic_attack_damage"]
+		# Blind rolls when the swing lands, as an Attack card's does when it
+		# executes; the wind-up's tempo is already spent.
+		if _blind_misses("Attack", target):
+			_basic_attack_whiff(player.get_stats(), player.get_buff_manager(), player.get_debuff_manager(),
+				not data.get("basic_attack_proc", false))
+			return
 		PlayerStats.hit_source_offensive = true  # the auto attack is offensive
 		PlayerStats.hit_source_direct = true     # ...and the player's own action
 		target.take_damage(damage, true)
@@ -14195,6 +14279,10 @@ func _on_give_card(card_name: String) -> void:
 		deck_manager.hand_updated.emit()
 		print("[MAIN] Gave card: %s" % card_name)
 func _on_manifest_card_clicked(index: int) -> void:
+	# Spending a manifest (a Quiver card, a blade, a summon, a mushroom) is
+	# an action: refused under Stun before anything is popped or paid.
+	if _stun_refuses("use the Manifest"):
+		return
 	# Bottomless Quiver attacks sit in the zone as real cards: they play at
 	# full cost through the quiver flow (target click, mana, tempo).
 	if index >= 0 and index < overflow_manager.manifest_zone.size() \
@@ -14293,6 +14381,10 @@ func _on_manifest_card_clicked(index: int) -> void:
 	manifest_ui.refresh()
 
 func _on_quiver_card_targeting_selected(card: Card, index: int, target_type: String) -> void:
+	# Refuse up front so a stunned player is not left holding an armed card
+	# (play_quiver_card checks again when it fires).
+	if _stun_refuses("play %s" % card.card_name):
+		return
 	# "self" targeting plays immediately; enemy/point wait for a click
 	if target_type == "self":
 		play_quiver_card(card, index, player)
@@ -14313,6 +14405,8 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 	var debuff_mgr = player.get_debuff_manager()
 
 	# Debuff checks - quiver cards are always attacks
+	if _stun_refuses("play %s" % card.card_name):
+		return
 	if debuff_mgr:
 		if not debuff_mgr.can_play_cards():
 			print("[MAIN] Quiver: cannot play cards - Stunned or Frozen!")
@@ -14366,10 +14460,13 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 	if debuff_mgr and card.card_type == Card.CardType.ATTACK:
 		debuff_mgr.on_attack()
 
-	# Apply tempo
+	# Apply tempo. A Quiver / Manifest play IS a card play, so Weighted both
+	# taxes it and burns a stack for it — read the surcharge first, then burn,
+	# in the same order deck_manager.play_card does for a hand play.
 	var tempo_cost = card.get_burden_tempo_cost()
 	if debuff_mgr:
 		tempo_cost += debuff_mgr.get_tempo_increase()
+		debuff_mgr.on_card_played(card.card_type == Card.CardType.ATTACK)
 	tempo_manager.add_card_tempo(tempo_cost)
 
 	# Apply card world effects
