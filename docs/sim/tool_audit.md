@@ -10,7 +10,7 @@ was wrong. Everything marked *fixed* is on the branch, covered by a test.
 ## Verdict
 
 The tester now does what was agreed, with the limits listed at the end.
-The audit found **eleven defects**; four of them changed numbers already
+The audit found **twelve defects**; five of them changed numbers already
 reported in `RESULTS.md`, and those tables were re-run (see there).
 
 | # | Defect | Effect on readings | Status |
@@ -26,6 +26,7 @@ reported in `RESULTS.md`, and those tables were re-run (see there).
 | 9 | Recipe decks ranked cards from an untracked, ever-changing file | the same recipe produced different decks on different machines or between a before and after | fixed: ranking committed under `tests/sim/builds/rankings/`, refreshed only on `--update-ranking` |
 | 10 | Passive trigger counts read 0 for passives the game never logs (Directed Strength, Life Steal, Harnessed Power, Blood Libation, Wither) and for Way of the Plate (logs under another name) | "never fired" was wrong for six passives | fixed: name mapped; silent passives read `-` |
 | 11 | Invisibility draw: cancelling the discard picker kept the drawn card for free | a real player could skip the cost | fixed in the game; scene-level test |
+| 12 | Overkill counted as damage dealt (the game's damage signal reports the full hit after clamping health) | damage per tempo inflated, most for burst and area cards (168 vs a 116-health pack) | fixed: the killing hit counts the health it removed; excess in an `overkill` column |
 
 Also added: multi-enemy packs in the designed, tactic and recipe sweeps
 (single-enemy fights cannot show what an area card is worth), a

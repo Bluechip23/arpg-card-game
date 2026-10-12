@@ -46,14 +46,20 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   runner answers their pickers and the lookahead values and picks for Sky
   Attack, Mirror Mirror, Collect Arrows and Release Tension.
 
+- **Overkill was counted as damage dealt.** `Enemy.damaged` reports the
+  whole hit after clamping health at 0, and the runner summed it, so a
+  killing blow was credited with damage past zero. Burst and area cards
+  were inflated most (If Pigs Could Fly read 168 damage per tempo against
+  a pack with 116 total health). The killing hit now counts only the
+  health it removed; the excess goes to a separate `overkill` column.
+  Win rates were never affected; damage-per-tempo figures were re-run.
+
 ## Open (not changed)
 
 - **`tests/_build_sims.gd` spelled Ryan's passive `lets_dance`; the game's
   id is `let's_dance`** (the tree lowercases "Let's Dance" and keeps the
-  apostrophe). Fixed in the scratch simulator at the designer's request. Candidates to watch: `Enemy.damaged` reports overkill (the
-  amount applied to health is not clamped before the signal), which only
-  matters for anything summing damage from that signal — the harness does
-  and says so in its column notes.
+  apostrophe). Fixed in the scratch simulator at the designer's request. (`Enemy.damaged` reporting overkill is handled in the harness; see the
+  fixed list above.)
 
 - **Shadow Cowl's on-self bonus can never fire.** The cowl's "+2 damage
   and 2 free tiles for offensive cards" is an `on_self_*` bonus, and

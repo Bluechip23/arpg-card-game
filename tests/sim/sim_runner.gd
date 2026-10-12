@@ -17,7 +17,7 @@ const INTERIOR_DEFAULT := "dojo"
 const ROW_COLUMNS := ["bar_index", "tempo_before", "tempo_after", "actor", "action_id", "target",
 	"player_hp", "player_armor", "player_temp_hp", "player_mana", "hand_size",
 	"enemy_id", "enemy_hp", "enemy_pos", "player_pos", "distance",
-	"damage_dealt", "damage_taken", "buffs_applied", "debuffs_applied", "rng_outcome_used"]
+	"damage_dealt", "damage_taken", "buffs_applied", "debuffs_applied", "rng_outcome_used", "overkill"]
 const SUMMARY_COLUMNS := ["seed", "outcome", "bars_elapsed", "total_damage_dealt", "total_damage_taken",
 	"damage_per_tempo", "cards_played", "distinct_cards_played", "card_entropy", "mana_wasted",
 	"overflow_bars", "end_hp_pct", "enemy_actions_by_type", "passive_triggers", "sphere_nodes", "global_tempo", "decisions", "error", "warnings"]
@@ -499,6 +499,7 @@ func _spawn_enemies() -> void:
 	main._refresh_unit_tracker()
 
 func _adopt_enemy(en) -> void:
+	_hp_seen[en.get_instance_id()] = en.current_health
 	en.set_physics_process(false)
 	en.action_fired.connect(_on_enemy_action_fired)
 	en.damaged.connect(_on_enemy_damaged.bind(en))
@@ -917,7 +918,23 @@ func _on_enemy_action_fired(enemy, action_name: String) -> void:
 	_open_enemy_rows.append(row)
 	_row = row
 
+## Enemy health each enemy had at its last damage event or row start: the
+## game's damaged signal reports the full hit even when it overkills (health
+## is clamped at 0 first), so the hit that kills counts only the health it
+## actually removed. Without this a burst card was credited with damage past
+## zero (a 168-damage-per-tempo pack wipe against 116 total health).
+var _hp_seen := {}
+
 func _on_enemy_damaged(amount: int, enemy) -> void:
+	var id: int = enemy.get_instance_id()
+	var hp_after: int = enemy.current_health
+	var overkill := 0
+	if hp_after <= 0 and _hp_seen.has(id):
+		overkill = maxi(0, amount - int(_hp_seen[id]))
+		amount -= overkill
+	_hp_seen[id] = hp_after
+	if overkill > 0 and not _row.is_empty():
+		_row["overkill"] = int(_row.get("overkill", 0)) + overkill
 	if amount <= 0:
 		return
 	_total_dealt += amount
@@ -987,6 +1004,7 @@ func _new_row(actor: String, action_id: String, target: String) -> Dictionary:
 		"distance": "",
 		"damage_dealt": 0,
 		"damage_taken": 0,
+		"overkill": 0,
 		"buffs_applied": "",
 		"debuffs_applied": "",
 		"rng_outcome_used": "",
@@ -994,6 +1012,7 @@ func _new_row(actor: String, action_id: String, target: String) -> Dictionary:
 	var armor := {}
 	for en in main.enemy_spawner.get_living_enemies():
 		armor[en.get_instance_id()] = en.current_armor
+		_hp_seen[en.get_instance_id()] = en.current_health
 	row["_armor"] = armor
 	if actor == "player" and target.begins_with("enemy:"):
 		var idx := int(target.substr(6))
@@ -1068,6 +1087,7 @@ func _reset_counters() -> void:
 	_card_counts.clear()
 	_enemy_action_counts.clear()
 	_passive_triggers.clear()
+	_hp_seen.clear()
 	_mana_wasted = 0
 	_mana_delta = 0.0
 	_overflow_bars = 0
