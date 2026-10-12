@@ -136,5 +136,7 @@ func _run() -> void:
 			broken.append(id)
 	dm.free()
 	_check(broken.is_empty() and pool.size() > 150, "the card pool (%d) holds only playable, deck-legal cards %s" % [pool.size(), str(broken)])
+	var held_out: Array = SimState.NEEDS_PICK.filter(func(id): return id in pool)
+	_check(held_out.is_empty(), "no pool card is held out of the policy's legal actions %s" % str(held_out))
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
