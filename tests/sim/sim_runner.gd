@@ -143,6 +143,27 @@ func run(sc: Dictionary, pol: SimPolicy, p_seed: int) -> Dictionary:
 	await _teardown()
 	return summary
 
+## Boot the scenario's fight and stop before the first decision, for tests
+## that drive the real scene themselves (pickers, rules). Call teardown()
+## when done.
+func boot_only(sc: Dictionary, p_seed: int) -> void:
+	scenario = sc
+	seed_value = p_seed
+	rows.clear()
+	warnings.clear()
+	outcome = ""
+	error_msg = ""
+	_reset_counters()
+	seed(seed_value)
+	await _boot()
+	_build_player()
+	_spawn_enemies()
+	_hook_signals()
+	_run_seed = p_seed
+
+func teardown() -> void:
+	await _teardown()
+
 # --------------------------------------------------------------- boot ----
 
 func _boot() -> void:
