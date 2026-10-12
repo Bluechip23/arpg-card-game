@@ -175,7 +175,7 @@ static func _summary_rows(path: String) -> int:
 	return maxi(0, n - 1)
 
 ## A fingerprint of the code a run used: every script, scene and data file
-## under scripts/ and tests/sim/. Written next to each job's results, so a
+## under scripts/ and tests/sim/ (including the committed recipe rankings). Written next to each job's results, so a
 ## resumed sweep never reuses results from other code and compare_runs can
 ## tell when a "before" and "after" ran the same code.
 static var _stamp := ""
@@ -197,7 +197,7 @@ static func code_stamp() -> String:
 			if d.current_is_dir():
 				if not f.begins_with("."):
 					stack.append(full)
-			elif f.get_extension() in ["gd", "tres", "json", "tscn"]:
+			elif f.get_extension() in ["gd", "tres", "json", "tscn", "csv"]:
 				files.append(full)
 			f = d.get_next()
 	files.sort()
