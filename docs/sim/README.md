@@ -331,6 +331,20 @@ mix in; `--skip-done` (which `run_sweep.sh` passes) skips a job only when
 it finished on the same stamp; and `compare_runs.py` warns when a "before"
 and "after" ran on the same code, which means the change was not saved.
 
+### The audit test
+
+`tests/test_sim_audit.gd` (about 4 minutes) boots every designed build of
+every character in the real game at levels 1, 15, 18, 30 and 50, plus
+every tactic and a passive focus, and fails if the tester itself is wrong:
+a refused equip, slot, allocation or passive rank (below level 15 an
+end-game set may outweigh what the character carries); any stat point,
+passive point or sphere left unspent; the mythic cap broken; more than
+three keystones; a tree passive whose firing cannot be counted and is not
+on the known-silent list; a recipe that does not fill twelve cards; an
+item that is not worn when swapped in; a card in the pool that cannot be
+dealt. Run it after adding a character library, a passive, a card or an
+item, and before trusting a sweep.
+
 ### Quick feedback on a balance change
 
 Runs are deterministic per seed, so any difference between two snapshots is
