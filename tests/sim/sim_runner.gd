@@ -1180,20 +1180,59 @@ func _log(msg: String) -> void:
 # ----------------------------------------------------- passive triggers ----
 
 ## Battle-log lines that start with a passive's display name ("Let's Dance:
-## +3 armor", "Quick Step: +16 armor") are that passive firing; every tree
-## passive logs itself that way. Counted per run so a sweep can say whether
-## a maxed passive ever did anything, not only how the numbers moved.
+## +3 armor", "Quick Step: +16 armor") are that passive firing. Counted per
+## run so a sweep can say whether a maxed passive ever did anything, not
+## only how the numbers moved.
 var _passive_triggers := {}
+
+## Passives whose log line names them differently from their id.
+const PASSIVE_LOG_ALIASES := {"way_of_the_plate": "the_way_of_the_plate"}
+
+## Passive ids that some battle-log line names (scanned once from the game's
+## scripts). A passive that never logs (a stat modifier like Directed
+## Strength, or one that only prints to the console) cannot be counted; its
+## trigger count reads "-" rather than a misleading 0.
+static var _observable: Dictionary = {}
+
+static func observable_passives() -> Dictionary:
+	if not _observable.is_empty():
+		return _observable
+	var re := RegEx.new()
+	re.compile("add_battle_log\\(\\s*\"([^\"%:]+):")
+	var stack: Array = ["res://scripts"]
+	while not stack.is_empty():
+		var dir_path: String = stack.pop_back()
+		var d := DirAccess.open(dir_path)
+		if d == null:
+			continue
+		d.list_dir_begin()
+		var f := d.get_next()
+		while f != "":
+			var full := "%s/%s" % [dir_path, f]
+			if d.current_is_dir():
+				if not f.begins_with("."):
+					stack.append(full)
+			elif f.ends_with(".gd"):
+				for m in re.search_all(FileAccess.get_file_as_string(full)):
+					var key := _log_key(m.get_string(1))
+					_observable[key] = true
+			f = d.get_next()
+	return _observable
+
+static func _log_key(name: String) -> String:
+	var key := name.strip_edges().to_lower().replace(" ", "_")
+	return PASSIVE_LOG_ALIASES.get(key, key)
 
 func _on_battle_logged(msg: String) -> void:
 	var colon := msg.find(":")
 	if colon <= 0:
 		return
-	var key := msg.substr(0, colon).strip_edges().to_lower().replace(" ", "_")
+	var key := _log_key(msg.substr(0, colon))
 	_passive_triggers[key] = int(_passive_triggers.get(key, 0)) + 1
 
-## "let's_dance:4|quick_step:0" for every passive the player has ranks in
-## (a ranked passive that never logged shows 0), sorted by id.
+## "let's_dance:4|quick_step:0|directed_strength:-" for every passive the
+## player has ranks in, sorted by id: a number is how often it fired (0 =
+## never), "-" means the game never logs that passive so it cannot be counted.
 func _passive_trigger_text(stats) -> String:
 	var ids: Array = []
 	if stats and "passive_levels" in stats:
@@ -1202,6 +1241,10 @@ func _passive_trigger_text(stats) -> String:
 				ids.append(str(pid))
 	ids.sort()
 	var parts: Array = []
+	var seen := observable_passives()
 	for pid in ids:
-		parts.append("%s:%d" % [pid, int(_passive_triggers.get(pid, 0))])
+		if seen.has(pid):
+			parts.append("%s:%d" % [pid, int(_passive_triggers.get(pid, 0))])
+		else:
+			parts.append("%s:-" % pid)
 	return "|".join(parts)

@@ -71,3 +71,11 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   conjured tokens (Energy Ball from Absorb Essence). If any of these are
   meant to come only with their item or spell, they want `shop_excluded`
   — the sweeps will otherwise swap them into decks as ordinary cards.
+
+- **Five tree passives never write to the battle log**: Brad's Directed
+  Strength and Life Steal, Jeremy's Harnessed Power and Blood Libation,
+  Cory's Wither. They work, but neither the player's log nor the sim's
+  trigger count can see them fire; their `passive_triggers` entry reads
+  `-` (not observable) instead of 0. A one-line `add_battle_log` in each
+  would make them countable. Way of the Plate logs as "Way of the Plate"
+  under the id `the_way_of_the_plate`; the sim maps the name. Not changed.
