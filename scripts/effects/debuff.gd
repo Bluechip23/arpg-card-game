@@ -123,7 +123,7 @@ func _set_name_and_description() -> void:
 			description = "Take 1 damage per tile moved; each damage removes a stack (%d left)" % value
 		DebuffType.STUN:
 			debuff_name = "Stun"
-			description = "Cannot take any actions"
+			description = "Cannot take any action: no cards, attacks, blocks, moves, skills, Flash/Brain spends or gear swaps. Only Wait passes time"
 		DebuffType.DISARM:
 			debuff_name = "Disarm"
 			description = "Cannot play attack cards or auto attack (%d tempo left)" % duration
@@ -165,7 +165,7 @@ func _set_name_and_description() -> void:
 			description = "Lose 10 mana per cycle, lose 1 drain per cycle"
 		DebuffType.WEIGHTED:
 			debuff_name = "Weighted"
-			description = "Cards cost %d more tempo; each card played burns a stack (%d left)" % [WEIGHTED_TEMPO, value]
+			description = "Card plays cost %d more tempo (not the auto attack or Block); each card played burns a stack (%d left)" % [WEIGHTED_TEMPO, value]
 		DebuffType.HEXED:
 			debuff_name = "Hexed"
 			description = "One card in your hand costs +%d mana until it is played" % value
@@ -192,7 +192,7 @@ func _set_name_and_description() -> void:
 			description = "At 5 stacks, become Frozen for 1 cycle. Current: %d stack(s) (%d tempo left)" % [value, duration]
 		DebuffType.BLIND:
 			debuff_name = "Blind"
-			description = "%d%% chance for your attacks to miss (%s)" % [BLIND_MISS, _stacks_left_text()]
+			description = "%d%% chance for your attacks to miss: attack cards, the auto attack and Flash Cut (%s)" % [BLIND_MISS, _stacks_left_text()]
 		DebuffType.WEAKENED:
 			debuff_name = "Weakened"
 			description = "Deal %d%% less damage (%s)" % [WEAKENED_REDUCTION, _stacks_left_text()]
