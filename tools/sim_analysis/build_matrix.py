@@ -243,6 +243,22 @@ def swap_table(df, des_runs, col, what, tag, fname):
     if not rows:
         return
     sw = pd.DataFrame(rows)
+    # Packs are reported on their own: only some cards may have run against
+    # them, and averaging a card over "bear + pack" against others over the
+    # bear alone would rank them on different fights.
+    pack = sw[sw["e"].astype(str).str.startswith("PACK_")]
+    sw = sw[~sw["e"].astype(str).str.startswith("PACK_")]
+    if not pack.empty:
+        pk = pack.groupby(["build", "card"]).agg(d_dpt_median=("d_dpt_median", "mean"), d_win=("d_win", "mean")).reset_index()
+        pk.to_csv(simlib.CHARTS + "/%s_%s_packs.csv" % (tag, fname), index=False)
+        print("\nsingle-%s swap against packs (%s), median DPT uplift:\n" % (what, ", ".join(sorted(pack["e"].unique()))),
+              pk.pivot(index="card", columns="build", values="d_dpt_median").round(1).to_string())
+    # One enemy set for every ranked entry: keep the enemies most entries share.
+    sets = sw.groupby(["build", "card"])["e"].apply(lambda x: tuple(sorted(set(x))))
+    common = sets.value_counts().idxmax() if len(sets) else ()
+    if len(sets.unique()) > 1:
+        print("\nnote: %s swaps ran against different enemy sets; ranking on %s only" % (what, ", ".join(common)))
+        sw = sw[sw["e"].isin(common)]
     per = sw.groupby(["build", "card"]).agg(n=("n", "sum"), d_dpt=("d_dpt", "mean"), d_dpt_median=("d_dpt_median", "mean"), d_win=("d_win", "mean"), d_taken=("d_taken", "mean")).reset_index()
     per = per.rename(columns={"card": what})
     per.to_csv(simlib.CHARTS + "/%s_%s.csv" % (tag, fname), index=False)
