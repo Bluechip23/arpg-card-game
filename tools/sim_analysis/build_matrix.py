@@ -7,7 +7,7 @@ Reads sim_out/<char>_<build>_e_<ENEMY>[__L_<level>][__k_<component>...]/lookahea
 and writes sim_out/charts/<char>_*.png and .csv.
 Usage: python3 tools/sim_analysis/build_matrix.py --character ryan [--level 18]
 """
-import argparse
+import argparse, os
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -56,6 +56,7 @@ def main():
     ap.add_argument("--character", default="ryan")
     ap.add_argument("--level", type=int, default=18)
     ap.add_argument("--root", default=simlib.SIM_OUT, help="snapshot to read (default sim_out; e.g. sim_out/ryan50)")
+    ap.add_argument("--update-ranking", action="store_true", help="copy the card-swap table to tests/sim/builds/rankings/ (the ranking deck recipes use; commit it)")
     args = ap.parse_args()
     char = args.character.lower()
     simlib.style()
@@ -164,6 +165,16 @@ def main():
     des_runs = df[df["i"].isna() & df["a"].isna() & df["p"].isna() & df["f"].isna() & df["w"].isna() & df["r"].isna() & df["t"].isna() & df["x"].isna()]
     for col, what, fname in (("w", "card", "card_swap"), ("x", "item", "item_swap")):
         swap_table(df, des_runs, col, what, tag, fname)
+    if args.update_ranking:
+        src = simlib.CHARTS + "/%s_card_swap.csv" % tag
+        if os.path.exists(src):
+            dst_dir = os.path.join(simlib.ROOT, "tests", "sim", "builds", "rankings")
+            os.makedirs(dst_dir, exist_ok=True)
+            r = pd.read_csv(src).rename(columns={"card": "card"})
+            r.to_csv(os.path.join(dst_dir, "%s_card_swap.csv" % tag), index=False)
+            print("\nranking updated: tests/sim/builds/rankings/%s_card_swap.csv (%d rows) — commit it" % (tag, len(r)))
+        else:
+            print("\nno card-swap table for %s; ranking not updated" % tag)
 
     # Recipe decks per build.
     m = df[df["r"].notna()]

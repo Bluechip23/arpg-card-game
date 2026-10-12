@@ -17,10 +17,11 @@ extends RefCounted
 ##    "prefer": ["slice"], "exclude": ["draw"],              # optional
 ##    "max_copies": 2}                                       # per card (the game's rarity cap still applies)
 ## Candidates for a type are ranked: theme matches first, then the card's
-## measured uplift on this build from the single-card sweep when
-## sim_out/charts/<char>[_L<level>]_card_swap.csv exists, else a flat
-## efficiency heuristic, then id — so the deck is deterministic and, once a
-## sweep has run, data-driven.
+## measured uplift on this build from the committed ranking
+## tests/sim/builds/rankings/<char>[_L<level>]_card_swap.csv (written by
+## `build_matrix.py --update-ranking` from a single-card sweep), else a flat
+## efficiency heuristic, then id — deterministic, reproducible from the repo,
+## and data-driven once a ranking is committed.
 
 const DECK_SIZE := 12
 static var _pool: Dictionary = {}
@@ -62,7 +63,10 @@ static func legal_ids() -> Array:
 ## Uplift per card for one build from the single-card sweep CSV, {} when none ran.
 static func measured_uplift(character: String, build: String, level: int) -> Dictionary:
 	var tag := character.to_lower() if level == CharacterBuilds.DEFAULT_LEVEL else "%s_L%d" % [character.to_lower(), level]
-	var path := "res://sim_out/charts/%s_card_swap.csv" % tag
+	# The ranking lives in the repo (tests/sim/builds/rankings/), refreshed
+	# only by `build_matrix.py --update-ranking`, so a recipe deck is the same
+	# on every machine and does not shift between a "before" and an "after".
+	var path := "res://tests/sim/builds/rankings/%s_card_swap.csv" % tag
 	if not FileAccess.file_exists(path):
 		return {}
 	var out := {}
