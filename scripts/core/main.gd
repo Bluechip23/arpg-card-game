@@ -5574,7 +5574,7 @@ const RELEASE_TENSION_DEBUFFS := [
 	["shock", "shock_stacks", ""], ["cold", "cold_stacks", ""],
 	["bleed", "bleed_stacks", ""], ["vulnerable", "vulnerable_stacks", ""],
 	["weaken", "weaken_stacks", ""], ["slow", "slow_stacks", ""],
-	["choke", "choke_dot_stacks", ""], ["disarm (attacks)", "disarmed_attacks", ""],
+	["choke", "choke_dot_stacks", ""],
 	["stun", "stun_tempo", "is_stunned"], ["silence", "silenced_tempo", "is_silenced"],
 	["disarm", "disarmed_tempo", "is_disarmed"], ["mark", "marked_tempo", "is_marked"],
 	["frozen", "frozen_tempo", "is_frozen"], ["root", "rooted_tempo", ""],
@@ -8255,17 +8255,19 @@ func _throw_snowballs(direction: Vector3) -> Array:
 ## Misery Loves Company: if armed, spread every debuff on the player and on
 ## any hit enemy across all the hit enemies, topping each up to the highest
 ## stack (or longest timer) seen. Wired into every AOE attack. Consumes the arm.
-## [enemy apply_debuff key, enemy field, true = stacks add / false = a timer]
+## Misery spreads the highest value: a target ends with at least the top,
+## never more.
+## [enemy apply_debuff key, enemy field, true = apply_debuff ADDS (stacks and
+## the additive timers Disarm, Root, Curse) / false = it keeps the longer timer]
 const MISERY_KINDS := [
 	["burn", "burn_stacks", true], ["poison", "poison_stacks", true],
 	["shock", "shock_stacks", true], ["cold", "cold_stacks", true],
 	["bleed", "bleed_stacks", true], ["vulnerable", "vulnerable_stacks", true],
 	["weaken", "weaken_stacks", true], ["slow", "slow_stacks", true],
-	["disarm_attacks", "disarmed_attacks", true],
+	["disarmed", "disarmed_tempo", true], ["root", "rooted_tempo", true],
+	["cursed", "cursed_tempo", true],
 	["stun", "stun_tempo", false], ["silenced", "silenced_tempo", false],
-	["disarmed", "disarmed_tempo", false], ["marked", "marked_tempo", false],
-	["root", "rooted_tempo", false], ["trip", "tripped_tempo", false],
-	["cursed", "cursed_tempo", false],
+	["marked", "marked_tempo", false], ["trip", "tripped_tempo", false],
 ]
 
 func _apply_misery_spread(hit_enemies: Array) -> void:
@@ -8314,8 +8316,14 @@ func _apply_misery_spread(hit_enemies: Array) -> void:
 			cur = int(cur) if cur != null else 0
 			if cur >= top:
 				continue
-			# Stacks add the gap; timers are set to the longest seen.
+			# Additive keys get only the gap; max-timer keys get the top.
 			en.apply_debuff(k[0], top - cur if k[2] else top)
+			# apply_debuff adds the sphere amps (Stun, Silence, Disarm, Root,
+			# Shock) on its own, but the top already carries the amp of the
+			# hit that set it — spreading it must not count that twice.
+			var now = en.get(k[1])
+			if now != null and int(now) > top:
+				en.set(k[1], top)
 	add_battle_log("Misery spread debuffs across %d enemies!" % hit_enemies.size(), Color(0.85, 0.5, 0.95))
 	print("[MAIN] Misery Loves Company spread: %s" % str(maxv))
 

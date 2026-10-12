@@ -2571,9 +2571,13 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 func _tick_timed_statuses(amount: int) -> void:
 	if amount <= 0:
 		return
+	_clear_exposed_if_armored()
+	# Every timer counted down below must be on this list, or a lone status
+	# of that kind never runs out (a Trip once lasted until something else
+	# timed landed on the enemy).
 	var any := taunt_tempo > 0 or fear_tempo > 0 \
 		or disarmed_tempo > 0 or marked_tempo > 0 or silenced_tempo > 0 \
-		or frozen_tempo > 0 or stun_tempo > 0 \
+		or frozen_tempo > 0 or stun_tempo > 0 or tripped_tempo > 0 \
 		or rooted_tempo > 0 or narashimha_tempo > 0 or cursed_tempo > 0 \
 		or not phys_defense_groups.is_empty() or hidden_tempo > 0 or _screecher_visible_tempo > 0 \
 		or slow_stacks > 0 or vulnerable_stacks > 0 or weaken_stacks > 0
@@ -3730,7 +3734,7 @@ func _tick_venom(amount: int) -> void:
 
 func _try_cerberus_roar() -> bool:
 	## Roar: 25 armor and 25 thorns.
-	current_armor += 25
+	_gain_armor(25)
 	enemy_thorns += 25
 	update_health_display()
 	_update_status_indicators()
@@ -5762,6 +5766,8 @@ func _mirror_health() -> void:
 	current_health = mimic_of.current_health
 	max_armor = mimic_of.max_armor
 	current_armor = mimic_of.current_armor
+	# The original re-armoring is the mimic re-armoring.
+	_clear_exposed_if_armored()
 	update_health_display()
 	_update_armor_bar()
 
@@ -6961,7 +6967,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	# Earth Mage: gain armor every time it is hit (for the NEXT blow, applied after
 	# this hit has resolved so it doesn't soak the triggering damage).
 	if from_player and armor_per_hit > 0 and current_health > 0:
-		current_armor += armor_per_hit
+		_gain_armor(armor_per_hit)
 		max_armor = max(max_armor, current_armor)
 		_update_armor_bar()
 		print("[%s] Hardens — +%d armor (now %d)" % [enemy_name, armor_per_hit, current_armor])
@@ -7356,9 +7362,11 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			disarmed_tempo += value + int(_player_sphere_amp("sphere_disarm_amp"))
 			print("[%s] Disarmed for %d tempo" % [enemy_name, disarmed_tempo])
 		"marked":
+			# The longer Mark wins: a short re-apply (Wither, Territorial
+			# Death's "+1") must never cut a running Mark down to its value.
 			is_marked = true
-			marked_tempo = value
-			print("[%s] Marked for %d tempo" % [enemy_name, value])
+			marked_tempo = max(marked_tempo, value)
+			print("[%s] Marked for %d tempo" % [enemy_name, marked_tempo])
 		"silenced":
 			is_silenced = true
 			silenced_tempo = max(silenced_tempo, value + int(_player_sphere_amp("sphere_silence_amp")))
@@ -7505,6 +7513,23 @@ func update_health_display() -> void:
 	for m in _mimics:
 		if m != null and is_instance_valid(m) and m.is_alive():
 			m._mirror_health()
+
+## Every way an enemy gains armor goes through here, so Exposed ("until it
+## gains armor again") ends the moment any armor is back on.
+func _gain_armor(amount: int) -> void:
+	if amount <= 0:
+		return
+	current_armor += amount
+	_clear_exposed_if_armored()
+
+## Exposed is the state of having had armor broken and none since: armor back
+## on means it is over. Called by _gain_armor and, as a backstop for any path
+## that sets current_armor directly, by the per-tempo tick.
+func _clear_exposed_if_armored() -> void:
+	if is_exposed and current_armor > 0:
+		is_exposed = false
+		print("[%s] Armor back on — no longer Exposed" % enemy_name)
+		_update_status_indicators()
 
 func reduce_armor(amount: int) -> void:
 	if current_armor > 0:
@@ -7916,6 +7941,9 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 		"Rooted":
 			desc = "Cannot move. More Root adds to the timer."
 			remaining = "Remaining: %d tempo" % rooted_tempo
+		"Tripped":
+			desc = "Its moves cover %d fewer tiles." % TRIP_MOVE_PENALTY
+			remaining = "Remaining: %d tempo" % tripped_tempo
 		_:
 			desc = ""
 			remaining = ""
