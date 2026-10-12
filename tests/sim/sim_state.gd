@@ -220,10 +220,12 @@ func _why_unplayable(c: Card, index: int, dmgr) -> String:
 		return "needs a pick (policy must supply picks)"
 	return ""
 
-## Cards whose play opens a picker the policy would have to answer; the
-## generic policies skip them until they carry picks (docs/sim/README.md).
-const NEEDS_PICK := ["sky_attack", "mirror_mirror", "collect_arrows",
-	"friendship", "release_tension", "crack_of_mintaka", "life_swap", "communal_donation"]
+## Cards the policies cannot play yet. Empty: the eight that open a picker
+## (Sky Attack, Mirror Mirror, Collect Arrows, Friendship, Release Tension,
+## Crack of Mintaka, Life Swap, Communal Donation) are answered by the
+## runner's prompt handling or carry picks from the lookahead. A card added
+## here never gets played, so its single-card sweep reads as a dead card.
+const NEEDS_PICK := []
 
 func hand_index_of(card_id: String) -> int:
 	for h in hand:

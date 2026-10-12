@@ -69,7 +69,11 @@ func choose_action(state: SimState) -> Variant:
 			str(state.can_move), "locked" if state.movement_locked else "free", "walking" if state.main.player.is_moving else "still", " ".join(th), "  ".join(top)])
 	if best.get("type", "") == "play":
 		var c: Dictionary = state.hand[best["card"]]
-		if str(c["description"]).to_lower().find("discard a card") >= 0 and not best.has("picks"):
+		var own_pick := _own_pick(c, state, int(best["card"]))
+		if own_pick >= 0 and not best.has("picks"):
+			best = best.duplicate()
+			best["picks"] = {"picked_card": own_pick}
+		elif str(c["description"]).to_lower().find("discard a card") >= 0 and not best.has("picks"):
 			var pick := _worst_card_index(state, int(best["card"]))
 			if pick >= 0:
 				best = best.duplicate()
@@ -237,6 +241,7 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 			else:
 				gain += _self_value(c, text, state, threats, tempo, hp_weight)
 			gain += _discard_value(c, text, state)
+			gain += _pick_card_value(c, state, target, hp_weight)
 		"attack":
 			tempo = maxi(1, int(a.get("tempo", state.basic_attack_tempo)))
 			var idx := int(str(a.get("target", "enemy:-1")).substr(6))
@@ -412,6 +417,50 @@ static func _discard_value(c: Dictionary, text: String, state: SimState) -> floa
 	if text.find("draw") >= 0:
 		v += _draw_value(state) * 0.5   # the card comes back as a fresh one
 	return v
+
+## The card a picking card should take: Sky Attack discards the hardest
+## hitter (its damage becomes the shot), Mirror Mirror copies the best card.
+static func _own_pick(c: Dictionary, state: SimState, exclude: int) -> int:
+	match str(c["id"]):
+		"sky_attack":
+			return _best_index(state, exclude, true)
+		"mirror_mirror":
+			return _best_index(state, exclude, false)
+	return -1
+
+static func _best_index(state: SimState, exclude: int, damage_only: bool) -> int:
+	var best := -1
+	var best_v := -1.0
+	for h in state.hand:
+		if h["index"] == exclude:
+			continue
+		var v := float(h["damage"]) if damage_only else float(h["damage"]) + float(h["block"]) + float(h["heal"])
+		if v > best_v:
+			best_v = v
+			best = h["index"]
+	return best
+
+## Cards whose worth is another card: what the pick or the fetch is worth.
+static func _pick_card_value(c: Dictionary, state: SimState, target: String, hp_weight: float) -> float:
+	match str(c["id"]):
+		"sky_attack":
+			var i := _best_index(state, int(c["index"]), true)
+			for h in state.hand:
+				if h["index"] == i:
+					return float(h["damage"]) + 1.0   # the shot, plus the high ground it leaves
+		"mirror_mirror":
+			var j := _best_index(state, int(c["index"]), false)
+			for h in state.hand:
+				if h["index"] == j:
+					return 0.8 * (float(h["damage"]) + float(h["block"]) + float(h["heal"]))
+		"collect_arrows":
+			return _draw_value(state) * float(mini(2, state.discard_size))
+		"release_tension":
+			if target.begins_with("enemy:"):
+				var e: Dictionary = state.enemies[int(target.substr(6))]
+				if not (e.get("effects", []) as Array).is_empty() or int(e.get("poison", 0)) > 0:
+					return minf(3.0, float(state.player_max_hp - state.player_hp)) * hp_weight + 1.0
+	return 0.0
 
 static func _draw_value(state: SimState) -> float:
 	if state.hand.size() <= 2:

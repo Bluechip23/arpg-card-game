@@ -38,6 +38,14 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   decision and tick; three concurrent processes produce byte-identical
   run files.
 
+- **Eight cards were never played by the policy.** Sky Attack, Mirror
+  Mirror, Collect Arrows, Friendship, Release Tension, Crack of Mintaka,
+  Life Swap and Communal Donation were held out of the legal actions as
+  "needs a pick", so the single-card sweep scored each as a dead card (all
+  eight had identical numbers on every build). They are now playable: the
+  runner answers their pickers and the lookahead values and picks for Sky
+  Attack, Mirror Mirror, Collect Arrows and Release Tension.
+
 ## Open (not changed)
 
 - **`tests/_build_sims.gd` spelled Ryan's passive `lets_dance`; the game's
