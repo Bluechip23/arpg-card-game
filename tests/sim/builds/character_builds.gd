@@ -41,12 +41,27 @@ static func components(character: String) -> Dictionary:
 		"recipes": recipes(character).keys(), "card_pool": SimDeckBuilder.legal_ids(),
 		"tactics": tactics(character).keys(), "item_pool": item_pool()}
 
-## The library's TACTICS (overlays any build can take), {} when it has none.
+## The tactics a character can take: DEFAULT_TACTICS merged with the
+## library's TACTICS, with passive weights resolved from the character's
+## tree when the entry gives words instead of ids.
 static func tactics(character: String) -> Dictionary:
 	var lib := library(character)
-	if lib == null:
-		return {}
-	return lib.get_script_constant_map().get("TACTICS", {})
+	var own: Dictionary = lib.get_script_constant_map().get("TACTICS", {}) if lib else {}
+	var out := _merged(DEFAULT_TACTICS, own)
+	var text := {}
+	for name in out:
+		var t: Dictionary = out[name]
+		if t.has("passives") or not t.has("passive_words"):
+			continue
+		if text.is_empty():
+			text = tree_passive_text(character)
+		var ps := {}
+		for pid in text:
+			for w in t["passive_words"]:
+				if text[pid].find(str(w)) >= 0:
+					ps[pid] = 3
+		t["passives"] = ps
+	return out
 
 ## Every item a stored build can be tested with: each zero-argument ItemData
 ## factory of the given rarities that goes in an equipment slot (scrolls do
@@ -137,13 +152,71 @@ static func _item_type(id: String) -> int:
 	var it = script.call("create_%s" % id)
 	return int(it.item_type) if it is ItemData else -1
 
-## The library's DECK_RECIPES (shape-described decks), {} when it has none.
+## Deck recipes every character gets (cards are universal): shape-described
+## decks the generator fills from the whole pool (see SimDeckBuilder). A
+## library's DECK_RECIPES adds to or overrides these by name.
+const DEFAULT_RECIPES := {
+	"dagger_rush": {"shape": {"ATTACK": 7, "DEFENSE": 3, "UTILITY": 2}, "school": "PHYSICAL", "reach": "melee",
+		"theme": ["dagger", "slice", "strike", "bleed"]},
+	"poisoner": {"shape": {"ATTACK": 3, "UTILITY": 6, "DEFENSE": 3}, "theme": ["poison", "potion", "toxin"]},
+	"discard_mill": {"shape": {"ATTACK": 3, "UTILITY": 7, "DEFENSE": 2}, "theme": ["discard"]},
+	"ghost": {"shape": {"ATTACK": 5, "UTILITY": 5, "DEFENSE": 2}, "theme": ["invisib", "blink", "shadow", "swap", "displace", "teleport"]},
+	"archer": {"shape": {"ATTACK": 8, "UTILITY": 2, "DEFENSE": 2}, "reach": "ranged", "theme": ["arrow", "shot", "bow"]},
+	"instants": {"shape": {"REACTION": 4, "ATTACK": 5, "DEFENSE": 3}},
+	"caster": {"shape": {"ATTACK": 6, "UTILITY": 4, "DEFENSE": 2}, "school": "SPELL"},
+	"top_twelve": {"shape": {"OFFENSIVE": 6, "DEFENSE": 3, "UTILITY": 3}},
+}
+
+## Tactics every character gets: cards into the deck's tail and an item
+## into its slot. Passive ranks come from the character's own tree — the
+## passives whose text names the tactic's words — unless the library's
+## TACTICS entry lists them; a library entry overrides these field by field.
+const DEFAULT_TACTICS := {
+	"invisibility": {"deck": ["shadows", "shadows", "blink"], "items": [["shadow_obi", 0]],
+		"passive_words": ["invisib", "displac"], "slotted": {"shadow_obi": ["shuriken", "poke"]}},
+	"poison": {"deck": ["poison_bomb", "poison_bomb", "hemotoxins"], "items": [["alchemeist_belt", 0]],
+		"passive_words": ["poison"], "slotted": {"alchemeist_belt": ["poison_bomb", "poisoned_blood"]}},
+	"discard": {"deck": ["discard", "volatile_mixture", "volatile_mixture"], "passive_words": ["discard"]},
+	"mobility": {"deck": ["blink", "reposition", "bob_and_weave"], "items": [["houdinis_slippers", 0]],
+		"passive_words": ["spaces moved", "movement", "instant is played"], "slotted": {"houdinis_slippers": ["blink"]}},
+	"burst": {"deck": ["exhausted_assault", "multishot", "consecutive_snap"], "passive_words": ["first strike", "first attack"]},
+}
+
+static func _merged(defaults: Dictionary, overrides: Dictionary) -> Dictionary:
+	var out := {}
+	for k in defaults:
+		out[k] = (defaults[k] as Dictionary).duplicate(true)
+	for k in overrides:
+		if out.has(k):
+			for f in overrides[k]:
+				out[k][f] = overrides[k][f]
+		else:
+			out[k] = (overrides[k] as Dictionary).duplicate(true)
+	return out
+
 static func recipes(character: String) -> Dictionary:
 	var lib := library(character)
-	if lib == null:
-		return {}
-	var consts: Dictionary = lib.get_script_constant_map()
-	return consts.get("DECK_RECIPES", {})
+	var own: Dictionary = lib.get_script_constant_map().get("DECK_RECIPES", {}) if lib else {}
+	return _merged(DEFAULT_RECIPES, own)
+
+## {passive id: its tree description} for the character.
+static func tree_passive_text(character: String) -> Dictionary:
+	var tree = SkillTreeData.create_tree_for(character.capitalize(), 50)
+	var out := {}
+	for row in tree.rows:
+		for opt in row.options:
+			if opt.option_type == SkillTreeData.OptionType.PASSIVE and opt.passive_id != "":
+				out[opt.passive_id] = str(opt.description).to_lower()
+	return out
+
+## How many slots of an item type the character has (the game's own
+## Inventory.initialize decides: Ryan 2 belts, Jeremy 3 rings, Cory 2 gauntlets).
+static func slot_count(character: String, item_type: int) -> int:
+	var inv := Inventory.new()
+	inv.initialize(character.capitalize())
+	var n: int = inv._get_max_slots(item_type)
+	inv.free()
+	return n
 
 ## Every upgradeable passive the character's skill tree offers, read from
 ## the tree itself so a passive the designer adds is swept automatically.
@@ -265,6 +338,8 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 			for ti in tactic.get("items", []):
 				var tid := str(ti[0])
 				var tslot: int = int(ti[1]) if ti.size() > 1 else 0
+				if tslot >= slot_count(character, _item_type(tid)):
+					tslot = 0
 				var worn := false
 				for e in entries:
 					if str(e[0]) == tid or (e.size() > 2 and str(e[2]) == tid):

@@ -180,8 +180,14 @@ def main():
             print("\nrecipe vs the build's own deck (win rate, median DPT):\n", g.groupby("r").agg(d_win=("d_win", "mean"), d_dpt_median=("d_dpt_median", "mean")).round(3).sort_values("d_win", ascending=False).to_string())
         heatmap(g.pivot(index="build", columns="r", values="win_rate"), "%s build (rows) x recipe deck (columns) — win rate" % char, "%s_recipes_win.png" % tag)
 
-    # Tactic overlays per build, against the build's own designed run.
+    # Tactic overlays per build, against the build's own designed run (runs
+    # with a refused equip are listed and left out, as in the swap tables).
     m = df[df["t"].notna()]
+    bad = m[m["clean"] < 1.0]
+    if not bad.empty:
+        print("\ntactics not wearable as packaged (excluded): " + "; ".join(
+            "%s+%s (%s)" % (b, t, str(w).split("|")[0][:70]) for (b, t), w in bad.groupby(["build", "t"])["warnings"].first().items()))
+    m = m[m["clean"] == 1.0]
     if not m.empty:
         g = m.groupby(["build", "e", "t"]).agg(win_rate=("win", "mean"), dpt_median=("damage_per_tempo", "median"), taken=("total_damage_taken", "mean")).reset_index()
         if not des.empty:
