@@ -251,12 +251,52 @@ func _build_player() -> void:
 ## to each target node (in order), lighting every node on the way through
 ## the real unlock + effect code. Stat gates and the keystone cap are
 ## honoured; a target that cannot be reached is a warning.
+## The sphere grid the way a player buys it: every node costs one sphere
+## from the game's own sphere inventory (2 per level, granted by the real
+## level-ups), so a build cannot hold more nodes than its level paid for.
+## The build's target nodes (its keystones) are bought first along the
+## shortest gated path; whatever spheres remain are spent the way a player
+## would, on the best reachable node (Free Stat, then the build's own stats
+## by its allocation weights, combat bonuses, health, mana; connective
+## nodes only to open a path). Free Stat points bought this way are spent
+## by the same allocation weights.
+const SPHERE_FILL_SCORE := {"FREE_STAT": 4.0, "COMBAT_BONUS": 2.0, "HEALTH": 1.5, "MANA": 1.0,
+	"PASSIVE": 1.5, "CULLING_STONE": 0.2, "NULL_NODE": 0.1}
+const SPHERE_STAT_ABBR := {"STR": "strength", "DEX": "dexterity", "INT": "intelligence",
+	"WIS": "wisdom", "AGI": "agility", "DET": "determination"}
+
+var sphere_lit := 0
+var sphere_spent := 0
+
+func _buy_sphere_node(grid, nid: int) -> bool:
+	var inv = main.sphere_inventory
+	var node = grid.get_node_by_id(nid)
+	if node == null or inv == null or not inv.has_sphere_for_node(node.node_type):
+		return false
+	if not grid.unlock_node(nid):
+		return false
+	inv.spend_sphere_for_node(node.node_type)
+	main.progression_triggers._on_sphere_grid_node_unlocked(nid)
+	sphere_lit += 1
+	return true
+
+func _fill_score(node, weights: Dictionary, wmax: float) -> float:
+	var t: String = SphereGrid.NodeType.keys()[node.node_type]
+	if t == "STAT_BONUS":
+		var abbr := str(node.label).split(" ")[0].to_upper()
+		var stat: String = SPHERE_STAT_ABBR.get(abbr, "")
+		return 0.5 + 2.5 * float(weights.get(stat, 0)) / maxf(1.0, wmax)
+	if t == "MANA":
+		var caster := float(weights.get("intelligence", 0)) + float(weights.get("wisdom", 0))
+		return 1.0 + 1.5 * caster / maxf(1.0, wmax * 2.0)
+	return float(SPHERE_FILL_SCORE.get(t, 0.0))
+
 func _unlock_sphere_targets(targets: Array) -> void:
-	if targets.is_empty():
-		return
 	var grid = main.sphere_grid_ui.sphere_grid
 	var stats = main.player.get_stats()
-	var lit := 0
+	var inv = main.sphere_inventory
+	sphere_lit = 0
+	var budget: int = inv.get_count(SphereInventory.SphereType.SPHERE) if inv else 0
 	for target in targets:
 		var tid := int(target)
 		var goal = grid.get_node_by_id(tid)
@@ -297,13 +337,49 @@ func _unlock_sphere_targets(targets: Array) -> void:
 			path.push_front(at)
 			at = came_from[at]
 		for nid in path:
-			if not grid.unlock_node(nid):
-				warnings.append("sphere: unlock refused at %d (%s)" % [nid, grid.get_node_by_id(nid).label])
+			if not _buy_sphere_node(grid, nid):
+				if inv and not inv.has_sphere_for_node(grid.get_node_by_id(nid).node_type):
+					# Not a refusal: the level has not paid for this keystone yet.
+					_log("sphere: %d sphere(s) ran out on the way to %d (%s)" % [budget, tid, goal.label])
+				else:
+					warnings.append("sphere: unlock refused at %d (%s)" % [nid, grid.get_node_by_id(nid).label])
 				break
-			main.progression_triggers._on_sphere_grid_node_unlocked(nid)
-			lit += 1
+	# The rest of the budget, node by node, best reachable first — only for
+	# scenarios that ask for it (stored builds do; hand-built scenarios that
+	# pin exact numbers do not).
+	var weights: Dictionary = scenario["player"].get("allocation", {})
+	if not bool(scenario["player"].get("sphere_fill", false)):
+		grid.check_constellation_completion()
+		sphere_spent = budget - (inv.get_count(SphereInventory.SphereType.SPHERE) if inv else 0)
+		_log("sphere grid: %d node(s) bought for targets %s (no fill)" % [sphere_lit, str(targets)])
+		return
+	var wmax := 0.0
+	for k in weights:
+		wmax = maxf(wmax, float(weights[k]))
+	var guard := 0
+	while inv and inv.get_count(SphereInventory.SphereType.SPHERE) > 0 and guard < 400:
+		guard += 1
+		var best := -1
+		var best_score := -1.0
+		for n in grid.get_all_nodes():
+			if n.unlocked or n.node_type == SphereGrid.NodeType.KEYSTONE:
+				continue
+			if not grid.is_unlockable(n.id) or not SphereGrid.requirements_met(n, stats):
+				continue
+			var sc := _fill_score(n, weights, wmax)
+			if sc > best_score or (sc == best_score and n.id < best):
+				best_score = sc
+				best = n.id
+		if best < 0 or not _buy_sphere_node(grid, best):
+			break
+	# Free Stat nodes bank points: spend them by the build's own weights.
+	if stats.unspent_stat_points > 0 and not weights.is_empty():
+		var extra := CharacterBuilds.spread(weights, stats.unspent_stat_points)
+		if not stats.apply_stat_allocation(extra):
+			warnings.append("free-stat allocation refused: %s" % str(extra))
 	grid.check_constellation_completion()
-	_log("sphere grid: %d node(s) lit for targets %s" % [lit, str(targets)])
+	sphere_spent = budget - (inv.get_count(SphereInventory.SphereType.SPHERE) if inv else 0)
+	_log("sphere grid: %d node(s) bought of %d sphere(s) (targets %s)" % [sphere_lit, budget, str(targets)])
 
 ## The scenario's deck replaces the character's own; cards an equipped item
 ## owns (granted or slotted) ride along, exactly as in play.

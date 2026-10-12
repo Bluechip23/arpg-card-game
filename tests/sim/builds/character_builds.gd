@@ -290,6 +290,7 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 			"allocation": alloc,
 			"passives": ranks,
 			"sphere_targets": (lib.SPHERES[base["sphere"]] as Array).duplicate(),
+			"sphere_fill": true,
 			"items": fitted["items"],
 			"slotted": slotted,
 			"deck": deck,
