@@ -83,9 +83,13 @@ func apply_debuff(debuff: Debuff) -> void:
 	else:
 		debuffs.append(debuff)
 
-		# Special handling for Hexed and Locked - pick random card
+		# Hexed and Locked claim their card the moment they land when a hand
+		# is known — never sitting unassigned until the next hand change.
 		if debuff.debuff_type == Debuff.DebuffType.HEXED or debuff.debuff_type == Debuff.DebuffType.LOCKED:
-			_assign_random_card_to_debuff(debuff)
+			debuff.affected_card = null
+			var claim_deck = _claim_deck()
+			if claim_deck:
+				claim_deck.assign_hexed_locked_cards(self)
 
 		# Reset burn damage tracker when burn is first applied
 		if debuff.debuff_type == Debuff.DebuffType.BURN:
@@ -119,11 +123,6 @@ func apply_debuff(debuff: Debuff) -> void:
 				var ptp_cost: int = maxi(1, ceili(owner_stats.max_health * ptp_pct / 100.0))
 				if owner_stats.current_health > ptp_cost:
 					point_to_prove_triggered.emit(debuff)
-
-func _assign_random_card_to_debuff(debuff: Debuff) -> void:
-	# This will be called from deck_manager which has access to hand
-	# For now, set to -1 and let deck_manager handle it
-	debuff.affected_card_index = -1
 
 func remove_debuff(type: Debuff.DebuffType) -> void:
 	for i in range(debuffs.size() - 1, -1, -1):
@@ -382,33 +381,78 @@ func get_hexed_debuffs() -> Array[Debuff]:
 			out.append(d)
 	return out
 
-func get_hexed_mana_increase(index: int) -> int:
-	## Total hex surcharge on THIS card. Hexes usually spread across different
-	## cards, but stack onto one when there are more hexes than cards.
+## The deck whose hand Hexed / Locked claim cards from (a DeckManager —
+## untyped to dodge the cycle). The owning player's own deck is the truth; a
+## bare manager (tests, a co-op deck before its first render) falls back to
+## whichever deck last bound itself (DeckManager.assign_hexed_locked_cards).
+var hand_owner = null
+
+func _claim_deck():
+	if owner_node and is_instance_valid(owner_node) and owner_node.has_method("get_deck_manager"):
+		var own_deck = owner_node.get_deck_manager()
+		if own_deck:
+			return own_deck
+	if hand_owner and is_instance_valid(hand_owner):
+		return hand_owner
+	return null
+
+## The card at a hand index. A claim belongs to a card, not a slot: the
+## index-based queries below only translate the slot the UI or a play asks
+## about into the card sitting there now.
+func _hand_card(index: int) -> Card:
+	var deck = _claim_deck()
+	if deck == null or index < 0 or index >= deck.hand.size():
+		return null
+	return deck.hand[index]
+
+## Callers name a card either by its object or by its current hand index.
+func _as_card(which) -> Card:
+	if which is Card:
+		return which
+	if which is int:
+		return _hand_card(which)
+	return null
+
+## Total hex surcharge on this card. Hexes usually spread across different
+## cards, but stack onto one when there are more hexes than cards.
+func card_hex_surcharge(card: Card) -> int:
+	if card == null:
+		return 0
 	var total := 0
 	for d in get_hexed_debuffs():
-		if d.affected_card_index == index:
+		if d.affected_card == card:
 			total += d.value
 	return total
 
-## Playing a hexed card (paying its surcharge) clears every hex riding it.
-func remove_hexes_on_card(index: int) -> void:
-	var removed_any := false
-	for i in range(debuffs.size() - 1, -1, -1):
-		var d = debuffs[i]
-		if d.debuff_type == Debuff.DebuffType.HEXED and d.affected_card_index == index:
-			debuffs.remove_at(i)
-			debuff_removed.emit(d)
-			removed_any = true
-			print("[DEBUFF] Hex broken (card %d played)" % index)
-	if removed_any:
-		debuffs_changed.emit()
+func card_is_hexed(card: Card) -> bool:
+	return _card_claimed(card, Debuff.DebuffType.HEXED)
 
-## A card left the hand — every hex claiming a later card shifts down one.
-func shift_hexed_indices(removed_index: int) -> void:
-	for d in get_hexed_debuffs():
-		if d.affected_card_index > removed_index:
-			d.affected_card_index -= 1
+func card_is_locked(card: Card) -> bool:
+	return _card_claimed(card, Debuff.DebuffType.LOCKED)
+
+func _card_claimed(card: Card, type: Debuff.DebuffType) -> bool:
+	# A null card never matches: an unassigned claim holds no card at all.
+	if card == null:
+		return false
+	for d in debuffs:
+		if d.debuff_type == type and d.affected_card == card:
+			return true
+	return false
+
+func get_hexed_mana_increase(index: int) -> int:
+	return card_hex_surcharge(_hand_card(index))
+
+func is_card_hexed(index: int) -> bool:
+	return card_is_hexed(_hand_card(index))
+
+## Playing a hexed card (paying its surcharge) clears every hex riding it.
+## Takes the Card or its current hand index.
+func remove_hexes_on_card(which) -> void:
+	var card := _as_card(which)
+	if card == null:
+		return
+	_drop_claims_where(func(d): return d.debuff_type == Debuff.DebuffType.HEXED \
+			and d.affected_card == card, "hex broken")
 
 ## Every Locked instance — like Hexed, each one claims its own card in hand.
 func get_locked_debuffs() -> Array[Debuff]:
@@ -418,51 +462,60 @@ func get_locked_debuffs() -> Array[Debuff]:
 			out.append(d)
 	return out
 
-## The FIRST Locked instance's card (-1 when none). Single-lock callers (the
-## hand-slot grouping) read this; anything that must see every lock walks
-## get_locked_debuffs / is_card_locked.
+## The hand index of the FIRST Locked instance's card (-1 when none, or when
+## it holds no card yet). Single-lock callers (the hand-slot grouping) read
+## this; anything that must see every lock walks is_card_locked.
 func get_locked_card_index() -> int:
 	var locked = get_debuff(Debuff.DebuffType.LOCKED)
-	return locked.affected_card_index if locked else -1
-
-## Point the FIRST Locked instance at a card (deck_manager assigns the rest
-## directly through get_locked_debuffs).
-func set_locked_card_index(index: int) -> void:
-	var locked = get_debuff(Debuff.DebuffType.LOCKED)
-	if locked:
-		locked.affected_card_index = index
+	var deck = _claim_deck()
+	if locked == null or locked.affected_card == null or deck == null:
+		return -1
+	return deck.hand.find(locked.affected_card)
 
 func is_card_locked(index: int) -> bool:
-	for d in get_locked_debuffs():
-		if d.affected_card_index == index:
-			return true
-	return false
+	return card_is_locked(_hand_card(index))
 
-## The card a lock held left the hand (discarded, erased): the lock had
-## nothing left to hold and goes with it.
-func remove_locks_on_card(index: int) -> void:
-	var removed_any := false
+## The card a lock held left the hand (discarded, erased) or was played
+## through a bypass: the lock had nothing left to hold and goes with it.
+## Takes the Card or its current hand index.
+func remove_locks_on_card(which) -> void:
+	var card := _as_card(which)
+	if card == null:
+		return
+	_drop_claims_where(func(d): return d.debuff_type == Debuff.DebuffType.LOCKED \
+			and d.affected_card == card, "lock lifted")
+
+## A card left the hand by being played — the sheet's "until played" — so
+## every hex and lock riding it ends.
+func release_card_claims(card: Card) -> void:
+	if card == null:
+		return
+	_drop_claims_where(func(d): return (d.debuff_type == Debuff.DebuffType.HEXED \
+			or d.debuff_type == Debuff.DebuffType.LOCKED) and d.affected_card == card, "card played")
+
+## The one rule for every other way out of the hand (discard, jail, steal,
+## reaction, hatch, erase…): a hex or lock whose card is no longer in `hand`
+## ends with it — no other card inherits it. Unassigned claims wait.
+func drop_claims_not_in(hand: Array) -> void:
+	_drop_claims_where(func(d): return (d.debuff_type == Debuff.DebuffType.HEXED \
+			or d.debuff_type == Debuff.DebuffType.LOCKED) and d.affected_card != null \
+			and not hand.has(d.affected_card), "card left the hand")
+
+## Removes every claim matching `pred`, then announces them. The signals go
+## out only once the list is settled: a listener (a belt conjuring a tonic on
+## debuff_removed) can change the hand, which sweeps claims again.
+func _drop_claims_where(pred: Callable, why: String) -> void:
+	var dropped: Array[Debuff] = []
 	for i in range(debuffs.size() - 1, -1, -1):
-		var d = debuffs[i]
-		if d.debuff_type == Debuff.DebuffType.LOCKED and d.affected_card_index == index:
+		if pred.call(debuffs[i]):
+			dropped.append(debuffs[i])
 			debuffs.remove_at(i)
-			debuff_removed.emit(d)
-			removed_any = true
-			print("[DEBUFF] Lock lifted (card %d left the hand)" % index)
-	if removed_any:
-		debuffs_changed.emit()
-
-## A card left the hand — every lock holding a later card shifts down one.
-func shift_locked_indices(removed_index: int) -> void:
-	for d in get_locked_debuffs():
-		if d.affected_card_index > removed_index:
-			d.affected_card_index -= 1
-
-func is_card_hexed(index: int) -> bool:
-	for d in get_hexed_debuffs():
-		if d.affected_card_index == index:
-			return true
-	return false
+	if dropped.is_empty():
+		return
+	for d in dropped:
+		print("[DEBUFF] %s on %s ends (%s)" % [d.debuff_name, d.affected_card.card_name if d.affected_card else "?", why])
+		debuff_removed.emit(d)
+	debuffs_changed.emit()
 
 func get_clumsy_chance() -> int:
 	# Fixed chance while any stacks remain; the stacks fall on the clock.

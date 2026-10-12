@@ -9,7 +9,7 @@ extends SceneTree
 ##    card's timer;
 ##  - Disarm / Rooted / Silence timers ADD on re-application, and Disarm
 ##    blocks the basic attack button;
-##  - Locked holds several cards, one per instance, shifting with the hand.
+##  - Locked holds several cards, one per instance, each following its card.
 ## Run: godot --headless --path . --script tests/test_debuff_stack_clocks.gd
 
 var failures := 0
@@ -264,10 +264,9 @@ func _test_locked_multi() -> void:
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.LOCKED, 0, -1))
 	var locks := dm.get_locked_debuffs()
 	_check(locks.size() == 2, "two Locked applications are two instances")
-	deck.assign_hexed_locked_cards(dm)
-	var a: int = locks[0].affected_card_index
-	var b: int = locks[1].affected_card_index
-	_check(a != -1 and b != -1 and a != b, "each lock claims its own card (%d, %d)" % [a, b])
+	var a: int = deck.hand.find(locks[0].affected_card)
+	var b: int = deck.hand.find(locks[1].affected_card)
+	_check(a != -1 and b != -1 and a != b, "each lock claims its own card the moment it lands (%d, %d)" % [a, b])
 	_check(dm.is_card_locked(a) and dm.is_card_locked(b), "both cards read as locked")
 	var locked_count := 0
 	for i in range(deck.hand.size()):
@@ -278,28 +277,25 @@ func _test_locked_multi() -> void:
 
 	# Pin the locks to cards 1 and 3 of 4 so every shift path is exercised
 	# whatever the random assignment chose.
-	locks[0].affected_card_index = 1
-	locks[1].affected_card_index = 3
-	# A card BELOW both locks leaves the hand: both shift down one.
-	deck.hand.remove_at(0)
-	deck._update_debuff_card_indices(dm, 0)
-	_check(dm.is_card_locked(0) and dm.is_card_locked(2) and not dm.is_card_locked(1) and not dm.is_card_locked(3),
+	var c1: Card = deck.hand[1]
+	var c3: Card = deck.hand[3]
+	locks[0].affected_card = c1
+	locks[1].affected_card = c3
+	# A card BELOW both locks leaves the hand: both follow their cards down.
+	deck.discard_card_from_hand(deck.hand[0])
+	_check(dm.is_card_locked(0) and dm.is_card_locked(2) and not dm.is_card_locked(1),
 		"both locks follow their cards down one (0, 2)")
-	# A card BETWEEN them leaves: only the higher lock shifts.
-	deck.hand.remove_at(1)
-	deck._update_debuff_card_indices(dm, 1)
-	_check(dm.is_card_locked(0) and dm.is_card_locked(1) and not dm.is_card_locked(2),
-		"only the lock above the gap shifts (0, 1)")
+	# A card BETWEEN them leaves: only the higher lock moves.
+	deck.discard_card_from_hand(deck.hand[1])
+	_check(dm.is_card_locked(0) and dm.is_card_locked(1) and deck.hand[1] == c3,
+		"only the lock above the gap moves (0, 1)")
 	# A card ABOVE both leaves: neither moves.
-	deck.hand.append(Card.create_slash())
-	deck.hand.remove_at(2)
-	deck._update_debuff_card_indices(dm, 2)
+	deck.add_card_to_hand(Card.create_slash())
+	deck.discard_card_from_hand(deck.hand[2])
 	_check(dm.is_card_locked(0) and dm.is_card_locked(1), "a card above both locks leaving moves neither")
 	# The lower locked card itself leaves (a Clumsy discard): its lock goes with it.
-	deck.hand.remove_at(0)
-	dm.remove_locks_on_card(0)
-	deck._update_debuff_card_indices(dm, 0)
-	_check(dm.get_locked_debuffs().size() == 1 and dm.is_card_locked(0) and not dm.is_card_locked(1),
+	deck.discard_card_from_hand(c1)
+	_check(dm.get_locked_debuffs().size() == 1 and dm.card_is_locked(c3) and dm.is_card_locked(0),
 		"its lock is lifted; the other follows its card to 0")
 
 	# Hexed and Locked prefer different cards.
@@ -309,8 +305,7 @@ func _test_locked_multi() -> void:
 	deck.hand.append(Card.create_slash())
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.HEXED, 10, -1))
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.LOCKED, 0, -1))
-	deck.assign_hexed_locked_cards(dm)
-	var hx: int = dm.get_hexed_debuffs()[0].affected_card_index
+	var hx: int = deck.hand.find(dm.get_hexed_debuffs()[0].affected_card)
 	_check(hx != -1 and dm.get_locked_card_index() != -1 and dm.get_locked_card_index() != hx,
 		"a lock lands on a card no hex holds when it can")
 

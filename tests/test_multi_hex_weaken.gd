@@ -3,8 +3,8 @@ extends SceneTree
 ## Verifies the multi-card Hex rework and the player-side Weakened debuff:
 ## Hex — each application is its own instance claiming its own card; two hexes
 ## land on two different cards; surcharge reads per card; playing a hexed card
-## clears only the hexes riding it; indices shift when an earlier card leaves
-## the hand; more hexes than cards stack onto shared cards.
+## clears only the hexes riding it; a hex follows its card when an earlier
+## card leaves the hand; more hexes than cards stack onto shared cards.
 ## Weakened — -30% damage dealt while stacks remain (stacking with Cursed,
 ## capped); a stack is 5 tempo on the debuff's own clock — attacks never burn
 ## one — expiring when the last stack falls.
@@ -19,10 +19,10 @@ func _check(cond: bool, msg: String) -> void:
 		failures += 1
 		printerr("  FAIL: %s" % msg)
 
-func _hexed_indices(dm: DebuffManager) -> Array:
+func _hexed_indices(dm: DebuffManager, deck: DeckManager) -> Array:
 	var out: Array = []
 	for h in dm.get_hexed_debuffs():
-		out.append(h.affected_card_index)
+		out.append(deck.hand.find(h.affected_card))
 	out.sort()
 	return out
 
@@ -44,7 +44,7 @@ func _initialize() -> void:
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.HEXED, 30, 25))
 	_check(dm.get_hexed_debuffs().size() == 2, "two hex applications = two instances")
 	deck.assign_hexed_locked_cards(dm)
-	var idx: Array = _hexed_indices(dm)
+	var idx: Array = _hexed_indices(dm, deck)
 	_check(idx[0] != idx[1], "the two hexes claim DIFFERENT cards (%s)" % str(idx))
 	_check(dm.is_card_hexed(idx[0]) and dm.is_card_hexed(idx[1]), "both cards read as hexed")
 	_check(dm.get_hexed_mana_increase(idx[0]) == 30, "per-card surcharge is 30")
@@ -55,21 +55,18 @@ func _initialize() -> void:
 	_check(unhexed >= 0 and dm.get_hexed_mana_increase(unhexed) == 0, "the unhexed card pays nothing")
 
 	# --- Playing a hexed card clears only ITS hexes ---
-	dm.remove_hexes_on_card(idx[1])
+	var kept: Card = deck.hand[idx[0]]
+	dm.remove_hexes_on_card(deck.hand[idx[1]])
 	_check(dm.get_hexed_debuffs().size() == 1, "playing one hexed card clears one hex")
-	_check(dm.get_hexed_debuffs()[0].affected_card_index == idx[0], "the other hex survives")
+	_check(dm.get_hexed_debuffs()[0].affected_card == kept, "the other hex survives")
 
-	# --- Indices shift when an earlier card leaves the hand ---
-	var before: int = dm.get_hexed_debuffs()[0].affected_card_index
-	if before > 0:
-		dm.shift_hexed_indices(0)  # a card before it left the hand
-		_check(dm.get_hexed_debuffs()[0].affected_card_index == before - 1,
-			"hex follows its card down one slot")
-	else:
-		dm.shift_hexed_indices(2)  # a card after it left — no move
-		_check(dm.get_hexed_debuffs()[0].affected_card_index == before,
-			"hex unmoved when a later card leaves")
-	dm.remove_hexes_on_card(dm.get_hexed_debuffs()[0].affected_card_index)
+	# --- A hex follows its card when an earlier card leaves the hand ---
+	var before: int = deck.hand.find(kept)
+	var leaver: int = 0 if before > 0 else 2
+	deck.discard_card_from_hand(deck.hand[leaver])
+	_check(dm.card_is_hexed(kept) and dm.is_card_hexed(deck.hand.find(kept)),
+		"hex stays on its card wherever it slides (%d -> %d)" % [before, deck.hand.find(kept)])
+	dm.remove_hexes_on_card(kept)
 
 	# --- More hexes than cards: they stack onto shared cards ---
 	deck.hand.clear()

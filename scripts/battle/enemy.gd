@@ -5810,12 +5810,8 @@ func _try_card_steal(target_node: Node3D) -> bool:
 	var idx: int = randi() % dm.hand.size()
 	var card: Card = dm.hand[idx]
 	dm.hand.remove_at(idx)
-	# Hexes riding the stolen card break like they would on a play; the ones
-	# on later cards slide down to follow their cards.
-	var pdm = target_node.get_debuff_manager() if target_node.has_method("get_debuff_manager") else null
-	if pdm:
-		pdm.remove_hexes_on_card(idx)
-		dm._update_debuff_card_indices(pdm, idx)
+	# Hexes and locks riding the stolen card end with it (the hand-change
+	# sweep, DeckManager.assign_hexed_locked_cards); the rest stay on theirs.
 	dm.hand_updated.emit()
 	_stolen_card = card
 	_stolen_from = target_node
@@ -5896,7 +5892,8 @@ func _try_mind_slow(target_node: Node3D) -> bool:
 		var hex: Debuff = Debuff.create(Debuff.DebuffType.HEXED, MIND_SLOW_SURCHARGE, -1)
 		hex.source_name = enemy_name
 		pdm.apply_debuff(hex)
-		hex.affected_card_index = i   # one hex per card, assigned here rather than drawn at random
+	# Each hex claims a card no hex holds yet, so n hexes cover the n cards.
+	dm.assign_hexed_locked_cards(pdm)
 	pdm.debuffs_changed.emit()
 	print("[%s] Mind Slow: %d cards in hand cost +%d mana until played" % [enemy_name, n, MIND_SLOW_SURCHARGE])
 	turn_completed.emit()
