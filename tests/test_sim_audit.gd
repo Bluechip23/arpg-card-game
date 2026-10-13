@@ -78,7 +78,8 @@ func _audit_build(runner: SimRunner, character: String, parts: Dictionary, label
 			for it in inv.builds[1]["weapons"]:
 				if it != null and not inv.equipped_weapons.has(it):
 					stowed += 1
-		if stowed != alts.size():
+		var explained: bool = runner.warnings.any(func(w): return str(w).begins_with("alt weapons") and _allowed_warning(str(w), level))
+		if stowed != alts.size() and not explained:
 			problems.append("second weapon set %s: %d of %d stowed" % [str(alts), stowed, alts.size()])
 	if stats.unspent_stat_points != 0:
 		problems.append("%d stat point(s) unspent" % stats.unspent_stat_points)

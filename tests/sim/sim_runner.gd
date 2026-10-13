@@ -231,17 +231,7 @@ func _build_player() -> void:
 		if inv.equip_item(item, slot):
 			equipped[id] = item
 		else:
-			var why := "over carry capacity %d/%d" % [stats.current_carry_load, stats.get_carry_capacity()]
-			var conflict := str(inv.hand_conflict_reason(item, slot)) if item.item_type in [ItemData.ItemType.WEAPON, ItemData.ItemType.QUIVER] else ""
-			if conflict != "":
-				why = "hand conflict: " + conflict
-			elif item.rarity == ItemData.Rarity.MYTHIC and inv.count_equipped_mythics() >= inv.get_mythic_capacity():
-				why = "mythic cap %d" % inv.get_mythic_capacity()
-			elif slot >= inv._get_max_slots(item.item_type):
-				why = "no slot %d for this character" % slot
-			elif inv._get_slot_array(item.item_type)[slot] != null:
-				why = "slot %d occupied" % slot
-			warnings.append("equip refused: %s (slot %d, %s)" % [id, slot, why])
+			warnings.append("equip refused: %s (slot %d, %s)" % [id, slot, _equip_refusal(inv, stats, item, slot)])
 	_stow_alt_weapons(p, inv, stats)
 	# Cards engraved into the items' slots: {item id: [card ids]}. Real slot
 	# rules (count, label, feral colour) apply; a slotted card rides the item
@@ -279,6 +269,19 @@ func _build_player() -> void:
 	for ob in scenario["map"]["obstacles"]:
 		player.blocked_tiles.append(SimScenario.cell_of(ob))
 
+## Why the game refused an equip, in the game's terms.
+func _equip_refusal(inv, stats, item: ItemData, slot: int) -> String:
+	var conflict := str(inv.hand_conflict_reason(item, slot)) if item.item_type in [ItemData.ItemType.WEAPON, ItemData.ItemType.QUIVER] else ""
+	if conflict != "":
+		return "hand conflict: " + conflict
+	if item.rarity == ItemData.Rarity.MYTHIC and inv.count_equipped_mythics() >= inv.get_mythic_capacity():
+		return "mythic cap %d" % inv.get_mythic_capacity()
+	if slot >= inv._get_max_slots(item.item_type):
+		return "no slot %d for this character" % slot
+	if inv._get_slot_array(item.item_type)[slot] != null:
+		return "slot %d occupied" % slot
+	return "over carry capacity %d/%d" % [stats.current_carry_load, stats.get_carry_capacity()]
+
 ## The second weapon set, set up the way a player does out of combat. Brad
 ## straps it to the War Rack; everyone else gets it as equipment build II:
 ## open build II (a copy of the worn gear), take the other weapons in hand,
@@ -313,7 +316,7 @@ func _stow_alt_weapons(p: Dictionary, inv, stats) -> void:
 				inv.stored_items.append(off)
 	for e in items:
 		if not inv.equip_item(e[0], e[1]):
-			warnings.append("alt weapons: build II refused %s (slot %d)" % [e[0].item_name, e[1]])
+			warnings.append("alt weapons: build II refused %s (slot %d, %s)" % [e[0].item_name, e[1], _equip_refusal(inv, stats, e[0], e[1])])
 			inv.stored_items.append(e[0])
 	var back: Dictionary = inv.switch_build(0)
 	if not back["success"]:
