@@ -4,8 +4,10 @@ extends SceneTree
 ## items 30-31, designer ruled "please fix"):
 ##  - a hex follows its card when cards before it leave the hand by any path
 ##    (discard, jail, reaction, erase, hatch, a Harpy-style lift);
-##  - a hexed card that leaves the hand takes its hex with it — no other card
-##    inherits it;
+##  - a hexed card discarded keeps its hex in the discard pile (the
+##    negative-card rule — tests/test_card_countdowns.gd covers its clock);
+##    one that leaves the game (a Harpy steal) takes its hex with it — no
+##    other card inherits it either way;
 ##  - a Sticky card's re-insert does not pick up a neighbour's hex;
 ##  - a new hex claims a card the moment it lands when a hand exists;
 ##  - two locks ride a Labyrinth scramble on the same two cards;
@@ -35,7 +37,7 @@ func _initialize() -> void:
 	print("=== Hexed / Locked belong to cards ===")
 	_test_assigned_at_once()
 	_test_follows_its_card()
-	_test_leaving_takes_the_hex()
+	_test_leaving_the_game_takes_the_hex()
 	_test_sticky_reinsert()
 	_test_labyrinth_two_locks()
 	_test_mind_slow()
@@ -145,26 +147,37 @@ func _test_follows_its_card() -> void:
 		"the surcharge reads on the card, not the slot it started in")
 	_free(p)
 
-func _test_leaving_takes_the_hex() -> void:
-	print("-- a hexed card leaving takes its hex --")
+func _test_leaving_the_game_takes_the_hex() -> void:
+	print("-- a discarded card keeps its hex; one that leaves the game takes it --")
 	var p := _mk(4)
 	var dm: DebuffManager = p[0]
 	var deck: DeckManager = p[1]
 	var hexed: Card = deck.hand[1]
 	_hex_on(dm, hexed)
 	deck.discard_card_from_hand(hexed)
-	_check(dm.get_hexed_debuffs().is_empty(), "discarded: the hex ends with the card")
-	_check(_hexed_slots(dm, deck).is_empty(), "no other card inherits it")
+	_check(dm.card_is_hexed(hexed) and dm.get_hexed_debuffs().size() == 1,
+		"discarded: the hex stays on its card in the discard pile")
+	_check(_hexed_slots(dm, deck).is_empty(), "no card left in the hand inherits it")
 	# A lock goes the same way.
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.LOCKED, 0, -1))
 	var locked: Card = dm.get_locked_debuffs()[0].affected_card
 	deck.discard_card_from_hand(locked)
-	_check(dm.get_locked_debuffs().is_empty(), "a discarded locked card takes its lock")
+	_check(dm.card_is_locked(locked) and dm.get_locked_debuffs().size() == 1,
+		"a discarded locked card keeps its lock in the discard pile")
 	for i in range(deck.hand.size()):
 		_check(not dm.is_card_locked(i), "slot %d is not locked" % i)
-	# Coming back later (a Harpy's death returns the stolen card) it is clean.
-	deck.add_card_to_hand(hexed)
-	_check(not dm.card_is_hexed(hexed), "a card that left and came back is no longer hexed")
+	_check(dm.get_locked_card_index() == -1, "the lock's card is not in the hand: no locked slot")
+	# Leaving the game (the Ash Harpy lifts it straight out of the hand)
+	# ends the claim; coming back on the Harpy's death it is clean.
+	dm.clear_all_debuffs()
+	var stolen: Card = deck.hand[0]
+	_hex_on(dm, stolen)
+	deck.hand.remove_at(0)
+	deck.hand_updated.emit()
+	_check(dm.get_hexed_debuffs().is_empty(), "stolen: the hex ends with the card")
+	_check(_hexed_slots(dm, deck).is_empty(), "no other card inherits it")
+	deck.add_card_to_hand(stolen)
+	_check(not dm.card_is_hexed(stolen), "a stolen card that came back is no longer hexed")
 	_free(p)
 
 func _test_sticky_reinsert() -> void:

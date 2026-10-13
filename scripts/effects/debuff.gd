@@ -71,10 +71,14 @@ var clock_timed: bool = false
 ## since its last stack fell. A stack applied at tempo 3 is gone at tempo 8,
 ## not at the next global cycle boundary.
 var stack_clock: int = 0
-## Hexed / Locked: the card in hand this instance claims (null until the
-## hand has one to give). A claim rides the Card itself, not a hand slot, so
-## it follows its card through every reshuffle of the hand and ends when that
-## card leaves it.
+## Hexed / Locked: the card this instance claims (null until the hand has one
+## to give — a new claim only ever takes a card in hand). A claim rides the
+## Card itself, not a hand slot, so it follows its card through every
+## reshuffle of the hand and, by the designer's negative-card rule, into the
+## discard and draw piles and jail: its clock keeps running in the piles and
+## freezes in jail (DebuffManager.advance_time). It ends when the card is
+## played ("until played"), when the clock runs out wherever the card is, or
+## when the card leaves the game (erased, stolen, enchanted away).
 var affected_card: Card = null
 
 func _init(type: DebuffType, val: int = 0, dur: int = DEFAULT_DURATION) -> void:
@@ -168,10 +172,12 @@ func _set_name_and_description() -> void:
 			description = "Card plays cost %d more tempo (not the auto attack or Block); each card played burns a stack (%d left)" % [WEIGHTED_TEMPO, value]
 		DebuffType.HEXED:
 			debuff_name = "Hexed"
-			description = "One card in your hand costs +%d mana until it is played" % value
+			description = "One card costs +%d mana until it is played%s. The hex stays on its card in the discard and draw piles, where its clock keeps running; the clock freezes while the card is jailed" \
+					% [value, "" if duration < 0 else " (%d tempo left)" % duration]
 		DebuffType.LOCKED:
 			debuff_name = "Locked"
-			description = "One random card cannot be played (each Locked holds its own card)"
+			description = "One random card cannot be played%s (each Locked holds its own card). The lock stays on its card in the discard and draw piles, where its clock keeps running; the clock freezes while the card is jailed" \
+					% ("" if duration < 0 else " (%d tempo left)" % duration)
 		DebuffType.ROOTED:
 			debuff_name = "Rooted"
 			description = "Cannot move (%d tempo left)" % duration

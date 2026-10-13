@@ -244,6 +244,10 @@ func advance_time(amount: int) -> void:
 		return
 	var expired: Array[Debuff] = []
 	for debuff in debuffs:
+		# The negative-card rule: a hex or lock's clock keeps running while
+		# its card sits in the discard or draw pile, but freezes in jail.
+		if _claim_frozen(debuff):
+			continue
 		if debuff.advance_time(amount):
 			expired.append(debuff)
 
@@ -396,6 +400,17 @@ func _claim_deck():
 		return hand_owner
 	return null
 
+func _is_claim(d: Debuff) -> bool:
+	return d.debuff_type == Debuff.DebuffType.HEXED or d.debuff_type == Debuff.DebuffType.LOCKED
+
+## A hex or lock whose card is jailed: its clock stands still until the card
+## is released. Only the owning deck knows where the card sits.
+func _claim_frozen(d: Debuff) -> bool:
+	if not _is_claim(d) or d.affected_card == null:
+		return false
+	var deck = _claim_deck()
+	return deck != null and deck.has_method("is_card_jailed") and deck.is_card_jailed(d.affected_card)
+
 ## The card at a hand index. A claim belongs to a card, not a slot: the
 ## index-based queries below only translate the slot the UI or a play asks
 ## about into the card sitting there now.
@@ -462,22 +477,26 @@ func get_locked_debuffs() -> Array[Debuff]:
 			out.append(d)
 	return out
 
-## The hand index of the FIRST Locked instance's card (-1 when none, or when
-## it holds no card yet). Single-lock callers (the hand-slot grouping) read
-## this; anything that must see every lock walks is_card_locked.
+## The hand index of the first Locked card IN HAND (-1 when none — a lock
+## may hold no card yet, or ride one resting in the discard pile or jail).
+## Single-lock callers (the hand-slot grouping) read this; anything that
+## must see every lock walks is_card_locked.
 func get_locked_card_index() -> int:
-	var locked = get_debuff(Debuff.DebuffType.LOCKED)
 	var deck = _claim_deck()
-	if locked == null or locked.affected_card == null or deck == null:
+	if deck == null:
 		return -1
-	return deck.hand.find(locked.affected_card)
+	for lock in get_locked_debuffs():
+		if lock.affected_card != null:
+			var i: int = deck.hand.find(lock.affected_card)
+			if i >= 0:
+				return i
+	return -1
 
 func is_card_locked(index: int) -> bool:
 	return card_is_locked(_hand_card(index))
 
-## The card a lock held left the hand (discarded, erased) or was played
-## through a bypass: the lock had nothing left to hold and goes with it.
-## Takes the Card or its current hand index.
+## Lifts every lock riding this card (a lock played through a bypass, or
+## any caller that frees one card). Takes the Card or its current hand index.
 func remove_locks_on_card(which) -> void:
 	var card := _as_card(which)
 	if card == null:
@@ -493,13 +512,16 @@ func release_card_claims(card: Card) -> void:
 	_drop_claims_where(func(d): return (d.debuff_type == Debuff.DebuffType.HEXED \
 			or d.debuff_type == Debuff.DebuffType.LOCKED) and d.affected_card == card, "card played")
 
-## The one rule for every other way out of the hand (discard, jail, steal,
-## reaction, hatch, erase…): a hex or lock whose card is no longer in `hand`
-## ends with it — no other card inherits it. Unassigned claims wait.
-func drop_claims_not_in(hand: Array) -> void:
-	_drop_claims_where(func(d): return (d.debuff_type == Debuff.DebuffType.HEXED \
-			or d.debuff_type == Debuff.DebuffType.LOCKED) and d.affected_card != null \
-			and not hand.has(d.affected_card), "card left the hand")
+## The one rule for every other way a card moves (the designer's rule for
+## negative card effects): a hex or lock stays on its card through a discard,
+## a jail, a reshuffle into the draw pile — wherever `deck` still holds it —
+## and ends only when the card leaves the game (erased, burnt, stolen,
+## enchanted away). No other card inherits it. Unassigned claims wait.
+func drop_claims_off_deck(deck) -> void:
+	if deck == null:
+		return
+	_drop_claims_where(func(d): return _is_claim(d) and d.affected_card != null \
+			and not deck.holds_card(d.affected_card), "card left the game")
 
 ## Removes every claim matching `pred`, then announces them. The signals go
 ## out only once the list is settled: a listener (a belt conjuring a tonic on
