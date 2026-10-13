@@ -130,7 +130,10 @@ func _run() -> void:
 	_check(ring.count("cyclops_ring") == 1 and ring.has("marvolo_gaunt") and not ring.has("ring_of_stone_hide"), "a ring takes ring slot 0 and keeps slot 1 (%s)" % str(ring))
 	# compose swaps components and keeps the rest.
 	var mixed := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "bruiser", "deck": "potions", "alloc": "int_wis", "sphere": "none", "passives": "apothecary", "enemy": "WERERAT"}))
-	_check(mixed["player"]["deck"] == RyanBuilds.DECKS["potions"], "compose swaps the deck")
+	_check(mixed["player"]["deck"] == SimDecks.DECKS["potions"], "compose swaps the deck")
+	var cross := CharacterBuilds.compose("brad", {"build": "immovable_warden", "deck": "spells"})
+	_check(cross["player"]["deck"] == SimDecks.DECKS["spells"] and CharacterBuilds.components("cory")["deck"] == SimDecks.DECKS.keys(),
+		"decks are shared: Brad loads the spell deck, every character lists every deck")
 	_check(mixed["player"]["allocation"] == CharacterBuilds.spread(RyanBuilds.ALLOCS["int_wis"], 51), "compose swaps the allocation")
 	_check(mixed["player"]["sphere_targets"].is_empty() and mixed["player"]["passives"] == CharacterBuilds.spread(RyanBuilds.PASSIVES["apothecary"], 17, 15), "compose swaps sphere path and passives")
 	var own_ids: Array = []

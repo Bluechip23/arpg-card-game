@@ -2,8 +2,9 @@ class_name CoryBuilds
 extends RefCounted
 
 ## Cory's build library (CharacterBuilds.compose("cory", parts)): the
-## designer's loadouts from tests/_build_sims.gd with placeholder decks.
-## Fill in the components, keep the shape.
+## designer's loadouts from tests/_build_sims.gd. Decks come from the
+## shared library (tests/sim/builds/decks.gd). Fill in the components,
+## keep the shape.
 
 const DEFAULT_ENEMY := "LARGE_BEAR"
 
@@ -19,11 +20,6 @@ const SLOTTED := {
 	"withering_lurker": {"blue_robe": ["approach", "armor_patch"], "belt_of_wumbology": ["healing_potion", "discard"]},
 	"overcharged_monk": {},
 	"attrition_grove": {"treebeards_branch": ["repelled_block", "hunker_down"]},
-}
-const DECKS := {
-	"starter": ["slash", "slash", "slash", "block", "block", "block", "draw", "draw", "gain_mana", "heal"],
-	"debuffer": ["splinter", "splinter", "wear_down", "wear_down", "poison_bomb", "poison_bomb",
-		"slash", "slash", "block", "block", "heal", "draw"],
 }
 const ALLOCS := {
 	"dex_int_agi": {"dexterity": 18, "intelligence": 18, "agility": 15},

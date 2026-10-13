@@ -2,9 +2,10 @@ class_name CharacterBuilds
 extends RefCounted
 
 ## The character-generic build composer. Each character has a component
-## file, tests/sim/builds/<name>_builds.gd, holding named ITEM_SETS, DECKS,
+## file, tests/sim/builds/<name>_builds.gd, holding named ITEM_SETS,
 ## ALLOCS, SPHERES, PASSIVES, SLOTTED and DESIGNED builds (see
-## ryan_builds.gd for the shape). compose() turns a choice of parts into a
+## ryan_builds.gd for the shape). Decks are shared by every character
+## (tests/sim/builds/decks.gd), as are WEAPON_SETS below. compose() turns a choice of parts into a
 ## scenario Dictionary at any level:
 ##
 ##   CharacterBuilds.compose("ryan", {"build": "bruiser", "level": 50,
@@ -34,7 +35,7 @@ static func components(character: String) -> Dictionary:
 	var lib := library(character)
 	if lib == null:
 		return {}
-	return {"items": lib.ITEM_SETS.keys(), "deck": lib.DECKS.keys(), "alloc": lib.ALLOCS.keys(),
+	return {"items": lib.ITEM_SETS.keys(), "deck": SimDecks.DECKS.keys(), "alloc": lib.ALLOCS.keys(),
 		"sphere": lib.SPHERES.keys(), "passives": lib.PASSIVES.keys(), "designed": lib.DESIGNED.keys(),
 		"designed_parts": lib.DESIGNED, "default_enemy": lib.DEFAULT_ENEMY,
 		"tree_passives": tree_passives(character),
@@ -543,7 +544,10 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 	# The deck: the build's list, a recipe generated from the pool, and/or
 	# one pool card swapped in for the list's last card and spotlighted into
 	# the opening hand (the single-card sweep).
-	var deck: Array = (lib.DECKS[base["deck"]] as Array).duplicate()
+	if not SimDecks.DECKS.has(base["deck"]):
+		push_error("[SIM] no deck '%s' in tests/sim/builds/decks.gd (have %s)" % [base["deck"], str(SimDecks.DECKS.keys())])
+		return {}
+	var deck: Array = (SimDecks.DECKS[base["deck"]] as Array).duplicate()
 	var opening: Array = []
 	if parts.has("recipe") and str(parts["recipe"]) != "":
 		var rname := str(parts["recipe"])

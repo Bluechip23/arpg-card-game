@@ -277,16 +277,20 @@ column is non-empty when the build was not what the scenario asked for.
 
 One component library per character, `tests/sim/builds/<name>_builds.gd`:
 named **item sets** (`[id, slot]`, or `[mythic id, slot, legendary
-fallback]`), **decks**, **allocation weights**, **sphere paths** (node-id
-targets), **passive rank weights**, per-set **slotted cards**, and the
-**designed** builds that combine them. `CharacterBuilds.compose(character,
+fallback]`), **allocation weights**, **sphere paths** (node-id targets),
+**passive rank weights**, per-set **slotted cards**, and the **designed**
+builds that combine them. **Decks are shared**: one library,
+`tests/sim/builds/decks.gd` (`SimDecks.DECKS`), that every character
+loads by name (`deck:spells` on Brad, `deck:sword_and_board` on Ryan).
+Write a deck there once and all five can fight with it; the
+items × decks sweep crosses every character's item sets with every deck. `CharacterBuilds.compose(character,
 parts)` turns any mix into a scenario **at any level**: allocation and
 passive weights are spread over the points that level banks (3 stat and 1
 passive point a level, ranks capped at 15), and the mythic cap is the
 game's (one equipped mythic per 15 levels: one at 18, two at 30, three at
 45+), with the listed fallbacks worn when a mythic does not fit. Ryan's
 library is authored in full; Brad, Jeremy, Stephen and Cory carry the
-designer's `_build_sims.gd` loadouts with placeholder decks, so selection
+designer's `_build_sims.gd` loadouts, so selection
 works for every character today and each library can be filled in without
 touching the harness.
 
@@ -477,12 +481,17 @@ In the fight the swap is the game's own button: the build switch (tempo per
 changed hand slot plus half the mana, Stephen's weapon portion free) or
 the War Rack (free every 25 tempo when one side is a single two-handed
 item, its cards rushed to hand; otherwise paid). The lookahead prices it
-by the auto attack's reach (a bow reaches 5, anything else 1), Conditional
-cards in hand turning ranged or melee, the cards the incoming weapons
-bring and the cards in hand the outgoing ones take away; one swap per
-tempo, undoing a swap within one swing must beat a whole swing (Stephen's
-free switch otherwise flips bow and blades on every sidestep), and a swap
-that gains nothing is never taken. Holding a bow does not keep the policy
+by the auto attack's reach (a bow reaches 5, anything else 1; worth the
+tiles of walking it saves, less the last step a melee enemy closes itself),
+Conditional cards in hand turning ranged or melee, the cards Brad's free
+rack exchange puts in hand (anywhere else incoming cards land in the
+discard pile and count for nothing) and the cards in hand the outgoing
+weapons take away; one swap per tempo, undoing a swap within one swing
+must beat a whole swing, and a swap that gains nothing is never taken.
+(Without those last rules Stephen's free switch flipped bow and blades on
+every sidestep: the step out of a troll's club left him two tiles away,
+where the bow "reached" and the dagger did not, though the troll was about
+to close that gap itself.) Holding a bow does not keep the policy
 at range when a card in hand hits harder than the auto attack: walking in
 is priced as progress toward it. `summary.csv` counts
 them in `weapon_swaps` (`build2:1|build1:1`, `rack_free:2|rack_paid:1`).

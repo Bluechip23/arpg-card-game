@@ -22,6 +22,14 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   requires that no hand changed. `test_weapons_pass` already checked the
   switch's cost but not what was in hand; it now checks both.
 
+- **`test_weapons_pass`'s Maul's Sabre checks were stale.** The test
+  slotted Slice and Quick Shot into the Sabre, but since slot labels
+  (2026-09-19) an unlabeled card is deck-only and the Sabre, a staff, takes
+  Staff-labelled cards. The test now uses Fireball and Spirit Arrow, and its
+  "uncolored item" check uses an Axe card that really slots into the Pick
+  (it used to pass because Slice silently failed to slot). The Sabre itself
+  was fine. All weapon checks pass.
+
 ## Not a bug after all
 
 - **Wisdom and the draw timer.** Every stat text says the auto draw is a
@@ -69,13 +77,12 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
 
 ## Open (not changed)
 
-- **`test_weapons_pass` fails four Maul's Sabre checks** ("two cards slot
-  into the staff" and the three that follow): the test slots Slice and
-  Quick Shot, but Slice now carries no slot label (deck-only, refused by
-  every item) and the Sabre is a staff, which takes Staff-labelled cards,
-  so neither slots and the colour-order checks have nothing to read. The
-  test wants two Staff cards.
-  Failing before this work and unrelated to it; not changed.
+- **Mana clipped by a free switch is not refunded.** Taking off a weapon
+  that carries INT lowers max mana, and current mana is clipped to the new
+  cap; putting the weapon back raises the cap but not the mana. So a
+  "free" switch off Stephen's Fallen's Wrath (+5 INT) at full mana costs
+  25 mana for good. Consistent with how any INT item behaves; flagged in
+  case a man-of-arms switch should be truly free. Not changed.
 
 - **`tests/_build_sims.gd` spelled Ryan's passive `lets_dance`; the game's
   id is `let's_dance`** (the tree lowercases "Let's Dance" and keeps the

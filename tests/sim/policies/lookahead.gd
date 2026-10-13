@@ -418,11 +418,12 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 ## A weapon swap, from what the player sees: the auto attack's reach against
 ## the nearest enemy (a bow reaches 5, anything else 1, and a bow swing costs
 ## 1 tempo more; reach is worth the tiles of walking it saves, at the
-## auto attack's damage per tempo),
+## auto attack's damage per tempo, less the last step a melee enemy closes
+## itself),
 ## Conditional cards in hand turning ranged or melee with the bow, the cards
-## the incoming weapons bring (to hand on Brad's free rack exchange, else to
-## the discard pile) and the cards in hand the outgoing weapons take with
-## them, less a whole swing when it would undo a swap made within the last
+## the incoming weapons bring (only Brad's free rack exchange puts them in
+## hand; elsewhere they land in the discard pile and count for nothing) and
+## the cards in hand the outgoing weapons take with them, less a whole swing when it would undo a swap made within the last
 ## swing. Nothing gained is a strong no: a free swap must never be taken for
 ## its own sake.
 static func _swap_value(sw: Dictionary, state: SimState) -> float:
@@ -436,19 +437,26 @@ static func _swap_value(sw: Dictionary, state: SimState) -> float:
 	var g := 0.0
 	# Reach is tempo: every tile the longer reach saves walking is a tempo
 	# the auto attack spends swinging instead (at its damage per tempo).
+	# A melee enemy closes the last step itself to hit us, so that step is
+	# never ours to walk: a sidestep to 2 tiles beside a troll saves nothing.
 	var per_tempo := swing / float(maxi(1, state.basic_attack_tempo))
+	var closes := 1 if int(state.enemies[near].get("attack_range", 1)) <= 1 else 0
 	if d > reach_now and reach_alt > reach_now:
-		g += per_tempo * float(mini(d, reach_alt) - reach_now)
+		g += per_tempo * float(maxi(0, mini(d, reach_alt) - reach_now - closes))
 	elif d > reach_alt and reach_now > reach_alt:
-		g -= per_tempo * float(mini(d, reach_now) - reach_alt)   # the walk it adds
+		g -= per_tempo * float(maxi(0, mini(d, reach_now) - reach_alt - closes))   # the walk it adds
 	elif d <= 1 and reach_now > reach_alt:
 		g += swing / 6.0          # in melee the bow's extra tempo per swing is waste
-	if bool(sw["ranged"]) != state.weapons_ranged and d > 1:
+	if bool(sw["ranged"]) != state.weapons_ranged and d - closes > 1:
 		for h in state.hand:
 			if bool(h.get("conditional", false)) and int(h["damage"]) > 0:
 				g += (0.5 if bool(sw["ranged"]) else -0.5) * float(h["damage"])
-	for c in sw["incoming"]:
-		g += _card_worth(c, state) * (0.8 if bool(sw["free"]) else 0.1)
+	# Only Brad's free rack puts the incoming cards in hand. Anywhere else they
+	# land in the discard pile, unplayable until the next reshuffle and gone
+	# again on the swap back: no reason to swap.
+	if bool(sw["free"]):
+		for c in sw["incoming"]:
+			g += _card_worth(c, state) * 0.8
 	for hi in sw["leaving"]:
 		if hi >= 0 and hi < state.hand.size():
 			g -= _card_worth(state.hand[hi], state)

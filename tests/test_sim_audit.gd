@@ -169,6 +169,10 @@ func _run() -> void:
 		# Every tactic and recipe on the first designed build.
 		for t in CharacterBuilds.tactics(c):
 			await _audit_build(runner, c, {"build": first, "tactic": t}, "%s/%s tactic:%s" % [c, first, t])
+		# Every shared deck on this character's first designed build: one
+		# library for all five, so every deck must deal for every character.
+		for dname in SimDecks.DECKS:
+			await _audit_build(runner, c, {"build": first, "deck": dname}, "%s/%s deck:%s" % [c, first, dname])
 		for r in CharacterBuilds.recipes(c):
 			var deck: Array = CharacterBuilds.compose(c, {"build": first, "recipe": r})["player"]["deck"]
 			_check(deck.size() == 12, "%s recipe %s fills 12 cards (%d)" % [c, r, deck.size()])

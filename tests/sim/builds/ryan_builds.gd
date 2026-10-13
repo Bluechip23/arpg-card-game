@@ -2,8 +2,9 @@ class_name RyanBuilds
 extends RefCounted
 
 ## Ryan's build library for the simulation harness: named components (item
-## sets, decks, stat allocation weights, sphere-grid targets, passive rank
-## weights, slotted cards) and the designed builds that combine them.
+## sets, stat allocation weights, sphere-grid targets, passive rank
+## weights, slotted cards) and the designed builds that combine them; decks
+## come from the shared library (tests/sim/builds/decks.gd).
 ## CharacterBuilds.compose("ryan", parts) turns any mix of them into a
 ## scenario at any level (tools/sim_analysis/gen_build_sweeps.py drives the
 ## mix-and-match sweeps). Mythic and legendary gear only; Ryan has 2 belt
@@ -136,22 +137,6 @@ const SLOTTED := {
 	},
 }
 
-## The 12-card base decks (item-owned cards ride on top).
-const DECKS := {
-	"daggers": ["dagger_throw", "dagger_throw", "dagger_throw", "slice", "slice", "savage_strike",
-		"savage_strike", "specific_strike", "consecutive_snap", "splinter", "discard", "block"],
-	"potions": ["healing_potion", "healing_potion", "gulped_potion", "poison_bomb", "poison_bomb",
-		"poisoned_blood", "elixir", "potion_of_continuance", "potion_of_continuance", "slash", "slash", "block"],
-	"discard_engine": ["discard", "discard", "reposition", "reposition", "volatile_mixture", "volatile_mixture",
-		"exacerbate_wounds", "exacerbate_wounds", "meister_of_faustmesser", "armor_patch", "armor_patch", "slice"],
-	"shadow": ["shadows", "blink", "dagger_throw", "dagger_throw", "slice", "slice", "savage_strike",
-		"block", "block", "draw", "heal", "slash"],
-	"arrows": ["quick_shot", "quick_shot", "mixed_bag", "mixed_bag", "lead_arrow", "trick_shot",
-		"spirit_arrow", "multishot", "reload", "thrown_stone", "block", "draw"],
-	"blades": ["savage_strike", "savage_strike", "specific_strike", "specific_strike", "slice", "slice",
-		"parry", "life_steal", "reckless_strike", "block", "block", "heal"],
-	"starter": ["slash", "slash", "slash", "block", "block", "block", "draw", "draw", "gain_mana", "heal"],
-}
 
 ## Allocation WEIGHTS, spread over the level's points (3 a level: 51 at 18,
 ## 147 at 50). Carry capacity is 50 + 10 per STR, so even the casters keep
