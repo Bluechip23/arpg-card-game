@@ -1160,7 +1160,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"enchantment": "Cannot be played. Provides a passive buff while in your hand. Auto-discards after 2 cycles. Effect is lost when the card leaves your hand",
 		# Card Mechanics
 		"maintain": "Reserves the card's mana cost from your max mana pool while active. If mana drops to 0, all maintained cards are discarded",
-		"erase": "After X tempo, this card is permanently deleted from the deck",
+		"erase": "After X tempo, this card is permanently deleted from the deck. The fuse burns only in your hand, except on a curse or status card forced on you, whose fuse keeps running in the draw and discard piles too (it freezes while the card is jailed)",
 		"empower": "The next X attack cards drawn gain +3 damage",
 		"on-draw": "Card triggers an effect when drawn into hand",
 		"on-discard": "Card triggers an effect when discarded",
@@ -1217,7 +1217,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"clumsy": "30% chance to discard a random card when playing. Each stack lasts 5 tempo on its own clock; playing burns nothing",
 		"vulnerable": "Take 30% more damage on every hit. Each stack lasts 5 tempo on its own clock; hits burn nothing",
 		"blind": "80% chance for your attacks to miss — Attack cards, the auto attack and Flash Cut. Each stack lasts 5 tempo on its own clock",
-		"exposed": "Your armor was broken through — a hit got past it",
+		"exposed": "Your armor was broken through — a hit got past it. Once Exposed, a unit can't be Exposed again for 10 tempo",
 		"brittle": "Armor decays an extra 2 per cycle. Each stack lasts 5 tempo on its own clock",
 		"cold": "Stacking debuff, 5 tempo. At 5 stacks the target becomes Frozen for 1 cycle",
 		# Overflow
@@ -2922,6 +2922,23 @@ func is_attack() -> bool:
 	if has_keyword("attack"):
 		return true
 	return card_type == CardType.ATTACK and school != CardSchool.SPELL
+
+## The cards an enemy, a curse or a drawback forces on the player: Lightly
+## Dazed (Armored Troll), Minor Wounds (Reckless Strike's price), Paralysis
+## (Crypt Crawler), Release Soul (Spirit Collector), the Djinn's Wish and the
+## Rat King's Infest — plus any future card printed as a Curse or Status.
+const NEGATIVE_CARD_IDS := {
+	"lightly_dazed": true, "minor_wounds": true, "paralysis": true,
+	"release_soul": true, "djinn_wish": true, "infest": true,
+}
+
+## The designer's rule for negative card effects: a countdown riding one of
+## these keeps going wherever the card is — hand, draw pile, discard pile —
+## and freezes only while it is jailed (DeckManager._process_erase_timers).
+## A card the player chose (Prepare, Energy Barrier, Mirror Mirror's copy)
+## keeps the old Erase rule: its fuse burns only in the hand.
+func is_negative_card() -> bool:
+	return NEGATIVE_CARD_IDS.has(card_id) or card_type_name == "Curse" or card_type_name == "Status"
 
 # --- The play scope -------------------------------------------------------
 # A card's slotted-item riders (Megingjörð's x2, Blue Robe's per-enemy type,
@@ -5030,7 +5047,7 @@ static func create_lightly_dazed() -> Card:
 	var card = Card.new()
 	card.card_id = "lightly_dazed"
 	card.card_name = "Lightly Dazed"
-	card.description = "This card cannot be played. Linger. Erases from deck after 40 tempo in your hand."
+	card.description = "This card cannot be played. Linger. Erases from deck after 40 tempo, in your hand or the draw or discard pile (frozen while jailed)."
 	card.card_type = CardType.UNPLAYABLE
 	card.card_type_name = "Unplayable"
 	card.mana_cost = 0
@@ -5151,7 +5168,9 @@ static func create_infest() -> Card:
 	## squares of the king. Held for 5 tempo it hatches into 2 Wererats
 	## beside you; play it (50 mana, 0 tempo) to crush the brood, or discard
 	## it — either way nothing hatches. The fuse only runs while it is in
-	## the hand. The hatch itself is whatever hatch_handler the king bound
+	## the hand: the sheet says otherwise than the negative-card rule (a
+	## curse's countdown runs in every pile), since a discarded brood is
+	## erased and never reaches another pile to tick in. The hatch itself is whatever hatch_handler the king bound
 	## (a card rebuilt by id from a save has none and simply crumbles).
 	var card = Card.new()
 	card.card_id = "infest"
@@ -5371,7 +5390,7 @@ static func create_minor_wounds() -> Card:
 	var card = Card.new()
 	card.card_id = "minor_wounds"
 	card.card_name = "Minor Wounds"
-	card.description = "On draw, deal 2 damage to self. Erase: 40 (in hand)."
+	card.description = "On draw, deal 2 damage to self. Erase: 40 (in your hand or the draw or discard pile; frozen while jailed)."
 	card.card_type = CardType.UNPLAYABLE
 	card.card_type_name = "Status"
 	card.mana_cost = 0

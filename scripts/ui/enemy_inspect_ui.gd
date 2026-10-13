@@ -203,6 +203,10 @@ func _refresh() -> void:
 		var armor_txt := "%d / %d" % [_enemy.current_armor, _enemy.max_armor]
 		if _enemy.is_exposed:
 			armor_txt += "  (EXPOSED)"
+		elif _enemy.exposed_cooldown_tempo > 0:
+			# The flag is gone but the 10-tempo wait isn't: say so, or a break
+			# that doesn't Expose looks like a bug.
+			armor_txt += "  (Exposed again in %d tempo)" % _enemy.exposed_cooldown_tempo
 		_add_row("Armor", armor_txt, Color(0.65, 0.65, 0.85))
 
 	# Attack: base plus every live amplification / reduction

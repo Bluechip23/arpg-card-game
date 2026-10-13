@@ -49,7 +49,7 @@ func _build_legend() -> void:
 	_add_keyword("Clumsy", "30% chance to discard a random card when playing. Each stack lasts 5 tempo on its own clock; playing burns nothing", Color(0.9, 0.6, 0.2))
 	_add_keyword("Vulnerable", "Take 30% more damage on every hit. Each stack lasts 5 tempo on its own clock; hits burn nothing", Color(1.0, 0.3, 0.3))
 	_add_keyword("Blind", "80% chance for your attacks to miss — Attack cards, the auto attack and Flash Cut. Each stack lasts 5 tempo on its own clock", Color(0.85, 0.85, 0.4))
-	_add_keyword("Exposed", "Your armor was broken through — a hit got past it", Color(0.9, 0.7, 0.5))
+	_add_keyword("Exposed", "Your armor was broken through — a hit got past it. Once Exposed, a unit can't be Exposed again for 10 tempo", Color(0.9, 0.7, 0.5))
 	_add_keyword("Brittle", "Armor decays an extra 2 per cycle. Each stack lasts 5 tempo on its own clock", Color(0.7, 0.7, 0.6))
 	_add_keyword("Weakened", "Deal 30% less damage. Each stack lasts 5 tempo on its own clock; attacking burns nothing", Color(0.5, 0.5, 0.8))
 	_add_keyword("Cold", "Stacking debuff, 5 tempo. At 5 stacks the target becomes Frozen for 1 cycle", Color(0.4, 0.7, 1.0))
@@ -131,7 +131,7 @@ func _build_legend() -> void:
 
 	# Card Mechanics Section
 	_add_section_header("CARD MECHANICS")
-	_add_keyword("Erase", "After X tempo in your hand, this card is permanently deleted from the deck (the fuse pauses in the draw and discard piles)", Color(0.9, 0.2, 0.2))
+	_add_keyword("Erase", "After X tempo in your hand, this card is permanently deleted from the deck (the fuse pauses in the draw and discard piles). A curse or status card forced on you (Lightly Dazed, Minor Wounds) burns its fuse in the draw and discard piles too, and freezes only while jailed", Color(0.9, 0.2, 0.2))
 	_add_keyword("On-Draw", "Card triggers an effect when drawn into hand (e.g., deal damage to a random enemy)", Color(0.5, 0.9, 0.5))
 	_add_keyword("On-Discard", "Card triggers an effect when discarded from hand", Color(1.0, 0.5, 0.3))
 	_add_keyword("In-Hand", "Card applies a persistent effect while it remains in your hand", Color(0.7, 0.5, 0.9))

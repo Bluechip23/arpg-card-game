@@ -86,8 +86,10 @@ func connect_overflow_manager(om) -> void:
 ## Hexed / Locked claims are kept honest by one hook: every way a card
 ## leaves the hand (a play, a discard, a jail, a steal, a reaction, a hatch,
 ## an erase — here, in Card or in Main) announces itself with hand_updated,
-## and this sweep ends the claims whose card is gone and hands any waiting
-## claim a card. The debuff manager it tends is the last one bound here.
+## and this sweep ends the claims whose card left the game and hands any
+## waiting claim a card. A card that only moved to the discard or draw pile
+## or to jail keeps its hex (the negative-card rule). The debuff manager it
+## tends is the last one bound here.
 var _claims_dm = null
 
 func _init() -> void:
@@ -107,6 +109,20 @@ func _bind_claims(dm) -> void:
 func connect_debuff_manager(dm) -> void:
 	debuff_manager = dm
 	_bind_claims(dm)
+
+## Where a claimed card sits, for the debuff manager: a hex or lock freezes
+## while its card is jailed, and ends once the deck no longer holds the card
+## anywhere (erased, burnt, stolen).
+func is_card_jailed(card: Card) -> bool:
+	return card != null and jail_pile.has(card)
+
+func holds_card(card: Card) -> bool:
+	if card == null:
+		return false
+	for pile in [hand, draw_pile, discard_pile, jail_pile, maintained_cards]:
+		if pile.has(card):
+			return true
+	return false
 
 func get_hand_cap() -> int:
 	if player_stats:
@@ -953,17 +969,19 @@ func execute_deferred_card(card: Card, target, player_node = null) -> void:
 	print("[DECK] Deferred card executed: %s" % card.card_name)
 
 ## Each Hexed / Locked claims a card in hand (the Card itself — see
-## Debuff.affected_card). Ends the claims whose card left the hand, then gives
-## every waiting claim a card: a hex takes a card no hex holds yet, stacking
-## onto the least-hexed card only when there are more hexes than cards; a
-## lock takes a card no lock holds, preferably one no hex sits on either.
-## Runs when a debuff lands (DebuffManager.apply_debuff) and on every hand
-## change, so nothing sits unassigned while a hand exists.
+## Debuff.affected_card). Ends the claims whose card left the game — a card
+## resting in the discard or draw pile or in jail keeps its claim — then
+## gives every waiting claim a card: a hex takes a card no hex holds yet,
+## stacking onto the least-hexed card only when there are more hexes than
+## cards; a lock takes a card no lock holds, preferably one no hex sits on
+## either. Only cards in hand are ever claimed. Runs when a debuff lands
+## (DebuffManager.apply_debuff) and on every hand change, so nothing sits
+## unassigned while a hand exists.
 func assign_hexed_locked_cards(debuff_mgr) -> void:
 	if debuff_mgr == null:
 		return
 	_bind_claims(debuff_mgr)
-	debuff_mgr.drop_claims_not_in(hand)
+	debuff_mgr.drop_claims_off_deck(self)
 	if hand.size() == 0:
 		return
 
@@ -971,7 +989,9 @@ func assign_hexed_locked_cards(debuff_mgr) -> void:
 	for c in hand:
 		hex_count[c] = 0
 	for hex in debuff_mgr.get_hexed_debuffs():
-		if hex.affected_card != null:
+		# A hex resting on a card in a pile has no say in which hand card
+		# the next one takes.
+		if hex.affected_card != null and hex_count.has(hex.affected_card):
 			hex_count[hex.affected_card] += 1
 	for hex in debuff_mgr.get_hexed_debuffs():
 		if hex.affected_card != null:
@@ -1053,27 +1073,41 @@ func jail_burden_card(index: int) -> bool:
 
 func _process_erase_timers() -> void:
 	## Tick down erase_tempo_remaining on cards with erase_tempo > 0.
-	## Erase timers only tick while the card sits in the player's HAND —
-	## a token resting in the draw/discard piles keeps its fuse intact
-	## (a deliberate rule: the keyword legend and card texts say so).
-	## When a card's timer hits 0, permanently remove it from the deck.
+	## A card the player chose keeps its fuse only while it sits in the
+	## HAND — a token resting in the draw/discard piles keeps its fuse intact.
+	## A negative card (Card.is_negative_card — Lightly Dazed, Minor Wounds)
+	## follows the designer's rule for negative card effects instead: its
+	## fuse keeps burning in the draw and discard piles too. Jail freezes
+	## every fuse. When a card's timer hits 0, permanently remove it.
 	var piles = [
 		{"pile": hand, "name": "hand"},
+		{"pile": draw_pile, "name": "draw pile"},
+		{"pile": discard_pile, "name": "discard pile"},
 	]
-	var hand_changed = false
+	var changed = false
 	for pile_info in piles:
 		var pile = pile_info["pile"]
+		var in_hand: bool = pile_info["name"] == "hand"
 		for i in range(pile.size() - 1, -1, -1):
 			var card = pile[i]
-			if card.erase_tempo > 0:
-				card.erase_tempo_remaining -= 5
-				if card.erase_tempo_remaining <= 0:
-					pile.remove_at(i)
-					card_erased.emit(card)
-					if pile_info["name"] == "hand":
-						hand_changed = true
-					print("[DECK] Erased '%s' from %s (Erase: %d tempo expired)" % [card.card_name, pile_info["name"], card.erase_tempo])
-	if hand_changed:
+			if card.erase_tempo <= 0 or not (in_hand or card.is_negative_card()):
+				continue
+			card.erase_tempo_remaining -= 5
+			if card.erase_tempo_remaining > 0:
+				continue
+			# A scried card burning away off the top of the draw pile takes
+			# its reveal with it; the peek still covers the cards beneath.
+			if pile_info["name"] == "draw pile":
+				if i >= draw_pile.size() - brain_peek_depth:
+					brain_peek_depth -= 1
+				if peaked_card == card:
+					peaked_card = null
+			pile.remove_at(i)
+			card_erased.emit(card)
+			changed = true
+			print("[DECK] Erased '%s' from %s (Erase: %d tempo expired)" % [card.card_name, pile_info["name"], card.erase_tempo])
+	# Also runs the claims sweep: a hex riding an erased card left the game.
+	if changed:
 		hand_updated.emit()
 
 ## Timed in-hand tweaks (Ancestral Aid, Clean Exchange, Keep Them Guessing)
