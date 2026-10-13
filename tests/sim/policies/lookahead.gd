@@ -359,6 +359,11 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 			gain += float(sv["gain"])
 			if int(sv["kill"]) >= 0:
 				killed_index = int(sv["kill"])
+		"weapon_swap":
+			var sw: Dictionary = state.weapon_swaps[int(a["swap"])]
+			mana = int(sw["mana"])
+			tempo = maxi(1, int(sw["tempo"]))
+			gain += _swap_value(sw, state)
 		"flash_block":
 			# Sidestep: 2 block (or a Flash Cut strike) for points that refill
 			# on their own; only worth it when something is about to land.
@@ -383,7 +388,8 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 	# exception: never commit into it. Point spends and flash moves pass no
 	# tempo: nothing acts meanwhile.
 	var instant: bool = kind in ["flash_block", "flash_proc", "brain_draw", "brain_peek"] \
-		or (kind == "move" and bool(a.get("flash", false)))
+		or (kind == "move" and bool(a.get("flash", false))) \
+		or (kind == "weapon_swap" and int(state.weapon_swaps[int(a["swap"])]["tempo"]) == 0)
 	# Points spent are points not held for the dodge or draw that matters.
 	match kind:
 		"flash_block": gain -= FLASH_POINT_VALUE * float(state.flash_block_cost)
@@ -408,6 +414,44 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 	if kind == "play" and int(state.hand[a["card"]]["tempo"]) == 0 and mana == 0 and gain >= 0.0:
 		score += 0.5
 	return score
+
+## A weapon swap, from what the player sees: the auto attack's reach against
+## the nearest enemy (a bow reaches 5, anything else 1, and a bow swing costs
+## 1 tempo more; longer reach is worth the share of the walk it saves),
+## Conditional cards in hand turning ranged or melee with the bow, the cards
+## the incoming weapons bring (to hand on Brad's free rack exchange, else to
+## the discard pile) and the cards in hand the outgoing weapons take with
+## them. Nothing gained is a strong no: a free swap must
+## never be taken for its own sake.
+static func _swap_value(sw: Dictionary, state: SimState) -> float:
+	var near := state.nearest_enemy_index()
+	if near < 0:
+		return -5.0
+	var d := int(state.enemies[near]["distance"])
+	var reach_now := state.basic_attack_reach
+	var reach_alt := 5 if bool(sw["ranged"]) else 1
+	var swing := float(state.basic_attack_damage)
+	var g := 0.0
+	if d > reach_now and reach_alt > reach_now:
+		# The auto attack lands from here, or from that much nearer: worth
+		# the share of the walk the longer reach saves.
+		g += swing * minf(1.0, float(reach_alt - reach_now) / float(d - reach_now))
+	elif d > reach_alt and reach_now > reach_alt:
+		g -= swing                # gives up reach the fight still needs
+	elif d <= 1 and reach_now > reach_alt:
+		g += swing / 6.0          # in melee the bow's extra tempo per swing is waste
+	if bool(sw["ranged"]) != state.weapons_ranged and d > 1:
+		for h in state.hand:
+			if bool(h.get("conditional", false)) and int(h["damage"]) > 0:
+				g += (0.5 if bool(sw["ranged"]) else -0.5) * float(h["damage"])
+	for c in sw["incoming"]:
+		g += _card_worth(c, state) * (0.8 if bool(sw["free"]) else 0.1)
+	for hi in sw["leaving"]:
+		if hi >= 0 and hi < state.hand.size():
+			g -= _card_worth(state.hand[hi], state)
+	if g <= 0.0:
+		return -5.0
+	return g
 
 ## How much of a coming hit we could have blunted had we stayed free:
 ## the best block in hand, the sidestep, or stepping out of melee reach.

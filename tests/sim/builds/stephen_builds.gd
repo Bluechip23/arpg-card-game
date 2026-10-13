@@ -50,8 +50,8 @@ const PASSIVES := {
 	"none": {},
 }
 const DESIGNED := {
-	"longshot_ranger":  {"items": "longshot_ranger", "deck": "arrows", "alloc": "dex_agi", "sphere": "deadeye", "passives": "ranger"},
-	"heavy_swing":      {"items": "heavy_swing", "deck": "blades", "alloc": "str_dex_det", "sphere": "bulwark", "passives": "avenger"},
-	"sentinel_duelist": {"items": "sentinel_duelist", "deck": "blades", "alloc": "str_dex_wis", "sphere": "weighted", "passives": "sentinel"},
-	"crooked_duelist":  {"items": "crooked_duelist", "deck": "blades", "alloc": "dex_agi", "sphere": "flurry", "passives": "ranger"},
+	"longshot_ranger":  {"items": "longshot_ranger", "deck": "arrows", "alloc": "dex_agi", "sphere": "deadeye", "passives": "ranger", "alt": "sword_and_board"},
+	"heavy_swing":      {"items": "heavy_swing", "deck": "blades", "alloc": "str_dex_det", "sphere": "bulwark", "passives": "avenger", "alt": "bow"},
+	"sentinel_duelist": {"items": "sentinel_duelist", "deck": "blades", "alloc": "str_dex_wis", "sphere": "weighted", "passives": "sentinel", "alt": "bow"},
+	"crooked_duelist":  {"items": "crooked_duelist", "deck": "blades", "alloc": "dex_agi", "sphere": "flurry", "passives": "ranger", "alt": "bow"},
 }

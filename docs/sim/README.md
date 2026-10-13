@@ -122,7 +122,7 @@ player action and each enemy action that fired, in order.
 | `bar_index` | tempo cycle the action started in (`global_tempo / threshold`) |
 | `tempo_before`, `tempo_after` | global tempo when the action started / when its ticks and settling finished |
 | `actor` | `player` or `<EnemyName>#<spawn index>` |
-| `action_id` | `play:<card_id>`, `attack`, `block`, `wait`, `move:<tiles>`, `skill:<effect_id>` (a gauntlet skill), or the enemy's action name |
+| `action_id` | `play:<card_id>`, `attack`, `block`, `wait`, `move:<tiles>`, `skill:<effect_id>` (a gauntlet skill), `swap:build<n>` / `swap:rack_free` / `swap:rack_paid` (a weapon swap), or the enemy's action name |
 | `target` | `enemy:<i>`, `self`, `point:x,y`, `none`, or `player` |
 | `player_hp` … `hand_size` | the player's state when the action started |
 | `enemy_id`, `enemy_hp`, `enemy_pos` | the targeted enemy (or the acting one; or the first living one) — HP and cell **after** the action |
@@ -139,7 +139,7 @@ regen) goes to the player's row.
 bars_elapsed, total_damage_dealt, total_damage_taken, damage_per_tempo,
 cards_played, distinct_cards_played, card_entropy (bits, over card ids),
 mana_wasted (regen lost to the mana cap), overflow_bars (cycle boundaries
-crossed with carry-over tempo), end_hp_pct, skills_used, enemy_actions_by_type
+crossed with carry-over tempo), end_hp_pct, skills_used, weapon_swaps, enemy_actions_by_type
 ("bite:4|move:2"), global_tempo, decisions, error`.
 
 `aggregate.csv` holds `n`, the four outcome rates and mean/std/min/max of
@@ -298,7 +298,7 @@ scenario=tests/sim/scenarios/build.gd parts=character:brad,build:immovable_warde
 ```
 
 `parts` keys: `character`, `build`, `level`, `items`, `deck`, `alloc`,
-`sphere`, `passives`, `slotted`, `focus`, `enemy`. `passives` names a
+`sphere`, `passives`, `slotted`, `focus`, `alt`, `enemy`. `passives` names a
 weight set, spread proportionally over the points the level banks (so
 nothing is ever maxed); `focus:<passive_id>` takes that one tree passive to
 rank 15 first and spreads the rest over the build's set, which is how a
@@ -459,6 +459,34 @@ loadout. Ryan's five: `invisibility` (Shadows ×2, Blink, Shadow Obi, Now
 You See Me and Eye Scrape), `poison`, `discard`, `mobility`, `burst`.
 A rule change aimed at one of these is measured on build × tactic, not
 on the one archetype.
+
+### Weapon swaps: a second weapon set
+
+`alt:<set>` gives a build a second set of weapons from
+`CharacterBuilds.WEAPON_SETS` (`bow`, `greatsword`, `sword_and_board`;
+weapons are universal, so any character can carry one), and a designed
+build may name its own (`"alt"` in `DESIGNED`; `alt:none` fights with one
+set). Pieces the main set already wears are left out. The runner sets it
+up the way a player does out of combat: Brad straps it to his War Rack;
+everyone else gets it as equipment build II (build II opened as a copy of
+the worn gear, the other weapons put in hand, back to build I). The set's
+engravings ride its items, so their cards are in play only while it is in
+hand: the game moves an item's cards with it.
+
+In the fight the swap is the game's own button: the build switch (tempo per
+changed hand slot plus half the mana, Stephen's weapon portion free) or
+the War Rack (free every 25 tempo when one side is a single two-handed
+item, its cards rushed to hand; otherwise paid). The lookahead prices it
+by the auto attack's reach (a bow reaches 5, anything else 1), Conditional
+cards in hand turning ranged or melee, the cards the incoming weapons
+bring and the cards in hand the outgoing ones take away; one swap per
+tempo, and a swap that gains nothing is never taken. `summary.csv` counts
+them in `weapon_swaps` (`build2:1|build1:1`, `rack_free:2|rack_paid:1`).
+Stephen's four designed builds carry a bow or a sword and board; Brad's
+carry a greatsword or a bow on the rack. `<char>_weapon_sets.txt` plays every set (and
+`none`) on every designed build; `build_matrix.py` prints the win rate and
+swaps per fight per build × set (`sim_out/charts/<char>_weapon_sets.csv`,
+with the change against the designed build).
 
 ### Prompts the policy answers
 

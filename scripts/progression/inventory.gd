@@ -1876,7 +1876,9 @@ func switch_build(target: int) -> Dictionary:
 	if target_two_hand != two_handed_slot and not hands_changed and not weapon_swap_discount:
 		cost += get_swap_tempo_cost(ItemData.ItemType.WEAPON)
 
-	if cost == 0 and target_two_hand == two_handed_slot:
+	# Nothing to move. (Stephen's weapon-only switch also costs 0, but its
+	# weapons still have to change hands.)
+	if cost == 0 and not hands_changed and target_two_hand == two_handed_slot:
 		active_build = target
 		result["success"] = true
 		return result

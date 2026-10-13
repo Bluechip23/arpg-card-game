@@ -67,6 +67,19 @@ func _audit_build(runner: SimRunner, character: String, parts: Dictionary, label
 	var problems: Array = []
 	if not bad.is_empty():
 		problems.append("refusals %s" % str(bad))
+	# The second weapon set is where the game keeps one: the War Rack, or
+	# equipment build II, with build I still in hand.
+	var alts: Array = sc["player"]["alt_weapons"]
+	if not alts.is_empty():
+		var stowed := 0
+		if inv.has_back_rack:
+			stowed = inv.rack_items.size()
+		elif inv.builds[1] != null and inv.active_build == 0:
+			for it in inv.builds[1]["weapons"]:
+				if it != null and not inv.equipped_weapons.has(it):
+					stowed += 1
+		if stowed != alts.size():
+			problems.append("second weapon set %s: %d of %d stowed" % [str(alts), stowed, alts.size()])
 	if stats.unspent_stat_points != 0:
 		problems.append("%d stat point(s) unspent" % stats.unspent_stat_points)
 	if stats.unspent_passive_points != 0:

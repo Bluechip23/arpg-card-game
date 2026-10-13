@@ -146,5 +146,17 @@ func _run() -> void:
 	var zs := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "spellslinger", "item": "cuffs_of_current", "enemy": "LARGE_BEAR"}))
 	var zsum: Dictionary = await runner.run(zs, load("res://tests/sim/policies/lookahead.gd").new(), 1)
 	_check(str(zsum.get("skills_used", "")).contains("zeet:"), "the policy fires an equipped gauntlet skill (%s)" % str(zsum.get("skills_used", "")))
+	# Weapon swaps: a second weapon set as build II (Stephen) or on the War Rack (Brad).
+	var st := CharacterBuilds.compose("stephen", {"build": "heavy_swing", "enemy": "WYVERN"})
+	_check(st["player"]["alt_weapons"] == [["long_bow", 0], ["standard_quiver", 1]] and st["player"]["alt_slotted"].has("long_bow"),
+		"a designed build carries its second weapon set (%s)" % str(st["player"]["alt_weapons"]))
+	_check(CharacterBuilds.compose("stephen", {"build": "heavy_swing", "alt": "none"})["player"]["alt_weapons"].is_empty(), "alt:none fights with one set")
+	var stsum: Dictionary = await runner.run(SimScenario.with_defaults(st), load("res://tests/sim/policies/lookahead.gd").new(), 2)
+	_check(runner.warnings.is_empty() and str(stsum.get("weapon_swaps", "")).contains("build2:"),
+		"Stephen switches to his bow build against the Wyvern (%s, %s)" % [str(stsum.get("weapon_swaps", "")), str(runner.warnings)])
+	var br := SimScenario.with_defaults(CharacterBuilds.compose("brad", {"build": "immovable_warden", "enemy": "LARGE_BEAR"}))
+	var brsum: Dictionary = await runner.run(br, load("res://tests/sim/policies/lookahead.gd").new(), 1)
+	_check(runner.warnings.is_empty() and str(brsum.get("weapon_swaps", "")).contains("rack_free:"),
+		"Brad takes the War Rack's free exchange (%s, %s)" % [str(brsum.get("weapon_swaps", "")), str(runner.warnings)])
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

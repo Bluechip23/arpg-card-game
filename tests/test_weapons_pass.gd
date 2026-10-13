@@ -99,6 +99,8 @@ func _test_stephen_swap_perk() -> void:
 	var back = inv.switch_build(0)  # restore the sword build: only hands differ
 	_check(back["success"] and back["tempo_cost"] == 0,
 		"weapons-only build switch is free (cost %d)" % back["tempo_cost"])
+	_check(inv.equipped_weapons[0] == sword and inv.stored_items.has(pick),
+		"the free switch actually puts the sword back in hand")
 	stats.free()
 	inv.free()
 

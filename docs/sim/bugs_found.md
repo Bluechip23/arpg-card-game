@@ -9,6 +9,19 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   scene is instantiated under a `--script` test (every test and the sim), so
   the Abjurers Cane reaction was silently skipped there while every other
   enemy → main lookup uses `get_parent()`. Changed to `get_parent()` (M1).
+## Fixed to match the documented rule (no rule change; for review)
+
+- **Stephen's free build switch never moved his weapons.** Man of arms
+  makes the weapon portion of a build switch free, so a switch where only
+  the hands differ costs 0 — and `Inventory.switch_build` treated "costs 0"
+  as "nothing to change", returned success, marked the target build active
+  and left the old weapons in hand. The next switch then saved those
+  weapons into the wrong build. Repro: Stephen with a Short Sword, open
+  build II, put a Pick in hand, switch back to build I: still holding the
+  Pick (Ryan, same steps, gets the sword back). The early return now also
+  requires that no hand changed. `test_weapons_pass` already checked the
+  switch's cost but not what was in hand; it now checks both.
+
 ## Not a bug after all
 
 - **Wisdom and the draw timer.** Every stat text says the auto draw is a
@@ -55,6 +68,14 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   Win rates were never affected; damage-per-tempo figures were re-run.
 
 ## Open (not changed)
+
+- **`test_weapons_pass` fails four Maul's Sabre checks** ("two cards slot
+  into the staff" and the three that follow): the test slots Slice and
+  Quick Shot, but Slice now carries no slot label (deck-only, refused by
+  every item) and the Sabre is a staff, which takes Staff-labelled cards,
+  so neither slots and the colour-order checks have nothing to read. The
+  test wants two Staff cards.
+  Failing before this work and unrelated to it; not changed.
 
 - **`tests/_build_sims.gd` spelled Ryan's passive `lets_dance`; the game's
   id is `let's_dance`** (the tree lowercases "Let's Dance" and keeps the

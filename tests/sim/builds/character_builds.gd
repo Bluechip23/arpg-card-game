@@ -39,7 +39,8 @@ static func components(character: String) -> Dictionary:
 		"designed_parts": lib.DESIGNED, "default_enemy": lib.DEFAULT_ENEMY,
 		"tree_passives": tree_passives(character),
 		"recipes": recipes(character).keys(), "card_pool": SimDeckBuilder.legal_ids(),
-		"tactics": tactics(character).keys(), "item_pool": item_pool()}
+		"tactics": tactics(character).keys(), "item_pool": item_pool(),
+		"weapon_sets": WEAPON_SETS.keys() + ["none"]}
 
 ## The tactics a character can take: DEFAULT_TACTICS merged with the
 ## library's TACTICS, with passive weights resolved from the character's
@@ -180,6 +181,17 @@ const DEFAULT_TACTICS := {
 	"mobility": {"deck": ["blink", "reposition", "bob_and_weave"], "items": [["houdinis_slippers", 0]],
 		"passive_words": ["spaces moved", "movement", "instant is played"], "slotted": {"houdinis_slippers": ["blink"]}},
 	"burst": {"deck": ["exhausted_assault", "multishot", "consecutive_snap"], "passive_words": ["first strike", "first attack"]},
+}
+
+## Second weapon loadouts any character can carry (weapons are universal):
+## what a build swaps to mid-fight with `alt:<set>`. Brad straps it to his
+## War Rack; everyone else keeps it as equipment build II and switches with
+## the game's build buttons (Stephen's weapon portion free). Engravings ride
+## the items, so their cards enter play only when the set is in hand.
+const WEAPON_SETS := {
+	"bow": {"items": [["long_bow", 0], ["standard_quiver", 1]], "slotted": {"long_bow": ["quick_shot", "spirit_arrow"]}},
+	"greatsword": {"items": [["fallens_wrath", 0]], "slotted": {"fallens_wrath": ["savage_strike", "reckless_strike"]}},
+	"sword_and_board": {"items": [["short_sword", 0], ["buckler", 1]], "slotted": {}},
 }
 
 static func _merged(defaults: Dictionary, overrides: Dictionary) -> Dictionary:
@@ -573,6 +585,23 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 			deck.append(card)
 		opening = [card]
 		base["swap"] = card
+	# The second weapon loadout: the build's own (`alt` in DESIGNED) or the
+	# part's; `alt:none` fights with one set. A piece the main set already
+	# wears is left out (one copy of a legendary at a time).
+	var alt_name := str(parts.get("alt", base.get("alt", "")))
+	var alt_items: Array = []
+	var alt_slotted := {}
+	if alt_name != "" and alt_name != "none":
+		if not WEAPON_SETS.has(alt_name):
+			push_error("[SIM] no weapon set '%s' (have %s)" % [alt_name, str(WEAPON_SETS.keys())])
+		else:
+			for e in WEAPON_SETS[alt_name]["items"]:
+				if not worn.has(e[0]):
+					alt_items.append((e as Array).duplicate())
+					var cards: Array = WEAPON_SETS[alt_name]["slotted"].get(e[0], [])
+					if not cards.is_empty():
+						alt_slotted[e[0]] = cards.duplicate()
+			base["alt"] = alt_name
 	var name := "%s_%s" % [character.to_lower(), build_name]
 	return {
 		"name": name,
@@ -586,6 +615,8 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 			"sphere_fill": true,
 			"items": fitted["items"],
 			"slotted": slotted,
+			"alt_weapons": alt_items,
+			"alt_slotted": alt_slotted,
 			"deck": deck,
 			"opening_hand": opening,
 			"cell": [6, 7],
