@@ -4,7 +4,7 @@ extends SceneTree
 ## Weregoat's Charge picks the lane that hits the most units and stuns where
 ## it lands; the Sabertooth's Track locks it onto the nearest unit; the Roc
 ## dives from 6 squares and backs off while the dive is down; the White
-## Manticore's Clumsy runs on the clock for 3 cycles.
+## Manticore's Clumsy is 3 stacks that fall one per 5 tempo (3 cycles).
 ## Run: godot --headless --path . --script tests/test_sheet_mountains.gd
 
 const EnemyScene = preload("res://scenes/battle/enemy.tscn")
@@ -286,7 +286,7 @@ func _test_roc() -> void:
 	_clear_units()
 
 func _test_manticore() -> void:
-	print("--- White Manticore: Clumsy on the clock ---")
+	print("--- White Manticore: Clumsy as 3 stacks on the 5-tempo clock ---")
 	var m := _unit(Vector2i(5, 5))
 	var cat := _enemy(Enemy.EnemyType.WHITE_MANTICORE, Vector2i(6, 5))
 	_check(cat._try_stinger(m), "Stinger lands")
@@ -294,21 +294,27 @@ func _test_manticore() -> void:
 	_check(poison != null and poison.value == 8, "Stinger lays 8 Poison")
 	_check(cat._stinger_cooldown == 5, "Stinger goes on its 5-tempo cooldown")
 	var cl = m.dm.get_debuff(Debuff.DebuffType.CLUMSY)
-	_check(cl != null and cl.clock_timed and cl.duration == 15, "Clumsy runs on the clock for 15 tempo (3 cycles)")
+	# sheet: "3 cycles" = 3 stacks, each 5 tempo on Clumsy's own clock — not a
+	# clock-timed instance and not a stack burned per card.
+	_check(cl != null and not cl.clock_timed and cl.value == 3 and cl.duration == -1,
+		"Clumsy is 3 stacks on its own clock (value %d, duration %d)" % [cl.value if cl else -99, cl.duration if cl else -99])
 	_check(m.dm.get_clumsy_chance() == 30, "…30% to discard while it lasts")
-	_check(cl != null and "15 tempo left" in cl.description, "…and the description says so: %s" % (cl.description if cl else "-"))
 	for is_attack in [false, true, false, false]:
 		m.dm.on_card_played(is_attack)
-	_check(m.dm.has_debuff(Debuff.DebuffType.CLUMSY) and m.dm.get_clumsy_chance() == 30, "cards played do not burn a clock-timed Clumsy")
-	m.dm.advance_time(14)
-	_check(m.dm.has_debuff(Debuff.DebuffType.CLUMSY), "14 tempo on it still holds")
-	_check("1 tempo left" in m.dm.get_debuff(Debuff.DebuffType.CLUMSY).description, "…with 1 tempo left")
+	_check(m.dm.has_debuff(Debuff.DebuffType.CLUMSY) and m.dm.get_debuff(Debuff.DebuffType.CLUMSY).value == 3,
+		"cards played do not burn a stack")
+	m.dm.advance_time(5)
+	_check(m.dm.has_debuff(Debuff.DebuffType.CLUMSY) and m.dm.get_debuff(Debuff.DebuffType.CLUMSY).value == 2,
+		"5 tempo sheds one stack (2 left)")
+	m.dm.advance_time(9)
+	_check(m.dm.has_debuff(Debuff.DebuffType.CLUMSY) and m.dm.get_debuff(Debuff.DebuffType.CLUMSY).value == 1,
+		"14 tempo in: the last stack still holds")
 	m.dm.advance_time(1)
 	_check(not m.dm.has_debuff(Debuff.DebuffType.CLUMSY) and m.dm.get_clumsy_chance() == 0, "at 15 tempo it runs out")
 	var text := ""
 	for d in Enemy.get_all_enemy_data():
 		if d["name"] == "White Manticore":
 			text = str(d["special"])
-	_check("Clumsy for 3 cycles (15 tempo)" in text, "the compendium says Clumsy for 3 cycles (15 tempo)")
+	_check("3 Clumsy (3 stacks of 5 tempo = 3 cycles)" in text, "the compendium says 3 Clumsy (3 stacks of 5 tempo = 3 cycles)")
 	cat.queue_free()
 	_clear_units()

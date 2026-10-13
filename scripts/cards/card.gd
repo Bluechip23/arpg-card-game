@@ -1181,44 +1181,45 @@ static func get_keyword_definitions() -> Dictionary:
 		"regen": "Heal X HP per cycle, lose 1 regen per cycle",
 		"blessed": "Draw X additional card(s) per cycle for Y cycles",
 		"fortify": "Armor does not decay",
-		"enlightened": "+X% crit chance for next Y attacks",
+		"enlightened": "+X% crit chance on your next Y crit rolls. Separate applications stay separate: the highest % applies and spends its own charges first",
 		"strengthen": "+X damage on next Y attacks",
 		"bolster": "+X armor next Y times you gain armor",
-		"haste": "+X tempo-free tiles on each of your next Y moves; one charge per move",
+		"haste": "+X tempo-free tiles on each of your next Y moves; every move spends a charge, Flash moves included",
 		"engrave": "Cannot join your deck at all unless slotted into an item",
 		"cleanse": "Remove X negative effects (instant)",
 		"smith": "Gain X armor per cycle, decaying by 1 each cycle",
 		"steady": "Next action does not add tempo",
 		"brace": "Reduce incoming attack damage by X% for Y attacks",
-		"resilient": "Reduce all incoming damage by X% for Y tempo",
+		"resilient": "Reduce incoming damage by X% for Y tempo. Physical-only and all-damage Resilient stay separate; a hit uses the strongest that covers it",
 		"life steal": "Next attack heals you for damage dealt",
 		"morphine": "Gain temp HP. Lose it and take 2 damage when expired",
 		"wear down": "Each attack reduces target's attack by 1 (stacks) for X tempo",
 		"armor break": "Next attack deals double damage to armor only",
 		# Debuffs
 		"bleed": "On movement: take X damage per tile moved",
-		"stun": "Cannot take any actions",
-		"disarm": "Cannot play attack cards",
-		"silence": "Cannot play spell cards",
+		"stun": "Cannot take any action — no cards, attacks, blocks, moves, skills, Flash/Brain spends or gear swaps; only Wait passes time (a stunned enemy does nothing)",
+		"disarm": "Cannot play attack cards or auto attack for X tempo; re-applying adds the tempo on",
+		"silence": "Cannot play spell cards for X tempo; re-applying adds the tempo on",
 		"burn": "Burn damage doubles each cycle (1, 2, 4, 8...); attacking while burning also triggers the current burn damage",
 		"poison": "Take X damage per cycle, lose 1 poison each cycle",
 		"cursed": "Deal 20% less damage and deal 20% damage to self",
 		"frozen": "Cannot play cards (a frozen enemy cannot act at all)",
 		"cuffed": "Cannot draw cards",
 		"shocked": "Arc X damage to nearby allies per cycle (a shocked enemy takes it itself), lose 1 per cycle",
-		"slowed": "Movement costs 3 tempo per tile instead of 1; each tile moved burns a stack",
-		"staggered": "Attack cards cost 15 more mana; each attack card burns a stack",
+		"slowed": "Movement costs 3 tempo per tile instead of 1. Each stack lasts 5 tempo on its own clock; moving burns nothing",
+		"staggered": "Attack cards cost 15 more mana. Each stack lasts 5 tempo on its own clock; attacking burns nothing",
 		"drain": "Lose 10 mana per cycle, lose 1 drain per cycle",
-		"weighted": "Cards cost 2 more tempo; each card played burns a stack",
+		"weighted": "Cards played (Quiver and Manifest included) cost 2 more tempo; each one burns a stack. The auto attack and Block are not cards",
 		"hexed": "A random card costs +X mana until played (multiple hexes can sit on different cards)",
-		"locked": "One random card cannot be played",
-		"weakened": "Deal 30% less damage; each attack burns a stack",
-		"rooted": "Cannot move",
-		"clumsy": "30% chance to discard a random card when playing; each card played burns a stack",
-		"vulnerable": "Take 30% more damage on next X attack(s)",
+		"locked": "A random card cannot be played; each Locked holds its own card",
+		"weakened": "Deal 30% less damage. Each stack lasts 5 tempo on its own clock; attacking burns nothing",
+		"rooted": "Cannot move for X tempo; re-applying adds the tempo on",
+		"clumsy": "30% chance to discard a random card when playing. Each stack lasts 5 tempo on its own clock; playing burns nothing",
+		"vulnerable": "Take 30% more damage on every hit. Each stack lasts 5 tempo on its own clock; hits burn nothing",
+		"blind": "80% chance for your attacks to miss — Attack cards, the auto attack and Flash Cut. Each stack lasts 5 tempo on its own clock",
 		"exposed": "Your armor was broken through — a hit got past it",
-		"brittle": "Armor decays extra 2 per cycle",
-		"cold": "Stacking debuff. At 5 stacks the target becomes Frozen for 1 cycle",
+		"brittle": "Armor decays an extra 2 per cycle. Each stack lasts 5 tempo on its own clock",
+		"cold": "Stacking debuff, 5 tempo. At 5 stacks the target becomes Frozen for 1 cycle",
 		# Overflow
 		"jailed": "Card goes to jail for 3 turns, cannot be played",
 		"manifest": "Card goes to manifest zone as a token. Click to activate",
@@ -1393,10 +1394,19 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		player_stats.resolving_attack_target = target
 
 	# Blind (e.g. Giant Hawk): an attack against an enemy may miss entirely.
-	# Enemies expose take_damage but not get_stats (players have get_stats).
-	if card_type == CardType.ATTACK and player_stats and player_stats.is_blinded \
+	# The debuff manager is the source of truth (Blind is a stack-clocked
+	# debuff now); PlayerStats.is_blinded is only a legacy fallback for a
+	# caller that hands no deck manager. Enemies expose take_damage but not
+	# get_stats (players have get_stats).
+	if card_type == CardType.ATTACK and player_stats \
 			and target and target.has_method("take_damage") and not target.has_method("get_stats"):
-		if randf() < player_stats.blind_miss_chance:
+		var blind_dm = deck_manager.debuff_manager if deck_manager and "debuff_manager" in deck_manager else null
+		var miss_chance: float = 0.0
+		if blind_dm and blind_dm.has_method("get_blind_miss_chance"):
+			miss_chance = blind_dm.get_blind_miss_chance()
+		elif blind_dm == null and player_stats.is_blinded:
+			miss_chance = player_stats.blind_miss_chance
+		if miss_chance > 0.0 and randf() < miss_chance:
 			print("[CARD] %s missed — blinded!" % card_name)
 			return
 	# Empower's +3 already rides in bonus_damage (see execute); the executors'
@@ -7706,7 +7716,7 @@ static func create_switch_kick() -> Card:
 	var card = Card.new()
 	card.card_id = "switch_kick"
 	card.card_name = "Switch Kick"
-	card.description = "Deal 2 damage and disarm the enemy for 1 attack."
+	card.description = "Deal 2 damage and Disarm the enemy for 5 tempo (it skips its next attack)."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 2
@@ -8698,7 +8708,7 @@ static func create_song_of_a_swords_sing() -> Card:
 	var card = Card.new()
 	card.card_id = "song_of_a_swords_sing"
 	card.card_name = "Song of a Swords Sing"
-	card.description = "Disarm the enemy for 1 attack and gain 2 armor for every KIND of debuff on it (3 burn is one kind; burn + frost + disarm is three)."
+	card.description = "Disarm the enemy for 5 tempo (it skips its next attack) and gain 2 armor for every KIND of debuff on it (3 burn is one kind; burn + frost + disarm is three)."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 35
