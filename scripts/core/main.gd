@@ -11306,9 +11306,11 @@ func _on_custom_ring_fired(ring: ItemData, kind: String, value: int) -> void:
 			for cid in ["fireball", "rise"]:
 				var cp_card = deck_manager._create_card_from_id(cid)
 				if cp_card:
-					# Conjured copies never pollute the deck: erased 10 tempo
-					# after arriving, played or not.
+					# Conjured copies carry Erase 10: the fuse starts full (a
+					# bare erase_tempo left the countdown at 0, so the copies
+					# vanished at the next cycle).
 					cp_card.erase_tempo = 10
+					cp_card.erase_tempo_remaining = 10
 					deck_manager.add_card_to_hand(cp_card)
 			add_battle_log("By your powers combined! Heal 15, draw 3, Fireball and Rise arrive (10 tempo).", Color(0.3, 0.8, 1.0))
 		"cyclops_strengthen":
@@ -12446,6 +12448,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				if not card.has_meta("fire_punch_copy"):
 					var fp_copy = Card.create_by_id("fire_punch")
 					fp_copy.erase_tempo = 5
+					fp_copy.erase_tempo_remaining = 5  # start the Erase 5 fuse full
 					fp_copy.set_meta("fire_punch_copy", true)
 					deck_manager.add_card_to_hand(fp_copy)
 
