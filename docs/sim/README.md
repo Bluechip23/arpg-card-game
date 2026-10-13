@@ -480,7 +480,11 @@ item, its cards rushed to hand; otherwise paid). The lookahead prices it
 by the auto attack's reach (a bow reaches 5, anything else 1), Conditional
 cards in hand turning ranged or melee, the cards the incoming weapons
 bring and the cards in hand the outgoing ones take away; one swap per
-tempo, and a swap that gains nothing is never taken. `summary.csv` counts
+tempo, undoing a swap within one swing must beat a whole swing (Stephen's
+free switch otherwise flips bow and blades on every sidestep), and a swap
+that gains nothing is never taken. Holding a bow does not keep the policy
+at range when a card in hand hits harder than the auto attack: walking in
+is priced as progress toward it. `summary.csv` counts
 them in `weapon_swaps` (`build2:1|build1:1`, `rack_free:2|rack_paid:1`).
 Stephen's four designed builds carry a bow or a sword and board; Brad's
 carry a greatsword or a bow on the rack. `<char>_weapon_sets.txt` plays every set (and

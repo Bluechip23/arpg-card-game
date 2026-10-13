@@ -98,6 +98,15 @@ focus, 10 per card or item in the swaps. Every job folder carries its
 `loadout.json` and code stamp. Read these as direction: cards and enemies
 will change under them, and the point of the tool is to re-run them.
 
+> **Since then (not yet re-run):** gauntlet active skills became policy
+> actions (Ryan's Techno Wraps, Spidey Web Shooters, Sleeved Katar and
+> every swapped-in gauntlet were measured on stats alone), the skill tree's
+> stage gate is enforced on every spread (level-18 focus readings had
+> impossible ranks), and the lookahead now walks in when a card in hand
+> beats a bow's auto attack. Ryan's builds carry no second weapon set, so
+> weapon swaps do not touch these tables. Shapes should hold; re-run
+> before quoting a number.
+
 **Retractions.** Four earlier readings were artifacts of the tester and
 are withdrawn: "the shadow blade does not scale" (the sphere grid was not
 spent; it wins 92 % at level 50), "Lead Arrow / Spirit Arrow hurt every

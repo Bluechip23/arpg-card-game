@@ -417,12 +417,14 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 
 ## A weapon swap, from what the player sees: the auto attack's reach against
 ## the nearest enemy (a bow reaches 5, anything else 1, and a bow swing costs
-## 1 tempo more; longer reach is worth the share of the walk it saves),
+## 1 tempo more; reach is worth the tiles of walking it saves, at the
+## auto attack's damage per tempo),
 ## Conditional cards in hand turning ranged or melee with the bow, the cards
 ## the incoming weapons bring (to hand on Brad's free rack exchange, else to
 ## the discard pile) and the cards in hand the outgoing weapons take with
-## them. Nothing gained is a strong no: a free swap must
-## never be taken for its own sake.
+## them, less a whole swing when it would undo a swap made within the last
+## swing. Nothing gained is a strong no: a free swap must never be taken for
+## its own sake.
 static func _swap_value(sw: Dictionary, state: SimState) -> float:
 	var near := state.nearest_enemy_index()
 	if near < 0:
@@ -432,12 +434,13 @@ static func _swap_value(sw: Dictionary, state: SimState) -> float:
 	var reach_alt := 5 if bool(sw["ranged"]) else 1
 	var swing := float(state.basic_attack_damage)
 	var g := 0.0
+	# Reach is tempo: every tile the longer reach saves walking is a tempo
+	# the auto attack spends swinging instead (at its damage per tempo).
+	var per_tempo := swing / float(maxi(1, state.basic_attack_tempo))
 	if d > reach_now and reach_alt > reach_now:
-		# The auto attack lands from here, or from that much nearer: worth
-		# the share of the walk the longer reach saves.
-		g += swing * minf(1.0, float(reach_alt - reach_now) / float(d - reach_now))
+		g += per_tempo * float(mini(d, reach_alt) - reach_now)
 	elif d > reach_alt and reach_now > reach_alt:
-		g -= swing                # gives up reach the fight still needs
+		g -= per_tempo * float(mini(d, reach_now) - reach_alt)   # the walk it adds
 	elif d <= 1 and reach_now > reach_alt:
 		g += swing / 6.0          # in melee the bow's extra tempo per swing is waste
 	if bool(sw["ranged"]) != state.weapons_ranged and d > 1:
@@ -449,6 +452,11 @@ static func _swap_value(sw: Dictionary, state: SimState) -> float:
 	for hi in sw["leaving"]:
 		if hi >= 0 and hi < state.hand.size():
 			g -= _card_worth(state.hand[hi], state)
+	# Commitment: swapping back within one swing of the last swap throws away
+	# both, so it must beat a whole swing (a sidestep to 2 tiles beside a
+	# melee enemy is not a reason to string the bow).
+	if SimState.last_swap_tempo >= 0 and state.global_tempo - SimState.last_swap_tempo < state.basic_attack_tempo:
+		g -= swing
 	if g <= 0.0:
 		return -5.0
 	return g
@@ -745,12 +753,22 @@ func _move_value(a: Dictionary, state: SimState, threats: Array, hp_weight: floa
 	var window: int = 2 if bool(a.get("flash", false)) else 1
 	if not t.is_empty() and t["is_hit"] and t["in_reach"] and not t.get("arriving", false) and t["fires_in"] <= window and d_after > int(t["reach"]):
 		return float(t["damage"]) * hp_weight + 0.5
-	var can_hit_now := false
+	var card_hits_now := false
+	var best_out := 0      # the best playable hit in hand that only lands from nearer
+	var best_out_range := 1
 	for h in state.hand:
 		if h["playable"] and h["damage"] > 0:
-			can_hit_now = can_hit_now or state.main._is_target_in_card_range(state.main.deck_manager.hand[h["index"]], e["node"])
-	if d_now <= state.basic_attack_reach:
-		can_hit_now = true
+			if state.main._is_target_in_card_range(state.main.deck_manager.hand[h["index"]], e["node"]):
+				card_hits_now = true
+			elif int(h["damage"]) > best_out:
+				best_out = int(h["damage"])
+				best_out_range = maxi(1, int(h["range"]))
+	var can_hit_now := card_hits_now or d_now <= state.basic_attack_reach
 	if not can_hit_now and d_after < d_now:
 		return 1.0   # closing in is progress
+	# A bow plinking from range while blades wait in hand: walking in is
+	# progress when the card beats the auto attack, worth half its hit
+	# spread over the tiles still to close.
+	if not card_hits_now and d_after < d_now and best_out > state.basic_attack_damage:
+		return maxf(1.0, 0.5 * float(best_out) / float(maxi(1, d_now - best_out_range)))
 	return -0.5      # otherwise a move is a tempo spent on nothing
