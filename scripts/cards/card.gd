@@ -1217,7 +1217,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"clumsy": "30% chance to discard a random card when playing. Each stack lasts 5 tempo on its own clock; playing burns nothing",
 		"vulnerable": "Take 30% more damage on every hit. Each stack lasts 5 tempo on its own clock; hits burn nothing",
 		"blind": "80% chance for your attacks to miss — Attack cards, the auto attack and Flash Cut. Each stack lasts 5 tempo on its own clock",
-		"exposed": "Your armor was broken through — a hit got past it",
+		"exposed": "Your armor was broken through — a hit got past it. Once Exposed, a unit can't be Exposed again for 10 tempo",
 		"brittle": "Armor decays an extra 2 per cycle. Each stack lasts 5 tempo on its own clock",
 		"cold": "Stacking debuff, 5 tempo. At 5 stacks the target becomes Frozen for 1 cycle",
 		# Overflow

@@ -49,7 +49,7 @@ func _build_legend() -> void:
 	_add_keyword("Clumsy", "30% chance to discard a random card when playing. Each stack lasts 5 tempo on its own clock; playing burns nothing", Color(0.9, 0.6, 0.2))
 	_add_keyword("Vulnerable", "Take 30% more damage on every hit. Each stack lasts 5 tempo on its own clock; hits burn nothing", Color(1.0, 0.3, 0.3))
 	_add_keyword("Blind", "80% chance for your attacks to miss — Attack cards, the auto attack and Flash Cut. Each stack lasts 5 tempo on its own clock", Color(0.85, 0.85, 0.4))
-	_add_keyword("Exposed", "Your armor was broken through — a hit got past it", Color(0.9, 0.7, 0.5))
+	_add_keyword("Exposed", "Your armor was broken through — a hit got past it. Once Exposed, a unit can't be Exposed again for 10 tempo", Color(0.9, 0.7, 0.5))
 	_add_keyword("Brittle", "Armor decays an extra 2 per cycle. Each stack lasts 5 tempo on its own clock", Color(0.7, 0.7, 0.6))
 	_add_keyword("Weakened", "Deal 30% less damage. Each stack lasts 5 tempo on its own clock; attacking burns nothing", Color(0.5, 0.5, 0.8))
 	_add_keyword("Cold", "Stacking debuff, 5 tempo. At 5 stacks the target becomes Frozen for 1 cycle", Color(0.4, 0.7, 1.0))
