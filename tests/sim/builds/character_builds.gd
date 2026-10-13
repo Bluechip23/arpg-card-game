@@ -199,6 +199,94 @@ static func recipes(character: String) -> Dictionary:
 	var own: Dictionary = lib.get_script_constant_map().get("DECK_RECIPES", {}) if lib else {}
 	return _merged(DEFAULT_RECIPES, own)
 
+## {passive id: stage index} from the character's skill tree lanes (a stage
+## is a column across every archetype lane).
+static func passive_stages(character: String) -> Dictionary:
+	var tree = SkillTreeData.create_tree_for(character.capitalize(), 50)
+	var out := {}
+	for lane in tree.get_archetype_lanes():
+		var ps: Array = lane["passives"]
+		for i in range(ps.size()):
+			out[ps[i].passive_id] = i
+	return out
+
+## Make passive ranks legal under the skill tree's stage gate: a stage only
+## opens once SkillTreeData.STAGE_GATE_POINTS sit in the stage before it
+## (summed over every lane). Points move from the highest stages — the focus
+## passive last — into the best passive of the stage that is short, so the
+## total is unchanged and every build the sweeps compose could be built in
+## the game. Returned in stage order, the order the tree screen spends them.
+static func legalize_ranks(character: String, ranks: Dictionary, weights: Dictionary, focus: String = "") -> Dictionary:
+	var stage := passive_stages(character)
+	var out := ranks.duplicate()
+	var gate: int = SkillTreeData.STAGE_GATE_POINTS
+	var cap: int = PlayerStats.PASSIVE_MAX_LEVEL
+	var top := 0
+	for pid in stage:
+		top = maxi(top, int(stage[pid]))
+	var guard := 0
+	while guard < 1000:
+		guard += 1
+		var sums := {}
+		for pid in out:
+			var st: int = int(stage.get(pid, 0))
+			sums[st] = int(sums.get(st, 0)) + int(out[pid])
+		var short := -1
+		for st in range(1, top + 1):
+			if int(sums.get(st, 0)) > 0 and int(sums.get(st - 1, 0)) < gate:
+				short = st - 1
+				break
+		if short < 0:
+			break
+		# Donor: highest stage above `short` with points; the focus passive last.
+		var donor := ""
+		var donor_key := []
+		for pid in out:
+			if int(out[pid]) <= 0 or int(stage.get(pid, 0)) <= short:
+				continue
+			var key := [int(stage[pid]), 0 if pid == focus else 1, -float(weights.get(pid, 0.0)), str(pid)]
+			if donor == "" or _key_better(key, donor_key):
+				donor = pid
+				donor_key = key
+		# Recipient: the stage-`short` passive the build weights most (then the
+		# one already ranked highest) that has room.
+		var recip := ""
+		var recip_key := []
+		for pid in stage:
+			if int(stage[pid]) != short or int(out.get(pid, 0)) >= cap:
+				continue
+			var key := [float(weights.get(pid, 0.0)), int(out.get(pid, 0)), str(pid)]
+			if recip == "" or _key_better_max(key, recip_key):
+				recip = pid
+				recip_key = key
+		if donor == "" or recip == "":
+			break
+		out[donor] = int(out[donor]) - 1
+		out[recip] = int(out.get(recip, 0)) + 1
+	var ordered := {}
+	var ids: Array = out.keys()
+	ids.sort_custom(func(a, b): return int(stage.get(a, 0)) < int(stage.get(b, 0)) or (int(stage.get(a, 0)) == int(stage.get(b, 0)) and str(a) < str(b)))
+	for pid in ids:
+		if int(out[pid]) > 0:
+			ordered[pid] = int(out[pid])
+	return ordered
+
+## Donor order: higher stage first, then non-focus, then lowest weight.
+static func _key_better(a: Array, b: Array) -> bool:
+	if a[0] != b[0]:
+		return a[0] > b[0]
+	if a[1] != b[1]:
+		return a[1] > b[1]
+	if a[2] != b[2]:
+		return a[2] > b[2]
+	return a[3] < b[3]
+
+static func _key_better_max(a: Array, b: Array) -> bool:
+	for i in range(a.size() - 1):
+		if a[i] != b[i]:
+			return a[i] > b[i]
+	return a[a.size() - 1] < b[b.size() - 1]
+
 ## {passive id: its tree description} for the character.
 static func tree_passive_text(character: String) -> Dictionary:
 	var tree = SkillTreeData.create_tree_for(character.capitalize(), 50)
@@ -416,8 +504,10 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 				if str(k) != focus:
 					rest[k] = 1
 		ranks.merge(spread(rest, passive_points - ranks[focus], max_rank))
+		ranks = legalize_ranks(character, ranks, rest, focus)
+		base["focus_rank"] = int(ranks.get(focus, 0))
 	else:
-		ranks = spread(passive_weights, passive_points, max_rank)
+		ranks = legalize_ranks(character, spread(passive_weights, passive_points, max_rank), passive_weights)
 	# Slotted cards only for items that made the cut.
 	var slotted := {}
 	var worn := {}

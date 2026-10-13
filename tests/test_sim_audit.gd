@@ -18,6 +18,14 @@ const KNOWN_SILENT := ["directed_strength", "life_steal", "harnessed_power", "bl
 
 var failures := 0
 
+## A rank dictionary seen through the stats interface SkillTreeData reads.
+class RankView:
+	var ranks: Dictionary
+	func _init(r: Dictionary) -> void:
+		ranks = r
+	func get_passive_level(pid: String) -> int:
+		return int(ranks.get(pid, 0))
+
 func _check(cond: bool, msg: String) -> void:
 	if cond:
 		print("  PASS: " + msg)
@@ -89,6 +97,42 @@ func _run() -> void:
 			for level in LEVELS:
 				await _audit_build(runner, c, {"build": b, "level": level}, "%s/%s L%d" % [c, b, level])
 		var first: String = lib.DESIGNED.keys()[0]
+		# Every passive id the library names is one the game's tree has (a
+		# misspelled id takes ranks and does nothing: lets_dance, a_mages_favor).
+		var real: Array = CharacterBuilds.tree_passives(c)
+		var unknown: Array = []
+		for ps in lib.PASSIVES:
+			for pid in lib.PASSIVES[ps]:
+				if not pid in real and not pid in unknown:
+					unknown.append(pid)
+		for t in CharacterBuilds.tactics(c):
+			for pid in CharacterBuilds.tactics(c)[t].get("passives", {}):
+				if not pid in real and not pid in unknown:
+					unknown.append(pid)
+		_check(unknown.is_empty(), "%s: every library passive id is a real tree passive %s" % [c, str(unknown)])
+		# The stage gate: every composition the sweeps make could be built in
+		# the tree (a stage opens once 5 points sit in the stage before it).
+		var lanes: Array = SkillTreeData.create_tree_for(c.capitalize(), 50).get_archetype_lanes()
+		var gate_bad: Array = []
+		for b in lib.DESIGNED:
+			for level in [5, 10, 18, 30, 50]:
+				var vs: Array = [{"build": b, "level": level}]
+				for pid in CharacterBuilds.tree_passives(c):
+					vs.append({"build": b, "level": level, "focus": pid})
+				for ps in lib.PASSIVES:
+					vs.append({"build": b, "level": level, "passives": ps})
+				for v in vs:
+					var rk: Dictionary = CharacterBuilds.compose(c, v)["player"]["passives"]
+					var fs := RankView.new(rk)
+					for st in range(1, 6):
+						var used := 0
+						for l in lanes:
+							if st < (l["passives"] as Array).size():
+								used += fs.get_passive_level(l["passives"][st].passive_id)
+						if used > 0 and not SkillTreeData.is_stage_unlocked(lanes, st, fs):
+							gate_bad.append("%s L%d %s" % [b, level, str(v.get("focus", v.get("passives", "designed")))])
+							break
+		_check(gate_bad.is_empty(), "%s: every composed passive spread obeys the stage gate (%d break it: %s)" % [c, gate_bad.size(), str(gate_bad.slice(0, 4))])
 		# Passive focus on every tree passive, level 50.
 		var tree: Array = CharacterBuilds.tree_passives(c)
 		_check(tree.size() >= 1, "%s has tree passives (%d)" % [c, tree.size()])

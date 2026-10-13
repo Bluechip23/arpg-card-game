@@ -302,7 +302,12 @@ scenario=tests/sim/scenarios/build.gd parts=character:brad,build:immovable_warde
 weight set, spread proportionally over the points the level banks (so
 nothing is ever maxed); `focus:<passive_id>` takes that one tree passive to
 rank 15 first and spreads the rest over the build's set, which is how a
-player who commits to a passive builds. The tree passives come from the
+player who commits to a passive builds. Every spread then obeys the skill
+tree's stage gate (a stage opens once 5 points sit in the stage before
+it): points move from the highest stages into the stage that is short,
+the focus passive last, so a level-18 focus on a stage-3 passive becomes
+5 / 5 / 7 rather than an impossible 15 (the reached rank is recorded as
+`focus_rank` in the job's `loadout.json`). The tree passives come from the
 character's skill tree itself (`CharacterBuilds.tree_passives`), so a new
 passive is swept the moment it is added; passives that come with an item
 have no rank and are not part of it. `enemy_scale=hp:x,dmg:y`

@@ -37,9 +37,9 @@ const SPHERES := {
 }
 const PASSIVES := {
 	"evoker": {"arcane_overflow": 3, "harnessed_power": 3, "mana_surge": 3, "tricks_of_death": 2,
-		"seance": 2, "a_mages_favor": 2, "fresh_start": 2},
+		"seance": 2, "a_mage's_favor": 2, "fresh_start": 2},
 	"shepherd": {"i_heal_you": 3, "whispers_of_the_flock": 3, "blood_libation": 3, "fresh_start": 2,
-		"a_mages_favor": 2, "kinetic_armor": 2, "tricks_of_death": 2},
+		"a_mage's_favor": 2, "kinetic_armor": 2, "tricks_of_death": 2},
 	"none": {},
 }
 const DESIGNED := {

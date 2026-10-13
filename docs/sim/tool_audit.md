@@ -10,7 +10,7 @@ was wrong. Everything marked *fixed* is on the branch, covered by a test.
 ## Verdict
 
 The tester now does what was agreed, with the limits listed at the end.
-The audit found **fifteen defects**; five of them changed numbers already
+The audit found **seventeen defects**; five of them changed numbers already
 reported in `RESULTS.md`, and those tables were re-run (see there).
 
 | # | Defect | Effect on readings | Status |
@@ -26,6 +26,8 @@ reported in `RESULTS.md`, and those tables were re-run (see there).
 | 9 | Recipe decks ranked cards from an untracked, ever-changing file | the same recipe produced different decks on different machines or between a before and after | fixed: ranking committed under `tests/sim/builds/rankings/`, refreshed only on `--update-ranking` |
 | 10 | Passive trigger counts read 0 for passives the game never logs (Directed Strength, Life Steal, Harnessed Power, Blood Libation, Wither) and for Way of the Plate (logs under another name) | "never fired" was wrong for six passives | fixed: name mapped; silent passives read `-` |
 | 11 | Invisibility draw: cancelling the discard picker kept the drawn card for free | a real player could skip the cost | fixed in the game; scene-level test |
+| 16 | Passive spreads ignored the skill tree's stage gate (a stage opens once 5 points sit in the stage before it) | 180 of 240 level-18 focus variants and 3 of Stephen's 4 designed builds at 18 could not exist in the game (level-50 readings were legal) | fixed: the composer legalizes every spread; audit test checks every composition |
+| 17 | Jeremy's library spelled `a_mages_favor`; the game's id is `a_mage's_favor` | the shepherd passive set put ranks into a passive that does not exist | fixed; audit test rejects any library passive id the tree does not have |
 | 14 | Stalemates: with nothing scoring above waiting (a Wyvern hovering out of reach, a hand of utility cards) both sides waited out the 40-bar clock | timeouts read as failures against the Wyvern; the apothecary's invisibility tactic lost 8 of 15 to it | fixed: after 6 idle waits with no health change the lookahead commits to its best non-wait action or closes distance |
 | 15 | The invisibility draw's discard threw away engine cards (Poisoned Blood scored 0 by damage + block + heal) and drew without looking at the revealed top card | the rule's first final reading (−47 pts for the apothecary vs the Wyvern) measured the policy, not the rule | fixed: cards valued for poison, potions, draw, invisibility and discard engines; draw only when the revealed card beats the weakest in hand |
 | 13 | The swap table averaged each card over whatever enemies it ran against, so cards with an extra pack run were ranked on different fights | If Pigs Could Fly briefly topped the ranking at +20 (its pack wipe averaged in) | fixed: packs reported in their own table, the ranking uses one shared enemy set |
