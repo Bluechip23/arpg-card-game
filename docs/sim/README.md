@@ -122,7 +122,7 @@ player action and each enemy action that fired, in order.
 | `bar_index` | tempo cycle the action started in (`global_tempo / threshold`) |
 | `tempo_before`, `tempo_after` | global tempo when the action started / when its ticks and settling finished |
 | `actor` | `player` or `<EnemyName>#<spawn index>` |
-| `action_id` | `play:<card_id>`, `attack`, `block`, `wait`, `move:<tiles>`, or the enemy's action name |
+| `action_id` | `play:<card_id>`, `attack`, `block`, `wait`, `move:<tiles>`, `skill:<effect_id>` (a gauntlet skill), or the enemy's action name |
 | `target` | `enemy:<i>`, `self`, `point:x,y`, `none`, or `player` |
 | `player_hp` … `hand_size` | the player's state when the action started |
 | `enemy_id`, `enemy_hp`, `enemy_pos` | the targeted enemy (or the acting one; or the first living one) — HP and cell **after** the action |
@@ -139,7 +139,7 @@ regen) goes to the player's row.
 bars_elapsed, total_damage_dealt, total_damage_taken, damage_per_tempo,
 cards_played, distinct_cards_played, card_entropy (bits, over card ids),
 mana_wasted (regen lost to the mana cap), overflow_bars (cycle boundaries
-crossed with carry-over tempo), end_hp_pct, enemy_actions_by_type
+crossed with carry-over tempo), end_hp_pct, skills_used, enemy_actions_by_type
 ("bite:4|move:2"), global_tempo, decisions, error`.
 
 `aggregate.csv` holds `n`, the four outcome rates and mean/std/min/max of
@@ -505,6 +505,17 @@ draws when the hand runs thin), with an opportunity cost on every point
 spent and a commitment cost on long actions equal to what the character
 could otherwise have blocked, sidestepped or walked away from. `--verbose`
 prints its top-scored actions and threat model at every decision.
+
+**Gauntlet skills** are actions like cards: every equipped active skill that
+is off cooldown and affordable is offered (enemy-targeted ones per enemy in
+reach, Suck at the nearest enemy's cell, House Rule when the discard pile
+has a card), fired through the game's own skill path (mana, +1 tempo,
+cooldown), and priced by what it does: armor and heals against the
+incoming threat, thorns by the hits it will meet, draws and reshuffles by
+hand and draw-pile size, Zeet and Lethal Poke by damage, Coming In! by the
+gap it closes (and the invisibility it buys under Now You See Me), Fan
+Save by the hit it stops, Suck by the extra enemies it bunches.
+`summary.csv` counts them in `skills_used` (`zeet:2|…`).
 
 ## How time is driven (why the numbers are trustworthy)
 

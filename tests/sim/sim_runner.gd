@@ -20,7 +20,7 @@ const ROW_COLUMNS := ["bar_index", "tempo_before", "tempo_after", "actor", "acti
 	"damage_dealt", "damage_taken", "buffs_applied", "debuffs_applied", "rng_outcome_used", "overkill"]
 const SUMMARY_COLUMNS := ["seed", "outcome", "bars_elapsed", "total_damage_dealt", "total_damage_taken",
 	"damage_per_tempo", "cards_played", "distinct_cards_played", "card_entropy", "mana_wasted",
-	"overflow_bars", "end_hp_pct", "enemy_actions_by_type", "passive_triggers", "sphere_nodes", "global_tempo", "decisions", "error", "warnings"]
+	"overflow_bars", "end_hp_pct", "enemy_actions_by_type", "passive_triggers", "skills_used", "sphere_nodes", "global_tempo", "decisions", "error", "warnings"]
 const AGGREGATE_STATS := ["mean", "std", "min", "max"]
 
 var tree: SceneTree
@@ -554,6 +554,8 @@ func _apply_action(a: Dictionary, state: SimState) -> bool:
 			ok = true
 		"move":
 			ok = _do_move(a, row)
+		"item_skill":
+			ok = _do_item_skill(a, state, row)
 		"flash_block":
 			var stats = main.player.get_stats()
 			var fp: int = stats.current_flash_points
@@ -720,6 +722,40 @@ func _do_move(a: Dictionary, row: Dictionary) -> bool:
 	row["action_id"] = ("flash_move:%d" if a.get("flash", false) else "move:%d") % spaces
 	return true
 
+## A gauntlet skill through main's own path: validate the target, then fire
+## (main pays the mana and the tempo and starts the cooldown). House Rule
+## opens its discard-pile picker, which the prompt handling answers.
+func _do_item_skill(a: Dictionary, state: SimState, row: Dictionary) -> bool:
+	var sk: Dictionary = state.skills[int(a["skill"])]
+	var inv = main.player.get_inventory()
+	var g = inv.equipped_gauntlets[int(sk["index"])]
+	if g == null or not inv.can_use_gauntlet_skill(g):
+		row["refused"] = "skill not ready"
+		return false
+	var target := str(a.get("target", "self"))
+	row["action_id"] = "skill:%s" % str(sk["fx"])
+	if target.begins_with("enemy:"):
+		var en = state.enemy_node(int(target.substr(6)))
+		if en == null or not main._validate_gauntlet_skill_target(g, en):
+			row["refused"] = "skill target refused"
+			return false
+		main._fire_gauntlet_skill(g, en)
+	elif target.begins_with("point:"):
+		var xy := target.substr(6).split(",")
+		_park_mouse(main.grid_manager.grid_to_world(Vector2i(int(xy[0]), int(xy[1]))))
+		main._fire_gauntlet_skill(g, null)
+	else:
+		main._on_gauntlet_skill_activated(g)
+		_answer_prompts()
+	_settle_all()
+	if not g.is_on_cooldown():
+		row["refused"] = "skill did not fire"
+		return false
+	_skill_counts[str(sk["fx"])] = int(_skill_counts.get(str(sk["fx"]), 0)) + 1
+	return true
+
+var _skill_counts := {}
+
 # --------------------------------------------------------------- time ----
 
 ## Run the tick pump until the player's queue is empty, snap-stepping units
@@ -832,6 +868,9 @@ func _answer_prompts() -> void:
 			for l in node.find_children("*", "Label", true, false):
 				title = str(l.text)
 				break
+			if title.begins_with("House Rule"):
+				kind = "house_rule"
+				prompt_state = SimState.new(main)
 			if title.begins_with("Invisibility:"):
 				kind = "invisibility_draw" if title.find("Draw it?") >= 0 else "invisibility_discard"
 				prompt_state = SimState.new(main)
@@ -1088,6 +1127,7 @@ func _reset_counters() -> void:
 	_enemy_action_counts.clear()
 	_passive_triggers.clear()
 	_hp_seen.clear()
+	_skill_counts.clear()
 	_mana_wasted = 0
 	_mana_delta = 0.0
 	_overflow_bars = 0
@@ -1130,6 +1170,7 @@ func _summary() -> Dictionary:
 		"enemy_actions_by_type": "|".join(actions),
 		"passive_triggers": _passive_trigger_text(stats),
 		"sphere_nodes": sphere_lit,
+		"skills_used": "|".join(_skill_counts.keys().map(func(k): return "%s:%d" % [k, _skill_counts[k]])),
 		"global_tempo": tm.global_tempo,
 		"decisions": _decisions,
 		"error": error_msg,

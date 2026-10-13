@@ -142,5 +142,9 @@ func _run() -> void:
 	for it in mixed["player"]["items"]:
 		all_own = all_own and (str(it[0]) in own_ids)
 	_check(all_own and mixed["player"]["items"].size() == RyanBuilds.ITEM_SETS["bruiser"].size(), "the build's own gear (or its fallbacks) stays")
+	# Gauntlet skills are actions the policy takes: Cuffs of Current's Zeet fires on a bear.
+	var zs := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "spellslinger", "item": "cuffs_of_current", "enemy": "LARGE_BEAR"}))
+	var zsum: Dictionary = await runner.run(zs, load("res://tests/sim/policies/lookahead.gd").new(), 1)
+	_check(str(zsum.get("skills_used", "")).contains("zeet:"), "the policy fires an equipped gauntlet skill (%s)" % str(zsum.get("skills_used", "")))
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
