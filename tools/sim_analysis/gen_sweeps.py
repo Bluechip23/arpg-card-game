@@ -1,0 +1,174 @@
+#!/usr/bin/env python3
+"""Writes the Milestone 3 sweep files from sim_out/catalog.json.
+
+Usage:
+  godot --headless --path . --script tests/sim/dump_catalog.gd
+  python3 tools/sim_analysis/gen_sweeps.py [--seeds-strategy 200] [--seeds 100]
+        [--pool-size 12] [--enemies WERERAT,ARCHER_RAT,RAT_KING] [--out tests/sim/sweeps]
+
+Sweeps (one job per line, run with tests/sim/run_sim.gd --sweep=<file>):
+  enemy_strategy.txt   3a  every acting enemy x {greedy_dpt, lookahead}
+  combos.txt           3b  baseline deck + singles and pairs from a pruned pool, lookahead, 3 enemies
+  card_power.txt       3c  baseline + one card at a time, lookahead, 3 enemies
+  item_power.txt       3c  baseline gear + one item at a time (weapons swap the sword)
+  build_divergence.txt 3d  stat allocations x 5 enemies
+  progression.txt      3e  levels 1/5/10/15/18 with tier gear x the roster
+Run cost is roughly 0.45 s per run; tools/sim_analysis/run_sweep.sh shards a file across processes.
+"""
+import argparse, json, os, itertools
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+BASELINE = "tests/sim/scenarios/baseline.gd"
+# Keywords that mean "this card only hits things": two of these with nothing
+# else cannot interact beyond adding damage. Override with --no-prune.
+PLAIN_ATTACK_KEYWORDS = {"attack", "offensive", "melee", "ranged", "enemy", "conditional", "self", "spell"}
+SKIP_TYPES = {"DUMMY", "RAT_NEST", "GRAVESTONE", "HELL_DOOR"}
+BUILDS = {
+    "even":      {"strength": 2, "dexterity": 2, "intelligence": 2, "wisdom": 2, "agility": 2, "determination": 2},
+    "pure_str":  {"strength": 12},
+    "pure_dex":  {"dexterity": 12},
+    "pure_int":  {"intelligence": 12},
+    "pure_wis":  {"wisdom": 12},
+    "pure_agi":  {"agility": 12},
+    "det_heavy": {"determination": 8, "strength": 4},
+}
+BUILD_ENEMIES = ["WERERAT", "SKELETON", "ARCHER_RAT", "ARMORED_TROLL", "FIRE_GOBLIN_MAGE"]
+PROGRESSION_LEVELS = [1, 5, 10, 15, 18]
+TIER_FOR_LEVEL = {1: None, 5: "COMMON", 10: "RARE", 15: "LEGENDARY", 18: "MYTHIC"}
+GEAR_SLOTS = ["WEAPON", "HELM", "CHEST", "BOOTS", "GAUNTLETS", "BELT"]
+
+
+def alloc_str(d):
+    return ",".join("%s:%d" % kv for kv in d.items())
+
+
+def even_alloc(level):
+    pts = (level - 1) * 3
+    stats = ["strength", "dexterity", "intelligence", "wisdom", "agility", "determination"]
+    d = {s: pts // 6 for s in stats}
+    for i in range(pts % 6):
+        d[stats[i]] += 1
+    return {k: v for k, v in d.items() if v > 0}
+
+
+def tier_gear(items, tier):
+    """One item per slot of the tier, the first by id: deterministic, documented."""
+    if tier is None:
+        return []
+    out = []
+    for slot in GEAR_SLOTS:
+        pool = sorted([i for i in items if i["type"] == slot and i["rarity"] == tier and not i.get("two_handed")], key=lambda i: i["id"])
+        if pool:
+            out.append(pool[0]["id"])
+    return out
+
+
+def card_pool(cards, size, pruned_types=("UNPLAYABLE", "ENCHANTMENT", "REACTION")):
+    pool = [c for c in cards if c["type"] not in pruned_types and not c["requires_engraving"]
+            and not c["shop_excluded"] and c["rarity"] in ("Basic", "Common", "Rare") and c["mana"] <= 60]
+    pool.sort(key=lambda c: c["id"])
+    return pool[:size]
+
+
+def can_interact(a, b):
+    """The prune rule: skip two plain attacks that carry no other keyword."""
+    def plain(c):
+        return c["type"] == "ATTACK" and not (set(c["keywords"]) - PLAIN_ATTACK_KEYWORDS)
+    return not (plain(a) and plain(b))
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--catalog", default=os.path.join(ROOT, "sim_out", "catalog.json"))
+    ap.add_argument("--out", default=os.path.join(ROOT, "tests", "sim", "sweeps"))
+    ap.add_argument("--seeds-strategy", type=int, default=200)
+    ap.add_argument("--seeds", type=int, default=100)
+    ap.add_argument("--pool-size", type=int, default=12, help="cards in the combo pool")
+    ap.add_argument("--pool", default="", help="explicit comma-separated card ids for the combo pool (overrides --pool-size)")
+    ap.add_argument("--enemies", default="WERERAT,ARCHER_RAT,RAT_KING", help="melee, ranged, boss for 3b/3c")
+    ap.add_argument("--no-prune", action="store_true", help="keep every pair in 3b")
+    ap.add_argument("--no-spotlight", action="store_true", help="3b/3c: do not start the added card(s) in the opening hand")
+    ap.add_argument("--limit", type=int, default=0, help="cap cards/items per sweep (0 = all)")
+    args = ap.parse_args()
+    cat = json.load(open(args.catalog))
+    os.makedirs(args.out, exist_ok=True)
+    seeds = "seeds=1-%d" % args.seeds
+    three = args.enemies.split(",")
+    spot = (lambda ids: "" if args.no_spotlight else " hand=%s" % ids)
+    acting = [r["type"] for r in cat["roster"] if r["has_actions"] and r["type"] not in SKIP_TYPES and not r["is_structure"]]
+
+    def write(name, lines, note):
+        path = os.path.join(args.out, name)
+        with open(path, "w") as f:
+            f.write("# %s\n# generated by tools/sim_analysis/gen_sweeps.py; %d job(s)\n" % (note, len(lines)))
+            f.write("\n".join(lines) + "\n")
+        runs = sum(int(l.split("seeds=1-")[1]) for l in lines)
+        print("%-22s %5d jobs %7d runs (~%.1f h at 0.45 s/run) -> %s" % (name, len(lines), runs, runs * 0.45 / 3600, os.path.relpath(path, ROOT)))
+
+    # 3a
+    lines = []
+    for t in acting:
+        for pol in ["greedy_dpt", "lookahead"]:
+            lines.append("scenario=%s policy=%s enemy=%s name=e_%s seeds=1-%d" % (BASELINE, pol, t, t, args.seeds_strategy))
+    write("enemy_strategy.txt", lines, "3a enemy strategy index: baseline player vs every acting enemy, solo")
+
+    # 3b
+    if args.pool:
+        by_id = {c["id"]: c for c in cat["cards"]}
+        pool = [by_id[i] for i in args.pool.split(",") if i in by_id]
+    else:
+        pool = card_pool(cat["cards"], args.pool_size)
+    lines = []
+    for t in three:
+        lines.append("scenario=%s policy=lookahead enemy=%s name=e_%s__c_base %s" % (BASELINE, t, t, seeds))
+        for c in pool:
+            lines.append("scenario=%s policy=lookahead enemy=%s add_cards=%s%s name=e_%s__c_%s %s" % (BASELINE, t, c["id"], spot(c["id"]), t, c["id"], seeds))
+        for a, b in itertools.combinations(pool, 2):
+            if args.no_prune or can_interact(a, b):
+                lines.append("scenario=%s policy=lookahead enemy=%s add_cards=%s,%s%s name=e_%s__cc_%s+%s %s" % (BASELINE, t, a["id"], b["id"], spot(a["id"] + "," + b["id"]), t, a["id"], b["id"], seeds))
+    write("combos.txt", lines, "3b combo discovery: pool %s" % ",".join(c["id"] for c in pool))
+
+    # 3c cards
+    cards = [c for c in cat["cards"] if c["type"] not in ("UNPLAYABLE",) and not c["requires_engraving"]]
+    if args.limit:
+        cards = cards[:args.limit]
+    lines = []
+    for t in three:
+        lines.append("scenario=%s policy=lookahead enemy=%s name=e_%s__c_base %s" % (BASELINE, t, t, seeds))
+        for c in cards:
+            lines.append("scenario=%s policy=lookahead enemy=%s add_cards=%s%s name=e_%s__c_%s %s" % (BASELINE, t, c["id"], spot(c["id"]), t, c["id"], seeds))
+    write("card_power.txt", lines, "3c card power: baseline deck + one card")
+
+    # 3c items (a weapon replaces the Short Sword; everything else is added in slot 0)
+    items = [i for i in cat["items"] if i["type"] not in ("SCROLL",)]
+    if args.limit:
+        items = items[:args.limit]
+    lines = []
+    for t in three:
+        lines.append("scenario=%s policy=lookahead enemy=%s name=e_%s__i_base %s" % (BASELINE, t, t, seeds))
+        for i in items:
+            ov = "items=%s:0" % i["id"] if i["type"] == "WEAPON" else "add_items=%s:0" % i["id"]
+            lines.append("scenario=%s policy=lookahead enemy=%s %s name=e_%s__i_%s %s" % (BASELINE, t, ov, t, i["id"], seeds))
+    write("item_power.txt", lines, "3c item power: baseline gear + one item (weapons swap the sword)")
+
+    # 3d
+    lines = []
+    for t in BUILD_ENEMIES:
+        for bname, alloc in BUILDS.items():
+            lines.append("scenario=%s policy=lookahead enemy=%s alloc=%s name=e_%s__b_%s %s" % (BASELINE, t, alloc_str(alloc), t, bname, seeds))
+    write("build_divergence.txt", lines, "3d build divergence: 7 allocations x 5 enemies")
+
+    # 3e
+    lines = []
+    for lvl in PROGRESSION_LEVELS:
+        gear = tier_gear(cat["items"], TIER_FOR_LEVEL[lvl])
+        items_ov = "items=" + (",".join("%s:0" % g for g in gear) if gear else "none")
+        alloc = even_alloc(lvl)
+        alloc_ov = ("alloc=" + alloc_str(alloc)) if alloc else "alloc=strength:0"
+        for t in acting:
+            lines.append("scenario=%s policy=lookahead enemy=%s level=%d %s %s name=e_%s__L_%d %s" % (BASELINE, t, lvl, alloc_ov, items_ov, t, lvl, seeds))
+    write("progression.txt", lines, "3e progression: levels %s with tier gear vs the roster" % PROGRESSION_LEVELS)
+
+
+if __name__ == "__main__":
+    main()
