@@ -130,7 +130,10 @@ func _run() -> void:
 	_check(ring.count("cyclops_ring") == 1 and ring.has("marvolo_gaunt") and not ring.has("ring_of_stone_hide"), "a ring takes ring slot 0 and keeps slot 1 (%s)" % str(ring))
 	# compose swaps components and keeps the rest.
 	var mixed := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "bruiser", "deck": "potions", "alloc": "int_wis", "sphere": "none", "passives": "apothecary", "enemy": "WERERAT"}))
-	_check(mixed["player"]["deck"] == RyanBuilds.DECKS["potions"], "compose swaps the deck")
+	_check(mixed["player"]["deck"] == SimDecks.DECKS["potions"], "compose swaps the deck")
+	var cross := CharacterBuilds.compose("brad", {"build": "immovable_warden", "deck": "spells"})
+	_check(cross["player"]["deck"] == SimDecks.DECKS["spells"] and CharacterBuilds.components("cory")["deck"] == SimDecks.DECKS.keys(),
+		"decks are shared: Brad loads the spell deck, every character lists every deck")
 	_check(mixed["player"]["allocation"] == CharacterBuilds.spread(RyanBuilds.ALLOCS["int_wis"], 51), "compose swaps the allocation")
 	_check(mixed["player"]["sphere_targets"].is_empty() and mixed["player"]["passives"] == CharacterBuilds.spread(RyanBuilds.PASSIVES["apothecary"], 17, 15), "compose swaps sphere path and passives")
 	var own_ids: Array = []
@@ -142,5 +145,26 @@ func _run() -> void:
 	for it in mixed["player"]["items"]:
 		all_own = all_own and (str(it[0]) in own_ids)
 	_check(all_own and mixed["player"]["items"].size() == RyanBuilds.ITEM_SETS["bruiser"].size(), "the build's own gear (or its fallbacks) stays")
+	# Gauntlet skills are actions the policy takes: Cuffs of Current's Zeet fires on a bear.
+	var zs := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "spellslinger", "item": "cuffs_of_current", "enemy": "LARGE_BEAR"}))
+	var zsum: Dictionary = await runner.run(zs, load("res://tests/sim/policies/lookahead.gd").new(), 1)
+	_check(str(zsum.get("skills_used", "")).contains("zeet:"), "the policy fires an equipped gauntlet skill (%s)" % str(zsum.get("skills_used", "")))
+	# Weapon swaps: a second weapon set as build II (Stephen) or on the War Rack (Brad).
+	var st := CharacterBuilds.compose("stephen", {"build": "heavy_swing", "enemy": "WYVERN"})
+	_check(st["player"]["alt_weapons"] == [["long_bow", 0], ["standard_quiver", 1]] and st["player"]["alt_slotted"].has("long_bow"),
+		"a designed build carries its second weapon set (%s)" % str(st["player"]["alt_weapons"]))
+	_check(CharacterBuilds.compose("stephen", {"build": "heavy_swing", "alt": "none"})["player"]["alt_weapons"].is_empty(), "alt:none fights with one set")
+	var st_swaps: Array = []
+	var st_warn: Array = []
+	for sd in range(1, 5):
+		var stsum: Dictionary = await runner.run(SimScenario.with_defaults(st), load("res://tests/sim/policies/lookahead.gd").new(), sd)
+		st_swaps.append(str(stsum.get("weapon_swaps", "")))
+		st_warn.append_array(runner.warnings)
+	_check(st_warn.is_empty() and st_swaps.any(func(v): return v.contains("build2:")),
+		"Stephen switches to his bow build against the Wyvern on some of seeds 1-4 (%s, %s)" % [str(st_swaps), str(st_warn)])
+	var br := SimScenario.with_defaults(CharacterBuilds.compose("brad", {"build": "immovable_warden", "enemy": "LARGE_BEAR"}))
+	var brsum: Dictionary = await runner.run(br, load("res://tests/sim/policies/lookahead.gd").new(), 1)
+	_check(runner.warnings.is_empty() and str(brsum.get("weapon_swaps", "")).contains("rack_free:"),
+		"Brad takes the War Rack's free exchange (%s, %s)" % [str(brsum.get("weapon_swaps", "")), str(runner.warnings)])
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

@@ -2,8 +2,9 @@ class_name JeremyBuilds
 extends RefCounted
 
 ## Jeremy's build library (CharacterBuilds.compose("jeremy", parts)):
-## the designer's loadouts from tests/_build_sims.gd with placeholder
-## decks. Fill in the components, keep the shape.
+## the designer's loadouts from tests/_build_sims.gd. Decks come from the
+## shared library (tests/sim/builds/decks.gd). Fill in the components,
+## keep the shape.
 
 const DEFAULT_ENEMY := "LARGE_BEAR"
 
@@ -20,11 +21,6 @@ const SLOTTED := {
 	"shepherd": {"corset_of_cure": ["healing_potion", "gulped_potion", "elixir"], "blue_robe": ["approach", "armor_patch"]},
 	"presence_of_mind": {"blue_robe": ["approach", "armor_patch"]},
 }
-const DECKS := {
-	"starter": ["slash", "slash", "slash", "block", "block", "block", "draw", "draw", "gain_mana", "heal"],
-	"spells": ["fireball", "fireball", "mana_surge", "mana_surge", "magic_barrier", "magic_barrier",
-		"heal", "heal", "gain_mana", "gain_mana", "draw", "block"],
-}
 const ALLOCS := {
 	"int_wis": {"intelligence": 27, "wisdom": 18, "strength": 6},
 	"wis_int_det": {"wisdom": 21, "intelligence": 15, "determination": 9, "strength": 6},
@@ -37,9 +33,9 @@ const SPHERES := {
 }
 const PASSIVES := {
 	"evoker": {"arcane_overflow": 3, "harnessed_power": 3, "mana_surge": 3, "tricks_of_death": 2,
-		"seance": 2, "a_mages_favor": 2, "fresh_start": 2},
+		"seance": 2, "a_mage's_favor": 2, "fresh_start": 2},
 	"shepherd": {"i_heal_you": 3, "whispers_of_the_flock": 3, "blood_libation": 3, "fresh_start": 2,
-		"a_mages_favor": 2, "kinetic_armor": 2, "tricks_of_death": 2},
+		"a_mage's_favor": 2, "kinetic_armor": 2, "tricks_of_death": 2},
 	"none": {},
 }
 const DESIGNED := {

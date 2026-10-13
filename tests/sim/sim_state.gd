@@ -50,6 +50,86 @@ var ladder_banked: int
 var passives: Dictionary = {}      # passive id -> rank
 var nysm_ready: bool = false       # Now You See Me would fire on a displacement right now
 var top_card: Dictionary = {}      # the draw pile's top card, only while a rule has revealed it (invisibility draw)
+## Active gauntlet skills: [{index (gauntlet slot), item_id, name, fx, mana,
+## description, ready, target ("enemy" / "point" / "self"), melee}]. A skill
+## costs 1 tempo (Slice 2) and its mana, then cools down.
+var skills: Array = []
+var intelligence: int = 0
+## Weapon swaps on offer: [{kind ("build" / "rack"), build, tempo, mana,
+## free (Brad's free rack exchange), ranged (the incoming set holds a bow),
+## incoming (card views of the cards the incoming weapons carry), leaving
+## (hand indices of cards the outgoing weapons take with them)}]. One swap
+## per tempo (last_swap_tempo, set by the runner), so a free swap never loops.
+var weapon_swaps: Array = []
+var weapons_ranged: bool = false
+static var last_swap_tempo: int = -1
+
+## What a card offers at a glance (the revealed top card, a weapon's cards).
+func card_view(c: Card) -> Dictionary:
+	return {"id": c.card_id, "name": c.card_name, "type": Card.CardType.keys()[c.card_type],
+		"damage": main._card_player_damage(c) if (c.card_type == Card.CardType.ATTACK and c.base_damage > 0) else 0,
+		"block": c.block if c.block > 0 else c.base_block, "heal": c.heal_amount,
+		"description": c.description, "playable": true, "mana": estimate_mana_cost(c)}
+
+## The swaps the game's buttons would make right now: Brad's War Rack, or a
+## saved equipment build whose hands differ. Cost as the game charges it in
+## combat (tempo per changed hand slot plus half the mana; Stephen's weapon
+## portion of a build switch free; a ready rack exchange free).
+func _collect_weapon_swaps(inv) -> void:
+	var fighting: bool = main._is_in_combat()
+	if inv.has_back_rack:
+		if inv.rack_items.is_empty():
+			return
+		var free: bool = inv.can_rack_exchange(true)["ok"]
+		if not free and not inv.can_rack_exchange(false)["ok"]:
+			return
+		var held: Array = inv.get_rack_hand_items()
+		var tempo := 0
+		if not free and fighting:
+			tempo = maxi(inv.rack_items.size(), held.size()) * inv.get_swap_tempo_cost(ItemData.ItemType.WEAPON)
+		weapon_swaps.append(_swap_view(inv, "rack", -1, inv.rack_items, held, tempo,
+			inv.get_swap_mana_cost() if tempo > 0 else 0, free))
+		return
+	for b in range(inv.builds.size()):
+		var snap = inv.builds[b]
+		if b == inv.active_build or snap == null:
+			continue
+		var want: Array = snap.get("weapons", [])
+		var incoming: Array = []
+		var outgoing: Array = []
+		var tempo := 0
+		for i in range(inv.equipped_weapons.size()):
+			var w = want[i] if i < want.size() else null
+			var live = inv.equipped_weapons[i]
+			if w == live:
+				continue
+			if w != null:
+				incoming.append(w)
+			if live != null:
+				outgoing.append(live)
+			if fighting and not inv.weapon_swap_discount:
+				tempo += inv.get_swap_tempo_cost(w.item_type if w else live.item_type, w == null)
+		if incoming.is_empty() and outgoing.is_empty():
+			continue
+		weapon_swaps.append(_swap_view(inv, "build", b, incoming, outgoing, tempo,
+			inv.get_swap_mana_cost() if tempo > 0 else 0, false))
+
+func _swap_view(inv, kind: String, b: int, incoming: Array, outgoing: Array, tempo: int, mana: int, free: bool) -> Dictionary:
+	var ranged := false
+	var cards: Array = []
+	for it in incoming:
+		if it.item_type == ItemData.ItemType.WEAPON and it.weapon_subtype == ItemData.WeaponSubtype.BOW:
+			ranged = true
+		for c in inv._get_item_owned_cards(it):
+			cards.append(card_view(c))
+	var leaving: Array = []
+	for it in outgoing:
+		for c in inv._get_item_owned_cards(it):
+			var hi: int = main.deck_manager.hand.find(c)
+			if hi >= 0:
+				leaving.append(hi)
+	return {"kind": kind, "build": b, "tempo": tempo, "mana": mana, "free": free, "ranged": ranged,
+		"incoming": cards, "leaving": leaving}
 
 ## Cards whose play is a displacement in main's world cases (they call
 ## _trigger_skill_tree_on_displacement): Now You See Me keys off these.
@@ -147,13 +227,31 @@ func refresh() -> void:
 			"attack_range": int(e.attack_range),
 		})
 
+	intelligence = stats.intelligence
+	skills.clear()
+	inv = player.get_inventory()
+	if inv:
+		var consts: Dictionary = main.get_script().get_script_constant_map()
+		var enemy_fx: Array = consts.get("ENEMY_TARGET_GAUNTLET_SKILLS", [])
+		var point_fx: Array = consts.get("POINT_TARGET_GAUNTLET_SKILLS", [])
+		var melee_fx: Array = consts.get("MELEE_GAUNTLET_SKILLS", [])
+		for gi in range(inv.equipped_gauntlets.size()):
+			var g = inv.equipped_gauntlets[gi]
+			if g == null or g.gauntlet_skill_type != ItemData.GauntletSkillType.ACTIVE:
+				continue
+			var fx: String = g.gauntlet_skill_effect_id
+			skills.append({"index": gi, "item_id": g.item_name, "name": g.gauntlet_skill_name, "fx": fx,
+				"mana": g.gauntlet_skill_mana_cost, "description": g.gauntlet_skill_description,
+				"ready": inv.can_use_gauntlet_skill(g),
+				"target": "enemy" if fx in enemy_fx else ("point" if fx in point_fx else "self"),
+				"melee": fx in melee_fx})
+	weapon_swaps.clear()
+	weapons_ranged = inv != null and inv.holds_ranged_weapon()
+	if inv and global_tempo != last_swap_tempo:
+		_collect_weapon_swaps(inv)
 	top_card = {}
 	if not dm.draw_pile.is_empty() and main.get_node_or_null("UI") and main.get_node("UI").find_child("ChoicePicker", true, false):
-		var tc: Card = dm.draw_pile.back()
-		top_card = {"id": tc.card_id, "name": tc.card_name, "type": Card.CardType.keys()[tc.card_type],
-			"damage": main._card_player_damage(tc) if (tc.card_type == Card.CardType.ATTACK and tc.base_damage > 0) else 0,
-			"block": tc.block if tc.block > 0 else tc.base_block, "heal": tc.heal_amount,
-			"description": tc.description, "playable": true, "mana": estimate_mana_cost(tc)}
+		top_card = card_view(dm.draw_pile.back())
 	hand.clear()
 	for i in range(dm.hand.size()):
 		var c: Card = dm.hand[i]
@@ -172,6 +270,7 @@ func refresh() -> void:
 			"is_attack": c.is_attack(),
 			"is_offensive": c.is_offensive(),
 			"is_ranged": c.is_ranged,
+			"conditional": c.conditional_range,
 			"range": c.get_effective_range(),
 			"target_types": c.target_types.duplicate(),
 			"rng_index": c.rng_selected_index if c.has_chance_effect() else null,
@@ -315,6 +414,31 @@ func legal_actions() -> Array:
 	for e in enemies:
 		if e["distance"] <= 2:
 			strike_target = true
+	# Gauntlet skills, each target the game would accept.
+	for k in range(skills.size()):
+		var sk: Dictionary = skills[k]
+		if not sk["ready"]:   # the game gates skills on cooldown and mana only
+			continue
+		match str(sk["target"]):
+			"enemy":
+				for ei in range(enemies.size()):
+					if enemies[ei]["structure"]:
+						continue
+					var d := int(enemies[ei]["distance"])
+					if (sk["melee"] and d > 1) or (sk["fx"] == "coming_in" and (d > 5 or d <= 1)):
+						continue
+					out.append({"type": "item_skill", "skill": k, "fx": sk["fx"], "target": "enemy:%d" % ei})
+			"point":
+				var ni := nearest_enemy_index()
+				if ni >= 0:
+					var cell: Vector2i = enemies[ni]["cell"]
+					out.append({"type": "item_skill", "skill": k, "fx": sk["fx"], "target": "point:%d,%d" % [cell.x, cell.y]})
+			_:
+				if sk["fx"] == "house_rule" and discard_size == 0:
+					continue
+				out.append({"type": "item_skill", "skill": k, "fx": sk["fx"], "target": "self"})
+	for k in range(weapon_swaps.size()):
+		out.append({"type": "weapon_swap", "swap": k, "kind": weapon_swaps[k]["kind"], "build": weapon_swaps[k]["build"]})
 	if flash_points >= flash_block_cost and (not flash_strike or strike_target):
 		out.append({"type": "flash_block"})
 	if flash_points >= flash_proc_cost and attacks_until_proc > 1 and not next_attack_half_tempo:

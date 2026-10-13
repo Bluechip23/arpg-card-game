@@ -50,6 +50,8 @@ static func with_defaults(sc: Dictionary) -> Dictionary:
 	p["sphere_fill"] = bool(p.get("sphere_fill", false))
 	p["sphere_targets"] = p.get("sphere_targets", [])
 	p["slotted"] = p.get("slotted", {})
+	p["alt_weapons"] = p.get("alt_weapons", [])   # second weapon set: build II, or Brad's War Rack
+	p["alt_slotted"] = p.get("alt_slotted", {})
 	out["player"] = p
 	var m: Dictionary = out.get("map", {})
 	m["interior"] = str(m.get("interior", "dojo"))
@@ -68,7 +70,7 @@ static func validate(sc: Dictionary) -> String:
 	var p: Dictionary = sc["player"]
 	if not script_has(CharacterData, "create_%s" % p["character"]):
 		return "unknown character '%s'" % p["character"]
-	for entry in p["items"]:
+	for entry in p["items"] + p["alt_weapons"]:
 		var id: String = str(entry[0] if entry is Array else entry)
 		if not script_has(ItemData, "create_%s" % id):
 			return "unknown item '%s'" % id

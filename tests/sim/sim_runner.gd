@@ -20,7 +20,7 @@ const ROW_COLUMNS := ["bar_index", "tempo_before", "tempo_after", "actor", "acti
 	"damage_dealt", "damage_taken", "buffs_applied", "debuffs_applied", "rng_outcome_used", "overkill"]
 const SUMMARY_COLUMNS := ["seed", "outcome", "bars_elapsed", "total_damage_dealt", "total_damage_taken",
 	"damage_per_tempo", "cards_played", "distinct_cards_played", "card_entropy", "mana_wasted",
-	"overflow_bars", "end_hp_pct", "enemy_actions_by_type", "passive_triggers", "sphere_nodes", "global_tempo", "decisions", "error", "warnings"]
+	"overflow_bars", "end_hp_pct", "enemy_actions_by_type", "passive_triggers", "skills_used", "weapon_swaps", "sphere_nodes", "global_tempo", "decisions", "error", "warnings"]
 const AGGREGATE_STATS := ["mean", "std", "min", "max"]
 
 var tree: SceneTree
@@ -231,17 +231,8 @@ func _build_player() -> void:
 		if inv.equip_item(item, slot):
 			equipped[id] = item
 		else:
-			var why := "over carry capacity %d/%d" % [stats.current_carry_load, stats.get_carry_capacity()]
-			var conflict := str(inv.hand_conflict_reason(item, slot)) if item.item_type in [ItemData.ItemType.WEAPON, ItemData.ItemType.QUIVER] else ""
-			if conflict != "":
-				why = "hand conflict: " + conflict
-			elif item.rarity == ItemData.Rarity.MYTHIC and inv.count_equipped_mythics() >= inv.get_mythic_capacity():
-				why = "mythic cap %d" % inv.get_mythic_capacity()
-			elif slot >= inv._get_max_slots(item.item_type):
-				why = "no slot %d for this character" % slot
-			elif inv._get_slot_array(item.item_type)[slot] != null:
-				why = "slot %d occupied" % slot
-			warnings.append("equip refused: %s (slot %d, %s)" % [id, slot, why])
+			warnings.append("equip refused: %s (slot %d, %s)" % [id, slot, _equip_refusal(inv, stats, item, slot)])
+	_stow_alt_weapons(p, inv, stats)
 	# Cards engraved into the items' slots: {item id: [card ids]}. Real slot
 	# rules (count, label, feral colour) apply; a slotted card rides the item
 	# and does not count toward the deck cap.
@@ -277,6 +268,61 @@ func _build_player() -> void:
 	main._player_last_grid_cell = cell
 	for ob in scenario["map"]["obstacles"]:
 		player.blocked_tiles.append(SimScenario.cell_of(ob))
+
+## Why the game refused an equip, in the game's terms.
+func _equip_refusal(inv, stats, item: ItemData, slot: int) -> String:
+	var conflict := str(inv.hand_conflict_reason(item, slot)) if item.item_type in [ItemData.ItemType.WEAPON, ItemData.ItemType.QUIVER] else ""
+	if conflict != "":
+		return "hand conflict: " + conflict
+	if item.rarity == ItemData.Rarity.MYTHIC and inv.count_equipped_mythics() >= inv.get_mythic_capacity():
+		return "mythic cap %d" % inv.get_mythic_capacity()
+	if slot >= inv._get_max_slots(item.item_type):
+		return "no slot %d for this character" % slot
+	if inv._get_slot_array(item.item_type)[slot] != null:
+		return "slot %d occupied" % slot
+	return "over carry capacity %d/%d" % [stats.current_carry_load, stats.get_carry_capacity()]
+
+## The second weapon set, set up the way a player does out of combat. Brad
+## straps it to the War Rack; everyone else gets it as equipment build II:
+## open build II (a copy of the worn gear), take the other weapons in hand,
+## switch back to build I. Its engravings ride the items, so its cards enter
+## play only when it is swapped in (the game moves an item's cards with it).
+func _stow_alt_weapons(p: Dictionary, inv, stats) -> void:
+	var alts: Array = p.get("alt_weapons", [])
+	if alts.is_empty():
+		return
+	var items: Array = []
+	for entry in alts:
+		var id := str(entry[0])
+		var item: ItemData = (ItemData as Script).call("create_%s" % id)
+		for cid in p.get("alt_slotted", {}).get(id, []):
+			var card = main.deck_manager._create_card_from_id(str(cid))
+			if card == null or not item.slot_card(card):
+				warnings.append("alt slotted: %s refused %s" % [id, str(cid)])
+		items.append([item, int(entry[1]) if entry.size() > 1 else 0])
+	if inv.has_back_rack:
+		for e in items:
+			if not inv.rack_store_item(e[0]):
+				warnings.append("war rack refused: %s" % e[0].item_name)
+		inv._recalculate_carry_load()
+		if stats.is_overburdened():
+			warnings.append("war rack: over carry capacity %d/%d" % [stats.current_carry_load, stats.get_carry_capacity()])
+		return
+	inv.switch_build(1)
+	for i in range(inv.equipped_weapons.size()):
+		if inv.equipped_weapons[i] != null:
+			var off = inv.unequip_item(ItemData.ItemType.WEAPON, i)
+			if off:
+				inv.stored_items.append(off)
+	for e in items:
+		if not inv.equip_item(e[0], e[1]):
+			warnings.append("alt weapons: build II refused %s (slot %d, %s)" % [e[0].item_name, e[1], _equip_refusal(inv, stats, e[0], e[1])])
+			inv.stored_items.append(e[0])
+	var back: Dictionary = inv.switch_build(0)
+	if not back["success"]:
+		warnings.append("alt weapons: back to build I refused: %s" % back["reason"])
+	elif not back["missing"].is_empty():
+		warnings.append("alt weapons: build I lost %s" % str(back["missing"]))
 
 ## Sphere grid: walk the shortest unlockable path from what is already lit
 ## to each target node (in order), lighting every node on the way through
@@ -554,6 +600,10 @@ func _apply_action(a: Dictionary, state: SimState) -> bool:
 			ok = true
 		"move":
 			ok = _do_move(a, row)
+		"item_skill":
+			ok = _do_item_skill(a, state, row)
+		"weapon_swap":
+			ok = _do_weapon_swap(a, row)
 		"flash_block":
 			var stats = main.player.get_stats()
 			var fp: int = stats.current_flash_points
@@ -588,6 +638,9 @@ func _apply_action(a: Dictionary, state: SimState) -> bool:
 		_tick_until_free()
 	else:
 		rows.erase(row)
+	if str(a.get("type", "")) == "weapon_swap":
+		# Gate the next swap (or a retry of a refused one) on time passing.
+		SimState.last_swap_tempo = main.tempo_manager.global_tempo
 	_settle_all()
 	_answer_prompts()
 	_finish_row(row)
@@ -720,6 +773,71 @@ func _do_move(a: Dictionary, row: Dictionary) -> bool:
 	row["action_id"] = ("flash_move:%d" if a.get("flash", false) else "move:%d") % spaces
 	return true
 
+## A gauntlet skill through main's own path: validate the target, then fire
+## (main pays the mana and the tempo and starts the cooldown). House Rule
+## opens its discard-pile picker, which the prompt handling answers.
+func _do_item_skill(a: Dictionary, state: SimState, row: Dictionary) -> bool:
+	var sk: Dictionary = state.skills[int(a["skill"])]
+	var inv = main.player.get_inventory()
+	var g = inv.equipped_gauntlets[int(sk["index"])]
+	if g == null or not inv.can_use_gauntlet_skill(g):
+		row["refused"] = "skill not ready"
+		return false
+	var target := str(a.get("target", "self"))
+	row["action_id"] = "skill:%s" % str(sk["fx"])
+	if target.begins_with("enemy:"):
+		var en = state.enemy_node(int(target.substr(6)))
+		if en == null or not main._validate_gauntlet_skill_target(g, en):
+			row["refused"] = "skill target refused"
+			return false
+		main._fire_gauntlet_skill(g, en)
+	elif target.begins_with("point:"):
+		var xy := target.substr(6).split(",")
+		_park_mouse(main.grid_manager.grid_to_world(Vector2i(int(xy[0]), int(xy[1]))))
+		main._fire_gauntlet_skill(g, null)
+	else:
+		main._on_gauntlet_skill_activated(g)
+		_answer_prompts()
+	_settle_all()
+	if not g.is_on_cooldown():
+		row["refused"] = "skill did not fire"
+		return false
+	_skill_counts[str(sk["fx"])] = int(_skill_counts.get(str(sk["fx"]), 0)) + 1
+	return true
+
+var _skill_counts := {}
+
+## A weapon swap through the game's own buttons: the build button (cost from
+## switch_build, charged by main the way the character panel's signal does)
+## or the War Rack button (free when its cooldown and the two-handed rule
+## allow, else paid). Only one swap per tempo: a free swap never loops.
+func _do_weapon_swap(a: Dictionary, row: Dictionary) -> bool:
+	var inv = main.player.get_inventory()
+	var before: Array = inv.equipped_weapons.duplicate()
+	var label := ""
+	if str(a.get("kind", "")) == "rack":
+		var free: bool = inv.can_rack_exchange(true)["ok"]
+		main._on_rack_button_pressed()
+		label = "rack_free" if free else "rack_paid"
+	else:
+		var b := int(a.get("build", 0))
+		var res: Dictionary = inv.switch_build(b)
+		if not res["success"]:
+			row["refused"] = "build switch refused: %s" % str(res["reason"])
+			return false
+		if int(res["tempo_cost"]) > 0:
+			main._on_swap_tempo_spent(int(res["tempo_cost"]), "Swapped to build %d" % (b + 1), -1)
+		label = "build%d" % (b + 1)
+	_settle_all()
+	if inv.equipped_weapons == before:
+		row["refused"] = "weapons did not change"
+		return false
+	row["action_id"] = "swap:%s" % label
+	_swap_counts[label] = int(_swap_counts.get(label, 0)) + 1
+	return true
+
+var _swap_counts := {}
+
 # --------------------------------------------------------------- time ----
 
 ## Run the tick pump until the player's queue is empty, snap-stepping units
@@ -832,6 +950,9 @@ func _answer_prompts() -> void:
 			for l in node.find_children("*", "Label", true, false):
 				title = str(l.text)
 				break
+			if title.begins_with("House Rule"):
+				kind = "house_rule"
+				prompt_state = SimState.new(main)
 			if title.begins_with("Invisibility:"):
 				kind = "invisibility_draw" if title.find("Draw it?") >= 0 else "invisibility_discard"
 				prompt_state = SimState.new(main)
@@ -1088,6 +1209,9 @@ func _reset_counters() -> void:
 	_enemy_action_counts.clear()
 	_passive_triggers.clear()
 	_hp_seen.clear()
+	_skill_counts.clear()
+	_swap_counts.clear()
+	SimState.last_swap_tempo = -1
 	_mana_wasted = 0
 	_mana_delta = 0.0
 	_overflow_bars = 0
@@ -1130,6 +1254,8 @@ func _summary() -> Dictionary:
 		"enemy_actions_by_type": "|".join(actions),
 		"passive_triggers": _passive_trigger_text(stats),
 		"sphere_nodes": sphere_lit,
+		"skills_used": "|".join(_skill_counts.keys().map(func(k): return "%s:%d" % [k, _skill_counts[k]])),
+		"weapon_swaps": "|".join(_swap_counts.keys().map(func(k): return "%s:%d" % [k, _swap_counts[k]])),
 		"global_tempo": tm.global_tempo,
 		"decisions": _decisions,
 		"error": error_msg,

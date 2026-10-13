@@ -2,9 +2,10 @@ class_name CharacterBuilds
 extends RefCounted
 
 ## The character-generic build composer. Each character has a component
-## file, tests/sim/builds/<name>_builds.gd, holding named ITEM_SETS, DECKS,
+## file, tests/sim/builds/<name>_builds.gd, holding named ITEM_SETS,
 ## ALLOCS, SPHERES, PASSIVES, SLOTTED and DESIGNED builds (see
-## ryan_builds.gd for the shape). compose() turns a choice of parts into a
+## ryan_builds.gd for the shape). Decks are shared by every character
+## (tests/sim/builds/decks.gd), as are WEAPON_SETS below. compose() turns a choice of parts into a
 ## scenario Dictionary at any level:
 ##
 ##   CharacterBuilds.compose("ryan", {"build": "bruiser", "level": 50,
@@ -34,12 +35,13 @@ static func components(character: String) -> Dictionary:
 	var lib := library(character)
 	if lib == null:
 		return {}
-	return {"items": lib.ITEM_SETS.keys(), "deck": lib.DECKS.keys(), "alloc": lib.ALLOCS.keys(),
+	return {"items": lib.ITEM_SETS.keys(), "deck": SimDecks.DECKS.keys(), "alloc": lib.ALLOCS.keys(),
 		"sphere": lib.SPHERES.keys(), "passives": lib.PASSIVES.keys(), "designed": lib.DESIGNED.keys(),
 		"designed_parts": lib.DESIGNED, "default_enemy": lib.DEFAULT_ENEMY,
 		"tree_passives": tree_passives(character),
 		"recipes": recipes(character).keys(), "card_pool": SimDeckBuilder.legal_ids(),
-		"tactics": tactics(character).keys(), "item_pool": item_pool()}
+		"tactics": tactics(character).keys(), "item_pool": item_pool(),
+		"weapon_sets": WEAPON_SETS.keys() + ["none"]}
 
 ## The tactics a character can take: DEFAULT_TACTICS merged with the
 ## library's TACTICS, with passive weights resolved from the character's
@@ -182,6 +184,17 @@ const DEFAULT_TACTICS := {
 	"burst": {"deck": ["exhausted_assault", "multishot", "consecutive_snap"], "passive_words": ["first strike", "first attack"]},
 }
 
+## Second weapon loadouts any character can carry (weapons are universal):
+## what a build swaps to mid-fight with `alt:<set>`. Brad straps it to his
+## War Rack; everyone else keeps it as equipment build II and switches with
+## the game's build buttons (Stephen's weapon portion free). Engravings ride
+## the items, so their cards enter play only when the set is in hand.
+const WEAPON_SETS := {
+	"bow": {"items": [["long_bow", 0], ["standard_quiver", 1]], "slotted": {"long_bow": ["quick_shot", "spirit_arrow"]}},
+	"greatsword": {"items": [["fallens_wrath", 0]], "slotted": {"fallens_wrath": ["savage_strike", "reckless_strike"]}},
+	"sword_and_board": {"items": [["short_sword", 0], ["buckler", 1]], "slotted": {}},
+}
+
 static func _merged(defaults: Dictionary, overrides: Dictionary) -> Dictionary:
 	var out := {}
 	for k in defaults:
@@ -198,6 +211,94 @@ static func recipes(character: String) -> Dictionary:
 	var lib := library(character)
 	var own: Dictionary = lib.get_script_constant_map().get("DECK_RECIPES", {}) if lib else {}
 	return _merged(DEFAULT_RECIPES, own)
+
+## {passive id: stage index} from the character's skill tree lanes (a stage
+## is a column across every archetype lane).
+static func passive_stages(character: String) -> Dictionary:
+	var tree = SkillTreeData.create_tree_for(character.capitalize(), 50)
+	var out := {}
+	for lane in tree.get_archetype_lanes():
+		var ps: Array = lane["passives"]
+		for i in range(ps.size()):
+			out[ps[i].passive_id] = i
+	return out
+
+## Make passive ranks legal under the skill tree's stage gate: a stage only
+## opens once SkillTreeData.STAGE_GATE_POINTS sit in the stage before it
+## (summed over every lane). Points move from the highest stages — the focus
+## passive last — into the best passive of the stage that is short, so the
+## total is unchanged and every build the sweeps compose could be built in
+## the game. Returned in stage order, the order the tree screen spends them.
+static func legalize_ranks(character: String, ranks: Dictionary, weights: Dictionary, focus: String = "") -> Dictionary:
+	var stage := passive_stages(character)
+	var out := ranks.duplicate()
+	var gate: int = SkillTreeData.STAGE_GATE_POINTS
+	var cap: int = PlayerStats.PASSIVE_MAX_LEVEL
+	var top := 0
+	for pid in stage:
+		top = maxi(top, int(stage[pid]))
+	var guard := 0
+	while guard < 1000:
+		guard += 1
+		var sums := {}
+		for pid in out:
+			var st: int = int(stage.get(pid, 0))
+			sums[st] = int(sums.get(st, 0)) + int(out[pid])
+		var short := -1
+		for st in range(1, top + 1):
+			if int(sums.get(st, 0)) > 0 and int(sums.get(st - 1, 0)) < gate:
+				short = st - 1
+				break
+		if short < 0:
+			break
+		# Donor: highest stage above `short` with points; the focus passive last.
+		var donor := ""
+		var donor_key := []
+		for pid in out:
+			if int(out[pid]) <= 0 or int(stage.get(pid, 0)) <= short:
+				continue
+			var key := [int(stage[pid]), 0 if pid == focus else 1, -float(weights.get(pid, 0.0)), str(pid)]
+			if donor == "" or _key_better(key, donor_key):
+				donor = pid
+				donor_key = key
+		# Recipient: the stage-`short` passive the build weights most (then the
+		# one already ranked highest) that has room.
+		var recip := ""
+		var recip_key := []
+		for pid in stage:
+			if int(stage[pid]) != short or int(out.get(pid, 0)) >= cap:
+				continue
+			var key := [float(weights.get(pid, 0.0)), int(out.get(pid, 0)), str(pid)]
+			if recip == "" or _key_better_max(key, recip_key):
+				recip = pid
+				recip_key = key
+		if donor == "" or recip == "":
+			break
+		out[donor] = int(out[donor]) - 1
+		out[recip] = int(out.get(recip, 0)) + 1
+	var ordered := {}
+	var ids: Array = out.keys()
+	ids.sort_custom(func(a, b): return int(stage.get(a, 0)) < int(stage.get(b, 0)) or (int(stage.get(a, 0)) == int(stage.get(b, 0)) and str(a) < str(b)))
+	for pid in ids:
+		if int(out[pid]) > 0:
+			ordered[pid] = int(out[pid])
+	return ordered
+
+## Donor order: higher stage first, then non-focus, then lowest weight.
+static func _key_better(a: Array, b: Array) -> bool:
+	if a[0] != b[0]:
+		return a[0] > b[0]
+	if a[1] != b[1]:
+		return a[1] > b[1]
+	if a[2] != b[2]:
+		return a[2] > b[2]
+	return a[3] < b[3]
+
+static func _key_better_max(a: Array, b: Array) -> bool:
+	for i in range(a.size() - 1):
+		if a[i] != b[i]:
+			return a[i] > b[i]
+	return a[a.size() - 1] < b[b.size() - 1]
 
 ## {passive id: its tree description} for the character.
 static func tree_passive_text(character: String) -> Dictionary:
@@ -416,8 +517,10 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 				if str(k) != focus:
 					rest[k] = 1
 		ranks.merge(spread(rest, passive_points - ranks[focus], max_rank))
+		ranks = legalize_ranks(character, ranks, rest, focus)
+		base["focus_rank"] = int(ranks.get(focus, 0))
 	else:
-		ranks = spread(passive_weights, passive_points, max_rank)
+		ranks = legalize_ranks(character, spread(passive_weights, passive_points, max_rank), passive_weights)
 	# Slotted cards only for items that made the cut.
 	var slotted := {}
 	var worn := {}
@@ -441,7 +544,10 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 	# The deck: the build's list, a recipe generated from the pool, and/or
 	# one pool card swapped in for the list's last card and spotlighted into
 	# the opening hand (the single-card sweep).
-	var deck: Array = (lib.DECKS[base["deck"]] as Array).duplicate()
+	if not SimDecks.DECKS.has(base["deck"]):
+		push_error("[SIM] no deck '%s' in tests/sim/builds/decks.gd (have %s)" % [base["deck"], str(SimDecks.DECKS.keys())])
+		return {}
+	var deck: Array = (SimDecks.DECKS[base["deck"]] as Array).duplicate()
 	var opening: Array = []
 	if parts.has("recipe") and str(parts["recipe"]) != "":
 		var rname := str(parts["recipe"])
@@ -483,6 +589,23 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 			deck.append(card)
 		opening = [card]
 		base["swap"] = card
+	# The second weapon loadout: the build's own (`alt` in DESIGNED) or the
+	# part's; `alt:none` fights with one set. A piece the main set already
+	# wears is left out (one copy of a legendary at a time).
+	var alt_name := str(parts.get("alt", base.get("alt", "")))
+	var alt_items: Array = []
+	var alt_slotted := {}
+	if alt_name != "" and alt_name != "none":
+		if not WEAPON_SETS.has(alt_name):
+			push_error("[SIM] no weapon set '%s' (have %s)" % [alt_name, str(WEAPON_SETS.keys())])
+		else:
+			for e in WEAPON_SETS[alt_name]["items"]:
+				if not worn.has(e[0]):
+					alt_items.append((e as Array).duplicate())
+					var cards: Array = WEAPON_SETS[alt_name]["slotted"].get(e[0], [])
+					if not cards.is_empty():
+						alt_slotted[e[0]] = cards.duplicate()
+			base["alt"] = alt_name
 	var name := "%s_%s" % [character.to_lower(), build_name]
 	return {
 		"name": name,
@@ -496,6 +619,8 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 			"sphere_fill": true,
 			"items": fitted["items"],
 			"slotted": slotted,
+			"alt_weapons": alt_items,
+			"alt_slotted": alt_slotted,
 			"deck": deck,
 			"opening_hand": opening,
 			"cell": [6, 7],

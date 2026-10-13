@@ -56,9 +56,10 @@ func _test_mauls_sabre() -> void:
 		"blue payload: 8 block, +5 damage, 1 Weaken")
 	_check(red_fx.get("discard", 0) == 2 and red_fx.get("damage", 0) == 15,
 		"red payload: discard 2, +15 damage")
-	# Slot order decides the color.
-	var first = Card.create_slice()
-	var second = Card.create_quick_shot()
+	# Slot order decides the color. The Sabre is a staff: since slot labels,
+	# only Staff-labelled cards engrave into it.
+	var first = Card.create_fireball()
+	var second = Card.create_spirit_arrow()
 	_check(sabre.slot_card(first) and sabre.slot_card(second), "two cards slot into the staff")
 	_check(sabre.get_slot_color(first) == "blue" and sabre.get_slot_color(second) == "red",
 		"first card takes blue, second takes red")
@@ -72,8 +73,8 @@ func _test_mauls_sabre() -> void:
 	_check(second.get_burden_tempo_cost() == base, "wrong color primed: full tempo again")
 	# An uncolored item is untouched by the machinery.
 	var plain = ItemData.create_pick()
-	var pc = Card.create_slice()
-	plain.slot_card(pc)
+	var pc = Card.create_raged_circulation()   # Axe-labelled: it really slots
+	_check(plain.slot_card(pc), "an Axe card slots into the Pick")
 	_check(plain.get_slot_color(pc) == "" and plain.get_slot_effect(pc).is_empty(),
 		"uncolored slots report no color and no payload")
 
@@ -99,6 +100,8 @@ func _test_stephen_swap_perk() -> void:
 	var back = inv.switch_build(0)  # restore the sword build: only hands differ
 	_check(back["success"] and back["tempo_cost"] == 0,
 		"weapons-only build switch is free (cost %d)" % back["tempo_cost"])
+	_check(inv.equipped_weapons[0] == sword and inv.stored_items.has(pick),
+		"the free switch actually puts the sword back in hand")
 	stats.free()
 	inv.free()
 

@@ -152,6 +152,22 @@ func answer_prompt(kind: String, options: Array, state: SimState = null) -> int:
 		if state.top_card.is_empty():
 			return 1
 		return 0 if _card_worth(state.top_card, state) > weakest + 0.5 else 1
+	if kind == "house_rule":
+		# Take back the card worth most (options are the discard pile's names).
+		if state == null or options.is_empty():
+			return 0
+		var best := 0
+		var best_v := -INF
+		var dm = state.main.deck_manager
+		for i in range(options.size()):
+			for c in dm.discard_pile:
+				if c.card_name == str(options[i]):
+					var v := float(c.base_damage) + float(c.block if c.block > 0 else c.base_block) + float(c.heal_amount)
+					if v > best_v:
+						best_v = v
+						best = i
+					break
+		return best
 	if kind == "invisibility_discard":
 		if state == null or options.is_empty():
 			return 0
@@ -335,6 +351,19 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 		"move":
 			tempo = 1
 			gain += _move_value(a, state, threats, hp_weight)
+		"item_skill":
+			var sk: Dictionary = state.skills[int(a["skill"])]
+			mana = int(sk["mana"])
+			tempo = 2 if str(sk["fx"]) == "slice" else 1
+			var sv := _skill_value(sk, str(a.get("target", "self")), state, threats, hp_weight)
+			gain += float(sv["gain"])
+			if int(sv["kill"]) >= 0:
+				killed_index = int(sv["kill"])
+		"weapon_swap":
+			var sw: Dictionary = state.weapon_swaps[int(a["swap"])]
+			mana = int(sw["mana"])
+			tempo = maxi(1, int(sw["tempo"]))
+			gain += _swap_value(sw, state)
 		"flash_block":
 			# Sidestep: 2 block (or a Flash Cut strike) for points that refill
 			# on their own; only worth it when something is about to land.
@@ -359,7 +388,8 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 	# exception: never commit into it. Point spends and flash moves pass no
 	# tempo: nothing acts meanwhile.
 	var instant: bool = kind in ["flash_block", "flash_proc", "brain_draw", "brain_peek"] \
-		or (kind == "move" and bool(a.get("flash", false)))
+		or (kind == "move" and bool(a.get("flash", false))) \
+		or (kind == "weapon_swap" and int(state.weapon_swaps[int(a["swap"])]["tempo"]) == 0)
 	# Points spent are points not held for the dodge or draw that matters.
 	match kind:
 		"flash_block": gain -= FLASH_POINT_VALUE * float(state.flash_block_cost)
@@ -384,6 +414,60 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 	if kind == "play" and int(state.hand[a["card"]]["tempo"]) == 0 and mana == 0 and gain >= 0.0:
 		score += 0.5
 	return score
+
+## A weapon swap, from what the player sees: the auto attack's reach against
+## the nearest enemy (a bow reaches 5, anything else 1, and a bow swing costs
+## 1 tempo more; reach is worth the tiles of walking it saves, at the
+## auto attack's damage per tempo, less the last step a melee enemy closes
+## itself),
+## Conditional cards in hand turning ranged or melee with the bow, the cards
+## the incoming weapons bring (only Brad's free rack exchange puts them in
+## hand; elsewhere they land in the discard pile and count for nothing) and
+## the cards in hand the outgoing weapons take with them, less a whole swing when it would undo a swap made within the last
+## swing. Nothing gained is a strong no: a free swap must never be taken for
+## its own sake.
+static func _swap_value(sw: Dictionary, state: SimState) -> float:
+	var near := state.nearest_enemy_index()
+	if near < 0:
+		return -5.0
+	var d := int(state.enemies[near]["distance"])
+	var reach_now := state.basic_attack_reach
+	var reach_alt := 5 if bool(sw["ranged"]) else 1
+	var swing := float(state.basic_attack_damage)
+	var g := 0.0
+	# Reach is tempo: every tile the longer reach saves walking is a tempo
+	# the auto attack spends swinging instead (at its damage per tempo).
+	# A melee enemy closes the last step itself to hit us, so that step is
+	# never ours to walk: a sidestep to 2 tiles beside a troll saves nothing.
+	var per_tempo := swing / float(maxi(1, state.basic_attack_tempo))
+	var closes := 1 if int(state.enemies[near].get("attack_range", 1)) <= 1 else 0
+	if d > reach_now and reach_alt > reach_now:
+		g += per_tempo * float(maxi(0, mini(d, reach_alt) - reach_now - closes))
+	elif d > reach_alt and reach_now > reach_alt:
+		g -= per_tempo * float(maxi(0, mini(d, reach_now) - reach_alt - closes))   # the walk it adds
+	elif d <= 1 and reach_now > reach_alt:
+		g += swing / 6.0          # in melee the bow's extra tempo per swing is waste
+	if bool(sw["ranged"]) != state.weapons_ranged and d - closes > 1:
+		for h in state.hand:
+			if bool(h.get("conditional", false)) and int(h["damage"]) > 0:
+				g += (0.5 if bool(sw["ranged"]) else -0.5) * float(h["damage"])
+	# Only Brad's free rack puts the incoming cards in hand. Anywhere else they
+	# land in the discard pile, unplayable until the next reshuffle and gone
+	# again on the swap back: no reason to swap.
+	if bool(sw["free"]):
+		for c in sw["incoming"]:
+			g += _card_worth(c, state) * 0.8
+	for hi in sw["leaving"]:
+		if hi >= 0 and hi < state.hand.size():
+			g -= _card_worth(state.hand[hi], state)
+	# Commitment: swapping back within one swing of the last swap throws away
+	# both, so it must beat a whole swing (a sidestep to 2 tiles beside a
+	# melee enemy is not a reason to string the bow).
+	if SimState.last_swap_tempo >= 0 and state.global_tempo - SimState.last_swap_tempo < state.basic_attack_tempo:
+		g -= swing
+	if g <= 0.0:
+		return -5.0
+	return g
 
 ## How much of a coming hit we could have blunted had we stayed free:
 ## the best block in hand, the sidestep, or stepping out of melee reach.
@@ -489,6 +573,76 @@ static func _discard_value(c: Dictionary, text: String, state: SimState) -> floa
 	if text.find("draw") >= 0:
 		v += _draw_value(state) * 0.5   # the card comes back as a fresh one
 	return v
+
+## What a gauntlet skill is worth now, in the same terms as a card: block
+## and heal against what is coming, damage against the target's health,
+## draws by hand size, control by the hits it prevents.
+static func _skill_value(sk: Dictionary, target: String, state: SimState, threats: Array, hp_weight: float) -> Dictionary:
+	var out := {"gain": 0.0, "kill": -1}
+	var fx := str(sk["fx"])
+	var block := 0
+	var heal := 0
+	var dmg := 0
+	match fx:
+		"chain_guard": block = 2
+		"band_aid": heal = 5
+		"clang": block = 8
+		"slurp_and_pad":
+			heal = 5
+			block = 3
+		"defense_one":
+			block = 5
+			out["gain"] += 5.0 if state.basic_attack_reach <= 1 else 0.0
+		"well_placed_guard", "imbue_tree":
+			# Thorns return damage for every hit taken while they last.
+			var thorns := 5 if fx == "well_placed_guard" else 10
+			var hits := 0
+			for t in threats:
+				if t["is_hit"] and int(t["fires_in"]) <= HORIZON:
+					hits += 1
+			out["gain"] += float(mini(hits, 2) * thorns) * 0.5
+			if fx == "imbue_tree":
+				heal = mini(5, state.player_max_hp - state.player_hp)
+		"future_is_bright":
+			out["gain"] += 1.0 if state.main.deck_manager.draw_pile.size() <= 2 else 0.2
+		"continue_to_move":
+			out["gain"] += _draw_value(state)
+		"house_rule":
+			out["gain"] += _draw_value(state) + 1.0
+		"zeet":
+			dmg = int(state.intelligence / 2)
+		"lethal_poke", "slice":
+			dmg = state.basic_attack_damage
+		"fan_save":
+			if target.begins_with("enemy:"):
+				var t := _threat_for(threats, int(target.substr(6)))
+				if not t.is_empty() and t["is_hit"]:
+					out["gain"] += float(int(t["damage"])) * 0.3 * hp_weight
+		"coming_in":
+			# Closing the gap: the basic attack it puts in reach, plus Now You
+			# See Me's invisibility when that is ready (it is a displacement).
+			out["gain"] += float(state.basic_attack_damage) * 0.5
+			if state.nysm_ready:
+				out["gain"] += float(_incoming(threats, 6)) * hp_weight + 1.0
+		"suck":
+			out["gain"] += 0.5 * float(maxi(0, state.enemies.size() - 1))
+	if block > 0:
+		out["gain"] += minf(float(block), float(_incoming(threats, 6))) * hp_weight
+	if heal > 0:
+		var missing := state.player_max_hp - state.player_hp
+		var w := 1.5 if float(state.player_hp) / float(maxi(1, state.player_max_hp)) < LOW_HP else 0.3
+		out["gain"] += minf(float(heal), float(missing)) * w
+	if dmg > 0 and target.begins_with("enemy:"):
+		var idx := int(target.substr(6))
+		var t := _threat_for(threats, idx)
+		if t.is_empty():
+			out["gain"] += dmg
+		else:
+			out["gain"] += mini(dmg, int(t["hp"]))
+			if dmg >= int(t["hp"]):
+				out["kill"] = idx
+				out["gain"] += _incoming_from(t, HORIZON) * hp_weight * 0.5
+	return out
 
 ## The card a picking card should take: Sky Attack discards the hardest
 ## hitter (its damage becomes the shot), Mirror Mirror copies the best card.
@@ -607,12 +761,22 @@ func _move_value(a: Dictionary, state: SimState, threats: Array, hp_weight: floa
 	var window: int = 2 if bool(a.get("flash", false)) else 1
 	if not t.is_empty() and t["is_hit"] and t["in_reach"] and not t.get("arriving", false) and t["fires_in"] <= window and d_after > int(t["reach"]):
 		return float(t["damage"]) * hp_weight + 0.5
-	var can_hit_now := false
+	var card_hits_now := false
+	var best_out := 0      # the best playable hit in hand that only lands from nearer
+	var best_out_range := 1
 	for h in state.hand:
 		if h["playable"] and h["damage"] > 0:
-			can_hit_now = can_hit_now or state.main._is_target_in_card_range(state.main.deck_manager.hand[h["index"]], e["node"])
-	if d_now <= state.basic_attack_reach:
-		can_hit_now = true
+			if state.main._is_target_in_card_range(state.main.deck_manager.hand[h["index"]], e["node"]):
+				card_hits_now = true
+			elif int(h["damage"]) > best_out:
+				best_out = int(h["damage"])
+				best_out_range = maxi(1, int(h["range"]))
+	var can_hit_now := card_hits_now or d_now <= state.basic_attack_reach
 	if not can_hit_now and d_after < d_now:
 		return 1.0   # closing in is progress
+	# A bow plinking from range while blades wait in hand: walking in is
+	# progress when the card beats the auto attack, worth half its hit
+	# spread over the tiles still to close.
+	if not card_hits_now and d_after < d_now and best_out > state.basic_attack_damage:
+		return maxf(1.0, 0.5 * float(best_out) / float(maxi(1, d_now - best_out_range)))
 	return -0.5      # otherwise a move is a tempo spent on nothing

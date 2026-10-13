@@ -2,10 +2,10 @@ class_name BradBuilds
 extends RefCounted
 
 ## Brad's build library (CharacterBuilds.compose("brad", parts)). The
-## designed builds are the designer's loadouts from tests/_build_sims.gd;
-## the decks are placeholders (the starter deck plus a sword/shield deck)
-## until Brad gets the same authoring pass Ryan had. Fill in the
-## components, keep the shape.
+## designed builds are the designer's loadouts from tests/_build_sims.gd,
+## until Brad gets the same authoring pass Ryan had. Decks come from the
+## shared library (tests/sim/builds/decks.gd). Fill in the components,
+## keep the shape.
 
 const DEFAULT_ENEMY := "LARGE_BEAR"
 
@@ -22,11 +22,6 @@ const SLOTTED := {
 	"deathwish_berserker": {"fallens_wrath": ["savage_strike", "reckless_strike"], "sword_breaker": ["repelled_block", "forever_armor", "hunker_down"]},
 	"castle_wall": {"castle_wall": ["repelled_block", "hunker_down"]},
 	"buckler_vanguard": {},
-}
-const DECKS := {
-	"starter": ["slash", "slash", "slash", "block", "block", "block", "draw", "draw", "gain_mana", "heal"],
-	"sword_and_board": ["savage_strike", "savage_strike", "specific_strike", "slice", "slice", "parry",
-		"block", "block", "turtle_up", "hold_the_line", "heal", "draw"],
 }
 const ALLOCS := {
 	"str_det": {"strength": 34, "determination": 9, "wisdom": 8},
@@ -46,8 +41,8 @@ const PASSIVES := {
 	"none": {},
 }
 const DESIGNED := {
-	"immovable_warden":    {"items": "immovable_warden", "deck": "sword_and_board", "alloc": "str_det", "sphere": "bulwark", "passives": "warden"},
-	"deathwish_berserker": {"items": "deathwish_berserker", "deck": "sword_and_board", "alloc": "str_agi", "sphere": "iron_will", "passives": "berserker"},
-	"castle_wall":         {"items": "castle_wall", "deck": "sword_and_board", "alloc": "str_det", "sphere": "bulwark", "passives": "warden"},
-	"buckler_vanguard":    {"items": "buckler_vanguard", "deck": "starter", "alloc": "str_agi", "sphere": "none", "passives": "warden"},
+	"immovable_warden":    {"items": "immovable_warden", "deck": "sword_and_board", "alloc": "str_det", "sphere": "bulwark", "passives": "warden", "alt": "greatsword"},
+	"deathwish_berserker": {"items": "deathwish_berserker", "deck": "sword_and_board", "alloc": "str_agi", "sphere": "iron_will", "passives": "berserker", "alt": "bow"},
+	"castle_wall":         {"items": "castle_wall", "deck": "sword_and_board", "alloc": "str_det", "sphere": "bulwark", "passives": "warden", "alt": "bow"},
+	"buckler_vanguard":    {"items": "buckler_vanguard", "deck": "starter", "alloc": "str_agi", "sphere": "none", "passives": "warden", "alt": "greatsword"},
 }

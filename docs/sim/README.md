@@ -122,7 +122,7 @@ player action and each enemy action that fired, in order.
 | `bar_index` | tempo cycle the action started in (`global_tempo / threshold`) |
 | `tempo_before`, `tempo_after` | global tempo when the action started / when its ticks and settling finished |
 | `actor` | `player` or `<EnemyName>#<spawn index>` |
-| `action_id` | `play:<card_id>`, `attack`, `block`, `wait`, `move:<tiles>`, or the enemy's action name |
+| `action_id` | `play:<card_id>`, `attack`, `block`, `wait`, `move:<tiles>`, `skill:<effect_id>` (a gauntlet skill), `swap:build<n>` / `swap:rack_free` / `swap:rack_paid` (a weapon swap), or the enemy's action name |
 | `target` | `enemy:<i>`, `self`, `point:x,y`, `none`, or `player` |
 | `player_hp` … `hand_size` | the player's state when the action started |
 | `enemy_id`, `enemy_hp`, `enemy_pos` | the targeted enemy (or the acting one; or the first living one) — HP and cell **after** the action |
@@ -139,7 +139,7 @@ regen) goes to the player's row.
 bars_elapsed, total_damage_dealt, total_damage_taken, damage_per_tempo,
 cards_played, distinct_cards_played, card_entropy (bits, over card ids),
 mana_wasted (regen lost to the mana cap), overflow_bars (cycle boundaries
-crossed with carry-over tempo), end_hp_pct, enemy_actions_by_type
+crossed with carry-over tempo), end_hp_pct, skills_used, weapon_swaps, enemy_actions_by_type
 ("bite:4|move:2"), global_tempo, decisions, error`.
 
 `aggregate.csv` holds `n`, the four outcome rates and mean/std/min/max of
@@ -277,16 +277,20 @@ column is non-empty when the build was not what the scenario asked for.
 
 One component library per character, `tests/sim/builds/<name>_builds.gd`:
 named **item sets** (`[id, slot]`, or `[mythic id, slot, legendary
-fallback]`), **decks**, **allocation weights**, **sphere paths** (node-id
-targets), **passive rank weights**, per-set **slotted cards**, and the
-**designed** builds that combine them. `CharacterBuilds.compose(character,
+fallback]`), **allocation weights**, **sphere paths** (node-id targets),
+**passive rank weights**, per-set **slotted cards**, and the **designed**
+builds that combine them. **Decks are shared**: one library,
+`tests/sim/builds/decks.gd` (`SimDecks.DECKS`), that every character
+loads by name (`deck:spells` on Brad, `deck:sword_and_board` on Ryan).
+Write a deck there once and all five can fight with it; the
+items × decks sweep crosses every character's item sets with every deck. `CharacterBuilds.compose(character,
 parts)` turns any mix into a scenario **at any level**: allocation and
 passive weights are spread over the points that level banks (3 stat and 1
 passive point a level, ranks capped at 15), and the mythic cap is the
 game's (one equipped mythic per 15 levels: one at 18, two at 30, three at
 45+), with the listed fallbacks worn when a mythic does not fit. Ryan's
 library is authored in full; Brad, Jeremy, Stephen and Cory carry the
-designer's `_build_sims.gd` loadouts with placeholder decks, so selection
+designer's `_build_sims.gd` loadouts, so selection
 works for every character today and each library can be filled in without
 touching the harness.
 
@@ -298,11 +302,16 @@ scenario=tests/sim/scenarios/build.gd parts=character:brad,build:immovable_warde
 ```
 
 `parts` keys: `character`, `build`, `level`, `items`, `deck`, `alloc`,
-`sphere`, `passives`, `slotted`, `focus`, `enemy`. `passives` names a
+`sphere`, `passives`, `slotted`, `focus`, `alt`, `enemy`. `passives` names a
 weight set, spread proportionally over the points the level banks (so
 nothing is ever maxed); `focus:<passive_id>` takes that one tree passive to
 rank 15 first and spreads the rest over the build's set, which is how a
-player who commits to a passive builds. The tree passives come from the
+player who commits to a passive builds. Every spread then obeys the skill
+tree's stage gate (a stage opens once 5 points sit in the stage before
+it): points move from the highest stages into the stage that is short,
+the focus passive last, so a level-18 focus on a stage-3 passive becomes
+5 / 5 / 7 rather than an impossible 15 (the reached rank is recorded as
+`focus_rank` in the job's `loadout.json`). The tree passives come from the
 character's skill tree itself (`CharacterBuilds.tree_passives`), so a new
 passive is swept the moment it is added; passives that come with an item
 have no rank and are not part of it. `enemy_scale=hp:x,dmg:y`
@@ -455,6 +464,43 @@ You See Me and Eye Scrape), `poison`, `discard`, `mobility`, `burst`.
 A rule change aimed at one of these is measured on build × tactic, not
 on the one archetype.
 
+### Weapon swaps: a second weapon set
+
+`alt:<set>` gives a build a second set of weapons from
+`CharacterBuilds.WEAPON_SETS` (`bow`, `greatsword`, `sword_and_board`;
+weapons are universal, so any character can carry one), and a designed
+build may name its own (`"alt"` in `DESIGNED`; `alt:none` fights with one
+set). Pieces the main set already wears are left out. The runner sets it
+up the way a player does out of combat: Brad straps it to his War Rack;
+everyone else gets it as equipment build II (build II opened as a copy of
+the worn gear, the other weapons put in hand, back to build I). The set's
+engravings ride its items, so their cards are in play only while it is in
+hand: the game moves an item's cards with it.
+
+In the fight the swap is the game's own button: the build switch (tempo per
+changed hand slot plus half the mana, Stephen's weapon portion free) or
+the War Rack (free every 25 tempo when one side is a single two-handed
+item, its cards rushed to hand; otherwise paid). The lookahead prices it
+by the auto attack's reach (a bow reaches 5, anything else 1; worth the
+tiles of walking it saves, less the last step a melee enemy closes itself),
+Conditional cards in hand turning ranged or melee, the cards Brad's free
+rack exchange puts in hand (anywhere else incoming cards land in the
+discard pile and count for nothing) and the cards in hand the outgoing
+weapons take away; one swap per tempo, undoing a swap within one swing
+must beat a whole swing, and a swap that gains nothing is never taken.
+(Without those last rules Stephen's free switch flipped bow and blades on
+every sidestep: the step out of a troll's club left him two tiles away,
+where the bow "reached" and the dagger did not, though the troll was about
+to close that gap itself.) Holding a bow does not keep the policy
+at range when a card in hand hits harder than the auto attack: walking in
+is priced as progress toward it. `summary.csv` counts
+them in `weapon_swaps` (`build2:1|build1:1`, `rack_free:2|rack_paid:1`).
+Stephen's four designed builds carry a bow or a sword and board; Brad's
+carry a greatsword or a bow on the rack. `<char>_weapon_sets.txt` plays every set (and
+`none`) on every designed build; `build_matrix.py` prints the win rate and
+swaps per fight per build × set (`sim_out/charts/<char>_weapon_sets.csv`,
+with the change against the designed build).
+
 ### Prompts the policy answers
 
 Some rules ask the player a question mid-fight; the runner finds the
@@ -500,6 +546,17 @@ draws when the hand runs thin), with an opportunity cost on every point
 spent and a commitment cost on long actions equal to what the character
 could otherwise have blocked, sidestepped or walked away from. `--verbose`
 prints its top-scored actions and threat model at every decision.
+
+**Gauntlet skills** are actions like cards: every equipped active skill that
+is off cooldown and affordable is offered (enemy-targeted ones per enemy in
+reach, Suck at the nearest enemy's cell, House Rule when the discard pile
+has a card), fired through the game's own skill path (mana, +1 tempo,
+cooldown), and priced by what it does: armor and heals against the
+incoming threat, thorns by the hits it will meet, draws and reshuffles by
+hand and draw-pile size, Zeet and Lethal Poke by damage, Coming In! by the
+gap it closes (and the invisibility it buys under Now You See Me), Fan
+Save by the hit it stops, Suck by the extra enemies it bunches.
+`summary.csv` counts them in `skills_used` (`zeet:2|…`).
 
 ## How time is driven (why the numbers are trustworthy)
 

@@ -16,6 +16,7 @@ Sweeps (run with tests/sim/run_sim.gd --sweep=<file> or run_sweep.sh):
   <char>_recipes.txt        every deck recipe generated on each designed build
   <char>_tactics.txt        every tactic overlay (invisibility, poison, ...) on each designed build
   <char>_item_swap.txt      every mythic/legendary item swapped into its natural slot on each designed build
+  <char>_weapon_sets.txt    every second weapon set (and none) on each designed build: build II, or Brad's War Rack
 Every job runs through tests/sim/scenarios/build.gd with parts=...; the
 sweep file is <char>_<kind>[_L<level>].txt (level 18 untagged); scenario folder is <char>_<build>_e_<ENEMY>[__L_<level>][__k_<component>...]
 so build_matrix.py can pivot on any component.
@@ -130,6 +131,14 @@ def main():
             for e in swap_enemies:
                 lines.append(job(b, e, {"item": it}, "__x_%s" % it).replace(seeds, swap_seeds))
     write("%s_item_swap.txt" % char, lines, "%s every mythic/legendary item in its natural slot on each designed build (a mythic takes a mythic slot first)" % char, args.swap_seeds)
+
+
+    lines = []
+    for b in designed:
+        for h in comp.get("weapon_sets", []):
+            for e in enemies:
+                lines.append(job(b, e, {"alt": h}, "__h_%s" % h))
+    write("%s_weapon_sets.txt" % char, lines, "%s every second weapon set (alt:none = one set) on each designed build" % char)
 
 
 if __name__ == "__main__":

@@ -2,8 +2,9 @@ class_name StephenBuilds
 extends RefCounted
 
 ## Stephen's build library (CharacterBuilds.compose("stephen", parts)):
-## the designer's loadouts from tests/_build_sims.gd with placeholder
-## decks. Fill in the components, keep the shape.
+## the designer's loadouts from tests/_build_sims.gd. Decks come from the
+## shared library (tests/sim/builds/decks.gd). Fill in the components,
+## keep the shape.
 
 const DEFAULT_ENEMY := "LARGE_BEAR"
 
@@ -22,13 +23,6 @@ const SLOTTED := {
 	"heavy_swing": {"fallens_wrath": ["savage_strike", "reckless_strike"], "sword_breaker": ["repelled_block", "forever_armor", "hunker_down"], "smithed_excellence": ["harden", "best_offense", "smith_thy_soul"]},
 	"sentinel_duelist": {"fallens_wrath": ["parry", "specific_strike"], "sword_breaker": ["repelled_block", "forever_armor", "hunker_down"], "smithed_excellence": ["harden", "best_offense", "smith_thy_soul"]},
 	"crooked_duelist": {"shadow_cowl": ["approach", "armor_patch", "turtle_up", "roar"], "feathered_hat": ["provider", "armor_patch"]},
-}
-const DECKS := {
-	"starter": ["slash", "slash", "slash", "block", "block", "block", "draw", "draw", "gain_mana", "heal"],
-	"arrows": ["quick_shot", "quick_shot", "mixed_bag", "mixed_bag", "lead_arrow", "trick_shot",
-		"spirit_arrow", "multishot", "reload", "thrown_stone", "block", "draw"],
-	"blades": ["savage_strike", "savage_strike", "specific_strike", "specific_strike", "slice", "slice",
-		"parry", "life_steal", "reckless_strike", "block", "block", "heal"],
 }
 const ALLOCS := {
 	"dex_agi": {"dexterity": 30, "agility": 15, "strength": 6},
@@ -50,8 +44,8 @@ const PASSIVES := {
 	"none": {},
 }
 const DESIGNED := {
-	"longshot_ranger":  {"items": "longshot_ranger", "deck": "arrows", "alloc": "dex_agi", "sphere": "deadeye", "passives": "ranger"},
-	"heavy_swing":      {"items": "heavy_swing", "deck": "blades", "alloc": "str_dex_det", "sphere": "bulwark", "passives": "avenger"},
-	"sentinel_duelist": {"items": "sentinel_duelist", "deck": "blades", "alloc": "str_dex_wis", "sphere": "weighted", "passives": "sentinel"},
-	"crooked_duelist":  {"items": "crooked_duelist", "deck": "blades", "alloc": "dex_agi", "sphere": "flurry", "passives": "ranger"},
+	"longshot_ranger":  {"items": "longshot_ranger", "deck": "arrows", "alloc": "dex_agi", "sphere": "deadeye", "passives": "ranger", "alt": "sword_and_board"},
+	"heavy_swing":      {"items": "heavy_swing", "deck": "blades", "alloc": "str_dex_det", "sphere": "bulwark", "passives": "avenger", "alt": "bow"},
+	"sentinel_duelist": {"items": "sentinel_duelist", "deck": "blades", "alloc": "str_dex_wis", "sphere": "weighted", "passives": "sentinel", "alt": "bow"},
+	"crooked_duelist":  {"items": "crooked_duelist", "deck": "blades", "alloc": "dex_agi", "sphere": "flurry", "passives": "ranger", "alt": "bow"},
 }
