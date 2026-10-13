@@ -49,6 +49,7 @@ var true_discards_this_cycle: int
 var ladder_banked: int
 var passives: Dictionary = {}      # passive id -> rank
 var nysm_ready: bool = false       # Now You See Me would fire on a displacement right now
+var top_card: Dictionary = {}      # the draw pile's top card, only while a rule has revealed it (invisibility draw)
 
 ## Cards whose play is a displacement in main's world cases (they call
 ## _trigger_skill_tree_on_displacement): Now You See Me keys off these.
@@ -146,6 +147,13 @@ func refresh() -> void:
 			"attack_range": int(e.attack_range),
 		})
 
+	top_card = {}
+	if not dm.draw_pile.is_empty() and main.get_node_or_null("UI") and main.get_node("UI").find_child("ChoicePicker", true, false):
+		var tc: Card = dm.draw_pile.back()
+		top_card = {"id": tc.card_id, "name": tc.card_name, "type": Card.CardType.keys()[tc.card_type],
+			"damage": main._card_player_damage(tc) if (tc.card_type == Card.CardType.ATTACK and tc.base_damage > 0) else 0,
+			"block": tc.block if tc.block > 0 else tc.base_block, "heal": tc.heal_amount,
+			"description": tc.description, "playable": true, "mana": estimate_mana_cost(tc)}
 	hand.clear()
 	for i in range(dm.hand.size()):
 		var c: Card = dm.hand[i]
