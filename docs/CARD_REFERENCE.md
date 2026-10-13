@@ -817,11 +817,11 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
 ### Unplayable (3)
 
 - **Lightly Dazed** (`lightly_dazed`) — Common · 0 mana, 0 tempo · range — · targets self · slots: deck only · sheet: Unplayable
-  - Card text: This card cannot be played. Linger. Erases from deck after 40 tempo in your hand.
-  - Code: UNPLAYABLE (play_card refuses it); linger=true lets it exceed the hand cap; erase_tempo=40 ticks down 5 per tempo tick only while in hand (deck_manager.gd:982) and the card is permanently removed at 0. Added to the player's hand by an enemy attack (enemy.gd:4009). No execute branch (never executes).
+  - Card text: This card cannot be played. Linger. Erases from deck after 40 tempo, in your hand or the draw or discard pile (frozen while jailed).
+  - Code: UNPLAYABLE (play_card refuses it); linger=true lets it exceed the hand cap; erase_tempo=40 ticks down 5 per cycle in the hand, draw and discard piles and freezes in jail (negative card: Card.is_negative_card, DeckManager._process_erase_timers) and the card is permanently removed at 0. Added to the player's hand by an enemy attack (enemy.gd:4009). No execute branch (never executes).
 - **Minor Wounds** (`minor_wounds`) — Common · 0 mana, 0 tempo · range — · targets — · slots: deck only · sheet: Unplayable
-  - Card text: On draw, deal 2 damage to self. Erase: 40 (in hand).
-  - Code: Unplayable status card. has_on_draw 'deal_2_self': main._on_card_on_draw_triggered (main.gd:14342) calls stats.take_damage(2) (armor applies) on draw. erase_tempo 40: DeckManager ticks erase_tempo_remaining -5 per cycle only while the card is in hand (deck_manager.gd:987-1000) and erases it at 0. Created 2 at a time by Reckless Strike (main.gd:8741).
+  - Card text: On draw, deal 2 damage to self. Erase: 40 (in your hand or the draw or discard pile; frozen while jailed).
+  - Code: Unplayable status card. has_on_draw 'deal_2_self': main._on_card_on_draw_triggered (main.gd:14342) calls stats.take_damage(2) (armor applies) on draw. erase_tempo 40: DeckManager ticks erase_tempo_remaining -5 per cycle in the hand, draw and discard piles, frozen in jail (negative card: Card.is_negative_card, DeckManager._process_erase_timers) and erases it at 0. Created 2 at a time by Reckless Strike (main.gd:8741).
 - **Petey the Pet Rock** (`petey_the_pet_rock`) — Common · 0 mana, 0 tempo · range — · targets — · slots: Pocket · sheet: Unplayable
   - Card text: On Draw: Draw 3 cards. On Discard: Discard 2 cards. While in hand: Slowed 2.
   - Code: UNPLAYABLE. on_draw_effect 'draw_3_cards' (main.gd ~14348): draw_card() x3. on_discard_effect 'discard_2_cards' (main.gd ~7182): 2 random cards from hand go to discard. in_hand_debuff 'slowed_2' (main._apply_in_hand_debuffs): applies Debuff.create_slowed(2) while in hand if not already Slowed.

@@ -293,10 +293,14 @@ func _test_locked_multi() -> void:
 	deck.add_card_to_hand(Card.create_slash())
 	deck.discard_card_from_hand(deck.hand[2])
 	_check(dm.is_card_locked(0) and dm.is_card_locked(1), "a card above both locks leaving moves neither")
-	# The lower locked card itself leaves (a Clumsy discard): its lock goes with it.
+	# The lower locked card itself leaves (a Clumsy discard): by the
+	# negative-card rule its lock rides it into the discard pile, and the
+	# other follows its card down to 0. No hand card picks up the lock.
 	deck.discard_card_from_hand(c1)
-	_check(dm.get_locked_debuffs().size() == 1 and dm.card_is_locked(c3) and dm.is_card_locked(0),
-		"its lock is lifted; the other follows its card to 0")
+	_check(dm.get_locked_debuffs().size() == 2 and dm.card_is_locked(c1) and deck.discard_pile.has(c1)
+		and dm.card_is_locked(c3) and dm.is_card_locked(0) and not dm.is_card_locked(1),
+		"its lock rides it into the discard pile; the other follows its card to 0")
+	_check(dm.get_locked_card_index() == 0, "the first locked slot in hand is c3's")
 
 	# Hexed and Locked prefer different cards.
 	dm.clear_all_debuffs()
