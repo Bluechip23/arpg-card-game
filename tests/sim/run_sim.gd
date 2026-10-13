@@ -84,9 +84,19 @@ func _go() -> void:
 			_failures += 1
 			continue
 		var dir := "%s/%s/%s" % [_abs(out_dir), sc["name"], policy_name]
-		if _args.has("skip-done") and _summary_rows("%s/summary.csv" % dir) >= int(job["runs"]):
-			printerr("[SIM] %s / %s: already done, skipped" % [sc["name"], policy_name])
+		var stamp := code_stamp()
+		var old_stamp := FileAccess.get_file_as_string("%s/stamp.txt" % dir).strip_edges() if FileAccess.file_exists("%s/stamp.txt" % dir) else ""
+		if _args.has("skip-done") and old_stamp == stamp and _summary_rows("%s/summary.csv" % dir) >= int(job["runs"]):
+			printerr("[SIM] %s / %s: already done on this code, skipped" % [sc["name"], policy_name])
 			continue
+		# A job starts clean: rows from an older run (other code, or a run cut
+		# short) never mix with this one's.
+		for stale in ["summary.csv", "aggregate.csv"]:
+			if FileAccess.file_exists("%s/%s" % [dir, stale]):
+				DirAccess.remove_absolute("%s/%s" % [dir, stale])
+		SimRunner.write_text("%s/stamp.txt" % dir, stamp + "\n")
+		SimRunner.write_text("%s/loadout.json" % dir, JSON.stringify({"job": job, "parts": sc.get("parts", {}),
+			"player": sc["player"], "enemies": sc["enemies"], "notes": sc.get("notes", "")}, "  ") + "\n")
 		var summaries: Array = []
 		var t0 := Time.get_ticks_msec()
 		for i in range(int(job["runs"])):
@@ -163,3 +173,36 @@ static func _summary_rows(path: String) -> int:
 	for line in text.split("\n", false):
 		n += 1
 	return maxi(0, n - 1)
+
+## A fingerprint of the code a run used: every script, scene and data file
+## under scripts/ and tests/sim/ (including the committed recipe rankings). Written next to each job's results, so a
+## resumed sweep never reuses results from other code and compare_runs can
+## tell when a "before" and "after" ran the same code.
+static var _stamp := ""
+
+static func code_stamp() -> String:
+	if _stamp != "":
+		return _stamp
+	var files: Array = []
+	var stack: Array = ["res://scripts", "res://tests/sim"]
+	while not stack.is_empty():
+		var dir_path: String = stack.pop_back()
+		var d := DirAccess.open(dir_path)
+		if d == null:
+			continue
+		d.list_dir_begin()
+		var f := d.get_next()
+		while f != "":
+			var full := "%s/%s" % [dir_path, f]
+			if d.current_is_dir():
+				if not f.begins_with("."):
+					stack.append(full)
+			elif f.get_extension() in ["gd", "tres", "json", "tscn", "csv"]:
+				files.append(full)
+			f = d.get_next()
+	files.sort()
+	var acc := ""
+	for path in files:
+		acc += "%s %s\n" % [path, FileAccess.get_md5(path)]
+	_stamp = acc.md5_text().substr(0, 12)
+	return _stamp

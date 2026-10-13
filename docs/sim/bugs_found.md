@@ -38,14 +38,28 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   decision and tick; three concurrent processes produce byte-identical
   run files.
 
+- **Eight cards were never played by the policy.** Sky Attack, Mirror
+  Mirror, Collect Arrows, Friendship, Release Tension, Crack of Mintaka,
+  Life Swap and Communal Donation were held out of the legal actions as
+  "needs a pick", so the single-card sweep scored each as a dead card (all
+  eight had identical numbers on every build). They are now playable: the
+  runner answers their pickers and the lookahead values and picks for Sky
+  Attack, Mirror Mirror, Collect Arrows and Release Tension.
+
+- **Overkill was counted as damage dealt.** `Enemy.damaged` reports the
+  whole hit after clamping health at 0, and the runner summed it, so a
+  killing blow was credited with damage past zero. Burst and area cards
+  were inflated most (If Pigs Could Fly read 168 damage per tempo against
+  a pack with 116 total health). The killing hit now counts only the
+  health it removed; the excess goes to a separate `overkill` column.
+  Win rates were never affected; damage-per-tempo figures were re-run.
+
 ## Open (not changed)
 
 - **`tests/_build_sims.gd` spelled Ryan's passive `lets_dance`; the game's
   id is `let's_dance`** (the tree lowercases "Let's Dance" and keeps the
-  apostrophe). Fixed in the scratch simulator at the designer's request. Candidates to watch: `Enemy.damaged` reports overkill (the
-  amount applied to health is not clamped before the signal), which only
-  matters for anything summing damage from that signal — the harness does
-  and says so in its column notes.
+  apostrophe). Fixed in the scratch simulator at the designer's request. (`Enemy.damaged` reporting overkill is handled in the harness; see the
+  fixed list above.)
 
 - **Shadow Cowl's on-self bonus can never fire.** The cowl's "+2 damage
   and 2 free tiles for offensive cards" is an `on_self_*` bonus, and
@@ -71,3 +85,11 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   conjured tokens (Energy Ball from Absorb Essence). If any of these are
   meant to come only with their item or spell, they want `shop_excluded`
   — the sweeps will otherwise swap them into decks as ordinary cards.
+
+- **Five tree passives never write to the battle log**: Brad's Directed
+  Strength and Life Steal, Jeremy's Harnessed Power and Blood Libation,
+  Cory's Wither. They work, but neither the player's log nor the sim's
+  trigger count can see them fire; their `passive_triggers` entry reads
+  `-` (not observable) instead of 0. A one-line `add_battle_log` in each
+  would make them countable. Way of the Plate logs as "Way of the Plate"
+  under the id `the_way_of_the_plate`; the sim maps the name. Not changed.

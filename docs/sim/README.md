@@ -319,6 +319,41 @@ tools/sim_analysis/run_sweep.sh tests/sim/sweeps/ryan_designed_L50.txt 4
 python3 tools/sim_analysis/build_matrix.py --character ryan --level 50       # sim_out/charts/<char>_L50_*.png / .csv
 ```
 
+### What each job leaves behind
+
+Every job directory (`<out>/<scenario>/<policy>/`) holds the per-seed run
+CSVs, `summary.csv`, `aggregate.csv`, and two files that say exactly what
+ran: `loadout.json` (the composed player: deck, items, engravings,
+allocation, passive ranks, sphere targets; the enemies; the parts) and
+`stamp.txt`, a fingerprint of every script and data file under `scripts/`
+and `tests/sim/`. A job always starts clean, so rows from other code never
+mix in; `--skip-done` (which `run_sweep.sh` passes) skips a job only when
+it finished on the same stamp; and `compare_runs.py` warns when a "before"
+and "after" ran on the same code, which means the change was not saved.
+
+### Packs: fights against more than one enemy
+
+Single-enemy fights cannot show what an area card (If Pigs Could Fly,
+Peshtigo's Kiss, Ice Grenade) or a cleave is worth, so the designed,
+tactic and recipe sweeps also fight a pack (`--packs`, default
+`WOLF,WOLF,GIANT_HAWK`; `;` separates several), named `e_PACK_<A>+<B>+<C>`.
+The card and item swaps add the packs with `--swap-packs` (it doubles
+their cost). Any sweep line or single run takes `enemy=A,B,C` directly.
+
+### The audit test
+
+`tests/test_sim_audit.gd` (about 4 minutes) boots every designed build of
+every character in the real game at levels 1, 15, 18, 30 and 50, plus
+every tactic and a passive focus, and fails if the tester itself is wrong:
+a refused equip, slot, allocation or passive rank (below level 15 an
+end-game set may outweigh what the character carries); any stat point,
+passive point or sphere left unspent; the mythic cap broken; more than
+three keystones; a tree passive whose firing cannot be counted and is not
+on the known-silent list; a recipe that does not fill twelve cards; an
+item that is not worn when swapped in; a card in the pool that cannot be
+dealt. Run it after adding a character library, a passive, a card or an
+item, and before trusting a sweep.
+
 ### Quick feedback on a balance change
 
 Runs are deterministic per seed, so any difference between two snapshots is
@@ -381,6 +416,28 @@ parts use it:
   data-driven once the sweep has run. `<char>_recipes.txt` plays every
   recipe on every designed build; the matrix compares each against the
   build's own hand-written deck.
+
+### Testing an item: `item:<id>` and the item sweep
+
+`item:<id>` puts one item into a stored build: its natural slot (main hand
+for weapons, off hand for shields and quivers, slot 0 for everything else),
+replacing what the set wears there; a two-handed bow or staff clears the
+off hand (a bow keeps its quiver). The tested item is always worn: a
+mythic takes a mythic slot first and the set's own mythic drops to its
+legendary fallback (every set mythic has one), and no *other* set mythic
+comes off its fallback, so exactly one item changes. The replaced piece's
+engraved cards move onto the new item when its slots accept them.
+
+`<char>_item_swap.txt` does this for every mythic and legendary item (the
+pool is every equippable ItemData factory, so a new item is included the
+moment it exists) on every designed build. `build_matrix.py` pairs each
+run with the designed run on the same seed, prints the best and worst
+items per build and the items that help or hurt every build
+(`sim_out/charts/<char>_item_swap.csv`), and lists the items a build
+cannot wear at all, with the game's reason: over carry capacity, a hand
+conflict (a shield beside a bow), the mythic cap. Those are findings, not
+gaps: "Adimantium cannot be carried by any Ryan build without STR" is a
+balance fact.
 
 ### Tactics: a play style on every build
 

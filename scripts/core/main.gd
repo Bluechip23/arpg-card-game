@@ -8208,12 +8208,19 @@ func _invisibility_finish_draw(top: Card, then_discard_excluding: Card) -> void:
 			others += 1
 	if others == 0:
 		return
+	_invisibility_forced_discard(drawn)
+
+## The discard that pays for the draw is not optional: Cancel re-opens the
+## picker instead of letting the player keep the card for free.
+func _invisibility_forced_discard(drawn: Card) -> void:
+	var dm = deck_manager
 	show_hand_card_picker("Invisibility: discard a card (not %s)" % drawn.card_name, func(c):
 		if c != null:
 			dm.discard_card_from_hand(c)
 			print("[MAIN] Invisibility draw: discarded %s" % c.card_name)
 			add_battle_log("Invisibility: discarded %s" % c.card_name, Color(0.8, 0.4, 0.9))
-			dm.hand_updated.emit(), drawn)
+			dm.hand_updated.emit(), drawn,
+		func(): _invisibility_forced_discard.call_deferred(drawn))
 
 func _show_choice_picker(prompt: String, labels: Array, on_pick: Callable) -> void:
 	if labels.is_empty():

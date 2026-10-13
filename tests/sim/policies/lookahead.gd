@@ -39,10 +39,63 @@ const MOVE_ACTION_WORDS := ["move", "scurry", "range", "retreat", "heal", "regen
 
 var debug := false   # print the top-scored actions and the threat model per decision
 
+## Stalemate breaker. When nothing scores above waiting (an enemy hovering
+## out of reach, a hand with no play worth its tempo) both sides can wait
+## out the clock, and the fight reads as a timeout the build never had to
+## take. After IDLE_LIMIT consecutive waits with no health changing, the
+## policy commits: its best non-wait action, or a step toward the nearest
+## enemy.
+const IDLE_LIMIT := 6
+var _idle_streak := 0
+var _idle_sig := ""
+
 func _init() -> void:
 	name = "lookahead"
 
+func setup(scenario: Dictionary) -> void:
+	super.setup(scenario)
+	_idle_streak = 0
+	_idle_sig = ""
+
 func choose_action(state: SimState) -> Variant:
+	var picked: Variant = _choose(state)
+	var sig := "%d" % state.player_hp
+	for e in state.enemies:
+		sig += ":%d" % int(e["hp"])
+	if picked is Dictionary and str(picked.get("type", "")) == "wait" and sig == _idle_sig:
+		_idle_streak += 1
+	else:
+		_idle_streak = 0
+	_idle_sig = sig
+	if _idle_streak >= IDLE_LIMIT and picked is Dictionary and str(picked.get("type", "")) == "wait":
+		var commit := _break_stalemate(state)
+		if not commit.is_empty():
+			if debug:
+				print("[LOOKAHEAD] stalemate after %d waits: %s" % [_idle_streak, SimPolicy.action_label(commit)])
+			_idle_streak = 0
+			return commit
+	return picked
+
+func _break_stalemate(state: SimState) -> Dictionary:
+	var threats := _threats(state)
+	var best: Dictionary = {}
+	var best_score := -INF
+	for a in state.legal_actions():
+		var t := str(a.get("type", ""))
+		if t == "wait" or t == "brain_peek":
+			continue
+		var sc := _score(a, state, threats)
+		if t == "attack" or (t == "play" and str(a.get("target", "")).begins_with("enemy:")):
+			sc += 2.0
+		if sc > best_score:
+			best_score = sc
+			best = a
+	if best_score > -1.0:
+		return best
+	var near := state.nearest_enemy_index()
+	return state.step_toward(near) if near >= 0 else best
+
+func _choose(state: SimState) -> Variant:
 	var legal := state.legal_actions()
 	if legal.is_empty():
 		return {"type": "wait"}
@@ -69,7 +122,11 @@ func choose_action(state: SimState) -> Variant:
 			str(state.can_move), "locked" if state.movement_locked else "free", "walking" if state.main.player.is_moving else "still", " ".join(th), "  ".join(top)])
 	if best.get("type", "") == "play":
 		var c: Dictionary = state.hand[best["card"]]
-		if str(c["description"]).to_lower().find("discard a card") >= 0 and not best.has("picks"):
+		var own_pick := _own_pick(c, state, int(best["card"]))
+		if own_pick >= 0 and not best.has("picks"):
+			best = best.duplicate()
+			best["picks"] = {"picked_card": own_pick}
+		elif str(c["description"]).to_lower().find("discard a card") >= 0 and not best.has("picks"):
 			var pick := _worst_card_index(state, int(best["card"]))
 			if pick >= 0:
 				best = best.duplicate()
@@ -78,35 +135,54 @@ func choose_action(state: SimState) -> Variant:
 
 ## The card we would rather lose: Volatile Mixture wants to be discarded;
 ## otherwise the lowest expected value in hand.
-## Invisibility's draw: take the top card when the hand holds something
-## worth less than a fresh card (a dead or unplayable card, a bare utility
-## with no numbers) or the hand is short; discard the worst card by the
-## same measure, never the one just drawn (it is excluded by name).
+## Invisibility's draw: the rule shows the top card, so draw it only when it
+## is worth more than the hand's weakest card (or the hand is short), and
+## discard by the same measure. The measure counts what a card does beyond
+## damage, block and heal (poison, invisibility, draw, the potion and
+## discard engines), so an engine card is not thrown away as "zero".
 func answer_prompt(kind: String, options: Array, state: SimState = null) -> int:
 	if kind == "invisibility_draw":
 		if state == null:
 			return 0
 		if state.hand.size() < 3:
 			return 0
-		var w := _worst_card_index(state, -1)
-		if w < 0:
-			return 0
+		var weakest := INF
 		for h in state.hand:
-			if h["index"] == w:
-				var v := float(h["damage"]) + float(h["block"]) + float(h["heal"])
-				return 0 if (not h["playable"] or v <= 0.0) else 1
-		return 0
+			weakest = minf(weakest, _card_worth(h, state))
+		if state.top_card.is_empty():
+			return 1
+		return 0 if _card_worth(state.top_card, state) > weakest + 0.5 else 1
 	if kind == "invisibility_discard":
 		if state == null or options.is_empty():
 			return 0
-		var w := _worst_card_index(state, -1)
-		for h in state.hand:
-			if h["index"] == w:
-				var oi: int = options.find(h["name"])
-				if oi >= 0:
-					return oi
-		return 0
+		var worst := -1
+		var worst_v := INF
+		for i in range(options.size()):
+			for h in state.hand:
+				if h["name"] == str(options[i]):
+					var v := _card_worth(h, state)
+					if v < worst_v:
+						worst_v = v
+						worst = i
+					break
+		return maxi(0, worst)
 	return super.answer_prompt(kind, options, state)
+
+## What keeping a card is worth, beyond its raw numbers.
+static func _card_worth(h: Dictionary, state: SimState) -> float:
+	var text := str(h.get("description", "")).to_lower()
+	var v := float(h.get("damage", 0)) + float(h.get("block", 0)) + float(h.get("heal", 0))
+	var near := state.nearest_enemy_index()
+	if near >= 0:
+		v += _poison_value(text, state, near)
+	for w in ["poison", "potion", "regen", "strengthen", "invisib", "draw", "discard", "armor", "heal"]:
+		if text.find(w) >= 0:
+			v += 2.0
+	if str(h.get("type", "")) in ["POWER", "UTILITY"] and v <= 0.0:
+		v += 1.5
+	if not bool(h.get("playable", true)):
+		v -= 2.0
+	return v
 
 static func _worst_card_index(state: SimState, exclude: int) -> int:
 	var worst := -1
@@ -237,6 +313,7 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 			else:
 				gain += _self_value(c, text, state, threats, tempo, hp_weight)
 			gain += _discard_value(c, text, state)
+			gain += _pick_card_value(c, state, target, hp_weight)
 		"attack":
 			tempo = maxi(1, int(a.get("tempo", state.basic_attack_tempo)))
 			var idx := int(str(a.get("target", "enemy:-1")).substr(6))
@@ -412,6 +489,50 @@ static func _discard_value(c: Dictionary, text: String, state: SimState) -> floa
 	if text.find("draw") >= 0:
 		v += _draw_value(state) * 0.5   # the card comes back as a fresh one
 	return v
+
+## The card a picking card should take: Sky Attack discards the hardest
+## hitter (its damage becomes the shot), Mirror Mirror copies the best card.
+static func _own_pick(c: Dictionary, state: SimState, exclude: int) -> int:
+	match str(c["id"]):
+		"sky_attack":
+			return _best_index(state, exclude, true)
+		"mirror_mirror":
+			return _best_index(state, exclude, false)
+	return -1
+
+static func _best_index(state: SimState, exclude: int, damage_only: bool) -> int:
+	var best := -1
+	var best_v := -1.0
+	for h in state.hand:
+		if h["index"] == exclude:
+			continue
+		var v := float(h["damage"]) if damage_only else float(h["damage"]) + float(h["block"]) + float(h["heal"])
+		if v > best_v:
+			best_v = v
+			best = h["index"]
+	return best
+
+## Cards whose worth is another card: what the pick or the fetch is worth.
+static func _pick_card_value(c: Dictionary, state: SimState, target: String, hp_weight: float) -> float:
+	match str(c["id"]):
+		"sky_attack":
+			var i := _best_index(state, int(c["index"]), true)
+			for h in state.hand:
+				if h["index"] == i:
+					return float(h["damage"]) + 1.0   # the shot, plus the high ground it leaves
+		"mirror_mirror":
+			var j := _best_index(state, int(c["index"]), false)
+			for h in state.hand:
+				if h["index"] == j:
+					return 0.8 * (float(h["damage"]) + float(h["block"]) + float(h["heal"]))
+		"collect_arrows":
+			return _draw_value(state) * float(mini(2, state.discard_size))
+		"release_tension":
+			if target.begins_with("enemy:"):
+				var e: Dictionary = state.enemies[int(target.substr(6))]
+				if not (e.get("effects", []) as Array).is_empty() or int(e.get("poison", 0)) > 0:
+					return minf(3.0, float(state.player_max_hp - state.player_hp)) * hp_weight + 1.0
+	return 0.0
 
 static func _draw_value(state: SimState) -> float:
 	if state.hand.size() <= 2:

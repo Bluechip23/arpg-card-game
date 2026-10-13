@@ -15,6 +15,7 @@ Sweeps (run with tests/sim/run_sim.gd --sweep=<file> or run_sweep.sh):
   <char>_card_swap.txt      every pool card swapped into each designed build's deck (last card out, the card spotlighted into the opening hand)
   <char>_recipes.txt        every deck recipe generated on each designed build
   <char>_tactics.txt        every tactic overlay (invisibility, poison, ...) on each designed build
+  <char>_item_swap.txt      every mythic/legendary item swapped into its natural slot on each designed build
 Every job runs through tests/sim/scenarios/build.gd with parts=...; the
 sweep file is <char>_<kind>[_L<level>].txt (level 18 untagged); scenario folder is <char>_<build>_e_<ENEMY>[__L_<level>][__k_<component>...]
 so build_matrix.py can pivot on any component.
@@ -34,6 +35,9 @@ def main():
     ap.add_argument("--out", default=os.path.join(ROOT, "tests", "sim", "sweeps"))
     ap.add_argument("--seeds", type=int, default=100)
     ap.add_argument("--enemies", default=DEFAULT_ENEMIES)
+    ap.add_argument("--packs", default="WOLF,WOLF,GIANT_HAWK",
+                    help="';'-separated multi-enemy fights added to the designed / tactic / recipe sweeps (area cards only show on these); '' for none")
+    ap.add_argument("--swap-packs", action="store_true", help="also run the card and item swaps against the packs")
     ap.add_argument("--swap-seeds", type=int, default=10, help="seeds per card in the single-card sweep (it is the big one)")
     ap.add_argument("--matrix-enemies", default="LARGE_BEAR,EARTH_MAGE,WYVERN", help="enemies for the mix-and-match matrices")
     ap.add_argument("--enemy-scale", default="", help="hp:x,dmg:y multipliers on every enemy (end-game scaling)")
@@ -42,8 +46,10 @@ def main():
     comp = json.load(open(args.catalog))["builds"][char]
     designed = comp["designed_parts"]
     seeds = "seeds=1-%d" % args.seeds
-    enemies = args.enemies.split(",")
+    packs = [p for p in args.packs.split(";") if p.strip()]
+    enemies = args.enemies.split(",") + packs
     m_enemies = args.matrix_enemies.split(",")
+    swap_enemies = m_enemies + (packs if args.swap_packs else [])
     level_tag = "" if args.level == 18 else "__L_%d" % args.level
     scale = (" enemy_scale=%s" % args.enemy_scale) if args.enemy_scale else ""
 
@@ -61,7 +67,8 @@ def main():
     def job(build, enemy, parts, tag):
         p = dict(parts); p["character"] = char; p["build"] = build; p["level"] = args.level
         ps = ",".join("%s:%s" % kv for kv in p.items())
-        return "scenario=%s enemy=%s%s parts=%s name=e_%s%s%s %s" % (SCEN, enemy, scale, ps, enemy, level_tag, tag, seeds)
+        label = enemy if "," not in enemy else "PACK_" + enemy.replace(",", "+")
+        return "scenario=%s enemy=%s%s parts=%s name=e_%s%s%s %s" % (SCEN, enemy, scale, ps, label, level_tag, tag, seeds)
 
     write("%s_designed.txt" % char, [job(b, e, {}, "") for b in designed for e in enemies], "%s designed builds x enemies" % char)
 
@@ -99,7 +106,7 @@ def main():
     swap_seeds = "seeds=1-%d" % args.swap_seeds
     for b in designed:
         for card in comp.get("card_pool", []):
-            for e in m_enemies:
+            for e in swap_enemies:
                 lines.append(job(b, e, {"swap": card}, "__w_%s" % card.replace("'", "")).replace(seeds, swap_seeds))
     write("%s_card_swap.txt" % char, lines, "%s every pool card swapped into each designed build (last deck card out, card spotlighted)" % char, args.swap_seeds)
 
@@ -116,6 +123,13 @@ def main():
             for e in enemies:
                 lines.append(job(b, e, {"tactic": t}, "__t_%s" % t))
     write("%s_tactics.txt" % char, lines, "%s tactic overlays on each designed build" % char)
+
+    lines = []
+    for b in designed:
+        for it in comp.get("item_pool", []):
+            for e in swap_enemies:
+                lines.append(job(b, e, {"item": it}, "__x_%s" % it).replace(seeds, swap_seeds))
+    write("%s_item_swap.txt" % char, lines, "%s every mythic/legendary item in its natural slot on each designed build (a mythic takes a mythic slot first)" % char, args.swap_seeds)
 
 
 if __name__ == "__main__":

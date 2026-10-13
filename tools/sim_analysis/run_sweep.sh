@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Runs one sweep file across N godot processes (one shard each) and waits.
-# Jobs whose summary.csv already holds every seed are skipped, so a killed
-# sweep resumes by re-running the same command (use a fresh out dir to redo).
+# A job already finished on the same code (its stamp.txt matches) is skipped,
+# so a killed sweep resumes by re-running the same command; after any code
+# change every job re-runs from scratch.
 # Usage: tools/sim_analysis/run_sweep.sh <sweep file> [shards=4] [out=sim_out]
 set -u
 cd "$(dirname "$0")/../.."

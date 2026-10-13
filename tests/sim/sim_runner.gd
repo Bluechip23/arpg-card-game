@@ -17,10 +17,10 @@ const INTERIOR_DEFAULT := "dojo"
 const ROW_COLUMNS := ["bar_index", "tempo_before", "tempo_after", "actor", "action_id", "target",
 	"player_hp", "player_armor", "player_temp_hp", "player_mana", "hand_size",
 	"enemy_id", "enemy_hp", "enemy_pos", "player_pos", "distance",
-	"damage_dealt", "damage_taken", "buffs_applied", "debuffs_applied", "rng_outcome_used"]
+	"damage_dealt", "damage_taken", "buffs_applied", "debuffs_applied", "rng_outcome_used", "overkill"]
 const SUMMARY_COLUMNS := ["seed", "outcome", "bars_elapsed", "total_damage_dealt", "total_damage_taken",
 	"damage_per_tempo", "cards_played", "distinct_cards_played", "card_entropy", "mana_wasted",
-	"overflow_bars", "end_hp_pct", "enemy_actions_by_type", "passive_triggers", "global_tempo", "decisions", "error", "warnings"]
+	"overflow_bars", "end_hp_pct", "enemy_actions_by_type", "passive_triggers", "sphere_nodes", "global_tempo", "decisions", "error", "warnings"]
 const AGGREGATE_STATS := ["mean", "std", "min", "max"]
 
 var tree: SceneTree
@@ -143,6 +143,27 @@ func run(sc: Dictionary, pol: SimPolicy, p_seed: int) -> Dictionary:
 	await _teardown()
 	return summary
 
+## Boot the scenario's fight and stop before the first decision, for tests
+## that drive the real scene themselves (pickers, rules). Call teardown()
+## when done.
+func boot_only(sc: Dictionary, p_seed: int) -> void:
+	scenario = sc
+	seed_value = p_seed
+	rows.clear()
+	warnings.clear()
+	outcome = ""
+	error_msg = ""
+	_reset_counters()
+	seed(seed_value)
+	await _boot()
+	_build_player()
+	_spawn_enemies()
+	_hook_signals()
+	_run_seed = p_seed
+
+func teardown() -> void:
+	await _teardown()
+
 # --------------------------------------------------------------- boot ----
 
 func _boot() -> void:
@@ -210,7 +231,17 @@ func _build_player() -> void:
 		if inv.equip_item(item, slot):
 			equipped[id] = item
 		else:
-			warnings.append("equip refused: %s (slot %d, carry %d/%d)" % [id, slot, stats.current_carry_load, stats.get_carry_capacity()])
+			var why := "over carry capacity %d/%d" % [stats.current_carry_load, stats.get_carry_capacity()]
+			var conflict := str(inv.hand_conflict_reason(item, slot)) if item.item_type in [ItemData.ItemType.WEAPON, ItemData.ItemType.QUIVER] else ""
+			if conflict != "":
+				why = "hand conflict: " + conflict
+			elif item.rarity == ItemData.Rarity.MYTHIC and inv.count_equipped_mythics() >= inv.get_mythic_capacity():
+				why = "mythic cap %d" % inv.get_mythic_capacity()
+			elif slot >= inv._get_max_slots(item.item_type):
+				why = "no slot %d for this character" % slot
+			elif inv._get_slot_array(item.item_type)[slot] != null:
+				why = "slot %d occupied" % slot
+			warnings.append("equip refused: %s (slot %d, %s)" % [id, slot, why])
 	# Cards engraved into the items' slots: {item id: [card ids]}. Real slot
 	# rules (count, label, feral colour) apply; a slotted card rides the item
 	# and does not count toward the deck cap.
@@ -251,12 +282,52 @@ func _build_player() -> void:
 ## to each target node (in order), lighting every node on the way through
 ## the real unlock + effect code. Stat gates and the keystone cap are
 ## honoured; a target that cannot be reached is a warning.
+## The sphere grid the way a player buys it: every node costs one sphere
+## from the game's own sphere inventory (2 per level, granted by the real
+## level-ups), so a build cannot hold more nodes than its level paid for.
+## The build's target nodes (its keystones) are bought first along the
+## shortest gated path; whatever spheres remain are spent the way a player
+## would, on the best reachable node (Free Stat, then the build's own stats
+## by its allocation weights, combat bonuses, health, mana; connective
+## nodes only to open a path). Free Stat points bought this way are spent
+## by the same allocation weights.
+const SPHERE_FILL_SCORE := {"FREE_STAT": 4.0, "COMBAT_BONUS": 2.0, "HEALTH": 1.5, "MANA": 1.0,
+	"PASSIVE": 1.5, "CULLING_STONE": 0.2, "NULL_NODE": 0.1}
+const SPHERE_STAT_ABBR := {"STR": "strength", "DEX": "dexterity", "INT": "intelligence",
+	"WIS": "wisdom", "AGI": "agility", "DET": "determination"}
+
+var sphere_lit := 0
+var sphere_spent := 0
+
+func _buy_sphere_node(grid, nid: int) -> bool:
+	var inv = main.sphere_inventory
+	var node = grid.get_node_by_id(nid)
+	if node == null or inv == null or not inv.has_sphere_for_node(node.node_type):
+		return false
+	if not grid.unlock_node(nid):
+		return false
+	inv.spend_sphere_for_node(node.node_type)
+	main.progression_triggers._on_sphere_grid_node_unlocked(nid)
+	sphere_lit += 1
+	return true
+
+func _fill_score(node, weights: Dictionary, wmax: float) -> float:
+	var t: String = SphereGrid.NodeType.keys()[node.node_type]
+	if t == "STAT_BONUS":
+		var abbr := str(node.label).split(" ")[0].to_upper()
+		var stat: String = SPHERE_STAT_ABBR.get(abbr, "")
+		return 0.5 + 2.5 * float(weights.get(stat, 0)) / maxf(1.0, wmax)
+	if t == "MANA":
+		var caster := float(weights.get("intelligence", 0)) + float(weights.get("wisdom", 0))
+		return 1.0 + 1.5 * caster / maxf(1.0, wmax * 2.0)
+	return float(SPHERE_FILL_SCORE.get(t, 0.0))
+
 func _unlock_sphere_targets(targets: Array) -> void:
-	if targets.is_empty():
-		return
 	var grid = main.sphere_grid_ui.sphere_grid
 	var stats = main.player.get_stats()
-	var lit := 0
+	var inv = main.sphere_inventory
+	sphere_lit = 0
+	var budget: int = inv.get_count(SphereInventory.SphereType.SPHERE) if inv else 0
 	for target in targets:
 		var tid := int(target)
 		var goal = grid.get_node_by_id(tid)
@@ -297,13 +368,49 @@ func _unlock_sphere_targets(targets: Array) -> void:
 			path.push_front(at)
 			at = came_from[at]
 		for nid in path:
-			if not grid.unlock_node(nid):
-				warnings.append("sphere: unlock refused at %d (%s)" % [nid, grid.get_node_by_id(nid).label])
+			if not _buy_sphere_node(grid, nid):
+				if inv and not inv.has_sphere_for_node(grid.get_node_by_id(nid).node_type):
+					# Not a refusal: the level has not paid for this keystone yet.
+					_log("sphere: %d sphere(s) ran out on the way to %d (%s)" % [budget, tid, goal.label])
+				else:
+					warnings.append("sphere: unlock refused at %d (%s)" % [nid, grid.get_node_by_id(nid).label])
 				break
-			main.progression_triggers._on_sphere_grid_node_unlocked(nid)
-			lit += 1
+	# The rest of the budget, node by node, best reachable first — only for
+	# scenarios that ask for it (stored builds do; hand-built scenarios that
+	# pin exact numbers do not).
+	var weights: Dictionary = scenario["player"].get("allocation", {})
+	if not bool(scenario["player"].get("sphere_fill", false)):
+		grid.check_constellation_completion()
+		sphere_spent = budget - (inv.get_count(SphereInventory.SphereType.SPHERE) if inv else 0)
+		_log("sphere grid: %d node(s) bought for targets %s (no fill)" % [sphere_lit, str(targets)])
+		return
+	var wmax := 0.0
+	for k in weights:
+		wmax = maxf(wmax, float(weights[k]))
+	var guard := 0
+	while inv and inv.get_count(SphereInventory.SphereType.SPHERE) > 0 and guard < 400:
+		guard += 1
+		var best := -1
+		var best_score := -1.0
+		for n in grid.get_all_nodes():
+			if n.unlocked or n.node_type == SphereGrid.NodeType.KEYSTONE:
+				continue
+			if not grid.is_unlockable(n.id) or not SphereGrid.requirements_met(n, stats):
+				continue
+			var sc := _fill_score(n, weights, wmax)
+			if sc > best_score or (sc == best_score and n.id < best):
+				best_score = sc
+				best = n.id
+		if best < 0 or not _buy_sphere_node(grid, best):
+			break
+	# Free Stat nodes bank points: spend them by the build's own weights.
+	if stats.unspent_stat_points > 0 and not weights.is_empty():
+		var extra := CharacterBuilds.spread(weights, stats.unspent_stat_points)
+		if not stats.apply_stat_allocation(extra):
+			warnings.append("free-stat allocation refused: %s" % str(extra))
 	grid.check_constellation_completion()
-	_log("sphere grid: %d node(s) lit for targets %s" % [lit, str(targets)])
+	sphere_spent = budget - (inv.get_count(SphereInventory.SphereType.SPHERE) if inv else 0)
+	_log("sphere grid: %d node(s) bought of %d sphere(s) (targets %s)" % [sphere_lit, budget, str(targets)])
 
 ## The scenario's deck replaces the character's own; cards an equipped item
 ## owns (granted or slotted) ride along, exactly as in play.
@@ -392,6 +499,7 @@ func _spawn_enemies() -> void:
 	main._refresh_unit_tracker()
 
 func _adopt_enemy(en) -> void:
+	_hp_seen[en.get_instance_id()] = en.current_health
 	en.set_physics_process(false)
 	en.action_fired.connect(_on_enemy_action_fired)
 	en.damaged.connect(_on_enemy_damaged.bind(en))
@@ -810,7 +918,23 @@ func _on_enemy_action_fired(enemy, action_name: String) -> void:
 	_open_enemy_rows.append(row)
 	_row = row
 
+## Enemy health each enemy had at its last damage event or row start: the
+## game's damaged signal reports the full hit even when it overkills (health
+## is clamped at 0 first), so the hit that kills counts only the health it
+## actually removed. Without this a burst card was credited with damage past
+## zero (a 168-damage-per-tempo pack wipe against 116 total health).
+var _hp_seen := {}
+
 func _on_enemy_damaged(amount: int, enemy) -> void:
+	var id: int = enemy.get_instance_id()
+	var hp_after: int = enemy.current_health
+	var overkill := 0
+	if hp_after <= 0 and _hp_seen.has(id):
+		overkill = maxi(0, amount - int(_hp_seen[id]))
+		amount -= overkill
+	_hp_seen[id] = hp_after
+	if overkill > 0 and not _row.is_empty():
+		_row["overkill"] = int(_row.get("overkill", 0)) + overkill
 	if amount <= 0:
 		return
 	_total_dealt += amount
@@ -880,6 +1004,7 @@ func _new_row(actor: String, action_id: String, target: String) -> Dictionary:
 		"distance": "",
 		"damage_dealt": 0,
 		"damage_taken": 0,
+		"overkill": 0,
 		"buffs_applied": "",
 		"debuffs_applied": "",
 		"rng_outcome_used": "",
@@ -887,6 +1012,7 @@ func _new_row(actor: String, action_id: String, target: String) -> Dictionary:
 	var armor := {}
 	for en in main.enemy_spawner.get_living_enemies():
 		armor[en.get_instance_id()] = en.current_armor
+		_hp_seen[en.get_instance_id()] = en.current_health
 	row["_armor"] = armor
 	if actor == "player" and target.begins_with("enemy:"):
 		var idx := int(target.substr(6))
@@ -961,6 +1087,7 @@ func _reset_counters() -> void:
 	_card_counts.clear()
 	_enemy_action_counts.clear()
 	_passive_triggers.clear()
+	_hp_seen.clear()
 	_mana_wasted = 0
 	_mana_delta = 0.0
 	_overflow_bars = 0
@@ -1002,6 +1129,7 @@ func _summary() -> Dictionary:
 		"end_hp_pct": float(stats.current_health) / float(maxi(1, stats.max_health)),
 		"enemy_actions_by_type": "|".join(actions),
 		"passive_triggers": _passive_trigger_text(stats),
+		"sphere_nodes": sphere_lit,
 		"global_tempo": tm.global_tempo,
 		"decisions": _decisions,
 		"error": error_msg,
@@ -1104,20 +1232,59 @@ func _log(msg: String) -> void:
 # ----------------------------------------------------- passive triggers ----
 
 ## Battle-log lines that start with a passive's display name ("Let's Dance:
-## +3 armor", "Quick Step: +16 armor") are that passive firing; every tree
-## passive logs itself that way. Counted per run so a sweep can say whether
-## a maxed passive ever did anything, not only how the numbers moved.
+## +3 armor", "Quick Step: +16 armor") are that passive firing. Counted per
+## run so a sweep can say whether a maxed passive ever did anything, not
+## only how the numbers moved.
 var _passive_triggers := {}
+
+## Passives whose log line names them differently from their id.
+const PASSIVE_LOG_ALIASES := {"way_of_the_plate": "the_way_of_the_plate"}
+
+## Passive ids that some battle-log line names (scanned once from the game's
+## scripts). A passive that never logs (a stat modifier like Directed
+## Strength, or one that only prints to the console) cannot be counted; its
+## trigger count reads "-" rather than a misleading 0.
+static var _observable: Dictionary = {}
+
+static func observable_passives() -> Dictionary:
+	if not _observable.is_empty():
+		return _observable
+	var re := RegEx.new()
+	re.compile("add_battle_log\\(\\s*\"([^\"%:]+):")
+	var stack: Array = ["res://scripts"]
+	while not stack.is_empty():
+		var dir_path: String = stack.pop_back()
+		var d := DirAccess.open(dir_path)
+		if d == null:
+			continue
+		d.list_dir_begin()
+		var f := d.get_next()
+		while f != "":
+			var full := "%s/%s" % [dir_path, f]
+			if d.current_is_dir():
+				if not f.begins_with("."):
+					stack.append(full)
+			elif f.ends_with(".gd"):
+				for m in re.search_all(FileAccess.get_file_as_string(full)):
+					var key := _log_key(m.get_string(1))
+					_observable[key] = true
+			f = d.get_next()
+	return _observable
+
+static func _log_key(name: String) -> String:
+	var key := name.strip_edges().to_lower().replace(" ", "_")
+	return PASSIVE_LOG_ALIASES.get(key, key)
 
 func _on_battle_logged(msg: String) -> void:
 	var colon := msg.find(":")
 	if colon <= 0:
 		return
-	var key := msg.substr(0, colon).strip_edges().to_lower().replace(" ", "_")
+	var key := _log_key(msg.substr(0, colon))
 	_passive_triggers[key] = int(_passive_triggers.get(key, 0)) + 1
 
-## "let's_dance:4|quick_step:0" for every passive the player has ranks in
-## (a ranked passive that never logged shows 0), sorted by id.
+## "let's_dance:4|quick_step:0|directed_strength:-" for every passive the
+## player has ranks in, sorted by id: a number is how often it fired (0 =
+## never), "-" means the game never logs that passive so it cannot be counted.
 func _passive_trigger_text(stats) -> String:
 	var ids: Array = []
 	if stats and "passive_levels" in stats:
@@ -1126,6 +1293,10 @@ func _passive_trigger_text(stats) -> String:
 				ids.append(str(pid))
 	ids.sort()
 	var parts: Array = []
+	var seen := observable_passives()
 	for pid in ids:
-		parts.append("%s:%d" % [pid, int(_passive_triggers.get(pid, 0))])
+		if seen.has(pid):
+			parts.append("%s:%d" % [pid, int(_passive_triggers.get(pid, 0))])
+		else:
+			parts.append("%s:-" % pid)
 	return "|".join(parts)

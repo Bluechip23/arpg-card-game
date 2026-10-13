@@ -47,6 +47,7 @@ static func with_defaults(sc: Dictionary) -> Dictionary:
 	p["cell"] = p.get("cell", [6, 7])
 	p["stat_overrides"] = p.get("stat_overrides", {})
 	p["opening_hand"] = p.get("opening_hand", [])
+	p["sphere_fill"] = bool(p.get("sphere_fill", false))
 	p["sphere_targets"] = p.get("sphere_targets", [])
 	p["slotted"] = p.get("slotted", {})
 	out["player"] = p

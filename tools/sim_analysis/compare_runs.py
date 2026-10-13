@@ -37,6 +37,14 @@ def load(snapshot):
     return df
 
 
+def stamps(snapshot):
+    """{scenario: code stamp} for the jobs in a snapshot that carry one."""
+    out = {}
+    for path in glob.glob(os.path.join(snapshot, "*", "*", "stamp.txt")):
+        out[os.path.basename(os.path.dirname(os.path.dirname(path)))] = open(path).read().strip()
+    return out
+
+
 def welch_p(a, b):
     """Two-sided Welch t-test p-value without scipy (normal approximation for df >= 30, else conservative)."""
     a, b = pd.Series(a, dtype=float), pd.Series(b, dtype=float)
@@ -63,6 +71,17 @@ def main():
     ap.add_argument("--md", default="", help="also write the report as Markdown to this path")
     args = ap.parse_args()
     b, a = load(args.before), load(args.after)
+    sb, sa = stamps(args.before), stamps(args.after)
+    shared = set(sb) & set(sa)
+    same = [k for k in shared if sb[k] == sa[k]]
+    if shared and len(same) == len(shared):
+        print("WARNING: every shared job ran on the same code in both snapshots (stamp %s);\n"
+              "         any difference below is not a code change. Was the change saved before the 'after' run?\n" % sa[next(iter(shared))])
+    elif same:
+        print("note: %d of %d shared jobs ran on the same code in both snapshots\n" % (len(same), len(shared)))
+    for name, st in (("before", sb), ("after", sa)):
+        if len(set(st.values())) > 1:
+            print("note: the %s snapshot mixes %d code versions (%s)\n" % (name, len(set(st.values())), ", ".join(sorted(set(st.values())))))
     keys = ["scenario", "policy"]
     rows = []
     for (sc, pol), gb in b.groupby(keys):
