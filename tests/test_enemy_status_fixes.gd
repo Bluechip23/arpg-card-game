@@ -92,6 +92,8 @@ func _test_exposed() -> void:
 	e._try_cerberus_roar()
 	e.enemy_thorns = 0
 	_check(not e.is_exposed and e.current_armor == 25, "Roar's 25 armor ends Exposed")
+	# Exposed's 10-tempo cooldown has to run out before the next break counts.
+	e._tick_timed_statuses(Enemy.EXPOSED_COOLDOWN)
 	e.take_damage(30, true)
 	_check(e.is_exposed, "breaking the new armor exposes it again")
 	# A path that sets armor directly is caught on the next tempo.

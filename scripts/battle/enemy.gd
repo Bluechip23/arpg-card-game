@@ -125,6 +125,7 @@ var _pps_dmg: float = 1.0  # Cached passive_power_scale damage multiplier (for h
 var max_armor: int = 0
 var current_armor: int = 0
 var is_exposed: bool = false          # True once armor has been broken to 0
+var exposed_cooldown_tempo: int = 0   # raw tempo before a break can Expose this enemy again (designer: 10 after every Exposed)
 var last_player_hit_damage: int = 0   # Raw damage of the player's most recent hit (for on-expose passives)
 var player_hit_modifier: Callable       # (enemy, amount) -> amount: skill-tree % mods on the player's direct hits (set by main)
 var has_been_damaged: bool = false      # any damage from any source has landed (Surprise Opener's first-source check)
@@ -178,6 +179,11 @@ var phys_defense_groups: Array = []
 # The sheet's "a stack is 5 tempo": every stack-clocked status below sheds one
 # stack per STACK_TEMPO of its OWN raw-tempo clock, never by use.
 const STACK_TEMPO := 5
+## Designer's rule: once Exposed triggers on a unit, that unit cannot be
+## Exposed again for this many raw tempo — a break inside the window is just
+## armor lost (no flag, no flash, no on-expose effects). Each enemy keeps its
+## own clock; PlayerStats.EXPOSED_COOLDOWN mirrors it for the players.
+const EXPOSED_COOLDOWN := 10
 var attack_reduction: int = 0
 # Wear Down (enemy side): the player's hits under Wear Down raise
 # attack_reduction; the reduction holds for this many enemy ATTACKS (the
@@ -2575,7 +2581,7 @@ func _tick_timed_statuses(amount: int) -> void:
 	# Every timer counted down below must be on this list, or a lone status
 	# of that kind never runs out (a Trip once lasted until something else
 	# timed landed on the enemy).
-	var any := taunt_tempo > 0 or fear_tempo > 0 \
+	var any := taunt_tempo > 0 or fear_tempo > 0 or exposed_cooldown_tempo > 0 \
 		or disarmed_tempo > 0 or marked_tempo > 0 or silenced_tempo > 0 \
 		or frozen_tempo > 0 or stun_tempo > 0 or tripped_tempo > 0 \
 		or rooted_tempo > 0 or narashimha_tempo > 0 or cursed_tempo > 0 \
@@ -2583,6 +2589,13 @@ func _tick_timed_statuses(amount: int) -> void:
 		or slow_stacks > 0 or vulnerable_stacks > 0 or weaken_stacks > 0
 	if not any:
 		return
+
+	# Exposed's cooldown runs on raw tempo, flag or no flag: armor regained
+	# ends Exposed but not the wait before the next one.
+	if exposed_cooldown_tempo > 0:
+		exposed_cooldown_tempo = maxi(0, exposed_cooldown_tempo - amount)
+		if exposed_cooldown_tempo == 0:
+			print("[%s] Can be Exposed again" % enemy_name)
 
 	# Hidden (Specter, Cherub) and the Screecher's window of visibility.
 	_tick_hidden(amount)
@@ -5709,7 +5722,7 @@ const MIMIC_COPIED_FIELDS: Array[String] = [
 	"wear_down_attacks", "attack_reduction", "narashimha_tempo", "phys_defense_groups",
 	"slow_clock", "vulnerable_clock", "weaken_clock",
 	"strengthen_stacks", "enemy_thorns", "zone_weakened",
-	"cupid_golden", "cupid_lead", "is_exposed", "has_been_damaged",
+	"cupid_golden", "cupid_lead", "is_exposed", "exposed_cooldown_tempo", "has_been_damaged",
 ]
 
 func _choose_demon_action(distance: int) -> void:
@@ -6914,9 +6927,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		print("[%s] Armor Break! %d doubled damage to armor! Armor: %d/%d" % [enemy_name, armor_absorbed, current_armor, max_armor])
 		_update_armor_bar()
 		if current_armor <= 0:
-			just_exposed = true
-			is_exposed = true
-			print("[%s] EXPOSED! Armor broken!" % enemy_name)
+			just_exposed = _try_expose()
 		amount = 0  # No spillover to health
 	elif current_armor > 0:
 		# Normal armor absorbs damage first
@@ -6927,9 +6938,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		print("[%s] Armor absorbed %d damage! Armor: %d/%d" % [enemy_name, armor_absorbed, current_armor, max_armor])
 		_update_armor_bar()
 		if was_armored and current_armor <= 0:
-			just_exposed = true
-			is_exposed = true
-			print("[%s] EXPOSED! Armor broken!" % enemy_name)
+			just_exposed = _try_expose()
 
 	# Remaining damage hits health (skipped if armor break consumed all damage)
 	if amount > 0:
@@ -7519,6 +7528,19 @@ func _gain_armor(amount: int) -> void:
 	current_armor += amount
 	_clear_exposed_if_armored()
 
+## A hit just broke this enemy's armor to 0. It is Exposed only when the
+## cooldown is clear; the return is the hit's just_exposed, which gates
+## everything an Exposed sets off (the signal and its listeners, the "exposed"
+## trigger actions, the Cobra's stun, the orange damage number, Premeditated).
+func _try_expose() -> bool:
+	if exposed_cooldown_tempo > 0:
+		print("[%s] Armor broken — Exposed on cooldown (%d tempo)" % [enemy_name, exposed_cooldown_tempo])
+		return false
+	is_exposed = true
+	exposed_cooldown_tempo = EXPOSED_COOLDOWN
+	print("[%s] EXPOSED! Armor broken!" % enemy_name)
+	return true
+
 ## Exposed is the state of having had armor broken and none since: armor back
 ## on means it is over. Called by _gain_armor and, as a backstop for any path
 ## that sets current_armor directly, by the per-tempo tick.
@@ -7903,8 +7925,10 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			desc = "Takes %d damage at the end of each cycle." % choke_dot_damage
 			remaining = "Ticks left: %d" % choke_dot_stacks
 		"Exposed":
-			desc = "Its armor was broken through — a hit got past it."
+			desc = "Its armor was broken through — a hit got past it. Once Exposed, it can't be Exposed again for %d tempo." % EXPOSED_COOLDOWN
 			remaining = "Until it gains armor again"
+			if exposed_cooldown_tempo > 0:
+				remaining += " · Exposed again in %d tempo" % exposed_cooldown_tempo
 		"Stun":
 			desc = "Cannot take any actions."
 			remaining = "Remaining: %d tempo" % stun_tempo

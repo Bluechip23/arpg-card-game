@@ -7274,13 +7274,8 @@ func _on_player_health_damage_taken(hp_amount: int) -> void:
 			player.play_animation("hit")
 	var stats = player.get_stats()
 
-	# Exposed (damage broke through armor): fire on_exposed reactions.
-	var exposed_reactions = deck_manager.trigger_reactions("on_exposed")
-	for rcard in exposed_reactions:
-		rcard.execute(null, stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
-		_fire_instant_site_effect(rcard, {"target": stats.last_attacker})
-	if exposed_reactions.size() > 0:
-		_refresh_unit_tracker()
+	# on_exposed reactions moved to _on_player_armor_broken: Exposed is the
+	# armor broken through (off its 10-tempo cooldown), not any health lost.
 	for card in deck_manager.get_maintained_cards():
 		if card.card_id == "armored_discipline":
 			stats.add_armor(hp_amount)
@@ -11765,11 +11760,22 @@ func _on_player_debuff_removed(_debuff) -> void:
 				add_battle_log("%s: a %s appears in your hand" % [belt.item_name, tonic.card_name], Color(0.9, 0.6, 0.7))
 			return
 
-## Briarhide Plate / Adimantium: a hit breaking through the player's armor
-## makes armored chests react ("exposed" per the chest spec = armor broken).
+## The player was Exposed: a hit broke through their armor with Exposed off
+## cooldown (PlayerStats.try_expose is the one gate — a break inside the
+## 10-tempo window never reaches here). Everything that reacts to Exposed
+## hangs off this: Briarhide Plate / Adimantium, on_exposed reactions
+## (Vengeful Shield), Reverberate Regrowth.
 func _on_player_armor_broken() -> void:
 	if player and player.get_inventory():
 		player.get_inventory().on_player_exposed()
+	if deck_manager and player:
+		var stats = player.get_stats()
+		var exposed_reactions = deck_manager.trigger_reactions("on_exposed")
+		for rcard in exposed_reactions:
+			rcard.execute(null, stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
+			_fire_instant_site_effect(rcard, {"target": stats.last_attacker})
+		if exposed_reactions.size() > 0:
+			_refresh_unit_tracker()
 	# Reverberate Regrowth (Steve Rodgers, maintained): the armor that hit ate
 	# comes back 5 tempo later. Only one debt is carried at a time.
 	if not player or not deck_manager or not deck_manager.has_method("get_maintained_cards"):
