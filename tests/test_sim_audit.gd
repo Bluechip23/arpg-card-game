@@ -169,6 +169,17 @@ func _run() -> void:
 		# Every tactic and recipe on the first designed build.
 		for t in CharacterBuilds.tactics(c):
 			await _audit_build(runner, c, {"build": first, "tactic": t}, "%s/%s tactic:%s" % [c, first, t])
+		# Engraving sweep: the options exist and a variant composes and boots clean.
+		var eopts := CharacterBuilds.engrave_options(c, first)
+		var eitem := ""
+		for it_id in eopts:
+			if not (eopts[it_id] as Array).is_empty():
+				eitem = it_id
+				break
+		if eitem != "":
+			await _audit_build(runner, c, {"build": first, "engrave": "%s~%s" % [eitem, eopts[eitem][0]]}, "%s/%s engrave:%s~%s" % [c, first, eitem, eopts[eitem][0]])
+		else:
+			print("  NOTE: %s/%s wears no slotted item; nothing to engrave" % [c, first])
 		# Every shared deck on this character's first designed build: one
 		# library for all five, so every deck must deal for every character.
 		for dname in SimDecks.DECKS:

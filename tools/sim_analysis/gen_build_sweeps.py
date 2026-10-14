@@ -17,6 +17,7 @@ Sweeps (run with tests/sim/run_sim.gd --sweep=<file> or run_sweep.sh):
   <char>_tactics.txt        every tactic overlay (invisibility, poison, ...) on each designed build
   <char>_item_swap.txt      every mythic/legendary item swapped into its natural slot on each designed build
   <char>_weapon_sets.txt    every second weapon set (and none) on each designed build: build II, or Brad's War Rack
+  <char>_engrave.txt        every card each slotted item accepts, engraved one at a time (plus each item stripped), on each designed build
 Every job runs through tests/sim/scenarios/build.gd with parts=...; the
 sweep file is <char>_<kind>[_L<level>].txt (level 18 untagged); scenario folder is <char>_<build>_e_<ENEMY>[__L_<level>][__k_<component>...]
 so build_matrix.py can pivot on any component.
@@ -139,6 +140,21 @@ def main():
             for e in enemies:
                 lines.append(job(b, e, {"alt": h}, "__h_%s" % h))
     write("%s_weapon_sets.txt" % char, lines, "%s every second weapon set (alt:none = one set) on each designed build" % char)
+
+
+    # Engravings: for each slotted item a designed build wears, every card the
+    # game lets into its slots (a free slot, or in place of its last engraved
+    # card; spotlighted like a card swap), and the item stripped ("none").
+    # The options are listed at level 18 (sim_out/catalog.json); at another
+    # level a piece a mythic replaced is flagged in the run, not scored.
+    lines = []
+    eo = comp.get("engrave_options", {})
+    for b in designed:
+        for item, cards in sorted(eo.get(b, {}).items()):
+            for card in ["none"] + list(cards):
+                for e in swap_enemies:
+                    lines.append(job(b, e, {"engrave": "%s~%s" % (item, card)}, "__g_%s~%s" % (item, card.replace("'", ""))).replace(seeds, swap_seeds))
+    write("%s_engrave.txt" % char, lines, "%s every eligible card engraved one at a time into each slotted item of each designed build (and each item stripped)" % char, args.swap_seeds)
 
 
 if __name__ == "__main__":

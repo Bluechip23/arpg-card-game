@@ -426,6 +426,28 @@ parts use it:
   recipe on every designed build; the matrix compares each against the
   build's own hand-written deck.
 
+### Testing an engraving: `engrave:<item>~<card>` and the engraving sweep
+
+`engrave:<item>~<card>` puts one card into one item a stored build wears:
+the item's next free slot, or in place of its last engraved card when the
+slots are full, with the card spotlighted into the opening hand like a
+card swap. `engrave:<item>~none` strips that item's engravings, which
+answers whether the slot is worth filling at all (engraved cards ride on
+top of the 12-card deck, so a weak engraving dilutes the draws).
+
+Which cards an item takes is the game's own rule (`ItemData.can_slot_card`:
+slot labels, the item's allow-list, a Feral weapon's first colour), read
+from `CharacterBuilds.engrave_options` over the engravable pool (every
+labelled card, engrave-only cards included). A card that gains a label,
+or an item that gains a slot, enters the sweep the moment it exists.
+`<char>_engrave.txt` runs every option on every designed build (Ryan:
+909 variants; Wrist Rocket alone takes 142, as an "Other" weapon takes any
+labelled card). `build_matrix.py` prints, per build and item, the best and
+worst cards and what stripping the item does, and across everything the
+cards most worth a slot (`sim_out/charts/<char>_engrave.csv`,
+`<char>_engrave_by_card.csv`). Options are listed at level 18; at another
+level a piece that a mythic replaced is flagged in the run and left out.
+
 ### Testing an item: `item:<id>` and the item sweep
 
 `item:<id>` puts one item into a stored build: its natural slot (main hand

@@ -10,7 +10,7 @@ was wrong. Everything marked *fixed* is on the branch, covered by a test.
 ## Verdict
 
 The tester now does what was agreed, with the limits listed at the end.
-The audit found **twenty defects** (16, 18, 19 and 20 from the follow-up on mechanisms not yet modelled); five of them changed numbers already
+The audit found **twenty-one defects** (16 and 18–21 from the follow-up on mechanisms not yet modelled); five of them changed numbers already
 reported in `RESULTS.md`, and those tables were re-run (see there).
 
 | # | Defect | Effect on readings | Status |
@@ -34,6 +34,7 @@ reported in `RESULTS.md`, and those tables were re-run (see there).
 | 18 | Gauntlet active skills (16 of them: Zeet, Coming In!, House Rule, Imbue Tree, Fan Save…) were never offered to the policy | every gauntlet was measured on its stats and passives only; an item whose value is its skill read as weak | fixed: skills are legal actions fired through the game's skill path and priced per effect; `skills_used` column; `test_sim_builds` checks one fires |
 | 19 | Weapon swapping was impossible for the policy: no second weapon set in any stored build, no build-switch or War Rack action | Stephen's man-of-arms discount and Brad's War Rack, both character identities, were never exercised; the Wyvern read worse for melee builds than a player with a bow on the back would find it | fixed: `alt:<set>` / per-build second weapon sets, set up as build II or on the rack, swapped through the game's buttons and priced by reach and cards; `weapon_swaps` column; tests for both. Found on the way: Stephen's free switch never moved his weapons (a game bug, fixed; `test_stephen_build_switch` checks weapons, stats, cards, reach, shield, cost and saved builds over three round trips) |
 | 20 | Decks lived in each character's library, so a deck written for one character could not be loaded on another, and shared decks were copied five times | cross-character deck tests needed copy-paste; copies could drift apart | fixed: one shared library, `tests/sim/builds/decks.gd`; the audit boots every deck on every character |
+| 21 | Which card sits in which item slot was never swept | no way to see whether an item's slots, or a card's slot labels, are worth anything | fixed: `engrave:<item>~<card>` and the engraving sweep (every card the game lets into every slotted item of every designed build, plus each item stripped) |
 | 12 | Overkill counted as damage dealt (the game's damage signal reports the full hit after clamping health) | damage per tempo inflated, most for burst and area cards (168 vs a 116-health pack) | fixed: the killing hit counts the health it removed; excess in an `overkill` column |
 
 Also added: multi-enemy packs in the designed, tactic and recipe sweeps
@@ -65,9 +66,11 @@ self-audit test.
 - **The player is a heuristic.** The lookahead plays a one-step-deep,
   priced game; a kit that needs multi-turn setup is played below what a
   person would manage. Read its numbers as floors for intricate kits.
-- **Engravings are fixed per item set.** Which card sits in which item
-  slot is not swept (agreed to leave for now). Swapped-in items inherit
-  the replaced piece's engravings when they fit.
+- **Engravings are swept one at a time.** The engraving sweep tries every
+  eligible card in every slotted item, one change from the designed build;
+  it does not search for the best full set of engravings (combinations
+  grow too fast). Swapped-in items inherit the replaced piece's engravings
+  when they fit. Options are listed at level 18.
 - **Four of the five libraries are first drafts.** Brad, Jeremy, Stephen
   and Cory's item sets, decks and passive weights come from the old build
   sims; they compose cleanly but have not had Ryan's design pass.
