@@ -131,6 +131,23 @@ func _run() -> void:
 	# compose swaps components and keeps the rest.
 	var mixed := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "bruiser", "deck": "potions", "alloc": "int_wis", "sphere": "none", "passives": "apothecary", "enemy": "WERERAT"}))
 	_check(mixed["player"]["deck"] == SimDecks.DECKS["potions"], "compose swaps the deck")
+	# Engravings: the options follow the game's slot rules; engrave: fills a
+	# free slot or replaces the last card, spotlights it; ~none strips.
+	var eo := CharacterBuilds.engrave_options("stephen", "heavy_swing")
+	_check(eo.has("fallens_wrath") and "savage_strike" in eo["fallens_wrath"] and not "slash" in eo["fallens_wrath"] and not eo.has("hide_of_garmr"),
+		"engrave options: Fallen's Wrath takes Sword cards, never an unlabeled one, and slotless items are absent (%s)" % str(eo.keys()))
+	var base_sl: Dictionary = CharacterBuilds.compose("stephen", {"build": "heavy_swing"})["player"]["slotted"]
+	var eg := CharacterBuilds.compose("stephen", {"build": "heavy_swing", "engrave": "fallens_wrath~parry"})
+	var fw: Array = eg["player"]["slotted"]["fallens_wrath"]
+	_check(fw.size() == (base_sl["fallens_wrath"] as Array).size() and fw.back() == "parry" and eg["player"]["opening_hand"] == ["parry"],
+		"engrave: replaces the full item's last card and spotlights it (%s -> %s)" % [str(base_sl["fallens_wrath"]), str(fw)])
+	var eg2 := CharacterBuilds.compose("stephen", {"build": "heavy_swing", "engrave": "equator~approach"})
+	_check(eg2["player"]["slotted"].get("equator", []) == (base_sl.get("equator", []) as Array) + ["approach"],
+		"engrave: fills a free slot (%s)" % str(eg2["player"]["slotted"].get("equator", [])))
+	_check(not CharacterBuilds.compose("stephen", {"build": "heavy_swing", "engrave": "fallens_wrath~none"})["player"]["slotted"].has("fallens_wrath"),
+		"engrave ~none strips the item")
+	var egsum: Dictionary = await runner.run(SimScenario.with_defaults(eg), load("res://tests/sim/policies/lookahead.gd").new(), 1)
+	_check(runner.warnings.is_empty() and egsum["outcome"] != "error", "an engraving variant builds and runs clean (%s)" % str(runner.warnings))
 	var cross := CharacterBuilds.compose("brad", {"build": "immovable_warden", "deck": "spells"})
 	_check(cross["player"]["deck"] == SimDecks.DECKS["spells"] and CharacterBuilds.components("cory")["deck"] == SimDecks.DECKS.keys(),
 		"decks are shared: Brad loads the spell deck, every character lists every deck")

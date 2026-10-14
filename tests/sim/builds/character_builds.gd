@@ -41,7 +41,15 @@ static func components(character: String) -> Dictionary:
 		"tree_passives": tree_passives(character),
 		"recipes": recipes(character).keys(), "card_pool": SimDeckBuilder.legal_ids(),
 		"tactics": tactics(character).keys(), "item_pool": item_pool(),
-		"weapon_sets": WEAPON_SETS.keys() + ["none"]}
+		"weapon_sets": WEAPON_SETS.keys() + ["none"],
+		"engrave_options": _designed_engrave_options(character)}
+
+static func _designed_engrave_options(character: String) -> Dictionary:
+	var out := {}
+	var lib := library(character)
+	for b in lib.DESIGNED:
+		out[b] = engrave_options(character, b)
+	return out
 
 ## The tactics a character can take: DEFAULT_TACTICS merged with the
 ## library's TACTICS, with passive weights resolved from the character's
@@ -81,6 +89,48 @@ static func item_pool(rarities: Array = ["MYTHIC", "LEGENDARY"]) -> Array:
 		if ItemData.Rarity.keys()[it.rarity] in rarities:
 			out.append(mn.substr(7))
 	out.sort()
+	return out
+
+## Every card that can sit in an item slot: a playable card with at least
+## one slot label (unlabeled cards are deck-only), engrave-only cards
+## included, item-granted and conjured cards not (they never slot). A card
+## that gains a label enters the engraving sweep the moment it has one.
+static var _engrave_cards: Dictionary = {}   # id -> Card (a template, never slotted)
+static func engrave_pool() -> Dictionary:
+	if not _engrave_cards.is_empty():
+		return _engrave_cards
+	var script: Script = Card
+	for m in script.get_script_method_list():
+		var mn: String = m["name"]
+		if not mn.begins_with("create_") or m["args"].size() - m["default_args"].size() != 0:
+			continue
+		var c = script.call(mn)
+		if not (c is Card) or c.card_type == Card.CardType.UNPLAYABLE or c.shop_excluded \
+				or c.card_id.ends_with("_copy") or c.slot_labels.is_empty():
+			continue
+		_engrave_cards[c.card_id] = c
+	return _engrave_cards
+
+## What each slotted item a build wears will take, by the game's own rule
+## (ItemData.can_slot_card: slot labels, an item's allow-list, Feral colour
+## of its first slot): {item id: [card ids]}, sorted.
+static func engrave_options(character: String, build: String, level: int = DEFAULT_LEVEL) -> Dictionary:
+	var out := {}
+	var sc := compose(character, {"build": build, "level": level, "alt": "none"})
+	if sc.is_empty():
+		return out
+	var pool := engrave_pool()
+	for e in sc["player"]["items"]:
+		var id := str(e[0])
+		var it = (ItemData as Script).call("create_%s" % id)
+		if not (it is ItemData) or it.card_slots <= 0:
+			continue
+		var ok: Array = []
+		for cid in pool:
+			if it.can_slot_card(pool[cid]):
+				ok.append(cid)
+		ok.sort()
+		out[id] = ok
 	return out
 
 ## Where a swapped-in item goes: its natural slot (main hand for weapons,
@@ -541,6 +591,33 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 		var kept := _carry_engravings(from_cards, swapped_item)
 		if not kept.is_empty():
 			slotted[swapped_item] = kept
+	# One engraving changed (the engraving sweep): `engrave:<item>~<card>`
+	# puts the card in the item's next free slot, or in place of its last
+	# engraved card when the slots are full, and spotlights it into the
+	# opening hand like a card swap; `engrave:<item>~none` strips the item's
+	# engravings (is the slot worth filling at all?).
+	var engrave_spot := ""
+	var engrave_note := ""
+	if parts.has("engrave") and str(parts["engrave"]) != "":
+		var spec := str(parts["engrave"]).split("~")
+		var eitem := spec[0]
+		var ecard := spec[1] if spec.size() > 1 else "none"
+		if not worn.has(eitem):
+			# Options are listed at level 18; at another level a mythic may
+			# have replaced this piece. The run is flagged, never mis-scored.
+			engrave_note = "engrave: %s is not worn at level %d" % [eitem, level]
+		elif ecard == "none":
+			slotted.erase(eitem)
+		else:
+			var cap: int = ((ItemData as Script).call("create_%s" % eitem) as ItemData).card_slots
+			var list: Array = (slotted.get(eitem, []) as Array).duplicate()
+			if list.size() < cap:
+				list.append(ecard)
+			elif not list.is_empty():
+				list[list.size() - 1] = ecard
+			slotted[eitem] = list
+			engrave_spot = ecard
+		base["engrave"] = "%s~%s" % [eitem, ecard]
 	# The deck: the build's list, a recipe generated from the pool, and/or
 	# one pool card swapped in for the list's last card and spotlighted into
 	# the opening hand (the single-card sweep).
@@ -589,6 +666,8 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 			deck.append(card)
 		opening = [card]
 		base["swap"] = card
+	if engrave_spot != "" and not engrave_spot in opening:
+		opening.append(engrave_spot)
 	# The second weapon loadout: the build's own (`alt` in DESIGNED) or the
 	# part's; `alt:none` fights with one set. A piece the main set already
 	# wears is left out (one copy of a legendary at a time).
@@ -629,5 +708,6 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 		"auto_range": true,
 		"policy": "lookahead",
 		"parts": base,
-		"notes": ("dropped (mythic cap %d at level %d): %s" % [int(level / LEVELS_PER_MYTHIC), level, ", ".join(fitted["dropped"])]) if not fitted["dropped"].is_empty() else "",
+		"notes": "|".join(([("dropped (mythic cap %d at level %d): %s" % [int(level / LEVELS_PER_MYTHIC), level, ", ".join(fitted["dropped"])])] if not fitted["dropped"].is_empty() else []) \
+			+ ([engrave_note] if engrave_note != "" else [])),
 	}
