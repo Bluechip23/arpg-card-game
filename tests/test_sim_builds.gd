@@ -148,6 +148,37 @@ func _run() -> void:
 		"engrave ~none strips the item")
 	var egsum: Dictionary = await runner.run(SimScenario.with_defaults(eg), load("res://tests/sim/policies/lookahead.gd").new(), 1)
 	_check(runner.warnings.is_empty() and egsum["outcome"] != "error", "an engraving variant builds and runs clean (%s)" % str(runner.warnings))
+	# Hands: a two-handed grip empties the off hand and is taken through the
+	# game; a weapon can be tried in the off hand (dual wield); the grip can
+	# be taken or released mid-fight at a weapon swap's price.
+	var th := SimScenario.with_defaults(CharacterBuilds.compose("stephen", {"build": "heavy_swing", "two_hand": "yes", "enemy": "LARGE_BEAR"}))
+	var th_items: Array = th["player"]["items"].map(func(e): return str(e[0]))
+	_check(th["player"]["two_hand"] == 0 and "fallens_wrath" in th_items and not "sword_breaker" in th_items,
+		"two_hand:yes keeps the main weapon and empties the off hand (%s)" % str(th_items))
+	await runner.boot_only(th, 1)
+	var th_inv = runner.main.player.get_inventory()
+	var th_stats = runner.main.player.get_stats()
+	_check(runner.warnings.is_empty() and th_inv.two_handed_slot == 0 and th_stats.two_hand_damage_bonus == 2,
+		"the grip is the game's: Fallen's Wrath held two-handed, +2 damage (%s)" % str(runner.warnings))
+	var gstate := SimState.new(runner.main)
+	gstate.refresh()
+	var rel: Array = gstate.grips.filter(func(g): return not g["enable"])
+	_check(rel.size() == 1 and int(rel[0]["bonus"]) == 2, "the policy is offered the release, worth the +2 it gives up (%s)" % str(gstate.grips))
+	var t_before: int = runner.main.tempo_manager.global_tempo
+	var released := runner._apply_action({"type": "grip", "grip": gstate.grips.find(rel[0]), "slot": 0, "enable": false}, gstate)
+	_check(released and th_inv.two_handed_slot == -1 and th_stats.two_hand_damage_bonus == 0 and runner.main.tempo_manager.global_tempo - t_before >= 2,
+		"releasing the grip mid-fight goes through the game and costs a weapon swap's tempo (%d)" % (runner.main.tempo_manager.global_tempo - t_before))
+	runner.teardown()
+	var bow_grip := CharacterBuilds.compose("ryan", {"build": "ranged_ambusher", "two_hand": "yes"})
+	_check(bow_grip["player"]["two_hand"] == -1 and str(bow_grip["notes"]).contains("two-handed by nature"),
+		"a bow takes no grip: flagged, not faked (%s)" % str(bow_grip["notes"]))
+	var oh := SimScenario.with_defaults(CharacterBuilds.compose("stephen", {"build": "heavy_swing", "item": "rusty_dagger@offhand", "enemy": "LARGE_BEAR"}))
+	var oh_items: Array = oh["player"]["items"]
+	_check(oh_items.has(["rusty_dagger", 1]) and oh_items.any(func(e): return str(e[0]) == "fallens_wrath" and int(e[1]) == 0) and not oh_items.any(func(e): return str(e[0]) == "sword_breaker"),
+		"item:<id>@offhand puts the weapon in the off hand beside the main one (%s)" % str(oh_items))
+	await runner.boot_only(oh, 1)
+	_check(runner.warnings.is_empty() and runner.main.player.get_inventory().is_dual_wielding(), "and the game reads it as dual wielding (%s)" % str(runner.warnings))
+	runner.teardown()
 	var cross := CharacterBuilds.compose("brad", {"build": "immovable_warden", "deck": "spells"})
 	_check(cross["player"]["deck"] == SimDecks.DECKS["spells"] and CharacterBuilds.components("cory")["deck"] == SimDecks.DECKS.keys(),
 		"decks are shared: Brad loads the spell deck, every character lists every deck")

@@ -10,7 +10,7 @@ was wrong. Everything marked *fixed* is on the branch, covered by a test.
 ## Verdict
 
 The tester now does what was agreed, with the limits listed at the end.
-The audit found **twenty-one defects** (16 and 18–21 from the follow-up on mechanisms not yet modelled); five of them changed numbers already
+The audit found **twenty-two defects** (16 and 18–22 from the follow-up on mechanisms not yet modelled); five of them changed numbers already
 reported in `RESULTS.md`, and those tables were re-run (see there).
 
 | # | Defect | Effect on readings | Status |
@@ -35,6 +35,7 @@ reported in `RESULTS.md`, and those tables were re-run (see there).
 | 19 | Weapon swapping was impossible for the policy: no second weapon set in any stored build, no build-switch or War Rack action | Stephen's man-of-arms discount and Brad's War Rack, both character identities, were never exercised; the Wyvern read worse for melee builds than a player with a bow on the back would find it | fixed: `alt:<set>` / per-build second weapon sets, set up as build II or on the rack, swapped through the game's buttons and priced by reach and cards; `weapon_swaps` column; tests for both. Found on the way: Stephen's free switch never moved his weapons (a game bug, fixed; `test_stephen_build_switch` checks weapons, stats, cards, reach, shield, cost and saved builds over three round trips) |
 | 20 | Decks lived in each character's library, so a deck written for one character could not be loaded on another, and shared decks were copied five times | cross-character deck tests needed copy-paste; copies could drift apart | fixed: one shared library, `tests/sim/builds/decks.gd`; the audit boots every deck on every character |
 | 21 | Which card sits in which item slot was never swept | no way to see whether an item's slots, or a card's slot labels, are worth anything | fixed: `engrave:<item>~<card>` and the engraving sweep (every card the game lets into every slotted item of every designed build, plus each item stripped) |
+| 22 | The two-handed grip was never taken (no stored build, no sweep, no policy action) and a weapon could only be tried in the main hand | two-handing and "this weapon as my second weapon" were untestable | fixed: `two_hand:yes`, `item:<id>@offhand`, the stances sweep, and a grip/release action priced like a swap |
 | 12 | Overkill counted as damage dealt (the game's damage signal reports the full hit after clamping health) | damage per tempo inflated, most for burst and area cards (168 vs a 116-health pack) | fixed: the killing hit counts the health it removed; excess in an `overkill` column |
 
 Also added: multi-enemy packs in the designed, tactic and recipe sweeps

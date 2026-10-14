@@ -359,6 +359,11 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 			gain += float(sv["gain"])
 			if int(sv["kill"]) >= 0:
 				killed_index = int(sv["kill"])
+		"grip":
+			var gp: Dictionary = state.grips[int(a["grip"])]
+			mana = int(gp["mana"])
+			tempo = maxi(1, int(gp["tempo"]))
+			gain += _grip_value(gp, state)
 		"weapon_swap":
 			var sw: Dictionary = state.weapon_swaps[int(a["swap"])]
 			mana = int(sw["mana"])
@@ -389,7 +394,8 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 	# tempo: nothing acts meanwhile.
 	var instant: bool = kind in ["flash_block", "flash_proc", "brain_draw", "brain_peek"] \
 		or (kind == "move" and bool(a.get("flash", false))) \
-		or (kind == "weapon_swap" and int(state.weapon_swaps[int(a["swap"])]["tempo"]) == 0)
+		or (kind == "weapon_swap" and int(state.weapon_swaps[int(a["swap"])]["tempo"]) == 0) \
+		or (kind == "grip" and int(state.grips[int(a["grip"])]["tempo"]) == 0)
 	# Points spent are points not held for the dodge or draw that matters.
 	match kind:
 		"flash_block": gain -= FLASH_POINT_VALUE * float(state.flash_block_cost)
@@ -468,6 +474,30 @@ static func _swap_value(sw: Dictionary, state: SimState) -> float:
 	if g <= 0.0:
 		return -5.0
 	return g
+
+## Taking or releasing the two-handed grip: the grip adds its bonus to every
+## physical hit (auto attacks and physical attack cards) over the horizon,
+## and gives up the free-hand stance if we hold it (every 12th attack
+## echoes; the sidestep costs a flash point more). Releasing is the mirror.
+## Nothing gained is a strong no, as with a swap.
+static func _grip_value(gp: Dictionary, state: SimState) -> float:
+	if state.nearest_enemy_index() < 0:
+		return -5.0
+	var swings := float(HORIZON) / float(maxi(1, state.basic_attack_tempo))
+	var hits := swings
+	for h in state.hand:
+		if bool(h["playable"]) and bool(h["is_attack"]) and int(h["damage"]) > 0 and str(h.get("school", "PHYSICAL")) == "PHYSICAL":
+			hits += 1.0
+	var bonus := float(gp["bonus"]) * hits
+	var echo := float(state.basic_attack_damage) * swings / float(PlayerStats.SINGLE_HAND_ECHO_EVERY) + FLASH_POINT_VALUE
+	var g := 0.0
+	if bool(gp["enable"]):
+		g = bonus - (echo if state.free_hand else 0.0)
+	else:
+		g = echo - bonus   # releasing leaves one hand item and an empty hand: the free-hand stance
+	if SimState.last_swap_tempo >= 0 and state.global_tempo - SimState.last_swap_tempo < state.basic_attack_tempo:
+		g -= float(state.basic_attack_damage)
+	return g if g > 0.0 else -5.0
 
 ## How much of a coming hit we could have blunted had we stayed free:
 ## the best block in hand, the sidestep, or stepping out of melee reach.

@@ -38,5 +38,6 @@ static func action_label(a: Dictionary) -> String:
 		"block": return "block"
 		"wait": return "wait"
 		"move": return ("flash_move:%s" if a.get("flash", false) else "move:%s") % str(a.get("cell", ""))
+		"grip": return "swap:grip_on" if bool(a.get("enable", true)) else "swap:grip_off"
 		"weapon_swap": return "swap:rack" if str(a.get("kind", "")) == "rack" else "swap:build%d" % (int(a.get("build", 0)) + 1)
 	return str(a.get("type", "?"))

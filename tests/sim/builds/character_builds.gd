@@ -42,7 +42,33 @@ static func components(character: String) -> Dictionary:
 		"recipes": recipes(character).keys(), "card_pool": SimDeckBuilder.legal_ids(),
 		"tactics": tactics(character).keys(), "item_pool": item_pool(),
 		"weapon_sets": WEAPON_SETS.keys() + ["none"],
-		"engrave_options": _designed_engrave_options(character)}
+		"engrave_options": _designed_engrave_options(character),
+		"hands": _designed_hands(character)}
+
+## What each designed build holds at level 18: {build: {main, off, grippable}}
+## — grippable when the main hand is a one-handed weapon (a two-handed grip
+## or a second weapon in the off hand both make sense).
+static func _designed_hands(character: String) -> Dictionary:
+	var out := {}
+	var lib := library(character)
+	for b in lib.DESIGNED:
+		var sc := compose(character, {"build": b, "alt": "none"})
+		var main := ""
+		var off := ""
+		for e in sc["player"]["items"]:
+			var t := _item_type(str(e[0]))
+			if t in [ItemData.ItemType.WEAPON, ItemData.ItemType.QUIVER]:
+				if int(e[1]) == 0:
+					main = str(e[0])
+				else:
+					off = str(e[0])
+		var grippable := false
+		if main != "":
+			var it: ItemData = (ItemData as Script).call("create_%s" % main)
+			grippable = it.item_type == ItemData.ItemType.WEAPON and not Inventory.is_two_hand_only(it) \
+				and it.weapon_subtype != ItemData.WeaponSubtype.SHIELD
+		out[b] = {"main": main, "off": off, "grippable": grippable}
+	return out
 
 static func _designed_engrave_options(character: String) -> Dictionary:
 	var out := {}
@@ -144,8 +170,10 @@ static func _swap_slot(it: ItemData) -> int:
 
 ## Replace the same-type, same-slot entry of `entries` with item `id`; a
 ## two-hand-only weapon also clears the off hand (a bow keeps its quiver).
-## Returns the id it replaced ("" when it was added to an empty slot).
-static func _place_item(entries: Array, id: String) -> String:
+## `slot_override` puts it in that slot instead of its natural one (a weapon
+## in the off hand: the second weapon of a dual wield). Returns the id it
+## replaced ("" when it was added to an empty slot).
+static func _place_item(entries: Array, id: String, slot_override: int = -1) -> String:
 	var it: ItemData = (ItemData as Script).call("create_%s" % id)
 	# Already part of the set (in any slot, or as a mythic's fallback): the
 	# build keeps it where it is; compose then makes sure it is worn.
@@ -156,7 +184,7 @@ static func _place_item(entries: Array, id: String) -> String:
 		if e.size() > 2 and str(e[2]) == id:
 			entries[i] = [id, int(e[1])]
 			return str(e[0])
-	var slot := _swap_slot(it)
+	var slot := _swap_slot(it) if slot_override < 0 else slot_override
 	var weapon_like := it.item_type in [ItemData.ItemType.WEAPON, ItemData.ItemType.QUIVER]
 	var replaced := ""
 	for i in range(entries.size()):
@@ -523,13 +551,40 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 		for it in fit_items(entries, level, base_mythics)["items"]:
 			if base_mythics.get(str(it[0]), false):
 				allowed_mythics[str(it[0])] = true
-		swapped_item = str(parts["item"])
+		# `item:<id>@offhand` puts a weapon in the off hand (slot 1): the
+		# second weapon of a dual wield rather than the main one.
+		var ispec := str(parts["item"]).split("@")
+		swapped_item = ispec[0]
+		var offhand := ispec.size() > 1 and ispec[1] == "offhand"
 		if not SimScenario.script_has(ItemData, "create_%s" % swapped_item):
 			push_error("[SIM] no item '%s'" % swapped_item)
 			swapped_item = ""
 		else:
-			replaced_item = _place_item(entries, swapped_item)
-			base["item"] = swapped_item
+			replaced_item = _place_item(entries, swapped_item, 1 if offhand else -1)
+			base["item"] = swapped_item + ("@offhand" if offhand else "")
+	# Two-handing (`two_hand:yes`, or "two_hand" in DESIGNED): the main-hand
+	# weapon held in both hands, so the off hand is emptied; the runner takes
+	# the grip through the game (Inventory.set_two_handed). Bows and staffs
+	# are two-handed by nature and take no grip; that is flagged.
+	var two_hand := str(parts.get("two_hand", base.get("two_hand", "no"))) == "yes"
+	var two_hand_note := ""
+	if two_hand:
+		var main_id := ""
+		for e in entries:
+			if (int(e[1]) if e.size() > 1 else 0) == 0 and _item_type(str(e[0])) == ItemData.ItemType.WEAPON:
+				main_id = str(e[0])
+		if main_id == "":
+			two_hand_note = "two_hand: no main-hand weapon to grip"
+			two_hand = false
+		elif Inventory.is_two_hand_only((ItemData as Script).call("create_%s" % main_id)):
+			two_hand_note = "two_hand: %s is two-handed by nature (no grip to take)" % main_id
+			two_hand = false
+		else:
+			for i in range(entries.size() - 1, -1, -1):
+				var e: Array = entries[i]
+				if (int(e[1]) if e.size() > 1 else 0) == 1 and _item_type(str(e[0])) in [ItemData.ItemType.WEAPON, ItemData.ItemType.QUIVER]:
+					entries.remove_at(i)
+			base["two_hand"] = "yes"
 	var mythics := {}
 	for e in entries:
 		mythics[str(e[0])] = is_mythic(str(e[0]))
@@ -698,6 +753,7 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 			"sphere_fill": true,
 			"items": fitted["items"],
 			"slotted": slotted,
+			"two_hand": 0 if two_hand else -1,
 			"alt_weapons": alt_items,
 			"alt_slotted": alt_slotted,
 			"deck": deck,
@@ -709,5 +765,5 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 		"policy": "lookahead",
 		"parts": base,
 		"notes": "|".join(([("dropped (mythic cap %d at level %d): %s" % [int(level / LEVELS_PER_MYTHIC), level, ", ".join(fitted["dropped"])])] if not fitted["dropped"].is_empty() else []) \
-			+ ([engrave_note] if engrave_note != "" else [])),
+			+ ([engrave_note] if engrave_note != "" else []) + ([two_hand_note] if two_hand_note != "" else [])),
 	}

@@ -62,6 +62,11 @@ var intelligence: int = 0
 ## per tempo (last_swap_tempo, set by the runner), so a free swap never loops.
 var weapon_swaps: Array = []
 var weapons_ranged: bool = false
+## Two-handing grips on offer, as the character panel's toggle would take
+## them: [{slot, enable, item, bonus (damage on every physical hit while
+## gripped), tempo, mana}]. Shares the one-swap-per-tempo gate.
+var grips: Array = []
+var free_hand: bool = false       # free-hand stance: every 12th attack echoes, sidestep 1 cheaper
 static var last_swap_tempo: int = -1
 
 ## What a card offers at a glance (the revealed top card, a weapon's cards).
@@ -113,6 +118,26 @@ func _collect_weapon_swaps(inv) -> void:
 			continue
 		weapon_swaps.append(_swap_view(inv, "build", b, incoming, outgoing, tempo,
 			inv.get_swap_mana_cost() if tempo > 0 else 0, false))
+
+func _collect_grips(inv) -> void:
+	var fighting: bool = main._is_in_combat()
+	var tempo: int = inv.get_swap_tempo_cost(ItemData.ItemType.WEAPON) if fighting else 0
+	var mana: int = inv.get_swap_mana_cost() if fighting and inv.swap_costs_mana(ItemData.ItemType.WEAPON) else 0
+	if inv.two_handed_slot >= 0:
+		var held = inv.equipped_weapons[inv.two_handed_slot]
+		grips.append({"slot": inv.two_handed_slot, "enable": false, "item": held.item_name if held else "",
+			"bonus": floori(held.weight / Inventory.TWO_HAND_WEIGHT_DAMAGE_DIVISOR) if held and held.weapon_subtype != ItemData.WeaponSubtype.SHIELD else 0,
+			"tempo": tempo, "mana": mana})
+		return
+	if not inv.equipped_weapons.has(null):
+		return
+	for i in range(inv.equipped_weapons.size()):
+		var w = inv.equipped_weapons[i]
+		if w == null or w.item_type != ItemData.ItemType.WEAPON or Inventory.is_two_hand_only(w) \
+				or w.weapon_subtype == ItemData.WeaponSubtype.SHIELD:
+			continue
+		grips.append({"slot": i, "enable": true, "item": w.item_name,
+			"bonus": floori(w.weight / Inventory.TWO_HAND_WEIGHT_DAMAGE_DIVISOR), "tempo": tempo, "mana": mana})
 
 func _swap_view(inv, kind: String, b: int, incoming: Array, outgoing: Array, tempo: int, mana: int, free: bool) -> Dictionary:
 	var ranged := false
@@ -247,8 +272,11 @@ func refresh() -> void:
 				"melee": fx in melee_fx})
 	weapon_swaps.clear()
 	weapons_ranged = inv != null and inv.holds_ranged_weapon()
+	grips.clear()
+	free_hand = stats.free_hand_stance
 	if inv and global_tempo != last_swap_tempo:
 		_collect_weapon_swaps(inv)
+		_collect_grips(inv)
 	top_card = {}
 	if not dm.draw_pile.is_empty() and main.get_node_or_null("UI") and main.get_node("UI").find_child("ChoicePicker", true, false):
 		top_card = card_view(dm.draw_pile.back())
@@ -271,6 +299,7 @@ func refresh() -> void:
 			"is_offensive": c.is_offensive(),
 			"is_ranged": c.is_ranged,
 			"conditional": c.conditional_range,
+			"school": Card.CardSchool.keys()[c.school],
 			"range": c.get_effective_range(),
 			"target_types": c.target_types.duplicate(),
 			"rng_index": c.rng_selected_index if c.has_chance_effect() else null,
@@ -439,6 +468,8 @@ func legal_actions() -> Array:
 				out.append({"type": "item_skill", "skill": k, "fx": sk["fx"], "target": "self"})
 	for k in range(weapon_swaps.size()):
 		out.append({"type": "weapon_swap", "swap": k, "kind": weapon_swaps[k]["kind"], "build": weapon_swaps[k]["build"]})
+	for k in range(grips.size()):
+		out.append({"type": "grip", "grip": k, "slot": grips[k]["slot"], "enable": grips[k]["enable"]})
 	if flash_points >= flash_block_cost and (not flash_strike or strike_target):
 		out.append({"type": "flash_block"})
 	if flash_points >= flash_proc_cost and attacks_until_proc > 1 and not next_attack_half_tempo:

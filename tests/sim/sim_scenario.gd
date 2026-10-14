@@ -50,6 +50,7 @@ static func with_defaults(sc: Dictionary) -> Dictionary:
 	p["sphere_fill"] = bool(p.get("sphere_fill", false))
 	p["sphere_targets"] = p.get("sphere_targets", [])
 	p["slotted"] = p.get("slotted", {})
+	p["two_hand"] = int(p.get("two_hand", -1))   # hand slot gripped two-handed at the start (-1: none)
 	p["alt_weapons"] = p.get("alt_weapons", [])   # second weapon set: build II, or Brad's War Rack
 	p["alt_slotted"] = p.get("alt_slotted", {})
 	out["player"] = p

@@ -122,7 +122,7 @@ player action and each enemy action that fired, in order.
 | `bar_index` | tempo cycle the action started in (`global_tempo / threshold`) |
 | `tempo_before`, `tempo_after` | global tempo when the action started / when its ticks and settling finished |
 | `actor` | `player` or `<EnemyName>#<spawn index>` |
-| `action_id` | `play:<card_id>`, `attack`, `block`, `wait`, `move:<tiles>`, `skill:<effect_id>` (a gauntlet skill), `swap:build<n>` / `swap:rack_free` / `swap:rack_paid` (a weapon swap), or the enemy's action name |
+| `action_id` | `play:<card_id>`, `attack`, `block`, `wait`, `move:<tiles>`, `skill:<effect_id>` (a gauntlet skill), `swap:build<n>` / `swap:rack_free` / `swap:rack_paid` (a weapon swap), `swap:grip_on` / `swap:grip_off` (the two-handed grip), or the enemy's action name |
 | `target` | `enemy:<i>`, `self`, `point:x,y`, `none`, or `player` |
 | `player_hp` … `hand_size` | the player's state when the action started |
 | `enemy_id`, `enemy_hp`, `enemy_pos` | the targeted enemy (or the acting one; or the first living one) — HP and cell **after** the action |
@@ -302,7 +302,7 @@ scenario=tests/sim/scenarios/build.gd parts=character:brad,build:immovable_warde
 ```
 
 `parts` keys: `character`, `build`, `level`, `items`, `deck`, `alloc`,
-`sphere`, `passives`, `slotted`, `focus`, `alt`, `enemy`. `passives` names a
+`sphere`, `passives`, `slotted`, `focus`, `alt`, `two_hand`, `item`, `engrave`, `enemy`. `passives` names a
 weight set, spread proportionally over the points the level banks (so
 nothing is ever maxed); `focus:<passive_id>` takes that one tree passive to
 rank 15 first and spreads the rest over the build's set, which is how a
@@ -425,6 +425,37 @@ parts use it:
   data-driven once the sweep has run. `<char>_recipes.txt` plays every
   recipe on every designed build; the matrix compares each against the
   build's own hand-written deck.
+
+### Hands: dual wielding, the two-handed grip, the off hand
+
+The game has four hand stances, and the tester covers each through the
+game's own rules:
+
+- **Dual wielding** (two weapons, or two shields): read off the loadout,
+  so any set that holds two gets it (the attack counter 4 shorter, the
+  off-hand weapon at −10%, Stephen +10%). `item:<id>@offhand` puts a
+  weapon in the off hand beside the build's main one, so a weapon can be
+  tested as the *second* weapon of a dual wield; the item sweep adds these
+  for every one-handed pool weapon on builds whose main hand holds one.
+- **Bows and staffs**: two-handed by nature; a swapped-in one clears the
+  off hand (a bow keeps its quiver). They take no grip.
+- **The two-handed grip**: `two_hand:yes` (or `"two_hand": "yes"` in
+  `DESIGNED`) empties the off hand and grips the main weapon through
+  `Inventory.set_two_handed` (+ weight ÷ 25 on every physical hit, the
+  weapon's weight halved, carry capacity down; a grip the build cannot
+  carry is refused and reported). On a bow or staff it is flagged, not
+  faked. `<char>_stances.txt` grips each build's own weapon and every
+  one-handed pool weapon; `build_matrix.py` reads each against the same
+  weapon held one-handed (`sim_out/charts/<char>_stances*.csv`).
+- **Free hand** (one hand item, an empty hand): read off the loadout
+  (every 12th attack echoes, the sidestep costs a flash point less).
+
+Mid-fight the policy can take or release the grip, the character panel's
+toggle at its price (a weapon swap's tempo plus half the mana; Stephen 2
+tempo, no mana), priced as the bonus on the physical hits over the next
+10 tempo against the free-hand stance it gives up; it shares the swap
+gate and the undo-within-a-swing rule. `weapon_swaps` counts
+`grip_on` / `grip_off`.
 
 ### Testing an engraving: `engrave:<item>~<card>` and the engraving sweep
 

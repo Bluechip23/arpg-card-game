@@ -232,6 +232,11 @@ func _build_player() -> void:
 			equipped[id] = item
 		else:
 			warnings.append("equip refused: %s (slot %d, %s)" % [id, slot, _equip_refusal(inv, stats, item, slot)])
+	# Two-handing, through the game's own grip (carry gate and free hand
+	# apply); before the second set is stowed so build I remembers it.
+	if int(p.get("two_hand", -1)) >= 0 and not inv.set_two_handed(int(p["two_hand"]), true):
+		warnings.append("two_hand refused: slot %d (%s; carry %d/%d)" % [int(p["two_hand"]),
+			"no free hand" if not inv.equipped_weapons.has(null) else "over carry capacity", stats.current_carry_load, stats.get_carry_capacity()])
 	_stow_alt_weapons(p, inv, stats)
 	# Cards engraved into the items' slots: {item id: [card ids]}. Real slot
 	# rules (count, label, feral colour) apply; a slotted card rides the item
@@ -604,6 +609,8 @@ func _apply_action(a: Dictionary, state: SimState) -> bool:
 			ok = _do_item_skill(a, state, row)
 		"weapon_swap":
 			ok = _do_weapon_swap(a, row)
+		"grip":
+			ok = _do_grip(a, row)
 		"flash_block":
 			var stats = main.player.get_stats()
 			var fp: int = stats.current_flash_points
@@ -638,7 +645,7 @@ func _apply_action(a: Dictionary, state: SimState) -> bool:
 		_tick_until_free()
 	else:
 		rows.erase(row)
-	if str(a.get("type", "")) == "weapon_swap":
+	if str(a.get("type", "")) in ["weapon_swap", "grip"]:
 		# Gate the next swap (or a retry of a refused one) on time passing.
 		SimState.last_swap_tempo = main.tempo_manager.global_tempo
 	_settle_all()
@@ -837,6 +844,25 @@ func _do_weapon_swap(a: Dictionary, row: Dictionary) -> bool:
 	return true
 
 var _swap_counts := {}
+
+## Take or release the two-handed grip, the character panel's toggle: the
+## game's set_two_handed (free hand and carry gates), then the panel's price,
+## a weapon swap (main charges it only in combat; Stephen pays no mana).
+func _do_grip(a: Dictionary, row: Dictionary) -> bool:
+	var inv = main.player.get_inventory()
+	var slot := int(a.get("slot", 0))
+	var enable := bool(a.get("enable", true))
+	var item = inv.equipped_weapons[slot] if slot < inv.equipped_weapons.size() else null
+	if item == null or not inv.set_two_handed(slot, enable):
+		row["refused"] = "grip refused: %s %s" % ["two-hand" if enable else "release", item.item_name if item else "empty hand"]
+		return false
+	main._on_swap_tempo_spent(inv.get_swap_tempo_cost(ItemData.ItemType.WEAPON),
+		("Gripped %s two-handed" if enable else "Released %s to one hand") % item.item_name, ItemData.ItemType.WEAPON)
+	_settle_all()
+	var label := "grip_on" if enable else "grip_off"
+	row["action_id"] = "swap:%s" % label
+	_swap_counts[label] = int(_swap_counts.get(label, 0)) + 1
+	return true
 
 # --------------------------------------------------------------- time ----
 
