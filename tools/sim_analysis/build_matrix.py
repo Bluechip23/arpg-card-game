@@ -245,7 +245,7 @@ def engrave_table(df, des_runs, tag):
     m = df[df["g"].notna()]
     if m.empty or des_runs.empty:
         return
-    swap_table(df, des_runs, "g", "engraving", tag, "engrave")
+    swap_table(df, des_runs, "g", "engraving", tag, "engrave", universal=False)
     src = simlib.CHARTS + "/%s_engrave.csv" % tag
     if not os.path.exists(src):
         return
@@ -272,7 +272,7 @@ def engrave_table(df, des_runs, tag):
     print("\nworst cards to engrave:\n", by_card.tail(8).round(2).to_string(index=False))
 
 
-def swap_table(df, des_runs, col, what, tag, fname):
+def swap_table(df, des_runs, col, what, tag, fname, universal=True):
     allm = df[df[col].notna()]
     if allm.empty or des_runs.empty:
         return
@@ -327,6 +327,8 @@ def swap_table(df, des_runs, col, what, tag, fname):
         bot = ", ".join("%s %+.1f" % (getattr(r, what), r.d_dpt_median) for r in g.tail(4).itertuples())
         wins = g.sort_values("d_win", ascending=False).head(4)
         print("  %-18s best DPT: %s\n  %-18s worst DPT: %s\n  %-18s best win rate: %s" % (build, top, "", bot, "", ", ".join("%s %+.0f pts" % (getattr(r, what), 100 * r.d_win) for r in wins.itertuples())))
+    if not universal:
+        return
     uni = per.groupby(what).agg(builds=("build", "nunique"), d_dpt_median=("d_dpt_median", "mean"), d_win=("d_win", "mean"), positive_on=("d_dpt_median", lambda x: int((x > 0).sum()))).reset_index()
     uni = uni[uni["builds"] >= max(2, uni["builds"].max() - 1)].sort_values("d_dpt_median", ascending=False)
     uni.to_csv(simlib.CHARTS + "/%s_%s_universal.csv" % (tag, fname), index=False)
