@@ -87,6 +87,90 @@ Real answers to Q2 and Q3 need the full sweeps (3–9 h each serial, divide
 by shards) and, for utility-heavy cards, either harder enemies in
 `--enemies` or a lookahead term that prices the effect.
 
+# Ryan — hands, engravings and the designed builds (fixed tester, 2026-10-15)
+
+The full stance and engraving sweep on the tester with every mechanics fix
+in (armor in card hits, the game's own tempo and mana, point-aimed cards
+priced and aimed, summons stepped, prompts answered, the Manifest zone,
+Power and Burden decisions, draws valued by the deck) and the two game
+fixes (point cards no longer land on the caster; shield Overdraw riders
+fire). 42,500 fights, level 18, lookahead player: the designed builds
+against six enemies and a wolf pack (100 seeds), every grip, off-hand
+weapon and engraving against the Large Bear, Earth Mage and Wyvern
+(10 seeds each, paired with the designed build on the same seeds).
+`tests/sim/sweeps/ryan_{designed,stances,engrave,item_swap}.txt`;
+`build_matrix.py --character ryan --root sim_out/ryan_full`.
+
+## Designed builds
+
+| Build | Bugbear | Earth Mage | Ice Troll | Large Bear | Pack | Treant | Wyvern |
+|---|---|---|---|---|---|---|---|
+| apothecary | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | **0.29** | 0.76 |
+| bruiser | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0.84 | 0.86 |
+| card_shark | 1.00 | 1.00 | 0.91 | 0.99 | 1.00 | 1.00 | 0.95 |
+| ranged_ambusher | 1.00 | 1.00 | 0.62 | 0.96 | 1.00 | 0.59 | 0.56 |
+| shadow_blade | 1.00 | 0.78 | **0.08** | **0.31** | 0.78 | **0.17** | **0.02** |
+| spellslinger | 1.00 | 0.99 | 1.00 | 1.00 | 1.00 | 0.70 | 0.95 |
+
+Shadow blade is the outlier at level 18: 24 health against hits of 16-33.
+Card shark and spellslinger hit hardest (up to 26 and 31 damage per tempo).
+
+## Two-handed grip
+
+- **A build's own weapon gripped** changes little: bruiser +0.6 DPT;
+  apothecary and spellslinger take 13-24 more damage, because gripping
+  empties the off hand (their second wand, the Reaction Rod).
+- **Heavy weapons are what the grip is for**, exactly as weight ÷ 25 says:
+  Bessy +3.2 DPT, Hammer of Ajax +1.8, Umbral Eclipse +1.8, Axe's Axe +0.6
+  (and +11 points of wins) over the same weapon held one-handed. Wands,
+  daggers and the Reaction Rod gain nothing or lose.
+- **Only the STR builds can lift them.** Bessy, Hammer of Ajax, Umbral
+  Eclipse and Axe's Axe are over carry capacity for apothecary, shadow
+  blade and spellslinger (and most for card shark), gripped or not.
+
+## Dual wielding: a second weapon in the off hand
+
+- **Card shark wants a second blade**: Nine Ruins of Sanguine +6.4 DPT,
+  Sabre Tooth +6.3, Bladed Doughnut +4.1, each +10 points of wins, in the
+  off hand (Sabre Tooth in the main hand instead: −1.8).
+- **Wrist Rocket is the best item in the pool**: +2.1 DPT on average,
+  positive on 4 of 6 builds, +8.7 DPT and +13 points on the ranged
+  ambusher. It is the one "Other" weapon with a slot, which takes any
+  labelled card: the wildcard engraving slot is most of its value.
+
+## Engravings, one card at a time
+
+Best cards to engrave (mean change over every slot that takes them):
+
+| Card | Slots | Builds | DPT | Wins | Helps in |
+|---|---|---|---|---|---|
+| Exhausted Assault | 1 | 1 | +9.7 | +7 pts | 1 of 1 |
+| Consecutive Snap | 5 | 4 | +7.0 | +16 pts | 5 of 5 |
+| Mana Surge | 3 | 3 | +3.6 | +1 pt | 3 of 3 |
+| Vines | 3 | 3 | +2.5 | +6 pts | 3 of 3 |
+| Multishot | 3 | 2 | +2.5 | +8 pts | 3 of 3 |
+| Mixed Bag | 3 | 2 | +2.3 | +10 pts | 3 of 3 |
+| Dagger Throw | 13 | 6 | +1.9 | +6 pts | 13 of 13 |
+| Thrown Stone | 14 | 6 | +1.2 | +8 pts | 13 of 14 |
+
+Worst: Armored Discipline (−0.9, helps in 0 of 8 slots), Heroic Leap,
+Shadows (−0.8, helps in 3 of 19), Barbed Exterior (0 of 7), Sky Fall,
+Choke, Empower, Shield of Growth (1 of 13).
+
+**Over-engraving costs.** Stripping an item's engravings *raised* damage on
+most builds, most of all the card shark, which carries 25 engraved cards
+on a 12-card deck: Boot Holsters stripped +7.1 DPT, Wrist Rocket +7.1,
+Shadow Cowl +5.3, The Headbandz +4.6, each with ~13 less damage taken.
+The shadow blade wins more with any one of its items stripped (+17 to
++27 points: Shadow Cowl, Houdini's Slippers, Sabre Tooth, Momentum Mits,
+Assassin Belt), at a small cost in damage. Engraved cards ride on top of the deck, so a weak one dilutes the
+draws; the readings above are what the designer's armor-slot pools (mostly
+utility) cost in practice.
+
+Read with care: an engraving variant spotlights its card into the opening
+hand (as the card swap does), so it is fair between candidates but flatters
+every engraving a little against the designed build; 10 seeds per cell.
+
 # Ryan — stored-build readings (audited harness)
 
 Everything in this part was re-run on 2026-10-13 on the audited tester
@@ -98,6 +182,9 @@ focus, 10 per card or item in the swaps. Every job folder carries its
 `loadout.json` and code stamp. Read these as direction: cards and enemies
 will change under them, and the point of the tool is to re-run them.
 
+> **Superseded in part** by the section above (designed builds, hands,
+> engravings, on the fixed tester). The tables below are older.
+>
 > **Since then (not yet re-run):** gauntlet active skills became policy
 > actions (Ryan's Techno Wraps, Spidey Web Shooters, Sleeved Katar and
 > every swapped-in gauntlet were measured on stats alone), the skill tree's
