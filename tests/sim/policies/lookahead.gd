@@ -948,12 +948,23 @@ static func _pick_card_value(c: Dictionary, state: SimState, target: String, hp_
 					return minf(3.0, float(state.player_max_hp - state.player_hp)) * hp_weight + 1.0
 	return 0.0
 
+## A draw is worth what the deck still holds: the mean worth of the cards
+## left in the draw pile (the discard pile when it is empty: the reshuffle),
+## which the player knows from their deck list, at a share for playing it
+## later, more when the hand is thin. Memoised per decision.
 static func _draw_value(state: SimState) -> float:
-	if state.hand.size() <= 2:
-		return 3.0
-	if state.hand.size() <= 4:
-		return 1.5
-	return 0.5
+	if state.has_meta("draw_value"):
+		return float(state.get_meta("draw_value"))
+	var dm = state.main.deck_manager
+	var pile: Array = dm.draw_pile if not dm.draw_pile.is_empty() else dm.discard_pile
+	var total := 0.0
+	for c in pile:
+		total += maxf(0.0, _card_worth(state.card_view(c), state))
+	var mean := total / float(maxi(1, pile.size()))
+	var share := 0.8 if state.hand.size() <= 2 else (0.5 if state.hand.size() <= 4 else 0.3)
+	var v := maxf(0.5, mean * share)
+	state.set_meta("draw_value", v)
+	return v
 
 static func _best_attack(state: SimState) -> int:
 	var best := 0
