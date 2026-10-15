@@ -160,6 +160,8 @@ func _run() -> void:
 	var th_stats = runner.main.player.get_stats()
 	_check(runner.warnings.is_empty() and th_inv.two_handed_slot == 0 and th_stats.two_hand_damage_bonus == 2,
 		"the grip is the game's: Fallen's Wrath held two-handed, +2 damage (%s)" % str(runner.warnings))
+	_check(SimState.new(runner.main).grips.is_empty(), "a build stored gripped holds its grip (no toggle offered)")
+	SimState.grip_locked = false   # unlock to exercise the mid-fight toggle itself
 	var gstate := SimState.new(runner.main)
 	gstate.refresh()
 	var rel: Array = gstate.grips.filter(func(g): return not g["enable"])

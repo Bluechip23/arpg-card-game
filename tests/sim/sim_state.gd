@@ -67,6 +67,9 @@ var weapons_ranged: bool = false
 ## gripped), tempo, mana}]. Shares the one-swap-per-tempo gate.
 var grips: Array = []
 var free_hand: bool = false       # free-hand stance: every 12th attack echoes, sidestep 1 cheaper
+## Set by the runner when the build under test is stored gripped
+## (`two_hand:yes`): the stance is what is measured, so it is held.
+static var grip_locked: bool = false
 static var last_swap_tempo: int = -1
 
 ## What a card offers at a glance (the revealed top card, a weapon's cards).
@@ -276,7 +279,8 @@ func refresh() -> void:
 	free_hand = stats.free_hand_stance
 	if inv and global_tempo != last_swap_tempo:
 		_collect_weapon_swaps(inv)
-		_collect_grips(inv)
+		if not grip_locked:
+			_collect_grips(inv)
 	top_card = {}
 	if not dm.draw_pile.is_empty() and main.get_node_or_null("UI") and main.get_node("UI").find_child("ChoicePicker", true, false):
 		top_card = card_view(dm.draw_pile.back())

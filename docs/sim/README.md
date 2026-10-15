@@ -452,7 +452,8 @@ game's own rules:
 
 Mid-fight the policy can take or release the grip, the character panel's
 toggle at its price (a weapon swap's tempo plus half the mana; Stephen 2
-tempo, no mana), priced as the bonus on the physical hits over the next
+tempo, no mana; never on a build stored gripped, whose grip is what is
+being measured), priced as the bonus on the physical hits over the next
 10 tempo against the free-hand stance it gives up; it shares the swap
 gate and the undo-within-a-swing rule. `weapon_swaps` counts
 `grip_on` / `grip_off`.

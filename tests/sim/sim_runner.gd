@@ -234,6 +234,7 @@ func _build_player() -> void:
 			warnings.append("equip refused: %s (slot %d, %s)" % [id, slot, _equip_refusal(inv, stats, item, slot)])
 	# Two-handing, through the game's own grip (carry gate and free hand
 	# apply); before the second set is stowed so build I remembers it.
+	SimState.grip_locked = int(p.get("two_hand", -1)) >= 0   # a stored grip is held: it is what is measured
 	if int(p.get("two_hand", -1)) >= 0 and not inv.set_two_handed(int(p["two_hand"]), true):
 		warnings.append("two_hand refused: slot %d (%s; carry %d/%d)" % [int(p["two_hand"]),
 			"no free hand" if not inv.equipped_weapons.has(null) else "over carry capacity", stats.current_carry_load, stats.get_carry_capacity()])
