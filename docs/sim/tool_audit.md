@@ -10,7 +10,7 @@ was wrong. Everything marked *fixed* is on the branch, covered by a test.
 ## Verdict
 
 The tester now does what was agreed, with the limits listed at the end.
-The audit found **twenty-two defects** (16 and 18–22 from the follow-up on mechanisms not yet modelled); five of them changed numbers already
+The audit found **twenty-eight defects** (16 and 18–28 from the follow-up on mechanisms not yet modelled); five of them changed numbers already
 reported in `RESULTS.md`, and those tables were re-run (see there).
 
 | # | Defect | Effect on readings | Status |
@@ -36,6 +36,12 @@ reported in `RESULTS.md`, and those tables were re-run (see there).
 | 20 | Decks lived in each character's library, so a deck written for one character could not be loaded on another, and shared decks were copied five times | cross-character deck tests needed copy-paste; copies could drift apart | fixed: one shared library, `tests/sim/builds/decks.gd`; the audit boots every deck on every character |
 | 21 | Which card sits in which item slot was never swept | no way to see whether an item's slots, or a card's slot labels, are worth anything | fixed: `engrave:<item>~<card>` and the engraving sweep (every card the game lets into every slotted item of every designed build, plus each item stripped) |
 | 22 | The two-handed grip was never taken (no stored build, no sweep, no policy action) and a weapon could only be tried in the main hand | two-handing and "this weapon as my second weapon" were untestable | fixed: `two_hand:yes`, `item:<id>@offhand`, the stances sweep, and a grip/release action priced like a swap |
+| 23 | Card hits were priced after enemy armor, the auto attack before it | against armored enemies the player skipped its cards (Ryan held Savage Strike a whole Ice Troll fight) | fixed: `SimState.card_hit` counts armor stripped, like the auto attack and the damage column |
+| 24 | Tempo counted the bow surcharge and the in-hand reductions twice and left out debuff tempo, Specific Strike, Tighten String, Arcane Overflow and the DEX proc; the mana gate ignored the game's discounts | Conditional cards with a bow, Boots of Speed and discounted cards were mispriced or hidden | fixed: `play_tempo` mirrors main.gd's play path; `play_mana` calls the game's own `compute_play_cost` |
+| 25 | Point-aimed attacks had no damage value and could only be aimed at enemy cells | 22 cards (Fireball, Sky Fall, Spirit Arrow, Balistic Arrow…) read as dead | fixed: hits by the card's shape (circle, line, cell), aims between enemies and, for movers, escape and close cells; plus the game bug that landed them on the caster |
+| 26 | Summons moved only in their per-frame `_process` | summon builds barely moved, and how far depended on the wall clock | fixed: the settle step snaps summons like enemies (skeleton (6,7)→(8,7); stuck before) |
+| 27 | Instants and enchantments were "unplayable junk" in every discard; pickers took the first option | Defensive Sacrifice always taken and threw away hand[0], Maul's Sabre's red slot and Crack of Mintaka mis-discarded | fixed: worth for instants and enchantments, a "discard which card?" answer, Defensive Sacrifice weighed against the blow, Crack of Mintaka discards just enough to reach, both priced in the play |
+| 28 | The Manifest zone, dismissing a maintained Power, and Burden jail were never offered; Powers were priced by keyword luck | Shuriken Pouch, Bottomless Quiver, Halo, Armored Discipline, Healthy Habit… mis-measured | fixed: manifest, dismiss and jail actions through the game's own handlers; Powers priced by their effect over 4 cycles less the reserve; Peshtigo's "keep burning?" answered by the enemies in the flames |
 | 12 | Overkill counted as damage dealt (the game's damage signal reports the full hit after clamping health) | damage per tempo inflated, most for burst and area cards (168 vs a 116-health pack) | fixed: the killing hit counts the health it removed; excess in an `overkill` column |
 
 Also added: multi-enemy packs in the designed, tactic and recipe sweeps

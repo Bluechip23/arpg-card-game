@@ -66,11 +66,111 @@ var weapons_ranged: bool = false
 ## them: [{slot, enable, item, bonus (damage on every physical hit while
 ## gripped), tempo, mana}]. Shares the one-swap-per-tempo gate.
 var grips: Array = []
+## The Manifest zone (Bottomless Quiver attacks, Shuriken Pouch, Cinquedea,
+## mushrooms, summons): [{index, id, name, value, mana, tempo, quiver,
+## card (a view of a quiver card), target_types}]. Played by clicking it.
+var manifest: Array = []
+## Maintained cards in play: [{index, id, name, maintain_cost}]; dismissing
+## one (the panel's button) frees its reserved mana.
+var maintained: Array = []
 var free_hand: bool = false       # free-hand stance: every 12th attack echoes, sidestep 1 cheaper
 ## Set by the runner when the build under test is stored gripped
 ## (`two_hand:yes`): the stance is what is measured, so it is held.
 static var grip_locked: bool = false
 static var last_swap_tempo: int = -1
+
+## What a card's hit removes from an enemy: health AND armor, the same
+## measure as the auto attack and the runner's damage column (armor is
+## effective HP). The game's hover preview subtracts the armor, which made a
+## card into a plated enemy read as 0 while the auto attack kept its full
+## swing. The preview's own pipeline otherwise (high ground, the enemy's
+## pending bonus); Armor Break doubles the hit on armor only.
+func card_hit(c: Card, en) -> int:
+	if c.base_damage <= 0 or c.card_type != Card.CardType.ATTACK or en == null or not is_instance_valid(en) or en.is_dead:
+		return 0
+	var hg := 4 if (c.is_ranged and c.is_attack() and main._has_high_ground(main.player.position, en)) else 0
+	var raw: int = main._card_player_damage(c, hg) + en.bonus_damage_next_hit + en.premeditated_card_bonus
+	var bm = main.player.get_buff_manager()
+	if en.current_armor > 0 and bm and bm.has_armor_break():
+		return mini(en.current_armor, raw * 2)
+	return maxi(0, raw)
+
+## Point cards that carry the player to the aimed cell.
+const PLAYER_MOVERS := ["blink", "shift", "escape_and_bewilder", "heroic_leap", "wrath_of_the_sea", "roll", "charge"]
+
+## Where a point card can be aimed, as a player would think of it: each
+## enemy's cell, the player's own cell, the centre between two enemies (an
+## area card catching both), and for a card that moves the player, the
+## farthest open cell straight away from the nearest enemy (an escape) and
+## the open cell beside it (closing in). Range is checked by the caller.
+func point_aims(c: Card) -> Array:
+	var aims: Array = []
+	for e in enemies:
+		aims.append(e["cell"])
+	aims.append(player_cell)
+	if c.is_aoe and c.aoe_shape == "circle":
+		for i in range(enemies.size()):
+			for j in range(i + 1, enemies.size()):
+				var mid: Vector2i = (enemies[i]["cell"] + enemies[j]["cell"]) / 2
+				if not mid in aims:
+					aims.append(mid)
+	if c.card_id in PLAYER_MOVERS:
+		var ni := nearest_enemy_index()
+		if ni >= 0:
+			var ec: Vector2i = enemies[ni]["cell"]
+			var away := Vector2(player_cell - ec)
+			if away.length() < 0.5:
+				away = Vector2(1, 0)
+			away = away.normalized()
+			var reach := maxi(1, c.get_effective_range())
+			for k in range(reach, 0, -1):
+				var cell := player_cell + Vector2i(roundi(away.x * k), roundi(away.y * k))
+				if _open_cell(cell):
+					if not cell in aims:
+						aims.append(cell)
+					break
+			for cell in walkable_neighbours(ec):
+				if not cell in aims:
+					aims.append(cell)
+				break
+	return aims
+
+func _open_cell(cell: Vector2i) -> bool:
+	var gm = main.grid_manager
+	if cell.x < 0 or cell.x >= gm.grid_width or cell.y < 0 or cell.y >= gm.grid_height:
+		return false
+	if cell in main.player.blocked_tiles:
+		return false
+	for e in enemies:
+		if e["cell"] == cell:
+			return false
+	return true
+
+## Indices of the enemies a point card aimed at `cell` hits: a circle of its
+## area around the aim, a line from the player toward the aim (0.6 wide, its
+## length), otherwise whoever stands on the aimed cell.
+func point_hits(c: Card, cell: Vector2i) -> Array:
+	var out: Array = []
+	var aim := Vector2(cell)
+	var origin := Vector2(player_cell)
+	for i in range(enemies.size()):
+		if enemies[i]["structure"]:
+			continue
+		var ec := Vector2(enemies[i]["cell"])
+		if c.is_aoe and c.aoe_shape == "circle":
+			if ec.distance_to(aim) <= maxf(c.aoe_range, 0.5):
+				out.append(i)
+		elif c.is_aoe and c.aoe_shape == "line":
+			var dir := aim - origin
+			if dir.length() < 0.01:
+				continue
+			var t := (ec - origin).dot(dir.normalized())
+			var off := (ec - origin - dir.normalized() * t).length()
+			if t >= 0.0 and t <= maxf(c.aoe_range, dir.length()) and off <= 0.6:
+				out.append(i)
+		elif Vector2i(ec) == cell:
+			out.append(i)
+	return out
 
 ## What a card offers at a glance (the revealed top card, a weapon's cards).
 func card_view(c: Card) -> Dictionary:
@@ -275,6 +375,23 @@ func refresh() -> void:
 				"melee": fx in melee_fx})
 	weapon_swaps.clear()
 	weapons_ranged = inv != null and inv.holds_ranged_weapon()
+	maintained.clear()
+	for ki in range(dm.maintained_cards.size()):
+		var mcd: Card = dm.maintained_cards[ki]
+		maintained.append({"index": ki, "id": mcd.card_id, "name": mcd.card_name, "maintain_cost": mcd.maintain_cost})
+	manifest.clear()
+	var om = main.overflow_manager
+	if om:
+		for mi in range(om.manifest_zone.size()):
+			var me: Dictionary = om.manifest_zone[mi]
+			var mid := str(me.get("manifest_id", ""))
+			var mc = me.get("card", null)
+			var quiver: bool = mid == "quiver_card" and mc is Card
+			manifest.append({"index": mi, "id": mid, "name": str(me.get("manifest_name", mid)),
+				"value": int(me.get("manifest_value", 0)), "quiver": quiver,
+				"mana": int(mc.mana_cost) if quiver else (int(me.get("mana_cost", 0)) if me.get("source_item", null) != null else 0),
+				"tempo": maxi(0, mc.get_burden_tempo_cost()) if quiver else int(me.get("tempo_cost", 0)),
+				"card": card_view(mc) if quiver else {}, "target_types": (mc.target_types.duplicate() if quiver else [])})
 	grips.clear()
 	free_hand = stats.free_hand_stance
 	if inv and global_tempo != last_swap_tempo:
@@ -293,9 +410,9 @@ func refresh() -> void:
 			"id": c.card_id,
 			"name": c.card_name,
 			"type": Card.CardType.keys()[c.card_type],
-			"mana": estimate_mana_cost(c),
-			"tempo": estimate_tempo_cost(c),
-			"resolve_tick": mini(c.resolve_tick, maxi(1, estimate_tempo_cost(c))),
+			"mana": play_mana(c, i),
+			"tempo": play_tempo(c),
+			"resolve_tick": mini(c.resolve_tick, maxi(1, play_tempo(c))),
 			"damage": main._card_player_damage(c) if (c.card_type == Card.CardType.ATTACK and c.base_damage > 0) else 0,
 			"block": c.block if c.block > 0 else c.base_block,
 			"heal": c.heal_amount,
@@ -304,6 +421,11 @@ func refresh() -> void:
 			"is_ranged": c.is_ranged,
 			"conditional": c.conditional_range,
 			"school": Card.CardSchool.keys()[c.school],
+			"burden_plays": c.burden_plays if c.has_burden else 0,
+			# A Power (or auto-maintain) card stays in play, holding this much mana.
+			"maintain_cost": c.maintain_cost if (c.card_type == Card.CardType.POWER or c.auto_maintain) else 0,
+			# Maul's Sabre's red slot: playing the card discards this many.
+			"slot_discard": int(c.slotted_in_item.get_slot_effect(c).get("discard", 0)) if (c.slotted_in_item and c.slotted_in_item.slot_colors.size() > 0) else 0,
 			"range": c.get_effective_range(),
 			"target_types": c.target_types.duplicate(),
 			"rng_index": c.rng_selected_index if c.has_chance_effect() else null,
@@ -316,11 +438,46 @@ func refresh() -> void:
 
 ## The mana the card will cost, as the card face shows it. deck_manager
 ## .play_card is the authority; this mirrors its common terms.
+## Context-free fallbacks (a card not in hand: a revealed top card, a
+## weapon's engravings). Card.get_burden_tempo_cost already holds the
+## Conditional surcharge and the in-hand reductions.
 static func estimate_mana_cost(c: Card) -> int:
 	return maxi(0, c.get_burden_mana_cost() - c.temp_mana_discount)
 
 static func estimate_tempo_cost(c: Card) -> int:
-	return maxi(0, c.get_burden_tempo_cost() + c.get_conditional_tempo_penalty() - c.temp_hand_tempo_reduction)
+	return maxi(0, c.get_burden_tempo_cost())
+
+## A play's mana right now, by the game's own rule
+## (DeckManager.compute_play_cost: Burden, the DEX proc, Specific Strike,
+## belt and on-self discounts, Preparation, fire synergy, debuffs, spell
+## weapons, Grounding, percent-mana cards). The Bow of Arash's life half is
+## not mana. Reaper Scythe's target discount is left out (no target yet).
+func play_mana(c: Card, index: int) -> int:
+	return int(main.deck_manager.compute_play_cost(c, index, null, main.player.get_debuff_manager(), false)["mana"])
+
+## A play's tempo as main.gd's play path adds it up: the card's own (with
+## Burden, Conditional surcharge and in-hand reductions), Specific Strike's
+## hand, Arcane Overflow, debuff tempo, Tighten String, and the DEX proc's
+## halving (Pocket Knife -2) on an attack.
+func play_tempo(c: Card) -> int:
+	var t := c.get_burden_tempo_cost()
+	if c.card_id == "specific_strike":
+		t += maxi(0, main.deck_manager.hand.size() - 1)
+	var st = main.player.get_stats()
+	if st and st.has_skill_tree_passive("arcane_overflow") and st.st_arcane_overflow_discount and c.is_offensive():
+		t = maxi(0, t - 1)
+	var dbm = main.player.get_debuff_manager()
+	if dbm:
+		t += dbm.get_tempo_increase()
+	var bm = main.player.get_buff_manager()
+	if bm and bm.tighten_string_charges > 0 and c.is_ranged and c.is_attack():
+		t += 3
+	if main.deck_manager.next_attack_half_tempo and c.is_attack():
+		t = t / 2
+		var inv = main.player.get_inventory()
+		if inv and inv.has_pocket_knife_equipped():
+			t = maxi(0, t - 2)
+	return maxi(0, t)
 
 ## Cards the UI itself would not let through, with the reason. Empty = fine.
 ## Plays the game refused this tempo (card_id -> global tempo), set by the
@@ -354,8 +511,12 @@ func _why_unplayable(c: Card, index: int, dmgr) -> String:
 		return "disarmed"
 	if c.school == Card.CardSchool.SPELL and not dmgr.can_play_spell_cards():
 		return "silenced"
-	if estimate_mana_cost(c) > player_mana and not (c.card_id == "exhausted_assault" and player_mana <= 0):
-		return "not enough mana"
+	var cost_mana := play_mana(c, index)
+	if cost_mana > player_mana and not (c.card_id == "exhausted_assault" and player_mana <= 0):
+		# Demonic Rage pays mana costs in health (10 mana = 1 HP), if it survives.
+		var bm = main.player.get_buff_manager()
+		if not (bm and bm.has_demonic_rage() and player_hp > maxi(1, ceili(cost_mana / 10.0))):
+			return "not enough mana"
 	if c.card_id in NEEDS_PICK:
 		return "needs a pick (policy must supply picks)"
 	return ""
@@ -413,22 +574,30 @@ func legal_actions() -> Array:
 					continue
 				out.append({"type": "play", "card": h["index"], "card_id": h["id"],
 					"target": "enemy:%d" % e["index"],
-					"expected_damage": main.calculate_damage_preview(c, en) if h["damage"] > 0 else 0})
+					"expected_damage": card_hit(c, en) if h["damage"] > 0 else 0})
 		if "self" in tt or "ally" in tt or "all_nearby" in tt:
 			out.append({"type": "play", "card": h["index"], "card_id": h["id"], "target": "self"})
 		if "point" in tt:
 			var gm = main.grid_manager
-			var capped: bool = c.card_id == "blink" or (c.is_ranged and c.range_modifier < Card.INFINITE_RANGE and (not c.is_aoe or main._aoe_follows_cursor(c)))
-			var aims: Array = []
-			for e in enemies:
-				aims.append(e["cell"])
-			aims.append(player_cell)
-			for cell in aims:
+			var capped: bool = c.card_id == "blink" or c.card_id in PLAYER_MOVERS \
+				or (c.is_ranged and c.range_modifier < Card.INFINITE_RANGE and (not c.is_aoe or main._aoe_follows_cursor(c)))
+			for cell in point_aims(c):
 				if capped and gm.get_distance_in_cells(player.position, gm.grid_to_world(cell)) > c.get_effective_range():
 					continue
 				var a := {"type": "play", "card": h["index"], "card_id": h["id"], "target": "point:%d,%d" % [cell.x, cell.y]}
-				if a not in out:
-					out.append(a)
+				if a in out:
+					continue
+				# What it hits there, by the shape the game resolves.
+				var hits: Array = []
+				var dmg_total := 0
+				if int(h["damage"]) > 0:
+					for ei in point_hits(c, cell):
+						var d := card_hit(c, enemies[ei]["node"])
+						hits.append([ei, d])
+						dmg_total += d
+				a["hits"] = hits
+				a["expected_damage"] = dmg_total
+				out.append(a)
 		if tt.is_empty():
 			out.append({"type": "play", "card": h["index"], "card_id": h["id"], "target": "none"})
 	# Auto attack
@@ -474,6 +643,39 @@ func legal_actions() -> Array:
 		out.append({"type": "weapon_swap", "swap": k, "kind": weapon_swaps[k]["kind"], "build": weapon_swaps[k]["build"]})
 	for k in range(grips.size()):
 		out.append({"type": "grip", "grip": k, "slot": grips[k]["slot"], "enable": grips[k]["enable"]})
+	for k in range(maintained.size()):
+		out.append({"type": "dismiss", "maintained": k})
+	# Burden relief (the J key): jail a Burden card from hand to reset its
+	# grown cost; it sits out 30 tempo.
+	for h in hand:
+		if int(h.get("burden_plays", 0)) > 0:
+			var bc: Card = main.deck_manager.hand[int(h["index"])]
+			if player_mana >= bc.burden_jail_cost_mana:
+				out.append({"type": "jail", "card": int(h["index"]), "card_id": h["id"]})
+	# The Manifest zone: a quiver attack plays like the card it is (an enemy
+	# in its range, or itself); the zone's own effects fire on a click.
+	if can_play_cards:
+		for k in range(manifest.size()):
+			var m: Dictionary = manifest[k]
+			if int(m["mana"]) > player_mana:
+				continue
+			if bool(m["quiver"]):
+				var qc: Card = main.overflow_manager.manifest_zone[int(m["index"])]["card"]
+				if "enemy" in m["target_types"]:
+					if not dmgr.can_play_attack_cards():
+						continue
+					for e in enemies:
+						if main._is_target_in_card_range(qc, e["node"]):
+							out.append({"type": "manifest", "manifest": k, "target": "enemy:%d" % e["index"],
+								"expected_damage": card_hit(qc, e["node"])})
+				elif "self" in m["target_types"]:
+					out.append({"type": "manifest", "manifest": k, "target": "self"})
+			else:
+				if str(m["id"]) == "cinquedea":
+					var ni := nearest_enemy_index()
+					if ni < 0 or int(enemies[ni]["distance"]) > 4:
+						continue
+				out.append({"type": "manifest", "manifest": k, "target": "none"})
 	if flash_points >= flash_block_cost and (not flash_strike or strike_target):
 		out.append({"type": "flash_block"})
 	if flash_points >= flash_proc_cost and attacks_until_proc > 1 and not next_attack_half_tempo:

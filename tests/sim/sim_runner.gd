@@ -612,6 +612,28 @@ func _apply_action(a: Dictionary, state: SimState) -> bool:
 			ok = _do_weapon_swap(a, row)
 		"grip":
 			ok = _do_grip(a, row)
+		"manifest":
+			ok = _do_manifest(a, state, row)
+		"jail":
+			# main.gd's J key: jail the Burden card, then its tempo.
+			var jdm = main.deck_manager
+			var ji := int(a["card"])
+			var jcard: Card = jdm.hand[ji] if ji < jdm.hand.size() else null
+			row["action_id"] = "jail:%s" % (jcard.card_id if jcard else "?")
+			ok = jcard != null and jcard.has_burden and jdm.jail_burden_card(ji)
+			if ok:
+				main.tempo_manager.add_tempo(jcard.burden_jail_cost_tempo)
+			else:
+				row["refused"] = "burden jail refused"
+		"dismiss":
+			var dmc = main.deck_manager.maintained_cards
+			var mk: Dictionary = state.maintained[int(a["maintained"])]
+			var nbefore: int = dmc.size()
+			row["action_id"] = "dismiss:%s" % str(mk["id"])
+			main._on_maintained_card_dismiss(int(mk["index"]))
+			ok = dmc.size() < nbefore
+			if not ok:
+				row["refused"] = "dismiss refused"
 		"flash_block":
 			var stats = main.player.get_stats()
 			var fp: int = stats.current_flash_points
@@ -676,6 +698,7 @@ func _do_play(a: Dictionary, state: SimState, row: Dictionary) -> bool:
 	if spec.begins_with("enemy:") and target == null:
 		row["refused"] = "no such enemy"
 		return false
+	_last_play_distance = main.grid_manager.get_distance_in_cells(main.player.position, target.position) if (target != null and target is Enemy) else 0
 	if spec.begins_with("point:"):
 		var xy := spec.substr(6).split(",")
 		var cell := Vector2i(int(xy[0]), int(xy[1]))
@@ -814,6 +837,7 @@ func _do_item_skill(a: Dictionary, state: SimState, row: Dictionary) -> bool:
 	return true
 
 var _skill_counts := {}
+var _last_play_distance := 0   # cells to the enemy the last card was played at (Crack of Mintaka's discards)
 
 ## A weapon swap through the game's own buttons: the build button (cost from
 ## switch_build, charged by main the way the character panel's signal does)
@@ -845,6 +869,36 @@ func _do_weapon_swap(a: Dictionary, row: Dictionary) -> bool:
 	return true
 
 var _swap_counts := {}
+
+## A Manifest zone click, through main's own handler: a quiver attack waits
+## for its target (the runner gives it the enemy, as the click would), the
+## zone's own effects fire at once. Played = the entry left the zone.
+func _do_manifest(a: Dictionary, state: SimState, row: Dictionary) -> bool:
+	var om = main.overflow_manager
+	var m: Dictionary = state.manifest[int(a["manifest"])]
+	var idx := int(m["index"])
+	if idx >= om.manifest_zone.size():
+		row["refused"] = "manifest entry gone"
+		return false
+	var before: int = om.manifest_zone.size()
+	row["action_id"] = "manifest:%s" % (str(m["card"].get("id", m["id"])) if bool(m["quiver"]) else str(m["id"]))
+	main._on_manifest_card_clicked(idx)
+	var pending = main.get("_pending_quiver_card")
+	if pending != null:
+		var spec := str(a.get("target", "self"))
+		var tgt = state.enemy_node(int(spec.substr(6))) if spec.begins_with("enemy:") else main.player
+		if tgt == null:
+			main._pending_quiver_card = null
+			row["refused"] = "no such enemy"
+			return false
+		main.play_quiver_card(pending, main._pending_quiver_index, tgt)
+		if main.get("_pending_quiver_card") != null:
+			main._pending_quiver_card = null   # refused (mana, debuff): don't leave the click armed
+	_settle_all()
+	if om.manifest_zone.size() >= before:
+		row["refused"] = "manifest play refused"
+		return false
+	return true
 
 ## Take or release the two-handed grip, the character panel's toggle: the
 ## game's set_two_handed (free hand and carry gates), then the panel's price,
@@ -898,6 +952,16 @@ func _settle_all() -> void:
 				e.position.z = e.target_position.z
 				e._physics_process(1.0 / 60.0)
 				moved = true
+		# Summons walk in their own per-frame _process; one pumped frame a
+		# decision barely moved them (and how far depended on the wall
+		# clock). Snap them to where they were sent, like enemies.
+		for s in _summons():
+			if bool(s.get("_is_moving")):
+				var tp: Vector3 = s.get("_target_position")
+				s.position.x = tp.x
+				s.position.z = tp.z
+				s._process(1.0 / 60.0)
+				moved = true
 		var p = main.player
 		if p.is_moving and not p.movement_paused:
 			p.position.x = p.target_position.x
@@ -907,6 +971,19 @@ func _settle_all() -> void:
 		if not moved:
 			break
 	_settling = false
+
+## Every living summon main keeps (each kind in its own list).
+const SUMMON_LISTS := ["_summoned_worms", "_frankensteins", "_wolves", "_specters", "_skeletons", "_spirit_bows", "_clones"]
+func _summons() -> Array:
+	var out: Array = []
+	for nm in SUMMON_LISTS:
+		for s in main.get(nm):
+			if is_instance_valid(s) and "_is_moving" in s:
+				out.append(s)
+	var pg = main.get("_penguin")
+	if pg != null and is_instance_valid(pg) and "_is_moving" in pg:
+		out.append(pg)
+	return out
 
 func _check_end() -> void:
 	if outcome != "" or main == null:
@@ -940,7 +1017,7 @@ func _answer_prompts() -> void:
 		for i in range(btns.size()):
 			if btns[i].text == "Maintain":
 				maintain_idx = i
-		var choice := policy.answer_prompt("maintain", labels)
+		var choice := policy.answer_prompt("maintain", labels, SimState.new(main))
 		var pick: int = maintain_idx if choice == 0 else (1 - maintain_idx if btns.size() == 2 else -1)
 		if pick < 0:
 			for i in range(btns.size()):
@@ -971,12 +1048,23 @@ func _answer_prompts() -> void:
 				else:
 					options.append(t)
 					option_btns.append(b)
-			var kind := "defensive_sacrifice" if pname == "DefensiveSacrificePrompt" else "picker"
+			var kind := "picker"
 			var prompt_state: SimState = null
 			var title := ""
 			for l in node.find_children("*", "Label", true, false):
 				title = str(l.text)
 				break
+			if pname == "DefensiveSacrificePrompt":
+				# "...halve %d incoming damage...": the policy weighs half the
+				# blow against the card it would give up.
+				var m := RegEx.new()
+				m.compile("halve (\\d+)")
+				var found := m.search(title)
+				kind = "defensive_sacrifice:%d" % (int(found.get_string(1)) if found else 0)
+				prompt_state = SimState.new(main)
+			elif title.to_lower().find("discard which card") >= 0:
+				kind = "discard"   # Defensive Sacrifice's pick, Maul's Sabre's red slot, Reposition
+				prompt_state = SimState.new(main)
 			if title.begins_with("House Rule"):
 				kind = "house_rule"
 				prompt_state = SimState.new(main)
@@ -985,6 +1073,18 @@ func _answer_prompts() -> void:
 				prompt_state = SimState.new(main)
 			if verbose or kind.begins_with("invisibility"):
 				print("[SIM] prompt %s (%s): %s" % [pname, kind, str(options)])
+			if pname == "HandMultiPicker":
+				# Toggle buttons: pressed.emit() does not toggle them. Crack of
+				# Mintaka needs as many discards as its target is far away.
+				var mkind := "crack_of_mintaka:%d" % _last_play_distance if title.begins_with("Crack of Mintaka") else "multi"
+				var picks: Array = policy.answer_multi(mkind, options, SimState.new(main))
+				node.name = "AnsweredPicker"
+				for pi in picks:
+					if int(pi) >= 0 and int(pi) < option_btns.size():
+						option_btns[int(pi)].button_pressed = true
+				if done and is_instance_valid(done):
+					done.pressed.emit()
+				continue
 			var choice := policy.answer_prompt(kind, options, prompt_state)
 			# A pressed picker frees itself deferred; rename it so the next
 			# pass this frame does not answer it a second time.
