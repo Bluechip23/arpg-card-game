@@ -149,3 +149,52 @@ Visible change on mesh edges; your call after looking at a side-by-side.
 - Phase E items and the "optional" items (A4, B3's filter choice, D4–D6) run only if you say so.
 
 **Please reply with:** approve as-is, approve with items removed/reordered, which of A4 / D4 / D5 / D6 / E1–E5 you want, whether you prefer the 10–20-seed gates or the full 100-seed sweeps, and (for C4) dictionary table vs `.tres` files.
+
+---
+
+## Phase 3 — execution log
+
+Branch `wt/phase3` → fast-forwarded onto `claude/great-keller-rprdi5`. One commit per step; every step passed the quick gate against the step before it (and A1 directly against the baseline), the Phase C full gate and the final full gate passed against the baseline. **Sim result for every step: match** — byte-identical per-seed CSVs, summaries, aggregates, loadouts and `catalog.json` (cards, items, enemy roster, sphere nodes, build components); 13 quick-tier and 503 full-tier job directories compared.
+
+| Step | Commit | Files | Lines +/− | What changed | Gate |
+|---|---|---|---|---|---|
+| 0 | `f78cd00` | 1 | +94 | `tools/refactor_gate.sh` (snapshot / compare) | — |
+| A1 | `5d58f9c` | 22 | +1 / −486 | 37 dead functions, 6 dead members/consts | match |
+| A2 | `d696a29` | 8 | −29 | 11 never-connected signals and their emits | match |
+| A3 | `77e3cf6` | 5 | +3 / −120 | 3 orphan `.import`s; `.gdignore` on the sim ranking CSV; gate gdignores its output | match |
+| B1 | `fc7a30c` | 5146 | ±5146 | `detect_3d/compress_to=0` on every texture import | match |
+| B2 | `744a68d` | 2 | +4 / −4 | scene lights match the runtime overrides | match |
+| C1 | `a881b1d` | 17 | +283 / −697 | `Summon` / `HealableSummon` / `MarkableSummon` base classes; 8 summons become subclasses (1,179 → 759 lines) | match |
+| C2 | `ec465e6` | 3 | +48 / −65 | `WorldText.float_number` for the three rising-number builders | match |
+| C3 | `248e045` | 4 | +42 / −53 | one card-factory discovery, cached item factory names, `KEYWORD_NAMES` | match |
+| C4a | `c623865` | 3 | +766 / −717 | enemy base stats → `EnemyDefs.DEFS` (enemy.gd −682); per-field dump of all 68 types identical | match |
+| C4b | `4a0248a`, `91a38c2` | 4 | +258 / −325 | tier, level band, figure kind, loot tier join `EnemyDefs`; `_stats`, `_type_display`, `INTENDED_LEVELS`, the `_setup_sprite` match and `get_loot_tier`'s match are gone; compendium/loot/level dumps identical | match |
+| C5a | `eb5d823` | 1 | +52 / −115 | `Card._roll_hit_damage`; 16 executors converted | match |
+| C5b | `23bba20` | 1 | +29 / −137 | 8 more executors + `_roll_half_scaled_damage` (Poke, Quick Shot) | match |
+| D1 | `77271f6` | 2 | +50 / −10 | head-up prompt pass runs on cell change / `prompts_changed` / 0.1 s safety net | match |
+| D2 | `df5f038` | 1 | +19 / −6 | label overlay writes theme overrides only on change | match |
+| D3 | `908e02e` | 1 | +32 / −19 | AOE indicator rebuilds its mesh only when inputs change | match |
+
+Totals over `scripts/` + `resources/`: 101,996 → 100,911 lines (−1,085 net, with 713 of the additions being the `EnemyDefs` data table); `main.gd` 17,249 → 17,117, `enemy.gd` 8,023 → 7,038, `card.gd` 9,106 → 8,931; the summon family 1,179 → 759.
+
+**Skipped, with reasons**
+- **B3** (NEAREST filter on the three unfiltered `Sprite3D`s): `action_fx.gd` draws a mix of hard pixel icons (sparkle, shuriken) and alpha-gradient puffs/bursts into those sprites; switching the filter is a visible design choice, not a neutral fix. `character_figure.gd`'s two are legacy-only. Left for you.
+- **C6** (character roster onto `CharacterData`): the three tables (`SpriteFigure.ROSTER`, which also serves the dojo's Dog dummies; the static skill-tree builders; `SandboxUI.CARD_GROUPS`) only fit on `CharacterData` as new serialised `@export`s or by coupling the figure to the data resource; ~120 lines of payoff, nothing the sim can see. Not worth the save-format churn in a behaviour-neutral pass.
+- **C7** (one prompt updater): the six `update_*_prompts` differ in their reveal gating, exit exception, climbed/looted skips and label text; a shared helper needs five flags and saves ~25 lines. Net negative; D1 gates them instead.
+
+**Pre-existing test failures (identical before and after, 10):** `test_bladed_doughnut`, `test_chaos_icons`, `test_dungeon_gen`, `test_escort_quests`, `test_item_forge`, `test_passive_triggers`, `test_ranged_pass`, `test_shields_pass`, `test_spell_weapons_pass`, `test_starting_loadout`. Not touched by this work; the baseline and final `tests.txt` list the same set. `test_enemy_balance` read the removed `INTENDED_LEVELS` table and was fixed in `91a38c2` (test-only).
+
+**Follow-ups surfaced by the refactor (not done, your call)**
+- Second-level dead code left by A1: `EnemySpawner.spawn_fire_goblin_pack`, `Buff.create_focused`, and 11 `OverflowEffect.create_*` factories (`create_jailed`, `create_manifest_*`, `create_enhance`, `create_skip`, `create_peak`, `create_overcharge_*`) now have no caller. They look like a feature library for overflow modes the designer may still wire, so they were left.
+- `unit_tracker_ui.gd:_get_type_name` still names only 10 enemy types and shows "Unknown" for the rest; reading `EnemyDefs` would fix that but changes what the tracker displays.
+- `enemy_lab.gd` keeps its own `KIND_BY_TYPE` / `COLOR_BY_TYPE` mirrors (dev tool).
+- AUDIT §5: the `_exec_depth` leak on a blinded miss in `card.gd` is still there (behaviour change to fix).
+
+**Re-running the gate**
+```
+tools/refactor_gate.sh snapshot sim_out/before full      # ~45 min on 4 shards
+# ... change ...
+tools/refactor_gate.sh snapshot sim_out/after full
+tools/refactor_gate.sh compare sim_out/before sim_out/after
+```
+`quick` instead of `full` gives the ~5-minute tier. The first run after adding a `class_name` script needs `godot --headless --import --path .` once.
