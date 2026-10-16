@@ -131,7 +131,7 @@ Visible change on mesh edges; your call after looking at a side-by-side.
 
 ---
 
-## Phase E — larger follow-ons (need your explicit go-ahead; not part of the approval above)
+## Phase E — larger follow-ons (approved afterwards: "the entirety of E"; log at the end of this file)
 
 - **E1. Retire `character_figure.gd` (5,116 lines) + `Card.get_animation_action` (145)** — requires accepting that legacy saves without `base_character` fall back to the preset's sprite (one-line resolution in `CharacterData.get_base_character` or `Player._setup_figure`). Confidence it is otherwise unreachable: likely (AUDIT §3.2).
 - **E2. Retire `enemy_figure.gd` (3,527) + most of `enemy_lab.gd`** — blocked on sprite art for the three `brute_*` tiers (`ELITE` still spawns at world level > 3) and a sprite path for `enemy_inspect_ui.gd:179`.
@@ -187,7 +187,7 @@ Totals over `scripts/` + `resources/`: 101,996 → 100,911 lines (−1,085 net, 
 **Follow-ups surfaced by the refactor (not done, your call)**
 - Second-level dead code left by A1: `EnemySpawner.spawn_fire_goblin_pack`, `Buff.create_focused`, and 11 `OverflowEffect.create_*` factories (`create_jailed`, `create_manifest_*`, `create_enhance`, `create_skip`, `create_peak`, `create_overcharge_*`) now have no caller. They look like a feature library for overflow modes the designer may still wire, so they were left.
 - `unit_tracker_ui.gd:_get_type_name` still names only 10 enemy types and shows "Unknown" for the rest; reading `EnemyDefs` would fix that but changes what the tracker displays.
-- `enemy_lab.gd` keeps its own `KIND_BY_TYPE` / `COLOR_BY_TYPE` mirrors (dev tool).
+- `enemy_lab.gd` keeps its own `KIND_BY_TYPE` / `COLOR_BY_TYPE` mirrors (dev tool). *Done in E2: it reads `EnemyDefs` now.*
 - AUDIT §5: the `_exec_depth` leak on a blinded miss in `card.gd` is still there (behaviour change to fix).
 
 **Re-running the gate**
@@ -198,3 +198,38 @@ tools/refactor_gate.sh snapshot sim_out/after full
 tools/refactor_gate.sh compare sim_out/before sim_out/after
 ```
 `quick` instead of `full` gives the ~5-minute tier. The first run after adding a `class_name` script needs `godot --headless --import --path .` once.
+
+## Phase E — execution log
+
+Approved after Phase 3 ("the entirety of E"). Same rules: one commit per step, the quick gate (seeds 1-10) after every step against the Phase 3 baseline, the full gate (seeds 1-20, 503 job dirs, the test suite) at the end. **Sim result for every step: match.** Order was by risk: E1, E2, E4, E3 (three regions), E5 (items).
+
+| Step | Commit | Files | Lines +/− | What changed | Gate |
+|---|---|---|---|---|---|
+| E1 | `bce7ff2` | 9 | +43 / −5,170 | `character_figure.gd` deleted. `SpriteFigure.preset_for(data)` maps quiz-built and pre-`base_character` characters to the roster preset sharing their passive (else Brad); player, character sheet and selection cards always build a `SpriteFigure` | match |
+| E2 | `065a5cd` | 8 | +54 / −3,745 | `enemy_figure.gd` deleted. The generic Minion / Elite / Boss tiers draw the staged Craftpix swordsman pack (lvl4 / lvl5 ×1.15 / lvl6 ×1.3); `_cp_load_sheet` learns its `<tail>_<Anim>` sheet names; `enemy.gd`, `enemy_inspect_ui.gd` and `enemy_lab.gd` lose their procedural fallbacks (the lab reads `EnemyDefs` instead of a mirror table) | match |
+| E4 | `f4891f4` | 4 | ±1,309 | `var x = expr` → `var x := expr` for 1,309 single-assignment locals in `card.gd`, `enemy.gd`, `player_stats.gd`, `main.gd` (277 candidates the parser could not infer were reverted automatically); full test suite identical | match |
+| E3a | `be23883` | 3 | +285 / −280 | PILE CONTENTS POPUP → `scripts/ui/pile_popup.gd` (`PilePopup`, child of Main); `main.gd` −268 | match |
+| E3b | `b4f96f9` | 4 | +254 / −233 | MAINTAINED CARDS LIST → `scripts/ui/maintained_list.gd`; `main.gd` gets `class_name Main` so lifted code is type-checked against it; `main.gd` −217 | match |
+| E3c | `54a987a` | 5 | +669 / −509 | DECK LIST PANEL + MANAGE DECK → `scripts/ui/deck_panels.gd`; `player2_ui.gd` calls `close()` instead of poking three fields; `tests/test_main_panels.gd` drives all three panels through their real buttons; `main.gd` −492 | match |
+| E5 | `038fad2` | 227 | +4,178 / −2,626 | 189 items → `data/items/<id>.tres` (generated from the live factories by `ResourceSaver`); `item_data.gd` 3,352 → 1,169: the factories, `_new_*` / `_set_skill` / `_set_appearance` helpers and reflection discovery replaced by `ITEM_IDS` (catalogue order = old factory order, so loot pools index the same), `create(id)` (load + deep duplicate) and `get_all_items()`; 180 `ItemData.create_<x>()` call sites in 36 files → `ItemData.create("<x>")`; the 10 reflection sites (compendium, sim harness, dumps) read the catalogue; factory comments preserved in `docs/ITEM_NOTES.md` | match |
+
+**Verification beyond the sim** — E1: `preset_for` exercised for all five presets, a quiz character, a renamed legacy save and an unknown name; character_rename + dojo tests. E2: all six swordsman sheets load for each tier with the pack's frame counts (Idle 12, Walk 6, Run 8, Attack 7, Hurt 5, Death 7); dojo, sheet_underworld, inventory_dragdrop tests. E4: `godot --check-only` on each file plus the whole test suite (110 pass / 10 pre-existing fails, identical set). E3: parse + check-only + the new `test_main_panels.gd` (the one slip the parser cannot see, a `$UI/HandArea` node path, was caught by that test and is now rewritten mechanically). E5: a dump of **every property of every item (48,384 values over 189 items, exported and runtime fields) is identical** between the old factories and `ItemData.create`; `catalog.json` identical; the 15 item-touching tests have the same pass/fail set and the same failure lines as the baseline.
+
+Totals over `scripts/` + `resources/` `.gd`: 100,911 → 89,947 lines (−10,964), with 3,497 lines of item data now in `data/items/*.tres`. `main.gd` 17,117 → 16,144; `item_data.gd` 3,352 → 1,169.
+
+**Visible changes you should know about (not gameplay, but not invisible either)**
+- Quiz-built characters render as their matching preset's sprite (Jeremy's sheet for a mage-passive character, and so on) instead of the procedural figure.
+- Minion / Elite / Boss enemies are armoured swordsmen (lvl4 → lvl6) instead of the procedural brute, and now get a portrait in the inspect panel. The art pick is mine — the pack was staged for "human bandit/knight enemies" in `docs/ASSET_PACKS.md`; swap the three `KINDS` lines if you want something else.
+- The inspect panel shows no portrait for a kind-less enemy (Ring Wraith) where it used to build a rat by accident.
+- `.tres` stores dictionaries with sorted keys, so `level_2_overrides` / `level_3_overrides` / `slot_effects` keys come back alphabetised. Every consumer looks keys up or assigns independent properties; none iterates in an order-dependent way (checked `_apply_overrides` and the four `get_slot_effect` callers).
+- Enums in the `.tres` files are ints (`item_type = 5`); the inspector shows the names.
+
+**E5 — cards: not done, by design.** Items went cleanly, but the card side is a different risk class: `Card` has 13 `@export` fields and 79 plain `var`s that mix definition (`is_ranged`, `maintain_cost`) with runtime state (`jail_time_remaining`, `cycles_in_hand`, `picked_card`, a `hatch_handler: Callable`); 247 factories span 5,900 lines of `card.gd` with constants and helper functions interleaved; and card copies rely on `duplicate()` semantics that exporting fields would change. It needs a `CardDef` resource / `Card` instance split first, which is a design change rather than a mechanical move. Proposal, if you want it: (1) add `CardDef extends Resource` holding only the ~40 definition fields, (2) make `Card.create_by_id` build a `Card` from a `CardDef`, (3) generate `data/cards/*.tres` the same way as items, property-dumped before/after, (4) delete the factories. Two or three gated steps.
+
+**Follow-ups**
+- `tests/test_parse_all.gd` reports 0 failures when a script fails to *compile* a dependency (seen during E3c); `godot --check-only --script <file>` catches it. Worth a line in the sweep.
+- The typing pass left 277 locals untyped because their initialiser is a `Variant` (dictionary lookups, duck-typed node fields); typing the sources (`main.deck_manager`-style fields now that `Main` has a class name) would let a second pass convert them.
+- More `main.gd` regions have the same shape as the three lifted here and no outside callers: BULLET CASINGS, SANGUINE THE PENGUIN (4 test refs), WOLVES (sim/test refs), ALASKAN BULL WORMS, FRANKENSTEINS MONSTER, COMMUNAL DONATION UI (2 sim refs), LOOT DROP SYSTEM (2 refs), WAYPOINT TRAVEL (4 refs), BOSS ROOMS (4 test refs). `tools`-side analysis: `region_analysis.py` in this session's scratchpad listed each one's external callers.
+- `docs/ITEM_REFERENCE.md` and `docs/sim/README.md` still describe items as `create_<id>` factories; the ids are unchanged, the mechanism is now `data/items/<id>.tres`.
+
+**Final full gate (after E5, against the Phase 3 baseline):** parse, determinism and `catalog.json` same; **13 quick-tier and 503 full-tier job directories identical**. The test run inside the gate showed one regression the quick gates had not covered: `test_mythic_appearance` reads `ItemData.APPEARANCE_ICON_DIR`, which E5 removed with the factories (my grep for its users was cut off by a `head`). The constant is restored in `scripts/progression/item_data.gd` (follow-up commit after `038fad2`); the suite then reads 111 pass / 10 fail — the same ten pre-existing failures as the baseline plus the new `test_main_panels` passing.

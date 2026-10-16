@@ -531,6 +531,10 @@ var ring_counters: Dictionary = {}
 @export var appearance: String = ""
 @export var appearance_icon: String = ""
 
+## Where the mythics' own art lives; every `appearance_icon` in data/items
+## points under it (test_mythic_appearance checks that).
+const APPEARANCE_ICON_DIR := "res://assets/items/mythic/"
+
 
 ## Give an item its appearance text and the icon of the same slug.
 func has_appearance_art() -> bool:
