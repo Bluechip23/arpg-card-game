@@ -4,7 +4,6 @@ extends CharacterBody3D
 ## Player character with turn-based grid movement in 3D
 
 signal move_completed
-signal move_started(spaces: int)
 signal tile_reached  # Emitted each time the player reaches a single tile
 
 @export var move_speed: float = 5.0  # Units per second (1 unit = 1 grid cell)
@@ -343,7 +342,6 @@ func move_to_grid(target_pos: Vector3, spaces: int) -> bool:
 		spaces_to_move = 1
 		spaces_moved = 0
 		_consume_haste_for_move(haste_bonus)
-		move_started.emit(1)
 		return true
 
 	var snapped_target = grid_manager.snap_to_grid(target_pos)
@@ -364,7 +362,6 @@ func move_to_grid(target_pos: Vector3, spaces: int) -> bool:
 		target_position = move_path.pop_front()
 		is_moving = true
 		_consume_haste_for_move(haste_bonus)
-		move_started.emit(spaces_to_move)
 		return true
 
 	return false

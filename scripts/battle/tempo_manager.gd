@@ -19,7 +19,6 @@ extends Node
 
 signal tempo_changed(current: int, threshold: int)
 signal tempo_threshold_reached(times: int)  # Fires every 5 global tempo (for buff/draw/mana cycles)
-signal turn_triggered  # Alias for tempo_threshold_reached, kept for compat
 signal tempo_advanced(global_total: int, amount: int)  # Fires on every tempo addition
 
 # Tick system signals
@@ -257,7 +256,6 @@ func _check_threshold() -> void:
 			player_stats.refresh_brain_points()
 			print("[TEMPO] Brain points refreshed: %d" % player_stats.current_brain_points)
 		tempo_threshold_reached.emit(times_triggered)
-		turn_triggered.emit()
 		tempo_changed.emit(current_tempo, tempo_threshold)
 
 ## Instant tempo add for non-card sources (movement, pass-through, wait, basic attack/block).

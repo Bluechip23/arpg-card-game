@@ -4,8 +4,6 @@ extends Control
 ## Character questionnaire UI - presents 11 personality questions one at a time,
 ## then shows a custom-built character with stats, cards, item, and title.
 
-signal character_recommended(character: CharacterData)
-signal back_pressed
 
 var _questions: Array[Dictionary] = []
 var _current_index: int = 0
@@ -410,7 +408,6 @@ func _show_result() -> void:
 
 func _on_proceed() -> void:
 	var character = QuestionnaireData.build_character(_last_result)
-	character_recommended.emit(character)
 	# Navigate to character select with this character pre-selected, show mode select
 	var select_scene = load("res://scenes/character/character_select.tscn").instantiate()
 	select_scene.game_mode = "single_player"
@@ -453,7 +450,6 @@ func _on_back() -> void:
 		_show_question(_current_index)
 	else:
 		# Go back to character select (quiz is accessed from there)
-		back_pressed.emit()
 		var select_scene = load("res://scenes/character/character_select.tscn").instantiate()
 		select_scene.game_mode = "single_player"
 		get_tree().root.add_child(select_scene)

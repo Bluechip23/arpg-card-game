@@ -4,8 +4,6 @@ extends CanvasLayer
 ## Character stats and equipment panel (toggle with I key)
 
 signal closed
-signal card_slotted(card: Card, item: ItemData)
-signal card_unslotted(card: Card, item: ItemData)
 ## Emitted after any gear change with its tempo price (equip/unequip/two-hand/
 ## build switch). main.gd charges it on the tempo clock — but only in combat.
 signal swap_tempo_spent(cost: int, action: String, item_type: int)
@@ -2022,7 +2020,6 @@ func _on_slot_card(card: Card, item: ItemData) -> void:
 	if not inventory:
 		return
 	if inventory.enchant_card(card, item):
-		card_slotted.emit(card, item)
 		_open_card_slot_panel(item)  # Refresh the panel
 		update_display()
 
@@ -2031,7 +2028,6 @@ func _on_unslot_card(item: ItemData, card_index: int) -> void:
 		return
 	var card = inventory.extract_card(item, card_index)
 	if card:
-		card_unslotted.emit(card, item)
 		_open_card_slot_panel(item)  # Refresh the panel
 		update_display()
 

@@ -12,8 +12,6 @@ extends Node2D
 ##    the base pack's weapon layer (which carries the swing + swoosh) anchored
 ##    to the NPC's hands, plus a small body lunge.
 
-signal attack_finished
-
 enum Facing { SOUTH, NORTH, EAST, WEST }
 
 const SEED := "res://assets/sprites/SeedcharacterBase"
@@ -212,10 +210,7 @@ func _process(delta: float) -> void:
 		if _looping:
 			_frame_i = 0
 		else:
-			var was_attack := _attack_weapon != ""
 			play("idle")
-			if was_attack:
-				attack_finished.emit()
 			return
 	_apply_frame()
 
