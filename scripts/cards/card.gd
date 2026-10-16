@@ -2697,6 +2697,42 @@ func _execute_gain_mana(player_stats: PlayerStats) -> void:
 		player_stats.gain_mana(20)
 		print("[CARD] Gained 20 mana!")
 		
+## The damage roll every single-target attack executor shares: base (+ the
+## card's bonus_damage) -> stat scaling by school -> Empower -> Strengthen ->
+## crit -> the Cursed cut. Returns the damage; the caller delivers it (to one
+## target, a volley, or hands it to main), so each card keeps its own delivery.
+## `crit_target` is the victim crit_multiply's riders need (the Crooked Dueling
+## Shield) where the card passed it; `crit_log` is printed on a crit.
+func _roll_hit_damage(base: int, player_stats: PlayerStats, buff_mgr: BuffManager, spell: bool = false,
+		crit_target = null, is_empowered: bool = false, damage_reduction_pct: float = 0.0, crit_log: String = "") -> int:
+	var total = base + bonus_damage
+	if player_stats:
+		if spell:
+			total = player_stats.get_effective_spell_damage(total)
+		else:
+			total = player_stats.get_effective_physical_damage(total)
+	if is_empowered and player_stats:
+		total += player_stats.empower_damage_bonus
+	if buff_mgr:
+		total += buff_mgr.consume_strengthen()
+		if buff_mgr.roll_crit():
+			total = crit_multiply(total, player_stats, crit_target)
+			if crit_log != "":
+				print(crit_log)
+	# Cursed: reduce damage dealt by percentage
+	if damage_reduction_pct > 0.0:
+		total = max(1, floori(total * (1.0 - damage_reduction_pct)))
+	return total
+
+## Cursed: the attacker takes a share of the damage it dealt.
+func _cursed_self_damage(total: int, self_damage_percent: float, player_stats: PlayerStats, log: bool) -> void:
+	if self_damage_percent > 0.0 and player_stats:
+		var self_dmg = floori(total * self_damage_percent)
+		if self_dmg > 0:
+			player_stats.take_damage(self_dmg)
+			if log:
+				print("[CARD] Cursed: took %d self-damage!" % self_dmg)
+
 func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
 	var total_damage = base_damage + bonus_damage
 
@@ -3308,13 +3344,7 @@ func _execute_armor_break(player_stats: PlayerStats, buff_mgr: BuffManager = nul
 
 func _execute_charge(_target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Damage calculated here, movement + multi-hit + knockback handled by main.gd
-	var total_damage = base_damage + bonus_damage
-	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(total_damage)
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats)
+	var total_damage := _roll_hit_damage(base_damage, player_stats, buff_mgr)
 	last_damage_dealt = total_damage
 	print("[CARD] Charge! %d damage to all enemies in path" % total_damage)
 
@@ -3323,13 +3353,7 @@ func _execute_heroic_leap(_target, player_stats: PlayerStats, buff_mgr: BuffMana
 	var leap_distance = 3
 	if player_stats:
 		leap_distance = max(2, player_stats.strength)
-	var total_damage = leap_distance * 3 + bonus_damage
-	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(total_damage)
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats)
+	var total_damage := _roll_hit_damage(leap_distance * 3, player_stats, buff_mgr)
 	last_damage_dealt = total_damage
 	print("[CARD] Heroic Leap! %d paces, %d damage on landing" % [leap_distance, total_damage])
 
@@ -3479,13 +3503,7 @@ func _execute_loaded_die(player_stats: PlayerStats) -> void:
 	print("[CARD] Loaded Die! Next card's odds increased by 10%")
 
 func _execute_worst_that_could_happen(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	var total_damage = 5 + bonus_damage
-	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(5 + bonus_damage)
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats)
+	var total_damage := _roll_hit_damage(5, player_stats, buff_mgr)
 	# Always deal base 5 damage
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
@@ -3557,13 +3575,7 @@ func _execute_lady_luck(target, player_stats: PlayerStats, buff_mgr: BuffManager
 	print("[CARD] Lady Luck! Enlightened: +30% crit chance for 5 attacks")
 
 func _execute_if_pigs_could_fly(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	var total_damage = 15 + bonus_damage
-	if player_stats:
-		total_damage = player_stats.get_effective_spell_damage(15 + bonus_damage)
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats, target)
+	var total_damage := _roll_hit_damage(15, player_stats, buff_mgr, true, target)
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
 	last_damage_dealt = total_damage
@@ -3622,13 +3634,7 @@ func _execute_exacerbate_wounds(target, player_stats: PlayerStats, deck_manager 
 	var discard_count = 0
 	if deck_manager:
 		discard_count = deck_manager.true_discards_this_cycle  # discards, never plays
-	var total_damage = discard_count * 3 + bonus_damage
-	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(total_damage)
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats)
+	var total_damage := _roll_hit_damage(discard_count * 3, player_stats, buff_mgr)
 	last_damage_dealt = total_damage
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
@@ -3766,13 +3772,7 @@ func _execute_tighten_string(player_stats: PlayerStats, buff_mgr: BuffManager = 
 	print("[CARD] Tighten String! Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, +20% crit")
 
 func _execute_down_town(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	var total_damage = base_damage + bonus_damage
-	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(total_damage)
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats)
+	var total_damage := _roll_hit_damage(base_damage, player_stats, buff_mgr)
 	last_damage_dealt = total_damage
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
@@ -3808,13 +3808,7 @@ func _execute_sky_attack(target, player_stats: PlayerStats, buff_mgr: BuffManage
 		last_damage_dealt = 0
 		print("[CARD] Sky Attack whiffed — the discarded card had no damage")
 		return
-	var total_damage = shot_base + bonus_damage
-	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(total_damage)
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats)
+	var total_damage := _roll_hit_damage(shot_base, player_stats, buff_mgr)
 	last_damage_dealt = total_damage
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
@@ -3843,39 +3837,21 @@ func _execute_last_breath(target, player_stats: PlayerStats, buff_mgr: BuffManag
 			player_stats.spend_mana(mana_used)
 	# Damage is a design constant: 3 per 10 mana keeps the old damage-per-cast
 	# feel after the x10 mana rescale.
-	var total_damage = floori(mana_used * 0.3) + bonus_damage
-	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(total_damage)
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats)
+	var total_damage := _roll_hit_damage(floori(mana_used * 0.3), player_stats, buff_mgr)
 	last_damage_dealt = total_damage
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
 	print("[CARD] Last Breath! Consumed %d mana for %d damage" % [mana_used, total_damage])
 
 func _execute_mixed_bag(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	var total_damage = base_damage + bonus_damage
-	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(total_damage)
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats)
+	var total_damage := _roll_hit_damage(base_damage, player_stats, buff_mgr)
 	last_damage_dealt = total_damage
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
 	print("[CARD] Mixed Bag! Standard arrow for %d damage" % total_damage)
 
 func _execute_quick_arrow(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	var total_damage = base_damage + bonus_damage
-	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(total_damage)
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats)
+	var total_damage := _roll_hit_damage(base_damage, player_stats, buff_mgr)
 	last_damage_dealt = total_damage
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
@@ -3895,13 +3871,7 @@ func _execute_round_em_up(target, _player_stats: PlayerStats) -> void:
 	print("[CARD] Round 'Em Up! Enemies near target point displaced inward")
 
 func _execute_trip(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	var total_damage = 5 + bonus_damage
-	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(5 + bonus_damage)
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats, target)
+	var total_damage := _roll_hit_damage(5, player_stats, buff_mgr, false, target)
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
 	if target and target.has_method("apply_debuff"):
@@ -3927,13 +3897,7 @@ func _execute_defensive_awareness(player_stats: PlayerStats, buff_mgr: BuffManag
 
 func _execute_sweeping_disarm(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Store effective damage for main.gd world effects to apply to all nearby enemies
-	var total_damage = base_damage + bonus_damage
-	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(base_damage + bonus_damage)
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats)
+	var total_damage := _roll_hit_damage(base_damage, player_stats, buff_mgr)
 	last_damage_dealt = total_damage
 	# Actual damage and disarm applied by main.gd _apply_card_world_effects to all nearby enemies
 	print("[CARD] Sweeping Disarm! %d damage, surrounding enemies disarmed" % total_damage)
@@ -3941,13 +3905,7 @@ func _execute_sweeping_disarm(target, player_stats: PlayerStats, buff_mgr: BuffM
 func _execute_consecutive_snap(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# snap_uses_at_play = completed uses BEFORE this play, captured at play
 	# time so deferred execution can't run one use ahead.
-	var snap_damage = base_damage + bonus_damage + (snap_uses_at_play * 9)
-	if player_stats:
-		snap_damage = player_stats.get_effective_physical_damage(snap_damage)
-	if buff_mgr:
-		snap_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			snap_damage = crit_multiply(snap_damage, player_stats)
+	var snap_damage := _roll_hit_damage(base_damage + (snap_uses_at_play * 9), player_stats, buff_mgr)
 	last_damage_dealt = snap_damage
 	if target and target.has_method("take_damage"):
 		target.take_damage(snap_damage, true)
@@ -5227,14 +5185,7 @@ func _execute_spider_senses(player_stats: PlayerStats) -> void:
 		print("[CARD] Spider Senses! Gained 5 armor")
 
 func _execute_thrown_stone(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	var total_damage = base_damage + bonus_damage
-	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(total_damage)
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats)
-			print("[CARD] Thrown Stone CRIT!")
+	var total_damage := _roll_hit_damage(base_damage, player_stats, buff_mgr, false, null, false, 0.0, "[CARD] Thrown Stone CRIT!")
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
 		last_damage_dealt = total_damage
@@ -5444,14 +5395,7 @@ func _execute_blade_barrage(target, player_stats: PlayerStats, deck_manager, buf
 		for c in deck_manager.hand:
 			if c.card_type == CardType.ATTACK:
 				attack_count += 1
-	var total_damage = attack_count * 10 + bonus_damage
-	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(total_damage)
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats)
-			print("[CARD] Blade Barrage CRIT!")
+	var total_damage := _roll_hit_damage(attack_count * 10, player_stats, buff_mgr, false, null, false, 0.0, "[CARD] Blade Barrage CRIT!")
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
 		last_damage_dealt = total_damage
@@ -5619,14 +5563,7 @@ static func create_energy_ball() -> Card:
 
 func _execute_energy_ball(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Damage is set dynamically when Energy Ball is created (based on Absorb Essence hits)
-	var total_damage = damage + bonus_damage
-	if player_stats:
-		total_damage = player_stats.get_effective_spell_damage(total_damage)
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats)
-			print("[CARD] Energy Ball CRIT!")
+	var total_damage := _roll_hit_damage(damage, player_stats, buff_mgr, true, null, false, 0.0, "[CARD] Energy Ball CRIT!")
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
 		last_damage_dealt = total_damage
