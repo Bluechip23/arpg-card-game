@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_xg8gw"]
+
+[resource]
+script = ExtResource("1_xg8gw")
+item_name = "Cuffs of Current"
+item_type = 5
+item_type_name = "Gauntlets"
+rarity = 3
+level_3_overrides = {
+"intelligence_bonus": 8
+}
+level_3_description = "+8 INT, +2 hand size. Draw 1 card every 3 cycles. Skill — Zeet: deal INT/2 damage; bounces once, dealing 1/4 damage to an enemy near the target (15 tempo CD)."
+weight = 10
+intelligence_bonus = 6
+hand_size_bonus = 2
+gauntlet_skill_type = 1
+gauntlet_skill_name = "Zeet"
+gauntlet_skill_description = "Deal damage equal to your INT / 2."
+gauntlet_skill_cooldown = 3
+gauntlet_skill_mana_cost = 35
+gauntlet_skill_effect_id = "zeet"
+draw_every_cycles = 3
+description = "+6 INT, +2 hand size. Draw 1 card every 3 cycles. Skill — Zeet: deal damage equal to your INT / 2 (35 mana, 15 tempo CD)."
+appearance = "Four gold rings — one at each wrist and one just below each elbow — with light blue electricity coming off them."
+appearance_icon = "res://assets/items/mythic/cuffs_of_current.png"

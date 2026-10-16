@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_ud6f7"]
+
+[resource]
+script = ExtResource("1_ud6f7")
+item_name = "Studded belt"
+item_type = 3
+item_type_name = "Belt"
+weight = 15
+strength_bonus = 2
+health_bonus = 5
+card_slots = 2
+on_self_thorns = 3
+description = "+5 health, +2 STR. On-self: gain 3 thorns."

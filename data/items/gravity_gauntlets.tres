@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_xhtim"]
+
+[resource]
+script = ExtResource("1_xhtim")
+item_name = "Gravity Gauntlets"
+item_type = 5
+item_type_name = "Gauntlets"
+rarity = 2
+weight = 20
+intelligence_bonus = 6
+wisdom_bonus = 3
+agility_bonus = 2
+gauntlet_skill_type = 1
+gauntlet_skill_name = "Suck"
+gauntlet_skill_description = "Pull enemies within 2 squares into the target area."
+gauntlet_skill_cooldown = 2
+gauntlet_skill_mana_cost = 10
+gauntlet_skill_effect_id = "suck"
+card_slots = 1
+on_self_root_offensive = 1
+description = "+6 INT, +3 WIS, +2 AGI. On-self: offensive cards hold the target in place for 5 tempo (attacks/casts fine, no movement). Skill — Suck: pull enemies into the target area, 2-square AOE (10 mana, 10 tempo CD)."

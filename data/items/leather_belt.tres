@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_x5vv7"]
+
+[resource]
+script = ExtResource("1_x5vv7")
+item_name = "Leather belt"
+item_type = 3
+item_type_name = "Belt"
+weight = 10
+strength_bonus = 3
+agility_bonus = 1
+card_slots = 1
+on_self_damage = 1
+description = "+3 STR, +1 AGI. On-self: +1 damage."

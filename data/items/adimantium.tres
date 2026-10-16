@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_8v48l"]
+
+[resource]
+script = ExtResource("1_8v48l")
+item_name = "Adimantium"
+item_type = 1
+item_type_name = "Chest"
+rarity = 3
+level_3_overrides = {
+"exposed_armor_cooldown_cycles": 10,
+"exposed_armor_gain": 15
+}
+level_3_description = "+9 STR, -2 AGI, -1 DEX. On-self: +8 block. Each tile you move on tempo costs 1 extra tempo. When your armor is broken through, gain 15 armor (10-cycle cooldown). Grants Adimantium Wall: gain 55 block; the card is jailed 40 tempo after play (35 mana, 4 tempo)."
+weight = 350
+strength_bonus = 8
+dexterity_bonus = -1
+agility_bonus = -2
+granted_card_ids = Array[String](["adimantium_wall"])
+card_slots = 2
+on_self_block = 8
+exposed_armor_gain = 10
+exposed_armor_cooldown_cycles = 15
+movement_tempo_penalty = 1
+description = "+8 STR, -2 AGI, -1 DEX. On-self: +8 block. Each tile you move on tempo costs 1 extra tempo. When your armor is broken through, gain 10 armor (15-cycle cooldown). Grants Adimantium Wall: gain 40 block; the card is jailed 40 tempo after play (35 mana, 4 tempo)."
+appearance = "Teal chest piece with a gold jewel on the chest."
+appearance_icon = "res://assets/items/mythic/adimantium.png"

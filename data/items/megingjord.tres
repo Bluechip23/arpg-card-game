@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_ita1w"]
+
+[resource]
+script = ExtResource("1_ita1w")
+item_name = "Megingjörð"
+item_type = 3
+item_type_name = "Belt"
+rarity = 3
+level_3_overrides = {
+"health_bonus": 45,
+"strength_bonus": 20
+}
+level_3_description = "+20 STR, +45 life. On-self: double damage, double mana cost. Grants Gift from the Gods: gain 4 Enlightened and cleanse 3 negative effects."
+weight = 50
+strength_bonus = 15
+health_bonus = 30
+granted_card_ids = Array[String](["gift_from_the_gods"])
+card_slots = 1
+on_self_damage_multiplier = 2.0
+on_self_mana_multiplier = 2.0
+description = "+15 STR, +30 life. On-self: double damage, double mana cost. Grants Gift from the Gods: gain 3 Enlightened (10% crit chance, one stack consumed per attack)."
+appearance = "Thor's girdle: a broad iron-studded leather band with a massive square buckle scored with runes."
+appearance_icon = "res://assets/items/mythic/megingjord.png"

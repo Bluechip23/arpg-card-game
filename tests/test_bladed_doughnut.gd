@@ -29,7 +29,7 @@ func _initialize() -> void:
 
 func _test_item() -> void:
 	print("-- The item --")
-	var d = ItemData.create_bladed_doughnut()
+	var d = ItemData.create("bladed_doughnut")
 	_check(d.rarity == ItemData.Rarity.MYTHIC, "Bladed Doughnut is Mythic")
 	_check(d.strength_bonus == 15, "offers +15 STR")
 	_check(d.on_kill_card_id == "sprinkle", "skill: on kill, conjure a Sprinkle")
@@ -76,7 +76,7 @@ func _test_on_kill_conjure() -> void:
 	inv.on_enemy_killed()
 	_check(dm.hand.is_empty(), "no doughnut equipped -> no card conjured")
 
-	var d = ItemData.create_bladed_doughnut()
+	var d = ItemData.create("bladed_doughnut")
 	_check(inv.equip_item(d, 0), "doughnut equips as a weapon")
 	inv.on_enemy_killed()
 	_check(dm.hand.size() == 1 and dm.hand[0].card_id == "sprinkle",
@@ -103,7 +103,7 @@ func _test_on_kill_conjure() -> void:
 
 func _test_wooden_sword() -> void:
 	print("-- The Wooden Sword (Olorin's trade) --")
-	var sword = ItemData.create_wooden_sword()
+	var sword = ItemData.create("wooden_sword")
 	_check(sword.rarity == ItemData.Rarity.COMMON, "Wooden Sword is Common (Basic no longer exists)")
 	_check(sword.strength_bonus == 0 and sword.weapon_damage == 0 and sword.armor_bonus == 0
 		and sword.health_bonus == 0 and sword.mana_bonus == 0,
@@ -129,7 +129,7 @@ func _test_wooden_sword() -> void:
 	inv.enforce_mythic_limit = false
 	var dm = DeckManager.new()
 	inv.connect_deck_manager(dm)
-	var gifted = ItemData.create_wooden_sword()
+	var gifted = ItemData.create("wooden_sword")
 	_check(inv.equip_item(gifted, 0), "Wooden Sword equips as a weapon")
 	var in_deck = dm.discard_pile.filter(func(c): return c.card_id == "splinter")
 	_check(in_deck.size() == 1, "equipping grants Splinter into the deck")

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_r22vj"]
+
+[resource]
+script = ExtResource("1_r22vj")
+item_name = "Hammer of Ajax"
+rarity = 2
+weight = 250
+strength_bonus = 8
+determination_bonus = 8
+agility_bonus = -2
+weapon_subtype = 7
+granted_card_ids = Array[String](["feed_into_the_pain"])
+card_slots = 1
+on_self_max_hp_damage_percent = 10.0
+description = "+8 DET, +8 STR, -2 AGI. On-self: +damage equal to 10% of your max health. Grants Feed into the Pain (instant): when you take damage below 30% health, gain Strengthen 20 for 4 attacks and 25 temp HP for 5 tempo."

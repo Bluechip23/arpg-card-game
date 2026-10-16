@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_sfnek"]
+
+[resource]
+script = ExtResource("1_sfnek")
+item_name = "Castle wall"
+item_type_name = "Shield"
+rarity = 2
+weight = 50
+strength_bonus = 8
+wisdom_bonus = -5
+agility_bonus = -4
+health_bonus = 55
+hand_size_bonus = -3
+weapon_subtype = 2
+granted_card_ids = Array[String](["huck"])
+card_slots = 2
+on_self_block = 8
+overdraw_heal = 5
+overdraw_spell_id = "rain_of_arrows"
+overdraw_spell_mana = 45
+overdraw_spell_charges = 3
+overdraw_spell_recharge = 15
+description = "+8 STR, -4 AGI, -5 WIS, +55 health, -3 hand size. 2 card slots. On-self: +8 block. Overdraw: heal 5 and loose Rain of Arrows — 45 mana for 10 damage in a 3-square radius around you (3 charges, one back every 15 tempo, and charges refill even when some remain). Grants Huck: deal damage equal to your armor, then lose all of it (100 mana, 5 tempo)."

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_ynkvp"]
+
+[resource]
+script = ExtResource("1_ynkvp")
+item_name = "Fire Quiver"
+item_type = 7
+item_type_name = "Quiver"
+rarity = 1
+weight = 20
+dexterity_bonus = 3
+agility_bonus = 1
+card_slots = 2
+on_self_damage = 2
+on_self_apply_burn = 1
+description = "+3 DEX, +1 AGI. 2 card slots. On-self: +2 damage and apply 1 Burn."

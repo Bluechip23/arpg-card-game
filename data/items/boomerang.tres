@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_5xqv5"]
+
+[resource]
+script = ExtResource("1_5xqv5")
+item_name = "Boomerang"
+weight = 5
+strength_bonus = 3
+weapon_subtype = 3
+description = "+3 STR. A one-handed throwing arm; pairs with a quiver."

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_ah5y0"]
+
+[resource]
+script = ExtResource("1_ah5y0")
+item_name = "Buffed Leather"
+item_type = 1
+item_type_name = "Chest"
+rarity = 1
+weight = 100
+health_bonus = 40
+description = "+40 health."

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_y8a4y"]
+
+[resource]
+script = ExtResource("1_y8a4y")
+item_name = "Short Sword"
+weight = 25
+strength_bonus = 3
+dexterity_bonus = 2
+granted_card_ids = Array[String](["slice"])
+description = "+2 DEX, +3 STR. Grants Slice: deal 15 damage (10 mana, 3 tempo)."

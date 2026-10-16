@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_2rypf"]
+
+[resource]
+script = ExtResource("1_2rypf")
+item_name = "Feathered Hat"
+item_type = 0
+item_type_name = "Helm"
+rarity = 2
+weight = 10
+agility_bonus = 8
+card_slots = 2
+on_self_damage = 5
+on_self_crit_damage_percent = 10.0
+on_self_flash_counter_drain = 2
+flash_crit_threshold = 25
+description = "+8 AGI, 2 card slots. On-self: +5 damage, +10% crit damage, and -2 from the flash point counter. Once you have spent an accumulated 25 flash points, your next ranged offensive card crits (resets to 0 on use)."

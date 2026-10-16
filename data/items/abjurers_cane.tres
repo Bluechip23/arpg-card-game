@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_w1uy8"]
+
+[resource]
+script = ExtResource("1_w1uy8")
+item_name = "Abjurers Cane"
+rarity = 2
+weight = 25
+intelligence_bonus = 4
+wisdom_bonus = 5
+agility_bonus = 4
+weapon_subtype = 10
+granted_card_ids = Array[String](["defensive_sacrifice", "defensive_sacrifice"])
+discard_gain_block = 3
+description = "+5 WIS, +4 INT, +4 AGI. Two-handed. When you discard a card, gain 3 block. Grants TWO copies of Defensive Sacrifice (instant): when an enemy attack lands on you, you may discard a card of your choice — if you do, halve the damage and gain 10 mana; decline and the card stays in your hand."

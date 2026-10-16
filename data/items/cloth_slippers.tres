@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_pmxyd"]
+
+[resource]
+script = ExtResource("1_pmxyd")
+item_name = "Cloth Slippers"
+item_type = 4
+item_type_name = "Boots"
+weight = 5
+dexterity_bonus = 2
+agility_bonus = 1
+description = "+2 DEX, +1 AGI."

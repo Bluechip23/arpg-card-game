@@ -558,7 +558,7 @@ func _get_vendor_items(vendor_type: String) -> Array[ItemData]:
 	var items: Array[ItemData] = []
 	match vendor_type:
 		"armory":
-			items.append(ItemData.create_wooden_sword())
+			items.append(ItemData.create("wooden_sword"))
 		"accessory":
 			# No accessory items exist right now — the shelf stands empty
 			# until new accessories are added to ItemData.

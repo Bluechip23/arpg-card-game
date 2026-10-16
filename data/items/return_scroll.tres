@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_md32l"]
+
+[resource]
+script = ExtResource("1_md32l")
+item_name = "Return Scroll"
+item_type = 8
+item_type_name = "Scroll"
+special_id = "return_scroll"
+description = "Right-click to open a portal back to town. Walk in with [Shift]. Its twin waits in town to bring you back."

@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_1ce1x"]
+
+[resource]
+script = ExtResource("1_1ce1x")
+item_name = "Hide of Garmr"
+item_type = 1
+item_type_name = "Chest"
+rarity = 3
+level_3_overrides = {
+"agility_bonus": 9,
+"death_crit_damage_per_stack": 5.0,
+"death_crit_stack_radius": 2,
+"dexterity_bonus": 9,
+"strength_bonus": 9
+}
+level_3_description = "+26 health, +9 AGI, +9 DEX, +9 STR. When there is a death of any kind within 2 squares of you (your own summons included), gain a stack: each stack grants +5% crit damage. At 5 stacks, purge them all and take 10% of your current health as damage. Grants Ragnarok: release all jailed cards into your hand — for each, heal 15 and gain 10% crit chance and 7 STR for 10 tempo; jailed 30 tempo after play (45 mana, 5 tempo)."
+weight = 80
+strength_bonus = 8
+dexterity_bonus = 8
+agility_bonus = 8
+health_bonus = 25
+granted_card_ids = Array[String](["ragnarok"])
+description = "+25 health, +8 AGI, +8 DEX, +8 STR. Grants Ragnarok: release all jailed cards into your hand — for each, heal 10 and gain 10% crit chance and 5 STR for 10 tempo; jailed 30 tempo after play (45 mana, 5 tempo)."
+appearance = "Furry grey hide in the shape of a chest piece, a spiked collar and a wolf head at the chest."
+appearance_icon = "res://assets/items/mythic/hide_of_garmr.png"

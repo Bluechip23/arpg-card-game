@@ -47,7 +47,7 @@ func _initialize() -> void:
 
 func _test_mauls_sabre() -> void:
 	print("-- Mauls Sabre: colored slots --")
-	var sabre = ItemData.create_mauls_sabre()
+	var sabre = ItemData.create("mauls_sabre")
 	_check(sabre.slot_colors == ["blue", "red"], "a blue slot and a red slot")
 	_check(sabre.hand_size_bonus == 1, "+1 hand size")
 	var blue_fx: Dictionary = sabre.slot_effects[0]
@@ -72,7 +72,7 @@ func _test_mauls_sabre() -> void:
 	sabre.last_color_played = "red"
 	_check(second.get_burden_tempo_cost() == base, "wrong color primed: full tempo again")
 	# An uncolored item is untouched by the machinery.
-	var plain = ItemData.create_pick()
+	var plain = ItemData.create("pick")
 	var pc = Card.create_raged_circulation()   # Axe-labelled: it really slots
 	_check(plain.slot_card(pc), "an Axe card slots into the Pick")
 	_check(plain.get_slot_color(pc) == "" and plain.get_slot_effect(pc).is_empty(),
@@ -90,12 +90,12 @@ func _test_stephen_swap_perk() -> void:
 	_check(inv.get_swap_tempo_cost(ItemData.ItemType.CHEST) == 9,
 		"armor still costs Stephen full price")
 	# Build switch: a weapons-only difference is free.
-	var sword = ItemData.create_short_sword()
+	var sword = ItemData.create("short_sword")
 	inv.equip_item(sword, 0)
 	inv.switch_build(1)  # initializes build 2 as a copy
 	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
 	inv.stored_items.append(sword)
-	var pick = ItemData.create_pick()
+	var pick = ItemData.create("pick")
 	inv.equip_item(pick, 0)
 	var back = inv.switch_build(0)  # restore the sword build: only hands differ
 	_check(back["success"] and back["tempo_cost"] == 0,
@@ -130,7 +130,7 @@ func _test_roster() -> void:
 			"%s is a mythic with appearance + icon" % nm)
 	# weapon_damage was deliberately removed from Bessy — the stat is inert
 	# (no combat path reads it; see the note in create_bessy).
-	_check(ItemData.create_bessy().weapon_damage == 0, "Bessy no longer carries inert base weapon damage")
+	_check(ItemData.create("bessy").weapon_damage == 0, "Bessy no longer carries inert base weapon damage")
 
 func _test_cards() -> void:
 	print("-- Granted cards --")
@@ -154,17 +154,17 @@ func _test_cards() -> void:
 	for cid in ["hard_helmet", "slice", "death_vortex", "earth_rattle", "feed_into_the_pain",
 			"psionic_flow", "purge_wrath", "sanguine_the_penguin", "wrath_of_the_sea", "monk_of_the_night"]:
 		_check(Card.DROP_EXCLUDED_CARD_IDS.has(cid), "%s never drops randomly" % cid)
-	var aa = ItemData.create_axes_axe()
+	var aa = ItemData.create("axes_axe")
 	_check(aa.granted_card_ids.count("death_vortex") == 3, "Axe's Axe grants 3 Death Vortexes")
-	var ll = ItemData.create_laurentius_lost_spear()
+	var ll = ItemData.create("laurentius_lost_spear")
 	_check(ll.granted_card_ids.count("psionic_flow") == 2, "Laurentius grants 2 Psionic Flows")
 
 func _test_pairing() -> void:
 	print("-- Side Card Sabre pairing --")
 	var stats = _mk_stats()
 	var inv = _mk_inv(stats)
-	var main_sword = ItemData.create_short_sword()
-	var sabre = ItemData.create_side_card_sabre()
+	var main_sword = ItemData.create("short_sword")
+	var sabre = ItemData.create("side_card_sabre")
 	inv.equip_item(main_sword, 0)
 	inv.equip_item(sabre, 1)
 	_check(sabre.pair_active, "sabre pairs beside a main-hand sword")
@@ -181,7 +181,7 @@ func _test_spartan() -> void:
 	print("-- Spartan Spear shield synergy --")
 	var stats = _mk_stats()
 	var inv = _mk_inv(stats)
-	var spear = ItemData.create_spartan_spear()
+	var spear = ItemData.create("spartan_spear")
 	inv.equip_item(spear, 0)
 	_check(stats.equipment_melee_reach == 0, "no shield -> no reach")
 	var shield = ItemData.new()
@@ -202,7 +202,7 @@ func _test_wrath() -> void:
 	print("-- Fallen's Wrath --")
 	var stats = _mk_stats()
 	var inv = _mk_inv(stats)
-	var sword = ItemData.create_fallens_wrath()
+	var sword = ItemData.create("fallens_wrath")
 	inv.equip_item(sword, 0)
 	for _i in range(9):
 		stats.take_damage(2)
@@ -234,13 +234,13 @@ func _test_bessy_and_flash() -> void:
 	_check(stats.get_attack_speed_threshold() == base_threshold + 5,
 		"attack-speed penalty channel slows procs by 5")
 	stats.equipment_attack_speed_penalty = 0
-	var bessy = ItemData.create_bessy()
+	var bessy = ItemData.create("bessy")
 	_check(inv.equip_item(bessy, 0), "Bessy equips at 60 STR")
 	_check(stats.equipment_attack_speed_penalty == 5, "Bessy sets the penalty while wielded")
 	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
 	_check(stats.equipment_attack_speed_penalty == 0, "penalty clears on unequip")
 
-	var axe = ItemData.create_axes_axe()
+	var axe = ItemData.create("axes_axe")
 	inv.equip_item(axe, 0)
 	stats.current_flash_points = stats.get_max_flash_points()
 	var cap: int = stats.get_max_flash_points()

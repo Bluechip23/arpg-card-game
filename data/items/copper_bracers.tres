@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_qcfxt"]
+
+[resource]
+script = ExtResource("1_qcfxt")
+item_name = "Copper Bracers"
+item_type = 5
+item_type_name = "Gauntlets"
+rarity = 1
+weight = 10
+strength_bonus = 2
+wisdom_bonus = 3
+agility_bonus = 1
+health_bonus = 10
+gauntlet_skill_type = 1
+gauntlet_skill_name = "Clang"
+gauntlet_skill_description = "Gain 8 armor."
+gauntlet_skill_cooldown = 3
+gauntlet_skill_mana_cost = 25
+gauntlet_skill_effect_id = "clang"
+description = "+10 life, +2 STR, +1 AGI, +3 WIS. Skill — Clang: gain 8 armor (25 mana, 15 tempo CD)."

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_u3cg3"]
+
+[resource]
+script = ExtResource("1_u3cg3")
+item_name = "Spiked Shield"
+item_type_name = "Shield"
+rarity = 1
+weight = 50
+strength_bonus = 2
+intelligence_bonus = 2
+wisdom_bonus = 2
+weapon_subtype = 2
+thorns_per_cycle = 1
+description = "+2 STR, +2 WIS, +2 INT. Gain 1 Thorns every cycle."

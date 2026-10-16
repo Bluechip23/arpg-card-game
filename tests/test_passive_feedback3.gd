@@ -238,7 +238,7 @@ func _test_lethal(stats, pt, dummy: Enemy) -> void:
 	pt._trigger_skill_tree_stephen_on_card_play(Card.create_harden())
 	_check(dummy.current_health == hp0 and stats.st_lethal_last_tempo == -100, "bare-handed, an enemy 3 tiles off is out of reach: no attack, no cooldown spent")
 	var inv = main.player.get_inventory()
-	_check(inv.equip_item(ItemData.create_short_bow(), 0), "a bow equips")
+	_check(inv.equip_item(ItemData.create("short_bow"), 0), "a bow equips")
 	pt._trigger_skill_tree_stephen_on_card_play(Card.create_slash())  # an attack never triggers it
 	_check(dummy.current_health == hp0, "an attack card does not trigger it")
 	pt._trigger_skill_tree_stephen_on_card_play(Card.create_harden())

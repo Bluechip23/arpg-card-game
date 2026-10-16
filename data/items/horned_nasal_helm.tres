@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_bb4tk"]
+
+[resource]
+script = ExtResource("1_bb4tk")
+item_name = "Horned Nasal Helm"
+item_type = 0
+item_type_name = "Helm"
+rarity = 2
+weight = 30
+determination_bonus = 6
+card_slots = 1
+on_self_apply_bleed = 1
+auto_purge_per_cycle = 2
+auto_purge_interval_cycles = 3
+description = "+6 DET. On-self: if an offensive card, apply 1 Bleed. Purge 2 random debuffs every 15 tempo while equipped."

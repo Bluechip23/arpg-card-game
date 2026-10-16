@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_5mmm3"]
+
+[resource]
+script = ExtResource("1_5mmm3")
+item_name = "Friendship Ring"
+item_type = 2
+item_type_name = "Ring"
+rarity = 1
+weight = 5
+wisdom_bonus = 4
+health_bonus = 10
+mana_bonus = 75
+healing_bonus = 5
+description = "+75 mana. +10 health, +4 WIS, +5 to heals."

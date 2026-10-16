@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_fxfas"]
+
+[resource]
+script = ExtResource("1_fxfas")
+item_name = "Mane of Narashimha"
+item_type = 0
+item_type_name = "Helm"
+rarity = 3
+level_3_overrides = {
+"determination_bonus": 7,
+"intelligence_bonus": 7,
+"strength_bonus": 12,
+"void_resistance_percent": 8.0
+}
+level_3_description = "+12 STR, +7 INT, +7 DET. Grants Neither Man nor Beast. Void aura: enemies within 2 squares take 8% more damage from you."
+weight = 15
+strength_bonus = 10
+intelligence_bonus = 5
+determination_bonus = 5
+granted_card_ids = Array[String](["neither_man_nor_beast"])
+card_slots = 1
+void_resistance_percent = 5.0
+void_resistance_radius = 2
+description = "+10 STR, +5 INT, +5 DET. Grants Neither Man nor Beast: deal 10 base damage ignoring all resistances and armor; target cannot heal that damage for 10 tempo (Narashimha) (10 mana, 2 tempo). Void aura: enemies within 2 squares take 5% more damage from you."
+appearance = "An enormous lion's mane. It hoods the top of the head and falls all the way down the back to mid-spine."
+appearance_icon = "res://assets/items/mythic/mane_of_narashimha.png"

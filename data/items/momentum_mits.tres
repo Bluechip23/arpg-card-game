@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_r1pcd"]
+
+[resource]
+script = ExtResource("1_r1pcd")
+item_name = "Momentum Mits"
+item_type = 5
+item_type_name = "Gauntlets"
+rarity = 2
+weight = 10
+strength_bonus = 5
+intelligence_bonus = 5
+wisdom_bonus = -3
+agility_bonus = -3
+gauntlet_skill_type = 1
+gauntlet_skill_name = "Continue to move"
+gauntlet_skill_description = "Draw a card."
+gauntlet_skill_cooldown = 5
+gauntlet_skill_mana_cost = 10
+gauntlet_skill_effect_id = "continue_to_move"
+card_slots = 1
+on_self_draw_card = 1
+description = "+5 STR, +5 INT, -3 WIS, -3 AGI. On-self: draw a card. Skill — Continue to move: draw a card (25 tempo CD)."

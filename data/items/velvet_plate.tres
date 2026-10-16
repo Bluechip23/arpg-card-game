@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_qt40u"]
+
+[resource]
+script = ExtResource("1_qt40u")
+item_name = "Velvet Plate"
+item_type = 1
+item_type_name = "Chest"
+rarity = 1
+weight = 120
+strength_bonus = 5
+health_bonus = 20
+card_slots = 1
+on_self_heal = 10
+description = "+5 STR, +20 health. On-self: heal 10."

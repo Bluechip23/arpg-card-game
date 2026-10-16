@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_udx63"]
+
+[resource]
+script = ExtResource("1_udx63")
+item_name = "Umbral Eclipse"
+rarity = 3
+level_3_overrides = {
+"armor_gain_melee_damage": 8,
+"insight_flash_restore": 3
+}
+level_3_description = "+9 WIS, +9 AGI, +4 STR, +16 mana. Gaining armor deals 8 damage to an enemy in melee range. Insight draws restore 3 flash points. Grants Monk of the Night (Maintain): attack cards grant 15% of their damage as block (50 mana, 4 tempo)."
+weight = 200
+strength_bonus = 3
+wisdom_bonus = 8
+agility_bonus = 8
+mana_bonus = 15
+weapon_subtype = 7
+granted_card_ids = Array[String](["monk_of_the_night"])
+card_slots = 2
+armor_gain_melee_damage = 5
+insight_flash_restore = 2
+description = "+8 WIS, +8 AGI, +3 STR, +15 mana. Gaining armor deals 5 damage to an enemy in melee range. Insight draws restore 2 flash points. Grants Monk of the Night (Maintain): attack cards grant 10% of their damage as block (50 mana, 4 tempo)."
+appearance = "A double-sided hammer — a head on both ends of the shaft — with the full lunar cycle inlaid along the handle and a full moon on both hammer faces."
+appearance_icon = "res://assets/items/mythic/umbral_eclipse.png"

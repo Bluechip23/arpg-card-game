@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_4wpfw"]
+
+[resource]
+script = ExtResource("1_4wpfw")
+item_name = "Vengeful Shield"
+item_type_name = "Shield"
+rarity = 1
+weight = 50
+strength_bonus = 3
+determination_bonus = 2
+health_bonus = 10
+weapon_subtype = 2
+card_slots = 3
+on_self_knockback = 1
+description = "+10 health, +2 DET, +3 STR. 3 card slots. On-self: the card's target is shoved back 1 space."

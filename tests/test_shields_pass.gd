@@ -65,7 +65,7 @@ func _initialize() -> void:
 func _test_mythic_upgrades() -> void:
 	## Every mythic's forged (Lv.2) numbers, straight off the design sheet.
 	print("-- Mythic upgrades --")
-	var delfin = ItemData.create_delfins_deterministic_round_shield()
+	var delfin = ItemData.create("delfins_deterministic_round_shield")
 	delfin.level_up()
 	_check(delfin.intelligence_bonus == 6 and delfin.wisdom_bonus == 7 and delfin.strength_bonus == 5,
 		"Delfins Lv.2: 6 INT / 7 WIS / 5 STR")
@@ -75,7 +75,7 @@ func _test_mythic_upgrades() -> void:
 	# instance is worth 10 unforged and 15 forged.
 	var stats = _mk_stats()
 	var mage = Card.create_by_id("mage_shield")
-	mage.granted_by_item = ItemData.create_delfins_deterministic_round_shield()
+	mage.granted_by_item = ItemData.create("delfins_deterministic_round_shield")
 	stats.current_armor = 0
 	mage.execute(null, stats, null, 0.0, 0.0, null)
 	var unforged: int = stats.current_armor
@@ -86,14 +86,14 @@ func _test_mythic_upgrades() -> void:
 		"Mage Shield: 10 block unforged -> 15 forged (%d -> %d)" % [unforged, stats.current_armor])
 	_check(mage.block == 10, "and the +5 never sticks to the card")
 
-	var bastion = ItemData.create_steve_rodgers_bastion()
+	var bastion = ItemData.create("steve_rodgers_bastion")
 	bastion.level_up()
 	_check(bastion.strength_bonus == 6 and bastion.dexterity_bonus == 3
 		and bastion.agility_bonus == 5 and bastion.determination_bonus == 5
 		and bastion.mana_bonus == 30, "Bastion Lv.2: 6 STR / 3 DEX / 5 AGI / 5 DET / +30 mana")
 	_check(bastion.damage_taken_mana_gain == 7, "Bastion Lv.2: 7 mana per hit taken")
 
-	var pom = ItemData.create_presence_of_mind()
+	var pom = ItemData.create("presence_of_mind")
 	pom.level_up()
 	_check(pom.intelligence_bonus == 7 and pom.strength_bonus == 9 and pom.wisdom_bonus == 2
 		and pom.mana_bonus == 45 and pom.health_bonus == -10,
@@ -101,7 +101,7 @@ func _test_mythic_upgrades() -> void:
 	_check(is_equal_approx(pom.on_self_block_max_mana_percent, 15.0),
 		"Presence of Mind Lv.2: block worth 15% of max mana")
 
-	var crooked = ItemData.create_crooked_dueling_shield()
+	var crooked = ItemData.create("crooked_dueling_shield")
 	crooked.level_up()
 	_check(crooked.dexterity_bonus == 10 and crooked.agility_bonus == 10 and crooked.strength_bonus == 5,
 		"Crooked Lv.2: 10 DEX / 10 AGI / 5 STR")
@@ -120,7 +120,7 @@ func _test_duelist_crit_rider() -> void:
 	print("-- Crooked Dueling Shield: every crit --")
 	var stats = _mk_stats()
 	var inv = _mk_inv(stats)
-	var crooked = ItemData.create_crooked_dueling_shield()
+	var crooked = ItemData.create("crooked_dueling_shield")
 	var stub = _DebuffStub.new()
 
 	# No shield: crits leave nothing behind.
@@ -166,19 +166,19 @@ func _test_roster() -> void:
 		var m = ItemData.create_by_name(nm)
 		_check(m.appearance != "" and m.appearance_icon != "",
 			"%s is a mythic with appearance + icon" % nm)
-	var sb = ItemData.create_sword_breaker()
+	var sb = ItemData.create("sword_breaker")
 	_check(sb.dexterity_bonus == 3 and sb.determination_bonus == 3
 		and sb.health_bonus == 25 and sb.mana_bonus == 25,
 		"Sword Breaker: +3 DEX, +3 DET, +25 health, +25 mana")
 	# Per the design sheet this one carries exactly what was specified, no more.
-	var ee = ItemData.create_elemental_emblem()
+	var ee = ItemData.create("elemental_emblem")
 	_check(ee.intelligence_bonus == 10 and ee.strength_bonus == -5 and ee.agility_bonus == -3
 		and ee.card_slots == 0 and ee.granted_card_ids.is_empty(),
 		"Elemental emblem is the stat line and nothing else, as specified")
 
 func _test_slots_take_any_card() -> void:
 	print("-- Shield slots take any card --")
-	var wall = ItemData.create_castle_wall()
+	var wall = ItemData.create("castle_wall")
 	_check(wall.card_slots == 2, "Castle wall has 2 slots")
 	var plain = Card.create_slice()
 	_check(wall.can_slot_card(plain) and wall.slot_card(plain),
@@ -195,7 +195,7 @@ func _test_passive_channels() -> void:
 	print("-- Always-on channels --")
 	var stats = _mk_stats()
 	var inv = _mk_inv(stats)
-	inv.equip_item(ItemData.create_buckler(), 0)
+	inv.equip_item(ItemData.create("buckler"), 0)
 	_check(stats.equipment_flat_damage_reduction == 3, "Buckler sets 3 flat reduction")
 	stats.current_health = 200
 	stats.take_damage(10)
@@ -206,7 +206,7 @@ func _test_passive_channels() -> void:
 	_check(stats.equipment_flat_damage_reduction == 0, "reduction clears on unequip")
 
 	# Slotted Rope Half Sleeve: flash points up, block cards down.
-	var sleeve = ItemData.create_slotted_rope_half_sleeve()
+	var sleeve = ItemData.create("slotted_rope_half_sleeve")
 	var flash_before: int = stats.get_max_flash_points()
 	var block_before: int = stats.equipment_defense_card_block
 	inv.equip_item(sleeve, 0)
@@ -220,7 +220,7 @@ func _test_passive_channels() -> void:
 		and stats.equipment_flash_bonus == 0, "both channels clear on unequip")
 
 	# Coffin Lid: lifesteal only swells once you are actually hurt.
-	inv.equip_item(ItemData.create_coffin_lid(), 0)
+	inv.equip_item(ItemData.create("coffin_lid"), 0)
 	stats.current_health = stats.max_health
 	_check(is_equal_approx(stats.get_equipment_lifesteal(), 0.0), "healthy: no bonus lifesteal")
 	stats.current_health = int(stats.max_health * 0.4)
@@ -234,7 +234,7 @@ func _test_on_self_riders() -> void:
 	var inv = _mk_inv(stats)
 
 	# Presence of Mind: block scaled off the mana pool, and it never sticks.
-	var pom = ItemData.create_presence_of_mind()
+	var pom = ItemData.create("presence_of_mind")
 	inv.equip_item(pom, 0)
 	var guard = Card.create_by_id("clang_up")
 	pom.slot_card(guard)
@@ -245,30 +245,30 @@ func _test_on_self_riders() -> void:
 		"10%% of a 100 mana pool rides the block card (armor %d)" % stats.current_armor)
 	_check(guard.block == base_block, "the mana block does not stick to the card")
 	# Forging it to Lv.2 raises the cut to 15%.
-	var pom2 = ItemData.create_presence_of_mind()
+	var pom2 = ItemData.create("presence_of_mind")
 	pom2.level_up()
 	_check(is_equal_approx(pom2.on_self_block_max_mana_percent, 15.0), "Lv.2 Presence of Mind scales at 15%")
 
 	# Delfins: slotted cards roll better.
-	var delfin = ItemData.create_delfins_deterministic_round_shield()
+	var delfin = ItemData.create("delfins_deterministic_round_shield")
 	_check(is_equal_approx(delfin.get_on_self_bonus().get("chance_boost", 0.0), 10.0),
 		"Delfins offers +10% to a slotted card's rolls")
 
 	# Sword Breaker: 4 armor and Fortify on any slotted play.
-	var breaker = ItemData.create_sword_breaker()
+	var breaker = ItemData.create("sword_breaker")
 	_check(int(breaker.get_on_self_bonus().get("armor_any", 0)) == 4
 		and int(breaker.get_on_self_bonus().get("fortify", 0)) == 1,
 		"Sword Breaker: 4 armor + 1 Fortify on-self")
 
 	# Vengeful Shield shoves; the Sleeve discards.
-	_check(int(ItemData.create_vengeful_shield().get_on_self_bonus().get("knockback", 0)) == 1,
+	_check(int(ItemData.create("vengeful_shield").get_on_self_bonus().get("knockback", 0)) == 1,
 		"Vengeful Shield shoves the target 1")
-	var sleeve_fx = ItemData.create_slotted_rope_half_sleeve().get_on_self_bonus()
+	var sleeve_fx = ItemData.create("slotted_rope_half_sleeve").get_on_self_bonus()
 	_check(int(sleeve_fx.get("discard", 0)) == 1 and int(sleeve_fx.get("block", 0)) == 3,
 		"the Sleeve discards 1 for 3 block")
 
 	# Crooked Dueling Shield: colored slots, and the combo pays armor either way.
-	var crooked = ItemData.create_crooked_dueling_shield()
+	var crooked = ItemData.create("crooked_dueling_shield")
 	_check(crooked.slot_colors == ["blue", "red"], "a blue slot and a red slot")
 	_check(int(crooked.slot_effects[0].get("weaken", 0)) == 1
 		and int(crooked.slot_effects[1].get("vulnerable", 0)) == 1,
@@ -276,7 +276,7 @@ func _test_on_self_riders() -> void:
 	_check(int(crooked.slot_effects[0].get("combo_armor", 0)) == 10
 		and int(crooked.slot_effects[1].get("combo_armor", 0)) == 10,
 		"either order pays 10 armor")
-	var crooked2 = ItemData.create_crooked_dueling_shield()
+	var crooked2 = ItemData.create("crooked_dueling_shield")
 	crooked2.level_up()
 	_check(crooked2.dexterity_bonus == 10 and crooked2.agility_bonus == 10 and crooked2.strength_bonus == 5,
 		"Lv.2 Crooked: 10 DEX / 10 AGI / 5 STR")
@@ -291,7 +291,7 @@ func _test_granted_cards() -> void:
 			["Presence of Mind", "mind_over_matter"]]:
 		var item = ItemData.create_by_name(pair[0])
 		_check(item.granted_card_ids.has(pair[1]), "%s grants %s" % [pair[0], pair[1]])
-	var bastion = ItemData.create_steve_rodgers_bastion()
+	var bastion = ItemData.create("steve_rodgers_bastion")
 	_check(bastion.granted_card_ids.has("reverberate_regrowth")
 		and bastion.granted_card_ids.has("bouncing_shield"),
 		"the Bastion grants both of its cards")
@@ -324,7 +324,7 @@ func _test_overdraw_charges() -> void:
 	print("-- Overdraw --")
 	var stats = _mk_stats()
 	var inv = _mk_inv(stats)
-	var wall = ItemData.create_castle_wall()
+	var wall = ItemData.create("castle_wall")
 	inv.equip_item(wall, 0)
 	_check(wall.overdraw_heal == 5 and wall.overdraw_spell_id == "rain_of_arrows"
 		and wall.overdraw_spell_mana == 45, "Castle wall: heal 5 + a 45-mana Rain of Arrows")
@@ -340,11 +340,11 @@ func _test_overdraw_charges() -> void:
 	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
 	_check(wall.overdraw_charges_left == 0, "an unequipped shield holds no charges")
 
-	var sleeve = ItemData.create_slotted_rope_half_sleeve()
+	var sleeve = ItemData.create("slotted_rope_half_sleeve")
 	_check(sleeve.overdraw_card_id == "cinquedea" and sleeve.overdraw_card_max == 5
 		and sleeve.overdraw_card_block == 1, "the Sleeve conjures up to 5 Cinquedeas at +1 block each")
-	_check(ItemData.create_treebeards_branch().overdraw_regen == 3, "Treebeards: 3 Regen on Overdraw")
-	_check(ItemData.create_delfins_deterministic_round_shield().overdraw_peak == 4, "Delfins: Peak 4")
+	_check(ItemData.create("treebeards_branch").overdraw_regen == 3, "Treebeards: 3 Regen on Overdraw")
+	_check(ItemData.create("delfins_deterministic_round_shield").overdraw_peak == 4, "Delfins: Peak 4")
 	stats.free()
 	inv.free()
 
@@ -474,7 +474,7 @@ class _DebuffStub:
 
 func _test_tempo_tax() -> void:
 	print("-- Sword Breaker's tempo tax --")
-	_check(ItemData.create_sword_breaker().blocked_melee_tempo_tax == 2,
+	_check(ItemData.create("sword_breaker").blocked_melee_tempo_tax == 2,
 		"the shield taxes a blocked melee swing 2 tempo")
 	_check(not Enemy.NON_MELEE_ACTIONS.has("attack") and not Enemy.NON_MELEE_ACTIONS.has("maul"),
 		"melee swings are taxable")

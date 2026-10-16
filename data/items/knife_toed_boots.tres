@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_rplub"]
+
+[resource]
+script = ExtResource("1_rplub")
+item_name = "Knife Toed Boots"
+item_type = 4
+item_type_name = "Boots"
+rarity = 1
+weight = 30
+strength_bonus = 5
+dexterity_bonus = 2
+agility_bonus = -3
+granted_card_ids = Array[String](["shiv"])
+melee_crit_flat_bonus = 10
+description = "-3 AGI, +2 DEX, +5 STR. When melee offensive cards crit, deal an additional flat 10 damage. Grants shiv: melee, 2 damage (5 mana, 1 tempo)."

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_yhtqa"]
+
+[resource]
+script = ExtResource("1_yhtqa")
+item_name = "Capacious Extremus"
+item_type = 7
+item_type_name = "Quiver"
+rarity = 2
+weight = 15
+intelligence_bonus = 8
+wisdom_bonus = 2
+card_slots = 4
+on_self_mana_reduction_percent = 10.0
+description = "+8 INT, +2 WIS. 4 card slots. On-self: mana cost decreased by 10%."

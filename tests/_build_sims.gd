@@ -35,9 +35,8 @@ func _simulate(build: Dictionary) -> void:
 	inv.connect_player_stats(stats)
 	var equipped: Array[String] = []
 	var failed: Array[String] = []
-	var item_script: Script = ItemData
 	for entry in build["gear"]:
-		var item: ItemData = item_script.call("create_%s" % entry[0])
+		var item: ItemData = ItemData.create(str(entry[0]))
 		var ok: bool = inv.equip_item(item, entry[1] if entry.size() > 1 else 0)
 		if ok:
 			equipped.append(item.item_name)

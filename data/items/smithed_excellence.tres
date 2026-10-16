@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_yh5jr"]
+
+[resource]
+script = ExtResource("1_yh5jr")
+item_name = "Smithed Excellence"
+item_type = 1
+item_type_name = "Chest"
+rarity = 2
+weight = 65
+strength_bonus = 5
+wisdom_bonus = 4
+health_bonus = 30
+card_slots = 3
+on_self_resist_all_percent = 2.0
+on_self_resist_all_tempo = 3
+block_physical_resist_percent = 10.0
+description = "+30 health, +5 STR, +4 WIS. On-self: gain 2% resistance to all damage types for 3 tempo. While you have block, you have an additional 10% physical resistance."

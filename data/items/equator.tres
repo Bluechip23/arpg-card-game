@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_0dqra"]
+
+[resource]
+script = ExtResource("1_0dqra")
+item_name = "Equator"
+item_type = 3
+item_type_name = "Belt"
+rarity = 2
+weight = 45
+strength_bonus = 6
+wisdom_bonus = 2
+determination_bonus = 2
+granted_card_ids = Array[String](["serene_center"])
+card_slots = 2
+on_self_apply_burn = 4
+description = "+6 STR, +2 DET, +2 WIS. On-self: apply 4 Burn. Grants Serene Center: set your health (temp included) and mana to half of max (30 mana, 4 tempo)."

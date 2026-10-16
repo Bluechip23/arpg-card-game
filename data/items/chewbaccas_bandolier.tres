@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_8lyxp"]
+
+[resource]
+script = ExtResource("1_8lyxp")
+item_name = "Chewbaccas Bandolier"
+item_type = 1
+item_type_name = "Chest"
+rarity = 2
+weight = 45
+strength_bonus = 8
+dexterity_bonus = 2
+wisdom_bonus = -2
+agility_bonus = 2
+health_bonus = -10
+card_slots = 2
+on_self_ranged_damage = 5
+on_self_ranged_tempo_reduction = 1
+casing_damage = 8
+casing_tempo = 5
+description = "+8 STR, +2 AGI, +2 DEX, -10 health, -2 WIS. On-self: ranged offensive cards cost 1 less tempo and deal +5 damage. After playing a ranged offensive card, drop a bullet casing — when an enemy steps on it, or after 5 tempo, it explodes for 8 damage (never hurts allies or summons)."

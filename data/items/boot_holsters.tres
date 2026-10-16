@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_m3j04"]
+
+[resource]
+script = ExtResource("1_m3j04")
+item_name = "Boot Holsters"
+item_type = 4
+item_type_name = "Boots"
+rarity = 2
+weight = 5
+dexterity_bonus = 1
+wisdom_bonus = 3
+agility_bonus = 3
+card_slots = 3
+on_self_instant_damage_nearest = 10
+on_self_attack_tempo_reduction = 1
+description = "+3 WIS, +3 AGI, +1 DEX. On-self: if an instant, deal 10 damage to the nearest enemy within 3 squares; if an attack card, -1 tempo."

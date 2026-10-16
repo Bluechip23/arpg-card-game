@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_ssq68"]
+
+[resource]
+script = ExtResource("1_ssq68")
+item_name = "Bloodbound Plate"
+item_type = 1
+item_type_name = "Chest"
+rarity = 1
+weight = 60
+health_bonus = 20
+armor_bonus = 3
+special_effect = 1
+special_effect_value_2 = 2
+description = "+20 health, +3 armor. Whenever you gain armor, gain +2 more."

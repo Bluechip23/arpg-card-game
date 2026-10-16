@@ -74,21 +74,16 @@ func _initialize() -> void:
 			"description": c.description,
 		})
 
-	# Items: every zero-argument factory, keyed by its create_<id> name.
+	# Items: every catalogue entry (data/items/<id>.tres), sorted by id.
 	var items: Array = []
-	var script: Script = ItemData
-	var names: Array = []
-	for method in script.get_script_method_list():
-		var mn: String = method["name"]
-		if mn.begins_with("create_") and method["args"].size() == 0:
-			names.append(mn)
+	var names: Array = ItemData.ITEM_IDS.duplicate()
 	names.sort()
-	for mn in names:
-		var it = script.call(mn)
+	for id in names:
+		var it = ItemData.create(id)
 		if not (it is ItemData):
 			continue
 		items.append({
-			"id": mn.substr(7),
+			"id": id,
 			"name": it.item_name,
 			"type": ItemData.ItemType.keys()[it.item_type],
 			"rarity": ItemData.Rarity.keys()[it.rarity],

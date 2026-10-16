@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_fnqfm"]
+
+[resource]
+script = ExtResource("1_fnqfm")
+item_name = "Wizard Hat"
+item_type = 0
+item_type_name = "Helm"
+rarity = 1
+weight = 10
+intelligence_bonus = 8
+wisdom_bonus = 2
+spell_power_per_attacks = 3
+spell_power_bonus = 5
+description = "+8 INT, +2 WIS. Every 3rd attack, your next spell card gains +5 spell power."

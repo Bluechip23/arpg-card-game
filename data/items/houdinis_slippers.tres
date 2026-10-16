@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_3o088"]
+
+[resource]
+script = ExtResource("1_3o088")
+item_name = "Houdinis Slippers"
+item_type = 4
+item_type_name = "Boots"
+rarity = 2
+weight = 2
+health_bonus = -10
+granted_card_ids = Array[String](["escape_and_bewilder"])
+card_slots = 1
+on_self_invisible_tempo = 5
+description = "-10 health. On-self: become invisible for 5 tempo (standard invisibility rules). Grants Escape and bewilder: blink up to 5 spaces and stun all enemies within 3 of the space you left for 3 tempo (50 mana, 2 tempo)."

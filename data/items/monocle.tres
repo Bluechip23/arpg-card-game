@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_qm8yo"]
+
+[resource]
+script = ExtResource("1_qm8yo")
+item_name = "Monocle"
+item_type = 0
+item_type_name = "Helm"
+rarity = 2
+granted_card_ids = Array[String](["twenty_twenty"])
+card_slots = 1
+on_self_range_offensive = 5
+on_self_range_requires_ranged = true
+on_self_crit_ranged_percent = 25.0
+crit_chance_percent = 10.0
+description = "+10% crit chance. On-self: if an offensive ranged card, gain +5 range and 25% crit. Grants 20/20 (Maintain): gain 3 range on all ranged offensive cards (25 mana, 3 tempo)."

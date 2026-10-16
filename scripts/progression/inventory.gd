@@ -2295,7 +2295,7 @@ func ensure_return_scroll() -> void:
 	for item in stored_items:
 		if item and item.special_id == "return_scroll":
 			return
-	stored_items.append(ItemData.create_return_scroll())
+	stored_items.append(ItemData.create("return_scroll"))
 	storage_changed.emit()
 	print("[INVENTORY] Return Scroll added to storage")
 

@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_pkw82"]
+
+[resource]
+script = ExtResource("1_pkw82")
+item_name = "Mauls Sabre"
+rarity = 2
+weight = 40
+strength_bonus = 3
+dexterity_bonus = 4
+agility_bonus = 8
+hand_size_bonus = 1
+weapon_subtype = 10
+card_slots = 2
+slot_colors = ["blue", "red"]
+slot_effects = [{
+"block": 8,
+"combo_after": "red",
+"combo_vulnerable": 1,
+"damage": 5,
+"weaken": 1
+}, {
+"combo_after": "blue",
+"combo_tempo": 1,
+"damage": 15,
+"discard": 2
+}]
+description = "+8 AGI, +3 STR, +4 DEX, +1 hand size. Two colored slots. Two-handed. Blue slot: its card gains +8 block, +5 damage, and applies 1 Weaken on hit. Red slot: playing its card discards 2 cards of your choice and deals +15 damage. Combo — blue played immediately after red also applies 1 Vulnerable; red played immediately after blue costs 1 less tempo."

@@ -85,11 +85,11 @@ func _run() -> void:
 func _test_gauntlet_mana() -> void:
 	print("-- Gauntlet skill mana --")
 	var want: Array = [
-		[ItemData.create_gravity_gauntlets(), "Suck", 10],
-		[ItemData.create_spiked_mitts(), "Well placed guard", 15],
-		[ItemData.create_cuffs_of_current(), "Zeet", 35],
-		[ItemData.create_copper_bracers(), "Clang", 25],
-		[ItemData.create_fanned_bracers(), "Fan Save", 25],
+		[ItemData.create("gravity_gauntlets"), "Suck", 10],
+		[ItemData.create("spiked_mitts"), "Well placed guard", 15],
+		[ItemData.create("cuffs_of_current"), "Zeet", 35],
+		[ItemData.create("copper_bracers"), "Clang", 25],
+		[ItemData.create("fanned_bracers"), "Fan Save", 25],
 	]
 	for row in want:
 		var item: ItemData = row[0]
@@ -98,7 +98,7 @@ func _test_gauntlet_mana() -> void:
 
 func _test_burgonet() -> void:
 	print("-- Burgonet is only the unerring clock --")
-	var b := ItemData.create_burgonet()
+	var b := ItemData.create("burgonet")
 	_check(b.block_bonus_to_defense_cards == 0 and b.block_to_armorless_defense_cards == 0,
 		"no card riders remain")
 	_check(b.special_effect == ItemData.SpecialEffect.ARMOR_PER_TURN and b.special_effect_value == 2 \
@@ -149,7 +149,7 @@ func _test_armor_chopper(stats, dm, bm, inv, d: Enemy) -> void:
 	# A bow's shot is not.
 	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
 	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
-	_check(inv.equip_item(ItemData.create_short_bow(), 0), "a bow equips")
+	_check(inv.equip_item(ItemData.create("short_bow"), 0), "a bow equips")
 	_place(gm, d, pcell + Vector2i(3, 0))
 	stats.equipment_armor_shred = 10
 	d.current_armor = 500
@@ -210,7 +210,7 @@ func _test_megingjord(stats, dm, bm, d: Enemy) -> void:
 	# No crits: the innate 5% would spoil an exact doubling.
 	var crit_prev: float = stats.equipment_crit_bonus
 	stats.equipment_crit_bonus = -100.0
-	var belt := ItemData.create_megingjord()
+	var belt := ItemData.create("megingjord")
 	var plain: int = _hit(Card.create_slash(), stats, dm, bm, d)
 	var doubled: int = _hit(_slot(Card.create_slash(), belt), stats, dm, bm, d)
 	_check(doubled == plain * 2, "a slotted Slash deals exactly twice (%d vs %d)" % [doubled, plain])
@@ -245,7 +245,7 @@ func _test_blue_robe(stats, dm, bm, dummies: Array) -> void:
 	_check(1000 - a.current_health == 20 and 1000 - b.current_health == 20,
 		"with it both enemies take the full 20, each by its own weakest type (%d, %d)" % [1000 - a.current_health, 1000 - b.current_health])
 	PlayerStats.adaptive_damage_type = false
-	var robe := ItemData.create_blue_robe()
+	var robe := ItemData.create("blue_robe")
 	var phys_res := {DamageTypes.Type.FIRE: 0.0, DamageTypes.Type.PHYSICAL: 50.0}
 	var full: int = _hit(Card.create_slash(), stats, dm, bm, a)
 	var plain: int = _hit_resisting(Card.create_slash(), phys_res, stats, dm, bm, a)
@@ -257,7 +257,7 @@ func _test_blue_robe(stats, dm, bm, dummies: Array) -> void:
 
 func _test_girdle(stats, dm, bm, d: Enemy) -> void:
 	print("-- Girdle of Aphrodite: tagged instants count as support --")
-	var girdle := ItemData.create_girdle_of_aphrodite()
+	var girdle := ItemData.create("girdle_of_aphrodite")
 	stats.current_health = 50
 	_slot(Card.create_vengeful_shield(), girdle).execute(main.player, stats, dm, 0.0, 0.0, bm)
 	_check(stats.current_health >= 65, "Vengeful Shield (instant tagged defense) heals its target 15 (%d)" % stats.current_health)
@@ -286,7 +286,7 @@ func _test_tigers(stats) -> void:
 
 func _test_belthronding(stats, inv, d: Enemy) -> void:
 	print("-- Belthronding: every ally's damage but your own --")
-	_check(inv.equip_item(ItemData.create_belthronding(), 0), "Belthronding equips")
+	_check(inv.equip_item(ItemData.create("belthronding"), 0), "Belthronding equips")
 	var gm = main.grid_manager
 	var pcell: Vector2i = gm.world_to_grid(main.player.position)
 	stats.current_health = 100
@@ -324,7 +324,7 @@ func _test_close_is_favored(stats, dm, d: Enemy) -> void:
 
 func _test_nine_ruins(stats, dm, inv, d: Enemy) -> void:
 	print("-- Nine Ruins: the nine hold 5 tempo for Sanguine's card --")
-	var nr := ItemData.create_nine_ruins_of_sanguine()
+	var nr := ItemData.create("nine_ruins_of_sanguine")
 	_check(inv.equip_item(nr, 0), "Nine Ruins equips")
 	main._clear_penguin()
 	dm.hand.clear()
@@ -443,7 +443,7 @@ func _test_play_scope(stats, dm, bm, dummies: Array) -> void:
 	_resolve_like_main(Card.create_fireball(), a, stats, dm, bm)
 	var fa_plain: int = 1000 - a.current_health
 	var fb_plain: int = 1000 - b.current_health
-	var belt := ItemData.create_megingjord()
+	var belt := ItemData.create("megingjord")
 	_reset_dummy(a)
 	_reset_dummy(b)
 	_resolve_like_main(_slot(Card.create_fireball(), belt), a, stats, dm, bm)
@@ -451,7 +451,7 @@ func _test_play_scope(stats, dm, bm, dummies: Array) -> void:
 	_check(fb_plain > 0 and 1000 - b.current_health == fb_plain * 2, "...and on the enemy beside it (%d vs %d)" % [1000 - b.current_health, fb_plain])
 	_check(PlayerStats.hit_multiplier == 1.0 and not Card.play_scope_open, "the scope closes clean")
 	# Blue Robe: the splash re-rolls per enemy (a physical-resister takes fire).
-	var robe := ItemData.create_blue_robe()
+	var robe := ItemData.create("blue_robe")
 	_reset_dummy(a)
 	_reset_dummy(b)
 	b.damage_resistances = {DamageTypes.Type.FIRE: 0.0, DamageTypes.Type.PHYSICAL: 50.0}

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_py56q"]
+
+[resource]
+script = ExtResource("1_py56q")
+item_name = "Brass Knuckles"
+item_type = 5
+item_type_name = "Gauntlets"
+weight = 10
+special_effect = 7
+special_effect_value = 1
+damage_bonus_to_melee_cards = 2
+armor_per_tempo_interval = 20
+description = "+2 damage on melee offensive cards. Gain 1 unerring armor every 20 tempo."

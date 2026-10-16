@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_n8mb6"]
+
+[resource]
+script = ExtResource("1_n8mb6")
+item_name = "Blue Robe"
+item_type = 1
+item_type_name = "Chest"
+rarity = 2
+weight = 25
+intelligence_bonus = 8
+wisdom_bonus = 5
+health_bonus = 20
+card_slots = 2
+on_self_adaptive_damage_type = true
+description = "+5 WIS, +8 INT, +20 health. On-self: the card's damage type adapts to each enemy hit — it always deals the type they resist LEAST (fire is checked first)."

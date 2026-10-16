@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_0kvx8"]
+
+[resource]
+script = ExtResource("1_0kvx8")
+item_name = "Corset of Cure"
+item_type = 3
+item_type_name = "Belt"
+rarity = 2
+weight = 25
+dexterity_bonus = 1
+wisdom_bonus = 1
+determination_bonus = 1
+health_bonus = 25
+card_slots = 3
+on_self_cleanse_stacks = 3
+debuff_removed_conjure_id = "healing_tonic"
+description = "+25 health, +1 DET, +1 WIS, +1 DEX. On-self: cleanse 3 stacks of a random debuff on the card's target. When a debuff is removed from you, gain a Healing Tonic (0m/0t, range 5, heal an ally 5)."

@@ -79,7 +79,7 @@ func _test_periodic_items() -> void:
 	get_root().add_child(inv)
 	inv.initialize("Brad")
 	inv.connect_player_stats(stats)
-	var hat := ItemData.create_kettle_hat()  # 2 armor every 15 tempo
+	var hat := ItemData.create("kettle_hat")  # 2 armor every 15 tempo
 	_check(inv.equip_item(hat, 0), "Kettle Hat equips")
 	for _i in range(300):
 		inv.process_turn()  # 1500 tempo of waiting

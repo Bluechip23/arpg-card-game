@@ -13377,8 +13377,8 @@ func _on_give_item(item_name: String) -> void:
 	var item: ItemData = null
 	
 	match item_name:
-		"Wooden Sword": item = ItemData.create_wooden_sword()
-		"Bladed Doughnut": item = ItemData.create_bladed_doughnut()
+		"Wooden Sword": item = ItemData.create("wooden_sword")
+		"Bladed Doughnut": item = ItemData.create("bladed_doughnut")
 		_:
 			# Any other item (all helms, etc.) resolves by name via factory discovery.
 			item = ItemData.create_by_name(item_name)
@@ -14785,7 +14785,7 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 		# First-room tutorial: this rat carried the Bladed Doughnut. Olorin
 		# steps in to explain item levels while it glints on the ground.
 		_pending_doughnut_drop = false
-		loot["item"] = ItemData.create_bladed_doughnut()
+		loot["item"] = ItemData.create("bladed_doughnut")
 		if olorin:
 			olorin.show_item_levels_intro()
 	elif _pending_mythic_item:

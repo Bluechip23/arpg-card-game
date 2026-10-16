@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_7o7i1"]
+
+[resource]
+script = ExtResource("1_7o7i1")
+item_name = "Bow of Budding Blasts"
+item_type_name = "Bow"
+rarity = 3
+weight = 35
+intelligence_bonus = 3
+wisdom_bonus = 4
+mana_bonus = 25
+weapon_subtype = 1
+granted_card_ids = Array[String](["spirit_bow"])
+card_slots = 2
+on_self_crit_bud_bow = true
+description = "+3 INT, +4 WIS, +25 mana. 2 card slots. On-self: a crit buds a bow turret — 6 damage, attacks every 5 tempo, dies to any damage or after 2 attacks; up to 4 at once. This bow and its bow summons gain +2 damage and +5% crit chance per living bow summon. Grants Spirit Bow (Maintain): a spirit bow that stalks your enemies, 1 square per tempo, loosing a 10-damage shot every 4 tempo (65 mana, 3 tempo)."
+appearance = "A bow with the slick, slimy texture of a sea cucumber — smaller bows budding off its flanks."
+appearance_icon = "res://assets/items/mythic/bow_of_budding_blasts.png"

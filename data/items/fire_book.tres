@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_cw874"]
+
+[resource]
+script = ExtResource("1_cw874")
+item_name = "Fire Book"
+weight = 10
+intelligence_bonus = 2
+agility_bonus = 3
+weapon_subtype = 9
+card_slots = 1
+attack_apply_burn = 1
+damage_bonus_to_attack_cards = 1
+description = "+3 AGI, +2 INT. 1 card slot. Your damaging offensive cards apply 1 Burn and deal +1 damage."

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_bv5ju"]
+
+[resource]
+script = ExtResource("1_bv5ju")
+item_name = "Bladed Doughnut"
+rarity = 3
+level_3_overrides = {
+"on_kill_card_id": "sprinkle_bomb"
+}
+level_3_description = "+16 STR. On Kill: add a Sprinkle Bomb to your hand (0 mana, 0 tempo, 25 damage AOE)."
+weight = 5
+strength_bonus = 15
+weapon_subtype = 3
+on_kill_card_id = "sprinkle"
+description = "+15 STR. On Kill: add a Sprinkle to your hand (0 mana, 0 tempo, 25 damage)."
+appearance = "A ring of fried dough gone wrong. The outer rim is hammered steel filed into eight razor teeth, and the pink glaze poured over the top never quite dries. The sprinkles are slivers of bone."
+appearance_icon = "res://assets/items/mythic/bladed_doughnut.png"

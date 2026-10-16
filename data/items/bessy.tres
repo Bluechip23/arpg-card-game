@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_puove"]
+
+[resource]
+script = ExtResource("1_puove")
+item_name = "Bessy"
+rarity = 2
+weight = 450
+weapon_subtype = 7
+granted_card_ids = Array[String](["earth_rattle"])
+card_slots = 1
+on_self_weakened_damage_percent = 25.0
+attack_speed_threshold_bonus = 5
+description = "Attack-speed procs take 5 more swings — she is HEAVY. On-self: +25% damage to Weakened enemies (on top of Weaken itself). Grants Earth Rattle: smash the ground — 40 damage in a 3-square quake; enemies hit are Slowed 2 and Weakened 2 (60 mana, 6 tempo)."
