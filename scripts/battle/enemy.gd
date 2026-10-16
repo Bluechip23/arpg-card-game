@@ -7100,44 +7100,25 @@ func _alert_mini_bear_pack() -> void:
 func _spawn_damage_number(amount: int, was_exposed: bool = false) -> void:
 	if amount <= 0:
 		return
-
-	var label = Label3D.new()
-	label.text = str(amount)
-	label.font_size = 28 if amount >= 10 else 22
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.no_depth_test = true
-	label.render_priority = 50
-
+	var text := str(amount)
+	var font_size := 28 if amount >= 10 else 22
+	var color: Color
 	# Color based on damage significance
 	if was_exposed:
-		label.modulate = Color(1.0, 0.5, 0.0)  # Orange for armor break
-		label.font_size = 32
-		label.text = str(amount) + "!"
+		color = Color(1.0, 0.5, 0.0)  # Orange for armor break
+		font_size = 32
+		text = str(amount) + "!"
 	elif amount >= 15:
-		label.modulate = Color(1.0, 0.2, 0.2)  # Bright red for big hits
-		label.font_size = 32
+		color = Color(1.0, 0.2, 0.2)  # Bright red for big hits
+		font_size = 32
 	elif amount >= 8:
-		label.modulate = Color(1.0, 0.5, 0.3)  # Orange-red for medium hits
+		color = Color(1.0, 0.5, 0.3)  # Orange-red for medium hits
 	else:
-		label.modulate = Color(1.0, 0.85, 0.5)  # Yellow for small hits
-
+		color = Color(1.0, 0.85, 0.5)  # Yellow for small hits
 	# Random horizontal offset to avoid stacking
 	var x_offset = randf_range(-0.3, 0.3)
-	label.position = position + Vector3(x_offset, 1.5, 0)
-	get_parent().add_child(label)
-
-	# Animate: float up and fade out
-	var tween = label.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tween.set_parallel(true)
-	tween.tween_property(label, "position:y", label.position.y + 1.5, 0.8)
-	tween.tween_property(label, "modulate:a", 0.0, 0.6).set_delay(0.3)
-	# Slight scale up then down
-	tween.tween_property(label, "font_size", label.font_size + 6, 0.1)
-	tween.chain()
-	tween.tween_property(label, "font_size", label.font_size, 0.3)
-
-	tween.chain()
-	tween.tween_callback(label.queue_free)
+	WorldText.float_number(get_parent(), position + Vector3(x_offset, 1.5, 0),
+		text, color, font_size, 0, 1.5, 0.8, 0.6, true)
 
 #endregion
 #region DAMAGE PREVIEW

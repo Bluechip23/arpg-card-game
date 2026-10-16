@@ -520,41 +520,11 @@ func on_attacked_by(attacker) -> void:
 func spawn_damage_number(amount: int) -> void:
 	if amount <= 0:
 		return
-	var label = Label3D.new()
-	label.text = str(amount)
-	label.font_size = 48
-	label.outline_size = 16
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.no_depth_test = true
-	label.render_priority = 50
-	label.modulate = Color(1.0, 0.3, 0.3)
-	label.position = position + Vector3(randf_range(-0.3, 0.3), 1.8, 0)
-	get_parent().add_child(label)
-
-	var tween = label.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tween.set_parallel(true)
-	tween.tween_property(label, "position:y", label.position.y + 1.2, 0.7)
-	tween.tween_property(label, "modulate:a", 0.0, 0.5).set_delay(0.3)
-	tween.chain()
-	tween.tween_callback(label.queue_free)
+	WorldText.float_number(get_parent(), position + Vector3(randf_range(-0.3, 0.3), 1.8, 0),
+		str(amount), Color(1.0, 0.3, 0.3), 48, 16, 1.2, 0.7, 0.5)
 
 func spawn_heal_number(amount: int) -> void:
 	if amount <= 0:
 		return
-	var label = Label3D.new()
-	label.text = "+" + str(amount)
-	label.font_size = 42
-	label.outline_size = 14
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.no_depth_test = true
-	label.render_priority = 50
-	label.modulate = Color(0.3, 1.0, 0.4)
-	label.position = position + Vector3(randf_range(-0.2, 0.2), 1.8, 0)
-	get_parent().add_child(label)
-
-	var tween = label.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tween.set_parallel(true)
-	tween.tween_property(label, "position:y", label.position.y + 1.0, 0.7)
-	tween.tween_property(label, "modulate:a", 0.0, 0.5).set_delay(0.3)
-	tween.chain()
-	tween.tween_callback(label.queue_free)
+	WorldText.float_number(get_parent(), position + Vector3(randf_range(-0.2, 0.2), 1.8, 0),
+		"+" + str(amount), Color(0.3, 1.0, 0.4), 42, 14, 1.0, 0.7, 0.5)
