@@ -25,8 +25,6 @@ extends Node3D
 
 const SHEET := "res://assets/sprites/MonsterKit/monster battler set.png"
 const NPC1 := "res://assets/sprites/NPCpackage1"
-const NPC2 := "res://assets/sprites/NPCpackage2"
-const GEN := "res://assets/sprites/generated/monsters"
 const CP := "res://assets/sprites/craftpix"
 
 ## Direction row order of the Craftpix packs, top row first: F = front

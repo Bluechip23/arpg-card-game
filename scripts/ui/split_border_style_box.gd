@@ -31,12 +31,6 @@ func _init(bg: Color = Color(0.16, 0.16, 0.22, 1.0), left_color: Color = Color(0
 	content_margin_top = border_width
 	content_margin_bottom = border_width
 
-func set_colors(bg: Color, left_color: Color, right_color: Color) -> void:
-	_base.bg_color = bg
-	_base.border_color = left_color
-	_right.border_color = right_color
-	emit_changed()
-
 func _draw(to_canvas_item: RID, rect: Rect2) -> void:
 	_base.draw(to_canvas_item, rect)
 	var half := floorf(rect.size.x * 0.5)

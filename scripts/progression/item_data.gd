@@ -921,41 +921,6 @@ func get_on_self_bonus() -> Dictionary:
 				osb[osb_k] = osb_v * OFF_HAND_RIDER_SCALE
 	return osb
 
-func get_card_slot_summary() -> String:
-	if card_slots == 0:
-		return ""
-	var parts: Array[String] = []
-	parts.append("Slots: %d/%d" % [slotted_cards.size(), card_slots])
-	for i in range(slotted_cards.size()):
-		var card = slotted_cards[i]
-		var color_tag := ""
-		if i < slot_colors.size():
-			color_tag = "[%s] " % str(slot_colors[i]).capitalize()
-		parts.append("  - %s%s" % [color_tag, card.card_name])
-	if on_self_damage > 0:
-		parts.append("On-Self: +%d damage" % on_self_damage)
-	if on_self_block > 0:
-		parts.append("On-Self: +%d block" % on_self_block)
-	if on_self_heal > 0:
-		parts.append("On-Self: +%d heal" % on_self_heal)
-	if on_self_mana_reduction > 0:
-		parts.append("On-Self: -%d mana cost" % on_self_mana_reduction)
-	if on_self_apply_burn > 0:
-		parts.append("On-Self: Apply %d Burn on hit" % on_self_apply_burn)
-	if on_self_apply_cold > 0:
-		parts.append("On-Self: Apply %d Cold on hit" % on_self_apply_cold)
-	if on_self_thorns > 0:
-		parts.append("On-Self: Gain %d Thorns on play" % on_self_thorns)
-	if allowed_card_keywords.size() > 0:
-		var kw_names: Array[String] = []
-		for kw in allowed_card_keywords:
-			var kn := Card.keyword_name(kw)
-			if kn != "":
-				kw_names.append(kn)
-		if kw_names.size() > 0:
-			parts.append("Accepts: %s cards only" % ", ".join(kw_names))
-	return "\n".join(parts)
-
 #endregion
 #region WEAPONS
 # ============================================

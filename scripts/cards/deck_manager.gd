@@ -1152,9 +1152,6 @@ func _process_temp_mods(amount: int = 5) -> void:
 	if changed:
 		hand_updated.emit()
 
-func get_peaked_card() -> Card:
-	return peaked_card
-
 func get_brain_peeked_cards() -> Array[Card]:
 	## The revealed top of the draw pile (brain-point peeks), in draw order —
 	## element 0 is the very next card. Top of the pile is the array's BACK.

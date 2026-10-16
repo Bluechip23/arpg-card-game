@@ -464,52 +464,6 @@ func _build_grid() -> void:
 ## carry them ("on kill: gain 3 armor" is a weapon property, "on block: heal
 ## 3 HP" is a shield property). The trigger pipeline itself stays alive —
 ## constellation bonuses still register through it.
-func _shelved_passive_procs() -> Array:
-	return [
-		{ "trigger": "on_crit", "desc": "On crit: deal 50% bonus" },
-		{ "trigger": "on_kill", "desc": "On kill: draw 1 card" },
-		{ "trigger": "on_tempo_cycle", "desc": "On tempo cycle: all enemies -1 armor" },
-		{ "trigger": "on_move", "desc": "On move: 10% gain haste" },
-		{ "trigger": "on_attack", "desc": "On attack: 5% stun enemy" },
-		{ "trigger": "on_kill", "desc": "On kill: gain 3 armor" },
-		{ "trigger": "on_cycle", "desc": "On cycle: 20% gain empower" },
-		{ "trigger": "on_heal", "desc": "On heal: overheal becomes armor" },
-		{ "trigger": "on_crit", "desc": "On crit: heal 3 HP" },
-		{ "trigger": "on_move", "desc": "On move: next card costs 10 less" },
-		{ "trigger": "on_tempo_cycle", "desc": "On tempo cycle: draw 1 card" },
-		{ "trigger": "on_kill", "desc": "On kill: draw 2 cards and gain 20 mana" },
-		{ "trigger": "on_spell_cast", "desc": "On spell cast: 10% refund full mana cost" },
-		{ "trigger": "on_block", "desc": "On block: heal 3 HP" },
-		{ "trigger": "on_move", "desc": "On move: gain 2 armor and 10 mana" },
-		{ "trigger": "on_tempo_cycle", "desc": "On tempo cycle: all enemies take 2 damage" },
-	]
-
-## SHELVED CONTENT — the original Ring 3 (combat bonuses, on-hit/on-heal/on-block
-## passives, a Culling Stone, a Retrospective) that the FREE_STAT / vitality arm
-## layer replaced. Kept here (not wired into the grid) so it can be resurfaced
-## later — e.g. folded into an outer ring or a future sector.
-func _shelved_ring3_nodes() -> Array:
-	return [
-		{ "type": NodeType.COMBAT_BONUS, "label": "Block +1", "desc": "Block cards grant +1 additional block" },
-		{ "type": NodeType.STAT_BONUS, "label": "STR +1", "desc": "Strength +1" },
-		{ "type": NodeType.PASSIVE, "label": "Passive", "desc": "On attack: 10% apply bleed" },
-		{ "type": NodeType.COMBAT_BONUS, "label": "Thorns +1", "desc": "Deal 1 damage to attackers when hit" },
-		{ "type": NodeType.STAT_BONUS, "label": "DEX +1", "desc": "Dexterity +1" },
-		{ "type": NodeType.CULLING_STONE, "label": "Cull Stone", "desc": "Grants 1 Culling Stone" },
-		{ "type": NodeType.COMBAT_BONUS, "label": "Damage +1", "desc": "All attacks deal +1 bonus damage" },
-		{ "type": NodeType.STAT_BONUS, "label": "INT +1", "desc": "Intelligence +1" },
-		{ "type": NodeType.RETROSPECTIVE, "label": "Retrospect", "desc": "Reclaim a skipped skill tree reward" },
-		{ "type": NodeType.COMBAT_BONUS, "label": "Heal +1", "desc": "Heal cards restore +1 additional HP" },
-		{ "type": NodeType.STAT_BONUS, "label": "WIS +1", "desc": "Wisdom +1" },
-		{ "type": NodeType.PASSIVE, "label": "Passive", "desc": "On heal: 15% cleanse debuff" },
-		{ "type": NodeType.COMBAT_BONUS, "label": "Crit +1%", "desc": "Critical hit chance +1%" },
-		{ "type": NodeType.STAT_BONUS, "label": "AGI +1", "desc": "Agility +1" },
-		{ "type": NodeType.COMBAT_BONUS, "label": "Regen +1", "desc": "Regenerate 1 HP per tempo cycle" },
-		{ "type": NodeType.COMBAT_BONUS, "label": "Crit +1%", "desc": "Critical hit chance +1%" },
-		{ "type": NodeType.STAT_BONUS, "label": "DET +1", "desc": "Determination +1" },
-		{ "type": NodeType.PASSIVE, "label": "Passive", "desc": "On block: reflect 2 damage" },
-	]
-
 func _create_ring(start_id: int, count: int, radius: float, center: Vector2, type_data: Array, ring: int) -> void:
 	for i in range(count):
 		var angle = (TAU / count) * i - PI / 2  # Start from top

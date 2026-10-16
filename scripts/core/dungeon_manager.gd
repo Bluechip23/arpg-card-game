@@ -914,12 +914,6 @@ func _generate_rat_king_layout() -> void:
 	}
 	_enforce_border_walls()
 
-func get_rat_nest_cells() -> Array:
-	var out: Array = []
-	for n in rat_nests:
-		out.append(n["cell"])
-	return out
-
 func _build_rat_king_decorations() -> void:
 	## The den is lit like the sewer it hangs off: torches on the walls.
 	var pal = get_palette()
@@ -2477,17 +2471,6 @@ func _chamfered_unit_box(bh: float, ys: float) -> ArrayMesh:
 	var mesh := st.commit()
 	_chamfer_mesh_cache[key] = mesh
 	return mesh
-
-func _min_adjacent_floor_elevation(x: int, z: int) -> int:
-	var min_elev := 99
-	for dx in [-1, 0, 1]:
-		for dz in [-1, 0, 1]:
-			var nx = x + dx
-			var nz = z + dz
-			if nx >= 0 and nx < GRID_W and nz >= 0 and nz < GRID_H:
-				if grid[nx][nz] == Tile.FLOOR:
-					min_elev = mini(min_elev, elevation[nx][nz])
-	return 0 if min_elev == 99 else min_elev
 
 ## Outdoor zones have no "walls": the ground runs on under the blocked
 ## tiles and the edge of the walkable land is a line of trees, rocks and

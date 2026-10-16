@@ -7707,48 +7707,10 @@ func _on_overflow_triggered(mode: String, card: Card) -> void:
 	update_peaked_display()
 
 #endregion
-#region DEBUG: TEST-UI STATUS HANDLERS
-
-func _on_apply_buff(buff_name: String) -> void:
-	var buff_mgr = player.get_buff_manager()
-	var buff: Buff = null
-	
-	match buff_name:
-		"Thorns (3 dmg)":
-			buff = Buff.create_thorns(3, 15, "Test")
-		"Focused":
-			buff = Buff.create_focused(15, "Test")
-		"Regen (2)":
-			buff = Buff.create_regen(2, 15, "Test")
-		"Blessed (1)":
-			buff = Buff.create_blessed(1, 3, "Test")
-		"Fortify":
-			buff = Buff.create_fortify(15, "Test")
-		"Enlightened (25%, 3)":
-			buff = Buff.create_enlightened(25, 3, "Test")
-		"Strengthen (+3, 3)":
-			buff = Buff.create_strengthen(3, 3, "Test")
-		"Bolster (+2, 3)":
-			buff = Buff.create_bolster(2, 3, "Test")
-		"Haste (+1)":
-			buff = Buff.create_haste(1, 3, "Test")
-		"Cleanse (1)":
-			buff = Buff.create_cleanse(1, "Test")
-		"Smith (2)":
-			buff = Buff.create_smith(2, 15, "Test")
-		"Steady":
-			buff = Buff.create_steady("Test")
-	
-	if buff and buff_mgr:
-		buff_mgr.apply_buff(buff)
-		print("[MAIN] Applied buff: %s" % buff_name)
-	
-
+#region CYCLE DISPATCHER & CARD HOUSEKEEPING
 ## Fires every 5 global tempo (one tempo cycle).
 ## Handles buff/debuff effects, armor decay, deck upkeep, sky falls, etc.
 ## Enemy actions and mana regen are handled in _on_tempo_advanced instead.
-#endregion
-#region CYCLE DISPATCHER & CARD HOUSEKEEPING
 func _on_tempo_threshold_reached(times: int) -> void:
 	print("[MAIN] === TEMPO CYCLE × %d ===" % times)
 
@@ -8408,7 +8370,6 @@ func _show_choice_picker(prompt: String, labels: Array, on_pick: Callable) -> vo
 ## fan forward in a cone, each flying to its OWN end square up to 5 away
 ## (they may share squares on the way). A snowball stops at the first enemy
 ## it hits — dealing 4 (INT-scaled) — or at a wall. Returns the enemies hit.
-const SNOWBALL_COUNT := 5
 const SNOWBALL_RANGE := 5
 const SNOWBALL_DAMAGE := 4
 const SNOWBALL_SPREAD_DEG := [-40.0, -20.0, 0.0, 20.0, 40.0]
@@ -14362,33 +14323,6 @@ func _on_spawn_wave() -> void:
 	_refresh_unit_tracker()
 	print("[MAIN] Spawned new wave!")
 
-func _on_spawn_fire_goblins() -> void:
-	enemy_spawner.spawn_fire_goblin_pack()
-	_sync_blocked_tiles()
-	_sync_occupied_tiles()
-	_sync_pillar_tiles()
-	_update_enemy_count()
-	_refresh_unit_tracker()
-	print("[MAIN] Spawned fire goblin pack!")
-
-func _on_spawn_elite() -> void:
-	var used_cells: Array[Vector2i] = []
-	for enemy in enemy_spawner.get_living_enemies():
-		used_cells.append(grid_manager.world_to_grid(enemy.position))
-	used_cells.append(grid_manager.world_to_grid(player.position))
-	var desired = Vector2i(randi_range(9, 16), randi_range(2, 8))
-	var cell = _find_valid_spawn_cell(desired, used_cells)
-	var world_pos = grid_manager.grid_to_world(cell)
-	if dungeon_manager:
-		world_pos.y = dungeon_manager.get_elevation_world_y(cell)
-	enemy_spawner.spawn_enemy(Enemy.EnemyType.ELITE, world_pos)
-	_sync_blocked_tiles()
-	_sync_occupied_tiles()
-	_sync_pillar_tiles()
-	_update_enemy_count()
-	_refresh_unit_tracker()
-	print("[MAIN] Spawned elite enemy!")
-
 func _on_give_item(item_name: String) -> void:
 	var item: ItemData = null
 	
@@ -14418,27 +14352,6 @@ func _on_give_item(item_name: String) -> void:
 		else:
 			print("[MAIN] Cannot give %s - equipment and storage full!" % item_name)
 
-func _on_give_card(card_name: String) -> void:
-	var card: Card = null
-	
-	match card_name:
-		"Slash": card = Card.create_slash()
-		"Block": card = Card.create_block()
-		"Blink": card = Card.create_blink()
-		"Heal": card = Card.create_heal()
-		"Draw": card = Card.create_draw()
-		"Discard": card = Card.create_discard()
-		"Empower": card = Card.create_empower()
-		"Healing Potion": card = Card.create_healing_potion()
-		"Dagger Throw": card = Card.create_dagger_throw()
-		"Gain Mana": card = Card.create_gain_mana()
-		"Halo": card = Card.create_halo()
-		"Armored Discipline": card = Card.create_armored_discipline()
-
-	if card:
-		deck_manager.hand.append(card)
-		deck_manager.hand_updated.emit()
-		print("[MAIN] Gave card: %s" % card_name)
 func _on_manifest_card_clicked(index: int) -> void:
 	# Spending a manifest (a Quiver card, a blade, a summon, a mushroom) is
 	# an action: refused under Stun before anything is popped or paid.
@@ -15071,13 +14984,6 @@ func _setup_donation_panel() -> void:
 
 var _donation_heal_to_damage: bool = false  # Communal Donation was cast under Poisoned Blood
 
-func _get_ally_names() -> Array:
-	## Returns names of all living allies that can receive healing.
-	var names: Array = []
-	for t in _donation_targets():
-		names.append(t["name"])
-	return names
-
 ## Everyone Communal Donation can heal: the co-op partner, the dojo's practice
 ## allies, and every summon on the board ("allies" = NPCs, summons and other
 ## player-managed characters). {name, node}. Self only when there is no one.
@@ -15098,22 +15004,6 @@ func _donation_targets() -> Array:
 	if out.is_empty():
 		out.append({"name": "Self", "node": player})
 	return out
-
-func _ally_stats_by_name(ally_name: String):
-	## Resolve an ally display name (from the donation panel) to its PlayerStats.
-	## Currently the co-op partner; summoned creatures have no stats object.
-	var candidates: Array = []
-	if _p1_player and _p1_player != player:
-		candidates.append(_p1_player)
-	if _p2_player and _p2_player != player:
-		candidates.append(_p2_player)
-	for p in candidates:
-		if not is_instance_valid(p) or not p.has_method("get_stats"):
-			continue
-		var s = p.get_stats()
-		if s and s.character_data and s.character_data.character_name == ally_name:
-			return s
-	return null
 
 func _open_donation_panel() -> void:
 	var stats = player.get_stats()
@@ -15548,39 +15438,6 @@ func _has_high_ground(attacker_pos: Vector3, target) -> bool:
 
 #endregion
 #region DEBUG: OVERFLOW & REACTION HANDLERS
-func _on_apply_overflow(overflow_name: String) -> void:
-	var effect: OverflowEffect = null
-	
-	match overflow_name:
-		"Jailed (3)":
-			effect = OverflowEffect.create_jailed(3, "Test")
-		"Manifest: Skeleton (3)":
-			effect = OverflowEffect.create_manifest_skeleton(3, "Test")
-		"Manifest: Mushroom (∞)":
-			effect = OverflowEffect.create_manifest_mushroom(-1, "Test")
-		"Manifest: Spirit (3)":
-			effect = OverflowEffect.create_manifest_spirit(3, "Test")
-		"Enhance +3 (3)":
-			effect = OverflowEffect.create_enhance(3, 3, "Test")
-		"Skip (3)":
-			effect = OverflowEffect.create_skip(3, "Test")
-		"Peak (∞)":
-			effect = OverflowEffect.create_peak(-1, "Test")
-		"Overcharge: +2 Health (∞)":
-			effect = OverflowEffect.create_overcharge_health(2, -1, "Test")
-		"Overcharge: +2 Mana (∞)":
-			effect = OverflowEffect.create_overcharge_mana(20, -1, "Test")
-		"Overcharge: +2 Armor (3)":
-			effect = OverflowEffect.create_overcharge_armor(2, 3, "Test")
-		"Overcharge: 3 Dmg All (3)":
-			effect = OverflowEffect.create_overcharge_damage(3, 3, "Test")
-	
-	if effect:
-		overflow_manager.add_overflow_effect(effect)
-		print("[MAIN] Applied overflow: %s" % overflow_name)
-
-# === Reaction & On Draw handlers ===
-
 func _on_player_damage_taken(_amount: int) -> void:
 	var triggered = deck_manager.trigger_reactions("on_damage_taken")
 	for card in triggered:
@@ -15974,18 +15831,6 @@ func _mesh_sphere(r: float) -> SphereMesh:
 	s.radius = r
 	s.height = r * 2.0
 	return s
-
-func _mesh_box(size: Vector3) -> BoxMesh:
-	var b := BoxMesh.new()
-	b.size = size
-	return b
-
-func _mesh_cyl(r: float, h: float) -> CylinderMesh:
-	var c := CylinderMesh.new()
-	c.top_radius = r
-	c.bottom_radius = r
-	c.height = h
-	return c
 
 ## Loot keys scooped up the moment a player steps on the pile (currency and
 ## consumables); everything else waits in the loot menu for a click.

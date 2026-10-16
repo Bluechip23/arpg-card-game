@@ -602,7 +602,6 @@ var st_haunted_rebuke_cooldown: int = 0  # Haunted Rebuke: remaining cooldown te
 var st_kinetic_armor_tempo: int = 0   # Kinetic Armor: tempo since armor was last at 0
 var st_kinetic_armor_triggered: bool = false  # Kinetic Armor: already triggered this armor retention
 var st_i_heal_you_tempo: int = 0      # I Heal You: tempo counter for ally healing aura
-var st_seance_specters: Array = []    # Seance: active specters [{node, hp, tempo_remaining, position}]
 
 func has_skill_tree_passive(passive_id: String) -> bool:
 	return passive_id in skill_tree_passives

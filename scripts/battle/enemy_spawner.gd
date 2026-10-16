@@ -445,6 +445,3 @@ func get_enemies_in_cone(origin: Vector3, direction: Vector3, length: float, hal
 					result.append(enemy)
 					enemy.note_area_hit()
 	return result
-
-func get_enemy_count() -> int:
-	return get_living_enemies().size()

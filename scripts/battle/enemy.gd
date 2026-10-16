@@ -348,7 +348,6 @@ var chosen_action: Dictionary = {}
 ##   "trigger": "evt"   Trigger — fires on the event instead of a clock. Events:
 ##                      "damaged", "exposed", "ally_died", "half_health".
 ##   "label": "Name"    Display name (defaults to name.capitalize()).
-const TRIGGER_EVENTS := ["damaged", "exposed", "ally_died", "half_health"]
 signal action_fired(enemy: Enemy, action_name: String)
 signal channel_broken(enemy: Enemy, action_name: String)  # a Channel collapsed (disrupted)
 var _async_counters: Dictionary = {}     # action name -> tempo counted on its own clock
@@ -1396,10 +1395,6 @@ func get_portrait_tint() -> Color:
 
 func is_portrait_flipped() -> bool:
 	return _enemy_figure != null and _enemy_figure.has_method("portrait_flipped") and _enemy_figure.portrait_flipped()
-
-func _on_enemy_animation_finished(anim_name: String) -> void:
-	if _enemy_animator and anim_name != "stance" and anim_name != "walking":
-		_enemy_animator.play("stance", CharacterAnimator.Direction.SOUTH)
 
 func _play_enemy_animation(action: String) -> void:
 	## Play an animation by action name (procedural figure, or legacy sprite sheet).
@@ -2871,12 +2866,6 @@ func _all_async_idle() -> bool:
 
 func is_channeling() -> bool:
 	return not _channel_action.is_empty()
-
-## Push the next action back by `tempo` on the action clock (Haunted Rebuke).
-## The counter climbs 1 per tempo toward the action's cost, so debiting it
-## delays whatever fires next — attacks included, unlike the Slow debuff.
-func delay_next_action(tempo: int) -> void:
-	action_tempo_counter -= maxi(0, tempo)
 
 ## The apply_debuff key behind a get_active_effects() name ("" when the
 ## effect has no re-applicable key: Taunt, Fear, Exposed, Tree…).
@@ -6593,9 +6582,6 @@ func _try_wander() -> void:
 # MOVEMENT & COMBAT
 # ============================================
 
-func set_target(new_target: Node3D) -> void:
-	target = new_target
-
 func _build_greedy_path(start_pos: Vector3, goal_cell: Vector2i, tiles: int, away: bool = false,
 		onto_goal: bool = false) -> Array[Vector3]:
 	## Greedy tile-by-tile route toward (or away from) goal_cell, honoring walls
@@ -6760,9 +6746,6 @@ func move_towards_target(pos: Vector3) -> void:
 
 func _manhattan_dist(a: Vector2i, b: Vector2i) -> int:
 	return absi(a.x - b.x) + absi(a.y - b.y)
-
-func attack_player(player_node: Node3D) -> void:
-	_deal_damage_to_player(player_node, attack_damage, "Attack")
 
 #endregion
 #region TAKING DAMAGE
@@ -7549,11 +7532,6 @@ func _clear_exposed_if_armored() -> void:
 		is_exposed = false
 		print("[%s] Armor back on — no longer Exposed" % enemy_name)
 		_update_status_indicators()
-
-func reduce_armor(amount: int) -> void:
-	if current_armor > 0:
-		current_armor = max(0, current_armor - amount)
-		_update_armor_bar()
 
 func update_outline() -> void:
 	if not outline:

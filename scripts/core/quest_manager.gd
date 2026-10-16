@@ -509,12 +509,6 @@ func marker_state_for(giver_name: String) -> String:
 		return "active"
 	return ""
 
-func get_turnable_quest_for(giver_name: String) -> Quest:
-	for quest in active_quests:
-		if quest.giver == giver_name and quest.is_complete and not quest.is_turned_in:
-			return quest
-	return null
-
 func get_turnable_quests_for(giver_name: String) -> Array[Quest]:
 	var out: Array[Quest] = []
 	for quest in active_quests:

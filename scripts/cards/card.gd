@@ -610,11 +610,6 @@ func apply_temp_mod(mana_off: int, tempo_off: int, block_on: int, tempo: int = 5
 	block += block_on
 	temp_mod_tempo_left = maxi(temp_mod_tempo_left, tempo)
 
-## A timed flat block grant (see temp_flat_block), on the shared temp-mod timer.
-func apply_flat_block_mod(amount: int, tempo: int = 5) -> void:
-	temp_flat_block += amount
-	temp_mod_tempo_left = maxi(temp_mod_tempo_left, tempo)
-
 ## An untimed in-hand mana discount (Self Reliance): it rides the card until
 ## it is played or leaves the hand, and stacks with the timed tweaks above.
 func apply_hand_discount(mana_off: int) -> void:
