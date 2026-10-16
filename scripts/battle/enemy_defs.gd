@@ -3,8 +3,8 @@ extends RefCounted
 
 ## The enemy roster's base numbers, one entry per Enemy.EnemyType (keyed by
 ## the enum's name). Enemy.initialize() copies the entry onto the node and
-## then applies passive_power_scale; the compendium, the spawner's loot tiers
-## and the figure kinds still read their own tables (see Enemy). Keys:
+## then applies passive_power_scale; the compendium (Enemy.get_all_enemy_data),
+## EnemySpawner.get_loot_tier and Enemy._setup_sprite read it too. Keys:
 ##   name, health, damage, move, xp, color      always present
 ##   armor, range, aggro                        when the type overrides the
 ##                                              Enemy export defaults (0 / 1.5 / 8.0)
@@ -12,13 +12,31 @@ extends RefCounted
 ##   damage_type                                DamageTypes.Type of its attacks (default PHYSICAL)
 ##   ignores_invisibility, immune_to_high_ground, is_training_dummy, is_structure,
 ##   bleed_on_attack, attack_blind_chance, attack_burn, attack_shock, armor_per_hit
-## A type with no entry is a design mock-up: Enemy names it and warns.
+##   tier                                       the design sheet's Tier column (docs/ENEMY_SHEET.tsv):
+##                                              Trash / Mid-tier / Elite / Boss, "Special" for the
+##                                              Ring Wraith, the structures and the dojo dummy (not
+##                                              creatures, no tier). MINION/ELITE/BOSS keep the tiers
+##                                              they stood for. The compendium shows it and
+##                                              EnemySpawner.get_loot_tier derives the loot table from it.
+##   loot_tier                                  only where the loot table differs from the sheet tier
+##   intended_level                             the level band for XP falloff and passive_power_scale
+##                                              (0 / absent = unbanded). Sewers 1-5, Graveyard 6-12,
+##                                              Cave 8-15, Forest 12-20, Mountains 20-25, Underworld
+##                                              ~Act 2, Heavens ~Act 3; Cerberus and the Inflamed
+##                                              Minotaur carry their boss sheet's level column.
+##   figure_kind                                the SpriteEnemyFigure / EnemyFigure kind ("" or
+##                                              absent = the coloured box)
+##   mockup: true                               a design mock-up (stats & moves TBD): Enemy only
+##                                              names it and warns; the compendium lists it.
 ## The numbers are the hand-tuned stats the designer's sheet settled on — a
 ## balance change is an edit here, nothing else.
 
 const DEFS := {
 	"MINION": {
 		"name": "Minion",
+		"tier": "Trash",
+		"intended_level": 1,
+		"figure_kind": "brute_minion",
 		"health": 25,
 		"damage": 3,
 		"move": 1.0,
@@ -27,6 +45,9 @@ const DEFS := {
 	},
 	"ELITE": {
 		"name": "Elite",
+		"tier": "Elite",
+		"intended_level": 5,
+		"figure_kind": "brute_elite",
 		"health": 80,
 		"damage": 6,
 		"move": 0.8,
@@ -35,6 +56,9 @@ const DEFS := {
 	},
 	"BOSS": {
 		"name": "Boss",
+		"tier": "Boss",
+		"intended_level": 10,
+		"figure_kind": "brute_boss",
 		"health": 200,
 		"damage": 10,
 		"move": 0.5,
@@ -45,6 +69,7 @@ const DEFS := {
 		# The Precious: hunts the ring-bearer through the shadow world.
 		# Shadow form does not hide the player from these.
 		"name": "Ring Wraith",
+		"tier": "Special",
 		"health": 100,
 		"damage": 15,
 		"move": 5.0,
@@ -54,6 +79,9 @@ const DEFS := {
 	},
 	"WERERAT": {
 		"name": "Wererat",
+		"tier": "Trash",
+		"intended_level": 2,
+		"figure_kind": "rat",
 		"health": 8,
 		"damage": 3,
 		"move": 1.0,
@@ -62,6 +90,9 @@ const DEFS := {
 	},
 	"SKELETON": {
 		"name": "Skeleton",
+		"tier": "Mid-tier",
+		"intended_level": 7,
+		"figure_kind": "skeleton",
 		"health": 20,
 		"armor": 12,
 		"damage": 6,
@@ -71,6 +102,9 @@ const DEFS := {
 	},
 	"ARMORED_TROLL": {
 		"name": "Armored Troll",
+		"tier": "Elite",
+		"intended_level": 12,
+		"figure_kind": "armored_troll",
 		"health": 60,
 		"armor": 40,
 		"damage": 7,
@@ -81,6 +115,9 @@ const DEFS := {
 	},
 	"ARCHER_RAT": {
 		"name": "Archer Rat",
+		"tier": "Trash",
+		"intended_level": 2,
+		"figure_kind": "archer_rat",
 		"health": 6,
 		"armor": 0,
 		"damage": 2,
@@ -91,6 +128,9 @@ const DEFS := {
 	},
 	"HYDRA": {
 		"name": "Hydra",
+		"tier": "Elite",
+		"intended_level": 14,
+		"figure_kind": "hydra",
 		"health": 190,          # sheet: 190
 		"damage": 7,         # +accumulated strength
 		"range": 1.5,        # Melee
@@ -102,6 +142,9 @@ const DEFS := {
 	},
 	"FIRE_GOBLIN_SOLDIER": {
 		"name": "Fire Goblin Soldier",
+		"tier": "Trash",
+		"intended_level": 9,
+		"figure_kind": "fire_goblin_soldier",
 		"health": 6,
 		"damage": 2,
 		"range": 1.5,        # Range 0 — must be adjacent
@@ -111,6 +154,9 @@ const DEFS := {
 	},
 	"FIRE_GOBLIN_MAGE": {
 		"name": "Fire Goblin Mage",
+		"tier": "Mid-tier",
+		"intended_level": 9,
+		"figure_kind": "fire_goblin_mage",
 		"health": 10,
 		"damage": 7,         # Ember damage
 		"range": 4.0,
@@ -120,6 +166,9 @@ const DEFS := {
 	},
 	"FIRE_GOBLIN_SHAMAN": {
 		"name": "Fire Goblin Shaman",
+		"tier": "Mid-tier",
+		"intended_level": 10,
+		"figure_kind": "fire_goblin_shaman",
 		"health": 16,
 		"damage": 6,         # Fire wall damage
 		"range": 5.0,
@@ -130,6 +179,9 @@ const DEFS := {
 	# ===================== FOREST ACT =====================
 	"GIANT_BEAVER": {
 		"name": "Giant Beaver",
+		"tier": "Elite",
+		"intended_level": 16,
+		"figure_kind": "giant_beaver",
 		"health": 60,
 		"damage": 9,         # Chomp damage; Tail Whip deals 6
 		"range": 1.5,
@@ -140,6 +192,9 @@ const DEFS := {
 	},
 	"MINI_BEAR": {
 		"name": "Mini Bear",
+		"tier": "Trash",
+		"intended_level": 13,
+		"figure_kind": "mini_bear",
 		"health": 14,
 		"damage": 4,
 		"range": 1.5,
@@ -149,6 +204,9 @@ const DEFS := {
 	},
 	"LARGE_BEAR": {
 		"name": "Large Bear",
+		"tier": "Elite",
+		"intended_level": 18,
+		"figure_kind": "large_bear",
 		"health": 90,
 		"damage": 12,
 		"range": 1.5,
@@ -160,6 +218,9 @@ const DEFS := {
 	},
 	"WOLF": {
 		"name": "Wolf",
+		"tier": "Mid-tier",
+		"intended_level": 14,
+		"figure_kind": "wolf",
 		"health": 30,
 		"damage": 7,
 		"range": 1.5,
@@ -169,6 +230,9 @@ const DEFS := {
 	},
 	"COYOTE": {
 		"name": "Coyote",
+		"tier": "Trash",
+		"intended_level": 12,
+		"figure_kind": "coyote",
 		"health": 6,
 		"damage": 2,
 		"range": 1.5,
@@ -178,6 +242,9 @@ const DEFS := {
 	},
 	"BUGBEAR": {
 		"name": "Bugbear",
+		"tier": "Mid-tier",
+		"intended_level": 17,
+		"figure_kind": "bugbear",
 		"health": 50,
 		"damage": 6,
 		"range": 1.5,
@@ -187,6 +254,9 @@ const DEFS := {
 	},
 	"INFECTED_HUNTER": {
 		"name": "Infected Hunter",
+		"tier": "Mid-tier",
+		"intended_level": 16,
+		"figure_kind": "infected_hunter",
 		"health": 40,
 		"damage": 8,         # AOE swipe in front
 		"range": 1.5,
@@ -197,6 +267,9 @@ const DEFS := {
 	},
 	"GIANT_HAWK": {
 		"name": "Giant Hawk",
+		"tier": "Mid-tier",
+		"intended_level": 15,
+		"figure_kind": "giant_hawk",
 		"health": 28,
 		"damage": 9,
 		"range": 2.0,
@@ -208,6 +281,9 @@ const DEFS := {
 	},
 	"TREANT": {
 		"name": "Treant",
+		"tier": "Elite",
+		"intended_level": 19,
+		"figure_kind": "treant",
 		"health": 110,
 		"damage": 14,
 		"range": 1.5,
@@ -220,6 +296,9 @@ const DEFS := {
 	},
 	"ICE_MAGE": {
 		"name": "Ice Mage",
+		"tier": "Mid-tier",
+		"intended_level": 15,
+		"figure_kind": "ice_mage",
 		"health": 40,
 		"damage": 6,
 		"range": 3.0,
@@ -231,6 +310,9 @@ const DEFS := {
 	},
 	"FIRE_MAGE": {
 		"name": "Fire Mage",
+		"tier": "Mid-tier",
+		"intended_level": 15,
+		"figure_kind": "fire_mage",
 		"health": 32,
 		"damage": 7,
 		"range": 2.0,
@@ -242,6 +324,9 @@ const DEFS := {
 	},
 	"SPARK_MAGE": {
 		"name": "Spark Mage",
+		"tier": "Mid-tier",
+		"intended_level": 13,
+		"figure_kind": "spark_mage",
 		"health": 16,
 		"damage": 3,
 		"range": 6.0,
@@ -253,6 +338,9 @@ const DEFS := {
 	},
 	"AIR_MAGE": {
 		"name": "Air Mage",
+		"tier": "Mid-tier",
+		"intended_level": 14,
+		"figure_kind": "air_mage",
 		"health": 30,
 		"damage": 5,
 		"range": 8.0,
@@ -263,6 +351,9 @@ const DEFS := {
 	},
 	"EARTH_MAGE": {
 		"name": "Earth Mage",
+		"tier": "Mid-tier",
+		"intended_level": 17,
+		"figure_kind": "earth_mage",
 		"health": 65,
 		"damage": 9,
 		"range": 1.5,
@@ -275,6 +366,9 @@ const DEFS := {
 	# ===================== GRAVEYARD ACT =====================
 	"ZOMBIE": {
 		"name": "Zombie",
+		"tier": "Trash",
+		"intended_level": 7,
+		"figure_kind": "zombie",
 		"health": 12,
 		"damage": 5,
 		"range": 1.5,
@@ -284,6 +378,9 @@ const DEFS := {
 	},
 	"WEREWOLF": {
 		"name": "Werewolf",
+		"tier": "Elite",
+		"intended_level": 10,
+		"figure_kind": "werewolf",
 		"health": 55,
 		"damage": 10,        # +3 vs armor (armour-piercing)
 		"range": 1.5,
@@ -295,6 +392,9 @@ const DEFS := {
 	},
 	"WERERABBIT": {
 		"name": "Wererabbit",
+		"tier": "Trash",
+		"intended_level": 8,
+		"figure_kind": "wererabbit",
 		"health": 25,
 		"damage": 0,         # Loot monster — never attacks
 		"range": 0.0,
@@ -304,6 +404,9 @@ const DEFS := {
 	},
 	"VAMPIRE": {
 		"name": "Vampire",
+		"tier": "Elite",
+		"intended_level": 10,
+		"figure_kind": "vampire",
 		"health": 95,
 		"damage": 10,        # Life steal on health damage
 		"range": 1.5,
@@ -314,6 +417,9 @@ const DEFS := {
 	},
 	"NECROMANCER": {
 		"name": "Necromancer",
+		"tier": "Elite",
+		"intended_level": 11,
+		"figure_kind": "necromancer",
 		"health": 60,
 		"damage": 4,
 		"range": 10.0,
@@ -325,6 +431,9 @@ const DEFS := {
 	},
 	"BONE_DRAGON": {
 		"name": "Bone Dragon",
+		"tier": "Boss",
+		"intended_level": 12,
+		"figure_kind": "bone_dragon",
 		"health": 150,
 		"damage": 12,
 		"range": 1.5,
@@ -336,6 +445,9 @@ const DEFS := {
 	},
 	"SPIRIT_COLLECTOR": {
 		"name": "Spirit Collector",
+		"tier": "Mid-tier",
+		"intended_level": 10,
+		"figure_kind": "spirit_collector",
 		"health": 50,
 		"damage": 8,
 		"range": 1.5,
@@ -345,6 +457,9 @@ const DEFS := {
 	},
 	"GRAVE_TITAN": {
 		"name": "Grave Titan",
+		"tier": "Elite",
+		"intended_level": 12,
+		"figure_kind": "grave_titan",
 		"health": 130,
 		"armor": 30,
 		"damage": 15,
@@ -356,6 +471,9 @@ const DEFS := {
 	},
 	"CRYPT_CRAWLER": {
 		"name": "Crypt Crawler",
+		"tier": "Mid-tier",
+		"intended_level": 8,
+		"figure_kind": "crypt_crawler",
 		"health": 28,
 		"damage": 6,
 		"range": 1.5,
@@ -365,6 +483,9 @@ const DEFS := {
 	},
 	"SCREECHER": {
 		"name": "Screecher",
+		"tier": "Trash",
+		"intended_level": 8,
+		"figure_kind": "screecher",
 		"health": 14,
 		"damage": 5,
 		"range": 1.5,
@@ -374,6 +495,9 @@ const DEFS := {
 	},
 	"CONSUMED": {
 		"name": "The Consumed",
+		"tier": "Mid-tier",
+		"intended_level": 9,
+		"figure_kind": "consumed",
 		"health": 35,
 		"damage": 8,
 		"range": 1.5,
@@ -384,6 +508,9 @@ const DEFS := {
 	# ===================== SEWER ACT =====================
 	"SLUDGE": {
 		"name": "Sludge Being",
+		"tier": "Trash",
+		"intended_level": 2,
+		"figure_kind": "sludge",
 		"health": 10,
 		"damage": 3,
 		"range": 6.0,        # Can spit at range
@@ -393,6 +520,9 @@ const DEFS := {
 	},
 	"PIPE_CRAWLER": {
 		"name": "Pipe Crawler",
+		"tier": "Trash",
+		"intended_level": 3,
+		"figure_kind": "pipe_crawler",
 		"health": 20,
 		"damage": 5,
 		"range": 1.5,
@@ -402,6 +532,9 @@ const DEFS := {
 	},
 	"SEWER_CROC": {
 		"name": "Sewer Cobra",
+		"tier": "Mid-tier",
+		"intended_level": 5,
+		"figure_kind": "sewer_croc",
 		"health": 40,
 		"armor": 20,
 		"damage": 12,
@@ -413,6 +546,9 @@ const DEFS := {
 	},
 	"RAT_KING": {
 		"name": "Rat King",
+		"tier": "Boss",
+		"intended_level": 5,
+		"figure_kind": "rat_king",
 		"health": 90,
 		"armor": 10,
 		"damage": 6,
@@ -423,6 +559,9 @@ const DEFS := {
 	},
 	"SWARM": {
 		"name": "Swarm",
+		"tier": "Trash",
+		"intended_level": 3,
+		"figure_kind": "swarm",
 		"health": 10,
 		"damage": 3,
 		"range": 1.5,
@@ -433,6 +572,9 @@ const DEFS := {
 	# ===================== MOUNTAINS ACT (elite first pass) =====================
 	"ICE_TROLL": {
 		"name": "Ice Troll",
+		"tier": "Elite",
+		"intended_level": 22,
+		"figure_kind": "ice_troll",
 		"health": 150,
 		"armor": 55,
 		"damage": 13,        # Club; Clobber (auto on freeze) deals 50
@@ -445,6 +587,9 @@ const DEFS := {
 	},
 	"WHITE_MANTICORE": {
 		"name": "White Manticore",
+		"tier": "Elite",
+		"intended_level": 23,
+		"figure_kind": "white_manticore",
 		"health": 75,
 		"armor": 15,
 		"damage": 15,        # Bite; Stinger deals 25
@@ -458,6 +603,9 @@ const DEFS := {
 	},
 	"WYVERN": {
 		"name": "Wyvern",
+		"tier": "Elite",
+		"intended_level": 21,
+		"figure_kind": "wyvern",
 		"health": 125,
 		"damage": 25,        # Bite; Talon Grab also deals 25
 		"range": 1.5,
@@ -471,6 +619,9 @@ const DEFS := {
 	# ===================== MOUNTAINS ACT (second pass — the enemy sheet) =====================
 	"WEREGOAT": {
 		"name": "Weregoat",
+		"tier": "Mid-tier",
+		"intended_level": 22,
+		"figure_kind": "weregoat",
 		"health": 80,
 		"damage": 6,         # Hoof Punch; Charge deals 8 along its path
 		"range": 1.5,
@@ -481,6 +632,9 @@ const DEFS := {
 	},
 	"ROC": {
 		"name": "Roc",
+		"tier": "Mid-tier",
+		"intended_level": 22,
+		"figure_kind": "roc",
 		"health": 25,
 		"armor": 15,
 		"damage": 8,         # Dive Bomb (the sheet gives no number — first-pass 8)
@@ -493,6 +647,9 @@ const DEFS := {
 	},
 	"SABERTOOTH": {
 		"name": "Sabertooth Tiger",
+		"tier": "Mid-tier",
+		"intended_level": 21,
+		"figure_kind": "sabertooth",
 		"health": 45,
 		"damage": 6,         # Bite 6 then Claw 3; Sunken Bite 10 + 8 Bleed
 		"range": 1.5,
@@ -503,6 +660,9 @@ const DEFS := {
 	},
 	"SNOW_WRAITH": {
 		"name": "Snow Wraith",
+		"tier": "Trash",
+		"intended_level": 20,
+		"figure_kind": "snow_wraith",
 		"health": 10,
 		"damage": 5,         # Ice Blast; Snowball deals no damage
 		"range": 5.0,        # the sheet gives no range — thrown, so ranged 5
@@ -515,6 +675,9 @@ const DEFS := {
 	"GRANITE_COLOSSUS": {
 		# Stats from the sheet; its moves are still TBD, so it stands.
 		"name": "Granite Colossus",
+		"tier": "Boss",
+		"intended_level": 25,
+		"figure_kind": "granite_colossus",
 		"health": 350,
 		"armor": 250,
 		"damage": 0,
@@ -528,6 +691,9 @@ const DEFS := {
 	# ===================== UNDERWORLD ACT (elite first pass) =====================
 	"IFRIT": {
 		"name": "Ifrit",
+		"tier": "Elite",
+		"intended_level": 28,
+		"figure_kind": "ifrit",
 		"health": 225,
 		"damage": 45,        # Fire Breath deals 20 + 5 burn in a 5x5
 		"range": 1.5,
@@ -539,6 +705,9 @@ const DEFS := {
 	},
 	"INFLAMED_MINOTAUR": {
 		"name": "Inflamed Minotaur",
+		"tier": "Boss",
+		"intended_level": 9,
+		"figure_kind": "inflamed_minotaur",
 		"health": 350,
 		"armor": 100,
 		"damage": 35,        # + 2 burn per hit
@@ -553,6 +722,9 @@ const DEFS := {
 	# ===================== HEAVENS ACT (elite first pass) =====================
 	"DJINN": {
 		"name": "Djinn",
+		"tier": "Elite",
+		"intended_level": 35,
+		"figure_kind": "djinn",
 		"health": 180,
 		"damage": 35,        # Chain lightning, per unit hit
 		"range": 5.0,        # initial cast range 5; bounces reach 4
@@ -565,6 +737,9 @@ const DEFS := {
 	},
 	"CHERUB": {
 		"name": "Cherub",
+		"tier": "Trash",
+		"intended_level": 33,
+		"figure_kind": "cherub",
 		"health": 14,
 		"armor": 5,
 		"damage": 2,         # Love's Arrow
@@ -578,6 +753,9 @@ const DEFS := {
 	# ===================== UNDERWORLD ACT (second pass — the enemy sheet) =====================
 	"DEMON": {
 		"name": "Demon",
+		"tier": "Mid-tier",
+		"intended_level": 28,
+		"figure_kind": "demon",
 		"health": 65,
 		"damage": 8,
 		"range": 1.5,
@@ -588,6 +766,9 @@ const DEFS := {
 	},
 	"ASH_HARPY": {
 		"name": "Ash Harpy",
+		"tier": "Trash",
+		"intended_level": 26,
+		"figure_kind": "ash_harpy",
 		"health": 6,
 		"damage": 3,         # Peck
 		"range": 1.5,
@@ -599,6 +780,9 @@ const DEFS := {
 	},
 	"MAGMA_SPIDER": {
 		"name": "Magma Spider",
+		"tier": "Trash",
+		"intended_level": 26,
+		"figure_kind": "magma_spider",
 		"health": 4,
 		"damage": 1,         # its Fire Web ticks 1 every 3 tempo
 		"range": 1.5,
@@ -610,6 +794,9 @@ const DEFS := {
 	},
 	"MIND_EATER": {
 		"name": "Mind Eater",
+		"tier": "Trash",
+		"intended_level": 27,
+		"figure_kind": "mind_eater",
 		"health": 20,
 		"damage": 0,         # it never strikes — it taxes and cuffs
 		"range": 6.0,        # the sheet gives no range — a caster's 6
@@ -620,6 +807,9 @@ const DEFS := {
 	},
 	"SPECTER": {
 		"name": "Specter",
+		"tier": "Trash",
+		"intended_level": 26,
+		"figure_kind": "specter",
 		"health": 10,
 		"damage": 2,         # Spirit Spit
 		"range": 2.0,
@@ -630,6 +820,9 @@ const DEFS := {
 	},
 	"SUCCUBUS": {
 		"name": "Succubus",
+		"tier": "Trash",
+		"intended_level": 27,
+		"figure_kind": "succubus",
 		"health": 25,
 		"armor": 5,
 		"damage": 4,         # Damaging Snap: missing mana / 20 + 4
@@ -643,6 +836,8 @@ const DEFS := {
 		# Dojo training dummy: a fat health pool so big hits read as
 		# numbers instead of kills; a lethal blow refills it (take_damage).
 		"name": "Training Dummy",
+		"tier": "Special",
+		"figure_kind": "chicken",
 		"health": 500,
 		"damage": 0,
 		"range": 0.0,
@@ -657,6 +852,9 @@ const DEFS := {
 		# creature — it holds its tile, never acts, and counts for nothing
 		# (no XP, no loot, and the wave does not wait on it).
 		"name": "Rat Nest",
+		"tier": "Special",
+		"figure_kind": "rat_nest",
+		"loot_tier": DropRates.TIER_TRASH,  # the one type whose loot tier is not its sheet tier
 		"health": 15,
 		"armor": 0,
 		"damage": 0,
@@ -672,6 +870,8 @@ const DEFS := {
 		# counts for nothing — but every one left standing regenerates
 		# the Bone Dragon 1 health a cycle.
 		"name": "Gravestone",
+		"tier": "Special",
+		"figure_kind": "gravestone",
 		"health": 10,
 		"armor": 0,
 		"damage": 0,
@@ -688,6 +888,9 @@ const DEFS := {
 		# fire / 15% lightning. Three heads wake as he weakens; Guardian
 		# of Death and Deathyard Dog below.
 		"name": "Cerberus",
+		"tier": "Boss",
+		"intended_level": 10,
+		"figure_kind": "cerberus",
 		"health": 250,
 		"armor": 50,
 		"damage": 25,
@@ -703,6 +906,8 @@ const DEFS := {
 		# player breaks through; at 75%, 50% and 33% it seals itself
 		# against all damage for 10 tempo. Counts as Cerberus's ally.
 		"name": "Hell's Door",
+		"tier": "Special",
+		"figure_kind": "hell_door",
 		"health": 150,
 		"armor": 0,
 		"damage": 0,
@@ -718,6 +923,9 @@ const DEFS := {
 		# takes 8 tempo to set it right (back to full), and is gone.
 		# Never fights; can be cut down on the way (20 HP).
 		"name": "Grave Digger",
+		"tier": "Special",
+		"intended_level": 8,
+		"figure_kind": "grave_digger",
 		"health": 20,
 		"armor": 0,
 		"damage": 0,
@@ -726,5 +934,19 @@ const DEFS := {
 		"aggro": 0.0,
 		"xp": 6,
 		"color": Color(0.5, 0.55, 0.45),
+	},
+	# Design mock-ups (stats & moves TBD): named, tiered and given a figure for
+	# the compendium and the lab; initialize() only names them and warns.
+	"PIT_FIEND": {
+		"mockup": true,
+		"name": "Pit Fiend",
+		"tier": "Boss",
+		"figure_kind": "pit_fiend",
+	},
+	"CORRUPTED_ARCHANGEL": {
+		"mockup": true,
+		"name": "Corrupted Archangel",
+		"tier": "Boss",
+		"figure_kind": "corrupted_archangel",
 	},
 }

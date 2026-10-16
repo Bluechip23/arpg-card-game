@@ -48,49 +48,12 @@ enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_R
 	# through; seals itself for 10 tempo at 75/50/33%). Tail-appended.
 	HELL_DOOR }
 
-## Intended player level per enemy type — the anchor for the level-gap XP
-## falloff (PlayerStats.get_xp_multiplier): kills more than a few levels below
-## the player pay reduced (eventually zero) XP, so low zones can't be farmed.
-## 0 = no band (mock-ups, XP-less enemies) -> no falloff applied.
-## Bands follow the Act 1 pacing: Sewers 1-5, Graveyard 6-12, Cave 8-15,
-## Forest 12-20 (player hits 25 by end of Act 1).
-const INTENDED_LEVELS := {
-	EnemyType.MINION: 1, EnemyType.ELITE: 5, EnemyType.BOSS: 10,
-	# Sewer
-	EnemyType.WERERAT: 2, EnemyType.ARCHER_RAT: 2, EnemyType.SLUDGE: 2,
-	EnemyType.SWARM: 3, EnemyType.PIPE_CRAWLER: 3,
-	EnemyType.SEWER_CROC: 5, EnemyType.RAT_KING: 5,
-	# Graveyard
-	EnemyType.ZOMBIE: 7, EnemyType.SKELETON: 7, EnemyType.SCREECHER: 8,
-	EnemyType.CRYPT_CRAWLER: 8, EnemyType.WERERABBIT: 8, EnemyType.CONSUMED: 9,
-	EnemyType.WEREWOLF: 10, EnemyType.VAMPIRE: 10, EnemyType.SPIRIT_COLLECTOR: 10,
-	EnemyType.NECROMANCER: 11, EnemyType.BONE_DRAGON: 12, EnemyType.GRAVE_TITAN: 12,
-	EnemyType.GRAVE_DIGGER: 8,  # the Boneyard's digger: band 8, so his 20 HP are his 20 HP
-	# Cave
-	EnemyType.FIRE_GOBLIN_SOLDIER: 9, EnemyType.FIRE_GOBLIN_MAGE: 9,
-	EnemyType.FIRE_GOBLIN_SHAMAN: 10, EnemyType.ARMORED_TROLL: 12, EnemyType.HYDRA: 14,
-	# Forest
-	EnemyType.COYOTE: 12, EnemyType.MINI_BEAR: 13, EnemyType.SPARK_MAGE: 13,
-	EnemyType.WOLF: 14, EnemyType.AIR_MAGE: 14, EnemyType.GIANT_HAWK: 15,
-	EnemyType.ICE_MAGE: 15, EnemyType.FIRE_MAGE: 15, EnemyType.INFECTED_HUNTER: 16,
-	EnemyType.GIANT_BEAVER: 16, EnemyType.EARTH_MAGE: 17, EnemyType.BUGBEAR: 17,
-	EnemyType.LARGE_BEAR: 18, EnemyType.TREANT: 19,
-	# Mountains 20-25 (late Act 1), Underworld ~Act 2, Heavens ~Act 3. All are
-	# past the passive_power_scale clamp, so bands here only gate XP falloff.
-	EnemyType.WYVERN: 21, EnemyType.ICE_TROLL: 22, EnemyType.WHITE_MANTICORE: 23,
-	EnemyType.SNOW_WRAITH: 20, EnemyType.SABERTOOTH: 21, EnemyType.ROC: 22,
-	EnemyType.WEREGOAT: 22, EnemyType.GRANITE_COLOSSUS: 25,
-	EnemyType.IFRIT: 28,
-	EnemyType.MAGMA_SPIDER: 26, EnemyType.SPECTER: 26, EnemyType.ASH_HARPY: 26,
-	EnemyType.SUCCUBUS: 27, EnemyType.MIND_EATER: 27, EnemyType.DEMON: 28,
-	EnemyType.DJINN: 35,
-	EnemyType.CHERUB: 33,
-	EnemyType.CERBERUS: 10,  # the sheet's level column; scaling stays near the sheet's own numbers
-	EnemyType.INFLAMED_MINOTAUR: 9,  # likewise: the boss sheet's level column (350 HP / 100 armor / 35)
-}
 
+## Intended player level for this type (EnemyDefs "intended_level") — the
+## anchor for the level-gap XP falloff (PlayerStats.get_xp_multiplier) and
+## passive_power_scale. 0 = no band (mock-ups, XP-less enemies).
 func get_intended_level() -> int:
-	return int(INTENDED_LEVELS.get(enemy_type, 0))
+	return int(EnemyDefs.DEFS.get(EnemyType.keys()[enemy_type], {}).get("intended_level", 0))
 
 ## Rebalance multipliers for the 15-point passive rework. The hand-tuned base
 ## stats were set against the old FLAT passives, whose values sat around the
@@ -452,8 +415,8 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 	grid_manager = gm
 
 	var def: Dictionary = EnemyDefs.DEFS.get(EnemyType.keys()[enemy_type], {})
-	if def.is_empty():
-		# Design mock-ups (stats & moves TBD) have no arm yet. Name them so
+	if def.is_empty() or def.get("mockup", false):
+		# Design mock-ups (stats & moves TBD) have no stats yet. Name them so
 		# a stray spawn is identifiable instead of an anonymous default box;
 		# with no actions defined it will simply stand idle.
 		enemy_name = EnemyType.keys()[enemy_type].capitalize()
@@ -606,82 +569,11 @@ const DOOR_SEAL_THRESHOLDS := [0.75, 0.5, 0.33]
 const DOOR_SEAL_TEMPO := 10
 
 func _setup_sprite() -> void:
-	## Builds a procedural 3D model (EnemyFigure) for enemy types that have one,
-	## replacing the box mesh. Generic types keep their coloured box.
-	var kind := ""
-	match enemy_type:
-		EnemyType.WERERAT: kind = "rat"
-		EnemyType.ARCHER_RAT: kind = "archer_rat"
-		EnemyType.ARMORED_TROLL: kind = "armored_troll"
-		EnemyType.SKELETON: kind = "skeleton"
-		EnemyType.HYDRA: kind = "hydra"
-		EnemyType.FIRE_GOBLIN_SOLDIER: kind = "fire_goblin_soldier"
-		EnemyType.FIRE_GOBLIN_MAGE: kind = "fire_goblin_mage"
-		EnemyType.FIRE_GOBLIN_SHAMAN: kind = "fire_goblin_shaman"
-		EnemyType.GIANT_BEAVER: kind = "giant_beaver"
-		EnemyType.MINI_BEAR: kind = "mini_bear"
-		EnemyType.LARGE_BEAR: kind = "large_bear"
-		EnemyType.WOLF: kind = "wolf"
-		EnemyType.COYOTE: kind = "coyote"
-		EnemyType.BUGBEAR: kind = "bugbear"
-		EnemyType.INFECTED_HUNTER: kind = "infected_hunter"
-		EnemyType.GIANT_HAWK: kind = "giant_hawk"
-		EnemyType.TREANT: kind = "treant"
-		EnemyType.ICE_MAGE: kind = "ice_mage"
-		EnemyType.FIRE_MAGE: kind = "fire_mage"
-		EnemyType.SPARK_MAGE: kind = "spark_mage"
-		EnemyType.AIR_MAGE: kind = "air_mage"
-		EnemyType.EARTH_MAGE: kind = "earth_mage"
-		EnemyType.ZOMBIE: kind = "zombie"
-		EnemyType.WEREWOLF: kind = "werewolf"
-		EnemyType.WERERABBIT: kind = "wererabbit"
-		EnemyType.VAMPIRE: kind = "vampire"
-		EnemyType.NECROMANCER: kind = "necromancer"
-		EnemyType.BONE_DRAGON: kind = "bone_dragon"
-		EnemyType.SPIRIT_COLLECTOR: kind = "spirit_collector"
-		EnemyType.GRAVE_TITAN: kind = "grave_titan"
-		EnemyType.CRYPT_CRAWLER: kind = "crypt_crawler"
-		EnemyType.SCREECHER: kind = "screecher"
-		EnemyType.CONSUMED: kind = "consumed"
-		EnemyType.SLUDGE: kind = "sludge"
-		EnemyType.PIPE_CRAWLER: kind = "pipe_crawler"
-		EnemyType.SEWER_CROC: kind = "sewer_croc"
-		EnemyType.RAT_KING: kind = "rat_king"
-		EnemyType.SWARM: kind = "swarm"
-		EnemyType.WEREGOAT: kind = "weregoat"
-		EnemyType.WYVERN: kind = "wyvern"
-		EnemyType.ROC: kind = "roc"
-		EnemyType.ICE_TROLL: kind = "ice_troll"
-		EnemyType.SNOW_WRAITH: kind = "snow_wraith"
-		EnemyType.GRANITE_COLOSSUS: kind = "granite_colossus"
-		EnemyType.WHITE_MANTICORE: kind = "white_manticore"
-		EnemyType.SABERTOOTH: kind = "sabertooth"
-		EnemyType.CERBERUS: kind = "cerberus"
-		EnemyType.SUCCUBUS: kind = "succubus"
-		EnemyType.DEMON: kind = "demon"
-		EnemyType.IFRIT: kind = "ifrit"
-		EnemyType.MIND_EATER: kind = "mind_eater"
-		EnemyType.SPECTER: kind = "specter"
-		EnemyType.MAGMA_SPIDER: kind = "magma_spider"
-		EnemyType.PIT_FIEND: kind = "pit_fiend"
-		EnemyType.ASH_HARPY: kind = "ash_harpy"
-		EnemyType.INFLAMED_MINOTAUR: kind = "inflamed_minotaur"
-		EnemyType.CHERUB: kind = "cherub"
-		EnemyType.DJINN: kind = "djinn"
-		EnemyType.CORRUPTED_ARCHANGEL: kind = "corrupted_archangel"
-		# Generic tiers / custom enemies without bespoke art: a procedural
-		# brute figure in the tier's colour (the old floating coloured box
-		# never read as a creature).
-		EnemyType.MINION: kind = "brute_minion"
-		EnemyType.ELITE: kind = "brute_elite"
-		EnemyType.BOSS: kind = "brute_boss"
-		EnemyType.DUMMY: kind = "chicken"
-		EnemyType.RAT_NEST: kind = "rat_nest"
-		EnemyType.GRAVESTONE: kind = "gravestone"
-		EnemyType.GRAVE_DIGGER: kind = "grave_digger"
-		EnemyType.HELL_DOOR: kind = "hell_door"
-		_:
-			return  # Unknown types keep their coloured box
+	## Builds the figure for enemy types that have one (EnemyDefs "figure_kind"),
+	## replacing the box mesh. Types without a kind keep their coloured box.
+	var kind: String = str(EnemyDefs.DEFS.get(EnemyType.keys()[enemy_type], {}).get("figure_kind", ""))
+	if kind == "":
+		return  # Unknown types keep their coloured box
 
 	figure_kind = kind
 	# Prefer the MonsterKit battler sprite when this kind has one; the
@@ -1182,161 +1074,7 @@ func get_action_lines() -> Array[String]:
 static func get_all_enemy_data() -> Array:
 	## Returns compendium-friendly data for every enemy type.
 	## Single source of truth — compendium reads from here.
-	# Tier vocabulary = the designer's sheet (docs/ENEMY_SHEET.tsv, Tier
-	# column): Trash / Mid-tier / Elite / Boss, "Special" for the Ring Wraith.
-	# "Mid Tier" / "Mid-Tier" on the sheet are the one word "Mid-tier" here.
-	# Structures and the dojo dummy are not on the sheet: they read "Special"
-	# too (not creatures, no tier). The legacy MINION/ELITE/BOSS boxes keep
-	# the three tiers they stood for. The loot tiers in
-	# EnemySpawner.get_loot_tier follow the same column.
-	var _type_display := {
-		EnemyType.MINION: "Trash",
-		EnemyType.ELITE: "Elite",
-		EnemyType.BOSS: "Boss",
-		# --- Sewer ---
-		EnemyType.WERERAT: "Trash",
-		EnemyType.ARCHER_RAT: "Trash",
-		EnemyType.SLUDGE: "Trash",
-		EnemyType.PIPE_CRAWLER: "Trash",
-		EnemyType.SWARM: "Trash",
-		EnemyType.SEWER_CROC: "Mid-tier",
-		EnemyType.RAT_KING: "Boss",
-		# --- Graveyard ---
-		EnemyType.ZOMBIE: "Trash",
-		EnemyType.WERERABBIT: "Trash",
-		EnemyType.SCREECHER: "Trash",
-		EnemyType.SKELETON: "Mid-tier",
-		EnemyType.CRYPT_CRAWLER: "Mid-tier",
-		EnemyType.CONSUMED: "Mid-tier",
-		EnemyType.SPIRIT_COLLECTOR: "Mid-tier",
-		EnemyType.WEREWOLF: "Elite",
-		EnemyType.VAMPIRE: "Elite",
-		EnemyType.NECROMANCER: "Elite",
-		EnemyType.GRAVE_TITAN: "Elite",
-		EnemyType.BONE_DRAGON: "Boss",
-		# --- Cave ---
-		EnemyType.FIRE_GOBLIN_SOLDIER: "Trash",
-		EnemyType.FIRE_GOBLIN_MAGE: "Mid-tier",
-		EnemyType.FIRE_GOBLIN_SHAMAN: "Mid-tier",
-		EnemyType.ARMORED_TROLL: "Elite",
-		EnemyType.HYDRA: "Elite",
-		# --- Forest ---
-		EnemyType.COYOTE: "Trash",
-		EnemyType.MINI_BEAR: "Trash",
-		EnemyType.WOLF: "Mid-tier",
-		EnemyType.BUGBEAR: "Mid-tier",
-		EnemyType.INFECTED_HUNTER: "Mid-tier",
-		EnemyType.GIANT_HAWK: "Mid-tier",
-		EnemyType.ICE_MAGE: "Mid-tier",
-		EnemyType.FIRE_MAGE: "Mid-tier",
-		EnemyType.SPARK_MAGE: "Mid-tier",
-		EnemyType.AIR_MAGE: "Mid-tier",
-		EnemyType.EARTH_MAGE: "Mid-tier",
-		EnemyType.GIANT_BEAVER: "Elite",
-		EnemyType.LARGE_BEAR: "Elite",
-		EnemyType.TREANT: "Elite",
-		# --- Mountains ---
-		EnemyType.SNOW_WRAITH: "Trash",
-		EnemyType.WEREGOAT: "Mid-tier",
-		EnemyType.ROC: "Mid-tier",
-		EnemyType.SABERTOOTH: "Mid-tier",
-		EnemyType.WYVERN: "Elite",
-		EnemyType.ICE_TROLL: "Elite",
-		EnemyType.WHITE_MANTICORE: "Elite",
-		EnemyType.GRANITE_COLOSSUS: "Boss",
-		# --- Underworld ---
-		EnemyType.ASH_HARPY: "Trash",
-		EnemyType.MAGMA_SPIDER: "Trash",
-		EnemyType.MIND_EATER: "Trash",
-		EnemyType.SPECTER: "Trash",
-		EnemyType.SUCCUBUS: "Trash",
-		EnemyType.DEMON: "Mid-tier",
-		EnemyType.IFRIT: "Elite",
-		EnemyType.CERBERUS: "Boss",
-		EnemyType.PIT_FIEND: "Boss",
-		EnemyType.INFLAMED_MINOTAUR: "Boss",
-		# --- Heavens ---
-		EnemyType.CHERUB: "Trash",
-		EnemyType.DJINN: "Elite",
-		EnemyType.CORRUPTED_ARCHANGEL: "Boss",
-		# --- Off the tier ladder ---
-		EnemyType.RING_WRAITH: "Special",
-		EnemyType.DUMMY: "Special",
-		EnemyType.RAT_NEST: "Special",
-		EnemyType.GRAVESTONE: "Special",
-		EnemyType.GRAVE_DIGGER: "Special",
-		EnemyType.HELL_DOOR: "Special",
-	}
-	var _stats := {
-		EnemyType.MINION: {"name": "Minion", "health": 25, "armor": 0, "damage": 3, "xp": 5},
-		EnemyType.ELITE: {"name": "Elite", "health": 80, "armor": 0, "damage": 6, "xp": 10},
-		EnemyType.BOSS: {"name": "Boss", "health": 200, "armor": 0, "damage": 10, "xp": 25},
-		EnemyType.WERERAT: {"name": "Wererat", "health": 8, "armor": 0, "damage": 3, "xp": 3},
-		EnemyType.SKELETON: {"name": "Skeleton", "health": 20, "armor": 12, "damage": 6, "xp": 7},
-		EnemyType.ARMORED_TROLL: {"name": "Armored Troll", "health": 60, "armor": 40, "damage": 7, "xp": 30},
-		EnemyType.ARCHER_RAT: {"name": "Archer Rat", "health": 6, "armor": 0, "damage": 2, "xp": 4},
-		EnemyType.HYDRA: {"name": "Hydra", "health": 190, "armor": 0, "damage": 7, "xp": 60},
-		EnemyType.FIRE_GOBLIN_SOLDIER: {"name": "Fire Goblin Soldier", "health": 6, "armor": 0, "damage": 2, "xp": 3},
-		EnemyType.FIRE_GOBLIN_MAGE: {"name": "Fire Goblin Mage", "health": 10, "armor": 0, "damage": 7, "xp": 8},
-		EnemyType.FIRE_GOBLIN_SHAMAN: {"name": "Fire Goblin Shaman", "health": 16, "armor": 0, "damage": 6, "xp": 12},
-		EnemyType.GIANT_BEAVER: {"name": "Giant Beaver", "health": 60, "armor": 0, "damage": 9, "xp": 20},
-		EnemyType.MINI_BEAR: {"name": "Mini Bear", "health": 14, "armor": 0, "damage": 4, "xp": 6},
-		EnemyType.LARGE_BEAR: {"name": "Large Bear", "health": 90, "armor": 0, "damage": 12, "xp": 35},
-		EnemyType.WOLF: {"name": "Wolf", "health": 30, "armor": 0, "damage": 7, "xp": 12},
-		EnemyType.COYOTE: {"name": "Coyote", "health": 6, "armor": 0, "damage": 2, "xp": 3},
-		EnemyType.BUGBEAR: {"name": "Bugbear", "health": 50, "armor": 0, "damage": 6, "xp": 20},
-		EnemyType.INFECTED_HUNTER: {"name": "Infected Hunter", "health": 40, "armor": 0, "damage": 8, "xp": 18},
-		EnemyType.GIANT_HAWK: {"name": "Giant Hawk", "health": 28, "armor": 0, "damage": 9, "xp": 14},
-		EnemyType.TREANT: {"name": "Treant", "health": 110, "armor": 0, "damage": 14, "xp": 35},
-		EnemyType.ICE_MAGE: {"name": "Ice Mage", "health": 40, "armor": 0, "damage": 6, "xp": 14},
-		EnemyType.FIRE_MAGE: {"name": "Fire Mage", "health": 32, "armor": 0, "damage": 7, "xp": 14},
-		EnemyType.SPARK_MAGE: {"name": "Spark Mage", "health": 16, "armor": 0, "damage": 3, "xp": 8},
-		EnemyType.AIR_MAGE: {"name": "Air Mage", "health": 30, "armor": 0, "damage": 5, "xp": 12},
-		EnemyType.EARTH_MAGE: {"name": "Earth Mage", "health": 65, "armor": 0, "damage": 9, "xp": 18},
-		EnemyType.ZOMBIE: {"name": "Zombie", "health": 12, "armor": 0, "damage": 5, "xp": 5},
-		EnemyType.WEREWOLF: {"name": "Werewolf", "health": 55, "armor": 0, "damage": 10, "xp": 22},
-		EnemyType.WERERABBIT: {"name": "Wererabbit", "health": 25, "armor": 0, "damage": 0, "xp": 8},
-		EnemyType.VAMPIRE: {"name": "Vampire", "health": 95, "armor": 0, "damage": 10, "xp": 24},
-		EnemyType.NECROMANCER: {"name": "Necromancer", "health": 60, "armor": 0, "damage": 4, "xp": 30},
-		EnemyType.BONE_DRAGON: {"name": "Bone Dragon", "health": 150, "armor": 0, "damage": 12, "xp": 80},
-		EnemyType.SPIRIT_COLLECTOR: {"name": "Spirit Collector", "health": 50, "armor": 0, "damage": 8, "xp": 20},
-		EnemyType.GRAVE_TITAN: {"name": "Grave Titan", "health": 130, "armor": 30, "damage": 15, "xp": 80},
-		EnemyType.CRYPT_CRAWLER: {"name": "Crypt Crawler", "health": 28, "armor": 0, "damage": 6, "xp": 12},
-		EnemyType.SCREECHER: {"name": "Screecher", "health": 14, "armor": 0, "damage": 5, "xp": 8},
-		EnemyType.CONSUMED: {"name": "The Consumed", "health": 35, "armor": 0, "damage": 8, "xp": 14},
-		EnemyType.SLUDGE: {"name": "Sludge Being", "health": 10, "armor": 0, "damage": 3, "xp": 4},
-		EnemyType.PIPE_CRAWLER: {"name": "Pipe Crawler", "health": 20, "armor": 0, "damage": 5, "xp": 8},
-		EnemyType.SEWER_CROC: {"name": "Sewer Cobra", "health": 40, "armor": 20, "damage": 12, "xp": 25},
-		EnemyType.RAT_KING: {"name": "Rat King", "health": 90, "armor": 10, "damage": 6, "xp": 60},
-		EnemyType.SWARM: {"name": "Swarm", "health": 10, "armor": 0, "damage": 3, "xp": 4},
-		EnemyType.WEREGOAT: {"name": "Weregoat", "health": 80, "armor": 0, "damage": 6, "xp": 20},
-		EnemyType.WYVERN: {"name": "Wyvern", "health": 125, "armor": 0, "damage": 25, "xp": 40},
-		EnemyType.ROC: {"name": "Roc", "health": 25, "armor": 15, "damage": 8, "xp": 16},
-		EnemyType.ICE_TROLL: {"name": "Ice Troll", "health": 150, "armor": 55, "damage": 13, "xp": 45},
-		EnemyType.SNOW_WRAITH: {"name": "Snow Wraith", "health": 10, "armor": 0, "damage": 5, "xp": 8},
-		EnemyType.GRANITE_COLOSSUS: {"name": "Granite Colossus", "health": 350, "armor": 250, "damage": 0, "xp": 120},
-		EnemyType.WHITE_MANTICORE: {"name": "White Manticore", "health": 75, "armor": 15, "damage": 15, "xp": 40},
-		EnemyType.SABERTOOTH: {"name": "Sabertooth Tiger", "health": 45, "armor": 0, "damage": 6, "xp": 18},
-		EnemyType.CERBERUS: {"name": "Cerberus", "health": 250, "armor": 50, "damage": 25, "xp": 150},
-		EnemyType.SUCCUBUS: {"name": "Succubus", "health": 25, "armor": 5, "damage": 4, "xp": 14},
-		EnemyType.DEMON: {"name": "Demon", "health": 65, "armor": 0, "damage": 8, "xp": 24},
-		EnemyType.IFRIT: {"name": "Ifrit", "health": 225, "armor": 0, "damage": 45, "xp": 70},
-		EnemyType.MIND_EATER: {"name": "Mind Eater", "health": 20, "armor": 0, "damage": 0, "xp": 12},
-		EnemyType.SPECTER: {"name": "Specter", "health": 10, "armor": 0, "damage": 2, "xp": 4},
-		EnemyType.MAGMA_SPIDER: {"name": "Magma Spider", "health": 4, "armor": 0, "damage": 1, "xp": 3},
-		EnemyType.PIT_FIEND: {"name": "Pit Fiend", "health": 0, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.ASH_HARPY: {"name": "Ash Harpy", "health": 6, "armor": 0, "damage": 3, "xp": 4},
-		EnemyType.INFLAMED_MINOTAUR: {"name": "Inflamed Minotaur", "health": 350, "armor": 100, "damage": 35, "xp": 90},
-		EnemyType.CHERUB: {"name": "Cherub", "health": 14, "armor": 5, "damage": 2, "xp": 10},
-		EnemyType.DJINN: {"name": "Djinn", "health": 180, "armor": 0, "damage": 35, "xp": 80},
-		EnemyType.CORRUPTED_ARCHANGEL: {"name": "Corrupted Archangel", "health": 0, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.RING_WRAITH: {"name": "Ring Wraith", "health": 100, "armor": 0, "damage": 15, "xp": 0},
-		EnemyType.DUMMY: {"name": "Training Dummy", "health": 500, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.RAT_NEST: {"name": "Rat Nest", "health": 15, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.GRAVESTONE: {"name": "Gravestone", "health": 10, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.GRAVE_DIGGER: {"name": "Grave Digger", "health": 20, "armor": 0, "damage": 0, "xp": 6},
-		EnemyType.HELL_DOOR: {"name": "Hell's Door", "health": 150, "armor": 0, "damage": 0, "xp": 0},
-	}
+	# Tier and base numbers come from EnemyDefs (the designer's sheet).
 	var _actions := {
 		EnemyType.MINION: [{"name": "Attack", "tempo": 3}, {"name": "Move", "tempo": 5}],
 		EnemyType.ELITE: [{"name": "Attack", "tempo": 4}, {"name": "Move", "tempo": 6}],
@@ -1483,13 +1221,13 @@ static func get_all_enemy_data() -> Array:
 
 	var result: Array = []
 	for enemy_type in EnemyType.values():
-		var s = _stats[enemy_type]
+		var def: Dictionary = EnemyDefs.DEFS.get(EnemyType.keys()[enemy_type], {})
 		# Apply the same passive-rework scaling initialize() uses, so the
 		# compendium shows the numbers the player actually fights.
-		var pps := passive_power_scale(int(INTENDED_LEVELS.get(enemy_type, 0)))
-		var hp: int = int(s["health"])
-		var armor: int = int(s["armor"])
-		var dmg: int = int(s["damage"])
+		var pps := passive_power_scale(int(def.get("intended_level", 0)))
+		var hp: int = int(def.get("health", 0))
+		var armor: int = int(def.get("armor", 0))
+		var dmg: int = int(def.get("damage", 0))
 		var special_text: String = _specials[enemy_type]
 		if hp > 0:
 			hp = maxi(1, roundi(hp * pps["hp"]))
@@ -1514,12 +1252,12 @@ static func get_all_enemy_data() -> Array:
 			shown.append(entry)
 			idx += 1
 		result.append({
-			"name": s["name"],
-			"type": _type_display[enemy_type],
+			"name": def["name"],
+			"type": def["tier"],
 			"health": hp,
 			"armor": armor,
 			"damage": dmg,
-			"xp": s["xp"],
+			"xp": def.get("xp", 0),
 			"actions": shown,
 			"special": special_text,
 		})

@@ -327,46 +327,19 @@ func _holy_water_drop_chance(type: Enemy.EnemyType) -> float:
 		DropRates.TIER_BOSS: return 1.0
 	return 0.15
 
-## Loot tier for an enemy type (see DropRates): trash never rolls high-end
-## loot on its own, bosses roll the richest table. The tiers are the Tier
-## column of the designer's sheet (docs/ENEMY_SHEET.tsv), the same column
-## the compendium shows (Enemy.get_all_enemy_data). Off the sheet — the
-## structures, the dummy, the Ring Wraith (sheet: "Special") — fall through
-## to "mid", though none of them drops anything (see _generate_loot).
+## The loot table an enemy type rolls on, derived from its sheet tier in
+## EnemyDefs ("Special" and anything unknown fall to the mid table), unless
+## the entry names a "loot_tier" of its own (the Rat King's nests roll trash).
+const LOOT_TIER_BY_SHEET_TIER := {
+	"Trash": DropRates.TIER_TRASH, "Mid-tier": DropRates.TIER_MID,
+	"Elite": DropRates.TIER_ELITE, "Boss": DropRates.TIER_BOSS,
+}
+
 func get_loot_tier(type: Enemy.EnemyType) -> String:
-	match type:
-		# sheet: Trash
-		Enemy.EnemyType.MINION, Enemy.EnemyType.WERERAT, Enemy.EnemyType.ARCHER_RAT, \
-		Enemy.EnemyType.SLUDGE, Enemy.EnemyType.PIPE_CRAWLER, Enemy.EnemyType.SWARM, \
-		Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.WERERABBIT, Enemy.EnemyType.SCREECHER, \
-		Enemy.EnemyType.FIRE_GOBLIN_SOLDIER, Enemy.EnemyType.COYOTE, Enemy.EnemyType.MINI_BEAR, \
-		Enemy.EnemyType.SNOW_WRAITH, Enemy.EnemyType.ASH_HARPY, Enemy.EnemyType.MAGMA_SPIDER, \
-		Enemy.EnemyType.MIND_EATER, Enemy.EnemyType.SPECTER, Enemy.EnemyType.SUCCUBUS, \
-		Enemy.EnemyType.CHERUB, Enemy.EnemyType.RAT_NEST:
-			return DropRates.TIER_TRASH
-		# sheet: Mid-tier
-		Enemy.EnemyType.SEWER_CROC, Enemy.EnemyType.SKELETON, Enemy.EnemyType.CRYPT_CRAWLER, \
-		Enemy.EnemyType.CONSUMED, Enemy.EnemyType.SPIRIT_COLLECTOR, \
-		Enemy.EnemyType.FIRE_GOBLIN_MAGE, Enemy.EnemyType.FIRE_GOBLIN_SHAMAN, \
-		Enemy.EnemyType.WOLF, Enemy.EnemyType.BUGBEAR, Enemy.EnemyType.INFECTED_HUNTER, \
-		Enemy.EnemyType.GIANT_HAWK, Enemy.EnemyType.ICE_MAGE, Enemy.EnemyType.FIRE_MAGE, \
-		Enemy.EnemyType.SPARK_MAGE, Enemy.EnemyType.AIR_MAGE, Enemy.EnemyType.EARTH_MAGE, \
-		Enemy.EnemyType.WEREGOAT, Enemy.EnemyType.ROC, Enemy.EnemyType.SABERTOOTH, \
-		Enemy.EnemyType.DEMON:
-			return DropRates.TIER_MID
-		# sheet: Elite
-		Enemy.EnemyType.ELITE, Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.VAMPIRE, \
-		Enemy.EnemyType.NECROMANCER, Enemy.EnemyType.GRAVE_TITAN, Enemy.EnemyType.ARMORED_TROLL, \
-		Enemy.EnemyType.HYDRA, Enemy.EnemyType.GIANT_BEAVER, Enemy.EnemyType.LARGE_BEAR, \
-		Enemy.EnemyType.TREANT, Enemy.EnemyType.WYVERN, Enemy.EnemyType.ICE_TROLL, \
-		Enemy.EnemyType.WHITE_MANTICORE, Enemy.EnemyType.IFRIT, Enemy.EnemyType.DJINN:
-			return DropRates.TIER_ELITE
-		# sheet: Boss.
-		Enemy.EnemyType.BOSS, Enemy.EnemyType.RAT_KING, Enemy.EnemyType.BONE_DRAGON, \
-		Enemy.EnemyType.GRANITE_COLOSSUS, Enemy.EnemyType.CERBERUS, Enemy.EnemyType.PIT_FIEND, \
-		Enemy.EnemyType.INFLAMED_MINOTAUR, Enemy.EnemyType.CORRUPTED_ARCHANGEL:
-			return DropRates.TIER_BOSS
-	return DropRates.TIER_MID
+	var def: Dictionary = EnemyDefs.DEFS.get(Enemy.EnemyType.keys()[type], {})
+	if def.has("loot_tier"):
+		return str(def["loot_tier"])
+	return str(LOOT_TIER_BY_SHEET_TIER.get(def.get("tier", ""), DropRates.TIER_MID))
 
 func _get_random_loot_item(type: Enemy.EnemyType) -> ItemData:
 	## Rarity-weighted by enemy tier (see DropRates.ENEMY_ITEM_WEIGHTS).
