@@ -2724,6 +2724,19 @@ func _roll_hit_damage(base: int, player_stats: PlayerStats, buff_mgr: BuffManage
 		total = max(1, floori(total * (1.0 - damage_reduction_pct)))
 	return total
 
+## Poke / Quick Shot: the printed base plus HALF of every modifier on top
+## (stats, bonuses, Strengthen), then the crit roll on that halved total.
+func _roll_half_scaled_damage(player_stats: PlayerStats, buff_mgr: BuffManager) -> int:
+	var full = base_damage + bonus_damage
+	if player_stats:
+		full = player_stats.get_effective_physical_damage(full)
+	if buff_mgr:
+		full += buff_mgr.consume_strengthen()
+	var total = base_damage + int(floor((full - base_damage) / 2.0))
+	if buff_mgr and buff_mgr.roll_crit():
+		total = crit_multiply(total, player_stats)
+	return total
+
 ## Cursed: the attacker takes a share of the damage it dealt.
 func _cursed_self_damage(total: int, self_damage_percent: float, player_stats: PlayerStats, log: bool) -> void:
 	if self_damage_percent > 0.0 and player_stats:
@@ -2734,32 +2747,10 @@ func _cursed_self_damage(total: int, self_damage_percent: float, player_stats: P
 				print("[CARD] Cursed: took %d self-damage!" % self_dmg)
 
 func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
-	var total_damage = base_damage + bonus_damage
-
 	# Generic single-target path scales by the card's school: spells (Spark)
 	# ride the INT pipeline, everything else stays STR physical.
-	if player_stats:
-		if school == CardSchool.SPELL:
-			total_damage = player_stats.get_effective_spell_damage(total_damage)
-		else:
-			total_damage = player_stats.get_effective_physical_damage(total_damage)
-
-	if is_empowered and player_stats:
-		total_damage += player_stats.empower_damage_bonus
-
-	# Strengthen bonus
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-
-		# Crit check with Enlightened
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats, target)
-			print("[CARD] CRITICAL HIT! Damage doubled!")
-
-	# Cursed: reduce damage dealt by percentage
-	if damage_reduction_pct > 0.0:
-		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
-	
+	var total_damage := _roll_hit_damage(base_damage, player_stats, buff_mgr, school == CardSchool.SPELL,
+		target, is_empowered, damage_reduction_pct, "[CARD] CRITICAL HIT! Damage doubled!")
 	print("[CARD] %s deals %d damage!" % [card_name, total_damage])
 	last_damage_dealt = total_damage
 
@@ -2772,53 +2763,21 @@ func _execute_slash(target, is_empowered: bool, player_stats: PlayerStats, damag
 			if target_buff:
 				target_buff.on_attacked(buff_mgr.owner_node if buff_mgr else null)
 
-	if self_damage_percent > 0.0 and player_stats:
-		var self_dmg = floori(total_damage * self_damage_percent)
-		if self_dmg > 0:
-			player_stats.take_damage(self_dmg)
-			print("[CARD] Cursed: took %d self-damage!" % self_dmg)
+	_cursed_self_damage(total_damage, self_damage_percent, player_stats, true)
 func _execute_dagger_throw(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
-	var total_damage = base_damage + bonus_damage
-
-	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(total_damage)
-
-	if is_empowered and player_stats:
-		total_damage += player_stats.empower_damage_bonus
-
 	# An attack like any other: Strengthen and crit apply.
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats, target)
-
-	# Cursed: reduce damage dealt by percentage
-	if damage_reduction_pct > 0.0:
-		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
-	
+	var total_damage := _roll_hit_damage(base_damage, player_stats, buff_mgr, false, target, is_empowered, damage_reduction_pct)
 	print("[CARD] Dagger Throw deals %d damage!" % total_damage)
-	
 	last_damage_dealt = total_damage
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
-	
-	if self_damage_percent > 0.0 and player_stats:
-		var self_dmg = floori(total_damage * self_damage_percent)
-		if self_dmg > 0:
-			player_stats.take_damage(self_dmg)
+	_cursed_self_damage(total_damage, self_damage_percent, player_stats, false)
 
 ## Neither Man nor Beast (Mane of Narashimha): 5 base damage through the normal
 ## additive pipeline (STR, strengthen, on-self, crit) that bypasses armor and
 ## resistances; the target cannot heal back THIS hit's damage for 10 tempo.
 func _execute_neither_man_nor_beast(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	var total_damage = base_damage + bonus_damage
-	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(total_damage)
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats)
-			print("[CARD] CRITICAL HIT!")
+	var total_damage := _roll_hit_damage(base_damage, player_stats, buff_mgr, false, null, false, 0.0, "[CARD] CRITICAL HIT!")
 	last_damage_dealt = total_damage
 	if target and target.has_method("take_damage"):
 		# ignore_armor = true; enemies have no per-type resistances, so bypassing
@@ -3323,14 +3282,7 @@ func _execute_roar(_target, _player_stats: PlayerStats) -> void:
 func _execute_poke(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# 2 base damage + HALF of every modifier on top (stats, bonuses, buffs),
 	# the same half-scaling Quick Shot uses.
-	var full = base_damage + bonus_damage
-	if player_stats:
-		full = player_stats.get_effective_physical_damage(full)
-	if buff_mgr:
-		full += buff_mgr.consume_strengthen()
-	var total_damage = base_damage + int(floor((full - base_damage) / 2.0))
-	if buff_mgr and buff_mgr.roll_crit():
-		total_damage = crit_multiply(total_damage, player_stats)
+	var total_damage := _roll_half_scaled_damage(player_stats, buff_mgr)
 	last_damage_dealt = total_damage
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
@@ -3403,13 +3355,7 @@ func _execute_approach(player_stats: PlayerStats, buff_mgr: BuffManager = null) 
 # ============================================
 
 func _execute_trick_shot(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	var total_damage = base_damage + bonus_damage
-	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(total_damage)
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats)
+	var total_damage := _roll_hit_damage(base_damage, player_stats, buff_mgr)
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
 		last_damage_dealt = total_damage
@@ -3524,14 +3470,8 @@ func _execute_worst_that_could_happen(target, player_stats: PlayerStats, buff_mg
 	last_damage_dealt = total_damage
 
 func _execute_oops(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	var hit_damage = base_damage + bonus_damage
-	if player_stats:
-		hit_damage = player_stats.get_effective_physical_damage(hit_damage)
 	# Strengthen and crit ride the FIRST hit, matching the face preview.
-	if buff_mgr:
-		hit_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			hit_damage = crit_multiply(hit_damage, player_stats, target)
+	var hit_damage := _roll_hit_damage(base_damage, player_stats, buff_mgr, false, target)
 	# Use the pre-rolled outcome (30% = 5 hits, 40% = 3 hits, 30% = 2 hits) so
 	# the result matches what the card preview showed.
 	var hits = 2
@@ -3687,23 +3627,8 @@ func _execute_shuriken(target, player_stats: PlayerStats) -> void:
 		print("[CARD] Shuriken thrown — random target resolved in main")
 
 func _execute_premeditated(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
-	var total_damage = base_damage + bonus_damage
-
-	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(total_damage)
-
-	if is_empowered and player_stats:
-		total_damage += player_stats.empower_damage_bonus
-
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats)
-			print("[CARD] CRITICAL HIT! Damage doubled!")
-
-	if damage_reduction_pct > 0.0:
-		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
-
+	var total_damage := _roll_hit_damage(base_damage, player_stats, buff_mgr, false, null, is_empowered,
+		damage_reduction_pct, "[CARD] CRITICAL HIT! Damage doubled!")
 	print("[CARD] Premeditated deals %d damage!" % total_damage)
 	last_damage_dealt = total_damage
 
@@ -3714,11 +3639,7 @@ func _execute_premeditated(target, is_empowered: bool, player_stats: PlayerStats
 			target.premeditated_card_bonus = 15
 			print("[CARD] Premeditated EXPOSED the target! The next card targeting it deals +15 damage!")
 
-	if self_damage_percent > 0.0 and player_stats:
-		var self_dmg = floori(total_damage * self_damage_percent)
-		if self_dmg > 0:
-			player_stats.take_damage(self_dmg)
-			print("[CARD] Cursed: took %d self-damage!" % self_dmg)
+	_cursed_self_damage(total_damage, self_damage_percent, player_stats, true)
 
 #endregion
 #region STEPHEN CARD EXECUTE FUNCTIONS
@@ -3737,15 +3658,7 @@ func _execute_rise(target, _player_stats: PlayerStats) -> void:
 
 func _execute_quick_shot(target, player_stats: PlayerStats, deck_manager = null, buff_mgr: BuffManager = null) -> void:
 	# 2 base damage + HALF of every modifier on top (stats, bonuses, buffs).
-	var full = base_damage + bonus_damage
-	if player_stats:
-		full = player_stats.get_effective_physical_damage(full)
-	if buff_mgr:
-		full += buff_mgr.consume_strengthen()
-	var total_damage = base_damage + int(floor((full - base_damage) / 2.0))
-	if buff_mgr:
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats)
+	var total_damage := _roll_half_scaled_damage(player_stats, buff_mgr)
 	last_damage_dealt = total_damage
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
@@ -5274,24 +5187,11 @@ static func create_reckless_strike() -> Card:
 	return card
 
 func _execute_reckless_strike(target, is_empowered: bool, player_stats: PlayerStats, damage_reduction_pct: float, self_damage_percent: float, buff_mgr: BuffManager = null) -> void:
-	var total_damage = base_damage + bonus_damage
-	if player_stats:
-		total_damage = player_stats.get_effective_physical_damage(total_damage)
-	if is_empowered and player_stats:
-		total_damage += player_stats.empower_damage_bonus
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats)
-	if damage_reduction_pct > 0.0:
-		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
+	var total_damage := _roll_hit_damage(base_damage, player_stats, buff_mgr, false, null, is_empowered, damage_reduction_pct)
 	last_damage_dealt = total_damage
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
-	if self_damage_percent > 0.0 and player_stats:
-		var self_dmg = floori(total_damage * self_damage_percent)
-		if self_dmg > 0:
-			player_stats.take_damage(self_dmg)
+	_cursed_self_damage(total_damage, self_damage_percent, player_stats, false)
 	print("[CARD] Reckless Strike! Dealt %d damage" % total_damage)
 
 # NEW CARDS
@@ -5936,15 +5836,7 @@ func _execute_vengeful_shield(player_stats: PlayerStats, buff_mgr: BuffManager =
 
 func _execute_mana_surge(target, player_stats: PlayerStats, buff_mgr: BuffManager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0) -> void:
 	# An orb of raw mana — spell school, so INT scales it (was physical).
-	var total_damage = base_damage + bonus_damage
-	if player_stats:
-		total_damage = player_stats.get_effective_spell_damage(total_damage)
-	if buff_mgr:
-		total_damage += buff_mgr.consume_strengthen()
-		if buff_mgr.roll_crit():
-			total_damage = crit_multiply(total_damage, player_stats)
-	if damage_reduction_pct > 0:
-		total_damage = max(1, floori(total_damage * (1.0 - damage_reduction_pct)))
+	var total_damage := _roll_hit_damage(base_damage, player_stats, buff_mgr, true, null, false, damage_reduction_pct)
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
 		last_damage_dealt = total_damage
