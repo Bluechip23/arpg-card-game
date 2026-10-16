@@ -4,93 +4,17 @@ extends Control
 ## Enemy Lab — a development workbench for browsing every enemy and previewing
 ## its idle, movement and attack animations, the sibling of the Animation Lab.
 ##
-## Shows the procedural 3D EnemyFigure for the selected enemy in a viewport "box"
-## with a scrollable list of every enemy on the side. Selecting an enemy rebuilds
-## the figure for that species; the action buttons below the viewport drive the
-## same EnemyFigure animations (idle / move / attack / hit) that battle uses, plus
-## a button per the enemy's real action list so you can step through its moveset.
+## Shows the SpriteEnemyFigure for the selected enemy in a viewport "box" with a
+## scrollable list of every enemy on the side. Selecting an enemy rebuilds the
+## figure for that species; the action buttons below the viewport drive the same
+## figure animations (idle / move / attack / hit) that battle uses, plus a button
+## per the enemy's real action list so you can step through its moveset.
 ##
 ## Enemy data (names, stats, action lists, behaviour notes) comes from the single
-## source of truth Enemy.get_all_enemy_data(); the figure for each species mirrors
-## Enemy._setup_sprite(). Generic tiers (Minion/Elite/Boss) have no bespoke model,
-## so they are shown as their coloured battle box with the same animations.
+## source of truth Enemy.get_all_enemy_data(); the figure kind comes from
+## EnemyDefs, exactly as Enemy._setup_sprite() reads it.
 
 const TitleMenuScene := "res://scenes/menus/title_menu.tscn"
-
-# Mirrors Enemy._setup_sprite(): EnemyType -> EnemyFigure kind. Types absent here
-# are generic tiers shown as a coloured box.
-const KIND_BY_TYPE := {
-	Enemy.EnemyType.WERERAT: "rat",
-	Enemy.EnemyType.ARCHER_RAT: "archer_rat",
-	Enemy.EnemyType.ARMORED_TROLL: "armored_troll",
-	Enemy.EnemyType.SKELETON: "skeleton",
-	Enemy.EnemyType.HYDRA: "hydra",
-	Enemy.EnemyType.FIRE_GOBLIN_SOLDIER: "fire_goblin_soldier",
-	Enemy.EnemyType.FIRE_GOBLIN_MAGE: "fire_goblin_mage",
-	Enemy.EnemyType.FIRE_GOBLIN_SHAMAN: "fire_goblin_shaman",
-	Enemy.EnemyType.GIANT_BEAVER: "giant_beaver",
-	Enemy.EnemyType.MINI_BEAR: "mini_bear",
-	Enemy.EnemyType.LARGE_BEAR: "large_bear",
-	Enemy.EnemyType.WOLF: "wolf",
-	Enemy.EnemyType.COYOTE: "coyote",
-	Enemy.EnemyType.BUGBEAR: "bugbear",
-	Enemy.EnemyType.INFECTED_HUNTER: "infected_hunter",
-	Enemy.EnemyType.GIANT_HAWK: "giant_hawk",
-	Enemy.EnemyType.TREANT: "treant",
-	Enemy.EnemyType.ICE_MAGE: "ice_mage",
-	Enemy.EnemyType.FIRE_MAGE: "fire_mage",
-	Enemy.EnemyType.SPARK_MAGE: "spark_mage",
-	Enemy.EnemyType.AIR_MAGE: "air_mage",
-	Enemy.EnemyType.EARTH_MAGE: "earth_mage",
-	Enemy.EnemyType.ZOMBIE: "zombie",
-	Enemy.EnemyType.WEREWOLF: "werewolf",
-	Enemy.EnemyType.WERERABBIT: "wererabbit",
-	Enemy.EnemyType.VAMPIRE: "vampire",
-	Enemy.EnemyType.NECROMANCER: "necromancer",
-	Enemy.EnemyType.BONE_DRAGON: "bone_dragon",
-	Enemy.EnemyType.SPIRIT_COLLECTOR: "spirit_collector",
-	Enemy.EnemyType.GRAVE_TITAN: "grave_titan",
-	Enemy.EnemyType.CRYPT_CRAWLER: "crypt_crawler",
-	Enemy.EnemyType.SCREECHER: "screecher",
-	Enemy.EnemyType.CONSUMED: "consumed",
-	Enemy.EnemyType.SLUDGE: "sludge",
-	Enemy.EnemyType.PIPE_CRAWLER: "pipe_crawler",
-	Enemy.EnemyType.SEWER_CROC: "sewer_croc",
-	Enemy.EnemyType.RAT_KING: "rat_king",
-	Enemy.EnemyType.SWARM: "swarm",
-	Enemy.EnemyType.WEREGOAT: "weregoat",
-	Enemy.EnemyType.WYVERN: "wyvern",
-	Enemy.EnemyType.ROC: "roc",
-	Enemy.EnemyType.ICE_TROLL: "ice_troll",
-	Enemy.EnemyType.SNOW_WRAITH: "snow_wraith",
-	Enemy.EnemyType.GRANITE_COLOSSUS: "granite_colossus",
-	Enemy.EnemyType.WHITE_MANTICORE: "white_manticore",
-	Enemy.EnemyType.SABERTOOTH: "sabertooth",
-	Enemy.EnemyType.CERBERUS: "cerberus",
-	Enemy.EnemyType.SUCCUBUS: "succubus",
-	Enemy.EnemyType.DEMON: "demon",
-	Enemy.EnemyType.IFRIT: "ifrit",
-	Enemy.EnemyType.MIND_EATER: "mind_eater",
-	Enemy.EnemyType.SPECTER: "specter",
-	Enemy.EnemyType.MAGMA_SPIDER: "magma_spider",
-	Enemy.EnemyType.PIT_FIEND: "pit_fiend",
-	Enemy.EnemyType.ASH_HARPY: "ash_harpy",
-	Enemy.EnemyType.INFLAMED_MINOTAUR: "inflamed_minotaur",
-	Enemy.EnemyType.CHERUB: "cherub",
-	Enemy.EnemyType.DJINN: "djinn",
-	Enemy.EnemyType.CORRUPTED_ARCHANGEL: "corrupted_archangel",
-	# Generic tiers: the same brute figures battle now uses instead of boxes.
-	Enemy.EnemyType.MINION: "brute_minion",
-	Enemy.EnemyType.ELITE: "brute_elite",
-	Enemy.EnemyType.BOSS: "brute_boss",
-}
-
-# Coloured box fallback for the generic tiers (mirrors Enemy.initialize colours).
-const COLOR_BY_TYPE := {
-	Enemy.EnemyType.MINION: Color(0.8, 0.2, 0.2),
-	Enemy.EnemyType.ELITE: Color(0.6, 0.1, 0.1),
-	Enemy.EnemyType.BOSS: Color(0.4, 0.0, 0.2),
-}
 
 # Enemies are catalogued by HABITAT, not by Act (see docs/STORY.md §5.3):
 # an Act simply draws from one or more habitats.
@@ -139,9 +63,7 @@ const MOVE_ACTIONS := ["move", "scurry", "scurry away", "get into range", "flee"
 
 var _viewport: SubViewport = null
 var _figure_root: Node3D = null       # holds the current figure/box; tweened for "move"
-var _figure: EnemyFigure = null       # set for species with a bespoke model
-var _box: MeshInstance3D = null       # set for generic tiers (coloured cube)
-var _box_base_y: float = 0.35
+var _figure: SpriteEnemyFigure = null
 
 var _list_vbox: VBoxContainer = null
 var _status_label: Label = null
@@ -157,8 +79,6 @@ var _data_by_type: Dictionary = {}    # EnemyType -> get_all_enemy_data() entry
 var _current_type: int = -1
 var _current_dir: int = CharacterAnimator.Direction.SOUTH
 var _move_tween: Tween = null
-var _box_busy: bool = false
-var _time: float = 0.0
 
 
 func _ready() -> void:
@@ -312,8 +232,8 @@ func _build_viewport() -> void:
 	vp.add_child(camera)
 	camera.look_at(Vector3(0, 0.85, 0), Vector3.UP)
 
-	# All figures/boxes live under this node so "move" can translate them without
-	# fighting EnemyFigure's own internal idle bob (which moves a child node).
+	# The figure lives under this node so "move" can translate it without
+	# fighting the figure's own internal motion (which moves its rig).
 	_figure_root = Node3D.new()
 	vp.add_child(_figure_root)
 
@@ -438,29 +358,16 @@ func _build_figure(type: int) -> void:
 		_move_tween.kill()
 	_move_tween = null
 	_figure = null
-	_box = null
-	_box_busy = false
 	for child in _figure_root.get_children():
 		child.queue_free()
 	_figure_root.position = Vector3.ZERO
 	_figure_root.rotation_degrees = Vector3.ZERO
 
-	var kind: String = KIND_BY_TYPE.get(type, "")
-	if kind != "":
-		_figure = EnemyFigure.new()
+	var kind: String = str(EnemyDefs.DEFS.get(Enemy.EnemyType.keys()[type], {}).get("figure_kind", ""))
+	if SpriteEnemyFigure.supports(kind):
+		_figure = SpriteEnemyFigure.new()
 		_figure_root.add_child(_figure)
 		_figure.setup(kind)
-	else:
-		# Generic tier: coloured battle box.
-		_box = MeshInstance3D.new()
-		var b := BoxMesh.new()
-		b.size = Vector3(0.7, 0.7, 0.7)
-		_box.mesh = b
-		var mat := StandardMaterial3D.new()
-		mat.albedo_color = COLOR_BY_TYPE.get(type, Color(0.7, 0.2, 0.2))
-		_box.material_override = mat
-		_box.position = Vector3(0, _box_base_y, 0)
-		_figure_root.add_child(_box)
 
 
 func _build_moveset_buttons(type: int) -> void:
@@ -560,65 +467,18 @@ func _play_attack(key: String = "attack") -> void:
 	if _figure:
 		_figure.play_action(key)
 		_figure.flash(Color(1.0, 0.7, 0.3))  # the colour "blink" on every attack
-	elif _box:
-		_box_lunge()
 
 
 func _play_hit() -> void:
 	if _figure:
 		_figure.play_hit()
 		_figure.flash(Color(1.0, 0.3, 0.3))
-	elif _box:
-		_box_recoil()
 
 
 func _play_heal() -> void:
 	if _figure:
 		_figure.set_walking(false)
 		_figure.flash(Color(0.5, 1.0, 0.5))
-	elif _box:
-		_box_flash(Color(0.5, 1.0, 0.5))
-
-
-# ---- Generic box animations (mirror EnemyFigure's tween feel) ----
-
-func _box_lunge() -> void:
-	if _box == null or _box_busy:
-		return
-	_box_busy = true
-	var dir := _facing_offset().normalized()
-	var base := Vector3(0, _box_base_y, 0)
-	var tw := create_tween().set_trans(Tween.TRANS_SINE)
-	tw.tween_property(_box, "position", base + dir * 0.25, 0.09)
-	tw.tween_property(_box, "position", base, 0.2)
-	tw.tween_callback(func(): _box_busy = false)
-	_box_flash(Color(1.0, 0.7, 0.3))
-
-
-func _box_recoil() -> void:
-	if _box == null or _box_busy:
-		return
-	_box_busy = true
-	var dir := _facing_offset().normalized()
-	var base := Vector3(0, _box_base_y, 0)
-	var tw := create_tween().set_trans(Tween.TRANS_QUAD)
-	tw.tween_property(_box, "position", base - dir * 0.18, 0.07)
-	tw.tween_property(_box, "position", base, 0.22)
-	tw.tween_callback(func(): _box_busy = false)
-	_box_flash(Color(1.0, 0.3, 0.3))
-
-
-func _box_flash(color: Color) -> void:
-	if _box == null:
-		return
-	var sm := _box.material_override as StandardMaterial3D
-	if sm == null:
-		return
-	sm.emission_enabled = true
-	sm.emission = color
-	sm.emission_energy_multiplier = 1.1
-	var tw := create_tween()
-	tw.tween_property(sm, "emission_energy_multiplier", 0.0, 0.32)
 
 
 # =============================================================
@@ -633,36 +493,15 @@ func _on_set_direction(dir: int) -> void:
 func _apply_facing() -> void:
 	if _figure:
 		_figure.set_facing(_current_dir)
-	elif _box:
-		match _current_dir:
-			CharacterAnimator.Direction.SOUTH: _figure_root.rotation_degrees.y = 0.0
-			CharacterAnimator.Direction.NORTH: _figure_root.rotation_degrees.y = 180.0
-			CharacterAnimator.Direction.EAST: _figure_root.rotation_degrees.y = 90.0
-			CharacterAnimator.Direction.WEST: _figure_root.rotation_degrees.y = -90.0
 
 
-## World-space forward offset for the current facing. Figures are built facing +Z
-## (south, toward the camera); the box rotates via _figure_root, so for it we move
-## along +Z in its local frame, which _figure_root's rotation already accounts for.
+## World-space forward offset for the current facing (+Z is south, toward the camera).
 func _facing_offset() -> Vector3:
-	if _box:
-		return Vector3(0, 0, 0.7)  # local +Z, _figure_root rotation handles facing
 	match _current_dir:
 		CharacterAnimator.Direction.NORTH: return Vector3(0, 0, -0.7)
 		CharacterAnimator.Direction.EAST: return Vector3(0.7, 0, 0)
 		CharacterAnimator.Direction.WEST: return Vector3(-0.7, 0, 0)
 		_: return Vector3(0, 0, 0.7)  # SOUTH
-
-
-# =============================================================
-# IDLE BOB (generic box only — EnemyFigure bobs itself)
-# =============================================================
-
-func _process(delta: float) -> void:
-	if _box == null or _box_busy:
-		return
-	_time += delta
-	_box.position.y = _box_base_y + sin(_time * 2.0) * 0.02
 
 
 # =============================================================

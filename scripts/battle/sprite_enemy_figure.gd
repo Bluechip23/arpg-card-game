@@ -19,9 +19,8 @@ extends Node3D
 ##    cherub, archangel... Real directional walk frames plus the procedural
 ##    attack/hit motion.
 ##
-## Drop-in visual replacement for EnemyFigure on mapped kinds; unmapped kinds
-## (fire goblin warband bosses etc. that need bespoke art) keep the
-## procedural mesh figure.
+## The one enemy figure: every EnemyDefs figure_kind maps to a KINDS entry;
+## types without a kind (the Ring Wraith) keep Enemy's coloured box.
 
 const SHEET := "res://assets/sprites/MonsterKit/monster battler set.png"
 const NPC1 := "res://assets/sprites/NPCpackage1"
@@ -134,6 +133,12 @@ const KINDS := {
 	"succubus": {"icon": "chaos_monsters/Icon14", "faces": "front", "scale": 1.7},  # the purple-winged temptress
 	"cherub": {"npc": NPC1 + "/npc baby A v01.png", "tint": Color(1.15, 1.1, 0.9)},
 	"corrupted_archangel": {"npc": NPC1 + "/npc king A v01.png", "tint": Color(0.75, 0.6, 0.9), "scale": 1.2},
+	# --- the generic Minion / Elite / Boss tiers (and custom enemies): the
+	# Craftpix swordsman's three gear tiers, lvl4 → lvl6 increasingly heavy,
+	# growing with the tier like the old procedural brute did ---
+	"brute_minion": {"cp": "swordsman_lvl4_6/Swordsman_lvl4"},
+	"brute_elite": {"cp": "swordsman_lvl4_6/Swordsman_lvl5", "scale": 1.15},
+	"brute_boss": {"cp": "swordsman_lvl4_6/Swordsman_lvl6", "scale": 1.3},
 	# --- the dojo's enemy training dummies ---
 	"chicken": {"tex": "chicken"},
 	# --- the Rat King's nests: no pack has a nest, so this one is drawn
@@ -360,7 +365,11 @@ func _fr_apply_offset() -> void:
 static func _cp_load_sheet(folder: String, variant: String, anim: String) -> Texture2D:
 	var stem := variant.rstrip("0123456789")
 	var lower := anim.to_lower()
+	# The swordsman pack names its sheets by the variant's last segment
+	# ("Swordsman_lvl4" -> "lvl4_Idle", with a lowercase "attack").
+	var tail := variant.get_slice("_", variant.get_slice_count("_") - 1)
 	for name in ["%s_%s" % [variant, anim], "%s_%s" % [variant, lower], "%s_%s" % [stem, anim],
+			"%s_%s" % [tail, anim], "%s_%s" % [tail, lower],
 			anim, anim + "0", lower, lower + "0", anim.capitalize().replace(" ", "_")]:
 		var path := "%s/%s_without_shadow.png" % [folder, name]
 		if ResourceLoader.exists(path):

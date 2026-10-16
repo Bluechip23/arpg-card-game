@@ -393,9 +393,9 @@ var _damage_preview_label: Label3D = null
 # Sprite animation (replaces BoxMesh for enemies with sprite sheets)
 var _enemy_sprite: Sprite3D = null
 var _enemy_animator: CharacterAnimator = null
-# EnemyFigure (procedural 3D) or SpriteEnemyFigure (MonsterKit billboard) —
-# untyped, both expose the same verbs (play_action, flash, set_walking, …).
-var _enemy_figure = null
+# Billboard sprite figure (play_action, flash, set_walking, …); null for
+# types without a figure_kind, which keep the coloured box.
+var _enemy_figure: SpriteEnemyFigure = null
 var _action_map: Dictionary = {}
 
 @onready var mesh: MeshInstance3D = $MeshInstance3D
@@ -450,7 +450,7 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 
 	# Custom/generic-tier enemies keep the coloured box, which never had a
 	# contact shadow — the strongest grounding cue — so they read as floating.
-	# Figure kinds attach their own inside SpriteEnemyFigure / EnemyFigure.
+	# Figure kinds attach their own inside SpriteEnemyFigure.
 	if _enemy_figure == null and not has_node("Shadow"):
 		BlobShadow.attach(self, 0.62)
 
@@ -506,7 +506,7 @@ func _set_mesh_color(color: Color) -> void:
 		if mat:
 			mat.albedo_color = color
 
-var figure_kind: String = ""  # EnemyFigure kind this enemy renders as ("" = coloured box)
+var figure_kind: String = ""  # SpriteEnemyFigure kind this enemy renders as ("" = coloured box)
 var is_training_dummy: bool = false  # dojo dummy: absorbs hits and statuses, never acts or dies
 var is_structure: bool = false       # a hittable object on the grid (rat nest): never acts, never wanders, the wave does not wait on it
 
@@ -576,12 +576,7 @@ func _setup_sprite() -> void:
 		return  # Unknown types keep their coloured box
 
 	figure_kind = kind
-	# Prefer the MonsterKit battler sprite when this kind has one; the
-	# procedural mesh figure remains the fallback for everything else.
-	if SpriteEnemyFigure.supports(kind):
-		_enemy_figure = SpriteEnemyFigure.new()
-	else:
-		_enemy_figure = EnemyFigure.new()
+	_enemy_figure = SpriteEnemyFigure.new()
 	add_child(_enemy_figure)
 	_enemy_figure.setup(kind)
 

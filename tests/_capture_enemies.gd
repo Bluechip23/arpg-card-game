@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Dev helper: line up the four EnemyFigure models (skeleton, rat, archer_rat,
+## Dev helper: line up four SpriteEnemyFigure rigs (skeleton, rat, archer_rat,
 ## armored_troll) and render them to a PNG. Run under xvfb + software GL.
 ##   ... --script tests/_capture_enemies.gd -- <out.png> [idle|walk|attack]
 
@@ -50,7 +50,7 @@ func _initialize() -> void:
 		var kinds := ["hydra", "fire_goblin_soldier", "fire_goblin_mage", "fire_goblin_shaman"]
 		var x := -2.7
 		for k in kinds:
-			var f := EnemyFigure.new()
+			var f := SpriteEnemyFigure.new()
 			f.position = Vector3(x, 0, 0)
 			root3d.add_child(f)
 			f.setup(k)
@@ -60,7 +60,7 @@ func _initialize() -> void:
 		cam.look_at(Vector3(0, 0.7, 0), Vector3.UP)
 	elif solo != "":
 		# Single figure, close 3/4 view.
-		var f := EnemyFigure.new()
+		var f := SpriteEnemyFigure.new()
 		root3d.add_child(f)
 		f.setup(solo)
 		_figs.append(f)
@@ -70,7 +70,7 @@ func _initialize() -> void:
 		var kinds := ["skeleton", "rat", "archer_rat", "armored_troll"]
 		var x := -2.25
 		for k in kinds:
-			var f := EnemyFigure.new()
+			var f := SpriteEnemyFigure.new()
 			f.position = Vector3(x, 0, 0)
 			root3d.add_child(f)
 			f.setup(k)
