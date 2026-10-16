@@ -65,7 +65,7 @@ def main():
     if df.empty:
         raise SystemExit("no %s_* results under sim_out/ (run tests/sim/sweeps/%s_*.txt first)" % (char, char))
     parts = df["scenario"].apply(lambda n: parse(n, char))
-    for k in ["build", "e", "i", "d", "a", "s", "p", "f", "w", "r", "t", "x", "h", "g", "L"]:
+    for k in ["build", "e", "i", "d", "a", "s", "p", "f", "w", "r", "t", "x", "h", "g", "k", "L"]:
         df[k] = parts.apply(lambda d: d.get(k))
     df = df[df["L"].astype(int) == args.level]
     if df.empty:
@@ -74,7 +74,7 @@ def main():
     df["clean"] = df["warnings"].fillna("").astype(str).str.len().eq(0).astype(float)
 
     # Designed builds x enemies.
-    des = df[df["i"].isna() & df["a"].isna() & df["p"].isna() & df["f"].isna() & df["w"].isna() & df["r"].isna() & df["t"].isna() & df["x"].isna() & df["h"].isna() & df["g"].isna()]
+    des = df[df["i"].isna() & df["a"].isna() & df["p"].isna() & df["f"].isna() & df["w"].isna() & df["r"].isna() & df["t"].isna() & df["x"].isna() & df["h"].isna() & df["g"].isna() & df["k"].isna()]
     if not des.empty:
         g = simlib.per_group(des, ["build", "e"])
         g["clean"] = des.groupby(["build", "e"])["clean"].mean().values
@@ -136,7 +136,7 @@ def main():
             return float("nan")
         m = m.copy(); m["fired"] = m.apply(fired, axis=1) if "passive_triggers" in m.columns else float("nan")
         g = m.groupby(["build", "e", "f"]).agg(win_rate=("win", "mean"), dpt=("damage_per_tempo", "mean"), dpt_median=("damage_per_tempo", "median"), taken=("total_damage_taken", "mean"), fired=("fired", "mean")).reset_index()
-        base = df[df["f"].isna() & df["p"].isna() & df["i"].isna() & df["d"].isna() & df["a"].isna() & df["s"].isna() & df["w"].isna() & df["r"].isna() & df["t"].isna() & df["x"].isna() & df["h"].isna() & df["g"].isna()]
+        base = df[df["f"].isna() & df["p"].isna() & df["i"].isna() & df["d"].isna() & df["a"].isna() & df["s"].isna() & df["w"].isna() & df["r"].isna() & df["t"].isna() & df["x"].isna() & df["h"].isna() & df["g"].isna() & df["k"].isna()]
         if not base.empty:
             b = base.groupby(["build", "e"]).agg(dpt0=("damage_per_tempo", "mean"), dpt0_median=("damage_per_tempo", "median"), win0=("win", "mean")).reset_index()
             g = g.merge(b, on=["build", "e"], how="left")
@@ -162,10 +162,11 @@ def main():
     # build, paired by seed (the swaps run fewer seeds, so compare on shared
     # seeds). Runs with warnings (a refused equip or slot) are excluded and
     # listed, never silently dropped.
-    des_runs = df[df["i"].isna() & df["a"].isna() & df["p"].isna() & df["f"].isna() & df["w"].isna() & df["r"].isna() & df["t"].isna() & df["x"].isna() & df["h"].isna() & df["g"].isna()]
+    des_runs = df[df["i"].isna() & df["a"].isna() & df["p"].isna() & df["f"].isna() & df["w"].isna() & df["r"].isna() & df["t"].isna() & df["x"].isna() & df["h"].isna() & df["g"].isna() & df["k"].isna()]
     for col, what, fname in (("w", "card", "card_swap"), ("x", "item", "item_swap")):
         swap_table(df, des_runs, col, what, tag, fname)
     engrave_table(df, des_runs, tag)
+    stance_table(df, des_runs, tag)
     if args.update_ranking:
         src = simlib.CHARTS + "/%s_card_swap.csv" % tag
         if os.path.exists(src):
@@ -235,6 +236,52 @@ def main():
             print("\nbuild x tactic — win rate change vs the build's own loadout:\n", per.pivot(index="build", columns="t", values="d_win").round(2).to_string())
             print("\nbuild x tactic — median DPT change:\n", per.pivot(index="build", columns="t", values="d_dpt_median").round(2).to_string())
         heatmap(per.pivot(index="build", columns="t", values="win_rate"), "%s build (rows) x tactic (columns) — win rate" % char, "%s_tactics_win.png" % tag)
+
+
+def stance_table(df, des_runs, tag):
+    """Two-handed grip (the stances sweep): each build's own weapon gripped,
+    against the designed build; every pool weapon gripped, against the same
+    weapon held one-handed (the item sweep's run on the same seed) when that
+    ran, else against the designed build. Runs with a refusal are listed and
+    left out (a grip the build cannot carry is a finding, not a score)."""
+    m = df[df["k"].notna()]
+    if m.empty or des_runs.empty:
+        return
+    bad = m[m["clean"] < 1.0]
+    if not bad.empty:
+        print("\ngrips not measurable (excluded): " + "; ".join(sorted(set(
+            "%s+%s (%s)" % (r["build"], r["k"], str(r["warnings"]).split("|")[0][:60]) for r in bad.to_dict("records")))[:20]))
+    m = m[m["clean"] == 1.0]
+    des = des_runs.set_index(["build", "e", "seed"])
+    one = df[df["x"].notna() & (df["clean"] == 1.0)].set_index(["build", "e", "seed", "x"])
+    rows = []
+    for r in m.to_dict("records"):
+        key = (r["build"], r["e"], r["seed"])
+        if key not in des.index:
+            continue
+        weapon = str(r["k"]).split("~", 1)[1] if "~" in str(r["k"]) else ""
+        ref = des.loc[key]
+        vs = "designed"
+        if weapon and (key + (weapon,)) in one.index:
+            ref = one.loc[key + (weapon,)]
+            vs = "one-handed"
+        rows.append(dict(build=r["build"], e=r["e"], weapon=weapon or "(own)", vs=vs,
+                         d_win=r["win"] - ref["win"], d_dpt=r["damage_per_tempo"] - ref["damage_per_tempo"],
+                         d_taken=r["total_damage_taken"] - ref["total_damage_taken"]))
+    if not rows:
+        return
+    st = pd.DataFrame(rows)
+    st.to_csv(simlib.CHARTS + "/%s_stances.csv" % tag, index=False)
+    own = st[st["weapon"] == "(own)"].groupby("build").agg(d_win=("d_win", "mean"), d_dpt_median=("d_dpt", "median"), d_taken=("d_taken", "mean")).reset_index()
+    if not own.empty:
+        print("\nown weapon gripped two-handed (off hand emptied) vs the designed build:\n", own.round(2).to_string(index=False))
+    w = st[st["weapon"] != "(own)"]
+    if not w.empty:
+        per = w.groupby("weapon").agg(builds=("build", "nunique"), vs=("vs", lambda x: x.mode()[0]), d_win=("d_win", "mean"),
+                                      d_dpt_median=("d_dpt", "median"), d_taken=("d_taken", "mean")).reset_index().sort_values("d_dpt_median", ascending=False)
+        per.to_csv(simlib.CHARTS + "/%s_stances_by_weapon.csv" % tag, index=False)
+        print("\nweapons gripped two-handed — gain over holding the same weapon one-handed (vs = what it was paired with):\n", per.head(12).round(2).to_string(index=False))
+        print("\nweapons that lose most when gripped:\n", per.tail(6).round(2).to_string(index=False))
 
 
 def engrave_table(df, des_runs, tag):

@@ -11,6 +11,26 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   enemy → main lookup uses `get_parent()`. Changed to `get_parent()` (M1).
 ## Fixed to match the documented rule (no rule change; for review)
 
+- **Point cards landed on the caster.** A point card's click passes the
+  player as its target (`play_selected_card(player)`), and five cards'
+  effects read `target.position if target else <the clicked tile>`, so they
+  always resolved at the player: Fireball, Peshtigo's Kiss and Sprinkle
+  Bomb centred on the caster, Spirit Arrow and Balistic Arrow fired a
+  zero-length line ("pierced 0 enemies"), Roll rolled nowhere. They now aim
+  at an enemy target when there is one, else at the clicked tile
+  (`main._point_aim`); the tester's run showed Balistic Arrow piercing again.
+- **Shield Overdraw riders never fired.** Castle Wall's "Overdraw: heal 5
+  and loose Rain of Arrows", Delfin's, Treebeard's and the Sleeve's
+  Cinquedea hang on `overdraw_processed`, emitted only inside
+  `process_overflow`; a full-hand draw with no overflow mode active (the
+  normal case) returned before it. The card still stays on the draw pile;
+  the riders now fire. `test_overdraw_riders` (fails on the old code).
+- **The mana cost of a play is one function** (`DeckManager.compute_play_cost`).
+  `play_card` computed it inline with its logging; the tester needs the
+  same number without playing, so the block moved, unchanged, into a
+  function `play_card` calls with `commit = true` (same logs, same
+  percent-mana record). No behaviour change.
+
 - **Stephen's free build switch never moved his weapons.** Man of arms
   makes the weapon portion of a build switch free, so a switch where only
   the hands differ costs 0 — and `Inventory.switch_build` treated "costs 0"
@@ -76,6 +96,19 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   Win rates were never affected; damage-per-tempo figures were re-run.
 
 ## Open (not changed)
+
+- **Feral Evocation's blue slot cannot be filled.** The blue (Cold) slot
+  takes only a blue card with a Staff label, and the only blue card, Ice
+  Grenade, carries no slot label at all. `test_spell_weapons_pass` fails on
+  this ("now the blue slot is next, the blue card fits"). Needs a design
+  call: label Ice Grenade for Staff, or more Cold cards.
+- **Presence of Mind's block rider is lost on Shield Ready and Repelled
+  Block.** The rider adds its block to the card's `block`, but those two
+  grant their armor through their own "now" effects and never read it
+  (Tower Shield, which does, gets +12). Not changed.
+- **Three game tests were stale since slot labels** (shields "take any
+  card", a bow "accepts standard attacks", Presence of Mind with the
+  unlabeled Clang Up). Updated to the label rule; they pass.
 
 - **Mana clipped by a free switch is not refunded.** Taking off a weapon
   that carries INT lowers max mana, and current mana is clipped to the new

@@ -12292,6 +12292,16 @@ func _animate_shuffle() -> void:
 
 #endregion
 #region CARD WORLD EFFECTS (PER-CARD MATCH)
+## Where a point card lands: the enemy it was cast at, else the clicked tile.
+## A point click passes the PLAYER as the target (play_selected_card(player)),
+## so reading `target` alone landed every burst and line on the caster:
+## Fireball, Peshtigo's Kiss and Sprinkle Bomb centred on the player, Spirit
+## and Balistic Arrow fired a zero-length line, Roll rolled nowhere.
+func _point_aim(target, mouse_pos: Vector3) -> Vector3:
+	if target is Enemy and is_instance_valid(target):
+		return target.position
+	return grid_manager.snap_to_grid(mouse_pos)
+
 func _apply_card_world_effects(card: Card, target) -> void:
 	var mouse_pos = get_mouse_world_position()
 
@@ -12601,7 +12611,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"fireball":
 			# AOE circle (4 squares) centred on the target; damage + 3 burn each.
-			var center = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var center = _point_aim(target, mouse_pos)
 			var fb_dmg = card.last_damage_dealt
 			var fb_hit = enemy_spawner.get_enemies_in_radius(center, card.aoe_range if card.aoe_range > 0 else 2.0)
 			for en in fb_hit:
@@ -12615,7 +12625,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# The floor around the point erupts: 10 (+5 per enemy in the
 			# flames) to each enemy in them. Then the player is asked whether
 			# to maintain the card; kept, the flames stay and burn each cycle.
-			var pk_center = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var pk_center = _point_aim(target, mouse_pos)
 			var pk_cells := _flame_cells(grid_manager.world_to_grid(pk_center))
 			var pk_hit := _enemies_in_cells(pk_cells)
 			var pk_dmg: int = card.last_damage_dealt + 5 * pk_hit.size()
@@ -12731,7 +12741,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"sprinkle_bomb":
 			# Bladed Doughnut Lv.3: the Sprinkle detonates as an AOE circle.
-			var sb_center = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var sb_center = _point_aim(target, mouse_pos)
 			var sb_dmg = card.last_damage_dealt
 			var sb_hit = enemy_spawner.get_enemies_in_radius(sb_center, card.aoe_range if card.aoe_range > 0 else 2.0)
 			for en in sb_hit:
@@ -12743,7 +12753,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"spirit_arrow", "balistic_arrow":
 			# Pierce every enemy along the line from the player through the target.
 			var sa_dmg = card.last_damage_dealt
-			var aim = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var aim = _point_aim(target, mouse_pos)
 			var sa_dir = Vector3(aim.x - player.position.x, 0, aim.z - player.position.z)
 			var sa_far = aim
 			if sa_dir.length() > 0.01:
@@ -12957,7 +12967,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"roll":
 			# Roll up to min(tempo_cost, 5) tiles toward the aim point, stopping on
 			# the first character hit. An enemy takes 10 damage and is disarmed.
-			var roll_aim = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var roll_aim = _point_aim(target, mouse_pos)
 			var roll_start = player.position
 			var roll_diff = Vector3(roll_aim.x - roll_start.x, 0, roll_aim.z - roll_start.z)
 			var roll_dir = roll_diff.normalized() if roll_diff.length() > 0.01 else Vector3.ZERO

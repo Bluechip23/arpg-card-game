@@ -232,6 +232,12 @@ func _build_player() -> void:
 			equipped[id] = item
 		else:
 			warnings.append("equip refused: %s (slot %d, %s)" % [id, slot, _equip_refusal(inv, stats, item, slot)])
+	# Two-handing, through the game's own grip (carry gate and free hand
+	# apply); before the second set is stowed so build I remembers it.
+	SimState.grip_locked = int(p.get("two_hand", -1)) >= 0   # a stored grip is held: it is what is measured
+	if int(p.get("two_hand", -1)) >= 0 and not inv.set_two_handed(int(p["two_hand"]), true):
+		warnings.append("two_hand refused: slot %d (%s; carry %d/%d)" % [int(p["two_hand"]),
+			"no free hand" if not inv.equipped_weapons.has(null) else "over carry capacity", stats.current_carry_load, stats.get_carry_capacity()])
 	_stow_alt_weapons(p, inv, stats)
 	# Cards engraved into the items' slots: {item id: [card ids]}. Real slot
 	# rules (count, label, feral colour) apply; a slotted card rides the item
@@ -604,6 +610,30 @@ func _apply_action(a: Dictionary, state: SimState) -> bool:
 			ok = _do_item_skill(a, state, row)
 		"weapon_swap":
 			ok = _do_weapon_swap(a, row)
+		"grip":
+			ok = _do_grip(a, row)
+		"manifest":
+			ok = _do_manifest(a, state, row)
+		"jail":
+			# main.gd's J key: jail the Burden card, then its tempo.
+			var jdm = main.deck_manager
+			var ji := int(a["card"])
+			var jcard: Card = jdm.hand[ji] if ji < jdm.hand.size() else null
+			row["action_id"] = "jail:%s" % (jcard.card_id if jcard else "?")
+			ok = jcard != null and jcard.has_burden and jdm.jail_burden_card(ji)
+			if ok:
+				main.tempo_manager.add_tempo(jcard.burden_jail_cost_tempo)
+			else:
+				row["refused"] = "burden jail refused"
+		"dismiss":
+			var dmc = main.deck_manager.maintained_cards
+			var mk: Dictionary = state.maintained[int(a["maintained"])]
+			var nbefore: int = dmc.size()
+			row["action_id"] = "dismiss:%s" % str(mk["id"])
+			main._on_maintained_card_dismiss(int(mk["index"]))
+			ok = dmc.size() < nbefore
+			if not ok:
+				row["refused"] = "dismiss refused"
 		"flash_block":
 			var stats = main.player.get_stats()
 			var fp: int = stats.current_flash_points
@@ -638,7 +668,7 @@ func _apply_action(a: Dictionary, state: SimState) -> bool:
 		_tick_until_free()
 	else:
 		rows.erase(row)
-	if str(a.get("type", "")) == "weapon_swap":
+	if str(a.get("type", "")) in ["weapon_swap", "grip"]:
 		# Gate the next swap (or a retry of a refused one) on time passing.
 		SimState.last_swap_tempo = main.tempo_manager.global_tempo
 	_settle_all()
@@ -668,6 +698,7 @@ func _do_play(a: Dictionary, state: SimState, row: Dictionary) -> bool:
 	if spec.begins_with("enemy:") and target == null:
 		row["refused"] = "no such enemy"
 		return false
+	_last_play_distance = main.grid_manager.get_distance_in_cells(main.player.position, target.position) if (target != null and target is Enemy) else 0
 	if spec.begins_with("point:"):
 		var xy := spec.substr(6).split(",")
 		var cell := Vector2i(int(xy[0]), int(xy[1]))
@@ -806,6 +837,7 @@ func _do_item_skill(a: Dictionary, state: SimState, row: Dictionary) -> bool:
 	return true
 
 var _skill_counts := {}
+var _last_play_distance := 0   # cells to the enemy the last card was played at (Crack of Mintaka's discards)
 
 ## A weapon swap through the game's own buttons: the build button (cost from
 ## switch_build, charged by main the way the character panel's signal does)
@@ -837,6 +869,55 @@ func _do_weapon_swap(a: Dictionary, row: Dictionary) -> bool:
 	return true
 
 var _swap_counts := {}
+
+## A Manifest zone click, through main's own handler: a quiver attack waits
+## for its target (the runner gives it the enemy, as the click would), the
+## zone's own effects fire at once. Played = the entry left the zone.
+func _do_manifest(a: Dictionary, state: SimState, row: Dictionary) -> bool:
+	var om = main.overflow_manager
+	var m: Dictionary = state.manifest[int(a["manifest"])]
+	var idx := int(m["index"])
+	if idx >= om.manifest_zone.size():
+		row["refused"] = "manifest entry gone"
+		return false
+	var before: int = om.manifest_zone.size()
+	row["action_id"] = "manifest:%s" % (str(m["card"].get("id", m["id"])) if bool(m["quiver"]) else str(m["id"]))
+	main._on_manifest_card_clicked(idx)
+	var pending = main.get("_pending_quiver_card")
+	if pending != null:
+		var spec := str(a.get("target", "self"))
+		var tgt = state.enemy_node(int(spec.substr(6))) if spec.begins_with("enemy:") else main.player
+		if tgt == null:
+			main._pending_quiver_card = null
+			row["refused"] = "no such enemy"
+			return false
+		main.play_quiver_card(pending, main._pending_quiver_index, tgt)
+		if main.get("_pending_quiver_card") != null:
+			main._pending_quiver_card = null   # refused (mana, debuff): don't leave the click armed
+	_settle_all()
+	if om.manifest_zone.size() >= before:
+		row["refused"] = "manifest play refused"
+		return false
+	return true
+
+## Take or release the two-handed grip, the character panel's toggle: the
+## game's set_two_handed (free hand and carry gates), then the panel's price,
+## a weapon swap (main charges it only in combat; Stephen pays no mana).
+func _do_grip(a: Dictionary, row: Dictionary) -> bool:
+	var inv = main.player.get_inventory()
+	var slot := int(a.get("slot", 0))
+	var enable := bool(a.get("enable", true))
+	var item = inv.equipped_weapons[slot] if slot < inv.equipped_weapons.size() else null
+	if item == null or not inv.set_two_handed(slot, enable):
+		row["refused"] = "grip refused: %s %s" % ["two-hand" if enable else "release", item.item_name if item else "empty hand"]
+		return false
+	main._on_swap_tempo_spent(inv.get_swap_tempo_cost(ItemData.ItemType.WEAPON),
+		("Gripped %s two-handed" if enable else "Released %s to one hand") % item.item_name, ItemData.ItemType.WEAPON)
+	_settle_all()
+	var label := "grip_on" if enable else "grip_off"
+	row["action_id"] = "swap:%s" % label
+	_swap_counts[label] = int(_swap_counts.get(label, 0)) + 1
+	return true
 
 # --------------------------------------------------------------- time ----
 
@@ -871,6 +952,16 @@ func _settle_all() -> void:
 				e.position.z = e.target_position.z
 				e._physics_process(1.0 / 60.0)
 				moved = true
+		# Summons walk in their own per-frame _process; one pumped frame a
+		# decision barely moved them (and how far depended on the wall
+		# clock). Snap them to where they were sent, like enemies.
+		for s in _summons():
+			if bool(s.get("_is_moving")):
+				var tp: Vector3 = s.get("_target_position")
+				s.position.x = tp.x
+				s.position.z = tp.z
+				s._process(1.0 / 60.0)
+				moved = true
 		var p = main.player
 		if p.is_moving and not p.movement_paused:
 			p.position.x = p.target_position.x
@@ -880,6 +971,19 @@ func _settle_all() -> void:
 		if not moved:
 			break
 	_settling = false
+
+## Every living summon main keeps (each kind in its own list).
+const SUMMON_LISTS := ["_summoned_worms", "_frankensteins", "_wolves", "_specters", "_skeletons", "_spirit_bows", "_clones"]
+func _summons() -> Array:
+	var out: Array = []
+	for nm in SUMMON_LISTS:
+		for s in main.get(nm):
+			if is_instance_valid(s) and "_is_moving" in s:
+				out.append(s)
+	var pg = main.get("_penguin")
+	if pg != null and is_instance_valid(pg) and "_is_moving" in pg:
+		out.append(pg)
+	return out
 
 func _check_end() -> void:
 	if outcome != "" or main == null:
@@ -913,7 +1017,7 @@ func _answer_prompts() -> void:
 		for i in range(btns.size()):
 			if btns[i].text == "Maintain":
 				maintain_idx = i
-		var choice := policy.answer_prompt("maintain", labels)
+		var choice := policy.answer_prompt("maintain", labels, SimState.new(main))
 		var pick: int = maintain_idx if choice == 0 else (1 - maintain_idx if btns.size() == 2 else -1)
 		if pick < 0:
 			for i in range(btns.size()):
@@ -944,12 +1048,23 @@ func _answer_prompts() -> void:
 				else:
 					options.append(t)
 					option_btns.append(b)
-			var kind := "defensive_sacrifice" if pname == "DefensiveSacrificePrompt" else "picker"
+			var kind := "picker"
 			var prompt_state: SimState = null
 			var title := ""
 			for l in node.find_children("*", "Label", true, false):
 				title = str(l.text)
 				break
+			if pname == "DefensiveSacrificePrompt":
+				# "...halve %d incoming damage...": the policy weighs half the
+				# blow against the card it would give up.
+				var m := RegEx.new()
+				m.compile("halve (\\d+)")
+				var found := m.search(title)
+				kind = "defensive_sacrifice:%d" % (int(found.get_string(1)) if found else 0)
+				prompt_state = SimState.new(main)
+			elif title.to_lower().find("discard which card") >= 0:
+				kind = "discard"   # Defensive Sacrifice's pick, Maul's Sabre's red slot, Reposition
+				prompt_state = SimState.new(main)
 			if title.begins_with("House Rule"):
 				kind = "house_rule"
 				prompt_state = SimState.new(main)
@@ -958,6 +1073,18 @@ func _answer_prompts() -> void:
 				prompt_state = SimState.new(main)
 			if verbose or kind.begins_with("invisibility"):
 				print("[SIM] prompt %s (%s): %s" % [pname, kind, str(options)])
+			if pname == "HandMultiPicker":
+				# Toggle buttons: pressed.emit() does not toggle them. Crack of
+				# Mintaka needs as many discards as its target is far away.
+				var mkind := "crack_of_mintaka:%d" % _last_play_distance if title.begins_with("Crack of Mintaka") else "multi"
+				var picks: Array = policy.answer_multi(mkind, options, SimState.new(main))
+				node.name = "AnsweredPicker"
+				for pi in picks:
+					if int(pi) >= 0 and int(pi) < option_btns.size():
+						option_btns[int(pi)].button_pressed = true
+				if done and is_instance_valid(done):
+					done.pressed.emit()
+				continue
 			var choice := policy.answer_prompt(kind, options, prompt_state)
 			# A pressed picker frees itself deferred; rename it so the next
 			# pass this frame does not answer it a second time.

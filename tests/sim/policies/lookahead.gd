@@ -182,7 +182,68 @@ func answer_prompt(kind: String, options: Array, state: SimState = null) -> int:
 						worst = i
 					break
 		return maxi(0, worst)
+	if kind == "maintain":
+		# Peshtigo's Kiss: keep the flames while enemies stand in them, worth
+		# half its hit every 5 tempo, against the 60 mana it holds.
+		if state == null:
+			return 0
+		var aim = state.main.get("_last_aim_world")
+		if aim == null:
+			return 0
+		var r: float = float(state.main._peshtigo_radius())
+		var inside := 0
+		for e in state.enemies:
+			if Vector2(e["cell"]).distance_to(Vector2(state.main.grid_manager.world_to_grid(aim))) <= r:
+				inside += 1
+		return 0 if float(inside) * 5.0 * MAINTAIN_CYCLES * 0.5 > _reserve_cost(60, state) else 1
+	if kind == "discard":
+		# A "discard which card?" picker: the option worth least.
+		if state == null or options.is_empty():
+			return 0
+		var best_i := 0
+		var best_v := INF
+		for i in range(options.size()):
+			var hi := _option_hand_index(str(options[i]), state, [])
+			if hi < 0:
+				continue
+			var v := _card_worth(state.hand[hi], state)
+			if v < best_v:
+				best_v = v
+				best_i = i
+		return best_i
+	if kind.begins_with("defensive_sacrifice:"):
+		# Halve the blow for the worst card in hand (not the Sacrifice itself).
+		if state == null:
+			return -1
+		var dmg := int(kind.get_slice(":", 1))
+		var ds_i := -1
+		for h in state.hand:
+			if str(h["id"]) == "defensive_sacrifice":
+				ds_i = int(h["index"])
+		var worst := _worst_cards(state, 1, ds_i)
+		var hp_w := 2.0 if float(state.player_hp) / float(maxi(1, state.player_max_hp)) < LOW_HP else 1.0
+		return 0 if float(dmg) / 2.0 * hp_w > float(worst["cost"]) and not worst["short"] else -1
 	return super.answer_prompt(kind, options, state)
+
+func answer_multi(kind: String, options: Array, state: SimState = null) -> Array:
+	if state == null:
+		return []
+	var want := 0
+	if kind.begins_with("crack_of_mintaka:"):
+		want = int(kind.get_slice(":", 1))   # just enough to reach the target
+	var worst := _worst_cards(state, want, -1)
+	var picks: Array = []
+	var used: Array = []
+	for hi in worst["indices"]:
+		var name := str(state.hand[int(hi)]["name"])
+		for i in range(options.size()):
+			if i in picks:
+				continue
+			if str(options[i]).begins_with(name):
+				picks.append(i)
+				used.append(hi)
+				break
+	return picks
 
 ## What keeping a card is worth, beyond its raw numbers.
 static func _card_worth(h: Dictionary, state: SimState) -> float:
@@ -196,9 +257,40 @@ static func _card_worth(h: Dictionary, state: SimState) -> float:
 			v += 2.0
 	if str(h.get("type", "")) in ["POWER", "UTILITY"] and v <= 0.0:
 		v += 1.5
-	if not bool(h.get("playable", true)):
+	# Instants fire on their own from the hand and enchantments buff while
+	# held: neither is "unplayable junk" to throw away first.
+	if str(h.get("type", "")) == "REACTION":
+		v += 3.0
+	elif str(h.get("type", "")) == "ENCHANTMENT":
+		v += 4.0
+	elif not bool(h.get("playable", true)):
 		v -= 2.0
 	return v
+
+## The hand cards we would give up, worst first: `count` of them (excluding
+## one index), with their summed worth.
+static func _worst_cards(state: SimState, count: int, exclude: int) -> Dictionary:
+	var vals: Array = []
+	for h in state.hand:
+		if int(h["index"]) != exclude:
+			vals.append([_card_worth(h, state), int(h["index"])])
+	vals.sort_custom(func(x, y): return x[0] < y[0])
+	var picked: Array = []
+	var cost := 0.0
+	for i in range(mini(count, vals.size())):
+		picked.append(vals[i][1])
+		cost += maxf(0.0, float(vals[i][0]))
+	return {"indices": picked, "cost": cost, "short": count > vals.size()}
+
+## A picker option's hand card: the first not-yet-used hand card whose name
+## starts the option's label (multi pickers add "(Xm/Yt)").
+static func _option_hand_index(label: String, state: SimState, used: Array) -> int:
+	for h in state.hand:
+		if int(h["index"]) in used:
+			continue
+		if label.begins_with(str(h["name"])):
+			return int(h["index"])
+	return -1
 
 static func _worst_card_index(state: SimState, exclude: int) -> int:
 	var worst := -1
@@ -209,7 +301,9 @@ static func _worst_card_index(state: SimState, exclude: int) -> int:
 		if h["id"] == "volatile_mixture":
 			return h["index"]
 		var v := float(h["damage"]) + float(h["block"]) + float(h["heal"])
-		if not h["playable"]:
+		if str(h["type"]) in ["REACTION", "ENCHANTMENT"]:
+			v += 4.0   # fires or buffs from the hand: not junk
+		elif not h["playable"]:
 			v -= 5.0
 		if v < worst_v:
 			worst_v = v
@@ -321,15 +415,51 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 						gain += minf(float(state.enemies[idx]["armor"]), 12.0)
 				gain += _poison_value(text, state, idx)
 			elif target.begins_with("point:"):
-				# An aimed cloud: price its poison on the nearest enemy to the aim.
-				var near := state.nearest_enemy_index()
+				# What lands at the aim, by the card's own shape (SimState
+				# point_hits): each enemy's share, capped at what it has, with
+				# the kill bonus; its poison on the first one hit (or the
+				# nearest, for a cloud aimed at open ground).
+				var hits: Array = a.get("hits", [])
+				for hd in hits:
+					var hidx := int(hd[0])
+					var t := _threat_for(threats, hidx)
+					var dmg := int(hd[1])
+					if t.is_empty():
+						gain += dmg
+						continue
+					gain += mini(dmg, int(t["hp"]))
+					if dmg >= int(t["hp"]) and killed_index < 0:
+						killed_index = hidx
+						gain += _incoming_from(t, HORIZON) * hp_weight * 0.5
+					gain += _control_value(text, t, tempo) * hp_weight
+				var near := int(hits[0][0]) if not hits.is_empty() else state.nearest_enemy_index()
 				if near >= 0:
 					gain += _poison_value(text, state, near)
+				# A card that carries the player there is also a move: a dodge
+				# out of a hit about to land, or closing on a target.
+				if str(c["id"]) in SimState.PLAYER_MOVERS:
+					var xy := target.substr(6).split(",")
+					gain += maxf(0.0, _move_value({"cell": [int(xy[0]), int(xy[1])], "flash": true}, state, threats, hp_weight))
 				gain += _self_value(c, text, state, threats, tempo, hp_weight)
+			elif int(c.get("maintain_cost", 0)) > 0:
+				# A Power stays in play: what it does over the next cycles, less
+				# the mana it holds in reserve meanwhile.
+				gain += _maintain_value(str(c["id"]), state, threats, hp_weight) - _reserve_cost(int(c["maintain_cost"]), state)
 			else:
 				gain += _self_value(c, text, state, threats, tempo, hp_weight)
 			gain += _discard_value(c, text, state)
 			gain += _pick_card_value(c, state, target, hp_weight)
+			# Cards the play makes us throw away: Maul's Sabre's red slot, and
+			# Crack of Mintaka's one per square to its target (it misses
+			# outright without enough).
+			var owed := int(c.get("slot_discard", 0))
+			if str(c["id"]) == "crack_of_mintaka" and target.begins_with("enemy:"):
+				owed = int(state.enemies[int(target.substr(6))]["distance"])
+			if owed > 0:
+				var wc := _worst_cards(state, owed, int(c["index"]))
+				gain -= float(wc["cost"])
+				if wc["short"] and str(c["id"]) == "crack_of_mintaka":
+					gain -= 100.0
 		"attack":
 			tempo = maxi(1, int(a.get("tempo", state.basic_attack_tempo)))
 			var idx := int(str(a.get("target", "enemy:-1")).substr(6))
@@ -359,6 +489,64 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 			gain += float(sv["gain"])
 			if int(sv["kill"]) >= 0:
 				killed_index = int(sv["kill"])
+		"jail":
+			# Burden relief: every prior play added a tempo (and a mana) to the
+			# card; jailing wipes that for 1 mana and 1 tempo, at the price of
+			# the card sitting out 30 tempo. Worth it once the growth outweighs
+			# a share of what the card does.
+			var jh: Dictionary = state.hand[int(a["card"])]
+			mana = 10
+			tempo = 1
+			gain += float(int(jh["burden_plays"])) * 1.5 - 0.3 * _card_worth(jh, state)
+			if gain <= 0.5:
+				gain = -5.0
+		"dismiss":
+			# Free the reserve when a card in hand needs it and the Power is no
+			# longer worth its upkeep (or never was: Cultish Wounds alone).
+			var mk: Dictionary = state.maintained[int(a["maintained"])]
+			var freed := int(mk["maintain_cost"])
+			var enabled := 0.0
+			for h in state.hand:
+				if not bool(h["playable"]) and str(h.get("why_not", "")) == "not enough mana" \
+						and int(h["mana"]) <= state.player_mana + freed:
+					enabled = maxf(enabled, float(h["damage"]) + float(h["block"]) + float(h["heal"]))
+			gain += enabled - 0.5 * _maintain_value(str(mk["id"]), state, threats, hp_weight)
+			if gain <= 0.5:
+				gain = -5.0
+		"manifest":
+			# A quiver attack is the card it is; the zone's own effects are
+			# priced by what they do (Shuriken 3 to a random enemy, Cinquedea
+			# 6 and a Weaken to the nearest within 4, a mushroom's heal, a
+			# summon's body).
+			var m: Dictionary = state.manifest[int(a["manifest"])]
+			mana = int(m["mana"])
+			tempo = maxi(1, int(m["tempo"]))
+			if bool(m["quiver"]):
+				var mt := str(a.get("target", ""))
+				var dmg := int(a.get("expected_damage", 0))
+				if mt.begins_with("enemy:"):
+					var t := _threat_for(threats, int(mt.substr(6)))
+					gain += float(mini(dmg, int(t["hp"])) if not t.is_empty() else dmg)
+					if not t.is_empty() and dmg >= int(t["hp"]):
+						killed_index = int(mt.substr(6))
+						gain += _incoming_from(t, HORIZON) * hp_weight * 0.5
+				else:
+					gain += _self_value(m["card"], str(m["card"].get("description", "")).to_lower(), state, threats, tempo, hp_weight)
+			else:
+				match str(m["id"]):
+					"shuriken", "deal_damage":
+						gain += float(m["value"])
+					"cinquedea":
+						gain += 6.0 + 1.0
+					"use_mushroom":
+						gain += minf(float(m["value"]), float(state.player_max_hp - state.player_hp)) * 0.5
+					_:
+						gain += 0.5 * float(maxi(8, int(m["value"])))   # a summon: a body that soaks and hits
+		"grip":
+			var gp: Dictionary = state.grips[int(a["grip"])]
+			mana = int(gp["mana"])
+			tempo = maxi(1, int(gp["tempo"]))
+			gain += _grip_value(gp, state)
 		"weapon_swap":
 			var sw: Dictionary = state.weapon_swaps[int(a["swap"])]
 			mana = int(sw["mana"])
@@ -389,7 +577,10 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 	# tempo: nothing acts meanwhile.
 	var instant: bool = kind in ["flash_block", "flash_proc", "brain_draw", "brain_peek"] \
 		or (kind == "move" and bool(a.get("flash", false))) \
-		or (kind == "weapon_swap" and int(state.weapon_swaps[int(a["swap"])]["tempo"]) == 0)
+		or (kind == "weapon_swap" and int(state.weapon_swaps[int(a["swap"])]["tempo"]) == 0) \
+		or (kind == "grip" and int(state.grips[int(a["grip"])]["tempo"]) == 0) \
+		or (kind == "manifest" and int(state.manifest[int(a["manifest"])]["tempo"]) == 0) \
+		or kind == "dismiss"
 	# Points spent are points not held for the dodge or draw that matters.
 	match kind:
 		"flash_block": gain -= FLASH_POINT_VALUE * float(state.flash_block_cost)
@@ -468,6 +659,75 @@ static func _swap_value(sw: Dictionary, state: SimState) -> float:
 	if g <= 0.0:
 		return -5.0
 	return g
+
+## Taking or releasing the two-handed grip: the grip adds its bonus to every
+## physical hit (auto attacks and physical attack cards) over the horizon,
+## and gives up the free-hand stance if we hold it (every 12th attack
+## echoes; the sidestep costs a flash point more). Releasing is the mirror.
+## Nothing gained is a strong no, as with a swap.
+static func _grip_value(gp: Dictionary, state: SimState) -> float:
+	if state.nearest_enemy_index() < 0:
+		return -5.0
+	var swings := float(HORIZON) / float(maxi(1, state.basic_attack_tempo))
+	var hits := swings
+	for h in state.hand:
+		if bool(h["playable"]) and bool(h["is_attack"]) and int(h["damage"]) > 0 and str(h.get("school", "PHYSICAL")) == "PHYSICAL":
+			hits += 1.0
+	var bonus := float(gp["bonus"]) * hits
+	var echo := float(state.basic_attack_damage) * swings / float(PlayerStats.SINGLE_HAND_ECHO_EVERY) + FLASH_POINT_VALUE
+	var g := 0.0
+	if bool(gp["enable"]):
+		g = bonus - (echo if state.free_hand else 0.0)
+	else:
+		g = echo - bonus   # releasing leaves one hand item and an empty hand: the free-hand stance
+	if SimState.last_swap_tempo >= 0 and state.global_tempo - SimState.last_swap_tempo < state.basic_attack_tempo:
+		g -= float(state.basic_attack_damage)
+	return g if g > 0.0 else -5.0
+
+const MAINTAIN_CYCLES := 4   # cycles of a Power's effect counted (20 tempo)
+
+## What a maintained card does over the next MAINTAIN_CYCLES cycles, by its
+## own text: Halo's heal, Armored Discipline's armor from health damage,
+## Barbed Exterior's thorns per hit, Forever Armor's armor, Fountain of
+## Life's draw for 2 HP, Resourceful Replenish's 5% leech, Monk of the
+## Night's 10% block, Twenty Twenty's range, Cultish Wounds' self-harm.
+static func _maintain_value(id: String, state: SimState, threats: Array, hp_weight: float) -> float:
+	var span := 5 * MAINTAIN_CYCLES
+	var incoming := float(_incoming(threats, span))
+	var hits := 0.0
+	for t in threats:
+		if bool(t["is_hit"]) and bool(t["in_reach"]):
+			hits += floorf(float(span) / float(maxi(1, int(t["cost"]))))
+	var swings := float(span) / float(maxi(1, state.basic_attack_tempo))
+	var my_damage := swings * float(state.basic_attack_damage)
+	var missing := float(state.player_max_hp - state.player_hp)
+	match id:
+		"halo": return minf(3.0 * MAINTAIN_CYCLES, missing + incoming * 0.5) * 0.6
+		"armored_discipline": return 0.5 * incoming * hp_weight
+		"barbed_exterior": return 5.0 * hits * 0.5
+		"forever_armor": return minf(6.0 * MAINTAIN_CYCLES, incoming) * 0.5 * hp_weight
+		"fountain_of_life": return MAINTAIN_CYCLES * (_draw_value(state) - 2.0 * 0.5)
+		"resourceful_replenish": return minf(0.05 * my_damage, missing) * 0.6
+		"monk_of_the_night": return minf(0.1 * my_damage, incoming) * 0.5 * hp_weight
+		"twenty_twenty":
+			for h in state.hand:
+				if bool(h["is_ranged"]) and bool(h["is_offensive"]):
+					return 1.5
+			return 0.2
+		"cultish_wounds": return -0.5 * MAINTAIN_CYCLES
+	return 1.0
+
+## Holding mana in reserve: a small price per point, more when what is left
+## cannot pay for the cheapest card in hand.
+static func _reserve_cost(reserve: int, state: SimState) -> float:
+	var cost := float(reserve) * 0.04
+	var cheapest := 1 << 30
+	for h in state.hand:
+		if int(h["mana"]) > 0:
+			cheapest = mini(cheapest, int(h["mana"]))
+	if cheapest < (1 << 30) and state.player_mana - reserve < cheapest:
+		cost += 2.0
+	return cost
 
 ## How much of a coming hit we could have blunted had we stayed free:
 ## the best block in hand, the sidestep, or stepping out of melee reach.
@@ -688,12 +948,23 @@ static func _pick_card_value(c: Dictionary, state: SimState, target: String, hp_
 					return minf(3.0, float(state.player_max_hp - state.player_hp)) * hp_weight + 1.0
 	return 0.0
 
+## A draw is worth what the deck still holds: the mean worth of the cards
+## left in the draw pile (the discard pile when it is empty: the reshuffle),
+## which the player knows from their deck list, at a share for playing it
+## later, more when the hand is thin. Memoised per decision.
 static func _draw_value(state: SimState) -> float:
-	if state.hand.size() <= 2:
-		return 3.0
-	if state.hand.size() <= 4:
-		return 1.5
-	return 0.5
+	if state.has_meta("draw_value"):
+		return float(state.get_meta("draw_value"))
+	var dm = state.main.deck_manager
+	var pile: Array = dm.draw_pile if not dm.draw_pile.is_empty() else dm.discard_pile
+	var total := 0.0
+	for c in pile:
+		total += maxf(0.0, _card_worth(state.card_view(c), state))
+	var mean := total / float(maxi(1, pile.size()))
+	var share := 0.8 if state.hand.size() <= 2 else (0.5 if state.hand.size() <= 4 else 0.3)
+	var v := maxf(0.5, mean * share)
+	state.set_meta("draw_value", v)
+	return v
 
 static func _best_attack(state: SimState) -> int:
 	var best := 0

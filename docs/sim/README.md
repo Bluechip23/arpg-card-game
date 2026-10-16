@@ -122,7 +122,7 @@ player action and each enemy action that fired, in order.
 | `bar_index` | tempo cycle the action started in (`global_tempo / threshold`) |
 | `tempo_before`, `tempo_after` | global tempo when the action started / when its ticks and settling finished |
 | `actor` | `player` or `<EnemyName>#<spawn index>` |
-| `action_id` | `play:<card_id>`, `attack`, `block`, `wait`, `move:<tiles>`, `skill:<effect_id>` (a gauntlet skill), `swap:build<n>` / `swap:rack_free` / `swap:rack_paid` (a weapon swap), or the enemy's action name |
+| `action_id` | `play:<card_id>`, `attack`, `block`, `wait`, `move:<tiles>`, `skill:<effect_id>` (a gauntlet skill), `swap:build<n>` / `swap:rack_free` / `swap:rack_paid` (a weapon swap), `swap:grip_on` / `swap:grip_off` (the two-handed grip), `manifest:<id>`, `dismiss:<id>`, `jail:<id>`, or the enemy's action name |
 | `target` | `enemy:<i>`, `self`, `point:x,y`, `none`, or `player` |
 | `player_hp` … `hand_size` | the player's state when the action started |
 | `enemy_id`, `enemy_hp`, `enemy_pos` | the targeted enemy (or the acting one; or the first living one) — HP and cell **after** the action |
@@ -302,7 +302,7 @@ scenario=tests/sim/scenarios/build.gd parts=character:brad,build:immovable_warde
 ```
 
 `parts` keys: `character`, `build`, `level`, `items`, `deck`, `alloc`,
-`sphere`, `passives`, `slotted`, `focus`, `alt`, `enemy`. `passives` names a
+`sphere`, `passives`, `slotted`, `focus`, `alt`, `two_hand`, `item`, `engrave`, `enemy`. `passives` names a
 weight set, spread proportionally over the points the level banks (so
 nothing is ever maxed); `focus:<passive_id>` takes that one tree passive to
 rank 15 first and spreads the rest over the build's set, which is how a
@@ -425,6 +425,38 @@ parts use it:
   data-driven once the sweep has run. `<char>_recipes.txt` plays every
   recipe on every designed build; the matrix compares each against the
   build's own hand-written deck.
+
+### Hands: dual wielding, the two-handed grip, the off hand
+
+The game has four hand stances, and the tester covers each through the
+game's own rules:
+
+- **Dual wielding** (two weapons, or two shields): read off the loadout,
+  so any set that holds two gets it (the attack counter 4 shorter, the
+  off-hand weapon at −10%, Stephen +10%). `item:<id>@offhand` puts a
+  weapon in the off hand beside the build's main one, so a weapon can be
+  tested as the *second* weapon of a dual wield; the item sweep adds these
+  for every one-handed pool weapon on builds whose main hand holds one.
+- **Bows and staffs**: two-handed by nature; a swapped-in one clears the
+  off hand (a bow keeps its quiver). They take no grip.
+- **The two-handed grip**: `two_hand:yes` (or `"two_hand": "yes"` in
+  `DESIGNED`) empties the off hand and grips the main weapon through
+  `Inventory.set_two_handed` (+ weight ÷ 25 on every physical hit, the
+  weapon's weight halved, carry capacity down; a grip the build cannot
+  carry is refused and reported). On a bow or staff it is flagged, not
+  faked. `<char>_stances.txt` grips each build's own weapon and every
+  one-handed pool weapon; `build_matrix.py` reads each against the same
+  weapon held one-handed (`sim_out/charts/<char>_stances*.csv`).
+- **Free hand** (one hand item, an empty hand): read off the loadout
+  (every 12th attack echoes, the sidestep costs a flash point less).
+
+Mid-fight the policy can take or release the grip, the character panel's
+toggle at its price (a weapon swap's tempo plus half the mana; Stephen 2
+tempo, no mana; never on a build stored gripped, whose grip is what is
+being measured), priced as the bonus on the physical hits over the next
+10 tempo against the free-hand stance it gives up; it shares the swap
+gate and the undo-within-a-swing rule. `weapon_swaps` counts
+`grip_on` / `grip_off`.
 
 ### Testing an engraving: `engrave:<item>~<card>` and the engraving sweep
 
@@ -553,6 +585,33 @@ A single scenario takes the same overrides a sweep line does:
 godot --headless --path . --script tests/sim/run_sim.gd -- --scenario=tests/sim/scenarios/build.gd \
   --parts=character:ryan,build:shadow_blade,level:50,focus:let\'s_dance --enemy=LARGE_BEAR --enemy_scale=hp:2.5,dmg:2 --seed=1 --runs=3
 ```
+
+### Zones and decisions the player takes
+
+Beyond playing cards, attacking, moving and the point pools, the player
+can take every decision the game offers mid-fight, each through the
+game's own handler:
+
+- **Manifest zone** (`manifest:<id>`): a Bottomless Quiver attack plays
+  like the card it is; Shuriken, Cinquedea, mushrooms and summons fire on
+  a click.
+- **Dismiss a maintained Power** (`dismiss:<id>`): when a card in hand
+  needs the reserved mana and the Power is worth less than that.
+- **Burden relief** (`jail:<id>`, the J key): jail a grown Burden card to
+  reset its cost, when the growth outweighs the card sitting out 30 tempo.
+- **Prompts**: "discard which card?" gives up the hand's least valuable
+  card (instants and enchantments are not junk); Defensive Sacrifice is
+  taken when half the blow outweighs that card; Crack of Mintaka discards
+  just enough to reach its target; Peshtigo's flames are kept while
+  enemies stand in them.
+
+Prices come from what the card does: a card's hit counts the armor it
+strips, point cards are priced by what their shape hits at each aim
+(circle, line, cell; aims include the centre between two enemies and, for
+cards that carry the player, an escape and a closing cell), Powers by
+their effect over four cycles less the mana they hold, and every play's
+tempo and mana are the game's own (`SimState.play_tempo`, `play_mana`).
+Summons move each tempo like enemies.
 
 ### What the policy prices for these builds
 

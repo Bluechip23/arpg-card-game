@@ -31,6 +31,11 @@ func answer_prompt(kind: String, options: Array, state: SimState = null) -> int:
 		"donation": return -1
 		_: return 0 if options.size() > 0 else -1
 
+## A multi-select picker (toggle any number, then Done): the option indices
+## to select. The base player selects the first option.
+func answer_multi(kind: String, options: Array, state: SimState = null) -> Array:
+	return [0] if options.size() > 0 else []
+
 static func action_label(a: Dictionary) -> String:
 	match str(a.get("type", "")):
 		"play": return "play:%s" % str(a.get("card_id", a.get("card", "")))
@@ -38,5 +43,9 @@ static func action_label(a: Dictionary) -> String:
 		"block": return "block"
 		"wait": return "wait"
 		"move": return ("flash_move:%s" if a.get("flash", false) else "move:%s") % str(a.get("cell", ""))
+		"jail": return "jail:%s" % str(a.get("card_id", a.get("card", "")))
+		"dismiss": return "dismiss:%d" % int(a.get("maintained", 0))
+		"manifest": return "manifest:%d" % int(a.get("manifest", 0))
+		"grip": return "swap:grip_on" if bool(a.get("enable", true)) else "swap:grip_off"
 		"weapon_swap": return "swap:rack" if str(a.get("kind", "")) == "rack" else "swap:build%d" % (int(a.get("build", 0)) + 1)
 	return str(a.get("type", "?"))
