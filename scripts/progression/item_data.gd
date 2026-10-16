@@ -3299,15 +3299,22 @@ static func create_ring_of_thomas_the_train_tracks() -> ItemData:
 # ============================================
 
 ## One instance of every item defined by a zero-arg create_* factory.
+# The zero-argument create_* factories, discovered once; get_all_items still
+# hands out fresh instances every call (items are mutable), it just no longer
+# walks the method list each time it is asked.
+static var _factory_names: Array = []
+
 static func get_all_items() -> Array[ItemData]:
-	var items: Array[ItemData] = []
 	var script: Script = ItemData
-	for method in script.get_script_method_list():
-		var method_name: String = method["name"]
-		if method_name.begins_with("create_") and method["args"].size() == 0:
-			var item = script.call(method_name)
-			if item is ItemData:
-				items.append(item)
+	if _factory_names.is_empty():
+		for method in script.get_script_method_list():
+			var method_name: String = method["name"]
+			if method_name.begins_with("create_") and method["args"].size() == 0:
+				if script.call(method_name) is ItemData:
+					_factory_names.append(method_name)
+	var items: Array[ItemData] = []
+	for method_name in _factory_names:
+		items.append(script.call(method_name))
 	return items
 
 ## Fresh level-1 instances of every item of the given rarity (used for

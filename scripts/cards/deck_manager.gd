@@ -340,30 +340,12 @@ func _create_default_deck(character: CharacterData) -> void:
 ## nothing (the card is left on the draw pile). An overflow mode has to be set
 ## by a card or item for overflow to do anything.
 
-## card_id -> factory method name, built once via reflection
-var _card_factory_map: Dictionary = {}
-
-func _build_card_factory_map() -> void:
-	if _card_factory_map.size() > 0:
-		return
-	var card_script: Script = Card
-	for method in card_script.get_script_method_list():
-		var method_name: String = method["name"]
-		# Factories with only DEFAULTED args count too (rank-scaled conjured
-		# cards like energy_barrier) — they rebuild at their default values.
-		if method_name.begins_with("create_") \
-				and method["args"].size() - method["default_args"].size() == 0:
-			var card = card_script.call(method_name)
-			if card is Card:
-				_card_factory_map[card.card_id] = method_name
-
+## A fresh card by id (Card.create_by_id does the factory discovery once).
 func _create_card_from_id(card_id: String) -> Card:
-	_build_card_factory_map()
-	if card_id in _card_factory_map:
-		var card_script: Script = Card
-		return card_script.call(_card_factory_map[card_id])
-	print("[DECK] Unknown card_id: %s" % card_id)
-	return null
+	var card := Card.create_by_id(card_id)
+	if card == null:
+		print("[DECK] Unknown card_id: %s" % card_id)
+	return card
 
 func shuffle_draw_pile() -> void:
 	draw_pile.shuffle()

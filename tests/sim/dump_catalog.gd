@@ -45,8 +45,7 @@ func _initialize() -> void:
 
 	# Cards: every factory the deck manager can rebuild from an id.
 	var cards: Array = []
-	dm._build_card_factory_map()
-	var ids: Array = dm._card_factory_map.keys()
+	var ids: Array = Card.factory_ids()
 	ids.sort()
 	for id in ids:
 		var c: Card = dm._create_card_from_id(id)

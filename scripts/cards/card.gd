@@ -12,25 +12,17 @@ enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE, POWER, ENCHANTME
 ## inside a slot is flagged requires_engraving (the Engrave keyword).
 enum CardKeyword { NONE, ARROW, POCKET, GEM, SWIFT, BUCKLER, CROWN, FIST, SWORD, AXE, DAGGER, HAMMER, SPEAR, BULWARK, WAND, TOME, STAFF }
 
+const KEYWORD_NAMES := {
+	CardKeyword.ARROW: "Arrow", CardKeyword.POCKET: "Pocket", CardKeyword.GEM: "Gem",
+	CardKeyword.SWIFT: "Swift", CardKeyword.BUCKLER: "Buckler", CardKeyword.CROWN: "Crown",
+	CardKeyword.FIST: "Fist", CardKeyword.SWORD: "Sword", CardKeyword.AXE: "Axe",
+	CardKeyword.DAGGER: "Dagger", CardKeyword.HAMMER: "Hammer", CardKeyword.SPEAR: "Spear",
+	CardKeyword.BULWARK: "Bulwark", CardKeyword.WAND: "Wand", CardKeyword.TOME: "Tome",
+	CardKeyword.STAFF: "Staff",
+}
+
 static func keyword_name(kw: int) -> String:
-	match kw:
-		CardKeyword.ARROW: return "Arrow"
-		CardKeyword.POCKET: return "Pocket"
-		CardKeyword.GEM: return "Gem"
-		CardKeyword.SWIFT: return "Swift"
-		CardKeyword.BUCKLER: return "Buckler"
-		CardKeyword.CROWN: return "Crown"
-		CardKeyword.FIST: return "Fist"
-		CardKeyword.SWORD: return "Sword"
-		CardKeyword.AXE: return "Axe"
-		CardKeyword.DAGGER: return "Dagger"
-		CardKeyword.HAMMER: return "Hammer"
-		CardKeyword.SPEAR: return "Spear"
-		CardKeyword.BULWARK: return "Bulwark"
-		CardKeyword.WAND: return "Wand"
-		CardKeyword.TOME: return "Tome"
-		CardKeyword.STAFF: return "Staff"
-	return ""
+	return KEYWORD_NAMES.get(kw, "")
 
 # The card's SCHOOL — how the card is delivered — orthogonal to CardType (its
 # role: offense/defense/utility). A spell can be offensive (Fireball) or
@@ -9082,8 +9074,20 @@ static func get_droppable_ids_of_type_and_rarity(type: int, r: Rarity) -> Array:
 			ids.append(cid)
 	return ids
 
+## Every card id a zero-argument factory can rebuild (the deck, the shop,
+## the compendium and the sim catalog all enumerate from here).
+static func factory_ids() -> Array:
+	_discover_factories()
+	return _factory_map.keys()
+
 ## Create a fresh card by id via the create_* factories (cached discovery).
 static func create_by_id(cid: String) -> Card:
+	_discover_factories()
+	if cid in _factory_map:
+		return (Card as Script).call(_factory_map[cid])
+	return null
+
+static func _discover_factories() -> void:
 	if _factory_map.is_empty():
 		var script: Script = Card
 		for method in script.get_script_method_list():
@@ -9095,7 +9099,4 @@ static func create_by_id(cid: String) -> Card:
 				var card = script.call(method_name)
 				if card is Card:
 					_factory_map[card.card_id] = method_name
-	if cid in _factory_map:
-		return (Card as Script).call(_factory_map[cid])
-	return null
 #endregion
