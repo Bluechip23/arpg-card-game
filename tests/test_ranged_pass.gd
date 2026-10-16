@@ -216,7 +216,7 @@ func _test_summon_scripts() -> void:
 	var skel_script = load("res://scripts/battle/summoned_skeleton.gd")
 	_check(skel_script != null, "summoned_skeleton.gd loads")
 	var s = skel_script.new()
-	_check(s.BASE_ATTACK == 5 and s.MOVE_STEPS == 4 and s.ATTACK_INTERVAL == 5,
+	_check(s.base_attack == 5 and s.move_steps == 4 and s.attack_interval == 5,
 		"skeleton stat block: 5 damage, 4 squares/tempo, attacks every 5")
 	s.max_health = 30
 	s.health = 30

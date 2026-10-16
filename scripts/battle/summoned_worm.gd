@@ -1,4 +1,4 @@
-extends Node3D
+extends Summon
 
 ## An Alaskan Bull Worm summoned by Worm's Armageddon (10% proc).
 ##
@@ -8,28 +8,21 @@ extends Node3D
 ## This node owns only visuals/health/movement animation;
 ## main.gd drives the per-tempo decisions (_update_summoned_worms).
 
-signal died(worm)
-
 const MAX_HEALTH := 12
 const CONTACT_DAMAGE := 6
 
-var health: int = MAX_HEALTH
-var grid_manager: GridManager = null
-var is_dead: bool = false
 var burrowed: bool = true  # Untargetable until it surfaces to attack
 
-var _target_position: Vector3 = Vector3.ZERO
-var _is_moving: bool = false
 var _mound: MeshInstance3D = null
 var _body: Node3D = null
-var _health_label: Label3D = null
 
 func setup(gm: GridManager, spawn_pos: Vector3) -> void:
-	grid_manager = gm
-	position = Vector3(spawn_pos.x, 0.0, spawn_pos.z)
-	_target_position = position
-	_build_visuals()
-	_update_health_label()
+	_place(gm, spawn_pos)
+	display_name = "Worm"
+	glide_speed = 3.0
+	max_health = MAX_HEALTH
+	health = MAX_HEALTH
+	_finish_setup()
 
 func _build_visuals() -> void:
 	# Burrowed state: a low mound of churned earth.
@@ -73,14 +66,7 @@ func _build_visuals() -> void:
 	mouth.position = Vector3(0, 0.25 + 3 * 0.34 + 0.17, 0)
 	_body.add_child(mouth)
 
-	_health_label = Label3D.new()
-	_health_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_health_label.font_size = 28
-	_health_label.pixel_size = 0.005
-	_health_label.position = Vector3(0, 1.7, 0)
-	_health_label.modulate = Color(0.9, 0.85, 0.95)
-	WorldText.crisp(_health_label)
-	add_child(_health_label)
+	_build_health_label(1.7, Color(0.9, 0.85, 0.95), 28)
 
 func surface() -> void:
 	## The worm erupts from the ground to attack — from now on it is targetable.
@@ -93,50 +79,10 @@ func surface() -> void:
 		_body.visible = true
 	_update_health_label()
 
-func _update_health_label() -> void:
-	if _health_label:
-		if burrowed:
-			_health_label.text = "Worm (burrowed)"
-		else:
-			_health_label.text = "Worm %d/%d" % [max(health, 0), MAX_HEALTH]
+func _health_label_text() -> String:
+	if burrowed:
+		return "Worm (burrowed)"
+	return "Worm %d/%d" % [max(health, 0), MAX_HEALTH]
 
-func _process(delta: float) -> void:
-	if not _is_moving:
-		return
-	position.x = move_toward(position.x, _target_position.x, 3.0 * delta)
-	position.z = move_toward(position.z, _target_position.z, 3.0 * delta)
-	if abs(position.x - _target_position.x) < 0.01 and abs(position.z - _target_position.z) < 0.01:
-		position.x = _target_position.x
-		position.z = _target_position.z
-		_is_moving = false
-
-func get_cell() -> Vector2i:
-	if grid_manager:
-		return grid_manager.world_to_grid(position)
-	return Vector2i.ZERO
-
-func move_to_cell(cell: Vector2i) -> void:
-	if not grid_manager or is_dead:
-		return
-	var world = grid_manager.grid_to_world(cell)
-	_target_position = Vector3(world.x, 0.0, world.z)
-	_is_moving = true
-
-func take_damage(amount: int) -> void:
-	if is_dead or burrowed:
-		return  # Untargetable while burrowed
-	# Cover: a defender within 2 squares soaks the hit by their hand size.
-	amount = PlayerStats.apply_cover(self, amount)
-	if amount <= 0:
-		return
-	health -= amount
-	_update_health_label()
-	if health <= 0:
-		die()
-
-func die() -> void:
-	if is_dead:
-		return
-	is_dead = true
-	died.emit(self)
-	queue_free()
+func _can_be_hit() -> bool:
+	return not burrowed  # Untargetable while burrowed

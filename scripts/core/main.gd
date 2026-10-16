@@ -10315,7 +10315,7 @@ func _spawn_specter(cell: Vector2i, hp: int) -> Node3D:
 	var sp = SpecterScript.new()
 	add_child(sp)
 	sp.setup(grid_manager, grid_manager.grid_to_world(cell), hp)
-	sp.died.connect(_on_specter_died)
+	sp.specter_died.connect(_on_specter_died)
 	_specters.append(sp)
 	return sp
 
@@ -10483,18 +10483,18 @@ func _update_skeletons(amount: int) -> void:
 		var tcell = grid_manager.world_to_grid(target_enemy.position)
 		s.attack_accum += amount
 		if _manhattan(s.get_cell(), tcell) <= 1:
-			if s.attack_accum >= s.ATTACK_INTERVAL:
-				s.attack_accum -= s.ATTACK_INTERVAL
-				target_enemy.take_damage(s.BASE_ATTACK, true)
-				add_battle_log("%s rakes %s for %d!" % [s.display_name, target_enemy.enemy_name, s.BASE_ATTACK], Color(0.8, 0.85, 0.75))
-				_belthronding_share(s.position, s.BASE_ATTACK)
+			if s.attack_accum >= s.attack_interval:
+				s.attack_accum -= s.attack_interval
+				target_enemy.take_damage(s.base_attack, true)
+				add_battle_log("%s rakes %s for %d!" % [s.display_name, target_enemy.enemy_name, s.base_attack], Color(0.8, 0.85, 0.75))
+				_belthronding_share(s.position, s.base_attack)
 			continue
 		s.move_accum += amount
-		if s.move_accum >= s.MOVE_INTERVAL:
-			s.move_accum -= s.MOVE_INTERVAL
+		if s.move_accum >= s.move_interval:
+			s.move_accum -= s.move_interval
 			var cur = s.get_cell()
 			skel_cells.erase(cur)
-			for _step in range(s.MOVE_STEPS):
+			for _step in range(s.move_steps):
 				var tc = grid_manager.world_to_grid(target_enemy.position)
 				if _manhattan(cur, tc) <= 1:
 					break

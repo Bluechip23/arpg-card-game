@@ -75,7 +75,10 @@ compare)
 	fail=0
 	for f in parse.txt determinism.txt catalog.json tests.txt; do
 		if [ -f "$base/$f" ] && [ -f "$out/$f" ]; then
-			if cmp -s "$base/$f" "$out/$f"; then echo "same   $f"; else echo "DIFF   $f"; fail=1; fi
+			if [ "$f" = parse.txt ]; then
+				# the script count may change (a refactor adds or removes files); the failure count may not
+				if [ "$(grep failure "$base/$f")" = "$(grep failure "$out/$f")" ]; then echo "same   $f (failure count)"; else echo "DIFF   $f"; fail=1; fi
+			elif cmp -s "$base/$f" "$out/$f"; then echo "same   $f"; else echo "DIFF   $f"; fail=1; fi
 		fi
 	done
 	# Sim: every job directory present in the snapshot must be byte-identical to the baseline's.
