@@ -1,3 +1,4 @@
+class_name Main
 extends Node3D
 
 ## Main game scene - turn-based card ARPG
@@ -278,10 +279,9 @@ var deck_list_container: VBoxContainer = null
 var deck_list_visible: bool = false
 var deck_list_card_preview: PanelContainer = null
 
-var maintained_list_panel: PanelContainer = null
-var maintained_list_container: VBoxContainer = null
-var maintained_list_visible: bool = false
-var maintained_list_card_preview: PanelContainer = null
+# The maintained-cards panel. Built here so the status-row icon can bind to
+# it before _ready adds it under Main.
+var _maintained_list: MaintainedList = MaintainedList.new()
 var maintained_icon: MaintainedIconUI = null
 var jailed_icon: JailedIconUI = null
 var _mana_reserve_tip: ManaReserveTooltip = null
@@ -516,6 +516,11 @@ func world_to_screen(world_pos: Vector3) -> Vector2:
 #endregion
 #region READY & CORE WIRING
 func _ready() -> void:
+	# Extracted UI panels: constructed at declaration so buttons can bind to
+	# them, wired to Main first thing, added under it where their UI used to
+	# be built (so their panels keep their draw order).
+	_pile_popup.main = self
+	_maintained_list.main = self
 	PlayerStats.incoming_mitigation_hook = _cover_mitigation
 	call_deferred("_sync_bastion_flag")  # a shield still in flight from the last area
 	_setup_world_viewport()
@@ -655,9 +660,10 @@ func _ready() -> void:
 	# panel is created here.)
 	_setup_deck_list_panel()
 	_setup_maintained_icon()
-	_setup_maintained_list_panel()
+	_maintained_list.name = "MaintainedList"
+	add_child(_maintained_list)
+	_maintained_list.setup_panel()
 	_pile_popup.name = "PilePopup"
-	_pile_popup.main = self
 	add_child(_pile_popup)
 	_pile_popup.setup_panel()
 	_setup_hand_card_preview()
@@ -3092,18 +3098,14 @@ func _on_deck_list_entry_unhovered() -> void:
 	deck_list_card_preview.visible = false
 
 #endregion
-#region MAINTAINED CARDS LIST (expandable button)
-# ============================================
-# MAINTAINED CARDS LIST (expandable button)
-# ============================================
-
+#region STATUS ROW ICONS (maintained / jailed)
 func _setup_maintained_icon() -> void:
 	## Maintained cards show as one card icon (xN) in the top status row with
 	## the other buffs; hover lists each card, click opens the manage panel.
 	maintained_icon = MaintainedIconUI.new()
 	maintained_icon.name = "MaintainedIcon"
 	maintained_icon.visible = false
-	maintained_icon.pressed.connect(_on_maintained_list_button_pressed)
+	maintained_icon.pressed.connect(_maintained_list.toggle)
 	buff_bar.pin_front(maintained_icon)
 
 	# Jailed cards show as one cage icon (xN) in the debuff row; hover lists
@@ -3114,223 +3116,8 @@ func _setup_maintained_icon() -> void:
 	jailed_icon.pressed.connect(_pile_popup.toggle.bind("jail"))
 	debuff_bar.pin_front(jailed_icon)
 
-func _setup_maintained_list_panel() -> void:
-	var ui := $UI as CanvasLayer
-	maintained_list_panel = PanelContainer.new()
-	maintained_list_panel.name = "MaintainedListPanel"
-	ui.add_child(maintained_list_panel)
-	maintained_list_panel.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	maintained_list_panel.offset_left = -280.0
-	maintained_list_panel.offset_top = -200.0
-	maintained_list_panel.offset_right = -10.0
-	maintained_list_panel.offset_bottom = 200.0
-	maintained_list_panel.custom_minimum_size = Vector2(270, 300)
-	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.1, 0.1, 0.15, 0.95)
-	panel_style.border_width_left = 2
-	panel_style.border_width_right = 2
-	panel_style.border_width_top = 2
-	panel_style.border_width_bottom = 2
-	panel_style.border_color = Color(0.6, 0.3, 0.8)
-	panel_style.corner_radius_top_left = 6
-	panel_style.corner_radius_top_right = 6
-	panel_style.corner_radius_bottom_left = 6
-	panel_style.corner_radius_bottom_right = 6
-	panel_style.content_margin_left = 10.0
-	panel_style.content_margin_right = 10.0
-	panel_style.content_margin_top = 10.0
-	panel_style.content_margin_bottom = 10.0
-	maintained_list_panel.add_theme_stylebox_override("panel", panel_style)
-
-	var margin := MarginContainer.new()
-	margin.layout_mode = 1
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	maintained_list_panel.add_child(margin)
-
-	var vbox := VBoxContainer.new()
-	margin.add_child(vbox)
-
-	var title := Label.new()
-	title.text = "Maintained Cards"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
-	vbox.add_child(title)
-
-	var sep := HSeparator.new()
-	vbox.add_child(sep)
-
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.custom_minimum_size = Vector2(0, 250)
-	vbox.add_child(scroll)
-
-	maintained_list_container = VBoxContainer.new()
-	maintained_list_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(maintained_list_container)
-
-	var close_btn := Button.new()
-	close_btn.text = "Close"
-	close_btn.pressed.connect(_on_maintained_list_button_pressed)
-	vbox.add_child(close_btn)
-
-	maintained_list_panel.visible = false
-
-	# Card preview popup for maintained list
-	maintained_list_card_preview = PanelContainer.new()
-	maintained_list_card_preview.name = "MaintainedListCardPreview"
-	ui.add_child(maintained_list_card_preview)
-	maintained_list_card_preview.custom_minimum_size = Vector2(180, 0)
-	var preview_style := StyleBoxFlat.new()
-	preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.98)
-	preview_style.border_width_left = 2
-	preview_style.border_width_right = 2
-	preview_style.border_width_top = 2
-	preview_style.border_width_bottom = 2
-	preview_style.border_color = Color(0.6, 0.3, 0.8)
-	preview_style.corner_radius_top_left = 4
-	preview_style.corner_radius_top_right = 4
-	preview_style.corner_radius_bottom_left = 4
-	preview_style.corner_radius_bottom_right = 4
-	preview_style.content_margin_left = 8.0
-	preview_style.content_margin_right = 8.0
-	preview_style.content_margin_top = 8.0
-	preview_style.content_margin_bottom = 8.0
-	maintained_list_card_preview.add_theme_stylebox_override("panel", preview_style)
-	maintained_list_card_preview.visible = false
-	maintained_list_card_preview.z_index = 200
-	maintained_list_card_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-func _update_maintained_button() -> void:
-	var cards := deck_manager.get_maintained_cards()
-	if maintained_icon:
-		maintained_icon.set_cards(cards)
-	if _mana_reserve_tip:
-		_mana_reserve_tip.set_cards(cards)
-	if maintained_list_visible:
-		if cards.size() == 0:
-			# Last maintained card gone — close the manage panel too.
-			_on_maintained_list_button_pressed()
-		else:
-			_populate_maintained_list()
-
-func _on_maintained_list_button_pressed() -> void:
-	maintained_list_visible = !maintained_list_visible
-	maintained_list_panel.visible = maintained_list_visible
-	if maintained_list_visible:
-		_populate_maintained_list()
-	else:
-		maintained_list_card_preview.visible = false
-
-func _populate_maintained_list() -> void:
-	for child in maintained_list_container.get_children():
-		child.queue_free()
-
-	var maintained_cards := deck_manager.get_maintained_cards()
-	if maintained_cards.size() == 0:
-		var empty_lbl := Label.new()
-		empty_lbl.text = "No maintained cards."
-		empty_lbl.add_theme_font_size_override("font_size", 14)
-		empty_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-		maintained_list_container.add_child(empty_lbl)
-		return
-
-	for i in range(maintained_cards.size()):
-		var card := maintained_cards[i]
-		var hbox := HBoxContainer.new()
-		hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-
-		var entry := Button.new()
-		entry.text = "%s (%dM)" % [card.card_name, card.maintain_cost]
-		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		entry.flat = true
-		entry.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		entry.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
-		entry.add_theme_color_override("font_hover_color", Color(0.8, 0.5, 1.0))
-		entry.add_theme_font_size_override("font_size", 14)
-		entry.mouse_entered.connect(_on_maintained_list_entry_hovered.bind(card, entry))
-		entry.mouse_exited.connect(_on_maintained_list_entry_unhovered)
-		hbox.add_child(entry)
-
-		var dismiss_btn := Button.new()
-		dismiss_btn.text = "X"
-		dismiss_btn.custom_minimum_size = Vector2(28, 28)
-		dismiss_btn.add_theme_font_size_override("font_size", 14)
-		var dismiss_style := StyleBoxFlat.new()
-		dismiss_style.bg_color = Color(0.6, 0.15, 0.15, 0.9)
-		dismiss_style.corner_radius_top_left = 4
-		dismiss_style.corner_radius_top_right = 4
-		dismiss_style.corner_radius_bottom_left = 4
-		dismiss_style.corner_radius_bottom_right = 4
-		dismiss_btn.add_theme_stylebox_override("normal", dismiss_style)
-		var dismiss_hover := StyleBoxFlat.new()
-		dismiss_hover.bg_color = Color(0.8, 0.2, 0.2, 0.95)
-		dismiss_hover.corner_radius_top_left = 4
-		dismiss_hover.corner_radius_top_right = 4
-		dismiss_hover.corner_radius_bottom_left = 4
-		dismiss_hover.corner_radius_bottom_right = 4
-		dismiss_btn.add_theme_stylebox_override("hover", dismiss_hover)
-		dismiss_btn.pressed.connect(_on_maintained_card_dismiss.bind(i))
-		hbox.add_child(dismiss_btn)
-
-		maintained_list_container.add_child(hbox)
-
-func _on_maintained_card_dismiss(index: int) -> void:
-	deck_manager.dismiss_maintained_card(index)
-	_populate_maintained_list()
-	_update_maintained_button()
-	update_deck_info()
-	add_battle_log("Dismissed a maintained card.", Color(0.8, 0.5, 1.0))
-
-func _on_maintained_list_entry_hovered(card: Card, entry: Button) -> void:
-	for child in maintained_list_card_preview.get_children():
-		child.queue_free()
-
-	var vbox := VBoxContainer.new()
-	maintained_list_card_preview.add_child(vbox)
-
-	var name_lbl := Label.new()
-	name_lbl.text = card.card_name
-	name_lbl.add_theme_font_size_override("font_size", 16)
-	name_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
-	vbox.add_child(name_lbl)
-
-	var type_lbl := Label.new()
-	type_lbl.text = card.card_type_name
-	type_lbl.add_theme_font_size_override("font_size", 12)
-	type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
-	vbox.add_child(type_lbl)
-
-	var cost_lbl := Label.new()
-	cost_lbl.text = "Maintain: %dM reserved" % card.maintain_cost
-	cost_lbl.add_theme_font_size_override("font_size", 12)
-	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
-	vbox.add_child(cost_lbl)
-
-	var desc_lbl := Label.new()
-	desc_lbl.text = card.description
-	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc_lbl.custom_minimum_size = Vector2(160, 0)
-	desc_lbl.add_theme_font_size_override("font_size", 12)
-	desc_lbl.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
-	vbox.add_child(desc_lbl)
-
-	_append_keyword_tooltips(vbox, card)
-
-	var entry_rect := entry.get_global_rect()
-	var preview_x := maintained_list_panel.position.x - maintained_list_card_preview.size.x - 10
-	var preview_y = entry_rect.position.y
-	var hand_area := $UI/HandArea as PanelContainer
-	var max_y := hand_area.global_position.y - maintained_list_card_preview.size.y - 8.0
-	preview_y = min(preview_y, max_y)
-	preview_y = max(preview_y, 4.0)
-	maintained_list_card_preview.global_position = Vector2(preview_x, preview_y)
-	maintained_list_card_preview.visible = true
-
-func _on_maintained_list_entry_unhovered() -> void:
-	maintained_list_card_preview.visible = false
-
 #endregion
+
 
 #region HAND CARD PREVIEW
 func _setup_hand_card_preview() -> void:
@@ -7009,7 +6796,7 @@ func _on_dexterity_proc() -> void:
 func _on_maintained_cards_broken() -> void:
 	## Called when player's mana hits 0 - all maintained Power cards are discarded
 	deck_manager.break_all_maintained_cards()
-	_update_maintained_button()
+	_maintained_list.refresh()
 	print("[MAIN] All maintained cards broken due to mana depletion!")
 
 func _on_player_health_damage_taken(hp_amount: int) -> void:
@@ -8332,7 +8119,7 @@ func update_deck_info() -> void:
 		_discard_pile_btn.tooltip_text = "Discard pile: %d card(s)" % deck_manager.get_discard_pile_size()
 	if jailed_icon:
 		jailed_icon.set_cards(deck_manager.jail_pile)
-	_update_maintained_button()
+	_maintained_list.refresh()
 	_pile_popup.refresh_if_open()
 
 func _update_draw_label() -> void:
@@ -13224,7 +13011,7 @@ func _is_ui_window_open() -> bool:
 		return true
 	if deck_list_panel and deck_list_panel.visible:
 		return true
-	if maintained_list_panel and maintained_list_panel.visible:
+	if _maintained_list and _maintained_list.is_showing():
 		return true
 	if _pile_popup and _pile_popup.is_showing():
 		return true
@@ -16761,7 +16548,7 @@ func _dojo_reset() -> void:
 		inv.relink_slotted_cards(deck_manager)
 	_on_hand_updated()
 	update_deck_info()
-	_update_maintained_button()
+	_maintained_list.refresh()
 	# The character: clean slate.
 	_dojo_reset_unit(player)
 	stats.current_attack_counter = 0

@@ -6,7 +6,7 @@ extends Node
 ## is a child of Main and reads the live deck through `main.deck_manager`
 ## (co-op swaps that reference per owner).
 
-var main: Node3D = null  # Main
+var main: Main = null
 var panel: PanelContainer = null
 var _container: VBoxContainer = null
 var _title_label: Label = null
