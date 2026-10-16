@@ -20,6 +20,9 @@ snapshot)
 	out="${2:?out_dir}"; tier="${3:-quick}"
 	shards="${SHARDS:-4}"
 	mkdir -p "$out/sweeps" "$out/logs" "$out/sim_quick"
+	# Keep the Godot importer out of the results: without this a later
+	# `godot --import` turns every result CSV into a translation table.
+	touch "$out/.gdignore" "$(dirname "$out")/.gdignore" 2>/dev/null
 	status=0
 	run() { # name, command...
 		local name="$1"; shift
