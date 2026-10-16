@@ -238,7 +238,7 @@ var granted_cards_built: bool = false
 @export var on_self_draw_card: int = 0             # draw X cards when a slotted card is played (Momentum Mits 1)
 @export var on_self_summon_wolf: int = 0           # summon X wolves when a slotted card is played (Dungeon Mastering 1)
 @export var on_self_root_offensive: int = 0        # slotted offensive card roots the target X cycles (Gravity Gauntlets 1)
-@export var on_self_disarm_offensive: int = 0      # slotted offensive card disarms the target for X ATTACKS (Spidey 1)
+@export var on_self_disarm_offensive: int = 0      # slotted offensive card Disarms the target 5 tempo per stack (Spidey 1)
 
 # Weapon on-self riders (weapons pass 1)
 @export var on_self_crit_percent: float = 0.0            # +% crit chance for the slotted play, any card (Rusty Dagger 15)
@@ -1572,9 +1572,9 @@ static func create_spidey_web_shooters() -> ItemData:
 	item.dexterity_bonus = 3
 	item.agility_bonus = 3
 	item.hand_size_bonus = 1
-	item.on_self_disarm_offensive = 1  # the target skips its next 1 attack
+	item.on_self_disarm_offensive = 1  # 1 stack = 5 tempo of Disarm: the target skips its next attack
 	_set_skill(item, "Coming in!", "Pull yourself to the target from up to 5 squares away.", "coming_in", 2, 10)
-	item.description = "+3 DEX, +3 AGI, +1 hand size. On-self: offensive cards disarm the target for 1 attack. Skill — Coming in!: pull yourself to the target from 5 squares (10 tempo CD)."
+	item.description = "+3 DEX, +3 AGI, +1 hand size. On-self: offensive cards Disarm the target for 5 tempo (it skips its next attack). Skill — Coming in!: pull yourself to the target from 5 squares (10 tempo CD)."
 	return item
 
 static func create_gravity_gauntlets() -> ItemData:

@@ -5,7 +5,7 @@ Generated from the card factories, `Card.execute`, and the handling in `main.gd`
 Costs are the code's raw numbers (the sheet writes mana in tens). Range is the base 5 plus the card's modifier; melee cards have none. Slots are the sheet's slot labels; **Engrave** marks a card that exists only inside an item slot.
 
 
-**240 cards, 32 with something to look at.** The flagged cards are listed first, then every card by type.
+**241 cards, 32 with something to look at.** The flagged cards are listed first, then every card by type.
 
 
 ## Cards whose code and text disagree
@@ -388,7 +388,7 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Card text: Gain 1 thorn for each point of armor you currently have, for 20 tempo. You lose X thorns whenever you receive X damage.
   - Code: execute() 'vined_encasing' (card.gd:1781): if current_armor > 0, applies Buff.create_thorns(current_armor, 20, 'Vined Encasing') with decay_by_damage=true; BuffManager (buff_manager.gd:388-403) then reduces the thorns value by the damage received instead of 1 per hit. No thorns if armor is 0. Self, melee.
 
-### Utility (98)
+### Utility (99)
 
 - **Adrenaline Shot** (`adrenaline_shot`) — Common · 30 mana, 0 tempo · range 5 · targets ally · slots: Dagger · sheet: Utility, ally, range 5
   - Card text: Decrease the tempo of two cards in the target's hand by 3. In 5 tempo, increase a random card's tempo by 3 and another by 2.
@@ -520,6 +520,9 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
 - **House Money** (`house_money`) — Common · 40 mana, 5 tempo · range melee · targets self · slots: deck only · sheet: Utility, spell
   - Card text: Your next odds will automatically trigger.
   - Code: execute() -> _execute_house_money (card.gd:3294): player_stats.next_odds_boost=100.0. main (8774) clears the rolls of every chance card in hand so they re-roll with chance_boost = get_chance_boost()+next_odds_boost (main.gd:6896); Card.roll_rng (card.gd:677) adds the boost to the success percent (binary) or moves all weight to the best outcome (multi), so the next chance card auto-succeeds; the boost is cleared when a chance card is played (main.gd:8779). Self target, spell school.
+- **Infest** (`infest`) — Basic · 50 mana, 0 tempo · range melee · targets self · slots: deck only · not on the sheet (item kit / token)
+  - Card text: A rat brood squirming in your pack. In 5 tempo, if it is still in your hand, it hatches into 2 Wererats. Play (50 mana, 0 tempo) to erase it, or discard it.
+  - Code: Rat King's Infest (enemy.gd _try_infest) adds one per rat within 10 squares of the king (himself included), each with hatch_tempo = 5 and a hatch_handler bound to EnemySpawner.spawn_hatchlings(holder, WERERAT, 2). DeckManager._process_hatch_timers (ticked per tempo from tick_temp_mods) counts the fuse down only while the card is in HAND; at 0 it leaves the hand (card_erased) and the handler spawns 2 Wererats on free floor cells ringed around the holder. execute() branch is 'pass'; erase_on_play removes it when played. discard_card_from_hand erases it instead of banking it in the discard pile, so a discarded brood never hatches. linger=true. A card rebuilt by id (saves) has no handler and simply crumbles at 0.
 - **ITS ALIVE!!!!!** (`its_alive`) — Legendary · 20 mana, 5 tempo · range melee · targets point · slots: deck only · not on the sheet (item kit / token)
   - Card text: Resurrect a nearby corpse into Frankensteins Monster — a summon that fights for you.
   - Code: execute() 'its_alive' branch only prints (card.gd:1677). main 'its_alive' (main.gd:11138) -> _resurrect_frankenstein(mouse_pos) (main.gd:13390): picks the corpse nearest the aimed point within ITS_ALIVE_REACH = 3 cells of that point (the aim point itself has no range limit from the player), removes it, spawns a Frankenstein summon on the corpse cell (or an adjacent free cell), scaled by the summoner's INT; fizzles with a log if no corpse/room. Point target, 20 mana / 5 tempo.
@@ -814,11 +817,11 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
 ### Unplayable (3)
 
 - **Lightly Dazed** (`lightly_dazed`) — Common · 0 mana, 0 tempo · range — · targets self · slots: deck only · sheet: Unplayable
-  - Card text: This card cannot be played. Linger. Erases from deck after 40 tempo in your hand.
-  - Code: UNPLAYABLE (play_card refuses it); linger=true lets it exceed the hand cap; erase_tempo=40 ticks down 5 per tempo tick only while in hand (deck_manager.gd:982) and the card is permanently removed at 0. Added to the player's hand by an enemy attack (enemy.gd:4009). No execute branch (never executes).
+  - Card text: This card cannot be played. Linger. Erases from deck after 40 tempo, in your hand or the draw or discard pile (frozen while jailed).
+  - Code: UNPLAYABLE (play_card refuses it); linger=true lets it exceed the hand cap; erase_tempo=40 ticks down 5 per cycle in the hand, draw and discard piles and freezes in jail (negative card: Card.is_negative_card, DeckManager._process_erase_timers) and the card is permanently removed at 0. Added to the player's hand by an enemy attack (enemy.gd:4009). No execute branch (never executes).
 - **Minor Wounds** (`minor_wounds`) — Common · 0 mana, 0 tempo · range — · targets — · slots: deck only · sheet: Unplayable
-  - Card text: On draw, deal 2 damage to self. Erase: 40 (in hand).
-  - Code: Unplayable status card. has_on_draw 'deal_2_self': main._on_card_on_draw_triggered (main.gd:14342) calls stats.take_damage(2) (armor applies) on draw. erase_tempo 40: DeckManager ticks erase_tempo_remaining -5 per cycle only while the card is in hand (deck_manager.gd:987-1000) and erases it at 0. Created 2 at a time by Reckless Strike (main.gd:8741).
+  - Card text: On draw, deal 2 damage to self. Erase: 40 (in your hand or the draw or discard pile; frozen while jailed).
+  - Code: Unplayable status card. has_on_draw 'deal_2_self': main._on_card_on_draw_triggered (main.gd:14342) calls stats.take_damage(2) (armor applies) on draw. erase_tempo 40: DeckManager ticks erase_tempo_remaining -5 per cycle in the hand, draw and discard piles, frozen in jail (negative card: Card.is_negative_card, DeckManager._process_erase_timers) and erases it at 0. Created 2 at a time by Reckless Strike (main.gd:8741).
 - **Petey the Pet Rock** (`petey_the_pet_rock`) — Common · 0 mana, 0 tempo · range — · targets — · slots: Pocket · sheet: Unplayable
   - Card text: On Draw: Draw 3 cards. On Discard: Discard 2 cards. While in hand: Slowed 2.
   - Code: UNPLAYABLE. on_draw_effect 'draw_3_cards' (main.gd ~14348): draw_card() x3. on_discard_effect 'discard_2_cards' (main.gd ~7182): 2 random cards from hand go to discard. in_hand_debuff 'slowed_2' (main._apply_in_hand_debuffs): applies Debuff.create_slowed(2) while in hand if not already Slowed.
