@@ -502,7 +502,7 @@ func _set_first_pass_resists(phys: float, fire: float, lightning: float) -> void
 
 func _set_mesh_color(color: Color) -> void:
 	if mesh:
-		var mat = mesh.get_surface_override_material(0) as StandardMaterial3D
+		var mat := mesh.get_surface_override_material(0) as StandardMaterial3D
 		if mat:
 			mat.albedo_color = color
 
@@ -1267,10 +1267,10 @@ static func get_all_enemy_data() -> Array:
 func _setup_tempo_bar() -> void:
 	# Background bar (dark)
 	_tempo_bar_bg = MeshInstance3D.new()
-	var bg_quad = QuadMesh.new()
+	var bg_quad := QuadMesh.new()
 	bg_quad.size = Vector2(_tempo_bar_width, 0.09)
 	_tempo_bar_bg.mesh = bg_quad
-	var bg_mat = StandardMaterial3D.new()
+	var bg_mat := StandardMaterial3D.new()
 	bg_mat.albedo_color = Color(0.15, 0.15, 0.1, 0.7)
 	bg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	bg_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
@@ -1283,10 +1283,10 @@ func _setup_tempo_bar() -> void:
 
 	# Foreground bar (yellow fill)
 	_tempo_bar_fg = MeshInstance3D.new()
-	var fg_quad = QuadMesh.new()
+	var fg_quad := QuadMesh.new()
 	fg_quad.size = Vector2(0.01, 0.09)
 	_tempo_bar_fg.mesh = fg_quad
-	var fg_mat = StandardMaterial3D.new()
+	var fg_mat := StandardMaterial3D.new()
 	fg_mat.albedo_color = Color(1.0, 0.85, 0.0, 0.9)  # Yellow
 	fg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	fg_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
@@ -1382,10 +1382,10 @@ func _setup_health_bar() -> void:
 	## Always-on health bar (dark red track, green fill); the exact numbers
 	## only appear on hover, on top of it.
 	_health_bar_bg = MeshInstance3D.new()
-	var bg_quad = QuadMesh.new()
+	var bg_quad := QuadMesh.new()
 	bg_quad.size = Vector2(_health_bar_width, 0.09)
 	_health_bar_bg.mesh = bg_quad
-	var bg_mat = StandardMaterial3D.new()
+	var bg_mat := StandardMaterial3D.new()
 	bg_mat.albedo_color = Color(0.16, 0.05, 0.05, 0.9)
 	bg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	bg_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
@@ -1396,10 +1396,10 @@ func _setup_health_bar() -> void:
 	add_child(_health_bar_bg)
 
 	_health_bar_fg = MeshInstance3D.new()
-	var fg_quad = QuadMesh.new()
+	var fg_quad := QuadMesh.new()
 	fg_quad.size = Vector2(_health_bar_width, 0.09)
 	_health_bar_fg.mesh = fg_quad
-	var fg_mat = StandardMaterial3D.new()
+	var fg_mat := StandardMaterial3D.new()
 	fg_mat.albedo_color = Color(0.88, 0.18, 0.16, 0.95)  # red
 	fg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	fg_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
@@ -1415,7 +1415,7 @@ func _update_health_bar() -> void:
 		return
 	var ratio := clampf(float(current_health) / float(maxi(1, max_health)), 0.0, 1.0)
 	var w := _health_bar_width * ratio
-	var fg_mesh = _health_bar_fg.mesh as QuadMesh
+	var fg_mesh := _health_bar_fg.mesh as QuadMesh
 	if fg_mesh:
 		fg_mesh.size.x = maxf(0.001, w)
 	_health_bar_fg.visible = w > 0.001
@@ -1472,13 +1472,13 @@ func _update_armor_bar() -> void:
 
 func _refresh_armor_bar_image() -> void:
 	## Draws a single gray bar that is full when the enemy has any armor, empty when they don't.
-	var w = _ARMOR_BAR_PIXEL_WIDTH
-	var h = _ARMOR_BAR_PIXEL_HEIGHT
-	var img = Image.create(w, h, false, Image.FORMAT_RGBA8)
+	var w := _ARMOR_BAR_PIXEL_WIDTH
+	var h := _ARMOR_BAR_PIXEL_HEIGHT
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
 
-	var bg_color = Color(0.18, 0.18, 0.22, 0.95)
-	var fill_color = Color(0.72, 0.72, 0.72, 1.0)
-	var border_color = Color(0.0, 0.0, 0.0, 1.0)
+	var bg_color := Color(0.18, 0.18, 0.22, 0.95)
+	var fill_color := Color(0.72, 0.72, 0.72, 1.0)
+	var border_color := Color(0.0, 0.0, 0.0, 1.0)
 
 	# Background (dark)
 	img.fill(bg_color)
@@ -2182,7 +2182,7 @@ func _choose_action(player_node: Node3D) -> void:
 		chosen_action = {}
 		return
 
-	var distance = _get_cell_distance(player_node)
+	var distance := _get_cell_distance(player_node)
 
 	# Polymorph (Circe's Wand): a pig only walks and bites — no spells,
 	# no abilities, whatever the species would normally reach for. The first
@@ -2361,7 +2361,7 @@ func _ensure_sync_choice(distance: int) -> void:
 func _get_cell_distance(target_node: Node3D) -> int:
 	if grid_manager:
 		return grid_manager.get_distance_in_cells(position, target_node.position)
-	var diff = target_node.position - position
+	var diff := target_node.position - position
 	return int(Vector3(diff.x, 0, diff.z).length())
 
 func _choose_wererat_action(distance: int) -> void:
@@ -2546,7 +2546,7 @@ func _try_infest(target_node: Node3D) -> bool:
 		turn_completed.emit()
 		return true
 	var rats := _rats_within(INFEST_RADIUS)
-	var main = get_parent()
+	var main := get_parent()
 	var spawner = main.enemy_spawner if main and "enemy_spawner" in main else null
 	for _r in rats:
 		var card: Card = Card.create_infest()
@@ -2628,7 +2628,7 @@ func _venom_hit(u: Node3D) -> void:
 func _cobra_attacker() -> Node3D:
 	## Who the cobra answers: the player, as Cerberus's Roar thorns read it
 	## (TODO(sheet): co-op — a second player's hit is answered on P1).
-	var main = get_parent()
+	var main := get_parent()
 	if main == null or not ("player" in main) or main.player == null or not is_instance_valid(main.player):
 		return null
 	return main.player
@@ -2691,7 +2691,7 @@ func _try_repair() -> bool:
 func _foes_in_play() -> Array:
 	## The players Cerberus watches: the spawner's party in co-op, else the
 	## scene's one player.
-	var main = get_parent()
+	var main := get_parent()
 	if main == null:
 		return []
 	var out: Array = []
@@ -2849,7 +2849,7 @@ func _on_foe_healed(amount: int, who: Node3D) -> void:
 func _thorns_strike_back() -> void:
 	## Roar's thorns: the player's direct hit costs them the thorn damage,
 	## and one thorn is spent per hit.
-	var main = get_parent()
+	var main := get_parent()
 	if main == null or not ("player" in main) or main.player == null or not is_instance_valid(main.player):
 		return
 	var st = main.player.get_stats() if main.player.has_method("get_stats") else null
@@ -2923,7 +2923,7 @@ func _allies_need_healing() -> bool:
 func _sibling_enemies() -> Array:
 	## Living enemies sharing this enemy's parent (the main scene), including self.
 	var out: Array = []
-	var parent = get_parent()
+	var parent := get_parent()
 	if not parent:
 		return out
 	for child in parent.get_children():
@@ -3386,10 +3386,10 @@ func _try_fire_wall(target_node: Node3D) -> bool:
 	if not grid_manager:
 		turn_completed.emit()
 		return true
-	var player_cell = grid_manager.world_to_grid(target_node.position)
-	var my_cell = grid_manager.world_to_grid(position)
+	var player_cell := grid_manager.world_to_grid(target_node.position)
+	var my_cell := grid_manager.world_to_grid(position)
 	# A 3-tile wall one step in front of the player (toward the shaman).
-	var dir = my_cell - player_cell
+	var dir := my_cell - player_cell
 	var step = Vector2i(signi(dir.x), signi(dir.y))
 	if step == Vector2i.ZERO:
 		step = Vector2i(1, 0)
@@ -3398,7 +3398,7 @@ func _try_fire_wall(target_node: Node3D) -> bool:
 	if perp == Vector2i.ZERO:
 		perp = Vector2i(0, 1)
 	var tiles: Array = [center, center + perp, center - perp]
-	var main = get_parent()
+	var main := get_parent()
 	if main and main.has_method("register_fire_wall"):
 		main.register_fire_wall(tiles, attack_damage, 3)
 	print("[%s] Raises a wall of fire!" % enemy_name)
@@ -3413,7 +3413,7 @@ func _try_sear_wounds() -> bool:
 		print("[%s] Silenced — cannot Sear Wounds." % enemy_name)
 		turn_completed.emit()
 		return true
-	var allies = _sibling_enemies()
+	var allies := _sibling_enemies()
 	for a in allies:
 		if is_instance_valid(a):
 			a.take_damage(2, false)  # from_player = false (a Hydra still counts the hit)
@@ -3511,12 +3511,12 @@ func _try_maul(target_node: Node3D) -> bool:
 	return _try_elemental(target_node, dmg, "Maul", {"bleed": bleed})
 
 func _try_wolf_bite(target_node: Node3D) -> bool:
-	var dmg = attack_damage + (2 if _wolf_aura_active() else 0)
+	var dmg := attack_damage + (2 if _wolf_aura_active() else 0)
 	return _try_elemental(target_node, dmg, "Bite")
 
 func _try_bugbear_strike(target_node: Node3D) -> bool:
 	# First Strike: if the player has not hit this bugbear yet, +8 damage.
-	var dmg = attack_damage + (8 if hits_taken == 0 else 0)
+	var dmg := attack_damage + (8 if hits_taken == 0 else 0)
 	return _try_elemental(target_node, dmg, "Strike")
 
 func _try_swoop(target_node: Node3D) -> bool:
@@ -3530,15 +3530,15 @@ func _try_swoop(target_node: Node3D) -> bool:
 
 func _try_hook(target_node: Node3D) -> bool:
 	## Reach out (range 2-7) and reel the player in to just in front of the hunter.
-	var dist = _get_cell_distance(target_node)
+	var dist := _get_cell_distance(target_node)
 	if dist < 2 or dist > 7:
 		return _try_move(target_node)
 	if grid_manager:
-		var my_cell = grid_manager.world_to_grid(position)
-		var pl_cell = grid_manager.world_to_grid(target_node.position)
-		var dir = pl_cell - my_cell
-		var dest = Vector2i(my_cell.x + signi(dir.x), my_cell.y + signi(dir.y))
-		var world = grid_manager.grid_to_world(dest)
+		var my_cell := grid_manager.world_to_grid(position)
+		var pl_cell := grid_manager.world_to_grid(target_node.position)
+		var dir := pl_cell - my_cell
+		var dest := Vector2i(my_cell.x + signi(dir.x), my_cell.y + signi(dir.y))
+		var world := grid_manager.grid_to_world(dest)
 		if dungeon_manager:
 			world.y = dungeon_manager.get_elevation_world_y(dest)
 		target_node.target_position = world
@@ -3624,7 +3624,7 @@ func _wolf_aura_active() -> bool:
 
 func _treant_heal_amount() -> int:
 	var amt = 5
-	var pct = float(current_health) / float(max_health) * 100.0
+	var pct := float(current_health) / float(max_health) * 100.0
 	if pct < 60.0:
 		amt += 2 * int((60.0 - pct) / 10.0)
 	return amt
@@ -3652,7 +3652,7 @@ func _try_pipe_claw(target_node: Node3D) -> bool:
 ## summons (co-op aware, mirrors EnemySpawner._target_for's candidate list).
 func _player_units() -> Array:
 	var out: Array = []
-	var main = get_parent()
+	var main := get_parent()
 	if not main:
 		return out
 	if "enemy_spawner" in main and main.enemy_spawner:
@@ -3677,7 +3677,7 @@ func _unit_health(u: Node3D) -> int:
 func _cells_between(a: Node3D, b: Node3D) -> int:
 	if grid_manager:
 		return grid_manager.get_distance_in_cells(a.position, b.position)
-	var diff = b.position - a.position
+	var diff := b.position - a.position
 	return int(Vector3(diff.x, 0, diff.z).length())
 
 func _cell_is_free(cell: Vector2i) -> bool:
@@ -3733,10 +3733,10 @@ func _random_free_cell_at_distance(from_cell: Vector2i, dist: int) -> Vector2i:
 
 func _dash_away_from(pos: Vector3, tiles: int) -> void:
 	if grid_manager:
-		var threat_cell = grid_manager.world_to_grid(pos)
+		var threat_cell := grid_manager.world_to_grid(pos)
 		_start_path(_build_greedy_path(position, threat_cell, tiles, true))
 	else:
-		var diff = position - pos
+		var diff := position - pos
 		var direction = Vector3(diff.x, 0, diff.z).normalized()
 		if direction.length() < 0.1:
 			direction = Vector3(1, 0, 0)
@@ -3754,7 +3754,7 @@ func _try_flee(target_node: Node3D) -> bool:
 func _try_vanish() -> bool:
 	## The escape: gone in a puff of smoke — no loot, no XP, no death.
 	print("[%s] Vanishes in a puff of smoke!" % enemy_name)
-	var main = get_parent()
+	var main := get_parent()
 	if main and "enemy_spawner" in main and main.enemy_spawner:
 		main.enemy_spawner.despawn_enemy(self)
 	else:
@@ -3959,7 +3959,7 @@ func _try_necro_summon(_target_node: Node3D) -> bool:
 	return true
 
 func _necro_spawn(t: EnemyType) -> Enemy:
-	var main = get_parent()
+	var main := get_parent()
 	if not main or not ("enemy_spawner" in main) or not main.enemy_spawner:
 		return null
 	var e: Enemy = main.enemy_spawner.spawn_enemy(t, _free_cell_near(position, 2))
@@ -3996,7 +3996,7 @@ func _necro_rise_on_death() -> void:
 				break
 	if necro == null:
 		return
-	var main = get_parent()
+	var main := get_parent()
 	if main and ("enemy_spawner" in main) and main.enemy_spawner:
 		var sk: Enemy = main.enemy_spawner.spawn_enemy(EnemyType.SKELETON, _free_cell_near(position, 1))
 		if sk:
@@ -4015,15 +4015,15 @@ func _try_breath_swarm(target_node: Node3D) -> bool:
 		return _try_move(target_node)
 	if not grid_manager:
 		return _try_elemental(target_node, attack_damage, "Breath")
-	var my_cell = grid_manager.world_to_grid(position)
-	var t_cell = grid_manager.world_to_grid(target_node.position)
+	var my_cell := grid_manager.world_to_grid(position)
+	var t_cell := grid_manager.world_to_grid(target_node.position)
 	var dir = Vector2i(signi(t_cell.x - my_cell.x), signi(t_cell.y - my_cell.y))
 	if dir == Vector2i.ZERO:
 		dir = Vector2i(1, 0)
 	var line: Array = []
 	for i in range(1, 7):
 		line.append(my_cell + dir * i)
-	var main = get_parent()
+	var main := get_parent()
 	var hits := 0
 	for u in _player_units():
 		if not is_instance_valid(u):
@@ -4111,7 +4111,7 @@ func _try_talon_grab(target_node: Node3D) -> bool:
 	_deal_damage_to_player(target_node, maxi(1, roundi(25 * _pps_dmg)), "Talon Grab")
 	if grid_manager and is_instance_valid(target_node):
 		var dest := _random_free_cell_at_distance(grid_manager.world_to_grid(target_node.position), 8)
-		var world = grid_manager.grid_to_world(dest)
+		var world := grid_manager.grid_to_world(dest)
 		if dungeon_manager:
 			world.y = dungeon_manager.get_elevation_world_y(dest)
 		target_node.target_position = world
@@ -4153,7 +4153,7 @@ func _try_fire_breath(target_node: Node3D) -> bool:
 				_apply_burn_to_player(u, 5)
 			elif u.has_method("take_damage"):
 				u.take_damage(breath_dmg)
-	var main = get_parent()
+	var main := get_parent()
 	if main and main.has_method("register_fire_wall"):
 		main.register_fire_wall(tiles, breath_dmg, 5, 99, 3)  # lingers 3 tempo
 	print("[%s] FIRE BREATH — a 5x5 sheet of flame!" % enemy_name)
@@ -4174,7 +4174,7 @@ func _minotaur_labyrinth_leap() -> void:
 	_minotaur_damage_taken = 0  # the count toward the next leap starts over
 	if spaces > 0 and grid_manager:
 		var dest := _random_free_cell_at_distance(grid_manager.world_to_grid(position), spaces)
-		var world = grid_manager.grid_to_world(dest)
+		var world := grid_manager.grid_to_world(dest)
 		if dungeon_manager:
 			world.y = dungeon_manager.get_elevation_world_y(dest)
 		position = world
@@ -4196,7 +4196,7 @@ func _try_bull_rush(target_node: Node3D) -> bool:
 	_minotaur_rush_pending = false
 	var victim: Node3D = target_node
 	# The minotaur always prioritizes a PLAYER over summons.
-	var main = get_parent()
+	var main := get_parent()
 	if main and "enemy_spawner" in main and main.enemy_spawner:
 		var ps: Array = main.enemy_spawner._living_players()
 		if ps.is_empty() and main.enemy_spawner.player and is_instance_valid(main.enemy_spawner.player):
@@ -4780,7 +4780,7 @@ func _try_mimic(_target_node: Node3D) -> bool:
 	_prune_mimics()
 	if _mimics.size() >= MIMIC_CAP:
 		return false  # both copies still stand — the clock is spent
-	var main = get_parent()
+	var main := get_parent()
 	if not main or not ("enemy_spawner" in main) or not main.enemy_spawner:
 		return false
 	var m: Enemy = main.enemy_spawner.spawn_enemy(EnemyType.DEMON, _free_cell_near(position, 2))
@@ -4907,7 +4907,7 @@ func _choose_magma_spider_action(_distance: int) -> void:
 func _try_fire_web(_target_node: Node3D) -> bool:
 	if is_silenced or grid_manager == null:
 		return false
-	var main = get_parent()
+	var main := get_parent()
 	if main == null or not main.has_method("register_fire_web"):
 		return false
 	var centre: Vector2i = grid_manager.world_to_grid(position)
@@ -5068,8 +5068,8 @@ func _try_attack(target_node: Node3D) -> bool:
 	return _try_move(target_node)
 
 func _try_move(target_node: Node3D) -> bool:
-	var diff = target_node.position - position
-	var flat_dist = Vector3(diff.x, 0, diff.z).length()
+	var diff := target_node.position - position
+	var flat_dist := Vector3(diff.x, 0, diff.z).length()
 	if flat_dist <= aggro_range:
 		move_towards_target(target_node.position)
 		return true
@@ -5087,7 +5087,7 @@ func _try_bite(target_node: Node3D) -> bool:
 func _try_scurry(target_node: Node3D) -> bool:
 	## Wererat dashes 5 tiles toward the target. (Slowed now taxes the move's
 	## tempo in _check_and_fire_actions instead of trimming tiles.)
-	var tiles = 5
+	var tiles := 5
 	_dash_towards_target(target_node.position, tiles)
 	print("[%s] Scurries %d tiles toward target!" % [enemy_name, tiles])
 	return true
@@ -5130,13 +5130,13 @@ func _try_shoot(target_node: Node3D) -> bool:
 
 func _try_scurry_away(target_node: Node3D) -> bool:
 	## Archer Rat: Run 5 paces away from threat.
-	var tiles = 5
+	var tiles := 5
 
 	if grid_manager:
-		var threat_cell = grid_manager.world_to_grid(target_node.position)
+		var threat_cell := grid_manager.world_to_grid(target_node.position)
 		_start_path(_build_greedy_path(position, threat_cell, tiles, true))
 	else:
-		var diff = position - target_node.position
+		var diff := position - target_node.position
 		var direction = Vector3(diff.x, 0, diff.z).normalized()
 		if direction.length() < 0.1:
 			direction = Vector3(1, 0, 0)
@@ -5164,14 +5164,14 @@ func _try_get_into_range(target_node: Node3D) -> bool:
 		# Already in range, shoot instead
 		return _try_shoot(target_node)
 
-	var tiles = 2
+	var tiles := 2
 
 	if grid_manager:
-		var player_cell = grid_manager.world_to_grid(target_node.position)
+		var player_cell := grid_manager.world_to_grid(target_node.position)
 		_start_path(_build_greedy_path(position, player_cell, tiles))
 	else:
-		var diff = target_node.position - position
-		var direction = Vector3(diff.x, 0, diff.z).normalized()
+		var diff := target_node.position - position
+		var direction := Vector3(diff.x, 0, diff.z).normalized()
 		target_position = position + direction * (tiles * 1.0)
 		is_moving = true
 
@@ -5182,8 +5182,8 @@ func _try_get_into_range(target_node: Node3D) -> bool:
 func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: String, dmg_type: int = -1) -> void:
 	# Can't hit the player through a wall — a structure between us blocks the blow.
 	if dungeon_manager and grid_manager and is_instance_valid(player_node):
-		var from_cell = grid_manager.world_to_grid(position)
-		var to_cell = grid_manager.world_to_grid(player_node.position)
+		var from_cell := grid_manager.world_to_grid(position)
+		var to_cell := grid_manager.world_to_grid(player_node.position)
 		if not dungeon_manager.has_line_of_sight(from_cell, to_cell):
 			print("[%s] %s blocked by a wall!" % [enemy_name, attack_name])
 			return
@@ -5192,7 +5192,7 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 		dmg_type = damage_type
 	# Face the target as we strike so attacks don't play backwards.
 	if _enemy_figure and is_instance_valid(player_node):
-		var face_diff = player_node.position - position
+		var face_diff := player_node.position - position
 		_enemy_figure.set_facing_from_velocity(Vector3(face_diff.x, 0, face_diff.z))
 
 	var effective_damage = max(0, base_damage - attack_reduction)
@@ -5279,8 +5279,8 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 					knockback(player_node.position, 4)
 					# Push player away from enemy
 					if player_node.has_method("blink_to") and grid_manager:
-						var player_diff = player_node.position - position
-						var player_dir = Vector3(player_diff.x, 0, player_diff.z).normalized()
+						var player_diff := player_node.position - position
+						var player_dir := Vector3(player_diff.x, 0, player_diff.z).normalized()
 						var player_new_pos = player_node.position + player_dir * 2.0
 						player_new_pos = grid_manager.snap_to_grid(player_new_pos)
 						player_node.position = player_new_pos
@@ -5292,7 +5292,7 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 			# to offer the discard choice. When it does, it owns this hit —
 			# it applies the (possibly halved) damage and calls
 			# _finish_player_hit itself once the player has chosen.
-			var ds_main = get_parent()  # Main (never current_scene: null under headless boots)
+			var ds_main := get_parent()  # Main (never current_scene: null under headless boots)
 			if ds_main and ds_main.has_method("offer_defensive_sacrifice") \
 					and ds_main.offer_defensive_sacrifice(self, player_node, effective_damage, debuff_mgr, buff_mgr, dmg_type):
 				return
@@ -5309,9 +5309,9 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 		tween.tween_property(_enemy_sprite, "modulate", Color.WHITE, 0.1)
 	elif mesh:
 		var tween = create_tween()
-		var mat = mesh.get_surface_override_material(0) as StandardMaterial3D
+		var mat := mesh.get_surface_override_material(0) as StandardMaterial3D
 		if mat:
-			var orig_color = mat.albedo_color
+			var orig_color := mat.albedo_color
 			tween.tween_property(mat, "albedo_color", Color.ORANGE, 0.1)
 			tween.tween_property(mat, "albedo_color", orig_color, 0.1)
 
@@ -5354,19 +5354,19 @@ func _dash_towards_target(pos: Vector3, tiles: int) -> void:
 		return
 	# Enemies trapped on a rise pillar cannot dash
 	if grid_manager:
-		var current_cell = grid_manager.world_to_grid(position)
+		var current_cell := grid_manager.world_to_grid(position)
 		if current_cell in pillar_tiles:
 			print("[%s] Trapped on pillar - cannot dash!" % enemy_name)
 			return
 
 	if grid_manager:
-		var player_cell = grid_manager.world_to_grid(pos)
+		var player_cell := grid_manager.world_to_grid(pos)
 		if not _start_path(_build_greedy_path(position, player_cell, tiles)):
 			_try_smash_barricade(player_cell)
 			return  # Can't move at all
 	else:
-		var diff = pos - position
-		var direction = Vector3(diff.x, 0, diff.z).normalized()
+		var diff := pos - position
+		var direction := Vector3(diff.x, 0, diff.z).normalized()
 		target_position = position + direction * (tiles * 1.0)
 		is_moving = true
 
@@ -5395,9 +5395,9 @@ func _regenerate(amount: int) -> void:
 		tween.tween_property(_enemy_sprite, "modulate", Color.WHITE, 0.15)
 	elif mesh:
 		var tween = create_tween()
-		var mat = mesh.get_surface_override_material(0) as StandardMaterial3D
+		var mat := mesh.get_surface_override_material(0) as StandardMaterial3D
 		if mat:
-			var orig_color = mat.albedo_color
+			var orig_color := mat.albedo_color
 			tween.tween_property(mat, "albedo_color", Color.GREEN, 0.15)
 			tween.tween_property(mat, "albedo_color", orig_color, 0.15)
 
@@ -5445,14 +5445,14 @@ func _update_tempo_bar() -> void:
 	_tempo_bar_fg.visible = true
 
 	var cost: int = maxi(1, int(shown["cost"]))
-	var progress = clampf(float(shown["counter"]) / float(cost), 0.0, 1.0)
-	var current_width = _tempo_bar_width * progress
+	var progress := clampf(float(shown["counter"]) / float(cost), 0.0, 1.0)
+	var current_width := _tempo_bar_width * progress
 	var kind_color := action_kind_color(str(shown["kind"]))
 	var fg_mat := _tempo_bar_fg.material_override as StandardMaterial3D
 	if fg_mat:
 		fg_mat.albedo_color = Color(kind_color, 0.9)
 
-	var fg_mesh = _tempo_bar_fg.mesh as QuadMesh
+	var fg_mesh := _tempo_bar_fg.mesh as QuadMesh
 	if fg_mesh:
 		fg_mesh.size.x = max(0.01, current_width)
 
@@ -5487,9 +5487,9 @@ func _physics_process(delta: float) -> void:
 		target_position.y = position.y
 
 	if is_moving:
-		var diff = target_position - position
-		var flat_diff = Vector3(diff.x, 0, diff.z)
-		var distance = flat_diff.length()
+		var diff := target_position - position
+		var flat_diff := Vector3(diff.x, 0, diff.z)
+		var distance := flat_diff.length()
 
 		if distance < 0.1:
 			# Snap XZ only — Y keeps gliding toward the terrain height
@@ -5513,7 +5513,7 @@ func _physics_process(delta: float) -> void:
 			if enemy_type == EnemyType.INFLAMED_MINOTAUR and grid_manager:
 				var wake_cur := grid_manager.world_to_grid(position)
 				if _wake_prev_cell.x > -9000 and _wake_prev_cell != wake_cur:
-					var wake_main = get_parent()
+					var wake_main := get_parent()
 					if wake_main and wake_main.has_method("register_fire_wall"):
 						wake_main.register_fire_wall([_wake_prev_cell], 10, 2, 99, 15, self, 10)
 				_wake_prev_cell = wake_cur
@@ -5583,7 +5583,7 @@ func _ambient_target() -> Node3D:
 		return _last_seen_target
 	if target != null and is_instance_valid(target):
 		return target
-	var main = get_parent()
+	var main := get_parent()
 	if main and "player" in main and main.player and is_instance_valid(main.player):
 		return main.player
 	return null
@@ -5755,7 +5755,7 @@ func move_towards_target(pos: Vector3) -> void:
 		return
 	# Enemies trapped on a rise pillar cannot move until it expires
 	if grid_manager:
-		var current_cell = grid_manager.world_to_grid(position)
+		var current_cell := grid_manager.world_to_grid(position)
 		if current_cell in pillar_tiles:
 			print("[%s] Trapped on pillar - cannot move!" % enemy_name)
 			return
@@ -5775,10 +5775,10 @@ func move_towards_target(pos: Vector3) -> void:
 	if grid_manager:
 		# Feared (Cupids lead arrow): run AWAY from the fear source instead.
 		if fear_tempo > 0 and fear_source and is_instance_valid(fear_source):
-			var flee_cell = grid_manager.world_to_grid(fear_source.position)
+			var flee_cell := grid_manager.world_to_grid(fear_source.position)
 			_start_path(_build_greedy_path(position, flee_cell, tiles, true))
 			return
-		var player_cell = grid_manager.world_to_grid(pos)
+		var player_cell := grid_manager.world_to_grid(pos)
 		# Follow a tile-by-tile route so we never glide through walls or corners.
 		# The Inflamed Minotaur knows his Labyrinth: he takes the real way
 		# round its walls where a greedy step would dead-end.
@@ -5789,8 +5789,8 @@ func move_towards_target(pos: Vector3) -> void:
 				return
 		_start_path(_build_greedy_path(position, player_cell, tiles))
 	else:
-		var diff = pos - position
-		var direction = Vector3(diff.x, 0, diff.z).normalized()
+		var diff := pos - position
+		var direction := Vector3(diff.x, 0, diff.z).normalized()
 		var new_target = position + direction * (tiles * 1.0)
 		target_position = new_target
 		is_moving = true
@@ -5811,7 +5811,7 @@ func _manhattan_dist(a: Vector2i, b: Vector2i) -> int:
 ## every Vulnerable/Weaken this enemy carries. Enemies sit under main, which
 ## holds the player — returns 0 outside that tree (tests, summons).
 func _player_sphere_amp(field: String) -> float:
-	var main = get_parent()
+	var main := get_parent()
 	if main and "player" in main and main.player and main.player.has_method("get_stats"):
 		var stats = main.player.get_stats()
 		if stats and field in stats:
@@ -5955,7 +5955,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		amount = 0
 		print("[%s] Armor Break: no armor to break, no damage dealt" % enemy_name)
 	elif armor_break_incoming and current_armor > 0:
-		var doubled = amount * 2
+		var doubled := amount * 2
 		var armor_absorbed = min(current_armor, doubled)
 		current_armor -= armor_absorbed
 		print("[%s] Armor Break! %d doubled damage to armor! Armor: %d/%d" % [enemy_name, armor_absorbed, current_armor, max_armor])
@@ -5965,7 +5965,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		amount = 0  # No spillover to health
 	elif current_armor > 0:
 		# Normal armor absorbs damage first
-		var was_armored = current_armor > 0
+		var was_armored := current_armor > 0
 		var armor_absorbed = min(current_armor, amount)
 		current_armor -= armor_absorbed
 		amount -= armor_absorbed
@@ -5996,9 +5996,9 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		tween.tween_property(_enemy_sprite, "modulate", Color.WHITE, 0.15)
 	elif mesh:
 		var tween = create_tween()
-		var mat = mesh.get_surface_override_material(0) as StandardMaterial3D
+		var mat := mesh.get_surface_override_material(0) as StandardMaterial3D
 		if mat:
-			var orig_color = mat.albedo_color
+			var orig_color := mat.albedo_color
 			tween.tween_property(mat, "albedo_color", Color.RED, 0.1)
 			tween.tween_property(mat, "albedo_color", orig_color, 0.1)
 
@@ -6054,14 +6054,14 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 					_vamp_absorb_pending = true
 					chosen_action = {}
 					action_tempo_counter = 0
-					var vamp_main = get_parent()
+					var vamp_main := get_parent()
 					if vamp_main and "player" in vamp_main and vamp_main.player and is_instance_valid(vamp_main.player):
 						_dash_away_from(vamp_main.player.position, 6)
 					print("[%s] BAT FORM — flits away! (%d charge(s) left)" % [enemy_name, _bat_form_charges])
 			EnemyType.IFRIT:
 				# Backflip: a single blow over 40 sends it 3 squares backwards.
 				if from_player and incoming_hit > 40:
-					var ifrit_main = get_parent()
+					var ifrit_main := get_parent()
 					if ifrit_main and "player" in ifrit_main and ifrit_main.player and is_instance_valid(ifrit_main.player):
 						knockback(ifrit_main.player.position, 3)
 						print("[%s] Backflips away from the blow!" % enemy_name)
@@ -6080,7 +6080,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 				# searing the holder for 1/3 of that attack's damage per cycle
 				# until bought off (60 mana, 0 tempo).
 				if from_player and incoming_hit > 0:
-					var djinn_main = get_parent()
+					var djinn_main := get_parent()
 					if djinn_main and "player" in djinn_main and djinn_main.player \
 							and djinn_main.player.has_method("get_deck_manager"):
 						var djinn_deck = djinn_main.player.get_deck_manager()
@@ -6167,7 +6167,7 @@ func _spawn_damage_number(amount: int, was_exposed: bool = false) -> void:
 	else:
 		color = Color(1.0, 0.85, 0.5)  # Yellow for small hits
 	# Random horizontal offset to avoid stacking
-	var x_offset = randf_range(-0.3, 0.3)
+	var x_offset := randf_range(-0.3, 0.3)
 	WorldText.float_number(get_parent(), position + Vector3(x_offset, 1.5, 0),
 		text, color, font_size, 0, 1.5, 0.8, 0.6, true)
 
@@ -6483,7 +6483,7 @@ func knockback(away_from: Vector3, spaces: int = 1) -> void:
 		return
 	if not grid_manager:
 		return
-	var diff = position - away_from
+	var diff := position - away_from
 	# Determine grid direction: allow diagonal by using sign of each axis
 	var dir_x = 0
 	var dir_z = 0
@@ -6503,15 +6503,15 @@ func knock_dir(dir: Vector2i, spaces: int) -> void:
 	var dir_x: int = dir.x
 	var dir_z: int = dir.y
 	# Step tile-by-tile, stopping at blocked or occupied tiles
-	var current_cell = grid_manager.world_to_grid(position)
+	var current_cell := grid_manager.world_to_grid(position)
 	var last_valid_cell = current_cell
 	var taken: Array = _unit_cells()
 	for i in range(spaces):
-		var next_cell = Vector2i(current_cell.x + dir_x * (i + 1), current_cell.y + dir_z * (i + 1))
+		var next_cell := Vector2i(current_cell.x + dir_x * (i + 1), current_cell.y + dir_z * (i + 1))
 		if next_cell in blocked_tiles or next_cell in occupied_tiles or next_cell in taken:
 			break
 		last_valid_cell = next_cell
-	var new_pos = grid_manager.grid_to_world(last_valid_cell)
+	var new_pos := grid_manager.grid_to_world(last_valid_cell)
 	position = new_pos
 	target_position = new_pos
 	print("[%s] Knocked back %d space(s)" % [enemy_name, spaces])
@@ -6568,7 +6568,7 @@ func _clear_exposed_if_armored() -> void:
 func update_outline() -> void:
 	if not outline:
 		return
-	var mat = outline.get_surface_override_material(0) as StandardMaterial3D
+	var mat := outline.get_surface_override_material(0) as StandardMaterial3D
 	match enemy_type:
 		EnemyType.ELITE:
 			outline.visible = true
@@ -6598,7 +6598,7 @@ func set_hover_highlight(enabled: bool) -> void:
 	if not outline:
 		return
 	if enabled:
-		var mat = outline.get_surface_override_material(0) as StandardMaterial3D
+		var mat := outline.get_surface_override_material(0) as StandardMaterial3D
 		outline.visible = true
 		if mat:
 			mat.albedo_color = Color(1.0, 1.0, 1.0, 0.9)
@@ -6662,7 +6662,7 @@ func _consumed_explode() -> void:
 	## The Consumed: on death, explodes for damage to EVERYTHING nearby —
 	## the player and fellow enemies alike.
 	print("[%s] Bursts apart in a wave of hatred!" % enemy_name)
-	var main = get_parent()
+	var main := get_parent()
 	if main and "player" in main and main.player and is_instance_valid(main.player):
 		var diff = main.player.position - position
 		if Vector3(diff.x, 0, diff.z).length() <= CONSUMED_EXPLOSION_RANGE:
@@ -6703,7 +6703,7 @@ func _die_visuals() -> void:
 	var hold := 0.0
 	if _enemy_figure and _enemy_figure.has_method("play_death"):
 		hold = _enemy_figure.play_death()
-	var tween = create_tween()
+	var tween := create_tween()
 	if hold > 0.0:
 		tween.tween_interval(hold + 0.25)
 	tween.tween_property(self, "scale", Vector3.ONE * 0.01, 0.5)
@@ -6739,7 +6739,7 @@ func get_active_effects() -> Array[Dictionary]:
 	if zone_weakened and weaken_stacks <= 0:
 		effects.append({"name": "Weaken", "color": Color(0.8, 0.5, 0.9), "stacks": 1})
 	if wear_down_attacks > 0:
-		var wd_stacks = attack_reduction if attack_reduction > 0 else wear_down_attacks
+		var wd_stacks := attack_reduction if attack_reduction > 0 else wear_down_attacks
 		effects.append({"name": "Wear Down", "color": Color(0.9, 0.6, 0.3), "stacks": wd_stacks})
 	if get_phys_defense_debuff_stacks() > 0:
 		effects.append({"name": "Exposed Defense", "color": Color(0.9, 0.75, 0.3), "stacks": get_phys_defense_debuff_stacks()})
@@ -6824,12 +6824,12 @@ func _update_status_indicators() -> void:
 			entry["node"].queue_free()
 	_status_nodes.clear()
 
-	var effects = get_active_effects()
+	var effects := get_active_effects()
 	if effects.is_empty():
 		return
 
 	var show_count = min(effects.size(), MAX_VISIBLE_STATUS)
-	var has_overflow = effects.size() > MAX_VISIBLE_STATUS
+	var has_overflow := effects.size() > MAX_VISIBLE_STATUS
 	var total_slots = show_count + (1 if has_overflow else 0)
 
 	var circle_size: float = 0.08
@@ -6837,15 +6837,15 @@ func _update_status_indicators() -> void:
 	var start_x: float = -(total_slots - 1) * spacing / 2.0
 
 	for i in range(show_count):
-		var eff = effects[i]
-		var node = _create_status_circle(eff["name"], eff["color"], eff["stacks"], circle_size)
+		var eff := effects[i]
+		var node := _create_status_circle(eff["name"], eff["color"], eff["stacks"], circle_size)
 		node.position = Vector3(start_x + i * spacing, 0, 0)
 		_status_container.add_child(node)
 		_status_nodes.append({"node": node, "name": eff["name"]})
 
 	# Overflow indicator "+"
 	if has_overflow:
-		var plus_label = Label3D.new()
+		var plus_label := Label3D.new()
 		plus_label.text = "+"
 		plus_label.font_size = 20
 		plus_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -6984,15 +6984,15 @@ func _create_status_circle(eff_name: String, color: Color, stacks: int, radius: 
 	## A small colored circle above the enemy's head with the effect's glyph on
 	## it and a stack count. A small full sphere reads as a round dot from any
 	## camera angle (no billboard edge-on issue).
-	var root = Node3D.new()
+	var root := Node3D.new()
 
 	# Small round dot (unshaded so it reads as a flat coloured circle).
-	var dot = MeshInstance3D.new()
-	var sphere = SphereMesh.new()
+	var dot := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
 	sphere.radius = radius
 	sphere.height = radius * 2.0
 	dot.mesh = sphere
-	var mat = StandardMaterial3D.new()
+	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color.darkened(0.25)
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.no_depth_test = true
@@ -7001,9 +7001,9 @@ func _create_status_circle(eff_name: String, color: Color, stacks: int, radius: 
 	root.add_child(dot)
 
 	# Glyph on top, sized to sit inside the small circle.
-	var tex = StatusIcons.get_icon(eff_name)
+	var tex := StatusIcons.get_icon(eff_name)
 	if tex:
-		var sp = Sprite3D.new()
+		var sp := Sprite3D.new()
 		sp.texture = tex
 		sp.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		sp.shaded = false
@@ -7016,7 +7016,7 @@ func _create_status_circle(eff_name: String, color: Color, stacks: int, radius: 
 
 	# Stack count (small, bottom-right)
 	if stacks > 1:
-		var label = Label3D.new()
+		var label := Label3D.new()
 		label.text = str(stacks)
 		label.font_size = 22
 		label.pixel_size = 0.005
