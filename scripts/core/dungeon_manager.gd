@@ -1,6 +1,12 @@
 class_name DungeonManager
 extends Node
 
+## Something the head-up prompts and fog-gated visibility read has changed —
+## a tile was revealed, a chest opened or looted, a trap sprung, a site or
+## waypoint discovered, the feather trail moved. Main refreshes the prompt
+## pass on it instead of every frame (see Main._process).
+signal prompts_changed
+
 ## Generates and manages persistent world layouts: large outdoor regions made of
 ## rooms, corridors, terrain elevation (hills, cliff faces, stone steps), treasure
 ## chests, enemy zones, waypoints, and enterable sites (caves and buildings with
@@ -4735,6 +4741,7 @@ func reveal_around(center: Vector2i) -> void:
 	if not _fog_initialized:
 		return
 	var r = fog_reveal_radius
+	var changed := false
 	for dx in range(-r, r + 1):
 		for dz in range(-r, r + 1):
 			# Circular reveal (Euclidean distance)
@@ -4746,6 +4753,9 @@ func reveal_around(center: Vector2i) -> void:
 				if not _revealed[nx][nz]:
 					_revealed[nx][nz] = true
 					_fog_mm.set_instance_transform(nx * GRID_H + nz, _fog_hidden_xform())
+					changed = true
+	if changed:
+		prompts_changed.emit()
 
 func is_revealed(grid_pos: Vector2i) -> bool:
 	if grid_pos.x < 0 or grid_pos.x >= GRID_W or grid_pos.y < 0 or grid_pos.y >= GRID_H:
@@ -4896,6 +4906,7 @@ func discover_site(index: int) -> void:
 		return
 	site_nodes[index]["hidden"] = false
 	_opened_chests_ref[_site_found_key(site_nodes[index]["id"])] = true
+	prompts_changed.emit()
 
 func _try_block_footprint(footprint: Array) -> bool:
 	## Marks footprint tiles as walls; reverts if that would split the map.
@@ -6054,6 +6065,7 @@ func discover_waypoint(index: int) -> bool:
 	if waypoint_nodes[index]["discovered"]:
 		return false
 	waypoint_nodes[index]["discovered"] = true
+	prompts_changed.emit()
 	# Visual change: the ring lights up to full strength once activated
 	var pillar = waypoint_nodes[index]["pillar_mesh"] as Sprite3D
 	if pillar:
@@ -6142,6 +6154,7 @@ func place_feather_trail(target: Vector2i) -> void:
 	# Crows keep watch at the gate.
 	_place_crows_at(target, 2)
 	print("[DUNGEON] Feather trail: %d feathers toward %s" % [feather_nodes.size(), target])
+	prompts_changed.emit()
 
 func clear_feather_trail() -> void:
 	for f in feather_nodes:
@@ -6149,6 +6162,7 @@ func clear_feather_trail() -> void:
 		if n and is_instance_valid(n):
 			n.queue_free()
 	feather_nodes.clear()
+	prompts_changed.emit()
 
 func _create_feather(cell: Vector2i, points_to: Vector2i) -> void:
 	var sprite := Sprite3D.new()
@@ -6354,6 +6368,7 @@ func disarm_trap(index: int) -> bool:
 	if trap.get("sprung", false):
 		return false
 	trap["sprung"] = true
+	prompts_changed.emit()
 	var node = trap.get("node")
 	if node and is_instance_valid(node):
 		node.scale = Vector3(1.0, 0.35, 1.0)
@@ -6629,6 +6644,7 @@ func open_chest(index: int) -> Dictionary:
 
 	var first_open = not chest_nodes[index]["opened"]
 	chest_nodes[index]["opened"] = true
+	prompts_changed.emit()
 
 	# Visual feedback on first open: swap to the open-lid sprite
 	if first_open:
@@ -6648,6 +6664,7 @@ func mark_chest_looted(index: int) -> void:
 	if index < 0 or index >= chest_nodes.size():
 		return
 	chest_nodes[index]["looted"] = true
+	prompts_changed.emit()
 
 	# Record in global persistence dict so chests stay looted across world transitions
 	_opened_chests_ref[_chest_key(index)] = true

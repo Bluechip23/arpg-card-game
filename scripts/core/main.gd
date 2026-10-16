@@ -805,6 +805,19 @@ func _update_camera() -> void:
 	CameraView.apply(camera, focus, _camera_distance, vh)
 
 var _minimap_refresh_accum: float = 0.0
+# The head-up prompt pass (chest / waypoint / site / tree / fountain / shrine /
+# trap / rescue prompts, feather and hidden-site checks) is a function of the
+# active player's cell and the dungeon's state, so it runs when either moves
+# instead of every frame. DungeonManager.prompts_changed and a few main-side
+# writes set the flag; the short interval is a safety net so nothing can stay
+# stale for more than a tenth of a second if a write is missed.
+var _prompt_cell: Vector2i = Vector2i(-99999, -99999)
+var _prompts_dirty: bool = true
+var _prompt_refresh_accum: float = 0.0
+const PROMPT_REFRESH_INTERVAL := 0.1
+
+func _mark_prompts_dirty() -> void:
+	_prompts_dirty = true
 
 func _process(delta: float) -> void:
 	_update_hand_hover()
@@ -818,16 +831,22 @@ func _process(delta: float) -> void:
 	# Update chest interact prompts, waypoints, sites, and enemy fog visibility
 	if dungeon_manager and grid_manager:
 		var pg = grid_manager.world_to_grid(player.position)
-		dungeon_manager.update_chest_prompts(pg)
-		dungeon_manager.update_waypoint_prompts(pg)
-		dungeon_manager.update_site_prompts(pg)
-		dungeon_manager.update_tree_prompts(pg)
-		dungeon_manager.update_fountain_prompts(pg)
-		dungeon_manager.update_shrine_prompt(pg)
-		_update_trap_prompt(pg)
-		_update_rescue_npc_prompts(pg)
-		dungeon_manager.update_feather_visibility()
-		_check_hidden_site_discovery(pg)
+		_prompt_refresh_accum += delta
+		if pg != _prompt_cell or _prompts_dirty or _prompt_refresh_accum >= PROMPT_REFRESH_INTERVAL:
+			_prompt_cell = pg
+			_prompts_dirty = false
+			_prompt_refresh_accum = 0.0
+			dungeon_manager.update_chest_prompts(pg)
+			dungeon_manager.update_waypoint_prompts(pg)
+			dungeon_manager.update_site_prompts(pg)
+			dungeon_manager.update_tree_prompts(pg)
+			dungeon_manager.update_fountain_prompts(pg)
+			dungeon_manager.update_shrine_prompt(pg)
+			_update_trap_prompt(pg)
+			_update_rescue_npc_prompts(pg)
+			dungeon_manager.update_feather_visibility()
+			_check_hidden_site_discovery(pg)
+		# Enemies pace on their own clock, so their fog gating stays per frame.
 		dungeon_manager.update_enemy_fog_visibility(
 			enemy_spawner.get_living_enemies(), grid_manager
 		)
@@ -5283,6 +5302,7 @@ func _try_interact_rescue_npc() -> bool:
 		add_battle_log("%s: \"Right behind you.\"" % npc.display_name, Color(0.9, 0.85, 0.7))
 		return true
 	npc.following = true
+	_prompts_dirty = true
 	_follower = npc
 	npc.set_prompt_visible(false)
 	if quest_manager:
@@ -6741,6 +6761,7 @@ func _trigger_terrain_traps_for(cell: Vector2i, unit, is_player: bool) -> void:
 		if not trap["tiles"].has(cell):
 			continue
 		trap["sprung"] = true
+		_prompts_dirty = true
 		_spring_trap(trap, unit, is_player)
 
 func _spring_trap(trap: Dictionary, unit, is_player: bool) -> void:
@@ -13925,6 +13946,8 @@ func _input(event: InputEvent) -> void:
 func _setup_dungeon() -> void:
 	dungeon_manager = DungeonManager.new()
 	dungeon_manager.name = "DungeonManager"
+	dungeon_manager.prompts_changed.connect(_mark_prompts_dirty)
+	_prompts_dirty = true
 	dungeon_manager._opened_chests_ref = opened_chests
 	# Act-1 mythic cap: once this character's act-1 mythic dropped, act-1
 	# chests stop offering mythics too.
