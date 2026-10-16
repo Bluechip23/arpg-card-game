@@ -225,7 +225,7 @@ func setup(character: CharacterData) -> void:
 	# keeps its "?" placeholder). Preset identity drives the figure so renamed
 	# saves keep their look.
 	if character.character_name != "Customize":
-		_build_figure_preview(character.get_base_character(), character.sprite_path)
+		_build_figure_preview(SpriteFigure.preset_for(character), character.sprite_path)
 
 	# (Per-character stat/resource readouts removed — identical across the
 	# roster now; identity comes from passive, slots and archetypes.)
@@ -248,7 +248,7 @@ func setup(character: CharacterData) -> void:
 func _build_figure_preview(character_name: String, sprite_path: String = "") -> void:
 	## Drops a small 3D scene (figure + camera + lights) into the sprite panel via a
 	## SubViewport, giving each card a pre-rendered "SNES RPG" look instead of a flat
-	## 2D sprite. The figure idles on its own (see CharacterFigure._process).
+	## 2D sprite. The figure idles on its own (see SpriteFigure._process).
 	if _figure_viewport or not _sprite_panel:
 		return
 
@@ -267,13 +267,8 @@ func _build_figure_preview(character_name: String, sprite_path: String = "") -> 
 	sub_container.add_child(viewport)
 	_figure_viewport = viewport
 
-	# Mana Seed sprite portrait when the character has one (matches the new
-	# in-battle look); procedural 3D figure otherwise.
-	var figure: Node3D
-	if SpriteFigure.supports(character_name):
-		figure = SpriteFigure.new()
-	else:
-		figure = CharacterFigure.new()
+	# Mana Seed sprite portrait (matches the in-battle look).
+	var figure := SpriteFigure.new()
 	figure.setup(character_name, sprite_path)
 	viewport.add_child(figure)
 

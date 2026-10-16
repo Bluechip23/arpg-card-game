@@ -15,10 +15,8 @@ signal tile_reached  # Emitted each time the player reaches a single tile
 @onready var debuff_manager: DebuffManager = $DebuffManager
 @onready var buff_manager: BuffManager = $BuffManager
 
-# Battle visual: SpriteFigure (Mana Seed billboard sprites) for characters
-# with sprite art, CharacterFigure (procedural 3D) otherwise. Untyped — both
-# expose the same verb set (play_action, set_walking, pop_*, …).
-var _figure = null
+# Battle visual: Mana Seed billboard sprites (play_action, set_walking, pop_*, …).
+var _figure: SpriteFigure = null
 
 var target_position: Vector3
 var is_moving: bool = false
@@ -91,18 +89,13 @@ func _load_mesh_color(data: CharacterData) -> void:
 		pass
 
 func _setup_figure(data: CharacterData) -> void:
-	# Build the character visual in place of the capsule + sprite: Mana Seed
-	# billboard sprites when the character has them, procedural 3D otherwise.
+	# Build the character visual in place of the capsule + sprite.
 	if _figure:
 		return
-	if SpriteFigure.supports(data.get_base_character()):
-		_figure = SpriteFigure.new()
-		_figure.name = "SpriteFigure"
-	else:
-		_figure = CharacterFigure.new()
-		_figure.name = "CharacterFigure"
+	_figure = SpriteFigure.new()
+	_figure.name = "SpriteFigure"
 	add_child(_figure)
-	_figure.setup(data.get_base_character(), data.sprite_path)
+	_figure.setup(SpriteFigure.preset_for(data), data.sprite_path)
 
 	# The figure replaces the prototype graphics
 	if mesh:

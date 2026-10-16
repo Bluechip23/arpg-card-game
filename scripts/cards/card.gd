@@ -986,13 +986,13 @@ func get_range_display() -> String:
 	else:
 		return "Ranged %d" % range_modifier
 
-## Returns the CharacterFigure action this card should play when used.
+## Returns the figure action this card should play when used.
 ## Single source of truth shared by in-battle playback (main.gd) and the
 ## Animation Lab. As per-card animations are authored, branch here on card_id
-## (and add the matching case + play_* method in CharacterFigure.play_action).
+## (and add the matching case in SpriteFigure.play_action / ActionFX.play).
 func get_animation_action() -> String:
 	# Per-card bespoke animations take priority over the card-type default.
-	# Each maps to a play_* method in CharacterFigure.play_action().
+	# Each maps to a case in SpriteFigure.play_action() / ActionFX.play().
 	match card_id:
 		# Brad — bespoke motion
 		"approach": return "approach_stance"
@@ -1020,7 +1020,7 @@ func get_animation_action() -> String:
 		"armor_break", "armored_discipline": return "block"
 		# Brad — reuse the standard attack pose (overrides their card type)
 		"wear_down": return "attack_slash"
-		# Generic card animations (character-agnostic; see CharacterFigure.play_action)
+		# Generic card animations (character-agnostic; see ActionFX.play)
 		"absorb_essence": return "absorb_essence"
 		"vines": return "vines"
 		"bob_and_weave": return "bob_and_weave"
