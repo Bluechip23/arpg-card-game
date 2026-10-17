@@ -428,14 +428,14 @@ var last_percent_mana_paid: int = 0  # What the last percent_mana_cost play actu
 @export var tempo_cost: int = 4
 @export var resolve_tick: int = 1  # Which tick (1-based) the card's effect resolves on (1 = immediate, tempo_cost = last tick)
 var is_enhanced: bool = false  
-var base_damage: int = 0
-var base_block: int = 0
+@export var base_damage: int = 0
+@export var base_block: int = 0
 var bonus_damage: int = 0
 var jail_time_remaining: int = 0
-var is_aoe: bool = false
-var aoe_shape: String = ""  # "cone", "circle", "line"
-var aoe_range: float = 1.5  # In world units (grid cells)
-var chance_effect_percent: float = 0.0  # For AOE per-enemy rolls
+@export var is_aoe: bool = false
+@export var aoe_shape: String = ""  # "cone", "circle", "line"
+@export var aoe_range: float = 1.5  # In world units (grid cells)
+@export var chance_effect_percent: float = 0.0  # For AOE per-enemy rolls
 var rng_outcomes: Dictionary = {}  # enemy_id -> bool (for AOE per-enemy indicators)
 var rng_effective_chance: float = 0.0  # chance_effect_percent + boost used on the last roll
 var rng_roll_tempo: int = 0  # Global tempo when RNG was last rolled
@@ -445,45 +445,45 @@ var cycles_in_hand: int = 0  # How many tempo cycles card has been in hand
 # Each entry: {percent: float} matching a "XX%" in the description
 # Binary (1 entry): rolls success/fail for that single percentage
 # Multi (2+ entries): weighted random picks which outcome triggers
-var rng_outcomes_data: Array = []
-var chance_is_downside: bool = false  # the rolled "chance" is a BAD outcome (Try This): odds boosts lower it
+@export var rng_outcomes_data: Array = []
+@export var chance_is_downside: bool = false  # the rolled "chance" is a BAD outcome (Try This): odds boosts lower it
 var rng_selected_index: int = -1  # -1=not rolled, >=0=which outcome won, -2=binary fail
-var sticky: int = 0  # Uses before card auto-discards (0 = normal)
-var is_ranged: bool = false  # If true, card is ranged (base range 5). If false, melee.
-var range_modifier: int = 0  # Modifies base range: +2 = 7 range, -2 = 3 range
-var target_types: Array = ["enemy"]  # "enemy", "ally", "self", "point", "all_nearby"
+@export var sticky: int = 0  # Uses before card auto-discards (0 = normal)
+@export var is_ranged: bool = false  # If true, card is ranged (base range 5). If false, melee.
+@export var range_modifier: int = 0  # Modifies base range: +2 = 7 range, -2 = 3 range
+@export var target_types: Array = ["enemy"]  # "enemy", "ally", "self", "point", "all_nearby"
 var consecutive_uses: int = 0  # Track how many times card played in sequence
 var snap_uses_at_play: int = 0  # uses BEFORE the current play (set by play_card; timing-safe for deferred execution)
-var requires_high_ground: bool = false  # Needs elevated position
+@export var requires_high_ground: bool = false  # Needs elevated position
 var last_damage_dealt: int = 0  # Used by cards that need main.gd to apply damage (charge, leap)
-var has_on_draw: bool = false  # Card triggers an effect when drawn
-var on_draw_effect: String = ""  # Description of the on-draw effect
-var discard_on_draw: bool = false  # If true, card is discarded immediately after on-draw effect
-var maintain_cost: int = 0  # Mana reserved while this card is maintained (Power cards)
-var auto_maintain: bool = false  # Non-Power card that is maintained the moment it is played (Barbed Exterior, Forever Armor)
-var erase_tempo: int = 0  # If > 0, card is deleted from deck after this many tempo (Erase keyword)
-var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase triggers
+@export var has_on_draw: bool = false  # Card triggers an effect when drawn
+@export var on_draw_effect: String = ""  # Description of the on-draw effect
+@export var discard_on_draw: bool = false  # If true, card is discarded immediately after on-draw effect
+@export var maintain_cost: int = 0  # Mana reserved while this card is maintained (Power cards)
+@export var auto_maintain: bool = false  # Non-Power card that is maintained the moment it is played (Barbed Exterior, Forever Armor)
+@export var erase_tempo: int = 0  # If > 0, card is deleted from deck after this many tempo (Erase keyword)
+@export var erase_tempo_remaining: int = 0  # Tracks remaining tempo before erase triggers
 var rt_chosen_debuff: String = ""  # Release Tension: which enemy debuff the player chose to drain
 var picked_card: Card = null  # Reusable: a hand card chosen via the hand-card picker (e.g. Reposition)
 var picked_cards: Array = []  # Several cards chosen via the full-card picker (Collect Arrows)
 var picked_ally = null  # A second ally chosen at play time (Friendship's partner)
 var premeditated_target = null  # The enemy whose Premeditated bonus this play armed (main pays it if unspent)
-var damage_type: int = DamageTypes.Type.PHYSICAL  # Damage type this card deals (all default to Physical for now)
-var is_fire_spell: bool = false  # Counts toward Fireball's per-turn fire-spell mana discount
-var linger: bool = false  # If true, status card can exceed hand size limit when added
-var shop_excluded: bool = false  # If true, the card never appears in the Card Dealer's shop (item-generated cards like Sprinkle)
-var erase_on_play: bool = false  # If true, card is erased from the deck entirely the moment it's played (not discarded). Same "erase" concept as erase_tempo, just triggered on play instead of on a timer.
-var held_damage_per_cycle: int = 0  # Djinn Wish: sears the holder this much every cycle it sits in hand (ticked by DeckManager.process_turn)
-var hatch_tempo: int = 0  # Rat King's Infest: > 0 means the card hatches after this many tempo HELD IN HAND (DeckManager.tick_temp_mods counts it down; playing or discarding it cancels the hatch)
-var hatch_tempo_left: int = 0  # Fuse remaining on the hatch
+@export var damage_type: int = DamageTypes.Type.PHYSICAL  # Damage type this card deals (all default to Physical for now)
+@export var is_fire_spell: bool = false  # Counts toward Fireball's per-turn fire-spell mana discount
+@export var linger: bool = false  # If true, status card can exceed hand size limit when added
+@export var shop_excluded: bool = false  # If true, the card never appears in the Card Dealer's shop (item-generated cards like Sprinkle)
+@export var erase_on_play: bool = false  # If true, card is erased from the deck entirely the moment it's played (not discarded). Same "erase" concept as erase_tempo, just triggered on play instead of on a timer.
+@export var held_damage_per_cycle: int = 0  # Djinn Wish: sears the holder this much every cycle it sits in hand (ticked by DeckManager.process_turn)
+@export var hatch_tempo: int = 0  # Rat King's Infest: > 0 means the card hatches after this many tempo HELD IN HAND (DeckManager.tick_temp_mods counts it down; playing or discarding it cancels the hatch)
+@export var hatch_tempo_left: int = 0  # Fuse remaining on the hatch
 var hatch_handler: Callable = Callable()  # What hatches: set by whoever put the card in the hand (the Rat King binds the spawner); an invalid handler hatches nothing
-var jail_on_play: int = 0  # If > 0, the card goes to jail for this many tempo after being played (instead of the discard pile)
-var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
+@export var jail_on_play: int = 0  # If > 0, the card goes to jail for this many tempo after being played (instead of the discard pile)
+@export var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 ## Slot labels: every item slot a card may be enchanted into (Pocket, Crown,
 ## Gem, …). A card may carry several. Any card can sit in the bare deck; an
 ## UNLABELED card can only sit there — it is never slottable. Engrave cards
 ## must carry at least one label, since a slot is the only place they exist.
-var slot_labels: Array = []  # of CardKeyword
+@export var slot_labels: Array = []  # of CardKeyword
 
 ## Single-label view for older code and factories: reads the first label,
 ## writes replace the whole list.
@@ -510,7 +510,7 @@ func slot_label_names() -> String:
 	for kw in slot_labels:
 		names.append(keyword_name(kw))
 	return " / ".join(names)
-var school: CardSchool = CardSchool.PHYSICAL  # Delivery school (see CardSchool). Default PHYSICAL; factories tag spells explicitly.
+@export var school: CardSchool = CardSchool.PHYSICAL  # Delivery school (see CardSchool). Default PHYSICAL; factories tag spells explicitly.
 
 ## Design keywords from the card sheet ("Attack, melee", "Utility, ally, ranged",
 ## "Reaction, defense" …): lowercase, one token each, in the sheet's order.
@@ -521,7 +521,7 @@ var school: CardSchool = CardSchool.PHYSICAL  # Delivery school (see CardSchool)
 ## Vocabulary: attack defense utility power reaction enchantment unplayable
 ## spell offensive melee ranged conditional aoe self ally allies enemy point
 ## no_target. Every attack card is also offensive.
-var keywords: Array = []  # of String
+@export var keywords: Array = []  # of String
 
 ## Conditional keyword: the card is melee or ranged depending on the weapon
 ## in hand — a bow makes it Ranged 5, a melee weapon (or bare hands) makes it
@@ -529,28 +529,28 @@ var keywords: Array = []  # of String
 ## goes ranged with a magic weapon (conditional_magic_ranged). DeckManager resolves it as the card enters the hand and again
 ## whenever equipment changes (apply_conditional_range). Playing it ranged
 ## costs CONDITIONAL_RANGED_TEMPO_PENALTY extra tempo.
-var conditional_range: bool = false
+@export var conditional_range: bool = false
 ## Only the basic Attack card also counts a magic weapon (wand, tome, staff)
 ## as ranged; other Conditional cards go by the bow alone.
-var conditional_magic_ranged: bool = false
+@export var conditional_magic_ranged: bool = false
 const CONDITIONAL_RANGED_TEMPO_PENALTY := 1
 
 ## range_modifier for cards that reach anywhere on the field (Communal
 ## Donation). Range checks pass at any distance and no range ring is drawn.
 const INFINITE_RANGE := 99
-var element: String = ""  # Elemental identity for Feral Evocation's colored slots: "red" (Burn), "blue" (Cold), "yellow" (Shock), "green" (Poison). "" = not elemental.
+@export var element: String = ""  # Elemental identity for Feral Evocation's colored slots: "red" (Burn), "blue" (Cold), "yellow" (Shock), "green" (Poison). "" = not elemental.
 var has_reach: bool = false  # Reach: adds 1 square to melee attack range
-var glut_tempo: int = 0  # Tempo duration the player cannot play cards after using this card
-var delay_tempo: int = 0  # Tempo until the card's effect takes place
-var has_burden: bool = false  # If true, cost increases by 10m/1t each time played. Can jail to reset.
+@export var glut_tempo: int = 0  # Tempo duration the player cannot play cards after using this card
+@export var delay_tempo: int = 0  # Tempo until the card's effect takes place
+@export var has_burden: bool = false  # If true, cost increases by 10m/1t each time played. Can jail to reset.
 var burden_plays: int = 0  # How many times this burden card has been played (increases cost)
 var burden_jail_duration: int = 30  # Tempo to jail this card to reset burden
 var burden_jail_cost_mana: int = 10  # Mana cost to jail a burden card
 var burden_jail_cost_tempo: int = 1  # Tempo cost to jail a burden card
-var has_on_discard: bool = false  # Card triggers an effect when discarded
-var on_discard_effect: String = ""  # Description of the on-discard effect
-var in_hand_debuff: String = ""  # Debuff applied while this card is in hand (e.g., "slowed_2")
-var in_hand_buff: String = ""  # Buff applied while this card is in hand (Enchantment cards)
+@export var has_on_discard: bool = false  # Card triggers an effect when discarded
+@export var on_discard_effect: String = ""  # Description of the on-discard effect
+@export var in_hand_debuff: String = ""  # Debuff applied while this card is in hand (e.g., "slowed_2")
+@export var in_hand_buff: String = ""  # Buff applied while this card is in hand (Enchantment cards)
 
 # Card upgrade system (item-forge upgrades)
 
@@ -560,7 +560,7 @@ var slotted_in_item = null  # Reference to the ItemData this card is slotted in 
 # ANY deck zone (DeckManager.expel_unslotted_engraved sweeps it into the card
 # inventory, where the enchant panel offers it for slotting). The play gate in
 # play_card is a second line of defense.
-var requires_engraving: bool = false
+@export var requires_engraving: bool = false
 # The item that GRANTED this card to the deck (GRANT_CARDS / GRANT_BLINK_CARD).
 # Parallels slotted_in_item: both mark a card as "owned" by an item, so it is
 # pulled from every zone when the item is unequipped and returned when it is
