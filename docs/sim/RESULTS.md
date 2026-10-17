@@ -87,6 +87,87 @@ Real answers to Q2 and Q3 need the full sweeps (3–9 h each serial, divide
 by shards) and, for utility-heavy cards, either harder enemies in
 `--enemies` or a lookahead term that prices the effect.
 
+# Stephen — hands, engravings and the designed builds (merged main, 2026-10-17)
+
+The same sweep as Ryan's below, on the branch after main was merged in
+(items and cards as `data/*.tres`, the status-effects rework). 19,990
+fights, level 18, lookahead player: four designed builds against six
+enemies and a wolf pack (100 seeds), every grip, off-hand weapon and
+engraving against the Large Bear, Earth Mage and Wyvern (10 seeds each,
+paired with the designed build on the same seeds).
+`build_matrix.py --character stephen --root sim_out/stephen_full`.
+
+## Designed builds
+
+| Build | Bugbear | Earth Mage | Ice Troll | Large Bear | Pack | Treant | Wyvern |
+|---|---|---|---|---|---|---|---|
+| crooked_duelist | 1.00 | 0.99 | **0.27** | 0.64 | **0.39** | **0.34** | **0.04** |
+| heavy_swing | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0.78 | 0.90 |
+| longshot_ranger | 1.00 | 1.00 | 0.99 | 1.00 | 1.00 | 1.00 | 0.93 |
+| sentinel_duelist | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0.82 | 0.90 |
+
+The longshot ranger is Stephen's card shark: 12-29 damage per tempo and
+nothing below 0.93. The crooked duelist (Rusty Dagger, Crooked Dueling
+Shield) is his shadow blade: a dagger's damage with a duelist's health.
+
+## Two-handed grip
+
+- A build's own weapon gripped changes little (+0.3 DPT on the swords).
+- Among gripped weapons the gain is small everywhere (Umbral Eclipse
+  +1.6, Phoenix Feather +1.1, Sabre Tooth +0.8); Stephen's +10% off hand
+  makes the hand he gives up worth more than Ryan's.
+- Bessy, Hammer of Ajax and Umbral Eclipse are over the crooked duelist's
+  carry; Bessy over the sentinel's.
+
+## Dual wielding: a second weapon in the off hand
+
+- Nine Ruins of Sanguine is the item of the sweep: +8.2 DPT on the
+  longshot ranger (main hand) and positive in the off hand on every
+  build that can hold it.
+- Wrist Rocket again: +1.3 DPT on average, positive on all four, +27
+  points of wins for the crooked duelist.
+- The sentinel duelist's best items are all off-hand weapons (Umbral
+  Eclipse +1.8, Hammer of Ajax +1.6, Wrist Rocket +1.5): the Sword
+  Breaker it carries is the weak slot.
+
+## Engravings, one card at a time
+
+> **Deck cap (2026-10-17).** The game now caps the deck at 25 cards
+> counting the ones slotted into items (12 outside items as before;
+> item-granted cards count toward neither). These sweeps were run before
+> the cap and the tester still lets a build carry more (the audit reports
+> it). At level 18 Ryan's card shark holds 37 (25 engraved), the bruiser
+> 32 and the ranged ambusher 28; Stephen's builds hold 17–20. Any Ryan
+> engraving result on those three builds is a slot the game would now
+> refuse once the deck is full — the per-card ranking still says which
+> engravings are worth their place.
+
+| Card | Slots | Builds | DPT | Wins | Helps in |
+|---|---|---|---|---|---|
+| Mixed Bag | 2 | 1 | +17.9 | +3 pts | 2 of 2 |
+| Consecutive Snap | 1 | 1 | +9.1 | 0 | 1 of 1 |
+| Quick Shot | 5 | 3 | +3.7 | +1 pt | 5 of 5 |
+| Dagger Throw | 4 | 4 | +3.2 | +7 pts | 4 of 4 |
+| Premeditated | 1 | 1 | +2.0 | +17 pts | 1 of 1 |
+| Oops | 1 | 1 | +1.6 | +20 pts | 1 of 1 |
+| Savage Strike | 2 | 2 | +1.5 | 0 | 2 of 2 |
+
+Worst: Shadows (−3.9, helps in 0 of 4), Armored Discipline (−3.2, 0 of
+5), Mirror Mirror (−3.0, 0 of 3), Empower, Choke. Mixed Bag in the bow or
+quiver is the biggest single engraving measured on any character.
+
+**Over-engraving** is milder than Ryan's: the longshot ranger gains +7.0
+DPT with Chewbacca's Bandolier stripped and +3.0 with the Stringless
+Sender stripped; the swords lose 1.3-1.4 DPT when Fallen's Wrath is
+stripped, so its Savage Strike / Reckless Strike engravings earn their
+slots. The crooked duelist wins 10 points more with its Shadow Cowl
+empty.
+
+Same caveats as Ryan's: 10 seeds per cell; an engraving variant
+spotlights its card into the opening hand. Thirty runs where a heavy
+swapped-in weapon stopped the build switching back to its own set are
+flagged and left out of the paired tables.
+
 # Ryan — hands, engravings and the designed builds (fixed tester, 2026-10-15)
 
 The full stance and engraving sweep on the tester with every mechanics fix

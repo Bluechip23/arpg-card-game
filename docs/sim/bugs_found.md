@@ -154,3 +154,60 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   `-` (not observable) instead of 0. A one-line `add_battle_log` in each
   would make them countable. Way of the Plate logs as "Way of the Plate"
   under the id `the_way_of_the_plate`; the sim maps the name. Not changed.
+
+## 2026-10-17 — the designer's play report (all fixed in this pass)
+
+- **Player debuff badges had no hover window.** `StatBarsContainer` (the
+  HP/mana/carry/XP column) is laid out 50px taller than its bars and is
+  added to the UI after the status rows, so its empty bottom covered the
+  debuff row (and the top half of the buff row): a `MOUSE_FILTER_PASS`
+  container still swallows hover for everything beneath it. The container
+  now ignores the mouse (its bars keep their own input); the on-screen
+  minimap beside it is gone, so the column sits at the left edge.
+  `tests/test_ui_fixes.gd` pushes a mouse-motion at each badge and checks
+  the hover window opens.
+
+- **A town portal opened inside a cave led back to the overworld.** The
+  portal anchor carried only world level and position; town sent the player
+  to World N at the cave's tile. The anchor now carries `interior_id` and
+  `parent_interior_id`, and town applies all three (`Town.apply_portal_return`).
+
+- **Fog of war reset on every scene change** (town and back, a cave and
+  back, a portal). `DungeonManager._revealed` lived and died with the scene.
+  Explored tiles now travel in the progression bundle (`explored`, one byte
+  per tile per place, `w2` / `w2/cave_1`), through ProgressionIO to disk, and
+  are restored right after the layout is built. Layouts are seeded per world
+  and interior, so the bytes map back exactly.
+
+- **Olorin's Bladed Doughnut lesson could not be closed at 16:9.** The speech
+  panel had no height limit; six long paragraphs pushed Continue below the
+  bottom edge. The paragraphs now sit in a scrolling body sized to the
+  screen (`_fit_body`), with the buttons always in view.
+
+- **Cryonics did not make the iced character untargetable in solo play.**
+  `EnemySpawner._target_for` skipped iced players — then fell back to the
+  player when nobody was left. Enemies now have no target while their only
+  possible target is iced (they wait, as with an invisible player), and
+  `Enemy._deal_damage_to_player` refuses a blow at an untargetable unit, so
+  area attacks and death bursts miss it too.
+
+- **Tick speed reset to 1.5s on every scene change.** Each scene builds a
+  new TempoManager at the default; the arrow tiers' choice was lost. The
+  choice is now a static on TempoManager and saved in `user://settings.cfg`;
+  `initialize()` reads it.
+
+- **No floating number for damage the armor took.** `_spawn_damage_number`
+  returned on `amount <= 0` after armor had eaten the hit. Armor-only hits
+  now float a grey number; a split hit floats "armor/health" (grey / red) a
+  little smaller, side by side (`WorldText.float_number_pair`).
+
+- **Iron Will (and every constellation passive) could be lost on a scene
+  change.** `_apply_all_constellation_bonuses` ran at scene set-up and then
+  `_restore_player_progression` overwrote `stats.sphere_grid_passives` with
+  the carried list. A constellation accepted on the town's grid panel (no
+  listener there) or rebuilt from a disk load therefore never had its
+  passive in the list, scene after scene — Iron Will never fired on a kill.
+  `ProgressionTriggers.ensure_constellation_passives()` now runs after the
+  restore and re-registers passives only (stat sides skipped), and
+  `PlayerStats.add_sphere_grid_passive` drops a duplicate constellation
+  passive. `tests/test_iron_will.gd` covers the kill and the re-register.

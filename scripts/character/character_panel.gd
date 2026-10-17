@@ -857,14 +857,15 @@ func _on_sandbox_stat_adjust(key: String, delta: int) -> void:
 func _build_derived_stats_text() -> String:
 	var total_crit = player_stats.base_crit_chance + int(player_stats.sphere_bonus_crit) + player_stats.get_hand_size_crit_bonus()
 	var carry_flag = " OVER!" if player_stats.is_overburdened() else ""
-	# Deck size: item-owned cards ride past the cap, so the effective ceiling
-	# is the base max plus however many item cards are along for the ride.
+	# Deck size: the base cap (cards outside items) and the total cap (base +
+	# slotted; granted cards ride free of both).
 	var deck_lines := ""
 	if deck_manager:
-		deck_lines = "\nDeck Max     %d\nDeck Now     %d\nMax w/ Items %d" % [
-			deck_manager.get_max_deck_size(),
+		deck_lines = "\nDeck      %d/%d\nw/ Slots  %d/%d" % [
 			deck_manager.get_deck_size(),
-			deck_manager.get_max_deck_size() + deck_manager.get_item_card_count(),
+			deck_manager.get_max_deck_size(),
+			deck_manager.get_total_deck_size(),
+			deck_manager.get_max_total_deck_size(),
 		]
 	return """HP   %d/%d
 Mana %.0f/%d
@@ -1182,7 +1183,8 @@ func _handle_item_drop_on_slot(data: Dictionary, target_type: int, target_slot: 
 		if inventory.equip_from_storage(data.get("storage_index"), target_slot):
 			swap_tempo_spent.emit(inventory.get_swap_tempo_cost(item.item_type), "Equipped %s" % item.item_name, item.item_type)
 		else:
-			_flash_inventory_message("Can't equip %s — too heavy or slot blocked" % item.item_name)
+			_flash_inventory_message("Can't equip %s — %s" % [item.item_name,
+				inventory.last_refusal if inventory.last_refusal != "" else "too heavy or slot blocked"])
 	elif src == "equipped":
 		var from_slot: int = data.get("slot_index")
 		if from_slot == target_slot:
@@ -1586,7 +1588,8 @@ func _on_equip_stored_item() -> void:
 	if inventory.equip_from_storage(_detail_storage_index, target_slot):
 		swap_tempo_spent.emit(inventory.get_swap_tempo_cost(item.item_type), "Equipped %s" % item.item_name)
 	else:
-		_flash_inventory_message("Can't equip %s — too heavy" % item.item_name)
+		_flash_inventory_message("Can't equip %s — %s" % [item.item_name,
+			inventory.last_refusal if inventory.last_refusal != "" else "too heavy"])
 	_close_detail_panel()
 	update_display()
 
@@ -1923,6 +1926,17 @@ func _open_card_slot_panel(item: ItemData) -> void:
 	elif deck_manager:
 		# Gather all cards from all piles that can be slotted
 		var available_cards: Array = []
+		# Total deck cap: a card from the card inventory would JOIN the deck
+		# when slotted, so a full deck offers only the cards already in it.
+		var deck_full: bool = deck_manager.is_total_deck_full()
+		if deck_full:
+			var full_note = Label.new()
+			full_note.text = "  (Deck full with slotted cards: %d/%d — only cards already in the deck can be slotted)" % [
+				deck_manager.get_total_deck_size(), deck_manager.get_max_total_deck_size()]
+			full_note.add_theme_font_size_override("font_size", 11)
+			full_note.add_theme_color_override("font_color", Color(0.9, 0.6, 0.4))
+			full_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			vbox.add_child(full_note)
 		for card in deck_manager.draw_pile:
 			if item.can_slot_card(card) and not card.is_slotted():
 				available_cards.append(card)
@@ -1933,7 +1947,7 @@ func _open_card_slot_panel(item: ItemData) -> void:
 			if item.can_slot_card(card) and not card.is_slotted():
 				available_cards.append(card)
 		# Engrave cards live in the card inventory until slotted — offer them too.
-		if inventory:
+		if inventory and not deck_full:
 			for card in inventory.stored_cards:
 				if card is Card and card.requires_engraving and not card.is_slotted() \
 						and item.can_slot_card(card):

@@ -145,6 +145,8 @@ var _minimap_panel: PanelContainer = null
 var _minimap_texture_rect: TextureRect = null
 var _minimap_image: Image = null
 const MINIMAP_SIZE: int = 100
+## Left edge of the stat bars and the status rows under them.
+const STATUS_LEFT: float = 8.0
 const MINIMAP_PIXEL_SCALE: int = 4
 
 # Tab menu (quest log / map)
@@ -649,6 +651,9 @@ func _ready() -> void:
 	# Restore player progression from a world transition (level, stats, passives, sphere grid, etc.)
 	if not player_progression.is_empty():
 		_restore_player_progression(player_progression)
+		# The carried stats overwrote the passive list: put every completed
+		# constellation's passive back (once).
+		progression_triggers.ensure_constellation_passives()
 	# Boss rules: whatever was on the player when they stepped through the
 	# door is still on them.
 	_restore_carried_statuses()
@@ -781,6 +786,7 @@ func get_mouse_world_position() -> Vector3:
 
 func _on_tick_speed_changed(speed: float) -> void:
 	tempo_manager.tick_speed = speed
+	TempoManager.remember_tick_speed(speed)  # survives every scene change
 	_update_tick_speed_buttons()
 	print("[MAIN] Tick speed changed to %.2fs" % speed)
 
@@ -1722,12 +1728,17 @@ func _setup_stat_bars() -> void:
 	stat_container.name = "StatBarsContainer"
 	ui.add_child(stat_container)
 	stat_container.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	# Tucked in right beside the minimap (which ends at x = 116).
-	stat_container.offset_left = 122.0
+	# Top-left corner (there is no minimap beside it any more).
+	stat_container.offset_left = STATUS_LEFT
 	stat_container.offset_top = 8.0
-	stat_container.offset_right = 332.0
+	stat_container.offset_right = STATUS_LEFT + 210.0
 	stat_container.offset_bottom = 130.0 + CARRY_BAR_HEIGHT + STAT_BAR_GAP
 	stat_container.add_theme_constant_override("separation", 4)
+	# The container is taller than its bars and overlaps the status rows
+	# beneath them: it must not swallow the badges' hover (the debuff row
+	# had no hover window because of it). The bars themselves still get
+	# their own input.
+	stat_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	# --- HP Bar (red) — armour shown as a shield badge to its right ---
 	var hp_pair := _create_stat_bar_with_label(stat_container, "HPBar", Color(0.7, 0.15, 0.15), Color(0.3, 0.08, 0.08))
@@ -1927,8 +1938,8 @@ func _reposition_status_bars() -> void:
 	## to it, instead of floating out to the right of the health bar.
 	# HP(22) + 4 + Unerring(11) + 4 + Mana(22) + 4 + Carry(11) + 4 + XP(6)
 	# starting at y=8 -> bottom of XP at y=96.
-	var left := 122.0
-	var right := 122.0 + 360.0
+	var left := STATUS_LEFT
+	var right := STATUS_LEFT + 360.0
 	var top := 69.0 + UNERRING_BAR_HEIGHT + STAT_BAR_GAP + CARRY_BAR_HEIGHT + STAT_BAR_GAP
 	if debuff_bar:
 		debuff_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -3291,6 +3302,7 @@ func select_character(character: CharacterData) -> void:
 	deck_manager.connect_inventory(player.get_inventory())
 	player.connect_deck_to_inventory(deck_manager)
 	tempo_manager.initialize(player.get_stats())
+	_update_tick_speed_buttons()  # the bar lights the remembered speed
 	tempo_manager.debuff_manager = player.get_debuff_manager()
 	update_tempo_display()
 	draw_timer.initialize(player.get_stats(), deck_manager)
@@ -13000,6 +13012,11 @@ func _setup_dungeon() -> void:
 		(current_character.defeated_bosses.duplicate() if current_character else [])
 	add_child(dungeon_manager)
 	dungeon_manager.initialize(grid_manager, self, current_world_level, current_interior_id)
+	# Ground already walked here stays revealed: a trip to town, into a cave
+	# or back through a portal never puts the fog back.
+	var explored: Dictionary = player_progression.get("explored", {})
+	if explored.has(_explored_key()):
+		dungeon_manager.restore_revealed(explored[_explored_key()])
 
 	# Move player to dungeon start (or back to the entrance of the interior we
 	# just left — the overworld's site, or a boss room's door inside an interior)
@@ -14314,11 +14331,9 @@ func spawn_town_portal(at = null) -> void:
 		spot = grid_manager.snap_to_grid(player.position + Vector3(grid_manager.grid_size, 0, 0))
 	portal_root.position = Vector3(spot.x, 0, spot.z)
 
-	# Swirling purple oval — a flattened torus standing upright.
-	# The same glowing-cave totem as every other portal, in the Return
-	# Scroll's purple, so portals share one look.
-	var pillar := DungeonManager.make_waypoint_totem(Color(1, 1, 1).lerp(Color(0.6, 0.25, 0.95), 0.6))
-	portal_root.add_child(pillar)
+	# Swirling purple oval — a flattened torus standing upright, with the
+	# glowing film inside (its twin in town shares the look).
+	portal_root.add_child(DungeonManager.make_town_portal_visual())
 
 	var label := Label3D.new()
 	label.text = "Town Portal"
@@ -14348,12 +14363,21 @@ func _try_interact_town_portal() -> bool:
 		return false
 	# Going through the scroll's portal: its twin opens in town, remembering
 	# this spot so stepping back through returns the player right here.
-	_pending_portal_return = {
-		"world_level": current_world_level,
-		"position": _town_portal_node.position,
-	}
+	_pending_portal_return = _portal_return_anchor()
 	_travel_to_town()
 	return true
+
+## Where a town portal leads back to: the world, the interior it was opened
+## in (a cave, a sewer, a boss room — and that room's parent), and the tile.
+## Without the interior, stepping back through a portal opened in a cave
+## used to drop the player on the overworld at the cave's spot.
+func _portal_return_anchor() -> Dictionary:
+	return {
+		"world_level": current_world_level,
+		"interior_id": current_interior_id,
+		"parent_interior_id": parent_interior_id,
+		"position": _town_portal_node.position if is_instance_valid(_town_portal_node) else player.position,
+	}
 
 var _pending_portal_return: Dictionary = {}
 
@@ -15404,6 +15428,23 @@ func _restore_player_progression(progression: Dictionary) -> void:
 	_update_xp_display()
 	print("[MAIN] Player progression restored: Level %d, World %d" % [stats.current_level, current_world_level])
 
+## Explored ground is kept per place — "w2" for a world, "w2/cave_1" for an
+## interior — as one byte per tile, in the progression bundle (and so in
+## the save file), so the fog of war never returns over ground the player
+## has walked, whichever way they left and came back.
+func _explored_key() -> String:
+	if current_interior_id == "":
+		return "w%d" % current_world_level
+	return "w%d/%s" % [current_world_level, current_interior_id]
+
+func _explored_snapshot() -> Dictionary:
+	var explored: Dictionary = player_progression.get("explored", {}).duplicate()
+	if dungeon_manager and not sandbox_mode:
+		var bytes := dungeon_manager.get_revealed_bytes()
+		if not bytes.is_empty():
+			explored[_explored_key()] = bytes
+	return explored
+
 func _save_player_progression() -> Dictionary:
 	## Capture all persistent player state before a world transition.
 	var stats := player.get_stats()
@@ -15428,6 +15469,8 @@ func _save_player_progression() -> Dictionary:
 				harpy._harpy_return_card()
 	# Deck state (each pile saved separately to preserve hand exactly)
 	progression["deck_state"] = deck_manager.save_deck_state()
+	# Explored ground, here and everywhere visited before.
+	progression["explored"] = _explored_snapshot()
 	# City-loop state (satchel, city, pending trial) rides along untouched.
 	CityBridge.carry_keys(player_progression, progression)
 	# Equipped items and stored items (Resource objects survive scene change)

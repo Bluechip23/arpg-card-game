@@ -223,6 +223,9 @@ func _build_player() -> void:
 			stats.add_skill_tree_passive(str(pid))
 	_unlock_sphere_targets(p.get("sphere_targets", []))
 	var inv = player.get_inventory()
+	# The tester composes builds past the total deck cap on purpose (the
+	# audit reports them); its equips and weapon swaps must still go through.
+	inv.enforce_deck_cap = false
 	var equipped := {}
 	for entry in p["items"]:
 		var id: String = str(entry[0] if entry is Array else entry)
@@ -241,7 +244,7 @@ func _build_player() -> void:
 	_stow_alt_weapons(p, inv, stats)
 	# Cards engraved into the items' slots: {item id: [card ids]}. Real slot
 	# rules (count, label, feral colour) apply; a slotted card rides the item
-	# and does not count toward the deck cap.
+	# past the base deck cap (the total cap is checked once the deck is built).
 	var slotted: Dictionary = p.get("slotted", {})
 	for item_id in slotted:
 		if not equipped.has(item_id):
@@ -493,6 +496,11 @@ func _build_deck(ids: Array) -> void:
 		warnings.append("deck: %d base cards over the cap of %d" % [dm.get_deck_size(), DeckManager.MAX_DECK_SIZE])
 	for c in item_cards:
 		dm.draw_pile.append(c)
+	if dm.get_total_deck_size() > DeckManager.MAX_TOTAL_DECK_SIZE:
+		# The game refuses the slotting past this; the tester lets a build
+		# carry it and says so, so a sweep can still ask what the extra
+		# engravings would be worth.
+		warnings.append("deck: %d cards counting slotted ones over the total cap of %d" % [dm.get_total_deck_size(), DeckManager.MAX_TOTAL_DECK_SIZE])
 	dm.shuffle_draw_pile()
 	# Spotlight cards go on top of the shuffled pile so the opening hand
 	# holds them (draw_card pops from the back).

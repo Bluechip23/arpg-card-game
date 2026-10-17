@@ -482,7 +482,7 @@ func _build_panel(title: String, paragraphs: Array, icon: Control, icon_after_pa
 		speaker_name: String, button_text: String, on_button: Callable,
 		secondary_text: String = "", on_secondary: Callable = Callable()) -> PanelContainer:
 	var panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(520, 0)
+	panel.custom_minimum_size = Vector2(600, 0)
 
 	# Arcane-blue frame with the T&O crest mounted top-center on the border.
 	var style = CrestStyleBox.new(Color(0.07, 0.08, 0.12, 0.98), Color(0.55, 0.7, 1.0), 10)
@@ -518,18 +518,38 @@ func _build_panel(title: String, paragraphs: Array, icon: Control, icon_after_pa
 
 	vbox.add_child(HSeparator.new())
 
+	# The paragraphs live in a scrolling body sized to the text, or to what
+	# the screen leaves after the header, buttons and margins — whichever is
+	# smaller — so the buttons are always on screen. (A long lesson at a
+	# wide, short window used to push Continue off the bottom edge, with no
+	# way to close the box.)
+	var body := ScrollContainer.new()
+	body.name = "Body"
+	body.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	body.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.custom_minimum_size = Vector2(0, 80)  # until _fit_body measures the text
+	vbox.add_child(body)
+	var content := VBoxContainer.new()
+	content.name = "Content"
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.add_theme_constant_override("separation", 12)
+	body.add_child(content)
+
 	for i in range(paragraphs.size()):
 		var p = Label.new()
 		p.text = str(paragraphs[i])
 		p.add_theme_font_size_override("font_size", 15)
 		p.add_theme_color_override("font_color", Color(0.88, 0.88, 0.9))
 		p.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		vbox.add_child(p)
+		p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		content.add_child(p)
 		# Optional inline picture (e.g. the doughnut Olorin conjures overhead)
 		if icon and i + 1 == icon_after_paragraph:
-			vbox.add_child(icon)
+			content.add_child(icon)
 	if icon and icon.get_parent() == null:
-		vbox.add_child(icon)
+		content.add_child(icon)
+	_fit_body.call_deferred(panel, body, content)
 
 	vbox.add_child(HSeparator.new())
 
@@ -547,6 +567,21 @@ func _build_panel(title: String, paragraphs: Array, icon: Control, icon_after_pa
 	continue_btn.pressed.connect(on_button)
 	buttons.add_child(continue_btn)
 	return panel
+
+## Size a panel's scrolling body: its text's full height when the whole
+## panel fits the screen, else what the screen leaves for it (the panel's
+## header, buttons and margins come first). Re-run when the window resizes.
+func _fit_body(panel: Control, body: ScrollContainer, content: Control) -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_instance_valid(panel) or not is_instance_valid(body) or not is_instance_valid(content):
+		return
+	var screen_h: float = panel.get_viewport_rect().size.y
+	var chrome: float = panel.size.y - body.size.y  # everything but the body
+	var room: float = screen_h - 2.0 * TOUR_MARGIN - chrome
+	var text_h: float = content.get_combined_minimum_size().y
+	body.custom_minimum_size.y = clampf(text_h, 0.0, maxf(room, 80.0))
+	panel.get_viewport().size_changed.connect(_fit_body.bind(panel, body, content), CONNECT_ONE_SHOT)
 
 static func _panel_button(text: String, bg: Color, border: Color) -> Button:
 	var btn = Button.new()

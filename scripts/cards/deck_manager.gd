@@ -270,6 +270,37 @@ func get_item_card_count() -> int:
 func is_deck_full() -> bool:
 	return get_deck_size() >= MAX_DECK_SIZE
 
+## Total deck cap: the base cards PLUS the cards slotted into worn items.
+## The base cap above still holds (at most 12 cards outside items); on top
+## of it, slotting cards into gear can grow the deck to this many in all.
+## Cards an item GRANTS (Detonova from its belt, a boot's Blink) never count
+## toward either cap — the item brings them whether or not the deck has
+## room. The 25 is a trial number.
+const MAX_TOTAL_DECK_SIZE := 25
+
+func get_max_total_deck_size() -> int:
+	return MAX_TOTAL_DECK_SIZE
+
+## Cards in play that are slotted into a worn item (granted cards excluded).
+func get_slotted_card_count() -> int:
+	var n := 0
+	for pile in [draw_pile, hand, discard_pile, jail_pile, maintained_cards]:
+		for c in pile:
+			if c and c.slotted_in_item != null and c.granted_by_item == null:
+				n += 1
+	return n
+
+## What the total cap counts: base cards + slotted cards.
+func get_total_deck_size() -> int:
+	return get_deck_size() + get_slotted_card_count()
+
+func is_total_deck_full() -> bool:
+	return get_total_deck_size() >= MAX_TOTAL_DECK_SIZE
+
+## How many more cards the total cap allows in (0 when full).
+func get_total_deck_room() -> int:
+	return maxi(0, MAX_TOTAL_DECK_SIZE - get_total_deck_size())
+
 func expel_unslotted_engraved() -> void:
 	var expelled := 0
 	for pile in [draw_pile, hand, discard_pile, jail_pile, maintained_cards]:

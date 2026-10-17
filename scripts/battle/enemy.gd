@@ -3658,7 +3658,7 @@ func _player_units() -> Array:
 	if "enemy_spawner" in main and main.enemy_spawner:
 		var sp = main.enemy_spawner
 		var ps: Array = sp._living_players()
-		if ps.is_empty() and sp.player and is_instance_valid(sp.player):
+		if ps.is_empty() and sp.player and is_instance_valid(sp.player) and sp.player.get("untargetable") != true:
 			ps = [sp.player]
 		out = ps + sp._living_summons()
 	elif "player" in main and main.player and is_instance_valid(main.player):
@@ -5180,6 +5180,10 @@ func _try_get_into_range(target_node: Node3D) -> bool:
 
 ## Deal damage to the player with attack flash.
 func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: String, dmg_type: int = -1) -> void:
+	# Encased in ice (Cryonics): untargetable — no blow, aimed or area, lands.
+	if is_instance_valid(player_node) and player_node.get("untargetable") == true:
+		print("[%s] %s finds only ice — the target is untargetable" % [enemy_name, attack_name])
+		return
 	# Can't hit the player through a wall — a structure between us blocks the blow.
 	if dungeon_manager and grid_manager and is_instance_valid(player_node):
 		var from_cell := grid_manager.world_to_grid(position)
@@ -5949,6 +5953,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 
 	# Armor Break: double damage to armor, no health damage. Zero effect on unarmored.
 	var just_exposed = false
+	var armor_hit := 0  # what the armor took, for the floating number
 	if ignore_armor:
 		pass  # bypass armor entirely — the full amount falls through to health below
 	elif armor_break_incoming and current_armor <= 0:
@@ -5958,6 +5963,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		var doubled := amount * 2
 		var armor_absorbed = min(current_armor, doubled)
 		current_armor -= armor_absorbed
+		armor_hit = armor_absorbed
 		print("[%s] Armor Break! %d doubled damage to armor! Armor: %d/%d" % [enemy_name, armor_absorbed, current_armor, max_armor])
 		_update_armor_bar()
 		if current_armor <= 0:
@@ -5969,6 +5975,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		var armor_absorbed = min(current_armor, amount)
 		current_armor -= armor_absorbed
 		amount -= armor_absorbed
+		armor_hit = armor_absorbed
 		print("[%s] Armor absorbed %d damage! Armor: %d/%d" % [enemy_name, armor_absorbed, current_armor, max_armor])
 		_update_armor_bar()
 		if was_armored and current_armor <= 0:
@@ -5982,8 +5989,8 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	damaged.emit(amount)
 	update_health_display()
 
-	# Floating damage number
-	_spawn_damage_number(amount, just_exposed)
+	# Floating damage number (armor damage shows too, in grey)
+	_spawn_damage_number(amount, just_exposed, armor_hit)
 
 	# Damage flash on figure, sprite, or mesh
 	if _enemy_figure:
@@ -6148,8 +6155,30 @@ func _alert_mini_bear_pack() -> void:
 # FLOATING DAMAGE NUMBERS
 # ============================================
 
-func _spawn_damage_number(amount: int, was_exposed: bool = false) -> void:
+const ARMOR_NUMBER_COLOR := Color(0.72, 0.74, 0.78)  # grey: damage the armor took
+
+func _spawn_damage_number(amount: int, was_exposed: bool = false, armor_amount: int = 0) -> void:
+	## `amount` is what reached health, `armor_amount` what the armor took.
+	## Armor-only hits show their number in grey; a hit that split between
+	## the two shows "armor/health" (grey/red), a little smaller.
+	var x_offset := randf_range(-0.3, 0.3)  # avoid stacking
+	if amount <= 0 and armor_amount <= 0:
+		return
+	if armor_amount > 0 and amount > 0:
+		var pair_size := 24 if (amount >= 10 or armor_amount >= 10) else 19
+		var hp_color := Color(1.0, 0.2, 0.2) if amount >= 15 else (Color(1.0, 0.5, 0.3) if amount >= 8 else Color(1.0, 0.85, 0.5))
+		if was_exposed:
+			hp_color = Color(1.0, 0.5, 0.0)
+		WorldText.float_number_pair(get_parent(), position + Vector3(x_offset, 1.5, 0),
+			"%d/" % armor_amount, ARMOR_NUMBER_COLOR, str(amount) + ("!" if was_exposed else ""), hp_color,
+			pair_size, 0, 1.5, 0.8, 0.6, true)
+		return
 	if amount <= 0:
+		# Only the armor took the hit.
+		var armor_text := str(armor_amount) + ("!" if was_exposed else "")
+		WorldText.float_number(get_parent(), position + Vector3(x_offset, 1.5, 0),
+			armor_text, Color(1.0, 0.5, 0.0) if was_exposed else ARMOR_NUMBER_COLOR,
+			28 if armor_amount >= 10 else 22, 0, 1.5, 0.8, 0.6, true)
 		return
 	var text := str(amount)
 	var font_size := 28 if amount >= 10 else 22
@@ -6166,8 +6195,6 @@ func _spawn_damage_number(amount: int, was_exposed: bool = false) -> void:
 		color = Color(1.0, 0.5, 0.3)  # Orange-red for medium hits
 	else:
 		color = Color(1.0, 0.85, 0.5)  # Yellow for small hits
-	# Random horizontal offset to avoid stacking
-	var x_offset := randf_range(-0.3, 0.3)
 	WorldText.float_number(get_parent(), position + Vector3(x_offset, 1.5, 0),
 		text, color, font_size, 0, 1.5, 0.8, 0.6, true)
 

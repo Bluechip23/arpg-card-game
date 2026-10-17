@@ -202,7 +202,7 @@ billboard.
 | Building | grey stone (`wall_undead`) walls, slate-tinted roof, `gate_small` door |
 | Old Graveyard | pack-stone pillars and lintel, `undead_skull_door` (undead `Scull_door`), `undead_grave` headstones |
 | Interior exits, sealed sewer passages | `gate_small` |
-| Waypoints / Transport Portal | `waypoint_totem` — the glowing-cave `Totem_animation` (12 frames, `SheetAnimSprite`) on a pack-dirt mound |
+| Waypoints / Transport Portal | `waypoint_ring` — the pixel rune-ring (teal per destination) laid on a pack-dirt mound; the Return Scroll portal is the purple torus-and-film oval (`make_town_portal_visual`) |
 | Drowned Shrine | `winter_idol` on a pack-stone plinth |
 | Interiors | sewers: `floor_glowing_cave` + `wall_cave` + `water_cave`; buildings: `floor_undead` + `wall_undead`; trails: `floor_dirt_forest` |
 

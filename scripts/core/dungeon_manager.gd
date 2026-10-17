@@ -731,30 +731,76 @@ func _make_prop_sprite(role: String, scale: float = 1.0, k: int = 0, lift: float
 	return sprite
 
 
-## The glowing-cave totem that marks every waypoint / portal. It holds one
-## still frame: discovered portals read as lit, undiscovered ones as dim
-## (a modulate difference), with no looping animation.
-static func make_waypoint_totem(tint: Color, scale: float = 0.5) -> Sprite3D:
-	var totem := SheetAnimSprite.new()
-	totem.texture = load("res://assets/sprites/craftpix/tileset_glowing_cave/Totem_animation.png")
-	totem.hframes = 6
-	totem.vframes = 2
-	totem.fps = 0.0
-	totem.frame = 0
-	totem.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	totem.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
-	totem.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	totem.shaded = false
-	totem.pixel_size = 0.03125
-	totem.centered = false
-	totem.offset = Vector2(-48, 0)  # 96px frames, feet on the origin
-	totem.modulate = tint
-	totem.scale = Vector3(scale, scale, scale)
-	# A hair under the figures' lift: on the same tile a character draws in
-	# front of the totem instead of vanishing behind it.
-	totem.position = Vector3(0, CameraView.SPRITE_LIFT - 0.01, 0)
-	return totem
+## The chunky pixel rune-ring that marks every waypoint, laid flat on the
+## mound's top and tinted per destination (dimmed until discovered; it lights
+## up in discover_waypoint). Waypoints are the mound with the teal highlights.
+static func make_waypoint_ring(tint: Color, alpha: float = 0.75) -> Sprite3D:
+	var ring := Sprite3D.new()
+	ring.texture = load("res://assets/textures/props/waypoint_ring.png")
+	ring.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	ring.shaded = false
+	ring.pixel_size = 0.045  # ring spans ~1.2 tiles
+	ring.rotation_degrees = Vector3(-90, 0, 0)
+	ring.modulate = Color(tint, alpha)
+	ring.position = Vector3(0, 0.25, 0)  # resting on the mound's top
+	return ring
 
+
+## The raised dirt mound a waypoint ring sits on (a landmark at a glance
+## instead of a flat glow on the ground).
+static func make_waypoint_mound(material: Material) -> MeshInstance3D:
+	var mound := MeshInstance3D.new()
+	var mound_mesh := CylinderMesh.new()
+	mound_mesh.top_radius = 0.68
+	mound_mesh.bottom_radius = 0.95
+	mound_mesh.height = WAYPOINT_MOUND_HEIGHT
+	mound_mesh.radial_segments = 12
+	mound.mesh = mound_mesh
+	mound.material_override = material
+	mound.position = Vector3(0, WAYPOINT_MOUND_HEIGHT * 0.5, 0)
+	return mound
+
+
+## The Return Scroll's town portal: a swirling purple oval (a flattened
+## torus standing upright) with a glowing translucent film inside it. Used
+## on the battle side and for its twin in town. No pack draws a portal of
+## this kind, so it is built in the packs' purple.
+static func make_town_portal_visual() -> Node3D:
+	var root := Node3D.new()
+	root.name = "PortalVisual"
+
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.55
+	torus.outer_radius = 0.75
+	ring.mesh = torus
+	ring.rotation_degrees = Vector3(90, 0, 0)
+	ring.position = Vector3(0, 1.1, 0)
+	var ring_mat := StandardMaterial3D.new()
+	ring_mat.albedo_color = Color(0.6, 0.25, 0.95)
+	ring_mat.emission_enabled = true
+	ring_mat.emission = Color(0.55, 0.2, 0.9)
+	ring_mat.emission_energy_multiplier = 1.6
+	ring.material_override = ring_mat
+	root.add_child(ring)
+
+	var film := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = 0.58
+	disc.bottom_radius = 0.58
+	disc.height = 0.05
+	film.mesh = disc
+	film.rotation_degrees = Vector3(90, 0, 0)
+	film.position = Vector3(0, 1.1, 0)
+	var film_mat := StandardMaterial3D.new()
+	film_mat.albedo_color = Color(0.75, 0.45, 1.0, 0.55)
+	film_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	film_mat.emission_enabled = true
+	film_mat.emission = Color(0.7, 0.4, 1.0)
+	film_mat.emission_energy_multiplier = 1.2
+	film.material_override = film_mat
+	root.add_child(film)
+	return root
 
 func _prop_variants(base: String) -> Array:
 	var roles: Array = PROP_ROLES.get(_prop_biome(), {}).get(base, [])
@@ -4757,6 +4803,36 @@ func reveal_around(center: Vector2i) -> void:
 	if changed:
 		prompts_changed.emit()
 
+## The revealed tiles as one byte per tile (x-major), to carry across a
+## scene change or a save: the layout is deterministic per world and
+## interior, so the bytes map straight back onto the same ground.
+func get_revealed_bytes() -> PackedByteArray:
+	var out := PackedByteArray()
+	if not _fog_initialized:
+		return out
+	out.resize(GRID_W * GRID_H)
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			out[x * GRID_H + z] = 1 if _revealed[x][z] else 0
+	return out
+
+## Reveal again what a snapshot from this same layout had revealed (a
+## snapshot of another size is ignored: a different layout).
+func restore_revealed(bytes: PackedByteArray) -> void:
+	if not _fog_initialized or bytes.size() != GRID_W * GRID_H:
+		return
+	var changed := false
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			var i := x * GRID_H + z
+			if bytes[i] != 0 and not _revealed[x][z]:
+				_revealed[x][z] = true
+				_fog_mm.set_instance_transform(i, _fog_hidden_xform())
+				changed = true
+	if changed:
+		prompts_changed.emit()
+		print("[DUNGEON] Fog of war restored: explored ground stays revealed")
+
 func is_revealed(grid_pos: Vector2i) -> bool:
 	if grid_pos.x < 0 or grid_pos.x >= GRID_W or grid_pos.y < 0 or grid_pos.y >= GRID_H:
 		return false
@@ -5979,16 +6055,7 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 
 	# Slightly raised dirt mound under the ring, so waypoints read as a
 	# landmark at a glance instead of a flat glow on the ground.
-	var mound = MeshInstance3D.new()
-	var mound_mesh = CylinderMesh.new()
-	mound_mesh.top_radius = 0.68
-	mound_mesh.bottom_radius = 0.95
-	mound_mesh.height = WAYPOINT_MOUND_HEIGHT
-	mound_mesh.radial_segments = 12
-	mound.mesh = mound_mesh
-	mound.material_override = _pixel_mat(trail_texture_path(), Color(0.62, 0.5, 0.36))
-	mound.position = Vector3(0, WAYPOINT_MOUND_HEIGHT * 0.5, 0)
-	mound.visible = false  # the totem stands on the ground; no dirt mound
+	var mound := make_waypoint_mound(_pixel_mat(trail_texture_path(), Color(0.62, 0.5, 0.36)))
 	wp_root.add_child(mound)
 
 	# Waypoint visual: chunky pixel rune-ring laid flat on the mound's top,
@@ -6005,9 +6072,7 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 			tint = Color8(0xd8, 0xd3, 0x96)  # GOLD_2
 		_:
 			tint = Color8(0xb6, 0xc5, 0xc5)  # STEEL_6
-	# The glowing-cave totem stands on the mound, tinted per destination and
-	# lowlit until discovered (it lights up in discover_waypoint).
-	var pillar := make_waypoint_totem((Color(1, 1, 1).lerp(tint, 0.55) * Color(1, 1, 1, 0.85)).darkened(0.45))
+	var pillar := make_waypoint_ring(tint)  # dimmed until discovered
 	wp_root.add_child(pillar)
 
 	# Label
@@ -6069,7 +6134,7 @@ func discover_waypoint(index: int) -> bool:
 	# Visual change: the ring lights up to full strength once activated
 	var pillar = waypoint_nodes[index]["pillar_mesh"] as Sprite3D
 	if pillar:
-		pillar.modulate = Color(pillar.modulate.lightened(0.55), 1.0)
+		pillar.modulate = Color(pillar.modulate.lightened(0.35), 1.0)
 	# Update interact label text
 	var lbl = waypoint_nodes[index]["label_node"] as Label3D
 	if lbl:

@@ -396,6 +396,29 @@ func _on_constellation_replaced(old_id: String, _new_id: String) -> void:
 		main.add_battle_log("Constellation replaced: %s" % old_c.name, Color(0.7, 0.5, 0.3))
 		print("[MAIN] Constellation removed: %s" % old_c.name)
 
+## Set while ensure_constellation_passives re-registers passives: the stat
+## side of a bonus is skipped (the restored stats already carry it).
+var _passives_only: bool = false
+
+## Every completed constellation's triggered passive is in the stats' list.
+## Run after a progression restore: _apply_all_constellation_bonuses fires
+## at scene set-up, before the carried stats overwrite sphere_grid_passives,
+## so a constellation accepted somewhere that registered nothing (the town's
+## grid panel has no listener; a disk load rebuilds the grid) used to lose
+## its passive on every scene — Iron Will never fired on a kill.
+## Registration is idempotent (add_sphere_grid_passive drops duplicates).
+func ensure_constellation_passives() -> void:
+	var grid = main.sphere_grid_ui.sphere_grid if main.sphere_grid_ui else null
+	if grid == null:
+		return
+	_passives_only = true
+	for c in grid.get_all_constellations():
+		if c.completed:
+			if c.id not in _active_constellations:
+				_active_constellations.append(c.id)
+			_apply_constellation_bonus(c.id)
+	_passives_only = false
+
 func _apply_constellation_bonus(constellation_id: String) -> void:
 	## Applies the permanent bonus from a completed constellation.
 	var stats = main.player.get_stats()
@@ -426,7 +449,8 @@ func _apply_constellation_bonus(constellation_id: String) -> void:
 			})
 		"mind_weaver":
 			# On spell cast: 20% draw a card. +30 max mana
-			stats.apply_sphere_grid_mana(30)
+			if not _passives_only:
+				stats.apply_sphere_grid_mana(30)
 			stats.add_sphere_grid_passive({
 				"node_id": -1, "trigger": "on_spell_cast", "effect": "draw_card",
 				"value": 1, "chance": 0.20,
@@ -440,7 +464,8 @@ func _apply_constellation_bonus(constellation_id: String) -> void:
 				"description": "Windwalker: First card after moving costs 10 less"
 			})
 			# +1 movement via agility
-			stats.apply_sphere_grid_stat("agility", 5)  # +5 AGI = +1 move/cycle
+			if not _passives_only:
+				stats.apply_sphere_grid_stat("agility", 5)  # +5 AGI = +1 move/cycle
 		"storm_runner":
 			# +1 movement, gain 20 mana on move
 			stats.add_sphere_grid_passive({
@@ -448,7 +473,8 @@ func _apply_constellation_bonus(constellation_id: String) -> void:
 				"value": 20, "chance": 1.0,
 				"description": "Storm Runner: Gain 20 mana on each move"
 			})
-			stats.apply_sphere_grid_stat("agility", 5)  # +5 AGI = +1 move/cycle
+			if not _passives_only:
+				stats.apply_sphere_grid_stat("agility", 5)  # +5 AGI = +1 move/cycle
 		"sages_insight":
 			# Draw 1 extra card per tempo cycle
 			stats.add_sphere_grid_passive({
@@ -463,7 +489,8 @@ func _apply_constellation_bonus(constellation_id: String) -> void:
 				"value": 3, "chance": 1.0,
 				"description": "Unyielding: Below 50% HP: gain 3 armor each cycle"
 			})
-			stats.apply_sphere_grid_stat("determination", 2)
+			if not _passives_only:
+				stats.apply_sphere_grid_stat("determination", 2)
 
 		# --- Ring 3-4 Constellations ---
 		"crimson_edge":
@@ -483,16 +510,24 @@ func _apply_constellation_bonus(constellation_id: String) -> void:
 		"iron_bastion":
 			# +5 starting armor, and when hit: 15% chance the damage is halved
 			# (applied inside PlayerStats.take_damage).
-			stats.sphere_bonus_armor += 5
-			stats.current_armor += 5
-			stats.armor_changed.emit(stats.current_armor)
-			stats.damage_proc_reduction_chance = 0.15
-			stats.damage_proc_reduction_percent = 50.0
+			if not _passives_only:
+				stats.sphere_bonus_armor += 5
+			if not _passives_only:
+				stats.current_armor += 5
+			if not _passives_only:
+				stats.armor_changed.emit(stats.current_armor)
+			if not _passives_only:
+				stats.damage_proc_reduction_chance = 0.15
+			if not _passives_only:
+				stats.damage_proc_reduction_percent = 50.0
 		"natures_grace":
 			# Regen 2 HP per cycle, heal cards +5
-			stats.sphere_bonus_regen += 2
-			stats.sphere_bonus_heal_power += 5
-			stats.stats_updated.emit()
+			if not _passives_only:
+				stats.sphere_bonus_regen += 2
+			if not _passives_only:
+				stats.sphere_bonus_heal_power += 5
+			if not _passives_only:
+				stats.stats_updated.emit()
 
 # ============================================
 # SKILL TREE → CHARACTER SYNC

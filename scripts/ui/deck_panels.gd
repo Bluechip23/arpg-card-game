@@ -171,7 +171,9 @@ func _populate() -> void:
 				granted += 1
 		var inv := main.player.get_inventory() if main.player else null
 		var slotted: int = inv.get_all_slotted_cards().size() if inv else 0
-		_counts_label.text = "Deck: %d / %d\nSlotted in items: %d   Granted by items: %d" % [own, main.deck_manager.get_max_deck_size(), slotted, granted]
+		_counts_label.text = "Deck: %d / %d   With slotted cards: %d / %d\nSlotted in items: %d   Granted by items: %d (free)" % [
+			own, main.deck_manager.get_max_deck_size(),
+			main.deck_manager.get_total_deck_size(), main.deck_manager.get_max_total_deck_size(), slotted, granted]
 
 	# Sort by name
 	var names := card_counts.keys()

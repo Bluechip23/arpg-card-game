@@ -1867,10 +1867,17 @@ func _show_card_detail_modal(card: Card, is_sell: bool, sell_index: int = -1) ->
 		btn_hbox.add_theme_constant_override("separation", 16)
 
 		var action_btn = Button.new()
-		var deck_count := _get_current_deck_card_ids().size()
+		var counts := _town_deck_counts()
+		var deck_count: int = counts["base"]
 		if deck_count >= DeckManager.MAX_DECK_SIZE:
-			# Deck cap: item-slotted cards ride free, but a direct add is out.
+			# Base deck cap: a direct add is out (slotted cards have their own
+			# room, up to the total cap).
 			action_btn.text = "Deck Full (%d/%d)" % [deck_count, DeckManager.MAX_DECK_SIZE]
+			action_btn.disabled = true
+			_style_action_button(action_btn, Color(0.2, 0.2, 0.2), Color(0.25, 0.25, 0.25), Color(0.3, 0.3, 0.3))
+		elif counts["total"] >= DeckManager.MAX_TOTAL_DECK_SIZE:
+			# Total cap: the slotted cards have used up the room.
+			action_btn.text = "Deck Full (%d/%d w/ slots)" % [counts["total"], DeckManager.MAX_TOTAL_DECK_SIZE]
 			action_btn.disabled = true
 			_style_action_button(action_btn, Color(0.2, 0.2, 0.2), Color(0.25, 0.25, 0.25), Color(0.3, 0.3, 0.3))
 		else:
@@ -1900,8 +1907,13 @@ func _on_buy_card_confirmed() -> void:
 	if not _detail_card or not starting_character:
 		_close_detail_modal()
 		return
-	if _get_current_deck_card_ids().size() >= DeckManager.MAX_DECK_SIZE:
+	var counts := _town_deck_counts()
+	if counts["base"] >= DeckManager.MAX_DECK_SIZE:
 		print("[TOWN] Deck is full (%d) — remove a card first" % DeckManager.MAX_DECK_SIZE)
+		_close_detail_modal()
+		return
+	if counts["total"] >= DeckManager.MAX_TOTAL_DECK_SIZE:
+		print("[TOWN] Deck is full counting slotted cards (%d/%d) — unslot or remove a card first" % [counts["total"], DeckManager.MAX_TOTAL_DECK_SIZE])
 		_close_detail_modal()
 		return
 	var block := _town_copy_block_reason(_detail_card)
@@ -2733,12 +2745,11 @@ func _create_town_waypoint() -> void:
 	mound_mat.roughness = 1.0
 	mound.material_override = mound_mat
 	mound.position = Vector3(0, DungeonManager.WAYPOINT_MOUND_HEIGHT * 0.5, 0)
-	mound.visible = false  # the totem stands on the plaza itself; no dirt mound
 	_town_waypoint_node.add_child(mound)
 
-	# Pixel rune-ring on the mound's top, matching the dungeon waypoints.
-	# The glowing-cave totem, same as the dungeon waypoints (teal = transport).
-	var pillar := DungeonManager.make_waypoint_totem(Color(1, 1, 1).lerp(Color8(0x62, 0xa3, 0xb0), 0.55))
+	# Pixel rune-ring on the mound's top, matching the dungeon waypoints
+	# (teal = transport; town's is always lit).
+	var pillar := DungeonManager.make_waypoint_ring(Color8(0x62, 0xa3, 0xb0), 1.0)
 	pillar.name = "Runes"
 	_town_waypoint_node.add_child(pillar)
 
@@ -3260,10 +3271,18 @@ func _go_to_battle(via_portal: bool = false) -> void:
 	# Return Scroll: stepping through the twin drops the player back at the
 	# exact spot where they opened the portal (same world, same tile).
 	if via_portal and not portal_return.is_empty():
-		main_scene.current_world_level = portal_return.get("world_level", return_world_level)
-		main_scene.portal_return_position = portal_return.get("position")
+		apply_portal_return(main_scene, portal_return)
 	get_tree().root.add_child(main_scene)
 	queue_free()
+
+## Point a fresh battle scene back through the portal: the same world, the
+## same interior (the cave the portal was opened in, and that room's parent
+## for a boss room) and the exact tile, where the battle-side portal re-opens.
+static func apply_portal_return(main_scene, anchor: Dictionary) -> void:
+	main_scene.current_world_level = anchor.get("world_level", main_scene.current_world_level)
+	main_scene.current_interior_id = anchor.get("interior_id", "")
+	main_scene.parent_interior_id = anchor.get("parent_interior_id", "")
+	main_scene.portal_return_position = anchor.get("position")
 
 ## The progression bundle a scene leaving town carries: the live stats and
 ## inventory re-snapshotted on top of what town was handed.
@@ -3312,10 +3331,8 @@ func _spawn_return_portal() -> void:
 	portal_root.name = "ReturnPortal"
 	portal_root.position = grid_manager.snap_to_grid(player.position + Vector3(2.0, 0, 1.0))
 
-	# The glowing-cave totem in the Return Scroll's purple (matches the
-	# battle-side portal and the transport portal's look).
-	var pillar := DungeonManager.make_waypoint_totem(Color(1, 1, 1).lerp(Color(0.6, 0.25, 0.95), 0.6))
-	portal_root.add_child(pillar)
+	# The same purple torus-and-film portal as the battle side.
+	portal_root.add_child(DungeonManager.make_town_portal_visual())
 
 	var label = Label3D.new()
 	label.text = "Your Portal"
@@ -3624,6 +3641,32 @@ func _toggle_deck_panel() -> void:
 	if _deck_panel.visible:
 		_refresh_deck_panel()
 
+## The deck's two counts as the caps see them: "base" (cards outside items,
+## capped at MAX_DECK_SIZE) and "total" (base + cards slotted in worn gear,
+## capped at MAX_TOTAL_DECK_SIZE). Granted cards count toward neither. Reads
+## the carried deck snapshot's live cards when there are any (they know
+## which item owns them), else the purchase list plus the worn gear's slots.
+func _town_deck_counts() -> Dictionary:
+	var state: Dictionary = _deck_state()
+	var live: Dictionary = state.get("live", {})
+	var base := 0
+	var slotted := 0
+	if not live.is_empty():
+		for pile in ["hand", "draw_pile", "discard_pile", "jail_pile", "maintained"]:
+			for c in live.get(pile, []):
+				if not (c is Card) or c.granted_by_item != null:
+					continue
+				if c.slotted_in_item != null:
+					slotted += 1
+				else:
+					base += 1
+	else:
+		base = _town_deck_card_ids().size()
+		var inv = player.get_inventory() if player and player.has_method("get_inventory") else null
+		if inv:
+			slotted = inv.get_all_slotted_cards().size()
+	return {"base": base, "slotted": slotted, "total": base + slotted}
+
 func _town_deck_card_ids() -> Array:
 	## The cards that will be in the battle deck: the carried deck snapshot
 	## when one exists (it is what the battlefield rebuilds from), else the
@@ -3652,7 +3695,9 @@ func _refresh_deck_panel() -> void:
 	var total := 0
 	for cid in counts:
 		total += counts[cid]
-	_deck_counts_label.text = "Deck: %d / %d\nBuy and cull cards at the Card Dealer." % [total, DeckManager.MAX_DECK_SIZE]
+	var caps := _town_deck_counts()
+	_deck_counts_label.text = "Deck: %d / %d   With slotted cards: %d / %d\nBuy and cull cards at the Card Dealer." % [
+		caps["base"], DeckManager.MAX_DECK_SIZE, caps["total"], DeckManager.MAX_TOTAL_DECK_SIZE]
 	var ordered: Array = counts.keys()
 	ordered.sort_custom(func(a, b): return names[a] < names[b])
 	for cid in ordered:

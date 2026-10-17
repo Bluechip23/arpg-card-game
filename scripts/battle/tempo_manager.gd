@@ -32,6 +32,29 @@ signal ticking_finished()  # All pending ticks have been processed
 ## How fast ticks process (seconds per tick). Lower = faster visual pacing.
 @export var tick_speed: float = 1.5  # Default: 1.5s per tick. Adjustable in Settings (0.15s - 3.0s)
 
+## The speed the player picked on the tempo bar. Every scene (a new area, a
+## cave, town and back, a portal) builds a fresh TempoManager, which used to
+## come up at the default 1.5s and throw the player's choice away; the
+## choice is kept here for the session and in the settings file for the
+## next one.
+const SETTINGS_PATH := "user://settings.cfg"
+static var preferred_tick_speed: float = -1.0
+
+static func remember_tick_speed(speed: float) -> void:
+	preferred_tick_speed = speed
+	var cfg := ConfigFile.new()
+	cfg.load(SETTINGS_PATH)  # keep whatever else is in there
+	cfg.set_value("tempo", "tick_speed", speed)
+	cfg.save(SETTINGS_PATH)
+
+## The remembered speed, or -1 when the player never changed it.
+static func load_preferred_tick_speed() -> float:
+	if preferred_tick_speed < 0.0:
+		var cfg := ConfigFile.new()
+		if cfg.load(SETTINGS_PATH) == OK:
+			preferred_tick_speed = float(cfg.get_value("tempo", "tick_speed", -1.0))
+	return preferred_tick_speed
+
 var current_tempo: int = 0   # Accumulator for the UI bar (resets at each cycle)
 var global_tempo: int = 0    # Ever-increasing universal tempo clock
 var _cycles_since_flash_refresh: int = 0  # Counts cycles toward the flash-point refresh
@@ -61,6 +84,9 @@ func initialize(p_stats: PlayerStats) -> void:
 	_ticking = false
 	_pending_ticks = 0
 	_active_cards.clear()
+	var preferred := load_preferred_tick_speed()
+	if preferred > 0.0:
+		tick_speed = preferred
 	print("[TEMPO] Initialized (ticked). Cycle every %d tempo, tick speed %.2fs" % [tempo_threshold, tick_speed])
 
 func _process(delta: float) -> void:
