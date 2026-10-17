@@ -758,18 +758,13 @@ func _get_current_deck_card_ids() -> Array:
 	return all_ids
 
 func _get_all_cards() -> Array[Card]:
-	## Discovers all Card.create_* factory methods and returns one of each card.
+	## One of each catalogue card (the rank-scaled generated ones excepted).
 	var cards: Array[Card] = []
-	var card_script: Script = Card
-	for method in card_script.get_script_method_list():
-		var method_name: String = method["name"]
-		if method_name.begins_with("create_") and method["args"].size() == 0:
-			var card = card_script.call(method_name)
-			# Item-kit and token cards (DROP_EXCLUDED) are never sold either —
-			# they only enter play through the item or effect that owns them.
-			if card is Card and not card.shop_excluded \
-					and not Card.DROP_EXCLUDED_CARD_IDS.has(card.card_id):
-				cards.append(card)
+	for card in Card.get_all_cards(false):
+		# Item-kit and token cards (DROP_EXCLUDED) are never sold either —
+		# they only enter play through the item or effect that owns them.
+		if not card.shop_excluded and not Card.DROP_EXCLUDED_CARD_IDS.has(card.card_id):
+			cards.append(card)
 	# Sort by card type then name
 	cards.sort_custom(func(a, b):
 		if a.card_type_name != b.card_type_name:
@@ -779,14 +774,11 @@ func _get_all_cards() -> Array[Card]:
 	return cards
 
 func _create_card_from_id(card_id: String) -> Card:
-	var card_script: Script = Card
-	for method in card_script.get_script_method_list():
-		var method_name: String = method["name"]
-		if method_name.begins_with("create_") and method["args"].size() == 0:
-			var card = card_script.call(method_name)
-			if card is Card and card.card_id == card_id:
-				return card
-	return null
+	# The town never rebuilds the rank-scaled generated cards (they are
+	# conjured in battle at a rank value, not dealt).
+	if Card.GENERATED_CARD_IDS.has(card_id):
+		return null
+	return Card.create_by_id(card_id)
 
 func _add_vendor_card_row(card: Card, is_sell: bool, sell_index: int = -1, loose: bool = false) -> void:
 	## Shop row: a card for sale (price), a loose backpack card (sells for

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_sxxww"]
+
+[resource]
+script = ExtResource("1_sxxww")
+card_id = "if_pigs_could_fly"
+card_name = "If Pigs Could Fly"
+description = "Summon a flying pig that explodes on the target. Deals 15 damage in a surrounding area. AOE diameter is INT/8."
+mana_cost = 30
+damage = 15
+tempo_cost = 0
+base_damage = 15
+is_ranged = true
+range_modifier = 2
+school = 1
+keywords = ["attack", "spell", "offensive"]

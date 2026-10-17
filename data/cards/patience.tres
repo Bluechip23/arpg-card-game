@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_axle3"]
+
+[resource]
+script = ExtResource("1_axle3")
+card_id = "patience"
+card_name = "Patience"
+description = "In 15 tempo, draw 3 cards."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 20
+tempo_cost = 3
+target_types = ["self"]
+slot_labels = [12]
+keywords = ["utility", "self"]
+delay_tempo = 15

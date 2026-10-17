@@ -57,7 +57,7 @@ func _mk(n: int) -> Array:
 	var deck := DeckManager.new()
 	deck.connect_debuff_manager(dm)
 	for _i in range(n):
-		deck.hand.append(Card.create_slash())
+		deck.hand.append(Card.create_by_id("slash"))
 	return [dm, deck]
 
 func _free(pair: Array) -> void:
@@ -216,7 +216,7 @@ func _test_new_hex_claims_hand_only() -> void:
 	var hex := Debuff.create(Debuff.DebuffType.HEXED, 30, 25)
 	dm.apply_debuff(hex)
 	_check(hex.affected_card == null, "the hand is empty: the hex waits rather than taking a discarded card")
-	var fresh := Card.create_slash()
+	var fresh := Card.create_by_id("slash")
 	deck.add_card_to_hand(fresh)
 	_check(hex.affected_card == fresh, "the next card into the hand takes it")
 	_free(p)
@@ -226,7 +226,7 @@ func _test_lightly_dazed_fuse() -> void:
 	var p := _mk(1)
 	var dm: DebuffManager = p[0]
 	var deck: DeckManager = p[1]
-	var dazed := Card.create_lightly_dazed()
+	var dazed := Card.create_by_id("lightly_dazed")
 	_check(dazed.is_negative_card(), "Lightly Dazed is a negative card")
 	deck.add_card_to_hand(dazed)
 	deck._process_erase_timers()
@@ -257,8 +257,8 @@ func _test_minor_wounds_draw_pile() -> void:
 	print("-- Minor Wounds burns its fuse in the draw pile, and a scried one takes its reveal --")
 	var p := _mk(0)
 	var deck: DeckManager = p[1]
-	var under := Card.create_slash()
-	var wound := Card.create_minor_wounds()
+	var under := Card.create_by_id("slash")
+	var wound := Card.create_by_id("minor_wounds")
 	_check(wound.is_negative_card(), "Minor Wounds is a negative card")
 	deck.draw_pile.append(under)
 	deck.draw_pile.append(wound)  # on top
@@ -293,7 +293,7 @@ func _test_infest_discard() -> void:
 	print("-- Infest discarded is erased and never hatches (its stated rule) --")
 	var p := _mk(1)
 	var deck: DeckManager = p[1]
-	var infest := Card.create_infest()
+	var infest := Card.create_by_id("infest")
 	var hatched := [false]
 	infest.hatch_handler = func(): hatched[0] = true
 	_check(infest.is_negative_card(), "Infest is a negative card")

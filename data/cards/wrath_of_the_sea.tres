@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_5fb1u"]
+
+[resource]
+script = ExtResource("1_5fb1u")
+card_id = "wrath_of_the_sea"
+card_name = "Wrath of the Sea"
+description = "Spend HALF your current mana. Blink to a point and deal the mana spent (plus STR) to every enemy in a 4x4 sea burst; all of them are shoved to its edge. Gain 15 mana per enemy hit."
+card_type_name = "Spell"
+mana_cost = 0
+percent_mana_cost = 0.5
+tempo_cost = 8
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 2.0
+target_types = ["point"]
+school = 1
+keywords = ["offensive", "spell"]

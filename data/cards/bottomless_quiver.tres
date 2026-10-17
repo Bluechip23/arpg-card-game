@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_us0c4"]
+
+[resource]
+script = ExtResource("1_us0c4")
+card_id = "bottomless_quiver"
+card_name = "Bottomless Quiver"
+description = "Manifest 5: Overflow attack cards are stored in the Manifest zone and can be played at full cost. Non-attack overflow cards are discarded. Every overflowed card spends a charge."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 40
+target_types = ["self"]
+slot_labels = [1]
+keywords = ["utility"]

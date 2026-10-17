@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_th1f6"]
+
+[resource]
+script = ExtResource("1_th1f6")
+card_id = "vined_encasing"
+card_name = "Vined Encasing"
+description = "Gain 1 thorn for each point of armor you currently have, for 20 tempo. You lose X thorns whenever you receive X damage."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 50
+target_types = ["self"]
+keywords = ["defense"]

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_rhbky"]
+
+[resource]
+script = ExtResource("1_rhbky")
+card_id = "internal_combustion"
+card_name = "Internal Combustion"
+description = "Remove half your armor and deal damage around you based on the amount."
+card_type_name = "Spell"
+mana_cost = 40
+tempo_cost = 5
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 3.0
+target_types = ["self"]
+slot_labels = [14, 15, 16, 5]
+school = 1
+keywords = ["spell", "no_target", "offensive"]

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_l12gw"]
+
+[resource]
+script = ExtResource("1_l12gw")
+card_id = "reverberate_regrowth"
+card_name = "Reverberate Regrowth"
+description = "Maintain: when your armor is broken through, the armor that hit ate comes back 5 tempo later."
+card_type = 5
+card_type_name = "Power"
+mana_cost = 55
+tempo_cost = 3
+target_types = ["self"]
+maintain_cost = 55
+shop_excluded = true

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_p5hfy"]
+
+[resource]
+script = ExtResource("1_p5hfy")
+card_id = "last_breath"
+card_name = "Last Breath"
+description = "Consume all remaining mana. Deal 3 damage per mana spent."
+mana_cost = 0
+tempo_cost = 5
+is_ranged = true
+slot_labels = [16, 14, 9]
+keywords = ["attack", "offensive", "ranged"]

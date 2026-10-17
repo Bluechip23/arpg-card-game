@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_8k7u6"]
+
+[resource]
+script = ExtResource("1_8k7u6")
+card_id = "fortify_alliance"
+card_name = "Fortify Alliance"
+description = "Heal an ally for 5 and give yourself 5 armor."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 20
+block = 5
+heal_amount = 5
+tempo_cost = 3
+base_block = 5
+is_ranged = true
+target_types = ["ally"]
+slot_labels = [14, 11]
+keywords = ["defense", "ally", "ranged"]

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_iyw0q"]
+
+[resource]
+script = ExtResource("1_iyw0q")
+card_id = "enchanted_quiver"
+card_name = "Enchanted Quiver"
+description = "Next 3 ranged attacks create a free 0-cost Quick Arrow (4 damage) in your hand."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 40
+tempo_cost = 5
+target_types = ["self"]
+slot_labels = [1]
+keywords = ["utility"]

@@ -159,7 +159,7 @@ func _test_player() -> void:
 	# reaction) — both should fire on a real Exposed only.
 	var rr: Card = Card.create_by_id("reverberate_regrowth")
 	dm.maintained_cards.append(rr)
-	var vs: Card = Card.create_vengeful_shield()
+	var vs: Card = Card.create_by_id("vengeful_shield")
 	dm.hand.append(vs)
 
 	stats.current_armor = 10
@@ -171,7 +171,7 @@ func _test_player() -> void:
 
 	stats.pending_armor_return = 0
 	stats.pending_armor_return_tempo = 0
-	var vs2: Card = Card.create_vengeful_shield()
+	var vs2: Card = Card.create_by_id("vengeful_shield")
 	dm.hand.append(vs2)
 	stats.current_armor = 10
 	stats.process_tempo(5)
@@ -190,7 +190,7 @@ func _test_player() -> void:
 
 	# Health lost with no armor up is not an Exposed.
 	stats.exposed_cooldown_tempo = 0
-	var vs3: Card = Card.create_vengeful_shield()
+	var vs3: Card = Card.create_by_id("vengeful_shield")
 	dm.hand.append(vs3)
 	stats.current_armor = 0
 	stats.take_damage(10)

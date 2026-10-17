@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_6cbje"]
+
+[resource]
+script = ExtResource("1_6cbje")
+card_id = "specific_strike"
+card_name = "Specific Strike"
+description = "Deal 13 damage. Costs +1m/+1t for each other card in your hand."
+mana_cost = 20
+damage = 13
+tempo_cost = 2
+base_damage = 13
+slot_labels = [10, 8]
+keywords = ["attack", "offensive", "melee"]

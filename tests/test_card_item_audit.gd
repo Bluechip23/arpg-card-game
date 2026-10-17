@@ -38,37 +38,37 @@ func _run() -> void:
 		dummy = e
 
 	print("-- Default damage --")
-	_check(Card.create_draw().damage == 0 and not Card.create_draw().is_offensive(), "a utility card is not offensive by default")
-	_check(Card.create_block().is_offensive() == false, "Block is not offensive")
-	_check(Card.create_slash().is_offensive() and Card.create_slash().damage == 10, "Slash still deals its 10")
+	_check(Card.create_by_id("draw").damage == 0 and not Card.create_by_id("draw").is_offensive(), "a utility card is not offensive by default")
+	_check(Card.create_by_id("block").is_offensive() == false, "Block is not offensive")
+	_check(Card.create_by_id("slash").is_offensive() and Card.create_by_id("slash").damage == 10, "Slash still deals its 10")
 
 	print("-- Empower --")
 	stats.empowered_cards_remaining = 2
-	Card.create_draw().execute(null, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("draw").execute(null, stats, dm, 0.0, 0.0, bm)
 	_check(stats.empowered_cards_remaining == 2, "a utility card spends no Empower charge")
-	Card.create_slash().execute(dummy, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("slash").execute(dummy, stats, dm, 0.0, 0.0, bm)
 	_check(stats.empowered_cards_remaining == 2, "playing an attack spends none (drawing one does)")
 	stats.empowered_cards_remaining = 0
 
 	print("-- Burgonet / Thick Steel on every armor-granting defense card --")
 	stats.current_armor = 0
 	stats.equipment_defense_card_block = 2
-	Card.create_parry().execute(dummy, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("parry").execute(dummy, stats, dm, 0.0, 0.0, bm)
 	_check(stats.current_armor == 7, "Parry (5 armor, outside _execute_block) grants 5 + 2 (%d)" % stats.current_armor)
 	stats.current_armor = 0
-	Card.create_slash().execute(dummy, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("slash").execute(dummy, stats, dm, 0.0, 0.0, bm)
 	stats.add_armor(3)
 	_check(stats.current_armor == 3, "a later plain armor gain carries no leftover bonus")
 	stats.equipment_defense_card_block = 0
 	stats.current_armor = 0
 
 	print("-- Bonus damage reaches hard-coded executors --")
-	var parry := Card.create_parry()
+	var parry := Card.create_by_id("parry")
 	parry.bonus_damage = 4
 	parry.execute(dummy, stats, dm, 0.0, 0.0, bm)
 	_check(parry.last_damage_dealt >= stats.get_effective_physical_damage(9), "Parry deals its 5 plus the +4 bonus (%d)" % parry.last_damage_dealt)
 	stats.current_armor = 0
-	var pigs := Card.create_if_pigs_could_fly()
+	var pigs := Card.create_by_id("if_pigs_could_fly")
 	pigs.bonus_damage = 5
 	pigs.execute(dummy, stats, dm, 0.0, 0.0, bm)
 	_check(pigs.last_damage_dealt >= stats.get_effective_spell_damage(20), "If Pigs Could Fly deals 15 plus the +5 bonus (%d)" % pigs.last_damage_dealt)
@@ -77,12 +77,12 @@ func _run() -> void:
 	dm.hand.clear()
 	dm.true_discards_this_cycle = 0
 	dm.discards_this_cycle = 0
-	var b := Card.create_block()
+	var b := Card.create_by_id("block")
 	dm.hand.append(b)
 	dm.discard_card_from_hand(b)
 	_check(dm.true_discards_this_cycle == 1, "a true discard counts (%d)" % dm.true_discards_this_cycle)
 	var before: int = dm.true_discards_this_cycle
-	dm.card_discarded.emit(Card.create_slash())
+	dm.card_discarded.emit(Card.create_by_id("slash"))
 	_check(dm.true_discards_this_cycle == before, "a played card passing the discard pile does not")
 
 	print("-- Down But Not Out --")
@@ -90,7 +90,7 @@ func _run() -> void:
 	pdm.clear_all_debuffs()
 	pdm.apply_debuff(Debuff.create_slowed(4))
 	stats.current_health = 1
-	var dbno := Card.create_down_but_not_out()
+	var dbno := Card.create_by_id("down_but_not_out")
 	dbno.execute(main.player, stats, dm, 0.0, 0.0, bm)
 	_check(stats.current_health >= 5, "heals the visible stack count (Slowed 4 → at least +4, now %d)" % stats.current_health)
 	pdm.clear_all_debuffs()
@@ -118,7 +118,7 @@ func _run() -> void:
 
 	print("-- Gift from the Phoenix fires on the crossing --")
 	dm.hand.clear()
-	dm.hand.append(Card.create_gift_from_the_phoenix())
+	dm.hand.append(Card.create_by_id("gift_from_the_phoenix"))
 	# Already low: a change that stays below half is not a crossing.
 	main._last_hp_ratio = 0.3
 	stats.current_health = 4
@@ -147,19 +147,19 @@ func _run() -> void:
 	_check(stats.get_temp_determination_bonus() == 0 and is_equal_approx(stats.get_determination_modifier(), det_before), "…and expires after 20 tempo")
 
 	print("-- Small card fixes --")
-	var tonic := Card.create_healing_tonic()
+	var tonic := Card.create_by_id("healing_tonic")
 	_check(tonic.is_ranged and tonic.get_effective_range() == 5, "Healing Tonic reaches 5 squares")
-	_check(Card.create_healthy_bliss().card_type == Card.CardType.REACTION, "Healthy Bliss is an instant that fires from hand on its timer")
+	_check(Card.create_by_id("healthy_bliss").card_type == Card.CardType.REACTION, "Healthy Bliss is an instant that fires from hand on its timer")
 	dm.hand.clear()
-	var shed := Card.create_shed_weight()
-	var slash := Card.create_slash()
+	var shed := Card.create_by_id("shed_weight")
+	var slash := Card.create_by_id("slash")
 	dm.hand.append(shed)
-	dm.hand.append(Card.create_block())
+	dm.hand.append(Card.create_by_id("block"))
 	dm.hand.append(slash)
 	shed.execute(null, stats, dm, 0.0, 0.0, bm)
 	_check(slash.tempo_cost == 3 and slash.temp_hand_tempo_reduction == 1, "Shed Weight cuts tempo in hand only, never the deck's cost")
 	dm.hand.clear()
-	var oops := Card.create_oops()
+	var oops := Card.create_by_id("oops")
 	oops.rng_selected_index = -1
 	var hp_before: int = dummy.current_health
 	oops.execute(dummy, stats, dm, 0.0, 0.0, bm)
@@ -194,25 +194,25 @@ func _round_two(stats, dm, bm, dummy: Enemy) -> void:
 	var far: Enemy = chickens[0]
 	far.position = main.player.position + Vector3(4, 0, 0)
 	far.current_health = far.max_health
-	main._fire_instant_site_effect(Card.create_reapers_taking(), {"target": far})
+	main._fire_instant_site_effect(Card.create_by_id("reapers_taking"), {"target": far})
 	var reach: float = Vector2(main.player.position.x - far.position.x, main.player.position.z - far.position.z).length()
 	_check(reach <= 1.6, "Reaper's Taking teleports the player beside the victim (%.1f away)" % reach)
 	_check(far.current_health == far.max_health - 20, "…and cuts for 20 (%d/%d)" % [far.current_health, far.max_health])
 	far.is_stunned = false
-	main._fire_instant_site_effect(Card.create_vengeful_shield(), {"target": far})
+	main._fire_instant_site_effect(Card.create_by_id("vengeful_shield"), {"target": far})
 	_check(far.is_stunned, "Vengeful Shield's site effect stuns the adjacent attacker")
 	_check(main._last_played_card != null and main._last_played_card.card_id == "vengeful_shield", "the site records the instant for Lethal Recall")
 	var ally = main._dojo_allies[0]
 	var a_st = ally.get_stats()
 	a_st.current_health = 100
-	main._fire_instant_site_effect(Card.create_psionic_flow(), {"mode": "guard", "victim": ally, "attacker": far})
+	main._fire_instant_site_effect(Card.create_by_id("psionic_flow"), {"mode": "guard", "victim": ally, "attacker": far})
 	_check(a_st.current_health >= 108, "Psionic Flow guard mode heals the struck ALLY at least 8 (%d)" % a_st.current_health)
 
 	print("-- Trick Shot bounces between enemies --")
 	var other: Enemy = chickens[1]
 	other.current_health = other.max_health
 	other.position = far.position + Vector3(1, 0, 0)
-	var shot := Card.create_trick_shot()
+	var shot := Card.create_by_id("trick_shot")
 	shot.rng_selected_index = 0  # the first bounce is pre-rolled to hit
 	shot.execute(far, stats, dm, 0.0, 0.0, bm)
 	_check(other.current_health < other.max_health, "the bounce lands on a DIFFERENT enemy")
@@ -231,7 +231,7 @@ func _round_two(stats, dm, bm, dummy: Enemy) -> void:
 		if not dm.draw_pile.has(splinter) and not dm.discard_pile.has(splinter):
 			dm.draw_pile.append(splinter)
 		var deck_before: int = dm.draw_pile.size() + dm.discard_pile.size() + dm.hand.size()
-		main._apply_card_world_effects(Card.create_item_mastery(), null)
+		main._apply_card_world_effects(Card.create_by_id("item_mastery"), null)
 		var deck_after: int = dm.draw_pile.size() + dm.discard_pile.size() + dm.hand.size()
 		_check(dm.hand.has(splinter) and not dm.draw_pile.has(splinter), "Item Mastery moves the granted card into hand")
 		_check(deck_after == deck_before, "…without duplicating anything (%d → %d cards)" % [deck_before, deck_after])
@@ -250,10 +250,10 @@ func _round_two(stats, dm, bm, dummy: Enemy) -> void:
 
 	print("-- Odds boosts last until a chance card is played --")
 	stats.next_odds_boost = 100.0
-	var tt := Card.create_try_this()
+	var tt := Card.create_by_id("try_this")
 	tt.roll_rng([], stats.get_chance_boost() + stats.next_odds_boost)
 	_check(not tt.rng_binary_succeeded(), "House Money keeps Try This from backfiring (its chance is a downside)")
-	var oops2 := Card.create_oops()
+	var oops2 := Card.create_by_id("oops")
 	oops2.roll_rng([], 100.0)
 	_check(oops2.rng_selected_index == 0, "a +100 boost makes Oops's best outcome (5 hits) certain")
 	dm.hand.clear()
@@ -268,10 +268,10 @@ func _round_two(stats, dm, bm, dummy: Enemy) -> void:
 	bm.apply_buff(Buff.create_fortify(20, "test"))
 	_check(bm.get_buff(Buff.BuffType.FORTIFY).value == 3, "Fortify stamps the Regen you had (3) as its number")
 	bm.remove_buff(Buff.BuffType.REGEN)
-	Card.create_living_armor().execute(null, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("living_armor").execute(null, stats, dm, 0.0, 0.0, bm)
 	var regen = bm.get_buff(Buff.BuffType.REGEN)
 	_check(regen != null and regen.value == 3, "Living Armor brings Regen back to 3")
-	Card.create_living_armor().execute(null, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("living_armor").execute(null, stats, dm, 0.0, 0.0, bm)
 	_check(bm.get_buff(Buff.BuffType.REGEN).value == 3, "…and never past the mark")
 	for buff in bm.buffs.duplicate():
 		bm.remove_buff(buff.buff_type)

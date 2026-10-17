@@ -23,10 +23,10 @@ func _initialize() -> void:
 	deck.connect_player_stats(stats)
 
 	# --- Unslotted: the card cannot be played ---
-	var etch = Card.create_fleet_etching()
+	var etch = Card.create_by_id("fleet_etching")
 	_check(etch.requires_engraving, "Fleet Etching carries Engrave")
 	_check(etch.card_keyword == Card.CardKeyword.SWIFT, "Fleet Etching is a Swift card")
-	_check(Card.create_regal_etching().card_keyword == Card.CardKeyword.CROWN,
+	_check(Card.create_by_id("regal_etching").card_keyword == Card.CardKeyword.CROWN,
 		"Regal Etching is a Crown card")
 	deck.hand.append(etch)
 	var result = deck.play_card(0, null)
@@ -44,7 +44,7 @@ func _initialize() -> void:
 	helm.item_type = ItemData.ItemType.HELM
 	helm.card_slots = 1
 	_check(not helm.can_slot_card(etch), "helm slot refuses the Swift etching")
-	_check(helm.can_slot_card(Card.create_regal_etching()), "helm slot accepts the Crown etching")
+	_check(helm.can_slot_card(Card.create_by_id("regal_etching")), "helm slot accepts the Crown etching")
 
 	# --- Slotted: the same card now plays ---
 	boots.slot_card(etch)
@@ -57,7 +57,7 @@ func _initialize() -> void:
 	inv.player_stats = stats
 	inv.deck_manager = deck
 	deck.connect_inventory(inv)
-	var stray = Card.create_regal_etching()
+	var stray = Card.create_by_id("regal_etching")
 	deck.draw_pile.append(stray)
 	deck.expel_unslotted_engraved()
 	_check(not deck.draw_pile.has(stray), "sweep pulls the unslotted etching from the draw pile")
@@ -85,9 +85,9 @@ func _initialize() -> void:
 	deck.hand.clear()
 	deck.discard_pile.clear()
 	for i in range(12):
-		deck.draw_pile.append(Card.create_slash())
+		deck.draw_pile.append(Card.create_by_id("slash"))
 	_check(deck.get_deck_size() == 12 and deck.is_deck_full(), "12 direct cards fill the deck")
-	inv.stored_cards.append(Card.create_block())
+	inv.stored_cards.append(Card.create_by_id("block"))
 	var block_idx = inv.stored_cards.size() - 1
 	_check(not inv.add_card_to_deck(block_idx, deck), "a 13th direct card is refused while full")
 	# The slotted etching joins the deck WITHOUT counting toward the cap.

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_vijya"]
+
+[resource]
+script = ExtResource("1_vijya")
+card_id = "oops"
+card_name = "Oops"
+description = "30% for 5 hits, 40% for 3 hits, 30% for 2 hits. Damage 3 per hit."
+mana_cost = 30
+damage = 3
+base_damage = 3
+rng_outcomes_data = [{
+&"percent": 30.0
+}, {
+&"percent": 40.0
+}, {
+&"percent": 30.0
+}]
+slot_labels = [10]
+keywords = ["attack", "offensive", "melee"]

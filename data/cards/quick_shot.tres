@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_5fx1f"]
+
+[resource]
+script = ExtResource("1_5fx1f")
+card_id = "quick_shot"
+card_name = "Quick Shot"
+description = "Deal 2 damage + half modifiers. Draw a card."
+mana_cost = 10
+damage = 2
+tempo_cost = 1
+base_damage = 2
+is_ranged = true
+slot_labels = [1, 2]
+keywords = ["attack", "offensive", "ranged"]

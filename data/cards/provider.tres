@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_anksf"]
+
+[resource]
+script = ExtResource("1_anksf")
+card_id = "provider"
+card_name = "Provider"
+description = "Heal an ally 6 health and give them 1 mana. Burden."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 10
+heal_amount = 6
+tempo_cost = 1
+is_ranged = true
+range_modifier = 2
+target_types = ["ally"]
+slot_labels = [6, 14]
+school = 1
+keywords = ["utility", "ally", "spell", "ranged"]
+has_burden = true

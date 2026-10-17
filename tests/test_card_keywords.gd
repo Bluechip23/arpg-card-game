@@ -19,19 +19,8 @@ func _fail(msg: String) -> void:
 
 func _initialize() -> void:
 	print("=== Card keyword consistency test ===")
-	var script: Script = Card
-	var seen: Dictionary = {}
-	for method in script.get_script_method_list():
-		var n: String = method["name"]
-		if not n.begins_with("create_"):
-			continue
-		if method["args"].size() != 0:
-			continue  # rank-scaled generated cards are built explicitly below
-		if seen.has(n):
-			continue
-		seen[n] = true
-		var card = script.call(n)
-		if card is Card and not card.keywords.is_empty():
+	for card in Card.get_all_cards(false):  # rank-scaled generated cards are built explicitly below
+		if not card.keywords.is_empty():
 			_check_card(card)
 
 	# Rank-scaled generated cards take a parameter, so build them by hand.
@@ -41,7 +30,7 @@ func _initialize() -> void:
 			_check_card(card)
 
 	# has_keyword is the lookup items/passives use.
-	var attack := Card.create_slash()
+	var attack := Card.create_by_id("slash")
 	if not (attack.has_keyword("conditional") and attack.has_keyword("attack") and not attack.has_keyword("ranged") and not attack.has_keyword("melee")):
 		_fail("has_keyword: Attack should be attack+conditional, with no fixed melee/ranged tag")
 	if attack.card_name != "Attack":

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_r8o2b"]
+
+[resource]
+script = ExtResource("1_r8o2b")
+card_id = "armored_discipline"
+card_name = "Armored Discipline"
+description = "Maintain 5M: When you take damage to your health, gain that much armor"
+card_type = 5
+card_type_name = "Power"
+mana_cost = 30
+tempo_cost = 3
+target_types = ["self"]
+maintain_cost = 50
+slot_labels = [6, 8]
+keywords = ["power", "self"]

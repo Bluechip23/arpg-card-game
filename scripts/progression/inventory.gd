@@ -706,14 +706,14 @@ func _apply_special_effect(item: ItemData, equipping: bool) -> void:
 
 func _create_card_by_id(card_id: String) -> Card:
 	match card_id:
-		"healing_potion": return Card.create_healing_potion()
-		"dagger_throw": return Card.create_dagger_throw()
-		"blink": return Card.create_blink()
-		"slash": return Card.create_slash()
-		"block": return Card.create_block()
-		"potion_of_continuance": return Card.create_potion_of_continuance()
-		"gulped_potion": return Card.create_gulped_potion()
-		"splinter": return Card.create_splinter()
+		"healing_potion": return Card.create_by_id("healing_potion")
+		"dagger_throw": return Card.create_by_id("dagger_throw")
+		"blink": return Card.create_by_id("blink")
+		"slash": return Card.create_by_id("slash")
+		"block": return Card.create_by_id("block")
+		"potion_of_continuance": return Card.create_by_id("potion_of_continuance")
+		"gulped_potion": return Card.create_by_id("gulped_potion")
+		"splinter": return Card.create_by_id("splinter")
 	return null
 
 func apply_equipped_item_card_effects() -> void:
@@ -786,7 +786,7 @@ func _ensure_granted_card_instances(item: ItemData) -> void:
 
 	if item.special_effect == ItemData.SpecialEffect.GRANT_BLINK_CARD:
 		for i in range(item.special_effect_value):
-			var blink_card = Card.create_blink()
+			var blink_card = Card.create_by_id("blink")
 			blink_card.granted_by_item = item
 			item.granted_card_instances.append(blink_card)
 

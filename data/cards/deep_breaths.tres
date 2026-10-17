@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_au82u"]
+
+[resource]
+script = ExtResource("1_au82u")
+card_id = "deep_breaths"
+card_name = "Deep Breaths"
+description = "Heal 20."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 30
+heal_amount = 20
+target_types = ["self"]
+keywords = ["utility"]

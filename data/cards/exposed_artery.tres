@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_g58o1"]
+
+[resource]
+script = ExtResource("1_g58o1")
+card_id = "exposed_artery"
+card_name = "Exposed Artery"
+description = "Deal damage equal to 0.5x the enemy's missing health %."
+mana_cost = 50
+tempo_cost = 2
+slot_labels = [10, 9, 8]
+keywords = ["attack", "offensive", "melee"]

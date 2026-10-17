@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_0wi6k"]
+
+[resource]
+script = ExtResource("1_0wi6k")
+card_id = "balistic_arrow"
+card_name = "Balistic Arrow"
+description = "Deal 30 damage. Hitting an enemy does not stop this arrow — it pierces everything in a direct line."
+mana_cost = 75
+damage = 30
+tempo_cost = 5
+base_damage = 30
+is_aoe = true
+aoe_shape = "line"
+aoe_range = 100.0
+is_ranged = true
+target_types = ["point"]
+shop_excluded = true
+slot_labels = [1]

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_5ubpu"]
+
+[resource]
+script = ExtResource("1_5ubpu")
+card_id = "vengeful_shield"
+card_name = "Vengeful Shield"
+description = "Instant. When taking damage that exposes the player, stun an enemy within melee range for 5 tempo and gain 5 armor."
+card_type = 3
+card_type_name = "Reaction"
+mana_cost = 0
+block = 5
+tempo_cost = 0
+base_block = 5
+target_types = ["self"]
+reaction_trigger = "on_exposed"
+slot_labels = [5]
+keywords = ["reaction", "defense"]
+requires_engraving = true

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_hls8t"]
+
+[resource]
+script = ExtResource("1_hls8t")
+card_id = "m_for_mini"
+card_name = "M for Mini"
+description = "Apply 2 Vulnerable and 2 Weaken to an enemy."
+mana_cost = 15
+tempo_cost = 2

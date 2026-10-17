@@ -630,7 +630,7 @@ func _apply_action(a: Dictionary, state: SimState) -> bool:
 			var mk: Dictionary = state.maintained[int(a["maintained"])]
 			var nbefore: int = dmc.size()
 			row["action_id"] = "dismiss:%s" % str(mk["id"])
-			main._on_maintained_card_dismiss(int(mk["index"]))
+			main._maintained_list._on_dismiss(int(mk["index"]))  # the panel's dismiss handler (lifted out of main.gd)
 			ok = dmc.size() < nbefore
 			if not ok:
 				row["refused"] = "dismiss refused"

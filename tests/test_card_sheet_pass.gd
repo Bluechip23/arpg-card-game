@@ -38,21 +38,21 @@ func _run() -> void:
 	var dummy: Enemy = enemies[0] if enemies.size() > 0 else null
 
 	print("-- Factory numbers --")
-	var blk := Card.create_block()
+	var blk := Card.create_by_id("block")
 	_check(blk.block == 8 and blk.mana_cost == 20 and blk.tempo_cost == 2, "Block: 8 armor for 2 mana, 2 tempo")
-	var roar := Card.create_roar()
+	var roar := Card.create_by_id("roar")
 	_check(roar.mana_cost == 20 and roar.tempo_cost == 0 and is_equal_approx(roar.aoe_range, 3.5), "Roar: 2 mana, 0 tempo, within 3 squares")
-	_check(Card.create_armored_discipline().maintain_cost == 50, "Armored Discipline holds 5M")
-	_check(Card.create_cover().tempo_cost == 2, "Cover costs 2 tempo")
-	var ca := Card.create_collect_arrows()
+	_check(Card.create_by_id("armored_discipline").maintain_cost == 50, "Armored Discipline holds 5M")
+	_check(Card.create_by_id("cover").tempo_cost == 2, "Cover costs 2 tempo")
+	var ca := Card.create_by_id("collect_arrows")
 	_check(ca.tempo_cost == 4 and ca.glut_tempo == 15, "Collect Arrows: 4 tempo, keeps Glut 15")
-	_check(Card.create_fountain_of_life().card_name == "Fountain of Health", "Fountain of Life is now named Fountain of Health (id kept)")
-	_check(Card.create_oops().base_damage == 3, "Oops hits for 3")
-	_check(not Card.create_worms_armageddon().is_aoe, "Worms Armageddon is single target")
-	_check(Card.create_charge().target_types == ["point"], "Charge needs no target — a direction")
-	_check(Card.create_armor_break().card_type == Card.CardType.ATTACK and Card.create_armor_break().is_attack(), "Armor Break is an Attack (the sheet's type), cast on yourself")
-	_check(Card.create_healthy_bliss().card_type == Card.CardType.REACTION, "Healthy Bliss is an instant")
-	_check(Card.create_meditate().glut_tempo == 5, "Meditate: Glut 5")
+	_check(Card.create_by_id("fountain_of_life").card_name == "Fountain of Health", "Fountain of Life is now named Fountain of Health (id kept)")
+	_check(Card.create_by_id("oops").base_damage == 3, "Oops hits for 3")
+	_check(not Card.create_by_id("worms_armageddon").is_aoe, "Worms Armageddon is single target")
+	_check(Card.create_by_id("charge").target_types == ["point"], "Charge needs no target — a direction")
+	_check(Card.create_by_id("armor_break").card_type == Card.CardType.ATTACK and Card.create_by_id("armor_break").is_attack(), "Armor Break is an Attack (the sheet's type), cast on yourself")
+	_check(Card.create_by_id("healthy_bliss").card_type == Card.CardType.REACTION, "Healthy Bliss is an instant")
+	_check(Card.create_by_id("meditate").glut_tempo == 5, "Meditate: Glut 5")
 	var ba = Card.create_by_id("basic_attack")
 	_check(ba != null and ba.mana_cost == 0 and ba.tempo_cost == 5 and ba.card_name == "Basic Attack",
 		"Basic Attack: a free 0m / 5t proc card")
@@ -69,10 +69,10 @@ func _run() -> void:
 	var plain: int = hp0 - stats.current_health
 	stats.current_health = stats.max_health
 	stats.current_armor = 0
-	var cover := Card.create_cover()
+	var cover := Card.create_by_id("cover")
 	dm.hand.append(cover)
-	dm.hand.append(Card.create_draw())
-	dm.hand.append(Card.create_draw())
+	dm.hand.append(Card.create_by_id("draw"))
+	dm.hand.append(Card.create_by_id("draw"))
 	stats.take_damage(12, dbm, bm)
 	var covered: int = stats.max_health - stats.current_health
 	_check(covered == maxi(0, plain - 3), "Cover soaks the hand size, itself included (%d -> %d)" % [plain, covered])
@@ -81,9 +81,9 @@ func _run() -> void:
 
 	print("-- Cover protects summons too --")
 	dm.hand.clear()
-	var sum_cover := Card.create_cover()
+	var sum_cover := Card.create_by_id("cover")
 	dm.hand.append(sum_cover)
-	dm.hand.append(Card.create_draw())
+	dm.hand.append(Card.create_by_id("draw"))
 	main._spawn_summon(20, main.player.position, "skeleton")
 	var sk = main._skeletons.back() if main._skeletons.size() > 0 else null
 	if sk:
@@ -99,21 +99,21 @@ func _run() -> void:
 	stats.current_health = 50
 	stats.current_armor = 0
 	bm.apply_buff(Buff.create_poisoned_blood(5, "Test"))
-	Card.create_the_lights_favor().execute(main.player, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("the_lights_favor").execute(main.player, stats, dm, 0.0, 0.0, bm)
 	_check(stats.current_health < 50, "The Light's Favor (not a routed heal) hurts under Poisoned Blood (%d)" % stats.current_health)
 	stats.current_health = 50
-	Card.create_biscuit().execute(null, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("biscuit").execute(null, stats, dm, 0.0, 0.0, bm)
 	_check(stats.current_health < 50, "Biscuit's full heal lands as damage (%d)" % stats.current_health)
 	PlayerStats.heal_to_damage = false
 	bm.remove_buff(Buff.BuffType.POISONED_BLOOD)
 	stats.current_health = 50
-	Card.create_healing_potion().execute(null, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("healing_potion").execute(null, stats, dm, 0.0, 0.0, bm)
 	_check(stats.current_health > 50, "with it gone, heals heal again")
 	stats.current_health = stats.max_health
 
 	print("-- Timed Stagger / Slow --")
 	dbm.clear_all_debuffs()
-	Card.create_tower_shield().execute(null, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("tower_shield").execute(null, stats, dm, 0.0, 0.0, bm)
 	var stag = dbm.get_debuff(Debuff.DebuffType.STAGGERED)
 	_check(stag != null and stag.clock_timed and stag.duration == 40, "Tower Shield: Staggered for 40 tempo")
 	_check(dbm.get_attack_mana_increase() > 0, "Staggered taxes attack cards")
@@ -122,7 +122,7 @@ func _run() -> void:
 	_check(dbm.has_debuff(Debuff.DebuffType.STAGGERED), "attack plays do not burn a timed Stagger")
 	dbm.advance_time(40)
 	_check(not dbm.has_debuff(Debuff.DebuffType.STAGGERED), "the clock ends it")
-	Card.create_approach().execute(null, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("approach").execute(null, stats, dm, 0.0, 0.0, bm)
 	var slow = dbm.get_debuff(Debuff.DebuffType.SLOWED)
 	_check(slow != null and slow.clock_timed and slow.duration == 10, "Approach: Slowed for 10 tempo")
 	dbm.advance_time(5)
@@ -140,8 +140,8 @@ func _run() -> void:
 	dm.hand.clear()
 	stats.empowered_cards_remaining = 0
 	stats.apply_empower(2)
-	var e_block := Card.create_block()
-	var e_slash := Card.create_slash()
+	var e_block := Card.create_by_id("block")
+	var e_slash := Card.create_by_id("slash")
 	dm.draw_pile.append(e_block)
 	dm.draw_pile.append(e_slash)  # top of the pile
 	dm.draw_card()
@@ -152,7 +152,7 @@ func _run() -> void:
 	dm.hand.clear()
 
 	print("-- Elixir: your poison cards heal instead --")
-	Card.create_elixir().execute(null, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("elixir").execute(null, stats, dm, 0.0, 0.0, bm)
 	if dummy:
 		dummy.poison_stacks = 0
 		dummy.current_health = maxi(1, dummy.max_health - 40)
@@ -167,9 +167,9 @@ func _run() -> void:
 		dummy.poison_stacks = 0
 
 	print("-- Empower reaches hard-coded attacks --")
-	var trip_plain := Card.create_trip()
+	var trip_plain := Card.create_by_id("trip")
 	trip_plain.execute(dummy, stats, dm, 0.0, 0.0, null)
-	var trip_emp := Card.create_trip()
+	var trip_emp := Card.create_by_id("trip")
 	trip_emp.draw_empowered = true
 	trip_emp.execute(dummy, stats, dm, 0.0, 0.0, null)
 	_check(trip_emp.last_damage_dealt >= trip_plain.last_damage_dealt + 3, "Trip gains Empower's +3 (%d vs %d)" % [trip_emp.last_damage_dealt, trip_plain.last_damage_dealt])
@@ -187,7 +187,7 @@ func _run() -> void:
 	_check(not bm.has_buff(Buff.BuffType.BRACE), "…and the brace is spent")
 
 	print("-- Poke: half scaling --")
-	var poke := Card.create_poke()
+	var poke := Card.create_by_id("poke")
 	poke.execute(dummy, stats, dm, 0.0, 0.0, null)
 	var full: int = stats.get_effective_physical_damage(2)
 	_check(poke.last_damage_dealt == 2 + floori((full - 2) / 2.0), "Poke = 2 + half the modifiers (%d)" % poke.last_damage_dealt)
@@ -198,21 +198,21 @@ func _run() -> void:
 	stats.current_mana = 40.0
 	bm.remove_buff(Buff.BuffType.BOLSTER)
 	stats.equipment_defense_card_block = 0
-	Card.create_smith_thy_soul().execute(null, stats, dm, 0.0, 0.0, null)
+	Card.create_by_id("smith_thy_soul").execute(null, stats, dm, 0.0, 0.0, null)
 	_check(stats.current_armor == 5, "((60 + 40) / 2) / 10 = 5 armor (got %d)" % stats.current_armor)
 	stats.current_health = stats.max_health
 
 	print("-- Self Infliction: timed stats --")
 	var str0: int = stats.base_strength
 	var det0: int = stats.get_temp_determination_bonus()
-	Card.create_self_infliction().execute(null, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("self_infliction").execute(null, stats, dm, 0.0, 0.0, bm)
 	_check(stats.base_strength == str0, "no permanent STR")
 	_check(stats.get_temp_determination_bonus() == det0 + 5, "+5 DET on a timer")
 	stats.current_health = stats.max_health
 
 	print("-- Bloodlust: Strengthen on the clock --")
 	bm.remove_buff(Buff.BuffType.STRENGTHEN)
-	Card.create_bloodlust().execute(null, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("bloodlust").execute(null, stats, dm, 0.0, 0.0, bm)
 	_check(bm.consume_strengthen() == 3 and bm.consume_strengthen() == 3 and bm.consume_strengthen() == 3 \
 		and bm.consume_strengthen() == 3, "+3 on every attack while it lasts")
 	bm.advance_time(20)
@@ -221,7 +221,7 @@ func _run() -> void:
 
 	print("-- Healthy Bliss fires as an instant --")
 	dm.hand.clear()
-	var bliss := Card.create_healthy_bliss()
+	var bliss := Card.create_by_id("healthy_bliss")
 	dm.hand.append(bliss)
 	_check(dm.fire_reaction(bliss) and dm.discard_pile.has(bliss), "fire_reaction discards the chosen instant")
 
@@ -230,9 +230,9 @@ func _run() -> void:
 	om.manifest_zone.clear()
 	var q_eff := OverflowEffect.create_quiver(5, "Test")
 	om.add_overflow_effect(q_eff)
-	var q_attack := Card.create_slash()
+	var q_attack := Card.create_by_id("slash")
 	om._process_quiver(q_attack, q_eff)
-	om._process_quiver(Card.create_block(), q_eff)
+	om._process_quiver(Card.create_by_id("block"), q_eff)
 	_check(om.manifest_zone.size() == 1 and om.manifest_zone[0]["manifest_id"] == "quiver_card"
 		and om.manifest_zone[0]["card"] == q_attack, "attack overflow goes to the Manifest zone")
 	_check(q_eff.charges == 3, "every overflowed card spends a charge")
@@ -257,15 +257,15 @@ func _run() -> void:
 
 	print("-- Sky Attack uses the discarded card's damage --")
 	dm.hand.clear()
-	var sa := Card.create_sky_attack()
-	var fodder := Card.create_slash()
+	var sa := Card.create_by_id("sky_attack")
+	var fodder := Card.create_by_id("slash")
 	dm.hand.append(sa)
 	dm.hand.append(fodder)
 	sa.picked_card = fodder
 	sa.execute(dummy, stats, dm, 0.0, 0.0, null)
 	_check(sa.last_damage_dealt >= 10 and dm.discard_pile.has(fodder), "discarding a 10-damage card fires for 10+ (%d)" % sa.last_damage_dealt)
-	var sa2 := Card.create_sky_attack()
-	var dud := Card.create_draw()
+	var sa2 := Card.create_by_id("sky_attack")
+	var dud := Card.create_by_id("draw")
 	dm.hand.append(dud)
 	sa2.picked_card = dud
 	sa2.execute(dummy, stats, dm, 0.0, 0.0, null)
@@ -273,8 +273,8 @@ func _run() -> void:
 	dm.hand.clear()
 
 	print("-- Adrenaline Shot: +3 and +2 on different cards --")
-	var a1 := Card.create_slash()
-	var a2 := Card.create_block()
+	var a1 := Card.create_by_id("slash")
+	var a2 := Card.create_by_id("block")
 	dm.hand.append(a1)
 	dm.hand.append(a2)
 	main._adrenaline_delayed(dm)

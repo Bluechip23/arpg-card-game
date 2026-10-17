@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_xkl1j"]
+
+[resource]
+script = ExtResource("1_xkl1j")
+card_id = "heavy_swing"
+card_name = "Heavy Swing"
+description = "Can only be played if only offensive cards are in your hand. Deal 20 damage."
+mana_cost = 30
+damage = 20
+tempo_cost = 3
+resolve_tick = 2
+base_damage = 20
+slot_labels = [11, 9, 12]
+keywords = ["attack", "offensive", "melee"]

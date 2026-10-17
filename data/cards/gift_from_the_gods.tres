@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_sr78u"]
+
+[resource]
+script = ExtResource("1_sr78u")
+card_id = "gift_from_the_gods"
+card_name = "Gift from the Gods"
+description = "Gain 3 Enlightened (10% crit chance; one stack is consumed per attack)."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 40
+target_types = ["self"]
+keywords = ["utility"]

@@ -154,7 +154,7 @@ func _test_level_overrides() -> void:
 	# new cards are constructed on the next equip.
 	var relic = Fixtures.mythic_gauntlets()
 	relic.granted_cards_built = true
-	var stale := Card.create_dagger_throw()
+	var stale := Card.create_by_id("dagger_throw")
 	stale.granted_by_item = relic
 	relic.granted_card_instances.append(stale)
 	relic.level_3_overrides["granted_card_ids"] = ["healing_potion"]
@@ -174,7 +174,7 @@ func _test_fodder_rules() -> void:
 		inv.store_item(Fixtures.sword())
 
 	# A fodder copy with a slotted card is protected
-	var card = Card.create_slash()
+	var card = Card.create_by_id("slash")
 	inv.stored_items[1].slot_card(card)
 	_check(ItemForge.get_fodder_copies(inv, target).size() == 2,
 		"copies holding enchanted cards are not fodder")
@@ -185,7 +185,7 @@ func _test_fodder_rules() -> void:
 	# player's is lost.
 	var granting = inv.stored_items[2]
 	granting.granted_cards_built = true
-	var granted := Card.create_dagger_throw()
+	var granted := Card.create_by_id("dagger_throw")
 	granted.granted_by_item = granting
 	granting.granted_card_instances.append(granted)
 	_check(ItemForge.get_fodder_copies(inv, target).has(granting),
@@ -209,7 +209,7 @@ func _test_mythic_molding() -> void:
 
 	# Having been equipped (granted-card instances built) does not block molding.
 	a.granted_cards_built = true
-	var a_card := Card.create_dagger_throw()
+	var a_card := Card.create_by_id("dagger_throw")
 	a_card.granted_by_item = a
 	a.granted_card_instances.append(a_card)
 

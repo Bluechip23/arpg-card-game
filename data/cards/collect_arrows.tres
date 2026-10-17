@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_2vhtx"]
+
+[resource]
+script = ExtResource("1_2vhtx")
+card_id = "collect_arrows"
+card_name = "Collect Arrows"
+description = "Place two chosen attack cards from your discard pile back into your hand. Glut: 15 tempo."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 30
+target_types = ["self"]
+slot_labels = [1]
+keywords = ["utility"]
+glut_tempo = 15

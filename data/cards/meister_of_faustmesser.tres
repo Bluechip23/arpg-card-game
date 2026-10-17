@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_ceat5"]
+
+[resource]
+script = ExtResource("1_ceat5")
+card_id = "meister_of_faustmesser"
+card_name = "Meister of Faustmesser"
+description = "Put all zero mana cost cards from discard pile into your hand. Jail: 20."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 0
+tempo_cost = 0
+target_types = ["self"]
+jail_on_play = 20
+slot_labels = [2]
+keywords = ["utility", "self"]

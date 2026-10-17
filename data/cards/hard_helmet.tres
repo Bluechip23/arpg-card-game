@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_dsudp"]
+
+[resource]
+script = ExtResource("1_dsudp")
+card_id = "hard_helmet"
+card_name = "Hard Helmet"
+description = "Instant: when you play a utility card, gain 8 armor and deal 2 damage to the closest enemy."
+card_type = 3
+card_type_name = "Instant"
+mana_cost = 0
+tempo_cost = 0
+target_types = ["self"]
+reaction_trigger = "on_utility_played"

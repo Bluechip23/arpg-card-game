@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_eiq4n"]
+
+[resource]
+script = ExtResource("1_eiq4n")
+card_id = "return_cut"
+card_name = "Return Cut"
+description = "Instant. When an attack fails to break through your armor, immediately counter with a melee strike (+5% crit chance)."
+card_type = 3
+card_type_name = "Reaction"
+mana_cost = 0
+tempo_cost = 0
+target_types = ["self"]
+reaction_trigger = "on_attack_blocked"

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_g45tg"]
+
+[resource]
+script = ExtResource("1_g45tg")
+card_id = "sprinkle"
+card_name = "Sprinkle"
+description = "Deal 25 damage. Erased after play."
+mana_cost = 0
+damage = 25
+tempo_cost = 0
+base_damage = 25
+shop_excluded = true
+erase_on_play = true

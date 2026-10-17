@@ -50,7 +50,7 @@ func _initialize() -> void:
 	_check(_labels("charge").is_empty() and not Card.create_by_id("charge").is_slottable(), "Charge is deck-only")
 	_check(_labels("reckless_strike") == [K.AXE, K.HAMMER, K.SWORD], "Reckless Strike: Axe / Hammer / Sword (missing comma on the sheet)")
 	_check(_labels("friendship") == [K.STAFF, K.WAND, K.GEM, K.SWORD], "Friendship: the sheet's 'swrod' is Sword")
-	_check(Card.create_slash().slot_labels.is_empty(), "the Attack card carries no label")
+	_check(Card.create_by_id("slash").slot_labels.is_empty(), "the Attack card carries no label")
 	# Factories that used to set their own label now read the sheet.
 	_check(_labels("sky_fall") == [K.ARROW, K.WAND], "Sky Fall: Arrow / Wand from the sheet")
 	_check(_labels("last_breath") == [K.STAFF, K.WAND, K.AXE], "Last Breath: Staff / Wand / Axe")
@@ -115,7 +115,7 @@ func _initialize() -> void:
 	om.overcharge_triggered.connect(func(id, _v): fired.append(id))
 	om._process_overcharge(effects[0])
 	_check(fired == ["composed_reaction"] and effects[0].charges == 4, "each overflow spends one of the five")
-	var token := Card.create_composed_reaction()
+	var token := Card.create_by_id("composed_reaction")
 	_check(token.card_type == Card.CardType.REACTION and token.reaction_trigger == "on_damage_taken" and token.linger,
 		"the Composed Reaction is an on-attacked reaction that lingers in a full hand")
 	_check(Card.DROP_EXCLUDED_CARD_IDS.has("composed_reaction"), "…and never drops")

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_nwd4e"]
+
+[resource]
+script = ExtResource("1_nwd4e")
+card_id = "twenty_twenty"
+card_name = "20/20"
+description = "Maintain: gain +3 range on all ranged offensive cards."
+card_type = 5
+card_type_name = "Power"
+mana_cost = 25
+tempo_cost = 3
+target_types = ["self"]
+maintain_cost = 25

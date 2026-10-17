@@ -492,77 +492,13 @@ func handle_overflow() -> void:
 	overflow_manager.process_overflow(card)
 	overflow_triggered.emit("Processed", card)
 
-func play_card(index: int, target, player_node = null, defer_execution: bool = false) -> Dictionary:
-	if index < 0 or index >= hand.size():
-		print("[DECK] Invalid card index: %d" % index)
-		return { "played": false, "half_tempo": false }
-	
-	var card = hand[index]
-	# Timing-safe snapshot for Consecutive Snap: how many uses were complete
-	# BEFORE this play (the sticky counter increments later this function).
-	card.snap_uses_at_play = card.consecutive_uses
-
-	if card.is_jailed():
-		print("[DECK] Cannot play jailed card!")
-		return { "played": false, "half_tempo": false }
-
-	if card.card_type == Card.CardType.UNPLAYABLE:
-		print("[DECK] Cannot play unplayable card: %s" % card.card_name)
-		return { "played": false, "half_tempo": false }
-
-	if card.card_type == Card.CardType.ENCHANTMENT:
-		print("[DECK] Enchantment cards cannot be played — they provide passive buffs while in hand: %s" % card.card_name)
-		return { "played": false, "half_tempo": false }
-
-	if card.card_type == Card.CardType.REACTION:
-		print("[DECK] Reaction cards trigger automatically, cannot be played manually: %s" % card.card_name)
-		return { "played": false, "half_tempo": false }
-	
-	var debuff_mgr = null
-	if player_node and player_node.has_method("get_debuff_manager"):
-		debuff_mgr = player_node.get_debuff_manager()
-	
-	# Engrave: the card only works from inside an equipped item's card slot.
-	if card.requires_engraving and card.slotted_in_item == null:
-		print("[DECK] %s must be engraved into an item before it can be played" % card.card_name)
-		return { "played": false, "half_tempo": false }
-
-	# A world state holding the card (the Bastion's shield still in flight).
-	if card.world_block_reason() != "":
-		print("[DECK] %s cannot be played: %s" % [card.card_name, card.world_block_reason()])
-		return { "played": false, "half_tempo": false }
-
-	if debuff_mgr:
-		_bind_claims(debuff_mgr)
-		if debuff_mgr.card_is_locked(card):
-			print("[DECK] Cannot play card - Locked!")
-			return { "played": false, "half_tempo": false }
-		
-		if not debuff_mgr.can_play_cards():
-			print("[DECK] Cannot play cards - Stunned or Frozen!")
-			return { "played": false, "half_tempo": false }
-		
-		# Disarm blocks PHYSICAL offensive cards (offensive → attack school).
-		# A disarmed caster can still hurl spells; Silence is their counter.
-		if card.card_type == Card.CardType.ATTACK and card.school == Card.CardSchool.PHYSICAL \
-				and not debuff_mgr.can_play_attack_cards():
-			print("[DECK] Cannot play attack cards - Disarmed!")
-			return { "played": false, "half_tempo": false }
-
-		# Silence blocks the SPELL school in ANY role — offense (Fireball),
-		# defense (Magic Barrier), or support (Lady Luck). What matters is the
-		# casting, not what the spell does.
-		if card.school == Card.CardSchool.SPELL and not debuff_mgr.can_play_spell_cards():
-			print("[DECK] Cannot play spell cards - Silenced!")
-			return { "played": false, "half_tempo": false }
-	
-	# Heavy Swing: only playable when the hand holds nothing but OFFENSIVE cards.
-	if card.card_id == "heavy_swing":
-		for hc in hand:
-			if hc != card and not hc.is_offensive():
-				print("[DECK] Heavy Swing needs an all-offensive hand")
-				return { "played": false, "half_tempo": false }
-
+## What a play costs right now: its mana and the Bow of Arash's life half,
+## by every rule play_card applies (Burden, the DEX proc, Specific Strike,
+## belt and on-self discounts, Preparation, fire synergy, debuffs, spell
+## weapons, Grounding, percent-mana cards). `commit` is play_card's own
+## call: it logs each adjustment and records a percent-mana price on the
+## card. Anything else (a preview, the simulator) asks quietly.
+func compute_play_cost(card: Card, index: int, target = null, debuff_mgr = null, commit: bool = false) -> Dictionary:
 	var mana_cost = card.get_burden_mana_cost()  # Burden: +1m per prior play
 	mana_cost -= card.temp_mana_discount  # timed passive discount (Ancestral Aid)
 	if card.is_attack():  # the DEX proc discounts attacks, not spells
@@ -712,7 +648,8 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		return { "played": false, "half_tempo": false }
 
 	if debuff_mgr:
-		if debuff_mgr.is_card_locked(index):
+		_bind_claims(debuff_mgr)
+		if debuff_mgr.card_is_locked(card):
 			print("[DECK] Cannot play card - Locked!")
 			return { "played": false, "half_tempo": false }
 		

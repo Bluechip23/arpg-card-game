@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_xw8rk"]
+
+[resource]
+script = ExtResource("1_xw8rk")
+card_id = "surrounding_ice"
+card_name = "Surrounding Ice"
+description = "Ice stalagmites deal heavy damage two squares around you. 30% miss chance per enemy."
+card_type_name = "Spell"
+mana_cost = 30
+damage = 15
+base_damage = 15
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 2.5
+chance_effect_percent = 70.0
+target_types = ["all_nearby"]
+slot_labels = [16]
+school = 1
+keywords = ["spell", "melee", "aoe", "offensive"]

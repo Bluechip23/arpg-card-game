@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_4svsu"]
+
+[resource]
+script = ExtResource("1_4svsu")
+card_id = "heroic_leap"
+card_name = "Heroic Leap"
+description = "Jump based on STR. Deal damage based on distance leaped."
+mana_cost = 40
+damage = 12
+tempo_cost = 5
+resolve_tick = 4
+base_damage = 12
+is_aoe = true
+aoe_shape = "circle"
+target_types = ["point"]
+slot_labels = [8, 5, 11]
+keywords = ["attack", "offensive", "point"]

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_7dayr"]
+
+[resource]
+script = ExtResource("1_7dayr")
+card_id = "reapers_taking"
+card_name = "Reaper's Taking"
+description = "Instant: when an enemy within 5 squares drops below 25% health, teleport to them and deal 20 damage."
+card_type = 3
+card_type_name = "Instant"
+mana_cost = 0
+tempo_cost = 0
+target_types = ["self"]
+shop_excluded = true
+reaction_trigger = "on_enemy_low_health_nearby"
+school = 1

@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_f240x"]
+
+[resource]
+script = ExtResource("1_f240x")
+card_id = "fireball"
+card_name = "Fireball"
+description = "Hurl a massive fireball. Range +5, 12 damage, apply 3 burn. Costs 1 less mana for each other fire spell cast this turn. AOE circle 4 squares. Can crit."
+card_type_name = "Spell"
+mana_cost = 80
+damage = 12
+tempo_cost = 8
+resolve_tick = 6
+base_damage = 12
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 2.0
+is_ranged = true
+range_modifier = 5
+target_types = ["point"]
+is_fire_spell = true
+slot_labels = [16]
+school = 1
+keywords = ["spell", "ranged", "offensive", "point"]
+element = "red"
+requires_engraving = true

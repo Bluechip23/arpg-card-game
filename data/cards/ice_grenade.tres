@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_bf1tq"]
+
+[resource]
+script = ExtResource("1_bf1tq")
+card_id = "ice_grenade"
+card_name = "Ice Grenade"
+description = "Deal 5 damage and apply 2 Cold in a 2-square radius. Two shots — each aimed separately."
+card_type_name = "Spell"
+mana_cost = 10
+damage = 5
+tempo_cost = 2
+base_damage = 5
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 2.0
+sticky = 2
+is_ranged = true
+target_types = ["point"]
+school = 1
+keywords = ["offensive", "spell"]
+element = "blue"

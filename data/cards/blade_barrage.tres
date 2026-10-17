@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_1pbb7"]
+
+[resource]
+script = ExtResource("1_1pbb7")
+card_id = "blade_barrage"
+card_name = "Blade Barrage"
+description = "Deal X*10 damage where X = the number of attack cards in your hand. Glut: 15 tempo."
+mana_cost = 40
+tempo_cost = 5
+slot_labels = [8, 10]
+keywords = ["attack", "offensive", "melee"]
+glut_tempo = 15

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_yjkj0"]
+
+[resource]
+script = ExtResource("1_yjkj0")
+card_id = "savage_strike"
+card_name = "Savage Strike"
+description = "Deal 6 damage. Add a copy of this card to your discard pile. The copy has Erase 20."
+mana_cost = 20
+damage = 6
+tempo_cost = 2
+base_damage = 6
+slot_labels = [9, 8]
+keywords = ["attack", "offensive", "melee"]

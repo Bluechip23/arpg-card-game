@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_ogcy3"]
+
+[resource]
+script = ExtResource("1_ogcy3")
+card_id = "composed_response"
+card_name = "Composed Response"
+description = "Gain Overflow 5: each overflow creates a Whirling Weapon in your hand — a reaction that, when you are attacked (melee, ranged or spell), gains 5 armor and deals 5 damage to an enemy in melee range."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 30
+tempo_cost = 2
+target_types = ["self"]
+slot_labels = [12]
+keywords = ["utility", "self"]

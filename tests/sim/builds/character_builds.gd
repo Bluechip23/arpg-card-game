@@ -64,7 +64,7 @@ static func _designed_hands(character: String) -> Dictionary:
 					off = str(e[0])
 		var grippable := false
 		if main != "":
-			var it: ItemData = (ItemData as Script).call("create_%s" % main)
+			var it: ItemData = ItemData.create(main)
 			grippable = it.item_type == ItemData.ItemType.WEAPON and not Inventory.is_two_hand_only(it) \
 				and it.weapon_subtype != ItemData.WeaponSubtype.SHIELD
 		out[b] = {"main": main, "off": off, "grippable": grippable}
@@ -122,13 +122,8 @@ static var _engrave_cards: Dictionary = {}   # id -> Card (a template, never slo
 static func engrave_pool() -> Dictionary:
 	if not _engrave_cards.is_empty():
 		return _engrave_cards
-	var script: Script = Card
-	for m in script.get_script_method_list():
-		var mn: String = m["name"]
-		if not mn.begins_with("create_") or m["args"].size() - m["default_args"].size() != 0:
-			continue
-		var c = script.call(mn)
-		if not (c is Card) or c.card_type == Card.CardType.UNPLAYABLE or c.shop_excluded \
+	for c in Card.get_all_cards():
+		if c.card_type == Card.CardType.UNPLAYABLE or c.shop_excluded \
 				or c.card_id.ends_with("_copy") or c.slot_labels.is_empty():
 			continue
 		_engrave_cards[c.card_id] = c
@@ -167,8 +162,10 @@ static func _swap_slot(it: ItemData) -> int:
 
 ## Replace the same-type, same-slot entry of `entries` with item `id`; a
 ## two-hand-only weapon also clears the off hand (a bow keeps its quiver).
-## Returns the id it replaced ("" when it was added to an empty slot).
-static func _place_item(entries: Array, id: String) -> String:
+## `slot_override` puts it in that slot instead of its natural one (a weapon
+## in the off hand: the second weapon of a dual wield). Returns the id it
+## replaced ("" when it was added to an empty slot).
+static func _place_item(entries: Array, id: String, slot_override: int = -1) -> String:
 	var it: ItemData = ItemData.create(id)
 	# Already part of the set (in any slot, or as a mythic's fallback): the
 	# build keeps it where it is; compose then makes sure it is worn.
@@ -544,7 +541,11 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 		for it in fit_items(entries, level, base_mythics)["items"]:
 			if base_mythics.get(str(it[0]), false):
 				allowed_mythics[str(it[0])] = true
-		swapped_item = str(parts["item"])
+		# `item:<id>@offhand` puts a weapon in the off hand (slot 1): the
+		# second weapon of a dual wield rather than the main one.
+		var ispec := str(parts["item"]).split("@")
+		swapped_item = ispec[0]
+		var offhand := ispec.size() > 1 and ispec[1] == "offhand"
 		if not ItemData.ITEM_IDS.has(swapped_item):
 			push_error("[SIM] no item '%s'" % swapped_item)
 			swapped_item = ""
@@ -565,7 +566,7 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 		if main_id == "":
 			two_hand_note = "two_hand: no main-hand weapon to grip"
 			two_hand = false
-		elif Inventory.is_two_hand_only((ItemData as Script).call("create_%s" % main_id)):
+		elif Inventory.is_two_hand_only(ItemData.create(main_id)):
 			two_hand_note = "two_hand: %s is two-handed by nature (no grip to take)" % main_id
 			two_hand = false
 		else:

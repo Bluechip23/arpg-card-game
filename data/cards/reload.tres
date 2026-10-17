@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_4lqn2"]
+
+[resource]
+script = ExtResource("1_4lqn2")
+card_id = "reload"
+card_name = "Reload"
+description = "Draw 3 cards."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 30
+tempo_cost = 3
+target_types = ["self"]
+slot_labels = [1]
+keywords = ["utility", "self"]

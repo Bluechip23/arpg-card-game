@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_hle03"]
+
+[resource]
+script = ExtResource("1_hle03")
+card_id = "ragnarok"
+card_name = "Ragnarok"
+description = "Release all jailed cards into your hand. For each released card: heal 10 and gain 10% crit chance and 5 STR for 10 tempo. Jailed for 30 tempo after play."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 45
+tempo_cost = 5
+target_types = ["self"]
+jail_on_play = 30
+keywords = ["utility"]

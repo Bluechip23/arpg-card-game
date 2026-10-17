@@ -58,8 +58,8 @@ func _test_mauls_sabre() -> void:
 		"red payload: discard 2, +15 damage")
 	# Slot order decides the color. The Sabre is a staff: since slot labels,
 	# only Staff-labelled cards engrave into it.
-	var first = Card.create_fireball()
-	var second = Card.create_spirit_arrow()
+	var first = Card.create_by_id("fireball")
+	var second = Card.create_by_id("spirit_arrow")
 	_check(sabre.slot_card(first) and sabre.slot_card(second), "two cards slot into the staff")
 	_check(sabre.get_slot_color(first) == "blue" and sabre.get_slot_color(second) == "red",
 		"first card takes blue, second takes red")
@@ -73,7 +73,7 @@ func _test_mauls_sabre() -> void:
 	_check(second.get_burden_tempo_cost() == base, "wrong color primed: full tempo again")
 	# An uncolored item is untouched by the machinery.
 	var plain = ItemData.create("pick")
-	var pc = Card.create_raged_circulation()   # Axe-labelled: it really slots
+	var pc = Card.create_by_id("raged_circulation")   # Axe-labelled: it really slots
 	_check(plain.slot_card(pc), "an Axe card slots into the Pick")
 	_check(plain.get_slot_color(pc) == "" and plain.get_slot_effect(pc).is_empty(),
 		"uncolored slots report no color and no payload")

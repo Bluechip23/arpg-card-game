@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_w8dc0"]
+
+[resource]
+script = ExtResource("1_w8dc0")
+card_id = "energy_ball"
+card_name = "Energy Ball"
+description = "Deal X damage where X = total damage done by Absorb Essence. Erased after use."
+card_type_name = "Spell"
+mana_cost = 10
+tempo_cost = 1
+is_ranged = true
+range_modifier = 1
+erase_on_play = true
+school = 1
+keywords = ["spell", "ranged", "offensive"]

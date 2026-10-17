@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_2fqdo"]
+
+[resource]
+script = ExtResource("1_2fqdo")
+card_id = "down_town"
+card_name = "Down Town"
+description = "Shoot a very long range shot of +7 range. Deal normal auto weapon damage."
+mana_cost = 30
+damage = 3
+tempo_cost = 5
+base_damage = 3
+is_ranged = true
+range_modifier = 7
+slot_labels = [1]
+keywords = ["attack", "offensive"]

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_8uu7y"]
+
+[resource]
+script = ExtResource("1_8uu7y")
+card_id = "infest"
+card_name = "Infest"
+description = "A rat brood squirming in your pack. In 5 tempo, if it is still in your hand, it hatches into 2 Wererats. Play (50 mana, 0 tempo) to erase it, or discard it."
+card_type = 2
+card_type_name = "Curse"
+mana_cost = 50
+tempo_cost = 0
+target_types = ["self"]
+linger = true
+erase_on_play = true
+hatch_tempo = 5
+hatch_tempo_left = 5

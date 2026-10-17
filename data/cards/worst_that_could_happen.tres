@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_7g56b"]
+
+[resource]
+script = ExtResource("1_7g56b")
+card_id = "worst_that_could_happen"
+card_name = "What's the Worst?"
+description = "5 damage. 50% for +15 damage, 50% to stun target for 5 tempo."
+mana_cost = 30
+damage = 5
+tempo_cost = 7
+base_damage = 5
+rng_outcomes_data = [{
+&"percent": 50.0
+}, {
+&"percent": 50.0
+}]
+slot_labels = [11]
+keywords = ["attack", "offensive", "melee"]

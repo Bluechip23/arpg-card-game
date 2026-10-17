@@ -72,7 +72,7 @@ func _initialize() -> void:
 
 	# --- 3) A jailed slotted card survives a swap round trip ---
 	var sword := _make_weapon("Test Sword", 1)
-	var jailed_card := Card.create_slash()
+	var jailed_card := Card.create_by_id("slash")
 	jailed_card.card_keyword = Card.CardKeyword.SWORD  # swords take Sword-labeled cards
 	_check(sword.slot_card(jailed_card), "a labeled slash slots into the sword")
 	_check(inv.equip_item(sword, 1), "sword equips in slot 1")
@@ -97,7 +97,7 @@ func _initialize() -> void:
 	_check(jailed_card.jail_time_remaining == 15, "same jail time remains after swapping back")
 
 	# --- 4) A produced card detaches: an unrelated swap never removes it ---
-	var produced := Card.create_heal()  # neither granted nor slotted -> owns itself
+	var produced := Card.create_by_id("heal")  # neither granted nor slotted -> owns itself
 	deck.discard_pile.append(produced)
 	inv.unequip_item(ItemData.ItemType.WEAPON, 0)  # remove the blade
 	_check(deck.discard_pile.has(produced), "produced card stays put when another item is removed")

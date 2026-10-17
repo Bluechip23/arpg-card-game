@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_p1f0u"]
+
+[resource]
+script = ExtResource("1_p1f0u")
+card_id = "petey_the_pet_rock"
+card_name = "Petey the Pet Rock"
+description = "On Draw: Draw 3 cards. On Discard: Discard 2 cards. While in hand: Slowed 2."
+card_type = 4
+card_type_name = "Utility"
+mana_cost = 0
+tempo_cost = 0
+target_types = []
+has_on_draw = true
+on_draw_effect = "draw_3_cards"
+slot_labels = [2]
+keywords = ["unplayable"]
+has_on_discard = true
+on_discard_effect = "discard_2_cards"
+in_hand_debuff = "slowed_2"

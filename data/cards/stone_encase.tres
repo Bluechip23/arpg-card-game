@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_ab47d"]
+
+[resource]
+script = ExtResource("1_ab47d")
+card_id = "stone_encase"
+card_name = "Stone Encase"
+description = "Gain 50 armor and become stunned for 5 tempo."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 45
+tempo_cost = 5
+target_types = ["self"]
+keywords = ["defense"]

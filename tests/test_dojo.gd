@@ -161,7 +161,7 @@ func _test_layout(holder: Node3D, gm: GridManager) -> void:
 func _test_snapshot() -> void:
 	print("-- Entry snapshot --")
 	var main_script = load("res://scripts/core/main.gd")
-	var live_card := Card.create_slash()
+	var live_card := Card.create_by_id("slash")
 	var progression := {
 		"stats": {"current_health": 12, "gold": 3},
 		"deck_state": {

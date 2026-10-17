@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_grw13"]
+
+[resource]
+script = ExtResource("1_grw13")
+card_id = "harden"
+card_name = "Harden"
+description = "Gain 10% physical resistance for 15 tempo and 10 armor."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 30
+block = 10
+base_block = 10
+target_types = ["self"]
+slot_labels = [13, 12]
+keywords = ["defense", "self"]

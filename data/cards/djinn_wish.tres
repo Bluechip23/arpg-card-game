@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_uy6q7"]
+
+[resource]
+script = ExtResource("1_uy6q7")
+card_id = "djinn_wish"
+card_name = "Wish"
+description = "The Djinn's gift. Sears you for 3 every cycle it stays in your hand. Play (60 mana, 0 tempo) to be rid of it."
+card_type = 2
+card_type_name = "Curse"
+mana_cost = 60
+tempo_cost = 0
+target_types = ["self"]
+linger = true
+erase_on_play = true
+held_damage_per_cycle = 3

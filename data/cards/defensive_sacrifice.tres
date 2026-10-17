@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_6m5x4"]
+
+[resource]
+script = ExtResource("1_6m5x4")
+card_id = "defensive_sacrifice"
+card_name = "Defensive Sacrifice"
+description = "Instant: when an enemy attack lands on you, you may discard a card of your choice — if you do, halve the damage and gain 10 mana. Decline and this card stays in your hand."
+card_type = 3
+card_type_name = "Instant"
+mana_cost = 0
+tempo_cost = 0
+target_types = ["self"]
+shop_excluded = true
+reaction_trigger = "on_player_attacked_choice"

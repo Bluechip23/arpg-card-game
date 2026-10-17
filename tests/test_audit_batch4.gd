@@ -19,10 +19,10 @@ func _initialize() -> void:
 	# --- D1: every maintain card names its reserve on its face ("Maintain 3M:")
 	# and reserves exactly that much (x10 mana scale) ---
 	var maintain_cards := [
-		Card.create_halo(),
-		Card.create_armored_discipline(),
-		Card.create_cultish_wounds(),
-		Card.create_fountain_of_life(),
+		Card.create_by_id("halo"),
+		Card.create_by_id("armored_discipline"),
+		Card.create_by_id("cultish_wounds"),
+		Card.create_by_id("fountain_of_life"),
 	]
 	var num_maintain := RegEx.create_from_string("^Maintain (\\d+)M:")
 	for card in maintain_cards:
@@ -33,7 +33,7 @@ func _initialize() -> void:
 				"%s reserve (%d) matches its face (%sM)" % [card.card_name, card.maintain_cost, m.get_string(1)])
 
 	# --- D1: Halo's face now scales the right number (the heal, not the cost) ---
-	var halo = Card.create_halo()
+	var halo = Card.create_by_id("halo")
 	var shown = halo.get_display_description({"heal": 8, "heal_base": 3})
 	_check("]8[/color] HP" in shown,
 		"Halo's scaled heal lands on the HP number (got: %s)" % shown)

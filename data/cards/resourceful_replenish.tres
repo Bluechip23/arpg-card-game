@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_0o6fa"]
+
+[resource]
+script = ExtResource("1_0o6fa")
+card_id = "resourceful_replenish"
+card_name = "Resourceful Replenish"
+description = "Maintain: your attacks heal you for 5% of the damage dealt."
+card_type = 5
+card_type_name = "Power"
+mana_cost = 20
+tempo_cost = 2
+target_types = ["self"]
+maintain_cost = 20

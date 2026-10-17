@@ -113,7 +113,7 @@ func _test_fight() -> void:
 	_check(main.enemy_spawner.get_enemy_at_position(sp.position) == null, "cannot be picked at its square")
 	_check(main._get_nearest_enemy() != sp, "the auto-aim skips it")
 	_check(main._nearest_enemy_to(main.player.position, main.enemy_spawner.get_living_enemies()) != sp, "summon targeting skips it")
-	_check(not main._is_target_in_card_range(Card.create_slash(), sp), "no card has it in range")
+	_check(not main._is_target_in_card_range(Card.create_by_id("slash"), sp), "no card has it in range")
 	_check("Invisible" in _effect_names(sp), "an Invisible badge shows")
 	_check(str(sp.get_effect_tooltip("Invisible")["desc"]).length() > 0, "the badge has a tooltip")
 	if sp._enemy_figure and "_sprite" in sp._enemy_figure and sp._enemy_figure._sprite:
@@ -212,7 +212,7 @@ func _test_fight() -> void:
 	print("-- Ash Harpy: Card Steal --")
 	pdm.clear_all_debuffs()
 	while deck.hand.size() < 3:
-		deck.hand.append(Card.create_slash())
+		deck.hand.append(Card.create_by_id("slash"))
 	var far_harpy: Enemy = _spawn(main, Enemy.EnemyType.ASH_HARPY, start + Vector2i(3, 1))
 	_check(far_harpy._try_card_steal(main.player), "spotted from 3 squares: it flies in")
 	_check(far_harpy._stolen_card == null and not far_harpy._harpy_steal_used, "nothing stolen yet from out of melee")
@@ -228,7 +228,7 @@ func _test_fight() -> void:
 	_check(h._harpy_steal_used and not h._try_card_steal(main.player), "once per harpy")
 	var stolen: Card = h._stolen_card
 	while deck.hand.size() < deck.get_hand_cap():
-		deck.hand.append(Card.create_slash())
+		deck.hand.append(Card.create_by_id("slash"))
 	var cap: int = deck.get_hand_cap()
 	h.die()
 	_check(stolen in deck.hand and deck.hand.size() == cap + 1, "on death the card returns, past the hand cap (%d/%d)" % [deck.hand.size(), cap])

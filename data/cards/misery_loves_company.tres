@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_s6558"]
+
+[resource]
+script = ExtResource("1_s6558")
+card_id = "misery_loves_company"
+card_name = "Misery Loves Company"
+description = "Your next AOE attack spreads the debuffs on yourself and all enemies hit to all the enemies that are hit."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 50
+tempo_cost = 1
+target_types = ["self"]
+slot_labels = [7, 11]
+school = 1
+keywords = ["utility", "spell", "self"]

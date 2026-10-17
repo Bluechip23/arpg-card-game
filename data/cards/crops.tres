@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_fdar5"]
+
+[resource]
+script = ExtResource("1_fdar5")
+card_id = "crops"
+card_name = "Crops"
+description = "Grow 5 berry bushels at random within 8 squares of you. An ally who walks over one eats it for 20 life and 20 mana. Bushels stay until eaten."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 70
+tempo_cost = 7
+target_types = ["self"]
+shop_excluded = true
+school = 1
+keywords = ["utility", "spell"]

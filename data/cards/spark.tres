@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_ordjl"]
+
+[resource]
+script = ExtResource("1_ordjl")
+card_id = "spark"
+card_name = "Spark"
+description = "Deal 3 damage. Subtract 2 tempo from 2 random cards in your hand. In 15 tempo, add 2 tempo to two random cards in your hand."
+card_type_name = "Spell"
+mana_cost = 10
+damage = 3
+tempo_cost = 3
+base_damage = 3
+is_ranged = true
+range_modifier = -2
+school = 1
+keywords = ["offensive", "spell", "ranged"]

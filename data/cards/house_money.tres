@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_il5fv"]
+
+[resource]
+script = ExtResource("1_il5fv")
+card_id = "house_money"
+card_name = "House Money"
+description = "Your next odds will automatically trigger."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 40
+tempo_cost = 5
+target_types = ["self"]
+school = 1
+keywords = ["utility", "spell"]

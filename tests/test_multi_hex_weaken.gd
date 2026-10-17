@@ -39,7 +39,7 @@ func _initialize() -> void:
 
 	# --- Two hexes are two instances, each claiming its own card ---
 	for i in range(3):
-		deck.hand.append(Card.create_slash())
+		deck.hand.append(Card.create_by_id("slash"))
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.HEXED, 30, 25))
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.HEXED, 30, 25))
 	_check(dm.get_hexed_debuffs().size() == 2, "two hex applications = two instances")
@@ -70,7 +70,7 @@ func _initialize() -> void:
 
 	# --- More hexes than cards: they stack onto shared cards ---
 	deck.hand.clear()
-	deck.hand.append(Card.create_slash())
+	deck.hand.append(Card.create_by_id("slash"))
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.HEXED, 30, 25))
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.HEXED, 30, 25))
 	deck.assign_hexed_locked_cards(dm)

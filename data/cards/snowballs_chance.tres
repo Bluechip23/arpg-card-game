@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_le528"]
+
+[resource]
+script = ExtResource("1_le528")
+card_id = "snowballs_chance"
+card_name = "A Snowball's Chance"
+description = "Searing fire 3 spaces forward dealing 10 damage to all enemies in its path. 50% to also spread shot 5 snowballs in front of you, each dealing 4 damage (range 5, each stops at the first enemy it hits)."
+card_type_name = "Spell"
+mana_cost = 20
+damage = 10
+tempo_cost = 3
+base_damage = 10
+is_aoe = true
+aoe_shape = "line"
+aoe_range = 3.0
+rng_outcomes_data = [{
+&"percent": 50.0
+}]
+target_types = ["point"]
+slot_labels = [6, 14, 16]
+school = 1
+keywords = ["spell", "point", "melee", "offensive"]

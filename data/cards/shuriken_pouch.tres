@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_ov52m"]
+
+[resource]
+script = ExtResource("1_ov52m")
+card_id = "shuriken_pouch"
+card_name = "Shuriken Pouch"
+description = "Manifest 3: Overflow cards become Shuriken. Each Shuriken deals 3 damage to a random enemy (free, ranged, counts as attack)."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 30
+tempo_cost = 2
+target_types = ["self"]
+slot_labels = [2, 1]
+keywords = ["utility", "self"]

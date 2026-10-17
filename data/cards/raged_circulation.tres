@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_uwsch"]
+
+[resource]
+script = ExtResource("1_uwsch")
+card_id = "raged_circulation"
+card_name = "Raged Circulation"
+description = "Target receives 30% more from healing and regen for 15 tempo."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 20
+tempo_cost = 2
+is_ranged = true
+target_types = ["ally"]
+slot_labels = [9, 14, 16, 8]
+keywords = ["utility", "ally", "ranged"]

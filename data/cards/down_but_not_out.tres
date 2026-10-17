@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_fiyey"]
+
+[resource]
+script = ExtResource("1_fiyey")
+card_id = "down_but_not_out"
+card_name = "Down but not out"
+description = "Heal 1 health for each stack of debuff on your character."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 50
+tempo_cost = 2
+target_types = ["self"]
+slot_labels = [3, 7, 6]
+keywords = ["defense", "self"]

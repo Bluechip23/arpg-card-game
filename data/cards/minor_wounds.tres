@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_bgtd7"]
+
+[resource]
+script = ExtResource("1_bgtd7")
+card_id = "minor_wounds"
+card_name = "Minor Wounds"
+description = "On draw, deal 2 damage to self. Erase: 40 (in your hand or the draw or discard pile; frozen while jailed)."
+card_type = 4
+card_type_name = "Status"
+mana_cost = 0
+damage = 2
+tempo_cost = 0
+base_damage = 2
+target_types = []
+has_on_draw = true
+on_draw_effect = "deal_2_self"
+erase_tempo = 40
+erase_tempo_remaining = 40
+keywords = ["unplayable"]

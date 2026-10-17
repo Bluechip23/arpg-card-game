@@ -183,7 +183,26 @@ func _test_slots_take_any_card() -> void:
 	var buckler_card = Card.create_by_id("shield_slam")
 	_check(wall.can_slot_card(buckler_card) and wall.slot_card(buckler_card),
 		"a Buckler card slots into a shield")
-	_check(not wall.can_slot_card(Card.create_slice()), "an unlabeled card does not (deck-only)")
+	_check(not wall.can_slot_card(Card.create_by_id("slice")), "an unlabeled card does not (deck-only)")
+	var arrow = Card.create_by_id("improvised_ammo")
+	if arrow:
+		_check(not wall.can_slot_card(arrow), "nor does an Arrow card")
+	# An item-granted card can never be slotted, shields included.
+	var granted = Card.create_by_id("huck")
+	granted.granted_by_item = wall
+	_check(not wall.can_slot_card(granted), "a shield's own granted card cannot be slotted back in")
+
+func _test_slots_take_buckler_cards() -> void:
+	# Since slot labels (2026-09-19) a shield takes Buckler-labelled cards; an
+	# unlabeled card is deck-only and a card labelled for something else
+	# (an Arrow) goes where its label says.
+	print("-- Shield slots take Buckler cards --")
+	var wall = ItemData.create("castle_wall")
+	_check(wall.card_slots == 2, "Castle wall has 2 slots")
+	var buckler_card = Card.create_by_id("shield_slam")
+	_check(wall.can_slot_card(buckler_card) and wall.slot_card(buckler_card),
+		"a Buckler card slots into a shield")
+	_check(not wall.can_slot_card(Card.create_by_id("slice")), "an unlabeled card does not (deck-only)")
 	var arrow = Card.create_by_id("improvised_ammo")
 	if arrow:
 		_check(not wall.can_slot_card(arrow), "nor does an Arrow card")

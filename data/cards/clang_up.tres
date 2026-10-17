@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_7su5i"]
+
+[resource]
+script = ExtResource("1_7su5i")
+card_id = "clang_up"
+card_name = "Clang Up"
+description = "Gain 10 block."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 20
+block = 10
+tempo_cost = 5
+base_block = 10
+target_types = ["self"]
+keywords = ["defense"]

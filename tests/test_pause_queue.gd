@@ -44,8 +44,8 @@ func _run() -> void:
 	# Queue an attack (it winds up over tempo), then pause.
 	# Two attacks: the first begins ticking at once (locked in), the second
 	# waits behind it and can still be pulled.
-	var first := Card.create_slash()
-	var slash := Card.create_slash()
+	var first := Card.create_by_id("slash")
+	var slash := Card.create_by_id("slash")
 	dm.hand.clear()
 	dm.hand.append(first)
 	dm.hand.append(slash)

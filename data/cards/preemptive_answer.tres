@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_a8yfv"]
+
+[resource]
+script = ExtResource("1_a8yfv")
+card_id = "preemptive_answer"
+card_name = "Preemptive Answer"
+description = "Instant: when you drop to 25% health, purge 3 debuffs and heal 20."
+card_type = 3
+card_type_name = "Instant"
+mana_cost = 0
+tempo_cost = 0
+target_types = ["self"]
+reaction_trigger = "on_hp_below_25"

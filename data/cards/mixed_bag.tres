@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_87wdr"]
+
+[resource]
+script = ExtResource("1_87wdr")
+card_id = "mixed_bag"
+card_name = "Mixed Bag"
+description = "Shoot a standard arrow."
+mana_cost = 10
+damage = 7
+tempo_cost = 1
+base_damage = 7
+is_ranged = true
+range_modifier = 3
+slot_labels = [1]

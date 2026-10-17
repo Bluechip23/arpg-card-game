@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_loedp"]
+
+[resource]
+script = ExtResource("1_loedp")
+card_id = "cryonics"
+card_name = "Cryonics"
+description = "Encase an ally in ice for 15 tempo. They cannot act but are untargetable. They heal 3 health per 5 tempo."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 10
+heal_amount = 3
+tempo_cost = 6
+is_ranged = true
+range_modifier = 2
+target_types = ["ally"]
+slot_labels = [14, 16, 8]
+school = 1
+keywords = ["utility", "spell", "ranged"]
