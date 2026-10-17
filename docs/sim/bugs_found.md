@@ -211,3 +211,34 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   restore and re-registers passives only (stat sides skipped), and
   `PlayerStats.add_sphere_grid_passive` drops a duplicate constellation
   passive. `tests/test_iron_will.gd` covers the kill and the re-register.
+
+## 2026-10-17 — third play report (all fixed in this pass)
+
+- **The figure stayed translucent after Invisible ended** (and after
+  death). The restore check read the hidden prototype capsule's material
+  (`player.mesh`), which never reads as faded, so `_set_player_invisible(false)`
+  never ran once the buff was gone. Main now tracks the fade itself and
+  restores the figure on every buff change, every tempo and on death.
+- **The damage preview hid damage the armor would take.** The hover preview
+  returned health damage only, so an armored enemy showed nothing. The
+  preview now shows the armor share in grey and a split as "armor/health",
+  the same reading as the floating numbers after the hit
+  (`calculate_damage_preview_split`).
+- **Timed buffs showed no countdown.** Badges showed xN only for charges,
+  stacks, Thorns and Regen; Understanding's wait, Invisible's tempo and the
+  rest were in the hover window only. Timed buffs now show their remaining
+  tempo on the badge and tick in place (`BuffManager.buffs_ticked`).
+- **"Too heavy" for a mythic below level 15.** Every equip refusal printed
+  its reason to the log and the panel said "too heavy". `Inventory.last_refusal`
+  now carries the real reason (mythic level, duplicate cap, a busy hand, a
+  taken slot, carry) and the panel shows it.
+- **The War Rack's rule was not enforced.** The free exchange auto-two-handed
+  the incoming weapon, but the grip could be released and the plain exchange
+  brought it down one-handed. A weapon in the rack's slot (on the rack, or in
+  hand straight from it) is now held two-handed on either exchange and
+  refuses to be held one-handed until it leaves the slot. The character card
+  and the panel's tooltip spell the rule out.
+- **Character cards stated the old slot counts** (Ryan 3 belts, Jeremy 4
+  rings; the inventories give 2 and 3). Fixed in CharacterData and the quiz.
+- **The town portal stood on its rim**, so the plan-view camera saw its edge.
+  It lies on its back now.

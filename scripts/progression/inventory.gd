@@ -261,6 +261,10 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 			and count_equipped_mythics() >= get_mythic_capacity():
 		var reason = "Mythic limit: level %d allows %d mythic(s) equipped" % [
 			player_stats.current_level if player_stats else 0, get_mythic_capacity()]
+		if get_mythic_capacity() == 0:
+			reason = "A mythic answers only to a seasoned hand — level 15 at the least (you are level %d)" % [
+				player_stats.current_level if player_stats else 0]
+		last_refusal = reason
 		print("[INVENTORY] %s — cannot equip %s" % [reason, item.item_name])
 		return false
 
@@ -270,15 +274,18 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 	if count_equipped_copies(item.item_name, item) >= dupe_cap:
 		var dupe_reason = "Only %d cop%s of %s may be worn at once" % [
 			dupe_cap, "y" if dupe_cap == 1 else "ies", item.item_name]
+		last_refusal = dupe_reason
 		print("[INVENTORY] %s" % dupe_reason)
 		return false
 	
 	if slot_array[slot_index] != null:
+		last_refusal = "That slot is taken"
 		print("[INVENTORY] Slot %d already occupied" % slot_index)
 		return false
 
 	# Two-handing occupies a second hand slot — nothing else fits there.
 	if slot_array == equipped_weapons and two_handed_slot >= 0 and slot_index == two_handed_lock_slot:
+		last_refusal = "That hand is busy two-handing"
 		print("[INVENTORY] Slot %d is locked by two-handing" % slot_index)
 		return false
 
@@ -287,6 +294,7 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 	if slot_array == equipped_weapons:
 		var conflict = hand_conflict_reason(item, slot_index)
 		if conflict != "":
+			last_refusal = conflict
 			print("[INVENTORY] %s: %s" % [item.item_name, conflict])
 			return false
 
@@ -294,6 +302,8 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 	# past capacity. Uses the PROSPECTIVE delta so two-handing discounts and the
 	# dual-wield surcharge (which re-weighs the OTHER hand too) are counted.
 	if not _bulk_build_switch and not _carry_change_allowed(_prospective_weight_delta(item, slot_array, slot_index), two_handed_slot >= 0):
+		last_refusal = "Too heavy — carry %d/%d, item weight %d" % [get_total_weight(),
+			player_stats.get_carry_capacity() if player_stats else 0, item.weight]
 		print("[INVENTORY] %s is too heavy! Carry: %d/%d, item weight %d" % [
 			item.item_name, get_total_weight(),
 			player_stats.get_carry_capacity() if player_stats else 0, item.weight])
@@ -340,6 +350,10 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 	var item = slot_array[slot_index]
 	if item == null:
 		return null
+	# Taken out of the hands by anything but the rack exchange: it has left
+	# the War Rack's slot and may be gripped freely again.
+	if not _bulk_build_switch and item.has_meta("war_rack"):
+		item.remove_meta("war_rack")
 	
 	var is_off_hand = (item.item_type == ItemData.ItemType.WEAPON and
 					   slot_index > 0 and slot_index != two_handed_slot and
@@ -1710,9 +1724,18 @@ func _enable_two_handed(slot_index: int) -> bool:
 		item.item_name, item.weight, floori(item.weight * TWO_HAND_WEIGHT_MULT), lock])
 	return true
 
+## Whether this weapon belongs to the War Rack's slot right now (on the
+## rack, or in hand straight from it): it is never held one-handed.
+func is_war_rack_item(item: ItemData) -> bool:
+	return item != null and item.has_meta("war_rack")
+
 func _disable_two_handed() -> bool:
 	var slot_index = two_handed_slot
 	var item = equipped_weapons[slot_index] if slot_index < equipped_weapons.size() else null
+	if item and is_war_rack_item(item):
+		last_refusal = "%s came down from the War Rack — it is never held one-handed while in that slot" % item.item_name
+		print("[INVENTORY] %s" % last_refusal)
+		return false
 	if item:
 		# Carry gate on reverting: the item's full weight comes back (and the
 	# freed hand may re-form a dual-wield pair, which _effective_item_weight
@@ -2166,13 +2189,17 @@ func rack_exchange(free: bool) -> Dictionary:
 		equip_item(it, next_slot)
 		if first_slot < 0:
 			first_slot = next_slot
-	# The free swap's single incoming item arrives held with both hands (bows
-	# and staffs excepted — they are inherently two-handed already).
-	if free and first_slot >= 0 and _incoming_gets_auto_two_hand(incoming):
+	# The rack's weapon arrives held with both hands (bows and staffs
+	# excepted — they are inherently two-handed already) and stays that way:
+	# an item in the War Rack's slot is never held one-handed.
+	if first_slot >= 0 and _incoming_gets_auto_two_hand(incoming):
 		set_two_handed(first_slot, true)
 	_bulk_build_switch = false
 
 	rack_items = outgoing
+	for it in incoming + outgoing:
+		if it:
+			it.set_meta("war_rack", true)
 	# The rack contents just changed hands — recompute the live carry load
 	# (and stance flags) NOW, not on the next unrelated equip.
 	_recalculate_carry_load()
@@ -2230,6 +2257,7 @@ func rack_store_item(item: ItemData) -> bool:
 	if not has_back_rack or rack_items.size() >= weapon_slots:
 		return false
 	rack_items.append(item)
+	item.set_meta("war_rack", true)
 	rack_changed.emit()
 	print("[INVENTORY] Strapped %s to the war rack" % item.item_name)
 	return true
@@ -2240,6 +2268,7 @@ func rack_take_item(index: int) -> ItemData:
 		return null
 	var item = rack_items[index]
 	rack_items.remove_at(index)
+	item.remove_meta("war_rack")
 	rack_changed.emit()
 	return item
 

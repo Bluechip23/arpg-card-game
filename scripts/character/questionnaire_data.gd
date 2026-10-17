@@ -229,9 +229,9 @@ static func _get_archetype_passive() -> Dictionary:
 
 static func _get_archetype_slot_specialty() -> Dictionary:
 	return {
-		Archetype.WARRIOR: "War Rack: back-slung gear swap",   # Brad
-		Archetype.ROGUE: "3 belt slots",                       # Ryan
-		Archetype.MAGE: "4 ring slots",                        # Jeremy
+		Archetype.WARRIOR: "War Rack: swap to a weapon held two-handed for free, instantly bringing its cards to your hand. *This item can never be held 1-handed while in this slot.",  # Brad
+		Archetype.ROGUE: "2 belt slots",  # Ryan
+		Archetype.MAGE: "3 ring slots",  # Jeremy
 		Archetype.ARCHER: "Standard slots",                    # Stephen
 		Archetype.MONK: "2 gauntlet slots",                    # Cory
 	}

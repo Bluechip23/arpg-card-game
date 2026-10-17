@@ -121,18 +121,21 @@ static func _make_count_pill() -> Label:
 	lbl.z_index = 1
 	return lbl
 
-func _badge_count() -> int:
-	## The number shown as xN — what is left of the effect: charges for
-	## charge-based buffs, else stacks, else the remaining count of a buff
-	## that burns its value down per use (Thorns lose 1 per hit, Regen 1 per
-	## cycle). Timed-only buffs show no count; the hover window has the clock.
+func _badge_text() -> String:
+	## What is left of the effect: "xN" charges for charge-based buffs, else
+	## stacks, else the count of a buff that burns its value down per use
+	## (Thorns lose 1 per hit, Regen 1 per cycle); a timed buff shows its
+	## remaining tempo as a plain countdown (Understanding's "4", "3", "2"…),
+	## so the player sees when to make use of it. "" shows nothing.
 	if buff.is_charge_based() and buff.charges > 0:
-		return buff.charges
+		return "x%d" % buff.charges
 	if buff.stacks > 1:
-		return buff.stacks
+		return "x%d" % buff.stacks
 	if buff.value > 0 and buff.buff_type in [Buff.BuffType.THORNS, Buff.BuffType.REGEN]:
-		return buff.value
-	return -1
+		return "x%d" % buff.value
+	if buff.duration > 0:
+		return "%d" % buff.duration
+	return ""
 
 func update_display() -> void:
 	if not buff:
@@ -159,9 +162,9 @@ func update_display() -> void:
 	_glyph_rect.texture = tex
 	_glyph_rect.visible = tex != null
 
-	var n := _badge_count()
-	_count_label.text = ("x%d" % n) if n > 0 else ""
-	_count_label.visible = n > 0
+	var badge := _badge_text()
+	_count_label.text = badge
+	_count_label.visible = badge != ""
 	var pill := _count_label.get_theme_stylebox("normal") as StyleBoxFlat
 	if pill:
 		pill.border_color = col.lightened(0.2)

@@ -145,7 +145,7 @@ static func create_ryan() -> CharacterData:
 		{"name": "Shadow Blade", "description": "Hidden in the shadows, weaving in and out of combat, striking enemies when they least expect it, and where they are the weakest."},
 	]
 	data.passive_description = "Belt cards cost 1 less mana"
-	data.slot_specialty = "3 belt slots"
+	data.slot_specialty = "2 belt slots"
 	data.sprite_path = "res://assets/characters/ryan_south.png"
 	return data
 
@@ -170,7 +170,7 @@ static func create_jeremy() -> CharacterData:
 		{"name": "Poltergeist", "description": "Master of death and hatred, instilling sheer agony on your enemies is your main objective."},
 	]
 	data.passive_description = "Every 3rd cycle, the first ring trigger triggers twice"
-	data.slot_specialty = "4 ring slots"
+	data.slot_specialty = "3 ring slots"
 	data.sprite_path = "res://assets/characters/jeremy_south.png"
 	return data
 
@@ -277,7 +277,7 @@ static func create_brad() -> CharacterData:
 		]},
 	]
 	data.passive_description = "Chest items weigh 20% less"
-	data.slot_specialty = "War Rack: back-slung gear swap"
+	data.slot_specialty = "War Rack: swap to a weapon held two-handed for free, instantly bringing its cards to your hand. *This item can never be held 1-handed while in this slot."
 	data.sprite_path = "res://assets/characters/brad_south.png"
 	return data
 

@@ -130,7 +130,11 @@ func _initialize() -> void:
 			labeled = Card.create_by_id(c.card_id)
 			break
 	if labeled != null:
-		deck.draw_pile.remove_at(deck.draw_pile.size() - 1)  # one slash out, the labeled card in
+		# One base Slash out (the pile was shuffled: find one), the labeled card in.
+		for i in range(deck.draw_pile.size()):
+			if deck.draw_pile[i].card_id == "slash" and deck.draw_pile[i].slotted_in_item == null:
+				deck.draw_pile.remove_at(i)
+				break
 		deck.draw_pile.append(labeled)
 		_check(deck.get_total_deck_size() == 25, "swapping a base card keeps the total at 25")
 		_check(inv.enchant_card(labeled, rack) and deck.get_total_deck_size() == 25 and deck.get_deck_size() == 11,

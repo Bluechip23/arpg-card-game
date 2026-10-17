@@ -23,7 +23,15 @@ func pin_front(control: Control) -> void:
 func connect_manager(manager: BuffManager) -> void:
 	buff_manager = manager
 	buff_manager.buffs_changed.connect(_on_buffs_changed)
+	buff_manager.buffs_ticked.connect(_refresh_counts)
 	_refresh_display()
+
+## The clock moved: every badge redraws its countdown in place (no rebuild,
+## so an open hover window stays open).
+func _refresh_counts() -> void:
+	for child in get_children():
+		if child is BuffIconUI:
+			child.update_display()
 
 func _on_buffs_changed() -> void:
 	_refresh_display()

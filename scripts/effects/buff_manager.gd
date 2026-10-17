@@ -9,6 +9,9 @@ signal buffs_changed
 ## already invisible is not "entering"). Main offers the player the
 ## invisibility draw on it.
 signal invisibility_entered
+## Fired when timed buffs tick (their remaining tempo changed, nothing came
+## or went): the badges refresh their countdown without rebuilding.
+signal buffs_ticked
 
 var buffs: Array[Buff] = []
 var owner_stats = null  # PlayerStats - untyped to avoid circular dependency
@@ -349,6 +352,8 @@ func advance_time(amount: int) -> void:
 	if expired.size() > 0:
 		_recompute_might()
 		buffs_changed.emit()
+	elif not buffs.is_empty() or understanding_tempo > 0:
+		buffs_ticked.emit()
 
 func process_turn_end() -> void:
 	# Regen and Smith: lose 1 value at end of turn (Smith is "Regen for armor").
@@ -439,9 +444,12 @@ func _sync_generic(key: String, present: bool, display_name: String, desc: Strin
 	var existing = _get_generic(key)
 	if present:
 		if existing:
+			var ticked: bool = existing.duration != tempo or existing.stacks != max(count, 1)
 			existing.duration = tempo
 			existing.description = desc
 			existing.stacks = max(count, 1)
+			if ticked:
+				buffs_ticked.emit()
 		else:
 			# Append directly — apply_buff() matches by buff_type only and would
 			# wrongly merge distinct GENERIC badges.

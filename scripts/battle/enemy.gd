@@ -6204,30 +6204,60 @@ func _spawn_damage_number(amount: int, was_exposed: bool = false, armor_amount: 
 # DAMAGE PREVIEW
 # ============================================
 
-func show_damage_preview(amount: int) -> void:
-	## Show a red damage number above the enemy's head as a preview.
-	if amount <= 0:
+var _armor_preview_label: Label3D = null  # the grey "armor/" half of a split preview
+
+func _make_preview_label() -> Label3D:
+	var lbl := Label3D.new()
+	lbl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	lbl.no_depth_test = true
+	lbl.render_priority = 60
+	lbl.outline_size = 10
+	lbl.outline_modulate = Color(0, 0, 0, 0.8)
+	lbl.position = Vector3(0, 2.0, 0)
+	add_child(lbl)
+	return lbl
+
+func show_damage_preview(amount: int, armor_amount: int = 0) -> void:
+	## Preview above the enemy's head of what the selected card would do:
+	## red for the health damage, grey for what the armor would take, and
+	## "armor/health" (grey/red, a little smaller) when the hit would split —
+	## the same reading as the floating numbers after the hit.
+	if amount <= 0 and armor_amount <= 0:
 		hide_damage_preview()
 		return
-
 	if not _damage_preview_label:
-		_damage_preview_label = Label3D.new()
-		_damage_preview_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		_damage_preview_label.no_depth_test = true
-		_damage_preview_label.render_priority = 60
-		_damage_preview_label.outline_size = 10
-		_damage_preview_label.outline_modulate = Color(0, 0, 0, 0.8)
-		add_child(_damage_preview_label)
-
-	_damage_preview_label.text = str(amount)
-	_damage_preview_label.font_size = 30 if amount >= 15 else 24
-	_damage_preview_label.modulate = Color(1.0, 0.2, 0.2, 0.9)
-	_damage_preview_label.position = Vector3(0, 2.0, 0)
+		_damage_preview_label = _make_preview_label()
+	if not _armor_preview_label:
+		_armor_preview_label = _make_preview_label()
+	var font: Font = ThemeDB.fallback_font
+	if amount > 0 and armor_amount > 0:
+		var size := 26 if (amount >= 15 or armor_amount >= 15) else 20
+		var left := "%d/" % armor_amount
+		var right := str(amount)
+		_armor_preview_label.text = left
+		_armor_preview_label.font_size = size
+		_armor_preview_label.modulate = Color(ARMOR_NUMBER_COLOR, 0.9)
+		_armor_preview_label.offset = Vector2(-font.get_string_size(left, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x * 0.5, 0)
+		_damage_preview_label.text = right
+		_damage_preview_label.font_size = size
+		_damage_preview_label.modulate = Color(1.0, 0.2, 0.2, 0.9)
+		_damage_preview_label.offset = Vector2(font.get_string_size(right, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x * 0.5, 0)
+		_armor_preview_label.visible = true
+		_damage_preview_label.visible = true
+		return
+	_armor_preview_label.visible = false
+	var shown := amount if amount > 0 else armor_amount
+	_damage_preview_label.text = str(shown)
+	_damage_preview_label.font_size = 30 if shown >= 15 else 24
+	_damage_preview_label.modulate = Color(1.0, 0.2, 0.2, 0.9) if amount > 0 else Color(ARMOR_NUMBER_COLOR, 0.9)
+	_damage_preview_label.offset = Vector2.ZERO
 	_damage_preview_label.visible = true
 
 func hide_damage_preview() -> void:
 	if _damage_preview_label and is_instance_valid(_damage_preview_label):
 		_damage_preview_label.visible = false
+	if _armor_preview_label and is_instance_valid(_armor_preview_label):
+		_armor_preview_label.visible = false
 
 #endregion
 #region STATUS EFFECTS

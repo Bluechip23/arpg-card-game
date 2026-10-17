@@ -169,7 +169,7 @@ func _split_windows() -> void:
 	_war_rack_btn.custom_minimum_size = Vector2(80, 26)
 	_war_rack_btn.focus_mode = Control.FOCUS_NONE
 	_war_rack_btn.add_theme_font_size_override("font_size", 13)
-	_war_rack_btn.tooltip_text = "Open the War Rack: the slot on Brad's back for the\ntwo-handed weapon he swaps to and away from."
+	_war_rack_btn.tooltip_text = "Open the War Rack: the slot on Brad's back. Swap to the weapon there,\nheld two-handed, for free — its cards come straight to your hand.\n*An item in this slot is never held one-handed."
 	_war_rack_btn.visible = false
 	_war_rack_btn.pressed.connect(_open_war_rack_panel)
 	inv_header.add_child(_war_rack_btn)
