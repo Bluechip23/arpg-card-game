@@ -1646,8 +1646,15 @@ func is_two_hand_locked_slot(slot_index: int) -> bool:
 	## True for the empty hand slot consumed by two-handing.
 	return two_handed_slot >= 0 and slot_index == two_handed_lock_slot
 
+## A shield can be braced two-handed, but what that is worth is still being
+## designed: for now the stance grants a shield nothing (flip this on to
+## restore the old extra Basic Block armor of weight / the damage divisor).
+const TWO_HAND_SHIELD_BONUS_ENABLED := false
+
 func get_two_hand_block_bonus(shield: ItemData) -> int:
 	## Extra Basic Block armor when THIS shield is the item braced two-handed.
+	if not TWO_HAND_SHIELD_BONUS_ENABLED:
+		return 0
 	if shield == null or get_two_handed_item() != shield:
 		return 0
 	return floori(shield.weight / TWO_HAND_WEIGHT_DAMAGE_DIVISOR)
@@ -2071,14 +2078,13 @@ func rack_weapon() -> ItemData:
 	return rack_items[0] if not rack_items.is_empty() else null
 
 ## Why this item cannot be strapped to the rack ("" when it can): the rack
-## holds one weapon; shields and quivers are not weapons to hold two-handed.
+## holds one weapon — a shield counts (it is braced two-handed); a quiver
+## is not a weapon and cannot be held at all.
 func rack_store_reason(item: ItemData) -> String:
 	if not has_back_rack:
 		return "No war rack"
 	if item == null or item.item_type != ItemData.ItemType.WEAPON:
-		return "Only a weapon goes on the War Rack"
-	if item.weapon_subtype == ItemData.WeaponSubtype.SHIELD:
-		return "A shield cannot be held two-handed — it has no place on the War Rack"
+		return "Only a weapon (or shield) goes on the War Rack"
 	if rack_is_deployed():
 		return "The rack's weapon is in hand — wait for it to return"
 	if not rack_items.is_empty():

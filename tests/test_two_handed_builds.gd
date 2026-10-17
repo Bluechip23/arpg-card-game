@@ -66,7 +66,8 @@ func _initialize() -> void:
 	_check(stats.get_carry_capacity() == base_cap, "capacity restores in full")
 	_check(stats.two_hand_damage_bonus == 0, "damage bonus cleared")
 
-	# --- A braced shield gains Basic Block armor from its weight ---
+	# --- A braced shield: no bonus until the designer settles what it gets
+	# (Inventory.TWO_HAND_SHIELD_BONUS_ENABLED gates the old +weight/25 block armor) ---
 	# With only 2 hand slots, bracing needs the other hand free: stow the
 	# greatsword first, brace the tower shield, then take the sword back.
 	_check(inv.unequip_to_storage(ItemData.ItemType.WEAPON, 0), "greatsword stows to make room for the brace")
@@ -79,7 +80,8 @@ func _initialize() -> void:
 	_check(inv.equip_item(tower, 1), "tower shield equips in slot 1")
 	_check(inv.set_two_handed(1, true), "tower shield braces two-handed")
 	_check(stats.two_hand_damage_bonus == 0, "braced shield grants no damage bonus")
-	_check(inv.get_two_hand_block_bonus(tower) == 2, "braced shield: +2 Basic Block armor (60/25)")
+	_check(inv.get_two_hand_block_bonus(tower) == (2 if Inventory.TWO_HAND_SHIELD_BONUS_ENABLED else 0),
+		"braced shield: Basic Block bonus %d (gate %s)" % [inv.get_two_hand_block_bonus(tower), str(Inventory.TWO_HAND_SHIELD_BONUS_ENABLED)])
 	inv.set_two_handed(1, false)
 	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
 	_check(inv.equip_item(sword, 0), "greatsword re-equips after the brace test")

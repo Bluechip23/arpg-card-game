@@ -1724,9 +1724,7 @@ func _open_war_rack_panel() -> void:
 		for i in range(inventory.stored_items.size()):
 			var it: ItemData = inventory.stored_items[i]
 			if it == null or it.item_type != ItemData.ItemType.WEAPON:
-				continue
-			if it.weapon_subtype == ItemData.WeaponSubtype.SHIELD:
-				continue  # a shield cannot be held two-handed
+				continue  # weapons and shields; a quiver cannot be held
 			any = true
 			var row = HBoxContainer.new()
 			row.add_theme_constant_override("separation", 6)

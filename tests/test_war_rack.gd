@@ -1,8 +1,8 @@
 extends SceneTree
 ## Brad's War Rack — a slot of its own holding ONE weapon, always held
 ## two-handed:
-##   * Brad-only; one weapon; no shields; the racked weapon counts its full
-##     weight.
+##   * Brad-only; one weapon (a shield counts, a quiver does not); the racked
+##     weapon counts its full weight.
 ##   * rack_deploy (free): hand gear set aside, the weapon in hand two-handed,
 ##     its cards rushed to HAND, a 20-tempo return clock and a 60-tempo
 ##     cooldown (both on raw tempo).
@@ -64,7 +64,7 @@ func _initialize() -> void:
 	var hammer = Fixtures.mastery_sledge()  # weight 90, grants Heavy Swing
 	var sword = Fixtures.sword()
 	var shield = Fixtures.shield()
-	_check(not inv.rack_store_item(shield) and inv.last_refusal.find("shield") >= 0, "a shield is refused: %s" % inv.last_refusal)
+	_check(not inv.rack_store_item(Fixtures.quiver()) and inv.last_refusal.find("weapon") >= 0, "a quiver is refused: %s" % inv.last_refusal)
 	_check(inv.rack_store_item(hammer) and inv.rack_weapon() == hammer, "the hammer straps on")
 	_check(inv.is_war_rack_item(hammer), "and belongs to the rack's slot")
 	_check(not inv.rack_store_item(Fixtures.sword()) and inv.last_refusal.find("one weapon") >= 0, "a second weapon is refused: %s" % inv.last_refusal)
@@ -133,6 +133,18 @@ func _initialize() -> void:
 		"the bow comes down (two-handed by nature, no bonus stance)")
 	inv.advance_rack_tempo(20)
 	_check(inv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == sword and inv.rack_weapon() == bow2, "and goes back up after 20")
+
+	# --- A shield on the rack: braced two-handed, no bonus for now ---
+	inv.rack_take_item(0)
+	var tower = Fixtures.shield()
+	_check(inv.rack_store_item(tower), "a shield straps on")
+	inv.rack_cooldown_tempo = 0
+	_check(inv.rack_deploy()["success"] and inv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == tower and inv.two_handed_slot == 0,
+		"the shield comes down braced two-handed")
+	_check(inv.get_two_hand_block_bonus(tower) == 0, "and the brace grants it nothing yet")
+	_check(not inv.set_two_handed(0, false), "its grip cannot be released either")
+	inv.advance_rack_tempo(20)
+	_check(inv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == sword and inv.rack_weapon() == tower, "and it goes back up after 20")
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
