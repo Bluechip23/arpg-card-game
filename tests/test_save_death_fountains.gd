@@ -31,13 +31,13 @@ func _initialize() -> void:
 	quit(1 if failures > 0 else 0)
 
 func _test_progression_io() -> void:
-	var bow := ItemData.create_short_bow()
+	var bow := ItemData.create("short_bow")
 	bow.level_up()  # Lv 2
-	var slotted := Card.create_slash()
+	var slotted := Card.create_by_id("slash")
 	bow.slotted_cards.append(slotted)
 	var helm_slot: Array[ItemData] = [null]
 	var weapons: Array[ItemData] = [bow, null]
-	var stash: Array[ItemData] = [ItemData.create_wooden_sword()]
+	var stash: Array[ItemData] = [ItemData.create("wooden_sword")]
 	var tree := SkillTreeData.create_tree_for("Brad")
 	tree.rows[0].chosen_index = 2
 	tree.rows[1].chosen_index = 1
@@ -48,7 +48,7 @@ func _test_progression_io() -> void:
 		"inventory": {
 			"equipped_helms": helm_slot, "equipped_weapons": weapons,
 			"stored_items": [] as Array[ItemData], "stash_items": stash, "rack_items": [],
-			"stored_cards": [Card.create_block()], "culling_stones": 7, "mythic_molds": 1, "rack_cooldown_tempo": 3,
+			"stored_cards": [Card.create_by_id("block")], "culling_stones": 7, "mythic_molds": 1, "rack_cooldown_tempo": 3,
 		},
 	}
 	var disk := ProgressionIO.to_disk(live)
@@ -81,7 +81,7 @@ func _test_progression_io() -> void:
 	inventory.equipped_weapons = inv["equipped_weapons"]
 	var dm = load("res://scripts/cards/deck_manager.gd").new()
 	get_root().add_child(dm)
-	var deck_slash := Card.create_slash()
+	var deck_slash := Card.create_by_id("slash")
 	dm.draw_pile.append(deck_slash)
 	inventory.relink_slotted_cards(dm)
 	_check(w0.slotted_cards.size() == 1 and w0.slotted_cards[0] == deck_slash and deck_slash.slotted_in_item == w0,

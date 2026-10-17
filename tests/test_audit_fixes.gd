@@ -40,7 +40,7 @@ func _initialize() -> void:
 	stats.initialize(CharacterData.create_ryan())
 	stats.current_mana = 0.0
 	stats.apply_empower(2)
-	var block_card = Card.create_block()
+	var block_card = Card.create_by_id("block")
 	block_card.execute(null, stats, null)
 	_check(stats.current_armor == block_card.block,
 		"block under Empower grants its full armor (got %d)" % stats.current_armor)

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_dgsk2"]
+
+[resource]
+script = ExtResource("1_dgsk2")
+card_id = "hope_this_works"
+card_name = "Hope This Works"
+description = "50% to heal ally 5 and provide STR for 3 attacks."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 20
+tempo_cost = 3
+rng_outcomes_data = [{
+&"percent": 50.0
+}]
+target_types = ["ally"]
+slot_labels = [8]
+school = 1
+keywords = ["utility", "ally", "spell"]

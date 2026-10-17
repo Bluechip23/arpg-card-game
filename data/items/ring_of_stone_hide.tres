@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_plfkd"]
+
+[resource]
+script = ExtResource("1_plfkd")
+item_name = "Ring of Stone Hide"
+item_type = 2
+item_type_name = "Ring"
+rarity = 2
+weight = 5
+strength_bonus = 4
+mana_bonus = 125
+block_bonus_to_defense_cards = 4
+description = "+125 mana. +4 STR, +4 block on block-applying cards. Every 100 block gained, encase yourself in stone skin for 15 tempo: 10% resistance to ALL damage."

@@ -68,7 +68,7 @@ func _test_captain_planet() -> void:
 	# the test sees both copies.
 	dm.draw_pile.clear()
 	dm.discard_pile.clear()
-	var ring := ItemData.create_captain_planets_circlet()
+	var ring := ItemData.create("captain_planets_circlet")
 	main._on_custom_ring_fired(ring, "captain_planet", 0)
 	var copies: Array = []
 	for c in dm.hand:

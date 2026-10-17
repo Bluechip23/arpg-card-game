@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_7dn0q"]
+
+[resource]
+script = ExtResource("1_7dn0q")
+card_id = "smoke_bomb"
+card_name = "smoke bomb"
+description = "A puff of smoke (2-square radius): allies inside are invisible and gain 10% crit chance while they stay in it. Lasts 8 tempo. Jailed for 20 after play."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 30
+tempo_cost = 2
+target_types = ["point"]
+jail_on_play = 20
+keywords = ["utility"]

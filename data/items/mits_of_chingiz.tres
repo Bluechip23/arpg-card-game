@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_m8xou"]
+
+[resource]
+script = ExtResource("1_m8xou")
+item_name = "Mits of Chingiz"
+item_type = 5
+item_type_name = "Gauntlets"
+rarity = 2
+weight = 5
+strength_bonus = 5
+determination_bonus = 2
+agility_bonus = 2
+granted_card_ids = Array[String](["stance_switch"])
+gauntlet_skill_type = 2
+gauntlet_skill_name = "3 count"
+gauntlet_skill_description = "Playing two offensive cards in a row adds a Switch Kick to your hand."
+gauntlet_skill_cooldown = 4
+gauntlet_skill_effect_id = "three_count"
+description = "+2 DET, +5 STR, +2 AGI. Grants Stance Switch: remove 10 armor from the enemy and apply 2 Vulnerable. 3 count: playing two offensive cards in a row adds a Switch Kick to your hand (20 tempo CD)."

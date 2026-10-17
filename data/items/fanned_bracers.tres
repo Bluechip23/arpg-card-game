@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_su8yc"]
+
+[resource]
+script = ExtResource("1_su8yc")
+item_name = "Fanned Bracers"
+item_type = 5
+item_type_name = "Gauntlets"
+rarity = 1
+weight = 15
+health_bonus = 20
+hand_size_bonus = 1
+gauntlet_skill_type = 1
+gauntlet_skill_name = "Fan Save"
+gauntlet_skill_description = "Inflict 1 stack of Weaken (target deals 30% less damage; a stack is consumed per attack)."
+gauntlet_skill_cooldown = 2
+gauntlet_skill_mana_cost = 25
+gauntlet_skill_effect_id = "fan_save"
+description = "+20 life, +1 hand size. Skill — Fan Save: inflict 1 Weaken — the enemy deals 30% less damage, one stack consumed per attack (25 mana, 10 tempo CD)."

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_27mdw"]
+
+[resource]
+script = ExtResource("1_27mdw")
+card_id = "healing_potion"
+card_name = "Healing Potion"
+description = "Heal 5. "
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 10
+heal_amount = 5
+tempo_cost = 1
+target_types = ["self"]
+slot_labels = [2]
+keywords = ["utility", "self"]

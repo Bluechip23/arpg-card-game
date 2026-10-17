@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_hx7ph"]
+
+[resource]
+script = ExtResource("1_hx7ph")
+item_name = "Guardian Greaves"
+item_type = 4
+item_type_name = "Boots"
+rarity = 3
+level_3_description = "+6 INT, +5 WIS, +6 STR. Each cycle, restore 6 health and 60 mana to all allies (you included) within 4 squares, and grant them 5% physical resistance while they stay inside. Grants Mend: restore 40% health and 40% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
+weight = 40
+strength_bonus = 5
+intelligence_bonus = 5
+wisdom_bonus = 4
+granted_card_ids = Array[String](["mend"])
+ally_regen_per_cycle = 6
+ally_mana_per_cycle = 60
+ally_regen_radius = 4
+ally_physical_resist = 5.0
+description = "+5 INT, +4 WIS, +5 STR. Each cycle, restore 6 health and 60 mana to all allies (you included) within 4 squares, and grant them 5% physical resistance while they stay inside. Grants Mend: restore 20% health and 20% mana and grant armor to all allies within 4 squares based on health restored (30 mana, 4 tempo)."
+appearance = "Holy plate warboots, steel banded in gold and winged at the ankle, with a healing light spilling out of the seams."
+appearance_icon = "res://assets/items/mythic/guardian_greaves.png"

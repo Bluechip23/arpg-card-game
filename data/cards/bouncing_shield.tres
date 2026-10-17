@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_a76gl"]
+
+[resource]
+script = ExtResource("1_a76gl")
+card_id = "bouncing_shield"
+card_name = "Bouncing Shield"
+description = "Throw the shield: 5 damage to each enemy it bounces through (up to 5, each within 5 squares of the last). Every target hit returns 5 block and 10 temporary mana that may sit above your maximum, for 15 tempo. It is in the air for 10 tempo: half your armor goes with it and returns when it does, and it cannot be thrown again until then."
+mana_cost = 55
+damage = 5
+base_damage = 5
+is_ranged = true
+shop_excluded = true

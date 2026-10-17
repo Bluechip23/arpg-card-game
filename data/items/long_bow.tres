@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_nbad3"]
+
+[resource]
+script = ExtResource("1_nbad3")
+item_name = "Long Bow"
+item_type_name = "Bow"
+rarity = 1
+weight = 25
+dexterity_bonus = 2
+agility_bonus = 4
+health_bonus = 5
+weapon_subtype = 1
+card_slots = 2
+on_self_damage = 2
+on_self_range_offensive = 2
+description = "+2 DEX, +4 AGI, +5 health. 2 card slots. On-self: +2 range and +2 damage."

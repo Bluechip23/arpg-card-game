@@ -4,7 +4,7 @@ extends Node3D
 ## Billboard Sprite3D character for battle, drawing the Mana Seed sprite packs
 ## (see scripts/demo/sprite_character.gd for the 2D demo equivalent).
 ##
-## Drop-in visual replacement for CharacterFigure: exposes the same verbs the
+## The one battle figure for playable characters: exposes the verbs the
 ## Player facade calls (play_action, set_walking, set_facing_from_velocity,
 ## face_toward, set_translucent, set_highlight, pop_*). Card actions the sprite
 ## sheets can't express fall back to a small set of readable motions
@@ -172,6 +172,21 @@ func setup(character_name: String, _sprite_path: String = "") -> void:
 
 static func supports(character_name: String) -> bool:
 	return ROSTER.has(character_name)
+
+
+## The roster preset whose sheets a character wears. Presets resolve by their
+## base name; quiz-built characters and pre-`base_character` saves carry a
+## preset's passive, so they resolve through that; anything else wears Brad's
+## sheet (setup()'s own default).
+static func preset_for(data: CharacterData) -> String:
+	var base := data.get_base_character()
+	if ROSTER.has(base):
+		return base
+	if data.passive_description != "":
+		for preset in CharacterData.get_all_characters():
+			if preset.passive_description == data.passive_description:
+				return preset.character_name
+	return "Brad"
 
 
 func _setup_doll(outfit: String, hair: String, hat: String = "") -> void:

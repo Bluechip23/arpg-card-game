@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_yt4cg"]
+
+[resource]
+script = ExtResource("1_yt4cg")
+item_name = "Roman Bracers"
+item_type = 5
+item_type_name = "Gauntlets"
+rarity = 1
+weight = 5
+strength_bonus = 5
+health_bonus = 15
+hand_size_bonus = 1
+gauntlet_skill_type = 1
+gauntlet_skill_name = "Slice"
+gauntlet_skill_description = "Perform a basic melee attack for 2 tempo."
+gauntlet_skill_cooldown = 2
+gauntlet_skill_mana_cost = 5
+gauntlet_skill_effect_id = "slice"
+card_slots = 1
+on_self_melee_damage = 5
+description = "+15 life, +5 STR, +1 hand size. On-self: +5 damage on melee cards. Skill — Slice: a basic melee attack costing 2 tempo (10 tempo CD)."

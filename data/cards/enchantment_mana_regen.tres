@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_dg0iq"]
+
+[resource]
+script = ExtResource("1_dg0iq")
+card_id = "enchantment_mana_regen"
+card_name = "Enchantment: Mana Regen"
+description = "Gain +1 mana regen while this is in your hand. Discards after 2 cycles."
+card_type = 6
+card_type_name = "Enchantment"
+mana_cost = 0
+tempo_cost = 0
+target_types = []
+slot_labels = [3]
+keywords = ["enchantment"]
+in_hand_buff = "mana_regen_1"

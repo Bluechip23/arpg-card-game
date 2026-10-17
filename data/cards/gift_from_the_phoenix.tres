@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_7h7rr"]
+
+[resource]
+script = ExtResource("1_7h7rr")
+card_id = "gift_from_the_phoenix"
+card_name = "Gift from the Phoenix"
+description = "Instant: When your Health drops below 50%, heal up to 80% and apply 5 burn to the nearest enemy."
+card_type = 3
+card_type_name = "Reaction"
+mana_cost = 0
+tempo_cost = 0
+target_types = ["self"]
+reaction_trigger = "on_hp_below_50"
+slot_labels = [3]
+school = 1
+keywords = ["reaction", "spell", "self"]

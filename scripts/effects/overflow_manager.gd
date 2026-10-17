@@ -68,12 +68,6 @@ func get_effects_by_type(type: OverflowEffect.OverflowType) -> Array[OverflowEff
 			results.append(effect)
 	return results
 
-func has_effect_type(type: OverflowEffect.OverflowType) -> bool:
-	for effect in overflow_effects:
-		if effect.overflow_type == type:
-			return true
-	return false
-
 func get_first_effect_of_type(type: OverflowEffect.OverflowType) -> OverflowEffect:
 	for effect in overflow_effects:
 		if effect.overflow_type == type:

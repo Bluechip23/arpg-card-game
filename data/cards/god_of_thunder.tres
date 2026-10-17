@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_tacpw"]
+
+[resource]
+script = ExtResource("1_tacpw")
+card_id = "god_of_thunder"
+card_name = "God of Thunder"
+description = "Absorb all shock on enemies within a diameter of 8 and cast down a massive bolt of lightning dealing damage based on the amount of shock absorbed."
+card_type_name = "Spell"
+mana_cost = 50
+tempo_cost = 10
+resolve_tick = 8
+is_ranged = true
+range_modifier = 4
+slot_labels = [16, 14, 15, 11]
+school = 1
+keywords = ["spell", "ranged", "enemy", "offensive"]

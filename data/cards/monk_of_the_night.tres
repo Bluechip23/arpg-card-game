@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_xekau"]
+
+[resource]
+script = ExtResource("1_xekau")
+card_id = "monk_of_the_night"
+card_name = "Monk of the Night"
+description = "Maintain: your attack cards grant 10% of their damage as block."
+card_type = 5
+card_type_name = "Power"
+mana_cost = 50
+target_types = ["self"]
+maintain_cost = 50

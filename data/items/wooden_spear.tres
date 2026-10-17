@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_tvw5v"]
+
+[resource]
+script = ExtResource("1_tvw5v")
+item_name = "Wooden Spear"
+weight = 20
+strength_bonus = 3
+dexterity_bonus = 1
+wisdom_bonus = 3
+weapon_subtype = 4
+card_slots = 1
+on_self_apply_bleed = 1
+description = "+3 WIS, +3 STR, +1 DEX. On-self: apply 1 Bleed."

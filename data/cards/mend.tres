@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_7johs"]
+
+[resource]
+script = ExtResource("1_7johs")
+card_id = "mend"
+card_name = "Mend"
+description = "Allies within 4 squares restore 20% health and 20% mana, and gain armor equal to the health restored."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 30
+target_types = ["self"]
+keywords = ["utility"]

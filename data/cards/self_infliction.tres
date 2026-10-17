@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_h1igv"]
+
+[resource]
+script = ExtResource("1_h1igv")
+card_id = "self_infliction"
+card_name = "Self Infliction"
+description = "Deal 80% remaining health in damage to self. Gain 5 determination and 5 strength for 10 tempo."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 20
+tempo_cost = 3
+target_types = ["self"]
+slot_labels = [9, 10, 8]
+keywords = ["utility", "self"]

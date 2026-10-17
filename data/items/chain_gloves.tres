@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_l23uh"]
+
+[resource]
+script = ExtResource("1_l23uh")
+item_name = "Chain Gloves"
+item_type = 5
+item_type_name = "Gauntlets"
+weight = 15
+strength_bonus = 2
+special_effect = 7
+special_effect_value = 1
+gauntlet_skill_type = 1
+gauntlet_skill_name = "Guard"
+gauntlet_skill_description = "Gain 2 armor."
+gauntlet_skill_cooldown = 4
+gauntlet_skill_mana_cost = 5
+gauntlet_skill_effect_id = "chain_guard"
+armor_per_tempo_interval = 15
+description = "+2 STR. Gain 1 unerring armor every 15 tempo. Skill — Guard: gain 2 armor (20 tempo CD)."

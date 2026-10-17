@@ -23,9 +23,9 @@ func _initialize() -> void:
 	var tm = load("res://scripts/battle/tempo_manager.gd").new()
 	tm.initialize(stats)
 
-	var a := Card.create_slash()
-	var b := Card.create_slash()
-	var c := Card.create_block()
+	var a := Card.create_by_id("slash")
+	var b := Card.create_by_id("slash")
+	var c := Card.create_by_id("block")
 
 	_check(not tm.owner_is_busy(0), "an idle owner is not busy (free to move)")
 

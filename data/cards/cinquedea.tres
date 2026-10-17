@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_rbj47"]
+
+[resource]
+script = ExtResource("1_rbj47")
+card_id = "cinquedea"
+card_name = "Cinquedea"
+description = "Deal 6 damage and apply 1 Weaken. Range 4."
+mana_cost = 10
+damage = 6
+tempo_cost = 0
+base_damage = 6
+is_ranged = true
+range_modifier = -1
+shop_excluded = true

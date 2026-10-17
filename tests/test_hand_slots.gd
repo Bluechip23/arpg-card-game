@@ -21,15 +21,15 @@ func _initialize() -> void:
 	print("=== HandSlots test ===")
 
 	# --- Identical cards share a signature; different cards do not ---
-	var s1 := Card.create_slash()
-	var s2 := Card.create_slash()
-	var b1 := Card.create_block()
+	var s1 := Card.create_by_id("slash")
+	var s2 := Card.create_by_id("slash")
+	var b1 := Card.create_by_id("block")
 	_check(s1.get_stack_signature() == s2.get_stack_signature(), "two Slashes share a stack signature")
 	_check(s1.get_stack_signature() != b1.get_stack_signature(), "Slash and Block differ")
 
 	# --- Stacking: 3 Slashes + 1 Block -> two groups (A x3, S x1) ---
 	var hs := HandSlots.new()
-	var hand: Array = [s1, s2, Card.create_slash(), b1]
+	var hand: Array = [s1, s2, Card.create_by_id("slash"), b1]
 	var groups := _slots(hs, hand)
 	_check(groups.size() == 2, "3 Slashes + Block collapse to 2 buttons")
 	_check(groups[0]["slot"] == 0 and groups[0]["cards"].size() == 3, "Slash stack on slot 1 (x3)")
@@ -53,7 +53,7 @@ func _initialize() -> void:
 	hand = [b1]  # only Block remains
 	groups = _slots(hs, hand)
 	_check(groups.size() == 1 and groups[0]["slot"] == 1, "with only Block left, it still holds slot 2")
-	var draw := Card.create_dagger_throw()
+	var draw := Card.create_by_id("dagger_throw")
 	hand = [b1, draw]
 	groups = _slots(hs, hand)
 	var new_group = null
@@ -64,9 +64,9 @@ func _initialize() -> void:
 
 	# --- New distinct cards fill in draw order from A ---
 	var hs2 := HandSlots.new()
-	var c_a := Card.create_slash()
-	var c_s := Card.create_block()
-	var c_d := Card.create_dagger_throw()
+	var c_a := Card.create_by_id("slash")
+	var c_s := Card.create_by_id("block")
+	var c_d := Card.create_by_id("dagger_throw")
 	groups = _slots(hs2, [c_a, c_s, c_d])
 	_check(groups.size() == 3, "three distinct cards -> three buttons")
 	_check(groups[0]["cards"][0] == c_a and groups[1]["cards"][0] == c_s and groups[2]["cards"][0] == c_d,
@@ -74,8 +74,8 @@ func _initialize() -> void:
 
 	# --- Representative skips a jailed copy so the button stays playable ---
 	var hs3 := HandSlots.new()
-	var j1 := Card.create_slash()
-	var j2 := Card.create_slash()
+	var j1 := Card.create_by_id("slash")
+	var j2 := Card.create_by_id("slash")
 	j1.jail_time_remaining = 30  # jailed -> different signature, own slot
 	var hand3: Array = [j1, j2]
 	_check(j1.get_stack_signature() != j2.get_stack_signature(), "a jailed copy splits from the playable one")
@@ -88,8 +88,8 @@ func _initialize() -> void:
 
 	# --- Representative skips the Locked card index within a stack ---
 	var hs4 := HandSlots.new()
-	var k1 := Card.create_slash()
-	var k2 := Card.create_slash()
+	var k1 := Card.create_by_id("slash")
+	var k2 := Card.create_by_id("slash")
 	var hand4: Array = [k1, k2]  # identical, one slot
 	groups = hs4.build_groups(hand4, 0)  # lock hand index 0 (k1)
 	hs4.reconcile(hand4)
@@ -98,10 +98,10 @@ func _initialize() -> void:
 
 	# --- Instant (reaction) cards: all pile into ONE un-lettered stack ---
 	var hs5 := HandSlots.new()
-	var i1 := Card.create_spider_senses()
-	var i2 := Card.create_spider_senses()
-	var i3 := Card.create_gift_from_the_phoenix()  # different instant, same stack
-	var n1 := Card.create_slash()
+	var i1 := Card.create_by_id("spider_senses")
+	var i2 := Card.create_by_id("spider_senses")
+	var i3 := Card.create_by_id("gift_from_the_phoenix")  # different instant, same stack
+	var n1 := Card.create_by_id("slash")
 	_check(i1.get_stack_signature() == i3.get_stack_signature(),
 		"different pure instants share the one instant-stack signature")
 	var hand5: Array = [i1, n1, i2, i3]
@@ -119,7 +119,7 @@ func _initialize() -> void:
 	_check(groups[groups.size() - 1] == inst_group, "instant stack renders last (right end of the fan)")
 
 	# Instants never consume a letter: draw another normal card, it takes S.
-	var n2 := Card.create_block()
+	var n2 := Card.create_by_id("block")
 	hand5.append(n2)
 	groups = _slots(hs5, hand5)
 	for g in groups:
@@ -129,7 +129,7 @@ func _initialize() -> void:
 	# A card with an instant effect that is ALSO normally playable (not
 	# CardType.REACTION, e.g. a maintained Power with a reaction trigger)
 	# stacks like a normal card.
-	var dual := Card.create_slash()
+	var dual := Card.create_by_id("slash")
 	dual.reaction_trigger = "on_damage_taken"
 	_check(not HandSlots.is_instant_sig(dual.get_stack_signature()),
 		"playable card with an instant effect is treated as a normal card")
@@ -139,12 +139,12 @@ func _initialize() -> void:
 	# and copies in two different items never stack with each other. (Cryonics
 	# carries the Sword label, so it fits a Wooden Sword's slot.)
 	var hs6 := HandSlots.new()
-	var p1 := Card.create_cryonics()
-	var p2 := Card.create_cryonics()
-	var e1 := Card.create_cryonics()
-	var e2 := Card.create_cryonics()
-	var sword_a := ItemData.create_wooden_sword()
-	var sword_b := ItemData.create_wooden_sword()
+	var p1 := Card.create_by_id("cryonics")
+	var p2 := Card.create_by_id("cryonics")
+	var e1 := Card.create_by_id("cryonics")
+	var e2 := Card.create_by_id("cryonics")
+	var sword_a := ItemData.create("wooden_sword")
+	var sword_b := ItemData.create("wooden_sword")
 	_check(sword_a.slot_card(e1) and sword_b.slot_card(e2), "Cryonics slots into two Wooden Swords")
 	_check(p1.get_stack_signature() == p2.get_stack_signature(), "two deck Cryonics still share a signature")
 	_check(e1.get_stack_signature() != p1.get_stack_signature(), "a slotted copy splits from the deck copies")
@@ -172,7 +172,7 @@ func _initialize() -> void:
 
 	# Two copies in the SAME item share its bonus, so they do stack together.
 	sword_a.card_slots = 2
-	var e3 := Card.create_cryonics()
+	var e3 := Card.create_by_id("cryonics")
 	_check(sword_a.slot_card(e3), "a second Cryonics slots into sword A's second slot")
 	_check(e3.get_stack_signature() == e1.get_stack_signature(), "two copies in the same item share a signature")
 	hand6.append(e3)

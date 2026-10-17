@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_4h3k5"]
+
+[resource]
+script = ExtResource("1_4h3k5")
+card_id = "enchantment_attack"
+card_name = "Enchantment: Attack"
+description = "Cards deal +3 damage while this is in your hand. Discards after 2 cycles."
+card_type = 6
+card_type_name = "Enchantment"
+mana_cost = 0
+tempo_cost = 0
+target_types = []
+slot_labels = [3]
+keywords = ["enchantment"]
+in_hand_buff = "damage_3"

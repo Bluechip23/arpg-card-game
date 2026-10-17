@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_ipbvr"]
+
+[resource]
+script = ExtResource("1_ipbvr")
+card_id = "fountain_of_life"
+card_name = "Fountain of Health"
+description = "Maintain 3M: Every cycle, deal 2 damage to self and draw a card."
+card_type = 5
+card_type_name = "Power"
+mana_cost = 30
+damage = 2
+base_damage = 2
+target_types = ["self"]
+maintain_cost = 30
+slot_labels = [6, 9]
+keywords = ["power", "self"]

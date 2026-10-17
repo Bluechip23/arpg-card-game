@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_vk0rg"]
+
+[resource]
+script = ExtResource("1_vk0rg")
+item_name = "Sleeved Katar"
+item_type = 5
+item_type_name = "Gauntlets"
+rarity = 2
+weight = 35
+strength_bonus = 5
+dexterity_bonus = 3
+agility_bonus = 3
+granted_card_ids = Array[String](["return_cut"])
+gauntlet_skill_type = 1
+gauntlet_skill_name = "Defense one with offense"
+gauntlet_skill_description = "Gain 5 armor; your next melee offensive card deals +5 damage."
+gauntlet_skill_cooldown = 5
+gauntlet_skill_mana_cost = 15
+gauntlet_skill_effect_id = "defense_one"
+card_slots = 1
+crit_damage_percent = 25.0
+crit_chance_percent = 5.0
+description = "+3 AGI, +5 STR, +3 DEX, +25% crit damage, +5% crit chance. Grants Return Cut (Instant): when an attack fails to break your armor, counter with a melee strike (+5% crit). Skill — Defense one with offense: gain 5 armor and your next melee offensive card gets +5 damage (25 tempo CD)."

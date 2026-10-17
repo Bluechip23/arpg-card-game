@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_bsonk"]
+
+[resource]
+script = ExtResource("1_bsonk")
+item_name = "Vanguard"
+item_type_name = "Shield"
+rarity = 1
+weight = 45
+strength_bonus = 5
+weapon_subtype = 2
+flat_damage_reduction = 3
+regen_per_cycle = 1
+description = "+5 STR. Every hit that reaches you is 3 damage lighter, and you gain 1 Regen every cycle."

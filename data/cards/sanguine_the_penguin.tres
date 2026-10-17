@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_84w64"]
+
+[resource]
+script = ExtResource("1_84w64")
+card_id = "sanguine_the_penguin"
+card_name = "Sanguine the Penguin"
+description = "Instant: at 9 Vitality, the stacks purge and Sanguine the blood penguin waddles forth — 50 HP, stays beside you, 8 damage every 5 tempo; damage he takes heals you half as much."
+card_type = 3
+card_type_name = "Instant"
+mana_cost = 0
+tempo_cost = 0
+target_types = ["self"]
+reaction_trigger = "on_vitality_9"

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_pgq8q"]
+
+[resource]
+script = ExtResource("1_pgq8q")
+card_id = "poof_and_weave"
+card_name = "Poof and Weave"
+description = "Become invisible for 5 tempo, gain 10 armor and draw a card."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 40
+tempo_cost = 5
+target_types = ["self"]
+keywords = ["utility"]

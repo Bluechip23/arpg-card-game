@@ -48,49 +48,12 @@ enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_R
 	# through; seals itself for 10 tempo at 75/50/33%). Tail-appended.
 	HELL_DOOR }
 
-## Intended player level per enemy type — the anchor for the level-gap XP
-## falloff (PlayerStats.get_xp_multiplier): kills more than a few levels below
-## the player pay reduced (eventually zero) XP, so low zones can't be farmed.
-## 0 = no band (mock-ups, XP-less enemies) -> no falloff applied.
-## Bands follow the Act 1 pacing: Sewers 1-5, Graveyard 6-12, Cave 8-15,
-## Forest 12-20 (player hits 25 by end of Act 1).
-const INTENDED_LEVELS := {
-	EnemyType.MINION: 1, EnemyType.ELITE: 5, EnemyType.BOSS: 10,
-	# Sewer
-	EnemyType.WERERAT: 2, EnemyType.ARCHER_RAT: 2, EnemyType.SLUDGE: 2,
-	EnemyType.SWARM: 3, EnemyType.PIPE_CRAWLER: 3,
-	EnemyType.SEWER_CROC: 5, EnemyType.RAT_KING: 5,
-	# Graveyard
-	EnemyType.ZOMBIE: 7, EnemyType.SKELETON: 7, EnemyType.SCREECHER: 8,
-	EnemyType.CRYPT_CRAWLER: 8, EnemyType.WERERABBIT: 8, EnemyType.CONSUMED: 9,
-	EnemyType.WEREWOLF: 10, EnemyType.VAMPIRE: 10, EnemyType.SPIRIT_COLLECTOR: 10,
-	EnemyType.NECROMANCER: 11, EnemyType.BONE_DRAGON: 12, EnemyType.GRAVE_TITAN: 12,
-	EnemyType.GRAVE_DIGGER: 8,  # the Boneyard's digger: band 8, so his 20 HP are his 20 HP
-	# Cave
-	EnemyType.FIRE_GOBLIN_SOLDIER: 9, EnemyType.FIRE_GOBLIN_MAGE: 9,
-	EnemyType.FIRE_GOBLIN_SHAMAN: 10, EnemyType.ARMORED_TROLL: 12, EnemyType.HYDRA: 14,
-	# Forest
-	EnemyType.COYOTE: 12, EnemyType.MINI_BEAR: 13, EnemyType.SPARK_MAGE: 13,
-	EnemyType.WOLF: 14, EnemyType.AIR_MAGE: 14, EnemyType.GIANT_HAWK: 15,
-	EnemyType.ICE_MAGE: 15, EnemyType.FIRE_MAGE: 15, EnemyType.INFECTED_HUNTER: 16,
-	EnemyType.GIANT_BEAVER: 16, EnemyType.EARTH_MAGE: 17, EnemyType.BUGBEAR: 17,
-	EnemyType.LARGE_BEAR: 18, EnemyType.TREANT: 19,
-	# Mountains 20-25 (late Act 1), Underworld ~Act 2, Heavens ~Act 3. All are
-	# past the passive_power_scale clamp, so bands here only gate XP falloff.
-	EnemyType.WYVERN: 21, EnemyType.ICE_TROLL: 22, EnemyType.WHITE_MANTICORE: 23,
-	EnemyType.SNOW_WRAITH: 20, EnemyType.SABERTOOTH: 21, EnemyType.ROC: 22,
-	EnemyType.WEREGOAT: 22, EnemyType.GRANITE_COLOSSUS: 25,
-	EnemyType.IFRIT: 28,
-	EnemyType.MAGMA_SPIDER: 26, EnemyType.SPECTER: 26, EnemyType.ASH_HARPY: 26,
-	EnemyType.SUCCUBUS: 27, EnemyType.MIND_EATER: 27, EnemyType.DEMON: 28,
-	EnemyType.DJINN: 35,
-	EnemyType.CHERUB: 33,
-	EnemyType.CERBERUS: 10,  # the sheet's level column; scaling stays near the sheet's own numbers
-	EnemyType.INFLAMED_MINOTAUR: 9,  # likewise: the boss sheet's level column (350 HP / 100 armor / 35)
-}
 
+## Intended player level for this type (EnemyDefs "intended_level") — the
+## anchor for the level-gap XP falloff (PlayerStats.get_xp_multiplier) and
+## passive_power_scale. 0 = no band (mock-ups, XP-less enemies).
 func get_intended_level() -> int:
-	return int(INTENDED_LEVELS.get(enemy_type, 0))
+	return int(EnemyDefs.DEFS.get(EnemyType.keys()[enemy_type], {}).get("intended_level", 0))
 
 ## Rebalance multipliers for the 15-point passive rework. The hand-tuned base
 ## stats were set against the old FLAT passives, whose values sat around the
@@ -348,7 +311,6 @@ var chosen_action: Dictionary = {}
 ##   "trigger": "evt"   Trigger — fires on the event instead of a clock. Events:
 ##                      "damaged", "exposed", "ally_died", "half_health".
 ##   "label": "Name"    Display name (defaults to name.capitalize()).
-const TRIGGER_EVENTS := ["damaged", "exposed", "ally_died", "half_health"]
 signal action_fired(enemy: Enemy, action_name: String)
 signal channel_broken(enemy: Enemy, action_name: String)  # a Channel collapsed (disrupted)
 var _async_counters: Dictionary = {}     # action name -> tempo counted on its own clock
@@ -431,9 +393,9 @@ var _damage_preview_label: Label3D = null
 # Sprite animation (replaces BoxMesh for enemies with sprite sheets)
 var _enemy_sprite: Sprite3D = null
 var _enemy_animator: CharacterAnimator = null
-# EnemyFigure (procedural 3D) or SpriteEnemyFigure (MonsterKit billboard) —
-# untyped, both expose the same verbs (play_action, flash, set_walking, …).
-var _enemy_figure = null
+# Billboard sprite figure (play_action, flash, set_walking, …); null for
+# types without a figure_kind, which keep the coloured box.
+var _enemy_figure: SpriteEnemyFigure = null
 var _action_map: Dictionary = {}
 
 @onready var mesh: MeshInstance3D = $MeshInstance3D
@@ -452,723 +414,15 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 	enemy_type = type
 	grid_manager = gm
 
-	match enemy_type:
-		EnemyType.MINION:
-			enemy_name = "Minion"
-			max_health = 25
-			attack_damage = 3
-			move_distance = 1.0
-			xp_reward = 5
-			_set_mesh_color(Color(0.8, 0.2, 0.2))
-
-		EnemyType.ELITE:
-			enemy_name = "Elite"
-			max_health = 80
-			attack_damage = 6
-			move_distance = 0.8
-			xp_reward = 10
-			_set_mesh_color(Color(0.6, 0.1, 0.1))
-
-		EnemyType.BOSS:
-			enemy_name = "Boss"
-			max_health = 200
-			attack_damage = 10
-			move_distance = 0.5
-			xp_reward = 25
-			_set_mesh_color(Color(0.4, 0.0, 0.2))
-
-		EnemyType.RING_WRAITH:
-			# The Precious: hunts the ring-bearer through the shadow world.
-			# Shadow form does not hide the player from these.
-			enemy_name = "Ring Wraith"
-			max_health = 100
-			attack_damage = 15
-			move_distance = 5.0
-			xp_reward = 0  # they resummon — no farming the shadow
-			ignores_invisibility = true
-			_set_mesh_color(Color(0.12, 0.1, 0.18))
-
-		EnemyType.WERERAT:
-			enemy_name = "Wererat"
-			max_health = 8
-			attack_damage = 3
-			move_distance = 1.0
-			xp_reward = 3
-			_set_mesh_color(Color(0.5, 0.35, 0.2))  # Brown
-
-		EnemyType.SKELETON:
-			enemy_name = "Skeleton"
-			max_health = 20
-			max_armor = 12
-			attack_damage = 6
-			move_distance = 1.0
-			xp_reward = 7
-			_set_mesh_color(Color(0.85, 0.85, 0.75))  # Bone white
-
-		EnemyType.ARMORED_TROLL:
-			enemy_name = "Armored Troll"
-			max_health = 60
-			max_armor = 40
-			attack_damage = 7
-			move_distance = 2.0       # 2 spaces / 4 tempo
-			xp_reward = 30
-			_set_first_pass_resists(30, 15, 15)
-			_set_mesh_color(Color(0.2, 0.4, 0.15))  # Dark green
-
-		EnemyType.ARCHER_RAT:
-			enemy_name = "Archer Rat"
-			max_health = 6
-			max_armor = 0
-			attack_damage = 2
-			attack_range = 4.0  # Ranged attacker
-			move_distance = 2.0  # Moves 2 tiles when repositioning
-			xp_reward = 4
-			_set_mesh_color(Color(0.6, 0.4, 0.25))  # Light brown
-
-		EnemyType.HYDRA:
-			enemy_name = "Hydra"
-			max_health = 190          # sheet: 190
-			attack_damage = 7         # +accumulated strength
-			attack_range = 1.5        # Melee
-			move_distance = 3.0       # Moves 3 spaces
-			aggro_range = 12.0
-			xp_reward = 60
-			_set_first_pass_resists(25, 25, 25)  # sheet: 25% physical / fire / lightning
-			_set_mesh_color(Color(0.2, 0.55, 0.35))  # Scaled green
-
-		EnemyType.FIRE_GOBLIN_SOLDIER:
-			enemy_name = "Fire Goblin Soldier"
-			max_health = 6
-			attack_damage = 2
-			attack_range = 1.5        # Range 0 — must be adjacent
-			move_distance = 4.0       # Moves 4 spaces
-			xp_reward = 3
-			_set_mesh_color(Color(0.85, 0.35, 0.15))  # Ember orange
-
-		EnemyType.FIRE_GOBLIN_MAGE:
-			enemy_name = "Fire Goblin Mage"
-			max_health = 10
-			attack_damage = 7         # Ember damage
-			attack_range = 4.0
-			move_distance = 2.0
-			xp_reward = 8
-			_set_mesh_color(Color(0.9, 0.45, 0.2))
-
-		EnemyType.FIRE_GOBLIN_SHAMAN:
-			enemy_name = "Fire Goblin Shaman"
-			max_health = 16
-			attack_damage = 6         # Fire wall damage
-			attack_range = 5.0
-			move_distance = 2.0
-			xp_reward = 12
-			_set_mesh_color(Color(0.95, 0.55, 0.25))
-
-		# ===================== FOREST ACT =====================
-		EnemyType.GIANT_BEAVER:
-			enemy_name = "Giant Beaver"
-			max_health = 60
-			attack_damage = 9         # Chomp damage; Tail Whip deals 6
-			attack_range = 1.5
-			move_distance = 3.0       # 3 spaces / 6 tempo
-			xp_reward = 20
-			_set_first_pass_resists(25, 0, 0)
-			_set_mesh_color(Color(0.45, 0.30, 0.18))
-
-		EnemyType.MINI_BEAR:
-			enemy_name = "Mini Bear"
-			max_health = 14
-			attack_damage = 4
-			attack_range = 1.5
-			move_distance = 5.0       # 5 spaces / 5 tempo
-			xp_reward = 6
-			_set_mesh_color(Color(0.40, 0.26, 0.16))
-
-		EnemyType.LARGE_BEAR:
-			enemy_name = "Large Bear"
-			max_health = 90
-			attack_damage = 12
-			attack_range = 1.5
-			move_distance = 6.0       # 6 spaces / 7 tempo
-			xp_reward = 35
-			bleed_on_attack = 4
-			# No base resists — 30% physical arrives (permanently) below 50% HP.
-			_set_mesh_color(Color(0.32, 0.20, 0.12))
-
-		EnemyType.WOLF:
-			enemy_name = "Wolf"
-			max_health = 30
-			attack_damage = 7
-			attack_range = 1.5
-			move_distance = 4.0       # 4 spaces / 3 tempo
-			xp_reward = 12
-			_set_mesh_color(Color(0.45, 0.45, 0.48))
-
-		EnemyType.COYOTE:
-			enemy_name = "Coyote"
-			max_health = 6
-			attack_damage = 2
-			attack_range = 1.5
-			move_distance = 4.0       # 4 spaces / 3 tempo
-			xp_reward = 3
-			_set_mesh_color(Color(0.62, 0.52, 0.36))
-
-		EnemyType.BUGBEAR:
-			enemy_name = "Bugbear"
-			max_health = 50
-			attack_damage = 6
-			attack_range = 1.5
-			move_distance = 6.0       # 6 spaces / 4 tempo
-			xp_reward = 20
-			_set_mesh_color(Color(0.36, 0.30, 0.22))
-
-		EnemyType.INFECTED_HUNTER:
-			enemy_name = "Infected Hunter"
-			max_health = 40
-			attack_damage = 8         # AOE swipe in front
-			attack_range = 1.5
-			move_distance = 2.0       # 2 spaces / 3 tempo
-			aggro_range = 12.0        # so it can hook from range 7
-			xp_reward = 18
-			_set_mesh_color(Color(0.40, 0.50, 0.30))
-
-		EnemyType.GIANT_HAWK:
-			enemy_name = "Giant Hawk"
-			max_health = 28
-			attack_damage = 9
-			attack_range = 2.0
-			move_distance = 8.0       # 8 spaces / 3 tempo
-			xp_reward = 14
-			immune_to_high_ground = true
-			attack_blind_chance = 0.2
-			_set_mesh_color(Color(0.50, 0.38, 0.24))
-
-		EnemyType.TREANT:
-			enemy_name = "Treant"
-			max_health = 110
-			attack_damage = 14
-			attack_range = 1.5
-			move_distance = 9.0       # 9 spaces / 10 tempo
-			aggro_range = 12.0
-			xp_reward = 35
-			damage_type = DamageTypes.Type.EARTH
-			_set_first_pass_resists(25, -10, 55)  # burns easily; grounded against lightning
-			_set_mesh_color(Color(0.32, 0.42, 0.20))
-
-		EnemyType.ICE_MAGE:
-			enemy_name = "Ice Mage"
-			max_health = 40
-			attack_damage = 6
-			attack_range = 3.0
-			move_distance = 3.0       # 3 spaces / 5 tempo
-			xp_reward = 14
-			damage_type = DamageTypes.Type.ICE
-			# (Frost Bolt hardcodes its 1 Slow in _execute_action.)
-			_set_mesh_color(Color(0.55, 0.75, 0.95))
-
-		EnemyType.FIRE_MAGE:
-			enemy_name = "Fire Mage"
-			max_health = 32
-			attack_damage = 7
-			attack_range = 2.0
-			move_distance = 2.0       # 2 spaces / 3 tempo
-			xp_reward = 14
-			damage_type = DamageTypes.Type.FIRE
-			attack_burn = 2
-			_set_mesh_color(Color(0.90, 0.35, 0.20))
-
-		EnemyType.SPARK_MAGE:
-			enemy_name = "Spark Mage"
-			max_health = 16
-			attack_damage = 3
-			attack_range = 6.0
-			move_distance = 2.0       # 2 spaces / 3 tempo
-			xp_reward = 8
-			damage_type = DamageTypes.Type.LIGHTNING
-			attack_shock = 1
-			_set_mesh_color(Color(0.85, 0.85, 0.40))
-
-		EnemyType.AIR_MAGE:
-			enemy_name = "Air Mage"
-			max_health = 30
-			attack_damage = 5
-			attack_range = 8.0
-			move_distance = 6.0       # 6 spaces / 3 tempo
-			xp_reward = 12
-			damage_type = DamageTypes.Type.WIND
-			_set_mesh_color(Color(0.70, 0.85, 0.80))
-
-		EnemyType.EARTH_MAGE:
-			enemy_name = "Earth Mage"
-			max_health = 65
-			attack_damage = 9
-			attack_range = 1.5
-			move_distance = 5.0       # 5 spaces / 5 tempo
-			xp_reward = 18
-			damage_type = DamageTypes.Type.EARTH
-			armor_per_hit = 4
-			_set_mesh_color(Color(0.45, 0.35, 0.25))
-
-		# ===================== GRAVEYARD ACT =====================
-		EnemyType.ZOMBIE:
-			enemy_name = "Zombie"
-			max_health = 12
-			attack_damage = 5
-			attack_range = 1.5
-			move_distance = 3.0
-			xp_reward = 5
-			_set_mesh_color(Color(0.49, 0.57, 0.40))
-
-		EnemyType.WEREWOLF:
-			enemy_name = "Werewolf"
-			max_health = 55
-			attack_damage = 10        # +3 vs armor (armour-piercing)
-			attack_range = 1.5
-			move_distance = 3.0
-			aggro_range = 12.0
-			xp_reward = 22
-			_set_first_pass_resists(25, 25, 25)
-			_set_mesh_color(Color(0.44, 0.45, 0.47))
-
-		EnemyType.WERERABBIT:
-			enemy_name = "Wererabbit"
-			max_health = 25
-			attack_damage = 0         # Loot monster — never attacks
-			attack_range = 0.0
-			move_distance = 2.0
-			xp_reward = 8
-			_set_mesh_color(Color(0.72, 0.70, 0.65))
-
-		EnemyType.VAMPIRE:
-			enemy_name = "Vampire"
-			max_health = 95
-			attack_damage = 10        # Life steal on health damage
-			attack_range = 1.5
-			move_distance = 5.0
-			xp_reward = 24
-			_set_first_pass_resists(10, 10, 10)
-			_set_mesh_color(Color(0.16, 0.15, 0.20))
-
-		EnemyType.NECROMANCER:
-			enemy_name = "Necromancer"
-			max_health = 60
-			attack_damage = 4
-			attack_range = 10.0
-			move_distance = 8.0
-			aggro_range = 14.0
-			xp_reward = 30
-			_set_first_pass_resists(0, 15, 15)
-			_set_mesh_color(Color(0.12, 0.11, 0.16))
-
-		EnemyType.BONE_DRAGON:
-			enemy_name = "Bone Dragon"
-			max_health = 150
-			attack_damage = 12
-			attack_range = 1.5
-			move_distance = 5.0
-			aggro_range = 14.0
-			xp_reward = 80
-			_set_first_pass_resists(45, 45, 0)
-			_set_mesh_color(Color(0.91, 0.89, 0.84))
-
-		EnemyType.SPIRIT_COLLECTOR:
-			enemy_name = "Spirit Collector"
-			max_health = 50
-			attack_damage = 8
-			attack_range = 1.5
-			move_distance = 3.0
-			xp_reward = 20
-			_set_mesh_color(Color(0.60, 0.52, 0.33))
-
-		EnemyType.GRAVE_TITAN:
-			enemy_name = "Grave Titan"
-			max_health = 130
-			max_armor = 30
-			attack_damage = 15
-			attack_range = 1.5
-			move_distance = 4.0
-			aggro_range = 12.0
-			xp_reward = 80
-			_set_mesh_color(Color(0.84, 0.85, 0.87))
-
-		EnemyType.CRYPT_CRAWLER:
-			enemy_name = "Crypt Crawler"
-			max_health = 28
-			attack_damage = 6
-			attack_range = 1.5
-			move_distance = 3.0
-			xp_reward = 12
-			_set_mesh_color(Color(0.20, 0.17, 0.22))
-
-		EnemyType.SCREECHER:
-			enemy_name = "Screecher"
-			max_health = 14
-			attack_damage = 5
-			attack_range = 1.5
-			move_distance = 4.0       # 4 spaces / 2 tempo while invisible
-			xp_reward = 8
-			_set_mesh_color(Color(0.07, 0.07, 0.10))
-
-		EnemyType.CONSUMED:
-			enemy_name = "The Consumed"
-			max_health = 35
-			attack_damage = 8
-			attack_range = 1.5
-			move_distance = 5.0       # 5 spaces / 3 tempo
-			xp_reward = 14
-			_set_mesh_color(Color(0.35, 0.29, 0.28))
-
-		# ===================== SEWER ACT =====================
-		EnemyType.SLUDGE:
-			enemy_name = "Sludge Being"
-			max_health = 10
-			attack_damage = 3
-			attack_range = 6.0        # Can spit at range
-			move_distance = 3.0
-			xp_reward = 4
-			_set_mesh_color(Color(0.25, 0.63, 0.36))
-
-		EnemyType.PIPE_CRAWLER:
-			enemy_name = "Pipe Crawler"
-			max_health = 20
-			attack_damage = 5
-			attack_range = 1.5
-			move_distance = 2.0
-			xp_reward = 8
-			_set_mesh_color(Color(0.48, 0.54, 0.43))
-
-		EnemyType.SEWER_CROC:
-			enemy_name = "Sewer Cobra"
-			max_health = 40
-			max_armor = 20
-			attack_damage = 12
-			attack_range = 1.5
-			move_distance = 2.0
-			aggro_range = 12.0
-			xp_reward = 25
-			_set_mesh_color(Color(0.27, 0.38, 0.23))
-
-		EnemyType.RAT_KING:
-			enemy_name = "Rat King"
-			max_health = 90
-			max_armor = 10
-			attack_damage = 6
-			attack_range = 1.5
-			move_distance = 2.0
-			xp_reward = 60
-			_set_mesh_color(Color(0.5, 0.35, 0.2))
-
-		EnemyType.SWARM:
-			enemy_name = "Swarm"
-			max_health = 10
-			attack_damage = 3
-			attack_range = 1.5
-			move_distance = 8.0       # 8 spaces / 3 tempo — very fast
-			xp_reward = 4
-			_set_mesh_color(Color(0.18, 0.16, 0.13))
-
-		# ===================== MOUNTAINS ACT (elite first pass) =====================
-		EnemyType.ICE_TROLL:
-			enemy_name = "Ice Troll"
-			max_health = 150
-			max_armor = 55
-			attack_damage = 13        # Club; Clobber (auto on freeze) deals 50
-			attack_range = 1.5
-			move_distance = 3.0       # 3 spaces / 3 tempo
-			aggro_range = 12.0
-			xp_reward = 45
-			_set_first_pass_resists(35, 15, 15)
-			_set_mesh_color(Color(0.62, 0.78, 0.88))
-
-		EnemyType.WHITE_MANTICORE:
-			enemy_name = "White Manticore"
-			max_health = 75
-			max_armor = 15
-			attack_damage = 15        # Bite; Stinger deals 25
-			attack_range = 1.5
-			move_distance = 3.0       # 3 spaces / 2 tempo
-			aggro_range = 12.0
-			xp_reward = 40
-			immune_to_high_ground = true  # bat wings
-			_set_first_pass_resists(10, 35, 10)
-			_set_mesh_color(Color(0.88, 0.88, 0.92))
-
-		EnemyType.WYVERN:
-			enemy_name = "Wyvern"
-			max_health = 125
-			attack_damage = 25        # Bite; Talon Grab also deals 25
-			attack_range = 1.5
-			move_distance = 6.0       # 6 spaces / 4 tempo
-			aggro_range = 14.0
-			xp_reward = 40
-			immune_to_high_ground = true  # flier
-			_set_first_pass_resists(25, 35, 25)
-			_set_mesh_color(Color(0.35, 0.45, 0.30))
-
-		# ===================== MOUNTAINS ACT (second pass — the enemy sheet) =====================
-		EnemyType.WEREGOAT:
-			enemy_name = "Weregoat"
-			max_health = 80
-			attack_damage = 6         # Hoof Punch; Charge deals 8 along its path
-			attack_range = 1.5
-			move_distance = 2.0       # 2 spaces / 5 tempo
-			aggro_range = 12.0
-			xp_reward = 20
-			_set_mesh_color(Color(0.55, 0.5, 0.45))
-
-		EnemyType.ROC:
-			enemy_name = "Roc"
-			max_health = 25
-			max_armor = 15
-			attack_damage = 8         # Dive Bomb (the sheet gives no number — first-pass 8)
-			attack_range = 1.5
-			move_distance = 1.0       # 1 space / 1 tempo, always AWAY from the player
-			aggro_range = 12.0
-			xp_reward = 16
-			immune_to_high_ground = true  # flier
-			_set_mesh_color(Color(0.85, 0.75, 0.6))
-
-		EnemyType.SABERTOOTH:
-			enemy_name = "Sabertooth Tiger"
-			max_health = 45
-			attack_damage = 6         # Bite 6 then Claw 3; Sunken Bite 10 + 8 Bleed
-			attack_range = 1.5
-			move_distance = 2.0       # 2 spaces / 2 tempo
-			aggro_range = 12.0
-			xp_reward = 18
-			_set_mesh_color(Color(0.8, 0.65, 0.4))
-
-		EnemyType.SNOW_WRAITH:
-			enemy_name = "Snow Wraith"
-			max_health = 10
-			attack_damage = 5         # Ice Blast; Snowball deals no damage
-			attack_range = 5.0        # the sheet gives no range — thrown, so ranged 5
-			move_distance = 3.0       # 3 spaces / 5 tempo
-			aggro_range = 12.0
-			xp_reward = 8
-			damage_type = DamageTypes.Type.ICE
-			_set_mesh_color(Color(0.8, 0.9, 1.0))
-
-		EnemyType.GRANITE_COLOSSUS:
-			# Stats from the sheet; its moves are still TBD, so it stands.
-			enemy_name = "Granite Colossus"
-			max_health = 350
-			max_armor = 250
-			attack_damage = 0
-			attack_range = 1.5
-			move_distance = 3.0       # 3 spaces / 5 tempo
-			aggro_range = 12.0
-			xp_reward = 120
-			_set_first_pass_resists(65, 50, 50)
-			_set_mesh_color(Color(0.5, 0.5, 0.52))
-
-		# ===================== UNDERWORLD ACT (elite first pass) =====================
-		EnemyType.IFRIT:
-			enemy_name = "Ifrit"
-			max_health = 225
-			attack_damage = 45        # Fire Breath deals 20 + 5 burn in a 5x5
-			attack_range = 1.5
-			move_distance = 5.0       # 5 spaces / 4 tempo
-			aggro_range = 14.0
-			xp_reward = 70
-			_set_first_pass_resists(20, 15, 15)
-			_set_mesh_color(Color(0.85, 0.30, 0.10))
-
-		EnemyType.INFLAMED_MINOTAUR:
-			enemy_name = "Inflamed Minotaur"
-			max_health = 350
-			max_armor = 100
-			attack_damage = 35        # + 2 burn per hit
-			attack_range = 1.5
-			move_distance = 6.0       # 6 spaces / 5 tempo
-			aggro_range = 16.0
-			xp_reward = 90
-			attack_burn = 2
-			_set_first_pass_resists(15, 50, 25)
-			_set_mesh_color(Color(0.55, 0.18, 0.08))
-
-		# ===================== HEAVENS ACT (elite first pass) =====================
-		EnemyType.DJINN:
-			enemy_name = "Djinn"
-			max_health = 180
-			attack_damage = 35        # Chain lightning, per unit hit
-			attack_range = 5.0        # initial cast range 5; bounces reach 4
-			move_distance = 8.0       # 8 spaces / 3 tempo
-			aggro_range = 14.0
-			xp_reward = 80
-			damage_type = DamageTypes.Type.LIGHTNING
-			_set_first_pass_resists(15, 15, 15)
-			_set_mesh_color(Color(0.25, 0.45, 0.85))
-
-		EnemyType.CHERUB:
-			enemy_name = "Cherub"
-			max_health = 14
-			max_armor = 5
-			attack_damage = 2         # Love's Arrow
-			attack_range = 4.0
-			move_distance = 2.0       # 2 spaces / 3 tempo
-			aggro_range = 12.0
-			xp_reward = 10
-			immune_to_high_ground = true  # winged
-			_set_mesh_color(Color(1.0, 0.9, 0.8))
-
-		# ===================== UNDERWORLD ACT (second pass — the enemy sheet) =====================
-		EnemyType.DEMON:
-			enemy_name = "Demon"
-			max_health = 65
-			attack_damage = 8
-			attack_range = 1.5
-			move_distance = 2.0       # 2 spaces / 2 tempo
-			aggro_range = 12.0
-			xp_reward = 24
-			_set_mesh_color(Color(0.7, 0.15, 0.1))
-
-		EnemyType.ASH_HARPY:
-			enemy_name = "Ash Harpy"
-			max_health = 6
-			attack_damage = 3         # Peck
-			attack_range = 1.5
-			move_distance = 1.0       # 1 space / 1 tempo
-			aggro_range = 12.0
-			xp_reward = 4
-			immune_to_high_ground = true  # flier
-			_set_mesh_color(Color(0.4, 0.38, 0.36))
-
-		EnemyType.MAGMA_SPIDER:
-			enemy_name = "Magma Spider"
-			max_health = 4
-			attack_damage = 1         # its Fire Web ticks 1 every 3 tempo
-			attack_range = 1.5
-			move_distance = 0.0       # never moves
-			aggro_range = 8.0
-			xp_reward = 3
-			damage_type = DamageTypes.Type.FIRE
-			_set_mesh_color(Color(0.8, 0.3, 0.1))
-
-		EnemyType.MIND_EATER:
-			enemy_name = "Mind Eater"
-			max_health = 20
-			attack_damage = 0         # it never strikes — it taxes and cuffs
-			attack_range = 6.0        # the sheet gives no range — a caster's 6
-			move_distance = 0.0       # never moves
-			aggro_range = 12.0
-			xp_reward = 12
-			_set_mesh_color(Color(0.6, 0.5, 0.55))
-
-		EnemyType.SPECTER:
-			enemy_name = "Specter"
-			max_health = 10
-			attack_damage = 2         # Spirit Spit
-			attack_range = 2.0
-			move_distance = 1.0       # 1 space / 1 tempo
-			aggro_range = 10.0
-			xp_reward = 4
-			_set_mesh_color(Color(0.2, 0.2, 0.3))
-
-		EnemyType.SUCCUBUS:
-			enemy_name = "Succubus"
-			max_health = 25
-			max_armor = 5
-			attack_damage = 4         # Damaging Snap: missing mana / 20 + 4
-			attack_range = 4.0        # the sheet gives no range — a caster's 4
-			move_distance = 1.0       # 1 space / 2 tempo
-			aggro_range = 12.0
-			xp_reward = 14
-			_set_mesh_color(Color(0.6, 0.2, 0.5))
-
-		EnemyType.DUMMY:
-			# Dojo training dummy: a fat health pool so big hits read as
-			# numbers instead of kills; a lethal blow refills it (take_damage).
-			enemy_name = "Training Dummy"
-			max_health = 500
-			attack_damage = 0
-			attack_range = 0.0
-			move_distance = 0.0
-			aggro_range = 0.0
-			xp_reward = 0
-			is_training_dummy = true
-			_set_mesh_color(Color(0.9, 0.9, 0.85))
-
-		EnemyType.RAT_NEST:
-			# Rat King's Lair: a heap of straw and bones. A structure, not a
-			# creature — it holds its tile, never acts, and counts for nothing
-			# (no XP, no loot, and the wave does not wait on it).
-			enemy_name = "Rat Nest"
-			max_health = 15
-			max_armor = 0
-			attack_damage = 0
-			attack_range = 0.0
-			move_distance = 0.0
-			aggro_range = 0.0
-			xp_reward = 0
-			is_structure = true
-			_set_mesh_color(Color(0.55, 0.42, 0.25))
-
-		EnemyType.GRAVESTONE:
-			# The Boneyard: a headstone. A structure — it holds its tile and
-			# counts for nothing — but every one left standing regenerates
-			# the Bone Dragon 1 health a cycle.
-			enemy_name = "Gravestone"
-			max_health = 10
-			max_armor = 0
-			attack_damage = 0
-			attack_range = 0.0
-			move_distance = 0.0
-			aggro_range = 0.0
-			xp_reward = 0
-			is_structure = true
-			_set_mesh_color(Color(0.55, 0.58, 0.55))
-
-		EnemyType.CERBERUS:
-			# The guardian of Hell's Door (design sheet): 250 HP, 50 armor,
-			# 25-damage bites, 6 spaces a move, resists 30% physical / 40%
-			# fire / 15% lightning. Three heads wake as he weakens; Guardian
-			# of Death and Deathyard Dog below.
-			enemy_name = "Cerberus"
-			max_health = 250
-			max_armor = 50
-			attack_damage = 25
-			attack_range = 1.5
-			move_distance = 6.0       # 6 spaces / 3 tempo
-			aggro_range = 16.0
-			xp_reward = 150
-			_set_first_pass_resists(30, 40, 15)
-			_set_mesh_color(Color(0.3, 0.1, 0.12))
-
-		EnemyType.HELL_DOOR:
-			# Hell's Door: the objective, not a creature. A structure the
-			# player breaks through; at 75%, 50% and 33% it seals itself
-			# against all damage for 10 tempo. Counts as Cerberus's ally.
-			enemy_name = "Hell's Door"
-			max_health = 150
-			max_armor = 0
-			attack_damage = 0
-			attack_range = 0.0
-			move_distance = 0.0
-			aggro_range = 0.0
-			xp_reward = 0
-			is_structure = true
-			_set_mesh_color(Color(0.2, 0.08, 0.08))
-
-		EnemyType.GRAVE_DIGGER:
-			# The Boneyard: walks out of the crypt to a broken gravestone,
-			# takes 8 tempo to set it right (back to full), and is gone.
-			# Never fights; can be cut down on the way (20 HP).
-			enemy_name = "Grave Digger"
-			max_health = 20
-			max_armor = 0
-			attack_damage = 0
-			attack_range = 0.0
-			move_distance = 6.0       # 6 spaces / 2 tempo: he hurries to the stone
-			aggro_range = 0.0
-			xp_reward = 6
-			_set_mesh_color(Color(0.5, 0.55, 0.45))
-
-		_:
-			# Design mock-ups (stats & moves TBD) have no arm yet. Name them so
-			# a stray spawn is identifiable instead of an anonymous default box;
-			# with no actions defined it will simply stand idle.
-			enemy_name = EnemyType.keys()[enemy_type].capitalize()
-			push_warning("[ENEMY] %s is a design mock-up — stats & moves TBD" % enemy_name)
+	var def: Dictionary = EnemyDefs.DEFS.get(EnemyType.keys()[enemy_type], {})
+	if def.is_empty() or def.get("mockup", false):
+		# Design mock-ups (stats & moves TBD) have no stats yet. Name them so
+		# a stray spawn is identifiable instead of an anonymous default box;
+		# with no actions defined it will simply stand idle.
+		enemy_name = EnemyType.keys()[enemy_type].capitalize()
+		push_warning("[ENEMY] %s is a design mock-up — stats & moves TBD" % enemy_name)
+	else:
+		_apply_def(def)
 
 	# Passive-rework rebalance: scale the hand-tuned stats by the enemy's
 	# intended level (see passive_power_scale). XP is deliberately untouched —
@@ -1196,7 +450,7 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 
 	# Custom/generic-tier enemies keep the coloured box, which never had a
 	# contact shadow — the strongest grounding cue — so they read as floating.
-	# Figure kinds attach their own inside SpriteEnemyFigure / EnemyFigure.
+	# Figure kinds attach their own inside SpriteEnemyFigure.
 	if _enemy_figure == null and not has_node("Shadow"):
 		BlobShadow.attach(self, 0.62)
 
@@ -1207,6 +461,32 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 	if grid_manager:
 		position = grid_manager.snap_to_grid(position)
 		target_position = position
+
+## Copy one EnemyDefs entry onto this enemy. Only the keys the entry carries
+## are written, exactly as the old per-type arms only assigned what they listed
+## (an absent "armor" leaves max_armor at its default, and so on).
+func _apply_def(def: Dictionary) -> void:
+	enemy_name = def["name"]
+	max_health = def["health"]
+	if def.has("armor"):
+		max_armor = def["armor"]
+	attack_damage = def["damage"]
+	if def.has("range"):
+		attack_range = def["range"]
+	move_distance = def["move"]
+	if def.has("aggro"):
+		aggro_range = def["aggro"]
+	xp_reward = def["xp"]
+	if def.has("damage_type"):
+		damage_type = def["damage_type"]
+	for flag in ["ignores_invisibility", "immune_to_high_ground", "is_training_dummy", "is_structure",
+			"bleed_on_attack", "attack_blind_chance", "attack_burn", "attack_shock", "armor_per_hit"]:
+		if def.has(flag):
+			set(flag, def[flag])
+	if def.has("resists"):
+		var r: Array = def["resists"]
+		_set_first_pass_resists(r[0], r[1], r[2])
+	_set_mesh_color(def["color"])
 
 ## Elite first-pass resist columns from the design sheet: Physical / Fire /
 ## Lightning. The other damage types (ice, poison, wind, earth) stay at 0
@@ -1222,11 +502,11 @@ func _set_first_pass_resists(phys: float, fire: float, lightning: float) -> void
 
 func _set_mesh_color(color: Color) -> void:
 	if mesh:
-		var mat = mesh.get_surface_override_material(0) as StandardMaterial3D
+		var mat := mesh.get_surface_override_material(0) as StandardMaterial3D
 		if mat:
 			mat.albedo_color = color
 
-var figure_kind: String = ""  # EnemyFigure kind this enemy renders as ("" = coloured box)
+var figure_kind: String = ""  # SpriteEnemyFigure kind this enemy renders as ("" = coloured box)
 var is_training_dummy: bool = false  # dojo dummy: absorbs hits and statuses, never acts or dies
 var is_structure: bool = false       # a hittable object on the grid (rat nest): never acts, never wanders, the wave does not wait on it
 
@@ -1289,90 +569,14 @@ const DOOR_SEAL_THRESHOLDS := [0.75, 0.5, 0.33]
 const DOOR_SEAL_TEMPO := 10
 
 func _setup_sprite() -> void:
-	## Builds a procedural 3D model (EnemyFigure) for enemy types that have one,
-	## replacing the box mesh. Generic types keep their coloured box.
-	var kind := ""
-	match enemy_type:
-		EnemyType.WERERAT: kind = "rat"
-		EnemyType.ARCHER_RAT: kind = "archer_rat"
-		EnemyType.ARMORED_TROLL: kind = "armored_troll"
-		EnemyType.SKELETON: kind = "skeleton"
-		EnemyType.HYDRA: kind = "hydra"
-		EnemyType.FIRE_GOBLIN_SOLDIER: kind = "fire_goblin_soldier"
-		EnemyType.FIRE_GOBLIN_MAGE: kind = "fire_goblin_mage"
-		EnemyType.FIRE_GOBLIN_SHAMAN: kind = "fire_goblin_shaman"
-		EnemyType.GIANT_BEAVER: kind = "giant_beaver"
-		EnemyType.MINI_BEAR: kind = "mini_bear"
-		EnemyType.LARGE_BEAR: kind = "large_bear"
-		EnemyType.WOLF: kind = "wolf"
-		EnemyType.COYOTE: kind = "coyote"
-		EnemyType.BUGBEAR: kind = "bugbear"
-		EnemyType.INFECTED_HUNTER: kind = "infected_hunter"
-		EnemyType.GIANT_HAWK: kind = "giant_hawk"
-		EnemyType.TREANT: kind = "treant"
-		EnemyType.ICE_MAGE: kind = "ice_mage"
-		EnemyType.FIRE_MAGE: kind = "fire_mage"
-		EnemyType.SPARK_MAGE: kind = "spark_mage"
-		EnemyType.AIR_MAGE: kind = "air_mage"
-		EnemyType.EARTH_MAGE: kind = "earth_mage"
-		EnemyType.ZOMBIE: kind = "zombie"
-		EnemyType.WEREWOLF: kind = "werewolf"
-		EnemyType.WERERABBIT: kind = "wererabbit"
-		EnemyType.VAMPIRE: kind = "vampire"
-		EnemyType.NECROMANCER: kind = "necromancer"
-		EnemyType.BONE_DRAGON: kind = "bone_dragon"
-		EnemyType.SPIRIT_COLLECTOR: kind = "spirit_collector"
-		EnemyType.GRAVE_TITAN: kind = "grave_titan"
-		EnemyType.CRYPT_CRAWLER: kind = "crypt_crawler"
-		EnemyType.SCREECHER: kind = "screecher"
-		EnemyType.CONSUMED: kind = "consumed"
-		EnemyType.SLUDGE: kind = "sludge"
-		EnemyType.PIPE_CRAWLER: kind = "pipe_crawler"
-		EnemyType.SEWER_CROC: kind = "sewer_croc"
-		EnemyType.RAT_KING: kind = "rat_king"
-		EnemyType.SWARM: kind = "swarm"
-		EnemyType.WEREGOAT: kind = "weregoat"
-		EnemyType.WYVERN: kind = "wyvern"
-		EnemyType.ROC: kind = "roc"
-		EnemyType.ICE_TROLL: kind = "ice_troll"
-		EnemyType.SNOW_WRAITH: kind = "snow_wraith"
-		EnemyType.GRANITE_COLOSSUS: kind = "granite_colossus"
-		EnemyType.WHITE_MANTICORE: kind = "white_manticore"
-		EnemyType.SABERTOOTH: kind = "sabertooth"
-		EnemyType.CERBERUS: kind = "cerberus"
-		EnemyType.SUCCUBUS: kind = "succubus"
-		EnemyType.DEMON: kind = "demon"
-		EnemyType.IFRIT: kind = "ifrit"
-		EnemyType.MIND_EATER: kind = "mind_eater"
-		EnemyType.SPECTER: kind = "specter"
-		EnemyType.MAGMA_SPIDER: kind = "magma_spider"
-		EnemyType.PIT_FIEND: kind = "pit_fiend"
-		EnemyType.ASH_HARPY: kind = "ash_harpy"
-		EnemyType.INFLAMED_MINOTAUR: kind = "inflamed_minotaur"
-		EnemyType.CHERUB: kind = "cherub"
-		EnemyType.DJINN: kind = "djinn"
-		EnemyType.CORRUPTED_ARCHANGEL: kind = "corrupted_archangel"
-		# Generic tiers / custom enemies without bespoke art: a procedural
-		# brute figure in the tier's colour (the old floating coloured box
-		# never read as a creature).
-		EnemyType.MINION: kind = "brute_minion"
-		EnemyType.ELITE: kind = "brute_elite"
-		EnemyType.BOSS: kind = "brute_boss"
-		EnemyType.DUMMY: kind = "chicken"
-		EnemyType.RAT_NEST: kind = "rat_nest"
-		EnemyType.GRAVESTONE: kind = "gravestone"
-		EnemyType.GRAVE_DIGGER: kind = "grave_digger"
-		EnemyType.HELL_DOOR: kind = "hell_door"
-		_:
-			return  # Unknown types keep their coloured box
+	## Builds the figure for enemy types that have one (EnemyDefs "figure_kind"),
+	## replacing the box mesh. Types without a kind keep their coloured box.
+	var kind: String = str(EnemyDefs.DEFS.get(EnemyType.keys()[enemy_type], {}).get("figure_kind", ""))
+	if kind == "":
+		return  # Unknown types keep their coloured box
 
 	figure_kind = kind
-	# Prefer the MonsterKit battler sprite when this kind has one; the
-	# procedural mesh figure remains the fallback for everything else.
-	if SpriteEnemyFigure.supports(kind):
-		_enemy_figure = SpriteEnemyFigure.new()
-	else:
-		_enemy_figure = EnemyFigure.new()
+	_enemy_figure = SpriteEnemyFigure.new()
 	add_child(_enemy_figure)
 	_enemy_figure.setup(kind)
 
@@ -1396,10 +600,6 @@ func get_portrait_tint() -> Color:
 
 func is_portrait_flipped() -> bool:
 	return _enemy_figure != null and _enemy_figure.has_method("portrait_flipped") and _enemy_figure.portrait_flipped()
-
-func _on_enemy_animation_finished(anim_name: String) -> void:
-	if _enemy_animator and anim_name != "stance" and anim_name != "walking":
-		_enemy_animator.play("stance", CharacterAnimator.Direction.SOUTH)
 
 func _play_enemy_animation(action: String) -> void:
 	## Play an animation by action name (procedural figure, or legacy sprite sheet).
@@ -1869,161 +1069,7 @@ func get_action_lines() -> Array[String]:
 static func get_all_enemy_data() -> Array:
 	## Returns compendium-friendly data for every enemy type.
 	## Single source of truth — compendium reads from here.
-	# Tier vocabulary = the designer's sheet (docs/ENEMY_SHEET.tsv, Tier
-	# column): Trash / Mid-tier / Elite / Boss, "Special" for the Ring Wraith.
-	# "Mid Tier" / "Mid-Tier" on the sheet are the one word "Mid-tier" here.
-	# Structures and the dojo dummy are not on the sheet: they read "Special"
-	# too (not creatures, no tier). The legacy MINION/ELITE/BOSS boxes keep
-	# the three tiers they stood for. The loot tiers in
-	# EnemySpawner.get_loot_tier follow the same column.
-	var _type_display := {
-		EnemyType.MINION: "Trash",
-		EnemyType.ELITE: "Elite",
-		EnemyType.BOSS: "Boss",
-		# --- Sewer ---
-		EnemyType.WERERAT: "Trash",
-		EnemyType.ARCHER_RAT: "Trash",
-		EnemyType.SLUDGE: "Trash",
-		EnemyType.PIPE_CRAWLER: "Trash",
-		EnemyType.SWARM: "Trash",
-		EnemyType.SEWER_CROC: "Mid-tier",
-		EnemyType.RAT_KING: "Boss",
-		# --- Graveyard ---
-		EnemyType.ZOMBIE: "Trash",
-		EnemyType.WERERABBIT: "Trash",
-		EnemyType.SCREECHER: "Trash",
-		EnemyType.SKELETON: "Mid-tier",
-		EnemyType.CRYPT_CRAWLER: "Mid-tier",
-		EnemyType.CONSUMED: "Mid-tier",
-		EnemyType.SPIRIT_COLLECTOR: "Mid-tier",
-		EnemyType.WEREWOLF: "Elite",
-		EnemyType.VAMPIRE: "Elite",
-		EnemyType.NECROMANCER: "Elite",
-		EnemyType.GRAVE_TITAN: "Elite",
-		EnemyType.BONE_DRAGON: "Boss",
-		# --- Cave ---
-		EnemyType.FIRE_GOBLIN_SOLDIER: "Trash",
-		EnemyType.FIRE_GOBLIN_MAGE: "Mid-tier",
-		EnemyType.FIRE_GOBLIN_SHAMAN: "Mid-tier",
-		EnemyType.ARMORED_TROLL: "Elite",
-		EnemyType.HYDRA: "Elite",
-		# --- Forest ---
-		EnemyType.COYOTE: "Trash",
-		EnemyType.MINI_BEAR: "Trash",
-		EnemyType.WOLF: "Mid-tier",
-		EnemyType.BUGBEAR: "Mid-tier",
-		EnemyType.INFECTED_HUNTER: "Mid-tier",
-		EnemyType.GIANT_HAWK: "Mid-tier",
-		EnemyType.ICE_MAGE: "Mid-tier",
-		EnemyType.FIRE_MAGE: "Mid-tier",
-		EnemyType.SPARK_MAGE: "Mid-tier",
-		EnemyType.AIR_MAGE: "Mid-tier",
-		EnemyType.EARTH_MAGE: "Mid-tier",
-		EnemyType.GIANT_BEAVER: "Elite",
-		EnemyType.LARGE_BEAR: "Elite",
-		EnemyType.TREANT: "Elite",
-		# --- Mountains ---
-		EnemyType.SNOW_WRAITH: "Trash",
-		EnemyType.WEREGOAT: "Mid-tier",
-		EnemyType.ROC: "Mid-tier",
-		EnemyType.SABERTOOTH: "Mid-tier",
-		EnemyType.WYVERN: "Elite",
-		EnemyType.ICE_TROLL: "Elite",
-		EnemyType.WHITE_MANTICORE: "Elite",
-		EnemyType.GRANITE_COLOSSUS: "Boss",
-		# --- Underworld ---
-		EnemyType.ASH_HARPY: "Trash",
-		EnemyType.MAGMA_SPIDER: "Trash",
-		EnemyType.MIND_EATER: "Trash",
-		EnemyType.SPECTER: "Trash",
-		EnemyType.SUCCUBUS: "Trash",
-		EnemyType.DEMON: "Mid-tier",
-		EnemyType.IFRIT: "Elite",
-		EnemyType.CERBERUS: "Boss",
-		EnemyType.PIT_FIEND: "Boss",
-		EnemyType.INFLAMED_MINOTAUR: "Boss",
-		# --- Heavens ---
-		EnemyType.CHERUB: "Trash",
-		EnemyType.DJINN: "Elite",
-		EnemyType.CORRUPTED_ARCHANGEL: "Boss",
-		# --- Off the tier ladder ---
-		EnemyType.RING_WRAITH: "Special",
-		EnemyType.DUMMY: "Special",
-		EnemyType.RAT_NEST: "Special",
-		EnemyType.GRAVESTONE: "Special",
-		EnemyType.GRAVE_DIGGER: "Special",
-		EnemyType.HELL_DOOR: "Special",
-	}
-	var _stats := {
-		EnemyType.MINION: {"name": "Minion", "health": 25, "armor": 0, "damage": 3, "xp": 5},
-		EnemyType.ELITE: {"name": "Elite", "health": 80, "armor": 0, "damage": 6, "xp": 10},
-		EnemyType.BOSS: {"name": "Boss", "health": 200, "armor": 0, "damage": 10, "xp": 25},
-		EnemyType.WERERAT: {"name": "Wererat", "health": 8, "armor": 0, "damage": 3, "xp": 3},
-		EnemyType.SKELETON: {"name": "Skeleton", "health": 20, "armor": 12, "damage": 6, "xp": 7},
-		EnemyType.ARMORED_TROLL: {"name": "Armored Troll", "health": 60, "armor": 40, "damage": 7, "xp": 30},
-		EnemyType.ARCHER_RAT: {"name": "Archer Rat", "health": 6, "armor": 0, "damage": 2, "xp": 4},
-		EnemyType.HYDRA: {"name": "Hydra", "health": 190, "armor": 0, "damage": 7, "xp": 60},
-		EnemyType.FIRE_GOBLIN_SOLDIER: {"name": "Fire Goblin Soldier", "health": 6, "armor": 0, "damage": 2, "xp": 3},
-		EnemyType.FIRE_GOBLIN_MAGE: {"name": "Fire Goblin Mage", "health": 10, "armor": 0, "damage": 7, "xp": 8},
-		EnemyType.FIRE_GOBLIN_SHAMAN: {"name": "Fire Goblin Shaman", "health": 16, "armor": 0, "damage": 6, "xp": 12},
-		EnemyType.GIANT_BEAVER: {"name": "Giant Beaver", "health": 60, "armor": 0, "damage": 9, "xp": 20},
-		EnemyType.MINI_BEAR: {"name": "Mini Bear", "health": 14, "armor": 0, "damage": 4, "xp": 6},
-		EnemyType.LARGE_BEAR: {"name": "Large Bear", "health": 90, "armor": 0, "damage": 12, "xp": 35},
-		EnemyType.WOLF: {"name": "Wolf", "health": 30, "armor": 0, "damage": 7, "xp": 12},
-		EnemyType.COYOTE: {"name": "Coyote", "health": 6, "armor": 0, "damage": 2, "xp": 3},
-		EnemyType.BUGBEAR: {"name": "Bugbear", "health": 50, "armor": 0, "damage": 6, "xp": 20},
-		EnemyType.INFECTED_HUNTER: {"name": "Infected Hunter", "health": 40, "armor": 0, "damage": 8, "xp": 18},
-		EnemyType.GIANT_HAWK: {"name": "Giant Hawk", "health": 28, "armor": 0, "damage": 9, "xp": 14},
-		EnemyType.TREANT: {"name": "Treant", "health": 110, "armor": 0, "damage": 14, "xp": 35},
-		EnemyType.ICE_MAGE: {"name": "Ice Mage", "health": 40, "armor": 0, "damage": 6, "xp": 14},
-		EnemyType.FIRE_MAGE: {"name": "Fire Mage", "health": 32, "armor": 0, "damage": 7, "xp": 14},
-		EnemyType.SPARK_MAGE: {"name": "Spark Mage", "health": 16, "armor": 0, "damage": 3, "xp": 8},
-		EnemyType.AIR_MAGE: {"name": "Air Mage", "health": 30, "armor": 0, "damage": 5, "xp": 12},
-		EnemyType.EARTH_MAGE: {"name": "Earth Mage", "health": 65, "armor": 0, "damage": 9, "xp": 18},
-		EnemyType.ZOMBIE: {"name": "Zombie", "health": 12, "armor": 0, "damage": 5, "xp": 5},
-		EnemyType.WEREWOLF: {"name": "Werewolf", "health": 55, "armor": 0, "damage": 10, "xp": 22},
-		EnemyType.WERERABBIT: {"name": "Wererabbit", "health": 25, "armor": 0, "damage": 0, "xp": 8},
-		EnemyType.VAMPIRE: {"name": "Vampire", "health": 95, "armor": 0, "damage": 10, "xp": 24},
-		EnemyType.NECROMANCER: {"name": "Necromancer", "health": 60, "armor": 0, "damage": 4, "xp": 30},
-		EnemyType.BONE_DRAGON: {"name": "Bone Dragon", "health": 150, "armor": 0, "damage": 12, "xp": 80},
-		EnemyType.SPIRIT_COLLECTOR: {"name": "Spirit Collector", "health": 50, "armor": 0, "damage": 8, "xp": 20},
-		EnemyType.GRAVE_TITAN: {"name": "Grave Titan", "health": 130, "armor": 30, "damage": 15, "xp": 80},
-		EnemyType.CRYPT_CRAWLER: {"name": "Crypt Crawler", "health": 28, "armor": 0, "damage": 6, "xp": 12},
-		EnemyType.SCREECHER: {"name": "Screecher", "health": 14, "armor": 0, "damage": 5, "xp": 8},
-		EnemyType.CONSUMED: {"name": "The Consumed", "health": 35, "armor": 0, "damage": 8, "xp": 14},
-		EnemyType.SLUDGE: {"name": "Sludge Being", "health": 10, "armor": 0, "damage": 3, "xp": 4},
-		EnemyType.PIPE_CRAWLER: {"name": "Pipe Crawler", "health": 20, "armor": 0, "damage": 5, "xp": 8},
-		EnemyType.SEWER_CROC: {"name": "Sewer Cobra", "health": 40, "armor": 20, "damage": 12, "xp": 25},
-		EnemyType.RAT_KING: {"name": "Rat King", "health": 90, "armor": 10, "damage": 6, "xp": 60},
-		EnemyType.SWARM: {"name": "Swarm", "health": 10, "armor": 0, "damage": 3, "xp": 4},
-		EnemyType.WEREGOAT: {"name": "Weregoat", "health": 80, "armor": 0, "damage": 6, "xp": 20},
-		EnemyType.WYVERN: {"name": "Wyvern", "health": 125, "armor": 0, "damage": 25, "xp": 40},
-		EnemyType.ROC: {"name": "Roc", "health": 25, "armor": 15, "damage": 8, "xp": 16},
-		EnemyType.ICE_TROLL: {"name": "Ice Troll", "health": 150, "armor": 55, "damage": 13, "xp": 45},
-		EnemyType.SNOW_WRAITH: {"name": "Snow Wraith", "health": 10, "armor": 0, "damage": 5, "xp": 8},
-		EnemyType.GRANITE_COLOSSUS: {"name": "Granite Colossus", "health": 350, "armor": 250, "damage": 0, "xp": 120},
-		EnemyType.WHITE_MANTICORE: {"name": "White Manticore", "health": 75, "armor": 15, "damage": 15, "xp": 40},
-		EnemyType.SABERTOOTH: {"name": "Sabertooth Tiger", "health": 45, "armor": 0, "damage": 6, "xp": 18},
-		EnemyType.CERBERUS: {"name": "Cerberus", "health": 250, "armor": 50, "damage": 25, "xp": 150},
-		EnemyType.SUCCUBUS: {"name": "Succubus", "health": 25, "armor": 5, "damage": 4, "xp": 14},
-		EnemyType.DEMON: {"name": "Demon", "health": 65, "armor": 0, "damage": 8, "xp": 24},
-		EnemyType.IFRIT: {"name": "Ifrit", "health": 225, "armor": 0, "damage": 45, "xp": 70},
-		EnemyType.MIND_EATER: {"name": "Mind Eater", "health": 20, "armor": 0, "damage": 0, "xp": 12},
-		EnemyType.SPECTER: {"name": "Specter", "health": 10, "armor": 0, "damage": 2, "xp": 4},
-		EnemyType.MAGMA_SPIDER: {"name": "Magma Spider", "health": 4, "armor": 0, "damage": 1, "xp": 3},
-		EnemyType.PIT_FIEND: {"name": "Pit Fiend", "health": 0, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.ASH_HARPY: {"name": "Ash Harpy", "health": 6, "armor": 0, "damage": 3, "xp": 4},
-		EnemyType.INFLAMED_MINOTAUR: {"name": "Inflamed Minotaur", "health": 350, "armor": 100, "damage": 35, "xp": 90},
-		EnemyType.CHERUB: {"name": "Cherub", "health": 14, "armor": 5, "damage": 2, "xp": 10},
-		EnemyType.DJINN: {"name": "Djinn", "health": 180, "armor": 0, "damage": 35, "xp": 80},
-		EnemyType.CORRUPTED_ARCHANGEL: {"name": "Corrupted Archangel", "health": 0, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.RING_WRAITH: {"name": "Ring Wraith", "health": 100, "armor": 0, "damage": 15, "xp": 0},
-		EnemyType.DUMMY: {"name": "Training Dummy", "health": 500, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.RAT_NEST: {"name": "Rat Nest", "health": 15, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.GRAVESTONE: {"name": "Gravestone", "health": 10, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.GRAVE_DIGGER: {"name": "Grave Digger", "health": 20, "armor": 0, "damage": 0, "xp": 6},
-		EnemyType.HELL_DOOR: {"name": "Hell's Door", "health": 150, "armor": 0, "damage": 0, "xp": 0},
-	}
+	# Tier and base numbers come from EnemyDefs (the designer's sheet).
 	var _actions := {
 		EnemyType.MINION: [{"name": "Attack", "tempo": 3}, {"name": "Move", "tempo": 5}],
 		EnemyType.ELITE: [{"name": "Attack", "tempo": 4}, {"name": "Move", "tempo": 6}],
@@ -2170,13 +1216,13 @@ static func get_all_enemy_data() -> Array:
 
 	var result: Array = []
 	for enemy_type in EnemyType.values():
-		var s = _stats[enemy_type]
+		var def: Dictionary = EnemyDefs.DEFS.get(EnemyType.keys()[enemy_type], {})
 		# Apply the same passive-rework scaling initialize() uses, so the
 		# compendium shows the numbers the player actually fights.
-		var pps := passive_power_scale(int(INTENDED_LEVELS.get(enemy_type, 0)))
-		var hp: int = int(s["health"])
-		var armor: int = int(s["armor"])
-		var dmg: int = int(s["damage"])
+		var pps := passive_power_scale(int(def.get("intended_level", 0)))
+		var hp: int = int(def.get("health", 0))
+		var armor: int = int(def.get("armor", 0))
+		var dmg: int = int(def.get("damage", 0))
 		var special_text: String = _specials[enemy_type]
 		if hp > 0:
 			hp = maxi(1, roundi(hp * pps["hp"]))
@@ -2201,12 +1247,12 @@ static func get_all_enemy_data() -> Array:
 			shown.append(entry)
 			idx += 1
 		result.append({
-			"name": s["name"],
-			"type": _type_display[enemy_type],
+			"name": def["name"],
+			"type": def["tier"],
 			"health": hp,
 			"armor": armor,
 			"damage": dmg,
-			"xp": s["xp"],
+			"xp": def.get("xp", 0),
 			"actions": shown,
 			"special": special_text,
 		})
@@ -2221,10 +1267,10 @@ static func get_all_enemy_data() -> Array:
 func _setup_tempo_bar() -> void:
 	# Background bar (dark)
 	_tempo_bar_bg = MeshInstance3D.new()
-	var bg_quad = QuadMesh.new()
+	var bg_quad := QuadMesh.new()
 	bg_quad.size = Vector2(_tempo_bar_width, 0.09)
 	_tempo_bar_bg.mesh = bg_quad
-	var bg_mat = StandardMaterial3D.new()
+	var bg_mat := StandardMaterial3D.new()
 	bg_mat.albedo_color = Color(0.15, 0.15, 0.1, 0.7)
 	bg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	bg_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
@@ -2237,10 +1283,10 @@ func _setup_tempo_bar() -> void:
 
 	# Foreground bar (yellow fill)
 	_tempo_bar_fg = MeshInstance3D.new()
-	var fg_quad = QuadMesh.new()
+	var fg_quad := QuadMesh.new()
 	fg_quad.size = Vector2(0.01, 0.09)
 	_tempo_bar_fg.mesh = fg_quad
-	var fg_mat = StandardMaterial3D.new()
+	var fg_mat := StandardMaterial3D.new()
 	fg_mat.albedo_color = Color(1.0, 0.85, 0.0, 0.9)  # Yellow
 	fg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	fg_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
@@ -2336,10 +1382,10 @@ func _setup_health_bar() -> void:
 	## Always-on health bar (dark red track, green fill); the exact numbers
 	## only appear on hover, on top of it.
 	_health_bar_bg = MeshInstance3D.new()
-	var bg_quad = QuadMesh.new()
+	var bg_quad := QuadMesh.new()
 	bg_quad.size = Vector2(_health_bar_width, 0.09)
 	_health_bar_bg.mesh = bg_quad
-	var bg_mat = StandardMaterial3D.new()
+	var bg_mat := StandardMaterial3D.new()
 	bg_mat.albedo_color = Color(0.16, 0.05, 0.05, 0.9)
 	bg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	bg_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
@@ -2350,10 +1396,10 @@ func _setup_health_bar() -> void:
 	add_child(_health_bar_bg)
 
 	_health_bar_fg = MeshInstance3D.new()
-	var fg_quad = QuadMesh.new()
+	var fg_quad := QuadMesh.new()
 	fg_quad.size = Vector2(_health_bar_width, 0.09)
 	_health_bar_fg.mesh = fg_quad
-	var fg_mat = StandardMaterial3D.new()
+	var fg_mat := StandardMaterial3D.new()
 	fg_mat.albedo_color = Color(0.88, 0.18, 0.16, 0.95)  # red
 	fg_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	fg_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
@@ -2369,7 +1415,7 @@ func _update_health_bar() -> void:
 		return
 	var ratio := clampf(float(current_health) / float(maxi(1, max_health)), 0.0, 1.0)
 	var w := _health_bar_width * ratio
-	var fg_mesh = _health_bar_fg.mesh as QuadMesh
+	var fg_mesh := _health_bar_fg.mesh as QuadMesh
 	if fg_mesh:
 		fg_mesh.size.x = maxf(0.001, w)
 	_health_bar_fg.visible = w > 0.001
@@ -2426,13 +1472,13 @@ func _update_armor_bar() -> void:
 
 func _refresh_armor_bar_image() -> void:
 	## Draws a single gray bar that is full when the enemy has any armor, empty when they don't.
-	var w = _ARMOR_BAR_PIXEL_WIDTH
-	var h = _ARMOR_BAR_PIXEL_HEIGHT
-	var img = Image.create(w, h, false, Image.FORMAT_RGBA8)
+	var w := _ARMOR_BAR_PIXEL_WIDTH
+	var h := _ARMOR_BAR_PIXEL_HEIGHT
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
 
-	var bg_color = Color(0.18, 0.18, 0.22, 0.95)
-	var fill_color = Color(0.72, 0.72, 0.72, 1.0)
-	var border_color = Color(0.0, 0.0, 0.0, 1.0)
+	var bg_color := Color(0.18, 0.18, 0.22, 0.95)
+	var fill_color := Color(0.72, 0.72, 0.72, 1.0)
+	var border_color := Color(0.0, 0.0, 0.0, 1.0)
 
 	# Background (dark)
 	img.fill(bg_color)
@@ -2872,12 +1918,6 @@ func _all_async_idle() -> bool:
 func is_channeling() -> bool:
 	return not _channel_action.is_empty()
 
-## Push the next action back by `tempo` on the action clock (Haunted Rebuke).
-## The counter climbs 1 per tempo toward the action's cost, so debiting it
-## delays whatever fires next — attacks included, unlike the Slow debuff.
-func delay_next_action(tempo: int) -> void:
-	action_tempo_counter -= maxi(0, tempo)
-
 ## The apply_debuff key behind a get_active_effects() name ("" when the
 ## effect has no re-applicable key: Taunt, Fear, Exposed, Tree…).
 static func debuff_key_for_effect(effect_name: String) -> String:
@@ -3142,7 +2182,7 @@ func _choose_action(player_node: Node3D) -> void:
 		chosen_action = {}
 		return
 
-	var distance = _get_cell_distance(player_node)
+	var distance := _get_cell_distance(player_node)
 
 	# Polymorph (Circe's Wand): a pig only walks and bites — no spells,
 	# no abilities, whatever the species would normally reach for. The first
@@ -3321,7 +2361,7 @@ func _ensure_sync_choice(distance: int) -> void:
 func _get_cell_distance(target_node: Node3D) -> int:
 	if grid_manager:
 		return grid_manager.get_distance_in_cells(position, target_node.position)
-	var diff = target_node.position - position
+	var diff := target_node.position - position
 	return int(Vector3(diff.x, 0, diff.z).length())
 
 func _choose_wererat_action(distance: int) -> void:
@@ -3506,10 +2546,10 @@ func _try_infest(target_node: Node3D) -> bool:
 		turn_completed.emit()
 		return true
 	var rats := _rats_within(INFEST_RADIUS)
-	var main = get_parent()
+	var main := get_parent()
 	var spawner = main.enemy_spawner if main and "enemy_spawner" in main else null
 	for _r in rats:
-		var card: Card = Card.create_infest()
+		var card: Card = Card.create_by_id("infest")
 		if spawner:
 			# Bound to the spawner, not the king: a brood laid by a king
 			# since slain still hatches. Leaving the room frees the spawner,
@@ -3588,7 +2628,7 @@ func _venom_hit(u: Node3D) -> void:
 func _cobra_attacker() -> Node3D:
 	## Who the cobra answers: the player, as Cerberus's Roar thorns read it
 	## (TODO(sheet): co-op — a second player's hit is answered on P1).
-	var main = get_parent()
+	var main := get_parent()
 	if main == null or not ("player" in main) or main.player == null or not is_instance_valid(main.player):
 		return null
 	return main.player
@@ -3651,7 +2691,7 @@ func _try_repair() -> bool:
 func _foes_in_play() -> Array:
 	## The players Cerberus watches: the spawner's party in co-op, else the
 	## scene's one player.
-	var main = get_parent()
+	var main := get_parent()
 	if main == null:
 		return []
 	var out: Array = []
@@ -3809,7 +2849,7 @@ func _on_foe_healed(amount: int, who: Node3D) -> void:
 func _thorns_strike_back() -> void:
 	## Roar's thorns: the player's direct hit costs them the thorn damage,
 	## and one thorn is spent per hit.
-	var main = get_parent()
+	var main := get_parent()
 	if main == null or not ("player" in main) or main.player == null or not is_instance_valid(main.player):
 		return
 	var st = main.player.get_stats() if main.player.has_method("get_stats") else null
@@ -3883,7 +2923,7 @@ func _allies_need_healing() -> bool:
 func _sibling_enemies() -> Array:
 	## Living enemies sharing this enemy's parent (the main scene), including self.
 	var out: Array = []
-	var parent = get_parent()
+	var parent := get_parent()
 	if not parent:
 		return out
 	for child in parent.get_children():
@@ -4346,10 +3386,10 @@ func _try_fire_wall(target_node: Node3D) -> bool:
 	if not grid_manager:
 		turn_completed.emit()
 		return true
-	var player_cell = grid_manager.world_to_grid(target_node.position)
-	var my_cell = grid_manager.world_to_grid(position)
+	var player_cell := grid_manager.world_to_grid(target_node.position)
+	var my_cell := grid_manager.world_to_grid(position)
 	# A 3-tile wall one step in front of the player (toward the shaman).
-	var dir = my_cell - player_cell
+	var dir := my_cell - player_cell
 	var step = Vector2i(signi(dir.x), signi(dir.y))
 	if step == Vector2i.ZERO:
 		step = Vector2i(1, 0)
@@ -4358,7 +3398,7 @@ func _try_fire_wall(target_node: Node3D) -> bool:
 	if perp == Vector2i.ZERO:
 		perp = Vector2i(0, 1)
 	var tiles: Array = [center, center + perp, center - perp]
-	var main = get_parent()
+	var main := get_parent()
 	if main and main.has_method("register_fire_wall"):
 		main.register_fire_wall(tiles, attack_damage, 3)
 	print("[%s] Raises a wall of fire!" % enemy_name)
@@ -4373,7 +3413,7 @@ func _try_sear_wounds() -> bool:
 		print("[%s] Silenced — cannot Sear Wounds." % enemy_name)
 		turn_completed.emit()
 		return true
-	var allies = _sibling_enemies()
+	var allies := _sibling_enemies()
 	for a in allies:
 		if is_instance_valid(a):
 			a.take_damage(2, false)  # from_player = false (a Hydra still counts the hit)
@@ -4471,12 +3511,12 @@ func _try_maul(target_node: Node3D) -> bool:
 	return _try_elemental(target_node, dmg, "Maul", {"bleed": bleed})
 
 func _try_wolf_bite(target_node: Node3D) -> bool:
-	var dmg = attack_damage + (2 if _wolf_aura_active() else 0)
+	var dmg := attack_damage + (2 if _wolf_aura_active() else 0)
 	return _try_elemental(target_node, dmg, "Bite")
 
 func _try_bugbear_strike(target_node: Node3D) -> bool:
 	# First Strike: if the player has not hit this bugbear yet, +8 damage.
-	var dmg = attack_damage + (8 if hits_taken == 0 else 0)
+	var dmg := attack_damage + (8 if hits_taken == 0 else 0)
 	return _try_elemental(target_node, dmg, "Strike")
 
 func _try_swoop(target_node: Node3D) -> bool:
@@ -4490,15 +3530,15 @@ func _try_swoop(target_node: Node3D) -> bool:
 
 func _try_hook(target_node: Node3D) -> bool:
 	## Reach out (range 2-7) and reel the player in to just in front of the hunter.
-	var dist = _get_cell_distance(target_node)
+	var dist := _get_cell_distance(target_node)
 	if dist < 2 or dist > 7:
 		return _try_move(target_node)
 	if grid_manager:
-		var my_cell = grid_manager.world_to_grid(position)
-		var pl_cell = grid_manager.world_to_grid(target_node.position)
-		var dir = pl_cell - my_cell
-		var dest = Vector2i(my_cell.x + signi(dir.x), my_cell.y + signi(dir.y))
-		var world = grid_manager.grid_to_world(dest)
+		var my_cell := grid_manager.world_to_grid(position)
+		var pl_cell := grid_manager.world_to_grid(target_node.position)
+		var dir := pl_cell - my_cell
+		var dest := Vector2i(my_cell.x + signi(dir.x), my_cell.y + signi(dir.y))
+		var world := grid_manager.grid_to_world(dest)
 		if dungeon_manager:
 			world.y = dungeon_manager.get_elevation_world_y(dest)
 		target_node.target_position = world
@@ -4584,7 +3624,7 @@ func _wolf_aura_active() -> bool:
 
 func _treant_heal_amount() -> int:
 	var amt = 5
-	var pct = float(current_health) / float(max_health) * 100.0
+	var pct := float(current_health) / float(max_health) * 100.0
 	if pct < 60.0:
 		amt += 2 * int((60.0 - pct) / 10.0)
 	return amt
@@ -4612,7 +3652,7 @@ func _try_pipe_claw(target_node: Node3D) -> bool:
 ## summons (co-op aware, mirrors EnemySpawner._target_for's candidate list).
 func _player_units() -> Array:
 	var out: Array = []
-	var main = get_parent()
+	var main := get_parent()
 	if not main:
 		return out
 	if "enemy_spawner" in main and main.enemy_spawner:
@@ -4637,7 +3677,7 @@ func _unit_health(u: Node3D) -> int:
 func _cells_between(a: Node3D, b: Node3D) -> int:
 	if grid_manager:
 		return grid_manager.get_distance_in_cells(a.position, b.position)
-	var diff = b.position - a.position
+	var diff := b.position - a.position
 	return int(Vector3(diff.x, 0, diff.z).length())
 
 func _cell_is_free(cell: Vector2i) -> bool:
@@ -4693,10 +3733,10 @@ func _random_free_cell_at_distance(from_cell: Vector2i, dist: int) -> Vector2i:
 
 func _dash_away_from(pos: Vector3, tiles: int) -> void:
 	if grid_manager:
-		var threat_cell = grid_manager.world_to_grid(pos)
+		var threat_cell := grid_manager.world_to_grid(pos)
 		_start_path(_build_greedy_path(position, threat_cell, tiles, true))
 	else:
-		var diff = position - pos
+		var diff := position - pos
 		var direction = Vector3(diff.x, 0, diff.z).normalized()
 		if direction.length() < 0.1:
 			direction = Vector3(1, 0, 0)
@@ -4714,7 +3754,7 @@ func _try_flee(target_node: Node3D) -> bool:
 func _try_vanish() -> bool:
 	## The escape: gone in a puff of smoke — no loot, no XP, no death.
 	print("[%s] Vanishes in a puff of smoke!" % enemy_name)
-	var main = get_parent()
+	var main := get_parent()
 	if main and "enemy_spawner" in main and main.enemy_spawner:
 		main.enemy_spawner.despawn_enemy(self)
 	else:
@@ -4750,7 +3790,7 @@ func _try_crawler_web(target_node: Node3D) -> bool:
 	if target_node.has_method("get_deck_manager"):
 		var deck = target_node.get_deck_manager()
 		if deck:
-			deck.add_card_to_hand(Card.create_paralysis())
+			deck.add_card_to_hand(Card.create_by_id("paralysis"))
 			print("[%s] Webs its prey — Paralysis added to the hand!" % enemy_name)
 	turn_completed.emit()
 	return true
@@ -4774,7 +3814,7 @@ func _try_collect_soul(target_node: Node3D) -> bool:
 	if target_node.has_method("get_deck_manager"):
 		var deck = target_node.get_deck_manager()
 		if deck:
-			deck.add_card_to_hand(Card.create_release_soul())
+			deck.add_card_to_hand(Card.create_by_id("release_soul"))
 			print("[%s] Cages a piece of their soul!" % enemy_name)
 	turn_completed.emit()
 	return true
@@ -4919,7 +3959,7 @@ func _try_necro_summon(_target_node: Node3D) -> bool:
 	return true
 
 func _necro_spawn(t: EnemyType) -> Enemy:
-	var main = get_parent()
+	var main := get_parent()
 	if not main or not ("enemy_spawner" in main) or not main.enemy_spawner:
 		return null
 	var e: Enemy = main.enemy_spawner.spawn_enemy(t, _free_cell_near(position, 2))
@@ -4956,7 +3996,7 @@ func _necro_rise_on_death() -> void:
 				break
 	if necro == null:
 		return
-	var main = get_parent()
+	var main := get_parent()
 	if main and ("enemy_spawner" in main) and main.enemy_spawner:
 		var sk: Enemy = main.enemy_spawner.spawn_enemy(EnemyType.SKELETON, _free_cell_near(position, 1))
 		if sk:
@@ -4975,15 +4015,15 @@ func _try_breath_swarm(target_node: Node3D) -> bool:
 		return _try_move(target_node)
 	if not grid_manager:
 		return _try_elemental(target_node, attack_damage, "Breath")
-	var my_cell = grid_manager.world_to_grid(position)
-	var t_cell = grid_manager.world_to_grid(target_node.position)
+	var my_cell := grid_manager.world_to_grid(position)
+	var t_cell := grid_manager.world_to_grid(target_node.position)
 	var dir = Vector2i(signi(t_cell.x - my_cell.x), signi(t_cell.y - my_cell.y))
 	if dir == Vector2i.ZERO:
 		dir = Vector2i(1, 0)
 	var line: Array = []
 	for i in range(1, 7):
 		line.append(my_cell + dir * i)
-	var main = get_parent()
+	var main := get_parent()
 	var hits := 0
 	for u in _player_units():
 		if not is_instance_valid(u):
@@ -5071,7 +4111,7 @@ func _try_talon_grab(target_node: Node3D) -> bool:
 	_deal_damage_to_player(target_node, maxi(1, roundi(25 * _pps_dmg)), "Talon Grab")
 	if grid_manager and is_instance_valid(target_node):
 		var dest := _random_free_cell_at_distance(grid_manager.world_to_grid(target_node.position), 8)
-		var world = grid_manager.grid_to_world(dest)
+		var world := grid_manager.grid_to_world(dest)
 		if dungeon_manager:
 			world.y = dungeon_manager.get_elevation_world_y(dest)
 		target_node.target_position = world
@@ -5113,7 +4153,7 @@ func _try_fire_breath(target_node: Node3D) -> bool:
 				_apply_burn_to_player(u, 5)
 			elif u.has_method("take_damage"):
 				u.take_damage(breath_dmg)
-	var main = get_parent()
+	var main := get_parent()
 	if main and main.has_method("register_fire_wall"):
 		main.register_fire_wall(tiles, breath_dmg, 5, 99, 3)  # lingers 3 tempo
 	print("[%s] FIRE BREATH — a 5x5 sheet of flame!" % enemy_name)
@@ -5134,7 +4174,7 @@ func _minotaur_labyrinth_leap() -> void:
 	_minotaur_damage_taken = 0  # the count toward the next leap starts over
 	if spaces > 0 and grid_manager:
 		var dest := _random_free_cell_at_distance(grid_manager.world_to_grid(position), spaces)
-		var world = grid_manager.grid_to_world(dest)
+		var world := grid_manager.grid_to_world(dest)
 		if dungeon_manager:
 			world.y = dungeon_manager.get_elevation_world_y(dest)
 		position = world
@@ -5156,7 +4196,7 @@ func _try_bull_rush(target_node: Node3D) -> bool:
 	_minotaur_rush_pending = false
 	var victim: Node3D = target_node
 	# The minotaur always prioritizes a PLAYER over summons.
-	var main = get_parent()
+	var main := get_parent()
 	if main and "enemy_spawner" in main and main.enemy_spawner:
 		var ps: Array = main.enemy_spawner._living_players()
 		if ps.is_empty() and main.enemy_spawner.player and is_instance_valid(main.enemy_spawner.player):
@@ -5740,7 +4780,7 @@ func _try_mimic(_target_node: Node3D) -> bool:
 	_prune_mimics()
 	if _mimics.size() >= MIMIC_CAP:
 		return false  # both copies still stand — the clock is spent
-	var main = get_parent()
+	var main := get_parent()
 	if not main or not ("enemy_spawner" in main) or not main.enemy_spawner:
 		return false
 	var m: Enemy = main.enemy_spawner.spawn_enemy(EnemyType.DEMON, _free_cell_near(position, 2))
@@ -5867,7 +4907,7 @@ func _choose_magma_spider_action(_distance: int) -> void:
 func _try_fire_web(_target_node: Node3D) -> bool:
 	if is_silenced or grid_manager == null:
 		return false
-	var main = get_parent()
+	var main := get_parent()
 	if main == null or not main.has_method("register_fire_web"):
 		return false
 	var centre: Vector2i = grid_manager.world_to_grid(position)
@@ -6028,8 +5068,8 @@ func _try_attack(target_node: Node3D) -> bool:
 	return _try_move(target_node)
 
 func _try_move(target_node: Node3D) -> bool:
-	var diff = target_node.position - position
-	var flat_dist = Vector3(diff.x, 0, diff.z).length()
+	var diff := target_node.position - position
+	var flat_dist := Vector3(diff.x, 0, diff.z).length()
 	if flat_dist <= aggro_range:
 		move_towards_target(target_node.position)
 		return true
@@ -6047,7 +5087,7 @@ func _try_bite(target_node: Node3D) -> bool:
 func _try_scurry(target_node: Node3D) -> bool:
 	## Wererat dashes 5 tiles toward the target. (Slowed now taxes the move's
 	## tempo in _check_and_fire_actions instead of trimming tiles.)
-	var tiles = 5
+	var tiles := 5
 	_dash_towards_target(target_node.position, tiles)
 	print("[%s] Scurries %d tiles toward target!" % [enemy_name, tiles])
 	return true
@@ -6070,7 +5110,7 @@ func _try_smash(target_node: Node3D) -> bool:
 		if target_node.has_method("get_deck_manager"):
 			var dm = target_node.get_deck_manager()
 			if dm:
-				dm.add_card_to_hand(Card.create_lightly_dazed())
+				dm.add_card_to_hand(Card.create_by_id("lightly_dazed"))
 				print("[%s] Smash added Lightly Dazed to player's hand!" % enemy_name)
 		turn_completed.emit()
 		return true
@@ -6090,13 +5130,13 @@ func _try_shoot(target_node: Node3D) -> bool:
 
 func _try_scurry_away(target_node: Node3D) -> bool:
 	## Archer Rat: Run 5 paces away from threat.
-	var tiles = 5
+	var tiles := 5
 
 	if grid_manager:
-		var threat_cell = grid_manager.world_to_grid(target_node.position)
+		var threat_cell := grid_manager.world_to_grid(target_node.position)
 		_start_path(_build_greedy_path(position, threat_cell, tiles, true))
 	else:
-		var diff = position - target_node.position
+		var diff := position - target_node.position
 		var direction = Vector3(diff.x, 0, diff.z).normalized()
 		if direction.length() < 0.1:
 			direction = Vector3(1, 0, 0)
@@ -6124,14 +5164,14 @@ func _try_get_into_range(target_node: Node3D) -> bool:
 		# Already in range, shoot instead
 		return _try_shoot(target_node)
 
-	var tiles = 2
+	var tiles := 2
 
 	if grid_manager:
-		var player_cell = grid_manager.world_to_grid(target_node.position)
+		var player_cell := grid_manager.world_to_grid(target_node.position)
 		_start_path(_build_greedy_path(position, player_cell, tiles))
 	else:
-		var diff = target_node.position - position
-		var direction = Vector3(diff.x, 0, diff.z).normalized()
+		var diff := target_node.position - position
+		var direction := Vector3(diff.x, 0, diff.z).normalized()
 		target_position = position + direction * (tiles * 1.0)
 		is_moving = true
 
@@ -6142,8 +5182,8 @@ func _try_get_into_range(target_node: Node3D) -> bool:
 func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: String, dmg_type: int = -1) -> void:
 	# Can't hit the player through a wall — a structure between us blocks the blow.
 	if dungeon_manager and grid_manager and is_instance_valid(player_node):
-		var from_cell = grid_manager.world_to_grid(position)
-		var to_cell = grid_manager.world_to_grid(player_node.position)
+		var from_cell := grid_manager.world_to_grid(position)
+		var to_cell := grid_manager.world_to_grid(player_node.position)
 		if not dungeon_manager.has_line_of_sight(from_cell, to_cell):
 			print("[%s] %s blocked by a wall!" % [enemy_name, attack_name])
 			return
@@ -6152,7 +5192,7 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 		dmg_type = damage_type
 	# Face the target as we strike so attacks don't play backwards.
 	if _enemy_figure and is_instance_valid(player_node):
-		var face_diff = player_node.position - position
+		var face_diff := player_node.position - position
 		_enemy_figure.set_facing_from_velocity(Vector3(face_diff.x, 0, face_diff.z))
 
 	var effective_damage = max(0, base_damage - attack_reduction)
@@ -6239,8 +5279,8 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 					knockback(player_node.position, 4)
 					# Push player away from enemy
 					if player_node.has_method("blink_to") and grid_manager:
-						var player_diff = player_node.position - position
-						var player_dir = Vector3(player_diff.x, 0, player_diff.z).normalized()
+						var player_diff := player_node.position - position
+						var player_dir := Vector3(player_diff.x, 0, player_diff.z).normalized()
 						var player_new_pos = player_node.position + player_dir * 2.0
 						player_new_pos = grid_manager.snap_to_grid(player_new_pos)
 						player_node.position = player_new_pos
@@ -6252,7 +5292,7 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 			# to offer the discard choice. When it does, it owns this hit —
 			# it applies the (possibly halved) damage and calls
 			# _finish_player_hit itself once the player has chosen.
-			var ds_main = get_parent()  # Main (never current_scene: null under headless boots)
+			var ds_main := get_parent()  # Main (never current_scene: null under headless boots)
 			if ds_main and ds_main.has_method("offer_defensive_sacrifice") \
 					and ds_main.offer_defensive_sacrifice(self, player_node, effective_damage, debuff_mgr, buff_mgr, dmg_type):
 				return
@@ -6269,9 +5309,9 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 		tween.tween_property(_enemy_sprite, "modulate", Color.WHITE, 0.1)
 	elif mesh:
 		var tween = create_tween()
-		var mat = mesh.get_surface_override_material(0) as StandardMaterial3D
+		var mat := mesh.get_surface_override_material(0) as StandardMaterial3D
 		if mat:
-			var orig_color = mat.albedo_color
+			var orig_color := mat.albedo_color
 			tween.tween_property(mat, "albedo_color", Color.ORANGE, 0.1)
 			tween.tween_property(mat, "albedo_color", orig_color, 0.1)
 
@@ -6314,19 +5354,19 @@ func _dash_towards_target(pos: Vector3, tiles: int) -> void:
 		return
 	# Enemies trapped on a rise pillar cannot dash
 	if grid_manager:
-		var current_cell = grid_manager.world_to_grid(position)
+		var current_cell := grid_manager.world_to_grid(position)
 		if current_cell in pillar_tiles:
 			print("[%s] Trapped on pillar - cannot dash!" % enemy_name)
 			return
 
 	if grid_manager:
-		var player_cell = grid_manager.world_to_grid(pos)
+		var player_cell := grid_manager.world_to_grid(pos)
 		if not _start_path(_build_greedy_path(position, player_cell, tiles)):
 			_try_smash_barricade(player_cell)
 			return  # Can't move at all
 	else:
-		var diff = pos - position
-		var direction = Vector3(diff.x, 0, diff.z).normalized()
+		var diff := pos - position
+		var direction := Vector3(diff.x, 0, diff.z).normalized()
 		target_position = position + direction * (tiles * 1.0)
 		is_moving = true
 
@@ -6355,9 +5395,9 @@ func _regenerate(amount: int) -> void:
 		tween.tween_property(_enemy_sprite, "modulate", Color.WHITE, 0.15)
 	elif mesh:
 		var tween = create_tween()
-		var mat = mesh.get_surface_override_material(0) as StandardMaterial3D
+		var mat := mesh.get_surface_override_material(0) as StandardMaterial3D
 		if mat:
-			var orig_color = mat.albedo_color
+			var orig_color := mat.albedo_color
 			tween.tween_property(mat, "albedo_color", Color.GREEN, 0.15)
 			tween.tween_property(mat, "albedo_color", orig_color, 0.15)
 
@@ -6405,14 +5445,14 @@ func _update_tempo_bar() -> void:
 	_tempo_bar_fg.visible = true
 
 	var cost: int = maxi(1, int(shown["cost"]))
-	var progress = clampf(float(shown["counter"]) / float(cost), 0.0, 1.0)
-	var current_width = _tempo_bar_width * progress
+	var progress := clampf(float(shown["counter"]) / float(cost), 0.0, 1.0)
+	var current_width := _tempo_bar_width * progress
 	var kind_color := action_kind_color(str(shown["kind"]))
 	var fg_mat := _tempo_bar_fg.material_override as StandardMaterial3D
 	if fg_mat:
 		fg_mat.albedo_color = Color(kind_color, 0.9)
 
-	var fg_mesh = _tempo_bar_fg.mesh as QuadMesh
+	var fg_mesh := _tempo_bar_fg.mesh as QuadMesh
 	if fg_mesh:
 		fg_mesh.size.x = max(0.01, current_width)
 
@@ -6447,9 +5487,9 @@ func _physics_process(delta: float) -> void:
 		target_position.y = position.y
 
 	if is_moving:
-		var diff = target_position - position
-		var flat_diff = Vector3(diff.x, 0, diff.z)
-		var distance = flat_diff.length()
+		var diff := target_position - position
+		var flat_diff := Vector3(diff.x, 0, diff.z)
+		var distance := flat_diff.length()
 
 		if distance < 0.1:
 			# Snap XZ only — Y keeps gliding toward the terrain height
@@ -6473,7 +5513,7 @@ func _physics_process(delta: float) -> void:
 			if enemy_type == EnemyType.INFLAMED_MINOTAUR and grid_manager:
 				var wake_cur := grid_manager.world_to_grid(position)
 				if _wake_prev_cell.x > -9000 and _wake_prev_cell != wake_cur:
-					var wake_main = get_parent()
+					var wake_main := get_parent()
 					if wake_main and wake_main.has_method("register_fire_wall"):
 						wake_main.register_fire_wall([_wake_prev_cell], 10, 2, 99, 15, self, 10)
 				_wake_prev_cell = wake_cur
@@ -6543,7 +5583,7 @@ func _ambient_target() -> Node3D:
 		return _last_seen_target
 	if target != null and is_instance_valid(target):
 		return target
-	var main = get_parent()
+	var main := get_parent()
 	if main and "player" in main and main.player and is_instance_valid(main.player):
 		return main.player
 	return null
@@ -6592,9 +5632,6 @@ func _try_wander() -> void:
 # ============================================
 # MOVEMENT & COMBAT
 # ============================================
-
-func set_target(new_target: Node3D) -> void:
-	target = new_target
 
 func _build_greedy_path(start_pos: Vector3, goal_cell: Vector2i, tiles: int, away: bool = false,
 		onto_goal: bool = false) -> Array[Vector3]:
@@ -6718,7 +5755,7 @@ func move_towards_target(pos: Vector3) -> void:
 		return
 	# Enemies trapped on a rise pillar cannot move until it expires
 	if grid_manager:
-		var current_cell = grid_manager.world_to_grid(position)
+		var current_cell := grid_manager.world_to_grid(position)
 		if current_cell in pillar_tiles:
 			print("[%s] Trapped on pillar - cannot move!" % enemy_name)
 			return
@@ -6738,10 +5775,10 @@ func move_towards_target(pos: Vector3) -> void:
 	if grid_manager:
 		# Feared (Cupids lead arrow): run AWAY from the fear source instead.
 		if fear_tempo > 0 and fear_source and is_instance_valid(fear_source):
-			var flee_cell = grid_manager.world_to_grid(fear_source.position)
+			var flee_cell := grid_manager.world_to_grid(fear_source.position)
 			_start_path(_build_greedy_path(position, flee_cell, tiles, true))
 			return
-		var player_cell = grid_manager.world_to_grid(pos)
+		var player_cell := grid_manager.world_to_grid(pos)
 		# Follow a tile-by-tile route so we never glide through walls or corners.
 		# The Inflamed Minotaur knows his Labyrinth: he takes the real way
 		# round its walls where a greedy step would dead-end.
@@ -6752,17 +5789,14 @@ func move_towards_target(pos: Vector3) -> void:
 				return
 		_start_path(_build_greedy_path(position, player_cell, tiles))
 	else:
-		var diff = pos - position
-		var direction = Vector3(diff.x, 0, diff.z).normalized()
+		var diff := pos - position
+		var direction := Vector3(diff.x, 0, diff.z).normalized()
 		var new_target = position + direction * (tiles * 1.0)
 		target_position = new_target
 		is_moving = true
 
 func _manhattan_dist(a: Vector2i, b: Vector2i) -> int:
 	return absi(a.x - b.x) + absi(a.y - b.y)
-
-func attack_player(player_node: Node3D) -> void:
-	_deal_damage_to_player(player_node, attack_damage, "Attack")
 
 #endregion
 #region TAKING DAMAGE
@@ -6777,7 +5811,7 @@ func attack_player(player_node: Node3D) -> void:
 ## every Vulnerable/Weaken this enemy carries. Enemies sit under main, which
 ## holds the player — returns 0 outside that tree (tests, summons).
 func _player_sphere_amp(field: String) -> float:
-	var main = get_parent()
+	var main := get_parent()
 	if main and "player" in main and main.player and main.player.has_method("get_stats"):
 		var stats = main.player.get_stats()
 		if stats and field in stats:
@@ -6921,7 +5955,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		amount = 0
 		print("[%s] Armor Break: no armor to break, no damage dealt" % enemy_name)
 	elif armor_break_incoming and current_armor > 0:
-		var doubled = amount * 2
+		var doubled := amount * 2
 		var armor_absorbed = min(current_armor, doubled)
 		current_armor -= armor_absorbed
 		print("[%s] Armor Break! %d doubled damage to armor! Armor: %d/%d" % [enemy_name, armor_absorbed, current_armor, max_armor])
@@ -6931,7 +5965,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		amount = 0  # No spillover to health
 	elif current_armor > 0:
 		# Normal armor absorbs damage first
-		var was_armored = current_armor > 0
+		var was_armored := current_armor > 0
 		var armor_absorbed = min(current_armor, amount)
 		current_armor -= armor_absorbed
 		amount -= armor_absorbed
@@ -6962,9 +5996,9 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		tween.tween_property(_enemy_sprite, "modulate", Color.WHITE, 0.15)
 	elif mesh:
 		var tween = create_tween()
-		var mat = mesh.get_surface_override_material(0) as StandardMaterial3D
+		var mat := mesh.get_surface_override_material(0) as StandardMaterial3D
 		if mat:
-			var orig_color = mat.albedo_color
+			var orig_color := mat.albedo_color
 			tween.tween_property(mat, "albedo_color", Color.RED, 0.1)
 			tween.tween_property(mat, "albedo_color", orig_color, 0.1)
 
@@ -7020,14 +6054,14 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 					_vamp_absorb_pending = true
 					chosen_action = {}
 					action_tempo_counter = 0
-					var vamp_main = get_parent()
+					var vamp_main := get_parent()
 					if vamp_main and "player" in vamp_main and vamp_main.player and is_instance_valid(vamp_main.player):
 						_dash_away_from(vamp_main.player.position, 6)
 					print("[%s] BAT FORM — flits away! (%d charge(s) left)" % [enemy_name, _bat_form_charges])
 			EnemyType.IFRIT:
 				# Backflip: a single blow over 40 sends it 3 squares backwards.
 				if from_player and incoming_hit > 40:
-					var ifrit_main = get_parent()
+					var ifrit_main := get_parent()
 					if ifrit_main and "player" in ifrit_main and ifrit_main.player and is_instance_valid(ifrit_main.player):
 						knockback(ifrit_main.player.position, 3)
 						print("[%s] Backflips away from the blow!" % enemy_name)
@@ -7046,7 +6080,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 				# searing the holder for 1/3 of that attack's damage per cycle
 				# until bought off (60 mana, 0 tempo).
 				if from_player and incoming_hit > 0:
-					var djinn_main = get_parent()
+					var djinn_main := get_parent()
 					if djinn_main and "player" in djinn_main and djinn_main.player \
 							and djinn_main.player.has_method("get_deck_manager"):
 						var djinn_deck = djinn_main.player.get_deck_manager()
@@ -7117,44 +6151,25 @@ func _alert_mini_bear_pack() -> void:
 func _spawn_damage_number(amount: int, was_exposed: bool = false) -> void:
 	if amount <= 0:
 		return
-
-	var label = Label3D.new()
-	label.text = str(amount)
-	label.font_size = 28 if amount >= 10 else 22
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.no_depth_test = true
-	label.render_priority = 50
-
+	var text := str(amount)
+	var font_size := 28 if amount >= 10 else 22
+	var color: Color
 	# Color based on damage significance
 	if was_exposed:
-		label.modulate = Color(1.0, 0.5, 0.0)  # Orange for armor break
-		label.font_size = 32
-		label.text = str(amount) + "!"
+		color = Color(1.0, 0.5, 0.0)  # Orange for armor break
+		font_size = 32
+		text = str(amount) + "!"
 	elif amount >= 15:
-		label.modulate = Color(1.0, 0.2, 0.2)  # Bright red for big hits
-		label.font_size = 32
+		color = Color(1.0, 0.2, 0.2)  # Bright red for big hits
+		font_size = 32
 	elif amount >= 8:
-		label.modulate = Color(1.0, 0.5, 0.3)  # Orange-red for medium hits
+		color = Color(1.0, 0.5, 0.3)  # Orange-red for medium hits
 	else:
-		label.modulate = Color(1.0, 0.85, 0.5)  # Yellow for small hits
-
+		color = Color(1.0, 0.85, 0.5)  # Yellow for small hits
 	# Random horizontal offset to avoid stacking
-	var x_offset = randf_range(-0.3, 0.3)
-	label.position = position + Vector3(x_offset, 1.5, 0)
-	get_parent().add_child(label)
-
-	# Animate: float up and fade out
-	var tween = label.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tween.set_parallel(true)
-	tween.tween_property(label, "position:y", label.position.y + 1.5, 0.8)
-	tween.tween_property(label, "modulate:a", 0.0, 0.6).set_delay(0.3)
-	# Slight scale up then down
-	tween.tween_property(label, "font_size", label.font_size + 6, 0.1)
-	tween.chain()
-	tween.tween_property(label, "font_size", label.font_size, 0.3)
-
-	tween.chain()
-	tween.tween_callback(label.queue_free)
+	var x_offset := randf_range(-0.3, 0.3)
+	WorldText.float_number(get_parent(), position + Vector3(x_offset, 1.5, 0),
+		text, color, font_size, 0, 1.5, 0.8, 0.6, true)
 
 #endregion
 #region DAMAGE PREVIEW
@@ -7468,7 +6483,7 @@ func knockback(away_from: Vector3, spaces: int = 1) -> void:
 		return
 	if not grid_manager:
 		return
-	var diff = position - away_from
+	var diff := position - away_from
 	# Determine grid direction: allow diagonal by using sign of each axis
 	var dir_x = 0
 	var dir_z = 0
@@ -7488,15 +6503,15 @@ func knock_dir(dir: Vector2i, spaces: int) -> void:
 	var dir_x: int = dir.x
 	var dir_z: int = dir.y
 	# Step tile-by-tile, stopping at blocked or occupied tiles
-	var current_cell = grid_manager.world_to_grid(position)
+	var current_cell := grid_manager.world_to_grid(position)
 	var last_valid_cell = current_cell
 	var taken: Array = _unit_cells()
 	for i in range(spaces):
-		var next_cell = Vector2i(current_cell.x + dir_x * (i + 1), current_cell.y + dir_z * (i + 1))
+		var next_cell := Vector2i(current_cell.x + dir_x * (i + 1), current_cell.y + dir_z * (i + 1))
 		if next_cell in blocked_tiles or next_cell in occupied_tiles or next_cell in taken:
 			break
 		last_valid_cell = next_cell
-	var new_pos = grid_manager.grid_to_world(last_valid_cell)
+	var new_pos := grid_manager.grid_to_world(last_valid_cell)
 	position = new_pos
 	target_position = new_pos
 	print("[%s] Knocked back %d space(s)" % [enemy_name, spaces])
@@ -7550,15 +6565,10 @@ func _clear_exposed_if_armored() -> void:
 		print("[%s] Armor back on — no longer Exposed" % enemy_name)
 		_update_status_indicators()
 
-func reduce_armor(amount: int) -> void:
-	if current_armor > 0:
-		current_armor = max(0, current_armor - amount)
-		_update_armor_bar()
-
 func update_outline() -> void:
 	if not outline:
 		return
-	var mat = outline.get_surface_override_material(0) as StandardMaterial3D
+	var mat := outline.get_surface_override_material(0) as StandardMaterial3D
 	match enemy_type:
 		EnemyType.ELITE:
 			outline.visible = true
@@ -7588,7 +6598,7 @@ func set_hover_highlight(enabled: bool) -> void:
 	if not outline:
 		return
 	if enabled:
-		var mat = outline.get_surface_override_material(0) as StandardMaterial3D
+		var mat := outline.get_surface_override_material(0) as StandardMaterial3D
 		outline.visible = true
 		if mat:
 			mat.albedo_color = Color(1.0, 1.0, 1.0, 0.9)
@@ -7652,7 +6662,7 @@ func _consumed_explode() -> void:
 	## The Consumed: on death, explodes for damage to EVERYTHING nearby —
 	## the player and fellow enemies alike.
 	print("[%s] Bursts apart in a wave of hatred!" % enemy_name)
-	var main = get_parent()
+	var main := get_parent()
 	if main and "player" in main and main.player and is_instance_valid(main.player):
 		var diff = main.player.position - position
 		if Vector3(diff.x, 0, diff.z).length() <= CONSUMED_EXPLOSION_RANGE:
@@ -7693,7 +6703,7 @@ func _die_visuals() -> void:
 	var hold := 0.0
 	if _enemy_figure and _enemy_figure.has_method("play_death"):
 		hold = _enemy_figure.play_death()
-	var tween = create_tween()
+	var tween := create_tween()
 	if hold > 0.0:
 		tween.tween_interval(hold + 0.25)
 	tween.tween_property(self, "scale", Vector3.ONE * 0.01, 0.5)
@@ -7729,7 +6739,7 @@ func get_active_effects() -> Array[Dictionary]:
 	if zone_weakened and weaken_stacks <= 0:
 		effects.append({"name": "Weaken", "color": Color(0.8, 0.5, 0.9), "stacks": 1})
 	if wear_down_attacks > 0:
-		var wd_stacks = attack_reduction if attack_reduction > 0 else wear_down_attacks
+		var wd_stacks := attack_reduction if attack_reduction > 0 else wear_down_attacks
 		effects.append({"name": "Wear Down", "color": Color(0.9, 0.6, 0.3), "stacks": wd_stacks})
 	if get_phys_defense_debuff_stacks() > 0:
 		effects.append({"name": "Exposed Defense", "color": Color(0.9, 0.75, 0.3), "stacks": get_phys_defense_debuff_stacks()})
@@ -7814,12 +6824,12 @@ func _update_status_indicators() -> void:
 			entry["node"].queue_free()
 	_status_nodes.clear()
 
-	var effects = get_active_effects()
+	var effects := get_active_effects()
 	if effects.is_empty():
 		return
 
 	var show_count = min(effects.size(), MAX_VISIBLE_STATUS)
-	var has_overflow = effects.size() > MAX_VISIBLE_STATUS
+	var has_overflow := effects.size() > MAX_VISIBLE_STATUS
 	var total_slots = show_count + (1 if has_overflow else 0)
 
 	var circle_size: float = 0.08
@@ -7827,15 +6837,15 @@ func _update_status_indicators() -> void:
 	var start_x: float = -(total_slots - 1) * spacing / 2.0
 
 	for i in range(show_count):
-		var eff = effects[i]
-		var node = _create_status_circle(eff["name"], eff["color"], eff["stacks"], circle_size)
+		var eff := effects[i]
+		var node := _create_status_circle(eff["name"], eff["color"], eff["stacks"], circle_size)
 		node.position = Vector3(start_x + i * spacing, 0, 0)
 		_status_container.add_child(node)
 		_status_nodes.append({"node": node, "name": eff["name"]})
 
 	# Overflow indicator "+"
 	if has_overflow:
-		var plus_label = Label3D.new()
+		var plus_label := Label3D.new()
 		plus_label.text = "+"
 		plus_label.font_size = 20
 		plus_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -7974,15 +6984,15 @@ func _create_status_circle(eff_name: String, color: Color, stacks: int, radius: 
 	## A small colored circle above the enemy's head with the effect's glyph on
 	## it and a stack count. A small full sphere reads as a round dot from any
 	## camera angle (no billboard edge-on issue).
-	var root = Node3D.new()
+	var root := Node3D.new()
 
 	# Small round dot (unshaded so it reads as a flat coloured circle).
-	var dot = MeshInstance3D.new()
-	var sphere = SphereMesh.new()
+	var dot := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
 	sphere.radius = radius
 	sphere.height = radius * 2.0
 	dot.mesh = sphere
-	var mat = StandardMaterial3D.new()
+	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color.darkened(0.25)
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.no_depth_test = true
@@ -7991,9 +7001,9 @@ func _create_status_circle(eff_name: String, color: Color, stacks: int, radius: 
 	root.add_child(dot)
 
 	# Glyph on top, sized to sit inside the small circle.
-	var tex = StatusIcons.get_icon(eff_name)
+	var tex := StatusIcons.get_icon(eff_name)
 	if tex:
-		var sp = Sprite3D.new()
+		var sp := Sprite3D.new()
 		sp.texture = tex
 		sp.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		sp.shaded = false
@@ -8006,7 +7016,7 @@ func _create_status_circle(eff_name: String, color: Color, stacks: int, radius: 
 
 	# Stack count (small, bottom-right)
 	if stacks > 1:
-		var label = Label3D.new()
+		var label := Label3D.new()
 		label.text = str(stacks)
 		label.font_size = 22
 		label.pixel_size = 0.005

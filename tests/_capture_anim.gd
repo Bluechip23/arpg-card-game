@@ -4,7 +4,7 @@ extends SceneTree
 ## captured at a chosen time so we catch the signature pose.
 ##   ... --script tests/_capture_anim.gd -- <out.png> <action> <seconds> [character]
 
-var _fig: CharacterFigure = null
+var _fig: SpriteFigure = null
 var _action := "bow_shot"
 var _grab := 0.25  # seconds into the animation to capture the signature pose
 var _out := "/tmp/anim.png"
@@ -54,9 +54,9 @@ func _initialize() -> void:
 	(ground.material_override as StandardMaterial3D).albedo_color = Color(0.18, 0.2, 0.22)
 	root3d.add_child(ground)
 
-	_fig = CharacterFigure.new()
+	_fig = SpriteFigure.new()
 	root3d.add_child(_fig)
-	_fig.setup(_char, "res://assets/characters/%s_south.png" % _char.to_lower())
+	_fig.setup(_char)
 
 	var cam := Camera3D.new()
 	root3d.add_child(cam)

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_lnvkl"]
+
+[resource]
+script = ExtResource("1_lnvkl")
+item_name = "Dragon Skull"
+item_type = 0
+item_type_name = "Helm"
+rarity = 2
+weight = 30
+strength_bonus = 8
+dexterity_bonus = 8
+card_slots = 2
+on_self_range_offensive = 1
+crit_fire_cone_damage = 10
+crit_fire_cone_range = 3
+description = "+8 STR, +8 DEX. On-self: if ANY offensive card, gain +1 range. When landing a critical strike, the helm breathes a 10 damage blast of fire in a 3 range cone in front of it (scales with INT: +1 damage per 2 INT)."

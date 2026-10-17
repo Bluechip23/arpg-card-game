@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_xelxk"]
+
+[resource]
+script = ExtResource("1_xelxk")
+card_id = "mind_over_matter"
+card_name = "Mind over Matter"
+description = "The next hit you take is halved, and what is left is paid out of your mana instead of your health."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 20
+tempo_cost = 2
+target_types = ["self"]
+shop_excluded = true
+keywords = ["defense"]

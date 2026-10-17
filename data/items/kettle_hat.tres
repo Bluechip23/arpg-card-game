@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_n5hqg"]
+
+[resource]
+script = ExtResource("1_n5hqg")
+item_name = "Kettle Hat"
+item_type = 0
+item_type_name = "Helm"
+weight = 15
+special_effect = 7
+special_effect_value = 2
+armor_per_tempo_interval = 15
+description = "Gain 2 unerring armor every 15 tempo while equipped (counter resets when unequipped)."

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_ny7gh"]
+
+[resource]
+script = ExtResource("1_ny7gh")
+item_name = "Laurentius's Lost Spear"
+rarity = 2
+weight = 75
+strength_bonus = 6
+intelligence_bonus = 6
+wisdom_bonus = 2
+weapon_subtype = 4
+granted_card_ids = Array[String](["psionic_flow", "psionic_flow"])
+card_slots = 2
+on_self_self_targets_allies = true
+description = "+6 STR, +2 WIS, +6 INT. On-self: slotted self-target cards may target allies. Grants 2 Psionic Flows (instant): when an ally takes damage within 3 squares, restore 8 to them and push the attacker back 1 — or, when you play an attack, deal +8 damage and push the target back 1. Whichever comes first."

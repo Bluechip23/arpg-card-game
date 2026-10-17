@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_32iu0"]
+
+[resource]
+script = ExtResource("1_32iu0")
+card_id = "huck"
+card_name = "Huck"
+description = "Deal damage equal to your armor, then lose all of it."
+mana_cost = 100
+tempo_cost = 5
+is_ranged = true
+shop_excluded = true

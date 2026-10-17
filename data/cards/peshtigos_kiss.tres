@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_ufd6x"]
+
+[resource]
+script = ExtResource("1_ufd6x")
+card_id = "peshtigos_kiss"
+card_name = "Peshtigo's Kiss"
+description = "Erupt the floor around the point in flames: 10 damage to each enemy in them, +5 for each enemy in the flames. Diameter: your INT / 8. The flames go out at once unless you Maintain the card (you are asked after playing); while they burn, enemies in them take half damage every 5 tempo."
+mana_cost = 60
+damage = 10
+tempo_cost = 5
+base_damage = 10
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 0.5
+is_ranged = true
+target_types = ["point"]
+maintain_cost = 60
+is_fire_spell = true
+slot_labels = [16, 14]
+school = 1
+keywords = ["attack", "spell", "ranged", "offensive", "aoe", "point"]
+element = "red"

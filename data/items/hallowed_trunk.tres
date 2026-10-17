@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_bfhlx"]
+
+[resource]
+script = ExtResource("1_bfhlx")
+item_name = "Hallowed Trunk"
+item_type = 5
+item_type_name = "Gauntlets"
+rarity = 3
+level_3_overrides = {
+"health_bonus": 30,
+"regen_include_health": true
+}
+level_3_description = "+11 STR, +30 life, -3 DEX. Every 10 armor OR 10 health removed, gain 1 stack of regen. Skill — imbue tree: gain 5 regen and 10 thorns (10 tempo CD)."
+weight = 45
+strength_bonus = 10
+dexterity_bonus = -3
+health_bonus = 15
+gauntlet_skill_type = 1
+gauntlet_skill_name = "imbue tree"
+gauntlet_skill_description = "Gain 5 regen and 10 thorns."
+gauntlet_skill_cooldown = 2
+gauntlet_skill_mana_cost = 20
+gauntlet_skill_effect_id = "imbue_tree"
+armor_loss_regen_threshold = 10
+description = "+10 STR, +15 life, -3 DEX. Every 10 armor removed, gain 1 stack of regen. Skill — imbue tree: gain 5 regen and 10 thorns (10 tempo CD)."
+appearance = "A hollowed-out tree trunk, worn over the arm, with fluorescent green butterflies resting on the bark."
+appearance_icon = "res://assets/items/mythic/hallowed_trunk.png"

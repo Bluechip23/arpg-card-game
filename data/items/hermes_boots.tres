@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_lk2kx"]
+
+[resource]
+script = ExtResource("1_lk2kx")
+item_name = "Hermes Boots"
+item_type = 4
+item_type_name = "Boots"
+rarity = 3
+level_3_overrides = {
+"agility_bonus": 6,
+"trap_damage_percent": 50.0
+}
+level_3_description = "+6 AGI. On-self: restore 1 flash point. Traps deal 50% more damage to enemies."
+agility_bonus = 4
+card_slots = 4
+on_self_flash_regen = 1
+trap_damage_percent = 25.0
+description = "+4 AGI. On-self: restore 1 flash point. Traps deal 25% more damage to enemies. Upgraded: +6 AGI; traps deal 50% more."
+appearance = "Hermes' famous slippers, with a feathered wing sweeping off each side."
+appearance_icon = "res://assets/items/mythic/hermes_boots.png"

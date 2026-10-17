@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_ghscf"]
+
+[resource]
+script = ExtResource("1_ghscf")
+card_id = "roar"
+card_name = "Roar"
+description = "Knock all enemies within 3 squares back 1 space."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 20
+tempo_cost = 0
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 3.5
+target_types = ["all_nearby"]
+slot_labels = [13]
+keywords = ["defense", "no_target"]

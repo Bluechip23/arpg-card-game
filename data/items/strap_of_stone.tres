@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_4u88x"]
+
+[resource]
+script = ExtResource("1_4u88x")
+item_name = "Strap of Stone"
+item_type = 3
+item_type_name = "Belt"
+rarity = 2
+weight = 50
+strength_bonus = 3
+health_bonus = 20
+special_effect = 7
+special_effect_value = 10
+granted_card_ids = Array[String](["stone_encase"])
+card_slots = 1
+on_self_physical_resilient = 10
+armor_per_tempo_interval = 20
+description = "+20 life, +3 STR. Gain 10 unerring armor every 20 tempo (up to your unerring cap). On-self: gain 10% physical resistance for 10 tempo. Grants Stone Encase: gain 50 armor and become stunned for 5 tempo (45 mana, 5 tempo)."

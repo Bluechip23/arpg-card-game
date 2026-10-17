@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_bmtp8"]
+
+[resource]
+script = ExtResource("1_bmtp8")
+item_name = "Waistband"
+item_type = 3
+item_type_name = "Belt"
+weight = 2
+wisdom_bonus = 2
+agility_bonus = 2
+card_slots = 1
+on_self_armor_any = 2
+description = "+2 AGI, +2 WIS. On-self: gain 2 armor."

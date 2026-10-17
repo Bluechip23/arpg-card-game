@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_kjqfi"]
+
+[resource]
+script = ExtResource("1_kjqfi")
+item_name = "Thick Steel Helm"
+item_type = 0
+item_type_name = "Helm"
+rarity = 2
+weight = 55
+health_bonus = 25
+block_bonus_to_defense_cards = 2
+all_resistance_percent = 10.0
+description = "+25 health, 10% resistance to all damage. Armor-providing cards of any type grant 2 additional armor."

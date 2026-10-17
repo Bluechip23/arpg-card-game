@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_do5j4"]
+
+[resource]
+script = ExtResource("1_do5j4")
+item_name = "Frankensteins Screws"
+item_type = 0
+item_type_name = "Helm"
+rarity = 2
+weight = 10
+intelligence_bonus = 5
+granted_card_ids = Array[String](["its_alive"])
+summon_heal_aura = 3
+description = "+5 INT. Grants ITS ALIVE!!!!!: Resurrect a dead corpse into Frankensteins Monster (50 + summoner INT×0.8 HP; moves every 8 tempo/4 spaces; attacks every 5 tempo for 10 + INT×0.25; 5% + INT/10 resist to all). 20 mana, 5 tempo. When your summons are below 25% health and within 3 squares of you, they heal 3 per cycle."

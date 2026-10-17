@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_voyny"]
+
+[resource]
+script = ExtResource("1_voyny")
+item_name = "Ice Orb"
+rarity = 1
+weight = 2
+intelligence_bonus = 3
+wisdom_bonus = 1
+health_bonus = 10
+mana_bonus = 20
+weapon_subtype = 8
+card_slots = 2
+attack_apply_cold = 2
+damage_bonus_to_attack_cards = 2
+description = "+10 health, +3 INT, +1 WIS, +20 mana. 2 card slots. Your damaging offensive cards apply 2 Cold and deal +2 damage."

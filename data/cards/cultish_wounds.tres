@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_vnbd6"]
+
+[resource]
+script = ExtResource("1_vnbd6")
+card_id = "cultish_wounds"
+card_name = "Cultish Wounds"
+description = "Maintain 2M: Deal 1 damage to self ignoring armor. Repeat every 5 tempo."
+card_type = 5
+card_type_name = "Power"
+mana_cost = 20
+damage = 1
+tempo_cost = 2
+base_damage = 1
+target_types = ["self"]
+maintain_cost = 20
+slot_labels = [6, 10]
+keywords = ["power"]

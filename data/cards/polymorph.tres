@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_1o3a4"]
+
+[resource]
+script = ExtResource("1_1o3a4")
+card_id = "polymorph"
+card_name = "Polymorph"
+description = "Instant: when you land a 5th distinct debuff on an enemy, they become a pig for 5 tempo — able only to walk and make basic melee attacks. Jailed 25 tempo after it fires."
+card_type = 3
+card_type_name = "Instant"
+mana_cost = 0
+tempo_cost = 0
+target_types = ["self"]
+shop_excluded = true
+jail_on_play = 25
+reaction_trigger = "on_enemy_fifth_debuff"
+school = 1

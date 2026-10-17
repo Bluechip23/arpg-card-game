@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_qbdbc"]
+
+[resource]
+script = ExtResource("1_qbdbc")
+card_id = "reckless_strike"
+card_name = "Reckless Strike"
+description = "Deal 15 damage. Add 2 Minor Wounds to your deck."
+mana_cost = 10
+damage = 15
+base_damage = 15
+slot_labels = [9, 11, 8]
+keywords = ["attack", "offensive", "melee"]

@@ -86,13 +86,13 @@ func _test_keep_them_guessing(stats, pt) -> void:
 	stats.st_ktg_discard_count = 0
 	var dm = main.deck_manager
 	dm.hand.clear()
-	var slash := Card.create_slash()
+	var slash := Card.create_by_id("slash")
 	dm.hand.append(slash)
 	# Playing cards never counts: only true discards feed the counter.
-	dm.card_discarded.emit(Card.create_block())
+	dm.card_discarded.emit(Card.create_by_id("block"))
 	_check(stats.st_ktg_discard_count == 0, "a played card passing the discard pile does not count")
 	for _i in range(required):
-		dm.non_play_discard.emit(Card.create_block())
+		dm.non_play_discard.emit(Card.create_by_id("block"))
 	_check(slash.tempo_cost == 3 and slash.temp_hand_tempo_reduction == 3 and slash.temp_mod_tempo_left == 5 \
 			and stats.st_ktg_discard_count == 0,
 		"%d true discards cut a hand card by 3 tempo for 5 tempo (Slash 3 → 0, printed cost untouched) and reset the count" % required)
@@ -104,20 +104,20 @@ func _test_quick_step(stats, pt) -> void:
 	print("-- Quick Step --")
 	_grant(stats, "quick_step")
 	stats.current_armor = 0
-	var reaction := Card.create_cover()
+	var reaction := Card.create_by_id("cover")
 	main.deck_manager.reaction_triggered.emit(reaction)
 	_check(stats.current_armor == PassiveScaling.value("quick_step", "armor", 15), "an instant firing from hand grants the rank-15 armor")
 	stats.current_armor = 0
-	pt._trigger_skill_tree_on_card_play(Card.create_slash(), null)
+	pt._trigger_skill_tree_on_card_play(Card.create_by_id("slash"), null)
 	_check(stats.current_armor == 0, "a plain card play grants nothing")
 	stats.current_armor = 0
 
 func _test_last_played(stats, pt, dummy: Enemy) -> void:
 	print("-- Last card played (Mad Scientist / Clean Exchange) --")
 	_grant(stats, "clean_exchange")
-	pt._trigger_skill_tree_on_card_play(Card.create_slash(), dummy)
+	pt._trigger_skill_tree_on_card_play(Card.create_by_id("slash"), dummy)
 	_check(pt._last_played_card != null and pt._last_played_card.card_id == "slash", "the triggers remember the last card played")
-	var block := Card.create_block()
+	var block := Card.create_by_id("block")
 	var base_block: int = block.block
 	var base_tempo: int = block.tempo_cost
 	pt._trigger_skill_tree_on_draw(block)
@@ -131,16 +131,16 @@ func _test_last_played(stats, pt, dummy: Enemy) -> void:
 	var bm = main.player.get_buff_manager()
 	for b in bm.buffs.duplicate():
 		bm.remove_buff(b.buff_type)
-	pt._trigger_skill_tree_on_card_play(Card.create_draw(), null)  # a Utility
-	var potion := Card.create_healing_potion()
+	pt._trigger_skill_tree_on_card_play(Card.create_by_id("draw"), null)  # a Utility
+	var potion := Card.create_by_id("healing_potion")
 	pt._trigger_skill_tree_on_card_play(potion, main.player)
 	_check(bm.get_buff(Buff.BuffType.REGEN) != null, "Utility then a potion: Mad Scientist adds regen")
 	# Defense → Poison: one stack (5 tempo) of lowered physical defense, not an
 	# armor strip. Stacks are grouped by percent; the strongest group in force.
 	var ms_dummy: Enemy = dummy
 	ms_dummy.current_armor = 10
-	pt._trigger_skill_tree_on_card_play(Card.create_block(), ms_dummy)
-	var ms_poison := Card.create_poison_bomb()
+	pt._trigger_skill_tree_on_card_play(Card.create_by_id("block"), ms_dummy)
+	var ms_poison := Card.create_by_id("poison_bomb")
 	if ms_poison:
 		pt._trigger_skill_tree_on_card_play(ms_poison, ms_dummy)
 		_check(ms_dummy.get_phys_defense_debuff_percent() == 15.0 and ms_dummy.get_phys_defense_debuff_stacks() == 1 and ms_dummy.current_armor == 10,
@@ -158,20 +158,20 @@ func _test_self_reliance(stats, pt) -> void:
 	stats.st_cards_this_cycle.clear()
 	stats.st_self_reliance_discount = false
 	main.deck_manager.hand.clear()
-	var held := Card.create_peshtigos_kiss()
+	var held := Card.create_by_id("peshtigos_kiss")
 	main.deck_manager.hand.append(held)
 	var mana_before: int = stats.current_mana
 	var gains_before: int = stats.st_mana_gain_counter
 	for _i in range(3):
-		pt._trigger_skill_tree_cory_on_card_play(Card.create_slash())
+		pt._trigger_skill_tree_cory_on_card_play(Card.create_by_id("slash"))
 	_check(held.temp_mana_discount == 60, "the third card in a cycle cuts the held 60m card by its whole cost (got %d)" % held.temp_mana_discount)
 	_check(stats.current_mana == mana_before and stats.st_mana_gain_counter == gains_before, "…as a cost cut, not mana gained")
 	_check(not stats.st_self_reliance_discount and stats.st_cards_this_cycle.is_empty(), "nothing is owed and the next three start counting")
 	main.deck_manager.hand.clear()
 	for _i in range(3):
-		pt._trigger_skill_tree_cory_on_card_play(Card.create_slash())
+		pt._trigger_skill_tree_cory_on_card_play(Card.create_by_id("slash"))
 	_check(stats.st_self_reliance_discount, "with no paid card in hand the discount waits")
-	var drawn := Card.create_peshtigos_kiss()
+	var drawn := Card.create_by_id("peshtigos_kiss")
 	pt._trigger_skill_tree_on_draw(drawn)
 	_check(drawn.temp_mana_discount == 60 and not stats.st_self_reliance_discount, "…and lands on the next paid card drawn")
 
@@ -182,7 +182,7 @@ func _test_adjacency(stats, pt, dummy: Enemy) -> void:
 	stats.st_itt_charges = 2
 	stats.st_exposed_blind_spot_crit = 0
 	main.deck_manager.hand.clear()
-	main.deck_manager.hand.append(Card.create_block())
+	main.deck_manager.hand.append(Card.create_by_id("block"))
 	# Far away: a ranged attacker.
 	dummy.position = main.player.position + Vector3(6, 0, 0)
 	pt._trigger_skill_tree_brad_on_attacked(dummy)
@@ -202,7 +202,7 @@ func _test_haunted_rebuke(stats, pt, dummy: Enemy) -> void:
 	stats.st_haunted_rebuke_cooldown = 0
 	main.deck_manager.hand.clear()
 	for _i in range(3):
-		main.deck_manager.hand.append(Card.create_block())
+		main.deck_manager.hand.append(Card.create_by_id("block"))
 	dummy.action_tempo_counter = 0
 	dummy.slow_stacks = 0
 	dummy.next_action_tempo_tax = 0
@@ -263,7 +263,7 @@ func _test_heal_gating(stats, pt) -> void:
 			held = true
 	_check(not held, "healing yourself does not generate a Shepherd's Mark")
 	var ally = main._dojo_allies[0]
-	pt._trigger_skill_tree_on_card_play(Card.create_healing_potion(), ally)
+	pt._trigger_skill_tree_on_card_play(Card.create_by_id("healing_potion"), ally)
 	held = false
 	for c in main.deck_manager.hand:
 		if c.card_id == "shepherds_mark":

@@ -133,11 +133,11 @@ func _test_shared_storage_pool() -> void:
 
 	for i in range(inv.max_storage_slots - 1):
 		_check(inv.store_item(Fixtures.sword()), "item %d fits" % (i + 1))
-	_check(inv.store_card(Card.create_slash()), "a card takes the last shared slot")
+	_check(inv.store_card(Card.create_by_id("slash")), "a card takes the last shared slot")
 	_check(inv.used_storage_slots() == inv.max_storage_slots, "pool reads full")
 	_check(inv.is_storage_full(), "is_storage_full counts items AND cards")
 	_check(not inv.store_item(Fixtures.sword()), "no item slot left — cards count")
-	_check(not inv.store_card(Card.create_slash()), "no card slot left either")
+	_check(not inv.store_card(Card.create_by_id("slash")), "no card slot left either")
 
 	inv.remove_stored_card(0)
 	_check(inv.store_item(Fixtures.sword()), "freeing a card frees a slot for an item")

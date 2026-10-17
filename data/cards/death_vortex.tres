@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_ngghu"]
+
+[resource]
+script = ExtResource("1_ngghu")
+card_id = "death_vortex"
+card_name = "Death Vortex"
+description = "Instant: after you are hit 5 times, spin — 15 damage to all adjacent enemies. If the Vortex kills, it returns to your hand."
+card_type = 3
+card_type_name = "Instant"
+mana_cost = 0
+tempo_cost = 0
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 1.0
+target_types = ["self"]
+reaction_trigger = "on_hit_streak_5"

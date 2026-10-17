@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_6ueyd"]
+
+[resource]
+script = ExtResource("1_6ueyd")
+item_name = "Belt of Wumbology"
+item_type = 3
+item_type_name = "Belt"
+rarity = 2
+weight = 15
+strength_bonus = 5
+intelligence_bonus = 5
+wisdom_bonus = 1
+health_bonus = 5
+granted_card_ids = Array[String](["m_for_mini"])
+card_slots = 2
+on_self_strengthen_value = 10
+on_self_strengthen_attacks = 2
+description = "+5 STR, +5 health, +1 WIS, +5 INT. On-self: Strengthen +10 for your next 2 attacks. Grants M for Mini: apply 2 Vulnerable and 2 Weaken (15 mana, 2 tempo)."

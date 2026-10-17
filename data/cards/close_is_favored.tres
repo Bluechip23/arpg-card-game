@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_siiuh"]
+
+[resource]
+script = ExtResource("1_siiuh")
+card_id = "close_is_favored"
+card_name = "Close is Favored"
+description = "Instant: when an enemy gets within melee range, deal 13 damage to it. This card is erased."
+card_type = 3
+card_type_name = "Instant"
+mana_cost = 0
+damage = 13
+tempo_cost = 0
+base_damage = 13
+shop_excluded = true
+erase_on_play = true
+reaction_trigger = "on_enemy_melee_range"

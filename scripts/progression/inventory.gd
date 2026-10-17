@@ -706,14 +706,14 @@ func _apply_special_effect(item: ItemData, equipping: bool) -> void:
 
 func _create_card_by_id(card_id: String) -> Card:
 	match card_id:
-		"healing_potion": return Card.create_healing_potion()
-		"dagger_throw": return Card.create_dagger_throw()
-		"blink": return Card.create_blink()
-		"slash": return Card.create_slash()
-		"block": return Card.create_block()
-		"potion_of_continuance": return Card.create_potion_of_continuance()
-		"gulped_potion": return Card.create_gulped_potion()
-		"splinter": return Card.create_splinter()
+		"healing_potion": return Card.create_by_id("healing_potion")
+		"dagger_throw": return Card.create_by_id("dagger_throw")
+		"blink": return Card.create_by_id("blink")
+		"slash": return Card.create_by_id("slash")
+		"block": return Card.create_by_id("block")
+		"potion_of_continuance": return Card.create_by_id("potion_of_continuance")
+		"gulped_potion": return Card.create_by_id("gulped_potion")
+		"splinter": return Card.create_by_id("splinter")
 	return null
 
 func apply_equipped_item_card_effects() -> void:
@@ -786,7 +786,7 @@ func _ensure_granted_card_instances(item: ItemData) -> void:
 
 	if item.special_effect == ItemData.SpecialEffect.GRANT_BLINK_CARD:
 		for i in range(item.special_effect_value):
-			var blink_card = Card.create_blink()
+			var blink_card = Card.create_by_id("blink")
 			blink_card.granted_by_item = item
 			item.granted_card_instances.append(blink_card)
 
@@ -2295,7 +2295,7 @@ func ensure_return_scroll() -> void:
 	for item in stored_items:
 		if item and item.special_id == "return_scroll":
 			return
-	stored_items.append(ItemData.create_return_scroll())
+	stored_items.append(ItemData.create("return_scroll"))
 	storage_changed.emit()
 	print("[INVENTORY] Return Scroll added to storage")
 
@@ -2539,34 +2539,6 @@ func extract_card(item: ItemData, card_index: int, _destroy_item: bool = false) 
 	equipment_changed.emit()
 	print("[INVENTORY] Extracted '%s' from %s" % [card.card_name, item.item_name])
 	return card
-
-func _destroy_equipped_item(item: ItemData) -> void:
-	## Finds and removes an equipped item from all slot arrays, reversing its bonuses.
-	var all_slots = [
-		[equipped_helms, ItemData.ItemType.HELM],
-		[equipped_chests, ItemData.ItemType.CHEST],
-		[equipped_rings, ItemData.ItemType.RING],
-		[equipped_belts, ItemData.ItemType.BELT],
-		[equipped_boots, ItemData.ItemType.BOOTS],
-		[equipped_gauntlets, ItemData.ItemType.GAUNTLETS],
-		[equipped_weapons, ItemData.ItemType.WEAPON]
-	]
-
-	for slot_info in all_slots:
-		var slot_array = slot_info[0]
-		for i in range(slot_array.size()):
-			if slot_array[i] == item:
-				unequip_item(slot_info[1], i)
-				print("[INVENTORY] Destroyed item: %s" % item.item_name)
-				return
-
-	# Check storage too
-	for i in range(stored_items.size()):
-		if stored_items[i] == item:
-			stored_items.remove_at(i)
-			storage_changed.emit()
-			print("[INVENTORY] Destroyed stored item: %s" % item.item_name)
-			return
 
 func get_all_items_with_card_slots() -> Array[ItemData]:
 	## Returns all equipped items that have card slots.

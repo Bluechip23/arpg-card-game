@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_s18kp"]
+
+[resource]
+script = ExtResource("1_s18kp")
+card_id = "its_alive"
+card_name = "ITS ALIVE!!!!!"
+description = "Resurrect a nearby corpse into Frankensteins Monster — a summon that fights for you."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 20
+tempo_cost = 5
+target_types = ["point"]
+keywords = ["utility"]

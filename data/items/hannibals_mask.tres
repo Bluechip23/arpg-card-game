@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_74pbj"]
+
+[resource]
+script = ExtResource("1_74pbj")
+item_name = "Hannibals Mask"
+item_type = 0
+item_type_name = "Helm"
+rarity = 3
+level_3_overrides = {
+"health_bonus": 50
+}
+level_3_description = "+50 life. On-self: 15% lifesteal. Grants Resourceful Replenish (Maintain): your attacks lifesteal 8% (20 mana, 2 tempo)."
+weight = 5
+health_bonus = 25
+granted_card_ids = Array[String](["resourceful_replenish"])
+card_slots = 2
+on_self_lifesteal_percent = 15.0
+description = "+25 life. On-self: 15% lifesteal. Grants Resourceful Replenish (Maintain): your attacks lifesteal 5% (20 mana, 2 tempo)."
+appearance = "Hannibal Lecter's mask: a hard leather muzzle strapped over the lower face, with a steel grille bolted across the mouth."
+appearance_icon = "res://assets/items/mythic/hannibals_mask.png"

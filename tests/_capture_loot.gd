@@ -18,7 +18,7 @@ func _process(_delta: float) -> bool:
 	if _frames == 30:
 		if _main.olorin and _main.olorin.has_method("_close"):
 			_main.olorin._close()
-		_main._spawn_loot_drop({"gold": 14, "item": ItemData.create_wooden_sword(), "card": Card.create_by_id("charge"), "card_pack": ItemData.Rarity.COMMON}, _main.player.position)
+		_main._spawn_loot_drop({"gold": 14, "item": ItemData.create("wooden_sword"), "card": Card.create_by_id("charge"), "card_pack": ItemData.Rarity.COMMON}, _main.player.position)
 	if _frames == 40:
 		# Hover the first row so its description shows.
 		var rows = _main._loot_menu_list.get_children()

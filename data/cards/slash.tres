@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_xm00l"]
+
+[resource]
+script = ExtResource("1_xm00l")
+description = "10 damage. Conditional: melee with a melee weapon, Ranged 5 with a bow or a magic weapon."
+mana_cost = 20
+damage = 10
+tempo_cost = 3
+base_damage = 10
+keywords = ["attack", "offensive", "conditional"]
+conditional_range = true
+conditional_magic_ranged = true

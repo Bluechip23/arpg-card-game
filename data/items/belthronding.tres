@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_a744r"]
+
+[resource]
+script = ExtResource("1_a744r")
+item_name = "Belthronding"
+item_type_name = "Bow"
+rarity = 3
+level_3_overrides = {
+"dexterity_bonus": 10,
+"strength_bonus": 12
+}
+level_3_description = "+12 STR, +21 health, +10 DEX. 2 card slots. On-self: playing a slotted card puts a copy of Close is Favored into your hand, up to 3 held at once (Instant: an enemy entering melee range takes 13 damage; erased). When an ally deals damage within 3 squares of you, you take 10% of it as well. Grants Balistic Arrow: 30 damage — hitting an enemy does not stop this arrow (75 mana, 5 tempo)."
+weight = 60
+strength_bonus = 10
+dexterity_bonus = 8
+health_bonus = 20
+weapon_subtype = 1
+granted_card_ids = Array[String](["balistic_arrow"])
+card_slots = 2
+on_self_conjure_on_play_id = "close_is_favored"
+ally_damage_share_percent = 10.0
+ally_damage_share_radius = 3
+description = "+10 STR, +20 health, +8 DEX. 2 card slots. On-self: playing a slotted card puts a copy of Close is Favored into your hand, up to 3 held at once (Instant: an enemy entering melee range takes 13 damage; erased). When an ally deals damage within 3 squares of you, you take 10% of it as well. Grants Balistic Arrow: 30 damage — hitting an enemy does not stop this arrow (75 mana, 5 tempo)."
+appearance = "Crafted entirely from rare, dark black yew-wood, its stiff ends fitted with hard animal horn."
+appearance_icon = "res://assets/items/mythic/belthronding.png"

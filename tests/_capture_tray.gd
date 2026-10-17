@@ -19,7 +19,7 @@ func _process(_delta: float) -> bool:
 	_frames += 1
 	if _frames == 10:
 		var inv = _main.player.get_inventory()
-		var stone := ItemData.create_heal_stone()
+		var stone := ItemData.create("heal_stone")
 		inv.stored_items.append(stone)
 		inv.equip_item(stone)
 		var stats = _main.player.get_stats()

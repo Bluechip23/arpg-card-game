@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_txget"]
+
+[resource]
+script = ExtResource("1_txget")
+card_id = "armor_break"
+card_name = "Armor Break"
+description = "Next attack deals double damage to armor only. Does nothing to unarmored enemies."
+mana_cost = 30
+target_types = ["self"]
+slot_labels = [11]
+keywords = ["attack", "melee", "offensive", "self"]

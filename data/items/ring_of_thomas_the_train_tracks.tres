@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_av2cg"]
+
+[resource]
+script = ExtResource("1_av2cg")
+item_name = "Ring of Thomas the Train Tracks"
+item_type = 2
+item_type_name = "Ring"
+rarity = 3
+level_3_overrides = {
+"determination_bonus": 8
+}
+level_3_description = "+151 mana. +8 DET, +11 health. Shuffling your deck grants 10 Regen; every 2nd shuffle also heals 35."
+weight = 5
+determination_bonus = 5
+health_bonus = 10
+mana_bonus = 150
+description = "+150 mana. +5 DET, +10 health. Shuffling your deck grants 7 Regen; every 3rd shuffle also heals 25."
+appearance = "A ring whose band is laid train track — and where the diamond should sit, the smiling face of Thomas the Tank Engine."
+appearance_icon = "res://assets/items/mythic/ring_of_thomas_the_train_tracks.png"

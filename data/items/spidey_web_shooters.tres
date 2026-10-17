@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_p2e2a"]
+
+[resource]
+script = ExtResource("1_p2e2a")
+item_name = "Spidey Web Shooters"
+item_type = 5
+item_type_name = "Gauntlets"
+rarity = 2
+weight = 2
+dexterity_bonus = 3
+agility_bonus = 3
+hand_size_bonus = 1
+gauntlet_skill_type = 1
+gauntlet_skill_name = "Coming in!"
+gauntlet_skill_description = "Pull yourself to the target from up to 5 squares away."
+gauntlet_skill_cooldown = 2
+gauntlet_skill_mana_cost = 10
+gauntlet_skill_effect_id = "coming_in"
+card_slots = 2
+on_self_disarm_offensive = 1
+description = "+3 DEX, +3 AGI, +1 hand size. On-self: offensive cards Disarm the target for 5 tempo (it skips its next attack). Skill — Coming in!: pull yourself to the target from 5 squares (10 tempo CD)."

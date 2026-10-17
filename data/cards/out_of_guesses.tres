@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_mcch7"]
+
+[resource]
+script = ExtResource("1_mcch7")
+card_id = "out_of_guesses"
+card_name = "Out of Guesses"
+description = "Discard your whole hand, then draw that many cards."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 15
+tempo_cost = 3
+target_types = ["self"]
+keywords = ["utility"]

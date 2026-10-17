@@ -77,9 +77,9 @@ func _test_ring_mana() -> void:
 	inv.connect_player_stats(stats)
 	inv.enforce_mythic_limit = false
 	var base_mana: int = stats.max_mana
-	inv.equip_item(ItemData.create_heal_stone(), 0)
+	inv.equip_item(ItemData.create("heal_stone"), 0)
 	_check(stats.max_mana == base_mana + 50, "a common ring adds its 50 to the pool")
-	inv.equip_item(ItemData.create_draupnir(), 1)
+	inv.equip_item(ItemData.create("draupnir"), 1)
 	_check(stats.max_mana == base_mana + 200, "a mythic beside it brings the pool to +200")
 	inv.unequip_item(ItemData.ItemType.RING, 1)
 	_check(stats.max_mana == base_mana + 50, "and the pool leaves with the ring")
@@ -103,21 +103,21 @@ func _test_roster() -> void:
 	_check(counts[ItemData.Rarity.RARE] == 3, "3 rares (got %d)" % counts[ItemData.Rarity.RARE])
 	_check(counts[ItemData.Rarity.LEGENDARY] == 6, "6 legendaries (got %d)" % counts[ItemData.Rarity.LEGENDARY])
 	_check(counts[ItemData.Rarity.MYTHIC] == 4, "4 mythics (got %d)" % counts[ItemData.Rarity.MYTHIC])
-	var cyc = ItemData.create_cyclops_ring()
+	var cyc = ItemData.create("cyclops_ring")
 	_check(cyc.strength_bonus == 10 and cyc.intelligence_bonus == -3, "Cyclops Ring carries its downsides")
-	_check(ItemData.create_friendship_ring().healing_bonus == 5, "Friendship Ring: +5 to heals")
-	_check(ItemData.create_ring_of_stone_hide().block_bonus_to_defense_cards == 4, "Stone Hide: +4 block on block cards")
+	_check(ItemData.create("friendship_ring").healing_bonus == 5, "Friendship Ring: +5 to heals")
+	_check(ItemData.create("ring_of_stone_hide").block_bonus_to_defense_cards == 4, "Stone Hide: +4 block on block cards")
 
 func _test_duplicate_rule() -> void:
 	print("-- Duplicate-equip rule --")
 	var stats = _mk_stats()
 	var inv = _mk_inv(stats)
-	_check(inv.equip_item(ItemData.create_heal_stone(), 0), "first Heal Stone equips")
-	_check(inv.equip_item(ItemData.create_heal_stone(), 1), "second Heal Stone equips (common allows 2)")
+	_check(inv.equip_item(ItemData.create("heal_stone"), 0), "first Heal Stone equips")
+	_check(inv.equip_item(ItemData.create("heal_stone"), 1), "second Heal Stone equips (common allows 2)")
 	inv.unequip_item(ItemData.ItemType.RING, 1)
-	_check(inv.equip_item(ItemData.create_marvolo_gaunt(), 1), "Marvolo Gaunt equips")
+	_check(inv.equip_item(ItemData.create("marvolo_gaunt"), 1), "Marvolo Gaunt equips")
 	inv.unequip_item(ItemData.ItemType.RING, 0)
-	_check(not inv.equip_item(ItemData.create_marvolo_gaunt(), 0), "a second Marvolo Gaunt is refused (legendary max 1)")
+	_check(not inv.equip_item(ItemData.create("marvolo_gaunt"), 0), "a second Marvolo Gaunt is refused (legendary max 1)")
 	stats.free()
 	inv.free()
 
@@ -127,7 +127,7 @@ func _test_zap_counters() -> void:
 	var inv = _mk_inv(stats)
 	var fired: Array = []
 	inv.custom_ring_fired.connect(func(r, k, v): fired.append([r.item_name, k, v]))
-	var hs = ItemData.create_heal_stone()
+	var hs = ItemData.create("heal_stone")
 	inv.equip_item(hs, 0)
 	inv.on_healed(3)
 	_check(fired.is_empty() and int(hs.ring_counters.get("heal", 0)) == 3, "3 healing banks, no proc yet")
@@ -139,19 +139,19 @@ func _test_zap_counters() -> void:
 	_check(fired.size() == 3, "15 banked healing -> three zaps")
 	fired.clear()
 	# Gold Band rides armor; Emerald rides poison; Harnessed Sun rides burn.
-	var gb = ItemData.create_gold_band()
+	var gb = ItemData.create("gold_band")
 	inv.equip_item(gb, 1)
 	inv.on_armor_gained(10)
 	_check(fired.size() == 2 and fired[0][0] == "Gold Band", "10 shield -> two Gold Band zaps")
 	fired.clear()
 	inv.unequip_item(ItemData.ItemType.RING, 0)
-	var em = ItemData.create_emerald()
+	var em = ItemData.create("emerald")
 	inv.equip_item(em, 0)
 	inv.on_player_debuff_applied("poison", 5)
 	_check(fired.size() == 1 and fired[0][0] == "Emerald", "5 poison -> Emerald zap")
 	fired.clear()
 	inv.unequip_item(ItemData.ItemType.RING, 0)
-	var sun = ItemData.create_harnessed_sun()
+	var sun = ItemData.create("harnessed_sun")
 	inv.equip_item(sun, 0)
 	inv.on_player_debuff_applied("burn", 24)
 	_check(fired.is_empty(), "24 burn: not yet")
@@ -166,7 +166,7 @@ func _test_captain_planet() -> void:
 	var inv = _mk_inv(stats)
 	var fired: Array = []
 	inv.custom_ring_fired.connect(func(_r, k, _v): fired.append(k))
-	inv.equip_item(ItemData.create_captain_planets_circlet(), 0)
+	inv.equip_item(ItemData.create("captain_planets_circlet"), 0)
 	inv.on_player_debuff_applied("burn", 1)
 	inv.on_player_debuff_applied("cold", 1)
 	inv.on_player_debuff_applied("silenced", 1)
@@ -186,14 +186,14 @@ func _test_thomas_and_cyclops() -> void:
 	var inv = _mk_inv(stats)
 	var fired: Array = []
 	inv.custom_ring_fired.connect(func(_r, k, v): fired.append([k, v]))
-	inv.equip_item(ItemData.create_ring_of_thomas_the_train_tracks(), 0)
+	inv.equip_item(ItemData.create("ring_of_thomas_the_train_tracks"), 0)
 	inv.on_deck_shuffled()
 	inv.on_deck_shuffled()
 	_check(fired == [["thomas_regen", 7], ["thomas_regen", 7]], "two shuffles: 7 Regen each")
 	inv.on_deck_shuffled()
 	_check(fired.size() == 4 and fired[3] == ["thomas_heal", 25], "3rd shuffle also heals 25")
 	fired.clear()
-	inv.equip_item(ItemData.create_cyclops_ring(), 1)
+	inv.equip_item(ItemData.create("cyclops_ring"), 1)
 	inv.on_player_big_hit()
 	inv.on_player_big_hit()
 	_check(fired.is_empty(), "two big hits: not yet")
@@ -208,7 +208,7 @@ func _test_precious_and_draupnir_counters() -> void:
 	var inv = _mk_inv(stats)
 	var fired: Array = []
 	inv.custom_ring_fired.connect(func(_r, k, _v): fired.append(k))
-	inv.equip_item(ItemData.create_the_precious(), 0)
+	inv.equip_item(ItemData.create("the_precious"), 0)
 	for _i in range(3):
 		inv.on_damage_taken()
 	_check(fired.is_empty(), "three hits: still standing")
@@ -216,7 +216,7 @@ func _test_precious_and_draupnir_counters() -> void:
 	_check(fired == ["shadow_form"], "the 4th hit drags you under")
 	fired.clear()
 	inv.unequip_item(ItemData.ItemType.RING, 0)
-	inv.equip_item(ItemData.create_draupnir(), 0)
+	inv.equip_item(ItemData.create("draupnir"), 0)
 	for _i in range(9):
 		inv.on_damage_taken()
 	_check(fired == ["draupnir_clone"], "the 9th hit drips a duplicate")
@@ -235,7 +235,7 @@ func _test_jeremy_double() -> void:
 	_check(inv.ring_slots == 3, "Jeremy runs 3 ring slots")
 	var fired: Array = []
 	inv.custom_ring_fired.connect(func(_r, k, _v): fired.append(k))
-	inv.equip_item(ItemData.create_heal_stone(), 0)
+	inv.equip_item(ItemData.create("heal_stone"), 0)
 	inv.ring_cycle_count = 3  # arms the every-3rd-cycle double
 	inv.ring_triggered_this_turn = false
 	inv.on_healed(5)
@@ -247,7 +247,7 @@ func _test_marvolo() -> void:
 	print("-- Marvolo Gaunt --")
 	var stats = _mk_stats()
 	var inv = _mk_inv(stats)
-	var mg = ItemData.create_marvolo_gaunt()
+	var mg = ItemData.create("marvolo_gaunt")
 	inv.equip_item(mg, 0)
 	var saved := [false]
 	stats.marvolo_triggered.connect(func(): saved[0] = true)
@@ -319,7 +319,7 @@ func _test_cards_and_wraith() -> void:
 	var nc = Card.create_by_id("the_nibelung_curse")
 	_check(nc.erase_on_play and "self" in nc.target_types and "enemy" in nc.target_types,
 		"the Curse can point either way, then is erased")
-	var rn = ItemData.create_ring_of_nibelung()
+	var rn = ItemData.create("ring_of_nibelung")
 	_check(rn.granted_card_ids.size() == 1 and rn.granted_card_ids[0] == "tricks_of_alberich",
 		"Nibelung grants Tricks of Alberich")
 	_check(Enemy.EnemyType.RING_WRAITH >= 0, "RING_WRAITH exists at the enum tail")

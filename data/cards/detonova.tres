@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_t2rej"]
+
+[resource]
+script = ExtResource("1_t2rej")
+card_id = "detonova"
+card_name = "Detonova"
+description = "Purge the cuirass's stacks and deal the absorbed total as fire damage to all enemies within 2 squares of you. Does NOT scale with INT."
+card_type_name = "Spell"
+mana_cost = 60
+tempo_cost = 5
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 2.0
+target_types = ["self"]
+damage_type = 1
+school = 1
+keywords = ["offensive", "spell"]

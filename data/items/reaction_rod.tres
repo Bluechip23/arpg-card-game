@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_jtwnd"]
+
+[resource]
+script = ExtResource("1_jtwnd")
+item_name = "Reaction Rod"
+rarity = 2
+weight = 15
+intelligence_bonus = 5
+determination_bonus = 2
+agility_bonus = 2
+weapon_subtype = 8
+granted_card_ids = Array[String](["grounding"])
+melee_retaliate_shock = 4
+description = "+5 INT, +2 AGI, +2 DET. An enemy striking you from melee range takes 4 Shock. Grants Grounding: absorb every Shock within 10 squares of you and deal 10 damage to each enemy in that radius, shocked or not — the cast costs 5 less mana per Shock absorbed (200 mana, 10 tempo)."

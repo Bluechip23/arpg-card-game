@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_iltjl"]
+
+[resource]
+script = ExtResource("1_iltjl")
+item_name = "Spiked Mitts"
+item_type = 5
+item_type_name = "Gauntlets"
+rarity = 2
+weight = 35
+strength_bonus = 5
+dexterity_bonus = -2
+health_bonus = 10
+gauntlet_skill_type = 1
+gauntlet_skill_name = "Well placed guard"
+gauntlet_skill_description = "Gain 5 thorns."
+gauntlet_skill_cooldown = 3
+gauntlet_skill_mana_cost = 15
+gauntlet_skill_effect_id = "well_placed_guard"
+card_slots = 1
+on_self_armor_any = 5
+armor_gain_thorns_threshold = 25
+armor_gain_thorns_amount = 5
+description = "+10 health, +5 STR, -2 DEX. On-self: ANY card provides +5 armor. Every 25 armor gained, gain 5 thorns. Skill — Well placed guard: gain 5 thorns (15 mana, 15 tempo CD)."

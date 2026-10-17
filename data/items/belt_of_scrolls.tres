@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_4p25x"]
+
+[resource]
+script = ExtResource("1_4p25x")
+item_name = "Belt of Scrolls"
+item_type = 3
+item_type_name = "Belt"
+rarity = 3
+weight = 10
+intelligence_bonus = 8
+wisdom_bonus = 8
+granted_card_ids = Array[String](["chain_lightning", "ice_grenade", "fire_punch"])
+description = "+8 WIS, +8 INT. Grants Chain Lightning (10 damage bouncing between enemies, -2 per bounce), Ice Grenade (5 damage + 2 Cold in a 2-square radius; two separately-aimed shots), and Fire Punch (STR-scaled melee that leaves a fire path behind the target and copies itself with Erase 5)."
+appearance = "A wide leather belt hung with rolled parchment scrolls, each tucked into its own loop with a wax seal swinging below it."
+appearance_icon = "res://assets/items/mythic/belt_of_scrolls.png"

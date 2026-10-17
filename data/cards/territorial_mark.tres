@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_pgkj3"]
+
+[resource]
+script = ExtResource("1_pgkj3")
+card_id = "territorial_mark"
+card_name = "Territorial Mark"
+description = "Costs 35 health. Deal 15 damage at range 10. The arrow's path — and 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside are Weakened until they leave."
+mana_cost = 45
+health_cost = 35
+damage = 15
+tempo_cost = 5
+base_damage = 15
+is_ranged = true
+range_modifier = 5
+shop_excluded = true
+slot_labels = [1]

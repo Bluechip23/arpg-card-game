@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_0fhu6"]
+
+[resource]
+script = ExtResource("1_0fhu6")
+item_name = "Stringless Sender"
+item_type_name = "Bow"
+rarity = 2
+weight = 20
+dexterity_bonus = 1
+intelligence_bonus = 6
+wisdom_bonus = 1
+agility_bonus = 6
+weapon_subtype = 1
+card_slots = 2
+on_self_mana_reduction = -10
+on_self_tempo_penalty = -1
+on_self_bounce_percent = 20.0
+description = "+6 INT, +6 AGI, +1 WIS, +1 DEX. 2 card slots. On-self: -1 tempo, +10 mana cost, and a 20% chance the shot bounces to a second target at full damage — a crit success or failure carries over with it."

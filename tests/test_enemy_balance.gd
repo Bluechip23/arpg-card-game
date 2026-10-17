@@ -75,7 +75,7 @@ func _initialize() -> void:
 		var entry = data[t]
 		if int(entry["health"]) == 0 or int(entry["xp"]) == 0:
 			continue  # mock-ups and XP-less enemies (Wererabbit gives XP; Ring Wraith gives 0)
-		if int(Enemy.INTENDED_LEVELS.get(t, 0)) <= 0:
+		if int(EnemyDefs.DEFS.get(Enemy.EnemyType.keys()[t], {}).get("intended_level", 0)) <= 0:
 			missing_bands += 1
 			printerr("  MISSING BAND: %s" % entry["name"])
 	_check(missing_bands == 0, "every XP-granting enemy has an intended-level band")

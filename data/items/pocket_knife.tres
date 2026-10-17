@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_xb1aj"]
+
+[resource]
+script = ExtResource("1_xb1aj")
+item_name = "Pocket Knife"
+weight = 5
+dexterity_bonus = 2
+weapon_subtype = 5
+special_effect = 12
+description = "+2 DEX. While your DEX proc is armed, attacks cost 2 less tempo and resolve on the first tick."

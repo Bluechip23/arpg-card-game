@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_tjs3x"]
+
+[resource]
+script = ExtResource("1_tjs3x")
+card_id = "cover"
+card_name = "Cover"
+description = "Instant: When you or an ally (summons included) within 2 spaces takes damage, reduce it by the number of cards in your hand (Cover included)."
+card_type = 3
+card_type_name = "Reaction"
+mana_cost = 0
+tempo_cost = 2
+target_types = ["ally"]
+reaction_trigger = "on_ally_damage_taken"
+slot_labels = [12, 4]
+keywords = ["reaction"]
+requires_engraving = true

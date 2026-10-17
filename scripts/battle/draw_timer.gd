@@ -4,9 +4,7 @@ extends Node
 ## Manages tempo-driven game cycles: card draws and turn counting.
 ## All timers are now in global tempo units rather than discrete "turns".
 
-signal turn_started(turn_number: int)
 signal turn_ended(turn_number: int)
-signal player_turn_started
 
 var current_turn: int = 0
 
@@ -48,10 +46,7 @@ func process_tempo(amount: int) -> void:
 ## and process inventory effects that are still cycle-based.
 func take_turn() -> void:
 	current_turn += 1
-	turn_started.emit(current_turn)
 	print("[TURN] === Cycle %d ===" % current_turn)
-
-	player_turn_started.emit()
 
 	if deck_manager and deck_manager.inventory:
 		deck_manager.inventory.process_turn()

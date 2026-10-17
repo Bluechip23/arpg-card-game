@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_pc1ed"]
+
+[resource]
+script = ExtResource("1_pc1ed")
+card_id = "bark_up"
+card_name = "Bark Up"
+description = "Convert every point of your Regen and Thorns into armor."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 45
+tempo_cost = 3
+target_types = ["self"]
+shop_excluded = true
+keywords = ["defense"]

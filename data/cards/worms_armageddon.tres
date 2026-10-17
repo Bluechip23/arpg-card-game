@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_of0mv"]
+
+[resource]
+script = ExtResource("1_of0mv")
+card_id = "worms_armageddon"
+card_name = "Worms Armageddon"
+description = "Rain a massive meteor dealing 23 damage to a single target. 10% to summon two Alaskan Bull Worms (12 HP, 6 damage, burrowed until attacking, untargetable while burrowed, 1 movement per tempo)."
+card_type_name = "Spell"
+mana_cost = 50
+damage = 23
+tempo_cost = 10
+base_damage = 23
+rng_outcomes_data = [{
+"percent": 10.0
+}]
+is_ranged = true
+range_modifier = 3
+slot_labels = [16, 14, 9]
+school = 1
+keywords = ["spell", "ranged", "enemy", "offensive"]

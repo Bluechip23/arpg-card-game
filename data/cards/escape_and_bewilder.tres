@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_itsxu"]
+
+[resource]
+script = ExtResource("1_itsxu")
+card_id = "escape_and_bewilder"
+card_name = "Escape and bewilder"
+description = "Blink up to 5 spaces. Enemies within 3 of the space you left are stunned for 3 tempo."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 50
+tempo_cost = 2
+target_types = ["point"]
+keywords = ["utility"]

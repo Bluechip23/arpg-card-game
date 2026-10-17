@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_mveab"]
+
+[resource]
+script = ExtResource("1_mveab")
+card_id = "song_of_a_swords_sing"
+card_name = "Song of a Swords Sing"
+description = "Disarm the enemy for 5 tempo (it skips its next attack) and gain 2 armor for every KIND of debuff on it (3 burn is one kind; burn + frost + disarm is three)."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 35
+tempo_cost = 3
+shop_excluded = true
+keywords = ["utility"]

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_31koh"]
+
+[resource]
+script = ExtResource("1_31koh")
+item_name = "Techno Wraps"
+item_type = 5
+item_type_name = "Gauntlets"
+rarity = 2
+weight = 10
+intelligence_bonus = 3
+wisdom_bonus = 3
+gauntlet_skill_type = 1
+gauntlet_skill_name = "Future is bright"
+gauntlet_skill_description = "Shuffle your discard pile into your draw pile."
+gauntlet_skill_cooldown = 3
+gauntlet_skill_mana_cost = 15
+gauntlet_skill_effect_id = "future_is_bright"
+description = "+3 WIS, +3 INT. Skill — Future is bright: shuffle your discard pile into your draw pile (15 tempo CD)."

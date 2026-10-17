@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_piix7"]
+
+[resource]
+script = ExtResource("1_piix7")
+card_id = "multishot"
+card_name = "Multishot"
+description = "Deal 7 damage 3 times, each time gaining 10% crit chance. Glut 5."
+mana_cost = 30
+damage = 7
+tempo_cost = 6
+base_damage = 7
+is_ranged = true
+range_modifier = 1
+slot_labels = [1]
+keywords = ["attack", "offensive", "ranged"]
+glut_tempo = 5

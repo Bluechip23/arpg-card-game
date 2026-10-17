@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_um0kr"]
+
+[resource]
+script = ExtResource("1_um0kr")
+card_id = "improvised_ammo"
+card_name = "Improvised Ammo"
+description = "Deal 8 damage and apply 3 Weaken. If discarded: deal 4 damage to the nearest enemy and Improvised Ammo permanently gains +10% crit chance."
+mana_cost = 45
+damage = 8
+tempo_cost = 0
+base_damage = 8
+is_ranged = true
+shop_excluded = true
+slot_labels = [1]
+has_on_discard = true
+on_discard_effect = "improvised_ammo_blast"

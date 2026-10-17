@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_86hco"]
+
+[resource]
+script = ExtResource("1_86hco")
+item_name = "Elemental Trail Blazers"
+item_type = 4
+item_type_name = "Boots"
+rarity = 2
+weight = 10
+intelligence_bonus = 5
+agility_bonus = 5
+fire_trail_damage = 5
+fire_trail_tempo = 3
+description = "+5 INT, +5 AGI. When moving with flash points, leave a trail of fire. Each fire spot deals INT/5 damage then extinguishes; fire persists 3 tempo."

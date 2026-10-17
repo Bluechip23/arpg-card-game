@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_rkl14"]
+
+[resource]
+script = ExtResource("1_rkl14")
+item_name = "Boots of Speed"
+item_type = 4
+item_type_name = "Boots"
+rarity = 1
+weight = 1
+dexterity_bonus = 3
+agility_bonus = 4
+movement_flash_tempo_threshold = 36
+description = "+4 AGI, +3 DEX. After an accumulated 36 flash points spent on movement, remove 1 tempo from a card in your hand."

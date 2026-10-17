@@ -29,7 +29,6 @@ var _base_rotation: float = 0.0  # Fan rotation angle
 
 # Animation
 var _hover_tween: Tween = null
-var _select_tween: Tween = null
 var _is_animating_out: bool = false  # True while play/discard animation runs
 
 const CARD_W: float = 150.0

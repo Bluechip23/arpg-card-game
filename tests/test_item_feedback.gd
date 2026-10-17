@@ -85,11 +85,11 @@ func _run() -> void:
 func _test_gauntlet_mana() -> void:
 	print("-- Gauntlet skill mana --")
 	var want: Array = [
-		[ItemData.create_gravity_gauntlets(), "Suck", 10],
-		[ItemData.create_spiked_mitts(), "Well placed guard", 15],
-		[ItemData.create_cuffs_of_current(), "Zeet", 35],
-		[ItemData.create_copper_bracers(), "Clang", 25],
-		[ItemData.create_fanned_bracers(), "Fan Save", 25],
+		[ItemData.create("gravity_gauntlets"), "Suck", 10],
+		[ItemData.create("spiked_mitts"), "Well placed guard", 15],
+		[ItemData.create("cuffs_of_current"), "Zeet", 35],
+		[ItemData.create("copper_bracers"), "Clang", 25],
+		[ItemData.create("fanned_bracers"), "Fan Save", 25],
 	]
 	for row in want:
 		var item: ItemData = row[0]
@@ -98,7 +98,7 @@ func _test_gauntlet_mana() -> void:
 
 func _test_burgonet() -> void:
 	print("-- Burgonet is only the unerring clock --")
-	var b := ItemData.create_burgonet()
+	var b := ItemData.create("burgonet")
 	_check(b.block_bonus_to_defense_cards == 0 and b.block_to_armorless_defense_cards == 0,
 		"no card riders remain")
 	_check(b.special_effect == ItemData.SpecialEffect.ARMOR_PER_TURN and b.special_effect_value == 2 \
@@ -109,30 +109,30 @@ func _test_armor_chopper(stats, dm, bm, inv, d: Enemy) -> void:
 	stats.equipment_armor_shred = 10
 	_reset_dummy(d)
 	d.current_armor = 500
-	var slash := Card.create_slash()
+	var slash := Card.create_by_id("slash")
 	slash.execute(d, stats, dm, 0.0, 0.0, bm)
 	var after_slash: int = d.current_armor
 	stats.equipment_armor_shred = 0
 	d.current_armor = 500
-	Card.create_slash().execute(d, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("slash").execute(d, stats, dm, 0.0, 0.0, bm)
 	_check(d.current_armor - after_slash == 10, "Slash shreds 10 extra armor (%d)" % (d.current_armor - after_slash))
 	stats.equipment_armor_shred = 10
 	d.current_armor = 500
-	var vm := Card.create_volatile_mixture()
+	var vm := Card.create_by_id("volatile_mixture")
 	vm.execute(d, stats, dm, 0.0, 0.0, bm)
 	var vm_on: int = d.current_armor
 	stats.equipment_armor_shred = 0
 	d.current_armor = 500
-	Card.create_volatile_mixture().execute(d, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("volatile_mixture").execute(d, stats, dm, 0.0, 0.0, bm)
 	_check(d.current_armor == vm_on, "a damaging utility card shreds nothing extra")
 	stats.equipment_armor_shred = 10
 	d.current_armor = 500
-	var fb := Card.create_fireball()
+	var fb := Card.create_by_id("fireball")
 	fb.execute(d, stats, dm, 0.0, 0.0, bm)
 	var fb_on: int = d.current_armor
 	stats.equipment_armor_shred = 0
 	d.current_armor = 500
-	Card.create_fireball().execute(d, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("fireball").execute(d, stats, dm, 0.0, 0.0, bm)
 	_check(fb.is_ranged and d.current_armor == fb_on, "a ranged attack card (Fireball) shreds nothing extra")
 	# The auto attack is a melee attack.
 	var gm = main.grid_manager
@@ -149,7 +149,7 @@ func _test_armor_chopper(stats, dm, bm, inv, d: Enemy) -> void:
 	# A bow's shot is not.
 	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
 	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
-	_check(inv.equip_item(ItemData.create_short_bow(), 0), "a bow equips")
+	_check(inv.equip_item(ItemData.create("short_bow"), 0), "a bow equips")
 	_place(gm, d, pcell + Vector2i(3, 0))
 	stats.equipment_armor_shred = 10
 	d.current_armor = 500
@@ -168,13 +168,13 @@ func _test_armor_riders(stats, dm, bm, d: Enemy) -> void:
 	print("-- Earth Book / Thick Steel: armor-granting cards of any type --")
 	stats.equipment_defense_card_block = 1
 	stats.current_armor = 0
-	Card.create_parry().execute(d, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("parry").execute(d, stats, dm, 0.0, 0.0, bm)
 	_check(stats.current_armor == 6, "Parry (defense, 5 armor) grants 6 (%d)" % stats.current_armor)
 	stats.current_armor = 0
-	Card.create_vengeful_shield().execute(main.player, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("vengeful_shield").execute(main.player, stats, dm, 0.0, 0.0, bm)
 	_check(stats.current_armor == 6, "Vengeful Shield (an instant, 5 armor) grants 6 (%d)" % stats.current_armor)
 	stats.current_armor = 0
-	Card.create_slash().execute(d, stats, dm, 0.0, 0.0, bm)
+	Card.create_by_id("slash").execute(d, stats, dm, 0.0, 0.0, bm)
 	_check(not stats.defense_card_bonus_pending, "an armorless card leaves the rider disarmed")
 	stats.add_armor(3)
 	_check(stats.current_armor == 3, "a later plain armor gain carries no leftover bonus (%d)" % stats.current_armor)
@@ -189,17 +189,17 @@ func _hit(card: Card, stats, dm, bm, d: Enemy) -> int:
 func _test_books(stats, dm, bm, d: Enemy) -> void:
 	print("-- Fire / Frost Book, Ice Orb: every damaging offensive card --")
 	stats.equipment_attack_card_damage = 0
-	var slash_base: int = _hit(Card.create_slash(), stats, dm, bm, d)
-	var fb0 := Card.create_fireball()  # its AoE lands in main: read the computed hit
+	var slash_base: int = _hit(Card.create_by_id("slash"), stats, dm, bm, d)
+	var fb0 := Card.create_by_id("fireball")  # its AoE lands in main: read the computed hit
 	_hit(fb0, stats, dm, bm, d)
 	var fb_base: int = fb0.last_damage_dealt
-	var vm_base: int = _hit(Card.create_volatile_mixture(), stats, dm, bm, d)
+	var vm_base: int = _hit(Card.create_by_id("volatile_mixture"), stats, dm, bm, d)
 	stats.equipment_attack_card_damage = 1
-	var slash_on: int = _hit(Card.create_slash(), stats, dm, bm, d)
-	var fb1 := Card.create_fireball()
+	var slash_on: int = _hit(Card.create_by_id("slash"), stats, dm, bm, d)
+	var fb1 := Card.create_by_id("fireball")
 	_hit(fb1, stats, dm, bm, d)
 	var fb_on: int = fb1.last_damage_dealt
-	var vm_on: int = _hit(Card.create_volatile_mixture(), stats, dm, bm, d)
+	var vm_on: int = _hit(Card.create_by_id("volatile_mixture"), stats, dm, bm, d)
 	stats.equipment_attack_card_damage = 0
 	_check(slash_on >= slash_base + 1, "Slash deals +1 (%d → %d)" % [slash_base, slash_on])
 	_check(fb_base > 0 and fb_on >= fb_base + 1, "Fireball, an offensive spell, deals +1 (%d → %d)" % [fb_base, fb_on])
@@ -210,13 +210,13 @@ func _test_megingjord(stats, dm, bm, d: Enemy) -> void:
 	# No crits: the innate 5% would spoil an exact doubling.
 	var crit_prev: float = stats.equipment_crit_bonus
 	stats.equipment_crit_bonus = -100.0
-	var belt := ItemData.create_megingjord()
-	var plain: int = _hit(Card.create_slash(), stats, dm, bm, d)
-	var doubled: int = _hit(_slot(Card.create_slash(), belt), stats, dm, bm, d)
+	var belt := ItemData.create("megingjord")
+	var plain: int = _hit(Card.create_by_id("slash"), stats, dm, bm, d)
+	var doubled: int = _hit(_slot(Card.create_by_id("slash"), belt), stats, dm, bm, d)
 	_check(doubled == plain * 2, "a slotted Slash deals exactly twice (%d vs %d)" % [doubled, plain])
 	_check(PlayerStats.hit_multiplier == 1.0, "the multiplier is cleared when the card finishes")
-	var vm_plain: int = _hit(Card.create_volatile_mixture(), stats, dm, bm, d)
-	var vm_slot: int = _hit(_slot(Card.create_volatile_mixture(), belt), stats, dm, bm, d)
+	var vm_plain: int = _hit(Card.create_by_id("volatile_mixture"), stats, dm, bm, d)
+	var vm_slot: int = _hit(_slot(Card.create_by_id("volatile_mixture"), belt), stats, dm, bm, d)
 	_check(vm_slot == vm_plain, "a slotted non-offensive card is not doubled (%d vs %d)" % [vm_slot, vm_plain])
 	stats.equipment_crit_bonus = crit_prev
 
@@ -245,11 +245,11 @@ func _test_blue_robe(stats, dm, bm, dummies: Array) -> void:
 	_check(1000 - a.current_health == 20 and 1000 - b.current_health == 20,
 		"with it both enemies take the full 20, each by its own weakest type (%d, %d)" % [1000 - a.current_health, 1000 - b.current_health])
 	PlayerStats.adaptive_damage_type = false
-	var robe := ItemData.create_blue_robe()
+	var robe := ItemData.create("blue_robe")
 	var phys_res := {DamageTypes.Type.FIRE: 0.0, DamageTypes.Type.PHYSICAL: 50.0}
-	var full: int = _hit(Card.create_slash(), stats, dm, bm, a)
-	var plain: int = _hit_resisting(Card.create_slash(), phys_res, stats, dm, bm, a)
-	var adapted: int = _hit_resisting(_slot(Card.create_slash(), robe), phys_res, stats, dm, bm, a)
+	var full: int = _hit(Card.create_by_id("slash"), stats, dm, bm, a)
+	var plain: int = _hit_resisting(Card.create_by_id("slash"), phys_res, stats, dm, bm, a)
+	var adapted: int = _hit_resisting(_slot(Card.create_by_id("slash"), robe), phys_res, stats, dm, bm, a)
 	_check(plain < full and adapted == full, "a slotted Slash on a physical-resister lands as fire, unresisted (%d / %d / full %d)" % [plain, adapted, full])
 	_check(not PlayerStats.adaptive_damage_type, "the flag is cleared when the card finishes")
 	_reset_dummy(a)
@@ -257,18 +257,18 @@ func _test_blue_robe(stats, dm, bm, dummies: Array) -> void:
 
 func _test_girdle(stats, dm, bm, d: Enemy) -> void:
 	print("-- Girdle of Aphrodite: tagged instants count as support --")
-	var girdle := ItemData.create_girdle_of_aphrodite()
+	var girdle := ItemData.create("girdle_of_aphrodite")
 	stats.current_health = 50
-	_slot(Card.create_vengeful_shield(), girdle).execute(main.player, stats, dm, 0.0, 0.0, bm)
+	_slot(Card.create_by_id("vengeful_shield"), girdle).execute(main.player, stats, dm, 0.0, 0.0, bm)
 	_check(stats.current_health >= 65, "Vengeful Shield (instant tagged defense) heals its target 15 (%d)" % stats.current_health)
 	stats.current_health = 50
-	_slot(Card.create_sanguine_the_penguin(), girdle).execute(main.player, stats, dm, 0.0, 0.0, bm)
+	_slot(Card.create_by_id("sanguine_the_penguin"), girdle).execute(main.player, stats, dm, 0.0, 0.0, bm)
 	_check(stats.current_health == 50, "an untagged instant heals nothing (%d)" % stats.current_health)
 	stats.current_health = 50
-	_slot(Card.create_block(), girdle).execute(main.player, stats, dm, 0.0, 0.0, bm)
+	_slot(Card.create_by_id("block"), girdle).execute(main.player, stats, dm, 0.0, 0.0, bm)
 	_check(stats.current_health >= 65, "Block (defense) heals 15 (%d)" % stats.current_health)
 	stats.current_health = 50
-	_slot(Card.create_slash(), girdle).execute(d, stats, dm, 0.0, 0.0, bm)
+	_slot(Card.create_by_id("slash"), girdle).execute(d, stats, dm, 0.0, 0.0, bm)
 	_check(stats.current_health == 50, "an offensive card heals nothing (%d)" % stats.current_health)
 	stats.current_health = stats.max_health
 	stats.current_armor = 0
@@ -277,16 +277,16 @@ func _test_girdle(stats, dm, bm, d: Enemy) -> void:
 func _test_tigers(stats) -> void:
 	print("-- Tigers Sunday Red: ranged OFFENSIVE cards only --")
 	stats.equipment_ranged_range_bonus = 1
-	var fb := Card.create_fireball()
-	var tonic := Card.create_healing_tonic()
+	var fb := Card.create_by_id("fireball")
+	var tonic := Card.create_by_id("healing_tonic")
 	_check(fb.is_ranged and main._helm_range_bonus(fb) == 1, "Fireball gets +1 range")
 	_check(tonic.is_ranged and not tonic.is_offensive() and main._helm_range_bonus(tonic) == 0, "Healing Tonic (ranged utility) gets nothing")
-	_check(main._helm_range_bonus(Card.create_slash()) == 0, "a melee card gets nothing")
+	_check(main._helm_range_bonus(Card.create_by_id("slash")) == 0, "a melee card gets nothing")
 	stats.equipment_ranged_range_bonus = 0
 
 func _test_belthronding(stats, inv, d: Enemy) -> void:
 	print("-- Belthronding: every ally's damage but your own --")
-	_check(inv.equip_item(ItemData.create_belthronding(), 0), "Belthronding equips")
+	_check(inv.equip_item(ItemData.create("belthronding"), 0), "Belthronding equips")
 	var gm = main.grid_manager
 	var pcell: Vector2i = gm.world_to_grid(main.player.position)
 	stats.current_health = 100
@@ -307,7 +307,7 @@ func _test_close_is_favored(stats, dm, d: Enemy) -> void:
 	var pcell: Vector2i = gm.world_to_grid(main.player.position)
 	_reset_dummy(d)
 	dm.hand.clear()
-	dm.hand.append(Card.create_close_is_favored())
+	dm.hand.append(Card.create_by_id("close_is_favored"))
 	main._enemy_melee_state.clear()
 	_place(gm, d, pcell + Vector2i(1, 0))
 	main._update_enemy_melee_state(d, false)
@@ -324,16 +324,16 @@ func _test_close_is_favored(stats, dm, d: Enemy) -> void:
 
 func _test_nine_ruins(stats, dm, inv, d: Enemy) -> void:
 	print("-- Nine Ruins: the nine hold 5 tempo for Sanguine's card --")
-	var nr := ItemData.create_nine_ruins_of_sanguine()
+	var nr := ItemData.create("nine_ruins_of_sanguine")
 	_check(inv.equip_item(nr, 0), "Nine Ruins equips")
 	main._clear_penguin()
 	dm.hand.clear()
 	dm.draw_pile.clear()
 	dm.discard_pile.clear()
-	var sang := Card.create_sanguine_the_penguin()
+	var sang := Card.create_by_id("sanguine_the_penguin")
 	dm.draw_pile.append(sang)
 	nr.vitality_stacks = 8
-	main._weapon_post_card_effects(Card.create_slash(), d)
+	main._weapon_post_card_effects(Card.create_by_id("slash"), d)
 	_check(nr.vitality_stacks == 9 and not main._vitality_window.is_empty(), "the ninth attack opens the window (stacks %d)" % nr.vitality_stacks)
 	_check(main._penguin == null, "no card in hand: no penguin yet")
 	main._update_vitality_window(3)
@@ -347,10 +347,10 @@ func _test_nine_ruins(stats, dm, inv, d: Enemy) -> void:
 	# The window closing without the card: purge, discard, no penguin.
 	dm.hand.clear()
 	dm.discard_pile.clear()
-	var sang2 := Card.create_sanguine_the_penguin()
+	var sang2 := Card.create_by_id("sanguine_the_penguin")
 	dm.draw_pile.append(sang2)
 	nr.vitality_stacks = 8
-	main._weapon_post_card_effects(Card.create_slash(), d)
+	main._weapon_post_card_effects(Card.create_by_id("slash"), d)
 	main._update_vitality_window(5)
 	_check(nr.vitality_stacks == 0 and main._vitality_window.is_empty(), "5 tempo without the card purges the stacks")
 	_check(main._penguin == null, "no penguin comes")
@@ -384,15 +384,15 @@ func _test_bastion(stats, d: Enemy) -> void:
 	stats.bastion_armor_out = 0
 	stats.bastion_flight_tempo = 0
 	Card.bastion_shield_in_flight = false
-	var bs := Card.create_bouncing_shield()
+	var bs := Card.create_by_id("bouncing_shield")
 	_check(bs.world_block_reason() == "", "on the arm, the card may be played")
 	main._apply_card_world_effects(bs, d)
 	var in_flight: int = stats.current_armor
 	_check(stats.bastion_armor_out == 10, "half the armor (10) leaves with the shield (%d)" % stats.bastion_armor_out)
-	_check(Card.bastion_shield_in_flight and Card.create_bouncing_shield().world_block_reason() != "",
+	_check(Card.bastion_shield_in_flight and Card.create_by_id("bouncing_shield").world_block_reason() != "",
 		"a Bouncing Shield drawn now is unplayable")
 	dm.hand.clear()
-	var redrawn := Card.create_bouncing_shield()
+	var redrawn := Card.create_by_id("bouncing_shield")
 	dm.hand.append(redrawn)
 	var before_mana: int = stats.current_mana
 	var res: Dictionary = dm.play_card(0, d, main.player, true)
@@ -409,7 +409,7 @@ func _test_bastion(stats, d: Enemy) -> void:
 	_check(not Card.bastion_shield_in_flight and redrawn.world_block_reason() == "", "and the card in hand is playable again")
 	# A throw with no armor still keeps the card away for the flight.
 	stats.current_armor = 0
-	main._apply_card_world_effects(Card.create_bouncing_shield(), d)
+	main._apply_card_world_effects(Card.create_by_id("bouncing_shield"), d)
 	_check(Card.bastion_shield_in_flight and stats.bastion_armor_out == 0, "an armorless throw still puts the shield in the air")
 	main._update_bastion_return(10)
 	_check(not Card.bastion_shield_in_flight, "and it comes back empty-handed after 10")
@@ -440,31 +440,31 @@ func _test_play_scope(stats, dm, bm, dummies: Array) -> void:
 	# Fireball's splash lands in main: Megingjörð must double it.
 	_reset_dummy(a)
 	_reset_dummy(b)
-	_resolve_like_main(Card.create_fireball(), a, stats, dm, bm)
+	_resolve_like_main(Card.create_by_id("fireball"), a, stats, dm, bm)
 	var fa_plain: int = 1000 - a.current_health
 	var fb_plain: int = 1000 - b.current_health
-	var belt := ItemData.create_megingjord()
+	var belt := ItemData.create("megingjord")
 	_reset_dummy(a)
 	_reset_dummy(b)
-	_resolve_like_main(_slot(Card.create_fireball(), belt), a, stats, dm, bm)
+	_resolve_like_main(_slot(Card.create_by_id("fireball"), belt), a, stats, dm, bm)
 	_check(fa_plain > 0 and 1000 - a.current_health == fa_plain * 2, "a slotted Fireball's splash is doubled on its target (%d vs %d)" % [1000 - a.current_health, fa_plain])
 	_check(fb_plain > 0 and 1000 - b.current_health == fb_plain * 2, "...and on the enemy beside it (%d vs %d)" % [1000 - b.current_health, fb_plain])
 	_check(PlayerStats.hit_multiplier == 1.0 and not Card.play_scope_open, "the scope closes clean")
 	# Blue Robe: the splash re-rolls per enemy (a physical-resister takes fire).
-	var robe := ItemData.create_blue_robe()
+	var robe := ItemData.create("blue_robe")
 	_reset_dummy(a)
 	_reset_dummy(b)
 	b.damage_resistances = {DamageTypes.Type.FIRE: 0.0, DamageTypes.Type.PHYSICAL: 50.0}
-	_resolve_like_main(_slot(Card.create_fireball(), robe), a, stats, dm, bm)
+	_resolve_like_main(_slot(Card.create_by_id("fireball"), robe), a, stats, dm, bm)
 	_check(1000 - b.current_health == fb_plain, "Blue Robe: the splash on a physical-resister lands unresisted (%d vs %d)" % [1000 - b.current_health, fb_plain])
 	# Thick Steel / Earth Book: armor granted in the world effects carries the rider.
 	stats.equipment_defense_card_block = 2
 	stats.current_armor = 0
-	_resolve_like_main(Card.create_defensive_awareness(), main.player, stats, dm, bm)
+	_resolve_like_main(Card.create_by_id("defensive_awareness"), main.player, stats, dm, bm)
 	var da_on: int = stats.current_armor
 	stats.equipment_defense_card_block = 0
 	stats.current_armor = 0
-	_resolve_like_main(Card.create_defensive_awareness(), main.player, stats, dm, bm)
+	_resolve_like_main(Card.create_by_id("defensive_awareness"), main.player, stats, dm, bm)
 	_check(da_on == stats.current_armor + 2, "Defensive Awareness (armor granted in main) gets the +2 (%d vs %d)" % [da_on, stats.current_armor])
 	_check(not stats.defense_card_bonus_pending, "and nothing is left armed")
 	stats.current_armor = 0

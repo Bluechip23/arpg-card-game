@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_yijtj"]
+
+[resource]
+script = ExtResource("1_yijtj")
+item_name = "Medic Wraps"
+item_type = 5
+item_type_name = "Gauntlets"
+rarity = 1
+weight = 15
+strength_bonus = 3
+dexterity_bonus = -2
+health_bonus = 5
+gauntlet_skill_type = 1
+gauntlet_skill_name = "Slurp and pad"
+gauntlet_skill_description = "Heal an ally for 5 HP and gain 3 armor."
+gauntlet_skill_cooldown = 3
+gauntlet_skill_mana_cost = 10
+gauntlet_skill_effect_id = "slurp_and_pad"
+description = "+3 STR, -2 DEX, +5 life. Skill — Slurp and pad: heal an ally 5 HP and gain 3 armor (15 tempo CD)."

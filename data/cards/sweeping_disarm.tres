@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_cl65u"]
+
+[resource]
+script = ExtResource("1_cl65u")
+card_id = "sweeping_disarm"
+card_name = "Sweeping Disarm"
+description = "Surrounding enemies within one square are disarmed for 5 tempo. Deal 3 damage."
+mana_cost = 20
+damage = 3
+tempo_cost = 5
+base_damage = 3
+is_aoe = true
+aoe_shape = "circle"
+target_types = ["all_nearby"]
+slot_labels = [8, 12]
+keywords = ["attack", "offensive", "melee"]

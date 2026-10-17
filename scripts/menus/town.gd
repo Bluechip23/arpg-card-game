@@ -558,7 +558,7 @@ func _get_vendor_items(vendor_type: String) -> Array[ItemData]:
 	var items: Array[ItemData] = []
 	match vendor_type:
 		"armory":
-			items.append(ItemData.create_wooden_sword())
+			items.append(ItemData.create("wooden_sword"))
 		"accessory":
 			# No accessory items exist right now — the shelf stands empty
 			# until new accessories are added to ItemData.
@@ -758,18 +758,13 @@ func _get_current_deck_card_ids() -> Array:
 	return all_ids
 
 func _get_all_cards() -> Array[Card]:
-	## Discovers all Card.create_* factory methods and returns one of each card.
+	## One of each catalogue card (the rank-scaled generated ones excepted).
 	var cards: Array[Card] = []
-	var card_script: Script = Card
-	for method in card_script.get_script_method_list():
-		var method_name: String = method["name"]
-		if method_name.begins_with("create_") and method["args"].size() == 0:
-			var card = card_script.call(method_name)
-			# Item-kit and token cards (DROP_EXCLUDED) are never sold either —
-			# they only enter play through the item or effect that owns them.
-			if card is Card and not card.shop_excluded \
-					and not Card.DROP_EXCLUDED_CARD_IDS.has(card.card_id):
-				cards.append(card)
+	for card in Card.get_all_cards(false):
+		# Item-kit and token cards (DROP_EXCLUDED) are never sold either —
+		# they only enter play through the item or effect that owns them.
+		if not card.shop_excluded and not Card.DROP_EXCLUDED_CARD_IDS.has(card.card_id):
+			cards.append(card)
 	# Sort by card type then name
 	cards.sort_custom(func(a, b):
 		if a.card_type_name != b.card_type_name:
@@ -779,14 +774,11 @@ func _get_all_cards() -> Array[Card]:
 	return cards
 
 func _create_card_from_id(card_id: String) -> Card:
-	var card_script: Script = Card
-	for method in card_script.get_script_method_list():
-		var method_name: String = method["name"]
-		if method_name.begins_with("create_") and method["args"].size() == 0:
-			var card = card_script.call(method_name)
-			if card is Card and card.card_id == card_id:
-				return card
-	return null
+	# The town never rebuilds the rank-scaled generated cards (they are
+	# conjured in battle at a rank value, not dealt).
+	if Card.GENERATED_CARD_IDS.has(card_id):
+		return null
+	return Card.create_by_id(card_id)
 
 func _add_vendor_card_row(card: Card, is_sell: bool, sell_index: int = -1, loose: bool = false) -> void:
 	## Shop row: a card for sale (price), a loose backpack card (sells for
@@ -2434,23 +2426,6 @@ func _npc_cyl(parent: Node3D, n: String, pos: Vector3, top_r: float, bot_r: floa
 	return mi
 
 
-func _npc_sphere(parent: Node3D, n: String, pos: Vector3, r: float, c: Color, scl := Vector3.ONE) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	mi.name = n
-	var s := SphereMesh.new()
-	s.radius = r
-	s.height = r * 2.0
-	mi.mesh = s
-	mi.position = pos
-	mi.scale = scl
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = c
-	mat.roughness = 0.7
-	mi.material_override = mat
-	parent.add_child(mi)
-	return mi
-
-
 ## Replace the placeholder vendor cubes with themed market stalls, and scatter
 ## lamps, barrels and crates so the hub reads as a lived-in plaza.
 func _dress_town() -> void:
@@ -2572,21 +2547,6 @@ func _build_lamp(parent: Node3D, pos: Vector3) -> void:
 	light.light_energy = 1.1
 	light.omni_range = 5.0
 	lamp.add_child(light)
-
-
-func _build_barrel(parent: Node3D, pos: Vector3) -> void:
-	_npc_cyl(parent, "Barrel", pos + Vector3(0, 0.42, 0), 0.3, 0.34, 0.84, Color(0.45, 0.32, 0.18))
-	for by in [0.2, 0.62]:
-		var hoop := MeshInstance3D.new()
-		var tor := TorusMesh.new()
-		tor.inner_radius = 0.02
-		tor.outer_radius = 0.35
-		hoop.mesh = tor
-		hoop.position = pos + Vector3(0, by, 0)
-		var m := StandardMaterial3D.new()
-		m.albedo_color = Color(0.28, 0.29, 0.33)
-		hoop.material_override = m
-		parent.add_child(hoop)
 
 
 func _create_olorin_npc() -> void:

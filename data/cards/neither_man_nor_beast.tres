@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_7p312"]
+
+[resource]
+script = ExtResource("1_7p312")
+card_id = "neither_man_nor_beast"
+card_name = "Neither Man nor Beast"
+description = "Deal 10 damage ignoring all resistances and armor. The target cannot heal that damage for 10 tempo."
+mana_cost = 10
+damage = 10
+tempo_cost = 2
+base_damage = 10

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_20rwp"]
+
+[resource]
+script = ExtResource("1_20rwp")
+card_id = "thrown_stone"
+card_name = "Thrown Stone"
+description = "On Draw: Deal 4 damage to a random enemy. Deal 4 damage to an enemy."
+mana_cost = 20
+damage = 4
+tempo_cost = 2
+base_damage = 4
+is_ranged = true
+has_on_draw = true
+on_draw_effect = "deal_4_random_enemy"
+slot_labels = [2, 1]
+keywords = ["attack", "offensive", "ranged"]

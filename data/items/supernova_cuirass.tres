@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_8a7dn"]
+
+[resource]
+script = ExtResource("1_8a7dn")
+item_name = "Supernova Cuirass"
+item_type = 1
+item_type_name = "Chest"
+rarity = 2
+weight = 250
+determination_bonus = 2
+health_bonus = 10
+granted_card_ids = Array[String](["detonova"])
+damage_bank_percent = 10.0
+damage_bank_mitigate_percent = 2.0
+damage_bank_max_stacks = 10
+description = "+2 DET, +10 health. While the cuirass has stack room (max 10), it absorbs 10% of every hit — harnessed as a stack — and mitigates a further 2% entirely. Grants Detonova: purge your stacks and deal the absorbed total as fire damage 2 squares around you — does NOT scale with INT (60 mana, 5 tempo)."

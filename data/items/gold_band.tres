@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_g4l2k"]
+
+[resource]
+script = ExtResource("1_g4l2k")
+item_name = "Gold Band"
+item_type = 2
+item_type_name = "Ring"
+weight = 5
+intelligence_bonus = 2
+health_bonus = 5
+mana_bonus = 50
+description = "+50 mana. +5 health, +2 INT. Every 5 shield gained, deal 2 damage to a random enemy within 5 squares."

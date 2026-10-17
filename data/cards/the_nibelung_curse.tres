@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_wbiji"]
+
+[resource]
+script = ExtResource("1_wbiji")
+card_id = "the_nibelung_curse"
+card_name = "The Nibelung Curse"
+description = "Target yourself to take the stored healing, or an enemy to deal it as damage. Erased after use."
+mana_cost = 70
+tempo_cost = 5
+is_ranged = true
+target_types = ["enemy", "self"]
+shop_excluded = true
+erase_on_play = true

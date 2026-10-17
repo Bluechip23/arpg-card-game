@@ -29,7 +29,7 @@ func _initialize() -> void:
 
 func _test_item() -> void:
 	print("-- The item --")
-	var d = ItemData.create_bladed_doughnut()
+	var d = ItemData.create("bladed_doughnut")
 	_check(d.rarity == ItemData.Rarity.MYTHIC, "Bladed Doughnut is Mythic")
 	_check(d.strength_bonus == 15, "offers +15 STR")
 	_check(d.on_kill_card_id == "sprinkle", "skill: on kill, conjure a Sprinkle")
@@ -50,14 +50,14 @@ func _test_item() -> void:
 
 func _test_sprinkle_cards() -> void:
 	print("-- The Sprinkle cards --")
-	var s = Card.create_sprinkle()
+	var s = Card.create_by_id("sprinkle")
 	_check(s.mana_cost == 0 and s.tempo_cost == 0, "Sprinkle costs 0 mana / 0 tempo")
 	_check(s.damage == 25 and s.base_damage == 25, "Sprinkle deals 25 damage")
 	_check(s.card_type == Card.CardType.ATTACK, "Sprinkle is an attack card")
 	_check(s.erase_on_play, "Sprinkle is erased after play (never pollutes the deck)")
 	_check(s.shop_excluded, "Sprinkle never appears in the Card Dealer's shop")
 
-	var b = Card.create_sprinkle_bomb()
+	var b = Card.create_by_id("sprinkle_bomb")
 	_check(b.mana_cost == 0 and b.tempo_cost == 0 and b.damage == 25, "Sprinkle Bomb is 0/0, 25 damage")
 	_check(b.is_aoe and b.aoe_shape == "circle", "Sprinkle Bomb is an AOE circle")
 	_check(b.erase_on_play and b.shop_excluded, "Sprinkle Bomb erased after play, shop-excluded")
@@ -76,7 +76,7 @@ func _test_on_kill_conjure() -> void:
 	inv.on_enemy_killed()
 	_check(dm.hand.is_empty(), "no doughnut equipped -> no card conjured")
 
-	var d = ItemData.create_bladed_doughnut()
+	var d = ItemData.create("bladed_doughnut")
 	_check(inv.equip_item(d, 0), "doughnut equips as a weapon")
 	inv.on_enemy_killed()
 	_check(dm.hand.size() == 1 and dm.hand[0].card_id == "sprinkle",
@@ -93,7 +93,7 @@ func _test_on_kill_conjure() -> void:
 
 	# A full hand rejects the conjured card instead of overflowing
 	while dm.hand.size() < dm.get_hand_cap():
-		dm.hand.append(Card.create_slash())
+		dm.hand.append(Card.create_by_id("slash"))
 	inv.on_enemy_killed()
 	_check(dm.hand.size() == dm.get_hand_cap(),
 		"hand full -> the conjured card fizzles instead of overflowing")
@@ -103,7 +103,7 @@ func _test_on_kill_conjure() -> void:
 
 func _test_wooden_sword() -> void:
 	print("-- The Wooden Sword (Olorin's trade) --")
-	var sword = ItemData.create_wooden_sword()
+	var sword = ItemData.create("wooden_sword")
 	_check(sword.rarity == ItemData.Rarity.COMMON, "Wooden Sword is Common (Basic no longer exists)")
 	_check(sword.strength_bonus == 0 and sword.weapon_damage == 0 and sword.armor_bonus == 0
 		and sword.health_bonus == 0 and sword.mana_bonus == 0,
@@ -116,7 +116,7 @@ func _test_wooden_sword() -> void:
 		"grants Splinter while equipped")
 
 	# A slotted attack card picks up the +1 on-self damage
-	var slash = Card.create_slash()
+	var slash = Card.create_by_id("slash")
 	_check(sword.can_slot_card(slash), "attack cards fit the slot")
 	sword.slot_card(slash)
 	_check(slash.get_on_self_bonus()["damage"] == 1, "slotted Slash gains the +1 damage bonus")
@@ -129,7 +129,7 @@ func _test_wooden_sword() -> void:
 	inv.enforce_mythic_limit = false
 	var dm = DeckManager.new()
 	inv.connect_deck_manager(dm)
-	var gifted = ItemData.create_wooden_sword()
+	var gifted = ItemData.create("wooden_sword")
 	_check(inv.equip_item(gifted, 0), "Wooden Sword equips as a weapon")
 	var in_deck = dm.discard_pile.filter(func(c): return c.card_id == "splinter")
 	_check(in_deck.size() == 1, "equipping grants Splinter into the deck")
@@ -142,7 +142,7 @@ func _test_wooden_sword() -> void:
 
 func _test_splinter_and_bleed() -> void:
 	print("-- Splinter and enemy bleed --")
-	var s = Card.create_splinter()
+	var s = Card.create_by_id("splinter")
 	_check(s.mana_cost == 20 and s.tempo_cost == 2, "Splinter costs 20 mana / 2 tempo (post mana rescale)")
 	_check(s.is_ranged and s.get_effective_range() == 3, "Splinter has range 3")
 	_check(s.base_damage == 0, "Splinter deals no direct damage")

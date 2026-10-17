@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_c462e"]
+
+[resource]
+script = ExtResource("1_c462e")
+card_id = "tower_shield"
+card_name = "Tower Shield"
+description = "Gain 40 armor. Become staggered for 40 tempo."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 50
+block = 40
+tempo_cost = 5
+base_block = 40
+target_types = ["self"]
+slot_labels = [5]
+keywords = ["defense", "self"]

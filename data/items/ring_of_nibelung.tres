@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_0qbb0"]
+
+[resource]
+script = ExtResource("1_0qbb0")
+item_name = "Ring of Nibelung"
+item_type = 2
+item_type_name = "Ring"
+rarity = 3
+level_3_description = "+151 mana. +11 health, +6 INT, +3 WIS. Grants Tricks of Alberich: taunt enemies in a 4-square radius; gain 10 STR for the taunt's 5 tempo, plus 4 armor and 2 Regen per enemy taunted (50 mana, 6 tempo). After 5 heals, The Nibelung Curse arrives in your hand at 1.5x the healed total: target yourself to take it as healing, or an enemy to deal it as damage (70 mana, 5 tempo, erased; only one copy can exist)."
+weight = 5
+intelligence_bonus = 5
+wisdom_bonus = 2
+health_bonus = 10
+mana_bonus = 150
+granted_card_ids = Array[String](["tricks_of_alberich"])
+description = "+150 mana. +10 health, +5 INT, +2 WIS. Grants Tricks of Alberich: taunt enemies in a 4-square radius; gain 10 STR for the taunt's 5 tempo, plus 4 armor and 2 Regen per enemy taunted (50 mana, 6 tempo). After 5 heals, The Nibelung Curse arrives in your hand carrying the healed total: target yourself to take it as healing, or an enemy to deal it as damage (70 mana, 5 tempo, erased; only one copy can exist)."
+appearance = "A plain band forged of Rhine-gold, Alberich's curse gleaming red in its heart."
+appearance_icon = "res://assets/items/mythic/ring_of_nibelung.png"

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_smlnm"]
+
+[resource]
+script = ExtResource("1_smlnm")
+item_name = "Holster"
+item_type = 3
+item_type_name = "Belt"
+rarity = 1
+weight = 10
+strength_bonus = 3
+dexterity_bonus = 2
+card_slots = 2
+on_self_damage = 2
+description = "+3 STR, +2 DEX. On-self: +2 damage to attack cards."

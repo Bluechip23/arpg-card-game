@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_ufg83"]
+
+[resource]
+script = ExtResource("1_ufg83")
+card_id = "communal_donation"
+card_name = "Communal Donation"
+description = "Deal damage to yourself and heal allies based on the damage done. Choose amount and allocation."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 30
+tempo_cost = 3
+is_ranged = true
+range_modifier = 99
+target_types = ["self"]
+slot_labels = [10, 6, 14, 16]
+school = 1
+keywords = ["utility", "spell", "ranged"]

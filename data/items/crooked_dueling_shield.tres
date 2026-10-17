@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_gmmp8"]
+
+[resource]
+script = ExtResource("1_gmmp8")
+item_name = "Crooked Dueling Shield"
+item_type_name = "Shield"
+rarity = 3
+level_2_overrides = {
+"agility_bonus": 10,
+"dexterity_bonus": 10,
+"slot_effects": [{
+"combo_after": "red",
+"combo_armor": 20,
+"weaken": 1
+}, {
+"combo_after": "blue",
+"combo_armor": 20,
+"vulnerable": 1
+}],
+"strength_bonus": 5
+}
+level_2_description = "+10 DEX, +10 AGI, +5 STR. Two colored slots. Blue slot: its card applies 1 Weaken on hit. Red slot: its card applies 1 Vulnerable on hit. Play them back to back in either order and gain 20 armor. Fully blocking an attack Weakens that enemy 2 — or deals 5 damage if it is already Weakened. Every crit you land applies 1 Weaken, and a crit into an already-Weakened target lands 2 Vulnerable first."
+weight = 20
+strength_bonus = 4
+dexterity_bonus = 7
+agility_bonus = 7
+weapon_subtype = 2
+card_slots = 2
+slot_colors = ["blue", "red"]
+slot_effects = [{
+"combo_after": "red",
+"combo_armor": 10,
+"weaken": 1
+}, {
+"combo_after": "blue",
+"combo_armor": 10,
+"vulnerable": 1
+}]
+duelist_shield = true
+description = "+7 DEX, +7 AGI, +4 STR. Two colored slots. Blue slot: its card applies 1 Weaken on hit. Red slot: its card applies 1 Vulnerable on hit. Play them back to back in either order and gain 10 armor. Fully blocking an attack Weakens that enemy 2 — or deals 5 damage if it is already Weakened. Every crit you land applies 1 Weaken, and a crit into an already-Weakened target lands 2 Vulnerable first."
+appearance = "A steel shield shaped like an S, swelling slightly fatter through the center."
+appearance_icon = "res://assets/items/mythic/crooked_dueling_shield.png"

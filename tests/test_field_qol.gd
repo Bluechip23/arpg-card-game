@@ -45,7 +45,7 @@ func _initialize() -> void:
 	lbl.free()
 
 	# --- Return Scroll item ---
-	var scroll = ItemData.create_return_scroll()
+	var scroll = ItemData.create("return_scroll")
 	_check(scroll.special_id == "return_scroll", "scroll carries special_id")
 	_check(scroll.weight == 0, "scroll weighs nothing")
 
@@ -69,7 +69,7 @@ func _initialize() -> void:
 
 	# --- Manage Deck: adding a carried card shuffles it into the DRAW pile ---
 	var dm = load("res://scripts/cards/deck_manager.gd").new()
-	inv.stored_cards.append(Card.create_provider())
+	inv.stored_cards.append(Card.create_by_id("provider"))
 	_check(inv.add_card_to_deck(0, dm), "add_card_to_deck succeeds")
 	_check(dm.draw_pile.size() == 1 and dm.draw_pile[0].card_id == "provider" and dm.discard_pile.is_empty(),
 		"added card landed in the draw pile")
@@ -89,13 +89,13 @@ func _initialize() -> void:
 	_check(not inv.destroy_stored_item(s_idx), "the Return Scroll cannot be destroyed")
 
 	# --- Destroying a stored card removes it for good ---
-	inv.stored_cards.append(Card.create_block())
+	inv.stored_cards.append(Card.create_by_id("block"))
 	var destroyed = inv.remove_stored_card(inv.get_stored_card_count() - 1)
 	_check(destroyed != null and inv.get_stored_card_count() == 0, "stored card destroyed from inventory")
 
 	# --- Manage Deck: culling removes exactly one instance ---
-	var c1 = Card.create_block()
-	var c2 = Card.create_block()
+	var c1 = Card.create_by_id("block")
+	var c2 = Card.create_by_id("block")
 	dm.draw_pile.append(c1)
 	dm.discard_pile.append(c2)
 	_check(dm.remove_card_from_all_piles(c2), "cull removes the chosen instance")

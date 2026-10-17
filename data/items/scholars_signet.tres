@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_nf8qq"]
+
+[resource]
+script = ExtResource("1_nf8qq")
+item_name = "Scholars Signet"
+item_type = 2
+item_type_name = "Ring"
+rarity = 1
+weight = 5
+wisdom_bonus = 8
+mana_bonus = 75
+description = "+75 mana. +8 WIS."

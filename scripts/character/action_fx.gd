@@ -5,7 +5,7 @@ extends Node3D
 ##
 ## The sprite sheets can only express walk/idle/attack, so every distinctive
 ## card animation lives here as a procedural 3D effect timeline (ported from
-## the old CharacterFigure's effect spawners): icicles, fireballs, flying
+## the retired procedural player figure's effect spawners): icicles, fireballs, flying
 ## pigs, arrow volleys, lightning, potions, and so on. SpriteFigure plays a
 ## suitable body motion (swing / hop / crouch / lunge…) and calls play() on
 ## this node for the matching effect.
@@ -1114,7 +1114,7 @@ func _rising_sparks(col: Color, count: int) -> void:
 
 
 # =============================================================
-# PRIMITIVES (ported from CharacterFigure's effect kit)
+# PRIMITIVES (ported from the retired procedural player figure's effect kit)
 # =============================================================
 
 func _burst(pos: Vector3, color: Color, burst_scale: float = 1.0) -> void:

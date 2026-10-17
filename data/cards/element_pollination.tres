@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_dhb5v"]
+
+[resource]
+script = ExtResource("1_dhb5v")
+card_id = "element_pollination"
+card_name = "Element Pollination"
+description = "Maintain: your Burn also splashes nearby enemies like Shock, your Shock freezes at 5 stacks like Cold, and your Cold ticks doubling damage like Burn — on top of their normal effects."
+card_type = 5
+card_type_name = "Power"
+mana_cost = 60
+tempo_cost = 3
+target_types = ["self"]
+maintain_cost = 60
+shop_excluded = true

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_nfsng"]
+
+[resource]
+script = ExtResource("1_nfsng")
+card_id = "defensive_awareness"
+card_name = "Defensive Awareness"
+description = "Gain 3 armor for every enemy within 2 spaces."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 30
+tempo_cost = 2
+target_types = ["self"]
+slot_labels = [4, 12, 5]
+keywords = ["defense", "self"]

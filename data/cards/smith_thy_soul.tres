@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_khojs"]
+
+[resource]
+script = ExtResource("1_khojs")
+card_id = "smith_thy_soul"
+card_name = "Smith thy Soul"
+description = "Gain armor equal to ((Health + mana) / 2) / 10."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 10
+tempo_cost = 6
+target_types = ["self"]
+slot_labels = [13, 16]
+keywords = ["defense", "self"]

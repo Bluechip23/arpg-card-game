@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_k6m2q"]
+
+[resource]
+script = ExtResource("1_k6m2q")
+card_id = "give_in"
+card_name = "Give In"
+description = "Immediately gain 3 mana. The next time you would draw from Tempo being triggered, you don't."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 0
+tempo_cost = 2
+target_types = ["self"]
+keywords = ["utility", "self"]

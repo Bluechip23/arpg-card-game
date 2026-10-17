@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_fh4hu"]
+
+[resource]
+script = ExtResource("1_fh4hu")
+card_id = "parry"
+card_name = "Parry"
+description = "Gain 5 armor, deal 5 damage. Gain 10% physical resistance for 1 attack."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 10
+damage = 5
+block = 5
+tempo_cost = 5
+base_damage = 5
+base_block = 5
+slot_labels = [4, 8]
+keywords = ["defense", "attack", "offensive", "melee"]

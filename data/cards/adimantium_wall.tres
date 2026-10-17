@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_s4oef"]
+
+[resource]
+script = ExtResource("1_s4oef")
+card_id = "adimantium_wall"
+card_name = "Adimantium Wall"
+description = "Gain 40 block. Jailed for 40 tempo after play."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 35
+block = 40
+base_block = 40
+target_types = ["self"]
+jail_on_play = 40
+keywords = ["defense"]

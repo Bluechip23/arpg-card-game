@@ -1,3 +1,4 @@
+class_name Main
 extends Node3D
 
 ## Main game scene - turn-based card ARPG
@@ -272,27 +273,20 @@ var _p2_hand_card_preview: PanelContainer = null
 var _p2_deck_panel: PanelContainer = null
 var _p2_deck_card_preview: PanelContainer = null
 
-var deck_list_panel: PanelContainer = null
-var _deck_counts_label: Label = null
-var deck_list_container: VBoxContainer = null
-var deck_list_visible: bool = false
-var deck_list_card_preview: PanelContainer = null
+# Deck list + Manage Deck panels. Built here so the HUD deck button can bind
+# to it before _ready adds it under Main.
+var _deck_panels: DeckPanels = DeckPanels.new()
 
-var maintained_list_panel: PanelContainer = null
-var maintained_list_container: VBoxContainer = null
-var maintained_list_visible: bool = false
-var maintained_list_card_preview: PanelContainer = null
+# The maintained-cards panel. Built here so the status-row icon can bind to
+# it before _ready adds it under Main.
+var _maintained_list: MaintainedList = MaintainedList.new()
 var maintained_icon: MaintainedIconUI = null
 var jailed_icon: JailedIconUI = null
 var _mana_reserve_tip: ManaReserveTooltip = null
 
-# Shared pile contents popup (used by Draw, Discard, Jail buttons)
-var pile_popup_panel: PanelContainer = null
-var pile_popup_container: VBoxContainer = null
-var pile_popup_title_label: Label = null
-var pile_popup_card_preview: PanelContainer = null
-var pile_popup_visible: bool = false
-var pile_popup_current_pile: String = ""  # "draw", "discard", or "jail"
+# Shared Draw / Discard / Jail pile contents popup. Built here so the pile
+# buttons can bind to it before _ready adds it under Main.
+var _pile_popup: PilePopup = PilePopup.new()
 var hand_card_preview: PanelContainer = null
 var _hand_hover_id: int = 0
 var pending_sky_falls: Array = []  # [{position: Vector3, damage: int, tempo_remaining: int}]
@@ -520,6 +514,12 @@ func world_to_screen(world_pos: Vector3) -> Vector2:
 #endregion
 #region READY & CORE WIRING
 func _ready() -> void:
+	# Extracted UI panels: constructed at declaration so buttons can bind to
+	# them, wired to Main first thing, added under it where their UI used to
+	# be built (so their panels keep their draw order).
+	_pile_popup.main = self
+	_maintained_list.main = self
+	_deck_panels.main = self
 	PlayerStats.incoming_mitigation_hook = _cover_mitigation
 	call_deferred("_sync_bastion_flag")  # a shield still in flight from the last area
 	_setup_world_viewport()
@@ -657,10 +657,16 @@ func _ready() -> void:
 	_setup_hand_area_background()
 	# (The Deck button now lives in the top-right HUD icon bar; only the popup
 	# panel is created here.)
-	_setup_deck_list_panel()
+	_deck_panels.name = "DeckPanels"
+	add_child(_deck_panels)
+	_deck_panels.setup_panel()
 	_setup_maintained_icon()
-	_setup_maintained_list_panel()
-	_setup_pile_popup_panel()
+	_maintained_list.name = "MaintainedList"
+	add_child(_maintained_list)
+	_maintained_list.setup_panel()
+	_pile_popup.name = "PilePopup"
+	add_child(_pile_popup)
+	_pile_popup.setup_panel()
 	_setup_hand_card_preview()
 	_setup_donation_panel()
 
@@ -679,10 +685,10 @@ func _ready() -> void:
 			# Enemies target the nearest living player; defeat needs both downed.
 			enemy_spawner.players = [_p1_player, _p2_player]
 			# Cover reactions: each partner can mitigate the other's damage.
-			var p2s = _p2_player.get_stats()
+			var p2s := _p2_player.get_stats()
 			if p2s:
 				p2s.damage_taken.connect(_on_ally_damage_taken.bind(_p2_player))
-			var p1s = _p1_player.get_stats()
+			var p1s := _p1_player.get_stats()
 			if p1s:
 				p1s.damage_taken.connect(_on_ally_damage_taken.bind(_p1_player))
 		# P2's deck gets the same card exit animations (visual-only handlers —
@@ -743,12 +749,12 @@ func _apply_portal_return() -> void:
 		return
 	var back = portal_return_position
 	portal_return_position = null
-	var cell = grid_manager.world_to_grid(back)
+	var cell := grid_manager.world_to_grid(back)
 	# Land beside the portal tile, not inside it.
 	var land = cell + Vector2i(0, 1)
 	if land in player.blocked_tiles:
 		land = cell + Vector2i(1, 0)
-	var world = grid_manager.grid_to_world(land)
+	var world := grid_manager.grid_to_world(land)
 	player.position = Vector3(world.x, player.position.y, world.z)
 	if "target_position" in player:
 		player.target_position = player.position
@@ -760,15 +766,15 @@ func _apply_portal_return() -> void:
 #endregion
 #region FRAME LOOP, CAMERA & HOVER
 func get_mouse_world_position() -> Vector3:
-	var camera = get_world_camera()
+	var camera := get_world_camera()
 	if not camera:
 		return Vector3.ZERO
-	var mouse_pos = _world_mouse_position()
-	var from = camera.project_ray_origin(mouse_pos)
-	var dir = camera.project_ray_normal(mouse_pos)
+	var mouse_pos := _world_mouse_position()
+	var from := camera.project_ray_origin(mouse_pos)
+	var dir := camera.project_ray_normal(mouse_pos)
 	if abs(dir.y) < 0.001:
 		return Vector3.ZERO
-	var t = -from.y / dir.y
+	var t := -from.y / dir.y
 	if t < 0:
 		return Vector3.ZERO
 	return from + dir * t
@@ -786,7 +792,7 @@ func _update_tick_speed_buttons() -> void:
 			Color(1.0, 0.85, 0.4) if active else Color(0.45, 0.42, 0.38))
 
 func _update_camera() -> void:
-	var camera = get_world_camera()
+	var camera := get_world_camera()
 	if not camera:
 		return
 	# The angle is not negotiable: anything that poked the yaw/pitch (old
@@ -805,6 +811,19 @@ func _update_camera() -> void:
 	CameraView.apply(camera, focus, _camera_distance, vh)
 
 var _minimap_refresh_accum: float = 0.0
+# The head-up prompt pass (chest / waypoint / site / tree / fountain / shrine /
+# trap / rescue prompts, feather and hidden-site checks) is a function of the
+# active player's cell and the dungeon's state, so it runs when either moves
+# instead of every frame. DungeonManager.prompts_changed and a few main-side
+# writes set the flag; the short interval is a safety net so nothing can stay
+# stale for more than a tenth of a second if a write is missed.
+var _prompt_cell: Vector2i = Vector2i(-99999, -99999)
+var _prompts_dirty: bool = true
+var _prompt_refresh_accum: float = 0.0
+const PROMPT_REFRESH_INTERVAL := 0.1
+
+func _mark_prompts_dirty() -> void:
+	_prompts_dirty = true
 
 func _process(delta: float) -> void:
 	_update_hand_hover()
@@ -817,17 +836,23 @@ func _process(delta: float) -> void:
 	_update_move_path_cursor()
 	# Update chest interact prompts, waypoints, sites, and enemy fog visibility
 	if dungeon_manager and grid_manager:
-		var pg = grid_manager.world_to_grid(player.position)
-		dungeon_manager.update_chest_prompts(pg)
-		dungeon_manager.update_waypoint_prompts(pg)
-		dungeon_manager.update_site_prompts(pg)
-		dungeon_manager.update_tree_prompts(pg)
-		dungeon_manager.update_fountain_prompts(pg)
-		dungeon_manager.update_shrine_prompt(pg)
-		_update_trap_prompt(pg)
-		_update_rescue_npc_prompts(pg)
-		dungeon_manager.update_feather_visibility()
-		_check_hidden_site_discovery(pg)
+		var pg := grid_manager.world_to_grid(player.position)
+		_prompt_refresh_accum += delta
+		if pg != _prompt_cell or _prompts_dirty or _prompt_refresh_accum >= PROMPT_REFRESH_INTERVAL:
+			_prompt_cell = pg
+			_prompts_dirty = false
+			_prompt_refresh_accum = 0.0
+			dungeon_manager.update_chest_prompts(pg)
+			dungeon_manager.update_waypoint_prompts(pg)
+			dungeon_manager.update_site_prompts(pg)
+			dungeon_manager.update_tree_prompts(pg)
+			dungeon_manager.update_fountain_prompts(pg)
+			dungeon_manager.update_shrine_prompt(pg)
+			_update_trap_prompt(pg)
+			_update_rescue_npc_prompts(pg)
+			dungeon_manager.update_feather_visibility()
+			_check_hidden_site_discovery(pg)
+		# Enemies pace on their own clock, so their fog gating stays per frame.
 		dungeon_manager.update_enemy_fog_visibility(
 			enemy_spawner.get_living_enemies(), grid_manager
 		)
@@ -838,13 +863,13 @@ func _process(delta: float) -> void:
 			minimap_tab_ui._update_minimap()
 	# Feed mouse world position to AOE indicator for cone/line direction
 	if aoe_indicator and aoe_indicator.visible:
-		var mouse_world = get_mouse_world_position()
+		var mouse_world := get_mouse_world_position()
 		aoe_indicator.set_mouse_world_position(mouse_world)
 		# Point-placed circles follow the cursor; everything else (lines,
 		# cones, self-centred bursts) stays anchored on the player, who may
 		# be walking.
 		if selected_card_index >= 0 and selected_card_index < deck_manager.hand.size():
-			var card = deck_manager.hand[selected_card_index]
+			var card := deck_manager.hand[selected_card_index]
 			if card.is_aoe:
 				if _aoe_follows_cursor(card):
 					if mouse_world != Vector3.ZERO:
@@ -894,12 +919,12 @@ func _update_hand_hover() -> void:
 			_set_hand_hover(-1)
 		return
 
-	var mouse_pos = hand_container.get_local_mouse_position()
+	var mouse_pos := hand_container.get_local_mouse_position()
 
 	# Hover hitbox matches the card's visible footprint: the cards rest with
 	# their top at the band top and run down to (and below) the band bottom, so
 	# the trigger is the band's own height — no tall padding above it.
-	var in_bounds = (
+	var in_bounds := (
 		mouse_pos.y >= -4.0 and
 		mouse_pos.y <= hand_container.size.y and
 		mouse_pos.x >= -10.0 and
@@ -914,7 +939,7 @@ func _update_hand_hover() -> void:
 	# Find closest card by center X position
 	var best_index = -1
 	var best_dist = INF
-	var card_half_width = 75.0  # 150 / 2
+	var card_half_width := 75.0  # 150 / 2
 
 	for i in range(_card_ui_instances.size()):
 		var card_ui = _card_ui_instances[i]
@@ -961,8 +986,8 @@ var _sidebar_hover_active: bool = false  # True while sidebar portrait is drivin
 
 func _update_damage_preview() -> void:
 	## Show/hide damage preview number above hovered enemy when a card is selected.
-	var hovered = _prev_battlefield_hover
-	var should_show = (
+	var hovered := _prev_battlefield_hover
+	var should_show := (
 		selected_card_index >= 0
 		and selected_card_index < deck_manager.hand.size()
 		and hovered != null
@@ -971,9 +996,9 @@ func _update_damage_preview() -> void:
 	)
 
 	if should_show:
-		var card = deck_manager.hand[selected_card_index]
+		var card := deck_manager.hand[selected_card_index]
 		if card.card_type == Card.CardType.ATTACK and card.base_damage > 0 and "enemy" in card.target_types:
-			var preview_dmg = calculate_damage_preview(card, hovered)
+			var preview_dmg := calculate_damage_preview(card, hovered)
 			if preview_dmg > 0:
 				# Hide previous enemy's preview if switching targets
 				if _damage_preview_enemy and _damage_preview_enemy != hovered and is_instance_valid(_damage_preview_enemy):
@@ -1048,13 +1073,13 @@ func _update_battlefield_enemy_hover() -> void:
 	if _sidebar_hover_active:
 		return
 
-	var mouse_pos = get_mouse_world_position()
+	var mouse_pos := get_mouse_world_position()
 	var closest: Enemy = null
 	var closest_dist: float = 1.2  # Must be within ~1 tile
 
 	for enemy in enemy_spawner.get_living_enemies():
-		var diff = mouse_pos - enemy.position
-		var dist = Vector3(diff.x, 0, diff.z).length()
+		var diff := mouse_pos - enemy.position
+		var dist := Vector3(diff.x, 0, diff.z).length()
 		if dist < closest_dist:
 			closest_dist = dist
 			closest = enemy
@@ -1081,14 +1106,14 @@ func _update_self_target_hover() -> void:
 	## cursor is over them — the same feedback enemies get as valid targets.
 	var want := false
 	if selected_card_index >= 0 and selected_card_index < deck_manager.hand.size() and player:
-		var card = deck_manager.hand[selected_card_index]
+		var card := deck_manager.hand[selected_card_index]
 		if "self" in card.target_types or "ally" in card.target_types:
-			var mouse_pos = get_mouse_world_position()
+			var mouse_pos := get_mouse_world_position()
 			# Prefer an explicit hit on a player figure (co-op aware); fall back to
 			# proximity to this player.
 			var tgt = _player_at_position(mouse_pos) if has_method("_player_at_position") else null
 			if tgt == null:
-				var diff = mouse_pos - player.position
+				var diff := mouse_pos - player.position
 				if Vector3(diff.x, 0, diff.z).length() < 1.2:
 					tgt = player
 			want = tgt != null
@@ -1100,8 +1125,8 @@ func _update_self_target_hover() -> void:
 #endregion
 #region HAND AREA & ACTION BUTTONS
 func _setup_hand_area_background() -> void:
-	var hand_area = $UI/HandArea as PanelContainer
-	var style = StyleBoxFlat.new()
+	var hand_area := $UI/HandArea as PanelContainer
+	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0, 0, 0, 0)
 	style.border_width_top = 0
 	style.border_color = Color(0, 0, 0, 0)
@@ -1110,12 +1135,12 @@ func _setup_hand_area_background() -> void:
 	hand_area.clip_contents = false
 
 func _setup_action_buttons() -> void:
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 
 	# The action column shrink-wraps to its widest button (the Attack button, at
 	# its natural content width). Anchored bottom-left, it grows up and to the
 	# right, so the Wait+Pause row below matches the Attack width automatically.
-	var vbox = VBoxContainer.new()
+	var vbox := VBoxContainer.new()
 	vbox.name = "ActionButtons"
 	ui.add_child(vbox)
 	vbox.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
@@ -1138,7 +1163,7 @@ func _setup_action_buttons() -> void:
 	# Right 40%: three spend buttons — boots toggles flash movement, the
 	# ducking figure buys block, the crossed daggers buy an attack-speed tick.
 	# Spend buttons fade while the pool can't afford them.
-	var flash_row = HBoxContainer.new()
+	var flash_row := HBoxContainer.new()
 	flash_row.name = "FlashRow"
 	flash_row.add_theme_constant_override("separation", 2)
 	vbox.add_child(flash_row)
@@ -1192,7 +1217,7 @@ func _setup_action_buttons() -> void:
 	# buttons — the eye peeks the next draw-pile card, the card+ buys a draw.
 	# Both prices escalate within each refresh window. Flash and Brain are
 	# independent pools under the shared ACTION POINTS category.
-	var brain_row = HBoxContainer.new()
+	var brain_row := HBoxContainer.new()
 	brain_row.name = "BrainRow"
 	brain_row.add_theme_constant_override("separation", 2)
 	vbox.add_child(brain_row)
@@ -1319,7 +1344,7 @@ func _setup_action_buttons() -> void:
 	# Bottom row: Wait, stretched to the column (= attack) width. (Pause used to
 	# sit beside it; it now lives on the tempo ticker next to the ▶ speed
 	# button, where the clock it stops is.)
-	var bottom_row = HBoxContainer.new()
+	var bottom_row := HBoxContainer.new()
 	bottom_row.name = "WaitPauseRow"
 	bottom_row.custom_minimum_size = Vector2(0, 36)
 	bottom_row.size_flags_horizontal = Control.SIZE_FILL
@@ -1327,7 +1352,7 @@ func _setup_action_buttons() -> void:
 	vbox.add_child(bottom_row)
 
 	# Wait: raised hand + the 1 tempo it advances (takes the full width).
-	var wait_btn = Button.new()
+	var wait_btn := Button.new()
 	wait_btn.name = "WaitButton"
 	wait_btn.icon = UIGlyphs.get_glyph("wait_hand")
 	wait_btn.text = "1T"
@@ -1343,10 +1368,10 @@ func _setup_tick_bar() -> void:
 	## Build the 20-tick global tempo bar centered at the top of the screen,
 	## framed like a little bookshelf (dark walnut box, gold trim, and a shelf
 	## plank the tick "books" stand on) so it stands out.
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 
 	# Outer frame: a wooden box with a thin gold line running the whole border.
-	var frame = PanelContainer.new()
+	var frame := PanelContainer.new()
 	frame.name = "TickBarFrame"
 	ui.add_child(frame)
 	# Anchored top-centre and shrink-wrapped to its contents so the wooden box
@@ -1372,7 +1397,7 @@ func _setup_tick_bar() -> void:
 	frame_style.shadow_size = 4
 	frame.add_theme_stylebox_override("panel", frame_style)
 
-	var tick_container = VBoxContainer.new()
+	var tick_container := VBoxContainer.new()
 	tick_container.name = "TickBarContainer"
 	tick_container.add_theme_constant_override("separation", 1)
 	frame.add_child(tick_container)
@@ -1388,7 +1413,7 @@ func _setup_tick_bar() -> void:
 	tick_container.add_child(_tick_bar_card_name_label)
 
 	# Bar row — the "books" standing on the shelf.
-	var bar_hbox = HBoxContainer.new()
+	var bar_hbox := HBoxContainer.new()
 	bar_hbox.name = "TickBars"
 	bar_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	bar_hbox.add_theme_constant_override("separation", 3)
@@ -1396,14 +1421,14 @@ func _setup_tick_bar() -> void:
 
 	_tick_bar_rects.clear()
 	for i in range(20):
-		var bar = ColorRect.new()
+		var bar := ColorRect.new()
 		bar.custom_minimum_size = Vector2(13, 18)  # wide, short tick "books"
 		bar.color = Color(0.15, 0.15, 0.2)  # Dim/inactive
 		bar_hbox.add_child(bar)
 		_tick_bar_rects.append(bar)
 
 	# Shelf plank the tick books rest on: a wood strip capped with a gold edge.
-	var shelf = Panel.new()
+	var shelf := Panel.new()
 	shelf.name = "TickBarShelf"
 	shelf.custom_minimum_size = Vector2(0, 4)
 	shelf.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1416,7 +1441,7 @@ func _setup_tick_bar() -> void:
 	tick_container.add_child(shelf)
 
 	# Status label + queue dropdown arrow, side by side
-	var label_row = HBoxContainer.new()
+	var label_row := HBoxContainer.new()
 	label_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	label_row.add_theme_constant_override("separation", 4)
 	tick_container.add_child(label_row)
@@ -1445,12 +1470,12 @@ func _setup_tick_bar() -> void:
 	# Speed tiers live on the counter itself: tap an arrow to change the tick
 	# speed in real time. ▶ is normal; more forward arrows are faster, rewind
 	# arrows slower.
-	var speed_gap = Control.new()
+	var speed_gap := Control.new()
 	speed_gap.custom_minimum_size.x = 10
 	label_row.add_child(speed_gap)
 	_tick_speed_buttons.clear()
 	for tier in TICK_SPEED_TIERS:
-		var sbtn = Button.new()
+		var sbtn := Button.new()
 		sbtn.text = tier["label"]
 		sbtn.tooltip_text = "%.2f× speed (%.2fs per tick)" % [tier["mult"], tier["secs"]]
 		sbtn.flat = true
@@ -1498,7 +1523,7 @@ func _build_pause_button() -> Button:
 	_pause_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_pause_button.tooltip_text = "Pause gameplay. Useful during tick resolution or multiplayer coordination."
 	_pause_button.pressed.connect(_on_pause_pressed)
-	var pause_normal = StyleBoxFlat.new()
+	var pause_normal := StyleBoxFlat.new()
 	pause_normal.bg_color = Color(0.35, 0.25, 0.1)
 	pause_normal.set_corner_radius_all(3)
 	pause_normal.content_margin_left = 3
@@ -1506,7 +1531,7 @@ func _build_pause_button() -> Button:
 	pause_normal.content_margin_top = 1
 	pause_normal.content_margin_bottom = 1
 	_pause_button.add_theme_stylebox_override("normal", pause_normal)
-	var pause_hover = pause_normal.duplicate() as StyleBoxFlat
+	var pause_hover := pause_normal.duplicate() as StyleBoxFlat
 	pause_hover.bg_color = Color(0.45, 0.35, 0.15)
 	_pause_button.add_theme_stylebox_override("hover", pause_hover)
 	_pause_button.add_theme_stylebox_override("pressed", pause_hover)
@@ -1521,11 +1546,11 @@ func _update_tick_bar(ticks_elapsed: int, total_ticks: int, resolve_tick: int, c
 		_tick_bar_card_name_label.text = card_name
 		_tick_bar_card_name_label.visible = card_name != ""
 
-	var filled = tempo_manager.get_global_tempo() % 20
-	var dim_color = Color(0.15, 0.15, 0.2)        # Empty / unfilled
-	var filled_color = Color(0.4, 0.4, 0.55)      # Filled tick
-	var resolve_color = Color(1.0, 0.85, 0.3)     # Resolve tick marker (upcoming)
-	var active_card_color = Color(0.3, 0.8, 0.4)  # Ticks the active card will consume
+	var filled := tempo_manager.get_global_tempo() % 20
+	var dim_color := Color(0.15, 0.15, 0.2)        # Empty / unfilled
+	var filled_color := Color(0.4, 0.4, 0.55)      # Filled tick
+	var resolve_color := Color(1.0, 0.85, 0.3)     # Resolve tick marker (upcoming)
+	var active_card_color := Color(0.3, 0.8, 0.4)  # Ticks the active card will consume
 
 	# Calculate resolve marker position (where in the 20-bar the card resolves)
 	var resolve_bar_index: int = -1
@@ -1548,14 +1573,14 @@ func _update_tick_bar(ticks_elapsed: int, total_ticks: int, resolve_tick: int, c
 		var ticks_remaining = total_ticks - ticks_elapsed
 		var ticks_until_resolve = max(0, resolve_tick - ticks_elapsed)
 		for t in range(ticks_remaining):
-			var bar_idx = (filled + t) % 20
+			var bar_idx := (filled + t) % 20
 			if ticks_until_resolve > 0 and t == ticks_until_resolve - 1:
 				_tick_bar_rects[bar_idx].color = resolve_color
 			else:
 				_tick_bar_rects[bar_idx].color = active_card_color
 
 	if _tick_bar_label:
-		var gt = tempo_manager.get_global_tempo()
+		var gt := tempo_manager.get_global_tempo()
 		if total_ticks > 0 and ticks_elapsed < total_ticks:
 			_tick_bar_label.text = "(%d) Tick %d/%d (resolves tick %d)" % [gt, ticks_elapsed, total_ticks, resolve_tick]
 		elif total_ticks > 0 and ticks_elapsed >= total_ticks:
@@ -1689,11 +1714,11 @@ func _reset_tick_bar() -> void:
 #region STAT BARS & HUD GAUGES
 func _setup_stat_bars() -> void:
 	## Create stacked HP / Mana / Armor / XP progress bars on the left side of the screen.
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 
 	# Hide old label nodes
 
-	var stat_container = VBoxContainer.new()
+	var stat_container := VBoxContainer.new()
 	stat_container.name = "StatBarsContainer"
 	ui.add_child(stat_container)
 	stat_container.set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -1705,20 +1730,20 @@ func _setup_stat_bars() -> void:
 	stat_container.add_theme_constant_override("separation", 4)
 
 	# --- HP Bar (red) — armour shown as a shield badge to its right ---
-	var hp_pair = _create_stat_bar_with_label(stat_container, "HPBar", Color(0.7, 0.15, 0.15), Color(0.3, 0.08, 0.08))
+	var hp_pair := _create_stat_bar_with_label(stat_container, "HPBar", Color(0.7, 0.15, 0.15), Color(0.3, 0.08, 0.08))
 	_hp_bar = hp_pair[0]
 	_hp_bar_label = hp_pair[1]
 	_setup_armor_shield()
 
 	# --- Unerring armor (grey, half the HP bar's height) ---
-	var un_pair = _create_stat_bar_with_label(stat_container, "UnerringBar", Color(0.62, 0.64, 0.68), Color(0.2, 0.21, 0.24), UNERRING_BAR_HEIGHT)
+	var un_pair := _create_stat_bar_with_label(stat_container, "UnerringBar", Color(0.62, 0.64, 0.68), Color(0.2, 0.21, 0.24), UNERRING_BAR_HEIGHT)
 	_unerring_bar = un_pair[0]
 	_unerring_bar_label = un_pair[1]
 	_unerring_bar.tooltip_text = "Unerring armor: the capped shell your periodic-armor items and Arm/Cyc nodes regrow. Hits and decay eat it first."
 	_unerring_bar_label.add_theme_font_size_override("font_size", 9)
 
 	# --- Mana Bar (blue) ---
-	var mana_pair = _create_stat_bar_with_label(stat_container, "ManaBar", Color(0.15, 0.3, 0.8), Color(0.08, 0.12, 0.3))
+	var mana_pair := _create_stat_bar_with_label(stat_container, "ManaBar", Color(0.15, 0.3, 0.8), Color(0.08, 0.12, 0.3))
 	_mana_bar = mana_pair[0]
 	_mana_bar_label = mana_pair[1]
 	# Hovering the mana bar lists how much mana each maintained card reserves.
@@ -1728,13 +1753,13 @@ func _setup_stat_bars() -> void:
 	_setup_mana_regen_drop()
 
 	# --- Carry bar (leather brown, half height): carried weight / capacity ---
-	var carry_pair = _create_stat_bar_with_label(stat_container, "CarryBar", Color(0.55, 0.4, 0.22), Color(0.22, 0.16, 0.09), CARRY_BAR_HEIGHT)
+	var carry_pair := _create_stat_bar_with_label(stat_container, "CarryBar", Color(0.55, 0.4, 0.22), Color(0.22, 0.16, 0.09), CARRY_BAR_HEIGHT)
 	_carry_bar = carry_pair[0]
 	_carry_bar_label = carry_pair[1]
 	_carry_bar_label.add_theme_font_size_override("font_size", 9)
 
 	# --- XP Bar (gold) — right under mana, a quarter of the normal height ---
-	var xp_pair = _create_stat_bar_with_label(stat_container, "XPBar", Color(0.8, 0.65, 0.1), Color(0.3, 0.25, 0.05), 6)
+	var xp_pair := _create_stat_bar_with_label(stat_container, "XPBar", Color(0.8, 0.65, 0.1), Color(0.3, 0.25, 0.05), 6)
 	_xp_bar = xp_pair[0]
 	# The bar is too thin for an overlaid number; the level/XP text lives in the
 	# character panel instead.
@@ -1764,19 +1789,19 @@ func _setup_stat_bars() -> void:
 
 func _create_stat_bar_with_label(parent: VBoxContainer, bar_name: String, fill_color: Color, bg_color: Color, height: int = 22) -> Array:
 	## Creates a progress bar with an overlaid centered label. Returns [bar, label].
-	var wrapper = Control.new()
+	var wrapper := Control.new()
 	wrapper.name = bar_name + "Wrapper"
 	wrapper.custom_minimum_size = Vector2(200, height)
 	parent.add_child(wrapper)
 
-	var bar = ProgressBar.new()
+	var bar := ProgressBar.new()
 	bar.name = bar_name
 	bar.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bar.max_value = 100
 	bar.value = 0
 	bar.show_percentage = false
 	# Style the fill
-	var fill_style = StyleBoxFlat.new()
+	var fill_style := StyleBoxFlat.new()
 	fill_style.bg_color = fill_color
 	fill_style.corner_radius_top_left = 3
 	fill_style.corner_radius_top_right = 3
@@ -1784,7 +1809,7 @@ func _create_stat_bar_with_label(parent: VBoxContainer, bar_name: String, fill_c
 	fill_style.corner_radius_bottom_right = 3
 	bar.add_theme_stylebox_override("fill", fill_style)
 	# Style the background
-	var bg_style = StyleBoxFlat.new()
+	var bg_style := StyleBoxFlat.new()
 	bg_style.bg_color = bg_color
 	bg_style.corner_radius_top_left = 3
 	bg_style.corner_radius_top_right = 3
@@ -1793,7 +1818,7 @@ func _create_stat_bar_with_label(parent: VBoxContainer, bar_name: String, fill_c
 	bar.add_theme_stylebox_override("background", bg_style)
 	wrapper.add_child(bar)
 
-	var lbl = Label.new()
+	var lbl := Label.new()
 	lbl.name = bar_name + "Label"
 	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
 	lbl.add_theme_font_size_override("font_size", 12)
@@ -1810,8 +1835,8 @@ func _setup_mana_regen_drop() -> void:
 	## remaining until the next mana-regen tick.
 	if not _mana_bar:
 		return
-	var wrapper = _mana_bar.get_parent()
-	var drop = Control.new()
+	var wrapper := _mana_bar.get_parent()
+	var drop := Control.new()
 	drop.name = "ManaRegenDrop"
 	drop.mouse_filter = Control.MOUSE_FILTER_STOP
 	drop.tooltip_text = "Tempo until your next mana regen"
@@ -1846,7 +1871,7 @@ func _setup_mana_regen_drop() -> void:
 func _update_mana_regen_indicator() -> void:
 	if not _mana_regen_drop_label or not player:
 		return
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if stats:
 		_mana_regen_drop_label.text = "%d" % stats.get_tempo_until_mana_regen()
 
@@ -1860,8 +1885,8 @@ func _setup_armor_shield() -> void:
 	## it; its width follows the height at the glyph's original 26:28 ratio.
 	if not _hp_bar:
 		return
-	var wrapper = _hp_bar.get_parent()
-	var badge = Control.new()
+	var wrapper := _hp_bar.get_parent()
+	var badge := Control.new()
 	badge.name = "ArmorShield"
 	badge.mouse_filter = Control.MOUSE_FILTER_STOP
 	badge.tooltip_text = "Armor: regular + unerring. Hits and decay eat the unerring shell first."
@@ -1924,20 +1949,20 @@ func _setup_deck_info_vertical() -> void:
 	## Draw and Discard piles become card-stack buttons on opposite edges:
 	## Draw on the left (green up-arrow + turns-until-draw), Discard on the
 	## right (yellow down-arrow + count). The Deck box lives in the top HUD bar.
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 
 	# Draw pile — sits at the TOP of the left-side action column (above Attack),
 	# so it moves down to fill space along with the rest of the cluster.
-	var draw_pair = _create_pile_button("DrawButton", true, Color(0.5, 0.95, 0.5))
+	var draw_pair := _create_pile_button("DrawButton", true, Color(0.5, 0.95, 0.5))
 	_draw_pile_btn = draw_pair[0]
 	draw_label = draw_pair[1]
-	_draw_pile_btn.pressed.connect(_on_draw_pile_button_pressed)
+	_draw_pile_btn.pressed.connect(_pile_popup.toggle.bind("draw"))
 	_draw_pile_btn.custom_minimum_size = Vector2(50, 54)  # slightly bigger than the action buttons
 	_draw_pile_btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	# The draw pile sits in a row with a small ⓘ button beside it. Clicking ⓘ
 	# opens a small popup with max/current hand size and any active overflow
 	# effects.
-	var draw_row = HBoxContainer.new()
+	var draw_row := HBoxContainer.new()
 	draw_row.name = "DrawRow"
 	draw_row.add_theme_constant_override("separation", 2)
 	draw_row.add_child(_draw_pile_btn)
@@ -1960,7 +1985,7 @@ func _setup_deck_info_vertical() -> void:
 	_hand_info_popup = PanelContainer.new()
 	_hand_info_popup.name = "HandInfoPopup"
 	_hand_info_popup.visible = false
-	var hip_style = StyleBoxFlat.new()
+	var hip_style := StyleBoxFlat.new()
 	hip_style.bg_color = Color(0.1, 0.1, 0.15, 0.96)
 	hip_style.border_color = Color(0.45, 0.7, 1.0)
 	hip_style.set_border_width_all(1)
@@ -1976,7 +2001,7 @@ func _setup_deck_info_vertical() -> void:
 	ui.add_child(_hand_info_popup)
 
 	# Discard pile — right edge.
-	var disc_wrap = Control.new()
+	var disc_wrap := Control.new()
 	disc_wrap.name = "DiscardButtonContainer"
 	ui.add_child(disc_wrap)
 	disc_wrap.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
@@ -1984,10 +2009,10 @@ func _setup_deck_info_vertical() -> void:
 	disc_wrap.offset_top = -190.0
 	disc_wrap.offset_right = -8.0
 	disc_wrap.offset_bottom = -132.0
-	var disc_pair = _create_pile_button("DiscardButton", false, Color(1.0, 0.85, 0.25))
+	var disc_pair := _create_pile_button("DiscardButton", false, Color(1.0, 0.85, 0.25))
 	_discard_pile_btn = disc_pair[0]
 	discard_label = disc_pair[1]
-	_discard_pile_btn.pressed.connect(_on_discard_pile_button_pressed)
+	_discard_pile_btn.pressed.connect(_pile_popup.toggle.bind("discard"))
 	_discard_pile_btn.set_anchors_preset(Control.PRESET_FULL_RECT)
 	disc_wrap.add_child(_discard_pile_btn)
 
@@ -1998,7 +2023,7 @@ func _create_pile_button(btn_name: String, is_draw: bool, number_color: Color) -
 	## arrow so the button stays icon-sized. Draw's stack is flipped horizontally
 	## so the cards' open side faces inward from the left edge.
 	## Returns [button, number_label].
-	var btn = Button.new()
+	var btn := Button.new()
 	btn.name = btn_name
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.icon = PileIcon.get_icon(is_draw, number_color, is_draw)
@@ -2021,7 +2046,7 @@ func _create_pile_button(btn_name: String, is_draw: bool, number_color: Color) -
 
 	# Small number overlaid right next to the arrow (top for Draw's up-arrow,
 	# bottom for Discard's down-arrow), outlined so it reads over the cards.
-	var num = Label.new()
+	var num := Label.new()
 	num.name = btn_name + "Number"
 	num.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	num.add_theme_font_size_override("font_size", 13)
@@ -2065,11 +2090,11 @@ func _on_pause_pressed() -> void:
 #endregion
 #region BATTLE LOG
 func _setup_battle_log() -> void:
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 
 	# Outer container to hold toggle button + log panel vertically, tucked
 	# directly under the HUD icon bar (which ends at y = 46).
-	var outer = VBoxContainer.new()
+	var outer := VBoxContainer.new()
 	outer.name = "BattleLogOuter"
 	ui.add_child(outer)
 	outer.set_anchors_preset(Control.PRESET_TOP_RIGHT)
@@ -2088,7 +2113,7 @@ func _setup_battle_log() -> void:
 	_battle_log_toggle_btn.custom_minimum_size = Vector2(60, 22)
 	_battle_log_toggle_btn.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_battle_log_toggle_btn.mouse_filter = Control.MOUSE_FILTER_STOP
-	var btn_style = StyleBoxFlat.new()
+	var btn_style := StyleBoxFlat.new()
 	btn_style.bg_color = Color(0.12, 0.12, 0.18, 0.9)
 	btn_style.border_color = Color(0.3, 0.3, 0.45, 0.6)
 	btn_style.border_width_bottom = 1
@@ -2111,7 +2136,7 @@ func _setup_battle_log() -> void:
 	battle_log_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	outer.add_child(battle_log_panel)
 
-	var style = StyleBoxFlat.new()
+	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.06, 0.06, 0.1, 0.85)
 	style.border_width_left = 1
 	style.border_width_right = 1
@@ -2153,12 +2178,12 @@ func add_battle_log(msg: String, color: Color = Color(0.8, 0.8, 0.85)) -> void:
 	battle_logged.emit(msg)
 	if not battle_log_label:
 		return
-	var hex = color.to_html(false)
+	var hex := color.to_html(false)
 	battle_log_label.append_text("[color=#%s]%s[/color]\n" % [hex, msg])
 	# Trim old lines
 	if battle_log_label.get_parsed_text().count("\n") > BATTLE_LOG_MAX_LINES:
-		var text = battle_log_label.get_parsed_text()
-		var lines = text.split("\n")
+		var text := battle_log_label.get_parsed_text()
+		var lines := text.split("\n")
 		if lines.size() > BATTLE_LOG_MAX_LINES:
 			battle_log_label.clear()
 			for i in range(lines.size() - BATTLE_LOG_MAX_LINES, lines.size()):
@@ -2173,7 +2198,7 @@ func add_battle_log(msg: String, color: Color = Color(0.8, 0.8, 0.85)) -> void:
 ## stun could never tick off. Card plays and movement are refused by
 ## DebuffManager.can_play_cards / can_move already.
 func _stun_refuses(action: String) -> bool:
-	var dm = player.get_debuff_manager() if player else null
+	var dm := player.get_debuff_manager() if player else null
 	if dm and not dm.can_act():
 		add_battle_log("Cannot %s — Stunned!" % action, Color(1.0, 0.4, 0.4))
 		print("[MAIN] %s refused — Stunned" % action)
@@ -2184,7 +2209,7 @@ func _stun_refuses(action: String) -> bool:
 ## Cut) — the same chance an Attack card rolls. Costs were already paid; a
 ## miss only loses the hit, as a blinded card does.
 func _blind_misses(what: String, target) -> bool:
-	var dm = player.get_debuff_manager() if player else null
+	var dm := player.get_debuff_manager() if player else null
 	if dm == null or not dm.roll_blind_miss():
 		return false
 	var victim: String = target.enemy_name if target is Enemy and is_instance_valid(target) else "the target"
@@ -2200,13 +2225,13 @@ func _on_attack_pressed() -> void:
 		_set_basic_attack_pending(false)
 		return
 
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if not stats:
 		return
 
 	if _stun_refuses("attack"):
 		return
-	var debuff_mgr = player.get_debuff_manager()
+	var debuff_mgr := player.get_debuff_manager()
 	if debuff_mgr:
 		if not debuff_mgr.can_play_cards():
 			add_battle_log("Cannot attack — Stunned or Frozen!", Color(1.0, 0.4, 0.4))
@@ -2250,7 +2275,7 @@ func _set_basic_attack_pending(pending: bool) -> void:
 ## `free`: a passive's free auto attack (Lethal Resourcefulness) — lands at
 ## once for no tempo, like Steady, through the same pipeline otherwise.
 func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if not stats:
 		return
 
@@ -2259,7 +2284,7 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 	if _stun_refuses("attack"):
 		_set_basic_attack_pending(false)
 		return
-	var debuff_mgr = player.get_debuff_manager()
+	var debuff_mgr := player.get_debuff_manager()
 	if debuff_mgr:
 		if not debuff_mgr.can_play_cards():
 			add_battle_log("Cannot attack — Stunned or Frozen!", Color(1.0, 0.4, 0.4))
@@ -2272,7 +2297,7 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 	# out to 5 tiles (the Attack card's Conditional rule), paying a tempo
 	# for the draw. Out of range = the swing simply doesn't happen.
 	var reach := _basic_attack_reach()
-	var tiles = _get_distance_to_target(target)
+	var tiles := _get_distance_to_target(target)
 	if tiles > reach:
 		if reach > 1:
 			add_battle_log("Out of range! %s is %d tiles away (bow reaches %d)" % [target.enemy_name, tiles, reach], Color(1.0, 0.4, 0.4))
@@ -2302,7 +2327,7 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 	# damage vs an isolated target; the roll counts as an Attack's.
 	damage += progression_triggers.deadly_flat_bonus(target)
 	progression_triggers.arm_basic_attack_roll(target)
-	var buff_mgr = player.get_buff_manager()
+	var buff_mgr := player.get_buff_manager()
 	if buff_mgr:
 		damage += buff_mgr.consume_strengthen()
 		if buff_mgr.roll_crit():
@@ -2311,7 +2336,7 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 
 	# Debuff damage reduction
 	if debuff_mgr:
-		var reduction = debuff_mgr.get_damage_reduction_percent()
+		var reduction := debuff_mgr.get_damage_reduction_percent()
 		if reduction > 0.0:
 			damage = max(1, floori(damage * (1.0 - reduction)))
 
@@ -2322,7 +2347,7 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 
 	# Dex proc: halve basic attack tempo (a free passive swing costs no
 	# tempo, so it leaves the proc for a real swing)
-	var basic_attack_proc = deck_manager.next_attack_half_tempo and not free
+	var basic_attack_proc := deck_manager.next_attack_half_tempo and not free
 	if basic_attack_proc:
 		tempo_cost = tempo_cost / 2
 		deck_manager.next_attack_half_tempo = false
@@ -2401,13 +2426,13 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 		# The swing rides the ticker as an Attack card (no separate "Basic
 		# Attack" card exists any more): the queue only needs a carrier with
 		# the swing's damage; the data dict below drives the resolution.
-		var basic_card = Card.create_slash()
+		var basic_card := Card.create_by_id("slash")
 		basic_card.mana_cost = 0
 		basic_card.tempo_cost = tempo_cost
 		basic_card.damage = damage
 		basic_card.base_damage = damage
 		basic_card.resolve_tick = 1
-		var resolve_tick = 1
+		var resolve_tick := 1
 
 		# Store in the pending resolve queue (same as regular cards)
 		var resolve_entry := {
@@ -2447,23 +2472,23 @@ func _basic_attack_whiff(stats, buff_mgr, debuff_mgr, counts_for_cycle: bool) ->
 #endregion
 #region BLOCK, WAIT & WAR RACK
 func _on_block_pressed() -> void:
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if not stats:
 		return
 
 	if _stun_refuses("block"):
 		return
-	var debuff_mgr = player.get_debuff_manager()
+	var debuff_mgr := player.get_debuff_manager()
 	if debuff_mgr and not debuff_mgr.can_play_cards():
 		add_battle_log("Cannot block — Stunned or Frozen!", Color(1.0, 0.4, 0.4))
 		print("[MAIN] Basic Block - Cannot block while Stunned or Frozen!")
 		return
 
-	var inventory = player.get_inventory()
+	var inventory := player.get_inventory()
 	if not inventory:
 		return
 
-	var shield = inventory.get_equipped_shield()
+	var shield := inventory.get_equipped_shield()
 	if not shield:
 		print("[MAIN] Basic Block - No shield equipped!")
 		return
@@ -2481,7 +2506,7 @@ func _on_block_pressed() -> void:
 		player.play_animation("block", CharacterAnimator.Direction.SOUTH)
 
 	# No Weighted surcharge: Weighted taxes card plays, and Block is not one.
-	var tempo_cost = 5
+	var tempo_cost := 5
 
 	tempo_manager.add_tempo(tempo_cost)
 
@@ -2511,8 +2536,8 @@ func _on_swap_tempo_spent(cost: int, action: String, item_type: int = -1) -> voi
 	## swaps keep his discount: tempo only, no mana.
 	if cost <= 0 or not _is_in_combat():
 		return
-	var stats = player.get_stats() if player else null
-	var inv = player.get_inventory() if player else null
+	var stats := player.get_stats() if player else null
+	var inv := player.get_inventory() if player else null
 	var mana := 0
 	if stats and inv and inv.swap_costs_mana(item_type):
 		mana = inv.get_swap_mana_cost()
@@ -2529,7 +2554,7 @@ func _on_swap_tempo_spent(cost: int, action: String, item_type: int = -1) -> voi
 func _on_rack_button_pressed() -> void:
 	## Brad's War Rack: free exchange when the cooldown is ready (and the
 	## single-two-handed-item rule is met); otherwise a normal paid exchange.
-	var inv = player.get_inventory() if player else null
+	var inv := player.get_inventory() if player else null
 	if not inv or not inv.has_back_rack:
 		return
 	if _stun_refuses("swap gear"):
@@ -2552,7 +2577,7 @@ func _on_rack_button_pressed() -> void:
 func _update_rack_button() -> void:
 	if not _rack_button:
 		return
-	var inv = player.get_inventory() if player else null
+	var inv := player.get_inventory() if player else null
 	if not inv or not inv.has_back_rack:
 		_rack_button.visible = false
 		return
@@ -2568,9 +2593,9 @@ func _update_rack_button() -> void:
 func _update_block_button_visibility() -> void:
 	if not _block_button:
 		return
-	var inventory = player.get_inventory()
+	var inventory := player.get_inventory()
 	if inventory and inventory.has_shield_equipped():
-		var shield = inventory.get_equipped_shield()
+		var shield := inventory.get_equipped_shield()
 		var block_val = shield.armor_bonus if shield.armor_bonus > 0 else 3
 		block_val += inventory.get_two_hand_block_bonus(shield)
 		_block_button.text = "5T"
@@ -2580,512 +2605,15 @@ func _update_block_button_visibility() -> void:
 		_block_button.visible = false
 
 #endregion
-#region DECK LIST PANEL
-func _setup_deck_list_panel() -> void:
-	var ui = $UI as CanvasLayer
-	# Main panel
-	deck_list_panel = PanelContainer.new()
-	deck_list_panel.name = "DeckListPanel"
-	ui.add_child(deck_list_panel)
-	deck_list_panel.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	deck_list_panel.offset_left = -280.0
-	deck_list_panel.offset_top = -250.0
-	deck_list_panel.offset_right = -10.0
-	deck_list_panel.offset_bottom = 250.0
-	deck_list_panel.custom_minimum_size = Vector2(270, 400)
-	var panel_style = StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.1, 0.1, 0.15, 0.95)
-	panel_style.border_width_left = 2
-	panel_style.border_width_right = 2
-	panel_style.border_width_top = 2
-	panel_style.border_width_bottom = 2
-	panel_style.border_color = Color(0.4, 0.4, 0.5)
-	panel_style.corner_radius_top_left = 6
-	panel_style.corner_radius_top_right = 6
-	panel_style.corner_radius_bottom_left = 6
-	panel_style.corner_radius_bottom_right = 6
-	panel_style.content_margin_left = 10.0
-	panel_style.content_margin_right = 10.0
-	panel_style.content_margin_top = 10.0
-	panel_style.content_margin_bottom = 10.0
-	deck_list_panel.add_theme_stylebox_override("panel", panel_style)
 
-	var margin = MarginContainer.new()
-	margin.layout_mode = 1
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	deck_list_panel.add_child(margin)
-
-	var vbox = VBoxContainer.new()
-	margin.add_child(vbox)
-
-	var title = Label.new()
-	title.text = "Deck Contents"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
-	vbox.add_child(title)
-
-	# "Deck: 10 / 12" for the player's own cards, then how many more ride
-	# along from gear (slotted into items, granted by items).
-	_deck_counts_label = Label.new()
-	_deck_counts_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_deck_counts_label.add_theme_font_size_override("font_size", 13)
-	_deck_counts_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.95))
-	vbox.add_child(_deck_counts_label)
-
-	var sep = HSeparator.new()
-	vbox.add_child(sep)
-
-	var scroll = ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.custom_minimum_size = Vector2(0, 350)
-	vbox.add_child(scroll)
-
-	deck_list_container = VBoxContainer.new()
-	deck_list_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(deck_list_container)
-
-	var manage_btn = Button.new()
-	manage_btn.text = "Manage Deck"
-	manage_btn.pressed.connect(_open_manage_deck_panel)
-	vbox.add_child(manage_btn)
-
-	var close_btn = Button.new()
-	close_btn.text = "Close"
-	close_btn.pressed.connect(_on_deck_list_button_pressed)
-	vbox.add_child(close_btn)
-
-	deck_list_panel.visible = false
-
-	# Card preview popup (shown on hover over deck list entries)
-	deck_list_card_preview = PanelContainer.new()
-	deck_list_card_preview.name = "DeckListCardPreview"
-	ui.add_child(deck_list_card_preview)
-	deck_list_card_preview.custom_minimum_size = Vector2(180, 0)
-	var preview_style = StyleBoxFlat.new()
-	preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.98)
-	preview_style.border_width_left = 2
-	preview_style.border_width_right = 2
-	preview_style.border_width_top = 2
-	preview_style.border_width_bottom = 2
-	preview_style.border_color = Color(0.5, 0.5, 0.6)
-	preview_style.corner_radius_top_left = 4
-	preview_style.corner_radius_top_right = 4
-	preview_style.corner_radius_bottom_left = 4
-	preview_style.corner_radius_bottom_right = 4
-	preview_style.content_margin_left = 8.0
-	preview_style.content_margin_right = 8.0
-	preview_style.content_margin_top = 8.0
-	preview_style.content_margin_bottom = 8.0
-	deck_list_card_preview.add_theme_stylebox_override("panel", preview_style)
-	deck_list_card_preview.visible = false
-	deck_list_card_preview.z_index = 200
-	deck_list_card_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-func _on_deck_list_button_pressed() -> void:
-	deck_list_visible = !deck_list_visible
-	deck_list_panel.visible = deck_list_visible
-	if deck_list_visible:
-		_populate_deck_list()
-	else:
-		deck_list_card_preview.visible = false
-
-func _populate_deck_list() -> void:
-	# Clear existing entries
-	for child in deck_list_container.get_children():
-		child.queue_free()
-
-	# Count cards across all piles
-	var card_counts: Dictionary = {}
-	var card_refs: Dictionary = {}  # Store a reference card for each name
-	var all_cards: Array = []
-	all_cards.append_array(deck_manager.draw_pile)
-	all_cards.append_array(deck_manager.hand)
-	all_cards.append_array(deck_manager.discard_pile)
-	all_cards.append_array(deck_manager.jail_pile)
-
-	var item_counts: Dictionary = {}  # name -> copies that belong to gear
-	for card in all_cards:
-		var from_gear: bool = card.slotted_in_item != null or card.granted_by_item != null
-		if card.card_name in card_counts:
-			card_counts[card.card_name] += 1
-		else:
-			card_counts[card.card_name] = 1
-			card_refs[card.card_name] = card
-		if from_gear:
-			item_counts[card.card_name] = int(item_counts.get(card.card_name, 0)) + 1
-
-	# Own cards vs the ones gear brings along.
-	if _deck_counts_label:
-		var own: int = deck_manager.get_deck_size()
-		var granted := 0
-		for c in all_cards + deck_manager.maintained_cards:
-			if c and c.slotted_in_item == null and c.granted_by_item != null:
-				granted += 1
-		var inv = player.get_inventory() if player else null
-		var slotted: int = inv.get_all_slotted_cards().size() if inv else 0
-		_deck_counts_label.text = "Deck: %d / %d\nSlotted in items: %d   Granted by items: %d" % [own, deck_manager.get_max_deck_size(), slotted, granted]
-
-	# Sort by name
-	var names = card_counts.keys()
-	names.sort()
-
-	for card_name in names:
-		var count = card_counts[card_name]
-		var card_ref = card_refs[card_name]
-		var entry = Button.new()
-		var gear_n: int = int(item_counts.get(card_name, 0))
-		entry.text = "%s (%d)" % [card_name, count]
-		if gear_n > 0:
-			entry.text += "  [%d from items]" % gear_n if gear_n < count else "  [from items]"
-		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		entry.flat = true
-		entry.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
-		entry.add_theme_color_override("font_hover_color", Color(1.0, 0.9, 0.4))
-		entry.add_theme_font_size_override("font_size", 14)
-		entry.mouse_entered.connect(_on_deck_list_entry_hovered.bind(card_ref, entry))
-		entry.mouse_exited.connect(_on_deck_list_entry_unhovered)
-		deck_list_container.add_child(entry)
-
-#endregion
-#region MANAGE DECK (cull / add cards mid-run)
-# ============================================
-# MANAGE DECK (cull / add cards mid-run)
-# ============================================
-
-var manage_deck_panel: PanelContainer = null
-var _md_deck_list: VBoxContainer = null
-var _md_stored_list: VBoxContainer = null
-var _md_stones_label: Label = null
-var _md_pending_cull: String = ""  # two-click confirm: name of the card armed for culling
-
-func _open_manage_deck_panel() -> void:
-	if manage_deck_panel == null:
-		_build_manage_deck_panel()
-	_md_pending_cull = ""
-	manage_deck_panel.visible = true
-	_refresh_manage_deck_panel()
-	_center_panel_on_screen.call_deferred(manage_deck_panel)
-
-func _center_panel_on_screen(p: Control) -> void:
-	## Explicit centering (anchors alone left this panel off screen).
-	if p == null or not is_instance_valid(p):
-		return
-	p.reset_size()
-	var vp: Vector2 = get_viewport().get_visible_rect().size
-	p.position = ((vp - p.size) / 2.0).floor()
-
-func _build_manage_deck_panel() -> void:
-	var ui = $UI as CanvasLayer
-	manage_deck_panel = PanelContainer.new()
-	manage_deck_panel.name = "ManageDeckPanel"
-	ui.add_child(manage_deck_panel)
-	manage_deck_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	manage_deck_panel.custom_minimum_size = Vector2(580, 500)
-	manage_deck_panel.z_index = 250  # above hovered hand cards
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.1, 0.15, 0.97)
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
-	style.border_color = Color(0.5, 0.45, 0.25)
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
-	style.content_margin_left = 12.0
-	style.content_margin_right = 12.0
-	style.content_margin_top = 10.0
-	style.content_margin_bottom = 10.0
-	manage_deck_panel.add_theme_stylebox_override("panel", style)
-
-	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 6)
-	manage_deck_panel.add_child(vbox)
-
-	var title = Label.new()
-	title.text = "Manage Deck"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
-	vbox.add_child(title)
-
-	_md_stones_label = Label.new()
-	_md_stones_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_md_stones_label.add_theme_font_size_override("font_size", 13)
-	_md_stones_label.add_theme_color_override("font_color", Color(0.9, 0.65, 0.35))
-	vbox.add_child(_md_stones_label)
-
-	vbox.add_child(HSeparator.new())
-
-	var columns = HBoxContainer.new()
-	columns.add_theme_constant_override("separation", 12)
-	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_child(columns)
-
-	# Left column: current deck, click to cull.
-	var left_box = VBoxContainer.new()
-	left_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	columns.add_child(left_box)
-	var left_title = Label.new()
-	left_title.text = "Deck — click to cull (1 stone)"
-	left_title.add_theme_font_size_override("font_size", 13)
-	left_title.add_theme_color_override("font_color", Color(1.0, 0.55, 0.4))
-	left_box.add_child(left_title)
-	var left_scroll = ScrollContainer.new()
-	left_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	left_scroll.custom_minimum_size = Vector2(260, 360)
-	left_box.add_child(left_scroll)
-	_md_deck_list = VBoxContainer.new()
-	_md_deck_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left_scroll.add_child(_md_deck_list)
-
-	# Right column: cards carried in the inventory, click to add.
-	var right_box = VBoxContainer.new()
-	right_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	columns.add_child(right_box)
-	var right_title = Label.new()
-	right_title.text = "Cards on you — click to add (to discard)"
-	right_title.add_theme_font_size_override("font_size", 13)
-	right_title.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5))
-	right_box.add_child(right_title)
-	var right_scroll = ScrollContainer.new()
-	right_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	right_scroll.custom_minimum_size = Vector2(260, 360)
-	right_box.add_child(right_scroll)
-	_md_stored_list = VBoxContainer.new()
-	_md_stored_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	right_scroll.add_child(_md_stored_list)
-
-	var close_btn = Button.new()
-	close_btn.text = "Close"
-	close_btn.pressed.connect(func(): manage_deck_panel.visible = false)
-	vbox.add_child(close_btn)
-
-	manage_deck_panel.visible = false
-
-func _refresh_manage_deck_panel() -> void:
-	if manage_deck_panel == null or not manage_deck_panel.visible:
-		return
-	var inv = player.get_inventory()
-	_md_stones_label.text = "Culling Stones: %d" % (inv.get_culling_stone_count() if inv else 0)
-
-	for child in _md_deck_list.get_children():
-		child.queue_free()
-	for child in _md_stored_list.get_children():
-		child.queue_free()
-
-	# Left: unique deck cards with counts (same scope as the deck list view).
-	var card_counts: Dictionary = {}
-	var all_cards: Array = []
-	all_cards.append_array(deck_manager.draw_pile)
-	all_cards.append_array(deck_manager.hand)
-	all_cards.append_array(deck_manager.discard_pile)
-	all_cards.append_array(deck_manager.jail_pile)
-	for card in all_cards:
-		card_counts[card.card_name] = card_counts.get(card.card_name, 0) + 1
-	var names = card_counts.keys()
-	names.sort()
-	for card_name in names:
-		var entry = Button.new()
-		if _md_pending_cull == card_name:
-			entry.text = "Cull %s? (click to confirm)" % card_name
-			entry.add_theme_color_override("font_color", Color(1.0, 0.35, 0.3))
-		else:
-			entry.text = "%s (%d)" % [card_name, card_counts[card_name]]
-			entry.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
-		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		entry.flat = true
-		entry.add_theme_color_override("font_hover_color", Color(1.0, 0.6, 0.4))
-		entry.add_theme_font_size_override("font_size", 14)
-		entry.pressed.connect(_on_manage_cull_pressed.bind(card_name))
-		_md_deck_list.add_child(entry)
-
-	# Right: cards carried in storage (NOT the town stash).
-	var stored_count = inv.get_stored_card_count() if inv else 0
-	if stored_count == 0:
-		var none = Label.new()
-		none.text = "(no cards on you)"
-		none.add_theme_font_size_override("font_size", 13)
-		none.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-		_md_stored_list.add_child(none)
-	for i in range(stored_count):
-		var card = inv.get_stored_card(i)
-		if card == null:
-			continue
-		var entry = Button.new()
-		entry.text = card.card_name
-		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		entry.flat = true
-		entry.add_theme_color_override("font_color", Color(0.75, 0.95, 0.75))
-		entry.add_theme_color_override("font_hover_color", Color(0.5, 1.0, 0.6))
-		entry.add_theme_font_size_override("font_size", 14)
-		entry.pressed.connect(_on_manage_add_pressed.bind(i))
-		_md_stored_list.add_child(entry)
-
-func _on_manage_cull_pressed(card_name: String) -> void:
-	# First click arms the cull, second click on the same entry confirms.
-	if _md_pending_cull != card_name:
-		_md_pending_cull = card_name
-		_refresh_manage_deck_panel()
-		return
-	_md_pending_cull = ""
-	var inv = player.get_inventory()
-	if not inv or inv.get_culling_stone_count() <= 0:
-		add_battle_log("No Culling Stones left.", Color(1.0, 0.5, 0.4))
-		_refresh_manage_deck_panel()
-		return
-	# Prefer culling an instance the player won't miss mid-fight.
-	var target: Card = null
-	for pile in [deck_manager.discard_pile, deck_manager.draw_pile, deck_manager.jail_pile, deck_manager.hand]:
-		for c in pile:
-			if c.card_name == card_name:
-				target = c
-				break
-		if target:
-			break
-	if target == null or not inv.use_culling_stone():
-		_refresh_manage_deck_panel()
-		return
-	deck_manager.remove_card_from_all_piles(target)
-	# Keep the character's card lists in sync, matching the town cull flow.
-	if starting_character:
-		var pidx = starting_character.purchased_card_ids.find(target.card_id)
-		if pidx >= 0:
-			starting_character.purchased_card_ids.remove_at(pidx)
-		else:
-			starting_character.removed_card_ids.append(target.card_id)
-	add_battle_log("Culled %s from the deck." % card_name, Color(1.0, 0.6, 0.3))
-	update_deck_info()
-	if deck_list_visible:
-		_populate_deck_list()
-	_refresh_manage_deck_panel()
-
-func _on_manage_add_pressed(index: int) -> void:
-	var inv = player.get_inventory()
-	if not inv:
-		return
-	var card = inv.get_stored_card(index)
-	if card == null:
-		return
-	if inv.add_card_to_deck(index, deck_manager):
-		add_battle_log("Added %s to your discard pile." % card.card_name, Color(0.4, 1.0, 0.5))
-		update_deck_info()
-		if deck_list_visible:
-			_populate_deck_list()
-		_refresh_manage_deck_panel()
-	elif not deck_manager.can_add_copy(card.card_id):
-		add_battle_log("Deck limit: only %d cop%s of %s (%s) allowed." % [
-			Card.max_deck_copies(card.card_id),
-			"y" if Card.max_deck_copies(card.card_id) == 1 else "ies",
-			card.card_name, card.get_rarity_name()], Color(1.0, 0.5, 0.3))
-
-func _on_deck_list_entry_hovered(card: Card, entry: Button) -> void:
-	# Clear previous preview content
-	for child in deck_list_card_preview.get_children():
-		child.queue_free()
-
-	var vbox = VBoxContainer.new()
-	deck_list_card_preview.add_child(vbox)
-
-	var name_lbl = Label.new()
-	name_lbl.text = card.card_name
-	name_lbl.add_theme_font_size_override("font_size", 16)
-	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
-	vbox.add_child(name_lbl)
-
-	var type_lbl = Label.new()
-	type_lbl.text = card.card_type_name
-	type_lbl.add_theme_font_size_override("font_size", 12)
-	match card.card_type:
-		Card.CardType.ATTACK:
-			type_lbl.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
-		Card.CardType.DEFENSE:
-			type_lbl.add_theme_color_override("font_color", Color(0.3, 0.5, 1))
-		Card.CardType.UTILITY:
-			type_lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
-		Card.CardType.POWER:
-			type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
-		Card.CardType.ENCHANTMENT:
-			type_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.8))
-	vbox.add_child(type_lbl)
-
-	var cost_lbl = Label.new()
-	if card.maintain_cost > 0:
-		cost_lbl.text = "Cost: %dM / %dT | Maintain: %dM" % [card.mana_cost, card.tempo_cost, card.maintain_cost]
-	else:
-		cost_lbl.text = "Cost: %dM / %dT" % [card.mana_cost, card.tempo_cost]
-	cost_lbl.add_theme_font_size_override("font_size", 12)
-	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
-	vbox.add_child(cost_lbl)
-
-	if card.is_ranged:
-		var range_lbl = Label.new()
-		range_lbl.text = card.get_range_display()
-		range_lbl.add_theme_font_size_override("font_size", 12)
-		range_lbl.add_theme_color_override("font_color", Color(0.3, 0.8, 0.9))
-		vbox.add_child(range_lbl)
-	else:
-		var melee_lbl = Label.new()
-		melee_lbl.text = "Melee"
-		melee_lbl.add_theme_font_size_override("font_size", 12)
-		melee_lbl.add_theme_color_override("font_color", Color(0.8, 0.6, 0.3))
-		vbox.add_child(melee_lbl)
-
-	var sep = HSeparator.new()
-	vbox.add_child(sep)
-
-	var desc_lbl = RichTextLabel.new()
-	desc_lbl.bbcode_enabled = true
-	desc_lbl.text = card.description
-	desc_lbl.fit_content = true
-	desc_lbl.scroll_active = false
-	desc_lbl.custom_minimum_size = Vector2(160, 0)
-	desc_lbl.add_theme_font_size_override("normal_font_size", 13)
-	vbox.add_child(desc_lbl)
-
-	if card.sticky > 0:
-		var sticky_lbl = Label.new()
-		sticky_lbl.text = "Sticky %d" % card.sticky
-		sticky_lbl.add_theme_font_size_override("font_size", 12)
-		sticky_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
-		vbox.add_child(sticky_lbl)
-
-	_append_keyword_tooltips(vbox, card)
-
-	# Position preview to the left of the deck list panel, above the hand area
-	var entry_rect = entry.get_global_rect()
-	var preview_x = deck_list_panel.position.x - deck_list_card_preview.size.x - 10
-	var preview_y = entry_rect.position.y
-
-	# Clamp so the preview doesn't extend below the hand area
-	var hand_area = $UI/HandArea as PanelContainer
-	var max_y = hand_area.global_position.y - deck_list_card_preview.size.y - 8.0
-	preview_y = min(preview_y, max_y)
-
-	# Also clamp to top of screen
-	preview_y = max(preview_y, 4.0)
-
-	deck_list_card_preview.global_position = Vector2(preview_x, preview_y)
-	deck_list_card_preview.visible = true
-
-func _on_deck_list_entry_unhovered() -> void:
-	deck_list_card_preview.visible = false
-
-#endregion
-#region MAINTAINED CARDS LIST (expandable button)
-# ============================================
-# MAINTAINED CARDS LIST (expandable button)
-# ============================================
-
+#region STATUS ROW ICONS (maintained / jailed)
 func _setup_maintained_icon() -> void:
 	## Maintained cards show as one card icon (xN) in the top status row with
 	## the other buffs; hover lists each card, click opens the manage panel.
 	maintained_icon = MaintainedIconUI.new()
 	maintained_icon.name = "MaintainedIcon"
 	maintained_icon.visible = false
-	maintained_icon.pressed.connect(_on_maintained_list_button_pressed)
+	maintained_icon.pressed.connect(_maintained_list.toggle)
 	buff_bar.pin_front(maintained_icon)
 
 	# Jailed cards show as one cage icon (xN) in the debuff row; hover lists
@@ -3093,504 +2621,22 @@ func _setup_maintained_icon() -> void:
 	jailed_icon = JailedIconUI.new()
 	jailed_icon.name = "JailedIcon"
 	jailed_icon.visible = false
-	jailed_icon.pressed.connect(_on_jail_pile_button_pressed)
+	jailed_icon.pressed.connect(_pile_popup.toggle.bind("jail"))
 	debuff_bar.pin_front(jailed_icon)
 
-func _setup_maintained_list_panel() -> void:
-	var ui = $UI as CanvasLayer
-	maintained_list_panel = PanelContainer.new()
-	maintained_list_panel.name = "MaintainedListPanel"
-	ui.add_child(maintained_list_panel)
-	maintained_list_panel.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	maintained_list_panel.offset_left = -280.0
-	maintained_list_panel.offset_top = -200.0
-	maintained_list_panel.offset_right = -10.0
-	maintained_list_panel.offset_bottom = 200.0
-	maintained_list_panel.custom_minimum_size = Vector2(270, 300)
-	var panel_style = StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.1, 0.1, 0.15, 0.95)
-	panel_style.border_width_left = 2
-	panel_style.border_width_right = 2
-	panel_style.border_width_top = 2
-	panel_style.border_width_bottom = 2
-	panel_style.border_color = Color(0.6, 0.3, 0.8)
-	panel_style.corner_radius_top_left = 6
-	panel_style.corner_radius_top_right = 6
-	panel_style.corner_radius_bottom_left = 6
-	panel_style.corner_radius_bottom_right = 6
-	panel_style.content_margin_left = 10.0
-	panel_style.content_margin_right = 10.0
-	panel_style.content_margin_top = 10.0
-	panel_style.content_margin_bottom = 10.0
-	maintained_list_panel.add_theme_stylebox_override("panel", panel_style)
-
-	var margin = MarginContainer.new()
-	margin.layout_mode = 1
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	maintained_list_panel.add_child(margin)
-
-	var vbox = VBoxContainer.new()
-	margin.add_child(vbox)
-
-	var title = Label.new()
-	title.text = "Maintained Cards"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
-	vbox.add_child(title)
-
-	var sep = HSeparator.new()
-	vbox.add_child(sep)
-
-	var scroll = ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.custom_minimum_size = Vector2(0, 250)
-	vbox.add_child(scroll)
-
-	maintained_list_container = VBoxContainer.new()
-	maintained_list_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(maintained_list_container)
-
-	var close_btn = Button.new()
-	close_btn.text = "Close"
-	close_btn.pressed.connect(_on_maintained_list_button_pressed)
-	vbox.add_child(close_btn)
-
-	maintained_list_panel.visible = false
-
-	# Card preview popup for maintained list
-	maintained_list_card_preview = PanelContainer.new()
-	maintained_list_card_preview.name = "MaintainedListCardPreview"
-	ui.add_child(maintained_list_card_preview)
-	maintained_list_card_preview.custom_minimum_size = Vector2(180, 0)
-	var preview_style = StyleBoxFlat.new()
-	preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.98)
-	preview_style.border_width_left = 2
-	preview_style.border_width_right = 2
-	preview_style.border_width_top = 2
-	preview_style.border_width_bottom = 2
-	preview_style.border_color = Color(0.6, 0.3, 0.8)
-	preview_style.corner_radius_top_left = 4
-	preview_style.corner_radius_top_right = 4
-	preview_style.corner_radius_bottom_left = 4
-	preview_style.corner_radius_bottom_right = 4
-	preview_style.content_margin_left = 8.0
-	preview_style.content_margin_right = 8.0
-	preview_style.content_margin_top = 8.0
-	preview_style.content_margin_bottom = 8.0
-	maintained_list_card_preview.add_theme_stylebox_override("panel", preview_style)
-	maintained_list_card_preview.visible = false
-	maintained_list_card_preview.z_index = 200
-	maintained_list_card_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-func _update_maintained_button() -> void:
-	var cards = deck_manager.get_maintained_cards()
-	if maintained_icon:
-		maintained_icon.set_cards(cards)
-	if _mana_reserve_tip:
-		_mana_reserve_tip.set_cards(cards)
-	if maintained_list_visible:
-		if cards.size() == 0:
-			# Last maintained card gone — close the manage panel too.
-			_on_maintained_list_button_pressed()
-		else:
-			_populate_maintained_list()
-
-func _on_maintained_list_button_pressed() -> void:
-	maintained_list_visible = !maintained_list_visible
-	maintained_list_panel.visible = maintained_list_visible
-	if maintained_list_visible:
-		_populate_maintained_list()
-	else:
-		maintained_list_card_preview.visible = false
-
-func _populate_maintained_list() -> void:
-	for child in maintained_list_container.get_children():
-		child.queue_free()
-
-	var maintained_cards = deck_manager.get_maintained_cards()
-	if maintained_cards.size() == 0:
-		var empty_lbl = Label.new()
-		empty_lbl.text = "No maintained cards."
-		empty_lbl.add_theme_font_size_override("font_size", 14)
-		empty_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-		maintained_list_container.add_child(empty_lbl)
-		return
-
-	for i in range(maintained_cards.size()):
-		var card = maintained_cards[i]
-		var hbox = HBoxContainer.new()
-		hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-
-		var entry = Button.new()
-		entry.text = "%s (%dM)" % [card.card_name, card.maintain_cost]
-		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		entry.flat = true
-		entry.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		entry.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
-		entry.add_theme_color_override("font_hover_color", Color(0.8, 0.5, 1.0))
-		entry.add_theme_font_size_override("font_size", 14)
-		entry.mouse_entered.connect(_on_maintained_list_entry_hovered.bind(card, entry))
-		entry.mouse_exited.connect(_on_maintained_list_entry_unhovered)
-		hbox.add_child(entry)
-
-		var dismiss_btn = Button.new()
-		dismiss_btn.text = "X"
-		dismiss_btn.custom_minimum_size = Vector2(28, 28)
-		dismiss_btn.add_theme_font_size_override("font_size", 14)
-		var dismiss_style = StyleBoxFlat.new()
-		dismiss_style.bg_color = Color(0.6, 0.15, 0.15, 0.9)
-		dismiss_style.corner_radius_top_left = 4
-		dismiss_style.corner_radius_top_right = 4
-		dismiss_style.corner_radius_bottom_left = 4
-		dismiss_style.corner_radius_bottom_right = 4
-		dismiss_btn.add_theme_stylebox_override("normal", dismiss_style)
-		var dismiss_hover = StyleBoxFlat.new()
-		dismiss_hover.bg_color = Color(0.8, 0.2, 0.2, 0.95)
-		dismiss_hover.corner_radius_top_left = 4
-		dismiss_hover.corner_radius_top_right = 4
-		dismiss_hover.corner_radius_bottom_left = 4
-		dismiss_hover.corner_radius_bottom_right = 4
-		dismiss_btn.add_theme_stylebox_override("hover", dismiss_hover)
-		dismiss_btn.pressed.connect(_on_maintained_card_dismiss.bind(i))
-		hbox.add_child(dismiss_btn)
-
-		maintained_list_container.add_child(hbox)
-
-func _on_maintained_card_dismiss(index: int) -> void:
-	deck_manager.dismiss_maintained_card(index)
-	_populate_maintained_list()
-	_update_maintained_button()
-	update_deck_info()
-	add_battle_log("Dismissed a maintained card.", Color(0.8, 0.5, 1.0))
-
-func _on_maintained_list_entry_hovered(card: Card, entry: Button) -> void:
-	for child in maintained_list_card_preview.get_children():
-		child.queue_free()
-
-	var vbox = VBoxContainer.new()
-	maintained_list_card_preview.add_child(vbox)
-
-	var name_lbl = Label.new()
-	name_lbl.text = card.card_name
-	name_lbl.add_theme_font_size_override("font_size", 16)
-	name_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
-	vbox.add_child(name_lbl)
-
-	var type_lbl = Label.new()
-	type_lbl.text = card.card_type_name
-	type_lbl.add_theme_font_size_override("font_size", 12)
-	type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
-	vbox.add_child(type_lbl)
-
-	var cost_lbl = Label.new()
-	cost_lbl.text = "Maintain: %dM reserved" % card.maintain_cost
-	cost_lbl.add_theme_font_size_override("font_size", 12)
-	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
-	vbox.add_child(cost_lbl)
-
-	var desc_lbl = Label.new()
-	desc_lbl.text = card.description
-	desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc_lbl.custom_minimum_size = Vector2(160, 0)
-	desc_lbl.add_theme_font_size_override("font_size", 12)
-	desc_lbl.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
-	vbox.add_child(desc_lbl)
-
-	_append_keyword_tooltips(vbox, card)
-
-	var entry_rect = entry.get_global_rect()
-	var preview_x = maintained_list_panel.position.x - maintained_list_card_preview.size.x - 10
-	var preview_y = entry_rect.position.y
-	var hand_area = $UI/HandArea as PanelContainer
-	var max_y = hand_area.global_position.y - maintained_list_card_preview.size.y - 8.0
-	preview_y = min(preview_y, max_y)
-	preview_y = max(preview_y, 4.0)
-	maintained_list_card_preview.global_position = Vector2(preview_x, preview_y)
-	maintained_list_card_preview.visible = true
-
-func _on_maintained_list_entry_unhovered() -> void:
-	maintained_list_card_preview.visible = false
-
 #endregion
-#region PILE CONTENTS POPUP (Draw / Discard / Jail buttons)
-# ============================================
-# PILE CONTENTS POPUP (Draw / Discard / Jail buttons)
-# ============================================
 
-func _setup_pile_popup_panel() -> void:
-	## Creates the shared popup panel used by the Draw, Discard, and Jail buttons.
-	var ui = $UI as CanvasLayer
-	pile_popup_panel = PanelContainer.new()
-	pile_popup_panel.name = "PilePopupPanel"
-	ui.add_child(pile_popup_panel)
-	pile_popup_panel.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	pile_popup_panel.offset_left = -290.0
-	pile_popup_panel.offset_top = -220.0
-	pile_popup_panel.offset_right = -10.0
-	pile_popup_panel.offset_bottom = 220.0
-	pile_popup_panel.custom_minimum_size = Vector2(280, 320)
 
-	var panel_style = StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.1, 0.1, 0.15, 0.95)
-	panel_style.border_width_left = 2
-	panel_style.border_width_right = 2
-	panel_style.border_width_top = 2
-	panel_style.border_width_bottom = 2
-	panel_style.border_color = Color(0.4, 0.55, 0.8)
-	panel_style.corner_radius_top_left = 6
-	panel_style.corner_radius_top_right = 6
-	panel_style.corner_radius_bottom_left = 6
-	panel_style.corner_radius_bottom_right = 6
-	panel_style.content_margin_left = 10.0
-	panel_style.content_margin_right = 10.0
-	panel_style.content_margin_top = 10.0
-	panel_style.content_margin_bottom = 10.0
-	pile_popup_panel.add_theme_stylebox_override("panel", panel_style)
-
-	var margin = MarginContainer.new()
-	margin.layout_mode = 1
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	pile_popup_panel.add_child(margin)
-
-	var vbox = VBoxContainer.new()
-	margin.add_child(vbox)
-
-	pile_popup_title_label = Label.new()
-	pile_popup_title_label.text = ""
-	pile_popup_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pile_popup_title_label.add_theme_font_size_override("font_size", 18)
-	pile_popup_title_label.add_theme_color_override("font_color", Color(0.55, 0.85, 1.0))
-	vbox.add_child(pile_popup_title_label)
-
-	var sep = HSeparator.new()
-	vbox.add_child(sep)
-
-	var scroll = ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.custom_minimum_size = Vector2(0, 270)
-	vbox.add_child(scroll)
-
-	pile_popup_container = VBoxContainer.new()
-	pile_popup_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(pile_popup_container)
-
-	var close_btn = Button.new()
-	close_btn.text = "Close"
-	close_btn.pressed.connect(_close_pile_popup)
-	vbox.add_child(close_btn)
-
-	pile_popup_panel.visible = false
-
-	# Hover preview panel for pile entries
-	pile_popup_card_preview = PanelContainer.new()
-	pile_popup_card_preview.name = "PilePopupCardPreview"
-	ui.add_child(pile_popup_card_preview)
-	pile_popup_card_preview.custom_minimum_size = Vector2(180, 0)
-	var preview_style = StyleBoxFlat.new()
-	preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.98)
-	preview_style.border_width_left = 2
-	preview_style.border_width_right = 2
-	preview_style.border_width_top = 2
-	preview_style.border_width_bottom = 2
-	preview_style.border_color = Color(0.4, 0.55, 0.8)
-	preview_style.corner_radius_top_left = 4
-	preview_style.corner_radius_top_right = 4
-	preview_style.corner_radius_bottom_left = 4
-	preview_style.corner_radius_bottom_right = 4
-	preview_style.content_margin_left = 8.0
-	preview_style.content_margin_right = 8.0
-	preview_style.content_margin_top = 8.0
-	preview_style.content_margin_bottom = 8.0
-	pile_popup_card_preview.add_theme_stylebox_override("panel", preview_style)
-	pile_popup_card_preview.visible = false
-	pile_popup_card_preview.z_index = 200
-	pile_popup_card_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-func _on_draw_pile_button_pressed() -> void:
-	_toggle_pile_popup("draw")
-
-func _on_discard_pile_button_pressed() -> void:
-	_toggle_pile_popup("discard")
-
-func _on_jail_pile_button_pressed() -> void:
-	_toggle_pile_popup("jail")
-
-func _toggle_pile_popup(pile: String) -> void:
-	## Opens the popup for the given pile, or closes it if already showing the same pile.
-	if pile_popup_visible and pile_popup_current_pile == pile:
-		_close_pile_popup()
-		return
-	pile_popup_current_pile = pile
-	pile_popup_visible = true
-	pile_popup_panel.visible = true
-	_populate_pile_popup()
-
-func _close_pile_popup() -> void:
-	pile_popup_visible = false
-	pile_popup_current_pile = ""
-	if pile_popup_panel:
-		pile_popup_panel.visible = false
-	if pile_popup_card_preview:
-		pile_popup_card_preview.visible = false
-
-func _populate_pile_popup() -> void:
-	if not pile_popup_container or not pile_popup_title_label:
-		return
-
-	for child in pile_popup_container.get_children():
-		child.queue_free()
-
-	var cards: Array = []
-	var title_text = ""
-	var title_color = Color(0.55, 0.85, 1.0)
-	match pile_popup_current_pile:
-		"draw":
-			cards = deck_manager.draw_pile.duplicate()
-			title_text = "Draw Pile (%d)" % cards.size()
-			title_color = Color(0.55, 0.85, 1.0)
-		"discard":
-			cards = deck_manager.discard_pile.duplicate()
-			title_text = "Discard Pile (%d)" % cards.size()
-			title_color = Color(1.0, 0.7, 0.4)
-		"jail":
-			cards = deck_manager.jail_pile.duplicate()
-			title_text = "Jail Pile (%d)" % cards.size()
-			title_color = Color(0.85, 0.45, 0.85)
-
-	pile_popup_title_label.text = title_text
-	pile_popup_title_label.add_theme_color_override("font_color", title_color)
-
-	if cards.size() == 0:
-		var empty_lbl = Label.new()
-		empty_lbl.text = "Empty."
-		empty_lbl.add_theme_font_size_override("font_size", 14)
-		empty_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-		empty_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		pile_popup_container.add_child(empty_lbl)
-		return
-
-	# Aggregate by card name to avoid huge lists
-	var card_counts: Dictionary = {}
-	var card_refs: Dictionary = {}
-	for card in cards:
-		if card.card_name in card_counts:
-			card_counts[card.card_name] += 1
-		else:
-			card_counts[card.card_name] = 1
-			card_refs[card.card_name] = card
-
-	var names = card_counts.keys()
-	names.sort()
-
-	for card_name in names:
-		var count = card_counts[card_name]
-		var card_ref = card_refs[card_name]
-		var entry = Button.new()
-		entry.text = "%s (%d)" % [card_name, count]
-		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		entry.flat = true
-		entry.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		entry.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
-		entry.add_theme_color_override("font_hover_color", title_color)
-		entry.add_theme_font_size_override("font_size", 14)
-		entry.mouse_entered.connect(_on_pile_popup_entry_hovered.bind(card_ref, entry))
-		entry.mouse_exited.connect(_on_pile_popup_entry_unhovered)
-		pile_popup_container.add_child(entry)
-
-func _on_pile_popup_entry_hovered(card: Card, entry: Button) -> void:
-	for child in pile_popup_card_preview.get_children():
-		child.queue_free()
-
-	var vbox = VBoxContainer.new()
-	pile_popup_card_preview.add_child(vbox)
-
-	var name_lbl = Label.new()
-	name_lbl.text = card.card_name
-	name_lbl.add_theme_font_size_override("font_size", 16)
-	name_lbl.add_theme_color_override("font_color", Color(0.55, 0.85, 1.0))
-	vbox.add_child(name_lbl)
-
-	var type_lbl = Label.new()
-	type_lbl.text = card.card_type_name
-	type_lbl.add_theme_font_size_override("font_size", 12)
-	match card.card_type:
-		Card.CardType.ATTACK:
-			type_lbl.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
-		Card.CardType.DEFENSE:
-			type_lbl.add_theme_color_override("font_color", Color(0.3, 0.5, 1))
-		Card.CardType.UTILITY:
-			type_lbl.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
-		Card.CardType.POWER:
-			type_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
-		Card.CardType.ENCHANTMENT:
-			type_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.8))
-	vbox.add_child(type_lbl)
-
-	var cost_lbl = Label.new()
-	if card.maintain_cost > 0:
-		cost_lbl.text = "Cost: %dM / %dT | Maintain: %dM" % [card.mana_cost, card.tempo_cost, card.maintain_cost]
-	else:
-		cost_lbl.text = "Cost: %dM / %dT" % [card.mana_cost, card.tempo_cost]
-	cost_lbl.add_theme_font_size_override("font_size", 12)
-	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
-	vbox.add_child(cost_lbl)
-
-	if card.is_ranged:
-		var range_lbl = Label.new()
-		range_lbl.text = card.get_range_display()
-		range_lbl.add_theme_font_size_override("font_size", 12)
-		range_lbl.add_theme_color_override("font_color", Color(0.3, 0.8, 0.9))
-		vbox.add_child(range_lbl)
-	else:
-		var melee_lbl = Label.new()
-		melee_lbl.text = "Melee"
-		melee_lbl.add_theme_font_size_override("font_size", 12)
-		melee_lbl.add_theme_color_override("font_color", Color(0.8, 0.6, 0.3))
-		vbox.add_child(melee_lbl)
-
-	var sep = HSeparator.new()
-	vbox.add_child(sep)
-
-	var desc_lbl = RichTextLabel.new()
-	desc_lbl.bbcode_enabled = true
-	desc_lbl.text = card.description
-	desc_lbl.fit_content = true
-	desc_lbl.scroll_active = false
-	desc_lbl.custom_minimum_size = Vector2(160, 0)
-	desc_lbl.add_theme_font_size_override("normal_font_size", 13)
-	vbox.add_child(desc_lbl)
-
-	_append_keyword_tooltips(vbox, card)
-
-	# Position preview to the left of the popup panel, near the hovered entry
-	var entry_rect = entry.get_global_rect()
-	var preview_x = pile_popup_panel.position.x - pile_popup_card_preview.size.x - 10
-	var preview_y = entry_rect.position.y
-	preview_y = max(preview_y, 4.0)
-	pile_popup_card_preview.global_position = Vector2(preview_x, preview_y)
-	pile_popup_card_preview.visible = true
-
-func _on_pile_popup_entry_unhovered() -> void:
-	if pile_popup_card_preview:
-		pile_popup_card_preview.visible = false
-
-func _refresh_pile_popup_if_open() -> void:
-	## Refreshes the pile popup if it's currently visible (to keep counts in sync).
-	if pile_popup_visible:
-		_populate_pile_popup()
-
-#endregion
 #region HAND CARD PREVIEW
 func _setup_hand_card_preview() -> void:
-	var ui = $UI
+	var ui := $UI
 	hand_card_preview = PanelContainer.new()
 	hand_card_preview.name = "HandCardPreview"
 	ui.add_child(hand_card_preview)
 	# Hug the compact content: no wider than the card below it unless the
 	# text itself needs more (the container grows to fit).
 	hand_card_preview.custom_minimum_size = Vector2(150, 0)
-	var preview_style = StyleBoxFlat.new()
+	var preview_style := StyleBoxFlat.new()
 	preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.98)
 	preview_style.border_width_left = 2
 	preview_style.border_width_right = 2
@@ -3612,17 +2658,17 @@ func _setup_hand_card_preview() -> void:
 
 func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 	_hand_hover_id += 1
-	var my_hover_id = _hand_hover_id
+	var my_hover_id := _hand_hover_id
 
 	# Clear previous preview content
 	for child in hand_card_preview.get_children():
 		child.queue_free()
 
-	var vbox = VBoxContainer.new()
+	var vbox := VBoxContainer.new()
 	hand_card_preview.add_child(vbox)
 
 	# Card name (gold)
-	var name_lbl = Label.new()
+	var name_lbl := Label.new()
 	name_lbl.text = card.card_name
 	name_lbl.add_theme_font_size_override("font_size", 13)
 	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
@@ -3631,20 +2677,20 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 	# One compact info line: type · cost · melee/range (dex-proc aware).
 	var preview_mana = card.mana_cost
 	var preview_tempo = card.tempo_cost
-	var preview_proc = deck_manager.next_attack_half_tempo and card.is_attack()
+	var preview_proc := deck_manager.next_attack_half_tempo and card.is_attack()
 	if preview_proc:
 		preview_mana = max(0, preview_mana - deck_manager.next_attack_mana_discount)
 		preview_tempo = preview_tempo / 2
 		# Pocket Knife: additional -2 tempo
-		var tip_inv = player.get_inventory()
+		var tip_inv := player.get_inventory()
 		if tip_inv and tip_inv.has_pocket_knife_equipped():
 			preview_tempo = maxi(0, preview_tempo - 2)
 
-	var info_row = HBoxContainer.new()
+	var info_row := HBoxContainer.new()
 	info_row.add_theme_constant_override("separation", 8)
 	vbox.add_child(info_row)
 
-	var type_lbl = Label.new()
+	var type_lbl := Label.new()
 	type_lbl.text = card.card_type_name
 	type_lbl.add_theme_font_size_override("font_size", 11)
 	match card.card_type:
@@ -3660,7 +2706,7 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 			type_lbl.add_theme_color_override("font_color", Color(0.2, 0.9, 0.8))
 	info_row.add_child(type_lbl)
 
-	var cost_lbl = Label.new()
+	var cost_lbl := Label.new()
 	if card.maintain_cost > 0:
 		cost_lbl.text = "%dM %dT · Maint %dM" % [preview_mana, preview_tempo, card.maintain_cost]
 	else:
@@ -3672,7 +2718,7 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 		cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
 	info_row.add_child(cost_lbl)
 
-	var range_lbl = Label.new()
+	var range_lbl := Label.new()
 	range_lbl.add_theme_font_size_override("font_size", 11)
 	if card.is_ranged:
 		range_lbl.text = card.get_range_display()
@@ -3682,18 +2728,18 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 		range_lbl.add_theme_color_override("font_color", Color(0.8, 0.6, 0.3))
 	info_row.add_child(range_lbl)
 
-	var rarity_lbl = Label.new()
+	var rarity_lbl := Label.new()
 	rarity_lbl.text = card.get_rarity_name()
 	rarity_lbl.add_theme_font_size_override("font_size", 11)
 	rarity_lbl.add_theme_color_override("font_color", card.get_rarity_color())
 	info_row.add_child(rarity_lbl)
 
 	# Separator
-	var sep = HSeparator.new()
+	var sep := HSeparator.new()
 	vbox.add_child(sep)
 
 	# Description
-	var desc_lbl = RichTextLabel.new()
+	var desc_lbl := RichTextLabel.new()
 	desc_lbl.bbcode_enabled = true
 	if card.rng_outcomes_data.size() > 0 and card.has_been_rolled():
 		desc_lbl.text = card.get_colored_description()
@@ -3707,7 +2753,7 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 
 	# Sticky indicator
 	if card.sticky > 0:
-		var sticky_lbl = Label.new()
+		var sticky_lbl := Label.new()
 		sticky_lbl.text = "Sticky %d" % card.sticky
 		sticky_lbl.add_theme_font_size_override("font_size", 12)
 		sticky_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
@@ -3717,7 +2763,7 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 
 	# On Self section for slotted cards
 	if card.is_slotted():
-		var on_self = card.get_on_self_bonus()
+		var on_self := card.get_on_self_bonus()
 		var on_self_parts: Array[String] = []
 		if on_self.get("damage", 0) > 0:
 			on_self_parts.append("+%d Damage" % on_self["damage"])
@@ -3733,15 +2779,15 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 			on_self_parts.append("Apply Cold")
 		if on_self.get("thorns", 0) > 0:
 			on_self_parts.append("+%d Thorns" % on_self["thorns"])
-		var on_self_sep = HSeparator.new()
+		var on_self_sep := HSeparator.new()
 		vbox.add_child(on_self_sep)
-		var on_self_header = Label.new()
+		var on_self_header := Label.new()
 		on_self_header.text = "\u2234 On Self"
 		on_self_header.add_theme_font_size_override("font_size", 13)
 		on_self_header.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
 		vbox.add_child(on_self_header)
 		if on_self_parts.size() > 0:
-			var on_self_lbl = Label.new()
+			var on_self_lbl := Label.new()
 			on_self_lbl.text = ", ".join(on_self_parts)
 			on_self_lbl.add_theme_font_size_override("font_size", 12)
 			on_self_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
@@ -3749,12 +2795,12 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 			on_self_lbl.custom_minimum_size.x = 180
 			vbox.add_child(on_self_lbl)
 		else:
-			var none_lbl = Label.new()
+			var none_lbl := Label.new()
 			none_lbl.text = "No bonuses"
 			none_lbl.add_theme_font_size_override("font_size", 12)
 			none_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
 			vbox.add_child(none_lbl)
-		var item_lbl = Label.new()
+		var item_lbl := Label.new()
 		item_lbl.text = "Slotted in: %s" % card.slotted_in_item.item_name
 		item_lbl.add_theme_font_size_override("font_size", 11)
 		item_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
@@ -3768,9 +2814,9 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 		var stack: Array = g["cards"]
 		if stack.size() <= 1:
 			break
-		var inst_sep = HSeparator.new()
+		var inst_sep := HSeparator.new()
 		vbox.add_child(inst_sep)
-		var inst_header = Label.new()
+		var inst_header := Label.new()
 		inst_header.text = "In this stack (trigger automatically):"
 		inst_header.add_theme_font_size_override("font_size", 12)
 		inst_header.add_theme_color_override("font_color", Color(1.0, 0.85, 0.0))
@@ -3785,7 +2831,7 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 			by_name[icard.card_name]["count"] += 1
 		for iname in name_order:
 			var entry: Dictionary = by_name[iname]
-			var line = RichTextLabel.new()
+			var line := RichTextLabel.new()
 			line.bbcode_enabled = true
 			line.fit_content = true
 			line.scroll_active = false
@@ -3799,9 +2845,9 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 		break
 
 	# Position popup above the hand area, centered on the hovered card
-	var hand_area = $UI/HandArea as PanelContainer
-	var card_global_rect = card_ui.get_global_rect()
-	var card_center_x = card_global_rect.position.x + card_global_rect.size.x / 2.0
+	var hand_area := $UI/HandArea as PanelContainer
+	var card_global_rect := card_ui.get_global_rect()
+	var card_center_x := card_global_rect.position.x + card_global_rect.size.x / 2.0
 
 	# Wait a frame for the preview to calculate its size, then position
 	await get_tree().process_frame
@@ -3818,17 +2864,17 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 		return
 	hand_card_preview.reset_size()
 
-	var preview_width = hand_card_preview.size.x
+	var preview_width := hand_card_preview.size.x
 	var popup_x = card_center_x - preview_width / 2.0
 
 	# Clamp to screen bounds
-	var screen_width = get_viewport().get_visible_rect().size.x
+	var screen_width := get_viewport().get_visible_rect().size.x
 	popup_x = clamp(popup_x, 4.0, screen_width - preview_width - 4.0)
 
 	# Place above the HOVERED card's lifted position (hovering raises the card
 	# by HOVER_LIFT), not just above the hand area — so the popup never sits
 	# on top of the card being read.
-	var lifted_card_top = card_global_rect.position.y - CardUI.HOVER_LIFT
+	var lifted_card_top := card_global_rect.position.y - CardUI.HOVER_LIFT
 	var popup_y = minf(hand_area.global_position.y, lifted_card_top) - hand_card_preview.size.y - 10.0
 	popup_y = maxf(popup_y, 4.0)
 	hand_card_preview.global_position = Vector2(popup_x, popup_y)
@@ -3845,16 +2891,16 @@ func _setup_gauntlet_skills_ui() -> void:
 	for child in gauntlet_skills_container.get_children():
 		child.queue_free()
 	
-	var inventory = player.get_inventory()
+	var inventory := player.get_inventory()
 	if not inventory:
 		return
 	
-	var skills = inventory.get_available_gauntlet_skills()
+	var skills := inventory.get_available_gauntlet_skills()
 	for gauntlet in skills:
 		# Passive skills (3 count) show too — non-clickable, but their icon
 		# and recharge counter keep the player informed.
 		if gauntlet.gauntlet_skill_type != ItemData.GauntletSkillType.NONE:
-			var skill_ui = GauntletSkillUIScene.instantiate() as GauntletSkillUI
+			var skill_ui := GauntletSkillUIScene.instantiate() as GauntletSkillUI
 			gauntlet_skills_container.add_child(skill_ui)
 			skill_ui.tempo_manager = tempo_manager
 			skill_ui.setup(gauntlet)
@@ -3866,7 +2912,7 @@ func _update_gauntlet_skills_ui() -> void:
 			child.update_display()
 
 func _on_gauntlet_skill_activated(gauntlet: ItemData) -> void:
-	var inventory = player.get_inventory()
+	var inventory := player.get_inventory()
 	if not inventory or not inventory.can_use_gauntlet_skill(gauntlet):
 		return
 	if _stun_refuses("use %s" % gauntlet.gauntlet_skill_name):
@@ -3912,7 +2958,7 @@ func _fire_gauntlet_skill(gauntlet: ItemData, target) -> void:
 		return
 	PlayerStats.hit_source_offensive = false  # a skill is not an offensive card
 	PlayerStats.hit_source_direct = true      # ...but it is the player's own action (Eat)
-	var inventory = player.get_inventory()
+	var inventory := player.get_inventory()
 	var skill_used: bool = inventory != null and inventory.use_gauntlet_skill(gauntlet, target)
 	PlayerStats.hit_source_direct = false
 	if skill_used:
@@ -3928,14 +2974,14 @@ func _validate_gauntlet_skill_target(gauntlet: ItemData, target) -> bool:
 	if fx in MELEE_GAUNTLET_SKILLS:
 		var diff = player.position - target.position
 		if Vector3(diff.x, 0, diff.z).length() > 1.5:
-			var tiles = _get_distance_to_target(target)
+			var tiles := _get_distance_to_target(target)
 			add_battle_log("Out of melee range! %s is %d tiles away (need adjacent)" % [target.enemy_name, tiles], Color(1.0, 0.4, 0.4))
 			return false
 	if fx == "coming_in":
 		if grid_manager.get_distance_in_cells(player.position, target.position) > 5:
 			add_battle_log("Coming in!: too far — 5 squares max", Color(1.0, 0.4, 0.4))
 			return false
-		var tcell = grid_manager.world_to_grid(target.position)
+		var tcell := grid_manager.world_to_grid(target.position)
 		var has_free := false
 		for off in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
 			var c = tcell + off
@@ -3982,7 +3028,7 @@ func _setup_passive_display_ui() -> void:
 	## at the bottom-right. Cooldown passives fade while recharging like the
 	## gauntlet skill circles; always-on passives stay solid. Level and
 	## recharge numbers live in each box's tooltip.
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 	passive_display_container = GridContainer.new()
 	passive_display_container.name = "PassiveDisplay"
 	passive_display_container.columns = 4
@@ -4007,14 +3053,14 @@ func _setup_passive_display_ui() -> void:
 func _update_passive_display_ui() -> void:
 	if not passive_display_container or not player:
 		return
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if not stats:
 		return
 	# Rebuild when the set of active passives changes (allocation, save
 	# load, a ring equipped); otherwise just refresh each box's state. Ring
 	# passives that build toward a proc (Heal Stone's "every 5 healing")
 	# sit in the same tray with their tally on the box.
-	var inv = player.get_inventory()
+	var inv := player.get_inventory()
 	var ring_boxes: Array = inv.get_ring_counter_boxes() if inv else []
 	var wanted: Array = Array(stats.skill_tree_passives).duplicate()
 	for rb in ring_boxes:
@@ -4082,7 +3128,7 @@ func _setup_hud_icon_bar() -> void:
 	## Top-right icon bar replacing the old I/L/H text hints. Buttons open the
 	## same windows the keyboard shortcuts do; the EXP and Quest icons carry a
 	## yellow dot when there's something to attend to.
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 	hud_icon_bar = HudIconBarScript.new()
 	hud_icon_bar.name = "HudIconBar"
 	ui.add_child(hud_icon_bar)
@@ -4101,7 +3147,7 @@ func _setup_hud_icon_bar() -> void:
 		_refresh_hud_notifications())
 	hud_icon_bar.quest_pressed.connect(_on_hud_quest_pressed)
 	hud_icon_bar.help_pressed.connect(_on_hud_help_pressed)
-	hud_icon_bar.deck_pressed.connect(_on_deck_list_button_pressed)
+	hud_icon_bar.deck_pressed.connect(_deck_panels.toggle)
 
 func _on_hud_quest_pressed() -> void:
 	minimap_tab_ui.open_quest_log()
@@ -4120,7 +3166,7 @@ func _skill_tree_has_pending() -> bool:
 	## spent from the passives screen.
 	if not skill_tree_ui or not player:
 		return false
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if not stats:
 		return false
 	return stats.unspent_stat_points > 0 or stats.unspent_passive_points > 0
@@ -4151,7 +3197,7 @@ func _on_leveled_up_notify(_new_level: int) -> void:
 #endregion
 #region UNIT TRACKER
 func _setup_unit_tracker() -> void:
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 	unit_tracker = UnitTrackerUI.new()
 	unit_tracker.name = "UnitTracker"
 	ui.add_child(unit_tracker)
@@ -4310,7 +3356,7 @@ func select_character(character: CharacterData) -> void:
 	if player.get_inventory():
 		player.get_inventory().ensure_return_scroll()
 	# War Rack (Brad): show the swap button and keep its cooldown display live.
-	var rack_inv = player.get_inventory()
+	var rack_inv := player.get_inventory()
 	if rack_inv:
 		rack_inv.rack_changed.connect(_update_rack_button)
 	_update_rack_button()
@@ -4322,7 +3368,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_inventory().apply_equipped_item_card_effects()
 	_setup_gauntlet_skills_ui()
 	# Connect gauntlet cooldown signal so UI updates when skills come off cooldown
-	var inventory = player.get_inventory()
+	var inventory := player.get_inventory()
 	if inventory and not inventory.gauntlet_skill_ready.is_connected(_on_gauntlet_skill_ready):
 		inventory.gauntlet_skill_ready.connect(_on_gauntlet_skill_ready)
 	# Rebuild gauntlet skill UI whenever equipment changes (e.g. equipping from side panel)
@@ -4343,7 +3389,7 @@ func select_character(character: CharacterData) -> void:
 	_update_xp_display()
 
 	# Give starting spheres (level 1 rewards)
-	var starting_rewards = SphereInventory.get_level_rewards(1)
+	var starting_rewards := SphereInventory.get_level_rewards(1)
 	for reward in starting_rewards:
 		sphere_inventory.add_sphere(reward[0], reward[1])
 	print("[MAIN] Granted starting spheres for level 1")
@@ -4405,7 +3451,7 @@ func _on_player_tile_reached(mover: Player = null) -> void:
 	if _batch_moving:
 		return
 	# Check if the player stepped onto an enemy-occupied tile (pass-through costs 2 tempo)
-	var player_cell = grid_manager.world_to_grid(player.position)
+	var player_cell := grid_manager.world_to_grid(player.position)
 	var passed_through_enemy = false
 	for enemy in enemy_spawner.get_living_enemies():
 		if enemy.is_structure:
@@ -4420,10 +3466,10 @@ func _on_player_tile_reached(mover: Player = null) -> void:
 
 	# Climbing penalty: going to higher elevation costs +1 extra tempo per tile
 	if dungeon_manager and _player_last_grid_cell.x >= 0:
-		var prev_elev = dungeon_manager.get_elevation(_player_last_grid_cell)
-		var curr_elev = dungeon_manager.get_elevation(player_cell)
+		var prev_elev := dungeon_manager.get_elevation(_player_last_grid_cell)
+		var curr_elev := dungeon_manager.get_elevation(player_cell)
 		if curr_elev > prev_elev:
-			var climb_cost = curr_elev - prev_elev
+			var climb_cost := curr_elev - prev_elev
 			tempo_manager.add_tempo(climb_cost)
 			add_battle_log("Climbing! +%d tempo" % climb_cost, Color(0.8, 0.7, 0.4))
 			print("[MAIN] Climbing penalty: +%d tempo (elev %d -> %d)" % [climb_cost, prev_elev, curr_elev])
@@ -4547,7 +3593,7 @@ func _on_move_lock_in(target_pos: Vector3, spaces: int) -> void:
 func _ensure_move_players_button() -> void:
 	if _move_players_button and is_instance_valid(_move_players_button):
 		return
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 	_move_players_button = Button.new()
 	_move_players_button.name = "MovePlayersButton"
 	_move_players_button.text = "▶ Move Players"
@@ -4618,12 +3664,12 @@ func _setup_sandbox() -> void:
 	# TEMP (testing convenience): sandbox runs on 999 mana so expensive plays
 	# can be spammed. Sandbox never writes saves, so this cannot leak into a
 	# real character. Remove once mana tuning starts.
-	var sb_stats = player.get_stats() if player else null
+	var sb_stats := player.get_stats() if player else null
 	if sb_stats:
 		sb_stats.max_mana = 999
 		sb_stats.current_mana = 999
 		sb_stats.mana_changed.emit(sb_stats.current_mana, sb_stats.max_mana)
-	var start_cell = grid_manager.world_to_grid(player.position)
+	var start_cell := grid_manager.world_to_grid(player.position)
 	# Two raised platforms flanking the start so High Ground is always nearby
 	# — in the arena only: a boss room is fought exactly as it is laid out.
 	if dungeon_manager and not boss_room_mode:
@@ -4683,7 +3729,7 @@ func _sandbox_refill() -> void:
 	## Top health/mana back up WITHOUT touching the character's real stats —
 	## sandbox uses the same pools as the story; tweak them via the +/- stat
 	## controls in the character panel instead.
-	var s = player.get_stats()
+	var s := player.get_stats()
 	if s:
 		s.current_health = s.max_health
 		s.current_mana = s.max_mana
@@ -4691,7 +3737,7 @@ func _sandbox_refill() -> void:
 		s.mana_changed.emit(s.current_mana, s.max_mana)
 
 func _on_sandbox_add_card(card_id: String) -> void:
-	var card = deck_manager._create_card_from_id(card_id)
+	var card := deck_manager._create_card_from_id(card_id)
 	if card == null:
 		add_battle_log("Sandbox: couldn't create '%s'." % card_id, Color(1.0, 0.5, 0.4))
 		return
@@ -4728,10 +3774,10 @@ func _on_sandbox_add_ally(char_name: String) -> void:
 		_p2_player.move_completed.connect(_on_player_move_completed)
 		enemy_spawner.players = [_p1_player, _p2_player]
 		# Cover reactions: each partner can mitigate the other's damage.
-		var sb_p2s = _p2_player.get_stats()
+		var sb_p2s := _p2_player.get_stats()
 		if sb_p2s:
 			sb_p2s.damage_taken.connect(_on_ally_damage_taken.bind(_p2_player))
-		var sb_p1s = _p1_player.get_stats()
+		var sb_p1s := _p1_player.get_stats()
 		if sb_p1s:
 			sb_p1s.damage_taken.connect(_on_ally_damage_taken.bind(_p1_player))
 	if _p2_deck_manager:
@@ -4744,7 +3790,7 @@ func _on_sandbox_add_ally(char_name: String) -> void:
 	_setup_co_op_defeat()
 
 	# Ally spawns topped up, with their real stats untouched (like the player).
-	var s2 = _p2_player.get_stats() if _p2_player else null
+	var s2 := _p2_player.get_stats() if _p2_player else null
 	if s2:
 		s2.current_health = s2.max_health
 		s2.current_mana = s2.max_mana
@@ -4766,12 +3812,12 @@ func _on_sandbox_grant_passive(option) -> void:
 
 func _on_sandbox_spawn_enemy(enemy_type: int) -> void:
 	## Spawn the chosen enemy on a free tile a few cells in front of the player.
-	var base_cell = grid_manager.world_to_grid(player.position)
+	var base_cell := grid_manager.world_to_grid(player.position)
 	var spot := _sandbox_free_cell(base_cell)
-	var world = grid_manager.grid_to_world(spot)
+	var world := grid_manager.grid_to_world(spot)
 	if dungeon_manager:
 		world.y = dungeon_manager.get_elevation_world_y(spot)
-	var enemy = enemy_spawner.spawn_enemy(enemy_type, world)
+	var enemy := enemy_spawner.spawn_enemy(enemy_type, world)
 	_update_enemy_count()
 	_refresh_unit_tracker()
 	if enemy:
@@ -4809,7 +3855,7 @@ func _on_sandbox_clear_enemies() -> void:
 func _ensure_card_confirm_dialog() -> void:
 	if _card_confirm_panel and is_instance_valid(_card_confirm_panel):
 		return
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 	_card_confirm_panel = PanelContainer.new()
 	_card_confirm_panel.name = "CardConfirmPanel"
 	ui.add_child(_card_confirm_panel)
@@ -4847,9 +3893,9 @@ func _show_card_confirm_dialog(card: Card, target) -> void:
 	_card_confirm_label.text = "Play %s%s?" % [card.card_name, tname]
 	_card_confirm_panel.visible = true
 	# Position near the mouse, kept on screen (same feel as the move dialog)
-	var mouse_pos = get_viewport().get_mouse_position()
+	var mouse_pos := get_viewport().get_mouse_position()
 	_card_confirm_panel.position = mouse_pos + Vector2(20, -50)
-	var screen_size = get_viewport().get_visible_rect().size
+	var screen_size := get_viewport().get_visible_rect().size
 	_card_confirm_panel.reset_size()
 	if _card_confirm_panel.position.x + _card_confirm_panel.size.x > screen_size.x:
 		_card_confirm_panel.position.x = screen_size.x - _card_confirm_panel.size.x - 10
@@ -4911,7 +3957,7 @@ func _on_card_confirm_cancel() -> void:
 func _ensure_play_cards_button() -> void:
 	if _play_cards_button and is_instance_valid(_play_cards_button):
 		return
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 	_play_cards_button = Button.new()
 	_play_cards_button.name = "PlayCardsButton"
 	_play_cards_button.text = "▶ Play Cards"
@@ -5064,7 +4110,7 @@ func _on_solo_player_died() -> void:
 	_show_fallen_overlay()
 
 func _show_fallen_overlay() -> void:
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 	var overlay := ColorRect.new()
 	overlay.name = "FallenOverlay"
 	overlay.color = Color(0.0, 0.0, 0.0, 0.0)
@@ -5109,7 +4155,7 @@ func _show_fallen_overlay() -> void:
 func _respawn_at_level_start() -> void:
 	## Put the fallen character back on their feet at the level's start tile:
 	## full health, statuses cleared, nothing else touched.
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if stats:
 		stats.current_health = stats.max_health
 		stats.health_changed.emit(stats.current_health, stats.max_health)
@@ -5283,6 +4329,7 @@ func _try_interact_rescue_npc() -> bool:
 		add_battle_log("%s: \"Right behind you.\"" % npc.display_name, Color(0.9, 0.85, 0.7))
 		return true
 	npc.following = true
+	_prompts_dirty = true
 	_follower = npc
 	npc.set_prompt_visible(false)
 	if quest_manager:
@@ -5354,7 +4401,7 @@ func _update_trap_prompt(pg: Vector2i) -> void:
 func _try_disarm_trap() -> bool:
 	if not dungeon_manager:
 		return false
-	var pg = grid_manager.world_to_grid(player.position)
+	var pg := grid_manager.world_to_grid(player.position)
 	var idx := dungeon_manager.get_nearby_trap(pg, "bear")
 	if idx < 0:
 		return false
@@ -5378,8 +4425,8 @@ func _try_interact_shrine() -> bool:
 	return true
 
 func _show_shrine_choice() -> void:
-	var quest = quest_manager.get_quest("the_faithless")
-	var ui = $UI as CanvasLayer
+	var quest := quest_manager.get_quest("the_faithless")
+	var ui := $UI as CanvasLayer
 	var overlay := ColorRect.new()
 	overlay.name = "ShrineChoice"
 	overlay.color = Color(0.0, 0.0, 0.0, 0.6)
@@ -5439,7 +4486,7 @@ func _try_interact_fountain() -> bool:
 		return true
 	if not dungeon_manager:
 		return false
-	var idx = dungeon_manager.get_nearby_fountain(grid_manager.world_to_grid(player.position))
+	var idx := dungeon_manager.get_nearby_fountain(grid_manager.world_to_grid(player.position))
 	if idx < 0:
 		return false
 	_show_fountain_menu(idx)
@@ -5451,7 +4498,7 @@ func _fountain_drink(idx: int) -> bool:
 	if not f["blessed"]:
 		add_battle_log("The basin has run dry. Pour in Holy Water to bless it again.", Color(1.0, 0.6, 0.3))
 		return false
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if stats:
 		var missing: int = stats.max_health - stats.current_health
 		if missing > 0:
@@ -5465,7 +4512,7 @@ func _fountain_pour(idx: int) -> bool:
 	var f = dungeon_manager.fountain_nodes[idx]
 	if f["blessed"]:
 		return false
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if not stats or not stats.spend_holy_water(1):
 		add_battle_log("You have no Holy Water to pour.", Color(1.0, 0.6, 0.3))
 		return false
@@ -5479,7 +4526,7 @@ func _fountain_bathe(idx: int) -> bool:
 	if f["xp_used"]:
 		add_battle_log("This fountain's light has already touched you.", Color(1.0, 0.6, 0.3))
 		return false
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if not stats:
 		return false
 	stats.apply_xp_boost()
@@ -5489,7 +4536,7 @@ func _fountain_bathe(idx: int) -> bool:
 
 func _show_fountain_menu(idx: int) -> void:
 	_close_fountain_menu()
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 	var overlay := ColorRect.new()
 	overlay.name = "FountainMenu"
 	overlay.color = Color(0.0, 0.0, 0.0, 0.55)
@@ -5516,7 +4563,7 @@ func _show_fountain_menu(idx: int) -> void:
 	panel.add_child(box)
 
 	var f = dungeon_manager.fountain_nodes[idx]
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 
 	var title := Label.new()
 	title.text = "Healing Fountain"
@@ -5576,8 +4623,8 @@ func _close_fountain_menu() -> void:
 #endregion
 #region CO-OP: DOWNED & DEFEAT
 func _setup_co_op_defeat() -> void:
-	var s1 = _p1_player.get_stats()
-	var s2 = _p2_player.get_stats()
+	var s1 := _p1_player.get_stats()
+	var s2 := _p2_player.get_stats()
 	if s1:
 		s1.died.connect(_on_co_op_player_died.bind(0))
 		s1.health_changed.connect(func(c, _m): _on_co_op_health(0, c))
@@ -5676,7 +4723,7 @@ func _show_release_tension_picker(card: Card, enemy) -> void:
 		play_selected_card(enemy)
 		return
 
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 	var overlay := ColorRect.new()
 	overlay.name = "ReleaseTensionPicker"
 	overlay.color = Color(0.0, 0.0, 0.0, 0.55)
@@ -5732,7 +4779,7 @@ func show_hand_multi_picker(prompt: String, on_done: Callable) -> void:
 	if deck_manager.hand.is_empty():
 		on_done.call([])
 		return
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 	var overlay := ColorRect.new()
 	overlay.name = "HandMultiPicker"
 	overlay.color = Color(0.0, 0.0, 0.0, 0.55)
@@ -5777,7 +4824,7 @@ func show_hand_multi_picker(prompt: String, on_done: Callable) -> void:
 		b.toggle_mode = true
 		b.text = "%s  (%dm/%dt)" % [c.card_name, c.mana_cost, c.get_burden_tempo_cost()]
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		var cc = c
+		var cc := c
 		b.toggled.connect(func(on: bool):
 			if on:
 				picked.append(cc)
@@ -5816,7 +4863,7 @@ func show_card_list_picker(prompt: String, candidates: Array, on_pick: Callable,
 		on_pick.call(candidates[0])
 		return
 
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 	var overlay := ColorRect.new()
 	overlay.name = "HandCardPicker"
 	overlay.color = Color(0.0, 0.0, 0.0, 0.55)
@@ -5877,7 +4924,7 @@ func show_full_card_picker(prompt: String, candidates: Array, pick_count: int, o
 		on_done.call(candidates.duplicate())
 		return
 
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 	var overlay := ColorRect.new()
 	overlay.name = "FullCardPicker"
 	overlay.color = Color(0.0, 0.0, 0.0, 0.6)
@@ -5931,7 +4978,7 @@ func show_full_card_picker(prompt: String, candidates: Array, pick_count: int, o
 		var holder := Control.new()
 		holder.custom_minimum_size = Vector2(Card_UI_W, Card_UI_H)
 		grid.add_child(holder)
-		var face = CardUIScene.instantiate()
+		var face := CardUIScene.instantiate()
 		holder.add_child(face)
 		face.setup(c, -1)
 		face.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -6006,7 +5053,7 @@ func offer_defensive_sacrifice(attacker, player_node, dmg: int, dmgr, bmgr, dmg_
 						_ds_resume(attacker, player_node, dmg, dmgr, bmgr, dmg_type)
 						return
 					deck_manager.spend_reaction_from_hand(ds)
-					var ds_stats = player.get_stats()
+					var ds_stats := player.get_stats()
 					if ds_stats:
 						ds_stats.gain_mana(10)
 					var ds_half: int = floori(dmg / 2.0)
@@ -6032,7 +5079,7 @@ func _ds_resume(attacker, player_node, dmg: int, dmgr, bmgr, dmg_type: int) -> v
 
 func _show_defensive_sacrifice_prompt(dmg: int, on_yes: Callable, on_no: Callable) -> void:
 	## A yes/no overlay that stays live while the tree is paused.
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 	var overlay := ColorRect.new()
 	overlay.name = "DefensiveSacrificePrompt"
 	overlay.color = Color(0.0, 0.0, 0.0, 0.55)
@@ -6088,7 +5135,7 @@ func _show_defensive_sacrifice_prompt(dmg: int, on_yes: Callable, on_no: Callabl
 	vbox.add_child(row)
 
 func _show_defeat_overlay() -> void:
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 	var overlay := ColorRect.new()
 	overlay.name = "DefeatOverlay"
 	overlay.color = Color(0.0, 0.0, 0.0, 0.8)
@@ -6226,7 +5273,7 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Timed in-hand card tweaks (Keep Them Guessing, Clean Exchange, Ancestral
 	# Aid) run on exact tempo.
 	for tp in _all_players():
-		var tdm = _deck_for_player(tp)
+		var tdm := _deck_for_player(tp)
 		if tdm:
 			tdm.tick_temp_mods(amount)
 	_update_smoke_zones(amount)
@@ -6270,17 +5317,17 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_process_pillars(amount)
 
 	# Check if invisibility expired and restore player opacity
-	var buff_mgr = player.get_buff_manager()
+	var buff_mgr := player.get_buff_manager()
 	if buff_mgr and not buff_mgr.is_invisible():
-		var mesh_node = player.mesh
+		var mesh_node := player.mesh
 		if mesh_node:
-			var mat = mesh_node.get_surface_override_material(0) as StandardMaterial3D
+			var mat := mesh_node.get_surface_override_material(0) as StandardMaterial3D
 			if mat and mat.albedo_color.a < 1.0:
 				_set_player_invisible(false)
 
 	# Always update the 20-tick global counter (fills on ALL tempo sources)
 	if tempo_manager.is_ticking():
-		var progress = tempo_manager.get_active_card_progress()
+		var progress := tempo_manager.get_active_card_progress()
 		if not progress.is_empty():
 			var card_name = ""
 			# Get card name from the pending resolve queue
@@ -6324,8 +5371,8 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	enemy.unit_cells_provider = Callable(self, "_ally_unit_cells")
 	# Snap initial Y position to terrain elevation
 	if dungeon_manager and grid_manager:
-		var enemy_cell = grid_manager.world_to_grid(enemy.position)
-		var elev_y = dungeon_manager.get_elevation_world_y(enemy_cell)
+		var enemy_cell := grid_manager.world_to_grid(enemy.position)
+		var elev_y := dungeon_manager.get_elevation_world_y(enemy_cell)
 		enemy.position.y = elev_y
 		enemy.target_position.y = elev_y
 
@@ -6383,7 +5430,7 @@ func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> 
 	# Cory: Prey on the Weak — bonus damage on debuff to low HP enemy
 	progression_triggers._trigger_skill_tree_cory_on_debuff_applied(enemy, debuff_name, value, debuff_was_new)
 	# Spell weapons pass: weapon passives that watch every debuff you land.
-	var sw_inv = player.get_inventory() if player else null
+	var sw_inv := player.get_inventory() if player else null
 	if sw_inv and "equipped_weapons" in sw_inv:
 		for sw_w in sw_inv.equipped_weapons:
 			if sw_w == null:
@@ -6402,16 +5449,16 @@ func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> 
 					and not _harnessed_reentry and not _laced_arrow_applying and not _wither_applying \
 					and not _phoenix_singed_this_play:
 				_phoenix_singed_this_play = true
-				var pb_dm = player.get_debuff_manager()
+				var pb_dm := player.get_debuff_manager()
 				if pb_dm:
-					var pb_burn = Debuff.create(Debuff.DebuffType.BURN, sw_w.burn_backlash_self, 15)
+					var pb_burn := Debuff.create(Debuff.DebuffType.BURN, sw_w.burn_backlash_self, 15)
 					pb_burn.source_name = sw_w.item_name
 					pb_dm.apply_debuff(pb_burn)
 					add_battle_log("The phoenix feather singes you: %d Burn" % sw_w.burn_backlash_self, Color(1.0, 0.5, 0.2))
 	# Circe's Wand: landing a 5th distinct debuff springs Polymorph from hand.
 	if not _polymorph_firing and deck_manager and is_instance_valid(enemy) and not enemy.is_dead \
 			and enemy.polymorph_tempo <= 0 and Card.count_debuff_kinds(enemy) >= 5:
-		var pm_card = deck_manager.trigger_one_reaction_jailed("on_enemy_fifth_debuff", 25)
+		var pm_card := deck_manager.trigger_one_reaction_jailed("on_enemy_fifth_debuff", 25)
 		if pm_card:
 			_polymorph_firing = true
 			pm_card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
@@ -6440,9 +5487,9 @@ func _on_enemy_movement_completed(enemy: Enemy) -> void:
 func _update_enemy_melee_state(enemy: Enemy, enemy_moved: bool) -> void:
 	if enemy == null or not is_instance_valid(enemy) or enemy.is_dead:
 		return
-	var dist = player.position.distance_to(enemy.position)
-	var in_melee = dist <= 1.8  # Slightly larger than 1.5 to catch edge cases
-	var enemy_id = enemy.get_instance_id()
+	var dist := player.position.distance_to(enemy.position)
+	var in_melee := dist <= 1.8  # Slightly larger than 1.5 to catch edge cases
+	var enemy_id := enemy.get_instance_id()
 	var was_in_melee = _enemy_melee_state.get(enemy_id, false)
 	_enemy_melee_state[enemy_id] = in_melee
 	if in_melee and not was_in_melee:
@@ -6467,7 +5514,7 @@ func _on_enemy_damaged(damage: int, enemy: Enemy) -> void:
 		return
 	if grid_manager.get_distance_in_cells(player.position, enemy.position) > 5:
 		return
-	var rt_cards = deck_manager.trigger_reactions("on_enemy_low_health_nearby")
+	var rt_cards := deck_manager.trigger_reactions("on_enemy_low_health_nearby")
 	for rt_card in rt_cards:
 		_reapers_taking_firing = true
 		rt_card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
@@ -6568,7 +5615,7 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 	if current_character and not _pending_doughnut_drop:
 		var tier: String = enemy_spawner.get_loot_tier(enemy.enemy_type)
 		if DropRates.roll_act_mythic_kill(current_character, current_world_level, tier):
-			var pool = ItemData.get_items_of_rarity(ItemData.Rarity.MYTHIC)
+			var pool := ItemData.get_items_of_rarity(ItemData.Rarity.MYTHIC)
 			_pending_mythic_item = pool[randi() % pool.size()]
 			if dungeon_manager and current_world_level == 1:
 				dungeon_manager.block_act1_mythics = true
@@ -6634,7 +5681,7 @@ func register_fire_wall(tiles: Array, damage: int, burn: int, moves: int = 6,
 	## player (the Inflamed Minotaur feeds on his own wake).
 	var visuals: Array = []
 	for cell in tiles:
-		var v = _spawn_fire_wall_visual(cell)
+		var v := _spawn_fire_wall_visual(cell)
 		if v:
 			visuals.append(v)
 	_fire_walls.append({"tiles": tiles, "damage": damage, "burn": burn, "moves_left": moves,
@@ -6713,11 +5760,11 @@ func _burn_player_from_fire(damage: int, burn: int, victim: Player = null) -> vo
 	# The flames take whoever is standing in them, controlled or not.
 	if victim == null or not is_instance_valid(victim):
 		victim = player
-	var stats = victim.get_stats()
+	var stats := victim.get_stats()
 	if not stats:
 		return
-	var dm = victim.get_debuff_manager() if victim.has_method("get_debuff_manager") else null
-	var bm = victim.get_buff_manager() if victim.has_method("get_buff_manager") else null
+	var dm := victim.get_debuff_manager() if victim.has_method("get_debuff_manager") else null
+	var bm := victim.get_buff_manager() if victim.has_method("get_buff_manager") else null
 	stats.take_damage(damage, dm, bm)
 	if dm:
 		for _i in range(burn):
@@ -6741,6 +5788,7 @@ func _trigger_terrain_traps_for(cell: Vector2i, unit, is_player: bool) -> void:
 		if not trap["tiles"].has(cell):
 			continue
 		trap["sprung"] = true
+		_prompts_dirty = true
 		_spring_trap(trap, unit, is_player)
 
 func _spring_trap(trap: Dictionary, unit, is_player: bool) -> void:
@@ -6779,7 +5827,7 @@ func _spring_trap(trap: Dictionary, unit, is_player: bool) -> void:
 	elif is_instance_valid(unit):
 		# Hermes Boots: trap damage against enemies is amplified — the whole
 		# point of dancing them into the hazards.
-		var tstats = player.get_stats() if player else null
+		var tstats := player.get_stats() if player else null
 		if tstats and tstats.equipment_trap_damage_percent > 0.0:
 			dmg = floori(dmg * (1.0 + tstats.equipment_trap_damage_percent / 100.0))
 		unit.take_damage(dmg, false)
@@ -6827,13 +5875,13 @@ func _try_climb_tree() -> bool:
 	if _climbed_tree_tile.x >= 0:
 		_climb_down()
 		return true
-	var pg = grid_manager.world_to_grid(player.position)
-	var idx = dungeon_manager.get_nearby_climbable_tree(pg)
+	var pg := grid_manager.world_to_grid(player.position)
+	var idx := dungeon_manager.get_nearby_climbable_tree(pg)
 	if idx < 0:
 		return false
 	var tree = dungeon_manager.tree_nodes[idx]
 	var tile: Vector2i = tree["grid_pos"]
-	var wpos = grid_manager.grid_to_world(tile)
+	var wpos := grid_manager.grid_to_world(tile)
 	wpos.y = TREE_CANOPY_Y
 	player.position = wpos
 	player.target_position = wpos
@@ -6855,7 +5903,7 @@ func _try_climb_tree() -> bool:
 
 func _climb_down() -> void:
 	## Drop the player from a tree to the nearest open adjacent floor tile.
-	var base = _climbed_tree_tile
+	var base := _climbed_tree_tile
 	_clear_climbed_tree()
 	if base.x < 0:
 		return
@@ -6866,7 +5914,7 @@ func _climb_down() -> void:
 		var t = base + dir
 		if dungeon_manager.is_floor(t) and not dungeon_manager.pit_tiles.has(t) \
 				and not dungeon_manager.is_obstacle(t) and t not in occupied:
-			var wpos = grid_manager.grid_to_world(t)
+			var wpos := grid_manager.grid_to_world(t)
 			wpos.y = dungeon_manager.get_elevation_world_y(t)
 			player.position = wpos
 			player.target_position = wpos
@@ -6895,7 +5943,7 @@ func _on_player_leveled_up(new_level: int) -> void:
 	player.show_level_up()
 	_update_attack_button_text()
 	# Grant sphere rewards for this level
-	var rewards = SphereInventory.get_level_rewards(new_level)
+	var rewards := SphereInventory.get_level_rewards(new_level)
 	for reward in rewards:
 		sphere_inventory.add_sphere(reward[0], reward[1])
 	print("[MAIN] Granted level %d sphere rewards" % new_level)
@@ -6904,7 +5952,7 @@ func _on_player_leveled_up(new_level: int) -> void:
 	skill_tree_ui.set_player_level(new_level)
 
 	# Force-refresh health and mana UI to guarantee display shows full restore
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if stats:
 		_on_player_health_changed(stats.current_health, stats.max_health)
 		_on_player_mana_changed(stats.current_mana, stats.max_mana)
@@ -6945,28 +5993,28 @@ func _on_player_health_changed(current: int, max_hp: int) -> void:
 		_hp_bar.max_value = max_hp
 		_hp_bar.value = current
 	if _hp_bar_label:
-		var pct = int(float(current) / float(max_hp) * 100.0) if max_hp > 0 else 0
+		var pct := int(float(current) / float(max_hp) * 100.0) if max_hp > 0 else 0
 		_hp_bar_label.text = "%d/%d (%d%%)" % [current, max_hp, pct]
 
 	# Trigger instant reaction cards when HP DROPS below 50% — the crossing,
 	# not every change while already low.
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	var hp_ratio: float = float(current) / float(max_hp) if max_hp > 0 else 1.0
 	var crossed_half: bool = hp_ratio < 0.5 and _last_hp_ratio >= 0.5
 	_last_hp_ratio = hp_ratio
 	if stats and current > 0 and crossed_half:
-		var triggered = deck_manager.trigger_reactions("on_hp_below_50")
+		var triggered := deck_manager.trigger_reactions("on_hp_below_50")
 		for card in triggered:
 			if card.card_id == "gift_from_the_phoenix":
-				var heal_target = int(max_hp * 0.8)
-				var heal_amount = heal_target - current
+				var heal_target := int(max_hp * 0.8)
+				var heal_amount := heal_target - current
 				if heal_amount > 0:
 					stats.heal(heal_amount)
 				# Apply 5 burn to nearest enemy
 				var nearest_enemy: Enemy = null
 				var nearest_dist = INF
 				for e in enemy_spawner.get_living_enemies():
-					var d = (e.position - player.position).length()
+					var d := (e.position - player.position).length()
 					if d < nearest_dist:
 						nearest_dist = d
 						nearest_enemy = e
@@ -6996,7 +6044,7 @@ func _on_player_carry_changed(load: int, capacity: int) -> void:
 
 ## Capacity follows strength, so any stat change re-reads it.
 func _refresh_carry_bar() -> void:
-	var stats = player.get_stats() if player else null
+	var stats := player.get_stats() if player else null
 	if stats:
 		_on_player_carry_changed(stats.current_carry_load, stats.get_carry_capacity())
 
@@ -7007,7 +6055,7 @@ func _on_player_armor_gained(_amount: int) -> void:
 
 func _on_player_armor_changed(_current: int) -> void:
 	## The shield reads REGULAR armor only; unerring armor has its own grey bar.
-	var stats = player.get_stats() if player else null
+	var stats := player.get_stats() if player else null
 	if _armor_shield_label and stats:
 		_armor_shield_label.text = "%d" % stats.current_armor
 	_update_unerring_bar()
@@ -7016,7 +6064,7 @@ func _on_player_unerring_changed(_current: int, _cap: int) -> void:
 	_on_player_armor_changed(0)
 
 func _update_unerring_bar() -> void:
-	var stats = player.get_stats() if player else null
+	var stats := player.get_stats() if player else null
 	if stats == null:
 		return
 	var cap: int = stats.get_unerring_cap()
@@ -7027,9 +6075,9 @@ func _update_unerring_bar() -> void:
 		_unerring_bar_label.text = "%d/%d" % [stats.unerring_armor, cap]
 
 func _update_xp_display() -> void:
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if stats and _xp_bar:
-		var xp_to_next = stats.get_xp_to_next_level()
+		var xp_to_next := stats.get_xp_to_next_level()
 		_xp_bar.max_value = xp_to_next
 		_xp_bar.value = stats.current_xp
 	if stats and _level_badge_label:
@@ -7041,7 +6089,7 @@ func _on_flash_points_changed(_current: int, _max_points: int) -> void:
 	_update_flash_button()
 
 func _on_flash_move_toggled(pressed: bool) -> void:
-	var stats = player.get_stats() if player else null
+	var stats := player.get_stats() if player else null
 	if stats:
 		stats.flash_movement_enabled = pressed
 	if pressed:
@@ -7051,7 +6099,7 @@ func _on_flash_move_toggled(pressed: bool) -> void:
 	_update_flash_button()
 
 func _on_flash_block_pressed() -> void:
-	var stats = player.get_stats() if player else null
+	var stats := player.get_stats() if player else null
 	if not stats:
 		return
 	if _stun_refuses("Flash Cut" if stats.keystone_flash_strike else "Sidestep"):
@@ -7069,15 +6117,15 @@ func _on_flash_block_pressed() -> void:
 
 func _flash_strike(stats) -> void:
 	## Flash Cut: spend Sidestep flash to strike the nearest enemy in reach.
-	var nearby = enemy_spawner.get_enemies_in_radius(player.position, 2.5)
+	var nearby := enemy_spawner.get_enemies_in_radius(player.position, 2.5)
 	if nearby.is_empty():
 		add_battle_log("Flash Cut: no enemy in reach!", Color(1.0, 0.6, 0.3))
 		return
 	var target = nearby[0]
 	var closest_dist = INF
 	for enemy in nearby:
-		var diff = player.position - enemy.position
-		var dist = Vector3(diff.x, 0, diff.z).length()
+		var diff := player.position - enemy.position
+		var dist := Vector3(diff.x, 0, diff.z).length()
 		if dist < closest_dist:
 			closest_dist = dist
 			target = enemy
@@ -7104,26 +6152,26 @@ func _try_arcane_echo(stats) -> void:
 	var dmg = stats.get_int_spell_proc_damage()
 	if dmg <= 0:
 		return
-	var enemies = enemy_spawner.get_living_enemies()
+	var enemies := enemy_spawner.get_living_enemies()
 	if enemies.is_empty():
 		return
-	var target = enemies[randi() % enemies.size()]
+	var target := enemies[randi() % enemies.size()]
 	if not (target and target.has_method("take_damage")):
 		return
 	target.take_damage(dmg, true)
 	add_battle_log("Arcane Echo! %d bonus damage to %s." % [dmg, target.enemy_name], Color(0.6, 0.4, 1.0))
 
 func _on_brain_draw_pressed() -> void:
-	var stats = player.get_stats() if player else null
+	var stats := player.get_stats() if player else null
 	if not stats:
 		return
 	if _stun_refuses("draw"):
 		return
-	var cost = stats.get_next_brain_draw_cost()
+	var cost := stats.get_next_brain_draw_cost()
 	if stats.current_brain_points < cost:
 		add_battle_log("Not enough brain points (%d needed)." % cost, Color(1.0, 0.5, 0.5))
 		return
-	var debuff_mgr = player.get_debuff_manager()
+	var debuff_mgr := player.get_debuff_manager()
 	if debuff_mgr and debuff_mgr.has_method("can_draw_cards") and not debuff_mgr.can_draw_cards():
 		add_battle_log("Cuffed — cannot draw cards.", Color(1.0, 0.5, 0.5))
 		return
@@ -7148,12 +6196,12 @@ func _on_brain_draw_pressed() -> void:
 		_update_brain_button()
 
 func _on_brain_peek_pressed() -> void:
-	var stats = player.get_stats() if player else null
+	var stats := player.get_stats() if player else null
 	if not stats:
 		return
 	if _stun_refuses("peek"):
 		return
-	var cost = stats.get_next_brain_peek_cost()
+	var cost := stats.get_next_brain_peek_cost()
 	if stats.current_brain_points < cost:
 		add_battle_log("Not enough brain points (%d needed)." % cost, Color(1.0, 0.5, 0.5))
 		return
@@ -7162,7 +6210,7 @@ func _on_brain_peek_pressed() -> void:
 		return
 	if stats.spend_brain_for_peek():
 		deck_manager.brain_peek_depth += 1
-		var seen = deck_manager.get_brain_peeked_cards()
+		var seen := deck_manager.get_brain_peeked_cards()
 		if seen.size() > 0:
 			add_battle_log("Peek! -%d brain — card %d down is %s (next peek: %d)." % [
 				cost, seen.size(), seen[seen.size() - 1].card_name,
@@ -7176,7 +6224,7 @@ func _on_brain_points_changed(_current: int, _max_points: int) -> void:
 func _update_brain_button() -> void:
 	if not _brain_button:
 		return
-	var stats = player.get_stats() if player else null
+	var stats := player.get_stats() if player else null
 	if not stats:
 		return
 	var pool: int = stats.current_brain_points
@@ -7186,12 +6234,12 @@ func _update_brain_button() -> void:
 		tempo_manager.get_tempo_until_brain_refresh() if tempo_manager else 0]
 	# Spend buttons fade while unaffordable (still clickable — the click explains).
 	if _brain_peek_button:
-		var pk = stats.get_next_brain_peek_cost()
+		var pk := stats.get_next_brain_peek_cost()
 		_brain_peek_button.modulate.a = 1.0 if pool >= pk else 0.45
 		_brain_peek_button.tooltip_text = "Peek: spend %d brain to reveal the next unseen card of your draw pile.\nEach peek this window costs %d more." % [
 			pk, PlayerStats.BRAIN_PEEK_COST_STEP]
 	if _brain_draw_button:
-		var dc = stats.get_next_brain_draw_cost()
+		var dc := stats.get_next_brain_draw_cost()
 		# The corner badge wears the NEXT draw's price so the player always
 		# knows where they are on the ladder; the glyph keeps the full button.
 		if _brain_draw_cost_label:
@@ -7200,7 +6248,7 @@ func _update_brain_button() -> void:
 		_brain_draw_button.tooltip_text = "Insight: spend %d brain to draw a card.\nEach draw this window costs more (5, 10, 15, 20, 25...)." % dc
 
 func _on_flash_proc_pressed() -> void:
-	var stats = player.get_stats() if player else null
+	var stats := player.get_stats() if player else null
 	if not stats:
 		return
 	if _stun_refuses("use Quick hands"):
@@ -7215,7 +6263,7 @@ func _on_flash_proc_pressed() -> void:
 func _update_flash_button() -> void:
 	if not _flash_button:
 		return
-	var stats = player.get_stats() if player else null
+	var stats := player.get_stats() if player else null
 	if not stats:
 		return
 	var pool: int = stats.current_flash_points
@@ -7256,7 +6304,7 @@ func _on_dexterity_proc() -> void:
 func _on_maintained_cards_broken() -> void:
 	## Called when player's mana hits 0 - all maintained Power cards are discarded
 	deck_manager.break_all_maintained_cards()
-	_update_maintained_button()
+	_maintained_list.refresh()
 	print("[MAIN] All maintained cards broken due to mana depletion!")
 
 func _on_player_health_damage_taken(hp_amount: int) -> void:
@@ -7272,7 +6320,7 @@ func _on_player_health_damage_taken(hp_amount: int) -> void:
 			player.play_animation("hit_heavy")
 		else:
 			player.play_animation("hit")
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 
 	# on_exposed reactions moved to _on_player_armor_broken: Exposed is the
 	# armor broken through (off its 10-tempo cooldown), not any health lost.
@@ -7291,7 +6339,7 @@ func _on_player_healed(amount: int) -> void:
 	if amount > 0 and player.has_method("show_heal_icon"):
 		player.show_heal_icon()
 	# Sphere grid passive triggers for healing
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	var overheal = 0
 	if stats and stats.current_health >= stats.max_health:
 		overheal = amount  # approximate overheal
@@ -7326,7 +6374,7 @@ func _on_hand_updated() -> void:
 	# Quick Study (WIS keystone): auto-draw 1 when the hand empties. draw_card()
 	# does NOT touch draw_timer.tempo_until_draw, so the timed draw is untouched.
 	# A failed draw (empty deck) emits no hand_updated, so this can't loop.
-	var _qs_stats = player.get_stats() if player else null
+	var _qs_stats := player.get_stats() if player else null
 	if _qs_stats and _qs_stats.keystone_wis_empty_draw and deck_manager.hand.is_empty():
 		deck_manager.draw_card()
 
@@ -7351,7 +6399,7 @@ func _on_hand_updated() -> void:
 			child.queue_free()
 	_card_ui_instances.clear()
 
-	var debuff_mgr = player.get_debuff_manager()
+	var debuff_mgr := player.get_debuff_manager()
 
 	# Assign Hexed/Locked cards if needed
 	deck_manager.assign_hexed_locked_cards(debuff_mgr)
@@ -7365,9 +6413,9 @@ func _on_hand_updated() -> void:
 	# Roll RNG for cards that haven't been rolled yet. next_odds_boost (Loaded
 	# Die / House Money) rides every chance card until one is PLAYED — it is
 	# cleared in the play path, never here.
-	var enemies = enemy_spawner.get_living_enemies()
-	var _rng_stats = player.get_stats()
-	var chance_boost = _rng_stats.get_chance_boost() + _rng_stats.next_odds_boost
+	var enemies := enemy_spawner.get_living_enemies()
+	var _rng_stats := player.get_stats()
+	var chance_boost := _rng_stats.get_chance_boost() + _rng_stats.next_odds_boost
 	for card in deck_manager.hand:
 		if card.has_chance_effect() and not card.has_been_rolled():
 			card.roll_rng(enemies, chance_boost)
@@ -7377,7 +6425,7 @@ func _on_hand_updated() -> void:
 	# so playing a card never re-letters the rest, and build the render groups.
 	_build_hand_groups(debuff_mgr)
 
-	var group_count = _hand_groups.size()
+	var group_count := _hand_groups.size()
 	if group_count == 0:
 		if selected_card_index >= 0:
 			selected_card_index = -1
@@ -7424,12 +6472,12 @@ func _on_hand_updated() -> void:
 		max_fan_angle = 0.0
 
 	# Draw pile position for draw animation origin (bottom-left of screen)
-	var draw_origin = _get_draw_pile_pos()
+	var draw_origin := _get_draw_pile_pos()
 
-	var dex_proc_active = deck_manager.next_attack_half_tempo or deck_manager.next_attack_mana_discount > 0
+	var dex_proc_active := deck_manager.next_attack_half_tempo or deck_manager.next_attack_mana_discount > 0
 	var pocket_knife = false
 	if dex_proc_active:
-		var hand_inv = player.get_inventory()
+		var hand_inv := player.get_inventory()
 		pocket_knife = hand_inv and hand_inv.has_pocket_knife_equipped()
 
 	var anim_ordinal := 0
@@ -7439,7 +6487,7 @@ func _on_hand_updated() -> void:
 		var count: int = group["cards"].size()
 		var rep_hand_index: int = deck_manager.hand.find(rep)
 
-		var card_ui = CardUIScene.instantiate()
+		var card_ui := CardUIScene.instantiate()
 		hand_container.add_child(card_ui)
 		# Debuff hexed/locked display keys off the card's real hand index.
 		card_ui.setup(rep, rep_hand_index, debuff_mgr, dex_proc_active, pocket_knife)
@@ -7451,7 +6499,7 @@ func _on_hand_updated() -> void:
 		card_ui.set_slotted_item(rep.slotted_in_item)
 		group["card_ui"] = card_ui
 
-		var final_pos = Vector2(start_x + g * spacing, card_y)
+		var final_pos := Vector2(start_x + g * spacing, card_y)
 
 		# Fan rotation: arc from left to right
 		var fan_t = 0.0
@@ -7467,7 +6515,7 @@ func _on_hand_updated() -> void:
 			# New card: animate sliding in from draw pile area
 			card_ui.position = final_pos  # Set base for store
 			card_ui.store_base_position()
-			var delay = anim_ordinal * 0.08
+			var delay := anim_ordinal * 0.08
 			anim_ordinal += 1
 			card_ui.animate_draw_in(draw_origin, final_pos, delay)
 		else:
@@ -7604,7 +6652,7 @@ func _animate_card_erase(card: Card) -> void:
 func _on_non_play_discard(_card: Card) -> void:
 	## Ladder Work (Ryan): count cards that reach the discard pile by means
 	## other than being played; the count feeds next cycle's opening strike.
-	var stats = player.get_stats() if player else null
+	var stats := player.get_stats() if player else null
 	if stats and stats.has_skill_tree_passive("ladder_work"):
 		stats.st_ladder_discard_count += 1
 	# Keep Them Guessing counts true discards, never plays.
@@ -7630,12 +6678,12 @@ func _on_card_discarded(card: Card) -> void:
 func _on_true_discard_effects(card: Card) -> void:
 	# Volatile Mixture: deal damage to a random nearby enemy when discarded
 	if card.card_id == "volatile_mixture":
-		var stats = player.get_stats()
+		var stats := player.get_stats()
 		var total_damage = card.damage
 		if stats:
 			total_damage = stats.get_effective_spell_damage(card.damage)
 		# The nearest enemy in range 5 takes it; ties are broken at random.
-		var nearby = enemy_spawner.get_enemies_in_radius(player.position, 5.0)
+		var nearby := enemy_spawner.get_enemies_in_radius(player.position, 5.0)
 		if nearby.size() > 0:
 			var best_d: float = INF
 			var closest: Array = []
@@ -7660,21 +6708,21 @@ func _handle_on_discard_effect(card: Card) -> void:
 		"improvised_ammo_blast":
 			# Wrist Rocket: the discarded shell pops for 4 on the nearest enemy
 			# and banks +10% crit for Improvised Ammo (stacks, battle-scoped).
-			var ia_stats = player.get_stats() if player else null
+			var ia_stats := player.get_stats() if player else null
 			if ia_stats:
 				ia_stats.improvised_ammo_crit_bonus += 10.0
 				add_battle_log("Improvised Ammo sharpens: +%.0f%% crit, forever." % ia_stats.improvised_ammo_crit_bonus, Color(0.8, 0.7, 0.5))
 			if enemy_spawner and player:
-				var ia_near = _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
+				var ia_near := _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
 				if ia_near:
 					ia_near.take_damage(4, true)
 					add_battle_log("The discarded shell pops! %s takes 4." % ia_near.enemy_name, Color(0.8, 0.7, 0.5))
 		"discard_2_cards":
 			if deck_manager and deck_manager.hand.size() > 0:
-				var cards_to_discard = mini(2, deck_manager.hand.size())
+				var cards_to_discard := mini(2, deck_manager.hand.size())
 				for i in range(cards_to_discard):
-					var random_index = randi() % deck_manager.hand.size()
-					var discarded = deck_manager.hand[random_index]
+					var random_index := randi() % deck_manager.hand.size()
+					var discarded := deck_manager.hand[random_index]
 					deck_manager.hand.remove_at(random_index)
 					deck_manager.discard_pile.append(discarded)
 					deck_manager.discards_this_cycle += 1
@@ -7707,52 +6755,14 @@ func _on_overflow_triggered(mode: String, card: Card) -> void:
 	update_peaked_display()
 
 #endregion
-#region DEBUG: TEST-UI STATUS HANDLERS
-
-func _on_apply_buff(buff_name: String) -> void:
-	var buff_mgr = player.get_buff_manager()
-	var buff: Buff = null
-	
-	match buff_name:
-		"Thorns (3 dmg)":
-			buff = Buff.create_thorns(3, 15, "Test")
-		"Focused":
-			buff = Buff.create_focused(15, "Test")
-		"Regen (2)":
-			buff = Buff.create_regen(2, 15, "Test")
-		"Blessed (1)":
-			buff = Buff.create_blessed(1, 3, "Test")
-		"Fortify":
-			buff = Buff.create_fortify(15, "Test")
-		"Enlightened (25%, 3)":
-			buff = Buff.create_enlightened(25, 3, "Test")
-		"Strengthen (+3, 3)":
-			buff = Buff.create_strengthen(3, 3, "Test")
-		"Bolster (+2, 3)":
-			buff = Buff.create_bolster(2, 3, "Test")
-		"Haste (+1)":
-			buff = Buff.create_haste(1, 3, "Test")
-		"Cleanse (1)":
-			buff = Buff.create_cleanse(1, "Test")
-		"Smith (2)":
-			buff = Buff.create_smith(2, 15, "Test")
-		"Steady":
-			buff = Buff.create_steady("Test")
-	
-	if buff and buff_mgr:
-		buff_mgr.apply_buff(buff)
-		print("[MAIN] Applied buff: %s" % buff_name)
-	
-
+#region CYCLE DISPATCHER & CARD HOUSEKEEPING
 ## Fires every 5 global tempo (one tempo cycle).
 ## Handles buff/debuff effects, armor decay, deck upkeep, sky falls, etc.
 ## Enemy actions and mana regen are handled in _on_tempo_advanced instead.
-#endregion
-#region CYCLE DISPATCHER & CARD HOUSEKEEPING
 func _on_tempo_threshold_reached(times: int) -> void:
 	print("[MAIN] === TEMPO CYCLE × %d ===" % times)
 
-	var was_moving = player.is_moving
+	var was_moving := player.is_moving
 	if was_moving:
 		player.pause_movement()
 
@@ -7864,7 +6874,7 @@ func _cycle_status_start(cp) -> void:
 	if buff_mgr:
 		var buff_result = buff_mgr.process_turn_start()
 		if buff_result["extra_draws"] > 0:
-			var own_deck = _deck_for_player(cp)
+			var own_deck := _deck_for_player(cp)
 			if own_deck:
 				for d in range(buff_result["extra_draws"]):
 					own_deck.attempt_draw()
@@ -7888,8 +6898,8 @@ func _cycle_status_start(cp) -> void:
 func _process_maintained_card_effects() -> void:
 	## Process ongoing effects from maintained Power cards each tempo cycle.
 	_burn_flame_zones()
-	var maintained_result = deck_manager.process_maintained_cards()
-	var stats = player.get_stats()
+	var maintained_result := deck_manager.process_maintained_cards()
+	var stats := player.get_stats()
 	if maintained_result["total_heal"] > 0 and stats:
 		# Halo: heal allies within its AOE (3 tiles of the caster). The caster
 		# always heals; a partner must be inside the radius. Blood Libation
@@ -7922,21 +6932,21 @@ func _process_maintained_card_effects() -> void:
 
 func _append_keyword_tooltips(parent: VBoxContainer, card: Card) -> void:
 	## Scan a card for keyword matches and append tooltip labels to the parent container.
-	var keywords = card.get_matching_keywords()
+	var keywords := card.get_matching_keywords()
 	if keywords.size() == 0:
 		return
 
-	var sep = HSeparator.new()
+	var sep := HSeparator.new()
 	parent.add_child(sep)
 
-	var header = Label.new()
+	var header := Label.new()
 	header.text = "Keywords:"
 	header.add_theme_font_size_override("font_size", 11)
 	header.add_theme_color_override("font_color", Color(0.9, 0.8, 0.4))
 	parent.add_child(header)
 
 	for kw in keywords:
-		var kw_label = RichTextLabel.new()
+		var kw_label := RichTextLabel.new()
 		kw_label.bbcode_enabled = true
 		kw_label.text = "[color=#cc88ff]%s[/color]: %s" % [kw["keyword"], kw["definition"]]
 		kw_label.fit_content = true
@@ -7950,10 +6960,10 @@ func _append_keyword_tooltips(parent: VBoxContainer, card: Card) -> void:
 ## 8 self-damage, then it is discarded (which also sets off its discard hit).
 ## Checked on every tempo advance; the fuse starts when the card is drawn.
 func _check_volatile_mixture_in_hand() -> void:
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	var now: int = tempo_manager.get_global_tempo() if tempo_manager else 0
 	for i in range(deck_manager.hand.size() - 1, -1, -1):
-		var card = deck_manager.hand[i]
+		var card := deck_manager.hand[i]
 		if card.card_id == "volatile_mixture":
 			if not card.has_meta("vm_in_hand_since"):
 				card.set_meta("vm_in_hand_since", now)
@@ -7962,7 +6972,7 @@ func _check_volatile_mixture_in_hand() -> void:
 			card.remove_meta("vm_in_hand_since")
 			# Self-damage is FLAT — your own INT doesn't sharpen the blast in
 			# your hand. (The discard leg that hits an ENEMY stays INT-scaled.)
-			var self_damage = card.damage
+			var self_damage := card.damage
 			if stats:
 				stats.take_damage(self_damage)
 			deck_manager.hand.remove_at(i)
@@ -7972,7 +6982,7 @@ func _check_volatile_mixture_in_hand() -> void:
 			print("[MAIN] Volatile Mixture still in hand! Took %d self-damage" % self_damage)
 
 func _recalculate_enchantment_bonuses() -> void:
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if not stats:
 		return
 	var damage_bonus: int = 0
@@ -7991,7 +7001,7 @@ func _recalculate_enchantment_bonuses() -> void:
 				movement_bonus += 1
 			"mana_regen_1":
 				mana_regen_bonus += 10.0
-	var changed = (stats.enchantment_damage_bonus != damage_bonus
+	var changed := (stats.enchantment_damage_bonus != damage_bonus
 		or stats.enchantment_block_bonus != block_bonus
 		or stats.enchantment_mana_regen_bonus != mana_regen_bonus
 		or stats.enchantment_movement_bonus != movement_bonus)
@@ -8036,7 +7046,7 @@ func _sync_held_drain(debuff_mgr) -> void:
 	var drain = debuff_mgr.get_debuff(Debuff.DebuffType.DRAIN)
 	if held:
 		if drain == null:
-			var d = Debuff.create(Debuff.DebuffType.DRAIN, 1, 15)
+			var d := Debuff.create(Debuff.DebuffType.DRAIN, 1, 15)
 			d.source_name = HELD_DRAIN_SOURCE
 			debuff_mgr.apply_debuff(d)
 	elif drain != null and drain.source_name == HELD_DRAIN_SOURCE:
@@ -8045,7 +7055,7 @@ func _sync_held_drain(debuff_mgr) -> void:
 func _process_enchantment_cycles() -> void:
 	var hand_changed = false
 	for i in range(deck_manager.hand.size() - 1, -1, -1):
-		var card = deck_manager.hand[i]
+		var card := deck_manager.hand[i]
 		if card.card_type != Card.CardType.ENCHANTMENT:
 			continue
 		card.cycles_in_hand += 1
@@ -8064,7 +7074,7 @@ func _process_enchantment_cycles() -> void:
 ## the card holder (also what Lethal Recall replays).
 func _healthy_bliss_heal(card: Card) -> void:
 	# Poisoned Blood turns this heal card's sweep into damage too.
-	var hb_bm = player.get_buff_manager()
+	var hb_bm := player.get_buff_manager()
 	var hb_poisoned: bool = hb_bm != null and hb_bm.has_poisoned_blood()
 	if hb_poisoned:
 		hb_bm.consume_poisoned_blood()
@@ -8073,7 +7083,7 @@ func _healthy_bliss_heal(card: Card) -> void:
 	PlayerStats.heal_to_damage = false
 
 func _healthy_bliss_sweep(card: Card) -> void:
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	var heal_amt = card.heal_amount
 	if stats:
 		heal_amt = stats.get_effective_heal_amount(card.heal_amount)
@@ -8120,7 +7130,7 @@ func _process_pending_sky_falls() -> void:
 		sf.tempo_remaining -= 5
 		if sf.tempo_remaining <= 0:
 			# Arrow lands! Damage whatever stands on the designated square.
-			var enemies_hit = enemy_spawner.get_enemies_in_radius(sf.position, 0.5)
+			var enemies_hit := enemy_spawner.get_enemies_in_radius(sf.position, 0.5)
 			for enemy in enemies_hit:
 				enemy.take_damage(sf.damage, true)
 			pending_sky_falls.remove_at(i)
@@ -8207,7 +7217,7 @@ func _stun_nearest_enemy(within: float) -> void:
 	var nearest = null
 	var best := INF
 	for en in enemy_spawner.get_living_enemies():
-		var d = player.position.distance_to(en.position)
+		var d := player.position.distance_to(en.position)
 		if d <= within and d < best:
 			best = d
 			nearest = en
@@ -8225,7 +7235,7 @@ func _harness_lightning_tick() -> void:
 			in_range.append(en)
 	if in_range.size() > 0:
 		# 4 base, through the INT spell pipeline.
-		var hl_stats = player.get_stats()
+		var hl_stats := player.get_stats()
 		var hl_dmg: int = hl_stats.get_effective_spell_damage(4) if hl_stats else 4
 		in_range[randi() % in_range.size()].take_damage(hl_dmg, true)
 
@@ -8312,7 +7322,7 @@ func _on_player_entered_invisibility() -> void:
 				_invisibility_draw(top))
 
 func _invisibility_draw(top: Card) -> void:
-	var dm = deck_manager
+	var dm := deck_manager
 	if dm.hand.size() >= dm.get_hand_cap():
 		show_hand_card_picker("Invisibility: discard a card to draw %s" % top.card_name, func(c):
 			if c != null:
@@ -8324,7 +7334,7 @@ func _invisibility_draw(top: Card) -> void:
 		_invisibility_finish_draw(top, top)
 
 func _invisibility_finish_draw(top: Card, then_discard_excluding: Card) -> void:
-	var dm = deck_manager
+	var dm := deck_manager
 	if dm.draw_pile.is_empty() or dm.draw_pile.back() != top:
 		return
 	var drawn: Card = dm.draw_card()
@@ -8345,7 +7355,7 @@ func _invisibility_finish_draw(top: Card, then_discard_excluding: Card) -> void:
 ## The discard that pays for the draw is not optional: Cancel re-opens the
 ## picker instead of letting the player keep the card for free.
 func _invisibility_forced_discard(drawn: Card) -> void:
-	var dm = deck_manager
+	var dm := deck_manager
 	show_hand_card_picker("Invisibility: discard a card (not %s)" % drawn.card_name, func(c):
 		if c != null:
 			dm.discard_card_from_hand(c)
@@ -8360,7 +7370,7 @@ func _show_choice_picker(prompt: String, labels: Array, on_pick: Callable) -> vo
 	if labels.size() == 1:
 		on_pick.call(0)
 		return
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 	var overlay := ColorRect.new()
 	overlay.name = "ChoicePicker"
 	overlay.color = Color(0.0, 0.0, 0.0, 0.55)
@@ -8408,7 +7418,6 @@ func _show_choice_picker(prompt: String, labels: Array, on_pick: Callable) -> vo
 ## fan forward in a cone, each flying to its OWN end square up to 5 away
 ## (they may share squares on the way). A snowball stops at the first enemy
 ## it hits — dealing 4 (INT-scaled) — or at a wall. Returns the enemies hit.
-const SNOWBALL_COUNT := 5
 const SNOWBALL_RANGE := 5
 const SNOWBALL_DAMAGE := 4
 const SNOWBALL_SPREAD_DEG := [-40.0, -20.0, 0.0, 20.0, 40.0]
@@ -8417,7 +7426,7 @@ func _throw_snowballs(direction: Vector3) -> Array:
 	var hits: Array = []
 	if direction.length() < 0.01:
 		return hits
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	var dmg: int = stats.get_effective_spell_damage(SNOWBALL_DAMAGE) if stats else SNOWBALL_DAMAGE
 	var start: Vector2i = grid_manager.world_to_grid(player.position)
 	# Pick five distinct end squares across the cone.
@@ -8485,7 +7494,7 @@ func _apply_misery_spread(hit_enemies: Array) -> void:
 			if v != null and int(v) > maxv[k[0]]:
 				maxv[k[0]] = int(v)
 	# The caster's own debuffs join the pool (stack counts, or the timer left).
-	var pdm = player.get_debuff_manager()
+	var pdm := player.get_debuff_manager()
 	if pdm:
 		var pmap := {
 			Debuff.DebuffType.BURN: "burn", Debuff.DebuffType.POISON: "poison",
@@ -8551,7 +7560,7 @@ func _process_pending_absorb_essences() -> void:
 		ae.tempo_remaining -= 5
 		if ae.tempo_remaining <= 0:
 			# Create Energy Ball card and add to hand
-			var energy_ball = Card.create_energy_ball()
+			var energy_ball := Card.create_by_id("energy_ball")
 			energy_ball.damage = ae.total_damage
 			energy_ball.base_damage = ae.total_damage
 			deck_manager.hand.append(energy_ball)
@@ -8574,15 +7583,15 @@ func _process_glut_countdown() -> void:
 #endregion
 #region TEMPO & DECK DISPLAYS
 func _reroll_card_rng() -> void:
-	var enemies = enemy_spawner.get_living_enemies()
+	var enemies := enemy_spawner.get_living_enemies()
 	# The armed Loaded Die / House Money boost survives the 15-tempo reroll.
-	var chance_boost = player.get_stats().get_chance_boost() + player.get_stats().next_odds_boost
+	var chance_boost := player.get_stats().get_chance_boost() + player.get_stats().next_odds_boost
 	var any_outcome_changed = false
 
 	for card in deck_manager.hand:
 		if card.has_chance_effect():
 			if card.should_reroll_rng(tempo_manager.global_tempo):
-				var old_index = card.rng_selected_index
+				var old_index := card.rng_selected_index
 				card.roll_rng(enemies, chance_boost)
 				card.rng_roll_tempo = tempo_manager.global_tempo
 				if card.rng_selected_index != old_index:
@@ -8618,11 +7627,11 @@ func update_deck_info() -> void:
 		_discard_pile_btn.tooltip_text = "Discard pile: %d card(s)" % deck_manager.get_discard_pile_size()
 	if jailed_icon:
 		jailed_icon.set_cards(deck_manager.jail_pile)
-	_update_maintained_button()
-	_refresh_pile_popup_if_open()
+	_maintained_list.refresh()
+	_pile_popup.refresh_if_open()
 
 func _update_draw_label() -> void:
-	var tempo_until = draw_timer.get_tempo_until_draw()
+	var tempo_until := draw_timer.get_tempo_until_draw()
 	if draw_label:
 		# The small number is how many tempo until the next draw.
 		draw_label.text = "%d" % int(tempo_until)
@@ -8645,9 +7654,9 @@ func _toggle_hand_info_popup() -> void:
 	await get_tree().process_frame  # let the panel size itself to fresh content
 	if not _hand_info_popup.visible:
 		return
-	var btn_rect = _hand_info_btn.get_global_rect()
-	var pos = btn_rect.position + Vector2(btn_rect.size.x + 8, -_hand_info_popup.size.y / 2.0)
-	var screen = get_viewport().get_visible_rect().size
+	var btn_rect := _hand_info_btn.get_global_rect()
+	var pos := btn_rect.position + Vector2(btn_rect.size.x + 8, -_hand_info_popup.size.y / 2.0)
+	var screen := get_viewport().get_visible_rect().size
 	pos.x = clampf(pos.x, 8.0, screen.x - _hand_info_popup.size.x - 8.0)
 	pos.y = clampf(pos.y, 8.0, screen.y - _hand_info_popup.size.y - 8.0)
 	_hand_info_popup.global_position = pos
@@ -8658,24 +7667,24 @@ func _refresh_hand_info_popup() -> void:
 	for child in _hand_info_vbox.get_children():
 		child.queue_free()
 
-	var stats = player.get_stats() if player else null
-	var max_hand = stats.hand_size if stats else 0
-	var current_hand = deck_manager.hand.size() if deck_manager else 0
+	var stats := player.get_stats() if player else null
+	var max_hand := stats.hand_size if stats else 0
+	var current_hand := deck_manager.hand.size() if deck_manager else 0
 
-	var title = Label.new()
+	var title := Label.new()
 	title.text = "Hand"
 	title.add_theme_font_size_override("font_size", 14)
 	title.add_theme_color_override("font_color", Color(0.45, 0.7, 1.0))
 	_hand_info_vbox.add_child(title)
 
-	var size_line = Label.new()
+	var size_line := Label.new()
 	size_line.text = "Current hand: %d / %d max" % [current_hand, max_hand]
 	size_line.add_theme_font_size_override("font_size", 12)
-	var over_max = current_hand > max_hand
+	var over_max := current_hand > max_hand
 	size_line.add_theme_color_override("font_color", Color(1.0, 0.6, 0.3) if over_max else Color(0.85, 0.85, 0.9))
 	_hand_info_vbox.add_child(size_line)
 
-	var overflow_title = Label.new()
+	var overflow_title := Label.new()
 	overflow_title.text = "Overflow effects:"
 	overflow_title.add_theme_font_size_override("font_size", 12)
 	overflow_title.add_theme_color_override("font_color", Color(0.8, 0.8, 0.9))
@@ -8683,15 +7692,15 @@ func _refresh_hand_info_popup() -> void:
 
 	var effects: Array = overflow_manager.overflow_effects if overflow_manager else []
 	if effects.is_empty():
-		var none = Label.new()
+		var none := Label.new()
 		none.text = "  None active"
 		none.add_theme_font_size_override("font_size", 11)
 		none.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
 		_hand_info_vbox.add_child(none)
 	else:
 		for effect in effects:
-			var line = Label.new()
-			var source = " — %s" % effect.source_name if effect.source_name != "" else ""
+			var line := Label.new()
+			var source := " — %s" % effect.source_name if effect.source_name != "" else ""
 			line.text = "  %s%s" % [effect.get_display_text(), source]
 			line.add_theme_font_size_override("font_size", 11)
 			line.add_theme_color_override("font_color", Color(0.95, 0.75, 0.4))
@@ -8701,17 +7710,17 @@ func _refresh_hand_info_popup() -> void:
 ## (via get_effective_physical_damage) + Weighted Strikes. Transient bonuses
 ## (dex proc stores, Strengthen, crits) are excluded — they resolve on swing.
 func _get_basic_attack_display_damage() -> int:
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	var damage: int = stats.get_basic_attack_damage()
 	if stats.keystone_str_weight_basic:
-		var inv = player.get_inventory()
+		var inv := player.get_inventory()
 		if inv:
 			damage += inv.get_single_hand_weight_damage_bonus()
 	return damage
 
 ## Armor Chopper: the auto attack (a melee attack) shreds extra enemy armor.
 func _basic_attack_armor_shred(target) -> void:
-	var stats = player.get_stats() if player else null
+	var stats := player.get_stats() if player else null
 	if not stats or stats.equipment_armor_shred <= 0 or target == null or not is_instance_valid(target):
 		return
 	if _basic_attack_reach() > 1:
@@ -8724,12 +7733,12 @@ func _basic_attack_armor_shred(target) -> void:
 
 ## Auto attack reach in tiles: 1 in melee, 5 with a bow.
 func _basic_attack_reach() -> int:
-	var inv = player.get_inventory() if player else null
+	var inv := player.get_inventory() if player else null
 	return 5 if inv and inv.holds_ranged_weapon() else 1
 
 ## Auto attack tempo: 5, plus the Attack card's ranged penalty with a bow.
 func _basic_attack_tempo() -> int:
-	var inv = player.get_inventory() if player else null
+	var inv := player.get_inventory() if player else null
 	if inv and inv.holds_ranged_weapon():
 		return 5 + Card.CONDITIONAL_RANGED_TEMPO_PENALTY
 	return 5
@@ -8739,15 +7748,15 @@ func _update_attack_button_text() -> void:
 	## sword, the tempo cost / attacks-until-proc readout, and the proc glow.
 	## Called on setup, gear changes, level-ups, procs, and every tempo step.
 	if _attack_button and player and is_instance_valid(player) and player.get_stats() and deck_manager:
-		var proc_count = player.get_stats().get_attacks_until_proc()
-		var proc_active = deck_manager.next_attack_half_tempo
+		var proc_count := player.get_stats().get_attacks_until_proc()
+		var proc_active := deck_manager.next_attack_half_tempo
 
 		if _attack_damage_label:
 			_attack_damage_label.text = str(_get_basic_attack_display_damage())
 		var base_tempo := _basic_attack_tempo()
 		if proc_active:
 			var proc_tempo = base_tempo / 2  # Halved
-			var btn_inv = player.get_inventory()
+			var btn_inv := player.get_inventory()
 			if btn_inv and btn_inv.has_pocket_knife_equipped():
 				proc_tempo = maxi(0, proc_tempo - 2)
 			_attack_tempo_label.text = "%dT (PROC)" % proc_tempo
@@ -8760,7 +7769,7 @@ func _update_attack_button_text() -> void:
 
 		# Glow red when the dex proc is active (next attack benefits from it)
 		if proc_active:
-			var glow_style = StyleBoxFlat.new()
+			var glow_style := StyleBoxFlat.new()
 			glow_style.bg_color = Color(0.6, 0.08, 0.08)
 			glow_style.border_color = Color(1.0, 0.2, 0.2)
 			glow_style.border_width_top = 2
@@ -8772,7 +7781,7 @@ func _update_attack_button_text() -> void:
 			glow_style.corner_radius_bottom_left = 4
 			glow_style.corner_radius_bottom_right = 4
 			_attack_button.add_theme_stylebox_override("normal", glow_style)
-			var glow_hover = StyleBoxFlat.new()
+			var glow_hover := StyleBoxFlat.new()
 			glow_hover.bg_color = Color(0.75, 0.12, 0.12)
 			glow_hover.border_color = Color(1.0, 0.3, 0.3)
 			glow_hover.border_width_top = 2
@@ -8850,7 +7859,7 @@ func select_card(index: int) -> void:
 	update_card_highlights()
 
 	# Show AOE indicator if applicable
-	var card = deck_manager.hand[selected_card_index]
+	var card := deck_manager.hand[selected_card_index]
 	if card.card_id == "peshtigos_kiss":
 		card.aoe_range = _peshtigo_radius()
 	if card.is_aoe and aoe_indicator:
@@ -8859,14 +7868,14 @@ func select_card(index: int) -> void:
 		# and cones (Charge, Snowball's Chance, the piercing arrows) always
 		# start from the player and merely aim at the cursor.
 		if _aoe_follows_cursor(card):
-			var mouse_pos = get_mouse_world_position()
+			var mouse_pos := get_mouse_world_position()
 			aoe_indicator.position = grid_manager.snap_to_grid(mouse_pos) if mouse_pos != Vector3.ZERO else player.position
 		else:
 			aoe_indicator.position = player.position
 		aoe_indicator.show_indicator()
 
 		# Update enemy RNG indicators
-		var enemies = enemy_spawner.get_living_enemies()
+		var enemies := enemy_spawner.get_living_enemies()
 		aoe_indicator.update_enemy_rng_indicators(enemies, card)
 	elif aoe_indicator:
 		aoe_indicator.hide_indicator()
@@ -8879,7 +7888,7 @@ func select_card(index: int) -> void:
 	elif card.is_ranged and range_indicator:
 		var effective_range = float(card.get_effective_range())
 		# Include Tighten String bonus if active
-		var buff_mgr = player.get_buff_manager() if player else null
+		var buff_mgr := player.get_buff_manager() if player else null
 		if buff_mgr and buff_mgr.tighten_string_charges > 0 and card.is_attack():
 			effective_range += 6  # ranged ATTACKS, not spells
 		# Include High Ground bonus if on pillar or elevated terrain
@@ -8887,7 +7896,7 @@ func select_card(index: int) -> void:
 			effective_range += 2
 		# (Eagle Eye no longer grants range — it now deals range-scaled bonus
 		# damage on ranged offensive cards.)
-		var st_stats = player.get_stats()
+		var st_stats := player.get_stats()
 		# Scouted: rank-scaled bonus range (2..6) on next attack after 3 consecutive hits
 		if st_stats and st_stats.st_scouted_bonus_active:
 			effective_range += int(PassiveScaling.value("scouted", "range", st_stats.get_passive_level("scouted")))
@@ -8922,8 +7931,8 @@ func calculate_damage_preview(card: Card, target_enemy: Enemy) -> int:
 
 	if not player.get_stats():
 		return 0
-	var buff_mgr = player.get_buff_manager()
-	var is_ranged_attack = card.is_ranged and card.is_attack()  # the Attack shape: a spell is not an attack
+	var buff_mgr := player.get_buff_manager()
+	var is_ranged_attack := card.is_ranged and card.is_attack()  # the Attack shape: a spell is not an attack
 
 	# High Ground is the one position-dependent flat the vacuum number skips;
 	# feed it through the shared pipeline so Cursed still reduces it.
@@ -8973,10 +7982,10 @@ func _card_player_damage(card: Card, extra_flat: int = 0) -> int:
 	if card.card_id == "absorb_essence":
 		return 1
 
-	var stats = player.get_stats()
-	var buff_mgr = player.get_buff_manager()
-	var debuff_mgr = player.get_debuff_manager()
-	var on_self = card.get_on_self_bonus()
+	var stats := player.get_stats()
+	var buff_mgr := player.get_buff_manager()
+	var debuff_mgr := player.get_debuff_manager()
+	var on_self := card.get_on_self_bonus()
 
 	var total = card.base_damage + card.bonus_damage + on_self["damage"] + extra_flat
 
@@ -8994,7 +8003,7 @@ func _card_player_damage(card: Card, extra_flat: int = 0) -> int:
 	if buff_mgr and buff_mgr.tighten_string_charges > 0 and card.is_ranged:
 		total += 6
 	# Harnessed Power: +30% of base with 2 or fewer cards in hand.
-	var hp_mult = progression_triggers._get_jeremy_harnessed_power_multiplier()
+	var hp_mult := progression_triggers._get_jeremy_harnessed_power_multiplier()
 	if hp_mult > 1.0:
 		total += floori(card.base_damage * (hp_mult - 1.0))
 
@@ -9021,7 +8030,7 @@ func _card_player_damage(card: Card, extra_flat: int = 0) -> int:
 
 	# Cursed debuff: percentage reduction, applied last like the pipeline.
 	if debuff_mgr:
-		var reduction_pct = debuff_mgr.get_damage_reduction_percent()
+		var reduction_pct := debuff_mgr.get_damage_reduction_percent()
 		if reduction_pct > 0.0:
 			total = max(1, floori(total * (1.0 - reduction_pct)))
 	# Quick Shot / Poke: 2 base + HALF of everything on top (mirrors their _execute).
@@ -9040,12 +8049,12 @@ func get_card_vacuum_values(card: Card) -> Dictionary:
 	var out := {}
 	if not player or not is_instance_valid(player) or not player.is_inside_tree():
 		return out
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if not stats:
 		return out
-	var buff_mgr = player.get_buff_manager()
-	var on_self = card.get_on_self_bonus()
-	var hp_mult = progression_triggers._get_jeremy_harnessed_power_multiplier()
+	var buff_mgr := player.get_buff_manager()
+	var on_self := card.get_on_self_bonus()
+	var hp_mult := progression_triggers._get_jeremy_harnessed_power_multiplier()
 
 	# Damage.
 	if card.card_type == Card.CardType.ATTACK and card.base_damage > 0:
@@ -9108,7 +8117,7 @@ func play_selected_card(target) -> void:
 		print("[INPUT] Cannot play cards - Glutted for %d more tempo!" % glut_tempo_remaining)
 		return
 
-	var selected = deck_manager.hand[selected_card_index]
+	var selected := deck_manager.hand[selected_card_index]
 
 	# Co-op: playing a card offers the same choice as multi-space movement —
 	# play immediately, or lock it in and fire together with the partner's, so
@@ -9127,16 +8136,16 @@ func play_selected_card(target) -> void:
 	if aoe_indicator:
 		aoe_indicator.hide_indicator()
 
-	var card = deck_manager.hand[selected_card_index]
+	var card := deck_manager.hand[selected_card_index]
 	var tempo_cost = card.get_burden_tempo_cost()
 	# Specific Strike: +1 tempo per OTHER card in hand (mana handled in play_card).
 	if card.card_id == "specific_strike":
 		tempo_cost += max(0, deck_manager.hand.size() - 1)
 	var resolve_tick = mini(card.resolve_tick, tempo_cost)  # Clamp resolve_tick to tempo_cost
-	var is_ranged_attack = card.is_ranged and card.is_attack()  # Tighten String / High Ground: ranged ATTACKS
+	var is_ranged_attack := card.is_ranged and card.is_attack()  # Tighten String / High Ground: ranged ATTACKS
 
 	# Arcane Overflow: -1 tempo on spells when primed (had 0 mana after previous spell)
-	var ao_stats = player.get_stats()
+	var ao_stats := player.get_stats()
 	var ao_spent := false
 	if ao_stats and ao_stats.has_skill_tree_passive("arcane_overflow") and ao_stats.st_arcane_overflow_discount:
 		if card.is_offensive():  # the next OFFENSIVE card, attack or tagged spell
@@ -9146,8 +8155,8 @@ func play_selected_card(target) -> void:
 			ao_spent = true
 			add_battle_log("Arcane Overflow: -1 tempo!", Color(0.9, 0.3, 0.3))
 
-	var debuff_mgr = player.get_debuff_manager()
-	var buff_mgr = player.get_buff_manager()
+	var debuff_mgr := player.get_debuff_manager()
+	var buff_mgr := player.get_buff_manager()
 
 	if debuff_mgr:
 		tempo_cost += debuff_mgr.get_tempo_increase()
@@ -9187,7 +8196,7 @@ func play_selected_card(target) -> void:
 		played_card_ui = _hand_ui_for_card(deck_manager.hand[selected_card_index])
 
 	# Play card with deferred execution - validates, pays mana, removes from hand, but does NOT execute
-	var result = deck_manager.play_card(selected_card_index, target, player, true)
+	var result := deck_manager.play_card(selected_card_index, target, player, true)
 
 	if result["played"]:
 		# Played-card visuals: cards headed to the discard pile were already
@@ -9245,7 +8254,7 @@ func play_selected_card(target) -> void:
 			resolve_tick = resolve_tick / 2
 			resolve_tick = maxi(resolve_tick, mini(1, tempo_cost))  # At least tick 1 if there's any tempo
 			# Pocket Knife: resolve on first tick and -2 additional tempo
-			var inv = player.get_inventory()
+			var inv := player.get_inventory()
 			if inv and inv.has_pocket_knife_equipped():
 				tempo_cost = maxi(0, tempo_cost - 2)
 				if tempo_cost > 0:
@@ -9273,7 +8282,7 @@ func play_selected_card(target) -> void:
 		# Sticky: the card snapped back into the hand — pop its use counter
 		# over the card until the play limit sends it to the discard pile.
 		if card.sticky > 0 and card in deck_manager.hand:
-			var s_ui = _hand_ui_for_card(card)
+			var s_ui := _hand_ui_for_card(card)
 			if s_ui and is_instance_valid(s_ui):
 				s_ui.show_sticky_counter(card.consecutive_uses, card.sticky)
 	else:
@@ -9389,7 +8398,7 @@ func _return_queued_cards_for_dead_target(dead_enemy: Enemy) -> void:
 	## When an enemy dies, return all unresolved cards targeting it back to the player's hand.
 	var cards_returned := 0
 	for i in range(_pending_resolve_queue.size() - 1, -1, -1):
-		var entry = _pending_resolve_queue[i]
+		var entry := _pending_resolve_queue[i]
 		if entry["target"] == dead_enemy:
 			var card: Card = entry["card"]
 			var data: Dictionary = entry["data"]
@@ -9408,20 +8417,20 @@ func _return_dead_target_card(card: Card, data: Dictionary, context: String) -> 
 	## was put back in hand (false for a cancelled basic attack), so callers know
 	## whether the hand/deck readout needs refreshing.
 	if data.get("is_basic_attack", false):
-		var cancelled_basic = tempo_manager.cancel_card_ticks(card)
+		var cancelled_basic := tempo_manager.cancel_card_ticks(card)
 		add_battle_log("Basic attack cancelled — %s! (%d tempo refunded)" % [context, cancelled_basic], Color(1.0, 0.85, 0.4))
 		print("[MAIN] Basic attack cancelled — %s. Refunded %d ticks." % [context, cancelled_basic])
 		return false
 
 	# Move from discard pile (where play_card put it) back to hand
-	var discard_idx = deck_manager.discard_pile.find(card)
+	var discard_idx := deck_manager.discard_pile.find(card)
 	if discard_idx >= 0:
 		deck_manager.discard_pile.remove_at(discard_idx)
 	deck_manager.release_draw_reservation(card)  # queued no more
 	deck_manager.add_card_to_hand(card)
 
 	_undo_card_temp_mods(card, data)
-	var cancelled = tempo_manager.cancel_card_ticks(card)
+	var cancelled := tempo_manager.cancel_card_ticks(card)
 
 	add_battle_log("%s returned to hand — %s! (%d tempo refunded)" % [card.card_name, context, cancelled], Color(1.0, 0.85, 0.4))
 	print("[MAIN] Card '%s' returned to hand — %s. Refunded %d ticks." % [card.card_name, context, cancelled])
@@ -9430,7 +8439,7 @@ func _return_dead_target_card(card: Card, data: Dictionary, context: String) -> 
 func _undo_card_temp_mods(card: Card, data: Dictionary) -> void:
 	## Undo temporary card modifications applied before queuing (tighten, high ground, harnessed).
 	if data.get("tighten_applied", false):
-		var buff_mgr = player.get_buff_manager()
+		var buff_mgr := player.get_buff_manager()
 		if buff_mgr:
 			buff_mgr.tighten_string_charges -= 1
 		card.bonus_damage -= 6
@@ -9452,7 +8461,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	if queue_index < 0:
 		return
 
-	var entry = _pending_resolve_queue[queue_index]
+	var entry := _pending_resolve_queue[queue_index]
 	_pending_resolve_queue.remove_at(queue_index)
 
 	var card: Card = entry["card"]
@@ -9494,9 +8503,9 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		progression_triggers.brad_life_steal(damage)
 		_basic_attack_armor_shred(target)
 
-		var ba_buff_mgr = player.get_buff_manager()
-		var ba_debuff_mgr = player.get_debuff_manager()
-		var ba_stats = player.get_stats()
+		var ba_buff_mgr := player.get_buff_manager()
+		var ba_debuff_mgr := player.get_debuff_manager()
+		var ba_stats := player.get_stats()
 
 		# Skill tree crit check for basic attack
 		if ba_buff_mgr and data.get("basic_attack_crit", false):
@@ -9560,14 +8569,14 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	# Clean Exchange's flat block: a separate "gain X block" on top of whatever
 	# the card did, granted once, whatever card it rode in on.
 	if card.temp_flat_block > 0:
-		var ce_stats = player.get_stats()
+		var ce_stats := player.get_stats()
 		if ce_stats:
 			ce_stats.add_armor(card.temp_flat_block)
 			add_battle_log("%s: +%d block (Clean Exchange)" % [card.card_name, card.temp_flat_block], Color(0.3, 0.7, 1.0))
 		card.temp_flat_block = 0
 
-	var debuff_mgr = player.get_debuff_manager()
-	var buff_mgr = player.get_buff_manager()
+	var debuff_mgr := player.get_debuff_manager()
+	var buff_mgr := player.get_buff_manager()
 
 	# Log damage after execution
 	var target_name = ""
@@ -9598,7 +8607,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	if card.card_type == Card.CardType.DEFENSE:
 		progression_triggers._trigger_skill_tree_brad_on_defense_card_play(card)
 	else:
-		var pa_stats = player.get_stats()
+		var pa_stats := player.get_stats()
 		if pa_stats:
 			pa_stats.st_consecutive_defense = 0
 
@@ -9619,7 +8628,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	# Skilled Momentum (Stephen): the attack plays a second time, in full —
 	# its own crit roll, riders and debuffs — for no tempo. One-shot buffs
 	# (Strengthen) were spent by the first play, as separate attacks should.
-	var sm_stats = player.get_stats()
+	var sm_stats := player.get_stats()
 	if sm_stats and sm_stats.st_skilled_momentum_echo:
 		sm_stats.st_skilled_momentum_echo = false
 		if not (target is Enemy) or (is_instance_valid(target) and not target.is_dead):
@@ -9655,7 +8664,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 
 	# Enchanted Quiver: create a free arrow card after ranged attacks
 	if buff_mgr and buff_mgr.enchanted_quiver_charges > 0 and data.get("is_ranged_attack", false):
-		var arrow = Card.create_quick_arrow()
+		var arrow := Card.create_by_id("quick_arrow")
 		deck_manager.hand.append(arrow)
 		buff_mgr.enchanted_quiver_charges -= 1
 		deck_manager.hand_updated.emit()
@@ -9663,18 +8672,18 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 
 	# Card-specific post-play effects
 	if card.card_id == "shuriken_pouch":
-		var shuriken_effect = OverflowEffect.create_manifest_shuriken(3, "Shuriken Pouch")
+		var shuriken_effect := OverflowEffect.create_manifest_shuriken(3, "Shuriken Pouch")
 		overflow_manager.add_overflow_effect(shuriken_effect)
 
 	if card.card_id == "bottomless_quiver":
-		var quiver_effect = OverflowEffect.create_quiver(5, "Bottomless Quiver")
+		var quiver_effect := OverflowEffect.create_quiver(5, "Bottomless Quiver")
 		overflow_manager.add_overflow_effect(quiver_effect)
 		if quiver_ui:
 			quiver_ui.refresh()
 
 	if card.card_id == "reckless_strike":
 		for i in range(2):
-			var wound = Card.create_minor_wounds()
+			var wound := Card.create_by_id("minor_wounds")
 			deck_manager.shuffle_card_into_draw_pile(wound)
 		add_battle_log("Reckless Strike: 2 Minor Wounds shuffled into your deck!", Color(1.0, 0.5, 0.3))
 		print("[MAIN] Reckless Strike: shuffled 2 Minor Wounds into the draw pile")
@@ -9697,7 +8706,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		for i in range(deck_manager.discard_pile.size() - 1, -1, -1):
 			if collected >= 2 or not ca_fallback:
 				break
-			var discard_card = deck_manager.discard_pile[i]
+			var discard_card := deck_manager.discard_pile[i]
 			if discard_card.is_attack():  # attack-specific: not offensive spells
 				deck_manager.discard_pile.remove_at(i)
 				deck_manager.hand.append(discard_card)
@@ -9718,7 +8727,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	# Loaded Die / House Money: the boost applies to every chance card in hand
 	# (re-rolled now so the faces show it) and to every draw, until one chance
 	# card is played — that play spends it.
-	var odds_stats = player.get_stats()
+	var odds_stats := player.get_stats()
 	if card.card_id in ["loaded_die", "house_money"]:
 		for oc in deck_manager.hand:
 			if oc != card and oc.has_chance_effect():
@@ -9731,9 +8740,9 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 
 	# Lethal Recall: replay last card's effect 2 times
 	if card.card_id == "lethal_recall" and _last_played_card:
-		var replay_card = _last_played_card
+		var replay_card := _last_played_card
 		var replay_target = _last_played_target if is_instance_valid(_last_played_target) else null
-		var stats = player.get_stats()
+		var stats := player.get_stats()
 		var damage_reduction = 0.0
 		var self_damage = 0.0
 		if debuff_mgr:
@@ -9771,7 +8780,7 @@ func _get_distance_to_target(target) -> int:
 	if not target or not target is Node3D:
 		return 0
 	var diff = player.position - target.position
-	var flat_dist = Vector3(diff.x, 0, diff.z).length()
+	var flat_dist := Vector3(diff.x, 0, diff.z).length()
 	return roundi(flat_dist / grid_manager.grid_size)
 
 ## Extra range a helm grants a card at play time. Kept in one place so the range
@@ -9827,7 +8836,7 @@ func _helm_card_world_effects(card, target = null) -> void:
 	if card.card_type == Card.CardType.REACTION:
 		var inst_dmg := int(osb.get("instant_damage_nearest", 0))
 		if inst_dmg > 0:
-			var nearest = _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
+			var nearest := _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
 			if nearest and grid_manager.get_distance_in_cells(player.position, nearest.position) <= 3:
 				nearest.take_damage(inst_dmg, true)
 				add_battle_log("%s: %d damage to %s" % [card.slotted_in_item.item_name, inst_dmg, nearest.enemy_name], Color(0.8, 0.7, 0.4))
@@ -9858,7 +8867,7 @@ func _helm_card_world_effects(card, target = null) -> void:
 	# Houdinis Slippers: any slotted card turns the player invisible for a while.
 	var invis_tempo := int(osb.get("invisible_tempo", 0))
 	if invis_tempo > 0:
-		var bm = player.get_buff_manager()
+		var bm := player.get_buff_manager()
 		if bm:
 			bm.apply_buff(Buff.create_invisible(invis_tempo, card.slotted_in_item.item_name))
 			_set_player_invisible(true)
@@ -9867,7 +8876,7 @@ func _helm_card_world_effects(card, target = null) -> void:
 	# Shadow Cowl: an offensive slotted card lets you shift — the next N tiles
 	# of movement are free (no tempo, no flash).
 	if card.is_offensive() and int(osb.get("offensive_shift", 0)) > 0:
-		var cowl_stats = player.get_stats()
+		var cowl_stats := player.get_stats()
 		if cowl_stats:
 			cowl_stats.free_move_tiles += int(osb["offensive_shift"])
 			add_battle_log("%s: shift — next %d tiles are free" % [card.slotted_in_item.item_name, int(osb["offensive_shift"])], Color(0.6, 0.6, 0.85))
@@ -9877,10 +8886,10 @@ func _helm_card_world_effects(card, target = null) -> void:
 func _maybe_drop_fire_trail(cell: Vector2i) -> void:
 	if not player or not grid_manager:
 		return
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if not stats or not stats.flash_movement_enabled:
 		return  # only "when moving with flash points"
-	var inv = player.get_inventory()
+	var inv := player.get_inventory()
 	if not inv:
 		return
 	var dmg := 0
@@ -9942,7 +8951,7 @@ func _maybe_drop_bullet_casing(card) -> void:
 		return
 	if not (card.is_offensive() and card.is_ranged):
 		return
-	var inv = player.get_inventory()
+	var inv := player.get_inventory()
 	if not inv:
 		return
 	var dmg := 0
@@ -10043,7 +9052,7 @@ const BASTION_FLIGHT_TEMPO := 10
 ## when it returns the armor it took comes back, straight to the pile (no
 ## armor-gain riders).
 func _throw_bastion(armor_out: int) -> void:
-	var st = player.get_stats() if player else null
+	var st := player.get_stats() if player else null
 	if st == null:
 		return
 	st.bastion_armor_out += armor_out
@@ -10052,11 +9061,11 @@ func _throw_bastion(armor_out: int) -> void:
 	_on_hand_updated()  # grey a Bouncing Shield already in hand
 
 func _sync_bastion_flag() -> void:
-	var st = player.get_stats() if player else null
+	var st := player.get_stats() if player else null
 	Card.bastion_shield_in_flight = st != null and st.bastion_flight_tempo > 0
 
 func _update_bastion_return(amount: int) -> void:
-	var st = player.get_stats() if player else null
+	var st := player.get_stats() if player else null
 	if st == null:
 		return
 	_sync_bastion_flag()
@@ -10081,7 +9090,7 @@ var _vitality_window: Dictionary = {}   # Nine Ruins: {weapon, tempo} while the 
 ## Nine Ruins at 9 Vitality: fire Sanguine's instant if it is in hand and
 ## call the penguin. Returns false when the card is not there.
 func _try_call_penguin(vw: ItemData) -> bool:
-	var vt = deck_manager.trigger_reactions("on_vitality_9")
+	var vt := deck_manager.trigger_reactions("on_vitality_9")
 	if vt.is_empty():
 		return false
 	for vt_card in vt:
@@ -10126,7 +9135,7 @@ func _summon_penguin() -> void:
 		if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
 			spawn = c
 			break
-	var peng = PenguinScript.new()
+	var peng := PenguinScript.new()
 	add_child(peng)
 	peng.setup(grid_manager, grid_manager.grid_to_world(spawn))
 	# Every point Sanguine bleeds heals the wielder for half.
@@ -10158,7 +9167,7 @@ func _update_penguin(amount: int) -> void:
 	_penguin.attack_accum += amount
 	if _penguin.attack_accum >= _penguin.ATTACK_INTERVAL and enemy_spawner:
 		_penguin.attack_accum = 0
-		var prey = _nearest_enemy_to(_penguin.position, enemy_spawner.get_living_enemies())
+		var prey := _nearest_enemy_to(_penguin.position, enemy_spawner.get_living_enemies())
 		if prey and grid_manager.get_distance_in_cells(_penguin.position, prey.position) <= 1.5:
 			prey.take_damage(_penguin.BASE_ATTACK, false)
 			add_battle_log("Sanguine pecks %s for %d!" % [prey.enemy_name, _penguin.BASE_ATTACK], Color(0.9, 0.4, 0.4))
@@ -10210,7 +9219,7 @@ func _feral_conversion_effects(card: Card) -> void:
 func _weapon_post_card_effects(card: Card, target) -> void:
 	if card == null or not player or not deck_manager:
 		return
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if stats == null:
 		return
 
@@ -10229,14 +9238,14 @@ func _weapon_post_card_effects(card: Card, target) -> void:
 
 	# Hard Helmet (Construction Hammer): a utility play can trigger the instant.
 	if card.card_type == Card.CardType.UTILITY:
-		var hh = deck_manager.trigger_reactions("on_utility_played")
+		var hh := deck_manager.trigger_reactions("on_utility_played")
 		for hh_card in hh:
 			hh_card.execute(null, stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
 			_fire_instant_site_effect(hh_card, {"target": target})
 
 	# Psionic Flow, attack mode: the strike hits harder and shoves.
 	if card.is_offensive() and target and is_instance_valid(target) and target is Enemy:
-		var pf = deck_manager.trigger_reactions("psionic_flow")
+		var pf := deck_manager.trigger_reactions("psionic_flow")
 		for pf_card in pf:
 			_fire_instant_site_effect(pf_card, {"target": target, "mode": "attack"})
 
@@ -10244,7 +9253,7 @@ func _weapon_post_card_effects(card: Card, target) -> void:
 	if card.is_offensive() and target and is_instance_valid(target) and target is Enemy \
 			and card.last_damage_dealt > 0 and grid_manager and enemy_spawner:
 		var pierce := 0
-		var pt_inv = player.get_inventory()
+		var pt_inv := player.get_inventory()
 		if pt_inv:
 			for pw in pt_inv.equipped_weapons:
 				if pw and pw.pierce_targets > 1:
@@ -10265,7 +9274,7 @@ func _weapon_post_card_effects(card: Card, target) -> void:
 
 	# Nine Ruins of Sanguine: attacks build Vitality; the ninth calls the penguin.
 	if card.is_offensive():
-		var nr_inv = player.get_inventory()
+		var nr_inv := player.get_inventory()
 		if nr_inv:
 			for vw in nr_inv.equipped_weapons:
 				if vw and vw.vitality_weapon:
@@ -10295,8 +9304,8 @@ func _weapon_post_card_effects(card: Card, target) -> void:
 func _garmr_death_stack(death_pos: Vector3) -> void:
 	if not player or not grid_manager:
 		return
-	var inv = player.get_inventory()
-	var stats = player.get_stats()
+	var inv := player.get_inventory()
+	var stats := player.get_stats()
 	if not inv or not stats:
 		return
 	for chest in inv.equipped_chests:
@@ -10331,14 +9340,14 @@ func _spawn_wolf() -> void:
 	if _wolves.size() >= WOLF_PACK_CAP:
 		add_battle_log("The pack is full (%d wolves)." % WOLF_PACK_CAP, Color(0.7, 0.7, 0.8))
 		return
-	var player_cell = grid_manager.world_to_grid(player.position)
+	var player_cell := grid_manager.world_to_grid(player.position)
 	var spawn_cell = player_cell + Vector2i(1, 0)
 	for off in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
 		var c = player_cell + off
 		if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
 			spawn_cell = c
 			break
-	var wolf = WolfScript.new()
+	var wolf := WolfScript.new()
 	add_child(wolf)
 	wolf.setup(grid_manager, grid_manager.grid_to_world(spawn_cell))
 	wolf.died.connect(func(w): _garmr_death_stack(w.position); _wolves.erase(w))
@@ -10351,10 +9360,10 @@ func _spawn_specter(cell: Vector2i, hp: int) -> Node3D:
 	if not grid_manager:
 		return null
 	_specters = _specters.filter(func(s): return is_instance_valid(s) and not s.is_dead)
-	var sp = SpecterScript.new()
+	var sp := SpecterScript.new()
 	add_child(sp)
 	sp.setup(grid_manager, grid_manager.grid_to_world(cell), hp)
-	sp.died.connect(_on_specter_died)
+	sp.specter_died.connect(_on_specter_died)
 	_specters.append(sp)
 	return sp
 
@@ -10424,8 +9433,8 @@ func _update_wolves(amount: int) -> void:
 	_wolves = _wolves.filter(func(w): return is_instance_valid(w) and not w.is_dead)
 	if not grid_manager or not enemy_spawner:
 		return
-	var enemies = enemy_spawner.get_living_enemies()
-	var blocked = player.blocked_tiles
+	var enemies := enemy_spawner.get_living_enemies()
+	var blocked := player.blocked_tiles
 	var pack_others: int = max(0, _wolves.size() - 1)
 	var wolf_cells: Array = []
 	for w in _wolves:
@@ -10433,10 +9442,10 @@ func _update_wolves(amount: int) -> void:
 	for w in _wolves.duplicate():
 		if not is_instance_valid(w) or w.is_dead:
 			continue
-		var target_enemy = _nearest_enemy_to(w.position, enemies)
+		var target_enemy := _nearest_enemy_to(w.position, enemies)
 		if target_enemy == null:
 			continue
-		var tcell = grid_manager.world_to_grid(target_enemy.position)
+		var tcell := grid_manager.world_to_grid(target_enemy.position)
 		w.attack_accum += amount
 		if _manhattan(w.get_cell(), tcell) <= 1:
 			if w.attack_accum >= w.ATTACK_INTERVAL:
@@ -10454,10 +9463,10 @@ func _update_wolves(amount: int) -> void:
 			var cur = w.get_cell()
 			wolf_cells.erase(cur)
 			for _step in range(w.MOVE_STEPS):
-				var tc = grid_manager.world_to_grid(target_enemy.position)
+				var tc := grid_manager.world_to_grid(target_enemy.position)
 				if _manhattan(cur, tc) <= 1:
 					break
-				var nxt = _rat_step_toward(cur, tc, blocked, _living_enemy_cells(), wolf_cells)
+				var nxt := _rat_step_toward(cur, tc, blocked, _living_enemy_cells(), wolf_cells)
 				if nxt == cur:
 					break
 				cur = nxt
@@ -10487,7 +9496,7 @@ func _spawn_summon(hp: int, near_pos: Vector3, kind := "skeleton") -> void:
 	if _skeletons.size() >= 3:
 		add_battle_log("The summons will not answer — three already stand.", Color(0.8, 0.85, 0.75))
 		return
-	var corpse_cell = grid_manager.world_to_grid(near_pos)
+	var corpse_cell := grid_manager.world_to_grid(near_pos)
 	var spawn_cell = corpse_cell
 	if spawn_cell in player.blocked_tiles or spawn_cell in _living_enemy_cells():
 		for off in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
@@ -10495,7 +9504,7 @@ func _spawn_summon(hp: int, near_pos: Vector3, kind := "skeleton") -> void:
 			if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
 				spawn_cell = c
 				break
-	var skel = SkeletonScript.new()
+	var skel := SkeletonScript.new()
 	add_child(skel)
 	skel.setup(grid_manager, grid_manager.grid_to_world(spawn_cell), hp, kind)
 	skel.died.connect(func(s): _garmr_death_stack(s.position); _skeletons.erase(s))
@@ -10508,36 +9517,36 @@ func _update_skeletons(amount: int) -> void:
 	_skeletons = _skeletons.filter(func(s): return is_instance_valid(s) and not s.is_dead)
 	if not grid_manager or not enemy_spawner:
 		return
-	var enemies = enemy_spawner.get_living_enemies()
-	var blocked = player.blocked_tiles
+	var enemies := enemy_spawner.get_living_enemies()
+	var blocked := player.blocked_tiles
 	var skel_cells: Array = []
 	for s in _skeletons:
 		skel_cells.append(s.get_cell())
 	for s in _skeletons.duplicate():
 		if not is_instance_valid(s) or s.is_dead:
 			continue
-		var target_enemy = _nearest_enemy_to(s.position, enemies)
+		var target_enemy := _nearest_enemy_to(s.position, enemies)
 		if target_enemy == null:
 			continue
-		var tcell = grid_manager.world_to_grid(target_enemy.position)
+		var tcell := grid_manager.world_to_grid(target_enemy.position)
 		s.attack_accum += amount
 		if _manhattan(s.get_cell(), tcell) <= 1:
-			if s.attack_accum >= s.ATTACK_INTERVAL:
-				s.attack_accum -= s.ATTACK_INTERVAL
-				target_enemy.take_damage(s.BASE_ATTACK, true)
-				add_battle_log("%s rakes %s for %d!" % [s.display_name, target_enemy.enemy_name, s.BASE_ATTACK], Color(0.8, 0.85, 0.75))
-				_belthronding_share(s.position, s.BASE_ATTACK)
+			if s.attack_accum >= s.attack_interval:
+				s.attack_accum -= s.attack_interval
+				target_enemy.take_damage(s.base_attack, true)
+				add_battle_log("%s rakes %s for %d!" % [s.display_name, target_enemy.enemy_name, s.base_attack], Color(0.8, 0.85, 0.75))
+				_belthronding_share(s.position, s.base_attack)
 			continue
 		s.move_accum += amount
-		if s.move_accum >= s.MOVE_INTERVAL:
-			s.move_accum -= s.MOVE_INTERVAL
+		if s.move_accum >= s.move_interval:
+			s.move_accum -= s.move_interval
 			var cur = s.get_cell()
 			skel_cells.erase(cur)
-			for _step in range(s.MOVE_STEPS):
-				var tc = grid_manager.world_to_grid(target_enemy.position)
+			for _step in range(s.move_steps):
+				var tc := grid_manager.world_to_grid(target_enemy.position)
 				if _manhattan(cur, tc) <= 1:
 					break
-				var nxt = _rat_step_toward(cur, tc, blocked, _living_enemy_cells(), skel_cells)
+				var nxt := _rat_step_toward(cur, tc, blocked, _living_enemy_cells(), skel_cells)
 				if nxt == cur:
 					break
 				cur = nxt
@@ -10554,14 +9563,14 @@ func _summon_spirit_bow() -> void:
 	for b in _spirit_bows:
 		if not b.is_bud:
 			return  # one spirit bow at a time; the maintain is already up
-	var player_cell = grid_manager.world_to_grid(player.position)
+	var player_cell := grid_manager.world_to_grid(player.position)
 	var spawn_cell = player_cell + Vector2i(1, 0)
 	for off in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
 		var c = player_cell + off
 		if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
 			spawn_cell = c
 			break
-	var bow = SpiritBowScript.new()
+	var bow := SpiritBowScript.new()
 	add_child(bow)
 	bow.setup(grid_manager, grid_manager.grid_to_world(spawn_cell), false)
 	bow.died.connect(func(b): _garmr_death_stack(b.position); _spirit_bows.erase(b); _refresh_bow_instances())
@@ -10580,14 +9589,14 @@ func _spawn_bud_bow() -> void:
 			buds += 1
 	if buds >= 4:
 		return  # four bows is the max
-	var player_cell = grid_manager.world_to_grid(player.position)
+	var player_cell := grid_manager.world_to_grid(player.position)
 	var spawn_cell = player_cell + Vector2i(-1, 0)
 	for off in [Vector2i(-1,0), Vector2i(1,0), Vector2i(0,-1), Vector2i(0,1), Vector2i(1,1), Vector2i(-1,-1)]:
 		var c = player_cell + off
 		if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
 			spawn_cell = c
 			break
-	var bow = SpiritBowScript.new()
+	var bow := SpiritBowScript.new()
 	add_child(bow)
 	bow.setup(grid_manager, grid_manager.grid_to_world(spawn_cell), true)
 	bow.died.connect(func(b): _garmr_death_stack(b.position); _spirit_bows.erase(b); _refresh_bow_instances())
@@ -10606,7 +9615,7 @@ func _clear_spirit_bows() -> void:
 ## the Bow of Budding Blasts reads it for its +2 damage / +5% crit stacking.
 func _refresh_bow_instances() -> void:
 	_spirit_bows = _spirit_bows.filter(func(b): return is_instance_valid(b) and not b.is_dead)
-	var st = player.get_stats() if player else null
+	var st := player.get_stats() if player else null
 	if st:
 		st.bow_instance_count = _spirit_bows.size()
 
@@ -10750,8 +9759,8 @@ func _update_spirit_bows(amount: int) -> void:
 			add_battle_log("The spirit bow dissolves — its mana is no longer held.", Color(0.5, 0.85, 0.8))
 			b.die()
 	_refresh_bow_instances()
-	var enemies = enemy_spawner.get_living_enemies()
-	var blocked = player.blocked_tiles
+	var enemies := enemy_spawner.get_living_enemies()
+	var blocked := player.blocked_tiles
 	var instance_count: int = _spirit_bows.size()
 	var bow_cells: Array = []
 	for b in _spirit_bows:
@@ -10759,10 +9768,10 @@ func _update_spirit_bows(amount: int) -> void:
 	for b in _spirit_bows.duplicate():
 		if not is_instance_valid(b) or b.is_dead:
 			continue
-		var target_enemy = _nearest_enemy_to(b.position, enemies)
+		var target_enemy := _nearest_enemy_to(b.position, enemies)
 		if target_enemy == null:
 			continue
-		var tcell = grid_manager.world_to_grid(target_enemy.position)
+		var tcell := grid_manager.world_to_grid(target_enemy.position)
 		b.attack_accum += amount
 		if _manhattan(b.get_cell(), tcell) <= b.ATTACK_RANGE:
 			if b.attack_accum >= b.attack_interval():
@@ -10783,7 +9792,7 @@ func _update_spirit_bows(amount: int) -> void:
 			b.move_accum -= b.SPIRIT_MOVE_INTERVAL
 			var cur = b.get_cell()
 			bow_cells.erase(cur)
-			var nxt = _rat_step_toward(cur, tcell, blocked, _living_enemy_cells(), bow_cells)
+			var nxt := _rat_step_toward(cur, tcell, blocked, _living_enemy_cells(), bow_cells)
 			bow_cells.append(nxt)
 			if nxt != cur:
 				b.move_to_cell(nxt)
@@ -10860,7 +9869,7 @@ func _territorial_mark_cells(from_cell: Vector2i, to_cell: Vector2i) -> Array:
 ## Radius of the flames: the sheet's diameter is INT / 8 rounded down, never
 ## smaller than the tile the spell lands on.
 func _peshtigo_radius() -> float:
-	var stats = player.get_stats() if player else null
+	var stats := player.get_stats() if player else null
 	var diameter: int = int(stats.intelligence / 8) if stats else 1
 	return maxf(0.5, diameter / 2.0)
 
@@ -10970,7 +9979,7 @@ func _clear_flame_zones() -> void:
 func _burn_flame_zones() -> void:
 	if _flame_zones.is_empty():
 		return
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	for z in _flame_zones:
 		var hit := _enemies_in_cells(z["cells"])
 		if hit.is_empty():
@@ -10985,7 +9994,7 @@ func _burn_flame_zones() -> void:
 ## Armor's cap exist only while their cards are maintained, and Peshtigo's
 ## flames go out when their card leaves the pile.
 func _sync_maintained_passives() -> void:
-	var stats = player.get_stats() if player else null
+	var stats := player.get_stats() if player else null
 	if stats == null:
 		return
 	var barbed := false
@@ -11072,7 +10081,7 @@ func _update_mark_zones(amount: int) -> void:
 	_mark_zones = survivors
 	if enemy_spawner:
 		for e in enemy_spawner.get_living_enemies():
-			var cell = grid_manager.world_to_grid(e.position)
+			var cell := grid_manager.world_to_grid(e.position)
 			var inside := false
 			for z in _mark_zones:
 				if cell in z["cells"]:
@@ -11095,7 +10104,7 @@ func register_fire_web(owner: Enemy, cells: Array) -> void:
 	_remove_fire_web_of(owner)
 	var nodes: Array = []
 	for c in cells:
-		var v = _spawn_fire_wall_visual(c)
+		var v := _spawn_fire_wall_visual(c)
 		if v:
 			nodes.append(v)
 	_fire_webs.append({"owner": owner, "cells": cells, "nodes": nodes, "inside_tempo": {}})
@@ -11163,7 +10172,7 @@ func _update_fire_webs(amount: int) -> void:
 func _fire_melee_range_reactions(adj: Enemy) -> void:
 	if deck_manager == null or player == null or adj == null or not is_instance_valid(adj) or adj.is_dead:
 		return
-	var fired = deck_manager.trigger_reactions("on_enemy_melee_range")
+	var fired := deck_manager.trigger_reactions("on_enemy_melee_range")
 	for card in fired:
 		card.execute(adj, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
 		_last_played_target = adj  # Lethal Recall replays this instant at its enemy
@@ -11201,7 +10210,7 @@ func _pick_slot_discard(owed: int, color: String) -> void:
 func _shield_on_self_world_effects(card: Card, target) -> void:
 	if card.slotted_in_item == null:
 		return
-	var osb = card.get_on_self_bonus()
+	var osb := card.get_on_self_bonus()
 	var shove: int = int(osb.get("knockback", 0))
 	if shove > 0 and target != null and is_instance_valid(target) and target.has_method("knockback"):
 		target.knockback(player.position, shove)
@@ -11217,7 +10226,7 @@ func _shield_on_self_world_effects(card: Card, target) -> void:
 func _ranged_on_self_world_effects(card: Card, target) -> void:
 	if card.slotted_in_item == null:
 		return
-	var osb = card.get_on_self_bonus()
+	var osb := card.get_on_self_bonus()
 	# Belthronding: playing a slotted card loads the close-range trap.
 	# Balance ruling: at most 3 copies may wait in the hand at once — the
 	# stockpiled punishment nova is capped, not endless.
@@ -11228,7 +10237,7 @@ func _ranged_on_self_world_effects(card: Card, target) -> void:
 			if hc.card_id == conjure_id:
 				held += 1
 		if held < 3:
-			var trap = deck_manager._create_card_from_id(conjure_id)
+			var trap := deck_manager._create_card_from_id(conjure_id)
 			if trap:
 				trap.shop_excluded = true
 				deck_manager.add_card_to_hand(trap)
@@ -11244,7 +10253,7 @@ func _ranged_on_self_world_effects(card: Card, target) -> void:
 		# The second shot is its own hit for every counter that watches hits —
 		# and its own crit, consumed here so the flag never leaks forward.
 		_ring_note_big_hit(card.last_damage_dealt)
-		var ds_bm = player.get_buff_manager()
+		var ds_bm := player.get_buff_manager()
 		if ds_bm and ds_bm.last_crit_hit:
 			ds_bm.last_crit_hit = false
 			progression_triggers._trigger_skill_tree_on_crit(target)
@@ -11280,8 +10289,8 @@ func _ranged_on_self_world_effects(card: Card, target) -> void:
 ## Every bespoke ring proc lands here (Inventory counts; main executes).
 ## Jeremy's doubled fire simply calls this twice.
 func _on_custom_ring_fired(ring: ItemData, kind: String, value: int) -> void:
-	var stats = player.get_stats()
-	var buff_mgr = player.get_buff_manager()
+	var stats := player.get_stats()
+	var buff_mgr := player.get_buff_manager()
 	match kind:
 		"zap":
 			# Heal Stone / Gold Band / Emerald: 2 damage to a random enemy within 5.
@@ -11304,7 +10313,7 @@ func _on_custom_ring_fired(ring: ItemData, kind: String, value: int) -> void:
 			for _d in range(3):
 				deck_manager.draw_card()
 			for cid in ["fireball", "rise"]:
-				var cp_card = deck_manager._create_card_from_id(cid)
+				var cp_card := deck_manager._create_card_from_id(cid)
 				if cp_card:
 					# Conjured copies carry Erase 10: the fuse starts full (a
 					# bare erase_tempo left the countdown at 0, so the copies
@@ -11339,7 +10348,7 @@ func _conjure_nibelung_curse(ring: ItemData, total: int) -> void:
 				print("[MAIN] Nibelung Curse already exists — a new one is not made")
 				return
 	var cv: int = floori(total * (1.5 if ring.item_level >= 3 else 1.0))
-	var card = deck_manager._create_card_from_id("the_nibelung_curse")
+	var card := deck_manager._create_card_from_id("the_nibelung_curse")
 	if card == null:
 		return
 	card.set_meta("curse_value", cv)
@@ -11351,7 +10360,7 @@ func _conjure_nibelung_curse(ring: ItemData, total: int) -> void:
 ## return exactly as they were left (state kept on the ring); killed ones
 ## come back fresh next time.
 func _enter_shadow_form(ring: ItemData) -> void:
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if stats.shadow_form_tempo > 0:
 		return
 	stats.enter_shadow_form(tempo_manager.global_tempo)
@@ -11360,13 +10369,13 @@ func _enter_shadow_form(ring: ItemData) -> void:
 	add_battle_log("You slip into shadow form — and you are not alone here.", Color(0.6, 0.5, 0.85))
 	var count: int = 2 if ring.item_level >= 3 else 3
 	var stored: Array = ring.ring_counters.get("wraiths", [])
-	var player_cell = grid_manager.world_to_grid(player.position)
+	var player_cell := grid_manager.world_to_grid(player.position)
 	for i in range(count):
 		var cell := _random_free_cell_near(player_cell, 10)
-		var world = grid_manager.grid_to_world(cell)
+		var world := grid_manager.grid_to_world(cell)
 		if dungeon_manager:
 			world.y = dungeon_manager.get_elevation_world_y(cell)
-		var wraith = enemy_spawner.spawn_enemy(Enemy.EnemyType.RING_WRAITH, world)
+		var wraith := enemy_spawner.spawn_enemy(Enemy.EnemyType.RING_WRAITH, world)
 		if i < stored.size() and stored[i] is Dictionary:
 			var s: Dictionary = stored[i]
 			wraith.current_health = clampi(int(s.get("hp", wraith.max_health)), 1, wraith.max_health)
@@ -11398,7 +10407,7 @@ func _on_shadow_form_ended() -> void:
 	_wraiths.clear()
 	if ring:
 		ring.ring_counters["wraiths"] = stored
-	var bm = player.get_buff_manager()
+	var bm := player.get_buff_manager()
 	if bm and bm.is_invisible():
 		bm.remove_buff(Buff.BuffType.INVISIBLE)
 	_set_player_invisible(false)
@@ -11421,10 +10430,10 @@ func _random_free_cell_near(anchor: Vector2i, radius: int) -> Vector2i:
 ## walks; the one exception is Jeremy's doubled fire, which lands on the same
 ## frame as the first and is allowed through.
 func _spawn_draupnir_clone(ring: ItemData) -> void:
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if stats.draupnir_clone_alive and Engine.get_process_frames() != _draupnir_spawn_frame:
 		return
-	var player_cell = grid_manager.world_to_grid(player.position)
+	var player_cell := grid_manager.world_to_grid(player.position)
 	var spawn_cell = player_cell + Vector2i(1, 0)
 	for off in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1), Vector2i(1,1), Vector2i(-1,-1)]:
 		var c = player_cell + off
@@ -11432,13 +10441,13 @@ func _spawn_draupnir_clone(ring: ItemData) -> void:
 			spawn_cell = c
 			break
 	var hp: int = maxi(1, floori(stats.max_health * (0.5 if ring.item_level >= 3 else 0.25)))
-	var clone = CloneScript.new()
+	var clone := CloneScript.new()
 	add_child(clone)
 	clone.setup(grid_manager, grid_manager.grid_to_world(spawn_cell), hp)
 	clone.died.connect(func(c):
 		_garmr_death_stack(c.position)
 		_clones.erase(c)
-		var st = player.get_stats()
+		var st := player.get_stats()
 		if st:
 			st.draupnir_clone_alive = _clones.size() > 0
 			player.get_buff_manager().apply_buff(Buff.create_strengthen(10, 2, "Draupnir"))
@@ -11457,24 +10466,24 @@ func _update_clones(amount: int) -> void:
 	_clones = _clones.filter(func(c): return is_instance_valid(c) and not c.is_dead)
 	if not grid_manager or not enemy_spawner:
 		return
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	var dmg_frac := 0.5
 	if player.get_inventory():
 		for r in player.get_inventory().equipped_rings:
 			if r != null and r.item_name == "Draupnir" and r.item_level >= 3:
 				dmg_frac = 0.75
-	var enemies = enemy_spawner.get_living_enemies()
-	var blocked = player.blocked_tiles
+	var enemies := enemy_spawner.get_living_enemies()
+	var blocked := player.blocked_tiles
 	var clone_cells: Array = []
 	for c in _clones:
 		clone_cells.append(c.get_cell())
 	for c in _clones.duplicate():
 		if not is_instance_valid(c) or c.is_dead:
 			continue
-		var target_enemy = _nearest_enemy_to(c.position, enemies)
+		var target_enemy := _nearest_enemy_to(c.position, enemies)
 		if target_enemy == null:
 			continue
-		var tcell = grid_manager.world_to_grid(target_enemy.position)
+		var tcell := grid_manager.world_to_grid(target_enemy.position)
 		c.attack_accum += amount
 		if _manhattan(c.get_cell(), tcell) <= 1:
 			if c.attack_accum >= c.ATTACK_INTERVAL:
@@ -11491,10 +10500,10 @@ func _update_clones(amount: int) -> void:
 			var cur = c.get_cell()
 			clone_cells.erase(cur)
 			for _step in range(c.MOVE_STEPS):
-				var tc = grid_manager.world_to_grid(target_enemy.position)
+				var tc := grid_manager.world_to_grid(target_enemy.position)
 				if _manhattan(cur, tc) <= 1:
 					break
-				var nxt = _rat_step_toward(cur, tc, blocked, _living_enemy_cells(), clone_cells)
+				var nxt := _rat_step_toward(cur, tc, blocked, _living_enemy_cells(), clone_cells)
 				if nxt == cur:
 					break
 				cur = nxt
@@ -11514,18 +10523,18 @@ func _wire_marvolo_hooks(p: Player) -> void:
 	if p == null or not is_instance_valid(p):
 		return
 	var on_gift: Callable = _on_marvolo_triggered.bind(p)
-	var ps = p.get_stats()
+	var ps := p.get_stats()
 	if ps and not ps.marvolo_triggered.is_connected(on_gift):
 		ps.marvolo_triggered.connect(on_gift)
 	var on_expiry: Callable = _on_player_debuff_expired.bind(p)
-	var pdm = p.get_debuff_manager()
+	var pdm := p.get_debuff_manager()
 	if pdm and not pdm.debuff_expired.is_connected(on_expiry):
 		pdm.debuff_expired.connect(on_expiry)
 
 func _on_marvolo_triggered(wearer: Player = null) -> void:
 	if wearer == null or not is_instance_valid(wearer):
 		wearer = player
-	var dm = wearer.get_debuff_manager()
+	var dm := wearer.get_debuff_manager()
 	if dm:
 		dm.apply_debuff(Debuff.create_generic("Marvolo's Misunderstanding",
 			"The ring's gift, misunderstood: take 25 damage when this expires — unless it is purged first.",
@@ -11591,7 +10600,7 @@ func _on_attack_fully_blocked() -> void:
 	_shields_on_attack_blocked()
 	if not deck_manager:
 		return
-	var triggered = deck_manager.trigger_reactions("on_attack_blocked")
+	var triggered := deck_manager.trigger_reactions("on_attack_blocked")
 	for card in triggered:
 		card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
 	if triggered.size() > 0:
@@ -11603,7 +10612,7 @@ func _on_attack_fully_blocked() -> void:
 func _shields_on_attack_blocked() -> void:
 	if not player or not player.get_inventory():
 		return
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	var attacker = stats.last_attacker if stats else null
 	if attacker == null or not is_instance_valid(attacker):
 		return
@@ -11627,13 +10636,13 @@ func _shields_on_attack_blocked() -> void:
 func _on_armor_gained_spiked(amount: int) -> void:
 	if not player:
 		return
-	var inv = player.get_inventory()
+	var inv := player.get_inventory()
 	if not inv:
 		return
 	# Umbral Eclipse: every armor gain lashes out at an enemy in melee range.
 	for ue_w in inv.equipped_weapons:
 		if ue_w and ue_w.armor_gain_melee_damage > 0 and enemy_spawner and grid_manager:
-			var ue_victim = _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
+			var ue_victim := _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
 			if ue_victim and grid_manager.get_distance_in_cells(player.position, ue_victim.position) <= 1.5:
 				ue_victim.take_damage(ue_w.armor_gain_melee_damage, true)
 				add_battle_log("%s: %d moonlit damage to %s" % [ue_w.item_name, ue_w.armor_gain_melee_damage, ue_victim.enemy_name], Color(0.6, 0.6, 0.9))
@@ -11643,7 +10652,7 @@ func _on_armor_gained_spiked(amount: int) -> void:
 			_spiked_armor_accum += amount
 			while _spiked_armor_accum >= g.armor_gain_thorns_threshold:
 				_spiked_armor_accum -= g.armor_gain_thorns_threshold
-				var bm = player.get_buff_manager()
+				var bm := player.get_buff_manager()
 				if bm:
 					bm.apply_buff(Buff.create_thorns(g.armor_gain_thorns_amount, 5, g.item_name))
 					add_battle_log("%s: +%d thorns!" % [g.item_name, g.armor_gain_thorns_amount], Color(0.8, 0.7, 0.5))
@@ -11651,7 +10660,7 @@ func _on_armor_gained_spiked(amount: int) -> void:
 
 ## World-scale gauntlet skills (need grid/enemies/tempo — routed from inventory).
 func _on_gauntlet_world_skill(effect_id: String, gauntlet: ItemData, target) -> void:
-	var stats = player.get_stats() if player else null
+	var stats := player.get_stats() if player else null
 	match effect_id:
 		"coming_in":
 			# Pull yourself to the target from up to 5 squares.
@@ -11659,7 +10668,7 @@ func _on_gauntlet_world_skill(effect_id: String, gauntlet: ItemData, target) -> 
 				if grid_manager.get_distance_in_cells(player.position, target.position) > 5:
 					add_battle_log("Coming in!: too far — 5 squares max", Color(1.0, 0.4, 0.4))
 					return
-				var tcell = grid_manager.world_to_grid(target.position)
+				var tcell := grid_manager.world_to_grid(target.position)
 				for off in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
 					var c = tcell + off
 					if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
@@ -11669,13 +10678,13 @@ func _on_gauntlet_world_skill(effect_id: String, gauntlet: ItemData, target) -> 
 						return
 		"suck":
 			# Pull every enemy within 2 squares of the cursor point toward it.
-			var center = grid_manager.snap_to_grid(get_mouse_world_position())
+			var center := grid_manager.snap_to_grid(get_mouse_world_position())
 			var pulled := 0
 			for e in enemy_spawner.get_living_enemies():
 				if not e or not is_instance_valid(e):
 					continue
 				if grid_manager.get_distance_in_cells(center, e.position) <= 2:
-					var ccell = grid_manager.world_to_grid(center)
+					var ccell := grid_manager.world_to_grid(center)
 					for off in [Vector2i.ZERO, Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
 						var c = ccell + off
 						var taken := false
@@ -11711,7 +10720,7 @@ func _on_gauntlet_world_skill(effect_id: String, gauntlet: ItemData, target) -> 
 			# TOTAL: the generic activation already charges 1, so add just 1 here.
 			if target and is_instance_valid(target) and target.has_method("take_damage") and stats:
 				var sdmg: int = stats.get_effective_physical_damage(0)
-				var bm = player.get_buff_manager()
+				var bm := player.get_buff_manager()
 				if bm and bm.roll_crit():
 					sdmg = Card.crit_multiply(sdmg, stats, target)
 				target.take_damage(sdmg, true)
@@ -11721,19 +10730,19 @@ func _on_gauntlet_world_skill(effect_id: String, gauntlet: ItemData, target) -> 
 			# 0-base melee; a crit is multiplied a further x1.5 on top.
 			if target and is_instance_valid(target) and target.has_method("take_damage") and stats:
 				var pdmg: int = stats.get_effective_physical_damage(0)
-				var pbm = player.get_buff_manager()
+				var pbm := player.get_buff_manager()
 				if pbm and pbm.roll_crit():
 					pdmg = floori(float(Card.crit_multiply(pdmg, stats, target)) * 1.5)
 					add_battle_log("Lethal Poke CRITS!", Color(1.0, 0.5, 0.5))
 				target.take_damage(pdmg, true)
 				add_battle_log("Lethal Poke: %d damage" % pdmg, Color(0.8, 0.8, 0.8))
 		"well_placed_guard":
-			var bm2 = player.get_buff_manager()
+			var bm2 := player.get_buff_manager()
 			if bm2:
 				bm2.apply_buff(Buff.create_thorns(5, 5, "Well placed guard"))
 				add_battle_log("Well placed guard: +5 thorns", Color(0.8, 0.7, 0.5))
 		"imbue_tree":
-			var bm3 = player.get_buff_manager()
+			var bm3 := player.get_buff_manager()
 			if bm3:
 				bm3.apply_buff(Buff.create_regen(5, 15, "imbue tree"))
 				bm3.apply_buff(Buff.create_thorns(10, 5, "imbue tree"))
@@ -11751,12 +10760,12 @@ func _clear_fire_spots() -> void:
 func _on_player_debuff_removed(_debuff) -> void:
 	if not player or not deck_manager:
 		return
-	var inv = player.get_inventory()
+	var inv := player.get_inventory()
 	if not inv:
 		return
 	for belt in inv.equipped_belts:
 		if belt and belt.debuff_removed_conjure_id != "":
-			var tonic = deck_manager._create_card_from_id(belt.debuff_removed_conjure_id)
+			var tonic := deck_manager._create_card_from_id(belt.debuff_removed_conjure_id)
 			if tonic:
 				deck_manager.add_card_to_hand(tonic)
 				add_battle_log("%s: a %s appears in your hand" % [belt.item_name, tonic.card_name], Color(0.9, 0.6, 0.7))
@@ -11771,8 +10780,8 @@ func _on_player_armor_broken() -> void:
 	if player and player.get_inventory():
 		player.get_inventory().on_player_exposed()
 	if deck_manager and player:
-		var stats = player.get_stats()
-		var exposed_reactions = deck_manager.trigger_reactions("on_exposed")
+		var stats := player.get_stats()
+		var exposed_reactions := deck_manager.trigger_reactions("on_exposed")
 		for rcard in exposed_reactions:
 			rcard.execute(null, stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
 			_fire_instant_site_effect(rcard, {"target": stats.last_attacker})
@@ -11782,7 +10791,7 @@ func _on_player_armor_broken() -> void:
 	# comes back 5 tempo later. Only one debt is carried at a time.
 	if not player or not deck_manager or not deck_manager.has_method("get_maintained_cards"):
 		return
-	var rr_stats = player.get_stats()
+	var rr_stats := player.get_stats()
 	if rr_stats == null or rr_stats.last_exposed_armor <= 0:
 		return
 	for rr in deck_manager.get_maintained_cards():
@@ -11811,7 +10820,7 @@ func _on_curse_of_the_living_shared(amount: int) -> void:
 func _shield_on_cycle_passives() -> void:
 	if not player or not player.get_inventory():
 		return
-	var buff_mgr = player.get_buff_manager()
+	var buff_mgr := player.get_buff_manager()
 	if not buff_mgr:
 		return
 	for shield in player.get_inventory().get_equipped_shields():
@@ -11826,8 +10835,8 @@ func _shield_on_cycle_passives() -> void:
 func _on_overdraw_processed(_card: Card) -> void:
 	if not player or not player.get_inventory():
 		return
-	var stats = player.get_stats()
-	var buff_mgr = player.get_buff_manager()
+	var stats := player.get_stats()
+	var buff_mgr := player.get_buff_manager()
 	for shield in player.get_inventory().get_equipped_shields():
 		if shield.overdraw_heal > 0 and stats:
 			stats.heal(shield.overdraw_heal)
@@ -11862,7 +10871,7 @@ func _overdraw_conjure_to_manifest(shield: ItemData) -> void:
 		return
 	if shield.conjured_in_manifest >= shield.overdraw_card_max:
 		return
-	var blade = Card.create_by_id(shield.overdraw_card_id)
+	var blade := Card.create_by_id(shield.overdraw_card_id)
 	if blade == null:
 		return
 	overflow_manager.manifest_zone.append({
@@ -11887,7 +10896,7 @@ func _overdraw_conjure_to_manifest(shield: ItemData) -> void:
 ## Castle wall: Overdraw looses Rain of Arrows — it costs a charge AND its mana.
 ## Short of either, the heal still lands and the arrows simply don't fly.
 func _overdraw_cast_spell(shield: ItemData) -> void:
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if stats == null:
 		return
 	if shield.overdraw_charges_left <= 0:
@@ -11899,7 +10908,7 @@ func _overdraw_cast_spell(shield: ItemData) -> void:
 	shield.overdraw_charges_left -= 1
 	match shield.overdraw_spell_id:
 		"rain_of_arrows":
-			var rained = enemy_spawner.get_enemies_in_radius(player.position, 3.0)
+			var rained := enemy_spawner.get_enemies_in_radius(player.position, 3.0)
 			for en in rained:
 				if en and is_instance_valid(en):
 					en.take_damage(10, true)
@@ -11950,8 +10959,8 @@ func _random_enemy_within(tiles: int):
 func _on_action_points_spent(pool: String, amount: int) -> void:
 	if pool != "flash" or not player or amount <= 0:
 		return
-	var inv = player.get_inventory()
-	var stats = player.get_stats()
+	var inv := player.get_inventory()
+	var stats := player.get_stats()
 	if not inv or not stats:
 		return
 	var threshold := 0
@@ -11976,7 +10985,7 @@ func _on_action_points_spent(pool: String, amount: int) -> void:
 func _helm_on_cycle_passives() -> void:
 	if not player:
 		return
-	var inv = player.get_inventory()
+	var inv := player.get_inventory()
 	if not inv:
 		return
 	var purge_count := 0
@@ -12041,9 +11050,9 @@ func _helm_on_cycle_passives() -> void:
 
 	# Auto-purge: remove up to purge_count random debuffs from the wearer.
 	if purge_count > 0:
-		var dm = player.get_debuff_manager()
+		var dm := player.get_debuff_manager()
 		if dm and dm.debuffs.size() > 0:
-			var list = dm.debuffs.duplicate()
+			var list := dm.debuffs.duplicate()
 			list.shuffle()
 			var removed := 0
 			for i in range(min(purge_count, list.size())):
@@ -12053,7 +11062,7 @@ func _helm_on_cycle_passives() -> void:
 				add_battle_log("Horned Nasal Helm purges %d debuff(s)" % removed, Color(0.7, 0.6, 0.9))
 
 	# Boots: keep the high-ground flag current, and read Jordan's missing-life rate.
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if stats:
 		stats.on_high_ground = _is_on_high_ground(player.position)
 	var jordan_rate := 0.0
@@ -12114,10 +11123,10 @@ func _helm_crit_fire_cone(target) -> void:
 		return
 	if target == null or not is_instance_valid(target):
 		return  # need a target to orient the cone
-	var inv = player.get_inventory()
+	var inv := player.get_inventory()
 	if not inv:
 		return
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	var intel: int = stats.intelligence if stats else 0
 	for helm in inv.equipped_helms:
 		if not helm or helm.crit_fire_cone_damage <= 0:
@@ -12144,12 +11153,12 @@ func _ranged_card_max_range(card: Card, in_play: bool = false) -> int:
 	# Tighten String (+6) and High Ground (+2) are folded into the card's
 	# range_modifier at play time, so a card being resolved already carries
 	# them (`in_play`); the preview adds them here.
-	var buff_mgr = player.get_buff_manager() if player else null
+	var buff_mgr := player.get_buff_manager() if player else null
 	if not in_play and buff_mgr and buff_mgr.tighten_string_charges > 0 and card.is_attack():
 		max_range += 6
 	if not in_play and card.is_attack() and player and _is_on_high_ground(player.position):
 		max_range += 2
-	var st_stats = player.get_stats() if player else null
+	var st_stats := player.get_stats() if player else null
 	# Scouted: rank-scaled bonus range (2..6) on next attack after 3 consecutive hits
 	if st_stats and st_stats.st_scouted_bonus_active:
 		max_range += int(PassiveScaling.value("scouted", "range", st_stats.get_passive_level("scouted")))
@@ -12168,13 +11177,13 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 		return false
 	# Can't hit an enemy through a wall — needs clear line of sight.
 	if target is Enemy and dungeon_manager and grid_manager:
-		var from_cell = grid_manager.world_to_grid(player.position)
-		var to_cell = grid_manager.world_to_grid(target.position)
+		var from_cell := grid_manager.world_to_grid(player.position)
+		var to_cell := grid_manager.world_to_grid(target.position)
 		if not dungeon_manager.has_line_of_sight(from_cell, to_cell):
 			return false
 	var diff = player.position - target.position
-	var flat_dist = Vector3(diff.x, 0, diff.z).length()
-	var distance_tiles = flat_dist / grid_manager.grid_size
+	var flat_dist := Vector3(diff.x, 0, diff.z).length()
+	var distance_tiles := flat_dist / grid_manager.grid_size
 	if card.is_ranged:
 		return distance_tiles <= _ranged_card_max_range(card) + 0.5  # Small tolerance
 	else:
@@ -12206,7 +11215,7 @@ func _get_nearest_enemy() -> Enemy:
 	## Returns the nearest living enemy to the player, or null if none.
 	if not enemy_spawner:
 		return null
-	var enemies = enemy_spawner.get_living_enemies()
+	var enemies := enemy_spawner.get_living_enemies()
 	if enemies.is_empty():
 		return null
 	var nearest: Enemy = null
@@ -12214,7 +11223,7 @@ func _get_nearest_enemy() -> Enemy:
 	for enemy in enemies:
 		if enemy.is_hidden():
 			continue  # unseen: not a target for the auto-aim
-		var dist = player.position.distance_to(enemy.position)
+		var dist := player.position.distance_to(enemy.position)
 		if dist < nearest_dist:
 			nearest_dist = dist
 			nearest = enemy
@@ -12235,7 +11244,7 @@ func _play_card_animation(card: Card, target) -> void:
 	if not player or not player.has_method("play_animation"):
 		return
 	# Determine animation direction based on target position
-	var dir = _facing_dir_toward(target)
+	var dir := _facing_dir_toward(target)
 	# Card defines its own animation action (shared with the Animation Lab)
 	player.play_animation(card.get_animation_action(), dir)
 	# Then aim precisely at the target so the attack lines up (the cardinal
@@ -12248,21 +11257,21 @@ func _play_card_animation(card: Card, target) -> void:
 
 func _get_card_play_target_pos(target) -> Vector2:
 	## Returns a screen position to animate the card toward (in hand_container local coords).
-	var cam = get_world_camera()
+	var cam := get_world_camera()
 	if target is Enemy and is_instance_valid(target) and cam:
-		var screen_pos = world_to_screen(target.position + Vector3(0, 0.5, 0))
+		var screen_pos := world_to_screen(target.position + Vector3(0, 0.5, 0))
 		var container_global = hand_container.get_global_rect().position
 		return screen_pos - container_global
 	# Default: fly upward toward center of screen
-	var vp_size = get_viewport().get_visible_rect().size
+	var vp_size := get_viewport().get_visible_rect().size
 	var container_global = hand_container.get_global_rect().position
 	return Vector2(vp_size.x * 0.5, vp_size.y * 0.3) - container_global
 
 func _get_discard_pile_pos() -> Vector2:
 	## Returns discard pile area position in hand_container local coords for discard animation.
 	if discard_label:
-		var label_global = discard_label.get_global_rect().position
-		var container_global = hand_container.get_global_rect().position
+		var label_global := discard_label.get_global_rect().position
+		var container_global := hand_container.get_global_rect().position
 		return label_global - container_global + Vector2(40, 0)
 	return Vector2(-100, 0)
 
@@ -12270,8 +11279,8 @@ func _get_draw_pile_pos() -> Vector2:
 	## The draw pile button's position in hand_container local coords, so drawn
 	## cards visibly emerge from the pile (mirror of _get_discard_pile_pos).
 	if _draw_pile_btn and is_instance_valid(_draw_pile_btn):
-		var btn_global = _draw_pile_btn.get_global_rect().get_center()
-		var container_global = hand_container.get_global_rect().position
+		var btn_global := _draw_pile_btn.get_global_rect().get_center()
+		var container_global := hand_container.get_global_rect().position
 		return btn_global - container_global
 	return Vector2(-80, 0)
 
@@ -12279,14 +11288,14 @@ func _animate_shuffle() -> void:
 	## Shakes the draw pile label to indicate a shuffle.
 	if not draw_label:
 		return
-	var original_pos = draw_label.position
-	var tween = create_tween()
+	var original_pos := draw_label.position
+	var tween := create_tween()
 	for i in range(4):
-		var offset = Vector2(randf_range(-4, 4), randf_range(-2, 2))
+		var offset := Vector2(randf_range(-4, 4), randf_range(-2, 2))
 		tween.tween_property(draw_label, "position", original_pos + offset, 0.05)
 	tween.tween_property(draw_label, "position", original_pos, 0.05)
 	# Flash color
-	var color_tween = create_tween()
+	var color_tween := create_tween()
 	color_tween.tween_property(draw_label, "modulate", Color(1.0, 0.9, 0.4), 0.1)
 	color_tween.tween_property(draw_label, "modulate", Color(1, 1, 1), 0.2)
 
@@ -12303,7 +11312,7 @@ func _point_aim(target, mouse_pos: Vector3) -> Vector3:
 	return grid_manager.snap_to_grid(mouse_pos)
 
 func _apply_card_world_effects(card: Card, target) -> void:
-	var mouse_pos = get_mouse_world_position()
+	var mouse_pos := get_mouse_world_position()
 
 	# Generic helm on-self world effects (independent of card_id).
 	_helm_card_world_effects(card, target)
@@ -12362,13 +11371,13 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"stone_encase":
 			# Strap of Stone: the armor landed in execute; the self-stun is ours.
-			var se_dm = player.get_debuff_manager()
+			var se_dm := player.get_debuff_manager()
 			if se_dm:
 				se_dm.apply_debuff(Debuff.create(Debuff.DebuffType.STUN, 0, 5))
 				add_battle_log("Stone Encase: encased — stunned for 5 tempo", Color(0.7, 0.65, 0.5))
 
 		"poof_and_weave":
-			var pw_bm = player.get_buff_manager()
+			var pw_bm := player.get_buff_manager()
 			if pw_bm:
 				pw_bm.apply_buff(Buff.create_invisible(5, "Poof and Weave"))
 				_set_player_invisible(true)
@@ -12378,7 +11387,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"chain_lightning":
 			if target and is_instance_valid(target):
-				var cl_stats = player.get_stats()
+				var cl_stats := player.get_stats()
 				var cl_dmg: int = cl_stats.get_effective_spell_damage(10) if cl_stats else 10
 				var cl_hit: Array = []
 				var cl_current = target
@@ -12399,8 +11408,8 @@ func _apply_card_world_effects(card: Card, target) -> void:
 					cl_current = next_hop
 
 		"ice_grenade":
-			var ig_point = grid_manager.snap_to_grid(mouse_pos)
-			var ig_stats = player.get_stats()
+			var ig_point := grid_manager.snap_to_grid(mouse_pos)
+			var ig_stats := player.get_stats()
 			var ig_dmg: int = ig_stats.get_effective_spell_damage(5) if ig_stats else 5
 			var ig_hits := 0
 			var ig_hit_list: Array = []
@@ -12415,7 +11424,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			add_battle_log("Ice Grenade: %d enem%s chilled for %d" % [ig_hits, "y" if ig_hits == 1 else "ies", ig_dmg], Color(0.6, 0.85, 1.0))
 
 		"poison_bomb":
-			var pbm_point = grid_manager.snap_to_grid(mouse_pos)
+			var pbm_point := grid_manager.snap_to_grid(mouse_pos)
 			var pbm_hits := 0
 			var pbm_list: Array = []
 			for pe in enemy_spawner.get_living_enemies():
@@ -12429,9 +11438,9 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"fire_punch":
 			if target and is_instance_valid(target):
-				var fp_stats = player.get_stats()
+				var fp_stats := player.get_stats()
 				var fp_dmg: int = fp_stats.get_effective_physical_damage(0) if fp_stats else 0
-				var fp_bm = player.get_buff_manager()
+				var fp_bm := player.get_buff_manager()
 				if fp_bm and fp_bm.roll_crit():
 					fp_dmg = Card.crit_multiply(fp_dmg, fp_stats, target)
 				target.take_damage(fp_dmg, true, DamageTypes.Type.FIRE)
@@ -12444,7 +11453,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 					fp_dir = fp_dir.normalized()
 					var fp_int: int = maxi(1, floori((fp_stats.intelligence if fp_stats else 0) / 5.0))
 					for step in [1, 2]:
-						var fp_cell = grid_manager.world_to_grid(target.position + fp_dir * float(step) * grid_manager.grid_size)
+						var fp_cell := grid_manager.world_to_grid(target.position + fp_dir * float(step) * grid_manager.grid_size)
 						var fp_taken := false
 						for spot in _fire_spots:
 							if spot["cell"] == fp_cell:
@@ -12456,7 +11465,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 							_fire_spots.append({"cell": fp_cell, "tempo": 3, "damage": fp_int, "node": fp_node})
 				# Conjure the Erase-5 copy — the copy never copies itself.
 				if not card.has_meta("fire_punch_copy"):
-					var fp_copy = Card.create_by_id("fire_punch")
+					var fp_copy := Card.create_by_id("fire_punch")
 					fp_copy.erase_tempo = 5
 					fp_copy.erase_tempo_remaining = 5  # start the Erase 5 fuse full
 					fp_copy.set_meta("fire_punch_copy", true)
@@ -12476,12 +11485,12 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				if cm_dist > cm_x:
 					add_battle_log("Crack of Mintaka: the belt falls short (%d needed, %d discarded)" % [cm_dist, cm_x], Color(1.0, 0.4, 0.4))
 					return
-				var cm_stats = player.get_stats()
+				var cm_stats := player.get_stats()
 				var cm_dmg: int = cm_stats.get_effective_physical_damage(10)
 				var cm_mult: int = 5 if cm_lv3 else 3
 				var cm_bonus: float = float(cm_x * cm_mult) / 100.0
 				cm_stats.temp_crit_damage_bonus += cm_bonus
-				var cm_bm = player.get_buff_manager()
+				var cm_bm := player.get_buff_manager()
 				if cm_bm and cm_bm.roll_crit():
 					cm_dmg = Card.crit_multiply(cm_dmg, cm_stats, cm_target)
 					add_battle_log("Crack of Mintaka CRITS!", Color(1.0, 0.6, 0.3))
@@ -12490,15 +11499,15 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				add_battle_log("Crack of Mintaka: %d damage at range %d" % [cm_dmg, cm_x], Color(0.9, 0.8, 0.5)))
 
 		"smoke_bomb":
-			var smoke_pos = grid_manager.snap_to_grid(mouse_pos)
+			var smoke_pos := grid_manager.snap_to_grid(mouse_pos)
 			_smoke_zones.append({"position": smoke_pos, "tempo": 8})
 			add_battle_log("Smoke bomb! Allies inside vanish (8 tempo)", Color(0.7, 0.7, 0.7))
 
 		"shift":
 			# Rollerblades: free move, but bounded — up to 2 tiles.
-			var shift_pos = grid_manager.snap_to_grid(mouse_pos)
-			var shift_cell = grid_manager.world_to_grid(shift_pos)
-			var shift_dist = grid_manager.get_distance_in_cells(player.position, shift_pos)
+			var shift_pos := grid_manager.snap_to_grid(mouse_pos)
+			var shift_cell := grid_manager.world_to_grid(shift_pos)
+			var shift_dist := grid_manager.get_distance_in_cells(player.position, shift_pos)
 			if shift_dist > 2:
 				add_battle_log("shift: too far — 2 spaces max", Color(1.0, 0.4, 0.4))
 			elif shift_cell in player.blocked_tiles:
@@ -12510,8 +11519,8 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"escape_and_bewilder":
 			# Houdinis Slippers: blink up to 5; stun everyone near the vacated tile.
 			var eb_origin: Vector3 = player.position
-			var eb_pos = grid_manager.snap_to_grid(mouse_pos)
-			var eb_cell = grid_manager.world_to_grid(eb_pos)
+			var eb_pos := grid_manager.snap_to_grid(mouse_pos)
+			var eb_cell := grid_manager.world_to_grid(eb_pos)
 			if grid_manager.get_distance_in_cells(eb_origin, eb_pos) > 5:
 				add_battle_log("Escape and bewilder: too far — 5 spaces max", Color(1.0, 0.4, 0.4))
 			elif eb_cell in player.blocked_tiles:
@@ -12544,8 +11553,8 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"terrain_formation":
 			# Mountain Boots: raise a walkable hill (works under units too); 5 tempo.
-			var tf_cell = grid_manager.world_to_grid(grid_manager.snap_to_grid(mouse_pos))
-			var tf_handle = dungeon_manager.build_high_ground(tf_cell, 1, 1) if dungeon_manager else {}
+			var tf_cell := grid_manager.world_to_grid(grid_manager.snap_to_grid(mouse_pos))
+			var tf_handle := dungeon_manager.build_high_ground(tf_cell, 1, 1) if dungeon_manager else {}
 			if tf_handle.get("cells", []).is_empty():
 				add_battle_log("Terrain formation: no ground to raise there", Color(1.0, 0.4, 0.4))
 			else:
@@ -12604,7 +11613,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"adrenaline_shot":
 			# Target is the ally whose hand is manipulated.
-			var tgt_deck = _deck_for_player(target) if target is Player else deck_manager
+			var tgt_deck := _deck_for_player(target) if target is Player else deck_manager
 			_adjust_random_hand_tempo(tgt_deck, 2, -3)
 			schedule_delayed_effect(5, _adrenaline_delayed.bind(tgt_deck), "adrenaline")
 			print("[MAIN] Adrenaline Shot: -3 tempo to 2 cards now, +tempo in 5 tempo")
@@ -12612,8 +11621,8 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"fireball":
 			# AOE circle (4 squares) centred on the target; damage + 3 burn each.
 			var center = _point_aim(target, mouse_pos)
-			var fb_dmg = card.last_damage_dealt
-			var fb_hit = enemy_spawner.get_enemies_in_radius(center, card.aoe_range if card.aoe_range > 0 else 2.0)
+			var fb_dmg := card.last_damage_dealt
+			var fb_hit := enemy_spawner.get_enemies_in_radius(center, card.aoe_range if card.aoe_range > 0 else 2.0)
 			for en in fb_hit:
 				en.take_damage(fb_dmg, true)
 				en.apply_debuff("burn", 3)
@@ -12664,13 +11673,13 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"clear_mind":
 			# Wand of Clarity: purge 3 random debuffs — whole stacks — and
 			# draw 1 card for each actually purged.
-			var cm_dm = player.get_debuff_manager()
+			var cm_dm := player.get_debuff_manager()
 			var cm_purged := 0
 			if cm_dm:
 				for _cm_i in range(3):
 					if cm_dm.debuffs.is_empty():
 						break
-					var cm_pick = cm_dm.debuffs[randi() % cm_dm.debuffs.size()]
+					var cm_pick := cm_dm.debuffs[randi() % cm_dm.debuffs.size()]
 					cm_dm.remove_debuff(cm_pick.debuff_type)
 					cm_purged += 1
 			for _cm_d in range(cm_purged):
@@ -12715,24 +11724,24 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# Wand of the Phoenix Feather: purge every self-Burn stack; enemies
 			# within 3 squares take 5 damage per stack, the wielder heals 5 per
 			# stack (Lv.3: 8) and gains Regen worth half the stacks (Lv.3: 3/4).
-			var fta_dm = player.get_debuff_manager()
+			var fta_dm := player.get_debuff_manager()
 			var fta_burn := 0
 			if fta_dm:
-				var fta_d = fta_dm.get_debuff(Debuff.DebuffType.BURN)
+				var fta_d := fta_dm.get_debuff(Debuff.DebuffType.BURN)
 				if fta_d:
 					fta_burn = maxi(fta_d.value, 0)
 					fta_dm.remove_debuff(Debuff.DebuffType.BURN)
 			if fta_burn > 0:
 				var fta_lv3: bool = card.granted_by_item != null and card.granted_by_item.item_level >= 3
-				var fta_hit = enemy_spawner.get_enemies_in_radius(player.position, 3.0)
+				var fta_hit := enemy_spawner.get_enemies_in_radius(player.position, 3.0)
 				for fta_e in fta_hit:
 					fta_e.take_damage(fta_burn * 5, true, DamageTypes.Type.FIRE)
 				_apply_misery_spread(fta_hit)
-				var fta_stats = player.get_stats()
+				var fta_stats := player.get_stats()
 				if fta_stats:
 					fta_stats.heal(fta_burn * (8 if fta_lv3 else 5))
 				var fta_regen: int = ceili(fta_burn * (0.75 if fta_lv3 else 0.5))
-				var fta_bm = player.get_buff_manager()
+				var fta_bm := player.get_buff_manager()
 				if fta_bm and fta_regen > 0:
 					fta_bm.apply_buff(Buff.create_regen(fta_regen, -1, "From the Ashes"))
 				add_battle_log("From the Ashes! %d Burn purged — %d damage to %d enemies, healed %d." % [fta_burn, fta_burn * 5, fta_hit.size(), fta_burn * (8 if fta_lv3 else 5)], Color(1.0, 0.5, 0.2))
@@ -12742,8 +11751,8 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"sprinkle_bomb":
 			# Bladed Doughnut Lv.3: the Sprinkle detonates as an AOE circle.
 			var sb_center = _point_aim(target, mouse_pos)
-			var sb_dmg = card.last_damage_dealt
-			var sb_hit = enemy_spawner.get_enemies_in_radius(sb_center, card.aoe_range if card.aoe_range > 0 else 2.0)
+			var sb_dmg := card.last_damage_dealt
+			var sb_hit := enemy_spawner.get_enemies_in_radius(sb_center, card.aoe_range if card.aoe_range > 0 else 2.0)
 			for en in sb_hit:
 				en.take_damage(sb_dmg, true)
 			_apply_misery_spread(sb_hit)
@@ -12752,13 +11761,13 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"spirit_arrow", "balistic_arrow":
 			# Pierce every enemy along the line from the player through the target.
-			var sa_dmg = card.last_damage_dealt
+			var sa_dmg := card.last_damage_dealt
 			var aim = _point_aim(target, mouse_pos)
-			var sa_dir = Vector3(aim.x - player.position.x, 0, aim.z - player.position.z)
+			var sa_dir := Vector3(aim.x - player.position.x, 0, aim.z - player.position.z)
 			var sa_far = aim
 			if sa_dir.length() > 0.01:
 				sa_far = player.position + sa_dir.normalized() * 100.0
-			var sa_hit = enemy_spawner.get_enemies_in_line(player.position, sa_far, 0.8)
+			var sa_hit := enemy_spawner.get_enemies_in_line(player.position, sa_far, 0.8)
 			for en in sa_hit:
 				en.take_damage(sa_dmg, true)
 			_apply_misery_spread(sa_hit)
@@ -12767,13 +11776,13 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"internal_combustion":
 			# Shed half your armor; deal that much to everything around you.
-			var ic_stats = player.get_stats()
+			var ic_stats := player.get_stats()
 			var ic_amount = 0
 			if ic_stats:
 				ic_amount = ic_stats.current_armor / 2
 				ic_stats.current_armor -= ic_amount
 				ic_stats.armor_changed.emit(ic_stats.current_armor)
-			var ic_hit = enemy_spawner.get_enemies_in_radius(player.position, 3.0)
+			var ic_hit := enemy_spawner.get_enemies_in_radius(player.position, 3.0)
 			for en in ic_hit:
 				en.take_damage(ic_amount, true)
 			_apply_misery_spread(ic_hit)
@@ -12789,7 +11798,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				dn_item.banked_damage = 0.0
 				dn_item.banked_stacks = 0
 				if dn_amount > 0:
-					var dn_hit = enemy_spawner.get_enemies_in_radius(player.position, 2.0)
+					var dn_hit := enemy_spawner.get_enemies_in_radius(player.position, 2.0)
 					for dn_en in dn_hit:
 						dn_en.take_damage(dn_amount, true, DamageTypes.Type.FIRE)
 					_apply_misery_spread(dn_hit)
@@ -12800,7 +11809,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"huck":
 			# Castle wall: throw the wall. Everything you were hiding behind,
 			# delivered at once — and then you have nothing behind.
-			var hk_stats = player.get_stats()
+			var hk_stats := player.get_stats()
 			var hk_armor: int = hk_stats.current_armor if hk_stats else 0
 			if hk_armor <= 0:
 				add_battle_log("Huck: no armor to throw", Color(0.7, 0.6, 0.5))
@@ -12833,7 +11842,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# Steve Rodgers: the shield leaves your arm (half your armor goes
 			# with it), then chains from body to body, each one sending back
 			# block and temporary mana.
-			var bs_stats = player.get_stats()
+			var bs_stats := player.get_stats()
 			var bs_lost: int = 0
 			if bs_stats and bs_stats.current_armor > 0:
 				bs_lost = floori(bs_stats.current_armor / 2.0)
@@ -12873,7 +11882,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"earth_rattle":
 			# Bessy: smash the ground — a quake around the impact tile.
 			var er_center: Vector3 = target.position if (target != null and is_instance_valid(target)) else grid_manager.snap_to_grid(mouse_pos)
-			var er_hit = enemy_spawner.get_enemies_in_radius(er_center, 3.0)
+			var er_hit := enemy_spawner.get_enemies_in_radius(er_center, 3.0)
 			for er_en in er_hit:
 				if er_en and is_instance_valid(er_en):
 					er_en.take_damage(40, true)
@@ -12886,14 +11895,14 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"wrath_of_the_sea":
 			# Poseidons Trident: blink, then the sea bursts in a 4x4 around the
 			# landing — damage = the mana the card drank, through the STR pipeline.
-			var ws_pos = grid_manager.snap_to_grid(mouse_pos)
-			var ws_cell = grid_manager.world_to_grid(ws_pos)
+			var ws_pos := grid_manager.snap_to_grid(mouse_pos)
+			var ws_cell := grid_manager.world_to_grid(ws_pos)
 			if ws_cell in player.blocked_tiles:
 				add_battle_log("Wrath of the Sea: cannot land there!", Color(1.0, 0.4, 0.4))
 			else:
 				player.blink_to(ws_pos)
 				progression_triggers._trigger_skill_tree_on_displacement()
-				var ws_stats = player.get_stats()
+				var ws_stats := player.get_stats()
 				var ws_dmg: int = ws_stats.get_effective_physical_damage(card.last_percent_mana_paid) if ws_stats else card.last_percent_mana_paid
 				var ws_lv3: bool = card.granted_by_item != null and card.granted_by_item.item_level >= 3
 				var ws_hits := 0
@@ -12958,7 +11967,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 						target._update_status_indicators()
 					rt_removed = 1
 					break
-			var rt_stats = player.get_stats()
+			var rt_stats := player.get_stats()
 			if rt_stats and rt_removed > 0:
 				rt_stats.heal(rt_removed * 3)
 			add_battle_log("Release Tension! Removed %d debuff, healed %d" % [rt_removed, rt_removed * 3], Color(0.6, 0.9, 0.7))
@@ -12968,18 +11977,18 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# Roll up to min(tempo_cost, 5) tiles toward the aim point, stopping on
 			# the first character hit. An enemy takes 10 damage and is disarmed.
 			var roll_aim = _point_aim(target, mouse_pos)
-			var roll_start = player.position
-			var roll_diff = Vector3(roll_aim.x - roll_start.x, 0, roll_aim.z - roll_start.z)
-			var roll_dir = roll_diff.normalized() if roll_diff.length() > 0.01 else Vector3.ZERO
+			var roll_start := player.position
+			var roll_diff := Vector3(roll_aim.x - roll_start.x, 0, roll_aim.z - roll_start.z)
+			var roll_dir := roll_diff.normalized() if roll_diff.length() > 0.01 else Vector3.ZERO
 			var roll_max = min(card.get_burden_tempo_cost(), 5)  # the tempo actually paid
 			var roll_final = roll_start
 			for step in range(1, roll_max + 1):
 				if roll_dir == Vector3.ZERO:
 					break
-				var np = grid_manager.snap_to_grid(roll_start + roll_dir * (step * grid_manager.grid_size))
+				var np := grid_manager.snap_to_grid(roll_start + roll_dir * (step * grid_manager.grid_size))
 				if grid_manager.world_to_grid(np) in player.blocked_tiles:
 					break  # a wall or obstacle ends the roll
-				var hit_enemy = enemy_spawner.get_enemy_at_position(np)
+				var hit_enemy := enemy_spawner.get_enemy_at_position(np)
 				if hit_enemy:
 					hit_enemy.take_damage(10, true)
 					hit_enemy.apply_debuff("disarmed", 5)
@@ -13031,8 +12040,8 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# Bow of Arash: the flight corridor glistens blue for 25 tempo;
 			# enemies inside it are Weakened until they leave.
 			if target and is_instance_valid(target) and grid_manager:
-				var tm_from = grid_manager.world_to_grid(player.position)
-				var tm_to = grid_manager.world_to_grid(target.position)
+				var tm_from := grid_manager.world_to_grid(player.position)
+				var tm_to := grid_manager.world_to_grid(target.position)
 				_create_mark_zone(_territorial_mark_cells(tm_from, tm_to), 25)
 				_update_mark_zones(0)
 				add_battle_log("The arrow's path glistens with blue smoke — the land is marked.", Color(0.45, 0.65, 0.95))
@@ -13042,12 +12051,12 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"tricks_of_alberich":
 			# Ring of Nibelung: taunt 4 squares; profit from every enemy caught.
-			var toa_caught = enemy_spawner.get_enemies_in_radius(player.position, 4.0)
+			var toa_caught := enemy_spawner.get_enemies_in_radius(player.position, 4.0)
 			for te in toa_caught:
 				if te.has_method("apply_taunt"):
 					te.apply_taunt(player, 5)  # the spec's 5 tempo
-			var toa_stats = player.get_stats()
-			var toa_bm = player.get_buff_manager()
+			var toa_stats := player.get_stats()
+			var toa_bm := player.get_buff_manager()
 			if toa_bm:
 				toa_bm.apply_buff(Buff.create_might(10, 5, "Tricks of Alberich"))
 			if toa_stats and toa_caught.size() > 0:
@@ -13074,7 +12083,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# catches enemies around it. Diameter INT / 8, never smaller than
 			# the target's own tile.
 			if target is Enemy and is_instance_valid(target) and card.last_damage_dealt > 0:
-				var pig_stats = player.get_stats()
+				var pig_stats := player.get_stats()
 				var pig_diam: int = int(pig_stats.intelligence / 8) if pig_stats else 1
 				var pig_radius: float = maxf(0.5, pig_diam / 2.0)
 				var pig_hit: Array = [target]
@@ -13088,7 +12097,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"worms_armageddon":
 			# One massive meteor: stat-scaled damage (matching the card face) to
 			# the single target; on the 10% proc, summon two REAL Alaskan Bull Worms.
-			var wa_dmg = _card_player_damage(card)
+			var wa_dmg := _card_player_damage(card)
 			if target is Enemy and is_instance_valid(target):
 				target.take_damage(wa_dmg, true)
 				add_battle_log("Worms Armageddon! %d damage to %s" % [wa_dmg, target.enemy_name], Color(0.6, 0.4, 0.2))
@@ -13146,7 +12155,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# Move every item card — the ones items GRANT and the ones slotted
 			# INTO items — from the draw and discard piles into your hand. The
 			# real cards move; nothing is duplicated.
-			var inv = player.get_inventory()
+			var inv := player.get_inventory()
 			var moved = 0
 			var im_cards: Array = []
 			if inv:
@@ -13177,7 +12186,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# Encase an ally in ice: untargetable + cannot act for 15 tempo, healing
 			# 3 every 5 tempo.
 			var ice_target = target if target is Player else player
-			var ice_idx = 1 if ice_target == _p2_player else 0
+			var ice_idx := 1 if ice_target == _p2_player else 0
 			ice_target.untargetable = true
 			# "Cannot act" is a real 15-tempo Stun on the iced character, so the
 			# ice's trade-off holds in solo play too — not just via the co-op
@@ -13228,10 +12237,10 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# toward the clicked tile.
 			# No target needed: the charge runs toward wherever the player aimed.
 			var charge_dest = target.position if (target and target != player) else grid_manager.snap_to_grid(mouse_pos)
-			var start_pos = player.position
+			var start_pos := player.position
 			var charge_diff = charge_dest - start_pos
-			var charge_dir = Vector3(charge_diff.x, 0, charge_diff.z).normalized()
-			var charge_distance = 5
+			var charge_dir := Vector3(charge_diff.x, 0, charge_diff.z).normalized()
+			var charge_distance := 5
 			var final_pos = start_pos
 			var charge_stopped = false
 			var charge_hit: Array = []
@@ -13239,14 +12248,14 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			for step in range(1, charge_distance + 1):
 				if charge_stopped:
 					break
-				var next_pos = grid_manager.snap_to_grid(start_pos + charge_dir * (step * grid_manager.grid_size))
+				var next_pos := grid_manager.snap_to_grid(start_pos + charge_dir * (step * grid_manager.grid_size))
 
 				# Check for obstacles (barricades) at this position
 				var hit_obstacle = false
 				for i in range(barricade_obstacles.size() - 1, -1, -1):
 					var obs = barricade_obstacles[i]
-					var obs_grid = grid_manager.world_to_grid(obs["position"])
-					var next_grid = grid_manager.world_to_grid(next_pos)
+					var obs_grid := grid_manager.world_to_grid(obs["position"])
+					var next_grid := grid_manager.world_to_grid(next_pos)
 					if obs_grid == next_grid:
 						obs["health"] -= card.last_damage_dealt
 						if obs["health"] <= 0:
@@ -13264,7 +12273,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 					break
 
 				# Check for enemies at this position and push them back
-				var enemies_at_pos = enemy_spawner.get_enemies_in_radius(next_pos, 0.6)
+				var enemies_at_pos := enemy_spawner.get_enemies_in_radius(next_pos, 0.6)
 				for enemy in enemies_at_pos:
 					enemy.take_damage(card.last_damage_dealt, true)
 					enemy.knockback(start_pos, 2)
@@ -13287,10 +12296,10 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var leap_distance = 3
 			if stats:
 				leap_distance = max(2, stats.strength)
-			var diff = mouse_pos - player.position
+			var diff := mouse_pos - player.position
 			var direction = Vector3(diff.x, 0, diff.z).normalized()
 			# Clamp leap to the actual distance to mouse if closer than max leap
-			var mouse_dist = Vector3(diff.x, 0, diff.z).length()
+			var mouse_dist := Vector3(diff.x, 0, diff.z).length()
 			var actual_leap = mini(leap_distance, ceili(mouse_dist / grid_manager.grid_size))
 			if actual_leap < 1:
 				actual_leap = 1
@@ -13306,7 +12315,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			if leap_distance > 0 and actual_leap < leap_distance:
 				leap_damage = maxi(1, floori(card.last_damage_dealt * float(actual_leap) / float(leap_distance)))
 			# Deal AOE damage to enemies at landing
-			var landing_enemies = enemy_spawner.get_enemies_in_radius(leap_target, 1.5)
+			var landing_enemies := enemy_spawner.get_enemies_in_radius(leap_target, 1.5)
 			for enemy in landing_enemies:
 				enemy.take_damage(leap_damage, true)
 			_apply_misery_spread(landing_enemies)
@@ -13329,10 +12338,10 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"snowballs_chance":
 			# Searing fire line 3 spaces forward - always hits
-			var sbc_diff = mouse_pos - player.position
+			var sbc_diff := mouse_pos - player.position
 			var direction = Vector3(sbc_diff.x, 0, sbc_diff.z).normalized()
 			var fire_end = player.position + direction * card.aoe_range
-			var fire_enemies = enemy_spawner.get_enemies_in_line(player.position, fire_end, 0.8)
+			var fire_enemies := enemy_spawner.get_enemies_in_line(player.position, fire_end, 0.8)
 			var sbc_hit: Array = []
 			for enemy in fire_enemies:
 				enemy.take_damage(card.last_damage_dealt, true)
@@ -13351,7 +12360,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"sky_fall":
 			# Store position for delayed 2-turn landing
-			var landing_pos = grid_manager.snap_to_grid(mouse_pos)
+			var landing_pos := grid_manager.snap_to_grid(mouse_pos)
 			pending_sky_falls.append({
 				"position": landing_pos,
 				"damage": card.last_damage_dealt,
@@ -13362,19 +12371,19 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"round_em_up":
 			# Pull enemies within the 5-square pull diameter 1 square toward the point
 			var center = grid_manager.snap_to_grid(mouse_pos)
-			var reu_radius = card.aoe_range * grid_manager.grid_size
+			var reu_radius := card.aoe_range * grid_manager.grid_size
 			var nearby = enemy_spawner.get_enemies_in_radius(center, reu_radius)
 			for enemy in nearby:
 				var reu_diff = center - enemy.position
-				var dir_to_center = Vector3(reu_diff.x, 0, reu_diff.z).normalized()
+				var dir_to_center := Vector3(reu_diff.x, 0, reu_diff.z).normalized()
 				var new_pos = enemy.position + dir_to_center * grid_manager.grid_size
 				new_pos = grid_manager.snap_to_grid(new_pos)
 				enemy.position = new_pos
 				enemy.target_position = new_pos
 			print("[MAIN] Round 'Em Up: pulled %d enemies toward %s" % [nearby.size(), center])
 		"blink":
-			var blink_pos = grid_manager.snap_to_grid(mouse_pos)
-			var blink_cell = grid_manager.world_to_grid(blink_pos)
+			var blink_pos := grid_manager.snap_to_grid(mouse_pos)
+			var blink_cell := grid_manager.world_to_grid(blink_pos)
 			# Prevent blinking into walls or obstacles
 			if blink_cell in player.blocked_tiles:
 				add_battle_log("Cannot blink into a wall or obstacle!", Color(1.0, 0.4, 0.4))
@@ -13405,7 +12414,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"swap":
 			# Swap positions between player and target
 			if target and target is Node3D:
-				var player_pos = player.position
+				var player_pos := player.position
 				var target_pos = target.position
 				player.position = target_pos
 				player.target_position = target_pos
@@ -13416,10 +12425,10 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"defensive_awareness":
 			# Gain 3 armor per enemy within 2 spaces of the player
-			var da_radius = 2.0
-			var da_nearby = enemy_spawner.get_enemies_in_radius(player.position, da_radius)
-			var enemy_count = da_nearby.size()
-			var armor_gain = 3 * enemy_count
+			var da_radius := 2.0
+			var da_nearby := enemy_spawner.get_enemies_in_radius(player.position, da_radius)
+			var enemy_count := da_nearby.size()
+			var armor_gain := 3 * enemy_count
 			if armor_gain > 0:
 				var stats = player.get_stats()
 				if stats:
@@ -13428,8 +12437,8 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"sweeping_disarm":
 			# Deal damage and disarm all enemies within melee range (1 space)
-			var sd_radius = 1.5
-			var sd_nearby = enemy_spawner.get_enemies_in_radius(player.position, sd_radius)
+			var sd_radius := 1.5
+			var sd_nearby := enemy_spawner.get_enemies_in_radius(player.position, sd_radius)
 			for enemy in sd_nearby:
 				enemy.take_damage(card.last_damage_dealt, true)
 				enemy.apply_debuff("disarmed", 5)
@@ -13443,7 +12452,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			_spawn_barricade()
 
 		"rise":
-			var rise_pos = grid_manager.snap_to_grid(get_mouse_world_position())
+			var rise_pos := grid_manager.snap_to_grid(get_mouse_world_position())
 			_spawn_pillar(rise_pos)
 
 		"absorb_essence":
@@ -13451,7 +12460,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# (enemies, obstacles, allies, summons) — deliberately NOT stat-scaled. The payoff scales
 			# through Energy Ball, which does take the caster's amplifications.
 			var absorb_total_damage = 0
-			var all_enemies = enemy_spawner.get_living_enemies()
+			var all_enemies := enemy_spawner.get_living_enemies()
 			for enemy in all_enemies:
 				enemy.take_damage(1, true)
 				absorb_total_damage += 1
@@ -13518,11 +12527,11 @@ func _is_ui_window_open() -> bool:
 		return true
 	if help_panel and help_panel.visible:
 		return true
-	if deck_list_panel and deck_list_panel.visible:
+	if _deck_panels and _deck_panels.is_showing():
 		return true
-	if maintained_list_panel and maintained_list_panel.visible:
+	if _maintained_list and _maintained_list.is_showing():
 		return true
-	if pile_popup_panel and pile_popup_panel.visible:
+	if _pile_popup and _pile_popup.is_showing():
 		return true
 	if _donation_panel and _donation_panel.visible:
 		return true
@@ -13613,7 +12622,7 @@ func _input(event: InputEvent) -> void:
 		# resetting its accumulated cost. It sits in jail for 30 tempo.
 		if event.keycode == KEY_J:
 			if selected_card_index >= 0 and selected_card_index < deck_manager.hand.size():
-				var bcard = deck_manager.hand[selected_card_index]
+				var bcard := deck_manager.hand[selected_card_index]
 				if bcard.has_burden:
 					if deck_manager.jail_burden_card(selected_card_index):
 						tempo_manager.add_tempo(bcard.burden_jail_cost_tempo)
@@ -13724,12 +12733,12 @@ func _input(event: InputEvent) -> void:
 		# Gauntlet skill armed: this click picks its target.
 		if _pending_gauntlet_skill != null:
 			var gsk: ItemData = _pending_gauntlet_skill
-			var gsk_mouse = get_mouse_world_position()
+			var gsk_mouse := get_mouse_world_position()
 			if gsk.gauntlet_skill_effect_id in POINT_TARGET_GAUNTLET_SKILLS:
 				_pending_gauntlet_skill = null
 				_fire_gauntlet_skill(gsk, null)  # Suck reads the clicked point via the mouse
 			else:
-				var gsk_enemy = enemy_spawner.get_enemy_at_position(gsk_mouse)
+				var gsk_enemy := enemy_spawner.get_enemy_at_position(gsk_mouse)
 				if gsk_enemy == null:
 					add_battle_log("No enemy at that position!", Color(1.0, 0.6, 0.3))
 				elif _validate_gauntlet_skill_target(gsk, gsk_enemy):
@@ -13741,17 +12750,17 @@ func _input(event: InputEvent) -> void:
 		# A card waiting for its enemy (Life Swap): the click picks one of the
 		# candidates it offered; a click elsewhere is simply ignored.
 		if not _pending_enemy_pick.is_empty():
-			var pick_enemy = enemy_spawner.get_enemy_at_position(get_mouse_world_position())
+			var pick_enemy := enemy_spawner.get_enemy_at_position(get_mouse_world_position())
 			if pick_enemy and pick_enemy in _pending_enemy_pick.get("allowed", []):
-				var pick = _pending_enemy_pick
+				var pick := _pending_enemy_pick
 				_pending_enemy_pick = {}
 				_life_swap_strike(pick_enemy, int(pick["damage"]))
 			else:
 				add_battle_log("%s: pick one of the enemies in melee range." % str(_pending_enemy_pick.get("what", "")), Color(1.0, 0.6, 0.3))
 			return
 		if _basic_attack_pending:
-			var atk_mouse_pos = get_mouse_world_position()
-			var atk_enemy = enemy_spawner.get_enemy_at_position(atk_mouse_pos)
+			var atk_mouse_pos := get_mouse_world_position()
+			var atk_enemy := enemy_spawner.get_enemy_at_position(atk_mouse_pos)
 			if atk_enemy:
 				_execute_basic_attack(atk_enemy)
 			else:
@@ -13773,13 +12782,13 @@ func _input(event: InputEvent) -> void:
 			return
 
 		if selected_card_index >= 0:
-			var card = deck_manager.hand[selected_card_index]
+			var card := deck_manager.hand[selected_card_index]
 			var mouse_pos = get_mouse_world_position()
 
-			var tt = card.target_types.duplicate()
+			var tt := card.target_types.duplicate()
 
 			# Poison Blood: heal cards can also target enemies
-			var buff_mgr = player.get_buff_manager() if player else null
+			var buff_mgr := player.get_buff_manager() if player else null
 			if buff_mgr and buff_mgr.has_poisoned_blood() and card.heal_amount > 0:
 				if "enemy" not in tt:
 					tt.append("enemy")
@@ -13806,10 +12815,10 @@ func _input(event: InputEvent) -> void:
 						else:
 							play_selected_card(enemy)
 					else:
-						var range_type = "ranged" if card.is_ranged else "melee"
-						var dist = _get_distance_to_target(enemy)
+						var range_type := "ranged" if card.is_ranged else "melee"
+						var dist := _get_distance_to_target(enemy)
 						if card.is_ranged:
-							var max_r = card.get_effective_range()
+							var max_r := card.get_effective_range()
 							add_battle_log("Out of range! %s is %d tiles away (max range: %d)" % [enemy.enemy_name, dist, max_r], Color(1.0, 0.4, 0.4))
 						else:
 							add_battle_log("Out of melee range! %s is %d tiles away (need adjacent)" % [enemy.enemy_name, dist], Color(1.0, 0.4, 0.4))
@@ -13824,7 +12833,7 @@ func _input(event: InputEvent) -> void:
 					var tgt = tgt_player if tgt_player else player
 					if tgt_player == null and "ally" in tt:
 						# A summon on the tile is an ally too (Shepherd's Mark on a wolf).
-						var tgt_summon = _summon_at_position(mouse_pos)
+						var tgt_summon := _summon_at_position(mouse_pos)
 						if tgt_summon:
 							tgt = tgt_summon
 					if tgt != player and card.is_ranged and not _is_target_in_card_range(card, tgt):
@@ -13974,6 +12983,8 @@ func _input(event: InputEvent) -> void:
 func _setup_dungeon() -> void:
 	dungeon_manager = DungeonManager.new()
 	dungeon_manager.name = "DungeonManager"
+	dungeon_manager.prompts_changed.connect(_mark_prompts_dirty)
+	_prompts_dirty = true
 	dungeon_manager._opened_chests_ref = opened_chests
 	# Act-1 mythic cap: once this character's act-1 mythic dropped, act-1
 	# chests stop offering mythics too.
@@ -13994,7 +13005,7 @@ func _setup_dungeon() -> void:
 	# just left — the overworld's site, or a boss room's door inside an interior)
 	var start_pos = dungeon_manager.get_player_start_world()
 	if return_from_interior_id != "":
-		var site_idx = dungeon_manager.get_site_by_id(return_from_interior_id)
+		var site_idx := dungeon_manager.get_site_by_id(return_from_interior_id)
 		if site_idx >= 0:
 			var entrance: Vector2i = dungeon_manager.site_nodes[site_idx]["grid_pos"]
 			start_pos = grid_manager.grid_to_world(entrance)
@@ -14092,21 +13103,21 @@ func _check_dungeon_zones() -> void:
 	## Check if player has entered any new spawn zones.
 	if not dungeon_manager:
 		return
-	var player_grid = grid_manager.world_to_grid(player.position)
+	var player_grid := grid_manager.world_to_grid(player.position)
 	dungeon_manager.update_chest_prompts(player_grid)
 
-	var triggered = dungeon_manager.check_player_position(player_grid)
+	var triggered := dungeon_manager.check_player_position(player_grid)
 	for zone_idx in triggered:
 		_spawn_dungeon_zone(zone_idx)
 
 func _spawn_dungeon_zone(zone_index: int) -> void:
-	var zone = dungeon_manager.get_spawn_zone(zone_index)
+	var zone := dungeon_manager.get_spawn_zone(zone_index)
 	if zone.is_empty():
 		return
 
 	var spawn_points: Array = zone["spawn_points"]
 	var enemy_types: Array = zone["enemy_types"]
-	var count = mini(spawn_points.size(), enemy_types.size())
+	var count := mini(spawn_points.size(), enemy_types.size())
 
 	# Track cells used by already-spawned enemies to avoid stacking
 	var used_cells: Array[Vector2i] = []
@@ -14120,7 +13131,7 @@ func _spawn_dungeon_zone(zone_index: int) -> void:
 		# Validate spawn point is on a floor tile and not already occupied
 		cell = _find_valid_spawn_cell(cell, used_cells)
 		used_cells.append(cell)
-		var world_pos = grid_manager.grid_to_world(cell)
+		var world_pos := grid_manager.grid_to_world(cell)
 		if dungeon_manager:
 			world_pos.y = dungeon_manager.get_elevation_world_y(cell)
 		enemy_spawner.spawn_enemy(enemy_types[i], world_pos)
@@ -14151,7 +13162,7 @@ func _find_valid_spawn_cell(desired: Vector2i, used_cells: Array[Vector2i]) -> V
 			for dz in range(-radius, radius + 1):
 				if absi(dx) != radius and absi(dz) != radius:
 					continue  # Only check the ring perimeter
-				var candidate = desired + Vector2i(dx, dz)
+				var candidate := desired + Vector2i(dx, dz)
 				if dungeon_manager and dungeon_manager.is_floor(candidate) and candidate not in used_cells:
 					print("[MAIN] Spawn nudged from %s to %s (original was wall/occupied)" % [desired, candidate])
 					return candidate
@@ -14162,7 +13173,7 @@ func _find_valid_spawn_cell(desired: Vector2i, used_cells: Array[Vector2i]) -> V
 func _update_fog_of_war() -> void:
 	if not dungeon_manager:
 		return
-	var player_grid = grid_manager.world_to_grid(player.position)
+	var player_grid := grid_manager.world_to_grid(player.position)
 	dungeon_manager.reveal_around(player_grid)
 	# Update enemy visibility based on revealed tiles
 	dungeon_manager.update_enemy_fog_visibility(
@@ -14179,8 +13190,8 @@ func _try_interact_site() -> bool:
 	## Handles Shift near a cave/building entrance (or an interior exit).
 	if not dungeon_manager:
 		return false
-	var player_grid = grid_manager.world_to_grid(player.position)
-	var site_idx = dungeon_manager.get_nearby_site(player_grid)
+	var player_grid := grid_manager.world_to_grid(player.position)
+	var site_idx := dungeon_manager.get_nearby_site(player_grid)
 	if site_idx < 0:
 		return false
 	var site = dungeon_manager.site_nodes[site_idx]
@@ -14202,8 +13213,8 @@ func _enter_interior(interior_id: String, display_name: String = "", keep_parent
 	## to this room (the Boss Simulator hopping from one boss room straight
 	## into another, or restarting the one it is in).
 	print("[MAIN] Entering %s (%s) in World %d" % [display_name, interior_id, current_world_level])
-	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
-	var saved_progression = _save_player_progression()
+	var saved_quest_state := quest_manager.save_state() if quest_manager else {}
+	var saved_progression := _save_player_progression()
 	var main_scene = load("res://scenes/core/main.tscn").instantiate()
 	main_scene.starting_character = starting_character
 	main_scene.player2_character = player2_character
@@ -14230,8 +13241,8 @@ func _exit_interior() -> void:
 	print("[MAIN] Leaving %s, returning to %s" % [current_interior_id,
 		("World %d" % current_world_level) if parent_interior_id == "" else parent_interior_id])
 	_deliver_follower()
-	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
-	var saved_progression = _save_player_progression()
+	var saved_quest_state := quest_manager.save_state() if quest_manager else {}
+	var saved_progression := _save_player_progression()
 	var main_scene = load("res://scenes/core/main.tscn").instantiate()
 	main_scene.starting_character = starting_character
 	main_scene.player2_character = player2_character
@@ -14278,15 +13289,15 @@ func _apply_world_ambience() -> void:
 	if not dungeon_manager:
 		return
 	var pal: Dictionary = dungeon_manager.get_palette()
-	var in_cave = current_interior_id.begins_with("cave") or current_interior_id.begins_with("hellgate") \
+	var in_cave := current_interior_id.begins_with("cave") or current_interior_id.begins_with("hellgate") \
 		or current_interior_id.begins_with("labyrinth")
-	var in_building = current_interior_id.begins_with("building")
-	var in_sewer = current_interior_id.begins_with("sewer") or current_interior_id.begins_with("ratking")
-	var in_forest = current_interior_id.begins_with("forest")
+	var in_building := current_interior_id.begins_with("building")
+	var in_sewer := current_interior_id.begins_with("sewer") or current_interior_id.begins_with("ratking")
+	var in_forest := current_interior_id.begins_with("forest")
 
-	var world_env = get_node_or_null("WorldEnvironment") as WorldEnvironment
+	var world_env := get_node_or_null("WorldEnvironment") as WorldEnvironment
 	if world_env and world_env.environment:
-		var env = world_env.environment
+		var env := world_env.environment
 		env.ambient_light_color = pal.get("ambient", Color(0.3, 0.3, 0.35))
 		if in_cave:
 			env.ambient_light_energy = 0.14  # darker even than the sewers
@@ -14305,7 +13316,7 @@ func _apply_world_ambience() -> void:
 		# style spec forbids — contact shading is painted into sprites instead.
 		env.ssao_enabled = false
 
-	var sun = get_node_or_null("DirectionalLight3D") as DirectionalLight3D
+	var sun := get_node_or_null("DirectionalLight3D") as DirectionalLight3D
 	if sun:
 		sun.light_color = pal.get("sun", Color(1, 0.95, 0.9))
 		var energy: float = pal.get("sun_energy", 1.2)
@@ -14335,7 +13346,7 @@ func _ensure_player_torch(enable: bool) -> void:
 		var existing = p.get_node_or_null("PlayerTorch")
 		if enable:
 			if existing == null:
-				var torch = OmniLight3D.new()
+				var torch := OmniLight3D.new()
 				torch.name = "PlayerTorch"
 				torch.light_color = Color(1.0, 0.86, 0.62)
 				torch.light_energy = 2.8
@@ -14372,48 +13383,21 @@ func _on_spawn_wave() -> void:
 	_refresh_unit_tracker()
 	print("[MAIN] Spawned new wave!")
 
-func _on_spawn_fire_goblins() -> void:
-	enemy_spawner.spawn_fire_goblin_pack()
-	_sync_blocked_tiles()
-	_sync_occupied_tiles()
-	_sync_pillar_tiles()
-	_update_enemy_count()
-	_refresh_unit_tracker()
-	print("[MAIN] Spawned fire goblin pack!")
-
-func _on_spawn_elite() -> void:
-	var used_cells: Array[Vector2i] = []
-	for enemy in enemy_spawner.get_living_enemies():
-		used_cells.append(grid_manager.world_to_grid(enemy.position))
-	used_cells.append(grid_manager.world_to_grid(player.position))
-	var desired = Vector2i(randi_range(9, 16), randi_range(2, 8))
-	var cell = _find_valid_spawn_cell(desired, used_cells)
-	var world_pos = grid_manager.grid_to_world(cell)
-	if dungeon_manager:
-		world_pos.y = dungeon_manager.get_elevation_world_y(cell)
-	enemy_spawner.spawn_enemy(Enemy.EnemyType.ELITE, world_pos)
-	_sync_blocked_tiles()
-	_sync_occupied_tiles()
-	_sync_pillar_tiles()
-	_update_enemy_count()
-	_refresh_unit_tracker()
-	print("[MAIN] Spawned elite enemy!")
-
 func _on_give_item(item_name: String) -> void:
 	var item: ItemData = null
 	
 	match item_name:
-		"Wooden Sword": item = ItemData.create_wooden_sword()
-		"Bladed Doughnut": item = ItemData.create_bladed_doughnut()
+		"Wooden Sword": item = ItemData.create("wooden_sword")
+		"Bladed Doughnut": item = ItemData.create("bladed_doughnut")
 		_:
 			# Any other item (all helms, etc.) resolves by name via factory discovery.
 			item = ItemData.create_by_name(item_name)
 
 	if item:
-		var inv = player.get_inventory()
+		var inv := player.get_inventory()
 		# Find first empty equipment slot
-		var slot_array = inv._get_slot_array(item.item_type)
-		var max_slots = inv._get_max_slots(item.item_type)
+		var slot_array := inv._get_slot_array(item.item_type)
+		var max_slots := inv._get_max_slots(item.item_type)
 
 		for i in range(max_slots):
 			if slot_array[i] == null:
@@ -14428,27 +13412,6 @@ func _on_give_item(item_name: String) -> void:
 		else:
 			print("[MAIN] Cannot give %s - equipment and storage full!" % item_name)
 
-func _on_give_card(card_name: String) -> void:
-	var card: Card = null
-	
-	match card_name:
-		"Slash": card = Card.create_slash()
-		"Block": card = Card.create_block()
-		"Blink": card = Card.create_blink()
-		"Heal": card = Card.create_heal()
-		"Draw": card = Card.create_draw()
-		"Discard": card = Card.create_discard()
-		"Empower": card = Card.create_empower()
-		"Healing Potion": card = Card.create_healing_potion()
-		"Dagger Throw": card = Card.create_dagger_throw()
-		"Gain Mana": card = Card.create_gain_mana()
-		"Halo": card = Card.create_halo()
-		"Armored Discipline": card = Card.create_armored_discipline()
-
-	if card:
-		deck_manager.hand.append(card)
-		deck_manager.hand_updated.emit()
-		print("[MAIN] Gave card: %s" % card_name)
 func _on_manifest_card_clicked(index: int) -> void:
 	# Spending a manifest (a Quiver card, a blade, a summon, a mushroom) is
 	# an action: refused under Stun before anything is popped or paid.
@@ -14475,7 +13438,7 @@ func _on_manifest_card_clicked(index: int) -> void:
 		# Cinquedea needs a victim within 4 squares — check BEFORE any cost is
 		# paid or the blade consumed, so a whiff costs nothing.
 		if str(entry.get("manifest_id", "")) == "cinquedea":
-			var cq_check = _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
+			var cq_check := _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
 			if cq_check == null or grid_manager.get_distance_in_cells(player.position, cq_check.position) > 4:
 				add_battle_log("Cinquedea: nothing within 4 squares", Color(0.7, 0.6, 0.5))
 				return
@@ -14486,7 +13449,7 @@ func _on_manifest_card_clicked(index: int) -> void:
 				add_battle_log("Not enough mana for %s" % entry.get("manifest_name", "that"), Color(1.0, 0.4, 0.4))
 				return
 
-	var result = overflow_manager.activate_manifest(index)
+	var result := overflow_manager.activate_manifest(index)
 
 	if result.is_empty():
 		return
@@ -14502,7 +13465,7 @@ func _on_manifest_card_clicked(index: int) -> void:
 	match result["manifest_id"]:
 		"cinquedea":
 			# Range 4, 6 damage, 1 Weaken — the nearest enemy in reach.
-			var cq_victim = _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
+			var cq_victim := _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
 			if cq_victim and grid_manager.get_distance_in_cells(player.position, cq_victim.position) <= 4:
 				cq_victim.take_damage(6, true)
 				if is_instance_valid(cq_victim) and cq_victim.has_method("apply_debuff"):
@@ -14533,7 +13496,7 @@ func _on_manifest_card_clicked(index: int) -> void:
 				var rand_enemy = enemies[randi() % enemies.size()]
 				rand_enemy.take_damage(result["manifest_value"], true)
 				# Count as an attack towards the attack counter
-				var stats = player.get_stats()
+				var stats := player.get_stats()
 				if stats:
 					stats.register_attack()
 					if stats.consume_free_hand_echo() and is_instance_valid(rand_enemy):
@@ -14568,12 +13531,12 @@ func _on_quiver_card_targeting_selected(card: Card, index: int, target_type: Str
 #endregion
 #region QUIVER & OVERCHARGE HANDLERS
 func play_quiver_card(card: Card, index: int, target) -> void:
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if not stats:
 		return
 
-	var buff_mgr = player.get_buff_manager()
-	var debuff_mgr = player.get_debuff_manager()
+	var buff_mgr := player.get_buff_manager()
+	var debuff_mgr := player.get_debuff_manager()
 
 	# Debuff checks - quiver cards are always attacks
 	if _stun_refuses("play %s" % card.card_name):
@@ -14603,7 +13566,7 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 		return
 	if mana_cost > 0:
 		if quiver_demonic_rage:
-			var quiver_dr_hp = maxi(1, ceili(mana_cost / 10.0))
+			var quiver_dr_hp := maxi(1, ceili(mana_cost / 10.0))
 			stats.take_damage(quiver_dr_hp)
 			buff_mgr.consume_demonic_rage()
 			print("[MAIN] Quiver: Demonic Rage paid %d health instead of %d mana" % [quiver_dr_hp, mana_cost])
@@ -14611,8 +13574,8 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 			stats.spend_mana(mana_cost)
 
 	# Execute the card
-	var damage_reduction = debuff_mgr.get_damage_reduction_percent() if debuff_mgr else 0.0
-	var self_damage = debuff_mgr.get_self_damage_percent() if debuff_mgr else 0.0
+	var damage_reduction := debuff_mgr.get_damage_reduction_percent() if debuff_mgr else 0.0
+	var self_damage := debuff_mgr.get_self_damage_percent() if debuff_mgr else 0.0
 	PlayerStats.hit_source_offensive = card.is_offensive()
 	PlayerStats.hit_source_direct = true
 	Card.play_scope_open = true
@@ -14679,10 +13642,10 @@ func _on_overcharge_triggered(effect_id: String, value: int) -> void:
 	match effect_id:
 		"composed_reaction":
 			# Composed Response: the overflow becomes a reaction card in hand.
-			deck_manager.add_card_to_hand(Card.create_composed_reaction())
+			deck_manager.add_card_to_hand(Card.create_by_id("composed_reaction"))
 			add_battle_log("Whirling Weapon readied.", Color(0.7, 0.85, 1.0))
 		"damage_all":
-			var enemies = enemy_spawner.get_living_enemies()
+			var enemies := enemy_spawner.get_living_enemies()
 			for enemy in enemies:
 				enemy.take_damage(value, true)
 			print("[MAIN] Overcharge: Dealt %d damage to %d enemies" % [value, enemies.size()])
@@ -14697,10 +13660,10 @@ func _spawn_bull_worms(count: int) -> void:
 	## Summon burrowed worm allies on free tiles beside the player.
 	if not grid_manager:
 		return
-	var player_cell = grid_manager.world_to_grid(player.position)
-	var blocked = player.blocked_tiles
-	var enemy_cells = _living_enemy_cells()
-	var offsets = [
+	var player_cell := grid_manager.world_to_grid(player.position)
+	var blocked := player.blocked_tiles
+	var enemy_cells := _living_enemy_cells()
+	var offsets := [
 		Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
 		Vector2i(1, 1), Vector2i(-1, -1), Vector2i(2, 0), Vector2i(0, 2),
 	]
@@ -14713,7 +13676,7 @@ func _spawn_bull_worms(count: int) -> void:
 		if cell == player_cell or cell in blocked or cell in enemy_cells or cell in used:
 			continue
 		used.append(cell)
-		var worm = SummonedWormScript.new()
+		var worm := SummonedWormScript.new()
 		add_child(worm)
 		worm.setup(grid_manager, grid_manager.grid_to_world(cell))
 		worm.died.connect(func(w): _garmr_death_stack(w.position); _summoned_worms.erase(w))
@@ -14737,14 +13700,14 @@ func _update_summoned_worms() -> void:
 	_summoned_worms = _summoned_worms.filter(func(w): return is_instance_valid(w) and not w.is_dead)
 	if not grid_manager or not enemy_spawner:
 		return
-	var enemies = enemy_spawner.get_living_enemies()
-	var blocked = player.blocked_tiles
+	var enemies := enemy_spawner.get_living_enemies()
+	var blocked := player.blocked_tiles
 
 	# Enemies swat adjacent SURFACED worms (burrowed = untargetable).
 	for enemy in enemies:
 		if not is_instance_valid(enemy) or not enemy.is_alive():
 			continue
-		var ecell = grid_manager.world_to_grid(enemy.position)
+		var ecell := grid_manager.world_to_grid(enemy.position)
 		for worm in _summoned_worms.duplicate():
 			if not is_instance_valid(worm) or worm.is_dead or worm.burrowed:
 				continue
@@ -14760,11 +13723,11 @@ func _update_summoned_worms() -> void:
 	for worm in _summoned_worms.duplicate():
 		if not is_instance_valid(worm) or worm.is_dead:
 			continue
-		var target_enemy = _nearest_enemy_to(worm.position, enemies)
+		var target_enemy := _nearest_enemy_to(worm.position, enemies)
 		if target_enemy == null:
 			continue
 		var wcell = worm.get_cell()
-		var tcell = grid_manager.world_to_grid(target_enemy.position)
+		var tcell := grid_manager.world_to_grid(target_enemy.position)
 		if _manhattan(wcell, tcell) <= 1:
 			# Bite! Surfacing ends the burrow (worm becomes targetable).
 			if worm.burrowed:
@@ -14775,7 +13738,7 @@ func _update_summoned_worms() -> void:
 			_belthronding_share(worm.position, worm.CONTACT_DAMAGE)
 			continue
 		# 1 movement per tempo while hunting.
-		var next_cell = _rat_step_toward(wcell, tcell, blocked, _living_enemy_cells(), worm_cells)
+		var next_cell := _rat_step_toward(wcell, tcell, blocked, _living_enemy_cells(), worm_cells)
 		if next_cell != wcell:
 			worm_cells.erase(wcell)
 			worm_cells.append(next_cell)
@@ -14831,13 +13794,13 @@ func _resurrect_frankenstein(aim: Vector3) -> void:
 	if not grid_manager or not player:
 		return
 	# Drop any corpses whose tile is now occupied by a living enemy or the player.
-	var player_cell = grid_manager.world_to_grid(player.position)
-	var enemy_cells = _living_enemy_cells()
+	var player_cell := grid_manager.world_to_grid(player.position)
+	var enemy_cells := _living_enemy_cells()
 	# Pick the corpse closest to the aimed point, within reach of it.
 	var best_idx := -1
 	var best_dist := INF
 	for i in range(_corpses.size()):
-		var d = grid_manager.get_distance_in_cells(aim, _corpses[i]["position"])
+		var d := grid_manager.get_distance_in_cells(aim, _corpses[i]["position"])
 		if d <= ITS_ALIVE_REACH and d < best_dist:
 			best_dist = d
 			best_idx = i
@@ -14848,7 +13811,7 @@ func _resurrect_frankenstein(aim: Vector3) -> void:
 	_corpses.remove_at(best_idx)
 	# Find a free tile at/near the corpse (its own cell first).
 	var spawn_cell: Vector2i = corpse["cell"]
-	var blocked = player.blocked_tiles
+	var blocked := player.blocked_tiles
 	if spawn_cell == player_cell or spawn_cell in enemy_cells or spawn_cell in blocked:
 		var placed := false
 		for off in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
@@ -14860,9 +13823,9 @@ func _resurrect_frankenstein(aim: Vector3) -> void:
 		if not placed:
 			add_battle_log("ITS ALIVE!!!!! fizzles — no room to raise the corpse.", Color(0.7, 0.7, 0.7))
 			return
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	var summoner_int: int = stats.intelligence if stats else 0
-	var monster = FrankensteinScript.new()
+	var monster := FrankensteinScript.new()
 	add_child(monster)
 	monster.setup(grid_manager, grid_manager.grid_to_world(spawn_cell), summoner_int)
 	monster.died.connect(func(m): _garmr_death_stack(m.position); _frankensteins.erase(m))
@@ -14884,8 +13847,8 @@ func _update_frankensteins(amount: int) -> void:
 	_frankensteins = _frankensteins.filter(func(m): return is_instance_valid(m) and not m.is_dead)
 	if not grid_manager or not enemy_spawner:
 		return
-	var enemies = enemy_spawner.get_living_enemies()
-	var blocked = player.blocked_tiles
+	var enemies := enemy_spawner.get_living_enemies()
+	var blocked := player.blocked_tiles
 
 	# NOTE: enemies treat the monster like any other unit. Today enemy AI only
 	# targets players, so nothing here makes enemies attack it — making summons
@@ -14899,10 +13862,10 @@ func _update_frankensteins(amount: int) -> void:
 	for m in _frankensteins.duplicate():
 		if not is_instance_valid(m) or m.is_dead:
 			continue
-		var target_enemy = _nearest_enemy_to(m.position, enemies)
+		var target_enemy := _nearest_enemy_to(m.position, enemies)
 		if target_enemy == null:
 			continue
-		var tcell = grid_manager.world_to_grid(target_enemy.position)
+		var tcell := grid_manager.world_to_grid(target_enemy.position)
 		# Attack on cadence when adjacent.
 		m.attack_accum += amount
 		if _manhattan(m.get_cell(), tcell) <= 1:
@@ -14922,10 +13885,10 @@ func _update_frankensteins(amount: int) -> void:
 			var cur = m.get_cell()
 			mon_cells.erase(cur)
 			for _step in range(m.MOVE_STEPS):
-				var tc = grid_manager.world_to_grid(target_enemy.position)
+				var tc := grid_manager.world_to_grid(target_enemy.position)
 				if _manhattan(cur, tc) <= 1:
 					break
-				var nxt = _rat_step_toward(cur, tc, blocked, _living_enemy_cells(), mon_cells)
+				var nxt := _rat_step_toward(cur, tc, blocked, _living_enemy_cells(), mon_cells)
 				if nxt == cur:
 					break
 				cur = nxt
@@ -14941,14 +13904,14 @@ func _nearest_enemy_to(pos: Vector3, enemies: Array) -> Enemy:
 	for e in enemies:
 		if not is_instance_valid(e) or not e.is_alive() or e.is_hidden():
 			continue  # the unseen are skipped by summons and auto-aim alike
-		var d = pos.distance_to(e.position)
+		var d := pos.distance_to(e.position)
 		if d < nearest_dist:
 			nearest_dist = d
 			nearest = e
 	return nearest
 
 func _rat_step_toward(cell: Vector2i, target: Vector2i, blocked: Array, enemy_cells: Array, rat_cells: Array) -> Vector2i:
-	var player_cell = grid_manager.world_to_grid(player.position)
+	var player_cell := grid_manager.world_to_grid(player.position)
 	var best = cell
 	var best_dist = _manhattan(cell, target)
 	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
@@ -14957,7 +13920,7 @@ func _rat_step_toward(cell: Vector2i, target: Vector2i, blocked: Array, enemy_ce
 			continue
 		if cand in blocked or cand in enemy_cells or cand in rat_cells:
 			continue
-		var dist = _manhattan(cand, target)
+		var dist := _manhattan(cand, target)
 		if dist < best_dist:
 			best_dist = dist
 			best = cand
@@ -14973,7 +13936,7 @@ func _manhattan(a: Vector2i, b: Vector2i) -> int:
 # ============================================
 
 func _setup_donation_panel() -> void:
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 	_donation_panel = PanelContainer.new()
 	_donation_panel.name = "DonationPanel"
 	ui.add_child(_donation_panel)
@@ -14984,7 +13947,7 @@ func _setup_donation_panel() -> void:
 	_donation_panel.offset_bottom = 160.0
 	_donation_panel.custom_minimum_size = Vector2(360, 320)
 
-	var style = StyleBoxFlat.new()
+	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.08, 0.08, 0.12, 0.95)
 	style.border_width_left = 2
 	style.border_width_right = 2
@@ -15001,21 +13964,21 @@ func _setup_donation_panel() -> void:
 	style.content_margin_bottom = 12.0
 	_donation_panel.add_theme_stylebox_override("panel", style)
 
-	var vbox = VBoxContainer.new()
+	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 8)
 	_donation_panel.add_child(vbox)
 
-	var title = Label.new()
+	var title := Label.new()
 	title.text = "Communal Donation"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 18)
 	title.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
 	vbox.add_child(title)
 
-	var sep = HSeparator.new()
+	var sep := HSeparator.new()
 	vbox.add_child(sep)
 
-	var desc = Label.new()
+	var desc := Label.new()
 	desc.text = "Choose how much HP to sacrifice.\nHealing is split among your allies."
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc.add_theme_font_size_override("font_size", 12)
@@ -15023,11 +13986,11 @@ func _setup_donation_panel() -> void:
 	vbox.add_child(desc)
 
 	# HP donation slider
-	var slider_hbox = HBoxContainer.new()
+	var slider_hbox := HBoxContainer.new()
 	slider_hbox.add_theme_constant_override("separation", 8)
 	vbox.add_child(slider_hbox)
 
-	var slider_label = Label.new()
+	var slider_label := Label.new()
 	slider_label.text = "HP to donate:"
 	slider_label.add_theme_font_size_override("font_size", 14)
 	slider_hbox.add_child(slider_label)
@@ -15049,7 +14012,7 @@ func _setup_donation_panel() -> void:
 	_donation_amount_label.custom_minimum_size = Vector2(30, 0)
 	slider_hbox.add_child(_donation_amount_label)
 
-	var sep2 = HSeparator.new()
+	var sep2 := HSeparator.new()
 	vbox.add_child(sep2)
 
 	# Ally allocation section (populated when panel opens)
@@ -15058,19 +14021,19 @@ func _setup_donation_panel() -> void:
 	vbox.add_child(_donation_ally_container)
 
 	# Buttons
-	var btn_hbox = HBoxContainer.new()
+	var btn_hbox := HBoxContainer.new()
 	btn_hbox.add_theme_constant_override("separation", 12)
 	btn_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.add_child(btn_hbox)
 
-	var confirm_btn = Button.new()
+	var confirm_btn := Button.new()
 	confirm_btn.text = "Donate"
 	confirm_btn.add_theme_font_size_override("font_size", 14)
 	confirm_btn.custom_minimum_size = Vector2(100, 30)
 	confirm_btn.pressed.connect(_on_donation_confirmed)
 	btn_hbox.add_child(confirm_btn)
 
-	var cancel_btn = Button.new()
+	var cancel_btn := Button.new()
 	cancel_btn.text = "Cancel"
 	cancel_btn.add_theme_font_size_override("font_size", 14)
 	cancel_btn.custom_minimum_size = Vector2(100, 30)
@@ -15080,13 +14043,6 @@ func _setup_donation_panel() -> void:
 	_donation_panel.visible = false
 
 var _donation_heal_to_damage: bool = false  # Communal Donation was cast under Poisoned Blood
-
-func _get_ally_names() -> Array:
-	## Returns names of all living allies that can receive healing.
-	var names: Array = []
-	for t in _donation_targets():
-		names.append(t["name"])
-	return names
 
 ## Everyone Communal Donation can heal: the co-op partner, the dojo's practice
 ## allies, and every summon on the board ("allies" = NPCs, summons and other
@@ -15109,24 +14065,8 @@ func _donation_targets() -> Array:
 		out.append({"name": "Self", "node": player})
 	return out
 
-func _ally_stats_by_name(ally_name: String):
-	## Resolve an ally display name (from the donation panel) to its PlayerStats.
-	## Currently the co-op partner; summoned creatures have no stats object.
-	var candidates: Array = []
-	if _p1_player and _p1_player != player:
-		candidates.append(_p1_player)
-	if _p2_player and _p2_player != player:
-		candidates.append(_p2_player)
-	for p in candidates:
-		if not is_instance_valid(p) or not p.has_method("get_stats"):
-			continue
-		var s = p.get_stats()
-		if s and s.character_data and s.character_data.character_name == ally_name:
-			return s
-	return null
-
 func _open_donation_panel() -> void:
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if not stats:
 		return
 	_donation_active = true
@@ -15148,18 +14088,18 @@ func _open_donation_panel() -> void:
 		ally_names.append(dt["name"])
 		ally_nodes.append(dt["node"])
 	for ally_name in ally_names:
-		var row = HBoxContainer.new()
+		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 6)
 		_donation_ally_container.add_child(row)
 
-		var name_lbl = Label.new()
+		var name_lbl := Label.new()
 		name_lbl.text = ally_name
 		name_lbl.custom_minimum_size = Vector2(100, 0)
 		name_lbl.add_theme_font_size_override("font_size", 13)
 		name_lbl.add_theme_color_override("font_color", Color(0.5, 1.0, 0.5))
 		row.add_child(name_lbl)
 
-		var slider = HSlider.new()
+		var slider := HSlider.new()
 		slider.min_value = 0
 		slider.max_value = int(_donation_slider.value)
 		slider.step = 1
@@ -15168,7 +14108,7 @@ func _open_donation_panel() -> void:
 		slider.custom_minimum_size = Vector2(120, 0)
 		row.add_child(slider)
 
-		var val_lbl = Label.new()
+		var val_lbl := Label.new()
 		val_lbl.text = str(int(slider.value))
 		val_lbl.custom_minimum_size = Vector2(25, 0)
 		val_lbl.add_theme_font_size_override("font_size", 13)
@@ -15191,11 +14131,11 @@ func _on_donation_confirmed() -> void:
 	_donation_panel.visible = false
 	_donation_active = false
 
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	if not stats:
 		return
 
-	var self_damage = int(_donation_slider.value)
+	var self_damage := int(_donation_slider.value)
 	if self_damage <= 0:
 		return
 
@@ -15208,7 +14148,7 @@ func _on_donation_confirmed() -> void:
 	PlayerStats.heal_to_damage = _donation_heal_to_damage
 	var total_healed = 0
 	for entry in _donation_ally_sliders:
-		var heal_amount = int(entry["slider"].value)
+		var heal_amount := int(entry["slider"].value)
 		if heal_amount <= 0:
 			continue
 		var ally_name: String = entry["name"]
@@ -15259,40 +14199,40 @@ func _set_player_invisible(invisible: bool) -> void:
 func _spawn_barricade() -> void:
 	## Spawns 3 brown obstacle boxes in the 3 tiles directly in front of the player
 	## (based on the direction from player to mouse cursor), completing a wall.
-	var mouse_pos = get_mouse_world_position()
-	var diff = mouse_pos - player.position
-	var forward = Vector3(diff.x, 0, diff.z).normalized()
+	var mouse_pos := get_mouse_world_position()
+	var diff := mouse_pos - player.position
+	var forward := Vector3(diff.x, 0, diff.z).normalized()
 
 	# Get the perpendicular direction for the wall spread
-	var right = Vector3(-forward.z, 0, forward.x)
+	var right := Vector3(-forward.z, 0, forward.x)
 
 	# Place the center block 1 tile forward, then one on each side
-	var center = player.position + forward * grid_manager.grid_size
-	var positions = [
+	var center := player.position + forward * grid_manager.grid_size
+	var positions := [
 		grid_manager.snap_to_grid(center - right * grid_manager.grid_size),
 		grid_manager.snap_to_grid(center),
 		grid_manager.snap_to_grid(center + right * grid_manager.grid_size),
 	]
 
 	for pos in positions:
-		var obstacle = _create_obstacle_box(pos, 3)
+		var obstacle := _create_obstacle_box(pos, 3)
 		barricade_obstacles.append(obstacle)
 
 	_sync_blocked_tiles()
 	print("[MAIN] Barricade: spawned 3 obstacles in front of player")
 
 func _create_obstacle_box(pos: Vector3, health: int) -> Dictionary:
-	var marker = MeshInstance3D.new()
-	var box_mesh = BoxMesh.new()
+	var marker := MeshInstance3D.new()
+	var box_mesh := BoxMesh.new()
 	box_mesh.size = Vector3(0.9, 0.9, 0.9)
 	marker.mesh = box_mesh
-	var mat = StandardMaterial3D.new()
+	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.55, 0.35, 0.15)  # Brown
 	marker.material_override = mat
 	marker.position = Vector3(pos.x, 0.45, pos.z)
 	add_child(marker)
 
-	var label = Label3D.new()
+	var label := Label3D.new()
 	label.text = "HP: %d" % health
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.font_size = 24
@@ -15336,7 +14276,7 @@ func _sync_blocked_tiles() -> void:
 
 func _sync_occupied_tiles() -> void:
 	## Tells each enemy where every OTHER enemy currently stands so they don't stack.
-	var living = enemy_spawner.get_living_enemies()
+	var living := enemy_spawner.get_living_enemies()
 	var all_cells: Array[Vector2i] = []
 	for enemy in living:
 		all_cells.append(grid_manager.world_to_grid(enemy.position))
@@ -15365,7 +14305,7 @@ func spawn_town_portal(at = null) -> void:
 	if is_instance_valid(_town_portal_node):
 		_town_portal_node.queue_free()
 
-	var portal_root = Node3D.new()
+	var portal_root := Node3D.new()
 	portal_root.name = "TownPortal"
 	var spot
 	if at != null:
@@ -15380,14 +14320,14 @@ func spawn_town_portal(at = null) -> void:
 	var pillar := DungeonManager.make_waypoint_totem(Color(1, 1, 1).lerp(Color(0.6, 0.25, 0.95), 0.6))
 	portal_root.add_child(pillar)
 
-	var label = Label3D.new()
+	var label := Label3D.new()
 	label.text = "Town Portal"
 	label.modulate = Color(0.85, 0.6, 1.0)
 	label.position = Vector3(0, 2.3, 0)
 	WorldText.crisp(label, 18)
 	portal_root.add_child(label)
 
-	var interact_label = Label3D.new()
+	var interact_label := Label3D.new()
 	interact_label.text = "[Shift] Enter"
 	interact_label.modulate = Color(1.0, 0.9, 0.4)
 	interact_label.position = Vector3(0, 2.0, 0)
@@ -15402,7 +14342,7 @@ func spawn_town_portal(at = null) -> void:
 func _try_interact_town_portal() -> bool:
 	if not is_instance_valid(_town_portal_node):
 		return false
-	var flat_dist = Vector2(player.position.x - _town_portal_node.position.x,
+	var flat_dist := Vector2(player.position.x - _town_portal_node.position.x,
 			player.position.z - _town_portal_node.position.z).length()
 	if flat_dist > grid_manager.grid_size * 1.6:
 		return false
@@ -15427,18 +14367,18 @@ func _spawn_pillar(pos: Vector3) -> void:
 	## Creates a brown cylinder pillar at the target position.
 	## If a character is on that tile, they get elevated on top.
 	## Pillar disappears after 5 tempo.
-	var pillar_root = Node3D.new()
+	var pillar_root := Node3D.new()
 	pillar_root.position = Vector3(pos.x, 0, pos.z)
 	add_child(pillar_root)
 
-	var pillar_mesh = MeshInstance3D.new()
-	var cylinder = CylinderMesh.new()
+	var pillar_mesh := MeshInstance3D.new()
+	var cylinder := CylinderMesh.new()
 	cylinder.top_radius = 0.4
 	cylinder.bottom_radius = 0.4
 	cylinder.height = 2.0
 	cylinder.radial_segments = 8  # faceted, not smooth-round
 	pillar_mesh.mesh = cylinder
-	var mat = StandardMaterial3D.new()
+	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.78, 0.62, 0.45)  # warm cast over the rock tiles
 	mat.albedo_texture = load(dungeon_manager.wall_texture_path() if dungeon_manager else "res://assets/textures/tile_rock.png")
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
@@ -15449,7 +14389,7 @@ func _spawn_pillar(pos: Vector3) -> void:
 	pillar_mesh.position = Vector3(0, 1.0, 0)  # Center of cylinder at Y=1
 	pillar_root.add_child(pillar_mesh)
 
-	var label = Label3D.new()
+	var label := Label3D.new()
 	label.text = "Pillar"
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.font_size = 24
@@ -15457,21 +14397,21 @@ func _spawn_pillar(pos: Vector3) -> void:
 	WorldText.crisp(label)
 	pillar_root.add_child(label)
 
-	var pillar_data = {"node": pillar_root, "position": pos, "tempo_remaining": 5}
+	var pillar_data := {"node": pillar_root, "position": pos, "tempo_remaining": 5}
 	active_pillars.append(pillar_data)
 
 	# Check if player is on this tile and elevate them
-	var pillar_grid = grid_manager.world_to_grid(pos)
-	var player_grid = grid_manager.world_to_grid(player.position)
+	var pillar_grid := grid_manager.world_to_grid(pos)
+	var player_grid := grid_manager.world_to_grid(player.position)
 	if pillar_grid == player_grid:
 		player.position.y = 2.0
 		player.target_position.y = 2.0
 		print("[MAIN] Rise: player elevated on pillar!")
 
 	# Check if any enemy is on this tile and elevate them
-	var enemies = enemy_spawner.get_living_enemies()
+	var enemies := enemy_spawner.get_living_enemies()
 	for enemy in enemies:
-		var enemy_grid = grid_manager.world_to_grid(enemy.position)
+		var enemy_grid := grid_manager.world_to_grid(enemy.position)
 		if enemy_grid == pillar_grid:
 			enemy.position.y = 2.0
 			enemy.target_position = enemy.position
@@ -15494,18 +14434,18 @@ func _process_pillars(tempo_amount: int) -> void:
 
 func _remove_pillar(pillar: Dictionary) -> void:
 	var pos = pillar["position"]
-	var pillar_grid = grid_manager.world_to_grid(pos)
+	var pillar_grid := grid_manager.world_to_grid(pos)
 
 	# Lower any characters that were on the pillar
-	var player_grid = grid_manager.world_to_grid(player.position)
+	var player_grid := grid_manager.world_to_grid(player.position)
 	if pillar_grid == player_grid and player.position.y > 0.1:
 		player.position.y = 0.0
 		player.target_position.y = 0.0
 		print("[MAIN] Pillar expired: player lowered")
 
-	var enemies = enemy_spawner.get_living_enemies()
+	var enemies := enemy_spawner.get_living_enemies()
 	for enemy in enemies:
-		var enemy_grid = grid_manager.world_to_grid(enemy.position)
+		var enemy_grid := grid_manager.world_to_grid(enemy.position)
 		if enemy_grid == pillar_grid and enemy.position.y > 0.1:
 			enemy.position.y = 0.0
 			enemy.target_position = enemy.position
@@ -15523,9 +14463,9 @@ func _sync_pillar_tiles() -> void:
 		enemy.pillar_tiles = tiles
 
 func is_on_pillar(world_pos: Vector3) -> bool:
-	var check_grid = grid_manager.world_to_grid(world_pos)
+	var check_grid := grid_manager.world_to_grid(world_pos)
 	for pillar in active_pillars:
-		var pillar_grid = grid_manager.world_to_grid(pillar["position"])
+		var pillar_grid := grid_manager.world_to_grid(pillar["position"])
 		if pillar_grid == check_grid:
 			return true
 	return false
@@ -15537,7 +14477,7 @@ func _is_on_high_ground(world_pos: Vector3) -> bool:
 	if _is_climbed_tree(world_pos):
 		return true
 	if dungeon_manager:
-		var grid_pos = grid_manager.world_to_grid(world_pos)
+		var grid_pos := grid_manager.world_to_grid(world_pos)
 		return dungeon_manager.get_elevation(grid_pos) > 0
 	return false
 
@@ -15551,48 +14491,15 @@ func _has_high_ground(attacker_pos: Vector3, target) -> bool:
 	if _is_climbed_tree(attacker_pos):
 		return true
 	if dungeon_manager and target and is_instance_valid(target):
-		var attacker_grid = grid_manager.world_to_grid(attacker_pos)
-		var target_grid = grid_manager.world_to_grid(target.position)
+		var attacker_grid := grid_manager.world_to_grid(attacker_pos)
+		var target_grid := grid_manager.world_to_grid(target.position)
 		return dungeon_manager.get_elevation(attacker_grid) > dungeon_manager.get_elevation(target_grid)
 	return false
 
 #endregion
 #region DEBUG: OVERFLOW & REACTION HANDLERS
-func _on_apply_overflow(overflow_name: String) -> void:
-	var effect: OverflowEffect = null
-	
-	match overflow_name:
-		"Jailed (3)":
-			effect = OverflowEffect.create_jailed(3, "Test")
-		"Manifest: Skeleton (3)":
-			effect = OverflowEffect.create_manifest_skeleton(3, "Test")
-		"Manifest: Mushroom (∞)":
-			effect = OverflowEffect.create_manifest_mushroom(-1, "Test")
-		"Manifest: Spirit (3)":
-			effect = OverflowEffect.create_manifest_spirit(3, "Test")
-		"Enhance +3 (3)":
-			effect = OverflowEffect.create_enhance(3, 3, "Test")
-		"Skip (3)":
-			effect = OverflowEffect.create_skip(3, "Test")
-		"Peak (∞)":
-			effect = OverflowEffect.create_peak(-1, "Test")
-		"Overcharge: +2 Health (∞)":
-			effect = OverflowEffect.create_overcharge_health(2, -1, "Test")
-		"Overcharge: +2 Mana (∞)":
-			effect = OverflowEffect.create_overcharge_mana(20, -1, "Test")
-		"Overcharge: +2 Armor (3)":
-			effect = OverflowEffect.create_overcharge_armor(2, 3, "Test")
-		"Overcharge: 3 Dmg All (3)":
-			effect = OverflowEffect.create_overcharge_damage(3, 3, "Test")
-	
-	if effect:
-		overflow_manager.add_overflow_effect(effect)
-		print("[MAIN] Applied overflow: %s" % overflow_name)
-
-# === Reaction & On Draw handlers ===
-
 func _on_player_damage_taken(_amount: int) -> void:
-	var triggered = deck_manager.trigger_reactions("on_damage_taken")
+	var triggered := deck_manager.trigger_reactions("on_damage_taken")
 	for card in triggered:
 		card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
 		if card.card_id == "composed_reaction":
@@ -15608,12 +14515,12 @@ func _on_player_damage_taken(_amount: int) -> void:
 				cr_nearest.take_damage(card.damage, true)
 				add_battle_log("Whirling Weapon: +%d armor, %d damage to %s" % [card.block, card.damage, cr_nearest.enemy_name], Color(0.7, 0.85, 1.0))
 	# Tight Rope: fires only on the hit that dropped the player below 20% health.
-	var tr_stats = player.get_stats()
+	var tr_stats := player.get_stats()
 	if tr_stats and tr_stats.max_health > 0:
 		var pct := float(tr_stats.current_health) / float(tr_stats.max_health)
 		var prev_pct := float(tr_stats.current_health + _amount) / float(tr_stats.max_health)
 		if pct < 0.2 and prev_pct >= 0.2:
-			var low_triggered = deck_manager.trigger_reactions("on_health_below_20")
+			var low_triggered := deck_manager.trigger_reactions("on_health_below_20")
 			for card in low_triggered:
 				card.execute(null, tr_stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
 			if low_triggered.size() > 0:
@@ -15621,7 +14528,7 @@ func _on_player_damage_taken(_amount: int) -> void:
 		# Preemptive Answer (Divine Resistance): fires on the hit that dropped
 		# the player to 25% health or below.
 		if pct <= 0.25 and prev_pct > 0.25:
-			var pa_triggered = deck_manager.trigger_reactions("on_hp_below_25")
+			var pa_triggered := deck_manager.trigger_reactions("on_hp_below_25")
 			for card in pa_triggered:
 				card.execute(null, tr_stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
 			if pa_triggered.size() > 0:
@@ -15629,7 +14536,7 @@ func _on_player_damage_taken(_amount: int) -> void:
 				_refresh_unit_tracker()
 		# Hammer of Ajax: taking a hit below 30% health feeds the pain.
 		if pct < 0.3 and deck_manager:
-			var fitp = deck_manager.trigger_reactions("on_damage_taken_low")
+			var fitp := deck_manager.trigger_reactions("on_damage_taken_low")
 			for fitp_card in fitp:
 				fitp_card.execute(null, tr_stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
 			if fitp.size() > 0:
@@ -15638,21 +14545,21 @@ func _on_player_damage_taken(_amount: int) -> void:
 		# hand spins at once; a copy that kills climbs back into the hand.
 		tr_stats.hit_streak = mini(5, tr_stats.hit_streak + 1)
 		if tr_stats.hit_streak >= 5 and deck_manager and enemy_spawner:
-			var vortexes = deck_manager.trigger_reactions("on_hit_streak_5")
+			var vortexes := deck_manager.trigger_reactions("on_hit_streak_5")
 			if vortexes.size() > 0:
 				tr_stats.hit_streak = 0
 				for dv_card in vortexes:
 					_fire_instant_site_effect(dv_card, {})
 		# Psionic Flow, guard mode: you (an ally to yourself) were struck.
 		if deck_manager and tr_stats.last_attacker and is_instance_valid(tr_stats.last_attacker):
-			var pf_guard = deck_manager.trigger_reactions("psionic_flow")
+			var pf_guard := deck_manager.trigger_reactions("psionic_flow")
 			for pfg_card in pf_guard:
 				_fire_instant_site_effect(pfg_card, {"mode": "guard", "victim": player, "attacker": tr_stats.last_attacker})
 		# Wooden Plank: the hit that drops you below half health starts a
 		# trickle of Regen.
 		if pct < 0.5 and prev_pct >= 0.5:
-			var wp_inv = player.get_inventory()
-			var wp_bm = player.get_buff_manager()
+			var wp_inv := player.get_inventory()
+			var wp_bm := player.get_buff_manager()
 			if wp_inv and wp_bm:
 				for wp_chest in wp_inv.equipped_chests:
 					if wp_chest and wp_chest.low_health_regen > 0:
@@ -15683,14 +14590,14 @@ func _cover_mitigation(victim_ref, amount: int) -> int:
 	for defender in _all_players():
 		if not is_instance_valid(defender):
 			continue
-		var d_deck = _deck_for_player(defender)
+		var d_deck := _deck_for_player(defender)
 		if d_deck == null:
 			continue
 		var diff = defender.position - victim.position
 		if Vector3(diff.x, 0, diff.z).length() > 2.0:
 			continue
 		var hand_before: int = d_deck.hand.size()
-		var covers = d_deck.trigger_reactions("on_ally_damage_taken")
+		var covers := d_deck.trigger_reactions("on_ally_damage_taken")
 		for i in range(covers.size()):
 			soaked += maxi(0, hand_before - i)
 			_last_played_card = covers[i]
@@ -15745,7 +14652,7 @@ func _fire_instant_site_effect(card: Card, ctx: Dictionary) -> void:
 	if card.card_id != "lethal_recall" and not bool(ctx.get("replay", false)):
 		_last_played_card = card
 		_last_played_target = target
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	match card.card_id:
 		"healthy_bliss":
 			_healthy_bliss_heal(card)
@@ -15775,7 +14682,7 @@ func _fire_instant_site_effect(card: Card, ctx: Dictionary) -> void:
 			rt_enemy.take_damage(rt_dmg, true)
 			add_battle_log("Reaper's Taking! The scythe crosses the field — %d damage to %s!" % [rt_dmg, rt_enemy.enemy_name], Color(0.4, 0.7, 1.0))
 		"death_vortex":
-			var spun = enemy_spawner.get_enemies_in_radius(player.position, 1.5)
+			var spun := enemy_spawner.get_enemies_in_radius(player.position, 1.5)
 			var dv_kills := 0
 			for dv_en in spun:
 				if dv_en and is_instance_valid(dv_en) and not dv_en.is_dead:
@@ -15831,9 +14738,9 @@ func _weakest_enemy_within(tiles: int) -> Enemy:
 func _on_card_on_draw_triggered(card: Card) -> void:
 	match card.on_draw_effect:
 		"deal_4_random_enemy":
-			var enemies = enemy_spawner.get_living_enemies()
+			var enemies := enemy_spawner.get_living_enemies()
 			if enemies.size() > 0:
-				var random_enemy = enemies[randi() % enemies.size()]
+				var random_enemy := enemies[randi() % enemies.size()]
 				random_enemy.take_damage(4, true)
 				print("[MAIN] %s On Draw: dealt 4 damage to %s" % [card.card_name, random_enemy.enemy_name])
 			else:
@@ -15852,7 +14759,7 @@ func _on_card_on_draw_triggered(card: Card) -> void:
 				print("[MAIN] %s On Draw: drew 3 cards" % card.card_name)
 		"gain_3_armor_cleanse_1":
 			var stats = player.get_stats()
-			var buff_mgr = player.get_buff_manager()
+			var buff_mgr := player.get_buff_manager()
 			if stats:
 				stats.add_armor(3)
 			if buff_mgr:
@@ -15888,7 +14795,7 @@ func _on_loot_dropped(loot: Dictionary, pos: Vector3) -> void:
 		# First-room tutorial: this rat carried the Bladed Doughnut. Olorin
 		# steps in to explain item levels while it glints on the ground.
 		_pending_doughnut_drop = false
-		loot["item"] = ItemData.create_bladed_doughnut()
+		loot["item"] = ItemData.create("bladed_doughnut")
 		if olorin:
 			olorin.show_item_levels_intro()
 	elif _pending_mythic_item:
@@ -15985,18 +14892,6 @@ func _mesh_sphere(r: float) -> SphereMesh:
 	s.height = r * 2.0
 	return s
 
-func _mesh_box(size: Vector3) -> BoxMesh:
-	var b := BoxMesh.new()
-	b.size = size
-	return b
-
-func _mesh_cyl(r: float, h: float) -> CylinderMesh:
-	var c := CylinderMesh.new()
-	c.top_radius = r
-	c.bottom_radius = r
-	c.height = h
-	return c
-
 ## Loot keys scooped up the moment a player steps on the pile (currency and
 ## consumables); everything else waits in the loot menu for a click.
 const LOOT_AUTO_KEYS := ["gold", "culling_stones", "holy_water"]
@@ -16067,7 +14962,7 @@ func _close_loot_menu() -> void:
 func _ensure_loot_menu() -> void:
 	if _loot_menu and is_instance_valid(_loot_menu):
 		return
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 	_loot_menu = PanelContainer.new()
 	_loot_menu.name = "LootMenu"
 	_loot_menu.z_index = 250
@@ -16080,7 +14975,7 @@ func _ensure_loot_menu() -> void:
 	_loot_menu.offset_bottom = 40.0
 	_loot_menu.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_loot_menu.grow_vertical = Control.GROW_DIRECTION_BOTH
-	var style = StyleBoxFlat.new()
+	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.1, 0.09, 0.06, 0.96)
 	style.border_width_left = 2
 	style.border_width_right = 2
@@ -16096,10 +14991,10 @@ func _ensure_loot_menu() -> void:
 	style.content_margin_top = 8
 	style.content_margin_bottom = 8
 	_loot_menu.add_theme_stylebox_override("panel", style)
-	var vbox = VBoxContainer.new()
+	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 6)
 	_loot_menu.add_child(vbox)
-	var title = Label.new()
+	var title := Label.new()
 	title.text = "Loot"
 	title.add_theme_font_size_override("font_size", 16)
 	title.add_theme_color_override("font_color", Color(1.0, 0.9, 0.55))
@@ -16107,15 +15002,15 @@ func _ensure_loot_menu() -> void:
 	_loot_menu_list = VBoxContainer.new()
 	_loot_menu_list.add_theme_constant_override("separation", 4)
 	vbox.add_child(_loot_menu_list)
-	var row = HBoxContainer.new()
+	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
 	vbox.add_child(row)
-	var all_btn = Button.new()
+	var all_btn := Button.new()
 	all_btn.text = "Loot All"
 	all_btn.focus_mode = Control.FOCUS_NONE
 	all_btn.pressed.connect(_loot_take_all)
 	row.add_child(all_btn)
-	var leave_btn = Button.new()
+	var leave_btn := Button.new()
 	leave_btn.text = "Leave"
 	leave_btn.focus_mode = Control.FOCUS_NONE
 	leave_btn.pressed.connect(_close_loot_menu)
@@ -16133,17 +15028,17 @@ func _refresh_loot_menu() -> void:
 		if loot.get(key) == null:
 			continue
 		var info: Dictionary = _loot_entry_info(key, loot[key])
-		var row = HBoxContainer.new()
+		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		row.mouse_filter = Control.MOUSE_FILTER_STOP
-		var name_lbl = Label.new()
+		var name_lbl := Label.new()
 		name_lbl.text = info["name"]
 		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_lbl.add_theme_font_size_override("font_size", 14)
 		name_lbl.add_theme_color_override("font_color", info["color"])
 		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(name_lbl)
-		var take = Button.new()
+		var take := Button.new()
 		take.text = "Loot"
 		take.focus_mode = Control.FOCUS_NONE
 		take.pressed.connect(_loot_take.bind(key))
@@ -16221,7 +15116,7 @@ func _start_mythic_reveal(item: ItemData, looter: Player) -> void:
 	add_battle_log("A MYTHIC reveals itself: %s!" % item.item_name, Color(0.9, 0.35, 0.9))
 
 func _finish_mythic_reveal(item: ItemData, looter: Player) -> void:
-	var inv = looter.get_inventory() if is_instance_valid(looter) else (player.get_inventory() if player else null)
+	var inv := looter.get_inventory() if is_instance_valid(looter) else (player.get_inventory() if player else null)
 	if inv == null:
 		return
 	if inv.store_item(item) or inv.stash_item(item):
@@ -16249,7 +15144,7 @@ func _maybe_open_mythic_find(item: ItemData) -> void:
 func _try_click_mythic_reveal() -> bool:
 	if _mythic_reveals.is_empty():
 		return false
-	var mouse_pos = get_mouse_world_position()
+	var mouse_pos := get_mouse_world_position()
 	for reveal in _mythic_reveals.duplicate():
 		if is_instance_valid(reveal) and reveal.try_click(mouse_pos):
 			return true
@@ -16270,13 +15165,13 @@ func _pop_loot_drop(node: Node3D) -> void:
 
 func _loot_summary(loot: Dictionary) -> String:
 	var parts: Array[String] = []
-	var gold = int(loot.get("gold", 0))
+	var gold := int(loot.get("gold", 0))
 	if gold > 0:
 		parts.append("+%d Gold" % gold)
-	var stones = int(loot.get("culling_stones", 0))
+	var stones := int(loot.get("culling_stones", 0))
 	if stones > 0:
 		parts.append("+%d Culling Stone%s" % [stones, "s" if stones > 1 else ""])
-	var vials = int(loot.get("holy_water", 0))
+	var vials := int(loot.get("holy_water", 0))
 	if vials > 0:
 		parts.append("+%d Holy Water" % vials)
 	var item: ItemData = loot.get("item")
@@ -16296,7 +15191,7 @@ func _update_loot_hover() -> void:
 		if _loot_tooltip:
 			_loot_tooltip.visible = false
 		return
-	var mouse_world = get_mouse_world_position()
+	var mouse_world := get_mouse_world_position()
 	var hovered: Dictionary = {}
 	if mouse_world != Vector3.ZERO:
 		var cell: Vector2i = grid_manager.world_to_grid(mouse_world)
@@ -16312,10 +15207,10 @@ func _update_loot_hover() -> void:
 	_loot_tooltip_label.text = "Loot\n" + _loot_summary(hovered["loot"])
 	_loot_tooltip.visible = true
 	# Beside the cursor, kept on screen
-	var mouse_pos = get_viewport().get_mouse_position()
+	var mouse_pos := get_viewport().get_mouse_position()
 	_loot_tooltip.reset_size()
-	var pos = mouse_pos + Vector2(18, -12)
-	var screen = get_viewport().get_visible_rect().size
+	var pos := mouse_pos + Vector2(18, -12)
+	var screen := get_viewport().get_visible_rect().size
 	if pos.x + _loot_tooltip.size.x > screen.x:
 		pos.x = mouse_pos.x - _loot_tooltip.size.x - 12
 	if pos.y + _loot_tooltip.size.y > screen.y:
@@ -16325,11 +15220,11 @@ func _update_loot_hover() -> void:
 func _ensure_loot_tooltip() -> void:
 	if _loot_tooltip and is_instance_valid(_loot_tooltip):
 		return
-	var ui = $UI as CanvasLayer
+	var ui := $UI as CanvasLayer
 	_loot_tooltip = PanelContainer.new()
 	_loot_tooltip.name = "LootTooltip"
 	_loot_tooltip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style = StyleBoxFlat.new()
+	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.1, 0.09, 0.06, 0.94)
 	style.border_width_left = 2
 	style.border_width_right = 2
@@ -16370,7 +15265,7 @@ func _collect_loot(loot: Dictionary, looter: Player) -> void:
 			messages.append("+%d Culling Stone" % culling_stones)
 
 	# Holy Water vials — poured into a Healing Fountain to bless it again.
-	var vials = int(loot.get("holy_water", 0))
+	var vials := int(loot.get("holy_water", 0))
 	if vials > 0:
 		looter.get_stats().gain_holy_water(vials)
 		messages.append("+%d Holy Water" % vials)
@@ -16423,7 +15318,7 @@ func _collect_loot(loot: Dictionary, looter: Player) -> void:
 			add_battle_log("Ripped open a %s!" % pack.get_display_name(), pack.get_tier_color())
 
 	if messages.size() > 0:
-		var loot_text = "Looted: " + ", ".join(messages)
+		var loot_text := "Looted: " + ", ".join(messages)
 		add_battle_log(loot_text, Color(1.0, 0.85, 0.2))
 		print("[MAIN] %s" % loot_text)
 
@@ -16439,7 +15334,7 @@ func _collect_loot(loot: Dictionary, looter: Player) -> void:
 
 func _restore_player_progression(progression: Dictionary) -> void:
 	## Restore persistent player state after a world transition.
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 
 	# Restore stats (level, XP, base stats, sphere bonuses, skill tree passives)
 	if stats and progression.has("stats"):
@@ -16474,7 +15369,7 @@ func _restore_player_progression(progression: Dictionary) -> void:
 
 	# Restore equipped and stored items
 	if progression.has("inventory"):
-		var inv = player.get_inventory()
+		var inv := player.get_inventory()
 		var inv_data = progression["inventory"]
 		if inv:
 			inv.equipped_helms = inv_data.get("equipped_helms", inv.equipped_helms)
@@ -16511,7 +15406,7 @@ func _restore_player_progression(progression: Dictionary) -> void:
 
 func _save_player_progression() -> Dictionary:
 	## Capture all persistent player state before a world transition.
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	var progression := {}
 	if stats:
 		progression["stats"] = stats.save_progression()
@@ -16536,7 +15431,7 @@ func _save_player_progression() -> Dictionary:
 	# City-loop state (satchel, city, pending trial) rides along untouched.
 	CityBridge.carry_keys(player_progression, progression)
 	# Equipped items and stored items (Resource objects survive scene change)
-	var inv = player.get_inventory()
+	var inv := player.get_inventory()
 	if inv:
 		progression["inventory"] = {
 			"equipped_helms": inv.equipped_helms.duplicate(),
@@ -16597,8 +15492,8 @@ func _travel_to_town() -> void:
 
 func _travel_to_world(level: int) -> void:
 	print("[MAIN] Traveling to World %d!" % level)
-	var saved_quest_state = quest_manager.save_state() if quest_manager else {}
-	var saved_progression = _save_player_progression()
+	var saved_quest_state := quest_manager.save_state() if quest_manager else {}
+	var saved_progression := _save_player_progression()
 	var main_scene = load("res://scenes/core/main.tscn").instantiate()
 	main_scene.starting_character = starting_character
 	main_scene.player2_character = player2_character
@@ -16613,16 +15508,16 @@ func _travel_to_world(level: int) -> void:
 
 func _build_ground_plane() -> void:
 	# Remove existing ground if any and build one matching world size
-	var existing = get_node_or_null("GroundPlane")
+	var existing := get_node_or_null("GroundPlane")
 	if existing:
 		existing.queue_free()
 
-	var ground = MeshInstance3D.new()
+	var ground := MeshInstance3D.new()
 	ground.name = "GroundPlane"
-	var plane_mesh = PlaneMesh.new()
+	var plane_mesh := PlaneMesh.new()
 	plane_mesh.size = Vector2(dungeon_manager.GRID_W + 40, dungeon_manager.GRID_H + 40)
 	ground.mesh = plane_mesh
-	var mat = StandardMaterial3D.new()
+	var mat := StandardMaterial3D.new()
 	# Full-color tiles: keep only a dim theme cast so out-of-bounds terrain
 	# reads as darker painted ground rather than a solid tint.
 	var ground_cast: Color = dungeon_manager.get_palette().get("ground", Color(0.15, 0.12, 0.1))
@@ -16695,7 +15590,7 @@ func _setup_dojo() -> void:
 	add_battle_log("The Dojo: hit the chickens, heal the dogs. Nothing here follows you out.", Color(0.8, 0.8, 0.95))
 
 func _spawn_dojo_dummy(cell: Vector2i) -> void:
-	var world = grid_manager.grid_to_world(cell)
+	var world := grid_manager.grid_to_world(cell)
 	world.y = dungeon_manager.get_elevation_world_y(cell)
 	enemy_spawner.spawn_enemy(Enemy.EnemyType.DUMMY, world)
 
@@ -16806,7 +15701,7 @@ func _sync_labyrinth_lost() -> void:
 	## jailed, Locked, or blocked by the world — so a dead card at the front
 	## never traps the whole hand). A change in whether the curse holds
 	## re-renders the hand, since the curse lays it out in order.
-	var dm = player.get_debuff_manager() if player and is_instance_valid(player) else null
+	var dm := player.get_debuff_manager() if player and is_instance_valid(player) else null
 	var lost := _apply_labyrinth_statics(dm)
 	if lost != _labyrinth_lost_shown and deck_manager:
 		_on_hand_updated()  # sets _labyrinth_lost_shown
@@ -16881,7 +15776,7 @@ func _spawn_lair_unit(type: Enemy.EnemyType, cell: Vector2i) -> Enemy:
 		used.append(grid_manager.world_to_grid(e.position))
 	used.append(grid_manager.world_to_grid(player.position))
 	cell = _find_valid_spawn_cell(cell, used)
-	var world = grid_manager.grid_to_world(cell)
+	var world := grid_manager.grid_to_world(cell)
 	world.y = dungeon_manager.get_elevation_world_y(cell)
 	return enemy_spawner.spawn_enemy(type, world)
 
@@ -17034,8 +15929,8 @@ func _on_grave_repaired(digger: Enemy) -> void:
 	call_deferred("_maybe_send_grave_digger")
 
 func _collect_carried_statuses() -> Dictionary:
-	var bm = player.get_buff_manager()
-	var dm = player.get_debuff_manager()
+	var bm := player.get_buff_manager()
+	var dm := player.get_debuff_manager()
 	return {
 		"buffs": bm.buffs.duplicate() if bm else [],
 		"debuffs": dm.debuffs.duplicate() if dm else [],
@@ -17046,8 +15941,8 @@ func _restore_carried_statuses() -> void:
 	## they were (no re-application: no amps, no refresh, no stacking).
 	if carried_statuses.is_empty():
 		return
-	var bm = player.get_buff_manager()
-	var dm = player.get_debuff_manager()
+	var bm := player.get_buff_manager()
+	var dm := player.get_debuff_manager()
 	if bm:
 		for b in carried_statuses.get("buffs", []):
 			if b is Buff and not bm.buffs.has(b):
@@ -17079,7 +15974,7 @@ func _spawn_dojo_ally(cell: Vector2i) -> void:
 	data.base_health = 500
 	data.base_mana = 100
 	ally.initialize_character(data)
-	var world = grid_manager.grid_to_world(cell)
+	var world := grid_manager.grid_to_world(cell)
 	world.y = dungeon_manager.get_elevation_world_y(cell)
 	ally.position = world
 	ally.target_position = world
@@ -17119,7 +16014,7 @@ func _build_dojo_side_marker(cells: Array, text: String, color: Color) -> void:
 	add_child(root)
 	var sum := Vector3.ZERO
 	for cell in cells:
-		var p = grid_manager.grid_to_world(cell)
+		var p := grid_manager.grid_to_world(cell)
 		sum += p
 		var plate := MeshInstance3D.new()
 		var mesh := BoxMesh.new()
@@ -17132,7 +16027,7 @@ func _build_dojo_side_marker(cells: Array, text: String, color: Color) -> void:
 		plate.material_override = mat
 		plate.position = Vector3(p.x, 0.02, p.z)
 		root.add_child(plate)
-	var center = sum / float(maxi(1, cells.size()))
+	var center := sum / float(maxi(1, cells.size()))
 	var title := Label3D.new()
 	title.text = text
 	title.font_size = 30
@@ -17145,7 +16040,7 @@ func _build_dojo_side_marker(cells: Array, text: String, color: Color) -> void:
 
 func _setup_dojo_reset_button() -> void:
 	## Reset sits beside Wait in the action column.
-	var row = _action_vbox.get_node_or_null("WaitPauseRow") if _action_vbox else null
+	var row := _action_vbox.get_node_or_null("WaitPauseRow") if _action_vbox else null
 	if row == null:
 		return
 	var btn := Button.new()
@@ -17161,17 +16056,17 @@ func _setup_dojo_reset_button() -> void:
 func _dojo_reset() -> void:
 	if not dojo_mode:
 		return
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	# Cards first: maintained cards give their reserved mana back.
 	deck_manager.break_all_maintained_cards()
 	deck_manager.restore_deck_state(_dojo_entry_deck_state.duplicate(true))
-	var inv = player.get_inventory()
+	var inv := player.get_inventory()
 	if inv:
 		inv.apply_equipped_item_card_effects()
 		inv.relink_slotted_cards(deck_manager)
 	_on_hand_updated()
 	update_deck_info()
-	_update_maintained_button()
+	_maintained_list.refresh()
 	# The character: clean slate.
 	_dojo_reset_unit(player)
 	stats.current_attack_counter = 0
@@ -17193,12 +16088,12 @@ func _dojo_reset() -> void:
 	add_battle_log("Dojo reset.", Color(1.0, 0.85, 0.3))
 
 func _dojo_reset_unit(unit: Player) -> void:
-	var stats = unit.get_stats()
-	var bm = unit.get_buff_manager()
+	var stats := unit.get_stats()
+	var bm := unit.get_buff_manager()
 	if bm:
 		for buff in bm.buffs.duplicate():
 			bm.remove_buff(buff.buff_type)
-	var dm = unit.get_debuff_manager()
+	var dm := unit.get_debuff_manager()
 	if dm:
 		dm.clear_all_debuffs()
 	stats.current_armor = 0
@@ -17235,7 +16130,7 @@ func _on_dojo_bar_input(event: InputEvent, bar: ProgressBar, which: String) -> v
 
 func _dojo_apply_bar_drag(bar: ProgressBar, which: String, local_pos: Vector2) -> void:
 	var ratio: float = clampf(local_pos.x / maxf(1.0, bar.size.x), 0.0, 1.0)
-	var stats = player.get_stats()
+	var stats := player.get_stats()
 	match which:
 		"hp":
 			# Never to 0: that is a death, not a test.

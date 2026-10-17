@@ -78,7 +78,7 @@ func _initialize() -> void:
 	_check(sig_a == sig_b, "web placement is deterministic per seed")
 
 	print("-- Hermes Boots rider --")
-	var hermes = ItemData.create_hermes_boots()
+	var hermes = ItemData.create("hermes_boots")
 	_check(hermes.trap_damage_percent == 25.0, "Hermes Boots carry the +25%% trap rider")
 	hermes.item_level = 2
 	hermes.level_up()

@@ -59,7 +59,7 @@ func _run() -> void:
 	var hp_a: int = a.current_health
 	var hp_b: int = b.current_health
 
-	var card := Card.create_peshtigos_kiss()
+	var card := Card.create_by_id("peshtigos_kiss")
 	card.execute(a, stats, dm, 0.0, 0.0, _main.player.get_buff_manager())
 	dm.discard_pile.append(card)
 	_main._apply_card_world_effects(card, a)
@@ -92,7 +92,7 @@ func _run() -> void:
 	_check(stats.maintained_mana == 0, "…and frees the mana")
 
 	# Saying no leaves nothing burning and nothing reserved.
-	var card2 := Card.create_peshtigos_kiss()
+	var card2 := Card.create_by_id("peshtigos_kiss")
 	card2.execute(a, stats, dm, 0.0, 0.0, _main.player.get_buff_manager())
 	dm.discard_pile.append(card2)
 	_main._apply_card_world_effects(card2, a)

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_ot07d"]
+
+[resource]
+script = ExtResource("1_ot07d")
+card_id = "barricade"
+card_name = "Barricade"
+description = "Create a barricade of land that is 3 tiles wide in front of you."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 30
+tempo_cost = 2
+is_ranged = true
+range_modifier = -4
+target_types = ["point"]
+keywords = ["utility", "point", "ranged"]

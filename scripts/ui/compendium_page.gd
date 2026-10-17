@@ -82,25 +82,15 @@ func _build_data() -> void:
 	_build_all_enemies()
 
 func _build_all_cards() -> void:
-	# Auto-discover all cards by calling every static create_ method on Card
+	# Every catalogue card except the rank-scaled generated ones.
 	_all_cards = []
-	var card_script: Script = Card
-	for method in card_script.get_script_method_list():
-		var method_name: String = method["name"]
-		if method_name.begins_with("create_") and method["args"].size() == 0:
-			var card = card_script.call(method_name)
-			if card is Card:
-				_all_cards.append(card)
+	for card in Card.get_all_cards(false):
+		_all_cards.append(card)
 
 func _build_all_items() -> void:
 	_all_items = []
-	var item_script: Script = ItemData
-	for method in item_script.get_script_method_list():
-		var method_name: String = method["name"]
-		if method_name.begins_with("create_") and method["args"].size() == 0:
-			var item = item_script.call(method_name)
-			if item is ItemData:
-				_all_items.append(item)
+	for item in ItemData.get_all_items():
+		_all_items.append(item)
 
 func _build_all_enemies() -> void:
 	_all_enemies = Enemy.get_all_enemy_data()

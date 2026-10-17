@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_8is5v"]
+
+[resource]
+script = ExtResource("1_8is5v")
+item_name = "Steel Boots"
+item_type = 4
+item_type_name = "Boots"
+weight = 25
+strength_bonus = 3
+health_bonus = 10
+special_effect = 7
+special_effect_value = 1
+armor_per_tempo_interval = 15
+description = "+3 STR, +10 health. Gain 1 unerring armor every 15 tempo while equipped."

@@ -64,7 +64,7 @@ static func _designed_hands(character: String) -> Dictionary:
 					off = str(e[0])
 		var grippable := false
 		if main != "":
-			var it: ItemData = (ItemData as Script).call("create_%s" % main)
+			var it: ItemData = ItemData.create(main)
 			grippable = it.item_type == ItemData.ItemType.WEAPON and not Inventory.is_two_hand_only(it) \
 				and it.weapon_subtype != ItemData.WeaponSubtype.SHIELD
 		out[b] = {"main": main, "off": off, "grippable": grippable}
@@ -99,21 +99,18 @@ static func tactics(character: String) -> Dictionary:
 		t["passives"] = ps
 	return out
 
-## Every item a stored build can be tested with: each zero-argument ItemData
-## factory of the given rarities that goes in an equipment slot (scrolls do
-## not). A new item enters the item sweep the moment its factory exists.
+## Every item a stored build can be tested with: each catalogue item
+## (data/items/<id>.tres) of the given rarities that goes in an equipment
+## slot (scrolls do not). A new item enters the item sweep the moment it is
+## in ItemData.ITEM_IDS.
 static func item_pool(rarities: Array = ["MYTHIC", "LEGENDARY"]) -> Array:
 	var out: Array = []
-	var script: Script = ItemData
-	for m in script.get_script_method_list():
-		var mn: String = m["name"]
-		if not mn.begins_with("create_") or m["args"].size() != 0:
-			continue
-		var it = script.call(mn)
-		if not (it is ItemData) or it.item_type == ItemData.ItemType.SCROLL:
+	for id in ItemData.ITEM_IDS:
+		var it := ItemData.create(id)
+		if it == null or it.item_type == ItemData.ItemType.SCROLL:
 			continue
 		if ItemData.Rarity.keys()[it.rarity] in rarities:
-			out.append(mn.substr(7))
+			out.append(id)
 	out.sort()
 	return out
 
@@ -125,13 +122,8 @@ static var _engrave_cards: Dictionary = {}   # id -> Card (a template, never slo
 static func engrave_pool() -> Dictionary:
 	if not _engrave_cards.is_empty():
 		return _engrave_cards
-	var script: Script = Card
-	for m in script.get_script_method_list():
-		var mn: String = m["name"]
-		if not mn.begins_with("create_") or m["args"].size() - m["default_args"].size() != 0:
-			continue
-		var c = script.call(mn)
-		if not (c is Card) or c.card_type == Card.CardType.UNPLAYABLE or c.shop_excluded \
+	for c in Card.get_all_cards():
+		if c.card_type == Card.CardType.UNPLAYABLE or c.shop_excluded \
 				or c.card_id.ends_with("_copy") or c.slot_labels.is_empty():
 			continue
 		_engrave_cards[c.card_id] = c
@@ -148,7 +140,7 @@ static func engrave_options(character: String, build: String, level: int = DEFAU
 	var pool := engrave_pool()
 	for e in sc["player"]["items"]:
 		var id := str(e[0])
-		var it = (ItemData as Script).call("create_%s" % id)
+		var it = ItemData.create(id)
 		if not (it is ItemData) or it.card_slots <= 0:
 			continue
 		var ok: Array = []
@@ -174,7 +166,7 @@ static func _swap_slot(it: ItemData) -> int:
 ## in the off hand: the second weapon of a dual wield). Returns the id it
 ## replaced ("" when it was added to an empty slot).
 static func _place_item(entries: Array, id: String, slot_override: int = -1) -> String:
-	var it: ItemData = (ItemData as Script).call("create_%s" % id)
+	var it: ItemData = ItemData.create(id)
 	# Already part of the set (in any slot, or as a mythic's fallback): the
 	# build keeps it where it is; compose then makes sure it is worn.
 	for i in range(entries.size()):
@@ -214,7 +206,7 @@ static func _place_item(entries: Array, id: String, slot_override: int = -1) -> 
 ## The engraved cards of `from_id` that also fit item `to_id` (labels and
 ## slot count, by the item's own can_slot_card on a scratch instance).
 static func _carry_engravings(cards: Array, to_id: String) -> Array:
-	var it: ItemData = (ItemData as Script).call("create_%s" % to_id)
+	var it: ItemData = ItemData.create(to_id)
 	var kept: Array = []
 	var dm := DeckManager.new()
 	for cid in cards:
@@ -226,10 +218,9 @@ static func _carry_engravings(cards: Array, to_id: String) -> Array:
 	return kept
 
 static func _item_type(id: String) -> int:
-	var script: Script = ItemData
-	if not SimScenario.script_has(script, "create_%s" % id):
+	if not ItemData.ITEM_IDS.has(id):
 		return -1
-	var it = script.call("create_%s" % id)
+	var it = ItemData.create(id)
 	return int(it.item_type) if it is ItemData else -1
 
 ## Deck recipes every character gets (cards are universal): shape-described
@@ -482,10 +473,9 @@ static func fit_items(entries: Array, level: int, catalog_mythics: Dictionary, a
 	return {"items": items, "dropped": dropped}
 
 static func is_mythic(id: String) -> bool:
-	var script: Script = ItemData
-	if not SimScenario.script_has(script, "create_%s" % id):
+	if not ItemData.ITEM_IDS.has(id):
 		return false
-	var it = script.call("create_%s" % id)
+	var it = ItemData.create(id)
 	return it is ItemData and it.rarity == ItemData.Rarity.MYTHIC
 
 static func compose(character: String, parts: Dictionary) -> Dictionary:
@@ -556,7 +546,7 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 		var ispec := str(parts["item"]).split("@")
 		swapped_item = ispec[0]
 		var offhand := ispec.size() > 1 and ispec[1] == "offhand"
-		if not SimScenario.script_has(ItemData, "create_%s" % swapped_item):
+		if not ItemData.ITEM_IDS.has(swapped_item):
 			push_error("[SIM] no item '%s'" % swapped_item)
 			swapped_item = ""
 		else:
@@ -576,7 +566,7 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 		if main_id == "":
 			two_hand_note = "two_hand: no main-hand weapon to grip"
 			two_hand = false
-		elif Inventory.is_two_hand_only((ItemData as Script).call("create_%s" % main_id)):
+		elif Inventory.is_two_hand_only(ItemData.create(main_id)):
 			two_hand_note = "two_hand: %s is two-handed by nature (no grip to take)" % main_id
 			two_hand = false
 		else:
@@ -664,7 +654,7 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 		elif ecard == "none":
 			slotted.erase(eitem)
 		else:
-			var cap: int = ((ItemData as Script).call("create_%s" % eitem) as ItemData).card_slots
+			var cap: int = ItemData.create(eitem).card_slots
 			var list: Array = (slotted.get(eitem, []) as Array).duplicate()
 			if list.size() < cap:
 				list.append(ecard)

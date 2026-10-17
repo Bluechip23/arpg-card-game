@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_veclh"]
+
+[resource]
+script = ExtResource("1_veclh")
+item_name = "Cloth bracer"
+item_type = 5
+item_type_name = "Gauntlets"
+weight = 5
+dexterity_bonus = 2
+hand_size_bonus = 1
+gauntlet_skill_type = 1
+gauntlet_skill_name = "Band aid"
+gauntlet_skill_description = "Heal 5 HP."
+gauntlet_skill_cooldown = 4
+gauntlet_skill_mana_cost = 10
+gauntlet_skill_effect_id = "band_aid"
+description = "+1 hand size, +2 DEX. Skill — Band aid: heal 5 HP (20 tempo CD)."

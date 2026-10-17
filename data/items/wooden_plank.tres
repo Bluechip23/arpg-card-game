@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_5pydj"]
+
+[resource]
+script = ExtResource("1_5pydj")
+item_name = "Wooden Plank"
+item_type = 1
+item_type_name = "Chest"
+weight = 45
+health_bonus = 15
+low_health_regen = 1
+description = "+15 health. When you drop below 50% health, gain 1 Regen."

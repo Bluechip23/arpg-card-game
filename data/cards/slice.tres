@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_ri6j3"]
+
+[resource]
+script = ExtResource("1_ri6j3")
+card_id = "slice"
+card_name = "Slice"
+description = "Deal 15 damage."
+mana_cost = 10
+damage = 15
+tempo_cost = 3
+base_damage = 15

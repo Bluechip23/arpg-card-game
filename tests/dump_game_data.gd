@@ -19,17 +19,10 @@ func _initialize() -> void:
 func _dump_cards() -> Array:
 	var type_names = ["Attack", "Defense", "Utility", "Reaction", "Unplayable", "Power", "Enchantment"]
 	var cards: Array = []
-	var card_script: Script = Card
-	for method in card_script.get_script_method_list():
-		var method_name: String = method["name"]
-		if not method_name.begins_with("create_") or method["args"].size() != 0:
-			continue
-		var card = card_script.call(method_name)
-		if not (card is Card):
-			continue
+	for card in Card.get_all_cards(false):
 		var type_idx = card.card_type as int
 		cards.append({
-			"factory": method_name,
+			"factory": "create_" + card.card_id,
 			"card_id": card.card_id,
 			"card_name": card.card_name,
 			"description": card.description,

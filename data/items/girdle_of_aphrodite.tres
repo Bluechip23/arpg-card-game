@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_1arbf"]
+
+[resource]
+script = ExtResource("1_1arbf")
+item_name = "Girdle of Aphrodite"
+item_type = 3
+item_type_name = "Belt"
+rarity = 3
+level_3_overrides = {
+"agility_bonus": 3,
+"card_slots": 3,
+"determination_bonus": 3,
+"dexterity_bonus": 3,
+"health_bonus": 20,
+"on_self_support_heal": 35,
+"wisdom_bonus": 4
+}
+level_3_description = "+20 health, +3 DET, +3 AGI, +3 DEX, +4 WIS. 3 card slots. On-self: offensive cards Taunt the target for 15 tempo; utility/defense cards heal their target 35."
+weight = 15
+dexterity_bonus = 2
+wisdom_bonus = 2
+determination_bonus = 2
+agility_bonus = 2
+health_bonus = 10
+card_slots = 2
+on_self_taunt_cycles = 3
+on_self_support_heal = 15
+description = "+10 health, +2 DET, +2 AGI, +2 DEX, +2 WIS. On-self: offensive cards Taunt the target for 15 tempo; utility/defense cards heal their target 15."
+appearance = "A slender golden girdle woven like braided hair, clasped at the front with a scallop shell."
+appearance_icon = "res://assets/items/mythic/girdle_of_aphrodite.png"

@@ -68,10 +68,6 @@ func set_prompt_visible(v: bool) -> void:
 	if _prompt:
 		_prompt.visible = v
 
-func set_prompt_text(t: String) -> void:
-	if _prompt:
-		_prompt.text = t
-
 func step_to(world_pos: Vector3, cell: Vector2i) -> void:
 	## Glide onto a tile (the one the player just vacated).
 	if _sprite:

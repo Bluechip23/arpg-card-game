@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_25xjs"]
+
+[resource]
+script = ExtResource("1_25xjs")
+card_id = "mark"
+card_name = "Mark"
+description = "Target receives 15% extra damage from your attacks for 25 tempo."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 30
+tempo_cost = 0
+is_ranged = true
+range_modifier = 3
+slot_labels = [1, 9, 10]
+keywords = ["utility", "ranged"]

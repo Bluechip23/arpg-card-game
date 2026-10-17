@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_06tof"]
+
+[resource]
+script = ExtResource("1_06tof")
+item_name = "Sword of Theseus"
+rarity = 3
+level_3_overrides = {
+"lifesteal_percent": 8.0,
+"on_self_apply_slow": 3
+}
+level_3_description = "+9 STR, +8 DET, 8% lifesteal. 5 card slots. On-self: attacks apply 3 Slow and deal +1 damage per Slow already on the target."
+weight = 30
+strength_bonus = 8
+determination_bonus = 7
+card_slots = 5
+on_self_apply_slow = 2
+on_self_slow_damage_per_stack = 1
+lifesteal_percent = 5.0
+description = "+8 STR, +7 DET, 5% lifesteal. 5 card slots. On-self: attacks apply 2 Slow and deal +1 damage per Slow already on the target."
+appearance = "A long broadsword with a minotaur head as the grip and horns as the cross-guards. A second small blade juts from the pommel."
+appearance_icon = "res://assets/items/mythic/sword_of_theseus.png"

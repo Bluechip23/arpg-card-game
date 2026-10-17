@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_bpi3c"]
+
+[resource]
+script = ExtResource("1_bpi3c")
+item_name = "Shock Quiver"
+item_type = 7
+item_type_name = "Quiver"
+rarity = 1
+weight = 10
+dexterity_bonus = 2
+wisdom_bonus = 2
+agility_bonus = 3
+card_slots = 2
+on_self_crit_percent = 5.0
+on_self_apply_shock = 2
+description = "+3 AGI, +2 WIS, +2 DEX. 2 card slots. On-self: apply 2 Shock and +5% crit chance."

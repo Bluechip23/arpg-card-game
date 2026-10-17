@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_2jfdg"]
+
+[resource]
+script = ExtResource("1_2jfdg")
+card_id = "sky_fall"
+card_name = "Sky Fall"
+description = "Shoot an arrow upward. In 10 tempo, it lands at the designated location dealing 18 damage."
+mana_cost = 30
+damage = 18
+tempo_cost = 5
+base_damage = 18
+is_ranged = true
+range_modifier = 7
+target_types = ["point"]
+slot_labels = [1, 14]
+keywords = ["attack", "offensive", "ranged"]

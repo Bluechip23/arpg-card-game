@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_b0liq"]
+
+[resource]
+script = ExtResource("1_b0liq")
+item_name = "Steve Rodgers Bastion of Reverberation"
+item_type_name = "Shield"
+rarity = 3
+level_2_overrides = {
+"agility_bonus": 5,
+"damage_taken_mana_gain": 7,
+"determination_bonus": 5,
+"dexterity_bonus": 3,
+"mana_bonus": 30,
+"strength_bonus": 6
+}
+level_2_description = "+6 STR, +3 DEX, +5 AGI, +5 DET, +30 mana. Every enemy hit you take gives you 7 mana. Grants Reverberate Regrowth (Maintain): when your armor is broken through, the armor that hit ate comes back 5 tempo later (55 mana). Grants Bouncing Shield: hurl the shield — it bounces between enemies for 5 damage each, and every target hit sends back 5 block and 10 temporary mana (which may sit above your maximum, 20 tempo). It is in the air for 10 tempo: half your armor goes with it and comes back when it does, and the card cannot be thrown again until then (55 mana, 4 tempo)."
+weight = 45
+strength_bonus = 5
+dexterity_bonus = 3
+determination_bonus = 4
+agility_bonus = 5
+weapon_subtype = 2
+granted_card_ids = Array[String](["reverberate_regrowth", "bouncing_shield"])
+damage_taken_mana_gain = 5
+description = "+5 STR, +3 DEX, +5 AGI, +4 DET. Every enemy hit you take gives you 5 mana. Grants Reverberate Regrowth (Maintain): when your armor is broken through, the armor that hit ate comes back 5 tempo later (55 mana). Grants Bouncing Shield: hurl the shield — it bounces between enemies for 5 damage each, and every target hit sends back 5 block and 10 temporary mana (which may sit above your maximum, 15 tempo). It is in the air for 10 tempo: half your armor goes with it and comes back when it does, and the card cannot be thrown again until then (55 mana, 4 tempo)."
+appearance = "The Captain America shield."
+appearance_icon = "res://assets/items/mythic/steve_rodgers_bastion.png"

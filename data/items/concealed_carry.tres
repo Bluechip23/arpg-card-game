@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_awlqb"]
+
+[resource]
+script = ExtResource("1_awlqb")
+item_name = "Concealed Carry"
+item_type = 5
+item_type_name = "Gauntlets"
+rarity = 3
+level_3_overrides = {
+"agility_bonus": 5,
+"dexterity_bonus": 5,
+"gauntlet_skill_cooldown": 2,
+"hand_size_bonus": 1
+}
+level_3_description = "+5 DEX, +5 AGI, +1 hand size. Grants smoke bomb. Skill — Lethal Poke (10 tempo CD)."
+weight = 2
+dexterity_bonus = 2
+agility_bonus = 2
+hand_size_bonus = 1
+granted_card_ids = Array[String](["smoke_bomb"])
+gauntlet_skill_type = 1
+gauntlet_skill_name = "Lethal Poke"
+gauntlet_skill_description = "A 0-base-damage melee attack. Crits deal x1.5 on top of the crit."
+gauntlet_skill_cooldown = 3
+gauntlet_skill_mana_cost = 10
+gauntlet_skill_effect_id = "lethal_poke"
+description = "+2 DEX, +2 AGI, +1 hand size. Grants smoke bomb: a 2-square cloud granting allies inside invisibility and 10% crit while they stay in it (8 tempo; card jailed 20 after play). Skill — Lethal Poke: 0-base melee attack; crits deal x1.5 on top of the crit (15 tempo CD)."
+appearance = "Gauntlets that appear to be made of clouds of smoke."
+appearance_icon = "res://assets/items/mythic/concealed_carry.png"

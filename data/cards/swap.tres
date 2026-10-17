@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_6h2rm"]
+
+[resource]
+script = ExtResource("1_6h2rm")
+card_id = "swap"
+card_name = "Swap"
+description = "Switch positions with an enemy or ally."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 20
+tempo_cost = 3
+is_ranged = true
+range_modifier = 2
+target_types = ["enemy", "ally"]
+slot_labels = [4]
+keywords = ["utility", "enemy", "ally", "ranged"]

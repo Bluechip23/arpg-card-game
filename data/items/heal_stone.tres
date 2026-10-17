@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_r4p8u"]
+
+[resource]
+script = ExtResource("1_r4p8u")
+item_name = "Heal Stone"
+item_type = 2
+item_type_name = "Ring"
+weight = 5
+mana_bonus = 50
+description = "+50 mana. Every 5 healing you receive (regen and lifesteal excluded), deal 2 damage to a random enemy within 5 squares."

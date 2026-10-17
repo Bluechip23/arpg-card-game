@@ -4,8 +4,6 @@ extends Node
 ## Handles sprite-sheet-based character animations in 3D space.
 ## Drives a Sprite3D node by setting texture regions per frame.
 
-signal animation_finished(anim_name: String)
-signal animation_started(anim_name: String)
 
 enum Direction { SOUTH, NORTH, EAST, WEST }
 
@@ -67,7 +65,6 @@ func _process(delta: float) -> void:
 			else:
 				current_frame = total_frames - 1
 				is_playing = false
-				animation_finished.emit(current_animation)
 				return
 
 		_update_region()
@@ -93,7 +90,6 @@ func play(anim_name: String, direction: Direction = current_direction, force_res
 		sprite.flip_h = (direction == Direction.WEST)
 
 	_update_region()
-	animation_started.emit(anim_name)
 
 
 func stop() -> void:

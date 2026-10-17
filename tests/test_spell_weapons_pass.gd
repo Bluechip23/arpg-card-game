@@ -33,7 +33,7 @@ func _initialize() -> void:
 
 func _test_off_hand_penalty() -> void:
 	print("-- Off hand: the WHOLE weapon is 10% weaker --")
-	var clarity = ItemData.create_wand_of_clarity()
+	var clarity = ItemData.create("wand_of_clarity")
 	_check(not clarity.is_in_off_hand and clarity.rider_scale() == 1.0, "main hand: full strength")
 	_check(clarity.get_on_self_bonus().get("brain_regen", 0) == 2, "main hand: full on-self riders")
 	clarity.is_in_off_hand = true
@@ -41,7 +41,7 @@ func _test_off_hand_penalty() -> void:
 	_check(clarity.get_on_self_bonus().get("brain_regen", 0) == 1
 		and clarity.get_on_self_bonus().get("flash_regen", 0) == 1,
 		"off hand: on-self benefits floored to 90%")
-	var book = ItemData.create_earth_book()
+	var book = ItemData.create("earth_book")
 	book.is_in_off_hand = true
 	_check(book.get_on_self_bonus().get("armor_any", 0) == 2, "off-hand Earth Book: 3 armor becomes 2")
 	# Maluses keep their bite: a negative mana_reduction (a surcharge, e.g.
@@ -53,7 +53,7 @@ func _test_off_hand_penalty() -> void:
 	_check(int(malus.get_on_self_bonus().get("mana_reduction", 0)) == -10,
 		"off hand leaves surcharges at full strength")
 	# The fizzle roll never fires in the main hand.
-	var orb = ItemData.create_ice_orb()
+	var orb = ItemData.create("ice_orb")
 	var oh_fizzled := false
 	for _i in range(50):
 		if orb.rider_fizzles():
@@ -62,7 +62,7 @@ func _test_off_hand_penalty() -> void:
 
 func _test_round2() -> void:
 	print("-- Round 2: Clarity, Reaction Rod, Cane instants, Crops --")
-	var clarity = ItemData.create_wand_of_clarity()
+	var clarity = ItemData.create("wand_of_clarity")
 	_check(clarity.on_self_brain_regen == 2 and clarity.on_self_flash_regen == 2,
 		"Wand of Clarity on-self: 2 brain + 2 flash points")
 	_check(clarity.no_debuff_mana_discount_percent == 15.0, "Wand of Clarity: 15% off with no debuffs")
@@ -71,12 +71,12 @@ func _test_round2() -> void:
 	var cm = Card.create_by_id("clear_mind")
 	_check(cm != null and cm.mana_cost == 50 and cm.tempo_cost == 4 and cm.card_type == Card.CardType.UTILITY,
 		"Clear Mind is a 50m/4t utility")
-	var rod = ItemData.create_reaction_rod()
+	var rod = ItemData.create("reaction_rod")
 	_check(rod.melee_retaliate_shock == 4 and rod.card_slots == 0, "Reaction Rod: 4 Shock retaliation, no slots")
 	var gr = Card.create_by_id("grounding")
 	_check(gr != null and gr.mana_cost == 200 and gr.tempo_cost == 10 and gr.school == Card.CardSchool.SPELL,
 		"Grounding is a 200m/10t spell")
-	var cane = ItemData.create_abjurers_cane()
+	var cane = ItemData.create("abjurers_cane")
 	_check(cane.wisdom_bonus == 5 and cane.intelligence_bonus == 4 and cane.agility_bonus == 4,
 		"Abjurers Cane: +5 WIS, +4 INT, +4 AGI")
 	_check(cane.granted_card_ids.size() == 2 and cane.granted_card_ids[0] == "defensive_sacrifice",
@@ -85,7 +85,7 @@ func _test_round2() -> void:
 	_check(ds != null and ds.card_type == Card.CardType.REACTION
 		and ds.reaction_trigger == "on_player_attacked_choice",
 		"Defensive Sacrifice is a choice instant")
-	var crook = ItemData.create_shepherds_crook()
+	var crook = ItemData.create("shepherds_crook")
 	_check(crook.card_slots == 4 and crook.card_pull_target == 1,
 		"Shepherds Crook: 4 slots, pulls targets 1 square")
 	_check(crook.granted_card_ids.size() == 1 and crook.granted_card_ids[0] == "crops",
@@ -140,22 +140,22 @@ func _test_two_handers() -> void:
 
 func _test_on_hit_riders() -> void:
 	print("-- Global on-hit debuff riders --")
-	_check(ItemData.create_frost_book().attack_apply_cold == 1, "Frost Book: 1 Cold on hit")
-	_check(ItemData.create_fire_book().attack_apply_burn == 1, "Fire Book: 1 Burn on hit")
-	_check(ItemData.create_ice_orb().attack_apply_cold == 2, "Ice Orb: 2 Cold on hit")
-	_check(ItemData.create_car_battery().attack_apply_shock == 3, "Car Battery: 3 Shock on hit")
-	_check(ItemData.create_circes_wand_of_cauldron_stirring().attack_apply_silence == 1, "Circe's: 1 Silence on hit")
-	_check(ItemData.create_reaper_scythe().attack_apply_vulnerable == 1, "Reaper Scythe: 1 Vulnerable on hit")
-	_check(ItemData.create_earth_book().block_bonus_to_defense_cards == 1
-		and ItemData.create_earth_book().on_self_armor_any == 3, "Earth Book: +1 block cards, 3 armor on-self")
-	_check(ItemData.create_magic_staff().damage_bonus_to_attack_cards == 4, "Magic Staff: +4 attack damage")
-	_check(ItemData.create_wand_of_deliverance().range_bonus_all_cards == 2, "Deliverance: +2 range all cards")
-	_check(ItemData.create_shepherds_crook().healing_bonus == 5, "Shepherds Crook: +5 healing")
-	_check(ItemData.create_abjurers_cane().discard_gain_block == 3, "Abjurers Cane: 3 block per discard")
+	_check(ItemData.create("frost_book").attack_apply_cold == 1, "Frost Book: 1 Cold on hit")
+	_check(ItemData.create("fire_book").attack_apply_burn == 1, "Fire Book: 1 Burn on hit")
+	_check(ItemData.create("ice_orb").attack_apply_cold == 2, "Ice Orb: 2 Cold on hit")
+	_check(ItemData.create("car_battery").attack_apply_shock == 3, "Car Battery: 3 Shock on hit")
+	_check(ItemData.create("circes_wand_of_cauldron_stirring").attack_apply_silence == 1, "Circe's: 1 Silence on hit")
+	_check(ItemData.create("reaper_scythe").attack_apply_vulnerable == 1, "Reaper Scythe: 1 Vulnerable on hit")
+	_check(ItemData.create("earth_book").block_bonus_to_defense_cards == 1
+		and ItemData.create("earth_book").on_self_armor_any == 3, "Earth Book: +1 block cards, 3 armor on-self")
+	_check(ItemData.create("magic_staff").damage_bonus_to_attack_cards == 4, "Magic Staff: +4 attack damage")
+	_check(ItemData.create("wand_of_deliverance").range_bonus_all_cards == 2, "Deliverance: +2 range all cards")
+	_check(ItemData.create("shepherds_crook").healing_bonus == 5, "Shepherds Crook: +5 healing")
+	_check(ItemData.create("abjurers_cane").discard_gain_block == 3, "Abjurers Cane: 3 block per discard")
 
 func _test_blast_stick() -> void:
 	print("-- Blast Stick: the mana economy --")
-	var stick = ItemData.create_blast_stick()
+	var stick = ItemData.create("blast_stick")
 	_check(stick.spell_mana_surcharge_percent == 10.0, "offensive spells cost 10% more")
 	_check(stick.spell_damage_per_mana_percent == 20.0, "and deal 20% of that cost as damage")
 	_check(stick.intelligence_bonus == 18 and stick.agility_bonus == -8 and stick.strength_bonus == 1,
@@ -182,7 +182,7 @@ func _test_granted_cards() -> void:
 
 func _test_circes_copies() -> void:
 	print("-- Circe's Wand: two Polymorphs, three at Lv.3 --")
-	var wand = ItemData.create_circes_wand_of_cauldron_stirring()
+	var wand = ItemData.create("circes_wand_of_cauldron_stirring")
 	_check(wand.granted_card_ids.size() == 2, "grants two copies")
 	wand.item_level = 2
 	wand.level_up()
@@ -190,7 +190,7 @@ func _test_circes_copies() -> void:
 
 func _test_reaper() -> void:
 	print("-- Reaper Scythe: the reaping engine --")
-	var scythe = ItemData.create_reaper_scythe()
+	var scythe = ItemData.create("reaper_scythe")
 	_check(scythe.reaper_weapon, "carries the reaper engine")
 	_check(scythe.wisdom_bonus == 8 and scythe.strength_bonus == 8 and scythe.dexterity_bonus == 3
 		and scythe.agility_bonus == -5, "+8 WIS, +8 STR, +3 DEX, -5 AGI")
@@ -200,7 +200,7 @@ func _test_reaper() -> void:
 
 func _test_feral_slots() -> void:
 	print("-- Feral Evocation: colored elemental slots --")
-	var staff = ItemData.create_feral_evocation()
+	var staff = ItemData.create("feral_evocation")
 	_check(staff.feral_weapon and staff.feral_change_damage == 4, "feral engine, 4 damage per conversion")
 	_check(staff.card_slots == 4 and staff.slot_colors == ["red", "blue", "yellow", "green"],
 		"four slots: red, blue, yellow, green")
@@ -214,7 +214,7 @@ func _test_feral_slots() -> void:
 	_check(staff.get_slot_color(fire) == "red", "and it sits in the red slot")
 	_check(staff.can_slot_card(ice) and staff.slot_card(ice), "now the blue slot is next, the blue card fits")
 	# A plain card never fits an elemental slot.
-	var plain = Card.create_slash()
+	var plain = Card.create_by_id("slash")
 	_check(not staff.can_slot_card(plain), "an elementless card is refused")
 	# Lv.3: a fifth slot, red again, and a harder lash.
 	staff.item_level = 2
@@ -227,12 +227,12 @@ func _test_feral_slots() -> void:
 
 func _test_phoenix() -> void:
 	print("-- Wand of the Phoenix Feather: the self-singe --")
-	var wand = ItemData.create_wand_of_the_phoenix_feather()
+	var wand = ItemData.create("wand_of_the_phoenix_feather")
 	_check(wand.burn_backlash_self == 1, "applying Burn singes the wielder for 1")
 	_check(wand.health_bonus == 25 and wand.wisdom_bonus == 4, "+25 health, +4 WIS")
 	wand.item_level = 2
 	wand.level_up()
 	_check(wand.health_bonus == 45, "Lv.3: +45 health")
-	var weaver = ItemData.create_elemental_weaver()
+	var weaver = ItemData.create("elemental_weaver")
 	_check(weaver.elemental_charge_damage == 1 and weaver.card_slots == 0,
 		"Elemental Weaver: +1 per charge woven, no card slots")

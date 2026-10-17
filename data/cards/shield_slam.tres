@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_4bys5"]
+
+[resource]
+script = ExtResource("1_4bys5")
+card_id = "shield_slam"
+card_name = "Shield Slam"
+description = "Deal damage based on your current armor. Lose half your armor."
+mana_cost = 50
+tempo_cost = 10
+resolve_tick = 7
+slot_labels = [5]
+keywords = ["attack", "offensive", "melee"]
+requires_engraving = true

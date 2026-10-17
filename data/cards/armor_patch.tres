@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_p1b4a"]
+
+[resource]
+script = ExtResource("1_p1b4a")
+card_id = "armor_patch"
+card_name = "Armor Patch"
+description = "On Draw: Gain 3 armor, Cleanse 1. Immediately discarded."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 0
+block = 3
+tempo_cost = 0
+base_block = 3
+target_types = []
+has_on_draw = true
+on_draw_effect = "gain_3_armor_cleanse_1"
+discard_on_draw = true
+slot_labels = [13, 14, 16, 15, 6]
+keywords = ["defense"]

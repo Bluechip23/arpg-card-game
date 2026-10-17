@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_awvf8"]
+
+[resource]
+script = ExtResource("1_awvf8")
+card_id = "roll"
+card_name = "Roll"
+description = "Roll X squares where X is the tempo cost, max 5. When hitting another character, end the roll. If enemy, deal 10 damage and disarm for 5 tempo."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 10
+damage = 10
+tempo_cost = 5
+base_damage = 10
+target_types = ["point"]
+slot_labels = [3, 12]
+keywords = ["utility", "point"]

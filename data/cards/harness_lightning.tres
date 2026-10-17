@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_qnd45"]
+
+[resource]
+script = ExtResource("1_qnd45")
+card_id = "harness_lightning"
+card_name = "Harness Lightning"
+description = "Create an orb of lightning that circles you. Deals 4 damage (scales with INT) every 5 tempo to a random enemy within 3 spaces. Lasts 30 tempo."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 30
+damage = 4
+base_damage = 4
+target_types = ["self"]
+slot_labels = [11, 16]
+school = 1
+keywords = ["utility", "offensive", "spell", "self"]
