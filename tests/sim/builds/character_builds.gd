@@ -122,13 +122,8 @@ static var _engrave_cards: Dictionary = {}   # id -> Card (a template, never slo
 static func engrave_pool() -> Dictionary:
 	if not _engrave_cards.is_empty():
 		return _engrave_cards
-	var script: Script = Card
-	for m in script.get_script_method_list():
-		var mn: String = m["name"]
-		if not mn.begins_with("create_") or m["args"].size() - m["default_args"].size() != 0:
-			continue
-		var c = script.call(mn)
-		if not (c is Card) or c.card_type == Card.CardType.UNPLAYABLE or c.shop_excluded \
+	for c in Card.get_all_cards():
+		if c.card_type == Card.CardType.UNPLAYABLE or c.shop_excluded \
 				or c.card_id.ends_with("_copy") or c.slot_labels.is_empty():
 			continue
 		_engrave_cards[c.card_id] = c

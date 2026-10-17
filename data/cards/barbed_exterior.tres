@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_vbrt2"]
+
+[resource]
+script = ExtResource("1_vbrt2")
+card_id = "barbed_exterior"
+card_name = "Barbed Exterior"
+description = "Maintain: gain 5 nonremovable, non-deteriorating thorns."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 20
+target_types = ["self"]
+maintain_cost = 20
+auto_maintain = true
+slot_labels = [6, 9]
+keywords = ["utility", "self"]

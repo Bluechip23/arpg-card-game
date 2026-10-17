@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_458bn"]
+
+[resource]
+script = ExtResource("1_458bn")
+card_id = "tight_rope"
+card_name = "Tight Rope"
+description = "Instant. When a hit puts you below 20% health, gain 20 temp health for 5 tempo and +15 damage on your next attack."
+card_type = 3
+card_type_name = "Reaction"
+mana_cost = 0
+tempo_cost = 0
+target_types = ["self"]
+reaction_trigger = "on_health_below_20"

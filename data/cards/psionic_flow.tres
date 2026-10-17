@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_gjmp1"]
+
+[resource]
+script = ExtResource("1_gjmp1")
+card_id = "psionic_flow"
+card_name = "Psionic Flow"
+description = "Instant: when an ally takes damage within 3 squares, restore 8 to them and push the attacker back 1 — or when you play an attack, deal +8 damage and push the target back 1. Whichever comes first."
+card_type = 3
+card_type_name = "Instant"
+mana_cost = 0
+tempo_cost = 0
+target_types = ["self"]
+reaction_trigger = "psionic_flow"

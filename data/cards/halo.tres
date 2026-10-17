@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_rudg7"]
+
+[resource]
+script = ExtResource("1_rudg7")
+card_id = "halo"
+card_name = "Halo"
+description = "Maintain 3M: Every cycle, heal all allies for 3 HP in an AOE with a radius of 3 squares"
+card_type = 5
+card_type_name = "Power"
+mana_cost = 30
+heal_amount = 3
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 3.0
+is_ranged = true
+target_types = ["self"]
+maintain_cost = 30
+slot_labels = [6]
+school = 1
+keywords = ["power", "spell", "ranged"]

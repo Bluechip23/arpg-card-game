@@ -59,7 +59,7 @@ func _test_hand_crit() -> void:
 	var stats: PlayerStats = s[0]
 	var dm: DeckManager = s[2]
 	for i in range(4):
-		dm.hand.append(Card.create_slash())
+		dm.hand.append(Card.create_by_id("slash"))
 	_check(stats.get_hand_size_crit_bonus() == 0, "no bonus while the keystone is off")
 	stats.keystone_wis_hand_crit = true
 	_check(stats.get_hand_size_crit_bonus() == 4 * PlayerStats.WIS_CRIT_PER_CARD,
@@ -71,7 +71,7 @@ func _test_hand_crit() -> void:
 	get_root().add_child(buff)
 	buff.initialize(stats, null)
 	for i in range(50):
-		dm.hand.append(Card.create_slash())   # 54 cards -> +108% crit
+		dm.hand.append(Card.create_by_id("slash"))   # 54 cards -> +108% crit
 	var always := true
 	for i in range(20):
 		if not buff.roll_crit():
@@ -88,7 +88,7 @@ func _test_empty_draw_countdown() -> void:
 	get_root().add_child(tm)
 	tm.initialize(stats, dm)
 	# Give the deck something to draw.
-	dm.draw_pile.append(Card.create_slash())
+	dm.draw_pile.append(Card.create_by_id("slash"))
 	var countdown_before = tm.tempo_until_draw
 	# Simulate the Quick Study auto-draw (what Main._on_hand_updated does).
 	dm.draw_card()

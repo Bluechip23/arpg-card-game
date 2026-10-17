@@ -182,7 +182,7 @@ func _test_collector() -> void:
 	dm.clear_all_debuffs()
 	var a := _spawn(Enemy.EnemyType.SPIRIT_COLLECTOR, Vector2i(1, 0))
 	var b := _spawn(Enemy.EnemyType.SPIRIT_COLLECTOR, Vector2i(0, 2))
-	var card: Card = Card.create_release_soul()
+	var card: Card = Card.create_by_id("release_soul")
 	_check(card.mana_cost == 15 and card.tempo_cost == 2, "Release Soul costs 15 mana / 2 tempo")
 	_check(card.held_damage_per_cycle == 5 and "1 damage per tempo" in card.description and "15 mana, 2 tempo" in card.description, "its text says what it does")
 	deck.add_card_to_hand(card)
@@ -253,7 +253,7 @@ func _test_hydra() -> void:
 
 func _test_crawler() -> void:
 	print("-- Crypt Crawler --")
-	var p: Card = Card.create_paralysis()
+	var p: Card = Card.create_by_id("paralysis")
 	_check(p.mana_cost == 10 and p.tempo_cost == 5, "Paralysis costs 10 mana / 5 tempo")
 	_check("10 mana, 5 tempo" in p.description, "and says so")
 

@@ -50,14 +50,14 @@ func _test_item() -> void:
 
 func _test_sprinkle_cards() -> void:
 	print("-- The Sprinkle cards --")
-	var s = Card.create_sprinkle()
+	var s = Card.create_by_id("sprinkle")
 	_check(s.mana_cost == 0 and s.tempo_cost == 0, "Sprinkle costs 0 mana / 0 tempo")
 	_check(s.damage == 25 and s.base_damage == 25, "Sprinkle deals 25 damage")
 	_check(s.card_type == Card.CardType.ATTACK, "Sprinkle is an attack card")
 	_check(s.erase_on_play, "Sprinkle is erased after play (never pollutes the deck)")
 	_check(s.shop_excluded, "Sprinkle never appears in the Card Dealer's shop")
 
-	var b = Card.create_sprinkle_bomb()
+	var b = Card.create_by_id("sprinkle_bomb")
 	_check(b.mana_cost == 0 and b.tempo_cost == 0 and b.damage == 25, "Sprinkle Bomb is 0/0, 25 damage")
 	_check(b.is_aoe and b.aoe_shape == "circle", "Sprinkle Bomb is an AOE circle")
 	_check(b.erase_on_play and b.shop_excluded, "Sprinkle Bomb erased after play, shop-excluded")
@@ -93,7 +93,7 @@ func _test_on_kill_conjure() -> void:
 
 	# A full hand rejects the conjured card instead of overflowing
 	while dm.hand.size() < dm.get_hand_cap():
-		dm.hand.append(Card.create_slash())
+		dm.hand.append(Card.create_by_id("slash"))
 	inv.on_enemy_killed()
 	_check(dm.hand.size() == dm.get_hand_cap(),
 		"hand full -> the conjured card fizzles instead of overflowing")
@@ -116,7 +116,7 @@ func _test_wooden_sword() -> void:
 		"grants Splinter while equipped")
 
 	# A slotted attack card picks up the +1 on-self damage
-	var slash = Card.create_slash()
+	var slash = Card.create_by_id("slash")
 	_check(sword.can_slot_card(slash), "attack cards fit the slot")
 	sword.slot_card(slash)
 	_check(slash.get_on_self_bonus()["damage"] == 1, "slotted Slash gains the +1 damage bonus")
@@ -142,7 +142,7 @@ func _test_wooden_sword() -> void:
 
 func _test_splinter_and_bleed() -> void:
 	print("-- Splinter and enemy bleed --")
-	var s = Card.create_splinter()
+	var s = Card.create_by_id("splinter")
 	_check(s.mana_cost == 20 and s.tempo_cost == 2, "Splinter costs 20 mana / 2 tempo (post mana rescale)")
 	_check(s.is_ranged and s.get_effective_range() == 3, "Splinter has range 3")
 	_check(s.base_damage == 0, "Splinter deals no direct damage")

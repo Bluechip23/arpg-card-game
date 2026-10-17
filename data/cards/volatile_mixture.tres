@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_vv6pq"]
+
+[resource]
+script = ExtResource("1_vv6pq")
+card_id = "volatile_mixture"
+card_name = "Volatile Mixture"
+description = "On Discard: deal 8 damage to the nearest enemy. If this card is in hand for 5 tempo, deal 8 self-damage then discard the card."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 0
+damage = 8
+tempo_cost = 0
+base_damage = 8
+is_ranged = true
+target_types = ["self"]
+slot_labels = [2]
+keywords = ["utility", "ranged"]

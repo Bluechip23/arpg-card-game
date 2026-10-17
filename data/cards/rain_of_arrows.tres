@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_v6w6w"]
+
+[resource]
+script = ExtResource("1_v6w6w")
+card_id = "rain_of_arrows"
+card_name = "Rain of Arrows"
+description = "Deal 10 damage in a 3-square radius around you."
+mana_cost = 45
+damage = 10
+tempo_cost = 0
+base_damage = 10
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 3.0
+target_types = ["self"]
+shop_excluded = true

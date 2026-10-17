@@ -183,7 +183,7 @@ func _test_slots_take_any_card() -> void:
 	var buckler_card = Card.create_by_id("shield_slam")
 	_check(wall.can_slot_card(buckler_card) and wall.slot_card(buckler_card),
 		"a Buckler card slots into a shield")
-	_check(not wall.can_slot_card(Card.create_slice()), "an unlabeled card does not (deck-only)")
+	_check(not wall.can_slot_card(Card.create_by_id("slice")), "an unlabeled card does not (deck-only)")
 	var arrow = Card.create_by_id("improvised_ammo")
 	if arrow:
 		_check(not wall.can_slot_card(arrow), "nor does an Arrow card")
@@ -202,7 +202,7 @@ func _test_slots_take_buckler_cards() -> void:
 	var buckler_card = Card.create_by_id("shield_slam")
 	_check(wall.can_slot_card(buckler_card) and wall.slot_card(buckler_card),
 		"a Buckler card slots into a shield")
-	_check(not wall.can_slot_card(Card.create_slice()), "an unlabeled card does not (deck-only)")
+	_check(not wall.can_slot_card(Card.create_by_id("slice")), "an unlabeled card does not (deck-only)")
 	var arrow = Card.create_by_id("improvised_ammo")
 	if arrow:
 		_check(not wall.can_slot_card(arrow), "nor does an Arrow card")

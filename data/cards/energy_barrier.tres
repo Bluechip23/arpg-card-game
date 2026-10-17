@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_yykl0"]
+
+[resource]
+script = ExtResource("1_yykl0")
+card_id = "energy_barrier"
+card_name = "Energy Barrier"
+description = "Gain 5 armor. Erase 1."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 0
+block = 5
+tempo_cost = 0
+base_block = 5
+target_types = ["self"]
+erase_tempo = 1
+erase_tempo_remaining = 1
+keywords = ["defense", "self"]

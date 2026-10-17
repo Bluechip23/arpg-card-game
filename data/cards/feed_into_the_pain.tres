@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_47av7"]
+
+[resource]
+script = ExtResource("1_47av7")
+card_id = "feed_into_the_pain"
+card_name = "Feed into the Pain"
+description = "Instant: when you take damage below 30% health, gain Strengthen 20 for 4 attacks and 25 temp HP for 5 tempo."
+card_type = 3
+card_type_name = "Instant"
+mana_cost = 0
+tempo_cost = 0
+target_types = ["self"]
+reaction_trigger = "on_damage_taken_low"

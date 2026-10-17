@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_4tgbi"]
+
+[resource]
+script = ExtResource("1_4tgbi")
+card_id = "living_armor"
+card_name = "Living Armor"
+description = "Gain Regen until it matches your Fortify's number (the Regen you had when the Fortify began)."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 30
+tempo_cost = 5
+is_ranged = true
+target_types = ["self", "ally"]
+slot_labels = [5, 7]
+keywords = ["defense", "allies", "ranged"]

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_s36nl"]
+
+[resource]
+script = ExtResource("1_s36nl")
+card_id = "approach"
+card_name = "Approach"
+description = "Slowed for 10 tempo. For each movement taken, gain 5 armor."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 10
+tempo_cost = 3
+target_types = ["self"]
+slot_labels = [13, 5]
+keywords = ["defense"]

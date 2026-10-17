@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_myiia"]
+
+[resource]
+script = ExtResource("1_myiia")
+card_id = "succumb"
+card_name = "Succumb"
+description = "For 20 tempo, gain fortify, blessed 2, strengthen 5, and Resilient 20%. After 10 tempo, take 10 damage. After 10 additional tempo, take 10 more damage and become cuffed, drained, and disarmed for 10 tempo."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 0
+tempo_cost = 0
+is_ranged = true
+range_modifier = -1
+target_types = ["self", "ally"]
+slot_labels = [6, 7]
+keywords = ["utility", "allies", "ranged"]
+requires_engraving = true

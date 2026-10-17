@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_ojunt"]
+
+[resource]
+script = ExtResource("1_ojunt")
+card_id = "repelled_block"
+card_name = "Repelled Block"
+description = "Gain 5 armor. If the enemy's next melee attack is fully blocked by your armor, take 0 damage, push the enemy back 4 spaces, and push yourself back 2 spaces. If your armor is reduced to 0, take the damage."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 30
+block = 5
+tempo_cost = 3
+base_block = 5
+target_types = ["self"]
+slot_labels = [12, 5]
+keywords = ["defense", "self"]

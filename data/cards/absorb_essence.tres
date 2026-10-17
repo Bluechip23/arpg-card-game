@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_d5e56"]
+
+[resource]
+script = ExtResource("1_d5e56")
+card_id = "absorb_essence"
+card_name = "Absorb Essence"
+description = "Deal 1 damage to all things with health on the battlefield. Delay: 10 tempo, obtain Energy Ball."
+card_type_name = "Spell"
+mana_cost = 50
+damage = 1
+tempo_cost = 5
+base_damage = 1
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 100.0
+target_types = ["all_nearby"]
+slot_labels = [14, 16, 15]
+school = 1
+keywords = ["spell", "offensive"]
+delay_tempo = 10
+requires_engraving = true

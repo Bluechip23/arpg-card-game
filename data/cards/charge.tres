@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_7dpdc"]
+
+[resource]
+script = ExtResource("1_7dpdc")
+card_id = "charge"
+card_name = "Charge"
+description = "Charge forward, deal 8 damage to all enemies hit and knock them back. Aim in any direction — no target needed."
+mana_cost = 20
+damage = 8
+resolve_tick = 3
+base_damage = 8
+is_aoe = true
+aoe_shape = "line"
+aoe_range = 5.0
+target_types = ["point"]
+keywords = ["attack", "offensive", "point"]

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_htc5i"]
+
+[resource]
+script = ExtResource("1_htc5i")
+card_id = "terrain_formation"
+card_name = "Terrain formation"
+description = "Create a hill you can walk on. The hill lasts 5 tempo."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 25
+tempo_cost = 3
+target_types = ["point"]
+keywords = ["utility"]

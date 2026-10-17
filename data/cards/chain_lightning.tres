@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_aoy2m"]
+
+[resource]
+script = ExtResource("1_aoy2m")
+card_id = "chain_lightning"
+card_name = "Chain Lightning"
+description = "Deal 10 damage, then bounce to nearby enemies, losing 2 damage per bounce until it reaches zero."
+card_type_name = "Spell"
+mana_cost = 50
+damage = 10
+tempo_cost = 8
+base_damage = 10
+is_ranged = true
+range_modifier = 3
+school = 1
+keywords = ["offensive", "spell"]
+element = "yellow"

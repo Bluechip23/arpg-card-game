@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_neylc"]
+
+[resource]
+script = ExtResource("1_neylc")
+card_id = "cupids_golden_arrow"
+card_name = "Golden"
+description = "Deal 10 damage and apply 2 Vulnerable. 50% chance to taunt the enemy for 5 tempo, forcing it toward you. An enemy carrying both the Golden and Lead marks turns into a tree for 4 tempo: it cannot act, and regrows 3 health on each of its first 3 tempo."
+mana_cost = 45
+damage = 10
+tempo_cost = 3
+base_damage = 10
+rng_outcomes_data = [{
+&"percent": 50.0
+}]
+is_ranged = true
+shop_excluded = true
+slot_labels = [1]

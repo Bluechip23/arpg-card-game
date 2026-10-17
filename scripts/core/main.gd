@@ -2426,7 +2426,7 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 		# The swing rides the ticker as an Attack card (no separate "Basic
 		# Attack" card exists any more): the queue only needs a carrier with
 		# the swing's damage; the data dict below drives the resolution.
-		var basic_card := Card.create_slash()
+		var basic_card := Card.create_by_id("slash")
 		basic_card.mana_cost = 0
 		basic_card.tempo_cost = tempo_cost
 		basic_card.damage = damage
@@ -7560,7 +7560,7 @@ func _process_pending_absorb_essences() -> void:
 		ae.tempo_remaining -= 5
 		if ae.tempo_remaining <= 0:
 			# Create Energy Ball card and add to hand
-			var energy_ball := Card.create_energy_ball()
+			var energy_ball := Card.create_by_id("energy_ball")
 			energy_ball.damage = ae.total_damage
 			energy_ball.base_damage = ae.total_damage
 			deck_manager.hand.append(energy_ball)
@@ -8664,7 +8664,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 
 	# Enchanted Quiver: create a free arrow card after ranged attacks
 	if buff_mgr and buff_mgr.enchanted_quiver_charges > 0 and data.get("is_ranged_attack", false):
-		var arrow := Card.create_quick_arrow()
+		var arrow := Card.create_by_id("quick_arrow")
 		deck_manager.hand.append(arrow)
 		buff_mgr.enchanted_quiver_charges -= 1
 		deck_manager.hand_updated.emit()
@@ -8683,7 +8683,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 
 	if card.card_id == "reckless_strike":
 		for i in range(2):
-			var wound := Card.create_minor_wounds()
+			var wound := Card.create_by_id("minor_wounds")
 			deck_manager.shuffle_card_into_draw_pile(wound)
 		add_battle_log("Reckless Strike: 2 Minor Wounds shuffled into your deck!", Color(1.0, 0.5, 0.3))
 		print("[MAIN] Reckless Strike: shuffled 2 Minor Wounds into the draw pile")
@@ -13642,7 +13642,7 @@ func _on_overcharge_triggered(effect_id: String, value: int) -> void:
 	match effect_id:
 		"composed_reaction":
 			# Composed Response: the overflow becomes a reaction card in hand.
-			deck_manager.add_card_to_hand(Card.create_composed_reaction())
+			deck_manager.add_card_to_hand(Card.create_by_id("composed_reaction"))
 			add_battle_log("Whirling Weapon readied.", Color(0.7, 0.85, 1.0))
 		"damage_all":
 			var enemies := enemy_spawner.get_living_enemies()

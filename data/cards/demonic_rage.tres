@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_vk5tw"]
+
+[resource]
+script = ExtResource("1_vk5tw")
+card_id = "demonic_rage"
+card_name = "Demonic Rage"
+description = "Your next 5 uses of mana use health instead: 1 health per mana."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 50
+tempo_cost = 5
+target_types = ["self"]
+slot_labels = [9, 11, 8]
+school = 1
+keywords = ["utility", "self", "spell"]

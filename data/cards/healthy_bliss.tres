@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_rtk5v"]
+
+[resource]
+script = ExtResource("1_rtk5v")
+card_id = "healthy_bliss"
+card_name = "Healthy Bliss"
+description = "Instant: Once this has been in your hand for 20 tempo, automatically heal all allies for 10 health."
+card_type = 3
+card_type_name = "Instant"
+mana_cost = 0
+heal_amount = 10
+tempo_cost = 0
+target_types = ["ally"]
+reaction_trigger = "healthy_bliss_timer"
+slot_labels = [16, 14, 11]
+school = 1
+keywords = ["reaction", "utility", "spell"]

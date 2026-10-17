@@ -111,14 +111,14 @@ func _test_hand_rules() -> void:
 func _test_slot_gating() -> void:
 	print("-- ARROW slot gating --")
 	var quiver = ItemData.create("standard_quiver")
-	var arrow = Card.create_quick_shot()
-	var not_arrow = Card.create_slice()
+	var arrow = Card.create_by_id("quick_shot")
+	var not_arrow = Card.create_by_id("slice")
 	_check(quiver.can_slot_card(arrow), "quiver accepts an ARROW card")
 	_check(not quiver.can_slot_card(not_arrow), "quiver refuses a non-ARROW card")
 	_check(quiver.slot_card(arrow), "arrow slots into the quiver")
 	_check(arrow.slotted_in_item == quiver, "the card knows its quiver")
 	var bow = ItemData.create("long_bow")
-	_check(bow.can_slot_card(Card.create_trick_shot()) and not bow.can_slot_card(Card.create_slice()),
+	_check(bow.can_slot_card(Card.create_by_id("trick_shot")) and not bow.can_slot_card(Card.create_by_id("slice")),
 		"a bow takes Arrow cards, not unlabeled ones (slot labels)")
 
 func _test_on_self_riders() -> void:
@@ -172,13 +172,13 @@ func _test_granted_cards() -> void:
 func _test_tempo_delta() -> void:
 	print("-- Tempo delta --")
 	var slow_bow = ItemData.create("tightened_cross_bow")
-	var arrow = Card.create_quick_shot()
+	var arrow = Card.create_by_id("quick_shot")
 	var base := arrow.get_burden_tempo_cost()
 	slow_bow.slot_card(arrow)
 	_check(arrow.get_burden_tempo_cost() == base + 1, "Tightened Cross Bow: +1 tempo on slotted cards")
 	slow_bow.unslot_card(0)
 	var fast_bow = ItemData.create("stringless_sender")
-	var arrow2 = Card.create_down_town()
+	var arrow2 = Card.create_by_id("down_town")
 	var base2 := arrow2.get_burden_tempo_cost()
 	fast_bow.slot_card(arrow2)
 	_check(arrow2.get_burden_tempo_cost() == max(0, base2 - 1), "Stringless Sender: -1 tempo on slotted cards")

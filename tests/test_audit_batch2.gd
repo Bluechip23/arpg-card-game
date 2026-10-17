@@ -18,21 +18,21 @@ func _initialize() -> void:
 	print("=== Audit batch 2 test ===")
 
 	# --- B3: Blade Barrage carries its advertised Glut 15 ---
-	var bb = Card.create_blade_barrage()
+	var bb = Card.create_by_id("blade_barrage")
 	_check(bb.glut_tempo == 15, "Blade Barrage glut_tempo == 15 (got %d)" % bb.glut_tempo)
 
 	# --- C3: Lead Arrow has lower range (-2) ---
-	var la = Card.create_lead_arrow()
+	var la = Card.create_by_id("lead_arrow")
 	_check(la.range_modifier == -2, "Lead Arrow range_modifier == -2 (got %d)" % int(la.range_modifier))
 
 	# --- C7: reaction cards say Instant so Lethal Recall recognizes them ---
-	var ss = Card.create_spider_senses()
-	var vs = Card.create_vengeful_shield()
+	var ss = Card.create_by_id("spider_senses")
+	var vs = Card.create_by_id("vengeful_shield")
 	_check(ss.description.begins_with("Instant."), "Spider Senses description starts with 'Instant.'")
 	_check(vs.description.begins_with("Instant."), "Vengeful Shield description starts with 'Instant.'")
 
 	# --- B2: Burden escalates cost per play, jail resets it ---
-	var prov = Card.create_provider()
+	var prov = Card.create_by_id("provider")
 	_check(prov.has_burden, "Provider has Burden")
 	var base_m = prov.mana_cost
 	var base_t = prov.tempo_cost
@@ -50,14 +50,14 @@ func _initialize() -> void:
 	var stats = load("res://scripts/character/player_stats.gd").new()
 	stats.initialize(CharacterData.create_jeremy())
 	dm.player_stats = stats
-	var prov2 = Card.create_provider()
+	var prov2 = Card.create_by_id("provider")
 	prov2.apply_burden()
 	dm.hand.append(prov2)
 	var mana_before = stats.current_mana
 	_check(dm.jail_burden_card(0), "jail_burden_card succeeds on a burdened hand card")
 	_check(dm.hand.is_empty() and dm.jail_pile.size() == 1, "card moved from hand to jail pile")
 	_check(int(mana_before - stats.current_mana) == prov2.burden_jail_cost_mana, "jail spent %d mana" % prov2.burden_jail_cost_mana)
-	var prov3 = Card.create_provider()
+	var prov3 = Card.create_by_id("provider")
 	dm.hand.append(prov3)
 	_check(not dm.jail_burden_card(0), "cannot jail with no burden built up")
 
@@ -80,13 +80,13 @@ func _initialize() -> void:
 	_check(discard_token.erase_tempo_remaining == 10, "discard card fuse untouched (still %d)" % discard_token.erase_tempo_remaining)
 
 	# --- B1: Consecutive Snap resolves with the use count from play time ---
-	var snap = Card.create_consecutive_snap()
+	var snap = Card.create_by_id("consecutive_snap")
 	snap.consecutive_uses = 2  # deferred execution bumped this AFTER play
 	snap.snap_uses_at_play = 1  # but the play snapshotted 1 prior use
 	_check("snap_uses_at_play" in snap, "Consecutive Snap carries the play-time snapshot field")
 
 	# --- B5: per-enemy chance rolls honor the boost, incl. late enemies ---
-	var ice = Card.create_surrounding_ice()
+	var ice = Card.create_by_id("surrounding_ice")
 	ice.roll_rng([], 30.0)  # 70% base + 30% boost = guaranteed hit
 	_check(absf(ice.rng_effective_chance - 100.0) < 0.001,
 		"boosted roll stored 100%% effective chance (got %.0f)" % ice.rng_effective_chance)

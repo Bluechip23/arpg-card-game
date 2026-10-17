@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_40nji"]
+
+[resource]
+script = ExtResource("1_40nji")
+card_id = "life_steal"
+card_name = "Life Steal"
+description = "Heal for the amount of damage done by your next attack."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 10
+tempo_cost = 2
+target_types = ["self"]
+slot_labels = [10, 8]
+keywords = ["utility", "self"]

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_rul3c"]
+
+[resource]
+script = ExtResource("1_rul3c")
+card_id = "magic_barrier"
+card_name = "Magic Barrier"
+description = "Gain 8 armor. Instant."
+card_type = 3
+card_type_name = "Reaction"
+mana_cost = 0
+block = 8
+tempo_cost = 0
+base_block = 8
+target_types = ["self"]
+erase_on_play = true
+reaction_trigger = "on_incoming_attack"
+slot_labels = [3, 14, 8]
+school = 1
+keywords = ["reaction", "spell"]

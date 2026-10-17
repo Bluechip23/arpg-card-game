@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_113s7"]
+
+[resource]
+script = ExtResource("1_113s7")
+card_id = "risk_it"
+card_name = "Risk It"
+description = "30% chance to receive the Biscuit."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 10
+tempo_cost = 0
+rng_outcomes_data = [{
+&"percent": 30.0
+}]
+target_types = ["self"]
+slot_labels = [8]
+keywords = ["utility", "self"]

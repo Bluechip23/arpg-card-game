@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_7klon"]
+
+[resource]
+script = ExtResource("1_7klon")
+card_id = "adrenaline_shot"
+card_name = "Adrenaline Shot"
+description = "Decrease the tempo of two cards in the target's hand by 3. In 5 tempo, increase a random card's tempo by 3 and another by 2."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 30
+tempo_cost = 0
+is_ranged = true
+target_types = ["ally"]
+slot_labels = [10]
+keywords = ["utility", "ally", "ranged"]

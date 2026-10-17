@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_wndxm"]
+
+[resource]
+script = ExtResource("1_wndxm")
+card_id = "shadows"
+card_name = "Shadows"
+description = "Go invisible for 10 tempo."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 10
+target_types = ["self"]
+slot_labels = [2, 14, 4]
+keywords = ["utility", "self"]

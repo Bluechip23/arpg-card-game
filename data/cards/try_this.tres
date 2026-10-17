@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_nesih"]
+
+[resource]
+script = ExtResource("1_nesih")
+card_id = "try_this"
+card_name = "Try This!"
+description = "Ally +3 mana pool, +2 hand size for 10 tempo. 10% chance reverse."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 30
+rng_outcomes_data = [{
+&"percent": 10.0
+}]
+chance_is_downside = true
+is_ranged = true
+range_modifier = 3
+target_types = ["ally"]
+slot_labels = [7, 8]
+keywords = ["utility", "ally", "ranged"]

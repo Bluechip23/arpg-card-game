@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_aps4c"]
+
+[resource]
+script = ExtResource("1_aps4c")
+card_id = "earth_rattle"
+card_name = "Earth Rattle"
+description = "Smash the ground: 40 damage in a 3-square quake around the impact. Enemies hit are Slowed 2 and Weakened 2."
+mana_cost = 60
+tempo_cost = 6
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 3.0

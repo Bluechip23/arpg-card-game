@@ -60,7 +60,7 @@ func _run() -> void:
 	quit(1 if failures > 0 else 0)
 
 func _spell(points: bool = false) -> Card:
-	var c := Card.create_spark()
+	var c := Card.create_by_id("spark")
 	c.school = Card.CardSchool.SPELL
 	if points:
 		c.target_types = ["point"]
@@ -150,10 +150,10 @@ func _test_harnessed(stats, pt, dummy: Enemy) -> void:
 	_grant(stats, "harnessed_power")  # rank 15: +32%
 	var dm = main.deck_manager
 	dm.hand.clear()
-	dm.hand.append(Card.create_slash())
-	dm.hand.append(Card.create_harden())
+	dm.hand.append(Card.create_by_id("slash"))
+	dm.hand.append(Card.create_by_id("harden"))
 	_check(is_equal_approx(pt._get_jeremy_harnessed_power_multiplier(), 1.32), "with the played card one of two in hand the multiplier is 1.32")
-	dm.hand.append(Card.create_block())
+	dm.hand.append(Card.create_by_id("block"))
 	_check(is_equal_approx(pt._get_jeremy_harnessed_power_multiplier(), 1.0), "three in hand: no bonus")
 	PlayerStats.harnessed_mult = 1.32
 	stats.current_armor = 0
@@ -186,7 +186,7 @@ func _test_whispers(stats, pt) -> void:
 	var wolf = main._wolves.back()
 	main._on_tempo_advanced(main.tempo_manager.global_tempo, 1)
 	_check(main._is_summon(wolf), "a wolf is a summon")
-	pt._trigger_skill_tree_on_card_play(Card.create_healing_potion(), wolf)
+	pt._trigger_skill_tree_on_card_play(Card.create_by_id("healing_potion"), wolf)
 	var mark: Card = null
 	for c in dm.hand:
 		if c.card_id == "shepherds_mark":
@@ -250,7 +250,7 @@ func _test_kinetic(stats, pt, dummy: Enemy) -> void:
 	dummy.target_position = dummy.position
 	dummy.shock_stacks = 0
 	main.deck_manager.hand.clear()
-	main.deck_manager.hand.append(Card.create_harden())
+	main.deck_manager.hand.append(Card.create_by_id("harden"))
 	stats.current_armor = 5
 	stats.st_kinetic_armor_tempo = 0
 	stats.st_kinetic_armor_triggered = false
@@ -268,7 +268,7 @@ func _test_haunted(stats, pt, dummy: Enemy) -> void:
 	stats.st_haunted_rebuke_cooldown = 0
 	main.deck_manager.hand.clear()
 	for _i in range(3):
-		main.deck_manager.hand.append(Card.create_block())
+		main.deck_manager.hand.append(Card.create_by_id("block"))
 	dummy.next_action_tempo_tax = 0
 	pt._trigger_skill_tree_jeremy_on_enemy_attacked(dummy)
 	_check(dummy.next_action_tempo_tax == 3, "the enemy's next action is taxed 3 tempo")
@@ -284,7 +284,7 @@ func _test_keep_them_guessing(stats, pt) -> void:
 	print("-- Keep Them Guessing: 5 tempo, not a cycle --")
 	var dm = main.deck_manager
 	dm.hand.clear()
-	var slash := Card.create_slash()
+	var slash := Card.create_by_id("slash")
 	dm.hand.append(slash)
 	slash.apply_temp_mod(0, 2, 0)
 	dm.tick_temp_mods(2)
@@ -297,13 +297,13 @@ func _test_from_the_hip(stats, pt) -> void:
 	print("-- From the Hip: the tempo cut needs no mana cost --")
 	_grant(stats, "from_the_hip")  # rank 15: -75m / -2t
 	stats.st_from_hip_card = null
-	var free_attack := Card.create_slash()
+	var free_attack := Card.create_by_id("slash")
 	free_attack.mana_cost = 0
 	free_attack.tempo_cost = 3
 	main.deck_manager.hand.append(free_attack)
 	pt._trigger_skill_tree_on_draw(free_attack)
 	_check(free_attack.tempo_cost == 1 and free_attack.mana_cost == 0, "a 0-mana attack drawn at rank 15 still gets -2 tempo (%d)" % free_attack.tempo_cost)
-	var paid := Card.create_slash()
+	var paid := Card.create_by_id("slash")
 	paid.mana_cost = 20
 	paid.tempo_cost = 3
 	pt._trigger_skill_tree_on_draw(paid)
@@ -320,7 +320,7 @@ func _test_surprise_opener(stats, pt, dummy: Enemy) -> void:
 	dummy.current_health = dummy.max_health
 	dummy.current_armor = 0
 	dummy.has_been_damaged = false
-	var card := Card.create_slash()
+	var card := Card.create_by_id("slash")
 	pt.arm_pre_attack_passives(card, dummy)
 	var hp0: int = dummy.current_health
 	pt._trigger_skill_tree_on_attack(card, dummy)

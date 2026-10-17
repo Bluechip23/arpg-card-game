@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_5ewsu"]
+
+[resource]
+script = ExtResource("1_5ewsu")
+card_id = "tricks_of_alberich"
+card_name = "Tricks of Alberich"
+description = "Taunt enemies in a 4-square radius. Gain 10 STR for the taunt's 5 tempo, plus 4 armor and 2 Regen per enemy taunted."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 50
+tempo_cost = 6
+target_types = ["self"]
+shop_excluded = true
+keywords = ["utility"]

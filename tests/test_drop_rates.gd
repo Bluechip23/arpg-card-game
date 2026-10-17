@@ -163,7 +163,7 @@ func _test_early_pity() -> void:
 	_check(quiet, "a filled pity stays silent")
 	# Natural drops count toward the pity without being replaced.
 	var d := CharacterData.new()
-	var slash := Card.create_slash()
+	var slash := Card.create_by_id("slash")
 	var natural := {"gold": 5, "item": null, "card": slash, "card_pack": null}
 	DropRates.apply_early_pity(d, natural, rng)
 	_check(natural["card"] == slash and d.early_card_drops == 1,
@@ -181,17 +181,9 @@ func _test_early_pity() -> void:
 func _test_card_rarities() -> void:
 	print("-- Card rarity tiers --")
 	# Every card the game can create is labeled, and every label maps to a card.
-	var script: Script = Card
 	var discovered := {}
-	for method in script.get_script_method_list():
-		var method_name: String = method["name"]
-		# Mirror Card.create_by_id: factories whose args are ALL defaulted count
-		# too (rank-scaled conjured cards, the Djinn's Wish).
-		if method_name.begins_with("create_") \
-				and method["args"].size() - method["default_args"].size() == 0:
-			var card = script.call(method_name)
-			if card is Card:
-				discovered[card.card_id] = true
+	for cid in Card.CARD_IDS:  # the rank-scaled conjured cards and the Djinn's Wish included
+		discovered[cid] = true
 	var unlabeled: Array = []
 	for cid in discovered:
 		if not Card.CARD_RARITIES.has(cid):
@@ -216,9 +208,9 @@ func _test_card_rarities() -> void:
 		_check(not table.has(Card.Rarity.BASIC), "no card table rolls the Basic tier")
 
 	# Spot checks.
-	_check(Card.create_slash().get_rarity() == Card.Rarity.COMMON, "the Attack card is Common")
-	_check(Card.create_fireball().get_rarity() == Card.Rarity.LEGENDARY, "Fireball is Legendary")
-	_check(Card.create_worms_armageddon().get_rarity() == Card.Rarity.MYTHIC, "Worm's Armageddon is Mythic")
+	_check(Card.create_by_id("slash").get_rarity() == Card.Rarity.COMMON, "the Attack card is Common")
+	_check(Card.create_by_id("fireball").get_rarity() == Card.Rarity.LEGENDARY, "Fireball is Legendary")
+	_check(Card.create_by_id("worms_armageddon").get_rarity() == Card.Rarity.MYTHIC, "Worm's Armageddon is Mythic")
 	_check(Card.create_by_id("fireball") != null and Card.create_by_id("fireball").card_id == "fireball",
 		"create_by_id resolves cards")
 	_check(Card.create_by_id("nonexistent") == null, "create_by_id returns null for unknowns")

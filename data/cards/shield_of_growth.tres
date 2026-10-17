@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_ndnk5"]
+
+[resource]
+script = ExtResource("1_ndnk5")
+card_id = "shield_of_growth"
+card_name = "Shield of Growth"
+description = "For the next 10 tempo, all damage done to you increases your armor count. Disarms self for the duration."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 40
+tempo_cost = 5
+target_types = ["self"]
+slot_labels = [7, 13, 5]
+keywords = ["defense", "self"]

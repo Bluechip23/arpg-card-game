@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_n1wa0"]
+
+[resource]
+script = ExtResource("1_n1wa0")
+card_id = "release_tension"
+card_name = "Release Tension"
+description = "Remove a stack of any debuff from the enemy and heal for the amount of debuffs removed x3. Choose which debuff."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 30
+tempo_cost = 5
+slot_labels = [14, 16, 15]
+keywords = ["utility", "melee"]

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_ppqn4"]
+
+[resource]
+script = ExtResource("1_ppqn4")
+card_id = "poisoned_blood"
+card_name = "Poisoned Blood"
+description = "Heal cards now apply damage instead for 5 instances (allies, summons and yourself included)."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 10
+tempo_cost = 2
+target_types = ["self"]
+slot_labels = [2, 14]
+keywords = ["utility", "self"]

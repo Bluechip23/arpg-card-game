@@ -2549,7 +2549,7 @@ func _try_infest(target_node: Node3D) -> bool:
 	var main := get_parent()
 	var spawner = main.enemy_spawner if main and "enemy_spawner" in main else null
 	for _r in rats:
-		var card: Card = Card.create_infest()
+		var card: Card = Card.create_by_id("infest")
 		if spawner:
 			# Bound to the spawner, not the king: a brood laid by a king
 			# since slain still hatches. Leaving the room frees the spawner,
@@ -3790,7 +3790,7 @@ func _try_crawler_web(target_node: Node3D) -> bool:
 	if target_node.has_method("get_deck_manager"):
 		var deck = target_node.get_deck_manager()
 		if deck:
-			deck.add_card_to_hand(Card.create_paralysis())
+			deck.add_card_to_hand(Card.create_by_id("paralysis"))
 			print("[%s] Webs its prey — Paralysis added to the hand!" % enemy_name)
 	turn_completed.emit()
 	return true
@@ -3814,7 +3814,7 @@ func _try_collect_soul(target_node: Node3D) -> bool:
 	if target_node.has_method("get_deck_manager"):
 		var deck = target_node.get_deck_manager()
 		if deck:
-			deck.add_card_to_hand(Card.create_release_soul())
+			deck.add_card_to_hand(Card.create_by_id("release_soul"))
 			print("[%s] Cages a piece of their soul!" % enemy_name)
 	turn_completed.emit()
 	return true
@@ -5110,7 +5110,7 @@ func _try_smash(target_node: Node3D) -> bool:
 		if target_node.has_method("get_deck_manager"):
 			var dm = target_node.get_deck_manager()
 			if dm:
-				dm.add_card_to_hand(Card.create_lightly_dazed())
+				dm.add_card_to_hand(Card.create_by_id("lightly_dazed"))
 				print("[%s] Smash added Lightly Dazed to player's hand!" % enemy_name)
 		turn_completed.emit()
 		return true

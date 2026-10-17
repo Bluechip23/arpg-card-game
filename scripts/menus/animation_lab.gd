@@ -274,26 +274,21 @@ func _add_entry(label: String, action: String, search: String, grants_armor: boo
 	_entry_buttons.append({"button": btn, "search": search.to_lower()})
 
 
-## Returns every card via reflection over Card's create_*() factory methods,
-## sorted by display name. Mirrors deck_manager's factory discovery.
+## Returns every catalogue card (the rank-scaled generated ones excepted),
+## sorted by display name.
 func _collect_cards() -> Array:
 	var out: Array = []
-	var card_script: Script = Card
-	for method in card_script.get_script_method_list():
-		var mname: String = method["name"]
-		if mname.begins_with("create_") and method["args"].size() == 0:
-			var card = card_script.call(mname)
-			if card is Card:
-				var type_name: String = Card.CardType.keys()[card.card_type].capitalize()
-				out.append({
-					"label": "%s  (%s)" % [card.card_name, type_name],
-					"action": card.get_animation_action(),
-					"search": "%s %s" % [card.card_name, card.card_id],
-					# So the lab previews the systemic armour/heal icons, which in
-					# battle are driven by real stat changes rather than the animation.
-					"armor": card.base_block > 0 or card.block > 0,
-					"heal": card.heal_amount > 0,
-				})
+	for card in Card.get_all_cards(false):
+		var type_name: String = Card.CardType.keys()[card.card_type].capitalize()
+		out.append({
+			"label": "%s  (%s)" % [card.card_name, type_name],
+			"action": card.get_animation_action(),
+			"search": "%s %s" % [card.card_name, card.card_id],
+			# So the lab previews the systemic armour/heal icons, which in
+			# battle are driven by real stat changes rather than the animation.
+			"armor": card.base_block > 0 or card.block > 0,
+			"heal": card.heal_amount > 0,
+		})
 	out.sort_custom(func(a, b): return a["label"] < b["label"])
 	return out
 

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_o2jty"]
+
+[resource]
+script = ExtResource("1_o2jty")
+card_id = "exhausted_assault"
+card_name = "Exhausted Assault"
+description = "While you have zero mana, this card costs 0 mana. Deal 4 damage 3 times. Glut 10."
+mana_cost = 40
+damage = 4
+tempo_cost = 3
+base_damage = 4
+is_ranged = true
+slot_labels = [9]
+keywords = ["attack", "offensive", "ranged"]
+glut_tempo = 10

@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_ug0pa"]
+
+[resource]
+script = ExtResource("1_ug0pa")
+card_id = "dagger_throw"
+card_name = "Dagger Throw"
+description = "5 damage"
+mana_cost = 10
+damage = 5
+tempo_cost = 1
+base_damage = 5
+is_ranged = true
+range_modifier = -1
+slot_labels = [2, 10]
+keywords = ["attack", "offensive", "ranged"]

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_1q4se"]
+
+[resource]
+script = ExtResource("1_1q4se")
+card_id = "blink"
+card_name = "Blink"
+description = "Teleport to a point up to 7 spaces away."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 20
+tempo_cost = 1
+is_ranged = true
+range_modifier = 2
+target_types = ["point"]
+slot_labels = [4]
+keywords = ["utility", "ranged"]

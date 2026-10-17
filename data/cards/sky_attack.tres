@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_00j0e"]
+
+[resource]
+script = ExtResource("1_00j0e")
+card_id = "sky_attack"
+card_name = "Sky Attack"
+description = "Leap in the air and shoot an arrow down at the enemy target. Discard a card from your hand and use its damage as the damage, then gain the High Ground damage bonus."
+mana_cost = 10
+is_ranged = true
+range_modifier = -3
+slot_labels = [1, 14]
+keywords = ["attack", "offensive", "ranged"]

@@ -214,7 +214,7 @@ func _test_feral_slots() -> void:
 	_check(staff.get_slot_color(fire) == "red", "and it sits in the red slot")
 	_check(staff.can_slot_card(ice) and staff.slot_card(ice), "now the blue slot is next, the blue card fits")
 	# A plain card never fits an elemental slot.
-	var plain = Card.create_slash()
+	var plain = Card.create_by_id("slash")
 	_check(not staff.can_slot_card(plain), "an elementless card is refused")
 	# Lv.3: a fifth slot, red again, and a harder lash.
 	staff.item_level = 2

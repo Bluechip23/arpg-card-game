@@ -52,7 +52,7 @@ func _mk(n: int) -> Array:
 	var deck := DeckManager.new()
 	deck.connect_debuff_manager(dm)
 	for _i in range(n):
-		deck.hand.append(Card.create_slash())
+		deck.hand.append(Card.create_by_id("slash"))
 	return [dm, deck]
 
 func _free(pair: Array) -> void:
@@ -86,7 +86,7 @@ func _test_assigned_at_once() -> void:
 	deck.hand.clear()
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.HEXED, 30, -1))
 	_check(dm.get_hexed_debuffs()[0].affected_card == null, "an empty hand leaves it waiting")
-	var drawn := Card.create_slash()
+	var drawn := Card.create_by_id("slash")
 	deck.add_card_to_hand(drawn)
 	_check(dm.card_is_hexed(drawn), "the next card into the hand takes it")
 	_free(p)
@@ -260,7 +260,7 @@ func _test_necromancer_two_cards() -> void:
 	player.dm = dm
 	player.deck = deck
 	for _i in range(4):
-		deck.hand.append(Card.create_slash())
+		deck.hand.append(Card.create_by_id("slash"))
 	var distinct := true
 	for _trial in range(20):
 		dm.clear_all_debuffs()

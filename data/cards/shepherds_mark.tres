@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_727mf"]
+
+[resource]
+script = ExtResource("1_727mf")
+card_id = "shepherds_mark"
+card_name = "Shepherd's Mark"
+description = "Mark the healed ally for 10 tempo. If they would take lethal damage, they survive at 1 HP and gain 10 armor, but Jeremy takes 8 damage."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 0
+tempo_cost = 0
+is_ranged = true
+range_modifier = 2
+target_types = ["self", "ally"]
+erase_tempo = 10
+erase_tempo_remaining = 10
+school = 1
+keywords = ["utility", "spell", "ranged"]

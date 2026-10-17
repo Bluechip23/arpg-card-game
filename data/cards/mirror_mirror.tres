@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_6n81b"]
+
+[resource]
+script = ExtResource("1_6n81b")
+card_id = "mirror_mirror"
+card_name = "Mirror Mirror"
+description = "Duplicate a card in your hand. The duplicate has Erase: 5."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 40
+tempo_cost = 0
+target_types = ["self"]
+slot_labels = [16, 14, 6]
+school = 1
+keywords = ["utility", "spell", "self"]

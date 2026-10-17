@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_kginl"]
+
+[resource]
+script = ExtResource("1_kginl")
+card_id = "round_em_up"
+card_name = "Round 'Em Up"
+description = "Pick a point. Enemies near it are displaced towards it. Pull diameter 5."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 20
+tempo_cost = 3
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 2.5
+is_ranged = true
+target_types = ["point"]
+keywords = ["utility", "point", "ranged"]

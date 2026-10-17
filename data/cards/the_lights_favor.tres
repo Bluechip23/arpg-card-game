@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_xvf3y"]
+
+[resource]
+script = ExtResource("1_xvf3y")
+card_id = "the_lights_favor"
+card_name = "The Light's Favor"
+description = "Heal 5 and draw a card."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 20
+heal_amount = 5
+tempo_cost = 0
+is_ranged = true
+range_modifier = -1
+target_types = ["self", "ally"]
+slot_labels = [2, 14, 3, 16, 15]
+keywords = ["utility", "allies", "ranged"]

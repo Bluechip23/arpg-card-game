@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_it46u"]
+
+[resource]
+script = ExtResource("1_it46u")
+card_id = "meditate"
+card_name = "Meditate"
+description = "Discard hand, draw to full -2, heal to 80%. Glut 5."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 0
+tempo_cost = 6
+target_types = ["self"]
+school = 1
+keywords = ["utility", "spell", "self"]
+glut_tempo = 5

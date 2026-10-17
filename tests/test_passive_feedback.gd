@@ -87,12 +87,12 @@ func _test_way_of_the_plate(stats, pt) -> void:
 	tm.current_tempo = 3
 	stats.st_defense_cards_played = 1
 	stats.current_mana = 10
-	pt._trigger_skill_tree_brad_on_defense_card_play(Card.create_harden())
+	pt._trigger_skill_tree_brad_on_defense_card_play(Card.create_by_id("harden"))
 	_check(tm.global_tempo == 19 and tm.current_tempo == 2, "the refund winds the clock back one tempo (%d global, %d in cycle)" % [tm.global_tempo, tm.current_tempo])
 	_check(stats.current_mana == 20, "…and gives 10 mana back")
 	tm.current_tempo = 0
 	stats.st_defense_cards_played = 1
-	pt._trigger_skill_tree_brad_on_defense_card_play(Card.create_harden())
+	pt._trigger_skill_tree_brad_on_defense_card_play(Card.create_by_id("harden"))
 	_check(tm.current_tempo == 0 and tm.global_tempo == 18, "the cycle counter never goes below zero")
 	stats.skill_tree_passives.erase("the_way_of_the_plate")
 
@@ -100,8 +100,8 @@ func _test_ancestral_tie(stats, pt) -> void:
 	print("-- Ancestral Aid: a tied hand does nothing --")
 	_grant(stats, "ancestral_aid")
 	main.deck_manager.hand.clear()
-	main.deck_manager.hand.append(Card.create_slash())
-	main.deck_manager.hand.append(Card.create_harden())
+	main.deck_manager.hand.append(Card.create_by_id("slash"))
+	main.deck_manager.hand.append(Card.create_by_id("harden"))
 	stats.current_health = 1
 	stats.st_ancestral_cycle_counter = 4
 	pt._trigger_skill_tree_brad_on_cycle()
@@ -223,11 +223,11 @@ func _test_self_reliance_cost(stats, pt) -> void:
 	stats.st_self_reliance_discount = false
 	stats.st_mana_gain_counter = 0
 	main.deck_manager.hand.clear()
-	var held := Card.create_peshtigos_kiss()
+	var held := Card.create_by_id("peshtigos_kiss")
 	main.deck_manager.hand.append(held)
 	var mana0: int = stats.current_mana
 	for _i in range(3):
-		pt._trigger_skill_tree_cory_on_card_play(Card.create_slash())
+		pt._trigger_skill_tree_cory_on_card_play(Card.create_by_id("slash"))
 	_check(held.temp_mana_discount == 60, "the held 60m card is cut by its whole cost at rank 15 (got %d)" % held.temp_mana_discount)
 	_check(stats.current_mana == mana0 and stats.st_mana_gain_counter == 0, "no mana was gained, so Energy Barrier did not count it")
 	var hand_cards: int = main.deck_manager.hand.size()

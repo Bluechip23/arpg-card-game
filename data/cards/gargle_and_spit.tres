@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_np8xr"]
+
+[resource]
+script = ExtResource("1_np8xr")
+card_id = "gargle_and_spit"
+card_name = "Gargle and Spit"
+description = "Heal 3 and gain +1 strength for 20 tempo. Sticky 4."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 10
+heal_amount = 3
+tempo_cost = 1
+sticky = 4
+is_ranged = true
+target_types = ["self", "ally"]
+slot_labels = [2]
+keywords = ["utility", "ally", "ranged"]

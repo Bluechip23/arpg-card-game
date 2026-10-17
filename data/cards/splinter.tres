@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_t68rc"]
+
+[resource]
+script = ExtResource("1_t68rc")
+card_id = "splinter"
+card_name = "Splinter"
+description = "Apply 1 Bleed: the enemy takes 1 damage per tile it moves. Range 3."
+mana_cost = 20
+tempo_cost = 2
+is_ranged = true
+range_modifier = -2

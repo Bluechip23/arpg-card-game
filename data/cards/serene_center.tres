@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_6wtq7"]
+
+[resource]
+script = ExtResource("1_6wtq7")
+card_id = "serene_center"
+card_name = "Serene Center"
+description = "Set your health to half of your maximum plus half of any temporary health (which is consumed), and your mana to half of its maximum — whether that raises or lowers them."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 30
+target_types = ["self"]
+keywords = ["utility"]

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_uiw6e"]
+
+[resource]
+script = ExtResource("1_uiw6e")
+card_id = "shuriken"
+card_name = "Shuriken"
+description = "Deal 3 damage to a random enemy within range. Free."
+mana_cost = 0
+damage = 3
+tempo_cost = 0
+base_damage = 3
+is_ranged = true
+range_modifier = -2
+target_types = ["self"]
+slot_labels = [2, 1]
+keywords = ["attack", "offensive", "ranged"]

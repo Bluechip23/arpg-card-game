@@ -58,11 +58,11 @@ func _run() -> void:
 
 func _test_offensive_rule() -> void:
 	print("-- Offensive is a rider --")
-	_check(Card.create_fireball().is_offensive(), "Fireball (an Attack-type spell) is offensive")
-	_check(Card.create_slash().is_offensive(), "every Attack card is offensive")
-	var vm := Card.create_volatile_mixture()
+	_check(Card.create_by_id("fireball").is_offensive(), "Fireball (an Attack-type spell) is offensive")
+	_check(Card.create_by_id("slash").is_offensive(), "every Attack card is offensive")
+	var vm := Card.create_by_id("volatile_mixture")
 	_check(vm.base_damage > 0 and not vm.is_offensive(), "a damaging Utility without the tag is not offensive")
-	var hl := Card.create_harness_lightning()
+	var hl := Card.create_by_id("harness_lightning")
 	_check(hl.has_keyword("offensive") and hl.is_offensive(), "a Utility the sheet tags offensive is")
 
 func _place(gm, who, cell: Vector2i) -> void:
@@ -83,9 +83,9 @@ func _test_deadly(stats, pt, dummies: Array) -> void:
 	_place(gm, b, pcell + Vector2i(2, 1))   # 1 right and 1 down of a: 2 cells
 	_check(not pt._deadly_isolated(a), "an ally 2 cells away keeps it company")
 	_place(gm, b, pcell + Vector2i(6, 6))
-	var spell := Card.create_fireball()
+	var spell := Card.create_by_id("fireball")
 	_check(pt._trigger_skill_tree_stephen_on_attack(spell, a) >= 16, "an offensive spell on an isolated target gets the +16")
-	var util := Card.create_volatile_mixture()
+	var util := Card.create_by_id("volatile_mixture")
 	_check(pt._trigger_skill_tree_stephen_on_attack(util, a) == 0, "a non-offensive utility gets nothing")
 	# The auto attack: the Deadly bonus rides the swing.
 	var bm = main.player.get_buff_manager()
@@ -100,8 +100,8 @@ func _test_deadly(stats, pt, dummies: Array) -> void:
 func _test_clean_exchange(stats, pt) -> void:
 	print("-- Clean Exchange: the offensive rider --")
 	_grant(stats, "clean_exchange")
-	pt._last_played_card = Card.create_fireball()  # an offensive spell
-	var drawn := Card.create_harden()
+	pt._last_played_card = Card.create_by_id("fireball")  # an offensive spell
+	var drawn := Card.create_by_id("harden")
 	main.deck_manager.hand.append(drawn)
 	pt._trigger_skill_tree_on_draw(drawn)
 	_check(drawn.temp_hand_tempo_reduction == 1 and drawn.temp_flat_block == 8, "a Defense drawn after an offensive spell gets -1t and a flat +8 block")
@@ -110,8 +110,8 @@ func _test_clean_exchange(stats, pt) -> void:
 	main.deck_manager.hand.erase(drawn)
 	drawn.clear_temp_mods()
 	_check(drawn.temp_hand_tempo_reduction == 0 and drawn.temp_flat_block == 0, "...and it ends when the card leaves the hand")
-	pt._last_played_card = Card.create_harden()
-	var atk := Card.create_slash()
+	pt._last_played_card = Card.create_by_id("harden")
+	var atk := Card.create_by_id("slash")
 	main.deck_manager.hand.append(atk)
 	pt._trigger_skill_tree_on_draw(atk)
 	_check(atk.temp_hand_tempo_reduction == 1 and atk.temp_flat_block == 8 and atk.block == 0, "an attack drawn after a Defense gets -1t and the same flat +8 block, its own block still 0")
@@ -126,8 +126,8 @@ func _test_clean_exchange(stats, pt) -> void:
 	_check(atk.temp_flat_block == 0, "…and the grant is spent")
 	stats.current_armor = 0
 	dummies[0].current_health = dummies[0].max_health
-	pt._last_played_card = Card.create_volatile_mixture()  # damaging, not offensive
-	var drawn2 := Card.create_harden()
+	pt._last_played_card = Card.create_by_id("volatile_mixture")  # damaging, not offensive
+	var drawn2 := Card.create_by_id("harden")
 	main.deck_manager.hand.append(drawn2)
 	pt._trigger_skill_tree_on_draw(drawn2)
 	_check(drawn2.temp_hand_tempo_reduction == 0, "…but not after a damaging utility without the tag")
@@ -139,7 +139,7 @@ func _test_eagle_eye(stats, pt, dummy: Enemy) -> void:
 	_grant(stats, "eagle_eye")  # rank 15: 142%
 	var gm = main.grid_manager
 	_place(gm, dummy, gm.world_to_grid(main.player.position) + Vector2i(2, 0))
-	var shot := Card.create_fireball()
+	var shot := Card.create_by_id("fireball")
 	shot.is_ranged = true
 	shot.range_modifier = 0
 	stats.st_scouted_bonus_active = false
@@ -172,10 +172,10 @@ func _test_exposed_blind_spot(stats, pt, dummy: Enemy) -> void:
 	var gm = main.grid_manager
 	_place(gm, dummy, gm.world_to_grid(main.player.position) + Vector2i(1, 0))
 	main.deck_manager.hand.clear()
-	main.deck_manager.hand.append(Card.create_fireball())   # an offensive SPELL: non-attack ("a hand full of offensive spells works")
-	main.deck_manager.hand.append(Card.create_harden())     # non-attack
-	main.deck_manager.hand.append(Card.create_healing_potion())  # non-attack
-	main.deck_manager.hand.append(Card.create_slash())      # an attack: not counted
+	main.deck_manager.hand.append(Card.create_by_id("fireball"))   # an offensive SPELL: non-attack ("a hand full of offensive spells works")
+	main.deck_manager.hand.append(Card.create_by_id("harden"))     # non-attack
+	main.deck_manager.hand.append(Card.create_by_id("healing_potion"))  # non-attack
+	main.deck_manager.hand.append(Card.create_by_id("slash"))      # an attack: not counted
 	stats.st_exposed_blind_spot_crit = 0.0
 	pt._trigger_skill_tree_stephen_on_attacked(dummy)
 	_check(is_equal_approx(stats.st_exposed_blind_spot_crit, 3.75), "three non-attack cards (the offensive spell among them) at rank 2 arm 3.75%% — the Slash is not counted (%.2f)" % stats.st_exposed_blind_spot_crit)
@@ -195,12 +195,12 @@ func _test_swing(stats, pt, dummy: Enemy) -> void:
 	_grant(stats, "swing_for_the_fences")  # rank 15: 380%
 	var gm = main.grid_manager
 	_place(gm, dummy, gm.world_to_grid(main.player.position) + Vector2i(4, 0))
-	var slow_defense := Card.create_harden()
+	var slow_defense := Card.create_by_id("harden")
 	slow_defense.tempo_cost = 5
 	var hp0: int = dummy.current_health
 	var bonus: int = pt._trigger_skill_tree_stephen_on_attack(slow_defense, main.player)
 	_check(bonus == 0 and hp0 - dummy.current_health == 19, "a 5-tempo Defense card with no enemy target hits the nearest enemy for 19 (%d)" % (hp0 - dummy.current_health))
-	var slow_attack := Card.create_slash()
+	var slow_attack := Card.create_by_id("slash")
 	slow_attack.tempo_cost = 6
 	_check(pt._trigger_skill_tree_stephen_on_attack(slow_attack, dummy) >= 23, "a 6-tempo attack adds 23 to its own target")
 	dummy.current_health = dummy.max_health
@@ -214,7 +214,7 @@ func _test_skilled_momentum(stats, pt, dummy: Enemy) -> void:
 	stats.st_consecutive_attacks = 3
 	stats.st_skilled_momentum_last_tempo = -100
 	stats.st_skilled_momentum_echo = false
-	var slash := Card.create_slash()
+	var slash := Card.create_by_id("slash")
 	var hp0: int = dummy.current_health
 	pt._trigger_skill_tree_stephen_on_attack(slash, dummy)
 	_check(stats.st_skilled_momentum_echo and dummy.current_health == hp0, "the streak arms a second play instead of repeating a number")
@@ -235,13 +235,13 @@ func _test_lethal(stats, pt, dummy: Enemy) -> void:
 	stats.st_lethal_last_tempo = -100
 	_place(gm, dummy, pcell + Vector2i(3, 0))
 	var hp0: int = dummy.current_health
-	pt._trigger_skill_tree_stephen_on_card_play(Card.create_harden())
+	pt._trigger_skill_tree_stephen_on_card_play(Card.create_by_id("harden"))
 	_check(dummy.current_health == hp0 and stats.st_lethal_last_tempo == -100, "bare-handed, an enemy 3 tiles off is out of reach: no attack, no cooldown spent")
 	var inv = main.player.get_inventory()
 	_check(inv.equip_item(ItemData.create("short_bow"), 0), "a bow equips")
-	pt._trigger_skill_tree_stephen_on_card_play(Card.create_slash())  # an attack never triggers it
+	pt._trigger_skill_tree_stephen_on_card_play(Card.create_by_id("slash"))  # an attack never triggers it
 	_check(dummy.current_health == hp0, "an attack card does not trigger it")
-	pt._trigger_skill_tree_stephen_on_card_play(Card.create_harden())
+	pt._trigger_skill_tree_stephen_on_card_play(Card.create_by_id("harden"))
 	_check(dummy.current_health < hp0, "with a bow the free auto attack reaches 3 tiles (%d damage)" % (hp0 - dummy.current_health))
 	_check(stats.st_lethal_last_tempo != -100, "…and the cooldown is spent")
 	inv.unequip_item(ItemData.ItemType.WEAPON, 0)

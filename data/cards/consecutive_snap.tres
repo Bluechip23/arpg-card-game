@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_4sx34"]
+
+[resource]
+script = ExtResource("1_4sx34")
+card_id = "consecutive_snap"
+card_name = "Consecutive Snap"
+description = "3 damage. Sticky 3. Each reuse: +9 damage, -1m/-1t cost."
+mana_cost = 30
+damage = 3
+tempo_cost = 3
+base_damage = 3
+sticky = 3
+is_ranged = true
+range_modifier = -2
+slot_labels = [7]
+keywords = ["attack", "offensive", "ranged"]

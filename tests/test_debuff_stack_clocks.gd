@@ -258,7 +258,7 @@ func _test_locked_multi() -> void:
 	get_root().add_child(deck)
 	deck.connect_debuff_manager(dm)
 	for _i in range(4):
-		deck.hand.append(Card.create_slash())
+		deck.hand.append(Card.create_by_id("slash"))
 
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.LOCKED, 0, -1))
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.LOCKED, 0, -1))
@@ -290,7 +290,7 @@ func _test_locked_multi() -> void:
 	_check(dm.is_card_locked(0) and dm.is_card_locked(1) and deck.hand[1] == c3,
 		"only the lock above the gap moves (0, 1)")
 	# A card ABOVE both leaves: neither moves.
-	deck.add_card_to_hand(Card.create_slash())
+	deck.add_card_to_hand(Card.create_by_id("slash"))
 	deck.discard_card_from_hand(deck.hand[2])
 	_check(dm.is_card_locked(0) and dm.is_card_locked(1), "a card above both locks leaving moves neither")
 	# The lower locked card itself leaves (a Clumsy discard): by the
@@ -305,8 +305,8 @@ func _test_locked_multi() -> void:
 	# Hexed and Locked prefer different cards.
 	dm.clear_all_debuffs()
 	deck.hand.clear()
-	deck.hand.append(Card.create_slash())
-	deck.hand.append(Card.create_slash())
+	deck.hand.append(Card.create_by_id("slash"))
+	deck.hand.append(Card.create_by_id("slash"))
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.HEXED, 10, -1))
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.LOCKED, 0, -1))
 	var hx: int = deck.hand.find(dm.get_hexed_debuffs()[0].affected_card)
@@ -362,7 +362,7 @@ func _test_in_scene() -> void:
 			dummy.current_health = 100000
 			if "current_armor" in dummy:
 				dummy.current_armor = 0
-			Card.create_slash().execute(dummy, stats, dm, 0.0, 0.0, bm)
+			Card.create_by_id("slash").execute(dummy, stats, dm, 0.0, 0.0, bm)
 			if dummy.current_health < 100000:
 				hits += 1
 			else:
@@ -371,7 +371,7 @@ func _test_in_scene() -> void:
 		_check(misses >= 20 and hits >= 1, "Blind through the debuff manager: %d misses / %d hits of 50" % [misses, hits])
 		dbm.remove_debuff(Debuff.DebuffType.BLIND)
 		dummy.current_health = 100000
-		Card.create_slash().execute(dummy, stats, dm, 0.0, 0.0, bm)
+		Card.create_by_id("slash").execute(dummy, stats, dm, 0.0, 0.0, bm)
 		_check(dummy.current_health < 100000, "unblinded, the attack lands")
 	else:
 		print("  (no dummy in the dojo — Blind sample skipped)")

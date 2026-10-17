@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_070ne"]
+
+[resource]
+script = ExtResource("1_070ne")
+card_id = "paralysis"
+card_name = "Paralysis"
+description = "Webbed! You cannot move while this is in your hand. Play (10 mana, 5 tempo) to tear the webbing free."
+card_type = 2
+card_type_name = "Curse"
+mana_cost = 10
+tempo_cost = 5
+target_types = ["self"]
+linger = true
+erase_on_play = true

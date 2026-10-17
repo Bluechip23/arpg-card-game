@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_s3lv7"]
+
+[resource]
+script = ExtResource("1_s3lv7")
+card_id = "trip"
+card_name = "Trip"
+description = "Deal 5 damage. Decrease enemy movement by 4 for 10 tempo."
+mana_cost = 20
+damage = 5
+base_damage = 5
+slot_labels = [12]
+keywords = ["attack", "offensive", "melee"]

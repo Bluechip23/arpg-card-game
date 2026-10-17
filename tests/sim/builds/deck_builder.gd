@@ -30,14 +30,7 @@ static var _pool: Dictionary = {}
 static func pool() -> Dictionary:
 	if not _pool.is_empty():
 		return _pool
-	var script: Script = Card
-	for m in script.get_script_method_list():
-		var mn: String = m["name"]
-		if not mn.begins_with("create_") or m["args"].size() - m["default_args"].size() != 0:
-			continue
-		var c = script.call(mn)
-		if not (c is Card):
-			continue
+	for c in Card.get_all_cards():
 		if c.card_type == Card.CardType.UNPLAYABLE or c.requires_engraving or c.shop_excluded:
 			continue
 		if c.card_id.ends_with("_copy"):   # token copies a card conjures, never dealt

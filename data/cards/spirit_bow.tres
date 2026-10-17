@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_nie5s"]
+
+[resource]
+script = ExtResource("1_nie5s")
+card_id = "spirit_bow"
+card_name = "Spirit Bow"
+description = "Maintain: summon a spirit bow that stalks your enemies — 1 square per tempo, a 10-damage shot every 4 tempo. Lasts while the mana stays reserved."
+card_type = 5
+card_type_name = "Power"
+mana_cost = 65
+tempo_cost = 3
+target_types = ["self"]
+maintain_cost = 65
+shop_excluded = true

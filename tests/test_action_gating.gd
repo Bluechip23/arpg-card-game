@@ -116,7 +116,7 @@ func _test_stun() -> void:
 			if inv.equip_item(shield, s):
 				break
 	main.overflow_manager.manifest_zone.append({
-		"card": Card.create_slash(), "effect": null, "manifest_name": "Mushroom",
+		"card": Card.create_by_id("slash"), "effect": null, "manifest_name": "Mushroom",
 		"manifest_id": "use_mushroom", "manifest_description": "", "manifest_value": 5,
 		"mana_cost": 0, "tempo_cost": 2,
 	})
@@ -174,7 +174,7 @@ func _test_stun() -> void:
 	main.character_panel._on_build_pressed(1)
 	_check(inv.active_build == 0 and inv.equipped_gauntlets[0] == gloves, "a build switch is refused")
 
-	var q_card := Card.create_slash()
+	var q_card := Card.create_by_id("slash")
 	main.play_quiver_card(q_card, -1, dummy if dummy else main.player)
 	_check(stats.current_mana == mana0, "a Quiver play spends no mana")
 	var zone0: int = main.overflow_manager.manifest_zone.size()
@@ -324,7 +324,7 @@ func _test_weighted() -> void:
 	else:
 		_check(false, "a shield is equipped for the Block check")
 
-	var q_card := Card.create_slash()
+	var q_card := Card.create_by_id("slash")
 	var burden: int = q_card.get_burden_tempo_cost()
 	var t1: int = tm.global_tempo
 	main.play_quiver_card(q_card, -1, dummy if dummy else main.player)
@@ -334,7 +334,7 @@ func _test_weighted() -> void:
 	_check(w_after != null and w_after.value == 1, "and burns a Weighted stack (2 -> %s)" % (str(w_after.value) if w_after else "gone"))
 
 	# The last stack: still taxed, then gone.
-	var q2 := Card.create_slash()
+	var q2 := Card.create_by_id("slash")
 	var t2: int = tm.global_tempo
 	stats.current_mana = stats.max_mana
 	main.play_quiver_card(q2, -1, dummy if dummy else main.player)

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_quo15"]
+
+[resource]
+script = ExtResource("1_quo15")
+card_id = "purge_wrath"
+card_name = "Purge Wrath"
+description = "Your next attack deals bonus damage equal to your Wrath as a percent, on top of the flat Wrath bonus. Wrath resets to 0."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 55
+tempo_cost = 8
+target_types = ["self"]
+keywords = ["utility"]

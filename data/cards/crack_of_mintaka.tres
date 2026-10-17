@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_iiuef"]
+
+[resource]
+script = ExtResource("1_iiuef")
+card_id = "crack_of_mintaka"
+card_name = "Crack of Mintaka"
+description = "Discard any number of cards, then deal 10 damage to an enemy within that many squares, with +3% crit damage per card discarded."
+mana_cost = 30
+damage = 10
+base_damage = 10

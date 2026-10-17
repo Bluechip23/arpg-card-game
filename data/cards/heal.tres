@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_4pdnx"]
+
+[resource]
+script = ExtResource("1_4pdnx")
+card_id = "heal"
+card_name = "Heal"
+description = "Restore 4 HP."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 10
+heal_amount = 4
+tempo_cost = 2
+is_ranged = true
+target_types = ["self", "ally"]
+slot_labels = [2, 14]
+keywords = ["utility", "ally", "ranged"]

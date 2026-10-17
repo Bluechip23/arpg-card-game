@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_agch4"]
+
+[resource]
+script = ExtResource("1_agch4")
+card_id = "mind_mend"
+card_name = "Mind Mend"
+description = "Restore 60 mana. Costs 15 HEALTH instead of mana."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 0
+health_cost = 15
+tempo_cost = 3
+target_types = ["self"]
+keywords = ["utility"]

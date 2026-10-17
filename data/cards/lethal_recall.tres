@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_w70w4"]
+
+[resource]
+script = ExtResource("1_w70w4")
+card_id = "lethal_recall"
+card_name = "Lethal Recall"
+description = "Trigger your last instant card's effect 2 times."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 20
+target_types = ["self"]
+slot_labels = [12, 4]
+keywords = ["utility", "self"]

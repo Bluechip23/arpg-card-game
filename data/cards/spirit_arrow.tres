@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_mmql1"]
+
+[resource]
+script = ExtResource("1_mmql1")
+card_id = "spirit_arrow"
+card_name = "Spirit Arrow"
+description = "Deal 8 damage. Arrow shoots through all enemies and obstructions in a direct line."
+mana_cost = 30
+damage = 8
+tempo_cost = 5
+base_damage = 8
+is_aoe = true
+aoe_shape = "line"
+aoe_range = 100.0
+is_ranged = true
+target_types = ["point"]
+slot_labels = [14, 16, 1]
+keywords = ["attack", "offensive", "ranged"]

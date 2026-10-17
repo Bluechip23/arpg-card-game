@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_3qtc7"]
+
+[resource]
+script = ExtResource("1_3qtc7")
+card_id = "bob_and_weave"
+card_name = "Bob and Weave"
+description = "Gain 5 armor and draw a card."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 20
+block = 5
+tempo_cost = 1
+base_block = 5
+target_types = ["self"]
+slot_labels = [2, 10, 4, 12]
+keywords = ["defense", "self"]

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_15d5b"]
+
+[resource]
+script = ExtResource("1_15d5b")
+card_id = "premeditated"
+card_name = "Premeditated"
+description = "Deal 8 damage. If this Exposes the enemy, your next card targeting that enemy deals an additional 15 damage on top of its effect."
+mana_cost = 20
+damage = 8
+base_damage = 8
+slot_labels = [9, 10, 12]
+keywords = ["attack", "offensive"]
