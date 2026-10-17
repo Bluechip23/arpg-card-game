@@ -42,7 +42,7 @@ func _initialize() -> void:
 ## character in end-game gear, not tester faults. From 15 up nothing may be
 ## refused (from 18 not even a sphere gate).
 func _allowed_warning(w: String, level: int) -> bool:
-	if w.begins_with("dropped (mythic cap"):
+	if w.begins_with("dropped (mythic cap") or w.begins_with("war rack holds one weapon"):
 		return true
 	# The total deck cap (base + slotted cards) is a trial number the game
 	# enforces at the slot; the tester lets a designed build carry more and
@@ -80,15 +80,17 @@ func _audit_build(runner: SimRunner, character: String, parts: Dictionary, label
 	var alts: Array = sc["player"]["alt_weapons"]
 	if not alts.is_empty():
 		var stowed := 0
+		var want: int = alts.size()
 		if inv.has_back_rack:
 			stowed = inv.rack_items.size()
+			want = 1  # the rack holds one weapon; a quiver or second item is left out (reported)
 		elif inv.builds[1] != null and inv.active_build == 0:
 			for it in inv.builds[1]["weapons"]:
 				if it != null and not inv.equipped_weapons.has(it):
 					stowed += 1
 		var explained: bool = runner.warnings.any(func(w): return str(w).begins_with("alt weapons") and _allowed_warning(str(w), level))
-		if stowed != alts.size() and not explained:
-			problems.append("second weapon set %s: %d of %d stowed" % [str(alts), stowed, alts.size()])
+		if stowed != want and not explained:
+			problems.append("second weapon set %s: %d of %d stowed" % [str(alts), stowed, want])
 	if stats.unspent_stat_points != 0:
 		problems.append("%d stat point(s) unspent" % stats.unspent_stat_points)
 	if stats.unspent_passive_points != 0:

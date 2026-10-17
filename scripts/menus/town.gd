@@ -200,6 +200,12 @@ func _ready() -> void:
 				inv.stored_items = inv_data.get("stored_items", inv.stored_items)
 				inv.stored_cards = inv_data.get("stored_cards", inv.stored_cards)
 				inv.stash_items = inv_data.get("stash_items", inv.stash_items)
+				# Brad's War Rack (its weapon and clocks) rides through town.
+				inv.rack_items = inv_data.get("rack_items", inv.rack_items)
+				inv.rack_cooldown_tempo = inv_data.get("rack_cooldown_tempo", inv.rack_cooldown_tempo)
+				inv.rack_deploy_tempo = inv_data.get("rack_deploy_tempo", inv.rack_deploy_tempo)
+				inv.rack_parked = inv_data.get("rack_parked", inv.rack_parked)
+				inv.rack_parked_two_hand = inv_data.get("rack_parked_two_hand", inv.rack_parked_two_hand)
 				inv.culling_stones = inv_data.get("culling_stones", inv.culling_stones)
 				inv.origami_swans = inv_data.get("origami_swans", inv.origami_swans)
 				inv.mythic_molds = inv_data.get("mythic_molds", inv.mythic_molds)
@@ -3318,6 +3324,11 @@ func _departure_progression() -> Dictionary:
 			"stored_items": live_inv.stored_items.duplicate(),
 			"stored_cards": live_inv.stored_cards.duplicate(),
 			"stash_items": live_inv.stash_items.duplicate(),
+			"rack_items": live_inv.rack_items.duplicate(),
+			"rack_cooldown_tempo": live_inv.rack_cooldown_tempo,
+			"rack_deploy_tempo": live_inv.rack_deploy_tempo,
+			"rack_parked": live_inv.rack_parked.duplicate(),
+			"rack_parked_two_hand": live_inv.rack_parked_two_hand,
 			"culling_stones": live_inv.culling_stones,
 			"origami_swans": live_inv.origami_swans,
 			"mythic_molds": live_inv.mythic_molds,

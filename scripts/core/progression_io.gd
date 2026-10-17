@@ -61,8 +61,9 @@ static func to_disk(live: Dictionary, stats_override: Dictionary = {}) -> Dictio
 	return disk
 
 const _ITEM_LISTS := ["equipped_helms", "equipped_chests", "equipped_rings", "equipped_belts",
-	"equipped_boots", "equipped_gauntlets", "equipped_weapons", "stored_items", "stash_items", "rack_items"]
-const _INT_FIELDS := ["culling_stones", "origami_swans", "mythic_molds", "mythic_pieces", "rack_cooldown_tempo"]
+	"equipped_boots", "equipped_gauntlets", "equipped_weapons", "stored_items", "stash_items", "rack_items", "rack_parked"]
+const _INT_FIELDS := ["culling_stones", "origami_swans", "mythic_molds", "mythic_pieces", "rack_cooldown_tempo",
+	"rack_deploy_tempo", "rack_parked_two_hand"]
 
 static func _item_to_disk(item) -> Variant:
 	if not (item is ItemData):
@@ -113,7 +114,7 @@ static func _inventory_to_live(disk_inv: Dictionary) -> Dictionary:
 			var lst: Array[ItemData] = []
 			for entry in disk_inv[key]:
 				lst.append(_item_from_disk(entry))
-			out[key] = lst if key != "rack_items" else Array(lst)
+			out[key] = lst if key not in ["rack_items", "rack_parked"] else Array(lst)
 	if disk_inv.has("stored_cards"):
 		var cards: Array = []
 		for cid in disk_inv["stored_cards"]:

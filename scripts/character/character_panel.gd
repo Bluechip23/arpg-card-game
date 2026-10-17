@@ -169,7 +169,7 @@ func _split_windows() -> void:
 	_war_rack_btn.custom_minimum_size = Vector2(80, 26)
 	_war_rack_btn.focus_mode = Control.FOCUS_NONE
 	_war_rack_btn.add_theme_font_size_override("font_size", 13)
-	_war_rack_btn.tooltip_text = "Open the War Rack: the slot on Brad's back. Swap to the weapon there,\nheld two-handed, for free — its cards come straight to your hand.\n*An item in this slot is never held one-handed."
+	_war_rack_btn.tooltip_text = "Open the War Rack: the slot on Brad's back for one weapon. Draw it in battle\nfor free, held two-handed, its cards straight to your hand; after %d tempo your\nusual gear returns on its own (cards to the deck). %d tempo between draws.\n*The weapon in this slot is never held one-handed." % [Inventory.RACK_DEPLOY_TEMPO, Inventory.RACK_COOLDOWN]
 	_war_rack_btn.visible = false
 	_war_rack_btn.pressed.connect(_open_war_rack_panel)
 	inv_header.add_child(_war_rack_btn)
@@ -196,11 +196,12 @@ func _split_windows() -> void:
 	_rack_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_rack_row.add_child(_rack_label)
 	_rack_exchange_btn = Button.new()
-	_rack_exchange_btn.text = "Exchange"
+	_rack_exchange_btn.text = "Return"
 	_rack_exchange_btn.custom_minimum_size = Vector2(80, 26)
 	_rack_exchange_btn.focus_mode = Control.FOCUS_NONE
 	_rack_exchange_btn.add_theme_font_size_override("font_size", 12)
-	_rack_exchange_btn.tooltip_text = "Swap everything in your hands with the gear on your back.\nFree out of combat; costs swap tempo in combat.\nIn battle, the Rack button offers the FREE cooldown swap."
+	_rack_exchange_btn.tooltip_text = "Send the rack's weapon back up now and take your usual gear back\n(its cards rejoin the deck, not your hand)."
+	_rack_exchange_btn.visible = false  # only while the rack's weapon is out
 	_rack_exchange_btn.pressed.connect(_on_rack_exchange_pressed)
 	_rack_row.add_child(_rack_exchange_btn)
 	inv_vbox.add_child(_rack_row)
@@ -1128,32 +1129,30 @@ func _refresh_rack_row() -> void:
 		_rack_row.visible = false
 		return
 	_rack_row.visible = true
-	var names := "(empty)"
-	if inventory.rack_items.size() > 0:
-		var parts: Array[String] = []
-		for it in inventory.rack_items:
-			parts.append(it.item_name)
-		names = ", ".join(parts)
-	var cd := ""
-	if inventory.rack_cooldown_tempo > 0:
-		cd = "  [free swap in %d tempo]" % inventory.rack_cooldown_tempo
-	_rack_label.text = "War Rack: %s%s" % [names, cd]
+	if inventory.rack_is_deployed():
+		_rack_label.text = "War Rack: %s in hand (two-handed) — gear returns in %d tempo" % [
+			inventory._rack_names(inventory.get_rack_hand_items()), inventory.rack_deploy_tempo]
+	else:
+		var names := "(empty)"
+		if inventory.rack_items.size() > 0:
+			names = inventory.rack_items[0].item_name
+		var cd := ""
+		if inventory.rack_cooldown_tempo > 0:
+			cd = "  [ready in %d tempo]" % inventory.rack_cooldown_tempo
+		_rack_label.text = "War Rack: %s%s" % [names, cd]
+	if _rack_exchange_btn:
+		_rack_exchange_btn.visible = inventory.rack_is_deployed()
 
 func _on_rack_exchange_pressed() -> void:
-	## Panel exchanges use the PAID path: free out of combat (main ignores the
-	## cost), normal swap tempo in combat. The battle HUD button owns the
-	## cooldown-gated free swap.
+	## Return early: the rack's weapon back up, the usual gear back in hand.
+	## (Drawing the rack is the battle HUD's Rack button.)
 	if not inventory:
 		return
 	if _stun_refuses_swap():
 		return
-	var result: Dictionary = inventory.rack_exchange(false)
-	if result.get("success", false):
-		var cost: int = result.get("tempo_cost", 0)
-		if cost > 0:
-			swap_tempo_spent.emit(cost, "War Rack exchange", -1)
-	else:
-		_flash_inventory_message(result.get("reason", "Can't exchange"))
+	var result: Dictionary = inventory.rack_return()
+	if not result.get("success", false):
+		_flash_inventory_message(result.get("reason", "Can't return"))
 	_refresh_rack_row()
 	update_display()
 
@@ -1667,14 +1666,26 @@ func _open_war_rack_panel() -> void:
 	title.add_theme_color_override("font_color", Color(0.95, 0.8, 0.5))
 	vbox.add_child(title)
 	var blurb = Label.new()
-	blurb.text = "The slot on Brad's back for the two-handed\nweapon he swaps to and away from."
+	blurb.text = "The slot on Brad's back for one weapon, always held two-handed.\nDraw it in battle (the Rack button): free, its cards straight to your\nhand; after %d tempo your usual gear returns on its own, its cards\nrejoining the deck. %d tempo between draws." % [Inventory.RACK_DEPLOY_TEMPO, Inventory.RACK_COOLDOWN]
 	blurb.add_theme_font_size_override("font_size", 11)
 	blurb.add_theme_color_override("font_color", Color(0.6, 0.55, 0.45))
 	vbox.add_child(blurb)
 	vbox.add_child(_make_separator())
 
-	if inventory.rack_items.size() > 0:
-		# The slot is filled: show what hangs there, with take-down + exchange.
+	if inventory.rack_is_deployed():
+		var out_lbl = Label.new()
+		out_lbl.text = "%s is in hand, held two-handed.\nYour usual gear returns in %d tempo." % [
+			inventory._rack_names(inventory.get_rack_hand_items()), inventory.rack_deploy_tempo]
+		out_lbl.add_theme_font_size_override("font_size", 12)
+		out_lbl.add_theme_color_override("font_color", Color(0.85, 0.8, 0.65))
+		vbox.add_child(out_lbl)
+		var back_btn = _make_action_button("Return Now", Color(0.2, 0.15, 0.1), Color(0.75, 0.6, 0.3))
+		back_btn.pressed.connect(func():
+			_on_rack_exchange_pressed()
+			_open_war_rack_panel())
+		vbox.add_child(back_btn)
+	elif inventory.rack_items.size() > 0:
+		# The slot is filled: show what hangs there, with take-down.
 		for i in range(inventory.rack_items.size()):
 			var it: ItemData = inventory.rack_items[i]
 			var row = HBoxContainer.new()
@@ -1692,12 +1703,12 @@ func _open_war_rack_panel() -> void:
 			take_btn.pressed.connect(_on_war_rack_take.bind(i))
 			row.add_child(take_btn)
 			vbox.add_child(row)
-		vbox.add_child(_make_separator())
-		var swap_btn = _make_action_button("Exchange With Hands", Color(0.2, 0.15, 0.1), Color(0.75, 0.6, 0.3))
-		swap_btn.pressed.connect(func():
-			_on_rack_exchange_pressed()
-			_open_war_rack_panel())
-		vbox.add_child(swap_btn)
+		if inventory.rack_cooldown_tempo > 0:
+			var cd_lbl = Label.new()
+			cd_lbl.text = "Ready to draw in %d tempo." % inventory.rack_cooldown_tempo
+			cd_lbl.add_theme_font_size_override("font_size", 11)
+			cd_lbl.add_theme_color_override("font_color", Color(0.6, 0.55, 0.45))
+			vbox.add_child(cd_lbl)
 	else:
 		var empty_lbl = Label.new()
 		empty_lbl.text = "(empty slot)"
@@ -1714,6 +1725,8 @@ func _open_war_rack_panel() -> void:
 			var it: ItemData = inventory.stored_items[i]
 			if it == null or it.item_type != ItemData.ItemType.WEAPON:
 				continue
+			if it.weapon_subtype == ItemData.WeaponSubtype.SHIELD:
+				continue  # a shield cannot be held two-handed
 			any = true
 			var row = HBoxContainer.new()
 			row.add_theme_constant_override("separation", 6)
@@ -1766,6 +1779,8 @@ func _on_war_rack_strap(storage_index: int) -> void:
 	var it: ItemData = inventory.stored_items[storage_index]
 	if it and inventory.rack_store_item(it):
 		inventory.stored_items.remove_at(storage_index)
+	elif it:
+		_flash_inventory_message(inventory.last_refusal)
 	_refresh_rack_row()
 	update_display()
 	_open_war_rack_panel()

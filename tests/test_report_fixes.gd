@@ -103,17 +103,30 @@ func _run() -> void:
 	var hammer := ItemData.create("rusty_dagger")
 	_check(inv.rack_store_item(hammer) and inv.is_war_rack_item(hammer), "a dagger straps to the rack and belongs to its slot")
 	var before_hand: Array = inv.get_rack_hand_items().duplicate()
-	var res: Dictionary = inv.rack_exchange(true)
-	_check(res["success"] and inv.equipped_weapons.has(hammer) and inv.two_handed_slot == inv.equipped_weapons.find(hammer),
-		"the free exchange brings it to hand held two-handed (%s)" % str(res))
-	_check(not inv.set_two_handed(inv.two_handed_slot, false) and inv.two_handed_slot >= 0 and inv.last_refusal.find("War Rack") >= 0,
-		"it refuses to be held one-handed while in the rack's slot: '%s'" % inv.last_refusal)
-	_check(before_hand.all(func(it): return inv.is_war_rack_item(it) and inv.rack_items.has(it)), "the weapons that went up are the rack's now")
 	inv.rack_cooldown_tempo = 0
-	var back: Dictionary = inv.rack_exchange(false)
-	_check(back["success"] and inv.rack_items.has(hammer) and not inv.equipped_weapons.has(hammer), "the plain exchange sends it back up")
+	var res: Dictionary = inv.rack_deploy()
+	_check(res["success"] and inv.equipped_weapons[0] == hammer and inv.two_handed_slot == 0,
+		"drawing the rack brings it to hand held two-handed (%s)" % str(res))
+	_check(not inv.set_two_handed(0, false) and inv.two_handed_slot == 0 and inv.last_refusal.find("War Rack") >= 0,
+		"it refuses to be held one-handed while in the rack's slot: '%s'" % inv.last_refusal)
+	_check(before_hand.all(func(it): return inv.rack_parked.has(it) and not inv.is_war_rack_item(it)), "the usual weapons are set aside, untouched by the rule")
+	var back: Dictionary = inv.rack_return()
+	_check(back["success"] and inv.rack_items.has(hammer) and not inv.equipped_weapons.has(hammer)
+		and before_hand.all(func(it): return inv.equipped_weapons.has(it)), "returning sends it back up and the usual weapons come back")
 	var taken = inv.rack_take_item(inv.rack_items.find(hammer))
 	_check(taken == hammer and not inv.is_war_rack_item(hammer), "taken off the rack, it is an ordinary weapon again")
+	# Through the battle HUD: the Rack button draws it, the tempo clock brings the gear back.
+	_check(inv.rack_store_item(hammer), "strapped on again")
+	inv.rack_cooldown_tempo = 0
+	main._on_rack_button_pressed()
+	_check(inv.rack_is_deployed() and inv.equipped_weapons[0] == hammer and main._rack_button.text.begins_with("Rack ↩"),
+		"the HUD button draws the rack (%s)" % main._rack_button.text)
+	main._on_tempo_advanced(0, 19)
+	_check(inv.rack_is_deployed() and inv.rack_deploy_tempo == 1, "19 tempo on the clock: still out")
+	main._on_tempo_advanced(0, 1)
+	_check(not inv.rack_is_deployed() and inv.rack_weapon() == hammer and before_hand.all(func(it): return inv.equipped_weapons.has(it)),
+		"the 20th tempo brings the usual gear back on its own")
+	_check(main._rack_button.text == "Rack 40T", "the button shows the recharge (%s)" % main._rack_button.text)
 
 	# --- 5. Invisible: the figure returns when the buff ends, or on death.
 	var bm = main.player.get_buff_manager()

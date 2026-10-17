@@ -277,7 +277,7 @@ static func create_brad() -> CharacterData:
 		]},
 	]
 	data.passive_description = "Chest items weigh 20% less"
-	data.slot_specialty = "War Rack: swap to a weapon held two-handed for free, instantly bringing its cards to your hand. *This item can never be held 1-handed while in this slot."
+	data.slot_specialty = "War Rack: swap to a weapon held two-handed for free, instantly bringing its cards to your hand. After 20 tempo your usual gear returns on its own (its cards rejoin the deck, not your hand); 60 tempo between swaps. *This item can never be held 1-handed while in this slot."
 	data.sprite_path = "res://assets/characters/brad_south.png"
 	return data
 

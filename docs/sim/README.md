@@ -467,6 +467,14 @@ card swap. `engrave:<item>~none` strips that item's engravings, which
 answers whether the slot is worth filling at all (engraved cards ride on
 top of the 12-card deck, so a weak engraving dilutes the draws).
 
+Brad's second set goes on the War Rack, which (since 2026-10-17) holds one
+weapon: the set's first weapon is strapped on, a quiver or second item is
+left out with a warning. Drawing the rack is free and brings the weapon's
+cards to hand; it goes back up on its own after 20 tempo, the usual gear
+returning with its cards to the discard pile, and the rack recharges 60
+tempo after the draw. The runner draws it through the HUD button; the
+return happens on the clock.
+
 The game caps the deck at `DeckManager.MAX_TOTAL_DECK_SIZE` (25) counting
 slotted cards; the tester does not refuse a build past it but warns
 (`deck: N cards counting slotted ones over the total cap of 25`), and the

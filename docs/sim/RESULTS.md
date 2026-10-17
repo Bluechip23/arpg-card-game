@@ -132,6 +132,13 @@ Shield) is his shadow blade: a dagger's damage with a duelist's health.
 
 ## Engravings, one card at a time
 
+> **Brad's War Rack (2026-10-17).** The rack is now a slot for one weapon,
+> drawn free and held two-handed for 20 tempo before his usual gear returns
+> on its own (60 tempo between draws). Brad's weapon-set results below were
+> run under the old hands-for-back exchange (two items, a 25-tempo cooldown,
+> no automatic return) and his `bow` set is now the bow alone; re-run Brad's
+> stance and weapon-set sweeps before reading those rows.
+
 > **Deck cap (2026-10-17).** The game now caps the deck at 25 cards
 > counting the ones slotted into items (12 outside items as before;
 > item-granted cards count toward neither). These sweeps were run before

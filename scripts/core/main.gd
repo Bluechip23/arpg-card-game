@@ -2563,22 +2563,22 @@ func _on_swap_tempo_spent(cost: int, action: String, item_type: int = -1) -> voi
 		add_battle_log("%s — %d tempo" % [action, cost], Color(0.85, 0.75, 0.5))
 
 func _on_rack_button_pressed() -> void:
-	## Brad's War Rack: free exchange when the cooldown is ready (and the
-	## single-two-handed-item rule is met); otherwise a normal paid exchange.
+	## Brad's War Rack: draw its weapon (free, two-handed, cards to hand) —
+	## or, while it is out, send it back up early.
 	var inv := player.get_inventory() if player else null
 	if not inv or not inv.has_back_rack:
 		return
 	if _stun_refuses("swap gear"):
 		return
-	var free_check: Dictionary = inv.can_rack_exchange(true)
-	if free_check["ok"]:
-		var result: Dictionary = inv.rack_exchange(true)
-		if result["success"]:
-			add_battle_log("War Rack: swapped FREE — cards to hand!", Color(1.0, 0.85, 0.4))
+	if inv.rack_is_deployed():
+		var back: Dictionary = inv.rack_return()
+		if back["success"]:
+			add_battle_log("War Rack: weapon back on the rack — your usual gear returns.", Color(1.0, 0.85, 0.4))
 	else:
-		var result: Dictionary = inv.rack_exchange(false)
+		var result: Dictionary = inv.rack_deploy()
 		if result["success"]:
-			_on_swap_tempo_spent(result["tempo_cost"], "War Rack exchange")
+			add_battle_log("War Rack: %s drawn two-handed — cards to hand! (%d tempo)" % [
+				inv.equipped_weapons[0].item_name if inv.equipped_weapons[0] else "weapon", Inventory.RACK_DEPLOY_TEMPO], Color(1.0, 0.85, 0.4))
 		else:
 			add_battle_log("War Rack: %s" % result["reason"], Color(1.0, 0.5, 0.4))
 	_update_rack_button()
@@ -2594,12 +2594,17 @@ func _update_rack_button() -> void:
 		return
 	_rack_button.visible = true
 	var rack_names: String = inv._rack_names(inv.rack_items)
-	if inv.rack_cooldown_tempo <= 0:
-		_rack_button.text = "Rack FREE"
-		_rack_button.tooltip_text = "War Rack: swap your hands with the gear on your back for FREE.\nOn back: %s\nOne side must be a single two-handed item; incoming cards rush to your hand.\n%d tempo cooldown after use. Click while recharging for a normal paid swap." % [rack_names, Inventory.RACK_FREE_SWAP_COOLDOWN]
+	if inv.rack_is_deployed():
+		_rack_button.text = "Rack ↩ %dT" % inv.rack_deploy_tempo
+		_rack_button.tooltip_text = "War Rack: %s in hand, held two-handed.\nYour usual gear (%s) returns in %d tempo — its cards rejoin the deck, not your hand.\nClick to return now." % [
+			inv._rack_names(inv.get_rack_hand_items()), inv._rack_names(Inventory._non_null(inv.rack_parked)), inv.rack_deploy_tempo]
+	elif inv.rack_cooldown_tempo <= 0:
+		_rack_button.text = "Rack READY"
+		_rack_button.tooltip_text = "War Rack: draw the weapon on your back for FREE, held two-handed, its cards straight to your hand.\nOn the rack: %s\nAfter %d tempo your usual gear returns on its own. Next draw %d tempo after this one." % [
+			rack_names, Inventory.RACK_DEPLOY_TEMPO, Inventory.RACK_COOLDOWN]
 	else:
 		_rack_button.text = "Rack %dT" % inv.rack_cooldown_tempo
-		_rack_button.tooltip_text = "War Rack recharging: free swap in %d tempo.\nOn back: %s\nClick to exchange now at normal swap-tempo cost." % [inv.rack_cooldown_tempo, rack_names]
+		_rack_button.tooltip_text = "War Rack recharging: ready in %d tempo.\nOn the rack: %s" % [inv.rack_cooldown_tempo, rack_names]
 
 func _update_block_button_visibility() -> void:
 	if not _block_button:
@@ -5224,6 +5229,9 @@ func _clear_locked_markers() -> void:
 func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	if deck_manager:
 		_check_volatile_mixture_in_hand()
+	# Brad's War Rack: its cooldown and the drawn weapon's return clock.
+	if player and player.get_inventory() and player.get_inventory().has_back_rack:
+		player.get_inventory().advance_rack_tempo(amount)
 	# Timed statuses (stun, frozen, blind...) tick on RAW tempo so durations
 	# like "3 tempo" work; per-cycle effects still run on the 5-tempo turn.
 	# Skill-tree cooldowns and intervals with exact tempo values tick here too.
@@ -15425,6 +15433,9 @@ func _restore_player_progression(progression: Dictionary) -> void:
 			inv.stored_items = inv_data.get("stored_items", inv.stored_items)
 			inv.rack_items = inv_data.get("rack_items", inv.rack_items)
 			inv.rack_cooldown_tempo = inv_data.get("rack_cooldown_tempo", 0)
+			inv.rack_deploy_tempo = inv_data.get("rack_deploy_tempo", 0)
+			inv.rack_parked = inv_data.get("rack_parked", [])
+			inv.rack_parked_two_hand = inv_data.get("rack_parked_two_hand", -1)
 			inv.stored_cards = inv_data.get("stored_cards", inv.stored_cards)
 			inv.stash_items = inv_data.get("stash_items", inv.stash_items)
 			inv.culling_stones = inv_data.get("culling_stones", inv.culling_stones)
@@ -15512,6 +15523,9 @@ func _save_player_progression() -> Dictionary:
 			"mythic_pieces": inv.mythic_pieces,
 			"rack_items": inv.rack_items.duplicate(),
 			"rack_cooldown_tempo": inv.rack_cooldown_tempo,
+			"rack_deploy_tempo": inv.rack_deploy_tempo,
+			"rack_parked": inv.rack_parked.duplicate(),
+			"rack_parked_two_hand": inv.rack_parked_two_hand,
 		}
 	var deck_state = progression["deck_state"]
 	var total_cards = deck_state.get("hand", []).size() + deck_state.get("draw_pile", []).size() + deck_state.get("discard_pile", []).size() + deck_state.get("jail_pile", []).size()
