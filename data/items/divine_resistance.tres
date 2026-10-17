@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_v6qyr"]
+
+[resource]
+script = ExtResource("1_v6qyr")
+item_name = "Divine Resistance"
+item_type = 1
+item_type_name = "Chest"
+rarity = 3
+level_3_overrides = {
+"resist_missing_step": 7,
+"resist_per_missing10": 1.5
+}
+level_3_description = "+46 health, +6 STR. Gain 1.5% resistance to all damage types per 7% missing health. Grants Preemptive Answer (instant): when you drop to 25% health, purge 3 debuffs and heal 20."
+weight = 400
+strength_bonus = 5
+health_bonus = 45
+granted_card_ids = Array[String](["preemptive_answer"])
+resist_per_missing10 = 1.0
+resist_missing_step = 8
+description = "+45 health, +5 STR. Gain 1% resistance to all damage types per 8% missing health. Grants Preemptive Answer (instant): when you drop to 25% health, purge 3 debuffs and heal 20."
+appearance = "Shiny silver chest, with a crescent moon and sun on the chest."
+appearance_icon = "res://assets/items/mythic/divine_resistance.png"

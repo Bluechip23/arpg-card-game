@@ -37,3 +37,35 @@ static func crisp(label: Label3D, target_px: int = 0) -> Label3D:
 	label.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
 	label.render_priority = maxi(label.render_priority, 10)
 	return label
+
+
+## A damage / heal number that rises and fades above a unit, then frees
+## itself. `at` is the world position to start from (callers roll their own
+## horizontal jitter so the RNG order of a hit is unchanged); `outline_size`
+## 0 keeps the Label3D default; `pop` bumps the font size up and back for
+## the enemy hit numbers.
+static func float_number(parent: Node, at: Vector3, text: String, color: Color, font_size: int,
+		outline_size: int, rise: float, rise_time: float, fade_time: float, pop: bool = false) -> void:
+	var label := Label3D.new()
+	label.text = text
+	label.font_size = font_size
+	if outline_size > 0:
+		label.outline_size = outline_size
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	label.render_priority = 50
+	label.modulate = color
+	label.position = at
+	parent.add_child(label)
+
+	var tween := label.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tween.set_parallel(true)
+	tween.tween_property(label, "position:y", label.position.y + rise, rise_time)
+	tween.tween_property(label, "modulate:a", 0.0, fade_time).set_delay(0.3)
+	if pop:
+		# Slight scale up then down
+		tween.tween_property(label, "font_size", label.font_size + 6, 0.1)
+		tween.chain()
+		tween.tween_property(label, "font_size", label.font_size, 0.3)
+	tween.chain()
+	tween.tween_callback(label.queue_free)

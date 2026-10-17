@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_fhpra"]
+
+[resource]
+script = ExtResource("1_fhpra")
+item_name = "Tightened Cross Bow"
+item_type_name = "Bow"
+rarity = 1
+weight = 40
+strength_bonus = 2
+dexterity_bonus = 3
+intelligence_bonus = 5
+agility_bonus = -2
+weapon_subtype = 1
+card_slots = 2
+on_self_damage = 5
+on_self_tempo_penalty = 1
+description = "+3 DEX, -2 AGI, +5 INT, +2 STR. 2 card slots. On-self: +5 damage but +1 tempo."

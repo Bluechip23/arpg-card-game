@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_3662e"]
+
+[resource]
+script = ExtResource("1_3662e")
+item_name = "Wrist Rocket"
+rarity = 2
+weight = 10
+dexterity_bonus = 5
+agility_bonus = 6
+weapon_subtype = 3
+granted_card_ids = Array[String](["improvised_ammo", "improvised_ammo"])
+card_slots = 1
+crit_chance_percent = 10.0
+description = "+5 DEX, +6 AGI, +10% crit chance. One-handed; pairs with a quiver. Grants 2 copies of Improvised Ammo: deal 8 damage and apply 3 Weaken — or discard it to deal 4 damage to the nearest enemy and permanently give Improvised Ammo +10% crit chance (45 mana, 0 tempo)."

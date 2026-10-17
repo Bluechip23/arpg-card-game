@@ -3,7 +3,6 @@ extends Control
 
 ## Character selection screen - supports single player and multiplayer
 
-signal character_selected(character: CharacterData)
 
 @onready var character_container: VBoxContainer = $VBox/ScrollContainer/CharacterContainer
 
@@ -290,7 +289,6 @@ func _on_character_selected(character: CharacterData) -> void:
 
 	_selected_character = character
 	_is_quiz_character = false
-	character_selected.emit(character)
 
 	# Show proceed/cancel confirmation
 	if game_mode == "multiplayer":

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_rvxdr"]
+
+[resource]
+script = ExtResource("1_rvxdr")
+item_name = "Sack of Bone Arrows"
+item_type = 7
+item_type_name = "Quiver"
+rarity = 2
+weight = 40
+intelligence_bonus = 3
+wisdom_bonus = 5
+card_slots = 2
+on_self_kill_summon_skeleton = true
+description = "+5 WIS, +3 INT. 2 card slots. On-self: a kill raises a skeleton with half the victim's max health — 5 damage, 4 squares per tempo, attacks every 5 tempo; up to 3 at once."

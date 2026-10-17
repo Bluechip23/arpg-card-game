@@ -63,7 +63,7 @@ func _initialize() -> void:
 	dm.draw_card()
 	_check(drawn in dm.hand and not drawn.is_ranged, "drawn with empty hands: melee")
 
-	var bow := ItemData.create_short_bow()
+	var bow := ItemData.create("short_bow")
 	_check(inv.equip_item(bow, 0), "bow equips")
 	_check(inv.holds_ranged_weapon(), "inventory reports a ranged weapon in hand")
 	_check(drawn.is_ranged, "equipping a bow flips the card in hand to ranged")
@@ -79,7 +79,7 @@ func _initialize() -> void:
 
 	# Magic weapons make the basic ATTACK card ranged — and only it: other
 	# Conditional cards still go by the bow alone.
-	var wand := ItemData.create_wand_of_clarity()
+	var wand := ItemData.create("wand_of_clarity")
 	_check(inv.equip_item(wand, 0), "wand equips")
 	_check(inv.holds_magic_weapon() and not inv.holds_ranged_weapon(), "a wand is a magic weapon, not a ranged one")
 	var atk_in_hand := Card.create_slash()
@@ -87,7 +87,7 @@ func _initialize() -> void:
 	_check(atk_in_hand.is_ranged and atk_in_hand.get_effective_range() == 5, "Attack drawn with a wand in hand is Ranged 5")
 	_check(not drawn.is_ranged and not added.is_ranged, "Exacerbate Wounds stays melee with a wand")
 	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
-	var staff := ItemData.create_magic_staff()
+	var staff := ItemData.create("magic_staff")
 	_check(inv.equip_item(staff, 0), "staff equips")
 	_check(inv.holds_magic_weapon() and atk_in_hand.is_ranged, "a staff keeps the Attack card ranged")
 	_check(inv.held_weapon_kind() == "staff", "the held weapon kind reads staff")

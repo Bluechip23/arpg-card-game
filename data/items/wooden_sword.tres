@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_v28gj"]
+
+[resource]
+script = ExtResource("1_v28gj")
+item_name = "Wooden Sword"
+weight = 2
+special_effect = 5
+granted_card_ids = Array[String](["splinter"])
+card_slots = 1
+on_self_damage = 1
+description = "No stats. 1 card slot, On-Self: attacks deal +1 damage. Grants Splinter while equipped."

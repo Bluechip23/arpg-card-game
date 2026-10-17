@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_mpn56"]
+
+[resource]
+script = ExtResource("1_mpn56")
+item_name = "Shepherds Crook"
+rarity = 2
+weight = 25
+intelligence_bonus = 4
+wisdom_bonus = 3
+health_bonus = 20
+mana_bonus = 20
+weapon_subtype = 10
+granted_card_ids = Array[String](["crops"])
+card_slots = 4
+card_pull_target = 1
+healing_bonus = 5
+description = "+20 health, +20 mana, +4 INT, +3 WIS. 4 card slots. Two-handed. All your healing heals 5 more. Every targeted card you play pulls its target 1 square toward you — allies included. Grants Crops: grow 5 berry bushels at random within 8 squares; an ally who walks over one eats it for 20 life and 20 mana (70 mana, 7 tempo)."

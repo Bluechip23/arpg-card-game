@@ -79,7 +79,7 @@ func _initialize() -> void:
 	for _i in range(3):
 		dm.discard_pile.append(Card.create_by_id("harden"))
 	_check(dm.can_add_copy("harden"), "three rares leave room for a fourth")
-	var helm := ItemData.create_thick_steel_helm()
+	var helm := ItemData.create("thick_steel_helm")
 	helm.slotted_cards.append(Card.create_by_id("harden"))
 	inv.stored_items.append(helm)
 	_check(dm.count_copies_in_deck("harden") == 4, "a copy socketed in a carried item counts (got %d)" % dm.count_copies_in_deck("harden"))

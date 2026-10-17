@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_hydvn"]
+
+[resource]
+script = ExtResource("1_hydvn")
+item_name = "Elemental Weaver"
+rarity = 2
+weight = 20
+intelligence_bonus = 5
+wisdom_bonus = 3
+mana_bonus = 35
+weapon_subtype = 10
+granted_card_ids = Array[String](["element_pollination"])
+elemental_charge_damage = 1
+description = "+5 INT, +3 WIS, +35 mana. Two-handed. Applying Burn, Shock or Cold deals +1 damage per stack applied. Grants Element Pollination (Maintain): your Burn also splashes nearby enemies like Shock, Shock freezes at 5 stacks like Cold, and Cold ticks doubling damage like Burn — on top of their normal effects (60 mana, 3 tempo)."

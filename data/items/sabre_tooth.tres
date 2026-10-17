@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_sfl80"]
+
+[resource]
+script = ExtResource("1_sfl80")
+item_name = "Sabre Tooth"
+rarity = 3
+weight = 10
+dexterity_bonus = 10
+determination_bonus = 3
+agility_bonus = 5
+weapon_subtype = 5
+card_slots = 1
+same_target_bleed = 5
+on_self_apply_bleed = 5
+description = "+10 DEX, +5 AGI, +3 DET. On-self: apply 5 Bleed. Striking the same target twice in a row ticks the attack-speed counter an extra time and inflicts 5 Bleed."
+appearance = "A khatar with a sabertooth tiger head where the hand grip is, and a giant sabertooth tooth as the blade."
+appearance_icon = "res://assets/items/mythic/sabre_tooth.png"

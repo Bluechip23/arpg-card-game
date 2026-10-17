@@ -602,7 +602,6 @@ var st_haunted_rebuke_cooldown: int = 0  # Haunted Rebuke: remaining cooldown te
 var st_kinetic_armor_tempo: int = 0   # Kinetic Armor: tempo since armor was last at 0
 var st_kinetic_armor_triggered: bool = false  # Kinetic Armor: already triggered this armor retention
 var st_i_heal_you_tempo: int = 0      # I Heal You: tempo counter for ally healing aura
-var st_seance_specters: Array = []    # Seance: active specters [{node, hp, tempo_remaining, position}]
 
 func has_skill_tree_passive(passive_id: String) -> bool:
 	return passive_id in skill_tree_passives
@@ -722,7 +721,7 @@ func _ladder_work_mod(key: String) -> int:
 	return int(PassiveScaling.value("ladder_work", key, get_passive_level("ladder_work")))
 
 func get_effective_stat(base_value: int) -> int:
-	var modifier = get_determination_modifier()
+	var modifier := get_determination_modifier()
 	return max(1, floori(base_value * modifier))
 
 func get_base_stat(stat_name: String) -> int:
@@ -1062,7 +1061,7 @@ func restore_progression(data: Dictionary) -> void:
 	print("[STATS] Progression restored: Level %d, XP %d, %d passives" % [current_level, current_xp, skill_tree_passives.size()])
 
 func recalculate_derived_stats() -> void:
-	var base_hand = character_data.base_hand_size if character_data else 4
+	var base_hand := character_data.base_hand_size if character_data else 4
 	hand_size = maxi(1, base_hand + get_wisdom_hand_bonus() + equipment_hand_bonus + temp_hand_modifier)
 	refresh_det_vitality()
 	stats_updated.emit()
@@ -1118,7 +1117,7 @@ var _det_mana_last_pct: float = 1.0
 func _on_mana_changed_for_det(_cur: float, _max_val: int) -> void:
 	## Willspring: mana is the Determination driver, so crossing a threshold on
 	## the mana pool re-derives stats the same way health crossings do.
-	var new_pct = get_mana_percent()
+	var new_pct := get_mana_percent()
 	if keystone_det_mana and _crossed_threshold(_det_mana_last_pct, new_pct):
 		recalculate_derived_stats()
 		stats_updated.emit()
@@ -1136,8 +1135,8 @@ func get_determination_modifier() -> float:
 	# Below it: penalties as the resource drains
 	# Above it: bonuses as the resource drains
 
-	var health_pct = get_determination_resource_percent()
-	var det_diff = determination + get_temp_determination_bonus() - DET_NEUTRAL
+	var health_pct := get_determination_resource_percent()
+	var det_diff := determination + get_temp_determination_bonus() - DET_NEUTRAL
 
 	# Determine which threshold and effect percentage
 	var effect_per_point = 0.0
@@ -1168,7 +1167,7 @@ func get_determination_modifier() -> float:
 	# Return as multiplier. The penalty side only clamps at zero (Unbroken Will
 	# raises that floor to DET_FLOOR_MODIFIER); the buff side is uncapped — at
 	# these per-point rates the reachable ceiling stays modest.
-	var floor_clamp = DET_FLOOR_MODIFIER if keystone_det_floor else 0.0
+	var floor_clamp := DET_FLOOR_MODIFIER if keystone_det_floor else 0.0
 	return max(floor_clamp, 1.0 + total_modifier)
 
 #endregion
@@ -1419,10 +1418,10 @@ func get_capacity_speed_modifier() -> int:
 	## 0 while unencumbered; positive (slower) as the load ratio climbs.
 	if is_overburdened():
 		return OVERBURDENED_SPEED_PENALTY
-	var capacity = get_carry_capacity()
+	var capacity := get_carry_capacity()
 	if capacity <= 0 or current_carry_load <= 0:
 		return 0
-	var ratio = clampf(float(current_carry_load) / float(capacity), 0.0, 1.0)
+	var ratio := clampf(float(current_carry_load) / float(capacity), 0.0, 1.0)
 	return roundi(ratio * CAPACITY_SPEED_MAX_PENALTY)
 
 # DEX pays per-point into crit damage too, so its counter contribution is
@@ -1476,7 +1475,7 @@ func register_attack(is_real_attack: bool = true) -> Dictionary:
 		# Killing Rhythm: trade the tempo/mana proc for a DEX-scaled damage burst
 		# armed on the next attack. No dexterity_proc signal (no half tempo/mana).
 		if keystone_dex_flat_damage:
-			var bonus = get_dex_proc_flat_bonus()
+			var bonus := get_dex_proc_flat_bonus()
 			pending_dex_bonus_damage += bonus
 			print("[STATS] Killing Rhythm! Next attack +%d damage (DEX %d)" % [bonus, dexterity])
 			return {
@@ -1604,7 +1603,7 @@ func get_dex_proc_flat_bonus() -> int:
 
 func consume_pending_dex_bonus_damage() -> int:
 	## Take (and clear) the Killing Rhythm bonus armed for the next attack.
-	var b = pending_dex_bonus_damage
+	var b := pending_dex_bonus_damage
 	pending_dex_bonus_damage = 0
 	return b
 
@@ -1676,7 +1675,7 @@ func process_tempo(amount: int) -> void:
 	_tempo_until_mana_regen -= float(regen_amount)
 	if _tempo_until_mana_regen <= 0.0:
 		_tempo_until_mana_regen += mana_regen_tempo_interval
-		var mana_regen = get_effective_mana_regen()
+		var mana_regen := get_effective_mana_regen()
 		current_mana = min(current_mana + mana_regen, get_available_max_mana())
 		mana_changed.emit(current_mana, max_mana)
 		mana_gained.emit(int(mana_regen), true)
@@ -1684,7 +1683,7 @@ func process_tempo(amount: int) -> void:
 		# Arcane Ward: convert each regen tick into armor equal to half INT. Raw
 		# armor (like the flash sidestep) — block bonuses don't apply.
 		if keystone_int_regen_armor:
-			var ward = floori(intelligence / 2.0)
+			var ward := floori(intelligence / 2.0)
 			if ward > 0:
 				current_armor += ward
 				armor_changed.emit(current_armor)
@@ -1716,7 +1715,7 @@ func process_turn(debuff_mgr = null, buff_mgr = null) -> void:
 	if current_temp_health > 0 and temp_health_tempo_remaining > 0:
 		temp_health_tempo_remaining -= 5
 		if temp_health_tempo_remaining <= 0:
-			var old_pct = get_health_percent()
+			var old_pct := get_health_percent()
 			current_temp_health = 0
 			temp_health_tempo_remaining = 0
 			print("[STATS] Temp HP expired")
@@ -1766,7 +1765,7 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	if friendship_partner and not _friendship_echo and amount > 1:
 		_friendship_echo = true
 		friendship_partner._friendship_echo = true
-		var partner_half = amount / 2
+		var partner_half := amount / 2
 		amount = amount - partner_half
 		friendship_partner.take_damage(partner_half, friendship_partner_debuff, friendship_partner_buff)
 		_friendship_echo = false
@@ -1934,7 +1933,7 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	# can't cover its share, health takes the leftover — so death still only
 	# comes from HP reaching 0.
 	if keystone_mana_blood and remaining > 1 and current_mana > 0:
-		var mana_share = mini(remaining / 2, floori(current_mana / 10.0))
+		var mana_share := mini(remaining / 2, floori(current_mana / 10.0))
 		if mana_share > 0:
 			_drain_mana_as_health(mana_share * 10)
 			remaining -= mana_share
@@ -1946,7 +1945,7 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 			while _health_loss_accum >= equipment_armor_loss_regen_threshold:
 				_health_loss_accum -= equipment_armor_loss_regen_threshold
 				buff_mgr.apply_buff(Buff.create_regen(1, 15, "Hallowed Trunk"))
-		var old_pct = get_health_percent()
+		var old_pct := get_health_percent()
 		current_health = max(0, current_health - remaining)
 		health_changed.emit(current_health, max_health)
 		health_damage_taken.emit(remaining)
@@ -2065,7 +2064,7 @@ func take_direct_damage(amount: int) -> void:
 	## Misunderstanding itself) — the ring's grace stops enemies, not bills.
 	if amount <= 0:
 		return
-	var old_pct = get_health_percent()
+	var old_pct := get_health_percent()
 	current_health = max(0, current_health - amount)
 	health_changed.emit(current_health, max_health)
 	health_damage_taken.emit(amount)
@@ -2100,7 +2099,7 @@ func take_direct_damage(amount: int) -> void:
 		sanguine_stacks = min(5, sanguine_stacks + 1)
 
 func _crossed_threshold(old_pct: float, new_pct: float) -> bool:
-	var thresholds = [0.8, 0.6, 0.4, 0.1]
+	var thresholds := [0.8, 0.6, 0.4, 0.1]
 	for t in thresholds:
 		if old_pct > t and new_pct <= t:
 			return true
@@ -2180,16 +2179,16 @@ func heal(amount: int, from_ally: bool = false, sanguine_applied: bool = false) 
 		curse_share = ceili(kept / 2.0)
 		amount = kept
 		print("[STATS] Curse of the Living: heal halved to %d, %d to each ally" % [kept, curse_share])
-	var boosted_amount = get_effective_heal_amount(amount)
-	var old_health_pct = get_health_percent()
+	var boosted_amount := get_effective_heal_amount(amount)
+	var old_health_pct := get_health_percent()
 
 	# (Blood Libation's 5-stack burst damage resolves inside
 	# boost_performed_heal, BEFORE the boosted heal lands — on the performer.)
 
-	var old_health = current_health
+	var old_health := current_health
 	current_health += boosted_amount
 	current_health = min(current_health, max_health)
-	var actual_heal = current_health - old_health
+	var actual_heal := current_health - old_health
 	health_changed.emit(current_health, max_health)
 	last_heal_from_ally = from_ally
 	if actual_heal > 0:
@@ -2198,12 +2197,12 @@ func heal(amount: int, from_ally: bool = false, sanguine_applied: bool = false) 
 	if curse_share > 0:
 		curse_of_the_living_shared.emit(curse_share)
 
-	var new_health_pct = get_health_percent()
+	var new_health_pct := get_health_percent()
 	print("[STATS] Healed %d (base %d)! Health: %d/%d" % [actual_heal, amount, current_health, max_health])
 	
 	# Check if we crossed a determination threshold (healing can restore stats)
 	if _crossed_threshold(old_health_pct, new_health_pct):
-		var mod = get_determination_modifier()
+		var mod := get_determination_modifier()
 		print("[STATS] Determination threshold crossed! Modifier: %.0f%%" % (mod * 100))
 		recalculate_derived_stats()
 		stats_updated.emit()
@@ -2250,7 +2249,7 @@ func add_armor(amount: int) -> void:
 	armor_changed.emit(current_armor)
 	if total > 0:
 		armor_gained.emit(total)
-	var bonus = enchantment_block_bonus + sphere_bonus_block
+	var bonus := enchantment_block_bonus + sphere_bonus_block
 	if bonus > 0:
 		print("[STATS] Gained %d armor (+%d bonus)! Armor: %d" % [amount, bonus, current_armor])
 	else:
@@ -2277,7 +2276,7 @@ func add_armor_with_bolster(amount: int, buff_mgr = null) -> void:
 		inventory.on_armor_gained(total)
 
 func add_temp_health(amount: int, duration_tempo: int) -> void:
-	var old_pct = get_health_percent()
+	var old_pct := get_health_percent()
 	current_temp_health += amount
 	temp_health_tempo_remaining = max(temp_health_tempo_remaining, duration_tempo)
 	print("[STATS] Gained %d temp HP (duration: %d tempo)! Temp HP: %d" % [amount, duration_tempo, current_temp_health])
@@ -2477,13 +2476,13 @@ func apply_sphere_grid_combat_bonus(label: String, _description: String) -> void
 	## "Bolster Amp +5", "Cleanse Amp +1", "Resil Amp +10%", and the debuff amps
 	## "Bleed/Stun/Disarm/Silence/Burn/Shock/Slow/Root Amp +N", "Poison Amp +5",
 	## "Curse Amp +10%", "Curse Pain +10%", "Shatter +5"
-	var regex = RegEx.new()
+	var regex := RegEx.new()
 	regex.compile("(.+?)\\s*\\+(\\d+)")
-	var result = regex.search(label)
+	var result := regex.search(label)
 	if not result:
 		return
-	var bonus_type = result.get_string(1).strip_edges().to_lower()
-	var value = int(result.get_string(2))
+	var bonus_type := result.get_string(1).strip_edges().to_lower()
+	var value := int(result.get_string(2))
 	match bonus_type:
 		"block":
 			sphere_bonus_block += value
@@ -2628,7 +2627,7 @@ func get_xp_multiplier(source_level: int) -> float:
 	## no falloff). Never penalizes fighting above your level.
 	if source_level <= 0:
 		return 1.0
-	var gap = current_level - source_level - XP_FALLOFF_GRACE
+	var gap := current_level - source_level - XP_FALLOFF_GRACE
 	if gap <= 0:
 		return 1.0
 	return maxf(0.0, 1.0 - XP_FALLOFF_PER_LEVEL * gap)
@@ -2642,9 +2641,9 @@ func has_xp_boost() -> bool:
 	return xp_boost_kills_remaining > 0 and xp_boost_percent > 0
 
 func gain_xp(amount: int, source_level: int = 0) -> void:
-	var mult = get_xp_multiplier(source_level)
+	var mult := get_xp_multiplier(source_level)
 	if mult < 1.0:
-		var reduced = int(floor(amount * mult))
+		var reduced := int(floor(amount * mult))
 		print("[STATS] XP reduced %d -> %d (level %d vs enemy level %d)" % [
 			amount, reduced, current_level, source_level])
 		amount = reduced

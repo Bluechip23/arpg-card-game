@@ -344,10 +344,8 @@ func _on_p2_hand_button_pressed() -> void:
 			_p2_deck_visible = false
 			main._p2_deck_panel.visible = false
 			main._p2_deck_card_preview.visible = false
-		if main.deck_list_visible:
-			main.deck_list_visible = false
-			main.deck_list_panel.visible = false
-			main.deck_list_card_preview.visible = false
+		if main._deck_panels.is_showing():
+			main._deck_panels.close()
 		_populate_p2_hand()
 	else:
 		main._p2_hand_card_preview.visible = false
@@ -361,10 +359,8 @@ func _on_p2_deck_button_pressed() -> void:
 			_p2_hand_visible = false
 			main._p2_hand_panel.visible = false
 			main._p2_hand_card_preview.visible = false
-		if main.deck_list_visible:
-			main.deck_list_visible = false
-			main.deck_list_panel.visible = false
-			main.deck_list_card_preview.visible = false
+		if main._deck_panels.is_showing():
+			main._deck_panels.close()
 		_populate_p2_deck()
 	else:
 		main._p2_deck_card_preview.visible = false

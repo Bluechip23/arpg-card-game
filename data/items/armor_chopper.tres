@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_l7g0a"]
+
+[resource]
+script = ExtResource("1_l7g0a")
+item_name = "Armor Chopper"
+rarity = 1
+weight = 120
+strength_bonus = 3
+health_bonus = 5
+weapon_subtype = 6
+bonus_damage_to_armor = 10
+description = "+5 health, +3 STR. Your melee attack cards and auto attack deal an additional 10 damage to enemy armor."

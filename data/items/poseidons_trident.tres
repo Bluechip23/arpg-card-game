@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_ksbxb"]
+
+[resource]
+script = ExtResource("1_ksbxb")
+item_name = "Poseidons Trident"
+rarity = 3
+level_3_overrides = {
+"health_bonus": 20,
+"mana_bonus": 35,
+"pierce_targets": 3
+}
+level_3_description = "+11 INT, +9 WIS, +20 health, +35 mana. Your attacks strike 3 squares in a line. Grants Wrath of the Sea: spend half your current mana, blink, and deal the mana spent (plus STR) to every enemy in a 4x4 sea burst — all of them shoved to its edge; gain 18 mana per enemy hit (8 tempo)."
+weight = 80
+intelligence_bonus = 10
+wisdom_bonus = 8
+health_bonus = 15
+mana_bonus = 25
+weapon_subtype = 4
+granted_card_ids = Array[String](["wrath_of_the_sea"])
+card_slots = 2
+pierce_targets = 2
+description = "+10 INT, +8 WIS, +15 health, +25 mana. Your attacks strike 2 squares in a line. Grants Wrath of the Sea: spend half your current mana, blink, and deal the mana spent (plus STR) to every enemy in a 4x4 sea burst — all of them shoved to its edge; gain 15 mana per enemy hit (8 tempo)."
+appearance = "Poseidon's trident."
+appearance_icon = "res://assets/items/mythic/poseidons_trident.png"

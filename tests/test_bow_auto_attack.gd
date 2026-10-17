@@ -63,7 +63,7 @@ func _run() -> void:
 	_check(_main._pending_resolve_queue.size() == queued_before, "a dummy 4 tiles off is out of melee reach: no swing")
 
 	# A bow: 5 tiles of reach, 6 tempo, same damage.
-	_check(inv.equip_item(ItemData.create_short_bow(), 0), "short bow equips")
+	_check(inv.equip_item(ItemData.create("short_bow"), 0), "short bow equips")
 	_check(_main._basic_attack_reach() == 5 and _main._basic_attack_tempo() == 6, "bow: reach 5, 6 tempo")
 	_main._update_attack_button_text()
 	_check(_main._attack_tempo_label.text.begins_with("6T"), "button reads 6T (%s)" % _main._attack_tempo_label.text)
@@ -85,7 +85,7 @@ func _run() -> void:
 
 	# Back to a blade: the next tile again, 5 tempo.
 	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
-	_check(inv.equip_item(ItemData.create_short_sword(), 0), "a blade equips")
+	_check(inv.equip_item(ItemData.create("short_sword"), 0), "a blade equips")
 	_check(_main._basic_attack_reach() == 1 and _main._basic_attack_tempo() == 5, "blade: reach 1, 5 tempo")
 	_main._update_attack_button_text()
 	_check(_main._attack_tempo_label.text.begins_with("5T"), "button back to 5T")

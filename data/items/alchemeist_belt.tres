@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_enw4h"]
+
+[resource]
+script = ExtResource("1_enw4h")
+item_name = "Alchemeist belt"
+item_type = 3
+item_type_name = "Belt"
+rarity = 2
+weight = 10
+dexterity_bonus = -4
+intelligence_bonus = 5
+wisdom_bonus = 5
+health_bonus = 15
+granted_card_ids = Array[String](["hemotoxins"])
+card_slots = 3
+heal_bonus_max_health_percent = 4.0
+description = "+5 WIS, +5 INT, +15 health, -4 DEX. Healing cards heal an additional 4% of your max health (self or ally). Grants Hemotoxins: apply 10 Poison — doubled if the target is below 50% health (50 mana, 5 tempo)."

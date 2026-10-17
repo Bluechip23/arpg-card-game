@@ -495,15 +495,6 @@ func get_locked_card_index() -> int:
 func is_card_locked(index: int) -> bool:
 	return card_is_locked(_hand_card(index))
 
-## Lifts every lock riding this card (a lock played through a bypass, or
-## any caller that frees one card). Takes the Card or its current hand index.
-func remove_locks_on_card(which) -> void:
-	var card := _as_card(which)
-	if card == null:
-		return
-	_drop_claims_where(func(d): return d.debuff_type == Debuff.DebuffType.LOCKED \
-			and d.affected_card == card, "lock lifted")
-
 ## A card left the hand by being played — the sheet's "until played" — so
 ## every hex and lock riding it ends.
 func release_card_claims(card: Card) -> void:

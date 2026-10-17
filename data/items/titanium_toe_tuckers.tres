@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_1xc8k"]
+
+[resource]
+script = ExtResource("1_1xc8k")
+item_name = "Titanium Toe Tuckers"
+item_type = 4
+item_type_name = "Boots"
+rarity = 2
+weight = 50
+strength_bonus = 10
+dexterity_bonus = -2
+agility_bonus = -2
+health_bonus = 10
+card_slots = 2
+on_self_armor_any = 8
+sidestep_bonus_armor = 2
+description = "+10 STR, -2 AGI, -2 DEX, +10 health. On-self: ANY card provides +8 armor. Side step provides an additional 2 armor."

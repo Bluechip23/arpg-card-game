@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_5brjp"]
+
+[resource]
+script = ExtResource("1_5brjp")
+item_name = "Steel Plate"
+item_type = 1
+item_type_name = "Chest"
+weight = 80
+strength_bonus = 3
+health_bonus = 10
+special_effect = 7
+special_effect_value = 8
+armor_per_tempo_interval = 20
+description = "+3 STR, +10 health. Gain 8 unerring armor every 20 tempo (up to your unerring cap)."

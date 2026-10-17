@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_ovnaf"]
+
+[resource]
+script = ExtResource("1_ovnaf")
+item_name = "Leather gauntlets"
+item_type = 5
+item_type_name = "Gauntlets"
+weight = 5
+health_bonus = 5
+hand_size_bonus = 1
+description = "+1 hand size, +5 life."

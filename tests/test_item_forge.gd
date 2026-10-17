@@ -203,7 +203,7 @@ func _test_mythic_molding() -> void:
 	print("-- Mythic molding --")
 	var inv = _make_inventory()
 	var a = Fixtures.mythic_gauntlets()
-	var b = ItemData.create_bladed_doughnut()
+	var b = ItemData.create("bladed_doughnut")
 	inv.store_item(a)
 	inv.stash_item(b)
 
@@ -220,7 +220,7 @@ func _test_mythic_molding() -> void:
 
 	# Non-mythics can't be molded
 	var c = Fixtures.sword()
-	var d = ItemData.create_bladed_doughnut()
+	var d = ItemData.create("bladed_doughnut")
 	inv.store_item(c)
 	inv.store_item(d)
 	_check(not ItemForge.mold_mythics(inv, c, d), "non-mythic cannot be molded")
@@ -240,7 +240,7 @@ func _test_mythic_molding() -> void:
 	_check(ItemForge.redeem_mold(inv, "Bladed Doughnut") == null, "no mold -> no redeem")
 
 	# Melding one mythic at a time: a Mythic Piece first, a Mold on the second.
-	var e = ItemData.create_bladed_doughnut()
+	var e = ItemData.create("bladed_doughnut")
 	var f = Fixtures.mythic_gauntlets()
 	inv.store_item(e)
 	inv.store_item(f)

@@ -233,12 +233,6 @@ static func card(c) -> Texture2D:
 	return texture(_pick(_card_pool(c), cid))
 
 
-static func card_by_id(cid: String) -> Texture2D:
-	if CARDS.has(cid):
-		return texture(CARDS[cid])
-	return texture(_pick(CARD_POOL_DEFAULT, cid))
-
-
 static func _card_pool(c) -> Array:
 	var type_names := Card.CardType.keys()
 	var t: int = int(c.get("card_type"))

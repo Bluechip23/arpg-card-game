@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_8xrrj"]
+
+[resource]
+script = ExtResource("1_8xrrj")
+item_name = "The Precious"
+item_type = 2
+item_type_name = "Ring"
+rarity = 3
+level_3_overrides = {
+"dexterity_bonus": 8
+}
+level_3_description = "+151 mana. +8 DEX, -2 INT, +3 WIS. Every 4th enemy hit drags you into shadow form (up to 10 tempo; click the badge to leave after 1): attacks don't reveal you, max mana is halved while inside, and you gain 10 brain and 10 flash points beyond their caps. TWO ring wraiths hunt you in the shadow (100 HP, 15 damage every 2 tempo, 5 squares per 4 tempo); survivors return exactly as they were left."
+weight = 5
+dexterity_bonus = 5
+intelligence_bonus = -2
+wisdom_bonus = 2
+mana_bonus = 150
+description = "+150 mana. +5 DEX, -2 INT, +2 WIS. Every 4th enemy hit drags you into shadow form (up to 10 tempo; click the badge to leave after 1): attacks don't reveal you, max mana is halved while inside, and you gain 10 brain and 10 flash points beyond their caps. THREE ring wraiths hunt you in the shadow (100 HP, 15 damage every 2 tempo, 5 squares per 4 tempo); survivors return exactly as they were left."
+appearance = "A plain gold ring with elvish writing traced faintly around the band."
+appearance_icon = "res://assets/items/mythic/the_precious.png"

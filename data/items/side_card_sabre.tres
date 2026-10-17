@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_1opi8"]
+
+[resource]
+script = ExtResource("1_1opi8")
+item_name = "Side Card Sabre"
+rarity = 1
+weight = 20
+dexterity_bonus = 2
+agility_bonus = 2
+card_slots = 2
+offhand_pair_bonus = true
+description = "+2 AGI, +2 DEX. In your off hand beside a main-hand weapon (shields don't count): this sword is weightless and its slotted cards cost 1 less tempo."

@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_cl40g"]
+
+[resource]
+script = ExtResource("1_cl40g")
+item_name = "Tigers Sunday Red"
+item_type = 1
+item_type_name = "Chest"
+rarity = 3
+level_3_overrides = {
+"hp_diff_damage_divisor": 3,
+"on_self_offensive_heal_percent": 6.0
+}
+level_3_description = "+16 health, +6 AGI, +6 DEX. On-self: offensive cards heal you 6% of your max health. +1 range on ranged offensive cards. Bonus damage of X%, where X is the difference between your health % and the enemy's, divided by 3 (never below 0)."
+weight = 10
+dexterity_bonus = 5
+agility_bonus = 5
+health_bonus = 15
+card_slots = 2
+on_self_offensive_heal_percent = 3.0
+ranged_range_bonus = 1
+hp_diff_damage_divisor = 4
+description = "+15 health, +5 AGI, +5 DEX. On-self: offensive cards heal you 3% of your max health. +1 range on ranged offensive cards. Bonus damage of X%, where X is the difference between your health % and the enemy's, divided by 4 (never below 0)."
+appearance = "Red Polo."
+appearance_icon = "res://assets/items/mythic/tigers_sunday_red.png"

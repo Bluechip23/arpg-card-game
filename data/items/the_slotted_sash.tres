@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_2sbjb"]
+
+[resource]
+script = ExtResource("1_2sbjb")
+item_name = "The Slotted Sash"
+item_type = 3
+item_type_name = "Belt"
+rarity = 2
+weight = 10
+intelligence_bonus = 2
+wisdom_bonus = 3
+card_slots = 6
+on_self_defense_armor = 2
+on_self_utility_weaken = 1
+on_self_offensive_damage = 2
+description = "+3 WIS, +2 INT. 6 card slots. On-self: offensive cards +2 damage; defense cards +2 armor; utility cards apply 1 Weaken to a random enemy within 5 squares."

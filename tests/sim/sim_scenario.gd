@@ -73,7 +73,7 @@ static func validate(sc: Dictionary) -> String:
 		return "unknown character '%s'" % p["character"]
 	for entry in p["items"] + p["alt_weapons"]:
 		var id: String = str(entry[0] if entry is Array else entry)
-		if not script_has(ItemData, "create_%s" % id):
+		if not ItemData.ITEM_IDS.has(id):
 			return "unknown item '%s'" % id
 	for e in sc["enemies"]:
 		if not Enemy.EnemyType.has(str(e.get("type", ""))):

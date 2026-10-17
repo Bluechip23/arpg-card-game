@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_j2kbg"]
+
+[resource]
+script = ExtResource("1_j2kbg")
+item_name = "Sword Breaker"
+item_type_name = "Shield"
+rarity = 2
+weight = 35
+dexterity_bonus = 3
+determination_bonus = 3
+health_bonus = 25
+mana_bonus = 25
+weapon_subtype = 2
+granted_card_ids = Array[String](["song_of_a_swords_sing"])
+card_slots = 3
+on_self_armor_any = 4
+on_self_fortify = 1
+blocked_melee_tempo_tax = 2
+description = "+3 DEX, +3 DET, +25 health, +25 mana. 3 card slots. On-self: gain 4 armor and Fortify for 5 tempo — your armor stops decaying. Melee damage your armor swallows whole costs that enemy 2 extra tempo on its next melee attack. Grants Song of a Swords Sing: Disarm the enemy for 1 attack and gain 2 armor for every KIND of debuff on it (35 mana, 3 tempo)."

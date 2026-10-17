@@ -4,8 +4,6 @@ extends CanvasLayer
 ## Character stats and equipment panel (toggle with I key)
 
 signal closed
-signal card_slotted(card: Card, item: ItemData)
-signal card_unslotted(card: Card, item: ItemData)
 ## Emitted after any gear change with its tempo price (equip/unequip/two-hand/
 ## build switch). main.gd charges it on the tempo clock — but only in combat.
 signal swap_tempo_spent(cost: int, action: String, item_type: int)
@@ -48,9 +46,7 @@ var _card_confirm_popup: PanelContainer = null
 var _card_keyword_window: PanelContainer = null  # KeywordWindow beside the card popup
 
 # Live 3D portrait + combat stats section (built on first open)
-# SpriteFigure (Mana Seed sprites) or CharacterFigure (procedural 3D) —
-# untyped; both expose setup(name, sprite_path).
-var _portrait_fig = null
+var _portrait_fig: SpriteFigure = null
 var _combat_label: Label = null
 var buff_manager = null              # BuffManager (untyped to avoid class-cache dependency)
 var debuff_manager = null            # DebuffManager
@@ -455,7 +451,7 @@ func update_display() -> void:
 
 	_ensure_portrait_and_combat()
 	if _portrait_fig and player_stats.character_data:
-		_portrait_fig.setup(player_stats.character_data.get_base_character(), player_stats.character_data.sprite_path)
+		_portrait_fig.setup(SpriteFigure.preset_for(player_stats.character_data), player_stats.character_data.sprite_path)
 
 	_update_ally_nav()
 	_update_level_row()
@@ -522,27 +518,16 @@ func _ensure_portrait_and_combat() -> void:
 	fill.light_energy = 0.5
 	vp.add_child(fill)
 
-	# Portrait matches the in-battle look: sprite figure when the character
-	# has one, procedural 3D otherwise. (The figure class is picked once here
-	# from the current character; every playable character has sprite art.)
-	var portrait_name := ""
-	if player_stats and player_stats.character_data:
-		portrait_name = player_stats.character_data.get_base_character()
-	if SpriteFigure.supports(portrait_name):
-		_portrait_fig = SpriteFigure.new()
-	else:
-		_portrait_fig = CharacterFigure.new()
+	# Portrait matches the in-battle look (the figure is re-setup per party
+	# member in _refresh).
+	_portrait_fig = SpriteFigure.new()
 	vp.add_child(_portrait_fig)
 
 	var cam = Camera3D.new()
 	vp.add_child(cam)
-	if _portrait_fig is SpriteFigure:
-		# Sprite figures are ~1.1 units tall billboards — frame them close-up.
-		cam.position = Vector3(0.0, 0.55, 1.05)
-		cam.look_at_from_position(cam.position, Vector3(0, 0.52, 0), Vector3.UP)
-	else:
-		cam.position = Vector3(0.25, 1.35, 2.7)
-		cam.look_at_from_position(cam.position, Vector3(0, 0.8, 0), Vector3.UP)
+	# Sprite figures are ~1.1 units tall billboards — frame them close-up.
+	cam.position = Vector3(0.0, 0.55, 1.05)
+	cam.look_at_from_position(cam.position, Vector3(0, 0.52, 0), Vector3.UP)
 
 	# Level / XP progress row under the portrait: the viewed party member's
 	# level-up progress at a glance.
@@ -2022,7 +2007,6 @@ func _on_slot_card(card: Card, item: ItemData) -> void:
 	if not inventory:
 		return
 	if inventory.enchant_card(card, item):
-		card_slotted.emit(card, item)
 		_open_card_slot_panel(item)  # Refresh the panel
 		update_display()
 
@@ -2031,7 +2015,6 @@ func _on_unslot_card(item: ItemData, card_index: int) -> void:
 		return
 	var card = inventory.extract_card(item, card_index)
 	if card:
-		card_unslotted.emit(card, item)
 		_open_card_slot_panel(item)  # Refresh the panel
 		update_display()
 

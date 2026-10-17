@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_155ta"]
+
+[resource]
+script = ExtResource("1_155ta")
+item_name = "Gauntlets of Dungeon Mastering"
+item_type = 5
+item_type_name = "Gauntlets"
+rarity = 3
+level_3_overrides = {
+"card_slots": 2,
+"gauntlet_skill_cooldown": 3
+}
+level_3_description = "+4 WIS, +5 INT, +4 STR, 2 card slots. On-self: summon a wolf (pack of 3 max). Skill — House Rule (15 tempo CD)."
+weight = 15
+strength_bonus = 3
+intelligence_bonus = 4
+wisdom_bonus = 3
+gauntlet_skill_type = 1
+gauntlet_skill_name = "House Rule"
+gauntlet_skill_description = "Pick a card from your discard pile and put it in your hand."
+gauntlet_skill_cooldown = 4
+gauntlet_skill_mana_cost = 15
+gauntlet_skill_effect_id = "house_rule"
+card_slots = 1
+on_self_summon_wolf = 1
+description = "+3 WIS, +4 INT, +3 STR. On-self: summon a wolf, up to a pack of 3 (20 HP, attacks every 5 tempo, moves 2 per 3 tempo, attacks apply bleed; wolves empower each other: +20% attack and +1 bleed per other wolf). Skill — House Rule: pick a card from your discard pile into your hand (20 tempo CD)."
+appearance = "Silver gauntlets with a twenty-sided die set on each of the knuckles."
+appearance_icon = "res://assets/items/mythic/gauntlets_of_dungeon_mastering.png"

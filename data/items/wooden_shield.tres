@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_rjal6"]
+
+[resource]
+script = ExtResource("1_rjal6")
+item_name = "Wooden Shield"
+item_type_name = "Shield"
+weight = 20
+strength_bonus = 2
+agility_bonus = 3
+weapon_subtype = 2
+melee_retaliate_bleed = 1
+description = "+2 STR, +3 AGI. An enemy that strikes you in melee splinters itself — 1 Bleed."

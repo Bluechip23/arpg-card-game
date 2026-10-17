@@ -104,7 +104,3 @@ func _draw() -> void:
 		var cw := font.get_string_size(counter, HORIZONTAL_ALIGNMENT_CENTER, -1, counter_size)
 		draw_string(font, Vector2(center.x - cw.x / 2.0, center.y + counter_size + 2.0), counter,
 			HORIZONTAL_ALIGNMENT_CENTER, -1, counter_size, Color(1.0, 0.85, 0.4))
-
-func _pressed() -> void:
-	if not _on_cooldown and gauntlet and not _is_passive:
-		skill_activated.emit(gauntlet)

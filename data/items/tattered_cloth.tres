@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_j7b4i"]
+
+[resource]
+script = ExtResource("1_j7b4i")
+item_name = "Tattered Cloth"
+item_type = 1
+item_type_name = "Chest"
+weight = 10
+dexterity_bonus = 2
+wisdom_bonus = 2
+determination_bonus = 2
+agility_bonus = 2
+health_bonus = 5
+description = "+2 DET, +2 AGI, +2 WIS, +2 DEX, +5 health."

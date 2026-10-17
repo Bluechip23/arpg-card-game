@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_dl45a"]
+
+[resource]
+script = ExtResource("1_dl45a")
+item_name = "Chain Crocs"
+item_type = 4
+item_type_name = "Boots"
+rarity = 1
+weight = 35
+wisdom_bonus = -2
+agility_bonus = -2
+special_effect = 7
+special_effect_value = 5
+card_slots = 2
+on_self_mana_reduction_percent = 20.0
+armor_per_tempo_interval = 15
+description = "-2 AGI, -2 WIS. On-self: mana cost reduced 20%. Gain 5 unerring armor every 15 tempo while equipped (counter resets when unequipped)."

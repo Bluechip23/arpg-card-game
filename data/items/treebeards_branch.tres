@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_hhy7p"]
+
+[resource]
+script = ExtResource("1_hhy7p")
+item_name = "Treebeards Branch"
+item_type_name = "Shield"
+rarity = 2
+weight = 75
+strength_bonus = 3
+wisdom_bonus = 3
+health_bonus = 30
+weapon_subtype = 2
+granted_card_ids = Array[String](["bark_up"])
+card_slots = 2
+overdraw_regen = 3
+on_self_thorns = 3
+description = "+30 health, +3 STR, +3 WIS. 2 card slots. On-self: gain 3 Thorns. Overdraw: gain 3 Regen. Grants Bark Up: convert every point of your Regen and Thorns into armor (45 mana, 3 tempo)."

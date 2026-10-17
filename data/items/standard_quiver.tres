@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_k1om4"]
+
+[resource]
+script = ExtResource("1_k1om4")
+item_name = "Standard Quiver"
+item_type = 7
+item_type_name = "Quiver"
+weight = 20
+dexterity_bonus = 1
+agility_bonus = 1
+card_slots = 2
+on_self_range_offensive = 1
+description = "+1 AGI, +1 DEX. 2 card slots. On-self: +1 range."

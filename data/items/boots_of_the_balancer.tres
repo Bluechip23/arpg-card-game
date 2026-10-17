@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_yyfbd"]
+
+[resource]
+script = ExtResource("1_yyfbd")
+item_name = "Boots of the Balancer"
+item_type = 4
+item_type_name = "Boots"
+rarity = 3
+level_3_overrides = {
+"granted_card_ids": ["tight_rope", "tight_rope"],
+"on_self_missing_health_step": 6
+}
+level_3_description = "+16 health, +4 WIS, +6 STR, +3 DET. On-self: gain 5 armor for each 6% health you are missing. Grants two copies of Tight rope."
+weight = 15
+strength_bonus = 5
+wisdom_bonus = 3
+determination_bonus = 2
+health_bonus = 15
+granted_card_ids = Array[String](["tight_rope"])
+card_slots = 1
+on_self_armor_per_missing_health10 = 5
+description = "+15 health, +3 WIS, +5 STR, +2 DET. On-self: gain 5 armor for each 10% health you are missing. Grants Tight rope (Instant): when damage puts you below 20% health, gain 20 temp health for 5 tempo and 15 Strengthen on your next attack. Upgraded: each 6% missing health; Tight rope gains a second copy."
+appearance = "The thin, flexible shoes a tightrope walker works in."
+appearance_icon = "res://assets/items/mythic/boots_of_the_balancer.png"

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_jdsql"]
+
+[resource]
+script = ExtResource("1_jdsql")
+item_name = "Leather Boots"
+item_type = 4
+item_type_name = "Boots"
+weight = 15
+agility_bonus = 1
+health_bonus = 5
+description = "+1 AGI, +5 life."

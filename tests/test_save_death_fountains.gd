@@ -31,13 +31,13 @@ func _initialize() -> void:
 	quit(1 if failures > 0 else 0)
 
 func _test_progression_io() -> void:
-	var bow := ItemData.create_short_bow()
+	var bow := ItemData.create("short_bow")
 	bow.level_up()  # Lv 2
 	var slotted := Card.create_slash()
 	bow.slotted_cards.append(slotted)
 	var helm_slot: Array[ItemData] = [null]
 	var weapons: Array[ItemData] = [bow, null]
-	var stash: Array[ItemData] = [ItemData.create_wooden_sword()]
+	var stash: Array[ItemData] = [ItemData.create("wooden_sword")]
 	var tree := SkillTreeData.create_tree_for("Brad")
 	tree.rows[0].chosen_index = 2
 	tree.rows[1].chosen_index = 1

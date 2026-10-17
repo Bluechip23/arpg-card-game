@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_d76xh"]
+
+[resource]
+script = ExtResource("1_d76xh")
+item_name = "Caster Boots"
+item_type = 4
+item_type_name = "Boots"
+rarity = 1
+weight = 15
+intelligence_bonus = 6
+wisdom_bonus = 2
+agility_bonus = 2
+card_slots = 1
+on_self_int_damage_percent = 10.0
+description = "+6 INT, +2 AGI, +2 WIS. On-self: deal an additional 10% damage based on your INT."

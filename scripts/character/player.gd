@@ -4,7 +4,6 @@ extends CharacterBody3D
 ## Player character with turn-based grid movement in 3D
 
 signal move_completed
-signal move_started(spaces: int)
 signal tile_reached  # Emitted each time the player reaches a single tile
 
 @export var move_speed: float = 5.0  # Units per second (1 unit = 1 grid cell)
@@ -16,10 +15,8 @@ signal tile_reached  # Emitted each time the player reaches a single tile
 @onready var debuff_manager: DebuffManager = $DebuffManager
 @onready var buff_manager: BuffManager = $BuffManager
 
-# Battle visual: SpriteFigure (Mana Seed billboard sprites) for characters
-# with sprite art, CharacterFigure (procedural 3D) otherwise. Untyped — both
-# expose the same verb set (play_action, set_walking, pop_*, …).
-var _figure = null
+# Battle visual: Mana Seed billboard sprites (play_action, set_walking, pop_*, …).
+var _figure: SpriteFigure = null
 
 var target_position: Vector3
 var is_moving: bool = false
@@ -92,18 +89,13 @@ func _load_mesh_color(data: CharacterData) -> void:
 		pass
 
 func _setup_figure(data: CharacterData) -> void:
-	# Build the character visual in place of the capsule + sprite: Mana Seed
-	# billboard sprites when the character has them, procedural 3D otherwise.
+	# Build the character visual in place of the capsule + sprite.
 	if _figure:
 		return
-	if SpriteFigure.supports(data.get_base_character()):
-		_figure = SpriteFigure.new()
-		_figure.name = "SpriteFigure"
-	else:
-		_figure = CharacterFigure.new()
-		_figure.name = "CharacterFigure"
+	_figure = SpriteFigure.new()
+	_figure.name = "SpriteFigure"
 	add_child(_figure)
-	_figure.setup(data.get_base_character(), data.sprite_path)
+	_figure.setup(SpriteFigure.preset_for(data), data.sprite_path)
 
 	# The figure replaces the prototype graphics
 	if mesh:
@@ -343,7 +335,6 @@ func move_to_grid(target_pos: Vector3, spaces: int) -> bool:
 		spaces_to_move = 1
 		spaces_moved = 0
 		_consume_haste_for_move(haste_bonus)
-		move_started.emit(1)
 		return true
 
 	var snapped_target = grid_manager.snap_to_grid(target_pos)
@@ -364,7 +355,6 @@ func move_to_grid(target_pos: Vector3, spaces: int) -> bool:
 		target_position = move_path.pop_front()
 		is_moving = true
 		_consume_haste_for_move(haste_bonus)
-		move_started.emit(spaces_to_move)
 		return true
 
 	return false
@@ -523,41 +513,11 @@ func on_attacked_by(attacker) -> void:
 func spawn_damage_number(amount: int) -> void:
 	if amount <= 0:
 		return
-	var label = Label3D.new()
-	label.text = str(amount)
-	label.font_size = 48
-	label.outline_size = 16
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.no_depth_test = true
-	label.render_priority = 50
-	label.modulate = Color(1.0, 0.3, 0.3)
-	label.position = position + Vector3(randf_range(-0.3, 0.3), 1.8, 0)
-	get_parent().add_child(label)
-
-	var tween = label.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tween.set_parallel(true)
-	tween.tween_property(label, "position:y", label.position.y + 1.2, 0.7)
-	tween.tween_property(label, "modulate:a", 0.0, 0.5).set_delay(0.3)
-	tween.chain()
-	tween.tween_callback(label.queue_free)
+	WorldText.float_number(get_parent(), position + Vector3(randf_range(-0.3, 0.3), 1.8, 0),
+		str(amount), Color(1.0, 0.3, 0.3), 48, 16, 1.2, 0.7, 0.5)
 
 func spawn_heal_number(amount: int) -> void:
 	if amount <= 0:
 		return
-	var label = Label3D.new()
-	label.text = "+" + str(amount)
-	label.font_size = 42
-	label.outline_size = 14
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.no_depth_test = true
-	label.render_priority = 50
-	label.modulate = Color(0.3, 1.0, 0.4)
-	label.position = position + Vector3(randf_range(-0.2, 0.2), 1.8, 0)
-	get_parent().add_child(label)
-
-	var tween = label.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tween.set_parallel(true)
-	tween.tween_property(label, "position:y", label.position.y + 1.0, 0.7)
-	tween.tween_property(label, "modulate:a", 0.0, 0.5).set_delay(0.3)
-	tween.chain()
-	tween.tween_callback(label.queue_free)
+	WorldText.float_number(get_parent(), position + Vector3(randf_range(-0.2, 0.2), 1.8, 0),
+		"+" + str(amount), Color(0.3, 1.0, 0.4), 42, 14, 1.0, 0.7, 0.5)

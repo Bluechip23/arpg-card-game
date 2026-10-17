@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_uh088"]
+
+[resource]
+script = ExtResource("1_uh088")
+item_name = "Pick"
+weight = 50
+strength_bonus = 3
+agility_bonus = 1
+health_bonus = 5
+weapon_subtype = 6
+card_slots = 1
+on_self_damage = 5
+description = "+3 STR, +5 health, +1 AGI. On-self: +5 damage."

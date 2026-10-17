@@ -16,6 +16,11 @@ extends CanvasLayer
 var _root: Node = null
 var _project: Callable
 var _entries: Dictionary = {}  # Label3D -> Label
+# What each mirror was last given: text, font px, colour, outline px and
+# colour. A theme override on a Control is a THEME_CHANGED notification and a
+# minimum-size pass, so they are written only when the value moved; the
+# position still follows the 3D node every frame.
+var _applied: Dictionary = {}  # Label3D -> [text, px, color, outline_px, outline_color]
 
 
 func setup(root: Node, project: Callable) -> void:
@@ -91,14 +96,21 @@ func _process(_delta: float) -> void:
 		if not shown:
 			continue
 		var px := _px(l, ppu)
-		ui.text = l.text
-		ui.add_theme_font_size_override("font_size", px)
-		ui.add_theme_color_override("font_color", l.modulate)
-		var outline: bool = l.outline_size > 0
-		ui.add_theme_constant_override("outline_size", maxi(2, roundi(px * 0.18)) if outline else 0)
+		var outline_px: int = maxi(2, roundi(px * 0.18)) if l.outline_size > 0 else 0
 		var oc: Color = l.outline_modulate
 		oc.a *= l.modulate.a
-		ui.add_theme_color_override("font_outline_color", oc)
+		var last: Array = _applied.get(l, [])
+		if last.is_empty() or last[0] != l.text:
+			ui.text = l.text
+		if last.is_empty() or last[1] != px:
+			ui.add_theme_font_size_override("font_size", px)
+		if last.is_empty() or last[2] != l.modulate:
+			ui.add_theme_color_override("font_color", l.modulate)
+		if last.is_empty() or last[3] != outline_px:
+			ui.add_theme_constant_override("outline_size", outline_px)
+		if last.is_empty() or last[4] != oc:
+			ui.add_theme_color_override("font_outline_color", oc)
+		_applied[l] = [l.text, px, l.modulate, outline_px, oc]
 		# Under the plan camera, height above the ground does not move a
 		# point on screen; a label's world height is meant as "above the
 		# head", so it becomes a screen-up shift at the current texel scale.
@@ -116,3 +128,4 @@ func _process(_delta: float) -> void:
 		ui.position = (p - sz * 0.5 + off).round()
 	for l in dead:
 		_entries.erase(l)
+		_applied.erase(l)

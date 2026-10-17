@@ -71,31 +71,31 @@ func _test_roster() -> void:
 func _test_weights_and_stats() -> void:
 	print("-- Weights & stats --")
 	# The four heavies came down 100 each in review.
-	_check(ItemData.create_supernova_cuirass().weight == 250, "Supernova Cuirass weighs 250")
-	_check(ItemData.create_briarhide_plate().weight == 300, "Briarhide Plate weighs 300")
-	_check(ItemData.create_adimantium().weight == 350, "Adimantium weighs 350")
-	_check(ItemData.create_divine_resistance().weight == 400, "Divine Resistance weighs 400")
-	var cloth = ItemData.create_tattered_cloth()
+	_check(ItemData.create("supernova_cuirass").weight == 250, "Supernova Cuirass weighs 250")
+	_check(ItemData.create("briarhide_plate").weight == 300, "Briarhide Plate weighs 300")
+	_check(ItemData.create("adimantium").weight == 350, "Adimantium weighs 350")
+	_check(ItemData.create("divine_resistance").weight == 400, "Divine Resistance weighs 400")
+	var cloth = ItemData.create("tattered_cloth")
 	_check(cloth.item_name == "Tattered Cloth", "Tattered Cloth spelling")
 	_check(cloth.determination_bonus == 2 and cloth.agility_bonus == 2 \
 		and cloth.wisdom_bonus == 2 and cloth.dexterity_bonus == 2 and cloth.health_bonus == 5,
 		"Tattered Cloth stat spread (balance: 5 health)")
-	var plank = ItemData.create_wooden_plank()
+	var plank = ItemData.create("wooden_plank")
 	_check(plank.health_bonus == 15 and plank.low_health_regen == 1,
 		"Wooden Plank: 15 health + 1 Regen below half")
-	var velvet = ItemData.create_velvet_plate()
+	var velvet = ItemData.create("velvet_plate")
 	_check(velvet.weight == 120 and velvet.strength_bonus == 5 and velvet.on_self_heal == 10,
 		"Velvet Plate: w120, +5 STR, heal 10")
-	var tigers = ItemData.create_tigers_sunday_red()
+	var tigers = ItemData.create("tigers_sunday_red")
 	_check(tigers.on_self_offensive_heal_percent == 3.0, "Tigers heals 3% (Lv3 6%)")
-	var cowl = ItemData.create_shadow_cowl()
+	var cowl = ItemData.create("shadow_cowl")
 	_check(cowl.health_bonus == -10 and cowl.card_slots == 4, "Shadow Cowl: -10 health, 4 slots")
-	var adim = ItemData.create_adimantium()
+	var adim = ItemData.create("adimantium")
 	adim.item_level = 2
 	adim.level_up()  # -> 3
 	_check(adim.exposed_armor_gain == 15 and adim.exposed_armor_cooldown_cycles == 10,
 		"Adimantium Lv.3: 15 armor on armor-break, 10-cycle cooldown")
-	var divine = ItemData.create_divine_resistance()
+	var divine = ItemData.create("divine_resistance")
 	_check(divine.resist_per_missing10 == 1.0 and divine.resist_missing_step == 8,
 		"Divine Resistance: 1% per 8% missing")
 	divine.item_level = 2
@@ -105,9 +105,9 @@ func _test_weights_and_stats() -> void:
 
 func _test_granted_cards() -> void:
 	print("-- Granted cards --")
-	var cm_ids = ItemData.create_chain_mail().granted_card_ids
+	var cm_ids = ItemData.create("chain_mail").granted_card_ids
 	_check(cm_ids.size() == 1 and cm_ids.has("clang_up"), "Chain Mail grants Clang Up")
-	var trench = ItemData.create_trench_of_tranquility()
+	var trench = ItemData.create("trench_of_tranquility")
 	_check(trench.granted_card_ids.has("mind_mend") and trench.granted_card_ids.has("deep_breaths"),
 		"Trench of Tranquility grants Mind Mend + Deep Breaths")
 	var mm = Card.create_by_id("mind_mend")
@@ -134,7 +134,7 @@ func _test_exposed_reactions() -> void:
 	stats.strength = 60
 	var inv = _mk_inv(stats)
 	inv.enforce_mythic_limit = false  # level-gated; not what this test is about
-	var briar = ItemData.create_briarhide_plate()
+	var briar = ItemData.create("briarhide_plate")
 	var briar_ok := inv.equip_item(briar)
 	_check(briar_ok, "Briarhide equips at 60 STR")
 	var armor_before = stats.current_armor
@@ -145,7 +145,7 @@ func _test_exposed_reactions() -> void:
 	_check(stats.current_armor >= again + 5, "Briarhide has no cooldown")
 	inv.unequip_item(ItemData.ItemType.CHEST, 0)
 
-	var adim = ItemData.create_adimantium()
+	var adim = ItemData.create("adimantium")
 	var adim_ok := inv.equip_item(adim)
 	_check(adim_ok, "Adimantium equips at 60 STR")
 	var before_adim = stats.current_armor
@@ -254,7 +254,7 @@ func _test_resist_scaling() -> void:
 	stats4.base_strength = 60  # carry capacity for the 250-weight cuirass
 	stats4.strength = 60
 	var inv4 = _mk_inv(stats4)
-	var nova = ItemData.create_supernova_cuirass()
+	var nova = ItemData.create("supernova_cuirass")
 	_check(inv4.equip_item(nova), "Supernova equips")
 	var hp4: int = stats4.current_health
 	stats4.take_damage(100)
@@ -312,7 +312,7 @@ func _test_movement_surcharge() -> void:
 
 func _test_hannibals_rename() -> void:
 	print("-- Hannibals Mask rename --")
-	var mask = ItemData.create_hannibals_mask()
+	var mask = ItemData.create("hannibals_mask")
 	_check(mask.item_name == "Hannibals Mask", "the mask is spelled Hannibals")
 	_check(ItemData.create_by_name("Hannibals Mask") != null, "create_by_name finds the new spelling")
 	var old = ItemData.create_by_name("Hanibals Mask")

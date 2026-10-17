@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_cbwo3"]
+
+[resource]
+script = ExtResource("1_cbwo3")
+item_name = "Scholars Cap"
+item_type = 0
+item_type_name = "Helm"
+rarity = 3
+level_3_overrides = {
+"brain_points_bonus": 7,
+"on_self_brain_regen": 3,
+"wisdom_bonus": 7
+}
+level_3_description = "+7 WIS, +7 max brain points. Peek costs 1 less brain point. On-self: regain 3 brain points."
+weight = 5
+wisdom_bonus = 5
+card_slots = 2
+on_self_brain_regen = 2
+brain_points_bonus = 5
+peek_brain_discount = 1
+description = "+5 WIS, +5 max brain points. Peek costs 1 less brain point. On-self: regain 2 brain points. Upgraded: +7 WIS, +7 max brain points; on-self regains 3."
+appearance = "A stiff black mortarboard with a gold tassel that never stops swinging, even in still air. The underside of the board is inked edge to edge with equations somebody kept correcting."
+appearance_icon = "res://assets/items/mythic/scholars_cap.png"

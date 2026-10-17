@@ -2295,7 +2295,7 @@ func ensure_return_scroll() -> void:
 	for item in stored_items:
 		if item and item.special_id == "return_scroll":
 			return
-	stored_items.append(ItemData.create_return_scroll())
+	stored_items.append(ItemData.create("return_scroll"))
 	storage_changed.emit()
 	print("[INVENTORY] Return Scroll added to storage")
 
@@ -2539,34 +2539,6 @@ func extract_card(item: ItemData, card_index: int, _destroy_item: bool = false) 
 	equipment_changed.emit()
 	print("[INVENTORY] Extracted '%s' from %s" % [card.card_name, item.item_name])
 	return card
-
-func _destroy_equipped_item(item: ItemData) -> void:
-	## Finds and removes an equipped item from all slot arrays, reversing its bonuses.
-	var all_slots = [
-		[equipped_helms, ItemData.ItemType.HELM],
-		[equipped_chests, ItemData.ItemType.CHEST],
-		[equipped_rings, ItemData.ItemType.RING],
-		[equipped_belts, ItemData.ItemType.BELT],
-		[equipped_boots, ItemData.ItemType.BOOTS],
-		[equipped_gauntlets, ItemData.ItemType.GAUNTLETS],
-		[equipped_weapons, ItemData.ItemType.WEAPON]
-	]
-
-	for slot_info in all_slots:
-		var slot_array = slot_info[0]
-		for i in range(slot_array.size()):
-			if slot_array[i] == item:
-				unequip_item(slot_info[1], i)
-				print("[INVENTORY] Destroyed item: %s" % item.item_name)
-				return
-
-	# Check storage too
-	for i in range(stored_items.size()):
-		if stored_items[i] == item:
-			stored_items.remove_at(i)
-			storage_changed.emit()
-			print("[INVENTORY] Destroyed stored item: %s" % item.item_name)
-			return
 
 func get_all_items_with_card_slots() -> Array[ItemData]:
 	## Returns all equipped items that have card slots.

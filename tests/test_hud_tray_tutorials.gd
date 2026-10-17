@@ -43,7 +43,7 @@ func _run() -> void:
 	var stats = _main.player.get_stats()
 	var inv = _main.player.get_inventory()
 	_check(_tray_box("ring_") == null, "no ring box before a ring is worn")
-	var stone := ItemData.create_heal_stone()
+	var stone := ItemData.create("heal_stone")
 	inv.stored_items.append(stone)
 	_check(inv.equip_item(stone), "the Heal Stone equips")
 	_main._update_passive_display_ui()

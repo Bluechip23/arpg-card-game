@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_5c7yj"]
+
+[resource]
+script = ExtResource("1_5c7yj")
+item_name = "Spartan Spear"
+rarity = 1
+weight = 80
+strength_bonus = 4
+wisdom_bonus = 3
+agility_bonus = 2
+weapon_subtype = 4
+shield_synergy = true
+description = "+3 WIS, +2 AGI, +4 STR. While wielding a shield, gain Reach and +2 melee damage."

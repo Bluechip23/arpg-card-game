@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_nimwx"]
+
+[resource]
+script = ExtResource("1_nimwx")
+item_name = "Assasian Belt"
+item_type = 3
+item_type_name = "Belt"
+rarity = 1
+weight = 10
+dexterity_bonus = 1
+agility_bonus = 5
+granted_card_ids = Array[String](["shuriken", "shuriken"])
+card_slots = 1
+on_self_apply_vulnerable = 1
+description = "+5 AGI, +1 DEX. On-self: apply 1 Vulnerable. Grants two Shurikens."

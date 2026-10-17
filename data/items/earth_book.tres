@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_t4okj"]
+
+[resource]
+script = ExtResource("1_t4okj")
+item_name = "Earth Book"
+weight = 10
+intelligence_bonus = 2
+weapon_subtype = 9
+card_slots = 1
+on_self_armor_any = 3
+block_bonus_to_defense_cards = 1
+damage_bonus_to_attack_cards = 1
+description = "+2 INT. 1 card slot. Your armor-granting cards grant +1 block and your offensive cards deal +1 damage. On-self: gain 3 armor."

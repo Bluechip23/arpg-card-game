@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_einx1"]
+
+[resource]
+script = ExtResource("1_einx1")
+item_name = "Delfins Deterministic Round Shield"
+item_type_name = "Shield"
+rarity = 3
+level_2_overrides = {
+"intelligence_bonus": 6,
+"on_self_chance_boost": 13.0,
+"overdraw_peak": 5,
+"strength_bonus": 5,
+"wisdom_bonus": 7
+}
+level_2_description = "+6 INT, +7 WIS, +5 STR. 3 card slots. On-self: +13% to the card's rolls. Overdraw: Peak the next 5 cards of your draw pile. Grants Mage Shield (instant): when you take damage, gain 15 block."
+weight = 40
+strength_bonus = 3
+intelligence_bonus = 6
+wisdom_bonus = 5
+weapon_subtype = 2
+granted_card_ids = Array[String](["mage_shield"])
+card_slots = 3
+on_self_chance_boost = 10.0
+overdraw_peak = 4
+description = "+6 INT, +5 WIS, +3 STR. 3 card slots. On-self: +10% to the card's rolls. Overdraw: Peak the next 4 cards of your draw pile. Grants Mage Shield (instant): when you take damage, gain 10 block."
+appearance = "A wooden shield banded with iron."
+appearance_icon = "res://assets/items/mythic/delfins_deterministic_round_shield.png"

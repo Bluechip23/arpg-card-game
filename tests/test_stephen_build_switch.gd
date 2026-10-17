@@ -54,8 +54,8 @@ func _run() -> void:
 		# Quick Shot engraved in the bow.
 		var sword = inv.equipped_weapons[0]
 		var off = inv.equipped_weapons[1]
-		var bow := ItemData.create_long_bow()
-		var quiver := ItemData.create_standard_quiver()
+		var bow := ItemData.create("long_bow")
+		var quiver := ItemData.create("standard_quiver")
 		var shot = dm._create_card_from_id("quick_shot")
 		_check(bow.slot_card(shot), "%s: Quick Shot engraves into the bow" % who)
 		inv.switch_build(1)
@@ -128,7 +128,7 @@ func _run() -> void:
 				"trip %d: both saved builds still hold their own weapons" % trip)
 		# A single weapon swap from the backpack (the panel's drag-and-drop):
 		# man of arms makes it 1 + 1 tempo and no mana.
-		var dagger := ItemData.create_rusty_dagger()
+		var dagger := ItemData.create("rusty_dagger")
 		inv.stored_items.append(dagger)
 		var t1: int = main.tempo_manager.global_tempo
 		var m2: float = stats.current_mana

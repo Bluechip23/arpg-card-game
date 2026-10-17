@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_o1nsa"]
+
+[resource]
+script = ExtResource("1_o1nsa")
+item_name = "Blast Stick"
+rarity = 2
+weight = 45
+strength_bonus = 1
+intelligence_bonus = 18
+agility_bonus = -8
+weapon_subtype = 10
+card_slots = 2
+spell_mana_surcharge_percent = 10.0
+spell_damage_per_mana_percent = 20.0
+description = "+18 INT, -8 AGI, +1 STR. 2 card slots. Two-handed. Offensive spells cost 10% more mana — and deal bonus damage equal to 20% of what they cost."

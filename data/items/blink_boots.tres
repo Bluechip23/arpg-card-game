@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_xos8g"]
+
+[resource]
+script = ExtResource("1_xos8g")
+item_name = "Blink Boots"
+item_type = 4
+item_type_name = "Boots"
+rarity = 1
+weight = 8
+agility_bonus = 3
+special_effect = 2
+special_effect_value = 2
+description = "+3 AGI. Grants 2 Blink cards while equipped."

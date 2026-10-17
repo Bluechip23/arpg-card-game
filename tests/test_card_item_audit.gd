@@ -166,14 +166,14 @@ func _run() -> void:
 	_check(dummy.current_health < hp_before, "an unrolled Oops still rolls its hits live")
 
 	print("-- Forge --")
-	var hat := ItemData.create_kettle_hat()
+	var hat := ItemData.create("kettle_hat")
 	hat.level_up()
 	_check(hat.special_effect_value == 3, "Kettle Hat Lv.2 grants 3 per tick (was a no-op)")
-	var knuckles := ItemData.create_brass_knuckles()
+	var knuckles := ItemData.create("brass_knuckles")
 	var melee_before: int = knuckles.damage_bonus_to_melee_cards
 	knuckles.level_up()
 	_check(knuckles.damage_bonus_to_melee_cards == melee_before + 1, "Brass Knuckles Lv.2 boosts its melee bonus")
-	var girdle := ItemData.create_girdle_of_aphrodite()
+	var girdle := ItemData.create("girdle_of_aphrodite")
 	girdle.level_up()
 	girdle.level_up()
 	_check(girdle.determination_bonus == 3, "Girdle of Aphrodite keeps +3 DET at Lv.3 (%d)" % girdle.determination_bonus)
@@ -219,7 +219,7 @@ func _round_two(stats, dm, bm, dummy: Enemy) -> void:
 
 	print("-- Item Mastery moves the real cards --")
 	var inv = main.player.get_inventory()
-	var sword := ItemData.create_wooden_sword()
+	var sword := ItemData.create("wooden_sword")
 	inv.equip_item(sword, 0)
 	var splinter: Card = null
 	for c in dm.draw_pile + dm.discard_pile + dm.hand:

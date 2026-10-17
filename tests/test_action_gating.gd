@@ -108,9 +108,9 @@ func _test_stun() -> void:
 
 	# Kit for the gated actions: a gauntlet with an active skill (Guard), a
 	# shield for Block, and a Manifest token.
-	var gloves: ItemData = ItemData.create_chain_gloves()
+	var gloves: ItemData = ItemData.create("chain_gloves")
 	inv.equip_item(gloves, 0)
-	var shield: ItemData = ItemData.create_wooden_shield()
+	var shield: ItemData = ItemData.create("wooden_shield")
 	if not inv.has_shield_equipped():
 		for s in range(4):
 			if inv.equip_item(shield, s):

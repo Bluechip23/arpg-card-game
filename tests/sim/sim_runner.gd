@@ -227,7 +227,7 @@ func _build_player() -> void:
 	for entry in p["items"]:
 		var id: String = str(entry[0] if entry is Array else entry)
 		var slot: int = int(entry[1]) if (entry is Array and entry.size() > 1) else 0
-		var item: ItemData = (ItemData as Script).call("create_%s" % id)
+		var item: ItemData = ItemData.create(id)
 		if inv.equip_item(item, slot):
 			equipped[id] = item
 		else:
@@ -300,7 +300,7 @@ func _stow_alt_weapons(p: Dictionary, inv, stats) -> void:
 	var items: Array = []
 	for entry in alts:
 		var id := str(entry[0])
-		var item: ItemData = (ItemData as Script).call("create_%s" % id)
+		var item: ItemData = ItemData.create(id)
 		for cid in p.get("alt_slotted", {}).get(id, []):
 			var card = main.deck_manager._create_card_from_id(str(cid))
 			if card == null or not item.slot_card(card):

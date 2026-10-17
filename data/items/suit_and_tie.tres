@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_6o4f3"]
+
+[resource]
+script = ExtResource("1_6o4f3")
+item_name = "Suit and Tie"
+item_type = 1
+item_type_name = "Chest"
+rarity = 1
+weight = 10
+intelligence_bonus = 3
+wisdom_bonus = 2
+determination_bonus = 1
+granted_card_ids = Array[String](["negotiate"])
+gold_gain_heal = 3
+description = "+3 INT, +2 WIS, +1 DET. Heal 3 whenever you obtain gold. Grants Negotiate: steal 5 gold from an enemy (20 mana, 3 tempo)."

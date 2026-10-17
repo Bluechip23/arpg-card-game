@@ -145,32 +145,6 @@ func get_row_for_level(level: int) -> SkillRow:
 
 var retrospective_picks: Dictionary = {}  # level -> Array[int] of additional option indices
 var retro_level_choices: Dictionary = {}  # retro_level -> {source_level: int, option_index: int}
-static func is_retrospective_level(level: int) -> bool:
-	return level >= 3 and level % 3 == 0
-
-## Check if a retro level's choice has been used (player picked a previous option).
-func is_retro_level_used(retro_level: int) -> bool:
-	return retro_level in retro_level_choices
-
-func can_retrospective_pick(level: int, option_index: int) -> bool:
-	var row = get_row_for_level(level)
-	if not row or not row.is_chosen():
-		return false
-	if option_index == row.chosen_index:
-		return false  # Already the chosen option
-	if option_index < 0 or option_index >= row.options.size():
-		return false
-	# Check if already retrospective-picked this option
-	if level in retrospective_picks:
-		if option_index in retrospective_picks[level]:
-			return false
-	return true
-
-func is_retrospective_picked(level: int, option_index: int) -> bool:
-	if level not in retrospective_picks:
-		return false
-	return option_index in retrospective_picks[level]
-
 static func create_auto_grant_for_level(level: int) -> AutoGrant:
 	var removal_levels := [2, 5, 10, 15, 20, 25, 30]
 	if level not in removal_levels:

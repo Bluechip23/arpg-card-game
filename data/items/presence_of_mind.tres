@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_xi635"]
+
+[resource]
+script = ExtResource("1_xi635")
+item_name = "Presence of Mind"
+item_type_name = "Shield"
+rarity = 3
+level_2_overrides = {
+"health_bonus": -10,
+"intelligence_bonus": 7,
+"mana_bonus": 45,
+"on_self_block_max_mana_percent": 15.0,
+"strength_bonus": 9,
+"wisdom_bonus": 2
+}
+level_2_description = "+7 INT, +9 STR, +2 WIS, +45 mana, -10 health. 2 card slots. On-self: extra block worth 15% of your max mana. Grants Mind over Matter: the next hit you take is halved and paid out of your mana instead of your health (20 mana, 2 tempo)."
+weight = 25
+strength_bonus = 8
+intelligence_bonus = 5
+wisdom_bonus = 2
+health_bonus = -10
+mana_bonus = 25
+weapon_subtype = 2
+granted_card_ids = Array[String](["mind_over_matter"])
+card_slots = 2
+on_self_block_max_mana_percent = 10.0
+description = "+5 INT, +8 STR, +2 WIS, +25 mana, -10 health. 2 card slots. On-self: extra block worth 10% of your max mana. Grants Mind over Matter: the next hit you take is halved and paid out of your mana instead of your health (20 mana, 2 tempo)."
+appearance = "A black kite shield marked in yellow: a man sitting in meditation, a half crescent moon above his head."
+appearance_icon = "res://assets/items/mythic/presence_of_mind.png"

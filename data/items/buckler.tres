@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_jqb4r"]
+
+[resource]
+script = ExtResource("1_jqb4r")
+item_name = "Buckler"
+item_type_name = "Shield"
+weight = 15
+strength_bonus = 2
+determination_bonus = 1
+weapon_subtype = 2
+flat_damage_reduction = 3
+description = "+2 STR, +1 DET. Every hit that reaches you is 3 damage lighter."

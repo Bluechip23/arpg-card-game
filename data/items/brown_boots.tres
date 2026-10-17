@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_gftbw"]
+
+[resource]
+script = ExtResource("1_gftbw")
+item_name = "Brown Boots"
+item_type = 4
+item_type_name = "Boots"
+weight = 8
+agility_bonus = 3
+description = "+3 AGI."

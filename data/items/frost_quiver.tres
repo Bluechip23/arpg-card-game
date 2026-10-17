@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_begue"]
+
+[resource]
+script = ExtResource("1_begue")
+item_name = "Frost Quiver"
+item_type = 7
+item_type_name = "Quiver"
+rarity = 1
+weight = 20
+wisdom_bonus = 5
+agility_bonus = 1
+card_slots = 2
+on_self_damage = 1
+on_self_armor_any = 2
+on_self_apply_cold = 1
+description = "+5 WIS, +1 AGI. 2 card slots. On-self: +1 damage, apply 1 Cold, and gain 2 armor."

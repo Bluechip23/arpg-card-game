@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_o1pe4"]
+
+[resource]
+script = ExtResource("1_o1pe4")
+item_name = "Cyde Livingstons Sneakers"
+item_type = 4
+item_type_name = "Boots"
+rarity = 2
+weight = 10
+dexterity_bonus = 4
+agility_bonus = 5
+granted_card_ids = Array[String](["donate_cleats"])
+consecutive_attack_draw = 5
+description = "+5 AGI, +4 DEX. If you play 5 consecutive attacks, draw a card. Grants Donate Cleats: for 5 tempo, grant 5 AGI and 4 DEX to an ally (35 mana, 0 tempo)."

@@ -45,7 +45,7 @@ func _initialize() -> void:
 	lbl.free()
 
 	# --- Return Scroll item ---
-	var scroll = ItemData.create_return_scroll()
+	var scroll = ItemData.create("return_scroll")
 	_check(scroll.special_id == "return_scroll", "scroll carries special_id")
 	_check(scroll.weight == 0, "scroll weighs nothing")
 

@@ -1,21 +1,16 @@
 extends SceneTree
 
-## Dumps every ItemData factory (name, type, rarity, descriptions, the
+## Dumps every catalogue item (name, type, rarity, descriptions, the
 ## non-default numeric fields) to /tmp/items.json for the item audit.
 ## Run: godot --headless --path . --script tests/dump_items.gd
 
 func _initialize() -> void:
 	var out: Array = []
-	var script: Script = ItemData
 	var blank := ItemData.new()
-	var seen := {}
-	for method in script.get_script_method_list():
-		var n: String = method["name"]
-		if not n.begins_with("create_") or method["args"].size() != 0 or seen.has(n):
-			continue
-		seen[n] = true
-		var item = script.call(n)
-		if not (item is ItemData):
+	for id in ItemData.ITEM_IDS:
+		var n: String = "create_" + id
+		var item := ItemData.create(id)
+		if item == null:
 			continue
 		var fields := {}
 		for prop in item.get_property_list():

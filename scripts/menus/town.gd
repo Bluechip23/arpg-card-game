@@ -558,7 +558,7 @@ func _get_vendor_items(vendor_type: String) -> Array[ItemData]:
 	var items: Array[ItemData] = []
 	match vendor_type:
 		"armory":
-			items.append(ItemData.create_wooden_sword())
+			items.append(ItemData.create("wooden_sword"))
 		"accessory":
 			# No accessory items exist right now — the shelf stands empty
 			# until new accessories are added to ItemData.
@@ -2434,23 +2434,6 @@ func _npc_cyl(parent: Node3D, n: String, pos: Vector3, top_r: float, bot_r: floa
 	return mi
 
 
-func _npc_sphere(parent: Node3D, n: String, pos: Vector3, r: float, c: Color, scl := Vector3.ONE) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	mi.name = n
-	var s := SphereMesh.new()
-	s.radius = r
-	s.height = r * 2.0
-	mi.mesh = s
-	mi.position = pos
-	mi.scale = scl
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = c
-	mat.roughness = 0.7
-	mi.material_override = mat
-	parent.add_child(mi)
-	return mi
-
-
 ## Replace the placeholder vendor cubes with themed market stalls, and scatter
 ## lamps, barrels and crates so the hub reads as a lived-in plaza.
 func _dress_town() -> void:
@@ -2572,21 +2555,6 @@ func _build_lamp(parent: Node3D, pos: Vector3) -> void:
 	light.light_energy = 1.1
 	light.omni_range = 5.0
 	lamp.add_child(light)
-
-
-func _build_barrel(parent: Node3D, pos: Vector3) -> void:
-	_npc_cyl(parent, "Barrel", pos + Vector3(0, 0.42, 0), 0.3, 0.34, 0.84, Color(0.45, 0.32, 0.18))
-	for by in [0.2, 0.62]:
-		var hoop := MeshInstance3D.new()
-		var tor := TorusMesh.new()
-		tor.inner_radius = 0.02
-		tor.outer_radius = 0.35
-		hoop.mesh = tor
-		hoop.position = pos + Vector3(0, by, 0)
-		var m := StandardMaterial3D.new()
-		m.albedo_color = Color(0.28, 0.29, 0.33)
-		hoop.material_override = m
-		parent.add_child(hoop)
 
 
 func _create_olorin_npc() -> void:

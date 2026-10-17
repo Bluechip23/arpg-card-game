@@ -10,12 +10,15 @@ var color: Color = Color(1, 0.4, 0.8, 0.3)  # Pink with transparency
 
 var _mesh_instance: MeshInstance3D
 var _material: StandardMaterial3D
+var _mesh: ImmediateMesh = ImmediateMesh.new()  # rebuilt in place, never reallocated
+var _built_key: Array = []  # what the current surfaces were built from (see _build_key)
 
 ## Stores the mouse world position (XZ plane), updated from main.gd
 var mouse_world_pos: Vector3 = Vector3.ZERO
 
 func _ready() -> void:
 	_mesh_instance = MeshInstance3D.new()
+	_mesh_instance.mesh = _mesh
 	add_child(_mesh_instance)
 	_material = StandardMaterial3D.new()
 	_material.albedo_color = color
@@ -27,7 +30,29 @@ func _ready() -> void:
 	# Start hidden so the indicator doesn't flash at origin (0,0,0) / upper-left
 	visible = false
 
+## The aim direction on the XZ plane (cones and lines point at the mouse).
+func _aim_dir() -> Vector3:
+	var local_mouse = mouse_world_pos - global_position
+	var dir = Vector3(local_mouse.x, 0, local_mouse.z).normalized()
+	if dir.length() < 0.01:
+		dir = Vector3(0, 0, -1)
+	return dir
+
+## Everything the surfaces depend on. The circle ignores the aim.
+func _build_key() -> Array:
+	if shape == "cone" or shape == "line":
+		var dir := _aim_dir()
+		return [shape, aoe_range, cone_angle, dir.x, dir.z]
+	return [shape, aoe_range]
+
+## Rebuilds the ground shape only when its inputs changed since the last
+## build; while the cursor rests this is a comparison, not a mesh.
 func _rebuild_mesh() -> void:
+	var key := _build_key()
+	if key == _built_key:
+		return
+	_built_key = key
+	_mesh.clear_surfaces()
 	match shape:
 		"cone":
 			_build_cone_mesh()
@@ -37,17 +62,12 @@ func _rebuild_mesh() -> void:
 			_build_line_mesh()
 		_:
 			# No shape (an AOE card resolved by its own rules): never leave
-			# the previous card's mesh on the ground.
-			_mesh_instance.mesh = null
+			# the previous card's mesh on the ground — the cleared mesh draws nothing.
+			pass
 
 func _build_cone_mesh() -> void:
-	var mesh = ImmediateMesh.new()
-	_mesh_instance.mesh = mesh
-
-	var local_mouse = mouse_world_pos - global_position
-	var dir = Vector3(local_mouse.x, 0, local_mouse.z).normalized()
-	if dir.length() < 0.01:
-		dir = Vector3(0, 0, -1)
+	var mesh := _mesh
+	var dir := _aim_dir()
 	var angle = atan2(dir.x, -dir.z)  # angle on XZ plane
 
 	var half_angle = deg_to_rad(cone_angle / 2.0)
@@ -64,9 +84,7 @@ func _build_cone_mesh() -> void:
 	mesh.surface_end()
 
 func _build_circle_mesh() -> void:
-	var mesh = ImmediateMesh.new()
-	_mesh_instance.mesh = mesh
-
+	var mesh := _mesh
 	var segments = 32
 	var center = Vector3(0, 0.02, 0)
 	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -79,13 +97,8 @@ func _build_circle_mesh() -> void:
 	mesh.surface_end()
 
 func _build_line_mesh() -> void:
-	var mesh = ImmediateMesh.new()
-	_mesh_instance.mesh = mesh
-
-	var local_mouse = mouse_world_pos - global_position
-	var dir = Vector3(local_mouse.x, 0, local_mouse.z).normalized()
-	if dir.length() < 0.01:
-		dir = Vector3(0, 0, -1)
+	var mesh := _mesh
+	var dir := _aim_dir()
 	var end_pos = dir * aoe_range
 	var perp = Vector3(-dir.z, 0, dir.x) * 0.3  # Line width
 

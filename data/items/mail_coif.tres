@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_5jc7i"]
+
+[resource]
+script = ExtResource("1_5jc7i")
+item_name = "Mail Coif"
+item_type = 0
+item_type_name = "Helm"
+weight = 25
+special_effect = 7
+special_effect_value = 5
+armor_per_tempo_interval = 15
+description = "Gain 5 unerring armor every 15 tempo while equipped (counter resets when unequipped)."

@@ -1,4 +1,4 @@
-extends Node3D
+extends HealableSummon
 
 ## Summoned melee ally: the Sack of Bone Arrows skeleton, plus the manifest
 ## summons (skeleton / spirit / golem) that share its brain.
@@ -11,51 +11,35 @@ extends Node3D
 ## This node owns visuals/health/movement; main.gd drives per-tempo decisions
 ## (_update_skeletons) via the cadence accumulators.
 
-signal died(skeleton)
-
 # Per-kind cadence knobs — skeleton defaults; setup() retunes for the kind.
-var BASE_ATTACK := 5      # damage per hit
-var MOVE_INTERVAL := 1    # tempo between moves
-var MOVE_STEPS := 4       # tiles per move
-var ATTACK_INTERVAL := 5  # tempo between attacks
+var base_attack := 5      # damage per hit
+var move_interval := 1    # tempo between moves
+var move_steps := 4       # tiles per move
+var attack_interval := 5  # tempo between attacks
 var kind := "skeleton"
-var display_name := "Skeleton"
-
-var max_health: int = 10
-var health: int = 10
-var grid_manager: GridManager = null
-var is_dead: bool = false
-var move_accum: int = 0
-var attack_accum: int = 0
-
-var _target_position: Vector3 = Vector3.ZERO
-var _is_moving: bool = false
-var _health_label: Label3D = null
 
 func setup(gm: GridManager, spawn_pos: Vector3, hp: int, summon_kind := "skeleton") -> void:
-	grid_manager = gm
-	position = Vector3(spawn_pos.x, 0.0, spawn_pos.z)
-	_target_position = position
+	_place(gm, spawn_pos)
+	glide_speed = 4.5
 	kind = summon_kind
 	match kind:
 		"spirit":
 			# Fast and fragile: weaker hits, quicker cadence, longer strides.
 			display_name = "Spirit"
-			BASE_ATTACK = 3
-			ATTACK_INTERVAL = 3
-			MOVE_STEPS = 5
+			base_attack = 3
+			attack_interval = 3
+			move_steps = 5
 		"golem":
 			# Slow and tanky: heavy hits on a long wind-up, short strides.
 			display_name = "Golem"
-			BASE_ATTACK = 8
-			ATTACK_INTERVAL = 8
-			MOVE_STEPS = 2
+			base_attack = 8
+			attack_interval = 8
+			move_steps = 2
 		_:
 			display_name = "Skeleton"
 	max_health = maxi(1, hp)
 	health = max_health
-	_build_visuals()
-	_update_health_label()
+	_finish_setup()
 
 func _build_visuals() -> void:
 	var bone := StandardMaterial3D.new()
@@ -96,68 +80,4 @@ func _build_visuals() -> void:
 		eye.material_override = eyes
 		eye.position = Vector3(ex, 0.92, -0.1)
 		add_child(eye)
-	_health_label = Label3D.new()
-	_health_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_health_label.font_size = 24
-	_health_label.pixel_size = 0.005
-	_health_label.position = Vector3(0, 1.25, 0)
-	_health_label.modulate = Color(0.85, 0.9, 0.8)
-	WorldText.crisp(_health_label)
-	add_child(_health_label)
-
-func _update_health_label() -> void:
-	if _health_label:
-		_health_label.text = "%s %d/%d" % [display_name, max(health, 0), max_health]
-
-func _process(delta: float) -> void:
-	if not _is_moving:
-		return
-	position.x = move_toward(position.x, _target_position.x, 4.5 * delta)
-	position.z = move_toward(position.z, _target_position.z, 4.5 * delta)
-	if abs(position.x - _target_position.x) < 0.01 and abs(position.z - _target_position.z) < 0.01:
-		position.x = _target_position.x
-		position.z = _target_position.z
-		_is_moving = false
-
-func get_cell() -> Vector2i:
-	if grid_manager:
-		return grid_manager.world_to_grid(position)
-	return Vector2i.ZERO
-
-func move_to_cell(cell: Vector2i) -> void:
-	if not grid_manager or is_dead:
-		return
-	var world = grid_manager.grid_to_world(cell)
-	_target_position = Vector3(world.x, 0.0, world.z)
-	_is_moving = true
-
-func get_health_percent() -> float:
-	return float(health) / float(max_health) if max_health > 0 else 0.0
-
-func heal(amount: int) -> void:
-	if PlayerStats.heal_to_damage and amount > 0:
-		take_damage(amount)  # Poisoned Blood: the heal lands as damage
-		return
-	if is_dead or amount <= 0:
-		return
-	health = min(max_health, health + amount)
-	_update_health_label()
-
-func take_damage(amount: int) -> void:
-	if is_dead:
-		return
-	# Cover: a defender within 2 squares soaks the hit by their hand size.
-	amount = PlayerStats.apply_cover(self, amount)
-	if amount <= 0:
-		return
-	health -= amount
-	_update_health_label()
-	if health <= 0:
-		die()
-
-func die() -> void:
-	if is_dead:
-		return
-	is_dead = true
-	died.emit(self)
-	queue_free()
+	_build_health_label(1.25, Color(0.85, 0.9, 0.8))

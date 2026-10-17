@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_j8ng3"]
+
+[resource]
+script = ExtResource("1_j8ng3")
+item_name = "Emerald"
+item_type = 2
+item_type_name = "Ring"
+weight = 5
+dexterity_bonus = 1
+agility_bonus = 3
+mana_bonus = 50
+description = "+50 mana. +1 DEX, +3 AGI. Every 5 Poison applied, deal 2 damage to a random enemy within 5 squares."

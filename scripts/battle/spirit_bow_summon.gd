@@ -1,4 +1,4 @@
-extends Node3D
+extends HealableSummon
 
 ## Spirit bows of the Bow of Budding Blasts. One script, two lives:
 ##
@@ -14,8 +14,6 @@ extends Node3D
 ## visuals/health/movement; main.gd drives per-tempo decisions
 ## (_update_spirit_bows) via the cadence accumulators.
 
-signal died(bow)
-
 const SPIRIT_ATTACK := 10       # maintained spirit bow damage
 const SPIRIT_ATTACK_INTERVAL := 4
 const SPIRIT_MOVE_INTERVAL := 1 # 1 square per tempo
@@ -25,29 +23,18 @@ const ATTACK_RANGE := 6         # shot range in squares, both forms
 
 var is_bud: bool = false
 var attacks_left: int = -1      # buds: shots remaining before withering (-1 = unlimited)
-var max_health: int = 20
-var health: int = 20
-var grid_manager: GridManager = null
-var is_dead: bool = false
-var move_accum: int = 0
-var attack_accum: int = 0
-
-var _target_position: Vector3 = Vector3.ZERO
-var _is_moving: bool = false
-var _health_label: Label3D = null
 
 func setup(gm: GridManager, spawn_pos: Vector3, bud: bool) -> void:
-	grid_manager = gm
+	_place(gm, spawn_pos)
 	is_bud = bud
-	position = Vector3(spawn_pos.x, 0.0, spawn_pos.z)
-	_target_position = position
+	max_health = 20
+	health = 20
 	if is_bud:
 		# A bud is a fragile sprout: any damage kills it, two shots spend it.
 		max_health = 1
 		health = 1
 		attacks_left = 2
-	_build_visuals()
-	_update_health_label()
+	_finish_setup()
 
 func attack_interval() -> int:
 	return BUD_ATTACK_INTERVAL if is_bud else SPIRIT_ATTACK_INTERVAL
@@ -82,22 +69,12 @@ func _build_visuals() -> void:
 	string.material_override = slime
 	string.position = Vector3(0.12 * scale_mult, 0.55 * scale_mult, 0)
 	add_child(string)
-	_health_label = Label3D.new()
-	_health_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_health_label.font_size = 24
-	_health_label.pixel_size = 0.005
-	_health_label.position = Vector3(0, 1.0 * scale_mult + 0.2, 0)
-	_health_label.modulate = Color(0.6, 0.9, 0.85)
-	WorldText.crisp(_health_label)
-	add_child(_health_label)
+	_build_health_label(1.0 * scale_mult + 0.2, Color(0.6, 0.9, 0.85))
 
-func _update_health_label() -> void:
-	if not _health_label:
-		return
+func _health_label_text() -> String:
 	if is_bud:
-		_health_label.text = "Bud %d shot%s" % [max(attacks_left, 0), "" if attacks_left == 1 else "s"]
-	else:
-		_health_label.text = "Spirit Bow %d/%d" % [max(health, 0), max_health]
+		return "Bud %d shot%s" % [max(attacks_left, 0), "" if attacks_left == 1 else "s"]
+	return "Spirit Bow %d/%d" % [max(health, 0), max_health]
 
 func spend_attack() -> void:
 	## Buds wither after their shots are spent; the spirit bow shoots forever.
@@ -107,39 +84,10 @@ func spend_attack() -> void:
 		if attacks_left <= 0:
 			die()
 
-func _process(delta: float) -> void:
-	if not _is_moving:
-		return
-	position.x = move_toward(position.x, _target_position.x, 4.0 * delta)
-	position.z = move_toward(position.z, _target_position.z, 4.0 * delta)
-	if abs(position.x - _target_position.x) < 0.01 and abs(position.z - _target_position.z) < 0.01:
-		position.x = _target_position.x
-		position.z = _target_position.z
-		_is_moving = false
-
-func get_cell() -> Vector2i:
-	if grid_manager:
-		return grid_manager.world_to_grid(position)
-	return Vector2i.ZERO
-
 func move_to_cell(cell: Vector2i) -> void:
-	if not grid_manager or is_dead or is_bud:
+	if is_bud:
 		return  # buds are rooted where they sprouted
-	var world = grid_manager.grid_to_world(cell)
-	_target_position = Vector3(world.x, 0.0, world.z)
-	_is_moving = true
-
-func get_health_percent() -> float:
-	return float(health) / float(max_health) if max_health > 0 else 0.0
-
-func heal(amount: int) -> void:
-	if PlayerStats.heal_to_damage and amount > 0:
-		take_damage(amount)  # Poisoned Blood: the heal lands as damage
-		return
-	if is_dead or amount <= 0:
-		return
-	health = min(max_health, health + amount)
-	_update_health_label()
+	super(cell)
 
 func take_damage(amount: int) -> void:
 	if is_dead:
@@ -155,10 +103,3 @@ func take_damage(amount: int) -> void:
 	_update_health_label()
 	if health <= 0:
 		die()
-
-func die() -> void:
-	if is_dead:
-		return
-	is_dead = true
-	died.emit(self)
-	queue_free()
