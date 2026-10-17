@@ -11620,7 +11620,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"fireball":
 			# AOE circle (4 squares) centred on the target; damage + 3 burn each.
-			var center = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var center = _point_aim(target, mouse_pos)
 			var fb_dmg := card.last_damage_dealt
 			var fb_hit := enemy_spawner.get_enemies_in_radius(center, card.aoe_range if card.aoe_range > 0 else 2.0)
 			for en in fb_hit:
@@ -11750,7 +11750,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"sprinkle_bomb":
 			# Bladed Doughnut Lv.3: the Sprinkle detonates as an AOE circle.
-			var sb_center = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var sb_center = _point_aim(target, mouse_pos)
 			var sb_dmg := card.last_damage_dealt
 			var sb_hit := enemy_spawner.get_enemies_in_radius(sb_center, card.aoe_range if card.aoe_range > 0 else 2.0)
 			for en in sb_hit:
@@ -11762,7 +11762,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"spirit_arrow", "balistic_arrow":
 			# Pierce every enemy along the line from the player through the target.
 			var sa_dmg := card.last_damage_dealt
-			var aim = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var aim = _point_aim(target, mouse_pos)
 			var sa_dir := Vector3(aim.x - player.position.x, 0, aim.z - player.position.z)
 			var sa_far = aim
 			if sa_dir.length() > 0.01:
@@ -11976,7 +11976,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"roll":
 			# Roll up to min(tempo_cost, 5) tiles toward the aim point, stopping on
 			# the first character hit. An enemy takes 10 damage and is disarmed.
-			var roll_aim = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var roll_aim = _point_aim(target, mouse_pos)
 			var roll_start := player.position
 			var roll_diff := Vector3(roll_aim.x - roll_start.x, 0, roll_aim.z - roll_start.z)
 			var roll_dir := roll_diff.normalized() if roll_diff.length() > 0.01 else Vector3.ZERO

@@ -118,7 +118,8 @@ func _test_slot_gating() -> void:
 	_check(quiver.slot_card(arrow), "arrow slots into the quiver")
 	_check(arrow.slotted_in_item == quiver, "the card knows its quiver")
 	var bow = ItemData.create("long_bow")
-	_check(bow.can_slot_card(Card.create_slice()), "a bow accepts standard attacks too")
+	_check(bow.can_slot_card(Card.create_trick_shot()) and not bow.can_slot_card(Card.create_slice()),
+		"a bow takes Arrow cards, not unlabeled ones (slot labels)")
 
 func _test_on_self_riders() -> void:
 	print("-- On-self riders --")
