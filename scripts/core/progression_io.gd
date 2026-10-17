@@ -53,6 +53,9 @@ static func to_disk(live: Dictionary, stats_override: Dictionary = {}) -> Dictio
 		disk["skill_tree"] = tree.collect_choices()
 	if live.has("inventory"):
 		disk["inventory"] = _inventory_to_disk(live["inventory"])
+	# Explored ground (fog of war) is plain bytes per place.
+	if live.has("explored"):
+		disk["explored"] = live["explored"]
 	# City-loop state is already plain data — it round-trips as-is.
 	CityBridge.carry_keys(live, disk)
 	return disk
@@ -155,5 +158,7 @@ static func to_live(disk: Dictionary) -> Dictionary:
 		live["skill_tree_choices"] = disk["skill_tree"]
 	if disk.has("inventory"):
 		live["inventory"] = _inventory_to_live(disk["inventory"])
+	if disk.has("explored"):
+		live["explored"] = disk["explored"]
 	CityBridge.carry_keys(disk, live)
 	return live

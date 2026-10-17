@@ -44,8 +44,25 @@ static func crisp(label: Label3D, target_px: int = 0) -> Label3D:
 ## horizontal jitter so the RNG order of a hit is unchanged); `outline_size`
 ## 0 keeps the Label3D default; `pop` bumps the font size up and back for
 ## the enemy hit numbers.
+## Two floating numbers side by side in two colours ("7/" grey and "12" red:
+## what the armor took and what reached health), rising and fading as one.
+static func float_number_pair(parent: Node, at: Vector3, left: String, left_color: Color,
+		right: String, right_color: Color, font_size: int,
+		outline_size: int, rise: float, rise_time: float, fade_time: float, pop: bool = false) -> void:
+	var font: Font = ThemeDB.fallback_font
+	var left_w: float = font.get_string_size(left, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	var right_w: float = font.get_string_size(right, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	# Each label is centred on its origin: shove the left half left and the
+	# right half right by half their widths so they meet at the anchor.
+	_float_label(parent, at, left, left_color, font_size, outline_size, rise, rise_time, fade_time, pop, Vector2(-left_w * 0.5, 0))
+	_float_label(parent, at, right, right_color, font_size, outline_size, rise, rise_time, fade_time, pop, Vector2(right_w * 0.5, 0))
+
 static func float_number(parent: Node, at: Vector3, text: String, color: Color, font_size: int,
 		outline_size: int, rise: float, rise_time: float, fade_time: float, pop: bool = false) -> void:
+	_float_label(parent, at, text, color, font_size, outline_size, rise, rise_time, fade_time, pop, Vector2.ZERO)
+
+static func _float_label(parent: Node, at: Vector3, text: String, color: Color, font_size: int,
+		outline_size: int, rise: float, rise_time: float, fade_time: float, pop: bool, offset: Vector2) -> void:
 	var label := Label3D.new()
 	label.text = text
 	label.font_size = font_size
@@ -56,6 +73,7 @@ static func float_number(parent: Node, at: Vector3, text: String, color: Color, 
 	label.render_priority = 50
 	label.modulate = color
 	label.position = at
+	label.offset = offset
 	parent.add_child(label)
 
 	var tween := label.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)

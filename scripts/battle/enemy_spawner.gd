@@ -163,10 +163,15 @@ func _living_summons() -> Array:
 
 func _target_for(enemy: Enemy) -> Node3D:
 	var candidates := _living_players()
-	if candidates.is_empty():
-		return player  # solo fallback (or both downed — let it act on P1)
 	# Summons count as units: the enemy simply goes for whatever is nearest.
 	candidates = candidates + _living_summons()
+	if candidates.is_empty():
+		# Solo fallback (or both downed — let it act on P1). An iced character
+		# (Cryonics) is untargetable: with nothing else to go for, the enemy
+		# has no target and waits out the ice.
+		if is_instance_valid(player) and player.get("untargetable") == true:
+			return null
+		return player
 	var best: Node3D = null
 	var best_d := INF
 	for p in candidates:

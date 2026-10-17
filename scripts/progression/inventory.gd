@@ -249,6 +249,7 @@ func count_equipped_copies(item_name: String, exclude: ItemData = null) -> int:
 	return n
 
 func equip_item(item: ItemData, slot_index: int = 0) -> bool:
+	last_refusal = ""
 	var slot_array = _get_slot_array(item.item_type)
 	var max_slots = _get_max_slots(item.item_type)
 
@@ -297,6 +298,16 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 			item.item_name, get_total_weight(),
 			player_stats.get_carry_capacity() if player_stats else 0, item.weight])
 		return false
+
+	# Total deck cap: the item's slotted cards join the deck with it. (A build
+	# switch validates its whole end state up front instead.)
+	if enforce_deck_cap and not _bulk_build_switch and deck_manager:
+		var joining := _slotted_cards_joining(item)
+		if joining > 0 and deck_manager.get_total_deck_size() + joining > deck_manager.get_max_total_deck_size():
+			last_refusal = "Deck would hold %d cards counting slotted ones (cap %d)" % [
+				deck_manager.get_total_deck_size() + joining, deck_manager.get_max_total_deck_size()]
+			print("[INVENTORY] %s — cannot equip %s" % [last_refusal, item.item_name])
+			return false
 
 	slot_array[slot_index] = item
 	item.armor_per_tempo_accum = 0  # periodic-armor counter restarts on equip
@@ -756,6 +767,35 @@ func apply_equipped_item_card_effects() -> void:
 # time left. Cards a slotted card merely PRODUCES during play own themselves
 # (neither granted_by_item nor slotted_in_item points here) and are left alone —
 # they have detached from the item.
+
+## Why the last equip / enchant / build switch was refused by the deck cap
+## (empty when it was not) — for the panels to show the player.
+var last_refusal: String = ""
+## The total deck cap gates (slotting, equipping, build switches). The
+## balance tester turns it off: it composes builds past the cap on purpose
+## and reports them, and its weapon swaps must still go through.
+var enforce_deck_cap: bool = true
+
+## How many of an item's slotted cards would join the deck if it were worn
+## now (the ones not already in a zone; granted cards ride free).
+func _slotted_cards_joining(item: ItemData) -> int:
+	if not deck_manager:
+		return 0
+	var n := 0
+	for card in item.slotted_cards:
+		if card and card.granted_by_item == null and not _card_in_any_zone(card):
+			n += 1
+	return n
+
+## How many slotted cards an item holds in the deck right now.
+func _slotted_cards_in_play(item: ItemData) -> int:
+	if not deck_manager:
+		return 0
+	var n := 0
+	for card in item.slotted_cards:
+		if card and card.granted_by_item == null and _card_in_any_zone(card):
+			n += 1
+	return n
 
 func _get_item_owned_cards(item: ItemData) -> Array:
 	## Every card instance that belongs to this item (granted + slotted), no dupes.
@@ -1804,6 +1844,7 @@ func _item_available(item: ItemData) -> bool:
 ## in combat). Items a build remembers but the player no longer owns are
 ## skipped and reported in `missing`.
 func switch_build(target: int) -> Dictionary:
+	last_refusal = ""
 	var result = {"success": false, "tempo_cost": 0, "reason": "", "missing": []}
 	if target < 0 or target >= BUILD_COUNT:
 		result["reason"] = "Invalid build"
@@ -1894,6 +1935,22 @@ func switch_build(target: int) -> Dictionary:
 	if used_storage_slots() + to_storage - from_storage > max_storage_slots:
 		result["reason"] = "Not enough inventory space"
 		return result
+
+	# Total deck cap on the END state: the outgoing items take their slotted
+	# cards with them, the incoming ones bring theirs.
+	if enforce_deck_cap and deck_manager:
+		var total_after: int = deck_manager.get_total_deck_size()
+		for it in removed:
+			if not incoming.has(it):
+				total_after -= _slotted_cards_in_play(it)
+		for it in incoming:
+			if not removed.has(it):
+				total_after += it.slotted_cards.size()
+		if total_after > deck_manager.get_max_total_deck_size() and total_after > deck_manager.get_total_deck_size():
+			result["reason"] = "Deck would hold %d cards counting slotted ones (cap %d)" % [
+				total_after, deck_manager.get_max_total_deck_size()]
+			last_refusal = result["reason"]
+			return result
 
 	# Carry gate on the END state as a whole (per-item gates are bypassed).
 	if player_stats:
@@ -2382,6 +2439,10 @@ func add_card_to_deck(card_index: int, dm) -> bool:
 		print("[INVENTORY] Deck is full (%d/%d) — remove a card before adding '%s'"
 			% [dm.get_deck_size(), dm.get_max_deck_size(), peek.card_name])
 		return false
+	if peek != null and dm and enforce_deck_cap and dm.is_total_deck_full():
+		print("[INVENTORY] Deck is full counting slotted cards (%d/%d) — unslot or remove a card before adding '%s'"
+			% [dm.get_total_deck_size(), dm.get_max_total_deck_size(), peek.card_name])
+		return false
 	if peek != null and dm and not dm.can_add_copy(peek.card_id):
 		print("[INVENTORY] Deck copy limit reached for '%s' (%d max) — card stays in inventory"
 			% [peek.card_name, Card.max_deck_copies(peek.card_id)])
@@ -2482,6 +2543,7 @@ func enchant_card(card: Card, item: ItemData) -> bool:
 	## Puts a card into an item's card slot (Enchant).
 	## Validates slot labels and slot availability.
 	## The card remains in the deck and can still be played normally.
+	last_refusal = ""
 	if not item.has_card_slots():
 		print("[INVENTORY] %s has no card slots!" % item.item_name)
 		return false
@@ -2491,6 +2553,17 @@ func enchant_card(card: Card, item: ItemData) -> bool:
 			print("[INVENTORY] %s has no free card slots! (%d/%d)" % [item.item_name, item.slotted_cards.size(), item.card_slots])
 		else:
 			print("[INVENTORY] Card '%s' cannot be slotted into %s" % [card.card_name, item.get_type_name()])
+		return false
+
+	# Total deck cap: a card that is NOT already in the deck (an Engrave card
+	# from the card inventory, a chest card) joins it when slotted, and the
+	# deck may hold only so many cards counting the slotted ones. Slotting a
+	# card the deck already holds moves it from the base count to the
+	# slotted count and changes nothing.
+	if enforce_deck_cap and deck_manager and not _card_in_any_zone(card) and deck_manager.is_total_deck_full():
+		last_refusal = "Deck is full with slotted cards (%d/%d)" % [
+			deck_manager.get_total_deck_size(), deck_manager.get_max_total_deck_size()]
+		print("[INVENTORY] %s — '%s' cannot be slotted into %s" % [last_refusal, card.card_name, item.item_name])
 		return false
 
 	# Slot the card into the item (card stays in the deck)

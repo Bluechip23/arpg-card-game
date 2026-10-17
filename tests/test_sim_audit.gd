@@ -44,6 +44,11 @@ func _initialize() -> void:
 func _allowed_warning(w: String, level: int) -> bool:
 	if w.begins_with("dropped (mythic cap"):
 		return true
+	# The total deck cap (base + slotted cards) is a trial number the game
+	# enforces at the slot; the tester lets a designed build carry more and
+	# reports it, so the engraving sweeps can still price every slot.
+	if w.begins_with("deck: ") and w.find("total cap") >= 0:
+		return true
 	if level < 18 and w.begins_with("sphere: no unlockable path"):
 		return true
 	return level < 15 and (w.find("over carry capacity") >= 0 or w.ends_with("is not equipped"))
@@ -57,6 +62,9 @@ func _audit_build(runner: SimRunner, character: String, parts: Dictionary, label
 	var inv = runner.main.player.get_inventory()
 	var grid = runner.main.sphere_grid_ui.sphere_grid
 	var bad: Array = runner.warnings.filter(func(w): return not _allowed_warning(str(w), level))
+	for w in runner.warnings:
+		if str(w).find("total cap") >= 0:
+			print("  NOTE: %s carries more than the game allows: %s" % [label, str(w)])
 	if parts.has("tactic"):
 		# A tactic's item can push a build near its carry limit over it; that is
 		# a fact about the build the tactics table reports, not a tester fault.

@@ -96,5 +96,67 @@ func _initialize() -> void:
 	_check(deck.get_deck_size() == 12, "the slotted card does not count toward deck size")
 	_check(deck.get_item_card_count() == 1, "one item card rides along past the cap")
 
+	# --- Total cap: 12 base + slotted cards may reach 25, never more ---
+	_check(deck.get_max_total_deck_size() == 25, "the total deck cap is 25")
+	# A weapon that takes any Crown card, with room for twenty: worn in hand.
+	var rack = ItemData.new()
+	rack.item_name = "Test Rack"
+	rack.item_type = ItemData.ItemType.WEAPON
+	rack.weapon_subtype = ItemData.WeaponSubtype.OTHER
+	rack.card_slots = 20
+	inv._init_slot_arrays()
+	_check(inv.equip_item(rack, 0), "the rack is worn in hand")
+	# 12 base + the helm's etching = 13; twelve more Crown etchings fill it.
+	var added := 0
+	for i in range(12):
+		var e = Card.create_by_id("regal_etching")
+		inv.stored_cards.append(e)
+		if inv.enchant_card(e, rack):
+			added += 1
+	_check(added == 12 and deck.get_total_deck_size() == 25 and deck.is_total_deck_full(),
+		"twelve etchings slot in from storage up to 25 in all (%d added, total %d)" % [added, deck.get_total_deck_size()])
+	_check(deck.get_deck_size() == 12, "the base count is still 12")
+	var extra = Card.create_by_id("regal_etching")
+	inv.stored_cards.append(extra)
+	_check(not inv.enchant_card(extra, rack) and inv.stored_cards.has(extra) and not deck.draw_pile.has(extra),
+		"a 26th card is refused at the slot and stays in the card inventory")
+	_check(inv.last_refusal.begins_with("Deck is full"), "the refusal names the cap (%s)" % inv.last_refusal)
+
+	# A base card already in the deck can still be slotted at the cap: it
+	# moves from the base count to the slotted count and the total stays 25.
+	var labeled = null
+	for c in Card.get_all_cards():
+		if c.is_slottable() and not c.requires_engraving and rack.can_slot_card(c):
+			labeled = Card.create_by_id(c.card_id)
+			break
+	if labeled != null:
+		deck.draw_pile.remove_at(deck.draw_pile.size() - 1)  # one slash out, the labeled card in
+		deck.draw_pile.append(labeled)
+		_check(deck.get_total_deck_size() == 25, "swapping a base card keeps the total at 25")
+		_check(inv.enchant_card(labeled, rack) and deck.get_total_deck_size() == 25 and deck.get_deck_size() == 11,
+			"a deck card slotted at the cap just moves counts (base %d, total %d)" % [deck.get_deck_size(), deck.get_total_deck_size()])
+
+	# A granted card still joins a full deck: it counts toward neither cap.
+	var belt = ItemData.new()
+	belt.item_name = "Test Belt"
+	belt.item_type = ItemData.ItemType.BELT
+	belt.granted_card_ids.append("dagger_throw")
+	var total_before: int = deck.get_total_deck_size()
+	var items_before: int = deck.get_item_card_count()
+	_check(inv.equip_item(belt, 0), "a card-granting belt equips at a full deck")
+	_check(deck.get_item_card_count() == items_before + 1 and deck.get_total_deck_size() == total_before,
+		"its granted card is in play and counts toward neither cap (total %d)" % deck.get_total_deck_size())
+
+	# Gear whose slotted cards would push the deck past the cap is refused.
+	var crown = ItemData.new()
+	crown.item_name = "Test Crown"
+	crown.item_type = ItemData.ItemType.HELM
+	crown.card_slots = 1
+	_check(crown.slot_card(Card.create_by_id("regal_etching")), "a crown with an etching slotted while in the bag")
+	_check(not inv.equip_item(crown, 0) and inv.equipped_helms[0] == null,
+		"the crown is refused at a full deck (%s)" % inv.last_refusal)
+	_check(inv.extract_card(rack, 0) != null and deck.get_total_deck_size() == 24, "unslotting one card frees a place (total %d)" % deck.get_total_deck_size())
+	_check(inv.equip_item(crown, 0) and deck.get_total_deck_size() == 25, "now the crown goes on and its card is in play")
+
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

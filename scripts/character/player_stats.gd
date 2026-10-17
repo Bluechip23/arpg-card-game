@@ -2564,7 +2564,15 @@ func apply_sphere_grid_combat_bonus(label: String, _description: String) -> void
 	print("[STATS] Sphere grid combat bonus: %s" % label)
 
 func add_sphere_grid_passive(passive_data: Dictionary) -> void:
-	## Registers a passive from an unlocked sphere grid node.
+	## Registers a passive from an unlocked sphere grid node. A constellation
+	## passive (node_id -1) registers once: the same trigger + effect +
+	## description is already there after a scene change or a re-apply.
+	if int(passive_data.get("node_id", 0)) == -1:
+		for p in sphere_grid_passives:
+			if int(p.get("node_id", 0)) == -1 and p.get("trigger") == passive_data.get("trigger") \
+					and p.get("effect") == passive_data.get("effect") \
+					and p.get("description", "") == passive_data.get("description", ""):
+				return
 	sphere_grid_passives.append(passive_data)
 	print("[STATS] Sphere grid passive added: %s → %s" % [passive_data.get("trigger", "?"), passive_data.get("effect", "?")])
 

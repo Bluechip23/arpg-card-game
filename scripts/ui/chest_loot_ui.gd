@@ -311,6 +311,11 @@ func _build_chest_card_display(card: Card) -> VBoxContainer:
 
 func _get_compatible_items_for_card(card: Card, inv: Inventory) -> Array[ItemData]:
 	var result: Array[ItemData] = []
+	# A chest card joins the deck when slotted: nothing to slot it into while
+	# the deck is full counting slotted cards (it can still go to the card
+	# inventory).
+	if main.deck_manager and main.deck_manager.is_total_deck_full():
+		return result
 	var items = inv.get_all_items_with_card_slots()
 	for item in items:
 		if item.can_slot_card(card):

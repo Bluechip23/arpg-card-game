@@ -132,6 +132,16 @@ Shield) is his shadow blade: a dagger's damage with a duelist's health.
 
 ## Engravings, one card at a time
 
+> **Deck cap (2026-10-17).** The game now caps the deck at 25 cards
+> counting the ones slotted into items (12 outside items as before;
+> item-granted cards count toward neither). These sweeps were run before
+> the cap and the tester still lets a build carry more (the audit reports
+> it). At level 18 Ryan's card shark holds 37 (25 engraved), the bruiser
+> 32 and the ranged ambusher 28; Stephen's builds hold 17–20. Any Ryan
+> engraving result on those three builds is a slot the game would now
+> refuse once the deck is full — the per-card ranking still says which
+> engravings are worth their place.
+
 | Card | Slots | Builds | DPT | Wins | Helps in |
 |---|---|---|---|---|---|
 | Mixed Bag | 2 | 1 | +17.9 | +3 pts | 2 of 2 |

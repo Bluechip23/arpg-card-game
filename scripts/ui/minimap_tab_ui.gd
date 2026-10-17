@@ -11,55 +11,21 @@ func init(main_ref) -> void:
 	main = main_ref
 
 func _setup_minimap() -> void:
+	## The map image the Tab menu's World Map draws from. There is no
+	## on-screen minimap any more: the camera scrolls and zooms out over the
+	## world itself, which reads better than a 100px thumbnail did.
 	if main._minimap_panel and is_instance_valid(main._minimap_panel):
 		main._minimap_panel.queue_free()
-
-	var ui = main.get_node("UI") as CanvasLayer
-
-	main._minimap_panel = PanelContainer.new()
-	main._minimap_panel.name = "MinimapPanel"
-	ui.add_child(main._minimap_panel)
-
-	# Position in upper-left corner
-	main._minimap_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	main._minimap_panel.offset_left = 8.0
-	main._minimap_panel.offset_top = 8.0
-	main._minimap_panel.offset_right = 8.0 + main.MINIMAP_SIZE + 8
-	main._minimap_panel.offset_bottom = 8.0 + main.MINIMAP_SIZE + 8
-
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.05, 0.08, 0.85)
-	style.border_width_left = 1
-	style.border_width_right = 1
-	style.border_width_top = 1
-	style.border_width_bottom = 1
-	style.border_color = Color(0.3, 0.3, 0.45, 0.8)
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
-	style.content_margin_left = 4
-	style.content_margin_right = 4
-	style.content_margin_top = 4
-	style.content_margin_bottom = 4
-	main._minimap_panel.add_theme_stylebox_override("panel", style)
-
-	main._minimap_texture_rect = TextureRect.new()
-	main._minimap_texture_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
-	main._minimap_texture_rect.custom_minimum_size = Vector2(main.MINIMAP_SIZE, main.MINIMAP_SIZE)
-	main._minimap_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	# Ignore the source image's native size so the rect (and its PanelContainer) stays
-	# fixed at MINIMAP_SIZE. Larger worlds produce a bigger minimap image, and the default
-	# EXPAND_KEEP_SIZE would balloon the panel over the stat bars beside it.
-	main._minimap_texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	main._minimap_panel.add_child(main._minimap_texture_rect)
+	main._minimap_panel = null
+	main._minimap_texture_rect = null
 
 	# Create initial minimap image
 	main._minimap_image = Image.create(main.dungeon_manager.GRID_W * main.MINIMAP_PIXEL_SCALE, main.dungeon_manager.GRID_H * main.MINIMAP_PIXEL_SCALE, false, Image.FORMAT_RGBA8)
 	main._minimap_image.fill(Color(0.02, 0.02, 0.05, 1.0))
 
 func _update_minimap() -> void:
-	if not main._minimap_image or not main.dungeon_manager or not main._minimap_texture_rect:
+	## Repaints the map image (the Tab menu's World Map reads it).
+	if not main._minimap_image or not main.dungeon_manager:
 		return
 
 	var gw = main.dungeon_manager.GRID_W
@@ -136,8 +102,8 @@ func _update_minimap() -> void:
 			if ix >= 0 and ix < main._minimap_image.get_width() and iz >= 0 and iz < main._minimap_image.get_height():
 				main._minimap_image.set_pixel(ix, iz, Color(0.2, 1.0, 0.4))
 
-	var tex = ImageTexture.create_from_image(main._minimap_image)
-	main._minimap_texture_rect.texture = tex
+	if main._minimap_texture_rect and is_instance_valid(main._minimap_texture_rect):
+		main._minimap_texture_rect.texture = ImageTexture.create_from_image(main._minimap_image)
 
 # ============================================
 # TAB MENU (QUEST LOG / MAP)

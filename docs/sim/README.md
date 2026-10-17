@@ -467,6 +467,12 @@ card swap. `engrave:<item>~none` strips that item's engravings, which
 answers whether the slot is worth filling at all (engraved cards ride on
 top of the 12-card deck, so a weak engraving dilutes the draws).
 
+The game caps the deck at `DeckManager.MAX_TOTAL_DECK_SIZE` (25) counting
+slotted cards; the tester does not refuse a build past it but warns
+(`deck: N cards counting slotted ones over the total cap of 25`), and the
+audit prints those as NOTEs, so the engraving sweep can still price every
+slot of a build that carries more than a player could.
+
 Which cards an item takes is the game's own rule (`ItemData.can_slot_card`:
 slot labels, the item's allow-list, a Feral weapon's first colour), read
 from `CharacterBuilds.engrave_options` over the engravable pool (every
