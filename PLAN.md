@@ -257,4 +257,4 @@ Commit `9199b37`. The branch was restarted from `origin/main` (the PR had merged
 
 **Final full gate (E6b vs the post-repair baseline `9199b37`):** parse, determinism, `catalog.json` and the test set all same; **13 quick-tier and 503 full-tier job directories identical**. Test suite 115 pass / 8 fail on both sides (the eight: bladed_doughnut, chaos_icons, dungeon_gen, escort_quests, item_forge, passive_triggers, spell_weapons_pass, starting_loadout — all pre-existing; `main`'s own fixes cleared ranged_pass and shields_pass).
 
-Totals after E6: `card.gd` 8,932 → 4,672; `scripts/` + `resources/` `.gd` now 85,690 lines (from 100,911 at the start of Phase E), with 246 card and 189 item `.tres` files under `data/`.
+Totals after E6: `card.gd` 8,932 → 4,672; `scripts/` + `resources/` `.gd` now 85,702 lines (from 100,911 at the start of Phase E), with 246 card and 189 item `.tres` files under `data/`.
