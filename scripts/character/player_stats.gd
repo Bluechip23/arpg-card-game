@@ -229,7 +229,10 @@ func get_chance_boost() -> float:
 var elixir_stacks: int = 0  # Elixir: next N poison ticks heal instead of hurting (1 stack per tick)
 var elixir_tempo: int = 0   # Elixir card: while > 0, any poison applied to you heals you instead
 const ELIXIR_TEMPO := 25    # the Elixir card's window (the span its old 5 ticks covered)
-var is_blinded: bool = false      # Blind (e.g. Giant Hawk): attacks may miss
+# Legacy Blind flags. Blind is a stack-clocked debuff on the DebuffManager now
+# (Debuff.DebuffType.BLIND, 80% miss while any stack remains) and nothing sets
+# these; Card keeps them only as a fallback when no debuff manager is in reach.
+var is_blinded: bool = false
 var blind_tempo: int = 0
 const blind_miss_chance: float = 0.8
 var healing_boost_percent: float = 0.0  # Raged Circulation: +30% healing
@@ -363,7 +366,7 @@ var damage_proc_reduction_percent: float = 50.0
 var equipment_block_physical_resist: float = 0.0  # +% physical resist while armor is up (Smithed Excellence)
 var equipment_resist_per_missing10: float = 0.0   # +% all-resist per missing-health step (Divine Resistance)
 var equipment_resist_missing_step: int = 10       # % of missing health per resist grant (Divine Resistance 8, Lv3 7)
-signal armor_broken                               # a hit just broke through your armor (Briarhide / Adimantium react)
+signal armor_broken                               # a hit just broke through your armor and Exposed you (off cooldown): chests, Reverberate Regrowth, on_exposed reactions
 signal curse_of_the_living_shared(amount: int)    # Coffin Lid: heal every ally by this much
 var equipment_gold_gain_heal: int = 0             # heal X whenever gold is gained (Suit and Tie)
 var equipment_hp_diff_divisor: int = 0            # health-gap bonus damage divisor, 0 = off (Tigers Sunday Red)
@@ -411,6 +414,7 @@ var current_temp_mana: int = 0                    # Bouncing Shield: mana that s
 var temp_mana_tempo_remaining: int = 0            # tempo left on the temp-mana pool
 var pending_mana_ward: bool = false               # Mind over Matter: next hit is halved and paid out of mana
 var last_exposed_armor: int = 0                   # armor the most recent armor-breaking hit ate
+var exposed_cooldown_tempo: int = 0               # raw tempo before a break can Expose this player again (each co-op player has their own)
 var pending_armor_return: int = 0                 # Reverberate Regrowth: armor owed back after an Exposed hit
 var pending_armor_return_tempo: int = 0           # raw tempo until that armor reverberates back
 # Ranged pass
@@ -1623,8 +1627,25 @@ func get_effective_heal_amount(base_heal: int) -> int:
 # ============================================
 
 ## Called every global tempo advance. Handles mana regen on its own interval.
+## Designer's rule: once Exposed triggers on a unit, that unit cannot be
+## Exposed again for this many raw tempo. Mirrors Enemy.EXPOSED_COOLDOWN.
+const EXPOSED_COOLDOWN := 10
+
+## A hit just broke this player's armor. True (and the cooldown starts) when
+## that counts as Exposed; false inside the cooldown, when the break is just
+## armor lost and nothing that reacts to Exposed may fire.
+func try_expose() -> bool:
+	if exposed_cooldown_tempo > 0:
+		print("[STATS] Armor broken — Exposed on cooldown (%d tempo)" % exposed_cooldown_tempo)
+		return false
+	exposed_cooldown_tempo = EXPOSED_COOLDOWN
+	return true
+
 func process_tempo(amount: int) -> void:
 	_tick_temp_determination(amount)
+	# Exposed's 10-tempo cooldown counts on raw tempo, like the enemy's.
+	if exposed_cooldown_tempo > 0:
+		exposed_cooldown_tempo = max(0, exposed_cooldown_tempo - amount)
 	if elixir_tempo > 0:
 		elixir_tempo = max(0, elixir_tempo - amount)
 	# Ring pass timers run on raw tempo.
@@ -1871,10 +1892,13 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 		else:
 			remaining -= current_armor
 			current_armor = 0
-			# Reverberate Regrowth reads what the breaking hit actually ate.
-			last_exposed_armor = armor_before
 			print("[STATS] Armor broke! %d damage passes through" % remaining)
-			armor_broke = true
+			# The armor is gone either way; whether that is an Exposed (and
+			# sets off what reacts to one) is the cooldown's call.
+			armor_broke = try_expose()
+			if armor_broke:
+				# Reverberate Regrowth reads what the breaking hit actually ate.
+				last_exposed_armor = armor_before
 
 		# Hallowed Trunk: bank the armor THIS hit removed. Computed before the
 		# armor_broken reaction below, whose fresh armor (Briarhide/Adimantium)
@@ -1886,8 +1910,10 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 				buff_mgr.apply_buff(Buff.create_regen(1, 15, "Hallowed Trunk"))
 
 		if armor_broke:
-			# Briarhide / Adimantium: the shell cracked — armored chests react.
-			# The reaction armor arrives AFTER this hit resolves.
+			# Exposed: the one event every on-expose consumer hangs off
+			# (Briarhide / Adimantium, Reverberate Regrowth, on_exposed
+			# reactions — see main._on_player_armor_broken). The reaction
+			# armor arrives AFTER this hit resolves.
 			armor_broken.emit()
 
 		armor_changed.emit(current_armor)

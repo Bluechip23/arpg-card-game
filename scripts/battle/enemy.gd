@@ -78,8 +78,13 @@ const INTENDED_LEVELS := {
 	# Mountains 20-25 (late Act 1), Underworld ~Act 2, Heavens ~Act 3. All are
 	# past the passive_power_scale clamp, so bands here only gate XP falloff.
 	EnemyType.WYVERN: 21, EnemyType.ICE_TROLL: 22, EnemyType.WHITE_MANTICORE: 23,
+	EnemyType.SNOW_WRAITH: 20, EnemyType.SABERTOOTH: 21, EnemyType.ROC: 22,
+	EnemyType.WEREGOAT: 22, EnemyType.GRANITE_COLOSSUS: 25,
 	EnemyType.IFRIT: 28,
+	EnemyType.MAGMA_SPIDER: 26, EnemyType.SPECTER: 26, EnemyType.ASH_HARPY: 26,
+	EnemyType.SUCCUBUS: 27, EnemyType.MIND_EATER: 27, EnemyType.DEMON: 28,
 	EnemyType.DJINN: 35,
+	EnemyType.CHERUB: 33,
 	EnemyType.CERBERUS: 10,  # the sheet's level column; scaling stays near the sheet's own numbers
 	EnemyType.INFLAMED_MINOTAUR: 9,  # likewise: the boss sheet's level column (350 HP / 100 armor / 35)
 }
@@ -120,6 +125,7 @@ var _pps_dmg: float = 1.0  # Cached passive_power_scale damage multiplier (for h
 var max_armor: int = 0
 var current_armor: int = 0
 var is_exposed: bool = false          # True once armor has been broken to 0
+var exposed_cooldown_tempo: int = 0   # raw tempo before a break can Expose this enemy again (designer: 10 after every Exposed)
 var last_player_hit_damage: int = 0   # Raw damage of the player's most recent hit (for on-expose passives)
 var player_hit_modifier: Callable       # (enemy, amount) -> amount: skill-tree % mods on the player's direct hits (set by main)
 var has_been_damaged: bool = false      # any damage from any source has landed (Surprise Opener's first-source check)
@@ -163,23 +169,39 @@ var armor_break_incoming: bool = false
 # Status effects applied by player cards (duration in tempo cycles, 1 cycle = 5 global tempo)
 var taunt_target: Node3D = null
 var taunt_tempo: int = 0       # Remaining tempo cycles for taunt
-# Mad Scientist (Defense→Poison): physical defense lowered by this % for a
-# few tempo — physical hits land that much harder while it lasts.
-var phys_defense_debuff_percent: float = 0.0
-var phys_defense_debuff_tempo: int = 0
+# Lowered Physical Defense (Mad Scientist, Defense→Poison): grouped stacks.
+# Each application is its own group {percent, stacks, clock}; a group sheds
+# one stack per STACK_TEMPO on its own clock, and the reduction in force is
+# the HIGHEST percent among the groups that still hold a stack (the sheet's
+# example: 4 stacks at 10% + 2 at 50% → 50% until those two run out, then 10%
+# for what the first group has left).
+var phys_defense_groups: Array = []
+# The sheet's "a stack is 5 tempo": every stack-clocked status below sheds one
+# stack per STACK_TEMPO of its OWN raw-tempo clock, never by use.
+const STACK_TEMPO := 5
+## Designer's rule: once Exposed triggers on a unit, that unit cannot be
+## Exposed again for this many raw tempo — a break inside the window is just
+## armor lost (no flag, no flash, no on-expose effects). Each enemy keeps its
+## own clock; PlayerStats.EXPOSED_COOLDOWN mirrors it for the players.
+const EXPOSED_COOLDOWN := 10
 var attack_reduction: int = 0
-var wear_down_tempo: int = 0   # Remaining tempo cycles for wear down
-# Slowed (enemy version): each MOVEMENT ACTION costs extra tempo
-# (+Debuff.SLOWED_TEMPO_PER_TILE - 1) and burns one stack, regardless of how
-# many tiles the action covers — unlike the player, who pays per tile.
-# Stacks accumulate freely (Sword of Theseus ramps them) — no timed expiry.
+# Wear Down (enemy side): the player's hits under Wear Down raise
+# attack_reduction; the reduction holds for this many enemy ATTACKS (the
+# sheet: 2), refreshed by every hit, spent by every swing.
+var wear_down_attacks: int = 0
+const WEAR_DOWN_ATTACKS := 2
+# Slowed (enemy version): while any stack remains, each MOVEMENT ACTION costs
+# extra tempo (+Debuff.SLOWED_TEMPO_PER_TILE - 1) regardless of how many tiles
+# it covers — unlike the player, who pays per tile. Stacks fall on their own
+# clock (one per STACK_TEMPO); moving never burns them.
 var slow_stacks: int = 0
+var slow_clock: int = 0
 # Cursed (matches the player's): deals 20% less damage and takes 20% of the
 # damage it deals as self-damage — both boosted by the player's Curse Amp /
-# Curse Pain sphere nodes. Counts in raw tempo.
+# Curse Pain sphere nodes. Counts in raw tempo; applications add up.
 var cursed_tempo: int = 0
 var is_disarmed: bool = false   # Cannot attack when disarmed
-var disarmed_tempo: int = 0    # Remaining tempo cycles for disarm
+var disarmed_tempo: int = 0    # Remaining raw tempo of disarm; applications add up
 var is_marked: bool = false    # Takes extra damage from player attacks
 var marked_tempo: int = 0      # Remaining tempo for mark
 const MARKED_BONUS_PERCENT := 15  # Mark: the player's attacks deal +15% to a marked target
@@ -187,7 +209,8 @@ var is_silenced: bool = false  # Cannot cast spells/ranged special attacks when 
 var silenced_tempo: int = 0    # Remaining tempo cycles for silence
 var choke_dot_stacks: int = 0  # Choke: take choke_dot_damage per cycle, lose 1 stack per cycle
 var choke_dot_damage: int = 3  # Set at cast: half the caster's auto-attack damage
-var cold_stacks: int = 0       # Cold stacks - at 5, becomes frozen
+var cold_stacks: int = 0       # Cold stacks - at 5, becomes frozen; thaws COLD_THAW_PER_CYCLE per cycle
+const COLD_THAW_PER_CYCLE := 3
 var is_frozen: bool = false    # Cannot act when frozen
 var frozen_tempo: int = 0      # Remaining tempo for frozen
 var is_stunned: bool = false   # Cannot act when stunned
@@ -197,14 +220,22 @@ var burn_damage_next: int = 1  # Burn damage doubles each cycle (1, 2, 4, 8...)
 var cold_damage_next: int = 1  # Element Pollination: Cold's doubling tick while the Weaver maintain is up
 var polymorph_tempo: int = 0   # Polymorph (Circe's Wand): cycles left as a pig — walk and basic melee only
 var poison_stacks: int = 0     # Poison: take X damage per cycle, lose 1 per cycle
-var shock_stacks: int = 0      # Shock: take X damage per cycle, lose 1 per cycle
+var shock_stacks: int = 0      # Shock: take X damage per cycle AND arc X to the nearest enemy within 2 squares, lose 1 per cycle
+const SHOCK_ARC_RANGE := 2
 var bleed_stacks: int = 0      # Bleed: 1 damage per tile moved; each damage removes a stack
-var vulnerable_stacks: int = 0   # Vulnerable: next hit from the player deals +30%; 1 stack consumed per hit
-var weaken_stacks: int = 0       # Weaken: this enemy deals -30% damage; 1 stack consumed per attack
-var rooted_tempo: int = 0        # Rooted (Gravity Gauntlets): cannot move, can still attack/cast
+var vulnerable_stacks: int = 0   # Vulnerable: every player hit lands +30% while a stack remains; stacks fall on their own clock
+var vulnerable_clock: int = 0
+var weaken_stacks: int = 0       # Weaken: deals -30% damage while a stack remains; stacks fall on their own clock
+var weaken_clock: int = 0
+var rooted_tempo: int = 0        # Rooted (Gravity Gauntlets): cannot move, can still attack/cast; applications add up
 var tripped_tempo: int = 0       # Tripped (Trip): move actions cover TRIP_MOVE_PENALTY fewer tiles
 const TRIP_MOVE_PENALTY := 4
-var disarmed_attacks: int = 0    # Disarm-for-N-attacks (Switch Kick): skip that many attack actions
+# sheet: "Disarm — skips its next attack for 5 tempo per stack". The old
+# attack-skip counter is gone: a "disarm_attacks" application now adds
+# DISARM_TEMPO_PER_STACK tempo of ordinary Disarm per stack. The field stays
+# (always 0) so Misery / Release Tension / count_debuff_kinds keep reading.
+var disarmed_attacks: int = 0
+const DISARM_TEMPO_PER_STACK := 5
 var narashimha_tempo: int = 0    # Narashimha (Mane of Narashimha): cycles the heal cap holds for
 var narashimha_heal_cap: int = -1  # health ceiling while active — the NMnB damage cannot be healed back (-1 = unset)
 # Ranged pass (Cupids Bow / Bow of Arash)
@@ -255,7 +286,8 @@ var attack_burn: int = 0                           # Fire Mage: burn stacks appl
 var attack_shock: int = 0                          # Spark Mage: shock stacks applied on hit
 var attack_blind_chance: float = 0.0               # Giant Hawk: chance to Blind on hit
 var _beaver_followup: bool = false                 # Giant Beaver: chomp queues a Tail Whip
-var _hook_charged: bool = true                     # Infected Hunter: starts with a hook prepared
+var _hook_recharge: int = 0                        # Infected Hunter: raw tempo until Hook is ready again (sheet: "starts charged" — 0 at spawn)
+var _net_cooldown: int = 0                         # Infected Hunter: raw tempo until Net Throw is ready again (sheet: cooldown 8)
 var _drops_to_all_fours: bool = false              # Large Bear: posture change below 20% HP (visual)
 var hydra_heal_unlocked: bool = false
 
@@ -267,9 +299,9 @@ var _ww_last_target: Node3D = null    # Werewolf: ramping rhythm — same target
 var _ww_streak: int = 0
 var _bat_form_charges: int = 2        # Vampire: bat-form escapes remaining (no way to recharge)
 var _vamp_absorb_pending: bool = false  # Vampire: Absorb always casts right after bat form
-var _necro_summon_deaths: int = 0     # Necromancer: after 5 of its summons die, raises a Bone Dragon
-var _necro_dragon_raised: bool = false
-var _necro_summons_alive: int = 0
+var _necro_summons_alive: int = 0     # Necromancer: his Summon retinue (capped at 3 by the chooser)
+var raised_by: Enemy = null           # the Necromancer whose Summon raised this one (its death costs him 10)
+var necro_risen: bool = false         # a Skeleton risen from a corpse by a Necromancer: rises no further, echoes nothing
 var _treant_thorn_accumulator: int = 0  # Treant: every 10 tempo, strips enemy thorns and heals
 var _stinger_cooldown: int = 0        # White Manticore: raw tempo until Stinger is ready
 var _talon_cooldown: int = 0          # Wyvern: raw tempo until Talon Grab is ready
@@ -338,9 +370,17 @@ const NON_MELEE_ACTIONS := {
 	"collect_soul": true, "summon_skeleton": true, "fire_wall": true,
 	"shoot": true, "ember": true, "dark_bolt": true, "frost_bolt": true,
 	"fire_bolt": true, "spark_bolt": true, "sludge_spit": true, "web": true,
-	"hook": true, "breath_swarm": true, "screech": true, "gust": true,
+	"hook": true, "net_throw": true, "breath_swarm": true, "screech": true, "gust": true,
 	"roar": true, "absorb": true, "chain_lightning": true, "fire_breath": true,
 	"boulder_roll": true,
+	# second pass (the enemy sheet)
+	"goat_charge": true, "dive_bomb": true, "roc_retreat": true, "track": true,
+	"snowball": true, "ice_blast": true, "mimic": true, "demon_cuff": true,
+	"card_steal": true, "fire_web": true, "mind_slow": true, "mind_cuff": true,
+	"spirit_spit": true, "specter_vanish": true, "mana_drain": true,
+	"damaging_snap": true, "loves_arrow": true,
+	# Act 1a (the enemy sheet): the Rat King's brood, the cobra's spray
+	"infest": true, "venom_spray": true,
 }
 var next_melee_tempo_tax: int = 0
 
@@ -348,7 +388,7 @@ var next_melee_tempo_tax: int = 0
 # Inebriate) — mirrors how the same debuffs treat the player's moves.
 const MOVEMENT_ACTIONS := {
 	"move": true, "hydra_move": true, "goblin_move": true, "scurry": true,
-	"scurry_away": true, "get_into_range": true, "flee": true,
+	"scurry_away": true, "get_into_range": true, "flee": true, "roc_retreat": true,
 }
 
 ## Armored Troll passive: accumulator for regeneration (heals 3 HP every 6 global tempo).
@@ -487,12 +527,13 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 
 		EnemyType.HYDRA:
 			enemy_name = "Hydra"
-			max_health = 80
+			max_health = 190          # sheet: 190
 			attack_damage = 7         # +accumulated strength
 			attack_range = 1.5        # Melee
 			move_distance = 3.0       # Moves 3 spaces
 			aggro_range = 12.0
 			xp_reward = 60
+			_set_first_pass_resists(25, 25, 25)  # sheet: 25% physical / fire / lightning
 			_set_mesh_color(Color(0.2, 0.55, 0.35))  # Scaled green
 
 		EnemyType.FIRE_GOBLIN_SOLDIER:
@@ -863,6 +904,63 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			_set_first_pass_resists(25, 35, 25)
 			_set_mesh_color(Color(0.35, 0.45, 0.30))
 
+		# ===================== MOUNTAINS ACT (second pass — the enemy sheet) =====================
+		EnemyType.WEREGOAT:
+			enemy_name = "Weregoat"
+			max_health = 80
+			attack_damage = 6         # Hoof Punch; Charge deals 8 along its path
+			attack_range = 1.5
+			move_distance = 2.0       # 2 spaces / 5 tempo
+			aggro_range = 12.0
+			xp_reward = 20
+			_set_mesh_color(Color(0.55, 0.5, 0.45))
+
+		EnemyType.ROC:
+			enemy_name = "Roc"
+			max_health = 25
+			max_armor = 15
+			attack_damage = 8         # Dive Bomb (the sheet gives no number — first-pass 8)
+			attack_range = 1.5
+			move_distance = 1.0       # 1 space / 1 tempo, always AWAY from the player
+			aggro_range = 12.0
+			xp_reward = 16
+			immune_to_high_ground = true  # flier
+			_set_mesh_color(Color(0.85, 0.75, 0.6))
+
+		EnemyType.SABERTOOTH:
+			enemy_name = "Sabertooth Tiger"
+			max_health = 45
+			attack_damage = 6         # Bite 6 then Claw 3; Sunken Bite 10 + 8 Bleed
+			attack_range = 1.5
+			move_distance = 2.0       # 2 spaces / 2 tempo
+			aggro_range = 12.0
+			xp_reward = 18
+			_set_mesh_color(Color(0.8, 0.65, 0.4))
+
+		EnemyType.SNOW_WRAITH:
+			enemy_name = "Snow Wraith"
+			max_health = 10
+			attack_damage = 5         # Ice Blast; Snowball deals no damage
+			attack_range = 5.0        # the sheet gives no range — thrown, so ranged 5
+			move_distance = 3.0       # 3 spaces / 5 tempo
+			aggro_range = 12.0
+			xp_reward = 8
+			damage_type = DamageTypes.Type.ICE
+			_set_mesh_color(Color(0.8, 0.9, 1.0))
+
+		EnemyType.GRANITE_COLOSSUS:
+			# Stats from the sheet; its moves are still TBD, so it stands.
+			enemy_name = "Granite Colossus"
+			max_health = 350
+			max_armor = 250
+			attack_damage = 0
+			attack_range = 1.5
+			move_distance = 3.0       # 3 spaces / 5 tempo
+			aggro_range = 12.0
+			xp_reward = 120
+			_set_first_pass_resists(65, 50, 50)
+			_set_mesh_color(Color(0.5, 0.5, 0.52))
+
 		# ===================== UNDERWORLD ACT (elite first pass) =====================
 		EnemyType.IFRIT:
 			enemy_name = "Ifrit"
@@ -900,6 +998,82 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 			damage_type = DamageTypes.Type.LIGHTNING
 			_set_first_pass_resists(15, 15, 15)
 			_set_mesh_color(Color(0.25, 0.45, 0.85))
+
+		EnemyType.CHERUB:
+			enemy_name = "Cherub"
+			max_health = 14
+			max_armor = 5
+			attack_damage = 2         # Love's Arrow
+			attack_range = 4.0
+			move_distance = 2.0       # 2 spaces / 3 tempo
+			aggro_range = 12.0
+			xp_reward = 10
+			immune_to_high_ground = true  # winged
+			_set_mesh_color(Color(1.0, 0.9, 0.8))
+
+		# ===================== UNDERWORLD ACT (second pass — the enemy sheet) =====================
+		EnemyType.DEMON:
+			enemy_name = "Demon"
+			max_health = 65
+			attack_damage = 8
+			attack_range = 1.5
+			move_distance = 2.0       # 2 spaces / 2 tempo
+			aggro_range = 12.0
+			xp_reward = 24
+			_set_mesh_color(Color(0.7, 0.15, 0.1))
+
+		EnemyType.ASH_HARPY:
+			enemy_name = "Ash Harpy"
+			max_health = 6
+			attack_damage = 3         # Peck
+			attack_range = 1.5
+			move_distance = 1.0       # 1 space / 1 tempo
+			aggro_range = 12.0
+			xp_reward = 4
+			immune_to_high_ground = true  # flier
+			_set_mesh_color(Color(0.4, 0.38, 0.36))
+
+		EnemyType.MAGMA_SPIDER:
+			enemy_name = "Magma Spider"
+			max_health = 4
+			attack_damage = 1         # its Fire Web ticks 1 every 3 tempo
+			attack_range = 1.5
+			move_distance = 0.0       # never moves
+			aggro_range = 8.0
+			xp_reward = 3
+			damage_type = DamageTypes.Type.FIRE
+			_set_mesh_color(Color(0.8, 0.3, 0.1))
+
+		EnemyType.MIND_EATER:
+			enemy_name = "Mind Eater"
+			max_health = 20
+			attack_damage = 0         # it never strikes — it taxes and cuffs
+			attack_range = 6.0        # the sheet gives no range — a caster's 6
+			move_distance = 0.0       # never moves
+			aggro_range = 12.0
+			xp_reward = 12
+			_set_mesh_color(Color(0.6, 0.5, 0.55))
+
+		EnemyType.SPECTER:
+			enemy_name = "Specter"
+			max_health = 10
+			attack_damage = 2         # Spirit Spit
+			attack_range = 2.0
+			move_distance = 1.0       # 1 space / 1 tempo
+			aggro_range = 10.0
+			xp_reward = 4
+			_set_mesh_color(Color(0.2, 0.2, 0.3))
+
+		EnemyType.SUCCUBUS:
+			enemy_name = "Succubus"
+			max_health = 25
+			max_armor = 5
+			attack_damage = 4         # Damaging Snap: missing mana / 20 + 4
+			attack_range = 4.0        # the sheet gives no range — a caster's 4
+			move_distance = 1.0       # 1 space / 2 tempo
+			aggro_range = 12.0
+			xp_reward = 14
+			_set_mesh_color(Color(0.6, 0.2, 0.5))
 
 		EnemyType.DUMMY:
 			# Dojo training dummy: a fat health pool so big hits read as
@@ -1025,6 +1199,10 @@ func initialize(type: EnemyType, gm: GridManager = null) -> void:
 	# Figure kinds attach their own inside SpriteEnemyFigure / EnemyFigure.
 	if _enemy_figure == null and not has_node("Shadow"):
 		BlobShadow.attach(self, 0.62)
+
+	# The Screecher hunts unseen (sheet: "Invisible until it strikes").
+	if enemy_type == EnemyType.SCREECHER:
+		set_hidden(-1)
 
 	if grid_manager:
 		position = grid_manager.snap_to_grid(position)
@@ -1345,9 +1523,10 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 			]
 		EnemyType.INFECTED_HUNTER:
 			actions = [
-				{"name": "hook",   "tempo_cost": 8},
-				{"name": "cleave", "tempo_cost": 3},
-				{"name": "move",   "tempo_cost": 3},
+				{"name": "hook",      "tempo_cost": 8},
+				{"name": "cleave",    "tempo_cost": 3},
+				{"name": "net_throw", "tempo_cost": 2},  # sheet: 2 tempo, cooldown 8 (_net_cooldown)
+				{"name": "move",      "tempo_cost": 3},
 			]
 		EnemyType.GIANT_HAWK:
 			actions = [
@@ -1464,13 +1643,22 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 			]
 		EnemyType.SEWER_CROC:
 			actions = [
-				{"name": "croc_bite", "tempo_cost": 6},
-				{"name": "move",      "tempo_cost": 5},
+				{"name": "croc_bite",   "tempo_cost": 6},
+				# sheet: Venom Spray, 15 tempo, Async — it runs on its own
+				# clock from the first tempo; Bite (Sync) may only START
+				# counting on a tempo where this clock is back at 0
+				# (docs/ENEMY_ACTION_KEYWORDS.md).
+				{"name": "venom_spray", "tempo_cost": 15, "async": true, "label": "Venom Spray"},
+				{"name": "move",        "tempo_cost": 5},
 			]
 		EnemyType.RAT_KING:
 			actions = [
-				{"name": "bite", "tempo_cost": 3},
-				{"name": "move", "tempo_cost": 2},
+				{"name": "bite",   "tempo_cost": 3},
+				# sheet: Infest, 5 tempo — an Infest card per rat within 10
+				# squares (see _try_infest; the hand-side fuse is in
+				# DeckManager._process_hatch_timers).
+				{"name": "infest", "tempo_cost": 5},
+				{"name": "move",   "tempo_cost": 2},
 				# The lair: run for a nest, then feed on it (see _choose_rat_king_action).
 				{"name": "seek_nest", "tempo_cost": 2, "label": "Flees to a nest"},
 				{"name": "nest_heal", "tempo_cost": 2, "label": "Feeds on the nest"},
@@ -1487,9 +1675,11 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 			]
 		EnemyType.CERBERUS:
 			actions = [
-				{"name": "cerberus_bite", "tempo_cost": 5, "label": "Bite"},
+				# sheet: Bite and Venom Tail are Async — their own clocks; the
+				# Sync clock carries only Swipe / Roar / Move.
+				{"name": "cerberus_bite", "tempo_cost": 5, "label": "Bite", "async": true},
 				{"name": "swipe",         "tempo_cost": 8, "label": "Swipe"},
-				{"name": "venom_tail",    "tempo_cost": 15, "label": "Venom Tail"},
+				{"name": "venom_tail",    "tempo_cost": 15, "label": "Venom Tail", "async": true},
 				{"name": "cerberus_roar", "tempo_cost": 12, "label": "Roar"},
 				{"name": "move",          "tempo_cost": 3},
 			]
@@ -1514,8 +1704,70 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 				{"name": "talon_grab",  "tempo_cost": 8},
 				{"name": "move",        "tempo_cost": 4},
 			]
+		# ----- second pass (the enemy sheet) -----
+		EnemyType.WEREGOAT:
+			actions = [
+				{"name": "hoof_punch",  "tempo_cost": 4},
+				{"name": "goat_charge", "tempo_cost": 8},
+				{"name": "move",        "tempo_cost": 5},
+			]
+		EnemyType.ROC:
+			actions = [
+				{"name": "dive_bomb",   "tempo_cost": 5},
+				{"name": "eye_scrape",  "tempo_cost": 3, "async": true},
+				{"name": "roc_retreat", "tempo_cost": 1, "label": "Move away"},
+			]
+		EnemyType.SABERTOOTH:
+			actions = [
+				{"name": "track",          "tempo_cost": 10, "async": true},
+				{"name": "bite_and_claw",  "tempo_cost": 5},
+				{"name": "sunken_bite",    "tempo_cost": 15, "async": true},
+				{"name": "move",           "tempo_cost": 2},
+			]
+		EnemyType.SNOW_WRAITH:
+			actions = [
+				{"name": "snowball",  "tempo_cost": 8},
+				{"name": "ice_blast", "tempo_cost": 5},  # the sheet gives Ice Blast no tempo — first-pass 5
+				{"name": "move",      "tempo_cost": 5},
+			]
+		EnemyType.GRANITE_COLOSSUS:
+			actions = []  # moves TBD on the sheet
 
 		# ===================== UNDERWORLD ACT =====================
+		EnemyType.DEMON:
+			actions = [
+				{"name": "mimic",        "tempo_cost": 8, "async": true},
+				{"name": "demon_cuff",   "tempo_cost": 8, "async": true, "label": "Cuff"},
+				{"name": "demon_attack", "tempo_cost": 5, "label": "Attack"},
+				{"name": "move",         "tempo_cost": 2},
+			]
+		EnemyType.ASH_HARPY:
+			actions = [
+				{"name": "peck",       "tempo_cost": 5},
+				{"name": "card_steal", "tempo_cost": 8},
+				{"name": "move",       "tempo_cost": 1},
+			]
+		EnemyType.MAGMA_SPIDER:
+			actions = [
+				{"name": "fire_web", "tempo_cost": 8},  # the sheet gives no tempo — first-pass 8
+			]
+		EnemyType.MIND_EATER:
+			actions = [
+				{"name": "mind_slow", "tempo_cost": 10},
+				{"name": "mind_cuff", "tempo_cost": 8, "label": "Manipulate Mind Space"},
+			]
+		EnemyType.SPECTER:
+			actions = [
+				{"name": "spirit_spit",    "tempo_cost": 5},
+				{"name": "specter_vanish", "tempo_cost": 8, "async": true, "label": "Invisible"},
+				{"name": "move",           "tempo_cost": 1},
+			]
+		EnemyType.SUCCUBUS:
+			actions = [
+				{"name": "mana_drain",    "tempo_cost": 10},
+				{"name": "damaging_snap", "tempo_cost": 6},
+				{"name": "move",          "tempo_cost": 2},
+			]
 		EnemyType.IFRIT:
 			actions = [
 				{"name": "ifrit_attack", "tempo_cost": 3},
@@ -1534,6 +1786,13 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 			actions = [
 				{"name": "chain_lightning", "tempo_cost": 5},
 				{"name": "move",            "tempo_cost": 3},
+			]
+		EnemyType.CHERUB:
+			actions = [
+				# The first arrow flies the moment the player enters its reach
+				# (see _choose_cherub_action); every one after is on this clock.
+				{"name": "loves_arrow", "tempo_cost": 10, "label": "Love's Arrow"},
+				{"name": "move",        "tempo_cost": 3},
 			]
 	return actions
 
@@ -1610,62 +1869,90 @@ func get_action_lines() -> Array[String]:
 static func get_all_enemy_data() -> Array:
 	## Returns compendium-friendly data for every enemy type.
 	## Single source of truth — compendium reads from here.
+	# Tier vocabulary = the designer's sheet (docs/ENEMY_SHEET.tsv, Tier
+	# column): Trash / Mid-tier / Elite / Boss, "Special" for the Ring Wraith.
+	# "Mid Tier" / "Mid-Tier" on the sheet are the one word "Mid-tier" here.
+	# Structures and the dojo dummy are not on the sheet: they read "Special"
+	# too (not creatures, no tier). The legacy MINION/ELITE/BOSS boxes keep
+	# the three tiers they stood for. The loot tiers in
+	# EnemySpawner.get_loot_tier follow the same column.
 	var _type_display := {
-		EnemyType.MINION: "Minion",
+		EnemyType.MINION: "Trash",
 		EnemyType.ELITE: "Elite",
 		EnemyType.BOSS: "Boss",
-		EnemyType.WERERAT: "Minion",
-		EnemyType.SKELETON: "Minion",
-		EnemyType.ARMORED_TROLL: "Elite",
-		EnemyType.ARCHER_RAT: "Minion",
-		EnemyType.HYDRA: "Elite",
-		EnemyType.FIRE_GOBLIN_SOLDIER: "Minion",
-		EnemyType.FIRE_GOBLIN_MAGE: "Minion",
-		EnemyType.FIRE_GOBLIN_SHAMAN: "Elite",
-		EnemyType.GIANT_BEAVER: "Elite",
-		EnemyType.MINI_BEAR: "Minion",
-		EnemyType.LARGE_BEAR: "Elite",
-		EnemyType.WOLF: "Minion",
-		EnemyType.COYOTE: "Minion",
-		EnemyType.BUGBEAR: "Elite",
-		EnemyType.INFECTED_HUNTER: "Elite",
-		EnemyType.GIANT_HAWK: "Minion",
-		EnemyType.TREANT: "Elite",
-		EnemyType.ICE_MAGE: "Minion",
-		EnemyType.FIRE_MAGE: "Minion",
-		EnemyType.SPARK_MAGE: "Minion",
-		EnemyType.AIR_MAGE: "Minion",
-		EnemyType.EARTH_MAGE: "Elite",
-		EnemyType.ZOMBIE: "Minion",
+		# --- Sewer ---
+		EnemyType.WERERAT: "Trash",
+		EnemyType.ARCHER_RAT: "Trash",
+		EnemyType.SLUDGE: "Trash",
+		EnemyType.PIPE_CRAWLER: "Trash",
+		EnemyType.SWARM: "Trash",
+		EnemyType.SEWER_CROC: "Mid-tier",
+		EnemyType.RAT_KING: "Boss",
+		# --- Graveyard ---
+		EnemyType.ZOMBIE: "Trash",
+		EnemyType.WERERABBIT: "Trash",
+		EnemyType.SCREECHER: "Trash",
+		EnemyType.SKELETON: "Mid-tier",
+		EnemyType.CRYPT_CRAWLER: "Mid-tier",
+		EnemyType.CONSUMED: "Mid-tier",
+		EnemyType.SPIRIT_COLLECTOR: "Mid-tier",
 		EnemyType.WEREWOLF: "Elite",
-		EnemyType.WERERABBIT: "Minion",
 		EnemyType.VAMPIRE: "Elite",
 		EnemyType.NECROMANCER: "Elite",
-		EnemyType.BONE_DRAGON: "Elite",  # first-pass sheet ranks it an elite, not a boss
-		EnemyType.SPIRIT_COLLECTOR: "Elite",
-		EnemyType.GRAVE_TITAN: "Boss",
-		EnemyType.CRYPT_CRAWLER: "Minion",
-		EnemyType.SCREECHER: "Minion",
-		EnemyType.CONSUMED: "Elite",
-		EnemyType.SLUDGE: "Minion",
-		EnemyType.PIPE_CRAWLER: "Minion",
-		EnemyType.SEWER_CROC: "Elite",
-		EnemyType.RAT_KING: "Elite",
-		EnemyType.SWARM: "Minion",
-		EnemyType.WEREGOAT: "Elite", EnemyType.WYVERN: "Elite", EnemyType.ROC: "Boss",
-		EnemyType.ICE_TROLL: "Elite", EnemyType.SNOW_WRAITH: "Minion", EnemyType.GRANITE_COLOSSUS: "Boss",
-		EnemyType.WHITE_MANTICORE: "Elite", EnemyType.SABERTOOTH: "Minion",
-		EnemyType.CERBERUS: "Boss", EnemyType.SUCCUBUS: "Elite", EnemyType.DEMON: "Elite",
-		EnemyType.IFRIT: "Elite", EnemyType.MIND_EATER: "Elite", EnemyType.SPECTER: "Minion",
-		EnemyType.MAGMA_SPIDER: "Elite", EnemyType.PIT_FIEND: "Boss", EnemyType.ASH_HARPY: "Minion",
+		EnemyType.GRAVE_TITAN: "Elite",
+		EnemyType.BONE_DRAGON: "Boss",
+		# --- Cave ---
+		EnemyType.FIRE_GOBLIN_SOLDIER: "Trash",
+		EnemyType.FIRE_GOBLIN_MAGE: "Mid-tier",
+		EnemyType.FIRE_GOBLIN_SHAMAN: "Mid-tier",
+		EnemyType.ARMORED_TROLL: "Elite",
+		EnemyType.HYDRA: "Elite",
+		# --- Forest ---
+		EnemyType.COYOTE: "Trash",
+		EnemyType.MINI_BEAR: "Trash",
+		EnemyType.WOLF: "Mid-tier",
+		EnemyType.BUGBEAR: "Mid-tier",
+		EnemyType.INFECTED_HUNTER: "Mid-tier",
+		EnemyType.GIANT_HAWK: "Mid-tier",
+		EnemyType.ICE_MAGE: "Mid-tier",
+		EnemyType.FIRE_MAGE: "Mid-tier",
+		EnemyType.SPARK_MAGE: "Mid-tier",
+		EnemyType.AIR_MAGE: "Mid-tier",
+		EnemyType.EARTH_MAGE: "Mid-tier",
+		EnemyType.GIANT_BEAVER: "Elite",
+		EnemyType.LARGE_BEAR: "Elite",
+		EnemyType.TREANT: "Elite",
+		# --- Mountains ---
+		EnemyType.SNOW_WRAITH: "Trash",
+		EnemyType.WEREGOAT: "Mid-tier",
+		EnemyType.ROC: "Mid-tier",
+		EnemyType.SABERTOOTH: "Mid-tier",
+		EnemyType.WYVERN: "Elite",
+		EnemyType.ICE_TROLL: "Elite",
+		EnemyType.WHITE_MANTICORE: "Elite",
+		EnemyType.GRANITE_COLOSSUS: "Boss",
+		# --- Underworld ---
+		EnemyType.ASH_HARPY: "Trash",
+		EnemyType.MAGMA_SPIDER: "Trash",
+		EnemyType.MIND_EATER: "Trash",
+		EnemyType.SPECTER: "Trash",
+		EnemyType.SUCCUBUS: "Trash",
+		EnemyType.DEMON: "Mid-tier",
+		EnemyType.IFRIT: "Elite",
+		EnemyType.CERBERUS: "Boss",
+		EnemyType.PIT_FIEND: "Boss",
 		EnemyType.INFLAMED_MINOTAUR: "Boss",
-		EnemyType.CHERUB: "Minion", EnemyType.DJINN: "Elite", EnemyType.CORRUPTED_ARCHANGEL: "Boss",
-		EnemyType.RING_WRAITH: "Elite",
-		EnemyType.DUMMY: "Minion",
-		EnemyType.RAT_NEST: "Minion",
-		EnemyType.GRAVESTONE: "Minion",
-		EnemyType.GRAVE_DIGGER: "Minion",
-		EnemyType.HELL_DOOR: "Minion",
+		# --- Heavens ---
+		EnemyType.CHERUB: "Trash",
+		EnemyType.DJINN: "Elite",
+		EnemyType.CORRUPTED_ARCHANGEL: "Boss",
+		# --- Off the tier ladder ---
+		EnemyType.RING_WRAITH: "Special",
+		EnemyType.DUMMY: "Special",
+		EnemyType.RAT_NEST: "Special",
+		EnemyType.GRAVESTONE: "Special",
+		EnemyType.GRAVE_DIGGER: "Special",
+		EnemyType.HELL_DOOR: "Special",
 	}
 	var _stats := {
 		EnemyType.MINION: {"name": "Minion", "health": 25, "armor": 0, "damage": 3, "xp": 5},
@@ -1675,7 +1962,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SKELETON: {"name": "Skeleton", "health": 20, "armor": 12, "damage": 6, "xp": 7},
 		EnemyType.ARMORED_TROLL: {"name": "Armored Troll", "health": 60, "armor": 40, "damage": 7, "xp": 30},
 		EnemyType.ARCHER_RAT: {"name": "Archer Rat", "health": 6, "armor": 0, "damage": 2, "xp": 4},
-		EnemyType.HYDRA: {"name": "Hydra", "health": 80, "armor": 0, "damage": 7, "xp": 60},
+		EnemyType.HYDRA: {"name": "Hydra", "health": 190, "armor": 0, "damage": 7, "xp": 60},
 		EnemyType.FIRE_GOBLIN_SOLDIER: {"name": "Fire Goblin Soldier", "health": 6, "armor": 0, "damage": 2, "xp": 3},
 		EnemyType.FIRE_GOBLIN_MAGE: {"name": "Fire Goblin Mage", "health": 10, "armor": 0, "damage": 7, "xp": 8},
 		EnemyType.FIRE_GOBLIN_SHAMAN: {"name": "Fire Goblin Shaman", "health": 16, "armor": 0, "damage": 6, "xp": 12},
@@ -1709,25 +1996,25 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SEWER_CROC: {"name": "Sewer Cobra", "health": 40, "armor": 20, "damage": 12, "xp": 25},
 		EnemyType.RAT_KING: {"name": "Rat King", "health": 90, "armor": 10, "damage": 6, "xp": 60},
 		EnemyType.SWARM: {"name": "Swarm", "health": 10, "armor": 0, "damage": 3, "xp": 4},
-		EnemyType.WEREGOAT: {"name": "Weregoat", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.WEREGOAT: {"name": "Weregoat", "health": 80, "armor": 0, "damage": 6, "xp": 20},
 		EnemyType.WYVERN: {"name": "Wyvern", "health": 125, "armor": 0, "damage": 25, "xp": 40},
-		EnemyType.ROC: {"name": "Roc", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.ROC: {"name": "Roc", "health": 25, "armor": 15, "damage": 8, "xp": 16},
 		EnemyType.ICE_TROLL: {"name": "Ice Troll", "health": 150, "armor": 55, "damage": 13, "xp": 45},
-		EnemyType.SNOW_WRAITH: {"name": "Snow Wraith", "health": 0, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.GRANITE_COLOSSUS: {"name": "Granite Colossus", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.SNOW_WRAITH: {"name": "Snow Wraith", "health": 10, "armor": 0, "damage": 5, "xp": 8},
+		EnemyType.GRANITE_COLOSSUS: {"name": "Granite Colossus", "health": 350, "armor": 250, "damage": 0, "xp": 120},
 		EnemyType.WHITE_MANTICORE: {"name": "White Manticore", "health": 75, "armor": 15, "damage": 15, "xp": 40},
-		EnemyType.SABERTOOTH: {"name": "Sabertooth Tiger", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.SABERTOOTH: {"name": "Sabertooth Tiger", "health": 45, "armor": 0, "damage": 6, "xp": 18},
 		EnemyType.CERBERUS: {"name": "Cerberus", "health": 250, "armor": 50, "damage": 25, "xp": 150},
-		EnemyType.SUCCUBUS: {"name": "Succubus", "health": 0, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.DEMON: {"name": "Demon", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.SUCCUBUS: {"name": "Succubus", "health": 25, "armor": 5, "damage": 4, "xp": 14},
+		EnemyType.DEMON: {"name": "Demon", "health": 65, "armor": 0, "damage": 8, "xp": 24},
 		EnemyType.IFRIT: {"name": "Ifrit", "health": 225, "armor": 0, "damage": 45, "xp": 70},
-		EnemyType.MIND_EATER: {"name": "Mind Eater", "health": 0, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.SPECTER: {"name": "Specter", "health": 0, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.MAGMA_SPIDER: {"name": "Magma Spider", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.MIND_EATER: {"name": "Mind Eater", "health": 20, "armor": 0, "damage": 0, "xp": 12},
+		EnemyType.SPECTER: {"name": "Specter", "health": 10, "armor": 0, "damage": 2, "xp": 4},
+		EnemyType.MAGMA_SPIDER: {"name": "Magma Spider", "health": 4, "armor": 0, "damage": 1, "xp": 3},
 		EnemyType.PIT_FIEND: {"name": "Pit Fiend", "health": 0, "armor": 0, "damage": 0, "xp": 0},
-		EnemyType.ASH_HARPY: {"name": "Ash Harpy", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.ASH_HARPY: {"name": "Ash Harpy", "health": 6, "armor": 0, "damage": 3, "xp": 4},
 		EnemyType.INFLAMED_MINOTAUR: {"name": "Inflamed Minotaur", "health": 350, "armor": 100, "damage": 35, "xp": 90},
-		EnemyType.CHERUB: {"name": "Cherub", "health": 0, "armor": 0, "damage": 0, "xp": 0},
+		EnemyType.CHERUB: {"name": "Cherub", "health": 14, "armor": 5, "damage": 2, "xp": 10},
 		EnemyType.DJINN: {"name": "Djinn", "health": 180, "armor": 0, "damage": 35, "xp": 80},
 		EnemyType.CORRUPTED_ARCHANGEL: {"name": "Corrupted Archangel", "health": 0, "armor": 0, "damage": 0, "xp": 0},
 		EnemyType.RING_WRAITH: {"name": "Ring Wraith", "health": 100, "armor": 0, "damage": 15, "xp": 0},
@@ -1755,7 +2042,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WOLF: [{"name": "Bite", "tempo": 5}, {"name": "Move", "tempo": 3}],
 		EnemyType.COYOTE: [{"name": "Nip", "tempo": 4}, {"name": "Move", "tempo": 3}],
 		EnemyType.BUGBEAR: [{"name": "Strike", "tempo": 5}, {"name": "Move", "tempo": 4}],
-		EnemyType.INFECTED_HUNTER: [{"name": "Hook", "tempo": 8}, {"name": "Cleave", "tempo": 3}, {"name": "Move", "tempo": 3}],
+		EnemyType.INFECTED_HUNTER: [{"name": "Hook", "tempo": 8}, {"name": "Cleave", "tempo": 3}, {"name": "Net Throw", "tempo": 2}, {"name": "Move", "tempo": 3}],
 		EnemyType.GIANT_HAWK: [{"name": "Swoop", "tempo": 4}, {"name": "Move", "tempo": 3}],
 		EnemyType.TREANT: [{"name": "Slam", "tempo": 10}, {"name": "Root", "tempo": 8}, {"name": "Heal", "tempo": 5}, {"name": "Move", "tempo": 10}],
 		EnemyType.ICE_MAGE: [{"name": "Frost Bolt", "tempo": 3}, {"name": "Move", "tempo": 5}],
@@ -1772,26 +2059,32 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SPIRIT_COLLECTOR: [{"name": "Strike", "tempo": 3}, {"name": "Collect Soul", "tempo": 8}, {"name": "Move", "tempo": 4}],
 		EnemyType.GRAVE_TITAN: [{"name": "Smash", "tempo": 8}, {"name": "Boulder Roll", "tempo": 5}, {"name": "Move", "tempo": 8}],
 		EnemyType.CRYPT_CRAWLER: [{"name": "Bite", "tempo": 3}, {"name": "Web", "tempo": 3}, {"name": "Move", "tempo": 4}],
-		EnemyType.SCREECHER: [{"name": "Screech", "tempo": 5}, {"name": "Drift", "tempo": 2}],
+		EnemyType.SCREECHER: [{"name": "Screech", "tempo": 5}, {"name": "Drift", "tempo": 2}],  # 5 tempo / 2 spaces while seen — see the description
 		EnemyType.CONSUMED: [{"name": "Attack", "tempo": 5}, {"name": "Move", "tempo": 3}],
 		EnemyType.SLUDGE: [{"name": "Melee", "tempo": 5}, {"name": "Spit", "tempo": 6}, {"name": "Move", "tempo": 5}],
 		EnemyType.PIPE_CRAWLER: [{"name": "Claw", "tempo": 5}, {"name": "Move", "tempo": 2}],
-		EnemyType.SEWER_CROC: [{"name": "Bite", "tempo": 6}, {"name": "Move", "tempo": 5}],
-		EnemyType.RAT_KING: [{"name": "Bite", "tempo": 3}, {"name": "Move", "tempo": 2}, {"name": "Flee to a nest", "tempo": 2}, {"name": "Feed on the nest", "tempo": 2}],
+		EnemyType.SEWER_CROC: [{"name": "Bite", "tempo": 6}, {"name": "Venom Spray", "tempo": 15}, {"name": "Move", "tempo": 5}],
+		EnemyType.RAT_KING: [{"name": "Bite", "tempo": 3}, {"name": "Infest", "tempo": 5}, {"name": "Move", "tempo": 2}, {"name": "Flee to a nest", "tempo": 2}, {"name": "Feed on the nest", "tempo": 2}],
 		EnemyType.SWARM: [{"name": "Attack", "tempo": 2}, {"name": "Move", "tempo": 3}],
-		EnemyType.WEREGOAT: [], EnemyType.ROC: [],
+		EnemyType.WEREGOAT: [{"name": "Hoof Punch", "tempo": 4}, {"name": "Charge", "tempo": 8}, {"name": "Move", "tempo": 5}],
+		EnemyType.ROC: [{"name": "Dive Bomb", "tempo": 5}, {"name": "Eye Scrape", "tempo": 3}, {"name": "Move away", "tempo": 1}],
 		EnemyType.WYVERN: [{"name": "Bite", "tempo": 5}, {"name": "Talon Grab", "tempo": 8}, {"name": "Move", "tempo": 4}],
 		EnemyType.ICE_TROLL: [{"name": "Club", "tempo": 4}, {"name": "Move", "tempo": 3}],
-		EnemyType.SNOW_WRAITH: [], EnemyType.GRANITE_COLOSSUS: [],
+		EnemyType.SNOW_WRAITH: [{"name": "Snowball", "tempo": 8}, {"name": "Ice Blast", "tempo": 5}, {"name": "Move", "tempo": 5}],
+		EnemyType.GRANITE_COLOSSUS: [],
 		EnemyType.WHITE_MANTICORE: [{"name": "Bite", "tempo": 3}, {"name": "Stinger", "tempo": 5}, {"name": "Move", "tempo": 2}],
-		EnemyType.SABERTOOTH: [],
+		EnemyType.SABERTOOTH: [{"name": "Track", "tempo": 10}, {"name": "Bite and Claw", "tempo": 5}, {"name": "Sunken Bite", "tempo": 15}, {"name": "Move", "tempo": 2}],
 		EnemyType.CERBERUS: [{"name": "Bite", "tempo": 5}, {"name": "Swipe", "tempo": 8}, {"name": "Venom Tail", "tempo": 15}, {"name": "Roar", "tempo": 12}, {"name": "Move", "tempo": 3}],
-		EnemyType.SUCCUBUS: [], EnemyType.DEMON: [],
+		EnemyType.SUCCUBUS: [{"name": "Mana Drain", "tempo": 10}, {"name": "Damaging Snap", "tempo": 6}, {"name": "Move", "tempo": 2}],
+		EnemyType.DEMON: [{"name": "Mimic", "tempo": 8}, {"name": "Cuff", "tempo": 8}, {"name": "Attack", "tempo": 5}, {"name": "Move", "tempo": 2}],
 		EnemyType.IFRIT: [{"name": "Attack", "tempo": 3}, {"name": "Fire Breath", "tempo": 8}, {"name": "Move", "tempo": 4}],
-		EnemyType.MIND_EATER: [], EnemyType.SPECTER: [],
-		EnemyType.MAGMA_SPIDER: [], EnemyType.PIT_FIEND: [], EnemyType.ASH_HARPY: [],
+		EnemyType.MIND_EATER: [{"name": "Mind Slow", "tempo": 10}, {"name": "Manipulate Mind Space", "tempo": 8}],
+		EnemyType.SPECTER: [{"name": "Spirit Spit", "tempo": 5}, {"name": "Invisible", "tempo": 8}, {"name": "Move", "tempo": 1}],
+		EnemyType.MAGMA_SPIDER: [{"name": "Fire Web", "tempo": 8}],
+		EnemyType.PIT_FIEND: [],
+		EnemyType.ASH_HARPY: [{"name": "Peck", "tempo": 5}, {"name": "Card Steal", "tempo": 8}, {"name": "Move", "tempo": 1}],
 		EnemyType.INFLAMED_MINOTAUR: [{"name": "Attack", "tempo": 5}, {"name": "Bull Rush", "tempo": 5}, {"name": "Move", "tempo": 5}],
-		EnemyType.CHERUB: [],
+		EnemyType.CHERUB: [{"name": "Love's Arrow", "tempo": 10}, {"name": "Move", "tempo": 3}],
 		EnemyType.DJINN: [{"name": "Chain Lightning", "tempo": 5}, {"name": "Move", "tempo": 3}],
 		EnemyType.CORRUPTED_ARCHANGEL: [],
 		EnemyType.RING_WRAITH: [{"name": "Attack", "tempo": 2}, {"name": "Move", "tempo": 4}],
@@ -1809,7 +2102,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SKELETON: "Has armor that must be broken.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
 		EnemyType.ARMORED_TROLL: "Regenerates 3 HP every 6 global tempo. Resists 30% physical / 15% fire / 15% lightning.\nAt range ≤1: 60% Smash (5 tempo, 14 dmg + Lightly Dazed card) / 40% Kick (3 tempo, 6 dmg).\nMove (4 tempo): 2 spaces.",
 		EnemyType.ARCHER_RAT: "Ranged attacker (range 4).\nAt range ≤2: Scurries 5 tiles away.\nAt range 3-4: Shoots for 2 damage.\nAt range >4: Moves 2 tiles closer.",
-		EnemyType.HYDRA: "Grows stronger with every hit she takes: +2 strength per hit. On the 4th hit she also gains +40 max HP and unlocks Heal.\nStrike (8 tempo): 7 + strength damage.\nMove (6 tempo): 3 spaces.\nHeal (5 tempo): heals to full (after the 4th hit).",
+		EnemyType.HYDRA: "Resists 25% physical / fire / lightning. Grows stronger with every hit she takes, whoever or whatever lands it: +2 strength per hit. On the 4th hit she also gains +40 max HP and unlocks Heal.\nStrike (8 tempo): 7 + strength damage.\nMove (6 tempo): 3 spaces.\nHeal (5 tempo): heals to full (after the 4th hit).",
 		EnemyType.FIRE_GOBLIN_SOLDIER: "Melee rusher (range 0).\nAttack (3 tempo): 2 damage.\nMove (2 tempo): 4 spaces.",
 		EnemyType.FIRE_GOBLIN_MAGE: "Ranged caster (range 4).\nEmber (4 tempo): 7 damage + 1 burn.\nMove (3 tempo): 2 spaces.",
 		EnemyType.FIRE_GOBLIN_SHAMAN: "Support caster (range 5).\nFire Wall (8 tempo): raises a wall; if the player walks into it they take 6 damage + 3 burn.\nSear Wounds (6 tempo): 2 damage to all allies (can kill), then heals survivors 6.\nMove (3 tempo): 2 spaces.",
@@ -1819,8 +2112,8 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WOLF: "Within 4 tiles of another wolf: +2 HP regen/cycle and +2 attack damage.\nBite (5 tempo): 7 damage.\nMove (3 tempo): 4 spaces.",
 		EnemyType.COYOTE: "Fragile nuisance.\nNip (4 tempo): 2 damage.\nMove (3 tempo): 4 spaces.",
 		EnemyType.BUGBEAR: "First Strike: if it hits you before you have hit it, +8 damage.\nStrike (5 tempo): 6 damage.\nMove (4 tempo): 6 spaces.",
-		EnemyType.INFECTED_HUNTER: "Hook (range 2-7, 8 tempo): reels you in beside it.\nCleave (3 tempo): 8 damage.\nMove (3 tempo): 2 spaces.",
-		EnemyType.GIANT_HAWK: "Flying — ignores your high-ground bonus.\nSwoop (4 tempo, reach 2): 9 damage, 20% to Blind for 5 tempo.\nMove (3 tempo): 8 spaces.",
+		EnemyType.INFECTED_HUNTER: "Hook (range 2-7, 8 tempo): reels you in beside it. The first hook is ready at once; after each one it takes 8 tempo to recharge.\nCleave (3 tempo): 8 damage to everything on the three squares in front of it.\nNet Throw (2 tempo, within 3 squares, 8-tempo cooldown): Weighted for every card in your hand — each card costs +2 tempo until that many have been played.\nMove (3 tempo): 2 spaces.",
+		EnemyType.GIANT_HAWK: "Flying — ignores your high-ground bonus.\nSwoop (4 tempo, reach 2): 9 damage, 20% to Blind (1 stack, 5 tempo).\nMove (3 tempo): 8 spaces.",
 		EnemyType.TREANT: "Heals 5 HP every 5 tempo, +2 per 10% HP below 60%. Every 10 tempo, strips all thorns from its enemies and heals for the total. Resists 25% physical / 55% lightning, but takes 10% EXTRA fire damage.\nSlam (10 tempo): 14 earth damage.\nRoot (8 tempo): pins you for 8 tempo (can attack, cannot move).\nHeal (5 tempo): when badly hurt and out of melee, it stops to mend.\nMove (10 tempo): 9 spaces.",
 		EnemyType.ICE_MAGE: "Attacks Slow your movement.\nFrost Bolt (range 3, 3 tempo): 6 ice damage + Slow.\nMove (5 tempo): 3 spaces.",
 		EnemyType.FIRE_MAGE: "Attacks apply 2 Burn.\nFire Bolt (range 2, 3 tempo): 7 fire damage + 2 Burn.\nMove (3 tempo): 2 spaces.",
@@ -1831,41 +2124,41 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WEREWOLF: "Bear-sized grey beast with armor-piercing claws. Resists 25% physical/fire/lightning.\nClaw (5 tempo): 10 damage, +3 vs armor; a debuffed target is raked a SECOND time for half. Each consecutive claw on the same target arms 1 tempo faster (5, 4, 3...); switching targets resets it.\nMove (3 tempo): 3 spaces.",
 		EnemyType.WERERABBIT: "Loot monster — does not attack.\nFlees for 3 cycles, then Vanishes in a puff of smoke.\nMove (1 tempo): 2 spaces.",
 		EnemyType.VAMPIRE: "Victorian aristocrat with life steal. Resists 10% physical/fire/lightning.\nBite (5 tempo): 10 damage; heals 100% of damage dealt to HEALTH (not armor).\nBat Form (below 50% HP, 2 charges, never recharges): flits 6 squares away...\nAbsorb (3 tempo, always right after Bat Form): drains the healthiest ally on the map (you included) — 20 the first time, then 10.\nMove (5 tempo): 5 spaces.",
-		EnemyType.NECROMANCER: "Hooded caster (range 10) who raises the dead. Resists 15% fire/lightning.\nBolt (5 tempo): 4 damage + Hexes 2 cards in your hand (each +30 mana until played).\nSummon (8 tempo): raises undead (skeletons and zombies, first pass). After 5 of its summons die, it raises a BONE DRAGON.\nMove (6 tempo): 8 spaces.",
-		EnemyType.BONE_DRAGON: "Skeletal wyrm. Summoned by the Necromancer, but also roams freely; fought as a boss in the Boneyard, where every standing gravestone regenerates it 1 health a cycle (Gravebound — break the stones, and kill the diggers who repair them). Resists 45% physical / 45% fire.\nBite (5 tempo): 12 damage.\nBreath Swarm (6 tempo): 12 damage down a 6-tile line; a Swarm hatches beside everyone it hits.\nMove (5 tempo): 5 spaces.",
-		EnemyType.SPIRIT_COLLECTOR: "Lantern-bearer with a soul cage on its back.\nStrike (3 tempo): 8 damage.\nCollect Soul (8 tempo): 8 damage; adds a 'Release Soul' card to your hand (saps 1 damage per tempo — charged 5 per cycle — until played, then is erased).",
+		EnemyType.NECROMANCER: "Hooded caster (range 10) who raises the dead. Resists 15% fire/lightning.\nBolt (5 tempo): 4 damage + Hexes 2 cards in your hand (each +30 mana until played).\nSummon (8 tempo): raises undead (skeletons and zombies, first pass).\nRaise the Fallen (passive): every summon of his that dies rises again as a Skeleton — and costs him 10 health; any other ally that dies within 8 squares of him rises as a Skeleton too. A risen Skeleton rises no further and costs him nothing.\nMove (6 tempo): 8 spaces.",
+		EnemyType.BONE_DRAGON: "Skeletal wyrm. Fought as a boss in the Boneyard, where every standing gravestone regenerates it 1 health a cycle (Gravebound — break the stones, and kill the diggers who repair them). Resists 45% physical / 45% fire.\nBite (5 tempo): 12 damage.\nBreath Swarm (6 tempo): 12 damage down a 6-tile line; a Swarm hatches beside everyone it hits.\nMove (5 tempo): 5 spaces.",
+		EnemyType.SPIRIT_COLLECTOR: "Lantern-bearer with a soul cage on its back. Strengthen it gains adds to every Strike and Collect Soul and never fades.\nStrike (3 tempo): 8 damage.\nCollect Soul (8 tempo): 8 damage; adds a 'Release Soul' card to your hand. While it is in your hand you are Drained (10 mana a cycle) and it saps 1 damage per tempo (charged 5 at each cycle). Play it (15 mana, 2 tempo) to be rid of it — but releasing the soul gives every living Spirit Collector 5 Strengthen.",
 		EnemyType.GRAVE_TITAN: "Yeti-like brute (30 armor) hauling a boulder.\nSmash (8 tempo): 15 damage in front.\nBoulder Roll (range 3, 5 tempo): rolls the boulder for 15 damage.\nMove (8 tempo): 4 spaces.",
-		EnemyType.CRYPT_CRAWLER: "Large spider. After 3 consecutive attacks it webs you.\nBite (3 tempo): 6 damage.\nWeb: adds a 'Paralysis' card to your hand — you cannot move until it is played (other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
-		EnemyType.SCREECHER: "Soul-creature — a barely-there black void ghost, easiest to spot when it strikes.\nScreech (5 tempo): 5 damage.\nDrift (2 tempo): 4 spaces.",
+		EnemyType.CRYPT_CRAWLER: "Large spider. After 3 consecutive attacks it webs you.\nBite (3 tempo): 6 damage.\nWeb: adds a 'Paralysis' card to your hand — you cannot move until it is played (10 mana, 5 tempo; other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
+		EnemyType.SCREECHER: "Soul-creature — a barely-there black void ghost. Invisible until it strikes: you cannot attack it directly (poison, burn and area damage still land).\nScreech (5 tempo): 5 damage; it is seen for 3 tempo after.\nDrift: 4 spaces / 2 tempo while unseen, 2 spaces / 5 tempo while seen.",
 		EnemyType.CONSUMED: "Flesh-and-hatred golem; muscle shows through its lacerations.\nAttack (5 tempo): 8 damage.\nMove (3 tempo): 5 spaces.\nOn death: explodes for 8 damage to everything nearby.",
-		# --- Mountains (design mock-ups — stats & moves TBD) ---
-		EnemyType.WEREGOAT: "Minotaur-built: human torso and arms, goat head and goat hind legs.\n[Design mock-up — stats & moves TBD.]",
+		# --- Mountains ---
+		EnemyType.WEREGOAT: "Minotaur-built: human torso and arms, goat head and goat hind legs.\nHoof Punch (4 tempo): 6 damage.\nCharge (8 tempo): runs up to 8 squares along the line that crosses the most of your units — 8 damage to everything in its path, and everything within 1 square of where it lands is Stunned for 3 tempo.\nMove (5 tempo): 2 spaces.",
 		EnemyType.WYVERN: "A large serpentine flier with talons and wings — no arms. Flying: ignores your high-ground bonus. Resists 25% physical / 35% fire / 25% lightning.\nBite (5 tempo): 25 damage.\nTalon Grab (8 tempo, then 2-cycle cooldown): flies above its target (reach 3), 25 damage, and drags them to an unoccupied space 8 squares away.\nMove (4 tempo): 6 spaces.",
-		EnemyType.ROC: "An enormous bird with huge talons and a white-checkered mane.\n[Design mock-up — stats & moves TBD.]",
-		EnemyType.ICE_TROLL: "Bigger than the Armored Troll — taller, with massive hands and feet; no weapon. Every attack adds a stack of frost (Cold) AND Brittle. Resists 35% physical / 15% fire / 15% lightning.\nClub (4 tempo): 13 damage.\nClobber (auto): 50 damage — triggers instantly whenever an Ice Troll attack FREEZES its target.\nMove (3 tempo): 3 spaces.",
-		EnemyType.SNOW_WRAITH: "A pale mountain spirit trailing tattered cloth.\n[Design mock-up — stats & moves TBD.]",
-		EnemyType.GRANITE_COLOSSUS: "A huge rigid figure of mountain stone that emerges from the rock face — hard to spot before it moves.\n[Design mock-up — stats & moves TBD.]",
-		EnemyType.WHITE_MANTICORE: "A manticore with a snow-leopard body, bat wings and a spiked tail. Flying: ignores your high-ground bonus. Resists 10% physical / 35% fire / 10% lightning.\nBite (3 tempo): 15 damage.\nStinger (5 tempo, then 5-tempo cooldown): 25 damage + Clumsy (3 stacks) + 8 Poison.\nMove (2 tempo): 3 spaces.",
-		EnemyType.SABERTOOTH: "A sabertooth tiger.\n[Design mock-up — stats & moves TBD.]",
-		# --- Underworld (design mock-ups — stats & moves TBD) ---
-		EnemyType.CERBERUS: "Three-headed hound with spiked collars and a chain on the left head: the guardian of Hell's Door. Resists 30% physical / 40% fire / 15% lightning. You need not kill him — only break the door he guards — but it is far easier with him dead.\nBite (5 tempo): 25 damage. Below 66% health the second head bites too (25 + 5 Bleed); below 33% the third head as well (25, and he feeds on the wound).\nSwipe (8 tempo): 8 Bleed.\nVenom Tail (15 tempo): you discard 3 random cards and are stunned for 15 tempo; when it lifts, 2 Vulnerable and Cuffed for 10 tempo.\nRoar (12 tempo): +25 armor and 25 thorns.\nMove (3 tempo): 6 spaces.\nGuardian of Death: Brace 30% for 5 hits the first time he drops below half, and again EVERY time any unit within 8 squares — foe or ally, the door included — drops below half.\nDeathyard Dog: a foe healing within 5 squares gives him 15 Strengthen.",
-		EnemyType.SUCCUBUS: "A winged fey: short shorts, sleeveless top, elbow gloves, long boots and small horns.\n[Design mock-up — stats & moves TBD.]",
-		EnemyType.DEMON: "A red, thorned demon wielding a dagger and a trident.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.ROC: "An enormous bird with huge talons and a white-checkered mane (15 armor). Flying: ignores your high-ground bonus. It always moves AWAY from you: it dives, then keeps its distance until the dive is ready again.\nDive Bomb (5 tempo, from up to 6 squares): 8 damage; the Roc lands beside you.\nEye Scrape (3 tempo, Async): if you have stayed in melee reach for more than 3 tempo it claws your eyes — 2 Weakened.\nMove away (1 tempo): 1 space.",
+		EnemyType.ICE_TROLL: "Bigger than the Armored Troll — taller, with massive hands and feet; no weapon. Every attack adds a stack of frost (Cold, 5 tempo) AND a stack of Brittle (5 tempo). Resists 35% physical / 15% fire / 15% lightning.\nClub (4 tempo): 13 damage.\nClobber (auto): 50 damage — triggers instantly whenever an Ice Troll attack FREEZES its target.\nMove (3 tempo): 3 spaces.",
+		EnemyType.SNOW_WRAITH: "A pale mountain spirit trailing tattered cloth (range 5).\nSnowball (8 tempo): Slowed for 3 tempo + 2 Cold.\nIce Blast (5 tempo): 5 ice damage, +3 if you have armor; Slowed for 3 tempo.\nMove (5 tempo): 3 spaces.",
+		EnemyType.GRANITE_COLOSSUS: "A huge rigid figure of mountain stone that emerges from the rock face — hard to spot before it moves. 350 health under 250 armor; resists 65% physical / 50% fire / 50% lightning.\nMove (5 tempo): 3 spaces.\n[Its attacks are still TBD on the design sheet — it only stands.]",
+		EnemyType.WHITE_MANTICORE: "A manticore with a snow-leopard body, bat wings and a spiked tail. Flying: ignores your high-ground bonus. Resists 10% physical / 35% fire / 10% lightning.\nBite (3 tempo): 15 damage.\nStinger (5 tempo, then 5-tempo cooldown): 25 damage + 3 Clumsy (3 stacks of 5 tempo = 3 cycles) + 8 Poison.\nMove (2 tempo): 3 spaces.",
+		EnemyType.SABERTOOTH: "A sabertooth tiger. 35% to crit: a crit deals 1.5x and inflicts 6 Bleed.\nTrack (10 tempo, Async): marks the nearest of your units — +15 Strengthen against it, and the tiger must hunt it.\nBite and Claw (5 tempo): bites for 6, then claws for 3 — two separate attacks (each rolls its own crit and spends its own Strengthen).\nSunken Bite (15 tempo, Async): 10 damage + 8 Bleed.\nMove (2 tempo): 2 spaces.",
+		# --- Underworld ---
+		EnemyType.CERBERUS: "Three-headed hound with spiked collars and a chain on the left head: the guardian of Hell's Door. Resists 30% physical / 40% fire / 15% lightning. You need not kill him — only break the door he guards — but it is far easier with him dead.\nBite (5 tempo, Async): 25 damage. Below 66% health the second head bites too (25 + 5 Bleed); below 33% the third head as well (25, and he feeds on the wound). A bite that comes up out of reach is spent.\nSwipe (8 tempo): 8 Bleed.\nVenom Tail (15 tempo, Async): you discard 3 random cards and are stunned for 15 tempo; the moment the stun is gone, 2 Vulnerable and Cuffed for 10 tempo.\nRoar (12 tempo): +25 armor and 25 thorns.\nMove (3 tempo): 6 spaces.\nGuardian of Death: Brace 30% for 5 hits the first time he drops below half, and again EVERY time any unit within 8 squares — foe or ally, the door included — drops below half.\nDeathyard Dog: a foe healing within 5 squares gives him 15 Strengthen.",
+		EnemyType.SUCCUBUS: "A winged fey: short shorts, sleeveless top, elbow gloves, long boots and small horns (5 armor, range 4).\nMana Drain (10 tempo): drains 10 mana from your pool.\nDamaging Snap (6 tempo): damage equal to your missing mana / 20, + 4.\nMove (2 tempo): 1 space.",
+		EnemyType.DEMON: "A red, thorned demon wielding a dagger and a trident.\nMimic (8 tempo, Async): conjures a duplicate of itself — it looks identical (health, buffs and debuffs all copied) but has 1 health, and hits as hard as the real one. At most 2 mimics per demon.\nCuff (8 tempo, Async): you cannot draw for 15 tempo.\nAttack (5 tempo): 8 damage.\nMove (2 tempo): 2 spaces.",
 		EnemyType.IFRIT: "A muscular bipedal fire-hound, hunched, with long near-ground arms. Resists 20% physical / 15% fire / 15% lightning.\nAttack (3 tempo): 45 damage.\nFire Breath (8 tempo, used from up to 4 tiles out): a 5x5 sheet of flame in front — 20 fire damage + 5 Burn; the tiles keep burning for 3 tempo.\nBackflip (auto): a single blow over 40 damage sends it leaping 3 squares backwards.\nMove (4 tempo): 5 spaces.",
-		EnemyType.MIND_EATER: "A gaunt, hunched flesh-horror with long raking claws.\n[Design mock-up — stats & moves TBD.]",
-		EnemyType.SPECTER: "A dark shadow-form of a humanoid.\n[Design mock-up — stats & moves TBD.]",
-		EnemyType.MAGMA_SPIDER: "A large tarantula in red, orange and black with glowing seams.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.MIND_EATER: "A gaunt, hunched flesh-horror with long raking claws. It never moves (range 6).\nMind Slow (10 tempo): every card in your hand costs 20 more mana.\nManipulate Mind Space (8 tempo): you cannot draw for 15 tempo.",
+		EnemyType.SPECTER: "A dark shadow-form of a humanoid.\nSpirit Spit (5 tempo, range 2): 2 damage.\nInvisible (8 tempo, Async): fades out for 3 tempo — it cannot be targeted.\nMove (1 tempo): 1 space.",
+		EnemyType.MAGMA_SPIDER: "A large tarantula in red, orange and black with glowing seams. It never moves.\nFire Web (8 tempo): spins a web of fire on the ground around it — while you stand in it you are Slowed and take 1 fire damage every 3 tempo.",
 		EnemyType.PIT_FIEND: "A larger, regal demon with a barbed tail and a great whip.\n[Design mock-up — stats & moves TBD.]",
-		EnemyType.ASH_HARPY: "A harpy seemingly risen from and made of ash.\n[Design mock-up — stats & moves TBD.]",
+		EnemyType.ASH_HARPY: "A harpy seemingly risen from and made of ash. Flying: ignores your high-ground bonus.\nPeck (5 tempo): 3 damage.\nCard Steal (8 tempo, once per harpy): spots a card from 4 squares, flies in to melee and snatches it from your hand; kill the harpy and the card comes back.\nMove (1 tempo): 1 space.",
 		EnemyType.INFLAMED_MINOTAUR: "The boss of the Labyrinth, off the Underworld's deepest cave: a smouldering minotaur with a fiery axe. Leaves fire in its wake (a trap on every tile it walks off — and along every charge: 10 damage + 2 Burn, lingers 15 tempo) and heals 10 whenever that fire burns a player. Resists 15% physical / 50% fire / 25% lightning. Slow is his weakness: every Slow stack shortens the leap (Sword of Theseus).\nAttack (5 tempo): 35 damage + 2 Burn.\nLabyrinth Leap (auto, once he has taken over 20 damage since his last leap — a running total, not one blow): springs away 14 spaces (minus 1 per Slow) to a random open tile.\nBull Rush (a random 5 to 15 tempo after landing): charges the player — damage equals the spaces covered by leap + rush, with a spaces x4% chance to stun (5 tempo) AND weaken; the target and everything trampled en route are left Vulnerable.\nMove (5 tempo): 6 spaces.\nThe room: every 25 tempo you are Lost in the Labyrinth for 15 — your hand is scrambled, must be played left to right, and you cannot draw.",
-		# --- Heavens (design mock-ups — stats & moves TBD) ---
-		EnemyType.CHERUB: "An adult cupid — winged archer with a bow.\n[Design mock-up — stats & moves TBD.]",
+		# --- Heavens ---
+		EnemyType.CHERUB: "An adult cupid — winged archer with a bow (5 armor, range 4).\nLove's Arrow: 2 damage, and for 5 tempo you cannot attack the Cherub directly (poison, burn and area damage still land). The first arrow flies the moment you enter its reach; after that it is a 10-tempo attack.\nMove (3 tempo): 2 spaces.",
 		EnemyType.DJINN: "A blue genie with bracelets, a black ponytail and a red necklace. Every attack against the Djinn puts 3 WISHES in your hand — each sears you for 1/3 of that attack's damage every cycle it is held, and costs 60 mana (0 tempo) to be rid of. Resists 15% physical/fire/lightning.\nChain Lightning (5 tempo): 35 lightning to everyone it hits — cast reaches 5 squares, each bound arcs 4 from the last one struck.\nMove (3 tempo): 8 spaces.",
 		EnemyType.CORRUPTED_ARCHANGEL: "Black eyes and long black hair, white wings and robes, wielding a black two-handed sword.\n[Design mock-up — stats & moves TBD.]",
 		EnemyType.SLUDGE: "Gelatinous ooze that strikes up close or at range.\nMelee (5 tempo): 3 damage.\nSpit (range 6, 6 tempo): 3 damage.\nMove (5 tempo): 3 spaces.",
 		EnemyType.PIPE_CRAWLER: "Many-limbed crawler scuttling on all fours.\nClaw (5 tempo): 5 damage; 25% chance to disarm you (5 tempo).\nMove (2 tempo): 2 spaces.",
-		EnemyType.SEWER_CROC: "Armoured ambush predator (20 armor).\nBite (6 tempo): 12 damage.\nMove (5 tempo): 2 spaces.",
-		EnemyType.RAT_KING: "A giant crowned rat that leads the swarm (10 armor), fought in his own lair off the sewer's central cistern.\nBite (3 tempo): 6 damage.\nMove (2 tempo): 2 spaces.\nFlee to a nest (2 tempo): at 50%, 30% and 30% health he bolts for an untouched rat nest.\nFeed on the nest (2 tempo): heals 20% / 30% / 50% of his health (left / middle / right nest); a nest feeds him once.",
+		EnemyType.SEWER_CROC: "Armoured sewer serpent (20 armor).\nBite (6 tempo): 12 damage.\nVenom Spray (15 tempo, Async): a cone 5 squares long — one square wide in front of it, five at the far end. Everyone in it takes 8 Poison; anyone with armor also takes 10 damage. No armor, no damage.\nMove (5 tempo): 2 spaces.\nVenomous hide: a hit that costs it health poisons the attacker 3; while it still has armor it has 5 Thorns.\nExposed: when its armor breaks it is stunned for 3 tempo and every clock it was counting resets.",
+		EnemyType.RAT_KING: "A giant crowned rat that leads the swarm (10 armor), fought in his own lair off the sewer's central cistern.\nBite (3 tempo): 6 damage.\nInfest (5 tempo): puts an Infest card in your hand for every rat within 10 squares of him, himself included. Held for 5 tempo, an Infest hatches into 2 Wererats beside you; play it (50 mana, 0 tempo) to erase it, or discard it, and nothing hatches.\nMove (2 tempo): 2 spaces.\nFlee to a nest (2 tempo): at 50%, 30% and 30% health he bolts for an untouched rat nest.\nFeed on the nest (2 tempo): heals 20% / 30% / 50% of his health (left / middle / right nest); a nest feeds him once.",
 		EnemyType.SWARM: "A single creature made of countless biting bugs.\nAttack (2 tempo): 3 damage.\nMove (3 tempo): 8 spaces — very fast.",
 		EnemyType.RING_WRAITH: "The Precious: hunts the ring-bearer through the shadow world. Shadow form does not hide you from these.\nAttack (2 tempo): 15 damage.\nMove (4 tempo): 5 spaces.\nResummons on death — grants no XP.",
 		EnemyType.DUMMY: "The Dojo's training dummy (a chicken, for morale). Stands still, never strikes, and a killing blow only refills it — grants no XP, drops nothing.",
@@ -2210,10 +2503,24 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 	# Elite first-pass ability cooldowns run on raw tempo.
 	if _roar_cooldown > 0:
 		_roar_cooldown = maxi(0, _roar_cooldown - amount)
+	if _net_cooldown > 0:
+		_net_cooldown = maxi(0, _net_cooldown - amount)
+	if _hook_recharge > 0:
+		_hook_recharge = maxi(0, _hook_recharge - amount)
 	if _stinger_cooldown > 0:
 		_stinger_cooldown = maxi(0, _stinger_cooldown - amount)
 	if _talon_cooldown > 0:
 		_talon_cooldown = maxi(0, _talon_cooldown - amount)
+	if _dive_cooldown > 0:
+		_dive_cooldown = maxi(0, _dive_cooldown - amount)
+	# Roc: how long a player unit has stood in melee reach (Eye Scrape wants > 3).
+	if enemy_type == EnemyType.ROC:
+		var roc_adjacent := false
+		for ru in _player_units():
+			if _cells_between(self, ru) <= 1:
+				roc_adjacent = true
+				break
+		_roc_melee_tempo = (_roc_melee_tempo + amount) if roc_adjacent else 0
 
 	# Hell's Gate: the door's seal runs down; Cerberus watches for drops below
 	# half, listens for heals, and the venom runs its course.
@@ -2249,12 +2556,20 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 	# 5-tempo accumulator below.
 	_tick_timed_statuses(amount)
 
+	# A demon's mimic keeps its borrowed numbers current.
+	if is_mimic:
+		_mirror_health()
+
 	# Tick per-cycle DOTs/stacks once per tempo cycle (every 5 global tempo)
 	while _cycle_accumulator >= 5:
 		_cycle_accumulator -= 5
 		_tick_status_durations()
 
 	_advance_action_clocks(amount, player_node)
+	# Cherub: the first Love's Arrow flies the moment anyone is within reach —
+	# after the clocks, so the 10-tempo clock behind it starts from nothing.
+	if enemy_type == EnemyType.CHERUB and _cherub_first_arrow:
+		_cherub_watch()
 	_update_tempo_bar()
 
 ## Timed statuses count in RAW TEMPO (any granularity), decremented by every
@@ -2262,20 +2577,52 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 func _tick_timed_statuses(amount: int) -> void:
 	if amount <= 0:
 		return
-	var any := taunt_tempo > 0 or fear_tempo > 0 or wear_down_tempo > 0 \
+	_clear_exposed_if_armored()
+	# Every timer counted down below must be on this list, or a lone status
+	# of that kind never runs out (a Trip once lasted until something else
+	# timed landed on the enemy).
+	var any := taunt_tempo > 0 or fear_tempo > 0 or exposed_cooldown_tempo > 0 \
 		or disarmed_tempo > 0 or marked_tempo > 0 or silenced_tempo > 0 \
-		or frozen_tempo > 0 or stun_tempo > 0 \
+		or frozen_tempo > 0 or stun_tempo > 0 or tripped_tempo > 0 \
 		or rooted_tempo > 0 or narashimha_tempo > 0 or cursed_tempo > 0 \
-		or phys_defense_debuff_tempo > 0
+		or not phys_defense_groups.is_empty() or hidden_tempo > 0 or _screecher_visible_tempo > 0 \
+		or slow_stacks > 0 or vulnerable_stacks > 0 or weaken_stacks > 0
 	if not any:
 		return
 
-	if phys_defense_debuff_tempo > 0:
-		phys_defense_debuff_tempo -= amount
-		if phys_defense_debuff_tempo <= 0:
-			phys_defense_debuff_tempo = 0
-			phys_defense_debuff_percent = 0.0
-			print("[%s] Lowered physical defense expired" % enemy_name)
+	# Exposed's cooldown runs on raw tempo, flag or no flag: armor regained
+	# ends Exposed but not the wait before the next one.
+	if exposed_cooldown_tempo > 0:
+		exposed_cooldown_tempo = maxi(0, exposed_cooldown_tempo - amount)
+		if exposed_cooldown_tempo == 0:
+			print("[%s] Can be Exposed again" % enemy_name)
+
+	# Hidden (Specter, Cherub) and the Screecher's window of visibility.
+	_tick_hidden(amount)
+
+	# sheet: "a stack is 5 tempo" — Slow, Vulnerable and Weaken each run their
+	# own raw-tempo clock and shed one stack per STACK_TEMPO. Nothing the enemy
+	# or the player does burns them; only the clock.
+	slow_clock = _tick_stack_clock("slow", "slow_stacks", slow_clock, amount)
+	vulnerable_clock = _tick_stack_clock("vulnerable", "vulnerable_stacks", vulnerable_clock, amount)
+	weaken_clock = _tick_stack_clock("weaken", "weaken_stacks", weaken_clock, amount)
+
+	# Lowered physical defense: every group counts its own clock; a group with
+	# no stacks left drops out, and the strongest survivor sets the reduction.
+	if not phys_defense_groups.is_empty():
+		var before: float = get_phys_defense_debuff_percent()
+		for g in phys_defense_groups:
+			g["clock"] = int(g["clock"]) + amount
+			while int(g["clock"]) >= STACK_TEMPO and int(g["stacks"]) > 0:
+				g["clock"] = int(g["clock"]) - STACK_TEMPO
+				g["stacks"] = int(g["stacks"]) - 1
+		phys_defense_groups = phys_defense_groups.filter(func(g): return int(g["stacks"]) > 0)
+		var after: float = get_phys_defense_debuff_percent()
+		if after != before:
+			if after <= 0.0:
+				print("[%s] Lowered physical defense expired" % enemy_name)
+			else:
+				print("[%s] Lowered physical defense eases to -%.0f%%" % [enemy_name, after])
 
 	if taunt_tempo > 0:
 		taunt_tempo -= amount
@@ -2291,12 +2638,8 @@ func _tick_timed_statuses(amount: int) -> void:
 			fear_source = null
 			print("[%s] Fear expired" % enemy_name)
 
-	if wear_down_tempo > 0:
-		wear_down_tempo -= amount
-		if wear_down_tempo <= 0:
-			wear_down_tempo = 0
-			attack_reduction = 0
-			print("[%s] Wear Down expired, attack restored" % enemy_name)
+	# Wear Down no longer runs on the clock: its charges are spent by the
+	# enemy's own attacks (see _deal_damage_to_player).
 
 	if disarmed_tempo > 0:
 		disarmed_tempo -= amount
@@ -2374,6 +2717,25 @@ func _tick_timed_statuses(amount: int) -> void:
 
 	_update_status_indicators()
 
+## One stack-clocked status (Slow, Vulnerable, Weaken): `clock` gains `amount`
+## raw tempo and the field named by `stack_field` loses a stack per STACK_TEMPO.
+## Returns the clock to store back. The clock resets when the last stack goes
+## so a fresh application starts a full 5 tempo later, not mid-count.
+func _tick_stack_clock(key: String, stack_field: String, clock: int, amount: int) -> int:
+	var stacks: int = int(get(stack_field))
+	if stacks <= 0:
+		return 0
+	clock += amount
+	while clock >= STACK_TEMPO and stacks > 0:
+		clock -= STACK_TEMPO
+		stacks -= 1
+	set(stack_field, stacks)
+	if stacks <= 0:
+		print("[%s] %s worn off" % [enemy_name, key.capitalize()])
+		debuff_expired.emit(self, key)
+		return 0
+	return clock
+
 func _tick_status_durations() -> void:
 	# Choke: deal the caster's half-auto-attack damage per cycle, lose 1 stack
 	if choke_dot_stacks > 0:
@@ -2435,8 +2797,8 @@ func _tick_status_durations() -> void:
 	# Timed statuses (stun, frozen, root, curse...) tick per raw tempo in
 	# _tick_timed_statuses, not here.
 
-	# Cold: thaws 1 stack per cycle so it's a combo window, not a permanent
-	# ratchet toward Frozen (mirrors the player-side Cold expiring over time)
+	# Cold: thaws COLD_THAW_PER_CYCLE stacks per cycle (sheet: 3) so it's a
+	# combo window that has to be fed, not a slow ratchet toward Frozen at 5.
 	if cold_stacks > 0:
 		# Element Pollination: the frost bites — Cold ticks doubling damage
 		# like Burn while the Elemental Weaver's maintain is up.
@@ -2444,16 +2806,23 @@ func _tick_status_durations() -> void:
 			take_damage(cold_damage_next, false)
 			print("[%s] Element Pollination: cold bites for %d (doubles next cycle)" % [enemy_name, cold_damage_next])
 			cold_damage_next *= 2
-		cold_stacks -= 1
+		cold_stacks = maxi(0, cold_stacks - COLD_THAW_PER_CYCLE)
 		if cold_stacks <= 0:
 			cold_damage_next = 1
 			print("[%s] Cold thawed" % enemy_name)
 			debuff_expired.emit(self, "cold")
 
-	# Shock: deal current stacks damage, then lose 1 stack per cycle
+	# Shock: deal current stacks damage to itself AND arc the same to the
+	# nearest other living enemy within SHOCK_ARC_RANGE squares, then lose 1
+	# stack. The arc is plain damage — it does not spread the Shock itself.
 	if shock_stacks > 0:
-		take_damage(shock_stacks, false)
-		print("[%s] Shock deals %d damage" % [enemy_name, shock_stacks])
+		var arc: int = shock_stacks
+		take_damage(arc, false)
+		print("[%s] Shock deals %d damage" % [enemy_name, arc])
+		var arc_target: Enemy = _nearest_other_enemy(SHOCK_ARC_RANGE)
+		if arc_target:
+			arc_target.take_damage(arc, false)
+			print("[%s] Shock arcs %d damage to %s" % [enemy_name, arc, arc_target.enemy_name])
 		shock_stacks -= 1
 		if shock_stacks <= 0:
 			print("[%s] Shock expired" % enemy_name)
@@ -2570,6 +2939,12 @@ func _tick_action_clocks(player_node: Node3D) -> void:
 func _move_target_for(player_node: Node3D) -> Node3D:
 	if taunt_target and is_instance_valid(taunt_target):
 		return taunt_target
+	# Sabertooth: Track's quarry overrides whoever the spawner points it at
+	# (a Taunt still wins — it is the player's own forced-target tool).
+	if enemy_type == EnemyType.SABERTOOTH:
+		var quarry := _track_quarry()
+		if quarry != null:
+			return quarry
 	return player_node
 
 func _effective_cost(action: Dictionary) -> int:
@@ -2580,6 +2955,10 @@ func _effective_cost(action: Dictionary) -> int:
 		cost += next_melee_tempo_tax
 	if slow_stacks > 0 and MOVEMENT_ACTIONS.has(str(action["name"])):
 		cost += Debuff.SLOWED_TEMPO_PER_TILE + int(_player_sphere_amp("sphere_slow_amp")) - 1
+	# Screecher (sheet): Drift is 4 spaces / 2 tempo unseen, 2 spaces / 5 tempo
+	# while its Screech has given it away — the table holds the unseen cost.
+	if enemy_type == EnemyType.SCREECHER and _screecher_visible_tempo > 0 and MOVEMENT_ACTIONS.has(str(action["name"])):
+		cost += 3
 	return cost
 
 func _consume_fire_taxes(action: Dictionary) -> void:
@@ -2591,9 +2970,10 @@ func _consume_fire_taxes(action: Dictionary) -> void:
 		print("[%s] Sword Breaker: swing delayed %d tempo" % [enemy_name, next_melee_tempo_tax])
 		next_melee_tempo_tax = 0
 	if slow_stacks > 0 and MOVEMENT_ACTIONS.has(str(action["name"])):
+		# sheet: the move is taxed while any stack remains; the stacks fall on
+		# Slow's own clock (_tick_stack_clock), not with the move.
 		print("[%s] Slowed: move delayed %d extra tempo" % [enemy_name,
 			Debuff.SLOWED_TEMPO_PER_TILE + int(_player_sphere_amp("sphere_slow_amp")) - 1])
-		_consume_slow_stack()
 
 func _fire_ready_sync(player_node: Node3D) -> void:
 	if chosen_action.is_empty():
@@ -2829,7 +3209,7 @@ func _choose_action(player_node: Node3D) -> void:
 		EnemyType.ZOMBIE:
 			_choose_melee_action(distance, "attack")
 		EnemyType.WEREWOLF:
-			_choose_werewolf_action(distance)
+			_choose_werewolf_action(distance, _move_target_for(player_node))
 		EnemyType.WERERABBIT:
 			# Loot monster: flees for 3 cycles (15 tempo), then vanishes in a
 			# puff of smoke — kill it before the clock runs out.
@@ -2861,7 +3241,7 @@ func _choose_action(player_node: Node3D) -> void:
 		EnemyType.SEWER_CROC:
 			_choose_melee_action(distance, "croc_bite")
 		EnemyType.RAT_KING:
-			_choose_rat_king_action(distance)
+			_choose_rat_king_action(distance, player_node)
 		EnemyType.GRAVE_DIGGER:
 			_choose_grave_digger_action()
 		EnemyType.CERBERUS:
@@ -2875,14 +3255,38 @@ func _choose_action(player_node: Node3D) -> void:
 			_choose_manticore_action(distance)
 		EnemyType.WYVERN:
 			_choose_wyvern_action(distance)
+		EnemyType.WEREGOAT:
+			_choose_weregoat_action(distance)
+		EnemyType.ROC:
+			_choose_roc_action(distance)
+		EnemyType.SABERTOOTH:
+			_choose_sabertooth_action(distance)
+		EnemyType.SNOW_WRAITH:
+			_choose_snow_wraith_action(distance)
+		EnemyType.GRANITE_COLOSSUS:
+			chosen_action = {}  # moves TBD on the sheet: it stands
 		# ----- Underworld act -----
 		EnemyType.IFRIT:
 			_choose_ifrit_action(distance)
 		EnemyType.INFLAMED_MINOTAUR:
 			_choose_minotaur_action(distance)
+		EnemyType.DEMON:
+			_choose_demon_action(distance)
+		EnemyType.ASH_HARPY:
+			_choose_harpy_action(distance)
+		EnemyType.MAGMA_SPIDER:
+			_choose_magma_spider_action(distance)
+		EnemyType.MIND_EATER:
+			_choose_mind_eater_action(distance)
+		EnemyType.SPECTER:
+			_choose_specter_action(distance)
+		EnemyType.SUCCUBUS:
+			_choose_succubus_action(distance)
 		# ----- Heavens act -----
 		EnemyType.DJINN:
 			_choose_ranged_action(distance, "chain_lightning")
+		EnemyType.CHERUB:
+			_choose_cherub_action(distance)
 		_:
 			_choose_legacy_action(distance)
 
@@ -2971,9 +3375,9 @@ func _at_perch() -> bool:
 
 ## --- Rat King ---
 
-func _choose_rat_king_action(distance: int) -> void:
+func _choose_rat_king_action(distance: int, player_node: Node3D = null) -> void:
 	## Wounded past a threshold, the king makes for a nest and feeds on it;
-	## otherwise he bites and repositions like any brute.
+	## otherwise he bites, lays a brood, and repositions like any brute.
 	if _nest_target != null and not _nest_available(_nest_target):
 		# The nest he was running for is gone (destroyed, or drained): pick
 		# another untouched one if any remain, else fight on.
@@ -2984,6 +3388,13 @@ func _choose_rat_king_action(distance: int) -> void:
 			chosen_action = _get_action("nest_heal")
 		else:
 			chosen_action = _get_action("seek_nest")
+		return
+	# sheet: Infest (5 tempo) comes with no selection rule. Ours: he lays the
+	# brood when the player is out of arm's reach and holds no Infest yet;
+	# in reach he bites, and while a brood still squirms in the hand he
+	# closes in like any brute.
+	if distance > 1 and player_node != null and not _hand_has_card_id(player_node, "infest"):
+		chosen_action = _get_action("infest")
 		return
 	_choose_melee_action(distance, "bite")
 
@@ -3057,6 +3468,150 @@ func _try_nest_heal() -> bool:
 	print("[%s] Feeds on the %s nest: +%d health" % [enemy_name, nest.nest_label, amount])
 	return true
 
+## --- Rat King: Infest ---
+
+const INFEST_RADIUS := 10  # sheet: "each rat within a 10 square radius"
+
+func _hand_has_card_id(node: Node3D, cid: String) -> bool:
+	if node == null or not node.has_method("get_deck_manager"):
+		return false
+	var deck = node.get_deck_manager()
+	if deck == null or not ("hand" in deck):
+		return false
+	for c in deck.hand:
+		if c.card_id == cid:
+			return true
+	return false
+
+func _rats_within(radius: int) -> Array:
+	## Living rats within `radius` squares of the king (Manhattan, as every
+	## range here), the king himself included: Wererats and Archer Rats. The
+	## Swarm is bugs and a nest is a structure — neither is a rat (sheet:
+	## "each rat ... including himself").
+	var out: Array = []
+	for e in _sibling_enemies():
+		if e.enemy_type in [EnemyType.WERERAT, EnemyType.ARCHER_RAT, EnemyType.RAT_KING] \
+				and _cells_between(self, e) <= radius:
+			out.append(e)
+	return out
+
+func _try_infest(target_node: Node3D) -> bool:
+	## Infest (5 tempo): one Infest card into the hand per rat within 10
+	## squares, himself included. Each hatches into 2 Wererats beside the
+	## holder if it is still in the hand 5 tempo later (DeckManager counts
+	## the fuse, hand only); playing it for 50 mana or discarding it ends
+	## the brood.
+	var deck = target_node.get_deck_manager() if target_node.has_method("get_deck_manager") else null
+	if deck == null:
+		turn_completed.emit()
+		return true
+	var rats := _rats_within(INFEST_RADIUS)
+	var main = get_parent()
+	var spawner = main.enemy_spawner if main and "enemy_spawner" in main else null
+	for _r in rats:
+		var card: Card = Card.create_infest()
+		if spawner:
+			# Bound to the spawner, not the king: a brood laid by a king
+			# since slain still hatches. Leaving the room frees the spawner,
+			# the handler goes invalid, and the card crumbles unhatched.
+			card.hatch_handler = Callable(spawner, "spawn_hatchlings").bind(target_node, EnemyType.WERERAT, 2)
+		deck.add_card_to_hand(card)
+	print("[%s] INFEST — %d brood(s) squirm into the hand (%d rat(s) within %d)" % [enemy_name, rats.size(), rats.size(), INFEST_RADIUS])
+	turn_completed.emit()
+	return true
+
+## --- Sewer Cobra ---
+
+# sheet: Venom Spray — "range 5 (in a cone, only targeting the immediate
+# square in front of it to 4 squares at range 5)". Read here as a forward
+# cone down the dominant axis toward the target: at forward distance 1..5
+# the half-width is 0, 1, 1, 1, 2 — widths 1, 3, 3, 3, 5 — so it opens from
+# the one square in front to a 5-wide row at range 5. TODO(sheet): "4
+# squares at range 5" may mean a 4-wide far row; the grid has no even,
+# centred row, so the cone ends 5 wide.
+const VENOM_CONE_HALF_WIDTH := [0, 1, 1, 1, 2]
+const VENOM_POISON := 8        # sheet: 8 poison to all targets in the cone
+const VENOM_ARMOR_DAMAGE := 10  # sheet: 10 damage, only to a target with armor
+const COBRA_THORNS := 5        # sheet: 5 thorns while it has armor
+const COBRA_HEALTH_POISON := 3  # sheet: 3 poison when hit directly to health
+const COBRA_EXPOSED_STUN := 3   # sheet: stunned 3 tempo on exposure
+
+func _venom_cone_cells(target_node: Node3D) -> Array:
+	if not grid_manager:
+		return []
+	var my_cell: Vector2i = grid_manager.world_to_grid(position)
+	var t_cell: Vector2i = grid_manager.world_to_grid(target_node.position)
+	var diff: Vector2i = t_cell - my_cell
+	var forward := Vector2i(signi(diff.x), 0) if absi(diff.x) >= absi(diff.y) else Vector2i(0, signi(diff.y))
+	if forward == Vector2i.ZERO:
+		forward = Vector2i(1, 0)
+	var side := Vector2i(-forward.y, forward.x)
+	var cells: Array = []
+	for f in range(1, VENOM_CONE_HALF_WIDTH.size() + 1):
+		var half: int = VENOM_CONE_HALF_WIDTH[f - 1]
+		for l in range(-half, half + 1):
+			cells.append(my_cell + forward * f + side * l)
+	return cells
+
+func _try_venom_spray(target_node: Node3D) -> bool:
+	## Venom Spray (15 tempo, Async): 8 Poison to every player-side unit in
+	## the cone; one that has armor also takes 10 (armor absorbs it first,
+	## as any hit). No armor, no immediate damage — the poison is the bite.
+	## The numbers are the sheet's, flat: the band rebalance scales the
+	## bite, not the venom. A spray that finds nobody is spent all the same
+	## (Async: the clock restarts whether or not it lands).
+	var cells := _venom_cone_cells(target_node)
+	var hit := 0
+	if cells.is_empty():
+		# No grid (bare tests): the spray reaches whoever it is aimed at.
+		if _get_cell_distance(target_node) <= VENOM_CONE_HALF_WIDTH.size():
+			_venom_hit(target_node)
+			hit = 1
+	else:
+		for u in _player_units():
+			if not is_instance_valid(u):
+				continue
+			if grid_manager.world_to_grid(u.position) in cells:
+				_venom_hit(u)
+				hit += 1
+	print("[%s] VENOM SPRAY — %d unit(s) in the cone" % [enemy_name, hit])
+	turn_completed.emit()
+	return true
+
+func _venom_hit(u: Node3D) -> void:
+	_apply_player_debuff(u, Debuff.create(Debuff.DebuffType.POISON, VENOM_POISON, 15))
+	if u.has_method("get_stats"):
+		var st = u.get_stats()
+		if st and st.get_total_armor() > 0:
+			_deal_damage_to_player(u, VENOM_ARMOR_DAMAGE, "Venom Spray")
+
+func _cobra_attacker() -> Node3D:
+	## Who the cobra answers: the player, as Cerberus's Roar thorns read it
+	## (TODO(sheet): co-op — a second player's hit is answered on P1).
+	var main = get_parent()
+	if main == null or not ("player" in main) or main.player == null or not is_instance_valid(main.player):
+		return null
+	return main.player
+
+func _cobra_strike_back(dmg: int) -> void:
+	## The standing thorns: the attacker's direct hit costs them `dmg`.
+	var who := _cobra_attacker()
+	if who == null:
+		return
+	var st = who.get_stats() if who.has_method("get_stats") else null
+	if st == null:
+		return
+	st.take_damage(dmg)
+	print("[%s] Thorns bite back for %d (armored)" % [enemy_name, dmg])
+
+func _cobra_poison_attacker(stacks: int) -> void:
+	## A hit that cost it health: the attacker is poisoned.
+	var who := _cobra_attacker()
+	if who == null:
+		return
+	_apply_player_debuff(who, Debuff.create(Debuff.DebuffType.POISON, stacks, 15))
+	print("[%s] Venom in the wound — %d Poison on the attacker" % [enemy_name, stacks])
+
 ## --- Grave Digger ---
 
 func _choose_grave_digger_action() -> void:
@@ -3109,30 +3664,28 @@ func _foes_in_play() -> Array:
 	return out
 
 func _choose_cerberus_action(distance: int) -> void:
-	## Straightforward and vicious: close in and bite. Roar when the thorns
-	## are spent, Swipe for the bleed, and Venom Tail when the last one has
-	## run its course.
+	## The Sync clock only ever carries Swipe, Roar and Move: Bite and Venom
+	## Tail are Async (sheet) and fire on their own clocks whenever they come
+	## up in reach. Close in; Roar when the thorns are spent, else Swipe.
 	if distance > 1:
 		if enemy_thorns <= 0 and randf() < 0.25:
 			chosen_action = _get_action("cerberus_roar")
 		else:
 			chosen_action = _get_action("move")
 		return
-	var roll := randf()
-	if _venom_countdown <= 0 and roll < 0.2:
-		chosen_action = _get_action("venom_tail")
-	elif enemy_thorns <= 0 and roll < 0.35:
+	if enemy_thorns <= 0 and randf() < 0.35:
 		chosen_action = _get_action("cerberus_roar")
-	elif roll < 0.6:
-		chosen_action = _get_action("swipe")
 	else:
-		chosen_action = _get_action("cerberus_bite")
+		chosen_action = _get_action("swipe")
 
 func _try_cerberus_bite(target_node: Node3D) -> bool:
 	## Bite: 25. Below 66% health the second head bites too (25 + 5 Bleed);
 	## below 33% the third head bites as well (25, and the wound feeds him).
 	if is_disarmed or not _in_attack_range(target_node):
-		return _try_move(target_node)
+		# Async: a bite whose tempo comes up out of reach is spent — the Sync
+		# clock does the walking, so no _try_move here.
+		print("[%s] Bite comes up out of reach — spent" % enemy_name)
+		return false
 	var dmg: int = attack_damage + strengthen_stacks
 	_deal_damage_to_player(target_node, dmg, "Bite")
 	if current_health * 3 < max_health * 2:
@@ -3152,7 +3705,9 @@ func _try_venom_tail(target_node: Node3D) -> bool:
 	## Venom Tail: the victim discards 3 random cards and is stunned for 15
 	## tempo; when the stun lifts they gain 2 Vulnerable and 10 tempo of Cuffed.
 	if is_disarmed or not _in_attack_range(target_node):
-		return _try_move(target_node)
+		# Async: spent when it comes up out of reach (see Bite).
+		print("[%s] Venom Tail comes up out of reach — spent" % enemy_name)
+		return false
 	if target_node.has_method("get_deck_manager"):
 		var deck = target_node.get_deck_manager()
 		if deck and "hand" in deck:
@@ -3171,10 +3726,17 @@ func _try_venom_tail(target_node: Node3D) -> bool:
 	return true
 
 func _tick_venom(amount: int) -> void:
+	## The aftermath lands the moment the victim's Stun is actually gone
+	## (sheet: "once the stun is over") — cleansed early counts; the 15-tempo
+	## countdown stays as the upper bound should the stun never have landed.
 	if _venom_countdown <= 0:
 		return
 	_venom_countdown -= amount
-	if _venom_countdown > 0:
+	var stun_gone := false
+	if _venom_victim != null and is_instance_valid(_venom_victim) and _venom_victim.has_method("get_debuff_manager"):
+		var vdm = _venom_victim.get_debuff_manager()
+		stun_gone = vdm != null and not vdm.has_debuff(Debuff.DebuffType.STUN)
+	if _venom_countdown > 0 and not stun_gone:
 		return
 	_venom_countdown = 0
 	if _venom_victim != null and is_instance_valid(_venom_victim):
@@ -3185,7 +3747,7 @@ func _tick_venom(amount: int) -> void:
 
 func _try_cerberus_roar() -> bool:
 	## Roar: 25 armor and 25 thorns.
-	current_armor += 25
+	_gain_armor(25)
 	enemy_thorns += 25
 	update_health_display()
 	_update_status_indicators()
@@ -3329,6 +3891,20 @@ func _sibling_enemies() -> Array:
 			out.append(child)
 	return out
 
+## The closest OTHER living enemy within `range_cells` squares (grid distance),
+## or null. Ties go to whichever the scene lists first. Shock's arc uses it.
+func _nearest_other_enemy(range_cells: int) -> Enemy:
+	var best: Enemy = null
+	var best_dist: int = range_cells + 1
+	for e in _sibling_enemies():
+		if e == self:
+			continue
+		var d: int = _get_cell_distance(e)
+		if d < best_dist:
+			best_dist = d
+			best = e
+	return best
+
 ## --- Forest-act action selection ---
 
 func _choose_sludge_action(distance: int) -> void:
@@ -3366,9 +3942,15 @@ func _choose_beaver_action(distance: int) -> void:
 		chosen_action = _get_action("move")
 
 func _choose_hunter_action(distance: int) -> void:
-	# Hook reaches out to 7 tiles (and starts charged); cleave is the melee swipe.
-	if _hook_charged and distance >= 2 and distance <= 7:
+	# Hook reaches out to 7 tiles: ready at once the first time (sheet:
+	# "starts charged"), then 8 tempo to recharge after each one. Net Throw
+	# whenever it is off its 8-tempo cooldown and the target is close
+	# (sheet: no range given — within 3 squares, TODO(sheet)); cleave is the
+	# melee swipe.
+	if _hook_recharge <= 0 and distance >= 2 and distance <= 7:
 		chosen_action = _get_action("hook")
+	elif _net_cooldown <= 0 and distance <= 3:
+		chosen_action = _get_action("net_throw")
 	elif distance <= 1:
 		chosen_action = _get_action("cleave")
 	else:
@@ -3397,10 +3979,15 @@ func _choose_large_bear_action(distance: int) -> void:
 	else:
 		chosen_action = _get_action("move")
 
-func _choose_werewolf_action(distance: int) -> void:
+func _choose_werewolf_action(distance: int, target: Node3D) -> void:
 	# Ramping rhythm: each consecutive claw on the SAME target arms 1 tempo
-	# faster (5, 4, 3...); switching targets resets the rhythm (see
-	# _try_werewolf_claw). Build a fresh dict so the base action stays 5.
+	# faster (5, 4, 3...); switching targets resets the rhythm. The streak is
+	# dropped HERE, when the claw is armed, so the first claw on a new target
+	# takes the full 5 (sheet) rather than inheriting the old streak's pace
+	# (_try_werewolf_claw restarts the count when it lands). Build a fresh
+	# dict so the base action stays 5.
+	if target != _ww_last_target:
+		_ww_streak = 0
 	if distance <= 1:
 		var cost: int = maxi(1, 5 - _ww_streak)
 		chosen_action = {"name": "werewolf_claw", "tempo_cost": cost}
@@ -3522,6 +4109,8 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 			return _try_seek_nest()
 		"nest_heal":
 			return _try_nest_heal()
+		"infest":
+			return _try_infest(move_target)
 		"dig_walk":
 			return _try_dig_walk()
 		"repair":
@@ -3568,7 +4157,9 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 		"bugbear_strike":
 			return _try_bugbear_strike(move_target)
 		"cleave":
-			return _try_elemental(move_target, attack_damage, "Cleave")
+			return _try_cleave(move_target)
+		"net_throw":
+			return _try_net_throw(move_target)
 		"swoop":
 			return _try_swoop(move_target)
 		"hook":
@@ -3609,7 +4200,7 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 		"breath_swarm":
 			return _try_breath_swarm(move_target)
 		"collector_swing":
-			return _try_elemental(move_target, attack_damage, "Strike")
+			return _try_elemental(move_target, attack_damage + strengthen_stacks, "Strike")
 		"collect_soul":
 			return _try_collect_soul(move_target)
 		"titan_smash":
@@ -3621,7 +4212,7 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 		"web":
 			return _try_crawler_web(move_target)
 		"screech":
-			return _try_elemental(move_target, attack_damage, "Screech")
+			return _try_screech(move_target)
 		# ----- Sewer act -----
 		"sludge_melee":
 			return _try_elemental(move_target, attack_damage, "Sludge")
@@ -3631,6 +4222,8 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 			return _try_pipe_claw(move_target)
 		"croc_bite":
 			return _try_elemental(move_target, attack_damage, "Bite")
+		"venom_spray":
+			return _try_venom_spray(move_target)
 		# ----- Mountains act -----
 		"ice_club":
 			return _try_ice_club(move_target)
@@ -3654,6 +4247,55 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 		# ----- Heavens act -----
 		"chain_lightning":
 			return _try_chain_lightning(move_target)
+		# ----- Mountains act, second pass (the enemy sheet) -----
+		"hoof_punch":
+			return _try_elemental(move_target, attack_damage, "Hoof Punch")
+		"goat_charge":
+			return _try_goat_charge(move_target)
+		"dive_bomb":
+			return _try_dive_bomb(move_target)
+		"eye_scrape":
+			return _try_eye_scrape(move_target)
+		"roc_retreat":
+			return _try_roc_retreat(move_target)
+		"track":
+			return _try_track(move_target)
+		"bite_and_claw":
+			return _try_bite_and_claw(move_target)
+		"sunken_bite":
+			return _try_sunken_bite(move_target)
+		"snowball":
+			return _try_snowball(move_target)
+		"ice_blast":
+			return _try_ice_blast(move_target)
+		# ----- Underworld act, second pass -----
+		"mimic":
+			return _try_mimic(move_target)
+		"demon_cuff":
+			return _try_demon_cuff(move_target)
+		"demon_attack":
+			return _try_elemental(move_target, attack_damage, "Attack")
+		"peck":
+			return _try_elemental(move_target, attack_damage, "Peck")
+		"card_steal":
+			return _try_card_steal(move_target)
+		"fire_web":
+			return _try_fire_web(move_target)
+		"mind_slow":
+			return _try_mind_slow(move_target)
+		"mind_cuff":
+			return _try_mind_cuff(move_target)
+		"spirit_spit":
+			return _try_spirit_spit(move_target)
+		"specter_vanish":
+			return _try_specter_vanish()
+		"mana_drain":
+			return _try_mana_drain(move_target)
+		"damaging_snap":
+			return _try_damaging_snap(move_target)
+		# ----- Heavens act, second pass -----
+		"loves_arrow":
+			return _try_loves_arrow(move_target)
 		_:
 			push_warning("[%s] Unknown action: %s" % [enemy_name, action_name])
 			return false
@@ -3734,7 +4376,7 @@ func _try_sear_wounds() -> bool:
 	var allies = _sibling_enemies()
 	for a in allies:
 		if is_instance_valid(a):
-			a.take_damage(2, false)  # from_player = false: doesn't enrage a Hydra
+			a.take_damage(2, false)  # from_player = false (a Hydra still counts the hit)
 	for a in allies:
 		if is_instance_valid(a) and a.is_alive():
 			a._regenerate(6)
@@ -3770,15 +4412,11 @@ func _apply_player_debuff(player_node: Node3D, debuff) -> void:
 		if dm:
 			dm.apply_debuff(debuff)
 
-func _blind_player(player_node: Node3D, tempo: int) -> void:
-	## Blind: mechanic lives on PlayerStats (Card.execute reads it); the debuff is
-	## applied too so the status icon shows.
-	if player_node.has_method("get_stats"):
-		var st = player_node.get_stats()
-		if st:
-			st.is_blinded = true
-			st.blind_tempo = tempo
-	_apply_player_debuff(player_node, Debuff.create(Debuff.DebuffType.BLIND, Debuff.BLIND_MISS, tempo))
+func _blind_player(player_node: Node3D, stacks: int = 1) -> void:
+	## Blind: the DebuffManager is the source of truth (Card.execute reads it);
+	## the debuff is stack-clocked — `stacks` stacks, 5 tempo each on its own
+	## clock. The old PlayerStats.is_blinded / blind_tempo flags are not set.
+	_apply_player_debuff(player_node, Debuff.create(Debuff.DebuffType.BLIND, stacks))
 	print("[%s] Blinds the target!" % enemy_name)
 
 ## Generic elemental strike: moves into range if needed, otherwise hits for `dmg`
@@ -3845,7 +4483,7 @@ func _try_swoop(target_node: Node3D) -> bool:
 	if not is_disarmed and _in_attack_range(target_node):
 		_deal_damage_to_player(target_node, attack_damage, "Swoop")
 		if randf() < attack_blind_chance:
-			_blind_player(target_node, 5)
+			_blind_player(target_node, 1)  # sheet: "Blind for 5 tempo" = one 5-tempo stack
 		turn_completed.emit()
 		return true
 	return _try_move(target_node)
@@ -3867,6 +4505,65 @@ func _try_hook(target_node: Node3D) -> bool:
 		if "is_moving" in target_node:
 			target_node.is_moving = true
 	print("[%s] Hooks the target and reels them in!" % enemy_name)
+	_hook_recharge = 8  # sheet: Hook's 8 tempo — the next one needs winding again
+	turn_completed.emit()
+	return true
+
+func _try_cleave(target_node: Node3D) -> bool:
+	## Cleave (sheet): 8 damage to the three squares in front of the hunter —
+	## the adjacent cell toward the target and the two beside it, the same row
+	## the Shaman's fire wall uses. Every player-side unit standing there is
+	## hit, summons included. A diagonal target takes the dominant axis as
+	## "front" (ties go to x), which still covers the diagonal cell itself.
+	if is_disarmed or not _in_attack_range(target_node):
+		return _try_move(target_node)
+	if not grid_manager:
+		_deal_damage_to_player(target_node, attack_damage, "Cleave")
+		turn_completed.emit()
+		return true
+	var my_cell: Vector2i = grid_manager.world_to_grid(position)
+	var dir: Vector2i = grid_manager.world_to_grid(target_node.position) - my_cell
+	var step := Vector2i(signi(dir.x), 0) if absi(dir.x) >= absi(dir.y) else Vector2i(0, signi(dir.y))
+	if step == Vector2i.ZERO:
+		step = Vector2i(1, 0)
+	var perp := Vector2i(step.y, step.x)
+	var center := my_cell + step
+	var front: Array = [center, center + perp, center - perp]
+	var hit := 0
+	for u in _player_units():
+		if not is_instance_valid(u):
+			continue
+		if grid_manager.world_to_grid(u.position) in front:
+			_deal_damage_to_player(u, attack_damage, "Cleave")
+			hit += 1
+	if hit == 0:
+		# The target stands in reach but off the three squares (a diagonal
+		# nobody else fills): the swing still lands on them.
+		_deal_damage_to_player(target_node, attack_damage, "Cleave")
+	print("[%s] Cleaves the ground in front — %d caught" % [enemy_name, maxi(1, hit)])
+	turn_completed.emit()
+	return true
+
+func _try_net_throw(target_node: Node3D) -> bool:
+	## Net Throw (sheet): "apply weighted to the target's entire hand" — one
+	## Weighted stack per card held, so every card costs +2 tempo until that
+	## many have been played (the closest the stack-driven debuff comes to a
+	## whole hand). 2 tempo, then 8 tempo of cooldown. The sheet gives no
+	## range: within 3 squares (TODO(sheet)).
+	if is_disarmed or _get_cell_distance(target_node) > 3:
+		return _try_move(target_node)
+	var hand_size := 0
+	if target_node.has_method("get_deck_manager"):
+		var deck = target_node.get_deck_manager()
+		if deck and "hand" in deck:
+			hand_size = deck.hand.size()
+	_net_cooldown = 8
+	if hand_size <= 0:
+		print("[%s] Net Throw finds an empty hand — nothing to weigh down" % enemy_name)
+		turn_completed.emit()
+		return true
+	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.WEIGHTED, hand_size))
+	print("[%s] Net Throw — the whole hand is Weighted (%d)" % [enemy_name, hand_size])
 	turn_completed.emit()
 	return true
 
@@ -4068,11 +4765,12 @@ func _choose_collector_action(distance: int) -> void:
 		chosen_action = _get_action("move")
 
 func _try_collect_soul(target_node: Node3D) -> bool:
-	## 8 damage, and a 'Release Soul' card lands in the hand — it saps the
-	## holder every cycle until played, then is erased.
+	## 8 (+ Strengthen) damage, and a 'Release Soul' card lands in the hand —
+	## it saps and Drains the holder until played (which strengthens every
+	## living collector, see Card._execute_release_soul), then is erased.
 	if is_disarmed or not _in_attack_range(target_node):
 		return _try_move(target_node)
-	_deal_damage_to_player(target_node, attack_damage, "Collect Soul")
+	_deal_damage_to_player(target_node, attack_damage + strengthen_stacks, "Collect Soul")
 	if target_node.has_method("get_deck_manager"):
 		var deck = target_node.get_deck_manager()
 		if deck:
@@ -4209,7 +4907,7 @@ func _try_necro_bolt(target_node: Node3D) -> bool:
 func _try_necro_summon(_target_node: Node3D) -> bool:
 	## Raises undead beside the necromancer. FIRST-PASS PLACEHOLDER roster
 	## (no summon structure has been specced yet): one skeleton or zombie
-	## per cast. After 5 of its summons die, it raises a Bone Dragon.
+	## per cast. What happens when they die is _necro_rise_on_death.
 	if is_silenced:
 		print("[%s] Silenced — the dead stay dead." % enemy_name)
 		turn_completed.emit()
@@ -4227,16 +4925,47 @@ func _necro_spawn(t: EnemyType) -> Enemy:
 	var e: Enemy = main.enemy_spawner.spawn_enemy(t, _free_cell_near(position, 2))
 	if e:
 		_necro_summons_alive += 1
+		e.raised_by = self
 		e.died.connect(_on_necro_summon_died)
 	return e
 
 func _on_necro_summon_died(_e: Enemy) -> void:
 	_necro_summons_alive = maxi(0, _necro_summons_alive - 1)
-	_necro_summon_deaths += 1
-	if _necro_summon_deaths >= 5 and not _necro_dragon_raised and not is_dead:
-		_necro_dragon_raised = true
-		if _necro_spawn(EnemyType.BONE_DRAGON):
-			print("[%s] Five servants fallen — a BONE DRAGON rises!" % enemy_name)
+
+const NECRO_RISE_RANGE := 8            # an ally that falls within this many squares of him rises
+const NECRO_SUMMON_DEATH_DAMAGE := 10  # what every death among his own summons costs him
+
+## The Necromancer's rule (designer, 2026-10-11; replaces the old "five
+## deaths raise a Bone Dragon"): a corpse near a living Necromancer rises
+## as a Skeleton — his own summons wherever they fall, any other ally within
+## 8 squares of him — and every summon of his that dies costs him 10 health.
+## A risen skeleton is neither a summon nor an ally for this rule: it rises
+## no further and its death costs nothing. Called from die() by the corpse.
+func _necro_rise_on_death() -> void:
+	if necro_risen or is_structure or is_training_dummy or is_mimic or enemy_type == EnemyType.RING_WRAITH:
+		return
+	var necro: Enemy = null
+	var echo := false
+	if raised_by != null and is_instance_valid(raised_by) and raised_by.is_alive():
+		necro = raised_by
+		echo = true
+	else:
+		for e in _sibling_enemies():
+			if e != self and e.enemy_type == EnemyType.NECROMANCER and _cells_between(self, e) <= NECRO_RISE_RANGE:
+				necro = e
+				break
+	if necro == null:
+		return
+	var main = get_parent()
+	if main and ("enemy_spawner" in main) and main.enemy_spawner:
+		var sk: Enemy = main.enemy_spawner.spawn_enemy(EnemyType.SKELETON, _free_cell_near(position, 1))
+		if sk:
+			sk.necro_risen = true
+			print("[%s] %s raises the fallen %s as a Skeleton" % [enemy_name, necro.enemy_name, enemy_name])
+	if echo:
+		# The rise comes first: the summon's death and the echo are one moment.
+		print("[%s] A servant falls — %s takes %d" % [enemy_name, necro.enemy_name, NECRO_SUMMON_DEATH_DAMAGE])
+		necro.take_damage(NECRO_SUMMON_DEATH_DAMAGE, false)
 
 ## --- Bone Dragon ---
 
@@ -4307,8 +5036,9 @@ func _ice_troll_strike(target_node: Node3D, dmg: int, label: String) -> void:
 	if not dm:
 		return
 	var was_frozen: bool = dm.has_debuff(Debuff.DebuffType.FROZEN)
-	dm.apply_debuff(Debuff.create(Debuff.DebuffType.COLD, 1, 15))
-	dm.apply_debuff(Debuff.create(Debuff.DebuffType.BRITTLE, 1, 15))
+	# sheet: Cold's timer is 5 tempo; Brittle is a 5-tempo stack on its own clock.
+	dm.apply_debuff(Debuff.create(Debuff.DebuffType.COLD, 1, 5))
+	dm.apply_debuff(Debuff.create(Debuff.DebuffType.BRITTLE, 1))
 	if label != "Clobber" and not was_frozen and dm.has_debuff(Debuff.DebuffType.FROZEN):
 		print("[%s] The freeze leaves them wide open — CLOBBER!" % enemy_name)
 		_ice_troll_strike(target_node, maxi(1, roundi(50 * _pps_dmg)), "Clobber")
@@ -4321,9 +5051,9 @@ func _try_stinger(target_node: Node3D) -> bool:
 	_deal_damage_to_player(target_node, maxi(1, roundi(25 * _pps_dmg)), "Stinger")
 	var dm = target_node.get_debuff_manager() if target_node.has_method("get_debuff_manager") else null
 	if dm:
-		# Clumsy is stack-driven here (burns 1 per card played) — 3 stacks
-		# stands in for the sheet's "3 cycles". Poison: 8 stacks.
-		dm.apply_debuff(Debuff.create(Debuff.DebuffType.CLUMSY, 3, -1))
+		# sheet: Clumsy "for 3 cycles" = 3 stacks of 5 tempo each on Clumsy's
+		# own clock (no card burns it). Poison: 8 stacks.
+		dm.apply_debuff(Debuff.create(Debuff.DebuffType.CLUMSY, 3))
 		dm.apply_debuff(Debuff.create(Debuff.DebuffType.POISON, 8, 15))
 	_stinger_cooldown = 5
 	turn_completed.emit()
@@ -4529,15 +5259,768 @@ func _djinn_zap(u: Node3D) -> void:
 	elif u.has_method("take_damage"):
 		u.take_damage(attack_damage)
 
+#endregion
+#region MOUNTAINS SECOND PASS (the enemy sheet: Weregoat, Roc, Sabertooth, Snow Wraith)
+# ============================================
+# MOUNTAINS SECOND PASS — docs/ENEMY_SHEET.tsv
+# ============================================
+
+## Hits a player-side unit (player or summon) the same way _djinn_zap does.
+func _hit_unit(u: Node3D, dmg: int, label: String, dmg_type: int = -1) -> void:
+	if not is_instance_valid(u):
+		return
+	if u.has_method("get_stats"):
+		_deal_damage_to_player(u, dmg, label, dmg_type)
+	elif u.has_method("take_damage"):
+		u.take_damage(dmg)
+
+## Put the enemy down on a square at once (a leap or a dive, not a walk). Any
+## glide still queued from an earlier move is dropped, or the physics step
+## would slide it back along the old path from the new spot.
+func _land_at(world_pos: Vector3) -> void:
+	if grid_manager:
+		var cell := grid_manager.world_to_grid(world_pos)
+		world_pos = grid_manager.grid_to_world(cell)
+		if dungeon_manager:
+			world_pos.y = dungeon_manager.get_elevation_world_y(cell)
+	position = world_pos
+	target_position = world_pos
+	is_moving = false
+	_move_path.clear()
+
+## Whether a square can be stood on at all: the floor of the dungeon (or the
+## grid, outdoors), with nothing built, parked or raised on it.
+func _can_stand_on(cell: Vector2i) -> bool:
+	if not _cell_is_free(cell) or cell in pillar_tiles:
+		return false
+	if dungeon_manager != null:
+		return dungeon_manager.is_floor(cell)
+	return cell.x >= 0 and cell.y >= 0 and cell.x < grid_manager.grid_width and cell.y < grid_manager.grid_height
+
+## The player-side units standing within `radius` squares of `cell`.
+func _units_within(units: Array, cell: Vector2i, radius: int) -> Array:
+	var out: Array = []
+	for u in units:
+		if is_instance_valid(u) and _manhattan_dist(grid_manager.world_to_grid(u.position), cell) <= radius:
+			out.append(u)
+	return out
+
+# --- Weregoat ---
+
+const GOAT_CHARGE_SQUARES := 8    # sheet: "Charge up to 8 squares"
+const GOAT_CHARGE_DAMAGE := 8     # sheet: 8 damage to all targets in his path
+# TODO(sheet): the sheet gives no length for the landing stun — 3 tempo, the
+# same stun the Giant Beaver's Chomp deals.
+const GOAT_CHARGE_STUN_TEMPO := 3
+
+func _choose_weregoat_action(distance: int) -> void:
+	if distance <= 1:
+		chosen_action = _get_action("hoof_punch")
+	elif distance <= GOAT_CHARGE_SQUARES:
+		chosen_action = _get_action("goat_charge")
+	else:
+		chosen_action = _get_action("move")
+
+## Charge (sheet): run up to 8 squares along the straight line that crosses
+## the most of the player's units (any of the 8 directions); 8 damage to
+## everything in the path. The goat pulls up on the first free square past
+## the last unit it ran through, so the landing stun (everything within 1
+## square) catches them. With nobody on any line it charges the route to its
+## target instead and lands beside it — stun only, nothing was in the path.
+func _try_goat_charge(target_node: Node3D) -> bool:
+	if is_disarmed or rooted_tempo > 0:
+		return _try_move(target_node)
+	if not grid_manager:
+		return _try_elemental(target_node, GOAT_CHARGE_DAMAGE, "Charge")
+	var my_cell := grid_manager.world_to_grid(position)
+	var units: Array = []
+	var unit_at := {}   # cell -> the player-side unit standing on it
+	for u in _player_units():
+		if is_instance_valid(u):
+			units.append(u)
+			unit_at[grid_manager.world_to_grid(u.position)] = u
+	var best := {}
+	var best_score := -1
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
+			Vector2i(1, 1), Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1)]:
+		var lane := _goat_charge_lane(my_cell, d, unit_at)
+		if lane.is_empty():
+			continue
+		# Most units in the path first; among equal lanes the landing that
+		# stuns the most, then the one that catches the goat's own target.
+		var lane_hits: Array = lane["hits"]
+		var score: int = lane_hits.size() * 100 + _units_within(units, lane["land"], 1).size() * 10
+		if target_node in lane_hits:
+			score += 1
+		if score > best_score:
+			best_score = score
+			best = lane
+	var hits: Array = best.get("hits", [])
+	var land_cell: Vector2i = best.get("land", my_cell)
+	if hits.is_empty() and best_score <= 0:
+		# No line reaches anyone: charge the route to the target and pull up
+		# beside it (or just walk if even that is out of reach).
+		var path := _build_route_path(position, grid_manager.world_to_grid(target_node.position), GOAT_CHARGE_SQUARES)
+		if path.is_empty():
+			return _try_move(target_node)
+		land_cell = grid_manager.world_to_grid(path[path.size() - 1])
+	# The blows land from where the run starts: the lane is clear of walls by
+	# construction, so nothing is hit through one.
+	for u in hits:
+		_hit_unit(u, GOAT_CHARGE_DAMAGE, "Charge")
+	_land_at(grid_manager.grid_to_world(land_cell))
+	var stunned := 0
+	for u in _units_within(units, land_cell, 1):
+		_apply_player_debuff(u, Debuff.create(Debuff.DebuffType.STUN, 0, GOAT_CHARGE_STUN_TEMPO))
+		stunned += 1
+	print("[%s] CHARGE — %d unit(s) trampled, %d stunned where it lands" % [enemy_name, hits.size(), stunned])
+	turn_completed.emit()
+	return true
+
+## One straight charge lane from `from` along `dir`, up to 8 squares. It stops
+## short of walls, other enemies, pillars and the edge of the floor (and never
+## cuts a wall corner on a diagonal); player-side units are run through, not
+## around. Returns {"hits": [units in the path], "land": the square the goat
+## pulls up on}, or {} when it could not take a single step that way. A unit
+## with a wall right behind it is still hit — the goat slams into it and pulls
+## up on the square before.
+func _goat_charge_lane(from: Vector2i, dir: Vector2i, unit_at: Dictionary) -> Dictionary:
+	var hits: Array = []
+	var land := from
+	var landed := false
+	var pulled_up := false   # the landing past the latest victim is already set
+	for i in range(1, GOAT_CHARGE_SQUARES + 1):
+		var c: Vector2i = from + dir * i
+		if unit_at.has(c):
+			hits.append(unit_at[c])
+			pulled_up = false
+			continue
+		if not _can_stand_on(c):
+			break
+		if dungeon_manager != null and not dungeon_manager.has_line_of_sight(from, c):
+			break
+		if hits.is_empty() or not pulled_up:
+			land = c
+			landed = true
+			pulled_up = true
+	if not landed:
+		return {}
+	return {"hits": hits, "land": land}
+
+# --- Roc ---
+
+const ROC_DIVE_SQUARES := 6       # sheet: "attack from up to 6 paces away"
+# TODO(sheet): "move away until dive bomb is once again active" — the sheet
+# gives no length for that wait; one cycle (5 tempo), the dive's own tempo.
+const ROC_DIVE_COOLDOWN := 5
+const ROC_SCRAPE_AFTER := 3       # sheet: "in melee range for more than 3 tempo"
+
+var _dive_cooldown: int = 0        # Roc: raw tempo until Dive Bomb is ready again
+var _roc_melee_tempo: int = 0      # Roc: consecutive tempo a player unit has stood in melee reach
+
+## Dive when it is ready and the target is in reach; every other tempo the
+## Roc backs off (it has no "move": the retreat IS its movement, so the Sync
+## clock is never left without a choice).
+func _choose_roc_action(distance: int) -> void:
+	if distance <= ROC_DIVE_SQUARES and _dive_cooldown <= 0 and not is_disarmed:
+		chosen_action = _get_action("dive_bomb")
+	else:
+		chosen_action = _get_action("roc_retreat")
+
+## Dive Bomb (sheet): attack from up to 6 squares; the Roc ends beside the
+## player. Disarmed, out of reach, or with no free square beside the target it
+## backs off instead; Rooted it cannot fly at all.
+## TODO(sheet): the sheet gives no damage — first-pass attack_damage (8).
+func _try_dive_bomb(target_node: Node3D) -> bool:
+	if is_disarmed or not is_instance_valid(target_node) or _cells_between(self, target_node) > ROC_DIVE_SQUARES:
+		return _try_roc_retreat(target_node)
+	if _cells_between(self, target_node) > 1:
+		if rooted_tempo > 0:
+			return false
+		var perch := _free_cell_near(target_node.position, 1)
+		if grid_manager and grid_manager.world_to_grid(perch) == grid_manager.world_to_grid(target_node.position):
+			return _try_roc_retreat(target_node)  # nowhere to land beside them
+		_land_at(perch)
+	_deal_damage_to_player(target_node, attack_damage, "Dive Bomb")
+	_dive_cooldown = ROC_DIVE_COOLDOWN
+	turn_completed.emit()
+	return true
+
+## Eye Scrape (sheet, Async 3): only lands if a player unit has been in melee
+## reach for more than 3 tempo — 2 Weakened on whoever is crowding it (the
+## target if it is the one in reach, else any unit beside it). _roc_melee_tempo
+## is ticked in on_tempo_advanced.
+func _try_eye_scrape(target_node: Node3D) -> bool:
+	if is_disarmed or _roc_melee_tempo <= ROC_SCRAPE_AFTER:
+		return false
+	var victim: Node3D = null
+	if is_instance_valid(target_node) and _in_attack_range(target_node):
+		victim = target_node
+	else:
+		for u in _player_units():
+			if is_instance_valid(u) and _cells_between(self, u) <= 1:
+				victim = u
+				break
+	if victim == null:
+		return false
+	_apply_player_debuff(victim, Debuff.create(Debuff.DebuffType.WEAKENED, 2, -1))
+	print("[%s] Eye Scrape! 2 Weakened" % enemy_name)
+	turn_completed.emit()
+	return true
+
+## The Roc always moves AWAY from the player. Only a Root pins it; cornered
+## (no square is further off — every step changes the distance by one, so
+## there is no sidestep that keeps it) it holds where it is, and a player who
+## crowds it there meets Eye Scrape. Returns false when it could not move,
+## which the Sync clock treats as a spent 1-tempo action: it tries again next
+## tempo rather than idling on a stale choice.
+func _try_roc_retreat(target_node: Node3D) -> bool:
+	if rooted_tempo > 0 or not is_instance_valid(target_node):
+		return false
+	var tiles := maxi(1, int(move_distance))
+	if not grid_manager:
+		_dash_away_from(target_node.position, tiles)
+		return true
+	var threat := grid_manager.world_to_grid(target_node.position)
+	return _start_path(_build_greedy_path(position, threat, tiles, true))
+
+# --- Sabertooth Tiger ---
+
+var _track_target: Node3D = null   # Sabertooth: the unit Track marked (it must hunt this one)
+const SABERTOOTH_CRIT_CHANCE := 0.35
+
+func _choose_sabertooth_action(distance: int) -> void:
+	# Hunting its Track quarry: measure to it, not to the spawner's target
+	# (unless a Taunt is pulling it elsewhere — see _move_target_for).
+	var quarry := _track_quarry()
+	if quarry != null and not (taunt_target and is_instance_valid(taunt_target)):
+		distance = _get_cell_distance(quarry)
+	if distance <= 1:
+		chosen_action = _get_action("bite_and_claw")
+	else:
+		chosen_action = _get_action("move")
+
+## The unit Track marked, while it still stands. The lock clears the moment
+## that unit dies, is freed or becomes untargetable, and the tiger goes back
+## to whoever the spawner points it at.
+func _track_quarry() -> Node3D:
+	if _track_target == null:
+		return null
+	if not is_instance_valid(_track_target) or _track_target.get("is_dead") == true \
+			or _track_target.get("untargetable") == true or _unit_health(_track_target) <= 0:
+		_track_target = null
+		return null
+	return _track_target
+
+## Track (sheet, Async 10): +15 Strengthen against the nearest unit, which the
+## tiger must then attack — _track_quarry() steers its moves and strikes from
+## here on (see _move_target_for).
+func _try_track(target_node: Node3D) -> bool:
+	var nearest: Node3D = null
+	var best := 999
+	for u in _player_units():
+		var d := _cells_between(self, u)
+		if d < best:
+			best = d
+			nearest = u
+	if nearest == null and is_instance_valid(target_node):
+		nearest = target_node  # nothing else in sight: the one it was given
+	if nearest == null:
+		return false
+	_track_target = nearest
+	strengthen_stacks += 15
+	print("[%s] Track: +15 Strengthen against %s" % [enemy_name, nearest.name])
+	_update_status_indicators()
+	return true
+
+## A sabertooth strike: 35% crit for 1.5x and 6 Bleed; spends the Track
+## Strengthen on the first blow that lands.
+func _sabertooth_strike(target_node: Node3D, dmg: int, label: String) -> void:
+	var total := dmg + strengthen_stacks
+	strengthen_stacks = 0
+	if randf() < SABERTOOTH_CRIT_CHANCE:
+		total = ceili(total * 1.5)
+		print("[%s] %s CRITS!" % [enemy_name, label])
+		_deal_damage_to_player(target_node, total, label)
+		_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.BLEED, 6, 15))
+	else:
+		_deal_damage_to_player(target_node, total, label)
+	_update_status_indicators()
+
+## Bite and Claw (sheet, 5): bite 6 then claw 3 — two separate attacks, each
+## with its own crit roll and its own Strengthen.
+func _try_bite_and_claw(target_node: Node3D) -> bool:
+	if is_disarmed or not _in_attack_range(target_node):
+		return _try_move(target_node)
+	_sabertooth_strike(target_node, 6, "Bite")
+	if is_instance_valid(target_node):
+		_sabertooth_strike(target_node, 3, "Claw")
+	turn_completed.emit()
+	return true
+
+## Sunken Bite (sheet, Async 15): 10 damage + 8 Bleed.
+func _try_sunken_bite(target_node: Node3D) -> bool:
+	if is_disarmed or not _in_attack_range(target_node):
+		return false
+	_sabertooth_strike(target_node, 10, "Sunken Bite")
+	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.BLEED, 8, 15))
+	turn_completed.emit()
+	return true
+
+# --- Snow Wraith ---
+
+func _choose_snow_wraith_action(distance: int) -> void:
+	if is_silenced or distance > int(attack_range):
+		chosen_action = _get_action("move")
+		return
+	# Snowball first (it is the slow + frost opener); Ice Blast once they are slowed.
+	var slowed := false
+	if _last_seen_target and _last_seen_target.has_method("get_debuff_manager"):
+		var dm = _last_seen_target.get_debuff_manager()
+		slowed = dm != null and dm.is_slowed()
+	chosen_action = _get_action("ice_blast") if slowed else _get_action("snowball")
+
+## Snowball (sheet, 8): no damage; Slowed for 3 tempo + 2 Cold.
+func _try_snowball(target_node: Node3D) -> bool:
+	if is_silenced or not _in_attack_range(target_node):
+		return _try_move(target_node)
+	_apply_player_debuff(target_node, Debuff.create_timed(Debuff.DebuffType.SLOWED, 3, enemy_name))
+	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.COLD, 2, 5))  # sheet: Cold's timer is 5 tempo
+	print("[%s] Snowball: Slowed 3 tempo + 2 Cold" % enemy_name)
+	turn_completed.emit()
+	return true
+
+## Ice Blast (sheet): 5 ice damage, +3 if the target has armor; Slowed 3 tempo.
+func _try_ice_blast(target_node: Node3D) -> bool:
+	if is_silenced or not _in_attack_range(target_node):
+		return _try_move(target_node)
+	var dmg := attack_damage
+	if target_node.has_method("get_stats"):
+		var st = target_node.get_stats()
+		if st and st.has_method("get_total_armor") and st.get_total_armor() > 0:
+			dmg += 3
+	_deal_damage_to_player(target_node, dmg, "Ice Blast", DamageTypes.Type.ICE)
+	_apply_player_debuff(target_node, Debuff.create_timed(Debuff.DebuffType.SLOWED, 3, enemy_name))
+	turn_completed.emit()
+	return true
+
+#endregion
+#region UNDERWORLD & HEAVENS SECOND PASS (Demon, Ash Harpy, Magma Spider, Mind Eater, Specter, Succubus, Cherub)
+# ============================================
+# UNDERWORLD & HEAVENS SECOND PASS — docs/ENEMY_SHEET.tsv
+# ============================================
+
+# --- Hidden: an enemy the player cannot point at ---
+# The Specter's Invisible, the Cherub after Love's Arrow and the Screecher
+# before it strikes all share this. While hidden the player's own aimed blows
+# (a clicked card, the auto attack, a gauntlet skill, a summon's pick) find
+# nothing; poison, burn and the rest of the clock damage still tick, and an
+# area effect that sweeps the enemy's square still lands — the sheet is
+# explicit about the Cherub ("can still take poison AOE damage etc").
+
+var hidden_tempo: int = 0           # raw tempo left unseen; -1 = until something reveals it
+var _area_pass_frame: int = -1      # the frame an area sweep last caught this enemy (see note_area_hit)
+var _screecher_visible_tempo: int = 0   # Screecher: how long its Screech keeps it in view
+
+func is_hidden() -> bool:
+	return not is_dead and hidden_tempo != 0
+
+## tempo > 0: unseen for that many raw tempo; -1: until revealed; 0: seen now.
+func set_hidden(tempo: int) -> void:
+	var was := is_hidden()
+	hidden_tempo = tempo
+	if is_hidden() and not was:
+		print("[%s] Fades from sight%s" % [enemy_name, (" (%d tempo)" % tempo) if tempo > 0 else ""])
+	elif was and not is_hidden():
+		print("[%s] Visible again" % enemy_name)
+	_refresh_hidden_visual()
+	_update_status_indicators()
+
+## Area sweeps (radius / line / cone queries) call this on every hidden enemy
+## they return, so the damage that follows in the same frame is let through as
+## area damage rather than refused as a direct blow.
+func note_area_hit() -> void:
+	_area_pass_frame = Engine.get_process_frames()
+
+func _area_hit_this_frame() -> bool:
+	return _area_pass_frame == Engine.get_process_frames()
+
+## The figure goes translucent while unseen (the Rat King's nest greys its
+## sprite the same way): the sprite's alpha for battler sprites, the
+## geometry's transparency for the procedural figures and the coloured box.
+func _refresh_hidden_visual() -> void:
+	var alpha := 0.35 if is_hidden() else 1.0
+	if _enemy_figure and _enemy_figure.has_method("set_ghost_alpha"):
+		_enemy_figure.set_ghost_alpha(alpha)
+	elif _enemy_figure:
+		_set_geometry_transparency(_enemy_figure, 1.0 - alpha)
+	elif mesh:
+		mesh.transparency = 1.0 - alpha
+
+func _set_geometry_transparency(node: Node, t: float) -> void:
+	for child in node.get_children():
+		if child is GeometryInstance3D:
+			child.transparency = t
+		_set_geometry_transparency(child, t)
+
+func _tick_hidden(amount: int) -> void:
+	if hidden_tempo > 0:
+		hidden_tempo -= amount
+		if hidden_tempo <= 0:
+			hidden_tempo = 0
+			print("[%s] Visible again" % enemy_name)
+			_refresh_hidden_visual()
+	if _screecher_visible_tempo > 0:
+		_screecher_visible_tempo -= amount
+		if _screecher_visible_tempo <= 0:
+			_screecher_visible_tempo = 0
+			_screecher_fade()
+
+# --- Screecher (graveyard, but it needs the same system) ---
+# sheet: "Invisible until it strikes"; Screech "becomes visible for 3 tempo";
+# "Drift: 4 sp / 2 tempo invisible, 2 sp / 5 tempo visible".
+
+const SCREECHER_SEEN_TEMPO: int = 3
+const SCREECHER_DRIFT_UNSEEN: float = 4.0   # spaces, on the table's 2-tempo move
+const SCREECHER_DRIFT_SEEN: float = 2.0     # spaces, and the move costs 5 (see _effective_cost)
+
+func _try_screech(target_node: Node3D) -> bool:
+	if is_disarmed or not _in_attack_range(target_node):
+		return _try_move(target_node)
+	_deal_damage_to_player(target_node, attack_damage, "Screech")
+	_screecher_show()
+	turn_completed.emit()
+	return true
+
+## The strike gives it away: seen for 3 tempo, drifting 2 spaces at a time.
+func _screecher_show() -> void:
+	_screecher_visible_tempo = SCREECHER_SEEN_TEMPO
+	move_distance = SCREECHER_DRIFT_SEEN
+	set_hidden(0)
+
+## ...then it is gone again, back to the fast unseen drift.
+func _screecher_fade() -> void:
+	move_distance = SCREECHER_DRIFT_UNSEEN
+	set_hidden(-1)
+
+# --- Demon ---
+
+var is_mimic: bool = false          # a Demon's Mimic: looks like its original, dies to any damage
+var mimic_of: Enemy = null          # the demon this mimic copies
+var _mimics: Array = []             # the living mimics this demon has conjured (sheet: at most 2)
+
+const MIMIC_CAP: int = 2
+# Everything the sheet means by "all health, debuffs, buffs etc carry over":
+# the status counters a mimic copies from its original the moment it appears.
+const MIMIC_COPIED_FIELDS: Array[String] = [
+	"poison_stacks", "burn_stacks", "burn_damage_next", "cold_stacks", "cold_damage_next",
+	"shock_stacks", "bleed_stacks", "vulnerable_stacks", "weaken_stacks", "slow_stacks",
+	"choke_dot_stacks", "choke_dot_damage", "stun_tempo", "is_stunned", "frozen_tempo", "is_frozen",
+	"disarmed_tempo", "is_disarmed", "disarmed_attacks", "marked_tempo", "is_marked",
+	"silenced_tempo", "is_silenced", "cursed_tempo", "rooted_tempo", "tripped_tempo",
+	"polymorph_tempo", "taunt_tempo", "taunt_target", "fear_tempo", "fear_source",
+	"wear_down_attacks", "attack_reduction", "narashimha_tempo", "phys_defense_groups",
+	"slow_clock", "vulnerable_clock", "weaken_clock",
+	"strengthen_stacks", "enemy_thorns", "zone_weakened",
+	"cupid_golden", "cupid_lead", "is_exposed", "exposed_cooldown_tempo", "has_been_damaged",
+]
+
+func _choose_demon_action(distance: int) -> void:
+	if distance <= 1:
+		chosen_action = _get_action("demon_attack")
+	else:
+		chosen_action = _get_action("move")
+
+## Mimic (sheet, Async 8): a duplicate that looks identical (health shown,
+## buffs and debuffs copied) and hits as hard; 1 real health; at most 2 per
+## demon. A mimic never mimics itself, and grants no XP or loot.
+func _try_mimic(_target_node: Node3D) -> bool:
+	if is_mimic or is_silenced:
+		return false
+	_prune_mimics()
+	if _mimics.size() >= MIMIC_CAP:
+		return false  # both copies still stand — the clock is spent
+	var main = get_parent()
+	if not main or not ("enemy_spawner" in main) or not main.enemy_spawner:
+		return false
+	var m: Enemy = main.enemy_spawner.spawn_enemy(EnemyType.DEMON, _free_cell_near(position, 2))
+	if m == null:
+		return false
+	m.become_mimic_of(self)
+	_mimics.append(m)
+	print("[%s] Mimic: a second demon steps out of the first (%d of %d)" % [enemy_name, _mimics.size(), MIMIC_CAP])
+	turn_completed.emit()
+	return true
+
+func _prune_mimics() -> void:
+	_mimics = _mimics.filter(func(m): return m != null and is_instance_valid(m) and m.is_alive())
+
+## Turn this freshly spawned demon into a copy of `src`: same numbers on the
+## bar, same badges, same damage — and nothing behind them.
+func become_mimic_of(src: Enemy) -> void:
+	is_mimic = true
+	mimic_of = src
+	xp_reward = 0                 # no farming the copies (loot is refused in the spawner too)
+	attack_damage = src.attack_damage
+	for f in MIMIC_COPIED_FIELDS:
+		var v = src.get(f)
+		# The physical-defense groups are dictionaries in an array: the mimic
+		# needs its own clocks, not a view of the original's.
+		set(f, v.duplicate(true) if v is Array else v)
+	_mirror_health()
+	_update_status_indicators()
+
+## The bar and the hover numbers read the original's health; the mimic's own
+## pool is irrelevant because any damage at all kills it (take_damage).
+func _mirror_health() -> void:
+	if mimic_of == null or not is_instance_valid(mimic_of):
+		return
+	max_health = mimic_of.max_health
+	current_health = mimic_of.current_health
+	max_armor = mimic_of.max_armor
+	current_armor = mimic_of.current_armor
+	# The original re-armoring is the mimic re-armoring.
+	_clear_exposed_if_armored()
+	update_health_display()
+	_update_armor_bar()
+
+## Cuff (sheet, Async 8): the target cannot draw for 15 tempo.
+func _try_demon_cuff(target_node: Node3D) -> bool:
+	if is_silenced or not _in_attack_range(target_node):
+		return false
+	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.CUFFED, 0, 15))
+	print("[%s] Cuff: no draws for 15 tempo" % enemy_name)
+	turn_completed.emit()
+	return true
+
+# --- Ash Harpy ---
+
+var _harpy_steal_used: bool = false   # Ash Harpy: Card Steal fires once per harpy
+var _stolen_card: Card = null         # the card it carries until it dies
+var _stolen_from: Node3D = null       # whose hand it came from
+
+func _choose_harpy_action(distance: int) -> void:
+	if not _harpy_steal_used and distance <= 4:
+		chosen_action = _get_action("card_steal")
+	elif distance <= 1:
+		chosen_action = _get_action("peck")
+	else:
+		chosen_action = _get_action("move")
+
+## Card Steal (sheet, 8): spots a card from 4 squares, flies into melee and
+## takes one random card from the hand; the card returns when the harpy dies.
+## The card is lifted, not discarded: no discard count, no discard triggers.
+## sheet: with nothing in the hand to take the harpy pecks instead and keeps
+## its one steal for later.
+func _try_card_steal(target_node: Node3D) -> bool:
+	if _harpy_steal_used:
+		return false
+	if _cells_between(self, target_node) > 1:
+		return _try_move(target_node)
+	var dm = target_node.get_deck_manager() if target_node.has_method("get_deck_manager") else null
+	if dm == null or dm.hand.is_empty():
+		return _try_elemental(target_node, attack_damage, "Peck")
+	var idx: int = randi() % dm.hand.size()
+	var card: Card = dm.hand[idx]
+	dm.hand.remove_at(idx)
+	# Hexes and locks riding the stolen card end with it (the hand-change
+	# sweep, DeckManager.assign_hexed_locked_cards); the rest stay on theirs.
+	dm.hand_updated.emit()
+	_stolen_card = card
+	_stolen_from = target_node
+	_harpy_steal_used = true
+	print("[%s] Card Steal: snatches %s from the hand" % [enemy_name, card.card_name])
+	turn_completed.emit()
+	return true
+
+## Death, or being swept away without dying (a level change, a despawn):
+## the card comes home either way, past the hand cap if it must — like a
+## queued card returning when its target dies.
+func _harpy_return_card() -> void:
+	if _stolen_card == null:
+		return
+	var card: Card = _stolen_card
+	_stolen_card = null
+	var who := _stolen_from
+	_stolen_from = null
+	if who == null or not is_instance_valid(who) or not who.has_method("get_deck_manager"):
+		return
+	var dm = who.get_deck_manager()
+	if dm == null or not is_instance_valid(dm):
+		return
+	dm.add_card_to_hand(card, true)
+	print("[%s] The stolen %s returns to the hand" % [enemy_name, card.card_name])
+
+func _exit_tree() -> void:
+	_harpy_return_card()
+
+# --- Magma Spider ---
+
+func _choose_magma_spider_action(_distance: int) -> void:
+	chosen_action = _get_action("fire_web")
+
+## Fire Web (sheet): a web of fire on the ground around the spider — inside it
+## the player is Slowed and takes 1 fire damage every 3 tempo. The zone itself
+## lives in main (register_fire_web, beside the Territorial Mark zones).
+## sheet: no size or duration given — the 3x3 around the spider, lasting until
+## the spider dies; one web per spider, a recast lays it afresh.
+func _try_fire_web(_target_node: Node3D) -> bool:
+	if is_silenced or grid_manager == null:
+		return false
+	var main = get_parent()
+	if main == null or not main.has_method("register_fire_web"):
+		return false
+	var centre: Vector2i = grid_manager.world_to_grid(position)
+	var cells: Array = []
+	for dx in range(-1, 2):
+		for dz in range(-1, 2):
+			cells.append(centre + Vector2i(dx, dz))
+	main.register_fire_web(self, cells)
+	print("[%s] Fire Web: the ground around it catches" % enemy_name)
+	turn_completed.emit()
+	return true
+
+# --- Mind Eater ---
+
+const MIND_SLOW_SURCHARGE: int = 20
+
+func _choose_mind_eater_action(distance: int) -> void:
+	if is_silenced or distance > int(attack_range):
+		chosen_action = {}
+		return
+	chosen_action = _get_action("mind_slow") if randf() < 0.6 else _get_action("mind_cuff")
+
+## Mind Slow (sheet, 10): every card in the hand costs 20 more mana. One Hexed
+## per card (hexes never merge, each claims a card of its own) with no clock —
+## the surcharge lifts only when that card is played.
+func _try_mind_slow(target_node: Node3D) -> bool:
+	if is_silenced or not _in_attack_range(target_node):
+		return false
+	var dm = target_node.get_deck_manager() if target_node.has_method("get_deck_manager") else null
+	var pdm = target_node.get_debuff_manager() if target_node.has_method("get_debuff_manager") else null
+	if dm == null or pdm == null:
+		return false
+	var n: int = dm.hand.size()
+	for i in range(n):
+		var hex: Debuff = Debuff.create(Debuff.DebuffType.HEXED, MIND_SLOW_SURCHARGE, -1)
+		hex.source_name = enemy_name
+		pdm.apply_debuff(hex)
+	# Each hex claims a card no hex holds yet, so n hexes cover the n cards.
+	dm.assign_hexed_locked_cards(pdm)
+	pdm.debuffs_changed.emit()
+	print("[%s] Mind Slow: %d cards in hand cost +%d mana until played" % [enemy_name, n, MIND_SLOW_SURCHARGE])
+	turn_completed.emit()
+	return true
+
+## Manipulate Mind Space (sheet, 8): Cuffed for 15 tempo.
+func _try_mind_cuff(target_node: Node3D) -> bool:
+	if is_silenced or not _in_attack_range(target_node):
+		return false
+	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.CUFFED, 0, 15))
+	print("[%s] Manipulate Mind Space: no draws for 15 tempo" % enemy_name)
+	turn_completed.emit()
+	return true
+
+# --- Specter ---
+
+const SPECTER_VANISH_TEMPO: int = 3
+
+func _choose_specter_action(distance: int) -> void:
+	_choose_ranged_action(distance, "spirit_spit")
+
+## Spirit Spit (sheet, 5): 2 damage at range 2.
+func _try_spirit_spit(target_node: Node3D) -> bool:
+	if is_silenced:
+		return _try_move(target_node)
+	return _try_elemental(target_node, attack_damage, "Spirit Spit")
+
+## Invisible (sheet, Async 8): fades out for 3 tempo — cannot be targeted.
+func _try_specter_vanish() -> bool:
+	if is_hidden():
+		return false  # already unseen; the clock is spent
+	set_hidden(SPECTER_VANISH_TEMPO)
+	return true
+
+# --- Succubus ---
+
+func _choose_succubus_action(distance: int) -> void:
+	if is_silenced or distance > int(attack_range):
+		chosen_action = _get_action("move")
+		return
+	chosen_action = _get_action("mana_drain") if randf() < 0.5 else _get_action("damaging_snap")
+
+## Mana Drain (sheet, 10): drains 10 mana from the target's pool.
+func _try_mana_drain(target_node: Node3D) -> bool:
+	if is_silenced or not _in_attack_range(target_node):
+		return _try_move(target_node)
+	if target_node.has_method("get_stats"):
+		var st = target_node.get_stats()
+		if st:
+			st.current_mana = maxf(0.0, st.current_mana - 10.0)
+			st.mana_changed.emit(st.current_mana, st.max_mana)
+			if st.current_mana <= 0.0 and st.maintained_mana > 0 and st.has_method("_break_maintained_cards"):
+				st._break_maintained_cards()
+			print("[%s] Mana Drain: -10 mana" % enemy_name)
+	turn_completed.emit()
+	return true
+
+## Damaging Snap (sheet, 6): damage = missing mana / 20, + 4.
+func _try_damaging_snap(target_node: Node3D) -> bool:
+	if is_silenced or not _in_attack_range(target_node):
+		return _try_move(target_node)
+	var dmg := 4
+	if target_node.has_method("get_stats"):
+		var st = target_node.get_stats()
+		if st:
+			dmg += int(floor(maxf(0.0, st.max_mana - st.current_mana) / 20.0))
+	_deal_damage_to_player(target_node, dmg, "Damaging Snap")
+	turn_completed.emit()
+	return true
+
+# --- Cherub ---
+
+const CHERUB_HIDDEN_TEMPO: int = 5
+
+var _cherub_first_arrow: bool = true   # Cherub: the first arrow flies the moment the player enters its reach
+
+func _choose_cherub_action(distance: int) -> void:
+	_choose_ranged_action(distance, "loves_arrow")
+
+## sheet: "First time player enters Cherubs 4 range, from there it is a 10
+## tempo attack". Checked on every tempo advance (entering its reach costs
+## the player tempo, so the moment they arrive is a tempo tick): the first
+## arrow flies at once and the 10-tempo clock starts fresh behind it.
+func _cherub_watch() -> void:
+	if not _cherub_first_arrow or is_stunned or is_frozen or tree_tempo > 0 or is_silenced:
+		return
+	for u in _player_units():
+		if is_instance_valid(u) and _cells_between(self, u) <= int(attack_range):
+			print("[%s] Love's Arrow flies the moment you come within reach" % enemy_name)
+			_try_loves_arrow(u)
+			action_tempo_counter = 0
+			chosen_action = {}
+			return
+
+## Love's Arrow (sheet): 2 damage; for 5 tempo the Cherub cannot be attacked
+## directly (poison, burn and area damage still land).
+func _try_loves_arrow(target_node: Node3D) -> bool:
+	if is_silenced or not _in_attack_range(target_node):
+		return _try_move(target_node)
+	_deal_damage_to_player(target_node, attack_damage, "Love's Arrow")
+	_cherub_first_arrow = false
+	set_hidden(CHERUB_HIDDEN_TEMPO)
+	turn_completed.emit()
+	return true
+
+#endregion
+#region BASIC ACTIONS
+
 func _try_attack(target_node: Node3D) -> bool:
 	if is_disarmed:
 		print("[%s] Disarmed - cannot attack!" % enemy_name)
 		return _try_move(target_node)
-	# Switch Kick: disarmed for a number of ATTACKS, not a duration.
-	if disarmed_attacks > 0:
-		disarmed_attacks -= 1
-		print("[%s] Disarmed for this attack! (%d left)" % [enemy_name, disarmed_attacks])
-		return _try_move(target_node)
+	# (Switch Kick's attack-skip counter is gone: "disarm_attacks" now lays
+	# 5 tempo of ordinary Disarm per stack, caught by is_disarmed above.)
 	if _in_attack_range(target_node):
 		_deal_damage_to_player(target_node, attack_damage, "Attack")
 		turn_completed.emit()
@@ -4673,14 +6156,24 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 		_enemy_figure.set_facing_from_velocity(Vector3(face_diff.x, 0, face_diff.z))
 
 	var effective_damage = max(0, base_damage - attack_reduction)
+	# Wear Down (sheet: "lasts 2 enemy attacks"): every swing this enemy makes
+	# spends one charge; at zero the reduction clears. The charge is spent on
+	# the swing that still benefits from the reduction above.
+	if wear_down_attacks > 0:
+		wear_down_attacks -= 1
+		if wear_down_attacks <= 0:
+			attack_reduction = 0
+			print("[%s] Wear Down worn off, attack restored" % enemy_name)
+		else:
+			print("[%s] Wear Down: %d attack(s) left" % [enemy_name, wear_down_attacks])
+		_update_status_indicators()
 	# Weaken (Fan Save): -30% damage dealt (plus the player's Weaken Amp sphere
-	# nodes), one stack consumed per attack.
+	# nodes) on every attack while a stack remains; the stacks fall on Weaken's
+	# own clock, never with the attack.
 	var weaken_percent: float = 30.0 + _player_sphere_amp("sphere_weaken_amp")
 	if weaken_stacks > 0:
 		effective_damage = floori(effective_damage * maxf(0.0, 1.0 - weaken_percent / 100.0))
-		weaken_stacks -= 1
-		print("[%s] Weakened! -%d%% damage (%d stacks left)" % [enemy_name, int(weaken_percent), weaken_stacks])
-		_update_status_indicators()
+		print("[%s] Weakened! -%d%% damage (%d stacks)" % [enemy_name, int(weaken_percent), weaken_stacks])
 	elif zone_weakened:
 		# Territorial Mark: the same reduction, but persistent while inside the
 		# zone — no stack to consume, it lifts the moment the enemy leaves.
@@ -5302,8 +6795,24 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		if _enemy_figure and _enemy_figure.has_method("flash"):
 			_enemy_figure.flash(Color(0.9, 0.3, 0.3))
 		return false
+	# Unseen (Specter's Invisible, the Cherub after Love's Arrow, the Screecher
+	# before it strikes): the player's own aimed blow finds nothing. Clock
+	# damage (from_player false) and an area sweep that caught this square this
+	# frame (note_area_hit) still land — the sheet keeps poison and AoE honest.
+	if is_hidden() and from_player and PlayerStats.hit_source_direct and not _area_hit_this_frame():
+		print("[%s] Unseen — the blow finds nothing" % enemy_name)
+		return false
 	last_hit_from_player = from_player
 	last_hit_direct = from_player and PlayerStats.hit_source_direct
+	# A Demon's Mimic: 1 real health behind its borrowed numbers (sheet) — any
+	# damage at all, from any source, unmasks and kills it.
+	if is_mimic and amount > 0:
+		has_been_damaged = true
+		current_health = 0
+		print("[%s] The mimic collapses — it was never real" % enemy_name)
+		update_health_display()
+		die()
+		return false
 	# Blue Robe: each enemy a slotted card strikes takes the type IT resists least.
 	if from_player and PlayerStats.adaptive_damage_type and not ignore_armor:
 		damage_type = get_lowest_resistance_type()
@@ -5313,8 +6822,8 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	# ignore_armor hits bypass resistances too (Neither Man nor Beast).
 	if not ignore_armor:
 		var type_resist: float = float(damage_resistances.get(damage_type, 0.0))
-		if damage_type == DamageTypes.Type.PHYSICAL and phys_defense_debuff_tempo > 0:
-			type_resist -= phys_defense_debuff_percent  # lowered defense: below 0 is a vulnerability
+		if damage_type == DamageTypes.Type.PHYSICAL and not phys_defense_groups.is_empty():
+			type_resist -= get_phys_defense_debuff_percent()  # lowered defense: below 0 is a vulnerability
 		if type_resist != 0.0:
 			# Negative resist = vulnerability: the hit lands harder (Treant vs fire).
 			# Percent math before the divide keeps 100 * 115% at exactly 115.
@@ -5338,14 +6847,16 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	# (Ifrit backflip, Minotaur leap, Djinn wishes, bear strengthen).
 	var incoming_hit: int = amount
 	var _health_before_hit: int = current_health
+	var _armor_before_hit: int = current_armor  # Sewer Cobra: thorns are judged on the armor it had
 
 	# Remember the raw incoming damage of this hit (before armor math) so
 	# on-expose passives like Easy Target can repeat "your damage".
 	if from_player:
 		last_player_hit_damage = amount
 
-	# Hydra: grows stronger with every hit she takes from the player.
-	if enemy_type == EnemyType.HYDRA and from_player:
+	# Hydra: grows stronger with every hit she takes — sheet: "every time she
+	# is hit", so any damage source counts (allies, DoT ticks, self-damage).
+	if enemy_type == EnemyType.HYDRA and amount > 0:
 		hits_taken += 1
 		strength += 2
 		print("[%s] Enraged by hit %d — strength now %d" % [enemy_name, hits_taken, strength])
@@ -5363,10 +6874,12 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		_alert_mini_bear_pack()
 
 	# Wear Down stacks only off the player's hits — DoT ticks (poison, burn,
-	# shock) route through take_damage too and must not count as "hits".
-	if from_player and wear_down_tempo > 0:
+	# shock) route through take_damage too and must not count as "hits". Each
+	# hit also refreshes the charges to WEAR_DOWN_ATTACKS (keeping the larger).
+	if from_player and wear_down_attacks > 0:
 		attack_reduction += 1
-		print("[%s] Wear Down stacks! Attack reduced by %d" % [enemy_name, attack_reduction])
+		wear_down_attacks = maxi(wear_down_attacks, WEAR_DOWN_ATTACKS)
+		print("[%s] Wear Down stacks! Attack reduced by %d for its next %d attack(s)" % [enemy_name, attack_reduction, wear_down_attacks])
 		_update_status_indicators()
 
 	# Apply premeditated bonus damage (only from player attacks)
@@ -5386,14 +6899,13 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	if from_player and void_resistance_percent > 0.0:
 		amount = floori(amount * (1.0 + void_resistance_percent / 100.0))
 
-	# Vulnerable: the hit lands 30% harder (plus the player's Vuln Amp sphere
-	# nodes), consuming one stack.
+	# Vulnerable: every player hit lands 30% harder (plus the player's Vuln Amp
+	# sphere nodes) while a stack remains; the stacks fall on Vulnerable's own
+	# clock, never with the hit.
 	if from_player and vulnerable_stacks > 0:
 		var vuln_percent: float = 30.0 + _player_sphere_amp("sphere_vulnerable_amp")
 		amount = floori(amount * (1.0 + vuln_percent / 100.0))
-		vulnerable_stacks -= 1
-		print("[%s] Vulnerable! +%d%% damage (%d stacks left)" % [enemy_name, int(vuln_percent), vulnerable_stacks])
-		_update_status_indicators()
+		print("[%s] Vulnerable! +%d%% damage (%d stacks)" % [enemy_name, int(vuln_percent), vulnerable_stacks])
 
 	# Jordan 1s: below the threshold health %, add rate × missing-health% damage.
 	if from_player and missing_life_damage_rate > 0.0 and max_health > 0:
@@ -5415,9 +6927,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		print("[%s] Armor Break! %d doubled damage to armor! Armor: %d/%d" % [enemy_name, armor_absorbed, current_armor, max_armor])
 		_update_armor_bar()
 		if current_armor <= 0:
-			just_exposed = true
-			is_exposed = true
-			print("[%s] EXPOSED! Armor broken!" % enemy_name)
+			just_exposed = _try_expose()
 		amount = 0  # No spillover to health
 	elif current_armor > 0:
 		# Normal armor absorbs damage first
@@ -5428,9 +6938,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		print("[%s] Armor absorbed %d damage! Armor: %d/%d" % [enemy_name, armor_absorbed, current_armor, max_armor])
 		_update_armor_bar()
 		if was_armored and current_armor <= 0:
-			just_exposed = true
-			is_exposed = true
-			print("[%s] EXPOSED! Armor broken!" % enemy_name)
+			just_exposed = _try_expose()
 
 	# Remaining damage hits health (skipped if armor break consumed all damage)
 	if amount > 0:
@@ -5465,7 +6973,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	# Earth Mage: gain armor every time it is hit (for the NEXT blow, applied after
 	# this hit has resolved so it doesn't soak the triggering damage).
 	if from_player and armor_per_hit > 0 and current_health > 0:
-		current_armor += armor_per_hit
+		_gain_armor(armor_per_hit)
 		max_armor = max(max_armor, current_armor)
 		_update_armor_bar()
 		print("[%s] Hardens — +%d armor (now %d)" % [enemy_name, armor_per_hit, current_armor])
@@ -5550,6 +7058,25 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 
 	if just_exposed:
 		exposed.emit(self)
+
+	# --- Sewer Cobra (sheet passives) ---
+	if enemy_type == EnemyType.SEWER_CROC and not is_dead:
+		if from_player and last_hit_direct and incoming_hit > 0:
+			# "While the sewer cobra has armor, they have 5 thorns": a flat 5
+			# back at the attacker for every direct hit landed while it was
+			# still armoured — judged before the hit, so the blow that breaks
+			# the armor pays too. Not Roar's decaying enemy_thorns.
+			if _armor_before_hit > 0:
+				_cobra_strike_back(COBRA_THORNS)
+			# "When receiving damage directly to health, the sewer cobra
+			# inflicts 3 poison to the attacker": health lost, not just armor.
+			if current_health < _health_before_hit:
+				_cobra_poison_attacker(COBRA_HEALTH_POISON)
+		if just_exposed and current_health > 0:
+			# "Upon being exposed, the sewer cobra is stunned for 3 tempo and
+			# its tempo counter is completely reset": apply_debuff("stun")
+			# resets every clock, Bite's and Venom Spray's alike.
+			apply_debuff("stun", COBRA_EXPOSED_STUN)
 
 	# Action keywords: Disruptable clocks count this hit; Trigger actions
 	# keyed to being hit, losing armor, or dropping under half health fire.
@@ -5666,12 +7193,32 @@ func hide_damage_preview() -> void:
 # STATUS EFFECTS
 # ============================================
 
-## Lower physical defense by `percent` for `tempo` (a stronger application
-## replaces a weaker one; the timer refreshes either way).
-func apply_phys_defense_debuff(percent: float, tempo: int) -> void:
-	phys_defense_debuff_percent = maxf(phys_defense_debuff_percent, percent)
-	phys_defense_debuff_tempo = maxi(phys_defense_debuff_tempo, tempo)
-	print("[%s] Physical defense -%.0f%% for %d tempo" % [enemy_name, phys_defense_debuff_percent, phys_defense_debuff_tempo])
+## Lower physical defense by `percent` for `stacks` stacks (5 tempo each on
+## the group's own clock). Groups keep their own percent: the reduction in
+## force is the strongest group still holding a stack (sheet: 4 at 10% + 2 at
+## 50% → 50% until those two run out, then 10% for what the first has left).
+func apply_phys_defense_debuff(percent: float, stacks: int = 1) -> void:
+	if percent <= 0.0 or stacks <= 0:
+		return
+	phys_defense_groups.append({"percent": percent, "stacks": stacks, "clock": 0})
+	print("[%s] Physical defense -%.0f%% for %d stack(s); in force: -%.0f%%" % [enemy_name, percent, stacks, get_phys_defense_debuff_percent()])
+	_update_status_indicators()
+
+## The lowered-physical-defense percent in force: the highest among the groups
+## that still hold a stack, 0 when none do.
+func get_phys_defense_debuff_percent() -> float:
+	var best: float = 0.0
+	for g in phys_defense_groups:
+		if int(g["stacks"]) > 0:
+			best = maxf(best, float(g["percent"]))
+	return best
+
+## Total stacks across every lowered-physical-defense group (the badge count).
+func get_phys_defense_debuff_stacks() -> int:
+	var total: int = 0
+	for g in phys_defense_groups:
+		total += maxi(0, int(g["stacks"]))
+	return total
 
 func apply_taunt(taunter: Node3D, tempo: int) -> void:
 	taunt_target = taunter
@@ -5752,9 +7299,13 @@ func _exit_tree_form() -> void:
 func set_armor_break_incoming(value: bool) -> void:
 	armor_break_incoming = value
 
-func apply_wear_down(tempo: int) -> void:
-	wear_down_tempo = max(wear_down_tempo, tempo)
-	print("[%s] Wear Down applied for %d tempo" % [enemy_name, wear_down_tempo])
+## Arms Wear Down for the player's incoming hit: the reduction that hit adds
+## holds for WEAR_DOWN_ATTACKS of this enemy's attacks (keeping the larger).
+## `_tempo` is the old duration argument — card.gd still passes 15; the sheet
+## counts enemy attacks now, so it is ignored.
+func apply_wear_down(_tempo: int = 0) -> void:
+	wear_down_attacks = maxi(wear_down_attacks, WEAR_DOWN_ATTACKS)
+	print("[%s] Wear Down applied for its next %d attack(s)" % [enemy_name, wear_down_attacks])
 	_update_status_indicators()
 
 ## True when a debuff of this apply_debuff key is already active on this enemy.
@@ -5777,7 +7328,7 @@ func has_debuff_type(debuff_name: String) -> bool:
 		"root": return rooted_tempo > 0
 		"trip": return tripped_tempo > 0
 		"cursed": return cursed_tempo > 0
-		"disarm_attacks": return disarmed_attacks > 0
+		"disarm_attacks": return is_disarmed and disarmed_tempo > 0  # it IS the timed disarm now
 		"narashimha": return narashimha_tempo > 0
 		"polymorph": return polymorph_tempo > 0
 	return false
@@ -5807,17 +7358,21 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			_reset_action_clocks()
 			print("[%s] Stunned for %d tempo!" % [enemy_name, stun_tempo])
 		"slow":
-			# Slowed stacks freely: every movement is delayed (+2 tempo) and eats a stack.
+			# sheet: a stack is 5 tempo. More stacks add on; the running clock
+			# keeps counting, so the batch sheds one stack per 5 tempo.
 			slow_stacks += value
-			print("[%s] Slowed! Delayed movement for the next %d movement(s)" % [enemy_name, slow_stacks])
+			print("[%s] Slowed! %d stack(s), every movement delayed while any remain" % [enemy_name, slow_stacks])
 		"disarmed":
+			# sheet: timers add — a second Disarm lengthens the first.
 			is_disarmed = true
-			disarmed_tempo = value + int(_player_sphere_amp("sphere_disarm_amp"))
+			disarmed_tempo += value + int(_player_sphere_amp("sphere_disarm_amp"))
 			print("[%s] Disarmed for %d tempo" % [enemy_name, disarmed_tempo])
 		"marked":
+			# The longer Mark wins: a short re-apply (Wither, Territorial
+			# Death's "+1") must never cut a running Mark down to its value.
 			is_marked = true
-			marked_tempo = value
-			print("[%s] Marked for %d tempo" % [enemy_name, value])
+			marked_tempo = max(marked_tempo, value)
+			print("[%s] Marked for %d tempo" % [enemy_name, marked_tempo])
 		"silenced":
 			is_silenced = true
 			silenced_tempo = max(silenced_tempo, value + int(_player_sphere_amp("sphere_silence_amp")))
@@ -5869,17 +7424,23 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			tripped_tempo = max(tripped_tempo, value)
 			print("[%s] Tripped! Movement -%d for %d tempo" % [enemy_name, TRIP_MOVE_PENALTY, tripped_tempo])
 		"root":
-			# value is the hold in raw tempo; can attack and cast, cannot move
-			rooted_tempo = max(rooted_tempo, value + int(_player_sphere_amp("sphere_root_amp")))
+			# value is the hold in raw tempo; can attack and cast, cannot move.
+			# sheet: timers add — a second Root lengthens the first.
+			rooted_tempo += value + int(_player_sphere_amp("sphere_root_amp"))
 			print("[%s] Rooted for %d tempo!" % [enemy_name, rooted_tempo])
 		"cursed":
 			# Matches the player's Cursed: deals less damage AND hurts itself on
 			# every attack (base 20%/20%, boosted by Curse Amp / Curse Pain).
-			cursed_tempo = max(cursed_tempo, value)
+			# sheet: timers add — a second Curse lengthens the first.
+			cursed_tempo += value
 			print("[%s] Cursed for %d tempo!" % [enemy_name, cursed_tempo])
 		"disarm_attacks":
-			disarmed_attacks += value
-			print("[%s] Disarmed for %d attack(s)!" % [enemy_name, disarmed_attacks])
+			# sheet: "skips its next attack for 5 tempo per stack" — each stack
+			# is DISARM_TEMPO_PER_STACK tempo of ordinary Disarm (Disarm Amp
+			# applies once per application, as for "disarmed").
+			is_disarmed = true
+			disarmed_tempo += value * DISARM_TEMPO_PER_STACK + int(_player_sphere_amp("sphere_disarm_amp"))
+			print("[%s] Disarmed for %d tempo (%d stack(s))!" % [enemy_name, disarmed_tempo, value])
 		"narashimha":
 			# value is the window in raw tempo. Applied right after the Neither
 			# Man nor Beast hit, so current health IS the ceiling: healing can
@@ -5954,6 +7515,40 @@ func update_health_display() -> void:
 	if health_label:
 		health_label.text = "%d / %d" % [current_health, max_health]
 	_update_health_bar()
+	# A demon's mimics show whatever the original shows.
+	for m in _mimics:
+		if m != null and is_instance_valid(m) and m.is_alive():
+			m._mirror_health()
+
+## Every way an enemy gains armor goes through here, so Exposed ("until it
+## gains armor again") ends the moment any armor is back on.
+func _gain_armor(amount: int) -> void:
+	if amount <= 0:
+		return
+	current_armor += amount
+	_clear_exposed_if_armored()
+
+## A hit just broke this enemy's armor to 0. It is Exposed only when the
+## cooldown is clear; the return is the hit's just_exposed, which gates
+## everything an Exposed sets off (the signal and its listeners, the "exposed"
+## trigger actions, the Cobra's stun, the orange damage number, Premeditated).
+func _try_expose() -> bool:
+	if exposed_cooldown_tempo > 0:
+		print("[%s] Armor broken — Exposed on cooldown (%d tempo)" % [enemy_name, exposed_cooldown_tempo])
+		return false
+	is_exposed = true
+	exposed_cooldown_tempo = EXPOSED_COOLDOWN
+	print("[%s] EXPOSED! Armor broken!" % enemy_name)
+	return true
+
+## Exposed is the state of having had armor broken and none since: armor back
+## on means it is over. Called by _gain_armor and, as a backstop for any path
+## that sets current_armor directly, by the per-tempo tick.
+func _clear_exposed_if_armored() -> void:
+	if is_exposed and current_armor > 0:
+		is_exposed = false
+		print("[%s] Armor back on — no longer Exposed" % enemy_name)
+		_update_status_indicators()
 
 func reduce_armor(amount: int) -> void:
 	if current_armor > 0:
@@ -6035,7 +7630,18 @@ func die() -> void:
 	print("[%s] Defeated!" % enemy_name)
 	if enemy_type == EnemyType.CONSUMED:
 		_consumed_explode()
+	# Ash Harpy: the stolen card comes home.
+	_harpy_return_card()
+	# Demon: the copies have nothing left to copy. sheet: silent on this — a
+	# mimic is "just a copy", so finding the real one ends the game of guess.
+	_prune_mimics()
+	for m in _mimics:
+		m.die()
+	_mimics.clear()
 	died.emit(self)
+	# Necromancer: a corpse near him rises as a Skeleton (and his own summons
+	# cost him on the way down).
+	_necro_rise_on_death()
 
 	# Hide tempo bar on death
 	if _tempo_bar_bg:
@@ -6122,9 +7728,11 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Cupid", "color": Color(1.0, 0.75, 0.8), "stacks": (1 if cupid_golden else 0) + (1 if cupid_lead else 0)})
 	if zone_weakened and weaken_stacks <= 0:
 		effects.append({"name": "Weaken", "color": Color(0.8, 0.5, 0.9), "stacks": 1})
-	if wear_down_tempo > 0:
-		var wd_stacks = attack_reduction if attack_reduction > 0 else wear_down_tempo
+	if wear_down_attacks > 0:
+		var wd_stacks = attack_reduction if attack_reduction > 0 else wear_down_attacks
 		effects.append({"name": "Wear Down", "color": Color(0.9, 0.6, 0.3), "stacks": wd_stacks})
+	if get_phys_defense_debuff_stacks() > 0:
+		effects.append({"name": "Exposed Defense", "color": Color(0.9, 0.75, 0.3), "stacks": get_phys_defense_debuff_stacks()})
 	if slow_stacks > 0:
 		effects.append({"name": "Slow", "color": Color(0.4, 0.6, 1.0), "stacks": slow_stacks})
 	if tripped_tempo > 0:
@@ -6165,30 +7773,27 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Weaken", "color": Color(0.5, 0.5, 0.8), "stacks": weaken_stacks})
 	if rooted_tempo > 0:
 		effects.append({"name": "Rooted", "color": Color(0.4, 0.3, 0.15), "stacks": rooted_tempo})
-	if disarmed_attacks > 0:
-		effects.append({"name": "Disarmed", "color": Color(0.8, 0.3, 0.3), "stacks": disarmed_attacks})
+	# (The old "Disarmed" attack-skip badge folded into "Disarm" above.)
 	if gravestone_provider.is_valid():
 		var standing: int = int(gravestone_provider.call())
 		if standing > 0:
 			effects.append({"name": "Gravebound", "color": Color(0.55, 0.85, 0.6), "stacks": standing})
 	if door_sealed_tempo > 0:
 		effects.append({"name": "Sealed", "color": Color(0.9, 0.35, 0.3), "stacks": door_sealed_tempo})
+	if is_hidden():
+		effects.append({"name": "Invisible", "color": Color(0.7, 0.75, 0.9), "stacks": hidden_tempo if hidden_tempo > 0 else 1})
 	if _brace_charges > 0:
 		effects.append({"name": "Brace", "color": Color(0.5, 0.5, 0.8), "stacks": _brace_charges})
 	if enemy_thorns > 0:
 		effects.append({"name": "Thorns", "color": Color(0.8, 0.4, 0.8), "stacks": enemy_thorns})
-	if strengthen_stacks > 0 and enemy_type == EnemyType.CERBERUS:
+	elif enemy_type == EnemyType.SEWER_CROC and current_armor > 0:
+		# sheet: "While the sewer cobra has armor, they have 5 thorns" — a
+		# standing 5, gone the moment it is exposed.
+		effects.append({"name": "Thorns", "color": Color(0.8, 0.4, 0.8), "stacks": COBRA_THORNS})
+	if strengthen_stacks > 0 and enemy_type in [EnemyType.CERBERUS, EnemyType.SPIRIT_COLLECTOR]:
 		effects.append({"name": "Strengthen", "color": Color(1.0, 0.5, 0.3), "stacks": strengthen_stacks})
 
 	return effects
-
-## Slowed: every movement action burns one stack; the debuff ends at zero.
-func _consume_slow_stack() -> void:
-	slow_stacks = max(0, slow_stacks - 1)
-	if slow_stacks == 0:
-		print("[%s] Slow worn off, movement restored" % enemy_name)
-		debuff_expired.emit(self, "slow")
-	_update_status_indicators()
 
 func _update_status_indicators() -> void:
 	## Renders colored circles above the enemy's head for active buffs/debuffs.
@@ -6262,6 +7867,9 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 		"Sealed":
 			desc = "Hell's Door has sealed itself: no damage gets through until the seal fades. It seals at 75%, 50% and 33% health."
 			remaining = "Remaining: %d tempo" % door_sealed_tempo
+		"Invisible":
+			desc = "Unseen: you cannot attack it directly. Poison, burn and area damage still land."
+			remaining = ("Remaining: %d tempo" % hidden_tempo) if hidden_tempo > 0 else "Until it strikes"
 		"Brace":
 			desc = "Guardian of Death: the next hits deal 30% less. Gained whenever he, a foe or an ally within 8 squares first drops below half health."
 			remaining = "Hits left: %d" % _brace_charges
@@ -6269,7 +7877,10 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			desc = "Roar's thorns: every direct hit on him costs the attacker this much; one thorn is spent per hit."
 			remaining = "Thorns: %d" % enemy_thorns
 		"Strengthen":
-			desc = "Deathyard Dog: +15 damage every time a foe heals within 5 squares of him. It does not fade."
+			if enemy_type == EnemyType.SPIRIT_COLLECTOR:
+				desc = "Released souls: +5 damage to every Strike and Collect Soul each time a 'Release Soul' is played. It does not fade."
+			else:
+				desc = "Deathyard Dog: +15 damage every time a foe heals within 5 squares of him. It does not fade."
 			remaining = "Bonus damage: %d" % strengthen_stacks
 		"Gravebound":
 			desc = "Regenerates 1 health every cycle for each gravestone still standing. It never fades — only breaking the stones lowers it."
@@ -6287,23 +7898,23 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			desc = "Struck by a Cupid arrow. Carrying both the Golden and Lead marks turns it into a tree."
 			remaining = "Marks: %d of 2" % ((1 if cupid_golden else 0) + (1 if cupid_lead else 0))
 		"Weaken":
-			desc = "Deals 30% less damage; each attack burns a stack."
+			desc = "Deals 30% less damage while any stack remains; a stack lasts 5 tempo."
 			remaining = ("Stacks: %d" % weaken_stacks) if weaken_stacks > 0 else "While inside the zone"
 		"Wear Down":
-			desc = "Its attacks deal %d less damage." % attack_reduction
-			remaining = "Remaining: %d tempo" % wear_down_tempo
+			desc = "Its attacks deal %d less damage; each of its attacks spends a charge." % attack_reduction
+			remaining = "Attacks left: %d" % wear_down_attacks
+		"Exposed Defense":
+			desc = "Its physical defense is lowered %.0f%% — your physical hits land that much harder. Each stack lasts 5 tempo; the strongest group still standing sets the number." % get_phys_defense_debuff_percent()
+			remaining = "Stacks: %d" % get_phys_defense_debuff_stacks()
 		"Slow":
-			desc = "Movement costs 3 tempo per tile instead of 1; each tile moved burns a stack."
+			desc = "Each movement action costs 2 extra tempo while any stack remains; a stack lasts 5 tempo."
 			remaining = "Stacks: %d" % slow_stacks
 		"Cursed":
-			desc = "Deals 20% less damage and takes 20% of its own damage."
+			desc = "Deals 20% less damage and takes 20% of its own damage. More Curse adds to the timer."
 			remaining = "Remaining: %d tempo" % cursed_tempo
 		"Disarm":
-			desc = "Cannot attack."
+			desc = "Cannot attack. More Disarm adds to the timer (5 tempo per stack)."
 			remaining = "Remaining: %d tempo" % disarmed_tempo
-		"Disarmed":
-			desc = "Its next attacks are skipped."
-			remaining = "Attacks skipped: %d" % disarmed_attacks
 		"Marked":
 			desc = "Takes extra damage from your attacks."
 			remaining = "Remaining: %d tempo" % marked_tempo
@@ -6314,8 +7925,10 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			desc = "Takes %d damage at the end of each cycle." % choke_dot_damage
 			remaining = "Ticks left: %d" % choke_dot_stacks
 		"Exposed":
-			desc = "Its armor was broken through — a hit got past it."
+			desc = "Its armor was broken through — a hit got past it. Once Exposed, it can't be Exposed again for %d tempo." % EXPOSED_COOLDOWN
 			remaining = "Until it gains armor again"
+			if exposed_cooldown_tempo > 0:
+				remaining += " · Exposed again in %d tempo" % exposed_cooldown_tempo
 		"Stun":
 			desc = "Cannot take any actions."
 			remaining = "Remaining: %d tempo" % stun_tempo
@@ -6329,13 +7942,13 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			desc = "Burn damage doubles each cycle (1, 2, 4, 8...); attacking while burning also triggers the current burn damage."
 			remaining = "Stacks: %d" % burn_stacks
 		"Cold":
-			desc = "At 5 stacks it becomes Frozen for 1 cycle."
+			desc = "At 5 stacks it becomes Frozen for 1 cycle; thaws 3 stacks per cycle."
 			remaining = "Stacks: %d of 5" % cold_stacks
 		"Poison":
 			desc = "Takes %d damage per cycle, loses 1 poison each cycle." % poison_stacks
 			remaining = "Stacks: %d" % poison_stacks
 		"Shock":
-			desc = "Arcs %d damage to itself and nearby enemies each cycle, loses 1 per cycle." % shock_stacks
+			desc = "Takes %d damage each cycle and arcs the same to the nearest enemy within 2 squares; loses 1 per cycle." % shock_stacks
 			remaining = "Stacks: %d" % shock_stacks
 		"Bleed":
 			desc = "Takes damage per tile moved; each damage removes a stack."
@@ -6344,11 +7957,14 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			desc = "Its healing is capped by the Mane of Narashimha."
 			remaining = "Remaining: %d tempo" % narashimha_tempo
 		"Vulnerable":
-			desc = "Takes 30% more damage on the next hits; each hit burns a stack."
+			desc = "Takes 30% more damage from your hits while any stack remains; a stack lasts 5 tempo."
 			remaining = "Stacks: %d" % vulnerable_stacks
 		"Rooted":
-			desc = "Cannot move."
+			desc = "Cannot move. More Root adds to the timer."
 			remaining = "Remaining: %d tempo" % rooted_tempo
+		"Tripped":
+			desc = "Its moves cover %d fewer tiles." % TRIP_MOVE_PENALTY
+			remaining = "Remaining: %d tempo" % tripped_tempo
 		_:
 			desc = ""
 			remaining = ""

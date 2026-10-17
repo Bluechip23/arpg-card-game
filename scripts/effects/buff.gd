@@ -77,7 +77,9 @@ func _set_name_and_description() -> void:
 			description = "Armor does not decay (Regen mark %d)" % value
 		BuffType.ENLIGHTENED:
 			buff_name = "Enlightened"
-			description = "%d%% crit chance for the next %d attacks (re-applying refreshes to the higher count, never adds)" % [value, charges]
+			# Each application is its own instance; only the highest % counts
+			# and spends a charge per crit roll (attacks and spells alike).
+			description = "%d%% crit chance for your next %d crit rolls. Separate Enlightened never add up: the highest %% applies and is spent first" % [value, charges]
 		BuffType.STRENGTHEN:
 			buff_name = "Strengthen"
 			if charges < 0 and duration > 0:
@@ -89,7 +91,7 @@ func _set_name_and_description() -> void:
 			description = "+%d armor next %d times you gain armor" % [value, charges]
 		BuffType.HASTE:
 			buff_name = "Haste"
-			description = "+%d tempo-free movement on your next %d move(s)" % [value, charges]
+			description = "+%d tempo-free tile(s) on each of your next %d move(s); every move spends a charge, Flash moves included" % [value, charges]
 		BuffType.CLEANSE:
 			buff_name = "Cleanse"
 			description = "Remove %d negative effect(s)" % value
@@ -106,9 +108,9 @@ func _set_name_and_description() -> void:
 			buff_name = "Resilient"
 			if damage_type >= 0:
 				var type_name: String = DamageTypes.Type.keys()[damage_type].capitalize()
-				description = "Reduce incoming %s damage by %d%% for %d tempo" % [type_name, value, duration]
+				description = "Reduce incoming %s damage by %d%% for %d tempo. Kept apart from Resilient of other types; the strongest that covers a hit applies" % [type_name, value, duration]
 			else:
-				description = "Reduce all incoming damage by %d%% for %d tempo" % [value, duration]
+				description = "Reduce all incoming damage by %d%% for %d tempo. Kept apart from typed Resilient; the strongest that covers a hit applies" % [value, duration]
 		BuffType.LIFE_STEAL:
 			buff_name = "Life Steal"
 			# value 0 = legacy full-damage heal; value > 0 = percentage of damage
@@ -303,7 +305,8 @@ static func create_bolster(extra_armor: int = 2, times: int = 3, source: String 
 	return buff
 
 static func create_haste(extra_movement: int = 1, movements: int = 3, source: String = "") -> Buff:
-	# Charge-based: each non-flash move gets tempo-free bonus tiles and burns a charge.
+	# Charge-based: every move — Flash moves too — gets the tempo-free bonus
+	# tiles and burns a charge.
 	var buff = Buff.new(BuffType.HASTE, extra_movement, -1, movements)
 	buff.source_name = source
 	return buff

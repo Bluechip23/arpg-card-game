@@ -330,7 +330,7 @@ const CARD_RARITIES := {
 	"tighten_string": Rarity.MYTHIC, "worms_armageddon": Rarity.MYTHIC,
 	"composed_reaction": Rarity.BASIC,
 	# --- Off the sheet: item-granted kits, tokens and status cards (86) ---
-	"djinn_wish": Rarity.BASIC, "paralysis": Rarity.BASIC, "release_soul": Rarity.BASIC,
+	"djinn_wish": Rarity.BASIC, "paralysis": Rarity.BASIC, "release_soul": Rarity.BASIC, "infest": Rarity.BASIC,
 	"splinter": Rarity.BASIC,
 	"fleet_etching": Rarity.COMMON, "hard_helmet": Rarity.COMMON, "mixed_bag": Rarity.COMMON,
 	"regal_etching": Rarity.COMMON, "slice": Rarity.COMMON,
@@ -379,7 +379,7 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"minor_wounds": true, "lightly_dazed": true, "djinn_wish": true,
 	"biscuit": true, "basic_attack": true, "energy_ball": true, "quick_arrow": true, "prepare": true,
 	"energy_barrier": true, "mana_surge": true, "magic_barrier": true, "shepherds_mark": true,
-	"paralysis": true, "release_soul": true, "composed_reaction": true,
+	"paralysis": true, "release_soul": true, "infest": true, "composed_reaction": true,
 	# Helm/boot-granted cards only arrive via their item, never from random drops.
 	"neither_man_nor_beast": true, "resourceful_replenish": true,
 	"out_of_guesses": true, "twenty_twenty": true, "its_alive": true,
@@ -482,6 +482,9 @@ var linger: bool = false  # If true, status card can exceed hand size limit when
 var shop_excluded: bool = false  # If true, the card never appears in the Card Dealer's shop (item-generated cards like Sprinkle)
 var erase_on_play: bool = false  # If true, card is erased from the deck entirely the moment it's played (not discarded). Same "erase" concept as erase_tempo, just triggered on play instead of on a timer.
 var held_damage_per_cycle: int = 0  # Djinn Wish: sears the holder this much every cycle it sits in hand (ticked by DeckManager.process_turn)
+var hatch_tempo: int = 0  # Rat King's Infest: > 0 means the card hatches after this many tempo HELD IN HAND (DeckManager.tick_temp_mods counts it down; playing or discarding it cancels the hatch)
+var hatch_tempo_left: int = 0  # Fuse remaining on the hatch
+var hatch_handler: Callable = Callable()  # What hatches: set by whoever put the card in the hand (the Rat King binds the spawner); an invalid handler hatches nothing
 var jail_on_play: int = 0  # If > 0, the card goes to jail for this many tempo after being played (instead of the discard pile)
 var reaction_trigger: String = ""  # Trigger condition for reaction cards (e.g., "on_damage_taken")
 ## Slot labels: every item slot a card may be enchanted into (Pocket, Crown,
@@ -1157,7 +1160,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"enchantment": "Cannot be played. Provides a passive buff while in your hand. Auto-discards after 2 cycles. Effect is lost when the card leaves your hand",
 		# Card Mechanics
 		"maintain": "Reserves the card's mana cost from your max mana pool while active. If mana drops to 0, all maintained cards are discarded",
-		"erase": "After X tempo, this card is permanently deleted from the deck",
+		"erase": "After X tempo, this card is permanently deleted from the deck. The fuse burns only in your hand, except on a curse or status card forced on you, whose fuse keeps running in the draw and discard piles too (it freezes while the card is jailed)",
 		"empower": "The next X attack cards drawn gain +3 damage",
 		"on-draw": "Card triggers an effect when drawn into hand",
 		"on-discard": "Card triggers an effect when discarded",
@@ -1178,44 +1181,45 @@ static func get_keyword_definitions() -> Dictionary:
 		"regen": "Heal X HP per cycle, lose 1 regen per cycle",
 		"blessed": "Draw X additional card(s) per cycle for Y cycles",
 		"fortify": "Armor does not decay",
-		"enlightened": "+X% crit chance for next Y attacks",
+		"enlightened": "+X% crit chance on your next Y crit rolls. Separate applications stay separate: the highest % applies and spends its own charges first",
 		"strengthen": "+X damage on next Y attacks",
 		"bolster": "+X armor next Y times you gain armor",
-		"haste": "+X tempo-free tiles on each of your next Y moves; one charge per move",
+		"haste": "+X tempo-free tiles on each of your next Y moves; every move spends a charge, Flash moves included",
 		"engrave": "Cannot join your deck at all unless slotted into an item",
 		"cleanse": "Remove X negative effects (instant)",
 		"smith": "Gain X armor per cycle, decaying by 1 each cycle",
 		"steady": "Next action does not add tempo",
 		"brace": "Reduce incoming attack damage by X% for Y attacks",
-		"resilient": "Reduce all incoming damage by X% for Y tempo",
+		"resilient": "Reduce incoming damage by X% for Y tempo. Physical-only and all-damage Resilient stay separate; a hit uses the strongest that covers it",
 		"life steal": "Next attack heals you for damage dealt",
 		"morphine": "Gain temp HP. Lose it and take 2 damage when expired",
 		"wear down": "Each attack reduces target's attack by 1 (stacks) for X tempo",
 		"armor break": "Next attack deals double damage to armor only",
 		# Debuffs
 		"bleed": "On movement: take X damage per tile moved",
-		"stun": "Cannot take any actions",
-		"disarm": "Cannot play attack cards",
-		"silence": "Cannot play spell cards",
+		"stun": "Cannot take any action — no cards, attacks, blocks, moves, skills, Flash/Brain spends or gear swaps; only Wait passes time (a stunned enemy does nothing)",
+		"disarm": "Cannot play attack cards or auto attack for X tempo; re-applying adds the tempo on",
+		"silence": "Cannot play spell cards for X tempo; re-applying adds the tempo on",
 		"burn": "Burn damage doubles each cycle (1, 2, 4, 8...); attacking while burning also triggers the current burn damage",
 		"poison": "Take X damage per cycle, lose 1 poison each cycle",
 		"cursed": "Deal 20% less damage and deal 20% damage to self",
 		"frozen": "Cannot play cards (a frozen enemy cannot act at all)",
 		"cuffed": "Cannot draw cards",
 		"shocked": "Arc X damage to nearby allies per cycle (a shocked enemy takes it itself), lose 1 per cycle",
-		"slowed": "Movement costs 3 tempo per tile instead of 1; each tile moved burns a stack",
-		"staggered": "Attack cards cost 15 more mana; each attack card burns a stack",
+		"slowed": "Movement costs 3 tempo per tile instead of 1. Each stack lasts 5 tempo on its own clock; moving burns nothing",
+		"staggered": "Attack cards cost 15 more mana. Each stack lasts 5 tempo on its own clock; attacking burns nothing",
 		"drain": "Lose 10 mana per cycle, lose 1 drain per cycle",
-		"weighted": "Cards cost 2 more tempo; each card played burns a stack",
+		"weighted": "Cards played (Quiver and Manifest included) cost 2 more tempo; each one burns a stack. The auto attack and Block are not cards",
 		"hexed": "A random card costs +X mana until played (multiple hexes can sit on different cards)",
-		"locked": "One random card cannot be played",
-		"weakened": "Deal 30% less damage; each attack burns a stack",
-		"rooted": "Cannot move",
-		"clumsy": "30% chance to discard a random card when playing; each card played burns a stack",
-		"vulnerable": "Take 30% more damage on next X attack(s)",
-		"exposed": "Your armor was broken through — a hit got past it",
-		"brittle": "Armor decays extra 2 per cycle",
-		"cold": "Stacking debuff. At 5 stacks the target becomes Frozen for 1 cycle",
+		"locked": "A random card cannot be played; each Locked holds its own card",
+		"weakened": "Deal 30% less damage. Each stack lasts 5 tempo on its own clock; attacking burns nothing",
+		"rooted": "Cannot move for X tempo; re-applying adds the tempo on",
+		"clumsy": "30% chance to discard a random card when playing. Each stack lasts 5 tempo on its own clock; playing burns nothing",
+		"vulnerable": "Take 30% more damage on every hit. Each stack lasts 5 tempo on its own clock; hits burn nothing",
+		"blind": "80% chance for your attacks to miss — Attack cards, the auto attack and Flash Cut. Each stack lasts 5 tempo on its own clock",
+		"exposed": "Your armor was broken through — a hit got past it. Once Exposed, a unit can't be Exposed again for 10 tempo",
+		"brittle": "Armor decays an extra 2 per cycle. Each stack lasts 5 tempo on its own clock",
+		"cold": "Stacking debuff, 5 tempo. At 5 stacks the target becomes Frozen for 1 cycle",
 		# Overflow
 		"jailed": "Card goes to jail for 3 turns, cannot be played",
 		"manifest": "Card goes to manifest zone as a token. Click to activate",
@@ -1390,10 +1394,19 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		player_stats.resolving_attack_target = target
 
 	# Blind (e.g. Giant Hawk): an attack against an enemy may miss entirely.
-	# Enemies expose take_damage but not get_stats (players have get_stats).
-	if card_type == CardType.ATTACK and player_stats and player_stats.is_blinded \
+	# The debuff manager is the source of truth (Blind is a stack-clocked
+	# debuff now); PlayerStats.is_blinded is only a legacy fallback for a
+	# caller that hands no deck manager. Enemies expose take_damage but not
+	# get_stats (players have get_stats).
+	if card_type == CardType.ATTACK and player_stats \
 			and target and target.has_method("take_damage") and not target.has_method("get_stats"):
-		if randf() < player_stats.blind_miss_chance:
+		var blind_dm = deck_manager.debuff_manager if deck_manager and "debuff_manager" in deck_manager else null
+		var miss_chance: float = 0.0
+		if blind_dm and blind_dm.has_method("get_blind_miss_chance"):
+			miss_chance = blind_dm.get_blind_miss_chance()
+		elif blind_dm == null and player_stats.is_blinded:
+			miss_chance = player_stats.blind_miss_chance
+		if miss_chance > 0.0 and randf() < miss_chance:
 			print("[CARD] %s missed — blinded!" % card_name)
 			return
 	# Empower's +3 already rides in bonus_damage (see execute); the executors'
@@ -2213,7 +2226,9 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		"paralysis":
 			pass  # Tearing the webbing free IS the effect — erase_on_play removes it
 		"release_soul":
-			pass  # Releasing the soul IS the effect — erase_on_play removes it
+			_execute_release_soul(target)  # erase_on_play removes the card; the collectors drink the soul
+		"infest":
+			pass  # Crushing the brood (the 50 mana) IS the effect — erase_on_play removes it
 		"reckless_strike":
 			_execute_reckless_strike(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		# === Power Cards (Maintain) ===
@@ -2907,6 +2922,23 @@ func is_attack() -> bool:
 	if has_keyword("attack"):
 		return true
 	return card_type == CardType.ATTACK and school != CardSchool.SPELL
+
+## The cards an enemy, a curse or a drawback forces on the player: Lightly
+## Dazed (Armored Troll), Minor Wounds (Reckless Strike's price), Paralysis
+## (Crypt Crawler), Release Soul (Spirit Collector), the Djinn's Wish and the
+## Rat King's Infest — plus any future card printed as a Curse or Status.
+const NEGATIVE_CARD_IDS := {
+	"lightly_dazed": true, "minor_wounds": true, "paralysis": true,
+	"release_soul": true, "djinn_wish": true, "infest": true,
+}
+
+## The designer's rule for negative card effects: a countdown riding one of
+## these keeps going wherever the card is — hand, draw pile, discard pile —
+## and freezes only while it is jailed (DeckManager._process_erase_timers).
+## A card the player chose (Prepare, Energy Barrier, Mirror Mirror's copy)
+## keeps the old Erase rule: its fuse burns only in the hand.
+func is_negative_card() -> bool:
+	return NEGATIVE_CARD_IDS.has(card_id) or card_type_name == "Curse" or card_type_name == "Status"
 
 # --- The play scope -------------------------------------------------------
 # A card's slotted-item riders (Megingjörð's x2, Blue Robe's per-enemy type,
@@ -5015,7 +5047,7 @@ static func create_lightly_dazed() -> Card:
 	var card = Card.new()
 	card.card_id = "lightly_dazed"
 	card.card_name = "Lightly Dazed"
-	card.description = "This card cannot be played. Linger. Erases from deck after 40 tempo in your hand."
+	card.description = "This card cannot be played. Linger. Erases from deck after 40 tempo, in your hand or the draw or discard pile (frozen while jailed)."
 	card.card_type = CardType.UNPLAYABLE
 	card.card_type_name = "Unplayable"
 	card.mana_cost = 0
@@ -5059,14 +5091,15 @@ static func create_djinn_wish(sear_per_cycle: int = 3) -> Card:
 static func create_paralysis() -> Card:
 	## Crypt Crawler web: while this sits in your hand you cannot move (other
 	## actions are fine). Playing it tears the webbing free and erases it.
+	## sheet: "Paralysis is 10m/5 Tempo".
 	var card = Card.new()
 	card.card_id = "paralysis"
 	card.card_name = "Paralysis"
-	card.description = "Webbed! You cannot move while this is in your hand. Play (0 mana, 1 tempo) to tear the webbing free."
+	card.description = "Webbed! You cannot move while this is in your hand. Play (10 mana, 5 tempo) to tear the webbing free."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Curse"
-	card.mana_cost = 0
-	card.tempo_cost = 1
+	card.mana_cost = 10
+	card.tempo_cost = 5
 	card.damage = 0
 	card.base_damage = 0
 	card.block = 0
@@ -5077,25 +5110,85 @@ static func create_paralysis() -> Card:
 	card.target_types = ["self"]
 	return card
 
+## Release Soul: how much Strengthen every living Spirit Collector gains when
+## the soul is set free. sheet: "give all soul collectors strengthen" — no
+## amount given, 5 for now. TODO(sheet)
+const RELEASE_SOUL_STRENGTHEN := 5
+
 static func create_release_soul() -> Card:
-	## Spirit Collector: your caged soul saps you every cycle it is held
-	## (1 damage per tempo, ticked once per 5-tempo cycle). Play to release it.
+	## Spirit Collector (sheet): "Release Soul: 15 mana, 2 tempo: give all
+	## soul collectors strengthen". While it is in hand the holder is Drained
+	## (held at 1 stack by Main._sync_held_drain, lifted when the card
+	## leaves) and it "deals 1 dmg per tempo until played" — there is no
+	## per-tempo in-hand tick, so the 5 tempo of a cycle are charged together
+	## through held_damage_per_cycle (DeckManager.process_turn). Erased on play.
 	var card = Card.new()
 	card.card_id = "release_soul"
 	card.card_name = "Release Soul"
-	card.description = "A piece of your soul, caged. Saps 5 damage every cycle it stays in your hand. Play (0 mana, 0 tempo) to release it."
+	card.description = "A piece of your soul, caged. While it is in your hand you are Drained (10 mana a cycle) and it saps 1 damage per tempo (5 at each cycle). Play (15 mana, 2 tempo) to release it — every living Spirit Collector gains %d Strengthen." % RELEASE_SOUL_STRENGTHEN
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Curse"
-	card.mana_cost = 0
+	card.mana_cost = 15
+	card.tempo_cost = 2
+	card.damage = 0
+	card.base_damage = 0
+	card.block = 0
+	card.base_block = 0
+	card.heal_amount = 0
+	card.held_damage_per_cycle = 5  # 1 per tempo, charged per 5-tempo cycle
+	card.in_hand_debuff = "drain_1"  # Drain, held at 1 stack while in hand (Main._sync_held_drain)
+	card.erase_on_play = true
+	card.linger = true
+	card.target_types = ["self"]
+	return card
+
+## Playing Release Soul frees the caged soul — and every living Spirit
+## Collector on the field drinks it: +RELEASE_SOUL_STRENGTHEN each, added to
+## their Strike and Collect Soul for the rest of the fight. The field is
+## reached through the player's parent, as _nearest_other_enemy does.
+func _execute_release_soul(target) -> void:
+	if target == null or not is_instance_valid(target) or not (target is Node3D):
+		return
+	var scene = target.get_parent()
+	if scene == null or not ("enemy_spawner" in scene) or scene.enemy_spawner == null:
+		return
+	var fed := 0
+	for e in scene.enemy_spawner.get_living_enemies():
+		if not is_instance_valid(e) or e.enemy_type != Enemy.EnemyType.SPIRIT_COLLECTOR:
+			continue
+		e.strengthen_stacks += RELEASE_SOUL_STRENGTHEN
+		if e.has_method("_update_status_indicators"):
+			e._update_status_indicators()
+		fed += 1
+	if fed > 0:
+		print("[CARD] Release Soul: %d Spirit Collector(s) gain %d Strengthen" % [fed, RELEASE_SOUL_STRENGTHEN])
+
+static func create_infest() -> Card:
+	## Rat King's Infest (sheet): one lands in your hand per rat within 10
+	## squares of the king. Held for 5 tempo it hatches into 2 Wererats
+	## beside you; play it (50 mana, 0 tempo) to crush the brood, or discard
+	## it — either way nothing hatches. The fuse only runs while it is in
+	## the hand: the sheet says otherwise than the negative-card rule (a
+	## curse's countdown runs in every pile), since a discarded brood is
+	## erased and never reaches another pile to tick in. The hatch itself is whatever hatch_handler the king bound
+	## (a card rebuilt by id from a save has none and simply crumbles).
+	var card = Card.new()
+	card.card_id = "infest"
+	card.card_name = "Infest"
+	card.description = "A rat brood squirming in your pack. In 5 tempo, if it is still in your hand, it hatches into 2 Wererats. Play (50 mana, 0 tempo) to erase it, or discard it."
+	card.card_type = CardType.UTILITY
+	card.card_type_name = "Curse"
+	card.mana_cost = 50
 	card.tempo_cost = 0
 	card.damage = 0
 	card.base_damage = 0
 	card.block = 0
 	card.base_block = 0
 	card.heal_amount = 0
-	card.held_damage_per_cycle = 5  # 1 per tempo, charged per cycle
+	card.hatch_tempo = 5
+	card.hatch_tempo_left = 5
 	card.erase_on_play = true
-	card.linger = true
+	card.linger = true  # forced into hand; may exceed the hand cap
 	card.target_types = ["self"]
 	return card
 
@@ -5297,7 +5390,7 @@ static func create_minor_wounds() -> Card:
 	var card = Card.new()
 	card.card_id = "minor_wounds"
 	card.card_name = "Minor Wounds"
-	card.description = "On draw, deal 2 damage to self. Erase: 40 (in hand)."
+	card.description = "On draw, deal 2 damage to self. Erase: 40 (in your hand or the draw or discard pile; frozen while jailed)."
 	card.card_type = CardType.UNPLAYABLE
 	card.card_type_name = "Status"
 	card.mana_cost = 0
@@ -7642,7 +7735,7 @@ static func create_switch_kick() -> Card:
 	var card = Card.new()
 	card.card_id = "switch_kick"
 	card.card_name = "Switch Kick"
-	card.description = "Deal 2 damage and disarm the enemy for 1 attack."
+	card.description = "Deal 2 damage and Disarm the enemy for 5 tempo (it skips its next attack)."
 	card.card_type = CardType.ATTACK
 	card.card_type_name = "Attack"
 	card.mana_cost = 2
@@ -8634,7 +8727,7 @@ static func create_song_of_a_swords_sing() -> Card:
 	var card = Card.new()
 	card.card_id = "song_of_a_swords_sing"
 	card.card_name = "Song of a Swords Sing"
-	card.description = "Disarm the enemy for 1 attack and gain 2 armor for every KIND of debuff on it (3 burn is one kind; burn + frost + disarm is three)."
+	card.description = "Disarm the enemy for 5 tempo (it skips its next attack) and gain 2 armor for every KIND of debuff on it (3 burn is one kind; burn + frost + disarm is three)."
 	card.card_type = CardType.UTILITY
 	card.card_type_name = "Utility"
 	card.mana_cost = 35

@@ -28,15 +28,18 @@ func apply_debuff(debuff: Debuff) -> void:
 		owner_stats.heal(ex_heal)
 		print("[DEBUFF] Elixir: %d poison became %d healing" % [debuff.value, ex_heal])
 		return
-	# Stack-driven debuffs never expire by the clock — their stacks are burned
-	# by what they react to (movement, damage, card plays), mirroring Burn.
+	# Stack-driven debuffs never expire by the shared timer. Burn, Bleed and
+	# Weighted burn their stacks by what they react to (cycles, movement, card
+	# plays); the stack-clocked types (Debuff.is_stack_clocked) shed one stack
+	# per 5 tempo of their own clock — whatever duration the caller passed.
 	# A clock-timed Slowed/Staggered (Approach, Tower Shield) keeps its duration.
 	match debuff.debuff_type:
-		Debuff.DebuffType.BURN, Debuff.DebuffType.BLEED, Debuff.DebuffType.SLOWED, \
-		Debuff.DebuffType.STAGGERED, Debuff.DebuffType.WEIGHTED, Debuff.DebuffType.CLUMSY, \
-		Debuff.DebuffType.WEAKENED:
-			if not debuff.clock_timed:
+		Debuff.DebuffType.BURN, Debuff.DebuffType.BLEED, Debuff.DebuffType.WEIGHTED:
+			debuff.duration = -1
+		_:
+			if debuff.uses_stack_clock():
 				debuff.duration = -1
+				debuff.stack_clock = 0
 
 	var existing = get_debuff(debuff.debuff_type)
 	# Timed and stack-driven copies of the same debuff never merge: the timed
@@ -53,29 +56,40 @@ func apply_debuff(debuff: Debuff) -> void:
 			return
 		# Stacks over a timer: the timer already covers it.
 		return
-	# Hexed never merges: each hex is its own instance claiming its own card
-	# in hand, so several cards can be hexed at once (Necromancer Bolt hexes 2).
-	if debuff.debuff_type == Debuff.DebuffType.HEXED:
+	# Hexed and Locked never merge: each is its own instance claiming its own
+	# card in hand, so several cards can be hexed (Necromancer Bolt hexes 2)
+	# or locked at once.
+	if debuff.debuff_type == Debuff.DebuffType.HEXED or debuff.debuff_type == Debuff.DebuffType.LOCKED:
 		existing = null
 
 	if existing:
 		# -1 means "until depleted/cleansed" — it always wins the merge.
 		if existing.duration < 0 or debuff.duration < 0:
 			existing.duration = -1
+		elif Debuff.is_additive_timer(debuff.debuff_type):
+			# Disarm / Rooted / Silence: the new timer lands ON TOP of what is
+			# left (3 left + 5 = 8), not the longer of the two.
+			existing.duration += debuff.duration
 		else:
 			existing.duration = max(existing.duration, debuff.duration)
 		existing.stacks += 1
 		# Accumulate — recomputing from the newest instance's value corrupted
 		# heterogeneous stacks (Bleed 3 + Bleed 1 used to become 2, not 4).
+		# A stack-clocked debuff keeps its own clock running: the new stacks
+		# join the queue, the next one still falls when it was going to.
 		existing.value += debuff.value
 		existing._set_name_and_description()
 		print("[DEBUFF] %s stacked to %d (value: %d)" % [debuff.debuff_name, existing.stacks, existing.value])
 	else:
 		debuffs.append(debuff)
 
-		# Special handling for Hexed and Locked - pick random card
+		# Hexed and Locked claim their card the moment they land when a hand
+		# is known — never sitting unassigned until the next hand change.
 		if debuff.debuff_type == Debuff.DebuffType.HEXED or debuff.debuff_type == Debuff.DebuffType.LOCKED:
-			_assign_random_card_to_debuff(debuff)
+			debuff.affected_card = null
+			var claim_deck = _claim_deck()
+			if claim_deck:
+				claim_deck.assign_hexed_locked_cards(self)
 
 		# Reset burn damage tracker when burn is first applied
 		if debuff.debuff_type == Debuff.DebuffType.BURN:
@@ -109,11 +123,6 @@ func apply_debuff(debuff: Debuff) -> void:
 				var ptp_cost: int = maxi(1, ceili(owner_stats.max_health * ptp_pct / 100.0))
 				if owner_stats.current_health > ptp_cost:
 					point_to_prove_triggered.emit(debuff)
-
-func _assign_random_card_to_debuff(debuff: Debuff) -> void:
-	# This will be called from deck_manager which has access to hand
-	# For now, set to -1 and let deck_manager handle it
-	debuff.affected_card_index = -1
 
 func remove_debuff(type: Debuff.DebuffType) -> void:
 	for i in range(debuffs.size() - 1, -1, -1):
@@ -220,25 +229,25 @@ func process_turn_start() -> Dictionary:
 	return result
 
 func process_turn_end() -> void:
-	# Brittle: consume 1 stack per cycle
-	var brittle = get_debuff(Debuff.DebuffType.BRITTLE)
-	if brittle:
-		brittle.value -= 1
-		brittle._set_name_and_description()
-		if brittle.value <= 0:
-			remove_debuff(Debuff.DebuffType.BRITTLE)
-			print("[DEBUFF] Brittle expired (0 stacks)")
+	# Nothing ticks on the cycle boundary any more: Brittle's stacks fall on
+	# its own 5-tempo clock like every stack-clocked debuff, and timed
+	# durations tick in advance_time (below) on every raw tempo advance so
+	# durations like "3 tempo" work. Kept so main.gd's cycle hook stays wired.
+	pass
 
-	# Timed durations no longer tick here — advance_time (below) runs on every
-	# raw tempo advance so durations like "3 tempo" work.
-
-## Advance timed debuff durations by raw tempo. Called on every tempo advance
-## (any amount), so stun/frozen/etc handle durations not divisible by 5.
+## Advance timed debuff durations — and the stack-clocked debuffs' own
+## clocks — by raw tempo. Called on every tempo advance (any amount), so
+## stun/frozen/etc handle durations not divisible by 5 and a stack applied at
+## tempo 3 falls at tempo 8.
 func advance_time(amount: int) -> void:
 	if amount <= 0 or debuffs.is_empty():
 		return
 	var expired: Array[Debuff] = []
 	for debuff in debuffs:
+		# The negative-card rule: a hex or lock's clock keeps running while
+		# its card sits in the discard or draw pile, but freezes in jail.
+		if _claim_frozen(debuff):
+			continue
 		if debuff.advance_time(amount):
 			expired.append(debuff)
 
@@ -253,7 +262,15 @@ func advance_time(amount: int) -> void:
 		debuff_removed.emit(debuff)
 		print("[DEBUFF] Expired: %s" % debuff.debuff_name)
 
-	if expired.size() > 0:
+	# A stack-clocked debuff that shed a stack but lives on changed its shown
+	# count; the HUD re-reads descriptions off this signal.
+	var shed_any := expired.size() > 0
+	if not shed_any:
+		for debuff in debuffs:
+			if debuff.uses_stack_clock():
+				shed_any = true
+				break
+	if shed_any:
 		debuffs_changed.emit()
 
 func process_armor_decay(base_decay: int) -> int:
@@ -270,17 +287,13 @@ func process_armor_decay(base_decay: int) -> int:
 # ============================================
 
 func _apply_vulnerable_modifier(damage: int) -> int:
-	# Vulnerable: always 30% more damage, consume 1 stack
+	# Vulnerable: 30% more damage on EVERY hit while any stack remains. Hits
+	# no longer eat stacks — they fall on the debuff's own 5-tempo clock.
 	var vulnerable = get_debuff(Debuff.DebuffType.VULNERABLE)
 	if vulnerable:
 		var increase = floori(damage * 30.0 / 100.0)
 		damage += increase
 		print("[DEBUFF] Vulnerable increases damage by 30%% (%d)" % increase)
-		vulnerable.value -= 1
-		vulnerable._set_name_and_description()
-		if vulnerable.value <= 0:
-			remove_debuff(Debuff.DebuffType.VULNERABLE)
-			print("[DEBUFF] Vulnerable expired (0 stacks)")
 	return damage
 
 func modify_incoming_damage(damage: int) -> int:
@@ -298,22 +311,19 @@ func can_move() -> bool:
 		return false
 	return true
 
+## Slowed: the tempo charger prices each tile at Debuff.SLOWED_TEMPO_PER_TILE
+## while this holds. Moving burns nothing — the stacks fall on the clock.
 func is_slowed() -> bool:
 	return has_debuff(Debuff.DebuffType.SLOWED)
 
-## Slowed: burn one stack for a tile moved. Called by the tempo charger, which
-## also prices the tile at Debuff.SLOWED_TEMPO_PER_TILE instead of 1.
-func consume_slowed_stack() -> void:
-	var slowed = get_debuff(Debuff.DebuffType.SLOWED)
-	if slowed == null or slowed.clock_timed:
-		return
-	slowed.value -= 1
-	slowed._set_name_and_description()
-	if slowed.value <= 0:
-		remove_debuff(Debuff.DebuffType.SLOWED)
-		print("[DEBUFF] Slowed expired (0 stacks)")
-	else:
-		debuffs_changed.emit()
+## Blind: the debuff manager is the source of truth (PlayerStats.is_blinded
+## is a legacy flag nothing sets any more). Attacks miss at Debuff.BLIND_MISS
+## while any stack remains.
+func is_blinded() -> bool:
+	return has_debuff(Debuff.DebuffType.BLIND)
+
+func get_blind_miss_chance() -> float:
+	return Debuff.BLIND_MISS / 100.0 if is_blinded() else 0.0
 
 # ============================================
 # CARD QUERIES
@@ -346,29 +356,26 @@ func is_lost() -> bool:
 	return has_debuff(Debuff.DebuffType.LOST)
 
 func get_attack_mana_increase() -> int:
-	# Fixed surcharge while any stacks remain; stacks burn per attack card played.
+	# Fixed surcharge while any stacks remain; the stacks fall on the clock.
 	return Debuff.STAGGERED_MANA if has_debuff(Debuff.DebuffType.STAGGERED) else 0
 
 func get_tempo_increase() -> int:
 	# Fixed surcharge while any stacks remain; stacks burn per card played.
 	return Debuff.WEIGHTED_TEMPO if has_debuff(Debuff.DebuffType.WEIGHTED) else 0
 
-## Stack bookkeeping when a card is successfully played: Weighted and Clumsy
-## burn on every card, Staggered only on attack cards.
-func on_card_played(is_attack_card: bool) -> void:
-	for entry in [[Debuff.DebuffType.WEIGHTED, true], [Debuff.DebuffType.CLUMSY, true],
-			[Debuff.DebuffType.STAGGERED, is_attack_card]]:
-		if not entry[1]:
-			continue
-		var d = get_debuff(entry[0])
-		if d == null or d.clock_timed:
-			continue
-		d.value -= 1
-		d._set_name_and_description()
-		if d.value <= 0:
-			remove_debuff(entry[0])
-		else:
-			debuffs_changed.emit()
+## Stack bookkeeping when a card is successfully played: only Weighted still
+## burns per card. Staggered and Clumsy hold for their stacks' 5-tempo clocks
+## no matter how many cards are played (the sheet's stack model).
+func on_card_played(_is_attack_card: bool) -> void:
+	var weighted = get_debuff(Debuff.DebuffType.WEIGHTED)
+	if weighted == null or weighted.clock_timed:
+		return
+	weighted.value -= 1
+	weighted._set_name_and_description()
+	if weighted.value <= 0:
+		remove_debuff(Debuff.DebuffType.WEIGHTED)
+	else:
+		debuffs_changed.emit()
 
 ## Every Hexed instance — each one claims its own card in hand.
 func get_hexed_debuffs() -> Array[Debuff]:
@@ -378,57 +385,162 @@ func get_hexed_debuffs() -> Array[Debuff]:
 			out.append(d)
 	return out
 
-func get_hexed_mana_increase(index: int) -> int:
-	## Total hex surcharge on THIS card. Hexes usually spread across different
-	## cards, but stack onto one when there are more hexes than cards.
+## The deck whose hand Hexed / Locked claim cards from (a DeckManager —
+## untyped to dodge the cycle). The owning player's own deck is the truth; a
+## bare manager (tests, a co-op deck before its first render) falls back to
+## whichever deck last bound itself (DeckManager.assign_hexed_locked_cards).
+var hand_owner = null
+
+func _claim_deck():
+	if owner_node and is_instance_valid(owner_node) and owner_node.has_method("get_deck_manager"):
+		var own_deck = owner_node.get_deck_manager()
+		if own_deck:
+			return own_deck
+	if hand_owner and is_instance_valid(hand_owner):
+		return hand_owner
+	return null
+
+func _is_claim(d: Debuff) -> bool:
+	return d.debuff_type == Debuff.DebuffType.HEXED or d.debuff_type == Debuff.DebuffType.LOCKED
+
+## A hex or lock whose card is jailed: its clock stands still until the card
+## is released. Only the owning deck knows where the card sits.
+func _claim_frozen(d: Debuff) -> bool:
+	if not _is_claim(d) or d.affected_card == null:
+		return false
+	var deck = _claim_deck()
+	return deck != null and deck.has_method("is_card_jailed") and deck.is_card_jailed(d.affected_card)
+
+## The card at a hand index. A claim belongs to a card, not a slot: the
+## index-based queries below only translate the slot the UI or a play asks
+## about into the card sitting there now.
+func _hand_card(index: int) -> Card:
+	var deck = _claim_deck()
+	if deck == null or index < 0 or index >= deck.hand.size():
+		return null
+	return deck.hand[index]
+
+## Callers name a card either by its object or by its current hand index.
+func _as_card(which) -> Card:
+	if which is Card:
+		return which
+	if which is int:
+		return _hand_card(which)
+	return null
+
+## Total hex surcharge on this card. Hexes usually spread across different
+## cards, but stack onto one when there are more hexes than cards.
+func card_hex_surcharge(card: Card) -> int:
+	if card == null:
+		return 0
 	var total := 0
 	for d in get_hexed_debuffs():
-		if d.affected_card_index == index:
+		if d.affected_card == card:
 			total += d.value
 	return total
 
-## Playing a hexed card (paying its surcharge) clears every hex riding it.
-func remove_hexes_on_card(index: int) -> void:
-	var removed_any := false
-	for i in range(debuffs.size() - 1, -1, -1):
-		var d = debuffs[i]
-		if d.debuff_type == Debuff.DebuffType.HEXED and d.affected_card_index == index:
-			debuffs.remove_at(i)
-			debuff_removed.emit(d)
-			removed_any = true
-			print("[DEBUFF] Hex broken (card %d played)" % index)
-	if removed_any:
-		debuffs_changed.emit()
+func card_is_hexed(card: Card) -> bool:
+	return _card_claimed(card, Debuff.DebuffType.HEXED)
 
-## A card left the hand — every hex claiming a later card shifts down one.
-func shift_hexed_indices(removed_index: int) -> void:
-	for d in get_hexed_debuffs():
-		if d.affected_card_index > removed_index:
-			d.affected_card_index -= 1
+func card_is_locked(card: Card) -> bool:
+	return _card_claimed(card, Debuff.DebuffType.LOCKED)
 
-func get_locked_card_index() -> int:
-	var locked = get_debuff(Debuff.DebuffType.LOCKED)
-	return locked.affected_card_index if locked else -1
-
-func set_locked_card_index(index: int) -> void:
-	var locked = get_debuff(Debuff.DebuffType.LOCKED)
-	if locked:
-		locked.affected_card_index = index
-
-func is_card_locked(index: int) -> bool:
-	var locked = get_debuff(Debuff.DebuffType.LOCKED)
-	if locked and locked.affected_card_index == index:
-		return true
-	return false
-
-func is_card_hexed(index: int) -> bool:
-	for d in get_hexed_debuffs():
-		if d.affected_card_index == index:
+func _card_claimed(card: Card, type: Debuff.DebuffType) -> bool:
+	# A null card never matches: an unassigned claim holds no card at all.
+	if card == null:
+		return false
+	for d in debuffs:
+		if d.debuff_type == type and d.affected_card == card:
 			return true
 	return false
 
+func get_hexed_mana_increase(index: int) -> int:
+	return card_hex_surcharge(_hand_card(index))
+
+func is_card_hexed(index: int) -> bool:
+	return card_is_hexed(_hand_card(index))
+
+## Playing a hexed card (paying its surcharge) clears every hex riding it.
+## Takes the Card or its current hand index.
+func remove_hexes_on_card(which) -> void:
+	var card := _as_card(which)
+	if card == null:
+		return
+	_drop_claims_where(func(d): return d.debuff_type == Debuff.DebuffType.HEXED \
+			and d.affected_card == card, "hex broken")
+
+## Every Locked instance — like Hexed, each one claims its own card in hand.
+func get_locked_debuffs() -> Array[Debuff]:
+	var out: Array[Debuff] = []
+	for d in debuffs:
+		if d.debuff_type == Debuff.DebuffType.LOCKED:
+			out.append(d)
+	return out
+
+## The hand index of the first Locked card IN HAND (-1 when none — a lock
+## may hold no card yet, or ride one resting in the discard pile or jail).
+## Single-lock callers (the hand-slot grouping) read this; anything that
+## must see every lock walks is_card_locked.
+func get_locked_card_index() -> int:
+	var deck = _claim_deck()
+	if deck == null:
+		return -1
+	for lock in get_locked_debuffs():
+		if lock.affected_card != null:
+			var i: int = deck.hand.find(lock.affected_card)
+			if i >= 0:
+				return i
+	return -1
+
+func is_card_locked(index: int) -> bool:
+	return card_is_locked(_hand_card(index))
+
+## Lifts every lock riding this card (a lock played through a bypass, or
+## any caller that frees one card). Takes the Card or its current hand index.
+func remove_locks_on_card(which) -> void:
+	var card := _as_card(which)
+	if card == null:
+		return
+	_drop_claims_where(func(d): return d.debuff_type == Debuff.DebuffType.LOCKED \
+			and d.affected_card == card, "lock lifted")
+
+## A card left the hand by being played — the sheet's "until played" — so
+## every hex and lock riding it ends.
+func release_card_claims(card: Card) -> void:
+	if card == null:
+		return
+	_drop_claims_where(func(d): return (d.debuff_type == Debuff.DebuffType.HEXED \
+			or d.debuff_type == Debuff.DebuffType.LOCKED) and d.affected_card == card, "card played")
+
+## The one rule for every other way a card moves (the designer's rule for
+## negative card effects): a hex or lock stays on its card through a discard,
+## a jail, a reshuffle into the draw pile — wherever `deck` still holds it —
+## and ends only when the card leaves the game (erased, burnt, stolen,
+## enchanted away). No other card inherits it. Unassigned claims wait.
+func drop_claims_off_deck(deck) -> void:
+	if deck == null:
+		return
+	_drop_claims_where(func(d): return _is_claim(d) and d.affected_card != null \
+			and not deck.holds_card(d.affected_card), "card left the game")
+
+## Removes every claim matching `pred`, then announces them. The signals go
+## out only once the list is settled: a listener (a belt conjuring a tonic on
+## debuff_removed) can change the hand, which sweeps claims again.
+func _drop_claims_where(pred: Callable, why: String) -> void:
+	var dropped: Array[Debuff] = []
+	for i in range(debuffs.size() - 1, -1, -1):
+		if pred.call(debuffs[i]):
+			dropped.append(debuffs[i])
+			debuffs.remove_at(i)
+	if dropped.is_empty():
+		return
+	for d in dropped:
+		print("[DEBUFF] %s on %s ends (%s)" % [d.debuff_name, d.affected_card.card_name if d.affected_card else "?", why])
+		debuff_removed.emit(d)
+	debuffs_changed.emit()
+
 func get_clumsy_chance() -> int:
-	# Fixed chance while any stacks remain; stacks burn per card played.
+	# Fixed chance while any stacks remain; the stacks fall on the clock.
 	return Debuff.CLUMSY_CHANCE if has_debuff(Debuff.DebuffType.CLUMSY) else 0
 
 func roll_clumsy() -> bool:
@@ -447,7 +559,7 @@ func get_damage_reduction_percent() -> float:
 	if has_debuff(Debuff.DebuffType.CURSED):
 		reduction += 0.2
 	# Weakened (mirrors the enemy-side Weaken): -30% damage dealt while any
-	# stacks remain; one stack burns per attack (see on_attack).
+	# stacks remain; attacking burns nothing, the stacks fall on the clock.
 	var weakened = get_debuff(Debuff.DebuffType.WEAKENED)
 	if weakened and weakened.value > 0:
 		reduction += Debuff.WEAKENED_REDUCTION / 100.0
@@ -485,17 +597,8 @@ func on_movement(tiles_moved: int) -> int:
 	return 0
 
 func on_attack() -> int:
-	# Weakened: the attack just resolved (already reduced) — burn one stack.
-	var weakened = get_debuff(Debuff.DebuffType.WEAKENED)
-	if weakened:
-		weakened.value -= 1
-		weakened._set_name_and_description()
-		if weakened.value <= 0:
-			remove_debuff(Debuff.DebuffType.WEAKENED)
-			print("[DEBUFF] Weakened worn off")
-		else:
-			debuffs_changed.emit()
-
+	# Weakened no longer burns here: the attack was reduced and the stacks
+	# fall on their own clock. Only Burn reacts to an attack.
 	var burn = get_debuff(Debuff.DebuffType.BURN)
 	if burn:
 		# Burn on-attack uses the current burn_damage_next value
@@ -508,3 +611,20 @@ func on_attack() -> int:
 # ============================================
 # DISPLAY
 # ============================================
+
+# ============================================
+# ACTION QUERIES
+# ============================================
+
+## Stun stops everything: no card, attack, block, move, skill, Flash/Brain
+## spend or gear swap while it holds. Only Wait (passing time) stays open —
+## otherwise a stun could never tick off. Frozen is NOT here: it only stops
+## card plays (can_play_cards).
+func can_act() -> bool:
+	return not has_debuff(Debuff.DebuffType.STUN)
+
+## Blind's miss roll for an attack that is not a card (the auto attack, Flash
+## Cut): the same constant chance an Attack card rolls in Card._execute_card.
+func roll_blind_miss() -> bool:
+	var chance := get_blind_miss_chance()
+	return chance > 0.0 and randf() < chance

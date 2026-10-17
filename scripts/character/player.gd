@@ -329,8 +329,9 @@ func move_to_grid(target_pos: Vector3, spaces: int) -> bool:
 	# Slowed no longer trims spaces — it taxes tempo per tile instead (see
 	# TempoManager.add_movement_tempo), burning a stack per tile.
 
-	# Haste: charge-based — the bonus tiles are tempo-free, and each non-flash
-	# move burns one charge (flash-point moves leave the charges alone).
+	# Haste: charge-based — the bonus tiles are tempo-free, and every move
+	# burns one charge, Flash moves included (Haste and Flash do not stack for
+	# free: moving on Flash still uses Haste up).
 	var haste_bonus = buff_manager.get_haste_bonus()
 	if haste_bonus > 0:
 		spaces += haste_bonus
@@ -398,14 +399,13 @@ func preview_path_cells(target_pos: Vector3, spaces: int) -> Array[Vector2i]:
 	return cells
 
 ## Haste bookkeeping when a move actually starts: the bonus tiles ride free
-## (via the free-move-tiles pool the tempo charger already honors) and one
-## charge burns — unless the move is flash-powered, which is exempt.
+## (via the free-move-tiles pool the tempo charger already honors, which a
+## Flash move spends before any flash points) and one charge burns. Flash
+## moves are not exempt — the player has to choose when to spend Haste.
 func _consume_haste_for_move(haste_bonus: int) -> void:
 	if haste_bonus <= 0:
 		return
 	var pstats = get_stats()
-	if pstats and pstats.flash_movement_enabled:
-		return
 	if pstats:
 		pstats.free_move_tiles += haste_bonus
 	buff_manager.consume_haste()

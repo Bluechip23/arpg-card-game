@@ -50,6 +50,36 @@ func apply_buff(buff: Buff) -> void:
 		buff.value = fort_regen.value if fort_regen else 0
 		buff._set_name_and_description()
 
+	# Enlightened never merges: every application is its own instance with its
+	# own % and charges, and the highest % pays out first (see
+	# _top_enlightened). Merging used to keep the best of both — a 100%x1 on a
+	# 30%x5 became five guaranteed crits.
+	if buff.buff_type == Buff.BuffType.ENLIGHTENED:
+		buffs.append(buff)
+		print("[BUFF] Applied: %s %d%% for %s" % [buff.buff_name, buff.value, buff.get_duration_display()])
+		buff_applied.emit(buff)
+		buffs_changed.emit()
+		return
+
+	# Resilient merges only with an instance guarding the same damage type: a
+	# typed one and an untyped one (or two different types) live side by side,
+	# so a stronger all-damage Resilient never inherits Harden's physical gate.
+	if buff.buff_type == Buff.BuffType.RESILIENT:
+		var same_type = _resilient_of_type(buff.damage_type)
+		if same_type:
+			# A stronger resistance replaces a weaker one (a 2% Smithed
+			# Excellence must not cap Stone Hide's 10%); the longer clock stays.
+			same_type.value = maxi(same_type.value, buff.value)
+			same_type.duration = maxi(same_type.duration, buff.duration)
+			same_type._set_name_and_description()
+			print("[BUFF] %s refreshed (value: %d)" % [buff.buff_name, same_type.value])
+		else:
+			buffs.append(buff)
+			print("[BUFF] Applied: %s for %s" % [buff.buff_name, buff.get_duration_display()])
+		buff_applied.emit(buff)
+		buffs_changed.emit()
+		return
+
 	# Check if buff already exists (refresh or stack)
 	var existing = get_buff(buff.buff_type)
 	if buff.buff_type == Buff.BuffType.INVISIBLE and existing == null:
@@ -84,12 +114,7 @@ func apply_buff(buff: Buff) -> void:
 			existing.stacks += 1
 			existing.value += buff.value
 			existing._set_name_and_description()
-		elif buff.buff_type in [Buff.BuffType.ENLIGHTENED, Buff.BuffType.RESILIENT] and buff.value > existing.value:
-			# A surer crit / a stronger resistance replaces a weaker one (a
-			# 2% Smithed Excellence must not cap Stone Hide's 10%).
-			existing.value = buff.value
-			existing._set_name_and_description()
-		
+
 		print("[BUFF] %s refreshed/stacked (value: %d)" % [buff.buff_name, existing.value])
 	else:
 		buffs.append(buff)
@@ -159,19 +184,65 @@ func _recompute_might() -> void:
 			total += buff.value
 	owner_stats.temp_strength_bonus = total
 
+## Removes every instance of the type — Enlightened and Resilient can hold
+## several at once, and "lose the buff" means all of them. To drop one spent
+## instance use remove_buff_instance.
 func remove_buff(type: Buff.BuffType) -> void:
+	var removed_any := false
 	for i in range(buffs.size() - 1, -1, -1):
 		if buffs[i].buff_type == type:
 			var removed = buffs[i]
 			buffs.remove_at(i)
-			_recompute_might()
-			buffs_changed.emit()
+			removed_any = true
 			print("[BUFF] Removed: %s" % removed.buff_name)
-			return
+	if removed_any:
+		_recompute_might()
+		buffs_changed.emit()
 
+func remove_buff_instance(buff: Buff) -> void:
+	if not buffs.has(buff):
+		return
+	buffs.erase(buff)
+	_recompute_might()
+	buffs_changed.emit()
+	print("[BUFF] Removed: %s" % buff.buff_name)
+
+## The single buff of a type. For Enlightened, which keeps separate instances,
+## it is the one in charge (_top_enlightened) — the one that pays out and
+## spends its charges. Resilient instances are read by type through
+## get_resilient_percent / get_buffs.
 func get_buff(type: Buff.BuffType) -> Buff:
+	if type == Buff.BuffType.ENLIGHTENED:
+		return _top_enlightened()
 	for buff in buffs:
 		if buff.buff_type == type:
+			return buff
+	return null
+
+## Every live instance of a type, in the order they were applied.
+func get_buffs(type: Buff.BuffType) -> Array[Buff]:
+	var out: Array[Buff] = []
+	for buff in buffs:
+		if buff.buff_type == type:
+			out.append(buff)
+	return out
+
+## The Enlightened instance with the highest crit %; on a tie, the one with
+## fewer charges left, so the stack about to run out is used up first.
+func _top_enlightened() -> Buff:
+	var top: Buff = null
+	for buff in buffs:
+		if buff.buff_type != Buff.BuffType.ENLIGHTENED:
+			continue
+		if top == null or buff.value > top.value \
+				or (buff.value == top.value and buff.charges < top.charges):
+			top = buff
+	return top
+
+## The Resilient instance guarding exactly this damage type (-1 = all types).
+func _resilient_of_type(damage_type: int) -> Buff:
+	for buff in buffs:
+		if buff.buff_type == Buff.BuffType.RESILIENT and buff.damage_type == damage_type:
 			return buff
 	return null
 
@@ -212,7 +283,7 @@ func process_turn_start() -> Dictionary:
 				result["armor_gained"] += buff.value
 				print("[BUFF] Smith grants %d armor" % buff.value)
 	for buff in depleted:
-		remove_buff(buff.buff_type)
+		remove_buff_instance(buff)
 	
 	# Apply effects
 	if owner_stats:
@@ -503,11 +574,11 @@ func consume_strengthen() -> int:
 	return 0
 
 func get_enlightened_crit_chance() -> int:
-	# Enlightened grants the buff's own crit % while any stacks remain (most
-	# sources grant 10; rank-scaled sources like Brad's Redemption pass 1..15).
-	# Multiple stacks never raise the percentage — they only extend how many
-	# attacks it lasts.
-	var enlightened = get_buff(Buff.BuffType.ENLIGHTENED)
+	# Enlightened grants the crit % of its highest live instance (most sources
+	# grant 10; rank-scaled sources like Brad's Redemption pass 1..15). The
+	# instances never add up — a weaker one waits its turn until the stronger
+	# one's charges are spent.
+	var enlightened = _top_enlightened()
 	if enlightened == null:
 		return 0
 	# Understanding's delayed auto-crit stores value 100 — a guaranteed crit
@@ -573,13 +644,17 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	if rd_crit > 0 and owner_stats:
 		owner_stats.st_redemption_crit = 0
 
-	# Enlightened is "+X% crit for the next Y ATTACKS": every attack roll spends
-	# a charge, crit or not. (Consuming only on successful crits let the buff
-	# outlast its stated attack count ~3x.)
-	var enlightened = get_buff(Buff.BuffType.ENLIGHTENED)
+	# Enlightened is "+X% crit for the next Y rolls": every crit roll spends a
+	# charge, crit or not. (Consuming only on successful crits let the buff
+	# outlast its stated count ~3x.) Only the instance that paid out — the
+	# highest % — spends; the others keep their charges for later.
+	var enlightened = _top_enlightened()
 	if enlightened:
 		if enlightened.use_charge():
-			remove_buff(Buff.BuffType.ENLIGHTENED)
+			remove_buff_instance(enlightened)
+		else:
+			enlightened._set_name_and_description()
+			buffs_changed.emit()
 
 	if is_crit:
 		print("[BUFF] CRITICAL HIT! (rolled %.1f < %.2f)" % [roll, total_chance])
@@ -610,10 +685,15 @@ func get_haste_bonus() -> int:
 	return haste.value if haste else 0
 
 func consume_haste() -> void:
-	# One charge per (non-flash) move action.
+	# One charge per move action, Flash moves included.
 	var haste = get_buff(Buff.BuffType.HASTE)
-	if haste and haste.use_charge():
-		remove_buff(Buff.BuffType.HASTE)
+	if haste == null:
+		return
+	if haste.use_charge():
+		remove_buff_instance(haste)
+	else:
+		haste._set_name_and_description()
+		buffs_changed.emit()
 
 # ============================================
 # POISONED BLOOD (heal cards deal damage; one charge per converted heal)
@@ -689,13 +769,17 @@ func consume_brace(damage_type: int = -1) -> int:
 	return 0
 
 func get_resilient_percent(damage_type: int = -1) -> int:
-	var resilient = get_buff(Buff.BuffType.RESILIENT)
-	if not resilient:
-		return 0
-	# A typed Resilient (e.g. Harden = Physical) only reduces matching damage.
-	if resilient.damage_type != -1 and damage_type != -1 and resilient.damage_type != damage_type:
-		return 0
-	return resilient.value
+	# The best live instance that covers this hit: an untyped Resilient covers
+	# everything, a typed one (Harden = Physical) only its own type. A hit of
+	# unknown type is met by any instance, as before. Instances never add up.
+	var best := 0
+	for resilient in buffs:
+		if resilient.buff_type != Buff.BuffType.RESILIENT:
+			continue
+		if resilient.damage_type != -1 and damage_type != -1 and resilient.damage_type != damage_type:
+			continue
+		best = maxi(best, resilient.value)
+	return best
 
 func calculate_damage_reduction(incoming_damage: int, damage_type: int = -1) -> int:
 	# Calculate total damage after Resilient and Brace
