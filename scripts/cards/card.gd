@@ -4321,7 +4321,7 @@ static func create_magic_barrier(armor: int = 8) -> Card:
 # ============================================
 # SHEPHERD'S MARK (Whispers of the Flock)
 #endregion
-#region static func create_shepherds_mark(armor: int = 10) -> Card: # ar
+#region shepherds_mark
 # ============================================
 
 static func create_shepherds_mark(armor: int = 10) -> Card:
