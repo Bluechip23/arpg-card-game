@@ -474,6 +474,12 @@ func handle_overflow() -> void:
 	# Quiver…) pulls the card off the pile and processes it.
 	if not overflow_manager or overflow_manager.overflow_effects.size() == 0:
 		print("[DECK] Hand full — overflow does nothing (no overflow mode active)")
+		# The card stays put, but it was still an overdraw: equipment Overdraw
+		# riders (Castle Wall's heal and Rain of Arrows, Delfin's, Treebeard's,
+		# the Sleeve's Cinquedea) fire on it. They used to fire only while an
+		# overflow mode was active, i.e. almost never.
+		if overflow_manager:
+			overflow_manager.overdraw_processed.emit(draw_pile.back() if not draw_pile.is_empty() else null)
 		return
 
 	if draw_pile.size() == 0:
@@ -575,7 +581,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 	if card.is_slotted() and inventory and inventory.belt_card_mana_reduction > 0 \
 			and card.slotted_in_item and card.slotted_in_item.item_type == ItemData.ItemType.BELT:
 		mana_cost = max(0, mana_cost - inventory.belt_card_mana_reduction)
-		print("[DECK] Belt passive: -%d mana on slotted %s" % [inventory.belt_card_mana_reduction, card.card_name])
+		if commit: print("[DECK] Belt passive: -%d mana on slotted %s" % [inventory.belt_card_mana_reduction, card.card_name])
 
 	# On-Self mana reduction from item card slot
 	if card.is_slotted():
@@ -583,27 +589,27 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		if on_self["mana_reduction"] != 0:
 			# Positive = discount; negative = surcharge (Stringless Sender -10).
 			mana_cost -= on_self["mana_reduction"]
-			print("[DECK] On-Self mana adjustment: %+d from %s" % [-on_self["mana_reduction"], card.slotted_in_item.item_name])
+			if commit: print("[DECK] On-Self mana adjustment: %+d from %s" % [-on_self["mana_reduction"], card.slotted_in_item.item_name])
 		# The Headbandz: percentage mana-cost cut for slotted cards.
 		var pct = on_self.get("mana_reduction_percent", 0.0)
 		if pct > 0.0:
 			mana_cost = floori(mana_cost * (1.0 - pct / 100.0))
-			print("[DECK] On-Self mana reduction: -%.0f%% from %s" % [pct, card.slotted_in_item.item_name])
+			if commit: print("[DECK] On-Self mana reduction: -%.0f%% from %s" % [pct, card.slotted_in_item.item_name])
 		# Megingjord: slotted cards cost double mana (and deal double damage).
 		var mana_mult = float(on_self.get("mana_multiplier", 1.0))
 		if mana_mult > 1.0:
 			mana_cost = ceili(mana_cost * mana_mult)
-			print("[DECK] On-Self mana multiplier: x%.1f from %s" % [mana_mult, card.slotted_in_item.item_name])
+			if commit: print("[DECK] On-Self mana multiplier: x%.1f from %s" % [mana_mult, card.slotted_in_item.item_name])
 
 	# Preparation: utility cards cost less (limited charges)
 	if prep_utility_discount > 0 and prep_utility_charges > 0 and card.card_type == Card.CardType.UTILITY:
 		mana_cost -= prep_utility_discount
-		print("[DECK] Preparation discount: -%d mana (%d charges left)" % [prep_utility_discount, prep_utility_charges])
+		if commit: print("[DECK] Preparation discount: -%d mana (%d charges left)" % [prep_utility_discount, prep_utility_charges])
 
 	# Fireball synergy: -10 mana for each OTHER fire spell already cast this turn.
 	if card.is_fire_spell and fire_spells_this_turn > 0:
 		mana_cost -= fire_spells_this_turn * 10
-		print("[DECK] Fire synergy: -%d mana (%d fire spell(s) this turn)" % [fire_spells_this_turn * 10, fire_spells_this_turn])
+		if commit: print("[DECK] Fire synergy: -%d mana (%d fire spell(s) this turn)" % [fire_spells_this_turn * 10, fire_spells_this_turn])
 
 	if debuff_mgr:
 		if card.card_type == Card.CardType.ATTACK:
@@ -621,14 +627,14 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 			if sw_w.spell_mana_surcharge_percent > 0.0 and card.is_offensive() \
 					and card.school == Card.CardSchool.SPELL:
 				mana_cost = ceili(mana_cost * (1.0 + sw_w.spell_mana_surcharge_percent / 100.0))
-				print("[DECK] %s: +%.0f%% mana on offensive spell" % [sw_w.item_name, sw_w.spell_mana_surcharge_percent])
+				if commit: print("[DECK] %s: +%.0f%% mana on offensive spell" % [sw_w.item_name, sw_w.spell_mana_surcharge_percent])
 			# Reaper Scythe: a card aimed at a target below half health costs
 			# 10% less — the reaping is easier once the soul is loose.
 			if sw_w.reaper_weapon and target != null and is_instance_valid(target) \
 					and "current_health" in target and "max_health" in target \
 					and int(target.current_health) * 2 < int(target.max_health):
 				mana_cost = floori(mana_cost * 0.9)
-				print("[DECK] %s: -10%% mana against a target below half health" % sw_w.item_name)
+				if commit: print("[DECK] %s: -10%% mana against a target below half health" % sw_w.item_name)
 			# Wand of Clarity: a clear mind casts cheaper — while no debuff
 			# clouds you, ALL cards cost 15% less.
 			var wc_dm = debuff_mgr if debuff_mgr else debuff_manager
@@ -636,20 +642,21 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 					and "debuffs" in wc_dm and wc_dm.debuffs.is_empty():
 				var wc_pct: float = sw_w.no_debuff_mana_discount_percent * sw_w.rider_scale()
 				mana_cost = floori(mana_cost * (1.0 - wc_pct / 100.0))
-				print("[DECK] %s: -%.1f%% mana (no debuffs)" % [sw_w.item_name, wc_pct])
+				if commit: print("[DECK] %s: -%.1f%% mana (no debuffs)" % [sw_w.item_name, wc_pct])
 
 	# Grounding (Reaction Rod): -5 mana per absorbable Shock in range, kept
 	# live on the card by main each tempo tick.
 	if card.card_id == "grounding" and card.has_meta("grounding_discount"):
 		mana_cost -= int(card.get_meta("grounding_discount"))
-		print("[DECK] Grounding: -%d mana (Shock in range)" % int(card.get_meta("grounding_discount")))
+		if commit: print("[DECK] Grounding: -%d mana (Shock in range)" % int(card.get_meta("grounding_discount")))
 
 	# Percent-mana cards (Wrath of the Sea): the price is a fraction of CURRENT
 	# mana — discounts don't touch it, and the actual spend is recorded on the
 	# card so its damage can read what the sea drank.
 	if card.percent_mana_cost > 0.0 and player_stats:
 		mana_cost = maxi(0, floori(player_stats.current_mana * card.percent_mana_cost))
-		card.last_percent_mana_paid = mana_cost
+		if commit:
+			card.last_percent_mana_paid = mana_cost
 
 	mana_cost = max(0, mana_cost)
 
@@ -661,7 +668,82 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		arash_life_cost = floori(mana_cost / 2.0)
 		mana_cost -= arash_life_cost
 		if arash_life_cost > 0:
-			print("[DECK] Bow of Arash: %d of %s's cost is paid in life" % [arash_life_cost, card.card_name])
+			if commit: print("[DECK] Bow of Arash: %d of %s's cost is paid in life" % [arash_life_cost, card.card_name])
+	return {"mana": mana_cost, "arash_life": arash_life_cost}
+
+func play_card(index: int, target, player_node = null, defer_execution: bool = false) -> Dictionary:
+	if index < 0 or index >= hand.size():
+		print("[DECK] Invalid card index: %d" % index)
+		return { "played": false, "half_tempo": false }
+	
+	var card = hand[index]
+	# Timing-safe snapshot for Consecutive Snap: how many uses were complete
+	# BEFORE this play (the sticky counter increments later this function).
+	card.snap_uses_at_play = card.consecutive_uses
+
+	if card.is_jailed():
+		print("[DECK] Cannot play jailed card!")
+		return { "played": false, "half_tempo": false }
+
+	if card.card_type == Card.CardType.UNPLAYABLE:
+		print("[DECK] Cannot play unplayable card: %s" % card.card_name)
+		return { "played": false, "half_tempo": false }
+
+	if card.card_type == Card.CardType.ENCHANTMENT:
+		print("[DECK] Enchantment cards cannot be played — they provide passive buffs while in hand: %s" % card.card_name)
+		return { "played": false, "half_tempo": false }
+
+	if card.card_type == Card.CardType.REACTION:
+		print("[DECK] Reaction cards trigger automatically, cannot be played manually: %s" % card.card_name)
+		return { "played": false, "half_tempo": false }
+	
+	var debuff_mgr = null
+	if player_node and player_node.has_method("get_debuff_manager"):
+		debuff_mgr = player_node.get_debuff_manager()
+	
+	# Engrave: the card only works from inside an equipped item's card slot.
+	if card.requires_engraving and card.slotted_in_item == null:
+		print("[DECK] %s must be engraved into an item before it can be played" % card.card_name)
+		return { "played": false, "half_tempo": false }
+
+	# A world state holding the card (the Bastion's shield still in flight).
+	if card.world_block_reason() != "":
+		print("[DECK] %s cannot be played: %s" % [card.card_name, card.world_block_reason()])
+		return { "played": false, "half_tempo": false }
+
+	if debuff_mgr:
+		if debuff_mgr.is_card_locked(index):
+			print("[DECK] Cannot play card - Locked!")
+			return { "played": false, "half_tempo": false }
+		
+		if not debuff_mgr.can_play_cards():
+			print("[DECK] Cannot play cards - Stunned or Frozen!")
+			return { "played": false, "half_tempo": false }
+		
+		# Disarm blocks PHYSICAL offensive cards (offensive → attack school).
+		# A disarmed caster can still hurl spells; Silence is their counter.
+		if card.card_type == Card.CardType.ATTACK and card.school == Card.CardSchool.PHYSICAL \
+				and not debuff_mgr.can_play_attack_cards():
+			print("[DECK] Cannot play attack cards - Disarmed!")
+			return { "played": false, "half_tempo": false }
+
+		# Silence blocks the SPELL school in ANY role — offense (Fireball),
+		# defense (Magic Barrier), or support (Lady Luck). What matters is the
+		# casting, not what the spell does.
+		if card.school == Card.CardSchool.SPELL and not debuff_mgr.can_play_spell_cards():
+			print("[DECK] Cannot play spell cards - Silenced!")
+			return { "played": false, "half_tempo": false }
+	
+	# Heavy Swing: only playable when the hand holds nothing but OFFENSIVE cards.
+	if card.card_id == "heavy_swing":
+		for hc in hand:
+			if hc != card and not hc.is_offensive():
+				print("[DECK] Heavy Swing needs an all-offensive hand")
+				return { "played": false, "half_tempo": false }
+
+	var play_cost := compute_play_cost(card, index, target, debuff_mgr, true)
+	var mana_cost: int = int(play_cost["mana"])
+	var arash_life_cost: int = int(play_cost["arash_life"])
 
 	# Demonic Rage: mana costs use health instead, at the standing
 	# 10-mana-per-1-HP exchange rate (mana runs on a x10 scale; HP does not).

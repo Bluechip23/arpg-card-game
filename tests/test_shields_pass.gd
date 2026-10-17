@@ -47,7 +47,7 @@ const SHIELDS := ["Buckler", "Wooden Shield", "Vengeful Shield", "Vanguard", "Sp
 func _initialize() -> void:
 	print("=== Shields pass test ===")
 	_test_roster()
-	_test_slots_take_any_card()
+	_test_slots_take_buckler_cards()
 	_test_passive_channels()
 	_test_on_self_riders()
 	_test_granted_cards()
@@ -180,12 +180,13 @@ func _test_slots_take_any_card() -> void:
 	print("-- Shield slots take any card --")
 	var wall = ItemData.create("castle_wall")
 	_check(wall.card_slots == 2, "Castle wall has 2 slots")
-	var plain = Card.create_slice()
-	_check(wall.can_slot_card(plain) and wall.slot_card(plain),
-		"an ordinary attack card slots into a shield")
+	var buckler_card = Card.create_by_id("shield_slam")
+	_check(wall.can_slot_card(buckler_card) and wall.slot_card(buckler_card),
+		"a Buckler card slots into a shield")
+	_check(not wall.can_slot_card(Card.create_slice()), "an unlabeled card does not (deck-only)")
 	var arrow = Card.create_by_id("improvised_ammo")
 	if arrow:
-		_check(wall.can_slot_card(arrow), "a keyworded card slots into a shield too")
+		_check(not wall.can_slot_card(arrow), "nor does an Arrow card")
 	# An item-granted card can never be slotted, shields included.
 	var granted = Card.create_by_id("huck")
 	granted.granted_by_item = wall
@@ -236,8 +237,8 @@ func _test_on_self_riders() -> void:
 	# Presence of Mind: block scaled off the mana pool, and it never sticks.
 	var pom = ItemData.create("presence_of_mind")
 	inv.equip_item(pom, 0)
-	var guard = Card.create_by_id("clang_up")
-	pom.slot_card(guard)
+	var guard = Card.create_by_id("tower_shield")   # a Buckler block card (Clang Up is deck-only)
+	_check(pom.slot_card(guard), "a Buckler block card slots into Presence of Mind")
 	var base_block: int = guard.block
 	stats.current_armor = 0
 	guard.execute(null, stats, null, 0.0, 0.0, null)

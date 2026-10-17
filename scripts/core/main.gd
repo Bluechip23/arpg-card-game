@@ -11301,6 +11301,16 @@ func _animate_shuffle() -> void:
 
 #endregion
 #region CARD WORLD EFFECTS (PER-CARD MATCH)
+## Where a point card lands: the enemy it was cast at, else the clicked tile.
+## A point click passes the PLAYER as the target (play_selected_card(player)),
+## so reading `target` alone landed every burst and line on the caster:
+## Fireball, Peshtigo's Kiss and Sprinkle Bomb centred on the player, Spirit
+## and Balistic Arrow fired a zero-length line, Roll rolled nowhere.
+func _point_aim(target, mouse_pos: Vector3) -> Vector3:
+	if target is Enemy and is_instance_valid(target):
+		return target.position
+	return grid_manager.snap_to_grid(mouse_pos)
+
 func _apply_card_world_effects(card: Card, target) -> void:
 	var mouse_pos := get_mouse_world_position()
 
@@ -11624,7 +11634,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# The floor around the point erupts: 10 (+5 per enemy in the
 			# flames) to each enemy in them. Then the player is asked whether
 			# to maintain the card; kept, the flames stay and burn each cycle.
-			var pk_center = target.position if target else grid_manager.snap_to_grid(mouse_pos)
+			var pk_center = _point_aim(target, mouse_pos)
 			var pk_cells := _flame_cells(grid_manager.world_to_grid(pk_center))
 			var pk_hit := _enemies_in_cells(pk_cells)
 			var pk_dmg: int = card.last_damage_dealt + 5 * pk_hit.size()
