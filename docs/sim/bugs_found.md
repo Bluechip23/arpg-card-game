@@ -268,9 +268,10 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   before Marvolo's invulnerability, so a fight under heavy mitigation reads
   as thousands of damage taken while health never moved (apothecary vs
   Cerberus: 15,000). `planner_gap.py` reports health and armor actually
-  lost from the row readings instead; the summary wants the same two
-  columns (`health_lost`, `armor_lost`) — queued for after this sweep so
-  its stamps stay valid.
+  lost from the row readings instead, and the summary now carries the
+  same two columns (`health_lost` from `health_damage_taken`, `armor_lost`
+  as the sum of per-action armor drops) — added after the sweep so its
+  stamps stayed valid; runs from before it lack the columns.
 
 - **Treant roots a player at 2–4 tiles and never closes in.** Its action
   choice is: adjacent → Slam or Root; 2–4 tiles out and above half health

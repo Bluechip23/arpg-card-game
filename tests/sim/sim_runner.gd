@@ -19,7 +19,7 @@ const ROW_COLUMNS := ["bar_index", "tempo_before", "tempo_after", "actor", "acti
 	"enemy_id", "enemy_hp", "enemy_pos", "player_pos", "distance",
 	"damage_dealt", "damage_taken", "buffs_applied", "debuffs_applied", "rng_outcome_used", "overkill"]
 const SUMMARY_COLUMNS := ["seed", "outcome", "bars_elapsed", "total_damage_dealt", "total_damage_taken",
-	"damage_per_tempo", "cards_played", "distinct_cards_played", "card_entropy", "mana_wasted",
+	"health_lost", "armor_lost", "damage_per_tempo", "cards_played", "distinct_cards_played", "card_entropy", "mana_wasted",
 	"overflow_bars", "end_hp_pct", "enemy_actions_by_type", "passive_triggers", "skills_used", "weapon_swaps", "sphere_nodes", "global_tempo", "decisions", "error", "warnings"]
 const AGGREGATE_STATS := ["mean", "std", "min", "max"]
 
@@ -41,6 +41,11 @@ var _open_enemy_rows: Array = []
 var _settling := false
 var _total_dealt := 0
 var _total_taken := 0
+# What actually came off the player: health_damage_taken is the part of a hit
+# that reached health (after armor, wards and invulnerability); armor_lost is
+# the sum of per-row armor drops. total_damage_taken is the raw incoming hit.
+var _health_lost := 0
+var _armor_lost := 0
 var _card_counts := {}
 var _enemy_action_counts := {}
 var _mana_seen := 0.0
@@ -578,6 +583,7 @@ func _adopt_enemy(en) -> void:
 func _hook_signals() -> void:
 	var stats = main.player.get_stats()
 	stats.damage_taken.connect(_on_player_damage_taken)
+	stats.health_damage_taken.connect(_on_player_health_lost)
 	stats.mana_changed.connect(_on_player_mana_changed)
 	stats.mana_gained.connect(_on_player_mana_gained)
 	_mana_seen = stats.current_mana
@@ -1225,6 +1231,10 @@ func _on_player_damage_taken(amount: int) -> void:
 	else:
 		_row["damage_dealt"] += amount
 
+func _on_player_health_lost(amount: int) -> void:
+	if amount > 0:
+		_health_lost += amount
+
 func _on_player_mana_changed(current: float, _max_val: int) -> void:
 	_mana_delta = current - _mana_seen
 	_mana_seen = current
@@ -1303,6 +1313,9 @@ func _finish_row(row: Dictionary) -> void:
 	if row.is_empty() or main == null:
 		return
 	row["tempo_after"] = main.tempo_manager.global_tempo
+	var stats = main.player.get_stats()
+	if stats:
+		_armor_lost += maxi(0, int(row["player_armor"]) - stats.get_total_armor())
 	# Armor an enemy lost while this row was open counts as damage dealt
 	# (Enemy.damaged only reports what reached health): to the player when
 	# the player acted, to the enemy itself when it was the one hit back.
@@ -1349,6 +1362,8 @@ func _reset_counters() -> void:
 	_open_enemy_rows.clear()
 	_total_dealt = 0
 	_total_taken = 0
+	_health_lost = 0
+	_armor_lost = 0
 	_card_counts.clear()
 	_enemy_action_counts.clear()
 	_passive_triggers.clear()
@@ -1388,6 +1403,8 @@ func _summary() -> Dictionary:
 		"bars_elapsed": float(tm.global_tempo) / float(maxi(1, tm.tempo_threshold)),
 		"total_damage_dealt": _total_dealt,
 		"total_damage_taken": _total_taken,
+		"health_lost": _health_lost,
+		"armor_lost": _armor_lost,
 		"damage_per_tempo": float(_total_dealt) / float(maxi(1, tm.global_tempo)),
 		"cards_played": played,
 		"distinct_cards_played": _card_counts.size(),

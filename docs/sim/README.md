@@ -136,7 +136,9 @@ everything else in a tempo step (DoTs at the cycle boundary, summons,
 regen) goes to the player's row.
 
 `summary.csv` gets one row per run: `seed, outcome (win/loss/timeout/error),
-bars_elapsed, total_damage_dealt, total_damage_taken, damage_per_tempo,
+bars_elapsed, total_damage_dealt, total_damage_taken (the raw incoming hits,
+before armor, wards and invulnerability), health_lost (what reached
+health), armor_lost (sum of per-action armor drops), damage_per_tempo,
 cards_played, distinct_cards_played, card_entropy (bits, over card ids),
 mana_wasted (regen lost to the mana cap), overflow_bars (cycle boundaries
 crossed with carry-over tempo), end_hp_pct, skills_used, weapon_swaps, enemy_actions_by_type
@@ -327,7 +329,8 @@ delta as "unpriced by the policy", not "useless", and add a term to
 
 Two things to keep in mind when reading summaries: `end_hp_pct` is 1.0 after
 a fight whose last kill levelled the character (a level-up fully heals, as in
-the game), so judge survival by `total_damage_taken`; and the `warnings`
+the game), so judge survival by `health_lost` (and `armor_lost`), not the
+raw `total_damage_taken`; and the `warnings`
 column is non-empty when the build was not what the scenario asked for.
 
 ## Stored builds (`tests/sim/builds/`)
@@ -816,8 +819,10 @@ segment it belongs to and what a fix would need.
   Until the stalemate detector exists, read `*_timeout` beside every
   win rate on Cerberus, Hydra, Treant and the Minotaur.
 - *Summary damage taken is raw incoming.* `total_damage_taken` counts
-  the hit before armor and before invulnerability; use the activity
-  table's `hp_lost` / `armor_lost` (the summary columns are coming).
+  the hit before armor and before invulnerability. Since this sweep the
+  summary also carries `health_lost` and `armor_lost`; the Ryan 3a
+  summaries predate them, so `planner_gap.py` reads the same two from
+  the action rows.
 
 **Measurement**
 
