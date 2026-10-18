@@ -1646,15 +1646,10 @@ func is_two_hand_locked_slot(slot_index: int) -> bool:
 	## True for the empty hand slot consumed by two-handing.
 	return two_handed_slot >= 0 and slot_index == two_handed_lock_slot
 
-## A shield can be braced two-handed, but what that is worth is still being
-## designed: for now the stance grants a shield nothing (flip this on to
-## restore the old extra Basic Block armor of weight / the damage divisor).
-const TWO_HAND_SHIELD_BONUS_ENABLED := false
-
+## Any character can brace a shield two-handed (the grip's one rule is a
+## free other hand); the brace pays in Basic Block armor rather than damage.
 func get_two_hand_block_bonus(shield: ItemData) -> int:
 	## Extra Basic Block armor when THIS shield is the item braced two-handed.
-	if not TWO_HAND_SHIELD_BONUS_ENABLED:
-		return 0
 	if shield == null or get_two_handed_item() != shield:
 		return 0
 	return floori(shield.weight / TWO_HAND_WEIGHT_DAMAGE_DIVISOR)

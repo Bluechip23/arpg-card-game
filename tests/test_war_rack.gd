@@ -134,14 +134,15 @@ func _initialize() -> void:
 	inv.advance_rack_tempo(20)
 	_check(inv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == sword and inv.rack_weapon() == bow2, "and goes back up after 20")
 
-	# --- A shield on the rack: braced two-handed, no bonus for now ---
+	# --- A shield on the rack: braced two-handed, with the brace's block bonus ---
 	inv.rack_take_item(0)
 	var tower = Fixtures.shield()
 	_check(inv.rack_store_item(tower), "a shield straps on")
 	inv.rack_cooldown_tempo = 0
 	_check(inv.rack_deploy()["success"] and inv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == tower and inv.two_handed_slot == 0,
 		"the shield comes down braced two-handed")
-	_check(inv.get_two_hand_block_bonus(tower) == 0, "and the brace grants it nothing yet")
+	_check(inv.get_two_hand_block_bonus(tower) == floori(tower.weight / Inventory.TWO_HAND_WEIGHT_DAMAGE_DIVISOR),
+		"and the brace grants its Basic Block armor (+%d)" % inv.get_two_hand_block_bonus(tower))
 	_check(not inv.set_two_handed(0, false), "its grip cannot be released either")
 	inv.advance_rack_tempo(20)
 	_check(inv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == sword and inv.rack_weapon() == tower, "and it goes back up after 20")
