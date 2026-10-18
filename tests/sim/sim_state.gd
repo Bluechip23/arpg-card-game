@@ -344,6 +344,12 @@ func refresh() -> void:
 			"intent": e.get_display_action(),
 			"effects": e.get_active_effects(),
 			"poison": e.poison_stacks,
+			# Amp debuffs the hover window shows: stacks, and the tempo they
+			# have left (each stack lasts STACK_TEMPO on the enemy's own clock).
+			"vulnerable": e.vulnerable_stacks,
+			"vulnerable_tempo": maxi(0, e.vulnerable_stacks * Enemy.STACK_TEMPO - e.vulnerable_clock) if e.vulnerable_stacks > 0 else 0,
+			"weaken": e.weaken_stacks,
+			"stunned": e.is_stunned,
 			"structure": e.is_structure,
 			# What the inspect panel prints: the moveset and the base hit.
 			"actions": e.actions,

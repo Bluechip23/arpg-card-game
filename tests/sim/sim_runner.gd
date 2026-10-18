@@ -556,9 +556,14 @@ func _spawn_enemies() -> void:
 			_place(en, Vector2i(pc.x + dist, cell.y))
 		_adopt_enemy(en)
 	main._sync_dungeon_blocked_tiles()
+	# The sync rebuilds the player's blocked tiles from the dungeon, so the
+	# scenario's obstacles go on after it (for the player as for the enemies).
 	for ob in scenario["map"]["obstacles"]:
+		var oc := SimScenario.cell_of(ob)
+		if not main.player.blocked_tiles.has(oc):
+			main.player.blocked_tiles.append(oc)
 		for en in main.enemy_spawner.get_living_enemies():
-			en.blocked_tiles.append(SimScenario.cell_of(ob))
+			en.blocked_tiles.append(oc)
 	main._sync_occupied_tiles()
 	main._update_enemy_count()
 	main._refresh_unit_tracker()
