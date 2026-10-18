@@ -242,3 +242,32 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   rings; the inventories give 2 and 3). Fixed in CharacterData and the quiz.
 - **The town portal stood on its rim**, so the plan-view camera saw its edge.
   It lies on its back now.
+
+## 2026-10-18 — found by 3a on Ryan's designed builds (not changed; design calls)
+
+- **Cerberus's Venom Tail is a permanent stun-lock.** It applies Stun for
+  15 tempo on an Async clock of 15 tempo, so the stun expires on the tempo
+  the next tail lands: from the first tail the player never acts again.
+  The apothecary, spellslinger and card shark spend 77–91 % of their
+  decisions waiting against Cerberus (`ryan_planner_activity.csv`), and
+  every bot's win rate there is the share of seeds that kill it before the
+  first tail. Either the stun wants to be shorter than the clock or the
+  clock longer than the stun.
+
+- **Deathyard Dog ramps without bound against a build that heals.** Every
+  heal in Cerberus's reach gives it +15 Strengthen, permanent, and
+  Strengthen is added to every Bite (`attack_damage + strengthen_stacks`),
+  tripled under a third of its health. The apothecary heals every cycle
+  from its gear, so the Bite climbs 27 → 42 → 57 → … → 324 within 14 bites,
+  past any health pool at level 18, and only Marvolo Gaunt's lethal save
+  keeps the run alive to the 40-bar timeout. A self-healing build cannot
+  fight Cerberus at all; if that is the intent, the sheet should say it.
+
+- **Tool: `total_damage_taken` is the raw incoming amount.** The runner
+  counts `PlayerStats.damage_taken`, which emits the hit before armor and
+  before Marvolo's invulnerability, so a fight under heavy mitigation reads
+  as thousands of damage taken while health never moved (apothecary vs
+  Cerberus: 15,000). `planner_gap.py` reports health and armor actually
+  lost from the row readings instead; the summary wants the same two
+  columns (`health_lost`, `armor_lost`) — queued for after this sweep so
+  its stamps stay valid.

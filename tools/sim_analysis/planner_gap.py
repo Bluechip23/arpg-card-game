@@ -32,7 +32,7 @@ def heat(table, title, name, center_zero=True):
         for j in range(table.shape[1]):
             v = vals[i, j]
             if np.isfinite(v) and abs(v) >= 0.005:
-                ax.text(j, i, "%+.2f" % v if center_zero else "%.2f" % v, ha="center", va="center", fontsize=5, color=simlib.TEXT_1)
+                ax.text(j, i, "%+.2f" % v if center_zero else "%.2f" % v, ha="center", va="center", fontsize=5, color=simlib.TEXT)
     fig.colorbar(im, ax=ax, shrink=0.6)
     ax.set_title(title)
     ax.grid(visible=False)
@@ -53,13 +53,21 @@ def main():
     df["build"] = df["scenario"].apply(lambda n: n.split("_e_", 1)[0][len(char) + 1:])
     df["e"] = df["scenario"].apply(lambda n: n.split("_e_", 1)[1])
     pols = [p for p in ["greedy_dpt", "lookahead", "combo_planner"] if p in set(df["policy"])]
+    # Only the cells this sweep ran with every policy (older designed-sweep
+    # folders hold lookahead alone, on older code).
+    ran = df.groupby(["build", "e"])["policy"].nunique()
+    full = set(ran[ran == len(pols)].index)
+    df = df[[(b, e) in full for b, e in zip(df["build"], df["e"])]].copy()
+    df["timeout"] = (df["outcome"] == "timeout").astype(float)
     g = simlib.per_group(df, ["build", "e", "policy"])
+    g = g.merge(df.groupby(["build", "e", "policy"])["timeout"].mean().rename("timeout").reset_index(), on=["build", "e", "policy"])
     wide = g.pivot(index=["build", "e"], columns="policy")
     out = pd.DataFrame(index=wide.index)
     for p in pols:
         out[p + "_win"] = wide["win_rate"][p]
         out[p + "_dpt"] = wide["dpt"][p]
         out[p + "_taken"] = wide["taken"][p]
+        out[p + "_timeout"] = wide["timeout"][p]
         out[p + "_n"] = wide["n"][p]
     if "lookahead" in pols and "combo_planner" in pols:
         out["planner_vs_lookahead_win"] = out["combo_planner_win"] - out["lookahead_win"]
@@ -74,7 +82,13 @@ def main():
 
     print("cells (build x enemy): %d; policies: %s" % (len(out), ", ".join(pols)))
     for p in pols:
-        print("  %-14s mean win %.3f  mean DPT %.2f  mean taken %.1f" % (p, out[p + "_win"].mean(), out[p + "_dpt"].mean(), out[p + "_taken"].mean()))
+        print("  %-14s mean win %.3f  timeouts %.3f  mean DPT %.2f  median taken %.1f" % (p, out[p + "_win"].mean(), out[p + "_timeout"].mean(), out[p + "_dpt"].mean(), out[p + "_taken"].median()))
+    # Fights nobody finishes: both the strategic bots time out most of the time.
+    if "combo_planner_timeout" in out:
+        stuck = out[(out["combo_planner_timeout"] >= 0.5) & (out["lookahead_timeout"] >= 0.5)]
+        if not stuck.empty:
+            print("\nstalemates (lookahead and planner time out in >= half the seeds):")
+            print(stuck[["build", "e", "greedy_dpt_win", "lookahead_win", "combo_planner_win", "lookahead_timeout", "combo_planner_timeout", "combo_planner_dpt", "combo_planner_taken"]].round(2).to_string(index=False))
     if "planner_vs_lookahead_win" in out:
         d = out["planner_vs_lookahead_win"]
         print("\nplanner vs lookahead, win rate: better on %d cells, worse on %d, within noise (<= %.2f) on %d"
@@ -85,7 +99,8 @@ def main():
                          "lookahead_dpt", "combo_planner_dpt", "lookahead_taken", "combo_planner_taken"]].round(2).to_string(index=False))
         per_build = out.groupby("build").agg(lookahead_win=("lookahead_win", "mean"), planner_win=("combo_planner_win", "mean"),
                                              lookahead_dpt=("lookahead_dpt", "mean"), planner_dpt=("combo_planner_dpt", "mean"),
-                                             lookahead_taken=("lookahead_taken", "mean"), planner_taken=("combo_planner_taken", "mean"))
+                                             lookahead_timeout=("lookahead_timeout", "mean"), planner_timeout=("combo_planner_timeout", "mean"),
+                                             lookahead_taken=("lookahead_taken", "median"), planner_taken=("combo_planner_taken", "median"))
         if "greedy_dpt" in pols:
             per_build["greedy_win"] = out.groupby("build")["greedy_dpt_win"].mean()
         print("\nper build (enemy-averaged):\n", per_build.round(3).to_string())
@@ -94,10 +109,48 @@ def main():
         per_enemy["planner_vs_lookahead"] = per_enemy["planner_win"] - per_enemy["lookahead_win"]
         print("\nper enemy (build-averaged), sorted by what the planner adds:\n",
               per_enemy.sort_values("planner_vs_lookahead", ascending=False).round(3).to_string())
-        heat(out.pivot(index="build", columns="e", values="planner_vs_lookahead_win"),
+        heat(out.pivot_table(index="build", columns="e", values="planner_vs_lookahead_win"),
              "%s designed builds — combo planner minus lookahead, win rate" % char, "%s_planner_gap_win.png" % char)
-        heat(out.pivot(index="build", columns="e", values="planner_vs_lookahead_dpt"),
+        heat(out.pivot_table(index="build", columns="e", values="planner_vs_lookahead_dpt"),
              "%s designed builds — combo planner minus lookahead, damage per tempo" % char, "%s_planner_gap_dpt.png" % char)
+    # Activity: how the bots spend their decisions (from the per-run rows).
+    # A kit the policy cannot price reads as waiting, not as weak.
+    import glob, os
+    acts = []
+    for (b, e) in sorted(full):
+        for p in pols:
+            for f in glob.glob(os.path.join(simlib.SIM_OUT, "%s_%s_e_%s" % (char, b, e), p, "[0-9]*.csv")):
+                try:
+                    r = pd.read_csv(f, usecols=["actor", "action_id", "bar_index", "player_hp", "player_armor"])
+                except Exception:
+                    continue
+                # Health and armor actually lost, from the row-start readings
+                # (summary.csv's total_damage_taken is the raw incoming amount
+                # before armor and any invulnerability — see the report).
+                hp_lost = float((-r["player_hp"].diff()).clip(lower=0).sum())
+                armor_lost = float((-r["player_armor"].diff()).clip(lower=0).sum())
+                r = r[r["actor"] == "player"]
+                if r.empty:
+                    continue
+                n = len(r)
+                acts.append({"build": b, "e": e, "policy": p, "decisions": n, "hp_lost": hp_lost, "armor_lost": armor_lost,
+                             "wait": (r["action_id"] == "wait").mean(),
+                             "plays": r["action_id"].str.startswith("play:").mean(),
+                             "attacks": (r["action_id"] == "attack").mean(),
+                             "moves": r["action_id"].str.startswith("move").mean(),
+                             "bars": r["bar_index"].max() + 1})
+    if acts:
+        a = pd.DataFrame(acts)
+        a["plays_per_bar"] = a["plays"] * a["decisions"] / a["bars"].clip(lower=1)
+        act = a.groupby(["build", "policy"]).agg(wait=("wait", "mean"), plays=("plays", "mean"), attacks=("attacks", "mean"),
+                                                   moves=("moves", "mean"), plays_per_bar=("plays_per_bar", "mean"),
+                                                   hp_lost=("hp_lost", "mean"), armor_lost=("armor_lost", "mean")).round(3)
+        act.to_csv(simlib.CHARTS + "/%s_planner_activity.csv" % char)
+        print("\nhow the decisions are spent (share of the player's decisions; plays per bar):\n", act.to_string())
+        idle = a.groupby(["build", "e"])["wait"].mean()
+        idle = idle[idle >= 0.5].sort_values(ascending=False)
+        if not idle.empty:
+            print("\nfights spent mostly waiting (>= half the decisions, all bots):\n", idle.round(2).to_string())
     if "greedy_dpt" in pols and "combo_planner" in pols:
         sg = out.groupby("build")[["lookahead_strategy_gap", "combo_planner_strategy_gap"]].mean()
         fig, ax = plt.subplots(figsize=(7, 3.6))
