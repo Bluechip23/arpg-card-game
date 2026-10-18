@@ -308,3 +308,19 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   because it understands the sear. Cards with a cost for holding them
   (Wish, Infest, Paralysis, Burden) need a "held-cost" term in the state
   view and the scorer; see the gap review in RESULTS.md.
+
+- **The Inflamed Minotaur's Labyrinth Leap can land him off the grid, and
+  the fight freezes there.** `_random_free_cell_at_distance` only asks
+  `_cell_is_free` (blocked, occupied, unit tiles) — it never checks the
+  grid bounds — so on the sim's 20×12 arena his 14-space leap ends on
+  cells like 6:−1, −1:7 or 16:14 in every timed-out seed. From there he
+  reports a Move every 5 tempo and never changes tile, never attacks, and
+  the player cannot step off the board to reach him: the apothecary and
+  bruiser time out 100 % of seeds against him with every bot, health
+  full, two tiles apart for 35 bars (`ryan_bruiser_e_INFLAMED_MINOTAUR`,
+  37 enemy "move" rows on one cell per fight). The same picker serves in
+  the Labyrinth, whose outer ring is open floor cells past the maze wall
+  only where a wall tile is in `blocked_tiles`; the bound check belongs
+  in `_cell_is_free` (and `_build_route_path` already has one). Until it
+  is fixed every Minotaur cell in 3a is a timeout count, not a difficulty
+  reading.

@@ -726,3 +726,105 @@ Save by the hit it stops, Suck by the extra enemies it bunches.
 - `seed(n)` is set before boot and again before the first decision; every
   combat roll uses the global RNG and nothing in the loop reads the clock,
   so a run is reproducible byte for byte (`tests/test_sim_determinism.gd`).
+
+## Known gaps (2026-10-18, after 3a on Ryan's designed builds)
+
+What the harness still cannot see or do, found by running the six
+designed builds against the whole catalogue with three bots
+(RESULTS.md, "3a on Ryan's designed builds"). Each item names the
+segment it belongs to and what a fix would need.
+
+**Player model (all three bots)**
+
+- *Held-cost cards are unpriced.* Wish (Djinn), Infest, Paralysis and
+  the Burdens cost the holder something every cycle they stay in hand;
+  the state view does not say so and the scorer sees "0 gain, N mana".
+  Lookahead never erases a Wish; the planner does only because a 0-tempo
+  step is free in its per-tempo rate. Wanted: a `held_cost` per hand
+  view (damage per cycle, draw blocked, hand slot) and a scorer term for
+  removing it.
+- *Zero-tempo actions are free in the planner's rate.* Plan value is
+  Σ score·tempo / tempo used, so any 0-tempo step (erase, instant,
+  weapon swap, point spend) adds nothing and costs nothing. Right by
+  accident on the Wish; wrong on a 0-tempo instant with a mana cost.
+  Wanted: price 0-tempo steps by their mana and their effect at the
+  rate of the bar, not at zero.
+- *No notion of a fight that cannot be won from here.* A bot that is
+  rooted two tiles from a Treant with no reach, or facing a Minotaur off
+  the grid, waits 150 decisions; a human would notice the loop. Wanted:
+  a stalemate detector in the runner (N bars with no health change on
+  either side → end the fight as `stalemate`, record the cause: pinned,
+  unreachable, heal-locked, stun-locked) so timeouts stop hiding four
+  different problems under one word.
+- *Threats are only the telegraphed intents.* The bots never price an
+  enemy's passive or auto trigger: the Hydra's heal-to-full after four
+  hits, the Deathyard Dog's +15 Strengthen per heal, the Minotaur's leap
+  at 20 damage taken, the Ifrit's Backflip over 40 damage. Hit-count and
+  damage-threshold triggers are in the sheet text; wanted: expose them
+  in the enemy view (`triggers: [{on: "hits", at: 4, effect: ...}]`) and
+  let the planner count toward or around them (burst past 20 in one
+  bar, or stay under it).
+- *One tile of reach is assumed.* The lookahead's move model is "step
+  toward or away"; it does not value standing where a Root cannot pin
+  it out of reach, or where a 5×5 breath cannot land. Wanted: a one-bar
+  positional term (tiles in the enemy's reach, tiles in its area
+  attacks) so the move choice is priced, not inherited.
+
+**Combo segment (planner and registry)**
+
+- *The registry is still empty, because 3b ran on the starter deck.*
+  Fifteen pairs, none positive. Run 3b on the designed decks with the
+  unaided planner (`gen_sweeps.py --strategic combo_planner` on the
+  synergy scenario) so the pairs that matter (Stance Switch into Slice,
+  the Marks into the big attacks, Cupid's into anything) can be
+  promoted.
+- *Potential only counts debuffs, partners and mana.* It does not count
+  a buff on the player that ends next bar (Strengthen, a stance), a
+  summon's remaining life, or a manifest zone's charges. Wanted: the
+  same three fields for the player side.
+- *Plans end at the bar.* The two-bar macro is the registry's only
+  cross-bar reasoning; a Draw now for a known payoff in two bars is not
+  seen. Wanted: let `max_depth` run into the next bar at a discount
+  when the deck view knows what is on top (peek cards, Brain Draw).
+
+**Sphere grid and build segment**
+
+- *One route per build, spent by a heuristic.* The grid is spent by
+  "walk the named constellation, then the nearest stat"; nothing checks
+  whether a different split of the same budget would win more. Wanted:
+  the alloc × sphere cross (`ryan_alloc_x_sphere.csv`) at level 18 and
+  50 for every build, not only the bruiser, and a per-node marginal
+  (win with / without the node at the same budget).
+- *Passives are checked, not weighed.* Five passives are still silent in
+  the trigger log and the rest are counted, not valued; the focus sweep
+  (`ryan_L50_passive_focus`) is the only place a passive's worth shows.
+  Wanted: the trigger log to carry the amount (damage added, armor
+  granted, tempo saved) so a passive can be priced like a card.
+- *Engravings one at a time; items one at a time.* Both swaps are
+  single-slot; pairs that only pay together (Sword of Theseus's Slow with
+  anything that counts stacks) never show. Wanted: a pair sweep for the
+  top ten singles.
+
+**Enemy and arena segment**
+
+- *One flat arena, no walls.* Every cell runs on the 20×12 open grid:
+  no high ground, no corridor, no line of sight. Cerberus's heads, the
+  Minotaur's maze and the archers' kiting are all measured on open
+  floor. Wanted: three or four terrain scenarios (corridor, pillar room,
+  the Labyrinth's real tiles) run on the hard thirteen.
+- *Timeouts count as losses in the win rate and as nothing in DPT.*
+  Until the stalemate detector exists, read `*_timeout` beside every
+  win rate on Cerberus, Hydra, Treant and the Minotaur.
+- *Summary damage taken is raw incoming.* `total_damage_taken` counts
+  the hit before armor and before invulnerability; use the activity
+  table's `hp_lost` / `armor_lost` (the summary columns are coming).
+
+**Measurement**
+
+- *20 seeds resolve 0.10.* A real change on one enemy needs 50+; the
+  enemies worth it are the thirteen listed in RESULTS.md, not the 48
+  that every build wins outright. Wanted: `gen_sweeps.py --hard` to
+  take the list from the last gap CSV.
+- *No per-fight "reason" column.* `outcome` is win / loss / timeout;
+  wanted alongside it the last five actions and the enemy's last
+  action, so a losing cell can be read without opening twenty CSVs.
