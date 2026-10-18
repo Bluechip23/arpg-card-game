@@ -475,6 +475,57 @@ decks on average (+5 to +7 points); the card shark gains 14 points from
 the caster deck, the shadow blade 13 from the instants deck. Discard mill
 is the one recipe that loses.
 
+## Milestone 5 — the combo planner on 3a (2026-10-18)
+
+`combo_planner` (lookahead with depth: every play sequence that fits the
+rest of the bar, priced with lookahead's terms over a shadow state, plus
+bar-end potential; see the sim README) re-ran the enemy strategy index
+beside `greedy_dpt` and `lookahead`: the baseline level-5 Brad with the
+starter deck and a Short Sword, 61 acting enemies, 30 seeds each
+(`tests/sim/sweeps/enemy_strategy_m5.txt`, `strategy_index.py --strategic
+combo_planner`, `sim_out/charts/strategy_index.csv`).
+
+**Verification first.** `tests/sim/scenarios/setup_payoff.gd` — a boxed-in
+Brad against a plated Skeleton whose second swing is lethal — is won only
+by Stance Switch (strip the plate, 2 Vulnerable) then Slice into it.
+Lookahead plays Slice first and loses every seed; the planner wins every
+seed on the fifth tempo, with the registry empty and with the pair
+registered. On the skeleton fight (no setups in the deck) the two match:
+win 1.00 / 1.00, damage per tempo 2.05 / 2.04, taken 2.5 / 2.5.
+
+**The strategy gap barely moved, and that is the honest reading of this
+deck.** Mean win rate greedy 0.405, lookahead 0.568, planner 0.572; mean
+damage taken 15.8 / 16.6 / 16.6. Per enemy the planner's win rate changed
+on 8 of 61 enemies (better on 7, worse on 1) and was identical on 53:
+
+| Enemy | greedy | lookahead | planner | planner − lookahead | taken (la) | taken (planner) |
+|---|---|---|---|---|---|---|
+| SCREECHER | 0.37 | 0.90 | 0.97 | +0.07 | 8.3 | 6.2 |
+| ROC | 0.00 | 0.07 | 0.13 | +0.07 | 25.7 | 27.7 |
+| CONSUMED | 0.37 | 0.93 | 0.97 | +0.03 | 11.7 | 11.5 |
+| SPIRIT_COLLECTOR | 0.00 | 0.83 | 0.87 | +0.03 | 15.6 | 15.3 |
+| GIANT_HAWK | 0.23 | 0.73 | 0.77 | +0.03 | 18.3 | 17.6 |
+| NECROMANCER | 0.03 | 0.23 | 0.27 | +0.03 | 33.9 | 34.3 |
+| ICE_MAGE | 0.00 | 0.20 | 0.23 | +0.03 | 36.4 | 36.9 |
+| EARTH_MAGE | 0.00 | 0.13 | 0.03 | -0.10 | 32.0 | 32.4 |
+
+Every difference is within 30-seed noise (one win is 0.033). The starter
+deck holds no setup card — three Slashes, three Blocks, two Draws, Gain
+Mana, Heal — so there is nothing for a bar-long plan to set up and the
+planner's shadow state only ever changes an enemy's health; it reduces to
+lookahead, as designed. The strategy gap on this deck is a measure of
+one-step play against an auto-attacker, and the planner confirms rather
+than raises it. Where planning will show is on decks that carry amp,
+control and burst together (Stance Switch, M for Mini, Cupid's Golden
+Arrow, the Marks, the big attacks): run 3a with the designed builds
+(`gen_build_sweeps.py`) or a deck with those cards to measure it, and
+run 3b with the planner unaided to find the pairs worth promoting.
+
+The registry is empty on purpose: 3b has scored 15 pairs on the starter
+baseline and every one came out negative, so nothing has earned a place.
+It is a floor, not a ceiling — promote a pair only once 3b, run with the
+unaided planner, has shown it.
+
 ## Not re-run on the audited harness
 
 The items × decks and allocation × sphere matrices from the first Ryan
