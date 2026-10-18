@@ -271,3 +271,40 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   lost from the row readings instead; the summary wants the same two
   columns (`health_lost`, `armor_lost`) — queued for after this sweep so
   its stamps stay valid.
+
+- **Treant roots a player at 2–4 tiles and never closes in.** Its action
+  choice is: adjacent → Slam or Root; 2–4 tiles out and above half health
+  → Root, every time (`_choose_treant_action`). Root lasts 8 tempo and
+  costs 8, so a player who stops two tiles away is pinned for the rest of
+  the fight; the Treant does not step in to Slam, and heals 5 every 5
+  tempo meanwhile. A melee hand with no reach cannot act at all (the
+  apothecary's lookahead and planner wait 90 of ~120 decisions, at
+  distance 2, in every lost seed; both lose 60–85 % of seeds to the
+  40-bar timeout while the greedy bot, which walks in and stands adjacent,
+  wins 70 %). This is not a bot artefact: a human who hesitates two tiles
+  out meets the same loop. Either Root should not be the only answer at
+  2–4 tiles (Move in and Slam, say, or a Root that lasts less than its
+  own cooldown), or the Treant should close while the player is pinned.
+
+- **Hydra's heal-to-full makes a 40-bar stalemate out of every low-burst
+  build.** After her fourth hit she heals to full on a 5-tempo action and
+  gains +2 strength per hit taken. The apothecary and spellslinger hit for
+  10–15 a swing, so every heal erases three or four bars of work, and
+  their own healing gear keeps them alive to the timeout: 100 % / 90 %
+  timeouts, health full at the end, 450+ damage dealt and absorbed. The
+  bruiser's 50-damage swings beat the heal and win 60 %. A fight that
+  neither side can end is a worse outcome than a loss; a heal with a
+  cap, a cooldown, or a cost in strength would give the small-hit builds
+  a way through.
+
+- **Tool: the Djinn's Wish cards are held damage the one-step bots do
+  not price.** Every attack on the Djinn puts three Wishes in hand; each
+  sears the holder for a third of that attack's damage every cycle it is
+  held, and costs 60 mana (0 tempo) to erase. Lookahead scores the erase
+  as 0 gain − 60 mana → below "wait", so it never plays one and bleeds
+  out (apothecary 0.25, bruiser 0.20, spellslinger 0.20 wins). The planner
+  erases them 4–6 times a fight and wins 0.40–0.55 — but only because a
+  0-tempo step contributes nothing to its per-tempo plan rate, not
+  because it understands the sear. Cards with a cost for holding them
+  (Wish, Infest, Paralysis, Burden) need a "held-cost" term in the state
+  view and the scorer; see the gap review in RESULTS.md.
