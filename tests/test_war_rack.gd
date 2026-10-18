@@ -1,16 +1,16 @@
 extends SceneTree
-
-const Fixtures = preload("res://tests/item_fixtures.gd")
-
-## Verifies Brad's War Rack:
-##   * Brad-only; rack items count carried weight at full (no two-hand discount).
-##   * rack_exchange swaps hands <-> back wholesale.
-##   * FREE swap: needs cooldown ready + one side a single two-handed item;
-##     auto-two-hands the single incoming item; rushes its cards to hand; starts
-##     the 25-tempo cooldown (ticking 5 per cycle via process_turn).
-##   * Paid swap: works during cooldown, charges swap tempo, cards go to
-##     discard per the normal equip rule.
+## Brad's War Rack — a slot of its own holding ONE weapon, always held
+## two-handed:
+##   * Brad-only; one weapon (a shield counts, a quiver does not); the racked
+##     weapon counts its full weight.
+##   * rack_deploy (free): hand gear set aside, the weapon in hand two-handed,
+##     its cards rushed to HAND, a 20-tempo return clock and a 60-tempo
+##     cooldown (both on raw tempo).
+##   * The grip cannot be released while it is out; build switches wait.
+##   * After 20 tempo (or early, by choice) the weapon goes back up and the
+##     usual gear returns — its cards to the DISCARD pile, not the hand.
 ## Run: godot --headless --path . --script tests/test_war_rack.gd
+const Fixtures = preload("res://tests/item_fixtures.gd")
 
 var failures := 0
 
@@ -27,6 +27,12 @@ var deck: DeckManager
 
 func _in_hand(card_name: String) -> bool:
 	for card in deck.hand:
+		if card.card_name == card_name:
+			return true
+	return false
+
+func _in_discard(card_name: String) -> bool:
+	for card in deck.discard_pile:
 		if card.card_name == card_name:
 			return true
 	return false
@@ -52,67 +58,94 @@ func _initialize() -> void:
 	get_root().add_child(other)
 	other.initialize("Ryan")
 	_check(not other.has_back_rack, "Ryan does not")
+	_check(Inventory.RACK_COOLDOWN == 60 and Inventory.RACK_DEPLOY_TEMPO == 20, "60 tempo between draws, 20 tempo out")
 
-	# --- Setup via exchange: hammer to hands, exchange to back, then sword+shield ---
+	# --- The slot: one weapon, no shields ---
 	var hammer = Fixtures.mastery_sledge()  # weight 90, grants Heavy Swing
 	var sword = Fixtures.sword()
 	var shield = Fixtures.shield()
-	_check(inv.equip_item(hammer, 0), "hammer equips in hand")
-	var r0: Dictionary = inv.rack_exchange(false)
-	_check(r0["success"], "paid exchange stows the hammer on the back")
-	_check(inv.rack_items.size() == 1 and inv.get_rack_hand_items().is_empty(), "hammer on back, hands empty")
-	_check(inv.get_total_weight() == 90, "racked hammer still weighs 90 (full weight)")
-	_check(inv.equip_item(sword, 0) and inv.equip_item(shield, 1), "sword + shield equip in hands")
+	_check(not inv.rack_store_item(Fixtures.quiver()) and inv.last_refusal.find("weapon") >= 0, "a quiver is refused: %s" % inv.last_refusal)
+	_check(inv.rack_store_item(hammer) and inv.rack_weapon() == hammer, "the hammer straps on")
+	_check(inv.is_war_rack_item(hammer), "and belongs to the rack's slot")
+	_check(not inv.rack_store_item(Fixtures.sword()) and inv.last_refusal.find("one weapon") >= 0, "a second weapon is refused: %s" % inv.last_refusal)
+	_check(inv.get_total_weight() == 90, "racked hammer weighs its full 90")
+	_check(inv.equip_item(sword, 0) and inv.equip_item(shield, 1), "sword + shield in the hands as usual")
+	var weight_before: int = inv.get_total_weight()
 
-	# --- FREE swap: single incoming item -> arrives two-handed ---
-	var check: Dictionary = inv.can_rack_exchange(true)
-	_check(check["ok"], "free swap is legal (single incoming item)")
-	var r1: Dictionary = inv.rack_exchange(true)
-	_check(r1["success"] and r1["tempo_cost"] == 0, "free swap costs 0 tempo")
-	_check(inv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == hammer, "hammer is in hand")
-	_check(inv.two_handed_slot == 0, "hammer arrived two-handed")
-	_check(inv.rack_items.size() == 2, "sword and shield are on the back")
-	_check(_in_hand("Heavy Swing"), "hammer's granted card rushed to HAND (not discard)")
-	_check(inv.rack_cooldown_tempo == Inventory.RACK_FREE_SWAP_COOLDOWN, "25-tempo cooldown started")
+	# --- Draw: free, two-handed, cards to hand, clocks started ---
+	_check(inv.can_rack_deploy()["ok"], "the rack can be drawn")
+	var r1: Dictionary = inv.rack_deploy()
+	_check(r1["success"] and r1["tempo_cost"] == 0, "drawing it costs nothing")
+	_check(inv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == hammer and inv.two_handed_slot == 0, "the hammer is in hand, two-handed")
+	_check(inv.get_rack_hand_items() == [hammer], "nothing else is in the hands")
+	_check(inv.rack_items.is_empty() and inv.rack_is_deployed() and inv.rack_deploy_tempo == 20, "the rack is out for 20 tempo")
+	_check(inv.rack_cooldown_tempo == 60, "the 60-tempo cooldown started")
+	_check(inv.rack_parked.has(sword) and inv.rack_parked.has(shield), "the sword and shield are set aside")
+	_check(_in_hand("Heavy Swing"), "the hammer's granted card rushed to HAND")
+	_check(inv.get_total_weight() >= sword.weight + shield.weight + floori(hammer.weight * Inventory.TWO_HAND_WEIGHT_MULT),
+		"the set-aside gear still weighs on him (%d, was %d)" % [inv.get_total_weight(), weight_before])
+	_check(not inv.set_two_handed(0, false) and inv.two_handed_slot == 0, "the grip cannot be released: %s" % inv.last_refusal)
+	_check(not inv.can_rack_deploy()["ok"], "it cannot be drawn again while out")
+	var sw: Dictionary = inv.switch_build(1)
+	_check(not sw["success"] and sw["reason"].find("War Rack") >= 0, "a build switch waits for it: %s" % sw["reason"])
 
-	# --- Free swap refused while recharging; paid swap still works ---
-	_check(not inv.can_rack_exchange(true)["ok"], "second free swap refused on cooldown")
-	var r2: Dictionary = inv.rack_exchange(false)
-	_check(r2["success"] and r2["tempo_cost"] > 0, "paid swap works during cooldown (cost %d)" % r2["tempo_cost"])
-	_check(inv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == sword, "sword back in hand")
-	_check(not _in_hand("Heavy Swing"), "hammer's card left the deck with the hammer")
+	# --- The clock: 19 tempo later still out; the 20th brings the gear back ---
+	inv.advance_rack_tempo(19)
+	_check(inv.rack_is_deployed() and inv.rack_deploy_tempo == 1 and inv.rack_cooldown_tempo == 41, "19 tempo in: 1 left out, 41 to recharge")
+	inv.advance_rack_tempo(1)
+	_check(not inv.rack_is_deployed() and inv.rack_weapon() == hammer, "at 20 the hammer is back on the rack")
+	_check(inv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == sword and inv.get_equipped_item(ItemData.ItemType.WEAPON, 1) == shield
+		and inv.two_handed_slot == -1, "the sword and shield are back in hand, held as before")
+	_check(not _in_hand("Heavy Swing") and not _in_discard("Heavy Swing"), "the hammer's card left with it")
+	_check(inv.rack_parked.is_empty() and inv.rack_cooldown_tempo == 40, "nothing set aside; 40 tempo to recharge")
+	_check(not inv.can_rack_deploy()["ok"] and inv.can_rack_deploy()["reason"].find("recharging") >= 0, "cannot be drawn while recharging")
+	inv.advance_rack_tempo(40)
+	_check(inv.rack_cooldown_tempo == 0 and inv.can_rack_deploy()["ok"], "60 tempo after the draw it is ready again")
 
-	# --- Cooldown ticks 5 per cycle ---
-	inv.process_turn()
-	_check(inv.rack_cooldown_tempo == 20, "cooldown ticked to 20 after one cycle")
-	for i in range(4):
-		inv.process_turn()
-	_check(inv.rack_cooldown_tempo == 0, "cooldown fully recharged after 5 cycles")
+	# --- Returning gear's cards go to the deck, not the hand ---
+	var bow = Fixtures.bow(50)
+	bow.card_slots = 1
+	var shot = deck._create_card_from_id("quick_shot")
+	_check(bow.slot_card(shot), "Quick Shot engraved into a bow")
+	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
+	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
+	_check(inv.equip_item(bow, 0), "the bow is now his usual weapon")
+	deck.hand.clear()
+	deck.discard_pile.clear()
+	deck.draw_pile.clear()
+	_check(inv.rack_deploy()["success"] and inv.rack_parked.has(bow), "drawn again: the bow is set aside")
+	_check(not deck.hand.has(shot) and not deck.discard_pile.has(shot), "the bow's card left play with it")
+	var early: Dictionary = inv.rack_return()
+	_check(early["success"] and inv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == bow and inv.rack_weapon() == hammer,
+		"an early return brings the bow back and racks the hammer")
+	_check(deck.discard_pile.has(shot) and not deck.hand.has(shot), "the bow's card rejoined the DECK (discard), not the hand")
+	_check(inv.rack_cooldown_tempo == 60, "an early return does not shorten the cooldown")
 
-	# --- Free swap back: outgoing side won't qualify (2 items in hands, 1H) ---
-	# hands: sword+shield (not two-handed), rack: hammer (single) -> incoming single, legal.
-	var r3: Dictionary = inv.rack_exchange(true)
-	_check(r3["success"], "free swap ready again after recharge")
-	_check(inv.two_handed_slot == 0 and inv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == hammer,
-		"hammer two-handed again")
-
-	# --- Outgoing-2H rule: hammer (single, two-handed) in hands, 2 items on rack ---
+	# --- A bow on the rack: two-handed by nature, no grip stance ---
+	inv.rack_take_item(0)
+	_check(not inv.is_war_rack_item(hammer), "taken down, the hammer is an ordinary weapon again")
+	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
+	var bow2 = Fixtures.bow(50)
+	_check(inv.rack_store_item(bow2), "a bow straps on")
+	_check(inv.equip_item(sword, 0), "sword in hand")
 	inv.rack_cooldown_tempo = 0
-	var check2: Dictionary = inv.can_rack_exchange(true)
-	_check(check2["ok"], "free swap legal via the OUTGOING two-handed side")
-	var r4: Dictionary = inv.rack_exchange(true)
-	_check(r4["success"] and inv.get_rack_hand_items().size() == 2, "sword+shield came down together")
+	_check(inv.rack_deploy()["success"] and inv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == bow2 and inv.two_handed_slot == -1,
+		"the bow comes down (two-handed by nature, no bonus stance)")
+	inv.advance_rack_tempo(20)
+	_check(inv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == sword and inv.rack_weapon() == bow2, "and goes back up after 20")
 
-	# --- Neither side qualifies: two 1H items in hands, two on rack... ---
+	# --- A shield on the rack: braced two-handed, with the brace's block bonus ---
+	inv.rack_take_item(0)
+	var tower = Fixtures.shield()
+	_check(inv.rack_store_item(tower), "a shield straps on")
 	inv.rack_cooldown_tempo = 0
-	# hands: sword+shield, rack: hammer only (1 item) -> incoming single always qualifies.
-	# Stow the shield alongside the hammer to force a 2-vs-2 shape.
-	var taken = inv.unequip_item(ItemData.ItemType.WEAPON, 1)
-	inv.rack_items.append(taken)
-	_check(inv.rack_items.size() == 2, "rack holds hammer + shield (2 items)")
-	var check3: Dictionary = inv.can_rack_exchange(true)
-	_check(not check3["ok"], "free swap refused: no single two-handed side")
-	_check(inv.rack_exchange(false)["success"], "paid swap still allowed for that shape")
+	_check(inv.rack_deploy()["success"] and inv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == tower and inv.two_handed_slot == 0,
+		"the shield comes down braced two-handed")
+	_check(inv.get_two_hand_block_bonus(tower) == floori(tower.weight / Inventory.TWO_HAND_WEIGHT_DAMAGE_DIVISOR),
+		"and the brace grants its Basic Block armor (+%d)" % inv.get_two_hand_block_bonus(tower))
+	_check(not inv.set_two_handed(0, false), "its grip cannot be released either")
+	inv.advance_rack_tempo(20)
+	_check(inv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == sword and inv.rack_weapon() == tower, "and it goes back up after 20")
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

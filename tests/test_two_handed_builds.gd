@@ -66,7 +66,7 @@ func _initialize() -> void:
 	_check(stats.get_carry_capacity() == base_cap, "capacity restores in full")
 	_check(stats.two_hand_damage_bonus == 0, "damage bonus cleared")
 
-	# --- A braced shield gains Basic Block armor from its weight ---
+	# --- A braced shield gains Basic Block armor from its weight (any character) ---
 	# With only 2 hand slots, bracing needs the other hand free: stow the
 	# greatsword first, brace the tower shield, then take the sword back.
 	_check(inv.unequip_to_storage(ItemData.ItemType.WEAPON, 0), "greatsword stows to make room for the brace")

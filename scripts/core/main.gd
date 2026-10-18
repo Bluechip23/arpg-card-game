@@ -1004,12 +1004,12 @@ func _update_damage_preview() -> void:
 	if should_show:
 		var card := deck_manager.hand[selected_card_index]
 		if card.card_type == Card.CardType.ATTACK and card.base_damage > 0 and "enemy" in card.target_types:
-			var preview_dmg := calculate_damage_preview(card, hovered)
-			if preview_dmg > 0:
+			var preview := calculate_damage_preview_split(card, hovered)
+			if preview["health"] > 0 or preview["armor"] > 0:
 				# Hide previous enemy's preview if switching targets
 				if _damage_preview_enemy and _damage_preview_enemy != hovered and is_instance_valid(_damage_preview_enemy):
 					_damage_preview_enemy.hide_damage_preview()
-				hovered.show_damage_preview(preview_dmg)
+				hovered.show_damage_preview(preview["health"], preview["armor"])
 				_damage_preview_enemy = hovered
 				return
 
@@ -2563,22 +2563,22 @@ func _on_swap_tempo_spent(cost: int, action: String, item_type: int = -1) -> voi
 		add_battle_log("%s — %d tempo" % [action, cost], Color(0.85, 0.75, 0.5))
 
 func _on_rack_button_pressed() -> void:
-	## Brad's War Rack: free exchange when the cooldown is ready (and the
-	## single-two-handed-item rule is met); otherwise a normal paid exchange.
+	## Brad's War Rack: draw its weapon (free, two-handed, cards to hand) —
+	## or, while it is out, send it back up early.
 	var inv := player.get_inventory() if player else null
 	if not inv or not inv.has_back_rack:
 		return
 	if _stun_refuses("swap gear"):
 		return
-	var free_check: Dictionary = inv.can_rack_exchange(true)
-	if free_check["ok"]:
-		var result: Dictionary = inv.rack_exchange(true)
-		if result["success"]:
-			add_battle_log("War Rack: swapped FREE — cards to hand!", Color(1.0, 0.85, 0.4))
+	if inv.rack_is_deployed():
+		var back: Dictionary = inv.rack_return()
+		if back["success"]:
+			add_battle_log("War Rack: weapon back on the rack — your usual gear returns.", Color(1.0, 0.85, 0.4))
 	else:
-		var result: Dictionary = inv.rack_exchange(false)
+		var result: Dictionary = inv.rack_deploy()
 		if result["success"]:
-			_on_swap_tempo_spent(result["tempo_cost"], "War Rack exchange")
+			add_battle_log("War Rack: %s drawn two-handed — cards to hand! (%d tempo)" % [
+				inv.equipped_weapons[0].item_name if inv.equipped_weapons[0] else "weapon", Inventory.RACK_DEPLOY_TEMPO], Color(1.0, 0.85, 0.4))
 		else:
 			add_battle_log("War Rack: %s" % result["reason"], Color(1.0, 0.5, 0.4))
 	_update_rack_button()
@@ -2594,12 +2594,17 @@ func _update_rack_button() -> void:
 		return
 	_rack_button.visible = true
 	var rack_names: String = inv._rack_names(inv.rack_items)
-	if inv.rack_cooldown_tempo <= 0:
-		_rack_button.text = "Rack FREE"
-		_rack_button.tooltip_text = "War Rack: swap your hands with the gear on your back for FREE.\nOn back: %s\nOne side must be a single two-handed item; incoming cards rush to your hand.\n%d tempo cooldown after use. Click while recharging for a normal paid swap." % [rack_names, Inventory.RACK_FREE_SWAP_COOLDOWN]
+	if inv.rack_is_deployed():
+		_rack_button.text = "Rack ↩ %dT" % inv.rack_deploy_tempo
+		_rack_button.tooltip_text = "War Rack: %s in hand, held two-handed.\nYour usual gear (%s) returns in %d tempo — its cards rejoin the deck, not your hand.\nClick to return now." % [
+			inv._rack_names(inv.get_rack_hand_items()), inv._rack_names(Inventory._non_null(inv.rack_parked)), inv.rack_deploy_tempo]
+	elif inv.rack_cooldown_tempo <= 0:
+		_rack_button.text = "Rack READY"
+		_rack_button.tooltip_text = "War Rack: draw the weapon on your back for FREE, held two-handed, its cards straight to your hand.\nOn the rack: %s\nAfter %d tempo your usual gear returns on its own. Next draw %d tempo after this one." % [
+			rack_names, Inventory.RACK_DEPLOY_TEMPO, Inventory.RACK_COOLDOWN]
 	else:
 		_rack_button.text = "Rack %dT" % inv.rack_cooldown_tempo
-		_rack_button.tooltip_text = "War Rack recharging: free swap in %d tempo.\nOn back: %s\nClick to exchange now at normal swap-tempo cost." % [inv.rack_cooldown_tempo, rack_names]
+		_rack_button.tooltip_text = "War Rack recharging: ready in %d tempo.\nOn the rack: %s" % [inv.rack_cooldown_tempo, rack_names]
 
 func _update_block_button_visibility() -> void:
 	if not _block_button:
@@ -3360,6 +3365,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().shadow_form_ended.connect(_on_shadow_form_ended)
 	player.get_buff_manager().buff_applied.connect(_on_player_buff_applied_ring)
 	player.get_buff_manager().invisibility_entered.connect(_on_player_entered_invisibility)
+	player.get_buff_manager().buffs_changed.connect(_restore_player_visibility_if_seen)
 	player.get_debuff_manager().debuff_expired.connect(_on_player_debuff_expired)
 
 	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager, player.get_buff_manager(), player.get_debuff_manager())
@@ -4110,6 +4116,7 @@ func _all_summons() -> Array:
 var _solo_fallen: bool = false
 
 func _on_solo_player_died() -> void:
+	_set_player_invisible(false)  # a fallen figure is seen, whatever hid it
 	## No permadeath, no run reset (CLAUDE.md): the character falls, and rises
 	## again at the start of the level they are in — same world, same
 	## interior, everything they carry intact. Enemies stay where they are.
@@ -4645,6 +4652,8 @@ func _setup_co_op_defeat() -> void:
 		s2.health_changed.connect(func(c, _m): _on_co_op_health(1, c))
 
 func _on_co_op_player_died(idx: int) -> void:
+	if idx == 0:
+		_set_player_invisible(false)
 	if not is_multiplayer or _downed.get(idx, false):
 		return
 	_downed[idx] = true
@@ -5220,6 +5229,9 @@ func _clear_locked_markers() -> void:
 func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	if deck_manager:
 		_check_volatile_mixture_in_hand()
+	# Brad's War Rack: its cooldown and the drawn weapon's return clock.
+	if player and player.get_inventory() and player.get_inventory().has_back_rack:
+		player.get_inventory().advance_rack_tempo(amount)
 	# Timed statuses (stun, frozen, blind...) tick on RAW tempo so durations
 	# like "3 tempo" work; per-cycle effects still run on the 5-tempo turn.
 	# Skill-tree cooldowns and intervals with exact tempo values tick here too.
@@ -5329,13 +5341,7 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_process_pillars(amount)
 
 	# Check if invisibility expired and restore player opacity
-	var buff_mgr := player.get_buff_manager()
-	if buff_mgr and not buff_mgr.is_invisible():
-		var mesh_node := player.mesh
-		if mesh_node:
-			var mat := mesh_node.get_surface_override_material(0) as StandardMaterial3D
-			if mat and mat.albedo_color.a < 1.0:
-				_set_player_invisible(false)
+	_restore_player_visibility_if_seen()
 
 	# Always update the 20-tick global counter (fills on ALL tempo sources)
 	if tempo_manager.is_ticking():
@@ -7933,16 +7939,23 @@ func select_card(index: int) -> void:
 #endregion
 #region DAMAGE PREVIEW PIPELINE
 func calculate_damage_preview(card: Card, target_enemy: Enemy) -> int:
-	## Calculate the estimated damage a card would deal to a target enemy.
-	## This mirrors the damage pipeline without side effects (no consuming buffs).
-	## Returns 0 for non-damaging cards.
+	## The health damage a card would deal to a target enemy (what gets past
+	## its armor). Returns 0 for non-damaging cards.
+	return calculate_damage_preview_split(card, target_enemy)["health"]
+
+func calculate_damage_preview_split(card: Card, target_enemy: Enemy) -> Dictionary:
+	## Calculate the estimated damage a card would deal to a target enemy, split
+	## into what its armor would take and what reaches health:
+	## {"armor": int, "health": int}. Mirrors the damage pipeline without side
+	## effects (no consuming buffs). Both 0 for non-damaging cards.
+	var none := {"armor": 0, "health": 0}
 	if card.base_damage <= 0 or card.card_type != Card.CardType.ATTACK:
-		return 0
+		return none
 	if not target_enemy or not is_instance_valid(target_enemy) or target_enemy.is_dead:
-		return 0
+		return none
 
 	if not player.get_stats():
-		return 0
+		return none
 	var buff_mgr := player.get_buff_manager()
 	var is_ranged_attack := card.is_ranged and card.is_attack()  # the Attack shape: a spell is not an attack
 
@@ -7959,18 +7972,18 @@ func calculate_damage_preview(card: Card, target_enemy: Enemy) -> int:
 	total_damage += target_enemy.bonus_damage_next_hit + target_enemy.premeditated_card_bonus
 
 	# Enemy-side: Armor absorption
+	var armor_share := 0
 	if target_enemy.current_armor > 0:
 		# Armor Break: double damage to armor only, no health damage spillover
 		if buff_mgr and buff_mgr.has_armor_break():
 			var doubled = total_damage * 2
-			var armor_absorbed = min(target_enemy.current_armor, doubled)
-			# Show the armor damage that will be dealt
-			total_damage = armor_absorbed
+			armor_share = min(target_enemy.current_armor, doubled)
+			total_damage = 0
 		else:
-			var armor_absorbed = min(target_enemy.current_armor, total_damage)
-			total_damage -= armor_absorbed
+			armor_share = min(target_enemy.current_armor, total_damage)
+			total_damage -= armor_share
 
-	return max(0, total_damage)
+	return {"armor": max(0, armor_share), "health": max(0, total_damage)}
 
 
 # Block cards whose _execute hardcodes the armor amount instead of reading
@@ -14200,12 +14213,26 @@ func _on_donation_cancelled() -> void:
 # INVISIBILITY
 # ============================================
 
+var _player_translucent: bool = false  # the figure is faded for Invisible
+
 func _set_player_invisible(invisible: bool) -> void:
 	## Fade the actual 3D figure while Invisible is active. (The old code faded
 	## player.mesh — the hidden prototype capsule — so nothing showed on screen.)
 	if player and player.has_method("set_translucent"):
 		player.set_translucent(invisible)
+		_player_translucent = invisible
 		print("[MAIN] Player invisibility %s" % ("on (translucent)" if invisible else "off"))
+
+## The figure fades for Invisible and must come back the moment the buff is
+## gone — expired, broken by an attack, cleansed, or the player down. (It
+## used to read the hidden prototype capsule's material to decide, which
+## never read as faded, so the figure stayed translucent for good.)
+func _restore_player_visibility_if_seen() -> void:
+	if not _player_translucent or not player:
+		return
+	var buff_mgr = player.get_buff_manager()
+	if buff_mgr == null or not buff_mgr.is_invisible():
+		_set_player_invisible(false)
 
 #endregion
 #region BARRICADE OBSTACLES
@@ -15406,6 +15433,9 @@ func _restore_player_progression(progression: Dictionary) -> void:
 			inv.stored_items = inv_data.get("stored_items", inv.stored_items)
 			inv.rack_items = inv_data.get("rack_items", inv.rack_items)
 			inv.rack_cooldown_tempo = inv_data.get("rack_cooldown_tempo", 0)
+			inv.rack_deploy_tempo = inv_data.get("rack_deploy_tempo", 0)
+			inv.rack_parked = inv_data.get("rack_parked", [])
+			inv.rack_parked_two_hand = inv_data.get("rack_parked_two_hand", -1)
 			inv.stored_cards = inv_data.get("stored_cards", inv.stored_cards)
 			inv.stash_items = inv_data.get("stash_items", inv.stash_items)
 			inv.culling_stones = inv_data.get("culling_stones", inv.culling_stones)
@@ -15493,6 +15523,9 @@ func _save_player_progression() -> Dictionary:
 			"mythic_pieces": inv.mythic_pieces,
 			"rack_items": inv.rack_items.duplicate(),
 			"rack_cooldown_tempo": inv.rack_cooldown_tempo,
+			"rack_deploy_tempo": inv.rack_deploy_tempo,
+			"rack_parked": inv.rack_parked.duplicate(),
+			"rack_parked_two_hand": inv.rack_parked_two_hand,
 		}
 	var deck_state = progression["deck_state"]
 	var total_cards = deck_state.get("hand", []).size() + deck_state.get("draw_pile", []).size() + deck_state.get("discard_pile", []).size() + deck_state.get("jail_pile", []).size()

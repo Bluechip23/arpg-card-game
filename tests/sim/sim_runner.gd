@@ -310,9 +310,14 @@ func _stow_alt_weapons(p: Dictionary, inv, stats) -> void:
 				warnings.append("alt slotted: %s refused %s" % [id, str(cid)])
 		items.append([item, int(entry[1]) if entry.size() > 1 else 0])
 	if inv.has_back_rack:
+		# The rack holds ONE weapon: the set's first weapon goes up; a quiver
+		# or second item has no place on it.
 		for e in items:
+			if not inv.rack_items.is_empty():
+				warnings.append("war rack holds one weapon: %s left out" % e[0].item_name)
+				continue
 			if not inv.rack_store_item(e[0]):
-				warnings.append("war rack refused: %s" % e[0].item_name)
+				warnings.append("war rack refused: %s (%s)" % [e[0].item_name, inv.last_refusal])
 		inv._recalculate_carry_load()
 		if stats.is_overburdened():
 			warnings.append("war rack: over carry capacity %d/%d" % [stats.current_carry_load, stats.get_carry_capacity()])
@@ -551,9 +556,14 @@ func _spawn_enemies() -> void:
 			_place(en, Vector2i(pc.x + dist, cell.y))
 		_adopt_enemy(en)
 	main._sync_dungeon_blocked_tiles()
+	# The sync rebuilds the player's blocked tiles from the dungeon, so the
+	# scenario's obstacles go on after it (for the player as for the enemies).
 	for ob in scenario["map"]["obstacles"]:
+		var oc := SimScenario.cell_of(ob)
+		if not main.player.blocked_tiles.has(oc):
+			main.player.blocked_tiles.append(oc)
 		for en in main.enemy_spawner.get_living_enemies():
-			en.blocked_tiles.append(SimScenario.cell_of(ob))
+			en.blocked_tiles.append(oc)
 	main._sync_occupied_tiles()
 	main._update_enemy_count()
 	main._refresh_unit_tracker()
@@ -856,9 +866,8 @@ func _do_weapon_swap(a: Dictionary, row: Dictionary) -> bool:
 	var before: Array = inv.equipped_weapons.duplicate()
 	var label := ""
 	if str(a.get("kind", "")) == "rack":
-		var free: bool = inv.can_rack_exchange(true)["ok"]
 		main._on_rack_button_pressed()
-		label = "rack_free" if free else "rack_paid"
+		label = "rack"
 	else:
 		var b := int(a.get("build", 0))
 		var res: Dictionary = inv.switch_build(b)

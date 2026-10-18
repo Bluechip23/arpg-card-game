@@ -254,10 +254,13 @@ const DEFAULT_TACTICS := {
 }
 
 ## Second weapon loadouts any character can carry (weapons are universal):
-## what a build swaps to mid-fight with `alt:<set>`. Brad straps it to his
-## War Rack; everyone else keeps it as equipment build II and switches with
-## the game's build buttons (Stephen's weapon portion free). Engravings ride
-## the items, so their cards enter play only when the set is in hand.
+## what a build swaps to mid-fight with `alt:<set>`. Brad straps its first
+## weapon to his War Rack (the rack holds one weapon, held two-handed, out
+## for 20 tempo on a 60-tempo cooldown — a quiver or second item is left
+## out and reported); everyone else keeps the set as equipment build II and
+## switches with the game's build buttons (Stephen's weapon portion free).
+## Engravings ride the items, so their cards enter play only when the set
+## is in hand.
 const WEAPON_SETS := {
 	"bow": {"items": [["long_bow", 0], ["standard_quiver", 1]], "slotted": {"long_bow": ["quick_shot", "spirit_arrow"]}},
 	"greatsword": {"items": [["fallens_wrath", 0]], "slotted": {"fallens_wrath": ["savage_strike", "reckless_strike"]}},

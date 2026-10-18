@@ -73,9 +73,8 @@ var two_handed_lock_slot: int = -1  # the empty hand slot two-handing occupies
 # his back), and rushes the incoming items' cards straight to hand. Paid
 # exchanges work anytime under the normal swap-tempo rules.
 var has_back_rack: bool = false
-var rack_items: Array = []           # items on the back (up to weapon_slots)
-var rack_cooldown_tempo: int = 0     # tempo until the next FREE exchange
-const RACK_FREE_SWAP_COOLDOWN: int = 25
+var rack_items: Array = []           # the one weapon on the back (an array for the save format)
+var rack_cooldown_tempo: int = 0     # tempo until the rack can be drawn again
 
 #endregion
 #region EQUIPMENT BUILDS (loadouts I / II / III)
@@ -261,6 +260,10 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 			and count_equipped_mythics() >= get_mythic_capacity():
 		var reason = "Mythic limit: level %d allows %d mythic(s) equipped" % [
 			player_stats.current_level if player_stats else 0, get_mythic_capacity()]
+		if get_mythic_capacity() == 0:
+			reason = "A mythic answers only to a seasoned hand — level 15 at the least (you are level %d)" % [
+				player_stats.current_level if player_stats else 0]
+		last_refusal = reason
 		print("[INVENTORY] %s — cannot equip %s" % [reason, item.item_name])
 		return false
 
@@ -270,15 +273,18 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 	if count_equipped_copies(item.item_name, item) >= dupe_cap:
 		var dupe_reason = "Only %d cop%s of %s may be worn at once" % [
 			dupe_cap, "y" if dupe_cap == 1 else "ies", item.item_name]
+		last_refusal = dupe_reason
 		print("[INVENTORY] %s" % dupe_reason)
 		return false
 	
 	if slot_array[slot_index] != null:
+		last_refusal = "That slot is taken"
 		print("[INVENTORY] Slot %d already occupied" % slot_index)
 		return false
 
 	# Two-handing occupies a second hand slot — nothing else fits there.
 	if slot_array == equipped_weapons and two_handed_slot >= 0 and slot_index == two_handed_lock_slot:
+		last_refusal = "That hand is busy two-handing"
 		print("[INVENTORY] Slot %d is locked by two-handing" % slot_index)
 		return false
 
@@ -287,6 +293,7 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 	if slot_array == equipped_weapons:
 		var conflict = hand_conflict_reason(item, slot_index)
 		if conflict != "":
+			last_refusal = conflict
 			print("[INVENTORY] %s: %s" % [item.item_name, conflict])
 			return false
 
@@ -294,6 +301,8 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 	# past capacity. Uses the PROSPECTIVE delta so two-handing discounts and the
 	# dual-wield surcharge (which re-weighs the OTHER hand too) are counted.
 	if not _bulk_build_switch and not _carry_change_allowed(_prospective_weight_delta(item, slot_array, slot_index), two_handed_slot >= 0):
+		last_refusal = "Too heavy — carry %d/%d, item weight %d" % [get_total_weight(),
+			player_stats.get_carry_capacity() if player_stats else 0, item.weight]
 		print("[INVENTORY] %s is too heavy! Carry: %d/%d, item weight %d" % [
 			item.item_name, get_total_weight(),
 			player_stats.get_carry_capacity() if player_stats else 0, item.weight])
@@ -340,6 +349,10 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 	var item = slot_array[slot_index]
 	if item == null:
 		return null
+	# Taken out of the hands by anything but the rack exchange: it has left
+	# the War Rack's slot and may be gripped freely again.
+	if not _bulk_build_switch and item.has_meta("war_rack"):
+		item.remove_meta("war_rack")
 	
 	var is_off_hand = (item.item_type == ItemData.ItemType.WEAPON and
 					   slot_index > 0 and slot_index != two_handed_slot and
@@ -934,13 +947,8 @@ func process_turn() -> void:
 	armor_gained_this_turn = 0
 	ring_cycle_count += 1
 
-	# War Rack free-swap cooldown ticks with the cycle clock (5 tempo per cycle).
-	if rack_cooldown_tempo > 0:
-		rack_cooldown_tempo = maxi(0, rack_cooldown_tempo - 5)
-		if rack_cooldown_tempo == 0:
-			print("[INVENTORY] War Rack free swap ready!")
-		rack_changed.emit()  # keeps the HUD countdown live
-	
+	# (The War Rack's clocks tick on raw tempo: advance_rack_tempo.)
+
 	# Process gauntlet cooldowns. Passive skills (3 count) tick here too so
 	# their circle in the skill bar shows a live recharge counter.
 	for gauntlet in equipped_gauntlets:
@@ -1521,8 +1529,9 @@ func get_total_weight() -> int:
 	for i in range(equipped_weapons.size()):
 		var item = equipped_weapons[i]
 		if item: total += _effective_item_weight(item, i)
-	# War Rack gear rides on the back at full weight (no two-hand discount there).
-	for item in rack_items:
+	# War Rack gear rides on the back at full weight (no two-hand discount
+	# there) — the racked weapon, and the hand gear set aside while it is out.
+	for item in rack_items + rack_parked:
 		if item: total += _effective_item_weight(item)
 	return total
 
@@ -1637,6 +1646,8 @@ func is_two_hand_locked_slot(slot_index: int) -> bool:
 	## True for the empty hand slot consumed by two-handing.
 	return two_handed_slot >= 0 and slot_index == two_handed_lock_slot
 
+## Any character can brace a shield two-handed (the grip's one rule is a
+## free other hand); the brace pays in Basic Block armor rather than damage.
 func get_two_hand_block_bonus(shield: ItemData) -> int:
 	## Extra Basic Block armor when THIS shield is the item braced two-handed.
 	if shield == null or get_two_handed_item() != shield:
@@ -1713,6 +1724,10 @@ func _enable_two_handed(slot_index: int) -> bool:
 func _disable_two_handed() -> bool:
 	var slot_index = two_handed_slot
 	var item = equipped_weapons[slot_index] if slot_index < equipped_weapons.size() else null
+	if item and is_war_rack_item(item) and not _bulk_build_switch:
+		last_refusal = "%s came down from the War Rack — it is never held one-handed while in that slot" % item.item_name
+		print("[INVENTORY] %s" % last_refusal)
+		return false
 	if item:
 		# Carry gate on reverting: the item's full weight comes back (and the
 	# freed hand may re-form a dual-wield pair, which _effective_item_weight
@@ -1848,6 +1863,10 @@ func switch_build(target: int) -> Dictionary:
 	var result = {"success": false, "tempo_cost": 0, "reason": "", "missing": []}
 	if target < 0 or target >= BUILD_COUNT:
 		result["reason"] = "Invalid build"
+		return result
+	if rack_is_deployed():
+		result["reason"] = "The War Rack's weapon is in hand — wait for it to return"
+		last_refusal = result["reason"]
 		return result
 
 	builds[active_build] = _snapshot_equipment()
@@ -2018,10 +2037,25 @@ func switch_build(target: int) -> Dictionary:
 	return result
 
 #endregion
-#region WAR RACK EXCHANGE
+#region WAR RACK
 # ============================================
-# WAR RACK EXCHANGE
+# WAR RACK (Brad)
 # ============================================
+# A slot of its own on Brad's back, holding ONE weapon. What Brad wields
+# normally is his business; the rack's weapon is held two-handed, always.
+# Drawing it (rack_deploy) is free: his hand gear is set aside, the rack's
+# weapon comes to hand two-handed and its cards go straight to his hand.
+# After RACK_DEPLOY_TEMPO it goes back up on its own (or early, by choice)
+# and the usual gear returns — its cards rejoin the deck the ordinary way,
+# not the hand. The rack can be drawn again RACK_COOLDOWN tempo after it
+# was drawn.
+
+const RACK_COOLDOWN: int = 60      # tempo from one draw to the next
+const RACK_DEPLOY_TEMPO: int = 20  # tempo the rack's weapon stays in hand
+const RACK_FREE_SWAP_COOLDOWN: int = RACK_COOLDOWN  # old name, same number
+var rack_deploy_tempo: int = 0     # > 0 while the rack's weapon is in hand
+var rack_parked: Array = []        # hand gear set aside while deployed (by slot, nulls kept)
+var rack_parked_two_hand: int = -1 # the grip the parked gear had
 
 func get_rack_hand_items() -> Array:
 	## Non-null items currently in the hand slots.
@@ -2031,67 +2065,86 @@ func get_rack_hand_items() -> Array:
 			hands.append(it)
 	return hands
 
-func can_rack_exchange(free: bool) -> Dictionary:
-	## Whether a rack exchange is currently legal. {"ok": bool, "reason": String}
+func rack_is_deployed() -> bool:
+	return rack_deploy_tempo > 0
+
+## The weapon on the rack (null when empty or while it is in hand).
+func rack_weapon() -> ItemData:
+	return rack_items[0] if not rack_items.is_empty() else null
+
+## Why this item cannot be strapped to the rack ("" when it can): the rack
+## holds one weapon — a shield counts (it is braced two-handed); a quiver
+## is not a weapon and cannot be held at all.
+func rack_store_reason(item: ItemData) -> String:
+	if not has_back_rack:
+		return "No war rack"
+	if item == null or item.item_type != ItemData.ItemType.WEAPON:
+		return "Only a weapon (or shield) goes on the War Rack"
+	if rack_is_deployed():
+		return "The rack's weapon is in hand — wait for it to return"
+	if not rack_items.is_empty():
+		return "The War Rack holds one weapon (%s is on it)" % rack_items[0].item_name
+	return ""
+
+func rack_store_item(item: ItemData) -> bool:
+	## Out-of-combat setup path (the character panel's War Rack view): strap an
+	## unequipped weapon onto the rack directly.
+	var why := rack_store_reason(item)
+	if why != "":
+		last_refusal = why
+		print("[INVENTORY] War Rack: %s" % why)
+		return false
+	rack_items.append(item)
+	item.set_meta("war_rack", true)
+	rack_changed.emit()
+	print("[INVENTORY] Strapped %s to the war rack" % item.item_name)
+	return true
+
+func rack_take_item(index: int) -> ItemData:
+	## Take the weapon off the rack (to storage/hands via normal flows).
+	if index < 0 or index >= rack_items.size():
+		return null
+	var item = rack_items[index]
+	rack_items.remove_at(index)
+	item.remove_meta("war_rack")
+	rack_changed.emit()
+	return item
+
+## Whether this weapon belongs to the War Rack's slot right now (on the
+## rack, or in hand straight from it): it is never held one-handed.
+func is_war_rack_item(item: ItemData) -> bool:
+	return item != null and item.has_meta("war_rack")
+
+## Whether the rack can be drawn now. {"ok": bool, "reason": String}
+func can_rack_deploy() -> Dictionary:
 	var res = {"ok": false, "reason": ""}
 	if not has_back_rack:
 		res["reason"] = "No war rack"
 		return res
-	var hands = get_rack_hand_items()
-	if hands.is_empty() and rack_items.is_empty():
-		res["reason"] = "Nothing to exchange"
+	if rack_is_deployed():
+		res["reason"] = "The rack's weapon is already in hand (%d tempo left)" % rack_deploy_tempo
 		return res
-	# The two-hand-only rule holds for the incoming set too: a bow or staff
-	# can't come down alongside gear it couldn't be equipped with (the equip
-	# would be refused and strand the item). A quiver riding along is fine for
-	# a bow; a staff shares with nothing, quivers included.
-	if rack_items.size() > 1:
-		var rack_has_staff = false
-		var rack_two_hand_only = false
-		var rack_non_quiver = 0
-		for it in rack_items:
-			if it.item_type == ItemData.ItemType.WEAPON and it.weapon_subtype == ItemData.WeaponSubtype.STAFF:
-				rack_has_staff = true
-			if it.item_type == ItemData.ItemType.QUIVER:
-				continue
-			rack_non_quiver += 1
-			if is_two_hand_only(it):
-				rack_two_hand_only = true
-		if rack_has_staff:
-			res["reason"] = "A magic staff needs both hands — it can't come down with other gear"
-			return res
-		if rack_two_hand_only and rack_non_quiver > 1:
-			res["reason"] = "A bow needs both hands — it can't come down with other gear"
-			return res
-	if free:
-		if rack_cooldown_tempo > 0:
-			res["reason"] = "Rack swap recharging (%d tempo)" % rack_cooldown_tempo
-			return res
-		# One side of the free exchange must be a single two-handed item:
-		# the incoming rack item (auto-two-handed on arrival), the outgoing
-		# weapon already being two-handed, or a bow/staff on either side —
-		# those are inherently two-handed (a quiver may ride along with a bow).
-		if not _rack_free_side_ok(rack_items, true) and not _rack_free_side_ok(hands, false):
-			res["reason"] = "Free swap needs a single two-handed item on one side"
-			return res
-	# Carry gate on the end state as a whole. The item set is unchanged (hands
-	# and back trade places) but the two-handing weight discount and the 70%
-	# capacity move with the exchange.
+	if rack_items.is_empty():
+		res["reason"] = "Nothing on the War Rack"
+		return res
+	if rack_cooldown_tempo > 0:
+		res["reason"] = "War Rack recharging (%d tempo)" % rack_cooldown_tempo
+		return res
+	# Carry gate on the end state: the rack's weapon held two-handed, the
+	# parked hand gear on the back at full weight.
 	if player_stats:
-		var will_two_hand = free and _incoming_gets_auto_two_hand(rack_items)
+		var w: ItemData = rack_items[0]
+		var two_hand := not is_two_hand_only(w)
 		var load = 0
 		for arr in [equipped_helms, equipped_chests, equipped_rings, equipped_belts, equipped_boots, equipped_gauntlets]:
 			for it in arr:
 				if it:
 					load += _effective_item_weight(it)
-		for i in range(rack_items.size()):  # future hands
-			var w = _effective_item_weight(rack_items[i])
-			if will_two_hand and i == 0:
-				w = floori(rack_items[i].weight * TWO_HAND_WEIGHT_MULT)
-			load += w
-		for it in hands:  # future rack (full weight)
-			load += _effective_item_weight(it, -1)
-		var cap_after = player_stats.get_carry_capacity_two_handing(will_two_hand)
+		load += floori(w.weight * TWO_HAND_WEIGHT_MULT) if two_hand else _effective_item_weight(w)
+		for it in equipped_weapons:
+			if it:
+				load += _effective_item_weight(it, -1)
+		var cap_after = player_stats.get_carry_capacity_two_handing(two_hand)
 		var over_now = maxi(0, get_total_weight() - player_stats.get_carry_capacity())
 		if load > cap_after and (load - cap_after) > over_now:
 			res["reason"] = "Too heavy — over carry capacity"
@@ -2099,111 +2152,139 @@ func can_rack_exchange(free: bool) -> Dictionary:
 	res["ok"] = true
 	return res
 
-func _rack_free_side_ok(items: Array, is_incoming: bool) -> bool:
-	## Whether one side of a FREE rack exchange counts as "a single two-handed
-	## item": exactly one non-quiver item that is a bow or staff (inherently
-	## two-handed), will be auto-two-handed on arrival (lone incoming item),
-	## or is already being two-handed (outgoing side).
-	var main: ItemData = null
-	var total = 0
-	for it in items:
-		if it == null:
-			continue
-		total += 1
-		if it.item_type == ItemData.ItemType.QUIVER:
-			continue
-		if main != null:
-			return false
-		main = it
-	if main == null:
-		return false
-	if is_two_hand_only(main):
-		return true
-	if is_incoming:
-		return total == 1  # two-handing needs the other hand free to lock
-	return two_handed_slot >= 0
-
-func _incoming_gets_auto_two_hand(items: Array) -> bool:
-	## The free swap auto-two-hands a lone incoming item — but not bows or
-	## staffs (their two-handedness is the rule itself, and the lock would
-	## claim the hand a bow's quiver needs) and not quivers.
-	if items.size() != 1 or items[0] == null:
-		return false
-	var it: ItemData = items[0]
-	if it.item_type != ItemData.ItemType.WEAPON:
-		return false
-	return not is_two_hand_only(it)
-
-func rack_exchange(free: bool) -> Dictionary:
-	## Swaps everything in the hand slots with everything on the rack.
-	## free=true: 0 tempo, starts the cooldown, auto-two-hands a single
-	## incoming item, and rushes the incoming items' cards to hand.
-	## free=false: normal swap-tempo cost per changed hand slot, no cooldown.
+## Draw the rack's weapon: hand gear set aside, the weapon in hand held
+## two-handed (bows and staffs are two-handed by nature), its cards rushed
+## to hand, the return clock and the cooldown started. Free.
+func rack_deploy() -> Dictionary:
 	var result = {"success": false, "tempo_cost": 0, "reason": ""}
-	var check = can_rack_exchange(free)
+	var check = can_rack_deploy()
 	if not check["ok"]:
 		result["reason"] = check["reason"]
+		last_refusal = check["reason"]
 		return result
-
-	var incoming: Array = rack_items.duplicate()
-	var outgoing: Array = []
-
+	var weapon: ItemData = rack_items[0]
 	_bulk_build_switch = true
+	rack_parked = equipped_weapons.duplicate()
+	rack_parked_two_hand = two_handed_slot
 	if two_handed_slot >= 0:
 		set_two_handed(two_handed_slot, false)
 	for i in range(weapon_slots):
 		if equipped_weapons[i] != null:
-			var it = unequip_item(ItemData.ItemType.WEAPON, i)
-			if it:
-				outgoing.append(it)
-	var next_slot = 0
-	var first_slot = -1
-	for it in incoming:
-		while next_slot < weapon_slots and equipped_weapons[next_slot] != null:
-			next_slot += 1
-		if next_slot >= weapon_slots:
-			break
-		equip_item(it, next_slot)
-		if first_slot < 0:
-			first_slot = next_slot
-	# The free swap's single incoming item arrives held with both hands (bows
-	# and staffs excepted — they are inherently two-handed already).
-	if free and first_slot >= 0 and _incoming_gets_auto_two_hand(incoming):
-		set_two_handed(first_slot, true)
+			unequip_item(ItemData.ItemType.WEAPON, i)
+	rack_items.clear()
+	if not equip_item(weapon, 0):
+		# Refused (a mythic the hand cannot bear yet): everything back as it was.
+		rack_items.append(weapon)
+		for i in range(weapon_slots):
+			if i < rack_parked.size() and rack_parked[i] != null:
+				equip_item(rack_parked[i], i)
+		if rack_parked_two_hand >= 0:
+			set_two_handed(rack_parked_two_hand, true)
+		rack_parked = []
+		rack_parked_two_hand = -1
+		_bulk_build_switch = false
+		result["reason"] = last_refusal if last_refusal != "" else "The rack's weapon cannot be wielded"
+		print("[INVENTORY] War Rack: %s" % result["reason"])
+		return result
+	if not is_two_hand_only(weapon):
+		set_two_handed(0, true)
 	_bulk_build_switch = false
-
-	rack_items = outgoing
-	# The rack contents just changed hands — recompute the live carry load
-	# (and stance flags) NOW, not on the next unrelated equip.
+	rack_deploy_tempo = RACK_DEPLOY_TEMPO
+	rack_cooldown_tempo = RACK_COOLDOWN
 	_recalculate_carry_load()
-
-	if free:
-		rack_cooldown_tempo = RACK_FREE_SWAP_COOLDOWN
-		for it in incoming:
-			_rush_item_cards_to_hand(it)
-		print("[INVENTORY] War Rack FREE exchange: %s down, %s up (cooldown %d tempo)" % [
-			_rack_names(incoming), _rack_names(outgoing), RACK_FREE_SWAP_COOLDOWN])
-	else:
-		var changed = maxi(incoming.size(), outgoing.size())
-		result["tempo_cost"] = changed * get_swap_tempo_cost(ItemData.ItemType.WEAPON)
-		print("[INVENTORY] War Rack exchange: %s down, %s up (%d tempo)" % [
-			_rack_names(incoming), _rack_names(outgoing), result["tempo_cost"]])
-
+	_rush_item_cards_to_hand(weapon)
+	print("[INVENTORY] War Rack: %s drawn, held two-handed for %d tempo (%s set aside; next draw in %d)" % [
+		weapon.item_name, RACK_DEPLOY_TEMPO, _rack_names(_non_null(rack_parked)), RACK_COOLDOWN])
 	rack_changed.emit()
 	equipment_changed.emit()
 	result["success"] = true
 	return result
+
+## The rack's weapon goes back up and the usual gear returns to the hands,
+## its cards rejoining the deck the ordinary way (discard pile), not the
+## hand. Runs on its own when the deploy clock runs out, or early by choice.
+func rack_return() -> Dictionary:
+	var result = {"success": false, "tempo_cost": 0, "reason": ""}
+	if not rack_is_deployed():
+		result["reason"] = "The rack's weapon is not in hand"
+		return result
+	_bulk_build_switch = true
+	if two_handed_slot >= 0:
+		set_two_handed(two_handed_slot, false)
+	for i in range(weapon_slots):
+		var it = equipped_weapons[i]
+		if it == null:
+			continue
+		unequip_item(ItemData.ItemType.WEAPON, i)
+		if it.has_meta("war_rack"):
+			rack_items.append(it)  # back up on the rack
+		elif not stored_items.has(it):
+			stored_items.append(it)  # something picked up mid-draw (a quiver beside a bow)
+	for i in range(weapon_slots):
+		if i < rack_parked.size() and rack_parked[i] != null:
+			if not equip_item(rack_parked[i], i) and not stored_items.has(rack_parked[i]):
+				stored_items.append(rack_parked[i])
+	if rack_parked_two_hand >= 0:
+		set_two_handed(rack_parked_two_hand, true)
+	_bulk_build_switch = false
+	rack_deploy_tempo = 0
+	rack_parked = []
+	rack_parked_two_hand = -1
+	_recalculate_carry_load()
+	print("[INVENTORY] War Rack: %s back on the rack; usual gear in hand (%s)" % [
+		_rack_names(rack_items), _rack_names(get_rack_hand_items())])
+	rack_changed.emit()
+	storage_changed.emit()
+	equipment_changed.emit()
+	result["success"] = true
+	return result
+
+## Raw tempo: the cooldown runs down, and the deploy clock brings the usual
+## gear back when it reaches zero.
+func advance_rack_tempo(amount: int) -> void:
+	if not has_back_rack or amount <= 0:
+		return
+	var changed := false
+	if rack_cooldown_tempo > 0:
+		rack_cooldown_tempo = maxi(0, rack_cooldown_tempo - amount)
+		changed = true
+		if rack_cooldown_tempo == 0:
+			print("[INVENTORY] War Rack ready!")
+	if rack_deploy_tempo > 0:
+		changed = true
+		if rack_deploy_tempo <= amount:
+			rack_return()  # clears the clock itself
+		else:
+			rack_deploy_tempo -= amount
+	if changed:
+		rack_changed.emit()
+
+## Old entry points (the HUD button, the tester): one toggle — draw the rack,
+## or return early while it is out. Nothing about it is ever paid.
+func can_rack_exchange(_free: bool = true) -> Dictionary:
+	if rack_is_deployed():
+		return {"ok": true, "reason": ""}
+	return can_rack_deploy()
+
+func rack_exchange(_free: bool = true) -> Dictionary:
+	if rack_is_deployed():
+		return rack_return()
+	return rack_deploy()
+
+static func _non_null(items: Array) -> Array:
+	return items.filter(func(it): return it != null)
 
 func _rack_names(items: Array) -> String:
 	if items.is_empty():
 		return "(nothing)"
 	var names: Array[String] = []
 	for it in items:
-		names.append(it.item_name)
+		if it:
+			names.append(it.item_name)
 	return ", ".join(names)
 
 func _rush_item_cards_to_hand(item: ItemData) -> void:
-	## Free-swap payoff: the incoming item's cards (just added to the discard
+	## The rack's payoff: the drawn weapon's cards (just added to the discard
 	## pile by equip_item) go straight to hand, up to hand size. Extras land on
 	## top of the draw pile. Jailed cards stay jailed — the rack launders nothing.
 	if not deck_manager or not player_stats:
@@ -2223,25 +2304,6 @@ func _rush_item_cards_to_hand(item: ItemData) -> void:
 		moved = true
 	if moved:
 		deck_manager.hand_updated.emit()
-
-func rack_store_item(item: ItemData) -> bool:
-	## Out-of-combat setup path (the character panel's War Rack view): strap an
-	## unequipped item onto the rack directly.
-	if not has_back_rack or rack_items.size() >= weapon_slots:
-		return false
-	rack_items.append(item)
-	rack_changed.emit()
-	print("[INVENTORY] Strapped %s to the war rack" % item.item_name)
-	return true
-
-func rack_take_item(index: int) -> ItemData:
-	## Remove an item from the rack (to storage/hands via normal flows).
-	if index < 0 or index >= rack_items.size():
-		return null
-	var item = rack_items[index]
-	rack_items.remove_at(index)
-	rack_changed.emit()
-	return item
 
 #endregion
 #region ITEM STORAGE (NON-EQUIPPED INVENTORY)

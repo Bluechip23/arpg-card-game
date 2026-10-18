@@ -186,17 +186,13 @@ func card_view(c: Card) -> Dictionary:
 func _collect_weapon_swaps(inv) -> void:
 	var fighting: bool = main._is_in_combat()
 	if inv.has_back_rack:
-		if inv.rack_items.is_empty():
-			return
-		var free: bool = inv.can_rack_exchange(true)["ok"]
-		if not free and not inv.can_rack_exchange(false)["ok"]:
+		# Drawing the rack is free and brings its weapon's cards to hand; it
+		# goes back up on its own after RACK_DEPLOY_TEMPO (an early return
+		# is never worth a decision). Offered only when it can be drawn.
+		if inv.rack_items.is_empty() or inv.rack_is_deployed() or not inv.can_rack_deploy()["ok"]:
 			return
 		var held: Array = inv.get_rack_hand_items()
-		var tempo := 0
-		if not free and fighting:
-			tempo = maxi(inv.rack_items.size(), held.size()) * inv.get_swap_tempo_cost(ItemData.ItemType.WEAPON)
-		weapon_swaps.append(_swap_view(inv, "rack", -1, inv.rack_items, held, tempo,
-			inv.get_swap_mana_cost() if tempo > 0 else 0, free))
+		weapon_swaps.append(_swap_view(inv, "rack", -1, inv.rack_items, held, 0, 0, true))
 		return
 	for b in range(inv.builds.size()):
 		var snap = inv.builds[b]
@@ -348,6 +344,12 @@ func refresh() -> void:
 			"intent": e.get_display_action(),
 			"effects": e.get_active_effects(),
 			"poison": e.poison_stacks,
+			# Amp debuffs the hover window shows: stacks, and the tempo they
+			# have left (each stack lasts STACK_TEMPO on the enemy's own clock).
+			"vulnerable": e.vulnerable_stacks,
+			"vulnerable_tempo": maxi(0, e.vulnerable_stacks * Enemy.STACK_TEMPO - e.vulnerable_clock) if e.vulnerable_stacks > 0 else 0,
+			"weaken": e.weaken_stacks,
+			"stunned": e.is_stunned,
 			"structure": e.is_structure,
 			# What the inspect panel prints: the moveset and the base hit.
 			"actions": e.actions,

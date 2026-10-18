@@ -86,6 +86,7 @@ def main():
     ap.add_argument("--pool-size", type=int, default=12, help="cards in the combo pool")
     ap.add_argument("--pool", default="", help="explicit comma-separated card ids for the combo pool (overrides --pool-size)")
     ap.add_argument("--enemies", default="WERERAT,ARCHER_RAT,RAT_KING", help="melee, ranged, boss for 3b/3c")
+    ap.add_argument("--strategic", default="lookahead,combo_planner", help="3a: the strategic policies run against greedy_dpt (comma-separated)")
     ap.add_argument("--no-prune", action="store_true", help="keep every pair in 3b")
     ap.add_argument("--no-spotlight", action="store_true", help="3b/3c: do not start the added card(s) in the opening hand")
     ap.add_argument("--limit", type=int, default=0, help="cap cards/items per sweep (0 = all)")
@@ -108,7 +109,7 @@ def main():
     # 3a
     lines = []
     for t in acting:
-        for pol in ["greedy_dpt", "lookahead"]:
+        for pol in ["greedy_dpt"] + args.strategic.split(","):
             lines.append("scenario=%s policy=%s enemy=%s name=e_%s seeds=1-%d" % (BASELINE, pol, t, t, args.seeds_strategy))
     write("enemy_strategy.txt", lines, "3a enemy strategy index: baseline player vs every acting enemy, solo")
 

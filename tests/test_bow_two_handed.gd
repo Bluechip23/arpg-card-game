@@ -65,18 +65,15 @@ func _initialize() -> void:
 	# --- Moving the bow between its own hand slots stays legal ---
 	_check(inv.hand_conflict_reason(bow, 1) == "", "moving the bow to the other hand is not a conflict")
 
-	# --- War Rack: a bow can't come down alongside other gear ---
+	# --- War Rack: it holds one weapon; a bow comes down alone ---
 	var rig2 = _fresh_inventory("Brad")
 	var binv: Inventory = rig2[0]
 	var bow2 = Fixtures.bow(50)
 	var sword2 = Fixtures.sword()
-	binv.rack_items.append(bow2)
-	binv.rack_items.append(sword2)
-	var check: Dictionary = binv.can_rack_exchange(false)
-	_check(not check["ok"], "rack refuses to bring a bow down with a sword")
-	_check(binv.rack_items.pop_back() == sword2, "sword comes off the rack")
-	_check(binv.can_rack_exchange(false)["ok"], "bow-only rack exchange is legal")
-	var r: Dictionary = binv.rack_exchange(false)
+	_check(binv.rack_store_item(bow2), "a bow straps to the rack")
+	_check(not binv.rack_store_item(sword2), "the rack refuses a second weapon beside it")
+	_check(binv.can_rack_deploy()["ok"], "the bow can be drawn")
+	var r: Dictionary = binv.rack_deploy()
 	_check(r["success"] and binv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == bow2,
 		"bow comes down alone")
 
@@ -107,14 +104,12 @@ func _initialize() -> void:
 	_check(sinv.equip_item(Fixtures.quiver(), 1), "quiver equips first")
 	_check(not sinv.equip_item(staff, 0), "staff refused while a quiver is worn")
 
-	# --- War Rack: a staff can't come down with anything, quiver included ---
+	# --- War Rack: a staff is a weapon for it; a quiver is not ---
 	var rig4 = _fresh_inventory("Brad")
 	var binv2: Inventory = rig4[0]
-	binv2.rack_items.append(Fixtures.staff())
-	binv2.rack_items.append(Fixtures.quiver())
-	_check(not binv2.can_rack_exchange(false)["ok"], "rack refuses staff + quiver")
-	_check(binv2.rack_items.pop_back() != null, "quiver comes off the rack")
-	_check(binv2.can_rack_exchange(false)["ok"], "staff-only rack exchange is legal")
+	_check(binv2.rack_store_item(Fixtures.staff()), "a staff straps to the rack")
+	_check(not binv2.rack_store_item(Fixtures.quiver()), "the rack refuses a quiver")
+	_check(binv2.can_rack_deploy()["ok"], "the staff can be drawn")
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

@@ -762,9 +762,10 @@ static func make_waypoint_mound(material: Material) -> MeshInstance3D:
 
 
 ## The Return Scroll's town portal: a swirling purple oval (a flattened
-## torus standing upright) with a glowing translucent film inside it. Used
-## on the battle side and for its twin in town. No pack draws a portal of
-## this kind, so it is built in the packs' purple.
+## torus) with a glowing translucent film inside it, lying on its back just
+## above the ground so the plan-view camera sees the portal's face, not its
+## rim. Used on the battle side and for its twin in town. No pack draws a
+## portal of this kind, so it is built in the packs' purple.
 static func make_town_portal_visual() -> Node3D:
 	var root := Node3D.new()
 	root.name = "PortalVisual"
@@ -774,8 +775,7 @@ static func make_town_portal_visual() -> Node3D:
 	torus.inner_radius = 0.55
 	torus.outer_radius = 0.75
 	ring.mesh = torus
-	ring.rotation_degrees = Vector3(90, 0, 0)
-	ring.position = Vector3(0, 1.1, 0)
+	ring.position = Vector3(0, 0.12, 0)  # flat: the torus's hole points up
 	var ring_mat := StandardMaterial3D.new()
 	ring_mat.albedo_color = Color(0.6, 0.25, 0.95)
 	ring_mat.emission_enabled = true
@@ -790,8 +790,7 @@ static func make_town_portal_visual() -> Node3D:
 	disc.bottom_radius = 0.58
 	disc.height = 0.05
 	film.mesh = disc
-	film.rotation_degrees = Vector3(90, 0, 0)
-	film.position = Vector3(0, 1.1, 0)
+	film.position = Vector3(0, 0.10, 0)  # a flat disc inside the ring
 	var film_mat := StandardMaterial3D.new()
 	film_mat.albedo_color = Color(0.75, 0.45, 1.0, 0.55)
 	film_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
