@@ -94,7 +94,8 @@ static func script_has(script: Script, method: String) -> bool:
 
 ## Sweep-job overrides on top of a scenario file (tools/sim_analysis/gen_sweeps.py
 ## writes these): enemy=TYPE[,TYPE] (replaces the enemies; placed at a
-## sensible range by the runner), add_cards=a,b, add_items=x[:slot],y,
+## sensible range by the runner), add_cards=a,b, remove_cards=a,b (one copy
+## of each taken out of the deck; a deck-pair ablation), add_items=x[:slot],y,
 ## items=x[:slot],y|none (replaces the loadout), level=N,
 ## alloc=strength:10,dexterity:5 (replaces the allocation),
 ## passives=a,b, hand=a,b (those cards start in hand), sphere=id,id (node
@@ -116,6 +117,13 @@ static func apply_overrides(sc: Dictionary, job: Dictionary) -> Dictionary:
 	if job.has("add_cards"):
 		for id in str(job["add_cards"]).split(",", false):
 			p["deck"].append(id.strip_edges())
+	if job.has("remove_cards"):
+		for id in str(job["remove_cards"]).split(",", false):
+			var at: int = p["deck"].find(id.strip_edges())
+			if at >= 0:
+				p["deck"].remove_at(at)
+			else:
+				push_warning("[SIM] remove_cards: %s is not in the deck" % id.strip_edges())
 	if job.has("hand"):
 		# Spotlight: these cards start in the opening hand (a one-card change
 		# to an 11-card deck is otherwise invisible until it is drawn).
