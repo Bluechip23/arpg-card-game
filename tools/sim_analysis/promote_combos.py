@@ -75,8 +75,9 @@ def main():
              "## Source: %s (%d pairs scored, %d promoted%s)." % (os.path.relpath(csv_path, ROOT), scored, len(rows),
                                                                   (", min share %.2f" % args.min_share) if args.min_share > 0 else "")]
     if not rows:
-        lines += ["## Nothing qualified: every pair the sweep has scored so far came out",
-                  "## negative, so the registry is empty and the planner runs unaided.",
+        lines += ["## Nothing qualified: no scored pair is positive past the bar set for it",
+                  "## (any positive by default; --min-share / --resolved raise it), so the",
+                  "## registry is empty and the planner runs unaided.",
                   "const ENTRIES := []"]
     else:
         lines.append("const ENTRIES := [")

@@ -617,6 +617,70 @@ bot-vs-catalogue sweep is good at and a human playtester is slow at. The
 gaps it exposes in the sim itself are listed in the README's "Known
 gaps" section (2026-10-18 additions).
 
+## 3b on Ryan's designed decks: the deck-pair ablation (2026-10-19)
+
+**What was tested.** Whether any two cards in a designed deck are worth
+more together than apart, as the combo planner plays them. For each of the
+six designed builds (level 18) the deck ran whole, with one copy of each
+distinct card swapped for an inert blank, and with one copy of each pair
+swapped, against Armored Troll, Wyvern and Bone Dragon (hard enough to last
+several bars, winnable enough that damage per tempo means something), 30
+seeds each, `combo_planner` with the registry empty:
+`tests/sim/sweeps/ryan_deck_pairs.txt` (726 jobs, 21,780 fights, from
+`gen_deck_pairs.py`), read by `deck_pairs.py` →
+`sim_out/charts/ryan_deck_pairs.csv`, `ryan_deck_pairs_cards.csv`,
+`ryan_deck_pairs.png`.
+
+**How it was scored.** Per seed, synergy(a, b) = DPT(deck) − DPT(deck − a)
+− DPT(deck − b) + DPT(deck − a − b); then the mean and its paired standard
+error over seeds, averaged over the three enemies. A pair is *notable* at
+15 % of the deck's own DPT and *resolved* when it also clears twice its
+error. The blank matters: a first pass that *removed* the card changed the
+deck's size, and with it the seed's shuffle, so every variant of one size
+shared a single draw order per seed and the deck-size luck swamped the card
+(card shark: 7.8 DPT at 12 cards, 15.3 at 11, 12.6 at 10, every pair
+reading −9; per-seed correlation with the full deck 0.01). With the blank
+the four fights of a seed share their draw order until the swapped card
+turns up: correlation 0.96, paired error 0.26 against 3.2 unpaired. That
+pass is kept in the README as the reason the design is what it is.
+
+**Result: no pair clears the bar; the registry stays empty.** 186 pairs
+scored; the largest synergy is +0.32 DPT (card shark: Meister of
+Faustmesser with Slice, 4.8 % of the deck's DPT, inside its error) and the
+most negative −0.42 (ranged ambusher: Draw with Spirit Arrow). Every pair is
+within ±5 % of its deck's DPT. Promotion asked for 15 % and resolution
+(`promote_combos.py --csv … --min-share 0.15 --resolved`) and got nothing,
+which is the honest state of these decks: as the planner plays them, no two
+cards set each other up.
+
+| build | deck DPT | largest + pair | largest − pair | cards never played |
+|---|---|---|---|---|
+| apothecary | 2.6 | poison bomb + poisoned blood (noise) | slash + anything (−0.14 own worth) | — |
+| bruiser | 7.0 | block + slice +0.26 | — | parry, heal |
+| card shark | 6.6 | meister + slice +0.32 | meister + reposition −0.18 | exacerbate wounds |
+| ranged ambusher | 9.3 | spirit arrow + trick shot +0.21 | draw + spirit arrow −0.42 | lead arrow |
+| shadow blade | 2.6 | dagger throw + savage strike +0.09 | — | — |
+| spellslinger | 7.2 | poison bomb + continuance +0.12 | — | — |
+
+**What the single-card worths say instead** (`ryan_deck_pairs_cards.csv`,
+DPT with the card minus DPT with a blank in its place): Multishot +0.92
+and Quick Shot +0.37 carry the arrows deck; Spirit Arrow is −0.51 (eight
+damage for 30 mana, its line-piercing worthless one on one); Volatile
+Mixture −0.21 and Exacerbate Wounds −0.13 are the card shark's engine and
+both cost the deck; Slice +0.39 is the card shark's best card. Nothing in
+the potions deck moves more than ±0.14.
+
+**Why the engines read as dead — three tool gaps, with the cards that show
+them.** *Exacerbate Wounds* ("3 damage for each card discarded this turn")
+was played 0 times in 90 fights: its damage is conditional, the state view
+prices it at 0, so the discard engine's payoff never fires and no
+discard → exacerbate synergy can exist in the data. *Lead Arrow* ("1.8×
+damage, requires high ground") was played 0 times: the arena is flat. *Volatile
+Mixture* ("on discard 8 damage; after 5 tempo in hand, 8 self-damage") is a
+held-cost card the planner holds. Each is in the README's known gaps with
+what a fix needs. Until the first is closed, a deck built around discards
+cannot show a combo here whatever the cards do.
+
 ## Not re-run on the audited harness
 
 The items × decks and allocation × sphere matrices from the first Ryan

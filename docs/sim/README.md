@@ -784,12 +784,20 @@ segment it belongs to and what a fix would need.
 
 **Combo segment (planner and registry)**
 
-- *The registry is still empty, because 3b ran on the starter deck.*
-  Fifteen pairs, none positive. Run 3b on the designed decks with the
-  unaided planner (`gen_sweeps.py --strategic combo_planner` on the
-  synergy scenario) so the pairs that matter (Stance Switch into Slice,
-  the Marks into the big attacks, Cupid's into anything) can be
-  promoted.
+- *The registry is still empty, now on evidence.* 3b on the designed
+  decks (`gen_deck_pairs.py` / `deck_pairs.py`, RESULTS.md 2026-10-19)
+  scored 186 pairs within ±5 % of their deck's DPT: nothing to promote.
+  Two reasons sit in the tool, not the cards: conditional damage
+  ("3 per card discarded this turn", Exacerbate Wounds) is priced at 0, so
+  the discard engine's payoff is never played; and the decks hold no
+  amp → hit pair the planner can see (Stance Switch, the Marks, Cupid's
+  are not in these six decks). Wanted: price "per X this turn" from the
+  shadow state's own count, then run the ablation on decks that carry
+  the amp cards.
+- *Deck ablations must keep the deck's size.* Removing a card changes the
+  seed's shuffle and every same-size variant shares one draw order; swap
+  for `sim_blank` (`blank_cards=`) and score per seed. The removal pass is
+  kept under `__d_m-` as the cautionary example.
 - *Potential only counts debuffs, partners and mana.* It does not count
   a buff on the player that ends next bar (Strengthen, a stance), a
   summon's remaining life, or a manifest zone's charges. Wanted: the
@@ -819,7 +827,8 @@ segment it belongs to and what a fix would need.
 
 **Enemy and arena segment**
 
-- *One flat arena, no walls.* Every cell runs on the 20×12 open grid:
+- *One flat arena, no walls.* Lead Arrow ("requires high ground") was
+  played 0 times in 90 arrows-deck fights. Every cell runs on the 20×12 open grid:
   no high ground, no corridor, no line of sight. Cerberus's heads, the
   Minotaur's maze and the archers' kiting are all measured on open
   floor. Wanted: three or four terrain scenarios (corridor, pillar room,
