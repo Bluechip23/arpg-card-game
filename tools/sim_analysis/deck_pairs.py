@@ -2,22 +2,27 @@
 """3b on the designed decks — which pairs of a deck's own cards pay together?
 
 Reads the deck-pair ablation sweep (gen_deck_pairs.py; folders
-<char>_<build>_e_<ENEMY>__d_{full|m-<a>|m-<a>+<b>}/<policy>/summary.csv) and
-scores every pair per build and enemy:
+<char>_<build>_e_<ENEMY>__d_{full|b-<a>|b-<a>+<b>}/<policy>/summary.csv,
+where b-<a> is the deck with one copy of <a> swapped for the inert blank; the
+older m- folders, with the card removed, are read with --mode remove) and
+scores every pair per build and enemy, SEED BY SEED:
 
-    synergy(a, b) = DPT(deck) - DPT(deck - a) - DPT(deck - b) + DPT(deck - a - b)
+    synergy(a, b)[seed] = DPT(deck) - DPT(deck - a) - DPT(deck - b) + DPT(deck - a - b)
 
-averaged over the enemies that have the complete quartet. Positive: the two
-are worth more together (setup and payoff); negative: they compete for the
-bar. A pair is "notable" when |synergy| exceeds --threshold of the deck's own
-DPT (default 15 %); "resolved" when it also exceeds twice its standard error
-over seeds, so a 30-seed sweep does not promote noise.
+then the mean and standard error over seeds, averaged over the enemies that
+have the complete quartet. The blank keeps the deck's size and the seed's
+shuffle, so the four fights of a seed share their draw order until the
+swapped card shows up; the paired error is a fraction of the unpaired one.
+Positive: the two are worth more together (setup and payoff); negative: they
+compete for the bar. A pair is "notable" when |synergy| exceeds --threshold
+of the deck's own DPT (default 15 %); "resolved" when it also exceeds twice
+its paired standard error.
 
 Writes sim_out/charts/<char>_deck_pairs.csv (one row per build x pair, the
 same columns combos.csv has — pair, synergy, base_dpt, enemies, notable —
 plus build, win deltas and the error), <char>_deck_pairs_cards.csv (each
 card's own worth: DPT(deck) - DPT(deck - card)) and <char>_deck_pairs.png.
-Usage: python3 tools/sim_analysis/deck_pairs.py --character ryan [--policy combo_planner] [--threshold 0.15]
+Usage: python3 tools/sim_analysis/deck_pairs.py --character ryan [--policy combo_planner] [--threshold 0.15] [--mode blank|remove]
 """
 import argparse
 import math
@@ -36,46 +41,57 @@ def main():
     ap.add_argument("--character", default="ryan")
     ap.add_argument("--policy", default="combo_planner")
     ap.add_argument("--threshold", type=float, default=0.15)
+    ap.add_argument("--mode", choices=["blank", "remove"], default="blank")
     args = ap.parse_args()
+    tagc = "b" if args.mode == "blank" else "m"
     simlib.style()
     df = simlib.load_summaries()
     if df.empty:
         raise SystemExit("no summaries under sim_out/")
-    rows = []
+    cells = {}
     for scen, g in df[df["policy"] == args.policy].groupby("scenario"):
         m = NAME.match(scen)
         if not m or m.group("char") != args.character:
             continue
-        rows.append({"build": m.group("build"), "e": m.group("e"), "v": m.group("v"),
-                     "dpt": g["damage_per_tempo"].mean(), "dpt_sd": g["damage_per_tempo"].std(ddof=1),
-                     "win": g["win"].mean(), "n": len(g)})
-    if not rows:
-        raise SystemExit("no deck-pair results for %s / %s (run tests/sim/sweeps/%s_deck_pairs.txt)" % (args.character, args.policy, args.character))
-    cells = pd.DataFrame(rows)
+        v = m.group("v")
+        if v != "full" and not v.startswith(tagc + "-"):
+            continue
+        cells[(m.group("build"), m.group("e"), v)] = g.set_index("seed")[["damage_per_tempo", "win"]]
+    if not cells:
+        raise SystemExit("no deck-pair results for %s / %s / mode %s (run tests/sim/sweeps/%s_deck_pairs.txt)" % (args.character, args.policy, args.mode, args.character))
     per = []
     singles = []
-    for (b, e), ge in cells.groupby(["build", "e"]):
-        d = {r["v"]: r for r in ge.to_dict("records")}
-        if "full" not in d:
+    builds_enemies = sorted({(b, e) for (b, e, _v) in cells})
+    for b, e in builds_enemies:
+        full = cells.get((b, e, "full"))
+        if full is None:
             continue
-        full = d["full"]
-        for v, r in d.items():
-            if v.startswith("m-") and "+" not in v:
-                singles.append({"build": b, "e": e, "card": v[2:], "worth": full["dpt"] - r["dpt"],
-                                "win_delta": full["win"] - r["win"], "base_dpt": full["dpt"]})
-        for v, r in d.items():
-            if not (v.startswith("m-") and "+" in v):
+        pre = tagc + "-"
+        variants = {v: t for (bb, ee, v), t in cells.items() if bb == b and ee == e and v != "full"}
+        for v, t in variants.items():
+            if "+" in v:
                 continue
-            a, c = v[2:].split("+", 1)
-            ma, mc = d.get("m-" + a), d.get("m-" + c)
-            if ma is None or mc is None:
+            j = full.join(t, lsuffix="_f", rsuffix="_v", how="inner")
+            if j.empty:
                 continue
-            syn = full["dpt"] - ma["dpt"] - mc["dpt"] + r["dpt"]
-            # standard error of the four-mean combination
-            se = math.sqrt(sum((x["dpt_sd"] ** 2) / max(1, x["n"]) for x in (full, ma, mc, r) if not math.isnan(x["dpt_sd"])))
-            per.append({"build": b, "e": e, "pair": "%s+%s" % (a, c), "a": a, "b": c, "base_dpt": full["dpt"],
-                        "synergy": syn, "se": se, "win_full": full["win"], "win_minus_pair": r["win"],
-                        "win_synergy": full["win"] - ma["win"] - mc["win"] + r["win"]})
+            singles.append({"build": b, "e": e, "card": v[len(pre):], "worth": (j["damage_per_tempo_f"] - j["damage_per_tempo_v"]).mean(),
+                            "win_delta": (j["win_f"] - j["win_v"]).mean(), "base_dpt": full["damage_per_tempo"].mean()})
+        for v, t in variants.items():
+            if "+" not in v:
+                continue
+            a, c = v[len(pre):].split("+", 1)
+            ta, tc = variants.get(pre + a), variants.get(pre + c)
+            if ta is None or tc is None:
+                continue
+            j = pd.concat([full["damage_per_tempo"].rename("f"), ta["damage_per_tempo"].rename("a"), tc["damage_per_tempo"].rename("c"), t["damage_per_tempo"].rename("ac"),
+                           full["win"].rename("wf"), ta["win"].rename("wa"), tc["win"].rename("wc"), t["win"].rename("wac")], axis=1, join="inner")
+            if len(j) < 2:
+                continue
+            syn = j["f"] - j["a"] - j["c"] + j["ac"]
+            wsyn = j["wf"] - j["wa"] - j["wc"] + j["wac"]
+            per.append({"build": b, "e": e, "pair": "%s+%s" % (a, c), "a": a, "b": c, "base_dpt": j["f"].mean(),
+                        "synergy": syn.mean(), "se": syn.std(ddof=1) / math.sqrt(len(j)), "n": len(j),
+                        "win_full": j["wf"].mean(), "win_minus_pair": j["wac"].mean(), "win_synergy": wsyn.mean()})
     if not per:
         raise SystemExit("no complete full / minus-a / minus-b / minus-pair quartet yet")
     per = pd.DataFrame(per)
@@ -94,8 +110,8 @@ def main():
     sing.to_csv(simlib.CHARTS + "/%s_deck_pairs_cards.csv" % args.character, index=False)
 
     pd.set_option("display.width", 200)
-    print("pairs scored: %d over %d build(s); notable: %d; notable and resolved: %d"
-          % (len(out), out["build"].nunique(), int(out["notable"].sum()), int((out["notable"] & out["resolved"]).sum())))
+    print("mode %s: pairs scored: %d over %d build(s); notable: %d; notable and resolved: %d"
+          % (args.mode, len(out), out["build"].nunique(), int(out["notable"].sum()), int((out["notable"] & out["resolved"]).sum())))
     print("\ntop 20 positive synergies:\n", out.head(20).round(3).to_string(index=False))
     print("\nbottom 10 (the pairs that compete):\n", out.tail(10).round(3).to_string(index=False))
     print("\neach card's own worth (DPT with it minus DPT without it), per build:")

@@ -479,6 +479,21 @@ func _unlock_sphere_targets(targets: Array) -> void:
 
 ## The scenario's deck replaces the character's own; cards an equipped item
 ## owns (granted or slotted) ride along, exactly as in play.
+## An inert Unplayable card (no cost, no text, no effect) that only takes a
+## deck slot: `blank_cards=` swaps a card for it so a with/without comparison
+## keeps the deck's size and, per seed, its shuffle.
+const BLANK_CARD_ID := "sim_blank"
+
+static func _make_blank_card() -> Card:
+	var c := Card.new()
+	c.card_id = BLANK_CARD_ID
+	c.card_name = "Blank"
+	c.description = "A blank slot (sim ablation filler)."
+	c.card_type = Card.CardType.UNPLAYABLE
+	c.mana_cost = 0
+	c.base_damage = 0
+	return c
+
 func _build_deck(ids: Array) -> void:
 	var dm = main.deck_manager
 	var item_cards: Array = []
@@ -494,6 +509,11 @@ func _build_deck(ids: Array) -> void:
 	dm.peaked_card = null
 	dm.reserved_draw_slots = 0
 	for id in ids:
+		if str(id) == BLANK_CARD_ID:
+			# A deck-pair ablation's filler: holds the slot so the deck's size
+			# and shuffle stay the same as the full deck's, and is never played.
+			dm.draw_pile.append(_make_blank_card())
+			continue
 		if not dm.can_add_copy(str(id)):
 			warnings.append("deck: copy cap reached for '%s'" % str(id))
 			continue
