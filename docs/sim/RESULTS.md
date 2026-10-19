@@ -526,6 +526,161 @@ baseline and every one came out negative, so nothing has earned a place.
 It is a floor, not a ceiling — promote a pair only once 3b, run with the
 unaided planner, has shown it.
 
+## 3a on Ryan's designed builds with the combo planner (2026-10-18)
+
+**What was tested.** Ryan at level 18 in each of his six designed builds
+(`tests/sim/builds/ryan_builds.gd`: apothecary, bruiser, card shark,
+ranged ambusher, shadow blade, spellslinger — each a gear set, a deck,
+a stat allocation, a sphere-grid route and a passive set, composed by
+`CharacterBuilds.compose` through `tests/sim/scenarios/build.gd`), one on
+one against every acting enemy in the catalogue (61), with the three
+bots that form the strategy index: `greedy_dpt` (best damage per tempo
+now), `lookahead` (one action priced against the telegraphed intents)
+and `combo_planner` (every play sequence that fits the rest of the bar,
+priced on a shadow state plus bar-end potential; registry empty). 20
+seeds per cell: 366 cells × 3 bots × 20 = 21,960 fights, 40-bar cap
+(`tests/sim/sweeps/ryan_3a_m5_{1,2,3}.txt`, analysed by
+`tools/sim_analysis/planner_gap.py --character ryan` →
+`sim_out/charts/ryan_planner_gap.csv`, `ryan_planner_activity.csv`,
+`ryan_planner_gap_win.png`, `ryan_planner_gap_dpt.png`,
+`ryan_strategy_gap_builds.png`). The activity table is read from the
+per-fight action rows, so "health lost" and "armor lost" there are real
+(the summary's `total_damage_taken` is still the raw incoming amount; see
+bugs_found.md).
+
+**Headline.** Mean win rate greedy 0.861, lookahead 0.902, planner 0.911;
+timeouts 3.1 % / 2.5 % / 2.3 %; median health lost per fight 3.8 / 3.6 /
+2.5. Of 366 cells the planner beats lookahead on 14, loses on 2 and is
+within 20-seed noise (≤ 0.10) on 350. 48 of the 61 enemies are won at
+≥ 0.95 by every build with every bot: the sweep tells nothing about them
+except that level 18 is past them. The reading is in the other 13.
+
+| build | greedy | lookahead | planner | la DPT | planner DPT | plays / bar (la → planner) |
+|---|---|---|---|---|---|---|
+| apothecary | 0.908 | 0.915 | 0.920 | 2.6 | 2.6 | 0.89 → 1.04 |
+| bruiser | 0.935 | 0.927 | 0.942 | 5.7 | 6.4 | 1.09 → 1.21 |
+| card shark | 0.848 | 0.920 | 0.920 | 11.6 | 12.1 | 1.46 → 2.13 |
+| ranged ambusher | 0.848 | 0.892 | 0.904 | 13.2 | 15.4 | 1.46 → 1.73 |
+| shadow blade | 0.719 | 0.815 | 0.827 | 4.2 | 4.6 | 1.22 → 1.40 |
+| spellslinger | 0.909 | 0.944 | 0.952 | 8.4 | 8.8 | 1.29 → 1.82 |
+
+**Where the planner differs, and why.** It plays more cards per bar on
+every build (the shadow state lets it chain a cheap card into the one it
+enables within the bar) and that shows as damage per tempo (+17 % on the
+ranged ambusher, +11 % on the bruiser) more than as wins. The win-rate
+gains concentrate on one enemy: the Djinn (+0.12 averaged over builds;
+apothecary 0.25 → 0.55, bruiser and spellslinger 0.20 → 0.40). That gain
+is an accident worth knowing about: every hit on the Djinn hands the
+player Wish cards that sear the holder each cycle until erased for 60
+mana at 0 tempo; lookahead prices the erase as −60 mana for 0 gain and
+never plays it, the planner erases 4–6 a fight because a 0-tempo step
+costs nothing in its per-tempo plan rate. Neither bot values the sear
+itself. The other gains (Treant +0.05, Cerberus +0.06, Wyvern +0.04,
+Grave Titan +0.04) are 1–3 seeds each and in the direction of "more
+damage sooner". The two losses: apothecary vs Treant (0.40 → 0.15, and
+greedy wins 0.70) and spellslinger vs Inflamed Minotaur (0.55 → 0.45,
+noise). The Treant cell is the one place the strategic bots are worse
+than the greedy one, and it is a game finding, not a bot one (below).
+
+**Fights that cannot end.** Six cells time out in at least half the
+seeds for both strategic bots, and each has a mechanical cause in the
+enemy, not the build's strength:
+
+| cell | timeouts | cause |
+|---|---|---|
+| apothecary / Hydra, spellslinger / Hydra | 100 %, 90 % | heal-to-full after the 4th hit beats any 10–15 damage swing; the healer's gear keeps her alive |
+| apothecary / Inflamed Minotaur, bruiser / Inflamed Minotaur | 100 %, 100 % | Labyrinth Leap lands him off the 20×12 grid; nobody can reach anybody |
+| apothecary / Treant | 85 % | Root at 2–4 tiles, every 8 tempo, forever; the Treant never closes in |
+| card shark / Cerberus | 75 % | Venom Tail's 15-tempo stun on a 15-tempo clock |
+
+All four are in bugs_found.md with the code paths. The Minotaur and
+Cerberus columns of the index are timeout counts, not difficulty
+readings, until those are decided.
+
+**The hard thirteen** (planner win averaged over builds): Inflamed
+Minotaur 0.10, Hydra 0.19, Ifrit 0.21, Djinn 0.22, Cerberus 0.34, Wyvern
+0.72, Bone Dragon 0.74, Treant 0.75, Ice Troll 0.78, White Manticore 0.88,
+Grave Titan 0.89, Armored Troll 0.90, Large Bear 0.94. The shadow blade
+is the build that loses to the most of them (Armored Troll 0.40, Bone
+Dragon 0.20, Ice Troll 0.15, White Manticore 0.35, Wyvern 0.05 — the
+only build under 0.5 on any of those), which is a build-strength reading
+and not the point of this run; the Ifrit (45 damage every 3 tempo plus a
+Backflip that resets melee) is the one enemy every build loses to for a
+plain damage-race reason.
+
+**What this run says about the tool.** The planner is a safe upgrade:
+never worse than lookahead outside noise, more cards per bar, more damage
+per tempo, and its one real win (the Djinn) exposes a scorer gap rather
+than a planning strength. The sweep's findings are mostly loops in enemy
+logic that any bot falls into, which is exactly the kind of thing a
+bot-vs-catalogue sweep is good at and a human playtester is slow at. The
+gaps it exposes in the sim itself are listed in the README's "Known
+gaps" section (2026-10-18 additions).
+
+## 3b on Ryan's designed decks: the deck-pair ablation (2026-10-19)
+
+**What was tested.** Whether any two cards in a designed deck are worth
+more together than apart, as the combo planner plays them. For each of the
+six designed builds (level 18) the deck ran whole, with one copy of each
+distinct card swapped for an inert blank, and with one copy of each pair
+swapped, against Armored Troll, Wyvern and Bone Dragon (hard enough to last
+several bars, winnable enough that damage per tempo means something), 30
+seeds each, `combo_planner` with the registry empty:
+`tests/sim/sweeps/ryan_deck_pairs.txt` (726 jobs, 21,780 fights, from
+`gen_deck_pairs.py`), read by `deck_pairs.py` →
+`sim_out/charts/ryan_deck_pairs.csv`, `ryan_deck_pairs_cards.csv`,
+`ryan_deck_pairs.png`.
+
+**How it was scored.** Per seed, synergy(a, b) = DPT(deck) − DPT(deck − a)
+− DPT(deck − b) + DPT(deck − a − b); then the mean and its paired standard
+error over seeds, averaged over the three enemies. A pair is *notable* at
+15 % of the deck's own DPT and *resolved* when it also clears twice its
+error. The blank matters: a first pass that *removed* the card changed the
+deck's size, and with it the seed's shuffle, so every variant of one size
+shared a single draw order per seed and the deck-size luck swamped the card
+(card shark: 7.8 DPT at 12 cards, 15.3 at 11, 12.6 at 10, every pair
+reading −9; per-seed correlation with the full deck 0.01). With the blank
+the four fights of a seed share their draw order until the swapped card
+turns up: correlation 0.96, paired error 0.26 against 3.2 unpaired. That
+pass is kept in the README as the reason the design is what it is.
+
+**Result: no pair clears the bar; the registry stays empty.** 186 pairs
+scored; the largest synergy is +0.32 DPT (card shark: Meister of
+Faustmesser with Slice, 4.8 % of the deck's DPT, inside its error) and the
+most negative −0.42 (ranged ambusher: Draw with Spirit Arrow). Every pair is
+within ±5 % of its deck's DPT. Promotion asked for 15 % and resolution
+(`promote_combos.py --csv … --min-share 0.15 --resolved`) and got nothing,
+which is the honest state of these decks: as the planner plays them, no two
+cards set each other up.
+
+| build | deck DPT | largest + pair | largest − pair | cards never played |
+|---|---|---|---|---|
+| apothecary | 2.6 | poison bomb + poisoned blood (noise) | slash + anything (−0.14 own worth) | — |
+| bruiser | 7.0 | block + slice +0.26 | — | parry, heal |
+| card shark | 6.6 | meister + slice +0.32 | meister + reposition −0.18 | exacerbate wounds |
+| ranged ambusher | 9.3 | spirit arrow + trick shot +0.21 | draw + spirit arrow −0.42 | lead arrow |
+| shadow blade | 2.6 | dagger throw + savage strike +0.09 | — | — |
+| spellslinger | 7.2 | poison bomb + continuance +0.12 | — | — |
+
+**What the single-card worths say instead** (`ryan_deck_pairs_cards.csv`,
+DPT with the card minus DPT with a blank in its place): Multishot +0.92
+and Quick Shot +0.37 carry the arrows deck; Spirit Arrow is −0.51 (eight
+damage for 30 mana, its line-piercing worthless one on one); Volatile
+Mixture −0.21 and Exacerbate Wounds −0.13 are the card shark's engine and
+both cost the deck; Slice +0.39 is the card shark's best card. Nothing in
+the potions deck moves more than ±0.14.
+
+**Why the engines read as dead — three tool gaps, with the cards that show
+them.** *Exacerbate Wounds* ("3 damage for each card discarded this turn")
+was played 0 times in 90 fights: its damage is conditional, the state view
+prices it at 0, so the discard engine's payoff never fires and no
+discard → exacerbate synergy can exist in the data. *Lead Arrow* ("1.8×
+damage, requires high ground") was played 0 times: the arena is flat. *Volatile
+Mixture* ("on discard 8 damage; after 5 tempo in hand, 8 self-damage") is a
+held-cost card the planner holds. Each is in the README's known gaps with
+what a fix needs. Until the first is closed, a deck built around discards
+cannot show a combo here whatever the cards do.
+
 ## Not re-run on the audited harness
 
 The items × decks and allocation × sphere matrices from the first Ryan

@@ -242,3 +242,86 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   rings; the inventories give 2 and 3). Fixed in CharacterData and the quiz.
 - **The town portal stood on its rim**, so the plan-view camera saw its edge.
   It lies on its back now.
+
+## 2026-10-18 — found by 3a on Ryan's designed builds (not changed; design calls)
+
+- **Cerberus's Venom Tail is a permanent stun-lock.** It applies Stun for
+  15 tempo on an Async clock of 15 tempo, so the stun expires on the tempo
+  the next tail lands: from the first tail the player never acts again.
+  The apothecary, spellslinger and card shark spend 77–91 % of their
+  decisions waiting against Cerberus (`ryan_planner_activity.csv`), and
+  every bot's win rate there is the share of seeds that kill it before the
+  first tail. Either the stun wants to be shorter than the clock or the
+  clock longer than the stun.
+
+- **Deathyard Dog ramps without bound against a build that heals.** Every
+  heal in Cerberus's reach gives it +15 Strengthen, permanent, and
+  Strengthen is added to every Bite (`attack_damage + strengthen_stacks`),
+  tripled under a third of its health. The apothecary heals every cycle
+  from its gear, so the Bite climbs 27 → 42 → 57 → … → 324 within 14 bites,
+  past any health pool at level 18, and only Marvolo Gaunt's lethal save
+  keeps the run alive to the 40-bar timeout. A self-healing build cannot
+  fight Cerberus at all; if that is the intent, the sheet should say it.
+
+- **Tool: `total_damage_taken` is the raw incoming amount.** The runner
+  counts `PlayerStats.damage_taken`, which emits the hit before armor and
+  before Marvolo's invulnerability, so a fight under heavy mitigation reads
+  as thousands of damage taken while health never moved (apothecary vs
+  Cerberus: 15,000). `planner_gap.py` reports health and armor actually
+  lost from the row readings instead, and the summary now carries the
+  same two columns (`health_lost` from `health_damage_taken`, `armor_lost`
+  as the sum of per-action armor drops) — added after the sweep so its
+  stamps stayed valid; runs from before it lack the columns.
+
+- **Treant roots a player at 2–4 tiles and never closes in.** Its action
+  choice is: adjacent → Slam or Root; 2–4 tiles out and above half health
+  → Root, every time (`_choose_treant_action`). Root lasts 8 tempo and
+  costs 8, so a player who stops two tiles away is pinned for the rest of
+  the fight; the Treant does not step in to Slam, and heals 5 every 5
+  tempo meanwhile. A melee hand with no reach cannot act at all (the
+  apothecary's lookahead and planner wait 90 of ~120 decisions, at
+  distance 2, in every lost seed; both lose 60–85 % of seeds to the
+  40-bar timeout while the greedy bot, which walks in and stands adjacent,
+  wins 70 %). This is not a bot artefact: a human who hesitates two tiles
+  out meets the same loop. Either Root should not be the only answer at
+  2–4 tiles (Move in and Slam, say, or a Root that lasts less than its
+  own cooldown), or the Treant should close while the player is pinned.
+
+- **Hydra's heal-to-full makes a 40-bar stalemate out of every low-burst
+  build.** After her fourth hit she heals to full on a 5-tempo action and
+  gains +2 strength per hit taken. The apothecary and spellslinger hit for
+  10–15 a swing, so every heal erases three or four bars of work, and
+  their own healing gear keeps them alive to the timeout: 100 % / 90 %
+  timeouts, health full at the end, 450+ damage dealt and absorbed. The
+  bruiser's 50-damage swings beat the heal and win 60 %. A fight that
+  neither side can end is a worse outcome than a loss; a heal with a
+  cap, a cooldown, or a cost in strength would give the small-hit builds
+  a way through.
+
+- **Tool: the Djinn's Wish cards are held damage the one-step bots do
+  not price.** Every attack on the Djinn puts three Wishes in hand; each
+  sears the holder for a third of that attack's damage every cycle it is
+  held, and costs 60 mana (0 tempo) to erase. Lookahead scores the erase
+  as 0 gain − 60 mana → below "wait", so it never plays one and bleeds
+  out (apothecary 0.25, bruiser 0.20, spellslinger 0.20 wins). The planner
+  erases them 4–6 times a fight and wins 0.40–0.55 — but only because a
+  0-tempo step contributes nothing to its per-tempo plan rate, not
+  because it understands the sear. Cards with a cost for holding them
+  (Wish, Infest, Paralysis, Burden) need a "held-cost" term in the state
+  view and the scorer; see the gap review in RESULTS.md.
+
+- **The Inflamed Minotaur's Labyrinth Leap can land him off the grid, and
+  the fight freezes there.** `_random_free_cell_at_distance` only asks
+  `_cell_is_free` (blocked, occupied, unit tiles) — it never checks the
+  grid bounds — so on the sim's 20×12 arena his 14-space leap ends on
+  cells like 6:−1, −1:7 or 16:14 in every timed-out seed. From there he
+  reports a Move every 5 tempo and never changes tile, never attacks, and
+  the player cannot step off the board to reach him: the apothecary and
+  bruiser time out 100 % of seeds against him with every bot, health
+  full, two tiles apart for 35 bars (`ryan_bruiser_e_INFLAMED_MINOTAUR`,
+  37 enemy "move" rows on one cell per fight). The same picker serves in
+  the Labyrinth, whose outer ring is open floor cells past the maze wall
+  only where a wall tile is in `blocked_tiles`; the bound check belongs
+  in `_cell_is_free` (and `_build_route_path` already has one). Until it
+  is fixed every Minotaur cell in 3a is a timeout count, not a difficulty
+  reading.
