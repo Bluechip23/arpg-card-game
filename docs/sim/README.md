@@ -400,6 +400,15 @@ mix in; `--skip-done` (which `run_sweep.sh` passes) skips a job only when
 it finished on the same stamp; and `compare_runs.py` warns when a "before"
 and "after" ran on the same code, which means the change was not saved.
 
+The stamp covers *all* of `scripts/`, so any edit to game code while a
+sweep runs — a UI fix, a scene — changes the fingerprint, and a resume with
+`--skip-done` redoes every finished job. Hold game edits until the sweep
+ends. When an edit provably cannot touch a fight (the 2026-10-19 gauntlet
+button fix: an engine callback the runner never calls), re-run a handful of
+finished jobs, check their rows are identical, and write the new stamp
+into the finished folders' `stamp.txt` before resuming; say so in the
+results.
+
 ### Packs: fights against more than one enemy
 
 Single-enemy fights cannot show what an area card (If Pigs Could Fly,
