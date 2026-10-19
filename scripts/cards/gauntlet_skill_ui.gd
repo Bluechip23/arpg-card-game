@@ -73,6 +73,15 @@ func update_display() -> void:
 		disabled = _is_passive  # passives never take a click
 	queue_redraw()
 
+## BaseButton's press callback (an engine virtual, not an unreferenced
+## function — do not strip it). A ready active skill hands its gauntlet to
+## main, which arms a target or fires it; passives and recharging skills are
+## disabled and never get here.
+func _pressed() -> void:
+	if gauntlet == null or _is_passive or _on_cooldown:
+		return
+	skill_activated.emit(gauntlet)
+
 func _draw() -> void:
 	if not gauntlet:
 		return
