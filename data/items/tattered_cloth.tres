@@ -13,4 +13,5 @@ wisdom_bonus = 2
 determination_bonus = 2
 agility_bonus = 2
 health_bonus = 5
+vanilla_slots = 1
 description = "+2 DET, +2 AGI, +2 WIS, +2 DEX, +5 health."

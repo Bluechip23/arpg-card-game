@@ -17,6 +17,7 @@ level_3_description = "+7 WIS, +7 max brain points. Peek costs 1 less brain poin
 weight = 5
 wisdom_bonus = 5
 card_slots = 2
+vanilla_slots = 3
 on_self_brain_regen = 2
 brain_points_bonus = 5
 peek_brain_discount = 1

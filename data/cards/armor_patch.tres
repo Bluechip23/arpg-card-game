@@ -17,5 +17,5 @@ target_types = []
 has_on_draw = true
 on_draw_effect = "gain_3_armor_cleanse_1"
 discard_on_draw = true
-slot_labels = [13, 14, 16, 15, 6]
+slot_labels = [13, 14, 16, 6]
 keywords = ["defense"]

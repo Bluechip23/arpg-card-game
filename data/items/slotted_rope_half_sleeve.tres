@@ -12,6 +12,7 @@ dexterity_bonus = 7
 agility_bonus = 4
 weapon_subtype = 2
 card_slots = 2
+vanilla_slots = 2
 on_self_block = 3
 on_self_discard = 1
 flash_points_bonus = 4

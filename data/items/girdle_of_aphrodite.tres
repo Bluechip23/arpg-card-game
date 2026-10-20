@@ -25,6 +25,7 @@ determination_bonus = 2
 agility_bonus = 2
 health_bonus = 10
 card_slots = 2
+vanilla_slots = 2
 on_self_taunt_cycles = 3
 on_self_support_heal = 15
 description = "+10 health, +2 DET, +2 AGI, +2 DEX, +2 WIS. On-self: offensive cards Taunt the target for 15 tempo; utility/defense cards heal their target 15."

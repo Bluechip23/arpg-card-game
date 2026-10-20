@@ -19,6 +19,7 @@ mana_bonus = 15
 weapon_subtype = 7
 granted_card_ids = Array[String](["monk_of_the_night"])
 card_slots = 2
+vanilla_slots = 3
 armor_gain_melee_damage = 5
 insight_flash_restore = 2
 description = "+8 WIS, +8 AGI, +3 STR, +15 mana. Gaining armor deals 5 damage to an enemy in melee range. Insight draws restore 2 flash points. Grants Monk of the Night (Maintain): attack cards grant 10% of their damage as block (50 mana, 4 tempo)."

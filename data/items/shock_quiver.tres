@@ -13,6 +13,7 @@ dexterity_bonus = 2
 wisdom_bonus = 2
 agility_bonus = 3
 card_slots = 2
+vanilla_slots = 1
 on_self_crit_percent = 5.0
 on_self_apply_shock = 2
 description = "+3 AGI, +2 WIS, +2 DEX. 2 card slots. On-self: apply 2 Shock and +5% crit chance."

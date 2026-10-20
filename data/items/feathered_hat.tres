@@ -11,6 +11,7 @@ rarity = 2
 weight = 10
 agility_bonus = 8
 card_slots = 2
+vanilla_slots = 1
 on_self_damage = 5
 on_self_crit_damage_percent = 10.0
 on_self_flash_counter_drain = 2

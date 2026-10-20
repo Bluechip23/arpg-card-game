@@ -13,4 +13,5 @@ intelligence_bonus = 5
 agility_bonus = 5
 fire_trail_damage = 5
 fire_trail_tempo = 3
+vanilla_slots = 2
 description = "+5 INT, +5 AGI. When moving with flash points, leave a trail of fire. Each fire spot deals INT/5 damage then extinguishes; fire persists 3 tempo."

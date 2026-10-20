@@ -12,6 +12,7 @@ weight = 20
 wisdom_bonus = 5
 agility_bonus = 1
 card_slots = 2
+vanilla_slots = 1
 on_self_damage = 1
 on_self_armor_any = 2
 on_self_apply_cold = 1

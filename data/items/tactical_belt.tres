@@ -12,5 +12,6 @@ weight = 25
 intelligence_bonus = 5
 wisdom_bonus = 2
 card_slots = 3
+vanilla_slots = 1
 on_self_target_aoe_damage = 2
 description = "+5 INT, +2 WIS. On-self: an AOE explosive deals 2 damage around the target (allies unharmed)."

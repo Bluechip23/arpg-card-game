@@ -11,5 +11,5 @@ card_type = 2
 card_type_name = "Utility"
 mana_cost = 30
 tempo_cost = 5
-slot_labels = [14, 16, 15]
+slot_labels = [14, 16]
 keywords = ["utility", "melee"]

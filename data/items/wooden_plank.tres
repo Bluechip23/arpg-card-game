@@ -10,4 +10,5 @@ item_type_name = "Chest"
 weight = 45
 health_bonus = 15
 low_health_regen = 1
+vanilla_slots = 1
 description = "+15 health. When you drop below 50% health, gain 1 Regen."

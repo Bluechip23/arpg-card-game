@@ -13,5 +13,6 @@ intelligence_bonus = 6
 wisdom_bonus = 2
 agility_bonus = 2
 card_slots = 1
+vanilla_slots = 1
 on_self_int_damage_percent = 10.0
 description = "+6 INT, +2 AGI, +2 WIS. On-self: deal an additional 10% damage based on your INT."

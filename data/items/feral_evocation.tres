@@ -20,6 +20,7 @@ intelligence_bonus = 10
 wisdom_bonus = 5
 weapon_subtype = 10
 card_slots = 4
+vanilla_slots = 1
 slot_colors = ["red", "blue", "yellow", "green"]
 slot_effects = [{}, {}, {}, {}]
 feral_weapon = true

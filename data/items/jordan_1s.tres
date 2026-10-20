@@ -22,6 +22,7 @@ determination_bonus = 7
 agility_bonus = 6
 missing_life_damage_rate = 0.5
 missing_life_threshold = 50
+vanilla_slots = 2
 description = "+6 AGI, +7 DET, +7 STR, +6 DEX. Below 50% enemy health, your hits deal +0.5 damage per missing health %."
 appearance = "Black and red Jordan 1s."
 appearance_icon = "res://assets/items/mythic/jordan_1s.png"

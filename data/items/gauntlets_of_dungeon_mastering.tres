@@ -24,6 +24,7 @@ gauntlet_skill_cooldown = 4
 gauntlet_skill_mana_cost = 15
 gauntlet_skill_effect_id = "house_rule"
 card_slots = 1
+vanilla_slots = 2
 on_self_summon_wolf = 1
 description = "+3 WIS, +4 INT, +3 STR. On-self: summon a wolf, up to a pack of 3 (20 HP, attacks every 5 tempo, moves 2 per 3 tempo, attacks apply bleed; wolves empower each other: +20% attack and +1 bleed per other wolf). Skill — House Rule: pick a card from your discard pile into your hand (20 tempo CD)."
 appearance = "Silver gauntlets with a twenty-sided die set on each of the knuckles."

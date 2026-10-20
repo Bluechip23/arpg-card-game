@@ -17,4 +17,5 @@ gauntlet_skill_description = "Shuffle your discard pile into your draw pile."
 gauntlet_skill_cooldown = 3
 gauntlet_skill_mana_cost = 15
 gauntlet_skill_effect_id = "future_is_bright"
+vanilla_slots = 3
 description = "+3 WIS, +3 INT. Skill — Future is bright: shuffle your discard pile into your draw pile (15 tempo CD)."

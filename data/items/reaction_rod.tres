@@ -13,4 +13,5 @@ agility_bonus = 2
 weapon_subtype = 8
 granted_card_ids = Array[String](["grounding"])
 melee_retaliate_shock = 4
+vanilla_slots = 2
 description = "+5 INT, +2 AGI, +2 DET. An enemy striking you from melee range takes 4 Shock. Grants Grounding: absorb every Shock within 10 squares of you and deal 10 damage to each enemy in that radius, shocked or not — the cast costs 5 less mana per Shock absorbed (200 mana, 10 tempo)."

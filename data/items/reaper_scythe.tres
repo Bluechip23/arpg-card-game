@@ -19,6 +19,7 @@ agility_bonus = -5
 weapon_subtype = 10
 granted_card_ids = Array[String](["reapers_taking"])
 card_slots = 1
+vanilla_slots = 2
 attack_apply_vulnerable = 1
 reaper_weapon = true
 description = "+8 WIS, +8 STR, +3 DEX, -5 AGI. 1 card slot. Two-handed. Your damaging attacks apply 1 Vulnerable. Damaging an enemy above half health: 10% lifesteal. Below half: 10% of the damage returns as mana and the card costs 10% less. Grants Reaper's Taking (instant): when an enemy within 5 squares drops below 25% health, teleport to them and deal 20 damage."

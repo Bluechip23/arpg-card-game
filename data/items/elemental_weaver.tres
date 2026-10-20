@@ -13,4 +13,5 @@ mana_bonus = 35
 weapon_subtype = 10
 granted_card_ids = Array[String](["element_pollination"])
 elemental_charge_damage = 1
+vanilla_slots = 2
 description = "+5 INT, +3 WIS, +35 mana. Two-handed. Applying Burn, Shock or Cold deals +1 damage per stack applied. Grants Element Pollination (Maintain): your Burn also splashes nearby enemies like Shock, Shock freezes at 5 stacks like Cold, and Cold ticks doubling damage like Burn — on top of their normal effects (60 mana, 3 tempo)."

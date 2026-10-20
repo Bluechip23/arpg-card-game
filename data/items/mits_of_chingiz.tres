@@ -18,4 +18,5 @@ gauntlet_skill_name = "3 count"
 gauntlet_skill_description = "Playing two offensive cards in a row adds a Switch Kick to your hand."
 gauntlet_skill_cooldown = 4
 gauntlet_skill_effect_id = "three_count"
+vanilla_slots = 2
 description = "+2 DET, +5 STR, +2 AGI. Grants Stance Switch: remove 10 armor from the enemy and apply 2 Vulnerable. 3 count: playing two offensive cards in a row adds a Switch Kick to your hand (20 tempo CD)."

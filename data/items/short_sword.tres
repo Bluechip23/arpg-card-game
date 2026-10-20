@@ -9,4 +9,5 @@ weight = 25
 strength_bonus = 3
 dexterity_bonus = 2
 granted_card_ids = Array[String](["slice"])
+vanilla_slots = 1
 description = "+2 DEX, +3 STR. Grants Slice: deal 15 damage (10 mana, 3 tempo)."

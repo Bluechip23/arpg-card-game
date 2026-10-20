@@ -11,6 +11,7 @@ rarity = 2
 weight = 30
 determination_bonus = 6
 card_slots = 1
+vanilla_slots = 1
 on_self_apply_bleed = 1
 auto_purge_per_cycle = 2
 auto_purge_interval_cycles = 3

@@ -20,6 +20,7 @@ mana_bonus = 25
 weapon_subtype = 4
 granted_card_ids = Array[String](["wrath_of_the_sea"])
 card_slots = 2
+vanilla_slots = 2
 pierce_targets = 2
 description = "+10 INT, +8 WIS, +15 health, +25 mana. Your attacks strike 2 squares in a line. Grants Wrath of the Sea: spend half your current mana, blink, and deal the mana spent (plus STR) to every enemy in a 4x4 sea burst — all of them shoved to its edge; gain 15 mana per enemy hit (8 tempo)."
 appearance = "Poseidon's trident."

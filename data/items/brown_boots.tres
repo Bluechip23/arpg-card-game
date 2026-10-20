@@ -9,4 +9,5 @@ item_type = 4
 item_type_name = "Boots"
 weight = 8
 agility_bonus = 3
+vanilla_slots = 1
 description = "+3 AGI."

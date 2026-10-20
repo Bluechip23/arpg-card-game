@@ -17,4 +17,5 @@ determination_bonus = 3
 agility_bonus = 3
 mana_bonus = 125
 all_resistance_percent = 5.0
+vanilla_slots = 2
 description = "+125 mana. 5% resistance to all damage, +5 STR, +5 INT, +3 AGI, +3 WIS, +3 DET, +3 DEX. Legend has it, that's all it does."

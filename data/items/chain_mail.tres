@@ -14,4 +14,5 @@ special_effect = 7
 special_effect_value = 8
 granted_card_ids = Array[String](["clang_up"])
 armor_per_tempo_interval = 15
+vanilla_slots = 1
 description = "+15 health. Gain 8 unerring armor every 15 tempo (up to your unerring cap). Grants Clang Up: gain 10 block (20 mana, 5 tempo)."

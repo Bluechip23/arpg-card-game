@@ -13,6 +13,7 @@ strength_bonus = 5
 wisdom_bonus = 4
 health_bonus = 30
 card_slots = 3
+vanilla_slots = 2
 on_self_resist_all_percent = 2.0
 on_self_resist_all_tempo = 3
 block_physical_resist_percent = 10.0

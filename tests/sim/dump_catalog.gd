@@ -89,6 +89,8 @@ func _initialize() -> void:
 			"rarity": ItemData.Rarity.keys()[it.rarity],
 			"weight": it.weight,
 			"card_slots": it.card_slots,
+			"vanilla_slots": it.vanilla_slots,
+			"total_slots": it.total_card_slots(),
 			"granted_card_ids": it.granted_card_ids,
 			"weapon_subtype": ItemData.WeaponSubtype.keys()[it.weapon_subtype] if it.item_type == ItemData.ItemType.WEAPON else "",
 			"two_handed": Inventory.is_two_hand_only(it) if it.item_type in [ItemData.ItemType.WEAPON, ItemData.ItemType.QUIVER] else false,

@@ -13,6 +13,7 @@ dexterity_bonus = 2
 agility_bonus = -4
 weapon_subtype = 1
 card_slots = 2
+vanilla_slots = 1
 on_self_mana_multiplier = 1.5
 on_self_double_shot = true
 on_self_jail_tempo = 20

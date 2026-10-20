@@ -22,6 +22,7 @@ dexterity_bonus = 8
 agility_bonus = 8
 health_bonus = 25
 granted_card_ids = Array[String](["ragnarok"])
+vanilla_slots = 2
 description = "+25 health, +8 AGI, +8 DEX, +8 STR. Grants Ragnarok: release all jailed cards into your hand — for each, heal 10 and gain 10% crit chance and 5 STR for 10 tempo; jailed 30 tempo after play (45 mana, 5 tempo)."
 appearance = "Furry grey hide in the shape of a chest piece, a spiked collar and a wolf head at the chest."
 appearance_icon = "res://assets/items/mythic/hide_of_garmr.png"

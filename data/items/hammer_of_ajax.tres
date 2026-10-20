@@ -13,5 +13,6 @@ agility_bonus = -2
 weapon_subtype = 7
 granted_card_ids = Array[String](["feed_into_the_pain"])
 card_slots = 1
+vanilla_slots = 2
 on_self_max_hp_damage_percent = 10.0
 description = "+8 DET, +8 STR, -2 AGI. On-self: +damage equal to 10% of your max health. Grants Feed into the Pain (instant): when you take damage below 30% health, gain Strengthen 20 for 4 attacks and 25 temp HP for 5 tempo."

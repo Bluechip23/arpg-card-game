@@ -25,6 +25,7 @@ mana_bonus = 25
 weapon_subtype = 2
 granted_card_ids = Array[String](["mind_over_matter"])
 card_slots = 2
+vanilla_slots = 1
 on_self_block_max_mana_percent = 10.0
 description = "+5 INT, +8 STR, +2 WIS, +25 mana, -10 health. 2 card slots. On-self: extra block worth 10% of your max mana. Grants Mind over Matter: the next hit you take is halved and paid out of your mana instead of your health (20 mana, 2 tempo)."
 appearance = "A black kite shield marked in yellow: a man sitting in meditation, a half crescent moon above his head."

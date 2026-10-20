@@ -19,5 +19,6 @@ gauntlet_skill_cooldown = 2
 gauntlet_skill_mana_cost = 5
 gauntlet_skill_effect_id = "slice"
 card_slots = 1
+vanilla_slots = 1
 on_self_melee_damage = 5
 description = "+15 life, +5 STR, +1 hand size. On-self: +5 damage on melee cards. Skill — Slice: a basic melee attack costing 2 tempo (10 tempo CD)."

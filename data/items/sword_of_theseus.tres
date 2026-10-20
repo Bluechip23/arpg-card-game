@@ -15,6 +15,7 @@ weight = 30
 strength_bonus = 8
 determination_bonus = 7
 card_slots = 5
+vanilla_slots = 2
 on_self_apply_slow = 2
 on_self_slow_damage_per_stack = 1
 lifesteal_percent = 5.0

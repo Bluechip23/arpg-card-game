@@ -22,6 +22,7 @@ gauntlet_skill_cooldown = 3
 gauntlet_skill_mana_cost = 35
 gauntlet_skill_effect_id = "zeet"
 draw_every_cycles = 3
+vanilla_slots = 3
 description = "+6 INT, +2 hand size. Draw 1 card every 3 cycles. Skill — Zeet: deal damage equal to your INT / 2 (35 mana, 15 tempo CD)."
 appearance = "Four gold rings — one at each wrist and one just below each elbow — with light blue electricity coming off them."
 appearance_icon = "res://assets/items/mythic/cuffs_of_current.png"

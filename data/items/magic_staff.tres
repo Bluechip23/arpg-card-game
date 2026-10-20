@@ -10,5 +10,6 @@ intelligence_bonus = 2
 wisdom_bonus = 2
 weapon_subtype = 10
 card_slots = 1
+vanilla_slots = 1
 damage_bonus_to_attack_cards = 4
 description = "+2 INT, +2 WIS. 1 card slot. Two-handed. Your attacks deal +4 damage."

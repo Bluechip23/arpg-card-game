@@ -15,6 +15,7 @@ determination_bonus = 3
 weapon_subtype = 2
 granted_card_ids = Array[String](["curse_of_the_living"])
 card_slots = 2
+vanilla_slots = 1
 on_self_lifesteal_percent = 10.0
 low_health_lifesteal_bonus = 8.0
 description = "+7 INT, +2 STR, +2 WIS, +3 DET. 2 card slots. On-self: attack cards gain 10% lifesteal. Below half health, +8% lifesteal on attack cards. Grants Curse of the Living (Maintain): every heal you take is halved, and each ally is healed for half of what remains (65 mana, 7 tempo)."

@@ -12,4 +12,5 @@ weight = 5
 intelligence_bonus = 2
 wisdom_bonus = 2
 mana_bonus = 125
+vanilla_slots = 2
 description = "+125 mana. +2 INT, +2 WIS, +2 Burn on burn-applying effects. Every 25 Burn applied, cleanse 1 debuff on you."

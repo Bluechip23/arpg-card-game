@@ -625,10 +625,12 @@ func _on_item_entry_hovered(item: ItemData, entry: PanelContainer) -> void:
 			_add_detail_line(vbox, "CD: %d turns, Cost: %dM" % [item.gauntlet_skill_cooldown, item.gauntlet_skill_mana_cost], Color(0.6, 0.6, 0.7))
 
 	# Card slots
-	if item.card_slots > 0:
+	if item.total_card_slots() > 0:
 		var sep = HSeparator.new()
 		vbox.add_child(sep)
-		_add_detail_line(vbox, "Card Slots: %d" % item.card_slots, Color(0.7, 0.6, 1.0))
+		_add_detail_line(vbox, "Card Slots: %s" % ItemData.slot_words(item), Color(0.7, 0.6, 1.0))
+		if item.vanilla_slots > 0:
+			_add_detail_line(vbox, "Plain slots hold a card without the on-self bonus", Color(0.55, 0.55, 0.7))
 		if item.on_self_damage > 0:
 			_add_detail_line(vbox, "On-Self: +%d damage" % item.on_self_damage, Color(0.6, 0.9, 0.6))
 		if item.on_self_block > 0:

@@ -15,6 +15,7 @@ wisdom_bonus = 1
 health_bonus = 5
 granted_card_ids = Array[String](["m_for_mini"])
 card_slots = 2
+vanilla_slots = 1
 on_self_strengthen_value = 10
 on_self_strengthen_attacks = 2
 description = "+5 STR, +5 health, +1 WIS, +5 INT. On-self: Strengthen +10 for your next 2 attacks. Grants M for Mini: apply 2 Vulnerable and 2 Weaken (15 mana, 2 tempo)."

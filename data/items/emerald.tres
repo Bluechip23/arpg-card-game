@@ -11,4 +11,5 @@ weight = 5
 dexterity_bonus = 1
 agility_bonus = 3
 mana_bonus = 50
+vanilla_slots = 1
 description = "+50 mana. +1 DEX, +3 AGI. Every 5 Poison applied, deal 2 damage to a random enemy within 5 squares."

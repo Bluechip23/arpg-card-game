@@ -11,6 +11,7 @@ wisdom_bonus = 1
 health_bonus = 5
 weapon_subtype = 9
 card_slots = 1
+vanilla_slots = 1
 attack_apply_cold = 1
 damage_bonus_to_attack_cards = 1
 description = "+2 INT, +1 WIS, +5 health. 1 card slot. Your damaging offensive cards apply 1 Cold and deal +1 damage."

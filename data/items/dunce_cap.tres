@@ -11,4 +11,5 @@ rarity = 1
 weight = 15
 strength_bonus = 8
 intelligence_bonus = -6
+vanilla_slots = 1
 description = "+8 STR, -6 INT."

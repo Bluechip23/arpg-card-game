@@ -12,6 +12,7 @@ weight = 10
 intelligence_bonus = 2
 wisdom_bonus = 3
 card_slots = 6
+vanilla_slots = 1
 on_self_defense_armor = 2
 on_self_utility_weaken = 1
 on_self_offensive_damage = 2

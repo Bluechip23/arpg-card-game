@@ -16,6 +16,7 @@ weight = 5
 strength_bonus = 5
 intelligence_bonus = 8
 mana_bonus = 150
+vanilla_slots = 2
 description = "+150 mana. +5 STR, +8 INT. Every 9th hit you take, the ring drips a duplicate of you: a quarter of your health, attacks for half your basic attack every 7 tempo (its swings feed your attack-speed counter), moves 2 squares per 3 tempo, uncontrollable. Only one at a time — the trigger waits while one walks. When a duplicate dies, gain Strengthen 10 for 2 attacks."
 appearance = "Exactly like the Viking Draupnir: a heavy gold arm-ring dripping smaller rings of itself."
 appearance_icon = "res://assets/items/mythic/draupnir.png"

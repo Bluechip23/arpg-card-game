@@ -12,5 +12,6 @@ weight = 120
 strength_bonus = 5
 health_bonus = 20
 card_slots = 1
+vanilla_slots = 1
 on_self_heal = 10
 description = "+5 STR, +20 health. On-self: heal 10."

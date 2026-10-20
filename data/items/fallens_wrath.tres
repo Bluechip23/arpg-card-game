@@ -13,6 +13,7 @@ wisdom_bonus = 5
 health_bonus = 25
 granted_card_ids = Array[String](["purge_wrath"])
 card_slots = 2
+vanilla_slots = 2
 on_self_overdrive_multiplier = 1.5
 wrath_weapon = true
 description = "+5 INT, +5 STR, +5 WIS, +25 health. Each damage instance you take grants 1 Wrath (max 30); your attacks deal +Wrath damage; at 10+ Wrath you take 50% more damage. On-self: deal 1.5x damage, take half the bonus yourself. Grants Purge Wrath: your next attack deals +Wrath% bonus damage; Wrath resets to 0 (55 mana, 8 tempo)."

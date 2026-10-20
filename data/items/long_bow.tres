@@ -13,6 +13,7 @@ agility_bonus = 4
 health_bonus = 5
 weapon_subtype = 1
 card_slots = 2
+vanilla_slots = 1
 on_self_damage = 2
 on_self_range_offensive = 2
 description = "+2 DEX, +4 AGI, +5 health. 2 card slots. On-self: +2 range and +2 damage."

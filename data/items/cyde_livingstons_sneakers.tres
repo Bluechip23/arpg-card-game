@@ -13,4 +13,5 @@ dexterity_bonus = 4
 agility_bonus = 5
 granted_card_ids = Array[String](["donate_cleats"])
 consecutive_attack_draw = 5
+vanilla_slots = 2
 description = "+5 AGI, +4 DEX. If you play 5 consecutive attacks, draw a card. Grants Donate Cleats: for 5 tempo, grant 5 AGI and 4 DEX to an ally (35 mana, 0 tempo)."

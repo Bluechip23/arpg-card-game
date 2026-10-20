@@ -13,4 +13,5 @@ wisdom_bonus = 4
 health_bonus = 10
 mana_bonus = 75
 healing_bonus = 5
+vanilla_slots = 1
 description = "+75 mana. +10 health, +4 WIS, +5 to heals."

@@ -21,6 +21,7 @@ intelligence_bonus = 5
 determination_bonus = 5
 granted_card_ids = Array[String](["neither_man_nor_beast"])
 card_slots = 1
+vanilla_slots = 2
 void_resistance_percent = 5.0
 void_resistance_radius = 2
 description = "+10 STR, +5 INT, +5 DET. Grants Neither Man nor Beast: deal 10 base damage ignoring all resistances and armor; target cannot heal that damage for 10 tempo (Narashimha) (10 mana, 2 tempo). Void aura: enemies within 2 squares take 5% more damage from you."

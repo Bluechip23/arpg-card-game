@@ -15,6 +15,7 @@ level_3_description = "No stats. Cards slotted in its 5 slots cost 35% less mana
 weight = 8
 granted_card_ids = Array[String](["out_of_guesses"])
 card_slots = 5
+vanilla_slots = 1
 on_self_mana_reduction_percent = 20.0
 description = "No stats. Cards slotted in its 5 slots cost 20% less mana. Grants Out of Guesses: discard your whole hand and draw that many cards (15 mana / 3 tempo)."
 appearance = "A headband with three cards slotted upright across the front, faces out — everyone can read them but you."

@@ -19,5 +19,6 @@ gauntlet_skill_cooldown = 2
 gauntlet_skill_mana_cost = 10
 gauntlet_skill_effect_id = "coming_in"
 card_slots = 2
+vanilla_slots = 3
 on_self_disarm_offensive = 1
 description = "+3 DEX, +3 AGI, +1 hand size. On-self: offensive cards Disarm the target for 5 tempo (it skips its next attack). Skill — Coming in!: pull yourself to the target from 5 squares (10 tempo CD)."

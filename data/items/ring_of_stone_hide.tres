@@ -12,4 +12,5 @@ weight = 5
 strength_bonus = 4
 mana_bonus = 125
 block_bonus_to_defense_cards = 4
+vanilla_slots = 2
 description = "+125 mana. +4 STR, +4 block on block-applying cards. Every 100 block gained, encase yourself in stone skin for 15 tempo: 10% resistance to ALL damage."

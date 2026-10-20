@@ -12,6 +12,7 @@ mana_bonus = 30
 weapon_subtype = 8
 granted_card_ids = Array[String](["clear_mind"])
 card_slots = 1
+vanilla_slots = 2
 on_self_brain_regen = 2
 on_self_flash_regen = 2
 no_debuff_mana_discount_percent = 15.0
