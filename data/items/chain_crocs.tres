@@ -14,6 +14,7 @@ agility_bonus = -2
 special_effect = 7
 special_effect_value = 5
 card_slots = 2
+vanilla_slots = 1
 on_self_mana_reduction_percent = 20.0
 armor_per_tempo_interval = 15
 description = "-2 AGI, -2 WIS. On-self: mana cost reduced 20%. Gain 5 unerring armor every 15 tempo while equipped (counter resets when unequipped)."

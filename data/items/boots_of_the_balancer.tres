@@ -20,6 +20,7 @@ determination_bonus = 2
 health_bonus = 15
 granted_card_ids = Array[String](["tight_rope"])
 card_slots = 1
+vanilla_slots = 1
 on_self_armor_per_missing_health10 = 5
 description = "+15 health, +3 WIS, +5 STR, +2 DET. On-self: gain 5 armor for each 10% health you are missing. Grants Tight rope (Instant): when damage puts you below 20% health, gain 20 temp health for 5 tempo and 15 Strengthen on your next attack. Upgraded: each 6% missing health; Tight rope gains a second copy."
 appearance = "The thin, flexible shoes a tightrope walker works in."

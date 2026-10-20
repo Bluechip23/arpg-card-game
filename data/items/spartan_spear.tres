@@ -12,4 +12,5 @@ wisdom_bonus = 3
 agility_bonus = 2
 weapon_subtype = 4
 shield_synergy = true
+vanilla_slots = 1
 description = "+3 WIS, +2 AGI, +4 STR. While wielding a shield, gain Reach and +2 melee damage."

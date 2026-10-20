@@ -16,6 +16,7 @@ hand_size_bonus = -3
 weapon_subtype = 2
 granted_card_ids = Array[String](["huck"])
 card_slots = 2
+vanilla_slots = 3
 on_self_block = 8
 overdraw_heal = 5
 overdraw_spell_id = "rain_of_arrows"

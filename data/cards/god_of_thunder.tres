@@ -13,6 +13,6 @@ tempo_cost = 10
 resolve_tick = 8
 is_ranged = true
 range_modifier = 4
-slot_labels = [16, 14, 15, 11]
+slot_labels = [16, 14, 11]
 school = 1
 keywords = ["spell", "ranged", "enemy", "offensive"]

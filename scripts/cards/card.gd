@@ -17,7 +17,7 @@ const KEYWORD_NAMES := {
 	CardKeyword.SWIFT: "Swift", CardKeyword.BUCKLER: "Buckler", CardKeyword.CROWN: "Crown",
 	CardKeyword.FIST: "Fist", CardKeyword.SWORD: "Sword", CardKeyword.AXE: "Axe",
 	CardKeyword.DAGGER: "Dagger", CardKeyword.HAMMER: "Hammer", CardKeyword.SPEAR: "Spear",
-	CardKeyword.BULWARK: "Bulwark", CardKeyword.WAND: "Wand", CardKeyword.TOME: "Tome",
+	CardKeyword.BULWARK: "Bulwark", CardKeyword.WAND: "Wand", CardKeyword.TOME: "Wand",  # Tome folded into Wand (2026-10-20); the enum value stays for save compat
 	CardKeyword.STAFF: "Staff",
 }
 
@@ -76,12 +76,12 @@ const GOLD_VALUE_BY_RARITY := {
 ## id (see the card_id setter), so every creation path agrees. Cards off
 ## the sheet keep the labels their factories set.
 const CARD_SLOT_LABELS := {
-	"absorb_essence": [CardKeyword.WAND, CardKeyword.STAFF, CardKeyword.TOME],
+	"absorb_essence": [CardKeyword.WAND, CardKeyword.STAFF],
 	"adrenaline_shot": [CardKeyword.DAGGER],
 	"anticipation": [CardKeyword.FIST, CardKeyword.POCKET],
 	"approach": [CardKeyword.BULWARK, CardKeyword.BUCKLER],
 	"armor_break": [CardKeyword.HAMMER],
-	"armor_patch": [CardKeyword.BULWARK, CardKeyword.WAND, CardKeyword.STAFF, CardKeyword.TOME, CardKeyword.CROWN],
+	"armor_patch": [CardKeyword.BULWARK, CardKeyword.WAND, CardKeyword.STAFF, CardKeyword.CROWN],
 	"armored_discipline": [CardKeyword.CROWN, CardKeyword.SWORD],
 	"barbed_exterior": [CardKeyword.CROWN, CardKeyword.AXE],
 	"barricade": [],
@@ -131,7 +131,7 @@ const CARD_SLOT_LABELS := {
 	"gargle_and_spit": [CardKeyword.POCKET],
 	"gift_from_the_phoenix": [CardKeyword.GEM],
 	"give_in": [],
-	"god_of_thunder": [CardKeyword.STAFF, CardKeyword.WAND, CardKeyword.TOME, CardKeyword.HAMMER],
+	"god_of_thunder": [CardKeyword.STAFF, CardKeyword.WAND, CardKeyword.HAMMER],
 	"gulped_potion": [CardKeyword.POCKET],
 	"halo": [CardKeyword.CROWN],
 	"harden": [CardKeyword.BULWARK, CardKeyword.SPEAR],
@@ -147,14 +147,14 @@ const CARD_SLOT_LABELS := {
 	"house_money": [],
 	"hunker_down": [CardKeyword.BULWARK, CardKeyword.BUCKLER],
 	"if_pigs_could_fly": [],
-	"internal_combustion": [CardKeyword.WAND, CardKeyword.TOME, CardKeyword.STAFF, CardKeyword.BUCKLER],
+	"internal_combustion": [CardKeyword.WAND, CardKeyword.STAFF, CardKeyword.BUCKLER],
 	"item_mastery": [CardKeyword.AXE, CardKeyword.SWORD],
 	"lady_luck": [CardKeyword.GEM],
 	"last_breath": [CardKeyword.STAFF, CardKeyword.WAND, CardKeyword.AXE],
 	"lead_arrow": [CardKeyword.ARROW],
 	"lethal_recall": [CardKeyword.SPEAR, CardKeyword.SWIFT],
 	"life_steal": [CardKeyword.DAGGER, CardKeyword.SWORD],
-	"life_swap": [CardKeyword.WAND, CardKeyword.TOME, CardKeyword.STAFF, CardKeyword.AXE],
+	"life_swap": [CardKeyword.WAND, CardKeyword.STAFF, CardKeyword.AXE],
 	"lightly_dazed": [],
 	"living_armor": [CardKeyword.BUCKLER, CardKeyword.FIST],
 	"loaded_die": [CardKeyword.FIST, CardKeyword.GEM],
@@ -185,7 +185,7 @@ const CARD_SLOT_LABELS := {
 	"quick_shot": [CardKeyword.ARROW, CardKeyword.POCKET],
 	"raged_circulation": [CardKeyword.AXE, CardKeyword.WAND, CardKeyword.STAFF, CardKeyword.SWORD],
 	"reckless_strike": [CardKeyword.AXE, CardKeyword.HAMMER, CardKeyword.SWORD],
-	"release_tension": [CardKeyword.WAND, CardKeyword.STAFF, CardKeyword.TOME],
+	"release_tension": [CardKeyword.WAND, CardKeyword.STAFF],
 	"reload": [CardKeyword.ARROW],
 	"repelled_block": [CardKeyword.SPEAR, CardKeyword.BUCKLER],
 	"reposition": [CardKeyword.SWIFT, CardKeyword.FIST, CardKeyword.SPEAR],
@@ -219,7 +219,7 @@ const CARD_SLOT_LABELS := {
 	"swap": [CardKeyword.SWIFT],
 	"sweeping_disarm": [CardKeyword.SWORD, CardKeyword.SPEAR],
 	"taunt": [CardKeyword.SWORD],
-	"the_lights_favor": [CardKeyword.POCKET, CardKeyword.WAND, CardKeyword.GEM, CardKeyword.STAFF, CardKeyword.TOME],
+	"the_lights_favor": [CardKeyword.POCKET, CardKeyword.WAND, CardKeyword.GEM, CardKeyword.STAFF],
 	"thrown_stone": [CardKeyword.POCKET, CardKeyword.ARROW],
 	"tighten_string": [CardKeyword.ARROW, CardKeyword.WAND, CardKeyword.STAFF],
 	"tower_shield": [CardKeyword.BUCKLER],
@@ -714,8 +714,8 @@ func _slot_signature() -> String:
 
 func get_on_self_bonus() -> Dictionary:
 	# Returns the on-self bonus from the item this card is slotted in
-	if slotted_in_item and slotted_in_item.has_method("get_on_self_bonus"):
-		return slotted_in_item.get_on_self_bonus()
+	if slotted_in_item and slotted_in_item.has_method("get_on_self_bonus_for"):
+		return slotted_in_item.get_on_self_bonus_for(self)  # neutral in a vanilla slot
 	return {"damage": 0, "block": 0, "heal": 0, "mana_reduction": 0}
 
 ## How many KINDS of debuff an enemy is carrying — stacks within one kind count
@@ -2942,16 +2942,16 @@ func get_burden_tempo_cost() -> int:
 	cost += get_conditional_tempo_penalty()
 	# Boot Holsters: slotted attack cards cost less tempo.
 	if card_type == CardType.ATTACK and slotted_in_item:
-		cost -= slotted_in_item.get_on_self_bonus().get("attack_tempo_reduction", 0)
+		cost -= get_on_self_bonus().get("attack_tempo_reduction", 0)
 	# Chewbaccas Bandolier: slotted RANGED offensive cards cost less tempo.
 	if is_offensive() and is_ranged and slotted_in_item:
-		cost -= int(slotted_in_item.get_on_self_bonus().get("ranged_tempo_reduction", 0))
+		cost -= int(get_on_self_bonus().get("ranged_tempo_reduction", 0))
 	# Side Card Sabre: slotted cards cost less while the sabre is paired.
 	if slotted_in_item:
-		cost -= int(slotted_in_item.get_on_self_bonus().get("pair_tempo_reduction", 0))
+		cost -= int(get_on_self_bonus().get("pair_tempo_reduction", 0))
 	# Tightened Cross Bow (+1) / Stringless Sender (-1): signed tempo delta.
 	if slotted_in_item:
-		cost += int(slotted_in_item.get_on_self_bonus().get("tempo_penalty", 0))
+		cost += int(get_on_self_bonus().get("tempo_penalty", 0))
 	# Colored slots (Mauls Sabre): a primed combo makes this play faster —
 	# red immediately after blue. Reads the item's live last_color_played, so
 	# the number on the card face updates the moment the combo is primed.
@@ -2963,7 +2963,7 @@ func get_burden_tempo_cost() -> int:
 			cost -= int(slot_fx["combo_tempo"])
 	# Potion Belt: slotted utility cards refund tempo.
 	if card_type == CardType.UTILITY and slotted_in_item:
-		cost -= int(slotted_in_item.get_on_self_bonus().get("utility_tempo_refund", 0))
+		cost -= int(get_on_self_bonus().get("utility_tempo_refund", 0))
 	# Boots of Speed: in-hand reduction, until played or discarded.
 	cost -= temp_hand_tempo_reduction
 	# The Headbandz Lv.3: Out of Guesses quickens to 1 tempo.

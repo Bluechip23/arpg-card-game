@@ -12,4 +12,5 @@ weight = 1
 dexterity_bonus = 3
 agility_bonus = 4
 movement_flash_tempo_threshold = 36
+vanilla_slots = 1
 description = "+4 AGI, +3 DEX. After an accumulated 36 flash points spent on movement, remove 1 tempo from a card in your hand."

@@ -8,4 +8,5 @@ item_name = "Boomerang"
 weight = 5
 strength_bonus = 3
 weapon_subtype = 3
+vanilla_slots = 1
 description = "+3 STR. A one-handed throwing arm; pairs with a quiver."

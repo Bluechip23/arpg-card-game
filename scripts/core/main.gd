@@ -9231,6 +9231,8 @@ func _feral_conversion_effects(card: Card) -> void:
 	for fe_other in deck_manager.hand:
 		if fe_other == card or fe_other.slotted_in_item != fe_item:
 			continue
+		if fe_item.is_vanilla_slot(fe_other):
+			continue  # a plain slot has no color to convert
 		if _feral_current_color(fe_item, fe_other) == fe_color:
 			continue
 		fe_other.set_meta("feral_color", fe_color)

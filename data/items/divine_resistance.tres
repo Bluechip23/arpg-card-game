@@ -19,6 +19,7 @@ health_bonus = 45
 granted_card_ids = Array[String](["preemptive_answer"])
 resist_per_missing10 = 1.0
 resist_missing_step = 8
+vanilla_slots = 2
 description = "+45 health, +5 STR. Gain 1% resistance to all damage types per 8% missing health. Grants Preemptive Answer (instant): when you drop to 25% health, purge 3 debuffs and heal 20."
 appearance = "Shiny silver chest, with a crescent moon and sun on the chest."
 appearance_icon = "res://assets/items/mythic/divine_resistance.png"

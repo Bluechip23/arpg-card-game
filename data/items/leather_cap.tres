@@ -9,4 +9,5 @@ item_type = 0
 item_type_name = "Helm"
 weight = 3
 health_bonus = 5
+vanilla_slots = 1
 description = "+5 health."

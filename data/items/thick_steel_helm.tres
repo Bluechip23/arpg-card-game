@@ -12,4 +12,5 @@ weight = 55
 health_bonus = 25
 block_bonus_to_defense_cards = 2
 all_resistance_percent = 10.0
+vanilla_slots = 2
 description = "+25 health, 10% resistance to all damage. Armor-providing cards of any type grant 2 additional armor."

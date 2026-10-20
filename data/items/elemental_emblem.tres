@@ -12,4 +12,5 @@ strength_bonus = -5
 intelligence_bonus = 10
 agility_bonus = -3
 weapon_subtype = 2
+vanilla_slots = 2
 description = "+10 INT, -5 STR, -3 AGI."

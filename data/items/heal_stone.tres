@@ -9,4 +9,5 @@ item_type = 2
 item_type_name = "Ring"
 weight = 5
 mana_bonus = 50
+vanilla_slots = 1
 description = "+50 mana. Every 5 healing you receive (regen and lifesteal excluded), deal 2 damage to a random enemy within 5 squares."

@@ -19,6 +19,7 @@ agility_bonus = 5
 weapon_subtype = 1
 granted_card_ids = Array[String](["territorial_mark"])
 card_slots = 3
+vanilla_slots = 1
 on_self_mana_to_life = true
 ranged_range_bonus = 2
 description = "+2 range on ranged offensive cards, +5 AGI, +2 DEX, +4 WIS. 3 card slots. On-self: half the card's mana cost is paid as life instead. Grants Territorial Mark: a 15-damage arrow whose flight path — and the 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside the mark are Weakened until they leave it (45 mana + 35 health, 5 tempo, range 10)."

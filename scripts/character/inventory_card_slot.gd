@@ -46,7 +46,8 @@ func _build_tooltip() -> String:
 				lines.append(card.description)
 			sections.append("\n".join(lines))
 	else:
-		sections.append("Card slots: %d/%d (empty)" % [item.slotted_cards.size(), item.card_slots])
+		sections.append("Card slots: %d/%d (empty)%s" % [item.slotted_cards.size(), item.total_card_slots(),
+			(" — %d plain, no on-self bonus" % item.vanilla_slots) if item.vanilla_slots > 0 else ""])
 
 	# On-self effect below the card info.
 	var on_self := _on_self_description()

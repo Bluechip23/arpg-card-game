@@ -24,6 +24,7 @@ agility_bonus = 5
 weapon_subtype = 2
 granted_card_ids = Array[String](["reverberate_regrowth", "bouncing_shield"])
 damage_taken_mana_gain = 5
+vanilla_slots = 2
 description = "+5 STR, +3 DEX, +5 AGI, +4 DET. Every enemy hit you take gives you 5 mana. Grants Reverberate Regrowth (Maintain): when your armor is broken through, the armor that hit ate comes back 5 tempo later (55 mana). Grants Bouncing Shield: hurl the shield — it bounces between enemies for 5 damage each, and every target hit sends back 5 block and 10 temporary mana (which may sit above your maximum, 15 tempo). It is in the air for 10 tempo: half your armor goes with it and comes back when it does, and the card cannot be thrown again until then (55 mana, 4 tempo)."
 appearance = "The Captain America shield."
 appearance_icon = "res://assets/items/mythic/steve_rodgers_bastion.png"

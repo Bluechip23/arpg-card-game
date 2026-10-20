@@ -13,4 +13,5 @@ intelligence_bonus = 2
 wisdom_bonus = 2
 weapon_subtype = 2
 thorns_per_cycle = 1
+vanilla_slots = 1
 description = "+2 STR, +2 WIS, +2 INT. Gain 1 Thorns every cycle."

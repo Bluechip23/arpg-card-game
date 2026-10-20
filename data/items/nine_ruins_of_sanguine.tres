@@ -12,4 +12,5 @@ wisdom_bonus = 2
 weapon_subtype = 5
 granted_card_ids = Array[String](["sanguine_the_penguin"])
 vitality_weapon = true
+vanilla_slots = 3
 description = "+7 DEX, +2 WIS. Every attack grants 1 Vitality (max 9): each stack gives +1% lifesteal and +2 attack damage. At 9 the stacks hold for 5 tempo: if Sanguine's card is in your hand in that time, the stacks purge and Sanguine the blood penguin waddles forth — 50 HP, stays beside you, 8 damage every 5 tempo, can be hit (even by you); damage HE takes heals YOU half as much. If it is not, the stacks purge, the card is discarded, and no penguin comes. No Vitality while he lives."

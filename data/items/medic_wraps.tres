@@ -18,4 +18,5 @@ gauntlet_skill_description = "Heal an ally for 5 HP and gain 3 armor."
 gauntlet_skill_cooldown = 3
 gauntlet_skill_mana_cost = 10
 gauntlet_skill_effect_id = "slurp_and_pad"
+vanilla_slots = 1
 description = "+3 STR, -2 DEX, +5 life. Skill — Slurp and pad: heal an ally 5 HP and gain 3 armor (15 tempo CD)."

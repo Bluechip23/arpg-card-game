@@ -13,5 +13,6 @@ determination_bonus = 2
 health_bonus = 10
 weapon_subtype = 2
 card_slots = 3
+vanilla_slots = 1
 on_self_knockback = 1
 description = "+10 health, +2 DET, +3 STR. 3 card slots. On-self: the card's target is shoved back 1 space."

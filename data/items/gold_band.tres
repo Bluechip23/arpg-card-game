@@ -11,4 +11,5 @@ weight = 5
 intelligence_bonus = 2
 health_bonus = 5
 mana_bonus = 50
+vanilla_slots = 1
 description = "+50 mana. +5 health, +2 INT. Every 5 shield gained, deal 2 damage to a random enemy within 5 squares."

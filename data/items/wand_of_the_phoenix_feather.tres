@@ -16,6 +16,7 @@ health_bonus = 25
 weapon_subtype = 8
 granted_card_ids = Array[String](["from_the_ashes"])
 card_slots = 2
+vanilla_slots = 2
 burn_backlash_self = 1
 description = "+25 health, +4 WIS. 2 card slots. Applying Burn to an enemy burns you 1 — once per play, not per stack. Grants From the Ashes: purge ALL your Burn; every enemy within 3 squares takes 5 damage per stack purged, you heal 5 per stack and gain Regen equal to half of it (80 mana, 2 tempo)."
 appearance = "A red wand shaped like a single long feather, with a phoenix head at the pommel."

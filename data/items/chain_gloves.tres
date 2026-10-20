@@ -18,4 +18,5 @@ gauntlet_skill_cooldown = 4
 gauntlet_skill_mana_cost = 5
 gauntlet_skill_effect_id = "chain_guard"
 armor_per_tempo_interval = 15
+vanilla_slots = 1
 description = "+2 STR. Gain 1 unerring armor every 15 tempo. Skill — Guard: gain 2 armor (20 tempo CD)."

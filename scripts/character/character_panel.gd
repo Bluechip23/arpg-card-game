@@ -1471,7 +1471,7 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 
 	# Card slot management button (for equipped items with card slots)
 	if item.has_card_slots() and storage_index < 0:
-		var card_btn = _make_action_button("Manage Cards (%d/%d)" % [item.slotted_cards.size(), item.card_slots], Color(0.2, 0.15, 0.3), Color(0.6, 0.4, 0.9))
+		var card_btn = _make_action_button("Manage Cards (%d/%d)" % [item.slotted_cards.size(), item.total_card_slots()], Color(0.2, 0.15, 0.3), Color(0.6, 0.4, 0.9))
 		card_btn.pressed.connect(_open_card_slot_panel.bind(item))
 		vbox.add_child(card_btn)
 
@@ -1830,7 +1830,7 @@ func _open_card_slot_panel(item: ItemData) -> void:
 
 	# Header
 	var title = Label.new()
-	title.text = "%s - Card Slots (%d/%d)" % [item.item_name, item.slotted_cards.size(), item.card_slots]
+	title.text = "%s - Card Slots (%d/%d)" % [item.item_name, item.slotted_cards.size(), item.total_card_slots()]
 	title.add_theme_font_size_override("font_size", 15)
 	title.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0))
 	vbox.add_child(title)
@@ -1919,6 +1919,15 @@ func _open_card_slot_panel(item: ItemData) -> void:
 			"red": open_label.add_theme_color_override("font_color", Color(0.8, 0.4, 0.4))
 			_: open_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.5))
 		vbox.add_child(open_label)
+	# Plain slots: open ones are listed so the player knows a card put there
+	# gets no on-self bonus (bonus slots fill first).
+	var open_plain: int = mini(item.vanilla_slots, item.total_card_slots() - item.slotted_cards.size())
+	if open_plain > 0:
+		var plain_label = Label.new()
+		plain_label.text = "  (%d open plain slot%s — no on-self bonus)" % [open_plain, "" if open_plain == 1 else "s"]
+		plain_label.add_theme_font_size_override("font_size", 12)
+		plain_label.add_theme_color_override("font_color", Color(0.45, 0.45, 0.55))
+		vbox.add_child(plain_label)
 
 	vbox.add_child(_make_separator())
 
@@ -2106,9 +2115,10 @@ func _build_item_effect_text(item: ItemData) -> String:
 		lines.append("[Overdraw] %d/%d %s waiting" % [item.conjured_in_manifest,
 			item.overdraw_card_max, item.overdraw_card_id.capitalize()])
 	if item.has_card_slots():
-		lines.append("[Card Slots] %d/%d" % [item.slotted_cards.size(), item.card_slots])
+		lines.append("[Card Slots] %d/%d%s" % [item.slotted_cards.size(), item.total_card_slots(),
+			(" (%d plain)" % item.vanilla_slots) if item.vanilla_slots > 0 else ""])
 		for card in item.slotted_cards:
-			lines.append("  > %s" % card.card_name)
+			lines.append("  > %s%s" % [card.card_name, " (plain slot)" if item.is_vanilla_slot(card) else ""])
 	return "\n".join(lines)
 
 # ============================================

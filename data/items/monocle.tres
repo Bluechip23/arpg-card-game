@@ -10,6 +10,7 @@ item_type_name = "Helm"
 rarity = 2
 granted_card_ids = Array[String](["twenty_twenty"])
 card_slots = 1
+vanilla_slots = 1
 on_self_range_offensive = 5
 on_self_range_requires_ranged = true
 on_self_crit_ranged_percent = 25.0

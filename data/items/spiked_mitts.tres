@@ -19,6 +19,7 @@ gauntlet_skill_cooldown = 3
 gauntlet_skill_mana_cost = 15
 gauntlet_skill_effect_id = "well_placed_guard"
 card_slots = 1
+vanilla_slots = 3
 on_self_armor_any = 5
 armor_gain_thorns_threshold = 25
 armor_gain_thorns_amount = 5

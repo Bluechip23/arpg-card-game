@@ -18,6 +18,7 @@ dexterity_bonus = 5
 agility_bonus = 5
 health_bonus = 15
 card_slots = 2
+vanilla_slots = 1
 on_self_offensive_heal_percent = 3.0
 ranged_range_bonus = 1
 hp_diff_damage_divisor = 4

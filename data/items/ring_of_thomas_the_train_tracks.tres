@@ -16,6 +16,7 @@ weight = 5
 determination_bonus = 5
 health_bonus = 10
 mana_bonus = 150
+vanilla_slots = 2
 description = "+150 mana. +5 DET, +10 health. Shuffling your deck grants 7 Regen; every 3rd shuffle also heals 25."
 appearance = "A ring whose band is laid train track — and where the diamond should sit, the smiling face of Thomas the Tank Engine."
 appearance_icon = "res://assets/items/mythic/ring_of_thomas_the_train_tracks.png"

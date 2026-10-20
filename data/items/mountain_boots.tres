@@ -12,4 +12,5 @@ weight = 40
 health_bonus = 15
 granted_card_ids = Array[String](["terrain_formation"])
 highground_damage_percent = 20.0
+vanilla_slots = 2
 description = "+15 health. When attacking from high ground, gain an additional 20% damage. Grants Terrain formation: create a hill you can walk on for 5 tempo (25 mana, 3 tempo)."

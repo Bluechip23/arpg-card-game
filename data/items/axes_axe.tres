@@ -14,4 +14,5 @@ determination_bonus = 6
 weapon_subtype = 6
 granted_card_ids = Array[String](["death_vortex", "death_vortex", "death_vortex"])
 kill_flash_points = 5
+vanilla_slots = 4
 description = "+8 STR, +6 DET, -6 INT, -4 WIS. Grants 3 Death Vortexes (instant): after you are hit 5 times, every copy in hand fires — a spin attack dealing 15 damage to all adjacent enemies; a Vortex that kills returns to your hand. Killing an enemy banks 5 flash points (may exceed your cap)."

@@ -13,6 +13,7 @@ weight = 5
 strength_bonus = 5
 dexterity_bonus = 3
 granted_card_ids = Array[String](["protection_from_alnitak", "balance_of_alnilam", "crack_of_mintaka"])
+vanilla_slots = 2
 description = "+5 STR, +3 DEX. Grants Protection From Alnitak (10 armor + Brace equal to your empty hand slots for 5 attacks), Balance of Alnilam (if this is your only card, draw 6), and Crack of Mintaka (discard any number of cards; melee strike with range and crit damage per card discarded)."
 appearance = "A midnight-blue band with three star-bright studs in a perfect row — Alnitak, Alnilam, and Mintaka."
 appearance_icon = "res://assets/items/mythic/orions_belt.png"

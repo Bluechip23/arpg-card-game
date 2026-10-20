@@ -17,5 +17,6 @@ health_bonus = 25
 mana_bonus = 35
 granted_card_ids = Array[String](["mind_mend", "deep_breaths"])
 card_slots = 2
+vanilla_slots = 1
 on_self_heal = 5
 description = "+25 health, +35 mana, +5 INT, +5 STR, +2 DET, -5 AGI. On-self: heal 5. Grants Mind Mend: restore 60 mana (costs 15 HEALTH, 3 tempo) and Deep Breaths: heal 20 (30 mana, 4 tempo)."

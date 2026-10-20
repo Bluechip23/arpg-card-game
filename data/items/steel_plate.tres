@@ -13,4 +13,5 @@ health_bonus = 10
 special_effect = 7
 special_effect_value = 8
 armor_per_tempo_interval = 20
+vanilla_slots = 1
 description = "+3 STR, +10 health. Gain 8 unerring armor every 20 tempo (up to your unerring cap)."

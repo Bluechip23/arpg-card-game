@@ -11,5 +11,6 @@ weight = 10
 dexterity_bonus = 2
 agility_bonus = 1
 card_slots = 1
+vanilla_slots = 1
 on_self_ranged_damage = 2
 description = "+2 DEX, +1 AGI. On-self: ranged offensive cards deal +2 damage."

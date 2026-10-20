@@ -13,6 +13,7 @@ health_bonus = 10
 mana_bonus = 20
 weapon_subtype = 8
 card_slots = 2
+vanilla_slots = 1
 attack_apply_cold = 2
 damage_bonus_to_attack_cards = 2
 description = "+10 health, +3 INT, +1 WIS, +20 mana. 2 card slots. Your damaging offensive cards apply 2 Cold and deal +2 damage."

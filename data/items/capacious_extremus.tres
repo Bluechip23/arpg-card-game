@@ -12,5 +12,6 @@ weight = 15
 intelligence_bonus = 8
 wisdom_bonus = 2
 card_slots = 4
+vanilla_slots = 1
 on_self_mana_reduction_percent = 10.0
 description = "+8 INT, +2 WIS. 4 card slots. On-self: mana cost decreased by 10%."

@@ -20,5 +20,6 @@ gauntlet_skill_cooldown = 5
 gauntlet_skill_mana_cost = 10
 gauntlet_skill_effect_id = "continue_to_move"
 card_slots = 1
+vanilla_slots = 3
 on_self_draw_card = 1
 description = "+5 STR, +5 INT, -3 WIS, -3 AGI. On-self: draw a card. Skill — Continue to move: draw a card (25 tempo CD)."

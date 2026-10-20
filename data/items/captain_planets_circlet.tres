@@ -10,4 +10,5 @@ item_type_name = "Ring"
 rarity = 2
 weight = 5
 mana_bonus = 125
+vanilla_slots = 2
 description = "+125 mana. Each time you have applied 1 Burn, 1 Cold and 1 Silence to enemies and gained 1 Strengthen and 1 Regen, the powers combine: heal 15, draw 3 cards, and add a Fireball and a Rise to your hand (Erase 10)."

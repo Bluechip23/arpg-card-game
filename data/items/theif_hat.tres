@@ -10,4 +10,5 @@ item_type_name = "Helm"
 weight = 3
 dexterity_bonus = 1
 agility_bonus = 2
+vanilla_slots = 1
 description = "+2 AGI, +1 DEX."

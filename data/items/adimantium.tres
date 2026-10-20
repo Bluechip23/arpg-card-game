@@ -19,6 +19,7 @@ dexterity_bonus = -1
 agility_bonus = -2
 granted_card_ids = Array[String](["adimantium_wall"])
 card_slots = 2
+vanilla_slots = 4
 on_self_block = 8
 exposed_armor_gain = 10
 exposed_armor_cooldown_cycles = 15

@@ -13,6 +13,7 @@ strength_bonus = 5
 agility_bonus = 6
 granted_card_ids = Array[String](["shift"])
 card_slots = 1
+vanilla_slots = 2
 on_self_reaction_armor = 10
 movement_flash_discount = 1
 description = "+6 AGI, +5 STR. On-self: if an instant, gain 10 armor in addition to its effect. -1 cost to movement flash points. Grants shift: move 2 spaces for free (0 mana / 0 tempo)."

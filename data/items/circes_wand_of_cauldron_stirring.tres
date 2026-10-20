@@ -17,6 +17,7 @@ mana_bonus = 20
 weapon_subtype = 8
 granted_card_ids = Array[String](["polymorph", "polymorph"])
 card_slots = 1
+vanilla_slots = 2
 attack_apply_silence = 1
 description = "+8 WIS, -5 STR, +20 mana. 1 card slot. Your damaging attacks Silence the enemy for 5 tempo. Grants TWO copies of Polymorph (instant): when you land a 5th distinct debuff on an enemy, they become a pig for 5 tempo — able only to walk and make basic melee attacks; jailed 25 tempo after it fires."
 appearance = "A thin tree branch with smaller living branches coiled around its length — the sorceress's wand exactly as the tale tells it."

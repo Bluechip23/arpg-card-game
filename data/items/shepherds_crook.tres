@@ -14,6 +14,7 @@ mana_bonus = 20
 weapon_subtype = 10
 granted_card_ids = Array[String](["crops"])
 card_slots = 4
+vanilla_slots = 2
 card_pull_target = 1
 healing_bonus = 5
 description = "+20 health, +20 mana, +4 INT, +3 WIS. 4 card slots. Two-handed. All your healing heals 5 more. Every targeted card you play pulls its target 1 square toward you — allies included. Grants Crops: grow 5 berry bushels at random within 8 squares; an ally who walks over one eats it for 20 life and 20 mana (70 mana, 7 tempo)."

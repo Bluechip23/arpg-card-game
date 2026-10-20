@@ -15,6 +15,7 @@ wisdom_bonus = 2
 health_bonus = 10
 mana_bonus = 150
 granted_card_ids = Array[String](["tricks_of_alberich"])
+vanilla_slots = 2
 description = "+150 mana. +10 health, +5 INT, +2 WIS. Grants Tricks of Alberich: taunt enemies in a 4-square radius; gain 10 STR for the taunt's 5 tempo, plus 4 armor and 2 Regen per enemy taunted (50 mana, 6 tempo). After 5 heals, The Nibelung Curse arrives in your hand carrying the healed total: target yourself to take it as healing, or an enemy to deal it as damage (70 mana, 5 tempo, erased; only one copy can exist)."
 appearance = "A plain band forged of Rhine-gold, Alberich's curse gleaming red in its heart."
 appearance_icon = "res://assets/items/mythic/ring_of_nibelung.png"

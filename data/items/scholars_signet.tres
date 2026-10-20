@@ -11,4 +11,5 @@ rarity = 1
 weight = 5
 wisdom_bonus = 8
 mana_bonus = 75
+vanilla_slots = 1
 description = "+75 mana. +8 WIS."

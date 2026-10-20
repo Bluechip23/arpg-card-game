@@ -10,4 +10,5 @@ strength_bonus = 2
 agility_bonus = 2
 weapon_subtype = 7
 granted_card_ids = Array[String](["hard_helmet"])
+vanilla_slots = 1
 description = "+2 AGI, +2 STR. Grants Hard Helmet (instant): when you play a utility card, gain 8 armor and deal 2 damage to the closest enemy."

@@ -12,4 +12,5 @@ weight = 10
 intelligence_bonus = 5
 granted_card_ids = Array[String](["its_alive"])
 summon_heal_aura = 3
+vanilla_slots = 1
 description = "+5 INT. Grants ITS ALIVE!!!!!: Resurrect a dead corpse into Frankensteins Monster (50 + summoner INT×0.8 HP; moves every 8 tempo/4 spaces; attacks every 5 tempo for 10 + INT×0.25; 5% + INT/10 resist to all). 20 mana, 5 tempo. When your summons are below 25% health and within 3 squares of you, they heal 3 per cycle."

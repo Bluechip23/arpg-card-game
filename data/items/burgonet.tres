@@ -11,4 +11,5 @@ rarity = 1
 weight = 40
 special_effect = 7
 special_effect_value = 2
+vanilla_slots = 2
 description = "Gain 2 unerring armor every 5 tempo while equipped (resets if unequipped)."

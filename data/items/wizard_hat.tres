@@ -13,4 +13,5 @@ intelligence_bonus = 8
 wisdom_bonus = 2
 spell_power_per_attacks = 3
 spell_power_bonus = 5
+vanilla_slots = 1
 description = "+8 INT, +2 WIS. Every 3rd attack, your next spell card gains +5 spell power."

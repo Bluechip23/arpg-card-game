@@ -11,4 +11,5 @@ rarity = 2
 weight = 5
 intelligence_bonus = 5
 mana_bonus = 125
+vanilla_slots = 2
 description = "+125 mana. +5 INT. A lethal blow leaves you at 1 health instead: become invulnerable for 3 tempo and heal 25. Then the ring misunderstands — Marvolo's Misunderstanding deals 25 damage after 7 tempo unless purged (50-tempo cooldown)."

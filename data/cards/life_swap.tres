@@ -11,5 +11,5 @@ card_type = 2
 card_type_name = "Utility"
 mana_cost = 40
 target_types = ["self"]
-slot_labels = [14, 15, 16, 9]
+slot_labels = [14, 16, 9]
 keywords = ["utility", "self"]

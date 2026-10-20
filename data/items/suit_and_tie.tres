@@ -14,4 +14,5 @@ wisdom_bonus = 2
 determination_bonus = 1
 granted_card_ids = Array[String](["negotiate"])
 gold_gain_heal = 3
+vanilla_slots = 1
 description = "+3 INT, +2 WIS, +1 DET. Heal 3 whenever you obtain gold. Grants Negotiate: steal 5 gold from an enemy (20 mana, 3 tempo)."

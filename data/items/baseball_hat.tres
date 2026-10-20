@@ -11,4 +11,5 @@ weight = 5
 strength_bonus = 1
 dexterity_bonus = 1
 agility_bonus = 1
+vanilla_slots = 1
 description = "+1 DEX, +1 STR, +1 AGI."

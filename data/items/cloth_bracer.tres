@@ -16,4 +16,5 @@ gauntlet_skill_description = "Heal 5 HP."
 gauntlet_skill_cooldown = 4
 gauntlet_skill_mana_cost = 10
 gauntlet_skill_effect_id = "band_aid"
+vanilla_slots = 1
 description = "+1 hand size, +2 DEX. Skill — Band aid: heal 5 HP (20 tempo CD)."

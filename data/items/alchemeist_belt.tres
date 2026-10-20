@@ -15,5 +15,6 @@ wisdom_bonus = 5
 health_bonus = 15
 granted_card_ids = Array[String](["hemotoxins"])
 card_slots = 3
+vanilla_slots = 1
 heal_bonus_max_health_percent = 4.0
 description = "+5 WIS, +5 INT, +15 health, -4 DEX. Healing cards heal an additional 4% of your max health (self or ally). Grants Hemotoxins: apply 10 Poison — doubled if the target is below 50% health (50 mana, 5 tempo)."

@@ -125,8 +125,19 @@ enum GauntletSkillType {
 @export var gauntlet_skill_mana_cost: int = 0  # For active skills
 @export var gauntlet_skill_effect_id: String = ""  # Identifier for the effect
 
-# Card slot system
-@export var card_slots: int = 0  # Number of card slots this item has
+# Card slot system. Two kinds of slot:
+#   card_slots    — BONUS slots: a card here gains the item's on-self riders
+#                   (and, on a colored-slot item, that slot's color/payload).
+#   vanilla_slots — PLAIN slots: the card only lives here (it joins the deck
+#                   beyond the 12 base cards, engravings included) and gets
+#                   no on-self bonus at all. Added 2026-10-20 so a build has
+#                   somewhere to keep its weapon-labelled cards without every
+#                   weapon handing out riders. Not upgradeable for now.
+# Bonus slots fill first: slot indices 0..card_slots-1 are bonus, the rest
+# vanilla; a card's index is stamped when it is slotted (slot_color_index) and
+# kept for its whole stay, so a neighbor leaving never moves it.
+@export var card_slots: int = 0  # Number of BONUS card slots this item has
+@export var vanilla_slots: int = 0  # Number of plain, bonus-free card slots
 var slotted_cards: Array = []  # Cards currently in the slots
 var allowed_card_keywords: Array = []  # Empty = any card allowed. e.g. [Card.CardKeyword.ARROW] = only arrow cards
 
@@ -156,15 +167,51 @@ func _slot_index_of(card) -> int:
 		return int(card.get_meta("slot_color_index"))
 	return slotted_cards.find(card)
 
-## The lowest colored-slot index not currently occupied (-1 when full).
+## Every slot the item offers: bonus slots first, then the plain ones.
+func total_card_slots() -> int:
+	return card_slots + vanilla_slots
+
+## The lowest slot index not currently occupied (-1 when full). Bonus slots
+## (below card_slots) come first, so a card always takes a rider-bearing slot
+## while one is open.
 func _next_free_slot_index() -> int:
 	var taken := {}
 	for c in slotted_cards:
 		taken[_slot_index_of(c)] = true
-	for i in range(card_slots):
+	for i in range(total_card_slots()):
 		if not taken.has(i):
 			return i
 	return -1
+
+## True when the card sits in one of this item's plain (vanilla) slots.
+func is_vanilla_slot(card) -> bool:
+	var idx := _slot_index_of(card)
+	return idx >= card_slots
+
+## The on-self bonus THIS card gets: the item's riders in a bonus slot, the
+## neutral (all-zero) bonus in a vanilla slot. Every consumer that prices a
+## slotted card goes through here (Card.get_on_self_bonus).
+func get_on_self_bonus_for(card) -> Dictionary:
+	if is_vanilla_slot(card):
+		return neutral_on_self_bonus()
+	return get_on_self_bonus()
+
+static func slot_words(item) -> String:
+	## "3 slots (1 bonus, 2 plain)" — the panel's one phrase for an item's slots.
+	var total: int = item.total_card_slots()
+	if item.vanilla_slots <= 0:
+		return "%d slot%s" % [total, "" if total == 1 else "s"]
+	return "%d slots (%d bonus, %d plain)" % [total, item.card_slots, item.vanilla_slots]
+
+static var _neutral_osb: Dictionary = {}
+
+## The bonus of an item with no riders at all — the same keys get_on_self_bonus
+## returns, at their defaults (0, 1.0 for multipliers, false, "").
+static func neutral_on_self_bonus() -> Dictionary:
+	if _neutral_osb.is_empty():
+		var blank := ItemData.new()
+		_neutral_osb = blank.get_on_self_bonus()
+	return _neutral_osb
 
 func get_slot_color(card) -> String:
 	var idx = _slot_index_of(card)
@@ -727,13 +774,13 @@ func get_effective_stats(is_off_hand: bool, off_hand_modifier: float) -> Diction
 # ============================================
 
 func has_card_slots() -> bool:
-	return card_slots > 0
+	return total_card_slots() > 0
 
 func get_free_card_slots() -> int:
-	return max(0, card_slots - slotted_cards.size())
+	return max(0, total_card_slots() - slotted_cards.size())
 
 func can_slot_card(card) -> bool:
-	if slotted_cards.size() >= card_slots:
+	if slotted_cards.size() >= total_card_slots():
 		return false
 	# A card an item provides is part of that item's kit — it can never be
 	# slotted into anything (including the item that granted it).
@@ -792,7 +839,7 @@ func _get_default_keyword_for_item_type() -> int:
 				WeaponSubtype.HAMMER: return Card.CardKeyword.HAMMER
 				WeaponSubtype.POLEARM: return Card.CardKeyword.SPEAR
 				WeaponSubtype.WAND: return Card.CardKeyword.WAND
-				WeaponSubtype.TOME: return Card.CardKeyword.TOME
+				WeaponSubtype.TOME: return Card.CardKeyword.WAND  # Tome folded into Wand (2026-10-20)
 				WeaponSubtype.STAFF: return Card.CardKeyword.STAFF
 				_: return -1  # "Other" weapons take any labeled card
 	return -1
@@ -806,11 +853,12 @@ func slot_card(card) -> bool:
 	slotted_cards.append(card)
 	card.set_meta("slot_color_index", free_idx if free_idx >= 0 else slotted_cards.size() - 1)
 	card.slotted_in_item = self
-	# Laurentius's Lost Spear: slotted self-target cards may also aim at allies.
-	if on_self_self_targets_allies and card.target_types.has("self") and not card.target_types.has("ally"):
+	# Laurentius's Lost Spear: slotted self-target cards may also aim at allies
+	# (a rider, so bonus slots only).
+	if on_self_self_targets_allies and not is_vanilla_slot(card) and card.target_types.has("self") and not card.target_types.has("ally"):
 		card.target_types.append("ally")
 		card.set_meta("ally_target_granted", true)
-	print("[ITEM] %s: slotted card '%s' (%d/%d slots)" % [item_name, card.card_name, slotted_cards.size(), card_slots])
+	print("[ITEM] %s: slotted card '%s' (%d/%d slots%s)" % [item_name, card.card_name, slotted_cards.size(), total_card_slots(), ", plain slot" if is_vanilla_slot(card) else ""])
 	return true
 
 func unslot_card(card_index: int):
@@ -825,7 +873,7 @@ func unslot_card(card_index: int):
 	if card.get_meta("ally_target_granted", false):
 		card.target_types.erase("ally")
 		card.remove_meta("ally_target_granted")
-	print("[ITEM] %s: unslotted card '%s' (%d/%d slots)" % [item_name, card.card_name, slotted_cards.size(), card_slots])
+	print("[ITEM] %s: unslotted card '%s' (%d/%d slots)" % [item_name, card.card_name, slotted_cards.size(), total_card_slots()])
 	return card
 
 func get_on_self_bonus() -> Dictionary:

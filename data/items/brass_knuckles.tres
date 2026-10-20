@@ -12,4 +12,5 @@ special_effect = 7
 special_effect_value = 1
 damage_bonus_to_melee_cards = 2
 armor_per_tempo_interval = 20
+vanilla_slots = 1
 description = "+2 damage on melee offensive cards. Gain 1 unerring armor every 20 tempo."

@@ -12,5 +12,6 @@ weight = 40
 intelligence_bonus = 3
 wisdom_bonus = 5
 card_slots = 2
+vanilla_slots = 1
 on_self_kill_summon_skeleton = true
 description = "+5 WIS, +3 INT. 2 card slots. On-self: a kill raises a skeleton with half the victim's max health — 5 damage, 4 squares per tempo, attacks every 5 tempo; up to 3 at once."

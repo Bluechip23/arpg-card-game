@@ -13,4 +13,5 @@ intelligence_bonus = 4
 wisdom_bonus = 3
 weapon_subtype = 1
 granted_card_ids = Array[String](["cupids_golden_arrow", "cupids_lead_arrow"])
+vanilla_slots = 1
 description = "+3 WIS, +5 STR, +4 INT. Grants Golden — 10 damage, 2 Vulnerable, 50% chance to taunt the enemy toward you for 5 tempo — and Lead — 10 damage, 2 Weaken, 50% chance to send the enemy fleeing for 5 tempo (each 45 mana, 3 tempo). An enemy struck by both arrows turns into a tree for 4 tempo: it keeps every buff and debuff, cannot act, and regenerates 3 health on each of its first 3 tempo."

@@ -10,5 +10,6 @@ weight = 20
 dexterity_bonus = 2
 agility_bonus = 2
 card_slots = 2
+vanilla_slots = 2
 offhand_pair_bonus = true
 description = "+2 AGI, +2 DEX. In your off hand beside a main-hand weapon (shields don't count): this sword is weightless and its slotted cards cost 1 less tempo."

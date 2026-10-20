@@ -9,6 +9,7 @@ weight = 10
 intelligence_bonus = 2
 weapon_subtype = 9
 card_slots = 1
+vanilla_slots = 1
 on_self_armor_any = 3
 block_bonus_to_defense_cards = 1
 damage_bonus_to_attack_cards = 1

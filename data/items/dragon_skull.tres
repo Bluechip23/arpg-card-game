@@ -12,6 +12,7 @@ weight = 30
 strength_bonus = 8
 dexterity_bonus = 8
 card_slots = 2
+vanilla_slots = 1
 on_self_range_offensive = 1
 crit_fire_cone_damage = 10
 crit_fire_cone_range = 3

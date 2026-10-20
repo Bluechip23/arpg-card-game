@@ -10,4 +10,5 @@ item_type_name = "Chest"
 rarity = 1
 weight = 100
 health_bonus = 40
+vanilla_slots = 1
 description = "+40 health."

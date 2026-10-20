@@ -13,6 +13,7 @@ agility_bonus = 8
 hand_size_bonus = 1
 weapon_subtype = 10
 card_slots = 2
+vanilla_slots = 2
 slot_colors = ["blue", "red"]
 slot_effects = [{
 "block": 8,

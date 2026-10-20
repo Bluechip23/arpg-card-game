@@ -12,5 +12,6 @@ weight = 20
 intelligence_bonus = 3
 granted_card_ids = Array[String](["heal"])
 card_slots = 1
+vanilla_slots = 1
 on_self_heal = 3
 description = "+3 INT. On-self: +3 healing (a slotted card that doesn't heal instead heals you 3). Grants a Heal card."

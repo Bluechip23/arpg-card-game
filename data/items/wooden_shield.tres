@@ -11,4 +11,5 @@ strength_bonus = 2
 agility_bonus = 3
 weapon_subtype = 2
 melee_retaliate_bleed = 1
+vanilla_slots = 1
 description = "+2 STR, +3 AGI. An enemy that strikes you in melee splinters itself — 1 Bleed."

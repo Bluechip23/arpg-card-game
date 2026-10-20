@@ -11,4 +11,5 @@ weight = 25
 special_effect = 7
 special_effect_value = 5
 armor_per_tempo_interval = 15
+vanilla_slots = 1
 description = "Gain 5 unerring armor every 15 tempo while equipped (counter resets when unequipped)."

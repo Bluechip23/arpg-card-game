@@ -14,6 +14,7 @@ dexterity_bonus = -2
 agility_bonus = -2
 health_bonus = 10
 card_slots = 2
+vanilla_slots = 1
 on_self_armor_any = 8
 sidestep_bonus_armor = 2
 description = "+10 STR, -2 AGI, -2 DEX, +10 health. On-self: ANY card provides +8 armor. Side step provides an additional 2 armor."

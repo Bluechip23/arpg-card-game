@@ -13,5 +13,6 @@ intelligence_bonus = 3
 wisdom_bonus = 3
 granted_card_ids = Array[String](["healing_potion", "poison_bomb"])
 card_slots = 2
+vanilla_slots = 1
 on_self_utility_tempo_refund = 1
 description = "+3 WIS, +3 INT. On-self: utility cards refund 1 tempo. Grants a Healing Potion and a Poison Bomb."

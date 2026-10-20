@@ -2287,10 +2287,12 @@ func _build_modal_effects(item: ItemData) -> String:
 	return "\n".join(lines)
 
 func _build_modal_slots(item: ItemData) -> String:
-	if item.card_slots <= 0:
+	if item.total_card_slots() <= 0:
 		return ""
 	var lines: Array[String] = []
-	lines.append("[Card Slots] %d available" % item.card_slots)
+	lines.append("[Card Slots] %s" % ItemData.slot_words(item))
+	if item.vanilla_slots > 0:
+		lines.append("  plain slots hold a card without the item's on-self bonus")
 	# Show allowed keywords
 	if item.allowed_card_keywords.size() > 0:
 		var kw_names: Array[String] = []
