@@ -73,6 +73,8 @@ const TACTICS := {
 ## game's (a helm takes Crown cards, a belt Pocket, boots Swift, gauntlets
 ## Fist, a sword Sword cards, a dagger Dagger, a shield Buckler, a chest
 ## Bulwark, a quiver or bow Arrow); a mismatch is a warning.
+## Slotted lists stay within the total cap (25 − the 8-card base = 17 per
+## build since 2026-10-20); the runner only warns past it.
 const SLOTTED := {
 	"shadow_blade": {
 		"sabre_tooth": ["exposed_artery"],
@@ -94,11 +96,11 @@ const SLOTTED := {
 	"card_shark": {
 		"wrist_rocket": ["savage_strike"],
 		"sword_of_theseus": ["savage_strike", "specific_strike", "life_steal", "parry", "reckless_strike"],
-		"hermes_boots": ["blink", "reposition", "bob_and_weave", "swap"],
+		"hermes_boots": ["blink", "reposition"],
 		"slotted_rope_half_sleeve": ["repelled_block", "forever_armor"],
-		"the_headbandz": ["armor_patch", "provider", "barbed_exterior", "snowballs_chance", "forever_armor"],
-		"shadow_cowl": ["approach", "armor_patch", "turtle_up", "roar"],
-		"the_slotted_sash": ["dagger_throw", "volatile_mixture", "shuriken", "poke", "healing_potion", "discard"],
+		"the_headbandz": ["provider", "barbed_exterior", "forever_armor"],
+		"shadow_cowl": ["approach", "turtle_up"],
+		"the_slotted_sash": ["dagger_throw", "volatile_mixture"],
 		"belt_of_wumbology": ["thrown_stone", "quick_shot"],
 		"boot_holsters": ["blink", "reposition", "bob_and_weave"],
 		"spidey_web_shooters": ["push", "consecutive_snap"],
@@ -117,12 +119,12 @@ const SLOTTED := {
 	"bruiser": {
 		"sword_of_theseus": ["savage_strike", "specific_strike", "life_steal", "parry", "reckless_strike"],
 		"sword_breaker": ["repelled_block", "hunker_down", "forever_armor"],
-		"dragon_skull": ["provider", "armor_patch"],
+		"dragon_skull": ["provider"],
 		"smithed_excellence": ["harden", "best_offense", "smith_thy_soul"],
 		"hide_of_garmr": [],
 		"steve_rodgers_bastion": [],
-		"equator": ["shuriken", "poke"],
-		"belt_of_wumbology": ["healing_potion", "discard"],
+		"equator": ["shuriken"],
+		"belt_of_wumbology": ["healing_potion"],
 		"titanium_toe_tuckers": ["reposition", "swap"],
 		"sleeved_katar": ["push"],
 	},

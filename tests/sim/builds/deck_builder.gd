@@ -10,7 +10,7 @@ extends RefCounted
 ##
 ## Recipe: a deck described by its shape instead of a list, so a new card
 ## enters the sweeps the moment it exists:
-##   {"shape": {"ATTACK": 7, "DEFENSE": 3, "UTILITY": 2},   # cards per type, sums to 12
+##   {"shape": {"ATTACK": 7, "DEFENSE": 3, "UTILITY": 2},   # cards per type; scaled to the base cap (DECK_SIZE)
 ##    "school": "PHYSICAL" | "SPELL" | "",                  # optional
 ##    "reach": "melee" | "ranged" | "",                      # optional (attacks only)
 ##    "theme": ["poison", "potion"],                         # words matched in id / name / keywords / description
@@ -23,7 +23,7 @@ extends RefCounted
 ## efficiency heuristic, then id — deterministic, reproducible from the repo,
 ## and data-driven once a ranking is committed.
 
-const DECK_SIZE := 12
+const DECK_SIZE := DeckManager.MAX_DECK_SIZE  # the game's base cap (8 since 2026-10-20)
 static var _pool: Dictionary = {}
 
 ## id -> {type, school, rarity, ranged, keywords, mana, tempo, damage, block, heal, name, text}
@@ -103,7 +103,31 @@ static func _theme_hits(card: Dictionary, words: Array, id: String) -> int:
 static func _heuristic(card: Dictionary) -> float:
 	return float(card["damage"] + card["block"] + card["heal"]) / float(maxi(1, int(card["tempo"]))) - float(card["mana"]) * 0.02
 
-## Build the 12-card list for a recipe on a build. Deterministic.
+## A shape written for any total, scaled to DECK_SIZE (largest remainders
+## take the rounding), so recipes keep their proportions when the cap moves.
+static func _scaled_shape(shape: Dictionary) -> Dictionary:
+	var total := 0
+	for k in shape:
+		total += int(shape[k])
+	if total <= 0 or total == DECK_SIZE:
+		return shape
+	var out := {}
+	var rem := []
+	var used := 0
+	for k in shape:
+		var exact: float = float(shape[k]) * DECK_SIZE / float(total)
+		out[k] = int(floor(exact))
+		used += out[k]
+		rem.append([exact - floor(exact), k])
+	rem.sort_custom(func(a, b): return a[0] > b[0])
+	var i := 0
+	while used < DECK_SIZE and i < rem.size():
+		out[rem[i][1]] += 1
+		used += 1
+		i += 1
+	return out
+
+## Build the DECK_SIZE-card list for a recipe on a build. Deterministic.
 ## mythic_slots: how many MYTHIC cards the deck may still hold (the game
 ## allows level / 15, and engraved mythics count against it).
 static func generate(recipe: Dictionary, character: String, build: String, level: int, mythic_slots: int = 0) -> Array:
@@ -114,7 +138,7 @@ static func generate(recipe: Dictionary, character: String, build: String, level
 	var prefer: Array = recipe.get("prefer", [])
 	var theme: Array = recipe.get("theme", [])
 	var max_copies: int = int(recipe.get("max_copies", 2))
-	var shape: Dictionary = recipe.get("shape", {"ATTACK": 6, "DEFENSE": 3, "UTILITY": 3})
+	var shape: Dictionary = _scaled_shape(recipe.get("shape", {"ATTACK": 6, "DEFENSE": 3, "UTILITY": 3}))
 	var deck: Array = []
 	var copies := {}
 	var order: Array = shape.keys()

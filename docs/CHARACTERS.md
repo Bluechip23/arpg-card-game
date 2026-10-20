@@ -1,6 +1,6 @@
 # Character Playstyle Write-Ups
 
-Every character starts from the exact same place: the same stat pool, the same 11-card deck
+Every character starts from the exact same place: the same stat pool, the same 5-card deck
 (3 Attack, 3 Block, 2 Draw, 1 Energy, 1 Heal), the same hand size, and **no equipment**. All
 cards are neutral — no card is locked to a character (skill trees may grant specific cards as
 level-up picks, but anything one character can obtain, any character can use). What separates
@@ -242,6 +242,6 @@ loadouts in the middle of combat.
 | **Cory** | Displace/lock enemies; debuffs that heal you; play 3+ cards per cycle | 2 gauntlet slots | +1 mana when a gauntlet skill comes off cooldown |
 | **Brad** | Spend health for power; stockpile armor then detonate it; mid-fight gear swaps | War Rack (back-slung loadout swap) | Chest items weigh 20% less |
 
-All five share the identical 11-card starting deck and begin with no equipment. Every card in
+All five share the identical 5-card starting deck (Attack, Exposing Strike, Block, Braced Draw, Heal) and begin with no equipment. Every card in
 the game is neutral — these write-ups describe which cards each kit *rewards*, not which cards
 each character is allowed to use.

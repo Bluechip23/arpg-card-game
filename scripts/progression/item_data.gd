@@ -129,7 +129,7 @@ enum GauntletSkillType {
 #   card_slots    — BONUS slots: a card here gains the item's on-self riders
 #                   (and, on a colored-slot item, that slot's color/payload).
 #   vanilla_slots — PLAIN slots: the card only lives here (it joins the deck
-#                   beyond the 12 base cards, engravings included) and gets
+#                   beyond the 8 base cards, engravings included) and gets
 #                   no on-self bonus at all. Added 2026-10-20 so a build has
 #                   somewhere to keep its weapon-labelled cards without every
 #                   weapon handing out riders. Not upgradeable for now.

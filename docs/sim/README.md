@@ -534,7 +534,7 @@ the item's next free slot, or in place of its last engraved card when the
 slots are full, with the card spotlighted into the opening hand like a
 card swap. `engrave:<item>~none` strips that item's engravings, which
 answers whether the slot is worth filling at all (engraved cards ride on
-top of the 12-card deck, so a weak engraving dilutes the draws).
+top of the 8-card deck, so a weak engraving dilutes the draws).
 
 Brad's second set goes on the War Rack, which (since 2026-10-17) holds one
 weapon: the set's first weapon is strapped on, a quiver or second item is
