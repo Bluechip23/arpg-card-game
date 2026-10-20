@@ -2275,6 +2275,8 @@ func _build_modal_effects(item: ItemData) -> String:
 		on_self_parts.append("+%d block" % item.on_self_block)
 	if item.on_self_heal > 0:
 		on_self_parts.append("+%d heal" % item.on_self_heal)
+	if item.on_self_self_heal > 0:
+		on_self_parts.append("heals you %d on play" % item.on_self_self_heal)
 	if item.on_self_mana_reduction > 0:
 		on_self_parts.append("-%d mana cost" % item.on_self_mana_reduction)
 	if item.on_self_apply_burn > 0:

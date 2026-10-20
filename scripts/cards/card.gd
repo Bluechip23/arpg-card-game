@@ -1430,6 +1430,12 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 				print("[CARD] On-Self: healed %d from %s" % [on_self_hl, slotted_in_item.item_name])
 			on_self_hl = 0
 
+	# Velvet Plate: the wearer heals X on every slotted play, whatever the card.
+	var on_self_self_hl: int = int(on_self.get("self_heal", 0))
+	if on_self_self_hl > 0 and player_stats:
+		player_stats.heal(on_self_self_hl)
+		print("[CARD] On-Self: healed you %d from %s" % [on_self_self_hl, slotted_in_item.item_name])
+
 	# Conditional on-self riders (Shamans mask / Monocle). The random-enemy spell
 	# damage (Shamans) and +range (Dragon Skull/Monocle) resolve in main.gd where
 	# the world is available; here we handle the parts local to card resolution.
@@ -2550,8 +2556,8 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			for sw in player_stats.inventory.equipped_weapons:
 				if sw == null:
 					continue
-				if sw.attack_debuffs_on_self_only and slotted_in_item != sw:
-					continue  # Car Battery: only cards slotted in it carry its Shock
+				if sw.attack_debuffs_on_self_only and (slotted_in_item != sw or sw.is_vanilla_slot(self)):
+					continue  # Car Battery: only cards in its BONUS slots carry its Shock
 				for sw_pair in [["burn", sw.attack_apply_burn], ["cold", sw.attack_apply_cold],
 						["shock", sw.attack_apply_shock], ["silenced", sw.attack_apply_silence],
 						["vulnerable", sw.attack_apply_vulnerable]]:

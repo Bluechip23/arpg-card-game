@@ -239,7 +239,8 @@ var granted_cards_built: bool = false
 # On-self bonuses (extra bonuses applied to cards slotted in this item)
 @export var on_self_damage: int = 0
 @export var on_self_block: int = 0
-@export var on_self_heal: int = 0
+@export var on_self_heal: int = 0  # heal cards heal +X; a card that doesn't heal heals YOU X instead (Trench of Tranquility 5)
+@export var on_self_self_heal: int = 0  # heal YOU X whenever the slotted card is played, whatever the card (Velvet Plate 5)
 @export var on_self_mana_reduction: int = 0
 @export var on_self_mana_reduction_percent: float = 0.0  # % mana-cost cut for slotted cards (The Headbandz)
 
@@ -881,6 +882,7 @@ func get_on_self_bonus() -> Dictionary:
 		"damage": on_self_damage,
 		"block": on_self_block,
 		"heal": on_self_heal,
+		"self_heal": on_self_self_heal,
 		"mana_reduction": on_self_mana_reduction,
 		"mana_reduction_percent": on_self_mana_reduction_percent,
 		"apply_burn": on_self_apply_burn,
