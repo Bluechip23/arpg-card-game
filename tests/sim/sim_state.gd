@@ -465,6 +465,7 @@ func play_tempo(c: Card) -> int:
 	var t := c.get_burden_tempo_cost()
 	if c.card_id == "specific_strike":
 		t += maxi(0, main.deck_manager.hand.size() - 1)
+	t += int(main.deck_manager.greedy_tax(c)["tempo"])  # Heavy Greedy Cheese
 	var st = main.player.get_stats()
 	if st and st.has_skill_tree_passive("arcane_overflow") and st.st_arcane_overflow_discount and c.is_offensive():
 		t = maxi(0, t - 1)

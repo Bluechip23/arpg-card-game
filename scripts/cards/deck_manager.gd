@@ -3,6 +3,7 @@ extends Node
 
 ## Manages the player's deck, hand, and card piles
 
+signal greedy_cheese_added(card: Card)  # a thin-discard reshuffle left a Heavy Greedy Cheese in the discard
 signal hand_updated
 signal card_drawn(card: Card)
 signal card_discarded(card: Card)
@@ -397,10 +398,40 @@ func shuffle_card_into_draw_pile(card: Card) -> void:
 func shuffle_discard_into_draw() -> void:
 	if discard_pile.size() == 0:
 		return
-	
+	# Heavy Greedy Cheese: a reshuffle of a thin discard pile (a skin-and-bones
+	# deck, or a hand hoarding the rest of it) leaves a Cheese in the discard.
+	var greedy := discard_pile.size() < GREEDY_CHEESE_DISCARD_MIN
+
 	draw_pile.append_array(discard_pile)
 	discard_pile.clear()
 	shuffle_draw_pile()
+	if greedy:
+		var cheese := _create_card_from_id(GREEDY_CHEESE_ID)
+		if cheese:
+			discard_pile.append(cheese)
+			greedy_cheese_added.emit(cheese)
+			print("[DECK] Reshuffled a thin discard pile: Heavy Greedy Cheese added to the discard")
+
+## Heavy Greedy Cheese (the thin-deck tax). Reshuffling a discard pile of
+## fewer than GREEDY_CHEESE_DISCARD_MIN cards adds one to the discard pile.
+## While held, each Cheese makes every OTHER card in the hand (other Cheese
+## included) cost +GREEDY_CHEESE_MANA mana and +GREEDY_CHEESE_TEMPO tempo.
+## Playing it (100 mana, 5 tempo) erases it.
+const GREEDY_CHEESE_ID := "heavy_greedy_cheese"
+const GREEDY_CHEESE_DISCARD_MIN := 3
+const GREEDY_CHEESE_MANA := 100
+const GREEDY_CHEESE_TEMPO := 2
+
+## The Cheese surcharge on `card` right now: {"mana", "tempo"}, zero unless
+## the card is in the hand alongside a Cheese that is not itself.
+func greedy_tax(card) -> Dictionary:
+	if card == null or not hand.has(card):
+		return {"mana": 0, "tempo": 0}
+	var n := 0
+	for c in hand:
+		if c != card and c.card_id == GREEDY_CHEESE_ID:
+			n += 1
+	return {"mana": n * GREEDY_CHEESE_MANA, "tempo": n * GREEDY_CHEESE_TEMPO}
 
 func draw_card() -> Card:
 	# Lost in the Labyrinth (the Inflamed Minotaur's curse): no draw of any
@@ -534,6 +565,11 @@ func handle_overflow() -> void:
 ## card. Anything else (a preview, the simulator) asks quietly.
 func compute_play_cost(card: Card, index: int, target = null, debuff_mgr = null, commit: bool = false) -> Dictionary:
 	var mana_cost = card.get_burden_mana_cost()  # Burden: +1m per prior play
+	# Heavy Greedy Cheese in the hand: +100 mana per OTHER Cheese held.
+	var cheese_mana: int = int(greedy_tax(card)["mana"])
+	if cheese_mana > 0:
+		mana_cost += cheese_mana
+		if commit: print("[DECK] Heavy Greedy Cheese: +%d mana on %s" % [cheese_mana, card.card_name])
 	mana_cost -= card.temp_mana_discount  # timed passive discount (Ancestral Aid)
 	if card.is_attack():  # the DEX proc discounts attacks, not spells
 		mana_cost -= next_attack_mana_discount
