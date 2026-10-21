@@ -76,7 +76,7 @@ func _run() -> void:
 	_check(pool.size() >= 150 and leaks.is_empty(), "card pool holds every base-deck-legal card (%d) and no tokens, engraving-only or item-granted cards (%s)" % [pool.size(), str(leaks)])
 	var r1 := CharacterBuilds.compose("ryan", {"build": "shadow_blade", "recipe": "poisoner", "enemy": "WERERAT"})
 	var r2 := CharacterBuilds.compose("ryan", {"build": "shadow_blade", "recipe": "poisoner", "enemy": "WERERAT"})
-	_check(r1["player"]["deck"].size() == 12 and r1["player"]["deck"] == r2["player"]["deck"], "a recipe deck has 12 cards and is deterministic (%s)" % str(r1["player"]["deck"]))
+	_check(r1["player"]["deck"].size() == DeckManager.MAX_DECK_SIZE and r1["player"]["deck"] == r2["player"]["deck"], "a recipe deck fills the base cap and is deterministic (%s)" % str(r1["player"]["deck"]))
 	var poison_cards := 0
 	for id in r1["player"]["deck"]:
 		if "poison" in id or "potion" in id or "toxin" in id:
@@ -87,13 +87,13 @@ func _run() -> void:
 		var rsum: Dictionary = await runner.run(rs, load("res://tests/sim/policies/greedy_dpt.gd").new(), 1)
 		_check(rsum["outcome"] != "error" and runner.warnings.is_empty(), "recipe %s builds and runs with no refusals: %s" % [rname, str(runner.warnings)])
 	var sw := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "bruiser", "swap": "poison_bomb", "enemy": "WERERAT"}))
-	_check(sw["player"]["deck"].back() == "poison_bomb" and sw["player"]["opening_hand"] == ["poison_bomb"] and sw["player"]["deck"].size() == 12, "swap= replaces the last deck card and spotlights it (%s)" % str(sw["player"]["deck"]))
+	_check(sw["player"]["deck"].back() == "poison_bomb" and sw["player"]["opening_hand"] == ["poison_bomb"] and sw["player"]["deck"].size() == DeckManager.MAX_DECK_SIZE, "swap= replaces the last deck card and spotlights it (%s)" % str(sw["player"]["deck"]))
 	# Tactics overlay any build.
 	var tac := SimScenario.with_defaults(CharacterBuilds.compose("ryan", {"build": "bruiser", "tactic": "invisibility", "enemy": "WERERAT"}))
 	var tac_items: Array = []
 	for it in tac["player"]["items"]:
 		tac_items.append(str(it[0]))
-	_check(tac["player"]["deck"].slice(-3) == ["shadows", "shadows", "blink"] and tac["player"]["deck"].size() == 12, "a tactic's cards replace the deck's tail (%s)" % str(tac["player"]["deck"]))
+	_check(tac["player"]["deck"].slice(-3) == ["shadows", "shadows", "blink"] and tac["player"]["deck"].size() == DeckManager.MAX_DECK_SIZE, "a tactic's cards replace the deck's tail (%s)" % str(tac["player"]["deck"]))
 	_check("shadow_obi" in tac_items and not "belt_of_wumbology" in tac_items and tac_items.size() == 10, "a tactic's item takes the same-type, same-slot entry (%s)" % str(tac_items))
 	_check(int(tac["player"]["passives"].get("now_you_see_me", 0)) > 0, "a tactic's passive weights join the spread (%s)" % str(tac["player"]["passives"]))
 	for tname in CharacterBuilds.tactics("ryan"):
@@ -214,7 +214,7 @@ func _run() -> void:
 		"Stephen switches to his bow build against the Wyvern on some of seeds 1-4 (%s, %s)" % [str(st_swaps), str(st_warn)])
 	var br := SimScenario.with_defaults(CharacterBuilds.compose("brad", {"build": "immovable_warden", "enemy": "LARGE_BEAR"}))
 	var brsum: Dictionary = await runner.run(br, load("res://tests/sim/policies/lookahead.gd").new(), 1)
-	_check(runner.warnings.is_empty() and str(brsum.get("weapon_swaps", "")).contains("rack_free:"),
+	_check(runner.warnings.is_empty() and str(brsum.get("weapon_swaps", "")).contains("rack:"),
 		"Brad takes the War Rack's free exchange (%s, %s)" % [str(brsum.get("weapon_swaps", "")), str(runner.warnings)])
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

@@ -239,7 +239,7 @@ func restore_deck_state(state: Dictionary) -> void:
 ## is deliberately small: item card slots are where a build's extra cards
 ## live, so gear shapes the deck (a belt-heavy character carries more
 ## daggers and potions than the 12 alone would allow).
-const MAX_DECK_SIZE := 12
+const MAX_DECK_SIZE := 8
 
 func get_max_deck_size() -> int:
 	return MAX_DECK_SIZE
@@ -247,7 +247,10 @@ func get_max_deck_size() -> int:
 ## The basic deck every character starts with: 3 attacks, 3 blocks, 2 draws,
 ## 1 energy, 1 heal — 10 cards, two under the cap. Single source of truth for
 ## the deck builder and the town's card dealer.
-const BASIC_DECK_IDS := ["slash", "slash", "slash", "block", "block", "block", "draw", "draw", "gain_mana", "heal"]
+## The starting deck (2026-10-20): five cards — an attack, an attack that also
+## exposes, a block, a block that also draws, and a heal. The build comes from
+## gear: cards slotted into items ride beyond the 8-card base cap.
+const BASIC_DECK_IDS := ["slash", "exposing_strike", "block", "braced_draw", "heal"]
 
 ## Cards counting toward the cap: everything in the deck piles no item owns.
 func get_deck_size() -> int:
@@ -271,7 +274,7 @@ func is_deck_full() -> bool:
 	return get_deck_size() >= MAX_DECK_SIZE
 
 ## Total deck cap: the base cards PLUS the cards slotted into worn items.
-## The base cap above still holds (at most 12 cards outside items); on top
+## The base cap above still holds (at most 8 cards outside items); on top
 ## of it, slotting cards into gear can grow the deck to this many in all.
 ## Cards an item GRANTS (Detonova from its belt, a boot's Blink) never count
 ## toward either cap — the item brings them whether or not the deck has

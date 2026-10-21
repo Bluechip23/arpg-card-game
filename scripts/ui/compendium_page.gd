@@ -637,6 +637,8 @@ func _on_item_entry_hovered(item: ItemData, entry: PanelContainer) -> void:
 			_add_detail_line(vbox, "On-Self: +%d block" % item.on_self_block, Color(0.6, 0.9, 0.6))
 		if item.on_self_heal > 0:
 			_add_detail_line(vbox, "On-Self: +%d heal" % item.on_self_heal, Color(0.6, 0.9, 0.6))
+		if item.on_self_self_heal > 0:
+			_add_detail_line(vbox, "On-Self: heals you %d on play" % item.on_self_self_heal, Color(0.6, 0.9, 0.6))
 		if item.on_self_mana_reduction > 0:
 			_add_detail_line(vbox, "On-Self: -%d mana cost" % item.on_self_mana_reduction, Color(0.6, 0.9, 0.6))
 		if item.on_self_apply_burn > 0:

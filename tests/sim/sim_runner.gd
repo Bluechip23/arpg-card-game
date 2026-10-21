@@ -318,6 +318,11 @@ func _stow_alt_weapons(p: Dictionary, inv, stats) -> void:
 		# The rack holds ONE weapon: the set's first weapon goes up; a quiver
 		# or second item has no place on it.
 		for e in items:
+			if e[0].item_type == ItemData.ItemType.QUIVER:
+				# A quiver can never be racked (the rule, not a build fault):
+				# the shared bow set's quiver just stays home.
+				print("[SIM] war rack: %s stays home (quivers are never racked)" % e[0].item_name)
+				continue
 			if not inv.rack_items.is_empty():
 				warnings.append("war rack holds one weapon: %s left out" % e[0].item_name)
 				continue

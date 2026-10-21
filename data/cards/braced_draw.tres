@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_h1rc3"]
+
+[resource]
+script = ExtResource("1_h1rc3")
+card_id = "braced_draw"
+card_name = "Braced Draw"
+description = "8 armor. Draw a card."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 30
+block = 8
+tempo_cost = 2
+base_block = 8
+target_types = ["self"]
+keywords = ["defense", "self"]

@@ -79,24 +79,24 @@ func _initialize() -> void:
 	_check(not deck.draw_pile.has(stray), "extracted etching left the deck")
 	_check(inv.stored_cards.has(stray), "extracted etching returned to the card inventory")
 
-	# --- Deck cap: 12 direct cards; item-owned cards ride past it free ---
-	_check(deck.get_max_deck_size() == 12, "max deck size is 12")
+	# --- Deck cap: 8 direct cards; item-owned cards ride past it free ---
+	_check(deck.get_max_deck_size() == 8, "max deck size is 8")
 	deck.draw_pile.clear()
 	deck.hand.clear()
 	deck.discard_pile.clear()
-	for i in range(12):
+	for i in range(8):
 		deck.draw_pile.append(Card.create_by_id("slash"))
-	_check(deck.get_deck_size() == 12 and deck.is_deck_full(), "12 direct cards fill the deck")
+	_check(deck.get_deck_size() == 8 and deck.is_deck_full(), "8 direct cards fill the deck")
 	inv.stored_cards.append(Card.create_by_id("block"))
 	var block_idx = inv.stored_cards.size() - 1
-	_check(not inv.add_card_to_deck(block_idx, deck), "a 13th direct card is refused while full")
+	_check(not inv.add_card_to_deck(block_idx, deck), "a 9th direct card is refused while full")
 	# The slotted etching joins the deck WITHOUT counting toward the cap.
 	_check(inv.enchant_card(stray, helm), "etching re-enchants into the helm at a full deck")
 	_check(deck.draw_pile.has(stray), "the item card still joins the full deck")
-	_check(deck.get_deck_size() == 12, "the slotted card does not count toward deck size")
+	_check(deck.get_deck_size() == 8, "the slotted card does not count toward deck size")
 	_check(deck.get_item_card_count() == 1, "one item card rides along past the cap")
 
-	# --- Total cap: 12 base + slotted cards may reach 25, never more ---
+	# --- Total cap: 8 base + slotted cards may reach 25, never more ---
 	_check(deck.get_max_total_deck_size() == 25, "the total deck cap is 25")
 	# A weapon that takes any Crown card, with room for twenty: worn in hand.
 	var rack = ItemData.new()
@@ -106,16 +106,16 @@ func _initialize() -> void:
 	rack.card_slots = 20
 	inv._init_slot_arrays()
 	_check(inv.equip_item(rack, 0), "the rack is worn in hand")
-	# 12 base + the helm's etching = 13; twelve more Crown etchings fill it.
+	# 8 base + the helm's etching = 9; sixteen more Crown etchings fill it.
 	var added := 0
-	for i in range(12):
+	for i in range(16):
 		var e = Card.create_by_id("regal_etching")
 		inv.stored_cards.append(e)
 		if inv.enchant_card(e, rack):
 			added += 1
-	_check(added == 12 and deck.get_total_deck_size() == 25 and deck.is_total_deck_full(),
-		"twelve etchings slot in from storage up to 25 in all (%d added, total %d)" % [added, deck.get_total_deck_size()])
-	_check(deck.get_deck_size() == 12, "the base count is still 12")
+	_check(added == 16 and deck.get_total_deck_size() == 25 and deck.is_total_deck_full(),
+		"sixteen etchings slot in from storage up to 25 in all (%d added, total %d)" % [added, deck.get_total_deck_size()])
+	_check(deck.get_deck_size() == 8, "the base count is still 8")
 	var extra = Card.create_by_id("regal_etching")
 	inv.stored_cards.append(extra)
 	_check(not inv.enchant_card(extra, rack) and inv.stored_cards.has(extra) and not deck.draw_pile.has(extra),
@@ -137,7 +137,7 @@ func _initialize() -> void:
 				break
 		deck.draw_pile.append(labeled)
 		_check(deck.get_total_deck_size() == 25, "swapping a base card keeps the total at 25")
-		_check(inv.enchant_card(labeled, rack) and deck.get_total_deck_size() == 25 and deck.get_deck_size() == 11,
+		_check(inv.enchant_card(labeled, rack) and deck.get_total_deck_size() == 25 and deck.get_deck_size() == 7,
 			"a deck card slotted at the cap just moves counts (base %d, total %d)" % [deck.get_deck_size(), deck.get_total_deck_size()])
 
 	# A granted card still joins a full deck: it counts toward neither cap.

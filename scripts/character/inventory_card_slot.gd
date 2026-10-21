@@ -58,7 +58,7 @@ func _build_tooltip() -> String:
 	return "\n\n".join(sections)
 
 func has_on_self() -> bool:
-	return (item.on_self_damage > 0 or item.on_self_block > 0 or item.on_self_heal > 0
+	return (item.on_self_damage > 0 or item.on_self_block > 0 or item.on_self_heal > 0 or item.on_self_self_heal > 0
 		or item.on_self_mana_reduction > 0 or item.on_self_apply_burn > 0
 		or item.on_self_apply_cold > 0 or item.on_self_thorns > 0)
 
@@ -69,7 +69,9 @@ func _on_self_description() -> String:
 	if item.on_self_block > 0:
 		parts.append("+%d block to slotted card" % item.on_self_block)
 	if item.on_self_heal > 0:
-		parts.append("+%d heal to slotted card" % item.on_self_heal)
+		parts.append("+%d heal to slotted card (heals you %d if it doesn't heal)" % [item.on_self_heal, item.on_self_heal])
+	if item.on_self_self_heal > 0:
+		parts.append("heals you %d on every slotted play" % item.on_self_self_heal)
 	if item.on_self_mana_reduction > 0:
 		parts.append("-%d mana cost to slotted card" % item.on_self_mana_reduction)
 	if item.on_self_apply_burn > 0:

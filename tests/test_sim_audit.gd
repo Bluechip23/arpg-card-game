@@ -196,7 +196,7 @@ func _run() -> void:
 			await _audit_build(runner, c, {"build": first, "deck": dname}, "%s/%s deck:%s" % [c, first, dname])
 		for r in CharacterBuilds.recipes(c):
 			var deck: Array = CharacterBuilds.compose(c, {"build": first, "recipe": r})["player"]["deck"]
-			_check(deck.size() == 12, "%s recipe %s fills 12 cards (%d)" % [c, r, deck.size()])
+			_check(deck.size() == DeckManager.MAX_DECK_SIZE, "%s recipe %s fills the base cap (%d)" % [c, r, deck.size()])
 		# Every pool item is worn when swapped in (composition only; wearing it
 		# may still exceed carry, which the item sweep reports as a finding).
 		var unworn: Array = []

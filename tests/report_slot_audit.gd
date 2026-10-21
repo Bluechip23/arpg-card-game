@@ -27,11 +27,11 @@ const RIDER_WANTS := {
 	"on_self_crit_ranged_percent": "ranged offensive",
 	"on_self_melee_damage": "melee offensive",
 	"on_self_attack_tempo_reduction": "attack", "on_self_apply_slow": "attack",
-	"on_self_block": "defense", "on_self_defense_armor": "defense", "on_self_block_max_mana_percent": "any",
+	"on_self_block": "any", "on_self_defense_armor": "defense", "on_self_block_max_mana_percent": "any",
 	"on_self_utility_heal": "utility", "on_self_utility_spell_damage": "utility", "on_self_utility_weaken": "utility",
 	"on_self_utility_tempo_refund": "utility", "on_self_support_heal": "utility or defense",
 	"on_self_reaction_armor": "reaction", "on_self_instant_damage_nearest": "reaction",
-	"on_self_heal": "heal", "on_self_self_targets_allies": "self-target", "on_self_cleanse_stacks": "targeted",
+	"on_self_heal": "any", "on_self_self_heal": "any", "on_self_self_targets_allies": "self-target", "on_self_cleanse_stacks": "targeted",
 	"on_self_mana_reduction": "any", "on_self_mana_reduction_percent": "any", "on_self_brain_regen": "any",
 	"on_self_armor_any": "any", "on_self_flash_regen": "any", "on_self_armor_per_missing_health10": "any",
 	"on_self_invisible_tempo": "any", "on_self_flash_counter_drain": "any", "on_self_physical_resilient": "any",
@@ -125,16 +125,23 @@ func _initialize() -> void:
 		var riders: Array[String] = []
 		var all_dead := true
 		var n_riders := 0
-		for field in RIDER_WANTS:
+		var fields: Array = RIDER_WANTS.keys()
+		if item.attack_debuffs_on_self_only:
+			# Car Battery: the attack_apply_* debuffs ride only its own slotted cards.
+			for f in ["attack_apply_shock", "attack_apply_burn", "attack_apply_cold", "attack_apply_silence", "attack_apply_vulnerable"]:
+				if _active(item, f):
+					fields.append(f)
+		for field in fields:
 			if not _active(item, field):
 				continue
+			var kind_of: String = RIDER_WANTS.get(field, "offensive")
 			n_riders += 1
-			var kind: String = RIDER_WANTS[field]
+			var kind: String = kind_of
 			var n := 0
 			for c in fits:
 				if _wants(c, kind):
 					n += 1
-			var short: String = field.trim_prefix("on_self_")
+			var short: String = field.trim_prefix("on_self_").trim_prefix("attack_")
 			if n == 0:
 				riders.append("**%s wants %s: 0 cards — DEAD**" % [short, kind])
 				dead_riders.append("%s (%s): %s wants a %s card, none fits the %s slot" % [item.item_name, id, short, kind, label])

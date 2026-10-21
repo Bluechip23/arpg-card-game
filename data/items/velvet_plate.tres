@@ -13,5 +13,5 @@ strength_bonus = 5
 health_bonus = 20
 card_slots = 1
 vanilla_slots = 1
-on_self_heal = 10
-description = "+5 STR, +20 health. On-self: heal 10."
+on_self_self_heal = 5
+description = "+5 STR, +20 health. On-self: heal yourself 5 whenever the slotted card is played, whatever the card."

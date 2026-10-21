@@ -207,6 +207,8 @@ const CARD_SLOT_LABELS := {
 	"sky_attack": [CardKeyword.ARROW, CardKeyword.WAND],
 	"sky_fall": [CardKeyword.ARROW, CardKeyword.WAND],
 	"slash": [],
+	"exposing_strike": [],  # starter: Attack + 1 Vulnerable (deck only, like Attack)
+	"braced_draw": [],      # starter: Block + draw 1 (deck only, like Block)
 	"basic_attack": [],
 	"smith_thy_soul": [CardKeyword.BULWARK, CardKeyword.STAFF],
 	"snowballs_chance": [CardKeyword.CROWN, CardKeyword.WAND, CardKeyword.STAFF],
@@ -286,7 +288,7 @@ const CARD_RARITIES := {
 	"reload": Rarity.COMMON, "repelled_block": Rarity.COMMON, "reposition": Rarity.COMMON,
 	"roar": Rarity.COMMON, "round_em_up": Rarity.COMMON, "savage_strike": Rarity.COMMON,
 	"shepherds_mark": Rarity.COMMON, "shuriken": Rarity.COMMON, "sky_attack": Rarity.COMMON,
-	"sky_fall": Rarity.COMMON, "slash": Rarity.COMMON, "basic_attack": Rarity.COMMON, "smith_thy_soul": Rarity.COMMON,
+	"sky_fall": Rarity.COMMON, "slash": Rarity.COMMON, "basic_attack": Rarity.COMMON, "exposing_strike": Rarity.COMMON, "braced_draw": Rarity.COMMON, "smith_thy_soul": Rarity.COMMON,
 	"spark": Rarity.COMMON, "specific_strike": Rarity.COMMON, "spirit_arrow": Rarity.COMMON,
 	"surrounding_ice": Rarity.COMMON, "swap": Rarity.COMMON, "sweeping_disarm": Rarity.COMMON,
 	"taunt": Rarity.COMMON, "the_lights_favor": Rarity.COMMON, "trick_shot": Rarity.COMMON,
@@ -1430,6 +1432,12 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 				print("[CARD] On-Self: healed %d from %s" % [on_self_hl, slotted_in_item.item_name])
 			on_self_hl = 0
 
+	# Velvet Plate: the wearer heals X on every slotted play, whatever the card.
+	var on_self_self_hl: int = int(on_self.get("self_heal", 0))
+	if on_self_self_hl > 0 and player_stats:
+		player_stats.heal(on_self_self_hl)
+		print("[CARD] On-Self: healed you %d from %s" % [on_self_self_hl, slotted_in_item.item_name])
+
 	# Conditional on-self riders (Shamans mask / Monocle). The random-enemy spell
 	# damage (Shamans) and +range (Dragon Skull/Monocle) resolve in main.gd where
 	# the world is available; here we handle the parts local to card resolution.
@@ -1757,6 +1765,15 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		"block":
 			_execute_block(player_stats, is_empowered, buff_mgr)
+		"exposing_strike":
+			# Starter: the Attack's hit, then 1 Vulnerable on the target.
+			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
+			if target and target.has_method("apply_debuff"):
+				target.apply_debuff("vulnerable", 1)
+		"braced_draw":
+			# Starter: the Block's armor, then draw a card.
+			_execute_block(player_stats, is_empowered, buff_mgr)
+			_execute_draw(deck_manager)
 		"discard":
 			_execute_discard(deck_manager)
 		"draw":
@@ -2550,8 +2567,8 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			for sw in player_stats.inventory.equipped_weapons:
 				if sw == null:
 					continue
-				if sw.attack_debuffs_on_self_only and slotted_in_item != sw:
-					continue  # Car Battery: only cards slotted in it carry its Shock
+				if sw.attack_debuffs_on_self_only and (slotted_in_item != sw or sw.is_vanilla_slot(self)):
+					continue  # Car Battery: only cards in its BONUS slots carry its Shock
 				for sw_pair in [["burn", sw.attack_apply_burn], ["cold", sw.attack_apply_cold],
 						["shock", sw.attack_apply_shock], ["silenced", sw.attack_apply_silence],
 						["vulnerable", sw.attack_apply_vulnerable]]:
@@ -4396,6 +4413,8 @@ const CARD_IDS: Array[String] = [
 	"slash",
 	"basic_attack",
 	"block",
+	"exposing_strike",
+	"braced_draw",
 	"discard",
 	"fleet_etching",
 	"regal_etching",
