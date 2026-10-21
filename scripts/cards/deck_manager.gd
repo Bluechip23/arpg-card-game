@@ -420,12 +420,12 @@ func shuffle_discard_into_draw() -> void:
 ## player's max mana (so it keeps biting as the pool grows) plus the tax of
 ## any other Cheese held, at 5 tempo.
 const GREEDY_CHEESE_ID := "heavy_greedy_cheese"
-const GREEDY_CHEESE_OWN_PERCENT := 0.20
+const GREEDY_CHEESE_OWN_PERCENT := 0.25
 const GREEDY_CHEESE_DISCARD_MIN := 3
 const GREEDY_CHEESE_MANA := 100
 const GREEDY_CHEESE_TEMPO := 2
 
-## A Cheese's own mana price right now: 20% of max mana, rounded up (the
+## A Cheese's own mana price right now: 25% of max mana, rounded up (the
 ## printed 100 stands in when there are no stats to read).
 func greedy_cheese_mana() -> int:
 	if player_stats == null:

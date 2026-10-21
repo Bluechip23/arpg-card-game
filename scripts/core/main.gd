@@ -2693,8 +2693,10 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 	vbox.add_child(name_lbl)
 
 	# One compact info line: type · cost · melee/range (dex-proc aware).
-	var preview_mana = card.mana_cost
-	var preview_tempo = card.tempo_cost
+	if card.card_id == DeckManager.GREEDY_CHEESE_ID:
+		card.mana_cost = deck_manager.greedy_cheese_mana()
+	var preview_mana = card.mana_cost + int(deck_manager.greedy_tax(card)["mana"])
+	var preview_tempo = card.tempo_cost + int(deck_manager.greedy_tax(card)["tempo"])
 	var preview_proc := deck_manager.next_attack_half_tempo and card.is_attack()
 	if preview_proc:
 		preview_mana = max(0, preview_mana - deck_manager.next_attack_mana_discount)
@@ -2768,6 +2770,14 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 	desc_lbl.custom_minimum_size = Vector2(180, 0)
 	desc_lbl.add_theme_font_size_override("normal_font_size", 13)
 	vbox.add_child(desc_lbl)
+	if card.hover_note != "":
+		var note_lbl := Label.new()
+		note_lbl.text = card.hover_note
+		note_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		note_lbl.custom_minimum_size = Vector2(180, 0)
+		note_lbl.add_theme_font_size_override("font_size", 11)
+		note_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+		vbox.add_child(note_lbl)
 
 	# Sticky indicator
 	if card.sticky > 0:

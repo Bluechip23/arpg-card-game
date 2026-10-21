@@ -3,7 +3,7 @@ extends SceneTree
 ## Heavy Greedy Cheese, the thin-deck tax: reshuffling a discard pile of
 ## fewer than 3 cards leaves a Cheese in the discard; each Cheese in the hand
 ## makes every OTHER card there (other Cheese included) cost +100 mana and
-## +2 tempo; playing it (20% of max mana, 5 tempo) erases it.
+## +2 tempo; playing it (25% of max mana, 5 tempo) erases it.
 ## Run: godot --headless --path . --script tests/test_greedy_cheese.gd
 
 var failures := 0
@@ -32,6 +32,7 @@ func _initialize() -> void:
 	var cheese := Card.create_by_id(cid)
 	_check(cheese != null and cheese.tempo_cost == 5 and cheese.erase_on_play,
 		"the card: 5 tempo, erased when played")
+	_check(not cheese.description.contains("reshuffle") and cheese.hover_note.contains("reshuffle"), "the face says what it does; the hover says why it came")
 	_check(Card.DROP_EXCLUDED_CARD_IDS.has(cid) and Card.GENERATED_CARD_IDS.has(cid) and not cheese.is_slottable(),
 		"never drops, never sold, never slotted")
 
@@ -70,12 +71,12 @@ func _initialize() -> void:
 	dm.hand.append(c2)
 	_check(dm.greedy_tax(slash) == {"mana": 200, "tempo": 4}, "two Cheese: +200 / +4 on the other card")
 	_check(dm.greedy_tax(c1) == {"mana": 100, "tempo": 2} and dm.greedy_tax(c2) == {"mana": 100, "tempo": 2}, "each Cheese taxes the other")
-	var own: int = ceili(stats.max_mana * 0.2)
-	_check(dm.greedy_cheese_mana() == own and own > 0, "its own price is 20%% of max mana (%d of %d)" % [own, stats.max_mana])
-	_check(int(dm.compute_play_cost(c1, 1)["mana"]) == own + 100, "a Cheese beside another costs 20%% + 100 to clear (%d)" % int(dm.compute_play_cost(c1, 1)["mana"]))
+	var own: int = ceili(stats.max_mana * 0.25)
+	_check(dm.greedy_cheese_mana() == own and own > 0, "its own price is 25%% of max mana (%d of %d)" % [own, stats.max_mana])
+	_check(int(dm.compute_play_cost(c1, 1)["mana"]) == own + 100, "a Cheese beside another costs 25%% + 100 to clear (%d)" % int(dm.compute_play_cost(c1, 1)["mana"]))
 	_check(c1.mana_cost == own, "the card's printed cost follows the pool")
 	stats.max_mana *= 2
-	_check(dm.greedy_cheese_mana() == ceili(stats.max_mana * 0.2) and dm.greedy_cheese_mana() > own, "a bigger pool, a bigger Cheese (%d)" % dm.greedy_cheese_mana())
+	_check(dm.greedy_cheese_mana() == ceili(stats.max_mana * 0.25) and dm.greedy_cheese_mana() > own, "a bigger pool, a bigger Cheese (%d)" % dm.greedy_cheese_mana())
 	stats.max_mana /= 2
 	var outside := Card.create_by_id("block")
 	dm.draw_pile.append(outside)

@@ -474,6 +474,9 @@ var premeditated_target = null  # The enemy whose Premeditated bonus this play a
 @export var is_fire_spell: bool = false  # Counts toward Fireball's per-turn fire-spell mana discount
 @export var linger: bool = false  # If true, status card can exceed hand size limit when added
 @export var shop_excluded: bool = false  # If true, the card never appears in the Card Dealer's shop (item-generated cards like Sprinkle)
+## Extra text shown only in the hover preview, never on the card face — the
+## why/when of a card the face has no room for (Heavy Greedy Cheese).
+@export var hover_note: String = ""
 @export var erase_on_play: bool = false  # If true, card is erased from the deck entirely the moment it's played (not discarded). Same "erase" concept as erase_tempo, just triggered on play instead of on a timer.
 @export var held_damage_per_cycle: int = 0  # Djinn Wish: sears the holder this much every cycle it sits in hand (ticked by DeckManager.process_turn)
 @export var hatch_tempo: int = 0  # Rat King's Infest: > 0 means the card hatches after this many tempo HELD IN HAND (DeckManager.tick_temp_mods counts it down; playing or discarding it cancels the hatch)
