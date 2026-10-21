@@ -2601,7 +2601,7 @@ func use_mythic_mold() -> bool:
 # CARD ENCHANT / EXTRACT SYSTEM
 # ============================================
 
-func enchant_card(card: Card, item: ItemData) -> bool:
+func enchant_card(card: Card, item: ItemData, slot_index: int = -1) -> bool:
 	## Puts a card into an item's card slot (Enchant).
 	## Validates slot labels and slot availability.
 	## The card remains in the deck and can still be played normally.
@@ -2610,7 +2610,7 @@ func enchant_card(card: Card, item: ItemData) -> bool:
 		print("[INVENTORY] %s has no card slots!" % item.item_name)
 		return false
 
-	if not item.can_slot_card(card):
+	if (slot_index < 0 and not item.can_slot_card(card)) or (slot_index >= 0 and not item.can_slot_card_at(card, slot_index)):
 		if item.get_free_card_slots() <= 0:
 			print("[INVENTORY] %s has no free card slots! (%d/%d)" % [item.item_name, item.slotted_cards.size(), item.card_slots])
 		else:
@@ -2629,7 +2629,10 @@ func enchant_card(card: Card, item: ItemData) -> bool:
 		return false
 
 	# Slot the card into the item (card stays in the deck)
-	item.slot_card(card)
+	if slot_index >= 0:
+		item.slot_card_at(card, slot_index)
+	else:
+		item.slot_card(card)
 
 	# Engrave flow: a card slotted from the card inventory leaves storage and —
 	# now that it sits in an item — joins the deck like any slotted card.

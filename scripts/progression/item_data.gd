@@ -783,6 +783,37 @@ func get_free_card_slots() -> int:
 func can_slot_card(card) -> bool:
 	if slotted_cards.size() >= total_card_slots():
 		return false
+	return _slot_gate_ok(card, _next_free_slot_index())
+
+## Whether `card` may take slot `index` specifically (the manage-cards window
+## drags a card onto a chosen square): the slot must exist and be free, and
+## the same label / colour gate as can_slot_card applies at that index.
+func can_slot_card_at(card, index: int) -> bool:
+	if index < 0 or index >= total_card_slots():
+		return false
+	for c in slotted_cards:
+		if _slot_index_of(c) == index:
+			return false
+	return _slot_gate_ok(card, index)
+
+## Whether a card already slotted HERE may move to slot `index` (a drag
+## between two squares of the same item): the square must be free and, on a
+## coloured-slot item, match the card's element. Its label passed when it
+## was slotted.
+func can_move_slotted_card_to(card, index: int) -> bool:
+	if card == null or card.slotted_in_item != self:
+		return false
+	if index < 0 or index >= total_card_slots():
+		return false
+	for c in slotted_cards:
+		if _slot_index_of(c) == index:
+			return false
+	if feral_weapon and index < slot_colors.size() and card.element != str(slot_colors[index]):
+		return false
+	return true
+
+## The gates shared by every slotting path, for the slot at `index`.
+func _slot_gate_ok(card, index: int) -> bool:
 	# A card an item provides is part of that item's kit — it can never be
 	# slotted into anything (including the item that granted it).
 	if card.granted_by_item != null:
@@ -792,12 +823,11 @@ func can_slot_card(card) -> bool:
 	if card.slotted_in_item != null:
 		return false
 	# Feral Evocation: each colored slot takes only a card of its element —
-	# red Burn, blue Cold, yellow Shock, green Poison. The lowest FREE slot's
-	# color is the gate (an unslotted middle element can be refilled).
+	# red Burn, blue Cold, yellow Shock, green Poison. The slot's color is
+	# the gate (a plain slot past the colors takes any labeled card).
 	if feral_weapon:
-		var feral_idx := _next_free_slot_index()
-		if feral_idx >= 0 and feral_idx < slot_colors.size():
-			if card.element != str(slot_colors[feral_idx]):
+		if index >= 0 and index < slot_colors.size():
+			if card.element != str(slot_colors[index]):
 				return false
 	# Slot labels: an unlabeled card lives in the deck only and can never be
 	# slotted; a labeled card may go into any slot one of its labels names.
@@ -848,11 +878,20 @@ func _get_default_keyword_for_item_type() -> int:
 func slot_card(card) -> bool:
 	if not can_slot_card(card):
 		return false
-	# Stamp the slot the card takes (the lowest free one) BEFORE appending, so
-	# its color/payload identity survives neighbors unslotting.
-	var free_idx := _next_free_slot_index()
+	# The lowest free slot (bonus slots first).
+	return _take_slot(card, _next_free_slot_index())
+
+## Slot the card into slot `index` (a dragged drop on a chosen square).
+func slot_card_at(card, index: int) -> bool:
+	if not can_slot_card_at(card, index):
+		return false
+	return _take_slot(card, index)
+
+func _take_slot(card, idx: int) -> bool:
+	# Stamp the slot the card takes BEFORE appending, so its color/payload
+	# identity survives neighbors unslotting.
 	slotted_cards.append(card)
-	card.set_meta("slot_color_index", free_idx if free_idx >= 0 else slotted_cards.size() - 1)
+	card.set_meta("slot_color_index", idx if idx >= 0 else slotted_cards.size() - 1)
 	card.slotted_in_item = self
 	# Laurentius's Lost Spear: slotted self-target cards may also aim at allies
 	# (a rider, so bonus slots only).

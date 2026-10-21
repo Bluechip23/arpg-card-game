@@ -57,6 +57,45 @@ func _initialize() -> void:
 	_check(sword.is_vanilla_slot(b) and int(b.get_on_self_bonus().get("damage", -1)) == 0, "unslotting the bonus card leaves b in its plain slot")
 	_check(sword.slot_card(d) and not sword.is_vanilla_slot(d) and int(d.get_on_self_bonus().get("damage", 0)) == 3, "the next card takes the freed bonus slot")
 
+	# Slot at a chosen square (the manage-cards window's drag target).
+	var pick := ItemData.new()
+	pick.item_type = ItemData.ItemType.WEAPON
+	pick.weapon_subtype = ItemData.WeaponSubtype.SWORD
+	pick.card_slots = 1
+	pick.vanilla_slots = 2
+	pick.on_self_damage = 3
+	var p1 := _sword_card("p1")
+	var p2 := _sword_card("p2")
+	_check(pick.can_slot_card_at(p1, 2) and pick.slot_card_at(p1, 2) and pick.is_vanilla_slot(p1), "a card dropped on square 2 takes the vanilla slot, leaving the bonus slot open")
+	_check(not pick.can_slot_card_at(p2, 2) and not pick.can_slot_card_at(p2, 3) and pick.can_slot_card_at(p2, 0), "an occupied or missing square refuses; the open bonus square accepts")
+	_check(pick.can_move_slotted_card_to(p1, 0) and not pick.can_move_slotted_card_to(p1, 2) and not pick.can_move_slotted_card_to(p2, 0), "a slotted card may move to a free square, not onto its own or as a stranger")
+	pick.unslot_card(0)
+	_check(pick.slot_card_at(p1, 0) and int(p1.get_on_self_bonus().get("damage", 0)) == 3, "moved onto the bonus square it gets the rider")
+	var feral := ItemData.new()
+	feral.item_type = ItemData.ItemType.WEAPON
+	feral.weapon_subtype = ItemData.WeaponSubtype.OTHER
+	feral.feral_weapon = true
+	feral.card_slots = 2
+	feral.vanilla_slots = 1
+	feral.slot_colors = ["red", "blue"]
+	var fire := _sword_card("fire")
+	fire.element = "red"
+	_check(not feral.can_slot_card_at(fire, 1) and feral.can_slot_card_at(fire, 0) and feral.can_slot_card_at(fire, 2), "a red card fits the red square and the vanilla square, not the blue one")
+	# The window's squares: trim and label per slot kind.
+	var CellScript = load("res://scripts/character/card_slot_cell.gd")
+	_check(CellScript.kind_label(feral, 0) == "Red" and CellScript.kind_label(feral, 2) == "Vanilla" and CellScript.kind_label(pick, 0) == "On-self",
+		"squares read Red / Vanilla / On-self")
+	_check(CellScript.trim_for(feral, 1) == CellScript.TRIM["blue"] and CellScript.trim_for(pick, 1) == CellScript.TRIM["vanilla"] and CellScript.trim_for(pick, 0) == CellScript.TRIM["on_self"],
+		"trim colours follow the slot kind")
+	var cell = CellScript.new()
+	root.add_child(cell)
+	cell.setup_slot(null, pick, 2, null)
+	var drop := {"kind": "card", "source": "pool", "card": p2, "item": pick, "slot_index": -1}
+	_check(cell._can_drop_data(Vector2.ZERO, drop), "an empty vanilla square accepts a pool card")
+	cell.setup_slot(null, pick, 0, p1)
+	_check(not cell._can_drop_data(Vector2.ZERO, drop), "an occupied square refuses a drop")
+	cell.queue_free()
+
 	# Laurentius's ally-targeting rider is a bonus-slot thing.
 	var spear := ItemData.new()
 	spear.item_type = ItemData.ItemType.WEAPON
