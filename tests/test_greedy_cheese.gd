@@ -3,7 +3,7 @@ extends SceneTree
 ## Heavy Greedy Cheese, the thin-deck tax: reshuffling a discard pile of
 ## fewer than 3 cards leaves a Cheese in the discard; each Cheese in the hand
 ## makes every OTHER card there (other Cheese included) cost +100 mana and
-## +2 tempo; playing it (100 mana, 5 tempo) erases it.
+## +2 tempo; playing it (20% of max mana, 5 tempo) erases it.
 ## Run: godot --headless --path . --script tests/test_greedy_cheese.gd
 
 var failures := 0
@@ -30,8 +30,8 @@ func _initialize() -> void:
 	var cid := DeckManager.GREEDY_CHEESE_ID
 
 	var cheese := Card.create_by_id(cid)
-	_check(cheese != null and cheese.mana_cost == 100 and cheese.tempo_cost == 5 and cheese.erase_on_play,
-		"the card: 100 mana, 5 tempo, erased when played")
+	_check(cheese != null and cheese.tempo_cost == 5 and cheese.erase_on_play,
+		"the card: 5 tempo, erased when played")
 	_check(Card.DROP_EXCLUDED_CARD_IDS.has(cid) and Card.GENERATED_CARD_IDS.has(cid) and not cheese.is_slottable(),
 		"never drops, never sold, never slotted")
 
@@ -70,13 +70,19 @@ func _initialize() -> void:
 	dm.hand.append(c2)
 	_check(dm.greedy_tax(slash) == {"mana": 200, "tempo": 4}, "two Cheese: +200 / +4 on the other card")
 	_check(dm.greedy_tax(c1) == {"mana": 100, "tempo": 2} and dm.greedy_tax(c2) == {"mana": 100, "tempo": 2}, "each Cheese taxes the other")
-	_check(int(dm.compute_play_cost(c1, 1)["mana"]) == 200, "a Cheese beside another costs 200 to clear")
+	var own: int = ceili(stats.max_mana * 0.2)
+	_check(dm.greedy_cheese_mana() == own and own > 0, "its own price is 20%% of max mana (%d of %d)" % [own, stats.max_mana])
+	_check(int(dm.compute_play_cost(c1, 1)["mana"]) == own + 100, "a Cheese beside another costs 20%% + 100 to clear (%d)" % int(dm.compute_play_cost(c1, 1)["mana"]))
+	_check(c1.mana_cost == own, "the card's printed cost follows the pool")
+	stats.max_mana *= 2
+	_check(dm.greedy_cheese_mana() == ceili(stats.max_mana * 0.2) and dm.greedy_cheese_mana() > own, "a bigger pool, a bigger Cheese (%d)" % dm.greedy_cheese_mana())
+	stats.max_mana /= 2
 	var outside := Card.create_by_id("block")
 	dm.draw_pile.append(outside)
 	_check(dm.greedy_tax(outside) == {"mana": 0, "tempo": 0}, "cards outside the hand are untouched")
 
 	# Playing a Cheese erases it.
-	stats.current_mana = 1000
+	stats.current_mana = stats.max_mana
 	dm.hand.clear(); dm.draw_pile.clear(); dm.discard_pile.clear()
 	dm.hand.append(Card.create_by_id(cid))
 	var res: Dictionary = dm.play_card(0, null)

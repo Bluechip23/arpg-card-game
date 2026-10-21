@@ -416,11 +416,21 @@ func shuffle_discard_into_draw() -> void:
 ## fewer than GREEDY_CHEESE_DISCARD_MIN cards adds one to the discard pile.
 ## While held, each Cheese makes every OTHER card in the hand (other Cheese
 ## included) cost +GREEDY_CHEESE_MANA mana and +GREEDY_CHEESE_TEMPO tempo.
-## Playing it (100 mana, 5 tempo) erases it.
+## Playing it erases it; its own price is GREEDY_CHEESE_OWN_PERCENT of the
+## player's max mana (so it keeps biting as the pool grows) plus the tax of
+## any other Cheese held, at 5 tempo.
 const GREEDY_CHEESE_ID := "heavy_greedy_cheese"
+const GREEDY_CHEESE_OWN_PERCENT := 0.20
 const GREEDY_CHEESE_DISCARD_MIN := 3
 const GREEDY_CHEESE_MANA := 100
 const GREEDY_CHEESE_TEMPO := 2
+
+## A Cheese's own mana price right now: 20% of max mana, rounded up (the
+## printed 100 stands in when there are no stats to read).
+func greedy_cheese_mana() -> int:
+	if player_stats == null:
+		return GREEDY_CHEESE_MANA
+	return ceili(float(player_stats.max_mana) * GREEDY_CHEESE_OWN_PERCENT)
 
 ## The Cheese surcharge on `card` right now: {"mana", "tempo"}, zero unless
 ## the card is in the hand alongside a Cheese that is not itself.
@@ -565,6 +575,10 @@ func handle_overflow() -> void:
 ## card. Anything else (a preview, the simulator) asks quietly.
 func compute_play_cost(card: Card, index: int, target = null, debuff_mgr = null, commit: bool = false) -> Dictionary:
 	var mana_cost = card.get_burden_mana_cost()  # Burden: +1m per prior play
+	# Heavy Greedy Cheese's own price scales with the mana pool.
+	if card.card_id == GREEDY_CHEESE_ID:
+		mana_cost = greedy_cheese_mana()
+		card.mana_cost = mana_cost  # keep the face and the log honest
 	# Heavy Greedy Cheese in the hand: +100 mana per OTHER Cheese held.
 	var cheese_mana: int = int(greedy_tax(card)["mana"])
 	if cheese_mana > 0:

@@ -6510,6 +6510,8 @@ func _on_hand_updated() -> void:
 		var card_ui := CardUIScene.instantiate()
 		hand_container.add_child(card_ui)
 		# Debuff hexed/locked display keys off the card's real hand index.
+		if rep.card_id == DeckManager.GREEDY_CHEESE_ID:
+			rep.mana_cost = deck_manager.greedy_cheese_mana()  # 20% of max mana, live
 		card_ui.setup(rep, rep_hand_index, debuff_mgr, dex_proc_active, pocket_knife, deck_manager.greedy_tax(rep))
 		card_ui.set_stack_depth(count)
 		# The instant stack has no play key — its badge reads AUTO instead.
