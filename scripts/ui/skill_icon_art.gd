@@ -121,7 +121,7 @@ const CARDS := {
 	"ragnarok": "game_71", "from_the_ashes": "game_71", "gift_from_the_phoenix": "game_71",
 	"wrath_of_the_sea": "rpg_11", "gargle_and_spit": "rpg_11", "psionic_flow": "game_3",
 	"mind_over_matter": "game_63", "mind_mend": "game_63", "mana_surge": "game_6",
-	"gain_mana": "game_6", "djinn_wish": "game_73", "hope_this_works": "game_73",
+	"gain_mana": "game_6", "djinn_wish": "game_73", "heavy_greedy_cheese": "game_60", "hope_this_works": "game_73",
 	"the_lights_favor": "rpg_5", "gift_from_the_gods": "pack_18", "halo": "pack_23",
 	"balance_of_alnilam": "game_88", "protection_from_alnitak": "game_12",
 	"curse_of_the_living": "pack_3", "the_nibelung_curse": "pack_3",

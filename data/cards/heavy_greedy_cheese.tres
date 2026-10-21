@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "heavy_greedy_cheese"
+card_name = "Heavy Greedy Cheese"
+description = "While in your hand, every OTHER card in your hand costs +100 mana and +2 tempo (other Heavy Greedy Cheese included). Your deck makes one when it reshuffles a discard pile of fewer than 3 cards. Play (20% of your max mana, 5 tempo) to be rid of it."
+card_type = 2
+card_type_name = "Status"
+mana_cost = 100
+tempo_cost = 5
+target_types = ["self"]
+erase_on_play = true

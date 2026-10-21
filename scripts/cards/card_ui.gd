@@ -45,7 +45,7 @@ const TWEEN_DURATION: float = 0.12
 # MtG-style frame colour per card type (border, title/type bars, art tint).
 var _type_color: Color = Color(0.45, 0.45, 0.55)
 
-func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_active: bool = false, pocket_knife: bool = false) -> void:
+func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_active: bool = false, pocket_knife: bool = false, greedy_tax: Dictionary = {}) -> void:
 	_card = card
 	_index = index
 
@@ -97,6 +97,9 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 	# In-hand tempo cuts (Boots of Speed, Spark, Keep Them Guessing, Clean
 	# Exchange) show on the card while they last.
 	var display_tempo = maxi(0, card.tempo_cost + card.get_conditional_tempo_penalty() - card.temp_hand_tempo_reduction)
+	# Heavy Greedy Cheese in the hand: its surcharge shows on every other card.
+	display_mana += int(greedy_tax.get("mana", 0))
+	display_tempo += int(greedy_tax.get("tempo", 0))
 	var is_hexed = false
 	var is_locked = false
 	var is_dex_proc = false

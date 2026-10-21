@@ -553,6 +553,8 @@ func _ready() -> void:
 
 	deck_manager.hand_updated.connect(_on_hand_updated)
 	deck_manager.deck_shuffled.connect(_on_deck_shuffled)
+	deck_manager.greedy_cheese_added.connect(func(_c): add_battle_log(
+		"Your thin discard reshuffled — a Heavy Greedy Cheese joins your discard pile.", Color(1.0, 0.8, 0.3)))
 	deck_manager.card_peaked.connect(_on_card_peaked)
 	deck_manager.card_discarded.connect(_on_card_discarded)
 	deck_manager.non_play_discard.connect(_on_non_play_discard)
@@ -6508,7 +6510,9 @@ func _on_hand_updated() -> void:
 		var card_ui := CardUIScene.instantiate()
 		hand_container.add_child(card_ui)
 		# Debuff hexed/locked display keys off the card's real hand index.
-		card_ui.setup(rep, rep_hand_index, debuff_mgr, dex_proc_active, pocket_knife)
+		if rep.card_id == DeckManager.GREEDY_CHEESE_ID:
+			rep.mana_cost = deck_manager.greedy_cheese_mana()  # 20% of max mana, live
+		card_ui.setup(rep, rep_hand_index, debuff_mgr, dex_proc_active, pocket_knife, deck_manager.greedy_tax(rep))
 		card_ui.set_stack_depth(count)
 		# The instant stack has no play key — its badge reads AUTO instead.
 		var badge_letter: String = "" if group["slot"] == HandSlotsScript.INSTANT_SLOT else _slot_letter(group["slot"])
@@ -8166,6 +8170,8 @@ func play_selected_card(target) -> void:
 	# Specific Strike: +1 tempo per OTHER card in hand (mana handled in play_card).
 	if card.card_id == "specific_strike":
 		tempo_cost += max(0, deck_manager.hand.size() - 1)
+	# Heavy Greedy Cheese: +2 tempo per OTHER Cheese in the hand (mana in play_card).
+	tempo_cost += int(deck_manager.greedy_tax(card)["tempo"])
 	var resolve_tick = mini(card.resolve_tick, tempo_cost)  # Clamp resolve_tick to tempo_cost
 	var is_ranged_attack := card.is_ranged and card.is_attack()  # Tighten String / High Ground: ranged ATTACKS
 

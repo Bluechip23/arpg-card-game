@@ -324,7 +324,7 @@ const CARD_RARITIES := {
 	"tighten_string": Rarity.MYTHIC, "worms_armageddon": Rarity.MYTHIC,
 	"composed_reaction": Rarity.BASIC,
 	# --- Off the sheet: item-granted kits, tokens and status cards (86) ---
-	"djinn_wish": Rarity.BASIC, "paralysis": Rarity.BASIC, "release_soul": Rarity.BASIC, "infest": Rarity.BASIC,
+	"djinn_wish": Rarity.BASIC, "heavy_greedy_cheese": Rarity.BASIC, "paralysis": Rarity.BASIC, "release_soul": Rarity.BASIC, "infest": Rarity.BASIC,
 	"splinter": Rarity.BASIC,
 	"fleet_etching": Rarity.COMMON, "hard_helmet": Rarity.COMMON, "mixed_bag": Rarity.COMMON,
 	"regal_etching": Rarity.COMMON, "slice": Rarity.COMMON,
@@ -370,7 +370,7 @@ const CARD_RARITIES := {
 const DROP_EXCLUDED_CARD_IDS := {
 	"sprinkle": true, "sprinkle_bomb": true, "splinter": true,
 	"shuriken": true, "savage_strike_copy": true,
-	"minor_wounds": true, "lightly_dazed": true, "djinn_wish": true,
+	"minor_wounds": true, "lightly_dazed": true, "djinn_wish": true, "heavy_greedy_cheese": true,
 	"biscuit": true, "basic_attack": true, "energy_ball": true, "quick_arrow": true, "prepare": true,
 	"energy_barrier": true, "mana_surge": true, "magic_barrier": true, "shepherds_mark": true,
 	"paralysis": true, "release_soul": true, "infest": true, "composed_reaction": true,
@@ -2217,6 +2217,8 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			_execute_thrown_stone(target, player_stats, buff_mgr)
 		"gulped_potion":
 			_execute_heal_with_poison_check(target, player_stats, buff_mgr)
+		"heavy_greedy_cheese":
+			pass  # Paying the 100 mana / 5 tempo IS the effect — erase_on_play removes it
 		"djinn_wish":
 			pass  # Paying the 60 mana IS the effect — erase_on_play removes it
 		"paralysis":
@@ -2920,7 +2922,7 @@ func is_attack() -> bool:
 ## Rat King's Infest — plus any future card printed as a Curse or Status.
 const NEGATIVE_CARD_IDS := {
 	"lightly_dazed": true, "minor_wounds": true, "paralysis": true,
-	"release_soul": true, "djinn_wish": true, "infest": true,
+	"release_soul": true, "djinn_wish": true, "infest": true, "heavy_greedy_cheese": true,
 }
 
 ## The designer's rule for negative card effects: a countdown riding one of
@@ -4492,6 +4494,7 @@ const CARD_IDS: Array[String] = [
 	"spider_senses",
 	"lightly_dazed",
 	"djinn_wish",
+	"heavy_greedy_cheese",
 	"paralysis",
 	"release_soul",
 	"infest",
@@ -4664,7 +4667,7 @@ const CARD_IDS: Array[String] = [
 ## parameter). The catalogue holds them at their default values for
 ## create_by_id; the shop, compendium and animation lab leave them out, as
 ## they did when they skipped parameterised factories.
-const GENERATED_CARD_IDS: Array[String] = ["basic_attack", "djinn_wish", "energy_barrier", "mana_surge", "magic_barrier", "shepherds_mark"]
+const GENERATED_CARD_IDS: Array[String] = ["basic_attack", "djinn_wish", "heavy_greedy_cheese", "energy_barrier", "mana_surge", "magic_barrier", "shepherds_mark"]
 
 ## Every card id create_by_id can rebuild.
 static func factory_ids() -> Array:

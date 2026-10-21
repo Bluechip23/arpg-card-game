@@ -12,6 +12,7 @@ signal swap_tempo_spent(cost: int, action: String, item_type: int)
 # Godot's global class cache on first run (matches the pattern in main.gd).
 const EquipmentSlotCellScript = preload("res://scripts/character/equipment_slot_cell.gd")
 const StorageItemCellScript = preload("res://scripts/character/storage_item_cell.gd")
+const CardSlotCellScript = preload("res://scripts/character/card_slot_cell.gd")
 # Preloaded (not referenced by class_name) so this script compiles before the
 # global class cache has picked the new class up.
 const SplitBorderStyleBoxScript = preload("res://scripts/ui/split_border_style_box.gd")
@@ -1850,101 +1851,66 @@ func _open_card_slot_panel(item: ItemData) -> void:
 
 	vbox.add_child(_make_separator())
 
-	# === SLOTTED CARDS SECTION ===
-	var slotted_header = Label.new()
-	slotted_header.text = "SLOTTED CARDS"
-	slotted_header.add_theme_font_size_override("font_size", 11)
-	slotted_header.add_theme_color_override("font_color", Color(0.55, 0.55, 0.7))
-	vbox.add_child(slotted_header)
-
-	if item.slotted_cards.size() == 0:
-		var empty_label = Label.new()
-		empty_label.text = "  (No cards slotted)"
-		empty_label.add_theme_font_size_override("font_size", 12)
-		empty_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.5))
-		vbox.add_child(empty_label)
-	else:
-		for i in range(item.slotted_cards.size()):
-			var card = item.slotted_cards[i]
-			var row_hbox = HBoxContainer.new()
-			row_hbox.add_theme_constant_override("separation", 6)
-
-			var card_label = Label.new()
-			# Colored slots (Mauls Sabre): name and tint the slot's color.
-			var color_prefix := ""
-			var label_color := Color(0.7, 0.55, 0.9)
-			if i < item.slot_colors.size():
-				color_prefix = "[%s] " % str(item.slot_colors[i]).capitalize()
-				match str(item.slot_colors[i]):
-					"blue": label_color = Color(0.5, 0.7, 1.0)
-					"red": label_color = Color(1.0, 0.5, 0.5)
-			card_label.text = "%s%s" % [color_prefix, card.card_name]
-			card_label.add_theme_font_size_override("font_size", 12)
-			card_label.add_theme_color_override("font_color", label_color)
-			card_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			row_hbox.add_child(card_label)
-
-			var remove_btn = Button.new()
-			remove_btn.text = "Remove"
-			remove_btn.add_theme_font_size_override("font_size", 11)
-			remove_btn.custom_minimum_size = Vector2(70, 24)
-			var btn_style = StyleBoxFlat.new()
-			btn_style.bg_color = Color(0.35, 0.15, 0.15)
-			btn_style.border_color = Color(0.7, 0.35, 0.35)
-			btn_style.border_width_left = 1
-			btn_style.border_width_right = 1
-			btn_style.border_width_top = 1
-			btn_style.border_width_bottom = 1
-			btn_style.corner_radius_top_left = 3
-			btn_style.corner_radius_top_right = 3
-			btn_style.corner_radius_bottom_left = 3
-			btn_style.corner_radius_bottom_right = 3
-			remove_btn.add_theme_stylebox_override("normal", btn_style)
-			var btn_hover = btn_style.duplicate()
-			btn_hover.bg_color = Color(0.45, 0.2, 0.2)
-			remove_btn.add_theme_stylebox_override("hover", btn_hover)
-			remove_btn.pressed.connect(_on_unslot_card.bind(item, i))
-			row_hbox.add_child(remove_btn)
-
-			vbox.add_child(row_hbox)
-
-	# Colored slots (Mauls Sabre): show which colored slots are still open —
-	# slot order decides the color, so the player should see what's next.
-	for i in range(item.slotted_cards.size(), mini(item.card_slots, item.slot_colors.size())):
-		var open_label = Label.new()
-		open_label.text = "  (open [%s] slot)" % str(item.slot_colors[i]).capitalize()
-		open_label.add_theme_font_size_override("font_size", 12)
-		match str(item.slot_colors[i]):
-			"blue": open_label.add_theme_color_override("font_color", Color(0.4, 0.55, 0.8))
-			"red": open_label.add_theme_color_override("font_color", Color(0.8, 0.4, 0.4))
-			_: open_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.5))
-		vbox.add_child(open_label)
-	# Plain slots: open ones are listed so the player knows a card put there
-	# gets no on-self bonus (bonus slots fill first).
-	var open_plain: int = mini(item.vanilla_slots, item.total_card_slots() - item.slotted_cards.size())
-	if open_plain > 0:
-		var plain_label = Label.new()
-		plain_label.text = "  (%d open plain slot%s — no on-self bonus)" % [open_plain, "" if open_plain == 1 else "s"]
-		plain_label.add_theme_font_size_override("font_size", 12)
-		plain_label.add_theme_color_override("font_color", Color(0.45, 0.45, 0.55))
-		vbox.add_child(plain_label)
+	# === THE SLOTS ===
+	# One rounded square per slot, bonus slots first (gold trim, or the slot's
+	# own colour on a coloured-slot item), then the vanilla ones (cream trim,
+	# "vanilla" inside). Drag a card onto the square you want; drag a slotted
+	# card out, or right-click it, to remove it.
+	var slots_header = Label.new()
+	slots_header.text = "SLOTS — drag a card onto a square; right-click a slotted card to remove it"
+	slots_header.add_theme_font_size_override("font_size", 11)
+	slots_header.add_theme_color_override("font_color", Color(0.55, 0.55, 0.7))
+	slots_header.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(slots_header)
+	var legend = Label.new()
+	var legend_bits: Array[String] = ["gold = on-self bonus"]
+	if item.slot_colors.size() > 0:
+		legend_bits.append("coloured = that slot's own effect")
+	if item.vanilla_slots > 0:
+		legend_bits.append("cream = vanilla (no bonus)")
+	legend.text = "  " + ", ".join(legend_bits)
+	legend.add_theme_font_size_override("font_size", 10)
+	legend.add_theme_color_override("font_color", Color(0.45, 0.45, 0.58))
+	vbox.add_child(legend)
+	var grid = HFlowContainer.new()
+	grid.add_theme_constant_override("h_separation", 6)
+	grid.add_theme_constant_override("v_separation", 6)
+	vbox.add_child(grid)
+	var by_index := {}
+	for c in item.slotted_cards:
+		by_index[item._slot_index_of(c)] = c
+	for i in range(item.total_card_slots()):
+		var cell = CardSlotCellScript.new()
+		cell.setup_slot(self, item, i, by_index.get(i, null))
+		grid.add_child(cell)
 
 	vbox.add_child(_make_separator())
 
-	# === AVAILABLE CARDS SECTION ===
+	# === AVAILABLE CARDS (drag these onto a slot; the area takes drops back) ===
 	var avail_header = Label.new()
-	avail_header.text = "AVAILABLE CARDS FROM DECK"
+	avail_header.text = "CARDS THAT FIT — drag onto a slot, or click for the first free one"
 	avail_header.add_theme_font_size_override("font_size", 11)
 	avail_header.add_theme_color_override("font_color", Color(0.55, 0.55, 0.7))
+	avail_header.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(avail_header)
+
+	var zone = CardSlotCellScript.new()
+	zone.setup_zone(self, item)
+	zone.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(zone)
+	var pool = HFlowContainer.new()
+	pool.add_theme_constant_override("h_separation", 6)
+	pool.add_theme_constant_override("v_separation", 6)
+	pool.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	zone.add_child(pool)
 
 	var free_slots = item.get_free_card_slots()
 	if free_slots <= 0:
 		var full_label = Label.new()
-		full_label.text = "  (All slots filled)"
+		full_label.text = "  (All slots filled — drag a slotted card here to remove it)"
 		full_label.add_theme_font_size_override("font_size", 12)
 		full_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.5))
-		vbox.add_child(full_label)
+		pool.add_child(full_label)
 	elif deck_manager:
 		# Gather all cards from all piles that can be slotted
 		var available_cards: Array = []
@@ -1958,7 +1924,8 @@ func _open_card_slot_panel(item: ItemData) -> void:
 			full_note.add_theme_font_size_override("font_size", 11)
 			full_note.add_theme_color_override("font_color", Color(0.9, 0.6, 0.4))
 			full_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			vbox.add_child(full_note)
+			full_note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			pool.add_child(full_note)
 		for card in deck_manager.draw_pile:
 			if item.can_slot_card(card) and not card.is_slotted():
 				available_cards.append(card)
@@ -1980,45 +1947,12 @@ func _open_card_slot_panel(item: ItemData) -> void:
 			none_label.text = "  (No compatible cards in deck)"
 			none_label.add_theme_font_size_override("font_size", 12)
 			none_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.5))
-			vbox.add_child(none_label)
+			pool.add_child(none_label)
 		else:
 			for card in available_cards:
-				var row_hbox = HBoxContainer.new()
-				row_hbox.add_theme_constant_override("separation", 6)
-
-				var card_label = Label.new()
-				var info = card.card_name
-				if card.is_slottable():
-					info += " [%s]" % card.slot_label_names()
-				card_label.text = info
-				card_label.add_theme_font_size_override("font_size", 12)
-				card_label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.85))
-				card_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-				row_hbox.add_child(card_label)
-
-				var slot_btn = Button.new()
-				slot_btn.text = "Slot"
-				slot_btn.add_theme_font_size_override("font_size", 11)
-				slot_btn.custom_minimum_size = Vector2(60, 24)
-				var btn_style2 = StyleBoxFlat.new()
-				btn_style2.bg_color = Color(0.15, 0.2, 0.35)
-				btn_style2.border_color = Color(0.4, 0.5, 0.9)
-				btn_style2.border_width_left = 1
-				btn_style2.border_width_right = 1
-				btn_style2.border_width_top = 1
-				btn_style2.border_width_bottom = 1
-				btn_style2.corner_radius_top_left = 3
-				btn_style2.corner_radius_top_right = 3
-				btn_style2.corner_radius_bottom_left = 3
-				btn_style2.corner_radius_bottom_right = 3
-				slot_btn.add_theme_stylebox_override("normal", btn_style2)
-				var btn_hover2 = btn_style2.duplicate()
-				btn_hover2.bg_color = Color(0.2, 0.25, 0.45)
-				slot_btn.add_theme_stylebox_override("hover", btn_hover2)
-				slot_btn.pressed.connect(_on_slot_card.bind(card, item))
-				row_hbox.add_child(slot_btn)
-
-				vbox.add_child(row_hbox)
+				var chip = CardSlotCellScript.new()
+				chip.setup_chip(self, item, card)
+				pool.add_child(chip)
 
 	vbox.add_child(_make_separator())
 
@@ -2045,6 +1979,44 @@ func _on_slot_card(card: Card, item: ItemData) -> void:
 	if inventory.enchant_card(card, item):
 		_open_card_slot_panel(item)  # Refresh the panel
 		update_display()
+
+## A card dropped on a specific slot square (from the pool, or moved from
+## another slot of the same item).
+func _handle_card_drop_on_slot(data: Dictionary, item: ItemData, slot_index: int) -> void:
+	if not inventory:
+		return
+	var card: Card = data.get("card")
+	if card == null:
+		return
+	if data.get("source") == "slot":
+		if data.get("item") != item:
+			return
+		var from_idx: int = item.slotted_cards.find(card)
+		if from_idx < 0:
+			return
+		# Lift it out, then set it down in the chosen square. extract_card
+		# would pull an engraving into storage, so move it by hand.
+		item.unslot_card(from_idx)
+		if not item.slot_card_at(card, slot_index):
+			item.slot_card(card)  # the square refused: put it back where it fits
+		inventory.equipment_changed.emit()
+	elif not inventory.enchant_card(card, item, slot_index):
+		return
+	_open_card_slot_panel(item)
+	update_display()
+
+## A slotted card dragged back onto the pool area: unslot it.
+func _handle_card_drop_on_pool(data: Dictionary) -> void:
+	var card: Card = data.get("card")
+	var item: ItemData = data.get("item")
+	if card == null or item == null:
+		return
+	_on_unslot_card_object(item, card)
+
+func _on_unslot_card_object(item: ItemData, card: Card) -> void:
+	var idx: int = item.slotted_cards.find(card)
+	if idx >= 0:
+		_on_unslot_card(item, idx)
 
 func _on_unslot_card(item: ItemData, card_index: int) -> void:
 	if not inventory:
