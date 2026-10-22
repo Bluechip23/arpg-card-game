@@ -1368,7 +1368,7 @@ func _setup_action_buttons() -> void:
 	_block_button = Button.new()
 	_block_button.name = "BlockButton"
 	_block_button.icon = UIGlyphs.get_glyph("shield")
-	_block_button.text = "5T"
+	_block_button.text = "%dT" % BASIC_BLOCK_TEMPO
 	_block_button.custom_minimum_size = Vector2(0, 36)
 	_block_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_block_button.tooltip_text = "Raise shield to block. Costs 5 tempo."
@@ -2521,6 +2521,9 @@ func _basic_attack_whiff(stats, buff_mgr, debuff_mgr, counts_for_cycle: bool) ->
 
 #endregion
 #region BLOCK, WAIT & WAR RACK
+## Raising a worn shield (the Block button beside the auto attack).
+const BASIC_BLOCK_TEMPO := 4
+
 func _on_block_pressed() -> void:
 	var stats := player.get_stats()
 	if not stats:
@@ -2556,7 +2559,7 @@ func _on_block_pressed() -> void:
 		player.play_animation("block", CharacterAnimator.Direction.SOUTH)
 
 	# No Weighted surcharge: Weighted taxes card plays, and Block is not one.
-	var tempo_cost := 5
+	var tempo_cost := BASIC_BLOCK_TEMPO
 
 	tempo_manager.add_tempo(tempo_cost)
 
@@ -2653,7 +2656,7 @@ func _update_block_button_visibility() -> void:
 		var shield := inventory.get_equipped_shield()
 		var block_val = shield.armor_bonus if shield.armor_bonus > 0 else 3
 		block_val += inventory.get_two_hand_block_bonus(shield)
-		_block_button.text = "+%d  5T" % block_val
+		_block_button.text = "+%d  %dT" % [block_val, BASIC_BLOCK_TEMPO]
 		_block_button.tooltip_text = "Raise %s: +%d Armor. Costs 5 tempo." % [shield.item_name, block_val]
 		_block_button.visible = true
 	else:
@@ -3408,6 +3411,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_buff_manager().invisibility_entered.connect(_on_player_entered_invisibility)
 	player.get_buff_manager().buffs_changed.connect(_restore_player_visibility_if_seen)
 	player.get_debuff_manager().debuff_expired.connect(_on_player_debuff_expired)
+	_wire_dot_log(player)
 
 	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager, player.get_buff_manager(), player.get_debuff_manager())
 	character_panel.swap_tempo_spent.connect(_on_swap_tempo_spent)
@@ -10626,6 +10630,36 @@ func _wire_marvolo_hooks(p: Player) -> void:
 	var pdm := p.get_debuff_manager()
 	if pdm and not pdm.debuff_expired.is_connected(on_expiry):
 		pdm.debuff_expired.connect(on_expiry)
+	_wire_dot_log(p)
+
+## Damage-over-time ticks on a player go to the battle log (the enemy side
+## logs its own in Enemy._dot_hit): a number with no swing behind it is
+## explained ("Burn: you take 4 (8 next cycle)").
+func _wire_dot_log(p: Player) -> void:
+	if p == null or not is_instance_valid(p) or p.get_debuff_manager() == null:
+		return
+	var cb: Callable = _on_player_dot_ticked.bind(p)
+	if not p.get_debuff_manager().dot_ticked.is_connected(cb):
+		p.get_debuff_manager().dot_ticked.connect(cb)
+
+func _on_player_dot_ticked(kind: String, amount: int, note: String, carrier: Player) -> void:
+	var who := "you"
+	var takes := "take"
+	if carrier != player and is_instance_valid(carrier) and carrier.get_stats() and carrier.get_stats().character_data:
+		who = carrier.get_stats().character_data.character_name
+		takes = "takes"
+	var line: String
+	match kind:
+		"Drain":
+			line = "Drain: %s lose%s %d mana" % [who, "" if who == "you" else "s", amount]
+		"Elixir":
+			line = "Elixir: %s heal%s %d" % [who, "" if who == "you" else "s", amount]
+		_:
+			line = "%s: %s %s %d" % [kind, who, takes, amount]
+	if note != "":
+		line += " (%s)" % note
+	var color: Color = Enemy.DOT_LOG_COLORS.get(kind, Color(0.4, 0.6, 1.0) if kind == "Drain" else Color(0.5, 1.0, 0.6))
+	add_battle_log(line[0].to_upper() + line.substr(1), color)
 
 func _on_marvolo_triggered(wearer: Player = null) -> void:
 	if wearer == null or not is_instance_valid(wearer):

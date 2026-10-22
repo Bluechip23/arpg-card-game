@@ -233,7 +233,7 @@ func _step_tempo(a: Dictionary, state: SimState) -> int:
 	match str(a["type"]):
 		"play": return maxi(0, int(state.hand[int(a["card"])]["tempo"]))
 		"attack": return maxi(1, int(a.get("tempo", state.basic_attack_tempo)))
-		"block": return 5
+		"block": return 4  # main.BASIC_BLOCK_TEMPO
 		"item_skill": return 2 if str(a.get("fx", "")) == "slice" else 1
 		"manifest": return maxi(0, int(state.manifest[int(a["manifest"])]["tempo"]))
 		"move": return 0 if bool(a.get("flash", false)) else 1

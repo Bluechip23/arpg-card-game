@@ -473,7 +473,7 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 					killed_index = idx
 					gain += _incoming_from(t, HORIZON) * hp_weight * 0.5
 		"block":
-			tempo = 5
+			tempo = 4  # main.BASIC_BLOCK_TEMPO
 			var block := 3   # Basic Block's floor; the shield's real value is unseen here
 			gain += minf(block, _incoming(threats, tempo + 5)) * hp_weight
 		"wait":
