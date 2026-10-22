@@ -24,7 +24,7 @@ func _check_fig(fig, name: String) -> void:
 		return
 	_check(fig._cp_sheets.has("Idle") and fig._cp_sheets.has("Walk"), "%s has Idle and Walk" % name)
 	var cell: int = fig._cp_cell
-	_check(cell <= 64, "%s cell is %d px" % [name, cell])
+	_check(cell <= 128, "%s cell is %d px" % [name, cell])
 	var rows := {}
 	for d in [CharacterAnimator.Direction.SOUTH, CharacterAnimator.Direction.NORTH,
 			CharacterAnimator.Direction.WEST, CharacterAnimator.Direction.EAST]:
@@ -67,6 +67,16 @@ func _run() -> void:
 		if e.enemy_type == Enemy.EnemyType.PIT_FIEND:
 			pf = e
 	_check(pf != null and pf._enemy_figure._cp_sheets.has("Attack"), "Pit Fiend has its tail-sweep attack")
+
+	# The designer's 4x4 creature walk sheets (tools/cut_creature_sheets.py).
+	for t in [Enemy.EnemyType.HYDRA, Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.SABERTOOTH,
+			Enemy.EnemyType.WHITE_MANTICORE, Enemy.EnemyType.WEREGOAT]:
+		var ce: Enemy = main.enemy_spawner.spawn_enemy(t, main.player.position + Vector3(x, 0, 2))
+		x += 2.0
+		await process_frame
+		_check_fig(ce._enemy_figure, ce.enemy_name)
+	# The Screecher wears the Snow Wraith's ghost (the enemy itself is unchanged).
+	_check(SpriteEnemyFigure.KINDS["screecher"] == SpriteEnemyFigure.KINDS["snow_wraith"], "the Screecher looks like the Snow Wraith")
 
 	var hades := SpriteEnemyFigure.new()
 	hades.setup("hades")

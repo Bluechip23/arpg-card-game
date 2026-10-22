@@ -82,7 +82,7 @@ const KINDS := {
 	"crypt_crawler": {"cell": Vector2i(3, 0)},
 	"swarm": {"cell": Vector2i(4, 0)},
 	"giant_hawk": {"fr": "mountain_monsters/Bird", "scale": 0.55},
-	"screecher": {"fr": "mountain_monsters/Bird", "scale": 0.5, "tint": Color(0.7, 0.6, 0.85)},  # Stone_* frames are the bird carrying a rock, kept for a future drop attack
+	"screecher": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},  # wears the Snow Wraith's ghost (designer, 2026-10-22); the mountain-monster Bird frames are free again
 	"giant_beaver": {"cell": Vector2i(0, 1), "tint": Color(0.95, 0.85, 0.75)},
 	"mini_bear": {"fr": "mountain_monsters/Bear", "scale": 0.45},
 	"wolf": {"cell": Vector2i(3, 1)},
@@ -115,17 +115,18 @@ const KINDS := {
 	"bugbear": {"cp": "gnolls/Gnoll2", "scale": 1.2},
 	"ifrit": {"icon": "chaos_monsters/Icon47", "faces": "front", "scale": 2.0},  # the living flame
 	"snow_wraith": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},
-	"hydra": {"tex": "hydra", "scale": 1.4},
-	"white_manticore": {"tex": "white_manticore", "scale": 1.3},
+	# The designer's 4x4 walk sheets (tools/cut_creature_sheets.py).
+	"hydra": {"sheets": SHEETS + "/hydra", "scale": 1.1},
+	"white_manticore": {"sheets": SHEETS + "/white_manticore", "scale": 0.75},
 	# --- battler variations where the species genuinely matches ---
 	"large_bear": {"fr": "mountain_monsters/Bear", "scale": 0.65},
 	"bone_dragon": {"tex": "bone_dragon", "scale": 1.6},
 	"wyvern": {"cell": Vector2i(7, 2), "tint": Color(0.9, 0.75, 1.05), "scale": 1.35},
 	"cerberus": {"sheets": BOSSES + "/cerberus", "scale": 1.5},
 	"hades": {"sheets": BOSSES + "/hades", "scale": 1.15},  # art in place; no Hades enemy exists yet
-	"werewolf": {"cell": Vector2i(3, 1), "tint": Color(0.6, 0.6, 0.68), "scale": 1.25},
-	"sabertooth": {"cell": Vector2i(3, 1), "tint": Color(1.05, 0.95, 0.75), "scale": 1.2},
-	"weregoat": {"cp": "gnolls/Gnoll3", "scale": 1.1, "tint": Color(0.85, 0.85, 0.9)},
+	"werewolf": {"sheets": SHEETS + "/werewolf", "scale": 1.05},
+	"sabertooth": {"sheets": SHEETS + "/sabertooth", "scale": 0.95},
+	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": 0.62},
 	"roc": {"fr": "mountain_monsters/Bird", "scale": 1.0, "tint": Color(1.05, 0.95, 0.85)},
 	"ash_harpy": {"icon": "chaos_monsters/Icon22", "faces": "front", "scale": 1.6},  # the winged demon in flight, tail trailing
 	"magma_spider": {"cell": Vector2i(3, 0), "tint": Color(1.35, 0.75, 0.6)},
