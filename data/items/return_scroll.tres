@@ -8,4 +8,4 @@ item_name = "Return Scroll"
 item_type = 8
 item_type_name = "Scroll"
 special_id = "return_scroll"
-description = "Right-click to open a portal back to town. Walk in with [Shift]. Its twin waits in town to bring you back."
+description = "Right-click to open a portal back to town. Walk in with [Shift]. Its twin waits in town to bring you back; the portal closes once you come back through it."

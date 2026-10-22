@@ -16,4 +16,4 @@ on_self_damage = 5
 on_self_crit_damage_percent = 10.0
 on_self_flash_counter_drain = 2
 flash_crit_threshold = 25
-description = "+8 AGI, 2 card slots. On-self: +5 damage, +10% crit damage, and -2 from the flash point counter. Once you have spent an accumulated 25 flash points, your next ranged offensive card crits (resets to 0 on use)."
+description = "+8 AGI, 3 card slots (2 bonus, 1 plain). On-self: cards that deal damage deal +5 damage; any card gets +10% crit damage and -2 from the flash point counter. Once you have spent an accumulated 25 flash points, your next ranged offensive card crits (resets to 0 on use)."

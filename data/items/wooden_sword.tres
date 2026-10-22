@@ -10,4 +10,4 @@ special_effect = 5
 granted_card_ids = Array[String](["splinter"])
 card_slots = 1
 on_self_damage = 1
-description = "No stats. 1 card slot, On-Self: attacks deal +1 damage. Grants Splinter while equipped."
+description = "No stats. 1 card slot. On-self: cards that deal damage deal +1 damage. Grants Splinter while equipped."

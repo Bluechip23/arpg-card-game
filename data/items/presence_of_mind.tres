@@ -15,7 +15,7 @@ level_2_overrides = {
 "strength_bonus": 9,
 "wisdom_bonus": 2
 }
-level_2_description = "+7 INT, +9 STR, +2 WIS, +45 mana, -10 health. 2 card slots. On-self: extra block worth 15% of your max mana. Grants Mind over Matter: the next hit you take is halved and paid out of your mana instead of your health (20 mana, 2 tempo)."
+level_2_description = "+7 INT, +9 STR, +2 WIS, +45 mana, -10 health. 3 card slots (2 bonus, 1 plain). On-self: any card gets extra block worth 15% of your max mana. Grants Mind over Matter: the next hit you take is halved and paid out of your mana instead of your health (20 mana, 2 tempo)."
 weight = 25
 strength_bonus = 8
 intelligence_bonus = 5
@@ -27,6 +27,6 @@ granted_card_ids = Array[String](["mind_over_matter"])
 card_slots = 2
 vanilla_slots = 1
 on_self_block_max_mana_percent = 10.0
-description = "+5 INT, +8 STR, +2 WIS, +25 mana, -10 health. 2 card slots. On-self: extra block worth 10% of your max mana. Grants Mind over Matter: the next hit you take is halved and paid out of your mana instead of your health (20 mana, 2 tempo)."
+description = "+5 INT, +8 STR, +2 WIS, +25 mana, -10 health. 3 card slots (2 bonus, 1 plain). On-self: any card gets extra block worth 10% of your max mana. Grants Mind over Matter: the next hit you take is halved and paid out of your mana instead of your health (20 mana, 2 tempo)."
 appearance = "A black kite shield marked in yellow: a man sitting in meditation, a half crescent moon above his head."
 appearance_icon = "res://assets/items/mythic/presence_of_mind.png"

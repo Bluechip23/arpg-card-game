@@ -15,4 +15,4 @@ card_slots = 2
 vanilla_slots = 1
 attack_apply_shock = 3
 attack_debuffs_on_self_only = true
-description = "+3 INT, +3 AGI, +3 DEX. 2 card slots. Two-handed. On-self: damaging offensive cards slotted here apply 3 Shock."
+description = "+3 INT, +3 AGI, +3 DEX. 3 card slots (2 bonus, 1 plain). Two-handed. On-self: damaging offensive cards slotted here apply 3 Shock."

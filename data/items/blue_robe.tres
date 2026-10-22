@@ -15,4 +15,4 @@ health_bonus = 20
 card_slots = 2
 vanilla_slots = 3
 on_self_adaptive_damage_type = true
-description = "+5 WIS, +8 INT, +20 health. On-self: the card's damage type adapts to each enemy hit — it always deals the type they resist LEAST (fire is checked first)."
+description = "+5 WIS, +8 INT, +20 health. On-self: a card that deals damage adapts its damage type to each enemy hit — it always deals the type they resist LEAST (fire is checked first)."

@@ -16,4 +16,4 @@ vanilla_slots = 2
 on_self_brain_regen = 2
 on_self_flash_regen = 2
 no_debuff_mana_discount_percent = 15.0
-description = "+6 WIS, +30 mana. 1 card slot. While you carry no debuffs, ALL your cards cost 15% less mana. On-self: regain 2 brain points and 2 flash points. Grants Clear Mind: purge 3 random debuffs on you — whole stacks — and draw 1 card for each (50 mana, 4 tempo)."
+description = "+6 WIS, +30 mana. 3 card slots (1 bonus, 2 plain). While you carry no debuffs, ALL your cards cost 15% less mana. On-self: any card regains you 2 brain points and 2 flash points. Grants Clear Mind: purge 3 random debuffs on you — whole stacks — and draw 1 card for each (50 mana, 4 tempo)."

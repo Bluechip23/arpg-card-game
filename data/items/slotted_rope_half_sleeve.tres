@@ -20,4 +20,4 @@ overdraw_card_id = "cinquedea"
 overdraw_card_max = 5
 overdraw_card_block = 1
 block_bonus_to_defense_cards = -3
-description = "+4 AGI, +7 DEX, +4 flash points, -3 block from your block cards. 2 card slots. On-self: discard a card and gain 3 block. Overdraw: a Cinquedea drops into your manifest zone (up to 5). Each one waiting there gives your block cards +1 block — spend it and that point goes with it. Cinquedea: 6 damage and 1 Weaken at range 4 (10 mana, 0 tempo)."
+description = "+4 AGI, +7 DEX, +4 flash points, -3 block from your block cards. 4 card slots (2 bonus, 2 plain). On-self: any card discards a card and gets +3 block (armor on a card that blocks nothing). Overdraw: a Cinquedea drops into your manifest zone (up to 5). Each one waiting there gives your block cards +1 block — spend it and that point goes with it. Cinquedea: 6 damage and 1 Weaken at range 4 (10 mana, 0 tempo)."

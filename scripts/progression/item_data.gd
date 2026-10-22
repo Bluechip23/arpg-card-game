@@ -121,7 +121,7 @@ enum GauntletSkillType {
 @export var gauntlet_skill_type: GauntletSkillType = GauntletSkillType.NONE
 @export var gauntlet_skill_name: String = ""
 @export var gauntlet_skill_description: String = ""
-@export var gauntlet_skill_cooldown: int = 0  # Turns for active skills
+@export var gauntlet_skill_cooldown: int = 0  # Cycles (5 tempo each) for active skills
 @export var gauntlet_skill_mana_cost: int = 0  # For active skills
 @export var gauntlet_skill_effect_id: String = ""  # Identifier for the effect
 
@@ -198,9 +198,12 @@ func get_on_self_bonus_for(card) -> Dictionary:
 
 static func slot_words(item) -> String:
 	## "3 slots (1 bonus, 2 plain)" — the panel's one phrase for an item's slots.
+	## An item with only plain slots reads "1 plain slot" / "2 plain slots".
 	var total: int = item.total_card_slots()
 	if item.vanilla_slots <= 0:
 		return "%d slot%s" % [total, "" if total == 1 else "s"]
+	if item.card_slots <= 0:
+		return "%d plain slot%s" % [total, "" if total == 1 else "s"]
 	return "%d slots (%d bonus, %d plain)" % [total, item.card_slots, item.vanilla_slots]
 
 static var _neutral_osb: Dictionary = {}

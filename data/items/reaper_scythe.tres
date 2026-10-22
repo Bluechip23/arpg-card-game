@@ -10,7 +10,7 @@ level_3_overrides = {
 "dexterity_bonus": 4,
 "wisdom_bonus": 10
 }
-level_3_description = "+10 WIS, +9 STR, +4 DEX, -5 AGI. 1 card slot. Two-handed. Your damaging attacks apply 1 Vulnerable. Damaging an enemy above half health: 10% lifesteal. Below half: 10% of the damage returns as mana and the card costs 10% less. Grants Reaper's Taking (instant): when an enemy within 5 squares drops below 25% health, teleport to them and deal 35 damage."
+level_3_description = "+10 WIS, +9 STR, +4 DEX, -5 AGI. 3 card slots (1 bonus, 2 plain). Two-handed. Your damaging attacks apply 1 Vulnerable. Damaging an enemy above half health: 10% lifesteal. Below half: 10% of the damage returns as mana and the card costs 10% less. Grants Reaper's Taking (instant): when an enemy within 5 squares drops below 25% health, teleport to them and deal 35 damage."
 weight = 45
 strength_bonus = 8
 dexterity_bonus = 3
@@ -22,6 +22,6 @@ card_slots = 1
 vanilla_slots = 2
 attack_apply_vulnerable = 1
 reaper_weapon = true
-description = "+8 WIS, +8 STR, +3 DEX, -5 AGI. 1 card slot. Two-handed. Your damaging attacks apply 1 Vulnerable. Damaging an enemy above half health: 10% lifesteal. Below half: 10% of the damage returns as mana and the card costs 10% less. Grants Reaper's Taking (instant): when an enemy within 5 squares drops below 25% health, teleport to them and deal 20 damage."
+description = "+8 WIS, +8 STR, +3 DEX, -5 AGI. 3 card slots (1 bonus, 2 plain). Two-handed. Your damaging attacks apply 1 Vulnerable. Damaging an enemy above half health: 10% lifesteal. Below half: 10% of the damage returns as mana and the card costs 10% less. Grants Reaper's Taking (instant): when an enemy within 5 squares drops below 25% health, teleport to them and deal 20 damage."
 appearance = "A towering reaper's scythe, a blue substance forever dripping from the edge of its blade."
 appearance_icon = "res://assets/items/mythic/reaper_scythe.png"

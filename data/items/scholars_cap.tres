@@ -13,7 +13,7 @@ level_3_overrides = {
 "on_self_brain_regen": 3,
 "wisdom_bonus": 7
 }
-level_3_description = "+7 WIS, +7 max brain points. Peek costs 1 less brain point. On-self: regain 3 brain points."
+level_3_description = "+7 WIS, +7 max brain points. Peek costs 1 less brain point. On-self: any card regains you 3 brain points."
 weight = 5
 wisdom_bonus = 5
 card_slots = 2
@@ -21,6 +21,6 @@ vanilla_slots = 3
 on_self_brain_regen = 2
 brain_points_bonus = 5
 peek_brain_discount = 1
-description = "+5 WIS, +5 max brain points. Peek costs 1 less brain point. On-self: regain 2 brain points. Upgraded: +7 WIS, +7 max brain points; on-self regains 3."
+description = "+5 WIS, +5 max brain points. Peek costs 1 less brain point. On-self: any card regains you 2 brain points. Upgraded: +7 WIS, +7 max brain points; on-self regains 3."
 appearance = "A stiff black mortarboard with a gold tassel that never stops swinging, even in still air. The underside of the board is inked edge to edge with equations somebody kept correcting."
 appearance_icon = "res://assets/items/mythic/scholars_cap.png"

@@ -14,7 +14,7 @@ level_2_overrides = {
 "strength_bonus": 5,
 "wisdom_bonus": 7
 }
-level_2_description = "+6 INT, +7 WIS, +5 STR. 3 card slots. On-self: +13% to the card's rolls. Overdraw: Peak the next 5 cards of your draw pile. Grants Mage Shield (instant): when you take damage, gain 15 block."
+level_2_description = "+6 INT, +7 WIS, +5 STR. 5 card slots (3 bonus, 2 plain). On-self: any card gets +13% to its rolls. Overdraw: Peak the next 5 cards of your draw pile. Grants Mage Shield (instant): when you take damage, gain 15 block."
 weight = 40
 strength_bonus = 3
 intelligence_bonus = 6
@@ -25,6 +25,6 @@ card_slots = 3
 vanilla_slots = 2
 on_self_chance_boost = 10.0
 overdraw_peak = 4
-description = "+6 INT, +5 WIS, +3 STR. 3 card slots. On-self: +10% to the card's rolls. Overdraw: Peak the next 4 cards of your draw pile. Grants Mage Shield (instant): when you take damage, gain 10 block."
+description = "+6 INT, +5 WIS, +3 STR. 5 card slots (3 bonus, 2 plain). On-self: any card gets +10% to its rolls. Overdraw: Peak the next 4 cards of your draw pile. Grants Mage Shield (instant): when you take damage, gain 10 block."
 appearance = "A wooden shield banded with iron."
 appearance_icon = "res://assets/items/mythic/delfins_deterministic_round_shield.png"

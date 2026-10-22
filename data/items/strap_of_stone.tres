@@ -18,4 +18,4 @@ card_slots = 1
 vanilla_slots = 2
 on_self_physical_resilient = 10
 armor_per_tempo_interval = 20
-description = "+20 life, +3 STR. Gain 10 unerring armor every 20 tempo (up to your unerring cap). On-self: gain 10% physical resistance for 10 tempo. Grants Stone Encase: gain 50 armor and become stunned for 5 tempo (45 mana, 5 tempo)."
+description = "+20 life, +3 STR. Gain 10 unerring armor every 20 tempo (up to your unerring cap). On-self: any card grants 10% physical resistance for 10 tempo. Grants Stone Encase: gain 50 armor and become stunned for 5 tempo (45 mana, 5 tempo)."

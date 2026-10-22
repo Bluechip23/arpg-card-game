@@ -17,4 +17,4 @@ card_slots = 2
 vanilla_slots = 1
 overdraw_regen = 3
 on_self_thorns = 3
-description = "+30 health, +3 STR, +3 WIS. 2 card slots. On-self: gain 3 Thorns. Overdraw: gain 3 Regen. Grants Bark Up: convert every point of your Regen and Thorns into armor (45 mana, 3 tempo)."
+description = "+30 health, +3 STR, +3 WIS. 3 card slots (2 bonus, 1 plain). On-self: any card gains you 3 Thorns. Overdraw: gain 3 Regen. Grants Bark Up: convert every point of your Regen and Thorns into armor (45 mana, 3 tempo)."

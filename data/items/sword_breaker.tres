@@ -18,4 +18,4 @@ card_slots = 3
 on_self_armor_any = 4
 on_self_fortify = 1
 blocked_melee_tempo_tax = 2
-description = "+3 DEX, +3 DET, +25 health, +25 mana. 3 card slots. On-self: gain 4 armor and Fortify for 5 tempo — your armor stops decaying. Melee damage your armor swallows whole costs that enemy 2 extra tempo on its next melee attack. Grants Song of a Swords Sing: Disarm the enemy for 1 attack and gain 2 armor for every KIND of debuff on it (35 mana, 3 tempo)."
+description = "+3 DEX, +3 DET, +25 health, +25 mana. 3 card slots. On-self: any card gains you 4 armor and Fortify for 5 tempo — your armor stops decaying. Melee damage your armor swallows whole costs that enemy 2 extra tempo on its next melee attack. Grants Song of a Swords Sing: Disarm the enemy for 5 tempo and gain 2 armor for every KIND of debuff on it (35 mana, 3 tempo)."

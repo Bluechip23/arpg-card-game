@@ -12,4 +12,4 @@ dexterity_bonus = 2
 health_bonus = 5
 card_slots = 1
 on_self_heal = 1
-description = "+2 DEX, +5 health. On-self: heal 1."
+description = "+2 DEX, +5 health. On-self: any card gets +1 healing (a card that doesn't heal heals you 1)."

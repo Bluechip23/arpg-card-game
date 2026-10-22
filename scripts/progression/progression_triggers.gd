@@ -457,24 +457,24 @@ func _apply_constellation_bonus(constellation_id: String) -> void:
 				"description": "Mind Weaver: 20% chance to draw a card on spell cast"
 			})
 		"windwalker":
-			# +1 movement, first card after moving costs 1 less
+			# +5 AGI, first card after moving costs 10 less
 			stats.add_sphere_grid_passive({
 				"node_id": -1, "trigger": "on_move", "effect": "reduce_cost",
 				"value": 10, "chance": 1.0,
 				"description": "Windwalker: First card after moving costs 10 less"
 			})
-			# +1 movement via agility
+			# +5 AGI (flash points)
 			if not _passives_only:
-				stats.apply_sphere_grid_stat("agility", 5)  # +5 AGI = +1 move/cycle
+				stats.apply_sphere_grid_stat("agility", 5)  # +5 AGI = +5 max flash points
 		"storm_runner":
-			# +1 movement, gain 20 mana on move
+			# +5 AGI, gain 20 mana on move
 			stats.add_sphere_grid_passive({
 				"node_id": -1, "trigger": "on_move", "effect": "gain_mana",
 				"value": 20, "chance": 1.0,
 				"description": "Storm Runner: Gain 20 mana on each move"
 			})
 			if not _passives_only:
-				stats.apply_sphere_grid_stat("agility", 5)  # +5 AGI = +1 move/cycle
+				stats.apply_sphere_grid_stat("agility", 5)  # +5 AGI = +5 max flash points
 		"sages_insight":
 			# Draw 1 extra card per tempo cycle
 			stats.add_sphere_grid_passive({
@@ -501,14 +501,14 @@ func _apply_constellation_bonus(constellation_id: String) -> void:
 				"description": "Crimson Edge: Attacks heal for 8% of damage dealt"
 			})
 		"shadow_strike":
-			# Critical hits deal 2.5x damage instead of 2x — tracked as a flag
+			# Critical hits deal 2x damage instead of 1.5x — tracked as a flag
 			stats.add_sphere_grid_passive({
 				"node_id": -1, "trigger": "on_crit", "effect": "shadow_strike",
 				"value": 0, "chance": 1.0,
 				"description": "Shadow Strike: Critical hits deal 2x damage instead of 1.5x"
 			})
 		"iron_bastion":
-			# +5 starting armor, and when hit: 15% chance the damage is halved
+			# +5 armor once on completion, and when hit: 15% chance the damage is halved
 			# (applied inside PlayerStats.take_damage).
 			if not _passives_only:
 				stats.sphere_bonus_armor += 5

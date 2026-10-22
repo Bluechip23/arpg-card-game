@@ -13,4 +13,4 @@ vanilla_slots = 1
 on_self_armor_any = 3
 block_bonus_to_defense_cards = 1
 damage_bonus_to_attack_cards = 1
-description = "+2 INT. 1 card slot. Your armor-granting cards grant +1 block and your offensive cards deal +1 damage. On-self: gain 3 armor."
+description = "+2 INT. 2 card slots (1 bonus, 1 plain). Your armor-granting cards grant +1 block and your offensive cards deal +1 damage. On-self: any card gains you 3 armor."

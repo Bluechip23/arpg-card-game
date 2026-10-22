@@ -14,4 +14,4 @@ card_slots = 2
 vanilla_slots = 1
 range_bonus_all_cards = 2
 damage_bonus_to_attack_cards = 2
-description = "+5 INT, +2 WIS. 2 card slots. All your cards gain +2 range and your attacks deal +2 damage."
+description = "+5 INT, +2 WIS. 3 card slots (2 bonus, 1 plain). All your cards gain +2 range and your damaging offensive cards deal +2 damage."

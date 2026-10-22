@@ -15,4 +15,4 @@ weapon_subtype = 2
 card_slots = 3
 vanilla_slots = 1
 on_self_knockback = 1
-description = "+10 health, +2 DET, +3 STR. 3 card slots. On-self: any card shoves its enemy target back 1 space — or, on a card with no enemy target (a block, a self-buff), every adjacent enemy."
+description = "+10 health, +2 DET, +3 STR. 4 card slots (3 bonus, 1 plain). On-self: any card shoves its enemy target back 1 space — or, on a card with no enemy target (a block, a self-buff), every adjacent enemy."
