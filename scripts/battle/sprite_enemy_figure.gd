@@ -26,6 +26,7 @@ const SHEET := "res://assets/sprites/MonsterKit/monster battler set.png"
 const NPC1 := "res://assets/sprites/NPCpackage1"
 const CP := "res://assets/sprites/craftpix"
 const BOSSES := "res://assets/sprites/generated/bosses"
+const SHEETS := "res://assets/sprites/generated/sheets"
 
 ## Direction row order of the Craftpix packs, top row first: F = front
 ## (SOUTH, faces the camera), B = back (NORTH), L = WEST, R = EAST. Every
@@ -94,7 +95,9 @@ const KINDS := {
 	"sewer_croc": {"fr": "mountain_monsters/Snake", "scale": 0.6, "tint": Color(0.8, 0.9, 0.75)},  # a great sewer serpent stands in for the croc
 	# --- generated sprites (drawn/derived in our pipeline, palette-conformant) ---
 	"rat": {"cp": "giant_rat/Rat1"},
-	"archer_rat": {"cp": "giant_rat/Rat1", "tint": Color(0.85, 0.78, 0.7)},
+	# The designer's Archer Rat (tools/cut_archer_rat.py): up on its hind
+	# legs while it stands, on all fours while it moves.
+	"archer_rat": {"sheets": SHEETS + "/archer_rat", "scale": 0.9},
 	# The designer's own boss boards (no pack has these bosses): front, back
 	# and side walk frames, cut by tools/cut_boss_sheets.py.
 	"rat_king": {"sheets": BOSSES + "/rat_king", "scale": 1.15},
