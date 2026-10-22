@@ -527,17 +527,20 @@ than a resolution roll, and the multi-hero end-game.
 The player carries **one** character through the entire story and into the
 end-game. The current playable roster (`scripts/character/character_data.gd`):
 
-| Character | Fantasy | Signature archetypes | Slot specialty |
-|-----------|---------|----------------------|----------------|
-| **Brad** | Tank / bruiser; pain is strength | Berserker, Warden, The Ancient, The Fallen | War Rack (back-slung gear swap); chest items weigh 20% less |
-| **Ryan** | Dexterous duelist / rogue | Relentless Blade, Light Foot, Apothecary, Shadow Blade | 3 belt slots; belt cards cost 1 less mana |
-| **Stephen** | Versatile killer / marksman | The Apex, Sentinel, Ranger, Avenger | standard slots; +10% off-hand enchantments (others −10%) |
-| **Cory** | Druid / monk / witherer | Monk, Lurker, Druid, Atrophist | 2 gauntlet slots; gauntlet-skill synergy |
-| **Jeremy** | Elemental mage | Evocation (+ more) | 4 ring slots; first ring trigger fires twice every 3rd cycle |
+| Character | What the passives reward | Archetype lanes | Slot specialty |
+|-----------|--------------------------|-----------------|----------------|
+| **Brad** | Spending health for strength; stockpiling armor; being swarmed | Berserker, Warden, The Ancient, The Fallen | War Rack (two-handed swap); chest items weigh 20% less |
+| **Ryan** | Discarding and cycling; moving across the grid; first-strike ambushes | Relentless Blade, Light Foot, Apothecary, Shadow Blade | 2 belt slots; belt cards cost 1 less mana |
+| **Stephen** | Unbroken attack chains or oversized slow swings; isolated targets and range | The Apex, Sentinel, Ranger, Avenger | weapon swaps cost 1 tempo; +10% off-hand enchantments (others −10%) |
+| **Cory** | Debuffs on wounded enemies; standing inside a pack; one of every card type per cycle | Lurker, Monk, Druid, Atrophist | 2 gauntlet slots; +1 mana when a gauntlet skill comes off cooldown |
+| **Jeremy** | Being at 0 mana / ≤2 cards; rigged % chances; healing allies at his own expense | Evocation, Abjurer, Shepherd, Poltergeist | 3 ring slots; first ring trigger fires twice every 3rd cycle |
 
 All five share the same slot baseline (1 helm, 2 rings, 1 belt, 1 chest, 1 main
-hand, 1 off hand, 1 pair of boots, 1 gauntlet); the table lists each
-character's single deviation from it.
+hand, 1 off hand, 1 pair of boots, 1 gauntlet) and the same 5-card basic deck;
+the table lists each character's single deviation from it. There are no
+character classes and no per-character starter decks: the playstyles come
+from the built-in passives, written up in
+[`CHARACTERS.md`](CHARACTERS.md).
 
 > These are the *player's* avatars, distinct from Olorin (the guide). Whether
 > any of them have story-specific arcs woven into the Acts is `[TBD]`.
