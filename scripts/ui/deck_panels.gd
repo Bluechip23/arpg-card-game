@@ -33,7 +33,7 @@ func setup_panel() -> void:
 	# Main panel
 	panel = PanelContainer.new()
 	panel.name = "DeckListPanel"
-	ui.add_child(panel)
+	main.window_layer().add_child(panel)
 	panel.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
 	panel.offset_left = -280.0
 	panel.offset_top = -250.0
@@ -107,7 +107,7 @@ func setup_panel() -> void:
 	# Card preview popup (shown on hover over deck list entries)
 	_card_preview = PanelContainer.new()
 	_card_preview.name = "DeckListCardPreview"
-	ui.add_child(_card_preview)
+	main.window_layer().add_child(_card_preview)
 	_card_preview.custom_minimum_size = Vector2(180, 0)
 	var preview_style := StyleBoxFlat.new()
 	preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.98)
@@ -218,7 +218,7 @@ func _build_manage_panel() -> void:
 	var ui := main.get_node("UI") as CanvasLayer
 	manage_panel = PanelContainer.new()
 	manage_panel.name = "ManageDeckPanel"
-	ui.add_child(manage_panel)
+	main.window_layer().add_child(manage_panel)
 	manage_panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	manage_panel.custom_minimum_size = Vector2(580, 500)
 	manage_panel.z_index = 250  # above hovered hand cards

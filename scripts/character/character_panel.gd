@@ -338,6 +338,9 @@ func connect_stats(stats: PlayerStats, inv: Inventory, dm = null, bm = null, ddm
 		buff_manager.buffs_changed.connect(_on_stats_changed)
 	if debuff_manager and debuff_manager.has_signal("debuffs_changed"):
 		debuff_manager.debuffs_changed.connect(_on_stats_changed)
+	# Maintained powers are listed with the active effects.
+	if deck_manager and deck_manager.has_signal("maintained_changed"):
+		deck_manager.maintained_changed.connect(_on_stats_changed)
 
 	if inventory:
 		inventory.equipment_changed.connect(_on_equipment_changed)
@@ -357,6 +360,8 @@ func _disconnect_stats() -> void:
 		_drop(buff_manager.buffs_changed, _on_stats_changed)
 	if debuff_manager and debuff_manager.has_signal("debuffs_changed"):
 		_drop(debuff_manager.debuffs_changed, _on_stats_changed)
+	if deck_manager and deck_manager.has_signal("maintained_changed"):
+		_drop(deck_manager.maintained_changed, _on_stats_changed)
 	if inventory:
 		_drop(inventory.equipment_changed, _on_equipment_changed)
 		_drop(inventory.storage_changed, _on_storage_changed)
@@ -702,6 +707,15 @@ func _rebuild_effects_list() -> void:
 		for d in debuff_manager.debuffs:
 			_add_effect_row(d.debuff_name, d.description, Color(1.0, 0.5, 0.5), DEBUFF_AFFECTS.get(d.debuff_name, []))
 			any = true
+	# Maintained powers: an effect the player is paying upkeep on is an active
+	# effect too, so it sits in this list (purple) with its card's icon.
+	if deck_manager and deck_manager.has_method("get_maintained_cards"):
+		for mc in deck_manager.get_maintained_cards():
+			if mc == null:
+				continue
+			var tip := "Maintained — %s\nUpkeep: %d mana held in reserve while it lasts." % [mc.description, mc.maintain_cost]
+			_add_effect_row("%s (maintained)" % mc.card_name, tip, Color(0.8, 0.55, 1.0), [], "", SkillIconArt.card(mc))
+			any = true
 	if not any:
 		var none := Label.new()
 		none.text = "None"
@@ -710,11 +724,11 @@ func _rebuild_effects_list() -> void:
 		_effects_box.add_child(none)
 
 
-func _add_effect_row(eff_name: String, desc: String, colour: Color, affected: Array, icon_key: String = "") -> void:
+func _add_effect_row(eff_name: String, desc: String, colour: Color, affected: Array, icon_key: String = "", icon_tex: Texture2D = null) -> void:
 	var row := HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_STOP
 	row.tooltip_text = desc
-	var tex := StatusIcons.get_icon(icon_key if icon_key != "" else eff_name)
+	var tex: Texture2D = icon_tex if icon_tex != null else StatusIcons.get_icon(icon_key if icon_key != "" else eff_name)
 	if tex:
 		var icon := TextureRect.new()
 		icon.texture = tex

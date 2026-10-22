@@ -12,7 +12,7 @@ signal spawn_enemy_requested(enemy_type: int)
 signal clear_enemies_requested
 signal refill_requested
 signal add_ally_requested(character_name: String)
-signal grant_passive_requested(option)  # SkillTreeData.SkillOption
+signal grant_passive_requested(option, rank: int)  # SkillTreeData.SkillOption, at this rank (1-15)
 signal add_item_requested(item_name: String)
 signal enter_boss_room_requested(interior_id: String)  # Boss Simulator: step into a boss room
 signal leave_boss_room_requested                       # Boss Simulator: back to the arena
@@ -53,6 +53,8 @@ var _active_tab: int = 0  # 0 = Add Card, 1 = Add Passive
 var _card_list: VBoxContainer = null
 var _card_scroll: ScrollContainer = null
 var _passive_list: VBoxContainer = null
+var _passive_rank_row: HBoxContainer = null
+var _passive_rank: SpinBox = null
 var _passive_scroll: ScrollContainer = null
 var _enemy_realm_dd: OptionButton = null
 var _enemy_list: VBoxContainer = null
@@ -218,6 +220,21 @@ func _build_ui() -> void:
 	_card_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_card_list.add_theme_constant_override("separation", 2)
 	_card_scroll.add_child(_card_list)
+
+	# Add Passive: the rank to grant at (1-15) — the passive's real level, so
+	# the tray, tooltips and the effect itself all read it.
+	_passive_rank_row = HBoxContainer.new()
+	var rank_lbl := Label.new()
+	rank_lbl.text = "Rank"
+	rank_lbl.add_theme_font_size_override("font_size", 12)
+	_passive_rank_row.add_child(rank_lbl)
+	_passive_rank = SpinBox.new()
+	_passive_rank.min_value = 1
+	_passive_rank.max_value = PlayerStats.PASSIVE_MAX_LEVEL
+	_passive_rank.value = 1
+	_passive_rank.tooltip_text = "The passive's level when granted (1-%d). Granting again sets it to this rank." % PlayerStats.PASSIVE_MAX_LEVEL
+	_passive_rank_row.add_child(_passive_rank)
+	vbox.add_child(_passive_rank_row)
 
 	# Add Passive list (same slot, shown when the Passive tab is active).
 	_passive_scroll = ScrollContainer.new()
@@ -487,6 +504,8 @@ func _set_tab(tab: int) -> void:
 		_card_scroll.visible = (tab == 0)
 	if _passive_scroll:
 		_passive_scroll.visible = (tab == 1)
+		if _passive_rank_row:
+			_passive_rank_row.visible = (tab == 1)
 	_refresh_active_tab()
 
 
@@ -525,7 +544,7 @@ func _refresh_passive_list() -> void:
 			btn.tooltip_text = opt.description
 			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 			btn.add_theme_font_size_override("font_size", 12)
-			btn.pressed.connect(func(): grant_passive_requested.emit(opt))
+			btn.pressed.connect(func(): grant_passive_requested.emit(opt, int(_passive_rank.value) if _passive_rank else 1))
 			_passive_list.add_child(btn)
 
 

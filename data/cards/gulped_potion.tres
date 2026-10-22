@@ -6,7 +6,7 @@
 script = ExtResource("1_dyysg")
 card_id = "gulped_potion"
 card_name = "Gulped Potion"
-description = "Heal 1, 3 times. Targets: ally, self."
+description = "Heal 1. Sticky 3."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 10

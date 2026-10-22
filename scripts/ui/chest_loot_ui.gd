@@ -51,7 +51,7 @@ func _show_chest_modal(contents: Dictionary, gold_just_claimed: bool = false) ->
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	overlay.gui_input.connect(_on_chest_overlay_input)
 	overlay.z_index = 300  # hovered hand cards raise to 200 — the window stays above them
-	ui.add_child(overlay)
+	main.window_layer().add_child(overlay)
 
 	# Modal panel
 	main._chest_modal = PanelContainer.new()
@@ -194,7 +194,7 @@ func _show_chest_modal(contents: Dictionary, gold_just_claimed: bool = false) ->
 	close_btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	vbox.add_child(close_btn)
 
-	ui.add_child(main._chest_modal)
+	main.window_layer().add_child(main._chest_modal)
 
 	# A card's keywords get their own little window beside the chest so the
 	# player can read what Burden / Sticky / Glut mean before taking it. It
@@ -436,7 +436,7 @@ func _show_pack_results(pack: CardPack, cards: Array) -> void:
 	_style_chest_button(close, Color(0.15, 0.35, 0.2), Color(0.35, 0.7, 0.4))
 	close.pressed.connect(panel.queue_free)
 	vbox.add_child(close)
-	ui.add_child(panel)
+	main.window_layer().add_child(panel)
 
 func _on_chest_overlay_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:

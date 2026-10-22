@@ -282,6 +282,22 @@ var _deck_panels: DeckPanels = DeckPanels.new()
 # The maintained-cards panel. Built here so the status-row icon can bind to
 # it before _ready adds it under Main.
 var _maintained_list: MaintainedList = MaintainedList.new()
+
+## Menu windows (pile viewers, the maintained list, deck panels, loot, the
+## card-confirm box...) live on their own canvas layer ABOVE the HUD, so no
+## HUD piece added later — the passive tray, the status rows — can sit over
+## a window the player is using. The character panel is its own layer (100)
+## and stays above these.
+const WINDOW_LAYER := 50
+var _window_layer: CanvasLayer = null
+
+func window_layer() -> CanvasLayer:
+	if _window_layer == null or not is_instance_valid(_window_layer):
+		_window_layer = CanvasLayer.new()
+		_window_layer.name = "Windows"
+		_window_layer.layer = WINDOW_LAYER
+		add_child(_window_layer)
+	return _window_layer
 var maintained_icon: MaintainedIconUI = null
 var jailed_icon: JailedIconUI = null
 var _mana_reserve_tip: ManaReserveTooltip = null
@@ -1325,19 +1341,27 @@ func _setup_action_buttons() -> void:
 	_attack_button.add_child(atk_row)
 	# Reserve the row's natural width so the content-sized button fits it.
 	_attack_button.custom_minimum_size.x = 118
-	vbox.add_child(_attack_button)
+	_attack_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Auto attack and Raise Shield share one row: the two basic actions side
+	# by side, the shield showing the armor it gives beside its tempo.
+	var attack_row := HBoxContainer.new()
+	attack_row.name = "AttackRow"
+	attack_row.add_theme_constant_override("separation", 4)
+	attack_row.size_flags_horizontal = Control.SIZE_FILL
+	vbox.add_child(attack_row)
+	attack_row.add_child(_attack_button)
 
-	# Block button (middle, only visible if shield equipped)
+	# Raise Shield (only visible while a shield is equipped)
 	_block_button = Button.new()
 	_block_button.name = "BlockButton"
 	_block_button.icon = UIGlyphs.get_glyph("shield")
 	_block_button.text = "5T"
 	_block_button.custom_minimum_size = Vector2(0, 36)
-	_block_button.size_flags_horizontal = Control.SIZE_FILL
+	_block_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_block_button.tooltip_text = "Raise shield to block. Costs 5 tempo."
 	_block_button.pressed.connect(_on_block_pressed)
 	_block_button.visible = false
-	vbox.add_child(_block_button)
+	attack_row.add_child(_block_button)
 
 	# War Rack button (Brad only): swap hands with the gear on his back.
 	_rack_button = Button.new()
@@ -2011,7 +2035,7 @@ func _setup_deck_info_vertical() -> void:
 	_hand_info_vbox = VBoxContainer.new()
 	_hand_info_vbox.add_theme_constant_override("separation", 3)
 	_hand_info_popup.add_child(_hand_info_vbox)
-	ui.add_child(_hand_info_popup)
+	window_layer().add_child(_hand_info_popup)
 
 	# Discard pile — right edge.
 	var disc_wrap := Control.new()
@@ -2616,7 +2640,7 @@ func _update_block_button_visibility() -> void:
 		var shield := inventory.get_equipped_shield()
 		var block_val = shield.armor_bonus if shield.armor_bonus > 0 else 3
 		block_val += inventory.get_two_hand_block_bonus(shield)
-		_block_button.text = "5T"
+		_block_button.text = "+%d  5T" % block_val
 		_block_button.tooltip_text = "Raise %s: +%d Armor. Costs 5 tempo." % [shield.item_name, block_val]
 		_block_button.visible = true
 	else:
@@ -2693,8 +2717,10 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 	vbox.add_child(name_lbl)
 
 	# One compact info line: type · cost · melee/range (dex-proc aware).
-	var preview_mana = card.mana_cost
-	var preview_tempo = card.tempo_cost
+	if card.card_id == DeckManager.GREEDY_CHEESE_ID:
+		card.mana_cost = deck_manager.greedy_cheese_mana()
+	var preview_mana = card.mana_cost + int(deck_manager.greedy_tax(card)["mana"])
+	var preview_tempo = card.tempo_cost + int(deck_manager.greedy_tax(card)["tempo"])
 	var preview_proc := deck_manager.next_attack_half_tempo and card.is_attack()
 	if preview_proc:
 		preview_mana = max(0, preview_mana - deck_manager.next_attack_mana_discount)
@@ -2760,19 +2786,27 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 	var desc_lbl := RichTextLabel.new()
 	desc_lbl.bbcode_enabled = true
 	if card.rng_outcomes_data.size() > 0 and card.has_been_rolled():
-		desc_lbl.text = card.get_colored_description()
+		desc_lbl.text = card.live_sticky_text(card.get_colored_description())
 	else:
-		desc_lbl.text = card.description
+		desc_lbl.text = card.live_sticky_text(card.description)
 	desc_lbl.fit_content = true
 	desc_lbl.scroll_active = false
 	desc_lbl.custom_minimum_size = Vector2(180, 0)
 	desc_lbl.add_theme_font_size_override("normal_font_size", 13)
 	vbox.add_child(desc_lbl)
+	if card.hover_note != "":
+		var note_lbl := Label.new()
+		note_lbl.text = card.hover_note
+		note_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		note_lbl.custom_minimum_size = Vector2(180, 0)
+		note_lbl.add_theme_font_size_override("font_size", 11)
+		note_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+		vbox.add_child(note_lbl)
 
 	# Sticky indicator
 	if card.sticky > 0:
 		var sticky_lbl := Label.new()
-		sticky_lbl.text = "Sticky %d" % card.sticky
+		sticky_lbl.text = "Sticky %d" % card.sticky_uses_left()
 		sticky_lbl.add_theme_font_size_override("font_size", 12)
 		sticky_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
 		vbox.add_child(sticky_lbl)
@@ -3821,14 +3855,22 @@ func _on_sandbox_add_ally(char_name: String) -> void:
 		sandbox_ui.mark_ally_added()
 	add_battle_log("Sandbox: %s joined as your ally! (TAB to switch control)" % char_name, Color(0.5, 1.0, 0.6))
 
-func _on_sandbox_grant_passive(option) -> void:
-	## Grant a skill-tree passive to the ACTIVE player so it can be tested.
+func _on_sandbox_grant_passive(option, rank: int = 1) -> void:
+	## Grant a skill-tree passive to the ACTIVE player at the chosen rank so it
+	## can be tested: the rank is the passive's real level (passive_levels),
+	## which its effect, the passive tray and its tooltip all read.
 	if option == null:
 		return
 	progression_triggers._apply_skill_tree_option(option)
+	var pid: String = option.passive_id if option.passive_id != "" else option.name.to_lower().replace(" ", "_")
+	var stats := player.get_stats()
+	if stats:
+		stats.passive_levels[pid] = clampi(rank, 1, PlayerStats.PASSIVE_MAX_LEVEL)
+		stats.stats_updated.emit()
+	_update_passive_display_ui()
 	if character_panel:
 		character_panel.update_display()
-	add_battle_log("Sandbox: granted passive '%s'." % option.name, Color(0.9, 0.7, 0.2))
+	add_battle_log("Sandbox: granted passive '%s' at rank %d." % [option.name, clampi(rank, 1, PlayerStats.PASSIVE_MAX_LEVEL)], Color(0.9, 0.7, 0.2))
 
 func _on_sandbox_spawn_enemy(enemy_type: int) -> void:
 	## Spawn the chosen enemy on a free tile a few cells in front of the player.
@@ -3878,7 +3920,7 @@ func _ensure_card_confirm_dialog() -> void:
 	var ui := $UI as CanvasLayer
 	_card_confirm_panel = PanelContainer.new()
 	_card_confirm_panel.name = "CardConfirmPanel"
-	ui.add_child(_card_confirm_panel)
+	window_layer().add_child(_card_confirm_panel)
 	var vbox := VBoxContainer.new()
 	_card_confirm_panel.add_child(vbox)
 	_card_confirm_label = Label.new()
@@ -13977,7 +14019,7 @@ func _setup_donation_panel() -> void:
 	var ui := $UI as CanvasLayer
 	_donation_panel = PanelContainer.new()
 	_donation_panel.name = "DonationPanel"
-	ui.add_child(_donation_panel)
+	window_layer().add_child(_donation_panel)
 	_donation_panel.set_anchors_preset(Control.PRESET_CENTER)
 	_donation_panel.offset_left = -180.0
 	_donation_panel.offset_top = -160.0
@@ -15025,7 +15067,7 @@ func _ensure_loot_menu() -> void:
 	_loot_menu = PanelContainer.new()
 	_loot_menu.name = "LootMenu"
 	_loot_menu.z_index = 250
-	ui.add_child(_loot_menu)
+	window_layer().add_child(_loot_menu)
 	# Dead centre of the screen, growing outward from the middle.
 	_loot_menu.set_anchors_preset(Control.PRESET_CENTER)
 	_loot_menu.offset_left = -150.0
@@ -15303,7 +15345,7 @@ func _ensure_loot_tooltip() -> void:
 	_loot_tooltip_label.add_theme_font_size_override("font_size", 14)
 	_loot_tooltip_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.55))
 	_loot_tooltip.add_child(_loot_tooltip_label)
-	ui.add_child(_loot_tooltip)
+	window_layer().add_child(_loot_tooltip)
 
 func _collect_loot(loot: Dictionary, looter: Player) -> void:
 	## Apply a loot bundle to the player who picked it up.

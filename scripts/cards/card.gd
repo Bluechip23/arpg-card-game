@@ -474,6 +474,9 @@ var premeditated_target = null  # The enemy whose Premeditated bonus this play a
 @export var is_fire_spell: bool = false  # Counts toward Fireball's per-turn fire-spell mana discount
 @export var linger: bool = false  # If true, status card can exceed hand size limit when added
 @export var shop_excluded: bool = false  # If true, the card never appears in the Card Dealer's shop (item-generated cards like Sprinkle)
+## Extra text shown only in the hover preview, never on the card face — the
+## why/when of a card the face has no room for (Heavy Greedy Cheese).
+@export var hover_note: String = ""
 @export var erase_on_play: bool = false  # If true, card is erased from the deck entirely the moment it's played (not discarded). Same "erase" concept as erase_tempo, just triggered on play instead of on a timer.
 @export var held_damage_per_cycle: int = 0  # Djinn Wish: sears the holder this much every cycle it sits in hand (ticked by DeckManager.process_turn)
 @export var hatch_tempo: int = 0  # Rat King's Infest: > 0 means the card hatches after this many tempo HELD IN HAND (DeckManager.tick_temp_mods counts it down; playing or discarding it cancels the hatch)
@@ -866,6 +869,7 @@ func get_display_description(effective: Dictionary) -> String:
 	var text := description
 	if rng_outcomes_data.size() > 0 and has_been_rolled():
 		text = get_colored_description()
+	text = live_sticky_text(text)
 	if effective.is_empty():
 		return text
 	for kind in ["damage", "block", "heal"]:
@@ -874,6 +878,23 @@ func get_display_description(effective: Dictionary) -> String:
 				and effective[kind] != effective[base_key]:
 			text = _sub_number(text, effective[base_key], effective[kind], kind)
 	return text
+
+## Sticky uses left right now (the printed count minus the uses spent since
+## the card was drawn).
+func sticky_uses_left() -> int:
+	return maxi(0, sticky - consecutive_uses)
+
+static var _sticky_re: RegEx = null
+
+## "Sticky 3" in a description reads the uses LEFT, so the face counts down
+## as the card is reused (Gulped Potion: Sticky 3 → 2 → 1).
+func live_sticky_text(text: String) -> String:
+	if sticky <= 0 or consecutive_uses <= 0:
+		return text
+	if _sticky_re == null:
+		_sticky_re = RegEx.new()
+		_sticky_re.compile("(?i)(sticky\\s+)\\d+")
+	return _sticky_re.sub(text, "${1}%d" % sticky_uses_left())
 
 ## Words that identify which number in a description belongs to which stat,
 ## so two stats sharing the same base value (e.g. Fortify Alliance's 5 heal

@@ -121,7 +121,7 @@ const DEFS := {
 		"health": 6,
 		"armor": 0,
 		"damage": 2,
-		"range": 4.0,  # Ranged attacker
+		"range": 6.0,  # Ranged attacker: shoots from 3 to 6 tiles (designer, 2026-10-21)
 		"move": 2.0,  # Moves 2 tiles when repositioning
 		"xp": 4,
 		"color": Color(0.6, 0.4, 0.25),  # Light brown

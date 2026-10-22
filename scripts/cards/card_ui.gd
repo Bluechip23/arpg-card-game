@@ -51,6 +51,7 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 
 	if name_label:
 		name_label.text = card.card_name
+		_fit_name()
 
 	if type_label:
 		type_label.text = card.card_type_name
@@ -483,6 +484,42 @@ func _update_description() -> void:
 	if value_provider.is_valid():
 		effective = value_provider.call(_card)
 	desc_label.text = _card.get_display_description(effective)
+	_fit_description()
+
+## Long card text shrinks to fit the face instead of spilling off it: the
+## description steps down from its normal 11 to as small as 7, the name from
+## 13 to 9, until the text fits its box.
+const DESC_FONT_MAX := 11
+const DESC_FONT_MIN := 7
+const DESC_BOX := Vector2(122, 76)   # the description area inside a 150x210 face
+const NAME_FONT_MAX := 13
+const NAME_FONT_MIN := 9
+const NAME_WIDTH := 86               # the name's share of the title bar beside the cost
+
+func _fit_description() -> void:
+	if not desc_label:
+		return
+	var font: Font = desc_label.get_theme_font("normal_font")
+	if font == null:
+		return
+	var plain: String = desc_label.get_parsed_text()
+	var width: float = desc_label.size.x if desc_label.size.x > 40.0 else DESC_BOX.x
+	var fs := DESC_FONT_MAX
+	while fs > DESC_FONT_MIN and font.get_multiline_string_size(plain, HORIZONTAL_ALIGNMENT_LEFT, width, fs).y > DESC_BOX.y:
+		fs -= 1
+	desc_label.add_theme_font_size_override("normal_font_size", fs)
+	desc_label.add_theme_font_size_override("bold_font_size", fs)
+
+func _fit_name() -> void:
+	if not name_label:
+		return
+	var font: Font = name_label.get_theme_font("font")
+	if font == null:
+		return
+	var fs := NAME_FONT_MAX
+	while fs > NAME_FONT_MIN and font.get_string_size(name_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > NAME_WIDTH:
+		fs -= 1
+	name_label.add_theme_font_size_override("font_size", fs)
 
 func update_chance_display() -> void:
 	# Called when RNG re-rolls happen - update the description colors

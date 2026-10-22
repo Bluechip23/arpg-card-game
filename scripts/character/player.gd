@@ -304,8 +304,16 @@ func calculate_path_to(target_pos: Vector3) -> Array[Vector3]:
 
 	return path
 
+## A fallen (0 HP) character stays where they fell until they rise — in
+## normal play, test mode and co-op alike.
+func is_fallen() -> bool:
+	return stats != null and stats.current_health <= 0
+
 func move_to_grid(target_pos: Vector3, spaces: int) -> bool:
 	if is_moving:
+		return false
+	if is_fallen():
+		print("[PLAYER] Fallen — cannot move")
 		return false
 
 	if not debuff_manager.can_move():
@@ -376,7 +384,7 @@ func preview_path_cells(target_pos: Vector3, spaces: int) -> Array[Vector2i]:
 	## cursor sits on the tile they already stand on.
 	if not grid_manager:
 		return []
-	if not debuff_manager.can_move() or _is_webbed():
+	if not debuff_manager.can_move() or _is_webbed() or is_fallen():
 		return []
 	var path := calculate_path_to(grid_manager.snap_to_grid(target_pos))
 	var budget: int = spaces + buff_manager.get_haste_bonus()

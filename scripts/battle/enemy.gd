@@ -1147,7 +1147,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WERERAT: "Fast and evasive (8 HP, 3 dmg).\nAt range ≤1: Bites.\nAt range ≥6: Scurries 5 tiles toward you.\nOtherwise: Moves toward player.",
 		EnemyType.SKELETON: "Has armor that must be broken.\nAt range ≤1: Attacks.\nOtherwise: Moves toward player.",
 		EnemyType.ARMORED_TROLL: "Regenerates 3 HP every 6 global tempo. Resists 30% physical / 15% fire / 15% lightning.\nAt range ≤1: 60% Smash (5 tempo, 14 dmg + Lightly Dazed card) / 40% Kick (3 tempo, 6 dmg).\nMove (4 tempo): 2 spaces.",
-		EnemyType.ARCHER_RAT: "Ranged attacker (range 4).\nAt range ≤2: Scurries 5 tiles away.\nAt range 3-4: Shoots for 2 damage.\nAt range >4: Moves 2 tiles closer.",
+		EnemyType.ARCHER_RAT: "Ranged attacker (range 6).\nAt range ≤2: Scurries 5 tiles away.\nAt range 3-6: Shoots for 2 damage.\nAt range >6: Moves 2 tiles closer.",
 		EnemyType.HYDRA: "Resists 25% physical / fire / lightning. Grows stronger with every hit she takes, whoever or whatever lands it: +2 strength per hit. On the 4th hit she also gains +40 max HP and unlocks Heal.\nStrike (8 tempo): 7 + strength damage.\nMove (6 tempo): 3 spaces.\nHeal (5 tempo): heals to full (after the 4th hit).",
 		EnemyType.FIRE_GOBLIN_SOLDIER: "Melee rusher (range 0).\nAttack (3 tempo): 2 damage.\nMove (2 tempo): 4 spaces.",
 		EnemyType.FIRE_GOBLIN_MAGE: "Ranged caster (range 4).\nEmber (4 tempo): 7 damage + 1 burn.\nMove (3 tempo): 2 spaces.",
@@ -2402,11 +2402,11 @@ func _choose_archer_rat_action(distance: int) -> void:
 	if distance <= 2:
 		# Too close! Scurry away to get distance
 		chosen_action = _get_action("scurry_away")
-	elif distance > 4:
+	elif distance > int(attack_range):
 		# Out of range - move closer
 		chosen_action = _get_action("get_into_range")
 	else:
-		# In range (3-4 tiles) - shoot!
+		# In range (3 to attack_range tiles) - shoot!
 		chosen_action = _get_action("shoot")
 
 func _at_perch() -> bool:
@@ -5117,7 +5117,7 @@ func _try_smash(target_node: Node3D) -> bool:
 	return _try_move(target_node)
 
 func _try_shoot(target_node: Node3D) -> bool:
-	## Archer Rat: Ranged attack at range 4.
+	## Archer Rat: ranged attack out to its attack_range (6).
 	if is_disarmed:
 		print("[%s] Disarmed - cannot shoot!" % enemy_name)
 		return _try_get_into_range(target_node)
