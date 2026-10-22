@@ -69,11 +69,41 @@ FRAMES = {
         "back": [(0, 1)],
         "side": [(1, 0), (1, 1)],
         "side_faces": "right",
+        "key_all": True,   # slate gaps between the blood drips
+        # Slate walled in by the weapon's spiked head and its drips, in the
+        # two side frames (x0, y0, x1, y1 in cell pixels).
+        "clear": {(1, 0): [(108, 104, 163, 158)], (1, 1): [(118, 106, 164, 158)]},
     },
 }
 
 
-def cut_cell(img: np.ndarray, r: int, c: int) -> np.ndarray:
+def _is_blood(px: np.ndarray) -> np.ndarray:
+    r, g, b = px[..., 0], px[..., 1], px[..., 2]
+    return (r > 45) & (r > g * 1.6) & (r > b * 1.6)
+
+
+def _blood_gaps(cell: np.ndarray, slate: np.ndarray, reach: int = 7) -> np.ndarray:
+    """Panel showing between blood drips under a weapon. Colour alone cannot
+    find it (the archangel's robe shadow IS the panel slate) and the gaps run
+    into that shadow, so the rule is spatial: a slate pixel with blood on BOTH
+    sides of it in its row, within `reach` pixels, is a gap between two drips.
+    A robe shadow never has blood on both sides."""
+    blood = _is_blood(cell)
+    h, w = slate.shape
+    left = np.zeros((h, w), bool)
+    right = np.zeros((h, w), bool)
+    for k in range(1, reach + 1):
+        left[:, k:] |= blood[:, :-k]
+        right[:, :-k] |= blood[:, k:]
+    gaps = slate & left & right
+    # Columns between drips run down to the pool: carry a gap down through
+    # slate, so a drip's lower, thinner end does not leave a slate stub.
+    for y in range(1, h):
+        gaps[y] |= gaps[y - 1] & slate[y] & (left[y] | right[y])
+    return gaps
+
+
+def cut_cell(img: np.ndarray, r: int, c: int, key_all: bool = False, clear_boxes=None) -> np.ndarray:
     x0, x1 = ROWS_X[r][c]
     y0, y1 = ROWS_Y[r]
     cell = img[y0 + INSET:y1 - INSET, x0 + INSET:x1 - INSET].astype(float)
@@ -100,6 +130,16 @@ def cut_cell(img: np.ndarray, r: int, c: int) -> np.ndarray:
             if 0 <= ny < h and 0 <= nx < w and near[ny, nx] and not panel[ny, nx]:
                 panel[ny, nx] = True
                 q.append((ny, nx))
+    if key_all:
+        loose = np.sqrt(((cell - bg) ** 2).sum(-1)) < BG_TOL * 1.6
+        panel |= _blood_gaps(cell, loose & ~panel)
+    for (bx0, by0, bx1, by1) in (clear_boxes or []):
+        # A hand-marked area (cell coordinates) where every slate pixel is
+        # panel: the slate caught behind the archangel's spiked weapon head.
+        loose = np.sqrt(((cell - bg) ** 2).sum(-1)) < BG_TOL * 1.6
+        box = np.zeros((h, w), bool)
+        box[by0:by1, bx0:bx1] = True
+        panel |= loose & box
     rgba = np.zeros((h, w, 4), float)
     rgba[..., :3] = cell
     rgba[..., 3] = (~panel).astype(float)
@@ -128,7 +168,8 @@ def build(boss: str) -> None:
     img = np.array(Image.open(SRC % boss).convert("RGB"))
     frames = {}
     for d in ("front", "back", "side"):
-        frames[d] = [trim(downscale(cut_cell(img, r, c))) for r, c in spec[d]]
+        frames[d] = [trim(downscale(cut_cell(img, r, c, spec.get("key_all", False),
+            spec.get("clear", {}).get((r, c))))) for r, c in spec[d]]
     if spec["side_faces"] == "right":
         right = frames["side"]
         left = [f[:, ::-1] for f in right]
