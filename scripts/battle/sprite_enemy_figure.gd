@@ -111,7 +111,7 @@ const KINDS := {
 	"grave_titan": {"cp": "golem/Golem2", "scale": 1.35, "tint": Color(0.9, 0.92, 0.88)},
 	"inflamed_minotaur": {"tex": "inflamed_minotaur", "scale": 0.75},  # the designer's painting, cut out (tools/cut_minotaur.gd); a 173x130 cell
 	"demon": {"cp": "demons/Demon1", "scale": 0.85},
-	"pit_fiend": {"cp": "demons/Demon3"},
+	"pit_fiend": {"sheets": BOSSES + "/pit_fiend", "scale": 1.3},  # the designer's board (tools/cut_pit_fiend.py): stills, walks, tail-sweep attack
 	"bugbear": {"cp": "gnolls/Gnoll2", "scale": 1.2},
 	"ifrit": {"icon": "chaos_monsters/Icon47", "faces": "front", "scale": 2.0},  # the living flame
 	"snow_wraith": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},

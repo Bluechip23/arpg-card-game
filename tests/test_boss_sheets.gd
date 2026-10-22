@@ -43,7 +43,7 @@ func _run() -> void:
 	for _i in range(6):
 		await process_frame
 	var x := 2.0
-	for t in [Enemy.EnemyType.RAT_KING, Enemy.EnemyType.CERBERUS, Enemy.EnemyType.CORRUPTED_ARCHANGEL]:
+	for t in [Enemy.EnemyType.RAT_KING, Enemy.EnemyType.CERBERUS, Enemy.EnemyType.CORRUPTED_ARCHANGEL, Enemy.EnemyType.PIT_FIEND]:
 		var en: Enemy = main.enemy_spawner.spawn_enemy(t, main.player.position + Vector3(x, 0, 0))
 		x += 2.0
 		await process_frame
@@ -60,6 +60,13 @@ func _run() -> void:
 	_check(arf._sprite.texture != idle_tex and arf._sprite.texture == arf._cp_sheets["Walk"], "Archer Rat drops to all fours to move")
 	arf.set_walking(false)
 	_check(arf._sprite.texture == arf._cp_sheets["Idle"], "and stands on its hind legs when still")
+
+	# The Pit Fiend swings its tail: a real Attack sheet.
+	var pf: Enemy = null
+	for e in main.enemy_spawner.get_living_enemies():
+		if e.enemy_type == Enemy.EnemyType.PIT_FIEND:
+			pf = e
+	_check(pf != null and pf._enemy_figure._cp_sheets.has("Attack"), "Pit Fiend has its tail-sweep attack")
 
 	var hades := SpriteEnemyFigure.new()
 	hades.setup("hades")
