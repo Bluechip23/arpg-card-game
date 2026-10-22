@@ -60,3 +60,33 @@ func _process(delta: float) -> void:
 	_i = (_i + int(_acc)) % LOOP.size()
 	_acc -= floorf(_acc)
 	frame = FACING_ROW * COLS + LOOP[_i]
+
+## A short flame burst over a burning unit's head (an enemy's burn tick):
+## the same pack flame, small, flaring up and fading in about half a second,
+## then freeing itself. Deterministic (no RNG), so a tick never shifts the
+## combat dice.
+static func burst(parent: Node, world_pos: Vector3, scale_mul: float = 0.55) -> Sprite3D:
+	var s: Sprite3D = load(SELF_PATH).new()
+	s.texture = load(SHEET)
+	s.hframes = COLS
+	s.vframes = ROWS
+	s.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	s.shaded = false
+	s.no_depth_test = true
+	s.render_priority = 40
+	s.pixel_size = 0.03125
+	s.centered = false
+	s.offset = Vector2(-BASE_X, -BASE_Y)
+	s.fps = 14.0
+	s._i = 0
+	s.frame = FACING_ROW * COLS + LOOP[0]
+	s.position = world_pos
+	s.scale = Vector3.ONE * (0.25 * scale_mul)
+	parent.add_child(s)
+	var tw := s.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tw.tween_property(s, "scale", Vector3.ONE * scale_mul, 0.16)
+	tw.tween_interval(0.2)
+	tw.tween_property(s, "modulate:a", 0.0, 0.3)
+	tw.tween_callback(s.queue_free)
+	return s

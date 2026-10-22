@@ -15,4 +15,4 @@ card_slots = 2
 vanilla_slots = 1
 on_self_damage = 2
 on_self_apply_burn = 1
-description = "+3 DEX, +1 AGI. 2 card slots. On-self: +2 damage and apply 1 Burn."
+description = "+3 DEX, +1 AGI. 2 card slots. On-self: offensive cards deal +2 damage and, on a hit, apply 1 Burn."

@@ -13,4 +13,4 @@ card_slots = 1
 vanilla_slots = 2
 on_self_weakened_damage_percent = 25.0
 attack_speed_threshold_bonus = 5
-description = "Attack-speed procs take 5 more swings — she is HEAVY. On-self: +25% damage to Weakened enemies (on top of Weaken itself). Grants Earth Rattle: smash the ground — 40 damage in a 3-square quake; enemies hit are Slowed 2 and Weakened 2 (60 mana, 6 tempo)."
+description = "Attack-speed procs take 5 more swings — she is HEAVY. On-self: offensive cards deal +25% damage to Weakened enemies (on top of Weaken itself). Grants Earth Rattle: smash the ground — 40 damage in a 3-square quake; enemies hit are Slowed 2 and Weakened 2 (60 mana, 6 tempo)."

@@ -12,4 +12,4 @@ dexterity_bonus = 1
 agility_bonus = 1
 card_slots = 2
 on_self_range_offensive = 1
-description = "+1 AGI, +1 DEX. 2 card slots. On-self: +1 range."
+description = "+1 AGI, +1 DEX. 2 card slots. On-self: offensive cards gain +1 range."

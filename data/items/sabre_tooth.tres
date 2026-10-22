@@ -15,6 +15,6 @@ card_slots = 1
 vanilla_slots = 3
 same_target_bleed = 5
 on_self_apply_bleed = 5
-description = "+10 DEX, +5 AGI, +3 DET. On-self: apply 5 Bleed. Striking the same target twice in a row ticks the attack-speed counter an extra time and inflicts 5 Bleed."
+description = "+10 DEX, +5 AGI, +3 DET. On-self: offensive cards that hit apply 5 Bleed. Striking the same target twice in a row ticks the attack-speed counter an extra time and inflicts 5 Bleed."
 appearance = "A khatar with a sabertooth tiger head where the hand grip is, and a giant sabertooth tooth as the blade."
 appearance_icon = "res://assets/items/mythic/sabre_tooth.png"

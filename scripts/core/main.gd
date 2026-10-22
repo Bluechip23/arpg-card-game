@@ -180,6 +180,7 @@ var _battle_log_toggle_btn: Button = null
 var _battle_log_minimized: bool = false
 const BATTLE_LOG_MAX_LINES: int = 50
 
+const OnSelfRulesScript = preload("res://scripts/progression/on_self_rules.gd")
 const GauntletSkillUIScene = preload("res://scenes/cards/gauntlet_skill_ui.tscn")
 const CardUIScene = preload("res://scenes/cards/card_ui.tscn")
 # Preloaded so main.gd doesn't depend on these newer class_names being present
@@ -2813,45 +2814,37 @@ func _on_hand_card_hovered(card: Card, card_ui: CardUI) -> void:
 
 	_append_keyword_tooltips(vbox, card)
 
-	# On Self section for slotted cards
+	# On Self section for slotted cards: every rider the slot grants, each
+	# marked live or not for THIS card with the kind of card it needs
+	# (OnSelfRules — the same table the item audit reads).
 	if card.is_slotted():
 		var on_self := card.get_on_self_bonus()
-		var on_self_parts: Array[String] = []
-		if on_self.get("damage", 0) > 0:
-			on_self_parts.append("+%d Damage" % on_self["damage"])
-		if on_self.get("block", 0) > 0:
-			on_self_parts.append("+%d Block" % on_self["block"])
-		if on_self.get("heal", 0) > 0:
-			on_self_parts.append("+%d Heal" % on_self["heal"])
-		if on_self.get("mana_reduction", 0) > 0:
-			on_self_parts.append("-%d Mana Cost" % on_self["mana_reduction"])
-		if on_self.get("apply_burn", false):
-			on_self_parts.append("Apply Burn")
-		if on_self.get("apply_cold", false):
-			on_self_parts.append("Apply Cold")
-		if on_self.get("thorns", 0) > 0:
-			on_self_parts.append("+%d Thorns" % on_self["thorns"])
+		var riders: Array = OnSelfRulesScript.describe(on_self, card)
 		var on_self_sep := HSeparator.new()
 		vbox.add_child(on_self_sep)
 		var on_self_header := Label.new()
-		on_self_header.text = "\u2234 On Self"
+		on_self_header.text = "\u2234 On Self" + (" (vanilla slot)" if card.slotted_in_item.is_vanilla_slot(card) else "")
 		on_self_header.add_theme_font_size_override("font_size", 13)
 		on_self_header.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
 		vbox.add_child(on_self_header)
-		if on_self_parts.size() > 0:
-			var on_self_lbl := Label.new()
-			on_self_lbl.text = ", ".join(on_self_parts)
-			on_self_lbl.add_theme_font_size_override("font_size", 12)
-			on_self_lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
-			on_self_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			on_self_lbl.custom_minimum_size.x = 180
-			vbox.add_child(on_self_lbl)
-		else:
+		if riders.is_empty():
 			var none_lbl := Label.new()
-			none_lbl.text = "No bonuses"
+			none_lbl.text = "No bonus — a vanilla slot holds the card only." if card.slotted_in_item.is_vanilla_slot(card) else "No bonuses"
 			none_lbl.add_theme_font_size_override("font_size", 12)
 			none_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
 			vbox.add_child(none_lbl)
+		for rd in riders:
+			var rl := Label.new()
+			if rd["applies"]:
+				rl.text = "\u2713 " + str(rd["text"])
+				rl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+			else:
+				rl.text = "\u2717 %s — needs %s" % [rd["text"], OnSelfRulesScript.KIND_TEXT.get(rd["wants"], rd["wants"])]
+				rl.add_theme_color_override("font_color", Color(0.55, 0.55, 0.62))
+			rl.add_theme_font_size_override("font_size", 12)
+			rl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			rl.custom_minimum_size.x = 180
+			vbox.add_child(rl)
 		var item_lbl := Label.new()
 		item_lbl.text = "Slotted in: %s" % card.slotted_in_item.item_name
 		item_lbl.add_theme_font_size_override("font_size", 11)
@@ -7372,7 +7365,12 @@ func _ally_display_name(a) -> String:
 ## discard comes first so the draw can land; with no other card in hand
 ## there is nothing separate to discard and the draw stands alone.
 func _on_player_entered_invisibility() -> void:
-	if deck_manager == null or deck_manager.draw_pile.is_empty():
+	if deck_manager == null:
+		return
+	# Like every draw: an empty draw pile takes the whole discard back first.
+	if deck_manager.draw_pile.is_empty():
+		deck_manager.shuffle_discard_into_draw()
+	if deck_manager.draw_pile.is_empty():
 		return
 	if deck_manager.debuff_manager and deck_manager.debuff_manager.has_method("is_lost") and deck_manager.debuff_manager.is_lost():
 		return
@@ -10287,10 +10285,21 @@ func _shield_on_self_world_effects(card: Card, target) -> void:
 		return
 	var osb := card.get_on_self_bonus()
 	var shove: int = int(osb.get("knockback", 0))
-	if shove > 0 and target != null and is_instance_valid(target) and target.has_method("knockback"):
+	if shove > 0 and target != null and is_instance_valid(target) and target.has_method("knockback") \
+			and "enemy_name" in target:
 		target.knockback(player.position, shove)
-		add_battle_log("%s: %s is shoved back %d" % [card.slotted_in_item.item_name,
-			target.enemy_name if "enemy_name" in target else "the target", shove], Color(0.8, 0.75, 0.6))
+		add_battle_log("%s: %s is shoved back %d" % [card.slotted_in_item.item_name, target.enemy_name, shove], Color(0.8, 0.75, 0.6))
+	elif shove > 0:
+		# A card with no enemy target (a block, a self-buff — Tower Shield):
+		# the shield bash shoves every enemy standing next to you instead.
+		var shoved := 0
+		for e in enemy_spawner.get_living_enemies():
+			if grid_manager.get_distance_in_cells(player.position, e.position) <= 1 and e.has_method("knockback"):
+				e.knockback(player.position, shove)
+				shoved += 1
+		if shoved > 0:
+			add_battle_log("%s: %d adjacent enem%s shoved back %d" % [card.slotted_in_item.item_name, shoved,
+				"y" if shoved == 1 else "ies", shove], Color(0.8, 0.75, 0.6))
 	var owed: int = int(osb.get("discard", 0))
 	if owed > 0:
 		_pick_slot_discard(owed, card.slotted_in_item.item_name)
@@ -15292,12 +15301,22 @@ func _update_loot_hover() -> void:
 		if _loot_tooltip:
 			_loot_tooltip.visible = false
 		return
+	# An enemy standing on a loot pile takes precedence: the bag hides under
+	# it (so the tile reads as the enemy, not as loot) and its tooltip stays
+	# shut; both come back the moment the tile is clear again.
+	var enemy_cells := {}
+	for e in enemy_spawner.get_living_enemies():
+		enemy_cells[grid_manager.world_to_grid(e.position)] = true
+	for entry in _loot_drops:
+		var node = entry.get("node")
+		if node and is_instance_valid(node):
+			node.visible = not enemy_cells.has(entry["cell"])
 	var mouse_world := get_mouse_world_position()
 	var hovered: Dictionary = {}
 	if mouse_world != Vector3.ZERO:
 		var cell: Vector2i = grid_manager.world_to_grid(mouse_world)
 		for entry in _loot_drops:
-			if entry["cell"] == cell:
+			if entry["cell"] == cell and not enemy_cells.has(cell):
 				hovered = entry
 				break
 	if hovered.is_empty():

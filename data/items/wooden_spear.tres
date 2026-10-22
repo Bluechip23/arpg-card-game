@@ -13,4 +13,4 @@ weapon_subtype = 4
 card_slots = 1
 vanilla_slots = 1
 on_self_apply_bleed = 1
-description = "+3 WIS, +3 STR, +1 DEX. On-self: apply 1 Bleed."
+description = "+3 WIS, +3 STR, +1 DEX. On-self: offensive cards that hit apply 1 Bleed."

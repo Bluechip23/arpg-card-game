@@ -14,4 +14,4 @@ wisdom_bonus = 2
 card_slots = 3
 vanilla_slots = 1
 on_self_target_aoe_damage = 2
-description = "+5 INT, +2 WIS. On-self: an AOE explosive deals 2 damage around the target (allies unharmed)."
+description = "+5 INT, +2 WIS. On-self: a card aimed at an enemy detonates for 2 damage around its target (allies unharmed)."
