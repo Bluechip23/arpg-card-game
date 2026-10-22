@@ -108,7 +108,7 @@ func _update_title_for_mode() -> void:
 		_update_multiplayer_title()
 	else:
 		title_label.text = "Choose Your Character"
-		subtitle_label.text = "Each character brings a unique playstyle, passive, and starting equipment.\nNote: the archetypes are character guidelines. You will not be forced to follow any one path and will obtain options from all paths mixing and matching as you please."
+		subtitle_label.text = "Each character brings a unique playstyle, passive, and equipment slots.\nNote: the archetypes are character guidelines. You will not be forced to follow any one path and will obtain options from all paths mixing and matching as you please."
 
 func _update_multiplayer_title() -> void:
 	if _selecting_player == 1:

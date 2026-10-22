@@ -285,7 +285,7 @@ func _build_manage_panel() -> void:
 	right_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	columns.add_child(right_box)
 	var right_title := Label.new()
-	right_title.text = "Cards on you — click to add (to discard)"
+	right_title.text = "Cards on you — click to add (into the draw pile)"
 	right_title.add_theme_font_size_override("font_size", 13)
 	right_title.add_theme_color_override("font_color", Color(0.4, 1.0, 0.5))
 	right_box.add_child(right_title)
@@ -409,7 +409,7 @@ func _on_manage_add_pressed(index: int) -> void:
 	if card == null:
 		return
 	if inv.add_card_to_deck(index, main.deck_manager):
-		main.add_battle_log("Added %s to your discard pile." % card.card_name, Color(0.4, 1.0, 0.5))
+		main.add_battle_log("Added %s to your deck (shuffled into the draw pile)." % card.card_name, Color(0.4, 1.0, 0.5))
 		main.update_deck_info()
 		if _showing:
 			_populate()

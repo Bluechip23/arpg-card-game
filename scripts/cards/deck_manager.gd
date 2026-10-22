@@ -235,22 +235,21 @@ func restore_deck_state(state: Dictionary) -> void:
 ## after deck builds and restores, so purchases and old saves migrate too).
 ## Base deck cap. Cards slotted into (or granted by) items ride along with
 ## their item and do NOT count toward it — they can push the deck past the cap
-## (12 deck cards + an engraved card in your boots = 13 in play, and that is
-## fine). Adding a 13th card DIRECTLY is what the cap refuses. The base deck
+## (8 deck cards + an engraved card in your boots = 9 in play, and that is
+## fine). Adding a 9th card DIRECTLY is what the cap refuses. The base deck
 ## is deliberately small: item card slots are where a build's extra cards
 ## live, so gear shapes the deck (a belt-heavy character carries more
-## daggers and potions than the 12 alone would allow).
+## daggers and potions than the 8 alone would allow). Slotted cards still
+## count toward MAX_TOTAL_DECK_SIZE below.
 const MAX_DECK_SIZE := 8
 
 func get_max_deck_size() -> int:
 	return MAX_DECK_SIZE
 
-## The basic deck every character starts with: 3 attacks, 3 blocks, 2 draws,
-## 1 energy, 1 heal — 10 cards, two under the cap. Single source of truth for
-## the deck builder and the town's card dealer.
 ## The starting deck (2026-10-20): five cards — an attack, an attack that also
 ## exposes, a block, a block that also draws, and a heal. The build comes from
-## gear: cards slotted into items ride beyond the 8-card base cap.
+## gear: cards slotted into items ride beyond the 8-card base cap. Single
+## source of truth for the deck builder and the town's card dealer.
 const BASIC_DECK_IDS := ["slash", "exposing_strike", "block", "braced_draw", "heal"]
 
 ## Cards counting toward the cap: everything in the deck piles no item owns.
@@ -574,7 +573,7 @@ func handle_overflow() -> void:
 ## call: it logs each adjustment and records a percent-mana price on the
 ## card. Anything else (a preview, the simulator) asks quietly.
 func compute_play_cost(card: Card, index: int, target = null, debuff_mgr = null, commit: bool = false) -> Dictionary:
-	var mana_cost = card.get_burden_mana_cost()  # Burden: +1m per prior play
+	var mana_cost = card.get_burden_mana_cost()  # Burden: +10 mana per prior play
 	# Heavy Greedy Cheese's own price scales with the mana pool.
 	if card.card_id == GREEDY_CHEESE_ID:
 		mana_cost = greedy_cheese_mana()
@@ -626,10 +625,10 @@ func compute_play_cost(card: Card, index: int, target = null, debuff_mgr = null,
 		mana_cost -= prep_utility_discount
 		if commit: print("[DECK] Preparation discount: -%d mana (%d charges left)" % [prep_utility_discount, prep_utility_charges])
 
-	# Fireball synergy: -10 mana for each OTHER fire spell already cast this turn.
+	# Fireball synergy: -10 mana for each OTHER fire spell already cast this cycle.
 	if card.is_fire_spell and fire_spells_this_turn > 0:
 		mana_cost -= fire_spells_this_turn * 10
-		if commit: print("[DECK] Fire synergy: -%d mana (%d fire spell(s) this turn)" % [fire_spells_this_turn * 10, fire_spells_this_turn])
+		if commit: print("[DECK] Fire synergy: -%d mana (%d fire spell(s) this cycle)" % [fire_spells_this_turn * 10, fire_spells_this_turn])
 
 	if debuff_mgr:
 		if card.card_type == Card.CardType.ATTACK:
@@ -821,7 +820,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		health_paid += arash_life_cost
 		print("[DECK] %s: paid %d life (Bow of Arash)" % [card.card_name, arash_life_cost])
 
-	# Count this fire spell so the next one this turn is cheaper.
+	# Count this fire spell so the next one this cycle is cheaper.
 	if card.is_fire_spell:
 		fire_spells_this_turn += 1
 

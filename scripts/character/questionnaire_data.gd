@@ -221,10 +221,10 @@ static func get_questions() -> Array[Dictionary]:
 static func _get_archetype_passive() -> Dictionary:
 	return {
 		Archetype.WARRIOR: "Chest items weigh 20% less",               # Brad
-		Archetype.ROGUE: "Belt cards cost 1 less mana",                # Ryan
+		Archetype.ROGUE: "Belt cards cost 10 less mana",                # Ryan
 		Archetype.MAGE: "Every 3rd cycle, the first ring trigger triggers twice",  # Jeremy
 		Archetype.ARCHER: "+10% off-hand enchantments (others get -10%)",  # Stephen
-		Archetype.MONK: "Gain 1 mana when gauntlet skill comes off cooldown",  # Cory
+		Archetype.MONK: "Gain 10 mana when gauntlet skill comes off cooldown",  # Cory
 	}
 
 static func _get_archetype_slot_specialty() -> Dictionary:

@@ -91,7 +91,7 @@ Playable cards come in four roles. A card can be more than one at once (a spell 
 [color=dodgerblue]Defensive:[/color] Protective cards that grant armor or block
 [color=green]Utility:[/color] Support cards for draw, healing, buffs, movement, etc.
 [color=green]Power:[/color] Generally requiring Maintain, these cards act as passives as long as you have the resources to maintain them.
-[color=yellow]Instant:[/color] Never played by hand — fires automatically from your hand when its trigger happens (e.g., on damage taken). Costs 0 mana and 0 tempo
+[color=yellow]Instant:[/color] Never played by hand — fires automatically from your hand when its trigger happens (e.g., on damage taken). Costs 0 mana, and no tempo unless the card shows one
 [color=gray]Unplayable:[/color] Cannot be played. Takes up a hand slot if card is designated by Linger. If not, character can have an infinite amount of the Unplayable card + a standard hand.
 [color=gray]Enchantment:[/color] Cannot be played. Gives a passive buff while it sits in your hand, then discards itself after 2 cycles
 

@@ -353,7 +353,7 @@ func _show_result() -> void:
 	cards_title.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
 	right_col.add_child(cards_title)
 
-	var cards_text := "Base deck (Slash x4, Block x4, Draw, Energy, Heal) — identical for every character"
+	var cards_text := "Base deck (Attack, Exposing Strike, Block, Braced Draw, Heal) — identical for every character"
 
 	var cards_label = Label.new()
 	cards_label.text = cards_text

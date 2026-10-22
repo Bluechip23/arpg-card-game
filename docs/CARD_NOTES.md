@@ -223,7 +223,7 @@ provide cards. Travels with the sword on equip/unequip.
 ### `improvised_ammo`
 Granted by the Wrist Rocket (2 copies). Playing it hits and Weakens;
 discarding it instead pops for 4 to the nearest enemy and permanently
-(for the battle) sharpens Improvised Ammo's crit chance.
+sharpens Improvised Ammo's crit chance (+10% per discard, never reset).
 
 ### `cupids_golden_arrow`
 Cupids Bow. The golden arrow of Eros — the struck heart is drawn in.

@@ -79,11 +79,11 @@ const LESSONS := [
 		]},
 		{"title": "Your Hands", "paragraphs": [
 			"\"Bottom left, what you can do without a card. The stack at the top is your draw pile — cards come to your hand on their own as tempo passes. The sword is a plain attack, five tempo of it; the raised hand waits a single tempo; the stop sign holds the world still.\"",
-			"\"And the shield you carry can be raised, for five tempo more.\"",
+			"\"And the shield beside it raises the one you carry, for four tempo — it sits grey until you bear a shield.\"",
 		]},
 		{"title": "Flash", "paragraphs": [
 			"\"The bolt is FLASH — quickness of the body. One point for every point of Agility, refilled every three cycles.\"",
-			"\"The boots make each step spend flash instead of tempo, three a tile. The crouching figure buys a sidestep for a little block — or, with a hand free, a quick cut at the nearest foe. The crossed daggers hurry your next attack along, five points a tick.\"",
+			"\"Switch the boots on and each step spends flash instead of tempo, three a tile, until you switch them off or the flash runs dry. The crouching figure buys a sidestep for a little block — or, with a hand free, a quick cut at the nearest foe. The crossed daggers hurry your next attack along, five points a tick.\"",
 		]},
 		{"title": "Brain", "paragraphs": [
 			"\"The brain is Wisdom's pool — a point for every point of Wisdom, refilled every five cycles. The eye shows you the next card of your draw pile; the card with the plus draws one outright.\"",
@@ -102,7 +102,7 @@ const LESSONS := [
 			"\"Now go. The grass has been restless for days, and I would know why.\"",
 		]},
 	]},
-	{"id": "combat_intro", "title": "Olorin's Counsel — the first battle", "beats": [
+	{"id": "combat_intro", "title": "Olorin's Counsel — the first foe", "beats": [
 		{"title": "Olorin's Counsel", "paragraphs": [
 			"\"Steady now. Battle here flows on tempo — every move, every card spends it, and your foes act as it passes.\"",
 			"\"Play cards from your hand, mind your mana, and use the ground to your advantage. I will be near when there is more to learn.\"",
@@ -135,7 +135,7 @@ const LESSONS := [
 		{"title": "A Mentor's Gift", "paragraphs": [
 			"\"Melded down, and the piece kept safe? Good. When a second joins it, the Blacksmith will pour you a mold — and that doughnut can come back to you the day you can wield it.\"",
 			"\"A lesson deserves a fee, and a mentor is no thief — so take this Wooden Sword. No stats to speak of; its worth is in the teaching.\"",
-			"\"See the CARD SLOT carved into it? Items can hold cards — the Blacksmith will enchant one in for you. A slotted card gains the item's ON-SELF bonus. This sword's reads 'attacks deal +1 damage', so any attack card slotted into it strikes 1 harder.\"",
+			"\"See the CARD SLOT carved into it? Items can hold cards — drag one onto the slot from your character sheet, and it stays in your deck. A card in the slot gains the item's ON-SELF bonus. This sword's reads 'attacks deal +1 damage', so any attack card slotted into it strikes 1 harder.\"",
 			"\"Some items also PROVIDE cards outright. While the sword is equipped, its card Splinter joins your deck — 20 mana, 2 tempo, range 3, and it leaves a Bleed that wounds the enemy for every tile it moves. Unequip the sword, and Splinter leaves with it.\"",
 			"\"Good luck with your adventures, sir.\"",
 		]},

@@ -6,7 +6,7 @@
 script = ExtResource("1_4ichu")
 card_id = "exacerbate_wounds"
 card_name = "Exacerbate Wounds"
-description = "Deal 3 damage for each card discarded this turn."
+description = "Deal 3 damage for each card discarded this cycle."
 mana_cost = 0
 tempo_cost = 7
 slot_labels = [9, 10]

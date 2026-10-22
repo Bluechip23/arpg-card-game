@@ -6,7 +6,7 @@
 script = ExtResource("1_7d2l0")
 card_id = "morphine"
 card_name = "Morphine"
-description = "Gain 4 temp HP. After 3 turns (15 tempo), lose it and take 2 damage."
+description = "Gain 4 temp HP. After 15 tempo, lose it and take 2 damage."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 30

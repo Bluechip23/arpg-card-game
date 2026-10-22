@@ -6,7 +6,7 @@
 script = ExtResource("1_epwfa")
 card_id = "choke"
 card_name = "Choke"
-description = "Sticky 3. Silence the enemy for 5 tempo and deal 2 damage per round."
+description = "Sticky 3. Silence the enemy for 5 tempo and deal 2 damage at the next cycle."
 card_type_name = "Spell"
 mana_cost = 30
 sticky = 3

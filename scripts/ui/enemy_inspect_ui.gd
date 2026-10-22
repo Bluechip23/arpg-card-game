@@ -252,7 +252,7 @@ func _refresh() -> void:
 	if _enemy.is_exposed:
 		resists.append("Exposed — armor broken, takes full hits")
 	if _enemy.enemy_type == Enemy.EnemyType.EARTH_MAGE:
-		resists.append("Stoneskin — gains 3 armor whenever hit")
+		resists.append("Stoneskin — gains %d armor whenever hit" % _enemy.armor_per_hit)
 	if resists.is_empty():
 		_add_row("Resistances", "none", Color(0.6, 0.6, 0.65))
 	else:

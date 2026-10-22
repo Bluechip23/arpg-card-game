@@ -6,7 +6,7 @@
 script = ExtResource("1_2b8vm")
 card_id = "vines"
 card_name = "Vines"
-description = "Summon vines holding an enemy in place for 3 turns. Deal 4 damage per turn the enemy is held still."
+description = "Summon vines holding an enemy in place for 15 tempo. Deal 4 damage every 5 tempo."
 card_type_name = "Spell"
 mana_cost = 20
 damage = 4
