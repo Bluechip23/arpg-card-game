@@ -265,6 +265,11 @@ func _test_girdle(stats, dm, bm, d: Enemy) -> void:
 	_slot(Card.create_by_id("sanguine_the_penguin"), girdle).execute(main.player, stats, dm, 0.0, 0.0, bm)
 	_check(stats.current_health == 50, "an untagged instant heals nothing (%d)" % stats.current_health)
 	stats.current_health = 50
+	# The two cards above fill both bonus slots; a third would sit in a
+	# vanilla slot (no bonus), so start the Block on an empty girdle.
+	for c in girdle.slotted_cards:
+		c.slotted_in_item = null
+	girdle.slotted_cards.clear()
 	_slot(Card.create_by_id("block"), girdle).execute(main.player, stats, dm, 0.0, 0.0, bm)
 	_check(stats.current_health >= 65, "Block (defense) heals 15 (%d)" % stats.current_health)
 	stats.current_health = 50

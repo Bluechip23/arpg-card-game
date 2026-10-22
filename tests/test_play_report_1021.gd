@@ -99,7 +99,7 @@ func _run() -> void:
 	inv.equip_item(shield, 1)
 	main._update_block_button_visibility()
 	var want: int = (shield.armor_bonus if shield.armor_bonus > 0 else 3) + inv.get_two_hand_block_bonus(shield)
-	_check(main._block_button.visible and main._block_button.text == "+%d  5T" % want, "the shield button reads its armor beside its tempo (%s)" % main._block_button.text)
+	_check(main._block_button.visible and main._block_button.text == "+%d  4T" % want, "the shield button reads its armor beside its tempo (%s)" % main._block_button.text)
 
 	# --- Sticky counts down; long text shrinks ---
 	var gulp := Card.create_by_id("gulped_potion")

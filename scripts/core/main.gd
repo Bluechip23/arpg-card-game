@@ -514,7 +514,13 @@ func _world_scale_ratio() -> Vector2:
 
 
 ## Mouse position mapped into the low-res world viewport's coordinates.
+## Tests (headless has no real cursor) set this to aim at a world-viewport
+## pixel; left at (-1, -1) in play.
+var mouse_override := Vector2(-1, -1)
+
 func _world_mouse_position() -> Vector2:
+	if mouse_override.x >= 0.0:
+		return mouse_override
 	return get_viewport().get_mouse_position() * _world_scale_ratio()
 
 
@@ -868,6 +874,7 @@ func _process(delta: float) -> void:
 	_update_status_icon_hover()
 	_update_loot_menu_presence()
 	_update_self_target_hover()
+	_update_target_marks()
 	_update_damage_preview()
 	_update_loot_hover()
 	_update_move_path_cursor()
@@ -948,7 +955,46 @@ func _update_move_path_cursor() -> void:
 
 	# The whole route: a move order walks every tile of it (see the
 	# right-click handler), so the preview never stops short of the cursor.
-	move_path_cursor.show_path(target_cell, player.preview_path_cells(target_world, ROUTE_BUDGET))
+	# The box reads the spaces and the tempo that walk would cost.
+	var route := player.preview_path_cells(target_world, ROUTE_BUDGET)
+	move_path_cursor.show_path(target_cell, route, preview_move_tempo(route))
+
+## The tempo a walk along `route` would cost the active character, tile by
+## tile as the move itself charges it (_on_player_tile_reached and
+## TempoManager.add_movement_tempo): squeezing past an enemy +2, climbing
+## +1 per level up, then the step — free on a Shadow Cowl shift tile or,
+## with flash movement toggled on, while flash points last; otherwise 1
+## (Slowed: SLOWED_TEMPO_PER_TILE) plus any heavy-armour surcharge.
+func preview_move_tempo(route: Array) -> int:
+	var stats := player.get_stats()
+	if stats == null:
+		return route.size()
+	var dm := player.get_debuff_manager()
+	var free_tiles: int = stats.free_move_tiles
+	var flash: int = stats.current_flash_points
+	var flash_cost: int = maxi(1, PlayerStats.FLASH_COST_MOVE - stats.equipment_movement_flash_discount)
+	var step_cost: int = (Debuff.SLOWED_TEMPO_PER_TILE if dm and dm.is_slowed() else 1) \
+		+ maxi(0, stats.movement_tempo_surcharge)
+	var occupied := {}
+	if enemy_spawner:
+		for e in enemy_spawner.get_living_enemies():
+			if not e.is_structure:
+				occupied[grid_manager.world_to_grid(e.position)] = true
+	var prev := grid_manager.world_to_grid(player.position)
+	var total := 0
+	for cell in route:
+		if occupied.has(cell):
+			total += 2
+		if dungeon_manager:
+			total += maxi(0, dungeon_manager.get_elevation(cell) - dungeon_manager.get_elevation(prev))
+		if free_tiles > 0:
+			free_tiles -= 1
+		elif stats.flash_movement_enabled and flash >= flash_cost:
+			flash -= flash_cost
+		else:
+			total += step_cost
+		prev = cell
+	return total
 
 func _update_hand_hover() -> void:
 	if _card_ui_instances.is_empty():
@@ -1104,22 +1150,133 @@ func _update_status_icon_hover() -> void:
 				return ""
 			return str(en.get_effect_tooltip(nm).get("remaining", "")))
 
+## The enemy under the cursor — ONE pick for the hover glow, the target
+## marks and every click that aims at an enemy, so what lights up is what
+## gets hit. On screen first: the cursor inside an enemy's drawn body (a tall
+## boss is picked by pointing at it, not only at its feet; the nearest body
+## wins where they overlap). Else the nearest enemy within a tile of the
+## ground point under the cursor. Unseen enemies are never picked.
+var _body_extent_cache := {}
+
+func enemy_under_mouse() -> Enemy:
+	if enemy_spawner == null:
+		return null
+	var cam := get_world_camera()
+	var mouse := _world_mouse_position()
+	var best: Enemy = null
+	var best_score := INF
+	if cam:
+		var right: Vector3 = cam.global_transform.basis.x
+		for e in enemy_spawner.get_living_enemies():
+			if not is_instance_valid(e) or e.is_hidden() or not e.visible:
+				continue
+			var ext: Vector2 = _enemy_body_extent(e)
+			var feet: Vector3 = e.global_position
+			if cam.is_position_behind(feet):
+				continue
+			var f2 := cam.unproject_position(feet)
+			var h2 := cam.unproject_position(feet + Vector3(0, ext.y, 0))
+			var w2: float = absf(cam.unproject_position(feet + right * (ext.x * 0.5)).x - f2.x)
+			var top: float = minf(h2.y, f2.y)
+			var bottom: float = maxf(h2.y, f2.y) + 4.0
+			if mouse.x >= f2.x - w2 and mouse.x <= f2.x + w2 and mouse.y >= top and mouse.y <= bottom:
+				var centre := Vector2(f2.x, (top + bottom) * 0.5)
+				var score := centre.distance_to(mouse)
+				if score < best_score:
+					best_score = score
+					best = e
+	if best:
+		return best
+	var mouse_pos := get_mouse_world_position()
+	var closest_dist: float = 1.0 * (grid_manager.grid_size if grid_manager else 1.0)
+	for e in enemy_spawner.get_living_enemies():
+		if not is_instance_valid(e) or e.is_hidden():
+			continue
+		var diff: Vector3 = mouse_pos - e.position
+		var dist := Vector3(diff.x, 0, diff.z).length()
+		if dist <= closest_dist:
+			closest_dist = dist
+			best = e
+	return best
+
+## An enemy's drawn size in world units (width, height), measured once.
+func _enemy_body_extent(e: Enemy) -> Vector2:
+	var id := e.get_instance_id()
+	if _body_extent_cache.has(id):
+		return _body_extent_cache[id]
+	var ext := Vector2(0.9, 1.4)
+	var fig = e._enemy_figure if "_enemy_figure" in e else null
+	if fig and fig.has_method("portrait_extent"):
+		ext = fig.portrait_extent()
+		ext.x = maxf(ext.x, 0.6)
+		ext.y = maxf(ext.y, 0.6)
+	_body_extent_cache[id] = ext
+	return ext
+
+## Outline what the armed card or attack will hit (Enemy.set_target_mark):
+## every enemy inside an area card's shape, or the enemy under the cursor for
+## a single-target card, the auto attack, a quiver shot, a gauntlet skill or
+## a pending enemy pick. Green when it will land and its pre-rolled chance
+## goes the player's way (the same roll the chance tiles show), red when it
+## won't: out of range, or the roll fails.
+func _update_target_marks() -> void:
+	if enemy_spawner == null:
+		return
+	var marks := {}
+	var card: Card = null
+	if selected_card_index >= 0 and deck_manager and selected_card_index < deck_manager.hand.size():
+		card = deck_manager.hand[selected_card_index]
+	if card and card.is_aoe and aoe_indicator and aoe_indicator.visible:
+		for e in enemy_spawner.get_living_enemies():
+			if is_instance_valid(e) and not e.is_hidden() and aoe_indicator._is_enemy_in_aoe(e):
+				var lands := true
+				if card.chance_effect_percent > 0.0:
+					lands = card.get_rng_outcome(e)
+				marks[e] = 1 if lands else 2
+	else:
+		var aims_enemy := false
+		if card:
+			aims_enemy = "enemy" in card.target_types \
+				or (card.heal_amount > 0 and player.get_buff_manager() and player.get_buff_manager().has_poisoned_blood())
+		aims_enemy = aims_enemy or _basic_attack_pending \
+			or (_pending_quiver_card != null and _pending_quiver_target_type == "enemy") \
+			or (_pending_gauntlet_skill != null and not (_pending_gauntlet_skill.gauntlet_skill_effect_id in POINT_TARGET_GAUNTLET_SKILLS)) \
+			or not _pending_enemy_pick.is_empty()
+		if aims_enemy and not _is_ui_window_open():
+			var e := enemy_under_mouse()
+			if e:
+				var ok := true
+				if not _pending_enemy_pick.is_empty():
+					ok = e in _pending_enemy_pick.get("allowed", [])
+				elif card:
+					ok = _is_target_in_card_range(card, e) and _card_roll_favours_player(card, e)
+				elif _basic_attack_pending:
+					ok = _get_distance_to_target(e) <= _basic_attack_reach()
+				marks[e] = 1 if ok else 2
+	for e in enemy_spawner.get_living_enemies():
+		if is_instance_valid(e) and e.has_method("set_target_mark"):
+			e.set_target_mark(int(marks.get(e, 0)))
+
+## Whether a chance card's pre-rolled outcome goes the player's way against
+## `e`: per-enemy chance cards read their roll for that enemy; a binary card
+## roll (one outcome) fails on -2 — inverted when the chance is a downside
+## (Try This's backfire). Cards with no chance, or several outcomes, pass.
+func _card_roll_favours_player(card: Card, e) -> bool:
+	if card.chance_effect_percent > 0.0:
+		return card.get_rng_outcome(e)
+	if card.rng_outcomes_data.size() == 1 and card.rng_selected_index != -1:
+		var hit: bool = card.rng_selected_index == 0
+		return hit != card.chance_is_downside
+	return true
+
 func _update_battlefield_enemy_hover() -> void:
 	## Check if mouse is hovering over a battlefield enemy and highlight its panel entry.
 	# Skip raycast when the sidebar portrait is driving the hover
 	if _sidebar_hover_active:
 		return
 
-	var mouse_pos := get_mouse_world_position()
-	var closest: Enemy = null
-	var closest_dist: float = 1.2  # Must be within ~1 tile
-
-	for enemy in enemy_spawner.get_living_enemies():
-		var diff := mouse_pos - enemy.position
-		var dist := Vector3(diff.x, 0, diff.z).length()
-		if dist < closest_dist:
-			closest_dist = dist
-			closest = enemy
+	# The same pick a click makes, so the glow is always the one you'd hit.
+	var closest: Enemy = enemy_under_mouse()
 
 	if closest != _prev_battlefield_hover:
 		# Unhighlight previous
@@ -1364,16 +1521,16 @@ func _setup_action_buttons() -> void:
 	vbox.add_child(attack_row)
 	attack_row.add_child(_attack_button)
 
-	# Raise Shield (only visible while a shield is equipped)
+	# Raise Shield: always on the bar, greyed out without a shield
 	_block_button = Button.new()
 	_block_button.name = "BlockButton"
 	_block_button.icon = UIGlyphs.get_glyph("shield")
-	_block_button.text = "5T"
+	_block_button.text = "%dT" % BASIC_BLOCK_TEMPO
 	_block_button.custom_minimum_size = Vector2(0, 36)
 	_block_button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	_block_button.tooltip_text = "Raise shield to block. Costs 5 tempo."
+	_block_button.tooltip_text = "Equip a shield to activate button"
+	_block_button.disabled = true
 	_block_button.pressed.connect(_on_block_pressed)
-	_block_button.visible = false
 	attack_row.add_child(_block_button)
 
 	# War Rack button (Brad only): swap hands with the gear on his back.
@@ -2521,6 +2678,9 @@ func _basic_attack_whiff(stats, buff_mgr, debuff_mgr, counts_for_cycle: bool) ->
 
 #endregion
 #region BLOCK, WAIT & WAR RACK
+## Raising a worn shield (the Block button beside the auto attack).
+const BASIC_BLOCK_TEMPO := 4
+
 func _on_block_pressed() -> void:
 	var stats := player.get_stats()
 	if not stats:
@@ -2556,7 +2716,7 @@ func _on_block_pressed() -> void:
 		player.play_animation("block", CharacterAnimator.Direction.SOUTH)
 
 	# No Weighted surcharge: Weighted taxes card plays, and Block is not one.
-	var tempo_cost := 5
+	var tempo_cost := BASIC_BLOCK_TEMPO
 
 	tempo_manager.add_tempo(tempo_cost)
 
@@ -2653,11 +2813,16 @@ func _update_block_button_visibility() -> void:
 		var shield := inventory.get_equipped_shield()
 		var block_val = shield.armor_bonus if shield.armor_bonus > 0 else 3
 		block_val += inventory.get_two_hand_block_bonus(shield)
-		_block_button.text = "+%d  5T" % block_val
-		_block_button.tooltip_text = "Raise %s: +%d Armor. Costs 5 tempo." % [shield.item_name, block_val]
-		_block_button.visible = true
+		_block_button.text = "+%d  %dT" % [block_val, BASIC_BLOCK_TEMPO]
+		_block_button.tooltip_text = "Raise %s: +%d Armor. Costs %d tempo." % [shield.item_name, block_val, BASIC_BLOCK_TEMPO]
+		_block_button.disabled = false
 	else:
-		_block_button.visible = false
+		# Always on the bar; greyed out (a disabled button still shows its
+		# tooltip) until a shield is worn.
+		_block_button.text = "%dT" % BASIC_BLOCK_TEMPO
+		_block_button.tooltip_text = "Equip a shield to activate button"
+		_block_button.disabled = true
+	_block_button.visible = true
 
 #endregion
 
@@ -3408,6 +3573,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_buff_manager().invisibility_entered.connect(_on_player_entered_invisibility)
 	player.get_buff_manager().buffs_changed.connect(_restore_player_visibility_if_seen)
 	player.get_debuff_manager().debuff_expired.connect(_on_player_debuff_expired)
+	_wire_dot_log(player)
 
 	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager, player.get_buff_manager(), player.get_debuff_manager())
 	character_panel.swap_tempo_spent.connect(_on_swap_tempo_spent)
@@ -10626,6 +10792,36 @@ func _wire_marvolo_hooks(p: Player) -> void:
 	var pdm := p.get_debuff_manager()
 	if pdm and not pdm.debuff_expired.is_connected(on_expiry):
 		pdm.debuff_expired.connect(on_expiry)
+	_wire_dot_log(p)
+
+## Damage-over-time ticks on a player go to the battle log (the enemy side
+## logs its own in Enemy._dot_hit): a number with no swing behind it is
+## explained ("Burn: you take 4 (8 next cycle)").
+func _wire_dot_log(p: Player) -> void:
+	if p == null or not is_instance_valid(p) or p.get_debuff_manager() == null:
+		return
+	var cb: Callable = _on_player_dot_ticked.bind(p)
+	if not p.get_debuff_manager().dot_ticked.is_connected(cb):
+		p.get_debuff_manager().dot_ticked.connect(cb)
+
+func _on_player_dot_ticked(kind: String, amount: int, note: String, carrier: Player) -> void:
+	var who := "you"
+	var takes := "take"
+	if carrier != player and is_instance_valid(carrier) and carrier.get_stats() and carrier.get_stats().character_data:
+		who = carrier.get_stats().character_data.character_name
+		takes = "takes"
+	var line: String
+	match kind:
+		"Drain":
+			line = "Drain: %s lose%s %d mana" % [who, "" if who == "you" else "s", amount]
+		"Elixir":
+			line = "Elixir: %s heal%s %d" % [who, "" if who == "you" else "s", amount]
+		_:
+			line = "%s: %s %s %d" % [kind, who, takes, amount]
+	if note != "":
+		line += " (%s)" % note
+	var color: Color = Enemy.DOT_LOG_COLORS.get(kind, Color(0.4, 0.6, 1.0) if kind == "Drain" else Color(0.5, 1.0, 0.6))
+	add_battle_log(line[0].to_upper() + line.substr(1), color)
 
 func _on_marvolo_triggered(wearer: Player = null) -> void:
 	if wearer == null or not is_instance_valid(wearer):
@@ -12829,12 +13025,11 @@ func _input(event: InputEvent) -> void:
 		# Gauntlet skill armed: this click picks its target.
 		if _pending_gauntlet_skill != null:
 			var gsk: ItemData = _pending_gauntlet_skill
-			var gsk_mouse := get_mouse_world_position()
 			if gsk.gauntlet_skill_effect_id in POINT_TARGET_GAUNTLET_SKILLS:
 				_pending_gauntlet_skill = null
 				_fire_gauntlet_skill(gsk, null)  # Suck reads the clicked point via the mouse
 			else:
-				var gsk_enemy := enemy_spawner.get_enemy_at_position(gsk_mouse)
+				var gsk_enemy := enemy_under_mouse()
 				if gsk_enemy == null:
 					add_battle_log("No enemy at that position!", Color(1.0, 0.6, 0.3))
 				elif _validate_gauntlet_skill_target(gsk, gsk_enemy):
@@ -12846,7 +13041,7 @@ func _input(event: InputEvent) -> void:
 		# A card waiting for its enemy (Life Swap): the click picks one of the
 		# candidates it offered; a click elsewhere is simply ignored.
 		if not _pending_enemy_pick.is_empty():
-			var pick_enemy := enemy_spawner.get_enemy_at_position(get_mouse_world_position())
+			var pick_enemy := enemy_under_mouse()
 			if pick_enemy and pick_enemy in _pending_enemy_pick.get("allowed", []):
 				var pick := _pending_enemy_pick
 				_pending_enemy_pick = {}
@@ -12855,8 +13050,7 @@ func _input(event: InputEvent) -> void:
 				add_battle_log("%s: pick one of the enemies in melee range." % str(_pending_enemy_pick.get("what", "")), Color(1.0, 0.6, 0.3))
 			return
 		if _basic_attack_pending:
-			var atk_mouse_pos := get_mouse_world_position()
-			var atk_enemy := enemy_spawner.get_enemy_at_position(atk_mouse_pos)
+			var atk_enemy := enemy_under_mouse()
 			if atk_enemy:
 				_execute_basic_attack(atk_enemy)
 			else:
@@ -12868,7 +13062,7 @@ func _input(event: InputEvent) -> void:
 		if _pending_quiver_card != null:
 			var mouse_pos = get_mouse_world_position()
 			if _pending_quiver_target_type == "enemy":
-				var enemy = enemy_spawner.get_enemy_at_position(mouse_pos)
+				var enemy = enemy_under_mouse()
 				if enemy:
 					play_quiver_card(_pending_quiver_card, _pending_quiver_index, enemy)
 				else:
@@ -12893,7 +13087,7 @@ func _input(event: InputEvent) -> void:
 
 			# Try enemy targeting first if card supports it
 			if "enemy" in tt:
-				var enemy = enemy_spawner.get_enemy_at_position(mouse_pos)
+				var enemy = enemy_under_mouse()
 				if enemy:
 					_card_played = true
 					if card.requires_high_ground and not _has_high_ground(player.position, enemy):

@@ -1785,7 +1785,7 @@ func _tick_stack_clock(key: String, stack_field: String, clock: int, amount: int
 func _tick_status_durations() -> void:
 	# Choke: deal the caster's half-auto-attack damage per cycle, lose 1 stack
 	if choke_dot_stacks > 0:
-		take_damage(choke_dot_damage, false)
+		_dot_hit("Choke", choke_dot_damage, "%d tick(s) left" % (choke_dot_stacks - 1))
 		print("[%s] Choke deals %d damage (%d stacks left)" % [enemy_name, choke_dot_damage, choke_dot_stacks - 1])
 		choke_dot_stacks -= 1
 		if choke_dot_stacks <= 0:
@@ -1799,7 +1799,7 @@ func _tick_status_durations() -> void:
 		if is_inside_tree() and get_parent():
 			FireTileSprite.burst(get_parent(), position + Vector3(0, BURN_FLAME_Y, 0))
 		_burn_number_pending = true
-		take_damage(burn_damage_next, false)
+		_dot_hit("Burn", burn_damage_next, "%d next cycle" % (burn_damage_next * 2) if burn_stacks > 1 else "last tick")
 		_burn_number_pending = false
 		print("[%s] Burn deals %d damage (doubles next cycle)" % [enemy_name, burn_damage_next])
 		# Element Pollination: the flames jump — burn splashes nearby enemies
@@ -1807,13 +1807,13 @@ func _tick_status_durations() -> void:
 		if Card.element_pollination_active:
 			for pol_e in _sibling_enemies():
 				if pol_e != self and position.distance_to(pol_e.position) <= 2.5:
-					pol_e.take_damage(burn_damage_next, false)
+					pol_e._dot_hit("Burn splash", burn_damage_next)
 					print("[%s] Element Pollination: burn splashes %d to %s" % [enemy_name, burn_damage_next, pol_e.enemy_name])
 		# Burn Amp (sphere node): a flat extra hit lands after the normal tick,
 		# outside the doubling.
 		var burn_extra := int(_player_sphere_amp("sphere_burn_amp"))
 		if burn_extra > 0 and not is_dead:
-			take_damage(burn_extra, false)
+			_dot_hit("Burn Amp", burn_extra)
 			print("[%s] Burn Amp adds %d damage" % [enemy_name, burn_extra])
 		burn_damage_next *= 2
 		burn_stacks -= 1
@@ -1831,13 +1831,13 @@ func _tick_status_durations() -> void:
 
 	# Poison: deal current stacks damage, then lose 1 stack per cycle
 	if poison_stacks > 0:
-		take_damage(poison_stacks, false)
+		_dot_hit("Poison", poison_stacks, "%d next cycle" % (poison_stacks - 1) if poison_stacks > 1 else "last tick")
 		print("[%s] Poison deals %d damage" % [enemy_name, poison_stacks])
 		# Poison Amp (sphere node): each tick has a stacks% chance of a bonus
 		# damage instance — more stacks, more likely the venom spikes.
 		var poison_bonus := int(_player_sphere_amp("sphere_poison_amp"))
 		if poison_bonus > 0 and not is_dead and randf() * 100.0 < float(poison_stacks):
-			take_damage(poison_bonus, false)
+			_dot_hit("Poison Amp", poison_bonus)
 			print("[%s] Poison Amp spikes for %d bonus damage (%d%% chance hit)" % [enemy_name, poison_bonus, poison_stacks])
 		poison_stacks -= 1
 		if poison_stacks <= 0:
@@ -1855,7 +1855,7 @@ func _tick_status_durations() -> void:
 		# Element Pollination: the frost bites — Cold ticks doubling damage
 		# like Burn while the Elemental Weaver's maintain is up.
 		if Card.element_pollination_active:
-			take_damage(cold_damage_next, false)
+			_dot_hit("Cold bite", cold_damage_next)
 			print("[%s] Element Pollination: cold bites for %d (doubles next cycle)" % [enemy_name, cold_damage_next])
 			cold_damage_next *= 2
 		cold_stacks = maxi(0, cold_stacks - COLD_THAW_PER_CYCLE)
@@ -1869,11 +1869,11 @@ func _tick_status_durations() -> void:
 	# stack. The arc is plain damage — it does not spread the Shock itself.
 	if shock_stacks > 0:
 		var arc: int = shock_stacks
-		take_damage(arc, false)
+		_dot_hit("Shock", arc)
 		print("[%s] Shock deals %d damage" % [enemy_name, arc])
 		var arc_target: Enemy = _nearest_other_enemy(SHOCK_ARC_RANGE)
 		if arc_target:
-			arc_target.take_damage(arc, false)
+			arc_target._dot_hit("Shock arc", arc, "from " + enemy_name)
 			print("[%s] Shock arcs %d damage to %s" % [enemy_name, arc, arc_target.enemy_name])
 		shock_stacks -= 1
 		if shock_stacks <= 0:
@@ -5511,7 +5511,7 @@ func _physics_process(delta: float) -> void:
 				# Bleed Amp (sphere node): each tile tears 1 + amp damage; one
 				# stack still closes per tile.
 				var bleed_tile_dmg := 1 + int(_player_sphere_amp("sphere_bleed_amp"))
-				take_damage(bleed_tile_dmg, false)
+				_dot_hit("Bleed", bleed_tile_dmg, "%d stack(s) left" % (bleed_stacks - 1))
 				bleed_stacks -= 1
 				print("[%s] Bleed deals %d damage (moved a tile, %d stack(s) left)" % [enemy_name, bleed_tile_dmg, bleed_stacks])
 				if bleed_stacks <= 0:
@@ -6163,6 +6163,41 @@ func _alert_mini_bear_pack() -> void:
 
 const ARMOR_NUMBER_COLOR := Color(0.72, 0.74, 0.78)  # grey: damage the armor took
 const BURN_NUMBER_COLOR := Color(1.0, 0.5, 0.12)    # fire orange: a burn tick
+
+## Battle-log colour per damage-over-time source.
+const DOT_LOG_COLORS := {
+	"Burn": Color(1.0, 0.55, 0.2), "Poison": Color(0.5, 0.9, 0.3), "Bleed": Color(0.95, 0.3, 0.3),
+	"Shock": Color(1.0, 0.9, 0.3), "Choke": Color(0.6, 0.8, 0.4), "Cold": Color(0.6, 0.85, 1.0),
+}
+
+## A damage-over-time tick (Burn, Poison, Bleed, Shock, Choke...): deal it
+## like any clock damage and write it to the battle log, so a number that
+## appears with nobody swinging is explained ("Burn: Rat takes 4 (8 next
+## cycle)"). Armor soaks a tick like any hit; the line says how much.
+func _dot_hit(kind: String, amount: int, note: String = "") -> void:
+	if is_dead or amount <= 0:
+		return
+	var hp_before := current_health
+	var armor_before := current_armor
+	take_damage(amount, false)
+	var to_hp := maxi(0, hp_before - current_health)
+	var to_armor := maxi(0, armor_before - current_armor)
+	var bits: Array[String] = []
+	if to_armor > 0:
+		bits.append("%d to armor" % to_armor)
+	if note != "":
+		bits.append(note)
+	var line := "%s: %s takes %d%s" % [kind, enemy_name, to_hp + to_armor,
+		(" (" + ", ".join(bits) + ")") if not bits.is_empty() else ""]
+	if is_dead:
+		line += " — and dies"
+	var color: Color = Color(0.85, 0.75, 0.6)
+	for k in DOT_LOG_COLORS:
+		if kind.begins_with(k):
+			color = DOT_LOG_COLORS[k]
+	var m = get_parent()
+	if m and m.has_method("add_battle_log"):
+		m.add_battle_log(line, color)
 const BURN_FLAME_Y := 1.55                          # the burn flame, just over the head
 const BURN_NUMBER_Y := 2.35                         # its number, above the flame
 var _burn_number_pending: bool = false             # the hit being numbered is a burn tick
@@ -6677,6 +6712,31 @@ func set_hover_highlight(enabled: bool) -> void:
 			mat.albedo_color = Color(1.0, 1.0, 1.0, 0.9)
 	else:
 		update_outline()
+
+var _target_mark_state := 0
+
+## Marked while a card or attack is aimed: 1 = it will hit / succeed (a
+## green outline), 2 = it won't (red: out of range, or the chance roll
+## fails); 0 clears it. A box-mesh enemy colours its outline box the same.
+func set_target_mark(state: int) -> void:
+	if state == _target_mark_state:
+		return
+	_target_mark_state = state
+	if _enemy_figure and _enemy_figure.has_method("set_target_mark"):
+		_enemy_figure.set_target_mark(state)
+		return
+	if not outline:
+		return
+	if state == 0:
+		update_outline()
+		return
+	outline.visible = true
+	var mat := outline.get_surface_override_material(0) as StandardMaterial3D
+	if mat:
+		mat.albedo_color = Color(0.35, 1.0, 0.4, 0.9) if state == 1 else Color(1.0, 0.22, 0.18, 0.9)
+
+func get_target_mark() -> int:
+	return _target_mark_state
 
 func _set_hover_text_visible(shown: bool) -> void:
 	## The name and the exact health / armor numbers only appear while the

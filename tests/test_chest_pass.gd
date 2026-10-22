@@ -84,8 +84,8 @@ func _test_weights_and_stats() -> void:
 	_check(plank.health_bonus == 15 and plank.low_health_regen == 1,
 		"Wooden Plank: 15 health + 1 Regen below half")
 	var velvet = ItemData.create("velvet_plate")
-	_check(velvet.weight == 120 and velvet.strength_bonus == 5 and velvet.on_self_heal == 10,
-		"Velvet Plate: w120, +5 STR, heal 10")
+	_check(velvet.weight == 120 and velvet.strength_bonus == 5 and velvet.on_self_self_heal == 5,
+		"Velvet Plate: w120, +5 STR, heals self 5 on any slotted card")
 	var tigers = ItemData.create("tigers_sunday_red")
 	_check(tigers.on_self_offensive_heal_percent == 3.0, "Tigers heals 3% (Lv3 6%)")
 	var cowl = ItemData.create("shadow_cowl")

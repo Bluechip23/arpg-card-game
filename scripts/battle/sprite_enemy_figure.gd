@@ -25,6 +25,7 @@ extends Node3D
 const SHEET := "res://assets/sprites/MonsterKit/monster battler set.png"
 const NPC1 := "res://assets/sprites/NPCpackage1"
 const CP := "res://assets/sprites/craftpix"
+const BOSSES := "res://assets/sprites/generated/bosses"
 
 ## Direction row order of the Craftpix packs, top row first: F = front
 ## (SOUTH, faces the camera), B = back (NORTH), L = WEST, R = EAST. Every
@@ -61,6 +62,10 @@ const NPC_WALK_TIME := 0.18
 ##                     facing, flipped for west — like the MonsterKit battlers)
 ## MonsterKit battler: {cell: Vector2i(col,row), tint?: Color, scale?: float}
 ## Generated battler:  {tex: "<name>", tint?: Color, scale?: float}
+## Directional sheets: {sheets: "<folder>", scale?} — Idle.png / Walk.png in
+##                     the Craftpix layout (rows front, back, left, right),
+##                     cut from the designer's boss boards by
+##                     tools/cut_boss_sheets.py. Played like a Craftpix pack.
 ## Craftpix icon:      {icon: "<pack>/<file>", faces?: "left"|"right"|"front",
 ##                     tint?, scale?} (a single 32x32 monster icon used as a
 ##                     static battler; flipped for the far side like the
@@ -90,7 +95,9 @@ const KINDS := {
 	# --- generated sprites (drawn/derived in our pipeline, palette-conformant) ---
 	"rat": {"cp": "giant_rat/Rat1"},
 	"archer_rat": {"cp": "giant_rat/Rat1", "tint": Color(0.85, 0.78, 0.7)},
-	"rat_king": {"cp": "giant_rat/Rat3", "scale": 1.7, "tint": Color(1.05, 0.95, 0.85)},
+	# The designer's own boss boards (no pack has these bosses): front, back
+	# and side walk frames, cut by tools/cut_boss_sheets.py.
+	"rat_king": {"sheets": BOSSES + "/rat_king", "scale": 1.15},
 	"fire_goblin_soldier": {"cp": "goblins/Goblin2", "scale": 1.1, "tint": Color(1.1, 0.9, 0.8)},
 	"fire_goblin_mage": {"cp": "goblins/Goblin1", "scale": 1.1, "tint": Color(1.15, 0.85, 0.7)},
 	"fire_goblin_shaman": {"cp": "goblins/Goblin3", "scale": 1.2, "tint": Color(1.1, 0.9, 0.8)},
@@ -110,7 +117,8 @@ const KINDS := {
 	"large_bear": {"fr": "mountain_monsters/Bear", "scale": 0.65},
 	"bone_dragon": {"tex": "bone_dragon", "scale": 1.6},
 	"wyvern": {"cell": Vector2i(7, 2), "tint": Color(0.9, 0.75, 1.05), "scale": 1.35},
-	"cerberus": {"icon": "chaos_monsters/Icon27", "faces": "right", "scale": 3.2},  # the standing three-headed hound (a tile taller and longer than the 2.2 the icon first got)
+	"cerberus": {"sheets": BOSSES + "/cerberus", "scale": 1.5},
+	"hades": {"sheets": BOSSES + "/hades", "scale": 1.15},  # art in place; no Hades enemy exists yet
 	"werewolf": {"cell": Vector2i(3, 1), "tint": Color(0.6, 0.6, 0.68), "scale": 1.25},
 	"sabertooth": {"cell": Vector2i(3, 1), "tint": Color(1.05, 0.95, 0.75), "scale": 1.2},
 	"weregoat": {"cp": "gnolls/Gnoll3", "scale": 1.1, "tint": Color(0.85, 0.85, 0.9)},
@@ -132,7 +140,7 @@ const KINDS := {
 	"infected_hunter": {"cp": "zombie/Zombie3", "scale": 1.3, "tint": Color(0.9, 1.0, 0.85)},
 	"succubus": {"icon": "chaos_monsters/Icon14", "faces": "front", "scale": 1.7},  # the purple-winged temptress
 	"cherub": {"npc": NPC1 + "/npc baby A v01.png", "tint": Color(1.15, 1.1, 0.9)},
-	"corrupted_archangel": {"npc": NPC1 + "/npc king A v01.png", "tint": Color(0.75, 0.6, 0.9), "scale": 1.2},
+	"corrupted_archangel": {"sheets": BOSSES + "/corrupted_archangel", "scale": 1.15},  # the designer's board (tools/cut_boss_sheets.py)
 	# --- the generic Minion / Elite / Boss tiers (and custom enemies): the
 	# Craftpix swordsman's three gear tiers, lvl4 → lvl6 increasingly heavy,
 	# growing with the tier like the old procedural brute did ---
@@ -164,6 +172,8 @@ var _rig: Node3D = null
 var _tint := Color.WHITE
 var _ghost_alpha := 1.0   # < 1 while the enemy is hidden (Enemy.set_hidden): it survives flashes and highlights
 var _highlighted := false
+var _target_state := 0          # 0 none, 1 will hit / succeed (green), 2 won't (red)
+var _outline: Array[Sprite3D] = []
 var _walking := false
 var _time := 0.0
 var _facing_x := -1.0    # battlers are drawn facing left; flip for east
@@ -207,6 +217,8 @@ func setup(kind: String) -> void:
 	_sprite.shaded = false
 	if cfg.has("cp"):
 		_setup_craftpix(cfg["cp"])
+	elif cfg.has("sheets"):
+		_setup_sheets(cfg["sheets"])
 	elif cfg.has("fr"):
 		_setup_frames(cfg["fr"], cfg.get("prefix", ""))
 	elif cfg.has("npc"):
@@ -286,6 +298,24 @@ func _setup_craftpix(spec: String) -> void:
 			_cp_sheets[anim] = tex
 	var idle: Texture2D = _cp_sheets.get("Idle")
 	assert(idle != null, "Craftpix pack %s has no Idle sheet" % spec)
+	_cp_cell = int(idle.get_height() / 4)
+	_sprite.texture = idle
+	_sprite.pixel_size = PIXEL_SIZE
+	_sprite.region_rect = Rect2(0, _cp_row(_cp_dir) * _cp_cell, _cp_cell, _cp_cell)
+
+
+## Directional sheets of our own (the designer's bosses): Idle.png and
+## Walk.png (and any of Run / Attack / Hurt / Death if ever drawn) in the
+## Craftpix layout, four rows front/back/left/right, square cells.
+func _setup_sheets(folder: String) -> void:
+	_cp_mode = true
+	_cp_rows = "FBLR"
+	for anim in ["Idle", "Walk", "Run", "Attack", "Hurt", "Death"]:
+		var path := "%s/%s.png" % [folder, anim]
+		if ResourceLoader.exists(path):
+			_cp_sheets[anim] = load(path)
+	var idle: Texture2D = _cp_sheets.get("Idle")
+	assert(idle != null, "boss sheets %s have no Idle.png" % folder)
 	_cp_cell = int(idle.get_height() / 4)
 	_sprite.texture = idle
 	_sprite.pixel_size = PIXEL_SIZE
@@ -685,6 +715,105 @@ func set_highlight(enabled: bool) -> void:
 		_sprite.modulate = _lit_tint()
 
 
+## Outline colours while aiming: green = the armed card / attack will land
+## (and any chance roll goes your way), red = it won't (out of range, or the
+## pre-rolled chance fails) — the same green / red as the chance tiles.
+const OUTLINE_GOOD := Color(0.35, 1.0, 0.4)
+const OUTLINE_BAD := Color(1.0, 0.22, 0.18)
+## The 8 one-texel offsets the silhouette is drawn at, behind the sprite.
+const OUTLINE_DIRS := [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1),
+	Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]
+
+## White silhouettes of the sprite sheets (alpha kept), tinted per outline.
+static var _silhouette_cache := {}
+
+static func _silhouette(tex: Texture2D) -> Texture2D:
+	if tex == null:
+		return null
+	var key: String = tex.resource_path if tex.resource_path != "" else str(tex.get_instance_id())
+	if _silhouette_cache.has(key):
+		return _silhouette_cache[key]
+	var img: Image = tex.get_image()
+	if img == null:
+		return null
+	if img.is_compressed():
+		img.decompress()
+	img.convert(Image.FORMAT_RGBA8)
+	var data := img.get_data()
+	for i in range(0, data.size(), 4):
+		var on := data[i + 3] > 12
+		data[i] = 255
+		data[i + 1] = 255
+		data[i + 2] = 255
+		data[i + 3] = 255 if on else 0
+	var sil := Image.create_from_data(img.get_width(), img.get_height(), false, Image.FORMAT_RGBA8, data)
+	var out := ImageTexture.create_from_image(sil)
+	_silhouette_cache[key] = out
+	return out
+
+## Mark this enemy while a card or attack is aimed: 1 outlines it green
+## (will hit / succeed), 2 red (won't), 0 clears it.
+func set_target_mark(state: int) -> void:
+	if state == _target_state:
+		return
+	_target_state = state
+	if state != 0 and _outline.is_empty() and _rig and _sprite:
+		for d in OUTLINE_DIRS:
+			var o := Sprite3D.new()
+			o.name = "Outline"
+			o.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			o.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			o.shaded = false
+			o.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+			o.centered = false
+			o.set_meta("dir", d)
+			_rig.add_child(o)
+			_outline.append(o)
+	for o in _outline:
+		o.visible = state != 0
+	if state != 0:
+		_sync_outline()
+
+## The battle camera. The world renders through Main's SubViewport, so this
+## node's own viewport has no camera: ask the nearest ancestor that knows it.
+var _cam_cache: Camera3D = null
+
+func _world_camera() -> Camera3D:
+	if _cam_cache and is_instance_valid(_cam_cache):
+		return _cam_cache
+	var n: Node = get_parent()
+	while n:
+		if n.has_method("get_world_camera"):
+			_cam_cache = n.get_world_camera()
+			return _cam_cache
+		n = n.get_parent()
+	_cam_cache = get_viewport().get_camera_3d() if is_inside_tree() else null
+	return _cam_cache
+
+## Keep the outline on the sprite's current frame, a hair behind it.
+func _sync_outline() -> void:
+	if _outline.is_empty() or _sprite == null:
+		return
+	var col: Color = OUTLINE_GOOD if _target_state == 1 else OUTLINE_BAD
+	col.a = 0.75 + 0.25 * absf(sin(_time * 4.0))
+	var sil := _silhouette(_sprite.texture)
+	var back := Vector3.ZERO
+	var cam := _world_camera()
+	if cam and _rig:
+		# Away from the camera, in rig space, so the sprite always wins the depth test.
+		back = (_rig.global_transform.basis.inverse() * cam.global_transform.basis.z).normalized() * -0.04
+	for o in _outline:
+		o.texture = sil
+		o.pixel_size = _sprite.pixel_size
+		o.region_enabled = _sprite.region_enabled
+		o.region_rect = _sprite.region_rect
+		o.flip_h = _sprite.flip_h
+		var d: Vector2 = o.get_meta("dir")
+		o.offset = _sprite.offset + d
+		o.position = _sprite.position + back
+		o.modulate = col
+
+
 ## Translucency for a hidden enemy (Specter, Cherub, Screecher): folded into
 ## every tint the sprite takes, so a hit flash or a hover does not undo it.
 func set_ghost_alpha(a: float) -> void:
@@ -705,6 +834,8 @@ func _process(delta: float) -> void:
 	if not _sprite:
 		return
 	_time += delta
+	if _target_state != 0:
+		_sync_outline()
 	if _cp_mode:
 		_cp_step(delta)
 		return

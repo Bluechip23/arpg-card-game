@@ -7,6 +7,9 @@ signal debuff_applied(debuff: Debuff)
 signal debuff_removed(debuff: Debuff)
 signal debuff_expired(debuff: Debuff)  # NATURAL expiry only, never purges (mirrors the enemy-side signal)
 signal debuffs_changed
+## A damage-over-time tick on the carrier (Burn, Poison, Bleed, Drain...), for
+## the battle log: amount is damage (mana for Drain); note is the follow-up.
+signal dot_ticked(kind: String, amount: int, note: String)
 signal point_to_prove_triggered(debuff: Debuff)  # Emitted when stun/disarm hits with Point to Prove active
 
 var debuffs: Array[Debuff] = []
@@ -167,6 +170,7 @@ func process_turn_start() -> Dictionary:
 	var burn = get_debuff(Debuff.DebuffType.BURN)
 	if burn:
 		result["damage_taken"] += burn_damage_next
+		dot_ticked.emit("Burn", burn_damage_next, "%d next cycle" % (burn_damage_next * 2) if burn.value > 1 else "last tick")
 		print("[DEBUFF] Burn deals %d damage (doubles next cycle)" % burn_damage_next)
 		burn_damage_next *= 2
 		burn.value -= 1
@@ -183,9 +187,11 @@ func process_turn_start() -> Dictionary:
 		if owner_stats and "elixir_stacks" in owner_stats and owner_stats.elixir_stacks > 0:
 			owner_stats.heal(poison.value)
 			owner_stats.elixir_stacks -= 1
+			dot_ticked.emit("Elixir", poison.value, "Poison turned to healing")
 			print("[DEBUFF] Elixir: Poison healed %d instead! (%d stack(s) left)" % [poison.value, owner_stats.elixir_stacks])
 		else:
 			result["damage_taken"] += poison.value
+			dot_ticked.emit("Poison", poison.value, "%d next cycle" % (poison.value - 1) if poison.value > 1 else "last tick")
 			print("[DEBUFF] Poison deals %d damage" % poison.value)
 		poison.value -= 1
 		poison._set_name_and_description()
@@ -197,6 +203,7 @@ func process_turn_start() -> Dictionary:
 	var drain = get_debuff(Debuff.DebuffType.DRAIN)
 	if drain:
 		result["mana_lost"] += 10
+		dot_ticked.emit("Drain", 10, "%d tick(s) left" % (drain.value - 1) if drain.value > 1 else "last tick")
 		print("[DEBUFF] Drain steals 10 mana")
 		drain.value -= 1
 		drain._set_name_and_description()
@@ -578,6 +585,7 @@ func on_movement(tiles_moved: int) -> int:
 		bleed._set_name_and_description()
 		if owner_stats:
 			owner_stats.take_damage(damage)
+		dot_ticked.emit("Bleed", damage, "%d stack(s) left" % bleed.value)
 		print("[DEBUFF] Bleed triggered: %d damage from %d tiles (%d stack(s) left)" % [damage, tiles_moved, bleed.value])
 		if bleed.value <= 0:
 			remove_debuff(Debuff.DebuffType.BLEED)
