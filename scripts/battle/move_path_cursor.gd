@@ -16,9 +16,9 @@ const PATH_COLOR := Color8(249, 220, 62, 235)     # Palette GOLD_1
 const SPACES_COLOR := Color8(196, 128, 64)         # brown: spaces moved
 const TEMPO_COLOR := Color8(249, 220, 62)          # yellow: tempo it costs
 const BAR_COLOR := Color8(235, 225, 205)
-const NUMBER_HEIGHT := 0.30   # Each number's glyph height, in cells
+const NUMBER_HEIGHT := 0.19   # Each number's glyph height, in cells
 const NUMBER_FONT := 64
-const NUMBER_OFFSET := 7.0    # Each number's lift off the bar (label units)
+const NUMBER_OFFSET := 9.0    # Each number's lift off the bar (label units)
 const BLOCKED_COLOR := Color8(224, 105, 105, 225)  # Palette BLOOD_1
 
 const LIFT := 0.035           # Sit above the field marks so nothing z-fights
@@ -169,7 +169,7 @@ func _place_numbers(spaces: int, tempo: int) -> void:
 	_spaces_label.offset = Vector2(0, NUMBER_OFFSET)
 	_tempo_label.offset = Vector2(0, -NUMBER_OFFSET)
 	var bar: MeshInstance3D = _numbers.get_node("Bar")
-	bar.scale = Vector3(0.42 * s, 0.035 * s, 1)
+	bar.scale = Vector3(0.3 * s, 0.025 * s, 1)
 	_numbers.visible = true
 
 func _cell_y(cell: Vector2i) -> float:

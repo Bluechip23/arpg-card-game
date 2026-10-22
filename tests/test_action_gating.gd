@@ -319,7 +319,7 @@ func _test_weighted() -> void:
 	if inv.has_shield_equipped():
 		var t0: int = tm.global_tempo
 		main._on_block_pressed()
-		_check(tm.global_tempo - t0 == 5, "Block costs its 5 tempo, no Weighted +2 (got %d)" % (tm.global_tempo - t0))
+		_check(tm.global_tempo - t0 == main.BASIC_BLOCK_TEMPO, "Block costs its %d tempo, no Weighted +2 (got %d)" % [main.BASIC_BLOCK_TEMPO, tm.global_tempo - t0])
 		_check(dbm.get_debuff(Debuff.DebuffType.WEIGHTED).value == 2, "Block burns no stack")
 	else:
 		_check(false, "a shield is equipped for the Block check")

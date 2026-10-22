@@ -6713,6 +6713,31 @@ func set_hover_highlight(enabled: bool) -> void:
 	else:
 		update_outline()
 
+var _target_mark_state := 0
+
+## Marked as what the armed card / attack will hit (1), or aimed at but out
+## of range (2); 0 clears it. Sprite figures draw a ring and a red cast; a
+## box-mesh enemy turns its outline red / amber.
+func set_target_mark(state: int) -> void:
+	if state == _target_mark_state:
+		return
+	_target_mark_state = state
+	if _enemy_figure and _enemy_figure.has_method("set_target_mark"):
+		_enemy_figure.set_target_mark(state)
+		return
+	if not outline:
+		return
+	if state == 0:
+		update_outline()
+		return
+	outline.visible = true
+	var mat := outline.get_surface_override_material(0) as StandardMaterial3D
+	if mat:
+		mat.albedo_color = Color(1.0, 0.18, 0.12, 0.9) if state == 1 else Color(1.0, 0.7, 0.15, 0.85)
+
+func get_target_mark() -> int:
+	return _target_mark_state
+
 func _set_hover_text_visible(shown: bool) -> void:
 	## The name and the exact health / armor numbers only appear while the
 	## enemy is hovered (battlefield or unit tracker); the bars themselves

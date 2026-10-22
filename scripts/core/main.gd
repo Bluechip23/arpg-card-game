@@ -514,7 +514,13 @@ func _world_scale_ratio() -> Vector2:
 
 
 ## Mouse position mapped into the low-res world viewport's coordinates.
+## Tests (headless has no real cursor) set this to aim at a world-viewport
+## pixel; left at (-1, -1) in play.
+var mouse_override := Vector2(-1, -1)
+
 func _world_mouse_position() -> Vector2:
+	if mouse_override.x >= 0.0:
+		return mouse_override
 	return get_viewport().get_mouse_position() * _world_scale_ratio()
 
 
@@ -868,6 +874,7 @@ func _process(delta: float) -> void:
 	_update_status_icon_hover()
 	_update_loot_menu_presence()
 	_update_self_target_hover()
+	_update_target_marks()
 	_update_damage_preview()
 	_update_loot_hover()
 	_update_move_path_cursor()
@@ -1143,22 +1150,116 @@ func _update_status_icon_hover() -> void:
 				return ""
 			return str(en.get_effect_tooltip(nm).get("remaining", "")))
 
+## The enemy under the cursor — ONE pick for the hover glow, the target
+## marks and every click that aims at an enemy, so what lights up is what
+## gets hit. On screen first: the cursor inside an enemy's drawn body (a tall
+## boss is picked by pointing at it, not only at its feet; the nearest body
+## wins where they overlap). Else the nearest enemy within a tile of the
+## ground point under the cursor. Unseen enemies are never picked.
+var _body_extent_cache := {}
+
+func enemy_under_mouse() -> Enemy:
+	if enemy_spawner == null:
+		return null
+	var cam := get_world_camera()
+	var mouse := _world_mouse_position()
+	var best: Enemy = null
+	var best_score := INF
+	if cam:
+		var right: Vector3 = cam.global_transform.basis.x
+		for e in enemy_spawner.get_living_enemies():
+			if not is_instance_valid(e) or e.is_hidden() or not e.visible:
+				continue
+			var ext: Vector2 = _enemy_body_extent(e)
+			var feet: Vector3 = e.global_position
+			if cam.is_position_behind(feet):
+				continue
+			var f2 := cam.unproject_position(feet)
+			var h2 := cam.unproject_position(feet + Vector3(0, ext.y, 0))
+			var w2: float = absf(cam.unproject_position(feet + right * (ext.x * 0.5)).x - f2.x)
+			var top: float = minf(h2.y, f2.y)
+			var bottom: float = maxf(h2.y, f2.y) + 4.0
+			if mouse.x >= f2.x - w2 and mouse.x <= f2.x + w2 and mouse.y >= top and mouse.y <= bottom:
+				var centre := Vector2(f2.x, (top + bottom) * 0.5)
+				var score := centre.distance_to(mouse)
+				if score < best_score:
+					best_score = score
+					best = e
+	if best:
+		return best
+	var mouse_pos := get_mouse_world_position()
+	var closest_dist: float = 1.0 * (grid_manager.grid_size if grid_manager else 1.0)
+	for e in enemy_spawner.get_living_enemies():
+		if not is_instance_valid(e) or e.is_hidden():
+			continue
+		var diff: Vector3 = mouse_pos - e.position
+		var dist := Vector3(diff.x, 0, diff.z).length()
+		if dist <= closest_dist:
+			closest_dist = dist
+			best = e
+	return best
+
+## An enemy's drawn size in world units (width, height), measured once.
+func _enemy_body_extent(e: Enemy) -> Vector2:
+	var id := e.get_instance_id()
+	if _body_extent_cache.has(id):
+		return _body_extent_cache[id]
+	var ext := Vector2(0.9, 1.4)
+	var fig = e._enemy_figure if "_enemy_figure" in e else null
+	if fig and fig.has_method("portrait_extent"):
+		ext = fig.portrait_extent()
+		ext.x = maxf(ext.x, 0.6)
+		ext.y = maxf(ext.y, 0.6)
+	_body_extent_cache[id] = ext
+	return ext
+
+## Mark what the armed card or attack will hit (Enemy.set_target_mark): every
+## enemy inside an area card's shape, or the enemy under the cursor for a
+## single-target card, the auto attack, a quiver shot, a gauntlet skill or a
+## pending enemy pick — red when it would land, amber when out of range.
+func _update_target_marks() -> void:
+	if enemy_spawner == null:
+		return
+	var marks := {}
+	var card: Card = null
+	if selected_card_index >= 0 and deck_manager and selected_card_index < deck_manager.hand.size():
+		card = deck_manager.hand[selected_card_index]
+	if card and card.is_aoe and aoe_indicator and aoe_indicator.visible:
+		for e in enemy_spawner.get_living_enemies():
+			if is_instance_valid(e) and not e.is_hidden() and aoe_indicator._is_enemy_in_aoe(e):
+				marks[e] = 1
+	else:
+		var aims_enemy := false
+		if card:
+			aims_enemy = "enemy" in card.target_types \
+				or (card.heal_amount > 0 and player.get_buff_manager() and player.get_buff_manager().has_poisoned_blood())
+		aims_enemy = aims_enemy or _basic_attack_pending \
+			or (_pending_quiver_card != null and _pending_quiver_target_type == "enemy") \
+			or (_pending_gauntlet_skill != null and not (_pending_gauntlet_skill.gauntlet_skill_effect_id in POINT_TARGET_GAUNTLET_SKILLS)) \
+			or not _pending_enemy_pick.is_empty()
+		if aims_enemy and not _is_ui_window_open():
+			var e := enemy_under_mouse()
+			if e:
+				var ok := true
+				if not _pending_enemy_pick.is_empty():
+					ok = e in _pending_enemy_pick.get("allowed", [])
+				elif card:
+					ok = _is_target_in_card_range(card, e)
+				elif _basic_attack_pending:
+					ok = _get_distance_to_target(e) <= _basic_attack_reach()
+				marks[e] = 1 if ok else 2
+	for e in enemy_spawner.get_living_enemies():
+		if is_instance_valid(e) and e.has_method("set_target_mark"):
+			e.set_target_mark(int(marks.get(e, 0)))
+
 func _update_battlefield_enemy_hover() -> void:
 	## Check if mouse is hovering over a battlefield enemy and highlight its panel entry.
 	# Skip raycast when the sidebar portrait is driving the hover
 	if _sidebar_hover_active:
 		return
 
-	var mouse_pos := get_mouse_world_position()
-	var closest: Enemy = null
-	var closest_dist: float = 1.2  # Must be within ~1 tile
-
-	for enemy in enemy_spawner.get_living_enemies():
-		var diff := mouse_pos - enemy.position
-		var dist := Vector3(diff.x, 0, diff.z).length()
-		if dist < closest_dist:
-			closest_dist = dist
-			closest = enemy
+	# The same pick a click makes, so the glow is always the one you'd hit.
+	var closest: Enemy = enemy_under_mouse()
 
 	if closest != _prev_battlefield_hover:
 		# Unhighlight previous
@@ -12907,12 +13008,11 @@ func _input(event: InputEvent) -> void:
 		# Gauntlet skill armed: this click picks its target.
 		if _pending_gauntlet_skill != null:
 			var gsk: ItemData = _pending_gauntlet_skill
-			var gsk_mouse := get_mouse_world_position()
 			if gsk.gauntlet_skill_effect_id in POINT_TARGET_GAUNTLET_SKILLS:
 				_pending_gauntlet_skill = null
 				_fire_gauntlet_skill(gsk, null)  # Suck reads the clicked point via the mouse
 			else:
-				var gsk_enemy := enemy_spawner.get_enemy_at_position(gsk_mouse)
+				var gsk_enemy := enemy_under_mouse()
 				if gsk_enemy == null:
 					add_battle_log("No enemy at that position!", Color(1.0, 0.6, 0.3))
 				elif _validate_gauntlet_skill_target(gsk, gsk_enemy):
@@ -12924,7 +13024,7 @@ func _input(event: InputEvent) -> void:
 		# A card waiting for its enemy (Life Swap): the click picks one of the
 		# candidates it offered; a click elsewhere is simply ignored.
 		if not _pending_enemy_pick.is_empty():
-			var pick_enemy := enemy_spawner.get_enemy_at_position(get_mouse_world_position())
+			var pick_enemy := enemy_under_mouse()
 			if pick_enemy and pick_enemy in _pending_enemy_pick.get("allowed", []):
 				var pick := _pending_enemy_pick
 				_pending_enemy_pick = {}
@@ -12933,8 +13033,7 @@ func _input(event: InputEvent) -> void:
 				add_battle_log("%s: pick one of the enemies in melee range." % str(_pending_enemy_pick.get("what", "")), Color(1.0, 0.6, 0.3))
 			return
 		if _basic_attack_pending:
-			var atk_mouse_pos := get_mouse_world_position()
-			var atk_enemy := enemy_spawner.get_enemy_at_position(atk_mouse_pos)
+			var atk_enemy := enemy_under_mouse()
 			if atk_enemy:
 				_execute_basic_attack(atk_enemy)
 			else:
@@ -12946,7 +13045,7 @@ func _input(event: InputEvent) -> void:
 		if _pending_quiver_card != null:
 			var mouse_pos = get_mouse_world_position()
 			if _pending_quiver_target_type == "enemy":
-				var enemy = enemy_spawner.get_enemy_at_position(mouse_pos)
+				var enemy = enemy_under_mouse()
 				if enemy:
 					play_quiver_card(_pending_quiver_card, _pending_quiver_index, enemy)
 				else:
@@ -12971,7 +13070,7 @@ func _input(event: InputEvent) -> void:
 
 			# Try enemy targeting first if card supports it
 			if "enemy" in tt:
-				var enemy = enemy_spawner.get_enemy_at_position(mouse_pos)
+				var enemy = enemy_under_mouse()
 				if enemy:
 					_card_played = true
 					if card.requires_high_ground and not _has_high_ground(player.position, enemy):

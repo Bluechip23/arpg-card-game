@@ -172,6 +172,7 @@ var _rig: Node3D = null
 var _tint := Color.WHITE
 var _ghost_alpha := 1.0   # < 1 while the enemy is hidden (Enemy.set_hidden): it survives flashes and highlights
 var _highlighted := false
+var _target_state := 0          # 0 none, 1 targeted (red), 2 aimed at but out of range (amber)
 var _walking := false
 var _time := 0.0
 var _facing_x := -1.0    # battlers are drawn facing left; flip for east
@@ -713,6 +714,16 @@ func set_highlight(enabled: bool) -> void:
 		_sprite.modulate = _lit_tint()
 
 
+## Mark this enemy as what the armed card / attack will hit (1: a red cast)
+## or aimed at but out of range (2: amber); 0 clears it.
+func set_target_mark(state: int) -> void:
+	if state == _target_state:
+		return
+	_target_state = state
+	if _sprite:
+		_sprite.modulate = _lit_tint()
+
+
 ## Translucency for a hidden enemy (Specter, Cherub, Screecher): folded into
 ## every tint the sprite takes, so a hit flash or a hover does not undo it.
 func set_ghost_alpha(a: float) -> void:
@@ -725,6 +736,10 @@ func _lit_tint() -> Color:
 	var c := _tint
 	if _highlighted:
 		c = Color(_tint.r * 1.45, _tint.g * 1.45, _tint.b * 1.25, _tint.a)
+	if _target_state == 1:
+		c = Color(c.r * 1.6, c.g * 0.7, c.b * 0.65, c.a)
+	elif _target_state == 2:
+		c = Color(c.r * 1.35, c.g * 1.15, c.b * 0.6, c.a)
 	c.a *= _ghost_alpha
 	return c
 
