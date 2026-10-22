@@ -15,4 +15,4 @@ granted_card_ids = Array[String](["shuriken", "shuriken"])
 card_slots = 1
 vanilla_slots = 1
 on_self_apply_vulnerable = 1
-description = "+5 AGI, +1 DEX. On-self: apply 1 Vulnerable. Grants two Shurikens."
+description = "+5 AGI, +1 DEX. On-self: offensive cards that hit apply 1 Vulnerable. Grants two Shurikens."

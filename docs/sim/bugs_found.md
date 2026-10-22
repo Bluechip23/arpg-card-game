@@ -325,3 +325,23 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   in `_cell_is_free` (and `_build_route_path` already has one). Until it
   is fixed every Minotaur cell in 3a is a timeout count, not a difficulty
   reading.
+
+## 2026-10-22 — play report (fixed in this pass)
+
+- **Back through a town portal, the screen was solid fog.** The battle
+  scene opens with the camera on the level's start and only follows the
+  player once they move; `_apply_portal_return` moved the player to the
+  portal's tile but not the camera, and never refreshed the fog there. A
+  player who had reached that part of the map by waypoint (start never
+  walked) saw nothing but fog. The return now reveals around the landing
+  tile, stands the player at that tile's height and centres the camera on
+  them. `test_town_portal_return` round-trips from the overworld and from
+  inside a sewer, forest, cave, building and graveyard (fails on the old
+  code).
+- **The town portal re-opened after coming back through it.** The return
+  re-spawned the battle-side portal; it is now spent once used.
+- **Unslotting a card could push the base deck past 8.** A card coming
+  out of an item went back to the deck piles whatever the base count; with
+  the base deck full it now goes to the card inventory. Slotting a card
+  from the card inventory also checks the rarity copy limit now, as
+  "Add to Deck" does (`test_slot_from_inventory`).

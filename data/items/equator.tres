@@ -16,4 +16,4 @@ granted_card_ids = Array[String](["serene_center"])
 card_slots = 2
 vanilla_slots = 1
 on_self_apply_burn = 4
-description = "+6 STR, +2 DET, +2 WIS. On-self: apply 4 Burn. Grants Serene Center: set your health (temp included) and mana to half of max (30 mana, 4 tempo)."
+description = "+6 STR, +2 DET, +2 WIS. On-self: offensive cards that hit apply 4 Burn. Grants Serene Center: set your health (temp included) and mana to half of max (30 mana, 4 tempo)."

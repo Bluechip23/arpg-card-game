@@ -17,4 +17,4 @@ card_slots = 3
 vanilla_slots = 1
 on_self_cleanse_stacks = 3
 debuff_removed_conjure_id = "healing_tonic"
-description = "+25 health, +1 DET, +1 WIS, +1 DEX. On-self: cleanse 3 stacks of a random debuff on the card's target. When a debuff is removed from you, gain a Healing Tonic (0m/0t, range 5, heal an ally 5)."
+description = "+25 health, +1 DET, +1 WIS, +1 DEX. On-self: cleanse 3 stacks of a random debuff on the card's target (a card aimed at you or an ally). When a debuff is removed from you, gain a Healing Tonic (0m/0t, range 5, heal an ally 5)."

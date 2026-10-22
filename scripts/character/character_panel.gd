@@ -13,6 +13,7 @@ signal swap_tempo_spent(cost: int, action: String, item_type: int)
 const EquipmentSlotCellScript = preload("res://scripts/character/equipment_slot_cell.gd")
 const StorageItemCellScript = preload("res://scripts/character/storage_item_cell.gd")
 const CardSlotCellScript = preload("res://scripts/character/card_slot_cell.gd")
+const OnSelfRulesScript = preload("res://scripts/progression/on_self_rules.gd")
 # Preloaded (not referenced by class_name) so this script compiles before the
 # global class cache has picked the new class up.
 const SplitBorderStyleBoxScript = preload("res://scripts/ui/split_border_style_box.gd")
@@ -45,6 +46,7 @@ var _pending_card: Card = null
 var _pending_card_index: int = -1
 var _card_confirm_popup: PanelContainer = null
 var _card_keyword_window: PanelContainer = null  # KeywordWindow beside the card popup
+var _slot_choice_popup: PanelContainer = null  # "Where do you want to slot the item?"
 
 # Live 3D portrait + combat stats section (built on first open)
 var _portrait_fig: SpriteFigure = null
@@ -1949,23 +1951,25 @@ func _open_card_slot_panel(item: ItemData) -> void:
 		for card in deck_manager.discard_pile:
 			if item.can_slot_card(card) and not card.is_slotted():
 				available_cards.append(card)
-		# Engrave cards live in the card inventory until slotted — offer them too.
+		# The card inventory too: any carried card that fits joins the deck
+		# inside the item (Engrave cards can only join that way).
+		var from_inventory: Array = []
 		if inventory and not deck_full:
 			for card in inventory.stored_cards:
-				if card is Card and card.requires_engraving and not card.is_slotted() \
-						and item.can_slot_card(card):
+				if card is Card and not card.is_slotted() and item.can_slot_card(card):
 					available_cards.append(card)
+					from_inventory.append(card)
 
 		if available_cards.size() == 0:
 			var none_label = Label.new()
-			none_label.text = "  (No compatible cards in deck)"
+			none_label.text = "  (No compatible cards in your deck or card inventory)"
 			none_label.add_theme_font_size_override("font_size", 12)
 			none_label.add_theme_color_override("font_color", Color(0.4, 0.4, 0.5))
 			pool.add_child(none_label)
 		else:
 			for card in available_cards:
 				var chip = CardSlotCellScript.new()
-				chip.setup_chip(self, item, card)
+				chip.setup_chip(self, item, card, from_inventory.has(card))
 				pool.add_child(chip)
 
 	vbox.add_child(_make_separator())
@@ -2440,6 +2444,18 @@ func _show_card_confirm_modal(card: Card) -> void:
 	btn_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.add_child(btn_row)
 
+	# Straight into a worn item's slot (the card joins the deck inside it).
+	var slot_btn = Button.new()
+	slot_btn.text = "Slot in Item"
+	slot_btn.custom_minimum_size = Vector2(100, 30)
+	slot_btn.add_theme_font_size_override("font_size", 11)
+	var has_options := not _slot_options_for(card).is_empty()
+	slot_btn.disabled = not has_options
+	slot_btn.tooltip_text = "Pick a worn item to slot this card into." if has_options \
+		else "No worn item has a free slot this card fits."
+	slot_btn.pressed.connect(_show_slot_choice.bind(card))
+	btn_row.add_child(slot_btn)
+
 	var confirm_btn = Button.new()
 	confirm_btn.text = "Add to Deck"
 	confirm_btn.custom_minimum_size = Vector2(100, 30)
@@ -2522,6 +2538,152 @@ func _dismiss_card_confirm_modal() -> void:
 	if is_instance_valid(_card_keyword_window):
 		_card_keyword_window.queue_free()
 	_card_keyword_window = null
+	_dismiss_slot_choice()
+
+## Every free slot `card` could go into across the worn gear: one entry per
+## item and kind of slot (its bonus slots, each coloured slot, its vanilla
+## slots), pointing at the first free square of that kind.
+func _slot_options_for(card: Card) -> Array:
+	var out: Array = []
+	if not inventory or card == null:
+		return out
+	for it in inventory.get_all_items_with_card_slots():
+		var seen := {}
+		for i in range(it.total_card_slots()):
+			if not it.can_slot_card_at(card, i):
+				continue
+			var kind := "vanilla"
+			if i < it.card_slots:
+				kind = ("colour:" + str(it.slot_colors[i])) if i < it.slot_colors.size() else "bonus"
+			if seen.has(kind):
+				continue
+			seen[kind] = true
+			out.append({"item": it, "index": i, "kind": kind})
+	return out
+
+## What slotting `card` at option `opt` would give it, in a line.
+func _slot_option_effect(card: Card, opt: Dictionary) -> String:
+	var kind: String = opt["kind"]
+	if kind == "vanilla":
+		return "Vanilla slot: no bonus."
+	if kind.begins_with("colour:"):
+		return "%s slot: its own element effect." % kind.trim_prefix("colour:").capitalize()
+	var item: ItemData = opt["item"]
+	var gets: Array[String] = []
+	var misses: Array[String] = []
+	for rd in OnSelfRulesScript.describe(item.get_on_self_bonus(), card):
+		if rd["applies"]:
+			gets.append(rd["text"])
+		else:
+			misses.append("%s (needs %s)" % [rd["text"], OnSelfRulesScript.KIND_TEXT.get(rd["wants"], rd["wants"])])
+	if gets.is_empty() and misses.is_empty():
+		return "On-self slot: this item has no on-self bonus."
+	var line := "On-self: " + (", ".join(gets) if not gets.is_empty() else "nothing for this card")
+	if not misses.is_empty():
+		line += "\nNot for this card: " + ", ".join(misses)
+	return line
+
+func _show_slot_choice(card: Card) -> void:
+	_dismiss_slot_choice()
+	var options := _slot_options_for(card)
+	_slot_choice_popup = PanelContainer.new()
+	_slot_choice_popup.name = "SlotChoicePopup"
+	_slot_choice_popup.z_index = 210
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.06, 0.14, 0.97)
+	style.set_corner_radius_all(6)
+	style.set_border_width_all(2)
+	style.border_color = Color(0.6, 0.4, 0.9)
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	style.content_margin_top = 10
+	style.content_margin_bottom = 10
+	_slot_choice_popup.add_theme_stylebox_override("panel", style)
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	_slot_choice_popup.add_child(vbox)
+	var title = Label.new()
+	title.text = "Where do you want to slot the item?"
+	title.add_theme_font_size_override("font_size", 14)
+	title.add_theme_color_override("font_color", Color(0.85, 0.65, 1.0))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(title)
+	var sub = Label.new()
+	sub.text = "%s joins your deck inside the item you pick." % card.card_name
+	sub.add_theme_font_size_override("font_size", 11)
+	sub.add_theme_color_override("font_color", Color(0.65, 0.65, 0.75))
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(sub)
+	if options.is_empty():
+		var none = Label.new()
+		none.text = "No worn item has a free slot this card fits."
+		none.add_theme_font_size_override("font_size", 11)
+		none.add_theme_color_override("font_color", Color(0.9, 0.6, 0.4))
+		vbox.add_child(none)
+	for opt in options:
+		var item: ItemData = opt["item"]
+		var kind: String = opt["kind"]
+		var btn = Button.new()
+		btn.name = "SlotOption"
+		var kind_word := "vanilla slot" if kind == "vanilla" else \
+			("%s slot" % kind.trim_prefix("colour:") if kind.begins_with("colour:") else "on-self slot")
+		btn.text = "%s  (%s) — %s" % [item.item_name, item.get_type_name(), kind_word]
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		btn.custom_minimum_size = Vector2(320, 28)
+		btn.add_theme_font_size_override("font_size", 12)
+		btn.pressed.connect(_on_slot_choice_picked.bind(card, item, int(opt["index"])))
+		vbox.add_child(btn)
+		var eff = Label.new()
+		eff.text = "   " + _slot_option_effect(card, opt).replace("\n", "\n   ")
+		eff.add_theme_font_size_override("font_size", 10)
+		eff.add_theme_color_override("font_color", Color(0.95, 0.8, 0.4) if kind != "vanilla" else Color(0.85, 0.8, 0.65))
+		eff.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		eff.custom_minimum_size.x = 320
+		vbox.add_child(eff)
+	var cancel = Button.new()
+	cancel.text = "Cancel"
+	cancel.custom_minimum_size = Vector2(80, 28)
+	cancel.add_theme_font_size_override("font_size", 11)
+	cancel.pressed.connect(_dismiss_slot_choice)
+	vbox.add_child(cancel)
+	# Its own size, centred over the window (not stretched by the window's
+	# layout), with the card popup tucked away underneath until it closes.
+	_slot_choice_popup.top_level = true
+	panel.add_child(_slot_choice_popup)
+	_set_card_popup_shown(false)
+	await get_tree().process_frame
+	if is_instance_valid(_slot_choice_popup) and is_instance_valid(panel):
+		_slot_choice_popup.size = _slot_choice_popup.get_combined_minimum_size()
+		_slot_choice_popup.global_position = panel.global_position + (panel.size - _slot_choice_popup.size) / 2
+
+func _set_card_popup_shown(on: bool) -> void:
+	if is_instance_valid(_card_confirm_popup):
+		_card_confirm_popup.visible = on
+	if is_instance_valid(_card_keyword_window):
+		_card_keyword_window.visible = on
+
+func _on_slot_choice_picked(card: Card, item: ItemData, slot_index: int) -> void:
+	if not inventory:
+		return
+	var main_node = _main_node()
+	if inventory.enchant_card(card, item, slot_index):
+		if main_node and main_node.has_method("add_battle_log"):
+			main_node.add_battle_log("Slotted %s into %s — it joins your deck." % [card.card_name, item.item_name], Color(0.75, 0.6, 1.0))
+		_pending_card = null
+		_pending_card_index = -1
+		_dismiss_card_confirm_modal()
+		update_display()
+	else:
+		var why: String = inventory.last_refusal if inventory.last_refusal != "" else "It does not fit there."
+		if main_node and main_node.has_method("add_battle_log"):
+			main_node.add_battle_log("Could not slot %s: %s." % [card.card_name, why.trim_suffix(".")], Color(1.0, 0.5, 0.3))
+		_show_slot_choice(card)
+
+func _dismiss_slot_choice() -> void:
+	if is_instance_valid(_slot_choice_popup):
+		_slot_choice_popup.queue_free()
+	_slot_choice_popup = null
+	_set_card_popup_shown(true)  # Cancel: back to the card's own popup
 
 func _get_item_type_color(item_type: ItemData.ItemType) -> Color:
 	match item_type:

@@ -17,4 +17,4 @@ vanilla_slots = 1
 on_self_mana_multiplier = 1.5
 on_self_double_shot = true
 on_self_jail_tempo = 20
-description = "+8 STR, -4 AGI, +2 DEX. 2 card slots. On-self: Double Shot — the card hits a second time at full damage, costs 1.5x mana, and is jailed 20 tempo after play."
+description = "+8 STR, -4 AGI, +2 DEX. 2 card slots. On-self: Double Shot — an offensive card hits a second time at full damage, costs 1.5x mana, and is jailed 20 tempo after play."

@@ -9,6 +9,7 @@ extends SceneTree
 ## Run: godot --headless --path . --script tests/report_slot_audit.gd
 
 const OUT := "res://docs/ITEM_SLOT_AUDIT.md"
+const RulesScript = preload("res://scripts/progression/on_self_rules.gd")
 
 ## rider field -> the card it fires on
 const RIDER_WANTS := {
@@ -44,6 +45,15 @@ const RIDER_WANTS := {
 const RIDER_PARAMS := ["on_self_range_requires_ranged", "on_self_strengthen_attacks", "on_self_missing_health_step", "on_self_resist_all_tempo"]
 
 var _blank: ItemData
+
+## An on_self_* export is covered when its get_on_self_bonus key is in the
+## rules table (or is a parameter of another rider).
+func _key_known(field: String) -> bool:
+	var osb: Dictionary = _blank.get_on_self_bonus()
+	for k in osb:
+		if field == "on_self_" + k or field.trim_prefix("on_self_") == k:
+			return RulesScript.RULES.has(k) or k in RulesScript.PARAMS
+	return field.trim_prefix("on_self_") in RulesScript.PARAMS or RulesScript.RULES.has(field.trim_prefix("on_self_"))
 
 func _wants(card: Card, kind: String) -> bool:
 	match kind:
@@ -84,7 +94,7 @@ func _initialize() -> void:
 	var unmapped: Array[String] = []
 	for prop in _blank.get_property_list():
 		var pn: String = str(prop["name"])
-		if pn.begins_with("on_self_") and not RIDER_WANTS.has(pn) and not RIDER_PARAMS.has(pn):
+		if pn.begins_with("on_self_") and not _key_known(pn):
 			unmapped.append(pn)
 	if not unmapped.is_empty():
 		push_error("report_slot_audit: unmapped riders: %s" % ", ".join(unmapped))
@@ -122,31 +132,31 @@ func _initialize() -> void:
 		else:
 			var req: int = item._get_default_keyword_for_item_type()
 			label = Card.keyword_name(req) if req >= 0 else "any label"
-		var riders: Array[String] = []
-		var all_dead := true
-		var n_riders := 0
-		var fields: Array = RIDER_WANTS.keys()
+		# Riders and their card kinds come from OnSelfRules, the same table the
+		# hover preview reads, so the audit and the game cannot disagree.
+		var osb: Dictionary = item.get_on_self_bonus()
+		var item_riders: Array = RulesScript.describe(osb, null)
 		if item.attack_debuffs_on_self_only:
-			# Car Battery: the attack_apply_* debuffs ride only its own slotted cards.
+			# Car Battery: its attack_apply_* debuffs ride only its own slotted cards.
 			for f in ["attack_apply_shock", "attack_apply_burn", "attack_apply_cold", "attack_apply_silence", "attack_apply_vulnerable"]:
 				if _active(item, f):
-					fields.append(f)
-		for field in fields:
-			if not _active(item, field):
-				continue
-			var kind_of: String = RIDER_WANTS.get(field, "offensive")
+					item_riders.append({"key": f.trim_prefix("attack_"), "wants": "offensive hit", "text": f})
+		var rider_lines: Array[String] = []
+		var all_dead := true
+		var n_riders := 0
+		for rd in item_riders:
 			n_riders += 1
-			var kind: String = kind_of
+			var kind: String = rd["wants"]
 			var n := 0
 			for c in fits:
-				if _wants(c, kind):
+				if RulesScript.qualifies(c, kind):
 					n += 1
-			var short: String = field.trim_prefix("on_self_").trim_prefix("attack_")
+			var short: String = rd["key"]
 			if n == 0:
-				riders.append("**%s wants %s: 0 cards — DEAD**" % [short, kind])
-				dead_riders.append("%s (%s): %s wants a %s card, none fits the %s slot" % [item.item_name, id, short, kind, label])
+				rider_lines.append("**%s wants %s: 0 cards — DEAD**" % [short, kind])
+				dead_riders.append("%s (%s): %s wants %s, none fits the %s slot" % [item.item_name, id, short, RulesScript.KIND_TEXT.get(kind, kind), label])
 			else:
-				riders.append("%s wants %s: %d" % [short, kind, n])
+				rider_lines.append("%s wants %s: %d" % [short, kind, n])
 				all_dead = false
 		if fits.is_empty():
 			dead_slots.append("%s (%s): %d slot(s), label %s, no card carries it" % [item.item_name, id, item.total_card_slots(), label])
@@ -160,7 +170,7 @@ func _initialize() -> void:
 				rl.append("%s %d" % [r, by_r[r]])
 		rows.append("| %s | %s | %d + %d | %s | %d (%s) | %s |" % [item.item_name, ItemData.ItemType.keys()[item.item_type].capitalize()
 			+ (" / " + ItemData.get_weapon_subtype_name(item.weapon_subtype) if item.item_type == ItemData.ItemType.WEAPON else ""),
-			item.card_slots, item.vanilla_slots, label, fits.size(), "; ".join(rl), "<br>".join(riders) if not riders.is_empty() else "—"])
+			item.card_slots, item.vanilla_slots, label, fits.size(), "; ".join(rl), "<br>".join(rider_lines) if not rider_lines.is_empty() else "—"])
 	lines.append("## Slots no card can use (%d)" % dead_slots.size())
 	lines.append("")
 	for d in dead_slots:

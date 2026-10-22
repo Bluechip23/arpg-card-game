@@ -2628,6 +2628,14 @@ func enchant_card(card: Card, item: ItemData, slot_index: int = -1) -> bool:
 		print("[INVENTORY] %s — '%s' cannot be slotted into %s" % [last_refusal, card.card_name, item.item_name])
 		return false
 
+	# The rarity copy limit holds for a card joining the deck through a slot
+	# just as it does for "Add to Deck" (one copy of a legendary, ...).
+	if deck_manager and not _card_in_any_zone(card) and not deck_manager.can_add_copy(card.card_id):
+		last_refusal = "Deck limit: only %d cop%s of %s (%s) allowed" % [Card.max_deck_copies(card.card_id),
+			"y" if Card.max_deck_copies(card.card_id) == 1 else "ies", card.card_name, card.get_rarity_name()]
+		print("[INVENTORY] %s — '%s' stays in the card inventory" % [last_refusal, card.card_name])
+		return false
+
 	# Slot the card into the item (card stays in the deck)
 	if slot_index >= 0:
 		item.slot_card_at(card, slot_index)
@@ -2673,6 +2681,20 @@ func extract_card(item: ItemData, card_index: int, _destroy_item: bool = false) 
 		storage_changed.emit()
 		deck_manager.hand_updated.emit()
 		print("[INVENTORY] Engrave: '%s' left the deck for the card inventory" % card.card_name)
+	elif enforce_deck_cap and deck_manager and _card_in_any_zone(card) \
+			and deck_manager.get_deck_size() > deck_manager.get_max_deck_size():
+		# Out of the item it counts toward the 8-card base deck again. No room
+		# there (it came from the card inventory, or the deck filled up while
+		# it was slotted): it goes back to the card inventory, not over the cap.
+		for pile in [deck_manager.draw_pile, deck_manager.hand, deck_manager.discard_pile,
+				deck_manager.jail_pile, deck_manager.maintained_cards]:
+			var pi2 = pile.find(card)
+			if pi2 >= 0:
+				pile.remove_at(pi2)
+		stored_cards.append(card)
+		storage_changed.emit()
+		deck_manager.hand_updated.emit()
+		print("[INVENTORY] Base deck full: '%s' went back to the card inventory" % card.card_name)
 
 	equipment_changed.emit()
 	print("[INVENTORY] Extracted '%s' from %s" % [card.card_name, item.item_name])

@@ -1794,7 +1794,13 @@ func _tick_status_durations() -> void:
 
 	# Burn: deal doubling damage each cycle (1, 2, 4, 8...)
 	if burn_stacks > 0:
+		# A small flame flares over the head and the tick's number floats
+		# above it, so a burn is seen working (not just a tiny yellow 1).
+		if is_inside_tree() and get_parent():
+			FireTileSprite.burst(get_parent(), position + Vector3(0, BURN_FLAME_Y, 0))
+		_burn_number_pending = true
 		take_damage(burn_damage_next, false)
+		_burn_number_pending = false
 		print("[%s] Burn deals %d damage (doubles next cycle)" % [enemy_name, burn_damage_next])
 		# Element Pollination: the flames jump — burn splashes nearby enemies
 		# like Shock while the Elemental Weaver's maintain is up.
@@ -6156,6 +6162,10 @@ func _alert_mini_bear_pack() -> void:
 # ============================================
 
 const ARMOR_NUMBER_COLOR := Color(0.72, 0.74, 0.78)  # grey: damage the armor took
+const BURN_NUMBER_COLOR := Color(1.0, 0.5, 0.12)    # fire orange: a burn tick
+const BURN_FLAME_Y := 1.55                          # the burn flame, just over the head
+const BURN_NUMBER_Y := 2.35                         # its number, above the flame
+var _burn_number_pending: bool = false             # the hit being numbered is a burn tick
 
 func _spawn_damage_number(amount: int, was_exposed: bool = false, armor_amount: int = 0) -> void:
 	## `amount` is what reached health, `armor_amount` what the armor took.
@@ -6163,6 +6173,12 @@ func _spawn_damage_number(amount: int, was_exposed: bool = false, armor_amount: 
 	## the two shows "armor/health" (grey/red), a little smaller.
 	var x_offset := randf_range(-0.3, 0.3)  # avoid stacking
 	if amount <= 0 and armor_amount <= 0:
+		return
+	if _burn_number_pending:
+		# Burn tick: the number sits above the flame burst, in fire orange,
+		# whatever part of it the armor took.
+		WorldText.float_number(get_parent(), position + Vector3(0, BURN_NUMBER_Y, 0),
+			str(amount + armor_amount), BURN_NUMBER_COLOR, 24, 6, 0.9, 0.8, 0.6, true)
 		return
 	if armor_amount > 0 and amount > 0:
 		var pair_size := 24 if (amount >= 10 or armor_amount >= 10) else 19
