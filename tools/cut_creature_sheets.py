@@ -4,10 +4,10 @@
 Sources (assets/sprites/paintings/, .gdignore'd source art), 2026-10-22:
   hydra_sheet.jpg, werewolf_sheet.jpg, sabertooth_sheet.jpg — 4x4 walk
     frames on a dark stone floor, a label strip over each row.
-  white_manticore_sheet.webp, weregoat_sheet.webp — 4x4 walk frames on
+  white_manticore_sheet.webp, weregoat_sheet.webp, wolf_sheet.webp — 4x4 walk frames on
     pure black, row names on the left.
 The row labels are not reliable ("walking left" rows that face right, a
-weregoat "Right" row that faces left, werewolf "back" frames that are side
+weregoat and wolf "Right" rows that face left, werewolf "back" frames that are side
 views), so FRAMES below picks each direction's frames by what they show and
 the opposite side is the mirror.
 
@@ -70,6 +70,12 @@ FRAMES = {
     },
     "weregoat": {
         "src": "weregoat_sheet.webp", "kind": "black", "down": 4,
+        "back": [(0, c) for c in range(4)],
+        "front": [(1, c) for c in range(4)],
+        "left": [(2, c) for c in range(4)],           # its "Right" row faces left as well
+    },
+    "wolf": {
+        "src": "wolf_sheet.webp", "kind": "black", "down": 4,
         "back": [(0, c) for c in range(4)],
         "front": [(1, c) for c in range(4)],
         "left": [(2, c) for c in range(4)],           # its "Right" row faces left as well

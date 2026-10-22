@@ -70,7 +70,7 @@ func _run() -> void:
 
 	# The designer's 4x4 creature walk sheets (tools/cut_creature_sheets.py).
 	for t in [Enemy.EnemyType.HYDRA, Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.SABERTOOTH,
-			Enemy.EnemyType.WHITE_MANTICORE, Enemy.EnemyType.WEREGOAT]:
+			Enemy.EnemyType.WHITE_MANTICORE, Enemy.EnemyType.WEREGOAT, Enemy.EnemyType.WOLF]:
 		var ce: Enemy = main.enemy_spawner.spawn_enemy(t, main.player.position + Vector3(x, 0, 2))
 		x += 2.0
 		await process_frame

@@ -85,8 +85,8 @@ const KINDS := {
 	"screecher": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},  # wears the Snow Wraith's ghost (designer, 2026-10-22); the mountain-monster Bird frames are free again
 	"giant_beaver": {"cell": Vector2i(0, 1), "tint": Color(0.95, 0.85, 0.75)},
 	"mini_bear": {"fr": "mountain_monsters/Bear", "scale": 0.45},
-	"wolf": {"cell": Vector2i(3, 1)},
-	"coyote": {"cell": Vector2i(3, 1), "tint": Color(1.1, 1.0, 0.8)},
+	"wolf": {"sheets": SHEETS + "/wolf", "scale": 0.7},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-22)
+	"coyote": {"cell": Vector2i(3, 1), "tint": Color(1.1, 1.0, 0.8)},  # the old wolf battler, tinted
 	"djinn": {"cell": Vector2i(4, 1)},
 	"specter": {"cp": "ghost/Ghost1", "scale": 1.2},
 	"wererabbit": {"cell": Vector2i(7, 1)},
