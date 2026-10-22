@@ -25,6 +25,7 @@ extends Node3D
 const SHEET := "res://assets/sprites/MonsterKit/monster battler set.png"
 const NPC1 := "res://assets/sprites/NPCpackage1"
 const CP := "res://assets/sprites/craftpix"
+const BOSSES := "res://assets/sprites/generated/bosses"
 
 ## Direction row order of the Craftpix packs, top row first: F = front
 ## (SOUTH, faces the camera), B = back (NORTH), L = WEST, R = EAST. Every
@@ -61,6 +62,10 @@ const NPC_WALK_TIME := 0.18
 ##                     facing, flipped for west — like the MonsterKit battlers)
 ## MonsterKit battler: {cell: Vector2i(col,row), tint?: Color, scale?: float}
 ## Generated battler:  {tex: "<name>", tint?: Color, scale?: float}
+## Directional sheets: {sheets: "<folder>", scale?} — Idle.png / Walk.png in
+##                     the Craftpix layout (rows front, back, left, right),
+##                     cut from the designer's boss boards by
+##                     tools/cut_boss_sheets.py. Played like a Craftpix pack.
 ## Craftpix icon:      {icon: "<pack>/<file>", faces?: "left"|"right"|"front",
 ##                     tint?, scale?} (a single 32x32 monster icon used as a
 ##                     static battler; flipped for the far side like the
@@ -90,7 +95,9 @@ const KINDS := {
 	# --- generated sprites (drawn/derived in our pipeline, palette-conformant) ---
 	"rat": {"cp": "giant_rat/Rat1"},
 	"archer_rat": {"cp": "giant_rat/Rat1", "tint": Color(0.85, 0.78, 0.7)},
-	"rat_king": {"cp": "giant_rat/Rat3", "scale": 1.7, "tint": Color(1.05, 0.95, 0.85)},
+	# The designer's own boss boards (no pack has these bosses): front, back
+	# and side walk frames, cut by tools/cut_boss_sheets.py.
+	"rat_king": {"sheets": BOSSES + "/rat_king", "scale": 1.15},
 	"fire_goblin_soldier": {"cp": "goblins/Goblin2", "scale": 1.1, "tint": Color(1.1, 0.9, 0.8)},
 	"fire_goblin_mage": {"cp": "goblins/Goblin1", "scale": 1.1, "tint": Color(1.15, 0.85, 0.7)},
 	"fire_goblin_shaman": {"cp": "goblins/Goblin3", "scale": 1.2, "tint": Color(1.1, 0.9, 0.8)},
@@ -110,7 +117,8 @@ const KINDS := {
 	"large_bear": {"fr": "mountain_monsters/Bear", "scale": 0.65},
 	"bone_dragon": {"tex": "bone_dragon", "scale": 1.6},
 	"wyvern": {"cell": Vector2i(7, 2), "tint": Color(0.9, 0.75, 1.05), "scale": 1.35},
-	"cerberus": {"icon": "chaos_monsters/Icon27", "faces": "right", "scale": 3.2},  # the standing three-headed hound (a tile taller and longer than the 2.2 the icon first got)
+	"cerberus": {"sheets": BOSSES + "/cerberus", "scale": 1.5},
+	"hades": {"sheets": BOSSES + "/hades", "scale": 1.15},  # art in place; no Hades enemy exists yet
 	"werewolf": {"cell": Vector2i(3, 1), "tint": Color(0.6, 0.6, 0.68), "scale": 1.25},
 	"sabertooth": {"cell": Vector2i(3, 1), "tint": Color(1.05, 0.95, 0.75), "scale": 1.2},
 	"weregoat": {"cp": "gnolls/Gnoll3", "scale": 1.1, "tint": Color(0.85, 0.85, 0.9)},
@@ -132,7 +140,7 @@ const KINDS := {
 	"infected_hunter": {"cp": "zombie/Zombie3", "scale": 1.3, "tint": Color(0.9, 1.0, 0.85)},
 	"succubus": {"icon": "chaos_monsters/Icon14", "faces": "front", "scale": 1.7},  # the purple-winged temptress
 	"cherub": {"npc": NPC1 + "/npc baby A v01.png", "tint": Color(1.15, 1.1, 0.9)},
-	"corrupted_archangel": {"npc": NPC1 + "/npc king A v01.png", "tint": Color(0.75, 0.6, 0.9), "scale": 1.2},
+	"corrupted_archangel": {"sheets": BOSSES + "/corrupted_archangel", "scale": 1.15},  # the designer's board (tools/cut_boss_sheets.py)
 	# --- the generic Minion / Elite / Boss tiers (and custom enemies): the
 	# Craftpix swordsman's three gear tiers, lvl4 → lvl6 increasingly heavy,
 	# growing with the tier like the old procedural brute did ---
@@ -207,6 +215,8 @@ func setup(kind: String) -> void:
 	_sprite.shaded = false
 	if cfg.has("cp"):
 		_setup_craftpix(cfg["cp"])
+	elif cfg.has("sheets"):
+		_setup_sheets(cfg["sheets"])
 	elif cfg.has("fr"):
 		_setup_frames(cfg["fr"], cfg.get("prefix", ""))
 	elif cfg.has("npc"):
@@ -286,6 +296,24 @@ func _setup_craftpix(spec: String) -> void:
 			_cp_sheets[anim] = tex
 	var idle: Texture2D = _cp_sheets.get("Idle")
 	assert(idle != null, "Craftpix pack %s has no Idle sheet" % spec)
+	_cp_cell = int(idle.get_height() / 4)
+	_sprite.texture = idle
+	_sprite.pixel_size = PIXEL_SIZE
+	_sprite.region_rect = Rect2(0, _cp_row(_cp_dir) * _cp_cell, _cp_cell, _cp_cell)
+
+
+## Directional sheets of our own (the designer's bosses): Idle.png and
+## Walk.png (and any of Run / Attack / Hurt / Death if ever drawn) in the
+## Craftpix layout, four rows front/back/left/right, square cells.
+func _setup_sheets(folder: String) -> void:
+	_cp_mode = true
+	_cp_rows = "FBLR"
+	for anim in ["Idle", "Walk", "Run", "Attack", "Hurt", "Death"]:
+		var path := "%s/%s.png" % [folder, anim]
+		if ResourceLoader.exists(path):
+			_cp_sheets[anim] = load(path)
+	var idle: Texture2D = _cp_sheets.get("Idle")
+	assert(idle != null, "boss sheets %s have no Idle.png" % folder)
 	_cp_cell = int(idle.get_height() / 4)
 	_sprite.texture = idle
 	_sprite.pixel_size = PIXEL_SIZE
