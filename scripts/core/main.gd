@@ -948,7 +948,46 @@ func _update_move_path_cursor() -> void:
 
 	# The whole route: a move order walks every tile of it (see the
 	# right-click handler), so the preview never stops short of the cursor.
-	move_path_cursor.show_path(target_cell, player.preview_path_cells(target_world, ROUTE_BUDGET))
+	# The box reads the spaces and the tempo that walk would cost.
+	var route := player.preview_path_cells(target_world, ROUTE_BUDGET)
+	move_path_cursor.show_path(target_cell, route, preview_move_tempo(route))
+
+## The tempo a walk along `route` would cost the active character, tile by
+## tile as the move itself charges it (_on_player_tile_reached and
+## TempoManager.add_movement_tempo): squeezing past an enemy +2, climbing
+## +1 per level up, then the step — free on a Shadow Cowl shift tile or,
+## with flash movement toggled on, while flash points last; otherwise 1
+## (Slowed: SLOWED_TEMPO_PER_TILE) plus any heavy-armour surcharge.
+func preview_move_tempo(route: Array) -> int:
+	var stats := player.get_stats()
+	if stats == null:
+		return route.size()
+	var dm := player.get_debuff_manager()
+	var free_tiles: int = stats.free_move_tiles
+	var flash: int = stats.current_flash_points
+	var flash_cost: int = maxi(1, PlayerStats.FLASH_COST_MOVE - stats.equipment_movement_flash_discount)
+	var step_cost: int = (Debuff.SLOWED_TEMPO_PER_TILE if dm and dm.is_slowed() else 1) \
+		+ maxi(0, stats.movement_tempo_surcharge)
+	var occupied := {}
+	if enemy_spawner:
+		for e in enemy_spawner.get_living_enemies():
+			if not e.is_structure:
+				occupied[grid_manager.world_to_grid(e.position)] = true
+	var prev := grid_manager.world_to_grid(player.position)
+	var total := 0
+	for cell in route:
+		if occupied.has(cell):
+			total += 2
+		if dungeon_manager:
+			total += maxi(0, dungeon_manager.get_elevation(cell) - dungeon_manager.get_elevation(prev))
+		if free_tiles > 0:
+			free_tiles -= 1
+		elif stats.flash_movement_enabled and flash >= flash_cost:
+			flash -= flash_cost
+		else:
+			total += step_cost
+		prev = cell
+	return total
 
 func _update_hand_hover() -> void:
 	if _card_ui_instances.is_empty():
@@ -1364,16 +1403,16 @@ func _setup_action_buttons() -> void:
 	vbox.add_child(attack_row)
 	attack_row.add_child(_attack_button)
 
-	# Raise Shield (only visible while a shield is equipped)
+	# Raise Shield: always on the bar, greyed out without a shield
 	_block_button = Button.new()
 	_block_button.name = "BlockButton"
 	_block_button.icon = UIGlyphs.get_glyph("shield")
 	_block_button.text = "%dT" % BASIC_BLOCK_TEMPO
 	_block_button.custom_minimum_size = Vector2(0, 36)
 	_block_button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	_block_button.tooltip_text = "Raise shield to block. Costs 5 tempo."
+	_block_button.tooltip_text = "Equip a shield to activate button"
+	_block_button.disabled = true
 	_block_button.pressed.connect(_on_block_pressed)
-	_block_button.visible = false
 	attack_row.add_child(_block_button)
 
 	# War Rack button (Brad only): swap hands with the gear on his back.
@@ -2657,10 +2696,15 @@ func _update_block_button_visibility() -> void:
 		var block_val = shield.armor_bonus if shield.armor_bonus > 0 else 3
 		block_val += inventory.get_two_hand_block_bonus(shield)
 		_block_button.text = "+%d  %dT" % [block_val, BASIC_BLOCK_TEMPO]
-		_block_button.tooltip_text = "Raise %s: +%d Armor. Costs 5 tempo." % [shield.item_name, block_val]
-		_block_button.visible = true
+		_block_button.tooltip_text = "Raise %s: +%d Armor. Costs %d tempo." % [shield.item_name, block_val, BASIC_BLOCK_TEMPO]
+		_block_button.disabled = false
 	else:
-		_block_button.visible = false
+		# Always on the bar; greyed out (a disabled button still shows its
+		# tooltip) until a shield is worn.
+		_block_button.text = "%dT" % BASIC_BLOCK_TEMPO
+		_block_button.tooltip_text = "Equip a shield to activate button"
+		_block_button.disabled = true
+	_block_button.visible = true
 
 #endregion
 
