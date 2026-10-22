@@ -44,7 +44,7 @@ func _initialize() -> void:
 
 	# Slot labels: several labels, one label, none, and 'stave' as the tome.
 	_check(_labels("approach") == [K.BULWARK, K.BUCKLER], "Approach: Bulwark / Buckler")
-	_check(_labels("the_lights_favor") == [K.POCKET, K.WAND, K.GEM, K.STAFF, K.TOME], "The Light's Favor lists five slots, 'stave' as Tome")
+	_check(_labels("the_lights_favor") == [K.POCKET, K.WAND, K.GEM, K.STAFF], "The Light's Favor lists its slots, 'stave' folded into Wand (Tome is gone)")
 	_check(_labels("poke") == [K.POCKET], "Poke: Pocket")
 	_check(_labels("quick_arrow").is_empty(), "Quick Arrow lost its old Arrow label: deck-only now")
 	_check(_labels("charge").is_empty() and not Card.create_by_id("charge").is_slottable(), "Charge is deck-only")
