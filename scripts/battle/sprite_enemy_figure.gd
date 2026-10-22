@@ -46,6 +46,7 @@ const CP_ROWS := {
 	"skeletons": "FBLR",
 	"goblins": "FBLR",
 	"vampires": "FBLR",
+	"ent": "FBLR",
 }
 ## Frames per second per Craftpix animation. One-shots (Attack, Hurt, Death)
 ## return to Idle/Walk when they finish; Death holds its last frame.
@@ -90,7 +91,7 @@ const KINDS := {
 	"specter": {"cp": "ghost/Ghost1", "scale": 1.2},
 	"wererabbit": {"cell": Vector2i(7, 1)},
 	"skeleton": {"cp": "skeletons/Skeleton1", "scale": 1.15},
-	"treant": {"cell": Vector2i(5, 2), "scale": 1.25},
+	"treant": {"cp": "ent/Ent3", "scale": 1.0},  # the Craftpix Ent pack's leafy ent (Ent1 bare, Ent2 sprouting)
 	"consumed": {"cell": Vector2i(6, 2)},
 	"sewer_croc": {"fr": "mountain_monsters/Snake", "scale": 0.6, "tint": Color(0.8, 0.9, 0.75)},  # a great sewer serpent stands in for the croc
 	# --- generated sprites (drawn/derived in our pipeline, palette-conformant) ---

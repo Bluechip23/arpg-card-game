@@ -29,8 +29,10 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 [color=yellow]Cycles (every 5 tempo):[/color]
 - Every 5 global tempo completes one cycle
 - Mana regeneration fires once per cycle
-- Card draw timers tick once per cycle
-- Buff/debuff durations tick once per cycle
+- Burn, Poison, Drain, Shock, Regen and Smith tick once per cycle
+- Timed buffs and debuffs (Stun, Disarm, Root...) count down on raw tempo, so a 3-tempo stun lasts 3 tempo
+- Stack debuffs (Slow, Vulnerable, Weakened, Blind, Clumsy, Brittle...) lose one stack every 5 tempo on their own clock
+- The auto draw is its own timer: one card every 25 tempo (5 cycles)
 - Armor decays by 2 per cycle (modified by Fortify, Stalwart, Brittle)
 
 [font_size=18][color=cyan]━━━ STAT SYSTEM ━━━[/color][/font_size]
@@ -71,8 +73,8 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 - Sidestep button: spend 3 Flash for 2 block
 - Daggers button: spend 5 Flash to advance the attack-speed counter 1 tick
 - Buttons fade while you can't afford them
-- Without Flash, each tile costs 1 tempo
-- [color=red]Pass-Through:[/color] Moving through a tile occupied by another unit (ally or enemy) always costs 2 tempo, regardless of Flash points
+- With flash movement off (or the pool empty), each tile costs 1 tempo (3 while Slowed), +1 per level climbed
+- [color=red]Pass-Through:[/color] Squeezing past an enemy costs 2 extra tempo, even with flash movement on
 
 [color=orange]Determination (DET)[/color]
 - Modifies STR/DEX/INT/WIS/AGI at low health
@@ -84,12 +86,14 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 
 [font_size=18][color=cyan]━━━ CARD TYPES ━━━[/color][/font_size]
 
-[color=red]Attack:[/color] Offensive cards that deal damage
-[color=dodgerblue]Defense:[/color] Protective cards that grant armor or block
+Playable cards come in four roles. A card can be more than one at once (a spell and an attack, defensive and offensive) — its tags decide, not what it happens to do.
+[color=red]Offensive:[/color] Cards that carry the offensive tag. Two shapes: an [color=red]Attack[/color] (stopped by Disarm) or a [color=violet]Spell[/color] (stopped by Silence)
+[color=dodgerblue]Defensive:[/color] Protective cards that grant armor or block
 [color=green]Utility:[/color] Support cards for draw, healing, buffs, movement, etc.
-[color=yellow]Reaction:[/color] Triggers automatically from hand when a condition is met (e.g., on damage taken). Costs 0 mana and 0 tempo
-[color=gray]Unplayable:[/color] Cannot be played. Takes up a hand slot if card is designated by Linger. If not, character can have an infinite amount of the Unplayable card + a standard hand.
 [color=green]Power:[/color] Generally requiring Maintain, these cards act as passives as long as you have the resources to maintain them.
+[color=yellow]Instant:[/color] Never played by hand — fires automatically from your hand when its trigger happens (e.g., on damage taken). Costs 0 mana and 0 tempo
+[color=gray]Unplayable:[/color] Cannot be played. Takes up a hand slot if card is designated by Linger. If not, character can have an infinite amount of the Unplayable card + a standard hand.
+[color=gray]Enchantment:[/color] Cannot be played. Gives a passive buff while it sits in your hand, then discards itself after 2 cycles
 
 
 [font_size=18][color=cyan]━━━ CARD MECHANICS ━━━[/color][/font_size]
@@ -134,7 +138,8 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 [color=yellow]Card Types:[/color]
 - Some cards will be designated with a type (arrow, pocket, gem, etc)
 - These types desginate which items the card can be slctted into
-- Arrow: Quivers, Pocket: Belts, Gem: Gauntlets, Rings
+- Arrow: Bows and Quivers, Pocket: Belts, Gem: Rings, Swift: Boots, Buckler: Shields, Crown: Helms, Fist: Gauntlets, Bulwark: Chests
+- Each weapon type has its own label: Sword, Axe, Dagger, Hammer, Spear, Wand, Staff
 - Card types may come with other effects as well
 
 [color=yellow]Culling Stone:[/color]
@@ -202,18 +207,19 @@ Rings have passive effects that trigger on events:
 - Deal Damage to All Enemies, Reduce Cooldowns, Gain Temp Strength
 
 [color=yellow]Gauntlet Skills:[/color]
-- Active skills: have a mana cost and cooldown (e.g., Power Grip: 8 dmg, CD 3, Cost 2)
+- Active skills: have a mana cost and cooldown (e.g., Zeet on the Cuffs of Current: 35 mana, 3-cycle cooldown)
 - Passive skills: always active (e.g., Stalwart: -1 armor decay per cycle)
 
 [color=yellow]Card-Item Slots:[/color]
 - Some items have card slots where you can enchant cards
-- Enchanted cards are removed from your deck and placed in the item
-- Items may have On-Self bonuses (+damage, +block, +heal, -mana cost) for slotted cards
+- Slotted cards stay in your deck and are drawn and played as normal; slotting a card from your card inventory adds it to the deck
+- Bonus slots give their card the item's On-Self bonuses (+damage, +block, +heal, -mana cost); vanilla slots hold a card with no bonus. Bonus slots fill first
+- Your base deck holds 8 cards; counting the cards slotted in worn items, the deck tops out at 25. Cards an item grants never count toward either cap
 - Some cards will be limited to which items they can be slotted in
-	- Arrow - Can on be on quivers
-	- Gem - can only be placed in gem slots
+	- Arrow - can only go in bows and quivers
+	- Gem - can only go in rings
 	- Pocket - can only be used in belts
-- Extracting removes a card from an item and returns it to the discard pile
+- Extracting takes a card out of its item; it stays in your deck — unless the base deck is full, then it goes back to your card inventory
 - Engrave cards exist only inside an item's slot — never in the bare deck
 
 [font_size=18][color=cyan]━━━ CHARACTER PASSIVES ━━━[/color][/font_size]
@@ -221,9 +227,9 @@ Rings have passive effects that trigger on events:
 Everyone shares the same baseline slots: 1 helm, 2 rings, 1 belt, 1 chest,
 1 main hand, 1 off hand, 1 pair of boots, 1 gauntlet — plus one twist each:
 
-[color=red]Ryan:[/color] Belt cards cost 1 less mana (3 belt slots)
-[color=green]Brad:[/color] Chest items weigh 20% less. War Rack: gear strapped to his back swaps with his hands — FREE on a 25-tempo cooldown (one side must be a single two-handed item; incoming cards rush to hand), or at normal swap cost anytime
-[color=blue]Jeremy:[/color] Every 3rd cycle, the first ring trigger triggers twice (4 ring slots)
+[color=red]Ryan:[/color] Belt cards cost 10 less mana (2 belt slots)
+[color=green]Brad:[/color] Chest items weigh 20% less. War Rack: one weapon strapped to his back. Drawing it is FREE — it comes to hand two-handed and its cards go straight to your hand; after 20 tempo it goes back up on its own (or earlier, by choice) and your usual gear returns. It can be drawn again 60 tempo after the last draw
+[color=blue]Jeremy:[/color] Every 3rd cycle, the first ring trigger triggers twice (3 ring slots)
 [color=purple]Stephen:[/color] +10% off-hand enchantments, others get -10% (standard slots)
 [color=orange]Cory:[/color] Gain 10 mana when gauntlet skill comes off cooldown (2 gauntlet slots)
 

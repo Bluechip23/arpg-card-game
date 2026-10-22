@@ -37,7 +37,7 @@ func _on_hover_in() -> void:
 			if not is_instance_valid(d):
 				return ""
 			if d.duration < 0:
-				return "Remaining: until cleansed"
+				return "Remaining: no fixed timer (see above)"
 			return "Remaining: %d tempo" % d.duration,
 		extra)
 
