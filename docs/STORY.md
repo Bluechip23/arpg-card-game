@@ -178,7 +178,7 @@ gate, card source, expedition-zone resident).
 
 ### 5.1 How enemies work (so creatures are buildable, not just flavor)
 Grounded in `scripts/battle/enemy.gd`:
-- **Tempo actions:** an enemy commits to **one action per turn**; each action
+- **Tempo actions:** an enemy commits to **one action at a time**; each action
   has a **tempo cost**, and it fires when the enemy's personal tempo counter
   reaches that cost. **Lower tempo cost = acts more often.** A creature's
   rhythm is its action list (e.g. Wererat: Move 2 / Bite 2 / Scurry 4).
@@ -529,11 +529,11 @@ end-game. The current playable roster (`scripts/character/character_data.gd`):
 
 | Character | Fantasy | Signature archetypes | Slot specialty |
 |-----------|---------|----------------------|----------------|
-| **Brad** | Tank / bruiser; pain is strength | Berserker, Warden, The Ancient, The Fallen | War Rack (back-slung gear swap); chest items weigh 20% less |
-| **Ryan** | Dexterous duelist / rogue | Relentless Blade, Light Foot, Apothecary, Shadow Blade | 3 belt slots; belt cards cost 1 less mana |
-| **Stephen** | Versatile killer / marksman | The Apex, Sentinel, Ranger, Avenger | standard slots; +10% off-hand enchantments (others −10%) |
+| **Brad** | Tank / bruiser; pain is strength | Berserker, Warden, The Ancient, The Fallen | War Rack (one back-slung weapon, drawn two-handed for free); chest items weigh 20% less |
+| **Ryan** | Dexterous duelist / rogue | Relentless Blade, Light Foot, Apothecary, Shadow Blade | 2 belt slots; belt cards cost 1 less mana |
+| **Stephen** | Versatile killer / marksman | The Apex, Sentinel, Ranger, Avenger | standard slots; cheaper weapon swaps; +10% off-hand enchantments (others −10%) |
 | **Cory** | Druid / monk / witherer | Monk, Lurker, Druid, Atrophist | 2 gauntlet slots; gauntlet-skill synergy |
-| **Jeremy** | Elemental mage | Evocation (+ more) | 4 ring slots; first ring trigger fires twice every 3rd cycle |
+| **Jeremy** | Elemental mage | Evocation, Abjurer, Shepherd, Poltergeist | 3 ring slots; first ring trigger fires twice every 3rd cycle |
 
 All five share the same slot baseline (1 helm, 2 rings, 1 belt, 1 chest, 1 main
 hand, 1 off hand, 1 pair of boots, 1 gauntlet); the table lists each
@@ -558,8 +558,7 @@ the repo. Keep this table honest as the code changes.
 | **The Greenwood (Act 1, Forest)** | `dungeon_manager.gd` (`interior_kind == "forest"`: `_generate_forest_layout`, `_place_forest_features`, `_build_forest_decorations`, `_define_forest_spawn_zones`), `main.gd` (forest ambience, terrain-trap + tree-climb systems, tutorial), `sewer_critter.gd` (squirrels) | **Built.** Open clearings/trails/hills; climbable trees → high ground (+ one-time tutorial); bear traps (7 dmg / 10 to bears) and hunter dart tripwires (5 dmg) that hit players *and* enemies; pits; squirrels; bright fog. Reached via a forest trailhead site in World 1. See Section 5.4. |
 | **Caves (Act 1, Cave)** | `dungeon_manager.gd` (`interior_kind == "cave"`: `_generate_cave_layout` + `_place_cave_puddles`, `_build_cave_decorations`, darkened `CAVE_PALETTE`), `main.gd` (cave ambience + player torch) | **Built/enhanced.** Dark stone tunnels darker than the sewers; stalagmites, stalactites (dripping), puddles, divots, player torch. Reached via cave-mouth sites. See Section 5.4. |
 | **The City (end-game loop)** | `scripts/city/` (state, expeditions, raids, bridge, trials); Town Hall panel in `town.gd`; kill hook in `main.gd`; saved in `SaveData.city` | Wired and tested (`tests/test_city_loop.gd`, `tests/test_city_wiring.gd`). See Section 6.5. |
-| **Bestiary** | `Enemy.EnemyType`, `CharacterData.defeated_monster_ids` | Per-character record of story kills; feeds the compendium and future intent-reveals. 11 enemy types today (Section 5.3). |
-| **Quests** | `scripts/core/quest_manager.gd` | Currently kill-quests only; Olorin is the sole giver. |
+| **Bestiary** | `Enemy.EnemyType`, `CharacterData.defeated_monster_ids` | Per-character record of story kills; feeds the compendium and future intent-reveals. 68 enemy types today, structures, the dojo dummy and design mock-ups included (Section 5.4). |
 | **Quests** | `scripts/core/quest_manager.gd` | Data-driven quest chain from Olorin and the Sellsword (Rat Infestation → Holy Water for the Well, Bear Traps, The Faithless, Fire Wall Breach, The High Road, The Missing Woodcutter, A Debt to the Sellsword, What the Crows Saw → Trial Warning; Ferryman's Toll in Act 2). World objects they need: the Town Well, the Drowned Shrine (sewer), rescue NPCs, the feather trail and the hidden Old Graveyard. |
 | **Healing fountains** | `scripts/core/dungeon_manager.gd` (`_place_fountains`) | Holy-water basins in every zone: drink to heal (spends the blessing; a vial of Holy Water from enemies restores it) or bathe once for a +20% XP blessing. The pilgrim's rest between Olorin's trials. |
 | **Town hub** | `scripts/menus/town.gd` | Persistent vendors (Blacksmith, Armory, Card Dealer, Accessory Shop, Stash) + Olorin + waypoint/transport. The shell the city loop will be wired into. |

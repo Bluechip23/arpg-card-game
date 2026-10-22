@@ -34,7 +34,7 @@ When adding new features or mechanics, always ask: "Does this support a persiste
 
 Things the designer asked to be raised again when the related system is reworked:
 
-- **Buff / debuff rework → revisit Cory's *Wither*.** It adds "+1 charge" via `enemy.apply_debuff(name, 1)`. Since the 2026-10-11 status rework that means +1 stack (5 tempo) on stack debuffs and +1 tempo on the additive timers (Disarm, Root, Curse); it is still a no-op on max-timers (Stun, Silence, Narashimha, Polymorph), still shortens Mark (overwrite), and still fires on debuffs from any source, not only Cory's. Decide what a charge means per debuff.
+- **Buff / debuff rework → revisit Cory's *Wither*.** It adds "+1 charge" via `enemy.apply_debuff(name, 1)`. Since the 2026-10-11 status rework that means +1 stack (5 tempo) on stack debuffs and +1 tempo on the additive timers (Disarm, Root, Curse); it is still a no-op on max-timers (Stun, Silence, Narashimha, Polymorph), still shortens Mark (overwrite) *(2026-10-22: no longer — since 2026-10-12 a re-applied Mark keeps the longer timer, so Wither's +1 is a no-op on Mark too; likewise on Trip)*, and still fires on debuffs from any source, not only Cory's. Decide what a charge means per debuff.
 
 ## Art: Packs First
 

@@ -1,5 +1,7 @@
 # PLAN.md — Phase 2 (proposed; nothing executed yet)
 
+> **Note (2026-10-22):** the heading describes the plan as first written. It has since been carried out: see the Phase 3, Phase E and E6 execution logs at the end of this file. Cards and items now live as `.tres` files under `data/cards/` and `data/items/`, enemy base stats in `scripts/battle/enemy_defs.gd`.
+
 Ordered refactor plan derived from `AUDIT.md`. Every step is one commit on `claude/great-keller-rprdi5`, independently verifiable, and designed to be **behaviour-neutral**: no balance number, tempo cost, clock timing or RNG consumption order changes. If a step's verification differs from the baseline I stop and report; I do not "fix" the sim.
 
 Finding ids (D1, P2, B7 …) refer to `AUDIT.md`.

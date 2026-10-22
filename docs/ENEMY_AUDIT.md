@@ -4,6 +4,11 @@
 code, with everything that was changed to match it and every question it leaves open. Sections 1–5 are the
 2026-10-08 read-only audit and are kept for reference; where they disagree with Section 0, Section 0 is current.*
 
+*Since these passes (note of 2026-10-22): the per-type base numbers, tiers and level bands now live in
+`scripts/battle/enemy_defs.gd` (`EnemyDefs.DEFS`; `INTENDED_LEVELS` became each entry's `intended_level`); the
+Archer Rat's range is 6 (it shoots from 3 to 6 tiles, designer 2026-10-21); the Rat King, Cerberus, the Corrupted
+Archangel and the Archer Rat play the designer's own art, and Hades has art staged but no enemy type yet.*
+
 ---
 
 ## 0. Sheet pass — 2026-10-11

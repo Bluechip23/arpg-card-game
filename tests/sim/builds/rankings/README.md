@@ -14,3 +14,8 @@ git add tests/sim/builds/rankings/ryan_card_swap.csv
 
 With no file for a character and level, recipes rank by a flat
 efficiency heuristic (damage + block + heal per tempo, less a mana cost).
+
+*Note (2026-10-22): the committed `ryan_card_swap.csv` was measured on
+2026-10-12, before the 8-card base deck cap, the five-card starter deck
+(2026-10-20) and the 4-tempo shield Block. Refresh it before trusting a
+recipe deck built from it.*

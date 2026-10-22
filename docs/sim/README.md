@@ -60,7 +60,7 @@ static func build() -> Dictionary:
 			"level": 5,                 # applied with the real _level_up (full heal, banked points)
 			"allocation": {"strength": 2, ...},   # spent with apply_stat_allocation; refused spends warn
 			"passives": [],             # skill-tree passive ids (add_skill_tree_passive)
-			"items": [["short_sword", 0]],        # ItemData.create_<id> [, slot]; equipped through Inventory.equip_item
+			"items": [["short_sword", 0]],        # ItemData.create(<id>) (data/items/<id>.tres) [, slot]; equipped through Inventory.equip_item
 			"deck": SimScenario.starter_deck(),   # card ids; cards owned by equipped items ride along
 			"cell": [6, 7],             # grid cell; the dojo hall is cells 1..16 x 1..12
 			"stat_overrides": {},       # PlayerStats fields set verbatim, e.g. {"base_crit_chance": 0}
@@ -297,7 +297,7 @@ Costs at ~0.45 s a run: strategy 2.5 h, combos 2.9 h, cards 8.8 h, items
 `gen_sweeps.py --seeds N --pool-size K --limit M` scales them down.
 
 In the combo and card sweeps the card under test **starts in the opening
-hand** (`hand=`): a one-card change to an 11-card deck is otherwise invisible
+hand** (`hand=`): a one-card change to a small deck is otherwise invisible
 in a two-bar fight, and every added card scored identically on the first
 validation run. It measures the card's power when it is available, not how
 often it shows up; `gen_sweeps.py --no-spotlight` turns it off.
@@ -427,7 +427,7 @@ a refused equip, slot, allocation or passive rank (below level 15 an
 end-game set may outweigh what the character carries); any stat point,
 passive point or sphere left unspent; the mythic cap broken; more than
 three keystones; a tree passive whose firing cannot be counted and is not
-on the known-silent list; a recipe that does not fill twelve cards; an
+on the known-silent list; a recipe that does not fill the 8-card base deck; an
 item that is not worn when swapped in; a card in the pool that cannot be
 dealt. Run it after adding a character library, a passive, a card or an
 item, and before trusting a sweep.
@@ -575,7 +575,7 @@ comes off its fallback, so exactly one item changes. The replaced piece's
 engraved cards move onto the new item when its slots accept them.
 
 `<char>_item_swap.txt` does this for every mythic and legendary item (the
-pool is every equippable ItemData factory, so a new item is included the
+pool is every equippable item in `data/items/`, so a new item is included the
 moment it exists) on every designed build. `build_matrix.py` pairs each
 run with the designed run on the same seed, prints the best and worst
 items per build and the items that help or hurt every build
@@ -616,8 +616,9 @@ hand: the game moves an item's cards with it.
 
 In the fight the swap is the game's own button: the build switch (tempo per
 changed hand slot plus half the mana, Stephen's weapon portion free) or
-the War Rack (free every 25 tempo when one side is a single two-handed
-item, its cards rushed to hand; otherwise paid). The lookahead prices it
+the War Rack (drawn free, at most once per 60 tempo, its weapon held
+two-handed and its cards rushed to hand; it goes back up on its own after
+20 tempo). The lookahead prices it
 by the auto attack's reach (a bow reaches 5, anything else 1; worth the
 tiles of walking it saves, less the last step a melee enemy closes itself),
 Conditional cards in hand turning ranged or melee, the cards Brad's free

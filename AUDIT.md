@@ -3,6 +3,8 @@
 Audit of the Godot 4.6 project on branch `claude/great-keller-rprdi5` at commit `363e065`.
 No project file was edited. Every claim below cites a `file:line`; line numbers are from that commit.
 
+> **Note (2026-10-22):** this is a snapshot of the code at `363e065`. Most of its refactor items were carried out afterwards (Phase 3 and Phase E in `PLAN.md`: summon base classes, `EnemyDefs`, cards and items as `.tres`, the procedural figures retired, panels lifted out of `main.gd`), so its file sizes, line numbers and counts no longer match the tree.
+
 Legend for each finding: **Category** · **Risk** (low/med/high — risk of changing gameplay or breaking something while fixing it) · **Confidence** (certain / likely / guess — how sure I am the finding is real). Perf claims are marked **needs profiling** unless the waste is provable from the code alone; even then the *magnitude* is unmeasured.
 
 ---

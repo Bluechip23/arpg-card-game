@@ -106,7 +106,7 @@ Every character has six core attributes:
 | **Intelligence (INT)** | +0.5 spell and heal power per point. +1 mana regen per point. |
 | **Wisdom (WIS)** | Grants **Brain points**: 1 per WIS point, refreshed every 5 cycles (25 tempo). Spending them is a choice: **Peek** reveals the next unseen card of your draw pile (5 brain, +2 per further peek that window); **Insight** draws a card (5 brain, then 10/15/20/25 that window). Secondary: +1 hand size per 10 points. The auto draw timer stays a flat 25 tempo. |
 | **Determination (DET)** | Controls how low health affects your other stats. At 15 it does nothing. Above 15, your stats *climb* as your health drops; below 15, they *fall*. The lower your health, the bigger the swing. roughly ±0.1% per point at 80% HP, ±0.25% at 60%, ±0.6% at 40%, and ±1% at 10% HP or below.|
-| **Agility (AGI)** | Grants **Flash points**: 1 per AGI point, refreshed every 3 cycles (15 tempo). Spending them is a choice: **3 points** move a tile without spending tempo, **3 points** buy 2 block (**2 points** with a free hand), **5 points** advance the attack-speed counter one tick. Without Flash, each tile moved costs 1 tempo. |
+| **Agility (AGI)** | Grants **Flash points**: 1 per AGI point, refreshed every 3 cycles (15 tempo). Spending them is a choice: with **flash movement toggled on**, **3 points** move a tile without spending tempo, **3 points** buy 2 block (**2 points** with a free hand), **5 points** advance the attack-speed counter one tick. With flash movement off, each tile moved costs 1 tempo. |
 
 All characters share a base **5% critical hit chance** and **110% critical damage**. Crit chance is raised only by items, cards, and other effects. No stat affects it. As previously mentioned, crit damage scales with Dexterity.
 
@@ -141,6 +141,7 @@ Damage absorption that sits in front of your health.
 
 - Incoming damage is absorbed in order: **armor → temporary HP → health**. Armor is always the first line of defense; items, nodes, enemy attacks, or cards may manipulate this order.
 - Armor **decays 2 per cycle** by default. Some effects (Fortify) pause decay; others (Brittle) accelerate it.
+- **Raise Shield.** With a shield in hand, the Block button beside the auto attack raises it for the shield's block armor at **4 tempo**. The button is always on the bar, greyed out while you hold no shield.
 
 **Unerring armor.** Armor that arrives on a clock — periodic-armor items like the Kettle Hat and Strap of Stone, and the sphere grid's Arm/Cyc nodes — goes into a separate, capped pool called *unerring*. The cap starts at **6** and grows through Unerring sphere nodes, item stats and other sources. The clock keeps topping the pool up but can never push it past the cap, so waiting never makes you invincible. Hits and decay eat the unerring shell **before** regular armor: it is the part that grows back, so it is the part that takes the beating. The HUD shows it as the thin grey bar under your health, and the shield badge beside the bars reads your total armor, regular plus unerring.
 
@@ -148,12 +149,13 @@ Damage absorption that sits in front of your health.
 
 ## Cards
 
-Your deck is your moveset. Cards move between several zones during combat:
+Your deck is your moveset. Cards move between several zones as you play:
 
 - **Draw pile** — face-down deck. When empty, the discard pile shuffles back in.
 - **Hand** — cards you can play. Hand size = 4 + Wisdom bonus + equipment bonuses.
-- **Starting deck** — every character begins with the same 10 cards: 3 Attack, 3 Block, 2 Draw, 1 Energy, 1 Heal. Attack is Conditional: melee with a melee weapon, Ranged 5 with a bow or a magic weapon.
-- **Deck cap** — 12 cards of your own. Cards slotted into or granted by items ride along on top of that, so your gear is where a build's extra cards live.
+- **Starting deck** — every character begins with the same 5 cards: Attack, Exposing Strike, Block, Braced Draw, Heal. Attack is Conditional: melee with a melee weapon, Ranged 5 with a bow or a magic weapon.
+- **Deck cap** — 8 cards of your own (the base deck). Cards slotted into worn items ride along on top of that, up to **25 cards in all**; cards an item *grants* count toward neither cap. Your gear is where a build's extra cards live.
+- **Reshuffle** — when the draw pile runs dry, the whole discard pile shuffles back in. A reshuffle of fewer than 3 discarded cards also leaves a **Heavy Greedy Cheese** in the discard pile: while it sits in your hand every other card costs +100 mana and +2 tempo, and it costs 25% of your max mana to play it away (it erases itself).
 - **Discard pile** — where played and discarded cards go, awaiting reshuffle.
 - **Jail** — cards locked away for a set amount of tempo. Jailed cards can't be played; when their time expires they're released to the discard pile.
 - **Maintained** — active Power cards sit here, reserving mana.
@@ -161,13 +163,15 @@ Your deck is your moveset. Cards move between several zones during combat:
 
 ### Card types
 
+The full card web (Playable: Power / Offensive / Defensive / Utility; Instant; Unplayable; Enchantment — with Attack and Spell as the two shapes under Offensive) is in [`docs/CARD_TAXONOMY.md`](docs/CARD_TAXONOMY.md). In brief:
+
 | Type | Behavior |
 |---|---|
-| **Attack** | Deals damage. Melee by default; ranged attacks have base range 5. |
-| **Defense** | Grants armor or blocks. |
+| **Offensive** (Attack / Spell) | Deals damage. Melee by default; ranged attacks have base range 5. |
+| **Defensive** | Grants armor or blocks. |
 | **Utility** | Draw, healing, movement, buffs, support effects |
 | **Power** | Persistent effect with a **Maintain** cost that reserves mana while active. |
-| **Reaction** | Triggers automatically from your hand when its condition is met. |
+| **Instant** (reaction) | Triggers automatically from your hand when its condition is met; never played by hand. |
 | **Enchantment** | Cannot be played. Provides a passive buff *while in your hand*, then auto-discards after 2 cycles. |
 | **Unplayable** | Dead weight and takes up a hand slot. Usually inflicted by enemies. |
 
@@ -302,7 +306,7 @@ Every item has weight. Your capacity is **50 + 10 per point of Strength**. You c
 
 ### Equipment builds (loadouts I / II / III)
 
-You can save **three equipment builds** and switch between them. Switching swaps every changed piece at once and re-applies your two-handed grip. **In combat, every changed slot costs tempo, and any paid gear change (swap, removal, build switch, paid War Rack exchange) also costs half the mana you are holding.** That tempo never advances the mana regen countdown, so a swap can't buy a regen tick. Out of combat, gear changes are free. Changing gear mid-fight is meant to hurt; Stephen's weapon swaps (tempo only, at a discount) and Brad's free War Rack exchange are the exceptions.
+You can save **three equipment builds** and switch between them. Switching swaps every changed piece at once and re-applies your two-handed grip. **While any enemy is within aggro range, every changed slot costs tempo, and any paid gear change (swap, removal, build switch) also costs half the mana you are holding.** That tempo never advances the mana regen countdown, so a swap can't buy a regen tick. With no enemy in aggro range, gear changes are free. Changing gear mid-fight is meant to hurt; Stephen's weapon swaps (tempo only, at a discount) and Brad's War Rack draw (always free) are the exceptions.
 
 | Slot | Swap cost (tempo) | Remove-only |
 |---|---|---|
@@ -314,7 +318,7 @@ The switch validates the end state as a whole (weight, storage space) before any
 
 ### Storage & stash
 
-Unequipped gear lives in your backpack (limited slots). Towns provide a larger persistent **stash**. Loose cards you pick up as loot also are added to your inventory. When adding them to your deck directly, the card is shuffled into your draw pile; cards slotted into an item join the draw pile when the item is equipped.
+Unequipped gear lives in your backpack (limited slots). Towns provide a larger persistent **stash**. Loose cards you pick up as loot also are added to your inventory. When adding them to your deck directly, the card is shuffled into your draw pile. Slotting a card from the card inventory into a worn item adds it to the deck too (copy limits apply); unslotting one while the base deck is full sends it back to the card inventory.
 ---
 
 ## Weapon & Equipment Swapping
@@ -330,9 +334,9 @@ Items and cards are deeply linked: some items **grant cards** to your deck while
 
 ## Cards Slotted Into Items
 
-Items with card slots can have cards **Enchanted** into them (and **Extracted** back out). A slotted card stays playable in your deck, but gains the item's **On-Self bonuses** when played.
+Items with card slots can have cards **Enchanted** into them (and **Extracted** back out). A slotted card stays playable in your deck. An item has two kinds of slot: **bonus slots** (a card there gains the item's **On-Self bonuses** when played) and **plain (vanilla) slots** (the card simply rides with the item, past the 8-card base cap, with no bonus — Engrave cards work there too). Bonus slots fill first.
 
-**Slot labels decide where a card may go.** Every card can sit in your 12-card deck. A card with one or more slot labels (**Pocket**, **Crown**, **Gem**, **Swift**, **Buckler**, **Fist**, **Arrow**, **Bulwark**, or a weapon's own label) can *also* be enchanted into a matching slot: belts take Pocket, helms Crown, rings Gem, boots Swift, shields Buckler, gauntlets Fist, bows and quivers Arrow, chest armor Bulwark, and every weapon its own — Sword, Axe, Dagger, Hammer, Spear, Wand, Tome, Staff. A card can carry several labels (Crown / Gem / Pocket fits helms, rings and belts). A card with **no label is deck-only** and can never be slotted. **Engrave** is the wrinkle on top: an Engrave card exists *only* in a slot, never in the bare deck.
+**Slot labels decide where a card may go.** Every card can sit in your 8-card base deck. A card with one or more slot labels (**Pocket**, **Crown**, **Gem**, **Swift**, **Buckler**, **Fist**, **Arrow**, **Bulwark**, or a weapon's own label) can *also* be enchanted into a matching slot: belts take Pocket, helms Crown, rings Gem, boots Swift, shields Buckler, gauntlets Fist, bows and quivers Arrow, chest armor Bulwark, and every weapon its own — Sword, Axe, Dagger, Hammer, Spear, Wand (tomes included), Staff. A card can carry several labels (Crown / Gem / Pocket fits helms, rings and belts). A card with **no label is deck-only** and can never be slotted. **Engrave** is the wrinkle on top: an Engrave card exists *only* in a slot, never in the bare deck.
 
 Every slotted card can be extracted, and once out it may be re-slotted into any item its labels allow — the labels alone decide where a card can go. A card can only live in one item at a time, and cards an item grants on its own can never be slotted anywhere.
 
@@ -353,7 +357,7 @@ Every slotted card can be extracted, and once out it may be re-slotted into any 
 
 Five playable characters. All of them:
 
-- start with the **identical basic deck** (3 Attack, 3 Block, 2 Draw, 1 Energy, 1 Heal) — no character-specific starting cards,
+- start with the **identical basic deck** (Attack, Exposing Strike, Block, Braced Draw, Heal) — no character-specific starting cards,
 - start with **no equipment** — every item is found, bought, or earned in the world,
 - allocate the same starting stat pool,
 - have **one item specialty**: a slot layout that favors a particular equipment type (e.g. Brad's chest pieces weigh 20% less and Ryan gets −1 mana cost on belt cards),
@@ -421,7 +425,7 @@ The README covers how the game plays. For the exact numbers, see the generated r
 
 | Document | Covers |
 |---|---|
-| [`docs/CARD_REFERENCE.md`](docs/CARD_REFERENCE.md) | All 240 cards: costs, range, slot labels, and the real behaviour of each card's code. |
+| [`docs/CARD_REFERENCE.md`](docs/CARD_REFERENCE.md) | Every card: costs, range, slot labels, and the real behaviour of each card's code. |
 | [`docs/ITEM_REFERENCE.md`](docs/ITEM_REFERENCE.md) | All 189 items: coded stats, special effects, and what each item level changes. |
 | [`docs/PASSIVE_REFERENCE.md`](docs/PASSIVE_REFERENCE.md) | All 60 skill-tree passives: design text, implemented behaviour, and rank 1→15 scaling. |
 | [`docs/STORY.md`](docs/STORY.md) | The narrative canon: Olorin, the four Acts, the bestiary, and the City end-game. |

@@ -1,7 +1,7 @@
 # Character Playstyle Write-Ups
 
 Every character starts from the exact same place: the same stat pool, the same 5-card deck
-(3 Attack, 3 Block, 2 Draw, 1 Energy, 1 Heal), the same hand size, and **no equipment**. All
+(Attack, Exposing Strike, Block, Braced Draw, Heal), the same hand size, and **no equipment**. All
 cards are neutral — no card is locked to a character (skill trees may grant specific cards as
 level-up picks, but anything one character can obtain, any character can use). What separates
 the five is *how their kit wants to be played*: the conditions their passives reward, the gear
@@ -34,7 +34,7 @@ endgame deck this points toward is radical: **cull every Defense card**, let Agi
 sidestep and movement provide the blocking, and run pure attacks, utilities, and instants so
 Nimble Assault never turns off and every reaction feeds the Ladder Work spike.
 
-**Gear identity:** Ryan runs **3 belt slots** (most characters get one) and his character
+**Gear identity:** Ryan runs **2 belt slots** (most characters get one) and his character
 passive makes **belt cards cost 1 less mana**. Belts are the game's Pocket-card item type —
 they grant and slot cheap 1-tempo consumables like Healing Potion and Dagger Throw — so a
 belted-up Ryan effectively carries a second, nearly-free deck at his waist that keeps his queue
@@ -121,7 +121,8 @@ He also runs lean comfortably: with 3 or fewer cards in hand, playing a non-atta
 triggers a **free basic attack** on a rank-scaled 40→12 tempo cooldown
 (*Lethal Resourcefulness*), so even his Blocks keep the pressure on when his hand runs low.
 
-**Gear identity:** Stephen's slot layout is standard, but his character passive gives him
+**Gear identity:** Stephen's slot layout is standard, but steel is his trade: **weapon swaps cost him
+1 tempo less and no mana**, and the weapon portion of a build switch is free. His character passive gives him
 **+10% off-hand enchantment effectiveness while every other character takes −10%**. Off-hands
 normally apply their bonuses at reduced strength — Stephen is the one character whose second
 weapon, quiver, or shield works at full power, which makes him the game's best dual-wielder
@@ -146,7 +147,7 @@ full-strength off-hand in the game.
 Cory is for players who win by *arranging* the fight rather than out-statting it. Displacement
 and lockdown cards are his bread and butter: **Round 'Em Up** (drag enemies toward a point),
 **Push**, **Swap**, **Trip** (−4 movement), **Choke** (silence), **Sweeping Disarm**,
-**Vines** (root + damage per turn held). His passives then punish enemies for existing inside
+**Vines** (root + damage each cycle it holds). His passives then punish enemies for existing inside
 the arrangement: entering or leaving melee range re-applies a random debuff they already have
 (*Territorial Death*, on a rank-scaled 15→1 tempo cooldown), debuffs he applies carry +1
 charge on a rank-scaled 15→1 tempo cooldown (*Wither*), landing a NEW debuff on a wounded
@@ -210,14 +211,15 @@ on every offensive hit (each enemy an AoE touches; the auto attack too) and armo
 healing, from any source), and *In the Trenches* gives free attacks and knockbacks against anyone who steps
 adjacent — two charges shared between the two, each returning 10 tempo after it is spent.
 
-**Gear identity:** Brad's slot identity is the **War Rack** — gear strapped across his back
-that swaps *wholesale* with everything in his hands mid-fight. The free exchange (25-tempo
-cooldown) requires one side of the swap to be a single two-handed item — the fantasy of
-hauling the huge thing off his back — and rushes the incoming gear's slotted cards straight
-into your hand. Combined with his character passive (**chest items weigh 20% less**, and
+**Gear identity:** Brad's slot identity is the **War Rack** — one weapon strapped across his
+back, always held two-handed. Drawing it is free: his hand gear is set aside, the rack's weapon
+comes to hand two-handed — the fantasy of hauling the huge thing off his back — and its cards
+rush straight into your hand. After **20 tempo** it goes back up on its own (or earlier, by
+choice) and his usual gear returns, its cards rejoining the deck rather than the hand; the rack
+can be drawn again **60 tempo** after it was last drawn. Combined with his character passive (**chest items weigh 20% less**, and
 weight matters: carry capacity feeds attack speed and two-handing converts weight into
 damage), Brad is the one character who can run *two loadouts in one fight* — a shield wall on
-his arms and a greatsword on his back, trading between them on cooldown.
+his arms and a greatsword on his back, brought to bear on cooldown.
 
 **Cards that sing in his hands:** the front-line toolkit — **Taunt** and **Roar** to control
 who's getting hit, **Charge** and **Heroic Leap** (jump distance scales with STR) to arrive,
@@ -228,7 +230,7 @@ kit.
 
 **Pick Brad if you want:** to deliberately fight at low health and be rewarded for the risk,
 to bank armor as a second weapon rather than just a shield, and to physically swap gear
-loadouts in the middle of combat.
+loadouts in the middle of a fight.
 
 ---
 
@@ -236,11 +238,11 @@ loadouts in the middle of combat.
 
 | Character | Core reward loop | Slot identity | Character passive |
 |---|---|---|---|
-| **Ryan** | Discard/cycle your hand; sequence-dependent effects; cheap Pocket cards | 3 belt slots | Belt cards cost 1 less mana |
+| **Ryan** | Discard/cycle your hand; sequence-dependent effects; cheap Pocket cards | 2 belt slots | Belt cards cost 1 less mana |
 | **Jeremy** | Be at 0 mana / ≤2 cards and get stronger; rig % chances; ring-trigger engine | 3 ring slots | Every 3rd cycle, first ring trigger fires twice |
-| **Stephen** | Unbroken attack chains or oversized slow swings; range & high ground | Standard slots, full-power off-hands | +10% off-hand enchantments (others −10%) |
+| **Stephen** | Unbroken attack chains or oversized slow swings; range & high ground | Standard slots; cheap weapon swaps, full-power off-hands | +10% off-hand enchantments (others −10%) |
 | **Cory** | Displace/lock enemies; debuffs that heal you; play 3+ cards per cycle | 2 gauntlet slots | +1 mana when a gauntlet skill comes off cooldown |
-| **Brad** | Spend health for power; stockpile armor then detonate it; mid-fight gear swaps | War Rack (back-slung loadout swap) | Chest items weigh 20% less |
+| **Brad** | Spend health for power; stockpile armor then detonate it; mid-fight gear swaps | War Rack (one back-slung weapon: free 20-tempo draw, 60-tempo cooldown) | Chest items weigh 20% less |
 
 All five share the identical 5-card starting deck (Attack, Exposing Strike, Block, Braced Draw, Heal) and begin with no equipment. Every card in
 the game is neutral — these write-ups describe which cards each kit *rewards*, not which cards
