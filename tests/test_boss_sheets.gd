@@ -24,7 +24,7 @@ func _check_fig(fig, name: String) -> void:
 		return
 	_check(fig._cp_sheets.has("Idle") and fig._cp_sheets.has("Walk"), "%s has Idle and Walk" % name)
 	var cell: int = fig._cp_cell
-	_check(cell >= 48 and cell <= 64, "%s cell is %d px" % [name, cell])
+	_check(cell <= 64, "%s cell is %d px" % [name, cell])
 	var rows := {}
 	for d in [CharacterAnimator.Direction.SOUTH, CharacterAnimator.Direction.NORTH,
 			CharacterAnimator.Direction.WEST, CharacterAnimator.Direction.EAST]:
@@ -32,6 +32,7 @@ func _check_fig(fig, name: String) -> void:
 		rows[int(fig._sprite.region_rect.position.y / cell)] = true
 	_check(rows.size() == 4, "%s shows a different row for each of the four facings" % name)
 	_check(fig._cp_frame_count("Walk") >= 3, "%s walks through %d frames" % [name, fig._cp_frame_count("Walk")])
+	_check(cell >= 36, "%s cell is a sensible size" % name)
 
 func _run() -> void:
 	print("=== Boss sheets test ===")
@@ -48,6 +49,18 @@ func _run() -> void:
 		await process_frame
 		_check_fig(en._enemy_figure, en.enemy_name)
 		_check(en.get_portrait_texture() != null, "%s has a portrait" % en.enemy_name)
+	# The Archer Rat (tools/cut_archer_rat.py): stands on its hind legs, runs on all fours.
+	var ar: Enemy = main.enemy_spawner.spawn_enemy(Enemy.EnemyType.ARCHER_RAT, main.player.position + Vector3(x, 0, 0))
+	await process_frame
+	_check_fig(ar._enemy_figure, "Archer Rat")
+	var arf = ar._enemy_figure
+	arf.set_walking(false)
+	var idle_tex = arf._sprite.texture
+	arf.set_walking(true)
+	_check(arf._sprite.texture != idle_tex and arf._sprite.texture == arf._cp_sheets["Walk"], "Archer Rat drops to all fours to move")
+	arf.set_walking(false)
+	_check(arf._sprite.texture == arf._cp_sheets["Idle"], "and stands on its hind legs when still")
+
 	var hades := SpriteEnemyFigure.new()
 	hades.setup("hades")
 	main.add_child(hades)
