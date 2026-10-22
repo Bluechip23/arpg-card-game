@@ -3287,7 +3287,7 @@ func _go_to_battle(via_portal: bool = false) -> void:
 
 ## Point a fresh battle scene back through the portal: the same world, the
 ## same interior (the cave the portal was opened in, and that room's parent
-## for a boss room) and the exact tile, where the battle-side portal re-opens.
+## for a boss room) and the exact tile (the portal is spent: it does not re-open).
 static func apply_portal_return(main_scene, anchor: Dictionary) -> void:
 	main_scene.current_world_level = anchor.get("world_level", main_scene.current_world_level)
 	main_scene.current_interior_id = anchor.get("interior_id", "")

@@ -53,12 +53,14 @@ func setup_slot(panel, it: ItemData, index: int, c: Card) -> void:
 	_fill_slot()
 	tooltip_text = _slot_tip()
 
-func setup_chip(panel, it: ItemData, c: Card) -> void:
+func setup_chip(panel, it: ItemData, c: Card, from_inventory := false) -> void:
 	kind = "chip"
 	_panel = panel
 	item = it
 	card = c
-	_trim = Color(0.5, 0.55, 0.75)
+	# A card from the card inventory (not yet in the deck) has a green trim
+	# and says so: slotting it adds it to the deck.
+	_trim = Color(0.45, 0.75, 0.5) if from_inventory else Color(0.5, 0.55, 0.75)
 	custom_minimum_size = CHIP_SIZE
 	_style(_trim, true)
 	var v := VBoxContainer.new()
@@ -68,7 +70,10 @@ func setup_chip(panel, it: ItemData, c: Card) -> void:
 	v.add_child(name_l)
 	if c.is_slottable():
 		v.add_child(_label(c.slot_label_names(), 8, Color(0.6, 0.6, 0.75)))
-	tooltip_text = "%s\n%s\nDrag onto a slot, or click for the first free one." % [c.card_name, c.description]
+	if from_inventory:
+		v.add_child(_label("from inventory", 8, Color(0.55, 0.85, 0.6)))
+	tooltip_text = "%s\n%s\n%sDrag onto a slot, or click for the first free one." % [c.card_name, c.description,
+		"In your card inventory: slotting it adds it to your deck.\n" if from_inventory else ""]
 
 func setup_zone(panel, it: ItemData) -> void:
 	kind = "zone"

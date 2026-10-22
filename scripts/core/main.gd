@@ -764,7 +764,7 @@ func _ready() -> void:
 			quest_manager.quest_completed.connect(_on_quest_activity_id)
 	_refresh_hud_notifications()
 	# Stepped back through the town-side twin of a Return Scroll portal:
-	# restore the player to where they set it and re-open the battle-side end.
+	# restore the player to where they set it (the portal closes behind them).
 	if portal_return_position != null:
 		call_deferred("_apply_portal_return")
 
@@ -779,11 +779,23 @@ func _apply_portal_return() -> void:
 	if land in player.blocked_tiles:
 		land = cell + Vector2i(1, 0)
 	var world := grid_manager.grid_to_world(land)
-	player.position = Vector3(world.x, player.position.y, world.z)
+	var y := dungeon_manager.get_elevation_world_y(land) if dungeon_manager else player.position.y
+	player.position = Vector3(world.x, y, world.z)
 	if "target_position" in player:
 		player.target_position = player.position
-	spawn_town_portal(back)
-	add_battle_log("You step back through your portal.", Color(0.8, 0.55, 1.0))
+	_player_last_grid_cell = land
+	# The scene opened looking at the level's start, which the player may
+	# never have walked (they arrived by waypoint): the screen was solid fog
+	# until they moved. Look at where they actually are and clear around it.
+	_update_fog_of_war()
+	_camera_focus = player.position + Vector3(2, 0, 0)
+	_camera_pan = Vector3.ZERO
+	_update_camera()
+	# The portal is spent: coming back through it closes it (no re-open).
+	if is_instance_valid(_town_portal_node):
+		_town_portal_node.queue_free()
+	_town_portal_node = null
+	add_battle_log("You step back through your portal. It closes behind you.", Color(0.8, 0.55, 1.0))
 
 ## Raycast from camera through mouse position to the ground plane (Y=0).
 ## Returns the 3D world position on the ground.
@@ -14398,12 +14410,12 @@ func _sync_occupied_tiles() -> void:
 
 var _town_portal_node: Node3D = null
 # Set by town when the player steps back through their portal: the world spot
-# to restore them to (and re-open the battle-side portal at).
+# to restore them to. The portal is spent then and does not re-open.
 var portal_return_position = null
 
 func spawn_town_portal(at = null) -> void:
 	## Right-clicking the Return Scroll conjures a purple portal on the tile
-	## beside the player (or exactly at `at` when re-opening after a return).
+	## beside the player (or exactly at `at`).
 	## [Shift] next to it travels home to town — where its twin awaits.
 	if is_instance_valid(_town_portal_node):
 		_town_portal_node.queue_free()
