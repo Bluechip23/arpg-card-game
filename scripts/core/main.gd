@@ -1213,10 +1213,12 @@ func _enemy_body_extent(e: Enemy) -> Vector2:
 	_body_extent_cache[id] = ext
 	return ext
 
-## Mark what the armed card or attack will hit (Enemy.set_target_mark): every
-## enemy inside an area card's shape, or the enemy under the cursor for a
-## single-target card, the auto attack, a quiver shot, a gauntlet skill or a
-## pending enemy pick — red when it would land, amber when out of range.
+## Outline what the armed card or attack will hit (Enemy.set_target_mark):
+## every enemy inside an area card's shape, or the enemy under the cursor for
+## a single-target card, the auto attack, a quiver shot, a gauntlet skill or
+## a pending enemy pick. Green when it will land and its pre-rolled chance
+## goes the player's way (the same roll the chance tiles show), red when it
+## won't: out of range, or the roll fails.
 func _update_target_marks() -> void:
 	if enemy_spawner == null:
 		return
@@ -1227,7 +1229,10 @@ func _update_target_marks() -> void:
 	if card and card.is_aoe and aoe_indicator and aoe_indicator.visible:
 		for e in enemy_spawner.get_living_enemies():
 			if is_instance_valid(e) and not e.is_hidden() and aoe_indicator._is_enemy_in_aoe(e):
-				marks[e] = 1
+				var lands := true
+				if card.chance_effect_percent > 0.0:
+					lands = card.get_rng_outcome(e)
+				marks[e] = 1 if lands else 2
 	else:
 		var aims_enemy := false
 		if card:
@@ -1244,13 +1249,25 @@ func _update_target_marks() -> void:
 				if not _pending_enemy_pick.is_empty():
 					ok = e in _pending_enemy_pick.get("allowed", [])
 				elif card:
-					ok = _is_target_in_card_range(card, e)
+					ok = _is_target_in_card_range(card, e) and _card_roll_favours_player(card, e)
 				elif _basic_attack_pending:
 					ok = _get_distance_to_target(e) <= _basic_attack_reach()
 				marks[e] = 1 if ok else 2
 	for e in enemy_spawner.get_living_enemies():
 		if is_instance_valid(e) and e.has_method("set_target_mark"):
 			e.set_target_mark(int(marks.get(e, 0)))
+
+## Whether a chance card's pre-rolled outcome goes the player's way against
+## `e`: per-enemy chance cards read their roll for that enemy; a binary card
+## roll (one outcome) fails on -2 — inverted when the chance is a downside
+## (Try This's backfire). Cards with no chance, or several outcomes, pass.
+func _card_roll_favours_player(card: Card, e) -> bool:
+	if card.chance_effect_percent > 0.0:
+		return card.get_rng_outcome(e)
+	if card.rng_outcomes_data.size() == 1 and card.rng_selected_index != -1:
+		var hit: bool = card.rng_selected_index == 0
+		return hit != card.chance_is_downside
+	return true
 
 func _update_battlefield_enemy_hover() -> void:
 	## Check if mouse is hovering over a battlefield enemy and highlight its panel entry.

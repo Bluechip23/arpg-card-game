@@ -172,7 +172,8 @@ var _rig: Node3D = null
 var _tint := Color.WHITE
 var _ghost_alpha := 1.0   # < 1 while the enemy is hidden (Enemy.set_hidden): it survives flashes and highlights
 var _highlighted := false
-var _target_state := 0          # 0 none, 1 targeted (red), 2 aimed at but out of range (amber)
+var _target_state := 0          # 0 none, 1 will hit / succeed (green), 2 won't (red)
+var _outline: Array[Sprite3D] = []
 var _walking := false
 var _time := 0.0
 var _facing_x := -1.0    # battlers are drawn facing left; flip for east
@@ -714,14 +715,103 @@ func set_highlight(enabled: bool) -> void:
 		_sprite.modulate = _lit_tint()
 
 
-## Mark this enemy as what the armed card / attack will hit (1: a red cast)
-## or aimed at but out of range (2: amber); 0 clears it.
+## Outline colours while aiming: green = the armed card / attack will land
+## (and any chance roll goes your way), red = it won't (out of range, or the
+## pre-rolled chance fails) — the same green / red as the chance tiles.
+const OUTLINE_GOOD := Color(0.35, 1.0, 0.4)
+const OUTLINE_BAD := Color(1.0, 0.22, 0.18)
+## The 8 one-texel offsets the silhouette is drawn at, behind the sprite.
+const OUTLINE_DIRS := [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1),
+	Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]
+
+## White silhouettes of the sprite sheets (alpha kept), tinted per outline.
+static var _silhouette_cache := {}
+
+static func _silhouette(tex: Texture2D) -> Texture2D:
+	if tex == null:
+		return null
+	var key: String = tex.resource_path if tex.resource_path != "" else str(tex.get_instance_id())
+	if _silhouette_cache.has(key):
+		return _silhouette_cache[key]
+	var img: Image = tex.get_image()
+	if img == null:
+		return null
+	if img.is_compressed():
+		img.decompress()
+	img.convert(Image.FORMAT_RGBA8)
+	var data := img.get_data()
+	for i in range(0, data.size(), 4):
+		var on := data[i + 3] > 12
+		data[i] = 255
+		data[i + 1] = 255
+		data[i + 2] = 255
+		data[i + 3] = 255 if on else 0
+	var sil := Image.create_from_data(img.get_width(), img.get_height(), false, Image.FORMAT_RGBA8, data)
+	var out := ImageTexture.create_from_image(sil)
+	_silhouette_cache[key] = out
+	return out
+
+## Mark this enemy while a card or attack is aimed: 1 outlines it green
+## (will hit / succeed), 2 red (won't), 0 clears it.
 func set_target_mark(state: int) -> void:
 	if state == _target_state:
 		return
 	_target_state = state
-	if _sprite:
-		_sprite.modulate = _lit_tint()
+	if state != 0 and _outline.is_empty() and _rig and _sprite:
+		for d in OUTLINE_DIRS:
+			var o := Sprite3D.new()
+			o.name = "Outline"
+			o.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			o.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			o.shaded = false
+			o.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+			o.centered = false
+			o.set_meta("dir", d)
+			_rig.add_child(o)
+			_outline.append(o)
+	for o in _outline:
+		o.visible = state != 0
+	if state != 0:
+		_sync_outline()
+
+## The battle camera. The world renders through Main's SubViewport, so this
+## node's own viewport has no camera: ask the nearest ancestor that knows it.
+var _cam_cache: Camera3D = null
+
+func _world_camera() -> Camera3D:
+	if _cam_cache and is_instance_valid(_cam_cache):
+		return _cam_cache
+	var n: Node = get_parent()
+	while n:
+		if n.has_method("get_world_camera"):
+			_cam_cache = n.get_world_camera()
+			return _cam_cache
+		n = n.get_parent()
+	_cam_cache = get_viewport().get_camera_3d() if is_inside_tree() else null
+	return _cam_cache
+
+## Keep the outline on the sprite's current frame, a hair behind it.
+func _sync_outline() -> void:
+	if _outline.is_empty() or _sprite == null:
+		return
+	var col: Color = OUTLINE_GOOD if _target_state == 1 else OUTLINE_BAD
+	col.a = 0.75 + 0.25 * absf(sin(_time * 4.0))
+	var sil := _silhouette(_sprite.texture)
+	var back := Vector3.ZERO
+	var cam := _world_camera()
+	if cam and _rig:
+		# Away from the camera, in rig space, so the sprite always wins the depth test.
+		back = (_rig.global_transform.basis.inverse() * cam.global_transform.basis.z).normalized() * -0.04
+	for o in _outline:
+		o.texture = sil
+		o.pixel_size = _sprite.pixel_size
+		o.region_enabled = _sprite.region_enabled
+		o.region_rect = _sprite.region_rect
+		o.flip_h = _sprite.flip_h
+		var d: Vector2 = o.get_meta("dir")
+		o.offset = _sprite.offset + d
+		o.position = _sprite.position + back
+		o.modulate = col
 
 
 ## Translucency for a hidden enemy (Specter, Cherub, Screecher): folded into
@@ -736,10 +826,6 @@ func _lit_tint() -> Color:
 	var c := _tint
 	if _highlighted:
 		c = Color(_tint.r * 1.45, _tint.g * 1.45, _tint.b * 1.25, _tint.a)
-	if _target_state == 1:
-		c = Color(c.r * 1.6, c.g * 0.7, c.b * 0.65, c.a)
-	elif _target_state == 2:
-		c = Color(c.r * 1.35, c.g * 1.15, c.b * 0.6, c.a)
 	c.a *= _ghost_alpha
 	return c
 
@@ -748,6 +834,8 @@ func _process(delta: float) -> void:
 	if not _sprite:
 		return
 	_time += delta
+	if _target_state != 0:
+		_sync_outline()
 	if _cp_mode:
 		_cp_step(delta)
 		return

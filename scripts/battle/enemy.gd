@@ -6715,9 +6715,9 @@ func set_hover_highlight(enabled: bool) -> void:
 
 var _target_mark_state := 0
 
-## Marked as what the armed card / attack will hit (1), or aimed at but out
-## of range (2); 0 clears it. Sprite figures draw a ring and a red cast; a
-## box-mesh enemy turns its outline red / amber.
+## Marked while a card or attack is aimed: 1 = it will hit / succeed (a
+## green outline), 2 = it won't (red: out of range, or the chance roll
+## fails); 0 clears it. A box-mesh enemy colours its outline box the same.
 func set_target_mark(state: int) -> void:
 	if state == _target_mark_state:
 		return
@@ -6733,7 +6733,7 @@ func set_target_mark(state: int) -> void:
 	outline.visible = true
 	var mat := outline.get_surface_override_material(0) as StandardMaterial3D
 	if mat:
-		mat.albedo_color = Color(1.0, 0.18, 0.12, 0.9) if state == 1 else Color(1.0, 0.7, 0.15, 0.85)
+		mat.albedo_color = Color(0.35, 1.0, 0.4, 0.9) if state == 1 else Color(1.0, 0.22, 0.18, 0.9)
 
 func get_target_mark() -> int:
 	return _target_mark_state
