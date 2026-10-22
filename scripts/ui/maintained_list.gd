@@ -20,7 +20,7 @@ func setup_panel() -> void:
 	var ui := main.get_node("UI") as CanvasLayer
 	panel = PanelContainer.new()
 	panel.name = "MaintainedListPanel"
-	ui.add_child(panel)
+	main.window_layer().add_child(panel)
 	panel.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
 	panel.offset_left = -280.0
 	panel.offset_top = -200.0
@@ -81,7 +81,7 @@ func setup_panel() -> void:
 	# Card preview popup for maintained list
 	_card_preview = PanelContainer.new()
 	_card_preview.name = "MaintainedListCardPreview"
-	ui.add_child(_card_preview)
+	main.window_layer().add_child(_card_preview)
 	_card_preview.custom_minimum_size = Vector2(180, 0)
 	var preview_style := StyleBoxFlat.new()
 	preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.98)
@@ -121,8 +121,25 @@ func toggle() -> void:
 	panel.visible = _showing
 	if _showing:
 		_populate()
+		_place_beside_icon()
 	else:
 		_card_preview.visible = false
+
+## Open right beside the maintained icon that was clicked (just below it,
+## pulled back on-screen at the edges), not across the screen.
+func _place_beside_icon() -> void:
+	var icon = main.maintained_icon if main else null
+	if icon == null or not is_instance_valid(icon) or not icon.is_visible_in_tree():
+		return
+	var r: Rect2 = icon.get_global_rect()
+	var size := panel.custom_minimum_size.max(panel.get_combined_minimum_size())
+	var vp: Vector2 = panel.get_viewport_rect().size
+	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	panel.size = size
+	var pos := Vector2(r.position.x, r.end.y + 6.0)
+	pos.x = clampf(pos.x, 8.0, maxf(8.0, vp.x - size.x - 8.0))
+	pos.y = clampf(pos.y, 8.0, maxf(8.0, vp.y - size.y - 8.0))
+	panel.position = pos
 
 func _populate() -> void:
 	for child in _container.get_children():

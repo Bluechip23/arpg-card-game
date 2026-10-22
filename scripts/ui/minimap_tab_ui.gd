@@ -117,7 +117,7 @@ func _setup_tab_menu() -> void:
 
 	main._tab_menu_panel = PanelContainer.new()
 	main._tab_menu_panel.name = "TabMenuPanel"
-	ui.add_child(main._tab_menu_panel)
+	main.window_layer().add_child(main._tab_menu_panel)
 	# Explicitly center on 1280x720 screen
 	var tab_w = 750.0
 	var tab_h = 550.0

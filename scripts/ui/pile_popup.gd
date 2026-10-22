@@ -23,7 +23,7 @@ func setup_panel() -> void:
 	var ui := main.get_node("UI") as CanvasLayer
 	panel = PanelContainer.new()
 	panel.name = "PilePopupPanel"
-	ui.add_child(panel)
+	main.window_layer().add_child(panel)
 	panel.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
 	panel.offset_left = -290.0
 	panel.offset_top = -220.0
@@ -85,7 +85,7 @@ func setup_panel() -> void:
 	# Hover preview panel for pile entries
 	_card_preview = PanelContainer.new()
 	_card_preview.name = "PilePopupCardPreview"
-	ui.add_child(_card_preview)
+	main.window_layer().add_child(_card_preview)
 	_card_preview.custom_minimum_size = Vector2(180, 0)
 	var preview_style := StyleBoxFlat.new()
 	preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.98)

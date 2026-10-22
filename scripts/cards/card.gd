@@ -869,6 +869,7 @@ func get_display_description(effective: Dictionary) -> String:
 	var text := description
 	if rng_outcomes_data.size() > 0 and has_been_rolled():
 		text = get_colored_description()
+	text = live_sticky_text(text)
 	if effective.is_empty():
 		return text
 	for kind in ["damage", "block", "heal"]:
@@ -877,6 +878,23 @@ func get_display_description(effective: Dictionary) -> String:
 				and effective[kind] != effective[base_key]:
 			text = _sub_number(text, effective[base_key], effective[kind], kind)
 	return text
+
+## Sticky uses left right now (the printed count minus the uses spent since
+## the card was drawn).
+func sticky_uses_left() -> int:
+	return maxi(0, sticky - consecutive_uses)
+
+static var _sticky_re: RegEx = null
+
+## "Sticky 3" in a description reads the uses LEFT, so the face counts down
+## as the card is reused (Gulped Potion: Sticky 3 → 2 → 1).
+func live_sticky_text(text: String) -> String:
+	if sticky <= 0 or consecutive_uses <= 0:
+		return text
+	if _sticky_re == null:
+		_sticky_re = RegEx.new()
+		_sticky_re.compile("(?i)(sticky\\s+)\\d+")
+	return _sticky_re.sub(text, "${1}%d" % sticky_uses_left())
 
 ## Words that identify which number in a description belongs to which stat,
 ## so two stats sharing the same base value (e.g. Fortify Alliance's 5 heal
