@@ -121,9 +121,8 @@ func _build_children() -> void:
 
 	_add_passive_badge()
 
-## The equipped item's own sprite, drawn from its appearance description, blown
-## up by whole texels to fill the slot. Null for items without art (everything
-## but the mythics today).
+## The equipped item's own picture, fitted to the slot. Null for items
+## without art (everything but the mythics today).
 func _make_item_art() -> Control:
 	var tex: Texture2D = item.get_appearance_texture()
 	if tex == null:
@@ -134,19 +133,28 @@ func _make_item_art() -> Control:
 	holder.add_child(make_pixel_art_rect(tex, box))
 	return holder
 
-## A nearest-filtered TextureRect scaled by a WHOLE number of texels so it fits
-## inside `box` (style guide §1: pixel art is never scaled fractionally).
+## The item's art fitted inside `box`. Art smaller than the box (the 32px
+## generated icons) is blown up by a WHOLE number of texels, nearest-filtered
+## (style guide §1: pixel art is never scaled up fractionally). Art bigger
+## than the box (the designer's painted mythics, cut at 128px) is shrunk to
+## fit, smoothly filtered through its mipmaps so it stays clean at any size.
 static func make_pixel_art_rect(tex: Texture2D, box: Vector2) -> TextureRect:
 	var src := tex.get_size()
-	var steps: float = 1.0
+	var size := src
+	var shrink := false
 	if src.x > 0 and src.y > 0:
-		steps = maxf(1.0, floorf(minf(box.x / src.x, box.y / src.y)))
+		var fit := minf(box.x / src.x, box.y / src.y)
+		if fit >= 1.0:
+			size = src * floorf(fit)
+		else:
+			size = (src * fit).floor()
+			shrink = true
 	var rect := TextureRect.new()
 	rect.texture = tex
-	rect.custom_minimum_size = src * steps
+	rect.custom_minimum_size = size
 	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS if shrink else CanvasItem.TEXTURE_FILTER_NEAREST
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return rect
 
