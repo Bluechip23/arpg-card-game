@@ -8,7 +8,7 @@ Sources (assets/sprites/paintings/, .gdignore'd source art), 2026-10-22:
     pure black, row names on the left.
 The row labels are not reliable ("walking left" rows that face right, a
 weregoat and wolf "Right" rows that face left, werewolf "back" frames that are side
-views), so FRAMES below picks each direction's frames by what they show and
+views — the werewolf walks those, upright), so FRAMES below picks each direction's frames by what they show and
 the opposite side is the mirror.
 
 Stone sheets: the three share one floor template repeated in every cell,
@@ -53,7 +53,10 @@ FRAMES = {
         "src": "werewolf_sheet.jpg", "kind": "stone", "down": 3,
         "back": [(0, 0), (0, 1)],                     # (0, 2), (0, 3) are side views
         "front": [(2, 0), (2, 1), (2, 2), (2, 3)],
-        "right": [(3, 0), (3, 1), (3, 2), (3, 3)],
+        # Side: the upright walk on its hind legs (the back row's two side
+        # views, facing right), not the "walking right" row on all fours
+        # (designer, 2026-10-23).
+        "right": [(0, 2), (0, 3)],
     },
     "sabertooth": {
         "src": "sabertooth_sheet.jpg", "kind": "stone", "down": 3,
