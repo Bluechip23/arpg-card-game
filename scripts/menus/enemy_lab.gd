@@ -56,6 +56,8 @@ const SECTIONS := [
 	{"title": "HEAVENS", "types": [
 		Enemy.EnemyType.CHERUB, Enemy.EnemyType.DJINN, Enemy.EnemyType.CORRUPTED_ARCHANGEL,
 	]},
+	# No habitat: the Ring Wraiths hunt whoever wears The Precious, wherever they are.
+	{"title": "THE PRECIOUS", "types": [Enemy.EnemyType.RING_WRAITH]},
 ]
 
 # Display action names (from get_all_enemy_data) that are movement rather than attacks.

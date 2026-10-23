@@ -1,7 +1,8 @@
 extends SceneTree
 
 ## The Enemy Lab previews the same art battle plays: every enemy wearing the
-## designer's art (boss boards and 4x4 walk sheets) shows that sheet in the
+## designer's art (boss boards, 4x4 walk sheets and four-direction pose
+## boards) shows that sheet in the
 ## lab, and the Screecher shows the Snow Wraith's ghost. The werewolf's side
 ## walk is the upright one (on its hind legs), not the all-fours row.
 ## Run: godot --headless --path . --script tests/test_enemy_lab_art.gd
@@ -33,6 +34,8 @@ func _run() -> void:
 		Enemy.EnemyType.ARCHER_RAT: "archer_rat", Enemy.EnemyType.RAT_KING: "rat_king",
 		Enemy.EnemyType.CERBERUS: "cerberus", Enemy.EnemyType.CORRUPTED_ARCHANGEL: "corrupted_archangel",
 		Enemy.EnemyType.PIT_FIEND: "pit_fiend",
+		Enemy.EnemyType.GIANT_BEAVER: "giant_beaver", Enemy.EnemyType.WYVERN: "wyvern",
+		Enemy.EnemyType.RING_WRAITH: "ring_wraith",
 	}
 	for t in designer:
 		var name: String = Enemy.EnemyType.keys()[t]

@@ -1,12 +1,23 @@
 extends SceneTree
 
 ## Verifies every mythic describes what it LOOKS like and ships the matching
-## art the inventory shows while it is equipped: the appearance text, the
-## icon path, the file behind that path, and that the texture actually loads
-## at the size the equipment slot expects.
+## art the inventory shows — in its storage cell, in its equipment slot and
+## in its detail panel, stored or equipped — and the hand holds: the
+## appearance text, the icon path, the file behind that path, and that the
+## texture loads at the size it is drawn at (the designer's painted art at
+## 128px, the generated icons at 32px).
 ## Run: godot --headless --path . --script tests/test_mythic_appearance.gd
 
 const EquipmentSlotCellScript = preload("res://scripts/character/equipment_slot_cell.gd")
+
+## The mythics the designer painted (tools/cut_mythic_art.py, 2026-10-23);
+## every other mythic still wears its generated 32px icon.
+const PAINTED := ["the_headbandz", "hannibals_mask", "mane_of_narashimha", "scholars_cap",
+	"adimantium", "tigers_sunday_red", "divine_resistance", "hide_of_garmr",
+	"sabre_tooth", "sword_of_theseus", "umbral_eclipse", "poseidons_trident",
+	"gauntlets_of_dungeon_mastering", "hallowed_trunk", "cuffs_of_current", "concealed_carry",
+	"boots_of_the_balancer", "hermes_boots", "jordan_1s", "guardian_greaves"]
+const PAINTED_SIZE := Vector2(128, 128)
 
 var failures := 0
 
@@ -23,7 +34,10 @@ func _initialize() -> void:
 	_test_every_mythic_has_an_appearance()
 	_test_art_loads()
 	_test_pixel_art_scaling()
+	_test_painted_art_shrinks()
 	_test_non_mythics_fall_back()
+	await _test_inventory_shows_art()
+	_test_held_art_size()
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
@@ -50,22 +64,138 @@ func _test_art_loads() -> void:
 		var tex: Texture2D = item.get_appearance_texture()
 		_check(tex != null, "%s texture loads" % item.item_name)
 		if tex:
-			_check(tex.get_size() == Vector2(32, 32),
-				"%s texture is 32x32 (got %s)" % [item.item_name, tex.get_size()])
+			var slug := item.appearance_icon.get_file().get_basename()
+			var want := PAINTED_SIZE if slug in PAINTED else Vector2(32, 32)
+			_check(tex.get_size() == want,
+				"%s texture is %s (got %s)" % [item.item_name, want, tex.get_size()])
 
 func _test_pixel_art_scaling() -> void:
-	## The slot blows the sprite up by whole texels only — never a fractional
-	## scale (style guide §1).
+	## The slot blows a small sprite up by whole texels only — never a
+	## fractional enlargement (style guide §1); a box too small for it shrinks it.
 	print("-- Whole-texel scaling --")
-	var tex: Texture2D = _mythics()[0].get_appearance_texture()
+	var tex: Texture2D = ItemData.create("belt_of_scrolls").get_appearance_texture()
+	_check(tex != null and tex.get_size() == Vector2(32, 32), "a generated 32px icon to scale")
 	for box in [Vector2(72, 64), Vector2(40, 40), Vector2(20, 20), Vector2(200, 200)]:
 		var rect: TextureRect = EquipmentSlotCellScript.make_pixel_art_rect(tex, box)
 		var steps: float = rect.custom_minimum_size.x / 32.0
-		_check(steps == floorf(steps) and steps >= 1.0,
-			"box %s scales by a whole %d texels" % [box, int(steps)])
-		_check(steps == 1.0 or rect.custom_minimum_size.x <= box.x,
+		if box.x >= 32.0:
+			_check(steps == floorf(steps) and steps >= 1.0,
+				"box %s scales by a whole %d texels" % [box, int(steps)])
+		else:
+			_check(rect.texture_filter == CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS,
+				"box %s: a box smaller than the icon shrinks it smoothly" % box)
+		_check(rect.custom_minimum_size.x <= box.x and rect.custom_minimum_size.y <= box.y,
 			"box %s: art fits inside the slot" % box)
 		rect.free()
+
+func _test_painted_art_shrinks() -> void:
+	## The painted art is bigger than any box it sits in: it shrinks to fit,
+	## smoothly filtered through its mipmaps.
+	print("-- Painted art shrinks to fit --")
+	for slug in PAINTED:
+		var tex: Texture2D = ItemData.create(slug).get_appearance_texture()
+		if tex == null:
+			_check(false, "%s loads" % slug)
+			continue
+		var img := tex.get_image()
+		_check(img != null and img.has_mipmaps(), "%s is imported with mipmaps" % slug)
+		var solid := 0
+		if img:
+			img = img.duplicate()
+			img.clear_mipmaps()
+			img.decompress()
+			for y in range(0, img.get_height(), 2):
+				for x in range(0, img.get_width(), 2):
+					if img.get_pixel(x, y).a > 0.5:
+						solid += 1
+		var share := float(solid) / (64.0 * 64.0)
+		_check(img != null and img.get_pixel(0, 0).a < 0.05 and share > 0.08 and share < 0.9,
+			"%s: panel cut away, piece kept (%d%% solid)" % [slug, int(share * 100)])
+	var tex2: Texture2D = ItemData.create("poseidons_trident").get_appearance_texture()
+	for box in [Vector2(72, 64), Vector2(34, 34), Vector2(96, 96)]:
+		var rect: TextureRect = EquipmentSlotCellScript.make_pixel_art_rect(tex2, box)
+		var sz := rect.custom_minimum_size
+		_check(sz.x <= box.x and sz.y <= box.y and maxf(sz.x / box.x, sz.y / box.y) > 0.95,
+			"box %s: painted art fills it (%s)" % [box, sz])
+		_check(rect.texture_filter == CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS,
+			"box %s: shrunk art is smoothly filtered" % box)
+		rect.free()
+
+func _find_texture_rect(node: Node, tex: Texture2D) -> TextureRect:
+	for c in node.find_children("*", "TextureRect", true, false):
+		if c.texture == tex:
+			return c
+	return null
+
+func _test_inventory_shows_art() -> void:
+	## The designer: a mythic's picture shows in the inventory, not only once
+	## it is equipped — the storage cell, and its detail panel either way.
+	print("-- Inventory shows the art --")
+	var data := CharacterData.create_brad()
+	var stats := PlayerStats.new()
+	get_root().add_child(stats)
+	stats.initialize(data)
+	stats.current_level = 60
+	var inv := Inventory.new()
+	get_root().add_child(inv)
+	inv.initialize(data.character_name)
+	inv.connect_player_stats(stats)
+	var panel = load("res://scenes/character/character_panel.tscn").instantiate()
+	get_root().add_child(panel)
+	await process_frame
+	panel.inventory = inv
+	panel.player_stats = stats
+
+	var mythic := ItemData.create("hermes_boots")
+	var plain := ItemData.create("leather_cap")
+	inv.store_item(mythic)
+	inv.store_item(plain)
+	var mi := inv.stored_items.find(mythic)
+	var pi := inv.stored_items.find(plain)
+	var tex := mythic.get_appearance_texture()
+
+	var cell = panel._create_storage_cell(mi)
+	_check(_find_texture_rect(cell, tex) != null, "stored Hermes Boots show their art in the inventory cell")
+	cell.free()
+	var plain_cell = panel._create_storage_cell(pi)
+	_check(plain_cell.find_children("ItemArt", "", true, false).is_empty(),
+		"a stored non-mythic keeps its text cell")
+	plain_cell.free()
+
+	panel._show_detail_panel(mythic, mythic.item_type, -1, mi)
+	_check(panel._detail_panel != null and _find_texture_rect(panel._detail_panel, tex) != null,
+		"a stored mythic's detail panel shows its art")
+	panel._close_detail_panel()
+
+	_check(inv.equip_from_storage(inv.stored_items.find(mythic), 0), "Hermes Boots equip")
+	var slot = EquipmentSlotCellScript.new()
+	slot.setup(panel, ItemData.ItemType.BOOTS, 0, mythic)
+	_check(_find_texture_rect(slot, tex) != null, "equipped Hermes Boots show their art in the slot")
+	slot.free()
+	panel._show_detail_panel(mythic, mythic.item_type, 0, -1)
+	_check(panel._detail_panel != null and _find_texture_rect(panel._detail_panel, tex) != null,
+		"an equipped mythic's detail panel shows its art")
+	panel._close_detail_panel()
+	panel.queue_free()
+	inv.queue_free()
+	stats.queue_free()
+
+func _test_held_art_size() -> void:
+	## A held mythic weapon is fitted by size: the 128px painted art is held at
+	## the same length a 32px icon was.
+	print("-- Held art --")
+	for slug in ["sabre_tooth", "bladed_doughnut"]:
+		var tex: Texture2D = ItemData.create(slug).get_appearance_texture()
+		var fig := SpriteFigure.new()
+		get_root().add_child(fig)
+		fig.setup("Brad")
+		fig.set_weapon_kind("sword", false, tex)
+		_check(fig._present_held("sword"), "%s: held art presented" % slug)
+		var held: Sprite3D = fig._held
+		var long_side := maxf(tex.get_width(), tex.get_height()) * held.scale.x * held.pixel_size
+		_check(absf(long_side - SpriteFigure.ART_HELD_SIZE) < 0.01,
+			"%s held %.2f world units long (want %.2f)" % [slug, long_side, SpriteFigure.ART_HELD_SIZE])
+		fig.free()
 
 func _test_non_mythics_fall_back() -> void:
 	## Only mythics carry art today; everything else keeps the slot silhouette.

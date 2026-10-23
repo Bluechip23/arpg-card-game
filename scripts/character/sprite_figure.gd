@@ -77,7 +77,7 @@ const KIND_ART := {
 	"staff": {"icon": "icon_93", "angle": 45.0, "scale": 0.8},
 	"tome": {"icon": "icon_92", "angle": 45.0, "scale": 0.55},
 }
-const ART_SCALE := 0.6       # an item's own 32px picture, held
+const ART_HELD_SIZE := 0.6   # an item's own picture, held: its longer side in world units
 const ARROW_ICON := "icon_43"
 const ARROW_ANGLE := 45.0
 const ARROW_SCALE := 0.6
@@ -338,11 +338,16 @@ func _present_held(kind: String) -> bool:
 	if _weapon_art != null:
 		s.texture = _weapon_art
 		s.region_enabled = false
-		s.scale = Vector3.ONE * ART_SCALE
+		# Fitted by size: a 32px generated icon and a 128px painted one hold the same.
+		var long_px := maxf(1.0, maxf(_weapon_art.get_width(), _weapon_art.get_height()))
+		s.scale = Vector3.ONE * (ART_HELD_SIZE / (long_px * PIXEL_SIZE))
+		s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS if long_px > 32.0 \
+				else BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		_held_angle = 45.0
 		return true
 	if not KIND_ART.has(kind):
 		return false
+	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	var cfg: Dictionary = KIND_ART[kind]
 	if cfg.get("sheet", false):
 		s.texture = load(WEAPON_SHEET)

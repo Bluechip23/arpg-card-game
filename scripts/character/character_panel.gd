@@ -1350,10 +1350,9 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(vbox)
 
-	# An equipped mythic shows its own art here, blown up from the same sprite
-	# the equipment slot displays.
-	var equipped := storage_index < 0
-	if equipped and item.has_appearance_art():
+	# A mythic shows its own art at the top, stored or equipped: the same
+	# picture its inventory cell and equipment slot display.
+	if item.has_appearance_art():
 		var art_holder = CenterContainer.new()
 		art_holder.add_child(EquipmentSlotCellScript.make_pixel_art_rect(
 			item.get_appearance_texture(), Vector2(96, 96)))
@@ -2201,6 +2200,9 @@ func _update_storage_grid() -> void:
 			var cell = _create_card_storage_cell(card, i)
 			grid.add_child(cell)
 
+## The picture area of an inventory cell (a mythic's art), above its name.
+const STORAGE_ART_BOX := Vector2(34, 34)
+
 func _create_storage_cell(index: int) -> PanelContainer:
 	var cell = StorageItemCellScript.new()
 	cell.custom_minimum_size = Vector2(62, 48)
@@ -2246,7 +2248,17 @@ func _create_storage_cell(index: int) -> PanelContainer:
 		type_label.text = ""
 		cell_name_label.text = ""
 
-	vbox.add_child(type_label)
+	# A mythic shows its own picture in place of the type line (the cell's
+	# outline already carries the type colour); its name stays underneath.
+	if item and item.has_appearance_art():
+		var art_holder := CenterContainer.new()
+		art_holder.name = "ItemArt"
+		art_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		art_holder.add_child(EquipmentSlotCellScript.make_pixel_art_rect(
+			item.get_appearance_texture(), STORAGE_ART_BOX))
+		vbox.add_child(art_holder)
+	else:
+		vbox.add_child(type_label)
 	vbox.add_child(cell_name_label)
 
 	# Enable drag (equip) from this cell and drop (unequip) onto it.

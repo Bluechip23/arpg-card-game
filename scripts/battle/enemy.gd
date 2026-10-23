@@ -1869,10 +1869,16 @@ func _tick_status_durations() -> void:
 	# stack. The arc is plain damage — it does not spread the Shock itself.
 	if shock_stacks > 0:
 		var arc: int = shock_stacks
+		# The designer's blue lightning: a crackle over the shocked body,
+		# and an arc to the enemy the damage jumps to.
+		if is_inside_tree() and get_parent():
+			LightningFX.crackle(get_parent(), position)
 		_dot_hit("Shock", arc)
 		print("[%s] Shock deals %d damage" % [enemy_name, arc])
 		var arc_target: Enemy = _nearest_other_enemy(SHOCK_ARC_RANGE)
 		if arc_target:
+			if is_inside_tree() and get_parent():
+				LightningFX.arc(get_parent(), position, arc_target.position)
 			arc_target._dot_hit("Shock arc", arc, "from " + enemy_name)
 			print("[%s] Shock arcs %d damage to %s" % [enemy_name, arc, arc_target.enemy_name])
 		shock_stacks -= 1

@@ -7124,12 +7124,14 @@ func _cycle_status_start(cp) -> void:
 		# (within 2 tiles), never back onto the carrier.
 		var ally_dmg: int = debuff_result.get("ally_damage", 0)
 		if ally_dmg > 0:
+			LightningFX.crackle(self, cp.position)  # the designer's blue lightning over the shocked carrier
 			for ally in _all_allies():
 				if ally == cp or not is_instance_valid(ally):
 					continue
 				var shock_diff = cp.position - ally.position
 				if Vector3(shock_diff.x, 0, shock_diff.z).length() <= grid_manager.grid_size * 2.5 \
 						and ally.has_method("get_stats") and ally.get_stats():
+					LightningFX.arc(self, cp.position, ally.position)
 					ally.get_stats().take_damage(ally_dmg, ally.get_debuff_manager(), ally.get_buff_manager())
 					add_battle_log("Shocked arcs %d damage to an ally!" % ally_dmg, Color(1.0, 0.9, 0.3))
 
@@ -7486,6 +7488,7 @@ func _cryonics_heal(p, poisoned: bool = false) -> void:
 func _cryonics_end(p) -> void:
 	if is_instance_valid(p):
 		p.untargetable = false
+		CryonicsIceFX.thaw(p)
 		add_battle_log("The ice melts — ally can act again.", Color(0.6, 0.85, 1.0))
 
 ## Friendship: link both players' stats so heals are shared and incoming damage
@@ -11532,17 +11535,44 @@ func _facing_dir_toward(target) -> CharacterAnimator.Direction:
 			dir = CharacterAnimator.Direction.SOUTH if to_target.z > 0 else CharacterAnimator.Direction.NORTH
 	return dir
 
+## Where a played card is aimed, for facing: the target creature's spot
+## (not the caster's own), else the aimed point for a point / line card;
+## null for a card with no direction (self buffs, all-around bursts).
+## A character's midsection on screen, from their feet: under the plan-view
+## camera "up the screen" is north (-Z), and a figure stands about a tile
+## tall. Spells are cast from here, not from the feet.
+const CAST_MIDSECTION := Vector3(0, 0, -0.45)
+
+func _card_aim_point(card: Card, target):
+	if target is Node3D and is_instance_valid(target) and target != player:
+		return (target as Node3D).position
+	if "point" in card.target_types:
+		var at := get_mouse_world_position()
+		if Vector2(at.x - player.position.x, at.z - player.position.z).length() > 0.05:
+			return at
+	return null
+
 func _play_card_animation(card: Card, target) -> void:
 	if not player or not player.has_method("play_animation"):
 		return
-	# Determine animation direction based on target position
-	var dir := _facing_dir_toward(target)
+	# Face where the card goes: the creature it is cast at, or, for a card
+	# aimed at a point or along a line (Fireball, A Snowball's Chance...),
+	# the aimed spot — a point click passes the CASTER as the target, so
+	# reading `target` alone left those casts facing south.
+	var aim = _card_aim_point(card, target)
+	var dir := CharacterAnimator.Direction.SOUTH
+	if aim != null:
+		var to_aim: Vector3 = aim - player.position
+		if abs(to_aim.x) > abs(to_aim.z):
+			dir = CharacterAnimator.Direction.EAST if to_aim.x > 0 else CharacterAnimator.Direction.WEST
+		elif abs(to_aim.z) > 0.01:
+			dir = CharacterAnimator.Direction.SOUTH if to_aim.z > 0 else CharacterAnimator.Direction.NORTH
 	# Card defines its own animation action (shared with the Animation Lab)
 	player.play_animation(card.get_animation_action(), dir)
-	# Then aim precisely at the target so the attack lines up (the cardinal
-	# `dir` above only feeds animations that key off a 4-way facing).
-	if target and target is Node3D and is_instance_valid(target) and player.has_method("face_toward"):
-		player.face_toward(target.position)
+	# Then aim precisely so the cast lines up (the cardinal `dir` above only
+	# feeds animations that key off a 4-way facing).
+	if aim != null and player.has_method("face_toward"):
+		player.face_toward(aim)
 	# Worms Armageddon: only burst the Alaskan Bull Worm when its 10% summon hits.
 	if card.card_id == "worms_armageddon" and card.rng_binary_succeeded() and player.has_method("show_worm_summon"):
 		player.show_worm_summon()
@@ -11913,7 +11943,9 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"fireball":
 			# AOE circle (4 squares) centred on the target; damage + 3 burn each.
 			var center = _point_aim(target, mouse_pos)
-			FireballFX.play(self, player.position, center)  # the designer's fireball: ember, flight, blast
+			# The designer's fireball: ember, flight, blast — thrown from the
+			# caster's midsection at the target's, so it reads as a cast.
+			FireballFX.play(self, player.position + CAST_MIDSECTION, center + CAST_MIDSECTION)
 			var fb_dmg := card.last_damage_dealt
 			var fb_hit := enemy_spawner.get_enemies_in_radius(center, card.aoe_range if card.aoe_range > 0 else 2.0)
 			for en in fb_hit:
@@ -12220,9 +12252,16 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# target, then bolt the target for the total.
 			var total_shock = 0
 			var got_center: Vector3 = target.position if target is Node3D else player.position
+			var got_drawn := false
 			for en in enemy_spawner.get_enemies_in_radius(got_center, 4.0):
+				# The absorbed Shock jumps to the target as the designer's blue arcs...
+				if en.shock_stacks > 0 and en != target:
+					LightningFX.arc(self, en.position, got_center)
+					got_drawn = true
 				total_shock += en.shock_stacks
 				en.shock_stacks = 0
+			# ...then the gold bolt strikes down on it and bursts across the ground.
+			LightningFX.thunder(self, got_center, 0.25 if got_drawn else 0.0)
 			if target and target.has_method("take_damage") and total_shock > 0:
 				target.take_damage(total_shock, true)
 			add_battle_log("God of Thunder! Absorbed %d shock, struck for %d" % [total_shock, total_shock], Color(0.8, 0.8, 1.0))
@@ -12481,6 +12520,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var ice_target = target if target is Player else player
 			var ice_idx := 1 if ice_target == _p2_player else 0
 			ice_target.untargetable = true
+			CryonicsIceFX.encase(ice_target)  # the designer's ice spike, widened around them, see-through
 			# "Cannot act" is a real 15-tempo Stun on the iced character, so the
 			# ice's trade-off holds in solo play too — not just via the co-op
 			# active-player switch below.
@@ -12644,7 +12684,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var sbc_diff := mouse_pos - player.position
 			var direction = Vector3(sbc_diff.x, 0, sbc_diff.z).normalized()
 			var fire_end = player.position + direction * card.aoe_range
-			SearingFireFX.play(self, player.position, direction, card.aoe_range)  # the designer's searing fire
+			SearingFireFX.play(self, player.position + CAST_MIDSECTION, direction, card.aoe_range)  # the designer's searing fire, from the midsection
 			var fire_enemies := enemy_spawner.get_enemies_in_line(player.position, fire_end, 0.8)
 			var sbc_hit: Array = []
 			for enemy in fire_enemies:
