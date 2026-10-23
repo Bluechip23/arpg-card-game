@@ -5,7 +5,7 @@ extends Node3D
 ##
 ## The sprite sheets can only express walk/idle/attack, so every distinctive
 ## card animation lives here as a procedural 3D effect timeline (ported from
-## the retired procedural player figure's effect spawners): icicles, fireballs, flying
+## the retired procedural player figure's effect spawners): icicles, flying
 ## pigs, arrow volleys, lightning, potions, and so on. SpriteFigure plays a
 ## suitable body motion (swing / hop / crouch / lunge…) and calls play() on
 ## this node for the matching effect.
@@ -114,7 +114,6 @@ func play(action: String) -> void:
 		"biscuit": _fx_biscuit()
 		"cryonics": _fx_cryonics()
 		"demonic_rage": _fx_aura(Color(0.85, 0.12, 0.12))
-		"fireball": _fx_fireball()
 		"god_of_thunder": _fx_god_of_thunder()
 		"harness_lightning": _fx_orbiting_orb(Color(0.5, 0.72, 1.0))
 		"if_pigs_could_fly": _fx_punt_pig()
@@ -125,7 +124,6 @@ func play(action: String) -> void:
 		"risk_it": _fx_risk_it()
 		"shepherds_mark": _fx_sheep()
 		"spark": _fx_spark()
-		"surrounding_ice": _fx_surrounding_ice()
 		"trick_shot": _fx_trick_shot()
 		"vengeful_shield": _fx_vengeful_shield()
 		"worms_armageddon": _fx_worms_armageddon()
@@ -431,12 +429,11 @@ func _fx_communal_donation() -> void:
 
 
 func _fx_snowballs_chance() -> void:
-	# Breathe fire, then the flurry of snowballs (the chance effect).
-	_fire_breath()
+	# The searing fire is the designer's animation, laid along the line in
+	# the world (SearingFireFX, from main); here, after it, the flurry of
+	# snowballs (the chance effect).
 	var tw := create_tween()
-	tw.tween_interval(0.25)
-	tw.tween_callback(_fire_breath)
-	tw.tween_interval(0.2)
+	tw.tween_interval(0.45)
 	tw.tween_callback(_snowballs)
 
 
@@ -463,16 +460,6 @@ func _fx_cryonics() -> void:
 func _fx_aura(col: Color) -> void:
 	_burst(Vector3(0, 0.7, 0), col, 1.6)
 	_sparks(Vector3(0, 0.7, 0), col, 10, 0.6)
-
-
-func _fx_fireball() -> void:
-	# Gather a swelling fireball, then hurl it.
-	var orb := _orb(Vector3(0.3, 0.7, 0.25), Color(1.0, 0.5, 0.1), 0.05)
-	add_child(orb)
-	var tw := orb.create_tween()
-	tw.tween_property(orb, "scale", Vector3.ONE * 3.2, 0.25).set_trans(Tween.TRANS_QUAD)
-	tw.tween_callback(orb.queue_free)
-	tw.tween_callback(_fly_orb.bind(Vector3(0.3, 0.7, 0.3), Vector3(-0.3, 0, 2.2), Color(1.0, 0.45, 0.1), 0.17, 0.4))
 
 
 func _fx_god_of_thunder() -> void:
@@ -609,16 +596,6 @@ func _fx_spark() -> void:
 	_bolt(Vector3(0.1, 0.9, 0.3), Vector3(0.0, 0.6, 1.6), Color(0.7, 0.9, 1.0))
 	_sparks(Vector3(0.1, 0.7, 0.4), Color(0.7, 0.9, 1.0), 8, 0.6)
 	_burst(Vector3(0.1, 0.7, 0.4), Color(0.7, 0.9, 1.0), 0.7)
-
-
-func _fx_surrounding_ice() -> void:
-	# A ring of ice spikes erupts around the figure (gaps = the miss chance).
-	var ring := [Vector3(0.9, 0, 0.5), Vector3(-0.9, 0, 0.5), Vector3(0.7, 0, 1.2), Vector3(-0.7, 0, 1.2), Vector3(0, 0, 1.5)]
-	for pos in ring:
-		if randf() < 0.2:
-			continue
-		_icicle(pos, randf_range(0.6, 0.95))
-	_burst(Vector3(0, 0.1, 0.0), Color(0.7, 0.9, 1.0), 1.0)
 
 
 func _fx_trick_shot() -> void:
@@ -1032,20 +1009,6 @@ func _fx_level_up() -> void:
 # =============================================================
 # SHARED EFFECT PIECES
 # =============================================================
-
-func _fire_breath() -> void:
-	for i in range(6):
-		var sp := _icon(_puff_tex(), Color(1.0, randf_range(0.4, 0.7), 0.1), 0.006)
-		sp.position = Vector3(0, 0.95, 0.25)
-		sp.scale = Vector3.ONE * randf_range(0.3, 0.6)
-		add_child(sp)
-		var dest := sp.position + Vector3(randf_range(-0.2, 0.2), randf_range(-0.15, 0.1), randf_range(0.6, 1.2))
-		var tw := sp.create_tween()
-		tw.tween_property(sp, "position", dest, 0.35).set_ease(Tween.EASE_OUT)
-		tw.parallel().tween_property(sp, "scale", Vector3.ONE * randf_range(0.8, 1.3), 0.35)
-		tw.parallel().tween_property(sp, "modulate:a", 0.0, 0.35)
-		tw.tween_callback(sp.queue_free)
-
 
 func _snowballs() -> void:
 	for i in range(4):

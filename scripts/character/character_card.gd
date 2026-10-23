@@ -11,7 +11,6 @@ var character_data: CharacterData
 # UI nodes built programmatically
 var _name_label: Label
 var _sprite_panel: PanelContainer
-var _sprite_texture: TextureRect
 var _sprite_label: Label
 var _figure_viewport: SubViewport = null
 var _passive_label: Label
@@ -85,14 +84,6 @@ func _build_ui() -> void:
 	sprite_panel.add_theme_stylebox_override("panel", sp_style)
 	content_row.add_child(sprite_panel)
 	_sprite_panel = sprite_panel
-
-	_sprite_texture = TextureRect.new()
-	_sprite_texture.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
-	_sprite_texture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_sprite_texture.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_sprite_texture.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_sprite_texture.visible = false
-	sprite_panel.add_child(_sprite_texture)
 
 	_sprite_label = Label.new()
 	_sprite_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -216,16 +207,11 @@ func setup(character: CharacterData) -> void:
 	if _sprite_label:
 		_sprite_label.text = character.character_name.left(1)
 
-	if _sprite_texture and character.sprite_path != "" and ResourceLoader.exists(character.sprite_path):
-		_sprite_texture.texture = load(character.sprite_path)
-		_sprite_texture.visible = true
-		_sprite_label.visible = false
-
 	# Render a 3D figure preview for real characters (the quiz "Customize" card
 	# keeps its "?" placeholder). Preset identity drives the figure so renamed
 	# saves keep their look.
 	if character.character_name != "Customize":
-		_build_figure_preview(SpriteFigure.preset_for(character), character.sprite_path)
+		_build_figure_preview(SpriteFigure.preset_for(character))
 
 	# (Per-character stat/resource readouts removed — identical across the
 	# roster now; identity comes from passive, slots and archetypes.)
@@ -245,55 +231,14 @@ func setup(character: CharacterData) -> void:
 		else:
 			_archetype_labels[i].visible = false
 
-func _build_figure_preview(character_name: String, sprite_path: String = "") -> void:
-	## Drops a small 3D scene (figure + camera + lights) into the sprite panel via a
-	## SubViewport, giving each card a pre-rendered "SNES RPG" look instead of a flat
-	## 2D sprite. The figure idles on its own (see SpriteFigure._process).
+func _build_figure_preview(character_name: String) -> void:
+	## The character's own pack sprite, idling in a small pre-rendered 3D view
+	## (SpriteFigure.make_preview) in place of the letter placeholder.
 	if _figure_viewport or not _sprite_panel:
 		return
-
-	var sub_container := SubViewportContainer.new()
-	sub_container.stretch = true
-	sub_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sub_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	sub_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_sprite_panel.add_child(sub_container)
-
-	var viewport := SubViewport.new()
-	viewport.own_world_3d = true
-	viewport.transparent_bg = true
-	viewport.msaa_3d = Viewport.MSAA_4X
-	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	sub_container.add_child(viewport)
-	_figure_viewport = viewport
-
-	# Mana Seed sprite portrait (matches the in-battle look).
-	var figure := SpriteFigure.new()
-	figure.setup(character_name, sprite_path)
-	viewport.add_child(figure)
-
-	# Orthographic, slightly raised 3/4 angle — that pre-rendered Mario-RPG feel.
-	var cam := Camera3D.new()
-	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-	cam.size = 1.6
-	viewport.add_child(cam)
-	cam.position = Vector3(0.5, 1.05, 2.6)
-	cam.look_at(Vector3(0, 0.58, 0), Vector3.UP)
-	cam.current = true
-
-	var key := DirectionalLight3D.new()
-	key.light_energy = 1.15
-	viewport.add_child(key)
-	key.rotation_degrees = Vector3(-45, -30, 0)  # global upper-left light (style guide §3)
-
-	var fill := DirectionalLight3D.new()
-	fill.light_energy = 0.45
-	viewport.add_child(fill)
-	fill.rotation_degrees = Vector3(-12, -42, 0)
-
-	# The 3D figure stands in for the flat placeholders
-	if _sprite_texture:
-		_sprite_texture.visible = false
+	var preview := SpriteFigure.make_preview(character_name)
+	_sprite_panel.add_child(preview)
+	_figure_viewport = preview.get_child(0) as SubViewport
 	if _sprite_label:
 		_sprite_label.visible = false
 

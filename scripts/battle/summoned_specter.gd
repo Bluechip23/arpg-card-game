@@ -25,21 +25,8 @@ func setup(gm: GridManager, spawn_pos: Vector3, hp: int) -> void:
 	_finish_setup()
 
 func _build_visuals() -> void:
-	var shade := StandardMaterial3D.new()
-	shade.albedo_color = Color(0.7, 0.5, 1.0, 0.55)
-	shade.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	shade.emission_enabled = true
-	shade.emission = Color(0.5, 0.3, 0.9)
-	shade.emission_energy_multiplier = 0.6
-	var body := MeshInstance3D.new()
-	var mesh := CapsuleMesh.new()
-	mesh.radius = 0.2
-	mesh.height = 0.9
-	body.mesh = mesh
-	body.material_override = shade
-	body.position = Vector3(0, 0.55, 0)
-	add_child(body)
-	_build_health_label(1.3, Color(0.85, 0.7, 1.0))
+	_build_figure("summon_specter")  # the Craftpix ghost, violet like the Seance
+	_build_health_label(1.6, Color(0.85, 0.7, 1.0))
 
 func _health_label_text() -> String:
 	var armor_txt := " +%d" % armor if armor > 0 else ""

@@ -258,7 +258,6 @@ func _setup_characters() -> void:
 	quiz_data.base_draw_timer = 5
 	quiz_data.passive_description = "Determined by your answers"
 	quiz_data.slot_specialty = "Determined by quiz"
-	quiz_data.sprite_path = ""
 
 	# The 5 preset characters first; the Customize quiz card goes last.
 	_add_preset_character_cards()

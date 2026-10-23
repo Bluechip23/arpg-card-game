@@ -70,6 +70,7 @@ const DEFS := {
 		# Shadow form does not hide the player from these.
 		"name": "Ring Wraith",
 		"tier": "Special",
+		"figure_kind": "ring_wraith",  # the Craftpix ghost pack's crowned wraith (was the prototype box)
 		"health": 100,
 		"damage": 15,
 		"move": 5.0,

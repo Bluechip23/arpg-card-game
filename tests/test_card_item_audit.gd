@@ -124,10 +124,17 @@ func _run() -> void:
 	stats.current_health = 4
 	main._on_player_health_changed(4, stats.max_health)
 	_check(dm.hand.size() == 1, "a change while already under half does not fire it")
+	_check(main.player.get_node_or_null("PhoenixRise") == null, "no phoenix while it has not fired")
 	# From healthy to under half: the crossing fires it.
 	main._last_hp_ratio = 0.9
 	main._on_player_health_changed(4, stats.max_health)
 	_check(dm.hand.is_empty(), "dropping under half fires it")
+	var phoenix = main.player.get_node_or_null("PhoenixRise")
+	_check(phoenix is PhoenixRise and phoenix.texture != null and phoenix.texture.resource_path.ends_with("phoenix_strip.png"),
+		"the designer's phoenix rises over the player's head")
+	_check(phoenix != null and phoenix.position.z < 0.0, "it sits above the head (north of the feet on screen)")
+	await create_timer(2.2, true).timeout   # ember + two wing beats + fade ~1.6 s (runs while paused too)
+	_check(main.player.get_node_or_null("PhoenixRise") == null, "the phoenix fades and frees itself")
 	dm.hand.clear()
 	stats.current_health = stats.max_health
 

@@ -77,7 +77,7 @@ func _run() -> void:
 	_test_nine_ruins(stats, dm, inv, dummies[0])
 	_test_wrath_edge(dummies)
 	_test_bastion(stats, dummies[0])
-	_test_play_scope(stats, dm, bm, dummies)
+	await _test_play_scope(stats, dm, bm, dummies)
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
@@ -448,6 +448,61 @@ func _test_play_scope(stats, dm, bm, dummies: Array) -> void:
 	_resolve_like_main(Card.create_by_id("fireball"), a, stats, dm, bm)
 	var fa_plain: int = 1000 - a.current_health
 	var fb_plain: int = 1000 - b.current_health
+	# The designer's fireball animation is thrown from the caster at the target.
+	var fxs: Array = main.find_children("FireballFX*", "FireballFX", false, false)
+	_check(fxs.size() == 1, "casting Fireball throws the fireball animation (%d)" % fxs.size())
+	if fxs.size() == 1:
+		var fx: FireballFX = fxs[0]
+		_check(fx._sprite.texture.resource_path.ends_with("fireball_strip.png") and fx._sprite.frame == 0,
+			"it starts as the ember, from the designer's strip")
+		var to_target := Vector2(a.position.x - main.player.position.x, a.position.z - main.player.position.z)
+		var heading := Vector2(cos(fx.rotation.y), -sin(fx.rotation.y))
+		_check(heading.dot(to_target.normalized()) > 0.99, "the fireball is aimed at the target")
+		await create_timer(1.2, true).timeout   # ember + flight + three blast stages + fade
+		_check(not is_instance_valid(fx), "the blast fades and frees itself")
+	# A Snowball's Chance: the designer's searing fire runs along the ground
+	# from the caster toward the aim, as long as the 3-space line it burns.
+	_reset_dummy(a)
+	main.mouse_override = main.get_world_camera().unproject_position(a.position)
+	_resolve_like_main(Card.create_by_id("snowballs_chance"), main.player, stats, dm, bm)
+	main.mouse_override = Vector2(-1, -1)
+	var sears: Array = main.find_children("SearingFireFX*", "SearingFireFX", false, false)
+	_check(sears.size() == 1, "A Snowball's Chance lays the searing fire (%d)" % sears.size())
+	_check(1000 - a.current_health > 0, "...and the line burns the enemy it is aimed at")
+	if sears.size() == 1:
+		var sf: SearingFireFX = sears[0]
+		_check(sf._sprite.texture.resource_path.ends_with("searing_fire_strip.png"), "it is the designer's flame strip")
+		var aim := Vector2(a.position.x - main.player.position.x, a.position.z - main.player.position.z).normalized()
+		_check(Vector2(cos(sf.rotation.y), -sin(sf.rotation.y)).dot(aim) > 0.99, "it runs horizontally along the aim, not up the screen")
+		var reach: float = SearingFireFX.LENGTH_PX * CameraView.PIXEL_SIZE * sf.scale.x
+		_check(absf(reach - 3.0) < 0.01, "its flames end where the 3-space line ends (%.2f)" % reach)
+		await create_timer(1.2, true).timeout
+		_check(not is_instance_valid(sf), "the embers die away and it frees itself")
+	# Surrounding Ice: the designer's spikes ring the caster and stand under
+	# every enemy the ice hits; an enemy the miss roll spared gets none.
+	_reset_dummy(a)
+	_reset_dummy(b)
+	_place(gm, a, pcell + Vector2i(1, 0))
+	_place(gm, b, pcell + Vector2i(0, 2))
+	_resolve_like_main(Card.create_by_id("surrounding_ice"), main.player, stats, dm, bm)
+	var ices: Array = main.find_children("SurroundingIceFX*", "SurroundingIceFX", false, false)
+	_check(ices.size() == 1, "Surrounding Ice raises the ice spikes (%d)" % ices.size())
+	if ices.size() == 1:
+		var ice: SurroundingIceFX = ices[0]
+		_check(ice.spikes.size() >= 8 and ice.spikes[0].texture.resource_path.ends_with("ice_spike_strip.png"),
+			"a ring of the designer's spikes (%d)" % ice.spikes.size())
+		var spike_cells := {}
+		for sp in ice.spikes:
+			spike_cells[gm.world_to_grid(ice.position + sp.position)] = true
+		for d in [a, b]:
+			var hit: bool = d.current_health < 1000
+			var cell: Vector2i = gm.world_to_grid(d.position)
+			_check(spike_cells.has(cell) == hit, "%s enemy at %s %s a spike under it" % ["a struck" if hit else "a spared", cell, "has" if hit else "has no"])
+		_check(not spike_cells.has(pcell), "no spike on the caster's own tile")
+		await create_timer(1.2, true).timeout
+		_check(not is_instance_valid(ice), "the spikes shatter and it frees itself")
+	_place(gm, a, pcell + Vector2i(2, 0))   # back where the Fireball splash checks below expect them
+	_place(gm, b, pcell + Vector2i(3, 0))
 	var belt := ItemData.create("megingjord")
 	_reset_dummy(a)
 	_reset_dummy(b)

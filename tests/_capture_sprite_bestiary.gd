@@ -32,8 +32,7 @@ func _initialize() -> void:
 	pm.size = Vector2(30, 14)
 	ground.mesh = pm
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.36, 0.42, 0.3)
-	mat.albedo_texture = load("res://assets/textures/tile_grass.png")
+	mat.albedo_texture = load("res://assets/textures/craftpix/floor_grass_field.png")  # the pack's field grass
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mat.uv1_triplanar = true
 	ground.material_override = mat

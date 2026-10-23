@@ -26,16 +26,13 @@ const FOG_REVEAL_RADIUS: int = 6   # Tiles revealed around the player
 const ELEV_STEP: float = 0.06
 const WALL_HEIGHT: float = 0.06    # wall slab thickness (see _build_walls)
 
-## TOP-DOWN GROUND. True = the ground is drawn as one autotiled mesh: each
+## TOP-DOWN GROUND. The ground is drawn as one autotiled mesh: each
 ## cell picks a 32px atlas tile by terrain (grass/dirt/water/pit/high) and by
 ## which neighbours differ, so trails, water and cliff tops get edge
 ## transitions. The atlas is assembled at runtime from the location's ground
-## sheets — the Craftpix fills cut by tools/extract_craftpix_tiles.py where a
-## pack matches, the generated master-palette sheets elsewhere — with the
-## edge bands painted in the palette. False = the older per-tile tinted-slab
-## MultiMesh terrain (same sheets, no edges). The camera is fixed either way
-## (CameraView).
-const TOPDOWN_PROTOTYPE := true
+## sheets — the Craftpix fills cut by tools/extract_craftpix_tiles.py — with the
+## edge bands painted in the palette (_build_autotile_ground). The camera is
+## fixed (CameraView).
 const WAYPOINT_MOUND_HEIGHT: float = 0.22  # Raised dirt mound under every waypoint ring
 # Height of fog-of-war volume tiles. Must exceed the tallest wall so unexplored
 # walls stay hidden: max wall = 1.5 + 0.9 noise + 2 elevation * ELEV_STEP = 3.4,
@@ -395,10 +392,7 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 	_define_spawn_zones()
 
 	# Terrain visuals
-	if TOPDOWN_PROTOTYPE:
-		_build_autotile_ground()
-	else:
-		_build_floor_visuals()
+	_build_autotile_ground()
 	_build_walls()
 	_build_elevation_visuals()
 	_build_decorations()
@@ -530,9 +524,8 @@ func get_palette() -> Dictionary:
 	return WORLD_PALETTES.get(world_level, WORLD_PALETTES[1])
 
 ## Ground sheets per location flavour. Craftpix top-down tileset fills
-## (assets/textures/craftpix/, cut by tools/extract_craftpix_tiles.py) where a
-## pack matches the place; the generated master-palette sheets elsewhere.
-## Every sheet is a 4x4 grid of 32px variants sampled triplanar (see
+## (assets/textures/craftpix/, cut by tools/extract_craftpix_tiles.py), the
+## closest pack for each place. Every sheet is a 4x4 grid of 32px variants sampled triplanar (see
 ## _add_multimesh). Colour-authored sheets get only a light palette cast.
 const CP_TEX := "res://assets/textures/craftpix"
 
@@ -565,10 +558,7 @@ func floor_texture_path() -> String:
 ## Craftpix fills are plain — their detail lives in overlay sheets — so they
 ## serve as their own far variant.)
 func far_floor_texture_path() -> String:
-	var p := floor_texture_path()
-	if p.ends_with("tile_grass.png"):
-		return "res://assets/textures/tile_grass_far.png"
-	return p
+	return floor_texture_path()
 
 
 ## Worn dirt trails / roads through the floor sheet above.
@@ -641,9 +631,9 @@ func water_texture_path() -> String:
 	return CP_TEX + "/water_field.png"
 
 
-## Prop sprites for this location: the pack biome's role when the cut
-## props (CraftpixProps, tools/build_craftpix_props.py) have one, else
-## the given legacy generated sprite. `base` is the prop family (tree,
+## Prop sprites for this location: the pack biome's role in the cut
+## props (CraftpixProps, tools/build_craftpix_props.py), or none when the
+## biome has no such role. `base` is the prop family (tree,
 ## rock, bush ...); biome prefixes: field (World 1), forest, cave, undead
 ## (World 5), cursed (World 4), goods (buildings).
 func _prop_biome() -> String:
@@ -674,7 +664,7 @@ func _prop_biome() -> String:
 
 ## Roles tried in order for a prop family in a biome. Biomes without a
 ## family borrow a neighbour's (sewer bones are barrow bones, sewer reeds are
-## forest reeds); anything unlisted falls back to the legacy sprite.
+## forest reeds); anything unlisted is left out.
 const PROP_ROLES := {
 	"field": {"tree": ["field_tree", "field_tree_small", "field_tree_fruit"], "stump": ["field_stump"], "rock": ["field_rock"],
 		"bush": ["field_bush"], "berry": ["field_berry"], "fern": ["field_fern"], "flower": ["field_flower"],
@@ -704,7 +694,8 @@ const PROP_ROLES := {
 		"shroom": ["winter_shroom"], "pebble": ["winter_pebble"], "bones": ["undead_bones"], "reeds": ["winter_ice_tree"],
 		"wallrock": ["wallrock_snow"]},
 	"goods": {"crate": ["goods_crate", "goods_sack"], "barrel": ["goods_barrel", "goods_rack", "goods_table"]},
-	"sewer": {"bones": ["undead_bones"], "reeds": ["forest_reeds"], "wallrock": ["wallrock_dark"]},
+	"sewer": {"bones": ["undead_bones"], "reeds": ["forest_reeds"], "rubble": ["cave_pebble", "cave_rock"],
+		"wallrock": ["wallrock_dark"]},
 }
 
 
@@ -813,14 +804,11 @@ func _prop_variants(base: String) -> Array:
 
 
 ## Scatter a prop family: pack variants spread across the items by cell
-## hash (one MultiMesh per variant), or the legacy sprite when the biome
-## has no pack art for it.
-func _add_prop_decos(items: Array, base: String, legacy_path: String, px_w: float, px_h: float) -> void:
-	if items.is_empty():
-		return
+## hash (one MultiMesh per variant). A biome with no pack art for the
+## family simply goes without it.
+func _add_prop_decos(items: Array, base: String) -> void:
 	var variants := _prop_variants(base)
-	if variants.is_empty():
-		_add_sprite_decos(items, legacy_path, px_w, px_h)
+	if items.is_empty() or variants.is_empty():
 		return
 	var buckets: Array = []
 	for _v in variants:
@@ -1429,7 +1417,7 @@ func _generate_overworld_layout() -> void:
 	rooms.append({"rect": exit_rect, "kind": "exit", "elev": 0})
 
 	# Corridor from arena to exit room. Corridors carved from here on are
-	# flagged as worn dirt roads (painted by _build_floor_visuals).
+	# flagged as worn dirt roads (painted by _build_autotile_ground).
 	_marking_trails = true
 	_carve_corridor_h(GRID_W - 8, GRID_W - 5, mid_z)
 	_carve_corridor_h(GRID_W - 8, GRID_W - 5, mid_z + 1)
@@ -1550,7 +1538,7 @@ func _generate_cave_layout() -> void:
 
 func _place_cave_puddles() -> void:
 	## Scatter shallow water puddles in low spots — small clusters of floor tiles
-	## flagged as water (rendered by _build_floor_visuals).
+	## flagged as water (rendered by _build_autotile_ground).
 	var puddle_count = 6 + world_level * 2
 	for _i in range(puddle_count):
 		var cx = _rng.randi_range(3, GRID_W - 3)
@@ -2021,12 +2009,11 @@ func _set_elevation_rect(rect: Rect2i, elev: int) -> void:
 func build_high_ground(center: Vector2i, radius: int = 1, elev: int = 1) -> Dictionary:
 	## Carve a walkable raised platform centred on `center` (sandbox helper and
 	## Terrain formation card). FLOOR tiles are given elevation `elev` (so the
-	## player glides up onto them and gets the High Ground bonus), and a raised
-	## slab + cliff sides are rendered so the platform is visible. WALL tiles are
+	## player glides up onto them and gets the High Ground bonus), and the pack
+	## ledge sheet is rebuilt so the rise is visible. WALL tiles are
 	## never consumed — walls are a hard cutoff no matter the elevation beside
 	## them. Returns a handle {cells, nodes} usable with remove_high_ground().
 	var handle := {"cells": [], "nodes": []}
-	var pal = get_palette()
 	for x in range(center.x - radius, center.x + radius + 1):
 		for z in range(center.y - radius, center.y + radius + 1):
 			if x < 0 or x >= GRID_W or z < 0 or z >= GRID_H:
@@ -2037,31 +2024,7 @@ func build_high_ground(center: Vector2i, radius: int = 1, elev: int = 1) -> Dict
 				continue  # never stack on / overwrite existing high ground
 			elevation[x][z] = elev
 			handle["cells"].append(Vector2i(x, z))
-			if TOPDOWN_PROTOTYPE:
-				continue  # the pack ledge sheet (rebuilt below) draws the rise
-			var h: float = elev * ELEV_STEP
-			# Cliff body up to just under the top, then a lit top surface.
-			var cliff := MeshInstance3D.new()
-			var cb := BoxMesh.new()
-			cb.size = Vector3(1.0, h, 1.0)
-			cliff.mesh = cb
-			cliff.position = Vector3(x + 0.5, h / 2.0, z + 0.5)
-			var cm := StandardMaterial3D.new()
-			cm.albedo_color = pal.get("cliff", Color(0.4, 0.38, 0.34))
-			cliff.material_override = cm
-			_visuals_root.add_child(cliff)
-			handle["nodes"].append(cliff)
-			var top := MeshInstance3D.new()
-			var tb := BoxMesh.new()
-			tb.size = Vector3(1.0, 0.08, 1.0)
-			top.mesh = tb
-			top.position = Vector3(x + 0.5, h - 0.04, z + 0.5)
-			var tm := StandardMaterial3D.new()
-			tm.albedo_color = pal.get("floor_a", Color(0.5, 0.5, 0.45)).lightened(0.14)
-			top.material_override = tm
-			_visuals_root.add_child(top)
-			handle["nodes"].append(top)
-	if TOPDOWN_PROTOTYPE and not handle["cells"].is_empty():
+	if not handle["cells"].is_empty():
 		_rebuild_pack_ledges()
 	return handle
 
@@ -2075,7 +2038,7 @@ func remove_high_ground(handle: Dictionary) -> void:
 	for node in handle.get("nodes", []):
 		if is_instance_valid(node):
 			node.queue_free()
-	if TOPDOWN_PROTOTYPE and not handle.get("cells", []).is_empty():
+	if not handle.get("cells", []).is_empty():
 		_rebuild_pack_ledges()
 
 
@@ -2200,68 +2163,6 @@ func _add_sprite_decos(items: Array, texture_path: String, px_w: float, px_h: fl
 	mmi.material_override = mat
 	_visuals_root.add_child(mmi)
 
-
-func _build_floor_visuals() -> void:
-	## Per-tile ground at elevation 0 with subtle natural color variation.
-	## Sewer water channels render as a darker, glossy surface sunk below the brick.
-	var pal = get_palette()
-	var has_water = pal.has("water")
-	var trail_col: Color = pal.get("trail", Color(0.34, 0.28, 0.18))
-	var items: Array = []
-	var water_items: Array = []
-	var trail_items: Array = []
-	for x in range(GRID_W):
-		for z in range(GRID_H):
-			if grid[x][z] != Tile.FLOOR or elevation[x][z] > 0:
-				continue
-			var n = _tile_noise(x, z, 11)
-			if has_water and is_water(Vector2i(x, z)):
-				# Murky channel water: thin slab sunk slightly into the floor.
-				var wcol: Color = pal["water"].lerp(pal["water_edge"], n)
-				water_items.append({
-					"xform": Transform3D(
-						Basis.from_scale(Vector3(1.0, 0.06, 1.0)),
-						Vector3(x + 0.5, -0.14, z + 0.5)
-					),
-					"color": wcol,
-				})
-				continue
-			var xform = Transform3D(
-				Basis.from_scale(Vector3(1.0, 0.1, 1.0)),
-				Vector3(x + 0.5, -0.05, z + 0.5)
-			)
-			if trail[x][z]:
-				# Worn dirt path: same slab, dirt sheet, earthen tint. Building
-				# halls draw their runner carpet flat instead (below).
-				var tcol: Color = trail_col.lerp(pal["floor_b"], n * 0.35)
-				if interior_kind == "building":
-					# Darkened border rows = the carpet's woven trim.
-					var edge = not (is_trail(Vector2i(x, z - 1)) and is_trail(Vector2i(x, z + 1)))
-					if edge:
-						tcol = tcol.darkened(0.28)
-				trail_items.append({"xform": xform, "color": tcol})
-				continue
-			var col: Color = pal["floor_a"].lerp(pal["floor_b"], n)
-			items.append({"xform": xform, "color": col})
-	_add_multimesh(BoxMesh.new(), items, true, 0.95, floor_texture_path())
-	if not trail_items.is_empty():
-		if interior_kind == "building":
-			# Runner carpet down the hall: flat woven cloth, so no stone/dirt
-			# texture — the full crimson tint survives (the textured path
-			# washes instance colors toward white).
-			_add_multimesh(BoxMesh.new(), trail_items, true, 1.0)
-		else:
-			# Roads and trails read as packed dirt cutting through the grass —
-			# the classic 16-bit field path (Secret of Mana overworld look).
-			_add_multimesh(BoxMesh.new(), trail_items, true, 0.95, trail_texture_path())
-	if not water_items.is_empty():
-		# Flat painted 16-bit water: the ripples live in the tile art. No
-		# metallic/emission/gloss — modern PBR shine is a style violation.
-		_add_multimesh(BoxMesh.new(), water_items, true, 1.0, water_texture_path())
-	print("[DUNGEON] Built %d floor tiles, %d trail tiles, %d water tiles" % [
-		items.size(), trail_items.size(), water_items.size()])
-
-var _chamfer_mesh_cache: Dictionary = {}
 
 # ============================================
 # AUTOTILED GROUND
@@ -2490,38 +2391,6 @@ func _sheet_image(path: String) -> Image:
 	if img.get_format() != Image.FORMAT_RGBA8:
 		img.convert(Image.FORMAT_RGBA8)
 	return img
-
-func _chamfered_unit_box(bh: float, ys: float) -> ArrayMesh:
-	## Unit box (drop-in for BoxMesh transforms) whose top rim is chamfered so
-	## wall and cliff silhouettes read as rounded SNES ledges, not razor edges.
-	## bh = horizontal rim inset; ys = unit height where the bevel begins.
-	var key := "%f_%f" % [bh, ys]
-	if _chamfer_mesh_cache.has(key):
-		return _chamfer_mesh_cache[key]
-	var i := 0.5 - bh
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	# Quads listed counter-clockwise viewed from outside; emitted flipped to
-	# match Godot's clockwise front-face winding.
-	var faces := [
-		[Vector3(-0.5, -0.5, 0.5), Vector3(0.5, -0.5, 0.5), Vector3(0.5, ys, 0.5), Vector3(-0.5, ys, 0.5)],
-		[Vector3(0.5, -0.5, -0.5), Vector3(-0.5, -0.5, -0.5), Vector3(-0.5, ys, -0.5), Vector3(0.5, ys, -0.5)],
-		[Vector3(0.5, -0.5, 0.5), Vector3(0.5, -0.5, -0.5), Vector3(0.5, ys, -0.5), Vector3(0.5, ys, 0.5)],
-		[Vector3(-0.5, -0.5, -0.5), Vector3(-0.5, -0.5, 0.5), Vector3(-0.5, ys, 0.5), Vector3(-0.5, ys, -0.5)],
-		[Vector3(-0.5, ys, 0.5), Vector3(0.5, ys, 0.5), Vector3(i, 0.5, i), Vector3(-i, 0.5, i)],
-		[Vector3(0.5, ys, -0.5), Vector3(-0.5, ys, -0.5), Vector3(-i, 0.5, -i), Vector3(i, 0.5, -i)],
-		[Vector3(0.5, ys, 0.5), Vector3(0.5, ys, -0.5), Vector3(i, 0.5, -i), Vector3(i, 0.5, i)],
-		[Vector3(-0.5, ys, -0.5), Vector3(-0.5, ys, 0.5), Vector3(-i, 0.5, i), Vector3(-i, 0.5, -i)],
-		[Vector3(-i, 0.5, i), Vector3(i, 0.5, i), Vector3(i, 0.5, -i), Vector3(-i, 0.5, -i)],
-		[Vector3(-0.5, -0.5, -0.5), Vector3(0.5, -0.5, -0.5), Vector3(0.5, -0.5, 0.5), Vector3(-0.5, -0.5, 0.5)],
-	]
-	for f in faces:
-		for idx in [0, 2, 1, 0, 3, 2]:
-			st.add_vertex(f[idx])
-	st.generate_normals()
-	var mesh := st.commit()
-	_chamfer_mesh_cache[key] = mesh
-	return mesh
 
 ## Outdoor zones have no "walls": the ground runs on under the blocked
 ## tiles and the edge of the walkable land is a line of trees, rocks and
@@ -2895,9 +2764,9 @@ func _build_boundary_props() -> void:
 				rocks.append({"pos": pos, "scale": 1.1 + _tile_noise(x, z, 241) * 0.4, "color": Color.WHITE})
 			else:
 				bushes.append({"pos": pos, "scale": 1.1 + _tile_noise(x, z, 243) * 0.4, "color": Color.WHITE})
-	_add_prop_decos(trees, "tree", "res://assets/textures/props/tree.png", 48, 64)
-	_add_prop_decos(rocks, "rock", "res://assets/textures/props/rock.png", 32, 24)
-	_add_prop_decos(bushes, "bush", "res://assets/textures/props/bush.png", 32, 24)
+	_add_prop_decos(trees, "tree")
+	_add_prop_decos(rocks, "rock")
+	_add_prop_decos(bushes, "bush")
 	print("[DUNGEON] Natural boundary: %d trees, %d rocks, %d bushes (%s)" % [trees.size(), rocks.size(), bushes.size(), get_location_name()])
 
 ## Emberfall's skyline: animated volcanoes and demon idols (cave pack) on
@@ -3000,17 +2869,14 @@ func _max_adjacent_floor_elevation(x: int, z: int) -> int:
 	return max_elev
 
 func _build_elevation_visuals() -> void:
-	## Raised ground. In the top-down prototype the pack draws it: the ground
+	## Raised ground. The pack draws it: the ground
 	## autotile paints the raised top from the biome's sheet with its edge
 	## bands and lip shadow, and _build_pack_ledges lays the pack's cliff
 	## fringe along every drop to lower floor — no modelled cliff bodies, no
 	## carved steps (packs-first, CLAUDE.md). Rooms whose cliffs are authored
 	## as wall face tiles (the lair) need nothing more.
-	if TOPDOWN_PROTOTYPE:
-		if interior_kind != "ratking":
-			_build_pack_ledges()
-		return
-	_build_modelled_elevation()
+	if interior_kind != "ratking":
+		_build_pack_ledges()
 
 ## The pack's cliff fringe (the ledge row where a plateau top hangs over the
 ## rock) along the south edge of raised ground: wherever a raised floor
@@ -3075,98 +2941,6 @@ func _rebuild_pack_ledges() -> void:
 		old.name = "PackLedges_old"
 		old.queue_free()
 	_build_pack_ledges()
-
-func _build_modelled_elevation() -> void:
-	## Legacy (non-prototype) renderer: modelled cliff bodies, soil tops and
-	## carved stone steps. Kept for the slab-terrain path only.
-	var pal = get_palette()
-	var cliff_items: Array = []
-	var top_items: Array = []
-	var step_items: Array = []
-	var skirt_items: Array = []
-	var dirs4 = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
-
-	for x in range(GRID_W):
-		for z in range(GRID_H):
-			if grid[x][z] != Tile.FLOOR or elevation[x][z] <= 0:
-				continue
-			var h = elevation[x][z] * ELEV_STEP
-			# Cliff body: ground up to just below the top surface
-			var body_h = h - 0.06
-			var n = _tile_noise(x, z, 41)
-			var cliff_col: Color = pal["cliff"].lerp(pal["wall_b"], n * 0.5)
-			cliff_items.append({
-				"xform": Transform3D(
-					Basis.from_scale(Vector3(1.0, body_h, 1.0)),
-					Vector3(x + 0.5, body_h / 2.0, z + 0.5)
-				),
-				"color": cliff_col,
-			})
-			# Painted contact band at the base of exposed cliff faces.
-			var lowest := 99
-			for dir in dirs4:
-				var nx = x + dir.x
-				var nz = z + dir.y
-				if nx >= 0 and nx < GRID_W and nz >= 0 and nz < GRID_H:
-					if grid[nx][nz] == Tile.FLOOR and elevation[nx][nz] < elevation[x][z]:
-						lowest = mini(lowest, elevation[nx][nz])
-			if lowest < 99:
-				skirt_items.append({
-					"xform": Transform3D(
-						Basis.from_scale(Vector3(1.16, 0.045, 1.16)),
-						Vector3(x + 0.5, lowest * ELEV_STEP + 0.0225, z + 0.5)
-					),
-					"color": pal["ground"],
-				})
-			# Top surface: matches the floor palette but reads slightly sun-lit
-			# (the autotile layer draws elevated tops itself in the prototype).
-			if TOPDOWN_PROTOTYPE:
-				continue
-			var top_col: Color = pal["floor_a"].lerp(pal["floor_b"], _tile_noise(x, z, 11)).lightened(0.12)
-			top_items.append({
-				"xform": Transform3D(
-					Basis.from_scale(Vector3(1.0, 0.06, 1.0)),
-					Vector3(x + 0.5, h - 0.03, z + 0.5)
-				),
-				"color": top_col,
-			})
-
-	# Stone steps on every walkable single-level transition
-	var dirs = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
-	for x in range(GRID_W):
-		for z in range(GRID_H):
-			if grid[x][z] != Tile.FLOOR:
-				continue
-			var base_elev = elevation[x][z]
-			for dir in dirs:
-				var nx = x + dir.x
-				var nz = z + dir.y
-				if nx < 0 or nx >= GRID_W or nz < 0 or nz >= GRID_H:
-					continue
-				if grid[nx][nz] != Tile.FLOOR or elevation[nx][nz] != base_elev + 1:
-					continue
-				# Three steps climbing from this tile up to the neighbor's ledge
-				var angle = atan2(-float(dir.y), float(dir.x)) + PI / 2.0
-				var dir3 = Vector3(dir.x, 0, dir.y)
-				var base_y = base_elev * ELEV_STEP
-				for k in range(3):
-					var step_h = ELEV_STEP * (k + 1) / 4.0
-					var dist = 0.5 - 0.07 - (2 - k) * 0.14
-					var center = Vector3(x + 0.5, 0, z + 0.5) + dir3 * dist
-					var basis = Basis(Vector3.UP, angle) * Basis.from_scale(Vector3(0.7, step_h, 0.13))
-					step_items.append({
-						"xform": Transform3D(basis, Vector3(center.x, base_y + step_h / 2.0, center.z)),
-						"color": pal["step"],
-					})
-
-	# Chamfered rock shoulders under full-width turf caps: the caps overhang
-	# the rounded rim slightly, the classic SNES plateau lip.
-	_add_multimesh(_chamfered_unit_box(0.08, 0.30), cliff_items, true, 0.95, wall_texture_path())
-	_add_multimesh(BoxMesh.new(), top_items, true, 0.95, floor_texture_path())
-	_add_multimesh(BoxMesh.new(), step_items, true, 0.85, trail_texture_path())
-	if not skirt_items.is_empty():
-		_add_multimesh(BoxMesh.new(), skirt_items, false)
-	print("[DUNGEON] Built %d cliff tiles, %d stone steps" % [cliff_items.size(), step_items.size() / 3])
 
 func _build_decorations() -> void:
 	## Scatters small non-blocking props for natural variety: rocks and shrubs
@@ -3296,18 +3070,18 @@ func _build_decorations() -> void:
 				elif not near_wall:
 					meadow_cells.append({"pos": pos})
 
-	_add_prop_decos(_deco_trees, "tree", "res://assets/textures/props/tree.png", 48, 64)
-	_add_prop_decos(_deco_stumps, "stump", "res://assets/textures/props/stump.png", 24, 20)
-	_add_prop_decos(_deco_rocks, "rock", "res://assets/textures/props/rock.png", 32, 24)
-	_add_prop_decos(_deco_bushes, "bush", "res://assets/textures/props/bush.png", 32, 24)
-	_add_prop_decos(_deco_ferns, "fern", "res://assets/textures/props/fern.png", 24, 24)
-	_add_prop_decos(_deco_flowers, "flower", "res://assets/textures/props/flowers.png", 20, 14)
-	_add_prop_decos(_deco_tufts, "tuft", "res://assets/textures/props/grass_tuft.png", 14, 12)
-	_add_prop_decos(_deco_shrooms, "shroom", "res://assets/textures/props/mushroom.png", 16, 13)
-	_add_prop_decos(_deco_crates, "crate", "res://assets/textures/props/crate.png", 22, 20)
-	_add_prop_decos(_deco_barrels, "barrel", "res://assets/textures/props/barrel.png", 18, 22)
-	_add_prop_decos(_deco_berries, "berry", "res://assets/textures/props/bush_berry.png", 32, 24)
-	_add_prop_decos(_deco_pebbles, "pebble", "res://assets/textures/props/pebbles.png", 14, 8)
+	_add_prop_decos(_deco_trees, "tree")
+	_add_prop_decos(_deco_stumps, "stump")
+	_add_prop_decos(_deco_rocks, "rock")
+	_add_prop_decos(_deco_bushes, "bush")
+	_add_prop_decos(_deco_ferns, "fern")
+	_add_prop_decos(_deco_flowers, "flower")
+	_add_prop_decos(_deco_tufts, "tuft")
+	_add_prop_decos(_deco_shrooms, "shroom")
+	_add_prop_decos(_deco_crates, "crate")
+	_add_prop_decos(_deco_barrels, "barrel")
+	_add_prop_decos(_deco_berries, "berry")
+	_add_prop_decos(_deco_pebbles, "pebble")
 
 	if interior_kind == "":
 		_place_signposts(pal)
@@ -3399,16 +3173,6 @@ func _add_cloud_shadows() -> void:
 	clouds.name = "CloudShadows"
 	_visuals_root.add_child(clouds)
 	clouds.setup(GRID_W, GRID_H, _layout_seed)
-
-func _make_rock(x: int, z: int, jx: float, jz: float, y_base: float, rot: Basis, pal: Dictionary) -> Dictionary:
-	var sx = 0.2 + _tile_noise(x, z, 91) * 0.25
-	var sy = 0.15 + _tile_noise(x, z, 97) * 0.2
-	var sz = 0.2 + _tile_noise(x, z, 101) * 0.25
-	return {
-		"xform": Transform3D(rot * Basis.from_scale(Vector3(sx, sy, sz)),
-			Vector3(x + 0.5 + jx, y_base + sy / 2.0, z + 0.5 + jz)),
-		"color": pal["cliff"].lerp(pal["wall_b"], _tile_noise(x, z, 103)),
-	}
 
 func _has_adjacent_floor_on_all_sides(x: int, z: int) -> bool:
 	for dir in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
@@ -3712,8 +3476,8 @@ func _place_sewer_grates(water_tiles: Array, pal: Dictionary) -> void:
 			root.add_child(bar)
 
 func _place_sewer_doors(pal: Dictionary) -> void:
-	## Big circular stone valve-doors recessed into the wall at a few cistern
-	## mouths — the rolled-aside discs that seal passages in the sewer.
+	## Sealed passages recessed into the wall at a few cistern mouths: the
+	## pack's dark stone archway, tinted to the sewer stone.
 	var placed = 0
 	for room in rooms:
 		if placed >= 5:
@@ -3736,24 +3500,8 @@ func _place_sewer_doors(pal: Dictionary) -> void:
 		_visuals_root.add_child(root)
 		# A dark stone archway (the pack's) reads as the sealed passage.
 		var arch := _make_prop_sprite("gate_small", 1.25)
-		if arch:
-			arch.modulate = Color(1, 1, 1).lerp(pal["wall_a"], 0.25)
-			root.add_child(arch)
-		else:
-			var disc = MeshInstance3D.new()
-			var dmesh = CylinderMesh.new()
-			dmesh.top_radius = 0.85
-			dmesh.bottom_radius = 0.85
-			dmesh.height = 0.22
-			dmesh.radial_segments = 20
-			disc.mesh = dmesh
-			disc.rotation_degrees = Vector3(0, 0, 90) if dir.x != 0 else Vector3(90, 0, 0)
-			var stone = StandardMaterial3D.new()
-			stone.albedo_color = pal["wall_a"].lightened(0.05)
-			stone.roughness = 0.95
-			disc.material_override = stone
-			disc.position = Vector3(0, 0.85, 0)
-			root.add_child(disc)
+		arch.modulate = Color(1, 1, 1).lerp(pal["wall_a"], 0.25)
+		root.add_child(arch)
 		placed += 1
 
 func _find_perimeter_wall(rect: Rect2i) -> Dictionary:
@@ -3801,7 +3549,9 @@ func _place_sewer_manholes(pal: Dictionary) -> void:
 		_visuals_root.add_child(cover)
 
 func _place_sewer_rubble(wall_edges: Array, pal: Dictionary) -> void:
-	## Damp rubble and algae patches hugging the walls, as a MultiMesh.
+	## Damp rubble (the cave pack's pebbles and stones) and algae patches
+	## hugging the walls. No pack draws an algae smear: those stay flat
+	## tinted slabs.
 	var rubble: Array = []
 	var moss: Array = []
 	for entry in wall_edges:
@@ -3815,10 +3565,9 @@ func _place_sewer_rubble(wall_edges: Array, pal: Dictionary) -> void:
 		var center = Vector3(floor_pos.x + 0.5, 0, floor_pos.y + 0.5) - into * 0.3
 		var rot = Basis(Vector3.UP, _tile_noise(pos.x, pos.y, 71) * TAU)
 		if n < 0.16:
-			var s = 0.12 + _tile_noise(pos.x, pos.y, 91) * 0.2
 			rubble.append({
-				"xform": Transform3D(rot * Basis.from_scale(Vector3(s * 1.4, s, s * 1.2)),
-					center + Vector3(0, s * 0.5, 0)),
+				"pos": center,
+				"scale": 0.7 + _tile_noise(pos.x, pos.y, 91) * 0.4,
 				"color": pal["wall_b"].lerp(pal["floor_b"], n * 3.0),
 			})
 		elif n > 0.86:
@@ -3828,7 +3577,7 @@ func _place_sewer_rubble(wall_edges: Array, pal: Dictionary) -> void:
 					center + Vector3(0, 0.01, 0)),
 				"color": pal["accent"].lerp(pal["floor_a"], _tile_noise(pos.x, pos.y, 89) * 0.5),
 			})
-	_add_multimesh(BoxMesh.new(), rubble)
+	_add_prop_decos(rubble, "rubble")
 	if not moss.is_empty():
 		_add_multimesh(BoxMesh.new(), moss)
 
@@ -3849,7 +3598,7 @@ func _place_bones(floor_cells: Array, pal: Dictionary, per_cells: int, lo: int, 
 		items.append({"pos": Vector3(c.x + 0.5 + jx, 0.0, c.y + 0.5 + jz),
 				"scale": 0.85 + _tile_noise(c.x, c.y, 111) * 0.3,
 				"color": pal["floor_a"].lerp(Color.WHITE, 0.6)})
-	_add_prop_decos(items, "bones", "res://assets/textures/props/bones.png", 18, 10)
+	_add_prop_decos(items, "bones")
 
 func _place_sewer_reeds(water_tiles: Array, pal: Dictionary) -> void:
 	## Marsh reeds rooted where the channel water meets dry brick — the one
@@ -3873,7 +3622,7 @@ func _place_sewer_reeds(water_tiles: Array, pal: Dictionary) -> void:
 			"scale": 0.7 + _tile_noise(pos.x, pos.y, 69) * 0.5,
 			"color": pal["accent"],
 		})
-	_add_prop_decos(items, "reeds", "res://assets/textures/props/reeds.png", 14, 22)
+	_add_prop_decos(items, "reeds")
 
 func _place_sewer_mice(floor_tiles: Array) -> void:
 	## A handful of background sewer mice scuttling near the walls.
@@ -4010,8 +3759,7 @@ func _build_tree_mesh(root: Node3D, scale: float, climbable: bool) -> void:
 	## bough and trunk pegs as the climb cue.
 	# The Greenwood's big canopy trees (Craftpix forest pack); the climbable
 	# one is the variant with the open trunk and low bough.
-	var v := _first_prop_variant("forest_tree_climb" if climbable else "forest_tree_big",
-			"res://assets/textures/props/tree_climb.png" if climbable else "res://assets/textures/props/tree.png", 48, 64)
+	var v := _first_prop_variant("forest_tree_climb" if climbable else "forest_tree_big")
 	var sprite := Sprite3D.new()
 	sprite.texture = load(v["path"])
 	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -4025,13 +3773,11 @@ func _build_tree_mesh(root: Node3D, scale: float, climbable: bool) -> void:
 	root.add_child(sprite)
 
 
-## One pack sprite for a role (its first variant), or the legacy sprite.
-func _first_prop_variant(role: String, legacy_path: String, px_w: float, px_h: float) -> Dictionary:
-	if CraftpixProps.has(role):
-		var cfg: Dictionary = CraftpixProps.PROPS[role]
-		var v: Dictionary = cfg["variants"][0]
-		return {"path": v["path"], "w": v["w"], "h": v["h"], "scale": cfg["scale"]}
-	return {"path": legacy_path, "w": px_w, "h": px_h, "scale": 1.0}
+## One pack sprite for a role (its first variant).
+func _first_prop_variant(role: String) -> Dictionary:
+	var cfg: Dictionary = CraftpixProps.PROPS[role]
+	var v: Dictionary = cfg["variants"][0]
+	return {"path": v["path"], "w": v["w"], "h": v["h"], "scale": cfg["scale"]}
 
 func _place_bear_traps(cells: Array) -> void:
 	## Iron jaw traps on the ground — 7 damage to anything that steps on them
@@ -4216,48 +3962,14 @@ func _place_cave_webs() -> void:
 		})
 
 func _build_web_mesh(root: Node3D) -> void:
-	var silk = StandardMaterial3D.new()
-	silk.albedo_color = Color(0.78, 0.80, 0.78, 0.85)
-	silk.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	silk.metallic = 0.0  # no modern specular pop
-	silk.roughness = 0.9
-	# Radial threads laid low over the tile.
-	for k in range(6):
-		var a = TAU * k / 6.0
-		var thread = MeshInstance3D.new()
-		var tmesh = BoxMesh.new()
-		tmesh.size = Vector3(0.86, 0.015, 0.03)
-		thread.mesh = tmesh
-		thread.material_override = silk
-		thread.rotation = Vector3(0, a, 0)
-		thread.position = Vector3(0, 0.05, 0)
-		root.add_child(thread)
-	# Two spiral rings.
-	for r in [0.18, 0.34]:
-		var ring = MeshInstance3D.new()
-		var rmesh = TorusMesh.new()
-		rmesh.inner_radius = r - 0.015
-		rmesh.outer_radius = r + 0.015
-		ring.mesh = rmesh
-		ring.material_override = silk
-		ring.position = Vector3(0, 0.05, 0)
-		root.add_child(ring)
-	# The spikes: barbs of chitin worked into the silk.
-	var barb_mat = StandardMaterial3D.new()
-	barb_mat.albedo_color = Color(0.22, 0.20, 0.24)
-	barb_mat.metallic = 0.0  # no modern specular pop
-	for k in range(5):
-		var a = TAU * k / 5.0 + 0.4
-		var barb = MeshInstance3D.new()
-		var cone = CylinderMesh.new()
-		cone.top_radius = 0.0
-		cone.bottom_radius = 0.035
-		cone.height = 0.16
-		cone.radial_segments = 4
-		barb.mesh = cone
-		barb.material_override = barb_mat
-		barb.position = Vector3(cos(a) * 0.24, 0.09, sin(a) * 0.24)
-		root.add_child(barb)
+	## The cave pack's spiderweb, standing over the tile and sized to one
+	## tile across (the variant is picked by cell, so neighbours differ).
+	var cfg: Dictionary = CraftpixProps.PROPS["cave_web"]
+	var k := int(_tile_noise(int(floor(root.position.x)), int(floor(root.position.z)), 97) * cfg["variants"].size())
+	var v: Dictionary = cfg["variants"][k % cfg["variants"].size()]
+	var web := CraftpixProps.make_sprite("cave_web", 36.0 / float(v["w"]) / float(cfg["scale"]), k)
+	web.name = "WebSprite"
+	root.add_child(web)
 
 func _place_wall_dart_shooters() -> void:
 	## Dart shooters set into the building's walls: a nozzle at chest height
@@ -4438,16 +4150,16 @@ func _build_forest_decorations() -> void:
 				"scale": 0.85 + _tile_noise(entry["pos"].x, entry["pos"].y, 96) * 0.35,
 				"color": Color.WHITE})
 
-	_add_prop_decos(trunk_items, "tree", "res://assets/textures/props/tree.png", 48, 64)
-	_add_prop_decos(fern_items, "fern", "res://assets/textures/props/fern.png", 24, 24)
-	_add_prop_decos(stump_items, "stump", "res://assets/textures/props/stump.png", 24, 20)
-	_add_prop_decos(bush_items, "bush", "res://assets/textures/props/bush.png", 32, 24)
-	_add_prop_decos(tuft_items, "tuft", "res://assets/textures/props/grass_tuft.png", 14, 12)
-	_add_prop_decos(shroom_items, "shroom", "res://assets/textures/props/mushroom.png", 16, 13)
-	_add_prop_decos(flower_items, "flower", "res://assets/textures/props/flowers.png", 20, 14)
-	_add_prop_decos(log_items, "log", "res://assets/textures/props/log.png", 36, 16)
-	_add_prop_decos(berry_items, "berry", "res://assets/textures/props/bush_berry.png", 32, 24)
-	_add_prop_decos(pebble_items, "pebble", "res://assets/textures/props/pebbles.png", 14, 8)
+	_add_prop_decos(trunk_items, "tree")
+	_add_prop_decos(fern_items, "fern")
+	_add_prop_decos(stump_items, "stump")
+	_add_prop_decos(bush_items, "bush")
+	_add_prop_decos(tuft_items, "tuft")
+	_add_prop_decos(shroom_items, "shroom")
+	_add_prop_decos(flower_items, "flower")
+	_add_prop_decos(log_items, "log")
+	_add_prop_decos(berry_items, "berry")
+	_add_prop_decos(pebble_items, "pebble")
 
 	_place_signposts(pal)
 	_place_forest_squirrels(floor_cells)
@@ -4600,7 +4312,7 @@ func update_tree_prompts(player_grid: Vector2i) -> void:
 
 # ============================================
 # CAVE DRESSING — stalagmites (floor), stalactites (ceiling), divots and pebbles.
-# Puddles are flagged in the layout and drawn by _build_floor_visuals. The whole
+# Puddles are flagged in the layout and drawn by _build_autotile_ground. The whole
 # place reads as a network of dripping stone tunnels.
 # ============================================
 
@@ -4609,7 +4321,7 @@ func _build_cave_decorations() -> void:
 	var stalagmite_items: Array = []  # upward cones rooted to the floor
 	var stalactite_items: Array = []  # downward cones hanging into the tunnel
 	var divot_items: Array = []       # small dark floor depressions
-	var pebble_items: Array = []      # scattered rubble
+	var pebble_items: Array = []      # scattered rubble (pack cave rocks)
 	var shroom_items: Array = []      # pale fungus clumps in the dark
 	var crystal_items: Array = []     # teal crystal clusters at the walls
 	var stone_items: Array = []       # loose stone scatter (billboard)
@@ -4677,17 +4389,22 @@ func _build_cave_decorations() -> void:
 					"color": pal["floor_b"].darkened(0.4),
 				})
 			elif near_wall and n > 0.78:
-				pebble_items.append(_make_rock(x, z, jx, jz, 0.0, rot, pal))
+				pebble_items.append({
+					"pos": Vector3(x + 0.5 + jx, 0.0, z + 0.5 + jz),
+					"scale": 0.6 + _tile_noise(x, z, 91) * 0.4,
+					"color": pal["cliff"].lerp(pal["wall_b"], _tile_noise(x, z, 103)),
+				})
 
-	_add_prop_decos(stalagmite_items, "stalagmite", "res://assets/textures/props/stalagmite.png", 16, 24)
-	_add_prop_decos(stalactite_items, "stalactite", "res://assets/textures/props/stalactite.png", 16, 24)
-	_add_prop_decos(shroom_items, "shroom", "res://assets/textures/props/mushroom_pale.png", 16, 13)
-	_add_prop_decos(crystal_items, "crystal", "res://assets/textures/props/crystal.png", 16, 22)
-	_add_prop_decos(stone_items, "pebble", "res://assets/textures/props/pebbles.png", 14, 8)
+	_add_prop_decos(stalagmite_items, "stalagmite")
+	_add_prop_decos(stalactite_items, "stalactite")
+	_add_prop_decos(shroom_items, "shroom")
+	_add_prop_decos(crystal_items, "crystal")
+	_add_prop_decos(stone_items, "pebble")
+	_add_prop_decos(pebble_items, "rock")
 	_place_bones(dry_cells, pal, 4, 2, 8)
 
+	# No pack draws a floor divot: those stay flat tinted slabs.
 	_add_multimesh(BoxMesh.new(), divot_items)
-	_add_multimesh(BoxMesh.new(), pebble_items)
 
 	# A few slow drips falling from the larger stalactites add life to the gloom.
 	_place_cave_drips(stalactite_items)
@@ -5136,20 +4853,8 @@ func _build_building_exterior(root: Node3D, fp_w: int, fp_d: int) -> void:
 	# around it) shift half a tile to line up with where the player stands.
 	var door_x := 0.5 if fp_w % 2 == 0 else 0.0
 	var door := _make_prop_sprite("gate_small", 1.15)  # the pack's dark stone archway
-	if door:
-		door.position = Vector3(door_x, CameraView.SPRITE_LIFT, d / 2.0 + 0.42)  # clear of the roof's overhang from above
-		root.add_child(door)
-	else:
-		var door_mi = MeshInstance3D.new()
-		var door_mesh = BoxMesh.new()
-		door_mesh.size = Vector3(0.7, 1.15, 0.08)
-		door_mi.mesh = door_mesh
-		var door_mat = StandardMaterial3D.new()
-		door_mat.albedo_color = Color(0.25, 0.16, 0.10)
-		door_mat.roughness = 0.7
-		door_mi.material_override = door_mat
-		door_mi.position = Vector3(door_x, 0.58, d / 2.0 + 0.02)
-		root.add_child(door_mi)
+	door.position = Vector3(door_x, CameraView.SPRITE_LIFT, d / 2.0 + 0.42)  # clear of the roof's overhang from above
+	root.add_child(door)
 
 	# Two warm-lit windows flanking the door
 	for side in [-1.0, 1.0]:
@@ -5167,8 +4872,10 @@ func _build_building_exterior(root: Node3D, fp_w: int, fp_d: int) -> void:
 		root.add_child(window)
 
 func _build_graveyard_gate(root: Node3D, fp_w: int, fp_d: int) -> void:
-	## Two weathered stone pillars, a lintel, and an iron gate standing open
-	## on the south face; the dark beyond is the way down.
+	## Two weathered stone pillars and a lintel framing the undead pack's
+	## skull-mouth doorway, the way down. (No pack draws stone gateposts or
+	## iron bars: the pillars and lintel stay modelled in the wall stone; the
+	## old modelled iron bars are gone — the pack doorway is the opening.)
 	var stone := _pixel_mat(wall_texture_path(), Color(0.62, 0.66, 0.64))
 	for side in [-1.0, 1.0]:
 		var pillar = MeshInstance3D.new()
@@ -5185,103 +4892,40 @@ func _build_graveyard_gate(root: Node3D, fp_w: int, fp_d: int) -> void:
 	lintel.material_override = stone
 	lintel.position = Vector3(0, 2.6, fp_d / 2.0 - 0.5)
 	root.add_child(lintel)
-	var iron = StandardMaterial3D.new()
-	iron.albedo_color = Color(0.12, 0.12, 0.14)
-	iron.roughness = 0.6
-	for i in range(4):
-		var bar = MeshInstance3D.new()
-		var bm = CylinderMesh.new()
-		bm.top_radius = 0.05
-		bm.bottom_radius = 0.05
-		bm.height = 2.0
-		bm.radial_segments = 6
-		bar.mesh = bm
-		bar.material_override = iron
-		bar.position = Vector3(-0.75 + i * 0.5, 1.0, fp_d / 2.0 - 0.5)
-		bar.rotation_degrees = Vector3(0, 0, 0)
-		root.add_child(bar)
-	# The way down: the undead pack's skull-mouth doorway behind the bars.
+	# The way down: the undead pack's skull-mouth doorway.
 	var door := _make_prop_sprite("undead_skull_door", 1.5)
-	if door:
-		door.position = Vector3(0, CameraView.SPRITE_LIFT, -0.3)
-		root.add_child(door)
-	else:
-		var dark = MeshInstance3D.new()
-		var dm = BoxMesh.new()
-		dm.size = Vector3(fp_w - 0.6, 2.2, fp_d - 0.8)
-		dark.mesh = dm
-		var dmat = StandardMaterial3D.new()
-		dmat.albedo_color = Color(0.03, 0.04, 0.05)
-		dmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		dark.material_override = dmat
-		dark.position = Vector3(0, 1.1, -0.3)
-		root.add_child(dark)
+	door.position = Vector3(0, CameraView.SPRITE_LIFT, -0.3)
+	root.add_child(door)
 	# A few leaning headstones around the gate (pack graves)
 	for k in range(3):
 		var grave := _make_prop_sprite("undead_grave", 1.0, k * 3)
 		var gx := -fp_w * 0.5 + 0.3 + k * (fp_w - 0.6) / 2.0
-		if grave:
-			grave.position = Vector3(gx, CameraView.SPRITE_LIFT, -fp_d / 2.0 + 0.3)
-			root.add_child(grave)
-			continue
-		var stone_mi = MeshInstance3D.new()
-		var sm = BoxMesh.new()
-		sm.size = Vector3(0.35, 0.6, 0.12)
-		stone_mi.mesh = sm
-		stone_mi.material_override = stone
-		stone_mi.position = Vector3(gx, 0.3, -fp_d / 2.0 + 0.3)
-		stone_mi.rotation_degrees = Vector3(0, 0, -8.0 + k * 7.0)
-		root.add_child(stone_mi)
+		grave.position = Vector3(gx, CameraView.SPRITE_LIFT, -fp_d / 2.0 + 0.3)
+		root.add_child(grave)
 
 func _build_cave_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	## A cave mouth built from the cave pack: big rock clusters piled into a
 	## mound, a dark stone archway opening on the south face.
 	var pal = get_palette()
 	var back_z := -fp_d / 2.0 + 0.55
-	var placed := 0
 	# Three clusters across the back, two more flanking the mouth.
 	for spec in [[-fp_w * 0.32, back_z, 1.35, 0], [0.0, back_z - 0.15, 1.55, 1], [fp_w * 0.32, back_z, 1.35, 2],
 			[-fp_w * 0.42, fp_d / 2.0 - 0.55, 1.1, 3], [fp_w * 0.42, fp_d / 2.0 - 0.55, 1.1, 0]]:
 		var rock := _make_prop_sprite("cave_boulder", spec[2], spec[3])
-		if rock == null:
-			break
 		rock.position = Vector3(spec[0], CameraView.SPRITE_LIFT, spec[1])
 		rock.modulate = Color(1, 1, 1).lerp(pal["cliff"], 0.2)
 		root.add_child(rock)
-		placed += 1
-	if placed == 0:
-		# No pack art: the old textured mound.
-		var mound = MeshInstance3D.new()
-		var cone = CylinderMesh.new()
-		cone.top_radius = 0.5
-		cone.bottom_radius = fp_w * 0.72
-		cone.height = 2.2
-		cone.radial_segments = 12
-		mound.mesh = cone
-		mound.material_override = _pixel_mat(wall_texture_path(), pal["cliff"])
-		mound.position = Vector3(0, 1.1, -0.2)
-		root.add_child(mound)
 
 	# The dark opening itself: the pack archway on the entrance side.
 	var gate := _make_prop_sprite("gate_small", 1.3)
-	if gate:
-		gate.position = Vector3(0, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.2)
-		root.add_child(gate)
-	else:
-		var opening = MeshInstance3D.new()
-		var open_mesh = BoxMesh.new()
-		open_mesh.size = Vector3(0.95, 1.1, 0.5)
-		opening.mesh = open_mesh
-		var open_mat = StandardMaterial3D.new()
-		open_mat.albedo_color = Color(0.01, 0.01, 0.015)
-		open_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		opening.material_override = open_mat
-		opening.position = Vector3(0, 0.55, fp_d / 2.0 - 0.15)
-		root.add_child(opening)
+	gate.position = Vector3(0, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.2)
+	root.add_child(gate)
 
 func _build_sewer_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
-	## A low brick headworks with an arched, barred opening descending into the
-	## dark — the manhole/grate the player climbs down to reach the sewers.
+	## A low stone kerb with the pack's dark archway descending into the dark —
+	## the shaft the player climbs down to reach the sewers. (No pack draws a
+	## kerb or iron bars: the kerb stays a box in the cave pack's wall stone;
+	## the old modelled bars are gone — the pack archway is the opening.)
 	var brick = _pixel_mat(CP_TEX + "/wall_cave.png", Color(0.36, 0.38, 0.36))  # dark cave stone
 
 	# A low stone kerb around the shaft — seen from above it is a small dark
@@ -5303,34 +4947,8 @@ func _build_sewer_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 
 	# The dark descending mouth: the pack's stone archway.
 	var mouth := _make_prop_sprite("gate_small", 1.2)
-	if mouth:
-		mouth.position = Vector3(0, CameraView.SPRITE_LIFT, fp_d / 2.0 + 0.25)  # in front of the block, seen from above
-		root.add_child(mouth)
-	else:
-		var mouth_mi = MeshInstance3D.new()
-		var mmesh = BoxMesh.new()
-		mmesh.size = Vector3(1.0, 1.15, 0.5)
-		mouth_mi.mesh = mmesh
-		var mmat = StandardMaterial3D.new()
-		mmat.albedo_color = Color(0.01, 0.02, 0.02)
-		mmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mouth_mi.material_override = mmat
-		mouth_mi.position = Vector3(0, 0.6, fp_d / 2.0 - 0.15)
-		root.add_child(mouth_mi)
-
-	# Iron bars across the mouth (a raised grate).
-	var bar_mat = StandardMaterial3D.new()
-	bar_mat.albedo_color = Color(0.12, 0.12, 0.13)
-	bar_mat.metallic = 0.0  # no modern specular pop
-	bar_mat.roughness = 1.0
-	for i in range(3):
-		var bar = MeshInstance3D.new()
-		var barmesh = BoxMesh.new()
-		barmesh.size = Vector3(0.06, 1.0, 0.06)
-		bar.mesh = barmesh
-		bar.material_override = bar_mat
-		bar.position = Vector3(-0.3 + i * 0.3, 0.6, fp_d / 2.0 + 0.5)
-		root.add_child(bar)
+	mouth.position = Vector3(0, CameraView.SPRITE_LIFT, fp_d / 2.0 + 0.25)  # in front of the block, seen from above
+	root.add_child(mouth)
 
 	# A weak green glow leaking up from below.
 	var glow = OmniLight3D.new()
@@ -5352,7 +4970,7 @@ func _build_forest_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	# scaled up into gateposts (no smooth mesh spheres).
 	for side in [-1.0, 1.0]:
 		var tree = Sprite3D.new()
-		tree.texture = load(_first_prop_variant("field_tree", "res://assets/textures/props/tree.png", 48, 64)["path"])
+		tree.texture = load(_first_prop_variant("field_tree")["path"])
 		tree.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		tree.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
 		tree.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
@@ -5399,27 +5017,14 @@ func _place_exit_site(at: Vector2i = Vector2i(-9999, -9999), id: String = "exit"
 	site_root.position = world_pos
 
 	var portal := _make_prop_sprite("gate_small", 1.3)  # the pack archway, lit from below
-	if portal:
-		portal.modulate = tint
-		site_root.add_child(portal)
-		var glow = OmniLight3D.new()
-		glow.light_color = tint
-		glow.light_energy = 0.9
-		glow.omni_range = 3.0
-		glow.position = Vector3(0, 0.6, 0.4)
-		site_root.add_child(glow)
-	else:
-		var portal_mi = MeshInstance3D.new()
-		var portal_mesh = BoxMesh.new()
-		portal_mesh.size = Vector3(0.2, 1.6, 1.0)
-		portal_mi.mesh = portal_mesh
-		var portal_mat = StandardMaterial3D.new()
-		portal_mat.albedo_color = Color(0.55, 0.75, 1.0, 0.7)
-		portal_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		portal_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		portal_mi.material_override = portal_mat
-		portal_mi.position = Vector3(0, 0.8, 0)
-		site_root.add_child(portal_mi)
+	portal.modulate = tint
+	site_root.add_child(portal)
+	var glow = OmniLight3D.new()
+	glow.light_color = tint
+	glow.light_energy = 0.9
+	glow.omni_range = 3.0
+	glow.position = Vector3(0, 0.6, 0.4)
+	site_root.add_child(glow)
 
 	var label = Label3D.new()
 	label.text = text
@@ -5580,7 +5185,7 @@ func _set_chest_open_visual(index: int) -> void:
 	var sprite: Sprite3D = chest_nodes[index].get("sprite")
 	if sprite:
 		var design: String = chest_nodes[index].get("design", "wood")
-		sprite.texture = load(_first_prop_variant("chest_%s_open" % design, "res://assets/textures/props/chest_open.png", 26, 26)["path"])
+		sprite.texture = load(_first_prop_variant("chest_%s_open" % design)["path"])
 
 
 ## Chest design from its loot: mythic gear gets the ornate blue chest, rare
@@ -5607,7 +5212,7 @@ func _create_chest(grid_pos: Vector2i, starter: bool = false) -> void:
 	var chest_index = chest_nodes.size()
 	var contents = _generate_chest_contents(chest_index, starter)
 	var design := _chest_design(contents)
-	var closed := _first_prop_variant("chest_%s_closed" % design, "res://assets/textures/props/chest_closed.png", 26, 26)
+	var closed := _first_prop_variant("chest_%s_closed" % design)
 	var sprite = Sprite3D.new()
 	sprite.name = "ChestSprite"
 	sprite.texture = load(closed["path"])
@@ -6324,23 +5929,9 @@ func _place_shrine() -> void:
 		plinth.position = Vector3(0, 0.25, 0)
 		root.add_child(plinth)
 		var idol := _make_prop_sprite("winter_idol", 0.9, 0)  # the pack's carved idol
-		if idol:
-			idol.modulate = Color(0.8, 0.7, 1.0)
-			idol.position = Vector3(0, 0.5 + CameraView.SPRITE_LIFT, 0)
-			root.add_child(idol)
-		else:
-			var idol_mi = MeshInstance3D.new()
-			var im = PrismMesh.new()
-			im.size = Vector3(0.5, 0.9, 0.5)
-			idol_mi.mesh = im
-			var imat = StandardMaterial3D.new()
-			imat.albedo_color = Color(0.25, 0.2, 0.35)
-			imat.emission_enabled = true
-			imat.emission = Color(0.4, 0.2, 0.6)
-			imat.emission_energy_multiplier = 0.8
-			idol_mi.material_override = imat
-			idol_mi.position = Vector3(0, 0.95, 0)
-			root.add_child(idol_mi)
+		idol.modulate = Color(0.8, 0.7, 1.0)
+		idol.position = Vector3(0, 0.5 + CameraView.SPRITE_LIFT, 0)
+		root.add_child(idol)
 		var label = Label3D.new()
 		label.text = "Drowned Shrine"
 		label.font_size = 20

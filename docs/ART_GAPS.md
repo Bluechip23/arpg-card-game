@@ -14,7 +14,8 @@ shopping brief. Anything not listed here is now pack art.
 | Sewer fixtures: torches / sconces, pipes, grates, manholes, water channels & steam | Sewers, building sconces | procedural meshes + generated strips (the sealed passage doors are now the pack archway) | Sewer / dungeon props set (wall torch with flame frames, pipes, grates, iron doors) |
 | Frostreach cliffs and trails | Overworld level 3 | grey barrow-stone walls and slush trails borrowed from the undead pack (the winter pack has no cliff or path tiles) | a snow cliff / frozen rock face and a packed-snow path, if the borrow bothers you |
 | Autotile edges from the packs | every biome | edge bands painted from the palette over pack fills | none to buy — engineering (map the packs' edge pieces into the 16 mask columns) |
-| Elevation cliff sides & stone steps | Overworld high ground | cliff = pack cobble fill on a box; steps = trail fill | fine as is; a dedicated stair/ledge piece would be nicer |
+| Elevation cliff sides | Overworld high ground | the ground autotile paints the raised top and the pack's cliff fringe is laid along each drop (`_build_pack_ledges`); the old modelled cliff boxes and stone steps were deleted 2026-10-23 | fine as is; a dedicated stair/ledge piece would be nicer |
+| Graveyard gate pillars & lintel, sewer-entrance kerb | Overworld sites | boxes in the pack's wall stone around the pack doorways (undead skull door / dark archway); the modelled iron bars were deleted 2026-10-23 (no pack draws bars) | a stone gatepost / grate piece; the undead pack's broken arch (`undead_ruin`, already the Boneyard gate) could stand in for the graveyard's pillars |
 | Fog of war tile | everywhere | generated dither | none needed |
 
 ## Props & dressing
@@ -22,13 +23,17 @@ shopping brief. Anything not listed here is now pack art.
 | Asset | Where | Today | Wanted |
 |---|---|---|---|
 | Signpost | trail forks, World 1 | generated sprite | wooden signpost / direction post (any top-down village set) |
-| Waypoint marker | waypoints, town | the glowing-cave pack's animated totem on a pack-dirt mound, tinted per destination | keep, or a dedicated teleport circle if you want one per destination |
-| Critters: crow, mouse, squirrel, butterfly | meadow, sewer, forest | generated 2-frame strips | small animal sprite packs (4-dir or side) |
+| Waypoint marker | waypoints, town | a raised dirt mound with our generated rune ring (`waypoint_ring.png`) on top, tinted per destination — the look the designer chose (the glowing-cave `waypoint_totem` cut exists but is not used) | keep |
+| Town portal (Return Scroll) | battle, town | a purple torus + glowing disc built in the packs' purple — the designer's chosen look | keep |
+| Critters: squirrel, butterfly | forest, meadow | generated sprites (the crow is the mountain-monster pack's Bird on its flight cycle and the sewer mouse the giant-rat pack's Rat1 shrunk down, since 2026-10-23) | small animal sprite packs (side view) |
 | Falling leaves | Greenwood | generated leaf | leaf particle sheet |
 | Cave drips & sewer steam | cave, sewer | generated strips | water drip / steam VFX sheets |
 | Cloud shadows | overworld | generated blob | none needed |
 | Bear trap, dart trap, wall dart shooter, tree-pit | Greenwood, caves | box meshes | trap props (jaw trap, dart tube) |
-| Spider web | caves | `cave_web` pack sprite is available but the web is still a mesh | engineering only |
+| ~~Spider web~~ | caves | **done (2026-10-23):** the spiked-web trap is the cave pack's `cave_web` sprite | — |
+| Cave floor divots, sewer algae smears | caves, sewers | flat tinted slabs (the cave rubble and sewer rubble are the cave pack's rocks and pebbles since 2026-10-23) | none needed |
+| ~~Berry bushels, barricade, enemy "tree form"~~ | battle | **done (2026-10-23):** the Crops bushels are the field pack's berry bushes, a Barricade segment the forest pack's fallen log (cut to a tile), the tree form the field pack's small tree | a crate/palisade piece if a log reads wrong |
+| Crates and barrels | building interiors, town stalls | our own drawings (`assets/textures/props/crate.png`, `barrel.png`; no pack has them). Sacks, shelves and tables are pack art (2026-10-23: the old "goods" cuts showed backpacks and gold bars) | a crate / barrel / barrel-stack prop set |
 | Chest "opening" and "empty" states | chests | closed / open-with-loot only | pack has 4 rows; the empty state is engineering |
 | Town stalls, well, fences, houses | Town | box meshes | a village / market top-down set |
 | Healing fountain | overworld sites | meshes | fountain / altar props (the Drowned Shrine now stands the winter pack's carved idol on a pack-stone plinth) |
@@ -38,7 +43,10 @@ shopping brief. Anything not listed here is now pack art.
 | Asset | Where | Today | Wanted |
 |---|---|---|---|
 | Player characters (Brad, Cory, Stephen, Jeremy, Ryan) | everywhere | Mana Seed base + Seliel NPC sheets (4-dir, fine under the fixed camera) | none unless you want the whole cast in the Craftpix style; the swordsman pack covers a human fighter with attack frames |
-| Town NPCs (Olorin, Sellsword, vendors) | Town | Seliel NPC sheets | as above |
+| Town NPCs (Olorin, Sellsword, vendors, the Dojo master) | Town | Seliel NPC sheets (the Dojo master is the pack's bald old sensei, `npc old man B`, since 2026-10-23 — the drawn ninja is gone) | as above |
+| Character-select cards and the load screen | menus | the character's own pack figure in a small 3D view (`SpriteFigure.make_preview`); the old hand-drawn portraits (`assets/characters/*_south.png`) were deleted 2026-10-23 | — |
+| ~~Summons~~ | battle | **done (2026-10-23):** the wolf (the designer's wolf sheet), Seance specter and Spirit (Craftpix ghost), Skeleton (Craftpix skeleton), Golem (Craftpix rock golem), Frankensteins Monster (Craftpix stitched zombie), Draupnir's duplicate (its bearer's own figure, gold-tinted) and the spirit bows (the weapon pack's bow) — no shape meshes left on them | — |
+| Self-made figures still in the game (kept by the 2026-10-23 cleanup: no pack has them) | battle | the **Bone Dragon** (Boneyard boss; a generated still, `tools/generate_monsters.py`), **Sanguine** the blood penguin and the **bull worm** (shape meshes), the dojo's **chicken** dummies (generated still), the **Rat King's nest** (drawn in the packs' palette by design) | a bone dragon (4-dir walk), a penguin, a giant worm, a chicken |
 | Enemies without a pack: coyote, beaver, wererabbit, consumed, crawlers, swarm, djinn, wyvern, bone dragon, magma spider, mages, cherub (the Succubus, Ifrit and Ash Harpy are now chaos-monster icon stills; Cerberus, the Corrupted Archangel and the Inflamed Minotaur are the designer's own art, as are the hydra, white manticore, werewolf, sabertooth, weregoat and wolf since 2026-10-22; the vampire has its own Craftpix pack; the treant is the Craftpix Ent pack's Ent3 since 2026-10-22) | battle | MonsterKit battlers / generated / NPC-sheet recolours | animal packs (wolf, boar), spider, dragon/wyvern, humanoid casters, angels — 4-dir animated to match the Craftpix rigs (skeletons and goblins are done; the mountain-monster pack now covers bears, hawk/roc, both trolls and the Sewer Cobra, side-view only) |
 | Mountain-monster stand-ins: trolls are an orc and a yeti, the hawk and roc share one crow (the Screecher wears the Snow Wraith's ghost since 2026-10-22) (the Sewer Cobra IS the pack's serpent) | battle | mountain_monsters pack, tinted and scaled | a proper troll pair, a second bird (hawk vs. harpy) — side-view frame packs like this one drop straight in |
 | Dwarf (`mountain_monsters/Dworf`) | — | unused | nothing to fill; spare if a dwarf NPC or enemy is ever added |

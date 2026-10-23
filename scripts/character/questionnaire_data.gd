@@ -419,7 +419,6 @@ static func build_character(result: Dictionary) -> CharacterData:
 	# Display info (all from existing characters)
 	data.passive_description = result["passive_description"]
 	data.slot_specialty = result["slot_specialty"]
-	data.sprite_path = ""  # Custom character has no preset sprite
 
 	return data
 

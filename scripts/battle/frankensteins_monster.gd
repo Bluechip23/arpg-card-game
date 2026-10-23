@@ -20,8 +20,6 @@ const MOVE_INTERVAL := 8      # tempo between moves
 const MOVE_STEPS := 4         # tiles per move
 const ATTACK_INTERVAL := 5    # tempo between attacks
 
-var _body: Node3D = null
-
 func setup(gm: GridManager, spawn_pos: Vector3, summoner_int: int) -> void:
 	_place(gm, spawn_pos)
 	display_name = "Frankensteins Monster"
@@ -33,44 +31,9 @@ func setup(gm: GridManager, spawn_pos: Vector3, summoner_int: int) -> void:
 	_finish_setup()
 
 func _build_visuals() -> void:
-	_body = Node3D.new()
-	add_child(_body)
-	var flesh := StandardMaterial3D.new()
-	flesh.albedo_color = Color(0.45, 0.6, 0.4)  # stitched green
-	flesh.roughness = 1.0
-	# Torso
-	var torso := MeshInstance3D.new()
-	var torso_mesh := BoxMesh.new()
-	torso_mesh.size = Vector3(0.55, 0.8, 0.4)
-	torso.mesh = torso_mesh
-	torso.material_override = flesh
-	torso.position = Vector3(0, 0.7, 0)
-	_body.add_child(torso)
-	# Head
-	var head := MeshInstance3D.new()
-	var head_mesh := BoxMesh.new()
-	head_mesh.size = Vector3(0.4, 0.4, 0.4)
-	head.mesh = head_mesh
-	head.material_override = flesh
-	head.position = Vector3(0, 1.32, 0)
-	_body.add_child(head)
-	# Neck bolts
-	var bolt_mat := StandardMaterial3D.new()
-	bolt_mat.albedo_color = Color(0.7, 0.7, 0.5)
-	bolt_mat.metallic = 0.8
-	for sx in [-1.0, 1.0]:
-		var bolt := MeshInstance3D.new()
-		var bolt_mesh := CylinderMesh.new()
-		bolt_mesh.top_radius = 0.06
-		bolt_mesh.bottom_radius = 0.06
-		bolt_mesh.height = 0.18
-		bolt.mesh = bolt_mesh
-		bolt.material_override = bolt_mat
-		bolt.rotation_degrees = Vector3(0, 0, 90)
-		bolt.position = Vector3(0.22 * sx, 1.1, 0)
-		_body.add_child(bolt)
-
-	_build_health_label(1.9, Color(0.6, 0.9, 0.6), 28)
+	# The Craftpix stitched zombie (exposed brain), a head taller than the dead it rose from.
+	_build_figure("frankenstein")
+	_build_health_label(2.0, Color(0.7, 0.95, 0.6))
 
 func _absorb(amount: int) -> int:
 	# Resist everything: reduce the incoming amount by resist_percent.

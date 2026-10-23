@@ -19,8 +19,8 @@ extends Node3D
 ##    cherub, archangel... Real directional walk frames plus the procedural
 ##    attack/hit motion.
 ##
-## The one enemy figure: every EnemyDefs figure_kind maps to a KINDS entry;
-## types without a kind (the Ring Wraith) keep Enemy's coloured box.
+## The one enemy figure: every EnemyDefs figure_kind maps to a KINDS entry
+## (the player's summons stand on the same table, Summon._build_figure).
 
 const SHEET := "res://assets/sprites/MonsterKit/monster battler set.png"
 const NPC1 := "res://assets/sprites/NPCpackage1"
@@ -152,6 +152,12 @@ const KINDS := {
 	"brute_minion": {"cp": "swordsman_lvl4_6/Swordsman_lvl4"},
 	"brute_elite": {"cp": "swordsman_lvl4_6/Swordsman_lvl5", "scale": 1.15},
 	"brute_boss": {"cp": "swordsman_lvl4_6/Swordsman_lvl6", "scale": 1.3},
+	# --- the Precious's hunter: the Craftpix ghost pack's crowned wraith ---
+	"ring_wraith": {"cp": "ghost/Ghost3", "scale": 1.25},
+	# --- the player's summons (Summon._build_figure): pack art, ally-sized ---
+	"summon_golem": {"cp": "golem/Golem1", "scale": 1.0},  # the rock golem the Granite Colossus wears, smaller
+	"summon_specter": {"cp": "ghost/Ghost1", "scale": 1.2, "tint": Color(0.95, 0.75, 1.25)},  # Jeremy's Seance: the specter ghost, violet
+	"frankenstein": {"cp": "zombie/Zombie2", "scale": 1.4, "tint": Color(0.9, 1.05, 0.9)},  # the stitched zombie (exposed brain)
 	# --- the dojo's enemy training dummies ---
 	"chicken": {"tex": "chicken"},
 	# --- the Rat King's nests: no pack has a nest, so this one is drawn
@@ -170,8 +176,9 @@ const PIXEL_SIZE := 0.03125
 ## Kinds whose battler art already contains a painted contact shadow
 ## (the flyers) — these must not get a second blob shadow.
 const PAINTED_SHADOW_KINDS := ["swarm", "giant_hawk", "roc",
-		"screecher", "djinn", "specter", "snow_wraith", "gravestone", "hell_door"]
+		"screecher", "djinn", "specter", "snow_wraith", "summon_specter", "ring_wraith", "gravestone", "hell_door"]
 
+var figure_kind := ""   # the KINDS entry this figure was set up as
 var _sprite: Sprite3D = null
 var _rig: Node3D = null
 var _tint := Color.WHITE
@@ -208,6 +215,7 @@ static func supports(kind: String) -> bool:
 
 
 func setup(kind: String) -> void:
+	figure_kind = kind
 	var cfg: Dictionary = KINDS.get(kind, KINDS["wolf"])
 	_tint = cfg.get("tint", Color.WHITE)
 	position.y = CameraView.SPRITE_LIFT  # nearer the camera than any wall slab (plan view depth)

@@ -141,14 +141,9 @@ func _create_save_slot_card(save: SaveData, slot: int) -> void:
 	sprite_panel.add_theme_stylebox_override("panel", sp_style)
 	hbox.add_child(sprite_panel)
 
-	if save.sprite_path != "" and ResourceLoader.exists(save.sprite_path):
-		var tex = TextureRect.new()
-		tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
-		tex.texture = load(save.sprite_path)
-		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		tex.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		tex.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		sprite_panel.add_child(tex)
+	if save.character_data:
+		# The character's own pack sprite (the old hand-drawn portraits are gone).
+		sprite_panel.add_child(SpriteFigure.make_preview(SpriteFigure.preset_for(save.character_data)))
 	else:
 		var letter = Label.new()
 		letter.text = save.character_name.left(1) if save.character_name != "" else "?"

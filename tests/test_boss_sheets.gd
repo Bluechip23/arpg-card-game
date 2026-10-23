@@ -18,6 +18,20 @@ func _check(ok: bool, msg: String) -> void:
 func _initialize() -> void:
 	_run()
 
+## Opaque bounds of every frame in a 4-row sheet with `cols` columns.
+func _frame_rects(path: String, cols: int) -> Array:
+	var img: Image = (load(path) as Texture2D).get_image()
+	if img.is_compressed():
+		img.decompress()
+	var cell := img.get_height() / 4
+	var rows := []
+	for r in range(4):
+		var row := []
+		for c in range(cols):
+			row.append(img.get_region(Rect2i(c * cell, r * cell, cell, cell)).get_used_rect())
+		rows.append(row)
+	return rows
+
 func _check_fig(fig, name: String) -> void:
 	_check(fig is SpriteEnemyFigure and fig._cp_mode, "%s plays directional sheets" % name)
 	if not (fig is SpriteEnemyFigure):
@@ -77,6 +91,23 @@ func _run() -> void:
 		_check_fig(ce._enemy_figure, ce.enemy_name)
 	# The Screecher wears the Snow Wraith's ghost (the enemy itself is unchanged).
 	_check(SpriteEnemyFigure.KINDS["screecher"] == SpriteEnemyFigure.KINDS["snow_wraith"], "the Screecher looks like the Snow Wraith")
+	# Standing still the Rat King is on its hind legs whichever way it faces:
+	# its side Idle rows are the standing pose (taller than wide), not the
+	# board's all-fours side view (wider than tall).
+	var rk_idle := _frame_rects(SpriteEnemyFigure.BOSSES + "/rat_king/Idle.png", 1)
+	for d in [2, 3]:
+		var rk: Rect2i = rk_idle[d][0]
+		_check(rk.size.y > rk.size.x, "Rat King idle row %d stands on two legs (%dx%d)" % [d, rk.size.x, rk.size.y])
+	# The wolf's side walk keeps its snout in every frame: no frame is cut
+	# much narrower than the others (frame 1 lost its nose to the row name's
+	# margin once: 66 px against 70-77).
+	var wolf := _frame_rects(SpriteEnemyFigure.SHEETS + "/wolf/Walk.png", 4)
+	for d in [2, 3]:
+		var widest := 0
+		for r in wolf[d]:
+			widest = maxi(widest, r.size.x)
+		for i in range(wolf[d].size()):
+			_check(wolf[d][i].size.x >= widest * 0.9, "wolf side frame %d.%d is whole (%d of %d px wide)" % [d, i, wolf[d][i].size.x, widest])
 
 	var hades := SpriteEnemyFigure.new()
 	hades.setup("hades")

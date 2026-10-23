@@ -14,7 +14,8 @@ the opposite side is the mirror.
 Stone sheets: the three share one floor template repeated in every cell,
 so a clean plate of the bare floor is rebuilt from the cells (floor_plate);
 each creature is what differs from it, minus its own shadow, with GrabCut
-settling the edge; specks are dropped and holes filled. Black sheets: anything brighter than the
+settling the edge; specks are dropped and holes filled. The werewolf is dark
+fur on the same dark stone and gets its own pass (cut_stone_dark). Black sheets: anything brighter than the
 black is the creature; rows and frames are split where nothing lies between them.
 Each frame is box-filtered DOWN x with on/off alpha and packed
 bottom-centred into square cells in the Craftpix layout SpriteEnemyFigure
@@ -50,7 +51,7 @@ FRAMES = {
         "right": [(3, 0), (3, 1), (3, 2), (3, 3)],   # row 2 ("walking left") is mostly right-facing too
     },
     "werewolf": {
-        "src": "werewolf_sheet.jpg", "kind": "stone", "down": 3,
+        "src": "werewolf_sheet.jpg", "kind": "stone_dark", "down": 3,
         "back": [(0, 0), (0, 1)],                     # (0, 2), (0, 3) are side views
         "front": [(2, 0), (2, 1), (2, 2), (2, 3)],
         # Side: the upright walk on its hind legs (the back row's two side
@@ -186,6 +187,62 @@ def cut_stone(bgr: np.ndarray, r: int, c: int) -> np.ndarray:
     return out
 
 
+def cut_stone_dark(bgr: np.ndarray, r: int, c: int) -> np.ndarray:
+    """One stone cell holding a DARK creature (the werewolf: dull brown fur,
+    near-black in shadow, on the same dark stone). Its shadowed legs differ
+    from the floor plate about as little as the floor's own shadow does, so
+    cut_stone loses them. Here the creature is also:
+      - warmer than the floor under it (R-B up against the plate's), or
+      - much darker than the floor (under a third of its brightness: the
+        floor's cast shadow never gets that dark, near-black fur does);
+    and after GrabCut, grass (green) and floor-grey (a neutral, fairly bright
+    pixel: the sheet's floor runs warmer than the plate in places) are
+    dropped, and only the body and pieces touching it are kept."""
+    plate = floor_plate()
+    ph, pw, _ = plate.shape
+    x0 = STONE_COLS[c][0]
+    y0 = STONE_ROWS[r][0]
+    cell_bgr = bgr[y0:y0 + ph, x0:x0 + pw].copy()
+    rgb = cv2.cvtColor(cell_bgr, cv2.COLOR_BGR2RGB).astype(float)
+    rr, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    diff = np.sqrt(((rgb - plate) ** 2).sum(-1))
+    warmer = cv2.GaussianBlur((rr - b) - (plate[..., 0] - plate[..., 2]), (5, 5), 0)
+    ratio = cv2.GaussianBlur((rgb.sum(-1) + 1.0) / (plate.sum(-1) + 1.0), (3, 3), 0)
+    green = (g > rr + 4) & (g > b + 4)
+    mask = np.full((ph, pw), cv2.GC_PR_BGD, np.uint8)
+    mask[(diff > 18) | (warmer > 4) | (ratio < 0.5)] = cv2.GC_PR_FGD
+    mask[(warmer > 10) | ((diff > 45) & (warmer > 2)) | (ratio < 0.35)] = cv2.GC_FGD
+    mask[(diff < 10) & (warmer < 3) & (ratio > 0.5)] = cv2.GC_BGD
+    mask[(warmer < -2) & (ratio > 0.5)] = cv2.GC_BGD
+    mask[green] = cv2.GC_BGD
+    mask[:3, :] = cv2.GC_BGD
+    mask[-3:, :] = cv2.GC_BGD
+    mask[:, :3] = cv2.GC_BGD
+    mask[:, -3:] = cv2.GC_BGD
+    bgd = np.zeros((1, 65), np.float64)
+    fgd = np.zeros((1, 65), np.float64)
+    cv2.grabCut(cell_bgr, mask, None, bgd, fgd, 6, cv2.GC_INIT_WITH_MASK)
+    fg = ((mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD)).astype(np.uint8)
+    sm = cv2.GaussianBlur(rgb, (3, 3), 0)
+    floor_grey = (sm.mean(-1) > 50) & ((sm.max(-1) - sm.min(-1)) < 12)
+    fg[green | floor_grey] = 0
+    fg = cv2.morphologyEx(fg, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    n, labels, stats, _ = cv2.connectedComponentsWithStats(fg, 8)
+    if n > 1:
+        body = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
+        near = cv2.dilate((labels == body).astype(np.uint8), np.ones((7, 7), np.uint8)) > 0
+        keep = [i for i in range(1, n) if i == body or (near & (labels == i)).any()]
+        fg = np.isin(labels, keep).astype(np.uint8)
+    fg = _tidy(fg)
+    # Floor walled in between an arm and the body survives the hole fill:
+    # clear the slate-blue (B over R) pixels that aren't near-black again.
+    fg[(sm[..., 2] - sm[..., 0] > 2) & (sm.mean(-1) > 40)] = 0
+    fg = cv2.morphologyEx(fg, cv2.MORPH_OPEN, np.ones((2, 2), np.uint8))
+    out = np.zeros((ph, pw, 4), float)
+    out[..., :3] = rgb
+    out[..., 3] = fg
+    return out
+
 def _segments(profile: np.ndarray, min_gap: int) -> list:
     """Runs where the profile is non-empty, merging gaps shorter than min_gap."""
     on = profile > 2
@@ -237,8 +294,12 @@ def black_frames(rgb: np.ndarray) -> list:
         if len(cols) < 4 or max(c[1] - c[0] for c in cols) > 2.2 * min(c[1] - c[0] for c in cols):
             # Creatures touch (a tail curled into the next one): cut the
             # row at the emptiest column near each quarter of its width.
-            xs = np.where(row_mask[ry0:ry1, 150:].any(axis=0))[0] + 150
-            rx0, rx1 = int(xs.min()), int(xs.max()) + 1
+            # The row's span starts where the creatures do: the row name is a
+            # run ending left of x=150, but a snout can reach past that line
+            # (the wolf's does), so only whole runs are skipped, never pixels.
+            runs = _segments(row_mask[ry0:ry1].sum(0), 8)
+            rx0 = min(a for a, b in runs if b > 150)
+            rx1 = max(b for a, b in runs)
             xprof = row_mask[ry0:ry1].sum(0).astype(float)
             w = rx1 - rx0
             xc = [rx0]
@@ -290,9 +351,10 @@ def pack(rows, cell, cols) -> Image.Image:
 def build(name: str) -> None:
     spec = FRAMES[name]
     down = spec["down"]
-    if spec["kind"] == "stone":
+    if spec["kind"] in ("stone", "stone_dark"):
         bgr = cv2.imread(SRC % spec["src"])
-        get = lambda r, c: cut_stone(bgr, r, c)
+        cutter = cut_stone_dark if spec["kind"] == "stone_dark" else cut_stone
+        get = lambda r, c: cutter(bgr, r, c)
     else:
         grid = black_frames(np.array(Image.open(SRC % spec["src"]).convert("RGB")).astype(float))
         get = lambda r, c: grid[r][c]

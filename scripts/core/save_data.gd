@@ -7,7 +7,7 @@ extends Resource
 @export var character_level: int = 1
 @export var current_location: String = "Town"
 @export var time_played_seconds: float = 0.0
-@export var sprite_path: String = ""
+@export var sprite_path: String = ""  # unused (old hand-drawn portraits); kept so older saves load
 # World/story progress this character has reached.
 @export var world_level: int = 1
 

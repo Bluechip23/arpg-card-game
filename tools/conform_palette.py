@@ -4,9 +4,9 @@
 Rewrites OUR generated color assets so every opaque pixel is an exact member
 of the master palette (resources/palette/master_palette.gpl), matching in a
 perceptual (CIE-Lab) space rather than raw RGB. Purchased reference packs are
-never touched. Grayscale tile textures (assets/textures/tile_*.png) are
-value-quantized to <= 8 gray steps instead (their hue comes from runtime
-palette tints, so chroma-matching them would be wrong).
+never touched (the ground, walls and props are pack art now; the generated
+tile_*.png ground sheets are gone, and tile_fog.png — the one left — is kept
+off the palette on purpose, see below).
 
 Usage:  python3 tools/conform_palette.py [--check]
   --check  report only; do not rewrite files.
@@ -19,12 +19,12 @@ COLOR_TARGETS = [
     "assets/ui/*.png",
     "assets/items/mythic/*.png",
     "assets/sprites/generated/monsters/*.png",
-    "assets/textures/tile_*.png",
     "assets/textures/props/*.png",
 ]
-# tile_fog matches the (off-palette) WorldEnvironment backdrop color with
-# sub-step dither shades; conforming it would collapse the dither.
-EXCLUDE = ["assets/textures/tile_fog.png"]
+# Not listed: tile_fog.png matches the (off-palette) WorldEnvironment
+# backdrop color with sub-step dither shades; conforming it would collapse
+# the dither.
+EXCLUDE = []
 GRAY_TARGETS = []
 GRAY_STEPS = 8
 
