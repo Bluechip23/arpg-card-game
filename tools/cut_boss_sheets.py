@@ -41,13 +41,19 @@ ROWS_X = [
 ROWS_Y = [(52, 218), (243, 411), (434, 604)]
 
 # Per boss: frames (row, col) per direction. "side" frames face `side_faces`;
-# the opposite side is their mirror. Idle is each direction's first frame.
+# the opposite side is their mirror. Idle is each direction's first frame,
+# except that "idle_side" names a frame the side rows of Idle use instead.
 FRAMES = {
     "rat_king": {
         "front": [(0, 0), (0, 1), (2, 0), (2, 1)],
         "back": [(0, 4), (2, 2)],
         "side": [(1, 2), (1, 1), (1, 5)],   # (1, 4) has a doubled crown: skipped
         "side_faces": "right",
+        # Standing still it stands on its hind legs whichever way it faces
+        # (designer, 2026-10-23). The board's side views are all on four
+        # legs, so the side rows of Idle show the standing front pose; it
+        # drops to all fours only to walk.
+        "idle_side": (0, 0),
     },
     "cerberus": {
         "front": [(0, 0), (0, 1), (2, 0), (2, 1)],
@@ -182,9 +188,9 @@ def build(boss: str) -> None:
     out_dir = OUT % boss
     os.makedirs(out_dir, exist_ok=True)
 
-    def sheet(cols: int, pick) -> Image.Image:
+    def sheet(cols: int, pick, rows=dirs) -> Image.Image:
         s = np.zeros((cell * 4, cell * cols, 4), np.uint8)
-        for ri, row in enumerate(dirs):
+        for ri, row in enumerate(rows):
             for ci in range(cols):
                 f = pick(row, ci)
                 fh, fw = f.shape[:2]
@@ -193,7 +199,14 @@ def build(boss: str) -> None:
                 s[y:y + fh, x:x + fw] = f
         return Image.fromarray(s, "RGBA")
 
-    sheet(1, lambda row, ci: row[0]).save(os.path.join(out_dir, "Idle.png"))
+    idle = [row[0] for row in dirs]
+    if "idle_side" in spec:
+        r, c = spec["idle_side"]
+        stand = trim(downscale(cut_cell(img, r, c, spec.get("key_all", False),
+            spec.get("clear", {}).get((r, c)))))
+        idle[2] = stand
+        idle[3] = stand[:, ::-1]
+    sheet(1, lambda row, ci: row[0], [[f] for f in idle]).save(os.path.join(out_dir, "Idle.png"))
     # Rows with fewer frames repeat theirs to fill the walk cycle.
     sheet(n, lambda row, ci: row[ci % len(row)]).save(os.path.join(out_dir, "Walk.png"))
     print("%s: cell %d px, %d walk frames -> %s" % (boss, cell, n, out_dir))
