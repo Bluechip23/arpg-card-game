@@ -568,6 +568,22 @@ func _test_play_scope(stats, dm, bm, dummies: Array) -> void:
 	_check(main.find_children("ShockArc*", "LightningFX", false, false).size() == 1, "the absorbed Shock arcs blue into the target first")
 	await create_timer(1.2, true).timeout
 	_check(main.find_children("*", "LightningFX", false, false).is_empty(), "the lightning fades and frees itself")
+	# Cryonics: the designer's ice spike, widened into a see-through block
+	# that encases the iced character for as long as the ice holds.
+	_resolve_like_main(Card.create_by_id("cryonics"), main.player, stats, dm, bm)
+	var ice_block = main.player.get_node_or_null("CryonicsIce")
+	_check(ice_block is CryonicsIceFX and ice_block.texture.resource_path.ends_with("ice_spike_strip.png"),
+		"Cryonics encases the ally in the designer's ice")
+	_check(ice_block != null and ice_block.scale.x > 2.0 and ice_block.modulate.a < 0.6,
+		"...thick enough to hold the whole figure, and see-through")
+	await create_timer(0.3, true).timeout
+	_check(ice_block != null and ice_block.frame == 2, "it stands at full height while the ice holds")
+	_resolve_like_main(Card.create_by_id("cryonics"), main.player, stats, dm, bm)
+	_check(main.player.find_children("CryonicsIce*", "CryonicsIceFX", false, false).size() == 1, "casting again does not stack a second casing")
+	main._cryonics_end(main.player)
+	await create_timer(0.6, true).timeout
+	_check(main.player.find_children("CryonicsIce*", "CryonicsIceFX", false, false).is_empty(), "the thaw cracks and shatters it")
+	main.player.get_debuff_manager().remove_debuff(Debuff.DebuffType.STUN)   # Cryonics' "cannot act" stun
 	var belt := ItemData.create("megingjord")
 	_reset_dummy(a)
 	_reset_dummy(b)

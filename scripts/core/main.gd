@@ -7488,6 +7488,7 @@ func _cryonics_heal(p, poisoned: bool = false) -> void:
 func _cryonics_end(p) -> void:
 	if is_instance_valid(p):
 		p.untargetable = false
+		CryonicsIceFX.thaw(p)
 		add_battle_log("The ice melts — ally can act again.", Color(0.6, 0.85, 1.0))
 
 ## Friendship: link both players' stats so heals are shared and incoming damage
@@ -12519,6 +12520,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var ice_target = target if target is Player else player
 			var ice_idx := 1 if ice_target == _p2_player else 0
 			ice_target.untargetable = true
+			CryonicsIceFX.encase(ice_target)  # the designer's ice spike, widened around them, see-through
 			# "Cannot act" is a real 15-tempo Stun on the iced character, so the
 			# ice's trade-off holds in solo play too — not just via the co-op
 			# active-player switch below.

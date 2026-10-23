@@ -112,7 +112,6 @@ func play(action: String) -> void:
 		"communal_donation": _fx_communal_donation()
 		"snowballs_chance": _fx_snowballs_chance()
 		"biscuit": _fx_biscuit()
-		"cryonics": _fx_cryonics()
 		"demonic_rage": _fx_aura(Color(0.85, 0.12, 0.12))
 		"harness_lightning": _fx_orbiting_orb(Color(0.5, 0.72, 1.0))
 		"if_pigs_could_fly": _fx_punt_pig()
@@ -446,14 +445,6 @@ func _fx_biscuit() -> void:
 	tw.tween_property(b, "position", Vector3(0.0, 1.05, 0.15), 0.16).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.tween_property(b, "scale", Vector3.ZERO, 0.06)
 	tw.tween_callback(b.queue_free)
-
-
-func _fx_cryonics() -> void:
-	_sparks(Vector3(0, 0.7, 0.35), Color(0.7, 0.9, 1.0), 6, 0.35)
-	var tw := create_tween()
-	tw.tween_interval(0.18)
-	tw.tween_callback(_icicle.bind(Vector3(0, 0.0, 1.6), 1.4))
-	tw.tween_callback(_burst.bind(Vector3(0, 0.7, 1.6), Color(0.7, 0.9, 1.0), 1.4))
 
 
 func _fx_aura(col: Color) -> void:
@@ -1103,21 +1094,6 @@ func _bolt(from_local: Vector3, to_local: Vector3, color: Color = Color(0.7, 0.8
 	tw.tween_interval(0.14)
 	tw.tween_property(bolt, "scale", Vector3(1, 1, 0.01), 0.1)
 	tw.tween_callback(bolt.queue_free)
-
-
-func _icicle(base_pos: Vector3, height: float = 0.7) -> void:
-	var anchor := Node3D.new()
-	anchor.position = base_pos
-	add_child(anchor)
-	var ice := _cyl(Vector3(0, height * 0.5, 0), 0.0, 0.12, height, Color(0.72, 0.9, 1.0))
-	ice.material_override = _emissive(Color(0.6, 0.85, 1.0), 0.5)
-	anchor.add_child(ice)
-	anchor.scale = Vector3(1, 0.04, 1)
-	var tw := anchor.create_tween()
-	tw.tween_property(anchor, "scale", Vector3.ONE, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_interval(0.5)
-	tw.tween_property(anchor, "scale", Vector3(0.5, 0.02, 0.5), 0.2)
-	tw.tween_callback(anchor.queue_free)
 
 
 func _fly_orb(start: Vector3, travel: Vector3, color: Color, radius: float, dur: float = 0.4) -> void:
