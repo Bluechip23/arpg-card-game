@@ -10,13 +10,9 @@ extends SceneTree
 
 const EquipmentSlotCellScript = preload("res://scripts/character/equipment_slot_cell.gd")
 
-## The mythics the designer painted (tools/cut_mythic_art.py, 2026-10-23);
-## every other mythic still wears its generated 32px icon.
-const PAINTED := ["the_headbandz", "hannibals_mask", "mane_of_narashimha", "scholars_cap",
-	"adimantium", "tigers_sunday_red", "divine_resistance", "hide_of_garmr",
-	"sabre_tooth", "sword_of_theseus", "umbral_eclipse", "poseidons_trident",
-	"gauntlets_of_dungeon_mastering", "hallowed_trunk", "cuffs_of_current", "concealed_carry",
-	"boots_of_the_balancer", "hermes_boots", "jordan_1s", "guardian_greaves"]
+## Every mythic wears the designer's painting (tools/cut_mythic_art.py,
+## 2026-10-23) except these, which keep their generated 32px icon.
+const GENERATED := ["bladed_doughnut"]
 const PAINTED_SIZE := Vector2(128, 128)
 
 var failures := 0
@@ -65,7 +61,7 @@ func _test_art_loads() -> void:
 		_check(tex != null, "%s texture loads" % item.item_name)
 		if tex:
 			var slug := item.appearance_icon.get_file().get_basename()
-			var want := PAINTED_SIZE if slug in PAINTED else Vector2(32, 32)
+			var want := Vector2(32, 32) if slug in GENERATED else PAINTED_SIZE
 			_check(tex.get_size() == want,
 				"%s texture is %s (got %s)" % [item.item_name, want, tex.get_size()])
 
@@ -73,7 +69,7 @@ func _test_pixel_art_scaling() -> void:
 	## The slot blows a small sprite up by whole texels only — never a
 	## fractional enlargement (style guide §1); a box too small for it shrinks it.
 	print("-- Whole-texel scaling --")
-	var tex: Texture2D = ItemData.create("belt_of_scrolls").get_appearance_texture()
+	var tex: Texture2D = ItemData.create("bladed_doughnut").get_appearance_texture()
 	_check(tex != null and tex.get_size() == Vector2(32, 32), "a generated 32px icon to scale")
 	for box in [Vector2(72, 64), Vector2(40, 40), Vector2(20, 20), Vector2(200, 200)]:
 		var rect: TextureRect = EquipmentSlotCellScript.make_pixel_art_rect(tex, box)
@@ -92,8 +88,11 @@ func _test_painted_art_shrinks() -> void:
 	## The painted art is bigger than any box it sits in: it shrinks to fit,
 	## smoothly filtered through its mipmaps.
 	print("-- Painted art shrinks to fit --")
-	for slug in PAINTED:
-		var tex: Texture2D = ItemData.create(slug).get_appearance_texture()
+	for item in _mythics():
+		var slug := item.appearance_icon.get_file().get_basename()
+		if slug in GENERATED:
+			continue
+		var tex: Texture2D = item.get_appearance_texture()
 		if tex == null:
 			_check(false, "%s loads" % slug)
 			continue
@@ -111,6 +110,23 @@ func _test_painted_art_shrinks() -> void:
 		var share := float(solid) / (64.0 * 64.0)
 		_check(img != null and img.get_pixel(0, 0).a < 0.05 and share > 0.08 and share < 0.9,
 			"%s: panel cut away, piece kept (%d%% solid)" % [slug, int(share * 100)])
+	# The Bow of Arash's arrow is flipped (designer, 2026-10-23): its cyan
+	# fletching sits by the string at the upper left, the head at the lower right.
+	var bow_img := ItemData.create("bow_of_arash").get_appearance_texture().get_image()
+	bow_img.clear_mipmaps()
+	bow_img.decompress()
+	var cyan := Vector2.ZERO
+	var n := 0
+	for y in range(bow_img.get_height()):
+		for x in range(bow_img.get_width()):
+			var c := bow_img.get_pixel(x, y)
+			if c.a > 0.5 and c.b > 0.75 and c.g > 0.75 and c.r < 0.69:
+				cyan += Vector2(x, y)
+				n += 1
+	if n > 0:
+		cyan /= n
+	_check(n > 50 and cyan.x + cyan.y < 128.0,
+		"Bow of Arash: the arrow is flipped, fletching at the upper left (%d px at %s)" % [n, cyan])
 	var tex2: Texture2D = ItemData.create("poseidons_trident").get_appearance_texture()
 	for box in [Vector2(72, 64), Vector2(34, 34), Vector2(96, 96)]:
 		var rect: TextureRect = EquipmentSlotCellScript.make_pixel_art_rect(tex2, box)

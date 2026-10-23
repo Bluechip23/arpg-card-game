@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Cut the designer's mythic item art out of their five sheets.
 
-Sources: assets/sprites/paintings/mythic_*.jpg (.gdignore'd source art,
-2026-10-23). Each is a 1024x1024 sheet of framed dark panels, one item to a
-panel (helms on one sheet, then chests, weapons, gauntlets, boots).
+Sources: assets/sprites/paintings/mythic_*.jpg / .webp (.gdignore'd source
+art, 2026-10-23). Each is a 1024x1024 sheet of framed dark panels, one item to
+a panel: helms, chests, weapons, gauntlets, boots, then wands, belts, rings,
+shields and bows (that last sheet has an empty fourth panel).
 
 Each piece is lifted off its panel: the flat panel background (about
 (23,24,30), JPEG noise of a few levels) is flood-filled away from the crop's
@@ -13,18 +14,26 @@ background fades out instead of stopping hard. Loose specks of JPEG noise
 left on the panel are dropped. The piece is then fitted,
 centred, onto a CANVAS x CANVAS transparent square.
 
-These replace the 32x32 icons tools/generate_mythic_icons.py used to draw
-for the same items; that tool keeps only the mythics this art does not cover.
+The Bow of Arash's arrow is painted pointing back over the string; the
+designer asked for it flipped (2026-10-23). FIXES swaps its two ends — the
+head and the fletching, each turned half a turn about the arrow's midpoint —
+after the panel is cut away, on a padded canvas (the fletching is longer
+than the head, so at the head's end it reaches past the panel's frame).
+
+These replace the 32x32 icons tools/generate_mythic_icons.py used to draw;
+that tool keeps only the mythic this art does not cover (the Bladed
+Doughnut).
 
 Output: assets/items/mythic/<slug>.png (CANVAS x CANVAS RGBA)
 Run: python3 tools/cut_mythic_art.py   (Pillow, numpy)
 """
+import os
 from collections import deque
 
 import numpy as np
 from PIL import Image
 
-SRC = "assets/sprites/paintings/mythic_%s.jpg"
+SRC = "assets/sprites/paintings/mythic_%s"   # .jpg or .webp
 OUT = "assets/items/mythic/%s.png"
 CANVAS = 128
 FIT = 122          # the piece's longer side on the canvas (a little margin)
@@ -76,7 +85,63 @@ PIECES = {
         ("jordan_1s", _BL),
         ("guardian_greaves", _BR),
     ],
+    "wands": [
+        ("wand_of_the_phoenix_feather", _TL),
+        ("circes_wand_of_cauldron_stirring", _TR),
+        ("reaper_scythe", _BL),
+        ("feral_evocation", _BR),
+    ],
+    "belts": [
+        ("belt_of_scrolls", _TL),
+        ("megingjord", _TR),
+        ("orions_belt", _BL),
+        ("girdle_of_aphrodite", _BR),
+    ],
+    "rings": [
+        ("the_precious", _TL),
+        ("ring_of_nibelung", _TR),
+        ("draupnir", _BL),
+        ("ring_of_thomas_the_train_tracks", _BR),
+    ],
+    "shields": [
+        ("delfins_deterministic_round_shield", _TL),
+        ("steve_rodgers_bastion", _TR),
+        ("presence_of_mind", _BL),
+        ("crooked_dueling_shield", _BR),
+    ],
+    "bows": [
+        ("bow_of_arash", _TL),
+        ("belthronding", (573, 63, 963, 450)),   # past a speck of frame bevel in the corner
+        ("bow_of_budding_blasts", _BL),
+    ],
 }
+
+# The Bow of Arash's arrow, measured on its sheet: the shaft's centre line
+# runs x = y + 2.5; the head's tip and the nock project onto it at x+y = 148
+# and 839, so the arrow's midpoint is (248, 245.5) and a pixel p maps to
+# ARROW_TWICE_MID - p under the half turn. HEAD_BOX holds the head (and, once
+# swapped, the longer fletching); its mirror holds the fletching.
+ARROW_TWICE_MID = (496, 491)
+HEAD_BOX = (44, 42, 186, 184)
+PAD = 24
+
+
+def _flip_arrow(rgba: np.ndarray, origin) -> np.ndarray:
+    """Swap the arrow's ends: each end's box, turned half a turn about the
+    arrow's midpoint, lands exactly on the other end's box."""
+    sx, sy = ARROW_TWICE_MID[0] - 2 * origin[0], ARROW_TWICE_MID[1] - 2 * origin[1]
+    x0, y0, x1, y1 = (HEAD_BOX[0] - origin[0], HEAD_BOX[1] - origin[1],
+                      HEAD_BOX[2] - origin[0], HEAD_BOX[3] - origin[1])
+    tx0, ty0, tx1, ty1 = sx - x1 + 1, sy - y1 + 1, sx - x0 + 1, sy - y0 + 1
+    head = rgba[y0:y1, x0:x1].copy()
+    tail = rgba[ty0:ty1, tx0:tx1].copy()
+    out = rgba.copy()
+    out[ty0:ty1, tx0:tx1] = head[::-1, ::-1]
+    out[y0:y1, x0:x1] = tail[::-1, ::-1]
+    return out
+
+
+FIXES = {"bow_of_arash": _flip_arrow}
 
 _N4 = ((1, 0), (-1, 0), (0, 1), (0, -1))
 
@@ -122,7 +187,7 @@ def _components(mask: np.ndarray):
     return comps
 
 
-def cut(sheet: Image.Image, box) -> Image.Image:
+def cut(sheet: Image.Image, box, fix=None) -> Image.Image:
     rgb = np.asarray(sheet.crop(box).convert("RGB")).astype(int)
     h, w, _ = rgb.shape
     ring = np.concatenate([rgb[0], rgb[-1], rgb[:, 0], rgb[:, -1]])
@@ -153,10 +218,13 @@ def cut(sheet: Image.Image, box) -> Image.Image:
         if len(comp) < SPECK:
             alpha[tuple(np.array(comp).T)] = 0.0
 
-    ys, xs = np.nonzero(alpha > 0)
+    rgba = np.dstack([rgb, (alpha * 255).round()]).astype(np.uint8)
+    if fix is not None:
+        rgba = np.pad(rgba, ((PAD, PAD), (PAD, PAD), (0, 0)))
+        rgba = fix(rgba, (box[0] - PAD, box[1] - PAD))
+    ys, xs = np.nonzero(rgba[..., 3] > 0)
     y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
-    rgba = np.dstack([rgb, (alpha * 255).round()]).astype(np.uint8)[y0:y1, x0:x1]
-    piece = Image.fromarray(rgba, "RGBA")
+    piece = Image.fromarray(rgba[y0:y1, x0:x1], "RGBA")
 
     # Downscale with premultiplied alpha, so the dark panel never bleeds in.
     scale = FIT / float(max(piece.size))
@@ -169,9 +237,11 @@ def cut(sheet: Image.Image, box) -> Image.Image:
 
 def main() -> None:
     for sheet_name, pieces in PIECES.items():
-        sheet = Image.open(SRC % sheet_name)
+        path = next(SRC % sheet_name + ext for ext in (".jpg", ".webp")
+                    if os.path.exists(SRC % sheet_name + ext))
+        sheet = Image.open(path)
         for slug, box in pieces:
-            img = cut(sheet, box)
+            img = cut(sheet, box, FIXES.get(slug))
             img.save(OUT % slug)
             bb = img.getbbox()
             print("%-32s %s -> %dx%d on %d" % (slug, sheet_name, bb[2] - bb[0], bb[3] - bb[1], CANVAS))
