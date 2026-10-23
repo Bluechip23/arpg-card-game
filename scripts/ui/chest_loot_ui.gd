@@ -6,6 +6,11 @@ extends Node
 
 var main  # Reference to the Main scene node
 var _current_chest_idx: int = -1  # Index of the chest currently being interacted with
+# The dim overlay behind the chest window (it also carries the card's keyword
+# window). Held here rather than looked up by name: it lives on the window
+# layer, and a lookup under $UI never found it, so closing the chest left the
+# overlay and keyword window up, swallowing every click.
+var _chest_overlay: Control = null
 
 func init(main_ref) -> void:
 	main = main_ref
@@ -52,6 +57,7 @@ func _show_chest_modal(contents: Dictionary, gold_just_claimed: bool = false) ->
 	overlay.gui_input.connect(_on_chest_overlay_input)
 	overlay.z_index = 300  # hovered hand cards raise to 200 — the window stays above them
 	main.window_layer().add_child(overlay)
+	_chest_overlay = overlay
 
 	# Modal panel
 	main._chest_modal = PanelContainer.new()
@@ -456,10 +462,9 @@ func _close_chest_modal() -> void:
 	_current_chest_idx = -1
 	main._chest_modal_open = false
 	main._chest_modal_contents = {}
-	var ui = main.get_node("UI") as CanvasLayer
-	var overlay = ui.get_node_or_null("ChestOverlay")
-	if overlay:
-		overlay.queue_free()
+	if _chest_overlay and is_instance_valid(_chest_overlay):
+		_chest_overlay.queue_free()
+	_chest_overlay = null
 	if main._chest_modal and is_instance_valid(main._chest_modal):
 		main._chest_modal.queue_free()
 		main._chest_modal = null
