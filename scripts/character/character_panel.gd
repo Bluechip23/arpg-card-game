@@ -161,7 +161,7 @@ func _split_windows() -> void:
 		bbtn.custom_minimum_size = Vector2(30, 26)
 		bbtn.focus_mode = Control.FOCUS_NONE
 		bbtn.add_theme_font_size_override("font_size", 13)
-		bbtn.tooltip_text = "Switch to equipment build %s\n(in combat: tempo per changed slot and half your mana)" % BUILD_NUMERALS[i]
+		bbtn.tooltip_text = "Switch to equipment build %s\n(with an enemy close enough to aggro: tempo per changed slot and half your mana)" % BUILD_NUMERALS[i]
 		bbtn.pressed.connect(_on_build_pressed.bind(i))
 		inv_header.add_child(bbtn)
 		_build_buttons.append(bbtn)
@@ -678,7 +678,7 @@ func _rebuild_combat_rows() -> void:
 	_set_stat("crit_dmg", "%d%%" % roundi(player_stats.get_crit_damage_multiplier() * 100))
 	_set_stat("movement", "%d / %d" % [player_stats.current_flash_points, player_stats.get_max_flash_points()])
 	_set_stat("draw", "every %.0f tempo" % player_stats.get_effective_draw_timer())
-	_set_stat("mana_regen", "+%.1f / tempo" % player_stats.get_effective_mana_regen())
+	_set_stat("mana_regen", "+%.1f / cycle" % player_stats.get_effective_mana_regen())
 	_set_stat("hp_regen", "+%d / cycle" % player_stats.sphere_bonus_regen)
 	_set_stat("armor", "+%d / cycle" % player_stats.sphere_bonus_armor_per_cycle)
 	_set_stat("damage_taken", _damage_taken_text())
@@ -888,10 +888,10 @@ func _build_derived_stats_text() -> String:
 	return """HP   %d/%d
 Mana %.0f/%d
 Armor  %d (%d/%d unerring)
-Decay  -%d/t
+Decay  -%d/cycle
 Crit   %d%%
 Carry  %d/%d%s
-Regen  %.1f/t%s""" % [
+Regen  %.1f/cycle%s""" % [
 		player_stats.current_health,
 		player_stats.max_health,
 		player_stats.current_mana,
@@ -958,7 +958,7 @@ func _get_character_passive() -> String:
 		return ""
 	match inventory.character_name:
 		"Ryan":
-			return "Belt cards cost 1 less mana"
+			return "Belt cards cost 10 less mana"
 		"Brad":
 			return "Chest items weigh 20% less"
 		"Jeremy":
@@ -966,7 +966,7 @@ func _get_character_passive() -> String:
 		"Stephen":
 			return "+10% off-hand enchantments (others get -10%)"
 		"Cory":
-			return "Gain 1 mana when gauntlet skill comes off cooldown"
+			return "Gain 10 mana when gauntlet skill comes off cooldown"
 	return ""
 
 ## Slot types shown in the equipment grid, in display order.
@@ -1482,7 +1482,7 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 			else:
 				th_text = "Wield Two-Handed (+%d damage)" % th_bonus
 		var th_btn = _make_action_button(th_text, Color(0.3, 0.24, 0.1), Color(0.85, 0.7, 0.3))
-		th_btn.tooltip_text = "Two-handing halves this item's carried weight but cuts total\ncarry capacity to 70%% and occupies a second hand slot.\nIn combat: %d tempo%s." % [inventory.get_swap_tempo_cost(ItemData.ItemType.WEAPON), "" if inventory.weapon_swap_discount else " and half your mana"]
+		th_btn.tooltip_text = "Two-handing halves this item's carried weight but cuts total\ncarry capacity to 70%% and occupies a second hand slot.\nWith an enemy close enough to aggro: %d tempo%s." % [inventory.get_swap_tempo_cost(ItemData.ItemType.WEAPON), "" if inventory.weapon_swap_discount else " and half your mana"]
 		th_btn.pressed.connect(_on_toggle_two_handed)
 		vbox.add_child(th_btn)
 
@@ -2084,7 +2084,7 @@ func _build_item_effect_text(item: ItemData) -> String:
 	var lines: Array[String] = []
 	if item.gauntlet_skill_type == ItemData.GauntletSkillType.ACTIVE:
 		lines.append("[Active] %s: %s" % [item.gauntlet_skill_name, item.gauntlet_skill_description])
-		lines.append("  Cost: %d Mana | CD: %d turns" % [item.gauntlet_skill_mana_cost, item.gauntlet_skill_cooldown])
+		lines.append("  Cost: %d Mana | CD: %d cycles" % [item.gauntlet_skill_mana_cost, item.gauntlet_skill_cooldown])
 	elif item.gauntlet_skill_type == ItemData.GauntletSkillType.PASSIVE:
 		lines.append("[Passive] %s: %s" % [item.gauntlet_skill_name, item.gauntlet_skill_description])
 	match item.special_effect:

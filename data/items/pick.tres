@@ -13,4 +13,4 @@ weapon_subtype = 6
 card_slots = 1
 vanilla_slots = 1
 on_self_damage = 5
-description = "+3 STR, +5 health, +1 AGI. On-self: +5 damage."
+description = "+3 STR, +5 health, +1 AGI. On-self: cards that deal damage deal +5 damage."

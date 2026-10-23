@@ -260,19 +260,19 @@ func _build_grid() -> void:
 		[NodeType.STAT_BONUS, "STR +3", "Strength +3"],
 		[NodeType.COMBAT_BONUS, "Block +1", "Block cards grant +1 additional block"],
 		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
-		[NodeType.COMBAT_BONUS, "Life Steal +1%", "Heal for 1% of damage dealt"],
+		[NodeType.COMBAT_BONUS, "Life Steal +1%", "Attack cards heal you for 1% of the damage they deal"],
 		[NodeType.STAT_BONUS, "DEX +3", "Dexterity +3"],
 		[NodeType.COMBAT_BONUS, "Thorns +1", "Deal 1 damage to attackers when hit"],
 		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.COMBAT_BONUS, "Regen +1", "Regenerate 1 HP per tempo cycle"],
 		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
-		[NodeType.COMBAT_BONUS, "Damage +1", "All attacks deal +1 bonus damage"],
+		[NodeType.COMBAT_BONUS, "Damage +1", "Your attacks and spells deal +1 bonus damage"],
 		[NodeType.COMBAT_BONUS, "Unerring +2", "Unerring armor cap +2 (the capped, regenerating armor from periodic-armor items and Arm/Cyc nodes)"],
 		[NodeType.COMBAT_BONUS, "Resist +1%", "Reduce all incoming damage by 1%"],
 		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],
 		[NodeType.COMBAT_BONUS, "Heal +1", "Heal cards restore +1 additional HP"],
 		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
-		[NodeType.COMBAT_BONUS, "Arm/Cyc +1", "Gain 1 armor each tempo cycle"],
+		[NodeType.COMBAT_BONUS, "Arm/Cyc +1", "Gain 1 unerring armor each tempo cycle (up to your unerring cap)"],
 		[NodeType.STAT_BONUS, "AGI +3", "Agility +3"],
 		[NodeType.COMBAT_BONUS, "Crit +1%", "Critical hit chance +1%"],
 		[NodeType.COMBAT_BONUS, "Unerring +1", "Unerring armor cap +1 (the capped, regenerating armor from periodic-armor items and Arm/Cyc nodes)"],
@@ -307,9 +307,9 @@ func _build_grid() -> void:
 		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
 		[NodeType.HEALTH, "HP +20", "Max Health +20"],
 		[NodeType.COMBAT_BONUS, "Vuln Amp +15%", "Vulnerable you apply amplifies damage by 45% instead of 30%"],
-		[NodeType.COMBAT_BONUS, "Damage +1", "All attacks deal +1 bonus damage"],
+		[NodeType.COMBAT_BONUS, "Damage +1", "Your attacks and spells deal +1 bonus damage"],
 		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],
-		[NodeType.COMBAT_BONUS, "Life Steal +1%", "Heal for 1% of damage dealt"],
+		[NodeType.COMBAT_BONUS, "Life Steal +1%", "Attack cards heal you for 1% of the damage they deal"],
 		[NodeType.COMBAT_BONUS, "Weaken Amp +25%", "Weaken you apply saps an extra 25% of enemy damage (30% base)"],
 		[NodeType.COMBAT_BONUS, "Heal +1", "Heal cards restore +1 additional HP"],
 		# Flash Reserves (AGI flash → draw) retired: card-drawing is Wisdom's
@@ -321,9 +321,9 @@ func _build_grid() -> void:
 		[NodeType.STAT_BONUS, "DET +3", "Determination +3"],
 		[NodeType.COMBAT_BONUS, "Crit +1%", "Critical hit chance +1%", {"req": {"stat": "dexterity", "value": 20}}],
 		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
-		[NodeType.COMBAT_BONUS, "Range +1", "Ranged attacks gain +1 range"],
+		[NodeType.COMBAT_BONUS, "Range +1", "Ranged cards gain +1 range"],
 		[NodeType.KEYSTONE, "Bulwark Soul", "Keystone: gain +2 max health per point of Determination — past and future.", {"req": {"stat": "determination", "value": 12}, "keystone": "det_vitality"}],
-		[NodeType.COMBAT_BONUS, "Armor +1", "Start each combat with +1 armor"],
+		[NodeType.COMBAT_BONUS, "Armor +1", "Gain 1 armor once, when unlocked"],
 		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.HEALTH, "HP +25", "Max Health +25"],
 		[NodeType.KEYSTONE, "Deadeye Form", "Keystone: ranged attacks scale with Dexterity instead of Strength.", {"req": {"stat": "dexterity", "value": 15}, "keystone": "dex_ranged"}],
@@ -331,7 +331,7 @@ func _build_grid() -> void:
 		[NodeType.CULLING_STONE, "Cull Stone", "Grants 1 Culling Stone"],
 		[NodeType.COMBAT_BONUS, "Resist +1%", "Reduce all incoming damage by 1%"],
 		[NodeType.STAT_BONUS, "INT +3", "Intelligence +3"],
-		[NodeType.COMBAT_BONUS, "Arm/Cyc +1", "Gain 1 armor each tempo cycle"],
+		[NodeType.COMBAT_BONUS, "Arm/Cyc +1", "Gain 1 unerring armor each tempo cycle (up to your unerring cap)"],
 		[NodeType.COMBAT_BONUS, "Unerring +1", "Unerring armor cap +1 (the capped, regenerating armor from periodic-armor items and Arm/Cyc nodes)"],
 		[NodeType.HEALTH, "HP +30", "Max Health +30"],
 		[NodeType.STAT_BONUS, "WIS +3", "Wisdom +3"],
@@ -543,14 +543,14 @@ func _build_constellations() -> void:
 		"windwalker", "Windwalker",
 		[5, 15, 16, 31, 32] as Array[int],
 		"Windwalker",
-		"+1 movement per cycle. First card played after moving costs 10 less",
+		"+5 AGI (+5 max flash points). First card played after moving costs 10 less",
 		Color(0.3, 0.85, 0.4)  # light green
 	))
 	_add_constellation(Constellation.new(
 		"storm_runner", "Storm Runner",
 		[5, 16, 17, 32, 33] as Array[int],
 		"Storm Runner",
-		"+1 movement per cycle. Gain 20 mana on each move",
+		"+5 AGI (+5 max flash points). Gain 20 mana on each move",
 		Color(0.2, 0.55, 0.95)  # electric blue
 	))
 
@@ -603,7 +603,7 @@ func _build_constellations() -> void:
 		"iron_bastion", "Iron Bastion",
 		[19, 36, 37, 59, 60] as Array[int],
 		"Iron Bastion",
-		"+5 armor at start of combat. When hit: 15% chance to reduce damage by 50%",
+		"Gain 5 armor once, on completion. When hit: 15% chance to reduce damage by 50%",
 		Color(0.45, 0.55, 0.7)  # steel blue
 	))
 

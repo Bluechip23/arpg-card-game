@@ -14,7 +14,7 @@ level_3_overrides = {
 "slot_colors": ["red", "blue", "yellow", "green", "red"],
 "slot_effects": [{}, {}, {}, {}, {}]
 }
-level_3_description = "+6 WIS, +12 INT, +15 mana. Two-handed. Five elemental slots — red (Burn) x2, blue (Cold), yellow (Shock), green (Poison). Playing a slotted card converts every other slotted card in your hand to its element; converted cards revert when they leave the hand. Each conversion deals 6 damage to a random enemy within 4 squares."
+level_3_description = "+6 WIS, +12 INT, +15 mana. Two-handed. Five elemental slots — red (Burn) x2, blue (Cold), yellow (Shock), green (Poison) — plus 1 plain slot. Playing a slotted card converts every other slotted card in your hand to its element; converted cards revert when they leave the hand. Each conversion deals 6 damage to a random enemy within 4 squares."
 weight = 25
 intelligence_bonus = 10
 wisdom_bonus = 5
@@ -25,6 +25,6 @@ slot_colors = ["red", "blue", "yellow", "green"]
 slot_effects = [{}, {}, {}, {}]
 feral_weapon = true
 feral_change_damage = 4
-description = "+5 WIS, +10 INT. Two-handed. Four elemental slots — red (Burn), blue (Cold), yellow (Shock), green (Poison). Playing a slotted card converts every other slotted card in your hand to its element; converted cards revert when they leave the hand. Each conversion deals 4 damage to a random enemy within 4 squares."
+description = "+5 WIS, +10 INT. Two-handed. Four elemental slots — red (Burn), blue (Cold), yellow (Shock), green (Poison) — plus 1 plain slot. Playing a slotted card converts every other slotted card in your hand to its element; converted cards revert when they leave the hand. Each conversion deals 4 damage to a random enemy within 4 squares."
 appearance = "A great white staff crowned by a tiger's open mouth, a purple orb glowing between its fangs."
 appearance_icon = "res://assets/items/mythic/feral_evocation.png"

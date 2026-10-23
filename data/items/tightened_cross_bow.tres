@@ -17,4 +17,4 @@ card_slots = 2
 vanilla_slots = 1
 on_self_damage = 5
 on_self_tempo_penalty = 1
-description = "+3 DEX, -2 AGI, +5 INT, +2 STR. 2 card slots. On-self: +5 damage but +1 tempo."
+description = "+3 DEX, -2 AGI, +5 INT, +2 STR. 3 card slots (2 bonus, 1 plain). On-self: cards that deal damage deal +5 damage, but any card costs +1 tempo."

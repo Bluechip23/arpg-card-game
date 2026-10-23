@@ -16,4 +16,4 @@ card_slots = 2
 vanilla_slots = 1
 on_self_damage_while_invisible = 5
 cheap_card_zap_damage = 3
-description = "+8 AGI, +4 DEX. On-self: +5 damage while invisible. Playing a card that costs less than 2 tempo deals 3 damage to a random enemy. Grants Poof and Weave: become invisible for 5 tempo, gain 10 armor and draw a card (40 mana, 5 tempo)."
+description = "+8 AGI, +4 DEX. On-self: cards that deal damage deal +5 damage while you are invisible. Playing a card that costs less than 2 tempo deals 3 damage to a random enemy. Grants Poof and Weave: become invisible for 5 tempo, gain 10 armor and draw a card (40 mana, 5 tempo)."

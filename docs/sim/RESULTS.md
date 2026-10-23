@@ -1,5 +1,12 @@
 # Milestone 3 — validation-run findings
 
+> **Note (2026-10-22).** Every run on this page predates the rule changes of
+> 2026-10-20 to 2026-10-22: the 8-card base deck cap (25 in all with slotted
+> cards; it was 12, then 10), the five-card starter deck (Attack, Exposing
+> Strike, Block, Braced Draw, Heal), Tome folded into Wand, and the shield
+> Block at 4 tempo. "The starter deck" and deck sizes below mean the rules of
+> the day; re-run before comparing against today's game.
+
 > **Pre-audit.** This section was measured before the tester audit
 > (`docs/sim/tool_audit.md`): damage per tempo here counts overkill, and
 > runs predate the refused-play, reseeding and picker-card fixes. Win-rate

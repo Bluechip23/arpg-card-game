@@ -105,7 +105,7 @@ var _stash_message_timer: float = 0.0
 var vendor_info: Dictionary = {
 	"Blacksmith": {
 		"name": "Blacksmith",
-		"description": "Enchant cards into items, extract cards from items.",
+		"description": "Forge spare copies to level up an item, meld mythics into Mythic Pieces, and sell your gear.",
 		"type": "blacksmith"
 	},
 	"Armory": {
@@ -2247,7 +2247,7 @@ func _build_modal_effects(item: ItemData) -> String:
 	# Gauntlet skills
 	if item.gauntlet_skill_type == ItemData.GauntletSkillType.ACTIVE:
 		lines.append("[Active Skill] %s: %s" % [item.gauntlet_skill_name, item.gauntlet_skill_description])
-		lines.append("  Cost: %d Mana | Cooldown: %d turns" % [item.gauntlet_skill_mana_cost, item.gauntlet_skill_cooldown])
+		lines.append("  Cost: %d Mana | Cooldown: %d cycles" % [item.gauntlet_skill_mana_cost, item.gauntlet_skill_cooldown])
 	elif item.gauntlet_skill_type == ItemData.GauntletSkillType.PASSIVE:
 		lines.append("[Passive] %s: %s" % [item.gauntlet_skill_name, item.gauntlet_skill_description])
 
@@ -2264,7 +2264,7 @@ func _build_modal_effects(item: ItemData) -> String:
 		ItemData.SpecialEffect.ARMOR_ON_ARMOR_GAIN:
 			lines.append("[Passive] +%d Armor on every Armor gain" % item.special_effect_value)
 		ItemData.SpecialEffect.ARMOR_PER_TURN:
-			lines.append("[Passive] +%d Armor per turn" % item.special_effect_value)
+			lines.append("[Passive] +%d unerring armor every %d tempo" % [item.special_effect_value, maxi(5, item.armor_per_tempo_interval)])
 
 
 	# On-self bonuses

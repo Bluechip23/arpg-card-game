@@ -16,4 +16,4 @@ vanilla_slots = 1
 on_self_damage = 1
 on_self_armor_any = 2
 on_self_apply_cold = 1
-description = "+5 WIS, +1 AGI. 2 card slots. On-self: offensive cards deal +1 damage and, on a hit, apply 1 Cold; any card gains 2 armor."
+description = "+5 WIS, +1 AGI. 3 card slots (2 bonus, 1 plain). On-self: cards that deal damage deal +1 damage, offensive cards that hit apply 1 Cold, and any card gains you 2 armor."

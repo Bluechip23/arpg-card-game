@@ -46,6 +46,7 @@ const CP_ROWS := {
 	"skeletons": "FBLR",
 	"goblins": "FBLR",
 	"vampires": "FBLR",
+	"ent": "FBLR",
 }
 ## Frames per second per Craftpix animation. One-shots (Attack, Hurt, Death)
 ## return to Idle/Walk when they finish; Death holds its last frame.
@@ -81,16 +82,16 @@ const KINDS := {
 	"crypt_crawler": {"cell": Vector2i(3, 0)},
 	"swarm": {"cell": Vector2i(4, 0)},
 	"giant_hawk": {"fr": "mountain_monsters/Bird", "scale": 0.55},
-	"screecher": {"fr": "mountain_monsters/Bird", "scale": 0.5, "tint": Color(0.7, 0.6, 0.85)},  # Stone_* frames are the bird carrying a rock, kept for a future drop attack
+	"screecher": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},  # wears the Snow Wraith's ghost (designer, 2026-10-22); the mountain-monster Bird frames are free again
 	"giant_beaver": {"cell": Vector2i(0, 1), "tint": Color(0.95, 0.85, 0.75)},
 	"mini_bear": {"fr": "mountain_monsters/Bear", "scale": 0.45},
-	"wolf": {"cell": Vector2i(3, 1)},
-	"coyote": {"cell": Vector2i(3, 1), "tint": Color(1.1, 1.0, 0.8)},
+	"wolf": {"sheets": SHEETS + "/wolf", "scale": 0.7},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-22)
+	"coyote": {"cell": Vector2i(3, 1), "tint": Color(1.1, 1.0, 0.8)},  # the old wolf battler, tinted
 	"djinn": {"cell": Vector2i(4, 1)},
 	"specter": {"cp": "ghost/Ghost1", "scale": 1.2},
 	"wererabbit": {"cell": Vector2i(7, 1)},
 	"skeleton": {"cp": "skeletons/Skeleton1", "scale": 1.15},
-	"treant": {"cell": Vector2i(5, 2), "scale": 1.25},
+	"treant": {"cp": "ent/Ent3", "scale": 1.0},  # the Craftpix Ent pack's leafy ent (Ent1 bare, Ent2 sprouting)
 	"consumed": {"cell": Vector2i(6, 2)},
 	"sewer_croc": {"fr": "mountain_monsters/Snake", "scale": 0.6, "tint": Color(0.8, 0.9, 0.75)},  # a great sewer serpent stands in for the croc
 	# --- generated sprites (drawn/derived in our pipeline, palette-conformant) ---
@@ -110,21 +111,22 @@ const KINDS := {
 	"grave_titan": {"cp": "golem/Golem2", "scale": 1.35, "tint": Color(0.9, 0.92, 0.88)},
 	"inflamed_minotaur": {"tex": "inflamed_minotaur", "scale": 0.75},  # the designer's painting, cut out (tools/cut_minotaur.gd); a 173x130 cell
 	"demon": {"cp": "demons/Demon1", "scale": 0.85},
-	"pit_fiend": {"cp": "demons/Demon3"},
+	"pit_fiend": {"sheets": BOSSES + "/pit_fiend", "scale": 1.3},  # the designer's board (tools/cut_pit_fiend.py): stills, walks, tail-sweep attack
 	"bugbear": {"cp": "gnolls/Gnoll2", "scale": 1.2},
 	"ifrit": {"icon": "chaos_monsters/Icon47", "faces": "front", "scale": 2.0},  # the living flame
 	"snow_wraith": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},
-	"hydra": {"tex": "hydra", "scale": 1.4},
-	"white_manticore": {"tex": "white_manticore", "scale": 1.3},
+	# The designer's 4x4 walk sheets (tools/cut_creature_sheets.py).
+	"hydra": {"sheets": SHEETS + "/hydra", "scale": 1.1},
+	"white_manticore": {"sheets": SHEETS + "/white_manticore", "scale": 0.75},
 	# --- battler variations where the species genuinely matches ---
 	"large_bear": {"fr": "mountain_monsters/Bear", "scale": 0.65},
 	"bone_dragon": {"tex": "bone_dragon", "scale": 1.6},
 	"wyvern": {"cell": Vector2i(7, 2), "tint": Color(0.9, 0.75, 1.05), "scale": 1.35},
 	"cerberus": {"sheets": BOSSES + "/cerberus", "scale": 1.5},
 	"hades": {"sheets": BOSSES + "/hades", "scale": 1.15},  # art in place; no Hades enemy exists yet
-	"werewolf": {"cell": Vector2i(3, 1), "tint": Color(0.6, 0.6, 0.68), "scale": 1.25},
-	"sabertooth": {"cell": Vector2i(3, 1), "tint": Color(1.05, 0.95, 0.75), "scale": 1.2},
-	"weregoat": {"cp": "gnolls/Gnoll3", "scale": 1.1, "tint": Color(0.85, 0.85, 0.9)},
+	"werewolf": {"sheets": SHEETS + "/werewolf", "scale": 1.05},
+	"sabertooth": {"sheets": SHEETS + "/sabertooth", "scale": 0.95},
+	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": 0.62},
 	"roc": {"fr": "mountain_monsters/Bird", "scale": 1.0, "tint": Color(1.05, 0.95, 0.85)},
 	"ash_harpy": {"icon": "chaos_monsters/Icon22", "faces": "front", "scale": 1.6},  # the winged demon in flight, tail trailing
 	"magma_spider": {"cell": Vector2i(3, 0), "tint": Color(1.35, 0.75, 0.6)},

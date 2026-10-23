@@ -17,7 +17,7 @@ level_3_overrides = {
 "on_self_support_heal": 35,
 "wisdom_bonus": 4
 }
-level_3_description = "+20 health, +3 DET, +3 AGI, +3 DEX, +4 WIS. 3 card slots. On-self: offensive cards Taunt the target for 15 tempo; utility/defense cards heal their target 35."
+level_3_description = "+20 health, +3 DET, +3 AGI, +3 DEX, +4 WIS. 5 card slots (3 bonus, 2 plain). On-self: offensive cards Taunt the target for 15 tempo; utility/defense cards heal their target 35."
 weight = 15
 dexterity_bonus = 2
 wisdom_bonus = 2

@@ -17,4 +17,4 @@ vanilla_slots = 2
 on_self_resist_all_percent = 2.0
 on_self_resist_all_tempo = 3
 block_physical_resist_percent = 10.0
-description = "+30 health, +5 STR, +4 WIS. On-self: gain 2% resistance to all damage types for 3 tempo. While you have block, you have an additional 10% physical resistance."
+description = "+30 health, +5 STR, +4 WIS. On-self: any card grants 2% resistance to all damage types for 3 tempo. While you have block, you have an additional 10% physical resistance."

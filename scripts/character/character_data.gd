@@ -27,8 +27,8 @@ func get_base_character() -> String:
 @export var base_health: int = 10
 @export var base_mana: int = 50
 @export var base_mana_regen: float = 10.0  # Mana regen per cycle
-@export var base_draw_timer: int = 5  # Turns between draws
-# Uniform for all characters — hand size only grows via WIS (+1 per 5) and gear.
+@export var base_draw_timer: int = 5  # Cycles between timed draws (x5 = 25 tempo)
+# Uniform for all characters — hand size only grows via WIS (+1 per 10) and gear.
 @export var base_hand_size: int = 4
 
 # Build state is @export so it persists when the character is saved to disk
@@ -144,7 +144,7 @@ static func create_ryan() -> CharacterData:
 		{"name": "Apothecary", "description": "Manipulation of potions and ailments, enemies (and allies) never know what you are throwing at them."},
 		{"name": "Shadow Blade", "description": "Hidden in the shadows, weaving in and out of combat, striking enemies when they least expect it, and where they are the weakest."},
 	]
-	data.passive_description = "Belt cards cost 1 less mana"
+	data.passive_description = "Belt cards cost 10 less mana"
 	data.slot_specialty = "2 belt slots"
 	data.sprite_path = "res://assets/characters/ryan_south.png"
 	return data
@@ -235,7 +235,7 @@ static func create_cory() -> CharacterData:
 		{"name": "Druid", "description": "One with the world, you use your surroundings (literally) to aid you in battle."},
 		{"name": "Atrophist", "description": "Your touch withers the enemy, making them weaker and frail the longer you are engaged."},
 	]
-	data.passive_description = "Gain 1 mana when gauntlet skill comes off cooldown"
+	data.passive_description = "Gain 10 mana when gauntlet skill comes off cooldown"
 	data.slot_specialty = "2 gauntlet slots"
 	data.sprite_path = "res://assets/characters/cory_south.png"
 	return data

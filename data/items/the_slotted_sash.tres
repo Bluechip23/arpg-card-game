@@ -16,4 +16,4 @@ vanilla_slots = 1
 on_self_defense_armor = 2
 on_self_utility_weaken = 1
 on_self_offensive_damage = 2
-description = "+3 WIS, +2 INT. 6 card slots. On-self: offensive cards +2 damage; defense cards +2 armor; utility cards apply 1 Weaken to a random enemy within 5 squares."
+description = "+3 WIS, +2 INT. 7 card slots (6 bonus, 1 plain). On-self: offensive cards +2 damage; defense cards +2 armor; utility cards apply 1 Weaken to a random enemy within 5 squares."

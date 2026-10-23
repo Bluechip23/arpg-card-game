@@ -15,4 +15,4 @@ card_slots = 2
 vanilla_slots = 1
 on_self_damage = 2
 on_self_armor_shred = 4
-description = "+5 STR, +1 DEX. 2 card slots. On-self: offensive cards deal +2 damage and an additional 4 damage to armor."
+description = "+5 STR, +1 DEX. 3 card slots (2 bonus, 1 plain). On-self: cards that deal damage deal +2 damage, and offensive cards deal an additional 4 damage to armor."

@@ -13,4 +13,4 @@ card_slots = 1
 vanilla_slots = 1
 attack_apply_burn = 1
 damage_bonus_to_attack_cards = 1
-description = "+3 AGI, +2 INT. 1 card slot. Your damaging offensive cards apply 1 Burn and deal +1 damage."
+description = "+3 AGI, +2 INT. 2 card slots (1 bonus, 1 plain). Your damaging offensive cards apply 1 Burn and deal +1 damage."

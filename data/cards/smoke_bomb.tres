@@ -6,7 +6,7 @@
 script = ExtResource("1_7dn0q")
 card_id = "smoke_bomb"
 card_name = "smoke bomb"
-description = "A puff of smoke (2-square radius): allies inside are invisible and gain 10% crit chance while they stay in it. Lasts 8 tempo. Jailed for 20 after play."
+description = "A puff of smoke (2-square radius): allies inside are invisible and gain 10% crit chance while they stay in it. Lasts 8 tempo. Jailed for 20 tempo after play."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 30

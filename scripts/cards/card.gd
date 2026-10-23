@@ -7,7 +7,7 @@ enum CardType { ATTACK, DEFENSE, UTILITY, REACTION, UNPLAYABLE, POWER, ENCHANTME
 ## Slot-compatibility label: which item slots a card may be enchanted into
 ## (belt→Pocket, ring→Gem, boots→Swift, shield→Buckler, helm→Crown,
 ## gauntlets→Fist, bow/quiver→Arrow, chest→Bulwark, and every weapon type
-## its own: Sword, Axe, Dagger, Hammer, Spear, Wand, Tome, Staff). Any card may sit in the bare
+## its own: Sword, Axe, Dagger, Hammer, Spear, Wand, Staff; a tome reads as Wand). Any card may sit in the bare
 ## deck; an unlabeled card can ONLY sit there. A card that may only exist
 ## inside a slot is flagged requires_engraving (the Engrave keyword).
 enum CardKeyword { NONE, ARROW, POCKET, GEM, SWIFT, BUCKLER, CROWN, FIST, SWORD, AXE, DAGGER, HAMMER, SPEAR, BULWARK, WAND, TOME, STAFF }
@@ -471,7 +471,7 @@ var picked_cards: Array = []  # Several cards chosen via the full-card picker (C
 var picked_ally = null  # A second ally chosen at play time (Friendship's partner)
 var premeditated_target = null  # The enemy whose Premeditated bonus this play armed (main pays it if unspent)
 @export var damage_type: int = DamageTypes.Type.PHYSICAL  # Damage type this card deals (all default to Physical for now)
-@export var is_fire_spell: bool = false  # Counts toward Fireball's per-turn fire-spell mana discount
+@export var is_fire_spell: bool = false  # Counts toward Fireball's per-cycle fire-spell mana discount
 @export var linger: bool = false  # If true, status card can exceed hand size limit when added
 @export var shop_excluded: bool = false  # If true, the card never appears in the Card Dealer's shop (item-generated cards like Sprinkle)
 ## Extra text shown only in the hover preview, never on the card face — the
@@ -530,13 +530,14 @@ func slot_label_names() -> String:
 
 ## Conditional keyword: the card is melee or ranged depending on the weapon
 ## in hand — a bow makes it Ranged 5, a melee weapon (or bare hands) makes it
-## melee — instead of a fixed is_ranged. The basic Attack card alone also
-## goes ranged with a magic weapon (conditional_magic_ranged). DeckManager resolves it as the card enters the hand and again
+## melee — instead of a fixed is_ranged. The Attack cards (Attack, Exposing
+## Strike, Basic Attack) also go ranged with a magic weapon (conditional_magic_ranged). DeckManager resolves it as the card enters the hand and again
 ## whenever equipment changes (apply_conditional_range). Playing it ranged
 ## costs CONDITIONAL_RANGED_TEMPO_PENALTY extra tempo.
 @export var conditional_range: bool = false
-## Only the basic Attack card also counts a magic weapon (wand, tome, staff)
-## as ranged; other Conditional cards go by the bow alone.
+## Only the Attack cards (Attack, Exposing Strike, Basic Attack) also count a
+## magic weapon (wand, tome, staff) as ranged; other Conditional cards go by
+## the bow alone.
 @export var conditional_magic_ranged: bool = false
 const CONDITIONAL_RANGED_TEMPO_PENALTY := 1
 
@@ -1158,7 +1159,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"defense": "Protective cards that grant armor or block",
 		"utility": "Support cards for draw, healing, buffs, etc.",
 		"power": "Persistent effect cards with a Maintain cost. Reserves mana while active",
-		"reaction": "Triggers automatically from hand when a condition is met. Costs 0 mana and 0 tempo",
+		"reaction": "Triggers automatically from hand when a condition is met. Costs 0 mana, and no tempo unless the card shows one",
 		"unplayable": "Cannot be played. Takes up a hand slot",
 		"enchantment": "Cannot be played. Provides a passive buff while in your hand. Auto-discards after 2 cycles. Effect is lost when the card leaves your hand",
 		# Card Mechanics
@@ -1170,8 +1171,8 @@ static func get_keyword_definitions() -> Dictionary:
 		"in-hand": "Card applies a persistent effect while it remains in your hand",
 		"sticky": "Card stays in hand for X uses before being discarded",
 		"high ground": "Ranged attacks from elevated positions deal +4 damage and gain +2 range",
-		"conditional": "Melee or ranged depending on your held weapon: a bow makes it ranged (+1 tempo to play), anything else makes it melee",
-		"cycle": "1 cycle = every 5 tempo. Mana regen, card draws, buff/debuff ticks all happen per cycle",
+		"conditional": "Melee or ranged depending on your held weapon: a bow makes it ranged (+1 tempo to play; the Attack cards also go ranged with a magic weapon), anything else makes it melee",
+		"cycle": "1 cycle = every 5 tempo. Mana regen and buff/debuff ticks happen per cycle; the deck draws a card every 25 tempo (5 cycles)",
 		"glut": "Lose the ability to play cards for X tempo. Players must press the wait button if playing solo",
 		"delay": "Tempo until the effect takes place",
 		"burden": "Each time played, cost increases by 10m/1t. Jail the card for 30 tempo to reset (costs 10m/1t). Can only jail from hand",
@@ -1206,7 +1207,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"burn": "Burn damage doubles each cycle (1, 2, 4, 8...); attacking while burning also triggers the current burn damage",
 		"poison": "Take X damage per cycle, lose 1 poison each cycle",
 		"cursed": "Deal 20% less damage and deal 20% damage to self",
-		"frozen": "Cannot play cards (a frozen enemy cannot act at all)",
+		"frozen": "Cannot play cards, auto attack or Block (a frozen enemy cannot act at all)",
 		"cuffed": "Cannot draw cards",
 		"shocked": "Arc X damage to nearby allies per cycle (a shocked enemy takes it itself), lose 1 per cycle",
 		"slowed": "Movement costs 3 tempo per tile instead of 1. Each stack lasts 5 tempo on its own clock; moving burns nothing",
@@ -1224,7 +1225,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"brittle": "Armor decays an extra 2 per cycle. Each stack lasts 5 tempo on its own clock",
 		"cold": "Stacking debuff, 5 tempo. At 5 stacks the target becomes Frozen for 1 cycle",
 		# Overflow
-		"jailed": "Card goes to jail for 3 turns, cannot be played",
+		"jailed": "Overflow card goes to jail for 15 tempo and cannot be played",
 		"manifest": "Card goes to manifest zone as a token. Click to activate",
 		"enhance": "Attack cards gain +X bonus damage, then discarded",
 		"skip": "Overflow card is sent straight to the discard pile",
@@ -2239,7 +2240,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		"gulped_potion":
 			_execute_heal_with_poison_check(target, player_stats, buff_mgr)
 		"heavy_greedy_cheese":
-			pass  # Paying the 100 mana / 5 tempo IS the effect — erase_on_play removes it
+			pass  # Paying its price (25% of max mana, 5 tempo) IS the effect — erase_on_play removes it
 		"djinn_wish":
 			pass  # Paying the 60 mana IS the effect — erase_on_play removes it
 		"paralysis":
@@ -3405,7 +3406,7 @@ func _execute_reposition(deck_manager) -> void:
 
 func _execute_volatile_mixture(target, player_stats: PlayerStats) -> void:
 	# Playing the card safely removes it from hand (no effect)
-	# The real effects are: discard -> damage enemy, end of turn in hand -> self-damage
+	# The real effects are: discard -> damage enemy, 5 tempo in hand -> self-damage
 	print("[CARD] Volatile Mixture played! Safely disposed of")
 
 func _execute_understanding(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -3599,10 +3600,10 @@ func _execute_choke(target, player_stats: PlayerStats) -> void:
 	if target and target.has_method("apply_debuff"):
 		target.apply_debuff("silenced", 5)
 		target.apply_debuff("choke_dot", 1)
-		# The grip deals a flat 2 damage per round (cycle) while it holds.
+		# The grip deals a flat 2 damage at the next cycle (one tick per stack).
 		if "choke_dot_damage" in target:
 			target.choke_dot_damage = 2
-	print("[CARD] Choke! Enemy silenced and taking damage per round. Sticky 3")
+	print("[CARD] Choke! Enemy silenced and taking damage next cycle. Sticky 3")
 
 func _execute_push(target, _player_stats: PlayerStats) -> void:
 	print("[CARD] Push! Unit pushed away from you")
@@ -3638,7 +3639,7 @@ func _execute_swap(target, _player_stats: PlayerStats) -> void:
 	print("[CARD] Swap! Switched positions with target")
 
 func _execute_meditate(player_stats: PlayerStats, deck_manager = null) -> void:
-	# Discard hand, draw to full -2, heal to 80%, skip next turn
+	# Discard hand, draw to full -2, heal to 80%; Glut 5 (no plays for 5 tempo)
 	if deck_manager:
 		while deck_manager.hand.size() > 0:
 			var card = deck_manager.hand.pop_back()
@@ -3686,7 +3687,7 @@ const RELEASE_SOUL_STRENGTHEN := 5
 
 ## Playing Release Soul frees the caged soul — and every living Spirit
 ## Collector on the field drinks it: +RELEASE_SOUL_STRENGTHEN each, added to
-## their Strike and Collect Soul for the rest of the fight. The field is
+## their Strike and Collect Soul for as long as they live. The field is
 ## reached through the player's parent, as _nearest_other_enemy does.
 func _execute_release_soul(target) -> void:
 	if target == null or not is_instance_valid(target) or not (target is Node3D):

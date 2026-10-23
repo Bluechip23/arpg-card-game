@@ -171,7 +171,7 @@ func _add_passive_badge() -> void:
 		ItemData.ItemType.GAUNTLETS:
 			if inv.gauntlet_cooldown_mana:
 				icon = UIGlyphsScript.get_glyph("mana_plus")
-				tip = "Gain 1 mana whenever a gauntlet skill comes off cooldown."
+				tip = "Gain 10 mana whenever a gauntlet skill comes off cooldown."
 		ItemData.ItemType.RING:
 			if inv.ring_double_trigger:
 				icon = UIGlyphsScript.get_glyph("recycle")

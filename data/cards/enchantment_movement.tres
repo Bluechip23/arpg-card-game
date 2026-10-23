@@ -6,7 +6,7 @@
 script = ExtResource("1_sj7lb")
 card_id = "enchantment_movement"
 card_name = "Enchantment: Movement"
-description = "Gain +1 movement per Tempo while this is in your hand (5 free tiles every Flash refresh). Discards after 2 cycles."
+description = "While this is in your hand, each Flash refresh gives 5 more tiles of flash movement. Discards after 2 cycles."
 card_type = 6
 card_type_name = "Enchantment"
 mana_cost = 0

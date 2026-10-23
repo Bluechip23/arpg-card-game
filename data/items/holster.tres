@@ -14,4 +14,4 @@ dexterity_bonus = 2
 card_slots = 2
 vanilla_slots = 1
 on_self_damage = 2
-description = "+3 STR, +2 DEX. On-self: +2 damage to attack cards."
+description = "+3 STR, +2 DEX. On-self: cards that deal damage deal +2 damage."

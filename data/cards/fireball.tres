@@ -6,7 +6,7 @@
 script = ExtResource("1_f240x")
 card_id = "fireball"
 card_name = "Fireball"
-description = "Hurl a massive fireball. Range +5, 12 damage, apply 3 burn. Costs 1 less mana for each other fire spell cast this turn. AOE circle 4 squares. Can crit."
+description = "Hurl a massive fireball. Range +5, 12 damage, apply 3 burn. Costs 1 less mana for each other fire spell cast this cycle. AOE circle 4 squares. Can crit."
 card_type_name = "Spell"
 mana_cost = 80
 damage = 12

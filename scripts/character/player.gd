@@ -1,7 +1,7 @@
 class_name Player
 extends CharacterBody3D
 
-## Player character with turn-based grid movement in 3D
+## Player character with tempo-based grid movement in 3D
 
 signal move_completed
 signal tile_reached  # Emitted each time the player reaches a single tile

@@ -12,4 +12,4 @@ wisdom_bonus = 2
 agility_bonus = 2
 card_slots = 1
 on_self_armor_any = 2
-description = "+2 AGI, +2 WIS. On-self: gain 2 armor."
+description = "+2 AGI, +2 WIS. On-self: any card gains you 2 armor."

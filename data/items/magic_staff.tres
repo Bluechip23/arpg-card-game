@@ -12,4 +12,4 @@ weapon_subtype = 10
 card_slots = 1
 vanilla_slots = 1
 damage_bonus_to_attack_cards = 4
-description = "+2 INT, +2 WIS. 1 card slot. Two-handed. Your attacks deal +4 damage."
+description = "+2 INT, +2 WIS. 2 card slots (1 bonus, 1 plain). Two-handed. Your damaging offensive cards deal +4 damage."

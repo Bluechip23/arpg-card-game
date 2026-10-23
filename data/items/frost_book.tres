@@ -14,4 +14,4 @@ card_slots = 1
 vanilla_slots = 1
 attack_apply_cold = 1
 damage_bonus_to_attack_cards = 1
-description = "+2 INT, +1 WIS, +5 health. 1 card slot. Your damaging offensive cards apply 1 Cold and deal +1 damage."
+description = "+2 INT, +1 WIS, +5 health. 2 card slots (1 bonus, 1 plain). Your damaging offensive cards apply 1 Cold and deal +1 damage."

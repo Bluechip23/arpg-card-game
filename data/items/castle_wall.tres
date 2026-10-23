@@ -23,4 +23,4 @@ overdraw_spell_id = "rain_of_arrows"
 overdraw_spell_mana = 45
 overdraw_spell_charges = 3
 overdraw_spell_recharge = 15
-description = "+8 STR, -4 AGI, -5 WIS, +55 health, -3 hand size. 2 card slots. On-self: +8 block. Overdraw: heal 5 and loose Rain of Arrows — 45 mana for 10 damage in a 3-square radius around you (3 charges, one back every 15 tempo, and charges refill even when some remain). Grants Huck: deal damage equal to your armor, then lose all of it (100 mana, 5 tempo)."
+description = "+8 STR, -4 AGI, -5 WIS, +55 health, -3 hand size. 5 card slots (2 bonus, 3 plain). On-self: any card gets +8 block (armor on a card that blocks nothing). Overdraw: heal 5 and loose Rain of Arrows — 45 mana for 10 damage in a 3-square radius around you (3 charges, one back every 15 tempo, and charges refill even when some remain). Grants Huck: deal damage equal to your armor, then lose all of it (100 mana, 5 tempo)."

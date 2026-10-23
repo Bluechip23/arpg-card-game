@@ -11,7 +11,7 @@ level_3_overrides = {
 "agility_bonus": 6,
 "ranged_range_bonus": 3
 }
-level_3_description = "+3 range on ranged offensive cards, +6 AGI, +3 DEX, +5 WIS. 3 card slots. On-self: half the card's mana cost is paid as life instead. Grants Territorial Mark: a 15-damage arrow whose flight path — and the 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside the mark are Weakened until they leave it (45 mana + 35 health, 5 tempo, range 10)."
+level_3_description = "+3 range on ranged offensive cards, +6 AGI, +3 DEX, +5 WIS. 4 card slots (3 bonus, 1 plain). On-self: any card pays half its mana cost as life instead. Grants Territorial Mark: a 15-damage arrow whose flight path — and the 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside the mark are Weakened until they leave it (45 mana + 35 health, 5 tempo, range 10)."
 weight = 25
 dexterity_bonus = 2
 wisdom_bonus = 4
@@ -22,6 +22,6 @@ card_slots = 3
 vanilla_slots = 1
 on_self_mana_to_life = true
 ranged_range_bonus = 2
-description = "+2 range on ranged offensive cards, +5 AGI, +2 DEX, +4 WIS. 3 card slots. On-self: half the card's mana cost is paid as life instead. Grants Territorial Mark: a 15-damage arrow whose flight path — and the 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside the mark are Weakened until they leave it (45 mana + 35 health, 5 tempo, range 10)."
+description = "+2 range on ranged offensive cards, +5 AGI, +2 DEX, +4 WIS. 4 card slots (3 bonus, 1 plain). On-self: any card pays half its mana cost as life instead. Grants Territorial Mark: a 15-damage arrow whose flight path — and the 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside the mark are Weakened until they leave it (45 mana + 35 health, 5 tempo, range 10)."
 appearance = "A longbow of divine origin: golden limbs, a bright string, and the blue glisten of its territorial mark drifting off the wood."
 appearance_icon = "res://assets/items/mythic/bow_of_arash.png"

@@ -178,13 +178,21 @@ static func supports(character_name: String) -> bool:
 ## base name; quiz-built characters and pre-`base_character` saves carry a
 ## preset's passive, so they resolve through that; anything else wears Brad's
 ## sheet (setup()'s own default).
+const LEGACY_PASSIVE_TEXT := {
+	"Belt cards cost 1 less mana": "Belt cards cost 10 less mana",
+	"Gain 1 mana when gauntlet skill comes off cooldown": "Gain 10 mana when gauntlet skill comes off cooldown",
+}
+
 static func preset_for(data: CharacterData) -> String:
 	var base := data.get_base_character()
 	if ROSTER.has(base):
 		return base
 	if data.passive_description != "":
+		# Saves made before 2026-10-22 carry the old "1 mana" wording of
+		# Ryan's and Cory's passives (the code always gave 10).
+		var desc: String = LEGACY_PASSIVE_TEXT.get(data.passive_description, data.passive_description)
 		for preset in CharacterData.get_all_characters():
-			if preset.passive_description == data.passive_description:
+			if preset.passive_description == desc:
 				return preset.character_name
 	return "Brad"
 

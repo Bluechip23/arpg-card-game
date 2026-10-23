@@ -417,7 +417,8 @@ func holds_ranged_weapon() -> bool:
 			return true
 	return false
 
-## True when the hands hold a magic weapon (wand, tome, staff). Only the
+## True when the hands hold a magic weapon (wand, book, staff — books are
+## the TOME weapon subtype; their slots take Wand cards). Only the
 ## basic Attack card treats these as ranged; every other Conditional card
 ## goes by the bow alone.
 func holds_magic_weapon() -> bool:
@@ -936,13 +937,14 @@ func _remove_card_from_all_zones(card: Card) -> bool:
 	return hand_changed
 
 #endregion
-#region TURN PROCESSING
+#region CYCLE PROCESSING
 # ============================================
-# TURN PROCESSING
+# CYCLE PROCESSING
 # ============================================
 
+## Runs once per 5-tempo cycle (DrawTimer.take_turn; the name is historical).
 func process_turn() -> void:
-	# Reset per-turn tracking
+	# Reset per-cycle tracking
 	ring_triggered_this_turn = false
 	armor_gained_this_turn = 0
 	ring_cycle_count += 1
@@ -1375,7 +1377,7 @@ func use_gauntlet_skill(gauntlet: ItemData, target = null) -> bool:
 	# Start cooldown
 	gauntlet.activate_skill()
 	
-	print("[INVENTORY] Used skill: %s (CD: %d turns)" % [gauntlet.gauntlet_skill_name, gauntlet.gauntlet_skill_cooldown])
+	print("[INVENTORY] Used skill: %s (CD: %d cycles)" % [gauntlet.gauntlet_skill_name, gauntlet.gauntlet_skill_cooldown])
 	return true
 
 func _execute_gauntlet_skill(gauntlet: ItemData, target) -> void:

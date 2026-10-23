@@ -58,7 +58,7 @@ var debuff_type: DebuffType
 var debuff_name: String
 var description: String
 var value: int = 0           # The 'x' value (damage, reduction, etc.) — the stack count for stack-clocked types
-var duration: int = 0        # Tempo remaining (-1 for until cleansed)
+var duration: int = 0        # Tempo remaining (-1 = no timer: stack-driven, until played, or until cleansed)
 var source_name: String = "" # What applied this debuff
 
 # For tracking
@@ -145,7 +145,7 @@ func _set_name_and_description() -> void:
 			description = "Deal 20% less damage and deal 20% damage to self"
 		DebuffType.FROZEN:
 			debuff_name = "Frozen"
-			description = "Cannot play cards"
+			description = "Cannot play cards, auto attack or Block"
 		DebuffType.CUFFED:
 			debuff_name = "Cuffed"
 			description = "Cannot draw cards"

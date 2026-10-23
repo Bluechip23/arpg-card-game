@@ -12,4 +12,4 @@ weapon_subtype = 5
 card_slots = 1
 vanilla_slots = 2
 on_self_crit_percent = 15.0
-description = "+3 AGI, +1 DEX. On-self: +15% crit chance."
+description = "+3 AGI, +1 DEX. On-self: any card gets +15% crit chance."

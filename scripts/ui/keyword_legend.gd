@@ -35,7 +35,7 @@ func _build_legend() -> void:
 	_add_keyword("Burn", "Burn damage doubles each cycle (1, 2, 4, 8...); attacking while burning also triggers the current burn damage", Color(1.0, 0.5, 0.0))
 	_add_keyword("Poison", "Take X damage per cycle, lose 1 poison each cycle", Color(0.2, 0.8, 0.2))
 	_add_keyword("Cursed", "Deal 20% less damage and deal 20% damage to self", Color(0.3, 0.0, 0.3))
-	_add_keyword("Frozen", "Cannot play cards (a frozen enemy cannot act at all)", Color(0.5, 0.8, 1.0))
+	_add_keyword("Frozen", "Cannot play cards, auto attack or Block (a frozen enemy cannot act at all)", Color(0.5, 0.8, 1.0))
 	_add_keyword("Cuffed", "Cannot draw cards", Color(0.5, 0.5, 0.5))
 	_add_keyword("Shocked", "Arc X damage to nearby allies per cycle (a shocked enemy takes it itself), lose 1 per cycle", Color(1.0, 1.0, 0.3))
 	_add_keyword("Slowed", "Movement costs 3 tempo per tile instead of 1. Each stack lasts 5 tempo on its own clock; moving burns nothing", Color(0.3, 0.3, 0.6))
@@ -92,7 +92,7 @@ func _build_legend() -> void:
 	_add_section_header("RANGE")
 	_add_keyword("Melee", "Card must be used at close range (default for all cards)", Color(0.9, 0.6, 0.3))
 	_add_keyword("Ranged", "Card can be used at distance. Base range = 5 tiles. Ranged +X = 5+X, Ranged -X = 5-X", Color(0.3, 0.8, 0.9))
-	_add_keyword("Conditional", "Takes the reach of the weapon in hand: melee with a melee weapon (sword, axe, dagger, hammer, spear) or bare hands; Ranged 5 with a bow. The basic Attack card is also Ranged 5 with a magic weapon (wand, tome, staff). Costs +1 tempo while it plays as ranged", Color(0.6, 0.8, 0.7))
+	_add_keyword("Conditional", "Takes the reach of the weapon in hand: melee with a melee weapon (sword, axe, dagger, hammer, spear) or bare hands; Ranged 5 with a bow. The basic Attack card is also Ranged 5 with a magic weapon (wand, staff). Costs +1 tempo while it plays as ranged", Color(0.6, 0.8, 0.7))
 
 	# AOE Section
 	_add_section_header("AOE (AREA OF EFFECT)")
@@ -102,13 +102,13 @@ func _build_legend() -> void:
 
 	# Card-Item Slot Section
 	_add_section_header("CARD-ITEM SLOTS")
-	_add_keyword("Enchant", "Places a card into an item's card slot. Card is removed from the deck. Card keyword must match item type", Color(0.8, 0.6, 1.0))
-	_add_keyword("Extract", "Removes a card from an item's card slot and returns it to the discard pile", Color(1.0, 0.4, 0.4))
+	_add_keyword("Enchant", "Places a card into an item's card slot. The card stays in your deck (one from the card inventory joins it). Its slot label must match the item", Color(0.8, 0.6, 1.0))
+	_add_keyword("Extract", "Removes a card from an item's card slot. It stays in your deck — unless the base deck is full (or it is an Engrave card), then it goes to the card inventory", Color(1.0, 0.4, 0.4))
 	_add_keyword("On-Self", "Bonus effects that apply to cards slotted in that specific item, on top of the item's base bonuses", Color(0.6, 0.9, 0.6))
 
 	# Movement Section
 	_add_section_header("MOVEMENT")
-	_add_keyword("Pass-Through", "Moving through a tile occupied by anyone else (ally or enemy) always costs 2 tempo, regardless of Flash points", Color(1.0, 0.5, 0.5))
+	_add_keyword("Pass-Through", "Squeezing past an enemy costs 2 extra tempo for that tile, regardless of Flash points", Color(1.0, 0.5, 0.5))
 
 	# Card Types Section
 	_add_section_header("CARD TYPES")
@@ -116,7 +116,7 @@ func _build_legend() -> void:
 	_add_keyword("Defense", "Protective cards that grant armor or block", Color(0.3, 0.5, 1))
 	_add_keyword("Utility", "Support cards for draw, healing, buffs, etc.", Color(0.3, 1, 0.3))
 	_add_keyword("Power", "Persistent effect cards with a Maintain cost. Reserves mana from your max pool while active. If mana drops to 0, all maintained cards are discarded", Color(0.8, 0.5, 1.0))
-	_add_keyword("Reaction", "Triggers automatically from hand when a condition is met (e.g., on damage taken). Costs 0 mana and 0 tempo", Color(1, 0.8, 0.2))
+	_add_keyword("Reaction", "Triggers automatically from hand when a condition is met (e.g., on damage taken). Costs 0 mana, and no tempo unless the card shows one", Color(1, 0.8, 0.2))
 	_add_keyword("Unplayable", "Cannot be played. Takes up a hand slot (e.g., Lightly Dazed)", Color(0.5, 0.5, 0.5))
 
 	# Card Keywords Section
@@ -138,7 +138,7 @@ func _build_legend() -> void:
 	_add_keyword("Sticky", "Card stays in hand for X uses before being discarded. Does not leave hand after playing", Color(0.8, 0.8, 0.3))
 	_add_keyword("High Ground", "Ranged attacks from elevated positions deal +4 damage and gain +2 range. Some cards require high ground", Color(0.6, 0.4, 0.2))
 	_add_keyword("Maintain", "Reserves X mana from your max mana pool while the card is active. The effect persists each cycle. If your mana drops to 0 by any means, all maintained cards are discarded and their effects end", Color(0.8, 0.5, 1.0))
-	_add_keyword("Cycle", "1 cycle = every 5 tempo. Mana regen, card draws, buff/debuff ticks, and armor decay all happen per cycle", Color(0.7, 0.7, 0.9))
+	_add_keyword("Cycle", "1 cycle = every 5 tempo. Mana regen, buff/debuff ticks, and armor decay all happen per cycle; the timed card draw comes every 5 cycles (25 tempo)", Color(0.7, 0.7, 0.9))
 	_add_keyword("Glut", "Lose the ability to play cards for X tempo. Players must press the wait button if playing solo", Color(0.9, 0.4, 0.4))
 	_add_keyword("Delay", "Tempo until the effect takes place", Color(0.6, 0.6, 0.9))
 	_add_keyword("Instant", "Card triggers automatically from hand when its condition is met. Costs 0 mana", Color(1.0, 1.0, 0.5))

@@ -171,7 +171,7 @@ const MARKED_BONUS_PERCENT := 15  # Mark: the player's attacks deal +15% to a ma
 var is_silenced: bool = false  # Cannot cast spells/ranged special attacks when silenced
 var silenced_tempo: int = 0    # Remaining tempo cycles for silence
 var choke_dot_stacks: int = 0  # Choke: take choke_dot_damage per cycle, lose 1 stack per cycle
-var choke_dot_damage: int = 3  # Set at cast: half the caster's auto-attack damage
+var choke_dot_damage: int = 3  # Set at cast (Choke sets a flat 2)
 var cold_stacks: int = 0       # Cold stacks - at 5, becomes frozen; thaws COLD_THAW_PER_CYCLE per cycle
 const COLD_THAW_PER_CYCLE := 3
 var is_frozen: bool = false    # Cannot act when frozen
@@ -1152,7 +1152,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.FIRE_GOBLIN_SOLDIER: "Melee rusher (range 0).\nAttack (3 tempo): 2 damage.\nMove (2 tempo): 4 spaces.",
 		EnemyType.FIRE_GOBLIN_MAGE: "Ranged caster (range 4).\nEmber (4 tempo): 7 damage + 1 burn.\nMove (3 tempo): 2 spaces.",
 		EnemyType.FIRE_GOBLIN_SHAMAN: "Support caster (range 5).\nFire Wall (8 tempo): raises a wall; if the player walks into it they take 6 damage + 3 burn.\nSear Wounds (6 tempo): 2 damage to all allies (can kill), then heals survivors 6.\nMove (3 tempo): 2 spaces.",
-		EnemyType.GIANT_BEAVER: "Resists 25% physical.\nChomp (4 tempo): 9 damage, stuns 3 tempo. Then Tail Whip (2 tempo later): 6 damage + 5 Vulnerable (15 tempo).\nMove (6 tempo): 3 spaces.",
+		EnemyType.GIANT_BEAVER: "Resists 25% physical.\nChomp (4 tempo): 9 damage, stuns 3 tempo. Then Tail Whip (2 tempo later): 6 damage + 5 Vulnerable (5 stacks, 5 tempo each).\nMove (6 tempo): 3 spaces.",
 		EnemyType.MINI_BEAR: "Travels in packs. When a packmate in sight is hurt, gains +2 attack damage.\nAttack (3 tempo): 4 damage.\nMove (5 tempo): 5 spaces.",
 		EnemyType.LARGE_BEAR: "Below 50% HP: gains 30% physical resistance FOREVER, and rages — attacks deal 1.5x, apply double Bleed, and the bear heals from your bleed damage. With Mini Bears present, gains 1 Strengthen (+1 damage) every time it is hurt. Drops to all fours below 20% HP.\nMaul (4 tempo): 12 damage + 4 Bleed.\nRoar (3 tempo, every 15 tempo): Vulnerable to everything within 4 squares.\nMove (7 tempo): 6 spaces.",
 		EnemyType.WOLF: "Within 4 tiles of another wolf: +2 HP regen/cycle and +2 attack damage.\nBite (5 tempo): 7 damage.\nMove (3 tempo): 4 spaces.",
@@ -1167,10 +1167,10 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.AIR_MAGE: "Long-range caster.\nGust (range 8, 5 tempo): 5 wind damage.\nMove (3 tempo): 6 spaces.",
 		EnemyType.EARTH_MAGE: "Gains 4 armor every time it is hit.\nBoulder (melee, 6 tempo): 9 earth damage.\nMove (5 tempo): 5 spaces.",
 		EnemyType.ZOMBIE: "Slow, beefy undead.\nAt range ≤1: Attacks (5 dmg, 6 tempo).\nOtherwise: shambles toward player (3 spaces / 8 tempo).",
-		EnemyType.WEREWOLF: "Bear-sized grey beast with armor-piercing claws. Resists 25% physical/fire/lightning.\nClaw (5 tempo): 10 damage, +3 vs armor; a debuffed target is raked a SECOND time for half. Each consecutive claw on the same target arms 1 tempo faster (5, 4, 3...); switching targets resets it.\nMove (3 tempo): 3 spaces.",
+		EnemyType.WEREWOLF: "Bear-sized brown beast that stalks on its hind legs, with armor-piercing claws. Resists 25% physical/fire/lightning.\nClaw (5 tempo): 10 damage, +3 vs armor; a debuffed target is raked a SECOND time for half. Each consecutive claw on the same target arms 1 tempo faster (5, 4, 3...); switching targets resets it.\nMove (3 tempo): 3 spaces.",
 		EnemyType.WERERABBIT: "Loot monster — does not attack.\nFlees for 3 cycles, then Vanishes in a puff of smoke.\nMove (1 tempo): 2 spaces.",
 		EnemyType.VAMPIRE: "Victorian aristocrat with life steal. Resists 10% physical/fire/lightning.\nBite (5 tempo): 10 damage; heals 100% of damage dealt to HEALTH (not armor).\nBat Form (below 50% HP, 2 charges, never recharges): flits 6 squares away...\nAbsorb (3 tempo, always right after Bat Form): drains the healthiest ally on the map (you included) — 20 the first time, then 10.\nMove (5 tempo): 5 spaces.",
-		EnemyType.NECROMANCER: "Hooded caster (range 10) who raises the dead. Resists 15% fire/lightning.\nBolt (5 tempo): 4 damage + Hexes 2 cards in your hand (each +30 mana until played).\nSummon (8 tempo): raises undead (skeletons and zombies, first pass).\nRaise the Fallen (passive): every summon of his that dies rises again as a Skeleton — and costs him 10 health; any other ally that dies within 8 squares of him rises as a Skeleton too. A risen Skeleton rises no further and costs him nothing.\nMove (6 tempo): 8 spaces.",
+		EnemyType.NECROMANCER: "Hooded caster (range 10) who raises the dead. Resists 15% fire/lightning.\nBolt (5 tempo): 4 damage + Hexes 2 cards in your hand (each +30 mana until played, for up to 25 tempo).\nSummon (8 tempo): raises undead (skeletons and zombies, first pass).\nRaise the Fallen (passive): every summon of his that dies rises again as a Skeleton — and costs him 10 health; any other ally that dies within 8 squares of him rises as a Skeleton too. A risen Skeleton rises no further and costs him nothing.\nMove (6 tempo): 8 spaces.",
 		EnemyType.BONE_DRAGON: "Skeletal wyrm. Fought as a boss in the Boneyard, where every standing gravestone regenerates it 1 health a cycle (Gravebound — break the stones, and kill the diggers who repair them). Resists 45% physical / 45% fire.\nBite (5 tempo): 12 damage.\nBreath Swarm (6 tempo): 12 damage down a 6-tile line; a Swarm hatches beside everyone it hits.\nMove (5 tempo): 5 spaces.",
 		EnemyType.SPIRIT_COLLECTOR: "Lantern-bearer with a soul cage on its back. Strengthen it gains adds to every Strike and Collect Soul and never fades.\nStrike (3 tempo): 8 damage.\nCollect Soul (8 tempo): 8 damage; adds a 'Release Soul' card to your hand. While it is in your hand you are Drained (10 mana a cycle) and it saps 1 damage per tempo (charged 5 at each cycle). Play it (15 mana, 2 tempo) to be rid of it — but releasing the soul gives every living Spirit Collector 5 Strengthen.",
 		EnemyType.GRAVE_TITAN: "Yeti-like brute (30 armor) hauling a boulder.\nSmash (8 tempo): 15 damage in front.\nBoulder Roll (range 3, 5 tempo): rolls the boulder for 15 damage.\nMove (8 tempo): 4 spaces.",
@@ -3497,7 +3497,7 @@ func _try_tail_whip(target_node: Node3D) -> bool:
 	_beaver_followup = false
 	if not is_disarmed and _in_attack_range(target_node):
 		_deal_damage_to_player(target_node, maxi(1, roundi(6 * _pps_dmg)), "Tail Whip")
-		# Vulnerable: target takes extra damage (≈15 tempo window).
+		# Vulnerable: target takes extra damage (5 stacks, 5 tempo each).
 		_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.VULNERABLE, 5, 15))
 		turn_completed.emit()
 		return true
@@ -7077,7 +7077,7 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			remaining = "Remaining: %d tempo" % stun_tempo
 		"Polymorph":
 			desc = "A pig: it can only walk and make basic melee attacks."
-			remaining = "Remaining: %d tempo" % polymorph_tempo
+			remaining = "Remaining: %d cycle(s)" % polymorph_tempo
 		"Frozen":
 			desc = "Cannot act at all."
 			remaining = "Remaining: %d tempo" % frozen_tempo

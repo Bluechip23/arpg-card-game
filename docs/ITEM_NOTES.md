@@ -9,7 +9,8 @@ the designer intent that `.tres` cannot hold. Grouped as the factories were.
 ### `return_scroll`
 Utility scroll every adventurer carries: right-click it in the
 inventory to open a town portal where you stand. The portal's twin
-appears in town, and stepping through either end crosses over.
+appears in town, and stepping through either end crosses over. Coming
+back through it closes the portal (it is spent; no re-open).
 - `item.item_type = ItemType.SCROLL` — utility scroll — never equips
 
 ## TUTORIAL GIFT (Olorin's trade for the Bladed Doughnut)
@@ -98,7 +99,7 @@ first-pass numbers.
 
 ### `hermes_boots`
 - `item.on_self_flash_regen = 1` — slotted card restores 1 flash point
-- `item.trap_damage_percent = 25.0` — stored; applies once the trap system exists
+- `item.trap_damage_percent = 25.0` — traps deal +25% damage (main's trap damage step reads it)
 
 ### `jordan_1s`
 - `item.missing_life_damage_rate = 0.5` — +0.5 damage per missing enemy-health %
@@ -129,7 +130,7 @@ row add a Switch Kick to the hand (20 tempo CD).
 - `item.gauntlet_skill_cooldown = 4` — 20 tempo, read by main's 3 count trigger
 
 ### `spidey_web_shooters`
-- `item.on_self_disarm_offensive = 1` — 1 stack = 5 tempo of Disarm: the target skips its next attack
+- `item.on_self_disarm_offensive = 1` — 1 stack = 5 tempo of Disarm: the target cannot attack while it lasts
 
 ### `gravity_gauntlets`
 - `item.on_self_root_offensive = 1` — hold for 1 cycle (5 tempo)
@@ -168,7 +169,8 @@ it); design will revisit how weapon damage should work.
 ### `mauls_sabre`
 The first colored-slot item: a blue slot and a red slot, each carrying
 its own payload, with combos for weaving one immediately after the
-other. The colored-slot system debuts here and nowhere else for now.
+other. The colored-slot system debuted here (the Crooked Dueling Shield
+and Feral Evocation followed).
 
 ### `poseidons_trident`
 Wrath of the Sea granting 18 mana per enemy at Lv.3 is read live off
@@ -204,13 +206,14 @@ are the one-handed exceptions — thrown "bows" that still pair with a quiver.
 
 SHIELDS (first shields pass — the off hand that fights back)
 Shields are hand items like any other weapon (Inventory gates them purely by
-weight), and they take ANY card in their slots. Three ideas run through the
+weight), and their slots take Buckler-labelled cards. Three ideas run through the
 set: flat damage reduction that shrugs off chip damage, punishment for the
 enemy who chose to swing at you, and Overdraw — a full hand turning an
 unwanted draw into a payout.
 ### `elemental_emblem`
 The design sheet gives this legendary a stat line and nothing else — no
-slots, no card, no rider. Left exactly as specified.
+bonus slots, no card, no rider. Left exactly as specified. (Since the
+2026-10-20 slot table it has 2 plain slots.)
 
 ### `delfins_deterministic_round_shield`
 Mage Shield's block reads the shield's level live at play time (see the
@@ -227,8 +230,10 @@ who plays them back to back in either order.
 
 ## SPELL WEAPONS (spell weapons pass 1)
 
-Wands, tomes and orbs share a hand; anything marked STAFF demands both
+Wands, books and orbs share a hand; anything marked STAFF demands both
 (Inventory.is_two_hand_only). Orbs are wands with a rounder silhouette.
+The books (Fire/Frost/Earth Book) keep the TOME weapon subtype, but the
+Tome slot label was folded into Wand on 2026-10-20: their slots take Wand cards.
 ### `wand_of_the_phoenix_feather`
 From the Ashes healing x8 / regen 3/4 at Lv.3 is read live off item_level
 (see _execute_from_the_ashes in Card).

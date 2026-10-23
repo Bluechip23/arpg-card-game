@@ -12,7 +12,7 @@ level_3_overrides = {
 "health_bonus": 45,
 "strength_bonus": 20
 }
-level_3_description = "+20 STR, +45 life. On-self: double damage, double mana cost. Grants Gift from the Gods: gain 4 Enlightened and cleanse 3 negative effects."
+level_3_description = "+20 STR, +45 life. On-self: a card that deals damage deals double damage; any card costs double mana. Grants Gift from the Gods: gain 4 Enlightened and cleanse 3 negative effects."
 weight = 50
 strength_bonus = 15
 health_bonus = 30
@@ -21,6 +21,6 @@ card_slots = 1
 vanilla_slots = 1
 on_self_damage_multiplier = 2.0
 on_self_mana_multiplier = 2.0
-description = "+15 STR, +30 life. On-self: double damage, double mana cost. Grants Gift from the Gods: gain 3 Enlightened (10% crit chance, one stack consumed per attack)."
+description = "+15 STR, +30 life. On-self: a card that deals damage deals double damage; any card costs double mana. Grants Gift from the Gods: gain 3 Enlightened (10% crit chance, one stack consumed per attack)."
 appearance = "Thor's girdle: a broad iron-studded leather band with a massive square buckle scored with runes."
 appearance_icon = "res://assets/items/mythic/megingjord.png"

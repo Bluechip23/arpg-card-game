@@ -1,52 +1,56 @@
 # Character Playstyle Write-Ups
 
-Every character starts from the exact same place: the same stat pool, the same 5-card basic
-deck (Slash, Exposing Strike, Block, Braced Draw, Heal — `BASIC_DECK_IDS` in
-`deck_manager.gd`), the same hand size, and **no equipment**. There are no per-character
-starter decks and no card is locked to a character. What separates the five is their
-**built-in passives**: the character passive and slot specialty from `character_data.gd`, and
-the twelve skill-tree passives from `skill_tree_data.gd`, spread across four archetype lanes.
-
-These write-ups describe only what those passives reward. They do not name cards, because any
-card one character can obtain, any character can use. Numbers are given as rank 1 → rank 15.
+Every character starts from the exact same place: the same stat pool, the same 5-card deck
+(Attack, Exposing Strike, Block, Braced Draw, Heal), the same hand size, and **no equipment**. All
+cards are neutral — no card is locked to a character (skill trees may grant specific cards as
+level-up picks, but anything one character can obtain, any character can use). What separates
+the five is *how their kit wants to be played*: the conditions their passives reward, the gear
+slot their specialty exploits, and the cards those passives make shine. These write-ups
+describe the playstyle each kit produces, not a class fantasy.
 
 ---
 
-## Ryan — a hand that never sits still
+## Ryan — play out of your pockets, treat your hand like a conveyor belt
 
-**Character passive:** belt cards cost 1 less mana. **Slot specialty:** 2 belt slots.
+Ryan is for players who want their hand constantly moving. His passives turn discarding — 
+normally a dead action — into fuel: every 18→4 discards (rank-scaled) shave -3 tempo off a
+random card still in your hand (*Keep Them Guessing*), and cards like **Exacerbate Wounds** (damage per card
+discarded), **Reposition** (discard one, draw one), and **Volatile Mixture** (a hot potato that
+deals 8 to an enemy if discarded — or 8 to *you* if you're still holding it) all reward the
+churn. The churn now has a payoff button: *Ladder Work* banks every card that hits his discard
+pile **without being played** — deliberate discards, instants firing on their own, enchantments
+expiring — and cashes the count in as bonus damage on his first attack of the next cycle.
+Everything that slips out of his hand sideways sharpens the opening knife.
 
-**Lanes:** Relentless Blade (constant pressure, a thousand cuts), Light Foot (always aware,
-every move planned), Apothecary (potions and ailments nobody can predict), Shadow Blade
-(weaving in and out, striking where the enemy is weakest).
+His second axis is *sequencing*. Several passives care about what you just did, not what you're
+doing: *From the Hip* discounts your most recently drawn attack until you play anything,
+*Nimble Assault* rewards holding a hand with no Defense cards in it by turning offensive cards
+into draws (on a rank-scaled 15→8 tempo cooldown), *Surprise Opener* front-loads his
+aggression (rank-scaled: +1→8 on his first strike against an enemy, +1→15 more if they had no
+armor, +3→17 more if he's the first thing to touch them — up to +40 for a clean max-rank
+ambush), and *Mad Scientist* literally changes what his potions do based on the
+last card played. Playing Ryan well means thinking one card ahead, all the time — and the
+endgame deck this points toward is radical: **cull every Defense card**, let Agility's
+sidestep and movement provide the blocking, and run pure attacks, utilities, and instants so
+Nimble Assault never turns off and every reaction feeds the Ladder Work spike.
 
-Ryan's passives reward motion in three senses: cards moving, Ryan moving, and the fight
-opening on his terms.
+**Gear identity:** Ryan runs **2 belt slots** (most characters get one) and his character
+passive makes **belt cards cost 1 less mana**. Belts are the game's Pocket-card item type —
+they grant and slot cheap 1-tempo consumables like Healing Potion and Dagger Throw — so a
+belted-up Ryan effectively carries a second, nearly-free deck at his waist that keeps his queue
+full while his real hand cycles. *Stimulant* even makes Pocket heals draw the healed character
+a card. He starts with nothing equipped, so hunting belts early is his natural gearing arc.
 
-- **Cards moving.** Discarding is fuel, not waste: every 18→4 discards shave 3 tempo off a
-  random card in hand (*Keep Them Guessing*), and every card that reaches the discard pile
-  *without* being played last cycle adds +1→6 damage to his first attack this cycle
-  (*Ladder Work*, which also grants +1→8 dexterity and +1→15 agility). Holding a hand with no
-  Defense cards turns every offensive card into a draw on a 15→8 tempo cooldown
-  (*Nimble Assault*), and the most recently drawn card, if it is an attack, is discounted
-  -10→-75 mana until anything is played (*From the Hip*). Instants played from hand grant 2→16
-  armor (*Quick Step*).
-- **Ryan moving.** Every cycle he gains armor and deals damage to the nearest enemy equal to
-  the spaces he moved, divided by 8→1 (*Let's Dance*). Any displacement — blinking, being
-  swapped, any non-standard movement — makes him invisible for 5 tempo (*Now You See Me*,
-  15→1 tempo cooldown), and every 15th→1st critical strike does the same (*Eye Scrape*).
-- **Opening on his terms.** His first strike on an enemy deals +1→8, another +1→15 if they
-  have no armor, and another +3→17 if he is the first thing to damage them (*Surprise
-  Opener*) — up to +40 for a clean max-rank ambush out of invisibility.
+**Cards that sing in his hands:** fast, cheap, and sneaky ones. **Shuriken Pouch** turns
+overflow cards into free 3-damage Shurikens, **Preparation** discounts his next two utilities,
+**Shadows** grants invisibility — which his passives hand out for free when he blinks or gets
+displaced (*Now You See Me*) and on every 15th→1st crit (*Eye Scrape*, rank-scaled). The poison line
+(**Poisoned Blood**, **Elixir**, *Pop Rocks* — burst damage for re-poisoning an already
+poisoned enemy) rewards committing to stacking one target rather than spreading damage around.
 
-The Apothecary lane turns his pocket into a toolkit: healing with a Pocket card draws the
-healed character a card (*Stimulant*), re-poisoning an already poisoned enemy deals a third
-of their poison stacks as burst (*Pop Rocks*), and the last card played changes what his
-potions do — regen, Strengthen, extra poison stacks or a physical-defense cut depending on
-whether a utility, attack or defense came before (*Mad Scientist*).
-
-**Pick Ryan if you want:** to think one card ahead, to be rewarded for churning your hand and
-for moving across the grid, and to win fights with ambushes rather than slugging matches.
+**Pick Ryan if you want:** a high-APM hand that never sits still, damage that comes from many
+small cheap actions instead of big swings, and win conditions built on ordering your plays
+correctly.
 
 ---
 
@@ -89,114 +93,144 @@ build a three-ring trigger engine that doubles up every third cycle.
 
 ---
 
-## Stephen — rhythm: chain fast, or swing slow, never in between
+## Stephen — rhythm and momentum: chain fast, or swing slow — never in between
 
-**Character passive:** +10% off-hand enchantment effectiveness (every other character takes
-−10%). **Slot specialty:** weapon swaps cost 1 tempo, and the weapon portion of a build
-switch is free.
+Stephen is the tempo-system character. Almost every passive he has cares about *cadence* —
+the order and speed of your plays — and his kit supports two opposite rhythms:
 
-**Lanes:** The Apex (the most efficient killer, master of offense), Sentinel (melee duelist,
-armor nobody scratches), Ranger (distance, elements, stronger arrows), Avenger (huge, potent,
-tires fast — timing is everything).
+**The chain:** a rank-scaled streak of 10→3 attacks in a row makes the next resolve **twice**
+(*Skilled Momentum*, 5-tempo cooldown); hitting the *same* enemy three times in a row banks
++2→6 range and an auto-crit with +2%→30% crit damage on your next attack — spendable on **any**
+target (*Scouted*), so a melee Stephen can grind the streak on the enemy in his face and then
+whip a Dagger Throw at the archer in the back; triggering an attack-speed proc mints a
+30-mana/0-tempo basic attack and rank-scaled Strengthen, at most once per 5 tempo
+(*Dominate*). Alternating also
+pays: drawing a Defense card right after playing an attack (or vice versa) discounts its tempo,
+and the drawn card also gains a flat +1→8 block when it resolves, attacks included (*Clean Exchange*). This is a build about not
+breaking stride. And positioning is damage too: *Deadly* grants +2→16 damage and +2%→30% crit
+damage against a target with **no allies within 2 spaces** — picking off stragglers, or
+splitting a pack before the kill, is part of the rhythm.
 
-Almost every Stephen passive cares about cadence: what he played last, how many in a row,
-and how heavy the swing was.
+**The haymaker:** any card costing more than 4 tempo deals 100%→380% of its tempo cost as
+*bonus damage* (*Swing for the Fences*), and receiving Glut converts 10%→290% of it into
+damage and halves it (*Patience is a Virtue*). Cards like **Tighten String** (+3 tempo, +6 damage, +6 range, +20%
+crit on your next 3 shots), **Sky Fall** (an arrow that lands 10 tempo later for 18), and
+**Lead Arrow** (1.8× damage from high ground) let you deliberately play slow and heavy instead.
 
-- **The chain.** 10→3 attacks in a row make the next resolve twice (*Skilled Momentum*).
-  Hitting the same enemy three times banks +2→6 range and an auto-crit with +2%→30% crit
-  damage for his next attack, spendable on *any* target (*Scouted*). Exposing an enemy deals
-  his damage again and grants +1→15 Strengthen for 3 attacks (*Easy Target*). An attack-speed
-  proc mints a free 0-tempo basic attack and +2→16 Strengthen (*Dominate*).
-- **The alternation.** Drawing a Defense card right after an offensive play, or vice versa,
-  discounts the drawn card 1 tempo and gives it +1→8 block on top of whatever it does, attacks
-  included (*Clean Exchange*). With 3 or fewer cards in hand, playing a non-attack card
-  triggers a free basic attack (*Lethal Resourcefulness*, 40→12 cooldown), so even his blocks
-  keep pressure on.
-- **The haymaker.** Any card costing more than 4 tempo deals 100%→380% of that cost as bonus
-  damage (*Swing for the Fences*), and incoming Glut is turned into 10%→290% damage on the
-  nearest enemy and halved (*Patience is a Virtue*).
+He also runs lean comfortably: with 3 or fewer cards in hand, playing a non-attack card
+triggers a **free basic attack** on a rank-scaled 40→12 tempo cooldown
+(*Lethal Resourcefulness*), so even his Blocks keep the pressure on when his hand runs low.
 
-Position is damage too: +2→16 damage and +2%→30% crit damage against a target with no allies
-within 2 spaces (*Deadly*), ranged offensive cards add 100%→142% of their range as damage
-(*Eagle Eye*), and burn, cold or shock has a 50%→100% chance to apply an extra charge (*Laced
-Arrow*). Being hit in melee is not wasted either: crit chance on his next attack rises by
-1%→4.5% per non-attack card he is holding (*Exposed Blind Spot*).
+**Gear identity:** Stephen's slot layout is standard, but steel is his trade: **weapon swaps cost him
+1 tempo less and no mana**, and the weapon portion of a build switch is free. His character passive gives him
+**+10% off-hand enchantment effectiveness while every other character takes −10%**. Off-hands
+normally apply their bonuses at reduced strength — Stephen is the one character whose second
+weapon, quiver, or shield works at full power, which makes him the game's best dual-wielder
+and bow-and-quiver user once he's geared up.
 
-**Pick Stephen if you want:** a playstyle about sequencing and momentum — uninterrupted
-attack chains, deliberate alternation, or deliberately slow oversized swings — plus range,
-isolation kills, and the only full-strength off-hand in the game.
+**Cards that sing in his hands:** the ranged suite — **Quick Shot** (damage + draw),
+**Reload** (draw 3), **Enchanted Quiver** (free Quick Arrows), **Multishot** (three hits with
+climbing crit), **Spirit Arrow** (pierces everything in a line), **Bottomless Quiver** (banks
+overflow attacks for later), **Last Breath** (dump all mana for 3 damage per point) — plus
+*Laced Arrow* giving a 50%→100% chance to double every burn/cold/shock he applies, ranged
+cards dealing bonus damage from their range (*Eagle Eye*), and terrain cards (**Rise**,
+**Barricade**, **Sky Attack**) that let him *build* his own high ground.
+
+**Pick Stephen if you want:** a playstyle about sequencing and momentum — either uninterrupted
+attack chains or deliberately slow, oversized swings — plus range, elevation, and the only
+full-strength off-hand in the game.
 
 ---
 
-## Cory — arrange the fight, then let it feed you
+## Cory — control the board, stack the debuffs, and never stop playing cards
 
-**Character passive:** gain 1 mana whenever a gauntlet skill comes off cooldown. **Slot
-specialty:** 2 gauntlet slots.
+Cory is for players who win by *arranging* the fight rather than out-statting it. Displacement
+and lockdown cards are his bread and butter: **Round 'Em Up** (drag enemies toward a point),
+**Push**, **Swap**, **Trip** (−4 movement), **Choke** (silence), **Sweeping Disarm**,
+**Vines** (root + damage each cycle it holds). His passives then punish enemies for existing inside
+the arrangement: entering or leaving melee range re-applies a random debuff they already have
+(*Territorial Death*, on a rank-scaled 15→1 tempo cooldown), debuffs he applies carry +1
+charge on a rank-scaled 15→1 tempo cooldown (*Wither*), landing a NEW debuff on a wounded
+enemy deals rank-scaled bonus damage (*Prey on the Weak*), and he **passively regenerates
+health for each enemy within 2 squares of him** (*Death as Lifeblood*). The enemies aren't
+just targets — they are literally his sustain.
 
-**Lanes:** Lurker (stronger as they weaken, trap and devour), Monk (calm, surrounded, helping
-allies by hindering enemies), Druid (the world itself is a weapon), Atrophist (a touch that
-withers the longer the fight runs).
+His second axis is *throughput*. Cory wants to play a lot of cards, of every type: playing an
+attack, a utility, and a defense in any order heals him and grants temp HP (5→19 of each,
+*Budding*), the third card inside one tempo cycle cuts the cost of a random card still in hand (*Self Reliance*),
+emptying his hand draws 4 fresh cards (*Regrowth*, cooldown 25→11 tempo), and shuffling his
+deck grants 10→24 armor and the same damage buff (*Circle of Life*). Even **Meditate** (discard everything, redraw, heal to 80%) plays into the
+reset loop. Nothing in the kit wants you to sit on cards.
 
-Cory's passives make the enemies around him his sustain and their debuffs his damage.
+**Gear identity:** Cory runs **2 gauntlet slots** — gauntlets are the active-skill item type —
+and his character passive grants **1 mana every time a gauntlet skill comes off cooldown**.
+Gauntlets give him what his deck doesn't need to: reliable, repeatable damage on a clock, with
+a mana rebate every rotation. *Energy Barrier* turns every third non-regen mana gain into a
+free armor card (3→17 armor with rank), so the gauntlet rebate itself feeds a defensive engine. He starts
+bare-handed; every pair of gauntlets found is a new skill on his bar.
 
-- **Debuffs as damage.** Landing a new debuff on an enemy below half health deals 3→17
-  (*Prey on the Weak*). Debuffs he applies carry +1 charge on a 15→1 tempo cooldown
-  (*Wither*). An enemy entering or leaving melee range has a random debuff it already carries
-  re-applied (*Territorial Death*). Dropping below 35%→63% health bounces one of his own
-  debuffs onto an enemy, 2 charges on a 10-tempo refresh (*Expel Negativity*).
-- **Enemies as sustain.** Every cycle he regenerates 1→5 HP per enemy within 2 squares, up to
-  3→12 enemies (*Death as Lifeblood*). Kills with a card, gauntlet skill or auto attack heal
-  1%→15% of max HP, and every direct hit deals +1% for each point the target sits below a
-  11%→39% threshold (*Eat*). The first time an enemy drops below 11%→25% he turns invisible to
-  it until he attacks, and that attack auto-crits (*Serial Killer*).
-- **Throughput.** Playing an attack, a utility and a defense in any order heals 5→19 and grants
-  the same temp HP (*Budding*). The third card inside one cycle discounts a random card in
-  hand by 10→80 mana (*Self Reliance*). Emptying his hand draws 4 (*Regrowth*, 25→11
-  cooldown). Shuffling his deck grants 10→24 armor and the same bonus damage for 3 offensive
-  cards (*Circle of Life*). Every third mana gain that isn't regen — the gauntlet rebate
-  included — puts a free Energy Barrier worth 3→17 armor in his hand (*Energy Barrier*).
+**Cards that sing in his hands:** beyond the control suite — **Consecutive Snap** (3 damage
+that grows +9 and gets cheaper each reuse, rewarding repetition), **Defensive Awareness**
+(armor per nearby enemy — he *wants* to be surrounded), **Misery Loves Company** (spread every
+debuff on the board with one AOE), **Release Tension** (cash debuffs in for healing),
+**Exposed Artery** (scales off missing health, finishing what the attrition started), with
+*Eat* turning him into a genuine closer — every direct hit (card, gauntlet skill or auto attack, never a DoT tick) deals +1% for every percentage point the enemy sits
+below a rank-scaled 11%→39% threshold, plus a heal of 1%→15% of his max HP on every kill — and
+*Serial Killer* making him invisible to any enemy that drops below 11%→25%, with the ambush
+out of that invisibility landing as a guaranteed crit (and revealing him). *Expel Negativity*
+rounds out the attrition loop: dropping below 35%→63% health bounces a debuff off him onto an
+enemy (2 charges on a 10-tempo refresh, one per hit).
 
-Nothing in the kit wants him to sit on cards, stand alone, or let a debuff expire.
-
-**Pick Cory if you want:** to win long fights through debuff attrition that heals you while it
-kills them, to be rewarded for standing in the middle of a pack, and a machine-gun cadence
-where hand, deck and gauntlets all cycle continuously.
+**Pick Cory if you want:** to dictate where every enemy and ally on the grid stands, to win long fights
+through debuff attrition that heals you while it kills them, and a machine-gun card cadence
+where hand, deck, and gauntlets all cycle continuously.
 
 ---
 
 ## Brad — health is a dial, armor is ammunition
 
-**Character passive:** chest items weigh 20% less. **Slot specialty:** the War Rack — swap to
-a two-handed weapon for free, bringing its cards straight to hand; after 20 tempo the usual
-gear returns on its own, with 60 tempo between swaps.
+Brad is for players who treat their HP bar as a resource to spend, not a score to protect.
+His passives make low health *valuable*: below 50% HP he gains rank-scaled strength (up to
++15, *Directed Strength*), dropping below a rank-scaled threshold (10%→25% HP) triggers a free
+AOE swing that refunds mana per kill — and it can keep re-triggering on a rank-scaled cooldown
+(25→10 tempo) while he stays in the danger zone (*Enraged Will*) — and 1%→8% life steal on
+every attack (*Life Steal*) claws him back up so he can ride the line instead of dying on it. Cards like **Self Infliction** (burn 80% of
+remaining health for +5 DET / +5 STR), **Demonic Rage** (pay mana costs with health),
+**Morphine**, and **Succumb** are throttle controls — he deliberately steers his own HP into
+the band where he hits hardest, and Determination gear steepens the same curve (the lower his
+health, the higher his stats).
 
-**Lanes:** Berserker (pain is strength, stronger near death), Warden (armor and tactics, no
-weakness to find), The Ancient (thorns, armor and healing drawn from nature), The Fallen (a
-cast-out child of god, earning a way back).
+The other half of the kit is armor as a *stockpile*. Defense cards grant +1→5 armor and chaining
+three in a row adds +3→14 more (*Pristine Armor*), every 9th→2nd Defense card refunds its costs
+(*The Way of the Plate*), healing grants thorns and regen (*Vines Codependence*) — and then the payoff
+cards spend the pile: **Shield Slam** (damage based on current armor, lose half),
+**Internal Combustion** (sacrifice half your armor for AOE damage), **Tower Shield** (+40
+armor at the cost of being staggered), **Shield of Growth** (converts incoming damage *into*
+armor). Armor in, armor out. Being swarmed is a buff — *Solemn Independence* grants +5%→12%
+on every offensive hit (each enemy an AoE touches; the auto attack too) and armor-per-cycle when 3+ enemies are close (at the cost of all ally
+healing, from any source), and *In the Trenches* gives free attacks and knockbacks against anyone who steps
+adjacent — two charges shared between the two, each returning 10 tempo after it is spent.
 
-Brad's passives make low health valuable and armor a stockpile.
+**Gear identity:** Brad's slot identity is the **War Rack** — one weapon strapped across his
+back, always held two-handed. Drawing it is free: his hand gear is set aside, the rack's weapon
+comes to hand two-handed — the fantasy of hauling the huge thing off his back — and its cards
+rush straight into your hand. After **20 tempo** it goes back up on its own (or earlier, by
+choice) and his usual gear returns, its cards rejoining the deck rather than the hand; the rack
+can be drawn again **60 tempo** after it was last drawn. Combined with his character passive (**chest items weigh 20% less**, and
+weight matters: carry capacity feeds attack speed and two-handing converts weight into
+damage), Brad is the one character who can run *two loadouts in one fight* — a shield wall on
+his arms and a greatsword on his back, brought to bear on cooldown.
 
-- **Health as a dial.** Below 50% HP he gains 1→15 strength (*Directed Strength*). Dropping
-  below 10%→25% triggers a free reach AoE swing that refunds mana per kill, re-firing on a
-  25→10 cooldown while he stays low (*Enraged Will*). Every attack life-steals 1%→8% (*Life
-  Steal*), which is what lets him ride the line instead of dying on it. When stunned, silenced
-  or disarmed he can pay 20%→6% of max HP to ignore it (*Point to Prove*).
-- **Armor as ammunition.** Defense cards grant +1→5 armor, and three in a row add +3→14 more
-  (*Pristine Armor*). Every 9th→2nd Defense card refunds 10 mana and 1 tempo (*The Way of the
-  Plate*). He takes 1%→11.5% less fire, physical and lightning damage (*Stone Skin*).
-- **Healing as offense.** Any direct heal grants 1→8 thorns and 0→7 regen for 5 tempo (*Vines
-  Codependence*) and 1%→15% crit chance on his next offensive card or auto attack
-  (*Redemption*). Every 5 cycles, a hand heavier in offense discounts a random offensive card
-  by 50→190 mana, and a hand heavier in defense heals 3→17 (*Ancestral Aid*).
-- **Being swarmed is a buff.** With 3+ enemies within 2 tiles he gains +5%→12% damage on every
-  offensive card and auto attack and +1→8 armor per cycle, at the cost of all ally healing
-  (*Solemn Independence*). Anyone stepping adjacent eats a free attack at 50%→120% damage, and
-  anyone attacking from adjacent is knocked back — 2 shared charges, 10 tempo each (*In the
-  Trenches*).
+**Cards that sing in his hands:** the front-line toolkit — **Taunt** and **Roar** to control
+who's getting hit, **Charge** and **Heroic Leap** (jump distance scales with STR) to arrive,
+**Wear Down** to blunt enemy attacks, **Parry** and **Turtle Up** to hold ground,
+**Hold the Line** to buff the whole party, and **Life Swap** — trading his HP and mana pools
+outright and dealing damage equal to the health lost — as the purest expression of the whole
+kit.
 
 **Pick Brad if you want:** to deliberately fight at low health and be rewarded for the risk,
-to bank armor as a second weapon rather than just a shield, to be the one standing in the
-doorway, and to haul a two-hander off your back mid-fight.
+to bank armor as a second weapon rather than just a shield, and to physically swap gear
+loadouts in the middle of a fight.
 
 ---
 
@@ -204,14 +238,12 @@ doorway, and to haul a two-hander off your back mid-fight.
 
 | Character | What the passives reward | Slot specialty | Character passive |
 |---|---|---|---|
-| **Ryan** | Discarding and cycling; moving across the grid; first-strike ambushes from invisibility | 2 belt slots | Belt cards cost 1 less mana |
-| **Jeremy** | Being at 0 mana / ≤2 cards; rigged % chances; healing allies at his own expense | 3 ring slots | Every 3rd cycle, first ring trigger fires twice |
-| **Stephen** | Unbroken attack chains, attack/defense alternation, or oversized slow swings; isolated targets and range | Weapon swaps cost 1 tempo | +10% off-hand enchantments (others −10%) |
-| **Cory** | Debuffs on wounded enemies; standing inside a pack; playing one of every card type per cycle | 2 gauntlet slots | +1 mana when a gauntlet skill comes off cooldown |
-| **Brad** | Spending health for strength; stockpiling armor; being swarmed; healing that turns into thorns and crits | War Rack (two-handed swap) | Chest items weigh 20% less |
+| **Ryan** | Discard/cycle your hand; sequence-dependent effects; cheap Pocket cards | 2 belt slots | Belt cards cost 1 less mana |
+| **Jeremy** | Be at 0 mana / ≤2 cards and get stronger; rig % chances; ring-trigger engine | 3 ring slots | Every 3rd cycle, first ring trigger fires twice |
+| **Stephen** | Unbroken attack chains or oversized slow swings; range & high ground | Standard slots; cheap weapon swaps, full-power off-hands | +10% off-hand enchantments (others −10%) |
+| **Cory** | Displace/lock enemies; debuffs that heal you; play 3+ cards per cycle | 2 gauntlet slots | +1 mana when a gauntlet skill comes off cooldown |
+| **Brad** | Spend health for power; stockpile armor then detonate it; mid-fight gear swaps | War Rack (one back-slung weapon: free 20-tempo draw, 60-tempo cooldown) | Chest items weigh 20% less |
 
-All five share the identical 5-card basic deck and begin with no equipment. Every card in the
-game is neutral — the kits above describe what each character's passives reward, not which
-cards each character is allowed to use. For what the code actually does with every passive,
-including where it disagrees with the design text, see
-[`PASSIVE_REFERENCE.md`](PASSIVE_REFERENCE.md).
+All five share the identical 5-card starting deck (Attack, Exposing Strike, Block, Braced Draw, Heal) and begin with no equipment. Every card in
+the game is neutral — these write-ups describe which cards each kit *rewards*, not which cards
+each character is allowed to use.

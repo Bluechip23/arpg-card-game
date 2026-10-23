@@ -6510,7 +6510,7 @@ func _update_flash_button() -> void:
 		_flash_move_button.modulate.a = 1.0 if pool >= PlayerStats.FLASH_COST_MOVE else 0.45
 		if _flash_move_sparkle:
 			_flash_move_sparkle.active = stats.flash_movement_enabled
-		_flash_move_button.tooltip_text = "Flash movement: %s.\nWhile on, each tile moved spends %d flash point instead of tempo." % [
+		_flash_move_button.tooltip_text = "Flash movement: %s.\nWhile on, each tile moved spends %d flash points instead of tempo." % [
 			"ON" if stats.flash_movement_enabled else "off", PlayerStats.FLASH_COST_MOVE]
 	if _flash_block_button:
 		_flash_block_button.modulate.a = 1.0 if pool >= PlayerStats.FLASH_COST_BLOCK else 0.45
@@ -12235,7 +12235,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				var vine_dmg := _card_player_damage(card)
 				for cyc in range(1, 4):
 					schedule_delayed_effect(cyc * 5, _vines_tick.bind(target, vine_dmg), "vines")
-				add_battle_log("Vines! Held the enemy for 3 turns (%d dmg/turn)" % vine_dmg, Color(0.4, 0.8, 0.3))
+				add_battle_log("Vines! Held the enemy for 3 cycles (%d dmg/cycle)" % vine_dmg, Color(0.4, 0.8, 0.3))
 				print("[MAIN] Vines: held target, %d damage x3 cycles" % vine_dmg)
 
 		"release_tension":
@@ -15015,7 +15015,7 @@ func _fire_instant_site_effect(card: Card, ctx: Dictionary) -> void:
 			var pm_enemy: Enemy = target if target is Enemy else _get_nearest_enemy()
 			if pm_enemy and not pm_enemy.is_dead:
 				pm_enemy.apply_debuff("polymorph", 5)
-				add_battle_log("Polymorph! %s is a pig for 5 tempo!" % pm_enemy.enemy_name, Color(1.0, 0.6, 0.8))
+				add_battle_log("Polymorph! %s is a pig for 1 cycle!" % pm_enemy.enemy_name, Color(1.0, 0.6, 0.8))
 		"psionic_flow":
 			var mode: String = str(ctx.get("mode", "attack" if target is Enemy else "guard"))
 			if mode == "attack":

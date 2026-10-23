@@ -18,4 +18,4 @@ vanilla_slots = 2
 on_self_mana_reduction = -10
 on_self_tempo_penalty = -1
 on_self_bounce_percent = 20.0
-description = "+6 INT, +6 AGI, +1 WIS, +1 DEX. 2 card slots. On-self: -1 tempo, +10 mana cost, and a 20% chance an offensive card's shot bounces to a second target at full damage — a crit success or failure carries over with it."
+description = "+6 INT, +6 AGI, +1 WIS, +1 DEX. 4 card slots (2 bonus, 2 plain). On-self: any card costs 1 less tempo and 10 more mana, and an offensive card's shot has a 20% chance to bounce to a second target at full damage — a crit success or failure carries over with it."
