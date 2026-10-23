@@ -12634,6 +12634,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var sbc_diff := mouse_pos - player.position
 			var direction = Vector3(sbc_diff.x, 0, sbc_diff.z).normalized()
 			var fire_end = player.position + direction * card.aoe_range
+			SearingFireFX.play(self, player.position, direction, card.aoe_range)  # the designer's searing fire
 			var fire_enemies := enemy_spawner.get_enemies_in_line(player.position, fire_end, 0.8)
 			var sbc_hit: Array = []
 			for enemy in fire_enemies:

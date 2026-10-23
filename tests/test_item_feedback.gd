@@ -460,6 +460,24 @@ func _test_play_scope(stats, dm, bm, dummies: Array) -> void:
 		_check(heading.dot(to_target.normalized()) > 0.99, "the fireball is aimed at the target")
 		await create_timer(1.2, true).timeout   # ember + flight + three blast stages + fade
 		_check(not is_instance_valid(fx), "the blast fades and frees itself")
+	# A Snowball's Chance: the designer's searing fire runs along the ground
+	# from the caster toward the aim, as long as the 3-space line it burns.
+	_reset_dummy(a)
+	main.mouse_override = main.get_world_camera().unproject_position(a.position)
+	_resolve_like_main(Card.create_by_id("snowballs_chance"), main.player, stats, dm, bm)
+	main.mouse_override = Vector2(-1, -1)
+	var sears: Array = main.find_children("SearingFireFX*", "SearingFireFX", false, false)
+	_check(sears.size() == 1, "A Snowball's Chance lays the searing fire (%d)" % sears.size())
+	_check(1000 - a.current_health > 0, "...and the line burns the enemy it is aimed at")
+	if sears.size() == 1:
+		var sf: SearingFireFX = sears[0]
+		_check(sf._sprite.texture.resource_path.ends_with("searing_fire_strip.png"), "it is the designer's flame strip")
+		var aim := Vector2(a.position.x - main.player.position.x, a.position.z - main.player.position.z).normalized()
+		_check(Vector2(cos(sf.rotation.y), -sin(sf.rotation.y)).dot(aim) > 0.99, "it runs horizontally along the aim, not up the screen")
+		var reach: float = SearingFireFX.LENGTH_PX * CameraView.PIXEL_SIZE * sf.scale.x
+		_check(absf(reach - 3.0) < 0.01, "its flames end where the 3-space line ends (%.2f)" % reach)
+		await create_timer(1.2, true).timeout
+		_check(not is_instance_valid(sf), "the embers die away and it frees itself")
 	var belt := ItemData.create("megingjord")
 	_reset_dummy(a)
 	_reset_dummy(b)

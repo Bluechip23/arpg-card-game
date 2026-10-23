@@ -430,12 +430,11 @@ func _fx_communal_donation() -> void:
 
 
 func _fx_snowballs_chance() -> void:
-	# Breathe fire, then the flurry of snowballs (the chance effect).
-	_fire_breath()
+	# The searing fire is the designer's animation, laid along the line in
+	# the world (SearingFireFX, from main); here, after it, the flurry of
+	# snowballs (the chance effect).
 	var tw := create_tween()
-	tw.tween_interval(0.25)
-	tw.tween_callback(_fire_breath)
-	tw.tween_interval(0.2)
+	tw.tween_interval(0.45)
 	tw.tween_callback(_snowballs)
 
 
@@ -1021,20 +1020,6 @@ func _fx_level_up() -> void:
 # =============================================================
 # SHARED EFFECT PIECES
 # =============================================================
-
-func _fire_breath() -> void:
-	for i in range(6):
-		var sp := _icon(_puff_tex(), Color(1.0, randf_range(0.4, 0.7), 0.1), 0.006)
-		sp.position = Vector3(0, 0.95, 0.25)
-		sp.scale = Vector3.ONE * randf_range(0.3, 0.6)
-		add_child(sp)
-		var dest := sp.position + Vector3(randf_range(-0.2, 0.2), randf_range(-0.15, 0.1), randf_range(0.6, 1.2))
-		var tw := sp.create_tween()
-		tw.tween_property(sp, "position", dest, 0.35).set_ease(Tween.EASE_OUT)
-		tw.parallel().tween_property(sp, "scale", Vector3.ONE * randf_range(0.8, 1.3), 0.35)
-		tw.parallel().tween_property(sp, "modulate:a", 0.0, 0.35)
-		tw.tween_callback(sp.queue_free)
-
 
 func _snowballs() -> void:
 	for i in range(4):
