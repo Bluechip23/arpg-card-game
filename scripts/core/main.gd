@@ -11913,6 +11913,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"fireball":
 			# AOE circle (4 squares) centred on the target; damage + 3 burn each.
 			var center = _point_aim(target, mouse_pos)
+			FireballFX.play(self, player.position, center)  # the designer's fireball: ember, flight, blast
 			var fb_dmg := card.last_damage_dealt
 			var fb_hit := enemy_spawner.get_enemies_in_radius(center, card.aoe_range if card.aoe_range > 0 else 2.0)
 			for en in fb_hit:

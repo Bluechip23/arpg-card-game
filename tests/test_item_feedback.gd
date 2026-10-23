@@ -77,7 +77,7 @@ func _run() -> void:
 	_test_nine_ruins(stats, dm, inv, dummies[0])
 	_test_wrath_edge(dummies)
 	_test_bastion(stats, dummies[0])
-	_test_play_scope(stats, dm, bm, dummies)
+	await _test_play_scope(stats, dm, bm, dummies)
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
@@ -448,6 +448,18 @@ func _test_play_scope(stats, dm, bm, dummies: Array) -> void:
 	_resolve_like_main(Card.create_by_id("fireball"), a, stats, dm, bm)
 	var fa_plain: int = 1000 - a.current_health
 	var fb_plain: int = 1000 - b.current_health
+	# The designer's fireball animation is thrown from the caster at the target.
+	var fxs: Array = main.find_children("FireballFX*", "FireballFX", false, false)
+	_check(fxs.size() == 1, "casting Fireball throws the fireball animation (%d)" % fxs.size())
+	if fxs.size() == 1:
+		var fx: FireballFX = fxs[0]
+		_check(fx._sprite.texture.resource_path.ends_with("fireball_strip.png") and fx._sprite.frame == 0,
+			"it starts as the ember, from the designer's strip")
+		var to_target := Vector2(a.position.x - main.player.position.x, a.position.z - main.player.position.z)
+		var heading := Vector2(cos(fx.rotation.y), -sin(fx.rotation.y))
+		_check(heading.dot(to_target.normalized()) > 0.99, "the fireball is aimed at the target")
+		await create_timer(1.2, true).timeout   # ember + flight + three blast stages + fade
+		_check(not is_instance_valid(fx), "the blast fades and frees itself")
 	var belt := ItemData.create("megingjord")
 	_reset_dummy(a)
 	_reset_dummy(b)

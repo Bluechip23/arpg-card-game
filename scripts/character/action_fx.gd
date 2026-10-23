@@ -5,7 +5,7 @@ extends Node3D
 ##
 ## The sprite sheets can only express walk/idle/attack, so every distinctive
 ## card animation lives here as a procedural 3D effect timeline (ported from
-## the retired procedural player figure's effect spawners): icicles, fireballs, flying
+## the retired procedural player figure's effect spawners): icicles, flying
 ## pigs, arrow volleys, lightning, potions, and so on. SpriteFigure plays a
 ## suitable body motion (swing / hop / crouch / lunge…) and calls play() on
 ## this node for the matching effect.
@@ -114,7 +114,6 @@ func play(action: String) -> void:
 		"biscuit": _fx_biscuit()
 		"cryonics": _fx_cryonics()
 		"demonic_rage": _fx_aura(Color(0.85, 0.12, 0.12))
-		"fireball": _fx_fireball()
 		"god_of_thunder": _fx_god_of_thunder()
 		"harness_lightning": _fx_orbiting_orb(Color(0.5, 0.72, 1.0))
 		"if_pigs_could_fly": _fx_punt_pig()
@@ -463,16 +462,6 @@ func _fx_cryonics() -> void:
 func _fx_aura(col: Color) -> void:
 	_burst(Vector3(0, 0.7, 0), col, 1.6)
 	_sparks(Vector3(0, 0.7, 0), col, 10, 0.6)
-
-
-func _fx_fireball() -> void:
-	# Gather a swelling fireball, then hurl it.
-	var orb := _orb(Vector3(0.3, 0.7, 0.25), Color(1.0, 0.5, 0.1), 0.05)
-	add_child(orb)
-	var tw := orb.create_tween()
-	tw.tween_property(orb, "scale", Vector3.ONE * 3.2, 0.25).set_trans(Tween.TRANS_QUAD)
-	tw.tween_callback(orb.queue_free)
-	tw.tween_callback(_fly_orb.bind(Vector3(0.3, 0.7, 0.3), Vector3(-0.3, 0, 2.2), Color(1.0, 0.45, 0.1), 0.17, 0.4))
 
 
 func _fx_god_of_thunder() -> void:
