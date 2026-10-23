@@ -6256,6 +6256,7 @@ func _on_player_health_changed(current: int, max_hp: int) -> void:
 				if nearest_enemy:
 					nearest_enemy.apply_debuff("burn", 5)
 					print("[MAIN] Gift of the Phoenix: applied 5 burn to %s" % nearest_enemy.enemy_name)
+				PhoenixRise.play(player)  # the designer's phoenix rises over the head
 				add_battle_log("Gift of the Phoenix! Healed to 80%% HP!", Color(1.0, 0.5, 0.2))
 				print("[MAIN] Gift of the Phoenix triggered! Healed %d HP to %d/%d" % [heal_amount, heal_target, max_hp])
 
