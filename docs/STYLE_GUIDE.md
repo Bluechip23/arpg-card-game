@@ -59,7 +59,7 @@ conforms to them.
   creatures get bigger *art* or an integer-ish rig scale, never a
   texel-density change.
   **The one exception (designer, 2026-10-23): the heroes' own sprites**
-  (Brad, Cory, Jeremy, Ryan — `tools/cut_hero_sprites.py`). Squeezed to
+  (all five — `tools/cut_hero_sprites.py`). Squeezed to
   the tile's density they lost the art's nuance, so they keep ~96 texels
   and are drawn finer (`SpriteFigure.BOARD_HEIGHT`, 1.3 tiles tall); the
   Secret of Mana look comes from crisp on/off edges, a one-texel inked

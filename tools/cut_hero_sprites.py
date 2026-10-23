@@ -12,6 +12,8 @@ Sources (assets/sprites/paintings/, .gdignore'd source art, 2026-10-23):
     (designer, 2026-10-23).
   hero_ryan.png    — "3. Rogue (Outlaw)": back, front, two side views (both
     face left).
+  hero_stephen.png — "5. Apex Hunter (Seeker)": back, front, two side views
+    (both face right), bow and axe across his back.
   hero_brad.png, hero_brad_front.png — "4. Warrior (Chieftain)": back, front,
     two side views (both face left), and on its own the front view with the
     War Rack's weapon over his right shoulder, which is the front used
@@ -81,6 +83,11 @@ HEROES = {
         ("hero_ryan.png", (0, 60, 114, 220), "north"),
         ("hero_ryan.png", (0, 388, 114, 550), "west"),
     ],
+    "stephen": [
+        ("hero_stephen.png", (0, 200, 117, 348), "south"),
+        ("hero_stephen.png", (0, 48, 117, 199), "north"),
+        ("hero_stephen.png", (0, 349, 117, 491), "east"),    # both side views face right
+    ],
     "brad": [
         ("hero_brad.png", (0, 136, 74, 236), "scale"),       # the sheet's front: sets the scale only
         ("hero_brad_front.png", (0, 36, 68, 138), "south"),  # the front with the War Rack over his shoulder
@@ -88,6 +95,13 @@ HEROES = {
         ("hero_brad.png", (0, 239, 74, 338), "west"),
     ],
 }
+
+# Stephen's sheet sets each figure in a soft dark-brown glow (rising from the
+# black to ~30 before the figure's ~50+): the background cut reaches further
+# for him, and the glow left hugging the figure is peeled off — dark pixels
+# on the edge, a few passes in (his own outline is redrawn by the ink).
+BG_FOR = {"stephen": 22}
+HALO_PEEL = {"stephen": (36, 14)}   # (max channel below which an edge pixel is glow, passes)
 
 # Cory's side view: the chest charm (beads and a pendant) hangs off the front
 # of the robe inside this box (source pixels); its light and coloured pixels
@@ -142,14 +156,25 @@ def _components(mask):
     return comps
 
 
-def cut(path, box, charm=None):
+def cut(path, box, charm=None, bg=BG, peel=None):
     """The figure in `box`, full size, on transparency, cropped to itself."""
     rgb = np.asarray(Image.open(SRC % path).convert("RGB").crop(box)).astype(int)
     h, w, _ = rgb.shape
-    dark = rgb.max(axis=2) <= BG
+    dark = rgb.max(axis=2) <= bg
     edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
            [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
     solid = ~_flood(dark, edge)
+    if peel is not None:
+        limit, passes = peel
+        glowish = rgb.max(axis=2) < limit
+        for _ in range(passes):
+            open_ = ~solid
+            touching = np.zeros_like(solid)
+            touching[1:] |= open_[:-1]
+            touching[:-1] |= open_[1:]
+            touching[:, 1:] |= open_[:, :-1]
+            touching[:, :-1] |= open_[:, 1:]
+            solid &= ~(touching & glowish)
     if charm is not None:
         cx0, cy0, cx1, cy1 = charm[0] - box[0], charm[1] - box[1], charm[2] - box[0], charm[3] - box[1]
         region = np.zeros_like(solid)
@@ -252,7 +277,7 @@ def build(hero, poses):
     full = {}
     for path, box, facing in poses:
         charm = CHARM_BOX.get(hero) if facing in ("east", "west") else None
-        img = cut(path, box, charm)
+        img = cut(path, box, charm, BG_FOR.get(hero, BG), HALO_PEEL.get(hero))
         if scale is None or facing == "scale":
             # The first pose (or the "scale" reference) sets the hero's scale
             # for every pose cut from the same source.

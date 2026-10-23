@@ -10,14 +10,14 @@ extends Node3D
 ## sheets can't express fall back to a small set of readable motions
 ## (attack swing, guard flash, hop, cast flash) rather than bespoke animation.
 ##
-## Brad, Cory, Jeremy and Ryan wear the designer's hero sprites (2026-10-23,
+## All five heroes wear the designer's hero sprites (2026-10-23,
 ## tools/cut_hero_sprites.py): one detailed pose per direction, drawn finer
 ## than the 32-texel tiles so the art keeps its nuance; walking steps the body
 ## up and down, and attacks overlay the base pack's weapon layer (swing +
-## swoosh), scaled to the hero, with a small body lunge. Stephen still wears
-## the NPC pack's guard (walk frames, the same weapon overlay). The paper-doll
-## mode (body + outfit + hair on the character base, with real attack poses)
-## remains for any roster entry that names one.
+## swoosh), scaled to the hero, with a small body lunge. The NPC mode (an NPC
+## pack sheet with walk frames, the same overlay) draws the dojo's dogs; the
+## paper-doll mode (body + outfit + hair on the character base, with real
+## attack poses) remains for any roster entry that names one.
 
 const SEED := "res://assets/sprites/SeedcharacterBase"
 
@@ -28,7 +28,7 @@ const SEED := "res://assets/sprites/SeedcharacterBase"
 const ROSTER := {
 	"Brad": {"board": "res://assets/sprites/generated/heroes/brad.png"},      # the warrior, the War Rack over his shoulder
 	"Cory": {"board": "res://assets/sprites/generated/heroes/cory.png"},      # the hooded monk
-	"Stephen": {"npc": "res://assets/sprites/NPCpackage2/npc guard v01.png"},
+	"Stephen": {"board": "res://assets/sprites/generated/heroes/stephen.png"},  # the apex hunter, bow and axe on his back
 	"Jeremy": {"board": "res://assets/sprites/generated/heroes/jeremy.png"},  # the cloaked skeleton
 	"Ryan": {"board": "res://assets/sprites/generated/heroes/ryan.png"},      # the rogue outlaw
 	# The dojo's ally training dummies wear the NPC-pack dog sheet (same

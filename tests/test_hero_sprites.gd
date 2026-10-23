@@ -2,11 +2,11 @@ extends SceneTree
 
 ## The heroes wear the designer's sprites (tools/cut_hero_sprites.py,
 ## 2026-10-23): Jeremy the cloaked skeleton, Cory the hooded monk, Ryan the
-## rogue outlaw, Brad the warrior with the War Rack over his shoulder — one
+## rogue outlaw, Brad the warrior with the War Rack over his shoulder,
+## Stephen the apex hunter with bow and axe on his back — one
 ## detailed pose a direction (kept fine: ~96 texels tall, drawn at a finer
 ## pixel size so they stand BOARD_HEIGHT tiles). Walking steps the body;
-## attacks still swing the weapon layer, scaled to the hero. Stephen keeps the
-## guard.
+## attacks still swing the weapon layer, scaled to the hero.
 ## Run: godot --headless --path . --script tests/test_hero_sprites.gd
 
 var failures := 0
@@ -27,7 +27,7 @@ func _used(tex: Texture2D, rect: Rect2) -> Rect2i:
 func _initialize() -> void:
 	print("=== Hero sprites ===")
 	var D := CharacterAnimator.Direction
-	for hero in ["Brad", "Cory", "Jeremy", "Ryan"]:
+	for hero in ["Brad", "Cory", "Jeremy", "Ryan", "Stephen"]:
 		var f := SpriteFigure.new()
 		get_root().add_child(f)
 		f.setup(hero)
@@ -72,12 +72,12 @@ func _initialize() -> void:
 			swung = swung or f._weapon_front.visible or f._weapon_back.visible
 		_check(swung, "%s swings the sword" % hero)
 		f.free()
-	var st := SpriteFigure.new()
-	get_root().add_child(st)
-	st.setup("Stephen")
-	_check(st._mode == "npc" and st._npc_sprite.texture.resource_path.ends_with("npc guard v01.png")
-		and st._npc_sprite.pixel_size == SpriteFigure.PIXEL_SIZE, "Stephen keeps the guard")
-	st.free()
+	# The NPC mode still draws the dojo's ally dogs.
+	var dog := SpriteFigure.new()
+	get_root().add_child(dog)
+	dog.setup("Dog")
+	_check(dog._mode == "npc" and dog._npc_sprite.pixel_size == SpriteFigure.PIXEL_SIZE, "the dojo dog keeps its NPC sheet")
+	dog.free()
 	# Cory: his eyes' blue glows in the front view and, as a speck, in the hood
 	# on the side views.
 	var tex: Texture2D = load("res://assets/sprites/generated/heroes/cory.png")
