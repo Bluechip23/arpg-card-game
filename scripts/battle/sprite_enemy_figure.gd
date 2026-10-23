@@ -83,7 +83,7 @@ const KINDS := {
 	"swarm": {"cell": Vector2i(4, 0)},
 	"giant_hawk": {"fr": "mountain_monsters/Bird", "scale": 0.55},
 	"screecher": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},  # wears the Snow Wraith's ghost (designer, 2026-10-22); the mountain-monster Bird frames are free again
-	"giant_beaver": {"cell": Vector2i(0, 1), "tint": Color(0.95, 0.85, 0.75)},
+	"giant_beaver": {"sheets": SHEETS + "/giant_beaver", "scale": 1.0},  # the designer's board (tools/cut_pose_boards.py): stands on its hind legs, walks on all fours
 	"mini_bear": {"fr": "mountain_monsters/Bear", "scale": 0.45},
 	"wolf": {"sheets": SHEETS + "/wolf", "scale": 0.7},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-22)
 	"coyote": {"cell": Vector2i(3, 1), "tint": Color(1.1, 1.0, 0.8)},  # the old wolf battler, tinted
@@ -121,7 +121,7 @@ const KINDS := {
 	# --- battler variations where the species genuinely matches ---
 	"large_bear": {"fr": "mountain_monsters/Bear", "scale": 0.65},
 	"bone_dragon": {"tex": "bone_dragon", "scale": 1.6},
-	"wyvern": {"cell": Vector2i(7, 2), "tint": Color(0.9, 0.75, 1.05), "scale": 1.35},
+	"wyvern": {"sheets": SHEETS + "/wyvern", "scale": 1.0},  # the designer's board (tools/cut_pose_boards.py)
 	"cerberus": {"sheets": BOSSES + "/cerberus", "scale": 1.5},
 	"hades": {"sheets": BOSSES + "/hades", "scale": 1.15},  # art in place; no Hades enemy exists yet
 	"werewolf": {"sheets": SHEETS + "/werewolf", "scale": 1.05},
@@ -153,11 +153,11 @@ const KINDS := {
 	"brute_elite": {"cp": "swordsman_lvl4_6/Swordsman_lvl5", "scale": 1.15},
 	"brute_boss": {"cp": "swordsman_lvl4_6/Swordsman_lvl6", "scale": 1.3},
 	# --- the Precious's hunter: the Craftpix ghost pack's crowned wraith ---
-	"ring_wraith": {"cp": "ghost/Ghost3", "scale": 1.25},
+	"ring_wraith": {"sheets": SHEETS + "/ring_wraith", "scale": 1.0},  # the designer's mounted wraith (tools/cut_pose_boards.py)
 	# --- the player's summons (Summon._build_figure): pack art, ally-sized ---
 	"summon_golem": {"cp": "golem/Golem1", "scale": 1.0},  # the rock golem the Granite Colossus wears, smaller
 	"summon_specter": {"cp": "ghost/Ghost1", "scale": 1.2, "tint": Color(0.95, 0.75, 1.25)},  # Jeremy's Seance: the specter ghost, violet
-	"frankenstein": {"cp": "zombie/Zombie2", "scale": 1.4, "tint": Color(0.9, 1.05, 0.9)},  # the stitched zombie (exposed brain)
+	"frankenstein": {"sheets": SHEETS + "/frankenstein", "scale": 1.0},  # the designer's board (tools/cut_pose_boards.py)
 	# --- the dojo's enemy training dummies ---
 	"chicken": {"tex": "chicken"},
 	# --- the Rat King's nests: no pack has a nest, so this one is drawn
@@ -176,7 +176,7 @@ const PIXEL_SIZE := 0.03125
 ## Kinds whose battler art already contains a painted contact shadow
 ## (the flyers) — these must not get a second blob shadow.
 const PAINTED_SHADOW_KINDS := ["swarm", "giant_hawk", "roc",
-		"screecher", "djinn", "specter", "snow_wraith", "summon_specter", "ring_wraith", "gravestone", "hell_door"]
+		"screecher", "djinn", "specter", "snow_wraith", "summon_specter", "gravestone", "hell_door"]
 
 var figure_kind := ""   # the KINDS entry this figure was set up as
 var _sprite: Sprite3D = null
@@ -188,6 +188,14 @@ var _target_state := 0          # 0 none, 1 will hit / succeed (green), 2 won't 
 var _outline: Array[Sprite3D] = []
 var _walking := false
 var _time := 0.0
+var _ground_offset := Vector2.ZERO   # the sprite's offset with its feet on the ground row
+
+## A one-pose board's walk (the designer's four-direction stills: one frame a
+## direction) has no stride in its art, so the figure steps instead — up
+## STEP_LIFT texels and back down, STEP_HZ times a second. Lifted along the
+## sprite's own up (its offset), which is screen-up under the plan camera.
+const STEP_LIFT := 2.0
+const STEP_HZ := 3.5
 var _facing_x := -1.0    # battlers are drawn facing left; flip for east
 var _icon_faces := "left"  # icon battlers: the side the art faces ("front" never flips)
 var _npc_mode := false
@@ -282,6 +290,7 @@ func setup(kind: String) -> void:
 	else:
 		_sprite.offset = Vector2(-_sprite.region_rect.size.x * 0.5,
 				-(_sprite.region_rect.size.y - _measure_ground_rows()))
+	_ground_offset = _sprite.offset
 	_base_y = 0.0
 	_sprite.position = Vector3(0, _base_y, 0)
 	var s: float = cfg.get("scale", 1.0)
@@ -893,3 +902,6 @@ func _cp_step(delta: float) -> void:
 		_cp_apply_frame()
 	# The body never bobs off its ground row: the packs animate that in-art.
 	_sprite.position.y = _base_y
+	if _cp_cell > 0:
+		var stepping := _cp_anim == "Walk" and count == 1 and fmod(_time * STEP_HZ, 1.0) < 0.5
+		_sprite.offset = _ground_offset + (Vector2(0, STEP_LIFT) if stepping else Vector2.ZERO)
