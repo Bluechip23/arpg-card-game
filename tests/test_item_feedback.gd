@@ -543,6 +543,31 @@ func _test_play_scope(stats, dm, bm, dummies: Array) -> void:
 		_check(not is_instance_valid(ice), "the spikes shatter and it frees itself")
 	_place(gm, a, pcell + Vector2i(2, 0))   # back where the Fireball splash checks below expect them
 	_place(gm, b, pcell + Vector2i(3, 0))
+	# Shock: the designer's blue lightning — a crackle over the shocked enemy
+	# each tick, an arc to the enemy the damage jumps to.
+	_reset_dummy(a)
+	_reset_dummy(b)
+	a.shock_stacks = 2
+	a._tick_status_durations()
+	_check(main.find_children("ShockCrackle*", "LightningFX", false, false).size() >= 1, "a Shock tick crackles over the enemy")
+	_check(main.find_children("ShockArc*", "LightningFX", false, false).size() >= 1 and b.current_health < 1000,
+		"...and arcs to the enemy beside it")
+	# God of Thunder: the absorbed Shock jumps to the target as blue arcs,
+	# then the gold bolt strikes it.
+	for n in main.find_children("Shock*", "LightningFX", false, false):
+		n.free()
+	_reset_dummy(a)
+	_reset_dummy(b)
+	b.shock_stacks = 3
+	_resolve_like_main(Card.create_by_id("god_of_thunder"), a, stats, dm, bm)
+	var bolts: Array = main.find_children("GodOfThunder*", "LightningFX", false, false)
+	_check(bolts.size() == 1 and bolts[0]._sprite.texture.resource_path.ends_with("thunder_strike_strip.png"),
+		"God of Thunder strikes the designer's gold bolt")
+	_check(bolts.size() == 1 and absf(bolts[0].position.x - a.position.x) < 0.01 and absf(bolts[0].position.z - a.position.z) < 0.01,
+		"...on the target")
+	_check(main.find_children("ShockArc*", "LightningFX", false, false).size() == 1, "the absorbed Shock arcs blue into the target first")
+	await create_timer(1.2, true).timeout
+	_check(main.find_children("*", "LightningFX", false, false).is_empty(), "the lightning fades and frees itself")
 	var belt := ItemData.create("megingjord")
 	_reset_dummy(a)
 	_reset_dummy(b)

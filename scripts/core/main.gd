@@ -7124,12 +7124,14 @@ func _cycle_status_start(cp) -> void:
 		# (within 2 tiles), never back onto the carrier.
 		var ally_dmg: int = debuff_result.get("ally_damage", 0)
 		if ally_dmg > 0:
+			LightningFX.crackle(self, cp.position)  # the designer's blue lightning over the shocked carrier
 			for ally in _all_allies():
 				if ally == cp or not is_instance_valid(ally):
 					continue
 				var shock_diff = cp.position - ally.position
 				if Vector3(shock_diff.x, 0, shock_diff.z).length() <= grid_manager.grid_size * 2.5 \
 						and ally.has_method("get_stats") and ally.get_stats():
+					LightningFX.arc(self, cp.position, ally.position)
 					ally.get_stats().take_damage(ally_dmg, ally.get_debuff_manager(), ally.get_buff_manager())
 					add_battle_log("Shocked arcs %d damage to an ally!" % ally_dmg, Color(1.0, 0.9, 0.3))
 
@@ -12249,9 +12251,16 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# target, then bolt the target for the total.
 			var total_shock = 0
 			var got_center: Vector3 = target.position if target is Node3D else player.position
+			var got_drawn := false
 			for en in enemy_spawner.get_enemies_in_radius(got_center, 4.0):
+				# The absorbed Shock jumps to the target as the designer's blue arcs...
+				if en.shock_stacks > 0 and en != target:
+					LightningFX.arc(self, en.position, got_center)
+					got_drawn = true
 				total_shock += en.shock_stacks
 				en.shock_stacks = 0
+			# ...then the gold bolt strikes down on it and bursts across the ground.
+			LightningFX.thunder(self, got_center, 0.25 if got_drawn else 0.0)
 			if target and target.has_method("take_damage") and total_shock > 0:
 				target.take_damage(total_shock, true)
 			add_battle_log("God of Thunder! Absorbed %d shock, struck for %d" % [total_shock, total_shock], Color(0.8, 0.8, 1.0))

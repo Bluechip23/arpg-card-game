@@ -114,7 +114,6 @@ func play(action: String) -> void:
 		"biscuit": _fx_biscuit()
 		"cryonics": _fx_cryonics()
 		"demonic_rage": _fx_aura(Color(0.85, 0.12, 0.12))
-		"god_of_thunder": _fx_god_of_thunder()
 		"harness_lightning": _fx_orbiting_orb(Color(0.5, 0.72, 1.0))
 		"if_pigs_could_fly": _fx_punt_pig()
 		"lady_luck": _sparks(Vector3(0, 1.0, 0.3), Color(1.0, 0.9, 0.4), 6, 0.4)
@@ -460,25 +459,6 @@ func _fx_cryonics() -> void:
 func _fx_aura(col: Color) -> void:
 	_burst(Vector3(0, 0.7, 0), col, 1.6)
 	_sparks(Vector3(0, 0.7, 0), col, 10, 0.6)
-
-
-func _fx_god_of_thunder() -> void:
-	# Sparks drawn in, then a massive bolt on the target.
-	for i in range(8):
-		var sp := _icon(_sparkle_tex(), Color(0.7, 0.85, 1.0), 0.004)
-		var start := Vector3(randf_range(-0.4, 0.4), randf_range(0.4, 1.0), randf_range(1.4, 2.0))
-		sp.position = start
-		add_child(sp)
-		var tw := sp.create_tween()
-		tw.tween_interval(i * 0.02)
-		tw.tween_property(sp, "scale", Vector3.ONE * 0.7, 0.05)
-		tw.tween_property(sp, "position", Vector3(0, 0.8, 0.1), 0.22).set_ease(Tween.EASE_IN)
-		tw.tween_property(sp, "scale", Vector3.ZERO, 0.06)
-		tw.tween_callback(sp.queue_free)
-	var tw2 := create_tween()
-	tw2.tween_interval(0.45)
-	tw2.tween_callback(_bolt.bind(Vector3(0.1, 2.6, 1.7), Vector3(-0.1, 0.1, 1.7), Color(0.8, 0.9, 1.0)))
-	tw2.tween_callback(_burst.bind(Vector3(0, 0.2, 1.7), Color(0.8, 0.9, 1.0), 1.6))
 
 
 func _fx_orbiting_orb(col: Color) -> void:
