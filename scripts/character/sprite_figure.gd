@@ -128,7 +128,7 @@ var _shadow: BlobShadow = null
 var _fx: ActionFX = null  # bespoke per-card effect layer (icicles, fireballs, …)
 
 
-func setup(character_name: String, _sprite_path: String = "") -> void:
+func setup(character_name: String) -> void:
 	# Re-entrant: callers like the character sheet re-setup the same figure
 	# when paging between party members, so tear down any previous build.
 	if _rig and is_instance_valid(_rig):
@@ -182,6 +182,42 @@ const LEGACY_PASSIVE_TEXT := {
 	"Belt cards cost 1 less mana": "Belt cards cost 10 less mana",
 	"Gain 1 mana when gauntlet skill comes off cooldown": "Gain 10 mana when gauntlet skill comes off cooldown",
 }
+
+## A small pre-rendered 3D view of a roster figure idling (orthographic,
+## slightly raised 3/4 angle, the style guide's upper-left key light) for 2D
+## screens: the character-select cards and the load screen.
+static func make_preview(preset: String) -> SubViewportContainer:
+	var container := SubViewportContainer.new()
+	container.stretch = true
+	container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var viewport := SubViewport.new()
+	viewport.own_world_3d = true
+	viewport.transparent_bg = true
+	viewport.msaa_3d = Viewport.MSAA_4X
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	container.add_child(viewport)
+	var figure := SpriteFigure.new()
+	figure.setup(preset)
+	viewport.add_child(figure)
+	var cam := Camera3D.new()
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	cam.size = 1.6
+	viewport.add_child(cam)
+	var eye := Vector3(0.5, 1.05, 2.6)
+	cam.transform = Transform3D(Basis.looking_at(Vector3(0, 0.58, 0) - eye, Vector3.UP), eye)
+	cam.current = true
+	var key := DirectionalLight3D.new()
+	key.light_energy = 1.15
+	key.rotation_degrees = Vector3(-45, -30, 0)
+	viewport.add_child(key)
+	var fill := DirectionalLight3D.new()
+	fill.light_energy = 0.45
+	fill.rotation_degrees = Vector3(-12, -42, 0)
+	viewport.add_child(fill)
+	return container
+
 
 static func preset_for(data: CharacterData) -> String:
 	var base := data.get_base_character()
@@ -574,6 +610,13 @@ func set_facing_from_velocity(vel: Vector3) -> void:
 
 func face_toward(world_pos: Vector3) -> void:
 	set_facing_from_velocity(world_pos - global_position)
+
+
+## Recolour the whole figure (multiplied in; alpha below 1 is see-through):
+## Draupnir's gold echo of its bearer.
+func set_tint(c: Color) -> void:
+	_base_modulate = c
+	_apply_modulate(_base_modulate)
 
 
 func set_translucent(on: bool) -> void:

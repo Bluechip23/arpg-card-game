@@ -43,33 +43,22 @@ func base_attack() -> int:
 	return BUD_ATTACK if is_bud else SPIRIT_ATTACK
 
 func _build_visuals() -> void:
-	var slime := StandardMaterial3D.new()
-	slime.albedo_color = Color(0.3, 0.65, 0.6, 0.85)  # sea-cucumber teal
-	slime.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	slime.emission_enabled = true
-	slime.emission = Color(0.15, 0.4, 0.38)
+	# The weapon pack's bow (the same icon the player holds), glowing spirit
+	# teal, on the diagonal it is drawn at; a bud is a smaller sprout of it.
 	var scale_mult := 0.6 if is_bud else 1.0
-	# The limb: a torus segment reads as a drawn bow at billboard distance.
-	var limb := MeshInstance3D.new()
-	var limb_mesh := TorusMesh.new()
-	limb_mesh.inner_radius = 0.22 * scale_mult
-	limb_mesh.outer_radius = 0.3 * scale_mult
-	limb.mesh = limb_mesh
-	limb.material_override = slime
-	limb.rotation_degrees = Vector3(0, 0, 90)
-	limb.position = Vector3(0, 0.55 * scale_mult, 0)
-	add_child(limb)
-	# The string.
-	var string := MeshInstance3D.new()
-	var string_mesh := CylinderMesh.new()
-	string_mesh.top_radius = 0.015
-	string_mesh.bottom_radius = 0.015
-	string_mesh.height = 0.55 * scale_mult
-	string.mesh = string_mesh
-	string.material_override = slime
-	string.position = Vector3(0.12 * scale_mult, 0.55 * scale_mult, 0)
-	add_child(string)
-	_build_health_label(1.0 * scale_mult + 0.2, Color(0.6, 0.9, 0.85))
+	var bow := Sprite3D.new()
+	bow.texture = load(SpriteFigure.WEAPON_ICON_DIR + "/icon_31.png")
+	bow.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	bow.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	bow.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	bow.shaded = false
+	bow.pixel_size = SpriteEnemyFigure.PIXEL_SIZE
+	bow.modulate = Color(0.55, 1.25, 1.15, 0.9)
+	bow.scale = Vector3.ONE * 0.9 * scale_mult
+	bow.position = Vector3(0, CameraView.SPRITE_LIFT, -0.45 * scale_mult)  # stands on its tile: centred half its height north
+	add_child(bow)
+	_build_health_label(0.5, Color(0.6, 0.9, 0.85))
+	_health_label.position = Vector3(0, 0.5, -(0.9 * scale_mult + 0.2))
 
 func _health_label_text() -> String:
 	if is_bud:

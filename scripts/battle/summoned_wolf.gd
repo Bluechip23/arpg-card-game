@@ -22,23 +22,5 @@ func setup(gm: GridManager, spawn_pos: Vector3) -> void:
 	_finish_setup()
 
 func _build_visuals() -> void:
-	var fur := StandardMaterial3D.new()
-	fur.albedo_color = Color(0.45, 0.45, 0.5)  # grey wolf
-	fur.roughness = 1.0
-	var body := MeshInstance3D.new()
-	var body_mesh := CapsuleMesh.new()
-	body_mesh.radius = 0.18
-	body_mesh.height = 0.7
-	body.mesh = body_mesh
-	body.material_override = fur
-	body.rotation_degrees = Vector3(90, 0, 0)
-	body.position = Vector3(0, 0.3, 0)
-	add_child(body)
-	var head := MeshInstance3D.new()
-	var head_mesh := BoxMesh.new()
-	head_mesh.size = Vector3(0.22, 0.2, 0.3)
-	head.mesh = head_mesh
-	head.material_override = fur
-	head.position = Vector3(0, 0.42, -0.42)
-	add_child(head)
-	_build_health_label(1.1, Color(0.8, 0.8, 0.9))
+	_build_figure("wolf")  # the designer's wolf sheet, as the Forest wolves wear
+	_build_health_label(1.7, Color(0.8, 0.8, 0.9))

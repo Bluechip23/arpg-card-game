@@ -460,7 +460,7 @@ func update_display() -> void:
 
 	_ensure_portrait_and_combat()
 	if _portrait_fig and player_stats.character_data:
-		_portrait_fig.setup(SpriteFigure.preset_for(player_stats.character_data), player_stats.character_data.sprite_path)
+		_portrait_fig.setup(SpriteFigure.preset_for(player_stats.character_data))
 
 	_update_ally_nav()
 	_update_level_row()

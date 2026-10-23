@@ -3128,7 +3128,6 @@ func _build_save_data(slot: int) -> SaveData:
 	data.character_name = starting_character.character_name if starting_character else "Unknown"
 	data.current_location = "Town"
 	data.world_level = return_world_level
-	data.sprite_path = starting_character.sprite_path if starting_character else ""
 	var stats = player.get_stats() if player else null
 	data.character_level = stats.current_level if stats else 1
 
@@ -3723,8 +3722,9 @@ func _refresh_deck_panel() -> void:
 		_deck_list.add_child(row)
 
 func _create_dojo() -> void:
-	## The Dojo's master: a ninja (hood, face mask, red headband, all black)
-	## standing on the plaza's east side. Talking to him steps straight into
+	## The Dojo's master: the NPC pack's bald old sensei with his cane (the
+	## pack has no ninja) standing on the plaza's
+	## east side. Talking to him steps straight into
 	## the training interior (main.tscn, interior "dojo").
 	var dojo = StaticBody3D.new()
 	dojo.name = "Dojo"
@@ -3732,15 +3732,17 @@ func _create_dojo() -> void:
 
 	var fig = Sprite3D.new()
 	fig.name = "Figure"
-	fig.texture = load("res://assets/sprites/generated/npcs/ninja.png")
+	fig.texture = load("res://assets/sprites/NPCpackage1/npc old man B v02.png")
+	fig.region_enabled = true
+	fig.region_rect = Rect2(0, 0, 32, 32)  # south-facing idle frame
 	fig.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	fig.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	fig.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	fig.shaded = false
 	fig.pixel_size = 0.03125
-	var ninja_scale := 1.15
-	fig.scale = Vector3(ninja_scale, ninja_scale, ninja_scale)
-	fig.position = Vector3(0, 32.0 * 0.03125 * 0.5 * ninja_scale, 0)
+	var master_scale := 1.15
+	fig.scale = Vector3(master_scale, master_scale, master_scale)
+	fig.position = Vector3(0, 32.0 * 0.03125 * 0.5 * master_scale, 0)
 	dojo.add_child(fig)
 	BlobShadow.attach(dojo, 0.55)
 

@@ -95,7 +95,7 @@ func get_loot_seed() -> int:
 @export var starting_item_name: String = ""
 @export var starting_item_description: String = ""
 @export var slot_specialty: String = ""
-@export var sprite_path: String = ""
+@export var sprite_path: String = ""  # unused: the old hand-drawn portraits are gone; kept so older saves load
 @export var sprite_sheet_path: String = ""  # Path to full animation sprite sheet
 
 # ============================================
@@ -146,7 +146,6 @@ static func create_ryan() -> CharacterData:
 	]
 	data.passive_description = "Belt cards cost 10 less mana"
 	data.slot_specialty = "2 belt slots"
-	data.sprite_path = "res://assets/characters/ryan_south.png"
 	return data
 
 static func create_jeremy() -> CharacterData:
@@ -171,7 +170,6 @@ static func create_jeremy() -> CharacterData:
 	]
 	data.passive_description = "Every 3rd cycle, the first ring trigger triggers twice"
 	data.slot_specialty = "3 ring slots"
-	data.sprite_path = "res://assets/characters/jeremy_south.png"
 	return data
 
 static func create_stephen() -> CharacterData:
@@ -212,7 +210,6 @@ static func create_stephen() -> CharacterData:
 	]
 	data.passive_description = "+10% off-hand enchantments (others get -10%)"
 	data.slot_specialty = "Weapon swaps cost 1 tempo; the weapon portion of a build switch is free"
-	data.sprite_path = "res://assets/characters/stephen_south.png"
 	return data
 
 static func create_cory() -> CharacterData:
@@ -237,7 +234,6 @@ static func create_cory() -> CharacterData:
 	]
 	data.passive_description = "Gain 10 mana when gauntlet skill comes off cooldown"
 	data.slot_specialty = "2 gauntlet slots"
-	data.sprite_path = "res://assets/characters/cory_south.png"
 	return data
 
 static func create_brad() -> CharacterData:
@@ -278,7 +274,6 @@ static func create_brad() -> CharacterData:
 	]
 	data.passive_description = "Chest items weigh 20% less"
 	data.slot_specialty = "War Rack: swap to a weapon held two-handed for free, instantly bringing its cards to your hand. After 20 tempo your usual gear returns on its own (its cards rejoin the deck, not your hand); 60 tempo between swaps. *This item can never be held 1-handed while in this slot."
-	data.sprite_path = "res://assets/characters/brad_south.png"
 	return data
 
 static func get_all_characters() -> Array[CharacterData]:

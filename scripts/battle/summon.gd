@@ -7,8 +7,10 @@ extends Node3D
 ## position with a glide between cells, a health pool behind the Cover
 ## mitigation hook, the head-up health label and death. main.gd drives the
 ## per-tempo decisions (its _update_* drivers bank tempo into the cadence
-## accumulators); each subclass sets its stat constants, builds its own body
-## meshes in _build_visuals() and overrides the hooks it needs:
+## accumulators); each subclass sets its stat constants, stands its body up in
+## _build_visuals() — a pack sprite through _build_figure() (a
+## SpriteEnemyFigure kind, the same art the enemies wear) — and overrides the
+## hooks it needs:
 ##   _can_be_hit()               false while untargetable (a burrowed worm)
 ##   _absorb(amount) -> int      armor or resistance taken before health
 ##   _survive_lethal() -> bool   true to stand at 1 HP (Shepherd's Mark)
@@ -29,6 +31,7 @@ var glide_speed: float = 4.0  # world units per second between cells
 var _target_position: Vector3 = Vector3.ZERO
 var _is_moving: bool = false
 var _health_label: Label3D = null
+var _figure: Node3D = null  # the pack sprite body: a SpriteEnemyFigure or SpriteFigure
 
 ## First half of every setup(): take the grid and stand on the spawn tile.
 func _place(gm: GridManager, spawn_pos: Vector3) -> void:
@@ -44,13 +47,42 @@ func _finish_setup() -> void:
 func _build_visuals() -> void:
 	pass
 
-## The head-up health label, appended after the body meshes.
+## Stand a pack sprite in for the body: a SpriteEnemyFigure kind (see its
+## KINDS table). It walks while the summon glides between cells and turns
+## to its heading.
+func _build_figure(kind: String) -> SpriteEnemyFigure:
+	var fig := SpriteEnemyFigure.new()
+	add_child(fig)
+	fig.setup(kind)
+	_figure = fig
+	return fig
+
+## Stand a player-character figure in (Draupnir's duplicate of its bearer),
+## recoloured by `tint`.
+func _build_player_figure(preset: String, tint: Color = Color.WHITE) -> SpriteFigure:
+	var fig := SpriteFigure.new()
+	add_child(fig)
+	fig.setup(preset)
+	fig.set_tint(tint)
+	_figure = fig
+	return fig
+
+## The head-up health label, appended after the body. Over a pack sprite it
+## sits just above the drawn head the way the enemies' bars do (north of the
+## feet reads as "above" under the plan-view camera); `height` places it
+## for a body without a measured sprite.
 func _build_health_label(height: float, color: Color, font_size: int = 24) -> void:
 	_health_label = Label3D.new()
 	_health_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_health_label.font_size = font_size
 	_health_label.pixel_size = 0.005
 	_health_label.position = Vector3(0, height, 0)
+	if _figure:
+		# A player figure stands one tile tall; a pack battler measures itself.
+		var head := 1.0
+		if _figure.has_method("portrait_extent"):
+			head = maxf(0.5, float(_figure.portrait_extent().y))
+		_health_label.position = Vector3(0, 0.5, -(head + 0.2))
 	_health_label.modulate = color
 	WorldText.crisp(_health_label)
 	add_child(_health_label)
@@ -63,8 +95,12 @@ func _update_health_label() -> void:
 		_health_label.text = _health_label_text()
 
 func _process(delta: float) -> void:
+	if _figure:
+		_figure.set_walking(_is_moving)
 	if not _is_moving:
 		return
+	if _figure:
+		_figure.set_facing_from_velocity(_target_position - position)
 	position.x = move_toward(position.x, _target_position.x, glide_speed * delta)
 	position.z = move_toward(position.z, _target_position.z, glide_speed * delta)
 	if abs(position.x - _target_position.x) < 0.01 and abs(position.z - _target_position.z) < 0.01:

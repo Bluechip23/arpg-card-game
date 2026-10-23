@@ -42,42 +42,11 @@ func setup(gm: GridManager, spawn_pos: Vector3, hp: int, summon_kind := "skeleto
 	_finish_setup()
 
 func _build_visuals() -> void:
-	var bone := StandardMaterial3D.new()
 	match kind:
 		"spirit":
-			bone.albedo_color = Color(0.55, 0.75, 1.0, 0.6)  # ghostly blue
-			bone.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			_build_figure("specter")         # the Craftpix ghost
 		"golem":
-			bone.albedo_color = Color(0.5, 0.44, 0.38)       # weathered stone
+			_build_figure("summon_golem")    # the Craftpix rock golem, ally-sized
 		_:
-			bone.albedo_color = Color(0.88, 0.86, 0.76)      # dry bone
-	bone.roughness = 1.0
-	var body := MeshInstance3D.new()
-	var body_mesh := CapsuleMesh.new()
-	body_mesh.radius = 0.14
-	body_mesh.height = 0.65
-	body.mesh = body_mesh
-	body.material_override = bone
-	body.position = Vector3(0, 0.45, 0)
-	add_child(body)
-	var skull := MeshInstance3D.new()
-	var skull_mesh := BoxMesh.new()
-	skull_mesh.size = Vector3(0.2, 0.2, 0.2)
-	skull.mesh = skull_mesh
-	skull.material_override = bone
-	skull.position = Vector3(0, 0.9, 0)
-	add_child(skull)
-	var eyes := StandardMaterial3D.new()
-	eyes.albedo_color = Color(0.2, 0.9, 0.5)
-	eyes.emission_enabled = true
-	eyes.emission = Color(0.2, 0.9, 0.5)
-	for ex in [-0.05, 0.05]:
-		var eye := MeshInstance3D.new()
-		var eye_mesh := SphereMesh.new()
-		eye_mesh.radius = 0.03
-		eye_mesh.height = 0.06
-		eye.mesh = eye_mesh
-		eye.material_override = eyes
-		eye.position = Vector3(ex, 0.92, -0.1)
-		add_child(eye)
-	_build_health_label(1.25, Color(0.85, 0.9, 0.8))
+			_build_figure("skeleton")        # the Craftpix skeleton the Graveyard's wear
+	_build_health_label(1.7, Color(0.85, 0.9, 0.8))
