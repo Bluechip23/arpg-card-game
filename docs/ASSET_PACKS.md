@@ -74,7 +74,7 @@ Per-variant sheet widths in px (height = 4 rows × cell; 64-px packs are
 | `chaos_monsters/` | 48 single 32×32 PNGs (`Icon1..48`) | Painted demons, hounds, flyers, slimes, eyes, spiders — a bestiary of Hell-flavoured monsters, one still each | Act 2 (Hell) enemies as static battlers (the rig's `icon` source: a 32-px still scaled ×1.6–2.4 and flipped for the far side like the MonsterKit battlers) | **in game**: `succubus` = Icon14 (purple-winged, ×1.7), `ifrit` = Icon47 (the living flame, ×2.0), `ash_harpy` = Icon22 (the winged demon in flight, tail trailing, ×1.6). The other 44 are staged (Icon37 was the minotaur until the designer's painting replaced it, see *paintings* below) |
 | `treasure_32x32/` | `chests.png` 320×128 | 32×32, 10 cols × 4 rows | 10 chest designs (wood, iron, gold, ornate, teal-crystal…) × 4 states per column (closed → open/lit) | Dungeon loot chests; act-themed chest tiers | staged |
 | | `Icons.png` 480×224 | 32×32, 15 × 7 | Keys, coins, coin piles, gem shards, bags, sacks, pouches, jars, rings, orbs, potions, feathers, scrolls | Inventory / vendor / resource icons (base-builder resources sent home, currency, keys); card cost glyphs | staged |
-| | `Objects.png` 320×240 | 16-px tile grid, most objects 32×32 | Chests, chains & hooks, ore / gem / gold piles, sacks, barrels of loot, candles & censers, coloured keys, key racks | Treasure-room and vault dressing (terrain decoration, ART_TODO #6); City treasury props | staged |
+| | `Objects.png` 320×240 | 16-px tile grid, most objects 32×32 | Chests, chains & hooks, ore / gem / gold piles, coin pouches and a burlap sack, backpacks, gold bars, candles & censers, coloured keys, key racks (no crates or barrels) | Treasure-room and vault dressing (terrain decoration, ART_TODO #6); City treasury props | staged |
 | | `Funiture.png` 96×256 | 32×32 grid, pieces up to 96×64 | Wooden shelves / display tables stocked with loot (5 variants + empty) | Vendor stall / shop interior dressing in Town; City buildings | staged |
 | `armor_weapons_icons/` | `Icons.png` 576×352 | 32×32, 18 × 11 | ~200 equipment icons: helms, chests, gloves, boots, capes (rows 1–5), swords, daggers, bows, staves, axes, maces (rows 6–10), shields & orbs (row 11) | Equipment item icons for the inventory / vendor / loot UI — a consistent set to replace or complement the hand-made `assets/items/` art | staged |
 | | `Armor.png` 896×160 | 32×32, 28 × 5 | Same armour pieces shown worn on a mannequin bust, front / side / back (paper-doll preview strips) | Equipment preview panel; reference for combat paper-doll outfits (ART_TODO #4) | staged |
@@ -171,8 +171,16 @@ billboard.
   the variants across a scatter by cell hash. Chests use the treasure
   pack (wood / red-gold / ornate by loot rarity). A biome with no role for
   a family simply goes without it: the old generated stand-ins
-  (`assets/textures/props/` trees, rocks, bushes, crates… and the
-  `tile_*.png` ground sheets) were deleted 2026-10-23. Placed pieces use
+  (`assets/textures/props/` trees, rocks, bushes… and the
+  `tile_*.png` ground sheets) were deleted 2026-10-23. Store dressing
+  (`goods_*`): the treasure pack's `Objects.png` is loot icons on a 16-px
+  grid, so only its big burlap sack is used (`goods_sack` / `goods_pile`);
+  shelves (`goods_rack`, 48 wide) and tables (`goods_table`, ~42 wide) are
+  the armour pack's `Furniture.png` cut at their measured size. No pack
+  has a crate or a barrel: `goods_crate` / `goods_barrel` are our own
+  drawings (`assets/textures/props/crate.png`, `barrel.png`), listed in the
+  tool's `BESPOKE` table (2026-10-23: the old cuts showed backpacks and
+  gold bars as crates and barrels). Placed pieces use
   the pack too: the spiked-web trap is `cave_web`, cave and sewer rubble
   `cave_rock` / `cave_pebble`, the Crops bushels `field_berry`, a Barricade
   segment `forest_log`, an enemy's tree form `field_tree_small`. What is

@@ -32,7 +32,8 @@ shopping brief. Anything not listed here is now pack art.
 | Bear trap, dart trap, wall dart shooter, tree-pit | Greenwood, caves | box meshes | trap props (jaw trap, dart tube) |
 | ~~Spider web~~ | caves | **done (2026-10-23):** the spiked-web trap is the cave pack's `cave_web` sprite | — |
 | Cave floor divots, sewer algae smears | caves, sewers | flat tinted slabs (the cave rubble and sewer rubble are the cave pack's rocks and pebbles since 2026-10-23) | none needed |
-| ~~Berry bushels, barricade, enemy "tree form"~~ | battle | **done (2026-10-23):** the Crops bushels are the field pack's berry bushes, a Barricade segment the forest pack's fallen log (cut to a tile), the tree form the field pack's small tree | a crate/palisade piece if a log reads wrong (the treasure pack's "goods" crate/barrel cuts are really bags and ingots) |
+| ~~Berry bushels, barricade, enemy "tree form"~~ | battle | **done (2026-10-23):** the Crops bushels are the field pack's berry bushes, a Barricade segment the forest pack's fallen log (cut to a tile), the tree form the field pack's small tree | a crate/palisade piece if a log reads wrong |
+| Crates and barrels | building interiors, town stalls | our own drawings (`assets/textures/props/crate.png`, `barrel.png`; no pack has them). Sacks, shelves and tables are pack art (2026-10-23: the old "goods" cuts showed backpacks and gold bars) | a crate / barrel / barrel-stack prop set |
 | Chest "opening" and "empty" states | chests | closed / open-with-loot only | pack has 4 rows; the empty state is engineering |
 | Town stalls, well, fences, houses | Town | box meshes | a village / market top-down set |
 | Healing fountain | overworld sites | meshes | fountain / altar props (the Drowned Shrine now stands the winter pack's carved idol on a pack-stone plinth) |

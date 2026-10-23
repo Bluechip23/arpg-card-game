@@ -2513,13 +2513,14 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 				pile.position += Vector3(1.1, 0, 0.6)
 				stall.add_child(pile)
 		"Armory":
+			# The pack's shelves are a tile and a half wide: they stand clear of the counter.
 			var rack := CraftpixProps.make_sprite("goods_rack", 1.0, 0)
 			if rack:
-				rack.position += Vector3(-1.1, 0, 0.2)
+				rack.position += Vector3(-1.7, 0, 0.1)
 				stall.add_child(rack)
 			var rack2 := CraftpixProps.make_sprite("goods_rack", 1.0, 1)
 			if rack2:
-				rack2.position += Vector3(1.1, 0, 0.2)
+				rack2.position += Vector3(1.7, 0, 0.1)
 				stall.add_child(rack2)
 		"CardDealer":
 			var crate := CraftpixProps.make_sprite("goods_crate", 1.0, 1)
@@ -3732,7 +3733,7 @@ func _create_dojo() -> void:
 
 	var fig = Sprite3D.new()
 	fig.name = "Figure"
-	fig.texture = load("res://assets/sprites/NPCpackage1/npc old man B v02.png")
+	fig.texture = load("res://assets/sprites/NPCpackage1/npc old man B v04.png")
 	fig.region_enabled = true
 	fig.region_rect = Rect2(0, 0, 32, 32)  # south-facing idle frame
 	fig.billboard = BaseMaterial3D.BILLBOARD_ENABLED

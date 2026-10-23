@@ -8,7 +8,9 @@ extends SceneTree
 ##  - every enemy type has a sprite (the Ring Wraith was the prototype box);
 ##  - the Dojo master in town is an NPC-pack sheet, not the drawn ninja;
 ##  - the character-select card and the load screen show the character's
-##    pack figure, and the old hand-drawn portraits are not in the game.
+##    pack figure, and the old hand-drawn portraits are not in the game;
+##  - store crates and barrels are real crates and barrels (our drawings: no
+##    pack has them), and the pack's shelves and tables are cut whole.
 ## Run: godot --headless --path . --script tests/test_pack_art_only.gd
 
 var failures := 0
@@ -105,6 +107,22 @@ func _run() -> void:
 	await process_frame
 	_check(preview.find_children("*", "SpriteFigure", true, false).size() == 1, "the load screen's preview holds the pack figure")
 	preview.queue_free()
+
+	# Store dressing: the treasure sheet's loot icons are no longer cut as
+	# crates and barrels (backpacks and gold bars showed). Crates and barrels
+	# are our drawings (no pack has them); sacks, shelves and tables are the
+	# packs', whole.
+	for role in ["goods_crate", "goods_barrel"]:
+		for v in CraftpixProps.PROPS[role]["variants"]:
+			_check(str(v["path"]).begins_with("res://assets/textures/props/") and ResourceLoader.exists(v["path"]),
+				"%s is the drawn piece (%s)" % [role, v["path"]])
+	for role in ["goods_sack", "goods_pile", "goods_rack", "goods_table"]:
+		for v in CraftpixProps.PROPS[role]["variants"]:
+			_check(str(v["path"]).begins_with(CraftpixProps.DIR), "%s is pack art" % role)
+	for v in CraftpixProps.PROPS["goods_rack"]["variants"]:
+		_check(int(v["w"]) >= 44, "a shelf is cut whole (%d px wide)" % int(v["w"]))
+	for v in CraftpixProps.PROPS["goods_table"]["variants"]:
+		_check(int(v["w"]) >= 36 and int(v["h"]) <= 32, "a table is cut whole (%dx%d)" % [int(v["w"]), int(v["h"])])
 
 	# The Dojo master is an NPC-pack sheet.
 	main.queue_free()

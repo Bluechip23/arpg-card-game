@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://brjfrhyfxb4dw"
-path="res://.godot/imported/goods_sack_2.png-a022ce016f4be49577246d19ae4e0f63.ctex"
+uid="uid://bvky57qnqqwkr"
+path="res://.godot/imported/crate.png-7110803a66aa00365be9f188a80e521e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/craftpix/props/goods_sack_2.png"
-dest_files=["res://.godot/imported/goods_sack_2.png-a022ce016f4be49577246d19ae4e0f63.ctex"]
+source_file="res://assets/textures/props/crate.png"
+dest_files=["res://.godot/imported/crate.png-7110803a66aa00365be9f188a80e521e.ctex"]
 
 [params]
 
