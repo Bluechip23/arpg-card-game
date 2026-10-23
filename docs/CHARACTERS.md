@@ -54,42 +54,42 @@ correctly.
 
 ---
 
-## Jeremy — empty everything, then get paid for it
+## Jeremy — stronger the emptier he gets
 
-Jeremy is for players who like riding the edge of zero. His passives explicitly reward being
-*out* of resources: **your damage, armor gain and healing gain 18%→32% effectiveness when the card you play is one of 2 or fewer in hand**
-(*Harnessed Power*), a spell whose wind-up begins with you at 0 mana discounts your next spell's tempo
-(*Arcane Overflow*, on a rank-scaled 20→6 tempo cooldown; the cut lands on the next offensive card), spending 100 mana inside 5 tempo
-hands you a free Mana Surge attack that refunds mana, and playing the card that empties your
-hand cleanses a debuff (*Fresh Start*, cooldown 25→11 tempo).
-Where other characters build up, Jeremy *spends down* — the kit is strongest at the bottom of
-the tank.
+**Character passive:** every 3rd cycle, the first ring trigger fires twice. **Slot
+specialty:** 3 ring slots.
 
-His second axis is probability. *Tricks of Death* adds a flat +5→12 to every % chance on his
-**cards** — item-side rolls, like the Stringless Sender's bounce, are not cards and roll flat —
-which makes him the game's best user of its gamble cards: **Trick Shot** (80% to
-bounce), **Risk It** (30% for a full-heal Biscuit), **Oops** (a randomized 2–5 hit flurry),
-**What's the Worst?** (coin-flip between bonus damage and a stun), **Loaded Die** and
-**House Money** (force your next odds to hit). You aren't praying to RNG — you're stacking
-modifiers until the dice are loaded, then rolling.
+**Lanes:** Evocation (blasting with raw power), Abjurer (defense first, outlast and recover),
+Shepherd (selfless, sometimes bleeding for friends), Poltergeist (death, hatred, agony).
 
-**Gear identity:** Jeremy runs **3 ring slots**, and every 3rd cycle his **first ring trigger
-fires twice**. Rings are the game's on-trigger engine pieces (on-utility → mana, on-draw →
-mana, on-kill → heal), so Jeremy is the character who turns three small triggers into a
-compounding machine — and his doubling passive rewards *choosing* which ring fires first each
-cycle. He starts bare-fingered; every ring found in the world is a new engine part.
+Jeremy's passives pay out at the bottom of the tank. His damage, armor gain and healing all
+gain 18%→32% effectiveness when he holds 2 or fewer cards (*Harnessed Power*), ending a spell
+at 0 mana makes his next offensive card 1 tempo cheaper (*Arcane Overflow*, 20→6 cooldown),
+spending 100 mana inside 5 tempo hands him a free 0-mana attack that refunds mana (*Mana
+Surge*), and playing the card that empties his hand cleanses a debuff (*Fresh Start*). Where
+other characters build up, Jeremy spends down.
 
-**Cards that sing in his hands:** big, loud, swingy ones — **Fireball** (cheaper for each fire
-spell already cast), **God of Thunder** (converts accumulated shock into one bolt),
-**Worms Armageddon** — next to a genuinely selfless support line: *I Heal You* passively heals
-allies within 3 squares, **Provider** and **Cryonics** protect them, and *Whispers of the Flock* /
-*Blood Libation* let him tank pain personally (8 self-damage, 10 self-damage) to save an ally
-from lethal or double a heal — and Blood Libation's burst resolves damage-first, so a doubled
-self-heal patches the wound it just opened.
+His second axis is probability and cards that rewrite themselves. Every % chance on his cards
+is raised by 5→12 (*Tricks of Death*), and whenever a card rerolls to a new outcome in his
+hand he gets a free Magic Barrier instant worth 2→16 armor (*A Mage's Favor*). He does not
+pray to the dice; he loads them.
+
+The Abjurer and Poltergeist lanes make him awkward to attack. Armor he keeps for 30→16 tempo
+shocks the nearest enemy for each defensive card in his deck (*Kinetic Armor*); an enemy that
+attacks him while he holds 3+ defensive cards has its next action delayed 3 tempo (*Haunted
+Rebuke*); and an offensive card aimed at an empty tile summons a Specter decoy with 5→33 HP
+that deals its HP to whoever kills it (*Seance*).
+
+The Shepherd lane is the game's most selfless kit. Allies within 3 squares are healed every
+18→4 tempo (*I Heal You*). Healing an ally hands him a Shepherd's Mark that lets that ally
+survive lethal damage at 1 HP with 5→19 armor, at the cost of 8 damage to Jeremy (*Whispers
+of the Flock*). Taking damage stacks Sanguine, each stack adding +1→15 to all his healing; at
+5 stacks his next heal is doubled, he takes 10 damage first, and the stacks reset (*Blood
+Libation*).
 
 **Pick Jeremy if you want:** to play with an empty hand and an empty mana bar and be scarier
-for it, to manipulate percentages instead of accepting them, and to build a ring-trigger engine
-that snowballs every cycle.
+for it, to manipulate percentages instead of accepting them, to bleed for your party, and to
+build a three-ring trigger engine that doubles up every third cycle.
 
 ---
 
@@ -236,7 +236,7 @@ loadouts in the middle of a fight.
 
 ## Quick reference
 
-| Character | Core reward loop | Slot identity | Character passive |
+| Character | What the passives reward | Slot specialty | Character passive |
 |---|---|---|---|
 | **Ryan** | Discard/cycle your hand; sequence-dependent effects; cheap Pocket cards | 2 belt slots | Belt cards cost 1 less mana |
 | **Jeremy** | Be at 0 mana / ≤2 cards and get stronger; rig % chances; ring-trigger engine | 3 ring slots | Every 3rd cycle, first ring trigger fires twice |

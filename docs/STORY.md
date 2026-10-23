@@ -536,8 +536,11 @@ end-game. The current playable roster (`scripts/character/character_data.gd`):
 | **Jeremy** | Elemental mage | Evocation, Abjurer, Shepherd, Poltergeist | 3 ring slots; first ring trigger fires twice every 3rd cycle |
 
 All five share the same slot baseline (1 helm, 2 rings, 1 belt, 1 chest, 1 main
-hand, 1 off hand, 1 pair of boots, 1 gauntlet); the table lists each
-character's single deviation from it.
+hand, 1 off hand, 1 pair of boots, 1 gauntlet) and the same 5-card basic deck;
+the table lists each character's single deviation from it. There are no
+character classes and no per-character starter decks: the playstyles come
+from the built-in passives, written up in
+[`CHARACTERS.md`](CHARACTERS.md).
 
 > These are the *player's* avatars, distinct from Olorin (the guide). Whether
 > any of them have story-specific arcs woven into the Acts is `[TBD]`.
