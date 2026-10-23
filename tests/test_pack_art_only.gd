@@ -89,19 +89,20 @@ func _run() -> void:
 	_check(rw._enemy_figure != null and rw._enemy_figure.visible, "the Ring Wraith spawns as its ghost sprite")
 	_check(not (rw.mesh and rw.mesh.visible), "the Ring Wraith's prototype box is hidden")
 
-	# The character screens show pack figures; the old portraits are gone.
+	# The old hand-drawn portraits are gone; the load screen shows pack figures.
 	for p in ["brad", "cory", "jeremy", "ryan", "stephen"]:
 		_check(not ResourceLoader.exists("res://assets/characters/%s_south.png" % p), "the hand-drawn %s portrait is gone" % p)
 	for c in CharacterData.get_all_characters():
 		_check(c.sprite_path == "", "%s carries no portrait path" % c.character_name)
-	var card = load("res://scenes/character/character_card.tscn").instantiate()
-	get_root().add_child(card)
+	# The select screen shows the designer's portraits (cut from their board).
+	var row := CharacterRow.new()
+	get_root().add_child(row)
+	row.setup(CharacterData.create_jeremy())
 	await process_frame
-	card.setup(CharacterData.create_jeremy())
-	await process_frame
-	_check(card.find_children("*", "SpriteFigure", true, false).size() == 1, "the character-select card shows Jeremy's pack figure")
-	_check(card.find_children("*", "TextureRect", true, false).is_empty(), "the card has no flat portrait picture")
-	card.queue_free()
+	var pics: Array = row.find_children("*", "TextureRect", true, false).filter(
+		func(t): return t.texture and t.texture.resource_path.begins_with(CharacterData.PORTRAIT_DIR))
+	_check(pics.size() == 1, "the character-select row shows Jeremy's portrait from the designer's board")
+	row.queue_free()
 	var preview := SpriteFigure.make_preview("Cory")
 	get_root().add_child(preview)
 	await process_frame
