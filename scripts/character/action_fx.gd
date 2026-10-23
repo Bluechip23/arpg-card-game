@@ -124,7 +124,6 @@ func play(action: String) -> void:
 		"risk_it": _fx_risk_it()
 		"shepherds_mark": _fx_sheep()
 		"spark": _fx_spark()
-		"surrounding_ice": _fx_surrounding_ice()
 		"trick_shot": _fx_trick_shot()
 		"vengeful_shield": _fx_vengeful_shield()
 		"worms_armageddon": _fx_worms_armageddon()
@@ -597,16 +596,6 @@ func _fx_spark() -> void:
 	_bolt(Vector3(0.1, 0.9, 0.3), Vector3(0.0, 0.6, 1.6), Color(0.7, 0.9, 1.0))
 	_sparks(Vector3(0.1, 0.7, 0.4), Color(0.7, 0.9, 1.0), 8, 0.6)
 	_burst(Vector3(0.1, 0.7, 0.4), Color(0.7, 0.9, 1.0), 0.7)
-
-
-func _fx_surrounding_ice() -> void:
-	# A ring of ice spikes erupts around the figure (gaps = the miss chance).
-	var ring := [Vector3(0.9, 0, 0.5), Vector3(-0.9, 0, 0.5), Vector3(0.7, 0, 1.2), Vector3(-0.7, 0, 1.2), Vector3(0, 0, 1.5)]
-	for pos in ring:
-		if randf() < 0.2:
-			continue
-		_icicle(pos, randf_range(0.6, 0.95))
-	_burst(Vector3(0, 0.1, 0.0), Color(0.7, 0.9, 1.0), 1.0)
 
 
 func _fx_trick_shot() -> void:

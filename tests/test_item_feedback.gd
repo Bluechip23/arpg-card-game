@@ -478,6 +478,31 @@ func _test_play_scope(stats, dm, bm, dummies: Array) -> void:
 		_check(absf(reach - 3.0) < 0.01, "its flames end where the 3-space line ends (%.2f)" % reach)
 		await create_timer(1.2, true).timeout
 		_check(not is_instance_valid(sf), "the embers die away and it frees itself")
+	# Surrounding Ice: the designer's spikes ring the caster and stand under
+	# every enemy the ice hits; an enemy the miss roll spared gets none.
+	_reset_dummy(a)
+	_reset_dummy(b)
+	_place(gm, a, pcell + Vector2i(1, 0))
+	_place(gm, b, pcell + Vector2i(0, 2))
+	_resolve_like_main(Card.create_by_id("surrounding_ice"), main.player, stats, dm, bm)
+	var ices: Array = main.find_children("SurroundingIceFX*", "SurroundingIceFX", false, false)
+	_check(ices.size() == 1, "Surrounding Ice raises the ice spikes (%d)" % ices.size())
+	if ices.size() == 1:
+		var ice: SurroundingIceFX = ices[0]
+		_check(ice.spikes.size() >= 8 and ice.spikes[0].texture.resource_path.ends_with("ice_spike_strip.png"),
+			"a ring of the designer's spikes (%d)" % ice.spikes.size())
+		var spike_cells := {}
+		for sp in ice.spikes:
+			spike_cells[gm.world_to_grid(ice.position + sp.position)] = true
+		for d in [a, b]:
+			var hit: bool = d.current_health < 1000
+			var cell: Vector2i = gm.world_to_grid(d.position)
+			_check(spike_cells.has(cell) == hit, "%s enemy at %s %s a spike under it" % ["a struck" if hit else "a spared", cell, "has" if hit else "has no"])
+		_check(not spike_cells.has(pcell), "no spike on the caster's own tile")
+		await create_timer(1.2, true).timeout
+		_check(not is_instance_valid(ice), "the spikes shatter and it frees itself")
+	_place(gm, a, pcell + Vector2i(2, 0))   # back where the Fireball splash checks below expect them
+	_place(gm, b, pcell + Vector2i(3, 0))
 	var belt := ItemData.create("megingjord")
 	_reset_dummy(a)
 	_reset_dummy(b)

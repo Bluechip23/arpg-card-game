@@ -12627,6 +12627,16 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				else:
 					misses += 1
 			_apply_misery_spread(ice_hit)
+			# The designer's ice spikes erupt around the caster; the spared go without.
+			var ice_struck: Array = []
+			var ice_spared: Array = []
+			for enemy in nearby:
+				var ice_cell := grid_manager.world_to_grid(enemy.position)
+				if enemy in ice_hit:
+					ice_struck.append(ice_cell)
+				else:
+					ice_spared.append(ice_cell)
+			SurroundingIceFX.play(self, grid_manager, player.position, card.aoe_range, ice_struck, ice_spared)
 			print("[MAIN] Surrounding Ice: %d hits, %d misses out of %d enemies" % [ice_hit.size(), misses, nearby.size()])
 
 		"snowballs_chance":
