@@ -60,6 +60,23 @@ const PASSIVES := {
 	"clean_exchange": "game_11", "exposed_blind_spot": "game_86", "lethal_resourcefulness": "pack_87",
 	"eagle_eye": "pack_56", "scouted": "rpg_16", "laced_arrow": "game_68",
 	"patience_is_a_virtue": "rpg_66", "swing_for_the_fences": "game_74", "dominate": "rpg_50",
+	# Ryan — Relentless Blade / Light Foot / Apothecary / Shadow Blade (picked for
+	# the Choose Your Character screen, 2026-10-23: no two passives share art,
+	# and none borrows a status effect's icon)
+	"keep_them_guessing": "game_8", "from_the_hip": "pack_26", "nimble_assault": "rpg_14",
+	"quick_step": "rpg_15", "ladder_work": "pack_61", "let's_dance": "rpg_57",
+	"stimulant": "rpg_30", "pop_rocks": "game_58", "mad_scientist": "game_59",
+	"now_you_see_me": "pack_11", "surprise_opener": "rpg_80", "eye_scrape": "rpg_59",
+	# Jeremy — Evocation / Shepherd / Poltergeist / Abjurer
+	"arcane_overflow": "game_7", "harnessed_power": "rpg_49", "mana_surge": "game_6",
+	"i_heal_you": "game_17", "whispers_of_the_flock": "game_66", "blood_libation": "game_42",
+	"tricks_of_death": "pack_8", "seance": "pack_10", "haunted_rebuke": "pack_9",
+	"a_mage's_favor": "game_24", "kinetic_armor": "rpg_12", "fresh_start": "pack_23",
+	# Cory — Monk / Lurker / Atrophist / Druid
+	"energy_barrier": "game_36", "expel_negativity": "game_55", "self_reliance": "pack_79",
+	"prey_on_the_weak": "pack_93", "eat": "rpg_32", "serial_killer": "pack_53",
+	"wither": "game_62", "territorial_death": "rpg_71", "death_as_lifeblood": "pack_54",
+	"budding": "rpg_88", "circle_of_life": "pack_51", "regrowth": "pack_44",
 }
 
 # Pool per archetype for passives that have no explicit pick yet.

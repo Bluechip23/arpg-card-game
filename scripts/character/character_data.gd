@@ -118,6 +118,40 @@ const STAT_INFO := {
 	"AGI": "Agility — 1 Flash point per point, refreshed every 3 tempo cycles. Spend them by choice in battle: 3 points per tile moved (boots toggle), 3 points for 2 block (sidestep), 5 points to advance the attack-speed counter (daggers). Without Flash, each tile costs 1 tempo.",
 }
 
+# ============================================
+# CHOOSE YOUR CHARACTER (the select screen)
+# ============================================
+# Per hero, by preset identity (renamed saves keep theirs): the portrait cut
+# from the designer's select-screen board (tools/cut_character_portraits.py),
+# the accent colour the board gives the hero's name and headings, and the
+# one-line "what this hero is rewarded for" the board prints under the name
+# (designer, 2026-10-23). Not saved: it is the hero's, not the save's.
+
+const PORTRAIT_DIR := "res://assets/sprites/portraits/"
+const SELECT_INFO := {
+	"Ryan": {"color": Color(0.30, 0.56, 1.0),
+		"rewarded_for": "Rewarded for cards moving, for himself moving, and for striking first from invisibility."},
+	"Jeremy": {"color": Color(0.70, 0.36, 1.0),
+		"rewarded_for": "Rewarded for being empty of mana and cards, for rigging percentages, and for bleeding to heal allies."},
+	"Stephen": {"color": Color(1.0, 0.66, 0.28),
+		"rewarded_for": "Rewarded for cadence: long attack chains, strict attack and defense alternation, or slow oversized swings."},
+	"Cory": {"color": Color(0.38, 0.86, 0.36),
+		"rewarded_for": "Rewarded for debuffing wounded enemies, standing inside a pack, and playing one of every card type per cycle."},
+	"Brad": {"color": Color(0.95, 0.24, 0.22),
+		"rewarded_for": "Rewarded for low health, stockpiled armor, being swarmed, and healing that turns into thorns and crits."},
+}
+
+## The hero's select-screen portrait, or null (the Customize option has none).
+func get_portrait() -> Texture2D:
+	var path := PORTRAIT_DIR + get_base_character().to_lower() + ".png"
+	return load(path) as Texture2D if ResourceLoader.exists(path) else null
+
+func get_accent_color() -> Color:
+	return SELECT_INFO.get(get_base_character(), {}).get("color", Color(1.0, 0.85, 0.4))
+
+func get_rewarded_for() -> String:
+	return SELECT_INFO.get(get_base_character(), {}).get("rewarded_for", "")
+
 static func stat_full_name(key: String) -> String:
 	return STAT_NAMES.get(key, key)
 
