@@ -6,8 +6,10 @@ extends PanelContainer
 ## 2026-10-23): the portrait, the name in the hero's colour with what the
 ## hero is rewarded for under it, then the hero's four passive trees — each
 ## headed by the tree's (archetype's) name, its three passives as icon squares
-## beneath (twelve in all). Hovering a square explains the passive; hovering
-## the portrait or name shows the hero's unique passive and slots. Clicking
+## beneath (twelve in all). Each tree's name sits in its own bordered box;
+## hovering it shows what the tree is about (the hero's archetype
+## description). Hovering a square explains the passive; hovering the
+## portrait or name shows the hero's unique passive and slots. Clicking
 ## anywhere on the row chooses the hero.
 ##
 ## The Customize row (the questionnaire) has a "?" in place of the portrait
@@ -129,14 +131,9 @@ func _build_tree_section(lane: Dictionary, accent: Color) -> Control:
 	vb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	vb.add_theme_constant_override("separation", 8)
 	vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var head := Label.new()
-	head.name = "TreeName"
-	head.text = str(lane["name"]).to_upper()
-	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	head.add_theme_font_size_override("font_size", 14)
-	head.add_theme_color_override("font_color", accent)
-	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vb.add_child(head)
+	var title := TreeTitle.new()
+	title.setup(str(lane["name"]), _archetype_description(str(lane["name"])), accent)
+	vb.add_child(title)
 	var squares := HBoxContainer.new()
 	squares.alignment = BoxContainer.ALIGNMENT_CENTER
 	squares.add_theme_constant_override("separation", 8)
@@ -148,6 +145,15 @@ func _build_tree_section(lane: Dictionary, accent: Color) -> Control:
 		sq.setup(passives[i], str(lane["name"]), i, accent)
 		squares.add_child(sq)
 	return vb
+
+
+## The tree's description from the hero's archetypes (the text the old
+## character card listed under ARCHETYPES).
+func _archetype_description(tree_name: String) -> String:
+	for arch in character_data.archetypes:
+		if str(arch.get("name", "")) == tree_name:
+			return str(arch.get("description", ""))
+	return ""
 
 
 func _identity_tooltip(character: CharacterData, is_customize: bool) -> String:
@@ -173,3 +179,58 @@ static func _panel_style(bg: Color, border: Color, radius: int = 6, margin: int 
 	st.content_margin_top = 10 if margin < 0 else margin
 	st.content_margin_bottom = 10 if margin < 0 else margin
 	return st
+
+
+## A passive tree's name in its own bordered box over its three squares.
+## Hovering it shows what the tree (archetype) is about. Clicks pass through
+## to the row.
+class TreeTitle extends PanelContainer:
+	var tree_name := ""
+	var description := ""
+	var accent := Color.WHITE
+
+	func setup(p_name: String, p_description: String, p_accent: Color) -> void:
+		tree_name = p_name
+		description = p_description
+		accent = p_accent
+		name = "TreeTitle"
+		mouse_filter = Control.MOUSE_FILTER_PASS
+		mouse_default_cursor_shape = Control.CURSOR_HELP
+		# Non-empty tooltip text is what makes Godot call _make_custom_tooltip.
+		tooltip_text = p_description if p_description != "" else p_name
+		var st := StyleBoxFlat.new()
+		st.bg_color = Color(accent.r, accent.g, accent.b, 0.10)
+		st.set_border_width_all(2)
+		st.border_color = accent.darkened(0.15)
+		st.set_corner_radius_all(4)
+		st.content_margin_left = 8
+		st.content_margin_right = 8
+		st.content_margin_top = 3
+		st.content_margin_bottom = 3
+		add_theme_stylebox_override("panel", st)
+		var head := Label.new()
+		head.name = "TreeName"
+		head.text = p_name.to_upper()
+		head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		head.add_theme_font_size_override("font_size", 14)
+		head.add_theme_color_override("font_color", accent)
+		head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(head)
+
+	func _make_custom_tooltip(_for_text: String) -> Control:
+		var vb := VBoxContainer.new()
+		vb.add_theme_constant_override("separation", 4)
+		var title := Label.new()
+		title.text = tree_name
+		title.add_theme_font_size_override("font_size", 16)
+		title.add_theme_color_override("font_color", accent)
+		vb.add_child(title)
+		if description != "":
+			var body := Label.new()
+			body.text = description
+			body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			body.custom_minimum_size.x = 300
+			body.add_theme_font_size_override("font_size", 13)
+			body.add_theme_color_override("font_color", Color(0.86, 0.86, 0.9))
+			vb.add_child(body)
+		return vb

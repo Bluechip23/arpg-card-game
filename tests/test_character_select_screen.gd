@@ -2,9 +2,9 @@ extends SceneTree
 
 ## The Choose Your Character screen, after the designer's board (2026-10-23):
 ## one row per hero — the portrait, the name in the hero's colour, what the
-## hero is rewarded for, then the four passive trees by name with their three
-## passives each as icon squares (twelve), every square explaining its passive
-## on hover. Clicking a row (or one of its squares) chooses the hero.
+## hero is rewarded for, then the four passive trees by name — each name in
+## its own box, explaining the tree on hover — with their three passives each
+## as icon squares (twelve), every square explaining its passive on hover. Clicking a row (or one of its squares) chooses the hero.
 ## Run: godot --headless --path . --script tests/test_character_select_screen.gd
 
 var failures := 0
@@ -60,6 +60,24 @@ func _run() -> void:
 		var head_texts: Array = heads.map(func(l): return l.text)
 		var lane_names: Array = lanes.map(func(l): return str(l["name"]).to_upper())
 		_check(heads.size() == 4 and head_texts == lane_names, "%s's four trees are %s" % [hn, head_texts])
+		# Each tree's name has its own border; hovering it tells what the tree is about.
+		var titles: Array = row.find_children("TreeTitle", "PanelContainer", true, false)
+		_check(titles.size() == 4, "%s's four tree names each sit in their own box" % hn)
+		for t in titles:
+			var box: StyleBoxFlat = t.get_theme_stylebox("panel") as StyleBoxFlat
+			_check(box != null and box.border_width_top > 0 and box.border_color.a > 0.5,
+				"%s: %s has a border" % [hn, t.tree_name])
+			var want := ""
+			for arch in hero.archetypes:
+				if arch["name"] == t.tree_name:
+					want = arch["description"]
+			var tip: Control = t._make_custom_tooltip(t.tooltip_text)
+			var tip_text := ""
+			for l in tip.find_children("*", "Label", true, false):
+				tip_text += l.text + "\n"
+			tip.free()
+			_check(want != "" and t.description == want and want in tip_text and t.tree_name in tip_text,
+				"%s: hovering %s shows its description" % [hn, t.tree_name])
 		var squares: Array = row.find_children("*", "PassiveSquare", true, false)
 		_check(squares.size() == 12, "%s shows 12 passive squares (%d)" % [hn, squares.size()])
 		for sq in squares:
