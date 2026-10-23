@@ -172,13 +172,13 @@ conforms to them.
 
 ## 6. Terrain & environment
 
-- Grayscale 32-texel tile textures multiplied by the location palette
-  (`dungeon_manager.get_palette()`), triplanar world-mapped, nearest-filtered:
-  `tile_grass`, `tile_dirt`, `tile_rock`, `tile_brick` — each authored as a
-  **128×128 sheet of 4×4 distinct variants** so the repeat period is 4 tiles,
-  not 1 (kills visible tiling).
-- Tile textures quantized to ≤8 grays (value steps only — hue comes from the
-  palette tint).
+- Ground, walls and water are the Craftpix packs' own fills
+  (`assets/textures/craftpix/`, cut by `tools/extract_craftpix_tiles.py`),
+  each a **128×128 sheet of 4×4 distinct variants** so the repeat period is
+  4 tiles, not 1 (kills visible tiling), autotiled by
+  `DungeonManager._build_autotile_ground` under a light palette cast. (The
+  old generated grayscale `tile_grass/dirt/rock/brick` sheets were deleted
+  2026-10-23.)
 - Environment stays in the mid-value band; characters keep the darkest darks
   and brightest lights. Floors must lose the squint test against sprites.
 

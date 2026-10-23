@@ -349,7 +349,7 @@ var _queue_open: bool = false
 var _is_paused: bool = false
 var _pause_button: Button = null
 
-var barricade_obstacles: Array = []  # [{node: MeshInstance3D, health: int}]
+var barricade_obstacles: Array = []  # [{node: Node3D, health: int}] (the pack's fallen log)
 var active_pillars: Array = []  # [{node: Node3D, position: Vector3, tempo_remaining: int}]
 var _card_ui_instances: Array = []  # one CardUI per hand group (parallel to _hand_groups)
 var _current_hand_hover_index: int = -1
@@ -6094,6 +6094,8 @@ func _animate_trap_sprung(trap: Dictionary) -> void:
 	for child in node.get_children():
 		if child is MeshInstance3D and child.material_override is StandardMaterial3D:
 			(child.material_override as StandardMaterial3D).albedo_color = tint
+		elif child is Sprite3D:
+			child.modulate = tint  # the pack-sprite web greys out like the mesh traps
 
 #endregion
 #region CLIMBABLE TREES
@@ -9888,20 +9890,16 @@ func _update_element_pollination() -> void:
 				break
 	Card.element_pollination_active = pol_active
 
-func _make_bushel_visual(cell: Vector2i) -> MeshInstance3D:
-	var node := MeshInstance3D.new()
-	var mesh_res := SphereMesh.new()
-	mesh_res.radius = 0.22
-	mesh_res.height = 0.32
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.45, 0.85, 0.35)
-	mat.emission_enabled = true
-	mat.emission = Color(0.3, 0.6, 0.25)
-	mat.emission_energy_multiplier = 0.6
-	mesh_res.material = mat
-	node.mesh = mesh_res
+func _make_bushel_visual(cell: Vector2i) -> Node3D:
+	## A berry bush from the field pack, about a tile across (the variant
+	## varies by cell so a crop of five does not read as one stamp).
+	var node := Node3D.new()
+	node.name = "BerryBushel"
+	var k := absi(cell.x * 7 + cell.y * 13)
+	var v: Dictionary = CraftpixProps.PROPS["field_berry"]["variants"][k % CraftpixProps.PROPS["field_berry"]["variants"].size()]
+	node.add_child(CraftpixProps.make_sprite("field_berry", minf(1.0, 30.0 / float(v["w"])), k))
 	node.position = grid_manager.grid_to_world(cell)
-	node.position.y = 0.18
+	node.position.y = 0.0
 	add_child(node)
 	return node
 
@@ -10705,7 +10703,8 @@ func _spawn_draupnir_clone(ring: ItemData) -> void:
 	var hp: int = maxi(1, floori(stats.max_health * (0.5 if ring.item_level >= 3 else 0.25)))
 	var clone := CloneScript.new()
 	add_child(clone)
-	clone.setup(grid_manager, grid_manager.grid_to_world(spawn_cell), hp)
+	clone.setup(grid_manager, grid_manager.grid_to_world(spawn_cell), hp,
+		SpriteFigure.preset_for(stats.character_data) if stats.character_data else "Brad")
 	clone.died.connect(func(c):
 		_garmr_death_stack(c.position)
 		_clones.erase(c)
@@ -14531,21 +14530,20 @@ func _spawn_barricade() -> void:
 	print("[MAIN] Barricade: spawned 3 obstacles in front of player")
 
 func _create_obstacle_box(pos: Vector3, health: int) -> Dictionary:
-	var marker := MeshInstance3D.new()
-	var box_mesh := BoxMesh.new()
-	box_mesh.size = Vector3(0.9, 0.9, 0.9)
-	marker.mesh = box_mesh
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.55, 0.35, 0.15)  # Brown
-	marker.material_override = mat
-	marker.position = Vector3(pos.x, 0.45, pos.z)
+	## One barricade segment: the forest pack's fallen log, cut down to a
+	## tile across, lying on the blocked cell. (No pack draws a crate or
+	## palisade: the treasure pack's "goods" cuts are bags and ingots.)
+	var marker := Node3D.new()
+	marker.name = "Barricade"
+	marker.position = Vector3(pos.x, 0.0, pos.z)
+	marker.add_child(CraftpixProps.make_sprite("forest_log", 34.0 / 81.0, 0))
 	add_child(marker)
 
 	var label := Label3D.new()
 	label.text = "HP: %d" % health
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.font_size = 24
-	label.position = Vector3(0, 0.7, 0)
+	label.position = Vector3(0, 1.0, 0)
 	WorldText.crisp(label)
 	marker.add_child(label)
 
@@ -14696,7 +14694,7 @@ func _spawn_pillar(pos: Vector3) -> void:
 	pillar_mesh.mesh = cylinder
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.78, 0.62, 0.45)  # warm cast over the rock tiles
-	mat.albedo_texture = load(dungeon_manager.wall_texture_path() if dungeon_manager else "res://assets/textures/tile_rock.png")
+	mat.albedo_texture = load(dungeon_manager.wall_texture_path() if dungeon_manager else DungeonManager.CP_TEX + "/wall_field.png")
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mat.uv1_triplanar = true
 	mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
@@ -15151,11 +15149,7 @@ func _build_loot_visual(drop: Node3D, loot: Dictionary) -> void:
 	## One money bag marks every drop — the sign that an enemy left loot —
 	## with a small glint pulsing above it and a gentle bob. What is inside
 	## is listed by the hover tooltip and the loot menu.
-	var bag := _money_bag_sprite()
-	if bag:
-		drop.add_child(bag)
-	else:
-		_loot_mesh(drop, _mesh_sphere(0.13), Vector3(0, 0.09, 0), Color(0.45, 0.33, 0.2))
+	drop.add_child(_money_bag_sprite())
 	# A mythic in the sack glows purple, a pack shows its tier, anything else gold.
 	var glint_color := Color(1.0, 0.95, 0.6)
 	var item: ItemData = loot.get("item")
@@ -15173,8 +15167,6 @@ func _build_loot_visual(drop: Node3D, loot: Dictionary) -> void:
 
 ## The pack's money-bag icon as a ground billboard (32 texels, one tile wide).
 func _money_bag_sprite() -> Sprite3D:
-	if not ResourceLoader.exists(LOOT_BAG_TEXTURE):
-		return null
 	var sprite := Sprite3D.new()
 	sprite.texture = load(LOOT_BAG_TEXTURE)
 	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED

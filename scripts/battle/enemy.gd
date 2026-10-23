@@ -6383,28 +6383,10 @@ func _enter_tree_form() -> void:
 	if _enemy_figure:
 		_enemy_figure.visible = false
 	if _tree_node == null:
+		# The field pack's small tree, about the size of the body it hides.
 		_tree_node = Node3D.new()
-		var trunk := MeshInstance3D.new()
-		var trunk_mesh := CylinderMesh.new()
-		trunk_mesh.top_radius = 0.09
-		trunk_mesh.bottom_radius = 0.13
-		trunk_mesh.height = 0.6
-		trunk.mesh = trunk_mesh
-		var trunk_mat := StandardMaterial3D.new()
-		trunk_mat.albedo_color = Color(0.42, 0.28, 0.12)
-		trunk.material_override = trunk_mat
-		trunk.position.y = 0.3
-		_tree_node.add_child(trunk)
-		var crown := MeshInstance3D.new()
-		var crown_mesh := SphereMesh.new()
-		crown_mesh.radius = 0.35
-		crown_mesh.height = 0.6
-		crown.mesh = crown_mesh
-		var crown_mat := StandardMaterial3D.new()
-		crown_mat.albedo_color = Color(0.22, 0.55, 0.2)
-		crown.material_override = crown_mat
-		crown.position.y = 0.85
-		_tree_node.add_child(crown)
+		_tree_node.name = "TreeForm"
+		_tree_node.add_child(CraftpixProps.make_sprite("field_tree_small", 0.8))
 		add_child(_tree_node)
 	_tree_node.visible = true
 	_update_status_indicators()

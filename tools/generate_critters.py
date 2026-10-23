@@ -1,34 +1,12 @@
 #!/usr/bin/env python3
-"""Tiny ambient-critter billboards: sewer mouse and forest squirrel.
-Side-view pixel rodents with a painted one-row contact shadow."""
+"""Tiny ambient-critter billboard: the forest squirrel, a side-view pixel
+rodent with a painted one-row contact shadow. No pack draws a squirrel;
+the sewer mouse is the giant-rat pack's Rat1 shrunk down (sewer_critter.gd),
+so this generator no longer draws one."""
 from PIL import Image
 
 H = lambda s: tuple(int(s[i:i + 2], 16) for i in (0, 2, 4)) + (255,)
 SHADOW = (24, 24, 24, 80)
-
-
-def mouse():
-    BODY = H("453f60")     # AMETHYST_1 (dark grey-violet fur in the gloom)
-    BODY_SH = H("2b2540")  # AMETHYST_3
-    img = Image.new("RGBA", (14, 9))
-    p = img.load()
-    for x in range(4, 12):                 # low humped body
-        p[x, 5] = BODY
-        p[x, 6] = BODY_SH
-    for x in range(5, 11):
-        p[x, 4] = BODY
-    for x in range(6, 9):
-        p[x, 3] = BODY
-    p[11, 4] = BODY                        # head/snout
-    p[12, 5] = BODY_SH
-    p[10, 3] = BODY_SH                     # ear
-    p[11, 3] = (0, 0, 0, 255)              # eye
-    for i, x in enumerate(range(1, 4)):    # thin tail
-        p[x, 6 - (i % 2)] = BODY_SH
-    for x in range(3, 13):
-        p[x, 8] = SHADOW
-    img.save("assets/textures/props/critter_mouse.png")
-    print("critter_mouse", img.size)
 
 
 def squirrel():
@@ -57,5 +35,4 @@ def squirrel():
     print("critter_squirrel", img.size)
 
 
-mouse()
 squirrel()
