@@ -460,17 +460,44 @@ func _test_play_scope(stats, dm, bm, dummies: Array) -> void:
 		_check(heading.dot(to_target.normalized()) > 0.99, "the fireball is aimed at the target")
 		await create_timer(1.2, true).timeout   # ember + flight + three blast stages + fade
 		_check(not is_instance_valid(fx), "the blast fades and frees itself")
+	# Casting faces the aim: a point card (Fireball) turns the caster toward
+	# the aimed spot, east or west — not the caster's own tile (south).
+	var cam = main.get_world_camera()
+	var fig = main.player._figure
+	for side in [1, -1]:
+		var spot: Vector3 = main.player.position + Vector3(4.0 * side, 0, -0.5)
+		main.mouse_override = cam.unproject_position(spot)
+		main._play_card_animation(Card.create_by_id("fireball"), main.player)
+		var want: int = CharacterAnimator.Direction.EAST if side > 0 else CharacterAnimator.Direction.WEST
+		_check(fig.facing == want, "casting Fireball at a spot to the %s faces it" % ("east" if side > 0 else "west"))
+	main.mouse_override = Vector2(-1, -1)
+	# The fireball is thrown from the caster's midsection (north of the feet on screen).
+	for n in main.find_children("FireballFX*", "FireballFX", false, false):
+		n.free()
+	_reset_dummy(a)
+	_resolve_like_main(Card.create_by_id("fireball"), a, stats, dm, bm)
+	var thrown: Array = main.find_children("FireballFX*", "FireballFX", false, false)
+	_check(thrown.size() == 1 and thrown[0].position.z < main.player.position.z - 0.2,
+		"the fireball leaves the caster's midsection, not their feet")
+	_check(thrown.size() == 1 and absf(thrown[0]._sprite.scale.x - FireballFX.SIZE) < 0.001 and FireballFX.SIZE < 1.0,
+		"the fireball is drawn a little under its art's size")
+	for n in thrown:
+		n.free()
 	# A Snowball's Chance: the designer's searing fire runs along the ground
 	# from the caster toward the aim, as long as the 3-space line it burns.
 	_reset_dummy(a)
 	main.mouse_override = main.get_world_camera().unproject_position(a.position)
-	_resolve_like_main(Card.create_by_id("snowballs_chance"), main.player, stats, dm, bm)
+	var sbc_card := Card.create_by_id("snowballs_chance")
+	main._play_card_animation(sbc_card, main.player)
+	_check(fig.facing == CharacterAnimator.Direction.EAST, "A Snowball's Chance faces the way it is cast")
+	_resolve_like_main(sbc_card, main.player, stats, dm, bm)
 	main.mouse_override = Vector2(-1, -1)
 	var sears: Array = main.find_children("SearingFireFX*", "SearingFireFX", false, false)
 	_check(sears.size() == 1, "A Snowball's Chance lays the searing fire (%d)" % sears.size())
 	_check(1000 - a.current_health > 0, "...and the line burns the enemy it is aimed at")
 	if sears.size() == 1:
 		var sf: SearingFireFX = sears[0]
+		_check(sf.position.z < main.player.position.z - 0.2, "the fire comes out of the caster's midsection, not their feet")
 		_check(sf._sprite.texture.resource_path.ends_with("searing_fire_strip.png"), "it is the designer's flame strip")
 		var aim := Vector2(a.position.x - main.player.position.x, a.position.z - main.player.position.z).normalized()
 		_check(Vector2(cos(sf.rotation.y), -sin(sf.rotation.y)).dot(aim) > 0.99, "it runs horizontally along the aim, not up the screen")
@@ -490,10 +517,23 @@ func _test_play_scope(stats, dm, bm, dummies: Array) -> void:
 	if ices.size() == 1:
 		var ice: SurroundingIceFX = ices[0]
 		_check(ice.spikes.size() >= 8 and ice.spikes[0].texture.resource_path.ends_with("ice_spike_strip.png"),
-			"a ring of the designer's spikes (%d)" % ice.spikes.size())
+			"the designer's spikes erupt (%d)" % ice.spikes.size())
 		var spike_cells := {}
 		for sp in ice.spikes:
 			spike_cells[gm.world_to_grid(ice.position + sp.position)] = true
+		var missing := 0
+		for dx in range(-3, 4):
+			for dz in range(-3, 4):
+				var c: Vector2i = pcell + Vector2i(dx, dz)
+				var at: Vector3 = gm.grid_to_world(c)
+				var in_reach: bool = Vector2(at.x - main.player.position.x, at.z - main.player.position.z).length() <= 2.5
+				var spared_here := false
+				for d in [a, b]:
+					if gm.world_to_grid(d.position) == c and d.current_health >= 1000:
+						spared_here = true
+				if in_reach and c != pcell and not spared_here and not spike_cells.has(c):
+					missing += 1
+		_check(missing == 0, "a spike on every tile the ice reaches, not just the outer ring (%d missing)" % missing)
 		for d in [a, b]:
 			var hit: bool = d.current_health < 1000
 			var cell: Vector2i = gm.world_to_grid(d.position)

@@ -2,7 +2,7 @@ class_name SearingFireFX
 extends Node3D
 
 ## A Snowball's Chance: the designer's searing fire (tools/cut_searing_fire.py)
-## sweeps along the ground from the caster: a lick of flame at their feet
+## sweeps out from the caster's midsection: a lick of flame at their middle
 ## reaches out to the full 3-space line, holds, breaks into embers and the
 ## embers die away. Laid flat under the plan-view camera and turned along
 ## the line's heading; scaled so the flames end where the line's damage
@@ -19,7 +19,7 @@ const FADE_TIME := 0.15
 var _sprite: Sprite3D = null
 
 
-## Sear from `from` (the caster's feet) along `direction` for `length` world
+## Sear from `from` (the caster's midsection) along `direction` for `length` world
 ## units, under `world` (the node the field lives in).
 static func play(world: Node, from: Vector3, direction: Vector3, length: float) -> SearingFireFX:
 	if world == null or not world.is_inside_tree():

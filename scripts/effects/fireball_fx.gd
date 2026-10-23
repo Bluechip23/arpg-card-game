@@ -12,7 +12,8 @@ const STRIP := "res://assets/sprites/generated/fx/fireball_strip.png"
 const FRAMES := 5
 const CELL := 128
 const ANCHOR := Vector2(77, 69)     # the shared point on the canvas (see the tool)
-const HAND := 0.45                  # the ember kindles this far out toward the target
+const HAND := 0.3                   # the ember kindles this far out toward the target
+const SIZE := 0.75                  # a little under the art's own size (designer, 2026-10-23)
 const EMBER_TIME := 0.12
 const SPEED := 16.0                 # world units per second in flight
 const MIN_FLIGHT := 0.12
@@ -23,7 +24,7 @@ const FADE_TIME := 0.15
 var _sprite: Sprite3D = null
 
 
-## Throw one from `from` (the caster's feet) to `to` (the aimed point) under
+## Throw one from `from` (the caster's midsection) to `to` (the aimed point) under
 ## `world` (the node the field lives in).
 static func play(world: Node, from: Vector3, to: Vector3) -> FireballFX:
 	if world == null or not world.is_inside_tree():
@@ -58,6 +59,7 @@ func _start(from: Vector3, to: Vector3) -> void:
 	_sprite.no_depth_test = true
 	_sprite.render_priority = 10
 	_sprite.pixel_size = CameraView.PIXEL_SIZE
+	_sprite.scale = Vector3.ONE * SIZE
 	# Pin the canvas's anchor to this node (Sprite3D offsets are y-up).
 	_sprite.offset = Vector2(CELL * 0.5 - ANCHOR.x, ANCHOR.y - CELL * 0.5)
 	add_child(_sprite)

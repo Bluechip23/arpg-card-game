@@ -11532,17 +11532,44 @@ func _facing_dir_toward(target) -> CharacterAnimator.Direction:
 			dir = CharacterAnimator.Direction.SOUTH if to_target.z > 0 else CharacterAnimator.Direction.NORTH
 	return dir
 
+## Where a played card is aimed, for facing: the target creature's spot
+## (not the caster's own), else the aimed point for a point / line card;
+## null for a card with no direction (self buffs, all-around bursts).
+## A character's midsection on screen, from their feet: under the plan-view
+## camera "up the screen" is north (-Z), and a figure stands about a tile
+## tall. Spells are cast from here, not from the feet.
+const CAST_MIDSECTION := Vector3(0, 0, -0.45)
+
+func _card_aim_point(card: Card, target):
+	if target is Node3D and is_instance_valid(target) and target != player:
+		return (target as Node3D).position
+	if "point" in card.target_types:
+		var at := get_mouse_world_position()
+		if Vector2(at.x - player.position.x, at.z - player.position.z).length() > 0.05:
+			return at
+	return null
+
 func _play_card_animation(card: Card, target) -> void:
 	if not player or not player.has_method("play_animation"):
 		return
-	# Determine animation direction based on target position
-	var dir := _facing_dir_toward(target)
+	# Face where the card goes: the creature it is cast at, or, for a card
+	# aimed at a point or along a line (Fireball, A Snowball's Chance...),
+	# the aimed spot — a point click passes the CASTER as the target, so
+	# reading `target` alone left those casts facing south.
+	var aim = _card_aim_point(card, target)
+	var dir := CharacterAnimator.Direction.SOUTH
+	if aim != null:
+		var to_aim: Vector3 = aim - player.position
+		if abs(to_aim.x) > abs(to_aim.z):
+			dir = CharacterAnimator.Direction.EAST if to_aim.x > 0 else CharacterAnimator.Direction.WEST
+		elif abs(to_aim.z) > 0.01:
+			dir = CharacterAnimator.Direction.SOUTH if to_aim.z > 0 else CharacterAnimator.Direction.NORTH
 	# Card defines its own animation action (shared with the Animation Lab)
 	player.play_animation(card.get_animation_action(), dir)
-	# Then aim precisely at the target so the attack lines up (the cardinal
-	# `dir` above only feeds animations that key off a 4-way facing).
-	if target and target is Node3D and is_instance_valid(target) and player.has_method("face_toward"):
-		player.face_toward(target.position)
+	# Then aim precisely so the cast lines up (the cardinal `dir` above only
+	# feeds animations that key off a 4-way facing).
+	if aim != null and player.has_method("face_toward"):
+		player.face_toward(aim)
 	# Worms Armageddon: only burst the Alaskan Bull Worm when its 10% summon hits.
 	if card.card_id == "worms_armageddon" and card.rng_binary_succeeded() and player.has_method("show_worm_summon"):
 		player.show_worm_summon()
@@ -11913,7 +11940,9 @@ func _apply_card_world_effects(card: Card, target) -> void:
 		"fireball":
 			# AOE circle (4 squares) centred on the target; damage + 3 burn each.
 			var center = _point_aim(target, mouse_pos)
-			FireballFX.play(self, player.position, center)  # the designer's fireball: ember, flight, blast
+			# The designer's fireball: ember, flight, blast — thrown from the
+			# caster's midsection at the target's, so it reads as a cast.
+			FireballFX.play(self, player.position + CAST_MIDSECTION, center + CAST_MIDSECTION)
 			var fb_dmg := card.last_damage_dealt
 			var fb_hit := enemy_spawner.get_enemies_in_radius(center, card.aoe_range if card.aoe_range > 0 else 2.0)
 			for en in fb_hit:
@@ -12644,7 +12673,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			var sbc_diff := mouse_pos - player.position
 			var direction = Vector3(sbc_diff.x, 0, sbc_diff.z).normalized()
 			var fire_end = player.position + direction * card.aoe_range
-			SearingFireFX.play(self, player.position, direction, card.aoe_range)  # the designer's searing fire
+			SearingFireFX.play(self, player.position + CAST_MIDSECTION, direction, card.aoe_range)  # the designer's searing fire, from the midsection
 			var fire_enemies := enemy_spawner.get_enemies_in_line(player.position, fire_end, 0.8)
 			var sbc_hit: Array = []
 			for enemy in fire_enemies:

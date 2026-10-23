@@ -2,21 +2,20 @@ class_name SurroundingIceFX
 extends Node3D
 
 ## Surrounding Ice: the designer's ice spike (tools/cut_ice_spike.py) erupts
-## in a ring of stalagmites at the edge of the card's radius around the
-## caster, and under every enemy the ice actually hits; each spike plays the
+## from every tile the ice reaches around the caster (the card's radius) and
+## under every enemy it actually hits; each spike plays the
 ## same life: a thin shard breaks the ground, rises, stands as a full
 ## stalagmite, cracks and shatters into chips. The spikes ripple outward
 ## from the caster. An enemy the 30% miss roll spared gets no spike under it
-## (even on the ring), so the gaps read as the misses. Drawn at SCALE (full
-## size a spike stands nearly three tiles tall and a ring of them walls the
-## caster in). Lives in the world; frees itself.
+## so the gaps read as the misses. Drawn at SCALE (full size a spike stands
+## nearly three tiles tall and the field of them buries the caster). Lives
+## in the world; frees itself.
 
 const STRIP := "res://assets/sprites/generated/fx/ice_spike_strip.png"
 const FRAMES := 5
 const CELL := 128
 const BASE := Vector2(62, 98)     # where the spike meets the ground (see the tool)
-const SCALE := 0.6                # ~1.6 tiles tall at its full height
-const RING_INNER := 0.6           # ring = cells farther out than this share of the radius
+const SCALE := 0.5                # ~1.3 tiles tall at its full height: a spike per tile reads as its own
 const RIPPLE := 0.05              # extra delay per tile of distance from the caster
 const RISE_TIME := 0.06           # per rising frame (shard, spike)
 const STAND_TIME := 0.25          # the full stalagmite
@@ -26,8 +25,8 @@ const SHATTER_TIME := 0.14
 var spikes: Array[Sprite3D] = []
 
 
-## Raise spikes around `center` on `world` (the node the field lives in): a
-## ring of cells at the edge of `radius` (world units), plus the cells in
+## Raise spikes around `center` on `world` (the node the field lives in): on
+## every cell within `radius` (world units) but the caster's, plus the cells in
 ## `struck` (Vector2i cells of the enemies the ice hit), minus the cells in
 ## `spared` (the enemies the roll missed).
 static func play(world: Node, grid: GridManager, center: Vector3, radius: float, struck: Array = [], spared: Array = []) -> SurroundingIceFX:
@@ -51,7 +50,7 @@ func _start(grid: GridManager, center: Vector3, radius: float, struck: Array, sp
 			var cell := c0 + Vector2i(dx, dz)
 			var at: Vector3 = grid.grid_to_world(cell)
 			var d := Vector2(at.x - center.x, at.z - center.z).length()
-			if d <= radius and d > radius * RING_INNER:
+			if d <= radius:
 				cells.append(cell)
 	for cell in struck:
 		if not cell in cells:
