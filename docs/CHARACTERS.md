@@ -112,8 +112,11 @@ damage against a target with **no allies within 2 spaces** — picking off strag
 splitting a pack before the kill, is part of the rhythm.
 
 **The haymaker:** any card costing more than 4 tempo deals 100%→380% of its tempo cost as
-*bonus damage* (*Swing for the Fences*), and receiving Glut converts 10%→290% of it into
-damage and halves it (*Patience is a Virtue*). Cards like **Tighten String** (+3 tempo, +6 damage, +6 range, +20%
+*bonus damage* (*Swing for the Fences*). The price of a haymaker is Glut, and *Patience is a
+Virtue* turns it into a breather: every 5 Glut puts an **Endured Tolerance** in his hand as a
+draw (a 20m/1t Defense card: 5%→30% resistance to all damage for 5 tempo, each further copy
+adding 5 tempo; Erase 20, which waits for the Glut to end). Being drawn Defense cards, they
+feed Clean Exchange, Exposed Blind Spot and Lethal Resourcefulness. Cards like **Tighten String** (+3 tempo, +6 damage, +6 range, +20%
 crit on your next 3 shots), **Sky Fall** (an arrow that lands 10 tempo later for 18), and
 **Lead Arrow** (1.8× damage from high ground) let you deliberately play slow and heavy instead.
 

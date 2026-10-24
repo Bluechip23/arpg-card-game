@@ -4,8 +4,8 @@ extends SceneTree
 ## hang on: "offensive" is a rider (every Attack card, plus any card the
 ## sheet tags offensive), not "deals damage". Deadly and Eagle Eye read
 ## the rider (spells included) and Deadly covers the auto attack; Clean
-## Exchange trades on it; Patience hits any enemy and always halves the
-## Glut; Exposed Blind Spot keeps its fraction and only attacks spend it;
+## Exchange trades on it; Patience hands over Endured Tolerance as a draw
+## (one per 5 Glut); Exposed Blind Spot keeps its fraction and only attacks spend it;
 ## Swing for the Fences counts every >4 tempo card; Skilled Momentum plays
 ## the card again in full; Lethal Resourcefulness is a real auto attack
 ## at the weapon's reach.
@@ -152,17 +152,61 @@ func _test_eagle_eye(stats, pt, dummy: Enemy) -> void:
 	stats.sphere_bonus_range = 0
 	stats.skill_tree_passives.erase("eagle_eye")
 
-func _test_patience(stats, pt, dummy: Enemy) -> void:
-	print("-- Patience is a Virtue: any enemy, always halved --")
-	_grant(stats, "patience_is_a_virtue")  # rank 15: 290%
-	var gm = main.grid_manager
-	_place(gm, dummy, gm.world_to_grid(main.player.position) + Vector2i(7, 0))
-	main.glut_tempo_remaining = 10
-	var hp0: int = dummy.current_health
+func _test_patience(stats, pt, _dummy: Enemy) -> void:
+	print("-- Patience is a Virtue: Endured Tolerance per 5 Glut, as a draw --")
+	_grant(stats, "patience_is_a_virtue")  # rank 15: 30%
+	var dm = main.deck_manager
+	var bm = main.player.get_buff_manager()
+	var count_et := func() -> int:
+		return dm.hand.filter(func(c): return c.card_id == "endured_tolerance").size()
+	for g in [[5, 1], [10, 2], [15, 3]]:
+		dm.hand.clear()
+		main.glut_tempo_remaining = g[0]
+		pt._trigger_skill_tree_stephen_on_glut(g[0])
+		_check(count_et.call() == g[1], "Glut %d puts %d Endured Tolerance in hand (%d)" % [g[0], g[1], count_et.call()])
+		_check(main.glut_tempo_remaining == g[0], "…and the Glut is left whole (%d)" % main.glut_tempo_remaining)
+	var et: Card = dm.hand[0]
+	_check(et.card_type == Card.CardType.DEFENSE and et.mana_cost == 20 and et.tempo_cost == 1 and et.erase_tempo == 20,
+		"Endured Tolerance is a 20m/1t Defense card with Erase 20")
+	_check("30%" in et.description, "its text shows the rank's 30%% (%s)" % et.description)
+
+	# A full hand keeps what fits and loses the rest.
+	dm.hand.clear()
+	while dm.hand.size() < dm.get_hand_cap() - 1:
+		dm.hand.append(Card.create_by_id("block"))
 	pt._trigger_skill_tree_stephen_on_glut(10)
-	_check(hp0 - dummy.current_health == 29, "a Glut of 10 hits the nearest enemy 7 tiles away for 29 (%d)" % (hp0 - dummy.current_health))
-	_check(main.glut_tempo_remaining == 5, "…and the Glut is halved (%d)" % main.glut_tempo_remaining)
-	dummy.current_health = dummy.max_health
+	_check(count_et.call() == 1 and dm.hand.size() == dm.get_hand_cap(), "with one slot free, 1 of 2 arrives and the other is lost")
+
+	# It counts as drawn: Clean Exchange sees a Defense card after an attack.
+	dm.hand.clear()
+	_grant(stats, "clean_exchange")
+	pt._last_played_card = Card.create_by_id("slash")
+	pt._trigger_skill_tree_stephen_on_glut(5)
+	var ce: Card = dm.hand[0]
+	_check(ce.untimed_tempo_reduction == 1, "Clean Exchange takes 1 tempo off it, as off any drawn Defense card")
+	stats.skill_tree_passives.erase("clean_exchange")
+
+	# Its Erase fuse waits for the Glut to end.
+	var fuse0: int = ce.erase_tempo_remaining
+	main.glut_tempo_remaining = 5
+	dm._process_erase_timers()
+	_check(ce.erase_tempo_remaining == fuse0, "while Glutted the Erase fuse holds (%d)" % ce.erase_tempo_remaining)
+	main.glut_tempo_remaining = 0
+	dm._process_erase_timers()
+	_check(ce.erase_tempo_remaining == fuse0 - 5, "once the Glut ends it burns (%d -> %d)" % [fuse0, ce.erase_tempo_remaining])
+
+	# Played: 30% resistance to all damage for 5 tempo; a second copy adds 5.
+	bm.buffs.clear()
+	ce.execute(null, stats, dm, 0, 0, bm)
+	var r: Buff = bm._resilient_of_type(DamageTypes.ALL)
+	_check(r != null and r.value == 30 and r.duration == 5, "played: 30%% resistance to all damage for 5 tempo (%s)" % (str([r.value, r.duration]) if r else "none"))
+	Card.create_endured_tolerance(30).execute(null, stats, dm, 0, 0, bm)
+	r = bm._resilient_of_type(DamageTypes.ALL)
+	_check(r.value == 30 and r.duration == 10, "a second copy adds 5 tempo and keeps the %% (%d%%, %d tempo)" % [r.value, r.duration])
+	_check(bm.get_resilient_percent(DamageTypes.Type.PHYSICAL) == 30 and bm.get_resilient_percent(DamageTypes.Type.FIRE) == 30,
+		"it covers every damage type")
+	bm.buffs.clear()
+	dm.hand.clear()
 	main.glut_tempo_remaining = 0
 	stats.skill_tree_passives.erase("patience_is_a_virtue")
 

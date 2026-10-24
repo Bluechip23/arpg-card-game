@@ -46,6 +46,9 @@ var stacks: int = 1           # Some buffs can stack
 var damage_type: int = -1     # Typed damage reduction (Resilient); -1 = all types
 var custom_color: Color = Color.WHITE  # GENERIC display buffs: badge tint
 var custom_icon_key: String = ""       # GENERIC display buffs: StatusIcons glyph key
+## Resilient: a re-application from the same source adds its tempo to the
+## running clock instead of keeping the longer one (Endured Tolerance).
+var extends_on_reapply: bool = false
 var decay_by_damage: bool = false      # THORNS variant (Vined Encasing): lose X thorns per X damage received instead of 1 per hit
 
 func _init(type: BuffType, val: int = 0, dur: int = 15, chrg: int = -1) -> void:

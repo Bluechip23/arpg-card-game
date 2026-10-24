@@ -341,7 +341,7 @@ static func create_stephen_tree(max_level: int = 20) -> SkillTreeData:
 			description = "Ranged offensive cards deal additional damage equal to 100%→142% of their range (scales with rank)",
 			color = Color(0.4, 0.9, 0.4)},
 		{level = 5, slot = 3, archetype = "Avenger", name = "Patience is a Virtue",
-			description = "When receiving Glut, deal 10%→290% of the Glut amount (scales with rank) as damage to the nearest enemy, then halve the Glut",
+			description = "When receiving Glut, put 1 Endured Tolerance in your hand for every 5 Glut (it counts as drawn). Endured Tolerance (Defense, 20m/1t): gain 5%→30% resistance to all damage (scales with rank) for 5 tempo; another copy adds 5 more tempo. Erase 20, which waits for the Glut to end",
 			color = Color(0.8, 0.4, 0.9)},
 		{level = 7, slot = 1, archetype = "The Apex", name = "Easy Target",
 			description = "When exposing your enemy, deal your damage again and gain +1→15 Strengthen for 3 attacks (scales with rank)",

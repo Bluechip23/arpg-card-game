@@ -182,8 +182,8 @@ func _initialize() -> void:
 	rstats.free()
 
 	# --- Stephen endpoints ---
-	_check(PassiveScaling.value("patience_is_a_virtue", "multiplier", 1) == 10, "Patience rank 1 = 10%")
-	_check(PassiveScaling.value("patience_is_a_virtue", "multiplier", 15) == 290, "Patience rank 15 = 290%")
+	_check(PassiveScaling.value("patience_is_a_virtue", "resist", 1) == 5, "Patience rank 1 = 5% resistance")
+	_check(PassiveScaling.value("patience_is_a_virtue", "resist", 15) == 30, "Patience rank 15 = 30% resistance")
 	_check(PassiveScaling.value("swing_for_the_fences", "multiplier", 1) == 100, "Swing rank 1 = 100%")
 	_check(PassiveScaling.value("swing_for_the_fences", "multiplier", 15) == 380, "Swing rank 15 = 380%")
 	_check(PassiveScaling.value("dominate", "strengthen", 1) == 2, "Dominate rank 1 = +2 Strengthen")

@@ -124,7 +124,8 @@ const CARDS := {
 	# Spells
 	"fireball": "game_26", "spark": "rpg_12", "chain_lightning": "rpg_12",
 	"god_of_thunder": "rpg_25", "harness_lightning": "pack_70", "crack_of_mintaka": "rpg_25",
-	"energy_ball": "rpg_47", "energy_barrier": "rpg_41", "mage_shield": "game_12",
+	"energy_ball": "rpg_47", "energy_barrier": "rpg_41",
+	"endured_tolerance": "passive_patience_is_a_virtue", "mage_shield": "game_12",
 	"magic_barrier": "game_12", "ice_grenade": "rpg_2", "cryonics": "rpg_2",
 	"surrounding_ice": "pack_65", "snowballs_chance": "pack_65",
 	"stone_encase": "rpg_86", "earth_rattle": "game_57", "terrain_formation": "game_57",

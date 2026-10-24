@@ -588,6 +588,8 @@ func _ready() -> void:
 	deck_manager.reaction_triggered.connect(_arm_lethal_recall)
 	deck_manager.reaction_triggered.connect(func(c): progression_triggers._trigger_skill_tree_on_instant(c))
 	deck_manager.card_drawn.connect(_on_card_drawn_sphere_passive)
+	# Endured Tolerance's Erase fuse waits while the player is Glutted.
+	deck_manager.glut_active = func() -> bool: return glut_tempo_remaining > 0
 	deck_manager.overflow_triggered.connect(_on_overflow_triggered)
 	tempo_manager.tempo_threshold_reached.connect(_on_tempo_threshold_reached)
 	tempo_manager.tempo_changed.connect(_on_tempo_changed)

@@ -237,7 +237,7 @@ static func create_stephen() -> CharacterData:
 			{"name": "Elemental Conclusion", "description": "When applying burn, cold, or shock, apply 1 additional instance"},
 		]},
 		{"name": "Avenger", "description": "Large, potent, and devastating. Unfortunately you tire quick, making timing and execution vital.", "abilities": [
-			{"name": "Patience is a Virtue", "description": "When receiving Glut, deal that much damage to the nearest enemy and halve the Glut"},
+			{"name": "Patience is a Virtue", "description": "When receiving Glut, put 1 Endured Tolerance (a 20m/1t Defense card: resistance to all damage for 5 tempo) in your hand per 5 Glut"},
 			{"name": "Swing for the Fences", "description": "Cards that have >4 tempo cost deal their tempo cost as additional damage"},
 			{"name": "Dominate", "description": "When triggering an attack speed proc, the proc resolves normally and you also gain a 30m/0t basic attack card and Strengthen for 3 attacks (5 tempo cooldown)"},
 		]},
