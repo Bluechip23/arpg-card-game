@@ -2,8 +2,8 @@
 """Square up the designer's chosen passive icons for the skill-icon folder.
 
 Sources: assets/sprites/paintings/passive_icons/<passive_id>.png (.gdignore'd
-source art). The designer picked these per passive (Brad's twelve, Cory's
-twelve, then Jeremy's, 2026-10-24); they arrive as screenshot crops a few
+source art). The designer picked these per passive (all twelve of Brad's,
+Cory's and Jeremy's, 2026-10-24); they arrive as screenshot crops a few
 pixels off square, some with a strip of whatever sat next to the icon on
 screen. TRIM drops those strips, the rest is centre-cropped to a square and
 shrunk to SIZE (the craftpix icon packs' export size, so these sit at the
@@ -49,6 +49,7 @@ TRIM = {
     "a_mages_favor": (5, 4, 115, 112),     # a sliver of the next icon and dark columns on the left, dark rows on top
     "seance": (3, 0, 112, 97),             # dark columns on the left
     "tricks_of_death": (3, 0, 113, 97),    # dark columns on both sides
+    "arcane_overflow": (2, 2, 111, 110),   # dark rows on top, dark columns on both sides
 }
 
 

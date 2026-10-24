@@ -69,9 +69,9 @@ const PASSIVES := {
 	"quick_step": "rpg_15", "ladder_work": "pack_61", "let's_dance": "rpg_57",
 	"stimulant": "rpg_30", "pop_rocks": "game_58", "mad_scientist": "game_59",
 	"now_you_see_me": "pack_11", "surprise_opener": "rpg_80", "eye_scrape": "rpg_59",
-	# Jeremy — Evocation / Shepherd / Poltergeist / Abjurer
-	"arcane_overflow": "game_7", "harnessed_power": "passive_harnessed_power", "mana_surge": "passive_mana_surge",
-	"i_heal_you": "passive_i_heal_you", "whispers_of_the_flock": "game_66", "blood_libation": "passive_blood_libation",
+	# Jeremy — Evocation / Shepherd / Poltergeist / Abjurer: all twelve the designer's picks.
+	"arcane_overflow": "passive_arcane_overflow", "harnessed_power": "passive_harnessed_power", "mana_surge": "passive_mana_surge",
+	"i_heal_you": "passive_i_heal_you", "whispers_of_the_flock": "passive_whispers_of_the_flock", "blood_libation": "passive_blood_libation",
 	"tricks_of_death": "passive_tricks_of_death", "seance": "passive_seance", "haunted_rebuke": "passive_haunted_rebuke",
 	"a_mage's_favor": "passive_a_mages_favor", "kinetic_armor": "passive_kinetic_armor", "fresh_start": "passive_fresh_start",
 	# Cory — Monk / Lurker / Atrophist / Druid: all twelve the designer's picks.
