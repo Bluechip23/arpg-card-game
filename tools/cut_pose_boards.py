@@ -15,6 +15,13 @@ Sources (assets/sprites/paintings/, .gdignore'd source art), 2026-10-23:
     three-quarter back, his front with arms crossed ("facing down") and his
     back ("facing up"); cut like the penguin (his saturated blue is far
     from the ice's grey-blue).
+  fire_frost_mage_board.jpg (2026-10-24) — the Ice Mage (a hooded frost
+    mage with an ice-crystal spear) and the Fire Mage (a masked ninja with
+    burning fists) on a snowfield. Top row: each mage facing right, then
+    the ice mage facing left and the fire mage nearly frontal (its left is
+    the right view mirrored); bottom row: both from the front, then the
+    ice mage's back, a stray fire-mage back holding the ice spear (unused)
+    and the fire mage's back. Cut like the penguin, with a snow hint too.
   sanguine_penguin_board.jpg (2026-10-24) — Sanguine the blood penguin
     (Nine Ruins of Sanguine's summon) in a Spartan helm: three right-facing
     views and one left-facing (the board labels the third "left"; it faces
@@ -128,6 +135,32 @@ BOARDS = {
             "left": (790, 30, 1015, 342),
         },
     },
+    "ice_mage": {
+        "src": "fire_frost_mage_board.jpg", "bg": "grabcut", "snow": True, "height": 48,
+        "feet_trim": False,   # her boots are the floor shadow's pale blue-grey
+        "Idle": {
+            "front": (265, 405, 460, 748),
+            "back": (760, 425, 935, 735),
+            "right": (105, 40, 375, 372),
+            "left": (725, 40, 990, 372),
+        },
+        # Her spear's thin shaft vanishes against the snow, leaving its
+        # crystal head adrift: lines along head and shaft that are surely
+        # her (x0, y0, x1, y1, width; measured).
+        "fg": {
+            "right": [(238, 24, 206, 84, 4), (206, 84, 147, 218, 3)],
+            "left": [(22, 24, 64, 96, 4), (64, 96, 118, 220, 3)],
+        },
+    },
+    "fire_mage": {
+        "src": "fire_frost_mage_board.jpg", "bg": "grabcut", "snow": True, "height": 46,
+        "Idle": {
+            "front": (485, 420, 675, 722),
+            "back": (1180, 420, 1370, 722),
+            "right": (425, 50, 640, 372),
+            "left": ("mirror", "right"),
+        },
+    },
     "ring_wraith": {
         "src": "ring_wraith_board.jpg", "bg": "checker_grey", "height": 58,
         "Idle": {
@@ -231,7 +264,7 @@ GRABCUT_MARGIN = 8      # px inside the pose's box the GrabCut rectangle starts
 FEET_BAND = 0.10        # the bottom share of the figure where floor shadow is trimmed
 
 
-def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0) -> np.ndarray:
+def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim=True) -> np.ndarray:
     """Background mask by GrabCut from the box, enclosed holes filled, and
     the ice's shadow under the feet (cool, unsaturated) trimmed."""
     if cv2 is None:
@@ -250,12 +283,18 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0) -> np.ndarray:
            [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
     sky = _flood((lum < 26) & (sat < 22), edge)
     ice = _flood((rgb[..., 2] - rgb[..., 0] > 25) & (sat < 65) & (lum > 70) & (lum < 180), edge)
+    if snow:   # bright snow fields: near-white, little colour
+        ice |= _flood((lum > 185) & (sat < 60), edge)
     mask = np.full((h, w), cv2.GC_BGD, np.uint8)
     m = GRABCUT_MARGIN
     mask[m:h - m, m:w - m] = cv2.GC_PR_FGD
     mask[(sky | ice) & (mask == cv2.GC_PR_FGD)] = cv2.GC_PR_BGD
-    for x0, y0, x1, y1 in fg_boxes:
-        mask[y0:y1, x0:x1] = cv2.GC_FGD
+    for hint in fg_boxes:
+        if len(hint) == 5:   # a line (x0, y0, x1, y1, width): a staff, a spear shaft
+            cv2.line(mask, hint[0:2], hint[2:4], int(cv2.GC_FGD), hint[4])
+        else:
+            x0, y0, x1, y1 = hint
+            mask[y0:y1, x0:x1] = cv2.GC_FGD
     bgd, fgd = np.zeros((1, 65)), np.zeros((1, 65))
     cv2.setRNGSeed(0)   # GrabCut seeds its colour models randomly: keep the cut repeatable
     cv2.grabCut(bgr, mask, None, bgd, fgd, GRABCUT_ITER, cv2.GC_INIT_WITH_MASK)
@@ -265,14 +304,16 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0) -> np.ndarray:
         fg |= _flood((sat >= sat_grow) | fg, seeds)
     # Holes: background not reachable from the box's edge.
     fg |= ~_flood(~fg, edge)
-    ys = np.nonzero(fg.any(axis=1))[0]
-    band = int(ys.max() - FEET_BAND * (ys.max() - ys.min()))
-    cool = (rgb[..., 2] >= rgb[..., 0]) & (sat < 45) & (lum > 50)
-    fg[band:] &= ~cool[band:]
+    if feet_trim:
+        ys = np.nonzero(fg.any(axis=1))[0]
+        band = int(ys.max() - FEET_BAND * (ys.max() - ys.min()))
+        cool = (rgb[..., 2] >= rgb[..., 0]) & (sat < 45) & (lum > 50)
+        fg[band:] &= ~cool[band:]
     return ~fg
 
 
-def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0) -> Image.Image:
+def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
+        feet_trim=True) -> Image.Image:
     """The creature in `box`, full size, on transparency, cropped to itself."""
     rgb = np.asarray(board.crop(box).convert("RGB")).astype(int)
     h, w, _ = rgb.shape
@@ -280,7 +321,7 @@ def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0) -> Image.Im
            [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
     bg_like = _background_like(rgb, kind) if kind != "grabcut" else None
     if kind == "grabcut":
-        bg = _cut_grabcut(rgb, fg_boxes, sat_grow)
+        bg = _cut_grabcut(rgb, fg_boxes, sat_grow, snow, feet_trim)
     elif kind == "stone":
         bg = _cut_stone(rgb, bg_like, edge)
     else:
@@ -328,7 +369,9 @@ def build(name: str, cfg: dict) -> None:
         full[anim] = {}
         for d, box in cfg[anim].items():
             if box[0] != "mirror":
-                full[anim][d] = cut(board, box, cfg["bg"], cfg.get("fg", {}).get(d, ()), cfg.get("sat_grow", 0))
+                full[anim][d] = cut(board, box, cfg["bg"], cfg.get("fg", {}).get(d, ()),
+                                    cfg.get("sat_grow", 0), cfg.get("snow", False),
+                                    cfg.get("feet_trim", True))
         for d, box in cfg[anim].items():
             if box[0] == "mirror":
                 full[anim][d] = full[anim][box[1]].transpose(Image.FLIP_LEFT_RIGHT)

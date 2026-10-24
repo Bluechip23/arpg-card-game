@@ -133,8 +133,8 @@ const KINDS := {
 	# (Every roster kind now has a sprite; ART_TODO.md still tracks hand-drawn
 	# replacements for the generated first-pass battlers above.)
 	# --- NPC-pack humanoids (real 4-direction walk frames) ---
-	"ice_mage": {"npc": NPC1 + "/npc mystic A v01.png", "tint": Color(0.75, 0.9, 1.25)},
-	"fire_mage": {"npc": NPC1 + "/npc mystic A v01.png", "tint": Color(1.25, 0.7, 0.55)},
+	"ice_mage": {"sheets": SHEETS + "/ice_mage", "scale": 1.0},  # the designer's frost mage (tools/cut_pose_boards.py, 2026-10-24); was the NPC mystic tinted blue
+	"fire_mage": {"sheets": SHEETS + "/fire_mage", "scale": 1.0},  # the designer's fire ninja (tools/cut_pose_boards.py, 2026-10-24); was the NPC mystic tinted red
 	"spark_mage": {"npc": NPC1 + "/npc mystic A v01.png", "tint": Color(1.2, 1.15, 0.6)},
 	"air_mage": {"npc": NPC1 + "/npc mystic A v01.png", "tint": Color(1.1, 1.1, 1.15)},
 	"earth_mage": {"npc": NPC1 + "/npc mystic A v01.png", "tint": Color(0.9, 1.0, 0.7)},
