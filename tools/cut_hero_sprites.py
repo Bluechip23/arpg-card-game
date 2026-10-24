@@ -13,7 +13,8 @@ Sources (assets/sprites/paintings/, .gdignore'd source art, 2026-10-23):
   hero_ryan.png    — "3. Rogue (Outlaw)": back, front, two side views (both
     face left).
   hero_stephen.png — "5. Apex Hunter (Seeker)": back, front, two side views
-    (both face right), bow and axe across his back.
+    (both face right), bow and axe across his back; on the side view the bow
+    is cut away (designer, 2026-10-23).
   hero_brad.png, hero_brad_front.png — "4. Warrior (Chieftain)": back, front,
     two side views (both face left), and on its own the front view with the
     War Rack's weapon over his right shoulder, which is the front used
@@ -44,7 +45,8 @@ cells, one column, rows in CharacterAnimator order: south (front), north
 (back), east, west; a missing side is the mirror of the other.
 
 Output: assets/sprites/generated/heroes/<hero>.png
-Run: python3 tools/cut_hero_sprites.py   (Pillow, numpy)
+Run: python3 tools/cut_hero_sprites.py   (Pillow, numpy; opencv-python-headless
+for Stephen's bow)
 """
 import os
 from collections import deque
@@ -102,6 +104,20 @@ HEROES = {
 # on the edge, a few passes in (his own outline is redrawn by the ink).
 BG_FOR = {"stephen": 22}
 HALO_PEEL = {"stephen": (36, 14)}   # (max channel below which an edge pixel is glow, passes)
+# ...and glow boxed in by the figure (between his boots) is cleared too: a
+# pocket of dark (max channel <= limit), flat (its brightness spread <= flat)
+# pixels at least `size` big. His hair's darks are textured, not flat.
+GLOW_POCKET = {"stephen": (30, 4.0, 25)}
+
+# Stephen's side view: the bow is cut away entirely (designer, 2026-10-23).
+# It hangs in front of him from shoulder to knee, string across his chest:
+# inside this band (source pixels) its orange-brown stave and gold string
+# are found by colour — his tattooed forearm, whose markings share the
+# orange, is left out — and painted over from the tunic around them
+# (OpenCV inpaint); where the bow stood clear of him it becomes background.
+BOW_BAND = {"stephen": [(100, 350), (108, 362), (104, 400), (95, 420), (85, 446), (73, 472),
+                        (56, 482), (48, 474), (60, 442), (72, 412), (82, 386), (86, 358)]}
+BOW_KEEP = {"stephen": [(48, 398, 77, 458)]}   # the forearm
 
 # Cory's side view: the chest charm (beads and a pendant) hangs off the front
 # of the robe inside this box (source pixels); its light and coloured pixels
@@ -156,9 +172,30 @@ def _components(mask):
     return comps
 
 
-def cut(path, box, charm=None, bg=BG, peel=None):
+def erase_bow(sheet, band, keep):
+    """Paint the bow out of `sheet` (RGB array): its stave and string, found by
+    colour inside the `band` polygon (bar the `keep` boxes), inpainted from
+    what surrounds them."""
+    import cv2  # tool dependency (opencv-python-headless), only for this
+    from PIL import ImageDraw
+    mask = Image.new("L", (sheet.shape[1], sheet.shape[0]), 0)
+    ImageDraw.Draw(mask).polygon(band, fill=255)
+    region = np.asarray(mask) > 0
+    for x0, y0, x1, y1 in keep:
+        region[y0:y1, x0:x1] = False
+    r, g, b = [sheet[..., i].astype(int) for i in range(3)]
+    bow = region & (r > 90) & (r - b > 50) & (r - g > 12)
+    bow = (cv2.dilate(bow.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0) & region
+    bgr = np.ascontiguousarray(sheet[..., ::-1].astype(np.uint8))
+    return cv2.inpaint(bgr, bow.astype(np.uint8) * 255, 3, cv2.INPAINT_TELEA)[..., ::-1]
+
+
+def cut(path, box, charm=None, bg=BG, peel=None, bow=None, pocket=None):
     """The figure in `box`, full size, on transparency, cropped to itself."""
-    rgb = np.asarray(Image.open(SRC % path).convert("RGB").crop(box)).astype(int)
+    sheet = np.asarray(Image.open(SRC % path).convert("RGB"))
+    if bow is not None:
+        sheet = erase_bow(sheet, *bow)
+    rgb = sheet[box[1]:box[3], box[0]:box[2]].astype(int)
     h, w, _ = rgb.shape
     dark = rgb.max(axis=2) <= bg
     edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
@@ -175,6 +212,12 @@ def cut(path, box, charm=None, bg=BG, peel=None):
             touching[:, 1:] |= open_[:, :-1]
             touching[:, :-1] |= open_[:, 1:]
             solid &= ~(touching & glowish)
+    if pocket is not None:
+        limit, flat, size = pocket
+        level = rgb.max(axis=2)
+        for comp in _components(solid & (level <= limit)):
+            if len(comp) >= size and float(np.std([level[y, x] for y, x in comp])) <= flat:
+                solid[tuple(np.array(comp).T)] = False
     if charm is not None:
         cx0, cy0, cx1, cy1 = charm[0] - box[0], charm[1] - box[1], charm[2] - box[0], charm[3] - box[1]
         region = np.zeros_like(solid)
@@ -277,7 +320,8 @@ def build(hero, poses):
     full = {}
     for path, box, facing in poses:
         charm = CHARM_BOX.get(hero) if facing in ("east", "west") else None
-        img = cut(path, box, charm, BG_FOR.get(hero, BG), HALO_PEEL.get(hero))
+        bow = (BOW_BAND[hero], BOW_KEEP.get(hero, [])) if hero in BOW_BAND and facing in ("east", "west") else None
+        img = cut(path, box, charm, BG_FOR.get(hero, BG), HALO_PEEL.get(hero), bow, GLOW_POCKET.get(hero))
         if scale is None or facing == "scale":
             # The first pose (or the "scale" reference) sets the hero's scale
             # for every pose cut from the same source.
