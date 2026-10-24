@@ -38,7 +38,6 @@ TRIM = {
     "death_as_lifeblood": (1, 0, 102, 100),  # a dark column on the left
     "eat": (0, 5, 85, 92),                 # navy rows on top
     "expel_negativity": (0, 5, 90, 90),    # navy rows on top
-    "prey_on_the_weak": (0, 0, 90, 87),    # navy rows under it
     "regrowth": (0, 1, 106, 110),          # a dark row on top, two under it
     "self_reliance": (0, 0, 85, 87),       # dark rows under it
     "serial_killer": (3, 1, 90, 87),       # navy columns on the left, a dark row on top
