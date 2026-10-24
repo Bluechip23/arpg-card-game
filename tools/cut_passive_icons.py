@@ -3,9 +3,9 @@
 
 Sources: assets/sprites/paintings/passive_icons/<passive_id>.png (.gdignore'd
 source art). The designer picked these per passive (all twelve of Brad's,
-Cory's and Jeremy's, 2026-10-24); they arrive as screenshot crops a few
-pixels off square, some with a strip of whatever sat next to the icon on
-screen. TRIM drops those strips, the rest is centre-cropped to a square and
+Cory's and Jeremy's, then Ryan's, 2026-10-24); they arrive as screenshot crops
+a few pixels off square, some with a strip of whatever sat next to the icon
+on screen. TRIM drops those strips, the rest is centre-cropped to a square and
 shrunk to SIZE (the craftpix icon packs' export size, so these sit at the
 same texel density as every other icon).
 
@@ -50,6 +50,10 @@ TRIM = {
     "seance": (3, 0, 112, 97),             # dark columns on the left
     "tricks_of_death": (3, 0, 113, 97),    # dark columns on both sides
     "arcane_overflow": (2, 2, 111, 110),   # dark rows on top, dark columns on both sides
+    "from_the_hip": (5, 0, 95, 87),        # a sliver of the next icon and dark columns on the left, dark on the right
+    "ladder_work": (0, 1, 82, 87),         # a dark row on top
+    "surprise_opener": (0, 1, 105, 111),   # a dark row on top; dark columns and a sliver on the right
+    "eye_scrape": (0, 4, 85, 91),          # navy rows on top
 }
 
 

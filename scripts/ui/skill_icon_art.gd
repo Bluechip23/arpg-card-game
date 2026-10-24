@@ -65,10 +65,10 @@ const PASSIVES := {
 	# Ryan — Relentless Blade / Light Foot / Apothecary / Shadow Blade (picked for
 	# the Choose Your Character screen, 2026-10-23: no two passives share art,
 	# and none borrows a status effect's icon)
-	"keep_them_guessing": "game_8", "from_the_hip": "pack_26", "nimble_assault": "rpg_14",
-	"quick_step": "rpg_15", "ladder_work": "pack_61", "let's_dance": "rpg_57",
+	"keep_them_guessing": "game_8", "from_the_hip": "passive_from_the_hip", "nimble_assault": "rpg_14",
+	"quick_step": "rpg_15", "ladder_work": "passive_ladder_work", "let's_dance": "passive_lets_dance",
 	"stimulant": "rpg_30", "pop_rocks": "game_58", "mad_scientist": "game_59",
-	"now_you_see_me": "pack_11", "surprise_opener": "rpg_80", "eye_scrape": "rpg_59",
+	"now_you_see_me": "pack_11", "surprise_opener": "passive_surprise_opener", "eye_scrape": "passive_eye_scrape",
 	# Jeremy — Evocation / Shepherd / Poltergeist / Abjurer: all twelve the designer's picks.
 	"arcane_overflow": "passive_arcane_overflow", "harnessed_power": "passive_harnessed_power", "mana_surge": "passive_mana_surge",
 	"i_heal_you": "passive_i_heal_you", "whispers_of_the_flock": "passive_whispers_of_the_flock", "blood_libation": "passive_blood_libation",
