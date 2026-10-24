@@ -74,9 +74,9 @@ const PASSIVES := {
 	"i_heal_you": "game_17", "whispers_of_the_flock": "game_66", "blood_libation": "game_42",
 	"tricks_of_death": "pack_8", "seance": "pack_10", "haunted_rebuke": "pack_9",
 	"a_mage's_favor": "game_24", "kinetic_armor": "rpg_12", "fresh_start": "pack_23",
-	# Cory — Monk / Lurker / Atrophist / Druid
-	"energy_barrier": "passive_energy_barrier", "expel_negativity": "passive_expel_negativity", "self_reliance": "pack_79",
-	"prey_on_the_weak": "passive_prey_on_the_weak", "eat": "passive_eat", "serial_killer": "pack_53",
+	# Cory — Monk / Lurker / Atrophist / Druid: all twelve the designer's picks.
+	"energy_barrier": "passive_energy_barrier", "expel_negativity": "passive_expel_negativity", "self_reliance": "passive_self_reliance",
+	"prey_on_the_weak": "passive_prey_on_the_weak", "eat": "passive_eat", "serial_killer": "passive_serial_killer",
 	"wither": "passive_wither", "territorial_death": "passive_territorial_death", "death_as_lifeblood": "passive_death_as_lifeblood",
 	"budding": "passive_budding", "circle_of_life": "passive_circle_of_life", "regrowth": "passive_regrowth",
 }
