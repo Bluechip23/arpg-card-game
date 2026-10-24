@@ -128,6 +128,66 @@ CHARM_BOX = {"cory": (68, 585, 92, 628)}
 EYE_SPECK = {"cory": (0.80, 0.155)}
 EYE_BLUE = (110, 190, 255, 255)
 
+# Brad's chest piece: an embroidered feather, golden white, almost heavenly,
+# in the middle of the breastplate (designer, 2026-10-24). No pack shows it,
+# so it is stitched in here texel by texel, in the sheet's own palette range,
+# on the front frame after the ink pass: (fx, fy) is the feather's centre as
+# a fraction of the frame's width and height. The plate is seen edge-on in
+# the side views and hidden in the back view, so only the front carries it.
+FEATHER = {"brad": (0.51, 0.36)}
+# o = gold thread outline, h = white-gold highlight, m = pale gold vane,
+# s = deeper gold shade, q = the quill; "." leaves the plate. Slim and
+# leaning a little, the quill running out below the vane, a split in the
+# lit side of the vane so it reads as a feather and not a leaf.
+FEATHER_ART = [
+    "......oho.",
+    ".....ohmo.",
+    "....ohmqso",
+    "....ohmqso",
+    "...ohmqmso",
+    "...ohmqmso",
+    "..ohmqmmso",
+    "..o.mqmso.",
+    ".ohmmqmso.",
+    ".ohmqmmso.",
+    "ohmmqmso..",
+    "ohmqmso...",
+    ".ohqso....",
+    "..oqo.....",
+    "..q.......",
+    ".q........",
+    ".o........",
+]
+FEATHER_INK = {
+    "o": (196, 170, 112), "h": (255, 255, 252), "m": (252, 249, 236),
+    "s": (238, 224, 184), "q": (244, 232, 196),
+}
+FEATHER_GLOW = (255, 252, 238)   # a faint halo where the thread meets the plate
+FEATHER_GLOW_MIX = 0.22
+
+
+def stitch_feather(frame, fx, fy):
+    """Paint FEATHER_ART centred at (fx, fy) of the frame, with a soft glow
+    on the plate texels around it."""
+    h, w = len(FEATHER_ART), len(FEATHER_ART[0])
+    cx = int(round(fx * (frame.shape[1] - 1)))
+    cy = int(round(fy * (frame.shape[0] - 1)))
+    x0, y0 = cx - w // 2, cy - h // 2
+    inked = set()
+    for r, row in enumerate(FEATHER_ART):
+        for c, ch in enumerate(row):
+            if ch != ".":
+                inked.add((y0 + r, x0 + c))
+    for y, x in {(y + dy, x + dx) for y, x in inked for dy, dx in _N8} - inked:
+        if frame[y, x, 3] > 0:
+            px = frame[y, x, :3].astype(float)
+            frame[y, x, :3] = (px + (np.array(FEATHER_GLOW) - px) * FEATHER_GLOW_MIX).round().astype(np.uint8)
+    for r, row in enumerate(FEATHER_ART):
+        for c, ch in enumerate(row):
+            if ch != ".":
+                frame[y0 + r, x0 + c] = FEATHER_INK[ch] + (255,)
+
+
 _N4 = ((1, 0), (-1, 0), (0, 1), (0, -1))
 _N8 = _N4 + ((1, 1), (1, -1), (-1, 1), (-1, -1))
 
@@ -344,6 +404,8 @@ def build(hero, poses):
                 x = frame.shape[1] - 1 - x
             y = int(round(fy * (frame.shape[0] - 1)))
             frame[y, x] = EYE_BLUE
+        if d == "south" and hero in FEATHER:
+            stitch_feather(frame, *FEATHER[hero])
         frames[d] = Image.fromarray(frame, "RGBA")
     if "east" not in frames:
         frames["east"] = frames["west"].transpose(Image.FLIP_LEFT_RIGHT)
