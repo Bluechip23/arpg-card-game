@@ -36,6 +36,10 @@ TRIM = {
     "vines_codependence": (0, 3, 76, 85),  # navy rows on top
     "budding": (2, 0, 92, 77),             # dark columns on the left
     "death_as_lifeblood": (1, 0, 102, 100),  # a dark column on the left
+    "eat": (0, 5, 85, 92),                 # navy rows on top
+    "expel_negativity": (0, 5, 90, 90),    # navy rows on top
+    "prey_on_the_weak": (0, 0, 90, 87),    # navy rows under it
+    "regrowth": (0, 1, 106, 110),          # a dark row on top, two under it
 }
 
 
