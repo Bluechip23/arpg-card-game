@@ -33,6 +33,8 @@ var boss_sim: bool = false  # sandbox that opens on the boss-fight picker (Test 
 var _is_quiz_character: bool = false  # Track if selected character is the quiz option
 var _selected_character: CharacterData = null
 var _name_edit: LineEdit = null        # rename field in the confirm dialog
+var _confirm_portrait_frame: PanelContainer = null  # the hero's portrait in the confirm dialog
+var _confirm_portrait: TextureRect = null
 
 const MAX_NAME_LENGTH := 20
 
@@ -59,6 +61,7 @@ func _ready() -> void:
 	_setup_characters()
 	_update_title_for_mode()
 	_setup_name_edit()
+	_setup_confirm_portrait()
 
 	back_button.pressed.connect(_on_back_pressed)
 	proceed_button.pressed.connect(_on_proceed_pressed)
@@ -85,9 +88,48 @@ func _setup_name_edit() -> void:
 	_name_edit.placeholder_text = "Character name"
 	_name_edit.add_theme_font_size_override("font_size", 15)
 	row.add_child(_name_edit)
-	# Sits between the "Playing as X" subtitle and the Proceed/Cancel buttons.
+	# Sits between the subtitle (and portrait) and the Proceed/Cancel buttons.
 	vbox.add_child(row)
 	vbox.move_child(row, confirm_subtitle.get_index() + 1)
+
+## The confirm dialog shows the chosen hero's portrait under "Play as X",
+## framed in the hero's colour (designer, 2026-10-24).
+const CONFIRM_PORTRAIT_SIZE := Vector2(192, 200)   # the portraits' stored size
+
+func _setup_confirm_portrait() -> void:
+	var vbox = $ConfirmOverlay/ConfirmPanel/VBox
+	if not vbox:
+		return
+	_confirm_portrait_frame = PanelContainer.new()
+	_confirm_portrait_frame.name = "ConfirmPortrait"
+	_confirm_portrait_frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_confirm_portrait = TextureRect.new()
+	_confirm_portrait.name = "Picture"
+	_confirm_portrait.custom_minimum_size = CONFIRM_PORTRAIT_SIZE
+	_confirm_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_confirm_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_confirm_portrait.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	_confirm_portrait_frame.add_child(_confirm_portrait)
+	vbox.add_child(_confirm_portrait_frame)
+	vbox.move_child(_confirm_portrait_frame, confirm_title.get_index() + 1)
+	if _name_edit:
+		# The title follows a new name as it is typed.
+		_name_edit.text_changed.connect(func(t: String):
+			if _selected_character:
+				confirm_title.text = "Play as %s" % (t.strip_edges() if t.strip_edges() != "" else _selected_character.character_name))
+
+func _show_confirm_portrait(character: CharacterData) -> void:
+	if not _confirm_portrait_frame:
+		return
+	var tex: Texture2D = character.get_portrait()
+	_confirm_portrait_frame.visible = tex != null
+	_confirm_portrait.texture = tex
+	var st := StyleBoxFlat.new()
+	st.bg_color = Color(0.05, 0.05, 0.08)
+	st.set_border_width_all(2)
+	st.border_color = character.get_accent_color().darkened(0.2)
+	st.set_corner_radius_all(4)
+	_confirm_portrait_frame.add_theme_stylebox_override("panel", st)
 
 func _apply_rename() -> void:
 	## Commit the name field to the selected character (before launch/allocation).
@@ -271,13 +313,14 @@ func _on_character_selected(character: CharacterData) -> void:
 	_is_quiz_character = false
 
 	# Show proceed/cancel confirmation
+	confirm_title.text = "Play as %s" % character.character_name
 	if game_mode == "multiplayer":
-		var player_str = "Player 1" if _selecting_player == 1 else "Player 2"
-		confirm_title.text = "Confirm Selection"
-		confirm_subtitle.text = "%s: %s" % [player_str, character.character_name]
+		confirm_subtitle.text = "Player 1" if _selecting_player == 1 else "Player 2"
+		confirm_subtitle.visible = true
 	else:
-		confirm_title.text = "Confirm Selection"
-		confirm_subtitle.text = "Playing as %s" % character.character_name
+		confirm_subtitle.text = ""
+		confirm_subtitle.visible = false
+	_show_confirm_portrait(character)
 	if _name_edit:
 		_name_edit.text = character.character_name
 	confirm_overlay.visible = true
