@@ -62,13 +62,11 @@ const PASSIVES := {
 	"clean_exchange": "game_11", "exposed_blind_spot": "game_86", "lethal_resourcefulness": "pack_87",
 	"eagle_eye": "pack_56", "scouted": "rpg_16", "laced_arrow": "game_68",
 	"patience_is_a_virtue": "rpg_66", "swing_for_the_fences": "game_74", "dominate": "rpg_50",
-	# Ryan — Relentless Blade / Light Foot / Apothecary / Shadow Blade (picked for
-	# the Choose Your Character screen, 2026-10-23: no two passives share art,
-	# and none borrows a status effect's icon)
-	"keep_them_guessing": "game_8", "from_the_hip": "passive_from_the_hip", "nimble_assault": "rpg_14",
-	"quick_step": "rpg_15", "ladder_work": "passive_ladder_work", "let's_dance": "passive_lets_dance",
-	"stimulant": "rpg_30", "pop_rocks": "game_58", "mad_scientist": "game_59",
-	"now_you_see_me": "pack_11", "surprise_opener": "passive_surprise_opener", "eye_scrape": "passive_eye_scrape",
+	# Ryan — Relentless Blade / Light Foot / Apothecary / Shadow Blade: all twelve the designer's picks.
+	"keep_them_guessing": "passive_keep_them_guessing", "from_the_hip": "passive_from_the_hip", "nimble_assault": "passive_nimble_assault",
+	"quick_step": "passive_quick_step", "ladder_work": "passive_ladder_work", "let's_dance": "passive_lets_dance",
+	"stimulant": "passive_stimulant", "pop_rocks": "passive_pop_rocks", "mad_scientist": "passive_mad_scientist",
+	"now_you_see_me": "passive_now_you_see_me", "surprise_opener": "passive_surprise_opener", "eye_scrape": "passive_eye_scrape",
 	# Jeremy — Evocation / Shepherd / Poltergeist / Abjurer: all twelve the designer's picks.
 	"arcane_overflow": "passive_arcane_overflow", "harnessed_power": "passive_harnessed_power", "mana_surge": "passive_mana_surge",
 	"i_heal_you": "passive_i_heal_you", "whispers_of_the_flock": "passive_whispers_of_the_flock", "blood_libation": "passive_blood_libation",

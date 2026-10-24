@@ -2,12 +2,12 @@
 """Square up the designer's chosen passive icons for the skill-icon folder.
 
 Sources: assets/sprites/paintings/passive_icons/<passive_id>.png (.gdignore'd
-source art). The designer picked these per passive (all twelve of Brad's,
-Cory's and Jeremy's, then Ryan's, 2026-10-24); they arrive as screenshot crops
-a few pixels off square, some with a strip of whatever sat next to the icon
-on screen. TRIM drops those strips, the rest is centre-cropped to a square and
-shrunk to SIZE (the craftpix icon packs' export size, so these sit at the
-same texel density as every other icon).
+source art). The designer picked these per passive (all twelve each of
+Brad's, Cory's, Jeremy's and Ryan's, 2026-10-24); they arrive as screenshot
+crops a few pixels off square, some with a strip of whatever sat next to the
+icon on screen. TRIM drops those strips, the rest is centre-cropped to a
+square and shrunk to SIZE (the craftpix icon packs' export size, so these sit
+at the same texel density as every other icon).
 
 Output: assets/textures/craftpix/icons/passive_<passive_id>.png, which
 scripts/ui/skill_icon_art.gd maps as "passive_<passive_id>" (an apostrophe in
@@ -54,6 +54,11 @@ TRIM = {
     "ladder_work": (0, 1, 82, 87),         # a dark row on top
     "surprise_opener": (0, 1, 105, 111),   # a dark row on top; dark columns and a sliver on the right
     "eye_scrape": (0, 4, 85, 91),          # navy rows on top
+    "keep_them_guessing": (0, 5, 88, 92),  # dark rows on top, dark columns on the right
+    "mad_scientist": (2, 1, 110, 102),     # a sliver of the next icon on the left, dark edges
+    "nimble_assault": (0, 0, 92, 87),      # dark rows under it, dark columns on the right
+    "now_you_see_me": (0, 2, 91, 90),      # dark rows on top
+    "stimulant": (2, 0, 107, 102),         # dark columns on the left
 }
 
 
