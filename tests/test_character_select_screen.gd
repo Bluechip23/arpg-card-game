@@ -110,6 +110,15 @@ func _run() -> void:
 	_click(rows[4])
 	_check(screen.confirm_overlay.visible and screen._selected_character.get_base_character() == "Brad",
 		"clicking Brad's row chooses Brad")
+	# The confirm dialog: "Play as Brad" over Brad's portrait.
+	_check(screen.confirm_title.text == "Play as Brad", "the confirm dialog reads \"Play as Brad\" (%s)" % screen.confirm_title.text)
+	var pic: TextureRect = screen._confirm_portrait
+	_check(screen._confirm_portrait_frame.visible and pic.texture != null
+		and pic.texture.resource_path == "res://assets/sprites/portraits/brad.png",
+		"…with Brad's portrait in it")
+	screen._name_edit.text = "Bradley"
+	screen._name_edit.text_changed.emit("Bradley")
+	_check(screen.confirm_title.text == "Play as Bradley", "the title follows a typed name")
 	screen.queue_free()
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
