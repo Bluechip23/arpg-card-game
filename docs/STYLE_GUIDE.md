@@ -52,6 +52,14 @@ conforms to them.
   but stays the source of truth for text, colour and visibility). Text
   rendered inside the half-res world was smeared 2× — never put text in
   the world viewport.
+- **Structures stay under the sprites.** Under the near-vertical camera a
+  unit of height outweighs ~57 tiles of row, so a mesh standing taller than
+  `SPRITE_LIFT` (a building's walls, a lamp post, a gate's pillars) covers
+  any sprite whose art reaches over it on screen — even a character south
+  of it. From above the height doesn't show, so built structures are
+  squashed under the sprites (`CameraView.flatten_below_sprites`, top at
+  `STRUCTURE_TOP` 0.26) and figures stand on their feet at the sprite height
+  (`CameraView.stand_on_ground`), never hung from their centre higher up.
 - Sprite texel density: **`PIXEL_SIZE = 1/32`** world units per texel
   (`CameraView.PIXEL_SIZE`) for every billboard (party, enemies, props,
   overlays) — the same 32 texels per unit as the ground, so sprites and

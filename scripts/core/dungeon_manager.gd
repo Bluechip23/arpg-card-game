@@ -4776,6 +4776,9 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 			_build_forest_entrance(site_root, fp_w, fp_d)
 		_:
 			_build_cave_entrance(site_root, fp_w, fp_d)
+	# Its walls, pillars and lintels stay under the sprites, so the player at
+	# the door draws over the structure behind him (CameraView).
+	CameraView.flatten_below_sprites(site_root)
 
 	# Name label floating above the structure
 	var label = Label3D.new()
@@ -4978,7 +4981,8 @@ func _build_forest_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 		tree.pixel_size = 0.03125
 		var tree_scale := 1.6
 		tree.scale = Vector3(tree_scale, tree_scale, tree_scale)
-		tree.position = Vector3(side * fp_w * 0.42, 64.0 * 0.03125 * 0.5 * tree_scale, -0.1)
+		tree.position = Vector3(side * fp_w * 0.42, 0, -0.1)
+		CameraView.stand_on_ground(tree)  # on its roots at the sprite height, sorted by row
 		root.add_child(tree)
 
 	# A simple wooden lintel spanning the two trees.

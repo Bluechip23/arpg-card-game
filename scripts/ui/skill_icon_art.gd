@@ -50,11 +50,13 @@ const STATUS := {
 # Skill-tree passives (SkillOption.passive_id).
 # ---------------------------------------------------------------------------
 const PASSIVES := {
-	# Brad — Berserker / Warden / The Ancient / The Fallen
-	"enraged_will": "rpg_42", "directed_strength": "rpg_90", "life_steal": "game_70",
-	"in_the_trenches": "game_57", "the_way_of_the_plate": "pack_27", "pristine_armor": "game_52",
-	"stone_skin": "rpg_86", "ancestral_aid": "game_63", "vines_codependence": "rpg_63",
-	"point_to_prove": "pack_30", "redemption": "pack_21", "solemn_independence": "pack_78",
+	# Brad — Berserker / Warden / The Ancient / The Fallen. All twelve passive_*
+	# keys are the designer's own picks (tools/cut_passive_icons.py).
+	"enraged_will": "passive_enraged_will", "directed_strength": "passive_directed_strength",
+	"life_steal": "passive_life_steal",
+	"in_the_trenches": "passive_in_the_trenches", "the_way_of_the_plate": "passive_the_way_of_the_plate", "pristine_armor": "passive_pristine_armor",
+	"stone_skin": "passive_stone_skin", "ancestral_aid": "passive_ancestral_aid", "vines_codependence": "passive_vines_codependence",
+	"point_to_prove": "passive_point_to_prove", "redemption": "passive_redemption", "solemn_independence": "passive_solemn_independence",
 	# Archer — The Apex / Sentinel / Ranger / Avenger
 	"deadly": "pack_92", "easy_target": "pack_88", "skilled_momentum": "pack_62",
 	"clean_exchange": "game_11", "exposed_blind_spot": "game_86", "lethal_resourcefulness": "pack_87",
@@ -67,16 +69,16 @@ const PASSIVES := {
 	"quick_step": "rpg_15", "ladder_work": "pack_61", "let's_dance": "rpg_57",
 	"stimulant": "rpg_30", "pop_rocks": "game_58", "mad_scientist": "game_59",
 	"now_you_see_me": "pack_11", "surprise_opener": "rpg_80", "eye_scrape": "rpg_59",
-	# Jeremy — Evocation / Shepherd / Poltergeist / Abjurer
-	"arcane_overflow": "game_7", "harnessed_power": "rpg_49", "mana_surge": "game_6",
-	"i_heal_you": "game_17", "whispers_of_the_flock": "game_66", "blood_libation": "game_42",
-	"tricks_of_death": "pack_8", "seance": "pack_10", "haunted_rebuke": "pack_9",
-	"a_mage's_favor": "game_24", "kinetic_armor": "rpg_12", "fresh_start": "pack_23",
-	# Cory — Monk / Lurker / Atrophist / Druid
-	"energy_barrier": "game_36", "expel_negativity": "game_55", "self_reliance": "pack_79",
-	"prey_on_the_weak": "pack_93", "eat": "rpg_32", "serial_killer": "pack_53",
-	"wither": "game_62", "territorial_death": "rpg_71", "death_as_lifeblood": "pack_54",
-	"budding": "rpg_88", "circle_of_life": "pack_51", "regrowth": "pack_44",
+	# Jeremy — Evocation / Shepherd / Poltergeist / Abjurer: all twelve the designer's picks.
+	"arcane_overflow": "passive_arcane_overflow", "harnessed_power": "passive_harnessed_power", "mana_surge": "passive_mana_surge",
+	"i_heal_you": "passive_i_heal_you", "whispers_of_the_flock": "passive_whispers_of_the_flock", "blood_libation": "passive_blood_libation",
+	"tricks_of_death": "passive_tricks_of_death", "seance": "passive_seance", "haunted_rebuke": "passive_haunted_rebuke",
+	"a_mage's_favor": "passive_a_mages_favor", "kinetic_armor": "passive_kinetic_armor", "fresh_start": "passive_fresh_start",
+	# Cory — Monk / Lurker / Atrophist / Druid: all twelve the designer's picks.
+	"energy_barrier": "passive_energy_barrier", "expel_negativity": "passive_expel_negativity", "self_reliance": "passive_self_reliance",
+	"prey_on_the_weak": "passive_prey_on_the_weak", "eat": "passive_eat", "serial_killer": "passive_serial_killer",
+	"wither": "passive_wither", "territorial_death": "passive_territorial_death", "death_as_lifeblood": "passive_death_as_lifeblood",
+	"budding": "passive_budding", "circle_of_life": "passive_circle_of_life", "regrowth": "passive_regrowth",
 }
 
 # Pool per archetype for passives that have no explicit pick yet.
@@ -167,7 +169,7 @@ const CARDS := {
 	"heal": "game_99", "fountain_of_life": "game_99", "mend": "rpg_30",
 	"minor_wounds": "rpg_30", "regen": "rpg_62", "healthy_bliss": "game_99",
 	"healthy_habit": "game_99", "resourceful_replenish": "game_99",
-	"down_but_not_out": "rpg_62", "life_steal": "game_70", "bloodlust": "game_70",
+	"down_but_not_out": "rpg_62", "bloodlust": "game_70",
 	"life_swap": "game_32", "raged_circulation": "game_32", "self_infliction": "rpg_21",
 	"feed_into_the_pain": "rpg_21", "exacerbate_wounds": "rpg_21",
 	"demonic_rage": "rpg_52", "might": "rpg_90", "strengthen": "rpg_42",

@@ -99,15 +99,14 @@ HEROES = {
 }
 
 # Stephen's sheet sets each figure in a soft dark-brown glow (rising from the
-# black to ~30 before the figure's ~50+): the background cut reaches further
-# for him, and the glow left hugging the figure is peeled off — dark pixels
-# on the edge, a few passes in (his own outline is redrawn by the ink).
-BG_FOR = {"stephen": 22}
-HALO_PEEL = {"stephen": (36, 14)}   # (max channel below which an edge pixel is glow, passes)
-# ...and glow boxed in by the figure (between his boots) is cleared too: a
-# pocket of dark (max channel <= limit), flat (its brightness spread <= flat)
-# pixels at least `size` big. His hair's darks are textured, not flat.
-GLOW_POCKET = {"stephen": (30, 4.0, 25)}
+# black to ~30 before the figure's ~50+), which also fills the gaps under his
+# arms, between his legs and inside the bow's curve. The glow is dark and
+# smooth; the figure — even its dark outline — is textured. So for him the
+# background is every dark (max channel <= limit), smooth (its 3x3 spread <=
+# smooth) pixel reached from the edge or boxed in by the figure in a pocket
+# at least `pocket` big; then `peel` passes take the glow's last fringe off
+# the edge (his own outline is redrawn by the ink).
+GLOW = {"stephen": {"limit": 38, "smooth": 10, "pocket": 15, "peel": 2, "peel_limit": 36}}
 
 # Stephen's side view: the bow is cut away entirely (designer, 2026-10-23).
 # It hangs in front of him from shoulder to knee, string across his chest:
@@ -190,34 +189,37 @@ def erase_bow(sheet, band, keep):
     return cv2.inpaint(bgr, bow.astype(np.uint8) * 255, 3, cv2.INPAINT_TELEA)[..., ::-1]
 
 
-def cut(path, box, charm=None, bg=BG, peel=None, bow=None, pocket=None):
+def cut(path, box, charm=None, bow=None, glow=None):
     """The figure in `box`, full size, on transparency, cropped to itself."""
     sheet = np.asarray(Image.open(SRC % path).convert("RGB"))
     if bow is not None:
         sheet = erase_bow(sheet, *bow)
     rgb = sheet[box[1]:box[3], box[0]:box[2]].astype(int)
     h, w, _ = rgb.shape
-    dark = rgb.max(axis=2) <= bg
+    level = rgb.max(axis=2)
+    if glow is None:
+        dark = level <= BG
+    else:
+        pad = np.pad(level, 1, mode="edge")
+        spread = np.max([pad[dy:dy + h, dx:dx + w] for dy in range(3) for dx in range(3)], axis=0) - \
+                 np.min([pad[dy:dy + h, dx:dx + w] for dy in range(3) for dx in range(3)], axis=0)
+        dark = (level <= glow["limit"]) & (spread <= glow["smooth"])
     edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
            [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
     solid = ~_flood(dark, edge)
-    if peel is not None:
-        limit, passes = peel
-        glowish = rgb.max(axis=2) < limit
-        for _ in range(passes):
+    if glow is not None:
+        for comp in _components(solid & dark):
+            if len(comp) >= glow["pocket"]:
+                solid[tuple(np.array(comp).T)] = False
+        fringe = level < glow["peel_limit"]
+        for _ in range(glow["peel"]):
             open_ = ~solid
             touching = np.zeros_like(solid)
             touching[1:] |= open_[:-1]
             touching[:-1] |= open_[1:]
             touching[:, 1:] |= open_[:, :-1]
             touching[:, :-1] |= open_[:, 1:]
-            solid &= ~(touching & glowish)
-    if pocket is not None:
-        limit, flat, size = pocket
-        level = rgb.max(axis=2)
-        for comp in _components(solid & (level <= limit)):
-            if len(comp) >= size and float(np.std([level[y, x] for y, x in comp])) <= flat:
-                solid[tuple(np.array(comp).T)] = False
+            solid &= ~(touching & fringe)
     if charm is not None:
         cx0, cy0, cx1, cy1 = charm[0] - box[0], charm[1] - box[1], charm[2] - box[0], charm[3] - box[1]
         region = np.zeros_like(solid)
@@ -321,7 +323,7 @@ def build(hero, poses):
     for path, box, facing in poses:
         charm = CHARM_BOX.get(hero) if facing in ("east", "west") else None
         bow = (BOW_BAND[hero], BOW_KEEP.get(hero, [])) if hero in BOW_BAND and facing in ("east", "west") else None
-        img = cut(path, box, charm, BG_FOR.get(hero, BG), HALO_PEEL.get(hero), bow, GLOW_POCKET.get(hero))
+        img = cut(path, box, charm, bow, GLOW.get(hero))
         if scale is None or facing == "scale":
             # The first pose (or the "scale" reference) sets the hero's scale
             # for every pose cut from the same source.

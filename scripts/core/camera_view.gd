@@ -91,3 +91,69 @@ static func apply(camera: Camera3D, focus: Vector3, scale: float, viewport_heigh
 	camera.size = ortho_size(scale, viewport_height)
 	camera.near = 0.05
 	camera.far = 200.0
+
+
+# =============================================================
+# KEEPING THE WORLD UNDER THE SPRITES
+# =============================================================
+# Under the near-vertical camera height decides depth (a unit of height
+# outweighs ~57 tiles of row), so anything built taller than SPRITE_LIFT —
+# a building's walls, a lamp post, a gate's pillars — covers every sprite
+# whose art reaches over it on screen, even a character standing south of it
+# (the heroes, 1.6 tiles tall, reach well over what is north of them).
+# Seen from straight above that height doesn't show at all, so structures
+# are kept under the sprites instead.
+
+## The highest a structure's meshes may stand: just under the sprites.
+const STRUCTURE_TOP := 0.26
+
+
+## Stand a billboard on its feet at the sprite height (the art's bottom row
+## on the ground point) instead of hanging it from its centre higher up —
+## so it sorts with every other figure by row.
+static func stand_on_ground(s: Sprite3D, lift: float = SPRITE_LIFT) -> void:
+	var w: float = s.region_rect.size.x if s.region_enabled else float(s.texture.get_width())
+	s.centered = false
+	s.offset = Vector2(-w * 0.5, 0.0)
+	s.position.y = lift
+
+
+## Squash a structure's meshes (everything under `root`) vertically, by one
+## factor about the ground, so the tallest ends at STRUCTURE_TOP. From above
+## it looks the same; it just no longer outranks the sprites standing by it.
+## Parts already on the ground (shadows, paving: under GROUND_PART) are left
+## alone; sprites, labels, lights and collision are untouched.
+const GROUND_PART := 0.03
+
+static func flatten_below_sprites(root: Node3D) -> void:
+	var parts: Array = []
+	var top := 0.0
+	for m in root.find_children("*", "MeshInstance3D", true, false):
+		var mi := m as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		var to_root := _transform_to(mi, root)
+		var box: AABB = to_root * mi.get_aabb()
+		if box.end.y <= GROUND_PART:
+			continue
+		parts.append([mi, to_root])
+		top = maxf(top, box.end.y)
+	if top <= STRUCTURE_TOP:
+		return
+	var squash := Transform3D(Basis.from_scale(Vector3(1.0, STRUCTURE_TOP / top, 1.0)), Vector3.ZERO)
+	for p in parts:
+		var mi: MeshInstance3D = p[0]
+		var parent_to_root := _transform_to(mi.get_parent(), root)
+		mi.transform = parent_to_root.affine_inverse() * squash * p[1]
+
+
+## `node`'s transform in `root`'s space (walking the parents, so it works
+## before the structure is in the scene tree).
+static func _transform_to(node: Node, root: Node) -> Transform3D:
+	var t := Transform3D.IDENTITY
+	var n := node
+	while n != null and n != root:
+		if n is Node3D:
+			t = (n as Node3D).transform * t
+		n = n.get_parent()
+	return t
