@@ -129,41 +129,30 @@ EYE_SPECK = {"cory": (0.80, 0.155)}
 EYE_BLUE = (110, 190, 255, 255)
 
 # Brad's chest piece: an embroidered feather, golden white, almost heavenly,
-# in the middle of the breastplate (designer, 2026-10-24). No pack shows it,
+# lying horizontal in the middle of the breastplate (designer, 2026-10-24). No pack shows it,
 # so it is stitched in here texel by texel, in the sheet's own palette range,
 # on the front frame after the ink pass: (fx, fy) is the feather's centre as
 # a fraction of the frame's width and height. The plate is seen edge-on in
 # the side views and hidden in the back view, so only the front carries it.
-FEATHER = {"brad": (0.51, 0.36)}
+FEATHER = {"brad": (0.50, 0.385)}
 # o = gold thread outline, h = white-gold highlight, m = pale gold vane,
-# s = deeper gold shade, q = the quill; "." leaves the plate. Slim and
-# leaning a little, the quill running out below the vane, a split in the
-# lit side of the vane so it reads as a feather and not a leaf.
+# s = deeper gold shade, q = the quill; "." leaves the plate. It lies
+# horizontal across the plate, tip to the right and the quill running out to
+# the left, with a split in the upper (lit) vane (designer: lower, smaller,
+# horizontal).
 FEATHER_ART = [
-    "......oho.",
-    ".....ohmo.",
-    "....ohmqso",
-    "....ohmqso",
-    "...ohmqmso",
-    "...ohmqmso",
-    "..ohmqmmso",
-    "..o.mqmso.",
-    ".ohmmqmso.",
-    ".ohmqmmso.",
-    "ohmmqmso..",
-    "ohmqmso...",
-    ".ohqso....",
-    "..oqo.....",
-    "..q.......",
-    ".q........",
-    ".o........",
+    ".....oohmo..",
+    "...ohhm.mhho",
+    "qqqqqqqqqqqh",
+    "...ossmmsso.",
+    ".....ooo....",
 ]
 FEATHER_INK = {
     "o": (196, 170, 112), "h": (255, 255, 252), "m": (252, 249, 236),
     "s": (238, 224, 184), "q": (244, 232, 196),
 }
 FEATHER_GLOW = (255, 252, 238)   # a faint halo where the thread meets the plate
-FEATHER_GLOW_MIX = 0.22
+FEATHER_GLOW_MIX = 0.15
 
 
 def stitch_feather(frame, fx, fy):
