@@ -54,10 +54,14 @@ const ATTACK_TIMES := [0.16, 0.065, 0.065, 0.2]
 const WALK_TIME := 0.135
 const NPC_WALK_TIME := 0.18
 const PIXEL_SIZE := 0.03125
-## The designer's hero sprites stand this tall (world units = tiles): a touch
-## taller than the human-sized enemies (0.85-1.2), drawn at whatever pixel
-## size makes their front pose this height, so their detail is kept.
-const BOARD_HEIGHT := 1.3
+## The designer's hero sprites stand this tall (world units = tiles), drawn
+## at whatever pixel size makes their front pose this height, so their detail
+## is kept: well clear of the human-sized enemies (0.85-1.2) so the heroes
+## read on screen (designer, 2026-10-24: 1.3 looked small).
+const BOARD_HEIGHT := 1.6
+## ...and drawn this much wider than tall, for a stockier, heavier build
+## (designer, 2026-10-24: "a little bigger and thicker").
+const BOARD_WIDEN := 1.12
 ## The pack's weapon layers are drawn for its ~29px character base: on a hero
 ## sprite they are scaled by the hero's height over that body's.
 const PACK_BODY_HEIGHT := 29.0 * 0.03125
@@ -115,6 +119,7 @@ var _body_rows: Array = NPC_ROW
 var _body_walk_frames := 4
 var _body_offset := Vector2.ZERO   # the board body's offset with its feet on the ground
 var _hand_scale := 1.0             # held items ride this much higher on a taller hero
+var _shadow_scale := 1.0           # the contact shadow grows with a bigger hero
 var _step_clock := 0.0
 var _sprites: Array[Sprite3D] = []       # every sprite (for modulate passes)
 var _doll_layers: Array[Sprite3D] = []   # body, outfit, hair
@@ -183,7 +188,7 @@ func setup(character_name: String) -> void:
 	var old_shadow := get_node_or_null("Shadow")
 	if old_shadow:
 		old_shadow.queue_free()
-	_shadow = BlobShadow.attach(self, 0.62)
+	_shadow = BlobShadow.attach(self, 0.62 * _shadow_scale)
 	# Effect layer for bespoke card animations. Outside the rig so hops and
 	# knockback don't drag mid-flight projectiles along with the body.
 	if _fx and is_instance_valid(_fx):
@@ -264,6 +269,7 @@ static func preset_for(data: CharacterData) -> String:
 func _setup_doll(outfit: String, hair: String, hat: String = "") -> void:
 	_mode = "doll"
 	_hand_scale = 1.0
+	_shadow_scale = 1.0
 	for page in ["p1", "pONE3"]:
 		var paths := [
 			"%s/char_a_%s/char_a_%s_0bas_humn_v01.png" % [SEED, page, page],
@@ -292,6 +298,7 @@ func _setup_doll(outfit: String, hair: String, hat: String = "") -> void:
 func _setup_npc(sheet_path: String) -> void:
 	_mode = "npc"
 	_body_cell = 32
+	_shadow_scale = 1.0
 	_body_rows = NPC_ROW
 	_body_walk_frames = 4
 	_hand_scale = 1.0
@@ -332,7 +339,11 @@ func _setup_board(sheet_path: String) -> void:
 	_npc_sprite = _make_sprite(_body_cell, _body_cell * 0.5 * PIXEL_SIZE, 0.0)
 	_npc_sprite.texture = tex
 	_npc_sprite.pixel_size = px
+	_npc_sprite.scale.x = BOARD_WIDEN
 	_body_offset = _npc_sprite.offset
+	# The pack's people (about a tile tall) cast a 0.62-wide shadow; a hero
+	# casts one as much wider as the hero is broader than them.
+	_shadow_scale = BOARD_WIDEN * BOARD_HEIGHT / 1.25
 	_weapon_front = _make_sprite(64, wy, 0.05)
 	_shield_front = _make_sprite(64, wy, 0.06)
 	for s in [_shield_back, _weapon_back, _weapon_front, _shield_front]:
