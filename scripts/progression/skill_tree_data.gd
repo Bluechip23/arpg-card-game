@@ -361,7 +361,7 @@ static func create_stephen_tree(max_level: int = 20) -> SkillTreeData:
 		{level = 14, slot = 2, archetype = "Sentinel", name = "Lethal Resourcefulness",
 			description = "If you have 3 or less cards in your hand, playing a non-attack card triggers a free basic attack. Cooldown 40→12 tempo (scales with rank)",
 			color = Color(0.3, 0.7, 1.0)},
-		{level = 16, slot = 1, archetype = "Ranger", name = "Laced Arrow",
+		{level = 16, slot = 1, archetype = "Ranger", name = "Elemental Conclusion",
 			description = "When applying burn, cold, or shock, you have a 50%→100% chance (scales with rank) to apply 1 additional charge",
 			color = Color(0.4, 0.9, 0.4)},
 		{level = 18, slot = 3, archetype = "Avenger", name = "Dominate",

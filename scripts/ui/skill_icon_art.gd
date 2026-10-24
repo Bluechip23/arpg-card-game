@@ -59,9 +59,9 @@ const PASSIVES := {
 	"point_to_prove": "passive_point_to_prove", "redemption": "passive_redemption", "solemn_independence": "passive_solemn_independence",
 	# Archer — The Apex / Sentinel / Ranger / Avenger
 	"deadly": "pack_92", "easy_target": "pack_88", "skilled_momentum": "pack_62",
-	"clean_exchange": "game_11", "exposed_blind_spot": "game_86", "lethal_resourcefulness": "pack_87",
-	"eagle_eye": "pack_56", "scouted": "rpg_16", "laced_arrow": "game_68",
-	"patience_is_a_virtue": "rpg_66", "swing_for_the_fences": "game_74", "dominate": "rpg_50",
+	"clean_exchange": "passive_clean_exchange", "exposed_blind_spot": "passive_exposed_blind_spot", "lethal_resourcefulness": "pack_87",
+	"eagle_eye": "pack_56", "scouted": "passive_scouted", "elemental_conclusion": "game_68",
+	"patience_is_a_virtue": "passive_patience_is_a_virtue", "swing_for_the_fences": "game_74", "dominate": "passive_dominate",
 	# Ryan — Relentless Blade / Light Foot / Apothecary / Shadow Blade: all twelve the designer's picks.
 	"keep_them_guessing": "passive_keep_them_guessing", "from_the_hip": "passive_from_the_hip", "nimble_assault": "passive_nimble_assault",
 	"quick_step": "passive_quick_step", "ladder_work": "passive_ladder_work", "let's_dance": "passive_lets_dance",

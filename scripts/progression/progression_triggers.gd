@@ -1512,7 +1512,7 @@ func clear_pre_attack_passives() -> void:
 		stats.st_pre_attack_armed = false
 
 func _trigger_skill_tree_stephen_on_ranged_attack(_card: Card, _target) -> void:
-	# Laced Arrow is now handled via _on_enemy_debuff_applied to add +1 when applying burn/cold/shock
+	# Elemental Conclusion is now handled via _on_enemy_debuff_applied to add +1 when applying burn/cold/shock
 	pass
 
 func _trigger_skill_tree_stephen_on_expose(target) -> void:

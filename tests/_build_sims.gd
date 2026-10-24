@@ -156,7 +156,7 @@ func _initialize() -> void:
 				["corset_of_cure"], ["medic_wraps"]]},
 		{"who": "Stephen", "name": "DPS — Longshot Ranger (range stacking + casings)",
 			"alloc": {"dexterity": 30, "agility": 15, "strength": 6},
-			"passives": ["eagle_eye", "scouted", "laced_arrow", "deadly",
+			"passives": ["eagle_eye", "scouted", "elemental_conclusion", "deadly",
 				"clean_exchange", "skilled_momentum", "dominate"],
 			"gear": [["jordan_1s"], ["chewbaccas_bandolier"], ["monocle"],
 				["holster"], ["fanned_bracers"]]},

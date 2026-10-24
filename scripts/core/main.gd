@@ -5621,14 +5621,14 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 		olorin.show_combat_intro()
 
 var _wither_applying: bool = false  # Guard against recursive wither
-var _laced_arrow_applying: bool = false  # Guard against recursive laced arrow
+var _elemental_conclusion_applying: bool = false  # Guard against recursive Elemental Conclusion
 var _polymorph_firing: bool = false  # Guard: Polymorph's own debuff must not re-trigger it
 var _reapers_taking_firing: bool = false  # Guard: Reaper's Taking's damage must not re-trigger it
 var _enemy_melee_state: Dictionary = {}  # Territorial Death: tracks enemy melee range state
 
 func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> void:
 	# Capture "was this a NEW debuff type on the enemy" before the riders below
-	# (Harnessed Sun / Laced Arrow / Wither) re-apply and overwrite the flag.
+	# (Harnessed Sun / Elemental Conclusion / Wither) re-apply and overwrite the flag.
 	var debuff_was_new: bool = enemy.last_debuff_was_new
 	progression_triggers._trigger_skill_tree_on_debuff_applied(enemy, debuff_name, value)
 	# Ring pass: feed the poison/burn accumulators and the Circlet checklist,
@@ -5643,18 +5643,18 @@ func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> 
 					enemy.apply_debuff("burn", 2)
 					_harnessed_reentry = false
 					break
-	# Stephen: Laced Arrow — when applying burn, cold, or shock, a rank-scaled
+	# Stephen: Elemental Conclusion — when applying burn, cold, or shock, a rank-scaled
 	# chance (50%..100%) to apply +1 additional charge (guarded against recursion)
-	if not _laced_arrow_applying and debuff_name in ["burn", "cold", "shock"]:
+	if not _elemental_conclusion_applying and debuff_name in ["burn", "cold", "shock"]:
 		var stats = player.get_stats()
-		if stats and stats.has_skill_tree_passive("laced_arrow"):
-			var la_chance: int = PassiveScaling.value("laced_arrow", "chance", stats.get_passive_level("laced_arrow"))
+		if stats and stats.has_skill_tree_passive("elemental_conclusion"):
+			var la_chance: int = PassiveScaling.value("elemental_conclusion", "chance", stats.get_passive_level("elemental_conclusion"))
 			if randi() % 100 < la_chance:
-				_laced_arrow_applying = true
+				_elemental_conclusion_applying = true
 				if enemy.has_method("apply_debuff"):
 					enemy.apply_debuff(debuff_name, 1)
-					add_battle_log("Laced Arrow: +1 %s" % debuff_name, Color(0.4, 0.9, 0.4))
-				_laced_arrow_applying = false
+					add_battle_log("Elemental Conclusion: +1 %s" % debuff_name, Color(0.4, 0.9, 0.4))
+				_elemental_conclusion_applying = false
 	# Cory: Wither — +1 charge to the applied debuff, on a rank-scaled tempo
 	# cooldown (15..1; guarded against recursion)
 	if not _wither_applying:
@@ -5683,10 +5683,10 @@ func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> 
 				enemy.take_damage(ew_dmg, true)
 				add_battle_log("Elemental Weaver: +%d damage (%d charge(s) woven)" % [ew_dmg, maxi(value, 1)], Color(0.7, 0.5, 1.0))
 			# Wand of the Phoenix Feather: each Burn occasion singes the wielder
-			# for 1 — riders like Laced Arrow / Wither / Harnessed Sun amplify
+			# for 1 — riders like Elemental Conclusion / Wither / Harnessed Sun amplify
 			# the SAME occasion, so their guarded re-entries don't singe again.
 			if sw_w.burn_backlash_self > 0 and debuff_name == "burn" \
-					and not _harnessed_reentry and not _laced_arrow_applying and not _wither_applying \
+					and not _harnessed_reentry and not _elemental_conclusion_applying and not _wither_applying \
 					and not _phoenix_singed_this_play:
 				_phoenix_singed_this_play = true
 				var pb_dm := player.get_debuff_manager()

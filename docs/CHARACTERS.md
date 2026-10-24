@@ -134,7 +134,7 @@ and bow-and-quiver user once he's geared up.
 **Reload** (draw 3), **Enchanted Quiver** (free Quick Arrows), **Multishot** (three hits with
 climbing crit), **Spirit Arrow** (pierces everything in a line), **Bottomless Quiver** (banks
 overflow attacks for later), **Last Breath** (dump all mana for 3 damage per point) — plus
-*Laced Arrow* giving a 50%→100% chance to double every burn/cold/shock he applies, ranged
+*Elemental Conclusion* giving a 50%→100% chance to double every burn/cold/shock he applies, ranged
 cards dealing bonus damage from their range (*Eagle Eye*), and terrain cards (**Rise**,
 **Barricade**, **Sky Attack**) that let him *build* his own high ground.
 

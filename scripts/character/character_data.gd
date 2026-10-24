@@ -234,7 +234,7 @@ static func create_stephen() -> CharacterData:
 		{"name": "Ranger", "description": "Striking from a distance, manipulating elements and situations to make your arrows and attacks stronger.", "abilities": [
 			{"name": "Eagle Eye", "description": "Ranged offensive cards deal bonus damage based on their range"},
 			{"name": "Scouted", "description": "Hitting the same enemy 3 times in a row grants +6 range on your next attack and it auto-crits — usable against any enemy"},
-			{"name": "Laced Arrow", "description": "When applying burn, cold, or shock, apply 1 additional instance"},
+			{"name": "Elemental Conclusion", "description": "When applying burn, cold, or shock, apply 1 additional instance"},
 		]},
 		{"name": "Avenger", "description": "Large, potent, and devastating. Unfortunately you tire quick, making timing and execution vital.", "abilities": [
 			{"name": "Patience is a Virtue", "description": "When receiving Glut, deal that much damage to the nearest enemy and halve the Glut"},

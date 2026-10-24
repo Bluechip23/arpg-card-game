@@ -625,6 +625,8 @@ const PASSIVE_MAX_LEVEL: int = 15
 
 var unspent_passive_points: int = 0
 var passive_levels: Dictionary = {}  # passive_id -> level (1..PASSIVE_MAX_LEVEL)
+## Passive ids that were renamed (old -> new); restore() carries saves over.
+const RENAMED_PASSIVES := {"laced_arrow": "elemental_conclusion"}
 
 func get_passive_level(passive_id: String) -> int:
 	return int(passive_levels.get(passive_id, 0))
@@ -1047,6 +1049,15 @@ func restore_progression(data: Dictionary) -> void:
 	# saves) into the typed Array[String] instead of failing the assignment.
 	if data.has("skill_tree_passives"):
 		skill_tree_passives.assign(data["skill_tree_passives"])
+	# Renamed passives: an old save keeps the passive and its rank.
+	for old_id in RENAMED_PASSIVES:
+		var new_id: String = RENAMED_PASSIVES[old_id]
+		var at := skill_tree_passives.find(old_id)
+		if at >= 0:
+			skill_tree_passives[at] = new_id
+		if passive_levels.has(old_id):
+			passive_levels[new_id] = passive_levels[old_id]
+			passive_levels.erase(old_id)
 	# Back-compat: passives unlocked under the old one-cost model count as level 1.
 	for pid in skill_tree_passives:
 		if not passive_levels.has(pid):
