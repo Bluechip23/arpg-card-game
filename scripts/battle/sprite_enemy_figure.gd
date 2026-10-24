@@ -158,6 +158,7 @@ const KINDS := {
 	"summon_golem": {"cp": "golem/Golem1", "scale": 1.0},  # the rock golem the Granite Colossus wears, smaller
 	"summon_specter": {"cp": "ghost/Ghost1", "scale": 1.2, "tint": Color(0.95, 0.75, 1.25)},  # Jeremy's Seance: the specter ghost, violet
 	"frankenstein": {"sheets": SHEETS + "/frankenstein", "scale": 1.0},  # the designer's board (tools/cut_pose_boards.py)
+	"sanguine_penguin": {"sheets": SHEETS + "/sanguine_penguin", "scale": 1.0},  # the designer's board (tools/cut_pose_boards.py)
 	# --- the dojo's enemy training dummies ---
 	"chicken": {"tex": "chicken"},
 	# --- the Rat King's nests: no pack has a nest, so this one is drawn
