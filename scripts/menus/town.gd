@@ -252,6 +252,7 @@ func _ready() -> void:
 
 	# Dress the plaza: market stalls over the vendor markers, lamps, props
 	_dress_town()
+	_settle_town_under_sprites()
 
 	# Quest markers over the NPCs reflect the restored quest state.
 	_refresh_quest_indicators()
@@ -2490,6 +2491,23 @@ func _dress_town() -> void:
 			dressing.add_child(prop)
 
 
+## Keep the plaza under the characters (CameraView): every building, stall,
+## well, lamp and the waypoint mound squashed under the sprite height, and
+## the townsfolk figures standing on their feet at it — so the player walking
+## up to Olorin, a stall or the hall draws over what is behind him.
+func _settle_town_under_sprites() -> void:
+	var roots: Array = []
+	for parent_name in ["Vendors", "TownDressing"]:
+		var parent := get_node_or_null(parent_name)
+		if parent:
+			roots.append_array(parent.get_children())
+	if _town_waypoint_node:
+		roots.append(_town_waypoint_node)
+	for r in roots:
+		if r is Node3D:
+			CameraView.flatten_below_sprites(r)
+
+
 func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 	var stall := Node3D.new()
 	stall.name = "Stall"
@@ -2546,7 +2564,7 @@ func _build_stash_chest(stash: Node3D) -> void:
 	chest.pixel_size = 0.03125
 	var s := 1.4
 	chest.scale = Vector3(s, s, s)
-	chest.position = Vector3(0, 26.0 * 0.03125 * 0.5 * s, 0)
+	CameraView.stand_on_ground(chest)
 	stash.add_child(chest)
 
 
@@ -2591,7 +2609,7 @@ func _create_olorin_npc() -> void:
 	fig.pixel_size = 0.03125
 	var olorin_scale := 1.25  # a touch taller than the party — presence
 	fig.scale = Vector3(olorin_scale, olorin_scale, olorin_scale)
-	fig.position = Vector3(0, 32.0 * 0.03125 * 0.5 * olorin_scale, 0)
+	CameraView.stand_on_ground(fig)  # feet on the ground point: sorts with the player by row
 	olorin.add_child(fig)
 	BlobShadow.attach(olorin, 0.6)
 
@@ -2648,7 +2666,7 @@ func _create_sellsword_npc() -> void:
 	fig.pixel_size = 0.03125
 	var sellsword_scale := 1.15
 	fig.scale = Vector3(sellsword_scale, sellsword_scale, sellsword_scale)
-	fig.position = Vector3(0, 32.0 * 0.03125 * 0.5 * sellsword_scale, 0)
+	CameraView.stand_on_ground(fig)  # feet on the ground point: sorts with the player by row
 	sellsword.add_child(fig)
 	BlobShadow.attach(sellsword, 0.55)
 
@@ -3743,7 +3761,7 @@ func _create_dojo() -> void:
 	fig.pixel_size = 0.03125
 	var master_scale := 1.15
 	fig.scale = Vector3(master_scale, master_scale, master_scale)
-	fig.position = Vector3(0, 32.0 * 0.03125 * 0.5 * master_scale, 0)
+	CameraView.stand_on_ground(fig)  # feet on the ground point: sorts with the player by row
 	dojo.add_child(fig)
 	BlobShadow.attach(dojo, 0.55)
 
