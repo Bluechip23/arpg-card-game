@@ -41,7 +41,7 @@ func _grant_passives() -> void:
 	tm.global_tempo = 50
 	stats.st_enraged_will_last_tempo = 40   # recharging
 	stats.st_itt_charges = 0
-	stats.st_itt_last_used_tempo = 47       # pool empty, recharging
+	stats.st_itt_spent = [46, 47]           # pool empty, recharging
 	_main.call("_update_passive_display_ui")
 
 func _save(suffix: String) -> void:
