@@ -61,7 +61,7 @@ conforms to them.
   **The one exception (designer, 2026-10-23): the heroes' own sprites**
   (all five — `tools/cut_hero_sprites.py`). Squeezed to
   the tile's density they lost the art's nuance, so they keep ~96 texels
-  and are drawn finer (`SpriteFigure.BOARD_HEIGHT`, 1.3 tiles tall); the
+  and are drawn finer (`SpriteFigure.BOARD_HEIGHT`, 1.6 tiles tall, and `BOARD_WIDEN` 1.12× wider for a stockier build); the
   Secret of Mana look comes from crisp on/off edges, a one-texel inked
   outline, a slightly lifted saturation and a tidied palette instead. The
   pack weapon layers swung over them scale with them.

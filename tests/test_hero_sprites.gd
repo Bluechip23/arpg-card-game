@@ -39,6 +39,8 @@ func _initialize() -> void:
 		_check(front.size.y >= 90, "%s keeps the art's detail (%d texels tall, not squeezed)" % [hero, front.size.y])
 		_check(absf(front.size.y * body.pixel_size - SpriteFigure.BOARD_HEIGHT) < 0.02,
 			"%s stands %.2f tiles tall" % [hero, front.size.y * body.pixel_size])
+		_check(is_equal_approx(body.scale.x, SpriteFigure.BOARD_WIDEN) and is_equal_approx(body.scale.y, 1.0),
+			"%s is drawn %.2fx wider for a stockier build" % [hero, SpriteFigure.BOARD_WIDEN])
 		var rows := {}
 		for d in [D.SOUTH, D.NORTH, D.EAST, D.WEST]:
 			f.set_facing(d)
