@@ -615,7 +615,8 @@ engravings ride its items, so their cards are in play only while it is in
 hand: the game moves an item's cards with it.
 
 In the fight the swap is the game's own button: the build switch (tempo per
-changed hand slot plus half the mana, Stephen's weapon portion free) or
+changed hand slot plus half the mana; Stephen's weapon portion free at
+first, then +1 tempo per weapon build switch inside 20 tempo, no mana) or
 the War Rack (drawn free, at most once per 60 tempo, its weapon held
 two-handed and its cards rushed to hand; it goes back up on its own after
 20 tempo). The lookahead prices it

@@ -258,7 +258,8 @@ const DEFAULT_TACTICS := {
 ## weapon to his War Rack (the rack holds one weapon, held two-handed, out
 ## for 20 tempo on a 60-tempo cooldown — a quiver or second item is left
 ## out and reported); everyone else keeps the set as equipment build II and
-## switches with the game's build buttons (Stephen's weapon portion free).
+## switches with the game's build buttons (Stephen's weapon portion free at
+## first, then +1 tempo per weapon build switch inside 20 tempo).
 ## Engravings ride the items, so their cards enter play only when the set
 ## is in hand.
 const WEAPON_SETS := {

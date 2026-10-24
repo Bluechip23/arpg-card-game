@@ -26,9 +26,18 @@ var belt_card_mana_reduction: int = 0     # Ryan
 var ring_double_trigger: bool = false     # Jeremy
 var off_hand_bonus: float = 0.0           # Stephen (+10%), others get -10% penalty
 var gauntlet_cooldown_mana: bool = false  # Cory
-# Stephen: weapon-slot swaps cost 1 tempo (not 2) and the weapon portion of a
-# build switch is free — armor changes always pay full price.
+# Stephen: the weapon portion of a build switch is free the first time, then
+# 1 more tempo for each further weapon build switch inside BUILD_WEAPON_WINDOW
+# tempo of that first one; then the count starts over (designer, 2026-10-24).
+# The rest of the switch (armor) pays as usual, and a single weapon swap
+# outside a build switch costs him what it costs everyone.
 var weapon_swap_discount: bool = false
+const BUILD_WEAPON_WINDOW: int = 20
+var build_weapon_swaps: int = 0          # weapon build switches in the open window
+var build_weapon_window_tempo: int = 0   # tempo left in the window (0 = closed)
+## Whether a swap would be charged right now (main sets it to its aggro
+## check). Unset (tests, tools): every swap counts.
+var combat_check: Callable = Callable()
 
 # Jeremy's double trigger only arms every Nth cycle (every cycle proved busted).
 const RING_DOUBLE_TRIGGER_CYCLES: int = 3
@@ -149,6 +158,8 @@ func initialize(char_name: String) -> void:
 	off_hand_bonus = 0.0
 	gauntlet_cooldown_mana = false
 	weapon_swap_discount = false
+	build_weapon_swaps = 0
+	build_weapon_window_tempo = 0
 
 	# Per-character deviations from the baseline.
 	match character_name:
@@ -163,7 +174,7 @@ func initialize(char_name: String) -> void:
 			ring_double_trigger = true  # doubles every RING_DOUBLE_TRIGGER_CYCLES cycles
 		"Stephen":
 			off_hand_bonus = 0.2  # +10% instead of -10% = +20% total swing
-			weapon_swap_discount = true  # man of arms: cheap hands, full-price armor
+			weapon_swap_discount = true  # man of arms: build-switch hands start free
 		"Cory":
 			gauntlets_slots = 2
 			gauntlet_cooldown_mana = true
@@ -185,7 +196,7 @@ func _print_passives() -> void:
 	if gauntlet_cooldown_mana:
 		print("[INVENTORY] Passive: Gain 10 mana when gauntlet skill comes off cooldown")
 	if weapon_swap_discount:
-		print("[INVENTORY] Passive: Weapon swaps cost 1 tempo; build-switch weapon changes are free")
+		print("[INVENTORY] Passive: Build-switch weapon portion free, then +1 tempo per weapon build switch inside %d tempo" % BUILD_WEAPON_WINDOW)
 
 func _init_slot_arrays() -> void:
 	equipped_helms.clear()
@@ -1785,7 +1796,8 @@ func _carry_change_allowed(load_delta: int, two_handing_after: bool) -> bool:
 ## price plus one. Removing an item without replacing it is half the base
 ## price (rounded down) plus one. Out of combat swaps are free — main.gd
 ## only charges these while enemies are in aggro range. Every paid swap also
-## costs half the character's mana (get_swap_mana_cost), bar Stephen's hands.
+## costs half the character's mana (get_swap_mana_cost), bar the weapon
+## portion of Stephen's build switches (SWAP_TEMPO_ONLY).
 const SWAP_TEMPO_SURCHARGE := 1
 
 func get_swap_tempo_cost(item_type: ItemData.ItemType, unequip_only: bool = false) -> int:
@@ -1793,9 +1805,6 @@ func get_swap_tempo_cost(item_type: ItemData.ItemType, unequip_only: bool = fals
 	match item_type:
 		ItemData.ItemType.HELM, ItemData.ItemType.RING, ItemData.ItemType.WEAPON, ItemData.ItemType.QUIVER:
 			cost = 2
-			# Stephen: a lifetime among weapons — swapping steel takes half the time.
-			if item_type == ItemData.ItemType.WEAPON and weapon_swap_discount:
-				cost = 1
 		ItemData.ItemType.GAUNTLETS, ItemData.ItemType.BELT, ItemData.ItemType.BOOTS:
 			cost = 3
 		ItemData.ItemType.CHEST:
@@ -1809,10 +1818,37 @@ func get_swap_mana_cost() -> int:
 		return 0
 	return floori(player_stats.current_mana / 2.0)
 
-## Stephen's hands are his trade: weapon-slot swaps pay tempo only. A
-## build switch or rack exchange (item_type -1) always pays.
+## The item_type a charge passes when only tempo is owed: a build switch for
+## Stephen in which only the weapon portion costs anything.
+const SWAP_TEMPO_ONLY := -2
+
+## Whether a charged swap also costs half the mana: every slot swap and build
+## switch (item_type -1) does; SWAP_TEMPO_ONLY does not.
 func swap_costs_mana(item_type: int) -> bool:
-	return not (weapon_swap_discount and item_type == ItemData.ItemType.WEAPON)
+	return item_type != SWAP_TEMPO_ONLY
+
+## Stephen: what the weapon portion of a build switch costs right now — 0 for
+## the first in a window, then 1, 2, ... for each further one inside it.
+func build_weapon_swap_price() -> int:
+	if not weapon_swap_discount:
+		return 0
+	return build_weapon_swaps if build_weapon_window_tempo > 0 else 0
+
+## Stephen: count one weapon build switch (opening the window on the first).
+func _note_build_weapon_swap() -> void:
+	if build_weapon_window_tempo <= 0:
+		build_weapon_swaps = 0
+		build_weapon_window_tempo = BUILD_WEAPON_WINDOW
+	build_weapon_swaps += 1
+
+## Raw tempo runs Stephen's build-switch window down; when it closes the
+## weapon portion is free again.
+func advance_build_swap_tempo(amount: int) -> void:
+	if build_weapon_window_tempo <= 0 or amount <= 0:
+		return
+	build_weapon_window_tempo = maxi(0, build_weapon_window_tempo - amount)
+	if build_weapon_window_tempo == 0:
+		build_weapon_swaps = 0
 
 #endregion
 #region EQUIPMENT BUILDS (loadouts I / II / III)
@@ -1922,7 +1958,7 @@ func switch_build(target: int) -> Dictionary:
 				continue
 			if set_info[0] == "weapons":
 				hands_changed = true
-			# Stephen: the weapon portion of a build switch is free.
+			# Stephen: the weapon portion is priced as a whole below.
 			if set_info[0] == "weapons" and weapon_swap_discount:
 				pass
 			elif plan[i] == null:
@@ -1934,11 +1970,18 @@ func switch_build(target: int) -> Dictionary:
 			if plan[i] != null:
 				incoming.append(plan[i])
 	# Changing only the two-handed slot (same items) is a hand action —
-	# also part of Stephen's free weapon portion.
-	if target_two_hand != two_handed_slot and not hands_changed and not weapon_swap_discount:
+	# also part of Stephen's weapon portion.
+	var grip_changed: bool = target_two_hand != two_handed_slot
+	if grip_changed and not hands_changed and not weapon_swap_discount:
 		cost += get_swap_tempo_cost(ItemData.ItemType.WEAPON)
+	# Stephen's weapon portion: free, then 1, 2, ... inside the window.
+	var armor_cost: int = cost
+	var weapon_portion: bool = weapon_swap_discount and (hands_changed or grip_changed)
+	var counted: bool = weapon_portion and (not combat_check.is_valid() or combat_check.call())
+	if counted:
+		cost += build_weapon_swap_price()
 
-	# Nothing to move. (Stephen's weapon-only switch also costs 0, but its
+	# Nothing to move. (Stephen's free weapon portion also costs 0, but its
 	# weapons still have to change hands.)
 	if cost == 0 and not hands_changed and target_two_hand == two_handed_slot:
 		active_build = target
@@ -2031,8 +2074,12 @@ func switch_build(target: int) -> Dictionary:
 	_bulk_build_switch = false
 
 	active_build = target
+	if counted:
+		_note_build_weapon_swap()
 	result["success"] = true
 	result["tempo_cost"] = cost
+	# Only Stephen's weapon portion owed: tempo, no mana.
+	result["tempo_only"] = weapon_portion and armor_cost == 0
 	storage_changed.emit()
 	equipment_changed.emit()
 	print("[INVENTORY] Switched to build %d (%d tempo worth of swaps)" % [target + 1, cost])

@@ -1,8 +1,10 @@
 extends SceneTree
 
 ## Stephen's man of arms, through the real Main scene and the character
-## panel's build button, mid-fight: a weapons-only build switch is free (no
-## tempo, no mana) and everything the weapons carry flips with them — the
+## panel's build button, mid-fight: a weapons-only build switch costs no
+## mana, its tempo is free the first time and then 1 more for each further
+## weapon build switch inside 20 tempo (then it resets), and everything the
+## weapons carry flips with them — the
 ## items in hand and in the backpack, their stat bonuses, their engraved
 ## cards, the auto attack's reach and tempo, the shield, the figure's weapon,
 ## and the saved builds — and it keeps flipping cleanly back and forth.
@@ -80,6 +82,9 @@ func _run() -> void:
 			runner.teardown()
 			continue
 
+		# The setup's switch back to build I opened Stephen's window; let it
+		# close so the trips start from a free first switch.
+		inv.advance_build_swap_tempo(Inventory.BUILD_WEAPON_WINDOW)
 		for trip in range(1, 4):
 			var t0: int = main.tempo_manager.global_tempo
 			var m0: float = stats.current_mana
@@ -90,12 +95,13 @@ func _run() -> void:
 				"trip %d: build II puts the bow and quiver in hand" % trip)
 			_check(inv.stored_items.has(sword) and inv.stored_items.has(off) and not inv.stored_items.has(bow),
 				"trip %d: the blade and shield go to the backpack" % trip)
-			# Free: no tempo and no mana charge. Fallen's Wrath's +5 INT leaves
-			# with it, so max mana drops and full mana is clipped to the new cap
+			# The weapon portion's price: switches 1, 3, 5 of the window cost
+			# 0, 2, 4 tempo; no mana. Fallen's Wrath's +5 INT leaves with the
+			# blade, so max mana drops and full mana is clipped to the new cap
 			# (not refunded when the blade comes back) — a weapon's stats, not
 			# the switch's price.
-			_check(main.tempo_manager.global_tempo == t0 and stats.current_mana == minf(m0, float(stats.get_available_max_mana())),
-				"trip %d: free — no tempo, no mana charged (%.0f -> %.0f, cap %d)" % [trip, m0, stats.current_mana, stats.get_available_max_mana()])
+			_check(main.tempo_manager.global_tempo - t0 == (trip - 1) * 2 and stats.current_mana == minf(m0, float(stats.get_available_max_mana())),
+				"trip %d: %d tempo, no mana (%.0f -> %.0f, cap %d)" % [trip, main.tempo_manager.global_tempo - t0, m0, stats.current_mana, stats.get_available_max_mana()])
 			_check(ranged["str"] == melee["str"] - sword.strength_bonus - off.strength_bonus + bow.strength_bonus + quiver.strength_bonus
 				and ranged["dex"] == melee["dex"] - sword.dexterity_bonus - off.dexterity_bonus + bow.dexterity_bonus + quiver.dexterity_bonus
 				and ranged["int"] == melee["int"] - sword.intelligence_bonus - off.intelligence_bonus
@@ -112,22 +118,32 @@ func _run() -> void:
 				"trip %d: no shield; the figure holds a bow (%s)" % [trip, inv.held_weapon_kind()])
 
 			var m1: float = stats.current_mana
+			var tb: int = main.tempo_manager.global_tempo
 			panel._on_build_pressed(0)
 			await process_frame
 			var back := _snapshot(main)
 			_check(inv.equipped_weapons[0] == sword and inv.equipped_weapons[1] == off and inv.active_build == 0
 				and inv.stored_items.has(bow) and inv.stored_items.has(quiver),
 				"trip %d: build I puts the blade and shield back; the bow goes to the backpack" % trip)
-			_check(main.tempo_manager.global_tempo == t0 and stats.current_mana == minf(m1, float(stats.get_available_max_mana())),
-				"trip %d: back is free too (%.0f -> %.0f)" % [trip, m1, stats.current_mana])
+			_check(main.tempo_manager.global_tempo - tb == (trip - 1) * 2 + 1 and stats.current_mana == minf(m1, float(stats.get_available_max_mana())),
+				"trip %d: back costs %d tempo, no mana (%.0f -> %.0f)" % [trip, main.tempo_manager.global_tempo - tb, m1, stats.current_mana])
 			_check(back == melee, "trip %d: every stat, the carry load and the weight are as before (%s)" % [trip, str(back)])
 			_check(_zones(dm, shot) == 0 and blade_cards.all(func(c): return _zones(dm, c) == 1),
 				"trip %d: the blade's cards are back in play once each; Quick Shot left" % trip)
 			_check(main._basic_attack_reach() == 1 and inv.has_shield_equipped(), "trip %d: melee reach and the shield again" % trip)
 			_check(inv.builds[1]["weapons"][0] == bow and inv.builds[0]["weapons"][0] == sword,
 				"trip %d: both saved builds still hold their own weapons" % trip)
-		# A single weapon swap from the backpack (the panel's drag-and-drop):
-		# man of arms makes it 1 + 1 tempo and no mana.
+		# 0+1+2+3+4+5 = 15 tempo spent inside the window; 5 more closes it
+		# and the next weapon build switch is free again.
+		main.tempo_manager.add_tempo(5)
+		var t2: int = main.tempo_manager.global_tempo
+		panel._on_build_pressed(1)
+		await process_frame
+		_check(main.tempo_manager.global_tempo == t2 and inv.active_build == 1, "20 tempo on, the count has reset: free again")
+		panel._on_build_pressed(0)
+		await process_frame
+		# A single weapon swap from the backpack (the panel's drag-and-drop)
+		# costs him what it costs anyone: 2 + 1 tempo and half the mana.
 		var dagger := ItemData.create("rusty_dagger")
 		inv.stored_items.append(dagger)
 		var t1: int = main.tempo_manager.global_tempo
@@ -137,8 +153,8 @@ func _run() -> void:
 		await process_frame
 		_check(inv.equipped_weapons[0] == dagger and inv.stored_items.has(sword) and blade_cards.slice(0, inv._get_item_owned_cards(sword).size()).all(func(c): return _zones(dm, c) == 0),
 			"a single swap puts the dagger in hand and the blade (and its cards) away")
-		_check(main.tempo_manager.global_tempo - t1 == 2 and stats.current_mana == minf(m2, float(stats.get_available_max_mana())),
-			"a single weapon swap costs Stephen 2 tempo and no mana (%d tempo, %.0f -> %.0f)" % [main.tempo_manager.global_tempo - t1, m2, stats.current_mana])
+		_check(main.tempo_manager.global_tempo - t1 == 3 and stats.current_mana < m2,
+			"a single weapon swap costs Stephen 3 tempo and mana (%d tempo, %.0f -> %.0f)" % [main.tempo_manager.global_tempo - t1, m2, stats.current_mana])
 		runner.teardown()
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

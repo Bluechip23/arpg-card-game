@@ -2742,8 +2742,8 @@ func _on_swap_tempo_spent(cost: int, action: String, item_type: int = -1) -> voi
 	## Changing gear mid-fight advances the clock like Basic Block / Wait does
 	## and costs half the character's mana. The character panel emits this for
 	## every swap; free out of combat. The swap's tempo never moves the mana
-	## regen countdown, so a swap cannot buy a regen tick. Stephen's weapon
-	## swaps keep his discount: tempo only, no mana.
+	## regen countdown, so a swap cannot buy a regen tick. The weapon portion
+	## of Stephen's build switch (Inventory.SWAP_TEMPO_ONLY) is tempo only.
 	if cost <= 0 or not _is_in_combat():
 		return
 	var stats := player.get_stats() if player else null
@@ -3577,6 +3577,10 @@ func select_character(character: CharacterData) -> void:
 
 	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager, player.get_buff_manager(), player.get_debuff_manager())
 	character_panel.swap_tempo_spent.connect(_on_swap_tempo_spent)
+	# Only swaps that are charged (an enemy in aggro range) count toward
+	# Stephen's build-switch window.
+	if player.get_inventory():
+		player.get_inventory().combat_check = _is_in_combat
 	# Every adventurer carries a Return Scroll (right-click it to portal home).
 	if player.get_inventory():
 		player.get_inventory().ensure_return_scroll()
@@ -5447,6 +5451,9 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	# Brad's War Rack: its cooldown and the drawn weapon's return clock.
 	if player and player.get_inventory() and player.get_inventory().has_back_rack:
 		player.get_inventory().advance_rack_tempo(amount)
+	# Stephen's build-switch window (his weapon portion's rising price).
+	if player and player.get_inventory():
+		player.get_inventory().advance_build_swap_tempo(amount)
 	# Timed statuses (stun, frozen, blind...) tick on RAW tempo so durations
 	# like "3 tempo" work; per-cycle effects still run on the 5-tempo turn.
 	# Skill-tree cooldowns and intervals with exact tempo values tick here too.

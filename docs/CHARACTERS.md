@@ -121,8 +121,10 @@ He also runs lean comfortably: with 3 or fewer cards in hand, playing a non-atta
 triggers a **free basic attack** on a rank-scaled 40→12 tempo cooldown
 (*Lethal Resourcefulness*), so even his Blocks keep the pressure on when his hand runs low.
 
-**Gear identity:** Stephen's slot layout is standard, but steel is his trade: **weapon swaps cost him
-1 tempo less and no mana**, and the weapon portion of a build switch is free. His character passive gives him
+**Gear identity:** Stephen's slot layout is standard, but steel is his trade: **when he switches builds,
+the weapon portion is free at first, then costs 1 more tempo for each further weapon build switch
+inside 20 tempo of the first; then the count resets** (tempo only, no mana; the rest of the switch
+pays as usual, and a single weapon swap costs him what it costs anyone). His character passive gives him
 **+10% off-hand enchantment effectiveness while every other character takes −10%**. Off-hands
 normally apply their bonuses at reduced strength — Stephen is the one character whose second
 weapon, quiver, or shield works at full power, which makes him the game's best dual-wielder

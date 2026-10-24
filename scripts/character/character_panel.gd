@@ -1119,7 +1119,9 @@ func _on_build_pressed(index: int) -> void:
 	if result.get("success", false):
 		var cost: int = result.get("tempo_cost", 0)
 		if cost > 0:
-			swap_tempo_spent.emit(cost, "Swapped to build %s" % BUILD_NUMERALS[index], -1)
+			# Stephen's weapon portion alone costs tempo but no mana.
+			var kind: int = Inventory.SWAP_TEMPO_ONLY if result.get("tempo_only", false) else -1
+			swap_tempo_spent.emit(cost, "Swapped to build %s" % BUILD_NUMERALS[index], kind)
 		var missing: Array = result.get("missing", [])
 		if missing.size() > 0:
 			_flash_inventory_message("Build %s missing: %s" % [BUILD_NUMERALS[index], ", ".join(missing)])
@@ -1481,7 +1483,7 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 			else:
 				th_text = "Wield Two-Handed (+%d damage)" % th_bonus
 		var th_btn = _make_action_button(th_text, Color(0.3, 0.24, 0.1), Color(0.85, 0.7, 0.3))
-		th_btn.tooltip_text = "Two-handing halves this item's carried weight but cuts total\ncarry capacity to 70%% and occupies a second hand slot.\nWith an enemy close enough to aggro: %d tempo%s." % [inventory.get_swap_tempo_cost(ItemData.ItemType.WEAPON), "" if inventory.weapon_swap_discount else " and half your mana"]
+		th_btn.tooltip_text = "Two-handing halves this item's carried weight but cuts total\ncarry capacity to 70%% and occupies a second hand slot.\nWith an enemy close enough to aggro: %d tempo%s." % [inventory.get_swap_tempo_cost(ItemData.ItemType.WEAPON), " and half your mana"]
 		th_btn.pressed.connect(_on_toggle_two_handed)
 		vbox.add_child(th_btn)
 

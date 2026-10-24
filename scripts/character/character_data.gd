@@ -243,7 +243,7 @@ static func create_stephen() -> CharacterData:
 		]},
 	]
 	data.passive_description = "+10% off-hand enchantments (others get -10%)"
-	data.slot_specialty = "Weapon swaps cost 1 tempo; the weapon portion of a build switch is free"
+	data.slot_specialty = "Build swaps: the weapon portion is free at first, then costs 1 more tempo for each weapon build swap inside 20 tempo; then the count resets"
 	return data
 
 static func create_cory() -> CharacterData:
