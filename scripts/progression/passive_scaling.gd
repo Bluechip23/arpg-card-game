@@ -183,8 +183,8 @@ const TABLES := {
 
 	# --- Stephen ---
 	"patience_is_a_virtue": {
-		# % of the Glut amount dealt as damage before the Glut is halved
-		"multiplier": [10, 30, 50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290],
+		# Endured Tolerance: % resistance to all damage for 5 tempo
+		"resist": [5, 7, 9, 10, 12, 14, 16, 18, 19, 21, 23, 25, 26, 28, 30],
 	},
 	"swing_for_the_fences": {
 		# % of the card's tempo cost dealt as additional damage
@@ -201,7 +201,7 @@ const TABLES := {
 		"range": [2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6],
 		"crit_damage": [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
 	},
-	"laced_arrow": {
+	"elemental_conclusion": {
 		"chance": [50, 53, 56, 59, 62, 65, 68, 71, 74, 77, 80, 83, 86, 89, 100],
 	},
 	"clean_exchange": {

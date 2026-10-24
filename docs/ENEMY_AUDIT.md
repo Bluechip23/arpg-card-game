@@ -375,7 +375,7 @@ Manticore), Underworld 3 of 3, Heavens 0 of 1 (the Djinn's Wishes are a card, no
 
 21 enemy-side keys. Counts are literal `apply_debuff("key", n)` sites in cards, items, passives and main
 (29 in card.gd, 20 in main.gd, 5 in progression_triggers.gd, 3 in inventory.gd), plus 6 dynamic sites that pass
-a variable key (Feral Evocation's element remap, sword slot pairs, Laced Arrow, Misery's spread, Cory's Wither,
+a variable key (Feral Evocation's element remap, sword slot pairs, Elemental Conclusion, Misery's spread, Cory's Wither,
 and the player→enemy mirror table).
 
 | Enemy-side key | Literal sites | Note |

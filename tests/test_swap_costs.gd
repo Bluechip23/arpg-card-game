@@ -74,13 +74,26 @@ func _run() -> void:
 	_main._on_swap_tempo_spent(3, "Equipped Test Helm", ItemData.ItemType.HELM)
 	_check(tm.global_tempo == g0 and int(stats.current_mana) == m0, "out of combat a swap costs nothing")
 
-	# --- Stephen: hands are cheap and mana-free, armor is not ---
+	# --- Stephen: a single swap is ordinary; his build switch's weapon
+	# portion is free, then +1 per weapon build switch inside 20 tempo ---
 	var s_inv = load("res://scripts/progression/inventory.gd").new()
 	get_root().add_child(s_inv)
 	s_inv.initialize("Stephen")
-	_check(s_inv.get_swap_tempo_cost(ItemData.ItemType.WEAPON) == 2, "Stephen's weapon swap is 1 + 1")
-	_check(not s_inv.swap_costs_mana(ItemData.ItemType.WEAPON), "…and costs him no mana")
+	_check(s_inv.get_swap_tempo_cost(ItemData.ItemType.WEAPON) == 3 and s_inv.swap_costs_mana(ItemData.ItemType.WEAPON),
+		"Stephen's single weapon swap costs what everyone's does (2 + 1, and mana)")
 	_check(s_inv.swap_costs_mana(ItemData.ItemType.CHEST) and s_inv.get_swap_tempo_cost(ItemData.ItemType.CHEST) == 9, "his armor pays full price")
+	_check(not s_inv.swap_costs_mana(Inventory.SWAP_TEMPO_ONLY), "the weapon portion alone costs no mana")
+	var prices: Array = []
+	for i in range(4):
+		prices.append(s_inv.build_weapon_swap_price())
+		s_inv._note_build_weapon_swap()
+	_check(prices == [0, 1, 2, 3], "weapon build switches inside the window cost 0, 1, 2, 3 (%s)" % str(prices))
+	s_inv.advance_build_swap_tempo(19)
+	_check(s_inv.build_weapon_swap_price() == 4, "19 tempo after the first, the window is still open")
+	s_inv.advance_build_swap_tempo(1)
+	_check(s_inv.build_weapon_swap_price() == 0, "20 tempo after the first, the count resets: free again")
+	s_inv._note_build_weapon_swap()
+	_check(s_inv.build_weapon_swap_price() == 1, "…and a new window opens with the next switch")
 
 	# --- Brad's free War Rack exchange stays free ---
 	_check(inv.has_back_rack, "Brad carries the War Rack")

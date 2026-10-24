@@ -182,7 +182,8 @@ func card_view(c: Card) -> Dictionary:
 ## The swaps the game's buttons would make right now: Brad's War Rack, or a
 ## saved equipment build whose hands differ. Cost as the game charges it in
 ## combat (tempo per changed hand slot plus half the mana; Stephen's weapon
-## portion of a build switch free; a ready rack exchange free).
+## portion of a build switch free at first, then +1 tempo per weapon build
+## switch inside 20 tempo, no mana; a ready rack exchange free).
 func _collect_weapon_swaps(inv) -> void:
 	var fighting: bool = main._is_in_combat()
 	if inv.has_back_rack:
@@ -214,6 +215,12 @@ func _collect_weapon_swaps(inv) -> void:
 			if fighting and not inv.weapon_swap_discount:
 				tempo += inv.get_swap_tempo_cost(w.item_type if w else live.item_type, w == null)
 		if incoming.is_empty() and outgoing.is_empty():
+			continue
+		# Stephen's weapon portion: free, then +1 per weapon build switch in
+		# the window — tempo only.
+		if fighting and inv.weapon_swap_discount:
+			weapon_swaps.append(_swap_view(inv, "build", b, incoming, outgoing,
+				inv.build_weapon_swap_price(), 0, false))
 			continue
 		weapon_swaps.append(_swap_view(inv, "build", b, incoming, outgoing, tempo,
 			inv.get_swap_mana_cost() if tempo > 0 else 0, false))

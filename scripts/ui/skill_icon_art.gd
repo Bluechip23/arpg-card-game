@@ -57,18 +57,16 @@ const PASSIVES := {
 	"in_the_trenches": "passive_in_the_trenches", "the_way_of_the_plate": "passive_the_way_of_the_plate", "pristine_armor": "passive_pristine_armor",
 	"stone_skin": "passive_stone_skin", "ancestral_aid": "passive_ancestral_aid", "vines_codependence": "passive_vines_codependence",
 	"point_to_prove": "passive_point_to_prove", "redemption": "passive_redemption", "solemn_independence": "passive_solemn_independence",
-	# Archer — The Apex / Sentinel / Ranger / Avenger
-	"deadly": "pack_92", "easy_target": "pack_88", "skilled_momentum": "pack_62",
-	"clean_exchange": "game_11", "exposed_blind_spot": "game_86", "lethal_resourcefulness": "pack_87",
-	"eagle_eye": "pack_56", "scouted": "rpg_16", "laced_arrow": "game_68",
-	"patience_is_a_virtue": "rpg_66", "swing_for_the_fences": "game_74", "dominate": "rpg_50",
-	# Ryan — Relentless Blade / Light Foot / Apothecary / Shadow Blade (picked for
-	# the Choose Your Character screen, 2026-10-23: no two passives share art,
-	# and none borrows a status effect's icon)
-	"keep_them_guessing": "game_8", "from_the_hip": "pack_26", "nimble_assault": "rpg_14",
-	"quick_step": "rpg_15", "ladder_work": "pack_61", "let's_dance": "rpg_57",
-	"stimulant": "rpg_30", "pop_rocks": "game_58", "mad_scientist": "game_59",
-	"now_you_see_me": "pack_11", "surprise_opener": "rpg_80", "eye_scrape": "rpg_59",
+	# Stephen — The Apex / Sentinel / Ranger / Avenger: all twelve the designer's picks.
+	"deadly": "passive_deadly", "easy_target": "passive_easy_target", "skilled_momentum": "passive_skilled_momentum",
+	"clean_exchange": "passive_clean_exchange", "exposed_blind_spot": "passive_exposed_blind_spot", "lethal_resourcefulness": "passive_lethal_resourcefulness",
+	"eagle_eye": "passive_eagle_eye", "scouted": "passive_scouted", "elemental_conclusion": "passive_elemental_conclusion",
+	"patience_is_a_virtue": "passive_patience_is_a_virtue", "swing_for_the_fences": "passive_swing_for_the_fences", "dominate": "passive_dominate",
+	# Ryan — Relentless Blade / Light Foot / Apothecary / Shadow Blade: all twelve the designer's picks.
+	"keep_them_guessing": "passive_keep_them_guessing", "from_the_hip": "passive_from_the_hip", "nimble_assault": "passive_nimble_assault",
+	"quick_step": "passive_quick_step", "ladder_work": "passive_ladder_work", "let's_dance": "passive_lets_dance",
+	"stimulant": "passive_stimulant", "pop_rocks": "passive_pop_rocks", "mad_scientist": "passive_mad_scientist",
+	"now_you_see_me": "passive_now_you_see_me", "surprise_opener": "passive_surprise_opener", "eye_scrape": "passive_eye_scrape",
 	# Jeremy — Evocation / Shepherd / Poltergeist / Abjurer: all twelve the designer's picks.
 	"arcane_overflow": "passive_arcane_overflow", "harnessed_power": "passive_harnessed_power", "mana_surge": "passive_mana_surge",
 	"i_heal_you": "passive_i_heal_you", "whispers_of_the_flock": "passive_whispers_of_the_flock", "blood_libation": "passive_blood_libation",
@@ -126,7 +124,8 @@ const CARDS := {
 	# Spells
 	"fireball": "game_26", "spark": "rpg_12", "chain_lightning": "rpg_12",
 	"god_of_thunder": "rpg_25", "harness_lightning": "pack_70", "crack_of_mintaka": "rpg_25",
-	"energy_ball": "rpg_47", "energy_barrier": "rpg_41", "mage_shield": "game_12",
+	"energy_ball": "rpg_47", "energy_barrier": "rpg_41",
+	"endured_tolerance": "passive_patience_is_a_virtue", "mage_shield": "game_12",
 	"magic_barrier": "game_12", "ice_grenade": "rpg_2", "cryonics": "rpg_2",
 	"surrounding_ice": "pack_65", "snowballs_chance": "pack_65",
 	"stone_encase": "rpg_86", "earth_rattle": "game_57", "terrain_formation": "game_57",
@@ -169,7 +168,7 @@ const CARDS := {
 	"heal": "game_99", "fountain_of_life": "game_99", "mend": "rpg_30",
 	"minor_wounds": "rpg_30", "regen": "rpg_62", "healthy_bliss": "game_99",
 	"healthy_habit": "game_99", "resourceful_replenish": "game_99",
-	"down_but_not_out": "rpg_62", "bloodlust": "game_70",
+	"down_but_not_out": "rpg_62", "life_steal": "game_70", "bloodlust": "game_70",
 	"life_swap": "game_32", "raged_circulation": "game_32", "self_infliction": "rpg_21",
 	"feed_into_the_pain": "rpg_21", "exacerbate_wounds": "rpg_21",
 	"demonic_rage": "rpg_52", "might": "rpg_90", "strengthen": "rpg_42",

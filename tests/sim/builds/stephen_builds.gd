@@ -38,7 +38,7 @@ const SPHERES := {
 	"none": [],
 }
 const PASSIVES := {
-	"ranger": {"eagle_eye": 3, "scouted": 3, "laced_arrow": 2, "deadly": 3, "clean_exchange": 2, "skilled_momentum": 2, "dominate": 2},
+	"ranger": {"eagle_eye": 3, "scouted": 3, "elemental_conclusion": 2, "deadly": 3, "clean_exchange": 2, "skilled_momentum": 2, "dominate": 2},
 	"avenger": {"swing_for_the_fences": 3, "patience_is_a_virtue": 3, "dominate": 2, "skilled_momentum": 2, "deadly": 3, "clean_exchange": 2, "lethal_resourcefulness": 2},
 	"sentinel": {"clean_exchange": 3, "exposed_blind_spot": 3, "lethal_resourcefulness": 2, "deadly": 3, "patience_is_a_virtue": 2, "swing_for_the_fences": 2, "scouted": 2},
 	"none": {},

@@ -234,16 +234,16 @@ static func create_stephen() -> CharacterData:
 		{"name": "Ranger", "description": "Striking from a distance, manipulating elements and situations to make your arrows and attacks stronger.", "abilities": [
 			{"name": "Eagle Eye", "description": "Ranged offensive cards deal bonus damage based on their range"},
 			{"name": "Scouted", "description": "Hitting the same enemy 3 times in a row grants +6 range on your next attack and it auto-crits — usable against any enemy"},
-			{"name": "Laced Arrow", "description": "When applying burn, cold, or shock, apply 1 additional instance"},
+			{"name": "Elemental Conclusion", "description": "When applying burn, cold, or shock, apply 1 additional instance"},
 		]},
 		{"name": "Avenger", "description": "Large, potent, and devastating. Unfortunately you tire quick, making timing and execution vital.", "abilities": [
-			{"name": "Patience is a Virtue", "description": "When receiving Glut, deal that much damage to the nearest enemy and halve the Glut"},
+			{"name": "Patience is a Virtue", "description": "When receiving Glut, put 1 Endured Tolerance (a 20m/1t Defense card: resistance to all damage for 5 tempo) in your hand per 5 Glut"},
 			{"name": "Swing for the Fences", "description": "Cards that have >4 tempo cost deal their tempo cost as additional damage"},
 			{"name": "Dominate", "description": "When triggering an attack speed proc, the proc resolves normally and you also gain a 30m/0t basic attack card and Strengthen for 3 attacks (5 tempo cooldown)"},
 		]},
 	]
 	data.passive_description = "+10% off-hand enchantments (others get -10%)"
-	data.slot_specialty = "Weapon swaps cost 1 tempo; the weapon portion of a build switch is free"
+	data.slot_specialty = "Build swaps: the weapon portion is free at first, then costs 1 more tempo for each weapon build swap inside 20 tempo; then the count resets"
 	return data
 
 static func create_cory() -> CharacterData:

@@ -2,12 +2,12 @@
 """Square up the designer's chosen passive icons for the skill-icon folder.
 
 Sources: assets/sprites/paintings/passive_icons/<passive_id>.png (.gdignore'd
-source art). The designer picked these per passive (all twelve of Brad's,
-Cory's and Jeremy's, 2026-10-24); they arrive as screenshot crops a few
-pixels off square, some with a strip of whatever sat next to the icon on
-screen. TRIM drops those strips, the rest is centre-cropped to a square and
-shrunk to SIZE (the craftpix icon packs' export size, so these sit at the
-same texel density as every other icon).
+source art). The designer picked these per passive (all twelve of every
+hero's, 2026-10-24); they arrive as screenshot crops a few pixels off square,
+some with a strip of whatever sat next to the icon on screen. TRIM drops
+those strips, the rest is centre-cropped to a square and shrunk to SIZE (the
+craftpix icon packs' export size, so these sit at the same texel density as
+every other icon).
 
 Output: assets/textures/craftpix/icons/passive_<passive_id>.png, which
 scripts/ui/skill_icon_art.gd maps as "passive_<passive_id>" (an apostrophe in
@@ -50,6 +50,24 @@ TRIM = {
     "seance": (3, 0, 112, 97),             # dark columns on the left
     "tricks_of_death": (3, 0, 113, 97),    # dark columns on both sides
     "arcane_overflow": (2, 2, 111, 110),   # dark rows on top, dark columns on both sides
+    "from_the_hip": (5, 0, 95, 87),        # a sliver of the next icon and dark columns on the left, dark on the right
+    "ladder_work": (0, 1, 82, 87),         # a dark row on top
+    "surprise_opener": (0, 1, 105, 111),   # a dark row on top; dark columns and a sliver on the right
+    "eye_scrape": (0, 4, 85, 91),          # navy rows on top
+    "keep_them_guessing": (0, 5, 88, 92),  # dark rows on top, dark columns on the right
+    "mad_scientist": (2, 1, 110, 102),     # a sliver of the next icon on the left, dark edges
+    "nimble_assault": (0, 0, 92, 87),      # dark rows under it, dark columns on the right
+    "now_you_see_me": (0, 2, 91, 90),      # dark rows on top
+    "stimulant": (2, 0, 107, 102),         # dark columns on the left
+    "clean_exchange": (2, 3, 112, 113),    # dark edges all round, a sliver on the right
+    "dominate": (0, 2, 90, 91),            # dark rows on top
+    "exposed_blind_spot": (0, 0, 110, 105),  # dark columns and a sliver on the right
+    "patience_is_a_virtue": (0, 4, 107, 107),  # dark rows on top
+    "eagle_eye": (2, 2, 87, 91),           # dark rows on top, a sliver on the left
+    "elemental_conclusion": (0, 2, 87, 91),  # navy rows on top
+    "lethal_resourcefulness": (4, 3, 110, 112),  # a sliver and navy columns on the left, navy rows above and below
+    "skilled_momentum": (4, 1, 92, 90),    # a sliver of the next icon on the left, a dark row on top
+    "swing_for_the_fences": (0, 0, 109, 107),  # navy columns on the right
 }
 
 

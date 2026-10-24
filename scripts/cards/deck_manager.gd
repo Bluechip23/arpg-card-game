@@ -522,6 +522,24 @@ func draw_card() -> Card:
 	print("[DECK] Drew: %s | Hand: %d/%d" % [card.card_name, hand.size(), get_hand_cap()])
 	return card
 
+## Put a conjured card into the hand as if it had been drawn: the hand cap
+## applies (a full hand loses it), and everything that watches draws sees it
+## (card_drawn: Clean Exchange and the other on-draw passives; the
+## inventory's draw counters). Returns false when the hand was full.
+func add_card_as_drawn(card: Card) -> bool:
+	if card == null or (not card.linger and hand.size() >= get_hand_cap()):
+		print("[DECK] Hand full, %s is lost" % (card.card_name if card else "card"))
+		return false
+	card.clear_temp_mods()
+	_apply_conditional_range(card)
+	hand.append(card)
+	card_drawn.emit(card)
+	hand_updated.emit()
+	if inventory:
+		inventory.on_card_drawn()
+	print("[DECK] %s added to hand as a draw | Hand: %d/%d" % [card.card_name, hand.size(), get_hand_cap()])
+	return true
+
 func attempt_draw() -> void:
 	peaked_card = null
 
@@ -1155,6 +1173,10 @@ func jail_burden_card(index: int) -> bool:
 	print("[DECK] %s jailed to shed its burden" % card.card_name)
 	return true
 
+## Whether the player is Glutted right now (main sets it): cards with
+## erase_waits_for_glut hold their Erase fuse until it is false.
+var glut_active: Callable = Callable()
+
 func _process_erase_timers() -> void:
 	## Tick down erase_tempo_remaining on cards with erase_tempo > 0.
 	## A card the player chose keeps its fuse only while it sits in the
@@ -1175,6 +1197,9 @@ func _process_erase_timers() -> void:
 		for i in range(pile.size() - 1, -1, -1):
 			var card = pile[i]
 			if card.erase_tempo <= 0 or not (in_hand or card.is_negative_card()):
+				continue
+			# Endured Tolerance's fuse waits for the Glut to end.
+			if card.erase_waits_for_glut and glut_active.is_valid() and glut_active.call():
 				continue
 			card.erase_tempo_remaining -= 5
 			if card.erase_tempo_remaining > 0:

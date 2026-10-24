@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_yykl0"]
+
+[resource]
+script = ExtResource("1_yykl0")
+card_id = "endured_tolerance"
+card_name = "Endured Tolerance"
+description = "Gain 5% resistance to all damage for 5 tempo; another copy adds 5 more tempo. Erase 20 (waits for the Glut to end)."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 20
+tempo_cost = 1
+target_types = ["self"]
+erase_tempo = 20
+erase_tempo_remaining = 20
+erase_waits_for_glut = true
+keywords = ["defense", "self"]

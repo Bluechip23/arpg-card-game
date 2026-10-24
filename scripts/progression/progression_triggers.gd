@@ -1512,7 +1512,7 @@ func clear_pre_attack_passives() -> void:
 		stats.st_pre_attack_armed = false
 
 func _trigger_skill_tree_stephen_on_ranged_attack(_card: Card, _target) -> void:
-	# Laced Arrow is now handled via _on_enemy_debuff_applied to add +1 when applying burn/cold/shock
+	# Elemental Conclusion is now handled via _on_enemy_debuff_applied to add +1 when applying burn/cold/shock
 	pass
 
 func _trigger_skill_tree_stephen_on_expose(target) -> void:
@@ -1582,26 +1582,29 @@ func _trigger_skill_tree_stephen_on_card_play(card: Card) -> void:
 				main._execute_basic_attack(target, true)
 				stats.st_lethal_resource_attacking = false
 
+## Patience is a Virtue: one Endured Tolerance per this much Glut.
+const PATIENCE_GLUT_PER_CARD := 5
+
 func _trigger_skill_tree_stephen_on_glut(glut_amount: int) -> void:
 	var stats = main.player.get_stats()
 	if not stats:
 		return
 
-	# Patience is a Virtue: on receiving Glut, deal the Glut amount times a
-	# rank-scaled multiplier (10%..290%) to a melee enemy, then halve the Glut.
-	# Normal rounding: .5 rounds up.
-	# Any Glut, from any card; the nearest enemy anywhere takes the damage,
-	# and the Glut is halved whether or not an enemy stood to take it.
+	# Patience is a Virtue (designer, 2026-10-24): on receiving Glut, one
+	# Endured Tolerance per 5 Glut (at least one) comes into the hand as a
+	# draw — so Clean Exchange and the other on-draw passives see it. Its
+	# Erase 20 waits for the Glut to end; a full hand loses the rest.
 	if stats.has_skill_tree_passive("patience_is_a_virtue") and glut_amount > 0:
-		var pv_mult: int = PassiveScaling.value("patience_is_a_virtue", "multiplier", stats.get_passive_level("patience_is_a_virtue"))
-		var pv_damage: int = maxi(1, roundi(glut_amount * pv_mult / 100.0))
-		var target = main._get_nearest_enemy()
-		main.glut_tempo_remaining = maxi(0, ceili(main.glut_tempo_remaining / 2.0))  # .5 goes up
-		if target and target.has_method("take_damage"):
-			target.take_damage(pv_damage, true)
-			main.add_battle_log("Patience is a Virtue: %d damage to %s, Glut halved!" % [pv_damage, target.enemy_name], Color(0.8, 0.4, 0.9))
-		else:
-			main.add_battle_log("Patience is a Virtue: Glut halved.", Color(0.8, 0.4, 0.9))
+		var pv_pct: int = PassiveScaling.value("patience_is_a_virtue", "resist", stats.get_passive_level("patience_is_a_virtue"))
+		var pv_count: int = maxi(1, glut_amount / PATIENCE_GLUT_PER_CARD)
+		var pv_added := 0
+		for i in range(pv_count):
+			if main.deck_manager.add_card_as_drawn(Card.create_endured_tolerance(pv_pct)):
+				pv_added += 1
+		if pv_added > 0:
+			main.add_battle_log("Patience is a Virtue: %d Endured Tolerance to hand!" % pv_added, Color(0.8, 0.4, 0.9))
+		if pv_added < pv_count:
+			main.add_battle_log("Patience is a Virtue: hand full, %d Endured Tolerance lost." % (pv_count - pv_added), Color(0.8, 0.4, 0.9))
 
 func _trigger_skill_tree_stephen_on_dex_proc() -> void:
 	var stats = main.player.get_stats()

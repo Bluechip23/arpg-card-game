@@ -119,6 +119,7 @@ const CARD_SLOT_LABELS := {
 	"enchantment_movement": [CardKeyword.GEM],
 	"energy_ball": [],
 	"energy_barrier": [],
+	"endured_tolerance": [],
 	"exacerbate_wounds": [CardKeyword.AXE, CardKeyword.DAGGER],
 	"exhausted_assault": [CardKeyword.AXE],
 	"exposed_artery": [CardKeyword.DAGGER, CardKeyword.AXE, CardKeyword.SWORD],
@@ -274,6 +275,7 @@ const CARD_RARITIES := {
 	"enchantment_defense": Rarity.COMMON, "enchantment_mana_regen": Rarity.COMMON,
 	"enchantment_movement": Rarity.COMMON, "energy_ball": Rarity.COMMON,
 	"energy_barrier": Rarity.COMMON, "exacerbate_wounds": Rarity.COMMON,
+	"endured_tolerance": Rarity.COMMON,
 	"fortify_alliance": Rarity.COMMON, "friendship": Rarity.COMMON, "gain_mana": Rarity.COMMON,
 	"give_in": Rarity.COMMON, "gulped_potion": Rarity.COMMON, "heal": Rarity.COMMON,
 	"healing_potion": Rarity.COMMON, "healthy_bliss": Rarity.COMMON, "healthy_habit": Rarity.COMMON,
@@ -373,6 +375,7 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"minor_wounds": true, "lightly_dazed": true, "djinn_wish": true, "heavy_greedy_cheese": true,
 	"biscuit": true, "basic_attack": true, "energy_ball": true, "quick_arrow": true, "prepare": true,
 	"energy_barrier": true, "mana_surge": true, "magic_barrier": true, "shepherds_mark": true,
+	"endured_tolerance": true,
 	"paralysis": true, "release_soul": true, "infest": true, "composed_reaction": true,
 	# Helm/boot-granted cards only arrive via their item, never from random drops.
 	"neither_man_nor_beast": true, "resourceful_replenish": true,
@@ -477,6 +480,10 @@ var premeditated_target = null  # The enemy whose Premeditated bonus this play a
 ## Extra text shown only in the hover preview, never on the card face — the
 ## why/when of a card the face has no room for (Heavy Greedy Cheese).
 @export var hover_note: String = ""
+## The Erase fuse holds while the player is Glutted (Endured Tolerance:
+## Patience is a Virtue hands it over as the Glut lands, so its full fuse
+## starts when the Glut ends).
+@export var erase_waits_for_glut: bool = false
 @export var erase_on_play: bool = false  # If true, card is erased from the deck entirely the moment it's played (not discarded). Same "erase" concept as erase_tempo, just triggered on play instead of on a timer.
 @export var held_damage_per_cycle: int = 0  # Djinn Wish: sears the holder this much every cycle it sits in hand (ticked by DeckManager.process_turn)
 @export var hatch_tempo: int = 0  # Rat King's Infest: > 0 means the card hatches after this many tempo HELD IN HAND (DeckManager.tick_temp_mods counts it down; playing or discarding it cancels the hatch)
@@ -1076,7 +1083,7 @@ func get_animation_action() -> String:
 		"dagger_throw": return "dagger_throw"
 		"thrown_stone": return "thrown_stone"
 		# Reuse the standard defense pose (overrides their card type)
-		"defensive_awareness", "energy_barrier": return "block"
+		"defensive_awareness", "energy_barrier", "endured_tolerance": return "block"
 		# Stephen — archer/ranger bespoke motion.
 		# "Normal arrow attack" cards all share the core bow shot.
 		"mixed_bag", "quick_shot", "quick_arrow", "specific_strike", "spirit_arrow", "last_breath":
@@ -2358,6 +2365,8 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			_execute_hunker_down(buff_mgr)
 		"energy_barrier":
 			_execute_energy_barrier(player_stats)
+		"endured_tolerance":
+			_execute_endured_tolerance(player_stats, buff_mgr)
 		"the_lights_favor":
 			_execute_the_lights_favor(player_stats, deck_manager, target)
 		"healthy_habit":
@@ -3763,6 +3772,16 @@ static func create_energy_barrier(armor: int = 5) -> Card:
 	card.base_block = armor
 	return card
 
+## Stephen's Patience is a Virtue: the card it puts in hand on Glut. The %
+## comes from the passive's rank when played (create only sets the text).
+static func create_endured_tolerance(percent: int = 5) -> Card:
+	var card := create_by_id("endured_tolerance")
+	card.description = "Gain %d%% resistance to all damage for %d tempo; another copy adds %d more tempo. Erase 20 (waits for the Glut to end)." % [
+		percent, ENDURED_TOLERANCE_TEMPO, ENDURED_TOLERANCE_TEMPO]
+	return card
+
+const ENDURED_TOLERANCE_TEMPO := 5
+
 # ============================================
 # COLLECT ARROWS
 #endregion
@@ -4204,6 +4223,20 @@ func _execute_hunker_down(buff_mgr: BuffManager) -> void:
 		buff_mgr.apply_buff(Buff.create_fortify(30, "Hunker Down"))
 	print("[CARD] Hunker Down! Fortify for 30 tempo")
 
+func _execute_endured_tolerance(player_stats: PlayerStats, buff_mgr: BuffManager) -> void:
+	## Resistance to all damage for 5 tempo at Patience is a Virtue's rank;
+	## a second copy while it runs adds 5 more tempo (it does not stack the %).
+	if buff_mgr == null:
+		return
+	var rank := 1
+	if player_stats:
+		rank = maxi(1, player_stats.get_passive_level("patience_is_a_virtue"))
+	var pct: int = PassiveScaling.value("patience_is_a_virtue", "resist", rank)
+	var buff := Buff.create_resilient(pct, ENDURED_TOLERANCE_TEMPO, "Endured Tolerance", DamageTypes.ALL)
+	buff.extends_on_reapply = true
+	buff_mgr.apply_buff(buff)
+	print("[CARD] Endured Tolerance! %d%% resistance to all damage" % pct)
+
 func _execute_energy_barrier(player_stats: PlayerStats) -> void:
 	## Gain armor (card.block). Erase 1 is handled as a card property.
 	if player_stats:
@@ -4528,6 +4561,7 @@ const CARD_IDS: Array[String] = [
 	"blade_barrage",
 	"minor_wounds",
 	"energy_barrier",
+	"endured_tolerance",
 	"collect_arrows",
 	"cultish_wounds",
 	"self_infliction",
@@ -4689,7 +4723,7 @@ const CARD_IDS: Array[String] = [
 ## parameter). The catalogue holds them at their default values for
 ## create_by_id; the shop, compendium and animation lab leave them out, as
 ## they did when they skipped parameterised factories.
-const GENERATED_CARD_IDS: Array[String] = ["basic_attack", "djinn_wish", "heavy_greedy_cheese", "energy_barrier", "mana_surge", "magic_barrier", "shepherds_mark"]
+const GENERATED_CARD_IDS: Array[String] = ["basic_attack", "djinn_wish", "heavy_greedy_cheese", "energy_barrier", "mana_surge", "magic_barrier", "shepherds_mark", "endured_tolerance"]
 
 ## Every card id create_by_id can rebuild.
 static func factory_ids() -> Array:

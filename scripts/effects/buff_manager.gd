@@ -73,7 +73,11 @@ func apply_buff(buff: Buff) -> void:
 			# A stronger resistance replaces a weaker one (a 2% Smithed
 			# Excellence must not cap Stone Hide's 10%); the longer clock stays.
 			same_type.value = maxi(same_type.value, buff.value)
-			same_type.duration = maxi(same_type.duration, buff.duration)
+			if buff.extends_on_reapply and same_type.extends_on_reapply \
+					and same_type.source_name == buff.source_name:
+				same_type.duration += buff.duration  # another copy: more time, same %
+			else:
+				same_type.duration = maxi(same_type.duration, buff.duration)
 			same_type._set_name_and_description()
 			print("[BUFF] %s refreshed (value: %d)" % [buff.buff_name, same_type.value])
 		else:

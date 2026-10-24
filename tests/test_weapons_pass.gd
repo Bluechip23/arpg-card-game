@@ -85,11 +85,11 @@ func _test_stephen_swap_perk() -> void:
 	get_root().add_child(inv)
 	inv.initialize("Stephen")
 	inv.connect_player_stats(stats)
-	_check(inv.get_swap_tempo_cost(ItemData.ItemType.WEAPON) == 2,
-		"Stephen swaps weapons for 1 + 1 tempo")
+	_check(inv.get_swap_tempo_cost(ItemData.ItemType.WEAPON) == 3,
+		"a single weapon swap costs Stephen 2 + 1 tempo, like anyone")
 	_check(inv.get_swap_tempo_cost(ItemData.ItemType.CHEST) == 9,
 		"armor still costs Stephen full price")
-	# Build switch: a weapons-only difference is free.
+	# Build switch: the first weapons-only switch is free.
 	var sword = ItemData.create("short_sword")
 	inv.equip_item(sword, 0)
 	inv.switch_build(1)  # initializes build 2 as a copy

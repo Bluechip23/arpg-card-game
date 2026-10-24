@@ -173,7 +173,7 @@ Suggested: *"Stacks fall one every 5 tempo."*
 - Disarmed (attacks): Disarm Amp applies once per application.
 - Marked, Vulnerable (enemy): apply to any player hit (spells and AoE included), not only attacks.
 - Silenced (enemy): badge says "cannot cast spells" and leaves out ranged specials and the dropped action.
-- Shock (enemy): Shock Amp is added on every application, including the +1 from Laced Arrow and Wither.
+- Shock (enemy): Shock Amp is added on every application, including the +1 from Elemental Conclusion and Wither.
 - Bleed (enemy): with Bleed Amp each tile deals 1 + amp but removes only 1 stack.
 - Rooted (enemy): Root has no stacks; "5 tempo per stack" is Gravity Gauntlets multiplying by 5.
 - Tree: does not reset the action clocks the way Stun and Frozen do, so a counting action fires the moment the Tree
@@ -182,7 +182,7 @@ Suggested: *"Stacks fall one every 5 tempo."*
   the player is exposed.
 - Lowered Physical Defense: the Notes say "no badge"; it now shows "Exposed Defense".
 - Serial Killer Blindness: the 100% crit is applied at the ambush, not while armed.
-- Global debuff riders: Laced Arrow fires on a 50–100% chance by rank; Wither is on a 15→1 tempo cooldown; Territorial
+- Global debuff riders: Elemental Conclusion fires on a 50–100% chance by rank; Wither is on a 15→1 tempo cooldown; Territorial
   Death fires on entering or leaving melee and turns a zone-only Weaken into a real stack; the Amp column leaves out
   Poison Amp, Curse Amp, Curse Pain and Shatter.
 
