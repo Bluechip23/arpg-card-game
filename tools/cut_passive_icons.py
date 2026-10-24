@@ -2,12 +2,12 @@
 """Square up the designer's chosen passive icons for the skill-icon folder.
 
 Sources: assets/sprites/paintings/passive_icons/<passive_id>.png (.gdignore'd
-source art). The designer picked these per passive (Brad's twelve, then
-Cory's, 2026-10-24); they arrive as screenshot crops a few pixels off square,
-some with a strip of whatever sat next to the icon on screen. TRIM drops those
-strips, the rest is centre-cropped to a square and shrunk to SIZE (the
-craftpix icon packs' export size, so these sit at the same texel density as
-every other icon).
+source art). The designer picked these per passive (Brad's twelve, Cory's
+twelve, then Jeremy's, 2026-10-24); they arrive as screenshot crops a few
+pixels off square, some with a strip of whatever sat next to the icon on
+screen. TRIM drops those strips, the rest is centre-cropped to a square and
+shrunk to SIZE (the craftpix icon packs' export size, so these sit at the
+same texel density as every other icon).
 
 Output: assets/textures/craftpix/icons/passive_<passive_id>.png, which
 scripts/ui/skill_icon_art.gd maps as "passive_<passive_id>".
@@ -41,6 +41,9 @@ TRIM = {
     "regrowth": (0, 1, 106, 110),          # a dark row on top, two under it
     "self_reliance": (0, 0, 85, 87),       # dark rows under it
     "serial_killer": (3, 1, 90, 87),       # navy columns on the left, a dark row on top
+    "blood_libation": (0, 3, 97, 107),     # dark rows on top
+    "fresh_start": (4, 0, 101, 97),        # dark columns on the left
+    "harnessed_power": (0, 0, 87, 87),     # dark columns on the right, rows under it
 }
 
 
