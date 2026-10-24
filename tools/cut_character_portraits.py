@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Cut the five hero portraits off the designer's character-select board.
+"""Cut the five hero portraits for the Choose Your Character screen.
 
-Source: assets/sprites/paintings/character_select_board.webp (.gdignore'd
-source art, 2026-10-23): a 1366x911 mock-up of the Choose Your Character
-screen, one row per hero (Ryan, Jeremy, Stephen, Cory, Brad), each led by a
-square portrait on black. The rest of the board (names, blurbs, walk frames)
-is the screen's layout, built in scripts/character/character_row.gd, not art.
+Source: assets/sprites/paintings/character_portraits.png (.gdignore'd source
+art, 2026-10-23): a 1307x232 strip of the heroes as busts on a dark glow, left
+to right Jeremy, Cory, Ryan, Brad, Stephen — the portraits the designer chose
+for the select screen (they replace the ones first cut from the screen's
+mock-up board, character_select_board.webp).
 
-Each portrait is found as the bright block in its row's left margin (the
-board's black is pure 0; a portrait's own darkest outline is lighter than
-the threshold only in its frame, so the block's bounding box is the frame),
-and saved as is — the board's portraits are already the size the screen
-shows them at.
+Each bust is found as a run of bright columns, and cut as a box of the
+screen's portrait shape (CharacterRow.PORTRAIT_BOX, 96:100) centred on it, as
+tall as the strip (padded with the strip's black where the box runs past its
+edge). Saved at OUT_SIZE — twice the box — with a sharp resample; the screen
+shrinks it smoothly (mipmaps), so the portraits keep their detail.
 
 Output: assets/sprites/portraits/<hero>.png
 Run: python3 tools/cut_character_portraits.py   (Pillow, numpy)
@@ -19,31 +19,35 @@ Run: python3 tools/cut_character_portraits.py   (Pillow, numpy)
 import numpy as np
 from PIL import Image
 
-SRC = "assets/sprites/paintings/character_select_board.webp"
+SRC = "assets/sprites/paintings/character_portraits.png"
 OUT = "assets/sprites/portraits/%s.png"
-HEROES = ["ryan", "jeremy", "stephen", "cory", "brad"]   # top to bottom on the board
-MARGIN_X = 135     # the portraits sit left of this column
-BRIGHT = 40        # a pixel brighter than this (max channel) is portrait, not the board's black
-MIN_RUN = 20       # a row/column needs this many bright pixels to count
+HEROES = ["jeremy", "cory", "ryan", "brad", "stephen"]   # left to right on the strip
+ASPECT = 96.0 / 100.0                                     # the select screen's portrait box
+OUT_SIZE = (192, 200)
+BRIGHT = 60        # a column with a few pixels brighter than this belongs to a bust
+MIN_GAP = 8        # columns between busts
 
 
 def main() -> None:
     img = Image.open(SRC).convert("RGB")
-    lum = np.asarray(img).max(axis=2)[:, :MARGIN_X]
-    rows = np.nonzero((lum > BRIGHT).sum(axis=1) > MIN_RUN)[0]
-    blocks, start = [], rows[0]
-    for a, b in zip(rows, rows[1:]):
-        if b != a + 1:
-            blocks.append((start, a))
+    lum = np.asarray(img).max(axis=2)
+    cols = np.nonzero((lum > BRIGHT).sum(axis=0) > 3)[0]
+    runs, start = [], cols[0]
+    for a, b in zip(cols, cols[1:]):
+        if b > a + MIN_GAP:
+            runs.append((start, a))
             start = b
-    blocks.append((start, rows[-1]))
-    blocks = [(y0, y1) for y0, y1 in blocks if y1 - y0 > 40]
-    assert len(blocks) == len(HEROES), blocks
-    for hero, (y0, y1) in zip(HEROES, blocks):
-        cols = np.nonzero((lum[y0:y1 + 1] > BRIGHT).sum(axis=0) > MIN_RUN)[0]
-        box = (int(cols.min()), int(y0), int(cols.max()) + 1, int(y1) + 1)
-        img.crop(box).save(OUT % hero)
-        print("%-8s %s -> %dx%d" % (hero, box, box[2] - box[0], box[3] - box[1]))
+    runs.append((start, cols[-1]))
+    assert len(runs) == len(HEROES), runs
+    h = img.height
+    w = int(round(h * ASPECT))
+    for hero, (x0, x1) in zip(HEROES, runs):
+        cx = (x0 + x1) // 2
+        box = (cx - w // 2, 0, cx - w // 2 + w, h)
+        canvas = Image.new("RGB", (w, h))
+        canvas.paste(img.crop((max(0, box[0]), 0, min(img.width, box[2]), h)), (max(0, -box[0]), 0))
+        canvas.resize(OUT_SIZE, Image.LANCZOS).save(OUT % hero)
+        print("%-8s bust %d-%d -> box %s" % (hero, x0, x1, box))
 
 
 if __name__ == "__main__":

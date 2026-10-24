@@ -10,10 +10,14 @@ extends Node3D
 ## sheets can't express fall back to a small set of readable motions
 ## (attack swing, guard flash, hop, cast flash) rather than bespoke animation.
 ##
-## Brad/Cory/Stephen render their picked NPC models (knight/merchant/guard) —
-## those sheets only have walk frames, so attacks overlay the base pack's
-## weapon layer (swing + swoosh) with a small body lunge. Jeremy/Ryan render
-## as character-base paper dolls (body + outfit + hair) with real attack poses.
+## All five heroes wear the designer's hero sprites (2026-10-23,
+## tools/cut_hero_sprites.py): one detailed pose per direction, drawn finer
+## than the 32-texel tiles so the art keeps its nuance; walking steps the body
+## up and down, and attacks overlay the base pack's weapon layer (swing +
+## swoosh), scaled to the hero, with a small body lunge. The NPC mode (an NPC
+## pack sheet with walk frames, the same overlay) draws the dojo's dogs; the
+## paper-doll mode (body + outfit + hair on the character base, with real
+## attack poses) remains for any roster entry that names one.
 
 const SEED := "res://assets/sprites/SeedcharacterBase"
 
@@ -22,11 +26,11 @@ const SEED := "res://assets/sprites/SeedcharacterBase"
 ## character base. A "gen:" prefix resolves to assets/sprites/generated/
 ## (recolored / edited sheets baked from the pack sources).
 const ROSTER := {
-	"Brad": {"npc": "res://assets/sprites/NPCpackage2/npc knight v01.png"},
-	"Cory": {"npc": "res://assets/sprites/NPCpackage1/npc merchant A v01.png"},
-	"Stephen": {"npc": "res://assets/sprites/NPCpackage2/npc guard v01.png"},
-	"Jeremy": {"outfit": "gen:fstr_jeremy", "hair": "bob1_v11"},  # barefoot wanderer
-	"Ryan": {"outfit": "gen:fstr_ryan", "hair": "dap1_v13", "hat": "gen:pfht_ryan"},  # black leathers + hood
+	"Brad": {"board": "res://assets/sprites/generated/heroes/brad.png"},      # the warrior, the War Rack over his shoulder
+	"Cory": {"board": "res://assets/sprites/generated/heroes/cory.png"},      # the hooded monk
+	"Stephen": {"board": "res://assets/sprites/generated/heroes/stephen.png"},  # the apex hunter, bow and axe on his back
+	"Jeremy": {"board": "res://assets/sprites/generated/heroes/jeremy.png"},  # the cloaked skeleton
+	"Ryan": {"board": "res://assets/sprites/generated/heroes/ryan.png"},      # the rogue outlaw
 	# The dojo's ally training dummies wear the NPC-pack dog sheet (same
 	# 32px cell and S,E,N,W row order as the humanoid NPC sheets).
 	"Dog": {"npc": "res://assets/sprites/NPCpackage2/npc dog v01.png"},
@@ -50,6 +54,17 @@ const ATTACK_TIMES := [0.16, 0.065, 0.065, 0.2]
 const WALK_TIME := 0.135
 const NPC_WALK_TIME := 0.18
 const PIXEL_SIZE := 0.03125
+## The designer's hero sprites stand this tall (world units = tiles): a touch
+## taller than the human-sized enemies (0.85-1.2), drawn at whatever pixel
+## size makes their front pose this height, so their detail is kept.
+const BOARD_HEIGHT := 1.3
+## The pack's weapon layers are drawn for its ~29px character base: on a hero
+## sprite they are scaled by the hero's height over that body's.
+const PACK_BODY_HEIGHT := 29.0 * 0.03125
+## A hero sprite's walk has no stride in its art (one pose a direction), so
+## the body steps instead: up STEP_LIFT (world units) and back, STEP_HZ a second.
+const STEP_LIFT := 2.0 * 0.03125
+const STEP_HZ := 3.5
 
 # pONE3 cells (row, col) where the weapon draws in front of the body,
 # from the pack's layer-order guide.
@@ -93,6 +108,14 @@ const HOP_ACTIONS := ["roll", "dodge", "bob_and_weave", "heroic_leap", "rise"]
 var facing: int = CharacterAnimator.Direction.SOUTH
 
 var _mode := "doll"
+# The body sheet of the NPC and hero-sprite ("board") modes: cell size, the
+# row each facing reads (S, N, E, W order), and walk frames per row.
+var _body_cell := 32
+var _body_rows: Array = NPC_ROW
+var _body_walk_frames := 4
+var _body_offset := Vector2.ZERO   # the board body's offset with its feet on the ground
+var _hand_scale := 1.0             # held items ride this much higher on a taller hero
+var _step_clock := 0.0
 var _sprites: Array[Sprite3D] = []       # every sprite (for modulate passes)
 var _doll_layers: Array[Sprite3D] = []   # body, outfit, hair
 var _npc_sprite: Sprite3D = null
@@ -148,7 +171,9 @@ func setup(character_name: String) -> void:
 	_rig = Node3D.new()
 	_rig.name = "Rig"
 	add_child(_rig)
-	if cfg.has("npc"):
+	if cfg.has("board"):
+		_setup_board(cfg["board"])
+	elif cfg.has("npc"):
 		_setup_npc(cfg["npc"])
 	else:
 		_setup_doll(cfg["outfit"], cfg["hair"], cfg.get("hat", ""))
@@ -201,12 +226,15 @@ static func make_preview(preset: String) -> SubViewportContainer:
 	var figure := SpriteFigure.new()
 	figure.setup(preset)
 	viewport.add_child(figure)
+	# Framed by the figure's height: the hero sprites stand BOARD_HEIGHT tall,
+	# the pack's people about a tile.
+	var tall: float = BOARD_HEIGHT if ROSTER.get(preset, {}).has("board") else 1.0
 	var cam := Camera3D.new()
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-	cam.size = 1.6
+	cam.size = 1.6 * tall
 	viewport.add_child(cam)
-	var eye := Vector3(0.5, 1.05, 2.6)
-	cam.transform = Transform3D(Basis.looking_at(Vector3(0, 0.58, 0) - eye, Vector3.UP), eye)
+	var eye := Vector3(0.5, 1.05, 2.6) * tall
+	cam.transform = Transform3D(Basis.looking_at(Vector3(0, 0.58 * tall, 0) - eye, Vector3.UP), eye)
 	cam.current = true
 	var key := DirectionalLight3D.new()
 	key.light_energy = 1.15
@@ -235,6 +263,7 @@ static func preset_for(data: CharacterData) -> String:
 
 func _setup_doll(outfit: String, hair: String, hat: String = "") -> void:
 	_mode = "doll"
+	_hand_scale = 1.0
 	for page in ["p1", "pONE3"]:
 		var paths := [
 			"%s/char_a_%s/char_a_%s_0bas_humn_v01.png" % [SEED, page, page],
@@ -262,6 +291,10 @@ func _setup_doll(outfit: String, hair: String, hat: String = "") -> void:
 
 func _setup_npc(sheet_path: String) -> void:
 	_mode = "npc"
+	_body_cell = 32
+	_body_rows = NPC_ROW
+	_body_walk_frames = 4
+	_hand_scale = 1.0
 	# NPC bodies fill their 32px cell to the bottom edge.
 	var y := 16.0 * PIXEL_SIZE
 	_shield_back = _make_sprite(64, y - 4.0 * PIXEL_SIZE, -0.03)
@@ -270,6 +303,40 @@ func _setup_npc(sheet_path: String) -> void:
 	_npc_sprite.texture = load(sheet_path)
 	_weapon_front = _make_sprite(64, y - 4.0 * PIXEL_SIZE, 0.05)
 	_shield_front = _make_sprite(64, y - 4.0 * PIXEL_SIZE, 0.06)
+	_load_weapons()
+
+
+## A hero sprite sheet (tools/cut_hero_sprites.py): square cells, one column,
+## rows south, north, east, west, the figure standing on each cell's bottom
+## edge. Drawn finer than the tiles (BOARD_HEIGHT tall); the NPC path does the
+## rest — the same body sprite, weapon overlay and attack lunge — with one
+## frame a direction, and walking steps it instead (_process).
+func _setup_board(sheet_path: String) -> void:
+	_mode = "board"
+	var tex: Texture2D = load(sheet_path)
+	_body_cell = int(tex.get_height() / 4)
+	_body_rows = DOLL_ROW
+	_body_walk_frames = 1
+	var img := tex.get_image()
+	if img.is_compressed():
+		img.decompress()
+	var front_h := img.get_region(Rect2i(0, 0, _body_cell, _body_cell)).get_used_rect().size.y
+	var px := BOARD_HEIGHT / float(maxi(front_h, 1))
+	var grow := BOARD_HEIGHT / PACK_BODY_HEIGHT
+	_hand_scale = grow
+	# The weapon and shield layers sit as on the pack's people, scaled about
+	# the feet to the hero's height so the swing comes from the hero's hand.
+	var wy := 12.0 * PIXEL_SIZE
+	_shield_back = _make_sprite(64, wy, -0.03)
+	_weapon_back = _make_sprite(64, wy, -0.02)
+	_npc_sprite = _make_sprite(_body_cell, _body_cell * 0.5 * PIXEL_SIZE, 0.0)
+	_npc_sprite.texture = tex
+	_npc_sprite.pixel_size = px
+	_body_offset = _npc_sprite.offset
+	_weapon_front = _make_sprite(64, wy, 0.05)
+	_shield_front = _make_sprite(64, wy, 0.06)
+	for s in [_shield_back, _weapon_back, _weapon_front, _shield_front]:
+		s.pixel_size = PIXEL_SIZE * grow
 	_load_weapons()
 
 
@@ -365,7 +432,7 @@ func _present_held(kind: String) -> bool:
 func _hand_pos(extra_forward: float = 0.0) -> Vector3:
 	var fwd := _forward_vec()
 	var right := Vector3(-fwd.z, 0, fwd.x)
-	return fwd * (0.22 + extra_forward) + right * 0.12 + Vector3(0, 0.5, -HAND_LIFT)
+	return fwd * (0.22 + extra_forward) + right * 0.12 + Vector3(0, 0.5, -HAND_LIFT * _hand_scale)
 
 
 func _place_held(extra_forward: float = 0.0) -> void:
@@ -766,7 +833,7 @@ func _play(anim: String, _force: bool = false) -> void:
 				_set_doll_page("p1")
 				_frames = [{"col": 0, "row": DOLL_ROW[facing], "t": 1.0}]
 			else:
-				_frames = [{"col": 0, "row": NPC_ROW[facing], "t": 1.0}]
+				_frames = [{"col": 0, "row": _body_rows[facing], "t": 1.0}]
 			_hide_weapon()
 		"walk":
 			_looping = true
@@ -776,8 +843,8 @@ func _play(anim: String, _force: bool = false) -> void:
 				for c in range(6):
 					_frames.append({"col": c, "row": 4 + DOLL_ROW[facing], "t": WALK_TIME})
 			else:
-				for c in range(4):
-					_frames.append({"col": c, "row": NPC_ROW[facing], "t": NPC_WALK_TIME})
+				for c in range(_body_walk_frames):
+					_frames.append({"col": c, "row": _body_rows[facing], "t": NPC_WALK_TIME})
 			_hide_weapon()
 		"attack_sword":
 			_start_attack("sword", 0)
@@ -856,6 +923,14 @@ func _apply_modulate(c: Color) -> void:
 func _process(delta: float) -> void:
 	if _shadow and _rig:
 		_shadow.set_airborne_height(_rig.position.y)
+	if _mode == "board" and _npc_sprite:
+		# Lifted along the sprite's own up (its offset, in its texels):
+		# screen-up under the plan camera; the feet return to the ground row
+		# every step.
+		_step_clock = _step_clock + delta if _walking and not _attacking else 0.0
+		var up := _walking and not _attacking and fmod(_step_clock * STEP_HZ, 1.0) >= 0.5
+		var lift := roundf(STEP_LIFT / _npc_sprite.pixel_size) if up else 0.0
+		_npc_sprite.offset = _body_offset + Vector2(0, lift)
 	if _frames.is_empty():
 		return
 	_clock += delta
@@ -899,7 +974,7 @@ func _apply_frame() -> void:
 		else:
 			# NPC sheets have no attack pose: hold the stand frame and lunge a
 			# couple of pixels on the active swing frames to sell the swing.
-			_npc_sprite.region_rect = Rect2(0, NPC_ROW[facing] * 32, 32, 32)
+			_npc_sprite.region_rect = Rect2(0, _body_rows[facing] * _body_cell, _body_cell, _body_cell)
 			var lunge := Vector3.ZERO
 			if f["col"] % 4 in [1, 2]:
 				match facing:
@@ -915,4 +990,4 @@ func _apply_frame() -> void:
 		for s in _doll_layers:
 			s.region_rect = rect
 	else:
-		_npc_sprite.region_rect = Rect2(f["col"] * 32, f["row"] * 32, 32, 32)
+		_npc_sprite.region_rect = Rect2(f["col"] * _body_cell, f["row"] * _body_cell, _body_cell, _body_cell)

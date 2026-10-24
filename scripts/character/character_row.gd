@@ -83,7 +83,9 @@ func _build_portrait(character: CharacterData, accent: Color, is_customize: bool
 		pic.texture = tex
 		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		# The portraits are stored at twice the box (tools/cut_character_portraits.py):
+		# shrunk smoothly through their mipmaps.
+		pic.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		frame.add_child(pic)
 	else:

@@ -59,7 +59,7 @@ shopping brief. Anything not listed here is now pack art.
 |---|---|---|---|
 | Quiver slot icon | inventory | an arrow from the weapon pack stands in | a proper quiver icon (the belt is covered by the knight armour pack) |
 | Any-weapon composite (empty main/off hand) | inventory | drawn sword/bow/shield/book composite | an "any weapon" glyph, or leave as is |
-| Mythic item art (40 icons) | inventory, chests | hand-made 32×32 | keep — bespoke by design; the knight armour (100) and weapon (100) icon packs now cover per-item icons for commons/rares/legendaries, tiered plain → gilded → elemental, if you want that wired |
+| Mythic item art (40 icons) | inventory, chests | the designer's paintings for 39 (`tools/cut_mythic_art.py`, 2026-10-23); the Bladed Doughnut keeps its hand-made 32×32 | its painting, when the designer has one; the knight armour (100) and weapon (100) icon packs still cover per-item icons for commons/rares/legendaries if you want that wired |
 | Gauntlet skill icons (17) | gauntlet UI | hand-made | keep, or pick from the three skill-icon packs (now wired for statuses, passives and cards via `skill_icon_art.gd`) |
 | Status, passive and card icon picks | buff/debuff bars, skill tree, HUD tray, card art window | skill-icon packs, provisional mapping in `scripts/ui/skill_icon_art.gd` (unmapped ids draw from a themed pool) | your final pass over the tables in that file; more packs if a status has no fitting icon |
 | Card cost badges (mana drop, sand timer) | cards | hand-made | a UI icon pack (mana, time, gold) |
