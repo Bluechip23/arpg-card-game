@@ -2,9 +2,9 @@
 """Square up the designer's chosen passive icons for the skill-icon folder.
 
 Sources: assets/sprites/paintings/passive_icons/<passive_id>.png (.gdignore'd
-source art). The designer picked these per passive (all twelve of
-Brad's, 2026-10-24); they arrive as screenshot crops a few pixels off square, some
-with a strip of whatever sat next to the icon on screen. TRIM drops those
+source art). The designer picked these per passive (Brad's twelve, then
+Cory's, 2026-10-24); they arrive as screenshot crops a few pixels off square,
+some with a strip of whatever sat next to the icon on screen. TRIM drops those
 strips, the rest is centre-cropped to a square and shrunk to SIZE (the
 craftpix icon packs' export size, so these sit at the same texel density as
 every other icon).
@@ -34,6 +34,8 @@ TRIM = {
     "solemn_independence": (0, 0, 101, 101),  # a dark row under it
     "stone_skin": (1, 1, 105, 107),        # a dark row on top, a column on the left
     "vines_codependence": (0, 3, 76, 85),  # navy rows on top
+    "budding": (2, 0, 92, 77),             # dark columns on the left
+    "death_as_lifeblood": (1, 0, 102, 100),  # a dark column on the left
 }
 
 

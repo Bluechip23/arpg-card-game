@@ -77,8 +77,8 @@ const PASSIVES := {
 	# Cory — Monk / Lurker / Atrophist / Druid
 	"energy_barrier": "game_36", "expel_negativity": "game_55", "self_reliance": "pack_79",
 	"prey_on_the_weak": "pack_93", "eat": "rpg_32", "serial_killer": "pack_53",
-	"wither": "game_62", "territorial_death": "rpg_71", "death_as_lifeblood": "pack_54",
-	"budding": "rpg_88", "circle_of_life": "pack_51", "regrowth": "pack_44",
+	"wither": "passive_wither", "territorial_death": "passive_territorial_death", "death_as_lifeblood": "passive_death_as_lifeblood",
+	"budding": "passive_budding", "circle_of_life": "passive_circle_of_life", "regrowth": "pack_44",
 }
 
 # Pool per archetype for passives that have no explicit pick yet.
