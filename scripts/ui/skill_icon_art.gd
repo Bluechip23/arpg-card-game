@@ -50,13 +50,13 @@ const STATUS := {
 # Skill-tree passives (SkillOption.passive_id).
 # ---------------------------------------------------------------------------
 const PASSIVES := {
-	# Brad — Berserker / Warden / The Ancient / The Fallen. The passive_* keys
-	# are the designer's own picks (tools/cut_passive_icons.py).
+	# Brad — Berserker / Warden / The Ancient / The Fallen. All twelve passive_*
+	# keys are the designer's own picks (tools/cut_passive_icons.py).
 	"enraged_will": "passive_enraged_will", "directed_strength": "passive_directed_strength",
 	"life_steal": "passive_life_steal",
-	"in_the_trenches": "passive_in_the_trenches", "the_way_of_the_plate": "pack_27", "pristine_armor": "game_52",
-	"stone_skin": "rpg_86", "ancestral_aid": "passive_ancestral_aid", "vines_codependence": "rpg_63",
-	"point_to_prove": "pack_30", "redemption": "pack_21", "solemn_independence": "pack_78",
+	"in_the_trenches": "passive_in_the_trenches", "the_way_of_the_plate": "passive_the_way_of_the_plate", "pristine_armor": "passive_pristine_armor",
+	"stone_skin": "passive_stone_skin", "ancestral_aid": "passive_ancestral_aid", "vines_codependence": "passive_vines_codependence",
+	"point_to_prove": "passive_point_to_prove", "redemption": "passive_redemption", "solemn_independence": "passive_solemn_independence",
 	# Archer — The Apex / Sentinel / Ranger / Avenger
 	"deadly": "pack_92", "easy_target": "pack_88", "skilled_momentum": "pack_62",
 	"clean_exchange": "game_11", "exposed_blind_spot": "game_86", "lethal_resourcefulness": "pack_87",
