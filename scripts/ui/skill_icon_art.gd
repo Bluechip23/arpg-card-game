@@ -70,10 +70,10 @@ const PASSIVES := {
 	"stimulant": "rpg_30", "pop_rocks": "game_58", "mad_scientist": "game_59",
 	"now_you_see_me": "pack_11", "surprise_opener": "rpg_80", "eye_scrape": "rpg_59",
 	# Jeremy — Evocation / Shepherd / Poltergeist / Abjurer
-	"arcane_overflow": "game_7", "harnessed_power": "passive_harnessed_power", "mana_surge": "game_6",
+	"arcane_overflow": "game_7", "harnessed_power": "passive_harnessed_power", "mana_surge": "passive_mana_surge",
 	"i_heal_you": "passive_i_heal_you", "whispers_of_the_flock": "game_66", "blood_libation": "passive_blood_libation",
-	"tricks_of_death": "pack_8", "seance": "pack_10", "haunted_rebuke": "passive_haunted_rebuke",
-	"a_mage's_favor": "game_24", "kinetic_armor": "rpg_12", "fresh_start": "passive_fresh_start",
+	"tricks_of_death": "passive_tricks_of_death", "seance": "passive_seance", "haunted_rebuke": "passive_haunted_rebuke",
+	"a_mage's_favor": "passive_a_mages_favor", "kinetic_armor": "passive_kinetic_armor", "fresh_start": "passive_fresh_start",
 	# Cory — Monk / Lurker / Atrophist / Druid: all twelve the designer's picks.
 	"energy_barrier": "passive_energy_barrier", "expel_negativity": "passive_expel_negativity", "self_reliance": "passive_self_reliance",
 	"prey_on_the_weak": "passive_prey_on_the_weak", "eat": "passive_eat", "serial_killer": "passive_serial_killer",

@@ -10,7 +10,8 @@ shrunk to SIZE (the craftpix icon packs' export size, so these sit at the
 same texel density as every other icon).
 
 Output: assets/textures/craftpix/icons/passive_<passive_id>.png, which
-scripts/ui/skill_icon_art.gd maps as "passive_<passive_id>".
+scripts/ui/skill_icon_art.gd maps as "passive_<passive_id>" (an apostrophe in
+the id is dropped from the file name: a_mage's_favor -> a_mages_favor).
 Run: python3 tools/cut_passive_icons.py   (Pillow)
 """
 import glob
@@ -44,6 +45,10 @@ TRIM = {
     "blood_libation": (0, 3, 97, 107),     # dark rows on top
     "fresh_start": (4, 0, 101, 97),        # dark columns on the left
     "harnessed_power": (0, 0, 87, 87),     # dark columns on the right, rows under it
+    "kinetic_armor": (0, 0, 90, 82),       # a dark column on the right
+    "a_mages_favor": (5, 4, 115, 112),     # a sliver of the next icon and dark columns on the left, dark rows on top
+    "seance": (3, 0, 112, 97),             # dark columns on the left
+    "tricks_of_death": (3, 0, 113, 97),    # dark columns on both sides
 }
 
 
