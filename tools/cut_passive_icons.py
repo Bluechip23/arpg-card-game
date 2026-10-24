@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""Square up the designer's chosen passive icons for the skill-icon folder.
+
+Sources: assets/sprites/paintings/passive_icons/<passive_id>.png (.gdignore'd
+source art). The designer picked these per passive (Brad's first five,
+2026-10-24); they arrive as screenshot crops a few pixels off square, some
+with a strip of whatever sat next to the icon on screen. TRIM drops those
+strips, the rest is centre-cropped to a square and shrunk to SIZE (the
+craftpix icon packs' export size, so these sit at the same texel density as
+every other icon).
+
+Output: assets/textures/craftpix/icons/passive_<passive_id>.png, which
+scripts/ui/skill_icon_art.gd maps as "passive_<passive_id>".
+Run: python3 tools/cut_passive_icons.py   (Pillow)
+"""
+import glob
+import os
+
+from PIL import Image
+
+SRC_DIR = "assets/sprites/paintings/passive_icons"
+OUT = "assets/textures/craftpix/icons/passive_%s.png"
+SIZE = 48
+
+# passive_id -> (left, top, right, bottom) of the icon in its source, past the
+# screenshot strips (measured).
+TRIM = {
+    "directed_strength": (0, 0, 82, 82),   # a navy strip under it
+    "enraged_will": (0, 0, 92, 89),        # a dark red edge down the right
+    "in_the_trenches": (1, 0, 90, 82),     # a navy column on the left
+    "life_steal": (0, 0, 85, 90),          # a navy column on the right
+}
+
+
+def square(img: Image.Image) -> Image.Image:
+    w, h = img.size
+    side = min(w, h)
+    x0, y0 = (w - side) // 2, (h - side) // 2
+    return img.crop((x0, y0, x0 + side, y0 + side))
+
+
+def main() -> None:
+    for path in sorted(glob.glob(os.path.join(SRC_DIR, "*.png"))):
+        pid = os.path.splitext(os.path.basename(path))[0]
+        img = Image.open(path).convert("RGBA")
+        if pid in TRIM:
+            img = img.crop(TRIM[pid])
+        out = square(img).resize((SIZE, SIZE), Image.LANCZOS)
+        out.save(OUT % pid)
+        print("%-24s %s -> %dx%d" % (pid, img.size, SIZE, SIZE))
+
+
+if __name__ == "__main__":
+    main()

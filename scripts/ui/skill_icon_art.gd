@@ -50,10 +50,12 @@ const STATUS := {
 # Skill-tree passives (SkillOption.passive_id).
 # ---------------------------------------------------------------------------
 const PASSIVES := {
-	# Brad — Berserker / Warden / The Ancient / The Fallen
-	"enraged_will": "rpg_42", "directed_strength": "rpg_90", "life_steal": "game_70",
-	"in_the_trenches": "game_57", "the_way_of_the_plate": "pack_27", "pristine_armor": "game_52",
-	"stone_skin": "rpg_86", "ancestral_aid": "game_63", "vines_codependence": "rpg_63",
+	# Brad — Berserker / Warden / The Ancient / The Fallen. The passive_* keys
+	# are the designer's own picks (tools/cut_passive_icons.py).
+	"enraged_will": "passive_enraged_will", "directed_strength": "passive_directed_strength",
+	"life_steal": "passive_life_steal",
+	"in_the_trenches": "passive_in_the_trenches", "the_way_of_the_plate": "pack_27", "pristine_armor": "game_52",
+	"stone_skin": "rpg_86", "ancestral_aid": "passive_ancestral_aid", "vines_codependence": "rpg_63",
 	"point_to_prove": "pack_30", "redemption": "pack_21", "solemn_independence": "pack_78",
 	# Archer — The Apex / Sentinel / Ranger / Avenger
 	"deadly": "pack_92", "easy_target": "pack_88", "skilled_momentum": "pack_62",
@@ -167,7 +169,7 @@ const CARDS := {
 	"heal": "game_99", "fountain_of_life": "game_99", "mend": "rpg_30",
 	"minor_wounds": "rpg_30", "regen": "rpg_62", "healthy_bliss": "game_99",
 	"healthy_habit": "game_99", "resourceful_replenish": "game_99",
-	"down_but_not_out": "rpg_62", "life_steal": "game_70", "bloodlust": "game_70",
+	"down_but_not_out": "rpg_62", "bloodlust": "game_70",
 	"life_swap": "game_32", "raged_circulation": "game_32", "self_infliction": "rpg_21",
 	"feed_into_the_pain": "rpg_21", "exacerbate_wounds": "rpg_21",
 	"demonic_rage": "rpg_52", "might": "rpg_90", "strengthen": "rpg_42",
