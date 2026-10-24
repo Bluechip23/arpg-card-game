@@ -17,9 +17,9 @@ Brad's portrait also gets the embroidered golden-white feather the designer
 asked for on his breastplate (2026-10-24), matching his in-game sprite
 (tools/cut_hero_sprites.py FEATHER_ART). No pack has it: it is drawn here
 (stitch_feather) at four times the portrait's size and shrunk onto it — a
-slim feather lying horizontal across the plate, with a white lit vane, a
-pale-gold shaded vane, gold thread barbs and outline, the quill running out
-to the left, and a faint halo.
+slim feather lying across the plate with its tip raised 20 degrees, a white
+lit vane, a pale-gold shaded vane, gold thread barbs and outline, the quill
+running out down to the left, and a faint halo.
 
 Output: assets/sprites/portraits/<hero>.png
 Run: python3 tools/cut_character_portraits.py   (Pillow, numpy)
@@ -38,9 +38,9 @@ BRIGHT = 60        # a column with a few pixels brighter than this belongs to a 
 MIN_GAP = 8        # columns between busts
 
 # hero -> (centre x, centre y, length, lean in degrees) on the OUT_SIZE
-# portrait: the middle of Brad's breastplate, lying horizontal (tip to the
-# right), smaller than first drawn, centred on the plate's middle seam (designer).
-FEATHER = {"brad": (93, 98, 40, 90)}
+# portrait: centred on the middle seam of Brad's breastplate, lying across
+# it with the tip raised 20 degrees, up and to the right (designer).
+FEATHER = {"brad": (93, 98, 40, 70)}
 SS = 4             # the feather is drawn this many times larger, then shrunk
 THREAD = (196, 160, 88)        # gold thread: outline and barbs
 LIT = (255, 254, 246)          # the lit vane

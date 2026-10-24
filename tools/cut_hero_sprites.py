@@ -136,20 +136,22 @@ EYE_BLUE = (110, 190, 255, 255)
 # the side views and hidden in the back view, so only the front carries it.
 FEATHER = {"brad": (0.49, 0.36)}
 # o = gold thread outline, h = white-gold highlight, m = pale gold vane,
-# s = deeper gold shade, q = the quill; "." leaves the plate. It lies
-# horizontal across the plate, tip to the right and the quill running out to
-# the left, with a split in the upper (lit) vane (designer: lower, smaller,
-# horizontal).
+# s = deeper gold shade, q = the quill; "." leaves the plate. It lies across
+# the plate with its tip raised 20 degrees, up and to the right, the quill
+# running out down to the left (designer).
 FEATHER_ART = [
-    ".....oohmo..",
-    "...ohhm.mhho",
-    "qqqqqqqqqqqh",
-    "...ossmmsso.",
-    ".....ooo....",
+    "........oo..",
+    ".....ooohhoo",
+    "....ohhhmmhh",
+    "...ohmmmqqqo",
+    "..ohmqqqsso.",
+    "..qqqmmmoo..",
+    "qqossssso...",
+    "...ooooo....",
 ]
 FEATHER_INK = {
     "o": (196, 170, 112), "h": (255, 255, 252), "m": (252, 249, 236),
-    "s": (238, 224, 184), "q": (244, 232, 196),
+    "s": (238, 224, 184), "q": (226, 198, 130),
 }
 FEATHER_GLOW = (255, 252, 238)   # a faint halo where the thread meets the plate
 FEATHER_GLOW_MIX = 0.15
