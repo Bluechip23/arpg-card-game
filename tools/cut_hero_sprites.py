@@ -134,7 +134,7 @@ EYE_BLUE = (110, 190, 255, 255)
 # on the front frame after the ink pass: (fx, fy) is the feather's centre as
 # a fraction of the frame's width and height. The plate is seen edge-on in
 # the side views and hidden in the back view, so only the front carries it.
-FEATHER = {"brad": (0.50, 0.385)}
+FEATHER = {"brad": (0.49, 0.36)}
 # o = gold thread outline, h = white-gold highlight, m = pale gold vane,
 # s = deeper gold shade, q = the quill; "." leaves the plate. It lies
 # horizontal across the plate, tip to the right and the quill running out to

@@ -39,8 +39,8 @@ MIN_GAP = 8        # columns between busts
 
 # hero -> (centre x, centre y, length, lean in degrees) on the OUT_SIZE
 # portrait: the middle of Brad's breastplate, lying horizontal (tip to the
-# right), smaller and lower than first drawn (designer).
-FEATHER = {"brad": (98, 106, 40, 90)}
+# right), smaller than first drawn, centred on the plate's middle seam (designer).
+FEATHER = {"brad": (93, 98, 40, 90)}
 SS = 4             # the feather is drawn this many times larger, then shrunk
 THREAD = (196, 160, 88)        # gold thread: outline and barbs
 LIT = (255, 254, 246)          # the lit vane
