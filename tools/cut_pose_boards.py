@@ -10,6 +10,11 @@ Sources (assets/sprites/paintings/, .gdignore'd source art), 2026-10-23:
   wyvern_board.webp — the Wyvern: Down, Up, Left, Right, on a checkerboard.
   ring_wraith_board.jpg — the Ring Wraiths (The Precious): mounted, front,
     back and a right-facing side, on a grey checkerboard.
+  djinn_board.jpg (2026-10-24) — the Djinn, a blue genie in gold cuffs and
+    chains on the same icy cave: two right-facing views, one left, a
+    three-quarter back, his front with arms crossed ("facing down") and his
+    back ("facing up"); cut like the penguin (his saturated blue is far
+    from the ice's grey-blue).
   sanguine_penguin_board.jpg (2026-10-24) — Sanguine the blood penguin
     (Nine Ruins of Sanguine's summon) in a Spartan helm: three right-facing
     views and one left-facing (the board labels the third "left"; it faces
@@ -108,6 +113,19 @@ BOARDS = {
             "back": [(55, 230, 85, 290), (245, 230, 275, 290)],
             "right": [(212, 215, 235, 250), (55, 180, 95, 280)],
             "left": [(25, 215, 45, 255), (150, 180, 210, 290)],
+        },
+    },
+    "djinn": {
+        "src": "djinn_board.jpg", "bg": "grabcut", "height": 52,
+        # GrabCut drops his thin ponytail and tail wisps against the sky; all
+        # of him is a strong blue or purple and the sky and ice are near grey,
+        # so the cut grows out into any pixel this saturated touching it.
+        "sat_grow": 55,
+        "Idle": {
+            "front": (255, 400, 450, 750),
+            "back": (940, 395, 1170, 750),
+            "right": (60, 30, 300, 342),
+            "left": (790, 30, 1015, 342),
         },
     },
     "ring_wraith": {
@@ -213,7 +231,7 @@ GRABCUT_MARGIN = 8      # px inside the pose's box the GrabCut rectangle starts
 FEET_BAND = 0.10        # the bottom share of the figure where floor shadow is trimmed
 
 
-def _cut_grabcut(rgb: np.ndarray, fg_boxes=()) -> np.ndarray:
+def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0) -> np.ndarray:
     """Background mask by GrabCut from the box, enclosed holes filled, and
     the ice's shadow under the feet (cool, unsaturated) trimmed."""
     if cv2 is None:
@@ -231,7 +249,7 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=()) -> np.ndarray:
     edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
            [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
     sky = _flood((lum < 26) & (sat < 22), edge)
-    ice = _flood((rgb[..., 2] - rgb[..., 0] > 25) & (lum > 70) & (lum < 180), edge)
+    ice = _flood((rgb[..., 2] - rgb[..., 0] > 25) & (sat < 65) & (lum > 70) & (lum < 180), edge)
     mask = np.full((h, w), cv2.GC_BGD, np.uint8)
     m = GRABCUT_MARGIN
     mask[m:h - m, m:w - m] = cv2.GC_PR_FGD
@@ -242,6 +260,9 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=()) -> np.ndarray:
     cv2.setRNGSeed(0)   # GrabCut seeds its colour models randomly: keep the cut repeatable
     cv2.grabCut(bgr, mask, None, bgd, fgd, GRABCUT_ITER, cv2.GC_INIT_WITH_MASK)
     fg = (mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD)
+    if sat_grow:
+        seeds = list(zip(*np.nonzero(fg)))
+        fg |= _flood((sat >= sat_grow) | fg, seeds)
     # Holes: background not reachable from the box's edge.
     fg |= ~_flood(~fg, edge)
     ys = np.nonzero(fg.any(axis=1))[0]
@@ -251,7 +272,7 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=()) -> np.ndarray:
     return ~fg
 
 
-def cut(board: Image.Image, box, kind: str, fg_boxes=()) -> Image.Image:
+def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0) -> Image.Image:
     """The creature in `box`, full size, on transparency, cropped to itself."""
     rgb = np.asarray(board.crop(box).convert("RGB")).astype(int)
     h, w, _ = rgb.shape
@@ -259,7 +280,7 @@ def cut(board: Image.Image, box, kind: str, fg_boxes=()) -> Image.Image:
            [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
     bg_like = _background_like(rgb, kind) if kind != "grabcut" else None
     if kind == "grabcut":
-        bg = _cut_grabcut(rgb, fg_boxes)
+        bg = _cut_grabcut(rgb, fg_boxes, sat_grow)
     elif kind == "stone":
         bg = _cut_stone(rgb, bg_like, edge)
     else:
@@ -307,7 +328,7 @@ def build(name: str, cfg: dict) -> None:
         full[anim] = {}
         for d, box in cfg[anim].items():
             if box[0] != "mirror":
-                full[anim][d] = cut(board, box, cfg["bg"], cfg.get("fg", {}).get(d, ()))
+                full[anim][d] = cut(board, box, cfg["bg"], cfg.get("fg", {}).get(d, ()), cfg.get("sat_grow", 0))
         for d, box in cfg[anim].items():
             if box[0] == "mirror":
                 full[anim][d] = full[anim][box[1]].transpose(Image.FLIP_LEFT_RIGHT)

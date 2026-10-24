@@ -87,7 +87,7 @@ const KINDS := {
 	"mini_bear": {"fr": "mountain_monsters/Bear", "scale": 0.45},
 	"wolf": {"sheets": SHEETS + "/wolf", "scale": 0.7},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-22)
 	"coyote": {"cell": Vector2i(3, 1), "tint": Color(1.1, 1.0, 0.8)},  # the old wolf battler, tinted
-	"djinn": {"cell": Vector2i(4, 1)},
+	"djinn": {"sheets": SHEETS + "/djinn", "scale": 1.0},  # the designer's board (tools/cut_pose_boards.py, 2026-10-24); was the MonsterKit cell (4, 1)
 	"specter": {"cp": "ghost/Ghost1", "scale": 1.2},
 	"wererabbit": {"cell": Vector2i(7, 1)},
 	"skeleton": {"cp": "skeletons/Skeleton1", "scale": 1.15},
@@ -177,7 +177,7 @@ const PIXEL_SIZE := 0.03125
 ## Kinds whose battler art already contains a painted contact shadow
 ## (the flyers) — these must not get a second blob shadow.
 const PAINTED_SHADOW_KINDS := ["swarm", "giant_hawk", "roc",
-		"screecher", "djinn", "specter", "snow_wraith", "summon_specter", "gravestone", "hell_door"]
+		"screecher", "specter", "snow_wraith", "summon_specter", "gravestone", "hell_door"]
 
 var figure_kind := ""   # the KINDS entry this figure was set up as
 var _sprite: Sprite3D = null
