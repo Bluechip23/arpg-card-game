@@ -57,11 +57,11 @@ const PASSIVES := {
 	"in_the_trenches": "passive_in_the_trenches", "the_way_of_the_plate": "passive_the_way_of_the_plate", "pristine_armor": "passive_pristine_armor",
 	"stone_skin": "passive_stone_skin", "ancestral_aid": "passive_ancestral_aid", "vines_codependence": "passive_vines_codependence",
 	"point_to_prove": "passive_point_to_prove", "redemption": "passive_redemption", "solemn_independence": "passive_solemn_independence",
-	# Archer — The Apex / Sentinel / Ranger / Avenger
-	"deadly": "pack_92", "easy_target": "pack_88", "skilled_momentum": "pack_62",
-	"clean_exchange": "passive_clean_exchange", "exposed_blind_spot": "passive_exposed_blind_spot", "lethal_resourcefulness": "pack_87",
-	"eagle_eye": "pack_56", "scouted": "passive_scouted", "elemental_conclusion": "game_68",
-	"patience_is_a_virtue": "passive_patience_is_a_virtue", "swing_for_the_fences": "game_74", "dominate": "passive_dominate",
+	# Stephen — The Apex / Sentinel / Ranger / Avenger: all twelve the designer's picks.
+	"deadly": "passive_deadly", "easy_target": "passive_easy_target", "skilled_momentum": "passive_skilled_momentum",
+	"clean_exchange": "passive_clean_exchange", "exposed_blind_spot": "passive_exposed_blind_spot", "lethal_resourcefulness": "passive_lethal_resourcefulness",
+	"eagle_eye": "passive_eagle_eye", "scouted": "passive_scouted", "elemental_conclusion": "passive_elemental_conclusion",
+	"patience_is_a_virtue": "passive_patience_is_a_virtue", "swing_for_the_fences": "passive_swing_for_the_fences", "dominate": "passive_dominate",
 	# Ryan — Relentless Blade / Light Foot / Apothecary / Shadow Blade: all twelve the designer's picks.
 	"keep_them_guessing": "passive_keep_them_guessing", "from_the_hip": "passive_from_the_hip", "nimble_assault": "passive_nimble_assault",
 	"quick_step": "passive_quick_step", "ladder_work": "passive_ladder_work", "let's_dance": "passive_lets_dance",
@@ -168,7 +168,7 @@ const CARDS := {
 	"heal": "game_99", "fountain_of_life": "game_99", "mend": "rpg_30",
 	"minor_wounds": "rpg_30", "regen": "rpg_62", "healthy_bliss": "game_99",
 	"healthy_habit": "game_99", "resourceful_replenish": "game_99",
-	"down_but_not_out": "rpg_62", "bloodlust": "game_70",
+	"down_but_not_out": "rpg_62", "life_steal": "game_70", "bloodlust": "game_70",
 	"life_swap": "game_32", "raged_circulation": "game_32", "self_infliction": "rpg_21",
 	"feed_into_the_pain": "rpg_21", "exacerbate_wounds": "rpg_21",
 	"demonic_rage": "rpg_52", "might": "rpg_90", "strengthen": "rpg_42",
