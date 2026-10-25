@@ -140,7 +140,7 @@ const KINDS := {
 	"earth_mage": {"sheets": SHEETS + "/earth_mage", "scale": BOARD_SCALE},  # the designer's earth mage (2026-10-25); was the NPC mystic tinted green
 	"necromancer": {"sheets": SHEETS + "/necromancer", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the lich pack's Lich2
 	"spirit_collector": {"cp": "lich/Lich1", "tint": Color(0.8, 0.9, 1.15)},
-	"vampire": {"cp": "vampires/Vampires3", "scale": 1.1},  # the red-caped lord on spire legs
+	"vampire": {"sheets": SHEETS + "/vampire", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the vampire pack's Vampires3
 	"zombie": {"cp": "zombie/Zombie1", "scale": 1.25},
 	"infected_hunter": {"cp": "zombie/Zombie3", "scale": 1.3, "tint": Color(0.9, 1.0, 0.85)},
 	"succubus": {"icon": "chaos_monsters/Icon14", "faces": "front", "scale": 1.7},  # the purple-winged temptress

@@ -405,6 +405,19 @@ BOARDS = {
             "right": (827, 607, 1124, 1119),
         },
     },
+    "vampire": {
+        # 2026-10-25: the Vampire — a pale, fanged gentleman in a black frock
+        # coat lined in red — four poses on black. Its "NORTH" pose shows the
+        # face and "SOUTH" its back: picked by what they show.
+        "src": "vampire_board.png", "bg": "grabcut", "tiles": 1.75,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (190, 12, 428, 546),
+            "back": (834, 12, 1074, 546),
+            "left": (262, 604, 421, 1108),
+            "right": (835, 604, 998, 1108),
+        },
+    },
     "air_mage": {
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,
