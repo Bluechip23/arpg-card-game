@@ -488,7 +488,8 @@ BOARDS = {
     },
     "fire_goblin": {
         # 2026-10-25: the Fire Goblin — a goblin in red leather with a torch,
-        # scimitar and round shield; all three fire goblin kinds wear it. The
+        # scimitar and round shield; the fire goblin soldier and shaman wear it
+        # (the mage has its own board). The
         # height counts the torch's flame — four poses on black. Its "NORTH" pose shows
         # the face and "SOUTH" its back: picked by what they show. The boxes
         # stop above the board's labels.
@@ -513,6 +514,21 @@ BOARDS = {
             "back": (703, 100, 1219, 553),
             "left": (34, 617, 576, 1115),
             "right": (661, 617, 1212, 1115),
+        },
+    },
+    "fire_goblin_mage": {
+        # 2026-10-25: the Goblin Fire Mage — a goblin in a ragged black-and-
+        # red robe, fire in both hands — four poses on black; the
+        # `fire_goblin_mage` kind. Its "NORTH" pose shows the face and
+        # "SOUTH" its back; "WEST" / "EAST" are left / right. The height
+        # counts the flames.
+        "src": "fire_goblin_mage_board.webp", "bg": "grabcut", "tiles": 1.6,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (92, 23, 493, 533),
+            "back": (733, 31, 1160, 532),
+            "left": (116, 610, 458, 1134),
+            "right": (787, 612, 1122, 1134),
         },
     },
     "spirit_collector": {
