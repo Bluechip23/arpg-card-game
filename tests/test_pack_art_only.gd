@@ -3,8 +3,8 @@ extends SceneTree
 ## Self-made figures are gone (designer, 2026-10-23): the player's summons,
 ## the Ring Wraith, the dojo master and the character screens wear pack art.
 ##  - every summon that a pack can dress stands a pack sprite in for its body
-##    and builds no shape meshes (Sanguine the penguin and the bull worm keep
-##    theirs: no pack has a penguin or a worm);
+##    and builds no shape meshes (the bull worm keeps its own: no pack has a
+##    worm; Sanguine the penguin wears the designer's board, 2026-10-24);
 ##  - every enemy type has a sprite (the Ring Wraith was the prototype box);
 ##  - the Dojo master in town is an NPC-pack sheet, not the drawn ninja;
 ##  - the character-select card and the load screen show the character's
@@ -44,6 +44,7 @@ func _run() -> void:
 		"Spirit": ["res://scripts/battle/summoned_skeleton.gd", [10, "spirit"], "specter"],
 		"Golem": ["res://scripts/battle/summoned_skeleton.gd", [10, "golem"], "summon_golem"],
 		"Frankensteins Monster": ["res://scripts/battle/frankensteins_monster.gd", [20], "frankenstein"],
+		"Sanguine": ["res://scripts/battle/sanguine_penguin.gd", [], "sanguine_penguin"],
 	}
 	for name in specs:
 		var sp: Array = specs[name]

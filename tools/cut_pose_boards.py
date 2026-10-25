@@ -10,6 +10,27 @@ Sources (assets/sprites/paintings/, .gdignore'd source art), 2026-10-23:
   wyvern_board.webp — the Wyvern: Down, Up, Left, Right, on a checkerboard.
   ring_wraith_board.jpg — the Ring Wraiths (The Precious): mounted, front,
     back and a right-facing side, on a grey checkerboard.
+  djinn_board.jpg (2026-10-24) — the Djinn, a blue genie in gold cuffs and
+    chains on the same icy cave: two right-facing views, one left, a
+    three-quarter back, his front with arms crossed ("facing down") and his
+    back ("facing up"); cut like the penguin (his saturated blue is far
+    from the ice's grey-blue).
+  fire_frost_mage_board.jpg (2026-10-24) — the Ice Mage (a hooded frost
+    mage with an ice-crystal spear) and the Fire Mage (a masked ninja with
+    burning fists) on a snowfield. Top row: each mage facing right, then
+    the ice mage facing left and the fire mage nearly frontal (its left is
+    the right view mirrored); bottom row: both from the front, then the
+    ice mage's back, a stray fire-mage back holding the ice spear (unused)
+    and the fire mage's back. Cut like the penguin, with a snow hint too.
+  sanguine_penguin_board.jpg (2026-10-24) — Sanguine the blood penguin
+    (Nine Ruins of Sanguine's summon) in a Spartan helm: three right-facing
+    views and one left-facing (the board labels the third "left"; it faces
+    right), his back (labelled "facing down") and his front ("facing up").
+    He stands on a dark icy cave: the sky is as dark as his back and the ice
+    as pale as his belly, so no colour rule parts them — "grabcut" boards
+    are cut with OpenCV's GrabCut from the pose's box, the enclosed holes it
+    leaves (the helm's eye slit) filled, and the shadow-blue ice under his
+    feet trimmed.
 The checkerboards are painted in (the boards are flat JPEG/WebP, not
 transparent), so the background is whatever is neutral and checker-bright,
 flood-filled in from each pose's box; the art's dark outline stops the fill.
@@ -20,11 +41,12 @@ specks and the boards' labels are dropped (only pieces near the size of the
 creature survive).
 
 Each pose is shrunk by one factor per creature — chosen so the front Idle
-stands HEIGHT texels tall (the game draws 32 texels a tile) — box-filtered
-with on/off alpha, and packed bottom-centred into square cells in the
-Craftpix layout SpriteEnemyFigure plays (rows front, back, left, right).
-These boards have one frame a direction: Idle is the still pose; Walk is
-the movement pose where there is one (the beaver), else the still pose again
+stands its "tiles" tall at DENSITY texels a tile (twice the world's 32: the
+heroes' fineness; the game draws these sheets at scale 32 / DENSITY) — box-
+filtered with on/off alpha, and packed bottom-centred into square cells in
+the Craftpix layout SpriteEnemyFigure plays (rows front, back, left, right).
+These boards have one frame a direction: Idle is the still pose; Walk is the
+movement pose where there is one (the beaver), else the still pose again
 (the figure bobs it in step while it moves).
 
 Output: assets/sprites/generated/sheets/<creature>/{Idle,Walk}.png
@@ -37,6 +59,11 @@ from collections import deque
 import numpy as np
 from PIL import Image
 
+try:
+    import cv2   # only the GrabCut boards need it
+except ImportError:
+    cv2 = None
+
 SRC = "assets/sprites/paintings/%s"
 OUT = "assets/sprites/generated/sheets/%s"
 ROWS = ["front", "back", "left", "right"]
@@ -46,7 +73,7 @@ ROWS = ["front", "back", "left", "right"]
 # as ("mirror", other) is the other pose flipped.
 BOARDS = {
     "frankenstein": {
-        "src": "frankenstein_board.jpg", "bg": "stone", "height": 45,
+        "src": "frankenstein_board.jpg", "bg": "stone", "tiles": 1.75,
         "Idle": {
             "front": (0, 96, 360, 720),
             "back": (360, 96, 720, 720),
@@ -55,7 +82,7 @@ BOARDS = {
         },
     },
     "giant_beaver": {
-        "src": "giant_beaver_board.jpg", "bg": "checker_light", "height": 34,
+        "src": "giant_beaver_board.jpg", "bg": "checker_light", "tiles": 1.3,
         "Idle": {
             "front": (40, 50, 300, 392),
             "back": (395, 50, 625, 392),
@@ -70,7 +97,7 @@ BOARDS = {
         },
     },
     "wyvern": {
-        "src": "wyvern_board.webp", "bg": "checker_light", "height": 56,
+        "src": "wyvern_board.webp", "bg": "checker_light", "tiles": 1.9,
         "Idle": {
             "front": (40, 0, 300, 286),
             "back": (310, 0, 580, 286),
@@ -78,8 +105,65 @@ BOARDS = {
             "right": (872, 0, 1160, 278),
         },
     },
+    "sanguine_penguin": {
+        "src": "sanguine_penguin_board.jpg", "bg": "grabcut", "tiles": 1.15,
+        "Idle": {
+            "front": (900, 395, 1210, 760),
+            "back": (180, 395, 520, 760),
+            "right": (60, 30, 345, 385),
+            "left": (1090, 30, 1408, 385),
+        },
+        # Boxes (within each pose's box) that are surely him: his flippers
+        # and black back, whose colours the sky and ice share and whose
+        # outline the board leaves open in places (measured).
+        "fg": {
+            "front": [(45, 215, 70, 285), (245, 215, 265, 285), (75, 200, 95, 320)],
+            "back": [(55, 230, 85, 290), (245, 230, 275, 290)],
+            "right": [(212, 215, 235, 250), (55, 180, 95, 280)],
+            "left": [(25, 215, 45, 255), (150, 180, 210, 290)],
+        },
+    },
+    "djinn": {
+        "src": "djinn_board.jpg", "bg": "grabcut", "tiles": 1.8,
+        # GrabCut drops his thin ponytail and tail wisps against the sky; all
+        # of him is a strong blue or purple and the sky and ice are near grey,
+        # so the cut grows out into any pixel this saturated touching it.
+        "sat_grow": 55,
+        "Idle": {
+            "front": (255, 400, 450, 750),
+            "back": (940, 395, 1170, 750),
+            "right": (60, 30, 300, 342),
+            "left": (790, 30, 1015, 342),
+        },
+    },
+    "ice_mage": {
+        "src": "fire_frost_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
+        "feet_trim": False,   # her boots are the floor shadow's pale blue-grey
+        "Idle": {
+            "front": (265, 405, 460, 748),
+            "back": (760, 425, 935, 735),
+            "right": (105, 40, 375, 372),
+            "left": (725, 40, 990, 372),
+        },
+        # Her spear's thin shaft vanishes against the snow, leaving its
+        # crystal head adrift: lines along head and shaft that are surely
+        # her (x0, y0, x1, y1, width; measured).
+        "fg": {
+            "right": [(238, 24, 206, 84, 4), (206, 84, 147, 218, 3)],
+            "left": [(22, 24, 64, 96, 4), (64, 96, 118, 220, 3)],
+        },
+    },
+    "fire_mage": {
+        "src": "fire_frost_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
+        "Idle": {
+            "front": (485, 420, 675, 722),
+            "back": (1180, 420, 1370, 722),
+            "right": (425, 50, 640, 372),
+            "left": ("mirror", "right"),
+        },
+    },
     "ring_wraith": {
-        "src": "ring_wraith_board.jpg", "bg": "checker_grey", "height": 58,
+        "src": "ring_wraith_board.jpg", "bg": "checker_grey", "tiles": 1.95,
         "Idle": {
             "front": (0, 40, 392, 730),
             "back": (392, 40, 770, 730),
@@ -88,6 +172,13 @@ BOARDS = {
         },
     },
 }
+
+# Texels per tile the boards are cut at (designer, 2026-10-24: err on the
+# side of under-pixelating what we make): twice the world's 32, the heroes'
+# own fineness — one texel a screen pixel at the default zoom. Each board
+# gives its front Idle's height in tiles; SpriteEnemyFigure draws these
+# sheets at scale 32 / DENSITY.
+DENSITY = 64
 
 GROW = 3           # px the stone board's outline is thickened by to close its pinholes
 HOLE_MIN = 100      # enclosed background pockets this big (source px) are cut too
@@ -176,14 +267,70 @@ def _cut_stone(rgb: np.ndarray, floor_like: np.ndarray, edge) -> np.ndarray:
     return floor
 
 
-def cut(board: Image.Image, box, kind: str) -> Image.Image:
+GRABCUT_ITER = 10
+GRABCUT_MARGIN = 8      # px inside the pose's box the GrabCut rectangle starts
+FEET_BAND = 0.10        # the bottom share of the figure where floor shadow is trimmed
+
+
+def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim=True) -> np.ndarray:
+    """Background mask by GrabCut from the box, enclosed holes filled, and
+    the ice's shadow under the feet (cool, unsaturated) trimmed."""
+    if cv2 is None:
+        raise SystemExit("opencv-python is needed for GrabCut boards")
+    h, w, _ = rgb.shape
+    bgr = np.ascontiguousarray(rgb[..., ::-1].astype(np.uint8))
+    # A head start, so GrabCut's colour models begin on the right side: the
+    # near-black, even sky (his feathers are a good deal lighter) and the
+    # cool mid-grey ice start as probable background, the rest of the box
+    # as probable creature, the margin as background.
+    lum = rgb.mean(axis=2)
+    sat = rgb.max(axis=2) - rgb.min(axis=2)
+    # Only what joins up with the box's edge: his pale flippers are ice-
+    # coloured too, but the outline closes them in.
+    edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
+           [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
+    sky = _flood((lum < 26) & (sat < 22), edge)
+    ice = _flood((rgb[..., 2] - rgb[..., 0] > 25) & (sat < 65) & (lum > 70) & (lum < 180), edge)
+    if snow:   # bright snow fields: near-white, little colour
+        ice |= _flood((lum > 185) & (sat < 60), edge)
+    mask = np.full((h, w), cv2.GC_BGD, np.uint8)
+    m = GRABCUT_MARGIN
+    mask[m:h - m, m:w - m] = cv2.GC_PR_FGD
+    mask[(sky | ice) & (mask == cv2.GC_PR_FGD)] = cv2.GC_PR_BGD
+    for hint in fg_boxes:
+        if len(hint) == 5:   # a line (x0, y0, x1, y1, width): a staff, a spear shaft
+            cv2.line(mask, hint[0:2], hint[2:4], int(cv2.GC_FGD), hint[4])
+        else:
+            x0, y0, x1, y1 = hint
+            mask[y0:y1, x0:x1] = cv2.GC_FGD
+    bgd, fgd = np.zeros((1, 65)), np.zeros((1, 65))
+    cv2.setRNGSeed(0)   # GrabCut seeds its colour models randomly: keep the cut repeatable
+    cv2.grabCut(bgr, mask, None, bgd, fgd, GRABCUT_ITER, cv2.GC_INIT_WITH_MASK)
+    fg = (mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD)
+    if sat_grow:
+        seeds = list(zip(*np.nonzero(fg)))
+        fg |= _flood((sat >= sat_grow) | fg, seeds)
+    # Holes: background not reachable from the box's edge.
+    fg |= ~_flood(~fg, edge)
+    if feet_trim:
+        ys = np.nonzero(fg.any(axis=1))[0]
+        band = int(ys.max() - FEET_BAND * (ys.max() - ys.min()))
+        cool = (rgb[..., 2] >= rgb[..., 0]) & (sat < 45) & (lum > 50)
+        fg[band:] &= ~cool[band:]
+    return ~fg
+
+
+def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
+        feet_trim=True) -> Image.Image:
     """The creature in `box`, full size, on transparency, cropped to itself."""
     rgb = np.asarray(board.crop(box).convert("RGB")).astype(int)
     h, w, _ = rgb.shape
-    bg_like = _background_like(rgb, kind)
     edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
            [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
-    if kind == "stone":
+    bg_like = _background_like(rgb, kind) if kind != "grabcut" else None
+    if kind == "grabcut":
+        bg = _cut_grabcut(rgb, fg_boxes, sat_grow, snow, feet_trim)
+    elif kind == "stone":
         bg = _cut_stone(rgb, bg_like, edge)
     else:
         bg = _flood(bg_like, edge)
@@ -230,13 +377,15 @@ def build(name: str, cfg: dict) -> None:
         full[anim] = {}
         for d, box in cfg[anim].items():
             if box[0] != "mirror":
-                full[anim][d] = cut(board, box, cfg["bg"])
+                full[anim][d] = cut(board, box, cfg["bg"], cfg.get("fg", {}).get(d, ()),
+                                    cfg.get("sat_grow", 0), cfg.get("snow", False),
+                                    cfg.get("feet_trim", True))
         for d, box in cfg[anim].items():
             if box[0] == "mirror":
                 full[anim][d] = full[anim][box[1]].transpose(Image.FLIP_LEFT_RIGHT)
     if "Walk" not in full:
         full["Walk"] = full["Idle"]
-    factor = full["Idle"]["front"].height / float(cfg["height"])
+    factor = full["Idle"]["front"].height / float(round(cfg["tiles"] * DENSITY))
     small = {a: {d: shrink(f, factor) for d, f in fs.items()} for a, fs in full.items()}
     cell = max(max(f.width, f.height) for fs in small.values() for f in fs.values()) + 2
     os.makedirs(OUT % name, exist_ok=True)

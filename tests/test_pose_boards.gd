@@ -1,8 +1,9 @@
 extends SceneTree
 
 ## The designer's four-direction pose boards (tools/cut_pose_boards.py,
-## 2026-10-23): Frankensteins Monster, the Giant Beaver, the Wyvern and the
-## mounted Ring Wraith wear their own sheets — one pose a direction. The
+## 2026-10-23/24): Frankensteins Monster, the Giant Beaver, the Wyvern, the
+## mounted Ring Wraith, Sanguine the blood penguin, the Djinn and the Ice
+## and Fire Mages wear their own sheets — one pose a direction. The
 ## beaver stands on its hind legs and walks on all fours; the others step a
 ## whole texel up and down while they walk (their art has no stride). The
 ## mounted wraith stands on the ground, so it casts a blob shadow.
@@ -17,7 +18,8 @@ func _check(ok: bool, msg: String) -> void:
 		failures += 1
 		print("  FAIL: %s" % msg)
 
-const KINDS := {"frankenstein": 1.4, "giant_beaver": 1.05, "wyvern": 1.75, "ring_wraith": 1.8}
+const KINDS := {"frankenstein": 1.75, "giant_beaver": 1.3, "wyvern": 1.9, "ring_wraith": 1.95,
+		"sanguine_penguin": 1.15, "djinn": 1.8, "ice_mage": 1.6, "fire_mage": 1.6}
 
 func _initialize() -> void:
 	print("=== Pose boards ===")
@@ -47,6 +49,9 @@ func _initialize() -> void:
 		f._process(0.05)
 		_check(f._sprite.offset == f._ground_offset, "%s stands on its ground row when still" % kind)
 		_check(not kind in SpriteEnemyFigure.PAINTED_SHADOW_KINDS, "%s casts a blob shadow" % kind)
+		# Cut at the heroes' fineness: 64 texels a tile (2026-10-24).
+		var density: float = 1.0 / (f._sprite.pixel_size * f._rig.scale.y)
+		_check(absf(density - 64.0) < 0.5, "%s is drawn at 64 texels a tile (%.1f)" % [kind, density])
 		f.free()
 
 	# The beaver drops to all fours to move: its walk is a different, lower pose.
