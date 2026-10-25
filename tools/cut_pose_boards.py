@@ -327,6 +327,31 @@ BOARDS = {
             "right": (745, 625, 1060, 1120),
         },
     },
+    "armored_troll": {
+        # 2026-10-25: the Armored Troll — grey-blue, spiked pauldrons, chain
+        # and a spiked club — four unlabelled poses on black: front, back,
+        # facing left, facing right.
+        "src": "armored_troll_board.png", "bg": "grabcut", "tiles": 2.2,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (78, 10, 545, 562),
+            "back": (767, 20, 1208, 562),
+            "left": (89, 580, 455, 1126),
+            "right": (852, 580, 1220, 1126),
+        },
+    },
+    "ice_troll": {
+        # 2026-10-25: the Ice Troll — blue hide, white shag and ice crystals —
+        # four unlabelled poses on black: front, back, facing left, right.
+        "src": "ice_troll_board.png", "bg": "grabcut", "tiles": 2.2,
+        "matte": ("front", "back", "left", "right"),
+        "Idle": {
+            "front": (87, 14, 534, 586),
+            "back": (761, 18, 1188, 586),
+            "left": (176, 599, 457, 1170),
+            "right": (833, 603, 1105, 1170),
+        },
+    },
     "air_mage": {
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,
