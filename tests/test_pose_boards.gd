@@ -2,8 +2,8 @@ extends SceneTree
 
 ## The designer's four-direction pose boards (tools/cut_pose_boards.py,
 ## 2026-10-23/24): Frankensteins Monster, the Giant Beaver, the Wyvern, the
-## mounted Ring Wraith, Sanguine the blood penguin, the Djinn and the Ice
-## and Fire Mages wear their own sheets — one pose a direction. The
+## mounted Ring Wraith, Sanguine the blood penguin, the Djinn and the Ice,
+## Fire, Earth, Spark (shock) and Air Mages wear their own sheets — one pose a direction. The
 ## beaver stands on its hind legs and walks on all fours; the others step a
 ## whole texel up and down while they walk (their art has no stride). The
 ## mounted wraith stands on the ground, so it casts a blob shadow.
@@ -19,7 +19,8 @@ func _check(ok: bool, msg: String) -> void:
 		print("  FAIL: %s" % msg)
 
 const KINDS := {"frankenstein": 1.75, "giant_beaver": 1.3, "wyvern": 1.9, "ring_wraith": 1.95,
-		"sanguine_penguin": 1.15, "djinn": 1.8, "ice_mage": 1.6, "fire_mage": 1.6}
+		"sanguine_penguin": 1.15, "djinn": 1.8, "ice_mage": 1.6, "fire_mage": 1.6,
+		"earth_mage": 1.6, "spark_mage": 1.6, "air_mage": 1.6}
 
 func _initialize() -> void:
 	print("=== Pose boards ===")

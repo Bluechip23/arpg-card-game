@@ -135,9 +135,9 @@ const KINDS := {
 	# --- NPC-pack humanoids (real 4-direction walk frames) ---
 	"ice_mage": {"sheets": SHEETS + "/ice_mage", "scale": BOARD_SCALE},  # the designer's frost mage (tools/cut_pose_boards.py, 2026-10-24); was the NPC mystic tinted blue
 	"fire_mage": {"sheets": SHEETS + "/fire_mage", "scale": BOARD_SCALE},  # the designer's fire ninja (tools/cut_pose_boards.py, 2026-10-24); was the NPC mystic tinted red
-	"spark_mage": {"npc": NPC1 + "/npc mystic A v01.png", "tint": Color(1.2, 1.15, 0.6)},
-	"air_mage": {"npc": NPC1 + "/npc mystic A v01.png", "tint": Color(1.1, 1.1, 1.15)},
-	"earth_mage": {"npc": NPC1 + "/npc mystic A v01.png", "tint": Color(0.9, 1.0, 0.7)},
+	"spark_mage": {"sheets": SHEETS + "/spark_mage", "scale": BOARD_SCALE},  # the designer's shock mage (tools/cut_pose_boards.py, 2026-10-25); was the NPC mystic tinted yellow
+	"air_mage": {"sheets": SHEETS + "/air_mage", "scale": BOARD_SCALE},  # the designer's air mage (2026-10-25); was the NPC mystic
+	"earth_mage": {"sheets": SHEETS + "/earth_mage", "scale": BOARD_SCALE},  # the designer's earth mage (2026-10-25); was the NPC mystic tinted green
 	"necromancer": {"cp": "lich/Lich2", "scale": 1.1},
 	"spirit_collector": {"cp": "lich/Lich1", "tint": Color(0.8, 0.9, 1.15)},
 	"vampire": {"cp": "vampires/Vampires3", "scale": 1.1},  # the red-caped lord on spire legs

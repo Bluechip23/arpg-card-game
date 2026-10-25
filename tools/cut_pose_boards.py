@@ -22,6 +22,14 @@ Sources (assets/sprites/paintings/, .gdignore'd source art), 2026-10-23:
     the right view mirrored); bottom row: both from the front, then the
     ice mage's back, a stray fire-mage back holding the ice spear (unused)
     and the fire mage's back. Cut like the penguin, with a snow hint too.
+  earth_shock_mage_board.jpg (2026-10-25) — the Earth Mage (a bald, tattooed
+    monk with a vine-wrapped staff) and the Spark Mage, the shock mage (a
+    blond brawler with lightning in his fists), on the same snowfield: each
+    facing right, then each facing left; both from the front, then two
+    earth-mage backs (the first is used) and the spark mage's back.
+  air_mage_board.jpg (2026-10-25) — the Air Mage (silver-haired, purple and
+    white robes, wind round her hands) in four panels on a dungeon wall and
+    wooden floor: right, left, front ("facing down"), back ("facing up").
   sanguine_penguin_board.jpg (2026-10-24) — Sanguine the blood penguin
     (Nine Ruins of Sanguine's summon) in a Spartan helm: three right-facing
     views and one left-facing (the board labels the third "left"; it faces
@@ -162,6 +170,43 @@ BOARDS = {
             "left": ("mirror", "right"),
         },
     },
+    "earth_mage": {
+        "src": "earth_shock_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
+        "drop_ice": True,   # nothing on him is ice blue: the snow between arm and staff goes
+        "Idle": {
+            "front": (245, 430, 470, 748),
+            "back": (755, 425, 948, 722),
+            "right": (90, 55, 345, 372),
+            "left": (760, 55, 1010, 372),
+        },
+        # His vine staff is thin against the sky and snow: its curled head
+        # and its shaft, surely his (boxes; lines x0, y0, x1, y1, width).
+        "fg": {
+            "right": [(212, 10, 248, 52), (226, 52, 200, 298, 6)],
+            "left": [(5, 10, 35, 52), (28, 55, 47, 295, 6)],
+            "front": [(188, 8, 218, 55), (202, 60, 192, 305, 6)],
+            "back": [(8, 16, 34, 55), (25, 55, 30, 277, 6)],
+        },
+    },
+    "spark_mage": {
+        "src": "earth_shock_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
+        "bright_grow": 120,   # the lightning round his fists
+        "Idle": {
+            "front": (465, 415, 690, 722),
+            "back": (1160, 400, 1390, 722),
+            "right": (410, 55, 645, 372),
+            "left": (1105, 55, 1375, 372),
+        },
+    },
+    "air_mage": {
+        "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,
+        "Idle": {
+            "front": (375, 425, 590, 748),
+            "back": (840, 425, 1035, 748),
+            "right": (405, 55, 570, 365),
+            "left": (840, 55, 1005, 365),
+        },
+    },
     "ring_wraith": {
         "src": "ring_wraith_board.jpg", "bg": "checker_grey", "tiles": 1.95,
         "Idle": {
@@ -268,11 +313,13 @@ def _cut_stone(rgb: np.ndarray, floor_like: np.ndarray, edge) -> np.ndarray:
 
 
 GRABCUT_ITER = 10
+HOLE_FILL_MAX = 400     # enclosed pockets this small are always the creature's
 GRABCUT_MARGIN = 8      # px inside the pose's box the GrabCut rectangle starts
 FEET_BAND = 0.10        # the bottom share of the figure where floor shadow is trimmed
 
 
-def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim=True) -> np.ndarray:
+def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim=True,
+                 drop_ice=False, bright_grow=0) -> np.ndarray:
     """Background mask by GrabCut from the box, enclosed holes filled, and
     the ice's shadow under the feet (cool, unsaturated) trimmed."""
     if cv2 is None:
@@ -310,8 +357,33 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim
     if sat_grow:
         seeds = list(zip(*np.nonzero(fg)))
         fg |= _flood((sat >= sat_grow) | fg, seeds)
-    # Holes: background not reachable from the box's edge.
-    fg |= ~_flood(~fg, edge)
+    if bright_grow:
+        # Thin bright strands (lightning) against the dark sky: grow into
+        # bright pixels touching the cut, never into the snow.
+        # Only bright pixels close to the dark sky (a strand of lightning is
+        # wrapped in it; a field of snow is not).
+        near_sky = _grow((lum < 35) & (sat < 30), 4)
+        seeds = list(zip(*np.nonzero(fg)))
+        fg |= _flood(((lum >= bright_grow) & near_sky & ~ice) | fg, seeds)
+    # Holes: background not reachable from the box's edge — filled when small
+    # (the penguin's eye slit) or not background-coloured; a big pocket of
+    # sky or snow boxed in by an arm and a staff stays background.
+    looks_bg = (lum < 26) & (sat < 22) | (rgb[..., 2] - rgb[..., 0] > 25) & (sat < 65) & (lum > 70)
+    if snow:
+        looks_bg |= (lum > 185) & (sat < 60)
+    for comp in _components(~fg & ~_flood(~fg, edge)):
+        pts = tuple(np.array(comp).T)
+        if len(comp) <= HOLE_FILL_MAX or looks_bg[pts].mean() < 0.5:
+            fg[pts] = True
+    if drop_ice:
+        # A figure with nothing ice-coloured or near-black on it: any big
+        # patch of snow blue or night sky GrabCut kept (seen between an arm
+        # and a staff) is background.
+        ice_like = (rgb[..., 2] - rgb[..., 0] > 25) & (sat < 65) & (lum > 35)   # shadowed snow too
+        ice_like |= (lum < 30) & (sat < 25)                                       # and the night sky
+        for comp in _components(fg & ice_like):
+            if len(comp) > HOLE_FILL_MAX:
+                fg[tuple(np.array(comp).T)] = False
     if feet_trim:
         ys = np.nonzero(fg.any(axis=1))[0]
         band = int(ys.max() - FEET_BAND * (ys.max() - ys.min()))
@@ -321,7 +393,7 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim
 
 
 def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
-        feet_trim=True) -> Image.Image:
+        feet_trim=True, drop_ice=False, bright_grow=0) -> Image.Image:
     """The creature in `box`, full size, on transparency, cropped to itself."""
     rgb = np.asarray(board.crop(box).convert("RGB")).astype(int)
     h, w, _ = rgb.shape
@@ -329,7 +401,7 @@ def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
            [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
     bg_like = _background_like(rgb, kind) if kind != "grabcut" else None
     if kind == "grabcut":
-        bg = _cut_grabcut(rgb, fg_boxes, sat_grow, snow, feet_trim)
+        bg = _cut_grabcut(rgb, fg_boxes, sat_grow, snow, feet_trim, drop_ice, bright_grow)
     elif kind == "stone":
         bg = _cut_stone(rgb, bg_like, edge)
     else:
@@ -379,7 +451,8 @@ def build(name: str, cfg: dict) -> None:
             if box[0] != "mirror":
                 full[anim][d] = cut(board, box, cfg["bg"], cfg.get("fg", {}).get(d, ()),
                                     cfg.get("sat_grow", 0), cfg.get("snow", False),
-                                    cfg.get("feet_trim", True))
+                                    cfg.get("feet_trim", True), cfg.get("drop_ice", False),
+                                    cfg.get("bright_grow", 0))
         for d, box in cfg[anim].items():
             if box[0] == "mirror":
                 full[anim][d] = full[anim][box[1]].transpose(Image.FLIP_LEFT_RIGHT)
