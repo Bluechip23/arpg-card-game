@@ -108,10 +108,9 @@ func _index_enemy_data() -> void:
 func _build_ui() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 
-	var bg := ColorRect.new()
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.color = Color(0.06, 0.06, 0.09)
-	add_child(bg)
+	# Emerald Sanctum: the forest shows around the edges, dimmed hard so the
+	# lab's panels stay the focus.
+	EmeraldTheme.apply(self, true, 0.55)
 
 	var margin := MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -133,19 +132,20 @@ func _build_ui() -> void:
 	var back_btn := Button.new()
 	back_btn.text = "< Back"
 	back_btn.pressed.connect(_on_back)
+	back_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	EmeraldTheme.style_button(back_btn, 16)
 	top_bar.add_child(back_btn)
 
 	var title := Label.new()
 	title.text = "Enemy Lab"
-	title.add_theme_font_size_override("font_size", 26)
-	title.add_theme_color_override("font_color", Color(1.0, 0.55, 0.45))
+	EmeraldTheme.style_title(title, 32)
 	top_bar.add_child(title)
 
 	_status_label = Label.new()
 	_status_label.text = "Select an enemy to preview its animations."
 	_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_status_label.add_theme_color_override("font_color", Color(0.7, 0.75, 0.85))
+	_status_label.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 	top_bar.add_child(_status_label)
 
 	# --- Body: viewport box on the left, list on the right ---
@@ -158,14 +158,14 @@ func _build_ui() -> void:
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	left.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	left.add_theme_constant_override("separation", 8)
-	body.add_child(left)
+	body.add_child(_glass_panel(left, true))
 	_left_column = left
 
 	var right := VBoxContainer.new()
 	right.custom_minimum_size = Vector2(340, 0)
 	right.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	right.add_theme_constant_override("separation", 6)
-	body.add_child(right)
+	body.add_child(_glass_panel(right, false))
 
 	_filter_edit = LineEdit.new()
 	_filter_edit.placeholder_text = "Filter enemies..."
@@ -189,6 +189,8 @@ func _build_viewport() -> void:
 	var frame := PanelContainer.new()
 	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	frame.add_theme_stylebox_override("panel",
+		EmeraldTheme.panel_box(Color(0.01, 0.05, 0.04, 1.0), EmeraldTheme.GOLD_DIM, 1, 4, 2))
 	_left_column.add_child(frame)
 
 	var vp_container := SubViewportContainer.new()
@@ -207,7 +209,7 @@ func _build_viewport() -> void:
 	var world_env := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color(0.12, 0.13, 0.18)
+	env.background_color = Color(0.05, 0.11, 0.10)  # emerald dusk
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.55, 0.57, 0.65)
 	env.ambient_light_energy = 0.7
@@ -224,7 +226,7 @@ func _build_viewport() -> void:
 	plane.size = Vector2(6, 6)
 	ground.mesh = plane
 	var ground_mat := StandardMaterial3D.new()
-	ground_mat.albedo_color = Color(0.18, 0.19, 0.24)
+	ground_mat.albedo_color = Color(0.11, 0.19, 0.16)
 	ground.material_override = ground_mat
 	vp.add_child(ground)
 
@@ -278,6 +280,8 @@ func _build_viewport() -> void:
 	# --- Enemy info / behaviour panel ---
 	var info_panel := PanelContainer.new()
 	info_panel.custom_minimum_size = Vector2(0, 120)
+	info_panel.add_theme_stylebox_override("panel",
+		EmeraldTheme.panel_box(Color(0.01, 0.06, 0.05, 0.85), EmeraldTheme.GOLD_DIM, 1, 4, 4))
 	_left_column.add_child(info_panel)
 
 	_info_label = RichTextLabel.new()
@@ -322,8 +326,7 @@ func _populate_list() -> void:
 func _add_section_header(text: String) -> void:
 	var header := Label.new()
 	header.text = text
-	header.add_theme_font_size_override("font_size", 16)
-	header.add_theme_color_override("font_color", Color(1.0, 0.6, 0.4))
+	EmeraldTheme.style_heading(header, 19)
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 6)
 	_list_vbox.add_child(spacer)
@@ -335,6 +338,9 @@ func _add_entry(type: int, label: String, search: String) -> void:
 	btn.text = label
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	btn.clip_text = true
+	_style_list_button(btn)
 	btn.pressed.connect(_select_type.bind(type))
 	_list_vbox.add_child(btn)
 	_entry_buttons.append({"button": btn, "search": search.to_lower()})
@@ -411,8 +417,10 @@ func _update_info(type: int) -> void:
 		return
 	var special: String = d.get("special", "")
 	special = special.replace("\n", "\n")
-	_info_label.text = "[b]%s[/b]  [color=#9aa]%s[/color]\n[color=#cfd]HP %d   Armor %d   DMG %d   XP %d[/color]\n\n%s" % [
-		d.get("name", "Enemy"), d.get("type", ""),
+	_info_label.text = "[b][color=#%s]%s[/color][/b]  [color=#%s]%s[/color]\n[color=#%s]HP %d   Armor %d   DMG %d   XP %d[/color]\n\n%s" % [
+		EmeraldTheme.GOLD.to_html(false), d.get("name", "Enemy"),
+		EmeraldTheme.TEXT_DIM.to_html(false), d.get("type", ""),
+		EmeraldTheme.TITLE.to_html(false),
 		int(d.get("health", 0)), int(d.get("armor", 0)), int(d.get("damage", 0)), int(d.get("xp", 0)),
 		special,
 	]
@@ -521,3 +529,34 @@ func _on_back() -> void:
 	var title = load(TitleMenuScene).instantiate()
 	get_tree().root.add_child(title)
 	queue_free()
+
+
+# =============================================================
+# EMERALD THEME HELPERS
+# =============================================================
+
+## Seat a column on a dark emerald glass panel so it reads over the forest.
+func _glass_panel(column: Control, expand: bool) -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL if expand else Control.SIZE_FILL
+	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	panel.add_theme_stylebox_override("panel",
+		EmeraldTheme.panel_box(EmeraldTheme.PANEL_BG, EmeraldTheme.GOLD_DIM, 1, 6, 10))
+	panel.add_child(column)
+	return panel
+
+## List rows: bare text until hovered, then the theme's glass and gold.
+static func _style_list_button(btn: Button) -> void:
+	var bare := StyleBoxEmpty.new()
+	bare.content_margin_left = 8
+	bare.content_margin_right = 8
+	bare.content_margin_top = 1
+	bare.content_margin_bottom = 3
+	btn.add_theme_stylebox_override("normal", bare)
+	var hover := EmeraldTheme.button_box(EmeraldTheme.PALETTE["btn_hover_bg"], EmeraldTheme.PALETTE["btn_hover_border"], 1, 3)
+	hover.content_margin_left = 8
+	hover.content_margin_top = 1
+	hover.content_margin_bottom = 3
+	btn.add_theme_stylebox_override("hover", hover)
+	btn.add_theme_stylebox_override("pressed", hover)
+	btn.add_theme_constant_override("outline_size", 0)
