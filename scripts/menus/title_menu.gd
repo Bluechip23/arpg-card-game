@@ -12,64 +12,24 @@ const LoadOrNewScene = preload("res://scenes/character/load_or_new.tscn")
 const TitleCutsceneScript = preload("res://scripts/menus/title_cutscene.gd")
 const DRAUPNIR := preload("res://assets/items/mythic/draupnir.png")
 
-## The three forest looks on offer for the title screen (the designer picks
-## one; until then 1 / 2 / 3 on the title screen swaps between them). Each is
+## The title screen's look, "Emerald Sanctum" (designer's pick, 2026-10-25):
 ## the backdrop palette the cutscene paints with plus the menu's button style.
-const STYLES := [
-	{
-		"name": "Moonlit Glade",
-		# Backdrop
-		"sky_top": Color(0.02, 0.05, 0.05), "sky_horizon": Color(0.07, 0.19, 0.13),
-		"stars": true, "moon": Color(0.93, 0.95, 0.82), "moon_crescent": true,
-		"ground": Color(0.05, 0.12, 0.06), "ground_edge": Color(0.10, 0.22, 0.10),
-		"tree_back": Color(0.13, 0.25, 0.18), "tree_front": Color(0.05, 0.10, 0.07),
-		"motes": Color(0.85, 1.0, 0.45), "mote_count": 24,
-		"mist": Color(0, 0, 0, 0),
-		"title_fill": Color(0.98, 0.85, 0.48), "title_outline": Color(0.05, 0.16, 0.07),
-		# Menu: bare script lettering, a faint leaf-green wash on hover
-		"btn_bg": Color(0, 0, 0, 0), "btn_border": Color(0, 0, 0, 0), "btn_border_w": 0,
-		"btn_hover_bg": Color(0.05, 0.16, 0.08, 0.55), "btn_hover_border": Color(0.85, 0.72, 0.35, 0.0),
-		"btn_hover_border_w": 0, "btn_radius": 18, "btn_glow": Color(0, 0, 0, 0),
-		"btn_font": Color(0.93, 0.89, 0.74), "btn_font_hover": Color(1.0, 0.86, 0.42),
-		"btn_outline": Color(0.03, 0.08, 0.04, 0.9), "panel": Color(0, 0, 0, 0),
-	},
-	{
-		"name": "Elderwood Dusk",
-		"sky_top": Color(0.17, 0.16, 0.30), "sky_horizon": Color(0.92, 0.58, 0.26),
-		"stars": false, "moon": Color(1.0, 0.86, 0.55), "moon_crescent": false,
-		"ground": Color(0.13, 0.20, 0.07), "ground_edge": Color(0.27, 0.38, 0.13),
-		"tree_back": Color(0.26, 0.18, 0.20), "tree_front": Color(0.12, 0.08, 0.07),
-		"motes": Color(1.0, 0.82, 0.45), "mote_count": 16,
-		"mist": Color(1.0, 0.75, 0.45, 0.07),
-		"title_fill": Color(0.99, 0.95, 0.82), "title_outline": Color(0.32, 0.17, 0.06),
-		# Menu: carved-wood plaques with gilt edges
-		"btn_bg": Color(0.30, 0.19, 0.09, 0.94), "btn_border": Color(0.74, 0.56, 0.26), "btn_border_w": 2,
-		"btn_hover_bg": Color(0.42, 0.27, 0.12, 0.97), "btn_hover_border": Color(1.0, 0.83, 0.42),
-		"btn_hover_border_w": 3, "btn_radius": 10, "btn_glow": Color(0, 0, 0, 0.45),
-		"btn_font": Color(0.98, 0.92, 0.78), "btn_font_hover": Color(1.0, 0.98, 0.88),
-		"btn_outline": Color(0.18, 0.09, 0.03, 0.9), "panel": Color(0, 0, 0, 0),
-	},
-	{
-		"name": "Emerald Sanctum",
-		"sky_top": Color(0.01, 0.05, 0.07), "sky_horizon": Color(0.06, 0.27, 0.25),
-		"stars": true, "moon": Color(0.82, 1.0, 0.93), "moon_crescent": true,
-		"ground": Color(0.03, 0.11, 0.09), "ground_edge": Color(0.08, 0.28, 0.22),
-		"tree_back": Color(0.12, 0.33, 0.30), "tree_front": Color(0.03, 0.09, 0.08),
-		"motes": Color(0.55, 1.0, 0.85), "mote_count": 32, "aurora": true,
-		"mist": Color(0.45, 0.95, 0.80, 0.10),
-		"title_fill": Color(0.58, 0.98, 0.72), "title_outline": Color(0.42, 0.30, 0.07),
-		# Menu: elven glass on a gilt-edged tablet
-		"btn_bg": Color(0.03, 0.14, 0.11, 0.80), "btn_border": Color(0.70, 0.56, 0.26), "btn_border_w": 1,
-		"btn_hover_bg": Color(0.05, 0.23, 0.18, 0.92), "btn_hover_border": Color(0.98, 0.82, 0.40),
-		"btn_hover_border_w": 2, "btn_radius": 4, "btn_glow": Color(0.98, 0.80, 0.35, 0.35),
-		"btn_font": Color(0.80, 0.96, 0.86), "btn_font_hover": Color(1.0, 0.90, 0.55),
-		"btn_outline": Color(0.01, 0.06, 0.05, 0.9), "panel": Color(0.01, 0.07, 0.06, 0.55),
-	},
-]
-
-## Which STYLES entry is showing. Static, so it survives returning to the
-## title from another screen.
-static var style: int = 0
+const STYLE := {
+	"name": "Emerald Sanctum",
+	"sky_top": Color(0.01, 0.05, 0.07), "sky_horizon": Color(0.06, 0.27, 0.25),
+	"stars": true, "moon": Color(0.82, 1.0, 0.93), "moon_crescent": true,
+	"ground": Color(0.03, 0.11, 0.09), "ground_edge": Color(0.08, 0.28, 0.22),
+	"tree_back": Color(0.12, 0.33, 0.30), "tree_front": Color(0.03, 0.09, 0.08),
+	"motes": Color(0.55, 1.0, 0.85), "mote_count": 32, "aurora": true,
+	"mist": Color(0.45, 0.95, 0.80, 0.10),
+	"title_fill": Color(0.58, 0.98, 0.72), "title_outline": Color(0.42, 0.30, 0.07),
+	# Menu: elven glass on a gilt-edged tablet
+	"btn_bg": Color(0.03, 0.14, 0.11, 0.80), "btn_border": Color(0.70, 0.56, 0.26), "btn_border_w": 1,
+	"btn_hover_bg": Color(0.05, 0.23, 0.18, 0.92), "btn_hover_border": Color(0.98, 0.82, 0.40),
+	"btn_hover_border_w": 2, "btn_radius": 4, "btn_glow": Color(0.98, 0.80, 0.35, 0.35),
+	"btn_font": Color(0.80, 0.96, 0.86), "btn_font_hover": Color(1.0, 0.90, 0.55),
+	"btn_outline": Color(0.01, 0.06, 0.05, 0.9), "panel": Color(0.01, 0.07, 0.06, 0.55),
+}
 
 @onready var title_label: Label = $VBox/TitleLabel
 @onready var menu_container: VBoxContainer = $VBox/MenuContainer
@@ -82,7 +42,6 @@ var _menu_buttons: Array[Button] = []
 var _cutscene: Control = null
 var _hovered: int = -1
 var _ring_t: float = 0.0
-var _style_hint: Label = null
 var _tablet: Panel = null
 
 var _menu_items: Array[Dictionary] = [
@@ -104,11 +63,8 @@ var _test_items: Array[Dictionary] = [
 	{"text": "Back", "action": "_on_test_back"},
 ]
 
-static func current_style() -> Dictionary:
-	return STYLES[clampi(style, 0, STYLES.size() - 1)]
-
 func _ready() -> void:
-	var pal := current_style()
+	var pal := STYLE
 	background.color = pal["sky_top"]
 	_build_menu()
 	# The cutscene draws the backdrop AND the title; the plain label is retired.
@@ -124,7 +80,6 @@ func _ready() -> void:
 	$VBox.visible = false
 	$VBox.modulate.a = 0.0
 	_cutscene.cutscene_finished.connect(_on_cutscene_finished)
-	_build_style_hint()
 
 func _on_cutscene_finished() -> void:
 	$VBox.visible = true
@@ -140,31 +95,10 @@ func _process(delta: float) -> void:
 		_left_rings[_hovered].rotation = rock
 		_right_rings[_hovered].rotation = -rock
 
-func _unhandled_input(event: InputEvent) -> void:
-	# Style preview: 1 / 2 / 3 swap the title screen's look.
-	if event is InputEventKey and event.pressed and not event.echo:
-		var idx: int = event.keycode - KEY_1
-		if idx >= 0 and idx < STYLES.size() and idx != style:
-			style = idx
-			var fresh = load("res://scenes/menus/title_menu.tscn").instantiate()
-			get_tree().root.add_child(fresh)
-			queue_free()
-
-func _build_style_hint() -> void:
-	_style_hint = Label.new()
-	_style_hint.text = "Style %d of %d: %s  (press 1 / 2 / 3 to compare)" % [
-		style + 1, STYLES.size(), current_style()["name"]]
-	_style_hint.add_theme_font_override("font", GameFonts.courgette())
-	_style_hint.add_theme_font_size_override("font_size", 16)
-	_style_hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.55))
-	_style_hint.position = Vector2(14, 8)
-	_style_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_style_hint)
-
 func _build_menu(items: Array[Dictionary] = []) -> void:
 	if items.is_empty():
 		items = _menu_items
-	var pal := current_style()
+	var pal := STYLE
 	# Clear any previous menu (used when swapping to/from the Test submenu).
 	for child in menu_container.get_children():
 		child.queue_free()

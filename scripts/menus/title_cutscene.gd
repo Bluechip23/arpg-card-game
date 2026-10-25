@@ -8,7 +8,7 @@ extends Control
 ## chair, telekinetically retrieves the pipe, and blows two great smoke rings
 ## that drift to the top of the screen and become the two O's of OLORIN.
 ## The remaining letters pop in, in Courgette, coloured by the title screen's
-## chosen style (see TitleMenu.STYLES). Click/ESC skips.
+## palette (TitleMenu.STYLE). Click/ESC skips.
 ##
 ## The actors are Mana Seed NPC sprites — Olorin is the old-man sheet (his
 ## town NPC sprite) and the boy is the NPC-pack boy — drawn frame-by-frame from a
@@ -40,8 +40,8 @@ const WOOD := Color(0.5, 0.34, 0.18)
 const CHAIR_CLOTH := Color(0.3, 0.55, 0.4)
 const SMOKE := Color(0.82, 0.82, 0.88)
 
-## The look to paint with: a TitleMenu.STYLES entry, set before the node
-## enters the tree. Missing keys fall back to the Moonlit Glade colours.
+## The look to paint with (TitleMenu.STYLE), set before the node enters
+## the tree. Missing keys fall back to a plain night forest.
 var palette: Dictionary = {}
 
 func _p(key: String, fallback):
