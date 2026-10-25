@@ -163,6 +163,11 @@ BOARDS = {
     },
     "fire_mage": {
         "src": "fire_frost_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
+        "sky_tol": 12,   # his black hood against the black night sky
+        "warm_grow": 55,  # the headband's tails, his forearm wrap and flames
+        "drop_blue": True,  # snow-hill pockets between arm and side
+        # The headband's two tails, flying off the back of his hood.
+        "fg": {"right": [(28, 38, 72, 45, 5), (30, 47, 62, 54, 4), (72, 45, 92, 50, 3)]},
         "Idle": {
             "front": (485, 420, 675, 722),
             "back": (1180, 420, 1370, 722),
@@ -319,7 +324,8 @@ FEET_BAND = 0.10        # the bottom share of the figure where floor shadow is t
 
 
 def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim=True,
-                 drop_ice=False, bright_grow=0) -> np.ndarray:
+                 drop_ice=False, bright_grow=0, sky_tol=0, warm_grow=0,
+                 drop_blue=False) -> np.ndarray:
     """Background mask by GrabCut from the box, enclosed holes filled, and
     the ice's shadow under the feet (cool, unsaturated) trimmed."""
     if cv2 is None:
@@ -344,6 +350,16 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim
     m = GRABCUT_MARGIN
     mask[m:h - m, m:w - m] = cv2.GC_PR_FGD
     mask[(sky | ice) & (mask == cv2.GC_PR_FGD)] = cv2.GC_PR_BGD
+    if sky_tol:
+        # A near-black figure on the near-black night sky (the fire mage's
+        # hood): GrabCut can't tell them apart by colour model, but the sky
+        # is one flat colour and the figure's outline is blacker still, so
+        # the sky within `sky_tol` of its own colour, flooded from the edge,
+        # is certainly background — it stops at the outline.
+        flat = sky & (np.arange(h)[:, None] < h * 0.75)
+        tone = np.median(rgb[flat], axis=0) if flat.any() else np.array([12, 21, 26])
+        near = np.sqrt(((rgb - tone) ** 2).sum(-1)) <= sky_tol
+        mask[_flood(near, edge) & (mask != cv2.GC_BGD)] = cv2.GC_BGD
     for hint in fg_boxes:
         if len(hint) == 5:   # a line (x0, y0, x1, y1, width): a staff, a spear shaft
             cv2.line(mask, hint[0:2], hint[2:4], int(cv2.GC_FGD), hint[4])
@@ -354,9 +370,21 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim
     cv2.setRNGSeed(0)   # GrabCut seeds its colour models randomly: keep the cut repeatable
     cv2.grabCut(bgr, mask, None, bgd, fgd, GRABCUT_ITER, cv2.GC_INIT_WITH_MASK)
     fg = (mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD)
+    if sky_tol:
+        # Then win back the dark cloth GrabCut handed to the sky's colour
+        # model (the top of his hood): dark, neutral pixels (not the sky's
+        # own tone, not the blue snow) within a hood's depth of the figure.
+        cloth = ~near & (lum < 80) & (rgb[..., 2] - rgb[..., 0] <= 16)
+        close = _grow(fg, 12)
+        seeds = list(zip(*np.nonzero(fg)))
+        fg |= _flood((cloth & close) | fg, seeds) & (mask != cv2.GC_BGD)
     if sat_grow:
         seeds = list(zip(*np.nonzero(fg)))
         fg |= _flood((sat >= sat_grow) | fg, seeds)
+    if warm_grow:
+        # Saturated reds, oranges and skin only (the snow is saturated blue).
+        seeds = list(zip(*np.nonzero(fg)))
+        fg |= _flood(((sat >= warm_grow) & (rgb[..., 0] > rgb[..., 2] + 20)) | fg, seeds)
     if bright_grow:
         # Thin bright strands (lightning) against the dark sky: grow into
         # bright pixels touching the cut, never into the snow.
@@ -384,6 +412,13 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim
         for comp in _components(fg & ice_like):
             if len(comp) > HOLE_FILL_MAX:
                 fg[tuple(np.array(comp).T)] = False
+    if drop_blue:
+        # A figure with no blue on him: the shadowed snow hills seen between
+        # an arm and his side are background, whatever GrabCut said.
+        blue = fg & (rgb[..., 2] - rgb[..., 0] > 30) & (lum > 45)
+        for comp in _components(blue):
+            if len(comp) > 15:
+                fg[tuple(np.array(comp).T)] = False
     if feet_trim:
         ys = np.nonzero(fg.any(axis=1))[0]
         band = int(ys.max() - FEET_BAND * (ys.max() - ys.min()))
@@ -393,7 +428,8 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim
 
 
 def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
-        feet_trim=True, drop_ice=False, bright_grow=0) -> Image.Image:
+        feet_trim=True, drop_ice=False, bright_grow=0, sky_tol=0, warm_grow=0,
+        drop_blue=False) -> Image.Image:
     """The creature in `box`, full size, on transparency, cropped to itself."""
     rgb = np.asarray(board.crop(box).convert("RGB")).astype(int)
     h, w, _ = rgb.shape
@@ -401,7 +437,8 @@ def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
            [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
     bg_like = _background_like(rgb, kind) if kind != "grabcut" else None
     if kind == "grabcut":
-        bg = _cut_grabcut(rgb, fg_boxes, sat_grow, snow, feet_trim, drop_ice, bright_grow)
+        bg = _cut_grabcut(rgb, fg_boxes, sat_grow, snow, feet_trim, drop_ice, bright_grow, sky_tol, warm_grow,
+                          drop_blue)
     elif kind == "stone":
         bg = _cut_stone(rgb, bg_like, edge)
     else:
@@ -452,7 +489,8 @@ def build(name: str, cfg: dict) -> None:
                 full[anim][d] = cut(board, box, cfg["bg"], cfg.get("fg", {}).get(d, ()),
                                     cfg.get("sat_grow", 0), cfg.get("snow", False),
                                     cfg.get("feet_trim", True), cfg.get("drop_ice", False),
-                                    cfg.get("bright_grow", 0))
+                                    cfg.get("bright_grow", 0), cfg.get("sky_tol", 0),
+                                    cfg.get("warm_grow", 0), cfg.get("drop_blue", False))
         for d, box in cfg[anim].items():
             if box[0] == "mirror":
                 full[anim][d] = full[anim][box[1]].transpose(Image.FLIP_LEFT_RIGHT)
