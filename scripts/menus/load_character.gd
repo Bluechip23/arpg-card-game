@@ -21,65 +21,23 @@ func _ready() -> void:
 	popup_overlay.gui_input.connect(_on_overlay_click)
 
 func _apply_styles() -> void:
+	EmeraldTheme.apply(self)
 	title_label.text = "Load Character"
-	title_label.add_theme_font_size_override("font_size", 32)
-	title_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
+	EmeraldTheme.style_title(title_label, 44)
 
 	subtitle_label.text = "Select a saved character to continue your journey."
-	subtitle_label.add_theme_font_size_override("font_size", 13)
-	subtitle_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.72))
+	subtitle_label.add_theme_font_size_override("font_size", 17)
+	subtitle_label.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 
-	# Back button
-	back_button.add_theme_font_size_override("font_size", 16)
-	var back_style = StyleBoxFlat.new()
-	back_style.bg_color = Color(0.2, 0.2, 0.25)
-	back_style.border_width_left = 1
-	back_style.border_width_right = 1
-	back_style.border_width_top = 1
-	back_style.border_width_bottom = 1
-	back_style.border_color = Color(0.4, 0.4, 0.5)
-	back_style.corner_radius_top_left = 4
-	back_style.corner_radius_top_right = 4
-	back_style.corner_radius_bottom_left = 4
-	back_style.corner_radius_bottom_right = 4
-	back_button.add_theme_stylebox_override("normal", back_style)
-	var back_hover = StyleBoxFlat.new()
-	back_hover.bg_color = Color(0.3, 0.3, 0.35)
-	back_hover.border_width_left = 1
-	back_hover.border_width_right = 1
-	back_hover.border_width_top = 1
-	back_hover.border_width_bottom = 1
-	back_hover.border_color = Color(0.5, 0.5, 0.6)
-	back_hover.corner_radius_top_left = 4
-	back_hover.corner_radius_top_right = 4
-	back_hover.corner_radius_bottom_left = 4
-	back_hover.corner_radius_bottom_right = 4
-	back_button.add_theme_stylebox_override("hover", back_hover)
+	EmeraldTheme.style_button(back_button, 16)
 
-	# Popup panel style
-	var panel_style = StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.1, 0.1, 0.15, 1.0)
-	panel_style.border_width_left = 2
-	panel_style.border_width_right = 2
-	panel_style.border_width_top = 2
-	panel_style.border_width_bottom = 2
-	panel_style.border_color = Color(0.4, 0.4, 0.6)
-	panel_style.corner_radius_top_left = 8
-	panel_style.corner_radius_top_right = 8
-	panel_style.corner_radius_bottom_left = 8
-	panel_style.corner_radius_bottom_right = 8
-	panel_style.content_margin_left = 20.0
-	panel_style.content_margin_right = 20.0
-	panel_style.content_margin_top = 15.0
-	panel_style.content_margin_bottom = 15.0
-	popup_panel.add_theme_stylebox_override("panel", panel_style)
-
-	popup_title.add_theme_font_size_override("font_size", 22)
-	popup_title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
-
-	# Close button
-	close_button.add_theme_font_size_override("font_size", 14)
-	_style_button(close_button, Color(0.4, 0.12, 0.12), Color(0.55, 0.18, 0.18), Color(0.7, 0.25, 0.25), Color(1.0, 0.35, 0.35))
+	# Inventory / Deck popup: solid emerald glass, gold frame.
+	popup_panel.add_theme_stylebox_override("panel",
+		EmeraldTheme.panel_box(EmeraldTheme.PANEL_BG_SOLID, EmeraldTheme.GOLD_DIM, 2, 8, 18.0))
+	EmeraldTheme.style_heading(popup_title, 26)
+	EmeraldTheme.style_button(close_button, 16)
+	close_button.custom_minimum_size = Vector2(140, 36)
+	close_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 
 func _load_save_slots() -> void:
 	var saves = SaveManager.get_all_saves()
@@ -95,29 +53,15 @@ func _load_save_slots() -> void:
 		var empty_label = Label.new()
 		empty_label.text = "No saved characters found."
 		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		empty_label.add_theme_font_size_override("font_size", 16)
-		empty_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+		empty_label.add_theme_font_size_override("font_size", 18)
+		empty_label.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 		slot_container.add_child(empty_label)
 
 func _create_save_slot_card(save: SaveData, slot: int) -> void:
 	var panel = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(0, 120)
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.1, 0.13, 1.0)
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
-	style.border_color = Color(0.35, 0.35, 0.5)
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
-	style.content_margin_left = 16.0
-	style.content_margin_right = 16.0
-	style.content_margin_top = 12.0
-	style.content_margin_bottom = 12.0
-	panel.add_theme_stylebox_override("panel", style)
+	panel.add_theme_stylebox_override("panel",
+		EmeraldTheme.panel_box(EmeraldTheme.PANEL_BG, EmeraldTheme.GOLD_DIM, 1, 6, 14.0))
 	slot_container.add_child(panel)
 
 	var hbox = HBoxContainer.new()
@@ -127,18 +71,8 @@ func _create_save_slot_card(save: SaveData, slot: int) -> void:
 	# ── Character Sprite ──
 	var sprite_panel = PanelContainer.new()
 	sprite_panel.custom_minimum_size = Vector2(80, 96)
-	var sp_style = StyleBoxFlat.new()
-	sp_style.bg_color = Color(0.06, 0.06, 0.1, 1.0)
-	sp_style.border_width_left = 1
-	sp_style.border_width_right = 1
-	sp_style.border_width_top = 1
-	sp_style.border_width_bottom = 1
-	sp_style.border_color = Color(0.3, 0.3, 0.45)
-	sp_style.corner_radius_top_left = 4
-	sp_style.corner_radius_top_right = 4
-	sp_style.corner_radius_bottom_left = 4
-	sp_style.corner_radius_bottom_right = 4
-	sprite_panel.add_theme_stylebox_override("panel", sp_style)
+	sprite_panel.add_theme_stylebox_override("panel",
+		EmeraldTheme.panel_box(Color(0.01, 0.05, 0.04, 0.9), EmeraldTheme.GOLD_DIM, 1, 4, 2.0))
 	hbox.add_child(sprite_panel)
 
 	if save.character_data:
@@ -151,7 +85,7 @@ func _create_save_slot_card(save: SaveData, slot: int) -> void:
 		letter.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		letter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		letter.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		letter.add_theme_color_override("font_color", Color(0.35, 0.35, 0.5))
+		letter.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 		letter.add_theme_font_size_override("font_size", 36)
 		sprite_panel.add_child(letter)
 
@@ -164,29 +98,28 @@ func _create_save_slot_card(save: SaveData, slot: int) -> void:
 	# Character name
 	var name_label = Label.new()
 	name_label.text = save.character_name + ("  (Autosave)" if SaveManager.is_autosave(slot) else "")
-	name_label.add_theme_font_size_override("font_size", 20)
-	name_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	EmeraldTheme.style_heading(name_label, 24)
 	info_vbox.add_child(name_label)
 
 	# Level
 	var level_label = Label.new()
 	level_label.text = "Level %d" % save.character_level
-	level_label.add_theme_font_size_override("font_size", 14)
-	level_label.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
+	level_label.add_theme_font_size_override("font_size", 17)
+	level_label.add_theme_color_override("font_color", EmeraldTheme.TITLE)
 	info_vbox.add_child(level_label)
 
 	# Location
 	var location_label = Label.new()
 	location_label.text = "Location: %s" % save.current_location
-	location_label.add_theme_font_size_override("font_size", 12)
-	location_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.75))
+	location_label.add_theme_font_size_override("font_size", 15)
+	location_label.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 	info_vbox.add_child(location_label)
 
 	# Time played
 	var time_label = Label.new()
 	time_label.text = "Time Played: %s" % save.get_time_played_string()
-	time_label.add_theme_font_size_override("font_size", 12)
-	time_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.75))
+	time_label.add_theme_font_size_override("font_size", 15)
+	time_label.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 	info_vbox.add_child(time_label)
 
 	# ── Button Column ──
@@ -198,27 +131,25 @@ func _create_save_slot_card(save: SaveData, slot: int) -> void:
 	# Load button
 	var load_btn = Button.new()
 	load_btn.text = "Load"
-	load_btn.custom_minimum_size = Vector2(100, 35)
-	load_btn.add_theme_font_size_override("font_size", 14)
-	_style_button(load_btn, Color(0.15, 0.3, 0.15), Color(0.2, 0.4, 0.2), Color(0.3, 0.6, 0.3), Color(0.4, 0.8, 0.4))
+	load_btn.custom_minimum_size = Vector2(120, 38)
+	EmeraldTheme.style_button(load_btn, 18)
+	EmeraldTheme.add_ring_markers(load_btn, 28.0)
 	load_btn.pressed.connect(_on_load_slot.bind(save))
 	btn_vbox.add_child(load_btn)
 
 	# Inventory button
 	var inv_btn = Button.new()
 	inv_btn.text = "Inventory"
-	inv_btn.custom_minimum_size = Vector2(100, 35)
-	inv_btn.add_theme_font_size_override("font_size", 14)
-	_style_button(inv_btn, Color(0.15, 0.25, 0.45), Color(0.2, 0.35, 0.6), Color(0.3, 0.5, 0.8), Color(0.4, 0.65, 1.0))
+	inv_btn.custom_minimum_size = Vector2(120, 34)
+	EmeraldTheme.style_button(inv_btn, 16)
 	inv_btn.pressed.connect(_show_inventory_popup.bind(save))
 	btn_vbox.add_child(inv_btn)
 
 	# Deck button
 	var deck_btn = Button.new()
 	deck_btn.text = "Deck"
-	deck_btn.custom_minimum_size = Vector2(100, 35)
-	deck_btn.add_theme_font_size_override("font_size", 14)
-	_style_button(deck_btn, Color(0.35, 0.2, 0.45), Color(0.45, 0.28, 0.58), Color(0.55, 0.35, 0.7), Color(0.7, 0.45, 0.9))
+	deck_btn.custom_minimum_size = Vector2(120, 34)
+	EmeraldTheme.style_button(deck_btn, 16)
 	deck_btn.pressed.connect(_show_deck_popup.bind(save))
 	btn_vbox.add_child(deck_btn)
 
@@ -253,15 +184,15 @@ func _show_inventory_popup(save: SaveData) -> void:
 	if save.equipped_item_names.size() == 0:
 		var empty = Label.new()
 		empty.text = "No items equipped."
-		empty.add_theme_font_size_override("font_size", 13)
-		empty.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+		empty.add_theme_font_size_override("font_size", 16)
+		empty.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 		popup_content.add_child(empty)
 	else:
 		for item_name in save.equipped_item_names:
 			var lbl = Label.new()
 			lbl.text = item_name
-			lbl.add_theme_font_size_override("font_size", 13)
-			lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+			lbl.add_theme_font_size_override("font_size", 16)
+			lbl.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 			popup_content.add_child(lbl)
 
 	popup_overlay.visible = true
@@ -275,8 +206,8 @@ func _show_deck_popup(save: SaveData) -> void:
 	if save.deck_card_ids.size() == 0:
 		var empty = Label.new()
 		empty.text = "No cards in deck."
-		empty.add_theme_font_size_override("font_size", 13)
-		empty.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+		empty.add_theme_font_size_override("font_size", 16)
+		empty.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 		popup_content.add_child(empty)
 	else:
 		# Count duplicates for cleaner display
@@ -295,7 +226,7 @@ func _show_deck_popup(save: SaveData) -> void:
 				lbl.text = "%s x%d" % [display_name, count]
 			else:
 				lbl.text = display_name
-			lbl.add_theme_font_size_override("font_size", 13)
+			lbl.add_theme_font_size_override("font_size", 16)
 			lbl.add_theme_color_override("font_color", _get_card_color(card_id))
 			popup_content.add_child(lbl)
 
@@ -324,7 +255,7 @@ func _get_card_color(card_id: String) -> Color:
 	elif card_id in utility_ids:
 		return Color(0.5, 1.0, 0.5)  # Green-ish
 	else:
-		return Color(0.85, 0.85, 0.9)  # Default light
+		return EmeraldTheme.TEXT  # Default light
 
 func _clear_popup_content() -> void:
 	for child in popup_content.get_children():
@@ -341,31 +272,3 @@ func _on_back_pressed() -> void:
 	var load_or_new_scene = load("res://scenes/character/load_or_new.tscn").instantiate()
 	get_tree().root.add_child(load_or_new_scene)
 	queue_free()
-
-# ── Helpers ──
-
-func _style_button(btn: Button, normal_bg: Color, hover_bg: Color, normal_border: Color, hover_border: Color) -> void:
-	var ns = StyleBoxFlat.new()
-	ns.bg_color = normal_bg
-	ns.border_width_left = 2
-	ns.border_width_right = 2
-	ns.border_width_top = 2
-	ns.border_width_bottom = 2
-	ns.border_color = normal_border
-	ns.corner_radius_top_left = 6
-	ns.corner_radius_top_right = 6
-	ns.corner_radius_bottom_left = 6
-	ns.corner_radius_bottom_right = 6
-	btn.add_theme_stylebox_override("normal", ns)
-	var hs = StyleBoxFlat.new()
-	hs.bg_color = hover_bg
-	hs.border_width_left = 2
-	hs.border_width_right = 2
-	hs.border_width_top = 2
-	hs.border_width_bottom = 2
-	hs.border_color = hover_border
-	hs.corner_radius_top_left = 6
-	hs.corner_radius_top_right = 6
-	hs.corner_radius_bottom_left = 6
-	hs.corner_radius_bottom_right = 6
-	btn.add_theme_stylebox_override("hover", hs)
