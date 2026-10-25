@@ -128,7 +128,7 @@ func _plan(state: SimState) -> Variant:
 	var best := {"value": wait_score, "seq": [], "first": {"type": "wait"}}
 	_nodes = 0
 	_dfs([], shadow0, 0.0, steps, state, threats, registry, budget, pot_now, best)
-	# One-step plans for moves, point spends, swaps, grips, jail, dismiss:
+	# One-step plans for moves, point spends, swaps, two-handing, jail, dismiss:
 	# lookahead's own score (they change no potential).
 	for a in singles:
 		var t := str(a["type"])
@@ -239,7 +239,7 @@ func _step_tempo(a: Dictionary, state: SimState) -> int:
 		"move": return 0 if bool(a.get("flash", false)) else 1
 		"flash_block", "flash_proc", "brain_draw", "brain_peek", "dismiss": return 0
 		"weapon_swap": return int(state.weapon_swaps[int(a["swap"])]["tempo"])
-		"grip": return int(state.grips[int(a["grip"])]["tempo"])
+		"two_hand": return int(state.two_hands[int(a["two_hand"])]["tempo"])
 		"jail": return 1
 	return 1
 

@@ -99,7 +99,7 @@ func _initialize() -> void:
 		"Ryan: gauntlet slots carry no badge")
 	_check(_badge_tip(panel, ItemData.ItemType.WEAPON, 0) == "",
 		"Ryan: main hand carries no badge")
-	_check(_badge_tip(panel, ItemData.ItemType.WEAPON, 1).contains("10% penalty"),
+	_check(_badge_tip(panel, ItemData.ItemType.WEAPON, 1).contains("10% weaker"),
 		"Ryan: off hand carries the -10% penalty badge")
 
 	inv.initialize("Cory")
@@ -117,7 +117,7 @@ func _initialize() -> void:
 		"Brad: belt slot carries no badge")
 
 	inv.initialize("Stephen")
-	_check(_badge_tip(panel, ItemData.ItemType.WEAPON, 1).contains("10% bonus"),
+	_check(_badge_tip(panel, ItemData.ItemType.WEAPON, 1).contains("10% stronger"),
 		"Stephen: off hand carries the +10% bonus badge")
 
 	_test_shared_storage_pool()

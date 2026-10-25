@@ -50,9 +50,14 @@ func _initialize() -> void:
 	quiver.weight = 2
 	_check(inv.equip_item(quiver, 1), "quiver still equips alongside the bow")
 
-	# --- Quiver first, then bow: also legal ---
-	_check(inv.unequip_item(ItemData.ItemType.WEAPON, 0) == bow, "bow unequips (quiver stays)")
-	_check(inv.equip_item(bow, 0), "bow re-equips alongside the already-worn quiver")
+	# --- A quiver is only worn beside a bow (designer, 2026-10-25) ---
+	_check(inv.unequip_item(ItemData.ItemType.WEAPON, 0) == bow, "bow unequips")
+	_check(inv.equipped_weapons[1] == null and inv.stored_items.has(quiver),
+		"the quiver comes off with the bow, back to the bag")
+	inv.stored_items.erase(quiver)
+	_check(not inv.equip_item(quiver, 1), "a quiver alone is refused: %s" % inv.last_refusal)
+	_check(inv.equip_item(bow, 0), "bow re-equips")
+	_check(inv.equip_item(quiver, 1), "then the quiver fits beside it")
 	_check(inv.unequip_item(ItemData.ItemType.QUIVER, 1) == quiver, "quiver unequips")
 
 	# --- Other weapon first: bow refused ---
@@ -101,8 +106,8 @@ func _initialize() -> void:
 	_check(sinv.equip_item(Fixtures.sword(), 0), "sword equips once the staff is gone")
 	_check(not sinv.equip_item(staff, 1), "staff refused while a sword is held")
 	sinv.unequip_item(ItemData.ItemType.WEAPON, 0)
-	_check(sinv.equip_item(Fixtures.quiver(), 1), "quiver equips first")
-	_check(not sinv.equip_item(staff, 0), "staff refused while a quiver is worn")
+	_check(not sinv.equip_item(Fixtures.quiver(), 1), "a quiver never goes on without a bow")
+	_check(sinv.equip_item(staff, 0), "the staff fits the empty hands")
 
 	# --- War Rack: a staff is a weapon for it; a quiver is not ---
 	var rig4 = _fresh_inventory("Brad")

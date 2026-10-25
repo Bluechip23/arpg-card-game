@@ -1427,7 +1427,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 	# add_armor), and cleared when the card finishes so a card that grants no
 	# armor never leaves it waiting for the next unrelated gain.
 	if player_stats:
-		player_stats.defense_card_bonus_pending = player_stats.equipment_defense_card_block != 0
+		player_stats.defense_card_bonus_pending = player_stats.get_defense_card_block() != 0
 
 	# Apply on-self bonuses from the item this card is slotted in
 	var on_self := get_on_self_bonus()
@@ -2428,7 +2428,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		if player_stats.inventory and "equipped_weapons" in player_stats.inventory:
 			for ls_w in player_stats.inventory.equipped_weapons:
 				if ls_w and ls_w.vitality_weapon and ls_w.vitality_stacks > 0:
-					ls_pct += float(ls_w.vitality_stacks)
+					ls_pct += float(ls_w.vitality_stacks) * ls_w.rider_scale()  # off-hand modifier
 		if deck_manager and deck_manager.has_method("get_maintained_cards"):
 			for mc in deck_manager.get_maintained_cards():
 				if mc and mc.card_id == "resourceful_replenish":
@@ -2487,9 +2487,10 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 					# Only the attack-speed counter ticks — not the "real
 					# attack" streaks (Wizard Hat, sneakers, free-hand echo).
 					player_stats.register_attack(false)
-					if target.has_method("apply_debuff"):
-						target.apply_debuff("bleed", st_w.same_target_bleed)
-					print("[CARD] Sabre Tooth: extra attack tick + %d Bleed" % st_w.same_target_bleed)
+					var st_bleed: int = st_w.rider_int(st_w.same_target_bleed)  # off-hand modifier
+					if target.has_method("apply_debuff") and st_bleed > 0:
+						target.apply_debuff("bleed", st_bleed)
+					print("[CARD] Sabre Tooth: extra attack tick + %d Bleed" % st_bleed)
 				break
 		player_stats.last_attack_target = target
 
@@ -2607,7 +2608,8 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 						["vulnerable", sw.attack_apply_vulnerable]]:
 					var sw_amt: int = int(sw_pair[1])
 					if sw_amt > 0:
-						if sw.rider_fizzles():
+						sw_amt = sw.rider_int(sw_amt)  # off-hand modifier
+						if sw_amt <= 0:
 							print("[CARD] %s: off-hand %s fizzles" % [sw.item_name, str(sw_pair[0])])
 							continue
 						# Silence is timed, not stacked: "1 Silence" reads as one

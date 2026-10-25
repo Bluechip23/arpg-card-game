@@ -285,7 +285,7 @@ func show_tour(tutorial_id: String, steps: Array, force: bool = false) -> bool:
 
 var _tour_steps: Array = []
 var _tour_index: int = -1
-var _tour_panel: PanelContainer = null
+var _tour_panel: PanelContainer = null  # the current beat's speech bar
 var _spotlight: SpotlightOverlay = null
 
 func tour_step_index() -> int:
@@ -307,12 +307,12 @@ func _tour_next() -> void:
 		_tour_panel.queue_free()
 	var last := _tour_index == _tour_steps.size() - 1
 	# A tour of several beats can be left at any beat but the last.
-	_tour_panel = _build_panel(str(step.get("title", "")), step.get("paragraphs", []), null, -1,
+	_tour_panel = _build_speech_bar(str(step.get("title", "")), step.get("paragraphs", []), null, -1,
 			OLORIN_SPEAKER, "Farewell" if last else "Continue", _tour_next,
 			"" if last else "Skip", _close)
 	_layer.add_child(_tour_panel)
-	_anchor_beside(_tour_panel, hole)
-	_keep_on_screen(_tour_panel)
+	_dock_bar(_tour_panel, placement_for(hole, get_viewport().get_visible_rect().size))
+	_keep_clear(_tour_panel, hole)
 
 ## The screen rectangle covering every visible Control in `focus`, padded.
 ## Rect2() (empty) when nothing is lit.
@@ -331,67 +331,66 @@ static func _focus_rect(focus: Array) -> Rect2:
 		return Rect2()
 	return out.grow(10.0)
 
-## Where the dialog sits so it never covers the lit part of the screen:
-## "centre" when nothing is lit or the lit area sits clear of the screen's
-## middle column (the bottom-left action column), "below" a lit area in the
-## top half, "above" one in the bottom half.
+## Where Olorin's speech bar docks so it never covers the lit part of the
+## screen: along the "bottom" as usual, or along the "top" when the lit area
+## reaches down into the bottom strip the bar fills. A lit area that spans
+## both strips takes the edge it overlaps least.
 static func placement_for(hole: Rect2, screen: Vector2) -> String:
 	if hole.size == Vector2.ZERO:
-		return "centre"
-	var column_left := (screen.x - TOUR_PANEL_WIDTH) * 0.5 - TOUR_MARGIN
-	var column_right := column_left + TOUR_PANEL_WIDTH + TOUR_MARGIN * 2.0
-	if hole.end.x < column_left or hole.position.x > column_right:
-		return "centre"
-	return "below" if hole.get_center().y < screen.y * 0.5 else "above"
+		return "bottom"
+	var bottom_strip := Rect2(0, screen.y - SPEECH_ZONE, screen.x, SPEECH_ZONE)
+	var top_strip := Rect2(0, 0, screen.x, SPEECH_ZONE)
+	var under_bottom := _overlap_area(hole, bottom_strip)
+	if under_bottom <= 0.0:
+		return "bottom"
+	return "top" if _overlap_area(hole, top_strip) < under_bottom else "bottom"
 
-const TOUR_PANEL_WIDTH := 520.0
+static func _overlap_area(a: Rect2, b: Rect2) -> float:
+	var r := a.intersection(b)
+	return r.size.x * r.size.y
+
+## Height the bar is planned around (portrait, a few lines, buttons).
+const SPEECH_ZONE := 250.0
 const TOUR_MARGIN := 24.0
 
-## Anchors the dialog by placement_for: the panel keeps its natural height,
-## so it is pinned by anchors and offsets rather than measured. (Anchors are
-## set by hand: a preset applied after the panel joins the layer resolves
-## against an empty parent rect and lands at the screen's left edge.)
-func _anchor_beside(panel: Control, hole: Rect2) -> void:
-	var screen: Vector2 = get_viewport().get_visible_rect().size
-	var half := TOUR_PANEL_WIDTH * 0.5
-	panel.custom_minimum_size = Vector2(TOUR_PANEL_WIDTH, 0)
-	panel.anchor_left = 0.5
-	panel.anchor_right = 0.5
-	panel.offset_left = -half
-	panel.offset_right = half
-	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	match placement_for(hole, screen):
-		"below":
-			panel.anchor_top = 0.0
-			panel.anchor_bottom = 0.0
-			panel.offset_top = hole.end.y + TOUR_MARGIN
-			panel.offset_bottom = panel.offset_top
-			panel.grow_vertical = Control.GROW_DIRECTION_END
-		"above":
-			panel.anchor_top = 1.0
-			panel.anchor_bottom = 1.0
-			panel.offset_bottom = hole.position.y - TOUR_MARGIN - screen.y
-			panel.offset_top = panel.offset_bottom
-			panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
-		_:
-			panel.anchor_top = 0.5
-			panel.anchor_bottom = 0.5
-			panel.offset_top = 0.0
-			panel.offset_bottom = 0.0
-			panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+## Pin the speech bar to the bottom or top edge (full width either way).
+func _dock_bar(bar: Control, edge: String) -> void:
+	bar.anchor_left = 0.0
+	bar.anchor_right = 1.0
+	bar.offset_left = SPEECH_MARGIN
+	bar.offset_right = -SPEECH_MARGIN
+	if edge == "top":
+		bar.anchor_top = 0.0
+		bar.anchor_bottom = 0.0
+		bar.offset_top = SPEECH_MARGIN
+		bar.offset_bottom = SPEECH_MARGIN
+		bar.grow_vertical = Control.GROW_DIRECTION_END
+	else:
+		bar.anchor_top = 1.0
+		bar.anchor_bottom = 1.0
+		bar.offset_top = -SPEECH_MARGIN
+		bar.offset_bottom = -SPEECH_MARGIN
+		bar.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	bar.set_meta("edge", edge)
 
-## A tall dialog anchored above a lit area can run off the top of the
-## screen; once it has a size, slide it down to the margin (over the lit
-## area if it must) rather than lose its first lines.
-func _keep_on_screen(panel: Control) -> void:
-	await get_tree().process_frame
-	await get_tree().process_frame
-	if panel == null or not is_instance_valid(panel) or panel != _tour_panel:
+## Once the bar has its real height (a long beat runs taller than the planned
+## strip), make sure it still clears the lit area; if it does not, try the
+## other edge and keep whichever covers less of it.
+func _keep_clear(bar: Control, hole: Rect2) -> void:
+	for i in range(4):
+		await get_tree().process_frame
+	if bar == null or not is_instance_valid(bar) or bar != _tour_panel or hole.size == Vector2.ZERO:
 		return
-	var top: float = panel.global_position.y
-	if top < TOUR_MARGIN:
-		panel.offset_top += TOUR_MARGIN - top
-		panel.offset_bottom += TOUR_MARGIN - top
+	var here := _overlap_area(bar.get_global_rect(), hole)
+	if here <= 0.0:
+		return
+	var edge: String = bar.get_meta("edge", "bottom")
+	_dock_bar(bar, "top" if edge == "bottom" else "bottom")
+	await get_tree().process_frame
+	if not is_instance_valid(bar) or bar != _tour_panel:
+		return
+	if _overlap_area(bar.get_global_rect(), hole) > here:
+		_dock_bar(bar, edge)
 
 ## Dims the screen except for `hole`, which keeps a thin gold frame.
 class SpotlightOverlay extends Control:
@@ -488,7 +487,8 @@ const OLORIN_SHEET := "res://assets/sprites/NPCpackage1/npc old man A v01.png"
 ## framed close-up of the speaker on the left, their name and words beside
 ## it, and the same buttons as before at the bottom right.
 func _build_speech_bar(title: String, paragraphs: Array, icon: Control, icon_after_paragraph: int,
-		speaker_name: String, button_text: String, on_button: Callable) -> PanelContainer:
+		speaker_name: String, button_text: String, on_button: Callable,
+		secondary_text: String = "", on_secondary: Callable = Callable()) -> PanelContainer:
 	var bar := PanelContainer.new()
 	bar.name = "SpeechBar"
 	bar.anchor_left = 0.0
@@ -573,6 +573,11 @@ func _build_speech_bar(title: String, paragraphs: Array, icon: Control, icon_aft
 	buttons.add_theme_constant_override("separation", 12)
 	buttons.alignment = BoxContainer.ALIGNMENT_END
 	col.add_child(buttons)
+	if secondary_text != "" and on_secondary.is_valid():
+		var skip_btn = _panel_button(secondary_text, Color(0.12, 0.13, 0.2), Color(0.35, 0.4, 0.55))
+		skip_btn.name = "SkipButton"
+		skip_btn.pressed.connect(on_secondary)
+		buttons.add_child(skip_btn)
 	var continue_btn = _panel_button(button_text, Color(0.15, 0.25, 0.45), Color(0.4, 0.6, 1.0))
 	continue_btn.name = "ContinueButton"
 	continue_btn.pressed.connect(on_button)
@@ -634,113 +639,6 @@ func _fit_speech(bar: Control, body: ScrollContainer, content: Control) -> void:
 	# A fresh lambda per bar: the same method bound to other args counts as
 	# already connected once an earlier bar's hook is still waiting.
 	bar.get_viewport().size_changed.connect(func(): _fit_speech(bar, body, content), CONNECT_ONE_SHOT)
-
-## The arcane-blue speech panel: speaker line, title, paragraphs, an optional
-## inline picture, and one button that runs `on_button`.
-func _build_panel(title: String, paragraphs: Array, icon: Control, icon_after_paragraph: int,
-		speaker_name: String, button_text: String, on_button: Callable,
-		secondary_text: String = "", on_secondary: Callable = Callable()) -> PanelContainer:
-	var panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(600, 0)
-
-	# Arcane-blue frame with the T&O crest mounted top-center on the border.
-	var style = CrestStyleBox.new(Color(0.07, 0.08, 0.12, 0.98), Color(0.55, 0.7, 1.0), 10)
-	style.crest_size = 26.0
-	style.content_margin_top = 28.0
-	panel.add_theme_stylebox_override("panel", style)
-
-	var margin = MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 22)
-	margin.add_theme_constant_override("margin_right", 22)
-	margin.add_theme_constant_override("margin_top", 18)
-	margin.add_theme_constant_override("margin_bottom", 18)
-	panel.add_child(margin)
-
-	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 12)
-	margin.add_child(vbox)
-
-	var speaker = Label.new()
-	speaker.text = speaker_name
-	speaker.add_theme_font_size_override("font_size", 20)
-	speaker.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
-	speaker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(speaker)
-
-	if title != "":
-		var subtitle = Label.new()
-		subtitle.text = title
-		subtitle.add_theme_font_size_override("font_size", 13)
-		subtitle.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
-		subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		vbox.add_child(subtitle)
-
-	vbox.add_child(HSeparator.new())
-
-	# The paragraphs live in a scrolling body sized to the text, or to what
-	# the screen leaves after the header, buttons and margins — whichever is
-	# smaller — so the buttons are always on screen. (A long lesson at a
-	# wide, short window used to push Continue off the bottom edge, with no
-	# way to close the box.)
-	var body := ScrollContainer.new()
-	body.name = "Body"
-	body.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	body.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.custom_minimum_size = Vector2(0, 80)  # until _fit_body measures the text
-	vbox.add_child(body)
-	var content := VBoxContainer.new()
-	content.name = "Content"
-	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content.add_theme_constant_override("separation", 12)
-	body.add_child(content)
-
-	for i in range(paragraphs.size()):
-		var p = Label.new()
-		p.text = str(paragraphs[i])
-		p.add_theme_font_size_override("font_size", 15)
-		p.add_theme_color_override("font_color", Color(0.88, 0.88, 0.9))
-		p.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		content.add_child(p)
-		# Optional inline picture (e.g. the doughnut Olorin conjures overhead)
-		if icon and i + 1 == icon_after_paragraph:
-			content.add_child(icon)
-	if icon and icon.get_parent() == null:
-		content.add_child(icon)
-	_fit_body.call_deferred(panel, body, content)
-
-	vbox.add_child(HSeparator.new())
-
-	var buttons = HBoxContainer.new()
-	buttons.add_theme_constant_override("separation", 12)
-	buttons.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	vbox.add_child(buttons)
-	if secondary_text != "" and on_secondary.is_valid():
-		var skip_btn = _panel_button(secondary_text, Color(0.12, 0.13, 0.2), Color(0.35, 0.4, 0.55))
-		skip_btn.name = "SkipButton"
-		skip_btn.pressed.connect(on_secondary)
-		buttons.add_child(skip_btn)
-	var continue_btn = _panel_button(button_text, Color(0.15, 0.25, 0.45), Color(0.4, 0.6, 1.0))
-	continue_btn.name = "ContinueButton"
-	continue_btn.pressed.connect(on_button)
-	buttons.add_child(continue_btn)
-	return panel
-
-## Size a panel's scrolling body: its text's full height when the whole
-## panel fits the screen, else what the screen leaves for it (the panel's
-## header, buttons and margins come first). Re-run when the window resizes.
-func _fit_body(panel: Control, body: ScrollContainer, content: Control) -> void:
-	await get_tree().process_frame
-	await get_tree().process_frame
-	if not is_instance_valid(panel) or not is_instance_valid(body) or not is_instance_valid(content):
-		return
-	var screen_h: float = panel.get_viewport_rect().size.y
-	var chrome: float = panel.size.y - body.size.y  # everything but the body
-	var room: float = screen_h - 2.0 * TOUR_MARGIN - chrome
-	var text_h: float = content.get_combined_minimum_size().y
-	body.custom_minimum_size.y = clampf(text_h, 0.0, maxf(room, 80.0))
-	panel.get_viewport().size_changed.connect(_fit_body.bind(panel, body, content), CONNECT_ONE_SHOT)
 
 static func _panel_button(text: String, bg: Color, border: Color) -> Button:
 	var btn = Button.new()

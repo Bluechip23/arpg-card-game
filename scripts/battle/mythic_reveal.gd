@@ -3,7 +3,8 @@ extends Node3D
 
 ## The mythic loot ceremony. Looting a mythic doesn't just add it to the bag:
 ##  1. A big yellow glow bursts out of the player and expands as it travels.
-##  2. Where the glow ends, a green present with a purple ribbon appears.
+##  2. Where the glow ends, a green present with a purple ribbon appears —
+##     in battle, on an open tile right beside the player (`land_at`).
 ##  3. Clicking the present opens it: the mythic's icon rises out with flashy
 ##     coloration swirling around it.
 ##  4. Clicking the icon claims it — main stores it in the player's inventory.
@@ -16,6 +17,10 @@ const PRESENT_CLICK_RADIUS := 1.2
 # present inside its preview camera's frame).
 var glow_radius: float = 3.0    # tiles the glow expands before it ends
 var fixed_angle: float = NAN    # radians; NAN = random direction
+
+# Where the present lands, relative to the origin; set with land_at().
+var _has_landing := false
+var _landing := Vector3.ZERO
 
 var item: ItemData = null
 var state: String = "glow"      # "glow" -> "present" -> "icon" -> (freed)
@@ -32,10 +37,20 @@ static func start(p_item: ItemData, origin: Vector3) -> MythicReveal:
 	r.position = origin
 	return r
 
+## Land the present at this offset from the origin (battle: the tile next to
+## the player). The glow keeps its full glow_radius. Call before adding.
+func land_at(offset: Vector3) -> void:
+	_has_landing = true
+	_landing = Vector3(offset.x, 0, offset.z)
+
 func _ready() -> void:
-	# The present lands where the glow ends: a random direction, glow_radius out.
-	var angle := fixed_angle if not is_nan(fixed_angle) else randf() * TAU
-	_present_offset = Vector3(cos(angle), 0, sin(angle)) * glow_radius
+	# The present lands where the glow ends: the chosen spot, or else
+	# glow_radius out in fixed_angle's (or a random) direction.
+	if _has_landing:
+		_present_offset = _landing  # the glow still bursts its full radius
+	else:
+		var angle := fixed_angle if not is_nan(fixed_angle) else randf() * TAU
+		_present_offset = Vector3(cos(angle), 0, sin(angle)) * glow_radius
 	_run_glow()
 
 ## World position the player must click during "present"/"icon".

@@ -3422,6 +3422,11 @@ func _on_leveled_up_notify(_new_level: int) -> void:
 #region UNIT TRACKER
 func _setup_unit_tracker() -> void:
 	var ui := $UI as CanvasLayer
+	# Hover windows for the buff / debuff dots over enemies' heads.
+	var status_hover := EnemyStatusHover.new()
+	status_hover.name = "EnemyStatusHover"
+	status_hover.main = self
+	ui.add_child(status_hover)
 	unit_tracker = UnitTrackerUI.new()
 	unit_tracker.name = "UnitTracker"
 	ui.add_child(unit_tracker)
@@ -6434,8 +6439,9 @@ func _on_brain_draw_pressed() -> void:
 		if player and player.get_inventory():
 			for ue_w in player.get_inventory().equipped_weapons:
 				if ue_w and ue_w.insight_flash_restore > 0:
-					stats.gain_flash_points(ue_w.insight_flash_restore)
-					add_battle_log("%s: +%d flash" % [ue_w.item_name, ue_w.insight_flash_restore], Color(0.6, 0.6, 0.9))
+					var ue_flash: int = ue_w.rider_int(ue_w.insight_flash_restore)  # off-hand modifier
+					stats.gain_flash_points(ue_flash)
+					add_battle_log("%s: +%d flash" % [ue_w.item_name, ue_flash], Color(0.6, 0.6, 0.9))
 					break
 		update_peaked_display()
 		_update_brain_button()
@@ -8205,22 +8211,16 @@ func calculate_damage_preview_split(card: Card, target_enemy: Enemy) -> Dictiona
 	# Full player-side pipeline, shared with the card-face numbers.
 	var total_damage = _card_player_damage(card, high_ground)
 
-	# Enemy-side: Premeditated bonus damage
-	total_damage += target_enemy.bonus_damage_next_hit + target_enemy.premeditated_card_bonus
+	# Premeditated: the first card at an enemy Premeditated exposed carries
+	# its +15 onto the hit (Card._execute_card moves it onto the next hit).
+	total_damage += target_enemy.premeditated_card_bonus
 
-	# Enemy-side: Armor absorption
-	var armor_share := 0
-	if target_enemy.current_armor > 0:
-		# Armor Break: double damage to armor only, no health damage spillover
-		if buff_mgr and buff_mgr.has_armor_break():
-			var doubled = total_damage * 2
-			armor_share = min(target_enemy.current_armor, doubled)
-			total_damage = 0
-		else:
-			armor_share = min(target_enemy.current_armor, total_damage)
-			total_damage -= armor_share
-
-	return {"armor": max(0, armor_share), "health": max(0, total_damage)}
+	# Enemy side, exactly as take_damage will run it: resistances, lowered
+	# defense, Eat / Solemn Independence, Brace, the pending Premeditated
+	# bonus, Marked, the Narashimha aura, Vulnerable, Jordan 1s, Armor Break
+	# and armor.
+	var armor_break: bool = buff_mgr != null and buff_mgr.has_armor_break()
+	return target_enemy.preview_player_hit(total_damage, card.damage_type, armor_break)
 
 
 # Block cards whose _execute hardcodes the armor amount instead of reading
@@ -8270,7 +8270,7 @@ func _card_player_damage(card: Card, extra_flat: int = 0) -> int:
 		total += floori(card.base_damage * (hp_mult - 1.0))
 
 	# Stat scaling by school: INT spell pipeline for SPELL cards, STR physical
-	# (strength, enchantments, sphere, two-handed grip) for everything else.
+	# (strength, enchantments, sphere, two-handing) for everything else.
 	if card.school == Card.CardSchool.SPELL:
 		total = stats.get_effective_spell_damage(total)
 	else:
@@ -8340,6 +8340,8 @@ func get_card_vacuum_values(card: Card) -> Dictionary:
 				and card.card_id not in BASE_BLOCK_CARDS:
 			total_block += floori(card.base_block * (hp_mult - 1.0))
 		total_block += stats.enchantment_block_bonus + stats.sphere_bonus_block
+		# Equipment's per-card armor and a two-handed shield's block.
+		total_block += stats.get_defense_card_block()
 		# Bolster is consumed by exactly one card's armor pipeline.
 		if card.card_id == "smith_thy_soul" and buff_mgr:
 			total_block += buff_mgr.get_bolster_bonus()
@@ -9523,7 +9525,8 @@ func _weapon_post_card_effects(card: Card, target) -> void:
 		if pt_inv:
 			for pw in pt_inv.equipped_weapons:
 				if pw and pw.pierce_targets > 1:
-					pierce = pw.pierce_targets
+					# The squares past the target take the off-hand modifier.
+					pierce = 1 + pw.rider_int(pw.pierce_targets - 1)
 					break
 		if pierce > 1:
 			var dirv: Vector3 = target.position - player.position
@@ -10948,8 +10951,9 @@ func _on_armor_gained_spiked(amount: int) -> void:
 		if ue_w and ue_w.armor_gain_melee_damage > 0 and enemy_spawner and grid_manager:
 			var ue_victim := _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
 			if ue_victim and grid_manager.get_distance_in_cells(player.position, ue_victim.position) <= 1.5:
-				ue_victim.take_damage(ue_w.armor_gain_melee_damage, true)
-				add_battle_log("%s: %d moonlit damage to %s" % [ue_w.item_name, ue_w.armor_gain_melee_damage, ue_victim.enemy_name], Color(0.6, 0.6, 0.9))
+				var ue_dmg: int = ue_w.rider_int(ue_w.armor_gain_melee_damage)  # off-hand modifier
+				ue_victim.take_damage(ue_dmg, true)
+				add_battle_log("%s: %d moonlit damage to %s" % [ue_w.item_name, ue_dmg, ue_victim.enemy_name], Color(0.6, 0.6, 0.9))
 			break
 	for g in inv.equipped_gauntlets:
 		if g and g.armor_gain_thorns_threshold > 0:
@@ -11128,10 +11132,11 @@ func _shield_on_cycle_passives() -> void:
 	if not buff_mgr:
 		return
 	for shield in player.get_inventory().get_equipped_shields():
+		# Off-hand shields work at the off-hand modifier (rider_int).
 		if shield.regen_per_cycle > 0:
-			buff_mgr.apply_buff(Buff.create_regen(shield.regen_per_cycle, 15, shield.item_name))
+			buff_mgr.apply_buff(Buff.create_regen(shield.rider_int(shield.regen_per_cycle), 15, shield.item_name))
 		if shield.thorns_per_cycle > 0:
-			buff_mgr.apply_buff(Buff.create_thorns(shield.thorns_per_cycle, 5, shield.item_name))
+			buff_mgr.apply_buff(Buff.create_thorns(shield.rider_int(shield.thorns_per_cycle), 5, shield.item_name))
 
 ## A draw overflowed a full hand. Every equipped Overdraw rider collects.
 #endregion
@@ -11142,11 +11147,13 @@ func _on_overdraw_processed(_card: Card) -> void:
 	var stats := player.get_stats()
 	var buff_mgr := player.get_buff_manager()
 	for shield in player.get_inventory().get_equipped_shields():
+		# Off-hand shields work at the off-hand modifier (rider_int).
 		if shield.overdraw_heal > 0 and stats:
-			stats.heal(shield.overdraw_heal)
+			stats.heal(shield.rider_int(shield.overdraw_heal))
 		if shield.overdraw_regen > 0 and buff_mgr:
-			buff_mgr.apply_buff(Buff.create_regen(shield.overdraw_regen, 15, shield.item_name))
-			add_battle_log("%s: Overdraw — +%d Regen" % [shield.item_name, shield.overdraw_regen], Color(0.5, 0.85, 0.5))
+			var od_regen: int = shield.rider_int(shield.overdraw_regen)
+			buff_mgr.apply_buff(Buff.create_regen(od_regen, 15, shield.item_name))
+			add_battle_log("%s: Overdraw — +%d Regen" % [shield.item_name, od_regen], Color(0.5, 0.85, 0.5))
 		if shield.overdraw_peak > 0:
 			_overdraw_peak(shield)
 		if shield.overdraw_card_id != "":
@@ -11158,7 +11165,9 @@ func _on_overdraw_processed(_card: Card) -> void:
 func _overdraw_peak(shield: ItemData) -> void:
 	if not deck_manager or deck_manager.draw_pile.is_empty():
 		return
-	var depth: int = mini(shield.overdraw_peak, deck_manager.draw_pile.size())
+	var depth: int = mini(shield.rider_int(shield.overdraw_peak), deck_manager.draw_pile.size())
+	if depth <= 0:
+		return
 	var names: Array[String] = []
 	for i in range(depth):
 		var seen: Card = deck_manager.draw_pile[deck_manager.draw_pile.size() - 1 - i]
@@ -11191,7 +11200,8 @@ func _overdraw_conjure_to_manifest(shield: ItemData) -> void:
 	})
 	shield.conjured_in_manifest += 1
 	if shield.overdraw_card_block > 0 and player.get_stats():
-		player.get_stats().equipment_defense_card_block += shield.overdraw_card_block
+		# Floored (not random): it is taken back blade by blade later.
+		player.get_stats().equipment_defense_card_block += shield.rider_floor(shield.overdraw_card_block)
 	overflow_manager.manifest_card_added.emit(blade.card_name, blade)
 	overflow_manager.overflow_effects_changed.emit()
 	add_battle_log("%s: a %s waits in the manifest zone (%d/%d)" % [shield.item_name,
@@ -13757,7 +13767,7 @@ func _on_give_item(item_name: String) -> void:
 
 		for i in range(max_slots):
 			if slot_array[i] == null:
-				# Can fail (carry gate / grip-locked hand) — fall through to storage
+				# Can fail (carry gate / a hand locked by two-handing) — fall through to storage
 				if inv.equip_item(item, i):
 					print("[MAIN] Gave item: %s (equipped)" % item_name)
 					return
@@ -13815,7 +13825,7 @@ func _on_manifest_card_clicked(index: int) -> void:
 	if sleeve != null and sleeve.conjured_in_manifest > 0:
 		sleeve.conjured_in_manifest -= 1
 		if sleeve.overdraw_card_block > 0 and player.get_stats():
-			player.get_stats().equipment_defense_card_block -= sleeve.overdraw_card_block
+			player.get_stats().equipment_defense_card_block -= sleeve.rider_floor(sleeve.overdraw_card_block)
 
 	# Execute manifest effect
 	match result["manifest_id"]:
@@ -15479,11 +15489,35 @@ func _start_mythic_reveal(item: ItemData, looter: Player) -> void:
 	## Looting a mythic kicks off the ceremony (glow → present → icon) instead
 	## of a quiet inventory insert; _finish_mythic_reveal stores it on claim.
 	var reveal := MythicReveal.start(item, looter.position)
+	# The present always lands one tile from the player, never somewhere random.
+	reveal.land_at(_mythic_landing_offset(looter))
 	add_child(reveal)
 	reveal.claimed.connect(func(claimed_item): _finish_mythic_reveal(claimed_item, looter))
 	reveal.tree_exited.connect(func(): _mythic_reveals.erase(reveal))
 	_mythic_reveals.append(reveal)
 	add_battle_log("A MYTHIC reveals itself: %s!" % item.item_name, Color(0.9, 0.35, 0.9))
+
+## The open tile beside the looter where the mythic's present lands: the
+## first floor tile (no wall, pit, tree or enemy) going east, south, west,
+## north, then the diagonals; straight east if all are taken.
+func _mythic_landing_offset(looter: Player) -> Vector3:
+	var here: Vector2i = grid_manager.world_to_grid(looter.position)
+	var occupied: Array[Vector2i] = []
+	if enemy_spawner:
+		for e in enemy_spawner.get_living_enemies():
+			occupied.append(grid_manager.world_to_grid(e.position))
+	var dirs := [Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(0, -1),
+		Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, -1)]
+	var pick: Vector2i = dirs[0]
+	for d in dirs:
+		var t: Vector2i = here + d
+		if dungeon_manager == null:
+			break
+		if dungeon_manager.is_floor(t) and not dungeon_manager.pit_tiles.has(t) \
+				and not dungeon_manager.is_obstacle(t) and t not in occupied:
+			pick = d
+			break
+	return grid_manager.grid_to_world(here + pick) - grid_manager.grid_to_world(here)
 
 func _finish_mythic_reveal(item: ItemData, looter: Player) -> void:
 	var inv := looter.get_inventory() if is_instance_valid(looter) else (player.get_inventory() if player else null)

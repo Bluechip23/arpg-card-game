@@ -100,6 +100,9 @@ func _initialize() -> void:
 	var quiver := Fixtures.quiver()
 	_check(inv._get_slot_array(ItemData.ItemType.QUIVER) == inv.equipped_weapons,
 		"quiver routes to the weapon slot array")
+	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
+	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
+	inv.equip_item(Fixtures.bow(), 0)  # a quiver is only worn beside a bow
 	inv.equip_item(quiver, 1)  # into an off-hand weapon slot
 	_check(inv.get_equipped_item(ItemData.ItemType.WEAPON, 1) == quiver,
 		"quiver equips into a weapon (off-hand) slot")

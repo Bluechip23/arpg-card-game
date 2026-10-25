@@ -185,9 +185,16 @@ When your hand is full and you try to draw, the overflow system activates.
 - Armor (Head, Chest, Boots)
 - Accessories (Rings, Belt, Gauntlets)
 
-[color=yellow]Off-Hand Penalty:[/color]
-- Default: 90% effectiveness for off-hand items
-- Items do not make distinctions between being a main hand or off-hand
+[color=yellow]The Off Hand:[/color]
+- Whatever is in the off hand (weapon, shield or quiver) gives 90% of everything: stats, bonuses, slotted cards' on-self bonuses, and its effects (Stephen's White Sleeve: 110%)
+- Stats and bonuses round down (Stephen: up); a negative stat gets 10% worse (Stephen: 10% milder); other drawbacks are never reduced; Double Shot is never reduced
+- An item held two-handed is not in the off hand
+
+[color=yellow]Hands:[/color]
+- Free hand: one one-handed item, other hand empty: parry and Flash Cut cost 2 flash, every 12th attack echoes
+- Dual wielding (two weapons or two shields): the attack-speed counter needs 4 fewer attacks
+- Two-handing a one-handed weapon or shield: half its weight, 70% carry capacity, +1 damage (weapon) or +1 block on the Block button and armor cards (shield) per 25 weight
+- Bows and staffs are two-handed by nature; a quiver is only worn beside a bow
 
 [color=yellow]Ring Triggers:[/color]
 Rings have passive effects that trigger on events:
@@ -230,7 +237,7 @@ Everyone shares the same baseline slots: 1 helm, 2 rings, 1 belt, 1 chest,
 [color=red]Ryan:[/color] Belt cards cost 10 less mana (2 belt slots)
 [color=green]Brad:[/color] Chest items weigh 20% less. War Rack: one weapon strapped to his back. Drawing it is FREE — it comes to hand two-handed and its cards go straight to your hand; after 20 tempo it goes back up on its own (or earlier, by choice) and your usual gear returns. It can be drawn again 60 tempo after the last draw
 [color=blue]Jeremy:[/color] Every 3rd cycle, the first ring trigger triggers twice (3 ring slots)
-[color=purple]Stephen:[/color] +10% off-hand enchantments, others get -10% (standard slots)
+[color=purple]Stephen:[/color] White Sleeve: off-hand items work at 110%, others 90% (standard slots)
 [color=orange]Cory:[/color] Gain 10 mana when gauntlet skill comes off cooldown (2 gauntlet slots)
 
 [font_size=18][color=cyan]━━━ RNG ━━━[/color][/font_size]

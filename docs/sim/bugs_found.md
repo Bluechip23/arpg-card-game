@@ -233,7 +233,7 @@ Actual bugs (not balance), each with a repro. Fixed ones say so.
   now carries the real reason (mythic level, duplicate cap, a busy hand, a
   taken slot, carry) and the panel shows it.
 - **The War Rack's rule was not enforced.** The free exchange auto-two-handed
-  the incoming weapon, but the grip could be released and the plain exchange
+  the incoming weapon, but two-handing could be released and the plain exchange
   brought it down one-handed. A weapon in the rack's slot (on the rack, or in
   hand straight from it) is now held two-handed on either exchange and
   refuses to be held one-handed until it leaves the slot. The character card

@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Olorin's field tour: the spotlight overlay lights the beat's Controls and
-## dims the rest, the dialog keeps clear of the lit area, the beats advance
+## dims the rest, Olorin's speech bar docks clear of the lit area, the beats advance
 ## in order, and the tour is remembered on the character.
 
 var _fails := 0
@@ -72,16 +72,19 @@ func _run() -> void:
 	_check(not hole.has_point(Vector2(950, 350)), "a hidden Control is not lit")
 	_check(hole.position.x < 8.0 and hole.position.y < 8.0, "the lit area is padded around the widget")
 	var screen: Vector2 = get_root().get_visible_rect().size
-	_check(OlorinTutorial.placement_for(hole, screen) == "below", "the dialog goes below a top-of-screen widget")
-	_check(olorin._tour_panel != null, "the beat has its dialog")
+	_check(OlorinTutorial.placement_for(hole, screen) == "bottom", "a top-of-screen widget leaves the bar at the bottom")
+	_check(olorin._tour_panel != null, "the beat has its speech bar")
+	_check(olorin._tour_panel.find_child("Portrait", true, false) != null, "the bar shows Olorin's close-up")
+	_check(olorin._tour_panel.get_meta("edge", "") == "bottom", "the bar is docked at the bottom")
 
 	olorin._tour_next()
 	hole = olorin.tour_hole()
 	_check(hole.has_point(Vector2(100, screen_h - 100)), "the third beat lights the bottom-left widget")
-	_check(OlorinTutorial.placement_for(hole, screen) == "centre", "a bottom-left widget leaves the middle of the screen for the dialog")
-	var wide := Rect2(200, screen_h - 200, screen.x - 400, 150)
-	_check(OlorinTutorial.placement_for(wide, screen) == "above", "a wide widget along the bottom puts the dialog above it")
-	_check(OlorinTutorial.placement_for(Rect2(), screen) == "centre", "no lit area centres the dialog")
+	_check(OlorinTutorial.placement_for(hole, screen) == "top", "a bottom-of-screen widget moves the bar to the top")
+	_check(olorin._tour_panel.get_meta("edge", "") == "top", "the bar is docked at the top")
+	var tall := Rect2(8, 8, 200, screen_h - 100)
+	_check(OlorinTutorial.placement_for(tall, screen) == "bottom", "a widget spanning both edges takes the edge it overlaps least")
+	_check(OlorinTutorial.placement_for(Rect2(), screen) == "bottom", "no lit area keeps the bar at the bottom")
 
 	olorin._tour_next()
 	_check(not olorin.is_busy(), "the tour closes after the last beat")

@@ -215,7 +215,17 @@ func _on_character_selected(character: CharacterData) -> void:
 
 	_selected_character = character
 	_is_quiz_character = false
+	_open_confirm(character)
 
+## The questionnaire's "Play as …": its built character goes straight to the
+## Play-as confirmation (rename, Proceed). Its stats came from the answers,
+## so it skips the stat allocation the presets get.
+func select_quiz_character(character: CharacterData) -> void:
+	_selected_character = character
+	_is_quiz_character = true
+	_open_confirm(character)
+
+func _open_confirm(character: CharacterData) -> void:
 	# Show proceed/cancel confirmation
 	confirm_title.text = "Play as %s" % character.character_name
 	if game_mode == "multiplayer":
@@ -259,8 +269,9 @@ func _dispatch_proceed() -> void:
 		_handle_singleplayer_proceed()
 
 func _needs_allocation(character: CharacterData) -> bool:
-	# Fresh presets get the allocation screen before launching.
-	return character != null
+	# Fresh presets get the allocation screen before launching; a quiz
+	# character's answers already shaped its stats.
+	return character != null and not (_is_quiz_character and character == _selected_character)
 
 # ---- Stat allocation overlay ----
 
@@ -479,6 +490,7 @@ func _handle_multiplayer_proceed() -> void:
 
 func _on_cancel_pressed() -> void:
 	_selected_character = null
+	_is_quiz_character = false
 	confirm_overlay.visible = false
 
 func _on_back_pressed() -> void:

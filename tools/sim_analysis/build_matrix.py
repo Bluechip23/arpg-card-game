@@ -239,17 +239,17 @@ def main():
 
 
 def stance_table(df, des_runs, tag):
-    """Two-handed grip (the stances sweep): each build's own weapon gripped,
-    against the designed build; every pool weapon gripped, against the same
+    """Two-handing (the stances sweep): each build's own weapon two-handed,
+    against the designed build; every pool weapon two-handed, against the same
     weapon held one-handed (the item sweep's run on the same seed) when that
     ran, else against the designed build. Runs with a refusal are listed and
-    left out (a grip the build cannot carry is a finding, not a score)."""
+    left out (two-handing the build cannot carry is a finding, not a score)."""
     m = df[df["k"].notna()]
     if m.empty or des_runs.empty:
         return
     bad = m[m["clean"] < 1.0]
     if not bad.empty:
-        print("\ngrips not measurable (excluded): " + "; ".join(sorted(set(
+        print("\ntwo-handing not measurable (excluded): " + "; ".join(sorted(set(
             "%s+%s (%s)" % (r["build"], r["k"], str(r["warnings"]).split("|")[0][:60]) for r in bad.to_dict("records")))[:20]))
     m = m[m["clean"] == 1.0]
     des = des_runs.set_index(["build", "e", "seed"])
@@ -274,14 +274,14 @@ def stance_table(df, des_runs, tag):
     st.to_csv(simlib.CHARTS + "/%s_stances.csv" % tag, index=False)
     own = st[st["weapon"] == "(own)"].groupby("build").agg(d_win=("d_win", "mean"), d_dpt_median=("d_dpt", "median"), d_taken=("d_taken", "mean")).reset_index()
     if not own.empty:
-        print("\nown weapon gripped two-handed (off hand emptied) vs the designed build:\n", own.round(2).to_string(index=False))
+        print("\nown weapon two-handed (off hand emptied) vs the designed build:\n", own.round(2).to_string(index=False))
     w = st[st["weapon"] != "(own)"]
     if not w.empty:
         per = w.groupby("weapon").agg(builds=("build", "nunique"), vs=("vs", lambda x: x.mode()[0]), d_win=("d_win", "mean"),
                                       d_dpt_median=("d_dpt", "median"), d_taken=("d_taken", "mean")).reset_index().sort_values("d_dpt_median", ascending=False)
         per.to_csv(simlib.CHARTS + "/%s_stances_by_weapon.csv" % tag, index=False)
-        print("\nweapons gripped two-handed — gain over holding the same weapon one-handed (vs = what it was paired with):\n", per.head(12).round(2).to_string(index=False))
-        print("\nweapons that lose most when gripped:\n", per.tail(6).round(2).to_string(index=False))
+        print("\nweapons two-handed — gain over holding the same weapon one-handed (vs = what it was paired with):\n", per.head(12).round(2).to_string(index=False))
+        print("\nweapons that lose most when two-handed:\n", per.tail(6).round(2).to_string(index=False))
 
 
 def engrave_table(df, des_runs, tag):

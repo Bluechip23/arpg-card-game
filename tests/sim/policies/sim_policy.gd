@@ -46,6 +46,6 @@ static func action_label(a: Dictionary) -> String:
 		"jail": return "jail:%s" % str(a.get("card_id", a.get("card", "")))
 		"dismiss": return "dismiss:%d" % int(a.get("maintained", 0))
 		"manifest": return "manifest:%d" % int(a.get("manifest", 0))
-		"grip": return "swap:grip_on" if bool(a.get("enable", true)) else "swap:grip_off"
+		"two_hand": return "swap:two_hand_on" if bool(a.get("enable", true)) else "swap:two_hand_off"
 		"weapon_swap": return "swap:rack" if str(a.get("kind", "")) == "rack" else "swap:build%d" % (int(a.get("build", 0)) + 1)
 	return str(a.get("type", "?"))

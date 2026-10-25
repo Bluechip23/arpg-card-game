@@ -62,10 +62,10 @@ var intelligence: int = 0
 ## per tempo (last_swap_tempo, set by the runner), so a free swap never loops.
 var weapon_swaps: Array = []
 var weapons_ranged: bool = false
-## Two-handing grips on offer, as the character panel's toggle would take
+## Two-handing toggles on offer, as the character panel's toggle would take
 ## them: [{slot, enable, item, bonus (damage on every physical hit while
-## gripped), tempo, mana}]. Shares the one-swap-per-tempo gate.
-var grips: Array = []
+## two-handed), tempo, mana}]. Shares the one-swap-per-tempo gate.
+var two_hands: Array = []
 ## The Manifest zone (Bottomless Quiver attacks, Shuriken Pouch, Cinquedea,
 ## mushrooms, summons): [{index, id, name, value, mana, tempo, quiver,
 ## card (a view of a quiver card), target_types}]. Played by clicking it.
@@ -74,9 +74,9 @@ var manifest: Array = []
 ## one (the panel's button) frees its reserved mana.
 var maintained: Array = []
 var free_hand: bool = false       # free-hand stance: every 12th attack echoes, sidestep 1 cheaper
-## Set by the runner when the build under test is stored gripped
+## Set by the runner when the build under test is stored two-handed
 ## (`two_hand:yes`): the stance is what is measured, so it is held.
-static var grip_locked: bool = false
+static var two_hand_locked: bool = false
 static var last_swap_tempo: int = -1
 
 ## What a card's hit removes from an enemy: health AND armor, the same
@@ -225,13 +225,13 @@ func _collect_weapon_swaps(inv) -> void:
 		weapon_swaps.append(_swap_view(inv, "build", b, incoming, outgoing, tempo,
 			inv.get_swap_mana_cost() if tempo > 0 else 0, false))
 
-func _collect_grips(inv) -> void:
+func _collect_two_hand_offers(inv) -> void:
 	var fighting: bool = main._is_in_combat()
 	var tempo: int = inv.get_swap_tempo_cost(ItemData.ItemType.WEAPON) if fighting else 0
 	var mana: int = inv.get_swap_mana_cost() if fighting and inv.swap_costs_mana(ItemData.ItemType.WEAPON) else 0
 	if inv.two_handed_slot >= 0:
 		var held = inv.equipped_weapons[inv.two_handed_slot]
-		grips.append({"slot": inv.two_handed_slot, "enable": false, "item": held.item_name if held else "",
+		two_hands.append({"slot": inv.two_handed_slot, "enable": false, "item": held.item_name if held else "",
 			"bonus": floori(held.weight / Inventory.TWO_HAND_WEIGHT_DAMAGE_DIVISOR) if held and held.weapon_subtype != ItemData.WeaponSubtype.SHIELD else 0,
 			"tempo": tempo, "mana": mana})
 		return
@@ -242,7 +242,7 @@ func _collect_grips(inv) -> void:
 		if w == null or w.item_type != ItemData.ItemType.WEAPON or Inventory.is_two_hand_only(w) \
 				or w.weapon_subtype == ItemData.WeaponSubtype.SHIELD:
 			continue
-		grips.append({"slot": i, "enable": true, "item": w.item_name,
+		two_hands.append({"slot": i, "enable": true, "item": w.item_name,
 			"bonus": floori(w.weight / Inventory.TWO_HAND_WEIGHT_DAMAGE_DIVISOR), "tempo": tempo, "mana": mana})
 
 func _swap_view(inv, kind: String, b: int, incoming: Array, outgoing: Array, tempo: int, mana: int, free: bool) -> Dictionary:
@@ -401,12 +401,12 @@ func refresh() -> void:
 				"mana": int(mc.mana_cost) if quiver else (int(me.get("mana_cost", 0)) if me.get("source_item", null) != null else 0),
 				"tempo": maxi(0, mc.get_burden_tempo_cost()) if quiver else int(me.get("tempo_cost", 0)),
 				"card": card_view(mc) if quiver else {}, "target_types": (mc.target_types.duplicate() if quiver else [])})
-	grips.clear()
+	two_hands.clear()
 	free_hand = stats.free_hand_stance
 	if inv and global_tempo != last_swap_tempo:
 		_collect_weapon_swaps(inv)
-		if not grip_locked:
-			_collect_grips(inv)
+		if not two_hand_locked:
+			_collect_two_hand_offers(inv)
 	top_card = {}
 	if not dm.draw_pile.is_empty() and main.get_node_or_null("UI") and main.get_node("UI").find_child("ChoicePicker", true, false):
 		top_card = card_view(dm.draw_pile.back())
@@ -651,8 +651,8 @@ func legal_actions() -> Array:
 				out.append({"type": "item_skill", "skill": k, "fx": sk["fx"], "target": "self"})
 	for k in range(weapon_swaps.size()):
 		out.append({"type": "weapon_swap", "swap": k, "kind": weapon_swaps[k]["kind"], "build": weapon_swaps[k]["build"]})
-	for k in range(grips.size()):
-		out.append({"type": "grip", "grip": k, "slot": grips[k]["slot"], "enable": grips[k]["enable"]})
+	for k in range(two_hands.size()):
+		out.append({"type": "two_hand", "two_hand": k, "slot": two_hands[k]["slot"], "enable": two_hands[k]["enable"]})
 	for k in range(maintained.size()):
 		out.append({"type": "dismiss", "maintained": k})
 	# Burden relief (the J key): jail a Burden card from hand to reset its

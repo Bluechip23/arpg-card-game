@@ -242,7 +242,7 @@ static func create_stephen() -> CharacterData:
 			{"name": "Dominate", "description": "When triggering an attack speed proc, the proc resolves normally and you also gain a 30m/0t basic attack card and Strengthen for 3 attacks (5 tempo cooldown)"},
 		]},
 	]
-	data.passive_description = "+10% off-hand enchantments (others get -10%)"
+	data.passive_description = "White Sleeve: off-hand items work at 110% (others 90%)"
 	data.slot_specialty = "Build swaps: the weapon portion is free at first, then costs 1 more tempo for each weapon build swap inside 20 tempo; then the count resets"
 	return data
 

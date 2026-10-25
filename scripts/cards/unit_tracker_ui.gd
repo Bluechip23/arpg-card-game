@@ -433,7 +433,7 @@ func _create_info_column(enemy: Enemy, font_sz: int) -> VBoxContainer:
 		var show_count = min(effects.size(), MAX_STATUS_ICONS)
 		for i in range(show_count):
 			var eff = effects[i]
-			var icon = _create_status_icon(eff["color"], eff["stacks"], eff["name"])
+			var icon = _create_status_icon(eff["color"], eff["stacks"], eff["name"], enemy)
 			row.add_child(icon)
 		if effects.size() > MAX_STATUS_ICONS:
 			var plus = Label.new()
@@ -488,16 +488,25 @@ func _clear_all_highlights() -> void:
 # STATUS ICON
 # ============================================
 
-func _create_status_icon(color: Color, stacks: int, effect_name: String = "") -> PanelContainer:
+func _create_status_icon(color: Color, stacks: int, effect_name: String = "", enemy = null) -> PanelContainer:
 	var sz = 14
 	var circle = PanelContainer.new()
 	circle.custom_minimum_size = Vector2(sz, sz)
 	circle.mouse_filter = Control.MOUSE_FILTER_STOP
-	if effect_name != "":
-		var tip = effect_name
-		if stacks > 0:
-			tip += " (%d)" % stacks
-		circle.tooltip_text = tip
+	if effect_name != "" and enemy != null:
+		# The same hover window as the player's own badges: what the effect
+		# does and what is left of it (read live off the enemy).
+		circle.mouse_entered.connect(func():
+			if not is_instance_valid(enemy):
+				return
+			var info: Dictionary = enemy.get_effect_tooltip(effect_name)
+			StatusHoverPopup.show_for(circle, effect_name, info.get("color", color), info.get("desc", ""),
+				func() -> String:
+					return str(enemy.get_effect_tooltip(effect_name).get("remaining", "")) if is_instance_valid(enemy) else ""))
+		circle.mouse_exited.connect(func(): StatusHoverPopup.hide_for(circle))
+		circle.tree_exiting.connect(func(): StatusHoverPopup.hide_for(circle))
+	elif effect_name != "":
+		circle.tooltip_text = effect_name + (" (%d)" % stacks if stacks > 0 else "")
 	var circle_style = StyleBoxFlat.new()
 	circle_style.bg_color = color
 	circle_style.corner_radius_top_left = int(sz / 2)

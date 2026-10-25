@@ -99,7 +99,7 @@ by shards) and, for utility-heavy cards, either harder enemies in
 The same sweep as Ryan's below, on the branch after main was merged in
 (items and cards as `data/*.tres`, the status-effects rework). 19,990
 fights, level 18, lookahead player: four designed builds against six
-enemies and a wolf pack (100 seeds), every grip, off-hand weapon and
+enemies and a wolf pack (100 seeds), every two-handing, off-hand weapon and
 engraving against the Large Bear, Earth Mage and Wyvern (10 seeds each,
 paired with the designed build on the same seeds).
 `build_matrix.py --character stephen --root sim_out/stephen_full`.
@@ -117,10 +117,10 @@ The longshot ranger is Stephen's card shark: 12-29 damage per tempo and
 nothing below 0.93. The crooked duelist (Rusty Dagger, Crooked Dueling
 Shield) is his shadow blade: a dagger's damage with a duelist's health.
 
-## Two-handed grip
+## Two-handing
 
-- A build's own weapon gripped changes little (+0.3 DPT on the swords).
-- Among gripped weapons the gain is small everywhere (Umbral Eclipse
+- A build's own weapon two-handed changes little (+0.3 DPT on the swords).
+- Among two-handed weapons the gain is small everywhere (Umbral Eclipse
   +1.6, Phoenix Feather +1.1, Sabre Tooth +0.8); Stephen's +10% off hand
   makes the hand he gives up worth more than Ryan's.
 - Bessy, Hammer of Ajax and Umbral Eclipse are over the crooked duelist's
@@ -190,7 +190,7 @@ priced and aimed, summons stepped, prompts answered, the Manifest zone,
 Power and Burden decisions, draws valued by the deck) and the two game
 fixes (point cards no longer land on the caster; shield Overdraw riders
 fire). 42,500 fights, level 18, lookahead player: the designed builds
-against six enemies and a wolf pack (100 seeds), every grip, off-hand
+against six enemies and a wolf pack (100 seeds), every two-handing, off-hand
 weapon and engraving against the Large Bear, Earth Mage and Wyvern
 (10 seeds each, paired with the designed build on the same seeds).
 `tests/sim/sweeps/ryan_{designed,stances,engrave,item_swap}.txt`;
@@ -210,18 +210,18 @@ weapon and engraving against the Large Bear, Earth Mage and Wyvern
 Shadow blade is the outlier at level 18: 24 health against hits of 16-33.
 Card shark and spellslinger hit hardest (up to 26 and 31 damage per tempo).
 
-## Two-handed grip
+## Two-handing
 
-- **A build's own weapon gripped** changes little: bruiser +0.6 DPT;
-  apothecary and spellslinger take 13-24 more damage, because gripping
+- **A build's own weapon two-handed** changes little: bruiser +0.6 DPT;
+  apothecary and spellslinger take 13-24 more damage, because two-handing
   empties the off hand (their second wand, the Reaction Rod).
-- **Heavy weapons are what the grip is for**, exactly as weight ÷ 25 says:
+- **Heavy weapons are what two-handing is for**, exactly as weight ÷ 25 says:
   Bessy +3.2 DPT, Hammer of Ajax +1.8, Umbral Eclipse +1.8, Axe's Axe +0.6
   (and +11 points of wins) over the same weapon held one-handed. Wands,
   daggers and the Reaction Rod gain nothing or lose.
 - **Only the STR builds can lift them.** Bessy, Hammer of Ajax, Umbral
   Eclipse and Axe's Axe are over carry capacity for apothecary, shadow
-  blade and spellslinger (and most for card shark), gripped or not.
+  blade and spellslinger (and most for card shark), two-handed or not.
 
 ## Dual wielding: a second weapon in the off hand
 
