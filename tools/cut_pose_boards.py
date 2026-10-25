@@ -365,6 +365,19 @@ BOARDS = {
             "right": (518, 22, 700, 246),
         },
     },
+    "mini_bear": {
+        # 2026-10-25: the Mini Bear — a young brown bear — four poses on
+        # black. Its "NORTH" pose shows the face and "SOUTH" its back: picked
+        # by what they show.
+        "src": "mini_bear_board.png", "bg": "grabcut", "tiles": 1.1,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (246, 208, 518, 566),
+            "back": (792, 208, 1057, 566),
+            "left": (148, 688, 581, 1008),
+            "right": (730, 688, 1153, 1008),
+        },
+    },
     "air_mage": {
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,
