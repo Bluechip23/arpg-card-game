@@ -38,7 +38,7 @@ static func start(p_item: ItemData, origin: Vector3) -> MythicReveal:
 	return r
 
 ## Land the present at this offset from the origin (battle: the tile next to
-## the player); the glow expands exactly that far. Call before adding.
+## the player). The glow keeps its full glow_radius. Call before adding.
 func land_at(offset: Vector3) -> void:
 	_has_landing = true
 	_landing = Vector3(offset.x, 0, offset.z)
@@ -47,8 +47,7 @@ func _ready() -> void:
 	# The present lands where the glow ends: the chosen spot, or else
 	# glow_radius out in fixed_angle's (or a random) direction.
 	if _has_landing:
-		_present_offset = _landing
-		glow_radius = maxf(_landing.length(), 0.5)
+		_present_offset = _landing  # the glow still bursts its full radius
 	else:
 		var angle := fixed_angle if not is_nan(fixed_angle) else randf() * TAU
 		_present_offset = Vector3(cos(angle), 0, sin(angle)) * glow_radius

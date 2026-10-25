@@ -1,7 +1,8 @@
 extends SceneTree
 
 ## Looting a mythic: the ceremony's present lands on an open tile right beside
-## the player — never a random spot further out — and skips walls and enemies.
+## the player — never a random spot further out — and skips walls and enemies;
+## the glow still bursts its full radius.
 ## Run: godot --headless --path . --script tests/test_mythic_reveal_landing.gd
 
 var failures: int = 0
@@ -49,6 +50,7 @@ func _run() -> void:
 		var reveal: MythicReveal = main._mythic_reveals.back()
 		var cell: Vector2i = gm.world_to_grid(reveal.click_position())
 		spots[cell] = true
+		_check(is_equal_approx(reveal.glow_radius, 3.0), "reveal %d: the glow still bursts its full 3 tiles" % [i + 1])
 		_check(maxi(absi(cell.x - here.x), absi(cell.y - here.y)) == 1,
 			"reveal %d: the present is one tile from the player (%s vs %s)" % [i + 1, cell, here])
 		_check(dm.is_floor(cell) and not dm.is_obstacle(cell), "reveal %d: it lands on open floor" % [i + 1])

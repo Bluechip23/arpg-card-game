@@ -5835,6 +5835,57 @@ func _player_sphere_amp(field: String) -> float:
 			return float(stats.get(field))
 	return 0.0
 
+## What one of the player's direct hits of `amount` would do to this enemy
+## right now: {"armor": what its armor takes, "health": what gets through}.
+## Follows take_damage step for step but changes nothing (no Brace charge
+## spent, no premeditated bonus consumed, no logs), so the hover preview over
+## an enemy's head shows the real number: resistances, lowered defense, the
+## skill-tree hit modifiers, Brace, Premeditated, Marked, the Narashimha
+## aura, Vulnerable, Jordan 1s, Armor Break and armor itself.
+## `armor_break`: the hit is an Armor Break (double to armor, none to health).
+func preview_player_hit(amount: int, damage_type: int = DamageTypes.Type.PHYSICAL,
+		armor_break: bool = false, ignore_armor: bool = false) -> Dictionary:
+	var none := {"armor": 0, "health": 0}
+	if is_dead or amount <= 0:
+		return none
+	if enemy_type == EnemyType.HELL_DOOR and door_sealed_tempo > 0:
+		return none
+	if is_hidden() and not _area_hit_this_frame():
+		return none
+	if is_mimic:
+		return {"armor": 0, "health": current_health}
+	if PlayerStats.adaptive_damage_type and not ignore_armor:
+		damage_type = get_lowest_resistance_type()
+	if not ignore_armor:
+		var type_resist: float = float(damage_resistances.get(damage_type, 0.0))
+		if damage_type == DamageTypes.Type.PHYSICAL and not phys_defense_groups.is_empty():
+			type_resist -= get_phys_defense_debuff_percent()
+		if type_resist != 0.0:
+			amount = floori(amount * (100.0 - minf(type_resist, 90.0)) / 100.0)
+	if player_hit_modifier.is_valid():
+		amount = int(player_hit_modifier.call(self, amount, true))
+	if _brace_charges > 0 and amount > 0:
+		amount = floori(amount * 0.7)
+	if bonus_damage_next_hit > 0:
+		amount += bonus_damage_next_hit
+	if is_marked:
+		amount += ceili(amount * MARKED_BONUS_PERCENT / 100.0)
+	if void_resistance_percent > 0.0:
+		amount = floori(amount * (1.0 + void_resistance_percent / 100.0))
+	if vulnerable_stacks > 0:
+		var vuln_percent: float = 30.0 + _player_sphere_amp("sphere_vulnerable_amp")
+		amount = floori(amount * (1.0 + vuln_percent / 100.0))
+	if missing_life_damage_rate > 0.0 and max_health > 0:
+		var health_pct: float = float(current_health) / float(max_health) * 100.0
+		if health_pct <= missing_life_threshold:
+			amount += floori(missing_life_damage_rate * (100.0 - health_pct))
+	if ignore_armor:
+		return {"armor": 0, "health": maxi(0, amount)}
+	if armor_break:
+		return {"armor": mini(current_armor, amount * 2), "health": 0}
+	var armor_share := mini(maxi(current_armor, 0), amount)
+	return {"armor": maxi(0, armor_share), "health": maxi(0, amount - armor_share)}
+
 func take_damage(amount: int, from_player: bool = false, damage_type: int = DamageTypes.Type.PHYSICAL, ignore_armor: bool = false) -> bool:
 	# ignore_armor: skip the armor-absorption chain entirely so the full amount
 	# hits health (Neither Man nor Beast "ignoring all resistances and armor").

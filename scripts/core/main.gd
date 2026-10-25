@@ -3422,6 +3422,11 @@ func _on_leveled_up_notify(_new_level: int) -> void:
 #region UNIT TRACKER
 func _setup_unit_tracker() -> void:
 	var ui := $UI as CanvasLayer
+	# Hover windows for the buff / debuff dots over enemies' heads.
+	var status_hover := EnemyStatusHover.new()
+	status_hover.name = "EnemyStatusHover"
+	status_hover.main = self
+	ui.add_child(status_hover)
 	unit_tracker = UnitTrackerUI.new()
 	unit_tracker.name = "UnitTracker"
 	ui.add_child(unit_tracker)
@@ -8205,22 +8210,16 @@ func calculate_damage_preview_split(card: Card, target_enemy: Enemy) -> Dictiona
 	# Full player-side pipeline, shared with the card-face numbers.
 	var total_damage = _card_player_damage(card, high_ground)
 
-	# Enemy-side: Premeditated bonus damage
-	total_damage += target_enemy.bonus_damage_next_hit + target_enemy.premeditated_card_bonus
+	# Premeditated: the first card at an enemy Premeditated exposed carries
+	# its +15 onto the hit (Card._execute_card moves it onto the next hit).
+	total_damage += target_enemy.premeditated_card_bonus
 
-	# Enemy-side: Armor absorption
-	var armor_share := 0
-	if target_enemy.current_armor > 0:
-		# Armor Break: double damage to armor only, no health damage spillover
-		if buff_mgr and buff_mgr.has_armor_break():
-			var doubled = total_damage * 2
-			armor_share = min(target_enemy.current_armor, doubled)
-			total_damage = 0
-		else:
-			armor_share = min(target_enemy.current_armor, total_damage)
-			total_damage -= armor_share
-
-	return {"armor": max(0, armor_share), "health": max(0, total_damage)}
+	# Enemy side, exactly as take_damage will run it: resistances, lowered
+	# defense, Eat / Solemn Independence, Brace, the pending Premeditated
+	# bonus, Marked, the Narashimha aura, Vulnerable, Jordan 1s, Armor Break
+	# and armor.
+	var armor_break: bool = buff_mgr != null and buff_mgr.has_armor_break()
+	return target_enemy.preview_player_hit(total_damage, card.damage_type, armor_break)
 
 
 # Block cards whose _execute hardcodes the armor amount instead of reading

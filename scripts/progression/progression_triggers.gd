@@ -872,14 +872,20 @@ func refresh_solemn() -> void:
 ## Set on every enemy as Enemy.player_hit_modifier; runs inside
 ## Enemy.take_damage before armor, once per enemy hit, so AoEs scale on
 ## each target they touch.
-func modify_player_hit(enemy: Enemy, amount: int) -> int:
+##
+## `preview`: the hover damage preview asking what a card WOULD do (Enemy.
+## preview_player_hit) — treated as a direct offensive hit, with no battle
+## log and no player state touched. The resolving-card multipliers
+## (Megingjörð, Harnessed Power) are left out there: they are only armed
+## while a card resolves, and the preview counts Harnessed Power itself.
+func modify_player_hit(enemy: Enemy, amount: int, preview: bool = false) -> int:
 	var stats = main.player.get_stats() if main.player else null
 	if not stats or amount <= 0 or enemy == null:
 		return amount
 	var out := amount
 	# Eat (Cory): +1% damage per percentage point the enemy sits below the
 	# rank-scaled threshold (11%..39%), judged on its health before the hit.
-	if stats.has_skill_tree_passive("eat") and enemy.max_health > 0 and PlayerStats.hit_source_direct:
+	if stats.has_skill_tree_passive("eat") and enemy.max_health > 0 and (preview or PlayerStats.hit_source_direct):
 		# ...and only on Cory's own action: a card, a gauntlet skill, the auto
 		# attack. Summon bites and zone ticks (vines, fire spots) get nothing.
 		var eat_threshold := float(PassiveScaling.value("eat", "threshold_percent", stats.get_passive_level("eat")))
@@ -888,20 +894,23 @@ func modify_player_hit(enemy: Enemy, amount: int) -> int:
 			var bonus_pct := eat_threshold - pre_pct
 			# Integer math (hundredths of a percent) so 10 × 1.20 is 12, not 11.999.
 			out = (out * (10000 + roundi(bonus_pct * 100.0))) / 10000
-			main.add_battle_log("Eat: +%d%% damage on weakened prey" % roundi(bonus_pct), Color(0.3, 0.7, 1.0))
+			if not preview:
+				main.add_battle_log("Eat: +%d%% damage on weakened prey" % roundi(bonus_pct), Color(0.3, 0.7, 1.0))
 	# Megingjörð: a slotted card's hits are doubled here, after stat scaling
 	# and every rider — the whole hit, not its base.
-	if PlayerStats.hit_multiplier > 1.0:
+	if PlayerStats.hit_multiplier > 1.0 and not preview:
 		out = floori(out * PlayerStats.hit_multiplier)
 	# Harnessed Power (Jeremy): the resolving card's damage scales while its
 	# multiplier is armed (main sets it around the card's execution).
-	if PlayerStats.harnessed_mult > 1.0:
+	if PlayerStats.harnessed_mult > 1.0 and not preview:
 		out = floori(out * PlayerStats.harnessed_mult)
 	# Solemn Independence (Brad): +5%..12% on every OFFENSIVE hit (an offensive
 	# card or the auto attack) while surrounded.
-	if stats.has_skill_tree_passive("solemn_independence") and PlayerStats.hit_source_offensive:
-		stats.solemn_active = _solemn_surrounded()
-		if stats.solemn_active:
+	if stats.has_skill_tree_passive("solemn_independence") and (preview or PlayerStats.hit_source_offensive):
+		var surrounded := _solemn_surrounded()
+		if not preview:
+			stats.solemn_active = surrounded
+		if surrounded:
 			var si_pct: int = PassiveScaling.value("solemn_independence", "damage_percent", stats.get_passive_level("solemn_independence"))
 			out = (out * (100 + si_pct) + 99) / 100  # ceil, in integers
 	return out
