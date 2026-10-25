@@ -10,26 +10,10 @@ extends Control
 const CharacterSelectScene = preload("res://scenes/character/character_select.tscn")
 const LoadOrNewScene = preload("res://scenes/character/load_or_new.tscn")
 const TitleCutsceneScript = preload("res://scripts/menus/title_cutscene.gd")
-const DRAUPNIR := preload("res://assets/items/mythic/draupnir.png")
+const DRAUPNIR := EmeraldTheme.DRAUPNIR
 
-## The title screen's look, "Emerald Sanctum" (designer's pick, 2026-10-25):
-## the backdrop palette the cutscene paints with plus the menu's button style.
-const STYLE := {
-	"name": "Emerald Sanctum",
-	"sky_top": Color(0.01, 0.05, 0.07), "sky_horizon": Color(0.06, 0.27, 0.25),
-	"stars": true, "moon": Color(0.82, 1.0, 0.93), "moon_crescent": true,
-	"ground": Color(0.03, 0.11, 0.09), "ground_edge": Color(0.08, 0.28, 0.22),
-	"tree_back": Color(0.12, 0.33, 0.30), "tree_front": Color(0.03, 0.09, 0.08),
-	"motes": Color(0.55, 1.0, 0.85), "mote_count": 32, "aurora": true,
-	"mist": Color(0.45, 0.95, 0.80, 0.10),
-	"title_fill": Color(0.58, 0.98, 0.72), "title_outline": Color(0.42, 0.30, 0.07),
-	# Menu: elven glass on a gilt-edged tablet
-	"btn_bg": Color(0.03, 0.14, 0.11, 0.80), "btn_border": Color(0.70, 0.56, 0.26), "btn_border_w": 1,
-	"btn_hover_bg": Color(0.05, 0.23, 0.18, 0.92), "btn_hover_border": Color(0.98, 0.82, 0.40),
-	"btn_hover_border_w": 2, "btn_radius": 4, "btn_glow": Color(0.98, 0.80, 0.35, 0.35),
-	"btn_font": Color(0.80, 0.96, 0.86), "btn_font_hover": Color(1.0, 0.90, 0.55),
-	"btn_outline": Color(0.01, 0.06, 0.05, 0.9), "panel": Color(0.01, 0.07, 0.06, 0.55),
-}
+## The title screen's look: the Emerald Sanctum palette every menu shares.
+const STYLE := EmeraldTheme.PALETTE
 
 @onready var title_label: Label = $VBox/TitleLabel
 @onready var menu_container: VBoxContainer = $VBox/MenuContainer
