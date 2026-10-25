@@ -27,9 +27,9 @@ func _run() -> void:
 		await process_frame
 	var want := {
 		Enemy.EnemyType.SUCCUBUS: ["chaos_monsters/Icon14", "front"],
-		Enemy.EnemyType.IFRIT: ["chaos_monsters/Icon47", "front"],
 		# (Cerberus and the Inflamed Minotaur moved to the designer's own art:
-		# test_boss_sheets and the paintings section of ASSET_PACKS.md.)
+		# test_boss_sheets and the paintings section of ASSET_PACKS.md; the
+		# Ifrit to its pose board, test_pose_boards, 2026-10-25.)
 		Enemy.EnemyType.ASH_HARPY: ["chaos_monsters/Icon22", "front"],
 	}
 	var x := 2.0

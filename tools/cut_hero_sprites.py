@@ -22,11 +22,12 @@ Sources (assets/sprites/paintings/, .gdignore'd source art, 2026-10-23):
 
 Keeping the art's nuance comes first (designer, 2026-10-23: the first cut,
 34 texels tall, was far too pixelated; 2026-10-24: err on the side of
-under-pixelating): each hero keeps the art's own resolution (HEIGHT None),
-no resample — ~100 texels crown to feet for the warrior, ~150 for the
-others — and the game draws them finer than its 32-texel tiles
-(SpriteFigure's board pixel size, set from each hero's own front height)
-so all stand BOARD_HEIGHT tiles tall. One scale per hero (set by the front pose), so the
+under-pixelating): each hero is drawn at 64 texels a tile, twice the tiles'
+fineness — HEIGHT texels crown to feet, BOARD_HEIGHT tiles tall — and its
+stockier build (WIDEN) is baked into the art. (2026-10-25: the art's own
+~150 texels had been drawn into the default zoom's 64 screen pixels a tile,
+so the GPU skipped every third row and column — crunchy and uneven. At 64 a
+tile every art texel is one screen pixel at zoom 2 and two at zoom 4.) One scale per hero (set by the front pose), so the
 poses keep their true proportions to each other. Brad's front comes from a
 separate, larger image: it is scaled to the height of the sheet's own front.
 
@@ -58,7 +59,8 @@ from PIL import Image
 
 SRC = "assets/sprites/paintings/%s"
 OUT = "assets/sprites/generated/heroes/%s.png"
-HEIGHT = None      # texels, crown to feet, of the hero's front pose; None = the art's own
+HEIGHT = 100       # texels, crown to feet, of the hero's front pose (+ the outline: ~1.6 tiles at 64 a tile)
+WIDEN = 1.12       # drawn this much wider than tall (SpriteFigure.BOARD_WIDEN), baked in
                    # (designer, 2026-10-24: err on the side of under-pixelating the heroes)
 PALETTE = 96       # colours per hero after the tidy (0 = keep every colour)
 ACCENT_KEEP = 36   # ...but a pixel the tidy would move further than this keeps its colour
@@ -305,9 +307,10 @@ def cut(path, box, charm=None, bow=None, glow=None):
 
 
 def resample(img, factor):
-    """Down by `factor` with a sharp (Lanczos) filter on premultiplied colour,
-    then on/off alpha: crisp pixel edges, the art's detail kept."""
-    size = (max(1, round(img.width / factor)), max(1, round(img.height / factor)))
+    """Down by `factor` (and WIDEN times less across) with a sharp (Lanczos)
+    filter on premultiplied colour, then on/off alpha: crisp pixel edges, the
+    art's detail kept."""
+    size = (max(1, round(img.width * WIDEN / factor)), max(1, round(img.height / factor)))
     small = img.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")
     a = np.asarray(small).copy()
     a[..., 3] = np.where(a[..., 3] >= 128, 255, 0)

@@ -62,6 +62,8 @@ const BOARD_HEIGHT := 1.6
 ## ...and drawn this much wider than tall, for a stockier, heavier build
 ## (designer, 2026-10-24: "a little bigger and thicker").
 const BOARD_WIDEN := 1.12
+## Texels a tile the hero sheets are cut at.
+const BOARD_DENSITY := 64.0
 ## The pack's weapon layers are drawn for its ~29px character base: on a hero
 ## sprite they are scaled by the hero's height over that body's.
 const PACK_BODY_HEIGHT := 29.0 * 0.03125
@@ -324,11 +326,10 @@ func _setup_board(sheet_path: String) -> void:
 	_body_cell = int(tex.get_height() / 4)
 	_body_rows = DOLL_ROW
 	_body_walk_frames = 1
-	var img := tex.get_image()
-	if img.is_compressed():
-		img.decompress()
-	var front_h := img.get_region(Rect2i(0, 0, _body_cell, _body_cell)).get_used_rect().size.y
-	var px := BOARD_HEIGHT / float(maxi(front_h, 1))
+	# One art texel a 64th of a tile (tools/cut_hero_sprites.py cuts every
+	# hero at that fineness, BOARD_HEIGHT tall): one screen pixel at zoom 2,
+	# two at zoom 4 — never a fraction, so no row or column is skipped.
+	var px := 1.0 / BOARD_DENSITY
 	var grow := BOARD_HEIGHT / PACK_BODY_HEIGHT
 	_hand_scale = grow
 	# The weapon and shield layers sit as on the pack's people, scaled about
@@ -338,8 +339,7 @@ func _setup_board(sheet_path: String) -> void:
 	_weapon_back = _make_sprite(64, wy, -0.02)
 	_npc_sprite = _make_sprite(_body_cell, _body_cell * 0.5 * PIXEL_SIZE, 0.0)
 	_npc_sprite.texture = tex
-	_npc_sprite.pixel_size = px
-	_npc_sprite.scale.x = BOARD_WIDEN
+	_npc_sprite.pixel_size = px   # (the stockier BOARD_WIDEN build is baked into the art)
 	_body_offset = _npc_sprite.offset
 	# The pack's people (about a tile tall) cast a 0.62-wide shadow; a hero
 	# casts one as much wider as the hero is broader than them.

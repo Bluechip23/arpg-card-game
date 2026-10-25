@@ -85,7 +85,7 @@ const KINDS := {
 	"screecher": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},  # wears the Snow Wraith's ghost (designer, 2026-10-22); the mountain-monster Bird frames are free again
 	"giant_beaver": {"sheets": SHEETS + "/giant_beaver", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py): stands on its hind legs, walks on all fours
 	"mini_bear": {"fr": "mountain_monsters/Bear", "scale": 0.45},
-	"wolf": {"sheets": SHEETS + "/wolf", "scale": 0.525},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-22)
+	"wolf": {"sheets": SHEETS + "/wolf", "scale": BOARD_SCALE},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-22)
 	"coyote": {"cell": Vector2i(3, 1), "tint": Color(1.1, 1.0, 0.8)},  # the old wolf battler, tinted
 	"djinn": {"sheets": SHEETS + "/djinn", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-24); was the MonsterKit cell (4, 1)
 	"specter": {"cp": "ghost/Ghost1", "scale": 1.2},
@@ -98,10 +98,10 @@ const KINDS := {
 	"rat": {"cp": "giant_rat/Rat1"},
 	# The designer's Archer Rat (tools/cut_archer_rat.py): up on its hind
 	# legs while it stands, on all fours while it moves.
-	"archer_rat": {"sheets": SHEETS + "/archer_rat", "scale": 0.9},
+	"archer_rat": {"sheets": SHEETS + "/archer_rat", "scale": BOARD_SCALE},
 	# The designer's own boss boards (no pack has these bosses): front, back
 	# and side walk frames, cut by tools/cut_boss_sheets.py.
-	"rat_king": {"sheets": BOSSES + "/rat_king", "scale": 1.15},
+	"rat_king": {"sheets": BOSSES + "/rat_king", "scale": BOARD_SCALE},
 	"fire_goblin_soldier": {"cp": "goblins/Goblin2", "scale": 1.1, "tint": Color(1.1, 0.9, 0.8)},
 	"fire_goblin_mage": {"cp": "goblins/Goblin1", "scale": 1.1, "tint": Color(1.15, 0.85, 0.7)},
 	"fire_goblin_shaman": {"cp": "goblins/Goblin3", "scale": 1.2, "tint": Color(1.1, 0.9, 0.8)},
@@ -109,24 +109,24 @@ const KINDS := {
 	"ice_troll": {"fr": "mountain_monsters/Yeti", "scale": 1.05},
 	"granite_colossus": {"cp": "golem/Golem1", "scale": 1.6},
 	"grave_titan": {"cp": "golem/Golem2", "scale": 1.35, "tint": Color(0.9, 0.92, 0.88)},
-	"inflamed_minotaur": {"tex": "inflamed_minotaur", "scale": 0.75},  # the designer's painting, cut out (tools/cut_minotaur.gd); a 173x130 cell
+	"inflamed_minotaur": {"sheets": SHEETS + "/inflamed_minotaur", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"demon": {"cp": "demons/Demon1", "scale": 0.85},
-	"pit_fiend": {"sheets": BOSSES + "/pit_fiend", "scale": 1.3},  # the designer's board (tools/cut_pit_fiend.py): stills, walks, tail-sweep attack
+	"pit_fiend": {"sheets": BOSSES + "/pit_fiend", "scale": 0.65},  # the designer's board (tools/cut_pit_fiend.py): stills, walks, tail-sweep attack
 	"bugbear": {"cp": "gnolls/Gnoll2", "scale": 1.2},
-	"ifrit": {"icon": "chaos_monsters/Icon47", "faces": "front", "scale": 2.0},  # the living flame
+	"ifrit": {"sheets": SHEETS + "/ifrit", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"snow_wraith": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},
 	# The designer's 4x4 walk sheets (tools/cut_creature_sheets.py).
-	"hydra": {"sheets": SHEETS + "/hydra", "scale": 0.55},
-	"white_manticore": {"sheets": SHEETS + "/white_manticore", "scale": 0.5625},
+	"hydra": {"sheets": SHEETS + "/hydra", "scale": BOARD_SCALE},
+	"white_manticore": {"sheets": SHEETS + "/white_manticore", "scale": BOARD_SCALE},
 	# --- battler variations where the species genuinely matches ---
 	"large_bear": {"fr": "mountain_monsters/Bear", "scale": 0.65},
-	"bone_dragon": {"tex": "bone_dragon", "scale": 1.6},
+	"bone_dragon": {"sheets": SHEETS + "/bone_dragon", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"wyvern": {"sheets": SHEETS + "/wyvern", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
-	"cerberus": {"sheets": BOSSES + "/cerberus", "scale": 1.5},
-	"hades": {"sheets": BOSSES + "/hades", "scale": 1.15},  # art in place; no Hades enemy exists yet
-	"werewolf": {"sheets": SHEETS + "/werewolf", "scale": 0.525},
-	"sabertooth": {"sheets": SHEETS + "/sabertooth", "scale": 0.475},
-	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": 0.465},
+	"cerberus": {"sheets": BOSSES + "/cerberus", "scale": BOARD_SCALE},
+	"hades": {"sheets": BOSSES + "/hades", "scale": BOARD_SCALE},  # art in place; no Hades enemy exists yet
+	"werewolf": {"sheets": SHEETS + "/werewolf", "scale": BOARD_SCALE},
+	"sabertooth": {"sheets": SHEETS + "/sabertooth", "scale": BOARD_SCALE},
+	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": BOARD_SCALE},
 	"roc": {"fr": "mountain_monsters/Bird", "scale": 1.0, "tint": Color(1.05, 0.95, 0.85)},
 	"ash_harpy": {"icon": "chaos_monsters/Icon22", "faces": "front", "scale": 1.6},  # the winged demon in flight, tail trailing
 	"magma_spider": {"cell": Vector2i(3, 0), "tint": Color(1.35, 0.75, 0.6)},
@@ -135,9 +135,9 @@ const KINDS := {
 	# --- NPC-pack humanoids (real 4-direction walk frames) ---
 	"ice_mage": {"sheets": SHEETS + "/ice_mage", "scale": BOARD_SCALE},  # the designer's frost mage (tools/cut_pose_boards.py, 2026-10-24); was the NPC mystic tinted blue
 	"fire_mage": {"sheets": SHEETS + "/fire_mage", "scale": BOARD_SCALE},  # the designer's fire ninja (tools/cut_pose_boards.py, 2026-10-24); was the NPC mystic tinted red
-	"spark_mage": {"npc": NPC1 + "/npc mystic A v01.png", "tint": Color(1.2, 1.15, 0.6)},
-	"air_mage": {"npc": NPC1 + "/npc mystic A v01.png", "tint": Color(1.1, 1.1, 1.15)},
-	"earth_mage": {"npc": NPC1 + "/npc mystic A v01.png", "tint": Color(0.9, 1.0, 0.7)},
+	"spark_mage": {"sheets": SHEETS + "/spark_mage", "scale": BOARD_SCALE},  # the designer's shock mage (tools/cut_pose_boards.py, 2026-10-25); was the NPC mystic tinted yellow
+	"air_mage": {"sheets": SHEETS + "/air_mage", "scale": BOARD_SCALE},  # the designer's air mage (2026-10-25); was the NPC mystic
+	"earth_mage": {"sheets": SHEETS + "/earth_mage", "scale": BOARD_SCALE},  # the designer's earth mage (2026-10-25); was the NPC mystic tinted green
 	"necromancer": {"cp": "lich/Lich2", "scale": 1.1},
 	"spirit_collector": {"cp": "lich/Lich1", "tint": Color(0.8, 0.9, 1.15)},
 	"vampire": {"cp": "vampires/Vampires3", "scale": 1.1},  # the red-caped lord on spire legs
@@ -145,7 +145,7 @@ const KINDS := {
 	"infected_hunter": {"cp": "zombie/Zombie3", "scale": 1.3, "tint": Color(0.9, 1.0, 0.85)},
 	"succubus": {"icon": "chaos_monsters/Icon14", "faces": "front", "scale": 1.7},  # the purple-winged temptress
 	"cherub": {"npc": NPC1 + "/npc baby A v01.png", "tint": Color(1.15, 1.1, 0.9)},
-	"corrupted_archangel": {"sheets": BOSSES + "/corrupted_archangel", "scale": 1.15},  # the designer's board (tools/cut_boss_sheets.py)
+	"corrupted_archangel": {"sheets": BOSSES + "/corrupted_archangel", "scale": BOARD_SCALE},  # the designer's board (tools/cut_boss_sheets.py)
 	# --- the generic Minion / Elite / Boss tiers (and custom enemies): the
 	# Craftpix swordsman's three gear tiers, lvl4 → lvl6 increasingly heavy,
 	# growing with the tier like the old procedural brute did ---
@@ -159,6 +159,7 @@ const KINDS := {
 	"summon_specter": {"cp": "ghost/Ghost1", "scale": 1.2, "tint": Color(0.95, 0.75, 1.25)},  # Jeremy's Seance: the specter ghost, violet
 	"frankenstein": {"sheets": SHEETS + "/frankenstein", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"sanguine_penguin": {"sheets": SHEETS + "/sanguine_penguin", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
+	"bull_worm": {"sheets": SHEETS + "/bull_worm", "scale": BOARD_SCALE},  # Worms Armageddon's summon, the designer's board
 	# --- the dojo's enemy training dummies ---
 	"chicken": {"tex": "chicken"},
 	# --- the Rat King's nests: no pack has a nest, so this one is drawn

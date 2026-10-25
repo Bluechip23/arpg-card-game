@@ -4,8 +4,8 @@ extends SceneTree
 ## 2026-10-23): Jeremy the cloaked skeleton, Cory the hooded monk, Ryan the
 ## rogue outlaw, Brad the warrior with the War Rack over his shoulder,
 ## Stephen the apex hunter with bow and axe on his back — one
-## detailed pose a direction (kept fine: ~96 texels tall, drawn at a finer
-## pixel size so they stand BOARD_HEIGHT tiles). Walking steps the body;
+## detailed pose a direction (kept fine: ~100 texels tall at 64 texels a
+## tile, so they stand BOARD_HEIGHT tiles). Walking steps the body;
 ## attacks still swing the weapon layer, scaled to the hero.
 ## Run: godot --headless --path . --script tests/test_hero_sprites.gd
 
@@ -37,10 +37,15 @@ func _initialize() -> void:
 			"%s wears the designer's sprite" % hero)
 		var front := _used(body.texture, Rect2(0, 0, f._body_cell, f._body_cell))
 		_check(front.size.y >= 90, "%s keeps the art's detail (%d texels tall, not squeezed)" % [hero, front.size.y])
-		_check(absf(front.size.y * body.pixel_size - SpriteFigure.BOARD_HEIGHT) < 0.02,
+		_check(absf(front.size.y * body.pixel_size - SpriteFigure.BOARD_HEIGHT) < 0.04,
 			"%s stands %.2f tiles tall" % [hero, front.size.y * body.pixel_size])
-		_check(is_equal_approx(body.scale.x, SpriteFigure.BOARD_WIDEN) and is_equal_approx(body.scale.y, 1.0),
-			"%s is drawn %.2fx wider for a stockier build" % [hero, SpriteFigure.BOARD_WIDEN])
+		# 64 texels a tile, both ways (2026-10-25): one screen pixel an art
+		# texel at zoom 2, so no row or column is skipped; the stockier build
+		# is baked into the art, not stretched on.
+		_check(is_equal_approx(1.0 / body.pixel_size, SpriteFigure.BOARD_DENSITY),
+			"%s is drawn at %.0f texels a tile" % [hero, 1.0 / body.pixel_size])
+		_check(is_equal_approx(body.scale.x, 1.0) and is_equal_approx(body.scale.y, 1.0),
+			"%s is not stretched on screen" % hero)
 		var rows := {}
 		for d in [D.SOUTH, D.NORTH, D.EAST, D.WEST]:
 			f.set_facing(d)

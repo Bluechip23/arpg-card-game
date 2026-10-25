@@ -6,7 +6,8 @@ extends SceneTree
 ## compared the way they are seen in play.
 ##   ... --script tests/_capture_lineup.gd -- <out.png> <item,item,...> [zoom]
 ## An item is a SpriteEnemyFigure kind, or "hero:<Name>" for a player figure;
-## "|" starts a new row.
+## "|" starts a new row; "worm" / "worm:up" place the Bull Worm summon
+## burrowed / surfaced.
 
 var _frames := 0
 var _out := "/tmp/lineup.png"
@@ -51,6 +52,22 @@ func _initialize() -> void:
 			x = 0.0
 			continue
 		var node: Node3D
+		if it.begins_with("worm"):   # the Bull Worm summon: "worm" burrowed, "worm:up" surfaced
+			var w = load("res://scripts/battle/summoned_worm.gd").new()
+			root.add_child(w)
+			w.setup(null, Vector3(x, 0, z))
+			if it == "worm:up":
+				w.surface()
+			var wl := Label3D.new()
+			wl.text = it
+			wl.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			wl.pixel_size = 0.006
+			wl.font_size = 28
+			wl.position = Vector3(x, 0.5, z + 0.55)
+			root.add_child(wl)
+			x += 2.0
+			_widest = maxf(_widest, x - 2.0)
+			continue
 		if it.begins_with("hero:"):
 			var f := SpriteFigure.new()
 			root.add_child(f)
