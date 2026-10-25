@@ -352,6 +352,19 @@ BOARDS = {
             "right": (833, 603, 1105, 1170),
         },
     },
+    "large_bear": {
+        # 2026-10-25: the Large Bear — a scarred brown grizzly — four poses on
+        # black. Its "NORTH" pose shows the face and "SOUTH" its back: picked
+        # by what they show. A small board (~225 px a pose).
+        "src": "large_bear_board.png", "bg": "grabcut", "tiles": 1.9,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (10, 4, 176, 246),
+            "back": (176, 2, 318, 244),
+            "left": (306, 22, 519, 246),
+            "right": (518, 22, 700, 246),
+        },
+    },
     "air_mage": {
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,

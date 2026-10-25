@@ -119,7 +119,7 @@ const KINDS := {
 	"hydra": {"sheets": SHEETS + "/hydra", "scale": BOARD_SCALE},
 	"white_manticore": {"sheets": SHEETS + "/white_manticore", "scale": BOARD_SCALE},
 	# --- battler variations where the species genuinely matches ---
-	"large_bear": {"fr": "mountain_monsters/Bear", "scale": 0.65},
+	"large_bear": {"sheets": SHEETS + "/large_bear", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Bear
 	"bone_dragon": {"sheets": SHEETS + "/bone_dragon", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"wyvern": {"sheets": SHEETS + "/wyvern", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"cerberus": {"sheets": BOSSES + "/cerberus", "scale": BOARD_SCALE},
