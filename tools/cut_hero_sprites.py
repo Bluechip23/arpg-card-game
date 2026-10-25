@@ -107,6 +107,17 @@ HEROES = {
 # background; the figures' own dark outline keeps their dark cloth inside.
 GROUND = {FB: (32, 32, 30), SIDE: (32, 32, 30)}
 GROUND_TOL = 6
+# The ground also sits in pockets the edge flood cannot reach — between an
+# arm and the body, inside Stephen's bow — and as a blended halo round the
+# silhouette. A pocket is the ground's colour (within GROUND_TOL) AND as flat
+# as the ground (5x5 spread <= POCKET_FLAT; cloth always carries stitching
+# and shading), at least POCKET_MIN pixels; it goes, with the in-between
+# tones round it (within BLEND_TOL of the ground). Then HALO_PEEL passes take
+# the same in-between tones off the silhouette's edge.
+POCKET_FLAT = 3.0
+POCKET_MIN = 30
+BLEND_TOL = 14
+HALO_PEEL = 2
 
 # Painted out of the source before cutting (designer, 2026-10-25), from what
 # surrounds them (OpenCV inpaint): inside each polygon (source pixels), the
@@ -262,6 +273,7 @@ def cut(path, box, hero=None, facing=None):
     edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
            [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
     solid = ~_flood(dark, edge)
+    solid = _clear_ground(rgb, solid, ground)
     comps = _components(solid)
     biggest = max(len(c) for c in comps)
     keep = np.zeros_like(solid)
@@ -271,6 +283,44 @@ def cut(path, box, hero=None, facing=None):
     ys, xs = np.nonzero(keep)
     rgba = np.dstack([rgb.astype(np.uint8), np.where(keep, 255, 0).astype(np.uint8)])
     return Image.fromarray(rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
+
+
+def _clear_ground(rgb, solid, ground):
+    """Take the ground's enclosed pockets and its halo out of `solid`."""
+    import cv2  # tool dependency (opencv-python-headless)
+    f = rgb.astype(np.float32)
+    off = np.abs(f - np.array(ground, np.float32)).max(axis=2)
+    mean = cv2.blur(f, (5, 5))
+    spread = np.sqrt(np.maximum(cv2.blur(f * f, (5, 5)) - mean * mean, 0)).max(axis=2)
+    flat = solid & (off <= GROUND_TOL) & (spread <= POCKET_FLAT)
+    n, lab, stats, _ = cv2.connectedComponentsWithStats(flat.astype(np.uint8), connectivity=4)
+    pocket = np.zeros_like(solid)
+    for i in range(1, n):
+        if stats[i][4] < POCKET_MIN:
+            continue
+        piece = lab == i
+        r, g, b = f[piece].mean(axis=0)
+        # The ground leans green-yellow (green >= blue); the near-black cloth
+        # it can be mistaken for (Ryan's shirt) leans purple. Only the
+        # ground's own tint is a pocket.
+        if g - b >= -1.0 and abs(r - ground[0]) <= 5 and abs(g - ground[1]) <= 4:
+            pocket |= piece
+    blend = solid & (off <= BLEND_TOL)
+    k = np.ones((3, 3), np.uint8)
+    for _ in range(3):
+        pocket |= (cv2.dilate(pocket.astype(np.uint8), k) > 0) & blend
+    solid = solid & ~pocket
+    for _ in range(HALO_PEEL):
+        open_ = cv2.dilate((~solid).astype(np.uint8), k) > 0
+        solid = solid & ~(open_ & blend)
+    # Last, any edge pixel still the ground's own colour, until none is left.
+    for _ in range(6):
+        open_ = cv2.dilate((~solid).astype(np.uint8), k) > 0
+        stray = open_ & solid & (off <= GROUND_TOL)
+        if not stray.any():
+            break
+        solid = solid & ~stray
+    return solid
 
 
 def resample(img, factor):
