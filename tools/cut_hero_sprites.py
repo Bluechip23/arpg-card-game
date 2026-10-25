@@ -12,7 +12,9 @@ second, larger set, 2026-10-25 — ~400 px a figure where the first set was
     Stephen the lower row: it is the one without the bow across his front.
 Designer's edits (2026-10-25): Cory's chest charm (the rabbit's foot on its
 gold chain) and what is left of Stephen's bow in his side view are painted
-out (ERASE); Brad wears the embroidered feather on his breastplate (FEATHER).
+out (ERASE); Brad wears the embroidered feather on his breastplate (FEATHER);
+Jeremy's red, green and blue rings are put on his side view's fingers
+(RINGS).
 
 Keeping the art's nuance comes first (designer, 2026-10-23: the first cut,
 34 texels tall, was far too pixelated; 2026-10-24: err on the side of
@@ -128,6 +130,52 @@ ERASE = {
     ("cory", "east"): [([(428, 92), (452, 92), (456, 178), (426, 178)], "charm")],
     ("stephen", "east"): [([(1356, 606), (1370, 610), (1340, 646), (1324, 642)], "bow")],
 }
+
+# Jeremy's three rings — red, green and blue — show on his front, but the
+# side view's hand (a gold bracelet with one blue gem) shows none (designer,
+# 2026-10-25: put them on his fingers). Drawn on the source at full
+# resolution before cutting: a gold band round each bony finger with its
+# gem on top. (x, y): the gem's centre in source pixels.
+RINGS = {
+    ("jeremy", "west"): [((87, 246), (214, 38, 38)), ((93, 248), (40, 186, 72)), ((100, 249), (58, 112, 236))],
+}
+RING_GOLD = (222, 178, 74)
+RING_GOLD_DARK = (120, 84, 30)
+
+
+def draw_rings(sheet, hero, facing):
+    """Paint the RINGS for this pose onto `sheet` (RGB array): drawn 4x
+    oversized and shrunk, so they are as fine as the art."""
+    from PIL import ImageDraw
+    rings = RINGS.get((hero, facing), [])
+    if not rings:
+        return sheet
+    ss = 4
+    xs = [p[0] for p, _ in rings]
+    ys = [p[1] for p, _ in rings]
+    x0, y0, x1, y1 = min(xs) - 6, min(ys) - 6, max(xs) + 7, max(ys) + 7
+    layer = Image.new("RGBA", ((x1 - x0) * ss, (y1 - y0) * ss), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    for (x, y), gem in rings:
+        cx, cy = (x - x0 + 0.5) * ss, (y - y0 + 0.5) * ss
+        # The band: across the finger, a dark rim under the gold.
+        d.rounded_rectangle([cx - 3.8 * ss, cy - 1.4 * ss, cx + 3.8 * ss, cy + 1.7 * ss],
+                            radius=ss, fill=RING_GOLD_DARK + (255,))
+        d.rounded_rectangle([cx - 3.4 * ss, cy - 1.1 * ss, cx + 3.4 * ss, cy + 1.1 * ss],
+                            radius=ss, fill=RING_GOLD + (255,))
+        # The gem, with a dark setting and a glint.
+        r = 2.8 * ss
+        d.ellipse([cx - r - ss * 0.5, cy - r - ss * 0.5, cx + r + ss * 0.5, cy + r + ss * 0.5], fill=RING_GOLD_DARK + (255,))
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=gem + (255,))
+        g = 0.8 * ss
+        d.ellipse([cx - r * 0.55 - g, cy - r * 0.55 - g, cx - r * 0.55 + g, cy - r * 0.55 + g], fill=(255, 255, 255, 230))
+    layer = layer.convert("RGBa").resize((x1 - x0, y1 - y0), Image.LANCZOS).convert("RGBA")
+    base = Image.fromarray(np.ascontiguousarray(sheet[y0:y1, x0:x1]).astype(np.uint8), "RGB").convert("RGBA")
+    base.alpha_composite(layer)
+    out = sheet.copy()
+    out[y0:y1, x0:x1] = np.asarray(base.convert("RGB"))
+    return out
+
 
 # Brad's chest piece: an embroidered feather, golden white, almost heavenly,
 # lying across the middle of the breastplate with its tip raised 20 degrees,
@@ -266,6 +314,8 @@ def cut(path, box, hero=None, facing=None):
     sheet = np.asarray(Image.open(SRC % path).convert("RGB"))
     if (hero, facing) in ERASE:
         sheet = erase_marks(sheet, hero, facing)
+    if (hero, facing) in RINGS:
+        sheet = draw_rings(sheet, hero, facing)
     rgb = sheet[box[1]:box[3], box[0]:box[2]].astype(int)
     h, w, _ = rgb.shape
     ground = np.array(GROUND.get(path, (0, 0, 0)))
