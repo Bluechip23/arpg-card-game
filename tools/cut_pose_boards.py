@@ -435,6 +435,86 @@ BOARDS = {
             "right": (857, 612, 1120, 1055),
         },
     },
+    "sewer_cobra": {
+        # 2026-10-25: the Sewer Cobra — a coiled black cobra with a manhole-cover hood
+        # and an iron collar, dripping green venom; the `sewer_croc` kind — four poses on black. Its "NORTH" pose shows
+        # the face and "SOUTH" its back: picked by what they show. The boxes
+        # stop above the board's labels.
+        "src": "sewer_cobra_board.webp", "bg": "grabcut", "tiles": 1.6,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model drops the venom drips and the open mouth: keep what is lit.
+        "matte_fg": {"front": [(140, 100, 290, 300, "lit", 30)],
+                     "left": [(0, 30, 140, 260, "lit", 30)],
+                     "right": [(410, 30, 523, 260, "lit", 30)]},
+        "Idle": {
+            "front": (58, 11, 511, 540),
+            "back": (774, 11, 1208, 559),
+            "left": (37, 610, 536, 1142),
+            "right": (688, 618, 1211, 1145),
+        },
+    },
+    "ash_harpy": {
+        # 2026-10-25: the Ash Harpy — a feathered harpy with a burning ponytail; the
+        # height counts the flame — four poses on black. Its "NORTH" pose shows
+        # the face and "SOUTH" its back: picked by what they show. The boxes
+        # stop above the board's labels.
+        "src": "ash_harpy_board.webp", "bg": "grabcut", "tiles": 1.75,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model drops most of the ponytail's flame: keep what is lit.
+        "matte_fg": {"front": [(215, 20, 300, 140, "lit", 40)],
+                     "back": [(205, 5, 305, 120, "lit", 40)],
+                     "left": [(135, 25, 211, 140, "lit", 40)],
+                     "right": [(0, 25, 80, 145, "lit", 40)]},
+        "Idle": {
+            "front": (119, 7, 487, 546),
+            "back": (727, 18, 1089, 546),
+            "left": (214, 600, 425, 1155),
+            "right": (838, 603, 1040, 1155),
+        },
+    },
+    "snow_wraith": {
+        # 2026-10-25: the Snow Wraith — a hooded, tattered wraith with a snowflake
+        # clasp, trailing smoke where its legs would be — four poses on black. Its "NORTH" pose shows
+        # the face and "SOUTH" its back: picked by what they show. The boxes
+        # stop above the board's labels.
+        "src": "snow_wraith_board.webp", "bg": "grabcut", "tiles": 1.75,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (34, 12, 510, 580),
+            "back": (775, 11, 1215, 580),
+            "left": (122, 626, 543, 1180),
+            "right": (693, 626, 1121, 1180),
+        },
+    },
+    "fire_goblin": {
+        # 2026-10-25: the Fire Goblin — a goblin in red leather with a torch,
+        # scimitar and round shield; all three fire goblin kinds wear it. The
+        # height counts the torch's flame — four poses on black. Its "NORTH" pose shows
+        # the face and "SOUTH" its back: picked by what they show. The boxes
+        # stop above the board's labels.
+        "src": "fire_goblin_board.webp", "bg": "grabcut", "tiles": 1.5,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (111, 16, 497, 546),
+            "back": (764, 50, 1097, 546),
+            "left": (164, 611, 415, 1145),
+            "right": (841, 617, 1097, 1145),
+        },
+    },
+    "sludge": {
+        # 2026-10-25: the Sludge Being — a many-eyed ooze rising from its puddle,
+        # holding a ball of slime; its "WEST" / "EAST" are left / right — four poses on black. Its "NORTH" pose shows
+        # the face and "SOUTH" its back: picked by what they show. The boxes
+        # stop above the board's labels.
+        "src": "sludge_board.webp", "bg": "grabcut", "tiles": 1.45,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (45, 80, 543, 553),
+            "back": (703, 100, 1219, 553),
+            "left": (34, 617, 576, 1115),
+            "right": (661, 617, 1212, 1115),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped
@@ -814,7 +894,12 @@ def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
             fg[y0:y1, x0:x1] = False
         for hint in fg_boxes:
             m = np.zeros(fg.shape, np.uint8)
-            if len(hint) == 5:
+            if len(hint) == 6 and hint[4] == "lit":
+                # Everything in the box brighter than the black board
+                # (venom drips, a flame's wisps the model dropped).
+                x0, y0, x1, y1 = hint[0:4]
+                m[y0:y1, x0:x1] = rgb[y0:y1, x0:x1].max(axis=2) > hint[5]
+            elif len(hint) == 5:
                 cv2.line(m, hint[0:2], hint[2:4], 1, hint[4])
             else:
                 m[hint[1]:hint[3], hint[0]:hint[2]] = 1
