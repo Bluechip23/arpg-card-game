@@ -15479,11 +15479,35 @@ func _start_mythic_reveal(item: ItemData, looter: Player) -> void:
 	## Looting a mythic kicks off the ceremony (glow → present → icon) instead
 	## of a quiet inventory insert; _finish_mythic_reveal stores it on claim.
 	var reveal := MythicReveal.start(item, looter.position)
+	# The present always lands one tile from the player, never somewhere random.
+	reveal.land_at(_mythic_landing_offset(looter))
 	add_child(reveal)
 	reveal.claimed.connect(func(claimed_item): _finish_mythic_reveal(claimed_item, looter))
 	reveal.tree_exited.connect(func(): _mythic_reveals.erase(reveal))
 	_mythic_reveals.append(reveal)
 	add_battle_log("A MYTHIC reveals itself: %s!" % item.item_name, Color(0.9, 0.35, 0.9))
+
+## The open tile beside the looter where the mythic's present lands: the
+## first floor tile (no wall, pit, tree or enemy) going east, south, west,
+## north, then the diagonals; straight east if all are taken.
+func _mythic_landing_offset(looter: Player) -> Vector3:
+	var here: Vector2i = grid_manager.world_to_grid(looter.position)
+	var occupied: Array[Vector2i] = []
+	if enemy_spawner:
+		for e in enemy_spawner.get_living_enemies():
+			occupied.append(grid_manager.world_to_grid(e.position))
+	var dirs := [Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(0, -1),
+		Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, -1)]
+	var pick: Vector2i = dirs[0]
+	for d in dirs:
+		var t: Vector2i = here + d
+		if dungeon_manager == null:
+			break
+		if dungeon_manager.is_floor(t) and not dungeon_manager.pit_tiles.has(t) \
+				and not dungeon_manager.is_obstacle(t) and t not in occupied:
+			pick = d
+			break
+	return grid_manager.grid_to_world(here + pick) - grid_manager.grid_to_world(here)
 
 func _finish_mythic_reveal(item: ItemData, looter: Player) -> void:
 	var inv := looter.get_inventory() if is_instance_valid(looter) else (player.get_inventory() if player else null)
