@@ -38,7 +38,10 @@ func _check_fig(fig, name: String) -> void:
 		return
 	_check(fig._cp_sheets.has("Idle") and fig._cp_sheets.has("Walk"), "%s has Idle and Walk" % name)
 	var cell: int = fig._cp_cell
-	_check(cell <= 128, "%s cell is %d px" % [name, cell])
+	# Cells are cut at varying fineness (2026-10-24: finer than the tiles), so
+	# the bound is on the size drawn in the world, not the texel count.
+	var world: float = cell * fig._sprite.pixel_size * fig._rig.scale.y
+	_check(world <= 4.5, "%s cell is %d px, %.2f tiles across" % [name, cell, world])
 	var rows := {}
 	for d in [CharacterAnimator.Direction.SOUTH, CharacterAnimator.Direction.NORTH,
 			CharacterAnimator.Direction.WEST, CharacterAnimator.Direction.EAST]:
