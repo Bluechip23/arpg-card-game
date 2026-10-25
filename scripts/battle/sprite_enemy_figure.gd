@@ -185,6 +185,7 @@ const PAINTED_SHADOW_KINDS := ["swarm", "giant_hawk", "roc",
 		"specter", "snow_wraith", "summon_specter", "gravestone", "hell_door"]
 
 var figure_kind := ""   # the KINDS entry this figure was set up as
+var smooth := false     # wearing the smooth (non-pixelated) sheets (ArtStyle)
 var _sprite: Sprite3D = null
 var _rig: Node3D = null
 var _tint := Color.WHITE
@@ -201,6 +202,12 @@ var _ground_offset := Vector2.ZERO   # the sprite's offset with its feet on the 
 ## STEP_LIFT texels and back down, STEP_HZ times a second. Lifted along the
 ## sprite's own up (its offset), which is screen-up under the plan camera.
 const STEP_LIFT := 2.0
+
+
+## The walking step in this figure's own texels: STEP_LIFT pixel-sheet
+## texels, so the smooth sheets (twice as fine) step twice as many.
+func step_lift() -> float:
+	return STEP_LIFT * (2.0 if smooth else 1.0)
 const STEP_HZ := 3.5
 var _facing_x := -1.0    # battlers are drawn facing left; flip for east
 var _icon_faces := "left"  # icon battlers: the side the art faces ("front" never flips)
@@ -245,7 +252,16 @@ func setup(kind: String) -> void:
 	if cfg.has("cp"):
 		_setup_craftpix(cfg["cp"])
 	elif cfg.has("sheets"):
-		_setup_sheets(cfg["sheets"])
+		var soft := ArtStyle.smooth_folder(cfg["sheets"])
+		if soft != "":
+			# The smooth look (ArtStyle): the designer's art itself at
+			# SMOOTH_DENSITY a tile, filtered, with soft edges.
+			smooth = true
+			_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+			_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+			_setup_sheets(soft)
+		else:
+			_setup_sheets(cfg["sheets"])
 	elif cfg.has("fr"):
 		_setup_frames(cfg["fr"], cfg.get("prefix", ""))
 	elif cfg.has("npc"):
@@ -300,6 +316,8 @@ func setup(kind: String) -> void:
 	_base_y = 0.0
 	_sprite.position = Vector3(0, _base_y, 0)
 	var s: float = cfg.get("scale", 1.0)
+	if smooth:
+		s = 32.0 / ArtStyle.SMOOTH_DENSITY   # SMOOTH_DENSITY texels a tile
 	_rig.scale = Vector3(s, s, s)
 	_rig.add_child(_sprite)
 	_sprite.modulate = _tint
@@ -837,7 +855,8 @@ func _sync_outline() -> void:
 		o.region_rect = _sprite.region_rect
 		o.flip_h = _sprite.flip_h
 		var d: Vector2 = o.get_meta("dir")
-		o.offset = _sprite.offset + d
+		o.offset = _sprite.offset + d * (2.0 if smooth else 1.0)   # the same width on screen
+		o.texture_filter = _sprite.texture_filter
 		o.position = _sprite.position + back
 		o.modulate = col
 
@@ -910,4 +929,4 @@ func _cp_step(delta: float) -> void:
 	_sprite.position.y = _base_y
 	if _cp_cell > 0:
 		var stepping := _cp_anim == "Walk" and count == 1 and fmod(_time * STEP_HZ, 1.0) < 0.5
-		_sprite.offset = _ground_offset + (Vector2(0, STEP_LIFT) if stepping else Vector2.ZERO)
+		_sprite.offset = _ground_offset + (Vector2(0, step_lift()) if stepping else Vector2.ZERO)

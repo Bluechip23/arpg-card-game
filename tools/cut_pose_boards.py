@@ -67,6 +67,9 @@ from collections import deque
 import numpy as np
 from PIL import Image
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import smooth_art  # noqa: E402  (the smooth, non-pixelated sheets)
+
 try:
     import cv2   # only the GrabCut boards need it
 except ImportError:
@@ -716,6 +719,15 @@ def build(name: str, cfg: dict) -> None:
         pack(fs, cell).save(os.path.join(OUT % name, anim + ".png"))
     dims = ", ".join("%s %dx%d" % (d, f.width, f.height) for d, f in small["Idle"].items())
     print("%-13s ÷%.1f, %d-px cells: %s" % (name, factor, cell, dims))
+    # The smooth version (smooth_art): the same cut-outs at SMOOTH_DENSITY
+    # texels a tile, soft-filtered with soft alpha, kept beside the pixel one.
+    sfac = full["Idle"]["front"].height / float(round(cfg["tiles"] * smooth_art.SMOOTH_DENSITY))
+    soft = {a: {d: smooth_art.trim(smooth_art.resample(f, sfac)) for d, f in fs.items()} for a, fs in full.items()}
+    scell = max(max(f.width, f.height) for fs in soft.values() for f in fs.values()) + 2
+    sdir = os.path.join(smooth_art.ROOT, "sheets", name)
+    os.makedirs(sdir, exist_ok=True)
+    for anim, fs in soft.items():
+        smooth_art.pack([[fs[d]] for d in ROWS], scell, 1, lambda row, ci: row[0], air=0).save(os.path.join(sdir, anim + ".png"))
 
 
 def main() -> None:

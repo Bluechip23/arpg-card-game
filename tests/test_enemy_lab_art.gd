@@ -47,13 +47,14 @@ func _run() -> void:
 		_check(folder != "", "%s has designer sheets" % name)
 		_check(fig != null and fig._cp_mode and fig._cp_sheets.has("Walk"), "%s previews its sheet in the lab" % name)
 		if fig != null and fig._cp_sheets.has("Idle"):
-			_check(fig._cp_sheets["Idle"].resource_path.begins_with(folder), "%s lab sheet is %s" % [name, folder])
+			var want := ArtStyle.smooth_folder(folder) if fig.smooth else folder   # the smooth look's twin (ArtStyle)
+			_check(fig._cp_sheets["Idle"].resource_path.begins_with(want), "%s lab sheet is %s" % [name, want])
 	# The Screecher wears its crawler board in the lab too (2026-10-25).
 	lab._select_type(Enemy.EnemyType.SCREECHER)
 	await process_frame
 	var sfig = lab._figure
 	_check(sfig != null and sfig._cp_mode and sfig._cp_sheets.has("Idle")
-		and sfig._cp_sheets["Idle"].resource_path.begins_with(SpriteEnemyFigure.SHEETS + "/screecher"),
+		and sfig._cp_sheets["Idle"].resource_path.get_base_dir().ends_with("/screecher"),
 		"the Screecher previews its own board")
 	# Werewolf side view: upright, not stretched out on all fours.
 	lab._select_type(Enemy.EnemyType.WEREWOLF)

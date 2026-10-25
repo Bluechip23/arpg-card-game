@@ -40,6 +40,9 @@ import cv2
 import numpy as np
 from PIL import Image
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import smooth_art  # noqa: E402  (the smooth, non-pixelated sheets)
+
 SRC = "assets/sprites/paintings/%s"
 OUT = "assets/sprites/generated/sheets/%s"
 
@@ -424,10 +427,13 @@ def build(name: str) -> None:
     else:
         grid = black_frames(np.array(Image.open(SRC % spec["src"]).convert("RGB")).astype(float))
         get = lambda r, c: grid[r][c]
+    raw = {}
     frames = {}
     for d in ("front", "back", "left", "right"):
         if d in spec:
-            frames[d] = [trim(downscale(get(r, c), down)) for r, c in spec[d]]
+            for r, c in spec[d]:
+                raw.setdefault((r, c), get(r, c))
+            frames[d] = [trim(downscale(raw[(r, c)], down)) for r, c in spec[d]]
     if "left" not in frames:
         frames["left"] = [f[:, ::-1] for f in frames["right"]]
     if "right" not in frames:
@@ -439,6 +445,23 @@ def build(name: str) -> None:
     pack([[row[0]] for row in rows], cell, 1).save(os.path.join(out, "Idle.png"))
     pack(rows, cell, max(len(r) for r in rows)).save(os.path.join(out, "Walk.png"))
     print("%s: cell %d px -> %s" % (name, cell, out))
+    # The smooth version (smooth_art): the same cut-outs at SMOOTH_DENSITY
+    # texels a tile (DOWN lands on 64 at BOARD_SCALE), soft, kept beside.
+    sdown = down * 64.0 / smooth_art.SMOOTH_DENSITY
+    soft = {}
+    for d in ("front", "back", "left", "right"):
+        if d in spec:
+            soft[d] = [smooth_art.trim(smooth_art.resample(raw[(r, c)], sdown)) for r, c in spec[d]]
+    if "left" not in soft:
+        soft["left"] = [f.transpose(Image.FLIP_LEFT_RIGHT) for f in soft["right"]]
+    if "right" not in soft:
+        soft["right"] = [f.transpose(Image.FLIP_LEFT_RIGHT) for f in soft["left"]]
+    srows = [soft["front"], soft["back"], soft["left"], soft["right"]]
+    scell = max(max(f.width, f.height) for row in srows for f in row) + 2
+    sdir = os.path.join(smooth_art.ROOT, "sheets", name)
+    os.makedirs(sdir, exist_ok=True)
+    smooth_art.pack(srows, scell, 1, lambda row, ci: row[0]).save(os.path.join(sdir, "Idle.png"))
+    smooth_art.pack(srows, scell, max(len(r) for r in srows), lambda row, ci: row[ci % len(row)]).save(os.path.join(sdir, "Walk.png"))
 
 
 if __name__ == "__main__":

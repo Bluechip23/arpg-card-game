@@ -49,14 +49,17 @@ func _initialize() -> void:
 		for _i in range(12):
 			f._process(0.05)
 			lifts[f._sprite.offset.y - f._ground_offset.y] = true
-		_check(lifts.has(0.0) and lifts.has(SpriteEnemyFigure.STEP_LIFT), "%s steps while walking (%s)" % [kind, lifts.keys()])
+		_check(lifts.has(0.0) and lifts.has(f.step_lift()), "%s steps while walking (%s)" % [kind, lifts.keys()])
 		f.set_walking(false)
 		f._process(0.05)
 		_check(f._sprite.offset == f._ground_offset, "%s stands on its ground row when still" % kind)
 		_check(not kind in SpriteEnemyFigure.PAINTED_SHADOW_KINDS, "%s casts a blob shadow" % kind)
-		# Cut at the heroes' fineness: 64 texels a tile (2026-10-24).
+		# Cut at the heroes' fineness: 64 texels a tile (2026-10-24), or the
+		# smooth look's SMOOTH_DENSITY (ArtStyle, 2026-10-25).
+		var want := ArtStyle.SMOOTH_DENSITY if f.smooth else 64.0
+		_check(f.smooth == ArtStyle.SMOOTH, "%s wears the %s sheets" % [kind, "smooth" if ArtStyle.SMOOTH else "pixel"])
 		var density: float = 1.0 / (f._sprite.pixel_size * f._rig.scale.y)
-		_check(absf(density - 64.0) < 0.5, "%s is drawn at 64 texels a tile (%.1f)" % [kind, density])
+		_check(absf(density - want) < 0.5, "%s is drawn at %.0f texels a tile (%.1f)" % [kind, want, density])
 		f.free()
 
 	# The beaver drops to all fours to move: its walk is a different, lower pose.
