@@ -460,6 +460,19 @@ BOARDS = {
             "right": (678, 592, 1238, 1108),
         },
     },
+    "infected_hunter": {
+        # 2026-10-25: the Infected Hunter — a ragged, rotting trapper in a
+        # wide hat with a chained hook and a net on his back — four labelled
+        # poses on black. A small board (~250 px a pose).
+        "src": "infected_hunter_board.png", "bg": "grabcut", "tiles": 1.7,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (4, 0, 254, 258),
+            "back": (362, 0, 606, 258),
+            "left": (32, 282, 254, 556),
+            "right": (353, 285, 576, 556),
+        },
+    },
     "air_mage": {
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,
