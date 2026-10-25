@@ -107,7 +107,7 @@ const KINDS := {
 	"fire_goblin_shaman": {"cp": "goblins/Goblin3", "scale": 1.2, "tint": Color(1.1, 0.9, 0.8)},
 	"armored_troll": {"fr": "mountain_monsters/Orc", "scale": 0.55},
 	"ice_troll": {"fr": "mountain_monsters/Yeti", "scale": 1.05},
-	"granite_colossus": {"cp": "golem/Golem1", "scale": 1.6},
+	"granite_colossus": {"sheets": SHEETS + "/granite_colossus", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the golem pack's Golem1
 	"grave_titan": {"cp": "golem/Golem2", "scale": 1.35, "tint": Color(0.9, 0.92, 0.88)},
 	"inflamed_minotaur": {"sheets": SHEETS + "/inflamed_minotaur", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"demon": {"cp": "demons/Demon1", "scale": 0.85},

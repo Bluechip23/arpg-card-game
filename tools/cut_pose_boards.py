@@ -298,6 +298,19 @@ BOARDS = {
             "left": (750, 428, 1300, 715),
         },
     },
+    "granite_colossus": {
+        # 2026-10-25: the Granite Colossus, a hulking stone golem with ember
+        # eyes, in a forge. Its side labels are swapped (the "FACING LEFT"
+        # panel faces right), so the poses are picked by what they show.
+        "src": "granite_colossus_board.jpg", "bg": "grabcut", "tiles": 2.6,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (840, 28, 1290, 372),
+            "back": (140, 28, 565, 372),
+            "right": (240, 405, 505, 730),
+            "left": (905, 405, 1170, 730),
+        },
+    },
     "air_mage": {
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,
