@@ -418,6 +418,21 @@ BOARDS = {
             "right": (835, 604, 998, 1108),
         },
     },
+    "spirit_collector": {
+        # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
+        # ragged coat and hat, a shovel on his back, a lantern of trapped
+        # souls in his hand — four poses on black. Its "NORTH" pose shows the
+        # face and "SOUTH" its back: picked by what they show. The height
+        # counts the shovel's blade.
+        "src": "spirit_collector_board.png", "bg": "grabcut", "tiles": 1.75,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (170, 8, 440, 534),
+            "back": (826, 8, 1094, 534),
+            "left": (186, 597, 450, 1094),
+            "right": (826, 597, 1092, 1094),
+        },
+    },
     "air_mage": {
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,
