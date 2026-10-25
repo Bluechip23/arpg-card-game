@@ -7,7 +7,8 @@ extends Control
 ## his dropped pipe, decides he'd really rather not. He snaps up a fresh lawn
 ## chair, telekinetically retrieves the pipe, and blows two great smoke rings
 ## that drift to the top of the screen and become the two O's of OLORIN.
-## The remaining letters pop in green with a purple outline. Click/ESC skips.
+## The remaining letters pop in, in Courgette, coloured by the title screen's
+## chosen style (see TitleMenu.STYLES). Click/ESC skips.
 ##
 ## The actors are Mana Seed NPC sprites — Olorin is the old-man sheet (his
 ## town NPC sprite) and the boy is the NPC-pack boy — drawn frame-by-frame from a
@@ -38,8 +39,24 @@ const END_T := 27.6            # letters done, menu may appear
 const WOOD := Color(0.5, 0.34, 0.18)
 const CHAIR_CLOTH := Color(0.3, 0.55, 0.4)
 const SMOKE := Color(0.82, 0.82, 0.88)
-const TITLE_GREEN := Color(0.3, 0.85, 0.38)
-const TITLE_PURPLE := Color(0.55, 0.2, 0.8)
+
+## The look to paint with: a TitleMenu.STYLES entry, set before the node
+## enters the tree. Missing keys fall back to the Moonlit Glade colours.
+var palette: Dictionary = {}
+
+func _p(key: String, fallback):
+	return palette.get(key, fallback)
+
+# ---- Forest backdrop (Craftpix forest pack trees) ----
+const TREE_DIR := "res://assets/sprites/craftpix/tileset_forest/Objects_separated/"
+# Back row along the horizon: [tree, x as a fraction of the width, scale, y lift]
+const BACK_TREES := [
+	[1, 0.02, 2.0, 18.0], [5, 0.10, 2.0, 10.0], [2, 0.19, 2.0, 22.0], [6, 0.27, 2.0, 6.0],
+	[11, 0.36, 2.0, 16.0], [3, 0.45, 2.0, 24.0], [5, 0.54, 2.0, 12.0], [1, 0.62, 2.0, 20.0],
+	[6, 0.72, 2.0, 8.0], [2, 0.80, 2.0, 18.0], [11, 0.89, 2.0, 14.0], [3, 0.98, 2.0, 22.0],
+]
+# Big framing trees, half off the sides of the screen.
+const FRONT_TREES := [[1, -0.03, 4.5], [5, 0.07, 3.2], [2, 1.03, 4.5], [6, 0.94, 3.0]]
 
 # ---- Actor sprites (Mana Seed NPC packs, 32px cells, rows S/E/N/W) ----
 const OLORIN_SHEET := "res://assets/sprites/NPCpackage1/npc old man A v01.png"
@@ -64,6 +81,18 @@ const PIPE_LOUNGE_ANGLE := 1.15
 # survive the project's linear canvas filtering (which keeps text smooth).
 var _olorin_tex: Texture2D = _baked_sheet(OLORIN_SHEET, OLORIN_SCALE)
 var _boy_tex: Texture2D = _baked_sheet(BOY_SHEET, BOY_SCALE)
+static var _tree_cache: Dictionary = {}
+
+## A pack tree pre-scaled with nearest-neighbour (crisp pixels under the
+## project's linear canvas filter), cached per tree and scale.
+static func _tree_tex(index: int, factor: float) -> Texture2D:
+	var key := "%d@%.2f" % [index, factor]
+	if not _tree_cache.has(key):
+		var tex := load(TREE_DIR + "Tree%d.png" % index) as Texture2D
+		if tex == null:
+			return null
+		_tree_cache[key] = _baked_sheet(TREE_DIR + "Tree%d.png" % index, factor)
+	return _tree_cache[key]
 
 static func _baked_sheet(path: String, factor: float) -> ImageTexture:
 	var img: Image = (load(path) as Texture2D).get_image()
@@ -144,33 +173,37 @@ func _pipe_ground_pos() -> Vector2:
 	return Vector2(_olorin_x() - 46.0, _ground_y() - 10.0)
 
 func _title_font() -> Font:
-	return ThemeDB.fallback_font
+	return GameFonts.courgette()
 
-## Layout of the big OLORIN letters. Returns an Array of dictionaries
-## {ch, pos(baseline left), size, is_ring, center}.
+## Layout of the big "Olorin" letters. Returns an Array of dictionaries
+## {ch, pos(baseline left), size, is_ring, center, radius}. The capital O and
+## the small o are both smoke rings, each sized to its own letter.
 func _olorin_layout() -> Array:
 	var font := _title_font()
-	var fsize := 84
-	var word := "OLORIN"
+	var fsize := 104
+	var word := "Olorin"
 	var widths: Array[float] = []
 	var total := 0.0
-	var gap := 6.0
+	var gap := 2.0
 	for i in range(word.length()):
 		var w = font.get_string_size(word[i], HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x
 		widths.append(w)
 		total += w
 	total += gap * (word.length() - 1)
 	var x := (size.x - total) * 0.5
-	var baseline := size.y * 0.185
+	var baseline := size.y * 0.205
 	var out: Array = []
 	for i in range(word.length()):
 		var is_ring := (i == 0 or i == 2)  # the two O's are smoke rings
+		# Ring height: the capital's cap height, or the small o's x-height.
+		var glyph_h := fsize * (0.68 if i == 0 else 0.44)
 		out.append({
 			"ch": word[i],
 			"pos": Vector2(x, baseline),
 			"size": fsize,
 			"is_ring": is_ring,
-			"center": Vector2(x + widths[i] * 0.5, baseline - fsize * 0.36),
+			"center": Vector2(x + widths[i] * 0.5, baseline - glyph_h * 0.5),
+			"radius": minf(widths[i] * 0.40, glyph_h * 0.50),
 			"width": widths[i],
 		})
 		x += widths[i] + gap
@@ -242,6 +275,9 @@ func _draw() -> void:
 			bx = lerpf(_boy_arrive_x(), -60.0, smoothstep(0.0, 1.0, u2))
 			_draw_boy(Vector2(bx, g), _t, true, -1.0)
 
+	# ---------- Framing trees (the boy runs in from behind them) ----------
+	_draw_front_trees()
+
 	# ---------- Speech bubbles ----------
 	if _t >= T_BOY_ARRIVE and _t < T_BUBBLE1_END:
 		_draw_bubble(Vector2(_boy_arrive_x() + 10.0, g - 200.0), [
@@ -288,25 +324,93 @@ func _draw() -> void:
 # =============================================================
 
 func _draw_backdrop() -> void:
-	# Dusk sky gradient (drawn as horizontal bands) over dark grass.
+	# Sky gradient (horizontal bands), then stars, moon, the horizon tree
+	# line, mist, ground and drifting motes, all coloured by the palette.
 	var g := _ground_y()
-	var bands := 24
+	var sky_top: Color = _p("sky_top", Color(0.02, 0.05, 0.05))
+	var sky_hz: Color = _p("sky_horizon", Color(0.07, 0.19, 0.13))
+	var bands := 32
 	for i in range(bands):
 		var u := float(i) / float(bands - 1)
-		var col := Color(0.05, 0.05, 0.10).lerp(Color(0.13, 0.09, 0.20), 1.0 - u)
-		draw_rect(Rect2(0, g * u, size.x, g / bands + 1.0), col)
-	# Stars
-	for i in range(26):
-		var sx := fposmod(float(i) * 197.31, size.x)
-		var sy := fposmod(float(i) * 83.7, g * 0.7)
-		var tw := 0.35 + 0.3 * sin(_t * 1.5 + i * 1.7)
-		draw_circle(Vector2(sx, sy), 1.3, Color(1, 1, 0.9, tw))
-	# Moon
-	draw_circle(Vector2(size.x * 0.12, size.y * 0.14), 26.0, Color(0.9, 0.9, 0.8, 0.9))
-	draw_circle(Vector2(size.x * 0.12 + 9.0, size.y * 0.14 - 4.0), 22.0, Color(0.07, 0.06, 0.13))
+		draw_rect(Rect2(0, g * u, size.x, g / bands + 1.0), sky_top.lerp(sky_hz, u * u))
+	if _p("stars", true):
+		for i in range(30):
+			var sx := fposmod(float(i) * 197.31, size.x)
+			var sy := fposmod(float(i) * 83.7, g * 0.55)
+			var tw := 0.35 + 0.3 * sin(_t * 1.5 + i * 1.7)
+			draw_circle(Vector2(sx, sy), 1.3, Color(1, 1, 0.9, tw))
+	# Moon (or a low sun when the style has no crescent)
+	var moon_c := Vector2(size.x * 0.12, size.y * 0.14)
+	var moon: Color = _p("moon", Color(0.93, 0.95, 0.82))
+	if _p("moon_crescent", true):
+		draw_circle(moon_c, 34.0, Color(moon, 0.12))
+		draw_circle(moon_c, 26.0, Color(moon, 0.92))
+		draw_circle(moon_c + Vector2(9.0, -4.0), 22.0, sky_top.lerp(sky_hz, 0.12))
+	else:
+		var sun_c := Vector2(size.x * 0.24, g - 46.0)
+		for k in range(4):
+			draw_circle(sun_c, 70.0 - k * 12.0, Color(moon, 0.08 + k * 0.05))
+		draw_circle(sun_c, 30.0, Color(moon, 0.95))
+	if _p("aurora", false):
+		_draw_aurora(g)
+	# Horizon tree line: pack trees darkened into a soft silhouette.
+	var back_tint: Color = _p("tree_back", Color(0.13, 0.25, 0.18))
+	for entry in BACK_TREES:
+		_draw_tree(entry[0], Vector2(size.x * entry[1], g + 26.0 - entry[3]), entry[2], back_tint)
+	# Mist lying in the glade.
+	var mist: Color = _p("mist", Color(0, 0, 0, 0))
+	if mist.a > 0.0:
+		# Thin overlapping strips, densest just above the grass, so the
+		# mist fades out softly instead of banding.
+		var strips := 24
+		for k in range(strips):
+			var u := float(k) / float(strips - 1)
+			var my := g - 110.0 + u * 110.0 + sin(_t * 0.4 + k * 0.7) * 3.0
+			var a := mist.a * u * u * (0.75 + 0.25 * sin(_t * 0.3 + k * 0.9))
+			draw_rect(Rect2(0, my, size.x, 8.0), Color(mist, a))
 	# Ground
-	draw_rect(Rect2(0, g, size.x, size.y - g), Color(0.10, 0.16, 0.10))
-	draw_rect(Rect2(0, g, size.x, 3.0), Color(0.16, 0.26, 0.15))
+	draw_rect(Rect2(0, g, size.x, size.y - g), _p("ground", Color(0.05, 0.12, 0.06)))
+	draw_rect(Rect2(0, g, size.x, 3.0), _p("ground_edge", Color(0.10, 0.22, 0.10)))
+	# Fireflies / dust motes drifting over the glade.
+	var mote: Color = _p("motes", Color(0.85, 1.0, 0.45))
+	for i in range(int(_p("mote_count", 24))):
+		var seed := float(i) * 12.9898
+		var mx := fposmod(seed * 37.0 + sin(_t * 0.35 + i) * 40.0 + _t * (6.0 + i % 5), size.x)
+		var my := g - 30.0 - fposmod(seed * 23.0, g * 0.62) + sin(_t * 0.8 + i * 2.1) * 12.0
+		var glow := 0.5 + 0.5 * sin(_t * (1.2 + (i % 4) * 0.35) + i)
+		draw_circle(Vector2(mx, my), 5.0, Color(mote, 0.10 * glow))
+		draw_circle(Vector2(mx, my), 1.8, Color(mote, 0.85 * glow))
+
+func _draw_aurora(g: float) -> void:
+	## Slow ribbons of emerald and violet light across the upper sky.
+	var cols := [Color(0.35, 1.0, 0.65), Color(0.55, 0.45, 1.0)]
+	for r in range(2):
+		var base_y := g * (0.16 + r * 0.12)
+		var step := 8.0
+		var x := 0.0
+		while x < size.x:
+			var u := x / size.x
+			var y := base_y + sin(u * 5.5 + _t * 0.25 + r * 2.0) * 28.0 + sin(u * 13.0 - _t * 0.4) * 8.0
+			var h := 70.0 + 30.0 * sin(u * 7.0 + _t * 0.3 + r)
+			var a := 0.11 * (0.6 + 0.4 * sin(u * 9.0 + _t * 0.5 + r * 3.0))
+			# Fade the ribbon in from its lower edge upward.
+			for k in range(4):
+				draw_rect(Rect2(x, y - h * (k + 1) / 4.0, step, h / 4.0), Color(cols[r], a * (1.0 - k * 0.22)))
+			x += step
+
+func _draw_tree(index: int, foot: Vector2, factor: float, tint: Color) -> void:
+	## One pack tree with its trunk base at `foot`, tinted (multiplied).
+	var tex := _tree_tex(index, factor)
+	if tex == null:
+		return
+	var sz := tex.get_size()
+	# The pack trees stand a little above the bottom of their cell.
+	draw_texture(tex, foot - Vector2(sz.x * 0.5, sz.y * 0.94), tint)
+
+func _draw_front_trees() -> void:
+	var tint: Color = _p("tree_front", Color(0.05, 0.10, 0.07))
+	for entry in FRONT_TREES:
+		_draw_tree(entry[0], Vector2(size.x * entry[1], size.y + 40.0), entry[2], tint)
 
 # =============================================================
 # ACTORS
@@ -401,9 +505,9 @@ func _draw_bubble(top_left: Vector2, lines: Array, tail_target: Vector2) -> void
 	## Cartoon speech bubble: an off-white box holding the given text lines with
 	## a little tail pointing back toward the speaker (tail_target).
 	var font := _title_font()
-	var fsize := 18
+	var fsize := 19
 	var pad := 12.0
-	var line_h := 24.0
+	var line_h := 26.0
 
 	# Size the box to its widest line.
 	var text_w := 0.0
@@ -495,7 +599,7 @@ func _draw_travelling_ring(spawn_t: float, slot) -> void:
 	var to: Vector2 = slot["center"]
 	var pos := from.lerp(to, eased)
 	pos.x += sin(u * PI * 2.0) * 18.0 * (1.0 - u)  # drifts as it rises
-	var radius = lerpf(10.0, slot["size"] * 0.30, eased)
+	var radius = lerpf(10.0, slot["radius"], eased)
 	var thickness = lerpf(5.0, 9.0, eased)
 	var alpha = lerpf(0.55, 0.9, eased)
 	_smoke_ring(pos, radius, thickness, alpha, spawn_t)
@@ -508,15 +612,17 @@ func _draw_title(layout: Array) -> void:
 	if _t < T_RINGS_PARKED:
 		return
 	var font := _title_font()
+	var title_fill: Color = _p("title_fill", Color(0.98, 0.85, 0.48))
+	var title_outline: Color = _p("title_outline", Color(0.05, 0.16, 0.07))
 	# Stagger the letters in: "TRIALS OF" first, then the OLORIN consonants.
 	var reveal := (_t - T_RINGS_PARKED) / (END_T - T_RINGS_PARKED)
 
 	# --- "TRIALS OF" (small, above) ---
-	var small := "TRIALS OF"
-	var ssize := 30
+	var small := "Trials of"
+	var ssize := 40
 	var sw := font.get_string_size(small, HORIZONTAL_ALIGNMENT_LEFT, -1, ssize).x
 	var sx := (size.x - sw) * 0.5
-	var sy := size.y * 0.185 - 84.0
+	var sy := size.y * 0.205 - 92.0
 	for i in range(small.length()):
 		var lu = clampf(reveal * (small.length() + 4) - i, 0.0, 1.0)
 		if lu <= 0.0:
@@ -524,8 +630,8 @@ func _draw_title(layout: Array) -> void:
 		var ch := small[i]
 		var cw = font.get_string_size(ch, HORIZONTAL_ALIGNMENT_LEFT, -1, ssize).x
 		var cpos := Vector2(sx, sy - (1.0 - lu) * 10.0)
-		var fill := Color(TITLE_GREEN.r, TITLE_GREEN.g, TITLE_GREEN.b, lu)
-		var outline := Color(TITLE_PURPLE.r, TITLE_PURPLE.g, TITLE_PURPLE.b, lu)
+		var fill := Color(title_fill, lu)
+		var outline := Color(title_outline, lu)
 		draw_string_outline(font, cpos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, ssize, 6, outline)
 		draw_string(font, cpos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, ssize, fill)
 		sx += cw
@@ -542,7 +648,7 @@ func _draw_title(layout: Array) -> void:
 			continue
 		var pos: Vector2 = entry["pos"]
 		pos.y -= (1.0 - lu2) * 16.0
-		var fill2 := Color(TITLE_GREEN.r, TITLE_GREEN.g, TITLE_GREEN.b, lu2)
-		var outline2 := Color(TITLE_PURPLE.r, TITLE_PURPLE.g, TITLE_PURPLE.b, lu2)
+		var fill2 := Color(title_fill, lu2)
+		var outline2 := Color(title_outline, lu2)
 		draw_string_outline(font, pos, entry["ch"], HORIZONTAL_ALIGNMENT_LEFT, -1, entry["size"], 8, outline2)
 		draw_string(font, pos, entry["ch"], HORIZONTAL_ALIGNMENT_LEFT, -1, entry["size"], fill2)

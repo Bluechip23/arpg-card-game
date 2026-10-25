@@ -1,0 +1,11 @@
+Courgette-Regular.ttf
+Copyright (c) 2012, Karolina Lach (karolina.lach@gmail.com), with Reserved Font Name "Courgette".
+Source: Google Fonts (https://fonts.google.com/specimen/Courgette)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+The full license text is available with a FAQ at: https://openfontlicense.org
+
+In short: the font may be used, bundled, embedded and redistributed freely,
+including in commercial games, provided it is not sold by itself and the
+copyright notice and license travel with it. Derivative fonts may not use
+the Reserved Font Name.
