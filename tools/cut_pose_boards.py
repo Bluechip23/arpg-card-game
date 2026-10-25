@@ -418,6 +418,23 @@ BOARDS = {
             "right": (835, 604, 998, 1108),
         },
     },
+    "skeleton": {
+        # 2026-10-25: the Skeleton — a bare skeleton warrior — four poses on
+        # black, replacing the Craftpix Skeleton1. Its "NORTH" pose shows the
+        # face and "SOUTH" its back: picked by what they show. The boxes stop
+        # above the board's labels.
+        "src": "skeleton_board.webp", "bg": "grabcut", "tiles": 1.7,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model matte reads the right-facing skull's open eye socket as
+        # background; keep it as part of the skull.
+        "matte_fg": {"right": [(137, 33, 152, 47)]},
+        "Idle": {
+            "front": (118, 87, 513, 512),
+            "back": (798, 87, 1195, 510),
+            "left": (192, 612, 451, 1055),
+            "right": (857, 612, 1120, 1055),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped
