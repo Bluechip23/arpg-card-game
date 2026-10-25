@@ -29,7 +29,7 @@ from PIL import Image
 
 SRC = "assets/sprites/paintings/pit_fiend_sheet.jpg"
 OUT = "assets/sprites/generated/bosses/pit_fiend"
-DOWN = 2
+DOWN = 1   # was 2, drawn x1.3 up: now the source's own pixels, x0.65 (2026-10-25: ~49 texels a tile — the most the board holds)
 BG_TOL = 34.0
 INSET = 4
 
@@ -107,6 +107,14 @@ def cut(img: np.ndarray, box) -> np.ndarray:
 
 
 def downscale(rgba: np.ndarray) -> np.ndarray:
+    if DOWN != int(DOWN):
+        # Premultiplied box resample by a fractional factor, then on/off alpha.
+        img = Image.fromarray(np.dstack([np.clip(rgba[..., :3], 0, 255),
+                                         np.clip(rgba[..., 3:4] * 255, 0, 255)]).astype(np.uint8), "RGBA")
+        size = (max(1, round(img.width / DOWN)), max(1, round(img.height / DOWN)))
+        small = np.asarray(img.convert("RGBa").resize(size, Image.BOX).convert("RGBA")).copy()
+        small[..., 3] = np.where(small[..., 3] >= 128, 255, 0)
+        return small
     h, w, _ = rgba.shape
     h2, w2 = h // DOWN, w // DOWN
     a = rgba[:h2 * DOWN, :w2 * DOWN].reshape(h2, DOWN, w2, DOWN, 4)

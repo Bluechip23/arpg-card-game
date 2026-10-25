@@ -3,16 +3,18 @@ extends SceneTree
 ## Cuts the Inflamed Minotaur battler out of the designer's painting
 ## (assets/sprites/paintings/inflamed_minotaur.webp, 797x542, lava background):
 ## two traced silhouettes (the body, and the flaming axe with its haft) mask
-## the painting at full resolution, then it is box-filtered down 4x so the
-## painting's pixel blocks land as single texels, with the mask's coverage
-## as the alpha. Run once to (re)generate the sprite:
+## the painting at full resolution, then it is box-filtered down DOWN x
+## (2026-10-25: 8/3, the heroes' 64 texels a tile at SpriteEnemyFigure's
+## BOARD_SCALE — it was 4x, drawn x0.75, ~43 a tile), with the mask's
+## coverage as the alpha. Run once to (re)generate the sprite:
 ##   godot --headless --path . --script tools/cut_minotaur.gd
-## Output: assets/sprites/generated/monsters/inflamed_minotaur.png (173x130)
+## Output: assets/sprites/generated/monsters/inflamed_minotaur.png (259x195)
 ## The paintings folder carries a .gdignore: the source is not a game asset.
 
 const SRC := "res://assets/sprites/paintings/inflamed_minotaur.webp"
 const OUT := "res://assets/sprites/generated/monsters/inflamed_minotaur.png"
-const DOWN := 4
+const DOWN := 8.0 / 3.0
+const SUB := 4   # sample points across each texel, each way
 
 var body := PackedVector2Array([
 	Vector2(440, 0), Vector2(480, 5), Vector2(510, 25), Vector2(550, 27), Vector2(560, 65), Vector2(545, 95),
@@ -40,25 +42,25 @@ func _inside(p: Vector2) -> bool:
 func _initialize() -> void:
 	var src := Image.load_from_file(ProjectSettings.globalize_path(SRC))
 	src.convert(Image.FORMAT_RGBA8)
-	var crop := Rect2i(12, 0, 692, 520)  # x 12..704, y 0..520 -> 173 x 130 texels
-	var w := crop.size.x / DOWN
-	var h := crop.size.y / DOWN
+	var crop := Rect2i(12, 0, 692, 520)  # x 12..704, y 0..520
+	var w := int(crop.size.x / DOWN)
+	var h := int(crop.size.y / DOWN)
 	var out := Image.create(w, h, false, Image.FORMAT_RGBA8)
 	for y in range(h):
 		for x in range(w):
 			var rgb := Vector3.ZERO
 			var cover := 0.0
-			for sy in range(DOWN):
-				for sx in range(DOWN):
-					var px := crop.position.x + x * DOWN + sx
-					var py := crop.position.y + y * DOWN + sy
-					if _inside(Vector2(px + 0.5, py + 0.5)):
-						var c := src.get_pixel(px, py)
+			for sy in range(SUB):
+				for sx in range(SUB):
+					var fx := crop.position.x + (x + (sx + 0.5) / SUB) * DOWN
+					var fy := crop.position.y + (y + (sy + 0.5) / SUB) * DOWN
+					if _inside(Vector2(fx, fy)):
+						var c := src.get_pixel(int(fx), int(fy))
 						rgb += Vector3(c.r, c.g, c.b)
 						cover += 1.0
 			if cover > 0.0:
 				rgb /= cover
-			out.set_pixel(x, y, Color(rgb.x, rgb.y, rgb.z, cover / float(DOWN * DOWN)))
+			out.set_pixel(x, y, Color(rgb.x, rgb.y, rgb.z, cover / float(SUB * SUB)))
 	out.save_png(ProjectSettings.globalize_path(OUT))
 	print("[mino] saved %s (%dx%d)" % [OUT, w, h])
 	quit()

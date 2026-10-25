@@ -28,7 +28,7 @@ from PIL import Image
 
 SRC = "assets/sprites/paintings/archer_rat_%s.jpg"
 OUT = "assets/sprites/generated/sheets/archer_rat"
-DOWN = 4
+DOWN = 4 * 0.5 / 0.9   # was 4, drawn x0.9: now the heroes' 64 texels a tile at BOARD_SCALE (2026-10-25)
 
 # GrabCut boxes (x0, y0, x1, y1) around each rat in the 1408x768 scenes.
 STANDING = {
@@ -99,6 +99,14 @@ def cut(img: np.ndarray, box) -> np.ndarray:
 
 
 def downscale(rgba: np.ndarray) -> np.ndarray:
+    if DOWN != int(DOWN):
+        # Premultiplied box resample by a fractional factor, then on/off alpha.
+        img = Image.fromarray(np.dstack([np.clip(rgba[..., :3], 0, 255),
+                                         np.clip(rgba[..., 3:4] * 255, 0, 255)]).astype(np.uint8), "RGBA")
+        size = (max(1, round(img.width / DOWN)), max(1, round(img.height / DOWN)))
+        small = np.asarray(img.convert("RGBa").resize(size, Image.BOX).convert("RGBA")).copy()
+        small[..., 3] = np.where(small[..., 3] >= 128, 255, 0)
+        return small
     h, w, _ = rgba.shape
     h2, w2 = h // DOWN, w // DOWN
     a = rgba[:h2 * DOWN, :w2 * DOWN].reshape(h2, DOWN, w2, DOWN, 4)

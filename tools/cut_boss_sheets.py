@@ -11,8 +11,7 @@ back, and one side — the other side is the mirror).
 
 Per frame: the panel colour is flood-filled away from the cell border (a
 colour test alone would eat the dark fur), the cut-out is box-filtered down
-DOWN x (the art's pixel blocks are 2-3 source pixels, so this lands on the
-game's texel density), alpha is snapped to on/off for crisp pixel edges,
+BOSS_DOWN x (to the heroes' 64 texels a tile), alpha is snapped to on/off for crisp pixel edges,
 and every frame is placed bottom-centred in one square cell.
 
 Output: assets/sprites/generated/bosses/<boss>/Idle.png and Walk.png in the
@@ -28,7 +27,13 @@ from PIL import Image
 
 SRC = "assets/sprites/paintings/%s_sheet.webp"
 OUT = "assets/sprites/generated/bosses/%s"
-DOWN = 3
+DOWN = 3          # the art's own pixel grid (2-3 source px a block) — no longer used as is:
+# Each boss is cut at the heroes' 64 texels a tile (drawn at SpriteEnemyFigure's
+# BOARD_SCALE 0.5), keeping the height in tiles it had when cut on the art's
+# grid (DOWN 3) and drawn 1.15-1.5x up, which put each art pixel on 2.3-3
+# screen pixels, unevenly (2026-10-25). Source px per texel, per boss:
+BOSS_DOWN = {"rat_king": 1.5 / 1.15, "cerberus": 1.0, "hades": 1.5 / 1.15,
+             "corrupted_archangel": 1.5 / 1.15}
 BG_TOL = 14.0   # RGB distance from the panel colour that still counts as panel
 INSET = 3       # trim each cell's edge (the panel border line)
 
@@ -152,7 +157,16 @@ def cut_cell(img: np.ndarray, r: int, c: int, key_all: bool = False, clear_boxes
     return rgba
 
 
-def downscale(rgba: np.ndarray) -> np.ndarray:
+def downscale(rgba: np.ndarray, down=DOWN) -> np.ndarray:
+    if down != int(down):
+        # Premultiplied box resample by a fractional factor, then on/off alpha.
+        img = Image.fromarray(np.dstack([np.clip(rgba[..., :3], 0, 255),
+                                         np.clip(rgba[..., 3:4] * 255, 0, 255)]).astype(np.uint8), "RGBA")
+        size = (max(1, round(img.width / down)), max(1, round(img.height / down)))
+        small = np.asarray(img.convert("RGBa").resize(size, Image.BOX).convert("RGBA")).copy()
+        small[..., 3] = np.where(small[..., 3] >= 128, 255, 0)
+        return small
+    DOWN = int(down)
     h, w, _ = rgba.shape
     h2, w2 = h // DOWN, w // DOWN
     a = rgba[:h2 * DOWN, :w2 * DOWN].reshape(h2, DOWN, w2, DOWN, 4)
@@ -175,7 +189,7 @@ def build(boss: str) -> None:
     frames = {}
     for d in ("front", "back", "side"):
         frames[d] = [trim(downscale(cut_cell(img, r, c, spec.get("key_all", False),
-            spec.get("clear", {}).get((r, c))))) for r, c in spec[d]]
+            spec.get("clear", {}).get((r, c))), BOSS_DOWN[boss])) for r, c in spec[d]]
     if spec["side_faces"] == "right":
         right = frames["side"]
         left = [f[:, ::-1] for f in right]
@@ -203,7 +217,7 @@ def build(boss: str) -> None:
     if "idle_side" in spec:
         r, c = spec["idle_side"]
         stand = trim(downscale(cut_cell(img, r, c, spec.get("key_all", False),
-            spec.get("clear", {}).get((r, c)))))
+            spec.get("clear", {}).get((r, c))), BOSS_DOWN[boss]))
         idle[2] = stand
         idle[3] = stand[:, ::-1]
     sheet(1, lambda row, ci: row[0], [[f] for f in idle]).save(os.path.join(out_dir, "Idle.png"))

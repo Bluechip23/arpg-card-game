@@ -17,7 +17,10 @@ each creature is what differs from it, minus its own shadow, with GrabCut
 settling the edge; specks are dropped and holes filled. The werewolf is dark
 fur on the same dark stone and gets its own pass (cut_stone_dark). Black sheets: anything brighter than the
 black is the creature; rows and frames are split where nothing lies between them.
-Each frame is box-filtered DOWN x with on/off alpha (2026-10-24, near the
+Each frame is box-filtered DOWN x with on/off alpha (2026-10-25: each DOWN now
+lands the creature on exactly the heroes' 64 texels a tile at
+SpriteEnemyFigure's BOARD_SCALE, its height in tiles unchanged — the old
+57-69 a tile drew the art a little off whole pixels) (2026-10-24, near the
 heroes' fineness, ~64 texels a tile: the black sheets' art pixels are ~2
 source pixels, DOWN 3 — DOWN 4 had thrown half their detail away; the stone
 sheets are painterly, with no pixel grid, DOWN 1.5 — DOWN 3 had halved
@@ -54,13 +57,13 @@ STRIP_REACH = 20
 # mirror of the other.
 FRAMES = {
     "hydra": {
-        "src": "hydra_sheet.jpg", "kind": "stone", "down": 1.5,
+        "src": "hydra_sheet.jpg", "kind": "stone", "down": 1.5 * 0.5 / 0.55,
         "back": [(0, 0), (0, 1), (0, 2), (0, 3)],
         "front": [(2, 0), (2, 1), (2, 2), (2, 3)],
         "right": [(3, 0), (3, 1), (3, 2), (3, 3)],   # row 2 ("walking left") is mostly right-facing too
     },
     "werewolf": {
-        "src": "werewolf_sheet.jpg", "kind": "stone_dark", "down": 1.5,
+        "src": "werewolf_sheet.jpg", "kind": "stone_dark", "down": 1.5 * 0.5 / 0.525,
         "back": [(0, 0), (0, 1)],                     # (0, 2), (0, 3) are side views
         "front": [(2, 0), (2, 1), (2, 2), (2, 3)],
         # Side: the upright walk on its hind legs (the back row's two side
@@ -69,26 +72,26 @@ FRAMES = {
         "right": [(0, 2), (0, 3)],
     },
     "sabertooth": {
-        "src": "sabertooth_sheet.jpg", "kind": "stone", "down": 1.5,
+        "src": "sabertooth_sheet.jpg", "kind": "stone", "down": 1.5 * 0.5 / 0.475,
         "back": [(0, 0), (0, 1), (0, 2), (0, 3)],
         "front": [(2, 0), (2, 1), (2, 2), (2, 3)],
         "right": [(3, 0), (3, 1), (3, 2), (3, 3)],
     },
     "white_manticore": {
-        "src": "white_manticore_sheet.webp", "kind": "black", "down": 3,
+        "src": "white_manticore_sheet.webp", "kind": "black", "down": 3 * 0.5 / 0.5625,
         "back": [(0, c) for c in range(4)],
         "front": [(1, c) for c in range(4)],
         "left": [(2, c) for c in range(4)],
         "right": [(3, c) for c in range(4)],
     },
     "weregoat": {
-        "src": "weregoat_sheet.webp", "kind": "black", "down": 3,
+        "src": "weregoat_sheet.webp", "kind": "black", "down": 3 * 0.5 / 0.465,
         "back": [(0, c) for c in range(4)],
         "front": [(1, c) for c in range(4)],
         "left": [(2, c) for c in range(4)],           # its "Right" row faces left as well
     },
     "wolf": {
-        "src": "wolf_sheet.webp", "kind": "black", "down": 3,
+        "src": "wolf_sheet.webp", "kind": "black", "down": 3 * 0.5 / 0.525,
         "back": [(0, c) for c in range(4)],
         "front": [(1, c) for c in range(4)],
         "left": [(2, c) for c in range(4)],           # its "Right" row faces left as well
