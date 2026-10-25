@@ -12,6 +12,7 @@ var _main: Node = null
 var _frames := 0
 var _out := "/tmp/tour"
 var _shot := -1
+var _wait := 0
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
@@ -29,6 +30,12 @@ func _process(_delta: float) -> bool:
 	if _frames < 70 or olorin == null or not olorin.is_busy():
 		return false
 	var idx: int = olorin.tour_step_index()
+	# Let the beat's speech bar size itself and dock clear of the lit area.
+	if idx != _shot:
+		_wait += 1
+		if _wait < 10:
+			return false
+	_wait = 0
 	if idx == _shot:
 		olorin._tour_next()
 		if not olorin.is_busy():
