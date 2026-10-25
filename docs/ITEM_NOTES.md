@@ -200,8 +200,10 @@ live off item_level (see Card.execute's ragnarok case).
 RANGED (first ranged pass — bows & quivers)
 Bows are two-handed (Inventory.is_two_hand_only) and admit only a quiver
 alongside them; the quiver rides in the other hand slot and takes that
-slot's off-hand modifier like any hand item. The Boomerang and Wrist Rocket
-are the one-handed exceptions — thrown "bows" that still pair with a quiver.
+slot's off-hand modifier like any hand item. A quiver is ONLY worn beside a
+bow (designer, 2026-10-25): it cannot be equipped without one and comes off
+with it. The Boomerang and Wrist Rocket are one-handed thrown weapons and
+take no quiver.
 ## SHIELDS (first shields pass
 
 SHIELDS (first shields pass — the off hand that fights back)

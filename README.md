@@ -293,20 +293,37 @@ Every item has weight. Your capacity is **50 + 10 per point of Strength**. You c
 
 ### Hands, off-hands, and two-handing
 
-- Weapon slot 1 is your main hand; additional hand slots are **off-hands**, which apply their bonuses at reduced (90%) effectiveness by default.
-- **Any item can go in any hand** — there is no main-hand/off-hand *type* restriction. You can wear a shield in your main hand and a sword in an off-hand, a quiver alongside a bow, and so on. The 90% off-hand reduction is about *which slot* an item sits in, not what type of item it is.
-- **Dual wielding carries a weight tax.** Holding a pair of weapons, or a pair of **shields**, makes **every** item of the pair count **15% heavier** toward your carry load but the attack-speed counter drops by **4**. The penalty hits both hands, so a huge main-hand weapon can't hide behind a feather-light off-hand. Twin daggers barely notice while pairing two real weapons is a Strength commitment. Sword-and-shield mixes classes and doesn't count as dual wielding.
-- **The free hand.** Wielding exactly one hand item, weapon **or** shield, with your other hand truly empty is a stance of its own. This comes with the benefit of flash **parry costs 2 instead of 3**, and **every 12th attack echoes**. The echo is free and does not advance the attack-speed counter and can't itself echo. The two-handed grip fills both hands and a quiver occupies a hand, so neither qualifies.
-- **Exception — bows are two-handed.** A bow never shares the hands with another weapon or shield.
-- **Any weapon or shield can be gripped with both hands** — it's a player choice per slot, not an item property. Two-handing:
-  - halves the item's carried weight (letting a weaker character wield huge gear),
-  - drops your **total** carry capacity to 70% while gripped,
-  - consumes a second (empty) hand slot,
-  - grants bonus damage from the item's *original* weight (+1 per 25 weight) — shields instead gain bonus block armor.
+Every character has two hand slots: slot 1 is the **main hand**, slot 2 the **off hand**. Weapons, shields and quivers all go in hand slots.
+
+**What your weapon does (and doesn't).** No weapon sets your damage. The auto attack is always 3 base damage run through your stats (half your Strength, enchantments, sphere grid, a two-handed weapon's bonus), then Strengthen and crit; the "Weapon Damage" an item lists is not used in combat. Neither hand makes an attack of its own — there are no alternating or off-hand swings. What the hands DO decide:
+- **Reach.** Holding a bow makes the auto attack reach 5 squares (6 tempo instead of 5) and turns Conditional cards ranged. A wand, tome or staff turns the Attack cards (Attack, Slash, Exposing Strike) ranged too, but not the auto-attack button.
+- **Cards and slots.** Every hand item's granted cards and card slots work the same in either hand.
+
+**The off hand.** Whatever sits in slot 2 — weapon, **shield or quiver** — gives everything at **90%** (Stephen: **110%**, his White Sleeve):
+- its stat bonuses (STR, DEX, INT, WIS, DET, AGI, health, mana), rounded down — so a +1 gives nothing and a +2 gives 1;
+- every bonus it carries (crit, lifesteal, healing, resistances, card damage and block, hand size, flash, spell power, damage reduction, ranged damage and range, and the rest), rounded down;
+- the on-self bonus of every card slotted into it (damage, block, heal, self-heal, debuff stacks, durations, the bonus part of damage multipliers…) — **except Double Shot**, which is never reduced;
+- its effects when they fire (Sabre Tooth's bleed, Umbral Eclipse, Axe's Axe flash, the trident's pierce, a shield's thorns, regen, retaliation and Overdraw…). Small amounts round at random so the average is exactly 90% (110%): an off-hand 1 Bleed lands nine times in ten.
+- Drawbacks are never reduced (an item's extra mana cost, attack-speed or movement penalty keeps its full bite).
+- An item **held two-handed** is not in the off hand and works at full strength.
+
+**Single wielding — the free hand.** Exactly one *one-handed* item (a weapon or a shield) with the other hand empty is a stance of its own: flash **parry and Flash Cut cost 2 instead of 3**, and **every 12th attack echoes** (free, it does not advance the attack-speed counter and cannot echo itself). No stat changes. Two-handing, a bow or a staff (two-handed by nature) never qualify.
+
+**Dual wielding.** Two weapons — or two **shields** — in hand: the attack-speed counter needs **4 fewer** attacks. Nothing else changes, and there is no extra weight. The second item still takes the off-hand modifier. Weapon + shield is not dual wielding.
+
+**Bows, staffs and quivers.** Bows and staffs are two-handed by nature: nothing shares the hands with a staff, and only a quiver with a bow. **A quiver is only worn beside a bow** — it cannot be equipped without one, and it comes off (back to your bag) when the bow does. Bows and staffs take none of the two-handing bonuses below.
+
+**Two-handing.** Any one-handed weapon or shield can be held with both hands — a player choice per slot, not an item property — as long as the other hand is empty (it is locked while you two-hand). Two-handing:
+- halves the item's carried weight (letting a weaker character wield huge gear),
+- drops your **total** carry capacity to 70% while two-handing,
+- a **weapon** adds +1 damage per 25 of its *original* weight to the auto attack and every physical card hit (not spells),
+- a **shield** adds +1 block per 25 of its original weight to the Block button **and to every card that grants armor**,
+- lifts the off-hand modifier from an off-hand item.
+You can't start or stop two-handing if it would leave you more overburdened.
 
 ### Equipment builds (loadouts I / II / III)
 
-You can save **three equipment builds** and switch between them. Switching swaps every changed piece at once and re-applies your two-handed grip. **While any enemy is within aggro range, every changed slot costs tempo, and any paid gear change (swap, removal, build switch) also costs half the mana you are holding.** That tempo never advances the mana regen countdown, so a swap can't buy a regen tick. With no enemy in aggro range, gear changes are free. Changing gear mid-fight is meant to hurt; Stephen's weapon swaps (tempo only, at a discount) and Brad's War Rack draw (always free) are the exceptions.
+You can save **three equipment builds** and switch between them. Switching swaps every changed piece at once and re-applies your two-handing. **While any enemy is within aggro range, every changed slot costs tempo, and any paid gear change (swap, removal, build switch) also costs half the mana you are holding.** That tempo never advances the mana regen countdown, so a swap can't buy a regen tick. With no enemy in aggro range, gear changes are free. Changing gear mid-fight is meant to hurt; Stephen's weapon swaps (tempo only, at a discount) and Brad's War Rack draw (always free) are the exceptions.
 
 | Slot | Swap cost (tempo) | Remove-only |
 |---|---|---|

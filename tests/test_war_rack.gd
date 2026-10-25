@@ -6,7 +6,7 @@ extends SceneTree
 ##   * rack_deploy (free): hand gear set aside, the weapon in hand two-handed,
 ##     its cards rushed to HAND, a 20-tempo return clock and a 60-tempo
 ##     cooldown (both on raw tempo).
-##   * The grip cannot be released while it is out; build switches wait.
+##   * Two-handing cannot be released while it is out; build switches wait.
 ##   * After 20 tempo (or early, by choice) the weapon goes back up and the
 ##     usual gear returns — its cards to the DISCARD pile, not the hand.
 ## Run: godot --headless --path . --script tests/test_war_rack.gd
@@ -84,7 +84,7 @@ func _initialize() -> void:
 	_check(_in_hand("Heavy Swing"), "the hammer's granted card rushed to HAND")
 	_check(inv.get_total_weight() >= sword.weight + shield.weight + floori(hammer.weight * Inventory.TWO_HAND_WEIGHT_MULT),
 		"the set-aside gear still weighs on him (%d, was %d)" % [inv.get_total_weight(), weight_before])
-	_check(not inv.set_two_handed(0, false) and inv.two_handed_slot == 0, "the grip cannot be released: %s" % inv.last_refusal)
+	_check(not inv.set_two_handed(0, false) and inv.two_handed_slot == 0, "two-handing cannot be released: %s" % inv.last_refusal)
 	_check(not inv.can_rack_deploy()["ok"], "it cannot be drawn again while out")
 	var sw: Dictionary = inv.switch_build(1)
 	_check(not sw["success"] and sw["reason"].find("War Rack") >= 0, "a build switch waits for it: %s" % sw["reason"])
@@ -121,7 +121,7 @@ func _initialize() -> void:
 	_check(deck.discard_pile.has(shot) and not deck.hand.has(shot), "the bow's card rejoined the DECK (discard), not the hand")
 	_check(inv.rack_cooldown_tempo == 60, "an early return does not shorten the cooldown")
 
-	# --- A bow on the rack: two-handed by nature, no grip stance ---
+	# --- A bow on the rack: two-handed by nature, no toggle ---
 	inv.rack_take_item(0)
 	_check(not inv.is_war_rack_item(hammer), "taken down, the hammer is an ordinary weapon again")
 	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
@@ -143,7 +143,7 @@ func _initialize() -> void:
 		"the shield comes down braced two-handed")
 	_check(inv.get_two_hand_block_bonus(tower) == floori(tower.weight / Inventory.TWO_HAND_WEIGHT_DAMAGE_DIVISOR),
 		"and the brace grants its Basic Block armor (+%d)" % inv.get_two_hand_block_bonus(tower))
-	_check(not inv.set_two_handed(0, false), "its grip cannot be released either")
+	_check(not inv.set_two_handed(0, false), "its two-handing cannot be released either")
 	inv.advance_rack_tempo(20)
 	_check(inv.get_equipped_item(ItemData.ItemType.WEAPON, 0) == sword and inv.rack_weapon() == tower, "and it goes back up after 20")
 

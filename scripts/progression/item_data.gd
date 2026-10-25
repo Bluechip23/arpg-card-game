@@ -353,28 +353,50 @@ var overdraw_recharge_accum: int = 0 # tempo banked toward the next charge
 var conjured_in_manifest: int = 0    # Cinquedea copies currently parked in the manifest zone
 
 # Off-hand state (set by Inventory on every equip/swap/unequip): EVERYTHING
-# about a weapon is 10% weaker in the off hand, not just its stat block —
-# flat channels and on-self riders scale by OFF_HAND_RIDER_SCALE (floored),
-# and per-hit integer riders roll a 10% fizzle at their consumption sites
-# (exactly 10% weaker in expectation, no rounding cliffs on 1-3 stack
-# riders). Maluses keep full strength — a softer drawback would be a buff.
-# Shields and quivers are exempt: they are off-hand items by design.
+# about an item in the off hand — weapon, shield or quiver — works at the
+# off-hand modifier: 0.9 (-10%) for everyone, 1.1 (+10%) for Stephen, whose
+# White Sleeve empowers his off hand. Not just the stat block: flat channels
+# and on-self bonuses scale (floored), and per-hit / per-cycle riders scale
+# at their consumption sites (rider_scale, rider_int, rider_fizzles).
+# Maluses keep full strength — a softer drawback would be a buff. An item
+# held two-handed is not in the off hand.
 var is_in_off_hand: bool = false
-const OFF_HAND_RIDER_SCALE := 0.9
+var off_hand_scale: float = 1.0
+const OFF_HAND_RIDER_SCALE := 0.9  # the default modifier (Inventory.DEFAULT_OFF_HAND_PENALTY)
 
+## Multiplier for a continuous rider (a percent, a float amount).
 func rider_scale() -> float:
-	return OFF_HAND_RIDER_SCALE if is_in_off_hand else 1.0
+	return off_hand_scale
 
-## Per-application off-hand roll for integer on-hit riders.
+## A whole-number rider (stacks, heal, flash, targets) under the off-hand
+## modifier, rounded at random so it is exactly 90% (or 110%) on average
+## with no rounding cliff: 1 Bleed in the off hand is 1 nine times in ten.
+func rider_int(amount: int) -> int:
+	if amount <= 0 or is_equal_approx(off_hand_scale, 1.0):
+		return amount
+	var exact := amount * off_hand_scale
+	var whole := floori(exact)
+	return whole + (1 if randf() < exact - whole else 0)
+
+## A whole-number amount under the modifier, floored — for amounts that must
+## be added and later taken back exactly (Overdraw's per-blade block).
+func rider_floor(amount: int) -> int:
+	return floori(amount * off_hand_scale) if amount > 0 else amount
+
+## Per-application off-hand roll for an all-or-nothing on-hit rider: it
+## fails 10% of the time in a weakened off hand (never in an empowered one).
 func rider_fizzles() -> bool:
-	return is_in_off_hand and randf() < (1.0 - OFF_HAND_RIDER_SCALE)
+	return off_hand_scale < 1.0 and randf() < (1.0 - off_hand_scale)
 
-# On-self benefit keys the off-hand penalty scales (see get_on_self_bonus).
-# Maluses (surcharges, jail tempo, self-discards) and structural keys
-# (booleans, step sizes, durations, the Side Card Sabre's own off-hand pair
-# bonus) are deliberately absent.
+# On-self benefit keys the off-hand modifier scales (see get_on_self_bonus).
+# Maluses (surcharges, jail tempo, self-discards), structural keys (booleans,
+# step sizes, the Side Card Sabre's own off-hand pair bonus) and Double Shot
+# (designer, 2026-10-25) are deliberately absent. The damage multipliers
+# scale their bonus over x1 (see _OFF_HAND_SCALED_MULTIPLIERS).
 const _OFF_HAND_SCALED_ON_SELF := [
-	"damage", "block", "heal", "mana_reduction", "mana_reduction_percent",
+	"damage", "block", "heal", "self_heal", "mana_reduction", "mana_reduction_percent",
+	"invisible_tempo", "flash_counter_drain", "strengthen_attacks",
+	"taunt_cycles", "resist_all_tempo",
 	"apply_burn", "apply_cold", "apply_bleed", "apply_shock", "apply_weaken",
 	"apply_vulnerable", "apply_slow", "slow_damage_per_stack", "thorns",
 	"range_offensive", "crit_ranged_percent", "utility_heal",
@@ -392,6 +414,9 @@ const _OFF_HAND_SCALED_ON_SELF := [
 	"lifesteal_percent", "knockback", "fortify", "block_max_mana_percent",
 	"bounce_percent",
 ]
+# Multipliers whose bonus over x1 scales (x2 damage in a 0.9 off hand is
+# x1.9). The mana multiplier is a malus and keeps its full bite.
+const _OFF_HAND_SCALED_MULTIPLIERS := ["damage_multiplier", "overdrive_multiplier"]
 
 # Weapon runtime state (reset on equip/unequip like the chest accumulators)
 var pair_active: bool = false   # Side Card Sabre: currently paired with a main-hand weapon
@@ -1002,16 +1027,20 @@ func get_on_self_bonus() -> Dictionary:
 		"chance_boost": on_self_chance_boost,
 		"block_max_mana_percent": on_self_block_max_mana_percent,
 	}
-	# Off hand: every benefit this weapon's slots confer is 10% weaker too
-	# (floored for ints). Only positive values scale — a negative
-	# mana_reduction is a surcharge, and maluses keep their full bite.
-	if is_in_off_hand:
+	# Off hand: every benefit this item's slots confer takes the off-hand
+	# modifier too (floored for ints). Only positive values scale — a
+	# negative mana_reduction is a surcharge, and maluses keep their bite.
+	if is_in_off_hand and not is_equal_approx(off_hand_scale, 1.0):
 		for osb_k in _OFF_HAND_SCALED_ON_SELF:
 			var osb_v = osb.get(osb_k)
 			if osb_v is int and osb_v > 0:
-				osb[osb_k] = floori(osb_v * OFF_HAND_RIDER_SCALE)
+				osb[osb_k] = floori(osb_v * off_hand_scale)
 			elif osb_v is float and osb_v > 0.0:
-				osb[osb_k] = osb_v * OFF_HAND_RIDER_SCALE
+				osb[osb_k] = osb_v * off_hand_scale
+		for osb_k in _OFF_HAND_SCALED_MULTIPLIERS:
+			var m: float = float(osb.get(osb_k, 1.0))
+			if m > 1.0:
+				osb[osb_k] = 1.0 + (m - 1.0) * off_hand_scale
 	return osb
 
 #endregion

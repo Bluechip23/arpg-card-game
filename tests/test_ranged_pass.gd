@@ -100,11 +100,12 @@ func _test_hand_rules() -> void:
 	_check(inv.hand_conflict_reason(sword, 1) != "", "a second weapon may not")
 	stats.free()
 	inv.free()
-	# One-handed throwers pair with a quiver too.
+	# A quiver is only worn beside a bow — not a thrown weapon (designer,
+	# 2026-10-25).
 	var stats2 = _mk_stats()
 	var inv2 = _mk_inv(stats2)
 	_check(inv2.equip_item(ItemData.create("boomerang"), 0), "boomerang equips")
-	_check(inv2.equip_item(ItemData.create("fire_quiver"), 1), "a quiver rides beside the boomerang")
+	_check(not inv2.equip_item(ItemData.create("fire_quiver"), 1), "a quiver is refused beside the boomerang")
 	stats2.free()
 	inv2.free()
 

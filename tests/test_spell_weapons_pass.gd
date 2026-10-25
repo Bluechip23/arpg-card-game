@@ -32,24 +32,43 @@ func _initialize() -> void:
 	quit(1 if failures > 0 else 0)
 
 func _test_off_hand_penalty() -> void:
-	print("-- Off hand: the WHOLE weapon is 10% weaker --")
+	print("-- Off hand: the WHOLE item is 10% weaker (Stephen: 10% stronger) --")
 	var clarity = ItemData.create("wand_of_clarity")
 	_check(not clarity.is_in_off_hand and clarity.rider_scale() == 1.0, "main hand: full strength")
 	_check(clarity.get_on_self_bonus().get("brain_regen", 0) == 2, "main hand: full on-self riders")
 	clarity.is_in_off_hand = true
+	clarity.off_hand_scale = 0.9
 	_check(clarity.rider_scale() == 0.9, "off hand: riders scale to 90%")
 	_check(clarity.get_on_self_bonus().get("brain_regen", 0) == 1
 		and clarity.get_on_self_bonus().get("flash_regen", 0) == 1,
 		"off hand: on-self benefits floored to 90%")
 	var book = ItemData.create("earth_book")
 	book.is_in_off_hand = true
+	book.off_hand_scale = 0.9
 	_check(book.get_on_self_bonus().get("armor_any", 0) == 2, "off-hand Earth Book: 3 armor becomes 2")
+	# Stephen's White Sleeve: the same item works at 110% in his off hand.
+	book.off_hand_scale = 1.1
+	_check(book.get_on_self_bonus().get("armor_any", 0) == 3, "Stephen's off-hand Earth Book: 3 armor stays 3 (floor of 3.3)")
+	var clarity_s = ItemData.create("wand_of_clarity")
+	clarity_s.is_in_off_hand = true
+	clarity_s.off_hand_scale = 1.1
+	_check(is_equal_approx(clarity_s.rider_scale(), 1.1), "Stephen's off hand: riders scale to 110%")
+	var rolls := 0
+	for _i in range(400):
+		rolls += clarity_s.rider_int(10)
+	_check(rolls == 400 * 11, "Stephen's off hand: a 10-point rider is 11 every time")
+	var weak_rolls := 0
+	clarity_s.off_hand_scale = 0.9
+	for _i in range(400):
+		weak_rolls += clarity_s.rider_int(1)
+	_check(weak_rolls > 300 and weak_rolls < 400, "off hand: a 1-point rider lands about 9 times in 10 (%d / 400)" % weak_rolls)
 	# Maluses keep their bite: a negative mana_reduction (a surcharge, e.g.
 	# the Stringless Sender's +10 mana) never scales down in the off hand.
 	var malus = ItemData.new()
 	malus.item_name = "Malus Probe"
 	malus.on_self_mana_reduction = -10
 	malus.is_in_off_hand = true
+	malus.off_hand_scale = 0.9
 	_check(int(malus.get_on_self_bonus().get("mana_reduction", 0)) == -10,
 		"off hand leaves surcharges at full strength")
 	# The fizzle roll never fires in the main hand.

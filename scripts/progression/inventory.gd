@@ -60,12 +60,8 @@ const TWO_HAND_WEIGHT_MULT: float = 0.5
 # effectively doubled its damage; 4% reserves the doubling for true monsters.
 const TWO_HAND_WEIGHT_DAMAGE_DIVISOR: float = 25.0
 
-# Dual wielding (a pair of weapons — or a pair of shields — in hand slots):
-# EVERY item in the pair carries 15% extra weight, so a heavy main hand can't
-# hide from the penalty behind a feather off-hand. Two small blades barely
-# notice; pairing real weapons (or walking in behind twin shields) is a
-# strength commitment. Sword-and-board mixes classes and pays nothing.
-const DUAL_WIELD_WEIGHT_MULT: float = 1.15
+# Dual wielding (a pair of weapons — or a pair of shields — in hand slots)
+# carries no weight surcharge: each item weighs what it weighs.
 
 var two_handed_slot: int = -1       # weapon slot currently held with both hands
 var two_handed_lock_slot: int = -1  # the empty hand slot two-handing occupies
@@ -223,8 +219,14 @@ func connect_deck_manager(deck) -> void:
 	deck_manager = deck
 
 func get_off_hand_modifier() -> float:
-	# Stephen gets bonus, others get penalty
+	# 0.9 for everyone (-10%); Stephen's White Sleeve makes his 1.1 (+10%).
 	return DEFAULT_OFF_HAND_PENALTY + off_hand_bonus
+
+## True when hand slot `slot_index` is the off hand: any slot past the main
+## hand that is not the one being held two-handed. Whatever sits there —
+## weapon, shield or quiver — takes the off-hand modifier.
+func _is_off_hand_slot(slot_array: Array, slot_index: int) -> bool:
+	return slot_array == equipped_weapons and slot_index > 0 and slot_index != two_handed_slot
 
 # Story rule: a character can wear one mythic per 15 character levels
 # (level 0-14 none, 15-29 one, 30-44 two, 45-59 three, 60 four) — the
@@ -332,12 +334,10 @@ func equip_item(item: ItemData, slot_index: int = 0) -> bool:
 	slot_array[slot_index] = item
 	item.armor_per_tempo_accum = 0  # periodic-armor counter restarts on equip
 
-	# Slot index > 0 means off-hand. Shields are exempt: they're off-hand
-	# items by design, so their stat blocks never take the 10% penalty
-	# (matching the rider exemption below). (Later two-handing re-applies the
-	# item's bonuses at full strength — see set_two_handed.)
-	var is_off_hand = (item.item_type == ItemData.ItemType.WEAPON and slot_index > 0
-		and item.weapon_subtype != ItemData.WeaponSubtype.SHIELD)
+	# Slot index > 0 means off hand: ANY hand item there — weapon, shield or
+	# quiver — takes the off-hand modifier. (Two-handing it later re-applies
+	# its bonuses at full strength — see set_two_handed.)
+	var is_off_hand := _is_off_hand_slot(slot_array, slot_index)
 
 	_apply_item_bonuses(item, true, is_off_hand)
 	_apply_special_effect(item, true)
@@ -361,13 +361,11 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 	if item == null:
 		return null
 	# Taken out of the hands by anything but the rack exchange: it has left
-	# the War Rack's slot and may be gripped freely again.
+	# the War Rack's slot and may be two-handed freely again.
 	if not _bulk_build_switch and item.has_meta("war_rack"):
 		item.remove_meta("war_rack")
 	
-	var is_off_hand = (item.item_type == ItemData.ItemType.WEAPON and
-					   slot_index > 0 and slot_index != two_handed_slot and
-					   item.weapon_subtype != ItemData.WeaponSubtype.SHIELD)
+	var is_off_hand := _is_off_hand_slot(slot_array, slot_index)
 
 	slot_array[slot_index] = null
 	item.armor_per_tempo_accum = 0  # counter resets when unequipped (per spec)
@@ -383,7 +381,41 @@ func unequip_item(item_type: ItemData.ItemType, slot_index: int) -> ItemData:
 	equipment_changed.emit()
 	
 	print("[INVENTORY] Unequipped %s from slot %d" % [item.item_name, slot_index])
+	# The bow left the hands: its quiver comes off with it.
+	if not _bulk_build_switch and item.item_type == ItemData.ItemType.WEAPON \
+			and item.weapon_subtype == ItemData.WeaponSubtype.BOW:
+		_drop_stranded_quivers()
 	return item
+
+## A quiver is only worn beside a bow. Any quiver left in the hands without
+## one (the bow was unequipped, or a build switch / the War Rack laid the
+## hands out without it) goes back to the bag — or the stash when the bag is
+## full. Returns the quivers moved.
+func _drop_stranded_quivers() -> Array:
+	var moved: Array = []
+	var has_bow := false
+	for w in equipped_weapons:
+		if w != null and w.item_type == ItemData.ItemType.WEAPON \
+				and w.weapon_subtype == ItemData.WeaponSubtype.BOW:
+			has_bow = true
+	if has_bow:
+		return moved
+	for i in range(equipped_weapons.size()):
+		var q = equipped_weapons[i]
+		if q == null or q.item_type != ItemData.ItemType.QUIVER:
+			continue
+		var it := unequip_item(ItemData.ItemType.QUIVER, i)
+		if it == null:
+			continue
+		if not store_item(it) and not stash_item(it):
+			# Nowhere to put it: keep it worn rather than lose it.
+			equipped_weapons[i] = it
+			_apply_item_bonuses(it, true, _is_off_hand_slot(equipped_weapons, i))
+			_add_item_cards_to_deck(it)
+			continue
+		moved.append(it)
+		print("[INVENTORY] %s comes off — a quiver is only worn beside a bow" % it.item_name)
+	return moved
 
 ## After a disk load, items remember which card ids were slotted into them
 ## (see ProgressionIO). Point those slots at the rebuilt deck's cards so the
@@ -483,12 +515,18 @@ func hand_conflict_reason(item: ItemData, slot_index: int) -> String:
 	## `slot_index` is legal. The check ignores the item itself so moving it
 	## between hand slots works.
 	if item.item_type == ItemData.ItemType.QUIVER:
+		# A quiver is only worn beside a bow. (A build switch lays its hands
+		# out one slot at a time and checks the finished loadout instead —
+		# see _drop_stranded_quivers.)
+		var has_bow := false
 		for i in range(weapon_slots):
 			var other = equipped_weapons[i]
 			if i != slot_index and other != null and other != item \
 					and other.item_type == ItemData.ItemType.WEAPON \
-					and other.weapon_subtype == ItemData.WeaponSubtype.STAFF:
-				return "Both hands are channeling the staff — nothing fits alongside"
+					and other.weapon_subtype == ItemData.WeaponSubtype.BOW:
+				has_bow = true
+		if not has_bow and not _bulk_build_switch:
+			return "A quiver can only be worn beside a bow"
 		return ""
 	if item.item_type != ItemData.ItemType.WEAPON:
 		return ""
@@ -506,6 +544,9 @@ func hand_conflict_reason(item: ItemData, slot_index: int) -> String:
 	else:
 		for i in range(weapon_slots):
 			var other = equipped_weapons[i]
+			if i != slot_index and other != null and other != item \
+					and other.item_type == ItemData.ItemType.QUIVER:
+				return "A quiver is in the other hand — only a bow fits beside it"
 			if i != slot_index and other != null and other != item \
 					and other.item_type == ItemData.ItemType.WEAPON:
 				if other.weapon_subtype == ItemData.WeaponSubtype.BOW:
@@ -555,24 +596,21 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 	var multiplier = 1 if equipping else -1
 	var stats: Dictionary
 
+	# The off-hand modifier (0.9, Stephen 1.1) covers EVERYTHING the item
+	# gives: its stat block here, every beneficial flat channel below
+	# (floored), the on-self bonus of cards slotted into it, and its riders
+	# at their consumption sites (ItemData.rider_scale / rider_int /
+	# rider_fizzles read item.off_hand_scale). Maluses keep their full bite —
+	# a softer drawback would be a buff. Set on equip, cleared on unequip, so
+	# applying and removing stay symmetric.
+	var rider_mult: float = get_off_hand_modifier() if is_off_hand else 1.0
 	if is_off_hand:
-		stats = item.get_effective_stats(true, get_off_hand_modifier())
-		print("[INVENTORY] Applying off-hand modifier: %.0f%%" % (get_off_hand_modifier() * 100))
+		stats = item.get_effective_stats(true, rider_mult)
+		print("[INVENTORY] Applying off-hand modifier: %.0f%%" % (rider_mult * 100))
 	else:
 		stats = item.get_effective_stats(false, 1.0)
-
-	# Off-hand rider penalty: the WHOLE weapon is 10% weaker in the off hand,
-	# riders included (ItemData.rider_scale / rider_fizzles read this flag at
-	# every consumption site). Shields and quivers are off-hand items by
-	# design and stay exempt. The flag is set on equip and cleared on
-	# unequip, so the flat-channel scaling below stays symmetric.
-	if item.item_type == ItemData.ItemType.WEAPON \
-			and item.weapon_subtype != ItemData.WeaponSubtype.SHIELD:
-		item.is_in_off_hand = equipping and is_off_hand
-	# The flat channels a hand weapon can carry take the same 10% (floored).
-	var rider_mult: float = ItemData.OFF_HAND_RIDER_SCALE if (is_off_hand \
-			and item.item_type == ItemData.ItemType.WEAPON \
-			and item.weapon_subtype != ItemData.WeaponSubtype.SHIELD) else 1.0
+	item.is_in_off_hand = equipping and is_off_hand
+	item.off_hand_scale = rider_mult if equipping else 1.0
 	
 	# Modify base stats (determination will apply automatically)
 	player_stats.base_strength += stats["strength_bonus"] * multiplier
@@ -587,7 +625,7 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 	# Direct resource modifications (not affected by determination)
 	player_stats.max_health += stats["health_bonus"] * multiplier
 	if item.unerring_cap_bonus != 0:
-		player_stats.equipment_unerring_cap += item.unerring_cap_bonus * multiplier
+		player_stats.equipment_unerring_cap += _benefit_i(item.unerring_cap_bonus, rider_mult) * multiplier
 		# A shrinking cap sheds what no longer fits.
 		if player_stats.unerring_armor > player_stats.get_unerring_cap():
 			player_stats.unerring_armor = player_stats.get_unerring_cap()
@@ -598,51 +636,52 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 	player_stats.current_mana = min(player_stats.current_mana, player_stats.max_mana)
 	
 	# Hand size from item (survives recalculation via the tracked bonus)
-	player_stats.equipment_hand_bonus += item.hand_size_bonus * multiplier
+	player_stats.equipment_hand_bonus += _benefit_i(item.hand_size_bonus, rider_mult) * multiplier
 	if item.special_effect == ItemData.SpecialEffect.INCREASE_HAND_SIZE:
-		player_stats.equipment_hand_bonus += item.special_effect_value * multiplier
+		player_stats.equipment_hand_bonus += _benefit_i(item.special_effect_value, rider_mult) * multiplier
 
 	# Ranged damage bonus (from quivers)
 	if item.ranged_damage_bonus > 0:
-		player_stats.ranged_damage_bonus += item.ranged_damage_bonus * multiplier
+		player_stats.ranged_damage_bonus += _benefit_i(item.ranged_damage_bonus, rider_mult) * multiplier
 		print("[INVENTORY] Ranged damage bonus now: +%d" % player_stats.ranged_damage_bonus)
 
 	# Healing bonus (from belts)
 	if item.healing_bonus > 0:
-		player_stats.healing_bonus += floori(item.healing_bonus * rider_mult) * multiplier
+		player_stats.healing_bonus += _benefit_i(item.healing_bonus, rider_mult) * multiplier
 		print("[INVENTORY] Healing bonus now: +%d" % player_stats.healing_bonus)
 
 	# Equipment crit / lifesteal / all-resistance (helms and beyond). Float
 	# fields, so applied directly with the ±1 multiplier like the base stats.
 	if item.crit_chance_percent != 0.0:
-		player_stats.equipment_crit_bonus += item.crit_chance_percent * rider_mult * multiplier
+		player_stats.equipment_crit_bonus += _benefit_f(item.crit_chance_percent, rider_mult) * multiplier
 	if item.lifesteal_percent != 0.0:
-		player_stats.equipment_lifesteal_bonus += item.lifesteal_percent * rider_mult * multiplier
+		player_stats.equipment_lifesteal_bonus += _benefit_f(item.lifesteal_percent, rider_mult) * multiplier
 	if item.all_resistance_percent != 0.0:
-		player_stats.equipment_resistance_bonus += item.all_resistance_percent * rider_mult * multiplier
+		player_stats.equipment_resistance_bonus += _benefit_f(item.all_resistance_percent, rider_mult) * multiplier
 	if item.block_bonus_to_defense_cards != 0:
-		player_stats.equipment_defense_card_block += floori(item.block_bonus_to_defense_cards * rider_mult) * multiplier
+		player_stats.equipment_defense_card_block += _benefit_i(item.block_bonus_to_defense_cards, rider_mult) * multiplier
 	if item.block_to_armorless_defense_cards != 0:
-		player_stats.equipment_armorless_defense_block += item.block_to_armorless_defense_cards * multiplier
+		player_stats.equipment_armorless_defense_block += _benefit_i(item.block_to_armorless_defense_cards, rider_mult) * multiplier
 	if item.brain_points_bonus != 0:
-		player_stats.equipment_brain_points_bonus += item.brain_points_bonus * multiplier
+		player_stats.equipment_brain_points_bonus += _benefit_i(item.brain_points_bonus, rider_mult) * multiplier
 	if item.peek_brain_discount != 0:
-		player_stats.equipment_peek_discount += item.peek_brain_discount * multiplier
+		player_stats.equipment_peek_discount += _benefit_i(item.peek_brain_discount, rider_mult) * multiplier
 	if item.spell_power_per_attacks != 0:
+		# A cadence (every N attacks), not an amount: the amount below scales.
 		player_stats.equipment_spell_power_every_n += item.spell_power_per_attacks * multiplier
 	if item.spell_power_bonus != 0:
-		player_stats.equipment_spell_power_amount += item.spell_power_bonus * multiplier
+		player_stats.equipment_spell_power_amount += _benefit_i(item.spell_power_bonus, rider_mult) * multiplier
 	# Boots pass-2 riders
 	if item.sidestep_bonus_armor != 0:
-		player_stats.equipment_sidestep_bonus_armor += item.sidestep_bonus_armor * multiplier
+		player_stats.equipment_sidestep_bonus_armor += _benefit_i(item.sidestep_bonus_armor, rider_mult) * multiplier
 	if item.movement_flash_discount != 0:
-		player_stats.equipment_movement_flash_discount += item.movement_flash_discount * multiplier
+		player_stats.equipment_movement_flash_discount += _benefit_i(item.movement_flash_discount, rider_mult) * multiplier
 	if item.highground_damage_percent != 0.0:
-		player_stats.equipment_highground_damage_percent += item.highground_damage_percent * multiplier
+		player_stats.equipment_highground_damage_percent += _benefit_f(item.highground_damage_percent, rider_mult) * multiplier
 	if item.melee_crit_flat_bonus != 0:
-		player_stats.equipment_melee_crit_bonus += item.melee_crit_flat_bonus * multiplier
+		player_stats.equipment_melee_crit_bonus += _benefit_i(item.melee_crit_flat_bonus, rider_mult) * multiplier
 	if item.trap_damage_percent != 0.0:
-		player_stats.equipment_trap_damage_percent += item.trap_damage_percent * multiplier
+		player_stats.equipment_trap_damage_percent += _benefit_f(item.trap_damage_percent, rider_mult) * multiplier
 	if item.movement_flash_tempo_threshold != 0:
 		# Last equipped boot with a threshold wins (only one boots slot in practice).
 		player_stats.movement_flash_tempo_threshold = item.movement_flash_tempo_threshold if multiplier > 0 else 0
@@ -650,30 +689,30 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 		player_stats.consecutive_attacks_draw_at = item.consecutive_attack_draw if multiplier > 0 else 0
 	# Gauntlets pass
 	if item.crit_damage_percent != 0.0:
-		player_stats.equipment_crit_damage_bonus += (item.crit_damage_percent / 100.0) * multiplier
+		player_stats.equipment_crit_damage_bonus += (_benefit_f(item.crit_damage_percent, rider_mult) / 100.0) * multiplier
 	if item.damage_bonus_to_attack_cards != 0:
-		player_stats.equipment_attack_card_damage += floori(item.damage_bonus_to_attack_cards * rider_mult) * multiplier
+		player_stats.equipment_attack_card_damage += _benefit_i(item.damage_bonus_to_attack_cards, rider_mult) * multiplier
 	if item.damage_bonus_to_melee_cards != 0:
-		player_stats.equipment_melee_card_damage += item.damage_bonus_to_melee_cards * multiplier
+		player_stats.equipment_melee_card_damage += _benefit_i(item.damage_bonus_to_melee_cards, rider_mult) * multiplier
 	if item.heal_bonus_max_health_percent != 0.0:
-		player_stats.equipment_heal_maxhp_percent += item.heal_bonus_max_health_percent * multiplier
+		player_stats.equipment_heal_maxhp_percent += _benefit_f(item.heal_bonus_max_health_percent, rider_mult) * multiplier
 	if item.armor_loss_regen_threshold != 0:
 		player_stats.equipment_armor_loss_regen_threshold = item.armor_loss_regen_threshold if multiplier > 0 else 0
 		player_stats.equipment_regen_include_health = item.regen_include_health and multiplier > 0
 	# Chests pass
 	if item.block_physical_resist_percent != 0.0:
-		player_stats.equipment_block_physical_resist += item.block_physical_resist_percent * multiplier
+		player_stats.equipment_block_physical_resist += _benefit_f(item.block_physical_resist_percent, rider_mult) * multiplier
 	if item.resist_per_missing10 != 0.0:
-		player_stats.equipment_resist_per_missing10 += item.resist_per_missing10 * multiplier
+		player_stats.equipment_resist_per_missing10 += _benefit_f(item.resist_per_missing10, rider_mult) * multiplier
 		# Step travels with the percent (only one chest slot in practice).
 		player_stats.equipment_resist_missing_step = item.resist_missing_step if multiplier > 0 else 10
 	if item.gold_gain_heal != 0:
-		player_stats.equipment_gold_gain_heal += item.gold_gain_heal * multiplier
+		player_stats.equipment_gold_gain_heal += _benefit_i(item.gold_gain_heal, rider_mult) * multiplier
 	if item.hp_diff_damage_divisor != 0:
 		# Last equipped chest with a divisor wins (only one chest slot in practice).
 		player_stats.equipment_hp_diff_divisor = item.hp_diff_damage_divisor if multiplier > 0 else 0
 	if item.ranged_range_bonus != 0:
-		player_stats.equipment_ranged_range_bonus += item.ranged_range_bonus * multiplier
+		player_stats.equipment_ranged_range_bonus += _benefit_i(item.ranged_range_bonus, rider_mult) * multiplier
 	if item.movement_tempo_penalty != 0:
 		player_stats.movement_tempo_surcharge += item.movement_tempo_penalty * multiplier
 	# Chest runtime state restarts on every equip/unequip, like the armor accum.
@@ -685,20 +724,22 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 		player_stats.death_stack_crit_damage = 0.0
 	# Weapons pass
 	if item.bonus_damage_to_armor != 0:
-		player_stats.equipment_armor_shred += floori(item.bonus_damage_to_armor * rider_mult) * multiplier
+		player_stats.equipment_armor_shred += _benefit_i(item.bonus_damage_to_armor, rider_mult) * multiplier
 	if item.attack_speed_threshold_bonus != 0:
-		player_stats.equipment_attack_speed_penalty += item.attack_speed_threshold_bonus * multiplier
+		# A heavier threshold is a malus (full bite); a lighter one scales.
+		player_stats.equipment_attack_speed_penalty += -_benefit_i(-item.attack_speed_threshold_bonus, rider_mult) * multiplier
 	# Shields pass
 	if item.flat_damage_reduction != 0:
-		player_stats.equipment_flat_damage_reduction += item.flat_damage_reduction * multiplier
+		player_stats.equipment_flat_damage_reduction += _benefit_i(item.flat_damage_reduction, rider_mult) * multiplier
 	if item.low_health_lifesteal_bonus != 0.0:
-		player_stats.equipment_low_health_lifesteal += item.low_health_lifesteal_bonus * multiplier
+		player_stats.equipment_low_health_lifesteal += _benefit_f(item.low_health_lifesteal_bonus, rider_mult) * multiplier
 	if item.flash_points_bonus != 0:
-		player_stats.equipment_flash_bonus += item.flash_points_bonus * multiplier
+		player_stats.equipment_flash_bonus += _benefit_i(item.flash_points_bonus, rider_mult) * multiplier
 	# Shield runtime state restarts on every equip/unequip. An Overdraw shield
 	# comes to hand with a full magazine; its conjured blades do not travel.
 	if item.overdraw_card_block > 0 and item.conjured_in_manifest > 0:
-		player_stats.equipment_defense_card_block -= item.overdraw_card_block * item.conjured_in_manifest
+		# Each conjured blade added the off-hand-scaled block (rider_floor).
+		player_stats.equipment_defense_card_block -= _benefit_i(item.overdraw_card_block, rider_mult) * item.conjured_in_manifest
 	item.conjured_in_manifest = 0
 	item.overdraw_charges_left = item.overdraw_spell_charges if multiplier > 0 else 0
 	item.overdraw_recharge_accum = 0
@@ -717,6 +758,14 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 	
 	player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
 	player_stats.mana_changed.emit(player_stats.current_mana, player_stats.max_mana)
+## An item's beneficial amount under the off-hand scale, floored; a malus
+## (zero or negative) passes through at full strength.
+static func _benefit_i(v: int, scale: float) -> int:
+	return floori(v * scale) if v > 0 and scale != 1.0 else v
+
+static func _benefit_f(v: float, scale: float) -> float:
+	return v * scale if v > 0.0 else v
+
 func _recalculate_carry_load() -> void:
 	if not player_stats:
 		return
@@ -1125,9 +1174,10 @@ func on_enemy_killed() -> void:
 	if player_stats:
 		for wpn in equipped_weapons:
 			if wpn and wpn.kill_flash_points > 0:
-				player_stats.current_flash_points += wpn.kill_flash_points
+				var kf: int = wpn.rider_int(wpn.kill_flash_points)  # off-hand modifier
+				player_stats.current_flash_points += kf
 				player_stats.flash_points_changed.emit(player_stats.current_flash_points, player_stats.get_max_flash_points())
-				print("[INVENTORY] %s: +%d flash points banked (%d held)" % [wpn.item_name, wpn.kill_flash_points, player_stats.current_flash_points])
+				print("[INVENTORY] %s: +%d flash points banked (%d held)" % [wpn.item_name, kf, player_stats.current_flash_points])
 
 ## Items with on_kill_card_id (Bladed Doughnut) conjure a fresh copy of their
 ## card straight into the hand on every kill. A full hand rejects the card
@@ -1200,21 +1250,21 @@ func on_attacked_by(attacker, in_melee: bool) -> void:
 	if not attacker.has_method("apply_debuff"):
 		return
 	for shield in get_equipped_shields():
-		if shield.melee_retaliate_bleed > 0:
-			attacker.apply_debuff("bleed", shield.melee_retaliate_bleed)
+		var mrb: int = shield.rider_int(shield.melee_retaliate_bleed)  # off-hand modifier
+		if mrb > 0:
+			attacker.apply_debuff("bleed", mrb)
 			print("[INVENTORY] %s: %s bleeds %d for closing in" % [shield.item_name,
-				attacker.enemy_name if "enemy_name" in attacker else "the attacker",
-				shield.melee_retaliate_bleed])
+				attacker.enemy_name if "enemy_name" in attacker else "the attacker", mrb])
 	# Reaction Rod: a melee attacker completes the circuit.
 	for rr_w in equipped_weapons:
 		if rr_w != null and rr_w.melee_retaliate_shock > 0:
-			if rr_w.rider_fizzles():
+			var rr_amt: int = rr_w.rider_int(rr_w.melee_retaliate_shock)  # off-hand modifier
+			if rr_amt <= 0:
 				print("[INVENTORY] %s: off-hand retaliation fizzles" % rr_w.item_name)
 				continue
-			attacker.apply_debuff("shock", rr_w.melee_retaliate_shock)
+			attacker.apply_debuff("shock", rr_amt)
 			print("[INVENTORY] %s: %s takes %d Shock for closing in" % [rr_w.item_name,
-				attacker.enemy_name if "enemy_name" in attacker else "the attacker",
-				rr_w.melee_retaliate_shock])
+				attacker.enemy_name if "enemy_name" in attacker else "the attacker", rr_amt])
 
 ## Ring passives that build toward a proc, for the HUD tray: the counter
 ## key on the ring, its threshold, and the sentence the tooltip shows.
@@ -1549,8 +1599,8 @@ func get_total_weight() -> int:
 	return total
 
 ## Carried weight of one item: chest reduction (Brad), the Balanced Load keystone,
-## and two-handing lighten the load; the dual-wield surcharge raises it.
-## All stack multiplicatively. Pass the weapon-slot index (or -1 when not
+## and two-handing lighten the load (multiplicatively). Dual wielding adds
+## nothing. Pass the weapon-slot index (or -1 when not
 ## equipped in a hand) so the hand modifiers apply to the right slot.
 func _effective_item_weight(item: ItemData, weapon_slot_index: int = -1) -> int:
 	var w = item.weight
@@ -1565,17 +1615,13 @@ func _effective_item_weight(item: ItemData, weapon_slot_index: int = -1) -> int:
 		w = floori(w * (1.0 - PlayerStats.STR_LIGHT_SLOT_REDUCTION))
 	if weapon_slot_index >= 0 and weapon_slot_index == two_handed_slot:
 		w = floori(w * TWO_HAND_WEIGHT_MULT)
-	# Dual wielding taxes every item of the wielded pair — the big one included.
-	if weapon_slot_index >= 0 and item.item_type == ItemData.ItemType.WEAPON \
-			and _wielded_class_count(_is_shield(item)) >= 2:
-		w = floori(w * DUAL_WIELD_WEIGHT_MULT)
 	return w
 
 func _is_shield(item: ItemData) -> bool:
 	return item != null and item.weapon_subtype == ItemData.WeaponSubtype.SHIELD
 
 ## Hand items of one wielding class: weapons, or shields (dual-wielding
-## shields is a legitimate stance and pays the same pair tax).
+## shields is a legitimate stance).
 func _wielded_class_count(shields: bool) -> int:
 	var count = 0
 	for w in equipped_weapons:
@@ -1592,23 +1638,23 @@ func is_dual_wielding() -> bool:
 	return _wielded_class_count(false) >= 2 or _wielded_class_count(true) >= 2
 
 func is_free_handing() -> bool:
-	## The free-hand stance: exactly ONE hand item — weapon OR shield — with a
-	## genuinely empty hand. Two-handing fills both hands, and a quiver
-	## occupies a hand too, so neither qualifies.
+	## The free-hand stance: exactly ONE one-handed item — weapon OR shield —
+	## with a genuinely empty hand. Two-handing fills both hands, and so do
+	## bows and staffs (two-handed by nature), so none of those qualify. (A
+	## quiver never stands alone: it is only worn beside a bow.)
 	if two_handed_slot >= 0:
 		return false
 	var held = 0
 	for w in equipped_weapons:
 		if w != null:
-			# A bow inherently fills both hands — never a free-hand stance.
-			if w.weapon_subtype == ItemData.WeaponSubtype.BOW:
+			if is_two_hand_only(w) or w.item_type == ItemData.ItemType.QUIVER:
 				return false
 			held += 1
 	return held == 1 and weapon_slots >= 2
 
 ## Weight change from placing item into slot_index, computed by trial
-## placement (get_total_weight is side-effect free). Catches the dual-wield
-## surcharge a new hand item imposes on the item ALREADY in the other hand.
+## placement (get_total_weight is side-effect free), so every hand-dependent
+## weight rule is counted.
 func _prospective_weight_delta(item: ItemData, slot_array: Array, slot_index: int) -> int:
 	var before = get_total_weight()
 	slot_array[slot_index] = item
@@ -1659,8 +1705,9 @@ func is_two_hand_locked_slot(slot_index: int) -> bool:
 	## True for the empty hand slot consumed by two-handing.
 	return two_handed_slot >= 0 and slot_index == two_handed_lock_slot
 
-## Any character can brace a shield two-handed (the grip's one rule is a
-## free other hand); the brace pays in Basic Block armor rather than damage.
+## Any character can two-hand a shield (the one rule is a free other hand);
+## it pays in block rather than damage: on the Block button (here) and on
+## every armor-granting card (PlayerStats.two_hand_block_bonus).
 func get_two_hand_block_bonus(shield: ItemData) -> int:
 	## Extra Basic Block armor when THIS shield is the item braced two-handed.
 	if shield == null or get_two_handed_item() != shield:
@@ -1717,10 +1764,15 @@ func _enable_two_handed(slot_index: int) -> bool:
 	two_handed_slot = slot_index
 	two_handed_lock_slot = lock
 	if player_stats:
+		# Weapons: +damage from their weight. Shields: +block from theirs, on
+		# the Block button and every armor-granting card.
 		var dmg = 0
+		var blk = 0
 		if item.weapon_subtype != ItemData.WeaponSubtype.SHIELD:
 			dmg = floori(item.weight / TWO_HAND_WEIGHT_DAMAGE_DIVISOR)
-		player_stats.set_two_hand_state(true, dmg)
+		else:
+			blk = floori(item.weight / TWO_HAND_WEIGHT_DAMAGE_DIVISOR)
+		player_stats.set_two_hand_state(true, dmg, blk)
 
 	if slot_index > 0:
 		_apply_item_bonuses(item, true, false)
@@ -1971,12 +2023,12 @@ func switch_build(target: int) -> Dictionary:
 				incoming.append(plan[i])
 	# Changing only the two-handed slot (same items) is a hand action —
 	# also part of Stephen's weapon portion.
-	var grip_changed: bool = target_two_hand != two_handed_slot
-	if grip_changed and not hands_changed and not weapon_swap_discount:
+	var two_hand_changed: bool = target_two_hand != two_handed_slot
+	if two_hand_changed and not hands_changed and not weapon_swap_discount:
 		cost += get_swap_tempo_cost(ItemData.ItemType.WEAPON)
 	# Stephen's weapon portion: free, then 1, 2, ... inside the window.
 	var armor_cost: int = cost
-	var weapon_portion: bool = weapon_swap_discount and (hands_changed or grip_changed)
+	var weapon_portion: bool = weapon_swap_discount and (hands_changed or two_hand_changed)
 	var counted: bool = weapon_portion and (not combat_check.is_valid() or combat_check.call())
 	if counted:
 		cost += build_weapon_swap_price()
@@ -2072,6 +2124,7 @@ func switch_build(target: int) -> Dictionary:
 	if target_two_hand >= 0:
 		set_two_handed(target_two_hand, true)
 	_bulk_build_switch = false
+	_drop_stranded_quivers()  # the finished loadout: a quiver only beside a bow
 
 	active_build = target
 	if counted:
@@ -2104,7 +2157,7 @@ const RACK_DEPLOY_TEMPO: int = 20  # tempo the rack's weapon stays in hand
 const RACK_FREE_SWAP_COOLDOWN: int = RACK_COOLDOWN  # old name, same number
 var rack_deploy_tempo: int = 0     # > 0 while the rack's weapon is in hand
 var rack_parked: Array = []        # hand gear set aside while deployed (by slot, nulls kept)
-var rack_parked_two_hand: int = -1 # the grip the parked gear had
+var rack_parked_two_hand: int = -1 # the two-handed slot the parked gear had
 
 func get_rack_hand_items() -> Array:
 	## Non-null items currently in the hand slots.
@@ -2238,6 +2291,7 @@ func rack_deploy() -> Dictionary:
 	if not is_two_hand_only(weapon):
 		set_two_handed(0, true)
 	_bulk_build_switch = false
+	_drop_stranded_quivers()
 	rack_deploy_tempo = RACK_DEPLOY_TEMPO
 	rack_cooldown_tempo = RACK_COOLDOWN
 	_recalculate_carry_load()
@@ -2276,6 +2330,7 @@ func rack_return() -> Dictionary:
 	if rack_parked_two_hand >= 0:
 		set_two_handed(rack_parked_two_hand, true)
 	_bulk_build_switch = false
+	_drop_stranded_quivers()
 	rack_deploy_tempo = 0
 	rack_parked = []
 	rack_parked_two_hand = -1

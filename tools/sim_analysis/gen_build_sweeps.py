@@ -17,7 +17,7 @@ Sweeps (run with tests/sim/run_sim.gd --sweep=<file> or run_sweep.sh):
   <char>_tactics.txt        every tactic overlay (invisibility, poison, ...) on each designed build
   <char>_item_swap.txt      every mythic/legendary item swapped into its natural slot on each designed build
   <char>_weapon_sets.txt    every second weapon set (and none) on each designed build: build II, or Brad's War Rack
-  <char>_stances.txt        two-handed grip (the build's own weapon, and every one-handed pool weapon gripped) on each designed build
+  <char>_stances.txt        two-handing (the build's own weapon, and every one-handed pool weapon two-handed) on each designed build
   <char>_engrave.txt        every card each slotted item accepts, engraved one at a time (plus each item stripped), on each designed build
 Every job runs through tests/sim/scenarios/build.gd with parts=...; the
 sweep file is <char>_<kind>[_L<level>].txt (level 18 untagged); scenario folder is <char>_<build>_e_<ENEMY>[__L_<level>][__k_<component>...]
@@ -138,7 +138,7 @@ def main():
         for it in comp.get("item_pool", []):
             for e in swap_enemies:
                 lines.append(job(b, e, {"item": it}, "__x_%s" % it).replace(seeds, swap_seeds))
-        if hands.get(b, {}).get("grippable"):
+        if hands.get(b, {}).get("two_handable"):
             for it in one_handed:
                 if it == hands[b].get("main"):
                     continue
@@ -155,19 +155,19 @@ def main():
     write("%s_weapon_sets.txt" % char, lines, "%s every second weapon set (alt:none = one set) on each designed build" % char)
 
 
-    # Stances: the build's own main-hand weapon gripped two-handed (its off
-    # hand emptied), and every one-handed pool weapon gripped in its place,
+    # Stances: the build's own main-hand weapon two-handed (its off
+    # hand emptied), and every one-handed pool weapon two-handed in its place,
     # read against the same weapon held one-handed (the item sweep).
     lines = []
     for b in designed:
-        if not hands.get(b, {}).get("grippable"):
+        if not hands.get(b, {}).get("two_handable"):
             continue
         for e in enemies:
             lines.append(job(b, e, {"two_hand": "yes"}, "__k_twohand"))
         for it in one_handed:
             for e in swap_enemies:
                 lines.append(job(b, e, {"item": it, "two_hand": "yes"}, "__k_twohand~%s" % it).replace(seeds, swap_seeds))
-    write("%s_stances.txt" % char, lines, "%s two-handed grip on each designed build (own weapon, and every one-handed pool weapon)" % char, args.swap_seeds)
+    write("%s_stances.txt" % char, lines, "%s two-handing on each designed build (own weapon, and every one-handed pool weapon)" % char, args.swap_seeds)
 
     # Engravings: for each slotted item a designed build wears, every card the
     # game lets into its slots (a free slot, or in place of its last engraved

@@ -1197,6 +1197,7 @@ const TWO_HAND_CAPACITY_MULT: float = 0.7
 
 var two_hand_active: bool = false   # set by Inventory.set_two_handed
 var two_hand_damage_bonus: int = 0  # from the two-handed weapon's ORIGINAL weight
+var two_hand_block_bonus: int = 0   # a shield held two-handed: +block on the Block button AND every armor-granting card
 
 func get_carry_capacity() -> int:
 	return get_carry_capacity_two_handing(two_hand_active)
@@ -1229,11 +1230,17 @@ func set_carry_load(weight: int) -> void:
 	print("[STATS] Carry load: %d / %d" % [current_carry_load, get_carry_capacity()])
 	carry_changed.emit(current_carry_load, get_carry_capacity())
 
-func set_two_hand_state(active: bool, damage_bonus: int) -> void:
+func set_two_hand_state(active: bool, damage_bonus: int, block_bonus: int = 0) -> void:
 	two_hand_active = active
 	two_hand_damage_bonus = damage_bonus
-	print("[STATS] Two-handing %s (+%d damage), capacity %d" % [
-		"ON" if active else "off", damage_bonus, get_carry_capacity()])
+	two_hand_block_bonus = block_bonus if active else 0
+	print("[STATS] Two-handing %s (+%d damage, +%d block), capacity %d" % [
+		"ON" if active else "off", damage_bonus, two_hand_block_bonus, get_carry_capacity()])
+
+## The flat armor added to a card's first armor grant: equipment (Thick
+## Steel, Earth Book, Overdraw blades) plus a shield held two-handed.
+func get_defense_card_block() -> int:
+	return equipment_defense_card_block + two_hand_block_bonus
 	carry_changed.emit(current_carry_load, get_carry_capacity())
 
 func is_overburdened() -> bool:
@@ -2247,7 +2254,7 @@ func add_armor(amount: int) -> void:
 	# the equipment bonus, whatever the card's type and whichever executor granted it.
 	if defense_card_bonus_pending and amount > 0:
 		defense_card_bonus_pending = false
-		total = maxi(0, total + equipment_defense_card_block)
+		total = maxi(0, total + get_defense_card_block())
 	# Living Bulwark: the full armor gain (bonuses included) becomes temp HP.
 	# Armor-gain hooks (overhead icon, on_armor_gained item procs) don't fire —
 	# no armor was actually gained.

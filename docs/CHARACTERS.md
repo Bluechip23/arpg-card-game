@@ -127,11 +127,11 @@ triggers a **free basic attack** on a rank-scaled 40→12 tempo cooldown
 **Gear identity:** Stephen's slot layout is standard, but steel is his trade: **when he switches builds,
 the weapon portion is free at first, then costs 1 more tempo for each further weapon build switch
 inside 20 tempo of the first; then the count resets** (tempo only, no mana; the rest of the switch
-pays as usual, and a single weapon swap costs him what it costs anyone). His character passive gives him
-**+10% off-hand enchantment effectiveness while every other character takes −10%**. Off-hands
-normally apply their bonuses at reduced strength — Stephen is the one character whose second
-weapon, quiver, or shield works at full power, which makes him the game's best dual-wielder
-and bow-and-quiver user once he's geared up.
+pays as usual, and a single weapon swap costs him what it costs anyone). His off hand is
+**empowered by his White Sleeve**: whatever he holds there — a second weapon, a shield or a
+quiver — gives **110%** of everything (its stats, its bonuses, the cards slotted into it and its
+effects), where every other character's off hand gives 90%. That makes him the game's best
+dual-wielder and bow-and-quiver user once he's geared up.
 
 **Cards that sing in his hands:** the ranged suite — **Quick Shot** (damage + draw),
 **Reload** (draw 3), **Enchanted Quiver** (free Quick Arrows), **Multishot** (three hits with
@@ -143,7 +143,7 @@ cards dealing bonus damage from their range (*Eagle Eye*), and terrain cards (**
 
 **Pick Stephen if you want:** a playstyle about sequencing and momentum — either uninterrupted
 attack chains or deliberately slow, oversized swings — plus range, elevation, and the only
-full-strength off-hand in the game.
+empowered off hand in the game.
 
 ---
 
@@ -245,7 +245,7 @@ loadouts in the middle of a fight.
 |---|---|---|---|
 | **Ryan** | Discard/cycle your hand; sequence-dependent effects; cheap Pocket cards | 2 belt slots | Belt cards cost 1 less mana |
 | **Jeremy** | Be at 0 mana / ≤2 cards and get stronger; rig % chances; ring-trigger engine | 3 ring slots | Every 3rd cycle, first ring trigger fires twice |
-| **Stephen** | Unbroken attack chains or oversized slow swings; range & high ground | Standard slots; cheap weapon swaps, full-power off-hands | +10% off-hand enchantments (others −10%) |
+| **Stephen** | Unbroken attack chains or oversized slow swings; range & high ground | Standard slots; cheap weapon swaps, empowered off hand | White Sleeve: off-hand items at 110% (others 90%) |
 | **Cory** | Displace/lock enemies; debuffs that heal you; play 3+ cards per cycle | 2 gauntlet slots | +1 mana when a gauntlet skill comes off cooldown |
 | **Brad** | Spend health for power; stockpile armor then detonate it; mid-fight gear swaps | War Rack (one back-slung weapon: free 20-tempo draw, 60-tempo cooldown) | Chest items weigh 20% less |
 

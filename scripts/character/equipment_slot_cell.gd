@@ -200,11 +200,11 @@ func _add_passive_badge() -> void:
 				if pct > 0:
 					text = "+%d%%" % pct
 					text_color = Color(0.5, 0.9, 0.55)
-					tip = "Off-hand items get a %d%% bonus." % pct
+					tip = "White Sleeve: everything an off-hand item gives — weapon, shield or quiver — is %d%% stronger: its stats, its bonuses, the cards slotted in it and its effects." % pct
 				elif pct < 0:
 					text = "%d%%" % pct
 					text_color = Color(0.95, 0.55, 0.5)
-					tip = "Off-hand items take a %d%% penalty." % -pct
+					tip = "Everything an off-hand item gives — weapon, shield or quiver — is %d%% weaker: its stats, its bonuses, the cards slotted in it and its effects. Holding it two-handed lifts this." % -pct
 	if icon == null and text == "":
 		return
 

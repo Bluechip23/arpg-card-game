@@ -531,7 +531,7 @@ end-game. The current playable roster (`scripts/character/character_data.gd`):
 |-----------|---------|----------------------|----------------|
 | **Brad** | Tank / bruiser; pain is strength | Berserker, Warden, The Ancient, The Fallen | War Rack (one back-slung weapon, drawn two-handed for free); chest items weigh 20% less |
 | **Ryan** | Dexterous duelist / rogue | Relentless Blade, Light Foot, Apothecary, Shadow Blade | 2 belt slots; belt cards cost 1 less mana |
-| **Stephen** | Versatile killer / marksman | The Apex, Sentinel, Ranger, Avenger | standard slots; cheaper weapon swaps; +10% off-hand enchantments (others −10%) |
+| **Stephen** | Versatile killer / marksman | The Apex, Sentinel, Ranger, Avenger | standard slots; cheaper weapon swaps; off hand empowered by his White Sleeve (110%; others 90%) |
 | **Cory** | Druid / monk / witherer | Monk, Lurker, Druid, Atrophist | 2 gauntlet slots; gauntlet-skill synergy |
 | **Jeremy** | Elemental mage | Evocation, Abjurer, Shepherd, Poltergeist | 3 ring slots; first ring trigger fires twice every 3rd cycle |
 

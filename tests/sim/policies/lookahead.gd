@@ -542,11 +542,11 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 						gain += minf(float(m["value"]), float(state.player_max_hp - state.player_hp)) * 0.5
 					_:
 						gain += 0.5 * float(maxi(8, int(m["value"])))   # a summon: a body that soaks and hits
-		"grip":
-			var gp: Dictionary = state.grips[int(a["grip"])]
+		"two_hand":
+			var gp: Dictionary = state.two_hands[int(a["two_hand"])]
 			mana = int(gp["mana"])
 			tempo = maxi(1, int(gp["tempo"]))
-			gain += _grip_value(gp, state)
+			gain += _two_hand_value(gp, state)
 		"weapon_swap":
 			var sw: Dictionary = state.weapon_swaps[int(a["swap"])]
 			mana = int(sw["mana"])
@@ -578,7 +578,7 @@ func _score(a: Dictionary, state: SimState, threats: Array) -> float:
 	var instant: bool = kind in ["flash_block", "flash_proc", "brain_draw", "brain_peek"] \
 		or (kind == "move" and bool(a.get("flash", false))) \
 		or (kind == "weapon_swap" and int(state.weapon_swaps[int(a["swap"])]["tempo"]) == 0) \
-		or (kind == "grip" and int(state.grips[int(a["grip"])]["tempo"]) == 0) \
+		or (kind == "two_hand" and int(state.two_hands[int(a["two_hand"])]["tempo"]) == 0) \
 		or (kind == "manifest" and int(state.manifest[int(a["manifest"])]["tempo"]) == 0) \
 		or kind == "dismiss"
 	# Points spent are points not held for the dodge or draw that matters.
@@ -660,12 +660,12 @@ static func _swap_value(sw: Dictionary, state: SimState) -> float:
 		return -5.0
 	return g
 
-## Taking or releasing the two-handed grip: the grip adds its bonus to every
+## Taking up or releasing two-handing: it adds its bonus to every
 ## physical hit (auto attacks and physical attack cards) over the horizon,
 ## and gives up the free-hand stance if we hold it (every 12th attack
 ## echoes; the sidestep costs a flash point more). Releasing is the mirror.
 ## Nothing gained is a strong no, as with a swap.
-static func _grip_value(gp: Dictionary, state: SimState) -> float:
+static func _two_hand_value(gp: Dictionary, state: SimState) -> float:
 	if state.nearest_enemy_index() < 0:
 		return -5.0
 	var swings := float(HORIZON) / float(maxi(1, state.basic_attack_tempo))

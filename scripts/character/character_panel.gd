@@ -964,7 +964,7 @@ func _get_character_passive() -> String:
 		"Jeremy":
 			return "Every 3rd cycle, the first ring trigger triggers twice"
 		"Stephen":
-			return "+10% off-hand enchantments (others get -10%)"
+			return "White Sleeve: off-hand items work at 110% (others 90%)"
 		"Cory":
 			return "Gain 10 mana when gauntlet skill comes off cooldown"
 	return ""
@@ -1567,7 +1567,7 @@ func _on_toggle_two_handed() -> void:
 	if inventory.set_two_handed(_detail_slot_index, enable):
 		var action: String
 		if enable:
-			action = "Gripped %s two-handed" % item.item_name
+			action = "Two-handed %s" % item.item_name
 		else:
 			action = "Released %s to one hand" % item.item_name
 		swap_tempo_spent.emit(inventory.get_swap_tempo_cost(ItemData.ItemType.WEAPON), action, ItemData.ItemType.WEAPON)

@@ -6439,8 +6439,9 @@ func _on_brain_draw_pressed() -> void:
 		if player and player.get_inventory():
 			for ue_w in player.get_inventory().equipped_weapons:
 				if ue_w and ue_w.insight_flash_restore > 0:
-					stats.gain_flash_points(ue_w.insight_flash_restore)
-					add_battle_log("%s: +%d flash" % [ue_w.item_name, ue_w.insight_flash_restore], Color(0.6, 0.6, 0.9))
+					var ue_flash: int = ue_w.rider_int(ue_w.insight_flash_restore)  # off-hand modifier
+					stats.gain_flash_points(ue_flash)
+					add_battle_log("%s: +%d flash" % [ue_w.item_name, ue_flash], Color(0.6, 0.6, 0.9))
 					break
 		update_peaked_display()
 		_update_brain_button()
@@ -8269,7 +8270,7 @@ func _card_player_damage(card: Card, extra_flat: int = 0) -> int:
 		total += floori(card.base_damage * (hp_mult - 1.0))
 
 	# Stat scaling by school: INT spell pipeline for SPELL cards, STR physical
-	# (strength, enchantments, sphere, two-handed grip) for everything else.
+	# (strength, enchantments, sphere, two-handing) for everything else.
 	if card.school == Card.CardSchool.SPELL:
 		total = stats.get_effective_spell_damage(total)
 	else:
@@ -8339,6 +8340,8 @@ func get_card_vacuum_values(card: Card) -> Dictionary:
 				and card.card_id not in BASE_BLOCK_CARDS:
 			total_block += floori(card.base_block * (hp_mult - 1.0))
 		total_block += stats.enchantment_block_bonus + stats.sphere_bonus_block
+		# Equipment's per-card armor and a two-handed shield's block.
+		total_block += stats.get_defense_card_block()
 		# Bolster is consumed by exactly one card's armor pipeline.
 		if card.card_id == "smith_thy_soul" and buff_mgr:
 			total_block += buff_mgr.get_bolster_bonus()
@@ -9522,7 +9525,8 @@ func _weapon_post_card_effects(card: Card, target) -> void:
 		if pt_inv:
 			for pw in pt_inv.equipped_weapons:
 				if pw and pw.pierce_targets > 1:
-					pierce = pw.pierce_targets
+					# The squares past the target take the off-hand modifier.
+					pierce = 1 + pw.rider_int(pw.pierce_targets - 1)
 					break
 		if pierce > 1:
 			var dirv: Vector3 = target.position - player.position
@@ -10947,8 +10951,9 @@ func _on_armor_gained_spiked(amount: int) -> void:
 		if ue_w and ue_w.armor_gain_melee_damage > 0 and enemy_spawner and grid_manager:
 			var ue_victim := _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
 			if ue_victim and grid_manager.get_distance_in_cells(player.position, ue_victim.position) <= 1.5:
-				ue_victim.take_damage(ue_w.armor_gain_melee_damage, true)
-				add_battle_log("%s: %d moonlit damage to %s" % [ue_w.item_name, ue_w.armor_gain_melee_damage, ue_victim.enemy_name], Color(0.6, 0.6, 0.9))
+				var ue_dmg: int = ue_w.rider_int(ue_w.armor_gain_melee_damage)  # off-hand modifier
+				ue_victim.take_damage(ue_dmg, true)
+				add_battle_log("%s: %d moonlit damage to %s" % [ue_w.item_name, ue_dmg, ue_victim.enemy_name], Color(0.6, 0.6, 0.9))
 			break
 	for g in inv.equipped_gauntlets:
 		if g and g.armor_gain_thorns_threshold > 0:
@@ -11127,10 +11132,11 @@ func _shield_on_cycle_passives() -> void:
 	if not buff_mgr:
 		return
 	for shield in player.get_inventory().get_equipped_shields():
+		# Off-hand shields work at the off-hand modifier (rider_int).
 		if shield.regen_per_cycle > 0:
-			buff_mgr.apply_buff(Buff.create_regen(shield.regen_per_cycle, 15, shield.item_name))
+			buff_mgr.apply_buff(Buff.create_regen(shield.rider_int(shield.regen_per_cycle), 15, shield.item_name))
 		if shield.thorns_per_cycle > 0:
-			buff_mgr.apply_buff(Buff.create_thorns(shield.thorns_per_cycle, 5, shield.item_name))
+			buff_mgr.apply_buff(Buff.create_thorns(shield.rider_int(shield.thorns_per_cycle), 5, shield.item_name))
 
 ## A draw overflowed a full hand. Every equipped Overdraw rider collects.
 #endregion
@@ -11141,11 +11147,13 @@ func _on_overdraw_processed(_card: Card) -> void:
 	var stats := player.get_stats()
 	var buff_mgr := player.get_buff_manager()
 	for shield in player.get_inventory().get_equipped_shields():
+		# Off-hand shields work at the off-hand modifier (rider_int).
 		if shield.overdraw_heal > 0 and stats:
-			stats.heal(shield.overdraw_heal)
+			stats.heal(shield.rider_int(shield.overdraw_heal))
 		if shield.overdraw_regen > 0 and buff_mgr:
-			buff_mgr.apply_buff(Buff.create_regen(shield.overdraw_regen, 15, shield.item_name))
-			add_battle_log("%s: Overdraw — +%d Regen" % [shield.item_name, shield.overdraw_regen], Color(0.5, 0.85, 0.5))
+			var od_regen: int = shield.rider_int(shield.overdraw_regen)
+			buff_mgr.apply_buff(Buff.create_regen(od_regen, 15, shield.item_name))
+			add_battle_log("%s: Overdraw — +%d Regen" % [shield.item_name, od_regen], Color(0.5, 0.85, 0.5))
 		if shield.overdraw_peak > 0:
 			_overdraw_peak(shield)
 		if shield.overdraw_card_id != "":
@@ -11157,7 +11165,9 @@ func _on_overdraw_processed(_card: Card) -> void:
 func _overdraw_peak(shield: ItemData) -> void:
 	if not deck_manager or deck_manager.draw_pile.is_empty():
 		return
-	var depth: int = mini(shield.overdraw_peak, deck_manager.draw_pile.size())
+	var depth: int = mini(shield.rider_int(shield.overdraw_peak), deck_manager.draw_pile.size())
+	if depth <= 0:
+		return
 	var names: Array[String] = []
 	for i in range(depth):
 		var seen: Card = deck_manager.draw_pile[deck_manager.draw_pile.size() - 1 - i]
@@ -11190,7 +11200,8 @@ func _overdraw_conjure_to_manifest(shield: ItemData) -> void:
 	})
 	shield.conjured_in_manifest += 1
 	if shield.overdraw_card_block > 0 and player.get_stats():
-		player.get_stats().equipment_defense_card_block += shield.overdraw_card_block
+		# Floored (not random): it is taken back blade by blade later.
+		player.get_stats().equipment_defense_card_block += shield.rider_floor(shield.overdraw_card_block)
 	overflow_manager.manifest_card_added.emit(blade.card_name, blade)
 	overflow_manager.overflow_effects_changed.emit()
 	add_battle_log("%s: a %s waits in the manifest zone (%d/%d)" % [shield.item_name,
@@ -13756,7 +13767,7 @@ func _on_give_item(item_name: String) -> void:
 
 		for i in range(max_slots):
 			if slot_array[i] == null:
-				# Can fail (carry gate / grip-locked hand) — fall through to storage
+				# Can fail (carry gate / a hand locked by two-handing) — fall through to storage
 				if inv.equip_item(item, i):
 					print("[MAIN] Gave item: %s (equipped)" % item_name)
 					return
@@ -13814,7 +13825,7 @@ func _on_manifest_card_clicked(index: int) -> void:
 	if sleeve != null and sleeve.conjured_in_manifest > 0:
 		sleeve.conjured_in_manifest -= 1
 		if sleeve.overdraw_card_block > 0 and player.get_stats():
-			player.get_stats().equipment_defense_card_block -= sleeve.overdraw_card_block
+			player.get_stats().equipment_defense_card_block -= sleeve.rider_floor(sleeve.overdraw_card_block)
 
 	# Execute manifest effect
 	match result["manifest_id"]:

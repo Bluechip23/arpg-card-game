@@ -45,8 +45,8 @@ static func components(character: String) -> Dictionary:
 		"engrave_options": _designed_engrave_options(character),
 		"hands": _designed_hands(character)}
 
-## What each designed build holds at level 18: {build: {main, off, grippable}}
-## — grippable when the main hand is a one-handed weapon (a two-handed grip
+## What each designed build holds at level 18: {build: {main, off, two_handable}}
+## — two_handable when the main hand is a one-handed weapon (two-handing
 ## or a second weapon in the off hand both make sense).
 static func _designed_hands(character: String) -> Dictionary:
 	var out := {}
@@ -62,12 +62,12 @@ static func _designed_hands(character: String) -> Dictionary:
 					main = str(e[0])
 				else:
 					off = str(e[0])
-		var grippable := false
+		var two_handable := false
 		if main != "":
 			var it: ItemData = ItemData.create(main)
-			grippable = it.item_type == ItemData.ItemType.WEAPON and not Inventory.is_two_hand_only(it) \
+			two_handable = it.item_type == ItemData.ItemType.WEAPON and not Inventory.is_two_hand_only(it) \
 				and it.weapon_subtype != ItemData.WeaponSubtype.SHIELD
-		out[b] = {"main": main, "off": off, "grippable": grippable}
+		out[b] = {"main": main, "off": off, "two_handable": two_handable}
 	return out
 
 static func _designed_engrave_options(character: String) -> Dictionary:
@@ -558,8 +558,8 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 			base["item"] = swapped_item + ("@offhand" if offhand else "")
 	# Two-handing (`two_hand:yes`, or "two_hand" in DESIGNED): the main-hand
 	# weapon held in both hands, so the off hand is emptied; the runner takes
-	# the grip through the game (Inventory.set_two_handed). Bows and staffs
-	# are two-handed by nature and take no grip; that is flagged.
+	# two-handing through the game (Inventory.set_two_handed). Bows and staffs
+	# are two-handed by nature (no toggle); that is flagged.
 	var two_hand := str(parts.get("two_hand", base.get("two_hand", "no"))) == "yes"
 	var two_hand_note := ""
 	if two_hand:
@@ -568,10 +568,10 @@ static func compose(character: String, parts: Dictionary) -> Dictionary:
 			if (int(e[1]) if e.size() > 1 else 0) == 0 and _item_type(str(e[0])) == ItemData.ItemType.WEAPON:
 				main_id = str(e[0])
 		if main_id == "":
-			two_hand_note = "two_hand: no main-hand weapon to grip"
+			two_hand_note = "two_hand: no main-hand weapon to two-hand"
 			two_hand = false
 		elif Inventory.is_two_hand_only(ItemData.create(main_id)):
-			two_hand_note = "two_hand: %s is two-handed by nature (no grip to take)" % main_id
+			two_hand_note = "two_hand: %s is two-handed by nature (no toggle)" % main_id
 			two_hand = false
 		else:
 			for i in range(entries.size() - 1, -1, -1):
