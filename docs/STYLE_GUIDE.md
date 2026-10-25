@@ -87,8 +87,8 @@ conforms to them.
     the mounted Ring Wraith 1.95, the Ifrit 2.0), smaller ones less
     (Sanguine 1.15, the Bull Worm 1.2, the Giant Beaver 1.3);
   - the creature sheets (`tools/cut_creature_sheets.py`), the boss sheets
-    (`tools/cut_boss_sheets.py`, `BOSS_DOWN`), the Archer Rat and the
-    Inflamed Minotaur are cut to the same 64 (a fractional box resample
+    (`tools/cut_boss_sheets.py`, `BOSS_DOWN`), and the Archer Rat are cut
+    to the same 64 (a fractional box resample
     from the source) and drawn at `BOARD_SCALE`;
   - the Pit Fiend's board holds ~49 texels a tile at its size: it is cut at
     the source's own pixels (`DOWN` 1) and drawn ×0.65.

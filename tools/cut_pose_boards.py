@@ -231,6 +231,47 @@ BOARDS = {
         # The hooked tip of the left horn, seen from behind (dark on the dark wall).
         "fg": {"back": [(72, 100, 95, 128, 6), (95, 128, 118, 124, 6)]},
     },
+    "inflamed_minotaur": {
+        # 2026-10-25: the Inflamed Minotaur, flaming horns, axe and shield, on
+        # a dark flagstone floor. Its "west" and "east" poses are the front
+        # pose and its mirror (the board's own labels, kept); the face is
+        # "south", the back "north".
+        "src": "inflamed_minotaur_board.png", "bg": "warm", "tiles": 2.4,   # fire and bronze on cool flagstones
+        "match_height": ("left", "right", "back"),
+        # The board's own dark frame line down its outer edges.
+        "bg_hint": {"front": [(0, 0, 15, 400)], "left": [(0, 0, 15, 400)],
+                    "back": [(232, 0, 260, 400)], "right": [(232, 0, 260, 400)]},
+        # The poses run to the board's edges (axe and shield): the boxes
+        # reach past them into the crop's black padding.
+        "Idle": {
+            "front": (-12, 415, 227, 628),
+            "back": (233, 415, 482, 628),
+            "left": (-12, 57, 227, 292),
+            "right": (233, 57, 482, 292),
+        },
+    },
+    "bone_dragon": {
+        # 2026-10-25: the Bone Dragon, purple death-mist on its wings and at
+        # its feet, in a treasure-strewn crypt. Both side panels face left
+        # (the "east" one is not mirrored), so right is the mirror.
+        "src": "bone_dragon_board.jpg", "bg": "grabcut", "tiles": 2.6,
+        "warm_seed": True,
+        "Idle": {
+            "front": (615, 468, 1205, 840),
+            "back": (12, 478, 602, 858),
+            "left": (72, 50, 602, 428),
+            "right": ("mirror", "left"),
+        },
+        # The chest and the skulls on the floor (bone-coloured, like it).
+        "bg_hint": {"left": [(0, 248, 32, 345), (205, 343, 268, 378)],
+               "back": [(0, 255, 88, 335), (150, 330, 186, 380), (404, 320, 432, 352)],
+               "front": [(120, 245, 222, 312)]},   # a lump of rubble beside its leg
+        # Its tail and the spine down to the hips, seen from the front (they
+        # sit on the grey smoke).
+        "fg": {"front": [(300, 225, 300, 290, 8), (410, 225, 418, 250, 6), (418, 250, 410, 280, 6),
+                         (410, 280, 396, 300, 6)]},
+        "violet_grow": {"front": 230, "back": 240},   # the wings' mist, not the clouds at its feet
+    },
     "air_mage": {
         "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,
         "Idle": {
@@ -353,7 +394,8 @@ FEET_BAND = 0.10        # the bottom share of the figure where floor shadow is t
 
 def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim=True,
                  drop_ice=False, bright_grow=0, sky_tol=0, warm_grow=0,
-                 drop_blue=False, dark_regrow=0) -> np.ndarray:
+                 drop_blue=False, dark_regrow=0, bg_boxes=(), warm_seed=False,
+                 violet_grow=0) -> np.ndarray:
     """Background mask by GrabCut from the box, enclosed holes filled, and
     the ice's shadow under the feet (cool, unsaturated) trimmed."""
     if cv2 is None:
@@ -394,6 +436,19 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim
         else:
             x0, y0, x1, y1 = hint
             mask[y0:y1, x0:x1] = cv2.GC_FGD
+    if warm_seed:
+        # Bone on a cool crypt (the Bone Dragon): its bone, wing membrane and
+        # purple mist run warm or violet (red at or over blue), the teal wall,
+        # grey smoke and slate rubble run cool. Cool starts as probable
+        # background, bright bone as surely the creature.
+        r_, g_, b_ = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+        violet = (b_ > g_ + 25) & (r_ > g_ + 10)
+        cool = (b_ - r_ > 6) & ~violet
+        inner = mask == cv2.GC_PR_FGD
+        mask[inner & cool] = cv2.GC_PR_BGD
+        mask[inner & (lum > 150) & (sat < 60) & (r_ >= b_)] = cv2.GC_FGD
+    for x0, y0, x1, y1 in bg_boxes:   # scenery surely not the creature (a chest, a skull)
+        mask[y0:y1, x0:x1] = cv2.GC_BGD
     bgd, fgd = np.zeros((1, 65)), np.zeros((1, 65))
     cv2.setRNGSeed(0)   # GrabCut seeds its colour models randomly: keep the cut repeatable
     cv2.grabCut(bgr, mask, None, bgd, fgd, GRABCUT_ITER, cv2.GC_INIT_WITH_MASK)
@@ -406,6 +461,14 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim
         close = _grow(fg, dark_regrow)
         seeds = list(zip(*np.nonzero(fg)))
         fg |= _flood((cloth & close) | fg, seeds) & (mask != cv2.GC_BGD)
+    if violet_grow:
+        # The death-mist on the wings: purple touching the cut, above row
+        # `violet_grow` (not the clouds on the ground below it).
+        r_, g_, b_ = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+        violet = (b_ > g_ + 25) & (r_ > g_ + 10)
+        violet[violet_grow:] = False
+        seeds = list(zip(*np.nonzero(fg)))
+        fg |= _flood(violet | fg, seeds)
     if sat_grow:
         seeds = list(zip(*np.nonzero(fg)))
         fg |= _flood((sat >= sat_grow) | fg, seeds)
@@ -429,8 +492,22 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim
         looks_bg |= (lum > 185) & (sat < 60)
     for comp in _components(~fg & ~_flood(~fg, edge)):
         pts = tuple(np.array(comp).T)
-        if len(comp) <= HOLE_FILL_MAX or looks_bg[pts].mean() < 0.5:
+        if warm_seed:
+            # The crypt seen between ribs, under a wing, between the legs:
+            # left open whatever its size when it is the cool scenery.
+            r_, g_, b_ = rgb[..., 0][pts], rgb[..., 1][pts], rgb[..., 2][pts]
+            cool = (b_ - r_ > 6) & ~((b_ > g_ + 25) & (r_ > g_ + 10))
+            if cool.mean() < 0.5 and len(comp) <= HOLE_FILL_MAX * 4:
+                fg[pts] = True
+        elif len(comp) <= HOLE_FILL_MAX or looks_bg[pts].mean() < 0.5:
             fg[pts] = True
+    if warm_seed:
+        # ...and any patch of that cool scenery GrabCut kept inside the cut.
+        r_, g_, b_ = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+        cool = (b_ - r_ > 6) & ~((b_ > g_ + 25) & (r_ > g_ + 10))
+        for comp in _components(fg & cool):
+            if len(comp) > 40:
+                fg[tuple(np.array(comp).T)] = False
     if drop_ice:
         # A figure with nothing ice-coloured or near-black on it: any big
         # patch of snow blue or night sky GrabCut kept (seen between an arm
@@ -455,18 +532,59 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim
     return ~fg
 
 
+def _cut_warm(rgb: np.ndarray, fg_boxes=(), bg_boxes=()) -> np.ndarray:
+    """Background mask for a warm creature on a cool floor (the Inflamed
+    Minotaur: flames, bronze and dark red armour on blue-grey flagstones).
+    GrabCut can't hold it — its chainmail is the floor's own grey and pulls
+    the floor in with it — so the creature is classified directly:
+      - warm: red well over blue, not near-black (all of the fire and armour);
+      - mail: busy grey (a high local contrast, the checker of rings) close
+        to the warm parts — the smooth floor is not busy;
+      - its ink: the dark outline right against the warm parts.
+    Then specks dropped and holes filled as usual."""
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    lum = rgb.mean(axis=2)
+    warm = (r > b + 20) & (lum > 30)
+    lf = lum.astype(np.float32)
+    mean = cv2.blur(lf, (3, 3))
+    busy = np.sqrt(np.maximum(cv2.blur(lf * lf, (3, 3)) - mean * mean, 0)) > 10   # floor ~1-9, mail ~11-25
+    busy = cv2.morphologyEx(busy.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8)).astype(bool)
+    near = _grow(warm, 24)   # the skirt hangs ~40 px wide between warm thighs
+    pad = rgb.sum(axis=2) == 0   # the crop's padding past the board's edge
+    fg = (warm | (busy & near) | ((lum < 40) & _grow(warm, 2))) & ~pad
+    for hint in fg_boxes:
+        m = np.zeros(fg.shape, np.uint8)
+        if len(hint) == 5:
+            cv2.line(m, hint[0:2], hint[2:4], 1, hint[4])
+        else:
+            m[hint[1]:hint[3], hint[0]:hint[2]] = 1
+        fg |= m.astype(bool)
+    fg = cv2.morphologyEx(fg.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8)).astype(bool)
+    for x0, y0, x1, y1 in bg_boxes:
+        fg[y0:y1, x0:x1] = False
+    h, w = fg.shape
+    edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
+           [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
+    for comp in _components(~fg & ~_flood(~fg, edge)):
+        if len(comp) <= HOLE_FILL_MAX:
+            fg[tuple(np.array(comp).T)] = True
+    return ~fg
+
+
 def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
         feet_trim=True, drop_ice=False, bright_grow=0, sky_tol=0, warm_grow=0,
-        drop_blue=False, dark_regrow=0) -> Image.Image:
+        drop_blue=False, dark_regrow=0, bg_boxes=(), warm_seed=False, violet_grow=0) -> Image.Image:
     """The creature in `box`, full size, on transparency, cropped to itself."""
     rgb = np.asarray(board.crop(box).convert("RGB")).astype(int)
     h, w, _ = rgb.shape
     edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
            [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
-    bg_like = _background_like(rgb, kind) if kind != "grabcut" else None
-    if kind == "grabcut":
+    bg_like = _background_like(rgb, kind) if kind not in ("grabcut", "warm") else None
+    if kind == "warm":
+        bg = _cut_warm(rgb, fg_boxes, bg_boxes)
+    elif kind == "grabcut":
         bg = _cut_grabcut(rgb, fg_boxes, sat_grow, snow, feet_trim, drop_ice, bright_grow, sky_tol, warm_grow,
-                          drop_blue, dark_regrow)
+                          drop_blue, dark_regrow, bg_boxes, warm_seed, violet_grow)
     elif kind == "stone":
         bg = _cut_stone(rgb, bg_like, edge)
     else:
@@ -519,10 +637,23 @@ def build(name: str, cfg: dict) -> None:
                                     cfg.get("feet_trim", True), cfg.get("drop_ice", False),
                                     cfg.get("bright_grow", 0), cfg.get("sky_tol", 0),
                                     cfg.get("warm_grow", 0), cfg.get("drop_blue", False),
-                                    cfg.get("dark_regrow", 0))
+                                    cfg.get("dark_regrow", 0), cfg.get("bg_hint", {}).get(d, ()),
+                                    cfg.get("warm_seed", False), cfg.get("violet_grow", {}).get(d, 0))
         for d, box in cfg[anim].items():
             if box[0] == "mirror":
                 full[anim][d] = full[anim][box[1]].transpose(Image.FLIP_LEFT_RIGHT)
+    for d in cfg.get("match_height", ()):
+        # A pose the board draws at another size (the minotaur's top row is
+        # ~15% larger than its bottom row): brought to the front's height so
+        # the creature doesn't grow when it turns.
+        for anim in full:
+            f = full[anim][d]
+            k = full[anim]["front"].height / float(f.height)
+            size = (max(1, round(f.width * k)), max(1, round(f.height * k)))
+            g = f.convert("RGBa").resize(size, Image.BOX).convert("RGBA")
+            a = np.asarray(g).copy()
+            a[..., 3] = np.where(a[..., 3] >= 128, 255, 0)
+            full[anim][d] = Image.fromarray(a, "RGBA")
     if "Walk" not in full:
         full["Walk"] = full["Idle"]
     factor = full["Idle"]["front"].height / float(round(cfg["tiles"] * DENSITY))

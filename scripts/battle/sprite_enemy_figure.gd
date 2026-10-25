@@ -109,7 +109,7 @@ const KINDS := {
 	"ice_troll": {"fr": "mountain_monsters/Yeti", "scale": 1.05},
 	"granite_colossus": {"cp": "golem/Golem1", "scale": 1.6},
 	"grave_titan": {"cp": "golem/Golem2", "scale": 1.35, "tint": Color(0.9, 0.92, 0.88)},
-	"inflamed_minotaur": {"tex": "inflamed_minotaur", "scale": BOARD_SCALE},  # the designer's painting, cut out (tools/cut_minotaur.gd); a 259x195 cell
+	"inflamed_minotaur": {"sheets": SHEETS + "/inflamed_minotaur", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"demon": {"cp": "demons/Demon1", "scale": 0.85},
 	"pit_fiend": {"sheets": BOSSES + "/pit_fiend", "scale": 0.65},  # the designer's board (tools/cut_pit_fiend.py): stills, walks, tail-sweep attack
 	"bugbear": {"cp": "gnolls/Gnoll2", "scale": 1.2},
@@ -120,7 +120,7 @@ const KINDS := {
 	"white_manticore": {"sheets": SHEETS + "/white_manticore", "scale": BOARD_SCALE},
 	# --- battler variations where the species genuinely matches ---
 	"large_bear": {"fr": "mountain_monsters/Bear", "scale": 0.65},
-	"bone_dragon": {"tex": "bone_dragon", "scale": 1.6},
+	"bone_dragon": {"sheets": SHEETS + "/bone_dragon", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"wyvern": {"sheets": SHEETS + "/wyvern", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"cerberus": {"sheets": BOSSES + "/cerberus", "scale": BOARD_SCALE},
 	"hades": {"sheets": BOSSES + "/hades", "scale": BOARD_SCALE},  # art in place; no Hades enemy exists yet
