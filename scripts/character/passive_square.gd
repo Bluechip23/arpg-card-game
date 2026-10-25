@@ -28,7 +28,7 @@ func setup(opt: SkillTreeData.SkillOption, lane_name: String, stage_index: int, 
 	# Non-empty tooltip text is what makes Godot call _make_custom_tooltip.
 	tooltip_text = opt.name
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.07, 0.07, 0.1)
+	style.bg_color = Color(0.02, 0.07, 0.06)
 	style.set_border_width_all(2)
 	style.border_color = color.darkened(0.25)
 	style.set_corner_radius_all(3)

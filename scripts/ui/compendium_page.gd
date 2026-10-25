@@ -42,30 +42,55 @@ func _ready() -> void:
 	_build_hover_popup()
 
 func _apply_styles() -> void:
+	EmeraldTheme.apply(self)
+	# The full-screen panel stays clear so the forest shows round the tabs.
 	var panel = $Panel as PanelContainer
 	if panel:
-		var style = StyleBoxFlat.new()
-		style.bg_color = Color(0.07, 0.07, 0.1, 1.0)
-		style.content_margin_left = 20.0
-		style.content_margin_right = 20.0
-		style.content_margin_top = 20.0
-		style.content_margin_bottom = 20.0
-		panel.add_theme_stylebox_override("panel", style)
-
+		var clear := StyleBoxEmpty.new()
+		clear.set_content_margin_all(10.0)
+		panel.add_theme_stylebox_override("panel", clear)
 	if back_button:
-		back_button.add_theme_font_size_override("font_size", 16)
-		var back_style = StyleBoxFlat.new()
-		back_style.bg_color = Color(0.2, 0.2, 0.25)
-		back_style.border_width_left = 1
-		back_style.border_width_right = 1
-		back_style.border_width_top = 1
-		back_style.border_width_bottom = 1
-		back_style.border_color = Color(0.4, 0.4, 0.5)
-		back_style.corner_radius_top_left = 4
-		back_style.corner_radius_top_right = 4
-		back_style.corner_radius_bottom_left = 4
-		back_style.corner_radius_bottom_right = 4
-		back_button.add_theme_stylebox_override("normal", back_style)
+		EmeraldTheme.style_button(back_button, 16)
+		# Header row: Back on the left, the screen title centred.
+		var vbox := back_button.get_parent()
+		var header := HBoxContainer.new()
+		header.name = "Header"
+		vbox.add_child(header)
+		vbox.move_child(header, 0)
+		back_button.reparent(header)
+		back_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var title := Label.new()
+		title.name = "Title"
+		title.text = "Compendium"
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		EmeraldTheme.style_title(title, 36)
+		header.add_child(title)
+		# Balances the Back button so the title sits in the true centre.
+		var balance := Control.new()
+		balance.custom_minimum_size = back_button.custom_minimum_size
+		header.add_child(balance)
+
+## An entry tile: emerald glass with a gold-dim edge, brighter on hover.
+static func _tile_box(hover: bool = false) -> StyleBoxFlat:
+	var sb := EmeraldTheme.panel_box(
+		EmeraldTheme.CARD_HOVER_BG if hover else EmeraldTheme.CARD_BG,
+		EmeraldTheme.PALETTE["btn_hover_border"] if hover else EmeraldTheme.GOLD_DIM,
+		2 if hover else 1, 4, 8.0)
+	sb.content_margin_top = 5.0
+	sb.content_margin_bottom = 7.0
+	sb.shadow_size = 4
+	return sb
+
+## Give a tile (_style_tile(panel)) its glass faces, swapped as the mouse
+## comes and goes.
+func _style_tile(panel: PanelContainer) -> void:
+	var normal := _tile_box(false)
+	var lit := _tile_box(true)
+	panel.add_theme_stylebox_override("panel", normal)
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.mouse_entered.connect(func(): panel.add_theme_stylebox_override("panel", lit))
+	panel.mouse_exited.connect(func(): panel.add_theme_stylebox_override("panel", normal))
 
 func _on_back_pressed() -> void:
 	var title_scene = load("res://scenes/menus/title_menu.tscn").instantiate()
@@ -111,7 +136,7 @@ func _build_cards_tab() -> void:
 	_cards_search = LineEdit.new()
 	_cards_search.placeholder_text = "Search cards by name..."
 	_cards_search.clear_button_enabled = true
-	_cards_search.add_theme_font_size_override("font_size", 14)
+	_cards_search.add_theme_font_size_override("font_size", 16)
 	_cards_search.text_changed.connect(_on_cards_search_changed)
 	vbox.add_child(_cards_search)
 
@@ -174,7 +199,8 @@ func _populate_cards(filter: String) -> void:
 		# Type header
 		var header = Label.new()
 		header.text = type_names[card_type] + " (%d)" % cards.size()
-		header.add_theme_font_size_override("font_size", 18)
+		header.add_theme_font_size_override("font_size", 22)
+		header.add_theme_constant_override("outline_size", 4)
 		header.add_theme_color_override("font_color", type_colors[card_type])
 		_cards_container.add_child(header)
 
@@ -201,22 +227,7 @@ func _create_card_entry(card: Card, type_color: Color) -> PanelContainer:
 	var panel = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(220, 80)
 
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.12, 0.18, 0.9)
-	style.border_width_left = 1
-	style.border_width_right = 1
-	style.border_width_top = 1
-	style.border_width_bottom = 1
-	style.border_color = type_color * 0.6
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
-	style.content_margin_left = 8.0
-	style.content_margin_right = 8.0
-	style.content_margin_top = 6.0
-	style.content_margin_bottom = 6.0
-	panel.add_theme_stylebox_override("panel", style)
+	_style_tile(panel)
 
 	var vbox = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 2)
@@ -225,19 +236,19 @@ func _create_card_entry(card: Card, type_color: Color) -> PanelContainer:
 	var name_lbl = Label.new()
 	name_lbl.text = card.card_name
 	name_lbl.add_theme_font_size_override("font_size", 14)
-	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+	name_lbl.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 	vbox.add_child(name_lbl)
 
 	var type_lbl = Label.new()
 	type_lbl.text = card.card_type_name
-	type_lbl.add_theme_font_size_override("font_size", 11)
+	type_lbl.add_theme_font_size_override("font_size", 13)
 	type_lbl.add_theme_color_override("font_color", type_color)
 	vbox.add_child(type_lbl)
 
 	var cost_lbl = Label.new()
 	cost_lbl.text = "%dM / %dT" % [card.mana_cost, card.tempo_cost]
-	cost_lbl.add_theme_font_size_override("font_size", 11)
-	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	cost_lbl.add_theme_font_size_override("font_size", 13)
+	cost_lbl.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 	vbox.add_child(cost_lbl)
 
 	# Make it respond to hover
@@ -257,7 +268,7 @@ func _on_card_entry_hovered(card: Card, entry: PanelContainer) -> void:
 	var name_lbl = Label.new()
 	name_lbl.text = card.card_name
 	name_lbl.add_theme_font_size_override("font_size", 18)
-	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
+	name_lbl.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 	vbox.add_child(name_lbl)
 
 	var type_lbl = Label.new()
@@ -286,7 +297,7 @@ func _on_card_entry_hovered(card: Card, entry: PanelContainer) -> void:
 	else:
 		cost_lbl.text = "Cost: %dM / %dT" % [card.mana_cost, card.tempo_cost]
 	cost_lbl.add_theme_font_size_override("font_size", 13)
-	cost_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	cost_lbl.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 	vbox.add_child(cost_lbl)
 
 	var rarity_lbl = Label.new()
@@ -298,56 +309,56 @@ func _on_card_entry_hovered(card: Card, entry: PanelContainer) -> void:
 	if card.damage > 0:
 		var dmg_lbl = Label.new()
 		dmg_lbl.text = "Damage: %d" % card.damage
-		dmg_lbl.add_theme_font_size_override("font_size", 12)
+		dmg_lbl.add_theme_font_size_override("font_size", 13)
 		dmg_lbl.add_theme_color_override("font_color", Color(1.0, 0.5, 0.3))
 		vbox.add_child(dmg_lbl)
 
 	if card.block > 0:
 		var blk_lbl = Label.new()
 		blk_lbl.text = "Block: %d" % card.block
-		blk_lbl.add_theme_font_size_override("font_size", 12)
+		blk_lbl.add_theme_font_size_override("font_size", 13)
 		blk_lbl.add_theme_color_override("font_color", Color(0.4, 0.6, 1.0))
 		vbox.add_child(blk_lbl)
 
 	if card.heal_amount > 0:
 		var heal_lbl = Label.new()
 		heal_lbl.text = "Heal: %d" % card.heal_amount
-		heal_lbl.add_theme_font_size_override("font_size", 12)
+		heal_lbl.add_theme_font_size_override("font_size", 13)
 		heal_lbl.add_theme_color_override("font_color", Color(0.3, 0.9, 0.3))
 		vbox.add_child(heal_lbl)
 
 	if card.is_ranged:
 		var range_lbl = Label.new()
 		range_lbl.text = card.get_range_display()
-		range_lbl.add_theme_font_size_override("font_size", 12)
+		range_lbl.add_theme_font_size_override("font_size", 13)
 		range_lbl.add_theme_color_override("font_color", Color(0.3, 0.8, 0.9))
 		vbox.add_child(range_lbl)
 
 	if card.is_aoe:
 		var aoe_lbl = Label.new()
 		aoe_lbl.text = "AOE: %s" % card.aoe_shape.capitalize()
-		aoe_lbl.add_theme_font_size_override("font_size", 12)
+		aoe_lbl.add_theme_font_size_override("font_size", 13)
 		aoe_lbl.add_theme_color_override("font_color", Color(0.9, 0.5, 0.2))
 		vbox.add_child(aoe_lbl)
 
 	if card.sticky > 0:
 		var sticky_lbl = Label.new()
 		sticky_lbl.text = "Sticky %d" % card.sticky
-		sticky_lbl.add_theme_font_size_override("font_size", 12)
+		sticky_lbl.add_theme_font_size_override("font_size", 13)
 		sticky_lbl.add_theme_color_override("font_color", Color(0.9, 0.7, 0.2))
 		vbox.add_child(sticky_lbl)
 
 	if card.has_on_draw:
 		var od_lbl = Label.new()
 		od_lbl.text = "On-Draw effect"
-		od_lbl.add_theme_font_size_override("font_size", 12)
+		od_lbl.add_theme_font_size_override("font_size", 13)
 		od_lbl.add_theme_color_override("font_color", Color(0.5, 0.9, 0.5))
 		vbox.add_child(od_lbl)
 
 	if card.maintain_cost > 0:
 		var maintain_lbl = Label.new()
 		maintain_lbl.text = "Maintain: %dM" % card.maintain_cost
-		maintain_lbl.add_theme_font_size_override("font_size", 12)
+		maintain_lbl.add_theme_font_size_override("font_size", 13)
 		maintain_lbl.add_theme_color_override("font_color", Color(0.8, 0.5, 1.0))
 		vbox.add_child(maintain_lbl)
 
@@ -359,8 +370,8 @@ func _on_card_entry_hovered(card: Card, entry: PanelContainer) -> void:
 	desc_lbl.text = card.description
 	desc_lbl.fit_content = true
 	desc_lbl.scroll_active = false
-	desc_lbl.custom_minimum_size = Vector2(230, 0)
-	desc_lbl.add_theme_font_size_override("normal_font_size", 13)
+	desc_lbl.custom_minimum_size = Vector2(290, 0)
+	desc_lbl.add_theme_font_size_override("normal_font_size", 14)
 	vbox.add_child(desc_lbl)
 
 	# Keyword tooltips
@@ -371,8 +382,8 @@ func _on_card_entry_hovered(card: Card, entry: PanelContainer) -> void:
 
 		var kw_header = Label.new()
 		kw_header.text = "Keywords:"
-		kw_header.add_theme_font_size_override("font_size", 11)
-		kw_header.add_theme_color_override("font_color", Color(0.9, 0.8, 0.4))
+		kw_header.add_theme_font_size_override("font_size", 13)
+		kw_header.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 		vbox.add_child(kw_header)
 
 		for kw in keywords:
@@ -381,8 +392,8 @@ func _on_card_entry_hovered(card: Card, entry: PanelContainer) -> void:
 			kw_label.text = "[color=#cc88ff]%s[/color]: %s" % [kw["keyword"], kw["definition"]]
 			kw_label.fit_content = true
 			kw_label.scroll_active = false
-			kw_label.custom_minimum_size = Vector2(230, 0)
-			kw_label.add_theme_font_size_override("normal_font_size", 10)
+			kw_label.custom_minimum_size = Vector2(290, 0)
+			kw_label.add_theme_font_size_override("normal_font_size", 13)
 			kw_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			vbox.add_child(kw_label)
 
@@ -404,7 +415,7 @@ func _build_items_tab() -> void:
 	_items_search = LineEdit.new()
 	_items_search.placeholder_text = "Search items by name..."
 	_items_search.clear_button_enabled = true
-	_items_search.add_theme_font_size_override("font_size", 14)
+	_items_search.add_theme_font_size_override("font_size", 16)
 	_items_search.text_changed.connect(_on_items_search_changed)
 	vbox.add_child(_items_search)
 
@@ -472,7 +483,8 @@ func _populate_items(filter: String) -> void:
 		# Type header
 		var header = Label.new()
 		header.text = type_names[item_type] + " (%d)" % items.size()
-		header.add_theme_font_size_override("font_size", 18)
+		header.add_theme_font_size_override("font_size", 22)
+		header.add_theme_constant_override("outline_size", 4)
 		header.add_theme_color_override("font_color", type_colors[item_type])
 		_items_container.add_child(header)
 
@@ -495,24 +507,9 @@ func _populate_items(filter: String) -> void:
 
 func _create_item_entry(item: ItemData, type_color: Color) -> PanelContainer:
 	var panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(220, 90)
+	panel.custom_minimum_size = Vector2(220, 64)
 
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.12, 0.18, 0.9)
-	style.border_width_left = 1
-	style.border_width_right = 1
-	style.border_width_top = 1
-	style.border_width_bottom = 1
-	style.border_color = type_color * 0.5
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
-	style.content_margin_left = 8.0
-	style.content_margin_right = 8.0
-	style.content_margin_top = 6.0
-	style.content_margin_bottom = 6.0
-	panel.add_theme_stylebox_override("panel", style)
+	_style_tile(panel)
 
 	var hbox = HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 8)
@@ -521,6 +518,7 @@ func _create_item_entry(item: ItemData, type_color: Color) -> PanelContainer:
 	# Placeholder portrait
 	var portrait = ColorRect.new()
 	portrait.custom_minimum_size = Vector2(48, 48)
+	portrait.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	portrait.color = type_color * 0.4
 	hbox.add_child(portrait)
 
@@ -530,8 +528,8 @@ func _create_item_entry(item: ItemData, type_color: Color) -> PanelContainer:
 	var icon_label = Label.new()
 	icon_label.text = item.item_name[0].to_upper()
 	icon_label.add_theme_font_size_override("font_size", 24)
-	icon_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.7))
-	icon_label.position = Vector2(0, 0)
+	icon_label.add_theme_color_override("font_color", Color(EmeraldTheme.TEXT, 0.8))
+	_centre_in(icon_label)
 	portrait.add_child(icon_label)
 
 	var info_vbox = VBoxContainer.new()
@@ -541,12 +539,12 @@ func _create_item_entry(item: ItemData, type_color: Color) -> PanelContainer:
 	var name_lbl = Label.new()
 	name_lbl.text = item.item_name
 	name_lbl.add_theme_font_size_override("font_size", 13)
-	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+	name_lbl.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 	info_vbox.add_child(name_lbl)
 
 	var type_lbl = Label.new()
 	type_lbl.text = item.get_type_name()
-	type_lbl.add_theme_font_size_override("font_size", 11)
+	type_lbl.add_theme_font_size_override("font_size", 13)
 	type_lbl.add_theme_color_override("font_color", type_color)
 	info_vbox.add_child(type_lbl)
 
@@ -566,17 +564,17 @@ func _on_item_entry_hovered(item: ItemData, entry: PanelContainer) -> void:
 	var name_lbl = Label.new()
 	name_lbl.text = item.item_name
 	name_lbl.add_theme_font_size_override("font_size", 18)
-	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
+	name_lbl.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 	vbox.add_child(name_lbl)
 
 	var type_lbl = Label.new()
 	type_lbl.text = item.get_type_name()
 	type_lbl.add_theme_font_size_override("font_size", 13)
-	type_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.85))
+	type_lbl.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 	vbox.add_child(type_lbl)
 
 	if item.weight > 0:
-		_add_detail_line(vbox, "Weight: %d" % item.weight, Color(0.6, 0.6, 0.6))
+		_add_detail_line(vbox, "Weight: %d" % item.weight, EmeraldTheme.TEXT_DIM)
 
 	# Stat bonuses
 	if item.strength_bonus != 0:
@@ -620,9 +618,9 @@ func _on_item_entry_hovered(item: ItemData, entry: PanelContainer) -> void:
 		vbox.add_child(sep)
 		var skill_type_str = "Active" if item.gauntlet_skill_type == ItemData.GauntletSkillType.ACTIVE else "Passive"
 		_add_detail_line(vbox, "%s Skill: %s" % [skill_type_str, item.gauntlet_skill_name], Color(0.9, 0.6, 0.3))
-		_add_detail_line(vbox, item.gauntlet_skill_description, Color(0.7, 0.7, 0.8))
+		_add_detail_line(vbox, item.gauntlet_skill_description, EmeraldTheme.TEXT_DIM)
 		if item.gauntlet_skill_type == ItemData.GauntletSkillType.ACTIVE:
-			_add_detail_line(vbox, "CD: %d cycles, Cost: %dM" % [item.gauntlet_skill_cooldown, item.gauntlet_skill_mana_cost], Color(0.6, 0.6, 0.7))
+			_add_detail_line(vbox, "CD: %d cycles, Cost: %dM" % [item.gauntlet_skill_cooldown, item.gauntlet_skill_mana_cost], EmeraldTheme.TEXT_DIM)
 
 	# Card slots
 	if item.total_card_slots() > 0:
@@ -630,7 +628,7 @@ func _on_item_entry_hovered(item: ItemData, entry: PanelContainer) -> void:
 		vbox.add_child(sep)
 		_add_detail_line(vbox, "Card Slots: %s" % ItemData.slot_words(item), Color(0.7, 0.6, 1.0))
 		if item.vanilla_slots > 0:
-			_add_detail_line(vbox, "Plain slots hold a card without the on-self bonus", Color(0.55, 0.55, 0.7))
+			_add_detail_line(vbox, "Plain slots hold a card without the on-self bonus", EmeraldTheme.TEXT_DIM)
 		if item.on_self_damage > 0:
 			_add_detail_line(vbox, "On-Self: +%d damage" % item.on_self_damage, Color(0.6, 0.9, 0.6))
 		if item.on_self_block > 0:
@@ -653,9 +651,9 @@ func _on_item_entry_hovered(item: ItemData, entry: PanelContainer) -> void:
 		var desc_lbl = Label.new()
 		desc_lbl.text = item.description
 		desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		desc_lbl.custom_minimum_size = Vector2(230, 0)
-		desc_lbl.add_theme_font_size_override("font_size", 12)
-		desc_lbl.add_theme_color_override("font_color", Color(0.75, 0.75, 0.8))
+		desc_lbl.custom_minimum_size = Vector2(290, 0)
+		desc_lbl.add_theme_font_size_override("font_size", 13)
+		desc_lbl.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 		vbox.add_child(desc_lbl)
 
 	_show_hover_popup(entry)
@@ -676,7 +674,7 @@ func _build_enemies_tab() -> void:
 	_enemies_search = LineEdit.new()
 	_enemies_search.placeholder_text = "Search enemies by name..."
 	_enemies_search.clear_button_enabled = true
-	_enemies_search.add_theme_font_size_override("font_size", 14)
+	_enemies_search.add_theme_font_size_override("font_size", 16)
 	_enemies_search.text_changed.connect(_on_enemies_search_changed)
 	vbox.add_child(_enemies_search)
 
@@ -712,7 +710,7 @@ func _populate_enemies(filter: String) -> void:
 
 func _create_enemy_entry(enemy_data: Dictionary) -> PanelContainer:
 	var panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(250, 100)
+	panel.custom_minimum_size = Vector2(250, 72)
 
 	# One colour per sheet tier (Enemy.get_all_enemy_data "type"): Trash
 	# grey, Mid-tier the old red, Elite gold, Boss purple, Special teal.
@@ -728,22 +726,7 @@ func _create_enemy_entry(enemy_data: Dictionary) -> PanelContainer:
 	elif enemy_data["type"] == "Special":
 		type_color = Color(0.3, 0.7, 0.8)
 
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.12, 0.18, 0.9)
-	style.border_width_left = 1
-	style.border_width_right = 1
-	style.border_width_top = 1
-	style.border_width_bottom = 1
-	style.border_color = type_color * 0.5
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
-	style.content_margin_left = 8.0
-	style.content_margin_right = 8.0
-	style.content_margin_top = 6.0
-	style.content_margin_bottom = 6.0
-	panel.add_theme_stylebox_override("panel", style)
+	_style_tile(panel)
 
 	var hbox = HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 10)
@@ -752,13 +735,15 @@ func _create_enemy_entry(enemy_data: Dictionary) -> PanelContainer:
 	# Placeholder portrait
 	var portrait = ColorRect.new()
 	portrait.custom_minimum_size = Vector2(56, 56)
+	portrait.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	portrait.color = type_color * 0.35
 	hbox.add_child(portrait)
 
 	var icon_label = Label.new()
 	icon_label.text = enemy_data["name"][0].to_upper()
 	icon_label.add_theme_font_size_override("font_size", 28)
-	icon_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
+	icon_label.add_theme_color_override("font_color", Color(EmeraldTheme.TEXT, 0.8))
+	_centre_in(icon_label)
 	portrait.add_child(icon_label)
 
 	var info_vbox = VBoxContainer.new()
@@ -768,12 +753,12 @@ func _create_enemy_entry(enemy_data: Dictionary) -> PanelContainer:
 	var name_lbl = Label.new()
 	name_lbl.text = enemy_data["name"]
 	name_lbl.add_theme_font_size_override("font_size", 15)
-	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+	name_lbl.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 	info_vbox.add_child(name_lbl)
 
 	var type_lbl = Label.new()
 	type_lbl.text = enemy_data["type"]
-	type_lbl.add_theme_font_size_override("font_size", 11)
+	type_lbl.add_theme_font_size_override("font_size", 13)
 	type_lbl.add_theme_color_override("font_color", type_color)
 	info_vbox.add_child(type_lbl)
 
@@ -782,8 +767,8 @@ func _create_enemy_entry(enemy_data: Dictionary) -> PanelContainer:
 		hp_text += "  Armor: %d" % enemy_data["armor"]
 	var hp_lbl = Label.new()
 	hp_lbl.text = hp_text
-	hp_lbl.add_theme_font_size_override("font_size", 11)
-	hp_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	hp_lbl.add_theme_font_size_override("font_size", 13)
+	hp_lbl.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 	info_vbox.add_child(hp_lbl)
 
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -802,10 +787,10 @@ func _on_enemy_entry_hovered(enemy_data: Dictionary, entry: PanelContainer) -> v
 	var name_lbl = Label.new()
 	name_lbl.text = enemy_data["name"]
 	name_lbl.add_theme_font_size_override("font_size", 18)
-	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
+	name_lbl.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 	vbox.add_child(name_lbl)
 
-	_add_detail_line(vbox, "Type: %s" % enemy_data["type"], Color(0.7, 0.7, 0.85))
+	_add_detail_line(vbox, "Type: %s" % enemy_data["type"], EmeraldTheme.TEXT_DIM)
 	_add_detail_line(vbox, "Health: %d" % enemy_data["health"], Color(0.9, 0.3, 0.3))
 	if enemy_data["armor"] > 0:
 		_add_detail_line(vbox, "Armor: %d" % enemy_data["armor"], Color(0.7, 0.7, 0.7))
@@ -819,7 +804,7 @@ func _on_enemy_entry_hovered(enemy_data: Dictionary, entry: PanelContainer) -> v
 	var actions_header = Label.new()
 	actions_header.text = "Actions:"
 	actions_header.add_theme_font_size_override("font_size", 14)
-	actions_header.add_theme_color_override("font_color", Color(0.9, 0.8, 0.4))
+	actions_header.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 	vbox.add_child(actions_header)
 
 	for action in enemy_data["actions"]:
@@ -827,7 +812,7 @@ func _on_enemy_entry_hovered(enemy_data: Dictionary, entry: PanelContainer) -> v
 		var kws: Array = action.get("keywords", [])
 		if not kws.is_empty():
 			line += "  ·  " + " · ".join(PackedStringArray(kws))
-		_add_detail_line(vbox, line, Color(0.75, 0.75, 0.8))
+		_add_detail_line(vbox, line, EmeraldTheme.TEXT_DIM)
 
 	var sep2 = HSeparator.new()
 	vbox.add_child(sep2)
@@ -836,9 +821,9 @@ func _on_enemy_entry_hovered(enemy_data: Dictionary, entry: PanelContainer) -> v
 	var special_lbl = Label.new()
 	special_lbl.text = enemy_data["special"]
 	special_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	special_lbl.custom_minimum_size = Vector2(230, 0)
-	special_lbl.add_theme_font_size_override("font_size", 12)
-	special_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	special_lbl.custom_minimum_size = Vector2(290, 0)
+	special_lbl.add_theme_font_size_override("font_size", 13)
+	special_lbl.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 	vbox.add_child(special_lbl)
 
 	_show_hover_popup(entry)
@@ -850,33 +835,29 @@ func _on_enemy_entry_hovered(enemy_data: Dictionary, entry: PanelContainer) -> v
 func _build_hover_popup() -> void:
 	_hover_popup = PanelContainer.new()
 	_hover_popup.name = "HoverPopup"
-	_hover_popup.custom_minimum_size = Vector2(260, 0)
+	_hover_popup.custom_minimum_size = Vector2(300, 0)
 	_hover_popup.visible = false
 	_hover_popup.z_index = 200
 	_hover_popup.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.08, 0.08, 0.12, 0.98)
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
-	style.border_color = Color(0.5, 0.45, 0.3)
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
-	style.content_margin_left = 10.0
-	style.content_margin_right = 10.0
-	style.content_margin_top = 8.0
-	style.content_margin_bottom = 8.0
+	var style := EmeraldTheme.panel_box(EmeraldTheme.PANEL_BG_SOLID, EmeraldTheme.GOLD, 2, 6, 12.0)
 	_hover_popup.add_theme_stylebox_override("panel", style)
 
 	add_child(_hover_popup)
 
+## A placeholder portrait's initial, centred in its box.
+static func _centre_in(label: Label) -> void:
+	label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
 func _clear_hover_popup() -> void:
+	# Detach the old details now (not at frame end) and drop the old size,
+	# so the popup grows to fit only the new entry's details.
 	for child in _hover_popup.get_children():
+		_hover_popup.remove_child(child)
 		child.queue_free()
+	_hover_popup.size = Vector2.ZERO
 
 func _show_hover_popup(entry: Control) -> void:
 	# Position popup to the right of the entry, or left if not enough space
@@ -900,6 +881,6 @@ func _on_hover_exited() -> void:
 func _add_detail_line(parent: VBoxContainer, text: String, color: Color) -> void:
 	var lbl = Label.new()
 	lbl.text = text
-	lbl.add_theme_font_size_override("font_size", 12)
+	lbl.add_theme_font_size_override("font_size", 13)
 	lbl.add_theme_color_override("font_color", color)
 	parent.add_child(lbl)

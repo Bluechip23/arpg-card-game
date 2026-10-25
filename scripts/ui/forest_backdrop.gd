@@ -11,7 +11,7 @@ extends Control
 
 ## Darkens the scene so a menu's panels and text read over it (0 = none).
 @export var dim: float = 0.35
-var palette: Dictionary = EmeraldTheme.PALETTE
+var palette: Dictionary = _menu_palette()
 var _t: float = 0.0
 
 func _ready() -> void:
@@ -27,6 +27,13 @@ func _draw() -> void:
 	draw_front_trees(self, size, palette)
 	if dim > 0.0:
 		draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, dim))
+
+## Menu screens keep their top-left for a Back button and tabs, so their
+## moon hangs top-right instead.
+static func _menu_palette() -> Dictionary:
+	var pal: Dictionary = EmeraldTheme.PALETTE.duplicate()
+	pal["moon_x"] = 0.9
+	return pal
 
 ## Put a backdrop at the back of `root` (behind every other child).
 static func add_to(root: Control, dim_amount: float = 0.35) -> ForestBackdrop:
@@ -81,7 +88,7 @@ static func draw_backdrop(ci: CanvasItem, size: Vector2, g: float, _t: float, pa
 			var tw := 0.35 + 0.3 * sin(_t * 1.5 + i * 1.7)
 			ci.draw_circle(Vector2(sx, sy), 1.3, Color(1, 1, 0.9, tw))
 	# Moon (or a low sun when the style has no crescent)
-	var moon_c := Vector2(size.x * 0.12, size.y * 0.14)
+	var moon_c := Vector2(size.x * float(pal.get("moon_x", 0.12)), size.y * 0.14)
 	var moon: Color = pal.get("moon", Color(0.93, 0.95, 0.82))
 	if pal.get("moon_crescent", true):
 		ci.draw_circle(moon_c, 34.0, Color(moon, 0.12))

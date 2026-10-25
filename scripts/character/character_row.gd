@@ -32,8 +32,9 @@ func setup(character: CharacterData, is_customize: bool = false) -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	var accent := character.get_accent_color()
-	_style = _panel_style(Color(0.08, 0.08, 0.11), Color(0.2, 0.2, 0.28))
-	_hover_style = _panel_style(Color(0.11, 0.11, 0.16), accent)
+	# Emerald glass with a faint gold edge; the hero's colour lights it on hover.
+	_style = _panel_style(EmeraldTheme.CARD_BG, Color(EmeraldTheme.GOLD_DIM, 0.45))
+	_hover_style = _panel_style(EmeraldTheme.CARD_HOVER_BG, accent)
 	add_theme_stylebox_override("panel", _style)
 	mouse_entered.connect(func(): add_theme_stylebox_override("panel", _hover_style))
 	mouse_exited.connect(func():
@@ -54,8 +55,8 @@ func setup(character: CharacterData, is_customize: bool = false) -> void:
 		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		note.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		note.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		note.add_theme_font_size_override("font_size", 13)
-		note.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+		note.add_theme_font_size_override("font_size", 16)
+		note.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 		note.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(note)
 		return
@@ -76,7 +77,7 @@ func _build_portrait(character: CharacterData, accent: Color, is_customize: bool
 	frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	frame.mouse_filter = Control.MOUSE_FILTER_PASS
 	frame.tooltip_text = _identity_tooltip(character, is_customize)
-	frame.add_theme_stylebox_override("panel", _panel_style(Color(0.05, 0.05, 0.08), accent.darkened(0.35), 0, 0))
+	frame.add_theme_stylebox_override("panel", _panel_style(Color(0.02, 0.07, 0.06), accent.darkened(0.35), 0, 0))
 	var tex := character.get_portrait() if not is_customize else null
 	if tex:
 		var pic := TextureRect.new()
@@ -109,8 +110,10 @@ func _build_text(character: CharacterData, accent: Color, is_customize: bool) ->
 	var title := Label.new()
 	title.name = "Name"
 	title.text = character.character_name.to_upper()
-	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_font_size_override("font_size", 28)
 	title.add_theme_color_override("font_color", accent)
+	title.add_theme_color_override("font_outline_color", EmeraldTheme.OUTLINE)
+	title.add_theme_constant_override("outline_size", 4)
 	title.mouse_filter = Control.MOUSE_FILTER_PASS
 	title.tooltip_text = _identity_tooltip(character, is_customize)
 	vb.add_child(title)
@@ -120,8 +123,8 @@ func _build_text(character: CharacterData, accent: Color, is_customize: bool) ->
 		else "Answer a few questions and build a hero of your own."
 	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	blurb.custom_minimum_size.x = TEXT_WIDTH
-	blurb.add_theme_font_size_override("font_size", 13)
-	blurb.add_theme_color_override("font_color", Color(0.86, 0.87, 0.92))
+	blurb.add_theme_font_size_override("font_size", 14)
+	blurb.add_theme_color_override("font_color", EmeraldTheme.TEXT)
 	blurb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vb.add_child(blurb)
 	return vb
@@ -233,6 +236,6 @@ class TreeTitle extends PanelContainer:
 			body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			body.custom_minimum_size.x = 300
 			body.add_theme_font_size_override("font_size", 13)
-			body.add_theme_color_override("font_color", Color(0.86, 0.86, 0.9))
+			body.add_theme_color_override("font_color", EmeraldTheme.TEXT)
 			vb.add_child(body)
 		return vb

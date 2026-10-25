@@ -79,14 +79,14 @@ func _setup_name_edit() -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	var lbl := Label.new()
 	lbl.text = "Name:"
-	lbl.add_theme_font_size_override("font_size", 14)
-	lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	lbl.add_theme_font_size_override("font_size", 17)
+	lbl.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 	row.add_child(lbl)
 	_name_edit = LineEdit.new()
 	_name_edit.custom_minimum_size = Vector2(220, 34)
 	_name_edit.max_length = MAX_NAME_LENGTH
 	_name_edit.placeholder_text = "Character name"
-	_name_edit.add_theme_font_size_override("font_size", 15)
+	_name_edit.add_theme_font_size_override("font_size", 17)
 	row.add_child(_name_edit)
 	# Sits between the subtitle (and portrait) and the Proceed/Cancel buttons.
 	vbox.add_child(row)
@@ -125,7 +125,7 @@ func _show_confirm_portrait(character: CharacterData) -> void:
 	_confirm_portrait_frame.visible = tex != null
 	_confirm_portrait.texture = tex
 	var st := StyleBoxFlat.new()
-	st.bg_color = Color(0.05, 0.05, 0.08)
+	st.bg_color = Color(0.02, 0.07, 0.06)
 	st.set_border_width_all(2)
 	st.border_color = character.get_accent_color().darkened(0.2)
 	st.set_corner_radius_all(4)
@@ -161,128 +161,32 @@ func _update_multiplayer_title() -> void:
 		subtitle_label.text = "Select the secondary player's character."
 
 func _apply_styles() -> void:
+	EmeraldTheme.apply(self, true, 0.5)
 	if title_label:
-		title_label.add_theme_font_size_override("font_size", 32)
-		title_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
-
+		EmeraldTheme.style_title(title_label, 40)
 	if subtitle_label:
-		subtitle_label.add_theme_font_size_override("font_size", 13)
-		subtitle_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.72))
-
-	if title_separator:
-		title_separator.add_theme_color_override("color", Color(0.3, 0.3, 0.45))
-
-	# Back button style
+		subtitle_label.add_theme_font_size_override("font_size", 15)
+		subtitle_label.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 	if back_button:
-		back_button.add_theme_font_size_override("font_size", 16)
-		var back_style = StyleBoxFlat.new()
-		back_style.bg_color = Color(0.2, 0.2, 0.25)
-		back_style.border_width_left = 1
-		back_style.border_width_right = 1
-		back_style.border_width_top = 1
-		back_style.border_width_bottom = 1
-		back_style.border_color = Color(0.4, 0.4, 0.5)
-		back_style.corner_radius_top_left = 4
-		back_style.corner_radius_top_right = 4
-		back_style.corner_radius_bottom_left = 4
-		back_style.corner_radius_bottom_right = 4
-		back_button.add_theme_stylebox_override("normal", back_style)
-		var back_hover = StyleBoxFlat.new()
-		back_hover.bg_color = Color(0.3, 0.3, 0.35)
-		back_hover.border_width_left = 1
-		back_hover.border_width_right = 1
-		back_hover.border_width_top = 1
-		back_hover.border_width_bottom = 1
-		back_hover.border_color = Color(0.5, 0.5, 0.6)
-		back_hover.corner_radius_top_left = 4
-		back_hover.corner_radius_top_right = 4
-		back_hover.corner_radius_bottom_left = 4
-		back_hover.corner_radius_bottom_right = 4
-		back_button.add_theme_stylebox_override("hover", back_hover)
+		EmeraldTheme.style_button(back_button, 16)
 
-	# Confirm modal styles
+	# Confirm modal: dark glass over a veil, gold-framed.
+	if confirm_overlay:
+		confirm_overlay.color = Color(0.0, 0.03, 0.02, 0.72)
 	if confirm_title:
-		confirm_title.add_theme_font_size_override("font_size", 28)
-		confirm_title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
-
+		EmeraldTheme.style_title(confirm_title, 34)
 	if confirm_subtitle:
-		confirm_subtitle.add_theme_font_size_override("font_size", 14)
-		confirm_subtitle.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
-
+		confirm_subtitle.add_theme_font_size_override("font_size", 17)
+		confirm_subtitle.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 	var confirm_panel = $ConfirmOverlay/ConfirmPanel
 	if confirm_panel:
-		var style = StyleBoxFlat.new()
-		style.bg_color = Color(0.1, 0.1, 0.15, 1.0)
-		style.border_width_left = 2
-		style.border_width_right = 2
-		style.border_width_top = 2
-		style.border_width_bottom = 2
-		style.border_color = Color(0.4, 0.4, 0.6)
-		style.corner_radius_top_left = 8
-		style.corner_radius_top_right = 8
-		style.corner_radius_bottom_left = 8
-		style.corner_radius_bottom_right = 8
-		style.content_margin_left = 30.0
-		style.content_margin_right = 30.0
-		style.content_margin_top = 25.0
-		style.content_margin_bottom = 25.0
-		confirm_panel.add_theme_stylebox_override("panel", style)
-
-	# Proceed button style (green)
+		confirm_panel.add_theme_stylebox_override("panel",
+			EmeraldTheme.panel_box(EmeraldTheme.PANEL_BG_SOLID, EmeraldTheme.PALETTE["btn_hover_border"], 2, 8, 28.0))
+	for btn in [proceed_button, cancel_button]:
+		if btn:
+			EmeraldTheme.style_button(btn, 20)
 	if proceed_button:
-		proceed_button.add_theme_font_size_override("font_size", 18)
-		var proc_style = StyleBoxFlat.new()
-		proc_style.bg_color = Color(0.15, 0.3, 0.15)
-		proc_style.border_width_left = 2
-		proc_style.border_width_right = 2
-		proc_style.border_width_top = 2
-		proc_style.border_width_bottom = 2
-		proc_style.border_color = Color(0.3, 0.6, 0.3)
-		proc_style.corner_radius_top_left = 6
-		proc_style.corner_radius_top_right = 6
-		proc_style.corner_radius_bottom_left = 6
-		proc_style.corner_radius_bottom_right = 6
-		proceed_button.add_theme_stylebox_override("normal", proc_style)
-		var proc_hover = StyleBoxFlat.new()
-		proc_hover.bg_color = Color(0.2, 0.4, 0.2)
-		proc_hover.border_width_left = 2
-		proc_hover.border_width_right = 2
-		proc_hover.border_width_top = 2
-		proc_hover.border_width_bottom = 2
-		proc_hover.border_color = Color(0.4, 0.8, 0.4)
-		proc_hover.corner_radius_top_left = 6
-		proc_hover.corner_radius_top_right = 6
-		proc_hover.corner_radius_bottom_left = 6
-		proc_hover.corner_radius_bottom_right = 6
-		proceed_button.add_theme_stylebox_override("hover", proc_hover)
-
-	# Cancel button style (red)
-	if cancel_button:
-		cancel_button.add_theme_font_size_override("font_size", 18)
-		var cancel_style = StyleBoxFlat.new()
-		cancel_style.bg_color = Color(0.4, 0.12, 0.12)
-		cancel_style.border_width_left = 2
-		cancel_style.border_width_right = 2
-		cancel_style.border_width_top = 2
-		cancel_style.border_width_bottom = 2
-		cancel_style.border_color = Color(0.7, 0.25, 0.25)
-		cancel_style.corner_radius_top_left = 6
-		cancel_style.corner_radius_top_right = 6
-		cancel_style.corner_radius_bottom_left = 6
-		cancel_style.corner_radius_bottom_right = 6
-		cancel_button.add_theme_stylebox_override("normal", cancel_style)
-		var cancel_hover = StyleBoxFlat.new()
-		cancel_hover.bg_color = Color(0.55, 0.18, 0.18)
-		cancel_hover.border_width_left = 2
-		cancel_hover.border_width_right = 2
-		cancel_hover.border_width_top = 2
-		cancel_hover.border_width_bottom = 2
-		cancel_hover.border_color = Color(1.0, 0.35, 0.35)
-		cancel_hover.corner_radius_top_left = 6
-		cancel_hover.corner_radius_top_right = 6
-		cancel_hover.corner_radius_bottom_left = 6
-		cancel_hover.corner_radius_bottom_right = 6
-		cancel_button.add_theme_stylebox_override("hover", cancel_hover)
+		EmeraldTheme.add_ring_markers(proceed_button)
 
 func _setup_characters() -> void:
 	# The 5 preset heroes first; the Customize (questionnaire) row goes last.
@@ -376,7 +280,7 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 
 	_alloc_overlay = ColorRect.new()
 	_alloc_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_alloc_overlay.color = Color(0.0, 0.0, 0.0, 0.82)
+	_alloc_overlay.color = Color(0.0, 0.03, 0.02, 0.78)
 	add_child(_alloc_overlay)
 
 	var center := CenterContainer.new()
@@ -384,15 +288,9 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 	_alloc_overlay.add_child(center)
 
 	var panel := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.11, 0.16, 1.0)
-	style.set_border_width_all(2)
-	style.border_color = Color(0.45, 0.6, 0.85)
-	style.set_corner_radius_all(8)
-	style.content_margin_left = 24
-	style.content_margin_right = 24
-	style.content_margin_top = 20
-	style.content_margin_bottom = 20
+	var style := EmeraldTheme.panel_box(EmeraldTheme.PANEL_BG_SOLID, EmeraldTheme.PALETTE["btn_hover_border"], 2, 8, 22.0)
+	style.content_margin_left = 26
+	style.content_margin_right = 26
 	panel.add_theme_stylebox_override("panel", style)
 	center.add_child(panel)
 
@@ -402,21 +300,20 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 
 	var title := Label.new()
 	title.text = "Allocate Stats — %s" % character.character_name
-	title.add_theme_font_size_override("font_size", 24)
-	title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
+	EmeraldTheme.style_title(title, 30)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(title)
 
 	var sub := Label.new()
 	sub.text = "Every hero starts at 3 in each stat. Spend %d points to shape your build —\nhover or read the notes to learn what each stat does." % ALLOC_TOTAL
-	sub.add_theme_font_size_override("font_size", 13)
-	sub.add_theme_color_override("font_color", Color(0.72, 0.72, 0.8))
+	sub.add_theme_font_size_override("font_size", 15)
+	sub.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(sub)
 
 	_alloc_remaining_lbl = Label.new()
-	_alloc_remaining_lbl.add_theme_font_size_override("font_size", 16)
-	_alloc_remaining_lbl.add_theme_color_override("font_color", Color(0.6, 0.9, 1.0))
+	_alloc_remaining_lbl.add_theme_font_size_override("font_size", 19)
+	_alloc_remaining_lbl.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 	_alloc_remaining_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vb.add_child(_alloc_remaining_lbl)
 
@@ -427,7 +324,7 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 	var rows_scroll := ScrollContainer.new()
 	rows_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	var vp_h := get_viewport_rect().size.y
-	rows_scroll.custom_minimum_size = Vector2(660, clampf(vp_h - 340.0, 180.0, 420.0))
+	rows_scroll.custom_minimum_size = Vector2(720, clampf(vp_h - 340.0, 180.0, 420.0))
 	vb.add_child(rows_scroll)
 	var rows_vb := VBoxContainer.new()
 	rows_vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -441,37 +338,42 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 
 		var name_lbl := Label.new()
 		name_lbl.text = CharacterData.stat_full_name(key)
-		name_lbl.custom_minimum_size = Vector2(120, 0)
-		name_lbl.add_theme_font_size_override("font_size", 15)
-		name_lbl.add_theme_color_override("font_color", Color(0.9, 0.9, 0.95))
+		name_lbl.custom_minimum_size = Vector2(130, 0)
+		name_lbl.add_theme_font_size_override("font_size", 18)
+		name_lbl.add_theme_color_override("font_color", EmeraldTheme.TEXT)
 		row.add_child(name_lbl)
 
 		var minus := Button.new()
 		minus.text = "−"
-		minus.custom_minimum_size = Vector2(32, 30)
+		minus.custom_minimum_size = Vector2(34, 32)
+		EmeraldTheme.style_button(minus, 18)
+		minus.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		minus.pressed.connect(_alloc_add.bind(key, -1))
 		row.add_child(minus)
 
 		var val := Label.new()
 		val.custom_minimum_size = Vector2(34, 0)
 		val.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		val.add_theme_font_size_override("font_size", 16)
-		val.add_theme_color_override("font_color", Color(1.0, 0.95, 0.7))
+		val.add_theme_font_size_override("font_size", 19)
+		val.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 		row.add_child(val)
 		_alloc_value_labels[key] = val
 
 		var plus := Button.new()
 		plus.text = "+"
-		plus.custom_minimum_size = Vector2(32, 30)
+		plus.custom_minimum_size = Vector2(34, 32)
+		EmeraldTheme.style_button(plus, 18)
+		plus.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		plus.pressed.connect(_alloc_add.bind(key, 1))
 		row.add_child(plus)
 
 		var desc := Label.new()
 		desc.text = CharacterData.stat_description(key)
-		desc.custom_minimum_size = Vector2(380, 0)
+		desc.custom_minimum_size = Vector2(420, 0)
+		desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		desc.add_theme_font_size_override("font_size", 12)
-		desc.add_theme_color_override("font_color", Color(0.66, 0.66, 0.74))
+		desc.add_theme_font_size_override("font_size", 14)
+		desc.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 		row.add_child(desc)
 
 		rows_vb.add_child(row)
@@ -485,13 +387,16 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 
 	var back_btn := Button.new()
 	back_btn.text = "Back"
-	back_btn.custom_minimum_size = Vector2(110, 36)
+	back_btn.custom_minimum_size = Vector2(120, 40)
+	EmeraldTheme.style_button(back_btn, 18)
 	back_btn.pressed.connect(_alloc_cancel)
 	btn_row.add_child(back_btn)
 
 	_alloc_confirm_btn = Button.new()
 	_alloc_confirm_btn.text = "Confirm"
-	_alloc_confirm_btn.custom_minimum_size = Vector2(140, 36)
+	_alloc_confirm_btn.custom_minimum_size = Vector2(150, 40)
+	EmeraldTheme.style_button(_alloc_confirm_btn, 18)
+	EmeraldTheme.add_ring_markers(_alloc_confirm_btn)
 	_alloc_confirm_btn.pressed.connect(_alloc_confirm)
 	btn_row.add_child(_alloc_confirm_btn)
 
