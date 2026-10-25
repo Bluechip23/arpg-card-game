@@ -38,7 +38,12 @@ def main() -> None:
     names = sys.argv[1:] or [k for k, cfg in boards.BOARDS.items() if cfg.get("matte")]
     for kind in names:
         cfg = boards.BOARDS[kind]
-        board = Image.open(boards.SRC % cfg["src"]).convert("RGB")
+        board = Image.open(boards.SRC % cfg["src"])
+        if board.mode == "RGBA":   # a board that came cut out: judged as drawn, on white
+            white = Image.new("RGBA", board.size, (255, 255, 255, 255))
+            white.alpha_composite(board)
+            board = white
+        board = board.convert("RGB")
         for d in cfg.get("matte", ()):
             x0, y0, x1, y1 = cfg["Idle"][d]
             big = board.crop((x0 - PAD, y0 - PAD, x1 + PAD, y1 + PAD))

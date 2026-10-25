@@ -311,6 +311,22 @@ BOARDS = {
             "left": (905, 405, 1170, 730),
         },
     },
+    "grave_titan": {
+        # 2026-10-25: the Grave Titan, a moss-grown stone giant in a bone crown
+        # and tattered robes hauling a great boulder. The board came cut out
+        # (kept with its transparency: its colours are read as they are, so
+        # no white fringe; make_mattes judges it on white, as drawn). Its "NORTH"
+        # pose shows the face and "SOUTH" the back: picked by what they show.
+        "src": "grave_titan_board.png", "bg": "grabcut", "tiles": 2.2,
+        "drop_shadow": 0.05,   # the painted ellipse under its feet
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (165, 100, 550, 575),
+            "back": (720, 100, 1095, 575),
+            "left": (215, 620, 520, 1120),
+            "right": (745, 625, 1060, 1120),
+        },
+    },
     "air_mage": {
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,
@@ -667,6 +683,22 @@ def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
     return Image.fromarray(rgba, "RGBA")
 
 
+def _drop_floor_shadow(img: Image.Image, band: float) -> Image.Image:
+    """A painted floor shadow kept under the feet (the Grave Titan's board
+    came cut out with its ellipse): dark, colourless pixels in the bottom
+    `band` of the figure go, then the cut-out is cropped to what is left."""
+    a = np.asarray(img).copy()
+    rgb = a[..., :3].astype(int)
+    lum = rgb.mean(axis=2)
+    sat = rgb.max(axis=2) - rgb.min(axis=2)
+    y0 = int(a.shape[0] * (1.0 - band))
+    shadow = (lum < 80) & (sat < 20)
+    shadow[:y0] = False
+    a[..., 3][shadow] = 0
+    ys, xs = np.nonzero(a[..., 3] > 0)
+    return Image.fromarray(a[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
+
+
 def shrink(img: Image.Image, factor: float) -> Image.Image:
     """Box-filter down by `factor` (premultiplied), then on/off alpha."""
     size = (max(1, round(img.width / factor)), max(1, round(img.height / factor)))
@@ -707,6 +739,8 @@ def build(name: str, cfg: dict) -> None:
                                     cfg.get("warm_grow", 0), cfg.get("drop_blue", False),
                                     cfg.get("dark_regrow", 0), bg_hints,
                                     cfg.get("warm_seed", False), cfg.get("violet_grow", {}).get(d, 0))
+            if cfg.get("drop_shadow") and d in full[anim]:
+                full[anim][d] = _drop_floor_shadow(full[anim][d], cfg["drop_shadow"])
         for d, box in cfg[anim].items():
             if box[0] == "mirror":
                 full[anim][d] = full[anim][box[1]].transpose(Image.FLIP_LEFT_RIGHT)
