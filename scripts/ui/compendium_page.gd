@@ -686,7 +686,15 @@ func _build_enemies_tab() -> void:
 	_enemies_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_enemies_scroll.add_child(_enemies_container)
 
-	_populate_enemies("")
+	# Each tile's picture is cut from the enemy's battle sprite (about a
+	# second for the whole bestiary), so fill the grid the first time the
+	# tab is opened rather than when the Compendium loads.
+	var enemies_index := enemies_tab.get_index()
+	var fill := func(tab: int) -> void:
+		if tab == enemies_index and _enemies_container.get_child_count() == 0:
+			_populate_enemies(_enemies_search.text)
+	tab_container.tab_changed.connect(fill)
+	fill.call(tab_container.current_tab)
 
 func _on_enemies_search_changed(new_text: String) -> void:
 	_populate_enemies(new_text)
@@ -732,19 +740,24 @@ func _create_enemy_entry(enemy_data: Dictionary) -> PanelContainer:
 	hbox.add_theme_constant_override("separation", 10)
 	panel.add_child(hbox)
 
-	# Placeholder portrait
+	# The monster as it stands on the field, facing south; its initial
+	# on a tier-coloured square when it has no sprite.
 	var portrait = ColorRect.new()
-	portrait.custom_minimum_size = Vector2(56, 56)
+	portrait.custom_minimum_size = Vector2(60, 60)
 	portrait.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	portrait.color = type_color * 0.35
 	hbox.add_child(portrait)
-
-	var icon_label = Label.new()
-	icon_label.text = enemy_data["name"][0].to_upper()
-	icon_label.add_theme_font_size_override("font_size", 28)
-	icon_label.add_theme_color_override("font_color", Color(EmeraldTheme.TEXT, 0.8))
-	_centre_in(icon_label)
-	portrait.add_child(icon_label)
+	var picture := _enemy_picture(str(enemy_data.get("figure_kind", "")))
+	if picture:
+		portrait.color = Color(0.01, 0.06, 0.05, 0.7)
+		portrait.add_child(picture)
+	else:
+		var icon_label = Label.new()
+		icon_label.text = enemy_data["name"][0].to_upper()
+		icon_label.add_theme_font_size_override("font_size", 28)
+		icon_label.add_theme_color_override("font_color", Color(EmeraldTheme.TEXT, 0.8))
+		_centre_in(icon_label)
+		portrait.add_child(icon_label)
 
 	var info_vbox = VBoxContainer.new()
 	info_vbox.add_theme_constant_override("separation", 2)
@@ -789,6 +802,15 @@ func _on_enemy_entry_hovered(enemy_data: Dictionary, entry: PanelContainer) -> v
 	name_lbl.add_theme_font_size_override("font_size", 18)
 	name_lbl.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 	vbox.add_child(name_lbl)
+
+	# A larger look at the monster, south face.
+	var big := _enemy_picture(str(enemy_data.get("figure_kind", "")))
+	if big:
+		var frame := ColorRect.new()
+		frame.color = Color(0.01, 0.06, 0.05, 0.7)
+		frame.custom_minimum_size = Vector2(0, 150)
+		frame.add_child(big)
+		vbox.add_child(frame)
 
 	_add_detail_line(vbox, "Type: %s" % enemy_data["type"], EmeraldTheme.TEXT_DIM)
 	_add_detail_line(vbox, "Health: %d" % enemy_data["health"], Color(0.9, 0.3, 0.3))
@@ -844,6 +866,30 @@ func _build_hover_popup() -> void:
 	_hover_popup.add_theme_stylebox_override("panel", style)
 
 	add_child(_hover_popup)
+
+## The monster's south-facing idle frame (SpriteEnemyFigure.south_still),
+## filling its parent box with the aspect kept; null when it has no sprite.
+static func _enemy_picture(kind: String) -> TextureRect:
+	if kind == "":
+		return null
+	var still: Dictionary = SpriteEnemyFigure.south_still(kind)
+	if still.is_empty():
+		return null
+	var pic := TextureRect.new()
+	pic.texture = still["texture"]
+	pic.modulate = still["tint"]
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Pixel art stays crisp; the designer's painted boards stay smooth.
+	if not still["smooth"]:
+		pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	pic.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	pic.offset_left = 3
+	pic.offset_top = 3
+	pic.offset_right = -3
+	pic.offset_bottom = -3
+	return pic
 
 ## A placeholder portrait's initial, centred in its box.
 static func _centre_in(label: Label) -> void:
