@@ -1,24 +1,20 @@
 #!/usr/bin/env python3
 """Cut the designer's hero sprites into the game's four-direction sheets.
 
-Sources (assets/sprites/paintings/, .gdignore'd source art, 2026-10-23):
-  hero_jeremy.png  — the skeleton in the rust-brown hooded cloak: four
-    poses stacked, labelled Up / Down / Left / Right. The "Up" pose shows the
-    face (it is the front: facing down the screen), "Down" the back, and both
-    side views face left, so poses are taken by what they show.
-  hero_cory.png    — "2. Monk (Shadow)": front, back, two side views (both
-    face right). On the side view the charm on his chest (beads and a
-    pendant) is cut away and a speck of his eyes' blue is lit inside the hood
-    (designer, 2026-10-23).
-  hero_ryan.png    — "3. Rogue (Outlaw)": back, front, two side views (both
-    face left).
-  hero_stephen.png — "5. Apex Hunter (Seeker)": back, front, two side views
-    (both face right), bow and axe across his back; on the side view the bow
-    is cut away (designer, 2026-10-23).
-  hero_brad.png, hero_brad_front.png — "4. Warrior (Chieftain)": back, front,
-    two side views (both face left), and on its own the front view with the
-    War Rack's weapon over his right shoulder, which is the front used
-    (designer, 2026-10-23).
+Sources (assets/sprites/paintings/, .gdignore'd source art; the designer's
+second, larger set, 2026-10-25 — ~400 px a figure where the first set was
+100-170, which left Brad visibly blockier than the rest):
+  heroes_front_back.webp — the five heroes in columns (Jeremy, Cory, Ryan,
+    Brad, Stephen), the back view on the top row and the front below, on a
+    flat dark-grey ground.
+  heroes_side.webp — the same five from the side, two rows. Jeremy, Ryan and
+    Brad face left, Cory and Stephen right. The top row is used, but for
+    Stephen the lower row: it is the one without the bow across his front.
+Designer's edits (2026-10-25): Cory's chest charm (the rabbit's foot on its
+gold chain) and what is left of Stephen's bow in his side view are painted
+out (ERASE); Brad wears the embroidered feather on his breastplate (FEATHER);
+Jeremy's red, green and blue rings are put on his side view's fingers
+(RINGS).
 
 Keeping the art's nuance comes first (designer, 2026-10-23: the first cut,
 34 texels tall, was far too pixelated; 2026-10-24: err on the side of
@@ -71,122 +67,179 @@ PALETTE = 96       # colours per hero after the tidy (0 = keep every colour)
 ACCENT_KEEP = 36   # ...but a pixel the tidy would move further than this keeps its colour
 VIBRANCE = 1.12    # SoM's saturated palette: colour pushed this much further from grey
 OUTLINE = True     # the inked one-texel silhouette
-BG = 14            # max channel at or below this is the black background
 KEEP_SHARE = 0.05  # pieces smaller than this share of the figure are dropped
 ROWS = ["south", "north", "east", "west"]
 
 # Per hero: (source, crop box (x0, y0, x1, y1), facing). East/west name the
-# way the pose faces; the other side is its mirror. The first source's front
-# sets the hero's scale; a pose from another source is scaled to the height
-# the hero's front would have (Brad's front from the larger image).
+# way the pose faces; the other side is its mirror. The first pose (the
+# front) sets the hero's scale for every pose from the same source; a pose
+# from the other source is scaled to the front's height.
+FB = "heroes_front_back.webp"
+SIDE = "heroes_side.webp"
 HEROES = {
     "jeremy": [
-        ("hero_jeremy.png", (100, 8, 294, 172), "south"),    # labelled "Up": the face shows
-        ("hero_jeremy.png", (100, 178, 294, 348), "north"),  # labelled "Down": the back
-        ("hero_jeremy.png", (100, 350, 294, 507), "west"),   # both side views face left
+        (FB, (28, 420, 252, 834), "south"),
+        (FB, (36, 0, 257, 415), "north"),
+        (SIDE, (38, 5, 183, 374), "west"),
     ],
     "cory": [
-        ("hero_cory.png", (0, 50, 149, 220), "south"),
-        ("hero_cory.png", (0, 223, 149, 395), "north"),
-        ("hero_cory.png", (0, 555, 149, 705), "east"),       # the second side view
+        (FB, (361, 417, 595, 833), "south"),
+        (FB, (364, 0, 599, 411), "north"),
+        (SIDE, (334, 2, 466, 372), "east"),
     ],
     "ryan": [
-        ("hero_ryan.png", (0, 223, 114, 386), "south"),
-        ("hero_ryan.png", (0, 60, 114, 220), "north"),
-        ("hero_ryan.png", (0, 388, 114, 550), "west"),
-    ],
-    "stephen": [
-        ("hero_stephen.png", (0, 200, 117, 348), "south"),
-        ("hero_stephen.png", (0, 48, 117, 199), "north"),
-        ("hero_stephen.png", (0, 349, 117, 491), "east"),    # both side views face right
+        (FB, (704, 419, 928, 835), "south"),
+        (FB, (710, 3, 930, 413), "north"),
+        (SIDE, (655, 4, 787, 371), "west"),
     ],
     "brad": [
-        ("hero_brad.png", (0, 136, 74, 236), "scale"),       # the sheet's front: sets the scale only
-        ("hero_brad_front.png", (0, 36, 68, 138), "south"),  # the front with the War Rack over his shoulder
-        ("hero_brad.png", (0, 35, 74, 135), "north"),
-        ("hero_brad.png", (0, 239, 74, 338), "west"),
+        (FB, (1040, 422, 1283, 835), "south"),
+        (FB, (1042, 0, 1280, 414), "north"),
+        (SIDE, (960, 5, 1112, 372), "west"),
+    ],
+    "stephen": [
+        (FB, (1398, 417, 1636, 835), "south"),
+        (FB, (1404, 0, 1649, 413), "north"),
+        (SIDE, (1264, 367, 1420, 702), "east"),
     ],
 }
 
-# Stephen's sheet sets each figure in a soft dark-brown glow (rising from the
-# black to ~30 before the figure's ~50+), which also fills the gaps under his
-# arms, between his legs and inside the bow's curve. The glow is dark and
-# smooth; the figure — even its dark outline — is textured. So for him the
-# background is every dark (max channel <= limit), smooth (its 3x3 spread <=
-# smooth) pixel reached from the edge or boxed in by the figure in a pocket
-# at least `pocket` big; then `peel` passes take the glow's last fringe off
-# the edge (his own outline is redrawn by the ink).
-GLOW = {"stephen": {"limit": 38, "smooth": 10, "pocket": 15, "peel": 2, "peel_limit": 36}}
+# The sources' ground: a flat dark grey (with a few levels of compression
+# noise). Anything within GROUND_TOL of it, reached from the crop's edge, is
+# background; the figures' own dark outline keeps their dark cloth inside.
+GROUND = {FB: (32, 32, 30), SIDE: (32, 32, 30)}
+GROUND_TOL = 6
+# The ground also sits in pockets the edge flood cannot reach — between an
+# arm and the body, inside Stephen's bow — and as a blended halo round the
+# silhouette. A pocket is the ground's colour (within GROUND_TOL) AND as flat
+# as the ground (5x5 spread <= POCKET_FLAT; cloth always carries stitching
+# and shading), at least POCKET_MIN pixels; it goes, with the in-between
+# tones round it (within BLEND_TOL of the ground). Then HALO_PEEL passes take
+# the same in-between tones off the silhouette's edge.
+POCKET_FLAT = 3.0
+POCKET_MIN = 30
+BLEND_TOL = 14
+HALO_PEEL = 2
 
-# Stephen's side view: the bow is cut away entirely (designer, 2026-10-23).
-# It hangs in front of him from shoulder to knee, string across his chest:
-# inside this band (source pixels) its orange-brown stave and gold string
-# are found by colour — his tattooed forearm, whose markings share the
-# orange, is left out — and painted over from the tunic around them
-# (OpenCV inpaint); where the bow stood clear of him it becomes background.
-BOW_BAND = {"stephen": [(100, 350), (108, 362), (104, 400), (95, 420), (85, 446), (73, 472),
-                        (56, 482), (48, 474), (60, 442), (72, 412), (82, 386), (86, 358)]}
-BOW_KEEP = {"stephen": [(48, 398, 77, 458)]}   # the forearm
+# Painted out of the source before cutting (designer, 2026-10-25), from what
+# surrounds them (OpenCV inpaint): inside each polygon (source pixels), the
+# pixels the rule picks out. "charm": light or gold (Cory's rabbit's foot and
+# its chain, on his near-black robe). "bow": the bow's brown-orange limb and
+# gold nock against Stephen's dark trousers and pale arm-wrap above it.
+ERASE = {
+    ("cory", "east"): [([(428, 92), (452, 92), (456, 178), (426, 178)], "charm")],
+    ("stephen", "east"): [([(1356, 606), (1370, 610), (1340, 646), (1324, 642)], "bow")],
+}
 
-# Cory's side view: the chest charm (beads and a pendant) hangs off the front
-# of the robe inside this box (source pixels); its light and coloured pixels
-# are nothing like the near-black robe around it.
-CHARM_BOX = {"cory": (68, 585, 92, 628)}
-# ...and a speck of the blue his eyes glow in the front view, lit inside the
-# hood opening of the finished side frame (east-facing), as a fraction of the
-# frame's width and height (so it holds whatever HEIGHT is).
-EYE_SPECK = {"cory": (0.80, 0.155)}
-EYE_BLUE = (110, 190, 255, 255)
+# Jeremy's three rings — red, green and blue — show on his front, but the
+# side view's hand (a gold bracelet with one blue gem) shows none (designer,
+# 2026-10-25: put them on his fingers). Drawn on the source at full
+# resolution before cutting: a gold band round each bony finger with its
+# gem on top. (x, y): the gem's centre in source pixels.
+RINGS = {
+    ("jeremy", "west"): [((87, 246), (214, 38, 38)), ((93, 248), (40, 186, 72)), ((100, 249), (58, 112, 236))],
+}
+RING_GOLD = (222, 178, 74)
+RING_GOLD_DARK = (120, 84, 30)
+
+
+def draw_rings(sheet, hero, facing):
+    """Paint the RINGS for this pose onto `sheet` (RGB array): drawn 4x
+    oversized and shrunk, so they are as fine as the art."""
+    from PIL import ImageDraw
+    rings = RINGS.get((hero, facing), [])
+    if not rings:
+        return sheet
+    ss = 4
+    xs = [p[0] for p, _ in rings]
+    ys = [p[1] for p, _ in rings]
+    x0, y0, x1, y1 = min(xs) - 6, min(ys) - 6, max(xs) + 7, max(ys) + 7
+    layer = Image.new("RGBA", ((x1 - x0) * ss, (y1 - y0) * ss), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    for (x, y), gem in rings:
+        cx, cy = (x - x0 + 0.5) * ss, (y - y0 + 0.5) * ss
+        # The band: across the finger, a dark rim under the gold.
+        d.rounded_rectangle([cx - 3.8 * ss, cy - 1.4 * ss, cx + 3.8 * ss, cy + 1.7 * ss],
+                            radius=ss, fill=RING_GOLD_DARK + (255,))
+        d.rounded_rectangle([cx - 3.4 * ss, cy - 1.1 * ss, cx + 3.4 * ss, cy + 1.1 * ss],
+                            radius=ss, fill=RING_GOLD + (255,))
+        # The gem, with a dark setting and a glint.
+        r = 2.8 * ss
+        d.ellipse([cx - r - ss * 0.5, cy - r - ss * 0.5, cx + r + ss * 0.5, cy + r + ss * 0.5], fill=RING_GOLD_DARK + (255,))
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=gem + (255,))
+        g = 0.8 * ss
+        d.ellipse([cx - r * 0.55 - g, cy - r * 0.55 - g, cx - r * 0.55 + g, cy - r * 0.55 + g], fill=(255, 255, 255, 230))
+    layer = layer.convert("RGBa").resize((x1 - x0, y1 - y0), Image.LANCZOS).convert("RGBA")
+    base = Image.fromarray(np.ascontiguousarray(sheet[y0:y1, x0:x1]).astype(np.uint8), "RGB").convert("RGBA")
+    base.alpha_composite(layer)
+    out = sheet.copy()
+    out[y0:y1, x0:x1] = np.asarray(base.convert("RGB"))
+    return out
+
 
 # Brad's chest piece: an embroidered feather, golden white, almost heavenly,
-# lying horizontal in the middle of the breastplate (designer, 2026-10-24). No pack shows it,
-# so it is stitched in here texel by texel, in the sheet's own palette range,
-# on the front frame after the ink pass: (fx, fy) is the feather's centre as
-# a fraction of the frame's width and height. The plate is seen edge-on in
-# the side views and hidden in the back view, so only the front carries it.
-FEATHER = {"brad": (0.49, 0.36)}
-# o = gold thread outline, h = white-gold highlight, m = pale gold vane,
-# s = deeper gold shade, q = the quill; "." leaves the plate. It lies across
-# the plate with its tip raised 20 degrees, up and to the right, the quill
-# running out down to the left (designer).
-FEATHER_ART = [
-    "........oo..",
-    ".....ooohhoo",
-    "....ohhhmmhh",
-    "...ohmmmqqqo",
-    "..ohmqqqsso.",
-    "..qqqmmmoo..",
-    "qqossssso...",
-    "...ooooo....",
-]
-FEATHER_INK = {
-    "o": (196, 170, 112), "h": (255, 255, 252), "m": (252, 249, 236),
-    "s": (238, 224, 184), "q": (226, 198, 130),
-}
-FEATHER_GLOW = (255, 252, 238)   # a faint halo where the thread meets the plate
-FEATHER_GLOW_MIX = 0.15
+# lying across the middle of the breastplate with its tip raised 20 degrees,
+# up and to the right, the quill running out down to the left (designer,
+# 2026-10-24). No pack shows it, so it is drawn here at the source's own
+# resolution on the front pose, before any resampling, so the pixel and the
+# smooth sheets both carry it. (cx, cy): its centre as a fraction of the
+# cut-out's width and height; length: as a fraction of the figure's height.
+FEATHER = {"brad": {"cx": 0.50, "cy": 0.335, "length": 0.15, "angle": 20.0}}
+FEATHER_GOLD = (196, 170, 112)      # the gold thread outline
+FEATHER_VANE = (252, 249, 236)      # pale gold-white vane
+FEATHER_SHADE = (232, 214, 168)     # the deeper gold of the lower vane and barbs
+FEATHER_QUILL = (226, 198, 130)
+FEATHER_GLOW = (255, 252, 238)
 
 
-def stitch_feather(frame, fx, fy):
-    """Paint FEATHER_ART centred at (fx, fy) of the frame, with a soft glow
-    on the plate texels around it."""
-    h, w = len(FEATHER_ART), len(FEATHER_ART[0])
-    cx = int(round(fx * (frame.shape[1] - 1)))
-    cy = int(round(fy * (frame.shape[0] - 1)))
-    x0, y0 = cx - w // 2, cy - h // 2
-    inked = set()
-    for r, row in enumerate(FEATHER_ART):
-        for c, ch in enumerate(row):
-            if ch != ".":
-                inked.add((y0 + r, x0 + c))
-    for y, x in {(y + dy, x + dx) for y, x in inked for dy, dx in _N8} - inked:
-        if frame[y, x, 3] > 0:
-            px = frame[y, x, :3].astype(float)
-            frame[y, x, :3] = (px + (np.array(FEATHER_GLOW) - px) * FEATHER_GLOW_MIX).round().astype(np.uint8)
-    for r, row in enumerate(FEATHER_ART):
-        for c, ch in enumerate(row):
-            if ch != ".":
-                frame[y0 + r, x0 + c] = FEATHER_INK[ch] + (255,)
+def draw_feather(img, cx, cy, length, angle):
+    """Brad's feather on the cut-out `img` (RGBA, in place): drawn 4x
+    oversized and shrunk down, so its edges are as fine as the art's."""
+    from PIL import ImageDraw, ImageFilter
+    import math
+    ss = 4
+    L = length * img.height * ss
+    W = L * 0.34
+    size = int(L * 1.5)
+    layer = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    c = size / 2.0
+    # The vane: a leaf whose upper edge bows out further than its lower one,
+    # pointed at the tip (+x) and rounded at the base; the quill runs on out.
+    upper, lower = [], []
+    for i in range(41):
+        t = i / 40.0
+        x = c - L * 0.42 + t * L * 0.86
+        bulge = math.sin(math.pi * min(1.0, t * 1.05)) ** 0.8
+        upper.append((x, c - W * 0.55 * bulge))
+        lower.append((x, c + W * 0.42 * bulge))
+    vane = upper + lower[::-1]
+    d.polygon(vane, fill=FEATHER_VANE + (255,), outline=FEATHER_GOLD + (255,), width=ss * 2)
+    # The lower half a shade deeper, and the barbs as fine slanted threads.
+    d.polygon([(c - L * 0.42, c)] + lower + [(c + L * 0.44, c)], fill=FEATHER_SHADE + (255,))
+    for i in range(1, 9):
+        x = c - L * 0.36 + i * L * 0.085
+        d.line([(x, c), (x + L * 0.06, c - W * 0.40)], fill=FEATHER_SHADE + (255,), width=ss)
+        d.line([(x, c), (x + L * 0.05, c + W * 0.32)], fill=FEATHER_GOLD + (200,), width=ss)
+    d.line(vane[:41], fill=FEATHER_GOLD + (255,), width=ss * 2)
+    d.line(lower, fill=FEATHER_GOLD + (255,), width=ss * 2)
+    # The quill: from past the base, through the vane, to the tip.
+    d.line([(c - L * 0.58, c + W * 0.06), (c + L * 0.44, c)], fill=FEATHER_QUILL + (255,), width=ss * 3)
+    layer = layer.rotate(angle, resample=Image.BICUBIC, center=(c, c))
+    # A faint heavenly glow where the thread meets the plate.
+    glow = layer.getchannel("A").filter(ImageFilter.GaussianBlur(ss * 2.5))
+    halo = Image.new("RGBA", layer.size, FEATHER_GLOW + (0,))
+    halo.putalpha(glow.point(lambda v: int(v * 0.35)))
+    small = (max(1, size // ss), max(1, size // ss))
+    halo = halo.resize(small, Image.LANCZOS)
+    layer = layer.convert("RGBa").resize(small, Image.LANCZOS).convert("RGBA")
+    pos = (int(round(cx * img.width - small[0] / 2)), int(round(cy * img.height - small[1] / 2)))
+    # Only on the figure: the feather never hangs out over the background.
+    for part in (halo, layer):
+        under = img.crop((pos[0], pos[1], pos[0] + small[0], pos[1] + small[1])).getchannel("A")
+        a = np.minimum(np.asarray(part.getchannel("A")), np.asarray(under))
+        part.putalpha(Image.fromarray(a.astype(np.uint8)))
+        img.alpha_composite(part, pos)
 
 
 _N4 = ((1, 0), (-1, 0), (0, 1), (0, -1))
@@ -232,74 +285,45 @@ def _components(mask):
     return comps
 
 
-def erase_bow(sheet, band, keep):
-    """Paint the bow out of `sheet` (RGB array): its stave and string, found by
-    colour inside the `band` polygon (bar the `keep` boxes), inpainted from
+def erase_marks(sheet, hero, facing):
+    """Paint the ERASE marks for this pose out of `sheet` (RGB array) from
     what surrounds them."""
-    import cv2  # tool dependency (opencv-python-headless), only for this
+    import cv2  # tool dependency (opencv-python-headless)
     from PIL import ImageDraw
-    mask = Image.new("L", (sheet.shape[1], sheet.shape[0]), 0)
-    ImageDraw.Draw(mask).polygon(band, fill=255)
-    region = np.asarray(mask) > 0
-    for x0, y0, x1, y1 in keep:
-        region[y0:y1, x0:x1] = False
     r, g, b = [sheet[..., i].astype(int) for i in range(3)]
-    bow = region & (r > 90) & (r - b > 50) & (r - g > 12)
-    bow = (cv2.dilate(bow.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0) & region
+    lum = (r + g + b) / 3.0
+    marks = np.zeros(sheet.shape[:2], bool)
+    for poly, rule in ERASE.get((hero, facing), []):
+        mask = Image.new("L", (sheet.shape[1], sheet.shape[0]), 0)
+        ImageDraw.Draw(mask).polygon(poly, fill=255)
+        region = np.asarray(mask) > 0
+        if rule == "charm":
+            pick = (lum > 85) | ((r - b > 35) & (r > 80))
+        else:  # "bow"
+            pick = (r - b > 28) & (r > 60) & (lum < 170)
+        marks |= region & pick
+    if not marks.any():
+        return sheet
+    marks = cv2.dilate(marks.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
     bgr = np.ascontiguousarray(sheet[..., ::-1].astype(np.uint8))
-    return cv2.inpaint(bgr, bow.astype(np.uint8) * 255, 3, cv2.INPAINT_TELEA)[..., ::-1]
+    return cv2.inpaint(bgr, marks.astype(np.uint8) * 255, 4, cv2.INPAINT_TELEA)[..., ::-1]
 
 
-def cut(path, box, charm=None, bow=None, glow=None):
+def cut(path, box, hero=None, facing=None):
     """The figure in `box`, full size, on transparency, cropped to itself."""
     sheet = np.asarray(Image.open(SRC % path).convert("RGB"))
-    if bow is not None:
-        sheet = erase_bow(sheet, *bow)
+    if (hero, facing) in ERASE:
+        sheet = erase_marks(sheet, hero, facing)
+    if (hero, facing) in RINGS:
+        sheet = draw_rings(sheet, hero, facing)
     rgb = sheet[box[1]:box[3], box[0]:box[2]].astype(int)
     h, w, _ = rgb.shape
-    level = rgb.max(axis=2)
-    if glow is None:
-        dark = level <= BG
-    else:
-        pad = np.pad(level, 1, mode="edge")
-        spread = np.max([pad[dy:dy + h, dx:dx + w] for dy in range(3) for dx in range(3)], axis=0) - \
-                 np.min([pad[dy:dy + h, dx:dx + w] for dy in range(3) for dx in range(3)], axis=0)
-        dark = (level <= glow["limit"]) & (spread <= glow["smooth"])
+    ground = np.array(GROUND.get(path, (0, 0, 0)))
+    dark = np.abs(rgb - ground).max(axis=2) <= GROUND_TOL
     edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
            [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
     solid = ~_flood(dark, edge)
-    if glow is not None:
-        for comp in _components(solid & dark):
-            if len(comp) >= glow["pocket"]:
-                solid[tuple(np.array(comp).T)] = False
-        fringe = level < glow["peel_limit"]
-        for _ in range(glow["peel"]):
-            open_ = ~solid
-            touching = np.zeros_like(solid)
-            touching[1:] |= open_[:-1]
-            touching[:-1] |= open_[1:]
-            touching[:, 1:] |= open_[:, :-1]
-            touching[:, :-1] |= open_[:, 1:]
-            solid &= ~(touching & fringe)
-    if charm is not None:
-        cx0, cy0, cx1, cy1 = charm[0] - box[0], charm[1] - box[1], charm[2] - box[0], charm[3] - box[1]
-        region = np.zeros_like(solid)
-        region[cy0:cy1, cx0:cx1] = True
-        lum = rgb.mean(axis=2)
-        sat = rgb.max(axis=2) - rgb.min(axis=2)
-        charm_px = region & solid & ((lum > 70) | (sat > 40))
-        # Where the charm hangs past the robe it goes; where it lies on the
-        # robe, the robe's colour (the nearest dark pixel to its left) shows.
-        for y, x in zip(*np.nonzero(charm_px)):
-            robe = None
-            for dx in range(1, 6):
-                if x - dx >= 0 and solid[y, x - dx] and not charm_px[y, x - dx] and lum[y, x - dx] < 70:
-                    robe = rgb[y, x - dx]
-                    break
-            if robe is None or not solid[y, min(w - 1, x + 2)] or charm_px[y, min(w - 1, x + 2)]:
-                solid[y, x] = False
-            else:
-                rgb[y, x] = robe
+    solid = _clear_ground(rgb, solid, ground)
     comps = _components(solid)
     biggest = max(len(c) for c in comps)
     keep = np.zeros_like(solid)
@@ -309,6 +333,44 @@ def cut(path, box, charm=None, bow=None, glow=None):
     ys, xs = np.nonzero(keep)
     rgba = np.dstack([rgb.astype(np.uint8), np.where(keep, 255, 0).astype(np.uint8)])
     return Image.fromarray(rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
+
+
+def _clear_ground(rgb, solid, ground):
+    """Take the ground's enclosed pockets and its halo out of `solid`."""
+    import cv2  # tool dependency (opencv-python-headless)
+    f = rgb.astype(np.float32)
+    off = np.abs(f - np.array(ground, np.float32)).max(axis=2)
+    mean = cv2.blur(f, (5, 5))
+    spread = np.sqrt(np.maximum(cv2.blur(f * f, (5, 5)) - mean * mean, 0)).max(axis=2)
+    flat = solid & (off <= GROUND_TOL) & (spread <= POCKET_FLAT)
+    n, lab, stats, _ = cv2.connectedComponentsWithStats(flat.astype(np.uint8), connectivity=4)
+    pocket = np.zeros_like(solid)
+    for i in range(1, n):
+        if stats[i][4] < POCKET_MIN:
+            continue
+        piece = lab == i
+        r, g, b = f[piece].mean(axis=0)
+        # The ground leans green-yellow (green >= blue); the near-black cloth
+        # it can be mistaken for (Ryan's shirt) leans purple. Only the
+        # ground's own tint is a pocket.
+        if g - b >= -1.0 and abs(r - ground[0]) <= 5 and abs(g - ground[1]) <= 4:
+            pocket |= piece
+    blend = solid & (off <= BLEND_TOL)
+    k = np.ones((3, 3), np.uint8)
+    for _ in range(3):
+        pocket |= (cv2.dilate(pocket.astype(np.uint8), k) > 0) & blend
+    solid = solid & ~pocket
+    for _ in range(HALO_PEEL):
+        open_ = cv2.dilate((~solid).astype(np.uint8), k) > 0
+        solid = solid & ~(open_ & blend)
+    # Last, any edge pixel still the ground's own colour, until none is left.
+    for _ in range(6):
+        open_ = cv2.dilate((~solid).astype(np.uint8), k) > 0
+        stray = open_ & solid & (off <= GROUND_TOL)
+        if not stray.any():
+            break
+        solid = solid & ~stray
+    return solid
 
 
 def resample(img, factor):
@@ -389,30 +451,14 @@ def soft_frame(img, factor):
     return smooth_art.bleed(out)
 
 
-def stitch_feather_soft(img, fx, fy):
-    """Brad's feather on the smooth front: FEATHER_ART drawn at the pixel
-    sheet's texel size, then scaled up smooth onto the plate."""
-    k = SMOOTH_HEIGHT / float(HEIGHT)
-    h, w = len(FEATHER_ART), len(FEATHER_ART[0])
-    art = Image.new("RGBA", (w, h))
-    for r, row in enumerate(FEATHER_ART):
-        for c, ch in enumerate(row):
-            if ch != ".":
-                art.putpixel((c, r), FEATHER_INK[ch] + (255,))
-    art = art.convert("RGBa").resize((round(w * k), round(h * k)), Image.LANCZOS).convert("RGBA")
-    cx = int(round(fx * (img.width - 1)))
-    cy = int(round(fy * (img.height - 1)))
-    img.alpha_composite(art, (cx - art.width // 2, cy - art.height // 2))
-
-
 def build(hero, poses):
     scale = None
     full = {}
     soft = {}
     for path, box, facing in poses:
-        charm = CHARM_BOX.get(hero) if facing in ("east", "west") else None
-        bow = (BOW_BAND[hero], BOW_KEEP.get(hero, [])) if hero in BOW_BAND and facing in ("east", "west") else None
-        img = cut(path, box, charm, bow, GLOW.get(hero))
+        img = cut(path, box, hero, facing)
+        if facing == "south" and hero in FEATHER:
+            draw_feather(img, **FEATHER[hero])
         if scale is None or facing == "scale":
             # The first pose (or the "scale" reference) sets the hero's scale
             # for every pose cut from the same source.
@@ -428,15 +474,6 @@ def build(hero, poses):
     frames = {}
     for d, f in full.items():
         frame = ink_outline(f) if OUTLINE else f
-        if d in ("east", "west") and hero in EYE_SPECK:
-            fx, fy = EYE_SPECK[hero]
-            x = int(round(fx * (frame.shape[1] - 1)))
-            if d == "west":
-                x = frame.shape[1] - 1 - x
-            y = int(round(fy * (frame.shape[0] - 1)))
-            frame[y, x] = EYE_BLUE
-        if d == "south" and hero in FEATHER:
-            stitch_feather(frame, *FEATHER[hero])
         frames[d] = Image.fromarray(frame, "RGBA")
     if "east" not in frames:
         frames["east"] = frames["west"].transpose(Image.FLIP_LEFT_RIGHT)
@@ -453,16 +490,6 @@ def build(hero, poses):
     # The smooth version, kept beside the pixel sheet.
     for d in list(soft):
         f = soft[d]
-        if d in ("east", "west") and hero in EYE_SPECK:
-            fx, fy = EYE_SPECK[hero]
-            x = int(round(fx * (f.width - 1)))
-            if d == "west":
-                x = f.width - 1 - x
-            y = int(round(fy * (f.height - 1)))
-            dot = Image.new("RGBA", (2, 2), EYE_BLUE)
-            f.alpha_composite(dot, (x, y))
-        if d == "south" and hero in FEATHER:
-            stitch_feather_soft(f, *FEATHER[hero])
         soft[d] = smooth_art.trim(f)
     if "east" not in soft:
         soft["east"] = soft["west"].transpose(Image.FLIP_LEFT_RIGHT)
