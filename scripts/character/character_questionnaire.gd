@@ -397,14 +397,13 @@ func _show_result() -> void:
 
 func _on_proceed() -> void:
 	var character = QuestionnaireData.build_character(_last_result)
-	# Navigate to character select with this character pre-selected, show mode select
+	# Character select opens on its Play-as confirmation for this character
+	# (name it, then Proceed into town).
 	var select_scene = load("res://scenes/character/character_select.tscn").instantiate()
 	select_scene.game_mode = "single_player"
-	select_scene._selected_character = character
 	get_tree().root.add_child(select_scene)
+	select_scene.select_quiz_character(character)
 	queue_free()
-	# Show the town/fight mode select immediately
-	select_scene._show_mode_select()
 
 func _on_choose_myself() -> void:
 	var select_scene = load("res://scenes/character/character_select.tscn").instantiate()
