@@ -378,6 +378,20 @@ BOARDS = {
             "right": (730, 688, 1153, 1008),
         },
     },
+    "necromancer": {
+        # 2026-10-25: the Necromancer — a hooded, ragged black-robed figure
+        # with a skull-topped staff hung with severed heads — four poses on
+        # black. Its "NORTH" pose shows the face and "SOUTH" its back:
+        # picked by what they show. The height counts the staff's skull.
+        "src": "necromancer_board.png", "bg": "grabcut", "tiles": 1.9,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (135, 8, 503, 548),
+            "back": (760, 8, 1110, 548),
+            "left": (195, 604, 526, 1120),
+            "right": (746, 604, 1080, 1120),
+        },
+    },
     "air_mage": {
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,
