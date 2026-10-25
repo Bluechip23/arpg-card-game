@@ -394,6 +394,17 @@ static func off_hand_amount(v: int, scale: float) -> int:
 	var x: float = v * scale
 	return ceili(x - 0.0001) if scale > 1.0 else floori(x + 0.0001)
 
+## A stat on an off-hand item (STR, DEX, INT, WIS, DET, AGI, health, mana).
+## Bonuses as off_hand_amount. A NEGATIVE stat takes the off hand the other
+## way round (designer, 2026-10-25): 10% worse in a weakened off hand
+## (-10 -> -11, rounded against you) and 10% milder in Stephen's empowered
+## one (-10 -> -9, rounded in his favour).
+static func off_hand_stat(v: int, scale: float) -> int:
+	if v >= 0 or is_equal_approx(scale, 1.0):
+		return off_hand_amount(v, scale)
+	var x: float = v * (2.0 - scale)
+	return ceili(x - 0.0001) if scale > 1.0 else floori(x + 0.0001)
+
 ## Per-application off-hand roll for an all-or-nothing on-hit rider: it
 ## fails 10% of the time in a weakened off hand (never in an empowered one).
 func rider_fizzles() -> bool:
@@ -793,14 +804,14 @@ func get_effective_stats(is_off_hand: bool, off_hand_modifier: float) -> Diction
 		modifier = off_hand_modifier
 	
 	return {
-		"strength_bonus": off_hand_amount(strength_bonus, modifier),
-		"dexterity_bonus": off_hand_amount(dexterity_bonus, modifier),
-		"intelligence_bonus": off_hand_amount(intelligence_bonus, modifier),
-		"wisdom_bonus": off_hand_amount(wisdom_bonus, modifier),
-		"determination_bonus": off_hand_amount(determination_bonus, modifier),
-		"agility_bonus": off_hand_amount(agility_bonus, modifier),
-		"health_bonus": off_hand_amount(health_bonus, modifier),
-		"mana_bonus": off_hand_amount(mana_bonus, modifier),
+		"strength_bonus": off_hand_stat(strength_bonus, modifier),
+		"dexterity_bonus": off_hand_stat(dexterity_bonus, modifier),
+		"intelligence_bonus": off_hand_stat(intelligence_bonus, modifier),
+		"wisdom_bonus": off_hand_stat(wisdom_bonus, modifier),
+		"determination_bonus": off_hand_stat(determination_bonus, modifier),
+		"agility_bonus": off_hand_stat(agility_bonus, modifier),
+		"health_bonus": off_hand_stat(health_bonus, modifier),
+		"mana_bonus": off_hand_stat(mana_bonus, modifier),
 		"armor_bonus": off_hand_amount(armor_bonus, modifier),
 		"damage_percent_bonus": damage_percent_bonus * modifier,
 		"fire_damage_percent": fire_damage_percent * modifier,

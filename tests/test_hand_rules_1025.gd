@@ -54,6 +54,7 @@ func _initialize() -> void:
 	_test_quiver()
 	_test_dual_wield_weight()
 	_test_off_hand_items()
+	_test_negative_stats()
 	_test_two_hand_shield_round_trip("Ryan")
 	_test_two_hand_shield_round_trip("Stephen")
 	_test_two_hand_shield_block_cards()
@@ -158,6 +159,36 @@ func _test_off_hand_items() -> void:
 	var s10 := sstats.base_strength
 	sinv.equip_item(tens, 1)
 	_check(sstats.base_strength - s10 == 11, "Stephen: +10 gives exactly 11 (no float noise rounding to 12)")
+
+func _test_negative_stats() -> void:
+	print("-- Negative stats in the off hand --")
+	var r := _rig("Ryan")
+	var inv: Inventory = r[0]
+	var stats: PlayerStats = r[1]
+	inv.equip_item(Fixtures.sword(), 0)
+	var cursed := Fixtures.shield()
+	cursed.item_name = "Cursed Shield"
+	cursed.dexterity_bonus = -10
+	cursed.wisdom_bonus = -1
+	var dex0 := stats.base_dexterity
+	var wis0 := stats.base_wisdom
+	inv.equip_item(cursed, 1)
+	_check(stats.base_dexterity - dex0 == -11, "others: an off-hand -10 DEX becomes -11 (%d)" % (stats.base_dexterity - dex0))
+	_check(stats.base_wisdom - wis0 == -2, "others: an off-hand -1 rounds against you to -2 (%d)" % (stats.base_wisdom - wis0))
+	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
+	_check(stats.base_dexterity == dex0 and stats.base_wisdom == wis0, "unequipped: back exactly")
+	inv.unequip_item(ItemData.ItemType.WEAPON, 0)
+	inv.equip_item(cursed, 0)
+	_check(stats.base_dexterity - dex0 == -10, "in the main hand: -10 as written")
+	var rs := _rig("Stephen")
+	var sinv: Inventory = rs[0]
+	var sstats: PlayerStats = rs[1]
+	sinv.equip_item(Fixtures.sword(), 0)
+	var sdex0 := sstats.base_dexterity
+	var cursed2 := Fixtures.shield()
+	cursed2.dexterity_bonus = -10
+	sinv.equip_item(cursed2, 1)
+	_check(sstats.base_dexterity - sdex0 == -9, "Stephen: an off-hand -10 DEX is softened to -9 (%d)" % (sstats.base_dexterity - sdex0))
 
 func _test_two_hand_shield_round_trip(who: String) -> void:
 	print("-- %s: two-handing an off-hand shield and back --" % who)

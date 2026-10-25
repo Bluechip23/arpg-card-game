@@ -300,11 +300,11 @@ Every character has two hand slots: slot 1 is the **main hand**, slot 2 the **of
 - **Cards and slots.** Every hand item's granted cards and card slots work the same in either hand.
 
 **The off hand.** Whatever sits in slot 2 — weapon, **shield or quiver** — gives everything at **90%** (Stephen: **110%**, his White Sleeve):
-- its stat bonuses (STR, DEX, INT, WIS, DET, AGI, health, mana) — whole numbers round **down** at 90% (a +1 gives nothing, a +2 gives 1) and **up** for Stephen (a +1 gives 2, a +5 gives 6);
+- its stat bonuses (STR, DEX, INT, WIS, DET, AGI, health, mana) — whole numbers round **down** at 90% (a +1 gives nothing, a +2 gives 1) and **up** for Stephen (a +1 gives 2, a +5 gives 6). A **negative** stat goes the other way: 10% worse, rounded against you (−10 becomes −11, −1 becomes −2); for Stephen 10% milder, rounded in his favour (−10 becomes −9);
 - every bonus it carries (crit, lifesteal, healing, resistances, card damage and block, hand size, flash, spell power, damage reduction, ranged damage and range, and the rest), rounded the same way;
 - the on-self bonus of every card slotted into it (damage, block, heal, self-heal, debuff stacks, durations, the bonus part of damage multipliers…) — **except Double Shot**, which is never reduced;
 - its effects when they fire (Sabre Tooth's bleed, Umbral Eclipse, Axe's Axe flash, the trident's pierce, a shield's thorns, regen, retaliation and Overdraw…). Small amounts round at random so the average is exactly 90% (110%): an off-hand 1 Bleed lands nine times in ten.
-- Drawbacks are never reduced (an item's extra mana cost, attack-speed or movement penalty keeps its full bite).
+- Other drawbacks are never reduced (an item's extra mana cost, attack-speed or movement penalty keeps its full bite).
 - An item **held two-handed** is not in the off hand and works at full strength.
 
 **Single wielding — the free hand.** Exactly one *one-handed* item (a weapon or a shield) with the other hand empty is a stance of its own: flash **parry and Flash Cut cost 2 instead of 3**, and **every 12th attack echoes** (free, it does not advance the attack-speed counter and cannot echo itself). No stat changes. Two-handing, a bow or a staff (two-handed by nature) never qualify.

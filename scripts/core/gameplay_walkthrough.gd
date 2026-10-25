@@ -187,7 +187,7 @@ When your hand is full and you try to draw, the overflow system activates.
 
 [color=yellow]The Off Hand:[/color]
 - Whatever is in the off hand (weapon, shield or quiver) gives 90% of everything: stats, bonuses, slotted cards' on-self bonuses, and its effects (Stephen's White Sleeve: 110%)
-- Stats and bonuses round down (Stephen: up); drawbacks are never reduced; Double Shot is never reduced
+- Stats and bonuses round down (Stephen: up); a negative stat gets 10% worse (Stephen: 10% milder); other drawbacks are never reduced; Double Shot is never reduced
 - An item held two-handed is not in the off hand
 
 [color=yellow]Hands:[/color]

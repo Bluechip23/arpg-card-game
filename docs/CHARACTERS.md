@@ -130,8 +130,9 @@ inside 20 tempo of the first; then the count resets** (tempo only, no mana; the 
 pays as usual, and a single weapon swap costs him what it costs anyone). His off hand is
 **empowered by his White Sleeve**: whatever he holds there — a second weapon, a shield or a
 quiver — gives **110%** of everything (its stats, its bonuses, the cards slotted into it and its
-effects), always rounded in his favour (a +1 becomes +2), where every other character's off hand
-gives 90%, rounded down. That makes him the game's best
+effects), always rounded in his favour (a +1 becomes +2), and a negative stat on it is 10% milder
+(−10 becomes −9). Every other character's off hand gives 90%, rounded down, and its negative stats
+are 10% worse (−10 becomes −11). That makes him the game's best
 dual-wielder and bow-and-quiver user once he's geared up.
 
 **Cards that sing in his hands:** the ranged suite — **Quick Shot** (damage + draw),
