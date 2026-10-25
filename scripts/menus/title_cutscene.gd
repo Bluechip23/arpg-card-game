@@ -154,23 +154,41 @@ func _pipe_ground_pos() -> Vector2:
 func _title_font() -> Font:
 	return GameFonts.courgette()
 
+# ---- Title size (designer, 2026-10-25: larger, same proportions) ----
+# "Trials of" and "Olorin" keep their 40 : 104 ratio. The top of "Trials
+# of" stays where it always sat, and the title grows DOWN into the space
+# above the menu — the menu buttons are laid out on their own and never move.
+const TITLE_SCALE := 1.4
+const TRIALS_SIZE := int(40 * TITLE_SCALE)
+const OLORIN_SIZE := int(104 * TITLE_SCALE)
+const CAP_HEIGHT := 0.7  # Courgette's capitals, as a fraction of the size
+
+## Baseline of "Trials of": its capitals' top held at the original spot.
+func _trials_baseline() -> float:
+	var original_top := size.y * 0.205 - 92.0 - 40.0 * CAP_HEIGHT
+	return original_top + TRIALS_SIZE * CAP_HEIGHT
+
+## Baseline of "Olorin": the original spacing below "Trials of", scaled.
+func _olorin_baseline() -> float:
+	return _trials_baseline() + 92.0 * TITLE_SCALE
+
 ## Layout of the big "Olorin" letters. Returns an Array of dictionaries
 ## {ch, pos(baseline left), size, is_ring, center, radius}. The capital O and
 ## the small o are both smoke rings, each sized to its own letter.
 func _olorin_layout() -> Array:
 	var font := _title_font()
-	var fsize := 104
+	var fsize := OLORIN_SIZE
 	var word := "Olorin"
 	var widths: Array[float] = []
 	var total := 0.0
-	var gap := 2.0
+	var gap := 2.0 * TITLE_SCALE
 	for i in range(word.length()):
 		var w = font.get_string_size(word[i], HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x
 		widths.append(w)
 		total += w
 	total += gap * (word.length() - 1)
 	var x := (size.x - total) * 0.5
-	var baseline := size.y * 0.205
+	var baseline := _olorin_baseline()
 	var out: Array = []
 	for i in range(word.length()):
 		var is_ring := (i == 0 or i == 2)  # the two O's are smoke rings
@@ -515,10 +533,10 @@ func _draw_title(layout: Array) -> void:
 
 	# --- "TRIALS OF" (small, above) ---
 	var small := "Trials of"
-	var ssize := 40
+	var ssize := TRIALS_SIZE
 	var sw := font.get_string_size(small, HORIZONTAL_ALIGNMENT_LEFT, -1, ssize).x
 	var sx := (size.x - sw) * 0.5
-	var sy := size.y * 0.205 - 92.0
+	var sy := _trials_baseline()
 	for i in range(small.length()):
 		var lu = clampf(reveal * (small.length() + 4) - i, 0.0, 1.0)
 		if lu <= 0.0:
@@ -528,7 +546,7 @@ func _draw_title(layout: Array) -> void:
 		var cpos := Vector2(sx, sy - (1.0 - lu) * 10.0)
 		var fill := Color(title_fill, lu)
 		var outline := Color(title_outline, lu)
-		draw_string_outline(font, cpos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, ssize, 6, outline)
+		draw_string_outline(font, cpos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, ssize, roundi(6 * TITLE_SCALE), outline)
 		draw_string(font, cpos, ch, HORIZONTAL_ALIGNMENT_LEFT, -1, ssize, fill)
 		sx += cw
 
@@ -546,5 +564,5 @@ func _draw_title(layout: Array) -> void:
 		pos.y -= (1.0 - lu2) * 16.0
 		var fill2 := Color(title_fill, lu2)
 		var outline2 := Color(title_outline, lu2)
-		draw_string_outline(font, pos, entry["ch"], HORIZONTAL_ALIGNMENT_LEFT, -1, entry["size"], 8, outline2)
+		draw_string_outline(font, pos, entry["ch"], HORIZONTAL_ALIGNMENT_LEFT, -1, entry["size"], roundi(8 * TITLE_SCALE), outline2)
 		draw_string(font, pos, entry["ch"], HORIZONTAL_ALIGNMENT_LEFT, -1, entry["size"], fill2)

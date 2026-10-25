@@ -30,7 +30,7 @@ const PALETTE := {
 	"btn_hover_bg": Color(0.05, 0.23, 0.18, 0.92), "btn_hover_border": Color(0.98, 0.82, 0.40),
 	"btn_hover_border_w": 2, "btn_radius": 4, "btn_glow": Color(0.98, 0.80, 0.35, 0.35),
 	"btn_font": Color(0.80, 0.96, 0.86), "btn_font_hover": Color(1.0, 0.90, 0.55),
-	"btn_outline": Color(0.01, 0.06, 0.05, 0.9), "panel": Color(0.01, 0.07, 0.06, 0.55),
+	"btn_outline": Color(0.01, 0.06, 0.05, 0.9),
 }
 
 ## Body text: pale mint.
