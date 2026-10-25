@@ -74,6 +74,7 @@ except ImportError:
 
 SRC = "assets/sprites/paintings/%s"
 OUT = "assets/sprites/generated/sheets/%s"
+MATTES = "assets/sprites/paintings/mattes"   # model mattes (tools/make_mattes.py)
 ROWS = ["front", "back", "left", "right"]
 
 # Per creature: board, how its background is told apart, the front Idle's
@@ -81,6 +82,7 @@ ROWS = ["front", "back", "left", "right"]
 # as ("mirror", other) is the other pose flipped.
 BOARDS = {
     "frankenstein": {
+        "matte": ("front", "back", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "frankenstein_board.jpg", "bg": "stone", "tiles": 1.75,
         "Idle": {
             "front": (0, 96, 360, 720),
@@ -162,6 +164,7 @@ BOARDS = {
         },
     },
     "fire_mage": {
+        "matte": ("front", "back", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "fire_frost_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
         "sky_tol": 12,   # his black hood against the black night sky
         "dark_regrow": 12,  # ...and the hood's top won back from the sky's colour model
@@ -177,6 +180,7 @@ BOARDS = {
         },
     },
     "earth_mage": {
+        "matte": ("front", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25); its back merges the staff with the board's second back view, so GrabCut keeps that one
         "src": "earth_shock_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
         "drop_ice": True,   # nothing on him is ice blue: the snow between arm and staff goes
         "Idle": {
@@ -195,6 +199,7 @@ BOARDS = {
         },
     },
     "spark_mage": {
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "earth_shock_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
         "bright_grow": 120,   # the lightning round his fists
         "Idle": {
@@ -205,6 +210,7 @@ BOARDS = {
         },
     },
     "ifrit": {
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         # 2026-10-25: the Underworld's living-flame elite, horned and armoured,
         # on a dark brick wall and a plank floor.
         "src": "ifrit_board.jpg", "bg": "grabcut", "tiles": 2.0,
@@ -218,6 +224,7 @@ BOARDS = {
         },
     },
     "bull_worm": {
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         # 2026-10-25: the Alaskan Bull Worm (Worms Armageddon), coiled, horned,
         # on the same wall and floor.
         "src": "bull_worm_board.jpg", "bg": "grabcut", "tiles": 1.2,
@@ -232,6 +239,7 @@ BOARDS = {
         "fg": {"back": [(72, 100, 95, 128, 6), (95, 128, 118, 124, 6)]},
     },
     "inflamed_minotaur": {
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         # 2026-10-25: the Inflamed Minotaur, flaming horns, axe and shield, on
         # a dark flagstone floor. Its "west" and "east" poses are the front
         # pose and its mirror (the board's own labels, kept); the face is
@@ -273,6 +281,7 @@ BOARDS = {
         "violet_grow": {"front": 230, "back": 240},   # the wings' mist, not the clouds at its feet
     },
     "screecher": {
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         # 2026-10-25: the Screecher, a gaunt long-limbed undead crawler with a
         # gaping fanged maw, in a bone-strewn cave. Its side labels are
         # swapped (the "FACING LEFT" panel faces right), so the poses are
@@ -287,6 +296,7 @@ BOARDS = {
         },
     },
     "air_mage": {
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,
         "Idle": {
             "front": (375, 425, 590, 748),
@@ -600,8 +610,22 @@ def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
     h, w, _ = rgb.shape
     edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
            [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
-    bg_like = _background_like(rgb, kind) if kind not in ("grabcut", "warm") else None
-    if kind == "warm":
+    bg_like = _background_like(rgb, kind) if kind in ("checker_light", "checker_grey", "stone") else None
+    if kind.startswith("matte:"):
+        # The saved model matte (tools/make_mattes.py), with any boxes of
+        # scenery it kept cleared and any hint lines it lost added back.
+        fg = np.asarray(Image.open(kind[6:]).convert("L")) > 127
+        for x0, y0, x1, y1 in bg_boxes:
+            fg[y0:y1, x0:x1] = False
+        for hint in fg_boxes:
+            m = np.zeros(fg.shape, np.uint8)
+            if len(hint) == 5:
+                cv2.line(m, hint[0:2], hint[2:4], 1, hint[4])
+            else:
+                m[hint[1]:hint[3], hint[0]:hint[2]] = 1
+            fg |= m.astype(bool)
+        bg = ~fg
+    elif kind == "warm":
         bg = _cut_warm(rgb, fg_boxes, bg_boxes)
     elif kind == "grabcut":
         bg = _cut_grabcut(rgb, fg_boxes, sat_grow, snow, feet_trim, drop_ice, bright_grow, sky_tol, warm_grow,
@@ -653,12 +677,19 @@ def build(name: str, cfg: dict) -> None:
         full[anim] = {}
         for d, box in cfg[anim].items():
             if box[0] != "mirror":
-                full[anim][d] = cut(board, box, cfg["bg"], cfg.get("fg", {}).get(d, ()),
+                bg_kind = cfg["bg"]
+                if d in cfg.get("matte", ()):
+                    bg_kind = "matte:" + os.path.join(MATTES, "%s_%s.png" % (name, d))
+                fg_hints = cfg.get("matte_fg", {}).get(d, ()) if bg_kind.startswith("matte:") \
+                    else cfg.get("fg", {}).get(d, ())
+                bg_hints = cfg.get("matte_bg", {}).get(d, ()) if bg_kind.startswith("matte:") \
+                    else cfg.get("bg_hint", {}).get(d, ())
+                full[anim][d] = cut(board, box, bg_kind, fg_hints,
                                     cfg.get("sat_grow", 0), cfg.get("snow", False),
                                     cfg.get("feet_trim", True), cfg.get("drop_ice", False),
                                     cfg.get("bright_grow", 0), cfg.get("sky_tol", 0),
                                     cfg.get("warm_grow", 0), cfg.get("drop_blue", False),
-                                    cfg.get("dark_regrow", 0), cfg.get("bg_hint", {}).get(d, ()),
+                                    cfg.get("dark_regrow", 0), bg_hints,
                                     cfg.get("warm_seed", False), cfg.get("violet_grow", {}).get(d, 0))
         for d, box in cfg[anim].items():
             if box[0] == "mirror":
