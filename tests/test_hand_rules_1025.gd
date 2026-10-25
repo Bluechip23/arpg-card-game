@@ -5,7 +5,8 @@ extends SceneTree
 ##    is two-handed by nature and never qualifies.
 ##  - A quiver is only worn beside a bow; it comes off when the bow does.
 ##  - Dual wielding adds no weight.
-##  - The off-hand modifier (0.9; Stephen's White Sleeve 1.1) covers ANY item
+##  - The off-hand modifier (0.9 rounding down; Stephen's White Sleeve 1.1
+##    rounding up) covers ANY item
 ##    in the off hand — weapon, shield or quiver — and everything it gives:
 ##    its stats, its flat bonuses, its riders. Holding it two-handed lifts it.
 ##  - Two-handing a shield, then releasing it or unequipping it while held
@@ -113,7 +114,7 @@ func _test_off_hand_items() -> void:
 	var sh := _stat_shield()
 	inv.equip_item(sh, 1)
 	_check(stats.base_strength - str0 == 4, "an off-hand shield's +5 STR gives 4 (floor of 4.5): %d" % (stats.base_strength - str0))
-	_check(is_equal_approx(stats.equipment_crit_bonus, 9.0), "its +10% crit gives 9% (%s)" % stats.equipment_crit_bonus)
+	_check(is_equal_approx(stats.equipment_crit_bonus, 9.0), "its +10%% crit gives 9%% (%s)" % stats.equipment_crit_bonus)
 	_check(sh.is_in_off_hand and is_equal_approx(sh.rider_scale(), 0.9), "its riders work at 90%")
 	inv.unequip_item(ItemData.ItemType.WEAPON, 1)
 	_check(stats.base_strength == str0 and is_equal_approx(stats.equipment_crit_bonus, 0.0), "unequipped: back to exactly where it was")
@@ -132,8 +133,31 @@ func _test_off_hand_items() -> void:
 	var sstr0 := sstats.base_strength
 	sinv.equip_item(Fixtures.sword(), 0)
 	sinv.equip_item(_stat_shield(), 1)
-	_check(sstats.base_strength - sstr0 == 5, "Stephen: the shield's +5 STR gives 5 (floor of 5.5)")
-	_check(is_equal_approx(sstats.equipment_crit_bonus, 11.0), "Stephen: its +10% crit gives 11% (%s)" % sstats.equipment_crit_bonus)
+	_check(is_equal_approx(sstats.equipment_crit_bonus, 11.0), "Stephen: its +10%% crit gives 11%% (%s)" % sstats.equipment_crit_bonus)
+	_check(sstats.base_strength - sstr0 == 6, "Stephen: the shield's +5 STR gives 6 (5.5 rounds UP for him): %d" % (sstats.base_strength - sstr0))
+	var sh1 := Fixtures.shield()
+	sh1.item_name = "Plus One Shield"
+	sh1.agility_bonus = 1
+	var agi0 := sstats.base_agility
+	sinv.unequip_item(ItemData.ItemType.WEAPON, 1)
+	agi0 = sstats.base_agility
+	sinv.equip_item(sh1, 1)
+	_check(sstats.base_agility - agi0 == 2, "Stephen: an off-hand +1 gives 2 (1.1 rounds up)")
+	var rr := _rig("Ryan")
+	var rinv: Inventory = rr[0]
+	var rstats: PlayerStats = rr[1]
+	var ragi0 := rstats.base_agility
+	rinv.equip_item(Fixtures.sword(), 0)
+	var sh2 := Fixtures.shield()
+	sh2.agility_bonus = 1
+	rinv.equip_item(sh2, 1)
+	_check(rstats.base_agility - ragi0 == 0, "others: an off-hand +1 gives 0 (0.9 rounds down)")
+	var tens := Fixtures.shield()
+	tens.strength_bonus = 10
+	sinv.unequip_item(ItemData.ItemType.WEAPON, 1)
+	var s10 := sstats.base_strength
+	sinv.equip_item(tens, 1)
+	_check(sstats.base_strength - s10 == 11, "Stephen: +10 gives exactly 11 (no float noise rounding to 12)")
 
 func _test_two_hand_shield_round_trip(who: String) -> void:
 	print("-- %s: two-handing an off-hand shield and back --" % who)

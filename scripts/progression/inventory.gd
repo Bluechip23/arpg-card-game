@@ -758,10 +758,11 @@ func _apply_item_bonuses(item: ItemData, equipping: bool, is_off_hand: bool = fa
 	
 	player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
 	player_stats.mana_changed.emit(player_stats.current_mana, player_stats.max_mana)
-## An item's beneficial amount under the off-hand scale, floored; a malus
-## (zero or negative) passes through at full strength.
+## An item's beneficial amount under the off-hand scale: rounded down at
+## 0.9, up for Stephen's 1.1 (ItemData.off_hand_amount); a malus (zero or
+## negative) passes through at full strength.
 static func _benefit_i(v: int, scale: float) -> int:
-	return floori(v * scale) if v > 0 and scale != 1.0 else v
+	return ItemData.off_hand_amount(v, scale)
 
 static func _benefit_f(v: float, scale: float) -> float:
 	return v * scale if v > 0.0 else v

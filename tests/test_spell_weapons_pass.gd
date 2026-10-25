@@ -48,7 +48,7 @@ func _test_off_hand_penalty() -> void:
 	_check(book.get_on_self_bonus().get("armor_any", 0) == 2, "off-hand Earth Book: 3 armor becomes 2")
 	# Stephen's White Sleeve: the same item works at 110% in his off hand.
 	book.off_hand_scale = 1.1
-	_check(book.get_on_self_bonus().get("armor_any", 0) == 3, "Stephen's off-hand Earth Book: 3 armor stays 3 (floor of 3.3)")
+	_check(book.get_on_self_bonus().get("armor_any", 0) == 4, "Stephen's off-hand Earth Book: 3 armor becomes 4 (3.3 rounds up for him)")
 	var clarity_s = ItemData.create("wand_of_clarity")
 	clarity_s.is_in_off_hand = true
 	clarity_s.off_hand_scale = 1.1

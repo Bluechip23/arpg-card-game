@@ -381,7 +381,18 @@ func rider_int(amount: int) -> int:
 ## A whole-number amount under the modifier, floored — for amounts that must
 ## be added and later taken back exactly (Overdraw's per-blade block).
 func rider_floor(amount: int) -> int:
-	return floori(amount * off_hand_scale) if amount > 0 else amount
+	return off_hand_amount(amount, off_hand_scale)
+
+## A whole-number BENEFIT under the off-hand modifier: rounded DOWN in a
+## weakened off hand (0.9), rounded UP in Stephen's empowered one (1.1) —
+## his +10% always counts. Zero and negative values (maluses) pass through
+## at full strength. (The tiny epsilon keeps float noise like 10 x 1.1 =
+## 11.000000000000002 from rounding to 12.)
+static func off_hand_amount(v: int, scale: float) -> int:
+	if v <= 0 or is_equal_approx(scale, 1.0):
+		return v
+	var x: float = v * scale
+	return ceili(x - 0.0001) if scale > 1.0 else floori(x + 0.0001)
 
 ## Per-application off-hand roll for an all-or-nothing on-hit rider: it
 ## fails 10% of the time in a weakened off hand (never in an empowered one).
@@ -782,20 +793,20 @@ func get_effective_stats(is_off_hand: bool, off_hand_modifier: float) -> Diction
 		modifier = off_hand_modifier
 	
 	return {
-		"strength_bonus": floori(strength_bonus * modifier),
-		"dexterity_bonus": floori(dexterity_bonus * modifier),
-		"intelligence_bonus": floori(intelligence_bonus * modifier),
-		"wisdom_bonus": floori(wisdom_bonus * modifier),
-		"determination_bonus": floori(determination_bonus * modifier),
-		"agility_bonus": floori(agility_bonus * modifier),
-		"health_bonus": floori(health_bonus * modifier),
-		"mana_bonus": floori(mana_bonus * modifier),
-		"armor_bonus": floori(armor_bonus * modifier),
+		"strength_bonus": off_hand_amount(strength_bonus, modifier),
+		"dexterity_bonus": off_hand_amount(dexterity_bonus, modifier),
+		"intelligence_bonus": off_hand_amount(intelligence_bonus, modifier),
+		"wisdom_bonus": off_hand_amount(wisdom_bonus, modifier),
+		"determination_bonus": off_hand_amount(determination_bonus, modifier),
+		"agility_bonus": off_hand_amount(agility_bonus, modifier),
+		"health_bonus": off_hand_amount(health_bonus, modifier),
+		"mana_bonus": off_hand_amount(mana_bonus, modifier),
+		"armor_bonus": off_hand_amount(armor_bonus, modifier),
 		"damage_percent_bonus": damage_percent_bonus * modifier,
 		"fire_damage_percent": fire_damage_percent * modifier,
 		"ice_damage_percent": ice_damage_percent * modifier,
 		"lightning_damage_percent": lightning_damage_percent * modifier,
-		"weapon_damage": floori(weapon_damage * modifier)
+		"weapon_damage": off_hand_amount(weapon_damage, modifier)
 	}
 
 #endregion
@@ -1028,13 +1039,13 @@ func get_on_self_bonus() -> Dictionary:
 		"block_max_mana_percent": on_self_block_max_mana_percent,
 	}
 	# Off hand: every benefit this item's slots confer takes the off-hand
-	# modifier too (floored for ints). Only positive values scale — a
+	# modifier too (ints round down at 0.9, up for Stephen's 1.1). Only positive values scale — a
 	# negative mana_reduction is a surcharge, and maluses keep their bite.
 	if is_in_off_hand and not is_equal_approx(off_hand_scale, 1.0):
 		for osb_k in _OFF_HAND_SCALED_ON_SELF:
 			var osb_v = osb.get(osb_k)
 			if osb_v is int and osb_v > 0:
-				osb[osb_k] = floori(osb_v * off_hand_scale)
+				osb[osb_k] = off_hand_amount(osb_v, off_hand_scale)
 			elif osb_v is float and osb_v > 0.0:
 				osb[osb_k] = osb_v * off_hand_scale
 		for osb_k in _OFF_HAND_SCALED_MULTIPLIERS:

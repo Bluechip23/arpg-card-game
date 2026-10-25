@@ -300,8 +300,8 @@ Every character has two hand slots: slot 1 is the **main hand**, slot 2 the **of
 - **Cards and slots.** Every hand item's granted cards and card slots work the same in either hand.
 
 **The off hand.** Whatever sits in slot 2 — weapon, **shield or quiver** — gives everything at **90%** (Stephen: **110%**, his White Sleeve):
-- its stat bonuses (STR, DEX, INT, WIS, DET, AGI, health, mana), rounded down — so a +1 gives nothing and a +2 gives 1;
-- every bonus it carries (crit, lifesteal, healing, resistances, card damage and block, hand size, flash, spell power, damage reduction, ranged damage and range, and the rest), rounded down;
+- its stat bonuses (STR, DEX, INT, WIS, DET, AGI, health, mana) — whole numbers round **down** at 90% (a +1 gives nothing, a +2 gives 1) and **up** for Stephen (a +1 gives 2, a +5 gives 6);
+- every bonus it carries (crit, lifesteal, healing, resistances, card damage and block, hand size, flash, spell power, damage reduction, ranged damage and range, and the rest), rounded the same way;
 - the on-self bonus of every card slotted into it (damage, block, heal, self-heal, debuff stacks, durations, the bonus part of damage multipliers…) — **except Double Shot**, which is never reduced;
 - its effects when they fire (Sabre Tooth's bleed, Umbral Eclipse, Axe's Axe flash, the trident's pierce, a shield's thorns, regen, retaliation and Overdraw…). Small amounts round at random so the average is exactly 90% (110%): an off-hand 1 Bleed lands nine times in ten.
 - Drawbacks are never reduced (an item's extra mana cost, attack-speed or movement penalty keeps its full bite).
