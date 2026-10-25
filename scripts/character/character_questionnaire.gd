@@ -32,19 +32,21 @@ func _ready() -> void:
 	_show_question(_current_index)
 
 func _build_ui() -> void:
-	# Full-screen dark background
+	# Full-screen dark background, hidden under the Emerald forest backdrop
+	# (kept for anything that looks for it).
 	_background = ColorRect.new()
+	_background.name = "Background"
 	_background.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_background.color = Color(0.05, 0.05, 0.08, 1)
 	add_child(_background)
+	EmeraldTheme.apply(self, true, 0.5)
 
 	# Back button (top-left)
 	_back_button = Button.new()
 	_back_button.text = "< Back"
 	_back_button.position = Vector2(20, 10)
 	_back_button.size = Vector2(80, 30)
-	_back_button.add_theme_font_size_override("font_size", 16)
-	_style_button_flat(_back_button, Color(0.2, 0.2, 0.25), Color(0.3, 0.3, 0.35), Color(0.4, 0.4, 0.5), Color(0.5, 0.5, 0.6))
+	EmeraldTheme.style_button(_back_button, 16)
 	_back_button.pressed.connect(_on_back)
 	add_child(_back_button)
 
@@ -52,24 +54,23 @@ func _build_ui() -> void:
 	_main_vbox = VBoxContainer.new()
 	_main_vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_main_vbox.offset_left = 80.0
-	_main_vbox.offset_top = 60.0
+	_main_vbox.offset_top = 50.0
 	_main_vbox.offset_right = -80.0
-	_main_vbox.offset_bottom = -40.0
+	_main_vbox.offset_bottom = -20.0
 	_main_vbox.add_theme_constant_override("separation", 24)
 	add_child(_main_vbox)
 
 	# Progress label
 	_progress_label = Label.new()
 	_progress_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_progress_label.add_theme_font_size_override("font_size", 14)
-	_progress_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.65))
+	_progress_label.add_theme_font_size_override("font_size", 17)
+	_progress_label.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 	_main_vbox.add_child(_progress_label)
 
 	# Question text
 	_question_label = Label.new()
 	_question_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_question_label.add_theme_font_size_override("font_size", 26)
-	_question_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
+	EmeraldTheme.style_title(_question_label, 32)
 	_question_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_main_vbox.add_child(_question_label)
 
@@ -91,10 +92,8 @@ func _build_ui() -> void:
 	for i in range(4):
 		var btn = Button.new()
 		btn.custom_minimum_size = Vector2(600, 50)
-		btn.add_theme_font_size_override("font_size", 18)
-		btn.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
-		btn.add_theme_color_override("font_hover_color", Color(1.0, 1.0, 1.0))
-		_style_answer_button(btn)
+		EmeraldTheme.style_button(btn, 20)
+		EmeraldTheme.add_ring_markers(btn)
 		btn.pressed.connect(_on_answer_selected.bind(i))
 		_answers_vbox.add_child(btn)
 		_answer_buttons.append(btn)
@@ -144,22 +143,20 @@ func _show_result() -> void:
 		_result_panel = null
 
 	_result_panel = VBoxContainer.new()
-	_result_panel.add_theme_constant_override("separation", 12)
+	_result_panel.add_theme_constant_override("separation", 6)
 	_main_vbox.add_child(_result_panel)
 
 	# ---- Title Section ----
 	var header = Label.new()
 	header.text = "Your Character"
 	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	header.add_theme_font_size_override("font_size", 22)
-	header.add_theme_color_override("font_color", Color(0.6, 0.6, 0.72))
+	EmeraldTheme.style_heading(header, 20)
 	_result_panel.add_child(header)
 
 	_result_title_label = Label.new()
 	_result_title_label.text = _last_result["title"]
 	_result_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_result_title_label.add_theme_font_size_override("font_size", 36)
-	_result_title_label.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
+	EmeraldTheme.style_title(_result_title_label, 38)
 	_result_panel.add_child(_result_title_label)
 
 	# Flavor text
@@ -167,8 +164,8 @@ func _show_result() -> void:
 	_result_flavor_label.text = _last_result["flavor_text"]
 	_result_flavor_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_result_flavor_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_result_flavor_label.add_theme_font_size_override("font_size", 14)
-	_result_flavor_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+	_result_flavor_label.add_theme_font_size_override("font_size", 15)
+	_result_flavor_label.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 	_result_panel.add_child(_result_flavor_label)
 
 	# ---- Two-column layout: Stats + Archetype on left, Details on right ----
@@ -179,14 +176,13 @@ func _show_result() -> void:
 
 	# Left column: Stats
 	var left_col = VBoxContainer.new()
-	left_col.add_theme_constant_override("separation", 8)
+	left_col.add_theme_constant_override("separation", 4)
 	left_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	columns.add_child(left_col)
 
 	var stats_title = Label.new()
 	stats_title.text = "Stats"
-	stats_title.add_theme_font_size_override("font_size", 18)
-	stats_title.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	EmeraldTheme.style_heading(stats_title, 19)
 	left_col.add_child(stats_title)
 
 	var stat_bonuses: Dictionary = _last_result["stat_bonuses"]
@@ -221,7 +217,7 @@ func _show_result() -> void:
 		# Stat bar
 		var bar_bg = ColorRect.new()
 		bar_bg.custom_minimum_size = Vector2(180, 16)
-		bar_bg.color = Color(0.12, 0.12, 0.18)
+		bar_bg.color = Color(0.02, 0.08, 0.06, 0.9)
 		hbox.add_child(bar_bg)
 
 		var bar_fill = ColorRect.new()
@@ -229,7 +225,7 @@ func _show_result() -> void:
 		var fill_pct = clampf(float(total) / 11.0, 0.05, 1.0)
 		bar_fill.custom_minimum_size = Vector2(int(174.0 * fill_pct) + 4, 12)
 		bar_fill.position = Vector2(2, 2)
-		bar_fill.color = stat_colors[stat_key].lerp(Color(0.2, 0.2, 0.3), 0.4)
+		bar_fill.color = stat_colors[stat_key].lerp(Color(0.05, 0.15, 0.12), 0.4)
 		bar_bg.add_child(bar_fill)
 
 		var value_label = Label.new()
@@ -238,14 +234,13 @@ func _show_result() -> void:
 		else:
 			value_label.text = str(total)
 		value_label.add_theme_font_size_override("font_size", 13)
-		value_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+		value_label.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 		hbox.add_child(value_label)
 
 	# Archetype scores
 	var arch_title = Label.new()
 	arch_title.text = "Archetype Affinity"
-	arch_title.add_theme_font_size_override("font_size", 18)
-	arch_title.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	EmeraldTheme.style_heading(arch_title, 19)
 	left_col.add_child(arch_title)
 
 	var arch_scores: Dictionary = _last_result["archetype_scores"]
@@ -270,12 +265,12 @@ func _show_result() -> void:
 		if arch == primary_arch:
 			name_label.add_theme_color_override("font_color", Color(0.4, 0.9, 0.5))
 		else:
-			name_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+			name_label.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 		hbox.add_child(name_label)
 
 		var bar_bg = ColorRect.new()
 		bar_bg.custom_minimum_size = Vector2(150, 14)
-		bar_bg.color = Color(0.12, 0.12, 0.18)
+		bar_bg.color = Color(0.02, 0.08, 0.06, 0.9)
 		hbox.add_child(bar_bg)
 
 		var bar_fill = ColorRect.new()
@@ -285,26 +280,25 @@ func _show_result() -> void:
 		if arch == primary_arch:
 			bar_fill.color = Color(0.3, 0.7, 0.4)
 		else:
-			bar_fill.color = Color(0.3, 0.3, 0.45)
+			bar_fill.color = Color(0.20, 0.32, 0.28)
 		bar_bg.add_child(bar_fill)
 
 		var score_label = Label.new()
 		score_label.text = str(arch_scores[arch])
-		score_label.add_theme_font_size_override("font_size", 12)
-		score_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
+		score_label.add_theme_font_size_override("font_size", 13)
+		score_label.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 		hbox.add_child(score_label)
 
 	# Right column: Starting gear and cards
 	var right_col = VBoxContainer.new()
-	right_col.add_theme_constant_override("separation", 8)
+	right_col.add_theme_constant_override("separation", 4)
 	right_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	columns.add_child(right_col)
 
 	# Character Passive
 	var passive_title = Label.new()
 	passive_title.text = "Character Passive"
-	passive_title.add_theme_font_size_override("font_size", 18)
-	passive_title.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	EmeraldTheme.style_heading(passive_title, 19)
 	right_col.add_child(passive_title)
 
 	var passive_desc = Label.new()
@@ -317,8 +311,7 @@ func _show_result() -> void:
 	# Passive Paths (4 skill tree archetypes)
 	var paths_title = Label.new()
 	paths_title.text = "Passive Paths"
-	paths_title.add_theme_font_size_override("font_size", 18)
-	paths_title.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	EmeraldTheme.style_heading(paths_title, 19)
 	right_col.add_child(paths_title)
 
 	var paths: Array = _last_result["passive_paths"]
@@ -341,16 +334,15 @@ func _show_result() -> void:
 		var path_desc = Label.new()
 		path_desc.text = path_entry["description"]
 		path_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		path_desc.add_theme_font_size_override("font_size", 11)
-		path_desc.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+		path_desc.add_theme_font_size_override("font_size", 13)
+		path_desc.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 		path_desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		path_hbox.add_child(path_desc)
 
 	# Starting Cards
 	var cards_title = Label.new()
 	cards_title.text = "Starting Cards"
-	cards_title.add_theme_font_size_override("font_size", 18)
-	cards_title.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	EmeraldTheme.style_heading(cards_title, 19)
 	right_col.add_child(cards_title)
 
 	var cards_text := "Base deck (Attack, Exposing Strike, Block, Braced Draw, Heal) — identical for every character"
@@ -359,20 +351,19 @@ func _show_result() -> void:
 	cards_label.text = cards_text
 	cards_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	cards_label.add_theme_font_size_override("font_size", 13)
-	cards_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	cards_label.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 	right_col.add_child(cards_label)
 
 	# Slot specialty
 	var slot_title = Label.new()
 	slot_title.text = "Equipment Slots"
-	slot_title.add_theme_font_size_override("font_size", 18)
-	slot_title.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
+	EmeraldTheme.style_heading(slot_title, 19)
 	right_col.add_child(slot_title)
 
 	var slot_label = Label.new()
 	slot_label.text = _last_result["slot_specialty"]
 	slot_label.add_theme_font_size_override("font_size", 14)
-	slot_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	slot_label.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 	right_col.add_child(slot_label)
 
 	# ---- Action Buttons ----
@@ -385,24 +376,22 @@ func _show_result() -> void:
 	var proceed_btn = Button.new()
 	proceed_btn.text = "Play as %s" % _last_result["title"]
 	proceed_btn.custom_minimum_size = Vector2(220, 50)
-	proceed_btn.add_theme_font_size_override("font_size", 18)
-	_style_button_flat(proceed_btn, Color(0.15, 0.3, 0.15), Color(0.2, 0.4, 0.2), Color(0.3, 0.6, 0.3), Color(0.4, 0.8, 0.4))
+	EmeraldTheme.style_button(proceed_btn, 20)
+	EmeraldTheme.add_ring_markers(proceed_btn)
 	proceed_btn.pressed.connect(_on_proceed)
 	btn_hbox.add_child(proceed_btn)
 
 	var choose_btn = Button.new()
 	choose_btn.text = "Choose Preset"
 	choose_btn.custom_minimum_size = Vector2(200, 50)
-	choose_btn.add_theme_font_size_override("font_size", 18)
-	_style_button_flat(choose_btn, Color(0.15, 0.15, 0.3), Color(0.2, 0.2, 0.4), Color(0.3, 0.3, 0.6), Color(0.4, 0.4, 0.8))
+	EmeraldTheme.style_button(choose_btn, 20)
 	choose_btn.pressed.connect(_on_choose_myself)
 	btn_hbox.add_child(choose_btn)
 
 	var retake_btn = Button.new()
 	retake_btn.text = "Retake Quiz"
 	retake_btn.custom_minimum_size = Vector2(200, 50)
-	retake_btn.add_theme_font_size_override("font_size", 18)
-	_style_button_flat(retake_btn, Color(0.25, 0.2, 0.1), Color(0.35, 0.28, 0.15), Color(0.5, 0.4, 0.2), Color(0.7, 0.55, 0.3))
+	EmeraldTheme.style_button(retake_btn, 20)
 	retake_btn.pressed.connect(_on_retake)
 	btn_hbox.add_child(retake_btn)
 
@@ -454,77 +443,3 @@ func _on_back() -> void:
 		select_scene.game_mode = "single_player"
 		get_tree().root.add_child(select_scene)
 		queue_free()
-
-# ---- Styling helpers ----
-
-func _style_answer_button(btn: Button) -> void:
-	var normal = StyleBoxFlat.new()
-	normal.bg_color = Color(0.12, 0.12, 0.18, 0.8)
-	normal.border_width_left = 1
-	normal.border_width_right = 1
-	normal.border_width_top = 1
-	normal.border_width_bottom = 1
-	normal.border_color = Color(0.3, 0.3, 0.45)
-	normal.corner_radius_top_left = 6
-	normal.corner_radius_top_right = 6
-	normal.corner_radius_bottom_left = 6
-	normal.corner_radius_bottom_right = 6
-	normal.content_margin_left = 16.0
-	normal.content_margin_right = 16.0
-	btn.add_theme_stylebox_override("normal", normal)
-
-	var hover = StyleBoxFlat.new()
-	hover.bg_color = Color(0.18, 0.18, 0.26, 0.9)
-	hover.border_width_left = 2
-	hover.border_width_right = 2
-	hover.border_width_top = 2
-	hover.border_width_bottom = 2
-	hover.border_color = Color(0.5, 0.4, 0.2)
-	hover.corner_radius_top_left = 6
-	hover.corner_radius_top_right = 6
-	hover.corner_radius_bottom_left = 6
-	hover.corner_radius_bottom_right = 6
-	hover.content_margin_left = 16.0
-	hover.content_margin_right = 16.0
-	btn.add_theme_stylebox_override("hover", hover)
-
-	var pressed = StyleBoxFlat.new()
-	pressed.bg_color = Color(0.22, 0.18, 0.1, 0.95)
-	pressed.border_width_left = 2
-	pressed.border_width_right = 2
-	pressed.border_width_top = 2
-	pressed.border_width_bottom = 2
-	pressed.border_color = Color(0.7, 0.55, 0.2)
-	pressed.corner_radius_top_left = 6
-	pressed.corner_radius_top_right = 6
-	pressed.corner_radius_bottom_left = 6
-	pressed.corner_radius_bottom_right = 6
-	pressed.content_margin_left = 16.0
-	pressed.content_margin_right = 16.0
-	btn.add_theme_stylebox_override("pressed", pressed)
-
-func _style_button_flat(btn: Button, normal_bg: Color, hover_bg: Color, normal_border: Color, hover_border: Color) -> void:
-	var ns = StyleBoxFlat.new()
-	ns.bg_color = normal_bg
-	ns.border_width_left = 2
-	ns.border_width_right = 2
-	ns.border_width_top = 2
-	ns.border_width_bottom = 2
-	ns.border_color = normal_border
-	ns.corner_radius_top_left = 6
-	ns.corner_radius_top_right = 6
-	ns.corner_radius_bottom_left = 6
-	ns.corner_radius_bottom_right = 6
-	btn.add_theme_stylebox_override("normal", ns)
-	var hs = StyleBoxFlat.new()
-	hs.bg_color = hover_bg
-	hs.border_width_left = 2
-	hs.border_width_right = 2
-	hs.border_width_top = 2
-	hs.border_width_bottom = 2
-	hs.border_color = hover_border
-	hs.corner_radius_top_left = 6
-	hs.corner_radius_top_right = 6
-	hs.corner_radius_bottom_left = 6
-	hs.corner_radius_bottom_right = 6
-	btn.add_theme_stylebox_override("hover", hs)

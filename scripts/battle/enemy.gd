@@ -1255,6 +1255,7 @@ static func get_all_enemy_data() -> Array:
 			"xp": def.get("xp", 0),
 			"actions": shown,
 			"special": special_text,
+			"figure_kind": str(def.get("figure_kind", "")),
 		})
 	return result
 

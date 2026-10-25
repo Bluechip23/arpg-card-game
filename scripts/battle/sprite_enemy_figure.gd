@@ -560,6 +560,38 @@ func portrait_texture() -> Texture2D:
 	return at
 
 
+static var _still_cache: Dictionary = {}
+
+## The kind's picture for menus (the Compendium): the first idle frame,
+## facing south (toward the camera), as a fresh figure stands; trimmed to
+## the creature's opaque pixels. {"texture", "tint", "smooth"}, or {} for a
+## kind with no sprite. Cached per kind.
+static func south_still(kind: String) -> Dictionary:
+	if _still_cache.has(kind):
+		return _still_cache[kind]
+	var out := {}
+	if supports(kind):
+		var fig := SpriteEnemyFigure.new()
+		fig.setup(kind)  # a fresh figure faces SOUTH on Idle frame 0
+		var spr := fig._sprite
+		if spr and spr.texture:
+			var img: Image = spr.texture.get_image()
+			if img:
+				if img.is_compressed():
+					img.decompress()
+				var r := Rect2i(spr.region_rect) if spr.region_enabled \
+						else Rect2i(Vector2i.ZERO, img.get_size())
+				var cell := img.get_region(r)
+				var used := cell.get_used_rect()
+				if used.size.x > 0 and used.size.y > 0:
+					cell = cell.get_region(used)
+				out = {"texture": ImageTexture.create_from_image(cell),
+					"tint": fig._tint, "smooth": fig.smooth}
+		fig.free()
+	_still_cache[kind] = out
+	return out
+
+
 func portrait_tint() -> Color:
 	return _tint
 
