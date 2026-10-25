@@ -433,6 +433,19 @@ BOARDS = {
             "right": (826, 597, 1092, 1094),
         },
     },
+    "bugbear": {
+        # 2026-10-25: the Bugbear — a shaggy, fanged brute in spiked iron
+        # pauldrons and greaves, a spiked mace in hand — four labelled poses
+        # on black: north (front), south (back), west (left), east (right).
+        "src": "bugbear_board.png", "bg": "grabcut", "tiles": 1.9,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (12, 6, 550, 520),
+            "back": (752, 14, 1302, 520),
+            "left": (69, 584, 488, 1122),
+            "right": (804, 584, 1210, 1122),
+        },
+    },
     "air_mage": {
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,
