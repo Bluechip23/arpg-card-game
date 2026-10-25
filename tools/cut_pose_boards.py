@@ -433,6 +433,46 @@ BOARDS = {
             "right": (826, 597, 1092, 1094),
         },
     },
+    "bugbear": {
+        # 2026-10-25: the Bugbear — a shaggy, fanged brute in spiked iron
+        # pauldrons and greaves, a spiked mace in hand — four labelled poses
+        # on black: north (front), south (back), west (left), east (right).
+        "src": "bugbear_board.png", "bg": "grabcut", "tiles": 1.9,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (12, 6, 550, 520),
+            "back": (752, 14, 1302, 520),
+            "left": (69, 584, 488, 1122),
+            "right": (804, 584, 1210, 1122),
+        },
+    },
+    "giant_hawk": {
+        # 2026-10-25: the Giant Hawk — midnight black, flecked brown, a sharp
+        # hooked yellow beak, yellow talons with black claws — perched, four
+        # labelled poses on black: north (front, wings half-spread), south
+        # (back), west (left), east (right).
+        "src": "giant_hawk_board.png", "bg": "grabcut", "tiles": 1.6,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (4, 2, 648, 546),
+            "back": (678, 2, 1290, 546),
+            "left": (70, 592, 628, 1108),
+            "right": (678, 592, 1238, 1108),
+        },
+    },
+    "infected_hunter": {
+        # 2026-10-25: the Infected Hunter — a ragged, rotting trapper in a
+        # wide hat with a chained hook and a net on his back — four labelled
+        # poses on black. A small board (~250 px a pose).
+        "src": "infected_hunter_board.png", "bg": "grabcut", "tiles": 1.7,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (4, 0, 254, 258),
+            "back": (362, 0, 606, 258),
+            "left": (32, 282, 254, 556),
+            "right": (353, 285, 576, 556),
+        },
+    },
     "air_mage": {
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,
