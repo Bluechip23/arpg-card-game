@@ -3,7 +3,7 @@ extends SceneTree
 ## The Enemy Lab previews the same art battle plays: every enemy wearing the
 ## designer's art (boss boards, 4x4 walk sheets and four-direction pose
 ## boards) shows that sheet in the
-## lab, and the Screecher shows the Snow Wraith's ghost. The werewolf's side
+## lab, the Screecher its crawler board. The werewolf's side
 ## walk is the upright one (on its hind legs), not the all-fours row.
 ## Run: godot --headless --path . --script tests/test_enemy_lab_art.gd
 
@@ -48,13 +48,13 @@ func _run() -> void:
 		_check(fig != null and fig._cp_mode and fig._cp_sheets.has("Walk"), "%s previews its sheet in the lab" % name)
 		if fig != null and fig._cp_sheets.has("Idle"):
 			_check(fig._cp_sheets["Idle"].resource_path.begins_with(folder), "%s lab sheet is %s" % [name, folder])
-	# The Screecher wears the Snow Wraith's ghost in the lab too.
+	# The Screecher wears its crawler board in the lab too (2026-10-25).
 	lab._select_type(Enemy.EnemyType.SCREECHER)
 	await process_frame
-	var scr_tex: Texture2D = lab._figure._sprite.texture
-	lab._select_type(Enemy.EnemyType.SNOW_WRAITH)
-	await process_frame
-	_check(scr_tex != null and scr_tex == lab._figure._sprite.texture, "the Screecher previews the Snow Wraith's ghost")
+	var sfig = lab._figure
+	_check(sfig != null and sfig._cp_mode and sfig._cp_sheets.has("Idle")
+		and sfig._cp_sheets["Idle"].resource_path.begins_with(SpriteEnemyFigure.SHEETS + "/screecher"),
+		"the Screecher previews its own board")
 	# Werewolf side view: upright, not stretched out on all fours.
 	lab._select_type(Enemy.EnemyType.WEREWOLF)
 	await process_frame

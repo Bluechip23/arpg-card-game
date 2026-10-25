@@ -272,6 +272,20 @@ BOARDS = {
                          (410, 280, 396, 300, 6)]},
         "violet_grow": {"front": 230, "back": 240},   # the wings' mist, not the clouds at its feet
     },
+    "screecher": {
+        # 2026-10-25: the Screecher, a gaunt long-limbed undead crawler with a
+        # gaping fanged maw, in a bone-strewn cave. Its side labels are
+        # swapped (the "FACING LEFT" panel faces right), so the poses are
+        # picked by what they show.
+        "src": "screecher_board.jpg", "bg": "grabcut", "tiles": 1.2,
+        "warm_seed": "pale",
+        "Idle": {
+            "front": (800, 50, 1330, 352),
+            "back": (95, 50, 610, 352),
+            "right": (130, 428, 690, 715),
+            "left": (750, 428, 1300, 715),
+        },
+    },
     "air_mage": {
         "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,
         "Idle": {
@@ -436,7 +450,14 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim
         else:
             x0, y0, x1, y1 = hint
             mask[y0:y1, x0:x1] = cv2.GC_FGD
-    if warm_seed:
+    if warm_seed == "pale":
+        # A pale creature on a dim cave of the same greys (the Screecher):
+        # only brightness tells them apart. Its lit skin (pale, nearly
+        # colourless) is surely it, the darkest of the cave probably not.
+        inner = mask == cv2.GC_PR_FGD
+        mask[inner & (lum < 32)] = cv2.GC_PR_BGD
+        mask[inner & (lum > 95) & (sat < 45)] = cv2.GC_FGD
+    elif warm_seed:
         # Bone on a cool crypt (the Bone Dragon): its bone, wing membrane and
         # purple mist run warm or violet (red at or over blue), the teal wall,
         # grey smoke and slate rubble run cool. Cool starts as probable
@@ -492,7 +513,7 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim
         looks_bg |= (lum > 185) & (sat < 60)
     for comp in _components(~fg & ~_flood(~fg, edge)):
         pts = tuple(np.array(comp).T)
-        if warm_seed:
+        if warm_seed is True:
             # The crypt seen between ribs, under a wing, between the legs:
             # left open whatever its size when it is the cool scenery.
             r_, g_, b_ = rgb[..., 0][pts], rgb[..., 1][pts], rgb[..., 2][pts]
@@ -501,7 +522,7 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim
                 fg[pts] = True
         elif len(comp) <= HOLE_FILL_MAX or looks_bg[pts].mean() < 0.5:
             fg[pts] = True
-    if warm_seed:
+    if warm_seed is True:
         # ...and any patch of that cool scenery GrabCut kept inside the cut.
         r_, g_, b_ = rgb[..., 0], rgb[..., 1], rgb[..., 2]
         cool = (b_ - r_ > 6) & ~((b_ > g_ + 25) & (r_ > g_ + 10))
