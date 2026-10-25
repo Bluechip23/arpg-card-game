@@ -26,7 +26,6 @@ var _menu_buttons: Array[Button] = []
 var _cutscene: Control = null
 var _hovered: int = -1
 var _ring_t: float = 0.0
-var _tablet: Panel = null
 
 var _menu_items: Array[Dictionary] = [
 	{"text": "Single Player", "action": "_on_single_player"},
@@ -71,7 +70,6 @@ func _on_cutscene_finished() -> void:
 	tween.tween_property($VBox, "modulate:a", 1.0, 0.8)
 
 func _process(delta: float) -> void:
-	_fit_tablet()
 	# The hovered option's rings rock gently, like a coin catching the light.
 	_ring_t += delta
 	if _hovered >= 0 and _hovered < _left_rings.size():
@@ -91,7 +89,6 @@ func _build_menu(items: Array[Dictionary] = []) -> void:
 	_menu_buttons.clear()
 	_hovered = -1
 	menu_container.add_theme_constant_override("separation", 10)
-	_apply_menu_panel(pal)
 	for i in range(items.size()):
 		var item = items[i]
 
@@ -133,36 +130,6 @@ func _build_menu(items: Array[Dictionary] = []) -> void:
 		var right_ring := _create_ring(true)
 		hbox.add_child(right_ring)
 		_right_rings.append(right_ring)
-
-func _apply_menu_panel(pal: Dictionary) -> void:
-	## Styles that set "panel" seat the options on a translucent tablet: a
-	## sibling just behind the menu column (outside its layout) that tracks
-	## the column's rect and fade each frame.
-	var col: Color = pal["panel"]
-	if col.a <= 0.0 or (_tablet and is_instance_valid(_tablet)):
-		return
-	var tablet := Panel.new()
-	tablet.name = "MenuPanelBG"
-	tablet.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = col
-	sb.set_border_width_all(1)
-	sb.border_color = Color(pal["btn_border"], 0.6)
-	sb.set_corner_radius_all(6)
-	sb.shadow_color = Color(0, 0, 0, 0.4)
-	sb.shadow_size = 14
-	tablet.add_theme_stylebox_override("panel", sb)
-	add_child(tablet)
-	move_child(tablet, $VBox.get_index())
-	_tablet = tablet
-
-func _fit_tablet() -> void:
-	if _tablet and is_instance_valid(_tablet):
-		var r := menu_container.get_global_rect().grow_individual(8, 22, 8, 22)
-		_tablet.global_position = r.position
-		_tablet.size = r.size
-		_tablet.visible = $VBox.visible
-		_tablet.modulate.a = $VBox.modulate.a
 
 static func _button_box(bg: Color, border: Color, border_w: int, radius: int, glow: Color) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
