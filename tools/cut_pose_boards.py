@@ -164,6 +164,7 @@ BOARDS = {
     "fire_mage": {
         "src": "fire_frost_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
         "sky_tol": 12,   # his black hood against the black night sky
+        "dark_regrow": 12,  # ...and the hood's top won back from the sky's colour model
         "warm_grow": 55,  # the headband's tails, his forearm wrap and flames
         "drop_blue": True,  # snow-hill pockets between arm and side
         # The headband's two tails, flying off the back of his hood.
@@ -202,6 +203,33 @@ BOARDS = {
             "right": (410, 55, 645, 372),
             "left": (1105, 55, 1375, 372),
         },
+    },
+    "ifrit": {
+        # 2026-10-25: the Underworld's living-flame elite, horned and armoured,
+        # on a dark brick wall and a plank floor.
+        "src": "ifrit_board.jpg", "bg": "grabcut", "tiles": 2.0,
+        "sky_tol": 12,   # the flat dark wall, walled in between legs, arms and tail
+        "drop_ice": True,  # and its shadowed pockets (it has no near-black on it)
+        "Idle": {
+            "front": (285, 432, 670, 758),
+            "back": (740, 432, 1125, 758),
+            "right": (255, 58, 645, 375),
+            "left": (765, 58, 1152, 375),
+        },
+    },
+    "bull_worm": {
+        # 2026-10-25: the Alaskan Bull Worm (Worms Armageddon), coiled, horned,
+        # on the same wall and floor.
+        "src": "bull_worm_board.jpg", "bg": "grabcut", "tiles": 1.2,
+        "sky_tol": 12,
+        "Idle": {
+            "front": (262, 428, 696, 762),
+            "back": (712, 428, 1152, 762),
+            "right": (258, 58, 680, 375),
+            "left": (725, 58, 1150, 375),
+        },
+        # The hooked tip of the left horn, seen from behind (dark on the dark wall).
+        "fg": {"back": [(72, 100, 95, 128, 6), (95, 128, 118, 124, 6)]},
     },
     "air_mage": {
         "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,
@@ -325,7 +353,7 @@ FEET_BAND = 0.10        # the bottom share of the figure where floor shadow is t
 
 def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim=True,
                  drop_ice=False, bright_grow=0, sky_tol=0, warm_grow=0,
-                 drop_blue=False) -> np.ndarray:
+                 drop_blue=False, dark_regrow=0) -> np.ndarray:
     """Background mask by GrabCut from the box, enclosed holes filled, and
     the ice's shadow under the feet (cool, unsaturated) trimmed."""
     if cv2 is None:
@@ -370,12 +398,12 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim
     cv2.setRNGSeed(0)   # GrabCut seeds its colour models randomly: keep the cut repeatable
     cv2.grabCut(bgr, mask, None, bgd, fgd, GRABCUT_ITER, cv2.GC_INIT_WITH_MASK)
     fg = (mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD)
-    if sky_tol:
+    if sky_tol and dark_regrow:
         # Then win back the dark cloth GrabCut handed to the sky's colour
         # model (the top of his hood): dark, neutral pixels (not the sky's
         # own tone, not the blue snow) within a hood's depth of the figure.
         cloth = ~near & (lum < 80) & (rgb[..., 2] - rgb[..., 0] <= 16)
-        close = _grow(fg, 12)
+        close = _grow(fg, dark_regrow)
         seeds = list(zip(*np.nonzero(fg)))
         fg |= _flood((cloth & close) | fg, seeds) & (mask != cv2.GC_BGD)
     if sat_grow:
@@ -429,7 +457,7 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim
 
 def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
         feet_trim=True, drop_ice=False, bright_grow=0, sky_tol=0, warm_grow=0,
-        drop_blue=False) -> Image.Image:
+        drop_blue=False, dark_regrow=0) -> Image.Image:
     """The creature in `box`, full size, on transparency, cropped to itself."""
     rgb = np.asarray(board.crop(box).convert("RGB")).astype(int)
     h, w, _ = rgb.shape
@@ -438,7 +466,7 @@ def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
     bg_like = _background_like(rgb, kind) if kind != "grabcut" else None
     if kind == "grabcut":
         bg = _cut_grabcut(rgb, fg_boxes, sat_grow, snow, feet_trim, drop_ice, bright_grow, sky_tol, warm_grow,
-                          drop_blue)
+                          drop_blue, dark_regrow)
     elif kind == "stone":
         bg = _cut_stone(rgb, bg_like, edge)
     else:
@@ -490,7 +518,8 @@ def build(name: str, cfg: dict) -> None:
                                     cfg.get("sat_grow", 0), cfg.get("snow", False),
                                     cfg.get("feet_trim", True), cfg.get("drop_ice", False),
                                     cfg.get("bright_grow", 0), cfg.get("sky_tol", 0),
-                                    cfg.get("warm_grow", 0), cfg.get("drop_blue", False))
+                                    cfg.get("warm_grow", 0), cfg.get("drop_blue", False),
+                                    cfg.get("dark_regrow", 0))
         for d, box in cfg[anim].items():
             if box[0] == "mirror":
                 full[anim][d] = full[anim][box[1]].transpose(Image.FLIP_LEFT_RIGHT)

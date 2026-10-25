@@ -2,8 +2,8 @@
 """Scenery-pass billboard props (master-palette colors).
 
 The small atmospheric sprites no purchased pack draws: a two-frame
-butterfly, a drifting leaf, and a dithered cloud shadow blob for the
-outdoor light. (This generator once also drew grass tufts, mushrooms, a
+butterfly, a drifting leaf, a dithered cloud shadow blob for the
+outdoor light, and the dirt mound over a burrowed bull worm. (This generator once also drew grass tufts, mushrooms, a
 log, reeds, a crate, a barrel and a climbable tree; the packs show all of
 those now — CLAUDE.md "Art: Packs First" — so they were removed.)
 
@@ -128,6 +128,71 @@ def cloud_shadow():
     save(img, "cloud_shadow")
 
 
+def worm_mound():
+    # The heaped earth over a burrowed Alaskan Bull Worm (Worms Armageddon).
+    # No pack draws a dirt mound, so it is cut from the pack's own field-dirt
+    # tile (floor_dirt_field.png, 32 texels a tile like the floor it sits on)
+    # and shaded as a lumpy dome — upper-left light, a dark outline, clods
+    # thrown up round it and the dark mouth of the burrow on top — so it
+    # reads as the same earth.
+    dirt = Image.open("assets/textures/craftpix/floor_dirt_field.png").convert("RGB")
+    W, HGT = 42, 24
+    cx, cy, rx, ry = 20.5, 13.0, 17.0, 8.0
+    rng = random.Random(77)
+    bumps = [rng.uniform(-0.09, 0.09) for _ in range(12)]
+
+    def edge(x, y):   # <1 inside; a lumpy outline (radius wobbles by angle)
+        nx, ny = (x - cx) / rx, (y - cy) / ry
+        a = (math.atan2(ny, nx) / (2 * math.pi) + 1.0) * 12
+        k = int(a) % 12
+        f = a - int(a)
+        wob = bumps[k] * (1 - f) + bumps[(k + 1) % 12] * f
+        return math.hypot(nx, ny) / (1.0 + wob), nx, ny
+
+    img = Image.new("RGBA", (W, HGT))
+    p = img.load()
+    d = dirt.load()
+
+    def tone(x, y, light):
+        c = d[(x + 44) % dirt.width, (y + 52) % dirt.height]
+        return tuple(max(0, min(255, int(v * light))) for v in c) + (255,)
+
+    for y in range(HGT):
+        for x in range(W):
+            r, nx, ny = edge(x, y)
+            if r > 1.0:
+                continue
+            dome = math.sqrt(max(0.0, 1.0 - r * r))          # height of the heap here
+            light = 0.62 + 0.55 * dome - 0.28 * ny - 0.14 * nx
+            if r > 0.86:
+                light = 0.42                                  # outline
+            hole = ((x - cx) / 4.0) ** 2 + ((y - (cy - 2.0)) / 1.8) ** 2
+            if hole <= 1.0:
+                light = 0.22 if hole <= 0.5 else 0.45         # the burrow's mouth
+            elif hole <= 1.9 and y < cy - 2.0:
+                light *= 0.8                                  # its far lip in shade
+            elif hole <= 2.2 and y > cy - 2.0:
+                light *= 1.15                                 # its near lip catches light
+            p[x, y] = tone(x, y, light)
+    # Clods: lit lumps with a shaded underside on the heap, and a few
+    # thrown just past its rim.
+    for _ in range(14):
+        ang = rng.uniform(0, 2 * math.pi)
+        rad = rng.uniform(0.35, 1.12)
+        x = int(round(cx + math.cos(ang) * rx * rad))
+        y = int(round(cy + math.sin(ang) * ry * rad))
+        if not (1 <= x < W - 2 and 1 <= y < HGT - 2):
+            continue
+        if ((x - cx) / 5.5) ** 2 + ((y - (cy - 2.0)) / 2.6) ** 2 <= 1.0:
+            continue
+        p[x, y] = tone(x, y, 1.25)
+        p[x + 1, y] = tone(x + 1, y, 1.05)
+        p[x, y + 1] = tone(x, y + 1, 0.55)
+        p[x + 1, y + 1] = tone(x + 1, y + 1, 0.45)
+    save(img, "worm_mound")
+
+
 butterfly()
 leaf()
 cloud_shadow()
+worm_mound()
