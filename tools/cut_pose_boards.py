@@ -392,6 +392,19 @@ BOARDS = {
             "right": (746, 604, 1080, 1120),
         },
     },
+    "treant": {
+        # 2026-10-25: the Treant — a gnarled walking tree with a bark face,
+        # branch arms and leaf sprigs — four poses on black. Its "NORTH" pose
+        # shows the face and "SOUTH" its back: picked by what they show.
+        "src": "treant_board.png", "bg": "grabcut", "tiles": 2.5,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (80, 12, 542, 556),
+            "back": (726, 12, 1215, 556),
+            "left": (185, 605, 474, 1120),
+            "right": (827, 607, 1124, 1119),
+        },
+    },
     "air_mage": {
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,

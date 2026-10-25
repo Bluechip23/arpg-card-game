@@ -91,7 +91,7 @@ const KINDS := {
 	"specter": {"cp": "ghost/Ghost1", "scale": 1.2},
 	"wererabbit": {"cell": Vector2i(7, 1)},
 	"skeleton": {"cp": "skeletons/Skeleton1", "scale": 1.15},
-	"treant": {"cp": "ent/Ent3", "scale": 1.0},  # the Craftpix Ent pack's leafy ent (Ent1 bare, Ent2 sprouting)
+	"treant": {"sheets": SHEETS + "/treant", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the Craftpix Ent pack's Ent3
 	"consumed": {"cell": Vector2i(6, 2)},
 	"sewer_croc": {"fr": "mountain_monsters/Snake", "scale": 0.6, "tint": Color(0.8, 0.9, 0.75)},  # a great sewer serpent stands in for the croc
 	# --- generated sprites (drawn/derived in our pipeline, palette-conformant) ---

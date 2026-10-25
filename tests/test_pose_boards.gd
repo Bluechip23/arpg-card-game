@@ -25,7 +25,7 @@ const KINDS := {"frankenstein": 1.75, "giant_beaver": 1.3, "wyvern": 1.9, "ring_
 		"earth_mage": 1.6, "spark_mage": 1.6, "air_mage": 1.6, "ifrit": 2.0, "bull_worm": 1.2,
 		"inflamed_minotaur": 2.4, "bone_dragon": 2.6,
 		"screecher": 1.2, "granite_colossus": 2.6, "grave_titan": 2.2,
-		"armored_troll": 2.2, "ice_troll": 2.2, "large_bear": 1.9, "mini_bear": 1.1, "necromancer": 1.9}
+		"armored_troll": 2.2, "ice_troll": 2.2, "large_bear": 1.9, "mini_bear": 1.1, "necromancer": 1.9, "treant": 2.5}
 
 func _initialize() -> void:
 	print("=== Pose boards ===")
