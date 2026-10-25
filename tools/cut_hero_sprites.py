@@ -21,10 +21,12 @@ Sources (assets/sprites/paintings/, .gdignore'd source art, 2026-10-23):
     (designer, 2026-10-23).
 
 Keeping the art's nuance comes first (designer, 2026-10-23: the first cut,
-34 texels tall, was far too pixelated): each hero keeps HEIGHT texels from
-crown to feet — the warrior's own resolution, two thirds of the others' —
-and the game draws them finer than its 32-texel tiles (SpriteFigure's board
-pixel size) so they stand ~1.35 tiles tall. One scale per hero (set by the front pose), so the
+34 texels tall, was far too pixelated; 2026-10-24: err on the side of
+under-pixelating): each hero keeps the art's own resolution (HEIGHT None),
+no resample — ~100 texels crown to feet for the warrior, ~150 for the
+others — and the game draws them finer than its 32-texel tiles
+(SpriteFigure's board pixel size, set from each hero's own front height)
+so all stand BOARD_HEIGHT tiles tall. One scale per hero (set by the front pose), so the
 poses keep their true proportions to each other. Brad's front comes from a
 separate, larger image: it is scaled to the height of the sheet's own front.
 
@@ -56,7 +58,8 @@ from PIL import Image
 
 SRC = "assets/sprites/paintings/%s"
 OUT = "assets/sprites/generated/heroes/%s.png"
-HEIGHT = 96        # texels, crown to feet, of the hero's front pose
+HEIGHT = None      # texels, crown to feet, of the hero's front pose; None = the art's own
+                   # (designer, 2026-10-24: err on the side of under-pixelating the heroes)
 PALETTE = 96       # colours per hero after the tidy (0 = keep every colour)
 ACCENT_KEEP = 36   # ...but a pixel the tidy would move further than this keeps its colour
 VIBRANCE = 1.12    # SoM's saturated palette: colour pushed this much further from grey
@@ -378,10 +381,11 @@ def build(hero, poses):
         if scale is None or facing == "scale":
             # The first pose (or the "scale" reference) sets the hero's scale
             # for every pose cut from the same source.
-            scale = (path, img.height / float(HEIGHT))
+            ref_h = img.height if HEIGHT is None else HEIGHT
+            scale = (path, img.height / float(ref_h))
             if facing == "scale":
                 continue
-        factor = scale[1] if path == scale[0] else img.height / float(HEIGHT)
+        factor = scale[1] if path == scale[0] else img.height / float(ref_h)
         full[facing] = resample(img, factor)
     full = {d: vibrance(f) for d, f in full.items()}
     full = tidy_palette(full)

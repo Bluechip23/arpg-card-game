@@ -18,8 +18,8 @@ func _check(ok: bool, msg: String) -> void:
 		failures += 1
 		print("  FAIL: %s" % msg)
 
-const KINDS := {"frankenstein": 1.4, "giant_beaver": 1.05, "wyvern": 1.75, "ring_wraith": 1.8,
-		"sanguine_penguin": 1.06, "djinn": 1.63, "ice_mage": 1.5, "fire_mage": 1.44}
+const KINDS := {"frankenstein": 1.75, "giant_beaver": 1.3, "wyvern": 1.9, "ring_wraith": 1.95,
+		"sanguine_penguin": 1.15, "djinn": 1.8, "ice_mage": 1.6, "fire_mage": 1.6}
 
 func _initialize() -> void:
 	print("=== Pose boards ===")
@@ -49,6 +49,9 @@ func _initialize() -> void:
 		f._process(0.05)
 		_check(f._sprite.offset == f._ground_offset, "%s stands on its ground row when still" % kind)
 		_check(not kind in SpriteEnemyFigure.PAINTED_SHADOW_KINDS, "%s casts a blob shadow" % kind)
+		# Cut at the heroes' fineness: 64 texels a tile (2026-10-24).
+		var density: float = 1.0 / (f._sprite.pixel_size * f._rig.scale.y)
+		_check(absf(density - 64.0) < 0.5, "%s is drawn at 64 texels a tile (%.1f)" % [kind, density])
 		f.free()
 
 	# The beaver drops to all fours to move: its walk is a different, lower pose.

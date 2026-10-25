@@ -83,11 +83,11 @@ const KINDS := {
 	"swarm": {"cell": Vector2i(4, 0)},
 	"giant_hawk": {"fr": "mountain_monsters/Bird", "scale": 0.55},
 	"screecher": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},  # wears the Snow Wraith's ghost (designer, 2026-10-22); the mountain-monster Bird frames are free again
-	"giant_beaver": {"sheets": SHEETS + "/giant_beaver", "scale": 1.0},  # the designer's board (tools/cut_pose_boards.py): stands on its hind legs, walks on all fours
+	"giant_beaver": {"sheets": SHEETS + "/giant_beaver", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py): stands on its hind legs, walks on all fours
 	"mini_bear": {"fr": "mountain_monsters/Bear", "scale": 0.45},
-	"wolf": {"sheets": SHEETS + "/wolf", "scale": 0.7},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-22)
+	"wolf": {"sheets": SHEETS + "/wolf", "scale": 0.525},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-22)
 	"coyote": {"cell": Vector2i(3, 1), "tint": Color(1.1, 1.0, 0.8)},  # the old wolf battler, tinted
-	"djinn": {"sheets": SHEETS + "/djinn", "scale": 1.0},  # the designer's board (tools/cut_pose_boards.py, 2026-10-24); was the MonsterKit cell (4, 1)
+	"djinn": {"sheets": SHEETS + "/djinn", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-24); was the MonsterKit cell (4, 1)
 	"specter": {"cp": "ghost/Ghost1", "scale": 1.2},
 	"wererabbit": {"cell": Vector2i(7, 1)},
 	"skeleton": {"cp": "skeletons/Skeleton1", "scale": 1.15},
@@ -116,25 +116,25 @@ const KINDS := {
 	"ifrit": {"icon": "chaos_monsters/Icon47", "faces": "front", "scale": 2.0},  # the living flame
 	"snow_wraith": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},
 	# The designer's 4x4 walk sheets (tools/cut_creature_sheets.py).
-	"hydra": {"sheets": SHEETS + "/hydra", "scale": 1.1},
-	"white_manticore": {"sheets": SHEETS + "/white_manticore", "scale": 0.75},
+	"hydra": {"sheets": SHEETS + "/hydra", "scale": 0.55},
+	"white_manticore": {"sheets": SHEETS + "/white_manticore", "scale": 0.5625},
 	# --- battler variations where the species genuinely matches ---
 	"large_bear": {"fr": "mountain_monsters/Bear", "scale": 0.65},
 	"bone_dragon": {"tex": "bone_dragon", "scale": 1.6},
-	"wyvern": {"sheets": SHEETS + "/wyvern", "scale": 1.0},  # the designer's board (tools/cut_pose_boards.py)
+	"wyvern": {"sheets": SHEETS + "/wyvern", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"cerberus": {"sheets": BOSSES + "/cerberus", "scale": 1.5},
 	"hades": {"sheets": BOSSES + "/hades", "scale": 1.15},  # art in place; no Hades enemy exists yet
-	"werewolf": {"sheets": SHEETS + "/werewolf", "scale": 1.05},
-	"sabertooth": {"sheets": SHEETS + "/sabertooth", "scale": 0.95},
-	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": 0.62},
+	"werewolf": {"sheets": SHEETS + "/werewolf", "scale": 0.525},
+	"sabertooth": {"sheets": SHEETS + "/sabertooth", "scale": 0.475},
+	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": 0.465},
 	"roc": {"fr": "mountain_monsters/Bird", "scale": 1.0, "tint": Color(1.05, 0.95, 0.85)},
 	"ash_harpy": {"icon": "chaos_monsters/Icon22", "faces": "front", "scale": 1.6},  # the winged demon in flight, tail trailing
 	"magma_spider": {"cell": Vector2i(3, 0), "tint": Color(1.35, 0.75, 0.6)},
 	# (Every roster kind now has a sprite; ART_TODO.md still tracks hand-drawn
 	# replacements for the generated first-pass battlers above.)
 	# --- NPC-pack humanoids (real 4-direction walk frames) ---
-	"ice_mage": {"sheets": SHEETS + "/ice_mage", "scale": 1.0},  # the designer's frost mage (tools/cut_pose_boards.py, 2026-10-24); was the NPC mystic tinted blue
-	"fire_mage": {"sheets": SHEETS + "/fire_mage", "scale": 1.0},  # the designer's fire ninja (tools/cut_pose_boards.py, 2026-10-24); was the NPC mystic tinted red
+	"ice_mage": {"sheets": SHEETS + "/ice_mage", "scale": BOARD_SCALE},  # the designer's frost mage (tools/cut_pose_boards.py, 2026-10-24); was the NPC mystic tinted blue
+	"fire_mage": {"sheets": SHEETS + "/fire_mage", "scale": BOARD_SCALE},  # the designer's fire ninja (tools/cut_pose_boards.py, 2026-10-24); was the NPC mystic tinted red
 	"spark_mage": {"npc": NPC1 + "/npc mystic A v01.png", "tint": Color(1.2, 1.15, 0.6)},
 	"air_mage": {"npc": NPC1 + "/npc mystic A v01.png", "tint": Color(1.1, 1.1, 1.15)},
 	"earth_mage": {"npc": NPC1 + "/npc mystic A v01.png", "tint": Color(0.9, 1.0, 0.7)},
@@ -153,12 +153,12 @@ const KINDS := {
 	"brute_elite": {"cp": "swordsman_lvl4_6/Swordsman_lvl5", "scale": 1.15},
 	"brute_boss": {"cp": "swordsman_lvl4_6/Swordsman_lvl6", "scale": 1.3},
 	# --- the Precious's hunter: the Craftpix ghost pack's crowned wraith ---
-	"ring_wraith": {"sheets": SHEETS + "/ring_wraith", "scale": 1.0},  # the designer's mounted wraith (tools/cut_pose_boards.py)
+	"ring_wraith": {"sheets": SHEETS + "/ring_wraith", "scale": BOARD_SCALE},  # the designer's mounted wraith (tools/cut_pose_boards.py)
 	# --- the player's summons (Summon._build_figure): pack art, ally-sized ---
 	"summon_golem": {"cp": "golem/Golem1", "scale": 1.0},  # the rock golem the Granite Colossus wears, smaller
 	"summon_specter": {"cp": "ghost/Ghost1", "scale": 1.2, "tint": Color(0.95, 0.75, 1.25)},  # Jeremy's Seance: the specter ghost, violet
-	"frankenstein": {"sheets": SHEETS + "/frankenstein", "scale": 1.0},  # the designer's board (tools/cut_pose_boards.py)
-	"sanguine_penguin": {"sheets": SHEETS + "/sanguine_penguin", "scale": 1.0},  # the designer's board (tools/cut_pose_boards.py)
+	"frankenstein": {"sheets": SHEETS + "/frankenstein", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
+	"sanguine_penguin": {"sheets": SHEETS + "/sanguine_penguin", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	# --- the dojo's enemy training dummies ---
 	"chicken": {"tex": "chicken"},
 	# --- the Rat King's nests: no pack has a nest, so this one is drawn
@@ -173,6 +173,10 @@ const KINDS := {
 
 # Uniform texel density across every billboard in the game (style guide §1).
 const PIXEL_SIZE := 0.03125
+## The designer's pose boards (tools/cut_pose_boards.py) are cut at 64 texels
+## a tile, the heroes' fineness (2026-10-24: err on the side of
+## under-pixelating what we make), so they draw at half the pack scale.
+const BOARD_SCALE := 0.5
 
 ## Kinds whose battler art already contains a painted contact shadow
 ## (the flyers) — these must not get a second blob shadow.

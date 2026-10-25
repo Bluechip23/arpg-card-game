@@ -41,11 +41,12 @@ specks and the boards' labels are dropped (only pieces near the size of the
 creature survive).
 
 Each pose is shrunk by one factor per creature — chosen so the front Idle
-stands HEIGHT texels tall (the game draws 32 texels a tile) — box-filtered
-with on/off alpha, and packed bottom-centred into square cells in the
-Craftpix layout SpriteEnemyFigure plays (rows front, back, left, right).
-These boards have one frame a direction: Idle is the still pose; Walk is
-the movement pose where there is one (the beaver), else the still pose again
+stands its "tiles" tall at DENSITY texels a tile (twice the world's 32: the
+heroes' fineness; the game draws these sheets at scale 32 / DENSITY) — box-
+filtered with on/off alpha, and packed bottom-centred into square cells in
+the Craftpix layout SpriteEnemyFigure plays (rows front, back, left, right).
+These boards have one frame a direction: Idle is the still pose; Walk is the
+movement pose where there is one (the beaver), else the still pose again
 (the figure bobs it in step while it moves).
 
 Output: assets/sprites/generated/sheets/<creature>/{Idle,Walk}.png
@@ -72,7 +73,7 @@ ROWS = ["front", "back", "left", "right"]
 # as ("mirror", other) is the other pose flipped.
 BOARDS = {
     "frankenstein": {
-        "src": "frankenstein_board.jpg", "bg": "stone", "height": 45,
+        "src": "frankenstein_board.jpg", "bg": "stone", "tiles": 1.75,
         "Idle": {
             "front": (0, 96, 360, 720),
             "back": (360, 96, 720, 720),
@@ -81,7 +82,7 @@ BOARDS = {
         },
     },
     "giant_beaver": {
-        "src": "giant_beaver_board.jpg", "bg": "checker_light", "height": 34,
+        "src": "giant_beaver_board.jpg", "bg": "checker_light", "tiles": 1.3,
         "Idle": {
             "front": (40, 50, 300, 392),
             "back": (395, 50, 625, 392),
@@ -96,7 +97,7 @@ BOARDS = {
         },
     },
     "wyvern": {
-        "src": "wyvern_board.webp", "bg": "checker_light", "height": 56,
+        "src": "wyvern_board.webp", "bg": "checker_light", "tiles": 1.9,
         "Idle": {
             "front": (40, 0, 300, 286),
             "back": (310, 0, 580, 286),
@@ -105,7 +106,7 @@ BOARDS = {
         },
     },
     "sanguine_penguin": {
-        "src": "sanguine_penguin_board.jpg", "bg": "grabcut", "height": 34,
+        "src": "sanguine_penguin_board.jpg", "bg": "grabcut", "tiles": 1.15,
         "Idle": {
             "front": (900, 395, 1210, 760),
             "back": (180, 395, 520, 760),
@@ -123,7 +124,7 @@ BOARDS = {
         },
     },
     "djinn": {
-        "src": "djinn_board.jpg", "bg": "grabcut", "height": 52,
+        "src": "djinn_board.jpg", "bg": "grabcut", "tiles": 1.8,
         # GrabCut drops his thin ponytail and tail wisps against the sky; all
         # of him is a strong blue or purple and the sky and ice are near grey,
         # so the cut grows out into any pixel this saturated touching it.
@@ -136,7 +137,7 @@ BOARDS = {
         },
     },
     "ice_mage": {
-        "src": "fire_frost_mage_board.jpg", "bg": "grabcut", "snow": True, "height": 48,
+        "src": "fire_frost_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
         "feet_trim": False,   # her boots are the floor shadow's pale blue-grey
         "Idle": {
             "front": (265, 405, 460, 748),
@@ -153,7 +154,7 @@ BOARDS = {
         },
     },
     "fire_mage": {
-        "src": "fire_frost_mage_board.jpg", "bg": "grabcut", "snow": True, "height": 46,
+        "src": "fire_frost_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
         "Idle": {
             "front": (485, 420, 675, 722),
             "back": (1180, 420, 1370, 722),
@@ -162,7 +163,7 @@ BOARDS = {
         },
     },
     "ring_wraith": {
-        "src": "ring_wraith_board.jpg", "bg": "checker_grey", "height": 58,
+        "src": "ring_wraith_board.jpg", "bg": "checker_grey", "tiles": 1.95,
         "Idle": {
             "front": (0, 40, 392, 730),
             "back": (392, 40, 770, 730),
@@ -171,6 +172,13 @@ BOARDS = {
         },
     },
 }
+
+# Texels per tile the boards are cut at (designer, 2026-10-24: err on the
+# side of under-pixelating what we make): twice the world's 32, the heroes'
+# own fineness — one texel a screen pixel at the default zoom. Each board
+# gives its front Idle's height in tiles; SpriteEnemyFigure draws these
+# sheets at scale 32 / DENSITY.
+DENSITY = 64
 
 GROW = 3           # px the stone board's outline is thickened by to close its pinholes
 HOLE_MIN = 100      # enclosed background pockets this big (source px) are cut too
@@ -377,7 +385,7 @@ def build(name: str, cfg: dict) -> None:
                 full[anim][d] = full[anim][box[1]].transpose(Image.FLIP_LEFT_RIGHT)
     if "Walk" not in full:
         full["Walk"] = full["Idle"]
-    factor = full["Idle"]["front"].height / float(cfg["height"])
+    factor = full["Idle"]["front"].height / float(round(cfg["tiles"] * DENSITY))
     small = {a: {d: shrink(f, factor) for d, f in fs.items()} for a, fs in full.items()}
     cell = max(max(f.width, f.height) for fs in small.values() for f in fs.values()) + 2
     os.makedirs(OUT % name, exist_ok=True)

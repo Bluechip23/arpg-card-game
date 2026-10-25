@@ -66,13 +66,31 @@ conforms to them.
   tiles land on the same pixel grid. No per-entity scale factors — bigger
   creatures get bigger *art* or an integer-ish rig scale, never a
   texel-density change.
-  **The one exception (designer, 2026-10-23): the heroes' own sprites**
-  (all five — `tools/cut_hero_sprites.py`). Squeezed to
-  the tile's density they lost the art's nuance, so they keep ~96 texels
-  and are drawn finer (`SpriteFigure.BOARD_HEIGHT`, 1.6 tiles tall, and `BOARD_WIDEN` 1.12× wider for a stockier build); the
-  Secret of Mana look comes from crisp on/off edges, a one-texel inked
-  outline, a slightly lifted saturation and a tidied palette instead. The
-  pack weapon layers swung over them scale with them.
+  **The exception: what we make from the designer's art** (designer,
+  2026-10-23/24: "err on the side of under-pixelating" — squeezed to the
+  tile's density it loses the art's nuance and reads coarser than the
+  packs). These are drawn finer than the tiles, at about **64 texels a
+  tile** (one texel a screen pixel at the default zoom), and sized
+  against the heroes:
+  - the heroes' own sprites (`tools/cut_hero_sprites.py`) keep the art's
+    own resolution (no resample: ~100 texels for Brad, ~150 for the
+    others) and stand `SpriteFigure.BOARD_HEIGHT` (1.6) tiles tall,
+    `BOARD_WIDEN` 1.12× wider for a stockier build; the Secret of Mana look
+    comes from crisp on/off edges, a one-texel inked outline, a slightly
+    lifted saturation and a tidied palette. The pack weapon layers swung
+    over them scale with them;
+  - the pose boards (`tools/cut_pose_boards.py`, `DENSITY` 64, drawn at
+    `SpriteEnemyFigure.BOARD_SCALE` 0.5) give each creature a height in
+    tiles: a human-sized one stands as tall as a hero (the mages 1.6),
+    bigger ones taller (Frankenstein 1.75, the Djinn 1.8, the Wyvern 1.9,
+    the mounted Ring Wraith 1.95), smaller ones less (Sanguine 1.15, the
+    Giant Beaver 1.3);
+  - the creature sheets (`tools/cut_creature_sheets.py`) are cut near the
+    same fineness (their `down` factor, with the rig scale to match);
+  - sheets that are true pixel art with coarser pixels (the boss sheets,
+    the Pit Fiend, the Archer Rat) are cut at their own pixel grid — one
+    art pixel a texel — since a finer cut adds no detail.
+  The packs' own art (enemies, tiles, props) stays at 32 texels a tile.
 - 2D pixel art is never scaled fractionally; `Sprite2D` scale stays `(1,1)`.
 - Terrain: 1 world unit = 1 grid tile = one 32×32-texel texture repeat.
 
