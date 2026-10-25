@@ -464,17 +464,176 @@ func _build_dialog(title: String, paragraphs: Array, icon: Control = null, icon_
 	_layer.layer = 100  # Above the normal UI
 	add_child(_layer)
 
+	# A light veil over the scene (it still blocks clicks), darkening toward
+	# the bottom where the speech bar sits.
 	var overlay = ColorRect.new()
 	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay.color = Color(0, 0, 0, 0.6)
+	overlay.color = Color(0, 0, 0, 0.25)
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	_layer.add_child(overlay)
 
-	var panel := _build_panel(title, paragraphs, icon, icon_after_paragraph, speaker_name, "Continue", _close)
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_layer.add_child(panel)
+	var bar := _build_speech_bar(title, paragraphs, icon, icon_after_paragraph, speaker_name, "Continue", _close)
+	_layer.add_child(bar)
+
+# ----- Speech bar (bottom of the screen) ----------------------------------------
+
+const SPEECH_MARGIN := 18.0
+const PORTRAIT_SIZE := 168.0
+const SPEECH_BG := Color(0.035, 0.075, 0.05, 0.97)
+const SPEECH_BORDER := Color(0.80, 0.65, 0.32)
+const SPEECH_NAME := Color(1.0, 0.86, 0.45)
+const OLORIN_SHEET := "res://assets/sprites/NPCpackage1/npc old man A v01.png"
+
+## The talking-head bar along the bottom of the screen, as in most RPGs: a
+## framed close-up of the speaker on the left, their name and words beside
+## it, and the same buttons as before at the bottom right.
+func _build_speech_bar(title: String, paragraphs: Array, icon: Control, icon_after_paragraph: int,
+		speaker_name: String, button_text: String, on_button: Callable) -> PanelContainer:
+	var bar := PanelContainer.new()
+	bar.name = "SpeechBar"
+	bar.anchor_left = 0.0
+	bar.anchor_right = 1.0
+	bar.anchor_top = 1.0
+	bar.anchor_bottom = 1.0
+	bar.offset_left = SPEECH_MARGIN
+	bar.offset_right = -SPEECH_MARGIN
+	bar.offset_bottom = -SPEECH_MARGIN
+	bar.offset_top = -SPEECH_MARGIN
+	bar.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	var style := CrestStyleBox.new(SPEECH_BG, SPEECH_BORDER, 10, 2)
+	style.crest_size = 26.0
+	style.content_margin_top = 18.0
+	style.content_margin_left = 16.0
+	style.content_margin_right = 20.0
+	style.content_margin_bottom = 14.0
+	style.panel.shadow_color = Color(0, 0, 0, 0.5)
+	style.panel.shadow_size = 12
+	bar.add_theme_stylebox_override("panel", style)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 20)
+	bar.add_child(row)
+
+	# The close-up of whoever is talking.
+	row.add_child(_build_portrait(speaker_name))
+
+	var col := VBoxContainer.new()
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.add_theme_constant_override("separation", 8)
+	row.add_child(col)
+
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 14)
+	col.add_child(header)
+	var speaker := Label.new()
+	speaker.name = "Speaker"
+	speaker.text = speaker_name
+	speaker.add_theme_font_override("font", GameFonts.courgette())
+	speaker.add_theme_font_size_override("font_size", 26)
+	speaker.add_theme_color_override("font_color", SPEECH_NAME)
+	speaker.add_theme_color_override("font_outline_color", Color(0.02, 0.05, 0.03))
+	speaker.add_theme_constant_override("outline_size", 4)
+	header.add_child(speaker)
+	if title != "":
+		var subtitle := Label.new()
+		subtitle.text = "— " + title
+		subtitle.size_flags_vertical = Control.SIZE_SHRINK_END
+		subtitle.add_theme_font_override("font", GameFonts.courgette())
+		subtitle.add_theme_font_size_override("font_size", 16)
+		subtitle.add_theme_color_override("font_color", Color(0.62, 0.72, 0.6))
+		header.add_child(subtitle)
+
+	var body := ScrollContainer.new()
+	body.name = "Body"
+	body.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	body.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.custom_minimum_size = Vector2(0, 80)  # until _fit_speech measures the text
+	col.add_child(body)
+	var content := VBoxContainer.new()
+	content.name = "Content"
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.add_theme_constant_override("separation", 10)
+	body.add_child(content)
+	for i in range(paragraphs.size()):
+		var p := Label.new()
+		p.text = str(paragraphs[i])
+		p.add_theme_font_size_override("font_size", 16)
+		p.add_theme_color_override("font_color", Color(0.92, 0.91, 0.86))
+		p.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		p.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		content.add_child(p)
+		if icon and i + 1 == icon_after_paragraph:
+			content.add_child(icon)
+	if icon and icon.get_parent() == null:
+		content.add_child(icon)
+	_fit_speech.call_deferred(bar, body, content)
+
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 12)
+	buttons.alignment = BoxContainer.ALIGNMENT_END
+	col.add_child(buttons)
+	var continue_btn = _panel_button(button_text, Color(0.15, 0.25, 0.45), Color(0.4, 0.6, 1.0))
+	continue_btn.name = "ContinueButton"
+	continue_btn.pressed.connect(on_button)
+	buttons.add_child(continue_btn)
+	return bar
+
+## The speaker's close-up in a gilt frame: the hero's select-screen portrait
+## for the player's own thoughts, and for Olorin the head of his NPC sprite
+## (a stand-in until he has a painted close-up).
+func _build_portrait(speaker_name: String) -> Control:
+	var frame := PanelContainer.new()
+	frame.name = "Portrait"
+	frame.custom_minimum_size = Vector2(PORTRAIT_SIZE, PORTRAIT_SIZE)
+	frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var fs := StyleBoxFlat.new()
+	fs.bg_color = Color(0.09, 0.16, 0.10)
+	fs.set_border_width_all(3)
+	fs.border_color = SPEECH_BORDER
+	fs.set_corner_radius_all(6)
+	fs.set_content_margin_all(4)
+	frame.add_theme_stylebox_override("panel", fs)
+	var pic := TextureRect.new()
+	pic.name = "Face"
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	pic.texture = _portrait_for(speaker_name)
+	if pic.texture is AtlasTexture:
+		pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel-art sprite
+	frame.add_child(pic)
+	return frame
+
+func _portrait_for(speaker_name: String) -> Texture2D:
+	if speaker_name != OLORIN_SPEAKER:
+		var c = _character()
+		if c and c.has_method("get_portrait"):
+			var tex = c.get_portrait()
+			if tex:
+				return tex
+		return null
+	var sheet := load(OLORIN_SHEET) as Texture2D
+	if sheet == null:
+		return null
+	var face := AtlasTexture.new()
+	face.atlas = sheet
+	face.region = Rect2(5, 1, 22, 21)  # front-facing frame: head and shoulders
+	return face
+
+## Size the bar's scrolling body to its text, up to about a third of the
+## screen; longer speeches scroll. Re-run when the window resizes.
+func _fit_speech(bar: Control, body: ScrollContainer, content: Control) -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_instance_valid(bar) or not is_instance_valid(body) or not is_instance_valid(content):
+		return
+	var screen_h: float = bar.get_viewport_rect().size.y
+	var text_h: float = content.get_combined_minimum_size().y
+	var room: float = maxf(screen_h * 0.34, 80.0)
+	body.custom_minimum_size.y = clampf(text_h, PORTRAIT_SIZE - 90.0, room)
+	# A fresh lambda per bar: the same method bound to other args counts as
+	# already connected once an earlier bar's hook is still waiting.
+	bar.get_viewport().size_changed.connect(func(): _fit_speech(bar, body, content), CONNECT_ONE_SHOT)
 
 ## The arcane-blue speech panel: speaker line, title, paragraphs, an optional
 ## inline picture, and one button that runs `on_button`.
