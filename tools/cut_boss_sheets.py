@@ -22,8 +22,13 @@ Run: python3 tools/cut_boss_sheets.py
 import os
 from collections import deque
 
+import sys
+
 import numpy as np
 from PIL import Image
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import smooth_art  # noqa: E402  (the smooth, non-pixelated sheets)
 
 SRC = "assets/sprites/paintings/%s_sheet.webp"
 OUT = "assets/sprites/generated/bosses/%s"
@@ -224,6 +229,25 @@ def build(boss: str) -> None:
     # Rows with fewer frames repeat theirs to fill the walk cycle.
     sheet(n, lambda row, ci: row[ci % len(row)]).save(os.path.join(out_dir, "Walk.png"))
     print("%s: cell %d px, %d walk frames -> %s" % (boss, cell, n, out_dir))
+    # The smooth version (smooth_art): the same cut-outs at SMOOTH_DENSITY
+    # texels a tile, soft, kept beside the pixel sheets.
+    sdown = BOSS_DOWN[boss] * 64.0 / smooth_art.SMOOTH_DENSITY
+    cut = lambda r, c: smooth_art.trim(smooth_art.resample(
+        cut_cell(img, r, c, spec.get("key_all", False), spec.get("clear", {}).get((r, c))), sdown))
+    soft = {d: [cut(r, c) for r, c in spec[d]] for d in ("front", "back", "side")}
+    flip = lambda fs: [f.transpose(Image.FLIP_LEFT_RIGHT) for f in fs]
+    sleft, sright = (flip(soft["side"]), soft["side"]) if spec["side_faces"] == "right" else (soft["side"], flip(soft["side"]))
+    srows = [soft["front"], soft["back"], sleft, sright]
+    sidle = [row[0] for row in srows]
+    if "idle_side" in spec:
+        stand = cut(*spec["idle_side"])
+        sidle[2] = stand
+        sidle[3] = stand.transpose(Image.FLIP_LEFT_RIGHT)
+    scell = max(max(f.width, f.height) for f in [g for row in srows for g in row] + sidle) + 2
+    sdir = os.path.join(smooth_art.ROOT, "bosses", boss)
+    os.makedirs(sdir, exist_ok=True)
+    smooth_art.pack([[f] for f in sidle], scell, 1, lambda row, ci: row[0]).save(os.path.join(sdir, "Idle.png"))
+    smooth_art.pack(srows, scell, n, lambda row, ci: row[ci % len(row)]).save(os.path.join(sdir, "Walk.png"))
 
 
 if __name__ == "__main__":

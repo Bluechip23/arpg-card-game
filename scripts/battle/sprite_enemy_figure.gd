@@ -82,16 +82,16 @@ const KINDS := {
 	"crypt_crawler": {"cell": Vector2i(3, 0)},
 	"swarm": {"cell": Vector2i(4, 0)},
 	"giant_hawk": {"fr": "mountain_monsters/Bird", "scale": 0.55},
-	"screecher": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},  # wears the Snow Wraith's ghost (designer, 2026-10-22); the mountain-monster Bird frames are free again
+	"screecher": {"sheets": SHEETS + "/screecher", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25): a crawling undead, no longer the Snow Wraith's ghost
 	"giant_beaver": {"sheets": SHEETS + "/giant_beaver", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py): stands on its hind legs, walks on all fours
-	"mini_bear": {"fr": "mountain_monsters/Bear", "scale": 0.45},
+	"mini_bear": {"sheets": SHEETS + "/mini_bear", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Bear
 	"wolf": {"sheets": SHEETS + "/wolf", "scale": BOARD_SCALE},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-22)
 	"coyote": {"cell": Vector2i(3, 1), "tint": Color(1.1, 1.0, 0.8)},  # the old wolf battler, tinted
 	"djinn": {"sheets": SHEETS + "/djinn", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-24); was the MonsterKit cell (4, 1)
 	"specter": {"cp": "ghost/Ghost1", "scale": 1.2},
 	"wererabbit": {"cell": Vector2i(7, 1)},
 	"skeleton": {"cp": "skeletons/Skeleton1", "scale": 1.15},
-	"treant": {"cp": "ent/Ent3", "scale": 1.0},  # the Craftpix Ent pack's leafy ent (Ent1 bare, Ent2 sprouting)
+	"treant": {"sheets": SHEETS + "/treant", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the Craftpix Ent pack's Ent3
 	"consumed": {"cell": Vector2i(6, 2)},
 	"sewer_croc": {"fr": "mountain_monsters/Snake", "scale": 0.6, "tint": Color(0.8, 0.9, 0.75)},  # a great sewer serpent stands in for the croc
 	# --- generated sprites (drawn/derived in our pipeline, palette-conformant) ---
@@ -105,10 +105,10 @@ const KINDS := {
 	"fire_goblin_soldier": {"cp": "goblins/Goblin2", "scale": 1.1, "tint": Color(1.1, 0.9, 0.8)},
 	"fire_goblin_mage": {"cp": "goblins/Goblin1", "scale": 1.1, "tint": Color(1.15, 0.85, 0.7)},
 	"fire_goblin_shaman": {"cp": "goblins/Goblin3", "scale": 1.2, "tint": Color(1.1, 0.9, 0.8)},
-	"armored_troll": {"fr": "mountain_monsters/Orc", "scale": 0.55},
-	"ice_troll": {"fr": "mountain_monsters/Yeti", "scale": 1.05},
-	"granite_colossus": {"cp": "golem/Golem1", "scale": 1.6},
-	"grave_titan": {"cp": "golem/Golem2", "scale": 1.35, "tint": Color(0.9, 0.92, 0.88)},
+	"armored_troll": {"sheets": SHEETS + "/armored_troll", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Orc
+	"ice_troll": {"sheets": SHEETS + "/ice_troll", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Yeti
+	"granite_colossus": {"sheets": SHEETS + "/granite_colossus", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the golem pack's Golem1
+	"grave_titan": {"sheets": SHEETS + "/grave_titan", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the golem pack's Golem2
 	"inflamed_minotaur": {"sheets": SHEETS + "/inflamed_minotaur", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"demon": {"cp": "demons/Demon1", "scale": 0.85},
 	"pit_fiend": {"sheets": BOSSES + "/pit_fiend", "scale": 0.65},  # the designer's board (tools/cut_pit_fiend.py): stills, walks, tail-sweep attack
@@ -119,7 +119,7 @@ const KINDS := {
 	"hydra": {"sheets": SHEETS + "/hydra", "scale": BOARD_SCALE},
 	"white_manticore": {"sheets": SHEETS + "/white_manticore", "scale": BOARD_SCALE},
 	# --- battler variations where the species genuinely matches ---
-	"large_bear": {"fr": "mountain_monsters/Bear", "scale": 0.65},
+	"large_bear": {"sheets": SHEETS + "/large_bear", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Bear
 	"bone_dragon": {"sheets": SHEETS + "/bone_dragon", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"wyvern": {"sheets": SHEETS + "/wyvern", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"cerberus": {"sheets": BOSSES + "/cerberus", "scale": BOARD_SCALE},
@@ -138,9 +138,9 @@ const KINDS := {
 	"spark_mage": {"sheets": SHEETS + "/spark_mage", "scale": BOARD_SCALE},  # the designer's shock mage (tools/cut_pose_boards.py, 2026-10-25); was the NPC mystic tinted yellow
 	"air_mage": {"sheets": SHEETS + "/air_mage", "scale": BOARD_SCALE},  # the designer's air mage (2026-10-25); was the NPC mystic
 	"earth_mage": {"sheets": SHEETS + "/earth_mage", "scale": BOARD_SCALE},  # the designer's earth mage (2026-10-25); was the NPC mystic tinted green
-	"necromancer": {"cp": "lich/Lich2", "scale": 1.1},
-	"spirit_collector": {"cp": "lich/Lich1", "tint": Color(0.8, 0.9, 1.15)},
-	"vampire": {"cp": "vampires/Vampires3", "scale": 1.1},  # the red-caped lord on spire legs
+	"necromancer": {"sheets": SHEETS + "/necromancer", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the lich pack's Lich2
+	"spirit_collector": {"sheets": SHEETS + "/spirit_collector", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the lich pack's Lich1
+	"vampire": {"sheets": SHEETS + "/vampire", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the vampire pack's Vampires3
 	"zombie": {"cp": "zombie/Zombie1", "scale": 1.25},
 	"infected_hunter": {"cp": "zombie/Zombie3", "scale": 1.3, "tint": Color(0.9, 1.0, 0.85)},
 	"succubus": {"icon": "chaos_monsters/Icon14", "faces": "front", "scale": 1.7},  # the purple-winged temptress
@@ -182,9 +182,10 @@ const BOARD_SCALE := 0.5
 ## Kinds whose battler art already contains a painted contact shadow
 ## (the flyers) — these must not get a second blob shadow.
 const PAINTED_SHADOW_KINDS := ["swarm", "giant_hawk", "roc",
-		"screecher", "specter", "snow_wraith", "summon_specter", "gravestone", "hell_door"]
+		"specter", "snow_wraith", "summon_specter", "gravestone", "hell_door"]
 
 var figure_kind := ""   # the KINDS entry this figure was set up as
+var smooth := false     # wearing the smooth (non-pixelated) sheets (ArtStyle)
 var _sprite: Sprite3D = null
 var _rig: Node3D = null
 var _tint := Color.WHITE
@@ -201,6 +202,12 @@ var _ground_offset := Vector2.ZERO   # the sprite's offset with its feet on the 
 ## STEP_LIFT texels and back down, STEP_HZ times a second. Lifted along the
 ## sprite's own up (its offset), which is screen-up under the plan camera.
 const STEP_LIFT := 2.0
+
+
+## The walking step in this figure's own texels: STEP_LIFT pixel-sheet
+## texels, so the smooth sheets (twice as fine) step twice as many.
+func step_lift() -> float:
+	return STEP_LIFT * (2.0 if smooth else 1.0)
 const STEP_HZ := 3.5
 var _facing_x := -1.0    # battlers are drawn facing left; flip for east
 var _icon_faces := "left"  # icon battlers: the side the art faces ("front" never flips)
@@ -245,7 +252,16 @@ func setup(kind: String) -> void:
 	if cfg.has("cp"):
 		_setup_craftpix(cfg["cp"])
 	elif cfg.has("sheets"):
-		_setup_sheets(cfg["sheets"])
+		var soft := ArtStyle.smooth_folder(cfg["sheets"])
+		if soft != "":
+			# The smooth look (ArtStyle): the designer's art itself at
+			# SMOOTH_DENSITY a tile, filtered, with soft edges.
+			smooth = true
+			_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+			_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
+			_setup_sheets(soft)
+		else:
+			_setup_sheets(cfg["sheets"])
 	elif cfg.has("fr"):
 		_setup_frames(cfg["fr"], cfg.get("prefix", ""))
 	elif cfg.has("npc"):
@@ -300,6 +316,8 @@ func setup(kind: String) -> void:
 	_base_y = 0.0
 	_sprite.position = Vector3(0, _base_y, 0)
 	var s: float = cfg.get("scale", 1.0)
+	if smooth:
+		s = 32.0 / ArtStyle.SMOOTH_DENSITY   # SMOOTH_DENSITY texels a tile
 	_rig.scale = Vector3(s, s, s)
 	_rig.add_child(_sprite)
 	_sprite.modulate = _tint
@@ -837,7 +855,8 @@ func _sync_outline() -> void:
 		o.region_rect = _sprite.region_rect
 		o.flip_h = _sprite.flip_h
 		var d: Vector2 = o.get_meta("dir")
-		o.offset = _sprite.offset + d
+		o.offset = _sprite.offset + d * (2.0 if smooth else 1.0)   # the same width on screen
+		o.texture_filter = _sprite.texture_filter
 		o.position = _sprite.position + back
 		o.modulate = col
 
@@ -910,4 +929,4 @@ func _cp_step(delta: float) -> void:
 	_sprite.position.y = _base_y
 	if _cp_cell > 0:
 		var stepping := _cp_anim == "Walk" and count == 1 and fmod(_time * STEP_HZ, 1.0) < 0.5
-		_sprite.offset = _ground_offset + (Vector2(0, STEP_LIFT) if stepping else Vector2.ZERO)
+		_sprite.offset = _ground_offset + (Vector2(0, step_lift()) if stepping else Vector2.ZERO)

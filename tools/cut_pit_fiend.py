@@ -22,10 +22,14 @@ Output: assets/sprites/generated/bosses/pit_fiend/{Idle,Walk,Attack}.png
 Run: python3 tools/cut_pit_fiend.py   (numpy + Pillow)
 """
 import os
+import sys
 from collections import deque
 
 import numpy as np
 from PIL import Image
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import smooth_art  # noqa: E402  (the smooth, non-pixelated sheets)
 
 SRC = "assets/sprites/paintings/pit_fiend_sheet.jpg"
 OUT = "assets/sprites/generated/bosses/pit_fiend"
@@ -147,19 +151,37 @@ def pack(rows, cell, cols) -> Image.Image:
     return Image.fromarray(s, "RGBA")
 
 
+# Texels a tile the pixel sheet lands on: DOWN source px a texel, drawn
+# x0.65 (SpriteEnemyFigure) at 32 a tile.
+PIXEL_DENSITY = 32.0 / 0.65
+
+
+def soft(img, box) -> Image.Image:
+    """The smooth version of a frame (smooth_art), at SMOOTH_DENSITY a tile."""
+    return smooth_art.trim(smooth_art.resample(cut(img, box), DOWN * PIXEL_DENSITY / smooth_art.SMOOTH_DENSITY))
+
+
 def main() -> None:
     img = np.array(Image.open(SRC).convert("RGB"))
+    _build(img, frame, lambda f: f[:, ::-1], OUT, pack)
+    _build(img, soft, lambda f: f.transpose(Image.FLIP_LEFT_RIGHT),
+           os.path.join(smooth_art.ROOT, "bosses", "pit_fiend"),
+           lambda rows, cell, cols: smooth_art.pack(rows, cell, cols, lambda row, ci: row[ci % len(row)]))
+
+
+def _build(img, frame, flip, OUT, pack) -> None:
+    size = lambda f: (f.shape[1], f.shape[0]) if hasattr(f, "shape") else f.size
     idle = {k: frame(img, b) for k, b in IDLE.items()}
     walk_r = [frame(img, b) for b in WALK_RIGHT]
     walk_l = [frame(img, b) for b in WALK_LEFT]
     sweep_r = [frame(img, b) for b in TAIL_SWEEP_RIGHT]
-    sweep_l = [f[:, ::-1] for f in sweep_r]
+    sweep_l = [flip(f) for f in sweep_r]
     sets = {
         "Idle": [[idle["front"]], [idle["back"]], [idle["left"]], [idle["right"]]],
         "Walk": [walk_l, walk_l, walk_l, walk_r],
         "Attack": [sweep_l, sweep_l, sweep_l, sweep_r],
     }
-    cell = max(max(f.shape[0], f.shape[1]) for rows in sets.values() for row in rows for f in row) + 2
+    cell = max(max(size(f)) for rows in sets.values() for row in rows for f in row) + 2
     os.makedirs(OUT, exist_ok=True)
     for name, rows in sets.items():
         pack(rows, cell, max(len(r) for r in rows)).save(os.path.join(OUT, name + ".png"))

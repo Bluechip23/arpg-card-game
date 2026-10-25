@@ -67,6 +67,9 @@ from collections import deque
 import numpy as np
 from PIL import Image
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import smooth_art  # noqa: E402  (the smooth, non-pixelated sheets)
+
 try:
     import cv2   # only the GrabCut boards need it
 except ImportError:
@@ -74,6 +77,7 @@ except ImportError:
 
 SRC = "assets/sprites/paintings/%s"
 OUT = "assets/sprites/generated/sheets/%s"
+MATTES = "assets/sprites/paintings/mattes"   # model mattes (tools/make_mattes.py)
 ROWS = ["front", "back", "left", "right"]
 
 # Per creature: board, how its background is told apart, the front Idle's
@@ -81,6 +85,7 @@ ROWS = ["front", "back", "left", "right"]
 # as ("mirror", other) is the other pose flipped.
 BOARDS = {
     "frankenstein": {
+        "matte": ("front", "back", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "frankenstein_board.jpg", "bg": "stone", "tiles": 1.75,
         "Idle": {
             "front": (0, 96, 360, 720),
@@ -162,6 +167,7 @@ BOARDS = {
         },
     },
     "fire_mage": {
+        "matte": ("front", "back", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "fire_frost_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
         "sky_tol": 12,   # his black hood against the black night sky
         "dark_regrow": 12,  # ...and the hood's top won back from the sky's colour model
@@ -177,6 +183,7 @@ BOARDS = {
         },
     },
     "earth_mage": {
+        "matte": ("front", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25); its back merges the staff with the board's second back view, so GrabCut keeps that one
         "src": "earth_shock_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
         "drop_ice": True,   # nothing on him is ice blue: the snow between arm and staff goes
         "Idle": {
@@ -195,6 +202,7 @@ BOARDS = {
         },
     },
     "spark_mage": {
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "earth_shock_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
         "bright_grow": 120,   # the lightning round his fists
         "Idle": {
@@ -205,6 +213,7 @@ BOARDS = {
         },
     },
     "ifrit": {
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         # 2026-10-25: the Underworld's living-flame elite, horned and armoured,
         # on a dark brick wall and a plank floor.
         "src": "ifrit_board.jpg", "bg": "grabcut", "tiles": 2.0,
@@ -218,6 +227,7 @@ BOARDS = {
         },
     },
     "bull_worm": {
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         # 2026-10-25: the Alaskan Bull Worm (Worms Armageddon), coiled, horned,
         # on the same wall and floor.
         "src": "bull_worm_board.jpg", "bg": "grabcut", "tiles": 1.2,
@@ -232,6 +242,7 @@ BOARDS = {
         "fg": {"back": [(72, 100, 95, 128, 6), (95, 128, 118, 124, 6)]},
     },
     "inflamed_minotaur": {
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         # 2026-10-25: the Inflamed Minotaur, flaming horns, axe and shield, on
         # a dark flagstone floor. Its "west" and "east" poses are the front
         # pose and its mirror (the board's own labels, kept); the face is
@@ -272,7 +283,158 @@ BOARDS = {
                          (410, 280, 396, 300, 6)]},
         "violet_grow": {"front": 230, "back": 240},   # the wings' mist, not the clouds at its feet
     },
+    "screecher": {
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
+        # 2026-10-25: the Screecher, a gaunt long-limbed undead crawler with a
+        # gaping fanged maw, in a bone-strewn cave. Its side labels are
+        # swapped (the "FACING LEFT" panel faces right), so the poses are
+        # picked by what they show.
+        "src": "screecher_board.jpg", "bg": "grabcut", "tiles": 1.2,
+        "warm_seed": "pale",
+        "Idle": {
+            "front": (800, 50, 1330, 352),
+            "back": (95, 50, 610, 352),
+            "right": (130, 428, 690, 715),
+            "left": (750, 428, 1300, 715),
+        },
+    },
+    "granite_colossus": {
+        # 2026-10-25: the Granite Colossus, a hulking stone golem with ember
+        # eyes, in a forge. Its side labels are swapped (the "FACING LEFT"
+        # panel faces right), so the poses are picked by what they show.
+        "src": "granite_colossus_board.jpg", "bg": "grabcut", "tiles": 2.6,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (840, 28, 1290, 372),
+            "back": (140, 28, 565, 372),
+            "right": (240, 405, 505, 730),
+            "left": (905, 405, 1170, 730),
+        },
+    },
+    "grave_titan": {
+        # 2026-10-25: the Grave Titan, a moss-grown stone giant in a bone crown
+        # and tattered robes hauling a great boulder. The board came cut out
+        # (kept with its transparency: its colours are read as they are, so
+        # no white fringe; make_mattes judges it on white, as drawn). Its "NORTH"
+        # pose shows the face and "SOUTH" the back: picked by what they show.
+        "src": "grave_titan_board.png", "bg": "grabcut", "tiles": 2.2,
+        "drop_shadow": 0.05,   # the painted ellipse under its feet
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (165, 100, 550, 575),
+            "back": (720, 100, 1095, 575),
+            "left": (215, 620, 520, 1120),
+            "right": (745, 625, 1060, 1120),
+        },
+    },
+    "armored_troll": {
+        # 2026-10-25: the Armored Troll — grey-blue, spiked pauldrons, chain
+        # and a spiked club — four unlabelled poses on black: front, back,
+        # facing left, facing right.
+        "src": "armored_troll_board.png", "bg": "grabcut", "tiles": 2.2,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (78, 10, 545, 562),
+            "back": (767, 20, 1208, 562),
+            "left": (89, 580, 455, 1126),
+            "right": (852, 580, 1220, 1126),
+        },
+    },
+    "ice_troll": {
+        # 2026-10-25: the Ice Troll — blue hide, white shag and ice crystals —
+        # four unlabelled poses on black: front, back, facing left, right.
+        "src": "ice_troll_board.png", "bg": "grabcut", "tiles": 2.2,
+        "matte": ("front", "back", "left", "right"),
+        "Idle": {
+            "front": (87, 14, 534, 586),
+            "back": (761, 18, 1188, 586),
+            "left": (176, 599, 457, 1170),
+            "right": (833, 603, 1105, 1170),
+        },
+    },
+    "large_bear": {
+        # 2026-10-25: the Large Bear — a scarred brown grizzly — four poses on
+        # black. Its "NORTH" pose shows the face and "SOUTH" its back: picked
+        # by what they show. A small board (~225 px a pose).
+        "src": "large_bear_board.png", "bg": "grabcut", "tiles": 1.9,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (10, 4, 176, 246),
+            "back": (176, 2, 318, 244),
+            "left": (306, 22, 519, 246),
+            "right": (518, 22, 700, 246),
+        },
+    },
+    "mini_bear": {
+        # 2026-10-25: the Mini Bear — a young brown bear — four poses on
+        # black. Its "NORTH" pose shows the face and "SOUTH" its back: picked
+        # by what they show.
+        "src": "mini_bear_board.png", "bg": "grabcut", "tiles": 1.1,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (246, 208, 518, 566),
+            "back": (792, 208, 1057, 566),
+            "left": (148, 688, 581, 1008),
+            "right": (730, 688, 1153, 1008),
+        },
+    },
+    "necromancer": {
+        # 2026-10-25: the Necromancer — a hooded, ragged black-robed figure
+        # with a skull-topped staff hung with severed heads — four poses on
+        # black. Its "NORTH" pose shows the face and "SOUTH" its back:
+        # picked by what they show. The height counts the staff's skull.
+        "src": "necromancer_board.png", "bg": "grabcut", "tiles": 1.9,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (135, 8, 503, 548),
+            "back": (760, 8, 1110, 548),
+            "left": (195, 604, 526, 1120),
+            "right": (746, 604, 1080, 1120),
+        },
+    },
+    "treant": {
+        # 2026-10-25: the Treant — a gnarled walking tree with a bark face,
+        # branch arms and leaf sprigs — four poses on black. Its "NORTH" pose
+        # shows the face and "SOUTH" its back: picked by what they show.
+        "src": "treant_board.png", "bg": "grabcut", "tiles": 2.5,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (80, 12, 542, 556),
+            "back": (726, 12, 1215, 556),
+            "left": (185, 605, 474, 1120),
+            "right": (827, 607, 1124, 1119),
+        },
+    },
+    "vampire": {
+        # 2026-10-25: the Vampire — a pale, fanged gentleman in a black frock
+        # coat lined in red — four poses on black. Its "NORTH" pose shows the
+        # face and "SOUTH" its back: picked by what they show.
+        "src": "vampire_board.png", "bg": "grabcut", "tiles": 1.75,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (190, 12, 428, 546),
+            "back": (834, 12, 1074, 546),
+            "left": (262, 604, 421, 1108),
+            "right": (835, 604, 998, 1108),
+        },
+    },
+    "spirit_collector": {
+        # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
+        # ragged coat and hat, a shovel on his back, a lantern of trapped
+        # souls in his hand — four poses on black. Its "NORTH" pose shows the
+        # face and "SOUTH" its back: picked by what they show. The height
+        # counts the shovel's blade.
+        "src": "spirit_collector_board.png", "bg": "grabcut", "tiles": 1.75,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (170, 8, 440, 534),
+            "back": (826, 8, 1094, 534),
+            "left": (186, 597, 450, 1094),
+            "right": (826, 597, 1092, 1094),
+        },
+    },
     "air_mage": {
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,
         "Idle": {
             "front": (375, 425, 590, 748),
@@ -436,7 +598,14 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim
         else:
             x0, y0, x1, y1 = hint
             mask[y0:y1, x0:x1] = cv2.GC_FGD
-    if warm_seed:
+    if warm_seed == "pale":
+        # A pale creature on a dim cave of the same greys (the Screecher):
+        # only brightness tells them apart. Its lit skin (pale, nearly
+        # colourless) is surely it, the darkest of the cave probably not.
+        inner = mask == cv2.GC_PR_FGD
+        mask[inner & (lum < 32)] = cv2.GC_PR_BGD
+        mask[inner & (lum > 95) & (sat < 45)] = cv2.GC_FGD
+    elif warm_seed:
         # Bone on a cool crypt (the Bone Dragon): its bone, wing membrane and
         # purple mist run warm or violet (red at or over blue), the teal wall,
         # grey smoke and slate rubble run cool. Cool starts as probable
@@ -492,7 +661,7 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim
         looks_bg |= (lum > 185) & (sat < 60)
     for comp in _components(~fg & ~_flood(~fg, edge)):
         pts = tuple(np.array(comp).T)
-        if warm_seed:
+        if warm_seed is True:
             # The crypt seen between ribs, under a wing, between the legs:
             # left open whatever its size when it is the cool scenery.
             r_, g_, b_ = rgb[..., 0][pts], rgb[..., 1][pts], rgb[..., 2][pts]
@@ -501,7 +670,7 @@ def _cut_grabcut(rgb: np.ndarray, fg_boxes=(), sat_grow=0, snow=False, feet_trim
                 fg[pts] = True
         elif len(comp) <= HOLE_FILL_MAX or looks_bg[pts].mean() < 0.5:
             fg[pts] = True
-    if warm_seed:
+    if warm_seed is True:
         # ...and any patch of that cool scenery GrabCut kept inside the cut.
         r_, g_, b_ = rgb[..., 0], rgb[..., 1], rgb[..., 2]
         cool = (b_ - r_ > 6) & ~((b_ > g_ + 25) & (r_ > g_ + 10))
@@ -579,8 +748,22 @@ def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
     h, w, _ = rgb.shape
     edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
            [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
-    bg_like = _background_like(rgb, kind) if kind not in ("grabcut", "warm") else None
-    if kind == "warm":
+    bg_like = _background_like(rgb, kind) if kind in ("checker_light", "checker_grey", "stone") else None
+    if kind.startswith("matte:"):
+        # The saved model matte (tools/make_mattes.py), with any boxes of
+        # scenery it kept cleared and any hint lines it lost added back.
+        fg = np.asarray(Image.open(kind[6:]).convert("L")) > 127
+        for x0, y0, x1, y1 in bg_boxes:
+            fg[y0:y1, x0:x1] = False
+        for hint in fg_boxes:
+            m = np.zeros(fg.shape, np.uint8)
+            if len(hint) == 5:
+                cv2.line(m, hint[0:2], hint[2:4], 1, hint[4])
+            else:
+                m[hint[1]:hint[3], hint[0]:hint[2]] = 1
+            fg |= m.astype(bool)
+        bg = ~fg
+    elif kind == "warm":
         bg = _cut_warm(rgb, fg_boxes, bg_boxes)
     elif kind == "grabcut":
         bg = _cut_grabcut(rgb, fg_boxes, sat_grow, snow, feet_trim, drop_ice, bright_grow, sky_tol, warm_grow,
@@ -604,6 +787,22 @@ def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
     alpha = np.where(keep, 255, 0).astype(np.uint8)
     rgba = np.dstack([rgb.astype(np.uint8), alpha])[y0:y1, x0:x1]
     return Image.fromarray(rgba, "RGBA")
+
+
+def _drop_floor_shadow(img: Image.Image, band: float) -> Image.Image:
+    """A painted floor shadow kept under the feet (the Grave Titan's board
+    came cut out with its ellipse): dark, colourless pixels in the bottom
+    `band` of the figure go, then the cut-out is cropped to what is left."""
+    a = np.asarray(img).copy()
+    rgb = a[..., :3].astype(int)
+    lum = rgb.mean(axis=2)
+    sat = rgb.max(axis=2) - rgb.min(axis=2)
+    y0 = int(a.shape[0] * (1.0 - band))
+    shadow = (lum < 80) & (sat < 20)
+    shadow[:y0] = False
+    a[..., 3][shadow] = 0
+    ys, xs = np.nonzero(a[..., 3] > 0)
+    return Image.fromarray(a[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
 
 
 def shrink(img: Image.Image, factor: float) -> Image.Image:
@@ -632,13 +831,22 @@ def build(name: str, cfg: dict) -> None:
         full[anim] = {}
         for d, box in cfg[anim].items():
             if box[0] != "mirror":
-                full[anim][d] = cut(board, box, cfg["bg"], cfg.get("fg", {}).get(d, ()),
+                bg_kind = cfg["bg"]
+                if d in cfg.get("matte", ()):
+                    bg_kind = "matte:" + os.path.join(MATTES, "%s_%s.png" % (name, d))
+                fg_hints = cfg.get("matte_fg", {}).get(d, ()) if bg_kind.startswith("matte:") \
+                    else cfg.get("fg", {}).get(d, ())
+                bg_hints = cfg.get("matte_bg", {}).get(d, ()) if bg_kind.startswith("matte:") \
+                    else cfg.get("bg_hint", {}).get(d, ())
+                full[anim][d] = cut(board, box, bg_kind, fg_hints,
                                     cfg.get("sat_grow", 0), cfg.get("snow", False),
                                     cfg.get("feet_trim", True), cfg.get("drop_ice", False),
                                     cfg.get("bright_grow", 0), cfg.get("sky_tol", 0),
                                     cfg.get("warm_grow", 0), cfg.get("drop_blue", False),
-                                    cfg.get("dark_regrow", 0), cfg.get("bg_hint", {}).get(d, ()),
+                                    cfg.get("dark_regrow", 0), bg_hints,
                                     cfg.get("warm_seed", False), cfg.get("violet_grow", {}).get(d, 0))
+            if cfg.get("drop_shadow") and d in full[anim]:
+                full[anim][d] = _drop_floor_shadow(full[anim][d], cfg["drop_shadow"])
         for d, box in cfg[anim].items():
             if box[0] == "mirror":
                 full[anim][d] = full[anim][box[1]].transpose(Image.FLIP_LEFT_RIGHT)
@@ -664,6 +872,15 @@ def build(name: str, cfg: dict) -> None:
         pack(fs, cell).save(os.path.join(OUT % name, anim + ".png"))
     dims = ", ".join("%s %dx%d" % (d, f.width, f.height) for d, f in small["Idle"].items())
     print("%-13s ÷%.1f, %d-px cells: %s" % (name, factor, cell, dims))
+    # The smooth version (smooth_art): the same cut-outs at SMOOTH_DENSITY
+    # texels a tile, soft-filtered with soft alpha, kept beside the pixel one.
+    sfac = full["Idle"]["front"].height / float(round(cfg["tiles"] * smooth_art.SMOOTH_DENSITY))
+    soft = {a: {d: smooth_art.trim(smooth_art.resample(f, sfac)) for d, f in fs.items()} for a, fs in full.items()}
+    scell = max(max(f.width, f.height) for fs in soft.values() for f in fs.values()) + 2
+    sdir = os.path.join(smooth_art.ROOT, "sheets", name)
+    os.makedirs(sdir, exist_ok=True)
+    for anim, fs in soft.items():
+        smooth_art.pack([[fs[d]] for d in ROWS], scell, 1, lambda row, ci: row[0], air=0).save(os.path.join(sdir, anim + ".png"))
 
 
 def main() -> None:

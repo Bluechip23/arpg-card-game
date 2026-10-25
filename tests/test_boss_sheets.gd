@@ -92,8 +92,10 @@ func _run() -> void:
 		x += 2.0
 		await process_frame
 		_check_fig(ce._enemy_figure, ce.enemy_name)
-	# The Screecher wears the Snow Wraith's ghost (the enemy itself is unchanged).
-	_check(SpriteEnemyFigure.KINDS["screecher"] == SpriteEnemyFigure.KINDS["snow_wraith"], "the Screecher looks like the Snow Wraith")
+	# The Screecher wears the designer's crawler board (2026-10-25), no longer
+	# the Snow Wraith's ghost.
+	_check(str(SpriteEnemyFigure.KINDS["screecher"].get("sheets", "")).ends_with("/screecher"), "the Screecher wears its own board")
+	_check(not "screecher" in SpriteEnemyFigure.PAINTED_SHADOW_KINDS, "the crawling Screecher casts a blob shadow")
 	# Standing still the Rat King is on its hind legs whichever way it faces:
 	# its side Idle rows are the standing pose (taller than wide), not the
 	# board's all-fours side view (wider than tall).

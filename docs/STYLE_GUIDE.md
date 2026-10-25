@@ -93,6 +93,15 @@ conforms to them.
   - the Pit Fiend's board holds ~49 texels a tile at its size: it is cut at
     the source's own pixels (`DOWN` 1) and drawn ×0.65.
   The packs' own art (enemies, tiles, props) stays at 32 texels a tile.
+  **The smooth look (designer, 2026-10-25), now in use.** The same figures
+  are also cut un-pixelated — the art itself, resampled with a soft filter
+  to `ArtStyle.SMOOTH_DENSITY` (128) texels a tile with soft alpha, no
+  palette tidy and no ink outline (`tools/smooth_art.py`, written by every
+  cutter into `assets/sprites/generated/smooth/`) — and drawn with linear
+  filtering and mipmaps. `ArtStyle.SMOOTH` picks the look for every hero and
+  every enemy or summon with a designer sheet; the pixel sheets above stay
+  on hand (designer: keep them until told to delete them). Figures stand
+  the same height in tiles in either look.
 - 2D pixel art is never scaled fractionally; `Sprite2D` scale stays `(1,1)`.
 - Terrain: 1 world unit = 1 grid tile = one 32×32-texel texture repeat.
 

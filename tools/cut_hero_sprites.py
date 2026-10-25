@@ -52,14 +52,19 @@ Run: python3 tools/cut_hero_sprites.py   (Pillow, numpy; opencv-python-headless
 for Stephen's bow)
 """
 import os
+import sys
 from collections import deque
 
 import numpy as np
 from PIL import Image
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import smooth_art  # noqa: E402  (the smooth, non-pixelated sheets)
+
 SRC = "assets/sprites/paintings/%s"
 OUT = "assets/sprites/generated/heroes/%s.png"
 HEIGHT = 100       # texels, crown to feet, of the hero's front pose (+ the outline: ~1.6 tiles at 64 a tile)
+SMOOTH_HEIGHT = 204   # the smooth sheet's height, crown to feet: HEIGHT (+ outline) at 128 a tile
 WIDEN = 1.12       # drawn this much wider than tall (SpriteFigure.BOARD_WIDEN), baked in
                    # (designer, 2026-10-24: err on the side of under-pixelating the heroes)
 PALETTE = 96       # colours per hero after the tidy (0 = keep every colour)
@@ -374,9 +379,36 @@ def ink_outline(f):
     return out
 
 
+def soft_frame(img, factor):
+    """The smooth version of a pose (smooth_art): the cut-out at
+    SMOOTH_HEIGHT / HEIGHT times the pixel sheet's size, WIDEN as wide,
+    soft-filtered with soft alpha — no palette tidy, no ink outline."""
+    k = SMOOTH_HEIGHT / float(HEIGHT)
+    size = (max(1, round(img.width * WIDEN * k / factor)), max(1, round(img.height * k / factor)))
+    out = img.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")
+    return smooth_art.bleed(out)
+
+
+def stitch_feather_soft(img, fx, fy):
+    """Brad's feather on the smooth front: FEATHER_ART drawn at the pixel
+    sheet's texel size, then scaled up smooth onto the plate."""
+    k = SMOOTH_HEIGHT / float(HEIGHT)
+    h, w = len(FEATHER_ART), len(FEATHER_ART[0])
+    art = Image.new("RGBA", (w, h))
+    for r, row in enumerate(FEATHER_ART):
+        for c, ch in enumerate(row):
+            if ch != ".":
+                art.putpixel((c, r), FEATHER_INK[ch] + (255,))
+    art = art.convert("RGBa").resize((round(w * k), round(h * k)), Image.LANCZOS).convert("RGBA")
+    cx = int(round(fx * (img.width - 1)))
+    cy = int(round(fy * (img.height - 1)))
+    img.alpha_composite(art, (cx - art.width // 2, cy - art.height // 2))
+
+
 def build(hero, poses):
     scale = None
     full = {}
+    soft = {}
     for path, box, facing in poses:
         charm = CHARM_BOX.get(hero) if facing in ("east", "west") else None
         bow = (BOW_BAND[hero], BOW_KEEP.get(hero, [])) if hero in BOW_BAND and facing in ("east", "west") else None
@@ -390,6 +422,7 @@ def build(hero, poses):
                 continue
         factor = scale[1] if path == scale[0] else img.height / float(ref_h)
         full[facing] = resample(img, factor)
+        soft[facing] = soft_frame(img, factor)
     full = {d: vibrance(f) for d, f in full.items()}
     full = tidy_palette(full)
     frames = {}
@@ -417,6 +450,29 @@ def build(hero, poses):
         sheet.paste(f, ((cell - f.width) // 2, r * cell + cell - f.height), f)
     os.makedirs(os.path.dirname(OUT % hero), exist_ok=True)
     sheet.save(OUT % hero)
+    # The smooth version, kept beside the pixel sheet.
+    for d in list(soft):
+        f = soft[d]
+        if d in ("east", "west") and hero in EYE_SPECK:
+            fx, fy = EYE_SPECK[hero]
+            x = int(round(fx * (f.width - 1)))
+            if d == "west":
+                x = f.width - 1 - x
+            y = int(round(fy * (f.height - 1)))
+            dot = Image.new("RGBA", (2, 2), EYE_BLUE)
+            f.alpha_composite(dot, (x, y))
+        if d == "south" and hero in FEATHER:
+            stitch_feather_soft(f, *FEATHER[hero])
+        soft[d] = smooth_art.trim(f)
+    if "east" not in soft:
+        soft["east"] = soft["west"].transpose(Image.FLIP_LEFT_RIGHT)
+    if "west" not in soft:
+        soft["west"] = soft["east"].transpose(Image.FLIP_LEFT_RIGHT)
+    scell = max(max(f.size) for f in soft.values()) + 2
+    scell += scell % 2
+    sout = os.path.join(smooth_art.ROOT, "heroes", "%s.png" % hero)
+    os.makedirs(os.path.dirname(sout), exist_ok=True)
+    smooth_art.pack([[soft[d]] for d in ROWS], scell, 1, lambda row, ci: row[0], air=0).save(sout)
     print("%-7s cell %d: %s" % (hero, cell, ", ".join("%s %dx%d" % (d, frames[d].width, frames[d].height) for d in ROWS)))
 
 

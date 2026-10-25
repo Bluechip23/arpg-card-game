@@ -21,10 +21,14 @@ Needs: pip install opencv-python-headless (a tool dependency, not the game's)
 Run: python3 tools/cut_archer_rat.py
 """
 import os
+import sys
 
 import cv2
 import numpy as np
 from PIL import Image
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import smooth_art  # noqa: E402  (the smooth, non-pixelated sheets)
 
 SRC = "assets/sprites/paintings/archer_rat_%s.jpg"
 OUT = "assets/sprites/generated/sheets/archer_rat"
@@ -139,20 +143,33 @@ def pack(rows, cell, cols, pick) -> Image.Image:
     return Image.fromarray(s, "RGBA")
 
 
+def soft(img, box) -> Image.Image:
+    """The smooth version of a frame (smooth_art): DOWN lands on 64 texels a
+    tile at BOARD_SCALE; this on SMOOTH_DENSITY."""
+    return smooth_art.trim(smooth_art.resample(cut(img, box), DOWN * 64.0 / smooth_art.SMOOTH_DENSITY))
+
+
 def main() -> None:
     stand = cv2.imread(SRC % "standing")
     walk = cv2.imread(SRC % "walking")
+    _build(stand, walk, frame, lambda f: f[:, ::-1], OUT, pack)
+    _build(stand, walk, soft, lambda f: f.transpose(Image.FLIP_LEFT_RIGHT),
+           os.path.join(smooth_art.ROOT, "sheets", "archer_rat"), smooth_art.pack)
+
+
+def _build(stand, walk, frame, flip, OUT, pack) -> None:
+    size = lambda f: (f.shape[1], f.shape[0]) if hasattr(f, "shape") else f.size
     idle = {k: frame(stand, b) for k, b in STANDING.items()}
     left_walk = []
     for box, faces in WALKING:
         f = frame(walk, box)
-        left_walk.append(f if faces == "left" else f[:, ::-1])
-    right_walk = [f[:, ::-1] for f in left_walk]
+        left_walk.append(f if faces == "left" else flip(f))
+    right_walk = [flip(f) for f in left_walk]
     # F, B, L, R. On all fours there is only the side view: walking toward or
     # away from the camera uses the left-facing walk.
     idle_rows = [[idle["front"]], [idle["back"]], [idle["left"]], [idle["right"]]]
     walk_rows = [left_walk, left_walk, left_walk, right_walk]
-    cell = max(max(f.shape[0], f.shape[1]) for row in idle_rows + walk_rows for f in row) + 2
+    cell = max(max(size(f)) for row in idle_rows + walk_rows for f in row) + 2
     os.makedirs(OUT, exist_ok=True)
     pack(idle_rows, cell, 1, lambda row, ci: row[0]).save(os.path.join(OUT, "Idle.png"))
     n = len(left_walk)

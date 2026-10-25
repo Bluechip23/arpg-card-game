@@ -64,6 +64,8 @@ const BOARD_HEIGHT := 1.6
 const BOARD_WIDEN := 1.12
 ## Texels a tile the hero sheets are cut at.
 const BOARD_DENSITY := 64.0
+## Wearing the smooth (non-pixelated) hero sheet (ArtStyle).
+var smooth := false
 ## The pack's weapon layers are drawn for its ~29px character base: on a hero
 ## sprite they are scaled by the hero's height over that body's.
 const PACK_BODY_HEIGHT := 29.0 * 0.03125
@@ -322,14 +324,18 @@ func _setup_npc(sheet_path: String) -> void:
 ## frame a direction, and walking steps it instead (_process).
 func _setup_board(sheet_path: String) -> void:
 	_mode = "board"
-	var tex: Texture2D = load(sheet_path)
+	# The smooth look (ArtStyle): the hero's art itself at SMOOTH_DENSITY a
+	# tile, filtered, soft-edged; the pixel sheet otherwise.
+	var soft := ArtStyle.smooth_file(sheet_path)
+	smooth = soft != ""
+	var tex: Texture2D = load(soft if smooth else sheet_path)
 	_body_cell = int(tex.get_height() / 4)
 	_body_rows = DOLL_ROW
 	_body_walk_frames = 1
 	# One art texel a 64th of a tile (tools/cut_hero_sprites.py cuts every
 	# hero at that fineness, BOARD_HEIGHT tall): one screen pixel at zoom 2,
 	# two at zoom 4 — never a fraction, so no row or column is skipped.
-	var px := 1.0 / BOARD_DENSITY
+	var px := 1.0 / (ArtStyle.SMOOTH_DENSITY if smooth else BOARD_DENSITY)
 	var grow := BOARD_HEIGHT / PACK_BODY_HEIGHT
 	_hand_scale = grow
 	# The weapon and shield layers sit as on the pack's people, scaled about
@@ -339,6 +345,9 @@ func _setup_board(sheet_path: String) -> void:
 	_weapon_back = _make_sprite(64, wy, -0.02)
 	_npc_sprite = _make_sprite(_body_cell, _body_cell * 0.5 * PIXEL_SIZE, 0.0)
 	_npc_sprite.texture = tex
+	if smooth:
+		_npc_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		_npc_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS
 	_npc_sprite.pixel_size = px   # (the stockier BOARD_WIDEN build is baked into the art)
 	_body_offset = _npc_sprite.offset
 	# The pack's people (about a tile tall) cast a 0.62-wide shadow; a hero

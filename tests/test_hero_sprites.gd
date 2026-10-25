@@ -33,6 +33,8 @@ func _initialize() -> void:
 		f.setup(hero)
 		var body: Sprite3D = f._npc_sprite
 		var path := "res://assets/sprites/generated/heroes/%s.png" % hero.to_lower()
+		if f.smooth:
+			path = ArtStyle.smooth_file(path)
 		_check(f._mode == "board" and body != null and body.texture.resource_path == path,
 			"%s wears the designer's sprite" % hero)
 		var front := _used(body.texture, Rect2(0, 0, f._body_cell, f._body_cell))
@@ -42,7 +44,9 @@ func _initialize() -> void:
 		# 64 texels a tile, both ways (2026-10-25): one screen pixel an art
 		# texel at zoom 2, so no row or column is skipped; the stockier build
 		# is baked into the art, not stretched on.
-		_check(is_equal_approx(1.0 / body.pixel_size, SpriteFigure.BOARD_DENSITY),
+		var want := ArtStyle.SMOOTH_DENSITY if f.smooth else SpriteFigure.BOARD_DENSITY
+		_check(f.smooth == ArtStyle.SMOOTH, "%s wears the %s sheet" % [hero, "smooth" if ArtStyle.SMOOTH else "pixel"])
+		_check(is_equal_approx(1.0 / body.pixel_size, want),
 			"%s is drawn at %.0f texels a tile" % [hero, 1.0 / body.pixel_size])
 		_check(is_equal_approx(body.scale.x, 1.0) and is_equal_approx(body.scale.y, 1.0),
 			"%s is not stretched on screen" % hero)
