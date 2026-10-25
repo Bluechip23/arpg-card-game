@@ -446,6 +446,20 @@ BOARDS = {
             "right": (804, 584, 1210, 1122),
         },
     },
+    "giant_hawk": {
+        # 2026-10-25: the Giant Hawk — midnight black, flecked brown, a sharp
+        # hooked yellow beak, yellow talons with black claws — perched, four
+        # labelled poses on black: north (front, wings half-spread), south
+        # (back), west (left), east (right).
+        "src": "giant_hawk_board.png", "bg": "grabcut", "tiles": 1.6,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (4, 2, 648, 546),
+            "back": (678, 2, 1290, 546),
+            "left": (70, 592, 628, 1108),
+            "right": (678, 592, 1238, 1108),
+        },
+    },
     "air_mage": {
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
         "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,

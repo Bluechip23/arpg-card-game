@@ -81,7 +81,7 @@ const KINDS := {
 	"pipe_crawler": {"cell": Vector2i(2, 0)},
 	"crypt_crawler": {"cell": Vector2i(3, 0)},
 	"swarm": {"cell": Vector2i(4, 0)},
-	"giant_hawk": {"fr": "mountain_monsters/Bird", "scale": 0.55},
+	"giant_hawk": {"sheets": SHEETS + "/giant_hawk", "scale": BOARD_SCALE},  # the designer's board (2026-10-25), perched; was the mountain-monster Bird
 	"screecher": {"sheets": SHEETS + "/screecher", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25): a crawling undead, no longer the Snow Wraith's ghost
 	"giant_beaver": {"sheets": SHEETS + "/giant_beaver", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py): stands on its hind legs, walks on all fours
 	"mini_bear": {"sheets": SHEETS + "/mini_bear", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Bear
@@ -181,7 +181,7 @@ const BOARD_SCALE := 0.5
 
 ## Kinds whose battler art already contains a painted contact shadow
 ## (the flyers) — these must not get a second blob shadow.
-const PAINTED_SHADOW_KINDS := ["swarm", "giant_hawk", "roc",
+const PAINTED_SHADOW_KINDS := ["swarm", "roc",
 		"specter", "snow_wraith", "summon_specter", "gravestone", "hell_door"]
 
 var figure_kind := ""   # the KINDS entry this figure was set up as
