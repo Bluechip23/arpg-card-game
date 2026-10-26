@@ -3190,87 +3190,7 @@ func _autosave() -> void:
 func _open_save_picker() -> void:
 	if vendor_open:
 		_close_vendor()
-
-	var overlay := ColorRect.new()
-	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	overlay.color = Color(0.0, 0.0, 0.0, 0.7)
-
-	var panel := PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
-	var p_style := StyleBoxFlat.new()
-	p_style.bg_color = Color(0.1, 0.1, 0.15, 1.0)
-	p_style.border_width_left = 2
-	p_style.border_width_right = 2
-	p_style.border_width_top = 2
-	p_style.border_width_bottom = 2
-	p_style.border_color = Color(0.4, 0.4, 0.6)
-	p_style.corner_radius_top_left = 8
-	p_style.corner_radius_top_right = 8
-	p_style.corner_radius_bottom_left = 8
-	p_style.corner_radius_bottom_right = 8
-	p_style.content_margin_left = 28
-	p_style.content_margin_right = 28
-	p_style.content_margin_top = 22
-	p_style.content_margin_bottom = 22
-	panel.add_theme_stylebox_override("panel", p_style)
-	overlay.add_child(panel)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 10)
-	vbox.custom_minimum_size = Vector2(380, 0)
-	panel.add_child(vbox)
-
-	var title := Label.new()
-	title.text = "Save Game — choose a slot"
-	title.add_theme_font_size_override("font_size", 22)
-	title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(title)
-
-	var status := Label.new()
-	status.text = ""
-	status.add_theme_font_size_override("font_size", 14)
-	status.add_theme_color_override("font_color", Color(0.5, 0.9, 0.5))
-	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(status)
-
-	var slot_buttons: Array[Button] = []
-	for slot in range(SaveManager.MAX_SAVE_SLOTS):
-		var b := Button.new()
-		b.custom_minimum_size = Vector2(360, 38)
-		b.pressed.connect(_do_save.bind(slot, slot_buttons, status))
-		vbox.add_child(b)
-		slot_buttons.append(b)
-	_refresh_slot_buttons(slot_buttons)
-
-	var close_btn := Button.new()
-	close_btn.text = "Close"
-	close_btn.custom_minimum_size = Vector2(360, 36)
-	close_btn.pressed.connect(overlay.queue_free)
-	vbox.add_child(close_btn)
-
-	$UI.add_child(overlay)
-
-func _refresh_slot_buttons(slot_buttons: Array[Button]) -> void:
-	for slot in range(slot_buttons.size()):
-		var existing := SaveManager.load_game(slot)
-		if existing:
-			slot_buttons[slot].text = "Slot %d — %s (Lv %d)" % [slot + 1, existing.character_name, existing.character_level]
-		else:
-			slot_buttons[slot].text = "Slot %d — Empty" % [slot + 1]
-
-func _do_save(slot: int, slot_buttons: Array[Button], status: Label) -> void:
-	var data := _build_save_data(slot)
-	var ok := SaveManager.save_game(slot, data)
-	if ok:
-		status.add_theme_color_override("font_color", Color(0.5, 0.9, 0.5))
-		status.text = "Saved %s to slot %d." % [data.character_name, slot + 1]
-	else:
-		status.add_theme_color_override("font_color", Color(0.95, 0.4, 0.4))
-		status.text = "Save failed (see log)."
-	_refresh_slot_buttons(slot_buttons)
+	SaveSlotPicker.open(self, _build_save_data)
 
 func _close_vendor() -> void:
 	vendor_open = false
@@ -3490,6 +3410,11 @@ func _setup_town_hud() -> void:
 	# Help + settings.
 	help_panel = HelpPanelScene.instantiate()
 	add_child(help_panel)
+	# The ? menu's Save / Quit to Menu / Quit to Desktop row.
+	help_panel.enable_game_actions(true)
+	help_panel.save_requested.connect(func(): GameMenuActions.save(self, _build_save_data))
+	help_panel.quit_requested.connect(func(to_desktop: bool, save_first: bool):
+		GameMenuActions.quit(self, to_desktop, save_first, _build_save_data))
 
 	# The icon bar itself.
 	hud_icon_bar = HudIconBarScript.new()

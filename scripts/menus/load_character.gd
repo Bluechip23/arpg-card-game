@@ -159,6 +159,9 @@ func _on_load_slot(save: SaveData) -> void:
 		return
 
 	print("[LOAD] Loading character: %s" % save.character_name)
+	# Remember where this character lives, so "save before you quit" can
+	# write back to it (the autosave slot doesn't count: that asks for a slot).
+	SaveManager.current_slot = save.save_slot
 	_go_to_town(save)
 
 func _go_to_town(save: SaveData) -> void:
