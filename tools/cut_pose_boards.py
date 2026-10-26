@@ -571,6 +571,20 @@ BOARDS = {
             "right": (555, 494, 988, 886),
         },
     },
+    "swarm": {
+        # 2026-10-26: the Swarm — a cloud of dozens of hornets — four
+        # labelled poses on black: north (front), south (back), west
+        # (left), east (right). Many separate bees, so no model matte and
+        # no "biggest piece" cut: the black_key keeps every bee and gives
+        # the wings partial alpha. The height is the cloud's.
+        "src": "swarm_board.webp", "bg": "black_key", "tiles": 1.6,
+        "Idle": {
+            "front": (36, 26, 594, 530),
+            "back": (712, 36, 1256, 530),
+            "left": (22, 676, 622, 1096),
+            "right": (697, 676, 1290, 1098),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped
@@ -939,6 +953,8 @@ def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
     """The creature in `box`, full size, on transparency, cropped to itself."""
     rgb = np.asarray(board.crop(box).convert("RGB")).astype(int)
     h, w, _ = rgb.shape
+    if kind == "black_key":
+        return _cut_black_key(rgb)
     edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
            [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
     bg_like = _background_like(rgb, kind) if kind in ("checker_light", "checker_grey", "stone") else None
@@ -985,6 +1001,42 @@ def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
     alpha = np.where(keep, 255, 0).astype(np.uint8)
     rgba = np.dstack([rgb.astype(np.uint8), alpha])[y0:y1, x0:x1]
     return Image.fromarray(rgba, "RGBA")
+
+
+BLACK_FLOOR = 12      # black_key: at or under this the board is background
+BLACK_SOLID = 45      # black_key: at or over this a pixel is fully opaque
+BLACK_BODY = 22       # black_key: the outline of a piece; what it encloses is solid
+BLACK_SPECK = 12      # black_key: lit pieces smaller than this (px) are noise
+
+
+def _cut_black_key(rgb: np.ndarray) -> Image.Image:
+    """A board of many separate small things on pure black (the Swarm's
+    bees): every lit piece is kept, not only the biggest, and the dim pixels
+    (translucent wings, soft edges) get partial alpha with their colour
+    un-darkened — the black board read as a premultiplied backdrop."""
+    lum = rgb.max(axis=2).astype(float)
+    alpha = np.clip((lum - BLACK_FLOOR) / float(BLACK_SOLID - BLACK_FLOOR), 0.0, 1.0)
+    # Dark paint inside a bee (abdomen stripes, shaded legs) is not
+    # backdrop: everything a piece's outline encloses, a pixel in from its
+    # rim, is opaque; only the rim and the thin wing edges stay soft.
+    body = (lum > BLACK_BODY).astype(np.uint8)
+    outside = np.pad(1 - body, 1, constant_values=1)
+    flood = outside.copy()
+    cv2.floodFill(flood, None, (0, 0), 2)
+    filled = (flood[1:-1, 1:-1] != 2).astype(np.uint8)   # the pieces, holes filled
+    core = cv2.erode(filled, np.ones((3, 3), np.uint8)).astype(bool)
+    alpha[core] = 1.0
+    lit = (alpha > 0).astype(np.uint8)
+    n, lab, st, _ = cv2.connectedComponentsWithStats(lit, connectivity=8)
+    small = np.zeros(n, bool)
+    small[1:] = st[1:, cv2.CC_STAT_AREA] < BLACK_SPECK
+    alpha[small[lab]] = 0.0
+    a = np.maximum(alpha, 1e-6)[..., None]
+    col = np.clip(rgb / a, 0, 255)
+    col = np.where(alpha[..., None] > 0, col, 0)
+    rgba = np.dstack([col, alpha * 255.0]).round().astype(np.uint8)
+    ys, xs = np.nonzero(rgba[..., 3] > 0)
+    return Image.fromarray(rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
 
 
 def _drop_floor_shadow(img: Image.Image, band: float) -> Image.Image:
