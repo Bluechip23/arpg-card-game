@@ -616,6 +616,22 @@ BOARDS = {
             "right": (678, 510, 794, 929),
         },
     },
+    "rat_king": {
+        # 2026-10-26: the Rat King, redrawn — a hulking black rat in a spiked
+        # crown and runed, blood-spattered plate — four labelled poses on
+        # black: north (front), south (back), west (left), east (right).
+        # It replaces his walk-sheet cut (tools/cut_boss_sheets.py). The
+        # designer: he must be bigger than the normal rat (the Wererat,
+        # 1.3 tiles), so 2.1.
+        "src": "rat_king_board.jpg", "bg": "grabcut", "tiles": 2.1,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (32, 46, 480, 458),
+            "back": (569, 46, 970, 458),
+            "left": (7, 547, 513, 866),
+            "right": (542, 549, 1020, 866),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped

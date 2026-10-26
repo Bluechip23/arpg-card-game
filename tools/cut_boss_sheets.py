@@ -54,7 +54,7 @@ ROWS_Y = [(52, 218), (243, 411), (434, 604)]
 # the opposite side is their mirror. Idle is each direction's first frame,
 # except that "idle_side" names a frame the side rows of Idle use instead.
 FRAMES = {
-    "rat_king": {
+    "rat_king": {   # superseded in game (2026-10-26) by the redrawn board, tools/cut_pose_boards.py
         "front": [(0, 0), (0, 1), (2, 0), (2, 1)],
         "back": [(0, 4), (2, 2)],
         "side": [(1, 2), (1, 1), (1, 5)],   # (1, 4) has a doubled crown: skipped
