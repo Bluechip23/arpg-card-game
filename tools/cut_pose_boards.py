@@ -601,6 +601,21 @@ BOARDS = {
             "right": (664, 684, 1249, 1056),
         },
     },
+    "zombie": {
+        # 2026-10-26: the Zombie — a gaunt, rotting man with an exposed
+        # brain, a torn purple-and-green vest and shredded trousers — four
+        # labelled poses on black: north (front), south (back), west (left),
+        # east (right). The few flies the board draws around its head are
+        # loose specks at game size and are left out.
+        "src": "zombie_board.jpg", "bg": "grabcut", "tiles": 1.75,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (190, 18, 362, 441),
+            "back": (668, 29, 833, 442),
+            "left": (241, 508, 358, 929),
+            "right": (678, 510, 794, 929),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped
