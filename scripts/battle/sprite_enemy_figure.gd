@@ -129,7 +129,7 @@ const KINDS := {
 	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": BOARD_SCALE},
 	"roc": {"fr": "mountain_monsters/Bird", "scale": 1.0, "tint": Color(1.05, 0.95, 0.85)},
 	"ash_harpy": {"sheets": SHEETS + "/ash_harpy", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the chaos-monster Icon22
-	"magma_spider": {"cell": Vector2i(3, 0), "tint": Color(1.35, 0.75, 0.6)},
+	"magma_spider": {"sheets": SHEETS + "/magma_spider", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the Crypt Crawler's MonsterKit cell (3, 0), tinted
 	# (Every roster kind now has a sprite; ART_TODO.md still tracks hand-drawn
 	# replacements for the generated first-pass battlers above.)
 	# --- NPC-pack humanoids (real 4-direction walk frames) ---

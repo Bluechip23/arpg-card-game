@@ -648,6 +648,30 @@ BOARDS = {
             "right": (541, 523, 1017, 866),
         },
     },
+    "magma_spider": {
+        # 2026-10-26: the Magma Spider — a spider of cracked black rock with
+        # lava glowing through the seams — four labelled poses on black. Its
+        # side labels are swapped: the pose marked "WEST (LEFT)" faces right
+        # and "EAST (RIGHT)" faces left, so they are picked by what they show.
+        "src": "magma_spider_board.jpg", "bg": "grabcut", "tiles": 1.2,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model reads the dark rock abdomen as background (most of it
+        # on the side views): keep everything brighter than the black board,
+        # small near-black crevices filled.
+        # On the back the thin web strands under the spinnerets would come
+        # out a dark smudge at game size: they are cleared.
+        "matte_fg": {"front": [(0, 0, 9999, 9999, "lit", 6, 600)],
+                     "back": [(0, 0, 9999, 285, "lit", 6, 600)],
+                     "left": [(0, 0, 9999, 9999, "lit", 6, 600)],
+                     "right": [(0, 0, 9999, 9999, "lit", 6, 600)]},
+        "matte_bg": {"back": [(100, 285, 360, 352)]},
+        "Idle": {
+            "front": (28, 72, 501, 452),
+            "back": (540, 100, 1003, 452),
+            "left": (539, 544, 1007, 866),    # the board's "EAST (RIGHT)"
+            "right": (23, 544, 499, 866),     # the board's "WEST (LEFT)"
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped
@@ -1029,11 +1053,20 @@ def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
             fg[y0:y1, x0:x1] = False
         for hint in fg_boxes:
             m = np.zeros(fg.shape, np.uint8)
-            if len(hint) == 6 and hint[4] == "lit":
+            if len(hint) in (6, 7) and hint[4] == "lit":
                 # Everything in the box brighter than the black board
-                # (venom drips, a flame's wisps the model dropped).
+                # (venom drips, a flame's wisps the model dropped). A 7th
+                # value also fills the enclosed holes up to that many px
+                # (near-black crevices in dark rock), not the wider gaps
+                # between legs.
                 x0, y0, x1, y1 = hint[0:4]
                 m[y0:y1, x0:x1] = rgb[y0:y1, x0:x1].max(axis=2) > hint[5]
+                if len(hint) == 7:
+                    n, lab, st, _ = cv2.connectedComponentsWithStats((1 - m).astype(np.uint8), connectivity=4)
+                    for i in range(1, n):
+                        x, y, cw, ch, area = st[i]
+                        if area <= hint[6] and x > 0 and y > 0 and x + cw < m.shape[1] and y + ch < m.shape[0]:
+                            m[lab == i] = 1
             elif len(hint) == 5:
                 cv2.line(m, hint[0:2], hint[2:4], 1, hint[4])
             else:
