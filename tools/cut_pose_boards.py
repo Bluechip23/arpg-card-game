@@ -531,6 +531,19 @@ BOARDS = {
             "right": (787, 612, 1122, 1134),
         },
     },
+    "coyote": {
+        # 2026-10-26: the Coyote — a lean brown-grey coyote — four poses on
+        # black. Its "NORTH" pose shows the face and "SOUTH" its back;
+        # "WEST" / "EAST" are left / right.
+        "src": "coyote_board.webp", "bg": "grabcut", "tiles": 1.35,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (301, 41, 493, 458),
+            "back": (1024, 29, 1204, 455),
+            "left": (112, 510, 679, 915),
+            "right": (853, 511, 1413, 915),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped
