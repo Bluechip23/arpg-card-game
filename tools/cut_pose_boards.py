@@ -558,6 +558,19 @@ BOARDS = {
             "right": (773, 596, 1014, 1167),
         },
     },
+    "cherub": {
+        # 2026-10-26: the Cherub — a curly-haired winged infant in a white
+        # suit with a heart-tipped crossbow — four labelled poses on black:
+        # front, back, left, right. It hovers, feet off the ground.
+        "src": "cherub_board.jpg", "bg": "grabcut", "tiles": 1.3,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (111, 20, 453, 418),
+            "back": (559, 25, 976, 428),
+            "left": (36, 490, 460, 885),
+            "right": (555, 494, 988, 886),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped
