@@ -585,6 +585,22 @@ BOARDS = {
             "right": (697, 676, 1290, 1098),
         },
     },
+    "wererat": {
+        # 2026-10-26: the Wererat — a huge, shaggy black rat with long claws
+        # and a bare pink tail — four labelled poses on black: north
+        # (front), south (back), west (left), east (right); the `rat` kind.
+        # The back's tail curls down beside its label, so that box reaches
+        # past the label's top and the label is cleared.
+        "src": "wererat_board.webp", "bg": "grabcut", "tiles": 1.3,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "matte_bg": {"back": [(95, 462, 375, 500)]},
+        "Idle": {
+            "front": (30, 112, 574, 562),
+            "back": (742, 99, 1214, 587),
+            "left": (9, 681, 627, 1060),
+            "right": (664, 684, 1249, 1056),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped
