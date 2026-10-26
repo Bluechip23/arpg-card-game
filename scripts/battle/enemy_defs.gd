@@ -391,11 +391,11 @@ const DEFS := {
 		"resists": [25, 25, 25],
 		"color": Color(0.44, 0.45, 0.47),
 	},
-	"WERERABBIT": {
-		"name": "Wererabbit",
+	"TREASURE_BUNNY": {
+		"name": "Treasure Bunny",
 		"tier": "Trash",
 		"intended_level": 8,
-		"figure_kind": "wererabbit",
+		"figure_kind": "treasure_bunny",
 		"health": 25,
 		"damage": 0,         # Loot monster — never attacks
 		"range": 0.0,

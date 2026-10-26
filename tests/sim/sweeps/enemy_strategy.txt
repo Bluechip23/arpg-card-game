@@ -54,8 +54,8 @@ scenario=tests/sim/scenarios/baseline.gd policy=greedy_dpt enemy=ZOMBIE name=e_Z
 scenario=tests/sim/scenarios/baseline.gd policy=lookahead enemy=ZOMBIE name=e_ZOMBIE seeds=1-200
 scenario=tests/sim/scenarios/baseline.gd policy=greedy_dpt enemy=WEREWOLF name=e_WEREWOLF seeds=1-200
 scenario=tests/sim/scenarios/baseline.gd policy=lookahead enemy=WEREWOLF name=e_WEREWOLF seeds=1-200
-scenario=tests/sim/scenarios/baseline.gd policy=greedy_dpt enemy=WERERABBIT name=e_WERERABBIT seeds=1-200
-scenario=tests/sim/scenarios/baseline.gd policy=lookahead enemy=WERERABBIT name=e_WERERABBIT seeds=1-200
+scenario=tests/sim/scenarios/baseline.gd policy=greedy_dpt enemy=TREASURE_BUNNY name=e_TREASURE_BUNNY seeds=1-200
+scenario=tests/sim/scenarios/baseline.gd policy=lookahead enemy=TREASURE_BUNNY name=e_TREASURE_BUNNY seeds=1-200
 scenario=tests/sim/scenarios/baseline.gd policy=greedy_dpt enemy=VAMPIRE name=e_VAMPIRE seeds=1-200
 scenario=tests/sim/scenarios/baseline.gd policy=lookahead enemy=VAMPIRE name=e_VAMPIRE seeds=1-200
 scenario=tests/sim/scenarios/baseline.gd policy=greedy_dpt enemy=NECROMANCER name=e_NECROMANCER seeds=1-200

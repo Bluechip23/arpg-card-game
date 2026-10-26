@@ -57,6 +57,6 @@ Snow Wraith	Trash	3	Act 1 — Mountains	10	0	3	5				Snowball - throws a snowball
 Specter	Trash	1	Act 2 — Underworld	10	0	1	1				Spirit Spit - Short range attack of 2 damage and 2 range	5	invisilbe - go invisible for 3 tempo (async)	8
 Succubus	Trash	4	Act 2 — Underworld	25	5	1	2				Mana drain - drain 10 mana from the targets mana pool 	10	damaging snap - deal damage to the target equal to their (missing mana/20) + 4	6
 Swarm	Trash	2	Act 1 — Sewer	10	0	8	3				Attack — 3 dmg	2
-Wererabbit	Trash	3	Act 1 — Graveyard	25	0	2	1				Vanish — disappears in a puff of smoke	1							Loot monster — never attacks	Flees for 3 cycles, then vanishes
+Treasure Bunny	Trash	3	Act 1 — Graveyard	25	0	2	1				Vanish — disappears in a puff of smoke	1							Loot monster — never attacks	Flees for 3 cycles, then vanishes
 Wererat	Trash	1	Act 1 — Sewer	8	0	1	2				Bite — 3 dmg	2	Scurry — dashes away (at range >=6)	4
 Zombie	Trash	2	Act 1 — Graveyard	12	0	3	8				Attack — 5 dmg	6

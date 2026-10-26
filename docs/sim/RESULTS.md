@@ -33,7 +33,7 @@ Of the 50 acting enemy types, against the baseline player:
   Crawler, Ring Wraith and Skeleton gain 7–67 points.
 - **16 are meat bags** at this level (both policies win ≥ 95 %, usually in
   one bar): Wererat, Archer Rat, Coyote, Zombie, Swarm, Screecher, Sludge,
-  Pipe Crawler, Minion, Mini Bear, Wererabbit, Grave Digger, Fire Goblin
+  Pipe Crawler, Minion, Mini Bear, Treasure Bunny, Grave Digger, Fire Goblin
   Soldier / Mage / Shaman (the Shaman is the one enemy where greedy slightly
   out-wins lookahead, 100 % vs 97 %).
 - **19 are above this level** (both lose every time): the trolls, dragons,

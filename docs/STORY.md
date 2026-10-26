@@ -295,7 +295,7 @@ original flavor note. Everything else is `[TBD]` theme/mechanics.
 - **Zombie**
 - **Zombie dog**
 - **Werewolf** — *in code*. Elite. Armor-piercing **Claw** (+3 vs armor) rakes a debuffed target a second time for half; consecutive claws on the same target arm **1 tempo faster** each time (reset on switching targets).
-- **Wererabbit**
+- **Treasure Bunny** (named the Wererabbit until 2026-10-26)
 - **Ghoul**
 - **Wight**
 - **Screeches** — *a soul-like creature that can only be seen from its noise*

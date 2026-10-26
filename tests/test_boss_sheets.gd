@@ -1,9 +1,10 @@
 extends SceneTree
 
-## The designer's boss boards, cut by tools/cut_boss_sheets.py: the Rat King,
-## Cerberus and the Corrupted Archangel spawn on their sheets (Idle + Walk,
-## four direction rows), turn to face each way, and walk through frames;
-## the Hades kind is staged and loads the same way.
+## The designer's boss boards, cut by tools/cut_boss_sheets.py: Cerberus and
+## the Corrupted Archangel spawn on their sheets (Idle + Walk, four direction
+## rows), turn to face each way, and walk through frames;
+## the Hades kind is staged and loads the same way. The Rat King left them for
+## his redrawn pose board (2026-10-26).
 ## Run: godot --headless --path . --script tests/test_boss_sheets.gd
 
 var failures := 0
@@ -60,23 +61,25 @@ func _run() -> void:
 	for _i in range(6):
 		await process_frame
 	var x := 2.0
-	for t in [Enemy.EnemyType.RAT_KING, Enemy.EnemyType.CERBERUS, Enemy.EnemyType.CORRUPTED_ARCHANGEL, Enemy.EnemyType.PIT_FIEND]:
+	for t in [Enemy.EnemyType.CERBERUS, Enemy.EnemyType.CORRUPTED_ARCHANGEL, Enemy.EnemyType.PIT_FIEND]:
 		var en: Enemy = main.enemy_spawner.spawn_enemy(t, main.player.position + Vector3(x, 0, 0))
 		x += 2.0
 		await process_frame
 		_check_fig(en._enemy_figure, en.enemy_name)
 		_check(en.get_portrait_texture() != null, "%s has a portrait" % en.enemy_name)
-	# The Archer Rat (tools/cut_archer_rat.py): stands on its hind legs, runs on all fours.
+	# The Archer Rat wears the designer's redrawn four-pose board (2026-10-26;
+	# tools/cut_pose_boards.py): one pose a direction, bow in hand, and it
+	# stays on its hind legs to move (the old all-fours run is gone).
 	var ar: Enemy = main.enemy_spawner.spawn_enemy(Enemy.EnemyType.ARCHER_RAT, main.player.position + Vector3(x, 0, 0))
 	await process_frame
-	_check_fig(ar._enemy_figure, "Archer Rat")
 	var arf = ar._enemy_figure
-	arf.set_walking(false)
-	var idle_tex = arf._sprite.texture
-	arf.set_walking(true)
-	_check(arf._sprite.texture != idle_tex and arf._sprite.texture == arf._cp_sheets["Walk"], "Archer Rat drops to all fours to move")
-	arf.set_walking(false)
-	_check(arf._sprite.texture == arf._cp_sheets["Idle"], "and stands on its hind legs when still")
+	_check(arf is SpriteEnemyFigure and arf._cp_sheets.has("Idle") and arf._cp_sheets.has("Walk"), "Archer Rat plays its board")
+	var ar_rows := {}
+	for d in [CharacterAnimator.Direction.SOUTH, CharacterAnimator.Direction.NORTH,
+			CharacterAnimator.Direction.WEST, CharacterAnimator.Direction.EAST]:
+		arf.set_facing(d)
+		ar_rows[int(arf._sprite.region_rect.position.y / arf._cp_cell)] = true
+	_check(ar_rows.size() == 4, "Archer Rat shows a different pose for each of the four facings")
 
 	# The Pit Fiend swings its tail: a real Attack sheet.
 	var pf: Enemy = null
@@ -96,13 +99,28 @@ func _run() -> void:
 	# the Snow Wraith's ghost.
 	_check(str(SpriteEnemyFigure.KINDS["screecher"].get("sheets", "")).ends_with("/screecher"), "the Screecher wears its own board")
 	_check(not "screecher" in SpriteEnemyFigure.PAINTED_SHADOW_KINDS, "the crawling Screecher casts a blob shadow")
-	# Standing still the Rat King is on its hind legs whichever way it faces:
-	# its side Idle rows are the standing pose (taller than wide), not the
-	# board's all-fours side view (wider than tall).
-	var rk_idle := _frame_rects(SpriteEnemyFigure.BOSSES + "/rat_king/Idle.png", 1)
-	for d in [2, 3]:
-		var rk: Rect2i = rk_idle[d][0]
-		_check(rk.size.y > rk.size.x, "Rat King idle row %d stands on two legs (%dx%d)" % [d, rk.size.x, rk.size.y])
+	# The Rat King wears the designer's redrawn four-pose board (2026-10-26):
+	# one pose a direction, no walk cycle, and bigger than the normal rat
+	# (the Wererat) — the designer's ask.
+	var rkn: Enemy = main.enemy_spawner.spawn_enemy(Enemy.EnemyType.RAT_KING, main.player.position + Vector3(x, 0, -2))
+	var wr: Enemy = main.enemy_spawner.spawn_enemy(Enemy.EnemyType.WERERAT, main.player.position + Vector3(x + 3.0, 0, -2))
+	await process_frame
+	_check(str(SpriteEnemyFigure.KINDS["rat_king"].get("sheets", "")).ends_with("/rat_king")
+		and str(SpriteEnemyFigure.KINDS["rat_king"]["sheets"]).begins_with(SpriteEnemyFigure.SHEETS),
+		"the Rat King wears his redrawn board")
+	var rkf = rkn._enemy_figure
+	var wrf = wr._enemy_figure
+	var rk_rows := {}
+	for d in [CharacterAnimator.Direction.SOUTH, CharacterAnimator.Direction.NORTH,
+			CharacterAnimator.Direction.WEST, CharacterAnimator.Direction.EAST]:
+		rkf.set_facing(d)
+		rk_rows[int(rkf._sprite.region_rect.position.y / rkf._cp_cell)] = true
+	_check(rk_rows.size() == 4, "the Rat King shows a different pose for each of the four facings")
+	var rk_front: Rect2i = _frame_rects(SpriteEnemyFigure.SHEETS + "/rat_king/Idle.png", 1)[0][0]
+	var wr_front: Rect2i = _frame_rects(SpriteEnemyFigure.SHEETS + "/wererat/Idle.png", 1)[0][0]
+	var rk_h: float = rk_front.size.y * rkf._sprite.pixel_size * rkf._rig.scale.y
+	var wr_h: float = wr_front.size.y * wrf._sprite.pixel_size * wrf._rig.scale.y
+	_check(rk_h > wr_h * 1.4, "the Rat King stands well above the Wererat (%.2f vs %.2f)" % [rk_h, wr_h])
 	# The wolf's side walk keeps its snout in every frame: no frame is cut
 	# much narrower than the others (frame 1 lost its nose to the row name's
 	# margin once: 66 px against 70-77).

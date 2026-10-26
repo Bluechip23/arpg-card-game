@@ -81,9 +81,9 @@ scenario=tests/sim/scenarios/baseline.gd policy=combo_planner enemy=ZOMBIE name=
 scenario=tests/sim/scenarios/baseline.gd policy=greedy_dpt enemy=WEREWOLF name=e_WEREWOLF seeds=1-30
 scenario=tests/sim/scenarios/baseline.gd policy=lookahead enemy=WEREWOLF name=e_WEREWOLF seeds=1-30
 scenario=tests/sim/scenarios/baseline.gd policy=combo_planner enemy=WEREWOLF name=e_WEREWOLF seeds=1-30
-scenario=tests/sim/scenarios/baseline.gd policy=greedy_dpt enemy=WERERABBIT name=e_WERERABBIT seeds=1-30
-scenario=tests/sim/scenarios/baseline.gd policy=lookahead enemy=WERERABBIT name=e_WERERABBIT seeds=1-30
-scenario=tests/sim/scenarios/baseline.gd policy=combo_planner enemy=WERERABBIT name=e_WERERABBIT seeds=1-30
+scenario=tests/sim/scenarios/baseline.gd policy=greedy_dpt enemy=TREASURE_BUNNY name=e_TREASURE_BUNNY seeds=1-30
+scenario=tests/sim/scenarios/baseline.gd policy=lookahead enemy=TREASURE_BUNNY name=e_TREASURE_BUNNY seeds=1-30
+scenario=tests/sim/scenarios/baseline.gd policy=combo_planner enemy=TREASURE_BUNNY name=e_TREASURE_BUNNY seeds=1-30
 scenario=tests/sim/scenarios/baseline.gd policy=greedy_dpt enemy=VAMPIRE name=e_VAMPIRE seeds=1-30
 scenario=tests/sim/scenarios/baseline.gd policy=lookahead enemy=VAMPIRE name=e_VAMPIRE seeds=1-30
 scenario=tests/sim/scenarios/baseline.gd policy=combo_planner enemy=VAMPIRE name=e_VAMPIRE seeds=1-30

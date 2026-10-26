@@ -418,6 +418,274 @@ BOARDS = {
             "right": (835, 604, 998, 1108),
         },
     },
+    "skeleton": {
+        # 2026-10-25: the Skeleton — a bare skeleton warrior — four poses on
+        # black, replacing the Craftpix Skeleton1. Its "NORTH" pose shows the
+        # face and "SOUTH" its back: picked by what they show. The boxes stop
+        # above the board's labels.
+        "src": "skeleton_board.webp", "bg": "grabcut", "tiles": 1.7,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model matte reads the right-facing skull's open eye socket as
+        # background; keep it as part of the skull.
+        "matte_fg": {"right": [(137, 33, 152, 47)]},
+        "Idle": {
+            "front": (118, 87, 513, 512),
+            "back": (798, 87, 1195, 510),
+            "left": (192, 612, 451, 1055),
+            "right": (857, 612, 1120, 1055),
+        },
+    },
+    "sewer_cobra": {
+        # 2026-10-25: the Sewer Cobra — a coiled black cobra with a manhole-cover hood
+        # and an iron collar, dripping green venom; the `sewer_croc` kind — four poses on black. Its "NORTH" pose shows
+        # the face and "SOUTH" its back: picked by what they show. The boxes
+        # stop above the board's labels.
+        "src": "sewer_cobra_board.webp", "bg": "grabcut", "tiles": 1.6,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model drops the venom drips and the open mouth: keep what is lit.
+        "matte_fg": {"front": [(140, 100, 290, 300, "lit", 30)],
+                     "left": [(0, 30, 140, 260, "lit", 30)],
+                     "right": [(410, 30, 523, 260, "lit", 30)]},
+        "Idle": {
+            "front": (58, 11, 511, 540),
+            "back": (774, 11, 1208, 559),
+            "left": (37, 610, 536, 1142),
+            "right": (688, 618, 1211, 1145),
+        },
+    },
+    "ash_harpy": {
+        # 2026-10-25: the Ash Harpy — a feathered harpy with a burning ponytail; the
+        # height counts the flame — four poses on black. Its "NORTH" pose shows
+        # the face and "SOUTH" its back: picked by what they show. The boxes
+        # stop above the board's labels.
+        "src": "ash_harpy_board.webp", "bg": "grabcut", "tiles": 1.75,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model drops most of the ponytail's flame: keep what is lit.
+        "matte_fg": {"front": [(215, 20, 300, 140, "lit", 40)],
+                     "back": [(205, 5, 305, 120, "lit", 40)],
+                     "left": [(135, 25, 211, 140, "lit", 40)],
+                     "right": [(0, 25, 80, 145, "lit", 40)]},
+        "Idle": {
+            "front": (119, 7, 487, 546),
+            "back": (727, 18, 1089, 546),
+            "left": (214, 600, 425, 1155),
+            "right": (838, 603, 1040, 1155),
+        },
+    },
+    "snow_wraith": {
+        # 2026-10-25: the Snow Wraith — a hooded, tattered wraith with a snowflake
+        # clasp, trailing smoke where its legs would be — four poses on black. Its "NORTH" pose shows
+        # the face and "SOUTH" its back: picked by what they show. The boxes
+        # stop above the board's labels.
+        "src": "snow_wraith_board.webp", "bg": "grabcut", "tiles": 1.75,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (34, 12, 510, 580),
+            "back": (775, 11, 1215, 580),
+            "left": (122, 626, 543, 1180),
+            "right": (693, 626, 1121, 1180),
+        },
+    },
+    "fire_goblin": {
+        # 2026-10-25: the Fire Goblin — a goblin in red leather with a torch,
+        # scimitar and round shield; the fire goblin soldier and shaman wear it
+        # (the mage has its own board). The
+        # height counts the torch's flame — four poses on black. Its "NORTH" pose shows
+        # the face and "SOUTH" its back: picked by what they show. The boxes
+        # stop above the board's labels.
+        "src": "fire_goblin_board.webp", "bg": "grabcut", "tiles": 1.5,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (111, 16, 497, 546),
+            "back": (764, 50, 1097, 546),
+            "left": (164, 611, 415, 1145),
+            "right": (841, 617, 1097, 1145),
+        },
+    },
+    "sludge": {
+        # 2026-10-25: the Sludge Being — a many-eyed ooze rising from its puddle,
+        # holding a ball of slime; its "WEST" / "EAST" are left / right — four poses on black. Its "NORTH" pose shows
+        # the face and "SOUTH" its back: picked by what they show. The boxes
+        # stop above the board's labels.
+        "src": "sludge_board.webp", "bg": "grabcut", "tiles": 1.45,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (45, 80, 543, 553),
+            "back": (703, 100, 1219, 553),
+            "left": (34, 617, 576, 1115),
+            "right": (661, 617, 1212, 1115),
+        },
+    },
+    "fire_goblin_mage": {
+        # 2026-10-25: the Goblin Fire Mage — a goblin in a ragged black-and-
+        # red robe, fire in both hands — four poses on black; the
+        # `fire_goblin_mage` kind. Its "NORTH" pose shows the face and
+        # "SOUTH" its back; "WEST" / "EAST" are left / right. The height
+        # counts the flames.
+        "src": "fire_goblin_mage_board.webp", "bg": "grabcut", "tiles": 1.6,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (92, 23, 493, 533),
+            "back": (733, 31, 1160, 532),
+            "left": (116, 610, 458, 1134),
+            "right": (787, 612, 1122, 1134),
+        },
+    },
+    "coyote": {
+        # 2026-10-26: the Coyote — a lean brown-grey coyote — four poses on
+        # black. Its "NORTH" pose shows the face and "SOUTH" its back;
+        # "WEST" / "EAST" are left / right.
+        "src": "coyote_board.webp", "bg": "grabcut", "tiles": 1.35,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (301, 41, 493, 458),
+            "back": (1024, 29, 1204, 455),
+            "left": (112, 510, 679, 915),
+            "right": (853, 511, 1413, 915),
+        },
+    },
+    "succubus": {
+        # 2026-10-26: the Succubus — horned, bat-winged, in purple and black
+        # leather and high boots — four labelled poses on black: front,
+        # back, left, right. The boxes stop above the labels, which sit
+        # right under her heels.
+        "src": "succubus_board.webp", "bg": "grabcut", "tiles": 1.85,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (76, 2, 512, 558),
+            "back": (697, 3, 1148, 558),
+            "left": (204, 595, 463, 1167),
+            "right": (773, 596, 1014, 1167),
+        },
+    },
+    "cherub": {
+        # 2026-10-26: the Cherub — a curly-haired winged infant in a white
+        # suit with a heart-tipped crossbow — four labelled poses on black:
+        # front, back, left, right. It hovers, feet off the ground.
+        "src": "cherub_board.jpg", "bg": "grabcut", "tiles": 1.3,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (111, 20, 453, 418),
+            "back": (559, 25, 976, 428),
+            "left": (36, 490, 460, 885),
+            "right": (555, 494, 988, 886),
+        },
+    },
+    "swarm": {
+        # 2026-10-26: the Swarm — a cloud of dozens of hornets — four
+        # labelled poses on black: north (front), south (back), west
+        # (left), east (right). Many separate bees, so no model matte and
+        # no "biggest piece" cut: the black_key keeps every bee and gives
+        # the wings partial alpha. The height is the cloud's.
+        "src": "swarm_board.webp", "bg": "black_key", "tiles": 1.6,
+        "Idle": {
+            "front": (36, 26, 594, 530),
+            "back": (712, 36, 1256, 530),
+            "left": (22, 676, 622, 1096),
+            "right": (697, 676, 1290, 1098),
+        },
+    },
+    "wererat": {
+        # 2026-10-26: the Wererat — a huge, shaggy black rat with long claws
+        # and a bare pink tail — four labelled poses on black: north
+        # (front), south (back), west (left), east (right); the `rat` kind.
+        # The back's tail curls down beside its label, so that box reaches
+        # past the label's top and the label is cleared.
+        "src": "wererat_board.webp", "bg": "grabcut", "tiles": 1.3,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "matte_bg": {"back": [(95, 462, 375, 500)]},
+        "Idle": {
+            "front": (30, 112, 574, 562),
+            "back": (742, 99, 1214, 587),
+            "left": (9, 681, 627, 1060),
+            "right": (664, 684, 1249, 1056),
+        },
+    },
+    "zombie": {
+        # 2026-10-26: the Zombie — a gaunt, rotting man with an exposed
+        # brain, a torn purple-and-green vest and shredded trousers — four
+        # labelled poses on black: north (front), south (back), west (left),
+        # east (right). The few flies the board draws around its head are
+        # loose specks at game size and are left out.
+        "src": "zombie_board.jpg", "bg": "grabcut", "tiles": 1.75,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (190, 18, 362, 441),
+            "back": (668, 29, 833, 442),
+            "left": (241, 508, 358, 929),
+            "right": (678, 510, 794, 929),
+        },
+    },
+    "rat_king": {
+        # 2026-10-26: the Rat King, redrawn — a hulking black rat in a spiked
+        # crown and runed, blood-spattered plate — four labelled poses on
+        # black: north (front), south (back), west (left), east (right).
+        # It replaces his walk-sheet cut (tools/cut_boss_sheets.py). The
+        # designer: he must be bigger than the normal rat (the Wererat,
+        # 1.3 tiles), so 2.1.
+        "src": "rat_king_board.jpg", "bg": "grabcut", "tiles": 2.1,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (32, 46, 480, 458),
+            "back": (569, 46, 970, 458),
+            "left": (7, 547, 513, 866),
+            "right": (542, 549, 1020, 866),
+        },
+    },
+    "archer_rat": {
+        # 2026-10-26: the Archer Rat, redrawn — a brown rat on its hind legs
+        # with a longbow and a quiver of fletched arrows — four labelled
+        # poses on black: north (front), south (back), west (left), east
+        # (right). It replaces the tools/cut_archer_rat.py cut (standing and
+        # all-fours sheets) and writes over its output. Smaller than the
+        # Wererat (1.3 tiles).
+        "src": "archer_rat_board.webp", "bg": "grabcut", "tiles": 1.0,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (69, 33, 423, 452),
+            "back": (660, 79, 995, 456),
+            "left": (11, 523, 511, 866),
+            "right": (541, 523, 1017, 866),
+        },
+    },
+    "magma_spider": {
+        # 2026-10-26: the Magma Spider — a spider of cracked black rock with
+        # lava glowing through the seams — four labelled poses on black. Its
+        # side labels are swapped: the pose marked "WEST (LEFT)" faces right
+        # and "EAST (RIGHT)" faces left, so they are picked by what they show.
+        "src": "magma_spider_board.jpg", "bg": "grabcut", "tiles": 1.2,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model reads the dark rock abdomen as background (most of it
+        # on the side views): keep everything brighter than the black board,
+        # small near-black crevices filled.
+        # On the back the thin web strands under the spinnerets would come
+        # out a dark smudge at game size: they are cleared.
+        "matte_fg": {"front": [(0, 0, 9999, 9999, "lit", 6, 600)],
+                     "back": [(0, 0, 9999, 285, "lit", 6, 600)],
+                     "left": [(0, 0, 9999, 9999, "lit", 6, 600)],
+                     "right": [(0, 0, 9999, 9999, "lit", 6, 600)]},
+        "matte_bg": {"back": [(100, 285, 360, 352)]},
+        "Idle": {
+            "front": (28, 72, 501, 452),
+            "back": (540, 100, 1003, 452),
+            "left": (539, 544, 1007, 866),    # the board's "EAST (RIGHT)"
+            "right": (23, 544, 499, 866),     # the board's "WEST (LEFT)"
+        },
+    },
+    "treasure_bunny": {
+        # 2026-10-26: the Treasure Bunny (was the Wererabbit) — a golden,
+        # gem-studded rabbit with a loot sack on its back — four labelled
+        # poses on black: north (front), south (back), west (left), east
+        # (right).
+        "src": "treasure_bunny_board.jpg", "bg": "grabcut", "tiles": 1.1,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (145, 29, 383, 458),
+            "back": (653, 29, 889, 457),
+            "left": (66, 519, 441, 870),
+            "right": (594, 520, 970, 870),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped
@@ -786,6 +1054,8 @@ def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
     """The creature in `box`, full size, on transparency, cropped to itself."""
     rgb = np.asarray(board.crop(box).convert("RGB")).astype(int)
     h, w, _ = rgb.shape
+    if kind == "black_key":
+        return _cut_black_key(rgb)
     edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
            [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
     bg_like = _background_like(rgb, kind) if kind in ("checker_light", "checker_grey", "stone") else None
@@ -797,7 +1067,21 @@ def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
             fg[y0:y1, x0:x1] = False
         for hint in fg_boxes:
             m = np.zeros(fg.shape, np.uint8)
-            if len(hint) == 5:
+            if len(hint) in (6, 7) and hint[4] == "lit":
+                # Everything in the box brighter than the black board
+                # (venom drips, a flame's wisps the model dropped). A 7th
+                # value also fills the enclosed holes up to that many px
+                # (near-black crevices in dark rock), not the wider gaps
+                # between legs.
+                x0, y0, x1, y1 = hint[0:4]
+                m[y0:y1, x0:x1] = rgb[y0:y1, x0:x1].max(axis=2) > hint[5]
+                if len(hint) == 7:
+                    n, lab, st, _ = cv2.connectedComponentsWithStats((1 - m).astype(np.uint8), connectivity=4)
+                    for i in range(1, n):
+                        x, y, cw, ch, area = st[i]
+                        if area <= hint[6] and x > 0 and y > 0 and x + cw < m.shape[1] and y + ch < m.shape[0]:
+                            m[lab == i] = 1
+            elif len(hint) == 5:
                 cv2.line(m, hint[0:2], hint[2:4], 1, hint[4])
             else:
                 m[hint[1]:hint[3], hint[0]:hint[2]] = 1
@@ -827,6 +1111,42 @@ def cut(board: Image.Image, box, kind: str, fg_boxes=(), sat_grow=0, snow=False,
     alpha = np.where(keep, 255, 0).astype(np.uint8)
     rgba = np.dstack([rgb.astype(np.uint8), alpha])[y0:y1, x0:x1]
     return Image.fromarray(rgba, "RGBA")
+
+
+BLACK_FLOOR = 12      # black_key: at or under this the board is background
+BLACK_SOLID = 45      # black_key: at or over this a pixel is fully opaque
+BLACK_BODY = 22       # black_key: the outline of a piece; what it encloses is solid
+BLACK_SPECK = 12      # black_key: lit pieces smaller than this (px) are noise
+
+
+def _cut_black_key(rgb: np.ndarray) -> Image.Image:
+    """A board of many separate small things on pure black (the Swarm's
+    bees): every lit piece is kept, not only the biggest, and the dim pixels
+    (translucent wings, soft edges) get partial alpha with their colour
+    un-darkened — the black board read as a premultiplied backdrop."""
+    lum = rgb.max(axis=2).astype(float)
+    alpha = np.clip((lum - BLACK_FLOOR) / float(BLACK_SOLID - BLACK_FLOOR), 0.0, 1.0)
+    # Dark paint inside a bee (abdomen stripes, shaded legs) is not
+    # backdrop: everything a piece's outline encloses, a pixel in from its
+    # rim, is opaque; only the rim and the thin wing edges stay soft.
+    body = (lum > BLACK_BODY).astype(np.uint8)
+    outside = np.pad(1 - body, 1, constant_values=1)
+    flood = outside.copy()
+    cv2.floodFill(flood, None, (0, 0), 2)
+    filled = (flood[1:-1, 1:-1] != 2).astype(np.uint8)   # the pieces, holes filled
+    core = cv2.erode(filled, np.ones((3, 3), np.uint8)).astype(bool)
+    alpha[core] = 1.0
+    lit = (alpha > 0).astype(np.uint8)
+    n, lab, st, _ = cv2.connectedComponentsWithStats(lit, connectivity=8)
+    small = np.zeros(n, bool)
+    small[1:] = st[1:, cv2.CC_STAT_AREA] < BLACK_SPECK
+    alpha[small[lab]] = 0.0
+    a = np.maximum(alpha, 1e-6)[..., None]
+    col = np.clip(rgb / a, 0, 255)
+    col = np.where(alpha[..., None] > 0, col, 0)
+    rgba = np.dstack([col, alpha * 255.0]).round().astype(np.uint8)
+    ys, xs = np.nonzero(rgba[..., 3] > 0)
+    return Image.fromarray(rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
 
 
 def _drop_floor_shadow(img: Image.Image, band: float) -> Image.Image:

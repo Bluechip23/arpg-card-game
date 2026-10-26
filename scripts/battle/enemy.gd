@@ -21,7 +21,7 @@ enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_R
 	# Forest act
 	GIANT_BEAVER, MINI_BEAR, LARGE_BEAR, WOLF, COYOTE, BUGBEAR, INFECTED_HUNTER, GIANT_HAWK, TREANT, ICE_MAGE, FIRE_MAGE, SPARK_MAGE, AIR_MAGE, EARTH_MAGE,
 	# Graveyard act
-	ZOMBIE, WEREWOLF, WERERABBIT, VAMPIRE, NECROMANCER, BONE_DRAGON, SPIRIT_COLLECTOR, GRAVE_TITAN, CRYPT_CRAWLER, SCREECHER, CONSUMED,
+	ZOMBIE, WEREWOLF, TREASURE_BUNNY, VAMPIRE, NECROMANCER, BONE_DRAGON, SPIRIT_COLLECTOR, GRAVE_TITAN, CRYPT_CRAWLER, SCREECHER, CONSUMED,
 	# Sewer act
 	SLUDGE, PIPE_CRAWLER, SEWER_CROC, RAT_KING, SWARM,
 	# Mountains act (design mock-ups — stats & moves TBD)
@@ -272,7 +272,7 @@ var _minotaur_rush_pending: bool = false  # Inflamed Minotaur: Bull Rush queued 
 var _minotaur_leap_spaces: int = 0
 var _minotaur_damage_taken: int = 0  # Inflamed Minotaur: damage from the player since his last leap (over 20 -> Labyrinth Leap)
 var _wake_prev_cell: Vector2i = Vector2i(-9999, -9999)  # Inflamed Minotaur: fire-trail bookkeeping
-var _wererabbit_tempo: int = 0            # Wererabbit: flees 3 cycles (15 tempo), then vanishes
+var _treasure_bunny_tempo: int = 0            # Treasure Bunny: flees 3 cycles (15 tempo), then vanishes
 var _crawler_attack_streak: int = 0       # Crypt Crawler: webs after 3 consecutive bites
 
 #region TEMPO ACTION SYSTEM
@@ -777,7 +777,7 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 				{"name": "werewolf_claw", "tempo_cost": 5},
 				{"name": "move",          "tempo_cost": 3},
 			]
-		EnemyType.WERERABBIT:
+		EnemyType.TREASURE_BUNNY:
 			actions = [
 				{"name": "flee",   "tempo_cost": 1},
 				{"name": "vanish", "tempo_cost": 1},
@@ -1098,7 +1098,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.EARTH_MAGE: [{"name": "Boulder", "tempo": 6}, {"name": "Move", "tempo": 5}],
 		EnemyType.ZOMBIE: [{"name": "Attack", "tempo": 6}, {"name": "Move", "tempo": 8}],
 		EnemyType.WEREWOLF: [{"name": "Claw", "tempo": 5}, {"name": "Move", "tempo": 3}],
-		EnemyType.WERERABBIT: [{"name": "Flee", "tempo": 1}, {"name": "Vanish", "tempo": 1}],
+		EnemyType.TREASURE_BUNNY: [{"name": "Flee", "tempo": 1}, {"name": "Vanish", "tempo": 1}],
 		EnemyType.VAMPIRE: [{"name": "Bite", "tempo": 5}, {"name": "Absorb", "tempo": 3}, {"name": "Move", "tempo": 5}],
 		EnemyType.NECROMANCER: [{"name": "Bolt", "tempo": 5}, {"name": "Summon", "tempo": 8}, {"name": "Move", "tempo": 6}],
 		EnemyType.BONE_DRAGON: [{"name": "Bite", "tempo": 5}, {"name": "Breath", "tempo": 6}, {"name": "Move", "tempo": 5}],
@@ -1168,7 +1168,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.EARTH_MAGE: "Gains 4 armor every time it is hit.\nBoulder (melee, 6 tempo): 9 earth damage.\nMove (5 tempo): 5 spaces.",
 		EnemyType.ZOMBIE: "At range ≤1: Attacks (5 dmg, 6 tempo).\nOtherwise: shambles toward player (3 spaces / 8 tempo).",
 		EnemyType.WEREWOLF: "Resists 25% physical/fire/lightning.\nClaw (5 tempo): 10 damage, +3 vs armor; a debuffed target is raked a SECOND time for half. Each consecutive claw on the same target arms 1 tempo faster (5, 4, 3...); switching targets resets it.\nMove (3 tempo): 3 spaces.",
-		EnemyType.WERERABBIT: "Loot monster — does not attack.\nFlees for 3 cycles, then Vanishes in a puff of smoke.\nMove (1 tempo): 2 spaces.",
+		EnemyType.TREASURE_BUNNY: "Loot monster — does not attack.\nFlees for 3 cycles, then Vanishes in a puff of smoke.\nMove (1 tempo): 2 spaces.",
 		EnemyType.VAMPIRE: "Life steal. Resists 10% physical/fire/lightning.\nBite (5 tempo): 10 damage; heals 100% of damage dealt to HEALTH (not armor).\nBat Form (below 50% HP, 2 charges, never recharges): flits 6 squares away...\nAbsorb (3 tempo, always right after Bat Form): drains the healthiest ally on the map (you included) — 20 the first time, then 10.\nMove (5 tempo): 5 spaces.",
 		EnemyType.NECROMANCER: "Range 10. Resists 15% fire/lightning.\nBolt (5 tempo): 4 damage + Hexes 2 cards in your hand (each +30 mana until played, for up to 25 tempo).\nSummon (8 tempo): raises undead (skeletons and zombies, first pass).\nRaise the Fallen (passive): every summon of his that dies rises again as a Skeleton — and costs him 10 health; any other ally that dies within 8 squares of him rises as a Skeleton too. A risen Skeleton rises no further and costs him nothing.\nMove (6 tempo): 8 spaces.",
 		EnemyType.BONE_DRAGON: "Fought as a boss in the Boneyard, where every standing gravestone regenerates it 1 health a cycle (Gravebound — break the stones, and kill the diggers who repair them). Resists 45% physical / 45% fire.\nBite (5 tempo): 12 damage.\nBreath Swarm (6 tempo): 12 damage down a 6-tile line; a Swarm hatches beside everyone it hits.\nMove (5 tempo): 5 spaces.",
@@ -1543,9 +1543,9 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 			_treant_thorn_accumulator -= 10
 			_treant_strip_thorns()
 
-	# Wererabbit: the escape clock — flees 3 cycles (15 tempo), then vanishes.
-	if enemy_type == EnemyType.WERERABBIT:
-		_wererabbit_tempo += amount
+	# Treasure Bunny: the escape clock — flees 3 cycles (15 tempo), then vanishes.
+	if enemy_type == EnemyType.TREASURE_BUNNY:
+		_treasure_bunny_tempo += amount
 
 	# Elite first-pass ability cooldowns run on raw tempo.
 	if _roar_cooldown > 0:
@@ -2263,10 +2263,10 @@ func _choose_action(player_node: Node3D) -> void:
 			_choose_melee_action(distance, "attack")
 		EnemyType.WEREWOLF:
 			_choose_werewolf_action(distance, _move_target_for(player_node))
-		EnemyType.WERERABBIT:
+		EnemyType.TREASURE_BUNNY:
 			# Loot monster: flees for 3 cycles (15 tempo), then vanishes in a
 			# puff of smoke — kill it before the clock runs out.
-			if _wererabbit_tempo >= 15:
+			if _treasure_bunny_tempo >= 15:
 				chosen_action = _get_action("vanish")
 			else:
 				chosen_action = _get_action("flee")
@@ -3756,7 +3756,7 @@ func _dash_away_from(pos: Vector3, tiles: int) -> void:
 		target_position = position + direction * float(tiles)
 		is_moving = true
 
-## --- Wererabbit ---
+## --- Treasure Bunny ---
 
 func _try_flee(target_node: Node3D) -> bool:
 	## Loot monster: always runs AWAY from its pursuer.
