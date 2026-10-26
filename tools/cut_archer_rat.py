@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Cut the designer's Archer Rat out of its two sewer scenes.
 
+Superseded in game (2026-10-26) by the redrawn four-pose board, cut by
+tools/cut_pose_boards.py into the same sheets folder: running this again
+would put the old art back.
+
 Sources (assets/sprites/paintings/, .gdignore'd source art):
   archer_rat_standing.jpg — standing on its hind legs, four directions
     (back at the top, facing left, facing right drawing the bow, front with

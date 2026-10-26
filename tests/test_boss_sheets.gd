@@ -67,17 +67,19 @@ func _run() -> void:
 		await process_frame
 		_check_fig(en._enemy_figure, en.enemy_name)
 		_check(en.get_portrait_texture() != null, "%s has a portrait" % en.enemy_name)
-	# The Archer Rat (tools/cut_archer_rat.py): stands on its hind legs, runs on all fours.
+	# The Archer Rat wears the designer's redrawn four-pose board (2026-10-26;
+	# tools/cut_pose_boards.py): one pose a direction, bow in hand, and it
+	# stays on its hind legs to move (the old all-fours run is gone).
 	var ar: Enemy = main.enemy_spawner.spawn_enemy(Enemy.EnemyType.ARCHER_RAT, main.player.position + Vector3(x, 0, 0))
 	await process_frame
-	_check_fig(ar._enemy_figure, "Archer Rat")
 	var arf = ar._enemy_figure
-	arf.set_walking(false)
-	var idle_tex = arf._sprite.texture
-	arf.set_walking(true)
-	_check(arf._sprite.texture != idle_tex and arf._sprite.texture == arf._cp_sheets["Walk"], "Archer Rat drops to all fours to move")
-	arf.set_walking(false)
-	_check(arf._sprite.texture == arf._cp_sheets["Idle"], "and stands on its hind legs when still")
+	_check(arf is SpriteEnemyFigure and arf._cp_sheets.has("Idle") and arf._cp_sheets.has("Walk"), "Archer Rat plays its board")
+	var ar_rows := {}
+	for d in [CharacterAnimator.Direction.SOUTH, CharacterAnimator.Direction.NORTH,
+			CharacterAnimator.Direction.WEST, CharacterAnimator.Direction.EAST]:
+		arf.set_facing(d)
+		ar_rows[int(arf._sprite.region_rect.position.y / arf._cp_cell)] = true
+	_check(ar_rows.size() == 4, "Archer Rat shows a different pose for each of the four facings")
 
 	# The Pit Fiend swings its tail: a real Attack sheet.
 	var pf: Enemy = null

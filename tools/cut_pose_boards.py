@@ -632,6 +632,22 @@ BOARDS = {
             "right": (542, 549, 1020, 866),
         },
     },
+    "archer_rat": {
+        # 2026-10-26: the Archer Rat, redrawn — a brown rat on its hind legs
+        # with a longbow and a quiver of fletched arrows — four labelled
+        # poses on black: north (front), south (back), west (left), east
+        # (right). It replaces the tools/cut_archer_rat.py cut (standing and
+        # all-fours sheets) and writes over its output. Smaller than the
+        # Wererat (1.3 tiles).
+        "src": "archer_rat_board.webp", "bg": "grabcut", "tiles": 1.0,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (69, 33, 423, 452),
+            "back": (660, 79, 995, 456),
+            "left": (11, 523, 511, 866),
+            "right": (541, 523, 1017, 866),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped

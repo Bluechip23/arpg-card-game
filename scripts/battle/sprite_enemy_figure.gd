@@ -98,7 +98,7 @@ const KINDS := {
 	"rat": {"sheets": SHEETS + "/wererat", "scale": BOARD_SCALE},  # the Wererat: the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the giant-rat pack's Rat1
 	# The designer's Archer Rat (tools/cut_archer_rat.py): up on its hind
 	# legs while it stands, on all fours while it moves.
-	"archer_rat": {"sheets": SHEETS + "/archer_rat", "scale": BOARD_SCALE},
+	"archer_rat": {"sheets": SHEETS + "/archer_rat", "scale": BOARD_SCALE},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26); was the tools/cut_archer_rat.py cut
 	# The designer's own boss boards (no pack has these bosses): front, back
 	# and side walk frames, cut by tools/cut_boss_sheets.py.
 	"rat_king": {"sheets": SHEETS + "/rat_king", "scale": BOARD_SCALE},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26), 2.1 tiles — bigger than the Wererat; was his walk-sheet cut (tools/cut_boss_sheets.py)
