@@ -143,7 +143,7 @@ const KINDS := {
 	"vampire": {"sheets": SHEETS + "/vampire", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the vampire pack's Vampires3
 	"zombie": {"cp": "zombie/Zombie1", "scale": 1.25},
 	"infected_hunter": {"sheets": SHEETS + "/infected_hunter", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the zombie pack's Zombie3
-	"succubus": {"icon": "chaos_monsters/Icon14", "faces": "front", "scale": 1.7},  # the purple-winged temptress
+	"succubus": {"sheets": SHEETS + "/succubus", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the chaos-monster Icon14
 	"cherub": {"npc": NPC1 + "/npc baby A v01.png", "tint": Color(1.15, 1.1, 0.9)},
 	"corrupted_archangel": {"sheets": BOSSES + "/corrupted_archangel", "scale": BOARD_SCALE},  # the designer's board (tools/cut_boss_sheets.py)
 	# --- the generic Minion / Elite / Boss tiers (and custom enemies): the

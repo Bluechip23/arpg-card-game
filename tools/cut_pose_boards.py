@@ -544,6 +544,20 @@ BOARDS = {
             "right": (853, 511, 1413, 915),
         },
     },
+    "succubus": {
+        # 2026-10-26: the Succubus — horned, bat-winged, in purple and black
+        # leather and high boots — four labelled poses on black: front,
+        # back, left, right. The boxes stop above the labels, which sit
+        # right under her heels.
+        "src": "succubus_board.webp", "bg": "grabcut", "tiles": 1.85,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (76, 2, 512, 558),
+            "back": (697, 3, 1148, 558),
+            "left": (204, 595, 463, 1167),
+            "right": (773, 596, 1014, 1167),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped
