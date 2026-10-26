@@ -90,7 +90,7 @@ code was altered in this pass to match; "Built" means the enemy or action did no
 | Roc | Mid-tier 6 | Built | Dive Bomb from ≤6 squares, lands beside the target, 5-tempo cooldown; Eye Scrape (Async 3) 2 Weakened after >3 tempo adjacent; always retreats otherwise. Open: the sheet gives Dive Bomb **no damage** — 8 used. |
 | Sabertooth Tiger | Mid-tier 6 | Built | Track (Async 10) +15 Strengthen and a hunt lock on the nearest unit; Bite 6 then Claw 3 as two separate attacks; Sunken Bite (Async 15) 10 + 8 Bleed; 35% crit ×1.5 + 6 Bleed on every strike. |
 | Sewer Cobra | Mid-tier 5 | Changed + Built | Tier Mid-tier. **Venom Spray** (Async 15): forward cone widths 1-3-3-3-5 out to 5; 8 Poison to every unit inside; 10 damage only to armored units. Passives built: 3 Poison back on any direct hit that reaches its health; a flat 5 thorns per direct hit while it has armor; on exposure Stun 3 and a full clock reset. Open: the cone's exact shape ("1 square in front to 4 at range 5" has no even-width answer on a grid). |
-| Skeleton / Zombie / Swarm / Sludge / Pipe Crawler / Archer Rat / Coyote / Mini Bear / Wolf / Consumed / Wererabbit | Trash / Mid | Match | Numbers and kits match; only tier words changed. |
+| Skeleton / Zombie / Swarm / Sludge / Pipe Crawler / Archer Rat / Coyote / Mini Bear / Wolf / Consumed / Treasure Bunny | Trash / Mid | Match | Numbers and kits match; only tier words changed. |
 | Screecher | Trash 1 | Built | Invisible until it strikes (cannot be attacked directly; poison, burn and area damage still land), seen for 3 tempo after a Screech, Drift 4 sp / 2 tempo unseen and 2 sp / 5 tempo seen. |
 | Snow Wraith | Trash 3 | Built | Snowball (8): Slowed 3 tempo + 2 Cold; Ice Blast: 5 ice +3 vs armor, Slowed 3 tempo. Open: Ice Blast has no tempo on the sheet (5 used) and no range (5 used). |
 | Specter | Trash 1 | Built | Spirit Spit 2 at range 2; Invisible (Async 8) hides it 3 tempo. |
@@ -183,7 +183,7 @@ so they are not counted.
 | Earth Mage | Elite | 17 | 65/0/9 → 94/0/12 | 5 / 5 | - | Forest | nowhere | built, unplaced |
 | Zombie | Minion | 7 | 12/0/5 → 11/0/5 | 3 / 8 | - | Graveyard | graveyard shallow + deep, Necromancer summon | built |
 | Werewolf | Elite | 10 | 55/0/10 → 61/0/11 | 3 / 3 | 25/25/25 | Graveyard | graveyard deep | built |
-| Wererabbit | Minion | 8 | 25/0/0 → 25/0/0 | 2 / 1 | - | Graveyard | graveyard shallow | built |
+| Treasure Bunny | Minion | 8 | 25/0/0 → 25/0/0 | 2 / 1 | - | Graveyard | graveyard shallow | built |
 | Vampire | Elite | 10 | 95/0/10 → 105/0/11 | 5 / 5 | 10/10/10 | Graveyard | graveyard deep | built |
 | Necromancer | Elite | 11 | 60/0/4 → 69/0/4 | 8 / 6 | 0/15/15 | Graveyard | graveyard deepest room | built |
 | Bone Dragon | Elite | 12 | 150/0/12 → 180/0/14 | 5 / 5 | 45/45/0 | Graveyard | Necromancer's 6th raise; Boneyard boss room | built (boss-room boss shown as Elite) |
@@ -296,7 +296,7 @@ its description and its STORY.md line on every point I could check (numbers, tem
   it is simply always a 2-tempo mover. The "seen only from its noise" idea lives in the figure (half-transparent
   sprite, flashes on attack), not in gameplay.
 - **The Consumed** — matches (Death Burst 8 to everything within 1.9, enemies included). Never spawns.
-- **Wererabbit** — matches (flees 15 tempo, vanishes, no loot on vanish).
+- **Treasure Bunny** — matches (flees 15 tempo, vanishes, no loot on vanish).
 
 ### Mountains (no zone exists yet)
 - **Wyvern** — matches. Talon Grab cooldown is set to 10 after the 8-tempo action; the text says "then 2-cycle
@@ -422,7 +422,7 @@ These are the gaps the data points at, not decisions:
    elites are the biggest unused pool of status effects (Slow, Burn, Shock, Cold, Brittle, Poison, Clumsy, Frozen).
 4. **Graveyard is debuff-poor relative to its size**: 12 built enemies and only the Necromancer's Hex is a status;
    Crypt Crawler and Spirit Collector inject cards; Zombie, Skeleton, Screecher, Vampire, Werewolf, Bone Dragon,
-   Grave Titan, Consumed and Wererabbit are raw damage (or none).
+   Grave Titan, Consumed and Treasure Bunny are raw damage (or none).
 5. **Sewer has one status in seven enemies** (Pipe Crawler's 25 % Disarm). The Rat King has no signature effect.
 6. **Only one action keyword is in use** (the Shaman's Channel). Async and Trigger actions exist in the framework
    and the doc but no enemy has one.

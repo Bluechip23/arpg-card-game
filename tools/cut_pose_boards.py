@@ -672,6 +672,20 @@ BOARDS = {
             "right": (23, 544, 499, 866),     # the board's "WEST (LEFT)"
         },
     },
+    "treasure_bunny": {
+        # 2026-10-26: the Treasure Bunny (was the Wererabbit) — a golden,
+        # gem-studded rabbit with a loot sack on its back — four labelled
+        # poses on black: north (front), south (back), west (left), east
+        # (right).
+        "src": "treasure_bunny_board.jpg", "bg": "grabcut", "tiles": 1.1,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (145, 29, 383, 458),
+            "back": (653, 29, 889, 457),
+            "left": (66, 519, 441, 870),
+            "right": (594, 520, 970, 870),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped

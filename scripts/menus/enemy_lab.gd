@@ -29,7 +29,7 @@ const SECTIONS := [
 	]},
 	{"title": "GRAVEYARD", "types": [
 		Enemy.EnemyType.SKELETON, Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.WEREWOLF,
-		Enemy.EnemyType.WERERABBIT, Enemy.EnemyType.SCREECHER, Enemy.EnemyType.VAMPIRE,
+		Enemy.EnemyType.TREASURE_BUNNY, Enemy.EnemyType.SCREECHER, Enemy.EnemyType.VAMPIRE,
 		Enemy.EnemyType.NECROMANCER, Enemy.EnemyType.BONE_DRAGON, Enemy.EnemyType.SPIRIT_COLLECTOR,
 		Enemy.EnemyType.GRAVE_TITAN, Enemy.EnemyType.CRYPT_CRAWLER, Enemy.EnemyType.CONSUMED,
 	]},

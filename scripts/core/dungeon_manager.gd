@@ -5435,7 +5435,7 @@ func _pick_enemy_type(depth: float, kind: String, base_melee, mid_melee, heavy, 
 func _define_graveyard_spawn_zones() -> void:
 	## The dead of the Old Graveyard: shamblers near the gate, the hunters of
 	## the night deeper in, and a Necromancer holding the deepest crypt.
-	var shallow := [Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.WERERABBIT, Enemy.EnemyType.SKELETON, Enemy.EnemyType.SCREECHER]
+	var shallow := [Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.TREASURE_BUNNY, Enemy.EnemyType.SKELETON, Enemy.EnemyType.SCREECHER]
 	var deep := [Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.VAMPIRE, Enemy.EnemyType.CRYPT_CRAWLER, Enemy.EnemyType.ZOMBIE]
 	for room in rooms:
 		var rect: Rect2i = room["rect"]
