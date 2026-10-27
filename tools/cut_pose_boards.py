@@ -700,6 +700,7 @@ BOARDS = {
         # the walk-sheet cut (tools/cut_boss_sheets.py); kept at the height
         # it had there. The row's title plaque is cleared where it reaches in.
         "src": "boss_trio_board.webp", "bg": "grabcut", "tiles": 1.9,
+        "sharpen": 160,   # the source is soft (lossy, small figures): crisped before the shrink
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
         "Idle": {
             "front": (218, 18, 498, 320),
@@ -716,6 +717,7 @@ BOARDS = {
         # it had there. The row's title plaque is cleared where it reaches in.
         # Both its side poses face right: EAST is the right, mirrored for the left.
         "src": "boss_trio_board.webp", "bg": "grabcut", "tiles": 2.4,
+        "sharpen": 160,   # the source is soft (lossy, small figures): crisped before the shrink
         "matte": ("front", "back", "right"),   # the model matte (tools/make_mattes.py)
         "Idle": {
             "front": (252, 374, 486, 628),
@@ -731,6 +733,7 @@ BOARDS = {
         # the walk-sheet cut (tools/cut_boss_sheets.py); kept at the height
         # it had there. The row's title plaque is cleared where it reaches in.
         "src": "boss_trio_board.webp", "bg": "grabcut", "tiles": 1.9,
+        "sharpen": 160,   # the source is soft (lossy, small figures): crisped before the shrink
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
         "matte_bg": {"front": [(0, 0, 40, 125)]},      # the HADES plaque's edge
         # Keep the purple flames' wisps the model trims.
@@ -749,6 +752,7 @@ BOARDS = {
         # face, "South" the back, "East" faces right, "West" left). The
         # sheet's title plaque reaches the front box's corner: cleared.
         "src": "sellsword_npc_board.webp", "bg": "grabcut", "tiles": 1.65,
+        "sharpen": 160,   # the source is soft (lossy, small figures): crisped before the shrink
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
         "matte_bg": {"front": [(0, 0, 30, 14)]},
         # The boxes stop at her soles: the shiny floor plate below would leave
@@ -765,6 +769,7 @@ BOARDS = {
         # in a torn vest, leather apron and mail leggings — from his NPC
         # sheet: the top row's four standing poses (as the Sellsword's).
         "src": "blacksmith_npc_board.webp", "bg": "grabcut", "tiles": 1.75,
+        "sharpen": 160,   # the source is soft (lossy, small figures): crisped before the shrink
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
         "drop_shadow": (0.05, 30),
         "Idle": {
@@ -1243,6 +1248,16 @@ def _cut_black_key(rgb: np.ndarray) -> Image.Image:
     return Image.fromarray(rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
 
 
+def _sharpen(img: Image.Image, amount: float) -> Image.Image:
+    """Unsharp mask on the colour (alpha untouched), for boards whose source is
+    soft (lossy or upscaled): the detail reads after the cut is shrunk."""
+    from PIL import ImageFilter
+    rgb = img.convert("RGB").filter(ImageFilter.UnsharpMask(radius=2.0, percent=int(amount), threshold=2))
+    out = rgb.convert("RGBA")
+    out.putalpha(img.getchannel("A"))
+    return out
+
+
 def _drop_floor_shadow(img: Image.Image, band: float, lum_max: float = 80) -> Image.Image:
     """A painted floor shadow kept under the feet (the Grave Titan's board
     came cut out with its ellipse): dark, colourless pixels in the bottom
@@ -1299,6 +1314,8 @@ def build(name: str, cfg: dict) -> None:
                                     cfg.get("warm_grow", 0), cfg.get("drop_blue", False),
                                     cfg.get("dark_regrow", 0), bg_hints,
                                     cfg.get("warm_seed", False), cfg.get("violet_grow", {}).get(d, 0))
+            if cfg.get("sharpen") and d in full[anim] and box[0] != "mirror":
+                full[anim][d] = _sharpen(full[anim][d], cfg["sharpen"])
             if cfg.get("drop_shadow") and d in full[anim]:
                 ds = cfg["drop_shadow"]
                 band, lum_max = (ds if isinstance(ds, tuple) else (ds, 80))

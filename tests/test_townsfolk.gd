@@ -3,7 +3,7 @@ extends SceneTree
 ## The town's Sellsword and Blacksmith wear the designer's NPC sheets (four
 ## standing poses, 2026-10-27): the Sellsword at her post, the Blacksmith
 ## behind his counter. They face the plaza until the player comes near, then
-## turn to look at them.
+## turn to look at them. The town shows no big floating names (2026-10-27).
 ## Run: godot --headless --path . --script tests/test_townsfolk.gd
 
 var failures := 0
@@ -37,6 +37,15 @@ func _run() -> void:
 		return
 	for f in [ss, smith]:
 		_check(f._cp_sheets.has("Idle") and str(f._cp_sheets["Idle"].resource_path).contains(f.figure_kind), "%s plays its own sheet" % f.figure_kind)
+
+	# No big floating names in town; the quest marker and prompts stay.
+	var names := []
+	for l in town.find_children("*", "Label3D", true, false):
+		if l.visible and l.text.strip_edges() != "" and not (l.name in ["QuestIndicator", "InteractLabel"]) and l.get_parent().name != "MoveNumbers":
+			names.append(l.text)
+	_check(names.is_empty(), "no floating place names left (%s)" % str(names))
+	var oq = town.get_node_or_null("Vendors/Olorin/QuestIndicator")
+	_check(oq != null, "Olorin keeps his quest marker")
 
 	# Far away: both face the plaza (front row).
 	town.player.position = ss.global_position + Vector3(0, 0, 12)

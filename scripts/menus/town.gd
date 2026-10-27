@@ -258,6 +258,10 @@ func _ready() -> void:
 	_dress_town()
 	_settle_town_under_sprites()
 
+	# No big floating names over the shops, NPCs and landmarks (designer,
+	# 2026-10-27): the interact prompt names what the player walked up to.
+	_remove_place_names()
+
 	# Quest markers over the NPCs reflect the restored quest state.
 	_refresh_quest_indicators()
 	_refresh_leave_gate()
@@ -2535,10 +2539,6 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 			smith.setup("npc_blacksmith")
 			smith.position.z = -0.35
 			_townsfolk.append(smith)
-			# His name over his head (the plan camera shows -z as up the screen).
-			var sign_label := vendor.get_node_or_null("Label") as Label3D
-			if sign_label:
-				sign_label.position.z = -2.0
 			var barrel := CraftpixProps.make_sprite("goods_barrel", 1.0, 0)
 			if barrel:
 				barrel.position += Vector3(-1.1, 0, 0.5)
@@ -2696,6 +2696,20 @@ func _create_sellsword_npc() -> void:
 
 	$Vendors.add_child(sellsword)
 	print("[TOWN] Created Sellsword NPC at position %s" % sellsword.position)
+
+## Drop the floating name labels (BLACKSMITH, SELLSWORD, OLORIN, TOWN HALL,
+## Transport Portal, ...). Kept: the quest markers and the proximity prompts.
+const _KEPT_TOWN_LABELS := ["QuestIndicator", "InteractLabel"]
+
+func _remove_place_names() -> void:
+	for root_name in ["Vendors", "TransportPortal"]:
+		var root := get_node_or_null(root_name)
+		if root == null:
+			continue
+		for l in root.find_children("*", "Label3D", true, false):
+			if not (l.name in _KEPT_TOWN_LABELS):
+				l.get_parent().remove_child(l)
+				l.queue_free()
 
 ## The Sellsword and the Blacksmith look at a player who comes near and face
 ## the plaza (south, toward the camera) otherwise.
