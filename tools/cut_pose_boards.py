@@ -742,13 +742,19 @@ BOARDS = {
         },
     },
     "air_mage": {
-        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
-        "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,
+        # 2026-10-27: the Air Mage redrawn — a silver-haired sorceress in a
+        # tattered violet-and-blue robe, wind curling round her hands — four
+        # labelled poses on black: front, back, left, right. Replaces her
+        # cut from air_mage_board.jpg.
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "src": "air_mage_sorceress_board.webp", "bg": "grabcut", "tiles": 1.6,
+        # The model drops the thin ends of the wind swirls: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
         "Idle": {
-            "front": (375, 425, 590, 748),
-            "back": (840, 425, 1035, 748),
-            "right": (405, 55, 570, 365),
-            "left": (840, 55, 1005, 365),
+            "front": (110, 35, 500, 560),
+            "back": (771, 32, 1128, 557),
+            "left": (135, 640, 501, 1156),
+            "right": (754, 640, 1105, 1155),
         },
     },
     "ring_wraith": {
