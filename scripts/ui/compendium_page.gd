@@ -716,6 +716,44 @@ func _populate_enemies(filter: String) -> void:
 		var enemy_panel = _create_enemy_entry(enemy_data)
 		grid.add_child(enemy_panel)
 
+	# The allies the summon cards raise, after the bestiary (same search).
+	var allies: Array = []
+	for d in summon_data():
+		if filter.length() == 0 or filter.to_lower() in str(d["name"]).to_lower():
+			allies.append(d)
+	if allies.is_empty():
+		return
+	var header := Label.new()
+	header.text = "Summons — your allies"
+	EmeraldTheme.style_heading(header, 22)
+	_enemies_container.add_child(header)
+	var agrid := GridContainer.new()
+	agrid.columns = 3
+	agrid.add_theme_constant_override("h_separation", 10)
+	agrid.add_theme_constant_override("v_separation", 10)
+	_enemies_container.add_child(agrid)
+	for d in allies:
+		agrid.add_child(_create_enemy_entry(d))
+
+## The summon cards' allies (designer, 2026-10-27), in the bestiary's entry
+## shape: stats as summoned, the cards that raise them, what they do.
+## Kept beside summoned_skeleton.gd's kinds; test_summon_cards guards those.
+static func summon_data() -> Array:
+	return [
+		{"name": "Skeleton", "type": "Summon", "health": 10, "armor": 0, "damage": 6, "figure_kind": "summon_skeleton",
+			"summoned_by": "Summon Skeleton, Skeleton Army (also the Sack of Bone Arrows and Manifest)",
+			"actions": [{"name": "Move 1 space", "tempo": 1}, {"name": "Attack", "tempo": 5}],
+			"special": "Walks to the nearest enemy and strikes it for 6 every 5 tempo."},
+		{"name": "Shadow Hound", "type": "Summon", "health": 10, "armor": 0, "damage": 4, "figure_kind": "shadow_hound",
+			"summoned_by": "Summon Shadow Hound",
+			"actions": [{"name": "Move 2 spaces", "tempo": 1}, {"name": "Bite", "tempo": 8}],
+			"special": "Fast. Bites for 4 every (8 - INT/10) tempo — the smarter its summoner, the quicker (at least every tempo)."},
+		{"name": "Battle Turtle", "type": "Summon", "health": 25, "armor": 0, "damage": 0, "figure_kind": "battle_turtle",
+			"summoned_by": "Summon Battle Turtle, Turtle Power",
+			"actions": [{"name": "Move 1 space", "tempo": 1}],
+			"special": "Does not attack. Its armor is capped by its unerring armor (summoner INT / 2); it starts full and regains a fifth of it every 5 tempo. Whatever armor it gains, its allies gain too."},
+	]
+
 func _create_enemy_entry(enemy_data: Dictionary) -> PanelContainer:
 	var panel = PanelContainer.new()
 	panel.custom_minimum_size = Vector2(250, 72)
@@ -733,6 +771,8 @@ func _create_enemy_entry(enemy_data: Dictionary) -> PanelContainer:
 		type_color = Color(0.7, 0.2, 0.5)
 	elif enemy_data["type"] == "Special":
 		type_color = Color(0.3, 0.7, 0.8)
+	elif enemy_data["type"] == "Summon":
+		type_color = Color(0.45, 0.85, 0.55)
 
 	_style_tile(panel)
 
@@ -817,7 +857,16 @@ func _on_enemy_entry_hovered(enemy_data: Dictionary, entry: PanelContainer) -> v
 	if enemy_data["armor"] > 0:
 		_add_detail_line(vbox, "Armor: %d" % enemy_data["armor"], Color(0.7, 0.7, 0.7))
 	_add_detail_line(vbox, "Attack: %d" % enemy_data["damage"], Color(1.0, 0.5, 0.3))
-	_add_detail_line(vbox, "XP Reward: %d" % enemy_data["xp"], Color(0.5, 0.9, 0.5))
+	if enemy_data.has("xp"):
+		_add_detail_line(vbox, "XP Reward: %d" % enemy_data["xp"], Color(0.5, 0.9, 0.5))
+	if enemy_data.has("summoned_by"):
+		var by := Label.new()
+		by.text = "Summoned by: %s" % enemy_data["summoned_by"]
+		by.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		by.custom_minimum_size = Vector2(290, 0)
+		by.add_theme_font_size_override("font_size", 13)
+		by.add_theme_color_override("font_color", Color(0.45, 0.85, 0.55))
+		vbox.add_child(by)
 
 	var sep = HSeparator.new()
 	vbox.add_child(sep)

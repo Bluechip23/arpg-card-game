@@ -142,5 +142,16 @@ func _run() -> void:
 		t.unerring_armor = cap - 1
 		main._regain_turtle_armor(t, 5)
 		_check(t.unerring_armor == cap and stats.current_armor == before_full + 1, "one short of full: it gains 1, and its allies gain 1")
+	# The Compendium's allies section matches what the summons really are.
+	var sd: Array = load("res://scripts/ui/compendium_page.gd").summon_data()
+	var by_name := {}
+	for d in sd:
+		by_name[d["name"]] = d
+	_check(by_name.has("Skeleton") and by_name.has("Shadow Hound") and by_name.has("Battle Turtle"), "the Compendium lists the three summons")
+	_check(by_name.get("Skeleton", {}).get("health") == 10 and by_name.get("Skeleton", {}).get("damage") == 6, "its Skeleton: 10 HP, 6 damage")
+	_check(by_name.get("Shadow Hound", {}).get("health") == 10 and by_name.get("Shadow Hound", {}).get("damage") == 4, "its Shadow Hound: 10 HP, 4 damage")
+	_check(by_name.get("Battle Turtle", {}).get("health") == 25 and by_name.get("Battle Turtle", {}).get("damage") == 0, "its Battle Turtle: 25 HP, no attack")
+	for d in sd:
+		_check(SpriteEnemyFigure.supports(str(d["figure_kind"])), "%s has its picture" % d["name"])
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
