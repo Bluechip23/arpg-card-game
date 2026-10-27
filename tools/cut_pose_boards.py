@@ -321,7 +321,10 @@ BOARDS = {
         # no white fringe; make_mattes judges it on white, as drawn). Its "NORTH"
         # pose shows the face and "SOUTH" the back: picked by what they show.
         "src": "grave_titan_board.png", "bg": "grabcut", "tiles": 2.2,
-        "drop_shadow": 0.05,   # the painted ellipse under its feet
+        # The painted ellipse under its feet goes — only the near-black of
+        # it: its stone feet are grey and colourless too, and a looser cut
+        # (lum < 80) took his feet and shins with the shadow (2026-10-27).
+        "drop_shadow": (0.06, 30),
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
         "Idle": {
             "front": (165, 100, 550, 575),
@@ -1158,7 +1161,7 @@ def _cut_black_key(rgb: np.ndarray) -> Image.Image:
     return Image.fromarray(rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
 
 
-def _drop_floor_shadow(img: Image.Image, band: float) -> Image.Image:
+def _drop_floor_shadow(img: Image.Image, band: float, lum_max: float = 80) -> Image.Image:
     """A painted floor shadow kept under the feet (the Grave Titan's board
     came cut out with its ellipse): dark, colourless pixels in the bottom
     `band` of the figure go, then the cut-out is cropped to what is left."""
@@ -1167,7 +1170,7 @@ def _drop_floor_shadow(img: Image.Image, band: float) -> Image.Image:
     lum = rgb.mean(axis=2)
     sat = rgb.max(axis=2) - rgb.min(axis=2)
     y0 = int(a.shape[0] * (1.0 - band))
-    shadow = (lum < 80) & (sat < 20)
+    shadow = (lum < lum_max) & (sat < 20)
     shadow[:y0] = False
     a[..., 3][shadow] = 0
     ys, xs = np.nonzero(a[..., 3] > 0)
@@ -1215,7 +1218,9 @@ def build(name: str, cfg: dict) -> None:
                                     cfg.get("dark_regrow", 0), bg_hints,
                                     cfg.get("warm_seed", False), cfg.get("violet_grow", {}).get(d, 0))
             if cfg.get("drop_shadow") and d in full[anim]:
-                full[anim][d] = _drop_floor_shadow(full[anim][d], cfg["drop_shadow"])
+                ds = cfg["drop_shadow"]
+                band, lum_max = (ds if isinstance(ds, tuple) else (ds, 80))
+                full[anim][d] = _drop_floor_shadow(full[anim][d], band, lum_max)
         for d, box in cfg[anim].items():
             if box[0] == "mirror":
                 full[anim][d] = full[anim][box[1]].transpose(Image.FLIP_LEFT_RIGHT)
