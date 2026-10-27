@@ -21,7 +21,7 @@ func _check(ok: bool, msg: String) -> void:
 		print("  FAIL: %s" % msg)
 
 const KINDS := {"frankenstein": 1.75, "giant_beaver": 1.3, "wyvern": 1.9, "ring_wraith": 1.95,
-		"sanguine_penguin": 1.15, "djinn": 1.8, "ice_mage": 1.6, "fire_mage": 1.6,
+		"sanguine_penguin": 1.15, "djinn": 1.8, "ice_mage": 1.75, "fire_mage": 1.6,
 		"earth_mage": 1.85, "spark_mage": 1.6, "air_mage": 1.6, "ifrit": 2.0, "bull_worm": 1.2,
 		"inflamed_minotaur": 2.4, "bone_dragon": 2.6,
 		"screecher": 1.2, "granite_colossus": 2.6, "grave_titan": 2.2,

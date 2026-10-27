@@ -150,36 +150,35 @@ BOARDS = {
         },
     },
     "ice_mage": {
-        "src": "fire_frost_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
-        "feet_trim": False,   # her boots are the floor shadow's pale blue-grey
+        # 2026-10-27: the Ice Mage redrawn — a hooded frost mage in a fur-
+        # trimmed blue robe with a crystal-headed staff and a swirl of frost
+        # in hand — four poses on black. Its labels are swapped ("FACING UP"
+        # is the face) and both side poses face right: the "FACING RIGHT"
+        # one is the right, its mirror the left. The height counts the
+        # staff's crystal, which tops the head (the body matches the other mages).
+        "src": "ice_mage_board_v2.webp", "bg": "grabcut", "tiles": 1.75,
+        "matte": ("front", "back", "right"),   # the model matte (tools/make_mattes.py)
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "right")},
         "Idle": {
-            "front": (265, 405, 460, 748),
-            "back": (760, 425, 935, 735),
-            "right": (105, 40, 375, 372),
-            "left": (725, 40, 990, 372),
-        },
-        # Her spear's thin shaft vanishes against the snow, leaving its
-        # crystal head adrift: lines along head and shaft that are surely
-        # her (x0, y0, x1, y1, width; measured).
-        "fg": {
-            "right": [(238, 24, 206, 84, 4), (206, 84, 147, 218, 3)],
-            "left": [(22, 24, 64, 96, 4), (64, 96, 118, 220, 3)],
+            "front": (38, 178, 384, 792),
+            "back": (427, 178, 788, 792),
+            "right": (1212, 178, 1536, 792),
+            "left": ("mirror", "right"),
         },
     },
     "fire_mage": {
-        "matte": ("front", "back", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
-        "src": "fire_frost_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
-        "sky_tol": 12,   # his black hood against the black night sky
-        "dark_regrow": 12,  # ...and the hood's top won back from the sky's colour model
-        "warm_grow": 55,  # the headband's tails, his forearm wrap and flames
-        "drop_blue": True,  # snow-hill pockets between arm and side
-        # The headband's two tails, flying off the back of his hood.
-        "fg": {"right": [(28, 38, 72, 45, 5), (30, 47, 62, 54, 4), (72, 45, 92, 50, 3)]},
+        # 2026-10-27: the Fire Mage redrawn — a hooded, masked fire ninja in
+        # black and blood-red wraps, flame round both fists — four poses on
+        # black ("FACING UP" is the face; the side labels are true).
+        "src": "fire_mage_board_v2.webp", "bg": "grabcut", "tiles": 1.6,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model trims the flames' wisps: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
         "Idle": {
-            "front": (485, 420, 675, 722),
-            "back": (1180, 420, 1370, 722),
-            "right": (425, 50, 640, 372),
-            "left": ("mirror", "right"),
+            "front": (17, 37, 356, 489),
+            "back": (411, 37, 727, 489),
+            "left": (852, 37, 1106, 489),
+            "right": (1210, 37, 1536, 489),
         },
     },
     "earth_mage": {
