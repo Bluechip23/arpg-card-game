@@ -859,14 +859,14 @@ All five are spells (Silence stops them), aimed at a point; the summons appear o
   - Card text: Summon a skeleton (10 HP) that moves 1 space every tempo and attacks for 6 damage every 5 tempo. Costs 45 mana minus your INT; above 45 INT the difference is refunded.
   - Code: deck_manager.compute_play_cost sets the cost from INT (SUMMON_SKELETON_BASE_MANA); main._summon_from_card raises one "card_skeleton" and refunds INT − 45. Art: the designer's summon skeleton board (also the item / manifest skeleton's art now).
 - **Summon Battle Turtle** (`summon_battle_turtle`) — Rare · 65 mana, 3 tempo · range melee · targets point · slots: Buckler / Gem / Staff / Wand · sheet: Defensive
-  - Card text: Summon a Battle Turtle (25 HP, unerring armor equal to half your INT) that moves 1 space every tempo. Every 5 tempo its armor grows by a fifth of itself. Whenever it gains armor, so do its allies.
-  - Code: kind "battle_turtle": no attack; unerring armor INT/2 soaks hits first; main._grow_turtle_armor adds floor(armor/5) every 5 tempo and gives the same to the players (armor) and every other turtle (no chain). Below 5 armor it does not grow. Art: stand-in (a mossy rock golem) until its board.
+  - Card text: Summon a Battle Turtle (25 HP) with unerring armor equal to half your INT. Every 5 tempo it regains a fifth of that armor, up to its unerring armor. Whenever it gains armor, so do its allies. Moves 1 space every tempo.
+  - Code: kind "battle_turtle": no attack. Its armor soaks hits first and is capped by its unerring armor (INT/2); it starts full. main._regain_turtle_armor adds max(1, floor(cap/5)) every 5 tempo, never past the cap, and gives what it actually gained to the players (armor) and every other turtle (up to their caps; no chain) — a full turtle gives nothing (designer, 2026-10-27: "grows" meant regains, capped). Art: stand-in (a mossy rock golem) until its board.
 - **Skeleton Army** (`skeleton_army`) — Legendary · 130 mana, 7 tempo · range 5 · targets point · slots: Staff / Gem / Crown · sheet: Offensive
   - Card text: Summon 4 skeletons (10 HP each) that move 1 space every tempo and attack for 6 damage every 5 tempo.
   - Code: four "card_skeleton"s, as Summon Skeleton (no INT pricing on the Army).
 - **Turtle Power** (`turtle_power`) — Legendary · 160 mana, 6 tempo · range 3 · targets point · slots: Staff / Gem / Crown · sheet: Defensive
   - Card text: Summon 3 Battle Turtles (as Summon Battle Turtle).
-  - Code: three "battle_turtle"s; each one's growth also feeds the others and the players.
+  - Code: three "battle_turtle"s; armor any one regains also goes to the others and the players.
 - **Summon Shadow Hound** (`summon_shadow_hound`) — Rare · 20 mana, 3 tempo · range melee · targets point · slots: Wand / Gem / Staff / Dagger / Sword · sheet: Offensive
   - Card text: Summon a Shadow Hound (10 HP) that moves 2 spaces every tempo and bites for 4 damage every (8 − INT/10) tempo.
   - Code: kind "shadow_hound": attack_interval = max(1, 8 − floor(INT/10)), set when summoned. Art: stand-in (the wolf, shadowed) until its board.

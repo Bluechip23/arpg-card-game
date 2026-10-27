@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "summon_battle_turtle"
 card_name = "Summon Battle Turtle"
-description = "Summon a Battle Turtle (25 HP, unerring armor equal to half your INT) that moves 1 space every tempo. Every 5 tempo its armor grows by a fifth of itself. Whenever it gains armor, so do its allies."
+description = "Summon a Battle Turtle (25 HP) with unerring armor equal to half your INT. Every 5 tempo it regains a fifth of that armor, up to its unerring armor. Whenever it gains armor, so do its allies. Moves 1 space every tempo."
 card_type = 1
 card_type_name = "Defense"
 mana_cost = 65

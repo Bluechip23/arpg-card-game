@@ -4,7 +4,7 @@ extends SceneTree
 ## Turtle, Skeleton Army, Turtle Power and Summon Shadow Hound — their sheet
 ## rows (type, slots, rarity, mana, tempo, range), Summon Skeleton's 45 - INT
 ## mana with the refund above 45 INT, what each summons and how it behaves,
-## the turtle's growing armor shared with its allies, and that card summons
+## the turtle's armor regained up to its unerring cap and shared with allies, and that card summons
 ## stand outside the item / manifest 3-summon cap.
 ## Run: godot --headless --path . --script tests/test_summon_cards.gd
 
@@ -111,26 +111,36 @@ func _run() -> void:
 		hounds[0].die()
 	await process_frame
 
-	# Battle Turtle: 25 HP, unerring armor INT/2 growing by a fifth every 5
-	# tempo; when it grows, the player and the other turtles gain it too.
+	# Battle Turtle: 25 HP, armor capped by its unerring armor (INT/2); it
+	# starts full and regains a fifth of the cap every 5 tempo, never past it;
+	# whatever it actually gains, the player and the other turtles gain too.
 	stats.base_intelligence = 40
 	main._summon_from_card("turtle_power", aim)
 	var turtles := _summons_of(main, "battle_turtle")
 	_check(turtles.size() == 3, "Turtle Power raises 3 Battle Turtles")
 	if turtles.size() == 3:
 		var t = turtles[0]
-		_check(t.max_health == 25 and t.unerring_armor == int(stats.intelligence / 2) and t.base_attack == 0 and t.move_steps == 1,
-			"25 HP, %d unerring armor (INT / 2), no attack, 1 space every tempo" % t.unerring_armor)
-		var a0: int = t.unerring_armor
+		var cap: int = int(stats.intelligence / 2)
+		_check(t.max_health == 25 and t.unerring_cap == cap and t.unerring_armor == cap and t.base_attack == 0 and t.move_steps == 1,
+			"25 HP, starts with its full %d unerring armor (INT / 2), no attack, 1 space every tempo" % cap)
 		var p_armor: int = stats.current_armor
+		main._regain_turtle_armor(t, 5)
+		_check(t.unerring_armor == cap and stats.current_armor == p_armor, "full: 5 tempo later it gains nothing, so neither do its allies")
+		t.take_damage(10)
+		_check(t.health == 25 and t.unerring_armor == cap - 10, "its armor soaks a hit before its health")
+		turtles[1].take_damage(10)
 		var other_before: int = turtles[1].unerring_armor
-		main._grow_turtle_armor(t, 5)
-		var grow: int = int(a0 / 5)
-		_check(t.unerring_armor == a0 + grow, "after 5 tempo its armor grows by a fifth (%d -> %d)" % [a0, t.unerring_armor])
-		_check(stats.current_armor == p_armor + grow, "the player gains the same armor (%d)" % grow)
-		_check(turtles[1].unerring_armor == other_before + grow, "and so does each other turtle")
-		var hp_before: int = t.health
-		t.take_damage(5)
-		_check(t.health == hp_before and t.unerring_armor == a0 + grow - 5, "its armor soaks a hit before its health")
+		main._regain_turtle_armor(t, 5)
+		var y: int = int(cap / 5)
+		_check(t.unerring_armor == cap - 10 + y, "after 5 tempo it regains a fifth of the cap (%d)" % y)
+		_check(stats.current_armor == p_armor + y, "the player gains that armor too")
+		_check(turtles[1].unerring_armor == other_before + y, "and so does each other turtle")
+		main._regain_turtle_armor(t, 5)
+		main._regain_turtle_armor(t, 5)
+		_check(t.unerring_armor == cap, "it never climbs past its unerring armor (%d)" % t.unerring_armor)
+		var before_full: int = stats.current_armor
+		t.unerring_armor = cap - 1
+		main._regain_turtle_armor(t, 5)
+		_check(t.unerring_armor == cap and stats.current_armor == before_full + 1, "one short of full: it gains 1, and its allies gain 1")
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

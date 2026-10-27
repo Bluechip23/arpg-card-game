@@ -22,13 +22,15 @@ var attack_interval := 5  # tempo between attacks
 var kind := "skeleton"
 var from_card := false    # raised by a summon card: outside the 3-summon cap
 
-# Battle Turtle: unerring armor (taken before health, never decays) that grows
-# by a fifth of itself every ARMOR_GROWTH_INTERVAL tempo (main drives it).
-const ARMOR_GROWTH_INTERVAL := 5
-var unerring_armor := 0
+# Battle Turtle: armor taken before health, capped by its unerring armor
+# (summoner INT / 2). It starts full and regains a fifth of the cap every
+# ARMOR_REGAIN_INTERVAL tempo, never past the cap (main drives it).
+const ARMOR_REGAIN_INTERVAL := 5
+var unerring_cap := 0      # the most armor it can hold
+var unerring_armor := 0    # what it holds now
 var armor_accum := 0
 
-## `summoner_int` sets what scales with the caster: the turtle's starting armor
+## `summoner_int` sets what scales with the caster: the turtle's armor cap
 ## (INT / 2) and the hound's bite cadence (8 - INT / 10 tempo, at least 1).
 func setup(gm: GridManager, spawn_pos: Vector3, hp: int, summon_kind := "skeleton", summoner_int := 0) -> void:
 	_place(gm, spawn_pos)
@@ -64,11 +66,12 @@ func setup(gm: GridManager, spawn_pos: Vector3, hp: int, summon_kind := "skeleto
 			from_card = true
 		"battle_turtle":
 			# Summon Battle Turtle: 1 space every tempo, no attack; unerring
-			# armor INT / 2 that grows (main._grow_turtle_armor).
+			# armor INT / 2, regained over time (main._regain_turtle_armor).
 			display_name = "Battle Turtle"
 			base_attack = 0
 			move_steps = 1
-			unerring_armor = int(summoner_int / 2)
+			unerring_cap = int(summoner_int / 2)
+			unerring_armor = unerring_cap
 			from_card = true
 		_:
 			display_name = "Skeleton"
@@ -101,12 +104,22 @@ func _absorb(amount: int) -> int:
 func _health_label_text() -> String:
 	var t := super._health_label_text()
 	if kind == "battle_turtle":
-		t += "  [%d]" % unerring_armor
+		t += "  [%d/%d]" % [unerring_armor, unerring_cap]
 	return t
 
-## Battle Turtle: add armor (its growth, or an ally turtle's passive).
-func gain_armor(amount: int) -> void:
+## The armor a Battle Turtle regains each interval: a fifth of its cap
+## (at least 1 while it has a cap).
+func armor_regain() -> int:
+	return maxi(1, int(unerring_cap / 5)) if unerring_cap > 0 else 0
+
+## Battle Turtle: add armor up to the cap (its regain, or an ally turtle's
+## passive). Returns what it actually gained.
+func gain_armor(amount: int) -> int:
 	if amount <= 0 or is_dead:
-		return
-	unerring_armor += amount
+		return 0
+	var gained := mini(amount, unerring_cap - unerring_armor)
+	if gained <= 0:
+		return 0
+	unerring_armor += gained
 	_update_health_label()
+	return gained

@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "turtle_power"
 card_name = "Turtle Power"
-description = "Summon 3 Battle Turtles (25 HP, unerring armor equal to half your INT, growing by a fifth every 5 tempo; whenever one gains armor, so do its allies)."
+description = "Summon 3 Battle Turtles (25 HP, unerring armor equal to half your INT; every 5 tempo each regains a fifth of it, up to its unerring armor; whenever one gains armor, so do its allies)."
 card_type = 1
 card_type_name = "Defense"
 mana_cost = 160

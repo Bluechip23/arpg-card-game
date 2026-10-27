@@ -9802,7 +9802,7 @@ func _update_skeletons(amount: int) -> void:
 		if not is_instance_valid(s) or s.is_dead:
 			continue
 		if s.kind == "battle_turtle":
-			_grow_turtle_armor(s, amount)
+			_regain_turtle_armor(s, amount)
 		var target_enemy := _nearest_enemy_to(s.position, enemies)
 		if target_enemy == null:
 			continue
@@ -9902,25 +9902,25 @@ func _free_cells_near(center: Vector2i, n: int) -> Array:
 					return out
 	return out
 
-## Battle Turtle: every ARMOR_GROWTH_INTERVAL tempo its unerring armor grows
-## by a fifth of itself (rounded down). Its passive: whenever it gains armor,
-## so do all its allies — the players (armor) and the other Battle Turtles
-## (their unerring armor; their own passive does not chain off it).
-func _grow_turtle_armor(t, amount: int) -> void:
+## Battle Turtle: every ARMOR_REGAIN_INTERVAL tempo it regains a fifth of
+## its unerring armor, never past it (designer, 2026-10-27). Its passive:
+## whatever armor it actually gains, all its allies gain too — the players
+## (armor) and the other Battle Turtles (up to their own cap; their passive
+## does not chain off it). A full turtle gains nothing, so gives nothing.
+func _regain_turtle_armor(t, amount: int) -> void:
 	t.armor_accum += amount
-	while t.armor_accum >= t.ARMOR_GROWTH_INTERVAL:
-		t.armor_accum -= t.ARMOR_GROWTH_INTERVAL
-		var grow: int = int(t.unerring_armor / 5)
-		if grow <= 0:
+	while t.armor_accum >= t.ARMOR_REGAIN_INTERVAL:
+		t.armor_accum -= t.ARMOR_REGAIN_INTERVAL
+		var gained: int = t.gain_armor(t.armor_regain())
+		if gained <= 0:
 			continue
-		t.gain_armor(grow)
 		for p in [_p1_player, _p2_player] if _p1_player else [player]:
 			if p and is_instance_valid(p) and p.get_stats():
-				p.get_stats().add_armor(grow)
+				p.get_stats().add_armor(gained)
 		for other in _skeletons:
 			if other != t and is_instance_valid(other) and not other.is_dead and other.kind == "battle_turtle":
-				other.gain_armor(grow)
-		add_battle_log("Battle Turtle: +%d armor to it and its allies" % grow, Color(0.55, 0.8, 0.6))
+				other.gain_armor(gained)
+		add_battle_log("Battle Turtle: +%d armor to it and its allies" % gained, Color(0.55, 0.8, 0.6))
 
 ## Bow of Budding Blasts: the maintained Spirit Bow (one at a time).
 func _summon_spirit_bow() -> void:
