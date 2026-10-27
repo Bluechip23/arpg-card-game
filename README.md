@@ -6,7 +6,9 @@
 
 ## A look at the game
 
-The battlefield is an elevation-aware grid rendered in pixel art from a fixed top-down view — north is always up, every texel lands on whole screen pixels, and the camera zooms by texel scale from close-up character work to a full tactical overview. Along the bottom: your hand of cards; top-center: the tempo bar that drives everything; left rail: the live enemy tracker.
+The battlefield is an elevation-aware grid seen from a fixed top-down view — north is always up, every texel lands on whole screen pixels, and the camera zooms by texel scale from close-up character work to a full tactical overview. Along the bottom: your hand of cards; top-center: the tempo bar that drives everything; left rail: the live enemy tracker.
+
+The heroes, nearly every enemy and boss, the summons and the townsfolk are the designer's own hand-drawn art — four-direction pose boards cut into game sprites (`tools/cut_pose_boards.py`) and drawn smooth, never blurred or recompressed. The world itself (tiles, props, buildings) comes from the purchased art packs listed in [`docs/ASSET_PACKS.md`](docs/ASSET_PACKS.md).
 
 | Default battle view | Closer |
 |---|---|
@@ -16,7 +18,7 @@ The battlefield is an elevation-aware grid rendered in pixel art from a fixed to
 |---|---|
 | ![Zoom in](docs/screenshots/view_zoom_in.png) | ![Zoom out](docs/screenshots/view_zoom_out.png) |
 
-Characters are procedurally animated — every card and action has real motion and effects, no canned videos:
+Every card and action plays a motion and an effect — the signature spells (Fireball, the ice spike, lightning, the Phoenix, searing fire) are the designer's own animations:
 
 | Basic attack mid-swing | Gathering a fireball | Level up (mist swirl + full restore) |
 |---|---|---|
@@ -67,6 +69,8 @@ While progressing through the world, slaying monsters and developing your charac
 5. **Repeat, forever.** After the story concludes, the end-game layers directly on top of this loop. Defend the city against escalating threats, farm the world's zones for XP, cards, items, resources, and keep building both the city and the character(s) who protect it. 
 
 Your **card stash matters**: certain base events are easier with certain cards in your deck. Your core build stays your core build, however, a few smart swaps before answering the flute can turn a sack into a stand.
+
+Town itself is a plaza of vendors and townsfolk — the Blacksmith at his forge counter, the Sellsword at her post, Olorin, the Dojo master, the Town Hall. Walk up to one and the prompt at the bottom of the screen names it; press Shift to talk or trade. The townsfolk turn to look at you as you come near.
 
 Recruited NPCs are part of the same fabric: allies found on the journey (starting with the Sellsword's battle-partners) return to town to staff and defend it. Eventually, multiple characters you've built will be able to reside in and defend the city.
 
@@ -176,6 +180,20 @@ The full card web (Playable: Power / Offensive / Defensive / Utility; Instant; U
 | **Unplayable** | Dead weight and takes up a hand slot. Usually inflicted by enemies. |
 
 Every card also carries its design **tags** from the card sheet's Type column (`Card.keywords`, e.g. `Attack, melee`, `Utility, ally, ranged 5`, `Reaction, defense`): its type (a second type marks a dual role, like Parry's defense-that-attacks), its delivery (**spell**, **offensive**, **melee** / **ranged N** / **conditional**, **aoe**), and its targeting (**self**, **ally** / **allies**, **enemy**, **point click**, **no target**). Every attack card is also offensive. **Offensive is a rider, not a measure of damage**: an Attack card always carries it, any other card (a spell, a utility) only when the sheet tags it `offensive`, and a damaging utility without the tag is not offensive. Every item and passive that speaks of "offensive cards" reads that rider. Items, passives, and UI can key off them with `has_keyword()`. When a card makes an ally draw, the *ally* draws from their own deck into their own hand and the caster draws nothing. The tags describe the card's wiring rather than replace it, and `tests/test_card_keywords.gd` fails if a card's tags and its actual type, school, range, or targets ever disagree.
+
+### Summons
+
+Some cards raise allies that fight beside you. A summon stands on a tile of the grid, has its own health, walks toward the nearest enemy on its own cadence and strikes when it gets there; enemies can attack it in turn. Summons last until they die or the battle ends.
+
+| Card | Rarity | Summons |
+|---|---|---|
+| **Summon Skeleton** | Common | 1 skeleton: 10 HP, moves 1 space every tempo, 6 damage every 5 tempo. Costs **45 − INT** mana; above 45 INT it is free and refunds the difference. |
+| **Skeleton Army** | Legendary | 4 skeletons. |
+| **Summon Shadow Hound** | Rare | 1 hound: 10 HP, moves 2 spaces every tempo, 4 damage every **8 − INT/10** tempo. |
+| **Summon Battle Turtle** | Rare | 1 turtle: 25 HP, no attack. Its armor is capped by its **unerring armor (INT ÷ 2)**: it starts full and regains a fifth of it every 5 tempo. Whatever armor it gains, its allies gain too. |
+| **Turtle Power** | Legendary | 3 Battle Turtles. |
+
+The summon cards are spells (Silence stops them) aimed at a point: the summons appear on that tile and the open tiles around it. Other summons come from items and effects — the Sack of Bone Arrows raises a skeleton from a kill, Manifest tokens raise a skeleton, spirit or golem, ITS ALIVE!!!!! raises Frankensteins Monster from a corpse. Those item and manifest summons are capped at three standing at once; card summons stand outside that cap.
 
 ### Drawing and overflow
 
@@ -426,6 +444,13 @@ The character's **innate passive** (the item-specialty one, like Brad's lighter 
 ---
 
 ## The In-Game Menus
+
+The **?** button at the top right (or **H**) opens the help panel: the keyword legend, the gameplay walkthrough and the settings. Under its tabs sit three buttons:
+
+- **Save** — choose a slot and write your character as they are right now, in town or out in the world. A loaded save always wakes up at home, in town.
+- **Quit to Menu** / **Quit to Desktop** — both first ask **"Save before you quit?"**: *Yes* saves to your character's own slot (the one you loaded from or last saved to; with none yet, you pick one, and closing the picker calls the quit off), *No* leaves without saving, *Cancel* goes back. (The sandbox arena has no character to save, so it only offers the quits.)
+
+The title menu's **Compendium** lists every card, item and enemy in the game — the cards and items with their full text on hover, each enemy with its picture, tier, stats and abilities — each tab with a search bar.
 
 Press **Tab** to open the journal, which holds four tabs:
 

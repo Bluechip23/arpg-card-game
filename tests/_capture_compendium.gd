@@ -6,7 +6,7 @@ extends SceneTree
 ##   LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
 ##   xvfb-run -a -s "-screen 0 1280x720x24" godot --path . \
 ##     --rendering-method gl_compatibility --rendering-driver opengl3 \
-##     --script tests/_capture_compendium.gd -- <out_dir>
+##     --script tests/_capture_compendium.gd -- <out_dir> [card_search] [enemy_search]
 
 const TABS := ["cards", "items", "enemies"]
 
@@ -18,9 +18,16 @@ func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		_out = args[0]
+	if args.size() > 1:
+		_card_q = args[1]
+	if args.size() > 2:
+		_enemy_q = args[2]
 	DirAccess.make_dir_recursive_absolute(_out)
 	_page = (load("res://scenes/ui/compendium_page.tscn") as PackedScene).instantiate()
 	get_root().add_child(_page)
+
+var _card_q := ""
+var _enemy_q := ""
 
 func _first_tile(tab: int) -> Control:
 	var containers := [_page._cards_container, _page._items_container, _page._enemies_container]
@@ -43,6 +50,13 @@ func _process(_delta: float) -> bool:
 		return true
 	if phase == 0:
 		_page.tab_container.current_tab = idx
+	elif phase == 5:
+		if idx == 0 and _card_q != "":
+			_page._cards_search.text = _card_q
+			_page._on_cards_search_changed(_card_q)
+		elif idx == 2 and _enemy_q != "":
+			_page._enemies_search.text = _enemy_q
+			_page._on_enemies_search_changed(_enemy_q)
 	elif phase == 10:
 		var tile := _first_tile(idx)
 		if tile:
