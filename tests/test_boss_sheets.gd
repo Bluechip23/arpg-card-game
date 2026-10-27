@@ -1,10 +1,10 @@
 extends SceneTree
 
-## The designer's boss boards, cut by tools/cut_boss_sheets.py: Cerberus and
-## the Corrupted Archangel spawn on their sheets (Idle + Walk, four direction
-## rows), turn to face each way, and walk through frames;
-## the Hades kind is staged and loads the same way. The Rat King left them for
-## his redrawn pose board (2026-10-26).
+## The designer's boss art: Cerberus, the Corrupted Archangel and the staged
+## Hades kind wear the boss trio pose board (2026-10-27; tools/cut_pose_boards.py,
+## one pose a direction), the Pit Fiend its walking sheets
+## (tools/cut_pit_fiend.py); each turns to face every way. The Rat King left
+## the walk sheets for his redrawn pose board (2026-10-26).
 ## Run: godot --headless --path . --script tests/test_boss_sheets.gd
 
 var failures := 0
@@ -33,7 +33,7 @@ func _frame_rects(path: String, cols: int) -> Array:
 		rows.append(row)
 	return rows
 
-func _check_fig(fig, name: String) -> void:
+func _check_fig(fig, name: String, walks: bool = true) -> void:
 	_check(fig is SpriteEnemyFigure and fig._cp_mode, "%s plays directional sheets" % name)
 	if not (fig is SpriteEnemyFigure):
 		return
@@ -49,7 +49,8 @@ func _check_fig(fig, name: String) -> void:
 		fig.set_facing(d)
 		rows[int(fig._sprite.region_rect.position.y / cell)] = true
 	_check(rows.size() == 4, "%s shows a different row for each of the four facings" % name)
-	_check(fig._cp_frame_count("Walk") >= 3, "%s walks through %d frames" % [name, fig._cp_frame_count("Walk")])
+	if walks:
+		_check(fig._cp_frame_count("Walk") >= 3, "%s walks through %d frames" % [name, fig._cp_frame_count("Walk")])
 	_check(cell >= 36, "%s cell is a sensible size" % name)
 
 func _run() -> void:
@@ -65,7 +66,9 @@ func _run() -> void:
 		var en: Enemy = main.enemy_spawner.spawn_enemy(t, main.player.position + Vector3(x, 0, 0))
 		x += 2.0
 		await process_frame
-		_check_fig(en._enemy_figure, en.enemy_name)
+		# Cerberus and the Archangel wear the boss trio pose board (2026-10-27):
+		# one pose a direction, no walk cycle. The Pit Fiend still walks.
+		_check_fig(en._enemy_figure, en.enemy_name, t == Enemy.EnemyType.PIT_FIEND)
 		_check(en.get_portrait_texture() != null, "%s has a portrait" % en.enemy_name)
 	# The Archer Rat wears the designer's redrawn four-pose board (2026-10-26;
 	# tools/cut_pose_boards.py): one pose a direction, bow in hand, and it
@@ -97,8 +100,11 @@ func _run() -> void:
 		_check_fig(ce._enemy_figure, ce.enemy_name)
 	# The Screecher wears the designer's crawler board (2026-10-25), no longer
 	# the Snow Wraith's ghost.
-	_check(str(SpriteEnemyFigure.KINDS["screecher"].get("sheets", "")).ends_with("/screecher"), "the Screecher wears its own board")
-	_check(not "screecher" in SpriteEnemyFigure.PAINTED_SHADOW_KINDS, "the crawling Screecher casts a blob shadow")
+	# The crawler board is the Consumed's (2026-10-27: it was on the Screecher
+	# by mistake); the Screecher is back on the pale ghost for now.
+	_check(str(SpriteEnemyFigure.KINDS["consumed"].get("sheets", "")).ends_with("/consumed"), "the Consumed wears the crawler board")
+	_check(not "consumed" in SpriteEnemyFigure.PAINTED_SHADOW_KINDS, "the crawling Consumed casts a blob shadow")
+	_check(SpriteEnemyFigure.KINDS["screecher"].get("cp", "") == "ghost/Ghost2", "the Screecher is the pale ghost again")
 	# The Rat King wears the designer's redrawn four-pose board (2026-10-26):
 	# one pose a direction, no walk cycle, and bigger than the normal rat
 	# (the Wererat) — the designer's ask.
@@ -135,6 +141,6 @@ func _run() -> void:
 	var hades := SpriteEnemyFigure.new()
 	hades.setup("hades")
 	main.add_child(hades)
-	_check_fig(hades, "Hades (staged)")
+	_check_fig(hades, "Hades (staged)", false)
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

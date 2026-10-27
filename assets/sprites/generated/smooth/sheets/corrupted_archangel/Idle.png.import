@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b0ig2y7qnyjjs"
-path="res://.godot/imported/Walk.png-9cc48daf67e7138c6ee1ad63c6f91fdc.ctex"
+uid="uid://becpuk2dxvjp1"
+path="res://.godot/imported/Idle.png-978b115e5fb0196426290b804bfd3576.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/generated/sheets/screecher/Walk.png"
-dest_files=["res://.godot/imported/Walk.png-9cc48daf67e7138c6ee1ad63c6f91fdc.ctex"]
+source_file="res://assets/sprites/generated/smooth/sheets/corrupted_archangel/Idle.png"
+dest_files=["res://.godot/imported/Idle.png-978b115e5fb0196426290b804bfd3576.ctex"]
 
 [params]
 
@@ -23,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

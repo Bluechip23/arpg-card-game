@@ -285,10 +285,11 @@ BOARDS = {
                          (410, 280, 396, 300, 6)]},
         "violet_grow": {"front": 230, "back": 240},   # the wings' mist, not the clouds at its feet
     },
-    "screecher": {
+    "consumed": {
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
-        # 2026-10-25: the Screecher, a gaunt long-limbed undead crawler with a
-        # gaping fanged maw, in a bone-strewn cave. Its side labels are
+        # 2026-10-25: a gaunt long-limbed undead crawler with a gaping fanged
+        # maw, in a bone-strewn cave. Drawn for the Consumed: it was put on
+        # the Screecher by mistake and moved here on 2026-10-27 (designer). Its side labels are
         # swapped (the "FACING LEFT" panel faces right), so the poses are
         # picked by what they show.
         "src": "screecher_board.jpg", "bg": "grabcut", "tiles": 1.2,
@@ -321,7 +322,10 @@ BOARDS = {
         # no white fringe; make_mattes judges it on white, as drawn). Its "NORTH"
         # pose shows the face and "SOUTH" the back: picked by what they show.
         "src": "grave_titan_board.png", "bg": "grabcut", "tiles": 2.2,
-        "drop_shadow": 0.05,   # the painted ellipse under its feet
+        # The painted ellipse under its feet goes — only the near-black of
+        # it: its stone feet are grey and colourless too, and a looser cut
+        # (lum < 80) took his feet and shins with the shadow (2026-10-27).
+        "drop_shadow": (0.06, 30),
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
         "Idle": {
             "front": (165, 100, 550, 575),
@@ -687,6 +691,92 @@ BOARDS = {
             "back": (653, 29, 889, 457),
             "left": (66, 519, 441, 870),
             "right": (594, 520, 970, 870),
+        },
+    },
+    "corrupted_archangel": {
+        # 2026-10-27: from the designer's boss trio board (boss_trio_board.webp:
+        # the Corrupted Archangel, Cerberus and Hades, four labelled poses each
+        # — NORTH is the face, SOUTH the back, EAST / WEST the sides). Replaces
+        # the walk-sheet cut (tools/cut_boss_sheets.py); kept at the height
+        # it had there. The row's title plaque is cleared where it reaches in.
+        "src": "boss_trio_board.webp", "bg": "grabcut", "tiles": 1.9,
+        "sharpen": 160,   # the source is soft (lossy, small figures): crisped before the shrink
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (218, 18, 498, 320),
+            "back": (877, 18, 1167, 320),
+            "left": (1230, 18, 1438, 320),
+            "right": (574, 18, 782, 320),
+        },
+    },
+    "cerberus": {
+        # 2026-10-27: from the designer's boss trio board (boss_trio_board.webp:
+        # the Corrupted Archangel, Cerberus and Hades, four labelled poses each
+        # — NORTH is the face, SOUTH the back, EAST / WEST the sides). Replaces
+        # the walk-sheet cut (tools/cut_boss_sheets.py); kept at the height
+        # it had there. The row's title plaque is cleared where it reaches in.
+        # Both its side poses face right: EAST is the right, mirrored for the left.
+        "src": "boss_trio_board.webp", "bg": "grabcut", "tiles": 2.4,
+        "sharpen": 160,   # the source is soft (lossy, small figures): crisped before the shrink
+        "matte": ("front", "back", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (252, 374, 486, 628),
+            "back": (906, 374, 1094, 628),
+            "right": (499, 374, 873, 628),
+            "left": ("mirror", "right"),
+        },
+    },
+    "hades": {
+        # 2026-10-27: from the designer's boss trio board (boss_trio_board.webp:
+        # the Corrupted Archangel, Cerberus and Hades, four labelled poses each
+        # — NORTH is the face, SOUTH the back, EAST / WEST the sides). Replaces
+        # the walk-sheet cut (tools/cut_boss_sheets.py); kept at the height
+        # it had there. The row's title plaque is cleared where it reaches in.
+        "src": "boss_trio_board.webp", "bg": "grabcut", "tiles": 1.9,
+        "sharpen": 160,   # the source is soft (lossy, small figures): crisped before the shrink
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "matte_bg": {"front": [(0, 0, 40, 125)]},      # the HADES plaque's edge
+        # Keep the purple flames' wisps the model trims.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 55)] for d in ("back", "left", "right")},
+        "Idle": {
+            "front": (225, 672, 526, 970),
+            "back": (872, 672, 1173, 970),
+            "left": (1248, 672, 1491, 970),
+            "right": (563, 672, 791, 970),
+        },
+    },
+    "npc_sellsword": {
+        # 2026-10-27: the town's Sellsword — a bespectacled woman in a black
+        # waistcoat, puffed white sleeves and breeches, a ledger at her hip —
+        # from her NPC sheet: the top row's four standing poses ("North" the
+        # face, "South" the back, "East" faces right, "West" left). The
+        # sheet's title plaque reaches the front box's corner: cleared.
+        "src": "sellsword_npc_board.webp", "bg": "grabcut", "tiles": 1.65,
+        "sharpen": 160,   # the source is soft (lossy, small figures): crisped before the shrink
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "matte_bg": {"front": [(0, 0, 30, 14)]},
+        # The boxes stop at her soles: the shiny floor plate below would leave
+        # specks, and her black boots are too dark for the shadow drop.
+        "Idle": {
+            "front": (360, 104, 528, 493),
+            "back": (834, 104, 978, 493),
+            "left": (1071, 104, 1165, 493),
+            "right": (637, 104, 729, 493),
+        },
+    },
+    "npc_blacksmith": {
+        # 2026-10-27: the town's Blacksmith — a long-haired, moustached smith
+        # in a torn vest, leather apron and mail leggings — from his NPC
+        # sheet: the top row's four standing poses (as the Sellsword's).
+        "src": "blacksmith_npc_board.webp", "bg": "grabcut", "tiles": 1.75,
+        "sharpen": 160,   # the source is soft (lossy, small figures): crisped before the shrink
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "drop_shadow": (0.05, 30),
+        "Idle": {
+            "front": (338, 130, 527, 494),
+            "back": (836, 130, 1024, 494),
+            "left": (1128, 130, 1223, 494),
+            "right": (612, 130, 732, 494),
         },
     },
     "spirit_collector": {
@@ -1158,7 +1248,17 @@ def _cut_black_key(rgb: np.ndarray) -> Image.Image:
     return Image.fromarray(rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
 
 
-def _drop_floor_shadow(img: Image.Image, band: float) -> Image.Image:
+def _sharpen(img: Image.Image, amount: float) -> Image.Image:
+    """Unsharp mask on the colour (alpha untouched), for boards whose source is
+    soft (lossy or upscaled): the detail reads after the cut is shrunk."""
+    from PIL import ImageFilter
+    rgb = img.convert("RGB").filter(ImageFilter.UnsharpMask(radius=2.0, percent=int(amount), threshold=2))
+    out = rgb.convert("RGBA")
+    out.putalpha(img.getchannel("A"))
+    return out
+
+
+def _drop_floor_shadow(img: Image.Image, band: float, lum_max: float = 80) -> Image.Image:
     """A painted floor shadow kept under the feet (the Grave Titan's board
     came cut out with its ellipse): dark, colourless pixels in the bottom
     `band` of the figure go, then the cut-out is cropped to what is left."""
@@ -1167,7 +1267,7 @@ def _drop_floor_shadow(img: Image.Image, band: float) -> Image.Image:
     lum = rgb.mean(axis=2)
     sat = rgb.max(axis=2) - rgb.min(axis=2)
     y0 = int(a.shape[0] * (1.0 - band))
-    shadow = (lum < 80) & (sat < 20)
+    shadow = (lum < lum_max) & (sat < 20)
     shadow[:y0] = False
     a[..., 3][shadow] = 0
     ys, xs = np.nonzero(a[..., 3] > 0)
@@ -1214,8 +1314,12 @@ def build(name: str, cfg: dict) -> None:
                                     cfg.get("warm_grow", 0), cfg.get("drop_blue", False),
                                     cfg.get("dark_regrow", 0), bg_hints,
                                     cfg.get("warm_seed", False), cfg.get("violet_grow", {}).get(d, 0))
+            if cfg.get("sharpen") and d in full[anim] and box[0] != "mirror":
+                full[anim][d] = _sharpen(full[anim][d], cfg["sharpen"])
             if cfg.get("drop_shadow") and d in full[anim]:
-                full[anim][d] = _drop_floor_shadow(full[anim][d], cfg["drop_shadow"])
+                ds = cfg["drop_shadow"]
+                band, lum_max = (ds if isinstance(ds, tuple) else (ds, 80))
+                full[anim][d] = _drop_floor_shadow(full[anim][d], band, lum_max)
         for d, box in cfg[anim].items():
             if box[0] == "mirror":
                 full[anim][d] = full[anim][box[1]].transpose(Image.FLIP_LEFT_RIGHT)
