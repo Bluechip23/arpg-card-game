@@ -47,6 +47,8 @@ var _test_items: Array[Dictionary] = [
 ]
 
 func _ready() -> void:
+	# Back at the title: no character is in play, so no slot is theirs yet.
+	SaveManager.current_slot = -1
 	var pal := STYLE
 	background.color = pal["sky_top"]
 	_build_menu()

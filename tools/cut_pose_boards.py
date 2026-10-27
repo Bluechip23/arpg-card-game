@@ -150,80 +150,82 @@ BOARDS = {
         },
     },
     "ice_mage": {
-        "src": "fire_frost_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
-        "feet_trim": False,   # her boots are the floor shadow's pale blue-grey
+        # 2026-10-27: the Ice Mage redrawn — a hooded frost mage in a fur-
+        # trimmed blue robe with a crystal-headed staff and a swirl of frost
+        # in hand — four poses on black. Its labels are swapped ("FACING UP"
+        # is the face) and both side poses face right: the "FACING RIGHT"
+        # one is the right, its mirror the left. The height counts the
+        # staff's crystal, which tops the head (the body matches the other mages).
+        "src": "ice_mage_board_v2.webp", "bg": "grabcut", "tiles": 1.75,
+        "matte": ("front", "back", "right"),   # the model matte (tools/make_mattes.py)
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "right")},
         "Idle": {
-            "front": (265, 405, 460, 748),
-            "back": (760, 425, 935, 735),
-            "right": (105, 40, 375, 372),
-            "left": (725, 40, 990, 372),
-        },
-        # Her spear's thin shaft vanishes against the snow, leaving its
-        # crystal head adrift: lines along head and shaft that are surely
-        # her (x0, y0, x1, y1, width; measured).
-        "fg": {
-            "right": [(238, 24, 206, 84, 4), (206, 84, 147, 218, 3)],
-            "left": [(22, 24, 64, 96, 4), (64, 96, 118, 220, 3)],
-        },
-    },
-    "fire_mage": {
-        "matte": ("front", "back", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
-        "src": "fire_frost_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
-        "sky_tol": 12,   # his black hood against the black night sky
-        "dark_regrow": 12,  # ...and the hood's top won back from the sky's colour model
-        "warm_grow": 55,  # the headband's tails, his forearm wrap and flames
-        "drop_blue": True,  # snow-hill pockets between arm and side
-        # The headband's two tails, flying off the back of his hood.
-        "fg": {"right": [(28, 38, 72, 45, 5), (30, 47, 62, 54, 4), (72, 45, 92, 50, 3)]},
-        "Idle": {
-            "front": (485, 420, 675, 722),
-            "back": (1180, 420, 1370, 722),
-            "right": (425, 50, 640, 372),
+            "front": (38, 178, 384, 792),
+            "back": (427, 178, 788, 792),
+            "right": (1212, 178, 1536, 792),
             "left": ("mirror", "right"),
         },
     },
-    "earth_mage": {
-        "matte": ("front", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25); its back merges the staff with the board's second back view, so GrabCut keeps that one
-        "src": "earth_shock_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
-        "drop_ice": True,   # nothing on him is ice blue: the snow between arm and staff goes
+    "fire_mage": {
+        # 2026-10-27: the Fire Mage redrawn — a hooded, masked fire ninja in
+        # black and blood-red wraps, flame round both fists — four poses on
+        # black ("FACING UP" is the face; the side labels are true).
+        "src": "fire_mage_board_v2.webp", "bg": "grabcut", "tiles": 1.6,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model trims the flames' wisps: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
         "Idle": {
-            "front": (245, 430, 470, 748),
-            "back": (755, 425, 948, 722),
-            "right": (90, 55, 345, 372),
-            "left": (760, 55, 1010, 372),
+            "front": (17, 37, 356, 489),
+            "back": (411, 37, 727, 489),
+            "left": (852, 37, 1106, 489),
+            "right": (1210, 37, 1536, 489),
         },
-        # His vine staff is thin against the sky and snow: its curled head
-        # and its shaft, surely his (boxes; lines x0, y0, x1, y1, width).
-        "fg": {
-            "right": [(212, 10, 248, 52), (226, 52, 200, 298, 6)],
-            "left": [(5, 10, 35, 52), (28, 55, 47, 295, 6)],
-            "front": [(188, 8, 218, 55), (202, 60, 192, 305, 6)],
-            "back": [(8, 16, 34, 55), (25, 55, 30, 277, 6)],
+    },
+    "earth_mage": {
+        # 2026-10-27: the Earth Mage redrawn — a bald, blue-painted druid in a
+        # green hood and vine-bound wraps, a gem-topped vine staff in hand —
+        # four poses on dark navy (front, back, left, right, labels cut off).
+        # Its neck roll, shown only in the front view, is painted into the
+        # other three by tools/paint_earth_mage_roll.py (designer: round the
+        # back of his neck, not the front), which writes this board.
+        "src": "earth_mage_druid_board.png", "bg": "grabcut", "tiles": 1.85,   # the staff tops him: his body matches the other mages
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (6, 2, 160, 272),
+            "back": (160, 2, 295, 272),
+            "left": (294, 2, 435, 272),
+            "right": (447, 2, 550, 272),
         },
     },
     "spark_mage": {
-        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
-        "src": "earth_shock_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
-        "bright_grow": 120,   # the lightning round his fists
+        # 2026-10-27: the Spark Mage (shock mage) redrawn — a blond brawler in
+        # a black vest and torn purple trousers, lightning round his fists —
+        # four poses on dark navy. Both side poses face left, and the first
+        # holds a vine staff that isn't his (the Earth Mage's): the staff-free
+        # one is the left, and the right is its mirror.
+        "src": "spark_mage_brawler_board.png", "bg": "grabcut", "tiles": 1.6,
+        "matte": ("front", "back", "left"),   # the model matte (tools/make_mattes.py)
         "Idle": {
-            "front": (465, 415, 690, 722),
-            "back": (1160, 400, 1390, 722),
-            "right": (410, 55, 645, 372),
-            "left": (1105, 55, 1375, 372),
+            "front": (0, 8, 166, 347),
+            "back": (166, 8, 367, 347),
+            "left": (539, 8, 686, 347),
+            "right": ("mirror", "left"),
         },
     },
     "ifrit": {
-        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
-        # 2026-10-25: the Underworld's living-flame elite, horned and armoured,
-        # on a dark brick wall and a plank floor.
-        "src": "ifrit_board.jpg", "bg": "grabcut", "tiles": 2.0,
-        "sky_tol": 12,   # the flat dark wall, walled in between legs, arms and tail
-        "drop_ice": True,  # and its shadowed pockets (it has no near-black on it)
+        # 2026-10-27: the Ifrit redrawn — a horned, scaled fire demon in
+        # bronze plate with flame in both hands and a long tail — four
+        # labelled poses on black (front, back, left, right; the side labels
+        # are true). Replaces the brick-wall board.
+        "src": "ifrit_board_v2.webp", "bg": "grabcut", "tiles": 2.0,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model trims the flames' wisps: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
         "Idle": {
-            "front": (285, 432, 670, 758),
-            "back": (740, 432, 1125, 758),
-            "right": (255, 58, 645, 375),
-            "left": (765, 58, 1152, 375),
+            "front": (226, 15, 679, 465),
+            "back": (848, 15, 1306, 460),
+            "left": (281, 507, 705, 932),
+            "right": (831, 507, 1252, 932),
         },
     },
     "bull_worm": {
@@ -299,16 +301,17 @@ BOARDS = {
         },
     },
     "granite_colossus": {
-        # 2026-10-25: the Granite Colossus, a hulking stone golem with ember
-        # eyes, in a forge. Its side labels are swapped (the "FACING LEFT"
-        # panel faces right), so the poses are picked by what they show.
-        "src": "granite_colossus_board.jpg", "bg": "grabcut", "tiles": 2.6,
+        # 2026-10-27: the Granite Colossus redrawn — a hulking golem of mossy
+        # cut stone with ember eyes — four labelled poses on black. Its side
+        # labels are swapped (the "LEFT" panel faces right), so the poses are
+        # picked by what they show.
+        "src": "granite_colossus_board_v2.webp", "bg": "grabcut", "tiles": 2.6,
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
         "Idle": {
-            "front": (840, 28, 1290, 372),
-            "back": (140, 28, 565, 372),
-            "right": (240, 405, 505, 730),
-            "left": (905, 405, 1170, 730),
+            "front": (157, 8, 658, 445),
+            "back": (885, 12, 1375, 445),
+            "left": (969, 520, 1283, 950),    # the board's "RIGHT"
+            "right": (245, 512, 572, 950),    # the board's "LEFT"
         },
     },
     "grave_titan": {
@@ -742,13 +745,19 @@ BOARDS = {
         },
     },
     "air_mage": {
-        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
-        "src": "air_mage_board.jpg", "bg": "grabcut", "tiles": 1.6,
+        # 2026-10-27: the Air Mage redrawn — a silver-haired sorceress in a
+        # tattered violet-and-blue robe, wind curling round her hands — four
+        # labelled poses on black: front, back, left, right. Replaces her
+        # cut from air_mage_board.jpg.
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "src": "air_mage_sorceress_board.webp", "bg": "grabcut", "tiles": 1.6,
+        # The model drops the thin ends of the wind swirls: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
         "Idle": {
-            "front": (375, 425, 590, 748),
-            "back": (840, 425, 1035, 748),
-            "right": (405, 55, 570, 365),
-            "left": (840, 55, 1005, 365),
+            "front": (110, 35, 500, 560),
+            "back": (771, 32, 1128, 557),
+            "left": (135, 640, 501, 1156),
+            "right": (754, 640, 1105, 1155),
         },
     },
     "ring_wraith": {

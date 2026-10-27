@@ -640,6 +640,12 @@ func _ready() -> void:
 	# Test UI
 	
 	help_panel.tick_speed_changed.connect(_on_tick_speed_changed)
+	# The ? menu's Save / Quit to Menu / Quit to Desktop row. The sandbox
+	# arena holds no saved character, so it only offers the quits.
+	help_panel.enable_game_actions(_can_save_here())
+	help_panel.save_requested.connect(func(): GameMenuActions.save(self, _build_save_data))
+	help_panel.quit_requested.connect(func(to_desktop: bool, save_first: bool):
+		GameMenuActions.quit(self, to_desktop, save_first, _build_save_data))
 
 	# Sphere inventory + grid connection
 	sphere_grid_ui.connect_sphere_inventory(sphere_inventory)
@@ -15838,8 +15844,10 @@ func _explored_snapshot() -> Dictionary:
 			explored[_explored_key()] = bytes
 	return explored
 
-func _save_player_progression() -> Dictionary:
+func _save_player_progression(return_stolen: bool = true) -> Dictionary:
 	## Capture all persistent player state before a world transition.
+	## `return_stolen` off (a save from the ? menu, the game carries on): the
+	## harpies keep the cards they carry, and the snapshot holds them in hand.
 	var stats := player.get_stats()
 	var progression := {}
 	if stats:
@@ -15856,12 +15864,21 @@ func _save_player_progression() -> Dictionary:
 	}
 	# A card an Ash Harpy is still carrying comes home first: the enemies
 	# are freed with the scene, after this snapshot, so it would be lost.
-	if enemy_spawner:
+	if enemy_spawner and return_stolen:
 		for harpy in enemy_spawner.enemies:
 			if is_instance_valid(harpy) and harpy.has_method("_harpy_return_card"):
 				harpy._harpy_return_card()
 	# Deck state (each pile saved separately to preserve hand exactly)
 	progression["deck_state"] = deck_manager.save_deck_state()
+	if enemy_spawner and not return_stolen:
+		for harpy in enemy_spawner.enemies:
+			if not is_instance_valid(harpy) or not ("_stolen_card" in harpy):
+				continue
+			var card: Card = harpy._stolen_card
+			if card == null or harpy._stolen_from != player:
+				continue
+			progression["deck_state"]["hand"].append(deck_manager._card_to_state(card))
+			progression["deck_state"]["live"]["hand"].append(card)
 	# Explored ground, here and everywhere visited before.
 	progression["explored"] = _explored_snapshot()
 	# City-loop state (satchel, city, pending trial) rides along untouched.
@@ -15898,6 +15915,66 @@ func _save_player_progression() -> Dictionary:
 		total_cards,
 	])
 	return progression
+
+## Saving from the world: anything but the sandbox arena, with a character.
+func _can_save_here() -> bool:
+	return not sandbox_mode and starting_character != null
+
+## The ? menu's save: the character as they are right now, out in the world.
+## A loaded save always wakes up in town (load_character.gd), like arriving
+## home; the snapshot is Player 1's even while TAB drives the partner, and
+## training in the dojo saves what the character walked in with.
+func _build_save_data(slot: int) -> SaveData:
+	if not _can_save_here() or player == null or not is_instance_valid(player):
+		return null
+	var progression: Dictionary
+	var quests: Dictionary
+	if dojo_mode and not _dojo_entry_progression.is_empty():
+		progression = _dojo_entry_progression
+		quests = _dojo_entry_quest_state
+	else:
+		var prev_p := player
+		var prev_d := deck_manager
+		if _p1_player and is_instance_valid(_p1_player):
+			player = _p1_player
+			deck_manager = _p1_deck_manager
+		progression = _save_player_progression(false)
+		player = prev_p
+		deck_manager = prev_d
+		quests = quest_manager.save_state() if quest_manager else {}
+	var p1: Player = _p1_player if _p1_player and is_instance_valid(_p1_player) else player
+	var stats := p1.get_stats()
+	var data := SaveData.new()
+	data.save_slot = slot
+	data.character_data = starting_character
+	data.player2_character = player2_character
+	data.character_name = starting_character.character_name
+	data.current_location = "Town"
+	data.world_level = current_world_level
+	data.character_level = stats.current_level if stats else 1
+	var stats_snapshot: Dictionary = progression.get("stats", stats.save_progression() if stats else {})
+	data.progression = ProgressionIO.to_disk(progression, stats_snapshot)
+	data.city = progression.get("city", player_progression.get("city", {}))
+	data.progression["quest_state"] = quests
+	data.progression["discovered_waypoints"] = discovered_waypoints.duplicate(true)
+	data.progression["opened_chests"] = opened_chests.duplicate(true)
+	# Display snapshots for the load screen.
+	var inv := p1.get_inventory()
+	var equipped: Array[String] = []
+	if inv:
+		for lst in [inv.equipped_weapons, inv.equipped_helms, inv.equipped_chests, inv.equipped_gauntlets,
+				inv.equipped_belts, inv.equipped_boots, inv.equipped_rings]:
+			for item in lst:
+				if item is ItemData:
+					equipped.append("%s (Lv %d)" % [item.item_name, item.item_level])
+	data.equipped_item_names = equipped
+	var ids: Array[String] = []
+	var deck_state: Dictionary = progression.get("deck_state", {})
+	for pile in ["hand", "draw_pile", "discard_pile", "jail_pile", "maintained"]:
+		for entry in deck_state.get(pile, []):
+			ids.append(str(entry.get("id", "")) if entry is Dictionary else str(entry))
+	data.deck_card_ids = ids
+	return data
 
 func _travel_to_town() -> void:
 	_deliver_follower()

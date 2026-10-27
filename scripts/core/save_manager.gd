@@ -7,6 +7,14 @@ const SAVE_DIR = "user://saves/"
 const MAX_SAVE_SLOTS = 6          # manual slots 0..5
 const AUTOSAVE_SLOT = 6           # written every time the character arrives in town
 
+## The manual slot the character in play was loaded from or last saved to
+## (-1: none yet — a new character, or one loaded from the autosave). The
+## in-game menu's "save before you quit" writes here without asking.
+static var current_slot: int = -1
+
+static func has_current_slot() -> bool:
+	return current_slot >= 0 and current_slot < MAX_SAVE_SLOTS
+
 static func ensure_save_dir() -> void:
 	if not DirAccess.dir_exists_absolute(SAVE_DIR):
 		DirAccess.make_dir_recursive_absolute(SAVE_DIR)
@@ -26,6 +34,8 @@ static func save_game(slot: int, save_data: SaveData) -> bool:
 		push_error("[SAVE] Failed to save slot %d: %s" % [slot, error_string(err)])
 		return false
 	print("[SAVE] Saved slot %d: %s" % [slot, save_data.character_name])
+	if slot < MAX_SAVE_SLOTS:
+		current_slot = slot
 	return true
 
 static func load_game(slot: int) -> SaveData:

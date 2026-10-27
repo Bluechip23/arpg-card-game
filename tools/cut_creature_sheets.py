@@ -88,7 +88,11 @@ FRAMES = {
         "right": [(3, c) for c in range(4)],
     },
     "weregoat": {
-        "src": "weregoat_sheet.webp", "kind": "black", "down": 3 * 0.5 / 0.465,
+        # 2026-10-27: the designer's redrawn weregoat walk sheet (Up = back,
+        # Down = front, both side rows facing left; the row names on the left).
+        # Its frames are larger than the old sheet's: shrunk less, so it stands
+        # a head above the heroes as before.
+        "src": "weregoat_walk_board.webp", "kind": "black", "down": 2.1,
         "back": [(0, c) for c in range(4)],
         "front": [(1, c) for c in range(4)],
         "left": [(2, c) for c in range(4)],           # its "Right" row faces left as well
