@@ -169,6 +169,9 @@ const KINDS := {
 	"gravestone": {"prop": "undead_grave", "scale": 1.6},
 	# --- Hell's Door: the cave pack's iron gate ---
 	"hell_door": {"prop": "cave_gate", "scale": 1.4},
+	# --- townsfolk (town.gd): the designer's NPC sheets, four standing poses ---
+	"npc_sellsword": {"sheets": SHEETS + "/npc_sellsword", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-27
+	"npc_blacksmith": {"sheets": SHEETS + "/npc_blacksmith", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-27
 	"grave_digger": {"npc": "res://assets/sprites/NPCpackage2/npc man B v01.png", "tint": Color(0.82, 0.88, 0.82)},
 }
 

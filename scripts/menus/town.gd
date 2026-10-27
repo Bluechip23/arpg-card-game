@@ -102,6 +102,10 @@ var _stash_message_label: Label = null
 var _stash_message_timer: float = 0.0
 
 # Vendor metadata: node name -> display info
+# Townsfolk figures that turn to face the player when they come near.
+var _townsfolk: Array = []
+const TOWNSFOLK_NOTICE := 5.0   # world units: within this, they look at the player
+
 var vendor_info: Dictionary = {
 	"Blacksmith": {
 		"name": "Blacksmith",
@@ -346,6 +350,7 @@ func _process(_delta: float) -> void:
 			_stash_message_label.text = ""
 
 	_update_move_path_cursor()
+	_face_townsfolk()
 
 	if vendor_open:
 		return
@@ -2522,6 +2527,18 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 		stall.add_child(table)
 	match vn:
 		"Blacksmith":
+			# The designer's Blacksmith stands behind his counter (his NPC
+			# sheet's four standing poses), turning to face a nearby player.
+			var smith := SpriteEnemyFigure.new()
+			smith.name = "Smith"
+			stall.add_child(smith)
+			smith.setup("npc_blacksmith")
+			smith.position.z = -0.35
+			_townsfolk.append(smith)
+			# His name over his head (the plan camera shows -z as up the screen).
+			var sign_label := vendor.get_node_or_null("Label") as Label3D
+			if sign_label:
+				sign_label.position.z = -2.0
 			var barrel := CraftpixProps.make_sprite("goods_barrel", 1.0, 0)
 			if barrel:
 				barrel.position += Vector3(-1.1, 0, 0.5)
@@ -2652,23 +2669,13 @@ func _create_sellsword_npc() -> void:
 	sellsword.name = "Sellsword"
 	sellsword.position = grid_manager.grid_to_world(Vector2i(18, 3))
 
-	# A mercenary at ease — the knight sheet from the NPC pack, in a darker
-	# coat than Brad's, matching the 16-bit NPC pipeline.
-	var fig = Sprite3D.new()
+	# The designer's Sellsword (her NPC sheet's four standing poses); she
+	# turns to face the player who comes near (_face_townsfolk).
+	var fig := SpriteEnemyFigure.new()
 	fig.name = "Figure"
-	fig.texture = load("res://assets/sprites/NPCpackage2/npc knight v04.png")
-	fig.region_enabled = true
-	fig.region_rect = Rect2(0, 0, 32, 32)  # south-facing idle frame
-	fig.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	fig.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
-	fig.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	fig.shaded = false
-	fig.pixel_size = 0.03125
-	var sellsword_scale := 1.15
-	fig.scale = Vector3(sellsword_scale, sellsword_scale, sellsword_scale)
-	CameraView.stand_on_ground(fig)  # feet on the ground point: sorts with the player by row
 	sellsword.add_child(fig)
-	BlobShadow.attach(sellsword, 0.55)
+	fig.setup("npc_sellsword")   # brings its own blob shadow
+	_townsfolk.append(fig)
 
 	var collision = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
@@ -2683,12 +2690,29 @@ func _create_sellsword_npc() -> void:
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = Color(1.0, 0.8, 0.45)
 	label.outline_size = 8
-	label.position = Vector3(0, 2.2, 0)
+	label.position = Vector3(0, 2.2, -1.75)   # over her head (-z is up the screen)
 	WorldText.crisp(label)
 	sellsword.add_child(label)
 
 	$Vendors.add_child(sellsword)
 	print("[TOWN] Created Sellsword NPC at position %s" % sellsword.position)
+
+## The Sellsword and the Blacksmith look at a player who comes near and face
+## the plaza (south, toward the camera) otherwise.
+func _face_townsfolk() -> void:
+	if player == null or not is_instance_valid(player):
+		return
+	for f in _townsfolk:
+		if not is_instance_valid(f):
+			continue
+		var d: Vector3 = player.global_position - f.global_position
+		var dir := CharacterAnimator.Direction.SOUTH
+		if Vector2(d.x, d.z).length() <= TOWNSFOLK_NOTICE:
+			if absf(d.x) > absf(d.z):
+				dir = CharacterAnimator.Direction.EAST if d.x > 0.0 else CharacterAnimator.Direction.WEST
+			elif d.z < 0.0:
+				dir = CharacterAnimator.Direction.NORTH
+		f.set_facing(dir)
 
 func _open_sellsword_ui() -> void:
 	## Lists the four characters not chosen by Player 1, with a Recruit/Dismiss action.

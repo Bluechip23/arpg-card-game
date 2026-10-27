@@ -742,6 +742,38 @@ BOARDS = {
             "right": (563, 672, 791, 970),
         },
     },
+    "npc_sellsword": {
+        # 2026-10-27: the town's Sellsword — a bespectacled woman in a black
+        # waistcoat, puffed white sleeves and breeches, a ledger at her hip —
+        # from her NPC sheet: the top row's four standing poses ("North" the
+        # face, "South" the back, "East" faces right, "West" left). The
+        # sheet's title plaque reaches the front box's corner: cleared.
+        "src": "sellsword_npc_board.webp", "bg": "grabcut", "tiles": 1.65,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "matte_bg": {"front": [(0, 0, 30, 14)]},
+        # The boxes stop at her soles: the shiny floor plate below would leave
+        # specks, and her black boots are too dark for the shadow drop.
+        "Idle": {
+            "front": (360, 104, 528, 493),
+            "back": (834, 104, 978, 493),
+            "left": (1071, 104, 1165, 493),
+            "right": (637, 104, 729, 493),
+        },
+    },
+    "npc_blacksmith": {
+        # 2026-10-27: the town's Blacksmith — a long-haired, moustached smith
+        # in a torn vest, leather apron and mail leggings — from his NPC
+        # sheet: the top row's four standing poses (as the Sellsword's).
+        "src": "blacksmith_npc_board.webp", "bg": "grabcut", "tiles": 1.75,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "drop_shadow": (0.05, 30),
+        "Idle": {
+            "front": (338, 130, 527, 494),
+            "back": (836, 130, 1024, 494),
+            "left": (1128, 130, 1223, 494),
+            "right": (612, 130, 732, 494),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped
