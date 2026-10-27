@@ -82,7 +82,7 @@ const KINDS := {
 	"crypt_crawler": {"cell": Vector2i(3, 0)},
 	"swarm": {"sheets": SHEETS + "/swarm", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py black_key, 2026-10-26); was MonsterKit cell (4, 0)
 	"giant_hawk": {"sheets": SHEETS + "/giant_hawk", "scale": BOARD_SCALE},  # the designer's board (2026-10-25), perched; was the mountain-monster Bird
-	"screecher": {"sheets": SHEETS + "/screecher", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25): a crawling undead, no longer the Snow Wraith's ghost
+	"screecher": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},  # back on the pale ghost for now (2026-10-27): the crawler board was meant for the Consumed
 	"giant_beaver": {"sheets": SHEETS + "/giant_beaver", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py): stands on its hind legs, walks on all fours
 	"mini_bear": {"sheets": SHEETS + "/mini_bear", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Bear
 	"wolf": {"sheets": SHEETS + "/wolf", "scale": BOARD_SCALE},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-22)
@@ -92,7 +92,7 @@ const KINDS := {
 	"treasure_bunny": {"sheets": SHEETS + "/treasure_bunny", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the Treasure Bunny on MonsterKit cell (7, 1)
 	"skeleton": {"sheets": SHEETS + "/skeleton", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the Craftpix Skeleton1
 	"treant": {"sheets": SHEETS + "/treant", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the Craftpix Ent pack's Ent3
-	"consumed": {"cell": Vector2i(6, 2)},
+	"consumed": {"sheets": SHEETS + "/consumed", "scale": BOARD_SCALE},  # the designer's crawler board (tools/cut_pose_boards.py; on the Screecher by mistake until 2026-10-27); was MonsterKit cell (6, 2)
 	"sewer_croc": {"sheets": SHEETS + "/sewer_cobra", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the mountain-monster Snake (the kind keeps its old croc name)
 	# --- generated sprites (drawn/derived in our pipeline, palette-conformant) ---
 	"rat": {"sheets": SHEETS + "/wererat", "scale": BOARD_SCALE},  # the Wererat: the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the giant-rat pack's Rat1
@@ -182,7 +182,7 @@ const BOARD_SCALE := 0.5
 ## Kinds whose battler art already contains a painted contact shadow
 ## (the flyers; the sludge's own puddle) — these must not get a second blob shadow.
 const PAINTED_SHADOW_KINDS := ["swarm", "roc", "sludge",
-		"specter", "snow_wraith", "summon_specter", "gravestone", "hell_door"]
+		"screecher", "specter", "snow_wraith", "summon_specter", "gravestone", "hell_door"]
 
 var figure_kind := ""   # the KINDS entry this figure was set up as
 var smooth := false     # wearing the smooth (non-pixelated) sheets (ArtStyle)

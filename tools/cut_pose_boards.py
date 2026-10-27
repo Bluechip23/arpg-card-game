@@ -285,10 +285,11 @@ BOARDS = {
                          (410, 280, 396, 300, 6)]},
         "violet_grow": {"front": 230, "back": 240},   # the wings' mist, not the clouds at its feet
     },
-    "screecher": {
+    "consumed": {
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
-        # 2026-10-25: the Screecher, a gaunt long-limbed undead crawler with a
-        # gaping fanged maw, in a bone-strewn cave. Its side labels are
+        # 2026-10-25: a gaunt long-limbed undead crawler with a gaping fanged
+        # maw, in a bone-strewn cave. Drawn for the Consumed: it was put on
+        # the Screecher by mistake and moved here on 2026-10-27 (designer). Its side labels are
         # swapped (the "FACING LEFT" panel faces right), so the poses are
         # picked by what they show.
         "src": "screecher_board.jpg", "bg": "grabcut", "tiles": 1.2,

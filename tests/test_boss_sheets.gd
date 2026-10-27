@@ -97,8 +97,11 @@ func _run() -> void:
 		_check_fig(ce._enemy_figure, ce.enemy_name)
 	# The Screecher wears the designer's crawler board (2026-10-25), no longer
 	# the Snow Wraith's ghost.
-	_check(str(SpriteEnemyFigure.KINDS["screecher"].get("sheets", "")).ends_with("/screecher"), "the Screecher wears its own board")
-	_check(not "screecher" in SpriteEnemyFigure.PAINTED_SHADOW_KINDS, "the crawling Screecher casts a blob shadow")
+	# The crawler board is the Consumed's (2026-10-27: it was on the Screecher
+	# by mistake); the Screecher is back on the pale ghost for now.
+	_check(str(SpriteEnemyFigure.KINDS["consumed"].get("sheets", "")).ends_with("/consumed"), "the Consumed wears the crawler board")
+	_check(not "consumed" in SpriteEnemyFigure.PAINTED_SHADOW_KINDS, "the crawling Consumed casts a blob shadow")
+	_check(SpriteEnemyFigure.KINDS["screecher"].get("cp", "") == "ghost/Ghost2", "the Screecher is the pale ghost again")
 	# The Rat King wears the designer's redrawn four-pose board (2026-10-26):
 	# one pose a direction, no walk cycle, and bigger than the normal rat
 	# (the Wererat) — the designer's ask.
