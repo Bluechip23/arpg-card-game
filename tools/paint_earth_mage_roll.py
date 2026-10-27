@@ -23,8 +23,11 @@ from PIL import Image
 SRC = "assets/sprites/paintings/earth_mage_druid_source.png"
 OUT = "assets/sprites/paintings/earth_mage_druid_board.png"
 SS = 4             # supersampling
-HALF = 3.6         # half the band's width, board pixels
+SRC_HALF = 3.6     # half the source band's width, board pixels
+HALF = 6.0         # half the laid band's width: thicker than the source (designer,
+                   # 2026-10-27: "quite a bit thicker"), its strands stretched to fit
 BACKDROP = 26      # the board's black: at or under this a sample is not branch
+GAP = np.array([0x3a, 0x24, 0x1a], float)   # the dark bark between the strands
 
 # The front view's left band: its centre line, top (behind the neck) first.
 SOURCE_BAND = [(89.0, 64.5), (86.6, 71.0), (84.0, 77.0), (80.8, 83.5)]
@@ -32,11 +35,12 @@ SOURCE_BAND = [(89.0, 64.5), (86.6, 71.0), (84.0, 77.0), (80.8, 83.5)]
 # Where it goes, per view (board pixels, the board is 560x280), each path
 # starting behind the neck like the source band does.
 PATHS = {
-    "back_left": [(220, 65.5), (209, 67), (201, 70.5), (196, 74.5)],
-    "back_right": [(220, 65.5), (231, 67), (239, 70.5), (244, 74.5)],
-    "left": [(406.5, 59), (405, 66), (400, 72.5), (393.5, 76.5)],    # faces left
-    "right": [(499, 59), (500.5, 66), (505.5, 72.5), (512, 76.5)],   # faces right
+    "back_left": [(220, 68), (209, 69.5), (201, 72.5), (195, 77)],
+    "back_right": [(220, 68), (231, 69.5), (239, 72.5), (245, 77)],
+    "left": [(405.5, 63), (404, 68.5), (399, 74), (392.5, 78)],    # faces left
+    "right": [(500, 63), (501.5, 68.5), (506.5, 74), (513, 78)],   # faces right
 }
+LANES = 2          # copies of the source band laid side by side across the width
 
 
 def _spline(pts, n=300):
@@ -109,10 +113,25 @@ def lay_band(board, src, path):
     m = np.mod(best_s, 2 * L)
     s_src = np.where(m > L, 2 * L - m, m)
     p, nrm = _frame(sc, sarc, s_src)
-    xy = p + nrm * best_o[:, None]
+    # Two lanes of the real strands side by side (not one band stretched: the
+    # strands stay as thin as the front's), each lane offset along the path
+    # and the second mirrored, so they twist past one another.
+    lane_w = 2 * HALF / LANES
+    across = np.clip(best_o + HALF, 0, 2 * HALF - 1e-6)
+    lane = np.floor(across / lane_w)
+    local = (across - lane * lane_w) - lane_w / 2          # -lane_w/2 .. lane_w/2
+    m2 = np.mod(best_s + lane * L * 0.43, 2 * L)
+    s_lane = np.where(m2 > L, 2 * L - m2, m2)
+    off = local * (SRC_HALF / (lane_w / 2)) * np.where(lane % 2 == 1, -1, 1)
+    p, nrm = _frame(sc, sarc, s_lane)
+    xy = p + nrm * off[:, None]
     col = _bilinear(src, xy[:, 0], xy[:, 1])
     lum = col.max(axis=1)
-    a = inside * np.clip((lum - BACKDROP) / 18.0, 0, 1)
+    # Solid: the board's black between the strands becomes dark bark, so the
+    # hood doesn't show through and the roll reads as one thick bundle.
+    k = np.clip((lum - BACKDROP) / 18.0, 0, 1)[:, None]
+    col = col * k + GAP * (1 - k)
+    a = inside * np.clip((HALF - best_d) / 0.8, 0, 1)
     # Soft round ends where the path starts and stops.
     a *= np.clip((tarc[-1] - best_s) / 1.5 + 0.5, 0, 1)
     layer = np.zeros(((y1 - y0) * SS * (x1 - x0) * SS, 4))

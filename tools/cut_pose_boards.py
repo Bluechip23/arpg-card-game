@@ -213,17 +213,19 @@ BOARDS = {
         },
     },
     "ifrit": {
-        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
-        # 2026-10-25: the Underworld's living-flame elite, horned and armoured,
-        # on a dark brick wall and a plank floor.
-        "src": "ifrit_board.jpg", "bg": "grabcut", "tiles": 2.0,
-        "sky_tol": 12,   # the flat dark wall, walled in between legs, arms and tail
-        "drop_ice": True,  # and its shadowed pockets (it has no near-black on it)
+        # 2026-10-27: the Ifrit redrawn — a horned, scaled fire demon in
+        # bronze plate with flame in both hands and a long tail — four
+        # labelled poses on black (front, back, left, right; the side labels
+        # are true). Replaces the brick-wall board.
+        "src": "ifrit_board_v2.webp", "bg": "grabcut", "tiles": 2.0,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model trims the flames' wisps: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
         "Idle": {
-            "front": (285, 432, 670, 758),
-            "back": (740, 432, 1125, 758),
-            "right": (255, 58, 645, 375),
-            "left": (765, 58, 1152, 375),
+            "front": (226, 15, 679, 465),
+            "back": (848, 15, 1306, 460),
+            "left": (281, 507, 705, 932),
+            "right": (831, 507, 1252, 932),
         },
     },
     "bull_worm": {
