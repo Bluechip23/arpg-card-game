@@ -850,3 +850,24 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
 - **Petey the Pet Rock** (`petey_the_pet_rock`) — Common · 0 mana, 0 tempo · range — · targets — · slots: Pocket · sheet: Unplayable
   - Card text: On Draw: Draw 3 cards. On Discard: Discard 2 cards. While in hand: Slowed 2.
   - Code: UNPLAYABLE. on_draw_effect 'draw_3_cards' (main.gd ~14348): draw_card() x3. on_discard_effect 'discard_2_cards' (main.gd ~7182): 2 random cards from hand go to discard. in_hand_debuff 'slowed_2' (main._apply_in_hand_debuffs): applies Debuff.create_slowed(2) while in hand if not already Slowed.
+
+## Summons (designer, 2026-10-27)
+
+All five are spells (Silence stops them), aimed at a point; the summons appear on the aimed tile and the open tiles around it, stand outside the 3-summon cap the item and manifest summons share, and fight through main._update_skeletons (summoned_skeleton.gd kinds). Tests: tests/test_summon_cards.gd.
+
+- **Summon Skeleton** (`summon_skeleton`) — Common · 45 − INT mana (never below 0; above 45 INT the excess is refunded when it lands), 3 tempo · range 3 · targets point · slots: Wand / Staff / Gem · sheet: Offensive
+  - Card text: Summon a skeleton (10 HP) that moves 1 space every tempo and attacks for 6 damage every 5 tempo. Costs 45 mana minus your INT; above 45 INT the difference is refunded.
+  - Code: deck_manager.compute_play_cost sets the cost from INT (SUMMON_SKELETON_BASE_MANA); main._summon_from_card raises one "card_skeleton" and refunds INT − 45. Art: the designer's summon skeleton board (also the item / manifest skeleton's art now).
+- **Summon Battle Turtle** (`summon_battle_turtle`) — Rare · 65 mana, 3 tempo · range melee · targets point · slots: Buckler / Gem / Staff / Wand · sheet: Defensive
+  - Card text: Summon a Battle Turtle (25 HP) with unerring armor equal to half your INT. Every 5 tempo it regains a fifth of that armor, up to its unerring armor. Whenever it gains armor, so do its allies. Moves 1 space every tempo.
+  - Code: kind "battle_turtle": no attack. Its armor soaks hits first and is capped by its unerring armor (INT/2); it starts full. main._regain_turtle_armor adds max(1, floor(cap/5)) every 5 tempo, never past the cap, and gives what it actually gained to the players (armor) and every other turtle (up to their caps; no chain) — a full turtle gives nothing (designer, 2026-10-27: "grows" meant regains, capped). Art: stand-in (a mossy rock golem) until its board.
+- **Skeleton Army** (`skeleton_army`) — Legendary · 130 mana, 7 tempo · range 5 · targets point · slots: Staff / Gem / Crown · sheet: Offensive
+  - Card text: Summon 4 skeletons (10 HP each) that move 1 space every tempo and attack for 6 damage every 5 tempo.
+  - Code: four "card_skeleton"s, as Summon Skeleton (no INT pricing on the Army).
+- **Turtle Power** (`turtle_power`) — Legendary · 160 mana, 6 tempo · range 3 · targets point · slots: Staff / Gem / Crown · sheet: Defensive
+  - Card text: Summon 3 Battle Turtles (as Summon Battle Turtle).
+  - Code: three "battle_turtle"s; armor any one regains also goes to the others and the players.
+- **Summon Shadow Hound** (`summon_shadow_hound`) — Rare · 20 mana, 3 tempo · range melee · targets point · slots: Wand / Gem / Staff / Dagger / Sword · sheet: Offensive
+  - Card text: Summon a Shadow Hound (10 HP) that moves 2 spaces every tempo and bites for 4 damage every (8 − INT/10) tempo.
+  - Code: kind "shadow_hound": attack_interval = max(1, 8 − floor(INT/10)), set when summoned. Art: stand-in (the wolf, shadowed) until its board.
+

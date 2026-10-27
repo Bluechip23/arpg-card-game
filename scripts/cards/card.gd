@@ -237,6 +237,12 @@ const CARD_SLOT_LABELS := {
 	"wear_down": [CardKeyword.HAMMER],
 	"worms_armageddon": [CardKeyword.STAFF, CardKeyword.WAND, CardKeyword.AXE],
 	"worst_that_could_happen": [CardKeyword.HAMMER],
+	# Summons (designer, 2026-10-27).
+	"summon_skeleton": [CardKeyword.WAND, CardKeyword.STAFF, CardKeyword.GEM],
+	"summon_battle_turtle": [CardKeyword.BUCKLER, CardKeyword.GEM, CardKeyword.STAFF, CardKeyword.WAND],
+	"skeleton_army": [CardKeyword.STAFF, CardKeyword.GEM, CardKeyword.CROWN],
+	"turtle_power": [CardKeyword.STAFF, CardKeyword.GEM, CardKeyword.CROWN],
+	"summon_shadow_hound": [CardKeyword.WAND, CardKeyword.GEM, CardKeyword.STAFF, CardKeyword.DAGGER, CardKeyword.SWORD],
 }
 
 ## Engrave cards from the sheet: they exist only inside an item slot.
@@ -309,6 +315,10 @@ const CARD_RARITIES := {
 	"tower_shield": Rarity.RARE, "vines": Rarity.RARE, "worst_that_could_happen": Rarity.RARE,
 	# --- Legendary (26) ---
 	"absorb_essence": Rarity.LEGENDARY, "bottomless_quiver": Rarity.LEGENDARY,
+	# Summons (designer, 2026-10-27).
+	"summon_skeleton": Rarity.COMMON, "summon_battle_turtle": Rarity.RARE,
+	"skeleton_army": Rarity.LEGENDARY, "turtle_power": Rarity.LEGENDARY,
+	"summon_shadow_hound": Rarity.RARE,
 	"cover": Rarity.LEGENDARY, "enchanted_quiver": Rarity.LEGENDARY, "fireball": Rarity.LEGENDARY,
 	"fountain_of_life": Rarity.LEGENDARY, "gift_from_the_phoenix": Rarity.LEGENDARY,
 	"halo": Rarity.LEGENDARY, "harness_lightning": Rarity.LEGENDARY,
@@ -1839,6 +1849,9 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			# Passive Maintain: the +3 ranged range is injected at card-play time in
 			# main.gd (see _apply range block); nothing to do on activation.
 			print("[CARD] 20/20 maintained: +3 range on ranged offensive cards")
+		"summon_skeleton", "skeleton_army", "summon_battle_turtle", "turtle_power", "summon_shadow_hound":
+			# The summons stand up in main._apply_card_world_effects (grid + aim).
+			print("[CARD] %s — summoned in world effects" % card_name)
 		"its_alive":
 			# Resurrect handled as a world effect in main.gd (needs grid + corpses).
 			print("[CARD] ITS ALIVE!!!!! — resurrection resolved in world effects")
@@ -4636,6 +4649,11 @@ const CARD_IDS: Array[String] = [
 	"out_of_guesses",
 	"twenty_twenty",
 	"its_alive",
+	"summon_skeleton",
+	"summon_battle_turtle",
+	"skeleton_army",
+	"turtle_power",
+	"summon_shadow_hound",
 	"protection_from_alnitak",
 	"balance_of_alnilam",
 	"crack_of_mintaka",

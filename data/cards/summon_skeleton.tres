@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "summon_skeleton"
+card_name = "Summon Skeleton"
+description = "Summon a skeleton (10 HP) that moves 1 space every tempo and attacks for 6 damage every 5 tempo. Costs 45 mana minus your INT; above 45 INT the difference is refunded."
+card_type_name = "Spell"
+mana_cost = 45
+tempo_cost = 3
+is_ranged = true
+range_modifier = -2
+target_types = ["point"]
+school = 1
+keywords = ["spell", "offensive", "ranged"]

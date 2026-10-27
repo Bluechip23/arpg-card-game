@@ -779,6 +779,22 @@ BOARDS = {
             "right": (612, 130, 732, 494),
         },
     },
+    "summon_skeleton": {
+        # 2026-10-27: the summoned Skeleton (Summon Skeleton, Skeleton Army):
+        # a bare skeleton with a glowing teal skull, a short sword and a
+        # scabbard — four labelled poses on black: north (front), south
+        # (back), west (left), east (right). The boxes stop above the labels.
+        "src": "summon_skeleton_board.jpg", "bg": "grabcut", "tiles": 1.5,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The skull's soft glow is left out: an on/off cut turns it into a
+        # hard teal disc; the skull keeps its own teal light.
+        "Idle": {
+            "front": (117, 8, 364, 442),
+            "back": (666, 16, 908, 442),
+            "left": (224, 496, 371, 929),
+            "right": (667, 496, 894, 929),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "skeleton_army"
+card_name = "Skeleton Army"
+description = "Summon 4 skeletons (10 HP each) that move 1 space every tempo and attack for 6 damage every 5 tempo."
+card_type_name = "Spell"
+mana_cost = 130
+tempo_cost = 7
+is_ranged = true
+target_types = ["point"]
+school = 1
+keywords = ["spell", "offensive", "ranged"]
