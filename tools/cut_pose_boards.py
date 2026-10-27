@@ -183,33 +183,34 @@ BOARDS = {
         },
     },
     "earth_mage": {
-        "matte": ("front", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25); its back merges the staff with the board's second back view, so GrabCut keeps that one
-        "src": "earth_shock_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
-        "drop_ice": True,   # nothing on him is ice blue: the snow between arm and staff goes
+        # 2026-10-27: the Earth Mage redrawn — a bald, blue-painted druid in a
+        # green hood and vine-bound wraps, a gem-topped vine staff in hand —
+        # four poses on dark navy (front, back, left, right, labels cut off).
+        # Its neck roll, shown only in the front view, is painted into the
+        # other three by tools/paint_earth_mage_roll.py (designer: round the
+        # back of his neck, not the front), which writes this board.
+        "src": "earth_mage_druid_board.png", "bg": "grabcut", "tiles": 1.85,   # the staff tops him: his body matches the other mages
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
         "Idle": {
-            "front": (245, 430, 470, 748),
-            "back": (755, 425, 948, 722),
-            "right": (90, 55, 345, 372),
-            "left": (760, 55, 1010, 372),
-        },
-        # His vine staff is thin against the sky and snow: its curled head
-        # and its shaft, surely his (boxes; lines x0, y0, x1, y1, width).
-        "fg": {
-            "right": [(212, 10, 248, 52), (226, 52, 200, 298, 6)],
-            "left": [(5, 10, 35, 52), (28, 55, 47, 295, 6)],
-            "front": [(188, 8, 218, 55), (202, 60, 192, 305, 6)],
-            "back": [(8, 16, 34, 55), (25, 55, 30, 277, 6)],
+            "front": (6, 2, 160, 272),
+            "back": (160, 2, 295, 272),
+            "left": (294, 2, 435, 272),
+            "right": (447, 2, 550, 272),
         },
     },
     "spark_mage": {
-        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
-        "src": "earth_shock_mage_board.jpg", "bg": "grabcut", "snow": True, "tiles": 1.6,
-        "bright_grow": 120,   # the lightning round his fists
+        # 2026-10-27: the Spark Mage (shock mage) redrawn — a blond brawler in
+        # a black vest and torn purple trousers, lightning round his fists —
+        # four poses on dark navy. Both side poses face left, and the first
+        # holds a vine staff that isn't his (the Earth Mage's): the staff-free
+        # one is the left, and the right is its mirror.
+        "src": "spark_mage_brawler_board.png", "bg": "grabcut", "tiles": 1.6,
+        "matte": ("front", "back", "left"),   # the model matte (tools/make_mattes.py)
         "Idle": {
-            "front": (465, 415, 690, 722),
-            "back": (1160, 400, 1390, 722),
-            "right": (410, 55, 645, 372),
-            "left": (1105, 55, 1375, 372),
+            "front": (0, 8, 166, 347),
+            "back": (166, 8, 367, 347),
+            "left": (539, 8, 686, 347),
+            "right": ("mirror", "left"),
         },
     },
     "ifrit": {
@@ -299,16 +300,17 @@ BOARDS = {
         },
     },
     "granite_colossus": {
-        # 2026-10-25: the Granite Colossus, a hulking stone golem with ember
-        # eyes, in a forge. Its side labels are swapped (the "FACING LEFT"
-        # panel faces right), so the poses are picked by what they show.
-        "src": "granite_colossus_board.jpg", "bg": "grabcut", "tiles": 2.6,
+        # 2026-10-27: the Granite Colossus redrawn — a hulking golem of mossy
+        # cut stone with ember eyes — four labelled poses on black. Its side
+        # labels are swapped (the "LEFT" panel faces right), so the poses are
+        # picked by what they show.
+        "src": "granite_colossus_board_v2.webp", "bg": "grabcut", "tiles": 2.6,
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
         "Idle": {
-            "front": (840, 28, 1290, 372),
-            "back": (140, 28, 565, 372),
-            "right": (240, 405, 505, 730),
-            "left": (905, 405, 1170, 730),
+            "front": (157, 8, 658, 445),
+            "back": (885, 12, 1375, 445),
+            "left": (969, 520, 1283, 950),    # the board's "RIGHT"
+            "right": (245, 512, 572, 950),    # the board's "LEFT"
         },
     },
     "grave_titan": {
