@@ -419,6 +419,7 @@ func shuffle_discard_into_draw() -> void:
 ## player's max mana (so it keeps biting as the pool grows) plus the tax of
 ## any other Cheese held, at 5 tempo.
 const GREEDY_CHEESE_ID := "heavy_greedy_cheese"
+const SUMMON_SKELETON_BASE_MANA := 45   # Summon Skeleton costs this minus INT
 const GREEDY_CHEESE_OWN_PERCENT := 0.25
 const GREEDY_CHEESE_DISCARD_MIN := 3
 const GREEDY_CHEESE_MANA := 100
@@ -604,6 +605,13 @@ func compute_play_cost(card: Card, index: int, target = null, debuff_mgr = null,
 	mana_cost -= card.temp_mana_discount  # timed passive discount (Ancestral Aid)
 	if card.is_attack():  # the DEX proc discounts attacks, not spells
 		mana_cost -= next_attack_mana_discount
+
+	# Summon Skeleton: 45 mana minus the summoner's INT (never below 0; above
+	# 45 INT the excess is refunded when it resolves, main.gd).
+	if card.card_id == "summon_skeleton":
+		var ss_int: int = player_stats.intelligence if player_stats else 0
+		mana_cost = maxi(0, SUMMON_SKELETON_BASE_MANA - ss_int)
+		card.mana_cost = mana_cost  # keep the face and the log honest
 
 	# Specific Strike: +10 mana per OTHER card in hand.
 	if card.card_id == "specific_strike":

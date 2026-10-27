@@ -9768,7 +9768,8 @@ func _spawn_summon(hp: int, near_pos: Vector3, kind := "skeleton") -> void:
 	if not grid_manager:
 		return
 	_skeletons = _skeletons.filter(func(s): return is_instance_valid(s) and not s.is_dead)
-	if _skeletons.size() >= 3:
+	# The cap is the item / manifest summons'; card summons stand outside it.
+	if _skeletons.filter(func(s): return not s.from_card).size() >= 3:
 		add_battle_log("The summons will not answer — three already stand.", Color(0.8, 0.85, 0.75))
 		return
 	var corpse_cell := grid_manager.world_to_grid(near_pos)
@@ -9800,12 +9801,16 @@ func _update_skeletons(amount: int) -> void:
 	for s in _skeletons.duplicate():
 		if not is_instance_valid(s) or s.is_dead:
 			continue
+		if s.kind == "battle_turtle":
+			_grow_turtle_armor(s, amount)
 		var target_enemy := _nearest_enemy_to(s.position, enemies)
 		if target_enemy == null:
 			continue
 		var tcell := grid_manager.world_to_grid(target_enemy.position)
 		s.attack_accum += amount
 		if _manhattan(s.get_cell(), tcell) <= 1:
+			if s.base_attack <= 0:
+				continue  # the Battle Turtle holds the line beside it, no bite
 			if s.attack_accum >= s.attack_interval:
 				s.attack_accum -= s.attack_interval
 				target_enemy.take_damage(s.base_attack, true)
@@ -9829,6 +9834,93 @@ func _update_skeletons(amount: int) -> void:
 			if cur != s.get_cell():
 				s.move_to_cell(cur)
 	_skeletons = _skeletons.filter(func(s): return is_instance_valid(s) and not s.is_dead)
+
+## The summon cards (designer, 2026-10-27): stats per card, `count` allies
+## around the aimed point. HP is the card's; the rest is the kind's (see
+## summoned_skeleton.gd setup).
+const CARD_SUMMONS := {
+	"summon_skeleton": {"kind": "card_skeleton", "hp": 10, "count": 1},
+	"skeleton_army": {"kind": "card_skeleton", "hp": 10, "count": 4},
+	"summon_battle_turtle": {"kind": "battle_turtle", "hp": 25, "count": 1},
+	"turtle_power": {"kind": "battle_turtle", "hp": 25, "count": 3},
+	"summon_shadow_hound": {"kind": "shadow_hound", "hp": 10, "count": 1},
+}
+
+func _summon_from_card(card_id: String, aim: Vector3) -> void:
+	if not grid_manager or not player or not CARD_SUMMONS.has(card_id):
+		return
+	var spec: Dictionary = CARD_SUMMONS[card_id]
+	var stats := player.get_stats()
+	var summoner_int: int = stats.intelligence if stats else 0
+	var cells := _free_cells_near(grid_manager.world_to_grid(aim), int(spec["count"]))
+	if cells.is_empty():
+		add_battle_log("%s fizzles — no room there." % Card.create_by_id(card_id).card_name, Color(0.7, 0.7, 0.7))
+		return
+	for cell in cells:
+		var s := SkeletonScript.new()
+		add_child(s)
+		s.setup(grid_manager, grid_manager.grid_to_world(cell), int(spec["hp"]), str(spec["kind"]), summoner_int)
+		s.died.connect(func(dead): _garmr_death_stack(dead.position); _skeletons.erase(dead))
+		_skeletons.append(s)
+	add_battle_log("%d %s answer%s the call!" % [cells.size(), _summon_display_name(str(spec["kind"]), cells.size()), "" if cells.size() > 1 else "s"], Color(0.8, 0.85, 0.75))
+	# Summon Skeleton: above 45 INT the caster gets the difference back.
+	if card_id == "summon_skeleton" and stats and summoner_int > DeckManager.SUMMON_SKELETON_BASE_MANA:
+		var refund := summoner_int - DeckManager.SUMMON_SKELETON_BASE_MANA
+		stats.gain_mana(refund)
+		add_battle_log("Summon Skeleton: %d mana refunded (INT %d)" % [refund, summoner_int], Color(0.5, 0.75, 1.0))
+
+func _summon_display_name(kind: String, n: int) -> String:
+	match kind:
+		"battle_turtle": return "Battle Turtle" + ("s" if n > 1 else "")
+		"shadow_hound": return "Shadow Hound" + ("s" if n > 1 else "")
+		_: return "Skeleton" + ("s" if n > 1 else "")
+
+## Up to `n` open cells: the aimed one first, then outward ring by ring —
+## no wall, obstacle, enemy, player or summon on them.
+func _free_cells_near(center: Vector2i, n: int) -> Array:
+	var taken: Array = _living_enemy_cells().duplicate()
+	for p in [_p1_player, _p2_player, player]:
+		if p and is_instance_valid(p):
+			taken.append(grid_manager.world_to_grid(p.position))
+	for u in _all_summons():
+		if is_instance_valid(u) and u.has_method("get_cell"):
+			taken.append(u.get_cell())
+	var blocked: Array = player.blocked_tiles
+	var out: Array = []
+	for r in range(0, 4):
+		for dz in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				if maxi(absi(dx), absi(dz)) != r:
+					continue
+				var c := center + Vector2i(dx, dz)
+				if c in blocked or c in taken or c in out:
+					continue
+				if dungeon_manager and not dungeon_manager.is_floor(c):
+					continue
+				out.append(c)
+				if out.size() >= n:
+					return out
+	return out
+
+## Battle Turtle: every ARMOR_GROWTH_INTERVAL tempo its unerring armor grows
+## by a fifth of itself (rounded down). Its passive: whenever it gains armor,
+## so do all its allies — the players (armor) and the other Battle Turtles
+## (their unerring armor; their own passive does not chain off it).
+func _grow_turtle_armor(t, amount: int) -> void:
+	t.armor_accum += amount
+	while t.armor_accum >= t.ARMOR_GROWTH_INTERVAL:
+		t.armor_accum -= t.ARMOR_GROWTH_INTERVAL
+		var grow: int = int(t.unerring_armor / 5)
+		if grow <= 0:
+			continue
+		t.gain_armor(grow)
+		for p in [_p1_player, _p2_player] if _p1_player else [player]:
+			if p and is_instance_valid(p) and p.get_stats():
+				p.get_stats().add_armor(grow)
+		for other in _skeletons:
+			if other != t and is_instance_valid(other) and not other.is_dead and other.kind == "battle_turtle":
+				other.gain_armor(grow)
+		add_battle_log("Battle Turtle: +%d armor to it and its allies" % grow, Color(0.55, 0.8, 0.6))
 
 ## Bow of Budding Blasts: the maintained Spirit Bow (one at a time).
 func _summon_spirit_bow() -> void:
@@ -11715,6 +11807,9 @@ func _apply_card_world_effects(card: Card, target) -> void:
 	match card.card_id:
 		"its_alive":
 			_resurrect_frankenstein(mouse_pos)
+
+		"summon_skeleton", "skeleton_army", "summon_battle_turtle", "turtle_power", "summon_shadow_hound":
+			_summon_from_card(card.card_id, mouse_pos)
 
 		"stone_encase":
 			# Strap of Stone: the armor landed in execute; the self-stun is ours.

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "summon_battle_turtle"
+card_name = "Summon Battle Turtle"
+description = "Summon a Battle Turtle (25 HP, unerring armor equal to half your INT) that moves 1 space every tempo. Every 5 tempo its armor grows by a fifth of itself. Whenever it gains armor, so do its allies."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 65
+tempo_cost = 3
+target_types = ["point"]
+school = 1
+keywords = ["spell", "defense"]

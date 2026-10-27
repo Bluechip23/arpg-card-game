@@ -41,7 +41,7 @@ func _run() -> void:
 	var specs := {
 		"Wolf": ["res://scripts/battle/summoned_wolf.gd", [], "wolf"],
 		"Specter": ["res://scripts/battle/summoned_specter.gd", [12], "summon_specter"],
-		"Skeleton": ["res://scripts/battle/summoned_skeleton.gd", [10, "skeleton"], "skeleton"],
+		"Skeleton": ["res://scripts/battle/summoned_skeleton.gd", [10, "skeleton"], "summon_skeleton"],  # the designer's summon skeleton board (2026-10-27)
 		"Spirit": ["res://scripts/battle/summoned_skeleton.gd", [10, "spirit"], "specter"],
 		"Golem": ["res://scripts/battle/summoned_skeleton.gd", [10, "golem"], "summon_golem"],
 		"Frankensteins Monster": ["res://scripts/battle/frankensteins_monster.gd", [20], "frankenstein"],

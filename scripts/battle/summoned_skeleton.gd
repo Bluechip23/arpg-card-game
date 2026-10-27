@@ -1,24 +1,36 @@
 extends HealableSummon
 
-## Summoned melee ally: the Sack of Bone Arrows skeleton, plus the manifest
-## summons (skeleton / spirit / golem) that share its brain.
+## Summoned melee ally: the Sack of Bone Arrows skeleton, the manifest summons
+## (skeleton / spirit / golem), and the summon cards (designer, 2026-10-27):
+## Summon Skeleton / Skeleton Army ("card_skeleton"), Summon Shadow Hound
+## ("shadow_hound") and Summon Battle Turtle / Turtle Power ("battle_turtle").
+## They all share one brain, main._update_skeletons.
 ##
 ## Base stat block (skeleton, per the item): hits for 5, moves 4 spaces every
 ## tempo, attacks every 5 tempo. Spirits are fast and fragile; golems slow and
-## tanky (see setup). Lives until killed (or the battle ends); at most 3
-## summons stand at once.
+## tanky (see setup). The item and manifest summons cap at 3 standing at once;
+## card summons don't count toward that cap (Skeleton Army raises 4).
 ##
 ## This node owns visuals/health/movement; main.gd drives per-tempo decisions
 ## (_update_skeletons) via the cadence accumulators.
 
 # Per-kind cadence knobs — skeleton defaults; setup() retunes for the kind.
-var base_attack := 5      # damage per hit
+var base_attack := 5      # damage per hit (0: never attacks — the Battle Turtle)
 var move_interval := 1    # tempo between moves
 var move_steps := 4       # tiles per move
 var attack_interval := 5  # tempo between attacks
 var kind := "skeleton"
+var from_card := false    # raised by a summon card: outside the 3-summon cap
 
-func setup(gm: GridManager, spawn_pos: Vector3, hp: int, summon_kind := "skeleton") -> void:
+# Battle Turtle: unerring armor (taken before health, never decays) that grows
+# by a fifth of itself every ARMOR_GROWTH_INTERVAL tempo (main drives it).
+const ARMOR_GROWTH_INTERVAL := 5
+var unerring_armor := 0
+var armor_accum := 0
+
+## `summoner_int` sets what scales with the caster: the turtle's starting armor
+## (INT / 2) and the hound's bite cadence (8 - INT / 10 tempo, at least 1).
+func setup(gm: GridManager, spawn_pos: Vector3, hp: int, summon_kind := "skeleton", summoner_int := 0) -> void:
 	_place(gm, spawn_pos)
 	glide_speed = 4.5
 	kind = summon_kind
@@ -35,6 +47,29 @@ func setup(gm: GridManager, spawn_pos: Vector3, hp: int, summon_kind := "skeleto
 			base_attack = 8
 			attack_interval = 8
 			move_steps = 2
+		"card_skeleton":
+			# Summon Skeleton: 1 space every tempo, 6 damage every 5 tempo.
+			display_name = "Skeleton"
+			base_attack = 6
+			attack_interval = 5
+			move_steps = 1
+			from_card = true
+		"shadow_hound":
+			# Summon Shadow Hound: 2 spaces every tempo, 4 damage every
+			# (8 - INT/10) tempo.
+			display_name = "Shadow Hound"
+			base_attack = 4
+			attack_interval = maxi(1, 8 - int(summoner_int / 10))
+			move_steps = 2
+			from_card = true
+		"battle_turtle":
+			# Summon Battle Turtle: 1 space every tempo, no attack; unerring
+			# armor INT / 2 that grows (main._grow_turtle_armor).
+			display_name = "Battle Turtle"
+			base_attack = 0
+			move_steps = 1
+			unerring_armor = int(summoner_int / 2)
+			from_card = true
 		_:
 			display_name = "Skeleton"
 	max_health = maxi(1, hp)
@@ -47,6 +82,31 @@ func _build_visuals() -> void:
 			_build_figure("specter")         # the Craftpix ghost
 		"golem":
 			_build_figure("summon_golem")    # the Craftpix rock golem, ally-sized
+		"shadow_hound":
+			_build_figure("shadow_hound")    # stand-in until its board: the wolf, shadowed
+		"battle_turtle":
+			_build_figure("battle_turtle")   # stand-in until its board
 		_:
-			_build_figure("skeleton")        # the Craftpix skeleton the Graveyard's wear
+			_build_figure("summon_skeleton") # the designer's summon skeleton board (2026-10-27)
 	_build_health_label(1.7, Color(0.85, 0.9, 0.8))
+
+## Battle Turtle: the armor soaks the hit first.
+func _absorb(amount: int) -> int:
+	if unerring_armor <= 0:
+		return amount
+	var soaked := mini(unerring_armor, amount)
+	unerring_armor -= soaked
+	return amount - soaked
+
+func _health_label_text() -> String:
+	var t := super._health_label_text()
+	if kind == "battle_turtle":
+		t += "  [%d]" % unerring_armor
+	return t
+
+## Battle Turtle: add armor (its growth, or an ally turtle's passive).
+func gain_armor(amount: int) -> void:
+	if amount <= 0 or is_dead:
+		return
+	unerring_armor += amount
+	_update_health_label()
