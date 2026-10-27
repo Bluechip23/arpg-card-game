@@ -53,9 +53,12 @@ func _run() -> void:
 		var t: Array = _tallest(r)
 		_check(t[0] <= lim or t[0] == -INF, "town %s stays under the sprites (top %.2f, %s)" % [r.name, t[0], t[1]])
 	for n in ["Olorin", "Sellsword"]:
-		var fig: Sprite3D = town.get_node("Vendors/%s/Figure" % n)
-		_check(not fig.centered and is_equal_approx(fig.position.y, CameraView.SPRITE_LIFT),
-			"%s stands on his feet at the sprite height" % n)
+		var fig: Node3D = town.get_node("Vendors/%s/Figure" % n)
+		# A flat Sprite3D stands on its feet (not centred); a figure rig (the
+		# Sellsword's SpriteEnemyFigure since 2026-10-27) draws from its feet.
+		var on_feet: bool = (not (fig as Sprite3D).centered) if fig is Sprite3D else fig is SpriteEnemyFigure
+		_check(on_feet and is_equal_approx(fig.position.y, CameraView.SPRITE_LIFT),
+			"%s stands on their feet at the sprite height" % n)
 	town.queue_free()
 	await process_frame
 	# A zone's entrances
