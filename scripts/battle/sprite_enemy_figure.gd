@@ -122,8 +122,8 @@ const KINDS := {
 	"large_bear": {"sheets": SHEETS + "/large_bear", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Bear
 	"bone_dragon": {"sheets": SHEETS + "/bone_dragon", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"wyvern": {"sheets": SHEETS + "/wyvern", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
-	"cerberus": {"sheets": BOSSES + "/cerberus", "scale": BOARD_SCALE},
-	"hades": {"sheets": BOSSES + "/hades", "scale": BOARD_SCALE},  # art in place; no Hades enemy exists yet
+	"cerberus": {"sheets": SHEETS + "/cerberus", "scale": BOARD_SCALE},  # the designer's boss trio board (tools/cut_pose_boards.py, 2026-10-27); was the walk-sheet cut
+	"hades": {"sheets": SHEETS + "/hades", "scale": BOARD_SCALE},  # the boss trio board (2026-10-27); art in place, no Hades enemy exists yet
 	"werewolf": {"sheets": SHEETS + "/werewolf", "scale": BOARD_SCALE},
 	"sabertooth": {"sheets": SHEETS + "/sabertooth", "scale": BOARD_SCALE},
 	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": BOARD_SCALE},
@@ -145,7 +145,7 @@ const KINDS := {
 	"infected_hunter": {"sheets": SHEETS + "/infected_hunter", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the zombie pack's Zombie3
 	"succubus": {"sheets": SHEETS + "/succubus", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the chaos-monster Icon14
 	"cherub": {"sheets": SHEETS + "/cherub", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the NPC baby sheet, tinted
-	"corrupted_archangel": {"sheets": BOSSES + "/corrupted_archangel", "scale": BOARD_SCALE},  # the designer's board (tools/cut_boss_sheets.py)
+	"corrupted_archangel": {"sheets": SHEETS + "/corrupted_archangel", "scale": BOARD_SCALE},  # the boss trio board (tools/cut_pose_boards.py, 2026-10-27); was the walk-sheet cut
 	# --- the generic Minion / Elite / Boss tiers (and custom enemies): the
 	# Craftpix swordsman's three gear tiers, lvl4 → lvl6 increasingly heavy,
 	# growing with the tier like the old procedural brute did ---

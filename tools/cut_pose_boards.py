@@ -693,6 +693,55 @@ BOARDS = {
             "right": (594, 520, 970, 870),
         },
     },
+    "corrupted_archangel": {
+        # 2026-10-27: from the designer's boss trio board (boss_trio_board.webp:
+        # the Corrupted Archangel, Cerberus and Hades, four labelled poses each
+        # — NORTH is the face, SOUTH the back, EAST / WEST the sides). Replaces
+        # the walk-sheet cut (tools/cut_boss_sheets.py); kept at the height
+        # it had there. The row's title plaque is cleared where it reaches in.
+        "src": "boss_trio_board.webp", "bg": "grabcut", "tiles": 1.9,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (218, 18, 498, 320),
+            "back": (877, 18, 1167, 320),
+            "left": (1230, 18, 1438, 320),
+            "right": (574, 18, 782, 320),
+        },
+    },
+    "cerberus": {
+        # 2026-10-27: from the designer's boss trio board (boss_trio_board.webp:
+        # the Corrupted Archangel, Cerberus and Hades, four labelled poses each
+        # — NORTH is the face, SOUTH the back, EAST / WEST the sides). Replaces
+        # the walk-sheet cut (tools/cut_boss_sheets.py); kept at the height
+        # it had there. The row's title plaque is cleared where it reaches in.
+        # Both its side poses face right: EAST is the right, mirrored for the left.
+        "src": "boss_trio_board.webp", "bg": "grabcut", "tiles": 2.4,
+        "matte": ("front", "back", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (252, 374, 486, 628),
+            "back": (906, 374, 1094, 628),
+            "right": (499, 374, 873, 628),
+            "left": ("mirror", "right"),
+        },
+    },
+    "hades": {
+        # 2026-10-27: from the designer's boss trio board (boss_trio_board.webp:
+        # the Corrupted Archangel, Cerberus and Hades, four labelled poses each
+        # — NORTH is the face, SOUTH the back, EAST / WEST the sides). Replaces
+        # the walk-sheet cut (tools/cut_boss_sheets.py); kept at the height
+        # it had there. The row's title plaque is cleared where it reaches in.
+        "src": "boss_trio_board.webp", "bg": "grabcut", "tiles": 1.9,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "matte_bg": {"front": [(0, 0, 40, 125)]},      # the HADES plaque's edge
+        # Keep the purple flames' wisps the model trims.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 55)] for d in ("back", "left", "right")},
+        "Idle": {
+            "front": (225, 672, 526, 970),
+            "back": (872, 672, 1173, 970),
+            "left": (1248, 672, 1491, 970),
+            "right": (563, 672, 791, 970),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped
