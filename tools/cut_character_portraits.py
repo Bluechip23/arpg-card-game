@@ -39,10 +39,11 @@ MIN_GAP = 8        # columns between busts
 
 # A hero whose portrait comes from his own board instead of the strip:
 # hero -> (source, box). The box keeps the select screen's 96:100 shape and
-# frames the bust like the strip's (crown to belt). Stephen, 2026-10-28: his
-# new front pose (tools/build_stephen_board.py) replaced the strip's Stephen.
+# frames the bust like the strip's (crown to belt). 2026-10-28: Stephen's and
+# Ryan's new front poses replaced theirs on the strip.
 OVERRIDES = {
     "stephen": ("assets/sprites/paintings/stephen_v2_board.png", (33, -6, 241, 211)),
+    "ryan": ("assets/sprites/paintings/ryan_v2_board.webp", (366, -4, 654, 296)),
 }
 
 # hero -> (centre x, centre y, length, lean in degrees) on the OUT_SIZE
