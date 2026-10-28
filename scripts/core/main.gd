@@ -4441,7 +4441,7 @@ var _rescue_npcs: Array = []      # RescueNpc nodes placed for active quests
 var _follower: RescueNpc = null   # the one currently trailing the player
 
 const WOODCUTTER_SHEET := "res://assets/sprites/NPCpackage2/npc man B v02.png"
-const OLORIN_SHEET := "res://assets/sprites/NPCpackage1/npc old man A v01.png"  # the same old wanderer as in town
+const OLORIN_SHEET := "kind:olorin"  # the designer's Olorin and his bear, as in town (RescueNpc takes a figure kind)
 var _field_olorin: RescueNpc = null  # Olorin at the Transport Portal on the first trip out of town
 const PARTNER_SHEET := "res://assets/sprites/NPCpackage2/npc girl v03.png"
 

@@ -97,7 +97,8 @@ func _run() -> void:
 		var ce: Enemy = main.enemy_spawner.spawn_enemy(t, main.player.position + Vector3(x, 0, 2))
 		x += 2.0
 		await process_frame
-		_check_fig(ce._enemy_figure, ce.enemy_name)
+		# The Hydra wears its redrawn pose board (2026-10-28): no walk cycle.
+		_check_fig(ce._enemy_figure, ce.enemy_name, t != Enemy.EnemyType.HYDRA)
 	# The Screecher wears the designer's crawler board (2026-10-25), no longer
 	# the Snow Wraith's ghost.
 	# The crawler board is the Consumed's (2026-10-27: it was on the Screecher

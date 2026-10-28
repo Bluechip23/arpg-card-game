@@ -481,7 +481,7 @@ const PORTRAIT_SIZE := 168.0
 const SPEECH_BG := Color(0.035, 0.075, 0.05, 0.97)
 const SPEECH_BORDER := Color(0.80, 0.65, 0.32)
 const SPEECH_NAME := Color(1.0, 0.86, 0.45)
-const OLORIN_SHEET := "res://assets/sprites/NPCpackage1/npc old man A v01.png"
+const OLORIN_PORTRAIT := "res://assets/sprites/portraits/olorin.png"
 
 ## The talking-head bar along the bottom of the screen, as in most RPGs: a
 ## framed close-up of the speaker on the left, their name and words beside
@@ -617,13 +617,8 @@ func _portrait_for(speaker_name: String) -> Texture2D:
 			if tex:
 				return tex
 		return null
-	var sheet := load(OLORIN_SHEET) as Texture2D
-	if sheet == null:
-		return null
-	var face := AtlasTexture.new()
-	face.atlas = sheet
-	face.region = Rect2(5, 1, 22, 21)  # front-facing frame: head and shoulders
-	return face
+	# The head-detail panel of the designer's Olorin sheet (2026-10-28).
+	return load(OLORIN_PORTRAIT) as Texture2D
 
 ## Size the bar's scrolling body to its text, up to about a third of the
 ## screen; longer speeches scroll. Re-run when the window resizes.

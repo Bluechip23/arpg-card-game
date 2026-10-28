@@ -860,7 +860,7 @@ All five are spells (Silence stops them), aimed at a point; the summons appear o
   - Code: deck_manager.compute_play_cost sets the cost from INT (SUMMON_SKELETON_BASE_MANA); main._summon_from_card raises one "card_skeleton" and refunds INT − 45. Art: the designer's summon skeleton board (also the item / manifest skeleton's art now).
 - **Summon Battle Turtle** (`summon_battle_turtle`) — Rare · 65 mana, 3 tempo · range melee · targets point · slots: Buckler / Gem / Staff / Wand · sheet: Defensive
   - Card text: Summon a Battle Turtle (25 HP) with unerring armor equal to half your INT. Every 5 tempo it regains a fifth of that armor, up to its unerring armor. Whenever it gains armor, so do its allies. Moves 1 space every tempo.
-  - Code: kind "battle_turtle": no attack. Its armor soaks hits first and is capped by its unerring armor (INT/2); it starts full. main._regain_turtle_armor adds max(1, floor(cap/5)) every 5 tempo, never past the cap, and gives what it actually gained to the players (armor) and every other turtle (up to their caps; no chain) — a full turtle gives nothing (designer, 2026-10-27: "grows" meant regains, capped). Art: stand-in (a mossy rock golem) until its board.
+  - Code: kind "battle_turtle": no attack. Its armor soaks hits first and is capped by its unerring armor (INT/2); it starts full. main._regain_turtle_armor adds max(1, floor(cap/5)) every 5 tempo, never past the cap, and gives what it actually gained to the players (armor) and every other turtle (up to their caps; no chain) — a full turtle gives nothing (designer, 2026-10-27: "grows" meant regains, capped). Art: the designer's Battle Turtle board (2026-10-28).
 - **Skeleton Army** (`skeleton_army`) — Legendary · 130 mana, 7 tempo · range 5 · targets point · slots: Staff / Gem / Crown · sheet: Offensive
   - Card text: Summon 4 skeletons (10 HP each) that move 1 space every tempo and attack for 6 damage every 5 tempo.
   - Code: four "card_skeleton"s, as Summon Skeleton (no INT pricing on the Army).
@@ -869,5 +869,5 @@ All five are spells (Silence stops them), aimed at a point; the summons appear o
   - Code: three "battle_turtle"s; armor any one regains also goes to the others and the players.
 - **Summon Shadow Hound** (`summon_shadow_hound`) — Rare · 20 mana, 3 tempo · range melee · targets point · slots: Wand / Gem / Staff / Dagger / Sword · sheet: Offensive
   - Card text: Summon a Shadow Hound (10 HP) that moves 2 spaces every tempo and bites for 4 damage every (8 − INT/10) tempo.
-  - Code: kind "shadow_hound": attack_interval = max(1, 8 − floor(INT/10)), set when summoned. Art: stand-in (the wolf, shadowed) until its board.
+  - Code: kind "shadow_hound": attack_interval = max(1, 8 − floor(INT/10)), set when summoned. Art: the designer's Shadow Hound board (2026-10-28; no back view yet).
 

@@ -59,7 +59,7 @@ STRIP_REACH = 20
 # "right" frames face right; "left" frames face left; a missing side is the
 # mirror of the other.
 FRAMES = {
-    "hydra": {
+    "hydra": {   # superseded in game (2026-10-28) by the redrawn board (tools/cut_pose_boards.py, same folder): rerunning this puts the old art back; the entry stays because the sabertooth's floor plate is built from the hydra's cells
         "src": "hydra_sheet.jpg", "kind": "stone", "down": 1.5 * 0.5 / 0.55,
         "back": [(0, 0), (0, 1), (0, 2), (0, 3)],
         "front": [(2, 0), (2, 1), (2, 2), (2, 3)],

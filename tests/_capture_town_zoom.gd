@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Dev helper: the town with the player walked up near the Sellsword (or the
 ## Blacksmith), the camera at a given zoom, saved as a PNG.
-##   ... --script tests/_capture_town_zoom.gd -- <out.png> <sellsword|blacksmith> [zoom]
+##   ... --script tests/_capture_town_zoom.gd -- <out.png> <sellsword|blacksmith|olorin> [zoom]
 
 var _frames := 0
 var town
@@ -22,7 +22,7 @@ func _initialize() -> void:
 func _process(_d: float) -> bool:
 	_frames += 1
 	if _frames == 10:
-		var target: Node3D = town.get_node("Vendors/Sellsword") if who == "sellsword" else town.get_node("Vendors/Blacksmith")
+		var target: Node3D = town.get_node("Vendors/Sellsword") if who == "sellsword" else (town.get_node("Vendors/Olorin") if who == "olorin" else town.get_node("Vendors/Blacksmith"))
 		var off := Vector3(-2, 0, 1.5) if who == "sellsword" else Vector3(2.2, 0, 1.2)
 		town.player.position = target.global_position + off
 		town.player.target_position = town.player.position

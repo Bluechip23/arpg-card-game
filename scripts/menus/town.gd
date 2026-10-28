@@ -2533,12 +2533,7 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 		"Blacksmith":
 			# The designer's Blacksmith stands behind his counter (his NPC
 			# sheet's four standing poses), turning to face a nearby player.
-			var smith := SpriteEnemyFigure.new()
-			smith.name = "Smith"
-			stall.add_child(smith)
-			smith.setup("npc_blacksmith")
-			smith.position.z = -0.35
-			_townsfolk.append(smith)
+			_add_stall_keeper(stall, "npc_blacksmith", "Smith")
 			var barrel := CraftpixProps.make_sprite("goods_barrel", 1.0, 0)
 			if barrel:
 				barrel.position += Vector3(-1.1, 0, 0.5)
@@ -2548,6 +2543,7 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 				pile.position += Vector3(1.1, 0, 0.6)
 				stall.add_child(pile)
 		"Armory":
+			_add_stall_keeper(stall, "npc_armory", "Keeper")
 			# The pack's shelves are a tile and a half wide: they stand clear of the counter.
 			var rack := CraftpixProps.make_sprite("goods_rack", 1.0, 0)
 			if rack:
@@ -2558,6 +2554,7 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 				rack2.position += Vector3(1.7, 0, 0.1)
 				stall.add_child(rack2)
 		"CardDealer":
+			_add_stall_keeper(stall, "npc_card_dealer", "Dealer")
 			var crate := CraftpixProps.make_sprite("goods_crate", 1.0, 1)
 			if crate:
 				crate.position += Vector3(1.1, 0, 0.5)
@@ -2568,6 +2565,17 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 				sack.position += Vector3(-1.1, 0, 0.5)
 				stall.add_child(sack)
 	return
+
+## A shopkeeper behind the counter (the designer's NPC sheets, 2026-10-27/28):
+## the Blacksmith, the Armory keeper, the Card Dealer. They turn to look at a
+## nearby player (_face_townsfolk).
+func _add_stall_keeper(stall: Node3D, kind: String, node_name: String) -> void:
+	var k := SpriteEnemyFigure.new()
+	k.name = node_name
+	stall.add_child(k)
+	k.setup(kind)
+	k.position.z = -0.35
+	_townsfolk.append(k)
 
 func _build_stash_chest(stash: Node3D) -> void:
 	# Same 16-bit chest billboard the dungeons use, scaled up for the stash.
@@ -2612,23 +2620,13 @@ func _create_olorin_npc() -> void:
 	olorin.name = "Olorin"
 	olorin.position = grid_manager.grid_to_world(Vector2i(14, 8))  # on a tile centre
 
-	# The wise old wanderer himself — the old-man sheet from the NPC pack
-	# (grey beard, walking stick), matching the 16-bit party/NPC pipeline.
-	var fig = Sprite3D.new()
+	# The wise old wanderer himself, his bear at his side — the designer's
+	# Olorin board (2026-10-28); he turns to look at a player who comes near.
+	var fig := SpriteEnemyFigure.new()
 	fig.name = "Figure"
-	fig.texture = load("res://assets/sprites/NPCpackage1/npc old man A v01.png")
-	fig.region_enabled = true
-	fig.region_rect = Rect2(0, 0, 32, 32)  # south-facing idle frame
-	fig.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	fig.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
-	fig.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	fig.shaded = false
-	fig.pixel_size = 0.03125
-	var olorin_scale := 1.25  # a touch taller than the party — presence
-	fig.scale = Vector3(olorin_scale, olorin_scale, olorin_scale)
-	CameraView.stand_on_ground(fig)  # feet on the ground point: sorts with the player by row
 	olorin.add_child(fig)
-	BlobShadow.attach(olorin, 0.6)
+	fig.setup("olorin")   # brings its own blob shadow
+	_townsfolk.append(fig)
 
 	var collision = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
@@ -2655,7 +2653,7 @@ func _create_olorin_npc() -> void:
 	quest_indicator.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	quest_indicator.modulate = Color(1.0, 0.85, 0.0)
 	quest_indicator.outline_size = 12
-	quest_indicator.position = Vector3(0, 2.8, 0)
+	quest_indicator.position = Vector3(0, 2.8, -1.85)   # over his hat (-z is up the screen)
 	WorldText.crisp(quest_indicator)
 	olorin.add_child(quest_indicator)
 
