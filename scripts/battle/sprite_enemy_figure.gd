@@ -172,7 +172,7 @@ const KINDS := {
 	# --- the summon cards' allies (summoned_skeleton.gd, 2026-10-27) ---
 	"summon_skeleton": {"sheets": SHEETS + "/summon_skeleton", "scale": BOARD_SCALE},  # the designer's summon board (tools/cut_pose_boards.py)
 	"shadow_hound": {"sheets": SHEETS + "/wolf", "scale": BOARD_SCALE, "tint": Color(0.42, 0.36, 0.6)},  # stand-in until its board: the wolf, shadowed
-	"battle_turtle": {"cp": "golem/Golem1", "scale": 0.75, "tint": Color(0.62, 0.9, 0.62)},  # stand-in until its board: a mossy rock golem, ally-sized
+	"battle_turtle": {"sheets": SHEETS + "/battle_turtle", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28)
 	# --- townsfolk (town.gd): the designer's NPC sheets, four standing poses ---
 	"npc_sellsword": {"sheets": SHEETS + "/npc_sellsword", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-27
 	"npc_blacksmith": {"sheets": SHEETS + "/npc_blacksmith", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-27

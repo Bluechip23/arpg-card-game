@@ -88,7 +88,7 @@ func _build_visuals() -> void:
 		"shadow_hound":
 			_build_figure("shadow_hound")    # stand-in until its board: the wolf, shadowed
 		"battle_turtle":
-			_build_figure("battle_turtle")   # stand-in until its board
+			_build_figure("battle_turtle")   # the designer's board (2026-10-28)
 		_:
 			_build_figure("summon_skeleton") # the designer's summon skeleton board (2026-10-27)
 	_build_health_label(1.7, Color(0.85, 0.9, 0.8))

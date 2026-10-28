@@ -795,6 +795,22 @@ BOARDS = {
             "right": (667, 496, 894, 929),
         },
     },
+    "battle_turtle": {
+        # 2026-10-28: the Battle Turtle summon (Summon Battle Turtle, Turtle
+        # Power) — a hulking armoured snapping-turtle warrior with a spiked
+        # shell — from its sheet's top row (the detail panels below are not
+        # used). "FACING UP" shows the face and "FACING DOWN" the shell:
+        # picked by what they show; the side labels are true. The board's
+        # background is a dark navy, not black.
+        "src": "battle_turtle_board.webp", "bg": "grabcut", "tiles": 1.6,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (0, 115, 393, 576),
+            "back": (404, 115, 779, 576),
+            "left": (791, 115, 1147, 576),
+            "right": (1201, 115, 1514, 576),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped
