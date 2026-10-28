@@ -15,6 +15,11 @@ var _active: bool = false
 var _layer: CanvasLayer = null
 var _resume_on_close: bool = false
 
+## Any speech bar closed (Continue pressed).
+signal dialog_closed
+
+var _portrait_override: Texture2D = null  # an introduction's own close-up
+
 func init(main_ref) -> void:
 	main = main_ref
 	# Olorin must keep running while the tree is paused so his Continue button works.
@@ -193,6 +198,18 @@ func show_mythic_find_farewell() -> void:
 		return
 	_mark_seen("mythic_find_farewell")
 	_build_dialog(lesson_title("mythic_find_farewell"), lesson_paragraphs("mythic_find_farewell"))
+
+## A townsperson introduces themselves the first time the player speaks to
+## them: their own voice and close-up in the same speech bar. Shown once per
+## character (`intro_id` joins their seen list, which is saved). Returns true
+## if it was shown; dialog_closed fires when the player reads on.
+func show_introduction(intro_id: String, speaker: String, paragraphs: Array, portrait: Texture2D) -> bool:
+	if _active or has_seen(intro_id):
+		return false
+	_mark_seen(intro_id)
+	_portrait_override = portrait
+	_build_dialog("", paragraphs, null, -1, speaker)
+	return true
 
 func is_busy() -> bool:
 	return _active
@@ -610,6 +627,8 @@ func _build_portrait(speaker_name: String) -> Control:
 	return frame
 
 func _portrait_for(speaker_name: String) -> Texture2D:
+	if _portrait_override:
+		return _portrait_override
 	if speaker_name != OLORIN_SPEAKER:
 		var c = _character()
 		if c and c.has_method("get_portrait"):
@@ -665,4 +684,6 @@ func _close() -> void:
 	_spotlight = null
 	_tour_steps = []
 	_tour_index = -1
+	_portrait_override = null
 	_active = false
+	dialog_closed.emit()

@@ -12,6 +12,7 @@ signal spawn_enemy_requested(enemy_type: int)
 signal clear_enemies_requested
 signal refill_requested
 signal add_ally_requested(character_name: String)
+signal spawn_summon_requested(summon_id: String)  # one of SUMMON_ORDER's ids
 signal grant_passive_requested(option, rank: int)  # SkillTreeData.SkillOption, at this rank (1-15)
 signal add_item_requested(item_name: String)
 signal enter_boss_room_requested(interior_id: String)  # Boss Simulator: step into a boss room
@@ -64,6 +65,23 @@ var _item_list: VBoxContainer = null
 
 const ITEM_TYPE_ORDER := ["Helms", "Chests", "Belts", "Boots", "Gauntlets", "Weapons", "Shields", "Quivers", "Rings", "Other"]
 var _ally_dd: OptionButton = null
+var _summon_dd: OptionButton = null
+
+# Every summoned ally the game has, for the Summon row: [id, what the list shows].
+# Main places each beside the player the way its card / item / passive would.
+const SUMMON_ORDER := [
+	["card_skeleton", "Skeleton (Summon Skeleton)"],
+	["shadow_hound", "Shadow Hound"],
+	["battle_turtle", "Battle Turtle"],
+	["bone_skeleton", "Skeleton (Bone Arrows / Manifest)"],
+	["spirit", "Spirit (Manifest)"],
+	["golem", "Golem (Manifest)"],
+	["specter", "Specter (Seance)"],
+	["frankenstein", "Frankensteins Monster"],
+	["wolf", "Wolf"],
+	["penguin", "Sanguine the Blood Penguin"],
+	["bull_worm", "Alaskan Bull Worm"],
+]
 var _ally_btn: Button = null
 var _boss_status: Label = null       # "In: <room>" while inside a boss room
 var _boss_restart_btn: Button = null
@@ -282,6 +300,26 @@ func _build_ui() -> void:
 	_ally_btn.pressed.connect(func():
 		add_ally_requested.emit(CHARACTER_ORDER[_ally_dd.selected]))
 	ally_row.add_child(_ally_btn)
+
+	vbox.add_child(HSeparator.new())
+
+	# ---- Summon section: any summoned ally, beside the player ----
+	vbox.add_child(_header("Summon"))
+	var summon_row := HBoxContainer.new()
+	summon_row.add_theme_constant_override("separation", 6)
+	vbox.add_child(summon_row)
+	_summon_dd = OptionButton.new()
+	_summon_dd.name = "SummonDropdown"
+	_summon_dd.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for entry in SUMMON_ORDER:
+		_summon_dd.add_item(entry[1])
+	summon_row.add_child(_summon_dd)
+	var summon_btn := Button.new()
+	summon_btn.name = "SummonButton"
+	summon_btn.text = "Spawn"
+	summon_btn.pressed.connect(func():
+		spawn_summon_requested.emit(SUMMON_ORDER[_summon_dd.selected][0]))
+	summon_row.add_child(summon_btn)
 
 	vbox.add_child(HSeparator.new())
 

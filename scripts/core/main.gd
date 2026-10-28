@@ -3935,6 +3935,7 @@ func _setup_sandbox() -> void:
 	sandbox_ui.clear_enemies_requested.connect(_on_sandbox_clear_enemies)
 	sandbox_ui.refill_requested.connect(_sandbox_refill)
 	sandbox_ui.add_ally_requested.connect(_on_sandbox_add_ally)
+	sandbox_ui.spawn_summon_requested.connect(_on_sandbox_spawn_summon)
 	sandbox_ui.grant_passive_requested.connect(_on_sandbox_grant_passive)
 	sandbox_ui.enter_boss_room_requested.connect(_on_sandbox_enter_boss_room)
 	sandbox_ui.leave_boss_room_requested.connect(_on_sandbox_leave_boss_room)
@@ -4042,6 +4043,46 @@ func _on_sandbox_add_ally(char_name: String) -> void:
 	if sandbox_ui and sandbox_ui.has_method("mark_ally_added"):
 		sandbox_ui.mark_ally_added()
 	add_battle_log("Sandbox: %s joined as your ally! (TAB to switch control)" % char_name, Color(0.5, 1.0, 0.6))
+
+## Sandbox: put one summoned ally beside the player, through the same
+## spawner its card / item / passive uses (so it behaves exactly as in play).
+func _on_sandbox_spawn_summon(summon_id: String) -> void:
+	if not grid_manager or not player:
+		return
+	var here := grid_manager.world_to_grid(player.position)
+	var near: Array = _free_cells_near(here + Vector2i(0, -1), 1)
+	var spot: Vector2i = near[0] if not near.is_empty() else here
+	var spot_world := grid_manager.grid_to_world(spot)
+	match summon_id:
+		"card_skeleton":
+			_summon_from_card("summon_skeleton", spot_world)
+		"shadow_hound":
+			_summon_from_card("summon_shadow_hound", spot_world)
+		"battle_turtle":
+			_summon_from_card("summon_battle_turtle", spot_world)
+		"bone_skeleton":
+			_spawn_summon(15, spot_world, "skeleton")
+		"spirit":
+			_spawn_summon(8, spot_world, "spirit")
+		"golem":
+			_spawn_summon(30, spot_world, "golem")
+		"specter":
+			var rank := maxi(1, player.get_stats().get_passive_level("seance")) if player.get_stats() else 1
+			_spawn_specter(spot, PassiveScaling.value("seance", "specter", rank))
+		"frankenstein":
+			# It's Alive raises a corpse; lay one down to raise.
+			_corpses.append({"cell": spot, "position": spot_world})
+			_resurrect_frankenstein(spot_world)
+		"wolf":
+			_spawn_wolf()
+		"penguin":
+			_summon_penguin()
+		"bull_worm":
+			_spawn_bull_worms(1)
+		_:
+			add_battle_log("Sandbox: unknown summon '%s'." % summon_id, Color(1.0, 0.5, 0.4))
+			return
+	add_battle_log("Sandbox: summoned %s." % summon_id.replace("_", " "), Color(0.5, 1.0, 0.6))
 
 func _on_sandbox_grant_passive(option, rank: int = 1) -> void:
 	## Grant a skill-tree passive to the ACTIVE player at the chosen rank so it
