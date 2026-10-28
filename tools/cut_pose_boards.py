@@ -881,6 +881,27 @@ BOARDS = {
             "left": ("mirror", "right"),
         },
     },
+    "mind_eater": {
+        # 2026-10-28: the Mind Eater — a domed, mottled violet head over a
+        # maw of long fangs, a mass of suckered tentacles trailing below —
+        # four labelled poses on black. Its "LEFT" pose faces right and its
+        # "RIGHT" pose faces left (the mouth shows the way), so each is used
+        # for the way it faces. The tentacle tips reach past the labels' tops,
+        # so the labels are marked background instead of cropped off. The
+        # height runs from the dome to the lowest tentacle tip.
+        "src": "mind_eater_board.webp", "bg": "grabcut", "tiles": 1.9,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "matte_bg": {"front": [(240, 506, 364, 542)],
+                     "back": [(233, 496, 337, 532)],
+                     "right": [(261, 536, 362, 572)],
+                     "left": [(178, 535, 297, 573)]},
+        "Idle": {
+            "front": (30, 30, 600, 580),
+            "back": (690, 40, 1230, 572),
+            "right": (20, 610, 545, 1180),   # labelled LEFT, faces right
+            "left": (735, 615, 1232, 1188),  # labelled RIGHT, faces left
+        },
+    },
     "grave_digger": {
         # 2026-10-28: the Boneyard's Grave Digger — a heavy man in a flat cap,
         # waistcoat and mud-caked trousers, a spade on his back and a lit

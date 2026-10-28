@@ -77,7 +77,7 @@ const NPC_WALK_TIME := 0.18
 const KINDS := {
 	# --- direct battler matches ---
 	"sludge": {"sheets": SHEETS + "/sludge", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the slime pack's Slime1 tinted green
-	"mind_eater": {"cell": Vector2i(1, 0)},
+	"mind_eater": {"sheets": SHEETS + "/mind_eater", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28); was a MonsterKit battler
 	"pipe_crawler": {"cell": Vector2i(2, 0)},
 	"crypt_crawler": {"cell": Vector2i(3, 0)},
 	"swarm": {"sheets": SHEETS + "/swarm", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py black_key, 2026-10-26); was MonsterKit cell (4, 0)
