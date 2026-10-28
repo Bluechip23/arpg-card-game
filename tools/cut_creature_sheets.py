@@ -2,10 +2,13 @@
 """Cut the designer's 4x4 creature walk sheets into the game's sheets.
 
 Sources (assets/sprites/paintings/, .gdignore'd source art), 2026-10-22:
-  hydra_sheet.jpg, werewolf_sheet.jpg, sabertooth_sheet.jpg — 4x4 walk
+  werewolf_sheet.jpg — 4x4 walk
     frames on a dark stone floor, a label strip over each row.
-  white_manticore_sheet.webp, weregoat_sheet.webp, wolf_sheet.webp — 4x4 walk frames on
-    pure black, row names on the left.
+  white_manticore_sheet.webp, weregoat_walk_board.webp, wolf_sheet.webp,
+    sabertooth_v2_clean.webp — 4x4 walk frames on pure black (row names on
+    the left; the sabertooth's labels blacked out by
+    tools/clean_sabertooth_sheet.py). The stone floor the werewolf is cut
+    against is stone_floor_plate.png (see floor_plate).
 The row labels are not reliable ("walking left" rows that face right, a
 weregoat and wolf "Right" rows that face left, werewolf "back" frames that are side
 views — the werewolf walks those, upright), so FRAMES below picks each direction's frames by what they show and
@@ -59,12 +62,6 @@ STRIP_REACH = 20
 # "right" frames face right; "left" frames face left; a missing side is the
 # mirror of the other.
 FRAMES = {
-    "hydra": {   # superseded in game (2026-10-28) by the redrawn board (tools/cut_pose_boards.py, same folder): rerunning this puts the old art back; the entry stays because the sabertooth's floor plate is built from the hydra's cells
-        "src": "hydra_sheet.jpg", "kind": "stone", "down": 1.5 * 0.5 / 0.55,
-        "back": [(0, 0), (0, 1), (0, 2), (0, 3)],
-        "front": [(2, 0), (2, 1), (2, 2), (2, 3)],
-        "right": [(3, 0), (3, 1), (3, 2), (3, 3)],   # row 2 ("walking left") is mostly right-facing too
-    },
     "werewolf": {
         "src": "werewolf_sheet.jpg", "kind": "stone_dark", "down": 1.5 * 0.5 / 0.525,
         "back": [(0, 0), (0, 1)],                     # (0, 2), (0, 3) are side views
@@ -158,40 +155,18 @@ def _near_body(fg: np.ndarray) -> np.ndarray:
 _PLATE = None
 
 
+## The bare stone floor the stone sheets share (one cell's worth, RGB): the
+## median of the floor in the old hydra and sabertooth stone sheets, with
+## the patch every creature covered inpainted. Saved once (2026-10-28) when
+## those two creatures moved to new art and their old sheets were deleted;
+## the werewolf's sheet, still on that floor, is cut against it.
+PLATE_FILE = "assets/sprites/paintings/stone_floor_plate.png"
+
+
 def floor_plate() -> np.ndarray:
-    """The bare floor of one stone cell (RGB, float). The three stone sheets
-    share one floor template, repeated in every cell (they differ only by
-    JPEG noise), so the floor at each cell pixel is the median of the
-    samples there that look like stone, taken over the 32 hydra and
-    sabertooth cells (their yellow and orange never pass for stone; the
-    werewolf's dark fur would). The small patch every creature covers is
-    inpainted."""
     global _PLATE
-    if _PLATE is not None:
-        return _PLATE
-    w = min(b - a for a, b in STONE_COLS)
-    h = max(b - a for a, b in STONE_ROWS)
-    stack = []
-    for name in ("hydra", "sabertooth"):
-        a = np.array(Image.open(SRC % FRAMES[name]["src"]).convert("RGB")).astype(float)
-        for y0, y1 in STONE_ROWS:
-            for x0, _ in STONE_COLS:
-                cell = np.full((h, w, 3), np.nan)
-                cell[:y1 - y0] = a[y0:y1, x0:x0 + w]   # rows past its own floor: no sample
-                stack.append(cell)
-    st = np.stack(stack)
-    r, g, b = st[..., 0], st[..., 1], st[..., 2]
-    with np.errstate(invalid="ignore"):
-        stone = ((b >= r - 2) & (b >= g - 6)) | ((g > r + 6) & (g > b + 6))
-    masked = np.where(stone[..., None], st, np.nan)
-    with np.errstate(all="ignore"):
-        import warnings
-        warnings.simplefilter("ignore")
-        plate = np.nanmedian(masked, axis=0)
-    hole = np.isnan(plate[..., 0])
-    plate = np.where(np.isnan(plate), 0, plate).astype(np.uint8)
-    plate = cv2.inpaint(plate, hole.astype(np.uint8), 5, cv2.INPAINT_TELEA)
-    _PLATE = plate.astype(float)
+    if _PLATE is None:
+        _PLATE = np.array(Image.open(PLATE_FILE).convert("RGB")).astype(float)
     return _PLATE
 
 

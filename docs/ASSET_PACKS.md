@@ -321,3 +321,7 @@ complete, the integration pass starts (see the *Candidate use* columns above
 and `docs/ART_TODO.md` for what each one is meant to replace). Cross-pack
 groundwork to do first: a per-pack direction row map (see above) and a
 16-px → 32-px tile re-cut convention for the tilesets.
+
+### Old versions removed (2026-10-28)
+
+The designer asked for the old versions of redrawn monsters and heroes to be deleted. Gone from `assets/sprites/paintings/`: `air_mage_board.jpg`, `earth_shock_mage_board.jpg`, `fire_frost_mage_board.jpg` (the mages' first boards), `archer_rat_standing.jpg` / `archer_rat_walking.jpg`, `cerberus_sheet.webp`, `corrupted_archangel_sheet.webp`, `hades_sheet.webp`, `rat_king_sheet.webp`, `pit_fiend_sheet.jpg`, `bull_worm_board.jpg`, `frankenstein_board.jpg`, `giant_beaver_board.jpg`, `granite_colossus_board.jpg`, `hydra_sheet.jpg`, `ifrit_board.jpg`, `inflamed_minotaur.webp`, `inflamed_minotaur_board.png`, `sabertooth_sheet.jpg`, `sanguine_penguin_board.jpg`, `weregoat_sheet.webp`, `wyvern_board.webp` and the first hero set (`hero_*.png`); the old boss cuts (`generated/bosses/`, smooth too) and the tools that made only them (`cut_boss_sheets.py`, `cut_pit_fiend.py`, `cut_archer_rat.py`). Rows above that name these files describe what they were. Kept on purpose: `heroes_front_back.webp`, `heroes_side.webp` and `character_portraits.png` (Jeremy and Cory are still cut from them), and the old hydra/sabertooth stone floor, saved as `stone_floor_plate.png` for the werewolf's cut.

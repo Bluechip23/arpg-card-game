@@ -15,8 +15,7 @@ const GENERATED := "res://assets/sprites/generated/"
 const SMOOTH_ROOT := "res://assets/sprites/generated/smooth/"
 
 
-## The smooth twin of a sheet folder (…/generated/sheets/<kind>,
-## …/generated/bosses/<kind>) when the smooth look is on and it has been
+## The smooth twin of a sheet folder (…/generated/sheets/<kind>) when the smooth look is on and it has been
 ## cut; "" otherwise.
 static func smooth_folder(folder: String) -> String:
 	if not SMOOTH or not folder.begins_with(GENERATED):

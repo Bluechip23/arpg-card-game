@@ -25,7 +25,6 @@ extends Node3D
 const SHEET := "res://assets/sprites/MonsterKit/monster battler set.png"
 const NPC1 := "res://assets/sprites/NPCpackage1"
 const CP := "res://assets/sprites/craftpix"
-const BOSSES := "res://assets/sprites/generated/bosses"
 const SHEETS := "res://assets/sprites/generated/sheets"
 
 ## Direction row order of the Craftpix packs, top row first: F = front
@@ -66,8 +65,8 @@ const NPC_WALK_TIME := 0.18
 ## Generated battler:  {tex: "<name>", tint?: Color, scale?: float}
 ## Directional sheets: {sheets: "<folder>", scale?} — Idle.png / Walk.png in
 ##                     the Craftpix layout (rows front, back, left, right),
-##                     cut from the designer's boss boards by
-##                     tools/cut_boss_sheets.py. Played like a Craftpix pack.
+##                     cut from the designer's boards (tools/cut_pose_boards.py,
+##                     tools/cut_creature_sheets.py). Played like a Craftpix pack.
 ## Craftpix icon:      {icon: "<pack>/<file>", faces?: "left"|"right"|"front",
 ##                     tint?, scale?} (a single 32x32 monster icon used as a
 ##                     static battler; flipped for the far side like the
@@ -96,12 +95,10 @@ const KINDS := {
 	"sewer_croc": {"sheets": SHEETS + "/sewer_cobra", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the mountain-monster Snake (the kind keeps its old croc name)
 	# --- generated sprites (drawn/derived in our pipeline, palette-conformant) ---
 	"rat": {"sheets": SHEETS + "/wererat", "scale": BOARD_SCALE},  # the Wererat: the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the giant-rat pack's Rat1
-	# The designer's Archer Rat (tools/cut_archer_rat.py): up on its hind
-	# legs while it stands, on all fours while it moves.
-	"archer_rat": {"sheets": SHEETS + "/archer_rat", "scale": BOARD_SCALE},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26); was the tools/cut_archer_rat.py cut
-	# The designer's own boss boards (no pack has these bosses): front, back
-	# and side walk frames, cut by tools/cut_boss_sheets.py.
-	"rat_king": {"sheets": SHEETS + "/rat_king", "scale": BOARD_SCALE},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26), 2.1 tiles — bigger than the Wererat; was his walk-sheet cut (tools/cut_boss_sheets.py)
+	# The designer's Archer Rat: up on its hind legs, bow in hand.
+	"archer_rat": {"sheets": SHEETS + "/archer_rat", "scale": BOARD_SCALE},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26)
+	# The designer's own boss boards (no pack has these bosses).
+	"rat_king": {"sheets": SHEETS + "/rat_king", "scale": BOARD_SCALE},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26), 2.1 tiles — bigger than the Wererat
 	"fire_goblin_soldier": {"sheets": SHEETS + "/fire_goblin", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the goblin pack's Goblin2
 	"fire_goblin_mage": {"sheets": SHEETS + "/fire_goblin_mage", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the goblin pack's Goblin1
 	"fire_goblin_shaman": {"sheets": SHEETS + "/fire_goblin_shaman", "scale": BOARD_SCALE},  # his own board (tools/cut_pose_boards.py, 2026-10-28); wore the soldier's, and before that the goblin pack's Goblin3
