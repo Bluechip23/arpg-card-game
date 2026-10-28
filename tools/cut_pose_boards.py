@@ -85,13 +85,19 @@ ROWS = ["front", "back", "left", "right"]
 # as ("mirror", other) is the other pose flipped.
 BOARDS = {
     "frankenstein": {
-        "matte": ("front", "back", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
-        "src": "frankenstein_board.jpg", "bg": "stone", "tiles": 1.75,
+        # 2026-10-28: the designer's new Frankensteins Monster — green and
+        # stitched, a torn brown coat over a black shirt, the neck bolts
+        # crackling blue, heavy boots — one row on black: front, back, then
+        # two side views, the first facing right and the second left.
+        "src": "frankenstein_v2_board.webp", "bg": "grabcut", "tiles": 1.75,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model trims the bolts' sparks: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
         "Idle": {
-            "front": (0, 96, 360, 720),
-            "back": (360, 96, 720, 720),
-            "right": (1060, 96, 1408, 720),
-            "left": ("mirror", "right"),
+            "front": (4, 140, 410, 895),
+            "back": (420, 140, 826, 895),
+            "right": (866, 140, 1110, 898),
+            "left": (1280, 140, 1518, 898),
         },
     },
     "giant_beaver": {
@@ -139,21 +145,16 @@ BOARDS = {
         },
     },
     "sanguine_penguin": {
-        "src": "sanguine_penguin_board.jpg", "bg": "grabcut", "tiles": 1.15,
+        # 2026-10-28: the designer's new Sanguine — a scarred, bleeding
+        # penguin in a bronze crested helm — one row on black: front, back,
+        # then two side views, the first facing right and the second left.
+        "src": "sanguine_penguin_v2_board.webp", "bg": "grabcut", "tiles": 1.15,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
         "Idle": {
-            "front": (900, 395, 1210, 760),
-            "back": (180, 395, 520, 760),
-            "right": (60, 30, 345, 385),
-            "left": (1090, 30, 1408, 385),
-        },
-        # Boxes (within each pose's box) that are surely him: his flippers
-        # and black back, whose colours the sky and ice share and whose
-        # outline the board leaves open in places (measured).
-        "fg": {
-            "front": [(45, 215, 70, 285), (245, 215, 265, 285), (75, 200, 95, 320)],
-            "back": [(55, 230, 85, 290), (245, 230, 275, 290)],
-            "right": [(212, 215, 235, 250), (55, 180, 95, 280)],
-            "left": [(25, 215, 45, 255), (150, 180, 210, 290)],
+            "front": (24, 195, 378, 760),
+            "back": (406, 190, 775, 760),
+            "right": (776, 210, 1105, 768),
+            "left": (1198, 210, 1527, 770),
         },
     },
     "djinn": {
