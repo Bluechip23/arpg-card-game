@@ -828,6 +828,22 @@ BOARDS = {
             "right": (1065, 172, 1531, 564),
         },
     },
+    "hydra": {
+        # 2026-10-28: the Hydra redrawn — a green many-headed serpent-beast
+        # with a spined back and tail — from its sheet's top row (the detail
+        # panels are not used), on a painted checkerboard. "FACING UP" shows
+        # the heads' faces and "FACING DOWN" the backs of the necks: picked by
+        # what they show; the side labels are true. Replaces its walk-sheet
+        # cut (tools/cut_creature_sheets.py) — one pose a direction now.
+        "src": "hydra_board.webp", "bg": "grabcut", "tiles": 2.2,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (11, 27, 316, 580),
+            "back": (322, 73, 636, 580),
+            "left": (652, 126, 1123, 580),
+            "right": (1157, 105, 1529, 580),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped
