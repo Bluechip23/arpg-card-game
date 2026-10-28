@@ -2,6 +2,7 @@ extends SceneTree
 
 ## The sandbox menu's Summon row: every summoned ally the game has is in the
 ## list, and each one, spawned from it, stands on the field beside the player.
+## The panel never runs off the right edge of the screen.
 ## Run: godot --headless --path . --script tests/test_sandbox_summons.gd
 
 var failures := 0
@@ -45,11 +46,38 @@ func _run() -> void:
 	if dd == null or btn == null:
 		quit(1)
 		return
+	# The panel stays on screen: nothing inside (a dropdown's longest entry,
+	# a long card or passive name) may push it past the right edge.
+	ui._panel.visible = true
+	var vp_w: float = ui._panel.get_viewport_rect().size.x
+	var worst := 0.0
+	for tab in [0, 1]:
+		ui._set_tab(tab)
+		for g in range(ui._char_dd.item_count):
+			ui._char_dd.select(g)
+			ui._refresh_active_tab()
+			await process_frame
+			worst = maxf(worst, ui._panel.get_global_rect().end.x)
+	_check(worst <= vp_w, "the sandbox panel stays on screen on every tab and list (right edge %d of %d)" % [worst, vp_w])
+	_check(ui._panel.size.x <= 300.0, "and keeps its width (%d)" % ui._panel.size.x)
+	_check(btn.size.x >= 40.0 and btn.get_global_rect().end.x <= vp_w, "the Summon row's Spawn button shows in full (%d wide)" % btn.size.x)
+	var ally_btn: Button = ui._ally_btn
+	_check(ally_btn.size.x >= 40.0 and ally_btn.get_global_rect().end.x <= vp_w, "and so does Add Ally's (%d wide)" % ally_btn.size.x)
 	for i in range(dd.item_count):
 		var before := _count(main)
 		dd.select(i)
 		btn.pressed.emit()
 		await _settle(2)
 		_check(_count(main) == before + 1, "%s spawns (%d -> %d)" % [dd.get_item_text(i), before, _count(main)])
+	# No two summons share a tile.
+	var cells := {}
+	var stacked := []
+	for u in main._all_summon_nodes():
+		if is_instance_valid(u) and not bool(u.get("is_dead")):
+			var c: Vector2i = main.grid_manager.world_to_grid(u.position)
+			if cells.has(c):
+				stacked.append("%s %s/%s" % [c, cells[c], u.get_script().resource_path.get_file()])
+			cells[c] = u.get_script().resource_path.get_file()
+	_check(stacked.is_empty(), "no two summons stand on one tile (%s)" % [stacked])
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

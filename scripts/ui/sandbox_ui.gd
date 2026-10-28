@@ -70,17 +70,17 @@ var _summon_dd: OptionButton = null
 # Every summoned ally the game has, for the Summon row: [id, what the list shows].
 # Main places each beside the player the way its card / item / passive would.
 const SUMMON_ORDER := [
-	["card_skeleton", "Skeleton (Summon Skeleton)"],
+	["card_skeleton", "Skeleton (card)"],
 	["shadow_hound", "Shadow Hound"],
 	["battle_turtle", "Battle Turtle"],
-	["bone_skeleton", "Skeleton (Bone Arrows / Manifest)"],
-	["spirit", "Spirit (Manifest)"],
-	["golem", "Golem (Manifest)"],
+	["bone_skeleton", "Skeleton (item)"],
+	["spirit", "Spirit"],
+	["golem", "Golem"],
 	["specter", "Specter (Seance)"],
-	["frankenstein", "Frankensteins Monster"],
+	["frankenstein", "Frankenstein"],
 	["wolf", "Wolf"],
-	["penguin", "Sanguine the Blood Penguin"],
-	["bull_worm", "Alaskan Bull Worm"],
+	["penguin", "Sanguine (penguin)"],
+	["bull_worm", "Bull Worm"],
 ]
 var _ally_btn: Button = null
 var _boss_status: Label = null       # "In: <room>" while inside a boss room
@@ -102,6 +102,24 @@ func _ready() -> void:
 	_build_ui()
 	_refresh_enemy_list()
 	_set_tab(0)  # start on the Add Card tab
+	_keep_in_width()
+
+
+## Nothing in the panel may be wider than the panel: a dropdown otherwise
+## sizes itself to its longest entry and shoves the panel off the right edge
+## of the screen (its Spawn buttons with it).
+func _keep_in_width() -> void:
+	for c in _panel.find_children("*", "Control", true, false):
+		if c is OptionButton:
+			c.fit_to_longest_item = false
+			c.clip_text = true
+		elif c is Button:
+			# A clipped button can shrink to nothing: one that doesn't fill
+			# its row (Spawn, Restart...) keeps the width its text needs.
+			var natural: float = c.get_combined_minimum_size().x
+			c.clip_text = true
+			if not (c.size_flags_horizontal & Control.SIZE_EXPAND):
+				c.custom_minimum_size.x = maxf(c.custom_minimum_size.x, natural)
 
 
 func _tree_for(char_name: String) -> SkillTreeData:
@@ -352,6 +370,7 @@ func _build_ui() -> void:
 	vbox.add_child(_boss_status)
 	for room in BOSS_ROOMS:
 		var btn := Button.new()
+		btn.clip_text = true  # long names never widen the panel
 		btn.text = room[1]
 		btn.tooltip_text = room[2]
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -421,6 +440,7 @@ func _refresh_item_list() -> void:
 		return a.item_name < b.item_name)
 	for it in rows:
 		var btn := Button.new()
+		btn.clip_text = true  # long names never widen the panel
 		btn.text = "%s  (%s)" % [it.item_name, ["Common", "Rare", "Legendary", "Mythic"][it.rarity]]
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.add_theme_font_size_override("font_size", 12)
@@ -496,6 +516,7 @@ func show_boss_picker() -> void:
 	col.add_child(blurb)
 	for room in BOSS_ROOMS:
 		var btn := Button.new()
+		btn.clip_text = true  # long names never widen the panel
 		btn.text = "%s  —  %s" % [room[1], room[2]]
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.add_theme_font_size_override("font_size", 13)
@@ -579,6 +600,7 @@ func _refresh_passive_list() -> void:
 				continue
 			seen[opt.name] = true
 			var btn := Button.new()
+			btn.clip_text = true  # long names never widen the panel
 			btn.text = "L%d  %s" % [row.level, opt.name]
 			btn.tooltip_text = opt.description
 			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -603,6 +625,7 @@ func _refresh_card_list() -> void:
 	var group: String = CARD_GROUP_ORDER[_char_dd.selected]
 	for card_id in CARD_GROUPS[group]:
 		var btn := Button.new()
+		btn.clip_text = true  # long names never widen the panel
 		btn.text = _pretty(card_id)
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.add_theme_font_size_override("font_size", 12)
@@ -618,6 +641,7 @@ func _refresh_enemy_list() -> void:
 	var realm: String = _enemy_group_order[_enemy_realm_dd.selected]
 	for t in _enemy_groups[realm]:
 		var btn := Button.new()
+		btn.clip_text = true  # long names never widen the panel
 		btn.text = _enemy_name(t)
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.add_theme_font_size_override("font_size", 12)
