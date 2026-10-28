@@ -844,6 +844,27 @@ BOARDS = {
             "right": (1157, 105, 1529, 580),
         },
     },
+    "olorin": {
+        # 2026-10-28: Olorin — the grey wanderer in a wide hat and tattered
+        # cloak, an orb-topped branch staff, a sword on his back, his bear at
+        # his side — from his sheet's top row (the detail panels are not
+        # used). "facing up" shows his face and "facing down" his back. His
+        # "facing left" bear has a head at each end, so the designer chose
+        # "facing right" (mirrored for the left), with the stray arm and
+        # second staff out of his back removed by tools/fix_olorin_board.py,
+        # which writes this board. The height counts the staff's top.
+        "src": "olorin_board.png", "bg": "grabcut", "tiles": 2.15,
+        # Hat tip to boots, he is drawn ~9% smaller in profile and ~13%
+        # smaller from behind than from the front (the left mirrors the right).
+        "pose_scale": {"back": 1.13, "right": 1.09, "left": 1.09},
+        "matte": ("front", "back", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (21, 59, 363, 580),
+            "back": (381, 109, 701, 568),
+            "right": (1176, 177, 1529, 577),
+            "left": ("mirror", "right"),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped
@@ -932,6 +953,7 @@ BOARDS = {
 # gives its front Idle's height in tiles; SpriteEnemyFigure draws these
 # sheets at scale 32 / DENSITY.
 DENSITY = 64
+SMOOTH_GUTTER = 8   # empty rows under each smooth pose (see build)
 
 GROW = 3           # px the stone board's outline is thickened by to close its pinholes
 HOLE_MIN = 100      # enclosed background pockets this big (source px) are cut too
@@ -1388,6 +1410,17 @@ def build(name: str, cfg: dict) -> None:
         for d, box in cfg[anim].items():
             if box[0] == "mirror":
                 full[anim][d] = full[anim][box[1]].transpose(Image.FLIP_LEFT_RIGHT)
+    for d, k in cfg.get("pose_scale", {}).items():
+        # A pose the board draws smaller than the front (measured on the
+        # figure, not its full height — a staff can top one pose and not
+        # another): scaled up by k so the character doesn't shrink as it turns.
+        for anim in full:
+            f = full[anim][d]
+            size = (max(1, round(f.width * k)), max(1, round(f.height * k)))
+            g = f.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")
+            a = np.asarray(g).copy()
+            a[..., 3] = np.where(a[..., 3] >= 128, 255, 0)
+            full[anim][d] = Image.fromarray(a, "RGBA")
     for d in cfg.get("match_height", ()):
         # A pose the board draws at another size (the minotaur's top row is
         # ~15% larger than its bottom row): brought to the front's height so
@@ -1414,11 +1447,15 @@ def build(name: str, cfg: dict) -> None:
     # texels a tile, soft-filtered with soft alpha, kept beside the pixel one.
     sfac = full["Idle"]["front"].height / float(round(cfg["tiles"] * smooth_art.SMOOTH_DENSITY))
     soft = {a: {d: smooth_art.trim(smooth_art.resample(f, sfac)) for d, f in fs.items()} for a, fs in full.items()}
-    scell = max(max(f.width, f.height) for fs in soft.values() for f in fs.values()) + 2
+    # SMOOTH_GUTTER empty rows under each pose: the smooth sheets are drawn
+    # with mipmaps, and a pose standing on its cell's bottom edge bled into the
+    # top of the row below (a faint mark over Olorin's hat, 2026-10-28). The
+    # feet are found from the art, so the gutter doesn't lift the figure.
+    scell = max(max(f.width, f.height) for fs in soft.values() for f in fs.values()) + 2 + SMOOTH_GUTTER
     sdir = os.path.join(smooth_art.ROOT, "sheets", name)
     os.makedirs(sdir, exist_ok=True)
     for anim, fs in soft.items():
-        smooth_art.pack([[fs[d]] for d in ROWS], scell, 1, lambda row, ci: row[0], air=0).save(os.path.join(sdir, anim + ".png"))
+        smooth_art.pack([[fs[d]] for d in ROWS], scell, 1, lambda row, ci: row[0], air=SMOOTH_GUTTER).save(os.path.join(sdir, anim + ".png"))
 
 
 def main() -> None:

@@ -2612,23 +2612,13 @@ func _create_olorin_npc() -> void:
 	olorin.name = "Olorin"
 	olorin.position = grid_manager.grid_to_world(Vector2i(14, 8))  # on a tile centre
 
-	# The wise old wanderer himself — the old-man sheet from the NPC pack
-	# (grey beard, walking stick), matching the 16-bit party/NPC pipeline.
-	var fig = Sprite3D.new()
+	# The wise old wanderer himself, his bear at his side — the designer's
+	# Olorin board (2026-10-28); he turns to look at a player who comes near.
+	var fig := SpriteEnemyFigure.new()
 	fig.name = "Figure"
-	fig.texture = load("res://assets/sprites/NPCpackage1/npc old man A v01.png")
-	fig.region_enabled = true
-	fig.region_rect = Rect2(0, 0, 32, 32)  # south-facing idle frame
-	fig.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	fig.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
-	fig.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	fig.shaded = false
-	fig.pixel_size = 0.03125
-	var olorin_scale := 1.25  # a touch taller than the party — presence
-	fig.scale = Vector3(olorin_scale, olorin_scale, olorin_scale)
-	CameraView.stand_on_ground(fig)  # feet on the ground point: sorts with the player by row
 	olorin.add_child(fig)
-	BlobShadow.attach(olorin, 0.6)
+	fig.setup("olorin")   # brings its own blob shadow
+	_townsfolk.append(fig)
 
 	var collision = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
@@ -2655,7 +2645,7 @@ func _create_olorin_npc() -> void:
 	quest_indicator.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	quest_indicator.modulate = Color(1.0, 0.85, 0.0)
 	quest_indicator.outline_size = 12
-	quest_indicator.position = Vector3(0, 2.8, 0)
+	quest_indicator.position = Vector3(0, 2.8, -1.85)   # over his hat (-z is up the screen)
 	WorldText.crisp(quest_indicator)
 	olorin.add_child(quest_indicator)
 

@@ -19,13 +19,24 @@ var depot: bool = false
 var grid_cell: Vector2i = Vector2i(-1, -1)
 
 var _sprite: Sprite3D
+var _figure: SpriteEnemyFigure = null   # a figure rig instead, for "kind:<figure>" setups
 var _prompt: Label3D
 
+## `sheet_path` is an NPC-pack sheet, or "kind:<figure>" for a SpriteEnemyFigure.
 func setup(id: String, p_name: String, sheet_path: String, prompt_text: String = "[Shift] Talk", tint: Color = Color.WHITE) -> void:
 	npc_id = id
 	display_name = p_name
 	name = "RescueNpc_%s" % id
 
+	if sheet_path.begins_with("kind:"):
+		# A figure rig (the designer's boards: Olorin), not an NPC-pack sheet.
+		_figure = SpriteEnemyFigure.new()
+		_figure.name = "Figure"
+		add_child(_figure)
+		_figure.setup(sheet_path.trim_prefix("kind:"))
+		var head: float = maxf(1.0, float(_figure.portrait_extent().y)) if _figure.has_method("portrait_extent") else 2.0
+		_add_labels(p_name, prompt_text, Vector3(0, 1.45, -(head + 0.25)), Vector3(0, 1.95, -(head + 0.6)))
+		return
 	_sprite = Sprite3D.new()
 	_sprite.name = "Figure"
 	_sprite.texture = load(sheet_path)
@@ -42,14 +53,16 @@ func setup(id: String, p_name: String, sheet_path: String, prompt_text: String =
 	_sprite.position = Vector3(0, 32.0 * 0.03125 * 0.5 * s, 0)
 	add_child(_sprite)
 	BlobShadow.attach(self, 0.5)
+	_add_labels(p_name, prompt_text, Vector3(0, 1.45, 0), Vector3(0, 1.95, 0))
 
+func _add_labels(p_name: String, prompt_text: String, name_pos: Vector3, prompt_pos: Vector3) -> void:
 	var label := Label3D.new()
 	label.name = "NameLabel"
 	label.text = p_name
 	label.font_size = 18
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = Color(1.0, 0.95, 0.75)
-	label.position = Vector3(0, 1.45, 0)
+	label.position = name_pos
 	WorldText.crisp(label)
 	add_child(label)
 
@@ -59,7 +72,7 @@ func setup(id: String, p_name: String, sheet_path: String, prompt_text: String =
 	_prompt.font_size = 16
 	_prompt.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	_prompt.modulate = Color(1.0, 0.9, 0.4)
-	_prompt.position = Vector3(0, 1.95, 0)
+	_prompt.position = prompt_pos
 	_prompt.visible = false
 	WorldText.crisp(_prompt)
 	add_child(_prompt)
@@ -74,6 +87,8 @@ func step_to(world_pos: Vector3, cell: Vector2i) -> void:
 		var dx := world_pos.x - position.x
 		if absf(dx) > 0.05:
 			_sprite.flip_h = dx < 0.0
+	elif _figure:
+		_figure.set_facing_from_velocity(world_pos - position)
 	grid_cell = cell
 	var tw := create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tw.tween_property(self, "position", world_pos, 0.2)
