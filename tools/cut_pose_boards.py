@@ -1057,6 +1057,21 @@ BOARDS = {
             "right": (804, 584, 1210, 1122),
         },
     },
+    "roc": {
+        # 2026-10-28: the Roc — a great golden-brown eagle, ruff raised,
+        # golden talons — one row on black: front, back, then two side views,
+        # the first facing left and the second right. The side views' tails
+        # brush past each other: split at x 1112. Bigger than the Giant Hawk
+        # (1.6 tiles).
+        "src": "roc_board.webp", "bg": "grabcut", "tiles": 2.1,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (14, 165, 370, 800),
+            "back": (372, 165, 702, 810),
+            "left": (702, 170, 1112, 808),
+            "right": (1112, 170, 1532, 808),
+        },
+    },
     "giant_hawk": {
         # 2026-10-25: the Giant Hawk — midnight black, flecked brown, a sharp
         # hooked yellow beak, yellow talons with black claws — perched, four
