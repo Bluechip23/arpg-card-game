@@ -811,6 +811,23 @@ BOARDS = {
             "right": (1201, 115, 1514, 576),
         },
     },
+    "shadow_hound": {
+        # 2026-10-28: the Shadow Hound summon (Summon Shadow Hound) — a wolf of
+        # black smoke veined with lightning, with silver claws — from its
+        # sheet's top row (the detail panels are not used). The sheet came
+        # cut out: its mattes are its own alpha (alpha > 128, written once
+        # from the board instead of by tools/make_mattes.py). Both "FACING UP" and "FACING DOWN" show
+        # the face — there is no back view — so the back is "FACING UP" (the
+        # head low, the smoke trailing up) until the designer draws one.
+        "src": "shadow_hound_board.webp", "bg": "grabcut", "tiles": 1.75,   # the front is a tall smoke column: this puts the side views at a wolf's height
+        "matte": ("front", "back", "left", "right"),   # from the sheet's alpha (written below)
+        "Idle": {
+            "front": (306, 6, 514, 564),
+            "back": (42, 6, 255, 564),
+            "left": (530, 172, 1061, 564),
+            "right": (1065, 172, 1531, 564),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped

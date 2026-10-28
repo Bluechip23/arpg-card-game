@@ -869,5 +869,5 @@ All five are spells (Silence stops them), aimed at a point; the summons appear o
   - Code: three "battle_turtle"s; armor any one regains also goes to the others and the players.
 - **Summon Shadow Hound** (`summon_shadow_hound`) — Rare · 20 mana, 3 tempo · range melee · targets point · slots: Wand / Gem / Staff / Dagger / Sword · sheet: Offensive
   - Card text: Summon a Shadow Hound (10 HP) that moves 2 spaces every tempo and bites for 4 damage every (8 − INT/10) tempo.
-  - Code: kind "shadow_hound": attack_interval = max(1, 8 − floor(INT/10)), set when summoned. Art: stand-in (the wolf, shadowed) until its board.
+  - Code: kind "shadow_hound": attack_interval = max(1, 8 − floor(INT/10)), set when summoned. Art: the designer's Shadow Hound board (2026-10-28; no back view yet).
 
