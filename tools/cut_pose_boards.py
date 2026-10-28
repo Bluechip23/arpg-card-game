@@ -1181,6 +1181,12 @@ BOARDS = {
     },
 }
 
+# The Golem summon (Summon Golem): the Granite Colossus in miniature, cut from
+# the same board and its mattes at an ally's height (2026-10-28, so it matches
+# the designer's other art; it wore the golem pack's chibi Golem1 until then).
+BOARDS["summon_golem"] = {**BOARDS["granite_colossus"], "tiles": 1.5,
+                          "matte_name": "granite_colossus"}
+
 # Texels per tile the boards are cut at (designer, 2026-10-24: err on the
 # side of under-pixelating what we make): twice the world's 32, the heroes'
 # own fineness — one texel a screen pixel at the default zoom. Each board
@@ -1626,7 +1632,7 @@ def build(name: str, cfg: dict) -> None:
                 # "Walk:left" (its own matte, its own hints).
                 key = d if anim == "Idle" else "%s:%s" % (anim, d)
                 if key in cfg.get("matte", ()):
-                    bg_kind = "matte:" + os.path.join(MATTES, "%s_%s.png" % (name, key.replace(":", "_")))
+                    bg_kind = "matte:" + os.path.join(MATTES, "%s_%s.png" % (cfg.get("matte_name", name), key.replace(":", "_")))
                 fg_hints = cfg.get("matte_fg", {}).get(key, ()) if bg_kind.startswith("matte:") \
                     else cfg.get("fg", {}).get(key, ())
                 bg_hints = cfg.get("matte_bg", {}).get(key, ()) if bg_kind.startswith("matte:") \

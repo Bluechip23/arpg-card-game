@@ -152,7 +152,7 @@ const KINDS := {
 	# --- the Precious's hunter: the Craftpix ghost pack's crowned wraith ---
 	"ring_wraith": {"sheets": SHEETS + "/ring_wraith", "scale": BOARD_SCALE},  # the designer's mounted wraith (tools/cut_pose_boards.py)
 	# --- the player's summons (Summon._build_figure): pack art, ally-sized ---
-	"summon_golem": {"cp": "golem/Golem1", "scale": 1.0},  # the rock golem the Granite Colossus wears, smaller
+	"summon_golem": {"sheets": SHEETS + "/summon_golem", "scale": BOARD_SCALE},  # the Granite Colossus board in miniature (tools/cut_pose_boards.py, 2026-10-28); was the golem pack's Golem1
 	"summon_specter": {"sheets": SHEETS + "/seance_specter", "scale": BOARD_SCALE},  # Jeremy's Seance spirit: the designer's board (tools/cut_pose_boards.py, 2026-10-28)
 	"frankenstein": {"sheets": SHEETS + "/frankenstein", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"sanguine_penguin": {"sheets": SHEETS + "/sanguine_penguin", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
