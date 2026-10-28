@@ -52,6 +52,29 @@ func _run() -> void:
 	var tip2 = btn._make_custom_tooltip("Enraged Will")
 	_check(tip2 != null and _icon_px(tip2) >= 64, "and so does a skill tree node's")
 
+	# The cooldown is said once: the passive's own text already gives it.
+	var main = load("res://scenes/core/main.tscn").instantiate()
+	main.set("starting_character", CharacterData.create_brad())
+	main.set("sandbox_mode", true)
+	get_root().add_child(main)
+	for _i in range(6):
+		await process_frame
+	var st: PlayerStats = main.player.get_stats()
+	st.add_skill_tree_passive("enraged_will")
+	st.passive_levels["enraged_will"] = 5
+	var pb := PassiveBoxUI.new()
+	holder.add_child(pb)
+	var ew_desc := ""
+	for row in SkillTreeData.create_brad_tree().rows:
+		for o in row.options:
+			if o.passive_id == "enraged_will":
+				ew_desc = o.description
+	_check(ew_desc.contains("Cooldown"), "Enraged Will's own text gives its cooldown")
+	pb.setup("enraged_will", "Enraged Will", ew_desc, st, main.tempo_manager)
+	var n := pb.tooltip_text.to_lower().count("cooldown")
+	_check(n == 1, "Enraged Will's tooltip gives its cooldown once (%d)" % n)
+	main.queue_free()
+	await process_frame
 	_check(CameraView.ZOOM_MAX == 5.0, "the camera zooms in one step further (to %dx)" % int(CameraView.ZOOM_MAX))
 
 	var town = load("res://scenes/menus/town.tscn").instantiate()
