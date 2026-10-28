@@ -117,12 +117,25 @@ BOARDS = {
         },
     },
     "wyvern": {
-        "src": "wyvern_board.webp", "bg": "checker_light", "tiles": 1.9,
+        # 2026-10-28: the designer's new Wyvern — a green-scaled drake with
+        # tattered brown wings, horns and a barbed tail — on black, two rows:
+        # reared up on its hind legs (Idle) and down on all fours (Walk),
+        # FRONT, BACK, LEFT, RIGHT, each side facing its own way. The top
+        # row's BACK tail runs into the LEFT pose's claws: split at x 750.
+        "src": "wyvern_v2_board.webp", "bg": "grabcut", "tiles": 1.9,
+        "matte": ("front", "back", "left", "right",
+                  "Walk:front", "Walk:back", "Walk:left", "Walk:right"),   # the model matte (tools/make_mattes.py)
         "Idle": {
-            "front": (40, 0, 300, 286),
-            "back": (310, 0, 580, 286),
-            "left": (585, 0, 870, 278),
-            "right": (872, 0, 1160, 278),
+            "front": (8, 70, 356, 511),
+            "back": (366, 80, 750, 511),
+            "left": (750, 80, 1128, 511),
+            "right": (1128, 80, 1520, 511),
+        },
+        "Walk": {
+            "front": (2, 612, 358, 904),
+            "back": (360, 612, 686, 904),
+            "left": (686, 612, 1145, 904),
+            "right": (1145, 612, 1530, 904),
         },
     },
     "sanguine_penguin": {

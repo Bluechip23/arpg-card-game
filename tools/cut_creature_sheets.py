@@ -75,10 +75,16 @@ FRAMES = {
         "right": [(0, 2), (0, 3)],
     },
     "sabertooth": {
-        "src": "sabertooth_sheet.jpg", "kind": "stone", "down": 1.5 * 0.5 / 0.475,
-        "back": [(0, 0), (0, 1), (0, 2), (0, 3)],
-        "front": [(2, 0), (2, 1), (2, 2), (2, 3)],
-        "right": [(3, 0), (3, 1), (3, 2), (3, 3)],
+        # 2026-10-28: the designer's new walk sheet on black (rows: walking
+        # up = back, "walking left" — which faces right too —, walking down
+        # = front, walking right), its labels blacked out first by
+        # tools/clean_sabertooth_sheet.py. The right-facing "walking right"
+        # row is the right; the left is its mirror. Shrunk to the old
+        # sheet's front height (114 texels).
+        "src": "sabertooth_v2_clean.webp", "kind": "black", "down": 202 / 114.0,
+        "back": [(0, c) for c in range(4)],
+        "front": [(2, c) for c in range(4)],
+        "right": [(3, c) for c in range(4)],
     },
     "white_manticore": {
         "src": "white_manticore_sheet.webp", "kind": "black", "down": 3 * 0.5 / 0.5625,
