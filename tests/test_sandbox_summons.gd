@@ -69,5 +69,15 @@ func _run() -> void:
 		btn.pressed.emit()
 		await _settle(2)
 		_check(_count(main) == before + 1, "%s spawns (%d -> %d)" % [dd.get_item_text(i), before, _count(main)])
+	# No two summons share a tile.
+	var cells := {}
+	var stacked := []
+	for u in main._all_summon_nodes():
+		if is_instance_valid(u) and not bool(u.get("is_dead")):
+			var c: Vector2i = main.grid_manager.world_to_grid(u.position)
+			if cells.has(c):
+				stacked.append("%s %s/%s" % [c, cells[c], u.get_script().resource_path.get_file()])
+			cells[c] = u.get_script().resource_path.get_file()
+	_check(stacked.is_empty(), "no two summons stand on one tile (%s)" % [stacked])
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

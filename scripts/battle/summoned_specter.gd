@@ -25,7 +25,7 @@ func setup(gm: GridManager, spawn_pos: Vector3, hp: int) -> void:
 	_finish_setup()
 
 func _build_visuals() -> void:
-	_build_figure("summon_specter")  # the Craftpix ghost, violet like the Seance
+	_build_figure("summon_specter")  # the designer's Seance spirit board (2026-10-28)
 	_build_health_label(1.6, Color(0.85, 0.7, 1.0))
 
 func _health_label_text() -> String:

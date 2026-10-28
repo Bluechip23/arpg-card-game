@@ -865,6 +865,22 @@ BOARDS = {
             "left": ("mirror", "right"),
         },
     },
+    "seance_specter": {
+        # 2026-10-28: Jeremy's Seance spirit — a white-haired skeletal wraith
+        # in a tattered dark cloak, its lower body violet flame trailing to
+        # wisps — on a painted checkerboard. "FACING UP" shows its face and
+        # "FACING DOWN" its back; both side poses face right, so "FACING
+        # RIGHT" is the right, mirrored for the left (the detail panels and
+        # the pounce are not used). The boxes stop above the labels.
+        "src": "seance_specter_board.webp", "bg": "grabcut", "tiles": 1.75,
+        "matte": ("front", "back", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (14, 32, 296, 593),
+            "back": (372, 44, 684, 593),
+            "right": (1158, 46, 1452, 593),
+            "left": ("mirror", "right"),
+        },
+    },
     "npc_armory": {
         # 2026-10-28: the town's Armory keeper — a woman in a grimy dress,
         # leather apron and tool belt, long black gloves — from her NPC

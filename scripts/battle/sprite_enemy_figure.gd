@@ -156,7 +156,7 @@ const KINDS := {
 	"ring_wraith": {"sheets": SHEETS + "/ring_wraith", "scale": BOARD_SCALE},  # the designer's mounted wraith (tools/cut_pose_boards.py)
 	# --- the player's summons (Summon._build_figure): pack art, ally-sized ---
 	"summon_golem": {"cp": "golem/Golem1", "scale": 1.0},  # the rock golem the Granite Colossus wears, smaller
-	"summon_specter": {"cp": "ghost/Ghost1", "scale": 1.2, "tint": Color(0.95, 0.75, 1.25)},  # Jeremy's Seance: the specter ghost, violet
+	"summon_specter": {"sheets": SHEETS + "/seance_specter", "scale": BOARD_SCALE},  # Jeremy's Seance spirit: the designer's board (tools/cut_pose_boards.py, 2026-10-28)
 	"frankenstein": {"sheets": SHEETS + "/frankenstein", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"sanguine_penguin": {"sheets": SHEETS + "/sanguine_penguin", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"bull_worm": {"sheets": SHEETS + "/bull_worm", "scale": BOARD_SCALE},  # Worms Armageddon's summon, the designer's board
@@ -192,7 +192,7 @@ const BOARD_SCALE := 0.5
 ## Kinds whose battler art already contains a painted contact shadow
 ## (the flyers; the sludge's own puddle) — these must not get a second blob shadow.
 const PAINTED_SHADOW_KINDS := ["swarm", "roc", "sludge",
-		"screecher", "specter", "snow_wraith", "summon_specter", "gravestone", "hell_door"]
+		"screecher", "specter", "snow_wraith", "gravestone", "hell_door"]
 
 var figure_kind := ""   # the KINDS entry this figure was set up as
 var smooth := false     # wearing the smooth (non-pixelated) sheets (ArtStyle)

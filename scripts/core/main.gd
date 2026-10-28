@@ -9442,10 +9442,12 @@ func _summon_penguin() -> void:
 	if not grid_manager or not player:
 		return
 	var pcell: Vector2i = grid_manager.world_to_grid(player.position)
-	var spawn := pcell + Vector2i(1, 0)
+	# Beside the player; when all four sides are taken, the nearest open tile.
+	var wider: Array = _free_cells_near(pcell, 1)
+	var spawn: Vector2i = wider[0] if not wider.is_empty() else pcell + Vector2i(1, 0)
 	for off in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
 		var c: Vector2i = pcell + off
-		if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
+		if _cell_is_empty_for_summon(c):
 			spawn = c
 			break
 	var peng := PenguinScript.new()
@@ -9657,10 +9659,12 @@ func _spawn_wolf() -> void:
 		add_battle_log("The pack is full (%d wolves)." % WOLF_PACK_CAP, Color(0.7, 0.7, 0.8))
 		return
 	var player_cell := grid_manager.world_to_grid(player.position)
-	var spawn_cell = player_cell + Vector2i(1, 0)
+	# Beside the player; when all four sides are taken, the nearest open tile.
+	var wider: Array = _free_cells_near(player_cell, 1)
+	var spawn_cell = wider[0] if not wider.is_empty() else player_cell + Vector2i(1, 0)
 	for off in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
 		var c = player_cell + off
-		if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
+		if _cell_is_empty_for_summon(c):
 			spawn_cell = c
 			break
 	var wolf := WolfScript.new()
@@ -9815,10 +9819,10 @@ func _spawn_summon(hp: int, near_pos: Vector3, kind := "skeleton") -> void:
 		return
 	var corpse_cell := grid_manager.world_to_grid(near_pos)
 	var spawn_cell = corpse_cell
-	if spawn_cell in player.blocked_tiles or spawn_cell in _living_enemy_cells():
+	if not _cell_is_empty_for_summon(spawn_cell):
 		for off in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
 			var c = corpse_cell + off
-			if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
+			if _cell_is_empty_for_summon(c):
 				spawn_cell = c
 				break
 	var skel := SkeletonScript.new()
@@ -9923,9 +9927,11 @@ func _free_cells_near(center: Vector2i, n: int) -> Array:
 	for p in [_p1_player, _p2_player, player]:
 		if p and is_instance_valid(p):
 			taken.append(grid_manager.world_to_grid(p.position))
-	for u in _all_summons():
-		if is_instance_valid(u) and u.has_method("get_cell"):
-			taken.append(u.get_cell())
+	# Every summon, the Seance's specters and the worms included (not only
+	# the healable ones), so a new summon never lands on one already there.
+	for u in _all_summon_nodes():
+		if is_instance_valid(u) and not bool(u.get("is_dead")):
+			taken.append(grid_manager.world_to_grid(u.position))
 	var blocked: Array = player.blocked_tiles
 	var out: Array = []
 	for r in range(0, 4):
@@ -9975,7 +9981,7 @@ func _summon_spirit_bow() -> void:
 	var spawn_cell = player_cell + Vector2i(1, 0)
 	for off in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
 		var c = player_cell + off
-		if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
+		if _cell_is_empty_for_summon(c):
 			spawn_cell = c
 			break
 	var bow := SpiritBowScript.new()
@@ -10001,7 +10007,7 @@ func _spawn_bud_bow() -> void:
 	var spawn_cell = player_cell + Vector2i(-1, 0)
 	for off in [Vector2i(-1,0), Vector2i(1,0), Vector2i(0,-1), Vector2i(0,1), Vector2i(1,1), Vector2i(-1,-1)]:
 		var c = player_cell + off
-		if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
+		if _cell_is_empty_for_summon(c):
 			spawn_cell = c
 			break
 	var bow := SpiritBowScript.new()
@@ -10837,7 +10843,7 @@ func _random_free_cell_near(anchor: Vector2i, radius: int) -> Vector2i:
 		if off == Vector2i.ZERO:
 			continue
 		var c := anchor + off
-		if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
+		if _cell_is_empty_for_summon(c):
 			return c
 	return anchor + Vector2i(1, 1)
 
@@ -10852,7 +10858,7 @@ func _spawn_draupnir_clone(ring: ItemData) -> void:
 	var spawn_cell = player_cell + Vector2i(1, 0)
 	for off in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1), Vector2i(1,1), Vector2i(-1,-1)]:
 		var c = player_cell + off
-		if not (c in player.blocked_tiles) and not (c in _living_enemy_cells()):
+		if _cell_is_empty_for_summon(c):
 			spawn_cell = c
 			break
 	var hp: int = maxi(1, floori(stats.max_health * (0.5 if ring.item_level >= 3 else 0.25)))
@@ -14181,7 +14187,7 @@ func _spawn_bull_worms(count: int) -> void:
 		if spawned >= count:
 			break
 		var cell = player_cell + off
-		if cell == player_cell or cell in blocked or cell in enemy_cells or cell in used:
+		if cell == player_cell or cell in blocked or cell in enemy_cells or cell in used or not _cell_is_empty_for_summon(cell):
 			continue
 		used.append(cell)
 		var worm := SummonedWormScript.new()
@@ -14320,11 +14326,11 @@ func _resurrect_frankenstein(aim: Vector3) -> void:
 	# Find a free tile at/near the corpse (its own cell first).
 	var spawn_cell: Vector2i = corpse["cell"]
 	var blocked := player.blocked_tiles
-	if spawn_cell == player_cell or spawn_cell in enemy_cells or spawn_cell in blocked:
+	if spawn_cell == player_cell or spawn_cell in enemy_cells or spawn_cell in blocked or not _cell_is_empty_for_summon(spawn_cell):
 		var placed := false
 		for off in [Vector2i(1,0), Vector2i(-1,0), Vector2i(0,1), Vector2i(0,-1)]:
 			var c = corpse["cell"] + off
-			if c != player_cell and not (c in enemy_cells) and not (c in blocked):
+			if c != player_cell and not (c in enemy_cells) and not (c in blocked) and _cell_is_empty_for_summon(c):
 				spawn_cell = c
 				placed = true
 				break
