@@ -76,6 +76,7 @@ ROWS = ["south", "north", "east", "west"]
 # from the other source is scaled to the front's height.
 FB = "heroes_front_back.webp"
 SIDE = "heroes_side.webp"
+STEPHEN = "stephen_v2_board.png"
 HEROES = {
     "jeremy": [
         (FB, (28, 420, 252, 834), "south"),
@@ -97,17 +98,22 @@ HEROES = {
         (FB, (1042, 0, 1280, 414), "north"),
         (SIDE, (960, 5, 1112, 372), "west"),
     ],
+    # 2026-10-28: the new Stephen (fur-collared ranger, axe and bow on his
+    # back, a bear's arm for his left), from his own board on black, built by
+    # tools/build_stephen_board.py: the right-facing view is the designer's
+    # separate image (the board's own had the bear arm on the wrong side).
     "stephen": [
-        (FB, (1398, 417, 1636, 835), "south"),
-        (FB, (1404, 0, 1649, 413), "north"),
-        (SIDE, (1264, 367, 1420, 702), "east"),
+        (STEPHEN, (34, 0, 242, 287), "south"),
+        (STEPHEN, (248, 0, 472, 291), "north"),
+        (STEPHEN, (60, 286, 205, 620), "east"),
+        (STEPHEN, (305, 286, 442, 620), "west"),
     ],
 }
 
 # The sources' ground: a flat dark grey (with a few levels of compression
 # noise). Anything within GROUND_TOL of it, reached from the crop's edge, is
 # background; the figures' own dark outline keeps their dark cloth inside.
-GROUND = {FB: (32, 32, 30), SIDE: (32, 32, 30)}
+GROUND = {FB: (32, 32, 30), SIDE: (32, 32, 30), STEPHEN: (0, 0, 0)}
 GROUND_TOL = 6
 # The ground also sits in pockets the edge flood cannot reach — between an
 # arm and the body, inside Stephen's bow — and as a blended halo round the
@@ -128,7 +134,6 @@ HALO_PEEL = 2
 # gold nock against Stephen's dark trousers and pale arm-wrap above it.
 ERASE = {
     ("cory", "east"): [([(428, 92), (452, 92), (456, 178), (426, 178)], "charm")],
-    ("stephen", "east"): [([(1356, 606), (1370, 610), (1340, 646), (1324, 642)], "bow")],
 }
 
 # Jeremy's three rings — red, green and blue — show on his front, but the
