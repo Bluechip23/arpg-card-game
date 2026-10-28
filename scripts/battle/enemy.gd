@@ -4341,6 +4341,60 @@ func _land_at(world_pos: Vector3) -> void:
 	is_moving = false
 	_move_path.clear()
 
+## Walking distances from this enemy's square to every square it could walk
+## to — floor, no walls, structures or pillars in the way (other units are
+## ignored: they move). {cell: steps}. Used to pick a target it can reach
+## (EnemySpawner._target_for): no going for someone behind a wall.
+const WALK_MAP_LIMIT := 4000
+func walk_map() -> Dictionary:
+	var dist := {}
+	if grid_manager == null:
+		return dist
+	var start := grid_manager.world_to_grid(position)
+	dist[start] = 0
+	var queue: Array = [start]
+	var head := 0
+	var dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	var walls := {}
+	for c in blocked_tiles:
+		walls[c] = true
+	for c in pillar_tiles:
+		walls[c] = true
+	while head < queue.size() and dist.size() < WALK_MAP_LIMIT:
+		var cur: Vector2i = queue[head]
+		head += 1
+		for d in dirs:
+			var nxt: Vector2i = cur + d
+			if dist.has(nxt) or walls.has(nxt) or not _walkable_square(nxt, false):
+				continue
+			dist[nxt] = int(dist[cur]) + 1
+			queue.append(nxt)
+	return dist
+
+## A square this enemy could ever walk on (units aside).
+func _walkable_square(cell: Vector2i, check_walls := true) -> bool:
+	if cell.x < 0 or cell.y < 0 or cell.x >= grid_manager.grid_width or cell.y >= grid_manager.grid_height:
+		return false
+	if check_walls and (cell in blocked_tiles or cell in pillar_tiles):
+		return false
+	if dungeon_manager != null and not dungeon_manager.is_floor(cell):
+		return false
+	return true
+
+## Steps from this enemy to reach `cell` (stand beside it, or on it), on a
+## walk_map(); -1 when it can't get there.
+static func steps_to(walk: Dictionary, cell: Vector2i) -> int:
+	var best := -1
+	if walk.has(cell):
+		best = int(walk[cell])
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var n: Vector2i = cell + d
+		if walk.has(n):
+			var s := int(walk[n]) + 1
+			if best < 0 or s < best:
+				best = s
+	return best
+
 ## Whether a square can be stood on at all: the floor of the dungeon (or the
 ## grid, outdoors), with nothing built, parked or raised on it.
 func _can_stand_on(cell: Vector2i) -> bool:

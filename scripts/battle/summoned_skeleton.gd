@@ -123,3 +123,7 @@ func gain_armor(amount: int) -> int:
 	unerring_armor += gained
 	_update_health_label()
 	return gained
+
+
+func get_armor_display() -> Array:
+	return [unerring_armor, unerring_cap] if kind == "battle_turtle" else [0, 0]

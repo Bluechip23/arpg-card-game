@@ -1,7 +1,7 @@
 extends Node
 ## Autoload (UiTheme). Makes every engine tooltip match the game's popup
-## styling — dark panel, gold border, rounded corners, the T&O sigil in the
-## top-left corner — and re-wraps any overlong tooltip line into readable
+## styling — Emerald Sanctum glass, gold border, Courgette, rounded corners,
+## the T&O sigil in the top-left corner — and re-wraps any overlong tooltip line into readable
 ## blocks instead of letting it run the full width of the screen.
 ## Explicit per-control theme overrides (existing popups) are unaffected.
 
@@ -12,9 +12,12 @@ func _ready() -> void:
 	# embedded Windows that don't inherit the root window's theme, but every
 	# control and window falls back to ThemeDB's default theme.
 	var theme := ThemeDB.get_default_theme()
-	theme.set_stylebox("panel", "TooltipPanel", CrestStyleBox.new())
-	theme.set_color("font_color", "TooltipLabel", Color(0.85, 0.85, 0.9))
-	theme.set_font_size("font_size", "TooltipLabel", 13)
+	# Emerald Sanctum, like the menus: dark emerald glass, gold frame, Courgette.
+	theme.set_stylebox("panel", "TooltipPanel",
+		CrestStyleBox.new(EmeraldTheme.PANEL_BG_SOLID, EmeraldTheme.GOLD_DIM))
+	theme.set_color("font_color", "TooltipLabel", EmeraldTheme.TEXT)
+	theme.set_font("font", "TooltipLabel", EmeraldTheme.font())
+	theme.set_font_size("font_size", "TooltipLabel", 14)
 	get_tree().node_added.connect(_on_node_added)
 
 # ---- Tooltip block-wrapping -------------------------------------------------

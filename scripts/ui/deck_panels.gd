@@ -56,6 +56,7 @@ func setup_panel() -> void:
 	panel_style.content_margin_top = 10.0
 	panel_style.content_margin_bottom = 10.0
 	panel.add_theme_stylebox_override("panel", panel_style)
+	EmeraldTheme.apply_in_game(panel)
 
 	var margin := MarginContainer.new()
 	margin.layout_mode = 1
@@ -69,7 +70,7 @@ func setup_panel() -> void:
 	title.text = "Deck Contents"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
+	title.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 	vbox.add_child(title)
 
 	# "Deck: 10 / 12" for the main.player's own cards, then how many more ride
@@ -77,7 +78,7 @@ func setup_panel() -> void:
 	_counts_label = Label.new()
 	_counts_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_counts_label.add_theme_font_size_override("font_size", 13)
-	_counts_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.95))
+	_counts_label.add_theme_color_override("font_color", EmeraldTheme.TEXT)
 	vbox.add_child(_counts_label)
 
 	var sep := HSeparator.new()
@@ -125,6 +126,7 @@ func setup_panel() -> void:
 	preview_style.content_margin_top = 8.0
 	preview_style.content_margin_bottom = 8.0
 	_card_preview.add_theme_stylebox_override("panel", preview_style)
+	EmeraldTheme.apply_in_game(_card_preview)
 	_card_preview.visible = false
 	_card_preview.z_index = 200
 	_card_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -189,8 +191,8 @@ func _populate() -> void:
 			entry.text += "  [%d from items]" % gear_n if gear_n < count else "  [from items]"
 		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		entry.flat = true
-		entry.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
-		entry.add_theme_color_override("font_hover_color", Color(1.0, 0.9, 0.4))
+		entry.add_theme_color_override("font_color", EmeraldTheme.TEXT)
+		entry.add_theme_color_override("font_hover_color", EmeraldTheme.PALETTE["btn_font_hover"])
 		entry.add_theme_font_size_override("font_size", 14)
 		entry.mouse_entered.connect(_on_entry_hovered.bind(card_ref, entry))
 		entry.mouse_exited.connect(_on_entry_unhovered)
@@ -238,6 +240,7 @@ func _build_manage_panel() -> void:
 	style.content_margin_top = 10.0
 	style.content_margin_bottom = 10.0
 	manage_panel.add_theme_stylebox_override("panel", style)
+	EmeraldTheme.apply_in_game(manage_panel)
 
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 6)
@@ -247,7 +250,7 @@ func _build_manage_panel() -> void:
 	title.text = "Manage Deck"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
+	title.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 	vbox.add_child(title)
 
 	_md_stones_label = Label.new()
@@ -333,7 +336,7 @@ func _refresh_manage_panel() -> void:
 			entry.add_theme_color_override("font_color", Color(1.0, 0.35, 0.3))
 		else:
 			entry.text = "%s (%d)" % [card_name, card_counts[card_name]]
-			entry.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+			entry.add_theme_color_override("font_color", EmeraldTheme.TEXT)
 		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		entry.flat = true
 		entry.add_theme_color_override("font_hover_color", Color(1.0, 0.6, 0.4))
@@ -431,7 +434,7 @@ func _on_entry_hovered(card: Card, entry: Button) -> void:
 	var name_lbl := Label.new()
 	name_lbl.text = card.card_name
 	name_lbl.add_theme_font_size_override("font_size", 16)
-	name_lbl.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
+	name_lbl.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 	vbox.add_child(name_lbl)
 
 	var type_lbl := Label.new()

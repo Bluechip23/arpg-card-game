@@ -35,16 +35,17 @@ var _stat_allocations: Dictionary = {}
 var _stat_alloc_btn: Button = null  # "Stat Points: N" in the tab bar
 
 # Style constants
-const COLOR_BG := Color(0.05, 0.05, 0.08, 0.95)
-const COLOR_BORDER := Color(0.3, 0.3, 0.5)
-const COLOR_TITLE := Color(0.9, 0.85, 0.5)
-const COLOR_TEXT := Color(0.85, 0.85, 0.9)
-const COLOR_DIM := Color(0.45, 0.45, 0.55)
+# Emerald Sanctum, the menus' look: emerald glass, gold frame, mint text.
+const COLOR_BG := EmeraldTheme.PANEL_BG_SOLID
+const COLOR_BORDER := EmeraldTheme.GOLD_DIM
+const COLOR_TITLE := EmeraldTheme.GOLD
+const COLOR_TEXT := EmeraldTheme.TEXT
+const COLOR_DIM := EmeraldTheme.TEXT_DIM
 const COLOR_CHOSEN_TEXT := Color(0.4, 1.0, 0.5)
 const COLOR_AUTO_TEXT := Color(1.0, 0.85, 0.4)
-const COLOR_TAB_ACTIVE := Color(0.15, 0.15, 0.25)
-const COLOR_TAB_INACTIVE := Color(0.08, 0.08, 0.12)
-const COLOR_TAB_HOVER := Color(0.2, 0.2, 0.3)
+const COLOR_TAB_ACTIVE := Color(0.05, 0.22, 0.17)
+const COLOR_TAB_INACTIVE := Color(0.02, 0.09, 0.07)
+const COLOR_TAB_HOVER := Color(0.04, 0.16, 0.12)
 
 
 func _ready() -> void:
@@ -52,6 +53,10 @@ func _ready() -> void:
 	visible = false
 	_apply_styles()
 	_build_tab_bar()
+	# Courgette and the emerald buttons/scrollbars for everything on the layer.
+	for c in get_children():
+		if c is Control:
+			c.theme = EmeraldTheme.get_theme()
 
 	close_button.pressed.connect(_on_close_pressed)
 
@@ -142,7 +147,7 @@ func _apply_tab_style(btn: Button, active: bool) -> void:
 	style.border_width_right = 2
 	style.border_width_top = 2
 	style.border_width_bottom = 0 if active else 2
-	style.border_color = COLOR_BORDER if active else Color(0.2, 0.2, 0.3)
+	style.border_color = COLOR_BORDER if active else Color(COLOR_BORDER, 0.5)
 	style.corner_radius_top_left = 6
 	style.corner_radius_top_right = 6
 	style.corner_radius_bottom_left = 0
@@ -219,21 +224,7 @@ func _apply_styles() -> void:
 	# Close button
 	close_button.text = "Close [L]"
 	close_button.add_theme_font_size_override("font_size", 14)
-	var btn_style = StyleBoxFlat.new()
-	btn_style.bg_color = Color(0.15, 0.15, 0.2)
-	btn_style.border_width_left = 1
-	btn_style.border_width_right = 1
-	btn_style.border_width_top = 1
-	btn_style.border_width_bottom = 1
-	btn_style.border_color = Color(0.35, 0.35, 0.5)
-	btn_style.corner_radius_top_left = 4
-	btn_style.corner_radius_top_right = 4
-	btn_style.corner_radius_bottom_left = 4
-	btn_style.corner_radius_bottom_right = 4
-	close_button.add_theme_stylebox_override("normal", btn_style)
-	var btn_hover = btn_style.duplicate()
-	btn_hover.bg_color = Color(0.25, 0.25, 0.35)
-	close_button.add_theme_stylebox_override("hover", btn_hover)
+	EmeraldTheme.style_button(close_button, 14)
 
 	# ScrollContainer styling - shift down to make room for tab bar
 	scroll_container.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -257,8 +248,8 @@ func _update_title() -> void:
 const NODE_SIZE: float = 56.0        # circle diameter
 const CONNECTOR_W: float = 46.0      # line segment between stages
 const LANE_NAME_W: float = 150.0
-const COLOR_NODE_LOCKED := Color(0.10, 0.10, 0.13)
-const COLOR_NODE_EMPTY := Color(0.13, 0.14, 0.20)
+const COLOR_NODE_LOCKED := Color(0.05, 0.08, 0.075)
+const COLOR_NODE_EMPTY := Color(0.05, 0.14, 0.11)
 const COLOR_COUNT := Color(0.45, 0.85, 1.0)     # the "x / 15" readout
 const COLOR_COUNT_DIM := Color(0.35, 0.35, 0.45)
 const COLOR_MAXED := Color(1.0, 0.85, 0.3)      # gold ring on a maxed passive
@@ -555,9 +546,10 @@ func _open_stat_allocation() -> void:
 	}
 
 	_stat_alloc_panel = PanelContainer.new()
+	_stat_alloc_panel.theme = EmeraldTheme.get_theme()
 	_stat_alloc_panel.z_index = 10
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.08, 0.08, 0.14, 0.98)
+	style.bg_color = EmeraldTheme.PANEL_BG_SOLID
 	style.border_width_left = 2
 	style.border_width_right = 2
 	style.border_width_top = 2

@@ -20,6 +20,7 @@ var _quest_dot: Panel = null
 
 
 func _ready() -> void:
+	theme = EmeraldTheme.get_theme()   # Courgette, mint text, gold on hover
 	add_theme_constant_override("separation", 6)
 
 	var char_btn := _make_button(_tex_person(), "", "Character (I)")
@@ -67,22 +68,21 @@ func _make_button(icon: Texture2D, text: String, tip: String) -> Button:
 	b.custom_minimum_size = Vector2(0, 38)
 	b.add_theme_font_size_override("font_size", 15)
 	b.add_theme_constant_override("h_separation", 3)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.12, 0.17, 0.9)
-	style.border_width_left = 1
-	style.border_width_right = 1
-	style.border_width_top = 1
-	style.border_width_bottom = 1
-	style.border_color = Color(0.35, 0.35, 0.5)
-	style.corner_radius_top_left = 5
-	style.corner_radius_top_right = 5
-	style.corner_radius_bottom_left = 5
-	style.corner_radius_bottom_right = 5
-	style.content_margin_left = 8
-	style.content_margin_right = 8
-	style.content_margin_top = 4
-	style.content_margin_bottom = 4
-	b.add_theme_stylebox_override("normal", style)
+	# The menus' Emerald Sanctum button: emerald glass, gold edge, a brighter
+	# gold rim and glow under the mouse.
+	var normal := EmeraldTheme.button_box(EmeraldTheme.PALETTE["btn_bg"],
+		EmeraldTheme.PALETTE["btn_border"], 1, 5)
+	var lit := EmeraldTheme.button_box(EmeraldTheme.PALETTE["btn_hover_bg"],
+		EmeraldTheme.PALETTE["btn_hover_border"], 1, 5, EmeraldTheme.PALETTE["btn_glow"])
+	for sb in [normal, lit]:
+		sb.content_margin_left = 8
+		sb.content_margin_right = 8
+		sb.content_margin_top = 4
+		sb.content_margin_bottom = 4
+	b.add_theme_stylebox_override("normal", normal)
+	b.add_theme_stylebox_override("hover", lit)
+	b.add_theme_stylebox_override("pressed", lit)
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	return b
 
 

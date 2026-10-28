@@ -34,6 +34,7 @@ func _make_custom_tooltip(_for_text: String) -> Control:
 	style.content_margin_top = 8
 	style.content_margin_bottom = 8
 	panel.add_theme_stylebox_override("panel", style)
+	EmeraldTheme.apply_in_game(panel)
 
 	var vbox = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 4)

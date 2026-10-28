@@ -50,3 +50,10 @@ func die(killed: bool = true) -> void:
 	died.emit(self)
 	specter_died.emit(self, killed)
 	queue_free()
+
+
+func get_status_effects() -> Array:
+	var out: Array = super.get_status_effects()
+	out.append({"name": "Fading", "color": Color(0.7, 0.5, 1.0), "stacks": tempo_remaining,
+		"desc": "The Seance's Specter fades in %d tempo. Destroyed, it deals %d damage to its killer." % [tempo_remaining, death_damage]})
+	return out

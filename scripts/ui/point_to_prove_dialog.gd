@@ -16,6 +16,7 @@ var pending_debuff_type: int = -1
 var hp_cost: int = 5
 
 func _ready() -> void:
+	EmeraldTheme.apply_in_game(panel)
 	hide_dialog()
 	yes_button.pressed.connect(_on_yes_pressed)
 	no_button.pressed.connect(_on_no_pressed)

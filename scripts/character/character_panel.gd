@@ -50,6 +50,7 @@ var _slot_choice_popup: PanelContainer = null  # "Where do you want to slot the 
 
 # Live 3D portrait + combat stats section (built on first open)
 var _portrait_fig: SpriteFigure = null
+var _portrait_cam: Camera3D = null
 var _combat_label: Label = null
 var buff_manager = null              # BuffManager (untyped to avoid class-cache dependency)
 var debuff_manager = null            # DebuffManager
@@ -119,6 +120,9 @@ func _ready() -> void:
 	_apply_label_styles()
 	_apply_button_styles()
 	_split_windows()
+	# Both windows and every popup they open wear the menus' Emerald Sanctum
+	# look (rarity, type and stat colours stay their own).
+	EmeraldTheme.dress_layer(self)
 	hide_panel()
 	close_button.pressed.connect(_on_close_pressed)
 
@@ -150,7 +154,7 @@ func _split_windows() -> void:
 	var inv_title = Label.new()
 	inv_title.text = "INVENTORY"
 	inv_title.add_theme_font_size_override("font_size", 18)
-	inv_title.add_theme_color_override("font_color", Color(1.0, 0.9, 0.6))
+	inv_title.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 	inv_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	inv_header.add_child(inv_title)
 
@@ -248,78 +252,38 @@ func _split_windows() -> void:
 func _apply_panel_style() -> void:
 	if not panel:
 		return
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.1, 0.13, 1.0)
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.border_width_top = 2
-	style.border_width_bottom = 2
-	style.border_color = Color(0.35, 0.35, 0.5)
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
-	style.content_margin_left = 12.0
-	style.content_margin_right = 12.0
-	style.content_margin_top = 12.0
-	style.content_margin_bottom = 12.0
-	panel.add_theme_stylebox_override("panel", style)
+	panel.add_theme_stylebox_override("panel",
+		EmeraldTheme.panel_box(EmeraldTheme.PANEL_BG_SOLID, EmeraldTheme.GOLD_DIM, 2, 6, 12.0))
 
 func _apply_label_styles() -> void:
 	if name_label:
 		name_label.add_theme_font_size_override("font_size", 18)
-		name_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+		name_label.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 		name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 	var stats_sep = $Panel/MarginContainer/VBox/HSeparator
 	if stats_sep:
-		stats_sep.add_theme_color_override("color", Color(0.3, 0.3, 0.45))
+		stats_sep.add_theme_color_override("color", EmeraldTheme.GOLD_DIM)
 
 	if stats_label:
 		stats_label.add_theme_font_size_override("font_size", 13)
-		stats_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+		stats_label.add_theme_color_override("font_color", EmeraldTheme.TEXT)
 		stats_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 
 	if derived_label:
 		derived_label.add_theme_font_size_override("font_size", 13)
-		derived_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+		derived_label.add_theme_color_override("font_color", EmeraldTheme.TEXT)
 		derived_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 
 	var eq_label = $Panel/MarginContainer/VBox/EquipmentLabel
 	if eq_label:
 		eq_label.add_theme_font_size_override("font_size", 10)
-		eq_label.add_theme_color_override("font_color", Color(0.55, 0.55, 0.7))
+		eq_label.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 
 func _apply_button_styles() -> void:
 	if not close_button:
 		return
-	close_button.add_theme_font_size_override("font_size", 13)
-
-	var btn_normal = StyleBoxFlat.new()
-	btn_normal.bg_color = Color(0.15, 0.15, 0.2)
-	btn_normal.border_width_left = 1
-	btn_normal.border_width_right = 1
-	btn_normal.border_width_top = 1
-	btn_normal.border_width_bottom = 1
-	btn_normal.border_color = Color(0.35, 0.35, 0.5)
-	btn_normal.corner_radius_top_left = 4
-	btn_normal.corner_radius_top_right = 4
-	btn_normal.corner_radius_bottom_left = 4
-	btn_normal.corner_radius_bottom_right = 4
-	close_button.add_theme_stylebox_override("normal", btn_normal)
-
-	var btn_hover = StyleBoxFlat.new()
-	btn_hover.bg_color = Color(0.25, 0.25, 0.35)
-	btn_hover.border_width_left = 1
-	btn_hover.border_width_right = 1
-	btn_hover.border_width_top = 1
-	btn_hover.border_width_bottom = 1
-	btn_hover.border_color = Color(0.5, 0.5, 0.7)
-	btn_hover.corner_radius_top_left = 4
-	btn_hover.corner_radius_top_right = 4
-	btn_hover.corner_radius_bottom_left = 4
-	btn_hover.corner_radius_bottom_right = 4
-	close_button.add_theme_stylebox_override("hover", btn_hover)
+	EmeraldTheme.style_button(close_button, 13)
 
 func connect_stats(stats: PlayerStats, inv: Inventory, dm = null, bm = null, ddm = null) -> void:
 	_disconnect_stats()
@@ -460,7 +424,11 @@ func update_display() -> void:
 
 	_ensure_portrait_and_combat()
 	if _portrait_fig and player_stats.character_data:
-		_portrait_fig.setup(SpriteFigure.preset_for(player_stats.character_data))
+		var preset: String = SpriteFigure.preset_for(player_stats.character_data)
+		_portrait_fig.setup(preset)
+		# Framed by the figure's height, head to boots: the heroes stand
+		# BOARD_HEIGHT tall (a fixed close-up made for ~1.1 cut their heads off).
+		_frame_portrait(SpriteFigure.BOARD_HEIGHT if SpriteFigure.ROSTER.get(preset, {}).has("board") else 1.0)
 
 	_update_ally_nav()
 	_update_level_row()
@@ -477,6 +445,15 @@ func update_display() -> void:
 
 	_update_equipment_display()
 
+
+## Aim the portrait camera so a figure `tall` units high fits whole, with a
+## little room above the head and below the feet.
+func _frame_portrait(tall: float) -> void:
+	if _portrait_cam == null:
+		return
+	_portrait_cam.size = tall * 1.3
+	var eye := Vector3(0.0, tall * 0.58, 3.0)
+	_portrait_cam.transform = Transform3D(Basis.looking_at(Vector3(0, tall * 0.58, 0) - eye, Vector3.UP), eye)
 
 ## Build the live 3D portrait (like the enemy inspect panel's) and the combat
 ## stats section, inserted once under the character's name.
@@ -532,11 +509,10 @@ func _ensure_portrait_and_combat() -> void:
 	_portrait_fig = SpriteFigure.new()
 	vp.add_child(_portrait_fig)
 
-	var cam = Camera3D.new()
-	vp.add_child(cam)
-	# Sprite figures are ~1.1 units tall billboards — frame them close-up.
-	cam.position = Vector3(0.0, 0.55, 1.05)
-	cam.look_at_from_position(cam.position, Vector3(0, 0.52, 0), Vector3.UP)
+	_portrait_cam = Camera3D.new()
+	_portrait_cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	vp.add_child(_portrait_cam)
+	_frame_portrait(1.0)
 
 	# Level / XP progress row under the portrait: the viewed party member's
 	# level-up progress at a glance.

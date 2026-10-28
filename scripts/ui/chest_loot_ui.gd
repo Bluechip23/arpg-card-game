@@ -80,6 +80,7 @@ func _show_chest_modal(contents: Dictionary, gold_just_claimed: bool = false) ->
 	panel_style.corner_radius_bottom_left = 10
 	panel_style.corner_radius_bottom_right = 10
 	main._chest_modal.add_theme_stylebox_override("panel", panel_style)
+	EmeraldTheme.apply_in_game(main._chest_modal)
 
 	var margin = MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 20)
@@ -412,6 +413,7 @@ func _show_pack_results(pack: CardPack, cards: Array) -> void:
 	style.border_color = pack.get_tier_color()
 	style.set_corner_radius_all(10)
 	panel.add_theme_stylebox_override("panel", style)
+	EmeraldTheme.apply_in_game(panel)
 	var margin = MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 20)
 	margin.add_theme_constant_override("margin_right", 20)

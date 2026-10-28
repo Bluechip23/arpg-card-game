@@ -43,6 +43,7 @@ func setup_panel() -> void:
 	panel_style.content_margin_top = 10.0
 	panel_style.content_margin_bottom = 10.0
 	panel.add_theme_stylebox_override("panel", panel_style)
+	EmeraldTheme.apply_in_game(panel)
 
 	var margin := MarginContainer.new()
 	margin.layout_mode = 1
@@ -99,6 +100,7 @@ func setup_panel() -> void:
 	preview_style.content_margin_top = 8.0
 	preview_style.content_margin_bottom = 8.0
 	_card_preview.add_theme_stylebox_override("panel", preview_style)
+	EmeraldTheme.apply_in_game(_card_preview)
 	_card_preview.visible = false
 	_card_preview.z_index = 200
 	_card_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -150,7 +152,7 @@ func _populate() -> void:
 		var empty_lbl := Label.new()
 		empty_lbl.text = "No maintained cards."
 		empty_lbl.add_theme_font_size_override("font_size", 14)
-		empty_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		empty_lbl.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 		_container.add_child(empty_lbl)
 		return
 
@@ -164,7 +166,7 @@ func _populate() -> void:
 		entry.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		entry.flat = true
 		entry.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		entry.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+		entry.add_theme_color_override("font_color", EmeraldTheme.TEXT)
 		entry.add_theme_color_override("font_hover_color", Color(0.8, 0.5, 1.0))
 		entry.add_theme_font_size_override("font_size", 14)
 		entry.mouse_entered.connect(_on_entry_hovered.bind(card, entry))

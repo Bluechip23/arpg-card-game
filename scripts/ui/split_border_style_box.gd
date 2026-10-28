@@ -36,3 +36,11 @@ func _draw(to_canvas_item: RID, rect: Rect2) -> void:
 	var half := floorf(rect.size.x * 0.5)
 	_right.draw(to_canvas_item, Rect2(rect.position + Vector2(half, 0.0),
 		Vector2(rect.size.x - half, rect.size.y)))
+
+## The panel fill behind the two-colour frame.
+func get_background() -> Color:
+	return _base.bg_color
+
+func set_background(bg: Color) -> void:
+	_base.bg_color = bg
+	emit_changed()

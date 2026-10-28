@@ -100,6 +100,8 @@ func _ready() -> void:
 	layer = 90
 	_build_enemy_groups()
 	_build_ui()
+	# The menus' Emerald Sanctum look, before _keep_in_width measures buttons.
+	EmeraldTheme.dress_layer(self)
 	_refresh_enemy_list()
 	_set_tab(0)  # start on the Add Card tab
 	_keep_in_width()

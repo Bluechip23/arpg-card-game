@@ -38,3 +38,8 @@ func _build_visuals() -> void:
 func _absorb(amount: int) -> int:
 	# Resist everything: reduce the incoming amount by resist_percent.
 	return maxi(1, floori(amount * (1.0 - minf(resist_percent, 90.0) / 100.0)))
+
+
+func get_status_effects() -> Array:
+	return [{"name": "Resist All", "color": Color(0.6, 0.9, 0.6), "stacks": int(resist_percent),
+		"desc": "Takes %d%% less damage from everything." % int(resist_percent)}]
