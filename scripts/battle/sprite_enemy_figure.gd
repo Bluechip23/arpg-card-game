@@ -826,6 +826,10 @@ static func _silhouette(tex: Texture2D) -> Texture2D:
 		return null
 	if img.is_compressed():
 		img.decompress()
+	# The smooth sheets carry mipmaps: work on the full-size level only (the
+	# data with them did not fit a no-mipmap image, and the outline vanished).
+	if img.has_mipmaps():
+		img.clear_mipmaps()
 	img.convert(Image.FORMAT_RGBA8)
 	var data := img.get_data()
 	for i in range(0, data.size(), 4):
