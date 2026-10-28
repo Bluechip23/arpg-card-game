@@ -21,6 +21,9 @@ slim feather lying across the plate with its tip raised 20 degrees, a white
 lit vane, a pale-gold shaded vane, gold thread barbs and outline, the quill
 running out down to the left, and a faint halo.
 
+Stephen's bust comes from his second sprite board instead (BUST, 2026-10-28):
+the strip shows his first look.
+
 Output: assets/sprites/portraits/<hero>.png
 Run: python3 tools/cut_character_portraits.py   (Pillow, numpy)
 """
@@ -41,6 +44,12 @@ MIN_GAP = 8        # columns between busts
 # portrait: centred on the middle seam of Brad's breastplate, lying across
 # it with the tip raised 20 degrees, up and to the right (designer).
 FEATHER = {"brad": (93, 98, 40, 70)}
+
+# A hero whose look changed after the strip was drawn takes their bust from
+# their new sprite board instead: (source, crop box). Stephen's second board
+# (designer, 2026-10-28; the bear-pelt left arm): the front pose from the
+# top of the axe down to his thighs, in the screen's 96:100 shape.
+BUST = {"stephen": ("assets/sprites/paintings/hero_stephen_2.png", (46, 0, 230, 192))}
 SS = 4             # the feather is drawn this many times larger, then shrunk
 THREAD = (196, 160, 88)        # gold thread: outline and barbs
 LIT = (255, 254, 246)          # the lit vane
@@ -125,6 +134,9 @@ def main() -> None:
         box = (cx - w // 2, 0, cx - w // 2 + w, h)
         canvas = Image.new("RGB", (w, h))
         canvas.paste(img.crop((max(0, box[0]), 0, min(img.width, box[2]), h)), (max(0, -box[0]), 0))
+        if hero in BUST:
+            src, box = BUST[hero]
+            canvas = Image.open(src).convert("RGB").crop(box)
         portrait = canvas.resize(OUT_SIZE, Image.LANCZOS)
         if hero in FEATHER:
             portrait = stitch_feather(portrait, *FEATHER[hero])
