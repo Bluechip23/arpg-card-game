@@ -76,8 +76,8 @@ const COLOR_HOVER_RING := Color(1.0, 1.0, 0.6, 0.9)
 
 # Detail popup colors
 const COLOR_POPUP_BG := Color(0.14, 0.14, 0.2, 0.97)
-const COLOR_SECTION_HEADER := Color(0.8, 0.8, 0.9)
-const COLOR_DIM_TEXT := Color(0.65, 0.65, 0.75)
+const COLOR_SECTION_HEADER := EmeraldTheme.TEXT
+const COLOR_DIM_TEXT := EmeraldTheme.TEXT_DIM
 
 func _ready() -> void:
 	layer = 110
@@ -96,6 +96,9 @@ func _ready() -> void:
 	# Hide our own title/close button — the parent SkillTreeUI provides those
 	title_label.visible = false
 	close_button.visible = false
+	# Its panels and popups wear the menus' Emerald Sanctum look (the grid's
+	# node and line colours are its own).
+	EmeraldTheme.dress_layer(self)
 
 func _on_canvas_resized() -> void:
 	# Redraw when the canvas gets its proper size (e.g. first time shown)

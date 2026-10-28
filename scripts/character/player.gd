@@ -15,6 +15,10 @@ signal tile_reached  # Emitted each time the player reaches a single tile
 @onready var debuff_manager: DebuffManager = $DebuffManager
 @onready var buff_manager: BuffManager = $BuffManager
 
+## The grid direction of the player's last step (zero until they first move).
+## Their summons walk this way on their own (main._update_skeletons).
+var heading := Vector2i.ZERO
+
 # Battle visual: Mana Seed billboard sprites (play_action, set_walking, pop_*, …).
 var _figure: SpriteFigure = null
 
@@ -219,6 +223,11 @@ func _physics_process(delta: float) -> void:
 		else:
 			var direction = flat_diff.normalized()
 			velocity = direction * move_speed
+			# The way they're walking, on the grid: their summons march this way.
+			if absf(direction.x) > absf(direction.z):
+				heading = Vector2i(1 if direction.x > 0.0 else -1, 0)
+			elif absf(direction.z) > 0.0:
+				heading = Vector2i(0, 1 if direction.z > 0.0 else -1)
 
 			# Update facing + walk bob on the 3D figure
 			if _figure:
@@ -529,3 +538,16 @@ func spawn_heal_number(amount: int) -> void:
 		return
 	WorldText.float_number(get_parent(), position + Vector3(randf_range(-0.2, 0.2), 1.8, 0),
 		"+" + str(amount), Color(0.3, 1.0, 0.4), 42, 14, 1.0, 0.7, 0.5)
+
+
+## Which way this player is going, on the grid: their last step, or before
+## they've moved, the way their figure faces.
+func get_heading() -> Vector2i:
+	if heading != Vector2i.ZERO:
+		return heading
+	if _figure and "facing" in _figure:
+		match int(_figure.facing):
+			CharacterAnimator.Direction.NORTH: return Vector2i(0, -1)
+			CharacterAnimator.Direction.EAST: return Vector2i(1, 0)
+			CharacterAnimator.Direction.WEST: return Vector2i(-1, 0)
+	return Vector2i(0, 1)

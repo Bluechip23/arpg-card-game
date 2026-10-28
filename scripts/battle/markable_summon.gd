@@ -41,3 +41,14 @@ func _survive_lethal() -> bool:
 		caster.take_direct_damage(8)
 	print("[%s] Shepherd's Mark: survived at 1 HP" % display_name.to_upper())
 	return true
+
+
+func get_armor_display() -> Array:
+	return [armor, 0]
+
+func get_status_effects() -> Array:
+	var out: Array = super.get_status_effects()
+	if shepherd_mark_caster != null and shepherd_mark_tempo > 0:
+		out.append({"name": "Shepherd's Mark", "color": Color(0.95, 0.85, 0.45), "stacks": shepherd_mark_tempo,
+			"desc": "Survives one lethal blow at 1 HP with %d armor; the caster pays 8 HP. %d tempo left." % [shepherd_mark_armor, shepherd_mark_tempo]})
+	return out

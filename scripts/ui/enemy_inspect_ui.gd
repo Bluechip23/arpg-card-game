@@ -28,7 +28,7 @@ func _ready() -> void:
 	style.border_width_right = 2
 	style.border_width_top = 2
 	style.border_width_bottom = 2
-	style.border_color = Color(0.5, 0.45, 0.3)
+	style.border_color = EmeraldTheme.GOLD_DIM
 	style.corner_radius_top_left = 6
 	style.corner_radius_top_right = 6
 	style.corner_radius_bottom_left = 6
@@ -38,6 +38,7 @@ func _ready() -> void:
 	style.content_margin_top = 8
 	style.content_margin_bottom = 10
 	add_theme_stylebox_override("panel", style)
+	EmeraldTheme.apply_in_game(self)
 
 	var vbox = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 6)

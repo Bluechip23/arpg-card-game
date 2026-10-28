@@ -141,6 +141,7 @@ func _setup_tab_menu() -> void:
 	panel_style.corner_radius_bottom_left = 8
 	panel_style.corner_radius_bottom_right = 8
 	main._tab_menu_panel.add_theme_stylebox_override("panel", panel_style)
+	EmeraldTheme.apply_in_game(main._tab_menu_panel)
 
 	var margin = MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 16)

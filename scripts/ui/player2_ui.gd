@@ -201,6 +201,7 @@ func _setup_p2_hand_panel() -> void:
 	main._p2_hand_panel.offset_bottom = 250.0
 	main._p2_hand_panel.custom_minimum_size = Vector2(270, 400)
 	main._p2_hand_panel.add_theme_stylebox_override("panel", _make_p2_panel_style())
+	EmeraldTheme.apply_in_game(main._p2_hand_panel)
 
 	var margin = MarginContainer.new()
 	margin.layout_mode = 1
@@ -253,6 +254,7 @@ func _setup_p2_deck_panel() -> void:
 	main._p2_deck_panel.offset_bottom = 250.0
 	main._p2_deck_panel.custom_minimum_size = Vector2(270, 400)
 	main._p2_deck_panel.add_theme_stylebox_override("panel", _make_p2_panel_style())
+	EmeraldTheme.apply_in_game(main._p2_deck_panel)
 
 	var margin = MarginContainer.new()
 	margin.layout_mode = 1
@@ -330,6 +332,7 @@ func _make_p2_card_preview(preview_name: String) -> PanelContainer:
 	preview_style.content_margin_top = 8.0
 	preview_style.content_margin_bottom = 8.0
 	preview.add_theme_stylebox_override("panel", preview_style)
+	EmeraldTheme.apply_in_game(preview)
 	preview.visible = false
 	preview.z_index = 200
 	preview.mouse_filter = Control.MOUSE_FILTER_IGNORE

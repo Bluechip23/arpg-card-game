@@ -52,6 +52,7 @@ func _build(keywords: Array) -> void:
 	style.shadow_color = Color(0, 0, 0, 0.5)
 	style.shadow_size = 4
 	add_theme_stylebox_override("panel", style)
+	EmeraldTheme.apply_in_game(self)
 
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 6)

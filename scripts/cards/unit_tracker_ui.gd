@@ -5,6 +5,11 @@ extends Control
 ## Single enemy types show info directly beneath the square.
 ## Multiple enemy types show a clickable square with "xN" that expands
 ## horizontally into individual sub-portraits.
+##
+## Beside the Enemies tab sits the Allies & Summons tab (designer,
+## 2026-10-28): every ally on the field — the other hero, ally dummies and
+## every summon — with its picture, health, armor and buffs / debuffs. The two
+## tabs share the column, so opening one closes the other.
 
 signal enemy_hovered(enemy: Enemy)    # Emitted when hovering a portrait
 signal enemy_unhovered()              # Emitted when leaving a portrait
@@ -22,12 +27,27 @@ var _enemy_to_panel: Dictionary = {}
 var _highlighted_enemy: Enemy = null  # Currently highlighted enemy (from either direction)
 var collapsed: bool = false  # Start expanded
 
+# ---- Allies & Summons tab ----
+## Main hands in who counts: Callable() -> Array of ally nodes (players,
+## dummies, summons). Unset: the tab never shows.
+var ally_source: Callable = Callable()
+var allies_open: bool = false
+var _ally_btn: Button = null
+var _ally_content: VBoxContainer = null
+var _ally_signature := ""
+var _ally_poll := 0.0
+const ALLY_POLL := 0.25  # seconds between checks for a change worth redrawing
+const ALLY_SQUARE := 40.0
+
 const SQUARE_SIZE: float = 48.0
 const SUB_SQUARE_SIZE: float = 38.0
 const MAX_STATUS_ICONS: int = 5
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# The Allies list keeps itself current while the battle waits paused
+	# between actions (that is when the player reads it).
+	process_mode = Node.PROCESS_MODE_ALWAYS
 
 	# Toggle button at top
 	_toggle_btn = Button.new()
@@ -53,6 +73,24 @@ func _ready() -> void:
 	_toggle_btn.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
 	_toggle_btn.pressed.connect(_on_toggle)
 	add_child(_toggle_btn)
+	_style_tab(_toggle_btn)
+
+	_ally_btn = Button.new()
+	_ally_btn.name = "AlliesTab"
+	_ally_btn.custom_minimum_size = Vector2(90, 22)
+	_ally_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	_ally_btn.pressed.connect(_on_ally_toggle)
+	_ally_btn.visible = false
+	add_child(_ally_btn)
+	_style_tab(_ally_btn)
+
+	_ally_content = VBoxContainer.new()
+	_ally_content.name = "AlliesList"
+	_ally_content.add_theme_constant_override("separation", 5)
+	_ally_content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ally_content.position = Vector2(0, 28)
+	_ally_content.visible = false
+	add_child(_ally_content)
 
 	_content = VBoxContainer.new()
 	_content.add_theme_constant_override("separation", 6)
@@ -83,11 +121,14 @@ func refresh() -> void:
 	_tempo_bars.clear()
 
 	var living = enemy_spawner.get_living_enemies()
+	_toggle_btn.visible = not living.is_empty()
+	_layout_tabs()
 	if living.is_empty():
-		visible = false
+		_content.visible = false
+		visible = _ally_btn.visible
 		return
 	visible = true
-	_content.visible = not collapsed
+	_content.visible = not collapsed and not allies_open
 	_update_toggle_text(living.size())
 
 	# Group enemies by type
@@ -158,7 +199,12 @@ func _on_group_click(event: InputEvent, type_name: String) -> void:
 				data["sub_container"].visible = data["expanded"]
 
 func _on_toggle() -> void:
-	collapsed = not collapsed
+	if allies_open:
+		# From the Allies tab: switch over to the enemies.
+		_set_allies_open(false)
+		collapsed = false
+	else:
+		collapsed = not collapsed
 	_content.visible = not collapsed
 	var count = 0
 	if enemy_spawner:
@@ -166,7 +212,7 @@ func _on_toggle() -> void:
 	_update_toggle_text(count)
 
 func _update_toggle_text(count: int = 0) -> void:
-	if collapsed:
+	if collapsed or allies_open:
 		_toggle_btn.text = "+ Enemies (%d)" % count
 	else:
 		_toggle_btn.text = "_ Enemies (%d)" % count
@@ -570,3 +616,234 @@ func _get_type_color_by_name(type_name: String) -> Color:
 		"Elite": return Color(1.0, 0.85, 0.0)
 		"Boss": return Color(0.8, 0.0, 0.8)
 	return Color.WHITE
+
+# ============================================
+# ALLIES & SUMMONS TAB
+# ============================================
+
+## The tabs' look: emerald glass with a gold edge (the menus' Emerald Sanctum).
+func _style_tab(btn: Button) -> void:
+	var normal := EmeraldTheme.button_box(EmeraldTheme.PALETTE["btn_bg"], EmeraldTheme.GOLD_DIM, 1, 3)
+	normal.content_margin_left = 8
+	normal.content_margin_right = 8
+	normal.content_margin_top = 1
+	normal.content_margin_bottom = 2
+	var hover := normal.duplicate() as StyleBoxFlat
+	hover.bg_color = EmeraldTheme.PALETTE["btn_hover_bg"]
+	hover.border_color = EmeraldTheme.GOLD
+	btn.add_theme_stylebox_override("normal", normal)
+	btn.add_theme_stylebox_override("hover", hover)
+	btn.add_theme_stylebox_override("pressed", hover)
+	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	btn.add_theme_font_override("font", EmeraldTheme.font())
+	btn.add_theme_font_size_override("font_size", 13)
+	btn.add_theme_color_override("font_color", EmeraldTheme.TEXT)
+	btn.add_theme_color_override("font_hover_color", EmeraldTheme.GOLD)
+
+## The Allies tab sits right of the Enemies tab (at the left edge when there
+## are no enemies).
+func _layout_tabs() -> void:
+	if _ally_btn == null:
+		return
+	var x := 0.0
+	if _toggle_btn.visible:
+		x = _toggle_btn.get_combined_minimum_size().x + 6.0
+	_ally_btn.position = Vector2(x, 0)
+
+func _allies() -> Array:
+	if not ally_source.is_valid():
+		return []
+	var out: Array = []
+	for u in ally_source.call():
+		if u != null and is_instance_valid(u) and not u.get("is_dead") == true:
+			out.append(u)
+	return out
+
+func _on_ally_toggle() -> void:
+	_set_allies_open(not allies_open)
+
+func _set_allies_open(open: bool) -> void:
+	allies_open = open
+	_ally_content.visible = open
+	_content.visible = not open and not collapsed
+	_redraw_allies()
+	var count := 0
+	if enemy_spawner:
+		count = enemy_spawner.get_living_enemies().size()
+	_update_toggle_text(count)
+
+func _process(delta: float) -> void:
+	if not ally_source.is_valid():
+		return
+	_ally_poll -= delta
+	if _ally_poll > 0.0:
+		return
+	_ally_poll = ALLY_POLL
+	var allies := _allies()
+	var shown := not allies.is_empty()
+	if shown != _ally_btn.visible:
+		_ally_btn.visible = shown
+		if not shown and allies_open:
+			_set_allies_open(false)
+		_layout_tabs()
+		visible = _toggle_btn.visible or shown
+	_ally_btn.text = ("_ " if allies_open else "+ ") + "Allies & Summons (%d)" % allies.size()
+	if allies_open:
+		var sig := _ally_sig(allies)
+		if sig != _ally_signature:
+			_redraw_allies(allies)
+
+## A summary of everything the list shows: redraw only when it changes.
+func _ally_sig(allies: Array) -> String:
+	var parts := PackedStringArray()
+	for u in allies:
+		var d := ally_info(u)
+		parts.append("%d:%d/%d:%s:%s" % [u.get_instance_id(), d["hp"], d["max_hp"], str(d["armor"]), str(d["effects"].map(func(e): return "%s%d" % [e["name"], e["stacks"]]))])
+	return "|".join(parts)
+
+## What the tab shows for one ally: name, health, armor ([now, cap]) and
+## effects ([{name, color, stacks, desc}]). Heroes read their stats and their
+## buff / debuff managers; summons answer for themselves (Summon).
+static func ally_info(u) -> Dictionary:
+	var d := {"name": "Ally", "hp": 0, "max_hp": 0, "armor": [0, 0], "effects": [], "portrait": null, "flip": false}
+	if u.has_method("get_stats") and u.get_stats() != null:
+		var st = u.get_stats()
+		var cd = st.character_data if "character_data" in st else null
+		d["name"] = cd.character_name if cd else str(u.name)
+		d["hp"] = int(st.current_health)
+		d["max_hp"] = int(st.max_health)
+		d["armor"] = [int(st.current_armor), 0]
+		d["portrait"] = cd.get_portrait() if cd and cd.has_method("get_portrait") else null
+		var effects: Array = []
+		var bm = u.get("buff_manager")
+		if bm:
+			for b in bm.buffs:
+				effects.append({"name": b.buff_name, "color": b.get_icon_color(), "stacks": b.stacks if b.stacks > 1 else maxi(0, b.duration),
+					"desc": b.description})
+		var dm = u.get("debuff_manager")
+		if dm:
+			for x in dm.debuffs:
+				effects.append({"name": x.debuff_name, "color": x.get_icon_color(), "stacks": x.stacks if x.stacks > 1 else maxi(0, x.duration),
+					"desc": x.description})
+		d["effects"] = effects
+		return d
+	d["name"] = str(u.get("display_name")) if u.get("display_name") != null else str(u.name)
+	d["hp"] = int(u.get("health")) if u.get("health") != null else 0
+	d["max_hp"] = int(u.get("max_health")) if u.get("max_health") != null else 0
+	if u.has_method("get_armor_display"):
+		d["armor"] = u.get_armor_display()
+	if u.has_method("get_status_effects"):
+		d["effects"] = u.get_status_effects()
+	if u.has_method("get_portrait_texture"):
+		d["portrait"] = u.get_portrait_texture()
+		d["flip"] = u.has_method("is_portrait_flipped") and u.is_portrait_flipped()
+	return d
+
+func _redraw_allies(allies: Array = []) -> void:
+	if allies.is_empty():
+		allies = _allies()
+	_ally_signature = _ally_sig(allies)
+	for c in _ally_content.get_children():
+		_ally_content.remove_child(c)
+		c.queue_free()
+	for u in allies:
+		_ally_content.add_child(_create_ally_row(u))
+
+func _create_ally_row(u) -> HBoxContainer:
+	var d := ally_info(u)
+	var row := HBoxContainer.new()
+	row.name = "Ally_%d" % u.get_instance_id()
+	row.add_theme_constant_override("separation", 6)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var sq := PanelContainer.new()
+	sq.custom_minimum_size = Vector2(ALLY_SQUARE, ALLY_SQUARE)
+	sq.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sq.add_theme_stylebox_override("panel", EmeraldTheme.panel_box(EmeraldTheme.CARD_BG, EmeraldTheme.GOLD_DIM, 2, 4))
+	var tex: Texture2D = d["portrait"]
+	if tex:
+		var pic := TextureRect.new()
+		pic.texture = tex
+		pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.custom_minimum_size = Vector2(ALLY_SQUARE - 6, ALLY_SQUARE - 6)
+		pic.flip_h = bool(d["flip"])
+		pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		sq.add_child(pic)
+	else:
+		var ab := Label.new()
+		ab.text = str(d["name"]).left(3).to_upper()
+		ab.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		ab.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		ab.add_theme_color_override("font_color", EmeraldTheme.GOLD)
+		ab.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		sq.add_child(ab)
+	row.add_child(sq)
+
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 0)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(col)
+	var nm := Label.new()
+	nm.name = "Name"
+	nm.text = str(d["name"])
+	nm.add_theme_font_override("font", EmeraldTheme.font())
+	nm.add_theme_font_size_override("font_size", 12)
+	nm.add_theme_color_override("font_color", EmeraldTheme.GOLD)
+	nm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(nm)
+	var stats_line := Label.new()
+	stats_line.name = "Stats"
+	var arm: Array = d["armor"]
+	var t := "%d/%d HP" % [d["hp"], d["max_hp"]]
+	if int(arm[1]) > 0:
+		t += "   ARM %d/%d" % [arm[0], arm[1]]
+	elif int(arm[0]) > 0:
+		t += "   ARM %d" % arm[0]
+	stats_line.text = t
+	stats_line.add_theme_font_size_override("font_size", 11)
+	stats_line.add_theme_color_override("font_color", Color(0.4, 1.0, 0.4))
+	stats_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(stats_line)
+	var effects: Array = d["effects"]
+	if not effects.is_empty():
+		var icons := HBoxContainer.new()
+		icons.name = "Effects"
+		icons.add_theme_constant_override("separation", 2)
+		icons.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		col.add_child(icons)
+		for i in range(mini(effects.size(), MAX_STATUS_ICONS)):
+			icons.add_child(_create_ally_status_icon(effects[i]))
+		if effects.size() > MAX_STATUS_ICONS:
+			var plus := Label.new()
+			plus.text = "+%d" % (effects.size() - MAX_STATUS_ICONS)
+			plus.add_theme_font_size_override("font_size", 10)
+			plus.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			icons.add_child(plus)
+	return row
+
+## A badge like the enemies' (the colour disc, its glyph, the count), with
+## the same hover window telling what it does.
+func _create_ally_status_icon(eff: Dictionary) -> PanelContainer:
+	var icon := _create_status_icon(eff.get("color", Color.WHITE), int(eff.get("stacks", 0)))
+	icon.name = "Effect_" + str(eff.get("name", "")).replace(" ", "_")
+	icon.mouse_filter = Control.MOUSE_FILTER_STOP
+	var glyph_tex := StatusIcons.get_icon(str(eff.get("name", "")))
+	if glyph_tex:
+		var st := icon.get_theme_stylebox("panel") as StyleBoxFlat
+		st.bg_color = Color(eff.get("color", Color.WHITE)).darkened(0.55)
+		var glyph := TextureRect.new()
+		glyph.texture = glyph_tex
+		glyph.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		glyph.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		glyph.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon.add_child(glyph)
+		icon.move_child(glyph, 0)
+	icon.mouse_entered.connect(func():
+		StatusHoverPopup.show_for(icon, str(eff.get("name", "")), eff.get("color", Color.WHITE), str(eff.get("desc", "")),
+			func() -> String: return ""))
+	icon.mouse_exited.connect(func(): StatusHoverPopup.hide_for(icon))
+	icon.tree_exiting.connect(func(): StatusHoverPopup.hide_for(icon))
+	return icon

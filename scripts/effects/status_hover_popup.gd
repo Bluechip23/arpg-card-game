@@ -69,7 +69,9 @@ static func _instance_for(anchor: Control) -> StatusHoverPopup:
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
-	var style := CrestStyleBox.new(Color(0.08, 0.08, 0.12, 0.96), Color(0.5, 0.5, 0.6), 4, 2)
+	# Emerald Sanctum glass; the frame takes the effect's colour in show_for.
+	theme = EmeraldTheme.get_theme()
+	var style := CrestStyleBox.new(EmeraldTheme.PANEL_BG_SOLID, EmeraldTheme.GOLD_DIM, 4, 2)
 	style.content_margin_left = 10
 	style.content_margin_right = 10
 	style.content_margin_bottom = 7
@@ -83,7 +85,7 @@ func _ready() -> void:
 	vbox.add_child(_title)
 	_desc = Label.new()
 	_desc.add_theme_font_size_override("font_size", 12)
-	_desc.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
+	_desc.add_theme_color_override("font_color", EmeraldTheme.TEXT)
 	_desc.autowrap_mode = TextServer.AUTOWRAP_WORD
 	_desc.custom_minimum_size.x = 220
 	vbox.add_child(_desc)
@@ -93,7 +95,7 @@ func _ready() -> void:
 	vbox.add_child(_dur)
 	_extra = Label.new()
 	_extra.add_theme_font_size_override("font_size", 11)
-	_extra.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+	_extra.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 	vbox.add_child(_extra)
 
 

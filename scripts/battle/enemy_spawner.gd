@@ -144,7 +144,6 @@ func _reserve_occupancy(living: Array, acting) -> void:
 		cells.append(e.intended_cell())
 	acting.occupied_tiles = cells
 
-## Pick the nearest living player for this enemy to act against (co-op aware).
 # Player summons (Frankensteins Monsters, Bull Worms). Main refreshes this
 # each tempo tick so enemies treat summons as ordinary targetable units.
 var summons: Array = []
@@ -161,6 +160,8 @@ func _living_summons() -> Array:
 		out.append(s)
 	return out
 
+## Pick the unit this enemy acts against (co-op aware): the closest player
+## or summon it can walk to.
 func _target_for(enemy: Enemy) -> Node3D:
 	var candidates := _living_players()
 	# Summons count as units: the enemy simply goes for whatever is nearest.
@@ -172,10 +173,20 @@ func _target_for(enemy: Enemy) -> Node3D:
 		if is_instance_valid(player) and player.get("untargetable") == true:
 			return null
 		return player
+	# Whoever is closest on foot (designer, 2026-10-28): walking distance
+	# round the walls, and no one it cannot reach — a unit behind a wall with
+	# no way round is not its target. Straight-line distance breaks ties.
+	# With no one reachable it has no target and keeps to itself.
+	var walk: Dictionary = enemy.walk_map() if enemy.has_method("walk_map") else {}
 	var best: Node3D = null
 	var best_d := INF
 	for p in candidates:
 		var d: float = enemy.position.distance_to(p.position)
+		if not walk.is_empty():
+			var steps: int = Enemy.steps_to(walk, grid_manager.world_to_grid(p.position))
+			if steps < 0:
+				continue
+			d = steps * 1000.0 + d
 		if d < best_d:
 			best_d = d
 			best = p
@@ -183,7 +194,11 @@ func _target_for(enemy: Enemy) -> Node3D:
 
 func _living_players() -> Array:
 	var out := []
-	for p in players:
+	# Solo play leaves `players` empty: the one hero is `player`. Without this
+	# a solo hero was never weighed against the summons — any summon on the
+	# field drew every enemy, however close the hero stood.
+	var roster: Array = players if not players.is_empty() else ([player] if player != null else [])
+	for p in roster:
 		if is_instance_valid(p) and p.has_method("get_stats"):
 			# Cryonics-iced characters are untargetable.
 			if p.get("untargetable") == true:

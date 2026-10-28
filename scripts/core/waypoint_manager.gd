@@ -103,6 +103,7 @@ func _open_waypoint_menu() -> void:
 	style.corner_radius_bottom_left = 8
 	style.corner_radius_bottom_right = 8
 	main._waypoint_menu_panel.add_theme_stylebox_override("panel", style)
+	EmeraldTheme.apply_in_game(main._waypoint_menu_panel)
 
 	var margin = MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 16)

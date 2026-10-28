@@ -92,3 +92,10 @@ func take_damage(amount: int) -> void:
 	_update_health_label()
 	if health <= 0:
 		die()
+
+
+func get_status_effects() -> Array:
+	if is_bud and attacks_left >= 0:
+		return [{"name": "Withering", "color": Color(0.6, 0.85, 0.5), "stacks": attacks_left,
+			"desc": "A budded bow: %d shot(s) left before it withers." % attacks_left}]
+	return []

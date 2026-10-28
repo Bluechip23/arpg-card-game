@@ -53,6 +53,7 @@ func _ready() -> void:
 	style.content_margin_top = 10.0
 	style.content_margin_bottom = 10.0
 	_window.add_theme_stylebox_override("panel", style)
+	EmeraldTheme.apply_in_game(_window)
 	center.add_child(_window)
 
 	var vbox := VBoxContainer.new()

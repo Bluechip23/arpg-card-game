@@ -27,6 +27,7 @@ var is_dead: bool = false
 var move_accum: int = 0    # tempo banked toward the next move (main drives it)
 var attack_accum: int = 0  # tempo banked toward the next attack
 var glide_speed: float = 4.0  # world units per second between cells
+var summoner: Node3D = null   # the player who called it up: summons walk their way
 
 var _target_position: Vector3 = Vector3.ZERO
 var _is_moving: bool = false
@@ -113,6 +114,12 @@ func get_cell() -> Vector2i:
 		return grid_manager.world_to_grid(position)
 	return Vector2i.ZERO
 
+## The cell it stands on or is gliding to (where it will be).
+func get_destination_cell() -> Vector2i:
+	if grid_manager:
+		return grid_manager.world_to_grid(_target_position if _is_moving else position)
+	return Vector2i.ZERO
+
 func move_to_cell(cell: Vector2i) -> void:
 	if not grid_manager or is_dead:
 		return
@@ -158,3 +165,24 @@ func die() -> void:
 	is_dead = true
 	died.emit(self)
 	queue_free()
+
+# ---- What the Allies & Summons tab shows (UnitTrackerUI) ----
+
+## Its own states, as badges under its health: [{name, color, stacks, desc}].
+## Summons don't carry the players' buff / debuff managers; each kind lists
+## what it does have (a specter's time left, Shepherd's Mark, a burrow...).
+func get_status_effects() -> Array:
+	return []
+
+## Its armor for the tab: [now, cap] (cap 0 when it has no cap).
+func get_armor_display() -> Array:
+	return [0, 0]
+
+## Its picture for the tab (the current pose of its sprite), or null.
+func get_portrait_texture() -> Texture2D:
+	if _figure and _figure.has_method("portrait_texture"):
+		return _figure.portrait_texture()
+	return null
+
+func is_portrait_flipped() -> bool:
+	return _figure != null and _figure.has_method("portrait_flipped") and _figure.portrait_flipped()

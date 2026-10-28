@@ -297,6 +297,7 @@ func window_layer() -> CanvasLayer:
 		_window_layer = CanvasLayer.new()
 		_window_layer.name = "Windows"
 		_window_layer.layer = WINDOW_LAYER
+		EmeraldTheme.dress_layer(_window_layer)  # its windows wear Emerald Sanctum
 		add_child(_window_layer)
 	return _window_layer
 var maintained_icon: MaintainedIconUI = null
@@ -2367,6 +2368,7 @@ func _setup_battle_log() -> void:
 	style.content_margin_top = 6.0
 	style.content_margin_bottom = 6.0
 	battle_log_panel.add_theme_stylebox_override("panel", style)
+	EmeraldTheme.apply_in_game(outer)  # the log and its toggle, in Emerald Sanctum
 
 	battle_log_label = RichTextLabel.new()
 	battle_log_label.name = "BattleLogLabel"
@@ -2880,6 +2882,7 @@ func _setup_hand_card_preview() -> void:
 	preview_style.content_margin_top = 10.0
 	preview_style.content_margin_bottom = 10.0
 	hand_card_preview.add_theme_stylebox_override("panel", preview_style)
+	EmeraldTheme.apply_in_game(hand_card_preview)
 	hand_card_preview.visible = false
 	hand_card_preview.z_index = 200
 	hand_card_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -3437,6 +3440,7 @@ func _setup_unit_tracker() -> void:
 	unit_tracker.name = "UnitTracker"
 	ui.add_child(unit_tracker)
 	unit_tracker.initialize(enemy_spawner)
+	unit_tracker.ally_source = _tracker_allies
 
 	# Anchor to left side, vertically centered
 	unit_tracker.set_anchors_preset(Control.PRESET_CENTER_LEFT)
@@ -3495,6 +3499,21 @@ func _set_enemy_highlight(enemy: Enemy, highlighted: bool) -> void:
 	enemy.set_hover_highlight(highlighted)
 	if highlighted:
 		_battlefield_hovered_enemy = enemy
+
+## Who the Allies & Summons tab lists: the other hero (co-op, or the one not
+## being steered), ally dummies, and every summon on the field.
+func _tracker_allies() -> Array:
+	var out: Array = []
+	for p in _all_players():
+		if is_instance_valid(p) and p != player:
+			out.append(p)
+	for a in _dojo_allies:
+		if is_instance_valid(a):
+			out.append(a)
+	for u in _all_summon_nodes():
+		if is_instance_valid(u) and not u.get("is_dead") == true and not (u in out):
+			out.append(u)
+	return out
 
 func _refresh_unit_tracker() -> void:
 	if unit_tracker:
@@ -4736,6 +4755,7 @@ func _show_shrine_choice() -> void:
 	style.set_corner_radius_all(6)
 	style.set_content_margin_all(18.0)
 	panel.add_theme_stylebox_override("panel", style)
+	EmeraldTheme.apply_in_game(panel)  # Emerald Sanctum, like the menus
 	overlay.add_child(panel)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 10)
@@ -4848,6 +4868,7 @@ func _show_fountain_menu(idx: int) -> void:
 	style.set_corner_radius_all(6)
 	style.set_content_margin_all(18.0)
 	panel.add_theme_stylebox_override("panel", style)
+	EmeraldTheme.apply_in_game(panel)  # Emerald Sanctum, like the menus
 	overlay.add_child(panel)
 
 	var box := VBoxContainer.new()
@@ -5036,6 +5057,7 @@ func _show_release_tension_picker(card: Card, enemy) -> void:
 	pstyle.set_corner_radius_all(8)
 	pstyle.set_content_margin_all(20)
 	panel.add_theme_stylebox_override("panel", pstyle)
+	EmeraldTheme.apply_in_game(panel)  # Emerald Sanctum, like the menus
 	overlay.add_child(panel)
 
 	var vbox := VBoxContainer.new()
@@ -5091,6 +5113,7 @@ func show_hand_multi_picker(prompt: String, on_done: Callable) -> void:
 	pstyle.set_corner_radius_all(8)
 	pstyle.set_content_margin_all(20)
 	panel.add_theme_stylebox_override("panel", pstyle)
+	EmeraldTheme.apply_in_game(panel)  # Emerald Sanctum, like the menus
 	overlay.add_child(panel)
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 8)
@@ -5177,6 +5200,7 @@ func show_card_list_picker(prompt: String, candidates: Array, on_pick: Callable,
 	pstyle.set_corner_radius_all(8)
 	pstyle.set_content_margin_all(20)
 	panel.add_theme_stylebox_override("panel", pstyle)
+	EmeraldTheme.apply_in_game(panel)  # Emerald Sanctum, like the menus
 	overlay.add_child(panel)
 
 	var vbox := VBoxContainer.new()
@@ -5238,6 +5262,7 @@ func show_full_card_picker(prompt: String, candidates: Array, pick_count: int, o
 	pstyle.set_corner_radius_all(8)
 	pstyle.set_content_margin_all(16)
 	panel.add_theme_stylebox_override("panel", pstyle)
+	EmeraldTheme.apply_in_game(panel)  # Emerald Sanctum, like the menus
 	overlay.add_child(panel)
 
 	var vbox := VBoxContainer.new()
@@ -5393,6 +5418,7 @@ func _show_defensive_sacrifice_prompt(dmg: int, on_yes: Callable, on_no: Callabl
 	pstyle.set_corner_radius_all(8)
 	pstyle.set_content_margin_all(20)
 	panel.add_theme_stylebox_override("panel", pstyle)
+	EmeraldTheme.apply_in_game(panel)  # Emerald Sanctum, like the menus
 	overlay.add_child(panel)
 
 	var vbox := VBoxContainer.new()
@@ -7697,6 +7723,7 @@ func _show_choice_picker(prompt: String, labels: Array, on_pick: Callable) -> vo
 	pstyle.set_corner_radius_all(8)
 	pstyle.set_content_margin_all(20)
 	panel.add_theme_stylebox_override("panel", pstyle)
+	EmeraldTheme.apply_in_game(panel)  # Emerald Sanctum, like the menus
 	overlay.add_child(panel)
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 10)
@@ -9482,7 +9509,7 @@ func _update_penguin(amount: int) -> void:
 	_penguin.attack_accum += amount
 	if _penguin.attack_accum >= _penguin.ATTACK_INTERVAL and enemy_spawner:
 		_penguin.attack_accum = 0
-		var prey := _nearest_enemy_to(_penguin.position, enemy_spawner.get_living_enemies())
+		var prey := _nearest_reachable_enemy_to(_penguin.position, enemy_spawner.get_living_enemies())
 		if prey and grid_manager.get_distance_in_cells(_penguin.position, prey.position) <= 1.5:
 			prey.take_damage(_penguin.BASE_ATTACK, false)
 			add_battle_log("Sanguine pecks %s for %d!" % [prey.enemy_name, _penguin.BASE_ATTACK], Color(0.9, 0.4, 0.4))
@@ -9762,7 +9789,7 @@ func _update_wolves(amount: int) -> void:
 	for w in _wolves.duplicate():
 		if not is_instance_valid(w) or w.is_dead:
 			continue
-		var target_enemy := _nearest_enemy_to(w.position, enemies)
+		var target_enemy := _nearest_reachable_enemy_to(w.position, enemies)
 		if target_enemy == null:
 			continue
 		var tcell := grid_manager.world_to_grid(target_enemy.position)
@@ -9828,10 +9855,17 @@ func _spawn_summon(hp: int, near_pos: Vector3, kind := "skeleton") -> void:
 	var skel := SkeletonScript.new()
 	add_child(skel)
 	skel.setup(grid_manager, grid_manager.grid_to_world(spawn_cell), hp, kind)
+	skel.summoner = player
 	skel.died.connect(func(s): _garmr_death_stack(s.position); _skeletons.erase(s))
 	_skeletons.append(skel)
 	add_battle_log("A %s answers the call! (%d/3, %d HP)" % [skel.display_name, _skeletons.size(), hp], Color(0.8, 0.85, 0.75))
 
+## The summons' brain (designer, 2026-10-28): a summon moves on its own, its
+## move rate each tempo (a skeleton 1 space every tempo, a hound 2), always
+## the way the player who summoned it is going — unless it is engaged: an
+## enemy beside it, which it fights instead (the Battle Turtle, which has no
+## attack, just holds there). A wall, an enemy or another unit in the way
+## stops the march until the way clears.
 func _update_skeletons(amount: int) -> void:
 	if _skeletons.is_empty():
 		return
@@ -9839,46 +9873,79 @@ func _update_skeletons(amount: int) -> void:
 	if not grid_manager or not enemy_spawner:
 		return
 	var enemies := enemy_spawner.get_living_enemies()
-	var blocked := player.blocked_tiles
-	var skel_cells: Array = []
-	for s in _skeletons:
-		skel_cells.append(s.get_cell())
 	for s in _skeletons.duplicate():
 		if not is_instance_valid(s) or s.is_dead:
 			continue
 		if s.kind == "battle_turtle":
 			_regain_turtle_armor(s, amount)
-		var target_enemy := _nearest_enemy_to(s.position, enemies)
-		if target_enemy == null:
-			continue
-		var tcell := grid_manager.world_to_grid(target_enemy.position)
-		s.attack_accum += amount
-		if _manhattan(s.get_cell(), tcell) <= 1:
+		var engaged: Enemy = _enemy_beside(s.get_destination_cell(), enemies)
+		if engaged != null:
+			s.move_accum = 0
 			if s.base_attack <= 0:
 				continue  # the Battle Turtle holds the line beside it, no bite
+			s.attack_accum += amount
 			if s.attack_accum >= s.attack_interval:
 				s.attack_accum -= s.attack_interval
-				target_enemy.take_damage(s.base_attack, true)
-				add_battle_log("%s rakes %s for %d!" % [s.display_name, target_enemy.enemy_name, s.base_attack], Color(0.8, 0.85, 0.75))
+				engaged.take_damage(s.base_attack, true)
+				add_battle_log("%s rakes %s for %d!" % [s.display_name, engaged.enemy_name, s.base_attack], Color(0.8, 0.85, 0.75))
 				_belthronding_share(s.position, s.base_attack)
 			continue
+		# Not engaged: the wind-up waits for the next fight (never banks hits).
+		s.attack_accum = mini(s.attack_accum + amount, s.attack_interval)
+		var lead = s.summoner if s.summoner != null and is_instance_valid(s.summoner) else player
+		var dir: Vector2i = lead.get_heading() if lead and lead.has_method("get_heading") else Vector2i.ZERO
+		if dir == Vector2i.ZERO:
+			continue
 		s.move_accum += amount
-		if s.move_accum >= s.move_interval:
+		var cur: Vector2i = s.get_destination_cell()
+		var start_cell := cur
+		while s.move_accum >= s.move_interval:
 			s.move_accum -= s.move_interval
-			var cur = s.get_cell()
-			skel_cells.erase(cur)
+			var stopped := false
 			for _step in range(s.move_steps):
-				var tc := grid_manager.world_to_grid(target_enemy.position)
-				if _manhattan(cur, tc) <= 1:
-					break
-				var nxt := _rat_step_toward(cur, tc, blocked, _living_enemy_cells(), skel_cells)
-				if nxt == cur:
+				var nxt: Vector2i = cur + dir
+				if not _summon_can_step(nxt, s):
+					stopped = true
 					break
 				cur = nxt
-			skel_cells.append(cur)
-			if cur != s.get_cell():
-				s.move_to_cell(cur)
+				if _enemy_beside(cur, enemies) != null:
+					stopped = true   # walked into a fight
+					break
+			if stopped:
+				s.move_accum = 0
+				break
+		if cur != start_cell:
+			s.move_to_cell(cur)
 	_skeletons = _skeletons.filter(func(s): return is_instance_valid(s) and not s.is_dead)
+
+## A living enemy on a tile beside `cell` (or on it), else null.
+func _enemy_beside(cell: Vector2i, enemies: Array) -> Enemy:
+	for e in enemies:
+		if is_instance_valid(e) and _manhattan(cell, grid_manager.world_to_grid(e.position)) <= 1:
+			return e
+	return null
+
+## Can summon `who` step onto `cell`: on the map, floor, no wall or obstacle,
+## no enemy, player or other summon there (or headed there).
+func _summon_can_step(cell: Vector2i, who) -> bool:
+	if cell.x < 0 or cell.y < 0 or cell.x >= grid_manager.grid_width or cell.y >= grid_manager.grid_height:
+		return false
+	if player and (cell in player.blocked_tiles):
+		return false
+	if dungeon_manager and not dungeon_manager.is_floor(cell):
+		return false
+	if cell in _living_enemy_cells():
+		return false
+	for p in _all_players() + _dojo_allies:
+		if is_instance_valid(p) and grid_manager.world_to_grid(p.position) == cell:
+			return false
+	for u in _all_summon_nodes():
+		if u == who or not is_instance_valid(u) or u.get("is_dead") == true:
+			continue
+		var uc: Vector2i = u.get_destination_cell() if u.has_method("get_destination_cell") else grid_manager.world_to_grid(u.position)
+		if uc == cell:
+			return false
+	return true
 
 ## The summon cards (designer, 2026-10-27): stats per card, `count` allies
 ## around the aimed point. HP is the card's; the rest is the kind's (see
@@ -9905,6 +9972,7 @@ func _summon_from_card(card_id: String, aim: Vector3) -> void:
 		var s := SkeletonScript.new()
 		add_child(s)
 		s.setup(grid_manager, grid_manager.grid_to_world(cell), int(spec["hp"]), str(spec["kind"]), summoner_int)
+		s.summoner = player
 		s.died.connect(func(dead): _garmr_death_stack(dead.position); _skeletons.erase(dead))
 		_skeletons.append(s)
 	add_battle_log("%d %s answer%s the call!" % [cells.size(), _summon_display_name(str(spec["kind"]), cells.size()), "" if cells.size() > 1 else "s"], Color(0.8, 0.85, 0.75))
@@ -9930,7 +9998,7 @@ func _free_cells_near(center: Vector2i, n: int) -> Array:
 	# Every summon, the Seance's specters and the worms included (not only
 	# the healable ones), so a new summon never lands on one already there.
 	for u in _all_summon_nodes():
-		if is_instance_valid(u) and not bool(u.get("is_dead")):
+		if is_instance_valid(u) and not u.get("is_dead") == true:
 			taken.append(grid_manager.world_to_grid(u.position))
 	var blocked: Array = player.blocked_tiles
 	var out: Array = []
@@ -10178,7 +10246,7 @@ func _update_spirit_bows(amount: int) -> void:
 	for b in _spirit_bows.duplicate():
 		if not is_instance_valid(b) or b.is_dead:
 			continue
-		var target_enemy := _nearest_enemy_to(b.position, enemies)
+		var target_enemy := _nearest_reachable_enemy_to(b.position, enemies)
 		if target_enemy == null:
 			continue
 		var tcell := grid_manager.world_to_grid(target_enemy.position)
@@ -10321,6 +10389,7 @@ func _offer_to_maintain(card: Card, cells: Array) -> void:
 	style.content_margin_top = 10
 	style.content_margin_bottom = 10
 	panel.add_theme_stylebox_override("panel", style)
+	EmeraldTheme.apply_in_game(panel)  # Emerald Sanctum, like the menus
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
@@ -10902,7 +10971,7 @@ func _update_clones(amount: int) -> void:
 	for c in _clones.duplicate():
 		if not is_instance_valid(c) or c.is_dead:
 			continue
-		var target_enemy := _nearest_enemy_to(c.position, enemies)
+		var target_enemy := _nearest_reachable_enemy_to(c.position, enemies)
 		if target_enemy == null:
 			continue
 		var tcell := grid_manager.world_to_grid(target_enemy.position)
@@ -14237,7 +14306,7 @@ func _update_summoned_worms() -> void:
 	for worm in _summoned_worms.duplicate():
 		if not is_instance_valid(worm) or worm.is_dead:
 			continue
-		var target_enemy := _nearest_enemy_to(worm.position, enemies)
+		var target_enemy := _nearest_reachable_enemy_to(worm.position, enemies)
 		if target_enemy == null:
 			continue
 		var wcell = worm.get_cell()
@@ -14376,7 +14445,7 @@ func _update_frankensteins(amount: int) -> void:
 	for m in _frankensteins.duplicate():
 		if not is_instance_valid(m) or m.is_dead:
 			continue
-		var target_enemy := _nearest_enemy_to(m.position, enemies)
+		var target_enemy := _nearest_reachable_enemy_to(m.position, enemies)
 		if target_enemy == null:
 			continue
 		var tcell := grid_manager.world_to_grid(target_enemy.position)
@@ -14411,6 +14480,50 @@ func _update_frankensteins(amount: int) -> void:
 				m.move_to_cell(cur)
 
 	_frankensteins = _frankensteins.filter(func(m): return is_instance_valid(m) and not m.is_dead)
+
+## For summons (designer, 2026-10-28): the enemy closest on foot from
+## `pos` — walking distance round the walls — skipping any it cannot reach
+## (behind a wall with no way round). Null when none is reachable.
+func _nearest_reachable_enemy_to(pos: Vector3, enemies: Array) -> Enemy:
+	var walk := _summon_walk_map(grid_manager.world_to_grid(pos))
+	var best: Enemy = null
+	var best_d := INF
+	for e in enemies:
+		if not is_instance_valid(e) or not e.is_alive() or e.is_hidden():
+			continue
+		var steps: int = Enemy.steps_to(walk, grid_manager.world_to_grid(e.position))
+		if steps < 0:
+			continue
+		var d: float = steps * 1000.0 + pos.distance_to(e.position)
+		if d < best_d:
+			best_d = d
+			best = e
+	return best
+
+## Walking distances from `from` over the squares a summon could walk on
+## (floor, no wall or obstacle; units ignored — they move). {cell: steps}
+func _summon_walk_map(from: Vector2i) -> Dictionary:
+	var dist := {from: 0}
+	var queue: Array = [from]
+	var head := 0
+	var blocked := {}
+	if player:
+		for c in player.blocked_tiles:
+			blocked[c] = true
+	while head < queue.size() and dist.size() < 4000:
+		var cur: Vector2i = queue[head]
+		head += 1
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var n: Vector2i = cur + d
+			if dist.has(n):
+				continue
+			if n.x < 0 or n.y < 0 or n.x >= grid_manager.grid_width or n.y >= grid_manager.grid_height:
+				continue
+			if blocked.has(n) or (dungeon_manager and not dungeon_manager.is_floor(n)):
+				continue
+			dist[n] = int(dist[cur]) + 1
+			queue.append(n)
+	return dist
 
 func _nearest_enemy_to(pos: Vector3, enemies: Array) -> Enemy:
 	var nearest: Enemy = null

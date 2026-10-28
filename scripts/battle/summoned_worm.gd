@@ -67,3 +67,10 @@ func _health_label_text() -> String:
 
 func _can_be_hit() -> bool:
 	return not burrowed  # Untargetable while burrowed
+
+
+func get_status_effects() -> Array:
+	if burrowed:
+		return [{"name": "Burrowed", "color": Color(0.7, 0.55, 0.35), "stacks": 0,
+			"desc": "Underground: it can't be hit until it surfaces to attack."}]
+	return []

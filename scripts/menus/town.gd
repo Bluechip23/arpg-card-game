@@ -380,14 +380,15 @@ func _apply_styles() -> void:
 	panel_style.corner_radius_bottom_left = 8
 	panel_style.corner_radius_bottom_right = 8
 	vendor_panel.add_theme_stylebox_override("panel", panel_style)
+	EmeraldTheme.apply_in_game(vendor_panel)
 
 	# Vendor name
 	vendor_name_label.add_theme_font_size_override("font_size", 20)
-	vendor_name_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	vendor_name_label.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 
 	# Inventory label
 	vendor_inventory_label.add_theme_font_size_override("font_size", 14)
-	vendor_inventory_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+	vendor_inventory_label.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 
 	# Close button
 	vendor_close_button.add_theme_font_size_override("font_size", 16)
@@ -1293,6 +1294,7 @@ func _open_stash_ui() -> void:
 	panel_style.corner_radius_bottom_left = 10
 	panel_style.corner_radius_bottom_right = 10
 	_stash_panel.add_theme_stylebox_override("panel", panel_style)
+	EmeraldTheme.apply_in_game(_stash_panel)
 
 	var margin = MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 16)
@@ -1581,6 +1583,7 @@ func _show_detail_modal(item: ItemData, is_sell: bool = false, slot_type: int = 
 	panel_style.corner_radius_bottom_left = 10
 	panel_style.corner_radius_bottom_right = 10
 	_detail_modal.add_theme_stylebox_override("panel", panel_style)
+	EmeraldTheme.apply_in_game(_detail_modal)
 
 	var margin = MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 20)
@@ -1840,6 +1843,7 @@ func _show_card_detail_modal(card: Card, is_sell: bool, sell_index: int = -1) ->
 	panel_style.corner_radius_bottom_left = 10
 	panel_style.corner_radius_bottom_right = 10
 	_detail_modal.add_theme_stylebox_override("panel", panel_style)
+	EmeraldTheme.apply_in_game(_detail_modal)
 
 	var margin = MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 20)
@@ -2165,6 +2169,7 @@ func _show_confirm_modal(title: String, message: String, accent_color: Color, on
 	panel_style.corner_radius_bottom_left = 10
 	panel_style.corner_radius_bottom_right = 10
 	_confirm_modal.add_theme_stylebox_override("panel", panel_style)
+	EmeraldTheme.apply_in_game(_confirm_modal)
 
 	var margin = MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 20)
@@ -3236,6 +3241,7 @@ func _setup_save_button() -> void:
 	btn.offset_bottom = 100.0
 	btn.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	btn.pressed.connect(_open_save_picker)
+	EmeraldTheme.apply_in_game(btn)
 	$UI.add_child(btn)
 
 func _build_save_data(slot: int) -> SaveData:
@@ -3585,18 +3591,19 @@ func _make_hud_side_panel(title_text: String) -> Dictionary:
 	style.content_margin_top = 10.0
 	style.content_margin_bottom = 10.0
 	p.add_theme_stylebox_override("panel", style)
+	EmeraldTheme.apply_in_game(p)
 	var vbox = VBoxContainer.new()
 	p.add_child(vbox)
 	var title = Label.new()
 	title.text = title_text
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 18)
-	title.add_theme_color_override("font_color", Color(1.0, 0.84, 0.0))
+	title.add_theme_color_override("font_color", EmeraldTheme.GOLD)
 	vbox.add_child(title)
 	var sub = Label.new()
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub.add_theme_font_size_override("font_size", 13)
-	sub.add_theme_color_override("font_color", Color(0.85, 0.85, 0.95))
+	sub.add_theme_color_override("font_color", EmeraldTheme.TEXT)
 	vbox.add_child(sub)
 	vbox.add_child(HSeparator.new())
 	var scroll = ScrollContainer.new()
@@ -3993,6 +4000,7 @@ func _show_town_notice(title_text: String, lines: Array[String]) -> void:
 	p_style.content_margin_top = 22
 	p_style.content_margin_bottom = 22
 	panel.add_theme_stylebox_override("panel", p_style)
+	EmeraldTheme.apply_in_game(panel)
 	overlay.add_child(panel)
 
 	var vbox := VBoxContainer.new()

@@ -183,7 +183,9 @@ Every card also carries its design **tags** from the card sheet's Type column (`
 
 ### Summons
 
-Some cards raise allies that fight beside you. A summon stands on a tile of the grid, has its own health, walks toward the nearest enemy on its own cadence and strikes when it gets there; enemies can attack it in turn. Summons last until they die or the battle ends.
+Some cards raise allies that fight beside you. A summon stands on a tile of the grid and has its own health. It moves on its own, its move rate every tempo, always **the way the hero who summoned it is going** (their last step); when an enemy is beside it, it is **engaged** — it stops and fights (the Battle Turtle, which has no attack, holds its ground). Walls, enemies and other units stop its march until the way clears. Enemies can attack it in turn: an enemy goes for whichever hero or summon is **closest on foot** — walking distance round the walls — and never for one behind a wall it has no way round; summons likewise only go for enemies they can reach. Summons last until they die or the battle ends.
+
+The **Allies & Summons** tab, beside the Enemies tab on the left, lists every ally on the field — the other hero and every summon — with its picture, health, armor (a Battle Turtle's out of its unerring cap) and its badges (a co-op hero's buffs and debuffs; a summon's own states such as the Seance Specter's fade timer, Shepherd's Mark or a burrowed worm). Opening one tab closes the other.
 
 | Card | Rarity | Summons |
 |---|---|---|

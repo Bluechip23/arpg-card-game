@@ -148,6 +148,164 @@ static func style_heading(label: Label, font_size: int = 22) -> void:
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", GOLD)
 
+# ---- In game: windows over the battlefield and the town ------------------------------
+
+## Marks a window dressed by apply_in_game(); content added under it later
+## is dressed as it arrives.
+const IN_GAME_META := &"emerald_in_game"
+
+static var _watched_tree: SceneTree = null
+
+## Dress an in-game window (character sheet, a picker, a vendor, the quest
+## log...) in the menus' look without touching its layout: the window gets
+## the Theme, so its plain Buttons, Labels, tabs and scrollbars turn emerald
+## and gold in Courgette, and every old slate/navy stylebox it was built with
+## (on the window and on everything inside it, now and later) is re-dressed
+## by restyle_legacy() — keeping any meaningful accent: a rarity or item-type
+## frame, a card-type colour, a red Close, a hero's tint.
+## Card faces (CardUI) shown inside keep their own look.
+static func apply_in_game(root: Control) -> void:
+	if root == null:
+		return
+	root.theme = get_theme()
+	root.set_meta(IN_GAME_META, true)
+	restyle_legacy(root)
+	# Builders usually add a window's contents (and the window itself to the
+	# tree) right after dressing it.
+	(func():
+		if is_instance_valid(root):
+			restyle_legacy(root)
+			if root.is_inside_tree():
+				_watch(root.get_tree())).call_deferred()
+
+## Dress every window on a CanvasLayer that holds only windows (the
+## character sheet's layer, the battle's window layer): the ones on it now
+## and any added later get apply_in_game().
+static func dress_layer(layer: CanvasLayer) -> void:
+	if layer == null:
+		return
+	layer.set_meta(IN_GAME_META, true)
+	for child in layer.get_children():
+		if child is Control:
+			apply_in_game(child)
+	if layer.is_inside_tree():
+		_watch(layer.get_tree())
+	else:
+		layer.tree_entered.connect(func(): _watch(layer.get_tree()), CONNECT_ONE_SHOT)
+
+static func _watch(tree: SceneTree) -> void:
+	if tree == null or _watched_tree == tree:
+		return
+	_watched_tree = tree
+	tree.node_added.connect(_on_node_added)
+
+## Content added under a dressed window (a refreshed list, a hover preview)
+## is dressed too. Deferred: builders set their overrides after add_child.
+static func _on_node_added(node: Node) -> void:
+	if not node is Control:
+		return
+	var p := node.get_parent()
+	if p is CanvasLayer:
+		if p.has_meta(IN_GAME_META):
+			_dress_window.call_deferred(node)
+		return
+	while p is Control:
+		if p is CardUI:
+			return
+		if p.has_meta(IN_GAME_META):
+			_restyle_one.call_deferred(node)
+			return
+		p = p.get_parent()
+
+static func _dress_window(node: Node) -> void:
+	if is_instance_valid(node) and node is Control and not node.has_meta(IN_GAME_META):
+		apply_in_game(node)
+
+static func _restyle_one(node: Node) -> void:
+	if is_instance_valid(node) and node is Control:
+		_restyle_control(node)
+
+## Re-dress the old in-game look under `root`: a dark slate/navy/walnut
+## panel or button face becomes emerald glass (lighter faces stay a little
+## lighter, so nested rows still read), a grey or blue-grey frame turns gold.
+## Saturated frames — rarity, type, danger, a hero's colour — are kept.
+static func restyle_legacy(root: Node) -> void:
+	if root is CardUI:
+		_shield_card(root)
+		return
+	if root is Control:
+		_restyle_control(root)
+	for child in root.get_children():
+		restyle_legacy(child)
+
+const _STYLE_SLOTS := ["panel", "normal", "hover", "pressed", "disabled", "hover_pressed",
+	"tab_selected", "tab_unselected", "tab_hovered"]
+
+static func _restyle_control(c: Control) -> void:
+	if c is CardUI:
+		_shield_card(c)
+		return
+	for slot in _STYLE_SLOTS:
+		if not c.has_theme_stylebox_override(slot):
+			continue
+		var sb := c.get_theme_stylebox(slot)
+		var lit: bool = slot in ["hover", "pressed", "hover_pressed", "tab_selected", "tab_hovered"]
+		if sb is StyleBoxFlat:
+			var re := _restyled_flat(sb, lit)
+			if re != sb:
+				c.add_theme_stylebox_override(slot, re)
+		elif sb is SplitBorderStyleBox:
+			sb.set_background(_emerald_bg(sb.get_background()))
+
+## A card face keeps the engine's default look (and the card's own colours)
+## even inside a themed window.
+static func _shield_card(card: Control) -> void:
+	if card.theme == null:
+		card.theme = ThemeDB.get_default_theme()
+
+## The StyleBoxFlat re-dressed, or `sb` itself when nothing in it is legacy.
+static func _restyled_flat(sb: StyleBoxFlat, lit: bool) -> StyleBoxFlat:
+	var bg_old := is_legacy_bg(sb.bg_color) and sb.draw_center
+	var has_border := sb.border_width_left + sb.border_width_top + sb.border_width_right + sb.border_width_bottom > 0
+	var border_old := has_border and is_legacy_border(sb.border_color)
+	if not bg_old and not border_old:
+		return sb
+	var re := sb.duplicate() as StyleBoxFlat
+	if bg_old:
+		re.bg_color = _emerald_bg(sb.bg_color)
+	if border_old:
+		var gold: Color = PALETTE["btn_hover_border"] if lit else GOLD_DIM
+		re.border_color = Color(gold, sb.border_color.a)
+	return re
+
+## The old in-game face colours: dark and not already green — slate, navy,
+## charcoal, walnut. Strong tints (a dark red danger button) are left alone.
+static func is_legacy_bg(col: Color) -> bool:
+	if col.a <= 0.0 or col.v > 0.3 or col.s >= 0.62:
+		return false
+	return not (col.g > col.b + 0.005 and col.g > col.r)
+
+## The old frame colours: greys and blue-greys (gold, rarity and type frames
+## are saturated warm or bright colours and stay).
+static func is_legacy_border(col: Color) -> bool:
+	if col.a <= 0.0:
+		return false
+	# Common rarity is a grey frame too, and it means something.
+	if Color(col, 1.0).is_equal_approx(ItemData.rarity_color_of(ItemData.Rarity.COMMON)):
+		return false
+	if col.s < 0.36:
+		return true
+	return col.h >= 0.5 and col.h <= 0.72 and col.s < 0.6
+
+## Emerald glass at the same depth: the darkest faces map to the panel glass,
+## lighter ones (rows, buttons, hover states) to lighter emerald.
+static func _emerald_bg(col: Color) -> Color:
+	if not is_legacy_bg(col):
+		return col
+	var t := clampf((col.v - 0.05) / 0.25, 0.0, 1.0)
+	var c := Color(PANEL_BG.r, PANEL_BG.g, PANEL_BG.b).lerp(Color(0.07, 0.27, 0.21), t)
+	return Color(c, col.a)
+
 ## Draupnir, the mythic ring, beside a button while the mouse is over it —
 ## the title menu's hover marker, for a screen's main choices.
 static func add_ring_markers(btn: Button, ring_size: float = 34.0) -> void:
