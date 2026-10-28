@@ -980,6 +980,23 @@ BOARDS = {
             "left": (735, 615, 1232, 1188),  # labelled RIGHT, faces left
         },
     },
+    "hell_door": {
+        # 2026-10-28: Hell's Door — a horned skull of cracked stone over a
+        # doorway of molten light, rubble piled round it — one view on black;
+        # the designer's redraw of the cave pack's skull gate (gates1.png,
+        # which it replaces). A door looks the same from every side, so all
+        # four directions are the one view. ~3 tiles to the horns, as before.
+        "src": "hell_door_board.webp", "bg": "grabcut", "tiles": 3.0,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model may trim the doorway's glow: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
+        "Idle": {
+            "front": (30, 25, 1222, 1200),
+            "back": (30, 25, 1222, 1200),
+            "left": (30, 25, 1222, 1200),
+            "right": (30, 25, 1222, 1200),
+        },
+    },
     "rat_nest": {
         # 2026-10-28: the Rat King's nest — a ring of straw round a dark
         # hollow, gnawed bones and a skull in its weave — one view on black.
