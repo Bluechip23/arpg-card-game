@@ -2533,12 +2533,7 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 		"Blacksmith":
 			# The designer's Blacksmith stands behind his counter (his NPC
 			# sheet's four standing poses), turning to face a nearby player.
-			var smith := SpriteEnemyFigure.new()
-			smith.name = "Smith"
-			stall.add_child(smith)
-			smith.setup("npc_blacksmith")
-			smith.position.z = -0.35
-			_townsfolk.append(smith)
+			_add_stall_keeper(stall, "npc_blacksmith", "Smith")
 			var barrel := CraftpixProps.make_sprite("goods_barrel", 1.0, 0)
 			if barrel:
 				barrel.position += Vector3(-1.1, 0, 0.5)
@@ -2548,6 +2543,7 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 				pile.position += Vector3(1.1, 0, 0.6)
 				stall.add_child(pile)
 		"Armory":
+			_add_stall_keeper(stall, "npc_armory", "Keeper")
 			# The pack's shelves are a tile and a half wide: they stand clear of the counter.
 			var rack := CraftpixProps.make_sprite("goods_rack", 1.0, 0)
 			if rack:
@@ -2558,6 +2554,7 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 				rack2.position += Vector3(1.7, 0, 0.1)
 				stall.add_child(rack2)
 		"CardDealer":
+			_add_stall_keeper(stall, "npc_card_dealer", "Dealer")
 			var crate := CraftpixProps.make_sprite("goods_crate", 1.0, 1)
 			if crate:
 				crate.position += Vector3(1.1, 0, 0.5)
@@ -2568,6 +2565,17 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 				sack.position += Vector3(-1.1, 0, 0.5)
 				stall.add_child(sack)
 	return
+
+## A shopkeeper behind the counter (the designer's NPC sheets, 2026-10-27/28):
+## the Blacksmith, the Armory keeper, the Card Dealer. They turn to look at a
+## nearby player (_face_townsfolk).
+func _add_stall_keeper(stall: Node3D, kind: String, node_name: String) -> void:
+	var k := SpriteEnemyFigure.new()
+	k.name = node_name
+	stall.add_child(k)
+	k.setup(kind)
+	k.position.z = -0.35
+	_townsfolk.append(k)
 
 func _build_stash_chest(stash: Node3D) -> void:
 	# Same 16-bit chest billboard the dungeons use, scaled up for the stash.

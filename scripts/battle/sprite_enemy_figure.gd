@@ -175,6 +175,8 @@ const KINDS := {
 	"battle_turtle": {"sheets": SHEETS + "/battle_turtle", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28)
 	# --- townsfolk (town.gd): the designer's NPC sheets, four standing poses ---
 	"olorin": {"sheets": SHEETS + "/olorin", "scale": BOARD_SCALE},  # the designer's board, with his bear (tools/cut_pose_boards.py, 2026-10-28)
+	"npc_armory": {"sheets": SHEETS + "/npc_armory", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-28
+	"npc_card_dealer": {"sheets": SHEETS + "/npc_card_dealer", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-28
 	"npc_sellsword": {"sheets": SHEETS + "/npc_sellsword", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-27
 	"npc_blacksmith": {"sheets": SHEETS + "/npc_blacksmith", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-27
 	"grave_digger": {"npc": "res://assets/sprites/NPCpackage2/npc man B v01.png", "tint": Color(0.82, 0.88, 0.82)},

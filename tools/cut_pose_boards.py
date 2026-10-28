@@ -865,6 +865,38 @@ BOARDS = {
             "left": ("mirror", "right"),
         },
     },
+    "npc_armory": {
+        # 2026-10-28: the town's Armory keeper — a woman in a grimy dress,
+        # leather apron and tool belt, long black gloves — from her NPC
+        # sheet's top row ("FACING UP" the face, "FACING DOWN" the back).
+        # Both side poses face right: "FACING RIGHT" is the right, mirrored
+        # for the left. The boxes stop at her soles.
+        "src": "armory_npc_board.webp", "bg": "grabcut", "tiles": 1.65,
+        "sharpen": 140,
+        "matte": ("front", "back", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (60, 32, 249, 534),
+            "back": (420, 32, 605, 534),
+            "right": (1189, 33, 1341, 538),
+            "left": ("mirror", "right"),
+        },
+    },
+    "npc_card_dealer": {
+        # 2026-10-28: the town's Card Dealer — a dandy in a feathered tricorn
+        # and a gold-trimmed black frock coat, cards fanned in one hand —
+        # from his NPC sheet's top row (front, back, then two poses that both
+        # face right: the first is the right, mirrored for the left), on a
+        # painted checkerboard.
+        "src": "card_dealer_npc_board.webp", "bg": "grabcut", "tiles": 1.75,
+        "sharpen": 140,
+        "matte": ("front", "back", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (124, 12, 345, 616),
+            "back": (477, 12, 712, 614),
+            "right": (870, 11, 1080, 614),
+            "left": ("mirror", "right"),
+        },
+    },
     "spirit_collector": {
         # 2026-10-25: the Spirit Collector — a grizzled grave-robber in a
         # ragged coat and hat, a shovel on his back, a lantern of trapped
