@@ -18,6 +18,9 @@ var owner_node: Node3D
 
 # For Burn - damage doubles each cycle
 var burn_damage_next: int = 1
+## Debuff types that never land on this carrier (a summon has no hand, mana
+## or spells: Hexed, Locked, Drain... mean nothing to it). See Summon.
+var ignored_types: Array = []
 
 func initialize(stats = null, owner: Node3D = null) -> void:
 	owner_stats = stats
@@ -25,6 +28,8 @@ func initialize(stats = null, owner: Node3D = null) -> void:
 	debuffs.clear()
 
 func apply_debuff(debuff: Debuff) -> void:
+	if debuff.debuff_type in ignored_types:
+		return
 	# Elixir: poison from a card played under Elixir heals instead.
 	if debuff.debuff_type == Debuff.DebuffType.POISON and Card.elixir_poison_heals and owner_stats:
 		var ex_heal: int = maxi(1, debuff.value)

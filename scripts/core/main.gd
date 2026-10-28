@@ -5552,6 +5552,10 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 		var tick_stats = tick_p.get_stats()
 		if tick_stats:
 			tick_stats.advance_status_tempo(amount)
+	# Summons' debuff timers (stun, root, the stack clocks) run on raw tempo too.
+	for tick_s in _all_summon_nodes():
+		if is_instance_valid(tick_s) and tick_s.get("debuff_manager") != null:
+			tick_s.debuff_manager.advance_time(amount)
 	# Gauntlet skill circles and passive boxes show tempo-granular recharge
 	# progress, so they refresh on every tempo step, not just at cycle
 	# boundaries. The auto attack's damage readout rides along so stat
@@ -7107,6 +7111,8 @@ func _on_tempo_threshold_reached(times: int) -> void:
 		# SHOCKED).
 		for cp in cycle_players:
 			_cycle_status_start(cp)
+		# Summons carry enemy debuffs too: their Burn, Poison and Shocked tick here.
+		_cycle_summon_debuffs()
 
 		deck_manager.process_turn()
 
@@ -7182,6 +7188,37 @@ func _cycle_status_players(include_downed: bool = false) -> Array:
 
 ## One character's cycle-start status step, against their own stats, buff
 ## and debuff managers — Blessed's extra draws land in their own deck.
+## The cycle's debuff ticks on every summon carrying debuffs (Burn, Poison,
+## Shocked arcing to the allies beside it) — what _cycle_status_start does
+## for the heroes. The ticks come back from the manager and land here (a
+## summon has no stats behind its manager).
+func _cycle_summon_debuffs() -> void:
+	for s in _all_summon_nodes().duplicate():
+		if not is_instance_valid(s) or s.get("is_dead") == true or s.get("debuff_manager") == null:
+			continue
+		if s.debuff_manager.debuffs.is_empty():
+			continue
+		var res: Dictionary = s.debuff_manager.process_turn_start()
+		var dot: int = int(res.get("damage_taken", 0))
+		if dot > 0:
+			s.take_damage(dot, true)
+			add_battle_log("%s suffers %d from its afflictions." % [s.display_name, dot], Color(0.85, 0.55, 0.45))
+		var arc: int = int(res.get("ally_damage", 0))
+		if arc > 0 and is_instance_valid(s):
+			LightningFX.crackle(self, s.position)
+			for ally in _all_allies() + _all_summon_nodes():
+				if ally == s or not is_instance_valid(ally) or ally.get("is_dead") == true:
+					continue
+				var dd: Vector3 = s.position - ally.position
+				if Vector3(dd.x, 0, dd.z).length() > grid_manager.grid_size * 2.5:
+					continue
+				LightningFX.arc(self, s.position, ally.position)
+				if ally.has_method("get_stats") and ally.get_stats():
+					ally.get_stats().take_damage(arc, ally.get_debuff_manager(), ally.get_buff_manager())
+				elif ally.has_method("take_damage"):
+					ally.take_damage(arc, true)
+				add_battle_log("Shocked arcs %d damage to an ally!" % arc, Color(1.0, 0.9, 0.3))
+
 func _cycle_status_start(cp) -> void:
 	var debuff_mgr = cp.get_debuff_manager()
 	var buff_mgr = cp.get_buff_manager()
@@ -9497,7 +9534,7 @@ func _update_penguin(amount: int) -> void:
 		return
 	var pcell: Vector2i = grid_manager.world_to_grid(player.position)
 	var mycell: Vector2i = _penguin.get_cell()
-	if absi(pcell.x - mycell.x) > 1 or absi(pcell.y - mycell.y) > 1:
+	if (absi(pcell.x - mycell.x) > 1 or absi(pcell.y - mycell.y) > 1) and _penguin.can_move_now():
 		var dest := pcell + Vector2i(1, 0)
 		for off in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
 				Vector2i(1, 1), Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1)]:
@@ -9510,10 +9547,14 @@ func _update_penguin(amount: int) -> void:
 	if _penguin.attack_accum >= _penguin.ATTACK_INTERVAL and enemy_spawner:
 		_penguin.attack_accum = 0
 		var prey := _nearest_reachable_enemy_to(_penguin.position, enemy_spawner.get_living_enemies())
-		if prey and grid_manager.get_distance_in_cells(_penguin.position, prey.position) <= 1.5:
-			prey.take_damage(_penguin.BASE_ATTACK, false)
-			add_battle_log("Sanguine pecks %s for %d!" % [prey.enemy_name, _penguin.BASE_ATTACK], Color(0.9, 0.4, 0.4))
-			_belthronding_share(_penguin.position, _penguin.BASE_ATTACK)
+		if prey and grid_manager.get_distance_in_cells(_penguin.position, prey.position) <= 1.5 and _penguin.can_attack_now():
+			var peck: int = _penguin.outgoing_damage(_penguin.BASE_ATTACK)
+			if peck <= 0:
+				add_battle_log("Sanguine pecks blindly and misses.", Color(0.7, 0.7, 0.7))
+			else:
+				prey.take_damage(peck, false)
+				add_battle_log("Sanguine pecks %s for %d!" % [prey.enemy_name, peck], Color(0.9, 0.4, 0.4))
+				_belthronding_share(_penguin.position, peck)
 
 func _clear_penguin() -> void:
 	if _penguin and is_instance_valid(_penguin):
@@ -9795,18 +9836,24 @@ func _update_wolves(amount: int) -> void:
 		var tcell := grid_manager.world_to_grid(target_enemy.position)
 		w.attack_accum += amount
 		if _manhattan(w.get_cell(), tcell) <= 1:
-			if w.attack_accum >= w.ATTACK_INTERVAL:
+			if w.attack_accum >= w.ATTACK_INTERVAL and w.can_attack_now():
 				w.attack_accum -= w.ATTACK_INTERVAL
-				var dmg: int = floori(w.BASE_ATTACK * (1.0 + 0.2 * pack_others))
+				var dmg: int = w.outgoing_damage(floori(w.BASE_ATTACK * (1.0 + 0.2 * pack_others)))
+				if dmg <= 0:
+					add_battle_log("A wolf snaps blindly and misses.", Color(0.7, 0.7, 0.7))
+					continue
 				target_enemy.take_damage(dmg, true)
 				if target_enemy.has_method("apply_debuff"):
 					target_enemy.apply_debuff("bleed", 1 + pack_others)
 				add_battle_log("Wolf bites %s for %d (+%d bleed)!" % [target_enemy.enemy_name, dmg, 1 + pack_others], Color(0.7, 0.7, 0.8))
 				_belthronding_share(w.position, dmg)
 			continue
+		if not w.can_move_now():
+			w.move_accum = 0
+			continue
 		w.move_accum += amount
-		if w.move_accum >= w.MOVE_INTERVAL:
-			w.move_accum -= w.MOVE_INTERVAL
+		if w.move_accum >= w.MOVE_INTERVAL * w.move_cost_mult():
+			w.move_accum -= w.MOVE_INTERVAL * w.move_cost_mult()
 			var cur = w.get_cell()
 			wolf_cells.erase(cur)
 			for _step in range(w.MOVE_STEPS):
@@ -9884,11 +9931,15 @@ func _update_skeletons(amount: int) -> void:
 			if s.base_attack <= 0:
 				continue  # the Battle Turtle holds the line beside it, no bite
 			s.attack_accum += amount
-			if s.attack_accum >= s.attack_interval:
+			if s.attack_accum >= s.attack_interval and s.can_attack_now():
 				s.attack_accum -= s.attack_interval
-				engaged.take_damage(s.base_attack, true)
-				add_battle_log("%s rakes %s for %d!" % [s.display_name, engaged.enemy_name, s.base_attack], Color(0.8, 0.85, 0.75))
-				_belthronding_share(s.position, s.base_attack)
+				var hit: int = s.outgoing_damage(s.base_attack)
+				if hit <= 0:
+					add_battle_log("%s swings blindly and misses." % s.display_name, Color(0.7, 0.7, 0.7))
+					continue
+				engaged.take_damage(hit, true)
+				add_battle_log("%s rakes %s for %d!" % [s.display_name, engaged.enemy_name, hit], Color(0.8, 0.85, 0.75))
+				_belthronding_share(s.position, hit)
 			continue
 		# Not engaged: the wind-up waits for the next fight (never banks hits).
 		s.attack_accum = mini(s.attack_accum + amount, s.attack_interval)
@@ -9896,11 +9947,15 @@ func _update_skeletons(amount: int) -> void:
 		var dir: Vector2i = lead.get_heading() if lead and lead.has_method("get_heading") else Vector2i.ZERO
 		if dir == Vector2i.ZERO:
 			continue
+		if not s.can_move_now():
+			s.move_accum = 0   # stunned, rooted or frozen: it stays put
+			continue
 		s.move_accum += amount
 		var cur: Vector2i = s.get_destination_cell()
 		var start_cell := cur
-		while s.move_accum >= s.move_interval:
-			s.move_accum -= s.move_interval
+		var cost: int = s.move_interval * s.move_cost_mult()   # Slowed: each move costs more
+		while s.move_accum >= cost:
+			s.move_accum -= cost
 			var stopped := false
 			for _step in range(s.move_steps):
 				var nxt: Vector2i = cur + dir
@@ -10252,12 +10307,17 @@ func _update_spirit_bows(amount: int) -> void:
 		var tcell := grid_manager.world_to_grid(target_enemy.position)
 		b.attack_accum += amount
 		if _manhattan(b.get_cell(), tcell) <= b.ATTACK_RANGE:
-			if b.attack_accum >= b.attack_interval():
+			if b.attack_accum >= b.attack_interval() and b.can_attack_now():
 				b.attack_accum -= b.attack_interval()
 				var dmg: int = b.base_attack() + 2 * (instance_count - 1)  # +2 per OTHER bow
 				if randf() * 100.0 < 5.0 * instance_count:
 					dmg = floori(dmg * 1.5)
 					add_battle_log("The bow's shot crits!", Color(0.5, 0.85, 0.8))
+				dmg = b.outgoing_damage(dmg)
+				if dmg <= 0:
+					add_battle_log("The bow's shot goes wide.", Color(0.7, 0.7, 0.7))
+					b.spend_attack()
+					continue
 				target_enemy.take_damage(dmg, true)
 				add_battle_log("%s pierces %s for %d!" % ["A budded bow" if b.is_bud else "The spirit bow", target_enemy.enemy_name, dmg], Color(0.5, 0.85, 0.8))
 				_belthronding_share(b.position, dmg)
@@ -10265,9 +10325,12 @@ func _update_spirit_bows(amount: int) -> void:
 			continue
 		if b.is_bud:
 			continue  # rooted where it sprouted
+		if not b.can_move_now():
+			b.move_accum = 0
+			continue
 		b.move_accum += amount
-		if b.move_accum >= b.SPIRIT_MOVE_INTERVAL:
-			b.move_accum -= b.SPIRIT_MOVE_INTERVAL
+		if b.move_accum >= b.SPIRIT_MOVE_INTERVAL * b.move_cost_mult():
+			b.move_accum -= b.SPIRIT_MOVE_INTERVAL * b.move_cost_mult()
 			var cur = b.get_cell()
 			bow_cells.erase(cur)
 			var nxt := _rat_step_toward(cur, tcell, blocked, _living_enemy_cells(), bow_cells)
@@ -10977,17 +11040,23 @@ func _update_clones(amount: int) -> void:
 		var tcell := grid_manager.world_to_grid(target_enemy.position)
 		c.attack_accum += amount
 		if _manhattan(c.get_cell(), tcell) <= 1:
-			if c.attack_accum >= c.ATTACK_INTERVAL:
+			if c.attack_accum >= c.ATTACK_INTERVAL and c.can_attack_now():
 				c.attack_accum -= c.ATTACK_INTERVAL
-				var dmg: int = maxi(1, floori(stats.get_basic_attack_damage() * dmg_frac))
+				var dmg: int = c.outgoing_damage(maxi(1, floori(stats.get_basic_attack_damage() * dmg_frac)))
+				if dmg <= 0:
+					add_battle_log("Your duplicate swings blindly and misses.", Color(0.7, 0.7, 0.7))
+					continue
 				target_enemy.take_damage(dmg, true)
 				stats.register_attack(false)  # the echo advances the DEX counter, nothing else
 				add_battle_log("Your duplicate strikes %s for %d!" % [target_enemy.enemy_name, dmg], Color(0.9, 0.8, 0.4))
 				_belthronding_share(c.position, dmg)
 			continue
+		if not c.can_move_now():
+			c.move_accum = 0
+			continue
 		c.move_accum += amount
-		if c.move_accum >= c.MOVE_INTERVAL:
-			c.move_accum -= c.MOVE_INTERVAL
+		if c.move_accum >= c.MOVE_INTERVAL * c.move_cost_mult():
+			c.move_accum -= c.MOVE_INTERVAL * c.move_cost_mult()
 			var cur = c.get_cell()
 			clone_cells.erase(cur)
 			for _step in range(c.MOVE_STEPS):
@@ -14312,14 +14381,27 @@ func _update_summoned_worms() -> void:
 		var wcell = worm.get_cell()
 		var tcell := grid_manager.world_to_grid(target_enemy.position)
 		if _manhattan(wcell, tcell) <= 1:
+			if not worm.can_attack_now():
+				continue
 			# Bite! Surfacing ends the burrow (worm becomes targetable).
 			if worm.burrowed:
 				worm.surface()
 				add_battle_log("A Bull Worm erupts from the ground!", Color(0.85, 0.75, 0.9))
-			target_enemy.take_damage(worm.CONTACT_DAMAGE, true)
-			add_battle_log("Bull Worm bites %s for %d!" % [target_enemy.enemy_name, worm.CONTACT_DAMAGE], Color(0.85, 0.75, 0.9))
-			_belthronding_share(worm.position, worm.CONTACT_DAMAGE)
+			var bite: int = worm.outgoing_damage(worm.CONTACT_DAMAGE)
+			if bite <= 0:
+				add_battle_log("A Bull Worm bites blindly and misses.", Color(0.7, 0.7, 0.7))
+				continue
+			target_enemy.take_damage(bite, true)
+			add_battle_log("Bull Worm bites %s for %d!" % [target_enemy.enemy_name, bite], Color(0.85, 0.75, 0.9))
+			_belthronding_share(worm.position, bite)
 			continue
+		if not worm.can_move_now():
+			continue
+		# Slowed: a step every few tempo instead of every one.
+		worm.move_accum += 1
+		if worm.move_accum < worm.move_cost_mult():
+			continue
+		worm.move_accum = 0
 		# 1 movement per tempo while hunting.
 		var next_cell := _rat_step_toward(wcell, tcell, blocked, _living_enemy_cells(), worm_cells)
 		if next_cell != wcell:
@@ -14452,19 +14534,26 @@ func _update_frankensteins(amount: int) -> void:
 		# Attack on cadence when adjacent.
 		m.attack_accum += amount
 		if _manhattan(m.get_cell(), tcell) <= 1:
-			if m.attack_accum >= m.ATTACK_INTERVAL:
+			if m.attack_accum >= m.ATTACK_INTERVAL and m.can_attack_now():
 				m.attack_accum -= m.ATTACK_INTERVAL
-				target_enemy.take_damage(m.attack_damage, true)
-				add_battle_log("Frankensteins Monster smashes %s for %d!" % [target_enemy.enemy_name, m.attack_damage], Color(0.6, 0.9, 0.6))
-				_belthronding_share(m.position, m.attack_damage)
+				var smash: int = m.outgoing_damage(m.attack_damage)
+				if smash <= 0:
+					add_battle_log("Frankensteins Monster flails blindly and misses.", Color(0.7, 0.7, 0.7))
+					continue
+				target_enemy.take_damage(smash, true)
+				add_battle_log("Frankensteins Monster smashes %s for %d!" % [target_enemy.enemy_name, smash], Color(0.6, 0.9, 0.6))
+				_belthronding_share(m.position, smash)
 			continue
 		# Move on cadence: MOVE_STEPS tiles per MOVE_INTERVAL tempo. get_cell()
 		# only updates once _process lerps the body, so walk the path locally and
 		# issue a single move to the end tile. One move action per tick (overflow
 		# stays banked in move_accum) keeps cadence stable if amount is large.
+		if not m.can_move_now():
+			m.move_accum = 0
+			continue
 		m.move_accum += amount
-		if m.move_accum >= m.MOVE_INTERVAL:
-			m.move_accum -= m.MOVE_INTERVAL
+		if m.move_accum >= m.MOVE_INTERVAL * m.move_cost_mult():
+			m.move_accum -= m.MOVE_INTERVAL * m.move_cost_mult()
 			var cur = m.get_cell()
 			mon_cells.erase(cur)
 			for _step in range(m.MOVE_STEPS):

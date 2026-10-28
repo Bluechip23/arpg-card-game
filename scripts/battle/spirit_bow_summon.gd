@@ -78,9 +78,11 @@ func move_to_cell(cell: Vector2i) -> void:
 		return  # buds are rooted where they sprouted
 	super(cell)
 
-func take_damage(amount: int) -> void:
+func take_damage(amount: int, from_status := false) -> void:
 	if is_dead:
 		return
+	if not from_status and debuff_manager != null:
+		amount = debuff_manager.modify_incoming_damage(amount)
 	# Cover: a defender within 2 squares soaks the hit by their hand size.
 	# (A hit Cover fully soaks never lands — not even on a bud.)
 	var incoming := amount
@@ -95,7 +97,8 @@ func take_damage(amount: int) -> void:
 
 
 func get_status_effects() -> Array:
+	var out: Array = super.get_status_effects()
 	if is_bud and attacks_left >= 0:
-		return [{"name": "Withering", "color": Color(0.6, 0.85, 0.5), "stacks": attacks_left,
-			"desc": "A budded bow: %d shot(s) left before it withers." % attacks_left}]
-	return []
+		out.push_front({"name": "Withering", "color": Color(0.6, 0.85, 0.5), "stacks": attacks_left,
+			"desc": "A budded bow: %d shot(s) left before it withers." % attacks_left})
+	return out
