@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://couhyo0wukpoa"
-path="res://.godot/imported/rat_nest.png-b3abf97358fea6aa52217f1c84a3a24c.ctex"
+uid="uid://bq6uuya5dddyw"
+path="res://.godot/imported/Walk.png-2f960f2598816b6265fbf4bc8fd80b1a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/generated/monsters/rat_nest.png"
-dest_files=["res://.godot/imported/rat_nest.png-b3abf97358fea6aa52217f1c84a3a24c.ctex"]
+source_file="res://assets/sprites/generated/sheets/rat_nest/Walk.png"
+dest_files=["res://.godot/imported/Walk.png-2f960f2598816b6265fbf4bc8fd80b1a.ctex"]
 
 [params]
 

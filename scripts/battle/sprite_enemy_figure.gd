@@ -159,9 +159,8 @@ const KINDS := {
 	"bull_worm": {"sheets": SHEETS + "/bull_worm", "scale": BOARD_SCALE},  # Worms Armageddon's summon, the designer's board
 	# --- the dojo's enemy training dummies ---
 	"chicken": {"tex": "chicken"},
-	# --- the Rat King's nests: no pack has a nest, so this one is drawn
-	# (tools/generate_rat_nest.gd) in the packs' palette and texel size ---
-	"rat_nest": {"tex": "rat_nest"},
+	# --- the Rat King's nests: the designer's nest (no pack has one) ---
+	"rat_nest": {"sheets": SHEETS + "/rat_nest", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-28
 	# --- the Boneyard: the undead pack's headstones, and the designer's grave digger ---
 	"gravestone": {"prop": "undead_grave", "scale": 1.6},
 	# --- Hell's Door: the cave pack's iron gate ---

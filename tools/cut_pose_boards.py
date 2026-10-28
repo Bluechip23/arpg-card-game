@@ -980,6 +980,21 @@ BOARDS = {
             "left": (735, 615, 1232, 1188),  # labelled RIGHT, faces left
         },
     },
+    "rat_nest": {
+        # 2026-10-28: the Rat King's nest — a ring of straw round a dark
+        # hollow, gnawed bones and a skull in its weave — one view on black.
+        # A nest looks the same from every side, so all four directions are
+        # the one view. ~2 tiles wide (its height ~1 tile), like the nest it
+        # replaces (a battler drawn in code, now deleted).
+        "src": "rat_nest_board.webp", "bg": "grabcut", "tiles": 1.0,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (130, 210, 1345, 820),
+            "back": (130, 210, 1345, 820),
+            "left": (130, 210, 1345, 820),
+            "right": (130, 210, 1345, 820),
+        },
+    },
     "grave_digger": {
         # 2026-10-28: the Boneyard's Grave Digger — a heavy man in a flat cap,
         # waistcoat and mud-caked trousers, a spade on his back and a lit
