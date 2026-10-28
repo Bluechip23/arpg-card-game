@@ -980,6 +980,38 @@ BOARDS = {
             "left": (735, 615, 1232, 1188),  # labelled RIGHT, faces left
         },
     },
+    "hell_door": {
+        # 2026-10-28: Hell's Door — a horned skull of cracked stone over a
+        # doorway of molten light, rubble piled round it — one view on black;
+        # the designer's redraw of the cave pack's skull gate (gates1.png,
+        # which it replaces). A door looks the same from every side, so all
+        # four directions are the one view. ~3 tiles to the horns, as before.
+        "src": "hell_door_board.webp", "bg": "grabcut", "tiles": 3.0,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model may trim the doorway's glow: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
+        "Idle": {
+            "front": (30, 25, 1222, 1200),
+            "back": (30, 25, 1222, 1200),
+            "left": (30, 25, 1222, 1200),
+            "right": (30, 25, 1222, 1200),
+        },
+    },
+    "rat_nest": {
+        # 2026-10-28: the Rat King's nest — a ring of straw round a dark
+        # hollow, gnawed bones and a skull in its weave — one view on black.
+        # A nest looks the same from every side, so all four directions are
+        # the one view. ~2 tiles wide (its height ~1 tile), like the nest it
+        # replaces (a battler drawn in code, now deleted).
+        "src": "rat_nest_board.webp", "bg": "grabcut", "tiles": 1.0,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (130, 210, 1345, 820),
+            "back": (130, 210, 1345, 820),
+            "left": (130, 210, 1345, 820),
+            "right": (130, 210, 1345, 820),
+        },
+    },
     "grave_digger": {
         # 2026-10-28: the Boneyard's Grave Digger — a heavy man in a flat cap,
         # waistcoat and mud-caked trousers, a spade on his back and a lit
@@ -1148,6 +1180,12 @@ BOARDS = {
         },
     },
 }
+
+# The Golem summon (Summon Golem): the Granite Colossus in miniature, cut from
+# the same board and its mattes at an ally's height (2026-10-28, so it matches
+# the designer's other art; it wore the golem pack's chibi Golem1 until then).
+BOARDS["summon_golem"] = {**BOARDS["granite_colossus"], "tiles": 1.5,
+                          "matte_name": "granite_colossus"}
 
 # Texels per tile the boards are cut at (designer, 2026-10-24: err on the
 # side of under-pixelating what we make): twice the world's 32, the heroes'
@@ -1594,7 +1632,7 @@ def build(name: str, cfg: dict) -> None:
                 # "Walk:left" (its own matte, its own hints).
                 key = d if anim == "Idle" else "%s:%s" % (anim, d)
                 if key in cfg.get("matte", ()):
-                    bg_kind = "matte:" + os.path.join(MATTES, "%s_%s.png" % (name, key.replace(":", "_")))
+                    bg_kind = "matte:" + os.path.join(MATTES, "%s_%s.png" % (cfg.get("matte_name", name), key.replace(":", "_")))
                 fg_hints = cfg.get("matte_fg", {}).get(key, ()) if bg_kind.startswith("matte:") \
                     else cfg.get("fg", {}).get(key, ())
                 bg_hints = cfg.get("matte_bg", {}).get(key, ()) if bg_kind.startswith("matte:") \

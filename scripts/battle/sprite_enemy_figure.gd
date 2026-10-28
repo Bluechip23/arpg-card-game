@@ -152,20 +152,19 @@ const KINDS := {
 	# --- the Precious's hunter: the Craftpix ghost pack's crowned wraith ---
 	"ring_wraith": {"sheets": SHEETS + "/ring_wraith", "scale": BOARD_SCALE},  # the designer's mounted wraith (tools/cut_pose_boards.py)
 	# --- the player's summons (Summon._build_figure): pack art, ally-sized ---
-	"summon_golem": {"cp": "golem/Golem1", "scale": 1.0},  # the rock golem the Granite Colossus wears, smaller
+	"summon_golem": {"sheets": SHEETS + "/summon_golem", "scale": BOARD_SCALE},  # the Granite Colossus board in miniature (tools/cut_pose_boards.py, 2026-10-28); was the golem pack's Golem1
 	"summon_specter": {"sheets": SHEETS + "/seance_specter", "scale": BOARD_SCALE},  # Jeremy's Seance spirit: the designer's board (tools/cut_pose_boards.py, 2026-10-28)
 	"frankenstein": {"sheets": SHEETS + "/frankenstein", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"sanguine_penguin": {"sheets": SHEETS + "/sanguine_penguin", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"bull_worm": {"sheets": SHEETS + "/bull_worm", "scale": BOARD_SCALE},  # Worms Armageddon's summon, the designer's board
 	# --- the dojo's enemy training dummies ---
 	"chicken": {"tex": "chicken"},
-	# --- the Rat King's nests: no pack has a nest, so this one is drawn
-	# (tools/generate_rat_nest.gd) in the packs' palette and texel size ---
-	"rat_nest": {"tex": "rat_nest"},
+	# --- the Rat King's nests: the designer's nest (no pack has one) ---
+	"rat_nest": {"sheets": SHEETS + "/rat_nest", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-28
 	# --- the Boneyard: the undead pack's headstones, and the designer's grave digger ---
 	"gravestone": {"prop": "undead_grave", "scale": 1.6},
-	# --- Hell's Door: the cave pack's iron gate ---
-	"hell_door": {"prop": "cave_gate", "scale": 1.4},
+	# --- Hell's Door: the designer's horned skull gate ---
+	"hell_door": {"sheets": SHEETS + "/hell_door", "scale": BOARD_SCALE},  # the designer's redraw of the cave pack's skull gate (tools/cut_pose_boards.py, 2026-10-28)
 	# --- the summon cards' allies (summoned_skeleton.gd, 2026-10-27) ---
 	"summon_skeleton": {"sheets": SHEETS + "/summon_skeleton", "scale": BOARD_SCALE},  # the designer's summon board (tools/cut_pose_boards.py)
 	"shadow_hound": {"sheets": SHEETS + "/shadow_hound", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28)

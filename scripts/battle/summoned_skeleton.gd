@@ -84,7 +84,7 @@ func _build_visuals() -> void:
 		"spirit":
 			_build_figure("specter")         # the Craftpix ghost
 		"golem":
-			_build_figure("summon_golem")    # the Craftpix rock golem, ally-sized
+			_build_figure("summon_golem")    # the Granite Colossus board, ally-sized (2026-10-28)
 		"shadow_hound":
 			_build_figure("shadow_hound")    # the designer's board (2026-10-28)
 		"battle_turtle":
