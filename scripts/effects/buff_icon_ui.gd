@@ -33,7 +33,8 @@ func _on_hover_in() -> void:
 			if not is_instance_valid(b):
 				return ""
 			return "Remaining: %s" % b.get_duration_display(),
-		("Source: %s" % b.source_name) if b.source_name != "" else "")
+		("Source: %s" % b.source_name) if b.source_name != "" else "",
+		StatusIcons.get_icon(b.get_icon_key()))
 
 func _on_hover_out() -> void:
 	StatusHoverPopup.hide_for(self)

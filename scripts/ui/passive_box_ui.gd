@@ -87,6 +87,12 @@ func _refresh_tooltip(st: Dictionary) -> void:
 			tip += "\nRecharging: %d/%d" % [_elapsed, _total]
 	tooltip_text = tip
 
+## The hover window: the passive's icon large beside its text (IconTooltip).
+func _make_custom_tooltip(for_text: String) -> Object:
+	if _icon == null:
+		return null
+	return IconTooltip.make(_icon, for_text, TRIM)
+
 func _draw() -> void:
 	# Box body + gold trim (squares read as passives; circles are actives).
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.16, 0.14, 0.2, 0.95), true)

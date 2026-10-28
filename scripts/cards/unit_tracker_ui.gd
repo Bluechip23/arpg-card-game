@@ -548,7 +548,8 @@ func _create_status_icon(color: Color, stacks: int, effect_name: String = "", en
 			var info: Dictionary = enemy.get_effect_tooltip(effect_name)
 			StatusHoverPopup.show_for(circle, effect_name, info.get("color", color), info.get("desc", ""),
 				func() -> String:
-					return str(enemy.get_effect_tooltip(effect_name).get("remaining", "")) if is_instance_valid(enemy) else ""))
+					return str(enemy.get_effect_tooltip(effect_name).get("remaining", "")) if is_instance_valid(enemy) else "",
+				"", StatusIcons.get_icon(effect_name)))
 		circle.mouse_exited.connect(func(): StatusHoverPopup.hide_for(circle))
 		circle.tree_exiting.connect(func(): StatusHoverPopup.hide_for(circle))
 	elif effect_name != "":
@@ -843,7 +844,7 @@ func _create_ally_status_icon(eff: Dictionary) -> PanelContainer:
 		icon.move_child(glyph, 0)
 	icon.mouse_entered.connect(func():
 		StatusHoverPopup.show_for(icon, str(eff.get("name", "")), eff.get("color", Color.WHITE), str(eff.get("desc", "")),
-			func() -> String: return ""))
+			func() -> String: return "", "", StatusIcons.get_icon(str(eff.get("name", "")))))
 	icon.mouse_exited.connect(func(): StatusHoverPopup.hide_for(icon))
 	icon.tree_exiting.connect(func(): StatusHoverPopup.hide_for(icon))
 	return icon

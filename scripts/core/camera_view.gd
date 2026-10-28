@@ -50,7 +50,7 @@ const GROUND_COVER_MAX_PX := 36
 const HEIGHT_ON_SCREEN := 0.4226
 ## Texel scales the zoom steps through (screen pixels per texel).
 const ZOOM_MIN := 1.0
-const ZOOM_MAX := 4.0
+const ZOOM_MAX := 5.0   # one step closer than before (designer, 2026-10-28)
 const ZOOM_DEFAULT := 2.0
 
 

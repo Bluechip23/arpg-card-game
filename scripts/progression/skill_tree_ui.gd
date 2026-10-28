@@ -447,7 +447,7 @@ func _build_passive_node(lane: Dictionary, stage: int, lanes: Array) -> Control:
 	box.add_theme_constant_override("separation", 2)
 	box.alignment = BoxContainer.ALIGNMENT_BEGIN
 
-	var btn = Button.new()
+	var btn = IconTooltipButton.new()  # its tooltip shows the passive's icon large
 	btn.custom_minimum_size = Vector2(NODE_SIZE, NODE_SIZE)
 	btn.focus_mode = Control.FOCUS_NONE
 
@@ -475,6 +475,8 @@ func _build_passive_node(lane: Dictionary, stage: int, lanes: Array) -> Control:
 	# Pack icon inside the circle (initials only when no art resolves). A
 	# locked stage shows the same icon dimmed and unclickable — no padlock.
 	var art: Texture2D = SkillIconArt.passive(opt.passive_id, opt.archetype)
+	btn.tooltip_icon = art
+	btn.tooltip_accent = lane_color
 	if art != null:
 		btn.icon = art
 		btn.expand_icon = true

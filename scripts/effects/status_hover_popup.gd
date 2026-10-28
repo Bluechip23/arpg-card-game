@@ -19,14 +19,23 @@ var _title: Label
 var _desc: Label
 var _dur: Label
 var _extra: Label
+var _icon_slot: Control = null   # left of the words: the effect's icon, large
 
 
 static func show_for(anchor: Control, title: String, color: Color, desc: String,
-		refresh: Callable, extra: String = "") -> void:
-	## refresh: Callable() -> String, the remaining-duration line.
+		refresh: Callable, extra: String = "", icon: Texture2D = null) -> void:
+	## refresh: Callable() -> String, the remaining-duration line. `icon`:
+	## the buff / debuff's icon, shown large beside the words (IconTooltip).
 	var p := _instance_for(anchor)
 	if p == null:
 		return
+	for c in p._icon_slot.get_children():
+		p._icon_slot.remove_child(c)
+		c.queue_free()
+	var box := IconTooltip.icon_box(icon, color)
+	if box:
+		p._icon_slot.add_child(box)
+	p._icon_slot.visible = box != null
 	p._anchor = anchor
 	p._refresh = refresh
 	p._title.text = title
@@ -76,10 +85,19 @@ func _ready() -> void:
 	style.content_margin_right = 10
 	style.content_margin_bottom = 7
 	add_theme_stylebox_override("panel", style)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(row)
+	_icon_slot = MarginContainer.new()
+	_icon_slot.name = "IconSlot"
+	_icon_slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_icon_slot.visible = false
+	row.add_child(_icon_slot)
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 3)
 	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(vbox)
+	row.add_child(vbox)
 	_title = Label.new()
 	_title.add_theme_font_size_override("font_size", 15)
 	vbox.add_child(_title)

@@ -1157,7 +1157,8 @@ func _update_status_icon_hover() -> void:
 		func() -> String:
 			if not is_instance_valid(en):
 				return ""
-			return str(en.get_effect_tooltip(nm).get("remaining", "")))
+			return str(en.get_effect_tooltip(nm).get("remaining", "")),
+		"", StatusIcons.get_icon(nm))
 
 ## The enemy under the cursor — ONE pick for the hover glow, the target
 ## marks and every click that aims at an enemy, so what lights up is what
