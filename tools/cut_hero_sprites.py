@@ -95,10 +95,18 @@ HEROES = {
         ("hero_ryan.png", (0, 60, 114, 220), "north"),
         ("hero_ryan.png", (0, 388, 114, 550), "west"),
     ],
+    # Stephen's second board (designer, 2026-10-28): the bear-pelt arm is his
+    # LEFT arm only, so facing left shows it (the board's bottom-right pose)
+    # and facing right shows his bare right arm — a view of its own (the
+    # board's bottom-left pose shows the pelt, so it is not used). The
+    # board draws its side views ~15% larger than the front: they are
+    # brought to the front's height (FIT_HEIGHT). (His first board,
+    # hero_stephen.png with its glow and bow, is kept in paintings.)
     "stephen": [
-        ("hero_stephen.png", (0, 200, 117, 348), "south"),
-        ("hero_stephen.png", (0, 48, 117, 199), "north"),
-        ("hero_stephen.png", (0, 349, 117, 491), "east"),    # both side views face right
+        ("hero_stephen_2.png", (35, 0, 242, 287), "south"),
+        ("hero_stephen_2.png", (246, 0, 474, 290), "north"),
+        ("hero_stephen_2.png", (300, 291, 446, 616), "west"),
+        ("hero_stephen_2_right.png", (0, 0, 69, 138), "east"),
     ],
     "brad": [
         ("hero_brad.png", (0, 136, 74, 236), "scale"),       # the sheet's front: sets the scale only
@@ -108,7 +116,7 @@ HEROES = {
     ],
 }
 
-# Stephen's sheet sets each figure in a soft dark-brown glow (rising from the
+# Stephen's FIRST sheet (hero_stephen.png) set each figure in a soft dark-brown glow (rising from the
 # black to ~30 before the figure's ~50+), which also fills the gaps under his
 # arms, between his legs and inside the bow's curve. The glow is dark and
 # smooth; the figure — even its dark outline — is textured. So for him the
@@ -116,7 +124,7 @@ HEROES = {
 # smooth) pixel reached from the edge or boxed in by the figure in a pocket
 # at least `pocket` big; then `peel` passes take the glow's last fringe off
 # the edge (his own outline is redrawn by the ink).
-GLOW = {"stephen": {"limit": 38, "smooth": 10, "pocket": 15, "peel": 2, "peel_limit": 36}}
+GLOW = {}   # (was {"stephen": ...} for his first board, hero_stephen.png)
 
 # Stephen's side view: the bow is cut away entirely (designer, 2026-10-23).
 # It hangs in front of him from shoulder to knee, string across his chest:
@@ -124,9 +132,16 @@ GLOW = {"stephen": {"limit": 38, "smooth": 10, "pocket": 15, "peel": 2, "peel_li
 # are found by colour — his tattooed forearm, whose markings share the
 # orange, is left out — and painted over from the tunic around them
 # (OpenCV inpaint); where the bow stood clear of him it becomes background.
-BOW_BAND = {"stephen": [(100, 350), (108, 362), (104, 400), (95, 420), (85, 446), (73, 472),
-                        (56, 482), (48, 474), (60, 442), (72, 412), (82, 386), (86, 358)]}
-BOW_KEEP = {"stephen": [(48, 398, 77, 458)]}   # the forearm
+# (His second board, 2026-10-28, carries no bow in its side views: no band.)
+BOW_BAND = {}
+BOW_KEEP = {}
+# First board's values, for hero_stephen.png: band [(100, 350), (108, 362),
+# (104, 400), (95, 420), (85, 446), (73, 472), (56, 482), (48, 474),
+# (60, 442), (72, 412), (82, 386), (86, 358)], keep [(48, 398, 77, 458)].
+
+# Poses brought to the front's height instead of the front's scale (a board
+# that draws its side views larger than its front).
+FIT_HEIGHT = {"stephen": ("west",)}
 
 # Cory's side view: the chest charm (beads and a pendant) hangs off the front
 # of the robe inside this box (source pixels); its light and coloured pixels
@@ -420,7 +435,8 @@ def build(hero, poses):
             scale = (path, img.height / float(ref_h))
             if facing == "scale":
                 continue
-        factor = scale[1] if path == scale[0] else img.height / float(ref_h)
+        factor = scale[1] if path == scale[0] and facing not in FIT_HEIGHT.get(hero, ()) \
+            else img.height / float(ref_h)
         full[facing] = resample(img, factor)
         soft[facing] = soft_frame(img, factor)
     full = {d: vibrance(f) for d, f in full.items()}

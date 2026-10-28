@@ -3,7 +3,8 @@ extends SceneTree
 ## The heroes wear the designer's sprites (tools/cut_hero_sprites.py,
 ## 2026-10-23): Jeremy the cloaked skeleton, Cory the hooded monk, Ryan the
 ## rogue outlaw, Brad the warrior with the War Rack over his shoulder,
-## Stephen the apex hunter with bow and axe on his back — one
+## Stephen the apex hunter with bow and axe on his back (his second board,
+## 2026-10-28: a bear-pelt left arm) — one
 ## detailed pose a direction (kept fine: ~100 texels tall at 64 texels a
 ## tile, so they stand BOARD_HEIGHT tiles). Walking steps the body;
 ## attacks still swing the weapon layer, scaled to the hero.
