@@ -76,16 +76,26 @@ func update_display() -> void:
 func _refresh_tooltip(st: Dictionary) -> void:
 	var lvl: int = stats.get_passive_level(passive_id) if stats else 0
 	var tip := "%s — lvl %d" % [display_name, lvl]
+	var states_cooldown := false
 	if _raw_desc != "":
 		# What the passive does at THIS rank — the 1→15 ranges stay in the tree.
 		var at_rank: String = PassiveScaling.describe_at_rank(passive_id, _raw_desc, maxi(1, lvl))
 		tip += "\n" + UiThemeScript.wrap_text(at_rank)
-	if st.has_cooldown:
+		# Most passive texts already give their cooldown at this rank
+		# ("Cooldown: 21 tempo"); a second line said it twice.
+		states_cooldown = at_rank.to_lower().contains("cooldown")
+	if st.has_cooldown and not states_cooldown:
 		tip += "\nCooldown: %d tempo" % st.total
 		if _on_cooldown:
 			# The box is too small for the on-box counter now — it lives here.
 			tip += "\nRecharging: %d/%d" % [_elapsed, _total]
 	tooltip_text = tip
+
+## The hover window: the passive's icon large beside its text (IconTooltip).
+func _make_custom_tooltip(for_text: String) -> Object:
+	if _icon == null:
+		return null
+	return IconTooltip.make(_icon, for_text, TRIM)
 
 func _draw() -> void:
 	# Box body + gold trim (squares read as passives; circles are actives).

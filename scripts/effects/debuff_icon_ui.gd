@@ -39,7 +39,7 @@ func _on_hover_in() -> void:
 			if d.duration < 0:
 				return "Remaining: no fixed timer (see above)"
 			return "Remaining: %d tempo" % d.duration,
-		extra)
+		extra, StatusIcons.get_icon(d.debuff_name))
 
 func _on_hover_out() -> void:
 	StatusHoverPopup.hide_for(self)

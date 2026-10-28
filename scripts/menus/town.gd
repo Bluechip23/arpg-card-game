@@ -105,6 +105,10 @@ var _stash_message_timer: float = 0.0
 # Townsfolk figures that turn to face the player when they come near.
 var _townsfolk: Array = []
 const TOWNSFOLK_NOTICE := 5.0   # world units: within this, they look at the player
+## The townsfolk stand a little larger than battle size (designer,
+## 2026-10-28), so the shopkeepers and Olorin read as the town's people.
+## Their figures scale from their feet, so they stay on the ground.
+const TOWN_NPC_SCALE := 1.25
 
 ## The shopkeepers introduce themselves the first time the player speaks to
 ## them, then their shop opens. Titles only: the designer names them later.
@@ -2643,6 +2647,7 @@ func _add_stall_keeper(stall: Node3D, kind: String, node_name: String) -> void:
 	stall.add_child(k)
 	k.setup(kind)
 	k.position.z = -0.35
+	k.scale = Vector3.ONE * TOWN_NPC_SCALE
 	_townsfolk.append(k)
 
 func _build_stash_chest(stash: Node3D) -> void:
@@ -2694,6 +2699,7 @@ func _create_olorin_npc() -> void:
 	fig.name = "Figure"
 	olorin.add_child(fig)
 	fig.setup("olorin")   # brings its own blob shadow
+	fig.scale = Vector3.ONE * TOWN_NPC_SCALE
 	_townsfolk.append(fig)
 
 	var collision = CollisionShape3D.new()
@@ -2721,7 +2727,7 @@ func _create_olorin_npc() -> void:
 	quest_indicator.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	quest_indicator.modulate = Color(1.0, 0.85, 0.0)
 	quest_indicator.outline_size = 12
-	quest_indicator.position = Vector3(0, 2.8, -1.85)   # over his hat (-z is up the screen)
+	quest_indicator.position = Vector3(0, 2.8, -1.85 * TOWN_NPC_SCALE)   # over his hat (-z is up the screen)
 	WorldText.crisp(quest_indicator)
 	olorin.add_child(quest_indicator)
 
@@ -2741,6 +2747,7 @@ func _create_sellsword_npc() -> void:
 	fig.name = "Figure"
 	sellsword.add_child(fig)
 	fig.setup("npc_sellsword")   # brings its own blob shadow
+	fig.scale = Vector3.ONE * TOWN_NPC_SCALE
 	_townsfolk.append(fig)
 
 	var collision = CollisionShape3D.new()
@@ -2756,7 +2763,7 @@ func _create_sellsword_npc() -> void:
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = Color(1.0, 0.8, 0.45)
 	label.outline_size = 8
-	label.position = Vector3(0, 2.2, -1.75)   # over her head (-z is up the screen)
+	label.position = Vector3(0, 2.2, -1.75 * TOWN_NPC_SCALE)   # over her head (-z is up the screen)
 	WorldText.crisp(label)
 	sellsword.add_child(label)
 

@@ -121,9 +121,16 @@ func _test_last_played(stats, pt, dummy: Enemy) -> void:
 	var base_block: int = block.block
 	var base_tempo: int = block.tempo_cost
 	pt._trigger_skill_tree_on_draw(block)
-	_check(block.block == base_block and block.temp_flat_block == PassiveScaling.value("clean_exchange", "block", 15) \
-			and block.tempo_cost == base_tempo and block.temp_hand_tempo_reduction == 1 and block.temp_mod_tempo_left == 5,
-		"drawing a Defense after playing an Attack: -1t and a separate flat rank-15 block, both timed (5 tempo), the card's own block untouched")
+	var ce_block: int = PassiveScaling.value("clean_exchange", "block", 15)
+	_check(block.block == base_block and block.temp_flat_block == ce_block \
+			and block.tempo_cost == base_tempo and block.temp_hand_tempo_reduction == 1,
+		"drawing a Defense after playing an Attack: -1t and a separate flat rank-15 block, the card's own block untouched")
+	# Designer ruling (25327d08): no time limit — the tweak rides the card
+	# until it is played or leaves the hand; the 5-tempo in-hand timer that
+	# ends the timed tweaks leaves it alone.
+	block.clear_timed_mods()
+	_check(block.temp_flat_block == ce_block and block.temp_hand_tempo_reduction == 1,
+		"untimed: the in-hand timer running out leaves the -1t and the block on the card")
 	block.clear_temp_mods()
 	_check(block.temp_flat_block == 0 and block.temp_hand_tempo_reduction == 0,
 		"clearing the Clean Exchange tweak drops the flat block and the tempo cut")

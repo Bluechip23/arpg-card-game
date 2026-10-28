@@ -44,7 +44,8 @@ func _process(_delta: float) -> void:
 		func() -> String:
 			if not is_instance_valid(enemy):
 				return ""
-			return str(enemy.get_effect_tooltip(eff).get("remaining", "")))
+			return str(enemy.get_effect_tooltip(eff).get("remaining", "")),
+		"", StatusIcons.get_icon(eff))
 
 
 ## The dot nearest `mouse` within PICK_RADIUS: {enemy, name, screen}, or {}.
