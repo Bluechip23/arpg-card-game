@@ -85,68 +85,94 @@ ROWS = ["front", "back", "left", "right"]
 # as ("mirror", other) is the other pose flipped.
 BOARDS = {
     "frankenstein": {
-        "matte": ("front", "back", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
-        "src": "frankenstein_board.jpg", "bg": "stone", "tiles": 1.75,
+        # 2026-10-28: the designer's new Frankensteins Monster — green and
+        # stitched, a torn brown coat over a black shirt, the neck bolts
+        # crackling blue, heavy boots — one row on black: front, back, then
+        # two side views, the first facing right and the second left.
+        "src": "frankenstein_v2_board.webp", "bg": "grabcut", "tiles": 1.75,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model trims the bolts' sparks: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
         "Idle": {
-            "front": (0, 96, 360, 720),
-            "back": (360, 96, 720, 720),
-            "right": (1060, 96, 1408, 720),
-            "left": ("mirror", "right"),
+            "front": (4, 140, 410, 895),
+            "back": (420, 140, 826, 895),
+            "right": (866, 140, 1110, 898),
+            "left": (1280, 140, 1518, 898),
         },
     },
     "giant_beaver": {
-        "src": "giant_beaver_board.jpg", "bg": "checker_light", "tiles": 1.3,
+        # 2026-10-28: the designer's new Giant Beaver — a shaggy, red-eyed
+        # beaver with sabre teeth, a scaled black tail and hooked claws — on
+        # black, two rows: up on its hind legs (Idle) and on all fours (Walk),
+        # FRONT, BACK, LEFT, RIGHT, each side facing its own way. The bottom
+        # row's side poses meet tail to tail at x 1090. Height: standing.
+        "src": "giant_beaver_v2_board.webp", "bg": "grabcut", "tiles": 1.3,
+        "matte": ("front", "back", "left", "right",
+                  "Walk:front", "Walk:back", "Walk:left", "Walk:right"),   # the model matte (tools/make_mattes.py)
         "Idle": {
-            "front": (40, 50, 300, 392),
-            "back": (395, 50, 625, 392),
-            "left": (725, 50, 1045, 392),
-            "right": (1050, 50, 1380, 392),
+            "front": (14, 46, 312, 540),
+            "back": (363, 46, 656, 540),
+            "left": (680, 46, 1121, 540),
+            "right": (1122, 46, 1518, 540),
         },
         "Walk": {
-            "front": (80, 482, 290, 732),
-            "back": (410, 482, 625, 732),
-            "left": (690, 482, 1042, 730),
-            "right": (1044, 482, 1400, 730),
+            "front": (18, 640, 322, 930),
+            "back": (358, 640, 630, 930),
+            "left": (628, 640, 1090, 930),
+            "right": (1090, 640, 1528, 930),
         },
     },
     "wyvern": {
-        "src": "wyvern_board.webp", "bg": "checker_light", "tiles": 1.9,
+        # 2026-10-28: the designer's new Wyvern — a green-scaled drake with
+        # tattered brown wings, horns and a barbed tail — on black, two rows:
+        # reared up on its hind legs (Idle) and down on all fours (Walk),
+        # FRONT, BACK, LEFT, RIGHT, each side facing its own way. The top
+        # row's BACK tail runs into the LEFT pose's claws: split at x 750.
+        "src": "wyvern_v2_board.webp", "bg": "grabcut", "tiles": 1.9,
+        "matte": ("front", "back", "left", "right",
+                  "Walk:front", "Walk:back", "Walk:left", "Walk:right"),   # the model matte (tools/make_mattes.py)
         "Idle": {
-            "front": (40, 0, 300, 286),
-            "back": (310, 0, 580, 286),
-            "left": (585, 0, 870, 278),
-            "right": (872, 0, 1160, 278),
+            "front": (8, 70, 356, 511),
+            "back": (366, 80, 750, 511),
+            "left": (750, 80, 1128, 511),
+            "right": (1128, 80, 1520, 511),
+        },
+        "Walk": {
+            "front": (2, 612, 358, 904),
+            "back": (360, 612, 686, 904),
+            "left": (686, 612, 1145, 904),
+            "right": (1145, 612, 1530, 904),
         },
     },
     "sanguine_penguin": {
-        "src": "sanguine_penguin_board.jpg", "bg": "grabcut", "tiles": 1.15,
+        # 2026-10-28: the designer's new Sanguine — a scarred, bleeding
+        # penguin in a bronze crested helm — one row on black: front, back,
+        # then two side views, the first facing right and the second left.
+        "src": "sanguine_penguin_v2_board.webp", "bg": "grabcut", "tiles": 1.15,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
         "Idle": {
-            "front": (900, 395, 1210, 760),
-            "back": (180, 395, 520, 760),
-            "right": (60, 30, 345, 385),
-            "left": (1090, 30, 1408, 385),
-        },
-        # Boxes (within each pose's box) that are surely him: his flippers
-        # and black back, whose colours the sky and ice share and whose
-        # outline the board leaves open in places (measured).
-        "fg": {
-            "front": [(45, 215, 70, 285), (245, 215, 265, 285), (75, 200, 95, 320)],
-            "back": [(55, 230, 85, 290), (245, 230, 275, 290)],
-            "right": [(212, 215, 235, 250), (55, 180, 95, 280)],
-            "left": [(25, 215, 45, 255), (150, 180, 210, 290)],
+            "front": (24, 195, 378, 760),
+            "back": (406, 190, 775, 760),
+            "right": (776, 210, 1105, 768),
+            "left": (1198, 210, 1527, 770),
         },
     },
     "djinn": {
-        "src": "djinn_board.jpg", "bg": "grabcut", "tiles": 1.8,
-        # GrabCut drops his thin ponytail and tail wisps against the sky; all
-        # of him is a strong blue or purple and the sky and ice are near grey,
-        # so the cut grows out into any pixel this saturated touching it.
-        "sat_grow": 55,
+        # 2026-10-28: the designer's new Djinn — a blue genie with a smoke
+        # ponytail, gold cuffs and chains, his lower body a coiling blue
+        # smoke tail — two rows on black; the top row (FRONT, BACK, LEFT,
+        # RIGHT, each facing its own way) is used, the second row (other
+        # poses: arms crossed, from above) is not. The labels sit below the
+        # poses. Height to the ponytail's top.
+        "src": "djinn_v2_board.webp", "bg": "grabcut", "tiles": 1.8,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model trims the smoke's thin wisps: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 30)] for d in ("front", "back", "left", "right")},
         "Idle": {
-            "front": (255, 400, 450, 750),
-            "back": (940, 395, 1170, 750),
-            "right": (60, 30, 300, 342),
-            "left": (790, 30, 1015, 342),
+            "front": (30, 12, 345, 455),
+            "back": (452, 14, 752, 455),
+            "left": (798, 12, 1072, 455),
+            "right": (1155, 14, 1407, 455),
         },
     },
     "ice_mage": {
@@ -228,39 +254,54 @@ BOARDS = {
             "right": (831, 507, 1252, 932),
         },
     },
-    "bull_worm": {
-        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
-        # 2026-10-25: the Alaskan Bull Worm (Worms Armageddon), coiled, horned,
-        # on the same wall and floor.
-        "src": "bull_worm_board.jpg", "bg": "grabcut", "tiles": 1.2,
-        "sky_tol": 12,
+    "pit_fiend": {
+        # 2026-10-28: the designer's new Pit Fiend — red-skinned and horned,
+        # bat wings, spiked armour with a skull belt, a sword at his hip and
+        # a glowing chain in hand — one row on black: front, back, then two
+        # side views, the first facing left and the second right. Stills
+        # only: it replaces the action board (tools/cut_pit_fiend.py, whose
+        # walk and tail-sweep frames are not drawn on the new board).
+        "src": "pit_fiend_v2_board.webp", "bg": "grabcut", "tiles": 1.75,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model trims fire and glow: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
         "Idle": {
-            "front": (262, 428, 696, 762),
-            "back": (712, 428, 1152, 762),
-            "right": (258, 58, 680, 375),
-            "left": (725, 58, 1150, 375),
+            "front": (8, 140, 460, 732),
+            "back": (466, 140, 904, 732),
+            "left": (910, 138, 1334, 732),
+            "right": (1380, 138, 1774, 732),
         },
-        # The hooked tip of the left horn, seen from behind (dark on the dark wall).
-        "fg": {"back": [(72, 100, 95, 128, 6), (95, 128, 118, 124, 6)]},
+    },
+    "bull_worm": {
+        # 2026-10-28: the designer's new Alaskan Bull Worm (Worms
+        # Armageddon's summon) — a ram-horned, many-eyed worm rearing out of
+        # its own smouldering coils — one row on black: front, back, then
+        # two side views, the first facing left and the second right.
+        "src": "bull_worm_v2_board.webp", "bg": "grabcut", "tiles": 1.2,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model trims fire and glow: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
+        "Idle": {
+            "front": (12, 188, 450, 766),
+            "back": (476, 188, 882, 768),
+            "left": (882, 186, 1316, 766),
+            "right": (1344, 186, 1758, 766),
+        },
     },
     "inflamed_minotaur": {
-        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
-        # 2026-10-25: the Inflamed Minotaur, flaming horns, axe and shield, on
-        # a dark flagstone floor. Its "west" and "east" poses are the front
-        # pose and its mirror (the board's own labels, kept); the face is
-        # "south", the back "north".
-        "src": "inflamed_minotaur_board.png", "bg": "warm", "tiles": 2.4,   # fire and bronze on cool flagstones
-        "match_height": ("left", "right", "back"),
-        # The board's own dark frame line down its outer edges.
-        "bg_hint": {"front": [(0, 0, 15, 400)], "left": [(0, 0, 15, 400)],
-                    "back": [(232, 0, 260, 400)], "right": [(232, 0, 260, 400)]},
-        # The poses run to the board's edges (axe and shield): the boxes
-        # reach past them into the crop's black padding.
+        # 2026-10-28: the designer's updated Inflamed Minotaur — flaming mane
+        # and horns, a burning axe and a spiked shield, lava-veined armour —
+        # a 2x2 board on black: front, back (top), facing left, facing right
+        # (bottom). The top row's flames run off the board's top edge.
+        "src": "inflamed_minotaur_v2_board.webp", "bg": "grabcut", "tiles": 2.4,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model trims fire and glow: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
         "Idle": {
-            "front": (-12, 415, 227, 628),
-            "back": (233, 415, 482, 628),
-            "left": (-12, 57, 227, 292),
-            "right": (233, 57, 482, 292),
+            "front": (48, 0, 658, 516),
+            "back": (862, 0, 1486, 516),
+            "left": (86, 517, 694, 1002),
+            "right": (830, 517, 1448, 1002),
         },
     },
     "bone_dragon": {
@@ -536,6 +577,23 @@ BOARDS = {
             "back": (733, 31, 1160, 532),
             "left": (116, 610, 458, 1134),
             "right": (787, 612, 1122, 1134),
+        },
+    },
+    "fire_goblin_shaman": {
+        # 2026-10-28: the Fire Goblin Shaman — a goblin in a tattered,
+        # rune-hemmed crimson robe, a skull and fangs at his throat, a
+        # twisted iron staff crowned with fire — FRONT, BACK, LEFT, RIGHT on
+        # black, each side facing its own way; his own board (he wore the
+        # soldier's until now). The height counts the staff's flame.
+        "src": "fire_goblin_shaman_board.webp", "bg": "grabcut", "tiles": 1.65,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model trims the flame's wisps: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
+        "Idle": {
+            "front": (95, 0, 525, 568),
+            "back": (715, 0, 1150, 568),
+            "left": (115, 585, 535, 1158),
+            "right": (705, 585, 1135, 1158),
         },
     },
     "coyote": {
@@ -881,6 +939,69 @@ BOARDS = {
             "left": ("mirror", "right"),
         },
     },
+    "crypt_crawler": {
+        # 2026-10-28: the Crypt Crawler — a great bristling grave spider with
+        # a cracked, cross-carved headstone and skulls grown into its back,
+        # moss and cobweb between its legs — FRONT, BACK, LEFT, RIGHT on
+        # black, each side facing its own way. The legs reach past the labels'
+        # tops, so the labels are marked background. The height runs from the
+        # headstone's top to the leg tips.
+        "src": "crypt_crawler_board.webp", "bg": "grabcut", "tiles": 1.6,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "matte_bg": {"front": [(246, 531, 362, 569)],
+                     "back": [(261, 523, 357, 560)],
+                     "left": [(255, 533, 350, 570)],
+                     "right": [(228, 526, 338, 563)]},
+        "Idle": {
+            "front": (10, 10, 615, 585),
+            "back": (665, 20, 1248, 595),
+            "left": (15, 605, 607, 1172),
+            "right": (660, 612, 1240, 1172),
+        },
+    },
+    "mind_eater": {
+        # 2026-10-28: the Mind Eater — a domed, mottled violet head over a
+        # maw of long fangs, a mass of suckered tentacles trailing below —
+        # four labelled poses on black. Its "LEFT" pose faces right and its
+        # "RIGHT" pose faces left (the mouth shows the way), so each is used
+        # for the way it faces. The tentacle tips reach past the labels' tops,
+        # so the labels are marked background instead of cropped off. The
+        # height runs from the dome to the lowest tentacle tip.
+        "src": "mind_eater_board.webp", "bg": "grabcut", "tiles": 1.9,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "matte_bg": {"front": [(240, 506, 364, 542)],
+                     "back": [(233, 496, 337, 532)],
+                     "right": [(261, 536, 362, 572)],
+                     "left": [(178, 535, 297, 573)]},
+        "Idle": {
+            "front": (30, 30, 600, 580),
+            "back": (690, 40, 1230, 572),
+            "right": (20, 610, 545, 1180),   # labelled LEFT, faces right
+            "left": (735, 615, 1232, 1188),  # labelled RIGHT, faces left
+        },
+    },
+    "grave_digger": {
+        # 2026-10-28: the Boneyard's Grave Digger — a heavy man in a flat cap,
+        # waistcoat and mud-caked trousers, a spade on his back and a lit
+        # lantern hung from a crooked pole over his shoulder — four labelled
+        # poses on black (FRONT, BACK, LEFT, RIGHT; each side faces its own
+        # way). The boxes stop above the labels; the height counts the
+        # lantern's top (his body is ~1.65 tiles, like the townsfolk).
+        "src": "grave_digger_board.webp", "bg": "grabcut", "tiles": 2.05,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model drops the hanging lantern (a lit thing apart from him):
+        # keep what is lit round it, above the soft glow.
+        "matte_fg": {"front": [(250, 20, 350, 180, "lit", 55)],
+                     "back": [(10, 20, 105, 180, "lit", 55)],
+                     "left": [(25, 10, 115, 175, "lit", 55)],
+                     "right": [(240, 10, 335, 175, "lit", 55)]},
+        "Idle": {
+            "front": (190, 0, 570, 558),
+            "back": (725, 0, 1050, 558),
+            "left": (110, 594, 470, 1120),
+            "right": (790, 594, 1140, 1120),
+        },
+    },
     "npc_armory": {
         # 2026-10-28: the town's Armory keeper — a woman in a grimy dress,
         # leather apron and tool belt, long black gloves — from her NPC
@@ -939,6 +1060,39 @@ BOARDS = {
             "back": (752, 14, 1302, 520),
             "left": (69, 584, 488, 1122),
             "right": (804, 584, 1210, 1122),
+        },
+    },
+    "werewolf": {
+        # 2026-10-28: the designer's updated Werewolf — a shaggy, muscled
+        # wolf-man on his hind legs, yellow eyes, a bushy tail — one row on
+        # black with a soft painted shadow at the feet: front, back, then
+        # two side views, the first facing right and the second left. The
+        # back view's tail tip touches the right-facing one: split at x 727.
+        # Kept at his old height (~1.9 tiles). Replaces his stone-floor walk
+        # sheet (tools/cut_creature_sheets.py).
+        "src": "werewolf_board.webp", "bg": "grabcut", "tiles": 1.9,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "drop_shadow": (0.06, 30),
+        "Idle": {
+            "front": (8, 190, 352, 745),
+            "back": (380, 190, 727, 748),
+            "right": (727, 190, 1132, 748),
+            "left": (1172, 190, 1528, 748),
+        },
+    },
+    "roc": {
+        # 2026-10-28: the Roc — a great golden-brown eagle, ruff raised,
+        # golden talons — one row on black: front, back, then two side views,
+        # the first facing left and the second right. The side views' tails
+        # brush past each other: split at x 1112. Bigger than the Giant Hawk
+        # (1.6 tiles).
+        "src": "roc_board.webp", "bg": "grabcut", "tiles": 2.1,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (14, 165, 370, 800),
+            "back": (372, 165, 702, 810),
+            "left": (702, 170, 1112, 808),
+            "right": (1112, 170, 1532, 808),
         },
     },
     "giant_hawk": {
@@ -1436,12 +1590,15 @@ def build(name: str, cfg: dict) -> None:
         for d, box in cfg[anim].items():
             if box[0] != "mirror":
                 bg_kind = cfg["bg"]
-                if d in cfg.get("matte", ()):
-                    bg_kind = "matte:" + os.path.join(MATTES, "%s_%s.png" % (name, d))
-                fg_hints = cfg.get("matte_fg", {}).get(d, ()) if bg_kind.startswith("matte:") \
-                    else cfg.get("fg", {}).get(d, ())
-                bg_hints = cfg.get("matte_bg", {}).get(d, ()) if bg_kind.startswith("matte:") \
-                    else cfg.get("bg_hint", {}).get(d, ())
+                # Idle poses are named by direction; another animation's by
+                # "Walk:left" (its own matte, its own hints).
+                key = d if anim == "Idle" else "%s:%s" % (anim, d)
+                if key in cfg.get("matte", ()):
+                    bg_kind = "matte:" + os.path.join(MATTES, "%s_%s.png" % (name, key.replace(":", "_")))
+                fg_hints = cfg.get("matte_fg", {}).get(key, ()) if bg_kind.startswith("matte:") \
+                    else cfg.get("fg", {}).get(key, ())
+                bg_hints = cfg.get("matte_bg", {}).get(key, ()) if bg_kind.startswith("matte:") \
+                    else cfg.get("bg_hint", {}).get(key, ())
                 full[anim][d] = cut(board, box, bg_kind, fg_hints,
                                     cfg.get("sat_grow", 0), cfg.get("snow", False),
                                     cfg.get("feet_trim", True), cfg.get("drop_ice", False),

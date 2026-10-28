@@ -76,6 +76,13 @@ ROWS = ["south", "north", "east", "west"]
 # from the other source is scaled to the front's height.
 FB = "heroes_front_back.webp"
 SIDE = "heroes_side.webp"
+STEPHEN = "stephen_v2_board.png"
+RYAN = "ryan_v2_board.webp"
+BRAD = "brad_v2_board.webp"
+# Boards whose poses are drawn at different sizes (Ryan's side views are up
+# to 22% smaller than his front): every pose is scaled to HEIGHT on its own,
+# so he does not shrink when he turns.
+MATCH_HEIGHT = {"ryan", "brad"}
 HEROES = {
     "jeremy": [
         (FB, (28, 420, 252, 834), "south"),
@@ -87,27 +94,41 @@ HEROES = {
         (FB, (364, 0, 599, 411), "north"),
         (SIDE, (334, 2, 466, 372), "east"),
     ],
+    # 2026-10-28: the new Ryan (goggles, masked, crossed axes on his back,
+    # knives and potions at his belt), his own board on black: front, back,
+    # facing right, facing left, top to bottom.
     "ryan": [
-        (FB, (704, 419, 928, 835), "south"),
-        (FB, (710, 3, 930, 413), "north"),
-        (SIDE, (655, 4, 787, 371), "west"),
+        (RYAN, (380, 0, 640, 429), "south"),
+        (RYAN, (380, 429, 640, 847), "north"),
+        (RYAN, (415, 847, 580, 1180), "east"),
+        (RYAN, (430, 1180, 595, 1536), "west"),
     ],
+    # 2026-10-28: the new Brad (fur-trimmed scale armour over red sleeves,
+    # a gorget over his mouth, the War Rack on his back, the glowing feather
+    # painted on his breastplate), his own board on black: front, back,
+    # facing right, facing left.
     "brad": [
-        (FB, (1040, 422, 1283, 835), "south"),
-        (FB, (1042, 0, 1280, 414), "north"),
-        (SIDE, (960, 5, 1112, 372), "west"),
+        (BRAD, (370, 0, 650, 396), "south"),
+        (BRAD, (370, 396, 650, 779), "north"),
+        (BRAD, (410, 779, 590, 1138), "east"),
+        (BRAD, (425, 1138, 622, 1530), "west"),
     ],
+    # 2026-10-28: the new Stephen (fur-collared ranger, axe and bow on his
+    # back, a bear's arm for his left), from his own board on black, built by
+    # tools/build_stephen_board.py: the right-facing view is the designer's
+    # separate image (the board's own had the bear arm on the wrong side).
     "stephen": [
-        (FB, (1398, 417, 1636, 835), "south"),
-        (FB, (1404, 0, 1649, 413), "north"),
-        (SIDE, (1264, 367, 1420, 702), "east"),
+        (STEPHEN, (34, 0, 242, 287), "south"),
+        (STEPHEN, (248, 0, 472, 291), "north"),
+        (STEPHEN, (60, 286, 205, 620), "east"),
+        (STEPHEN, (305, 286, 442, 620), "west"),
     ],
 }
 
 # The sources' ground: a flat dark grey (with a few levels of compression
 # noise). Anything within GROUND_TOL of it, reached from the crop's edge, is
 # background; the figures' own dark outline keeps their dark cloth inside.
-GROUND = {FB: (32, 32, 30), SIDE: (32, 32, 30)}
+GROUND = {FB: (32, 32, 30), SIDE: (32, 32, 30), STEPHEN: (0, 0, 0), RYAN: (0, 0, 0), BRAD: (0, 0, 0)}
 GROUND_TOL = 6
 # The ground also sits in pockets the edge flood cannot reach — between an
 # arm and the body, inside Stephen's bow — and as a blended halo round the
@@ -128,7 +149,6 @@ HALO_PEEL = 2
 # gold nock against Stephen's dark trousers and pale arm-wrap above it.
 ERASE = {
     ("cory", "east"): [([(428, 92), (452, 92), (456, 178), (426, 178)], "charm")],
-    ("stephen", "east"): [([(1356, 606), (1370, 610), (1340, 646), (1324, 642)], "bow")],
 }
 
 # Jeremy's three rings — red, green and blue — show on his front, but the
@@ -184,7 +204,9 @@ def draw_rings(sheet, hero, facing):
 # resolution on the front pose, before any resampling, so the pixel and the
 # smooth sheets both carry it. (cx, cy): its centre as a fraction of the
 # cut-out's width and height; length: as a fraction of the figure's height.
-FEATHER = {"brad": {"cx": 0.50, "cy": 0.335, "length": 0.15, "angle": 20.0}}
+# 2026-10-28: Brad's new board paints the feather itself (glowing), so
+# nothing is drawn on him any more; the drawing is kept for a hero that needs it.
+FEATHER = {}
 FEATHER_GOLD = (196, 170, 112)      # the gold thread outline
 FEATHER_VANE = (252, 249, 236)      # pale gold-white vane
 FEATHER_SHADE = (232, 214, 168)     # the deeper gold of the lower vane and barbs
@@ -466,7 +488,7 @@ def build(hero, poses):
             scale = (path, img.height / float(ref_h))
             if facing == "scale":
                 continue
-        factor = scale[1] if path == scale[0] else img.height / float(ref_h)
+        factor = scale[1] if path == scale[0] and hero not in MATCH_HEIGHT else img.height / float(ref_h)
         full[facing] = resample(img, factor)
         soft[facing] = soft_frame(img, factor)
     full = {d: vibrance(f) for d, f in full.items()}

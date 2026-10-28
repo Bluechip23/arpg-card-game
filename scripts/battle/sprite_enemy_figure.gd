@@ -25,7 +25,6 @@ extends Node3D
 const SHEET := "res://assets/sprites/MonsterKit/monster battler set.png"
 const NPC1 := "res://assets/sprites/NPCpackage1"
 const CP := "res://assets/sprites/craftpix"
-const BOSSES := "res://assets/sprites/generated/bosses"
 const SHEETS := "res://assets/sprites/generated/sheets"
 
 ## Direction row order of the Craftpix packs, top row first: F = front
@@ -66,8 +65,8 @@ const NPC_WALK_TIME := 0.18
 ## Generated battler:  {tex: "<name>", tint?: Color, scale?: float}
 ## Directional sheets: {sheets: "<folder>", scale?} — Idle.png / Walk.png in
 ##                     the Craftpix layout (rows front, back, left, right),
-##                     cut from the designer's boss boards by
-##                     tools/cut_boss_sheets.py. Played like a Craftpix pack.
+##                     cut from the designer's boards (tools/cut_pose_boards.py,
+##                     tools/cut_creature_sheets.py). Played like a Craftpix pack.
 ## Craftpix icon:      {icon: "<pack>/<file>", faces?: "left"|"right"|"front",
 ##                     tint?, scale?} (a single 32x32 monster icon used as a
 ##                     static battler; flipped for the far side like the
@@ -77,9 +76,9 @@ const NPC_WALK_TIME := 0.18
 const KINDS := {
 	# --- direct battler matches ---
 	"sludge": {"sheets": SHEETS + "/sludge", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the slime pack's Slime1 tinted green
-	"mind_eater": {"cell": Vector2i(1, 0)},
+	"mind_eater": {"sheets": SHEETS + "/mind_eater", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28); was a MonsterKit battler
 	"pipe_crawler": {"cell": Vector2i(2, 0)},
-	"crypt_crawler": {"cell": Vector2i(3, 0)},
+	"crypt_crawler": {"sheets": SHEETS + "/crypt_crawler", "scale": BOARD_SCALE},  # the designer's grave spider (tools/cut_pose_boards.py, 2026-10-28); was a MonsterKit battler
 	"swarm": {"sheets": SHEETS + "/swarm", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py black_key, 2026-10-26); was MonsterKit cell (4, 0)
 	"giant_hawk": {"sheets": SHEETS + "/giant_hawk", "scale": BOARD_SCALE},  # the designer's board (2026-10-25), perched; was the mountain-monster Bird
 	"screecher": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},  # back on the pale ghost for now (2026-10-27): the crawler board was meant for the Consumed
@@ -96,22 +95,20 @@ const KINDS := {
 	"sewer_croc": {"sheets": SHEETS + "/sewer_cobra", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the mountain-monster Snake (the kind keeps its old croc name)
 	# --- generated sprites (drawn/derived in our pipeline, palette-conformant) ---
 	"rat": {"sheets": SHEETS + "/wererat", "scale": BOARD_SCALE},  # the Wererat: the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the giant-rat pack's Rat1
-	# The designer's Archer Rat (tools/cut_archer_rat.py): up on its hind
-	# legs while it stands, on all fours while it moves.
-	"archer_rat": {"sheets": SHEETS + "/archer_rat", "scale": BOARD_SCALE},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26); was the tools/cut_archer_rat.py cut
-	# The designer's own boss boards (no pack has these bosses): front, back
-	# and side walk frames, cut by tools/cut_boss_sheets.py.
-	"rat_king": {"sheets": SHEETS + "/rat_king", "scale": BOARD_SCALE},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26), 2.1 tiles — bigger than the Wererat; was his walk-sheet cut (tools/cut_boss_sheets.py)
+	# The designer's Archer Rat: up on its hind legs, bow in hand.
+	"archer_rat": {"sheets": SHEETS + "/archer_rat", "scale": BOARD_SCALE},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26)
+	# The designer's own boss boards (no pack has these bosses).
+	"rat_king": {"sheets": SHEETS + "/rat_king", "scale": BOARD_SCALE},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26), 2.1 tiles — bigger than the Wererat
 	"fire_goblin_soldier": {"sheets": SHEETS + "/fire_goblin", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the goblin pack's Goblin2
 	"fire_goblin_mage": {"sheets": SHEETS + "/fire_goblin_mage", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the goblin pack's Goblin1
-	"fire_goblin_shaman": {"sheets": SHEETS + "/fire_goblin", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the goblin pack's Goblin3
+	"fire_goblin_shaman": {"sheets": SHEETS + "/fire_goblin_shaman", "scale": BOARD_SCALE},  # his own board (tools/cut_pose_boards.py, 2026-10-28); wore the soldier's, and before that the goblin pack's Goblin3
 	"armored_troll": {"sheets": SHEETS + "/armored_troll", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Orc
 	"ice_troll": {"sheets": SHEETS + "/ice_troll", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Yeti
 	"granite_colossus": {"sheets": SHEETS + "/granite_colossus", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the golem pack's Golem1
 	"grave_titan": {"sheets": SHEETS + "/grave_titan", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the golem pack's Golem2
 	"inflamed_minotaur": {"sheets": SHEETS + "/inflamed_minotaur", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"demon": {"cp": "demons/Demon1", "scale": 0.85},
-	"pit_fiend": {"sheets": BOSSES + "/pit_fiend", "scale": 0.65},  # the designer's board (tools/cut_pit_fiend.py): stills, walks, tail-sweep attack
+	"pit_fiend": {"sheets": SHEETS + "/pit_fiend", "scale": BOARD_SCALE},  # the designer's new board, stills (tools/cut_pose_boards.py, 2026-10-28)
 	"bugbear": {"sheets": SHEETS + "/bugbear", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the gnoll pack's Gnoll2
 	"ifrit": {"sheets": SHEETS + "/ifrit", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"snow_wraith": {"sheets": SHEETS + "/snow_wraith", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the ghost pack's Ghost2
@@ -127,7 +124,7 @@ const KINDS := {
 	"werewolf": {"sheets": SHEETS + "/werewolf", "scale": BOARD_SCALE},
 	"sabertooth": {"sheets": SHEETS + "/sabertooth", "scale": BOARD_SCALE},
 	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": BOARD_SCALE},
-	"roc": {"fr": "mountain_monsters/Bird", "scale": 1.0, "tint": Color(1.05, 0.95, 0.85)},
+	"roc": {"sheets": SHEETS + "/roc", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28); was the mountain-monster Bird, tinted
 	"ash_harpy": {"sheets": SHEETS + "/ash_harpy", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the chaos-monster Icon22
 	"magma_spider": {"sheets": SHEETS + "/magma_spider", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the Crypt Crawler's MonsterKit cell (3, 0), tinted
 	# (Every roster kind now has a sprite; ART_TODO.md still tracks hand-drawn
@@ -165,7 +162,7 @@ const KINDS := {
 	# --- the Rat King's nests: no pack has a nest, so this one is drawn
 	# (tools/generate_rat_nest.gd) in the packs' palette and texel size ---
 	"rat_nest": {"tex": "rat_nest"},
-	# --- the Boneyard: the undead pack's headstones, and a gravedigger from the NPC pack ---
+	# --- the Boneyard: the undead pack's headstones, and the designer's grave digger ---
 	"gravestone": {"prop": "undead_grave", "scale": 1.6},
 	# --- Hell's Door: the cave pack's iron gate ---
 	"hell_door": {"prop": "cave_gate", "scale": 1.4},
@@ -179,7 +176,7 @@ const KINDS := {
 	"npc_card_dealer": {"sheets": SHEETS + "/npc_card_dealer", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-28
 	"npc_sellsword": {"sheets": SHEETS + "/npc_sellsword", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-27
 	"npc_blacksmith": {"sheets": SHEETS + "/npc_blacksmith", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-27
-	"grave_digger": {"npc": "res://assets/sprites/NPCpackage2/npc man B v01.png", "tint": Color(0.82, 0.88, 0.82)},
+	"grave_digger": {"sheets": SHEETS + "/grave_digger", "scale": BOARD_SCALE},  # the designer's board, lantern and spade (tools/cut_pose_boards.py, 2026-10-28)
 }
 
 # Uniform texel density across every billboard in the game (style guide §1).
@@ -191,7 +188,7 @@ const BOARD_SCALE := 0.5
 
 ## Kinds whose battler art already contains a painted contact shadow
 ## (the flyers; the sludge's own puddle) — these must not get a second blob shadow.
-const PAINTED_SHADOW_KINDS := ["swarm", "roc", "sludge",
+const PAINTED_SHADOW_KINDS := ["swarm", "sludge",
 		"screecher", "specter", "snow_wraith", "gravestone", "hell_door"]
 
 var figure_kind := ""   # the KINDS entry this figure was set up as

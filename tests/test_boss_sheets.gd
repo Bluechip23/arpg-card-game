@@ -2,8 +2,9 @@ extends SceneTree
 
 ## The designer's boss art: Cerberus, the Corrupted Archangel and the staged
 ## Hades kind wear the boss trio pose board (2026-10-27; tools/cut_pose_boards.py,
-## one pose a direction), the Pit Fiend its walking sheets
-## (tools/cut_pit_fiend.py); each turns to face every way. The Rat King left
+## one pose a direction), the Pit Fiend his own new board (2026-10-28, stills
+## only: it replaced the walking / tail-sweep action board); each turns to
+## face every way. The Rat King left
 ## the walk sheets for his redrawn pose board (2026-10-26).
 ## Run: godot --headless --path . --script tests/test_boss_sheets.gd
 
@@ -67,8 +68,8 @@ func _run() -> void:
 		x += 2.0
 		await process_frame
 		# Cerberus and the Archangel wear the boss trio pose board (2026-10-27):
-		# one pose a direction, no walk cycle. The Pit Fiend still walks.
-		_check_fig(en._enemy_figure, en.enemy_name, t == Enemy.EnemyType.PIT_FIEND)
+		# one pose a direction, no walk cycle; so does the Pit Fiend's new board.
+		_check_fig(en._enemy_figure, en.enemy_name, false)
 		_check(en.get_portrait_texture() != null, "%s has a portrait" % en.enemy_name)
 	# The Archer Rat wears the designer's redrawn four-pose board (2026-10-26;
 	# tools/cut_pose_boards.py): one pose a direction, bow in hand, and it
@@ -84,12 +85,12 @@ func _run() -> void:
 		ar_rows[int(arf._sprite.region_rect.position.y / arf._cp_cell)] = true
 	_check(ar_rows.size() == 4, "Archer Rat shows a different pose for each of the four facings")
 
-	# The Pit Fiend swings its tail: a real Attack sheet.
+	# The Pit Fiend wears the designer's new board (2026-10-28).
 	var pf: Enemy = null
 	for e in main.enemy_spawner.get_living_enemies():
 		if e.enemy_type == Enemy.EnemyType.PIT_FIEND:
 			pf = e
-	_check(pf != null and pf._enemy_figure._cp_sheets.has("Attack"), "Pit Fiend has its tail-sweep attack")
+	_check(pf != null and str(pf._enemy_figure._cp_sheets["Idle"].resource_path).contains("sheets/pit_fiend"), "Pit Fiend wears his new board")
 
 	# The designer's 4x4 creature walk sheets (tools/cut_creature_sheets.py).
 	for t in [Enemy.EnemyType.HYDRA, Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.SABERTOOTH,
@@ -97,8 +98,9 @@ func _run() -> void:
 		var ce: Enemy = main.enemy_spawner.spawn_enemy(t, main.player.position + Vector3(x, 0, 2))
 		x += 2.0
 		await process_frame
-		# The Hydra wears its redrawn pose board (2026-10-28): no walk cycle.
-		_check_fig(ce._enemy_figure, ce.enemy_name, t != Enemy.EnemyType.HYDRA)
+		# The Hydra and the Werewolf wear redrawn pose boards (2026-10-28):
+		# one pose a direction, no walk cycle.
+		_check_fig(ce._enemy_figure, ce.enemy_name, not (t in [Enemy.EnemyType.HYDRA, Enemy.EnemyType.WEREWOLF]))
 	# The Screecher wears the designer's crawler board (2026-10-25), no longer
 	# the Snow Wraith's ghost.
 	# The crawler board is the Consumed's (2026-10-27: it was on the Screecher

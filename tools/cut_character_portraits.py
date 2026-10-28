@@ -37,6 +37,16 @@ OUT_SIZE = (192, 200)
 BRIGHT = 60        # a column with a few pixels brighter than this belongs to a bust
 MIN_GAP = 8        # columns between busts
 
+# A hero whose portrait comes from his own board instead of the strip:
+# hero -> (source, box). The box keeps the select screen's 96:100 shape and
+# frames the bust like the strip's (crown to belt). 2026-10-28: Stephen's,
+# Ryan's and Brad's new front poses replaced theirs on the strip.
+OVERRIDES = {
+    "stephen": ("assets/sprites/paintings/stephen_v2_board.png", (33, -6, 241, 211)),
+    "ryan": ("assets/sprites/paintings/ryan_v2_board.webp", (366, -4, 654, 296)),
+    "brad": ("assets/sprites/paintings/brad_v2_board.webp", (350, -4, 670, 329)),   # his feather is painted on
+}
+
 # hero -> (centre x, centre y, length, lean in degrees) on the OUT_SIZE
 # portrait: centred on the middle seam of Brad's breastplate, lying across
 # it with the tip raised 20 degrees, up and to the right (designer).
@@ -121,6 +131,11 @@ def main() -> None:
     h = img.height
     w = int(round(h * ASPECT))
     for hero, (x0, x1) in zip(HEROES, runs):
+        if hero in OVERRIDES:
+            src, ob = OVERRIDES[hero]
+            Image.open(src).convert("RGB").crop(ob).resize(OUT_SIZE, Image.LANCZOS).save(OUT % hero)
+            print("%-8s from %s %s" % (hero, src, ob))
+            continue
         cx = (x0 + x1) // 2
         box = (cx - w // 2, 0, cx - w // 2 + w, h)
         canvas = Image.new("RGB", (w, h))
