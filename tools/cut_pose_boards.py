@@ -95,18 +95,25 @@ BOARDS = {
         },
     },
     "giant_beaver": {
-        "src": "giant_beaver_board.jpg", "bg": "checker_light", "tiles": 1.3,
+        # 2026-10-28: the designer's new Giant Beaver — a shaggy, red-eyed
+        # beaver with sabre teeth, a scaled black tail and hooked claws — on
+        # black, two rows: up on its hind legs (Idle) and on all fours (Walk),
+        # FRONT, BACK, LEFT, RIGHT, each side facing its own way. The bottom
+        # row's side poses meet tail to tail at x 1090. Height: standing.
+        "src": "giant_beaver_v2_board.webp", "bg": "grabcut", "tiles": 1.3,
+        "matte": ("front", "back", "left", "right",
+                  "Walk:front", "Walk:back", "Walk:left", "Walk:right"),   # the model matte (tools/make_mattes.py)
         "Idle": {
-            "front": (40, 50, 300, 392),
-            "back": (395, 50, 625, 392),
-            "left": (725, 50, 1045, 392),
-            "right": (1050, 50, 1380, 392),
+            "front": (14, 46, 312, 540),
+            "back": (363, 46, 656, 540),
+            "left": (680, 46, 1121, 540),
+            "right": (1122, 46, 1518, 540),
         },
         "Walk": {
-            "front": (80, 482, 290, 732),
-            "back": (410, 482, 625, 732),
-            "left": (690, 482, 1042, 730),
-            "right": (1044, 482, 1400, 730),
+            "front": (18, 640, 322, 930),
+            "back": (358, 640, 630, 930),
+            "left": (628, 640, 1090, 930),
+            "right": (1090, 640, 1528, 930),
         },
     },
     "wyvern": {
@@ -1516,12 +1523,15 @@ def build(name: str, cfg: dict) -> None:
         for d, box in cfg[anim].items():
             if box[0] != "mirror":
                 bg_kind = cfg["bg"]
-                if d in cfg.get("matte", ()):
-                    bg_kind = "matte:" + os.path.join(MATTES, "%s_%s.png" % (name, d))
-                fg_hints = cfg.get("matte_fg", {}).get(d, ()) if bg_kind.startswith("matte:") \
-                    else cfg.get("fg", {}).get(d, ())
-                bg_hints = cfg.get("matte_bg", {}).get(d, ()) if bg_kind.startswith("matte:") \
-                    else cfg.get("bg_hint", {}).get(d, ())
+                # Idle poses are named by direction; another animation's by
+                # "Walk:left" (its own matte, its own hints).
+                key = d if anim == "Idle" else "%s:%s" % (anim, d)
+                if key in cfg.get("matte", ()):
+                    bg_kind = "matte:" + os.path.join(MATTES, "%s_%s.png" % (name, key.replace(":", "_")))
+                fg_hints = cfg.get("matte_fg", {}).get(key, ()) if bg_kind.startswith("matte:") \
+                    else cfg.get("fg", {}).get(key, ())
+                bg_hints = cfg.get("matte_bg", {}).get(key, ()) if bg_kind.startswith("matte:") \
+                    else cfg.get("bg_hint", {}).get(key, ())
                 full[anim][d] = cut(board, box, bg_kind, fg_hints,
                                     cfg.get("sat_grow", 0), cfg.get("snow", False),
                                     cfg.get("feet_trim", True), cfg.get("drop_ice", False),

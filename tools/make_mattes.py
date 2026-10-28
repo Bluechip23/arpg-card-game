@@ -45,11 +45,13 @@ def main() -> None:
             board = white
         board = board.convert("RGB")
         for d in cfg.get("matte", ()):
-            x0, y0, x1, y1 = cfg["Idle"][d]
+            # "Walk:left" names a pose of another animation (its own matte file).
+            anim, dd = d.split(":") if ":" in d else ("Idle", d)
+            x0, y0, x1, y1 = cfg[anim][dd]
             big = board.crop((x0 - PAD, y0 - PAD, x1 + PAD, y1 + PAD))
             mask = remove(big, session=session, only_mask=True)
             mask = mask.crop((PAD, PAD, PAD + x1 - x0, PAD + y1 - y0))
-            mask.point(lambda v: 255 if v > 127 else 0).save(os.path.join(OUT, "%s_%s.png" % (kind, d)))
+            mask.point(lambda v: 255 if v > 127 else 0).save(os.path.join(OUT, "%s_%s.png" % (kind, d.replace(":", "_"))))
             print(kind, d)
 
 
