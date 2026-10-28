@@ -70,7 +70,8 @@ func _can_be_hit() -> bool:
 
 
 func get_status_effects() -> Array:
+	var out: Array = super.get_status_effects()
 	if burrowed:
-		return [{"name": "Burrowed", "color": Color(0.7, 0.55, 0.35), "stacks": 0,
-			"desc": "Underground: it can't be hit until it surfaces to attack."}]
-	return []
+		out.push_front({"name": "Burrowed", "color": Color(0.7, 0.55, 0.35), "stacks": 0,
+			"desc": "Underground: it can't be hit until it surfaces to attack."})
+	return out

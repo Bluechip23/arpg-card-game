@@ -28,6 +28,17 @@ var move_accum: int = 0    # tempo banked toward the next move (main drives it)
 var attack_accum: int = 0  # tempo banked toward the next attack
 var glide_speed: float = 4.0  # world units per second between cells
 var summoner: Node3D = null   # the player who called it up: summons walk their way
+var debuff_manager: DebuffManager = null  # enemy debuffs on it (made on first use)
+
+## Enemy debuffs land on summons too (designer, 2026-10-28) and do to them
+## what they do to a hero — except these, which act on a hand of cards, mana
+## or spells, none of which a summon has.
+const IGNORED_DEBUFFS := [
+	Debuff.DebuffType.HEXED, Debuff.DebuffType.LOCKED, Debuff.DebuffType.CLUMSY,
+	Debuff.DebuffType.STAGGERED, Debuff.DebuffType.WEIGHTED, Debuff.DebuffType.DRAIN,
+	Debuff.DebuffType.LOST, Debuff.DebuffType.CUFFED, Debuff.DebuffType.SILENCE,
+	Debuff.DebuffType.BRITTLE,
+]
 
 var _target_position: Vector3 = Vector3.ZERO
 var _is_moving: bool = false
@@ -123,6 +134,14 @@ func get_destination_cell() -> Vector2i:
 func move_to_cell(cell: Vector2i) -> void:
 	if not grid_manager or is_dead:
 		return
+	# Bleed: a point of damage per tile walked, a stack each.
+	if debuff_manager != null and debuff_manager.has_debuff(Debuff.DebuffType.BLEED):
+		var tiles: int = absi(cell.x - get_destination_cell().x) + absi(cell.y - get_destination_cell().y)
+		var bled: int = debuff_manager.on_movement(tiles)
+		if bled > 0:
+			take_damage(bled, true)
+			if is_dead:
+				return
 	var world = grid_manager.grid_to_world(cell)
 	_target_position = Vector3(world.x, 0.0, world.z)
 	_is_moving = true
@@ -142,9 +161,13 @@ func _survive_lethal() -> bool:
 func _after_hit(_dealt: int, _health_before: int) -> void:
 	pass
 
-func take_damage(amount: int) -> void:
+## `from_status`: a damage-over-time tick or Cursed's backlash (Vulnerable
+## only sharpens blows, as on a hero).
+func take_damage(amount: int, from_status := false) -> void:
 	if is_dead or not _can_be_hit():
 		return
+	if not from_status and debuff_manager != null:
+		amount = debuff_manager.modify_incoming_damage(amount)
 	# Cover: a defender within 2 squares soaks the hit by their hand size.
 	amount = PlayerStats.apply_cover(self, amount)
 	if amount <= 0:
@@ -172,7 +195,7 @@ func die() -> void:
 ## Summons don't carry the players' buff / debuff managers; each kind lists
 ## what it does have (a specter's time left, Shepherd's Mark, a burrow...).
 func get_status_effects() -> Array:
-	return []
+	return _debuff_badges()
 
 ## Its armor for the tab: [now, cap] (cap 0 when it has no cap).
 func get_armor_display() -> Array:
@@ -186,3 +209,64 @@ func get_portrait_texture() -> Texture2D:
 
 func is_portrait_flipped() -> bool:
 	return _figure != null and _figure.has_method("portrait_flipped") and _figure.portrait_flipped()
+
+# ---- Debuffs (enemy debuffs land on summons; designer, 2026-10-28) ----
+
+## Its debuffs, the same manager a hero carries (no stats behind it: the
+## damage-over-time ticks come back to main, which lands them here).
+func get_debuff_manager() -> DebuffManager:
+	if debuff_manager == null and not is_dead:
+		debuff_manager = DebuffManager.new()
+		debuff_manager.name = "Debuffs"
+		add_child(debuff_manager)
+		debuff_manager.initialize(null, self)
+		debuff_manager.ignored_types = IGNORED_DEBUFFS
+	return debuff_manager
+
+func _has_debuff(t: int) -> bool:
+	return debuff_manager != null and debuff_manager.has_debuff(t)
+
+## Stunned, Rooted or Frozen: it stays where it is.
+func can_move_now() -> bool:
+	return not (_has_debuff(Debuff.DebuffType.STUN) or _has_debuff(Debuff.DebuffType.ROOTED) \
+		or _has_debuff(Debuff.DebuffType.FROZEN))
+
+## Stunned, Disarmed or Frozen: no attacks.
+func can_attack_now() -> bool:
+	return not (_has_debuff(Debuff.DebuffType.STUN) or _has_debuff(Debuff.DebuffType.DISARM) \
+		or _has_debuff(Debuff.DebuffType.FROZEN))
+
+## Slowed: each move costs this many times the tempo.
+func move_cost_mult() -> int:
+	return Debuff.SLOWED_TEMPO_PER_TILE if _has_debuff(Debuff.DebuffType.SLOWED) else 1
+
+## The damage one of its attacks deals after its debuffs: 0 on a Blind miss;
+## Weakened / Cursed cut it; Cursed hurts it for a fifth of the blow and Burn
+## flares on it as it strikes (as on a hero).
+func outgoing_damage(base: int) -> int:
+	if debuff_manager == null or base <= 0:
+		return base
+	if debuff_manager.roll_blind_miss():
+		return 0
+	var dmg := base
+	var cut: float = debuff_manager.get_damage_reduction_percent()
+	if cut > 0.0:
+		dmg = maxi(1, floori(base * (1.0 - cut)))
+	var backlash: float = debuff_manager.get_self_damage_percent()
+	var burn: int = debuff_manager.on_attack()
+	if backlash > 0.0:
+		take_damage(maxi(1, floori(dmg * backlash)), true)
+	if burn > 0 and not is_dead:
+		take_damage(burn, true)
+	return dmg
+
+## Its debuffs as Allies-tab badges.
+func _debuff_badges() -> Array:
+	var out: Array = []
+	if debuff_manager == null:
+		return out
+	for d in debuff_manager.debuffs:
+		out.append({"name": d.debuff_name, "color": d.get_icon_color(),
+			"stacks": d.stacks if d.stacks > 1 else maxi(0, d.duration if d.duration > 0 else d.value),
+			"desc": d.description})
+	return out

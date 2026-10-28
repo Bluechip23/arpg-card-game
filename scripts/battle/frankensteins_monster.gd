@@ -41,5 +41,5 @@ func _absorb(amount: int) -> int:
 
 
 func get_status_effects() -> Array:
-	return [{"name": "Resist All", "color": Color(0.6, 0.9, 0.6), "stacks": int(resist_percent),
+	return super.get_status_effects() + [{"name": "Resist All", "color": Color(0.6, 0.9, 0.6), "stacks": int(resist_percent),
 		"desc": "Takes %d%% less damage from everything." % int(resist_percent)}]
