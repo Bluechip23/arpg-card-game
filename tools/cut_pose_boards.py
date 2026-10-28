@@ -158,16 +158,21 @@ BOARDS = {
         },
     },
     "djinn": {
-        "src": "djinn_board.jpg", "bg": "grabcut", "tiles": 1.8,
-        # GrabCut drops his thin ponytail and tail wisps against the sky; all
-        # of him is a strong blue or purple and the sky and ice are near grey,
-        # so the cut grows out into any pixel this saturated touching it.
-        "sat_grow": 55,
+        # 2026-10-28: the designer's new Djinn — a blue genie with a smoke
+        # ponytail, gold cuffs and chains, his lower body a coiling blue
+        # smoke tail — two rows on black; the top row (FRONT, BACK, LEFT,
+        # RIGHT, each facing its own way) is used, the second row (other
+        # poses: arms crossed, from above) is not. The labels sit below the
+        # poses. Height to the ponytail's top.
+        "src": "djinn_v2_board.webp", "bg": "grabcut", "tiles": 1.8,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model trims the smoke's thin wisps: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 30)] for d in ("front", "back", "left", "right")},
         "Idle": {
-            "front": (255, 400, 450, 750),
-            "back": (940, 395, 1170, 750),
-            "right": (60, 30, 300, 342),
-            "left": (790, 30, 1015, 342),
+            "front": (30, 12, 345, 455),
+            "back": (452, 14, 752, 455),
+            "left": (798, 12, 1072, 455),
+            "right": (1155, 14, 1407, 455),
         },
     },
     "ice_mage": {

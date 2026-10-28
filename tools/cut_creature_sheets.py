@@ -2,7 +2,7 @@
 """Cut the designer's 4x4 creature walk sheets into the game's sheets.
 
 Sources (assets/sprites/paintings/, .gdignore'd source art):
-  white_manticore_sheet.webp, weregoat_walk_board.webp, wolf_sheet.webp,
+  white_manticore_v2_sheet.webp, weregoat_walk_board.webp, wolf_sheet.webp,
     sabertooth_v2_clean.webp — 4x4 walk frames on pure black (row names on
     the left; the sabertooth's labels blacked out by
     tools/clean_sabertooth_sheet.py).
@@ -58,7 +58,10 @@ FRAMES = {
         "right": [(3, c) for c in range(4)],
     },
     "white_manticore": {
-        "src": "white_manticore_sheet.webp", "kind": "black", "down": 3 * 0.5 / 0.5625,
+        # 2026-10-28: the designer's new walk sheet (UP = back, DOWN = front,
+        # LEFT, RIGHT, each facing its label), shrunk to the old front height.
+        "src": "white_manticore_v2_sheet.webp", "kind": "black", "down": 270 / 117.0,
+        "row_cuts": (307, 573, 781),   # its tails curl up into the row above
         "back": [(0, c) for c in range(4)],
         "front": [(1, c) for c in range(4)],
         "left": [(2, c) for c in range(4)],
@@ -137,14 +140,22 @@ def _segments(profile: np.ndarray, min_gap: int) -> list:
     return runs
 
 
-def black_frames(rgb: np.ndarray) -> list:
+def black_frames(rgb: np.ndarray, row_cuts=None) -> list:
     """Every creature on a black sheet, as 4 rows of 4 crops. Tails and
     horns reach into the next row, so rows are not split on empty bands:
     each connected piece goes to the row (quarter of the sheet, cut at the
     emptiest line near each quarter mark) its centre falls in, and each row
     then splits into its four widest runs (the row name is a narrow run at
-    the far left)."""
+    the far left).
+
+    `row_cuts` (three y lines) fixes the row bands instead, for a sheet whose
+    creatures touch across rows (the white manticore's tails curl up into
+    the feet above): each row is then just its band, and each frame keeps
+    its own body (the biggest piece and what is near its size), not a tail
+    tip poking in from the next row."""
     bright = rgb.max(axis=2) > 16
+    if row_cuts is not None:
+        return _banded_frames(rgb, bright, row_cuts)
     h = bright.shape[0]
     prof = bright[:, 150:].sum(1).astype(float)
     cuts = [0]
@@ -185,6 +196,38 @@ def black_frames(rgb: np.ndarray) -> list:
             fg = _tidy(row_mask[ry0:ry1, x0:x1])
             out = np.zeros((ry1 - ry0, x1 - x0, 4), float)
             out[..., :3] = rgb[ry0:ry1, x0:x1]
+            out[..., 3] = fg
+            cells.append(out)
+        grid.append(cells)
+    return grid
+
+
+def _banded_frames(rgb: np.ndarray, bright: np.ndarray, row_cuts) -> list:
+    cuts = [0] + list(row_cuts) + [bright.shape[0]]
+    grid = []
+    for ri in range(4):
+        y0, y1 = cuts[ri], cuts[ri + 1]
+        band = bright[y0:y1].copy()
+        band[:, :150] = False                       # the row names
+        # Each frame: its own body only (pieces of a neighbour's tail that
+        # reach into the band are dropped before the columns are found).
+        n, labels, stats, _ = cv2.connectedComponentsWithStats(band.astype(np.uint8), 8)
+        keep = np.zeros_like(band)
+        if n > 1:
+            areas = stats[1:, cv2.CC_STAT_AREA]
+            big = np.sort(areas)[-4:].min() if len(areas) >= 4 else areas.min()
+            for i in range(1, n):
+                if stats[i, cv2.CC_STAT_AREA] >= big * 0.25:
+                    keep |= labels == i
+        ys = np.where(keep.any(axis=1))[0]
+        ry0, ry1 = int(ys.min()), int(ys.max()) + 1
+        cols = _segments(keep[ry0:ry1].sum(0), 8)
+        cols = sorted(sorted(cols, key=lambda c: c[1] - c[0])[-4:])
+        cells = []
+        for x0, x1 in cols:
+            fg = _tidy(keep[ry0:ry1, x0:x1])
+            out = np.zeros((ry1 - ry0, x1 - x0, 4), float)
+            out[..., :3] = rgb[y0 + ry0:y0 + ry1, x0:x1]
             out[..., 3] = fg
             cells.append(out)
         grid.append(cells)
@@ -234,7 +277,7 @@ def pack(rows, cell, cols) -> Image.Image:
 def build(name: str) -> None:
     spec = FRAMES[name]
     down = spec["down"]
-    grid = black_frames(np.array(Image.open(SRC % spec["src"]).convert("RGB")).astype(float))
+    grid = black_frames(np.array(Image.open(SRC % spec["src"]).convert("RGB")).astype(float), spec.get("row_cuts"))
     get = lambda r, c: grid[r][c]
     raw = {}
     frames = {}
