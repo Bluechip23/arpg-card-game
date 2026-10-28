@@ -881,6 +881,26 @@ BOARDS = {
             "left": ("mirror", "right"),
         },
     },
+    "crypt_crawler": {
+        # 2026-10-28: the Crypt Crawler — a great bristling grave spider with
+        # a cracked, cross-carved headstone and skulls grown into its back,
+        # moss and cobweb between its legs — FRONT, BACK, LEFT, RIGHT on
+        # black, each side facing its own way. The legs reach past the labels'
+        # tops, so the labels are marked background. The height runs from the
+        # headstone's top to the leg tips.
+        "src": "crypt_crawler_board.webp", "bg": "grabcut", "tiles": 1.6,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "matte_bg": {"front": [(246, 531, 362, 569)],
+                     "back": [(261, 523, 357, 560)],
+                     "left": [(255, 533, 350, 570)],
+                     "right": [(228, 526, 338, 563)]},
+        "Idle": {
+            "front": (10, 10, 615, 585),
+            "back": (665, 20, 1248, 595),
+            "left": (15, 605, 607, 1172),
+            "right": (660, 612, 1240, 1172),
+        },
+    },
     "mind_eater": {
         # 2026-10-28: the Mind Eater — a domed, mottled violet head over a
         # maw of long fangs, a mass of suckered tentacles trailing below —

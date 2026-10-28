@@ -79,7 +79,7 @@ const KINDS := {
 	"sludge": {"sheets": SHEETS + "/sludge", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the slime pack's Slime1 tinted green
 	"mind_eater": {"sheets": SHEETS + "/mind_eater", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28); was a MonsterKit battler
 	"pipe_crawler": {"cell": Vector2i(2, 0)},
-	"crypt_crawler": {"cell": Vector2i(3, 0)},
+	"crypt_crawler": {"sheets": SHEETS + "/crypt_crawler", "scale": BOARD_SCALE},  # the designer's grave spider (tools/cut_pose_boards.py, 2026-10-28); was a MonsterKit battler
 	"swarm": {"sheets": SHEETS + "/swarm", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py black_key, 2026-10-26); was MonsterKit cell (4, 0)
 	"giant_hawk": {"sheets": SHEETS + "/giant_hawk", "scale": BOARD_SCALE},  # the designer's board (2026-10-25), perched; was the mountain-monster Bird
 	"screecher": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},  # back on the pale ghost for now (2026-10-27): the crawler board was meant for the Consumed
