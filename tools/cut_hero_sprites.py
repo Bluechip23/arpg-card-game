@@ -13,8 +13,8 @@ second, larger set, 2026-10-25 — ~400 px a figure where the first set was
 Designer's edits (2026-10-25): Cory's chest charm (the rabbit's foot on its
 gold chain) and what is left of Stephen's bow in his side view are painted
 out (ERASE); Brad wears the embroidered feather on his breastplate (FEATHER);
-Jeremy's red, green and blue rings are put on his side view's fingers
-(RINGS).
+Jeremy's red, green and blue rings are put on his left hand's fingers in
+every view (RINGS).
 
 Keeping the art's nuance comes first (designer, 2026-10-23: the first cut,
 34 texels tall, was far too pixelated; 2026-10-24: err on the side of
@@ -32,9 +32,10 @@ little further from grey (VIBRANCE); a sharp
 (Lanczos) resample with on/off alpha, so edges are crisp pixels rather than
 soft fringes; the palette tidied to PALETTE colours a hero (no dithering),
 which settles the resample's in-between tones into clusters (a small accent
-it would swallow, like glowing eyes, keeps its colour); and a
-one-texel outline in a dark, hue-tinted shade of the colour it borders,
-SoM's inked silhouette.
+it would swallow, like glowing eyes, keeps its colour); and no
+outline: the dark line the boards paint round each figure is peeled off
+(designer, 2026-10-28: no black outline on the heroes, like the monsters);
+OUTLINE puts back the old one-texel inked silhouette.
 
 The figure is lifted off the black first: the background (pure black with a
 few levels of noise) is flood-filled in from the crop's edge, so dark cloth
@@ -59,14 +60,20 @@ import smooth_art  # noqa: E402  (the smooth, non-pixelated sheets)
 
 SRC = "assets/sprites/paintings/%s"
 OUT = "assets/sprites/generated/heroes/%s.png"
-HEIGHT = 100       # texels, crown to feet, of the hero's front pose (+ the outline: ~1.6 tiles at 64 a tile)
-SMOOTH_HEIGHT = 204   # the smooth sheet's height, crown to feet: HEIGHT (+ outline) at 128 a tile
+HEIGHT = 102       # texels, crown to feet, of the hero's front pose (~1.6 tiles at 64 a tile; the
+                   # height it had with the old one-texel outline round it)
+SMOOTH_HEIGHT = 204   # the smooth sheet's height, crown to feet: HEIGHT at 128 a tile
 WIDEN = 1.12       # drawn this much wider than tall (SpriteFigure.BOARD_WIDEN), baked in
                    # (designer, 2026-10-24: err on the side of under-pixelating the heroes)
 PALETTE = 96       # colours per hero after the tidy (0 = keep every colour)
 ACCENT_KEEP = 36   # ...but a pixel the tidy would move further than this keeps its colour
 VIBRANCE = 1.12    # SoM's saturated palette: colour pushed this much further from grey
-OUTLINE = True     # the inked one-texel silhouette
+OUTLINE = False    # the inked one-texel silhouette: off (designer, 2026-10-28: no black
+                   # outline, so the heroes sit with the monsters and NPCs, which have none)
+PEEL_DARK = 48     # the art's own painted outline (peel_painted_outline): an edge pixel this
+PEEL_RATIO = 0.6   # dark (0-255 mean) and under this share of its neighbourhood's mean...
+PEEL_WINDOW = 9    # ...(this many px square)...
+PEEL_PASSES = 4    # ...goes, this many layers deep (the line is 2-4 source px)
 KEEP_SHARE = 0.05  # pieces smaller than this share of the figure are dropped
 ROWS = ["south", "north", "east", "west"]
 
@@ -151,13 +158,17 @@ ERASE = {
     ("cory", "east"): [([(428, 92), (452, 92), (456, 178), (426, 178)], "charm")],
 }
 
-# Jeremy's three rings — red, green and blue — show on his front, but the
-# side view's hand (a gold bracelet with one blue gem) shows none (designer,
-# 2026-10-25: put them on his fingers). Drawn on the source at full
-# resolution before cutting: a gold band round each bony finger with its
-# gem on top. (x, y): the gem's centre in source pixels.
+# Jeremy's three rings — red, green and blue — on the fingers of his left
+# hand (designer, 2026-10-25: put them on his side view's fingers; 2026-10-28:
+# and on his front and back too). His left hand is the one the side view
+# shows, the viewer's right in the front view and the viewer's left in the
+# back. Drawn on the source at full resolution before cutting: a gold band
+# round each bony finger with its gem on top. (x, y): the gem's centre in
+# source pixels.
 RINGS = {
     ("jeremy", "west"): [((87, 246), (214, 38, 38)), ((93, 248), (40, 186, 72)), ((100, 249), (58, 112, 236))],
+    ("jeremy", "south"): [((214, 670), (214, 38, 38)), ((221, 671), (40, 186, 72)), ((228, 670), (58, 112, 236))],
+    ("jeremy", "north"): [((56, 259), (58, 112, 236)), ((63, 260), (40, 186, 72)), ((70, 259), (214, 38, 38))],
 }
 RING_GOLD = (222, 178, 74)
 RING_GOLD_DARK = (120, 84, 30)
@@ -441,6 +452,33 @@ def tidy_palette(frames):
     return out
 
 
+def peel_painted_outline(img):
+    """Take off the dark line the art itself draws round the figure (the
+    source boards ink their silhouettes, 2-4 px wide), on the full-size
+    cut-out so the pixel and smooth sheets both lose it: an edge pixel
+    PEEL_DARK or darker AND under PEEL_RATIO of its neighbourhood's mean
+    (PEEL_WINDOW px square, figure pixels only) goes transparent, PEEL_PASSES
+    times. Dark cloth at the edge (Cory's robe, Ryan's shirt) is about as dark
+    as its neighbourhood, so it stays."""
+    import cv2  # tool dependency (opencv-python-headless)
+    out = np.asarray(img).copy()
+    k = np.ones((3, 3), np.uint8)
+    for _ in range(PEEL_PASSES):
+        solid = out[..., 3] > 0
+        lum = out[..., :3].astype(np.float32).mean(axis=2)
+        edge = solid & (cv2.dilate((~solid).astype(np.uint8), k) > 0)
+        win = (PEEL_WINDOW, PEEL_WINDOW)
+        w = cv2.boxFilter(solid.astype(np.float32), -1, win, normalize=False, borderType=cv2.BORDER_CONSTANT)
+        v = cv2.boxFilter(np.where(solid, lum, 0).astype(np.float32), -1, win, normalize=False, borderType=cv2.BORDER_CONSTANT)
+        around = v / np.maximum(w, 1.0)
+        peel = edge & (lum <= PEEL_DARK) & (lum < around * PEEL_RATIO)
+        if not peel.any():
+            break
+        out[peel] = 0
+    ys, xs = np.nonzero(out[..., 3])
+    return Image.fromarray(out[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
+
+
 def ink_outline(f):
     """One texel of dark, hue-tinted ink around the silhouette (8-neighbour),
     in the shade of the colour it borders — SoM's outlined figures. Grows the
@@ -479,6 +517,8 @@ def build(hero, poses):
     soft = {}
     for path, box, facing in poses:
         img = cut(path, box, hero, facing)
+        if not OUTLINE:
+            img = peel_painted_outline(img)
         if facing == "south" and hero in FEATHER:
             draw_feather(img, **FEATHER[hero])
         if scale is None or facing == "scale":
