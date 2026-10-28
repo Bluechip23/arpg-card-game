@@ -881,6 +881,28 @@ BOARDS = {
             "left": ("mirror", "right"),
         },
     },
+    "grave_digger": {
+        # 2026-10-28: the Boneyard's Grave Digger — a heavy man in a flat cap,
+        # waistcoat and mud-caked trousers, a spade on his back and a lit
+        # lantern hung from a crooked pole over his shoulder — four labelled
+        # poses on black (FRONT, BACK, LEFT, RIGHT; each side faces its own
+        # way). The boxes stop above the labels; the height counts the
+        # lantern's top (his body is ~1.65 tiles, like the townsfolk).
+        "src": "grave_digger_board.webp", "bg": "grabcut", "tiles": 2.05,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model drops the hanging lantern (a lit thing apart from him):
+        # keep what is lit round it, above the soft glow.
+        "matte_fg": {"front": [(250, 20, 350, 180, "lit", 55)],
+                     "back": [(10, 20, 105, 180, "lit", 55)],
+                     "left": [(25, 10, 115, 175, "lit", 55)],
+                     "right": [(240, 10, 335, 175, "lit", 55)]},
+        "Idle": {
+            "front": (190, 0, 570, 558),
+            "back": (725, 0, 1050, 558),
+            "left": (110, 594, 470, 1120),
+            "right": (790, 594, 1140, 1120),
+        },
+    },
     "npc_armory": {
         # 2026-10-28: the town's Armory keeper — a woman in a grimy dress,
         # leather apron and tool belt, long black gloves — from her NPC
