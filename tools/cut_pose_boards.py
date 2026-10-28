@@ -1057,6 +1057,24 @@ BOARDS = {
             "right": (804, 584, 1210, 1122),
         },
     },
+    "werewolf": {
+        # 2026-10-28: the designer's updated Werewolf — a shaggy, muscled
+        # wolf-man on his hind legs, yellow eyes, a bushy tail — one row on
+        # black with a soft painted shadow at the feet: front, back, then
+        # two side views, the first facing right and the second left. The
+        # back view's tail tip touches the right-facing one: split at x 727.
+        # Kept at his old height (~1.9 tiles). Replaces his stone-floor walk
+        # sheet (tools/cut_creature_sheets.py).
+        "src": "werewolf_board.webp", "bg": "grabcut", "tiles": 1.9,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "drop_shadow": (0.06, 30),
+        "Idle": {
+            "front": (8, 190, 352, 745),
+            "back": (380, 190, 727, 748),
+            "right": (727, 190, 1132, 748),
+            "left": (1172, 190, 1528, 748),
+        },
+    },
     "roc": {
         # 2026-10-28: the Roc — a great golden-brown eagle, ruff raised,
         # golden talons — one row on black: front, back, then two side views,

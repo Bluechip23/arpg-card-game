@@ -1,33 +1,25 @@
 #!/usr/bin/env python3
 """Cut the designer's 4x4 creature walk sheets into the game's sheets.
 
-Sources (assets/sprites/paintings/, .gdignore'd source art), 2026-10-22:
-  werewolf_sheet.jpg — 4x4 walk
-    frames on a dark stone floor, a label strip over each row.
+Sources (assets/sprites/paintings/, .gdignore'd source art):
   white_manticore_sheet.webp, weregoat_walk_board.webp, wolf_sheet.webp,
     sabertooth_v2_clean.webp — 4x4 walk frames on pure black (row names on
     the left; the sabertooth's labels blacked out by
-    tools/clean_sabertooth_sheet.py). The stone floor the werewolf is cut
-    against is stone_floor_plate.png (see floor_plate).
-The row labels are not reliable ("walking left" rows that face right, a
-weregoat and wolf "Right" rows that face left, werewolf "back" frames that are side
-views — the werewolf walks those, upright), so FRAMES below picks each direction's frames by what they show and
-the opposite side is the mirror.
+    tools/clean_sabertooth_sheet.py).
+The row labels are not reliable ("walking left" rows that face right,
+weregoat and wolf "Right" rows that face left), so FRAMES below picks each
+direction's frames by what they show and the opposite side is the mirror.
+(The stone-floor sheets — hydra, sabertooth, werewolf — and their cutter
+are gone: all three moved to new art, 2026-10-28.)
 
-Stone sheets: the three share one floor template repeated in every cell,
-so a clean plate of the bare floor is rebuilt from the cells (floor_plate);
-each creature is what differs from it, minus its own shadow, with GrabCut
-settling the edge; specks are dropped and holes filled. The werewolf is dark
-fur on the same dark stone and gets its own pass (cut_stone_dark). Black sheets: anything brighter than the
-black is the creature; rows and frames are split where nothing lies between them.
+Anything brighter than the black is the creature; rows and frames are split
+where nothing lies between them.
 Each frame is box-filtered DOWN x with on/off alpha (2026-10-25: each DOWN now
 lands the creature on exactly the heroes' 64 texels a tile at
 SpriteEnemyFigure's BOARD_SCALE, its height in tiles unchanged — the old
 57-69 a tile drew the art a little off whole pixels) (2026-10-24, near the
 heroes' fineness, ~64 texels a tile: the black sheets' art pixels are ~2
-source pixels, DOWN 3 — DOWN 4 had thrown half their detail away; the stone
-sheets are painterly, with no pixel grid, DOWN 1.5 — DOWN 3 had halved
-them) and packed
+source pixels, DOWN 3 — DOWN 4 had thrown half their detail away) and packed
 bottom-centred into square cells in the Craftpix layout SpriteEnemyFigure
 plays (rows front, back, left, right): Idle = each direction's first frame,
 Walk = all of them.
@@ -49,28 +41,10 @@ import smooth_art  # noqa: E402  (the smooth, non-pixelated sheets)
 SRC = "assets/sprites/paintings/%s"
 OUT = "assets/sprites/generated/sheets/%s"
 
-# Stone sheets: the cell grid below the label strips.
-STONE_COLS = [(0, 322), (325, 646), (649, 970), (974, 1281)]
-STONE_ROWS = [(32, 205), (248, 413), (453, 622), (662, 830)]
-# Heads, horns and tails reach up to ~17 px into the dark label strip over
-# their row (the hydra's heads, the sabertooth's ears and tail, the
-# werewolf's ears): each cell is cut from this far up into the strip
-# (2026-10-25; the cells had started at the strip's lower edge and lost them).
-STRIP_REACH = 20
-
 # Per creature: source, kind, DOWN, and (row, col) frames per direction.
 # "right" frames face right; "left" frames face left; a missing side is the
 # mirror of the other.
 FRAMES = {
-    "werewolf": {
-        "src": "werewolf_sheet.jpg", "kind": "stone_dark", "down": 1.5 * 0.5 / 0.525,
-        "back": [(0, 0), (0, 1)],                     # (0, 2), (0, 3) are side views
-        "front": [(2, 0), (2, 1), (2, 2), (2, 3)],
-        # Side: the upright walk on its hind legs (the back row's two side
-        # views, facing right), not the "walking right" row on all fours
-        # (designer, 2026-10-23).
-        "right": [(0, 2), (0, 3)],
-    },
     "sabertooth": {
         # 2026-10-28: the designer's new walk sheet on black (rows: walking
         # up = back, "walking left" — which faces right too —, walking down
@@ -140,151 +114,6 @@ def _tidy(fg: np.ndarray, bg_like: np.ndarray = None) -> np.ndarray:
 
 HOLE_OPEN_MIN = 20
 
-
-def _near_body(fg: np.ndarray) -> np.ndarray:
-    """Only the largest piece and pieces within a few px of it."""
-    n, labels, stats, _ = cv2.connectedComponentsWithStats(fg.astype(np.uint8), 8)
-    if n <= 2:
-        return fg
-    body = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
-    near = cv2.dilate((labels == body).astype(np.uint8), np.ones((7, 7), np.uint8)) > 0
-    keep = [i for i in range(1, n) if i == body or (near & (labels == i)).any()]
-    return np.isin(labels, keep).astype(np.uint8)
-
-
-_PLATE = None
-
-
-## The bare stone floor the stone sheets share (one cell's worth, RGB): the
-## median of the floor in the old hydra and sabertooth stone sheets, with
-## the patch every creature covered inpainted. Saved once (2026-10-28) when
-## those two creatures moved to new art and their old sheets were deleted;
-## the werewolf's sheet, still on that floor, is cut against it.
-PLATE_FILE = "assets/sprites/paintings/stone_floor_plate.png"
-
-
-def floor_plate() -> np.ndarray:
-    global _PLATE
-    if _PLATE is None:
-        _PLATE = np.array(Image.open(PLATE_FILE).convert("RGB")).astype(float)
-    return _PLATE
-
-
-def _stone_cell(bgr: np.ndarray, r: int, c: int):
-    """One stone cell, from STRIP_REACH px up in the label strip down to its
-    own floor's last row: (cell BGR, cell RGB, the bare background under it
-    (the strip's flat dark colour, then the floor plate), the strip rows,
-    the label text in them)."""
-    plate = floor_plate()
-    pw = plate.shape[1]
-    x0 = STONE_COLS[c][0]
-    y0, y1 = STONE_ROWS[r]
-    top = y0 - STRIP_REACH
-    cell_bgr = bgr[top:y1, x0:x0 + pw].copy()
-    rgb = cv2.cvtColor(cell_bgr, cv2.COLOR_BGR2RGB).astype(float)
-    band = rgb[:STRIP_REACH]
-    dark = band.max(-1) < 40
-    strip = np.median(band[dark], axis=0) if dark.any() else np.array([15.0, 14.0, 24.0])
-    bare = np.concatenate([np.broadcast_to(strip, (STRIP_REACH, pw, 3)), plate[:y1 - y0]])
-    in_strip = np.zeros(rgb.shape[:2], bool)
-    in_strip[:STRIP_REACH] = True
-    sm = cv2.GaussianBlur(rgb, (3, 3), 0)
-    text = in_strip & ((sm.max(-1) - sm.min(-1)) < 30) & (sm.mean(-1) > 70)
-    return cell_bgr, rgb, bare, in_strip, text
-
-
-def cut_stone(bgr: np.ndarray, r: int, c: int) -> np.ndarray:
-    """One stone cell: the creature is what differs from the bare floor
-    (floor_plate), minus its own shadow (the floor, darker, same hue);
-    GrabCut settles the uncertain edge between the two."""
-    cell_bgr, rgb, plate, _, text = _stone_cell(bgr, r, c)
-    ph, pw, _ = plate.shape
-    diff = np.sqrt(((rgb - plate) ** 2).sum(-1))
-    lum = rgb.sum(-1) + 1.0
-    plum = plate.sum(-1) + 1.0
-    hue = rgb / lum[..., None]
-    phue = plate / plum[..., None]
-    # Floor lit differently: the creature's own shadow (darker), or bare
-    # floor where the plate kept other creatures' averaged shadows (lighter)
-    # — either way the same stone hue, only the brightness moved.
-    shadow = np.abs(hue - phue).sum(-1) < 0.06
-    rr, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-    warm = ((rr - b) >= 8) | ((g - b) >= 12)
-    mask = np.full((ph, pw), cv2.GC_PR_BGD, np.uint8)
-    mask[diff > 22] = cv2.GC_PR_FGD
-    mask[(diff > 40) & ~shadow] = cv2.GC_FGD
-    mask[(diff > 22) & warm] = cv2.GC_FGD
-    mask[diff < 10] = cv2.GC_BGD
-    mask[shadow & ~warm] = cv2.GC_BGD
-    mask[text] = cv2.GC_BGD
-    # The edges of the cell are floor.
-    mask[:3, :] = cv2.GC_BGD
-    mask[-3:, :] = cv2.GC_BGD
-    mask[:, :3] = cv2.GC_BGD
-    mask[:, -3:] = cv2.GC_BGD
-    bgd = np.zeros((1, 65), np.float64)
-    fgd = np.zeros((1, 65), np.float64)
-    cv2.grabCut(cell_bgr, mask, None, bgd, fgd, 6, cv2.GC_INIT_WITH_MASK)
-    fg = ((mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD)).astype(np.uint8)
-    fg = cv2.morphologyEx(fg, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
-    fg = _tidy(_near_body(fg), bg_like=((diff < 25) | shadow) & ~warm)
-    out = np.zeros((ph, pw, 4), float)
-    out[..., :3] = rgb
-    out[..., 3] = fg
-    return out
-
-
-def cut_stone_dark(bgr: np.ndarray, r: int, c: int) -> np.ndarray:
-    """One stone cell holding a DARK creature (the werewolf: dull brown fur,
-    near-black in shadow, on the same dark stone). Its shadowed legs differ
-    from the floor plate about as little as the floor's own shadow does, so
-    cut_stone loses them. Here the creature is also:
-      - warmer than the floor under it (R-B up against the plate's), or
-      - much darker than the floor (under a third of its brightness: the
-        floor's cast shadow never gets that dark, near-black fur does);
-    and after GrabCut, grass (green) and floor-grey (a neutral, fairly bright
-    pixel: the sheet's floor runs warmer than the plate in places) are
-    dropped, and only the body and pieces touching it are kept."""
-    cell_bgr, rgb, plate, _, text = _stone_cell(bgr, r, c)
-    ph, pw, _ = plate.shape
-    rr, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-    diff = np.sqrt(((rgb - plate) ** 2).sum(-1))
-    warmer = cv2.GaussianBlur((rr - b) - (plate[..., 0] - plate[..., 2]), (5, 5), 0)
-    ratio = cv2.GaussianBlur((rgb.sum(-1) + 1.0) / (plate.sum(-1) + 1.0), (3, 3), 0)
-    green = (g > rr + 4) & (g > b + 4)
-    mask = np.full((ph, pw), cv2.GC_PR_BGD, np.uint8)
-    mask[(diff > 18) | (warmer > 4) | (ratio < 0.5)] = cv2.GC_PR_FGD
-    mask[(warmer > 10) | ((diff > 45) & (warmer > 2)) | (ratio < 0.35)] = cv2.GC_FGD
-    mask[(diff < 10) & (warmer < 3) & (ratio > 0.5)] = cv2.GC_BGD
-    mask[(warmer < -2) & (ratio > 0.5)] = cv2.GC_BGD
-    mask[green | text] = cv2.GC_BGD
-    mask[:3, :] = cv2.GC_BGD
-    mask[-3:, :] = cv2.GC_BGD
-    mask[:, :3] = cv2.GC_BGD
-    mask[:, -3:] = cv2.GC_BGD
-    bgd = np.zeros((1, 65), np.float64)
-    fgd = np.zeros((1, 65), np.float64)
-    cv2.grabCut(cell_bgr, mask, None, bgd, fgd, 6, cv2.GC_INIT_WITH_MASK)
-    fg = ((mask == cv2.GC_FGD) | (mask == cv2.GC_PR_FGD)).astype(np.uint8)
-    sm = cv2.GaussianBlur(rgb, (3, 3), 0)
-    floor_grey = (sm.mean(-1) > 50) & ((sm.max(-1) - sm.min(-1)) < 12)
-    fg[green | floor_grey | text] = 0
-    fg = cv2.morphologyEx(fg, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
-    n, labels, stats, _ = cv2.connectedComponentsWithStats(fg, 8)
-    if n > 1:
-        body = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
-        near = cv2.dilate((labels == body).astype(np.uint8), np.ones((7, 7), np.uint8)) > 0
-        keep = [i for i in range(1, n) if i == body or (near & (labels == i)).any()]
-        fg = np.isin(labels, keep).astype(np.uint8)
-    fg = _tidy(fg)
-    # Floor walled in between an arm and the body survives the hole fill:
-    # clear the slate-blue (B over R) pixels that aren't near-black again.
-    fg[(sm[..., 2] - sm[..., 0] > 2) & (sm.mean(-1) > 40)] = 0
-    fg = cv2.morphologyEx(fg, cv2.MORPH_OPEN, np.ones((2, 2), np.uint8))
-    out = np.zeros((ph, pw, 4), float)
-    out[..., :3] = rgb
-    out[..., 3] = fg
-    return out
 
 def _segments(profile: np.ndarray, min_gap: int) -> list:
     """Runs where the profile is non-empty, merging gaps shorter than min_gap."""
@@ -364,7 +193,7 @@ def black_frames(rgb: np.ndarray) -> list:
 
 def downscale(rgba: np.ndarray, down) -> np.ndarray:
     if down != int(down):
-        # A fractional factor (the painterly stone sheets): premultiplied box
+        # A fractional factor: premultiplied box
         # resample, then on/off alpha.
         # (frames arrive as floats: colour 0..255, alpha 0..1)
         u8 = np.dstack([np.clip(rgba[..., :3], 0, 255), np.clip(rgba[..., 3:4], 0, 1) * 255]).round().astype(np.uint8)
@@ -405,13 +234,8 @@ def pack(rows, cell, cols) -> Image.Image:
 def build(name: str) -> None:
     spec = FRAMES[name]
     down = spec["down"]
-    if spec["kind"] in ("stone", "stone_dark"):
-        bgr = cv2.imread(SRC % spec["src"])
-        cutter = cut_stone_dark if spec["kind"] == "stone_dark" else cut_stone
-        get = lambda r, c: cutter(bgr, r, c)
-    else:
-        grid = black_frames(np.array(Image.open(SRC % spec["src"]).convert("RGB")).astype(float))
-        get = lambda r, c: grid[r][c]
+    grid = black_frames(np.array(Image.open(SRC % spec["src"]).convert("RGB")).astype(float))
+    get = lambda r, c: grid[r][c]
     raw = {}
     frames = {}
     for d in ("front", "back", "left", "right"):
