@@ -249,39 +249,54 @@ BOARDS = {
             "right": (831, 507, 1252, 932),
         },
     },
-    "bull_worm": {
-        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
-        # 2026-10-25: the Alaskan Bull Worm (Worms Armageddon), coiled, horned,
-        # on the same wall and floor.
-        "src": "bull_worm_board.jpg", "bg": "grabcut", "tiles": 1.2,
-        "sky_tol": 12,
+    "pit_fiend": {
+        # 2026-10-28: the designer's new Pit Fiend — red-skinned and horned,
+        # bat wings, spiked armour with a skull belt, a sword at his hip and
+        # a glowing chain in hand — one row on black: front, back, then two
+        # side views, the first facing left and the second right. Stills
+        # only: it replaces the action board (tools/cut_pit_fiend.py, whose
+        # walk and tail-sweep frames are not drawn on the new board).
+        "src": "pit_fiend_v2_board.webp", "bg": "grabcut", "tiles": 1.75,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model trims fire and glow: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
         "Idle": {
-            "front": (262, 428, 696, 762),
-            "back": (712, 428, 1152, 762),
-            "right": (258, 58, 680, 375),
-            "left": (725, 58, 1150, 375),
+            "front": (8, 140, 460, 732),
+            "back": (466, 140, 904, 732),
+            "left": (910, 138, 1334, 732),
+            "right": (1380, 138, 1774, 732),
         },
-        # The hooked tip of the left horn, seen from behind (dark on the dark wall).
-        "fg": {"back": [(72, 100, 95, 128, 6), (95, 128, 118, 124, 6)]},
+    },
+    "bull_worm": {
+        # 2026-10-28: the designer's new Alaskan Bull Worm (Worms
+        # Armageddon's summon) — a ram-horned, many-eyed worm rearing out of
+        # its own smouldering coils — one row on black: front, back, then
+        # two side views, the first facing left and the second right.
+        "src": "bull_worm_v2_board.webp", "bg": "grabcut", "tiles": 1.2,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model trims fire and glow: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
+        "Idle": {
+            "front": (12, 188, 450, 766),
+            "back": (476, 188, 882, 768),
+            "left": (882, 186, 1316, 766),
+            "right": (1344, 186, 1758, 766),
+        },
     },
     "inflamed_minotaur": {
-        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py, 2026-10-25)
-        # 2026-10-25: the Inflamed Minotaur, flaming horns, axe and shield, on
-        # a dark flagstone floor. Its "west" and "east" poses are the front
-        # pose and its mirror (the board's own labels, kept); the face is
-        # "south", the back "north".
-        "src": "inflamed_minotaur_board.png", "bg": "warm", "tiles": 2.4,   # fire and bronze on cool flagstones
-        "match_height": ("left", "right", "back"),
-        # The board's own dark frame line down its outer edges.
-        "bg_hint": {"front": [(0, 0, 15, 400)], "left": [(0, 0, 15, 400)],
-                    "back": [(232, 0, 260, 400)], "right": [(232, 0, 260, 400)]},
-        # The poses run to the board's edges (axe and shield): the boxes
-        # reach past them into the crop's black padding.
+        # 2026-10-28: the designer's updated Inflamed Minotaur — flaming mane
+        # and horns, a burning axe and a spiked shield, lava-veined armour —
+        # a 2x2 board on black: front, back (top), facing left, facing right
+        # (bottom). The top row's flames run off the board's top edge.
+        "src": "inflamed_minotaur_v2_board.webp", "bg": "grabcut", "tiles": 2.4,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model trims fire and glow: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
         "Idle": {
-            "front": (-12, 415, 227, 628),
-            "back": (233, 415, 482, 628),
-            "left": (-12, 57, 227, 292),
-            "right": (233, 57, 482, 292),
+            "front": (48, 0, 658, 516),
+            "back": (862, 0, 1486, 516),
+            "left": (86, 517, 694, 1002),
+            "right": (830, 517, 1448, 1002),
         },
     },
     "bone_dragon": {
