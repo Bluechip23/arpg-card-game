@@ -106,6 +106,52 @@ var _stash_message_timer: float = 0.0
 var _townsfolk: Array = []
 const TOWNSFOLK_NOTICE := 5.0   # world units: within this, they look at the player
 
+## The shopkeepers introduce themselves the first time the player speaks to
+## them, then their shop opens. Titles only: the designer names them later.
+## (Portraits: tools/cut_keeper_portraits.py, from each one's NPC sheet.)
+const KEEPER_INTROS := {
+	"Blacksmith": {
+		"id": "meet_blacksmith",
+		"speaker": "The Blacksmith",
+		"portrait": "res://assets/sprites/portraits/keeper_blacksmith.png",
+		"lines": [
+			"Hm. New face. Mind the sparks.",
+			"I'm the smith. Bring me a spare copy of something you already wear and I'll hammer the two together — the piece comes out a level stronger. Mythics too heavy for you to wear yet, I can melt down into Mythic Pieces; two pieces pour into a Mythic Mold.",
+			"Anything you've no use for, I'll buy for the metal. Now — what've you got?",
+		],
+	},
+	"Armory": {
+		"id": "meet_armory",
+		"speaker": "The Armory Keeper",
+		"portrait": "res://assets/sprites/portraits/keeper_armory.png",
+		"lines": [
+			"Oh — a customer! Sorry, I've been in the back with the polish.",
+			"This is the armory. Weapons and armor, bought and sold: blades, shields, helms, boots, whatever keeps you standing out there.",
+			"Got gear you've outgrown? I'll take it off your hands for fair coin.",
+		],
+	},
+	"CardDealer": {
+		"id": "meet_card_dealer",
+		"speaker": "The Card Dealer",
+		"portrait": "res://assets/sprites/portraits/keeper_card_dealer.png",
+		"lines": [
+			"Ah. Someone who fights with paper. Welcome.",
+			"I deal in cards. I'll sell you new ones for your deck and buy the ones you don't want. Cards you destroy fold into Origami Swans — twenty make a Culling Stone, and a Culling Stone lets me take a card out of your deck for good.",
+			"A lean deck is a sharp deck. Come see me whenever you want to change yours.",
+		],
+	},
+	"Sellsword": {
+		"id": "meet_sellsword",
+		"speaker": "The Sellsword",
+		"portrait": "res://assets/sprites/portraits/keeper_sellsword.png",
+		"lines": [
+			"You look like someone who walks into trouble on purpose.",
+			"I keep the ledger for blades for hire. Pay the fee and I'll send one of my people out with you — a partner who fights at your side for good, not just one job. Press TAB out there to take their turn yourself.",
+			"Coin first, then we talk names. Have a look at who's free.",
+		],
+	},
+}
+
 var vendor_info: Dictionary = {
 	"Blacksmith": {
 		"name": "Blacksmith",
@@ -420,7 +466,8 @@ func _input(event: InputEvent) -> void:
 						])
 					return
 				if nearby_vendor:
-					_open_vendor(nearby_vendor)
+					if not _introduce_keeper(nearby_vendor):
+						_open_vendor(nearby_vendor)
 			KEY_ESCAPE:
 				if _modal_open:
 					_close_detail_modal()
@@ -580,6 +627,22 @@ func _get_vendor_items(vendor_type: String) -> Array[ItemData]:
 			# until new accessories are added to ItemData.
 			pass
 	return items
+
+## The first time the player speaks to a shopkeeper, they introduce
+## themselves (once per character); their shop opens when the player reads
+## on. Returns true if the introduction is showing.
+func _introduce_keeper(vendor_node: StaticBody3D) -> bool:
+	var intro: Dictionary = KEEPER_INTROS.get(vendor_node.name, {})
+	if intro.is_empty() or _olorin_tutorial == null:
+		return false
+	var shown := _olorin_tutorial.show_introduction(str(intro["id"]), str(intro["speaker"]),
+		intro["lines"], load(str(intro["portrait"])) as Texture2D)
+	if shown:
+		interact_prompt.text = ""
+		_olorin_tutorial.dialog_closed.connect(func():
+			if is_instance_valid(vendor_node) and not vendor_open:
+				_open_vendor(vendor_node), CONNECT_ONE_SHOT)
+	return shown
 
 func _open_vendor(vendor_node: StaticBody3D) -> void:
 	var info = vendor_info.get(vendor_node.name, null)
