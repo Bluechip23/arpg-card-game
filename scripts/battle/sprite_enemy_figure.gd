@@ -104,7 +104,7 @@ const KINDS := {
 	"rat_king": {"sheets": SHEETS + "/rat_king", "scale": BOARD_SCALE},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26), 2.1 tiles — bigger than the Wererat; was his walk-sheet cut (tools/cut_boss_sheets.py)
 	"fire_goblin_soldier": {"sheets": SHEETS + "/fire_goblin", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the goblin pack's Goblin2
 	"fire_goblin_mage": {"sheets": SHEETS + "/fire_goblin_mage", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the goblin pack's Goblin1
-	"fire_goblin_shaman": {"sheets": SHEETS + "/fire_goblin", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the goblin pack's Goblin3
+	"fire_goblin_shaman": {"sheets": SHEETS + "/fire_goblin_shaman", "scale": BOARD_SCALE},  # his own board (tools/cut_pose_boards.py, 2026-10-28); wore the soldier's, and before that the goblin pack's Goblin3
 	"armored_troll": {"sheets": SHEETS + "/armored_troll", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Orc
 	"ice_troll": {"sheets": SHEETS + "/ice_troll", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Yeti
 	"granite_colossus": {"sheets": SHEETS + "/granite_colossus", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the golem pack's Golem1

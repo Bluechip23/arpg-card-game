@@ -538,6 +538,23 @@ BOARDS = {
             "right": (787, 612, 1122, 1134),
         },
     },
+    "fire_goblin_shaman": {
+        # 2026-10-28: the Fire Goblin Shaman — a goblin in a tattered,
+        # rune-hemmed crimson robe, a skull and fangs at his throat, a
+        # twisted iron staff crowned with fire — FRONT, BACK, LEFT, RIGHT on
+        # black, each side facing its own way; his own board (he wore the
+        # soldier's until now). The height counts the staff's flame.
+        "src": "fire_goblin_shaman_board.webp", "bg": "grabcut", "tiles": 1.65,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model trims the flame's wisps: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
+        "Idle": {
+            "front": (95, 0, 525, 568),
+            "back": (715, 0, 1150, 568),
+            "left": (115, 585, 535, 1158),
+            "right": (705, 585, 1135, 1158),
+        },
+    },
     "coyote": {
         # 2026-10-26: the Coyote — a lean brown-grey coyote — four poses on
         # black. Its "NORTH" pose shows the face and "SOUTH" its back;
