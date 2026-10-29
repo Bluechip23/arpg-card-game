@@ -2602,18 +2602,17 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 	match vn:
 		"Blacksmith":
 			# The designer's smithy (2026-10-29, blacksmith_forge_board): the
-			# forge behind him and a little to his left, its bellows on its
-			# right and the coal box on its left; the mold rack behind him to
-			# the right, the sword rack a step right of and below it. His two
-			# tables stand in front of him side by side (the old anvil bench
-			# and the new workbench, with its stool); the grindstone sits up
-			# and right of him with the anvil on its right and the water
-			# bucket by the anvil.
-			_stall_prop(stall, "smith_molds", 0, Vector3(2.6, 0, -1.75))
-			_stall_prop(stall, "smith_forge", 0, Vector3(-1.0, 0, -1.6))
-			_stall_prop(stall, "smith_bellows", 0, Vector3(0.5, 0, -1.25))
-			_stall_prop(stall, "smith_coal_box", 0, Vector3(-2.55, 0, -1.35))
-			_stall_prop(stall, "smith_sword_rack", 0, Vector3(4.4, 0, -0.75))
+			# forge up behind him to his left, clear of him, its bellows on its
+			# right and the coal box on its left; the sword rack at his left.
+			# His two tables stand in front of him side by side (the old anvil
+			# bench and the new workbench, with its stool); the grindstone sits
+			# up and right of him with the anvil on its right, the water bucket
+			# by the anvil and the mold rack behind them.
+			_stall_prop(stall, "smith_forge", 0, Vector3(-3.0, 0, -2.6))
+			_stall_prop(stall, "smith_bellows", 0, Vector3(-1.35, 0, -2.25))
+			_stall_prop(stall, "smith_coal_box", 0, Vector3(-4.6, 0, -2.35))
+			_stall_prop(stall, "smith_molds", 0, Vector3(1.45, 0, -0.85))
+			_stall_prop(stall, "smith_sword_rack", 0, Vector3(-1.3, 0, -0.25))
 			# The designer's Blacksmith (his NPC sheet's four standing poses),
 			# turning to face a nearby player.
 			_add_stall_keeper(stall, "npc_blacksmith", "Smith")
@@ -2766,6 +2765,13 @@ func _create_sellsword_npc() -> void:
 	fig.setup("npc_sellsword")   # brings its own blob shadow
 	fig.scale = Vector3.ONE * TOWN_NPC_SCALE
 	_townsfolk.append(fig)
+	# Her scroll case of contracts behind her and her desk in front (the
+	# designer's, 2026-10-29).
+	for spec in [["town_scroll_case", Vector3(0, 0, -1.0)], ["town_contract_desk", Vector3(0, 0, 0.85)]]:
+		var prop := CraftpixProps.make_sprite(spec[0], 1.0, 0)
+		if prop:
+			prop.position += spec[1]
+			sellsword.add_child(prop)
 
 	var collision = CollisionShape3D.new()
 	var shape = BoxShape3D.new()

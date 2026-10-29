@@ -335,6 +335,10 @@ BOARDS = {
     "smith_sword_rack": {"src": "blacksmith_forge_board.webp", "own_alpha": 230, "pieces": [((730, 735, 964, 994), 52)]},
     "smith_logs": {"src": "blacksmith_forge_board.webp", "own_alpha": 230, "pieces": [((990, 740, 1252, 988), 48)]},
     "smith_grindstone": {"src": "blacksmith_forge_board.webp", "own_alpha": 230, "pieces": [((1254, 724, 1532, 994), 54)]},
+    # 2026-10-29: the Sellsword's scroll case and her desk of contracts with
+    # its stool (sellsword_board.webp, on black), at the scale drawn.
+    "town_scroll_case": {"src": "sellsword_board.webp", "main_only": True, "pieces": [((20, 25, 832, 938), 112)]},
+    "town_contract_desk": {"src": "sellsword_board.webp", "black_level": 24, "pieces": [((815, 352, 1516, 932), 72)]},
     "town_stash_vault": {
         "src": "stash_vault_board.webp",
         "pieces": [((196, 45, 1339, 985), 126)],
@@ -363,7 +367,8 @@ def turn45(img, squeeze=0.72, drop=0.45):
 
 
 def cut_piece(board, box, height, alpha_cut=128, flip=False, open_black=False, main_only=False,
-              rim_floor=1e-3, own_alpha=0):
+              rim_floor=1e-3, own_alpha=0, black_level=None):
+    black_at = BLACK if black_level is None else black_level
     rgb = np.asarray(board.crop(box).convert("RGB")).astype(np.float32)
     if own_alpha:
         # A board that comes cut out (its own transparency, a soft painted
@@ -390,7 +395,7 @@ def cut_piece(board, box, height, alpha_cut=128, flip=False, open_black=False, m
     # The background is the black reached from the crop's edge; black
     # enclosed by the piece is its own deep shading (the designer shades
     # foliage nearly to black) and stays.
-    black = bright <= BLACK
+    black = bright <= black_at
     lab, n = nd.label(black)
     edge_labels = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
     sizes = nd.sum(black, lab, range(1, n + 1)) if n else []
@@ -407,7 +412,7 @@ def cut_piece(board, box, height, alpha_cut=128, flip=False, open_black=False, m
     # The outermost rim is blended into the black: soft there (RAMP), so
     # the shrink does not draw a dark line round the piece.
     rim = solid & ~nd.binary_erosion(solid, iterations=2)
-    alpha = np.where(rim, np.clip((bright - BLACK) / RAMP, 0.0, 1.0), solid.astype(np.float32))
+    alpha = np.where(rim, np.clip((bright - black_at) / RAMP, 0.0, 1.0), solid.astype(np.float32))
     ys, xs = np.nonzero(solid)
     rgb = rgb[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
     alpha = alpha[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
@@ -435,7 +440,8 @@ def build(role, cfg):
     for i, (b, box, height) in enumerate(pieces):
         img = cut_piece(b, box, height, cfg.get("alpha_cut", 128), cfg.get("flip", False),
                         cfg.get("open_black", False), cfg.get("main_only", False),
-                        cfg.get("rim_floor", 1e-3), cfg.get("own_alpha", 0))
+                        cfg.get("rim_floor", 1e-3), cfg.get("own_alpha", 0),
+                        cfg.get("black_level"))
         if cfg.get("turn45"):
             img = turn45(img)
         img.save(OUT % (role, i))

@@ -335,6 +335,8 @@ DESIGNER = {
     "smith_sword_rack": {"scale": 0.5, "files": ["assets/textures/props/boards/smith_sword_rack_0.png"]},
     "smith_logs": {"scale": 0.5, "files": ["assets/textures/props/boards/smith_logs_0.png"]},
     "smith_grindstone": {"scale": 0.5, "files": ["assets/textures/props/boards/smith_grindstone_0.png"]},
+    "town_scroll_case": {"scale": 0.5, "files": ["assets/textures/props/boards/town_scroll_case_0.png"]},
+    "town_contract_desk": {"scale": 0.5, "files": ["assets/textures/props/boards/town_contract_desk_0.png"]},
     "town_card_shelf": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_shelf_0.png"]},
     "town_card_table": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_table_0.png"]},
     "town_card_players": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_players_0.png"]},

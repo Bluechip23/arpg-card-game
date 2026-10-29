@@ -117,6 +117,8 @@ const PROPS := {
 	"smith_sword_rack": {"scale": 0.50, "variants": [{"path": "res://assets/textures/props/boards/smith_sword_rack_0.png", "w": 47, "h": 52}], "density": 64},
 	"smith_logs": {"scale": 0.50, "variants": [{"path": "res://assets/textures/props/boards/smith_logs_0.png", "w": 52, "h": 48}], "density": 64},
 	"smith_grindstone": {"scale": 0.50, "variants": [{"path": "res://assets/textures/props/boards/smith_grindstone_0.png", "w": 55, "h": 54}], "density": 64},
+	"town_scroll_case": {"scale": 0.50, "variants": [{"path": "res://assets/textures/props/boards/town_scroll_case_0.png", "w": 100, "h": 112}], "density": 64},
+	"town_contract_desk": {"scale": 0.50, "variants": [{"path": "res://assets/textures/props/boards/town_contract_desk_0.png", "w": 87, "h": 72}], "density": 64},
 	"town_card_shelf": {"scale": 0.50, "variants": [{"path": "res://assets/textures/props/boards/town_card_shelf_0.png", "w": 113, "h": 96}], "density": 64},
 	"town_card_table": {"scale": 0.50, "variants": [{"path": "res://assets/textures/props/boards/town_card_table_0.png", "w": 145, "h": 93}], "density": 64},
 	"town_card_players": {"scale": 0.50, "variants": [{"path": "res://assets/textures/props/boards/town_card_players_0.png", "w": 124, "h": 89}], "density": 64},
