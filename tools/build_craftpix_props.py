@@ -50,7 +50,7 @@ ROLES = {
     "field_fern": {"scale": 1.0, "src": [f"{G}/Bush12.png", f"{G}/Bush13.png", f"{G}/Bush18.png", f"{F}/Bush8.png", f"{F}/Bush10.png"]},
     "field_flower": {"scale": 1.0, "src": [f"{G}/Flower{i}.png" for i in range(1, 12)]},
     "field_tuft": {"scale": 1.0, "src": [f"{G}/grass_element1.png", f"{G}/grass_element2.png", f"{G}/grass_element3.png", f"{G}/Bush10.png", f"{G}/Bush16.png", f"{G}/Bush19.png"]},
-    "field_shroom": {"scale": 1.0, "src": [f"{F}/Brown_mushroom1.png", f"{F}/Brown_mushroom2.png", f"{F}/Red_mushroom1.png"]},
+    # "field_shroom": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Brown_mushroom1.png", f"{F}/Brown_mushroom2.png", f"{F}/Red_mushroom1.png"]
     "field_pebble": {"scale": 1.0, "src": [f"{G}/ground_element20.png", f"{G}/ground_element21.png", f"{G}/ground_element22.png", f"{G}/ground_element23.png", f"{G}/Rock_grass_element13.png"]},
     "field_ruin": {"scale": 0.8, "src": [f"{G}/Ruin1_grass_shadow.png", f"{G}/Ruin2_grass_shadow.png", f"{G}/Ruin3_grass_shadow.png", f"{G}/Ruin4_grass_shadow.png", f"{G}/Ruin5_grass_shadow.png"]},
     # --- Greenwood (forest pack) ---
@@ -62,10 +62,10 @@ ROLES = {
     # "forest_rock": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Light_stone_grass1.png", f"{F}/Light_stone_grass2.png", f"{F}/Light_stone_grass3.png", f"{F}/Brown_stone_grass1.png", f"{F}/Brown_stone_grass2.png", f"{F}/Beige_stone_grass1.png", f"{F}/Beige_stone_grass4.png", f"{F}/Beige_stone_grass8.png"]
     # "forest_bush": the designer's own bushes since 2026-10-29 (DESIGNER below); was [f"{F}/Bush1.png", f"{F}/Bush2.png", f"{F}/Bush3.png", f"{F}/Bush4.png", f"{F}/Bush5.png", f"{F}/Bush11.png", f"{F}/Bush13.png"]
     # "forest_fern": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Bush6.png", f"{F}/Bush8.png", f"{F}/Bush10.png", f"{F}/Layer7.png"]
-    "forest_shroom": {"scale": 1.0, "src": [f"{F}/Brown_mushroom1.png", f"{F}/Brown_mushroom2.png", f"{F}/Red_mushroom1.png", f"{F}/Red_mushroom2.png", f"{F}/Red_mushroom3.png"]},
+    # "forest_shroom": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Brown_mushroom1.png", f"{F}/Brown_mushroom2.png", f"{F}/Red_mushroom1.png", f"{F}/Red_mushroom2.png", f"{F}/Red_mushroom3.png"]
     "forest_reeds": {"scale": 1.0, "src": [f"{F}/reeds1.png", f"{F}/reeds2.png", f"{F}/reeds3.png"]},
     "forest_pebble": {"scale": 1.0, "src": [f"{F}/Beige_stone_ground5.png", f"{F}/Beige_stone_ground6.png", f"{F}/Beige_stone_ground7.png", f"{F}/Beige_stone_ground9.png", f"{F}/Brown_stone_ground5.png"]},
-    "forest_ruin": {"scale": 0.8, "src": [f"{F}/Ruin_grass1.png", f"{F}/Ruin_grass2.png", f"{F}/Ruin_grass3.png", f"{F}/Ruin_grass4.png", f"{F}/Ruin_grass5.png"]},
+    # "forest_ruin": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Ruin_grass1.png", f"{F}/Ruin_grass2.png", f"{F}/Ruin_grass3.png", f"{F}/Ruin_grass4.png", f"{F}/Ruin_grass5.png"]
     # --- Caves ---
     "cave_stalagmite": {"scale": 1.0, "src": [f"{C}/gray_stalagmites_light_shadow{i}.png" for i in range(1, 6)] + [f"{C}/black_stalagmites_light_shadow{i}.png" for i in (2, 4, 5)]},
     "cave_rock": {"scale": 1.0, "src": [f"{C}/Walls_elements{i}.png" for i in (1, 2, 6, 10, 11, 16, 17, 18, 19, 20)]},
@@ -325,7 +325,11 @@ DESIGNER = {
     "forest_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_tree_%d.png" % i for i in range(13)]},
     "forest_tree_big": {"scale": 0.35, "files": ["assets/textures/props/boards/forest_tree_big_%d.png" % i for i in range(4)]},
     "forest_tree_climb": {"scale": 0.375, "files": ["assets/textures/props/boards/forest_tree_climb_0.png"]},
-    "forest_stump": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_stump_0.png"]},
+    "forest_stump": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_stump_%d.png" % i for i in range(3)]},
+    "forest_shroom": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_shroom_%d.png" % i for i in range(5)]},
+    # The field grew the same pack mushrooms (the first three): it wears their redraws.
+    "field_shroom": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_shroom_%d.png" % i for i in range(3)]},
+    "forest_ruin": {"scale": 0.4, "files": ["assets/textures/props/boards/forest_ruin_%d.png" % i for i in range(5)]},
     "forest_log": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_log_%d.png" % i for i in range(2)]},
     "forest_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_rock_%d.png" % i for i in range(12)]},
     "forest_fern": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_fern_%d.png" % i for i in range(3)]},

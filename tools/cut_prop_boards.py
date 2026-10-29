@@ -3,8 +3,9 @@
 black) into the prop sprites that replace the pack ones.
 
 Each board lists its pieces in the order of the role's variants. A piece is
-lifted off the black (the black reached from the crop's edge; black the
-piece encloses is its own deep shading and stays; the outer rim's alpha is
+lifted off the black (the black reached from the crop's edge, and any big
+enclosed pool of it — the board seen through a gap; smaller black the piece
+encloses is its own deep shading and stays; the outer rim's alpha is
 soft, from its brightness, so its blend into black does not become a dark
 line), shrunk with a sharp (Lanczos)
 filter on premultiplied colour to its height in texels, then given on/off
@@ -32,6 +33,8 @@ OUT = "assets/textures/props/boards/%s_%d.png"
 BLACK = 10      # brightness (max channel) at or below this is the board's black
 RAMP = 40       # ...and alpha ramps to full over this many levels above it
 SPECK = 40      # pieces of a cut-out smaller than this (source px) are dropped
+HOLE = 1000     # enclosed black bigger than this (source px) is the board seen
+                # through the piece (under the ruin ring's vine arch), not shading
 
 # role -> board and pieces: (crop box (x0, y0, x1, y1) in source px, height
 # in texels at 64 a tile). The boxes come from the board's own layout.
@@ -101,6 +104,38 @@ BOARDS = {
     "forest_stump": {
         "src": "forest_logs_ferns_board.webp",
         "pieces": [((1029, 144, 1479, 465), 56)],
+        # 2026-10-29: a second stump and a snapped trunk, from the ruins
+        # board (as the pack's stump set had both), the trunk as tall
+        # beside the stump as drawn.
+        "more": [
+            ("forest_ruins_shrooms_board.webp", (49, 302, 296, 501), 56),
+            ("forest_ruins_shrooms_board.webp", (348, 248, 569, 502), 71),
+        ],
+    },
+    # 2026-10-29: the designer's mushrooms and ruins
+    # (forest_ruins_shrooms_board.webp, on black: brown and red toadstool
+    # clumps; a ring of ruined walls, broken walls among trees, a pillar on
+    # its steps, a broken pillar, and a small stone ruin). Each in the place
+    # of the pack piece it redraws, at its height (doubled).
+    "forest_shroom": {
+        "src": "forest_ruins_shrooms_board.webp",
+        "pieces": [
+            ((333, 51, 509, 230), 52),      # brown, three
+            ((576, 67, 776, 216), 42),      # brown, two
+            ((854, 49, 1068, 250), 50),     # red, three
+            ((1141, 49, 1289, 251), 50),    # red, two
+            ((1358, 84, 1486, 242), 38),    # red, one
+        ],
+    },
+    "forest_ruin": {
+        "src": "forest_ruins_shrooms_board.webp",
+        "pieces": [
+            ((21, 518, 500, 982), 216),     # the ring of ruined walls
+            ((544, 579, 874, 972), 148),    # broken walls among trees
+            ((906, 560, 1210, 975), 130),   # the pillar on its steps
+            ((1255, 581, 1502, 945), 96),   # the broken pillar
+            ((53, 44, 262, 245), 64),       # the small stone ruin
+        ],
     },
     # 2026-10-29: the designer's forest rocks (forest_rocks_board.webp, 12 on
     # black in three rows: rock clusters; cracked stone pillars, big to
@@ -144,7 +179,9 @@ def cut_piece(board, box, height):
     black = bright <= BLACK
     lab, n = nd.label(black)
     edge_labels = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
-    solid = ~np.isin(lab, list(edge_labels))
+    sizes = nd.sum(black, lab, range(1, n + 1)) if n else []
+    see_through = {i + 1 for i, sz in enumerate(sizes) if sz > HOLE}
+    solid = ~np.isin(lab, list(edge_labels | see_through))
     lab, n = nd.label(solid)
     if n:
         sizes = nd.sum(solid, lab, range(1, n + 1))
@@ -171,8 +208,11 @@ def cut_piece(board, box, height):
 def build(role, cfg):
     board = Image.open(SRC % cfg["src"])
     os.makedirs(os.path.dirname(OUT % (role, 0)), exist_ok=True)
-    for i, (box, height) in enumerate(cfg["pieces"]):
-        img = cut_piece(board, box, height)
+    # "more": pieces from other boards, (board, box, height), after the rest.
+    pieces = [(board, box, h) for box, h in cfg["pieces"]] + \
+             [(Image.open(SRC % src), box, h) for src, box, h in cfg.get("more", [])]
+    for i, (b, box, height) in enumerate(pieces):
+        img = cut_piece(b, box, height)
         img.save(OUT % (role, i))
         print("%s_%d: %dx%d" % (role, i, img.width, img.height))
 

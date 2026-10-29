@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dyt771880unkm"
-path="res://.godot/imported/forest_shroom_1.png-3bfd6a60af4dd23ab66c96bb68cc9904.ctex"
+uid="uid://claq6odtbowoj"
+path="res://.godot/imported/forest_shroom_0.png-f4d8178e55dae6d05b1ede4365baa7b9.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/craftpix/props/forest_shroom_1.png"
-dest_files=["res://.godot/imported/forest_shroom_1.png-3bfd6a60af4dd23ab66c96bb68cc9904.ctex"]
+source_file="res://assets/textures/props/boards/forest_shroom_0.png"
+dest_files=["res://.godot/imported/forest_shroom_0.png-f4d8178e55dae6d05b1ede4365baa7b9.ctex"]
 
 [params]
 

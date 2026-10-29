@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c6p80qbqvk73b"
-path="res://.godot/imported/field_shroom_2.png-3ac66844ea732870186c9efd1e838cf9.ctex"
+uid="uid://c0yejff1l2fqc"
+path="res://.godot/imported/forest_ruin_3.png-40994758206b787455cfdbf06be9a8b5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/craftpix/props/field_shroom_2.png"
-dest_files=["res://.godot/imported/field_shroom_2.png-3ac66844ea732870186c9efd1e838cf9.ctex"]
+source_file="res://assets/textures/props/boards/forest_ruin_3.png"
+dest_files=["res://.godot/imported/forest_ruin_3.png-40994758206b787455cfdbf06be9a8b5.ctex"]
 
 [params]
 
