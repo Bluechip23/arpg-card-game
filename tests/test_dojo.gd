@@ -59,13 +59,12 @@ func _test_scene_boot() -> void:
 
 	# Dragging the bars sets the values; health never reaches 0.
 	var stats = main.player.get_stats()
-	main._hp_bar.size = Vector2(200, 22)
-	main._dojo_apply_bar_drag(main._hp_bar, "hp", Vector2(100, 5))
+	# (The bars are the art's width: drag by fractions of it.)
+	main._dojo_apply_bar_drag(main._hp_bar, "hp", Vector2(main._hp_bar.size.x * 0.5, 5))
 	_check(stats.current_health == roundi(stats.max_health * 0.5), "dragging the HP bar to the middle halves health (%d/%d)" % [stats.current_health, stats.max_health])
 	main._dojo_apply_bar_drag(main._hp_bar, "hp", Vector2(-50, 5))
 	_check(stats.current_health == 1, "dragging past the left edge floors health at 1")
-	main._mana_bar.size = Vector2(200, 22)
-	main._dojo_apply_bar_drag(main._mana_bar, "mana", Vector2(50, 5))
+	main._dojo_apply_bar_drag(main._mana_bar, "mana", Vector2(main._mana_bar.size.x * 0.25, 5))
 	_check(is_equal_approx(stats.current_mana, stats.max_mana * 0.25), "dragging the mana bar sets mana")
 
 	# Hurt a chicken, buff up, then Reset puts everything back.

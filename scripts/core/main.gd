@@ -382,17 +382,17 @@ var _brain_draw_cost_label: Label = null  # small price badge on the draw button
 var _action_vbox: VBoxContainer = null  # bottom-left action column (draw/attack/block + wait|pause row)
 
 # Stat bar UI references
-var _hp_bar: ProgressBar = null
-var _mana_bar: ProgressBar = null
-var _xp_bar: ProgressBar = null
+var _hp_bar: Range = null
+var _mana_bar: Range = null
+var _xp_bar: Range = null
 var _hp_bar_label: Label = null
 var _mana_bar_label: Label = null
-var _carry_bar: ProgressBar = null
+var _carry_bar: Range = null
 var _carry_bar_label: Label = null
 var _level_badge_label: Label = null  # "Lvl: X" beside the XP bar
 var _mana_regen_drop_label: Label = null  # number inside the mana-regen raindrop
 var _armor_shield_label: Label = null     # armor value inside the shield beside the HP bar
-var _unerring_bar: ProgressBar = null      # the grey half-height bar under HP: unerring armor / cap
+var _unerring_bar: Range = null      # the grey half-height bar under HP: unerring armor / cap
 var _last_hp_ratio: float = 1.0             # previous health fraction (below-50% reactions fire on the crossing)
 var _unerring_bar_label: Label = null
 var _pending_quiver_card: Card = null
@@ -1338,6 +1338,67 @@ func _setup_hand_area_background() -> void:
 	# Do NOT clip - cards need to pop up above the hand area on hover
 	hand_area.clip_contents = false
 
+## The designer's action panel (tools/cut_hud_panels.py, 2026-10-29; was
+## flat dark buttons with drawn glyphs): every button wears its mossy stone
+## face, icon painted in; the live number sits where the board painted one.
+## [face size, number centre (or none)] in screen px, as the cutter prints.
+const HUD_FACES := {
+	"draw": [Vector2(70, 54), Vector2(50, 17)], "info": [Vector2(22, 21), null],
+	"flash": [Vector2(120, 35), Vector2(83, 20)], "boots": [Vector2(31, 35), null],
+	"sidestep": [Vector2(29, 35), null], "quick": [Vector2(35, 35), null],
+	"brain": [Vector2(120, 34), Vector2(83, 18)], "peek": [Vector2(42, 34), null],
+	"buy": [Vector2(39, 34), Vector2(30, 9)], "attack": [Vector2(148, 34), Vector2(48, 18)],
+	"block": [Vector2(66, 34), Vector2(42, 18)], "wait": [Vector2(216, 40), Vector2(173, 17)],
+	"discard": [Vector2(77, 81), Vector2(53, 63)],
+}
+
+func _hud_face(face: String, tint: Color = Color(1, 1, 1)) -> StyleBoxTexture:
+	var sb := StyleBoxTexture.new()
+	sb.texture = load(HUD_ART + "act_%s.png" % face)
+	sb.modulate_color = tint
+	var spec: Array = HUD_FACES[face]
+	var sz: Vector2 = spec[0]
+	sb.content_margin_left = 0
+	sb.content_margin_right = 0
+	sb.content_margin_top = 0
+	sb.content_margin_bottom = 0
+	if spec[1] != null:
+		# Centre the button's text on the painted number's spot.
+		var c: Vector2 = spec[1]
+		var dx := 2.0 * c.x - sz.x
+		if dx >= 0.0:
+			sb.content_margin_left = dx
+		else:
+			sb.content_margin_right = -dx
+		var dy := 2.0 * c.y - sz.y
+		if dy >= 0.0:
+			sb.content_margin_top = dy
+		else:
+			sb.content_margin_bottom = -dy
+	return sb
+
+func _skin_hud_button(btn: Button, face: String) -> void:
+	## Dress a HUD button in its stone face: brighter under the mouse, darker
+	## pressed, gold while toggled on, grey when disabled.
+	btn.icon = null
+	btn.expand_icon = false
+	btn.custom_minimum_size = HUD_FACES[face][0]
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.add_theme_stylebox_override("normal", _hud_face(face))
+	btn.add_theme_stylebox_override("hover", _hud_face(face, Color(1.22, 1.22, 1.12)))
+	btn.add_theme_stylebox_override("pressed", _hud_face(face, Color(1.3, 1.15, 0.7) if btn.toggle_mode else Color(0.82, 0.82, 0.82)))
+	btn.add_theme_stylebox_override("hover_pressed", _hud_face(face, Color(1.4, 1.25, 0.8)))
+	btn.add_theme_stylebox_override("disabled", _hud_face(face, Color(0.55, 0.55, 0.55, 0.85)))
+	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	btn.add_theme_font_size_override("font_size", 15)
+	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
+		btn.add_theme_color_override(c, Color(1.0, 0.96, 0.86))
+	btn.add_theme_color_override("font_disabled_color", Color(0.7, 0.7, 0.68))
+	btn.add_theme_color_override("font_outline_color", Color(0.04, 0.05, 0.03))
+	btn.add_theme_constant_override("outline_size", 4)
+
 func _setup_action_buttons() -> void:
 	var ui := $UI as CanvasLayer
 
@@ -1354,7 +1415,7 @@ func _setup_action_buttons() -> void:
 	vbox.offset_right = 8.0
 	vbox.offset_top = -8.0
 	vbox.offset_bottom = -8.0
-	vbox.add_theme_constant_override("separation", 4)
+	vbox.add_theme_constant_override("separation", 0)   # the stone faces tile as painted
 	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_action_vbox = vbox
 
@@ -1369,7 +1430,7 @@ func _setup_action_buttons() -> void:
 	# Spend buttons fade while the pool can't afford them.
 	var flash_row := HBoxContainer.new()
 	flash_row.name = "FlashRow"
-	flash_row.add_theme_constant_override("separation", 2)
+	flash_row.add_theme_constant_override("separation", 0)
 	vbox.add_child(flash_row)
 
 	_flash_button = Button.new()
@@ -1415,6 +1476,10 @@ func _setup_action_buttons() -> void:
 	_flash_proc_button.size_flags_stretch_ratio = 4.0 / 3.0
 	_flash_proc_button.pressed.connect(_on_flash_proc_pressed)
 	flash_row.add_child(_flash_proc_button)
+	_skin_hud_button(_flash_button, "flash")
+	_skin_hud_button(_flash_move_button, "boots")
+	_skin_hud_button(_flash_block_button, "sidestep")
+	_skin_hud_button(_flash_proc_button, "quick")
 
 	# Brain row (below Flash, above Attack): Wisdom's pool. Same layout —
 	# left 60%: brain + pool count (display only). Right 40%: two spend
@@ -1423,7 +1488,7 @@ func _setup_action_buttons() -> void:
 	# independent pools under the shared ACTION POINTS category.
 	var brain_row := HBoxContainer.new()
 	brain_row.name = "BrainRow"
-	brain_row.add_theme_constant_override("separation", 2)
+	brain_row.add_theme_constant_override("separation", 0)
 	vbox.add_child(brain_row)
 
 	_brain_button = Button.new()
@@ -1473,6 +1538,15 @@ func _setup_action_buttons() -> void:
 	_brain_draw_cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_brain_draw_cost_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_brain_draw_button.add_child(_brain_draw_cost_label)
+	_skin_hud_button(_brain_button, "brain")
+	_skin_hud_button(_brain_peek_button, "peek")
+	_skin_hud_button(_brain_draw_button, "buy")
+	# The price sits where the board painted its little gold number.
+	_brain_draw_cost_label.add_theme_font_size_override("font_size", 10)
+	_brain_draw_cost_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	_brain_draw_cost_label.position = Vector2(24, 2)
+	_brain_draw_cost_label.size = Vector2(13, 13)
+	_brain_draw_cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 	# Attack button (top): sword + damage + tempo cost + attacks until the
 	# speed proc. Damage renders red beside the sword, so the button hosts an
@@ -1502,6 +1576,9 @@ func _setup_action_buttons() -> void:
 	atk_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	atk_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	atk_row.add_theme_constant_override("separation", 5)
+	# The sword is painted on the face: the numbers start just past it.
+	atk_row.alignment = BoxContainer.ALIGNMENT_BEGIN
+	atk_row.offset_left = 44.0
 	var atk_icon := TextureRect.new()
 	atk_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
 	atk_icon.texture = UIGlyphs.get_glyph("sword")
@@ -1510,23 +1587,27 @@ func _setup_action_buttons() -> void:
 	atk_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	atk_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	atk_row.add_child(atk_icon)
+	atk_icon.visible = false
 	_attack_damage_label = Label.new()
 	_attack_damage_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.3))
 	_attack_damage_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	atk_row.add_child(_attack_damage_label)
 	_attack_tempo_label = Label.new()
 	_attack_tempo_label.text = "5T (0)"
+	for l in [_attack_damage_label, _attack_tempo_label]:
+		l.add_theme_font_size_override("font_size", 15)
+		l.add_theme_color_override("font_outline_color", Color(0.04, 0.05, 0.03))
+		l.add_theme_constant_override("outline_size", 4)
+	_attack_tempo_label.add_theme_color_override("font_color", Color(1.0, 0.96, 0.86))
 	_attack_tempo_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	atk_row.add_child(_attack_tempo_label)
 	_attack_button.add_child(atk_row)
-	# Reserve the row's natural width so the content-sized button fits it.
-	_attack_button.custom_minimum_size.x = 118
-	_attack_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_skin_hud_button(_attack_button, "attack")
 	# Auto attack and Raise Shield share one row: the two basic actions side
 	# by side, the shield showing the armor it gives beside its tempo.
 	var attack_row := HBoxContainer.new()
 	attack_row.name = "AttackRow"
-	attack_row.add_theme_constant_override("separation", 4)
+	attack_row.add_theme_constant_override("separation", 0)
 	attack_row.size_flags_horizontal = Control.SIZE_FILL
 	vbox.add_child(attack_row)
 	attack_row.add_child(_attack_button)
@@ -1542,6 +1623,7 @@ func _setup_action_buttons() -> void:
 	_block_button.disabled = true
 	_block_button.pressed.connect(_on_block_pressed)
 	attack_row.add_child(_block_button)
+	_skin_hud_button(_block_button, "block")
 
 	# War Rack button (Brad only): swap hands with the gear on his back.
 	_rack_button = Button.new()
@@ -1560,7 +1642,7 @@ func _setup_action_buttons() -> void:
 	bottom_row.name = "WaitPauseRow"
 	bottom_row.custom_minimum_size = Vector2(0, 36)
 	bottom_row.size_flags_horizontal = Control.SIZE_FILL
-	bottom_row.add_theme_constant_override("separation", 4)
+	bottom_row.add_theme_constant_override("separation", 0)
 	vbox.add_child(bottom_row)
 
 	# Wait: raised hand + the 1 tempo it advances (takes the full width).
@@ -1573,6 +1655,7 @@ func _setup_action_buttons() -> void:
 	wait_btn.tooltip_text = "Advance the tempo clock by 1 without playing a card"
 	wait_btn.pressed.connect(_on_wait_pressed)
 	bottom_row.add_child(wait_btn)
+	_skin_hud_button(wait_btn, "wait")
 
 #endregion
 #region TICK BAR & ACTION QUEUE
@@ -1924,43 +2007,52 @@ func _reset_tick_bar() -> void:
 
 #endregion
 #region STAT BARS & HUD GAUGES
+## The designer's stat block (tools/cut_hud_panels.py, 2026-10-29; was flat
+## coloured bars): each bar is a TextureProgressBar (the empty track under,
+## the painted fill clipped to the value) under its frame (the vine-wrapped
+## health bar, the gem-capped unerring bar, the crystal-ended mana bar, the
+## leather carry bar with its backpack, the gold XP track), with the shield
+## badge, the mana-regen flame and the level's gold diamonds beside them.
+## Positions are the art's own (screen px; the cutter prints them).
+const HUD_ART := "res://assets/textures/ui/hud/"
+const STAT_ORIGIN := Vector2(5, 11)   # the block's top-left in the cut art's px
+const STAT_BARS := {
+	# name: [frame rect, fill rect, label font size (0: none)]
+	"hp": [Rect2(8, 11, 306, 36), Rect2(38, 24, 253, 17), 12],
+	"unerring": [Rect2(19, 45, 285, 21), Rect2(30, 48, 262, 15), 10],
+	"mana": [Rect2(5, 64, 308, 30), Rect2(38, 72, 252, 16), 12],
+	"carry": [Rect2(10, 93, 289, 22), Rect2(38, 99, 248, 13), 10],
+	"xp": [Rect2(28, 116, 276, 11), Rect2(38, 119, 259, 5), 0],
+}
+const STAT_BLOCK_H := 116.0   # the block's height (to the XP track's foot)
+
 func _setup_stat_bars() -> void:
-	## Create stacked HP / Mana / Armor / XP progress bars on the left side of the screen.
+	## Create the stacked HP / Unerring / Mana / Carry / XP bars top-left.
 	var ui := $UI as CanvasLayer
-
-	# Hide old label nodes
-
-	var stat_container := VBoxContainer.new()
+	var stat_container := Control.new()
 	stat_container.name = "StatBarsContainer"
 	ui.add_child(stat_container)
 	stat_container.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	# Top-left corner (there is no minimap beside it any more).
 	stat_container.offset_left = STATUS_LEFT
 	stat_container.offset_top = 8.0
-	stat_container.offset_right = STATUS_LEFT + 210.0
-	stat_container.offset_bottom = 130.0 + CARRY_BAR_HEIGHT + STAT_BAR_GAP
-	stat_container.add_theme_constant_override("separation", 4)
-	# The container is taller than its bars and overlaps the status rows
-	# beneath them: it must not swallow the badges' hover (the debuff row
-	# had no hover window because of it). The bars themselves still get
-	# their own input.
+	stat_container.offset_right = STATUS_LEFT + 372.0
+	stat_container.offset_bottom = 8.0 + STAT_BLOCK_H
+	# The block must not swallow the status rows' hover beneath it; the bars
+	# themselves still get their own input.
 	stat_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	# --- HP Bar (red) — armour shown as a shield badge to its right ---
-	var hp_pair := _create_stat_bar_with_label(stat_container, "HPBar", Color(0.7, 0.15, 0.15), Color(0.3, 0.08, 0.08))
+	var hp_pair := _create_stat_bar_with_label(stat_container, "HPBar", "hp")
 	_hp_bar = hp_pair[0]
 	_hp_bar_label = hp_pair[1]
 	_setup_armor_shield()
 
-	# --- Unerring armor (grey, half the HP bar's height) ---
-	var un_pair := _create_stat_bar_with_label(stat_container, "UnerringBar", Color(0.62, 0.64, 0.68), Color(0.2, 0.21, 0.24), UNERRING_BAR_HEIGHT)
+	var un_pair := _create_stat_bar_with_label(stat_container, "UnerringBar", "unerring")
 	_unerring_bar = un_pair[0]
 	_unerring_bar_label = un_pair[1]
 	_unerring_bar.tooltip_text = "Unerring armor: the capped shell your periodic-armor items and Arm/Cyc nodes regrow. Hits and decay eat it first."
-	_unerring_bar_label.add_theme_font_size_override("font_size", 9)
 
-	# --- Mana Bar (blue) ---
-	var mana_pair := _create_stat_bar_with_label(stat_container, "ManaBar", Color(0.15, 0.3, 0.8), Color(0.08, 0.12, 0.3))
+	var mana_pair := _create_stat_bar_with_label(stat_container, "ManaBar", "mana")
 	_mana_bar = mana_pair[0]
 	_mana_bar_label = mana_pair[1]
 	# Hovering the mana bar lists how much mana each maintained card reserves.
@@ -1969,21 +2061,23 @@ func _setup_stat_bars() -> void:
 	_mana_bar.get_parent().add_child(_mana_reserve_tip)
 	_setup_mana_regen_drop()
 
-	# --- Carry bar (leather brown, half height): carried weight / capacity ---
-	var carry_pair := _create_stat_bar_with_label(stat_container, "CarryBar", Color(0.55, 0.4, 0.22), Color(0.22, 0.16, 0.09), CARRY_BAR_HEIGHT)
+	var carry_pair := _create_stat_bar_with_label(stat_container, "CarryBar", "carry")
 	_carry_bar = carry_pair[0]
 	_carry_bar_label = carry_pair[1]
-	_carry_bar_label.add_theme_font_size_override("font_size", 9)
 
-	# --- XP Bar (gold) — right under mana, a quarter of the normal height ---
-	var xp_pair := _create_stat_bar_with_label(stat_container, "XPBar", Color(0.8, 0.65, 0.1), Color(0.3, 0.25, 0.05), 6)
+	# The XP track is too thin for a number; the level sits between the gold
+	# diamonds to its right.
+	var xp_pair := _create_stat_bar_with_label(stat_container, "XPBar", "xp")
 	_xp_bar = xp_pair[0]
-	# The bar is too thin for an overlaid number; the level/XP text lives in the
-	# character panel instead.
-	if xp_pair[1]:
-		xp_pair[1].visible = false
-
-	# Current level, just right of the XP bar (below the mana drop).
+	var xp_wrap: Control = _xp_bar.get_parent()
+	var xp_fill: Rect2 = STAT_BARS["xp"][1]
+	for d in [["lvl_left", Vector2(308, 116)], ["lvl_right", Vector2(357, 116)]]:
+		var gem := TextureRect.new()
+		gem.texture = load(HUD_ART + d[0] + ".png")
+		gem.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		gem.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		gem.position = d[1] - xp_fill.position + Vector2(0, -3)
+		xp_wrap.add_child(gem)
 	_level_badge_label = Label.new()
 	_level_badge_label.name = "LevelBadge"
 	_level_badge_label.text = "Lvl: 1"
@@ -1991,65 +2085,69 @@ func _setup_stat_bars() -> void:
 	_level_badge_label.mouse_filter = Control.MOUSE_FILTER_STOP
 	_level_badge_label.add_theme_font_size_override("font_size", 13)
 	_level_badge_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0.2))
-	_level_badge_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	_level_badge_label.add_theme_color_override("font_outline_color", Color(0.12, 0.07, 0.0, 0.95))
 	_level_badge_label.add_theme_constant_override("outline_size", 4)
-	_level_badge_label.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	_level_badge_label.offset_left = 6.0
-	_level_badge_label.offset_top = -9.0
-	_level_badge_label.offset_bottom = 9.0
-	_xp_bar.get_parent().add_child(_level_badge_label)
+	_level_badge_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_level_badge_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_level_badge_label.position = Vector2(320, 110) - xp_fill.position
+	_level_badge_label.size = Vector2(37, 18)
+	xp_wrap.add_child(_level_badge_label)
 
-	# Buffs and debuffs sit directly under the (thin) XP bar rather than off to
-	# the right of the health bar.
+	# Buffs and debuffs sit directly under the stat block.
 	_reposition_status_bars()
-	# (Armour no longer has its own bar — the shield badge shows it.)
 
-func _create_stat_bar_with_label(parent: VBoxContainer, bar_name: String, fill_color: Color, bg_color: Color, height: int = 22) -> Array:
-	## Creates a progress bar with an overlaid centered label. Returns [bar, label].
+func _create_stat_bar_with_label(parent: Control, bar_name: String, art: String) -> Array:
+	## One painted bar: the track and fill as a TextureProgressBar in the
+	## bar's interior, its frame over them, the live number centred on top.
+	## Returns [bar, label] (label null for the XP track).
+	var spec: Array = STAT_BARS[art]
+	var frame_rect: Rect2 = spec[0]
+	var fill_rect: Rect2 = spec[1]
 	var wrapper := Control.new()
 	wrapper.name = bar_name + "Wrapper"
-	wrapper.custom_minimum_size = Vector2(200, height)
+	wrapper.position = fill_rect.position - STAT_ORIGIN
+	wrapper.size = fill_rect.size
+	wrapper.custom_minimum_size = fill_rect.size
+	wrapper.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	parent.add_child(wrapper)
 
-	var bar := ProgressBar.new()
+	var bar := TextureProgressBar.new()
 	bar.name = bar_name
 	bar.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bar.texture_under = load(HUD_ART + "bar_%s_under.png" % art)
+	bar.texture_progress = load(HUD_ART + "bar_%s_fill.png" % art)
+	bar.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	bar.fill_mode = TextureProgressBar.FILL_LEFT_TO_RIGHT
 	bar.max_value = 100
 	bar.value = 0
-	bar.show_percentage = false
-	# Style the fill
-	var fill_style := StyleBoxFlat.new()
-	fill_style.bg_color = fill_color
-	fill_style.corner_radius_top_left = 3
-	fill_style.corner_radius_top_right = 3
-	fill_style.corner_radius_bottom_left = 3
-	fill_style.corner_radius_bottom_right = 3
-	bar.add_theme_stylebox_override("fill", fill_style)
-	# Style the background
-	var bg_style := StyleBoxFlat.new()
-	bg_style.bg_color = bg_color
-	bg_style.corner_radius_top_left = 3
-	bg_style.corner_radius_top_right = 3
-	bg_style.corner_radius_bottom_left = 3
-	bg_style.corner_radius_bottom_right = 3
-	bar.add_theme_stylebox_override("background", bg_style)
 	wrapper.add_child(bar)
 
-	var lbl := Label.new()
-	lbl.name = bar_name + "Label"
-	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
-	lbl.add_theme_font_size_override("font_size", 12)
-	lbl.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
-	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wrapper.add_child(lbl)
+	var frame := TextureRect.new()
+	frame.name = bar_name + "Frame"
+	frame.texture = load(HUD_ART + "bar_%s_frame.png" % art)
+	frame.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.position = frame_rect.position - fill_rect.position
+	wrapper.add_child(frame)
 
+	var lbl: Label = null
+	if int(spec[2]) > 0:
+		lbl = Label.new()
+		lbl.name = bar_name + "Label"
+		lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
+		lbl.add_theme_font_size_override("font_size", int(spec[2]))
+		lbl.add_theme_color_override("font_color", Color(1.0, 0.97, 0.9))
+		lbl.add_theme_color_override("font_outline_color", Color(0.05, 0.04, 0.03))
+		lbl.add_theme_constant_override("outline_size", 4)
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		wrapper.add_child(lbl)
 	return [bar, lbl]
 
 func _setup_mana_regen_drop() -> void:
-	## A blue raindrop just right of the mana bar. The number in it is the tempo
-	## remaining until the next mana-regen tick.
+	## The designer's blue flame right of the mana bar. The number in it is the
+	## tempo remaining until the next mana-regen tick.
 	if not _mana_bar:
 		return
 	var wrapper := _mana_bar.get_parent()
@@ -2057,16 +2155,12 @@ func _setup_mana_regen_drop() -> void:
 	drop.name = "ManaRegenDrop"
 	drop.mouse_filter = Control.MOUSE_FILTER_STOP
 	drop.tooltip_text = "Tempo until your next mana regen"
-	drop.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	drop.offset_left = 6.0
-	drop.offset_right = 32.0
-	drop.offset_top = -14.0
-	drop.offset_bottom = 14.0
+	drop.position = Vector2(332, 70) - (STAT_BARS["mana"][1] as Rect2).position
+	drop.size = Vector2(30, 34)
 	wrapper.add_child(drop)
 
 	var tex := TextureRect.new()
-	tex.texture = UIGlyphs.get_glyph("raindrop")
-	tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tex.texture = load(HUD_ART + "mana_flame.png")
 	tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	tex.set_anchors_preset(Control.PRESET_FULL_RECT)
 	tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -2079,9 +2173,9 @@ func _setup_mana_regen_drop() -> void:
 	_mana_regen_drop_label.add_theme_constant_override("outline_size", 4)
 	_mana_regen_drop_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_mana_regen_drop_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	# Centred over the round (lower) part of the drop.
+	# Centred over the round (lower) part of the flame.
 	_mana_regen_drop_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_mana_regen_drop_label.offset_top = 4.0
+	_mana_regen_drop_label.offset_top = 9.0
 	_mana_regen_drop_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	drop.add_child(_mana_regen_drop_label)
 
@@ -2092,14 +2186,8 @@ func _update_mana_regen_indicator() -> void:
 	if stats:
 		_mana_regen_drop_label.text = "%d" % stats.get_tempo_until_mana_regen()
 
-const UNERRING_BAR_HEIGHT := 11  # half the 22px HP bar
-const CARRY_BAR_HEIGHT := 11     # same: carried weight / capacity under mana
-const STAT_BAR_GAP := 4          # the StatBarsContainer's separation
-
 func _setup_armor_shield() -> void:
-	## A shield badge just right of the HP bar showing total armour (regular +
-	## unerring). Tall enough to span the HP bar AND the unerring bar beneath
-	## it; its width follows the height at the glyph's original 26:28 ratio.
+	## The designer's vine-hung shield right of the HP bar, showing armour.
 	if not _hp_bar:
 		return
 	var wrapper := _hp_bar.get_parent()
@@ -2107,46 +2195,34 @@ func _setup_armor_shield() -> void:
 	badge.name = "ArmorShield"
 	badge.mouse_filter = Control.MOUSE_FILTER_STOP
 	badge.tooltip_text = "Armor: regular + unerring. Hits and decay eat the unerring shell first."
-	badge.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
-	# Span the HP bar (22) plus the gap and the unerring bar beneath it, with
-	# a 2px overhang top and bottom; the width follows the height at the tall
-	# shield glyph's 22:24 silhouette ratio.
-	var badge_h: float = 22.0 + STAT_BAR_GAP + UNERRING_BAR_HEIGHT + 4.0
-	var badge_w: float = badge_h * 22.0 / 24.0
-	badge.offset_left = 6.0
-	badge.offset_right = 6.0 + badge_w
-	badge.offset_top = -13.0
-	badge.offset_bottom = -13.0 + badge_h
+	badge.position = Vector2(319, 16) - (STAT_BARS["hp"][1] as Rect2).position
+	badge.size = Vector2(54, 51)
 	wrapper.add_child(badge)
 
 	var tex := TextureRect.new()
-	tex.texture = UIGlyphs.get_glyph("shield_tall")
-	tex.stretch_mode = TextureRect.STRETCH_SCALE
-	tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tex.texture = load(HUD_ART + "armor_shield.png")
 	tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	tex.set_anchors_preset(Control.PRESET_FULL_RECT)
 	tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	badge.add_child(tex)
 
 	_armor_shield_label = Label.new()
-	_armor_shield_label.add_theme_font_size_override("font_size", 14)
+	_armor_shield_label.add_theme_font_size_override("font_size", 16)
 	_armor_shield_label.add_theme_color_override("font_color", Color(1, 1, 1))
-	_armor_shield_label.add_theme_color_override("font_outline_color", Color(0.08, 0.08, 0.12))
+	_armor_shield_label.add_theme_color_override("font_outline_color", Color(0.06, 0.08, 0.14))
 	_armor_shield_label.add_theme_constant_override("outline_size", 5)
 	_armor_shield_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_armor_shield_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_armor_shield_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_armor_shield_label.offset_top = 2.0
 	_armor_shield_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	badge.add_child(_armor_shield_label)
 
 func _reposition_status_bars() -> void:
-	## Stack the debuff and buff rows directly beneath the (thin) XP bar, close
-	## to it, instead of floating out to the right of the health bar.
-	# HP(22) + 4 + Unerring(11) + 4 + Mana(22) + 4 + Carry(11) + 4 + XP(6)
-	# starting at y=8 -> bottom of XP at y=96.
+	## Stack the debuff and buff rows directly beneath the stat block.
 	var left := STATUS_LEFT
 	var right := STATUS_LEFT + 360.0
-	var top := 69.0 + UNERRING_BAR_HEIGHT + STAT_BAR_GAP + CARRY_BAR_HEIGHT + STAT_BAR_GAP
+	var top := 8.0 + STAT_BLOCK_H + 4.0
 	if debuff_bar:
 		debuff_bar.set_anchors_preset(Control.PRESET_TOP_LEFT)
 		debuff_bar.offset_left = left
@@ -2174,22 +2250,18 @@ func _setup_deck_info_vertical() -> void:
 	_draw_pile_btn = draw_pair[0]
 	draw_label = draw_pair[1]
 	_draw_pile_btn.pressed.connect(_pile_popup.toggle.bind("draw"))
-	_draw_pile_btn.custom_minimum_size = Vector2(50, 54)  # slightly bigger than the action buttons
-	_draw_pile_btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+
 	# The draw pile sits in a row with a small ⓘ button beside it. Clicking ⓘ
 	# opens a small popup with max/current hand size and any active overflow
 	# effects.
 	var draw_row := HBoxContainer.new()
 	draw_row.name = "DrawRow"
-	draw_row.add_theme_constant_override("separation", 2)
+	draw_row.add_theme_constant_override("separation", 0)
 	draw_row.add_child(_draw_pile_btn)
 	_hand_info_btn = Button.new()
 	_hand_info_btn.name = "HandInfoButton"
 	_hand_info_btn.focus_mode = Control.FOCUS_NONE
-	_hand_info_btn.icon = UIGlyphs.get_glyph("info")
-	_hand_info_btn.flat = true
-	_hand_info_btn.custom_minimum_size = Vector2(22, 22)
-	_hand_info_btn.add_theme_constant_override("icon_max_width", 16)
+	_skin_hud_button(_hand_info_btn, "info")
 	_hand_info_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_hand_info_btn.tooltip_text = "Hand size and overflow info"
 	_hand_info_btn.pressed.connect(_toggle_hand_info_popup)
@@ -2222,8 +2294,8 @@ func _setup_deck_info_vertical() -> void:
 	disc_wrap.name = "DiscardButtonContainer"
 	ui.add_child(disc_wrap)
 	disc_wrap.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	disc_wrap.offset_left = -62.0
-	disc_wrap.offset_top = -190.0
+	disc_wrap.offset_left = -8.0 - 77.0    # the designer's stone face
+	disc_wrap.offset_top = -132.0 - 81.0
 	disc_wrap.offset_right = -8.0
 	disc_wrap.offset_bottom = -132.0
 	var disc_pair := _create_pile_button("DiscardButton", false, Color(1.0, 0.85, 0.25))
@@ -2235,59 +2307,26 @@ func _setup_deck_info_vertical() -> void:
 
 
 func _create_pile_button(btn_name: String, is_draw: bool, number_color: Color) -> Array:
-	## A compact pile button: just the card-stack icon (up-arrow for Draw,
-	## down-arrow for Discard) with a small coloured number tucked next to the
-	## arrow so the button stays icon-sized. Draw's stack is flipped horizontally
-	## so the cards' open side faces inward from the left edge.
-	## Returns [button, number_label].
+	## A pile button in the designer's stone face (the card stack with its
+	## green up-arrow for Draw, gold down-arrow for Discard), the live count
+	## where the board painted its number. Returns [button, number_label].
+	var face := "draw" if is_draw else "discard"
 	var btn := Button.new()
 	btn.name = btn_name
-	btn.focus_mode = Control.FOCUS_NONE
-	btn.icon = PileIcon.get_icon(is_draw, number_color, is_draw)
-	btn.expand_icon = false
-	btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	btn.add_theme_constant_override("icon_max_width", 42)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.1, 0.14, 0.92)
-	style.set_border_width_all(1)
-	style.border_color = number_color.darkened(0.3)
-	style.set_corner_radius_all(6)
-	style.content_margin_left = 3
-	style.content_margin_right = 3
-	style.content_margin_top = 3
-	style.content_margin_bottom = 3
-	btn.add_theme_stylebox_override("normal", style)
-	var hover := style.duplicate()
-	hover.bg_color = Color(0.16, 0.16, 0.2, 0.95)
-	btn.add_theme_stylebox_override("hover", hover)
-
-	# Small number overlaid right next to the arrow (top for Draw's up-arrow,
-	# bottom for Discard's down-arrow), outlined so it reads over the cards.
+	_skin_hud_button(btn, face)
 	var num := Label.new()
 	num.name = btn_name + "Number"
 	num.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	num.add_theme_font_size_override("font_size", 13)
+	num.add_theme_font_size_override("font_size", 15)
 	num.add_theme_color_override("font_color", number_color)
-	num.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.06))
+	num.add_theme_color_override("font_outline_color", Color(0.03, 0.04, 0.03))
 	num.add_theme_constant_override("outline_size", 5)
-	num.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	num.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	num.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	if is_draw:
-		# Beside the up-arrow head, upper area.
-		num.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-		num.offset_left = -22.0
-		num.offset_right = -2.0
-		num.offset_top = 1.0
-		num.offset_bottom = 19.0
-	else:
-		# Beside the down-arrow head, lower area.
-		num.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-		num.offset_left = -22.0
-		num.offset_right = -2.0
-		num.offset_top = -19.0
-		num.offset_bottom = -1.0
+	var c: Vector2 = HUD_FACES[face][1]
+	num.position = c - Vector2(14, 10)
+	num.size = Vector2(28, 20)
 	btn.add_child(num)
-
 	return [btn, num]
 
 func _on_pause_pressed() -> void:
@@ -6364,9 +6403,8 @@ func _on_player_carry_changed(load: int, capacity: int) -> void:
 	if _carry_bar:
 		_carry_bar.max_value = maxi(capacity, 1)
 		_carry_bar.value = mini(load, capacity)
-		var fill: StyleBoxFlat = _carry_bar.get_theme_stylebox("fill")
-		if fill:
-			fill.bg_color = Color(0.75, 0.2, 0.15) if load > capacity else Color(0.55, 0.4, 0.22)
+		# Overloaded: the leather fill turns red.
+		(_carry_bar as TextureProgressBar).tint_progress = Color(1.4, 0.45, 0.35) if load > capacity else Color(1, 1, 1)
 	if _carry_bar_label:
 		_carry_bar_label.text = "Carry %d/%d" % [load, capacity]
 
@@ -8140,40 +8178,19 @@ func _update_attack_button_text() -> void:
 			_attack_button.tooltip_text = "Auto attack [~]: %d base + STR modifier damage. Costs %d tempo. Press ~ or click, then click an enemy within %s." % [
 				PlayerStats.BASIC_ATTACK_BASE_DAMAGE, base_tempo, "melee range" if reach == 1 else "%d tiles (bow)" % reach]
 
-		# Glow red when the dex proc is active (next attack benefits from it)
+		# Glow red when the dex proc is active (next attack benefits from it):
+		# the stone face under a hot red cast.
 		if proc_active:
-			var glow_style := StyleBoxFlat.new()
-			glow_style.bg_color = Color(0.6, 0.08, 0.08)
-			glow_style.border_color = Color(1.0, 0.2, 0.2)
-			glow_style.border_width_top = 2
-			glow_style.border_width_bottom = 2
-			glow_style.border_width_left = 2
-			glow_style.border_width_right = 2
-			glow_style.corner_radius_top_left = 4
-			glow_style.corner_radius_top_right = 4
-			glow_style.corner_radius_bottom_left = 4
-			glow_style.corner_radius_bottom_right = 4
-			_attack_button.add_theme_stylebox_override("normal", glow_style)
-			var glow_hover := StyleBoxFlat.new()
-			glow_hover.bg_color = Color(0.75, 0.12, 0.12)
-			glow_hover.border_color = Color(1.0, 0.3, 0.3)
-			glow_hover.border_width_top = 2
-			glow_hover.border_width_bottom = 2
-			glow_hover.border_width_left = 2
-			glow_hover.border_width_right = 2
-			glow_hover.corner_radius_top_left = 4
-			glow_hover.corner_radius_top_right = 4
-			glow_hover.corner_radius_bottom_left = 4
-			glow_hover.corner_radius_bottom_right = 4
-			_attack_button.add_theme_stylebox_override("hover", glow_hover)
+			_attack_button.add_theme_stylebox_override("normal", _hud_face("attack", Color(1.55, 0.62, 0.55)))
+			_attack_button.add_theme_stylebox_override("hover", _hud_face("attack", Color(1.75, 0.75, 0.65)))
 			if _attack_tempo_label:
 				_attack_tempo_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.85))
 		else:
-			# Clear custom styles — revert to default theme
-			_attack_button.remove_theme_stylebox_override("normal")
-			_attack_button.remove_theme_stylebox_override("hover")
+			# Back to the plain stone face.
+			_attack_button.add_theme_stylebox_override("normal", _hud_face("attack"))
+			_attack_button.add_theme_stylebox_override("hover", _hud_face("attack", Color(1.22, 1.22, 1.12)))
 			if _attack_tempo_label:
-				_attack_tempo_label.remove_theme_color_override("font_color")
+				_attack_tempo_label.add_theme_color_override("font_color", Color(1.0, 0.96, 0.86))
 
 func update_peaked_display() -> void:
 	if not peaked_label:
@@ -16974,14 +16991,14 @@ func _setup_dojo_bar_dragging() -> void:
 	## Click or drag along the HP / mana bar to set the value — for testing
 	## Determination thresholds, low-HP reactions, mana-gated effects.
 	for pair in [[_hp_bar, "hp"], [_mana_bar, "mana"]]:
-		var bar: ProgressBar = pair[0]
+		var bar: Range = pair[0]
 		if bar == null:
 			continue
 		bar.mouse_default_cursor_shape = Control.CURSOR_HSIZE
 		bar.tooltip_text = "Dojo: click or drag to set"
 		bar.gui_input.connect(_on_dojo_bar_input.bind(bar, pair[1]))
 
-func _on_dojo_bar_input(event: InputEvent, bar: ProgressBar, which: String) -> void:
+func _on_dojo_bar_input(event: InputEvent, bar: Range, which: String) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			_dojo_bar_drag = which
@@ -16993,7 +17010,7 @@ func _on_dojo_bar_input(event: InputEvent, bar: ProgressBar, which: String) -> v
 		_dojo_apply_bar_drag(bar, which, event.position)
 		get_viewport().set_input_as_handled()
 
-func _dojo_apply_bar_drag(bar: ProgressBar, which: String, local_pos: Vector2) -> void:
+func _dojo_apply_bar_drag(bar: Range, which: String, local_pos: Vector2) -> void:
 	var ratio: float = clampf(local_pos.x / maxf(1.0, bar.size.x), 0.0, 1.0)
 	var stats := player.get_stats()
 	match which:
