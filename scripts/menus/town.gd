@@ -209,7 +209,16 @@ var vendor_info: Dictionary = {
 	}
 }
 
+## The Town Well and the Transport Portal stand side by side to the left of
+## the Blacksmith (3, 8), five rows below him (designer, 2026-10-29; were
+## (8, 4) and (7, 10)). The town's grid runs deep enough to walk to them.
+const WELL_CELL := Vector2i(-1, 13)
+const WAYPOINT_CELL := Vector2i(2, 13)
+const TOWN_GRID_H := 16
+
 func _ready() -> void:
+	grid_manager.grid_height = TOWN_GRID_H
+	grid_manager.redraw_grid()
 	_unify_town_style()
 	player.set_grid_manager(grid_manager)
 	# Stand on tile centres like everywhere else, and ride up onto the
@@ -2922,7 +2931,7 @@ func _create_town_waypoint() -> void:
 
 	# Position near the town entrance area, centred on its tile so the
 	# player stands squarely on the mound when they walk onto it.
-	_town_waypoint_node.position = grid_manager.grid_to_world(Vector2i(7, 10))   # clear of the smithy (2026-10-29; was (4, 10))
+	_town_waypoint_node.position = grid_manager.grid_to_world(WAYPOINT_CELL)
 	add_child(_town_waypoint_node)
 	print("[TOWN] Created transport portal")
 
@@ -3084,7 +3093,7 @@ func _open_well_ui() -> void:
 func _create_town_well() -> void:
 	var well = StaticBody3D.new()
 	well.name = "TownWell"
-	well.position = grid_manager.grid_to_world(Vector2i(8, 4))
+	well.position = grid_manager.grid_to_world(WELL_CELL)
 	# The designer's healing well (2026-10-29; was a stone ring of grey
 	# water): greyed until Holy Water blesses it.
 	var water := CraftpixProps.make_sprite("well_healing", 1.0, 0)
@@ -3516,7 +3525,7 @@ func _setup_town_hud() -> void:
 	hud_icon_bar.offset_left = -360.0
 	hud_icon_bar.offset_top = 8.0
 	hud_icon_bar.offset_right = -8.0
-	hud_icon_bar.offset_bottom = 46.0
+	hud_icon_bar.offset_bottom = 60.0   # the designer's stone bar is 52 px tall
 	hud_icon_bar.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	hud_icon_bar.alignment = BoxContainer.ALIGNMENT_END
 	hud_icon_bar.character_pressed.connect(func(): character_panel.toggle_panel())
