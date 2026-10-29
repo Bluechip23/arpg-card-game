@@ -73,6 +73,24 @@ BOARDS = {
             "cave_cliff": (250, 88, 488, 416),
         },
     },
+    # 2026-10-29: the Amber Wastes' ground (desert_ground_board.webp, on dark
+    # grey: sand, a cliff block, water, a sand-topped cliff strip; olive
+    # scrub, the cliff strip's left end / middle / right end and its corner
+    # columns, and six shoreline tiles). The scrub is the floor, the sand
+    # the tracks through it and the tops of raised ground, the cliff block
+    # the wall stone; the strip is built from its own end pieces.
+    "desert_ground_board.webp": {
+        "black": 40,
+        "sheets": {
+            "desert_floor": (45, 530, 365, 850),
+            "desert_sand": (45, 105, 355, 415),
+            "desert_wall": (420, 100, 730, 410),
+            "desert_water": (800, 100, 1105, 405),
+        },
+        "strip_parts": {
+            "desert_cliff": [(418, 494, 563, 654), (577, 491, 861, 659), (872, 496, 1002, 665)],
+        },
+    },
 }
 
 
@@ -141,6 +159,8 @@ ATLASES = {
     # trodden darker / lit lighter).
     "cave": {"grass": "cave_floor", "water": "cave_water"},
     "cave_glow": {"grass": "cave_floor_glow", "water": "cave_water"},
+    "desert": {"grass": "desert_floor", "dirt": "desert_sand", "water": "desert_water",
+               "high": "desert_sand"},
 }
 N_, E_, S_, W_ = 1, 2, 4, 8
 
@@ -240,6 +260,40 @@ def cut_face(board, box):
     return out
 
 
+def cut_strip_parts(board, boxes, black_at):
+    """A cliff strip from its painted pieces (left end, middle, right end),
+    each lifted off the board, set side by side on their bottoms and then
+    cut like a strip drawn whole (cut_strip)."""
+    parts = []
+    for box in boxes:
+        rgb = np.asarray(board.crop(box).convert("RGB")).astype(np.float32)
+        dark = rgb.max(axis=2) <= black_at
+        lab, _ = nd.label(dark)
+        edge = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
+        solid = ~np.isin(lab, list(edge))
+        ys, xs = np.nonzero(solid)
+        rgb = rgb[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+        solid = solid[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+        parts.append(np.dstack([rgb, solid * 255.0]))
+    h = max(p.shape[0] for p in parts)
+    row = np.zeros((h, sum(p.shape[1] for p in parts), 4), np.float32)
+    x = 0
+    for p in parts:
+        row[h - p.shape[0]:, x:x + p.shape[1]] = p
+        x += p.shape[1]
+    img = Image.fromarray(row.astype(np.uint8), "RGBA")
+    cell = TILE // 2
+    hh = cell * 2
+    w = max(cell * 6, round(img.width * hh / img.height))
+    small = np.asarray(img.convert("RGBa").resize((w, hh), Image.LANCZOS).convert("RGBA")).copy()
+    small[..., 3] = np.where(small[..., 3] >= 128, 255, 0)
+    out = Image.new("RGBA", (cell * 6, hh))
+    starts = [0] + [round(cell + i * (w - 3 * cell) / 3) for i in range(4)] + [w - cell]
+    for c, x0 in enumerate(starts):
+        out.paste(Image.fromarray(small[:, x0:x0 + cell], "RGBA"), (c * cell, 0))
+    return out
+
+
 def main():
     os.makedirs(os.path.dirname(OUT % "x"), exist_ok=True)
     for src, cfg in BOARDS.items():
@@ -249,6 +303,10 @@ def main():
             print("%s: %dx%d sheet" % (name, SHEET, SHEET))
         for name, box in cfg.get("faces", {}).items():
             img = cut_face(board, box)
+            img.save(OUT % name)
+            print("%s: %dx%d strip" % (name, img.width, img.height))
+        for name, boxes in cfg.get("strip_parts", {}).items():
+            img = cut_strip_parts(board, boxes, cfg.get("black", BLACK))
             img.save(OUT % name)
             print("%s: %dx%d strip" % (name, img.width, img.height))
         for name, box in cfg.get("strips", {}).items():

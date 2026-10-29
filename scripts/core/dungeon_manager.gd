@@ -551,8 +551,8 @@ func floor_texture_path() -> String:
 			return CP_TEX + "/floor_cursed.png"
 		5:  # Umbral Expanse — barrow-land cracked stone (undead land pack)
 			return CP_TEX + "/floor_undead.png"
-		2:  # Amber Wastes — dry scrub (desert pack)
-			return CP_TEX + "/floor_desert.png"
+		2:  # Amber Wastes — the designer's olive scrub (2026-10-29; was the desert pack's)
+			return GROUND_TEX + "/desert_floor.png"
 		3:  # Frostreach — snowfield (winter pack drifts over flat snow)
 			return CP_TEX + "/floor_winter.png"
 	return CP_TEX + "/floor_grass_field.png"
@@ -578,7 +578,7 @@ func trail_texture_path() -> String:
 	if world_level == 1:
 		return CP_TEX + "/floor_dirt_field.png"
 	if world_level == 2:
-		return CP_TEX + "/floor_desert_sand.png"  # sand tracks through the scrub
+		return GROUND_TEX + "/desert_sand.png"  # the designer's sand tracks through the scrub
 	if world_level == 3:
 		return CP_TEX + "/floor_undead_sand.png"  # trodden grey slush through the snow
 	if world_level == 4:
@@ -609,7 +609,7 @@ func wall_texture_path() -> String:
 		5:
 			return CP_TEX + "/wall_undead.png"
 		2:
-			return CP_TEX + "/wall_desert.png"
+			return GROUND_TEX + "/desert_wall.png"   # the designer's cliff rock
 		3:
 			return CP_TEX + "/wall_undead.png"  # the winter pack has no cliff; grey barrow stone under the frost palette
 	return CP_TEX + "/wall_field.png"
@@ -634,7 +634,7 @@ func water_texture_path() -> String:
 		5:
 			return CP_TEX + "/water_undead.png"
 		2:
-			return CP_TEX + "/water_desert.png"
+			return GROUND_TEX + "/desert_water.png"
 		3:
 			return CP_TEX + "/water_winter.png"  # frozen over
 	return CP_TEX + "/water_field.png"
@@ -2107,6 +2107,8 @@ static func is_colour_authored(texture_path: String) -> bool:
 func high_texture_path() -> String:
 	if interior_kind == "forest":
 		return GROUND_TEX + "/forest_grass_high.png"   # worn grass, like the top of the designer's cliff block
+	if interior_kind == "" and world_level == 2:
+		return GROUND_TEX + "/desert_sand.png"   # sand, like the top of the designer's desert cliff
 	return ""
 
 
@@ -2233,6 +2235,8 @@ func ground_atlas_path() -> String:
 		return GROUND_TEX + "/forest_atlas.png"
 	if interior_kind == "cave":
 		return GROUND_TEX + ("/cave_glow_atlas.png" if cave_glows() else "/cave_atlas.png")
+	if interior_kind == "" and world_level == 2:
+		return GROUND_TEX + "/desert_atlas.png"
 	return ""
 
 
@@ -2554,7 +2558,7 @@ func cliff_strip_path() -> String:
 		5:
 			return CP_TEX + "/cliff_undead.png"
 		2:
-			return CP_TEX + "/cliff_desert.png"
+			return GROUND_TEX + "/desert_cliff.png"   # the designer's sand-topped cliff, 32 px cells
 		3:
 			return CP_TEX + "/cliff_undead.png"  # grey barrow rock under the frost palette
 	return CP_TEX + "/cliff_field.png"
