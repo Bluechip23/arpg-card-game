@@ -93,12 +93,12 @@ ROLES = {
     "undead_skulls": {"scale": 1.0, "src": [f"{U}/Pile_sculls_shadow1.png"]},
     "undead_crystal": {"scale": 1.0, "src": [f"{U}/Crystal_shadow1_{i}.png" for i in range(1, 5)]},
     # --- World 4 hell (cursed land pack) ---
-    "cursed_rock": {"scale": 1.0, "src": [f"{X}/Rock1_shadow1_{i}.png" for i in range(1, 6)] + [f"{X}/Rock3_shadow1_{i}.png" for i in (3, 4, 5)]},
-    "cursed_plant": {"scale": 1.0, "src": [f"{X}/Eye_plant_shadow1_1.png", f"{X}/Eye_plant_shadow1_2.png", f"{X}/Many_eyes_plant_shadow1_1.png", f"{X}/Tubular_plant_shadow1_1.png", f"{X}/Tubular_plant_shadow1_2.png", f"{X}/Spike_plant_shadow1_3.png", f"{X}/Spike_plant_shadow1_4.png", f"{X}/Pustules_shadow1_1.png", f"{X}/Pustules_shadow1_2.png"]},
-    "cursed_tree": {"scale": 0.8, "src": [f"{X}/Tentacle_plant_shadow1_1.png", f"{X}/Meat_flower_shadow1_1.png", f"{X}/Jaws_plant_shadow1_1.png", f"{X}/Spike_plant_shadow1_2.png"]},
+    # "cursed_rock": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Rock1_shadow1_{i}.png" for i in range(1, 6)] + [f"{X}/Rock3_shadow1_{i}.png" for i in (3, 4, 5)]
+    # "cursed_plant": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Eye_plant_shadow1_1.png", f"{X}/Eye_plant_shadow1_2.png", f"{X}/Many_eyes_plant_shadow1_1.png", f"{X}/Tubular_plant_shadow1_1.png", f"{X}/Tubular_plant_shadow1_2.png", f"{X}/Spike_plant_shadow1_3.png", f"{X}/Spike_plant_shadow1_4.png", f"{X}/Pustules_shadow1_1.png", f"{X}/Pustules_shadow1_2.png"]
+    # "cursed_tree": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Tentacle_plant_shadow1_1.png", f"{X}/Meat_flower_shadow1_1.png", f"{X}/Jaws_plant_shadow1_1.png", f"{X}/Spike_plant_shadow1_2.png"]
     "cursed_bones": {"scale": 1.0, "src": [f"{X}/Bones_shadow1_{i}.png" for i in (2, 3, 5, 7, 8, 9, 10, 11)]},
-    "cursed_ruin": {"scale": 0.8, "src": [f"{X}/Ruins_shadow2_1.png", f"{X}/Ruins_shadow2_2.png", f"{X}/Ruins_shadow2_3.png", f"{X}/Ruins_shadow2_4.png"]},
-    "cursed_eye": {"scale": 1.0, "src": [f"{X}/Rock_eyes_shadow1_1.png", f"{X}/Rock_eyes_shadow1_2.png"]},
+    # "cursed_ruin": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Ruins_shadow2_1.png", f"{X}/Ruins_shadow2_2.png", f"{X}/Ruins_shadow2_3.png", f"{X}/Ruins_shadow2_4.png"]
+    # "cursed_eye": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Rock_eyes_shadow1_1.png", f"{X}/Rock_eyes_shadow1_2.png"]
     # --- World 2 Amber Wastes (desert pack; the "grass" shadow variants sit on the scrub floor) ---
     # "desert_tree": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Tree1_grass_shadow*.png", f"{D}/Tree2_grass_shadow*.png", f"{D}/Tree4_grass_shadow*.png", f"{D}/Tree3_*.png"]
     # "desert_tree_dead": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/curved_tree_grass*.png"], "limit": 10
@@ -140,10 +140,10 @@ ROLES = {
     "hell_rock": {"scale": 1.0, "src": [f"{C}/Red_stone_light_shadow{i}.png" for i in range(1, 5)] + [f"{X}/Rock2_shadow2_{i}.png" for i in range(1, 6)]},
     "hell_demon": {"scale": 0.8, "src": [f"{C}/Demon_head_light_shadow_frame1.png", f"{C}/Demon_hand_light_shadow_frame1.png", f"{C}/Demon_tail_light_shadow_frame1.png"]},
     "hell_volcano": {"scale": 1.0, "src": [f"{C}/Volcano1_light_shadow_frame1.png", f"{C}/Volcano2_light_shadow_frame1.png", f"{C}/Volcano4_light_shadow_frame1.png", f"{C}/Volcano5_light_shadow_frame1.png"]},
-    "hell_vent": {"scale": 1.0, "src": [f"{C}/Volcano3_light_shadow_frame1.png"]},
-    "hell_pustule": {"scale": 1.0, "src": [f"{X}/Pustules_shadow1_{i}.png" for i in range(1, 4)]},
-    "hell_veins": {"scale": 0.6, "src": [f"{X}/Veins_shadow1_{i}.png" for i in range(1, 5)]},
-    "hell_fetus": {"scale": 0.8, "src": [f"{X}/Fetus_shadow1_{i}.png" for i in range(1, 4)]},
+    # "hell_vent": dropped 2026-10-29 (World 4 is the designer's cursed set); was [f"{C}/Volcano3_light_shadow_frame1.png"]
+    # "hell_pustule": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Pustules_shadow1_{i}.png" for i in range(1, 4)]
+    # "hell_veins": dropped 2026-10-29 (World 4 is the designer's cursed set); was [f"{X}/Veins_shadow1_{i}.png" for i in range(1, 5)]
+    # "hell_fetus": dropped 2026-10-29 (World 4 is the designer's cursed set); was [f"{X}/Fetus_shadow1_{i}.png" for i in range(1, 4)]
 }
 
 # Frame strips for the animated landmarks (AnimatedSprite3D via
@@ -360,6 +360,16 @@ DESIGNER = {
     "desert_door": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_door_%d.png" % i for i in range(2)]},
     "desert_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_tree_%d.png" % i for i in range(15)]},
     "desert_tree_dead": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_tree_dead_%d.png" % i for i in range(5)]},
+    # 2026-10-29: the designer's cursed land, World 4 (cut_prop_boards.py).
+    "cursed_plant": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_plant_%d.png" % i for i in range(7)]},
+    "hell_pustule": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_pustule_%d.png" % i for i in range(4)]},
+    "cursed_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_rock_%d.png" % i for i in range(4)]},
+    "cursed_pod": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_pod_%d.png" % i for i in range(4)]},
+    "cursed_eye": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_eye_%d.png" % i for i in range(3)]},
+    "cursed_shroom": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_shroom_%d.png" % i for i in range(4)]},
+    "cursed_coral": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_coral_%d.png" % i for i in range(5)]},
+    "cursed_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_tree_%d.png" % i for i in range(4)]},
+    "cursed_ruin": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_ruin_%d.png" % i for i in range(4)]},
     "town_card_shelf": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_shelf_0.png"]},
     "town_card_table": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_table_0.png"]},
     "town_card_players": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_players_0.png"]},

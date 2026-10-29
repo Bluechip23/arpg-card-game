@@ -33,7 +33,7 @@ OUT = "assets/textures/props/boards/%s_%d.png"
 BLACK = 10      # brightness (max channel) at or below this is the board's black
 RAMP = 40       # ...and alpha ramps to full over this many levels above it
 SPECK = 40      # pieces of a cut-out smaller than this (source px) are dropped
-HOLE = 1000     # enclosed black bigger than this (source px) is the board seen
+HOLE = 1000     # enclosed black bigger than this (source px; a role's "hole" overrides) is the board seen
                 # through the piece (under the ruin ring's vine arch), not shading
 
 # role -> board and pieces: (crop box (x0, y0, x1, y1) in source px, height
@@ -411,6 +411,24 @@ BOARDS = {
     "desert_tree": {"src": "desert_trees_board.webp", "main_only": True, "pieces": [((23, 8, 343, 329), 135), ((373, 60, 601, 335), 116), ((614, 139, 771, 337), 83), ((814, 28, 1113, 350), 135), ((1121, 90, 1344, 342), 106), ((1361, 158, 1523, 342), 77), ((23, 336, 358, 663), 137), ((389, 373, 627, 659), 120), ((654, 440, 844, 656), 91), ((28, 669, 360, 1005), 141), ((371, 692, 618, 1001), 130), ((631, 756, 826, 999), 102), ((854, 642, 1125, 997), 149), ((1134, 700, 1359, 996), 124), ((1369, 779, 1522, 985), 87)]},
     "desert_tree_dead": {"src": "desert_dead_trees_board.webp", "main_only": True, "pieces": [((7, 10, 533, 584), 172), ((576, 17, 1096, 569), 166), ((1126, 9, 1511, 805), 239), ((500, 568, 1155, 1001), 130), ((77, 660, 485, 984), 97)]},
     "desert_tuft": {"src": "desert_tufts_board.webp", "main_only": True, "pieces": [((23, 253, 530, 597), 41), ((588, 364, 1109, 597), 28), ((1140, 17, 1510, 639), 75), ((99, 659, 664, 976), 38), ((781, 720, 1425, 976), 31)]},
+    # 2026-10-29: the designer's cursed land, World 4 (cursed_features_board
+    # .webp, on black): seven eye-stalked tentacle crawlers; yellow egg
+    # clusters netted in veins and dark vein-wrapped rocks, four each; four
+    # spiky vein-split pods and three eyeballs on rooted stalks; four
+    # many-eyed mushroom caps on roots and five pink tube corals. Then
+    # cursed_features2_board.webp: four vein-wrapped stone ruins (a broken
+    # wall, an arch, a block, a broken ring) over the tall growths (tentacle
+    # plant, meat flower, jaws plant, three-eyed crawler). One scale a board
+    # (~0.4 a board px; the tall growths and ruins ~0.42-0.48).
+    "cursed_plant": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((33, 51, 229, 212), 64), ((253, 78, 460, 209), 52), ((485, 44, 632, 220), 70), ((655, 28, 888, 221), 77), ((909, 44, 1108, 231), 75), ((1132, 61, 1302, 231), 68), ((1323, 44, 1493, 227), 73)]},
+    "hell_pustule": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((20, 243, 253, 471), 80), ((267, 297, 439, 462), 58), ((459, 282, 605, 430), 52), ((623, 297, 757, 455), 55)]},
+    "cursed_rock": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((784, 262, 1032, 503), 101), ((1042, 303, 1217, 494), 80), ((1228, 332, 1372, 485), 64), ((1386, 360, 1503, 500), 59)]},
+    "cursed_pod": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((16, 486, 260, 729), 92), ((263, 489, 459, 736), 94), ((465, 505, 660, 730), 86), ((664, 492, 904, 736), 93)]},
+    "cursed_eye": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((926, 517, 1160, 752), 94), ((1154, 509, 1329, 760), 100), ((1336, 528, 1518, 752), 86)]},
+    "cursed_shroom": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((24, 746, 235, 993), 99), ((240, 770, 415, 998), 91), ((427, 758, 602, 999), 96), ((618, 752, 778, 995), 97)]},
+    "cursed_coral": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((814, 771, 984, 978), 83), ((1012, 815, 1130, 984), 68), ((1163, 837, 1273, 988), 60), ((1298, 840, 1399, 985), 58), ((1429, 882, 1508, 982), 40)]},
+    "cursed_tree": {"hole": 30, "src": "cursed_features2_board.webp", "main_only": True, "pieces": [((15, 517, 416, 940), 178), ((434, 632, 746, 941), 130), ((756, 464, 1190, 941), 200), ((1135, 587, 1524, 940), 148)]},
+    "cursed_ruin": {"hole": 30, "src": "cursed_features2_board.webp", "main_only": True, "pieces": [((12, 96, 475, 504), 196), ((484, 168, 814, 442), 132), ((824, 172, 1096, 452), 134), ((1121, 91, 1526, 491), 192)]},
     # 2026-10-29: the title cutscene's actors and props (not world props):
     # the small boy in three poses (cutscene_boy_board.webp: facing left,
     # front, facing right) and the pipe and lounge chair
@@ -450,7 +468,7 @@ def turn45(img, squeeze=0.72, drop=0.45):
 
 
 def cut_piece(board, box, height, alpha_cut=128, flip=False, open_black=False, main_only=False,
-              rim_floor=1e-3, own_alpha=0, black_level=None, clear_dim=()):
+              rim_floor=1e-3, own_alpha=0, black_level=None, clear_dim=(), hole=HOLE):
     black_at = BLACK if black_level is None else black_level
     rgb = np.asarray(board.crop(box).convert("RGB")).astype(np.float32)
     if own_alpha:
@@ -482,7 +500,7 @@ def cut_piece(board, box, height, alpha_cut=128, flip=False, open_black=False, m
     lab, n = nd.label(black)
     edge_labels = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
     sizes = nd.sum(black, lab, range(1, n + 1)) if n else []
-    see_through = {i + 1 for i, sz in enumerate(sizes) if sz > HOLE}
+    see_through = {i + 1 for i, sz in enumerate(sizes) if sz > hole}
     solid = ~np.isin(lab, list(edge_labels | see_through))
     if open_black:
         solid &= ~black   # a piece with no dark paint of its own (the webs): every black is the board
@@ -532,7 +550,8 @@ def build(role, cfg):
         img = cut_piece(b, box, height, cfg.get("alpha_cut", 128), cfg.get("flip", False),
                         cfg.get("open_black", False), cfg.get("main_only", False),
                         cfg.get("rim_floor", 1e-3), cfg.get("own_alpha", 0),
-                        cfg.get("black_level"), tuple(cfg.get("clear_dim", ())) + tuple(own_clear))
+                        cfg.get("black_level"), tuple(cfg.get("clear_dim", ())) + tuple(own_clear),
+                        cfg.get("hole", HOLE))
         if cfg.get("turn45"):
             img = turn45(img)
         img.save(OUT % (role, i))

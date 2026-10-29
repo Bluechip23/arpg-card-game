@@ -547,8 +547,8 @@ func floor_texture_path() -> String:
 		"forest":
 			return GROUND_TEX + "/forest_grass.png"   # the designer's (2026-10-29); was the pack's floor_grass_forest
 	match world_level:
-		4:  # Emberfall — the flesh-and-vein hellscape (cursed land pack)
-			return CP_TEX + "/floor_cursed.png"
+		4:  # Emberfall — the designer's flesh-pink cursed earth (2026-10-29; was the cursed land pack's)
+			return GROUND_TEX + "/cursed_floor.png"
 		5:  # Umbral Expanse — barrow-land cracked stone (undead land pack)
 			return CP_TEX + "/floor_undead.png"
 		2:  # Amber Wastes — the designer's olive scrub (2026-10-29; was the desert pack's)
@@ -582,7 +582,7 @@ func trail_texture_path() -> String:
 	if world_level == 3:
 		return CP_TEX + "/floor_undead_sand.png"  # trodden grey slush through the snow
 	if world_level == 4:
-		return CP_TEX + "/floor_cursed_dark.png"  # the deep-red vein floor (cursed pack)
+		return GROUND_TEX + "/cursed_dark.png"  # the designer's dark cracked earth (2026-10-29)
 	if world_level == 5:
 		return CP_TEX + "/floor_undead_sand.png"  # the barrow land's pale cobbles
 	return CP_TEX + "/floor_dirt_field.png"
@@ -605,7 +605,7 @@ func wall_texture_path() -> String:
 			return GROUND_TEX + "/forest_wall.png"   # the designer's mossy cobble (2026-10-29)
 	match world_level:
 		4:
-			return CP_TEX + "/wall_cursed.png"
+			return GROUND_TEX + "/cursed_wall.png"   # the designer's woven veins (2026-10-29)
 		5:
 			return CP_TEX + "/wall_undead.png"
 		2:
@@ -630,7 +630,7 @@ func water_texture_path() -> String:
 			return GROUND_TEX + "/forest_water.png"   # the designer's (2026-10-29)
 	match world_level:
 		4:
-			return CP_TEX + "/water_lava.png"  # Emberfall's rivers are lava (cave pack)
+			return GROUND_TEX + "/cursed_water.png"  # the designer's dark water (2026-10-29; was the cave pack's lava)
 		5:
 			return CP_TEX + "/water_undead.png"
 		2:
@@ -690,9 +690,9 @@ const PROP_ROLES := {
 		"berry": ["undead_bush"], "fern": ["undead_bush"], "flower": ["undead_crystal"], "tuft": ["undead_bones"],
 		"shroom": ["undead_skulls"], "pebble": ["undead_bones"], "bones": ["undead_bones"], "reeds": ["forest_reeds"],
 		"wallrock": ["wallrock_dark"]},
-	"cursed": {"tree": ["cursed_tree", "hell_spire"], "stump": ["cursed_eye", "hell_vent"], "rock": ["cursed_rock", "hell_rock"],
-		"bush": ["cursed_plant", "hell_veins"], "berry": ["hell_pustule"], "fern": ["cursed_plant"], "flower": ["cursed_plant", "hell_pustule"],
-		"tuft": ["cursed_bones"], "shroom": ["hell_fetus"], "pebble": ["cursed_bones"], "bones": ["cursed_bones"], "reeds": ["forest_reeds"],
+	"cursed": {"tree": ["cursed_tree"], "stump": ["cursed_eye"], "rock": ["cursed_rock"],   # the designer's cursed land (2026-10-29)
+		"bush": ["cursed_pod"], "berry": ["hell_pustule"], "fern": ["cursed_plant"], "flower": ["cursed_coral"],
+		"tuft": ["cursed_bones"], "shroom": ["cursed_shroom"], "pebble": ["cursed_bones"], "bones": ["cursed_bones"], "reeds": ["forest_reeds"],
 		"wallrock": ["wallrock_lava"]},
 	"desert": {"tree": ["desert_tree"], "stump": ["desert_tree_dead"], "rock": ["desert_mesa"], "bush": ["desert_bush"],   # (the pack's pale stacked rocks gave way to the designer's mesas, 2026-10-29)
 		"berry": ["desert_cactus"], "fern": ["desert_bush"], "flower": ["desert_flower"], "tuft": ["desert_tuft"],
@@ -2109,6 +2109,8 @@ func high_texture_path() -> String:
 		return GROUND_TEX + "/forest_grass_high.png"   # worn grass, like the top of the designer's cliff block
 	if interior_kind == "" and world_level == 2:
 		return GROUND_TEX + "/desert_sand.png"   # sand, like the top of the designer's desert cliff
+	if interior_kind == "" and world_level == 4:
+		return GROUND_TEX + "/cursed_floor.png"   # the cursed earth, like the lip of the designer's cliff
 	return ""
 
 
@@ -2237,6 +2239,8 @@ func ground_atlas_path() -> String:
 		return GROUND_TEX + ("/cave_glow_atlas.png" if cave_glows() else "/cave_atlas.png")
 	if interior_kind == "" and world_level == 2:
 		return GROUND_TEX + "/desert_atlas.png"
+	if interior_kind == "" and world_level == 4:
+		return GROUND_TEX + "/cursed_atlas.png"
 	return ""
 
 
@@ -2554,7 +2558,7 @@ func cliff_strip_path() -> String:
 			return GROUND_TEX + "/forest_cliff.png"   # the designer's grass-over-rock strip, 32 px cells (2026-10-29)
 	match world_level:
 		4:
-			return CP_TEX + "/cliff_cursed.png"
+			return GROUND_TEX + "/cursed_cliff.png"   # the designer's veined cliff under its earth lip (2026-10-29)
 		5:
 			return CP_TEX + "/cliff_undead.png"
 		2:
@@ -2855,9 +2859,9 @@ func _build_boundary_props() -> void:
 	_add_prop_decos(bushes, "bush")
 	print("[DUNGEON] Natural boundary: %d trees, %d rocks, %d bushes (%s)" % [trees.size(), rocks.size(), bushes.size(), get_location_name()])
 
-## Emberfall's skyline: animated volcanoes and demon idols (cave pack) on
-## the blocked tiles along the edge of the ground, well apart, never on the
-## camera side of the land.
+## Emberfall's skyline: animated volcanoes and demon idols (cave pack) and
+## the designer's vein-wrapped ruins (2026-10-29) on the blocked tiles along
+## the edge of the ground, well apart, never on the camera side of the land.
 func _place_hell_landmarks() -> void:
 	var site_tiles = _all_site_footprint_tiles()
 	var strips: Array = [
@@ -2868,6 +2872,7 @@ func _place_hell_landmarks() -> void:
 		["res://assets/textures/craftpix/props/hell_demon_tail_strip.png", 55, 97, 0.8],
 		["res://assets/textures/craftpix/props/hell_volcano4_strip.png", 31, 30, 1.0],
 	]
+	const RUINS := 4   # the four ruins share the draw with the six strips
 	var placed: Array = []
 	var count := 0
 	for x in range(GRID_W):
@@ -2885,22 +2890,32 @@ func _place_hell_landmarks() -> void:
 					break
 			if too_close:
 				continue
-			var spec: Array = strips[int(_tile_noise(x, z, 257) * strips.size()) % strips.size()]
+			var y: float = _max_adjacent_floor_elevation(x, z) * ELEV_STEP + CameraView.SPRITE_LIFT
+			var pick := int(_tile_noise(x, z, 257) * (strips.size() + RUINS)) % (strips.size() + RUINS)
+			if pick >= strips.size():
+				var ruin := _make_prop_sprite("cursed_ruin", 1.0, pick - strips.size())
+				if ruin:
+					ruin.position = Vector3(x + 0.5, y, z + 0.5)
+					_visuals_root.add_child(ruin)
+					placed.append(Vector2i(x, z))
+					count += 1
+				continue
+			var spec: Array = strips[pick]
 			var spr := _make_pixel_anim(spec[0], spec[1], spec[2], 5.0)
 			spr.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 			spr.centered = false
 			spr.offset = Vector2(-float(spec[1]) * 0.5, 0)
 			var sc: float = spec[3]
 			spr.scale = Vector3(sc, sc, sc)
-			var y: float = _max_adjacent_floor_elevation(x, z) * ELEV_STEP + CameraView.SPRITE_LIFT
 			spr.position = Vector3(x + 0.5, y, z + 0.5)
 			_visuals_root.add_child(spr)
 			placed.append(Vector2i(x, z))
 			count += 1
-	print("[DUNGEON] Emberfall: %d volcanoes and idols on the edge" % count)
+	print("[DUNGEON] Emberfall: %d volcanoes, idols and ruins on the edge" % count)
 
-## Emberfall's lava: a few molten pools in the open ground (flagged water,
-## drawn with the lava fill). Called by the overworld generator for World 4.
+## Emberfall's pools: a few in the open ground (flagged water, drawn with
+## the world's water: lava once, the designer's dark water since 2026-10-29).
+## Called by the overworld generator for World 4.
 func _place_lava_pools() -> void:
 	# Pools are blocked tiles flagged water: nobody wades lava. They sit in
 	# open ground (never on a road, never touching the edge, never in the
@@ -4859,8 +4874,10 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 	ground.position = Vector3(0, 0.006, 0)
 	site_root.add_child(ground)
 
-	var desert_site := interior_kind == "" and world_level == 2 and kind in ["building", "cave"]
-	if desert_site:
+	var ruin_site := interior_kind == "" and world_level in [2, 4] and kind in ["building", "cave"]
+	if ruin_site and world_level == 4:
+		_build_cursed_site(site_root, kind, fp_w, fp_d, fx + fz)
+	elif ruin_site:
 		_build_desert_site(site_root, kind, fp_w, fp_d, fx + fz)
 	else: match kind:
 		"graveyard":
@@ -4941,6 +4958,18 @@ func _build_desert_site(root: Node3D, kind: String, fp_w: int, fp_d: int, salt: 
 			k = 2                               # the collapsed ruin
 	var door_x := 0.5 if fp_w % 2 == 0 else 0.0
 	var sprite := _make_prop_sprite(role, 1.0, k)
+	if sprite:
+		sprite.position = Vector3(door_x, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.05)
+		root.add_child(sprite)
+
+
+## Emberfall's sites (the designer's vein-wrapped ruins, 2026-10-29): a
+## building is the broken wall or the stone block, a cave the arch or the
+## broken ring, by site. Feet on the footprint's south edge.
+func _build_cursed_site(root: Node3D, kind: String, fp_w: int, fp_d: int, salt: int) -> void:
+	var k := (0 if salt % 2 == 0 else 2) if kind == "building" else (1 if salt % 2 == 0 else 3)
+	var door_x := 0.5 if fp_w % 2 == 0 else 0.0
+	var sprite := _make_prop_sprite("cursed_ruin", 1.0, k)
 	if sprite:
 		sprite.position = Vector3(door_x, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.05)
 		root.add_child(sprite)

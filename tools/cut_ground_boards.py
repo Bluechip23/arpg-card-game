@@ -91,6 +91,22 @@ BOARDS = {
             "desert_cliff": [(418, 494, 563, 654), (577, 491, 861, 659), (872, 496, 1002, 665)],
         },
     },
+    # 2026-10-29: the cursed land's ground, World 4 (cursed_ground_board.webp,
+    # on black: dark water, a cliff of red veins under a lip of flesh-pink
+    # earth, the floor, the dark cracked floor, a wall of woven veins; then
+    # larger examples of the same). The dark floor is the tracks, the floor
+    # the tops of raised ground; the cliff panel's face becomes the strip.
+    "cursed_ground_board.webp": {
+        "sheets": {
+            "cursed_floor": (646, 80, 891, 325),
+            "cursed_dark": (944, 80, 1187, 323),
+            "cursed_wall": (1238, 79, 1485, 326),
+            "cursed_water": (52, 79, 296, 323),
+        },
+        "faces": {
+            "cursed_cliff": (348, 105, 597, 297),
+        },
+    },
 }
 
 
@@ -161,6 +177,8 @@ ATLASES = {
     "cave_glow": {"grass": "cave_floor_glow", "water": "cave_water"},
     "desert": {"grass": "desert_floor", "dirt": "desert_sand", "water": "desert_water",
                "high": "desert_sand"},
+    "cursed": {"grass": "cursed_floor", "dirt": "cursed_dark", "water": "cursed_water",
+               "high": "cursed_floor"},
 }
 N_, E_, S_, W_ = 1, 2, 4, 8
 
