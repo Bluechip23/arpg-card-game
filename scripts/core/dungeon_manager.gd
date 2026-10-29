@@ -535,7 +535,7 @@ const GROUND_TEX := "res://assets/textures/ground"
 func floor_texture_path() -> String:
 	match interior_kind:
 		"boneyard":
-			return CP_TEX + "/floor_undead.png"  # graveyard soil (undead land pack)
+			return GROUND_TEX + "/undead_floor.png"   # the designer's barrow land (2026-10-29)
 		"sewer", "ratking":
 			return CP_TEX + "/floor_glowing_cave.png"  # wet stone (glowing-cave pack; the plain cave fill went black under the sewer's dim light)
 		"building", "dojo":
@@ -549,8 +549,8 @@ func floor_texture_path() -> String:
 	match world_level:
 		4:  # Emberfall — the designer's flesh-pink cursed earth (2026-10-29; was the cursed land pack's)
 			return GROUND_TEX + "/cursed_floor.png"
-		5:  # Umbral Expanse — barrow-land cracked stone (undead land pack)
-			return CP_TEX + "/floor_undead.png"
+		5:  # Umbral Expanse — the designer's pocked grey barrow earth (2026-10-29; was the undead land pack's)
+			return GROUND_TEX + "/undead_floor.png"
 		2:  # Amber Wastes — the designer's olive scrub (2026-10-29; was the desert pack's)
 			return GROUND_TEX + "/desert_floor.png"
 		3:  # Frostreach — snowfield (winter pack drifts over flat snow)
@@ -574,7 +574,7 @@ func trail_texture_path() -> String:
 		"cave", "sewer", "building", "ratking", "hellgate", "labyrinth":
 			return CP_TEX + "/floor_dirt_forest.png"  # trodden dark earth
 		"boneyard":
-			return CP_TEX + "/floor_undead_sand.png"  # the barrow land's pale cobbles
+			return GROUND_TEX + "/undead_cobble.png"   # the designer's barrow land (2026-10-29)
 	if world_level == 1:
 		return GROUND_TEX + "/field_dirt.png"   # the designer's dirt (2026-10-29)
 	if world_level == 2:
@@ -584,7 +584,7 @@ func trail_texture_path() -> String:
 	if world_level == 4:
 		return GROUND_TEX + "/cursed_dark.png"  # the designer's dark cracked earth (2026-10-29)
 	if world_level == 5:
-		return CP_TEX + "/floor_undead_sand.png"  # the barrow land's pale cobbles
+		return GROUND_TEX + "/undead_cobble.png"  # the designer's pale cobbles (2026-10-29)
 	return GROUND_TEX + "/field_dirt.png"
 
 
@@ -592,7 +592,7 @@ func trail_texture_path() -> String:
 func wall_texture_path() -> String:
 	match interior_kind:
 		"boneyard":
-			return CP_TEX + "/wall_undead.png"  # grey barrow stone
+			return GROUND_TEX + "/undead_wall.png"   # the designer's barrow land (2026-10-29)
 		"sewer", "ratking":
 			return CP_TEX + "/wall_cave.png"  # dark cave rock
 		"building":
@@ -607,7 +607,7 @@ func wall_texture_path() -> String:
 		4:
 			return GROUND_TEX + "/cursed_wall.png"   # the designer's woven veins (2026-10-29)
 		5:
-			return CP_TEX + "/wall_undead.png"
+			return GROUND_TEX + "/undead_wall.png"   # the designer's dark spikes (2026-10-29)
 		2:
 			return GROUND_TEX + "/desert_wall.png"   # the designer's cliff rock
 		3:
@@ -619,7 +619,7 @@ func wall_texture_path() -> String:
 func water_texture_path() -> String:
 	match interior_kind:
 		"boneyard":
-			return CP_TEX + "/water_undead.png"
+			return GROUND_TEX + "/undead_water.png"   # the designer's barrow land (2026-10-29)
 		"hellgate", "labyrinth":
 			return CP_TEX + "/water_lava.png"  # the pools at Hell's threshold, and in the Minotaur's court, are lava (cave pack)
 		"cave":
@@ -632,7 +632,7 @@ func water_texture_path() -> String:
 		4:
 			return GROUND_TEX + "/cursed_water.png"  # the designer's dark water (2026-10-29; was the cave pack's lava)
 		5:
-			return CP_TEX + "/water_undead.png"
+			return GROUND_TEX + "/undead_water.png"   # the designer's green bog (2026-10-29)
 		2:
 			return GROUND_TEX + "/desert_water.png"
 		3:
@@ -2244,6 +2244,8 @@ func ground_atlas_path() -> String:
 		return GROUND_TEX + "/desert_atlas.png"
 	if interior_kind == "" and world_level == 4:
 		return GROUND_TEX + "/cursed_atlas.png"
+	if floor_texture_path() == GROUND_TEX + "/undead_floor.png":
+		return GROUND_TEX + "/undead_atlas.png"   # World 5 and the Boneyard
 	if floor_texture_path() == GROUND_TEX + "/field_grass.png":
 		return GROUND_TEX + "/field_atlas.png"   # the Verdant Frontier, and anywhere else on its grass
 	return ""
@@ -2558,14 +2560,14 @@ func cliff_strip_path() -> String:
 		"sewer", "ratking", "hellgate", "labyrinth":
 			return CP_TEX + "/cliff_cave.png"
 		"boneyard":
-			return CP_TEX + "/cliff_undead.png"
+			return GROUND_TEX + "/undead_cliff.png"   # the designer's barrow land (2026-10-29)
 		"forest":
 			return GROUND_TEX + "/forest_cliff.png"   # the designer's grass-over-rock strip, 32 px cells (2026-10-29)
 	match world_level:
 		4:
 			return GROUND_TEX + "/cursed_cliff.png"   # the designer's veined cliff under its earth lip (2026-10-29)
 		5:
-			return CP_TEX + "/cliff_undead.png"
+			return GROUND_TEX + "/undead_cliff.png"   # the designer's spikes under an earth lip (2026-10-29)
 		2:
 			return GROUND_TEX + "/desert_cliff.png"   # the designer's sand-topped cliff, 32 px cells
 		3:

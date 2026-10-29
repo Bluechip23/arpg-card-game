@@ -113,6 +113,22 @@ BOARDS = {
             "field_cliff": (1057, 96, 1338, 168),   # grass over cobbled earth, rounded at both ends
         },
     },
+    # 2026-10-29: the barrow land's ground (undead_ground_board.webp, on black:
+    # grey earth pocked with dark holes, pale diagonal cobbles, a wall of
+    # dark blue-grey spikes, green bog water, and a cliff of the spikes under
+    # an earth lip; then tile and cliff-piece versions of the same). World 5
+    # and the Boneyard: the earth is the floor, the cobbles the tracks.
+    "undead_ground_board.webp": {
+        "sheets": {
+            "undead_floor": (42, 54, 278, 290),
+            "undead_cobble": (346, 53, 583, 290),
+            "undead_wall": (646, 53, 883, 290),
+            "undead_water": (944, 54, 1178, 288),
+        },
+        "strips": {
+            "undead_cliff": (1218, 115, 1513, 275),
+        },
+    },
     # 2026-10-29: the cursed land's ground, World 4 (cursed_ground_board.webp,
     # on black: dark water, a cliff of red veins under a lip of flesh-pink
     # earth, the floor, the dark cracked floor, a wall of woven veins; then
@@ -217,6 +233,7 @@ ATLASES = {
     "desert": {"grass": "desert_floor", "dirt": "desert_sand", "water": "desert_water",
                "high": "desert_sand"},
     "field": {"grass": "field_grass", "dirt": "field_dirt", "water": "field_water"},
+    "undead": {"grass": "undead_floor", "dirt": "undead_cobble", "water": "undead_water"},
     "cursed": {"grass": "cursed_floor", "dirt": "cursed_dark", "water": "cursed_water",
                "high": "cursed_floor"},
 }
