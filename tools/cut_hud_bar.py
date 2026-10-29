@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Cut the designer's top-right HUD bar (hud_bar_board.webp, 2026-10-29: a
-mossy stone bar of five panels — a bust, the green EXP arrow, a scroll, an
-info banner, a question mark — on white) into the bar texture HudIconBar
+mossy stone bar of five panels — a bust, the green EXP arrow, a scroll, a
+sword-marked deck of cards, a question mark — on white) into the bar texture HudIconBar
 draws, at the HUD's own size (no runtime scaling, so it stays crisp).
 
 The white reached from the board's edge is cleared; the bar is shrunk with
@@ -17,12 +17,12 @@ from scipy import ndimage as nd
 
 SRC = "assets/sprites/paintings/hud_bar_board.webp"
 OUT = "assets/textures/ui/hud_bar.png"
-BOX = (0, 160, 2000, 522)      # the bar, with a little white round it
+BOX = (0, 140, 2000, 520)      # the bar, with a little white round it
 HEIGHT = 52                    # px on screen
 WHITE = 205                    # min channel at or above this is the board's white
-# The five stone panels (board px): bust, EXP, scroll, banner, question mark.
-PANELS = [(75, 205, 395, 472), (428, 205, 862, 472), (886, 205, 1212, 472),
-          (1243, 205, 1577, 472), (1612, 205, 1937, 472)]
+# The five stone panels (board px): bust, EXP, scroll, deck, question mark.
+PANELS = [(68, 188, 394, 468), (434, 188, 840, 468), (867, 188, 1200, 468),
+          (1235, 188, 1580, 468), (1616, 188, 1938, 468)]
 
 
 def main():

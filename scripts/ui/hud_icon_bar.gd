@@ -5,7 +5,7 @@ extends HBoxContainer
 ## 2026-10-29; was a row of Emerald buttons with drawn glyphs) with five
 ## stone panels, each a button that opens its window (the keyboard shortcuts
 ## still work too): Character (the bust), Level Progress (the EXP arrow),
-## Quest Journal (the scroll), Deck (the info banner) and Help (the question
+## Quest Journal (the scroll), Deck (the sword-marked deck) and Help (the question
 ## mark). The EXP and Quest panels carry a small yellow notification dot in
 ## their top-right corner when there's something to do — a level-up point to
 ## spend, or a new/updated quest.
@@ -18,8 +18,8 @@ signal deck_pressed
 
 const BAR := "res://assets/textures/ui/hud_bar.png"
 ## The stone panels in the bar texture (px), as tools/cut_hud_bar.py prints them.
-const PANELS := [Rect2(11, 5, 49, 41), Rect2(65, 5, 65, 41), Rect2(134, 5, 49, 41),
-	Rect2(187, 5, 51, 41), Rect2(243, 5, 49, 41)]
+const PANELS := [Rect2(10, 5, 48, 41), Rect2(64, 5, 59, 41), Rect2(127, 5, 49, 41),
+	Rect2(181, 5, 51, 41), Rect2(237, 5, 48, 41)]
 
 var _level_dot: Panel = null
 var _quest_dot: Panel = null
