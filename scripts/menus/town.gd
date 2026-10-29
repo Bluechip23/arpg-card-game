@@ -2563,9 +2563,9 @@ func _dress_town() -> void:
 	add_child(dressing)
 	for lamp_pos in [Vector3(1.2, 0, 1.2), Vector3(18.8, 0, 10.8), Vector3(1.2, 0, 10.8)]:
 		_build_lamp(dressing, lamp_pos)
-	# Barrels beside the blacksmith (at (3, 6.5) since 2026-10-29), crates by the armory.
-	for spec in [["goods_barrel", 0, Vector3(1.1, 0, 6.1)], ["goods_barrel", 1, Vector3(1.5, 0, 6.7)],
-			["goods_crate", 0, Vector3(9.4, 0, 2.2)], ["goods_crate", 1, Vector3(10.0, 0, 2.5)]]:
+	# Barrels beside the blacksmith (at (3, 8) since 2026-10-29), crates by the armory.
+	for spec in [["goods_barrel", 0, Vector3(1.1, 0, 7.6)], ["goods_barrel", 1, Vector3(1.5, 0, 8.2)],
+			["goods_crate", 0, Vector3(2.4, 0, 2.7)], ["goods_crate", 1, Vector3(2.9, 0, 3.1)]]:
 		var prop := CraftpixProps.make_sprite(spec[0], 1.0, spec[1])
 		if prop:
 			prop.position += spec[2]

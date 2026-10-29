@@ -78,7 +78,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, 9)
 [node name="Vendors" type="Node3D" parent="."]
 
 [node name="Blacksmith" type="StaticBody3D" parent="Vendors"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 6.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 8)
 
 [node name="Mesh" type="MeshInstance3D" parent="Vendors/Blacksmith"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
@@ -104,7 +104,7 @@ texture_filter = 1
 render_priority = 10
 
 [node name="Armory" type="StaticBody3D" parent="Vendors"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 0, 3.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0, 3.5)
 
 [node name="Mesh" type="MeshInstance3D" parent="Vendors/Armory"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
