@@ -12,8 +12,8 @@ var _faint := true
 
 ## Slot icons cut from the purchased icon packs (tools/build_craftpix_props.py,
 ## assets/textures/craftpix/ui/). Keys: ItemType index, or "w<subtype>" for
-## an equipped weapon's ItemData.WeaponSubtype. Only the any-weapon
-## composite (an empty hand slot) keeps the drawn shape.
+## an equipped weapon's ItemData.WeaponSubtype. An empty hand slot shows the
+## any-weapon composite: four of the designer's icons in a 2x2 (COMPOSITE).
 const ICON_DIR := "res://assets/textures/craftpix/ui/"
 ## The designer's own icons (tools/cut_icon_boards.py, 64 texels): used
 ## where one exists for the slot, the pack's 32 px icon otherwise.
@@ -23,6 +23,11 @@ const ICONS := {
 	"w0": "slot_sword", "w1": "slot_bow", "w2": "slot_shield", "w4": "slot_polearm", "w5": "slot_dagger",
 	"w6": "slot_axe", "w7": "slot_hammer", "w8": "slot_wand", "w9": "slot_tome", "w10": "slot_staff",
 }
+
+## The empty hand slot's 2x2, reading order (designer, 2026-10-29): sword,
+## wooden shield / arrow, wand.
+const COMPOSITE := ["slot_sword", "shield_wooden", "slot_quiver", "slot_wand"]
+var _composite: Array[TextureRect] = []
 
 func setup(t: int, faint: bool = true, w_subtype: int = -1) -> void:
 	item_type = t
@@ -43,8 +48,13 @@ func _rebuild_icon() -> void:
 	if _icon_rect:
 		_icon_rect.queue_free()
 		_icon_rect = null
+	for r in _composite:
+		r.queue_free()
+	_composite.clear()
 	var icon := _icon()
 	if icon == null:
+		if item_type == 6:
+			_build_composite()
 		return
 	_icon_rect = TextureRect.new()
 	_icon_rect.texture = icon
@@ -58,9 +68,37 @@ func _rebuild_icon() -> void:
 		resized.connect(_layout_icon)
 	_layout_icon()
 
+## The any-weapon composite: four quarter-size icons.
+func _build_composite() -> void:
+	for n in COMPOSITE:
+		var path: String = DESIGNER_ICON_DIR + n + ".png"
+		if not ResourceLoader.exists(path):
+			continue
+		var r := TextureRect.new()
+		r.texture = load(path)
+		r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		r.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		r.modulate = Color(1, 1, 1, 0.42) if _faint else Color.WHITE
+		add_child(r)
+		_composite.append(r)
+	if not resized.is_connected(_layout_icon):
+		resized.connect(_layout_icon)
+	_layout_icon()
+
 ## Centre the icon at a whole multiple of its texels (32 for a pack icon,
 ## 64 for the designer's) that fits the slot; never below its own size.
 func _layout_icon() -> void:
+	if not _composite.is_empty():
+		# Each quarter at a whole fraction of its 64 texels (32 in most slots).
+		var half: float = min(size.x, size.y) * 0.5
+		var q: float = maxf(16.0, floorf(half / 16.0) * 16.0)
+		var origin := (size - Vector2(q, q) * 2.0) * 0.5
+		for i in range(_composite.size()):
+			_composite[i].size = Vector2(q, q)
+			_composite[i].position = origin + Vector2((i % 2) * q, (i / 2) * q)
+		return
 	if _icon_rect == null:
 		return
 	var s: float = min(size.x, size.y)
@@ -89,8 +127,8 @@ func _draw() -> void:
 	var s: float = min(size.x, size.y)
 	var c: Vector2 = size * 0.5
 	var u: float = s * 0.52  # half-extent of the silhouette box
-	if _icon_rect:
-		return  # the pack icon child draws this slot
+	if _icon_rect or not _composite.is_empty():
+		return  # the icon children draw this slot
 	match item_type:
 		0: _draw_helm(c, u)
 		1: _draw_chest(c, u)
