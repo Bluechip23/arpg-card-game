@@ -182,7 +182,7 @@ texture_filter = 1
 render_priority = 10
 
 [node name="Stash" type="StaticBody3D" parent="Vendors"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.5, 0, 6.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.5, 0, 8.5)
 
 [node name="Mesh" type="MeshInstance3D" parent="Vendors/Stash"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)

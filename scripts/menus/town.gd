@@ -2413,7 +2413,7 @@ func _unify_town_style() -> void:
 	if ground:
 		var gmat := StandardMaterial3D.new()
 		gmat.albedo_color = Color(1, 1, 1)
-		gmat.albedo_texture = load(TOWN_PLAZA_TEX)  # the designer's cobbled dirt (2026-10-29); was the field pack's packed earth
+		gmat.albedo_texture = load(TOWN_PLAZA_TEX)  # the designer's grass, like the fields around (2026-10-29); was packed earth
 		gmat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		gmat.uv1_triplanar = true
 		gmat.uv1_scale = Vector3(0.25, 0.25, 0.25)
@@ -2425,7 +2425,7 @@ func _unify_town_style() -> void:
 ## and around it, and its trees, bushes, rocks, ferns, mushrooms and ruins
 ## scattered outside the cobbles so the town stops floating in a void.
 ## (Was the field pack's grass, trees, flowers and tufts.)
-const TOWN_PLAZA_TEX := "res://assets/textures/ground/forest_dirt.png"
+const TOWN_PLAZA_TEX := "res://assets/textures/ground/forest_grass.png"   # all grass, no dirt (designer, 2026-10-29)
 const TOWN_GRASS_TEX := "res://assets/textures/ground/forest_grass.png"
 func _dress_countryside() -> void:
 	var root := Node3D.new()
@@ -2566,13 +2566,12 @@ func _dress_town() -> void:
 	add_child(dressing)
 	for lamp_pos in [Vector3(1.2, 0, 1.2), Vector3(18.8, 0, 10.8), Vector3(1.2, 0, 10.8)]:
 		_build_lamp(dressing, lamp_pos)
-	# Barrels beside the blacksmith (at (3, 8) since 2026-10-29), crates by the armory.
-	for spec in [["goods_barrel", 0, Vector3(1.1, 0, 7.6)], ["goods_barrel", 1, Vector3(1.5, 0, 8.2)],
-			["goods_crate", 0, Vector3(2.4, 0, 2.7)], ["goods_crate", 1, Vector3(2.9, 0, 3.1)]]:
-		var prop := CraftpixProps.make_sprite(spec[0], 1.0, spec[1])
-		if prop:
-			prop.position += spec[2]
-			dressing.add_child(prop)
+	# (The barrels by the Blacksmith and the crates by the Armory are gone,
+	# designer 2026-10-29.) The armorer's bench stands by the Dojo master.
+	var bench := CraftpixProps.make_sprite("town_bench", 1.0, 1)
+	if bench:
+		bench.position += grid_manager.grid_to_world(Vector2i(18, 9)) + Vector3(-1.6, 0, 0.2)
+		dressing.add_child(bench)
 
 
 ## Keep the plaza under the characters (CameraView): every building, stall,
@@ -2598,20 +2597,20 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 	vendor.add_child(stall)
 	# The designer's town stalls (2026-10-29, tools/cut_prop_boards.py): each
 	# trade's own counter in front of its keeper, its goods on shelves behind
-	# or beside. The Armory's display is its two weapon and armour shelves;
-	# the armorer's bench (cloth, shears, a fitting dummy) is the Accessory
-	# Shop's counter. (awning: the shop's colour, kept for the callers.)
+	# or beside. The Armory's display is its three weapon and armour shelves.
+	# (awning: the shop's colour, kept for the callers.)
 	match vn:
 		"Blacksmith":
 			_stall_prop(stall, "town_bench", 0, Vector3(0, 0, 0.55))       # the anvil workbench
 			# The designer's Blacksmith stands behind his bench (his NPC
 			# sheet's four standing poses), turning to face a nearby player.
 			_add_stall_keeper(stall, "npc_blacksmith", "Smith")
-			_stall_prop(stall, "goods_barrel", 0, Vector3(-1.6, 0, 0.2))
 			_stall_prop(stall, "goods_pile", 0, Vector3(-1.25, 0, 1.0))     # his takings (his right side is the Armory's shelf)
 		"Armory":
 			_add_stall_keeper(stall, "npc_armory", "Keeper")
-			# Weapon and armour shelves, a tile and a half wide, clear of the bench.
+			# Weapon and armour shelves, a tile and a half wide, either side of
+			# her, and the one with the trident and breastplate behind her.
+			_stall_prop(stall, "town_shelf", 2, Vector3(0, 0, -1.05))
 			_stall_prop(stall, "town_shelf", 0, Vector3(-1.75, 0, -0.2))
 			_stall_prop(stall, "town_shelf", 1, Vector3(1.75, 0, -0.2))
 		"CardDealer":
@@ -2623,9 +2622,9 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 			_stall_prop(stall, "town_card_table", 0, Vector3(0, 0, 0.6))
 			_stall_prop(stall, "town_card_players", 0, Vector3(-2.15, 0, 0.1))
 		"AccessoryShop":
-			_stall_prop(stall, "town_shelf", 2, Vector3(0, 0, -0.9))       # rings, cloaks, tome, arrows
-			_stall_prop(stall, "town_bench", 1, Vector3(0, 0, 0.55))       # the armorer's bench
-			_stall_prop(stall, "goods_sack", 1, Vector3(1.3, 0, 0.5))
+			# (Its shelf went behind the Armory keeper and its bench to the
+			# Dojo master, designer 2026-10-29.)
+			_stall_prop(stall, "goods_sack", 1, Vector3(0, 0, 0.5))
 	return
 
 ## One prop sprite (CraftpixProps role, variant `k`) placed in a stall.
@@ -2879,7 +2878,7 @@ func _create_town_waypoint() -> void:
 	mound.mesh = mound_mesh
 	var mound_mat = StandardMaterial3D.new()
 	mound_mat.albedo_texture = load(TOWN_PLAZA_TEX)
-	mound_mat.albedo_color = Color(1, 1, 1).lerp(Color(0.62, 0.5, 0.36), 0.5)
+	mound_mat.albedo_color = Color(0.92, 0.92, 0.88)   # a grassy rise (the town is all grass, 2026-10-29)
 	mound_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mound_mat.uv1_triplanar = true
 	mound_mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
