@@ -2563,8 +2563,8 @@ func _dress_town() -> void:
 	add_child(dressing)
 	for lamp_pos in [Vector3(1.2, 0, 1.2), Vector3(18.8, 0, 10.8), Vector3(1.2, 0, 10.8)]:
 		_build_lamp(dressing, lamp_pos)
-	# Barrels beside the blacksmith, crates by the armory — the pack's props.
-	for spec in [["goods_barrel", 0, Vector3(2.6, 0, 3.4)], ["goods_barrel", 1, Vector3(3.2, 0, 4.0)],
+	# Barrels beside the blacksmith (at (3, 6.5) since 2026-10-29), crates by the armory.
+	for spec in [["goods_barrel", 0, Vector3(1.1, 0, 6.1)], ["goods_barrel", 1, Vector3(1.5, 0, 6.7)],
 			["goods_crate", 0, Vector3(9.4, 0, 2.2)], ["goods_crate", 1, Vector3(10.0, 0, 2.5)]]:
 		var prop := CraftpixProps.make_sprite(spec[0], 1.0, spec[1])
 		if prop:
@@ -2613,11 +2613,12 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 			_stall_prop(stall, "town_shelf", 1, Vector3(1.75, 0, -0.2))
 		"CardDealer":
 			# The card shelf behind the Dealer, the card table in front of him,
-			# and two players at their game beside him.
+			# and two players at their game beside him (on his left: the
+			# Accessory Shop is close on his right).
 			_stall_prop(stall, "town_card_shelf", 0, Vector3(0, 0, -1.05))
 			_add_stall_keeper(stall, "npc_card_dealer", "Dealer")
 			_stall_prop(stall, "town_card_table", 0, Vector3(0, 0, 0.6))
-			_stall_prop(stall, "town_card_players", 0, Vector3(2.1, 0, 0.1))
+			_stall_prop(stall, "town_card_players", 0, Vector3(-2.15, 0, 0.1))
 		"AccessoryShop":
 			_stall_prop(stall, "town_shelf", 2, Vector3(0, 0, -0.9))       # rings, cloaks, tome, arrows
 			_stall_prop(stall, "town_bench", 1, Vector3(0, 0, 0.55))       # the armorer's bench
@@ -2732,7 +2733,7 @@ func _create_sellsword_npc() -> void:
 	## player did not choose for Player 1.
 	var sellsword = StaticBody3D.new()
 	sellsword.name = "Sellsword"
-	sellsword.position = grid_manager.grid_to_world(Vector2i(18, 3))
+	sellsword.position = grid_manager.grid_to_world(Vector2i(18, 6))   # moved down from (18, 3) (designer, 2026-10-29)
 
 	# The designer's Sellsword (her NPC sheet's four standing poses); she
 	# turns to face the player who comes near (_face_townsfolk).
