@@ -2811,7 +2811,7 @@ func _build_boundary_props() -> void:
 	var weights: Array = [50, 25, 25]
 	match biome:
 		"forest": weights = [70, 10, 20]
-		"desert": weights = [25, 50, 25]
+		"desert": weights = [30, 18, 30]   # the rest of the edge stays open sand (the designer's mesas are big; thinned 2026-10-29)
 		"winter": weights = [55, 30, 15]
 	for x in range(GRID_W):
 		for z in range(GRID_H):
@@ -2835,10 +2835,19 @@ func _build_boundary_props() -> void:
 				continue
 			# A tile just south of the ground faces the camera: keep it low.
 			var faces_camera: bool = _is_floor_at(x, z - 1)
+			var open_edge: bool = biome == "desert" and roll >= weights[0] + weights[1] + weights[2]
+			if open_edge:
+				continue
+			if biome == "desert" and faces_camera:
+				# The mesas would stand over the walkable edge: scrub there instead.
+				if roll < 45:
+					bushes.append({"pos": pos, "scale": 1.0 + _tile_noise(x, z, 243) * 0.3, "color": Color.WHITE})
+				continue
 			if not faces_camera and roll < weights[0]:
 				trees.append({"pos": pos, "scale": 1.05 + _tile_noise(x, z, 239) * 0.3, "color": Color.WHITE})
 			elif roll < weights[0] + weights[1] or faces_camera and roll < 60:
-				rocks.append({"pos": pos, "scale": 1.1 + _tile_noise(x, z, 241) * 0.4, "color": Color.WHITE})
+				var rs: float = (0.9 + _tile_noise(x, z, 241) * 0.25) if biome == "desert" else (1.1 + _tile_noise(x, z, 241) * 0.4)
+				rocks.append({"pos": pos, "scale": rs, "color": Color.WHITE})
 			else:
 				bushes.append({"pos": pos, "scale": 1.1 + _tile_noise(x, z, 243) * 0.4, "color": Color.WHITE})
 	_add_prop_decos(trees, "tree")
@@ -3106,7 +3115,7 @@ func _build_decorations() -> void:
 					_deco_stumps.append({"pos": p3,
 							"scale": 0.75 + _tile_noise(x, z, 74) * 0.35,
 							"color": pal["wall_a"].lerp(pal["accent"], 0.25)})
-				elif near_wall and n < 0.20:
+				elif near_wall and n < 0.20 and not (desert and n >= 0.17):
 					_deco_rocks.append({"pos": p3,
 							"scale": 0.7 + _tile_noise(x, z, 75) * 0.5, "color": pal["wall_a"]})
 				elif near_wall and n < 0.24:
