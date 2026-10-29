@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://gdmnfmhritw7"
-path="res://.godot/imported/desert_ruin_10.png-525e4e7cb14c79d73e56247ba0d2ee02.ctex"
+uid="uid://rl02cg3ohisw"
+path="res://.godot/imported/desert_ruin_0.png-929fb0c21ced8e0973659efea572e852.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/craftpix/props/desert_ruin_10.png"
-dest_files=["res://.godot/imported/desert_ruin_10.png-525e4e7cb14c79d73e56247ba0d2ee02.ctex"]
+source_file="res://assets/textures/props/boards/desert_ruin_0.png"
+dest_files=["res://.godot/imported/desert_ruin_0.png-929fb0c21ced8e0973659efea572e852.ctex"]
 
 [params]
 

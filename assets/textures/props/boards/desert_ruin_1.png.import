@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dwjhuxxc75ou3"
-path="res://.godot/imported/desert_pebble_0.png-bf3ddab548d026d164a096a4699aafa0.ctex"
+uid="uid://dwcp0vv8e8rhn"
+path="res://.godot/imported/desert_ruin_1.png-6ed49dbb69ec5260f0d7a406e111aea6.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/craftpix/props/desert_pebble_0.png"
-dest_files=["res://.godot/imported/desert_pebble_0.png-bf3ddab548d026d164a096a4699aafa0.ctex"]
+source_file="res://assets/textures/props/boards/desert_ruin_1.png"
+dest_files=["res://.godot/imported/desert_ruin_1.png-6ed49dbb69ec5260f0d7a406e111aea6.ctex"]
 
 [params]
 

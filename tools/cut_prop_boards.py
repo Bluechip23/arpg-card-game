@@ -395,6 +395,16 @@ BOARDS = {
     # black: stacked sandstone columns, three carved with a face, and two
     # low blocks), one scale as drawn (0.5 a board px, the tallest ~2.5 tiles).
     "desert_mesa": {"src": "desert_mesas_board.webp", "main_only": True, "pieces": [((90, 81, 357, 348), 134), ((456, 25, 710, 348), 162), ((838, 34, 1067, 348), 157), ((1187, 25, 1417, 345), 160), ((68, 395, 356, 675), 140), ((456, 363, 708, 680), 158), ((842, 363, 1088, 680), 158), ((1212, 368, 1442, 680), 156), ((56, 801, 362, 973), 86), ((463, 691, 700, 997), 153), ((826, 691, 1067, 997), 153), ((1155, 801, 1483, 992), 96)]},
+    # 2026-10-29: the designer's desert ruins and pebbles (desert_ruins_board.webp,
+    # on black): three sandstone rock piles (pebbles); the falcon-headed
+    # temple over its stair, the orb shrine, a collapsed ruin, a rubble
+    # ruin (ruins); a rock-framed cave arch; and an eye-crowned door, open
+    # and shut. One scale for the structures (0.44 a board px: the cave
+    # arch spans a cave mouth's three tiles), the pebbles smaller.
+    "desert_pebble": {"src": "desert_ruins_board.webp", "main_only": True, "pieces": [((183, 14, 527, 198), 55), ((637, 71, 903, 195), 37), ((1001, 78, 1214, 196), 35)]},
+    "desert_ruin": {"src": "desert_ruins_board.webp", "main_only": True, "pieces": [((21, 192, 500, 624), 190), ((534, 258, 1008, 621), 160), ((23, 637, 508, 993), 157), ((544, 700, 903, 988), 127)]},
+    "desert_cave_arch": {"src": "desert_ruins_board.webp", "main_only": True, "pieces": [((1055, 296, 1504, 616), 141)]},
+    "desert_door": {"src": "desert_ruins_board.webp", "main_only": True, "pieces": [((948, 692, 1228, 969), 122), ((1240, 692, 1520, 972), 123)]},
     "town_stash_vault": {
         "src": "stash_vault_board.webp",
         "pieces": [((196, 45, 1339, 985), 126)],

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dfqrh44htdj5b"
-path="res://.godot/imported/desert_pebble_10.png-5e7fa8bee86441a791517b1e181cea2e.ctex"
+uid="uid://cy7iaokua7tey"
+path="res://.godot/imported/desert_cave_arch_0.png-0f0a9244f3e83555cfb3cf4ef4db0333.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/craftpix/props/desert_pebble_10.png"
-dest_files=["res://.godot/imported/desert_pebble_10.png-5e7fa8bee86441a791517b1e181cea2e.ctex"]
+source_file="res://assets/textures/props/boards/desert_cave_arch_0.png"
+dest_files=["res://.godot/imported/desert_cave_arch_0.png-0f0a9244f3e83555cfb3cf4ef4db0333.ctex"]
 
 [params]
 

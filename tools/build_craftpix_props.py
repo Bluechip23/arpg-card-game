@@ -109,8 +109,8 @@ ROLES = {
     # "desert_tuft": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Grass_element1.png", f"{D}/Grass_element2.png", f"{D}/Grass_element3.png", f"{D}/Grass_element4.png", f"{D}/Grass_element4_*_grass_shadow.png"]
     # "desert_flower": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Red_flower*.png", f"{D}/Violet_flower*.png", f"{D}/White_flower*.png", f"{D}/Yellow_flower*.png"]
     # "desert_bones": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Bones_grass_shadow*.png", f"{D}/Bone_element_grass*.png", f"{D}/Scull_grass_shadow*.png", f"{D}/Sculls_grass_shadow*.png"]
-    "desert_pebble": {"scale": 1.0, "src": [f"{D}/Sand_element*.png"]},
-    "desert_ruin": {"scale": 0.8, "src": [f"{D}/Ruins*.png", f"{D}/pyramid_grass_shadow*.png", f"{D}/Gates*.png", f"{D}/small_gate*.png"]},
+    # "desert_pebble": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Sand_element*.png"]
+    # "desert_ruin": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Ruins*.png", f"{D}/pyramid_grass_shadow*.png", f"{D}/Gates*.png", f"{D}/small_gate*.png"]
     # --- World 3 Frostreach (winter pack; snow-shadow variants) ---
     "winter_tree": {"scale": 1.0, "src": [f"{W}/64/Trees1_snow_shadow2.png", f"{W}/64/Trees2_snow_shadow3.png", f"{W}/64/Trees3_snow_shadow3.png", f"{W}/64/Trees4_snow_shadow4.png", f"{W}/32/Trees1_snow_shadow3.png"]},
     "winter_tree_big": {"scale": 0.7, "src": [f"{W}/128/Trees1_snow_shadow1.png", f"{W}/128/Trees2_snow_shadow1.png", f"{W}/128/Trees2_snow_shadow2.png", f"{W}/128/Trees3_snow_shadow1.png", f"{W}/128/Trees3_snow_shadow2.png", f"{W}/128/Trees4_snow_shadow1.png", f"{W}/128/Trees4_snow_shadow2.png"]},
@@ -354,6 +354,10 @@ DESIGNER = {
     "desert_tuft": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_tuft_%d.png" % i for i in range(5)]},
     "desert_cactus": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_cactus_%d.png" % i for i in range(11)]},
     "desert_mesa": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_mesa_%d.png" % i for i in range(12)]},
+    "desert_pebble": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_pebble_%d.png" % i for i in range(3)]},
+    "desert_ruin": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_ruin_%d.png" % i for i in range(4)]},
+    "desert_cave_arch": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_cave_arch_%d.png" % i for i in range(1)]},
+    "desert_door": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_door_%d.png" % i for i in range(2)]},
     "town_card_shelf": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_shelf_0.png"]},
     "town_card_table": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_table_0.png"]},
     "town_card_players": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_players_0.png"]},

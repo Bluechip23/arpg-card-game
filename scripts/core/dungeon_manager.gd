@@ -4850,7 +4850,10 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 	ground.position = Vector3(0, 0.006, 0)
 	site_root.add_child(ground)
 
-	match kind:
+	var desert_site := interior_kind == "" and world_level == 2 and kind in ["building", "cave"]
+	if desert_site:
+		_build_desert_site(site_root, kind, fp_w, fp_d, fx + fz)
+	else: match kind:
 		"graveyard":
 			_build_graveyard_gate(site_root, fp_w, fp_d)
 		"building":
@@ -4911,6 +4914,28 @@ func _pixel_mat(texture_path: String, tint: Color) -> StandardMaterial3D:
 	mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
 	mat.roughness = 1.0
 	return mat
+
+## The Amber Wastes' sites (the designer's desert ruins, 2026-10-29): a
+## building is a temple over a stair going down (the falcon-headed temple or
+## the orb shrine, by site), a cave a rock-framed arch or the collapsed ruin
+## with its dark opening. Feet on the footprint's south edge, the opening
+## over the entrance tile.
+func _build_desert_site(root: Node3D, kind: String, fp_w: int, fp_d: int, salt: int) -> void:
+	var role := "desert_ruin"
+	var k := 0
+	if kind == "building":
+		k = 0 if salt % 2 == 0 else 1          # falcon temple / orb shrine
+	else:
+		if salt % 2 == 0:
+			role = "desert_cave_arch"
+		else:
+			k = 2                               # the collapsed ruin
+	var door_x := 0.5 if fp_w % 2 == 0 else 0.0
+	var sprite := _make_prop_sprite(role, 1.0, k)
+	if sprite:
+		sprite.position = Vector3(door_x, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.05)
+		root.add_child(sprite)
+
 
 func _build_building_exterior(root: Node3D, fp_w: int, fp_d: int) -> void:
 	## Simple generic structure: stone walls, pitched roof, door, lit windows.
