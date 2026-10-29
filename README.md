@@ -8,7 +8,7 @@
 
 The battlefield is an elevation-aware grid seen from a fixed top-down view — north is always up, every texel lands on whole screen pixels, and the camera zooms by texel scale from close-up character work to a full tactical overview. Along the bottom: your hand of cards; top-center: the tempo bar that drives everything; left rail: the live enemy tracker.
 
-The heroes, nearly every enemy and boss, the summons and the townsfolk are the designer's own hand-drawn art — four-direction pose boards cut into game sprites (`tools/cut_pose_boards.py`) and drawn smooth, never blurred or recompressed. The world itself (tiles, props, buildings) comes from the purchased art packs listed in [`docs/ASSET_PACKS.md`](docs/ASSET_PACKS.md).
+The heroes, nearly every enemy and boss, the summons and the townsfolk are the designer's own hand-drawn art — four-direction pose boards cut into game sprites (`tools/cut_pose_boards.py`) and drawn smooth, never blurred or recompressed. So, now, is most of the world: each realm's ground, cliffs, trees, rocks, ruins and landmarks are the designer's boards, cut into tiles and props (`tools/cut_ground_boards.py`, `tools/cut_prop_boards.py`). What still comes from the purchased art packs is listed in [`docs/ASSET_PACKS.md`](docs/ASSET_PACKS.md).
 
 | Default battle view | Closer |
 |---|---|
@@ -20,11 +20,35 @@ The heroes, nearly every enemy and boss, the summons and the townsfolk are the d
 
 Every card and action plays a motion and an effect — the signature spells (Fireball, the ice spike, lightning, the Phoenix, searing fire) are the designer's own animations:
 
-| Basic attack mid-swing | Gathering a fireball | Level up (mist swirl + full restore) |
+| Fireball | The Phoenix | Lightning |
 |---|---|---|
-| ![Attack](docs/screenshots/anim_attack.png) | ![Spell cast](docs/screenshots/anim_spell.png) | ![Level up](docs/screenshots/anim_level_up.png) |
+| ![Fireball](docs/screenshots/fx_fireball.png) | ![Phoenix](docs/screenshots/fx_phoenix.png) | ![Lightning](docs/screenshots/fx_lightning.png) |
 
-*(All shots are real frames from the running game — regenerate them any time with `tests/capture_screenshots.gd`.)*
+| Level up (mist swirl + full restore) |
+|---|
+| ![Level up](docs/screenshots/anim_level_up.png) |
+
+### The realms
+
+One character, one journey across the realms — each with its own ground, growth, ruins and foes:
+
+| The Verdant Frontier (World 1) | The Amber Wastes (World 2) |
+|---|---|
+| ![Verdant Frontier](docs/screenshots/world_verdant_frontier.png) | ![Amber Wastes](docs/screenshots/world_amber_wastes.png) |
+
+| Frostreach (World 3) | Emberfall (World 4) |
+|---|---|
+| ![Frostreach](docs/screenshots/world_frostreach.png) | ![Emberfall](docs/screenshots/world_emberfall.png) |
+
+| The Umbral Expanse (World 5) | The Greenwood |
+|---|---|
+| ![Umbral Expanse](docs/screenshots/world_umbral_expanse.png) | ![Greenwood](docs/screenshots/place_greenwood.png) |
+
+| The town — home base | The Boneyard (boss room) |
+|---|---|
+| ![Town](docs/screenshots/place_town.png) | ![Boneyard](docs/screenshots/place_boneyard.png) |
+
+*(All shots are real frames from the running game — the battle views and level-up with `tests/capture_screenshots.gd`, the spells with `tests/_capture_fx.gd`, the town with `tests/_capture_town.gd`.)*
 
 Built in **Godot 4.6**.
 
