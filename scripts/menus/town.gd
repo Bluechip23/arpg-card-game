@@ -2767,10 +2767,12 @@ func _create_sellsword_npc() -> void:
 	_townsfolk.append(fig)
 	# Her scroll case of contracts behind her and her desk in front (the
 	# designer's, 2026-10-29).
-	for spec in [["town_scroll_case", Vector3(0, 0, -1.0)], ["town_contract_desk", Vector3(0, 0, 0.85)]]:
-		var prop := CraftpixProps.make_sprite(spec[0], 1.0, 0)
+	# Two target dummies flank the scroll case.
+	for spec in [["town_scroll_case", 0, Vector3(0, 0, -1.0)], ["town_contract_desk", 0, Vector3(0, 0, 0.85)],
+			["town_target_dummy", 0, Vector3(-1.75, 0, -0.95)], ["town_target_dummy", 1, Vector3(1.75, 0, -0.95)]]:
+		var prop := CraftpixProps.make_sprite(spec[0], 1.0, spec[1])
 		if prop:
-			prop.position += spec[1]
+			prop.position += spec[2]
 			sellsword.add_child(prop)
 
 	var collision = CollisionShape3D.new()
@@ -3802,29 +3804,20 @@ func _refresh_deck_panel() -> void:
 		_deck_list.add_child(row)
 
 func _create_dojo() -> void:
-	## The Dojo's master: the NPC pack's bald old sensei with his cane (the
-	## pack has no ninja) standing on the plaza's
-	## east side. Talking to him steps straight into
-	## the training interior (main.tscn, interior "dojo").
+	## The Dojo's master: the designer's old sensei (2026-10-29; was the
+	## NPC pack's bald old man) standing on the plaza's east side. He turns
+	## to look at a player who comes near. Talking to him steps straight
+	## into the training interior (main.tscn, interior "dojo").
 	var dojo = StaticBody3D.new()
 	dojo.name = "Dojo"
 	dojo.position = grid_manager.grid_to_world(Vector2i(18, 9))
 
-	var fig = Sprite3D.new()
+	var fig := SpriteEnemyFigure.new()
 	fig.name = "Figure"
-	fig.texture = load("res://assets/sprites/NPCpackage1/npc old man B v04.png")
-	fig.region_enabled = true
-	fig.region_rect = Rect2(0, 0, 32, 32)  # south-facing idle frame
-	fig.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	fig.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
-	fig.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	fig.shaded = false
-	fig.pixel_size = 0.03125
-	var master_scale := 1.15
-	fig.scale = Vector3(master_scale, master_scale, master_scale)
-	CameraView.stand_on_ground(fig)  # feet on the ground point: sorts with the player by row
 	dojo.add_child(fig)
-	BlobShadow.attach(dojo, 0.55)
+	fig.setup("npc_dojo_master")   # brings its own blob shadow
+	fig.scale = Vector3.ONE * TOWN_NPC_SCALE
+	_townsfolk.append(fig)
 
 	var collision = CollisionShape3D.new()
 	var shape = BoxShape3D.new()

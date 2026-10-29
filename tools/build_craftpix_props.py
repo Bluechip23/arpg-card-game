@@ -337,6 +337,7 @@ DESIGNER = {
     "smith_grindstone": {"scale": 0.5, "files": ["assets/textures/props/boards/smith_grindstone_0.png"]},
     "town_scroll_case": {"scale": 0.5, "files": ["assets/textures/props/boards/town_scroll_case_0.png"]},
     "town_contract_desk": {"scale": 0.5, "files": ["assets/textures/props/boards/town_contract_desk_0.png"]},
+    "town_target_dummy": {"scale": 0.5, "files": ["assets/textures/props/boards/town_target_dummy_%d.png" % i for i in range(2)]},
     "town_card_shelf": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_shelf_0.png"]},
     "town_card_table": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_table_0.png"]},
     "town_card_players": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_players_0.png"]},

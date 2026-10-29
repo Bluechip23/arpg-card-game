@@ -133,7 +133,7 @@ func _run() -> void:
 	for v in CraftpixProps.PROPS["goods_table"]["variants"]:
 		_check(int(v["w"]) >= 36 and int(v["h"]) <= 32, "a table is cut whole (%dx%d)" % [int(v["w"]), int(v["h"])])
 
-	# The Dojo master is an NPC-pack sheet.
+	# The Dojo master is the designer's sensei (2026-10-29).
 	main.queue_free()
 	await process_frame
 	var town = load("res://scenes/menus/town.tscn").instantiate()
@@ -143,7 +143,7 @@ func _run() -> void:
 		await process_frame
 	var dojo = town.find_child("Dojo", true, false)
 	var fig = dojo.get_node_or_null("Figure") if dojo else null
-	_check(fig is Sprite3D and fig.texture.resource_path.begins_with("res://assets/sprites/NPCpackage"), "the Dojo master is an NPC-pack sheet")
+	_check(fig is SpriteEnemyFigure and fig.figure_kind == "npc_dojo_master", "the Dojo master is the designer's sensei")
 	_check(not ResourceLoader.exists("res://assets/sprites/generated/npcs/ninja.png"), "the drawn ninja is gone")
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures else 0)

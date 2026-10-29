@@ -339,6 +339,8 @@ BOARDS = {
     # its stool (sellsword_board.webp, on black), at the scale drawn.
     "town_scroll_case": {"src": "sellsword_board.webp", "main_only": True, "pieces": [((20, 25, 832, 938), 112)]},
     "town_contract_desk": {"src": "sellsword_board.webp", "black_level": 24, "pieces": [((815, 352, 1516, 932), 72)]},
+    # 2026-10-29: two straw target dummies stuck with arrows (dojo_master_board.webp).
+    "town_target_dummy": {"src": "dojo_master_board.webp", "pieces": [((10, 112, 490, 852), 104), ((510, 120, 930, 868), 106)]},
     "town_stash_vault": {
         "src": "stash_vault_board.webp",
         "pieces": [((196, 45, 1339, 985), 126)],
