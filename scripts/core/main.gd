@@ -14959,7 +14959,9 @@ func _create_obstacle_box(pos: Vector3, health: int) -> Dictionary:
 	var marker := Node3D.new()
 	marker.name = "Barricade"
 	marker.position = Vector3(pos.x, 0.0, pos.z)
-	marker.add_child(CraftpixProps.make_sprite("forest_log", 34.0 / 81.0, 0))
+	var log_cfg: Dictionary = CraftpixProps.PROPS["forest_log"]
+	var log_w: float = float(log_cfg["variants"][0]["w"]) * float(log_cfg["scale"])   # in pack texels
+	marker.add_child(CraftpixProps.make_sprite("forest_log", 34.0 / log_w, 0))   # 34 texels across
 	add_child(marker)
 
 	var label := Label3D.new()

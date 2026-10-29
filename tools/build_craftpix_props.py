@@ -54,14 +54,14 @@ ROLES = {
     "field_pebble": {"scale": 1.0, "src": [f"{G}/ground_element20.png", f"{G}/ground_element21.png", f"{G}/ground_element22.png", f"{G}/ground_element23.png", f"{G}/Rock_grass_element13.png"]},
     "field_ruin": {"scale": 0.8, "src": [f"{G}/Ruin1_grass_shadow.png", f"{G}/Ruin2_grass_shadow.png", f"{G}/Ruin3_grass_shadow.png", f"{G}/Ruin4_grass_shadow.png", f"{G}/Ruin5_grass_shadow.png"]},
     # --- Greenwood (forest pack) ---
-    "forest_tree": {"scale": 1.0, "src": [f"{F}/Tree4.png", f"{F}/Tree7.png", f"{F}/Tree8.png", f"{F}/Tree9.png", f"{F}/Tree10.png", f"{F}/Tree12.png", f"{F}/Tree13.png", f"{F}/Tree14.png"]},
-    "forest_tree_big": {"scale": 0.7, "src": [f"{F}/Tree1.png", f"{F}/Tree2.png", f"{F}/Tree3.png", f"{F}/Tree6.png", f"{F}/Tree11.png"]},
-    "forest_tree_climb": {"scale": 0.75, "src": [f"{F}/Tree5.png"]},
-    "forest_stump": {"scale": 1.0, "src": [f"{F}/Broken_tree2.png", f"{F}/Broken_tree3.png", f"{F}/Broken_tree4.png", f"{F}/Broken_tree5.png"]},
-    "forest_log": {"scale": 1.0, "src": [f"{F}/Broken_tree1.png", f"{F}/Broken_tree6.png"]},
+    # "forest_tree": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Tree4.png", f"{F}/Tree7.png", f"{F}/Tree8.png", f"{F}/Tree9.png", f"{F}/Tree10.png", f"{F}/Tree12.png", f"{F}/Tree13.png", f"{F}/Tree14.png"]
+    # "forest_tree_big": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Tree1.png", f"{F}/Tree2.png", f"{F}/Tree3.png", f"{F}/Tree6.png", f"{F}/Tree11.png"]
+    # "forest_tree_climb": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Tree5.png"]
+    # "forest_stump": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Broken_tree2.png", f"{F}/Broken_tree3.png", f"{F}/Broken_tree4.png", f"{F}/Broken_tree5.png"]
+    # "forest_log": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Broken_tree1.png", f"{F}/Broken_tree6.png"]
     "forest_rock": {"scale": 1.0, "src": [f"{F}/Light_stone_grass1.png", f"{F}/Light_stone_grass2.png", f"{F}/Light_stone_grass3.png", f"{F}/Brown_stone_grass1.png", f"{F}/Brown_stone_grass2.png", f"{F}/Beige_stone_grass1.png", f"{F}/Beige_stone_grass4.png", f"{F}/Beige_stone_grass8.png"]},
     # "forest_bush": the designer's own bushes since 2026-10-29 (DESIGNER below); was [f"{F}/Bush1.png", f"{F}/Bush2.png", f"{F}/Bush3.png", f"{F}/Bush4.png", f"{F}/Bush5.png", f"{F}/Bush11.png", f"{F}/Bush13.png"]
-    "forest_fern": {"scale": 1.0, "src": [f"{F}/Bush6.png", f"{F}/Bush8.png", f"{F}/Bush10.png", f"{F}/Layer7.png"]},
+    # "forest_fern": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Bush6.png", f"{F}/Bush8.png", f"{F}/Bush10.png", f"{F}/Layer7.png"]
     "forest_shroom": {"scale": 1.0, "src": [f"{F}/Brown_mushroom1.png", f"{F}/Brown_mushroom2.png", f"{F}/Red_mushroom1.png", f"{F}/Red_mushroom2.png", f"{F}/Red_mushroom3.png"]},
     "forest_reeds": {"scale": 1.0, "src": [f"{F}/reeds1.png", f"{F}/reeds2.png", f"{F}/reeds3.png"]},
     "forest_pebble": {"scale": 1.0, "src": [f"{F}/Beige_stone_ground5.png", f"{F}/Beige_stone_ground6.png", f"{F}/Beige_stone_ground7.png", f"{F}/Beige_stone_ground9.png", f"{F}/Brown_stone_ground5.png"]},
@@ -322,6 +322,12 @@ BESPOKE = {
 # the world's sizes). A role here replaces the pack role of the same name.
 DESIGNER = {
     "forest_bush": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_bush_%d.png" % i for i in range(7)]},
+    "forest_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_tree_%d.png" % i for i in range(13)]},
+    "forest_tree_big": {"scale": 0.35, "files": ["assets/textures/props/boards/forest_tree_big_%d.png" % i for i in range(4)]},
+    "forest_tree_climb": {"scale": 0.375, "files": ["assets/textures/props/boards/forest_tree_climb_0.png"]},
+    "forest_stump": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_stump_0.png"]},
+    "forest_log": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_log_%d.png" % i for i in range(2)]},
+    "forest_fern": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_fern_%d.png" % i for i in range(3)]},
 }
 DESIGNER_DENSITY = 64   # texels a tile of the DESIGNER art (the packs': 32)
 

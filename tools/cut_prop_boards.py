@@ -52,6 +52,64 @@ BOARDS = {
             ((68, 523, 442, 921), 64),      # the tall one, bottom left
         ],
     },
+    # 2026-10-29: the designer's Greenwood trees (forest_trees_board.webp, 18
+    # trees on black in three rows: conifers and a great oak; broadleaf trees,
+    # two on pale roots; small round trees). Each takes the place of the pack
+    # tree it most resembles at its height (doubled); the small round trees
+    # past the eighth are new variants, sized as drawn beside the first.
+    "forest_tree": {
+        "src": "forest_trees_board.webp",
+        "pieces": [
+            ((1300, 507, 1512, 748), 84),   # broadleaf on pale roots, the smaller
+            ((8, 8, 288, 423), 124),        # the big conifer
+            ((304, 28, 541, 417), 118),     # the tall conifer
+            ((311, 429, 515, 753), 128),    # the tall broadleaf
+            ((554, 157, 726, 414), 78),     # the small conifer
+            ((517, 526, 710, 759), 94),     # the small broadleaf
+            ((720, 460, 988, 764), 124),    # the wide broadleaf
+            ((48, 828, 200, 993), 74),      # small round trees, the smallest first
+            ((244, 769, 475, 995), 101),
+            ((511, 822, 657, 983), 72),
+            ((693, 772, 948, 1000), 102),
+            ((968, 769, 1252, 997), 102),
+            ((1271, 772, 1511, 997), 101),
+        ],
+    },
+    "forest_tree_big": {
+        "src": "forest_trees_board.webp",
+        "pieces": [
+            ((740, 97, 934, 416), 148),     # the yellow-green conifer
+            ((951, 64, 1127, 412), 156),    # the columnar broadleaf
+            ((20, 442, 300, 766), 156),     # the round broadleaf
+            ((1003, 418, 1296, 758), 150),  # broadleaf on pale roots, the bigger
+        ],
+    },
+    # The climbable / landmark tree: the great oak.
+    "forest_tree_climb": {
+        "src": "forest_trees_board.webp",
+        "pieces": [((1145, 23, 1527, 423), 154)],
+    },
+    # 2026-10-29: the fallen log, the stump and three ferns
+    # (forest_logs_ferns_board.webp, on black).
+    "forest_log": {
+        "src": "forest_logs_ferns_board.webp",
+        "pieces": [
+            ((35, 59, 967, 459), 74),       # the fallen, splintered log
+            ((1029, 144, 1479, 465), 44),   # the stump (the pack's log set had a small one)
+        ],
+    },
+    "forest_stump": {
+        "src": "forest_logs_ferns_board.webp",
+        "pieces": [((1029, 144, 1479, 465), 56)],
+    },
+    "forest_fern": {
+        "src": "forest_logs_ferns_board.webp",
+        "pieces": [
+            ((33, 628, 448, 930), 28),      # the low fern, left
+            ((1078, 533, 1496, 931), 32),   # the upright fern, right
+            ((496, 503, 1024, 925), 74),    # the great fern, middle
+        ],
+    },
 }
 
 
