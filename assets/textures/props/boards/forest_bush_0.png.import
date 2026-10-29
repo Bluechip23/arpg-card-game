@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bl6v0fao7xub7"
-path="res://.godot/imported/forest_bush_2.png-0796bc39d843fbba00bd002c856a2db6.ctex"
+uid="uid://dplbh1yqvsoo5"
+path="res://.godot/imported/forest_bush_0.png-4479df82b4c205fc383d46c906b8178e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/craftpix/props/forest_bush_2.png"
-dest_files=["res://.godot/imported/forest_bush_2.png-0796bc39d843fbba00bd002c856a2db6.ctex"]
+source_file="res://assets/textures/props/boards/forest_bush_0.png"
+dest_files=["res://.godot/imported/forest_bush_0.png-4479df82b4c205fc383d46c906b8178e.ctex"]
 
 [params]
 

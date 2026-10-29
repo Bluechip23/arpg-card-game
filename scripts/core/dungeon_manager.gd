@@ -799,7 +799,8 @@ func _prop_variants(base: String) -> Array:
 		if CraftpixProps.has(role):
 			var cfg: Dictionary = CraftpixProps.PROPS[role]
 			for v in cfg["variants"]:
-				out.append({"path": v["path"], "w": v["w"], "h": v["h"], "scale": cfg["scale"]})
+				out.append({"path": v["path"], "w": v["w"], "h": v["h"], "scale": cfg["scale"],
+						"density": float(cfg.get("density", 32))})
 	return out
 
 
@@ -821,7 +822,8 @@ func _add_prop_decos(items: Array, base: String) -> void:
 		buckets[k].append(copy)
 	for k in range(variants.size()):
 		if not buckets[k].is_empty():
-			_add_sprite_decos(buckets[k], variants[k]["path"], variants[k]["w"], variants[k]["h"])
+			_add_sprite_decos(buckets[k], variants[k]["path"], variants[k]["w"], variants[k]["h"],
+					float(variants[k]["h"]) * 32.0 / float(variants[k]["density"]))
 
 
 func get_location_name() -> String:
@@ -2119,7 +2121,9 @@ static func _tint_weight(texture_path: String) -> float:
 ## Billboard sprite props (trees, bushes, rocks, stumps, ferns): a QuadMesh
 ## MultiMesh with a nearest-filtered billboard material. items entries:
 ## {pos: Vector3 ground point, scale: float, color: Color theme cast}.
-func _add_sprite_decos(items: Array, texture_path: String, px_w: float, px_h: float) -> void:
+## `cover_h`: the prop's height in pack texels (32 a tile) for the ground-cover
+## test, when its art is finer than the packs' (the designer's props); -1: px_h.
+func _add_sprite_decos(items: Array, texture_path: String, px_w: float, px_h: float, cover_h: float = -1.0) -> void:
 	if items.is_empty():
 		return
 	var ps := 0.03125  # world units per texel (style guide texel density)
@@ -2137,7 +2141,8 @@ func _add_sprite_decos(items: Array, texture_path: String, px_w: float, px_h: fl
 	mm.mesh = quad
 	mm.instance_count = items.size()
 	# Low props are ground cover the player walks over; tall ones can hide them.
-	var lift: float = CameraView.SPRITE_LIFT if px_h > CameraView.GROUND_COVER_MAX_PX else CameraView.GROUND_COVER_LIFT
+	var tall_h: float = px_h if cover_h < 0.0 else cover_h
+	var lift: float = CameraView.SPRITE_LIFT if tall_h > CameraView.GROUND_COVER_MAX_PX else CameraView.GROUND_COVER_LIFT
 	for i in range(items.size()):
 		var it: Dictionary = items[i]
 		var s: float = it.get("scale", 1.0)
