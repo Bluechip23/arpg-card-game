@@ -2608,9 +2608,9 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 			# bench and the new workbench, with its stool); the grindstone sits
 			# up and right of him with the anvil on its right, the water bucket
 			# by the anvil and the mold rack behind them.
-			_stall_prop(stall, "smith_forge", 0, Vector3(-3.0, 0, -2.6))
-			_stall_prop(stall, "smith_bellows", 0, Vector3(-1.35, 0, -2.25))
-			_stall_prop(stall, "smith_coal_box", 0, Vector3(-4.6, 0, -2.35))
+			_stall_prop(stall, "smith_forge", 0, Vector3(-3.0, 0, -2.0))
+			_stall_prop(stall, "smith_bellows", 0, Vector3(-1.35, 0, -1.65))
+			_stall_prop(stall, "smith_coal_box", 0, Vector3(-4.6, 0, -1.75))
 			_stall_prop(stall, "smith_molds", 0, Vector3(1.45, 0, -0.85))
 			_stall_prop(stall, "smith_sword_rack", 0, Vector3(-1.3, 0, -0.25))
 			# The designer's Blacksmith (his NPC sheet's four standing poses),
