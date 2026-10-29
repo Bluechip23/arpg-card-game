@@ -701,7 +701,7 @@ const PROP_ROLES := {
 		"berry": ["desert_cactus"], "fern": ["desert_bush"], "flower": ["desert_flower"], "tuft": ["desert_tuft"],
 		"shroom": ["desert_cactus"], "pebble": ["desert_pebble"], "bones": ["desert_bones"], "reeds": ["desert_tuft"],
 		"wallrock": ["wallrock_sand"]},
-	"winter": {"tree": ["winter_tree", "winter_tree_big"], "stump": ["winter_snowman"], "rock": ["winter_rock"], "bush": ["winter_shroom"],
+	"winter": {"tree": ["winter_tree", "winter_tree_big"], "stump": ["winter_snowman", "winter_idol"], "rock": ["winter_rock"], "bush": ["winter_bush"],   # the designer's Frostreach (2026-10-29)
 		"berry": ["winter_flower"], "fern": ["winter_crystal"], "flower": ["winter_flower"], "tuft": ["winter_pebble"],
 		"shroom": ["winter_shroom"], "pebble": ["winter_pebble"], "bones": ["undead_bones"], "reeds": ["winter_ice_tree"],
 		"wallrock": ["wallrock_snow"]},
@@ -4903,8 +4903,10 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 	ground.position = Vector3(0, 0.006, 0)
 	site_root.add_child(ground)
 
-	var ruin_site := interior_kind == "" and world_level in [2, 4] and kind in ["building", "cave"]
-	if ruin_site and world_level == 4:
+	var ruin_site := interior_kind == "" and world_level in [2, 3, 4] and kind in ["building", "cave"]
+	if ruin_site and world_level == 3:
+		_build_winter_site(site_root, kind, fp_w, fp_d)
+	elif ruin_site and world_level == 4:
 		_build_cursed_site(site_root, kind, fp_w, fp_d, fx + fz)
 	elif ruin_site:
 		_build_desert_site(site_root, kind, fp_w, fp_d, fx + fz)
@@ -4987,6 +4989,17 @@ func _build_desert_site(root: Node3D, kind: String, fp_w: int, fp_d: int, salt: 
 			k = 2                               # the collapsed ruin
 	var door_x := 0.5 if fp_w % 2 == 0 else 0.0
 	var sprite := _make_prop_sprite(role, 1.0, k)
+	if sprite:
+		sprite.position = Vector3(door_x, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.05)
+		root.add_child(sprite)
+
+
+## Frostreach's sites (the designer's snowbound stone, 2026-10-29): a
+## building is the stone hut with its dark doorway, a cave the snowy arch.
+## Feet on the footprint's south edge.
+func _build_winter_site(root: Node3D, kind: String, fp_w: int, fp_d: int) -> void:
+	var sprite := _make_prop_sprite("winter_hut" if kind == "building" else "winter_ruin", 1.0, 0)
+	var door_x := 0.5 if fp_w % 2 == 0 else 0.0
 	if sprite:
 		sprite.position = Vector3(door_x, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.05)
 		root.add_child(sprite)
@@ -6120,7 +6133,7 @@ func _place_shrine() -> void:
 		plinth.material_override = _pixel_mat(wall_texture_path(), Color(0.55, 0.5, 0.6))
 		plinth.position = Vector3(0, 0.25, 0)
 		root.add_child(plinth)
-		var idol := _make_prop_sprite("winter_idol", 0.9, 0)  # the pack's carved idol
+		var idol := _make_prop_sprite("winter_idol", 0.9, 0)  # the designer's bear totem (2026-10-29)
 		idol.modulate = Color(0.8, 0.7, 1.0)
 		idol.position = Vector3(0, 0.5 + CameraView.SPRITE_LIFT, 0)
 		root.add_child(idol)

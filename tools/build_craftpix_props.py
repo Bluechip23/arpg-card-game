@@ -112,17 +112,17 @@ ROLES = {
     # "desert_pebble": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Sand_element*.png"]
     # "desert_ruin": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Ruins*.png", f"{D}/pyramid_grass_shadow*.png", f"{D}/Gates*.png", f"{D}/small_gate*.png"]
     # --- World 3 Frostreach (winter pack; snow-shadow variants) ---
-    "winter_tree": {"scale": 1.0, "src": [f"{W}/64/Trees1_snow_shadow2.png", f"{W}/64/Trees2_snow_shadow3.png", f"{W}/64/Trees3_snow_shadow3.png", f"{W}/64/Trees4_snow_shadow4.png", f"{W}/32/Trees1_snow_shadow3.png"]},
-    "winter_tree_big": {"scale": 0.7, "src": [f"{W}/128/Trees1_snow_shadow1.png", f"{W}/128/Trees2_snow_shadow1.png", f"{W}/128/Trees2_snow_shadow2.png", f"{W}/128/Trees3_snow_shadow1.png", f"{W}/128/Trees3_snow_shadow2.png", f"{W}/128/Trees4_snow_shadow1.png", f"{W}/128/Trees4_snow_shadow2.png"]},
-    "winter_ice_tree": {"scale": 0.7, "src": [f"{W}/64/Ice_trees_snow_shadow4.png", f"{W}/128/Ice_trees_snow_shadow2.png", f"{W}/128/Ice_trees_snow_shadow3.png"]},
-    "winter_rock": {"scale": 1.0, "src": [f"{W}/64/Stones_snow_shadow1.png", f"{W}/64/Stones_snow_shadow2.png", f"{W}/32/Stones_snow_shadow3.png", f"{W}/32/Stones_snow_shadow4.png"]},
-    "winter_pebble": {"scale": 1.0, "src": [f"{W}/16/Stones_snow_shadow5.png", f"{W}/32/Stones_snow_shadow4.png"]},
-    "winter_crystal": {"scale": 1.0, "src": [f"{W}/64/Crystal_sharp_snow_shadow2.png", f"{W}/64/Crystal_sharp_snow_shadow3.png", f"{W}/64/Crystal_square_snow_shadow3.png", f"{W}/64/Crystal_square_snow_shadow4.png", f"{W}/32/Crystal_square_snow_shadow1.png", f"{W}/32/Crystal_square_snow_shadow2.png"]},
-    "winter_flower": {"scale": 1.0, "src": [f"{W}/64/Ice_flowers_snow_shadow1.png", f"{W}/64/Ice_flowers_snow_shadow2.png", f"{W}/32/Ice_flowers_snow_shadow3.png", f"{W}/64/Crystal_flower_snow_shadow2.png", f"{W}/64/Crystal_flower_snow_shadow3.png"]},
-    "winter_shroom": {"scale": 1.0, "src": [f"{W}/64/Mushroom1_snow_shadow2.png", f"{W}/64/Mushroom1_snow_shadow3.png", f"{W}/64/Mushroom2_snow_shadow1.png", f"{W}/64/Mushroom2_snow_shadow2.png", f"{W}/64/Mushroom2_snow_shadow3.png"]},
-    "winter_snowman": {"scale": 1.0, "src": [f"{W}/64/Snowmen_snow_shadow1.png", f"{W}/64/Snowmen_snow_shadow2.png", f"{W}/64/Snowmen_snow_shadow3.png", f"{W}/64/Snowmen_snow_shadow4.png", f"{W}/32/Snowmen_snow_shadow5.png", f"{W}/32/Snowmen_snow_shadow6.png"]},
-    "winter_ruin": {"scale": 0.8, "src": [f"{W}/64/Ruins1_snow_shadow3.png", f"{W}/64/Ruins1_snow_shadow4.png", f"{W}/64/Ruins2_snow_shadow3.png", f"{W}/32/Ruins1_snow_shadow5.png", f"{W}/32/Ruins2_snow_shadow4.png", f"{W}/128/Ruins1_snow_shadow1.png", f"{W}/128/Ruins2_snow_shadow1.png"]},
-    "winter_idol": {"scale": 0.8, "src": [f"{W}/64/Idols_snow_shadow2.png", f"{W}/128/Idols_snow_shadow1.png"]},
+    # "winter_tree": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/64/Trees1_snow_shadow2.png", f"{W}/64/Trees2_snow_shadow3.png", f"{W}/64/Trees3_snow_shadow3.png", f"{W}/64/Trees4_snow_shadow4.png", f"{W}/32/Trees1_snow_shadow3.png"]
+    # "winter_tree_big": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/128/Trees1_snow_shadow1.png", f"{W}/128/Trees2_snow_shadow1.png", f"{W}/128/Trees2_snow_shadow2.png", f"{W}/128/Trees3_snow_shadow1.png", f"{W}/128/Trees3_snow_shadow2.png", f"{W}/128/Trees4_snow_shadow1.png", f"{W}/128/Trees4_snow_shadow2.png"]
+    # "winter_ice_tree": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/64/Ice_trees_snow_shadow4.png", f"{W}/128/Ice_trees_snow_shadow2.png", f"{W}/128/Ice_trees_snow_shadow3.png"]
+    # "winter_rock": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/64/Stones_snow_shadow1.png", f"{W}/64/Stones_snow_shadow2.png", f"{W}/32/Stones_snow_shadow3.png", f"{W}/32/Stones_snow_shadow4.png"]
+    # "winter_pebble": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/16/Stones_snow_shadow5.png", f"{W}/32/Stones_snow_shadow4.png"]
+    # "winter_crystal": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/64/Crystal_sharp_snow_shadow2.png", f"{W}/64/Crystal_sharp_snow_shadow3.png", f"{W}/64/Crystal_square_snow_shadow3.png", f"{W}/64/Crystal_square_snow_shadow4.png", f"{W}/32/Crystal_square_snow_shadow1.png", f"{W}/32/Crystal_square_snow_shadow2.png"]
+    # "winter_flower": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/64/Ice_flowers_snow_shadow1.png", f"{W}/64/Ice_flowers_snow_shadow2.png", f"{W}/32/Ice_flowers_snow_shadow3.png", f"{W}/64/Crystal_flower_snow_shadow2.png", f"{W}/64/Crystal_flower_snow_shadow3.png"]
+    # "winter_shroom": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/64/Mushroom1_snow_shadow2.png", f"{W}/64/Mushroom1_snow_shadow3.png", f"{W}/64/Mushroom2_snow_shadow1.png", f"{W}/64/Mushroom2_snow_shadow2.png", f"{W}/64/Mushroom2_snow_shadow3.png"]
+    # "winter_snowman": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/64/Snowmen_snow_shadow1.png", f"{W}/64/Snowmen_snow_shadow2.png", f"{W}/64/Snowmen_snow_shadow3.png", f"{W}/64/Snowmen_snow_shadow4.png", f"{W}/32/Snowmen_snow_shadow5.png", f"{W}/32/Snowmen_snow_shadow6.png"]
+    # "winter_ruin": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/64/Ruins1_snow_shadow3.png", f"{W}/64/Ruins1_snow_shadow4.png", f"{W}/64/Ruins2_snow_shadow3.png", f"{W}/32/Ruins1_snow_shadow5.png", f"{W}/32/Ruins2_snow_shadow4.png", f"{W}/128/Ruins1_snow_shadow1.png", f"{W}/128/Ruins2_snow_shadow1.png"]
+    # "winter_idol": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/64/Idols_snow_shadow2.png", f"{W}/128/Idols_snow_shadow1.png"]
     # --- Wall boulders (rocks_stones pack): one style per zone, five
     # sizes each, no painted shadow (they pile on the wall cap).
     # DungeonManager._build_rock_walls dresses every wall tile near floor.
@@ -357,6 +357,20 @@ DESIGNER = {
     "desert_door": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_door_%d.png" % i for i in range(2)]},
     "desert_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_tree_%d.png" % i for i in range(15)]},
     "desert_tree_dead": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_tree_dead_%d.png" % i for i in range(5)]},
+    # 2026-10-29: Frostreach, World 3 (cut_prop_boards.py, winter_* boards).
+    "winter_tree_big": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_tree_big_%d.png" % i for i in range(7)]},
+    "winter_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_tree_%d.png" % i for i in range(7)]},
+    "winter_bush": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_bush_%d.png" % i for i in range(11)]},
+    "winter_ice_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_ice_tree_%d.png" % i for i in range(7)]},
+    "winter_idol": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_idol_%d.png" % i for i in range(4)]},
+    "winter_pebble": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_pebble_%d.png" % i for i in range(7)]},
+    "winter_crystal": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_crystal_%d.png" % i for i in range(9)]},
+    "winter_flower": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_flower_%d.png" % i for i in range(8)]},
+    "winter_shroom": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_shroom_%d.png" % i for i in range(11)]},
+    "winter_snowman": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_snowman_%d.png" % i for i in range(6)]},
+    "winter_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_rock_%d.png" % i for i in range(8)]},
+    "winter_ruin": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_ruin_%d.png" % i for i in range(4)]},
+    "winter_hut": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_hut_%d.png" % i for i in range(1)]},
     # 2026-10-29: the designer's hell (cut_prop_boards.py, hell_* boards).
     "hell_pustule": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_pustule_%d.png" % i for i in range(7)]},
     "hell_leaf": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_leaf_%d.png" % i for i in range(4)]},

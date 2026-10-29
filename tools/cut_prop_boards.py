@@ -412,6 +412,31 @@ BOARDS = {
     "desert_tree": {"src": "desert_trees_board.webp", "main_only": True, "pieces": [((23, 8, 343, 329), 135), ((373, 60, 601, 335), 116), ((614, 139, 771, 337), 83), ((814, 28, 1113, 350), 135), ((1121, 90, 1344, 342), 106), ((1361, 158, 1523, 342), 77), ((23, 336, 358, 663), 137), ((389, 373, 627, 659), 120), ((654, 440, 844, 656), 91), ((28, 669, 360, 1005), 141), ((371, 692, 618, 1001), 130), ((631, 756, 826, 999), 102), ((854, 642, 1125, 997), 149), ((1134, 700, 1359, 996), 124), ((1369, 779, 1522, 985), 87)]},
     "desert_tree_dead": {"src": "desert_dead_trees_board.webp", "main_only": True, "pieces": [((7, 10, 533, 584), 172), ((576, 17, 1096, 569), 166), ((1126, 9, 1511, 805), 239), ((500, 568, 1155, 1001), 130), ((77, 660, 485, 984), 97)]},
     "desert_tuft": {"src": "desert_tufts_board.webp", "main_only": True, "pieces": [((23, 253, 530, 597), 41), ((588, 364, 1109, 597), 28), ((1140, 17, 1510, 639), 75), ((99, 659, 664, 976), 38), ((781, 720, 1425, 976), 31)]},
+    # 2026-10-29: Frostreach's props, World 3 (winter_ice / winter_rocks /
+    # winter_trees boards, on black). Ice trees, carved bear totems, snowy
+    # stone piles, ice crystals and blocks, ice flowers, red-cored ice shrubs;
+    # red-stemmed snow mushrooms and two ice-capped mushroom trees,
+    # snowmen, snow-capped rocks, stone ruins (an arch, a heap, broken
+    # arches, a hut with a door, a ring); snowy broadleaves, bare trees,
+    # teal and green firs, two decorated Christmas trees, and bushes.
+    "winter_tree_big": {"src": "winter_trees_board.webp", "main_only": True, "pieces": [((13, 6, 333, 391), 170), ((337, 8, 599, 393), 160), ((602, 31, 834, 393), 150), ((835, 79, 1082, 398), 140), ((9, 396, 335, 806), 175), ((341, 407, 633, 792), 160), ((638, 429, 890, 792), 160)]},
+    "winter_tree": {"src": "winter_trees_board.webp", "main_only": True, "pieces": [((1082, 110, 1286, 378), 110), ((1283, 193, 1428, 384), 80), ((1429, 240, 1529, 393), 65), ((897, 494, 1084, 785), 120), ((1092, 548, 1243, 782), 100), ((1256, 585, 1392, 777), 85), ((1418, 642, 1511, 772), 60)]},
+    "winter_bush": {"src": "winter_trees_board.webp", "main_only": True, "pieces": [((11, 819, 191, 1018), 70), ((189, 851, 324, 1016), 58), ((331, 871, 435, 1003), 45), ((439, 810, 611, 1013), 72), ((616, 811, 765, 1015), 72), ((770, 832, 890, 1008), 62), ((901, 862, 1010, 1011), 52),
+                                    ((1037, 833, 1205, 1010), 62), ((1205, 833, 1341, 1010), 55), ((1340, 879, 1449, 1002), 44), ((1453, 906, 1529, 998), 34)]},
+    "winter_ice_tree": {"hole": 30, "src": "winter_ice_board.webp", "main_only": True, "pieces": [((10, 10, 324, 432), 160), ((321, 38, 605, 430), 150), ((583, 154, 785, 430), 110), ((785, 225, 923, 434), 85), ((1158, 838, 1295, 1012), 75), ((1295, 838, 1426, 1012), 70), ((1427, 901, 1527, 1011), 50)]},
+    "winter_idol": {"src": "winter_ice_board.webp", "main_only": True, "pieces": [((925, 105, 1085, 457), 141), ((1089, 181, 1271, 447), 106), ((1288, 215, 1408, 452), 95), ((1418, 290, 1518, 435), 58)]},
+    "winter_pebble": {"src": "winter_ice_board.webp", "main_only": True, "pieces": [((20, 431, 228, 612), 54), ((242, 430, 471, 613), 55), ((487, 457, 662, 612), 46), ((670, 488, 797, 601), 34), ((817, 496, 941, 605), 33), ((965, 522, 1068, 602), 24), ((1103, 531, 1185, 601), 21)]},
+    "winter_crystal": {"src": "winter_ice_board.webp", "main_only": True, "pieces": [((23, 612, 242, 808), 78), ((278, 619, 448, 813), 78), ((467, 633, 607, 813), 72), ((625, 680, 714, 811), 52), ((741, 631, 955, 802), 68), ((961, 661, 1115, 806), 58), ((1119, 685, 1259, 802), 47), ((1272, 697, 1387, 802), 42), ((1404, 714, 1507, 792), 31)]},
+    "winter_flower": {"src": "winter_ice_board.webp", "main_only": True, "pieces": [((15, 804, 201, 1014), 74), ((205, 819, 354, 1011), 67), ((367, 840, 485, 1011), 60), ((491, 857, 605, 1009), 53), ((624, 888, 705, 1002), 40), ((715, 805, 898, 1014), 73), ((913, 821, 1025, 1010), 66), ((1045, 848, 1141, 1011), 57)]},
+    "winter_shroom": {"src": "winter_rocks_board.webp", "main_only": True, "pieces": [((13, 0, 226, 246), 110), ((247, 11, 421, 245), 105), ((435, 68, 551, 242), 78), ((570, 106, 643, 237), 59), ((640, 738, 854, 1012), 123), ((875, 796, 1033, 1011), 97), ((1059, 791, 1203, 1011), 99), ((1251, 833, 1335, 1005), 77), ((1401, 869, 1475, 1008), 63),
+                                      ((10, 692, 320, 1012), 145), ((362, 734, 576, 1006), 122)]},
+    "winter_snowman": {"src": "winter_rocks_board.webp", "main_only": True, "pieces": [((673, 67, 803, 248), 72), ((830, 54, 939, 248), 78), ((955, 80, 1106, 263), 73), ((1124, 108, 1270, 264), 62), ((1270, 108, 1415, 264), 62), ((1416, 160, 1515, 265), 42)]},
+    "winter_rock": {"src": "winter_rocks_board.webp", "main_only": True, "pieces": [((11, 253, 241, 435), 91), ((248, 256, 461, 444), 94), ((473, 277, 669, 447), 85), ((686, 283, 843, 441), 79), ((861, 296, 1006, 434), 69), ((1029, 317, 1151, 426), 55), ((1170, 330, 1280, 427), 49), ((1300, 347, 1393, 422), 38)]},
+    # The ruins keep their loose stones; the hut (below) is a building's
+    # door, the first arch a cave's mouth (DungeonManager._build_winter_site).
+    "winter_ruin": {"hole": 30, "src": "winter_rocks_board.webp", "pieces": [((10, 436, 285, 690), 140), ((285, 473, 506, 690), 119), ((522, 449, 839, 742), 161), ((1223, 452, 1532, 748), 163)]},
+    # The hut keeps its dark doorway (no enclosed black is see-through).
+    "winter_hut": {"hole": 10 ** 9, "src": "winter_rocks_board.webp", "pieces": [((855, 437, 1196, 759), 177, [(975, 650, 1050, 710, 30)])]},
     # 2026-10-29: the designer's hell (hell_features / hell_rocks / hell_props
     # boards, on black) for Emberfall (World 4) beside its cursed set, its
     # edge landmarks, and Hell's Gate and the Labyrinth (their spires and
