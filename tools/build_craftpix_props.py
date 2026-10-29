@@ -100,8 +100,8 @@ ROLES = {
     "cursed_ruin": {"scale": 0.8, "src": [f"{X}/Ruins_shadow2_1.png", f"{X}/Ruins_shadow2_2.png", f"{X}/Ruins_shadow2_3.png", f"{X}/Ruins_shadow2_4.png"]},
     "cursed_eye": {"scale": 1.0, "src": [f"{X}/Rock_eyes_shadow1_1.png", f"{X}/Rock_eyes_shadow1_2.png"]},
     # --- World 2 Amber Wastes (desert pack; the "grass" shadow variants sit on the scrub floor) ---
-    "desert_tree": {"scale": 0.85, "src": [f"{D}/Tree1_grass_shadow*.png", f"{D}/Tree2_grass_shadow*.png", f"{D}/Tree4_grass_shadow*.png", f"{D}/Tree3_*.png"]},
-    "desert_tree_dead": {"scale": 1.0, "src": [f"{D}/curved_tree_grass*.png"], "limit": 10},
+    # "desert_tree": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Tree1_grass_shadow*.png", f"{D}/Tree2_grass_shadow*.png", f"{D}/Tree4_grass_shadow*.png", f"{D}/Tree3_*.png"]
+    # "desert_tree_dead": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/curved_tree_grass*.png"], "limit": 10
     # "desert_cactus": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Cactus1_grass_shadow*.png", f"{D}/Cactus2_grass_shadow*.png", f"{D}/Cactus3_grass_shadow*.png"]
     "desert_rock": {"scale": 1.0, "src": [f"{D}/Rock2_*.png", f"{D}/Rock4_*.png", f"{D}/Rock9_*.png", f"{D}/Rock3_*.png"]},
     # "desert_mesa": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Rock1_*.png", f"{D}/Rock5_*.png", f"{D}/Rock7_*.png"]
@@ -358,6 +358,8 @@ DESIGNER = {
     "desert_ruin": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_ruin_%d.png" % i for i in range(4)]},
     "desert_cave_arch": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_cave_arch_%d.png" % i for i in range(1)]},
     "desert_door": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_door_%d.png" % i for i in range(2)]},
+    "desert_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_tree_%d.png" % i for i in range(15)]},
+    "desert_tree_dead": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_tree_dead_%d.png" % i for i in range(5)]},
     "town_card_shelf": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_shelf_0.png"]},
     "town_card_table": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_table_0.png"]},
     "town_card_players": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_players_0.png"]},

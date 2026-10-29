@@ -384,12 +384,12 @@ BOARDS = {
         ]},
     # 2026-10-29: the designer's desert plants (desert_plants_board.webp, on
     # black): flowering barrel cacti, leafy and
-    # spiky scrub (its bushes), dry grass clumps (its tufts), and prickly
+    # spiky scrub (its bushes), dry grass clumps (unused since the tufts
+    # board), and prickly
     # pears and barrel cacti. One scale for all, as drawn (0.36 a board px).
     # The flowering barrel cacti are cacti since the flowers board (2026-10-29).
     "desert_flower": {"src": "desert_flowers_board.webp", "main_only": True, "pieces": [((137, 7, 540, 247), 86), ((597, 25, 895, 251), 81), ((979, 47, 1189, 249), 73), ((125, 253, 557, 500), 89), ((608, 289, 905, 505), 78), ((987, 319, 1188, 493), 63), ((125, 505, 557, 752), 89), ((603, 529, 902, 744), 77), ((968, 556, 1198, 744), 68), ((125, 752, 557, 1001), 90), ((603, 774, 896, 1000), 81), ((973, 803, 1185, 985), 66)]},
     "desert_bush": {"src": "desert_plants_board.webp", "main_only": True, "pieces": [((62, 273, 406, 444), 62), ((448, 290, 756, 451), 58), ((785, 316, 1037, 450), 48), ((93, 632, 393, 811), 64), ((422, 641, 653, 808), 60), ((684, 655, 887, 811), 56), ((921, 680, 1097, 805), 45)]},
-    "desert_tuft": {"src": "desert_plants_board.webp", "main_only": True, "pieces": [((145, 457, 371, 621), 59), ((399, 462, 590, 621), 57), ((619, 488, 791, 617), 46), ((826, 503, 987, 615), 40), ((1037, 515, 1179, 617), 37)]},
     "desert_cactus": {"src": "desert_plants_board.webp", "main_only": True, "pieces": [((93, 15, 400, 269), 91), ((428, 44, 675, 271), 82), ((707, 82, 945, 274), 69), ((985, 125, 1151, 271), 53), ((34, 807, 282, 1005), 71), ((306, 812, 523, 1005), 69), ((543, 827, 725, 1003), 63), ((753, 858, 917, 995), 49), ((947, 839, 1150, 995), 56), ((1169, 861, 1331, 991), 47), ((1352, 879, 1501, 988), 39)]},
     # 2026-10-29: the designer's mesa pillars (desert_mesas_board.webp, on
     # black: stacked sandstone columns, three carved with a face, and two
@@ -405,6 +405,12 @@ BOARDS = {
     "desert_ruin": {"src": "desert_ruins_board.webp", "main_only": True, "pieces": [((21, 192, 500, 624), 190), ((534, 258, 1008, 621), 160), ((23, 637, 508, 993), 157), ((544, 700, 903, 988), 127)]},
     "desert_cave_arch": {"src": "desert_ruins_board.webp", "main_only": True, "pieces": [((1055, 296, 1504, 616), 141)]},
     "desert_door": {"src": "desert_ruins_board.webp", "main_only": True, "pieces": [((948, 692, 1228, 969), 122), ((1240, 692, 1520, 972), 123)]},
+    # 2026-10-29: the designer's desert trees (fern-crowned, round-crowned
+    # and palm trees, three sizes each), twisted dead trees and dry grass
+    # tufts — desert_trees / desert_dead_trees / desert_tufts boards.
+    "desert_tree": {"src": "desert_trees_board.webp", "main_only": True, "pieces": [((23, 8, 343, 329), 135), ((373, 60, 601, 335), 116), ((614, 139, 771, 337), 83), ((814, 28, 1113, 350), 135), ((1121, 90, 1344, 342), 106), ((1361, 158, 1523, 342), 77), ((23, 336, 358, 663), 137), ((389, 373, 627, 659), 120), ((654, 440, 844, 656), 91), ((28, 669, 360, 1005), 141), ((371, 692, 618, 1001), 130), ((631, 756, 826, 999), 102), ((854, 642, 1125, 997), 149), ((1134, 700, 1359, 996), 124), ((1369, 779, 1522, 985), 87)]},
+    "desert_tree_dead": {"src": "desert_dead_trees_board.webp", "main_only": True, "pieces": [((7, 10, 533, 584), 172), ((576, 17, 1096, 569), 166), ((1126, 9, 1511, 805), 239), ((500, 568, 1155, 1001), 130), ((77, 660, 485, 984), 97)]},
+    "desert_tuft": {"src": "desert_tufts_board.webp", "main_only": True, "pieces": [((23, 253, 530, 597), 41), ((588, 364, 1109, 597), 28), ((1140, 17, 1510, 639), 75), ((99, 659, 664, 976), 38), ((781, 720, 1425, 976), 31)]},
     "town_stash_vault": {
         "src": "stash_vault_board.webp",
         "pieces": [((196, 45, 1339, 985), 126)],
