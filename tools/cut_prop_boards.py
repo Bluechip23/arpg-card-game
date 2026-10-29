@@ -350,6 +350,18 @@ BOARDS = {
     "waypoint_shrine": {"src": "well_waypoint_board.webp",
                         "clear_dim": [(1150, 48, 1460, 400, 90)],
                         "pieces": [((836, 48, 1770, 866), 140)]},
+    # 2026-10-29: the designer's treasure chests (chests_board.webp, on
+    # black): closed on top, open and full below — red and gold (rare), red
+    # and gold under a crest (legendary), iron-banded wood (common) and ice
+    # crystal (mythic). One scale for all, as drawn.
+    "chest_rare_closed": {"src": "chests_board.webp", "main_only": True, "pieces": [((26, 135, 401, 409), 45)]},
+    "chest_rare_open": {"src": "chests_board.webp", "pieces": [((14, 431, 403, 906), 74)]},
+    "chest_legendary_closed": {"src": "chests_board.webp", "main_only": True, "pieces": [((441, 99, 798, 410), 51)]},
+    "chest_legendary_open": {"src": "chests_board.webp", "pieces": [((416, 431, 793, 910), 79)]},
+    "chest_wood_closed": {"src": "chests_board.webp", "main_only": True, "pieces": [((809, 146, 1151, 414), 44)]},
+    "chest_wood_open": {"src": "chests_board.webp", "pieces": [((803, 475, 1150, 911), 72)]},
+    "chest_mythic_closed": {"src": "chests_board.webp", "main_only": True, "pieces": [((1156, 139, 1508, 412), 44)]},
+    "chest_mythic_open": {"src": "chests_board.webp", "pieces": [((1149, 469, 1516, 908), 73)]},
     "town_stash_vault": {
         "src": "stash_vault_board.webp",
         "pieces": [((196, 45, 1339, 985), 126)],

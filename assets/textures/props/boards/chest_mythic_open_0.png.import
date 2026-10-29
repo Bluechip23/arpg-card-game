@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dvitkpuk0erga"
-path="res://.godot/imported/chest_rare_closed_0.png-c43804345300ad289c7eef2c76b9ece0.ctex"
+uid="uid://dgtu8ark5ex3j"
+path="res://.godot/imported/chest_mythic_open_0.png-8583d2f53af484a2e838eed02209ea67.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/craftpix/props/chest_rare_closed_0.png"
-dest_files=["res://.godot/imported/chest_rare_closed_0.png-c43804345300ad289c7eef2c76b9ece0.ctex"]
+source_file="res://assets/textures/props/boards/chest_mythic_open_0.png"
+dest_files=["res://.godot/imported/chest_mythic_open_0.png-8583d2f53af484a2e838eed02209ea67.ctex"]
 
 [params]
 

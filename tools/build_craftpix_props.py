@@ -189,12 +189,12 @@ CELLS = {
     "goods_rack": {"scale": 1.0, "cells": [(f"{A}/Furniture.png", 0, 64, 49, 64), (f"{A}/Furniture.png", 0, 128, 49, 64), (f"{A}/Furniture.png", 0, 256, 49, 64)]},
     "goods_table": {"scale": 1.0, "cells": [(f"{A}/Furniture.png", 50, 66, 46, 32), (f"{A}/Furniture.png", 50, 162, 46, 32)]},
     # Chests: column = design, row 0 closed, row 2 open with loot.
-    "chest_wood_closed": {"scale": 1.0, "cells": [(f"{T}/chests.png", 0, 0, 32, 32)]},
-    "chest_wood_open": {"scale": 1.0, "cells": [(f"{T}/chests.png", 0, 64, 32, 32)]},
-    "chest_rare_closed": {"scale": 1.0, "cells": [(f"{T}/chests.png", 96, 0, 32, 32)]},
-    "chest_rare_open": {"scale": 1.0, "cells": [(f"{T}/chests.png", 96, 64, 32, 32)]},
-    "chest_mythic_closed": {"scale": 1.0, "cells": [(f"{T}/chests.png", 224, 0, 32, 32)]},
-    "chest_mythic_open": {"scale": 1.0, "cells": [(f"{T}/chests.png", 224, 64, 32, 32)]},
+    # "chest_wood_closed": the designer's since 2026-10-29 (DESIGNER below); was [(f"{T}/chests.png", 0, 0, 32, 32)]
+    # "chest_wood_open": the designer's since 2026-10-29 (DESIGNER below); was [(f"{T}/chests.png", 0, 64, 32, 32)]
+    # "chest_rare_closed": the designer's since 2026-10-29 (DESIGNER below); was [(f"{T}/chests.png", 96, 0, 32, 32)]
+    # "chest_rare_open": the designer's since 2026-10-29 (DESIGNER below); was [(f"{T}/chests.png", 96, 64, 32, 32)]
+    # "chest_mythic_closed": the designer's since 2026-10-29 (DESIGNER below); was [(f"{T}/chests.png", 224, 0, 32, 32)]
+    # "chest_mythic_open": the designer's since 2026-10-29 (DESIGNER below); was [(f"{T}/chests.png", 224, 64, 32, 32)]
     # Glowing-cave totem, 12 animation frames (uncropped so they line up):
     # the waypoint / transport-portal marker.
     "waypoint_totem": {"scale": 1.0, "crop": False, "cells": [("tileset_glowing_cave/Totem_animation.png", c * 96, r * 88, 96, 88) for r in range(2) for c in range(6)]},
@@ -340,6 +340,14 @@ DESIGNER = {
     "town_target_dummy": {"scale": 0.5, "files": ["assets/textures/props/boards/town_target_dummy_%d.png" % i for i in range(2)]},
     "well_healing": {"scale": 0.5, "files": ["assets/textures/props/boards/well_healing_0.png"]},
     "waypoint_shrine": {"scale": 0.5, "files": ["assets/textures/props/boards/waypoint_shrine_0.png"]},
+    "chest_wood_closed": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_wood_closed_0.png"]},
+    "chest_wood_open": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_wood_open_0.png"]},
+    "chest_rare_closed": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_rare_closed_0.png"]},
+    "chest_rare_open": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_rare_open_0.png"]},
+    "chest_legendary_closed": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_legendary_closed_0.png"]},
+    "chest_legendary_open": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_legendary_open_0.png"]},
+    "chest_mythic_closed": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_mythic_closed_0.png"]},
+    "chest_mythic_open": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_mythic_open_0.png"]},
     "town_card_shelf": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_shelf_0.png"]},
     "town_card_table": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_table_0.png"]},
     "town_card_players": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_players_0.png"]},

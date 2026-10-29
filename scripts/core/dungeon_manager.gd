@@ -5263,16 +5263,31 @@ func _set_chest_open_visual(index: int) -> void:
 	var sprite: Sprite3D = chest_nodes[index].get("sprite")
 	if sprite:
 		var design: String = chest_nodes[index].get("design", "wood")
-		sprite.texture = load(_first_prop_variant("chest_%s_open" % design)["path"])
+		_chest_sprite_art(sprite, _first_prop_variant("chest_%s_open" % design))
 
 
-## Chest design from its loot: mythic gear gets the ornate blue chest, rare
-## or legendary gear the red-gold one, everything else plain wood.
+## A chest sprite wearing one of its art variants ({path, w, scale}): its
+## bottom edge on the ground and centred, at the art's own texel size (the
+## designer's chests are 64 texels a tile, scale 0.5) — the open chest is
+## taller than the closed one, so the feet stay put when it swings open.
+static func _chest_sprite_art(sprite: Sprite3D, v: Dictionary) -> void:
+	sprite.texture = load(v["path"])
+	sprite.centered = false
+	sprite.pixel_size = 0.03125 * float(v.get("scale", 1.0))
+	sprite.offset = Vector2(-float(v["w"]) * 0.5, 0.0)
+
+
+## Chest design from its loot (the designer's chests, 2026-10-29): mythic
+## gear gets the ice-crystal chest, legendary gear the red-gold chest under
+## its crest, rare gear (and card packs) the red-gold chest, everything else
+## iron-banded wood.
 func _chest_design(contents: Dictionary) -> String:
 	var item = contents.get("item")
 	if item is ItemData:
 		if int(item.rarity) >= ItemData.Rarity.MYTHIC:
 			return "mythic"
+		if int(item.rarity) >= ItemData.Rarity.LEGENDARY:
+			return "legendary"
 		if int(item.rarity) >= ItemData.Rarity.RARE:
 			return "rare"
 	if contents.get("card_pack") != null:
@@ -5293,12 +5308,11 @@ func _create_chest(grid_pos: Vector2i, starter: bool = false) -> void:
 	var closed := _first_prop_variant("chest_%s_closed" % design)
 	var sprite = Sprite3D.new()
 	sprite.name = "ChestSprite"
-	sprite.texture = load(closed["path"])
+	_chest_sprite_art(sprite, closed)
 	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sprite.shaded = false
-	sprite.pixel_size = 0.03125  # style guide texel density
 	# Bottom edge of the sprite rests on the ground, matching _add_sprite_decos.
 	sprite.position = Vector3(0, CameraView.SPRITE_LIFT, 0)
 	chest_root.add_child(sprite)

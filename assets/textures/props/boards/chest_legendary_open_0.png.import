@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://55xc4m7gu6rj"
-path="res://.godot/imported/chest_wood_closed_0.png-91588c94534d1c8b5815bf7ad93ee8fe.ctex"
+uid="uid://bmkbnckfak2je"
+path="res://.godot/imported/chest_legendary_open_0.png-62e39e171f225b7c6f1df83a8cb5698f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/craftpix/props/chest_wood_closed_0.png"
-dest_files=["res://.godot/imported/chest_wood_closed_0.png-91588c94534d1c8b5815bf7ad93ee8fe.ctex"]
+source_file="res://assets/textures/props/boards/chest_legendary_open_0.png"
+dest_files=["res://.godot/imported/chest_legendary_open_0.png-62e39e171f225b7c6f1df83a8cb5698f.ctex"]
 
 [params]
 
