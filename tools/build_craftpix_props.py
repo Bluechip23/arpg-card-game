@@ -102,12 +102,12 @@ ROLES = {
     # --- World 2 Amber Wastes (desert pack; the "grass" shadow variants sit on the scrub floor) ---
     "desert_tree": {"scale": 0.85, "src": [f"{D}/Tree1_grass_shadow*.png", f"{D}/Tree2_grass_shadow*.png", f"{D}/Tree4_grass_shadow*.png", f"{D}/Tree3_*.png"]},
     "desert_tree_dead": {"scale": 1.0, "src": [f"{D}/curved_tree_grass*.png"], "limit": 10},
-    "desert_cactus": {"scale": 1.0, "src": [f"{D}/Cactus1_grass_shadow*.png", f"{D}/Cactus2_grass_shadow*.png", f"{D}/Cactus3_grass_shadow*.png"]},
+    # "desert_cactus": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Cactus1_grass_shadow*.png", f"{D}/Cactus2_grass_shadow*.png", f"{D}/Cactus3_grass_shadow*.png"]
     "desert_rock": {"scale": 1.0, "src": [f"{D}/Rock2_*.png", f"{D}/Rock4_*.png", f"{D}/Rock9_*.png", f"{D}/Rock3_*.png"]},
     "desert_mesa": {"scale": 0.9, "src": [f"{D}/Rock1_*.png", f"{D}/Rock5_*.png", f"{D}/Rock7_*.png"]},
-    "desert_bush": {"scale": 1.0, "src": [f"{D}/Small_bush*.png", f"{D}/Grass_element2_*_grass_shadow.png", f"{D}/Grass_element3_*_grass_shadow.png"]},
-    "desert_tuft": {"scale": 1.0, "src": [f"{D}/Grass_element1.png", f"{D}/Grass_element2.png", f"{D}/Grass_element3.png", f"{D}/Grass_element4.png", f"{D}/Grass_element4_*_grass_shadow.png"]},
-    "desert_flower": {"scale": 1.0, "src": [f"{D}/Red_flower*.png", f"{D}/Violet_flower*.png", f"{D}/White_flower*.png", f"{D}/Yellow_flower*.png"]},
+    # "desert_bush": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Small_bush*.png", f"{D}/Grass_element2_*_grass_shadow.png", f"{D}/Grass_element3_*_grass_shadow.png"]
+    # "desert_tuft": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Grass_element1.png", f"{D}/Grass_element2.png", f"{D}/Grass_element3.png", f"{D}/Grass_element4.png", f"{D}/Grass_element4_*_grass_shadow.png"]
+    # "desert_flower": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Red_flower*.png", f"{D}/Violet_flower*.png", f"{D}/White_flower*.png", f"{D}/Yellow_flower*.png"]
     # "desert_bones": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Bones_grass_shadow*.png", f"{D}/Bone_element_grass*.png", f"{D}/Scull_grass_shadow*.png", f"{D}/Sculls_grass_shadow*.png"]
     "desert_pebble": {"scale": 1.0, "src": [f"{D}/Sand_element*.png"]},
     "desert_ruin": {"scale": 0.8, "src": [f"{D}/Ruins*.png", f"{D}/pyramid_grass_shadow*.png", f"{D}/Gates*.png", f"{D}/small_gate*.png"]},
@@ -349,6 +349,10 @@ DESIGNER = {
     "chest_mythic_closed": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_mythic_closed_0.png"]},
     "chest_mythic_open": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_mythic_open_0.png"]},
     "desert_bones": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_bones_%d.png" % i for i in range(15)]},
+    "desert_flower": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_flower_%d.png" % i for i in range(4)]},
+    "desert_bush": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_bush_%d.png" % i for i in range(7)]},
+    "desert_tuft": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_tuft_%d.png" % i for i in range(5)]},
+    "desert_cactus": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_cactus_%d.png" % i for i in range(7)]},
     "town_card_shelf": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_shelf_0.png"]},
     "town_card_table": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_table_0.png"]},
     "town_card_players": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_players_0.png"]},
