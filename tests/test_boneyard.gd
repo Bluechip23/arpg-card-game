@@ -60,7 +60,7 @@ func _test_layout() -> void:
 	_check(on_floor and elev0, "every stone stands on flat floor")
 	_check(dm.is_floor(dm.boneyard_dragon_cell) and dm.boneyard_dragon_cell.x > dm.BY_FLOOR.get_center().x, "the dragon waits across the yard")
 	_check(dm.is_floor(dm.boneyard_crypt_cell), "the crypt door opens onto floor")
-	_check(dm.floor_texture_path().ends_with("floor_undead.png") and dm.wall_texture_path().ends_with("wall_undead.png"), "dressed in the undead land pack")
+	_check(dm.floor_texture_path().ends_with("undead_floor.png") and dm.wall_texture_path().ends_with("undead_wall.png"), "dressed in the designer's barrow ground")
 	var opened := _build("boneyard", ["boneyard"])
 	_check(opened.get_site_by_id("exit") >= 0, "a cleared Boneyard opens with its exit in place")
 	var gy := _build("graveyard_0")
