@@ -2412,8 +2412,8 @@ func _unify_town_style() -> void:
 	var ground := get_node_or_null("GroundPlane") as MeshInstance3D
 	if ground:
 		var gmat := StandardMaterial3D.new()
-		gmat.albedo_color = Color(0.85, 0.78, 0.68)  # warm packed-earth cast
-		gmat.albedo_texture = load("res://assets/textures/craftpix/floor_dirt_field.png")  # packed earth from the field pack
+		gmat.albedo_color = Color(1, 1, 1)
+		gmat.albedo_texture = load(TOWN_PLAZA_TEX)  # the designer's cobbled dirt (2026-10-29); was the field pack's packed earth
 		gmat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		gmat.uv1_triplanar = true
 		gmat.uv1_scale = Vector3(0.25, 0.25, 0.25)
@@ -2421,9 +2421,12 @@ func _unify_town_style() -> void:
 		ground.set_surface_override_material(0, gmat)
 	_dress_countryside()
 
-## The plaza sits in the field biome: the same grass fill as World 1 under
-## and around it, with the field pack's trees, bushes, rocks and flowers
+## The plaza sits in the designer's Greenwood (2026-10-29): its grass under
+## and around it, and its trees, bushes, rocks, ferns, mushrooms and ruins
 ## scattered outside the cobbles so the town stops floating in a void.
+## (Was the field pack's grass, trees, flowers and tufts.)
+const TOWN_PLAZA_TEX := "res://assets/textures/ground/forest_dirt.png"
+const TOWN_GRASS_TEX := "res://assets/textures/ground/forest_grass.png"
 func _dress_countryside() -> void:
 	var root := Node3D.new()
 	root.name = "Countryside"
@@ -2433,8 +2436,8 @@ func _dress_countryside() -> void:
 	gm.size = Vector2(72, 52)
 	grass.mesh = gm
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.92, 0.95, 0.85)
-	mat.albedo_texture = load("res://assets/textures/craftpix/floor_grass_field.png")
+	mat.albedo_color = Color(1, 1, 1)
+	mat.albedo_texture = load(TOWN_GRASS_TEX)
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mat.uv1_triplanar = true
 	mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
@@ -2448,9 +2451,9 @@ func _dress_countryside() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7311
 	var roles := [
-		["field_tree", 0.28], ["field_tree_small", 0.16], ["field_tree_fruit", 0.06],
-		["field_bush", 0.16], ["field_rock", 0.1], ["field_flower", 0.12],
-		["field_tuft", 0.08], ["field_shroom", 0.03], ["field_ruin", 0.01],
+		["forest_tree", 0.4], ["forest_tree_big", 0.08], ["forest_stump", 0.04],
+		["forest_bush", 0.18], ["forest_rock", 0.1], ["forest_fern", 0.14],
+		["forest_shroom", 0.04], ["forest_ruin", 0.02],
 	]
 	var placed: Array = []
 	for _i in range(260):
@@ -2871,7 +2874,7 @@ func _create_town_waypoint() -> void:
 	mound_mesh.radial_segments = 12
 	mound.mesh = mound_mesh
 	var mound_mat = StandardMaterial3D.new()
-	mound_mat.albedo_texture = load("res://assets/textures/craftpix/floor_dirt_field.png")
+	mound_mat.albedo_texture = load(TOWN_PLAZA_TEX)
 	mound_mat.albedo_color = Color(1, 1, 1).lerp(Color(0.62, 0.5, 0.36), 0.5)
 	mound_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mound_mat.uv1_triplanar = true
@@ -3421,7 +3424,7 @@ func _create_town_hall_npc() -> void:
 	var body_mesh := BoxMesh.new()
 	body_mesh.size = Vector3(3.2, 1.6, 2.2)
 	body.mesh = body_mesh
-	body.material_override = _town_pixel_mat("res://assets/textures/craftpix/wall_undead.png", Color(0.62, 0.58, 0.52))
+	body.material_override = _town_pixel_mat("res://assets/textures/ground/forest_wall.png", Color(0.95, 0.92, 0.88))   # the designer's mossy cobble (2026-10-29)
 	body.position = Vector3(0, 0.8, 0)
 	hall.add_child(body)
 	var roof := MeshInstance3D.new()
@@ -3431,7 +3434,7 @@ func _create_town_hall_npc() -> void:
 	roof.mesh = roof_mesh
 	# Seen from the plan-view camera a building IS its roof: warm timber
 	# shingles so it reads as a hall, not a dark slab.
-	roof.material_override = _town_pixel_mat("res://assets/textures/craftpix/wall_field.png", Color(0.62, 0.36, 0.2))
+	roof.material_override = _town_pixel_mat("res://assets/textures/ground/forest_wall.png", Color(1.0, 0.9, 0.8))   # the designer's mossy cobble, warmed (2026-10-29)
 	roof.rotation_degrees.y = 90.0
 	roof.position = Vector3(0, 1.6 + 0.4, 0)
 	hall.add_child(roof)
