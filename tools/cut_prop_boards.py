@@ -383,13 +383,14 @@ BOARDS = {
             ((912, 852, 1492, 1001), 60),
         ]},
     # 2026-10-29: the designer's desert plants (desert_plants_board.webp, on
-    # black): flowering barrel cacti (the desert's flowers), leafy and
+    # black): flowering barrel cacti, leafy and
     # spiky scrub (its bushes), dry grass clumps (its tufts), and prickly
     # pears and barrel cacti. One scale for all, as drawn (0.36 a board px).
-    "desert_flower": {"src": "desert_plants_board.webp", "main_only": True, "pieces": [((93, 15, 400, 269), 91), ((428, 44, 675, 271), 82), ((707, 82, 945, 274), 69), ((985, 125, 1151, 271), 53)]},
+    # The flowering barrel cacti are cacti since the flowers board (2026-10-29).
+    "desert_flower": {"src": "desert_flowers_board.webp", "main_only": True, "pieces": [((137, 7, 540, 247), 86), ((597, 25, 895, 251), 81), ((979, 47, 1189, 249), 73), ((125, 253, 557, 500), 89), ((608, 289, 905, 505), 78), ((987, 319, 1188, 493), 63), ((125, 505, 557, 752), 89), ((603, 529, 902, 744), 77), ((968, 556, 1198, 744), 68), ((125, 752, 557, 1001), 90), ((603, 774, 896, 1000), 81), ((973, 803, 1185, 985), 66)]},
     "desert_bush": {"src": "desert_plants_board.webp", "main_only": True, "pieces": [((62, 273, 406, 444), 62), ((448, 290, 756, 451), 58), ((785, 316, 1037, 450), 48), ((93, 632, 393, 811), 64), ((422, 641, 653, 808), 60), ((684, 655, 887, 811), 56), ((921, 680, 1097, 805), 45)]},
     "desert_tuft": {"src": "desert_plants_board.webp", "main_only": True, "pieces": [((145, 457, 371, 621), 59), ((399, 462, 590, 621), 57), ((619, 488, 791, 617), 46), ((826, 503, 987, 615), 40), ((1037, 515, 1179, 617), 37)]},
-    "desert_cactus": {"src": "desert_plants_board.webp", "main_only": True, "pieces": [((34, 807, 282, 1005), 71), ((306, 812, 523, 1005), 69), ((543, 827, 725, 1003), 63), ((753, 858, 917, 995), 49), ((947, 839, 1150, 995), 56), ((1169, 861, 1331, 991), 47), ((1352, 879, 1501, 988), 39)]},
+    "desert_cactus": {"src": "desert_plants_board.webp", "main_only": True, "pieces": [((93, 15, 400, 269), 91), ((428, 44, 675, 271), 82), ((707, 82, 945, 274), 69), ((985, 125, 1151, 271), 53), ((34, 807, 282, 1005), 71), ((306, 812, 523, 1005), 69), ((543, 827, 725, 1003), 63), ((753, 858, 917, 995), 49), ((947, 839, 1150, 995), 56), ((1169, 861, 1331, 991), 47), ((1352, 879, 1501, 988), 39)]},
     "town_stash_vault": {
         "src": "stash_vault_board.webp",
         "pieces": [((196, 45, 1339, 985), 126)],
