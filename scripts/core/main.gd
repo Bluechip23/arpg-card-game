@@ -16393,7 +16393,7 @@ func _build_ground_plane() -> void:
 	# heavier cast than our darker generated sheets to sink into the void
 	# (the backdrop must sit close to the fog of war, never outshine the arena).
 	var far_dim := Color(0.55, 0.55, 0.55)
-	if tex_path.begins_with(dungeon_manager.CP_TEX):
+	if DungeonManager.is_colour_authored(tex_path):
 		far_dim = Color(0.3, 0.3, 0.3)
 	mat.albedo_color = far_dim.lerp(ground_cast, 0.35)
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
