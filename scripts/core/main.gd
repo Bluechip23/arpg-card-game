@@ -15568,7 +15568,7 @@ func _spawn_loot_drop(loot: Dictionary, pos: Vector3) -> void:
 	# melee finish on their own cell), scoop it up immediately.
 	_check_loot_pickup()
 
-const LOOT_BAG_TEXTURE := "res://assets/textures/craftpix/ui/icon_bag.png"
+const LOOT_BAG_TEXTURE := "res://assets/textures/ui_icons/icon_bag.png"   # the designer's (tools/cut_icon_boards.py), 64 texels
 
 func _build_loot_visual(drop: Node3D, loot: Dictionary) -> void:
 	## One money bag marks every drop — the sign that an enemy left loot —
@@ -15590,7 +15590,8 @@ func _build_loot_visual(drop: Node3D, loot: Dictionary) -> void:
 	tw.parallel().tween_property(drop, "position:y", drop.position.y, 0.5).set_trans(Tween.TRANS_SINE)
 	drop.set_meta("bob_tween", tw)
 
-## The pack's money-bag icon as a ground billboard (32 texels, one tile wide).
+## The designer's loot bag as a ground billboard, one tile wide whatever its
+## texel size (64 texels, so half the world's texel).
 func _money_bag_sprite() -> Sprite3D:
 	var sprite := Sprite3D.new()
 	sprite.texture = load(LOOT_BAG_TEXTURE)
@@ -15598,9 +15599,10 @@ func _money_bag_sprite() -> Sprite3D:
 	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sprite.shaded = false
-	sprite.pixel_size = CameraView.PIXEL_SIZE
+	var w: float = float(sprite.texture.get_width())
+	sprite.pixel_size = CameraView.PIXEL_SIZE * 32.0 / w
 	sprite.centered = false
-	sprite.offset = Vector2(-16.0, 0.0)
+	sprite.offset = Vector2(-w * 0.5, 0.0)
 	sprite.position = Vector3(0, CameraView.SPRITE_LIFT, 0)
 	return sprite
 

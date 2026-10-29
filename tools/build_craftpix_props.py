@@ -204,33 +204,20 @@ CELLS = {
 # Equipment-slot icons for the inventory UI (32px cells of the icon packs).
 # Written to assets/textures/craftpix/ui/. Picks are (sheet, col, row).
 UI_OUT = "assets/textures/craftpix/ui"
+# (The designer's own icons replace the helm, chest, gauntlets, boots,
+# sword, shield, dagger, axe, hammer, polearm, wand, belt, quiver and ring
+# slots and the loot bag since 2026-10-29: tools/cut_icon_boards.py.)
 UI_ICONS = {
     # Armour/weapon sheet: the icons are packed as big/small pairs, not on a
     # clean 32px grid, so these are pixel boxes (x0, y0, x1, y1) of the big
     # icon, found by connected components (see git history for the survey).
-    "slot_helm": (f"{A}/Icons.png", (457, 39, 470, 56)),
-    "slot_chest": (f"{A}/Icons.png", (359, 7, 376, 24)),
-    "slot_gauntlets": (f"{A}/Icons.png", (194, 18, 206, 30)),
-    "slot_boots": (f"{A}/Icons.png", (120, 7, 134, 24)),
-    "slot_sword": (f"{A}/Icons.png", (311, 199, 328, 216)),
     "slot_bow": (f"{A}/Icons.png", (71, 231, 88, 248)),
-    "slot_shield": (f"{A}/Icons.png", (24, 327, 39, 344)),
-    "slot_dagger": (f"{A}/Icons.png", (311, 231, 328, 248)),
-    "slot_axe": (f"{A}/Icons.png", (167, 295, 184, 312)),
-    "slot_hammer": (f"{A}/Icons.png", (215, 295, 232, 312)),
-    "slot_polearm": (f"{A}/Icons.png", (359, 263, 376, 280)),
     "slot_staff": (f"{A}/Icons.png", (407, 263, 424, 280)),
     "slot_tome": (f"{A}/Icons.png", (314, 327, 326, 344)),
     "slot_orb": (f"{A}/Icons.png", (216, 327, 231, 344)),
-    "slot_wand": (f"{A}/Icons.png", (530, 274, 542, 286)),
-    # Single-file icon packs: (path,) copies the 32px file as is.
-    "slot_belt": ("knight_armor_icons/icon_25_2_01.png",),
-    "slot_quiver": ("weapon_icons/icon_47.png",),
     # Treasure sheet is a clean 32px grid: (col, row).
-    "slot_ring": (f"{T}/Icons.png", 14, 1),
     "icon_key": (f"{T}/Icons.png", 0, 0),
     "icon_coins": (f"{T}/Icons.png", 1, 1),
-    "icon_bag": (f"{T}/Icons.png", 8, 2),
     "icon_crown": (f"{T}/Icons.png", 1, 4),
 }
 

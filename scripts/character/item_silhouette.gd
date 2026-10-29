@@ -15,6 +15,9 @@ var _faint := true
 ## an equipped weapon's ItemData.WeaponSubtype. Only the any-weapon
 ## composite (an empty hand slot) keeps the drawn shape.
 const ICON_DIR := "res://assets/textures/craftpix/ui/"
+## The designer's own icons (tools/cut_icon_boards.py, 64 texels): used
+## where one exists for the slot, the pack's 32 px icon otherwise.
+const DESIGNER_ICON_DIR := "res://assets/textures/ui_icons/"
 const ICONS := {
 	0: "slot_helm", 1: "slot_chest", 2: "slot_ring", 3: "slot_belt", 4: "slot_boots", 5: "slot_gauntlets", 7: "slot_quiver",
 	"w0": "slot_sword", "w1": "slot_bow", "w2": "slot_shield", "w4": "slot_polearm", "w5": "slot_dagger",
@@ -55,12 +58,16 @@ func _rebuild_icon() -> void:
 		resized.connect(_layout_icon)
 	_layout_icon()
 
-## Centre the icon at a whole multiple of its 32 texels that fits the slot.
+## Centre the icon at a whole multiple of its texels (32 for a pack icon,
+## 64 for the designer's) that fits the slot; never below its own size.
 func _layout_icon() -> void:
 	if _icon_rect == null:
 		return
 	var s: float = min(size.x, size.y)
-	var px: float = maxf(32.0, floorf(s / 32.0) * 32.0)
+	var unit: float = float(_icon_rect.texture.get_width()) if _icon_rect.texture else 32.0
+	var px: float = maxf(unit, floorf(s / unit) * unit)
+	if px > s and unit > 32.0:
+		px = maxf(32.0, floorf(s / 32.0) * 32.0)   # a slot narrower than the icon: halve it, still whole texels
 	_icon_rect.size = Vector2(px, px)
 	_icon_rect.position = (size - Vector2(px, px)) * 0.5
 
@@ -72,6 +79,9 @@ func _icon() -> Texture2D:
 		key = "w%d" % weapon_subtype
 	if not ICONS.has(key):
 		return null
+	var own: String = DESIGNER_ICON_DIR + ICONS[key] + ".png"
+	if ResourceLoader.exists(own):
+		return load(own)
 	var path: String = ICON_DIR + ICONS[key] + ".png"
 	return load(path) if ResourceLoader.exists(path) else null
 
