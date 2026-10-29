@@ -33,7 +33,7 @@ const WALL_HEIGHT: float = 0.06    # wall slab thickness (see _build_walls)
 ## sheets — the Craftpix fills cut by tools/extract_craftpix_tiles.py — with the
 ## edge bands painted in the palette (_build_autotile_ground). The camera is
 ## fixed (CameraView).
-const WAYPOINT_MOUND_HEIGHT: float = 0.22  # Raised dirt mound under every waypoint ring
+const WAYPOINT_MOUND_HEIGHT: float = 0.0  # (was the raised dirt mound under the old rune ring; the designer's shrine stands on the ground)
 # Height of fog-of-war volume tiles. Must exceed the tallest wall so unexplored
 # walls stay hidden: max wall = 1.5 + 0.9 noise + 2 elevation * ELEV_STEP = 3.4,
 # and the fog box top sits at FOG_HEIGHT - 0.5 (see _fog_shown_xform).
@@ -528,6 +528,9 @@ func get_palette() -> Dictionary:
 ## closest pack for each place. Every sheet is a 4x4 grid of 32px variants sampled triplanar (see
 ## _add_multimesh). Colour-authored sheets get only a light palette cast.
 const CP_TEX := "res://assets/textures/craftpix"
+## The designer's own ground (tools/cut_ground_boards.py): 4x4 sheets at 64
+## texels a tile, painted to run on unbroken (laid by position, not hash).
+const GROUND_TEX := "res://assets/textures/ground"
 
 func floor_texture_path() -> String:
 	match interior_kind:
@@ -537,17 +540,19 @@ func floor_texture_path() -> String:
 			return CP_TEX + "/floor_glowing_cave.png"  # wet stone (glowing-cave pack; the plain cave fill went black under the sewer's dim light)
 		"building", "dojo":
 			return CP_TEX + "/floor_undead.png"  # grey flagstones (undead pack's cracked stone)
-		"cave", "hellgate", "labyrinth":
+		"cave":
+			return GROUND_TEX + ("/cave_floor_glow.png" if cave_glows() else "/cave_floor.png")   # the designer's (2026-10-29)
+		"hellgate", "labyrinth":
 			return CP_TEX + "/floor_cave.png"
 		"forest":
-			return CP_TEX + "/floor_grass_forest.png"
+			return GROUND_TEX + "/forest_grass.png"   # the designer's (2026-10-29); was the pack's floor_grass_forest
 	match world_level:
 		4:  # Emberfall — the flesh-and-vein hellscape (cursed land pack)
 			return CP_TEX + "/floor_cursed.png"
 		5:  # Umbral Expanse — barrow-land cracked stone (undead land pack)
 			return CP_TEX + "/floor_undead.png"
-		2:  # Amber Wastes — dry scrub (desert pack)
-			return CP_TEX + "/floor_desert.png"
+		2:  # Amber Wastes — the designer's olive scrub (2026-10-29; was the desert pack's)
+			return GROUND_TEX + "/desert_floor.png"
 		3:  # Frostreach — snowfield (winter pack drifts over flat snow)
 			return CP_TEX + "/floor_winter.png"
 	return CP_TEX + "/floor_grass_field.png"
@@ -565,7 +570,7 @@ func far_floor_texture_path() -> String:
 func trail_texture_path() -> String:
 	match interior_kind:
 		"forest":
-			return CP_TEX + "/floor_dirt_forest.png"
+			return GROUND_TEX + "/forest_dirt.png"   # the designer's cobbled dirt (2026-10-29)
 		"cave", "sewer", "building", "ratking", "hellgate", "labyrinth":
 			return CP_TEX + "/floor_dirt_forest.png"  # trodden dark earth
 		"boneyard":
@@ -573,7 +578,7 @@ func trail_texture_path() -> String:
 	if world_level == 1:
 		return CP_TEX + "/floor_dirt_field.png"
 	if world_level == 2:
-		return CP_TEX + "/floor_desert_sand.png"  # sand tracks through the scrub
+		return GROUND_TEX + "/desert_sand.png"  # the designer's sand tracks through the scrub
 	if world_level == 3:
 		return CP_TEX + "/floor_undead_sand.png"  # trodden grey slush through the snow
 	if world_level == 4:
@@ -592,17 +597,19 @@ func wall_texture_path() -> String:
 			return CP_TEX + "/wall_cave.png"  # dark cave rock
 		"building":
 			return CP_TEX + "/wall_undead.png"  # grey barrow stone
-		"cave", "hellgate", "labyrinth":
+		"cave":
+			return GROUND_TEX + ("/cave_wall_glow.png" if cave_glows() else "/cave_wall.png")   # the designer's (2026-10-29)
+		"hellgate", "labyrinth":
 			return CP_TEX + "/wall_cave.png"
 		"forest":
-			return CP_TEX + "/wall_forest.png"
+			return GROUND_TEX + "/forest_wall.png"   # the designer's mossy cobble (2026-10-29)
 	match world_level:
 		4:
 			return CP_TEX + "/wall_cursed.png"
 		5:
 			return CP_TEX + "/wall_undead.png"
 		2:
-			return CP_TEX + "/wall_desert.png"
+			return GROUND_TEX + "/desert_wall.png"   # the designer's cliff rock
 		3:
 			return CP_TEX + "/wall_undead.png"  # the winter pack has no cliff; grey barrow stone under the frost palette
 	return CP_TEX + "/wall_field.png"
@@ -615,17 +622,19 @@ func water_texture_path() -> String:
 			return CP_TEX + "/water_undead.png"
 		"hellgate", "labyrinth":
 			return CP_TEX + "/water_lava.png"  # the pools at Hell's threshold, and in the Minotaur's court, are lava (cave pack)
-		"cave", "sewer", "ratking":
+		"cave":
+			return GROUND_TEX + "/cave_water.png"   # the designer's dark cave water (2026-10-29)
+		"sewer", "ratking":
 			return CP_TEX + "/water_cave.png"
 		"forest":
-			return CP_TEX + "/water_forest.png"
+			return GROUND_TEX + "/forest_water.png"   # the designer's (2026-10-29)
 	match world_level:
 		4:
 			return CP_TEX + "/water_lava.png"  # Emberfall's rivers are lava (cave pack)
 		5:
 			return CP_TEX + "/water_undead.png"
 		2:
-			return CP_TEX + "/water_desert.png"
+			return GROUND_TEX + "/desert_water.png"
 		3:
 			return CP_TEX + "/water_winter.png"  # frozen over
 	return CP_TEX + "/water_field.png"
@@ -674,7 +683,7 @@ const PROP_ROLES := {
 		"rock": ["forest_rock"], "bush": ["forest_bush"], "berry": ["field_berry"], "fern": ["forest_fern"],
 		"flower": ["field_flower"], "tuft": ["field_tuft"], "shroom": ["forest_shroom"], "pebble": ["forest_pebble"],
 		"reeds": ["forest_reeds"], "bones": ["undead_bones"], "wallrock": ["wallrock_rust"]},
-	"cave": {"stalagmite": ["cave_stalagmite"], "stalactite": ["cave_rock"], "rock": ["cave_rock"], "shroom": ["cave_shroom"],
+	"cave": {"stalagmite": ["cave_stalagmite"], "stalactite": ["cave_stalactite"], "rock": ["cave_rock"], "shroom": ["cave_shroom"],
 		"crystal": ["cave_crystal"], "pebble": ["cave_pebble"], "bones": ["undead_bones"], "web": ["cave_web"],
 		"wallrock": ["wallrock_grey"]},
 	"undead": {"tree": ["undead_tree"], "stump": ["undead_stump"], "rock": ["undead_rock"], "bush": ["undead_bush"],
@@ -720,36 +729,6 @@ func _make_prop_sprite(role: String, scale: float = 1.0, k: int = 0, lift: float
 	sprite.scale = Vector3(sc, sc, sc)
 	sprite.position = Vector3(0, lift, 0)
 	return sprite
-
-
-## The chunky pixel rune-ring that marks every waypoint, laid flat on the
-## mound's top and tinted per destination (dimmed until discovered; it lights
-## up in discover_waypoint). Waypoints are the mound with the teal highlights.
-static func make_waypoint_ring(tint: Color, alpha: float = 0.75) -> Sprite3D:
-	var ring := Sprite3D.new()
-	ring.texture = load("res://assets/textures/props/waypoint_ring.png")
-	ring.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	ring.shaded = false
-	ring.pixel_size = 0.045  # ring spans ~1.2 tiles
-	ring.rotation_degrees = Vector3(-90, 0, 0)
-	ring.modulate = Color(tint, alpha)
-	ring.position = Vector3(0, 0.25, 0)  # resting on the mound's top
-	return ring
-
-
-## The raised dirt mound a waypoint ring sits on (a landmark at a glance
-## instead of a flat glow on the ground).
-static func make_waypoint_mound(material: Material) -> MeshInstance3D:
-	var mound := MeshInstance3D.new()
-	var mound_mesh := CylinderMesh.new()
-	mound_mesh.top_radius = 0.68
-	mound_mesh.bottom_radius = 0.95
-	mound_mesh.height = WAYPOINT_MOUND_HEIGHT
-	mound_mesh.radial_segments = 12
-	mound.mesh = mound_mesh
-	mound.material_override = material
-	mound.position = Vector3(0, WAYPOINT_MOUND_HEIGHT * 0.5, 0)
-	return mound
 
 
 ## The Return Scroll's town portal: a swirling purple oval (a flattened
@@ -799,7 +778,8 @@ func _prop_variants(base: String) -> Array:
 		if CraftpixProps.has(role):
 			var cfg: Dictionary = CraftpixProps.PROPS[role]
 			for v in cfg["variants"]:
-				out.append({"path": v["path"], "w": v["w"], "h": v["h"], "scale": cfg["scale"]})
+				out.append({"path": v["path"], "w": v["w"], "h": v["h"], "scale": cfg["scale"],
+						"density": float(cfg.get("density", 32))})
 	return out
 
 
@@ -821,7 +801,8 @@ func _add_prop_decos(items: Array, base: String) -> void:
 		buckets[k].append(copy)
 	for k in range(variants.size()):
 		if not buckets[k].is_empty():
-			_add_sprite_decos(buckets[k], variants[k]["path"], variants[k]["w"], variants[k]["h"])
+			_add_sprite_decos(buckets[k], variants[k]["path"], variants[k]["w"], variants[k]["h"],
+					float(variants[k]["h"]) * 32.0 / float(variants[k]["density"]))
 
 
 func get_location_name() -> String:
@@ -2113,13 +2094,45 @@ func _add_multimesh(mesh: Mesh, items: Array, shaded: bool = true, rough: float 
 static func _tint_weight(texture_path: String) -> float:
 	# The purchased fills keep their own colour (a whisper of the world's
 	# cast); the generated grayscale sheets still take the palette.
-	return 0.1 if texture_path.begins_with(CP_TEX) else 0.5
+	return 0.1 if is_colour_authored(texture_path) else 0.5
+
+
+## A finished-colour sheet (a pack fill or the designer's ground), as opposed
+## to our generated grayscale sheets that take the palette as their colour.
+static func is_colour_authored(texture_path: String) -> bool:
+	return texture_path.begins_with(CP_TEX) or texture_path.begins_with(GROUND_TEX)
+
+
+## Raised ground's own sheet, or "" for the floor sheet lightened.
+func high_texture_path() -> String:
+	if interior_kind == "forest":
+		return GROUND_TEX + "/forest_grass_high.png"   # worn grass, like the top of the designer's cliff block
+	if interior_kind == "" and world_level == 2:
+		return GROUND_TEX + "/desert_sand.png"   # sand, like the top of the designer's desert cliff
+	return ""
+
+
+## True when this location's ground is the designer's continuous sheets: a
+## tile takes the variant its place in a 4x4 block calls for, so the
+## painting runs on across tiles (the pack fills are flat, so their
+## variants are picked by hash for variety).
+func ground_continuous() -> bool:
+	return floor_texture_path().begins_with(GROUND_TEX)
+
+
+## The interior variant (0..15) for the open ground tile at (x, z).
+func _ground_variant(x: int, z: int) -> int:
+	if ground_continuous():
+		return posmod(x, 4) + 4 * posmod(z, 4)
+	return int(_tile_noise(x, z, 11) * ATLAS_VARIANTS) % ATLAS_VARIANTS
 
 
 ## Billboard sprite props (trees, bushes, rocks, stumps, ferns): a QuadMesh
 ## MultiMesh with a nearest-filtered billboard material. items entries:
 ## {pos: Vector3 ground point, scale: float, color: Color theme cast}.
-func _add_sprite_decos(items: Array, texture_path: String, px_w: float, px_h: float) -> void:
+## `cover_h`: the prop's height in pack texels (32 a tile) for the ground-cover
+## test, when its art is finer than the packs' (the designer's props); -1: px_h.
+func _add_sprite_decos(items: Array, texture_path: String, px_w: float, px_h: float, cover_h: float = -1.0) -> void:
 	if items.is_empty():
 		return
 	var ps := 0.03125  # world units per texel (style guide texel density)
@@ -2137,7 +2150,8 @@ func _add_sprite_decos(items: Array, texture_path: String, px_w: float, px_h: fl
 	mm.mesh = quad
 	mm.instance_count = items.size()
 	# Low props are ground cover the player walks over; tall ones can hide them.
-	var lift: float = CameraView.SPRITE_LIFT if px_h > CameraView.GROUND_COVER_MAX_PX else CameraView.GROUND_COVER_LIFT
+	var tall_h: float = px_h if cover_h < 0.0 else cover_h
+	var lift: float = CameraView.SPRITE_LIFT if tall_h > CameraView.GROUND_COVER_MAX_PX else CameraView.GROUND_COVER_LIFT
 	for i in range(items.size()):
 		var it: Dictionary = items[i]
 		var s: float = it.get("scale", 1.0)
@@ -2213,13 +2227,54 @@ func _neighbor_differs(x: int, z: int, nx: int, nz: int, t: int) -> bool:
 		return elevation[nx][nz] < elevation[x][z]
 	return _terrain_of(nx, nz) != t
 
+## The prebuilt ground atlas for this location (the designer's ground,
+## tools/cut_ground_boards.py: a row per terrain and tile variant, a column
+## per edge mask, the edges painted), or "" for the runtime atlas.
+func ground_atlas_path() -> String:
+	if interior_kind == "forest":
+		return GROUND_TEX + "/forest_atlas.png"
+	if interior_kind == "cave":
+		return GROUND_TEX + ("/cave_glow_atlas.png" if cave_glows() else "/cave_atlas.png")
+	if interior_kind == "" and world_level == 2:
+		return GROUND_TEX + "/desert_atlas.png"
+	return ""
+
+
+## Every other cave is a crystal cave: the designer's glowing floor and
+## crystal-hung rock (cave_1, cave_3 ...).
+func cave_glows() -> bool:
+	return interior_kind == "cave" and int(interior_id.get_slice("_", 1)) % 2 == 1
+
+var _atlas_pre := false   # the ground mesh uses a prebuilt atlas (_atlas_cell)
+
+## The atlas cell (u0, v0) for terrain `t` with edge `mask` at (x, z), and its
+## size in _atlas_size.
+func _atlas_cell(t: int, mask: int, x: int, z: int) -> Vector2:
+	if _atlas_pre:
+		return Vector2(mask / 16.0, float(t * 16 + _ground_variant(x, z)) / (Terrain.size() * 16))
+	var col := mask
+	if mask == 0:
+		col = ATLAS_MASKS + _ground_variant(x, z)
+	return Vector2(float(col) / ATLAS_COLS, float(t) / Terrain.size())
+
+func _atlas_size() -> Vector2:
+	if _atlas_pre:
+		return Vector2(1.0 / 16.0, 1.0 / (Terrain.size() * 16))
+	return Vector2(1.0 / ATLAS_COLS, 1.0 / Terrain.size())
+
 func _build_autotile_ground() -> void:
 	var pal = get_palette()
-	var atlas := _make_ground_atlas(pal)
+	var atlas: Texture2D
+	var pre := ground_atlas_path()
+	_atlas_pre = pre != "" and ResourceLoader.exists(pre)
+	if _atlas_pre:
+		atlas = load(pre)
+	else:
+		atlas = _make_ground_atlas(pal)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var tw := 1.0 / ATLAS_COLS
-	var th := 1.0 / Terrain.size()
+	var tw := _atlas_size().x
+	var th := _atlas_size().y
 	var count := 0
 	var natural := _natural_boundary()
 	var site_tiles = _all_site_footprint_tiles() if natural else {}
@@ -2234,19 +2289,17 @@ func _build_autotile_ground() -> void:
 					if not is_water(Vector2i(x + 1, z)): lm |= 2
 					if not is_water(Vector2i(x, z + 1)): lm |= 4
 					if not is_water(Vector2i(x - 1, z)): lm |= 8
-					var lcol := lm
-					if lm == 0:
-						lcol = ATLAS_MASKS + int(_tile_noise(x, z, 11) * ATLAS_VARIANTS) % ATLAS_VARIANTS
-					_ground_quad(st, x, z, -0.02, lcol * tw, Terrain.WATER * th, tw, th)
+					var lc := _atlas_cell(Terrain.WATER, lm, x, z)
+					_ground_quad(st, x, z, -0.02, lc.x, lc.y, tw, th)
 					count += 1
 					continue
 				# Outdoors the land runs on under the blocked tiles: plain
 				# ground there too, so the tree line stands on grass, not void.
 				if natural and grid[x][z] == Tile.WALL and not site_tiles.has(Vector2i(x, z)) \
 						and _near_floor(x, z, 3):
-					var wv := ATLAS_MASKS + int(_tile_noise(x, z, 11) * ATLAS_VARIANTS) % ATLAS_VARIANTS
+					var wc := _atlas_cell(Terrain.GRASS, 0, x, z)
 					var wy: float = _max_adjacent_floor_elevation(x, z) * ELEV_STEP + 0.004
-					_ground_quad(st, x, z, wy, wv * tw, Terrain.GRASS * th, tw, th)
+					_ground_quad(st, x, z, wy, wc.x, wc.y, tw, th)
 					count += 1
 				continue
 			var t := _terrain_of(x, z)
@@ -2258,11 +2311,9 @@ func _build_autotile_ground() -> void:
 			var y: float = elevation[x][z] * ELEV_STEP + 0.004
 			if t == Terrain.WATER:
 				y = -0.02
-			var col := mask
-			if mask == 0:
-				# Open ground: one of the sheet's 16 variants, by cell hash.
-				col = ATLAS_MASKS + int(_tile_noise(x, z, 11) * ATLAS_VARIANTS) % ATLAS_VARIANTS
-			_ground_quad(st, x, z, y, col * tw, t * th, tw, th)
+			# Open ground (mask 0): one of the sheet's 16 variants (_ground_variant).
+			var cell := _atlas_cell(t, mask, x, z)
+			_ground_quad(st, x, z, y, cell.x, cell.y, tw, th)
 			count += 1
 	var mesh := st.commit()
 	var mi := MeshInstance3D.new()
@@ -2314,22 +2365,31 @@ func _make_ground_atlas(pal: Dictionary) -> ImageTexture:
 	## the 16 mask columns get palette-coloured edge bands on the sides where
 	## the neighbouring terrain differs (plus a lip shadow under raised
 	## ground). Cached per palette + interior.
-	var key: String = str(pal.get("name", "")) + "|" + interior_kind
+	var key: String = str(pal.get("name", "")) + "|" + interior_kind + "|" + floor_texture_path()
 	if _atlas_cache.has(key):
 		return _atlas_cache[key]
-	var img := Image.create(ATLAS_TILE * ATLAS_COLS, ATLAS_TILE * Terrain.size(), false, Image.FORMAT_RGBA8)
+	# Tile size: the floor sheet's (a 4x4 sheet: 32 px tiles for the packs,
+	# 64 for the designer's ground); the other sheets are fitted to it.
+	var floor_sheet := _sheet_image(floor_texture_path())
+	var n: int = maxi(ATLAS_TILE, floor_sheet.get_width() / 4)
+	var k: int = n / ATLAS_TILE   # edge bands are drawn in pack texels, k px each
+	var img := Image.create(n * ATLAS_COLS, n * Terrain.size(), false, Image.FORMAT_RGBA8)
 	var ground: Color = pal.get("ground", Color(0.1, 0.1, 0.1))
 	var floor_b: Color = pal.get("floor_b", Color(0.25, 0.42, 0.2))
 	var trail_c: Color = pal.get("trail", Color(0.34, 0.28, 0.18))
 	var water_c: Color = pal.get("water", Color(0.16, 0.3, 0.5))
 	var water_e: Color = pal.get("water_edge", water_c.lightened(0.25))
-	var floor_sheet := _sheet_image(floor_texture_path())
-	var trail_sheet := _sheet_image(trail_texture_path())
-	var water_sheet := _sheet_image(water_texture_path())
+	var trail_sheet := _fit_sheet(_sheet_image(trail_texture_path()), n)
+	var water_sheet := _fit_sheet(_sheet_image(water_texture_path()), n)
+	floor_sheet = _fit_sheet(floor_sheet, n)
 	var pit_sheet := floor_sheet.duplicate()
 	pit_sheet.adjust_bcs(0.45, 1.0, 0.8)
-	var high_sheet := floor_sheet.duplicate()
-	high_sheet.adjust_bcs(1.14, 1.0, 1.0)
+	var high_sheet: Image
+	if high_texture_path() != "":
+		high_sheet = _fit_sheet(_sheet_image(high_texture_path()), n)
+	else:
+		high_sheet = floor_sheet.duplicate()
+		high_sheet.adjust_bcs(1.14, 1.0, 1.0)
 	# [sheet, edge colour] per terrain
 	var styles := {
 		Terrain.GRASS: [floor_sheet, floor_b.darkened(0.35)],
@@ -2338,7 +2398,7 @@ func _make_ground_atlas(pal: Dictionary) -> ImageTexture:
 		Terrain.PIT: [pit_sheet, ground],
 		Terrain.HIGH: [high_sheet, Color(1.0, 0.98, 0.85).lerp(pal.get("floor_a", floor_b), 0.45)],
 	}
-	var n := ATLAS_TILE
+	var band := EDGE_BAND * k
 	for t in range(Terrain.size()):
 		var sheet: Image = styles[t][0]
 		var edge: Color = styles[t][1]
@@ -2355,19 +2415,19 @@ func _make_ground_atlas(pal: Dictionary) -> ImageTexture:
 				continue
 			for py in range(n):
 				for px in range(n):
-					var on_edge := (mask & 1 and py < EDGE_BAND) or (mask & 2 and px >= n - EDGE_BAND) \
-							or (mask & 4 and py >= n - EDGE_BAND) or (mask & 8 and px < EDGE_BAND)
+					var on_edge := (mask & 1 and py < band) or (mask & 2 and px >= n - band) \
+							or (mask & 4 and py >= n - band) or (mask & 8 and px < band)
 					var col: Color
 					if on_edge:
 						col = edge
 						# Outer texel row a shade darker: the pack art's outline.
-						var outer := (mask & 1 and py < 2) or (mask & 2 and px >= n - 2) \
-								or (mask & 4 and py >= n - 2) or (mask & 8 and px < 2)
+						var outer := (mask & 1 and py < 2 * k) or (mask & 2 and px >= n - 2 * k) \
+								or (mask & 4 and py >= n - 2 * k) or (mask & 8 and px < 2 * k)
 						if outer and t != Terrain.WATER:
 							col = edge.darkened(0.3)
-						if t == Terrain.WATER and _px_hash(px, py, 3) > 0.6:
+						if t == Terrain.WATER and _px_hash(px / k, py / k, 3) > 0.6:
 							col = edge.lightened(0.15)  # foam sparkle
-					elif t == Terrain.HIGH and (mask & 4) and py >= n - EDGE_BAND - 2:
+					elif t == Terrain.HIGH and (mask & 4) and py >= n - band - 2 * k:
 						col = floor_b.darkened(0.45)  # lip shadow under raised ground
 					else:
 						continue
@@ -2375,6 +2435,14 @@ func _make_ground_atlas(pal: Dictionary) -> ImageTexture:
 	var tex := ImageTexture.create_from_image(img)
 	_atlas_cache[key] = tex
 	return tex
+
+
+## `sheet` (a 4x4 sheet) at `n` px a tile: a pack sheet beside the designer's
+## finer ground is scaled up texel for texel.
+static func _fit_sheet(sheet: Image, n: int) -> Image:
+	if sheet.get_width() != n * 4 or sheet.get_height() != n * 4:
+		sheet.resize(n * 4, n * 4, Image.INTERPOLATE_NEAREST)
+	return sheet
 
 
 ## A ground sheet as a decompressed RGBA8 image, or a flat palette fill if
@@ -2476,19 +2544,21 @@ var _wall_atlas_cache: Dictionary = {}
 ## The cliff strip for this location (see tools/extract_craftpix_cliffs.py).
 func cliff_strip_path() -> String:
 	match interior_kind:
-		"sewer", "cave", "ratking", "hellgate", "labyrinth":
+		"cave":
+			return GROUND_TEX + "/cave_cliff.png"   # the designer's hanging rock face, 32 px cells (2026-10-29)
+		"sewer", "ratking", "hellgate", "labyrinth":
 			return CP_TEX + "/cliff_cave.png"
 		"boneyard":
 			return CP_TEX + "/cliff_undead.png"
 		"forest":
-			return CP_TEX + "/cliff_forest.png"
+			return GROUND_TEX + "/forest_cliff.png"   # the designer's grass-over-rock strip, 32 px cells (2026-10-29)
 	match world_level:
 		4:
 			return CP_TEX + "/cliff_cursed.png"
 		5:
 			return CP_TEX + "/cliff_undead.png"
 		2:
-			return CP_TEX + "/cliff_desert.png"
+			return GROUND_TEX + "/desert_cliff.png"   # the designer's sand-topped cliff, 32 px cells
 		3:
 			return CP_TEX + "/cliff_undead.png"  # grey barrow rock under the frost palette
 	return CP_TEX + "/cliff_field.png"
@@ -2506,19 +2576,31 @@ func cap_texture_path() -> String:
 
 
 func _make_wall_atlas(pal: Dictionary) -> ImageTexture:
-	var key: String = str(pal.get("name", "")) + "|" + interior_kind + "|" + str(world_level)
+	var key: String = str(pal.get("name", "")) + "|" + interior_kind + "|" + str(world_level) + "|" + wall_texture_path()
 	if _wall_atlas_cache.has(key):
 		return _wall_atlas_cache[key]
+	# The cliff strip sets the cell size: 16 px pieces for the packs, 32 for
+	# the designer's 64-a-tile ground; the sheets are fitted to match.
+	var strip_path := cliff_strip_path()
+	var strip: Image = null
+	if ResourceLoader.exists(strip_path):
+		var stex: Texture2D = load(strip_path)
+		strip = stex.get_image() if stex else null
 	var n := WALL_CELL
+	if strip != null:
+		n = maxi(WALL_CELL, strip.get_height() / 2)
 	var img := Image.create(n * WALL_ATLAS_CELLS, n, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	var underground := _sheet_image(floor_texture_path())
+	var underground := _fit_sheet(_sheet_image(floor_texture_path()), n * 2)
 	# The cap is the pack's cliff rock, shaded down: a wall mass has to read
 	# as solid from above, and a ground-coloured cap left thin walls looking
 	# like floor the player could not step onto.
-	var cap := _sheet_image(cap_texture_path())
+	var cap := _fit_sheet(_sheet_image(cap_texture_path()), n * 2)
 	var is_rock := interior_kind in ["cave", "sewer", "ratking", "hellgate", "labyrinth"]
-	cap.adjust_bcs(0.55 if is_rock else 0.72, 1.0, 0.85)
+	# The designer's rock is painted dark already: shaded only lightly, it
+	# lands where the pack rock's heavier shading did.
+	var designer_cap := cap_texture_path().begins_with(GROUND_TEX)
+	cap.adjust_bcs((0.85 if designer_cap else 0.55) if is_rock else (0.9 if designer_cap else 0.72), 1.0, 0.85)
 	var floor_b: Color = pal.get("floor_b", Color(0.25, 0.42, 0.2))
 	# Outline colours follow the pack art: a dark line the colour of the
 	# ground's own shadow, then a lit rim.
@@ -2566,11 +2648,6 @@ func _make_wall_atlas(pal: Dictionary) -> ImageTexture:
 				elif d == 1:
 					img.set_pixel(cell * n + px, py, light)
 	# Face pieces straight from the cliff strip.
-	var strip_path := cliff_strip_path()
-	var strip: Image = null
-	if ResourceLoader.exists(strip_path):
-		var tex: Texture2D = load(strip_path)
-		strip = tex.get_image() if tex else null
 	if strip != null:
 		if strip.is_compressed():
 			strip.decompress()
@@ -4352,9 +4429,10 @@ func _build_cave_decorations() -> void:
 			elif near_wall and n < 0.30:
 				# Stalactite hanging from the gloom above (billboard sprite,
 				# drawn tip-down; anchored so its root touches the dark above).
+				# (The designer's spikes, flipped: ~40 pack texels on average.)
 				var hs = 0.5 + _tile_noise(x, z, 77) * 0.7
 				stalactite_items.append({
-					"pos": Vector3(x + 0.5 + jx, 2.9 - 24.0 * 0.03125 * hs, z + 0.5 + jz),
+					"pos": Vector3(x + 0.5 + jx, 2.9 - 40.0 * 0.03125 * hs, z + 0.5 + jz),
 					"scale": hs,
 					"color": pal["wall_a"].lerp(pal["wall_b"], n * 2.0),
 				})
@@ -5189,16 +5267,31 @@ func _set_chest_open_visual(index: int) -> void:
 	var sprite: Sprite3D = chest_nodes[index].get("sprite")
 	if sprite:
 		var design: String = chest_nodes[index].get("design", "wood")
-		sprite.texture = load(_first_prop_variant("chest_%s_open" % design)["path"])
+		_chest_sprite_art(sprite, _first_prop_variant("chest_%s_open" % design))
 
 
-## Chest design from its loot: mythic gear gets the ornate blue chest, rare
-## or legendary gear the red-gold one, everything else plain wood.
+## A chest sprite wearing one of its art variants ({path, w, scale}): its
+## bottom edge on the ground and centred, at the art's own texel size (the
+## designer's chests are 64 texels a tile, scale 0.5) — the open chest is
+## taller than the closed one, so the feet stay put when it swings open.
+static func _chest_sprite_art(sprite: Sprite3D, v: Dictionary) -> void:
+	sprite.texture = load(v["path"])
+	sprite.centered = false
+	sprite.pixel_size = 0.03125 * float(v.get("scale", 1.0))
+	sprite.offset = Vector2(-float(v["w"]) * 0.5, 0.0)
+
+
+## Chest design from its loot (the designer's chests, 2026-10-29): mythic
+## gear gets the ice-crystal chest, legendary gear the red-gold chest under
+## its crest, rare gear (and card packs) the red-gold chest, everything else
+## iron-banded wood.
 func _chest_design(contents: Dictionary) -> String:
 	var item = contents.get("item")
 	if item is ItemData:
 		if int(item.rarity) >= ItemData.Rarity.MYTHIC:
 			return "mythic"
+		if int(item.rarity) >= ItemData.Rarity.LEGENDARY:
+			return "legendary"
 		if int(item.rarity) >= ItemData.Rarity.RARE:
 			return "rare"
 	if contents.get("card_pack") != null:
@@ -5219,12 +5312,11 @@ func _create_chest(grid_pos: Vector2i, starter: bool = false) -> void:
 	var closed := _first_prop_variant("chest_%s_closed" % design)
 	var sprite = Sprite3D.new()
 	sprite.name = "ChestSprite"
-	sprite.texture = load(closed["path"])
+	_chest_sprite_art(sprite, closed)
 	sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sprite.shaded = false
-	sprite.pixel_size = 0.03125  # style guide texel density
 	# Bottom edge of the sprite rests on the ground, matching _add_sprite_decos.
 	sprite.position = Vector3(0, CameraView.SPRITE_LIFT, 0)
 	chest_root.add_child(sprite)
@@ -5661,26 +5753,9 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 	var wp_root = Node3D.new()
 	wp_root.name = "Waypoint_%s" % target
 
-	# Slightly raised dirt mound under the ring, so waypoints read as a
-	# landmark at a glance instead of a flat glow on the ground.
-	var mound := make_waypoint_mound(_pixel_mat(trail_texture_path(), Color(0.62, 0.5, 0.36)))
-	wp_root.add_child(mound)
-
-	# Waypoint visual: chunky pixel rune-ring laid flat on the mound's top,
-	# tinted per destination (master-palette tints, style guide §2).
-	var tint: Color
-	match target:
-		"transport":
-			tint = Color8(0x62, 0xa3, 0xb0)  # TEAL_1
-		"town":
-			tint = Color8(0x3e, 0x67, 0x94)  # SKY_4
-		"next_world":
-			tint = Color8(0x38, 0x98, 0x78)  # TEAL_3
-		"prev_world":
-			tint = Color8(0xd8, 0xd3, 0x96)  # GOLD_2
-		_:
-			tint = Color8(0xb6, 0xc5, 0xc5)  # STEEL_6
-	var pillar := make_waypoint_ring(tint)  # dimmed until discovered
+	# The designer's shrine (2026-10-29; was a rune ring on a dirt mound,
+	# tinted per destination): dim until discovered.
+	var pillar := make_waypoint_shrine(false)
 	wp_root.add_child(pillar)
 
 	# Label
@@ -5690,7 +5765,7 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 	label.font_size = 20
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = Color(1.0, 1.0, 0.8)
-	label.position = Vector3(0, 0.8, 0)
+	label.position = Vector3(0, 0.8, -2.6)   # over the shrine's stones (-z is up the screen)
 	WorldText.crisp(label)
 	wp_root.add_child(label)
 
@@ -5731,6 +5806,19 @@ func get_nearby_waypoint(player_grid: Vector2i) -> int:
 			return i
 	return -1
 
+## The designer's waypoint shrine (2026-10-29): rune circle, raven statues
+## and glowing standing stones, set just behind its tile so a unit on the
+## tile draws in front of it. Dim until discovered.
+const WAYPOINT_DIM := Color(0.5, 0.52, 0.58)
+
+static func make_waypoint_shrine(lit: bool) -> Sprite3D:
+	var shrine := CraftpixProps.make_sprite("waypoint_shrine", 1.0, 0)
+	shrine.name = "Shrine"
+	shrine.position.z -= 0.55
+	shrine.modulate = Color.WHITE if lit else WAYPOINT_DIM
+	return shrine
+
+
 func discover_waypoint(index: int) -> bool:
 	## Marks a waypoint as discovered. Returns true if newly discovered.
 	if index < 0 or index >= waypoint_nodes.size():
@@ -5742,7 +5830,7 @@ func discover_waypoint(index: int) -> bool:
 	# Visual change: the ring lights up to full strength once activated
 	var pillar = waypoint_nodes[index]["pillar_mesh"] as Sprite3D
 	if pillar:
-		pillar.modulate = Color(pillar.modulate.lightened(0.35), 1.0)
+		pillar.modulate = Color.WHITE   # the shrine lights up
 	# Update interact label text
 	var lbl = waypoint_nodes[index]["label_node"] as Label3D
 	if lbl:
@@ -6088,31 +6176,12 @@ func _create_fountain(grid_pos: Vector2i) -> void:
 	var root = Node3D.new()
 	root.name = "Fountain_%d" % fountain_nodes.size()
 
-	# Stone basin (pixel rock texture, like the sewer rubble and cave props).
-	var basin = MeshInstance3D.new()
-	var basin_mesh = CylinderMesh.new()
-	basin_mesh.top_radius = 0.6
-	basin_mesh.bottom_radius = 0.72
-	basin_mesh.height = 0.45
-	basin_mesh.radial_segments = 10
-	basin.mesh = basin_mesh
-	basin.material_override = _pixel_mat(wall_texture_path(), Color(0.78, 0.78, 0.84))
-	basin.position = Vector3(0, 0.225, 0)
-	root.add_child(basin)
-
-	# The water: glows while blessed, dull grey once drunk dry.
-	var water = MeshInstance3D.new()
-	var water_mesh = CylinderMesh.new()
-	water_mesh.top_radius = 0.48
-	water_mesh.bottom_radius = 0.48
-	water_mesh.height = 0.05
-	water_mesh.radial_segments = 10
-	water.mesh = water_mesh
-	water.position = Vector3(0, 0.46, 0)
-	var wmat = StandardMaterial3D.new()
-	wmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	water.material_override = wmat
-	root.add_child(water)
+	# The designer's healing well (2026-10-29; was a stone basin of glowing
+	# water): bright while blessed, greyed once drunk dry.
+	var well := CraftpixProps.make_sprite("well_healing", 1.0, 0)
+	well.name = "Well"
+	well.position.z -= 0.45
+	root.add_child(well)
 
 	var label = Label3D.new()
 	label.name = "FountainLabel"
@@ -6120,7 +6189,7 @@ func _create_fountain(grid_pos: Vector2i) -> void:
 	label.font_size = 20
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = Color(0.8, 0.95, 1.0)
-	label.position = Vector3(0, 1.1, 0)
+	label.position = Vector3(0, 1.1, -2.2)   # over the well's roof
 	WorldText.crisp(label)
 	root.add_child(label)
 
@@ -6145,7 +6214,7 @@ func _create_fountain(grid_pos: Vector2i) -> void:
 		"node": root,
 		"grid_pos": grid_pos,
 		"label_node": interact_label,
-		"water_mesh": water,
+		"water_mesh": well,   # the well sprite (the old basin's water mesh)
 		"blessed": true,
 		"xp_used": false,
 	})
@@ -6174,16 +6243,9 @@ func set_fountain_state(index: int, blessed: bool, xp_used: bool) -> void:
 	_apply_fountain_visual(index)
 
 func _apply_fountain_visual(index: int) -> void:
-	var water: MeshInstance3D = fountain_nodes[index]["water_mesh"]
-	var mat := water.material_override as StandardMaterial3D
-	if fountain_nodes[index]["blessed"]:
-		mat.albedo_color = Color(0.55, 0.85, 1.0)
-		mat.emission_enabled = true
-		mat.emission = Color(0.35, 0.65, 1.0)
-		mat.emission_energy_multiplier = 1.4
-	else:
-		mat.albedo_color = Color(0.32, 0.33, 0.36)
-		mat.emission_enabled = false
+	var well: Sprite3D = fountain_nodes[index]["water_mesh"]
+	# Blessed: the well as painted, its water glowing; drunk dry: greyed.
+	well.modulate = Color.WHITE if fountain_nodes[index]["blessed"] else Color(0.48, 0.5, 0.52)
 
 func get_nearby_fountain(player_grid: Vector2i) -> int:
 	## Index of a fountain within 1 tile of the player, or -1.

@@ -120,15 +120,20 @@ func _run() -> void:
 		for v in CraftpixProps.PROPS[role]["variants"]:
 			_check(str(v["path"]).begins_with("res://assets/textures/props/") and ResourceLoader.exists(v["path"]),
 				"%s is the drawn piece (%s)" % [role, v["path"]])
-	for role in ["goods_sack", "goods_pile", "goods_rack", "goods_table"]:
+	for role in ["goods_rack", "goods_table"]:
 		for v in CraftpixProps.PROPS[role]["variants"]:
 			_check(str(v["path"]).begins_with(CraftpixProps.DIR), "%s is pack art" % role)
+	# The sacks are the designer's coin sacks since 2026-10-29 (tools/cut_prop_boards.py).
+	for role in ["goods_sack", "goods_pile"]:
+		for v in CraftpixProps.PROPS[role]["variants"]:
+			_check(str(v["path"]).begins_with("res://assets/textures/props/boards/") and ResourceLoader.exists(v["path"]),
+				"%s is the designer's sack (%s)" % [role, v["path"]])
 	for v in CraftpixProps.PROPS["goods_rack"]["variants"]:
 		_check(int(v["w"]) >= 44, "a shelf is cut whole (%d px wide)" % int(v["w"]))
 	for v in CraftpixProps.PROPS["goods_table"]["variants"]:
 		_check(int(v["w"]) >= 36 and int(v["h"]) <= 32, "a table is cut whole (%dx%d)" % [int(v["w"]), int(v["h"])])
 
-	# The Dojo master is an NPC-pack sheet.
+	# The Dojo master is the designer's sensei (2026-10-29).
 	main.queue_free()
 	await process_frame
 	var town = load("res://scenes/menus/town.tscn").instantiate()
@@ -138,7 +143,7 @@ func _run() -> void:
 		await process_frame
 	var dojo = town.find_child("Dojo", true, false)
 	var fig = dojo.get_node_or_null("Figure") if dojo else null
-	_check(fig is Sprite3D and fig.texture.resource_path.begins_with("res://assets/sprites/NPCpackage"), "the Dojo master is an NPC-pack sheet")
+	_check(fig is SpriteEnemyFigure and fig.figure_kind == "npc_dojo_master", "the Dojo master is the designer's sensei")
 	_check(not ResourceLoader.exists("res://assets/sprites/generated/npcs/ninja.png"), "the drawn ninja is gone")
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures else 0)

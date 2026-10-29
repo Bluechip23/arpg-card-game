@@ -50,29 +50,29 @@ ROLES = {
     "field_fern": {"scale": 1.0, "src": [f"{G}/Bush12.png", f"{G}/Bush13.png", f"{G}/Bush18.png", f"{F}/Bush8.png", f"{F}/Bush10.png"]},
     "field_flower": {"scale": 1.0, "src": [f"{G}/Flower{i}.png" for i in range(1, 12)]},
     "field_tuft": {"scale": 1.0, "src": [f"{G}/grass_element1.png", f"{G}/grass_element2.png", f"{G}/grass_element3.png", f"{G}/Bush10.png", f"{G}/Bush16.png", f"{G}/Bush19.png"]},
-    "field_shroom": {"scale": 1.0, "src": [f"{F}/Brown_mushroom1.png", f"{F}/Brown_mushroom2.png", f"{F}/Red_mushroom1.png"]},
+    # "field_shroom": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Brown_mushroom1.png", f"{F}/Brown_mushroom2.png", f"{F}/Red_mushroom1.png"]
     "field_pebble": {"scale": 1.0, "src": [f"{G}/ground_element20.png", f"{G}/ground_element21.png", f"{G}/ground_element22.png", f"{G}/ground_element23.png", f"{G}/Rock_grass_element13.png"]},
     "field_ruin": {"scale": 0.8, "src": [f"{G}/Ruin1_grass_shadow.png", f"{G}/Ruin2_grass_shadow.png", f"{G}/Ruin3_grass_shadow.png", f"{G}/Ruin4_grass_shadow.png", f"{G}/Ruin5_grass_shadow.png"]},
     # --- Greenwood (forest pack) ---
-    "forest_tree": {"scale": 1.0, "src": [f"{F}/Tree4.png", f"{F}/Tree7.png", f"{F}/Tree8.png", f"{F}/Tree9.png", f"{F}/Tree10.png", f"{F}/Tree12.png", f"{F}/Tree13.png", f"{F}/Tree14.png"]},
-    "forest_tree_big": {"scale": 0.7, "src": [f"{F}/Tree1.png", f"{F}/Tree2.png", f"{F}/Tree3.png", f"{F}/Tree6.png", f"{F}/Tree11.png"]},
-    "forest_tree_climb": {"scale": 0.75, "src": [f"{F}/Tree5.png"]},
-    "forest_stump": {"scale": 1.0, "src": [f"{F}/Broken_tree2.png", f"{F}/Broken_tree3.png", f"{F}/Broken_tree4.png", f"{F}/Broken_tree5.png"]},
-    "forest_log": {"scale": 1.0, "src": [f"{F}/Broken_tree1.png", f"{F}/Broken_tree6.png"]},
-    "forest_rock": {"scale": 1.0, "src": [f"{F}/Light_stone_grass1.png", f"{F}/Light_stone_grass2.png", f"{F}/Light_stone_grass3.png", f"{F}/Brown_stone_grass1.png", f"{F}/Brown_stone_grass2.png", f"{F}/Beige_stone_grass1.png", f"{F}/Beige_stone_grass4.png", f"{F}/Beige_stone_grass8.png"]},
-    "forest_bush": {"scale": 1.0, "src": [f"{F}/Bush1.png", f"{F}/Bush2.png", f"{F}/Bush3.png", f"{F}/Bush4.png", f"{F}/Bush5.png", f"{F}/Bush11.png", f"{F}/Bush13.png"]},
-    "forest_fern": {"scale": 1.0, "src": [f"{F}/Bush6.png", f"{F}/Bush8.png", f"{F}/Bush10.png", f"{F}/Layer7.png"]},
-    "forest_shroom": {"scale": 1.0, "src": [f"{F}/Brown_mushroom1.png", f"{F}/Brown_mushroom2.png", f"{F}/Red_mushroom1.png", f"{F}/Red_mushroom2.png", f"{F}/Red_mushroom3.png"]},
+    # "forest_tree": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Tree4.png", f"{F}/Tree7.png", f"{F}/Tree8.png", f"{F}/Tree9.png", f"{F}/Tree10.png", f"{F}/Tree12.png", f"{F}/Tree13.png", f"{F}/Tree14.png"]
+    # "forest_tree_big": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Tree1.png", f"{F}/Tree2.png", f"{F}/Tree3.png", f"{F}/Tree6.png", f"{F}/Tree11.png"]
+    # "forest_tree_climb": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Tree5.png"]
+    # "forest_stump": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Broken_tree2.png", f"{F}/Broken_tree3.png", f"{F}/Broken_tree4.png", f"{F}/Broken_tree5.png"]
+    # "forest_log": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Broken_tree1.png", f"{F}/Broken_tree6.png"]
+    # "forest_rock": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Light_stone_grass1.png", f"{F}/Light_stone_grass2.png", f"{F}/Light_stone_grass3.png", f"{F}/Brown_stone_grass1.png", f"{F}/Brown_stone_grass2.png", f"{F}/Beige_stone_grass1.png", f"{F}/Beige_stone_grass4.png", f"{F}/Beige_stone_grass8.png"]
+    # "forest_bush": the designer's own bushes since 2026-10-29 (DESIGNER below); was [f"{F}/Bush1.png", f"{F}/Bush2.png", f"{F}/Bush3.png", f"{F}/Bush4.png", f"{F}/Bush5.png", f"{F}/Bush11.png", f"{F}/Bush13.png"]
+    # "forest_fern": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Bush6.png", f"{F}/Bush8.png", f"{F}/Bush10.png", f"{F}/Layer7.png"]
+    # "forest_shroom": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Brown_mushroom1.png", f"{F}/Brown_mushroom2.png", f"{F}/Red_mushroom1.png", f"{F}/Red_mushroom2.png", f"{F}/Red_mushroom3.png"]
     "forest_reeds": {"scale": 1.0, "src": [f"{F}/reeds1.png", f"{F}/reeds2.png", f"{F}/reeds3.png"]},
     "forest_pebble": {"scale": 1.0, "src": [f"{F}/Beige_stone_ground5.png", f"{F}/Beige_stone_ground6.png", f"{F}/Beige_stone_ground7.png", f"{F}/Beige_stone_ground9.png", f"{F}/Brown_stone_ground5.png"]},
-    "forest_ruin": {"scale": 0.8, "src": [f"{F}/Ruin_grass1.png", f"{F}/Ruin_grass2.png", f"{F}/Ruin_grass3.png", f"{F}/Ruin_grass4.png", f"{F}/Ruin_grass5.png"]},
+    # "forest_ruin": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Ruin_grass1.png", f"{F}/Ruin_grass2.png", f"{F}/Ruin_grass3.png", f"{F}/Ruin_grass4.png", f"{F}/Ruin_grass5.png"]
     # --- Caves ---
-    "cave_stalagmite": {"scale": 1.0, "src": [f"{C}/gray_stalagmites_light_shadow{i}.png" for i in range(1, 6)] + [f"{C}/black_stalagmites_light_shadow{i}.png" for i in (2, 4, 5)]},
-    "cave_rock": {"scale": 1.0, "src": [f"{C}/Walls_elements{i}.png" for i in (1, 2, 6, 10, 11, 16, 17, 18, 19, 20)]},
-    "cave_shroom": {"scale": 1.0, "src": [f"{C}/small_mushrooms_white_light_shadow1.png", f"{C}/small_mushrooms_white_light_shadow2.png", f"{C}/small_mushrooms_gray_light_shadow1.png", f"{C}/small_mushrooms_gray_light_shadow2.png", f"{C}/Slime_musroom_light_shadow2.png", f"{C}/Slime_musroom_light_shadow3.png", f"{C}/Long_mushrooms_light_shadow2.png", f"{C}/Long_mushrooms_light_shadow3.png"]},
-    "cave_crystal": {"scale": 1.0, "src": [f"{C}/{c}_stone_light_shadow{i}.png" for c in ("Blue", "Green", "Red", "Yellow", "Orange") for i in (1, 2, 3)]},
-    "cave_pebble": {"scale": 1.0, "src": [f"{C}/Black_stone_light_shadow3.png", f"{C}/Black_stone_light_shadow4.png", f"{C}/Blue_stone_light_shadow4.png", f"{C}/Green_stone_light_shadow4.png", f"{C}/Walls_elements19.png"]},
-    "cave_web": {"scale": 1.0, "src": [f"{C}/web1.png", f"{C}/web2.png"]},
+    # "cave_stalagmite": the designer's own since 2026-10-29 (DESIGNER below); was [f"{C}/gray_stalagmites_light_shadow{i}.png" for i in range(1, 6)] + [f"{C}/black_stalagmites_light_shadow{i}.png" for i in (2, 4, 5)]
+    # "cave_rock": the designer's own since 2026-10-29 (DESIGNER below); was [f"{C}/Walls_elements{i}.png" for i in (1, 2, 6, 10, 11, 16, 17, 18, 19, 20)]
+    # "cave_shroom": the designer's own since 2026-10-29 (DESIGNER below); was [f"{C}/small_mushrooms_white_light_shadow1.png", f"{C}/small_mushrooms_white_light_shadow2.png", f"{C}/small_mushrooms_gray_light_shadow1.png", f"{C}/small_mushrooms_gray_light_shadow2.png", f"{C}/Slime_musroom_light_shadow2.png", f"{C}/Slime_musroom_light_shadow3.png", f"{C}/Long_mushrooms_light_shadow2.png", f"{C}/Long_mushrooms_light_shadow3.png"]
+    # "cave_crystal": the designer's own since 2026-10-29 (DESIGNER below); was [f"{C}/{c}_stone_light_shadow{i}.png" for c in ("Blue", "Green", "Red", "Yellow", "Orange") for i in (1, 2, 3)]
+    # "cave_pebble": the designer's own since 2026-10-29 (DESIGNER below); was [f"{C}/Black_stone_light_shadow3.png", f"{C}/Black_stone_light_shadow4.png", f"{C}/Blue_stone_light_shadow4.png", f"{C}/Green_stone_light_shadow4.png", f"{C}/Walls_elements19.png"]
+    # "cave_web": the designer's own since 2026-10-29 (DESIGNER below); was [f"{C}/web1.png", f"{C}/web2.png"]
     "cave_gate": {"scale": 0.8, "src": [f"{C}/gates1.png"]},
     # Big cave-wall rock clusters: the flanks of a cave mouth.
     "cave_boulder": {"scale": 1.0, "src": [f"{C}/Walls_elements12.png", f"{C}/Walls_elements13.png", f"{C}/Walls_elements14.png", f"{C}/Walls_elements15.png"]},
@@ -181,20 +181,20 @@ CELLS = {
     # offsets caught halves of two icons each and showed backpacks and gold
     # bars as "crates" and "barrels" (fixed 2026-10-23). No pack has a crate
     # or a barrel: those are BESPOKE below.
-    "goods_sack": {"scale": 1.0, "cells": [(f"{T}/Objects.png", 0, 192, 32, 32)]},
-    "goods_pile": {"scale": 1.0, "cells": [(f"{T}/Objects.png", 0, 192, 32, 32)]},
+    # "goods_sack": the designer's coin sacks since 2026-10-29 (DESIGNER below); was [(f"{T}/Objects.png", 0, 192, 32, 32)]
+    # "goods_pile": the designer's coin sacks since 2026-10-29 (DESIGNER below); was [(f"{T}/Objects.png", 0, 192, 32, 32)]
     # Armoury furniture: shelves are 48 wide in the left column, tables
     # ~42 wide in the right one (measured from the sheet; a 32-wide cut
     # showed half a shelf, or the edges of two tables).
     "goods_rack": {"scale": 1.0, "cells": [(f"{A}/Furniture.png", 0, 64, 49, 64), (f"{A}/Furniture.png", 0, 128, 49, 64), (f"{A}/Furniture.png", 0, 256, 49, 64)]},
     "goods_table": {"scale": 1.0, "cells": [(f"{A}/Furniture.png", 50, 66, 46, 32), (f"{A}/Furniture.png", 50, 162, 46, 32)]},
     # Chests: column = design, row 0 closed, row 2 open with loot.
-    "chest_wood_closed": {"scale": 1.0, "cells": [(f"{T}/chests.png", 0, 0, 32, 32)]},
-    "chest_wood_open": {"scale": 1.0, "cells": [(f"{T}/chests.png", 0, 64, 32, 32)]},
-    "chest_rare_closed": {"scale": 1.0, "cells": [(f"{T}/chests.png", 96, 0, 32, 32)]},
-    "chest_rare_open": {"scale": 1.0, "cells": [(f"{T}/chests.png", 96, 64, 32, 32)]},
-    "chest_mythic_closed": {"scale": 1.0, "cells": [(f"{T}/chests.png", 224, 0, 32, 32)]},
-    "chest_mythic_open": {"scale": 1.0, "cells": [(f"{T}/chests.png", 224, 64, 32, 32)]},
+    # "chest_wood_closed": the designer's since 2026-10-29 (DESIGNER below); was [(f"{T}/chests.png", 0, 0, 32, 32)]
+    # "chest_wood_open": the designer's since 2026-10-29 (DESIGNER below); was [(f"{T}/chests.png", 0, 64, 32, 32)]
+    # "chest_rare_closed": the designer's since 2026-10-29 (DESIGNER below); was [(f"{T}/chests.png", 96, 0, 32, 32)]
+    # "chest_rare_open": the designer's since 2026-10-29 (DESIGNER below); was [(f"{T}/chests.png", 96, 64, 32, 32)]
+    # "chest_mythic_closed": the designer's since 2026-10-29 (DESIGNER below); was [(f"{T}/chests.png", 224, 0, 32, 32)]
+    # "chest_mythic_open": the designer's since 2026-10-29 (DESIGNER below); was [(f"{T}/chests.png", 224, 64, 32, 32)]
     # Glowing-cave totem, 12 animation frames (uncropped so they line up):
     # the waypoint / transport-portal marker.
     "waypoint_totem": {"scale": 1.0, "crop": False, "cells": [("tileset_glowing_cave/Totem_animation.png", c * 96, r * 88, 96, 88) for r in range(2) for c in range(6)]},
@@ -204,33 +204,20 @@ CELLS = {
 # Equipment-slot icons for the inventory UI (32px cells of the icon packs).
 # Written to assets/textures/craftpix/ui/. Picks are (sheet, col, row).
 UI_OUT = "assets/textures/craftpix/ui"
+# (The designer's own icons replace the helm, chest, gauntlets, boots,
+# sword, shield, dagger, axe, hammer, polearm, wand, belt, quiver and ring
+# slots and the loot bag since 2026-10-29: tools/cut_icon_boards.py.)
 UI_ICONS = {
     # Armour/weapon sheet: the icons are packed as big/small pairs, not on a
     # clean 32px grid, so these are pixel boxes (x0, y0, x1, y1) of the big
     # icon, found by connected components (see git history for the survey).
-    "slot_helm": (f"{A}/Icons.png", (457, 39, 470, 56)),
-    "slot_chest": (f"{A}/Icons.png", (359, 7, 376, 24)),
-    "slot_gauntlets": (f"{A}/Icons.png", (194, 18, 206, 30)),
-    "slot_boots": (f"{A}/Icons.png", (120, 7, 134, 24)),
-    "slot_sword": (f"{A}/Icons.png", (311, 199, 328, 216)),
     "slot_bow": (f"{A}/Icons.png", (71, 231, 88, 248)),
-    "slot_shield": (f"{A}/Icons.png", (24, 327, 39, 344)),
-    "slot_dagger": (f"{A}/Icons.png", (311, 231, 328, 248)),
-    "slot_axe": (f"{A}/Icons.png", (167, 295, 184, 312)),
-    "slot_hammer": (f"{A}/Icons.png", (215, 295, 232, 312)),
-    "slot_polearm": (f"{A}/Icons.png", (359, 263, 376, 280)),
     "slot_staff": (f"{A}/Icons.png", (407, 263, 424, 280)),
     "slot_tome": (f"{A}/Icons.png", (314, 327, 326, 344)),
     "slot_orb": (f"{A}/Icons.png", (216, 327, 231, 344)),
-    "slot_wand": (f"{A}/Icons.png", (530, 274, 542, 286)),
-    # Single-file icon packs: (path,) copies the 32px file as is.
-    "slot_belt": ("knight_armor_icons/icon_25_2_01.png",),
-    "slot_quiver": ("weapon_icons/icon_47.png",),
     # Treasure sheet is a clean 32px grid: (col, row).
-    "slot_ring": (f"{T}/Icons.png", 14, 1),
     "icon_key": (f"{T}/Icons.png", 0, 0),
     "icon_coins": (f"{T}/Icons.png", 1, 1),
-    "icon_bag": (f"{T}/Icons.png", 8, 2),
     "icon_crown": (f"{T}/Icons.png", 1, 4),
 }
 
@@ -317,6 +304,65 @@ BESPOKE = {
 }
 
 
+# The designer's own redraws of pack props (tools/cut_prop_boards.py, cut at
+# 64 texels a tile — twice the packs' — so they draw at half scale and keep
+# the world's sizes). A role here replaces the pack role of the same name.
+DESIGNER = {
+    "forest_bush": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_bush_%d.png" % i for i in range(7)]},
+    "forest_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_tree_%d.png" % i for i in range(13)]},
+    "forest_tree_big": {"scale": 0.35, "files": ["assets/textures/props/boards/forest_tree_big_%d.png" % i for i in range(4)]},
+    "forest_tree_climb": {"scale": 0.375, "files": ["assets/textures/props/boards/forest_tree_climb_0.png"]},
+    "forest_stump": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_stump_%d.png" % i for i in range(3)]},
+    "forest_shroom": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_shroom_%d.png" % i for i in range(5)]},
+    # The field grew the same pack mushrooms (the first three): it wears their redraws.
+    "field_shroom": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_shroom_%d.png" % i for i in range(3)]},
+    "forest_ruin": {"scale": 0.4, "files": ["assets/textures/props/boards/forest_ruin_%d.png" % i for i in range(5)]},
+    "forest_log": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_log_%d.png" % i for i in range(2)]},
+    "forest_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_rock_%d.png" % i for i in range(12)]},
+    "goods_sack": {"scale": 0.5, "files": ["assets/textures/props/boards/goods_sack_%d.png" % i for i in range(2)]},
+    "goods_pile": {"scale": 0.5, "files": ["assets/textures/props/boards/goods_sack_%d.png" % i for i in range(2)]},
+    "town_bench": {"scale": 0.5, "files": ["assets/textures/props/boards/town_bench_%d.png" % i for i in range(2)]},
+    "town_shelf": {"scale": 0.5, "files": ["assets/textures/props/boards/town_shelf_%d.png" % i for i in range(3)]},
+    "smith_forge": {"scale": 0.5, "files": ["assets/textures/props/boards/smith_forge_0.png"]},
+    "smith_bellows": {"scale": 0.5, "files": ["assets/textures/props/boards/smith_bellows_0.png"]},
+    "smith_anvil": {"scale": 0.5, "files": ["assets/textures/props/boards/smith_anvil_0.png"]},
+    "smith_molds": {"scale": 0.5, "files": ["assets/textures/props/boards/smith_molds_0.png"]},
+    "smith_table": {"scale": 0.5, "files": ["assets/textures/props/boards/smith_table_0.png"]},
+    "smith_coal_box": {"scale": 0.5, "files": ["assets/textures/props/boards/smith_coal_box_0.png"]},
+    "smith_water": {"scale": 0.5, "files": ["assets/textures/props/boards/smith_water_0.png"]},
+    "smith_coal_bucket": {"scale": 0.5, "files": ["assets/textures/props/boards/smith_coal_bucket_0.png"]},
+    "smith_stool": {"scale": 0.5, "files": ["assets/textures/props/boards/smith_stool_0.png"]},
+    "smith_sword_rack": {"scale": 0.5, "files": ["assets/textures/props/boards/smith_sword_rack_0.png"]},
+    "smith_logs": {"scale": 0.5, "files": ["assets/textures/props/boards/smith_logs_0.png"]},
+    "smith_grindstone": {"scale": 0.5, "files": ["assets/textures/props/boards/smith_grindstone_0.png"]},
+    "town_scroll_case": {"scale": 0.5, "files": ["assets/textures/props/boards/town_scroll_case_0.png"]},
+    "town_contract_desk": {"scale": 0.5, "files": ["assets/textures/props/boards/town_contract_desk_0.png"]},
+    "town_target_dummy": {"scale": 0.5, "files": ["assets/textures/props/boards/town_target_dummy_%d.png" % i for i in range(2)]},
+    "well_healing": {"scale": 0.5, "files": ["assets/textures/props/boards/well_healing_0.png"]},
+    "waypoint_shrine": {"scale": 0.5, "files": ["assets/textures/props/boards/waypoint_shrine_0.png"]},
+    "chest_wood_closed": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_wood_closed_0.png"]},
+    "chest_wood_open": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_wood_open_0.png"]},
+    "chest_rare_closed": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_rare_closed_0.png"]},
+    "chest_rare_open": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_rare_open_0.png"]},
+    "chest_legendary_closed": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_legendary_closed_0.png"]},
+    "chest_legendary_open": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_legendary_open_0.png"]},
+    "chest_mythic_closed": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_mythic_closed_0.png"]},
+    "chest_mythic_open": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_mythic_open_0.png"]},
+    "town_card_shelf": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_shelf_0.png"]},
+    "town_card_table": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_table_0.png"]},
+    "town_card_players": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_players_0.png"]},
+    "cave_crystal": {"scale": 0.5, "files": ["assets/textures/props/boards/cave_crystal_%d.png" % i for i in range(15)]},
+    "cave_stalagmite": {"scale": 0.5, "files": ["assets/textures/props/boards/cave_stalagmite_%d.png" % i for i in range(17)]},
+    "cave_stalactite": {"scale": 0.5, "files": ["assets/textures/props/boards/cave_stalactite_%d.png" % i for i in range(8)]},
+    "cave_shroom": {"scale": 0.5, "files": ["assets/textures/props/boards/cave_shroom_%d.png" % i for i in range(14)]},
+    "cave_web": {"scale": 0.5, "files": ["assets/textures/props/boards/cave_web_%d.png" % i for i in range(5)]},
+    "cave_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/cave_rock_%d.png" % i for i in range(9)]},
+    "cave_pebble": {"scale": 0.5, "files": ["assets/textures/props/boards/cave_pebble_%d.png" % i for i in range(5)]},
+    "forest_fern": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_fern_%d.png" % i for i in range(3)]},
+}
+DESIGNER_DENSITY = 64   # texels a tile of the DESIGNER art (the packs': 32)
+
+
 def crop_bbox(img):
     bb = img.getbbox()
     return img.crop(bb) if bb else img
@@ -359,19 +405,24 @@ def main():
             img.save(os.path.join(OUT, name))
             variants.append((name, img.width, img.height))
         manifest[role] = (cfg["scale"], variants)
-    for role, cfg in BESPOKE.items():
+    density = {}
+    for role, cfg in list(DESIGNER.items()) + list(BESPOKE.items()):
         variants = []
         for rel in cfg["files"]:
             img = Image.open(rel)
             variants.append(("res://" + rel, img.width, img.height))
         manifest[role] = (cfg["scale"], variants)
+        if role in DESIGNER:
+            density[role] = DESIGNER_DENSITY
 
     lines = [
         "class_name CraftpixProps",
         "extends RefCounted",
         "",
         "## GENERATED by tools/build_craftpix_props.py — do not edit by hand.",
-        "## role -> {scale: base scale, variants: [{path, w, h}]}; sizes in texels.",
+        "## role -> {scale: base scale, variants: [{path, w, h}], density?}; sizes in",
+        "## texels, 32 a tile unless the role gives its density (the designer's own",
+        "## art, tools/cut_prop_boards.py: 64 a tile, drawn at half scale).",
         "## The sprites live in assets/textures/craftpix/props/ (cropped pack art);",
         "## the few bespoke ones (no pack has the thing) carry a full res:// path.",
         "",
@@ -381,7 +432,8 @@ def main():
     ]
     for role, (scale, variants) in manifest.items():
         vs = ", ".join(('{"path": "%s", "w": %d, "h": %d}' if v[0].startswith("res://") else '{"path": DIR + "%s", "w": %d, "h": %d}') % v for v in variants)
-        lines.append('\t"%s": {"scale": %.2f, "variants": [%s]},' % (role, scale, vs))
+        extra = ', "density": %d' % density[role] if role in density else ""
+        lines.append('\t"%s": {"scale": %.2f, "variants": [%s]%s},' % (role, scale, vs, extra))
     lines += ["}", "", ""] + MANIFEST_HELPERS.splitlines() + [""]
     with open(MANIFEST, "w") as f:
         f.write("\n".join(lines))

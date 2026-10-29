@@ -14959,7 +14959,9 @@ func _create_obstacle_box(pos: Vector3, health: int) -> Dictionary:
 	var marker := Node3D.new()
 	marker.name = "Barricade"
 	marker.position = Vector3(pos.x, 0.0, pos.z)
-	marker.add_child(CraftpixProps.make_sprite("forest_log", 34.0 / 81.0, 0))
+	var log_cfg: Dictionary = CraftpixProps.PROPS["forest_log"]
+	var log_w: float = float(log_cfg["variants"][0]["w"]) * float(log_cfg["scale"])   # in pack texels
+	marker.add_child(CraftpixProps.make_sprite("forest_log", 34.0 / log_w, 0))   # 34 texels across
 	add_child(marker)
 
 	var label := Label3D.new()
@@ -15566,7 +15568,7 @@ func _spawn_loot_drop(loot: Dictionary, pos: Vector3) -> void:
 	# melee finish on their own cell), scoop it up immediately.
 	_check_loot_pickup()
 
-const LOOT_BAG_TEXTURE := "res://assets/textures/craftpix/ui/icon_bag.png"
+const LOOT_BAG_TEXTURE := "res://assets/textures/ui_icons/icon_bag.png"   # the designer's (tools/cut_icon_boards.py), 64 texels
 
 func _build_loot_visual(drop: Node3D, loot: Dictionary) -> void:
 	## One money bag marks every drop — the sign that an enemy left loot —
@@ -15588,7 +15590,8 @@ func _build_loot_visual(drop: Node3D, loot: Dictionary) -> void:
 	tw.parallel().tween_property(drop, "position:y", drop.position.y, 0.5).set_trans(Tween.TRANS_SINE)
 	drop.set_meta("bob_tween", tw)
 
-## The pack's money-bag icon as a ground billboard (32 texels, one tile wide).
+## The designer's loot bag as a ground billboard, one tile wide whatever its
+## texel size (64 texels, so half the world's texel).
 func _money_bag_sprite() -> Sprite3D:
 	var sprite := Sprite3D.new()
 	sprite.texture = load(LOOT_BAG_TEXTURE)
@@ -15596,9 +15599,10 @@ func _money_bag_sprite() -> Sprite3D:
 	sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	sprite.shaded = false
-	sprite.pixel_size = CameraView.PIXEL_SIZE
+	var w: float = float(sprite.texture.get_width())
+	sprite.pixel_size = CameraView.PIXEL_SIZE * 32.0 / w
 	sprite.centered = false
-	sprite.offset = Vector2(-16.0, 0.0)
+	sprite.offset = Vector2(-w * 0.5, 0.0)
 	sprite.position = Vector3(0, CameraView.SPRITE_LIFT, 0)
 	return sprite
 
@@ -16391,7 +16395,7 @@ func _build_ground_plane() -> void:
 	# heavier cast than our darker generated sheets to sink into the void
 	# (the backdrop must sit close to the fog of war, never outshine the arena).
 	var far_dim := Color(0.55, 0.55, 0.55)
-	if tex_path.begins_with(dungeon_manager.CP_TEX):
+	if DungeonManager.is_colour_authored(tex_path):
 		far_dim = Color(0.3, 0.3, 0.3)
 	mat.albedo_color = far_dim.lerp(ground_cast, 0.35)
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL

@@ -1050,6 +1050,20 @@ BOARDS = {
             "left": ("mirror", "right"),
         },
     },
+    "npc_dojo_master": {
+        # 2026-10-29: the Dojo master — an old bald sensei with a long white
+        # beard and topknot, in a dark robe with a red sash — four poses on
+        # black beside two target dummies: front and back on top, then the
+        # pose facing right and the pose facing left.
+        "src": "dojo_master_board.webp", "bg": "grabcut", "tiles": 1.75,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "Idle": {
+            "front": (992, 38, 1232, 510),
+            "back": (1296, 38, 1529, 510),
+            "right": (1024, 522, 1172, 978),
+            "left": (1318, 522, 1465, 978),
+        },
+    },
     "npc_card_dealer": {
         # 2026-10-28: the town's Card Dealer — a dandy in a feathered tricorn
         # and a gold-trimmed black frock coat, cards fanned in one hand —

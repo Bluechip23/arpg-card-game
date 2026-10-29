@@ -31,18 +31,16 @@ func _run() -> void:
 	var ui = main.get_node("UI")
 	var dm = main.dungeon_manager
 
-	# --- 1. Waypoints: the pixel rune-ring on a visible mound; the portal a torus.
-	# (The sim boots in the dojo, which has no waypoints: the pieces every
-	# waypoint is built from are checked, then the portal in place.)
-	var ring := DungeonManager.make_waypoint_ring(Color8(0x62, 0xa3, 0xb0))
-	_check(ring is Sprite3D and ring.texture != null and ring.texture.resource_path.ends_with("waypoint_ring.png")
-		and ring.rotation_degrees.x == -90.0, "a waypoint is the pixel rune-ring laid flat, not the totem")
-	_check(ring.modulate.a < 1.0, "dim until discovered (alpha %.2f)" % ring.modulate.a)
-	var mound := DungeonManager.make_waypoint_mound(StandardMaterial3D.new())
-	_check(mound.visible and mound.mesh is CylinderMesh and is_equal_approx(mound.mesh.height, DungeonManager.WAYPOINT_MOUND_HEIGHT),
-		"on a visible dirt mound")
-	ring.free()
-	mound.free()
+	# --- 1. Waypoints: the designer's shrine (2026-10-29; was a rune ring on a
+	# mound), dim until discovered; the portal a torus. (The sim boots in the
+	# dojo, which has no waypoints: the piece every waypoint is built from is
+	# checked, then the portal in place.)
+	var shrine := DungeonManager.make_waypoint_shrine(false)
+	_check(shrine is Sprite3D and shrine.texture != null and shrine.texture.resource_path.ends_with("waypoint_shrine_0.png"),
+		"a waypoint is the designer's shrine")
+	_check(shrine.modulate.r < 1.0, "dim until discovered (%.2f)" % shrine.modulate.r)
+	_check(DungeonManager.make_waypoint_shrine(true).modulate == Color.WHITE, "lit once discovered")
+	shrine.free()
 	var dm_probe := DungeonManager.new()
 	_check(not dm_probe.has_method("make_waypoint_totem"), "the totem builder is gone")
 	dm_probe.free()

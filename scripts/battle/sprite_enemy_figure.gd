@@ -172,6 +172,7 @@ const KINDS := {
 	# --- townsfolk (town.gd): the designer's NPC sheets, four standing poses ---
 	"olorin": {"sheets": SHEETS + "/olorin", "scale": BOARD_SCALE},  # the designer's board, with his bear (tools/cut_pose_boards.py, 2026-10-28)
 	"npc_armory": {"sheets": SHEETS + "/npc_armory", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-28
+	"npc_dojo_master": {"sheets": SHEETS + "/npc_dojo_master", "scale": BOARD_SCALE},  # the designer's sensei (tools/cut_pose_boards.py, 2026-10-29); was the NPC pack's old man
 	"npc_card_dealer": {"sheets": SHEETS + "/npc_card_dealer", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-28
 	"npc_sellsword": {"sheets": SHEETS + "/npc_sellsword", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-27
 	"npc_blacksmith": {"sheets": SHEETS + "/npc_blacksmith", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-27

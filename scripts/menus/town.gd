@@ -2412,8 +2412,8 @@ func _unify_town_style() -> void:
 	var ground := get_node_or_null("GroundPlane") as MeshInstance3D
 	if ground:
 		var gmat := StandardMaterial3D.new()
-		gmat.albedo_color = Color(0.85, 0.78, 0.68)  # warm packed-earth cast
-		gmat.albedo_texture = load("res://assets/textures/craftpix/floor_dirt_field.png")  # packed earth from the field pack
+		gmat.albedo_color = Color(1, 1, 1)
+		gmat.albedo_texture = load(TOWN_PLAZA_TEX)  # the designer's grass, like the fields around (2026-10-29); was packed earth
 		gmat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		gmat.uv1_triplanar = true
 		gmat.uv1_scale = Vector3(0.25, 0.25, 0.25)
@@ -2421,9 +2421,12 @@ func _unify_town_style() -> void:
 		ground.set_surface_override_material(0, gmat)
 	_dress_countryside()
 
-## The plaza sits in the field biome: the same grass fill as World 1 under
-## and around it, with the field pack's trees, bushes, rocks and flowers
+## The plaza sits in the designer's Greenwood (2026-10-29): its grass under
+## and around it, and its trees, bushes, rocks, ferns, mushrooms and ruins
 ## scattered outside the cobbles so the town stops floating in a void.
+## (Was the field pack's grass, trees, flowers and tufts.)
+const TOWN_PLAZA_TEX := "res://assets/textures/ground/forest_grass.png"   # all grass, no dirt (designer, 2026-10-29)
+const TOWN_GRASS_TEX := "res://assets/textures/ground/forest_grass.png"
 func _dress_countryside() -> void:
 	var root := Node3D.new()
 	root.name = "Countryside"
@@ -2433,8 +2436,8 @@ func _dress_countryside() -> void:
 	gm.size = Vector2(72, 52)
 	grass.mesh = gm
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.92, 0.95, 0.85)
-	mat.albedo_texture = load("res://assets/textures/craftpix/floor_grass_field.png")
+	mat.albedo_color = Color(1, 1, 1)
+	mat.albedo_texture = load(TOWN_GRASS_TEX)
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mat.uv1_triplanar = true
 	mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
@@ -2448,9 +2451,9 @@ func _dress_countryside() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7311
 	var roles := [
-		["field_tree", 0.28], ["field_tree_small", 0.16], ["field_tree_fruit", 0.06],
-		["field_bush", 0.16], ["field_rock", 0.1], ["field_flower", 0.12],
-		["field_tuft", 0.08], ["field_shroom", 0.03], ["field_ruin", 0.01],
+		["forest_tree", 0.4], ["forest_tree_big", 0.08], ["forest_stump", 0.04],
+		["forest_bush", 0.18], ["forest_rock", 0.1], ["forest_fern", 0.14],
+		["forest_shroom", 0.04], ["forest_ruin", 0.02],
 	]
 	var placed: Array = []
 	for _i in range(260):
@@ -2563,13 +2566,12 @@ func _dress_town() -> void:
 	add_child(dressing)
 	for lamp_pos in [Vector3(1.2, 0, 1.2), Vector3(18.8, 0, 10.8), Vector3(1.2, 0, 10.8)]:
 		_build_lamp(dressing, lamp_pos)
-	# Barrels beside the blacksmith, crates by the armory — the pack's props.
-	for spec in [["goods_barrel", 0, Vector3(2.6, 0, 3.4)], ["goods_barrel", 1, Vector3(3.2, 0, 4.0)],
-			["goods_crate", 0, Vector3(9.4, 0, 2.2)], ["goods_crate", 1, Vector3(10.0, 0, 2.5)]]:
-		var prop := CraftpixProps.make_sprite(spec[0], 1.0, spec[1])
-		if prop:
-			prop.position += spec[2]
-			dressing.add_child(prop)
+	# (The barrels by the Blacksmith and the crates by the Armory are gone,
+	# designer 2026-10-29.) The armorer's bench stands by the Dojo master.
+	var bench := CraftpixProps.make_sprite("town_bench", 1.0, 1)
+	if bench:
+		bench.position += grid_manager.grid_to_world(Vector2i(18, 9)) + Vector3(-1.6, 0, 0.2)
+		dressing.add_child(bench)
 
 
 ## Keep the plaza under the characters (CameraView): every building, stall,
@@ -2593,50 +2595,60 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 	var stall := Node3D.new()
 	stall.name = "Stall"
 	vendor.add_child(stall)
-	# The pack's market props instead of primitive boxes: a goods table is
-	# every vendor's counter (tinted in the shop's colour), and each trade
-	# gets its own display beside it.
-	var table := CraftpixProps.make_sprite("goods_table", 1.0, 0 if vn in ["Blacksmith", "CardDealer"] else 1)
-	if table:
-		table.position += Vector3(0, 0, 0.55)
-		table.modulate = Color(1, 1, 1).lerp(awning, 0.25)
-		stall.add_child(table)
+	# The designer's town stalls (2026-10-29, tools/cut_prop_boards.py): each
+	# trade's own counter in front of its keeper, its goods on shelves behind
+	# or beside. The Armory's display is its three weapon and armour shelves.
+	# (awning: the shop's colour, kept for the callers.)
 	match vn:
 		"Blacksmith":
-			# The designer's Blacksmith stands behind his counter (his NPC
-			# sheet's four standing poses), turning to face a nearby player.
+			# The designer's smithy (2026-10-29, blacksmith_forge_board): the
+			# forge up behind him to his left, clear of him, its bellows on its
+			# right and the coal box on its left; the sword rack at his left.
+			# His two tables stand in front of him side by side (the old anvil
+			# bench and the new workbench, with its stool); the grindstone sits
+			# up and right of him with the anvil on its right, the water bucket
+			# by the anvil and the mold rack behind them.
+			_stall_prop(stall, "smith_forge", 0, Vector3(-3.0, 0, -2.0))
+			_stall_prop(stall, "smith_bellows", 0, Vector3(-1.35, 0, -1.65))
+			_stall_prop(stall, "smith_coal_box", 0, Vector3(-4.6, 0, -1.75))
+			_stall_prop(stall, "smith_molds", 0, Vector3(1.45, 0, -0.85))
+			_stall_prop(stall, "smith_sword_rack", 0, Vector3(-1.3, 0, -0.25))
+			# The designer's Blacksmith (his NPC sheet's four standing poses),
+			# turning to face a nearby player.
 			_add_stall_keeper(stall, "npc_blacksmith", "Smith")
-			var barrel := CraftpixProps.make_sprite("goods_barrel", 1.0, 0)
-			if barrel:
-				barrel.position += Vector3(-1.1, 0, 0.5)
-				stall.add_child(barrel)
-			var pile := CraftpixProps.make_sprite("goods_pile", 1.0, 0)
-			if pile:
-				pile.position += Vector3(1.1, 0, 0.6)
-				stall.add_child(pile)
+			_stall_prop(stall, "smith_grindstone", 0, Vector3(0.95, 0, 0.05))
+			_stall_prop(stall, "smith_anvil", 0, Vector3(1.9, 0, 0.1))
+			_stall_prop(stall, "smith_water", 0, Vector3(2.7, 0, 0.35))
+			_stall_prop(stall, "town_bench", 0, Vector3(-0.9, 0, 1.15))
+			_stall_prop(stall, "smith_table", 0, Vector3(1.0, 0, 1.15))
+			_stall_prop(stall, "smith_stool", 0, Vector3(1.0, 0, 1.65))
 		"Armory":
 			_add_stall_keeper(stall, "npc_armory", "Keeper")
-			# The pack's shelves are a tile and a half wide: they stand clear of the counter.
-			var rack := CraftpixProps.make_sprite("goods_rack", 1.0, 0)
-			if rack:
-				rack.position += Vector3(-1.7, 0, 0.1)
-				stall.add_child(rack)
-			var rack2 := CraftpixProps.make_sprite("goods_rack", 1.0, 1)
-			if rack2:
-				rack2.position += Vector3(1.7, 0, 0.1)
-				stall.add_child(rack2)
+			# Weapon and armour shelves, a tile and a half wide, either side of
+			# her, and the one with the trident and breastplate behind her.
+			_stall_prop(stall, "town_shelf", 2, Vector3(0, 0, -1.05))
+			_stall_prop(stall, "town_shelf", 0, Vector3(-1.75, 0, -0.2))
+			_stall_prop(stall, "town_shelf", 1, Vector3(1.75, 0, -0.2))
 		"CardDealer":
+			# The card shelf behind the Dealer, the card table in front of him,
+			# and two players at their game beside him (on his left: the
+			# Accessory Shop is close on his right).
+			_stall_prop(stall, "town_card_shelf", 0, Vector3(0, 0, -1.05))
 			_add_stall_keeper(stall, "npc_card_dealer", "Dealer")
-			var crate := CraftpixProps.make_sprite("goods_crate", 1.0, 1)
-			if crate:
-				crate.position += Vector3(1.1, 0, 0.5)
-				stall.add_child(crate)
+			_stall_prop(stall, "town_card_table", 0, Vector3(0, 0, 0.6))
+			_stall_prop(stall, "town_card_players", 0, Vector3(-2.15, 0, 0.1))
 		"AccessoryShop":
-			var sack := CraftpixProps.make_sprite("goods_sack", 1.0, 2)
-			if sack:
-				sack.position += Vector3(-1.1, 0, 0.5)
-				stall.add_child(sack)
+			# (Its shelf went behind the Armory keeper and its bench to the
+			# Dojo master, designer 2026-10-29.)
+			_stall_prop(stall, "goods_sack", 1, Vector3(0, 0, 0.5))
 	return
+
+## One prop sprite (CraftpixProps role, variant `k`) placed in a stall.
+func _stall_prop(stall: Node3D, role: String, k: int, at: Vector3) -> void:
+	var prop := CraftpixProps.make_sprite(role, 1.0, k)
+	if prop:
+		prop.position += at
+		stall.add_child(prop)
 
 ## A shopkeeper behind the counter (the designer's NPC sheets, 2026-10-27/28):
 ## the Blacksmith, the Armory keeper, the Card Dealer. They turn to look at a
@@ -2650,20 +2662,24 @@ func _add_stall_keeper(stall: Node3D, kind: String, node_name: String) -> void:
 	k.scale = Vector3.ONE * TOWN_NPC_SCALE
 	_townsfolk.append(k)
 
+## The stash: the designer's vault door set into the plaza, leading down
+## into the ground (2026-10-29; tools/cut_prop_boards.py town_stash_vault).
+## It lies flat, a hair above the cobbles, stretched along the depth so the
+## plan camera's foreshortening shows it as drawn; 64 texels a tile.
+const STASH_VAULT_TEX := "res://assets/textures/props/boards/town_stash_vault_0.png"
+
 func _build_stash_chest(stash: Node3D) -> void:
-	# Same 16-bit chest billboard the dungeons use, scaled up for the stash.
-	var chest := Sprite3D.new()
-	chest.name = "Chest"
-	chest.texture = load(CraftpixProps.PROPS["chest_wood_closed"]["variants"][0]["path"])
-	chest.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	chest.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
-	chest.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	chest.shaded = false
-	chest.pixel_size = 0.03125
-	var s := 1.4
-	chest.scale = Vector3(s, s, s)
-	CameraView.stand_on_ground(chest)
-	stash.add_child(chest)
+	var vault := Sprite3D.new()
+	vault.name = "Vault"
+	vault.texture = load(STASH_VAULT_TEX)
+	vault.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	vault.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	vault.shaded = false
+	vault.pixel_size = 1.0 / 64.0
+	vault.rotation_degrees = Vector3(-90, 0, 0)   # face up, lying on the ground
+	vault.scale = Vector3(1.0, 1.0 / CameraView.ground_foreshortening(), 1.0)
+	vault.position = Vector3(0, 0.012, 0)
+	stash.add_child(vault)
 
 
 func _build_lamp(parent: Node3D, pos: Vector3) -> void:
@@ -2739,7 +2755,7 @@ func _create_sellsword_npc() -> void:
 	## player did not choose for Player 1.
 	var sellsword = StaticBody3D.new()
 	sellsword.name = "Sellsword"
-	sellsword.position = grid_manager.grid_to_world(Vector2i(18, 3))
+	sellsword.position = grid_manager.grid_to_world(Vector2i(18, 6))   # moved down from (18, 3) (designer, 2026-10-29)
 
 	# The designer's Sellsword (her NPC sheet's four standing poses); she
 	# turns to face the player who comes near (_face_townsfolk).
@@ -2749,6 +2765,15 @@ func _create_sellsword_npc() -> void:
 	fig.setup("npc_sellsword")   # brings its own blob shadow
 	fig.scale = Vector3.ONE * TOWN_NPC_SCALE
 	_townsfolk.append(fig)
+	# Her scroll case of contracts behind her and her desk in front (the
+	# designer's, 2026-10-29).
+	# Two target dummies flank the scroll case.
+	for spec in [["town_scroll_case", 0, Vector3(0, 0, -1.0)], ["town_contract_desk", 0, Vector3(0, 0, 0.85)],
+			["town_target_dummy", 0, Vector3(-1.75, 0, -0.95)], ["town_target_dummy", 1, Vector3(1.75, 0, -0.95)]]:
+		var prop := CraftpixProps.make_sprite(spec[0], 1.0, spec[1])
+		if prop:
+			prop.position += spec[2]
+			sellsword.add_child(prop)
 
 	var collision = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
@@ -2867,29 +2892,9 @@ func _create_town_waypoint() -> void:
 	_town_waypoint_node = Node3D.new()
 	_town_waypoint_node.name = "TransportPortal"
 
-	# Slightly raised dirt mound so the portal reads as a landmark (matches
-	# the dungeon waypoints).
-	var mound = MeshInstance3D.new()
-	var mound_mesh = CylinderMesh.new()
-	mound_mesh.top_radius = 0.68
-	mound_mesh.bottom_radius = 0.95
-	mound_mesh.height = DungeonManager.WAYPOINT_MOUND_HEIGHT
-	mound_mesh.radial_segments = 12
-	mound.mesh = mound_mesh
-	var mound_mat = StandardMaterial3D.new()
-	mound_mat.albedo_texture = load("res://assets/textures/craftpix/floor_dirt_field.png")
-	mound_mat.albedo_color = Color(1, 1, 1).lerp(Color(0.62, 0.5, 0.36), 0.5)
-	mound_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	mound_mat.uv1_triplanar = true
-	mound_mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
-	mound_mat.roughness = 1.0
-	mound.material_override = mound_mat
-	mound.position = Vector3(0, DungeonManager.WAYPOINT_MOUND_HEIGHT * 0.5, 0)
-	_town_waypoint_node.add_child(mound)
-
-	# Pixel rune-ring on the mound's top, matching the dungeon waypoints
-	# (teal = transport; town's is always lit).
-	var pillar := DungeonManager.make_waypoint_ring(Color8(0x62, 0xa3, 0xb0), 1.0)
+	# The designer's waypoint shrine, like the dungeon waypoints (2026-10-29;
+	# was a rune ring on a dirt mound). Lit once the world is open.
+	var pillar := DungeonManager.make_waypoint_shrine(true)
 	pillar.name = "Runes"
 	_town_waypoint_node.add_child(pillar)
 
@@ -2917,7 +2922,7 @@ func _create_town_waypoint() -> void:
 
 	# Position near the town entrance area, centred on its tile so the
 	# player stands squarely on the mound when they walk onto it.
-	_town_waypoint_node.position = grid_manager.grid_to_world(Vector2i(4, 10))
+	_town_waypoint_node.position = grid_manager.grid_to_world(Vector2i(7, 10))   # clear of the smithy (2026-10-29; was (4, 10))
 	add_child(_town_waypoint_node)
 	print("[TOWN] Created transport portal")
 
@@ -3080,32 +3085,11 @@ func _create_town_well() -> void:
 	var well = StaticBody3D.new()
 	well.name = "TownWell"
 	well.position = grid_manager.grid_to_world(Vector2i(8, 4))
-	var ring = MeshInstance3D.new()
-	var rm = CylinderMesh.new()
-	rm.top_radius = 0.55
-	rm.bottom_radius = 0.6
-	rm.height = 0.7
-	rm.radial_segments = 10
-	ring.mesh = rm
-	var rmat = StandardMaterial3D.new()
-	rmat.albedo_texture = load("res://assets/textures/craftpix/wall_field.png")
-	rmat.albedo_color = Color(0.8, 0.8, 0.85)
-	rmat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	ring.material_override = rmat
-	ring.position = Vector3(0, 0.35, 0)
-	well.add_child(ring)
-	var water = MeshInstance3D.new()
-	var wm = CylinderMesh.new()
-	wm.top_radius = 0.42
-	wm.bottom_radius = 0.42
-	wm.height = 0.05
-	water.mesh = wm
+	# The designer's healing well (2026-10-29; was a stone ring of grey
+	# water): greyed until Holy Water blesses it.
+	var water := CraftpixProps.make_sprite("well_healing", 1.0, 0)
 	water.name = "Water"
-	var wmat = StandardMaterial3D.new()
-	wmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	wmat.albedo_color = Color(0.3, 0.32, 0.36)
-	water.material_override = wmat
-	water.position = Vector3(0, 0.7, 0)
+	water.position.z -= 0.45
 	well.add_child(water)
 	var collision = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
@@ -3118,7 +3102,7 @@ func _create_town_well() -> void:
 	label.font_size = 20
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = Color(0.8, 0.95, 1.0)
-	label.position = Vector3(0, 1.4, 0)
+	label.position = Vector3(0, 1.4, -2.2)   # over the well's roof
 	WorldText.crisp(label)
 	well.add_child(label)
 	$Vendors.add_child(well)
@@ -3128,14 +3112,10 @@ func _refresh_well_visual() -> void:
 	var well = get_node_or_null("Vendors/TownWell")
 	if well == null:
 		return
-	var water = well.get_node_or_null("Water") as MeshInstance3D
-	if water and water.material_override is StandardMaterial3D:
+	var water = well.get_node_or_null("Water") as Sprite3D
+	if water:
 		var blessed: bool = quest_manager != null and quest_manager.has_flag("town_well_blessed")
-		var mat := water.material_override as StandardMaterial3D
-		mat.albedo_color = Color(0.55, 0.85, 1.0) if blessed else Color(0.3, 0.32, 0.36)
-		mat.emission_enabled = blessed
-		mat.emission = Color(0.35, 0.65, 1.0)
-		mat.emission_energy_multiplier = 1.4
+		water.modulate = Color.WHITE if blessed else Color(0.48, 0.5, 0.52)
 
 func _on_accept_quest(quest_id: String) -> void:
 	if quest_manager.accept_quest(quest_id):
@@ -3224,7 +3204,7 @@ func _refresh_leave_gate() -> void:
 	if _town_waypoint_node:
 		var runes = _town_waypoint_node.get_node_or_null("Runes")
 		if runes:
-			runes.modulate = Color8(0x62, 0xa3, 0xb0) if open else Color(0.35, 0.4, 0.42)
+			runes.modulate = Color.WHITE if open else DungeonManager.WAYPOINT_DIM
 
 
 func _town_ground_y(world_pos: Vector3) -> float:
@@ -3427,7 +3407,7 @@ func _create_town_hall_npc() -> void:
 	var body_mesh := BoxMesh.new()
 	body_mesh.size = Vector3(3.2, 1.6, 2.2)
 	body.mesh = body_mesh
-	body.material_override = _town_pixel_mat("res://assets/textures/craftpix/wall_undead.png", Color(0.62, 0.58, 0.52))
+	body.material_override = _town_pixel_mat("res://assets/textures/ground/forest_wall.png", Color(0.95, 0.92, 0.88))   # the designer's mossy cobble (2026-10-29)
 	body.position = Vector3(0, 0.8, 0)
 	hall.add_child(body)
 	var roof := MeshInstance3D.new()
@@ -3437,7 +3417,7 @@ func _create_town_hall_npc() -> void:
 	roof.mesh = roof_mesh
 	# Seen from the plan-view camera a building IS its roof: warm timber
 	# shingles so it reads as a hall, not a dark slab.
-	roof.material_override = _town_pixel_mat("res://assets/textures/craftpix/wall_field.png", Color(0.62, 0.36, 0.2))
+	roof.material_override = _town_pixel_mat("res://assets/textures/ground/forest_wall.png", Color(1.0, 0.9, 0.8))   # the designer's mossy cobble, warmed (2026-10-29)
 	roof.rotation_degrees.y = 90.0
 	roof.position = Vector3(0, 1.6 + 0.4, 0)
 	hall.add_child(roof)
@@ -3779,29 +3759,20 @@ func _refresh_deck_panel() -> void:
 		_deck_list.add_child(row)
 
 func _create_dojo() -> void:
-	## The Dojo's master: the NPC pack's bald old sensei with his cane (the
-	## pack has no ninja) standing on the plaza's
-	## east side. Talking to him steps straight into
-	## the training interior (main.tscn, interior "dojo").
+	## The Dojo's master: the designer's old sensei (2026-10-29; was the
+	## NPC pack's bald old man) standing on the plaza's east side. He turns
+	## to look at a player who comes near. Talking to him steps straight
+	## into the training interior (main.tscn, interior "dojo").
 	var dojo = StaticBody3D.new()
 	dojo.name = "Dojo"
 	dojo.position = grid_manager.grid_to_world(Vector2i(18, 9))
 
-	var fig = Sprite3D.new()
+	var fig := SpriteEnemyFigure.new()
 	fig.name = "Figure"
-	fig.texture = load("res://assets/sprites/NPCpackage1/npc old man B v04.png")
-	fig.region_enabled = true
-	fig.region_rect = Rect2(0, 0, 32, 32)  # south-facing idle frame
-	fig.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	fig.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
-	fig.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	fig.shaded = false
-	fig.pixel_size = 0.03125
-	var master_scale := 1.15
-	fig.scale = Vector3(master_scale, master_scale, master_scale)
-	CameraView.stand_on_ground(fig)  # feet on the ground point: sorts with the player by row
 	dojo.add_child(fig)
-	BlobShadow.attach(dojo, 0.55)
+	fig.setup("npc_dojo_master")   # brings its own blob shadow
+	fig.scale = Vector3.ONE * TOWN_NPC_SCALE
+	_townsfolk.append(fig)
 
 	var collision = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
