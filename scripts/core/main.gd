@@ -2310,7 +2310,7 @@ func _setup_battle_log() -> void:
 	var ui := $UI as CanvasLayer
 
 	# Outer container to hold toggle button + log panel vertically, tucked
-	# directly under the HUD icon bar (which ends at y = 46).
+	# directly under the HUD icon bar (which ends at y = 60).
 	var outer := VBoxContainer.new()
 	outer.name = "BattleLogOuter"
 	ui.add_child(outer)
@@ -2318,9 +2318,9 @@ func _setup_battle_log() -> void:
 	outer.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	outer.grow_vertical = Control.GROW_DIRECTION_END
 	outer.offset_left = -200.0
-	outer.offset_top = 52.0
+	outer.offset_top = 66.0
 	outer.offset_right = -8.0
-	outer.offset_bottom = 292.0
+	outer.offset_bottom = 306.0
 	outer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	# Minimize / expand toggle button
@@ -3370,7 +3370,7 @@ func _setup_hud_icon_bar() -> void:
 	hud_icon_bar.offset_left = -360.0
 	hud_icon_bar.offset_top = 8.0
 	hud_icon_bar.offset_right = -8.0
-	hud_icon_bar.offset_bottom = 46.0
+	hud_icon_bar.offset_bottom = 60.0   # the designer's stone bar is 52 px tall
 	hud_icon_bar.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	hud_icon_bar.alignment = BoxContainer.ALIGNMENT_END
 	hud_icon_bar.character_pressed.connect(func(): character_panel.toggle_panel())
