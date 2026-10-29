@@ -690,9 +690,12 @@ const PROP_ROLES := {
 		"berry": ["undead_bush"], "fern": ["undead_plant"], "flower": ["undead_plant"], "tuft": ["undead_bones"],   # the designer's barrow land (2026-10-29)
 		"shroom": ["undead_skulls"], "pebble": ["undead_bones"], "bones": ["undead_bones"], "reeds": ["forest_reeds"],
 		"wallrock": ["wallrock_dark"]},
-	"cursed": {"tree": ["cursed_tree"], "stump": ["cursed_eye"], "rock": ["cursed_rock", "cursed_eye_rock"],   # the designer's cursed land (2026-10-29)
-		"bush": ["cursed_pod"], "berry": ["hell_pustule"], "fern": ["cursed_plant"], "flower": ["cursed_coral"],
-		"tuft": ["cursed_bones"], "shroom": ["cursed_shroom"], "pebble": ["cursed_bones"], "bones": ["cursed_bones"], "reeds": ["forest_reeds"],
+	# The designer's cursed land and hell (2026-10-29), mixed.
+	"cursed": {"tree": ["cursed_tree", "hell_tree", "hell_spire"], "stump": ["cursed_eye", "hell_eye"],
+		"rock": ["cursed_rock", "cursed_eye_rock", "hell_rock", "hell_horn"], "bush": ["cursed_pod", "hell_bloom", "hell_veins"],
+		"berry": ["hell_pustule", "hell_vent"], "fern": ["cursed_plant", "hell_leaf"], "flower": ["cursed_coral", "hell_leaf"],
+		"tuft": ["cursed_bones", "hell_bones"], "shroom": ["cursed_shroom"], "pebble": ["cursed_bones", "hell_shard", "hell_bones"],
+		"bones": ["cursed_bones", "hell_bones", "hell_post"], "reeds": ["forest_reeds"],
 		"wallrock": ["wallrock_lava"]},
 	"desert": {"tree": ["desert_tree"], "stump": ["desert_tree_dead"], "rock": ["desert_mesa"], "bush": ["desert_bush"],   # (the pack's pale stacked rocks gave way to the designer's mesas, 2026-10-29)
 		"berry": ["desert_cactus"], "fern": ["desert_bush"], "flower": ["desert_flower"], "tuft": ["desert_tuft"],
@@ -2871,15 +2874,20 @@ func _build_boundary_props() -> void:
 ## the edge of the ground, well apart, never on the camera side of the land.
 func _place_hell_landmarks() -> void:
 	var site_tiles = _all_site_footprint_tiles()
+	# The designer's hell (tools/cut_prop_boards.py, 2026-10-29; was the cave
+	# pack's volcanoes and demon head, hand and tail): three animations
+	# [strip, fps] and the still pieces [role, variant] — the horned idol,
+	# the vein arches, the skull-hung fences and the cursed ruins. All at 64
+	# texels a tile.
 	var strips: Array = [
-		["res://assets/textures/craftpix/props/hell_volcano1_strip.png", 52, 50, 1.0],
-		["res://assets/textures/craftpix/props/hell_volcano2_strip.png", 64, 58, 1.0],
-		["res://assets/textures/craftpix/props/hell_demon_head_strip.png", 141, 84, 0.7],
-		["res://assets/textures/craftpix/props/hell_demon_hand_strip.png", 65, 81, 0.8],
-		["res://assets/textures/craftpix/props/hell_demon_tail_strip.png", 55, 97, 0.8],
-		["res://assets/textures/craftpix/props/hell_volcano4_strip.png", 31, 30, 1.0],
+		["res://assets/textures/props/boards/hell_lava_strip.png", 6.0],
+		["res://assets/textures/props/boards/hell_hand_strip.png", 5.0],
+		["res://assets/textures/props/boards/hell_tentacle_strip.png", 5.0],
 	]
-	var RUINS: int = CraftpixProps.PROPS["cursed_ruin"]["variants"].size() if CraftpixProps.has("cursed_ruin") else 0   # the ruins share the draw with the six strips
+	var stills: Array = [["hell_idol", 0], ["hell_arch", 0], ["hell_arch", 1], ["hell_fence", 0], ["hell_fence", 2]]
+	if CraftpixProps.has("cursed_ruin"):
+		for k in range(CraftpixProps.PROPS["cursed_ruin"]["variants"].size()):
+			stills.append(["cursed_ruin", k])
 	var placed: Array = []
 	var count := 0
 	for x in range(GRID_W):
@@ -2898,27 +2906,38 @@ func _place_hell_landmarks() -> void:
 			if too_close:
 				continue
 			var y: float = _max_adjacent_floor_elevation(x, z) * ELEV_STEP + CameraView.SPRITE_LIFT
-			var pick := int(_tile_noise(x, z, 257) * (strips.size() + RUINS)) % (strips.size() + RUINS)
+			var total := strips.size() + stills.size()
+			var pick := int(_tile_noise(x, z, 257) * total) % total
 			if pick >= strips.size():
-				var ruin := _make_prop_sprite("cursed_ruin", 1.0, pick - strips.size())
-				if ruin:
-					ruin.position = Vector3(x + 0.5, y, z + 0.5)
-					_visuals_root.add_child(ruin)
+				var still: Array = stills[pick - strips.size()]
+				var piece := _make_prop_sprite(still[0], 1.0, still[1])
+				if piece:
+					piece.position = Vector3(x + 0.5, y, z + 0.5)
+					_visuals_root.add_child(piece)
 					placed.append(Vector2i(x, z))
 					count += 1
 				continue
 			var spec: Array = strips[pick]
-			var spr := _make_pixel_anim(spec[0], spec[1], spec[2], 5.0)
+			var tex: Texture2D = load(spec[0])
+			var fh := tex.get_height()
+			var fw := _strip_frame_w(spec[0])
+			var spr := _make_pixel_anim(spec[0], fw, fh, spec[1])
 			spr.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 			spr.centered = false
-			spr.offset = Vector2(-float(spec[1]) * 0.5, 0)
-			var sc: float = spec[3]
-			spr.scale = Vector3(sc, sc, sc)
+			spr.offset = Vector2(-float(fw) * 0.5, 0)
+			spr.scale = Vector3(0.5, 0.5, 0.5)   # 64 texels a tile
 			spr.position = Vector3(x + 0.5, y, z + 0.5)
 			_visuals_root.add_child(spr)
 			placed.append(Vector2i(x, z))
 			count += 1
-	print("[DUNGEON] Emberfall: %d volcanoes, idols and ruins on the edge" % count)
+	print("[DUNGEON] Emberfall: %d hands, tentacles, lava pools, idols, arches and ruins on the edge" % count)
+
+## A designer strip's frame width: its frame count is in its name's table
+## (tools/cut_prop_boards.py lays frames in equal cells side by side).
+const STRIP_FRAMES := {"hell_lava_strip.png": 11, "hell_hand_strip.png": 6, "hell_tentacle_strip.png": 6}
+func _strip_frame_w(path: String) -> int:
+	var tex: Texture2D = load(path)
+	return int(tex.get_width() / int(STRIP_FRAMES.get(path.get_file(), 1)))
 
 ## Emberfall's pools: a few in the open ground (flagged water, drawn with
 ## the world's water: lava once, the designer's dark water since 2026-10-29).

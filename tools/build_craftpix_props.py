@@ -136,10 +136,10 @@ ROLES = {
     "wallrock_lava": {"scale": 0.7, "src": [f"{R}/Rock8_{i}_no_shadow.png" for i in range(1, 6)]},
     # --- Hell (World 4): the cave pack's volcanic and demonic pieces join the
     # cursed-land flesh (Emberfall is where both belong).
-    "hell_spire": {"scale": 1.0, "src": [f"{C}/Red_stone_vertical{i}.png" for i in range(1, 5)] + [f"{C}/black_stalagmites_light_shadow{i}.png" for i in range(1, 6)]},
-    "hell_rock": {"scale": 1.0, "src": [f"{C}/Red_stone_light_shadow{i}.png" for i in range(1, 5)] + [f"{X}/Rock2_shadow2_{i}.png" for i in range(1, 6)]},
-    "hell_demon": {"scale": 0.8, "src": [f"{C}/Demon_head_light_shadow_frame1.png", f"{C}/Demon_hand_light_shadow_frame1.png", f"{C}/Demon_tail_light_shadow_frame1.png"]},
-    "hell_volcano": {"scale": 1.0, "src": [f"{C}/Volcano1_light_shadow_frame1.png", f"{C}/Volcano2_light_shadow_frame1.png", f"{C}/Volcano4_light_shadow_frame1.png", f"{C}/Volcano5_light_shadow_frame1.png"]},
+    # "hell_spire": the designer's since 2026-10-29 (DESIGNER below / cut_prop_boards.py hell_*); was [f"{C}/Red_stone_vertical{i}.png" for i in range(1, 5)] + [f"{C}/black_stalagmites_light_shadow{i}.png" for i in range(1, 6)]
+    # "hell_rock": the designer's since 2026-10-29 (DESIGNER below / cut_prop_boards.py hell_*); was [f"{C}/Red_stone_light_shadow{i}.png" for i in range(1, 5)] + [f"{X}/Rock2_shadow2_{i}.png" for i in range(1, 6)]
+    # "hell_demon": the designer's since 2026-10-29 (DESIGNER below / cut_prop_boards.py hell_*); was [f"{C}/Demon_head_light_shadow_frame1.png", f"{C}/Demon_hand_light_shadow_frame1.png", f"{C}/Demon_tail_light_shadow_frame1.png"]
+    # "hell_volcano": the designer's since 2026-10-29 (DESIGNER below / cut_prop_boards.py hell_*); was [f"{C}/Volcano1_light_shadow_frame1.png", f"{C}/Volcano2_light_shadow_frame1.png", f"{C}/Volcano4_light_shadow_frame1.png", f"{C}/Volcano5_light_shadow_frame1.png"]
     # "hell_vent": dropped 2026-10-29 (World 4 is the designer's cursed set); was [f"{C}/Volcano3_light_shadow_frame1.png"]
     # "hell_pustule": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Pustules_shadow1_{i}.png" for i in range(1, 4)]
     # "hell_veins": dropped 2026-10-29 (World 4 is the designer's cursed set); was [f"{X}/Veins_shadow1_{i}.png" for i in range(1, 5)]
@@ -150,12 +150,9 @@ ROLES = {
 # DungeonManager._make_pixel_anim): name -> [frame files], written to
 # assets/textures/props/<name>_strip.png, frames side by side, uncropped.
 STRIPS = {
-    "hell_volcano1": [f"{C}/Volcano1_light_shadow_frame{i}.png" for i in range(1, 7)],
-    "hell_volcano2": [f"{C}/Volcano2_light_shadow_frame{i}.png" for i in range(1, 7)],
-    "hell_volcano4": [f"{C}/Volcano4_light_shadow_frame{i}.png" for i in range(1, 7)],
-    "hell_demon_head": [f"{C}/Demon_head_light_shadow_frame{i}.png" for i in range(1, 7)],
-    "hell_demon_hand": [f"{C}/Demon_hand_light_shadow_frame{i}.png" for i in range(1, 7)],
-    "hell_demon_tail": [f"{C}/Demon_tail_light_shadow_frame{i}.png" for i in range(1, 7)],
+    # (all six — the volcanoes and the demon head, hand and tail — gave way on
+    # 2026-10-29 to the designer's hell boards: tools/cut_prop_boards.py cuts
+    # hell_hand / hell_tentacle / hell_lava_strip.png and the static idol.)
 }
 
 
@@ -360,6 +357,24 @@ DESIGNER = {
     "desert_door": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_door_%d.png" % i for i in range(2)]},
     "desert_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_tree_%d.png" % i for i in range(15)]},
     "desert_tree_dead": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_tree_dead_%d.png" % i for i in range(5)]},
+    # 2026-10-29: the designer's hell (cut_prop_boards.py, hell_* boards).
+    "hell_pustule": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_pustule_%d.png" % i for i in range(7)]},
+    "hell_leaf": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_leaf_%d.png" % i for i in range(4)]},
+    "hell_eye": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_eye_%d.png" % i for i in range(3)]},
+    "hell_idol": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_idol_%d.png" % i for i in range(1)]},
+    "hell_spire": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_spire_%d.png" % i for i in range(5)]},
+    "hell_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_rock_%d.png" % i for i in range(5)]},
+    "hell_bloom": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_bloom_%d.png" % i for i in range(4)]},
+    "hell_shard": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_shard_%d.png" % i for i in range(2)]},
+    "hell_veins": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_veins_%d.png" % i for i in range(5)]},
+    "hell_vent": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_vent_%d.png" % i for i in range(11)]},
+    "hell_horn": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_horn_%d.png" % i for i in range(17)]},
+    "hell_arch": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_arch_%d.png" % i for i in range(2)]},
+    "hell_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_tree_%d.png" % i for i in range(4)]},
+    "hell_fence": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_fence_%d.png" % i for i in range(3)]},
+    "hell_post": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_post_%d.png" % i for i in range(7)]},
+    "hell_bones": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_bones_%d.png" % i for i in range(7)]},
+    "hell_fire": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_fire_%d.png" % i for i in range(1)]},
     # 2026-10-29: the barrow land, World 5 and the Boneyard (cut_prop_boards.py, undead_* boards).
     "undead_bones": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_bones_%d.png" % i for i in range(11)]},
     "undead_bush": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_bush_%d.png" % i for i in range(7)]},
@@ -384,7 +399,6 @@ DESIGNER = {
     "field_sign": {"scale": 0.5, "files": ["assets/textures/props/boards/field_sign_%d.png" % i for i in range(1)]},
     # 2026-10-29: the designer's cursed land, World 4 (cut_prop_boards.py).
     "cursed_plant": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_plant_%d.png" % i for i in range(7)]},
-    "hell_pustule": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_pustule_%d.png" % i for i in range(4)]},
     "cursed_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_rock_%d.png" % i for i in range(4)]},
     "cursed_pod": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_pod_%d.png" % i for i in range(4)]},
     "cursed_eye": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_eye_%d.png" % i for i in range(3)]},

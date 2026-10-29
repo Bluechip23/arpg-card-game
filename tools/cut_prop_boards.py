@@ -30,6 +30,7 @@ from scipy import ndimage as nd
 
 SRC = "assets/sprites/paintings/%s"
 OUT = "assets/textures/props/boards/%s_%d.png"
+STRIP = "assets/textures/props/boards/%s_strip.png"
 BLACK = 10      # brightness (max channel) at or below this is the board's black
 RAMP = 40       # ...and alpha ramps to full over this many levels above it
 SPECK = 40      # pieces of a cut-out smaller than this (source px) are dropped
@@ -411,6 +412,37 @@ BOARDS = {
     "desert_tree": {"src": "desert_trees_board.webp", "main_only": True, "pieces": [((23, 8, 343, 329), 135), ((373, 60, 601, 335), 116), ((614, 139, 771, 337), 83), ((814, 28, 1113, 350), 135), ((1121, 90, 1344, 342), 106), ((1361, 158, 1523, 342), 77), ((23, 336, 358, 663), 137), ((389, 373, 627, 659), 120), ((654, 440, 844, 656), 91), ((28, 669, 360, 1005), 141), ((371, 692, 618, 1001), 130), ((631, 756, 826, 999), 102), ((854, 642, 1125, 997), 149), ((1134, 700, 1359, 996), 124), ((1369, 779, 1522, 985), 87)]},
     "desert_tree_dead": {"src": "desert_dead_trees_board.webp", "main_only": True, "pieces": [((7, 10, 533, 584), 172), ((576, 17, 1096, 569), 166), ((1126, 9, 1511, 805), 239), ((500, 568, 1155, 1001), 130), ((77, 660, 485, 984), 97)]},
     "desert_tuft": {"src": "desert_tufts_board.webp", "main_only": True, "pieces": [((23, 253, 530, 597), 41), ((588, 364, 1109, 597), 28), ((1140, 17, 1510, 639), 75), ((99, 659, 664, 976), 38), ((781, 720, 1425, 976), 31)]},
+    # 2026-10-29: the designer's hell (hell_features / hell_rocks / hell_props
+    # boards, on black) for Emberfall (World 4) beside its cursed set, its
+    # edge landmarks, and Hell's Gate and the Labyrinth (their spires and
+    # rocks). Egg clusters, red crystal-leaf plants, eyeballs on rope; black
+    # stalagmite spires and a red crystal, vein-bound black rocks, red-leafed
+    # pod plants; vein branches, lava vents, lava-veined horns and spikes,
+    # vein arches, skull-hung trees, skull-hung fences, posts and spikes,
+    # bones; and three animations (a clawed hand reaching from the earth, a
+    # fire-tipped tentacle, a lava pool bubbling: hell_*_strip.png) and the
+    # horned demon idol hung with trinkets. ~0.35-0.5 a board px.
+    "hell_pustule": {"hole": 30, "src": "hell_features_board.webp", "main_only": True, "pieces": [((45, 31, 264, 195), 57), ((283, 50, 437, 174), 43), ((471, 80, 594, 176), 34), ((632, 92, 741, 177), 30), ((879, 783, 1113, 980), 69), ((1126, 814, 1317, 967), 54), ((1344, 846, 1473, 952), 37)]},
+    "hell_leaf": {"src": "hell_features_board.webp", "main_only": True, "pieces": [((28, 208, 267, 412), 71), ((275, 244, 467, 412), 59), ((481, 282, 639, 408), 44), ((672, 299, 777, 409), 38)]},
+    "hell_eye": {"src": "hell_features_board.webp", "main_only": True, "pieces": [((28, 737, 393, 977), 84), ((439, 803, 621, 977), 61), ((682, 823, 822, 968), 51)]},
+    "hell_idol": {"src": "hell_features_board.webp", "pieces": [((900, 34, 1488, 420), 130)]},
+    "hell_hand": {"hole": 30, "src": "hell_features_board.webp", "height": 130, "frames": [(62, 440, 194, 722), (185, 440, 317, 722), (300, 440, 432, 722), (426, 440, 558, 722), (547, 440, 679, 722), (674, 440, 806, 722)]},
+    "hell_tentacle": {"hole": 30, "src": "hell_features_board.webp", "height": 150, "frames": [(844, 430, 956, 740), (957, 430, 1069, 740), (1068, 430, 1180, 740), (1180, 430, 1292, 740), (1291, 430, 1403, 740), (1402, 430, 1514, 740)]},
+    "hell_spire": {"src": "hell_rocks_board.webp", "main_only": True, "pieces": [((27, 8, 358, 318), 124), ((386, 28, 639, 331), 121), ((665, 67, 872, 315), 99), ((920, 95, 1100, 315), 88), ((1145, 143, 1302, 317), 70)]},
+    "hell_rock": {"hole": 30, "src": "hell_rocks_board.webp", "main_only": True, "pieces": [((11, 343, 406, 692), 140), ((420, 396, 724, 680), 114), ((746, 454, 1020, 677), 89), ((1063, 483, 1272, 662), 72), ((1341, 527, 1494, 651), 50)]},
+    "hell_bloom": {"src": "hell_rocks_board.webp", "main_only": True, "pieces": [((33, 720, 372, 987), 93), ((414, 732, 738, 964), 81), ((784, 772, 1078, 984), 74), ((1150, 792, 1412, 984), 67)]},
+    "hell_shard": {"src": "hell_rocks_board.webp", "main_only": True, "pieces": [((1371, 174, 1501, 315), 50)], "more": [("hell_props_board.webp", (1447, 369, 1513, 457), 34)]},
+    "hell_veins": {"hole": 30, "src": "hell_props_board.webp", "main_only": True, "pieces": [((13, 14, 352, 316), 90), ((290, 20, 688, 314), 88), ((575, 17, 909, 334), 95), ((893, 41, 1010, 331), 87), ((988, 39, 1126, 308), 81)]},
+    "hell_vent": {"src": "hell_props_board.webp", "main_only": True, "pieces": [((22, 325, 220, 471), 58), ((230, 332, 403, 467), 54), ((411, 334, 580, 459), 50), ((601, 342, 753, 456), 46), ((764, 344, 898, 459), 46), ((909, 364, 1020, 458), 38), ((1034, 369, 1134, 446), 31), ((1146, 389, 1220, 446), 23), ((1233, 368, 1327, 450), 33), ((1337, 407, 1384, 446), 16), ((1395, 408, 1439, 444), 14)]},
+    "hell_lava": {"src": "hell_props_board.webp", "height": 64, "frames": [(446, 462, 545, 562), (545, 462, 646, 562), (646, 462, 746, 562), (746, 462, 843, 562), (843, 462, 938, 562), (938, 462, 1035, 562), (1035, 462, 1132, 562), (1132, 462, 1231, 562), (1231, 462, 1328, 562), (1328, 462, 1425, 562), (1425, 462, 1522, 562)]},
+    "hell_horn": {"src": "hell_props_board.webp", "main_only": True, "pieces": [((13, 479, 226, 742), 131), ((213, 482, 363, 738), 128), ((356, 549, 457, 724), 88), ((454, 574, 570, 732), 79), ((571, 597, 645, 728), 66), ((645, 623, 726, 725), 51), ((725, 635, 803, 732), 49), ((802, 643, 859, 732), 45), ((860, 663, 928, 731), 34),
+                                    ((1293, 564, 1393, 674), 55), ((1396, 569, 1453, 679), 55), ((1446, 570, 1523, 711), 70), ((1156, 703, 1275, 805), 51), ((1258, 717, 1326, 800), 42), ((1318, 684, 1398, 782), 49), ((1400, 708, 1465, 788), 40), ((1469, 735, 1518, 788), 26)]},
+    "hell_arch": {"hole": 30, "src": "hell_props_board.webp", "main_only": True, "pieces": [((919, 565, 1170, 794), 137), ((1144, 565, 1297, 701), 82)]},
+    "hell_tree": {"hole": 30, "src": "hell_props_board.webp", "main_only": True, "pieces": [((13, 745, 109, 980), 115), ((95, 748, 192, 1000), 125), ((185, 748, 283, 1000), 125), ((263, 790, 389, 996), 103)]},
+    "hell_fence": {"hole": 30, "src": "hell_props_board.webp", "main_only": True, "pieces": [((385, 744, 613, 931), 94), ((647, 748, 831, 868), 60), ((625, 870, 848, 999), 65)]},
+    "hell_post": {"src": "hell_props_board.webp", "main_only": True, "pieces": [((1319, 795, 1394, 984), 85), ((1409, 797, 1464, 976), 80), ((1462, 828, 1515, 985), 70), ((836, 748, 901, 857), 49), ((1186, 814, 1232, 902), 40), ((1231, 823, 1312, 916), 42), ((847, 881, 913, 992), 50)]},
+    "hell_bones": {"src": "hell_props_board.webp", "main_only": True, "pieces": [((917, 813, 1003, 889), 30), ((1006, 824, 1119, 904), 32), ((1125, 841, 1183, 897), 22), ((993, 940, 1043, 985), 18), ((1046, 907, 1145, 999), 37), ((1150, 922, 1243, 997), 30), ((1240, 921, 1314, 988), 27)]},
+    "hell_fire": {"src": "hell_props_board.webp", "main_only": True, "pieces": [((911, 893, 995, 1009), 52)]},
     # 2026-10-29: the barrow land's props, World 5 and the Boneyard
     # (undead_bones / graves / ruins / trees boards, on black). Heights keep
     # the pack pieces' sizes (twice their texels, at 64 a tile), so the
@@ -466,7 +498,7 @@ BOARDS = {
     # plant, meat flower, jaws plant, three-eyed crawler). One scale a board
     # (~0.4 a board px; the tall growths and ruins ~0.42-0.48).
     "cursed_plant": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((33, 51, 229, 212), 64), ((253, 78, 460, 209), 52), ((485, 44, 632, 220), 70), ((655, 28, 888, 221), 77), ((909, 44, 1108, 231), 75), ((1132, 61, 1302, 231), 68), ((1323, 44, 1493, 227), 73)]},
-    "hell_pustule": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((20, 243, 253, 471), 80), ((267, 297, 439, 462), 58), ((459, 282, 605, 430), 52), ((623, 297, 757, 455), 55)]},
+    # (hell_pustule: the cursed board's four egg clusters gave way to the hell board's seven, below)
     "cursed_rock": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((784, 262, 1032, 503), 101), ((1042, 303, 1217, 494), 80), ((1228, 332, 1372, 485), 64), ((1386, 360, 1503, 500), 59)]},
     "cursed_pod": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((16, 486, 260, 729), 92), ((263, 489, 459, 736), 94), ((465, 505, 660, 730), 86), ((664, 492, 904, 736), 93)]},
     "cursed_eye": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((926, 517, 1160, 752), 94), ((1154, 509, 1329, 760), 100), ((1336, 528, 1518, 752), 86)]},
@@ -598,7 +630,41 @@ def cut_piece(board, box, height, alpha_cut=128, flip=False, open_black=False, m
     return out.transpose(Image.FLIP_TOP_BOTTOM) if flip else out
 
 
+def _content_box(board, box, black_at=BLACK):
+    """The bounding box (board px) of the largest piece inside `box`."""
+    bright = np.asarray(board.crop(box).convert("RGB")).max(axis=2)
+    lab, n = nd.label(bright > black_at)
+    sizes = nd.sum(lab > 0, lab, range(1, n + 1))
+    ys, xs = np.nonzero(lab == 1 + int(np.argmax(sizes)))
+    return box[0] + xs.min(), box[1] + ys.min(), box[0] + xs.max() + 1, box[1] + ys.max() + 1
+
+
+def build_strip(role, cfg):
+    """An animation strip: frames painted side by side on a board (each in
+    its window of `frames`), cut at one scale (the tallest frame `height`
+    texels) and laid in a row of equal cells, each frame placed as it sits in
+    its window, so the animation keeps the painter's registration."""
+    board = Image.open(SRC % cfg["src"])
+    boxes = [_content_box(board, w) for w in cfg["frames"]]
+    k = cfg["height"] / float(max(b[3] - b[1] for b in boxes))
+    left = min(b[0] - w[0] for b, w in zip(boxes, cfg["frames"]))
+    bottom = max(w[3] - b[3] for b, w in zip(boxes, cfg["frames"]))
+    cells = []
+    for b, w in zip(boxes, cfg["frames"]):
+        img = cut_piece(board, w, max(1, round((b[3] - b[1]) * k)), cfg.get("alpha_cut", 128), main_only=True, hole=cfg.get("hole", HOLE))
+        cells.append((img, round((b[0] - w[0] - left) * k), round((w[3] - b[3] - bottom) * k)))
+    cw = max(img.width + x for img, x, _ in cells)
+    ch = max(img.height + y for img, _, y in cells)
+    out = Image.new("RGBA", (cw * len(cells), ch))
+    for i, (img, x, y) in enumerate(cells):
+        out.paste(img, (i * cw + x, ch - y - img.height))
+    out.save(STRIP % role)
+    print("%s strip: %d frames of %dx%d" % (role, len(cells), cw, ch))
+
+
 def build(role, cfg):
+    if "frames" in cfg:
+        return build_strip(role, cfg)
     board = Image.open(SRC % cfg["src"])
     os.makedirs(os.path.dirname(OUT % (role, 0)), exist_ok=True)
     # "more": pieces from other boards, (board, box, height[, clear_dim]), after the rest.
