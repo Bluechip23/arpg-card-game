@@ -163,8 +163,8 @@ BOARDS = {
     # (cave_rocks_crystals_board.webp, on black: orange, blue, green, red and
     # yellow crystal clusters, three sizes each; four tall rock columns).
     # The crystals take the places of the pack's five colours x three sizes
-    # at their heights (doubled); the columns replace the pack's ten small
-    # rock chunks, sized as drawn beside the crystals.
+    # at their heights (doubled); the columns are the stalagmites (the
+    # pack's grey spikes), sized as drawn beside the crystals.
     "cave_crystal": {
         "src": "cave_rocks_crystals_board.webp",
         "pieces": [
@@ -175,13 +175,42 @@ BOARDS = {
             ((33, 52, 318, 342), 100), ((340, 126, 553, 342), 82), ((573, 189, 726, 340), 56),       # orange
         ],
     },
-    "cave_rock": {
+    "cave_stalagmite": {
         "src": "cave_rocks_crystals_board.webp",
         "pieces": [
-            ((808, 18, 967, 358), 116),
-            ((1013, 18, 1149, 360), 116),
-            ((1191, 28, 1325, 359), 113),
-            ((1378, 27, 1511, 359), 113),
+            ((808, 18, 967, 358), 100),
+            ((1013, 18, 1149, 360), 92),
+            ((1191, 28, 1325, 359), 108),
+            ((1378, 27, 1511, 359), 84),
+        ],
+    },
+    # 2026-10-29: the designer's cave rocks and pebbles
+    # (cave_rocks_pebbles_board.webp, on black: brown rock chunks, two
+    # drip-stained; blue and green stones). The chunks take the places of the
+    # pack's rock chunks (nine for its ten), the stones of its pebbles, each
+    # at the height of the piece it redraws (doubled).
+    "cave_rock": {
+        "src": "cave_rocks_pebbles_board.webp",
+        "pieces": [
+            ((645, 718, 881, 962), 60),     # drip-stained
+            ((68, 744, 292, 931), 48),
+            ((968, 718, 1179, 976), 60),    # drip-stained
+            ((1238, 756, 1481, 943), 48),
+            ((798, 138, 1052, 336), 50),    # the low slab
+            ((81, 42, 322, 343), 64),       # stacked, tall
+            ((447, 42, 696, 336), 64),      # stacked, tall
+            ((368, 784, 591, 927), 36),     # the smallest
+            ((1175, 113, 1464, 330), 50),   # the cluster
+        ],
+    },
+    "cave_pebble": {
+        "src": "cave_rocks_pebbles_board.webp",
+        "pieces": [
+            ((74, 393, 314, 660), 56),      # blue, pointed
+            ((440, 425, 635, 649), 30),     # blue pair
+            ((816, 481, 1057, 643), 28),    # blue boulder
+            ((1175, 421, 1430, 665), 26),   # green
+            ((368, 784, 591, 927), 36),     # a brown chunk (the pack's was one of its rock chunks too)
         ],
     },
     "forest_fern": {

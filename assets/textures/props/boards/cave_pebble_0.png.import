@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d3tn7m7f8p7uu"
-path="res://.godot/imported/cave_pebble_2.png-b42ca521cce6b8801166b1b42c5aed86.ctex"
+uid="uid://c83wsflvko54h"
+path="res://.godot/imported/cave_pebble_0.png-6c000a036e69d8efa393f2b463752773.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/craftpix/props/cave_pebble_2.png"
-dest_files=["res://.godot/imported/cave_pebble_2.png-b42ca521cce6b8801166b1b42c5aed86.ctex"]
+source_file="res://assets/textures/props/boards/cave_pebble_0.png"
+dest_files=["res://.godot/imported/cave_pebble_0.png-6c000a036e69d8efa393f2b463752773.ctex"]
 
 [params]
 

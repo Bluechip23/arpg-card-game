@@ -67,11 +67,11 @@ ROLES = {
     "forest_pebble": {"scale": 1.0, "src": [f"{F}/Beige_stone_ground5.png", f"{F}/Beige_stone_ground6.png", f"{F}/Beige_stone_ground7.png", f"{F}/Beige_stone_ground9.png", f"{F}/Brown_stone_ground5.png"]},
     # "forest_ruin": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Ruin_grass1.png", f"{F}/Ruin_grass2.png", f"{F}/Ruin_grass3.png", f"{F}/Ruin_grass4.png", f"{F}/Ruin_grass5.png"]
     # --- Caves ---
-    "cave_stalagmite": {"scale": 1.0, "src": [f"{C}/gray_stalagmites_light_shadow{i}.png" for i in range(1, 6)] + [f"{C}/black_stalagmites_light_shadow{i}.png" for i in (2, 4, 5)]},
+    # "cave_stalagmite": the designer's own since 2026-10-29 (DESIGNER below); was [f"{C}/gray_stalagmites_light_shadow{i}.png" for i in range(1, 6)] + [f"{C}/black_stalagmites_light_shadow{i}.png" for i in (2, 4, 5)]
     # "cave_rock": the designer's own since 2026-10-29 (DESIGNER below); was [f"{C}/Walls_elements{i}.png" for i in (1, 2, 6, 10, 11, 16, 17, 18, 19, 20)]
     "cave_shroom": {"scale": 1.0, "src": [f"{C}/small_mushrooms_white_light_shadow1.png", f"{C}/small_mushrooms_white_light_shadow2.png", f"{C}/small_mushrooms_gray_light_shadow1.png", f"{C}/small_mushrooms_gray_light_shadow2.png", f"{C}/Slime_musroom_light_shadow2.png", f"{C}/Slime_musroom_light_shadow3.png", f"{C}/Long_mushrooms_light_shadow2.png", f"{C}/Long_mushrooms_light_shadow3.png"]},
     # "cave_crystal": the designer's own since 2026-10-29 (DESIGNER below); was [f"{C}/{c}_stone_light_shadow{i}.png" for c in ("Blue", "Green", "Red", "Yellow", "Orange") for i in (1, 2, 3)]
-    "cave_pebble": {"scale": 1.0, "src": [f"{C}/Black_stone_light_shadow3.png", f"{C}/Black_stone_light_shadow4.png", f"{C}/Blue_stone_light_shadow4.png", f"{C}/Green_stone_light_shadow4.png", f"{C}/Walls_elements19.png"]},
+    # "cave_pebble": the designer's own since 2026-10-29 (DESIGNER below); was [f"{C}/Black_stone_light_shadow3.png", f"{C}/Black_stone_light_shadow4.png", f"{C}/Blue_stone_light_shadow4.png", f"{C}/Green_stone_light_shadow4.png", f"{C}/Walls_elements19.png"]
     "cave_web": {"scale": 1.0, "src": [f"{C}/web1.png", f"{C}/web2.png"]},
     "cave_gate": {"scale": 0.8, "src": [f"{C}/gates1.png"]},
     # Big cave-wall rock clusters: the flanks of a cave mouth.
@@ -333,7 +333,9 @@ DESIGNER = {
     "forest_log": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_log_%d.png" % i for i in range(2)]},
     "forest_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_rock_%d.png" % i for i in range(12)]},
     "cave_crystal": {"scale": 0.5, "files": ["assets/textures/props/boards/cave_crystal_%d.png" % i for i in range(15)]},
-    "cave_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/cave_rock_%d.png" % i for i in range(4)]},
+    "cave_stalagmite": {"scale": 0.5, "files": ["assets/textures/props/boards/cave_stalagmite_%d.png" % i for i in range(4)]},
+    "cave_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/cave_rock_%d.png" % i for i in range(9)]},
+    "cave_pebble": {"scale": 0.5, "files": ["assets/textures/props/boards/cave_pebble_%d.png" % i for i in range(5)]},
     "forest_fern": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_fern_%d.png" % i for i in range(3)]},
 }
 DESIGNER_DENSITY = 64   # texels a tile of the DESIGNER art (the packs': 32)

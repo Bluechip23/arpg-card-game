@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b12gw860r36es"
-path="res://.godot/imported/cave_stalagmite_2.png-33b6ab6ad0b4f9d87b3c8f737f62cef5.ctex"
+uid="uid://cxkx5v0ero8yk"
+path="res://.godot/imported/cave_stalagmite_1.png-1174beaa2969b39b616507ecf9f85161.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/craftpix/props/cave_stalagmite_2.png"
-dest_files=["res://.godot/imported/cave_stalagmite_2.png-33b6ab6ad0b4f9d87b3c8f737f62cef5.ctex"]
+source_file="res://assets/textures/props/boards/cave_stalagmite_1.png"
+dest_files=["res://.godot/imported/cave_stalagmite_1.png-1174beaa2969b39b616507ecf9f85161.ctex"]
 
 [params]
 
