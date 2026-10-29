@@ -159,6 +159,31 @@ BOARDS = {
             ((828, 702, 1175, 972), 73),    # new: mossy cluster, right
         ],
     },
+    # 2026-10-29: the designer's cave rocks and crystals
+    # (cave_rocks_crystals_board.webp, on black: orange, blue, green, red and
+    # yellow crystal clusters, three sizes each; four tall rock columns).
+    # The crystals take the places of the pack's five colours x three sizes
+    # at their heights (doubled); the columns replace the pack's ten small
+    # rock chunks, sized as drawn beside the crystals.
+    "cave_crystal": {
+        "src": "cave_rocks_crystals_board.webp",
+        "pieces": [
+            ((37, 387, 320, 650), 94), ((351, 460, 546, 646), 66), ((580, 503, 736, 636), 50),       # blue
+            ((799, 399, 1062, 652), 84), ((1089, 456, 1307, 653), 66), ((1336, 505, 1499, 645), 40), # green
+            ((36, 674, 324, 984), 102), ((359, 743, 552, 965), 76), ((583, 799, 739, 963), 50),      # red
+            ((808, 671, 1077, 986), 118), ((1130, 742, 1332, 978), 82), ((1365, 797, 1508, 948), 62),# yellow
+            ((33, 52, 318, 342), 100), ((340, 126, 553, 342), 82), ((573, 189, 726, 340), 56),       # orange
+        ],
+    },
+    "cave_rock": {
+        "src": "cave_rocks_crystals_board.webp",
+        "pieces": [
+            ((808, 18, 967, 358), 116),
+            ((1013, 18, 1149, 360), 116),
+            ((1191, 28, 1325, 359), 113),
+            ((1378, 27, 1511, 359), 113),
+        ],
+    },
     "forest_fern": {
         "src": "forest_logs_ferns_board.webp",
         "pieces": [

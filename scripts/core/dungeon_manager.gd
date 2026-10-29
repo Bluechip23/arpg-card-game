@@ -683,7 +683,10 @@ const PROP_ROLES := {
 		"rock": ["forest_rock"], "bush": ["forest_bush"], "berry": ["field_berry"], "fern": ["forest_fern"],
 		"flower": ["field_flower"], "tuft": ["field_tuft"], "shroom": ["forest_shroom"], "pebble": ["forest_pebble"],
 		"reeds": ["forest_reeds"], "bones": ["undead_bones"], "wallrock": ["wallrock_rust"]},
-	"cave": {"stalagmite": ["cave_stalagmite"], "stalactite": ["cave_rock"], "rock": ["cave_rock"], "shroom": ["cave_shroom"],
+	# (No "stalactite" in the cave: it hung the pack's small rock chunks up in
+	# the dark; the designer's cave rocks are standing columns, so they stand
+	# on the floor as "rock" and the drips fall from the dark alone.)
+	"cave": {"stalagmite": ["cave_stalagmite"], "rock": ["cave_rock"], "shroom": ["cave_shroom"],
 		"crystal": ["cave_crystal"], "pebble": ["cave_pebble"], "bones": ["undead_bones"], "web": ["cave_web"],
 		"wallrock": ["wallrock_grey"]},
 	"undead": {"tree": ["undead_tree"], "stump": ["undead_stump"], "rock": ["undead_rock"], "bush": ["undead_bush"],
@@ -703,7 +706,7 @@ const PROP_ROLES := {
 		"shroom": ["winter_shroom"], "pebble": ["winter_pebble"], "bones": ["undead_bones"], "reeds": ["winter_ice_tree"],
 		"wallrock": ["wallrock_snow"]},
 	"goods": {"crate": ["goods_crate", "goods_sack"], "barrel": ["goods_barrel", "goods_rack", "goods_table"]},
-	"sewer": {"bones": ["undead_bones"], "reeds": ["forest_reeds"], "rubble": ["cave_pebble", "cave_rock"],
+	"sewer": {"bones": ["undead_bones"], "reeds": ["forest_reeds"], "rubble": ["cave_pebble"],   # (cave_rock is the designer's tall rock columns now, not rubble)
 		"wallrock": ["wallrock_dark"]},
 }
 
