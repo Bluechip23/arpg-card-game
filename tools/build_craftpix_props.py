@@ -104,7 +104,7 @@ ROLES = {
     "desert_tree_dead": {"scale": 1.0, "src": [f"{D}/curved_tree_grass*.png"], "limit": 10},
     # "desert_cactus": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Cactus1_grass_shadow*.png", f"{D}/Cactus2_grass_shadow*.png", f"{D}/Cactus3_grass_shadow*.png"]
     "desert_rock": {"scale": 1.0, "src": [f"{D}/Rock2_*.png", f"{D}/Rock4_*.png", f"{D}/Rock9_*.png", f"{D}/Rock3_*.png"]},
-    "desert_mesa": {"scale": 0.9, "src": [f"{D}/Rock1_*.png", f"{D}/Rock5_*.png", f"{D}/Rock7_*.png"]},
+    # "desert_mesa": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Rock1_*.png", f"{D}/Rock5_*.png", f"{D}/Rock7_*.png"]
     # "desert_bush": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Small_bush*.png", f"{D}/Grass_element2_*_grass_shadow.png", f"{D}/Grass_element3_*_grass_shadow.png"]
     # "desert_tuft": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Grass_element1.png", f"{D}/Grass_element2.png", f"{D}/Grass_element3.png", f"{D}/Grass_element4.png", f"{D}/Grass_element4_*_grass_shadow.png"]
     # "desert_flower": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Red_flower*.png", f"{D}/Violet_flower*.png", f"{D}/White_flower*.png", f"{D}/Yellow_flower*.png"]
@@ -353,6 +353,7 @@ DESIGNER = {
     "desert_bush": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_bush_%d.png" % i for i in range(7)]},
     "desert_tuft": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_tuft_%d.png" % i for i in range(5)]},
     "desert_cactus": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_cactus_%d.png" % i for i in range(11)]},
+    "desert_mesa": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_mesa_%d.png" % i for i in range(12)]},
     "town_card_shelf": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_shelf_0.png"]},
     "town_card_table": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_table_0.png"]},
     "town_card_players": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_players_0.png"]},

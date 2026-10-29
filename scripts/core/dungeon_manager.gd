@@ -694,7 +694,7 @@ const PROP_ROLES := {
 		"bush": ["cursed_plant", "hell_veins"], "berry": ["hell_pustule"], "fern": ["cursed_plant"], "flower": ["cursed_plant", "hell_pustule"],
 		"tuft": ["cursed_bones"], "shroom": ["hell_fetus"], "pebble": ["cursed_bones"], "bones": ["cursed_bones"], "reeds": ["forest_reeds"],
 		"wallrock": ["wallrock_lava"]},
-	"desert": {"tree": ["desert_tree"], "stump": ["desert_tree_dead"], "rock": ["desert_rock", "desert_mesa"], "bush": ["desert_bush"],
+	"desert": {"tree": ["desert_tree"], "stump": ["desert_tree_dead"], "rock": ["desert_mesa"], "bush": ["desert_bush"],   # (the pack's pale stacked rocks gave way to the designer's mesas, 2026-10-29)
 		"berry": ["desert_cactus"], "fern": ["desert_bush"], "flower": ["desert_flower"], "tuft": ["desert_tuft"],
 		"shroom": ["desert_cactus"], "pebble": ["desert_pebble"], "bones": ["desert_bones"], "reeds": ["desert_tuft"],
 		"wallrock": ["wallrock_sand"]},
