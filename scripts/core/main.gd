@@ -15119,7 +15119,7 @@ func _spawn_pillar(pos: Vector3) -> void:
 	pillar_mesh.mesh = cylinder
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.78, 0.62, 0.45)  # warm cast over the rock tiles
-	mat.albedo_texture = load(dungeon_manager.wall_texture_path() if dungeon_manager else DungeonManager.CP_TEX + "/wall_field.png")
+	mat.albedo_texture = load(dungeon_manager.wall_texture_path() if dungeon_manager else DungeonManager.GROUND_TEX + "/field_wall.png")
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mat.uv1_triplanar = true
 	mat.uv1_scale = Vector3(0.25, 0.25, 0.25)

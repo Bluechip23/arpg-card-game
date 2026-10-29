@@ -91,6 +91,28 @@ BOARDS = {
             "desert_cliff": [(418, 494, 563, 654), (577, 491, 861, 659), (872, 496, 1002, 665)],
         },
     },
+    # 2026-10-29: the Verdant Frontier's ground, World 1 (field_board.webp, on
+    # black: a cobble panel, water, plain dirt, plain grass; cliff strips and
+    # corner pieces; cobble, water-cut and grass-edged dirt tiles; twelve
+    # grass tiles; shoreline and grass/dirt transition tiles; and props).
+    # The grass is made of the twelve grass tiles (tufts, two with daisies),
+    # each a tile variant ("tiles"), picked by hash in game so the daisies
+    # never fall in a lattice; the dirt is the trails, the cobble the walls.
+    "field_board.webp": {
+        "sheets": {
+            "field_dirt": (590, 20, 787, 233),
+            "field_wall": (20, 20, 277, 233),
+            "field_water": (306, 20, 561, 233),
+        },
+        "tiles": {
+            "field_grass": [(1057, 260, 1164, 347), (1175, 259, 1287, 347), (1299, 260, 1406, 347), (1418, 260, 1524, 347),
+                            (1057, 354, 1164, 457), (1176, 354, 1286, 457), (1298, 354, 1405, 457), (1418, 354, 1524, 457),
+                            (1057, 467, 1164, 560), (1175, 467, 1286, 560), (1298, 467, 1405, 560), (1418, 466, 1524, 560)],
+        },
+        "strips": {
+            "field_cliff": (1057, 96, 1338, 168),   # grass over cobbled earth, rounded at both ends
+        },
+    },
     # 2026-10-29: the cursed land's ground, World 4 (cursed_ground_board.webp,
     # on black: dark water, a cliff of red veins under a lip of flesh-pink
     # earth, the floor, the dark cracked floor, a wall of woven veins; then
@@ -131,6 +153,23 @@ def seamless(img):
 
 def cut_sheet(board, box):
     return seamless(_shrink(board.crop(box), (SHEET, SHEET))).convert("RGBA")
+
+
+def cut_tiles(board, boxes):
+    """A sheet of separate painted tiles: a square from each one's evenly lit
+    middle band (the tiles are lit along their top edge and shaded over
+    their bottom third) shrunk to one tile, laid in reading order and
+    repeated to fill the 4x4 grid."""
+    out = Image.new("RGBA", (SHEET, SHEET))
+    for i in range(16):
+        x0, y0, x1, y1 = boxes[i % len(boxes)]
+        h = y1 - y0
+        side = int(h * 0.56)
+        top = y0 + int(h * 0.14)
+        left = (x0 + x1) // 2 - side // 2
+        sq = board.crop((left, top, left + side, top + side))
+        out.paste(_shrink(sq, (TILE, TILE)).convert("RGBA"), ((i % 4) * TILE, (i // 4) * TILE))
+    return out
 
 
 def cut_strip(board, box):
@@ -177,6 +216,7 @@ ATLASES = {
     "cave_glow": {"grass": "cave_floor_glow", "water": "cave_water"},
     "desert": {"grass": "desert_floor", "dirt": "desert_sand", "water": "desert_water",
                "high": "desert_sand"},
+    "field": {"grass": "field_grass", "dirt": "field_dirt", "water": "field_water"},
     "cursed": {"grass": "cursed_floor", "dirt": "cursed_dark", "water": "cursed_water",
                "high": "cursed_floor"},
 }
@@ -319,6 +359,9 @@ def main():
         for name, box in cfg.get("sheets", {}).items():
             cut_sheet(board, box).save(OUT % name)
             print("%s: %dx%d sheet" % (name, SHEET, SHEET))
+        for name, boxes in cfg.get("tiles", {}).items():
+            cut_tiles(board, boxes).save(OUT % name)
+            print("%s: %dx%d sheet of tiles" % (name, SHEET, SHEET))
         for name, box in cfg.get("faces", {}).items():
             img = cut_face(board, box)
             img.save(OUT % name)

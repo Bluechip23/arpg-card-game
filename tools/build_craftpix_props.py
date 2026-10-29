@@ -40,18 +40,18 @@ R = "rocks_stones"  # free rocks & stones top-down pack (8 styles x 5 sizes)
 # would stand four cells tall, so the big canopies get a 0.7 base.
 ROLES = {
     # --- World 1 field (grassland pack) ---
-    "field_tree": {"scale": 0.7, "src": [f"{G}/Tree1.png", f"{G}/Tree2.png", f"{G}/Tree4.png"]},
-    "field_tree_fruit": {"scale": 0.7, "src": [f"{G}/Tree3.png"]},
-    "field_tree_small": {"scale": 1.0, "src": [f"{G}/Tree5.png"]},
-    "field_stump": {"scale": 1.0, "src": [f"{G}/Broken_tree1.png", f"{G}/Broken_tree2.png", f"{G}/Broken_tree4.png", f"{G}/Broken_tree5.png"]},
-    "field_rock": {"scale": 1.0, "src": [f"{G}/Stone1_grass_shadow.png", f"{G}/Stone2_grass_shadow.png", f"{G}/Stone3_grass_shadow.png", f"{G}/Stone4_grass_shadow.png", f"{G}/Rpck_grass1.png", f"{G}/Rpck_grass2.png", f"{G}/Rpck_grass3.png", f"{G}/Rpck_grass4.png"]},
-    "field_bush": {"scale": 1.0, "src": [f"{G}/Bush2.png", f"{G}/Bush3.png", f"{G}/Bush4.png", f"{G}/Bush5.png", f"{G}/Bush7.png", f"{G}/Bush9.png"]},
+    # "field_tree": the designer's since 2026-10-29 (DESIGNER below); was [f"{G}/Tree1.png", f"{G}/Tree2.png", f"{G}/Tree4.png"]
+    # "field_tree_fruit": dropped 2026-10-29 (World 1's trees are the designer's); was [f"{G}/Tree3.png"]
+    # "field_tree_small": the designer's since 2026-10-29 (DESIGNER below); was [f"{G}/Tree5.png"]
+    # "field_stump": the designer's since 2026-10-29 (DESIGNER below); was [f"{G}/Broken_tree1.png", f"{G}/Broken_tree2.png", f"{G}/Broken_tree4.png", f"{G}/Broken_tree5.png"]
+    # "field_rock": the designer's since 2026-10-29 (DESIGNER below); was [f"{G}/Stone1_grass_shadow.png", f"{G}/Stone2_grass_shadow.png", f"{G}/Stone3_grass_shadow.png", f"{G}/Stone4_grass_shadow.png", f"{G}/Rpck_grass1.png", f"{G}/Rpck_grass2.png", f"{G}/Rpck_grass3.png", f"{G}/Rpck_grass4.png"]
+    # "field_bush": the designer's since 2026-10-29 (DESIGNER below); was [f"{G}/Bush2.png", f"{G}/Bush3.png", f"{G}/Bush4.png", f"{G}/Bush5.png", f"{G}/Bush7.png", f"{G}/Bush9.png"]
     "field_berry": {"scale": 1.0, "src": [f"{G}/Bush1.png", f"{G}/Bush6.png", f"{G}/Bush8.png", f"{G}/Bush14.png", f"{G}/Bush15.png", f"{G}/Bush17.png"]},
-    "field_fern": {"scale": 1.0, "src": [f"{G}/Bush12.png", f"{G}/Bush13.png", f"{G}/Bush18.png", f"{F}/Bush8.png", f"{F}/Bush10.png"]},
-    "field_flower": {"scale": 1.0, "src": [f"{G}/Flower{i}.png" for i in range(1, 12)]},
+    # "field_fern": the designer's since 2026-10-29 (DESIGNER below); was [f"{G}/Bush12.png", f"{G}/Bush13.png", f"{G}/Bush18.png", f"{F}/Bush8.png", f"{F}/Bush10.png"]
+    # "field_flower": the designer's since 2026-10-29 (DESIGNER below); was [f"{G}/Flower{i}.png" for i in range(1, 12)]
     "field_tuft": {"scale": 1.0, "src": [f"{G}/grass_element1.png", f"{G}/grass_element2.png", f"{G}/grass_element3.png", f"{G}/Bush10.png", f"{G}/Bush16.png", f"{G}/Bush19.png"]},
     # "field_shroom": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Brown_mushroom1.png", f"{F}/Brown_mushroom2.png", f"{F}/Red_mushroom1.png"]
-    "field_pebble": {"scale": 1.0, "src": [f"{G}/ground_element20.png", f"{G}/ground_element21.png", f"{G}/ground_element22.png", f"{G}/ground_element23.png", f"{G}/Rock_grass_element13.png"]},
+    # "field_pebble": the designer's since 2026-10-29 (DESIGNER below); was [f"{G}/ground_element20.png", f"{G}/ground_element21.png", f"{G}/ground_element22.png", f"{G}/ground_element23.png", f"{G}/Rock_grass_element13.png"]
     "field_ruin": {"scale": 0.8, "src": [f"{G}/Ruin1_grass_shadow.png", f"{G}/Ruin2_grass_shadow.png", f"{G}/Ruin3_grass_shadow.png", f"{G}/Ruin4_grass_shadow.png", f"{G}/Ruin5_grass_shadow.png"]},
     # --- Greenwood (forest pack) ---
     # "forest_tree": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Tree4.png", f"{F}/Tree7.png", f"{F}/Tree8.png", f"{F}/Tree9.png", f"{F}/Tree10.png", f"{F}/Tree12.png", f"{F}/Tree13.png", f"{F}/Tree14.png"]
@@ -360,6 +360,17 @@ DESIGNER = {
     "desert_door": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_door_%d.png" % i for i in range(2)]},
     "desert_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_tree_%d.png" % i for i in range(15)]},
     "desert_tree_dead": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_tree_dead_%d.png" % i for i in range(5)]},
+    # 2026-10-29: the Verdant Frontier, World 1 (cut_prop_boards.py, field_board.webp).
+    "field_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/field_tree_%d.png" % i for i in range(2)]},
+    "field_tree_small": {"scale": 0.5, "files": ["assets/textures/props/boards/field_tree_small_%d.png" % i for i in range(2)]},
+    "field_bush": {"scale": 0.5, "files": ["assets/textures/props/boards/field_bush_%d.png" % i for i in range(1)]},
+    "field_fern": {"scale": 0.5, "files": ["assets/textures/props/boards/field_fern_%d.png" % i for i in range(1)]},
+    "field_flower": {"scale": 0.5, "files": ["assets/textures/props/boards/field_flower_%d.png" % i for i in range(1)]},
+    "field_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/field_rock_%d.png" % i for i in range(4)]},
+    "field_pebble": {"scale": 0.5, "files": ["assets/textures/props/boards/field_pebble_%d.png" % i for i in range(4)]},
+    "field_log": {"scale": 0.5, "files": ["assets/textures/props/boards/field_log_%d.png" % i for i in range(2)]},
+    "field_stump": {"scale": 0.5, "files": ["assets/textures/props/boards/field_stump_%d.png" % i for i in range(1)]},
+    "field_sign": {"scale": 0.5, "files": ["assets/textures/props/boards/field_sign_%d.png" % i for i in range(1)]},
     # 2026-10-29: the designer's cursed land, World 4 (cut_prop_boards.py).
     "cursed_plant": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_plant_%d.png" % i for i in range(7)]},
     "hell_pustule": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_pustule_%d.png" % i for i in range(4)]},

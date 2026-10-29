@@ -411,6 +411,22 @@ BOARDS = {
     "desert_tree": {"src": "desert_trees_board.webp", "main_only": True, "pieces": [((23, 8, 343, 329), 135), ((373, 60, 601, 335), 116), ((614, 139, 771, 337), 83), ((814, 28, 1113, 350), 135), ((1121, 90, 1344, 342), 106), ((1361, 158, 1523, 342), 77), ((23, 336, 358, 663), 137), ((389, 373, 627, 659), 120), ((654, 440, 844, 656), 91), ((28, 669, 360, 1005), 141), ((371, 692, 618, 1001), 130), ((631, 756, 826, 999), 102), ((854, 642, 1125, 997), 149), ((1134, 700, 1359, 996), 124), ((1369, 779, 1522, 985), 87)]},
     "desert_tree_dead": {"src": "desert_dead_trees_board.webp", "main_only": True, "pieces": [((7, 10, 533, 584), 172), ((576, 17, 1096, 569), 166), ((1126, 9, 1511, 805), 239), ((500, 568, 1155, 1001), 130), ((77, 660, 485, 984), 97)]},
     "desert_tuft": {"src": "desert_tufts_board.webp", "main_only": True, "pieces": [((23, 253, 530, 597), 41), ((588, 364, 1109, 597), 28), ((1140, 17, 1510, 639), 75), ((99, 659, 664, 976), 38), ((781, 720, 1425, 976), 31)]},
+    # 2026-10-29: the Verdant Frontier's props, World 1 (field_board.webp,
+    # the board's lower right, on black): a round broadleaf and a pine (big,
+    # and again small), a round bush, a fern, a clump of daisies, four rocks
+    # and four pebbles, a fallen log and a stick, a stump and a signpost.
+    # About a texel a board px (a ground tile there is ~105 px). The two
+    # fence pieces have no slot yet.
+    "field_tree": {"src": "field_board.webp", "main_only": True, "pieces": [((1040, 583, 1170, 739), 156), ((1181, 577, 1295, 739), 150)]},
+    "field_tree_small": {"src": "field_board.webp", "main_only": True, "pieces": [((1040, 583, 1170, 739), 98), ((1181, 577, 1295, 739), 96)]},
+    "field_bush": {"src": "field_board.webp", "main_only": True, "pieces": [((1301, 636, 1404, 729), 60)]},
+    "field_fern": {"src": "field_board.webp", "main_only": True, "pieces": [((1399, 581, 1468, 640), 40)]},
+    "field_flower": {"src": "field_board.webp", "main_only": True, "pieces": [((1434, 642, 1520, 728), 50)]},
+    "field_rock": {"src": "field_board.webp", "main_only": True, "pieces": [((878, 832, 1019, 983), 90), ((996, 759, 1093, 859), 60), ((1033, 921, 1105, 987), 40), ((1110, 788, 1173, 844), 34)]},
+    "field_pebble": {"src": "field_board.webp", "main_only": True, "pieces": [((911, 770, 972, 813), 26), ((1037, 885, 1074, 916), 19), ((1103, 868, 1142, 898), 18), ((1101, 921, 1129, 944), 14)]},
+    "field_log": {"src": "field_board.webp", "main_only": True, "pieces": [((1199, 757, 1392, 874), 70), ((1457, 836, 1515, 888), 30)]},
+    "field_stump": {"src": "field_board.webp", "main_only": True, "pieces": [((1341, 826, 1430, 894), 44)]},
+    "field_sign": {"src": "field_board.webp", "main_only": True, "pieces": [((1419, 750, 1507, 840), 56)]},
     # 2026-10-29: the designer's cursed land, World 4 (cursed_features_board
     # .webp, on black): seven eye-stalked tentacle crawlers; yellow egg
     # clusters netted in veins and dark vein-wrapped rocks, four each; four

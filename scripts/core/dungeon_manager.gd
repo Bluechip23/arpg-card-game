@@ -555,7 +555,7 @@ func floor_texture_path() -> String:
 			return GROUND_TEX + "/desert_floor.png"
 		3:  # Frostreach — snowfield (winter pack drifts over flat snow)
 			return CP_TEX + "/floor_winter.png"
-	return CP_TEX + "/floor_grass_field.png"
+	return GROUND_TEX + "/field_grass.png"   # the designer's grass tiles (2026-10-29; was the grassland pack's)
 
 
 ## The accent-free variant of the floor sheet for the backdrop plane beyond
@@ -576,7 +576,7 @@ func trail_texture_path() -> String:
 		"boneyard":
 			return CP_TEX + "/floor_undead_sand.png"  # the barrow land's pale cobbles
 	if world_level == 1:
-		return CP_TEX + "/floor_dirt_field.png"
+		return GROUND_TEX + "/field_dirt.png"   # the designer's dirt (2026-10-29)
 	if world_level == 2:
 		return GROUND_TEX + "/desert_sand.png"  # the designer's sand tracks through the scrub
 	if world_level == 3:
@@ -585,7 +585,7 @@ func trail_texture_path() -> String:
 		return GROUND_TEX + "/cursed_dark.png"  # the designer's dark cracked earth (2026-10-29)
 	if world_level == 5:
 		return CP_TEX + "/floor_undead_sand.png"  # the barrow land's pale cobbles
-	return CP_TEX + "/floor_dirt_field.png"
+	return GROUND_TEX + "/field_dirt.png"
 
 
 ## Cliff faces / rock walls: the matching pack's cobbled cliff fill.
@@ -612,7 +612,7 @@ func wall_texture_path() -> String:
 			return GROUND_TEX + "/desert_wall.png"   # the designer's cliff rock
 		3:
 			return CP_TEX + "/wall_undead.png"  # the winter pack has no cliff; grey barrow stone under the frost palette
-	return CP_TEX + "/wall_field.png"
+	return GROUND_TEX + "/field_wall.png"   # the designer's cobbled earth (2026-10-29)
 
 
 ## Still water: the pack's water colour under its foam overlay.
@@ -637,7 +637,7 @@ func water_texture_path() -> String:
 			return GROUND_TEX + "/desert_water.png"
 		3:
 			return CP_TEX + "/water_winter.png"  # frozen over
-	return CP_TEX + "/water_field.png"
+	return GROUND_TEX + "/field_water.png"   # the designer's (2026-10-29)
 
 
 ## Prop sprites for this location: the pack biome's role in the cut
@@ -675,9 +675,9 @@ func _prop_biome() -> String:
 ## family borrow a neighbour's (sewer bones are barrow bones, sewer reeds are
 ## forest reeds); anything unlisted is left out.
 const PROP_ROLES := {
-	"field": {"tree": ["field_tree", "field_tree_small", "field_tree_fruit"], "stump": ["field_stump"], "rock": ["field_rock"],
+	"field": {"tree": ["field_tree", "field_tree_small"], "stump": ["field_stump"], "rock": ["field_rock"],
 		"bush": ["field_bush"], "berry": ["field_berry"], "fern": ["field_fern"], "flower": ["field_flower"],
-		"tuft": ["field_tuft"], "shroom": ["field_shroom"], "pebble": ["field_pebble"], "log": ["forest_log"],
+		"tuft": ["field_tuft"], "shroom": ["field_shroom"], "pebble": ["field_pebble"], "log": ["field_log"],
 		"bones": ["undead_bones"], "reeds": ["forest_reeds"], "wallrock": ["wallrock_moss"]},
 	"forest": {"tree": ["forest_tree"], "tree_big": ["forest_tree_big"], "stump": ["forest_stump"], "log": ["forest_log"],
 		"rock": ["forest_rock"], "bush": ["forest_bush"], "berry": ["field_berry"], "fern": ["forest_fern"],
@@ -2119,7 +2119,10 @@ func high_texture_path() -> String:
 ## painting runs on across tiles (the pack fills are flat, so their
 ## variants are picked by hash for variety).
 func ground_continuous() -> bool:
-	return floor_texture_path().begins_with(GROUND_TEX)
+	# The field's grass is separate painted tiles, not one painting: its
+	# variants are picked by hash, so its daisies never fall in a lattice.
+	var floor_path := floor_texture_path()
+	return floor_path.begins_with(GROUND_TEX) and not floor_path.ends_with("/field_grass.png")
 
 
 ## The interior variant (0..15) for the open ground tile at (x, z).
@@ -2241,6 +2244,8 @@ func ground_atlas_path() -> String:
 		return GROUND_TEX + "/desert_atlas.png"
 	if interior_kind == "" and world_level == 4:
 		return GROUND_TEX + "/cursed_atlas.png"
+	if floor_texture_path() == GROUND_TEX + "/field_grass.png":
+		return GROUND_TEX + "/field_atlas.png"   # the Verdant Frontier, and anywhere else on its grass
 	return ""
 
 
@@ -2565,7 +2570,7 @@ func cliff_strip_path() -> String:
 			return GROUND_TEX + "/desert_cliff.png"   # the designer's sand-topped cliff, 32 px cells
 		3:
 			return CP_TEX + "/cliff_undead.png"  # grey barrow rock under the frost palette
-	return CP_TEX + "/cliff_field.png"
+	return GROUND_TEX + "/field_cliff.png"   # the designer's grass over cobbled earth (2026-10-29)
 
 
 ## How many 16px rows the biome's cliff face is: the forest and desert packs
@@ -3246,8 +3251,11 @@ func _place_signposts(pal: Dictionary) -> void:
 		# Lean the post toward the road it marks.
 		var toward: Vector2i = entry["junction"] - c
 		var p3 = Vector3(c.x + 0.5 + toward.x * 0.28, elevation[c.x][c.y] * ELEV_STEP, c.y + 0.5 + toward.y * 0.28)
-		items.append({"pos": p3, "scale": 1.0, "color": pal.get("bark", pal["wall_a"])})
-	_add_sprite_decos(items, "res://assets/textures/props/signpost.png", 20, 30)
+		items.append({"pos": p3, "scale": 1.0, "color": Color(1, 1, 1)})
+	# The designer's signpost (2026-10-29), its own colours; drawn at 64
+	# texels a tile, so its size in pack texels is half its own.
+	var sign := _first_prop_variant("field_sign")
+	_add_sprite_decos(items, sign["path"], sign["w"] * sign["scale"], sign["h"] * sign["scale"], sign["h"] * sign["scale"])
 
 func _place_crows(cells: Array) -> void:
 	## A few crows working the open ground — hop, stand, peck.
@@ -5128,7 +5136,7 @@ func _build_forest_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 		tree.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 		tree.shaded = false
 		tree.pixel_size = 0.03125
-		var tree_scale := 1.6
+		var tree_scale := 1.6 * float(_first_prop_variant("field_tree")["scale"])   # the designer's tree at 64 texels a tile: ~4 tiles tall, as the pack tree stood
 		tree.scale = Vector3(tree_scale, tree_scale, tree_scale)
 		tree.position = Vector3(side * fp_w * 0.42, 0, -0.1)
 		CameraView.stand_on_ground(tree)  # on its roots at the sprite height, sorted by row
