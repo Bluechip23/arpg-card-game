@@ -81,17 +81,17 @@ ROLES = {
     # doors and the way back out of every interior.
     "gate_small": {"scale": 1.0, "src": [f"{D}/small_gate.png"]},
     # Skull-mouth doorway (undead pack): the graveyard's way down.
-    "undead_skull_door": {"scale": 1.0, "src": [f"{U}/Scull_door_shadow1.png", f"{U}/Scull_door_shadow2.png", f"{U}/Scull_door_shadow3.png"]},
+    # "undead_skull_door": the designer's since 2026-10-29 (DESIGNER below); was [f"{U}/Scull_door_shadow1.png", f"{U}/Scull_door_shadow2.png", f"{U}/Scull_door_shadow3.png"]
     # --- World 5 barrow land (undead pack) ---
-    "undead_tree": {"scale": 0.8, "src": [f"{U}/Dead_tree_shadow1_1.png", f"{U}/Dead_tree_shadow1_2.png", f"{U}/Dead_tree_shadow1_3.png", f"{U}/Tree_shadow1_1.png", f"{U}/Tree_shadow1_2.png"]},
-    "undead_stump": {"scale": 1.0, "src": [f"{U}/Broken_tree_shadow1_2.png", f"{U}/Broken_tree_shadow1_3.png", f"{U}/Broken_tree_shadow1_4.png", f"{U}/Broken_tree_shadow1_5.png"]},
-    "undead_rock": {"scale": 1.0, "src": [f"{U}/Rock_shadow1_{i}.png" for i in range(1, 6)]},
-    "undead_bush": {"scale": 1.0, "src": [f"{U}/Plant_shadow1_{i}.png" for i in range(1, 6)] + [f"{U}/Thorn_plant_shadow1_{i}.png" for i in (1, 2, 3)]},
-    "undead_bones": {"scale": 1.0, "src": [f"{U}/Bones_shadow1_{i}.png" for i in (2, 3, 5, 7, 8, 9, 12, 13, 16, 17, 18)]},
-    "undead_grave": {"scale": 1.0, "src": [f"{U}/Grave_shadow1_{i}.png" for i in range(1, 12)]},
-    "undead_ruin": {"scale": 0.8, "src": [f"{U}/Ruin_shadow1_{i}.png" for i in range(1, 6)]},
-    "undead_skulls": {"scale": 1.0, "src": [f"{U}/Pile_sculls_shadow1.png"]},
-    "undead_crystal": {"scale": 1.0, "src": [f"{U}/Crystal_shadow1_{i}.png" for i in range(1, 5)]},
+    # "undead_tree": the designer's since 2026-10-29 (DESIGNER below); was [f"{U}/Dead_tree_shadow1_1.png", f"{U}/Dead_tree_shadow1_2.png", f"{U}/Dead_tree_shadow1_3.png", f"{U}/Tree_shadow1_1.png", f"{U}/Tree_shadow1_2.png"]
+    # "undead_stump": the designer's since 2026-10-29 (DESIGNER below); was [f"{U}/Broken_tree_shadow1_2.png", f"{U}/Broken_tree_shadow1_3.png", f"{U}/Broken_tree_shadow1_4.png", f"{U}/Broken_tree_shadow1_5.png"]
+    # "undead_rock": the designer's since 2026-10-29 (DESIGNER below); was [f"{U}/Rock_shadow1_{i}.png" for i in range(1, 6)]
+    # "undead_bush": the designer's since 2026-10-29 (DESIGNER below); was [f"{U}/Plant_shadow1_{i}.png" for i in range(1, 6)] + [f"{U}/Thorn_plant_shadow1_{i}.png" for i in (1, 2, 3)]
+    # "undead_bones": the designer's since 2026-10-29 (DESIGNER below); was [f"{U}/Bones_shadow1_{i}.png" for i in (2, 3, 5, 7, 8, 9, 12, 13, 16, 17, 18)]
+    # "undead_grave": the designer's since 2026-10-29 (DESIGNER below); was [f"{U}/Grave_shadow1_{i}.png" for i in range(1, 12)]
+    # "undead_ruin": the designer's since 2026-10-29 (DESIGNER below); was [f"{U}/Ruin_shadow1_{i}.png" for i in range(1, 6)]
+    # "undead_skulls": the designer's since 2026-10-29 (DESIGNER below); was [f"{U}/Pile_sculls_shadow1.png"]
+    # "undead_crystal": dropped 2026-10-29 (World 5's flowers are the designer's green plants); was [f"{U}/Crystal_shadow1_{i}.png" for i in range(1, 5)]
     # --- World 4 hell (cursed land pack) ---
     # "cursed_rock": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Rock1_shadow1_{i}.png" for i in range(1, 6)] + [f"{X}/Rock3_shadow1_{i}.png" for i in (3, 4, 5)]
     # "cursed_plant": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Eye_plant_shadow1_1.png", f"{X}/Eye_plant_shadow1_2.png", f"{X}/Many_eyes_plant_shadow1_1.png", f"{X}/Tubular_plant_shadow1_1.png", f"{X}/Tubular_plant_shadow1_2.png", f"{X}/Spike_plant_shadow1_3.png", f"{X}/Spike_plant_shadow1_4.png", f"{X}/Pustules_shadow1_1.png", f"{X}/Pustules_shadow1_2.png"]
@@ -360,6 +360,17 @@ DESIGNER = {
     "desert_door": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_door_%d.png" % i for i in range(2)]},
     "desert_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_tree_%d.png" % i for i in range(15)]},
     "desert_tree_dead": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_tree_dead_%d.png" % i for i in range(5)]},
+    # 2026-10-29: the barrow land, World 5 and the Boneyard (cut_prop_boards.py, undead_* boards).
+    "undead_bones": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_bones_%d.png" % i for i in range(11)]},
+    "undead_bush": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_bush_%d.png" % i for i in range(7)]},
+    "undead_grave": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_grave_%d.png" % i for i in range(11)]},
+    "undead_plant": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_plant_%d.png" % i for i in range(5)]},
+    "undead_ruin": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_ruin_%d.png" % i for i in range(5)]},
+    "undead_skull_door": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_skull_door_%d.png" % i for i in range(3)]},
+    "undead_skulls": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_skulls_%d.png" % i for i in range(1)]},
+    "undead_stump": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_stump_%d.png" % i for i in range(3)]},
+    "undead_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_rock_%d.png" % i for i in range(5)]},
+    "undead_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_tree_%d.png" % i for i in range(5)]},
     # 2026-10-29: the Verdant Frontier, World 1 (cut_prop_boards.py, field_board.webp).
     "field_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/field_tree_%d.png" % i for i in range(2)]},
     "field_tree_small": {"scale": 0.5, "files": ["assets/textures/props/boards/field_tree_small_%d.png" % i for i in range(2)]},

@@ -411,6 +411,35 @@ BOARDS = {
     "desert_tree": {"src": "desert_trees_board.webp", "main_only": True, "pieces": [((23, 8, 343, 329), 135), ((373, 60, 601, 335), 116), ((614, 139, 771, 337), 83), ((814, 28, 1113, 350), 135), ((1121, 90, 1344, 342), 106), ((1361, 158, 1523, 342), 77), ((23, 336, 358, 663), 137), ((389, 373, 627, 659), 120), ((654, 440, 844, 656), 91), ((28, 669, 360, 1005), 141), ((371, 692, 618, 1001), 130), ((631, 756, 826, 999), 102), ((854, 642, 1125, 997), 149), ((1134, 700, 1359, 996), 124), ((1369, 779, 1522, 985), 87)]},
     "desert_tree_dead": {"src": "desert_dead_trees_board.webp", "main_only": True, "pieces": [((7, 10, 533, 584), 172), ((576, 17, 1096, 569), 166), ((1126, 9, 1511, 805), 239), ((500, 568, 1155, 1001), 130), ((77, 660, 485, 984), 97)]},
     "desert_tuft": {"src": "desert_tufts_board.webp", "main_only": True, "pieces": [((23, 253, 530, 597), 41), ((588, 364, 1109, 597), 28), ((1140, 17, 1510, 639), 75), ((99, 659, 664, 976), 38), ((781, 720, 1425, 976), 31)]},
+    # 2026-10-29: the barrow land's props, World 5 and the Boneyard
+    # (undead_bones / graves / ruins / trees boards, on black). Heights keep
+    # the pack pieces' sizes (twice their texels, at 64 a tile), so the
+    # Boneyard's placements (the gate arch, its pillars, the crypt door, the
+    # posts along the walls) stand as they did.
+    # Bones: a horned dragon skull, a bone, vertebrae, a bird skull, a bone;
+    # a skull, three skulls, an upright bone, a ribcage pile, a tusk, ribs.
+    "undead_bones": {"src": "undead_bones_board.webp", "main_only": True, "pieces": [((31, 25, 361, 266), 60), ((410, 52, 606, 234), 44), ((689, 88, 834, 234), 36), ((896, 45, 1040, 246), 50), ((1119, 80, 1259, 221), 34),
+                                          ((16, 844, 195, 971), 32), ((228, 828, 454, 978), 44), ((477, 781, 656, 982), 50), ((711, 793, 1024, 989), 54), ((1079, 757, 1244, 992), 58), ((1253, 712, 1518, 997), 70)]},
+    # Dry thornbushes (four sizes) and red-berried black thorn vines (three).
+    "undead_bush": {"hole": 30, "src": "undead_bones_board.webp", "main_only": True, "pieces": [((23, 272, 435, 531), 78), ((495, 303, 784, 519), 65), ((865, 363, 1080, 524), 48), ((1114, 380, 1271, 512), 40),
+                                         ((12, 531, 417, 773), 73), ((428, 550, 899, 760), 63), ((921, 573, 1133, 733), 48)]},
+    # Headstones in ivy: three tall, eight small; and five pale green plants.
+    "undead_grave": {"src": "undead_graves_board.webp", "main_only": True, "pieces": [((42, 35, 335, 414), 64), ((385, 75, 699, 389), 53), ((755, 96, 1043, 407), 53),
+                                           ((15, 750, 194, 997), 42), ((211, 743, 370, 997), 43), ((388, 763, 542, 981), 37), ((558, 743, 731, 991), 42),
+                                           ((748, 757, 932, 997), 41), ((951, 763, 1134, 991), 39), ((1150, 777, 1309, 977), 34), ((1332, 750, 1526, 997), 42)]},
+    "undead_plant": {"src": "undead_graves_board.webp", "main_only": True, "pieces": [((1082, 49, 1500, 457), 82), ((62, 426, 413, 715), 58), ((512, 479, 766, 694), 43), ((840, 479, 1093, 695), 43), ((1233, 513, 1409, 695), 36)]},
+    # Ruins: a broken wall by a column (the gate's pillars), an arch over
+    # columns (the gate), a rubble heap (the posts along the walls), fallen
+    # columns by a standing one, and a great colonnade's wreck.
+    "undead_ruin": {"hole": 30, "src": "undead_ruins_board.webp", "main_only": True, "pieces": [((601, 59, 797, 273), 150), ((1, 13, 329, 272), 124), ((812, 149, 1001, 269), 60), ((321, 31, 597, 281), 120), ((13, 746, 505, 1014), 140)]},
+    "undead_skull_door": {"src": "undead_ruins_board.webp", "main_only": True, "pieces": [((1012, 25, 1185, 264), 94), ((1193, 25, 1357, 264), 94), ((1365, 25, 1529, 264), 94)]},
+    "undead_skulls": {"src": "undead_ruins_board.webp", "main_only": True, "pieces": [((6, 316, 329, 535), 90)]},
+    "undead_stump": {"src": "undead_ruins_board.webp", "main_only": True, "pieces": [((336, 340, 529, 544), 64), ((538, 367, 777, 543), 56), ((788, 361, 1036, 543), 56)]},
+    "undead_rock": {"src": "undead_ruins_board.webp", "main_only": True, "pieces": [((16, 555, 244, 747), 96), ((262, 584, 452, 744), 80), ((483, 610, 632, 747), 68), ((665, 632, 751, 731), 50), ((788, 642, 849, 716), 37)]},
+    # Trees: two pale bone-white trees, two great dead trees over skulls, and
+    # a shattered bone spire.
+    "undead_tree": {"hole": 30, "src": "undead_ruins_board.webp", "main_only": True, "pieces": [((1045, 276, 1268, 591), 130), ((1284, 316, 1520, 590), 115)],
+                    "more": [("undead_trees_board.webp", (14, 145, 577, 865), 170), ("undead_trees_board.webp", (606, 218, 1058, 860), 150), ("undead_trees_board.webp", (1075, 392, 1519, 875), 110)]},
     # 2026-10-29: the Verdant Frontier's props, World 1 (field_board.webp,
     # the board's lower right, on black): a round broadleaf and a pine (big,
     # and again small), a round bush, a fern, a clump of daisies, four rocks

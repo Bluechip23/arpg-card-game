@@ -687,7 +687,7 @@ const PROP_ROLES := {
 		"crystal": ["cave_crystal"], "pebble": ["cave_pebble"], "bones": ["undead_bones"], "web": ["cave_web"],
 		"wallrock": ["wallrock_grey"]},
 	"undead": {"tree": ["undead_tree"], "stump": ["undead_stump"], "rock": ["undead_rock"], "bush": ["undead_bush"],
-		"berry": ["undead_bush"], "fern": ["undead_bush"], "flower": ["undead_crystal"], "tuft": ["undead_bones"],
+		"berry": ["undead_bush"], "fern": ["undead_plant"], "flower": ["undead_plant"], "tuft": ["undead_bones"],   # the designer's barrow land (2026-10-29)
 		"shroom": ["undead_skulls"], "pebble": ["undead_bones"], "bones": ["undead_bones"], "reeds": ["forest_reeds"],
 		"wallrock": ["wallrock_dark"]},
 	"cursed": {"tree": ["cursed_tree"], "stump": ["cursed_eye"], "rock": ["cursed_rock", "cursed_eye_rock"],   # the designer's cursed land (2026-10-29)
