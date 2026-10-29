@@ -175,13 +175,78 @@ BOARDS = {
             ((33, 52, 318, 342), 100), ((340, 126, 553, 342), 82), ((573, 189, 726, 340), 56),       # orange
         ],
     },
+    # 2026-10-29: the designer's stalagmites, mushrooms and webs
+    # (cave_spikes_shrooms_webs_board.webp, on black: eight grey-green spikes,
+    # five dark ringed spikes; five corner webs; pale, blue, spiral-capped and
+    # dripping ember-capped mushrooms). The spikes take the places of the
+    # pack's five grey and three black stalagmites, the rest are new; all at
+    # one scale, as drawn relative to each other. The tall rock columns from
+    # the crystals board stand among them.
     "cave_stalagmite": {
-        "src": "cave_rocks_crystals_board.webp",
+        "src": "cave_spikes_shrooms_webs_board.webp",
         "pieces": [
-            ((808, 18, 967, 358), 100),
-            ((1013, 18, 1149, 360), 92),
-            ((1191, 28, 1325, 359), 108),
-            ((1378, 27, 1511, 359), 84),
+            ((34, 5, 235, 262), 108),       # grey, tall and short
+            ((487, 64, 606, 260), 82),      # grey, single
+            ((267, 19, 435, 260), 101),     # grey cluster
+            ((670, 113, 814, 260), 62),     # grey pair
+            ((1265, 120, 1358, 260), 59),   # grey, small
+            ((34, 262, 235, 453), 80),      # dark pair
+            ((495, 277, 608, 452), 74),     # dark single
+            ((869, 313, 965, 452), 58),     # dark, small
+            ((883, 113, 1014, 260), 62),    # new: grey pair
+            ((1077, 63, 1233, 260), 83),    # new: grey, tall and short
+            ((1407, 171, 1489, 260), 37),   # new: grey, smallest
+            ((296, 268, 439, 451), 77),     # new: dark pair
+            ((666, 297, 785, 452), 65),     # new: dark pair
+        ],
+        "more": [
+            ("cave_rocks_crystals_board.webp", (808, 18, 967, 358), 100),    # the rock columns
+            ("cave_rocks_crystals_board.webp", (1013, 18, 1149, 360), 92),
+            ("cave_rocks_crystals_board.webp", (1191, 28, 1325, 359), 108),
+            ("cave_rocks_crystals_board.webp", (1378, 27, 1511, 359), 84),
+        ],
+    },
+    # The stalactites: the grey spikes hanging point-down from the dark.
+    "cave_stalactite": {
+        "src": "cave_spikes_shrooms_webs_board.webp",
+        "flip": True,
+        "pieces": [
+            ((34, 5, 235, 262), 108), ((487, 64, 606, 260), 82), ((267, 19, 435, 260), 101),
+            ((670, 113, 814, 260), 62), ((1265, 120, 1358, 260), 59), ((883, 113, 1014, 260), 62),
+            ((1077, 63, 1233, 260), 83), ((1407, 171, 1489, 260), 37),
+        ],
+    },
+    "cave_shroom": {
+        "src": "cave_spikes_shrooms_webs_board.webp",
+        "pieces": [
+            ((58, 648, 209, 809), 48),      # pale clump
+            ((385, 710, 462, 796), 36),     # pale, small
+            ((610, 636, 781, 809), 64),     # blue clump
+            ((833, 685, 941, 815), 52),     # blue pair
+            ((1093, 642, 1266, 820), 86),   # spiral caps, two
+            ((1291, 668, 1431, 818), 64),   # spiral caps, the smaller two
+            ((111, 811, 397, 1010), 98),    # ember caps, the big pair
+            ((691, 861, 810, 1000), 60),    # ember cap, single
+            ((247, 686, 348, 799), 40),     # new: pale, middle
+            ((974, 720, 1031, 806), 34),    # new: blue, tiny
+            ((457, 840, 615, 1003), 80),    # new: ember caps, pair
+            ((962, 880, 1091, 1003), 60),   # new: ember caps
+            ((1184, 857, 1309, 1003), 70),
+            ((1359, 905, 1446, 1003), 48),
+        ],
+    },
+    # The webs: drawn as thin strands, so a low alpha cut keeps them through
+    # the shrink. (DungeonManager sizes a web to a tile across.)
+    "cave_web": {
+        "src": "cave_spikes_shrooms_webs_board.webp",
+        "alpha_cut": 40,
+        "open_black": True,
+        "pieces": [
+            ((40, 464, 375, 630), 45),
+            ((439, 464, 696, 663), 70),
+            ((744, 463, 1007, 647), 63),
+            ((1131, 464, 1319, 625), 77),
+            ((1324, 464, 1499, 666), 104),
         ],
     },
     # 2026-10-29: the designer's cave rocks and pebbles
@@ -224,7 +289,7 @@ BOARDS = {
 }
 
 
-def cut_piece(board, box, height):
+def cut_piece(board, box, height, alpha_cut=128, flip=False, open_black=False):
     rgb = np.asarray(board.crop(box).convert("RGB")).astype(np.float32)
     bright = rgb.max(axis=2)
     # The background is the black reached from the crop's edge; black
@@ -236,6 +301,8 @@ def cut_piece(board, box, height):
     sizes = nd.sum(black, lab, range(1, n + 1)) if n else []
     see_through = {i + 1 for i, sz in enumerate(sizes) if sz > HOLE}
     solid = ~np.isin(lab, list(edge_labels | see_through))
+    if open_black:
+        solid &= ~black   # a piece with no dark paint of its own (the webs): every black is the board
     lab, n = nd.label(solid)
     if n:
         sizes = nd.sum(solid, lab, range(1, n + 1))
@@ -254,9 +321,10 @@ def cut_piece(board, box, height):
     k = height / float(img.height)
     size = (max(1, round(img.width * k)), height)
     small = np.asarray(img.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")).copy()
-    small[..., 3] = np.where(small[..., 3] >= 128, 255, 0)
+    small[..., 3] = np.where(small[..., 3] >= alpha_cut, 255, 0)
     small[small[..., 3] == 0, :3] = 0
-    return Image.fromarray(small, "RGBA")
+    out = Image.fromarray(small, "RGBA")
+    return out.transpose(Image.FLIP_TOP_BOTTOM) if flip else out
 
 
 def build(role, cfg):
@@ -266,7 +334,8 @@ def build(role, cfg):
     pieces = [(board, box, h) for box, h in cfg["pieces"]] + \
              [(Image.open(SRC % src), box, h) for src, box, h in cfg.get("more", [])]
     for i, (b, box, height) in enumerate(pieces):
-        img = cut_piece(b, box, height)
+        img = cut_piece(b, box, height, cfg.get("alpha_cut", 128), cfg.get("flip", False),
+                        cfg.get("open_black", False))
         img.save(OUT % (role, i))
         print("%s_%d: %dx%d" % (role, i, img.width, img.height))
 

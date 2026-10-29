@@ -683,7 +683,7 @@ const PROP_ROLES := {
 		"rock": ["forest_rock"], "bush": ["forest_bush"], "berry": ["field_berry"], "fern": ["forest_fern"],
 		"flower": ["field_flower"], "tuft": ["field_tuft"], "shroom": ["forest_shroom"], "pebble": ["forest_pebble"],
 		"reeds": ["forest_reeds"], "bones": ["undead_bones"], "wallrock": ["wallrock_rust"]},
-	"cave": {"stalagmite": ["cave_stalagmite"], "stalactite": ["cave_rock"], "rock": ["cave_rock"], "shroom": ["cave_shroom"],
+	"cave": {"stalagmite": ["cave_stalagmite"], "stalactite": ["cave_stalactite"], "rock": ["cave_rock"], "shroom": ["cave_shroom"],
 		"crystal": ["cave_crystal"], "pebble": ["cave_pebble"], "bones": ["undead_bones"], "web": ["cave_web"],
 		"wallrock": ["wallrock_grey"]},
 	"undead": {"tree": ["undead_tree"], "stump": ["undead_stump"], "rock": ["undead_rock"], "bush": ["undead_bush"],
@@ -4455,9 +4455,10 @@ func _build_cave_decorations() -> void:
 			elif near_wall and n < 0.30:
 				# Stalactite hanging from the gloom above (billboard sprite,
 				# drawn tip-down; anchored so its root touches the dark above).
+				# (The designer's spikes, flipped: ~40 pack texels on average.)
 				var hs = 0.5 + _tile_noise(x, z, 77) * 0.7
 				stalactite_items.append({
-					"pos": Vector3(x + 0.5 + jx, 2.9 - 24.0 * 0.03125 * hs, z + 0.5 + jz),
+					"pos": Vector3(x + 0.5 + jx, 2.9 - 40.0 * 0.03125 * hs, z + 0.5 + jz),
 					"scale": hs,
 					"color": pal["wall_a"].lerp(pal["wall_b"], n * 2.0),
 				})
