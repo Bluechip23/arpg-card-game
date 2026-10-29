@@ -2601,11 +2601,27 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 	# (awning: the shop's colour, kept for the callers.)
 	match vn:
 		"Blacksmith":
-			_stall_prop(stall, "town_bench", 0, Vector3(0, 0, 0.55))       # the anvil workbench
-			# The designer's Blacksmith stands behind his bench (his NPC
-			# sheet's four standing poses), turning to face a nearby player.
+			# The designer's smithy (2026-10-29, blacksmith_forge_board): the
+			# forge behind him with its bellows on its right and the coal box
+			# on its left, the rack of tongs and molds behind him too; the
+			# anvil, his workbench and stool in front, the water bucket by the
+			# anvil and the grindstone up and right of it. His old anvil
+			# workbench stands off to his left, turned 45 degrees, the sword
+			# rack on its left.
+			_stall_prop(stall, "smith_molds", 0, Vector3(2.6, 0, -1.75))
+			_stall_prop(stall, "smith_forge", 0, Vector3(-0.45, 0, -1.6))
+			_stall_prop(stall, "smith_bellows", 0, Vector3(1.05, 0, -1.25))
+			_stall_prop(stall, "smith_coal_box", 0, Vector3(-2.0, 0, -1.35))
+			# The designer's Blacksmith (his NPC sheet's four standing poses),
+			# turning to face a nearby player.
 			_add_stall_keeper(stall, "npc_blacksmith", "Smith")
-			_stall_prop(stall, "goods_pile", 0, Vector3(-1.25, 0, 1.0))     # his takings (his right side is the Armory's shelf)
+			_stall_prop(stall, "smith_grindstone", 0, Vector3(0.95, 0, 0.05))
+			_stall_prop(stall, "smith_anvil", 0, Vector3(-0.1, 0, 0.75))
+			_stall_prop(stall, "smith_water", 0, Vector3(-1.0, 0, 0.95))
+			_stall_prop(stall, "smith_table", 0, Vector3(1.95, 0, 0.75))
+			_stall_prop(stall, "smith_stool", 0, Vector3(1.4, 0, 1.25))
+			_stall_prop(stall, "town_bench_angled", 0, Vector3(-2.5, 0, 0.35))
+			_stall_prop(stall, "smith_sword_rack", 0, Vector3(-3.75, 0, 0.3))
 		"Armory":
 			_add_stall_keeper(stall, "npc_armory", "Keeper")
 			# Weapon and armour shelves, a tile and a half wide, either side of

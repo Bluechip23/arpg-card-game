@@ -318,6 +318,29 @@ BOARDS = {
     # 2026-10-29: the designer's stash, a vault door set into the plaza
     # (stash_vault_board.webp): laid flat on the ground by town.gd, 2.4
     # tiles across.
+    # The smith's old anvil workbench, turned 45 degrees (designer, 2026-10-29).
+    "town_bench_angled": {
+        "src": "town_stalls_board.webp",
+        "turn45": True,
+        "pieces": [((322, 12, 720, 242), 62)],
+    },
+    # 2026-10-29: the designer's forge (blacksmith_forge_board.webp, on
+    # black): the forge, the bellows, the anvil on its stump, the rack of
+    # tongs and weapon molds, a workbench, a box of coal, a water bucket, a
+    # coal bucket, a stool, a sword rack, a log pile and a grindstone. Sized
+    # to the smith (about 2.3 tiles tall), 64 texels a tile.
+    "smith_forge": {"src": "blacksmith_forge_board.webp", "own_alpha": 230, "main_only": True, "pieces": [((15, 0, 548, 502), 140)]},
+    "smith_bellows": {"src": "blacksmith_forge_board.webp", "own_alpha": 230, "main_only": True, "pieces": [((511, 88, 1016, 467), 62)]},
+    "smith_anvil": {"src": "blacksmith_forge_board.webp", "own_alpha": 230, "pieces": [((1022, 80, 1512, 504), 54)]},
+    "smith_molds": {"src": "blacksmith_forge_board.webp", "own_alpha": 230, "main_only": True, "pieces": [((25, 505, 770, 735), 58)]},
+    "smith_table": {"src": "blacksmith_forge_board.webp", "own_alpha": 230, "pieces": [((785, 520, 1272, 728), 52)]},
+    "smith_coal_box": {"src": "blacksmith_forge_board.webp", "own_alpha": 230, "pieces": [((1276, 505, 1508, 722), 42)]},
+    "smith_water": {"src": "blacksmith_forge_board.webp", "own_alpha": 230, "pieces": [((20, 740, 262, 992), 44)]},
+    "smith_coal_bucket": {"src": "blacksmith_forge_board.webp", "own_alpha": 230, "pieces": [((330, 780, 502, 972), 32)]},
+    "smith_stool": {"src": "blacksmith_forge_board.webp", "own_alpha": 230, "pieces": [((524, 788, 716, 988), 34)]},
+    "smith_sword_rack": {"src": "blacksmith_forge_board.webp", "own_alpha": 230, "pieces": [((730, 735, 964, 994), 52)]},
+    "smith_logs": {"src": "blacksmith_forge_board.webp", "own_alpha": 230, "pieces": [((990, 740, 1252, 988), 48)]},
+    "smith_grindstone": {"src": "blacksmith_forge_board.webp", "own_alpha": 230, "pieces": [((1254, 724, 1532, 994), 54)]},
     "town_stash_vault": {
         "src": "stash_vault_board.webp",
         "pieces": [((196, 45, 1339, 985), 126)],
@@ -333,8 +356,42 @@ BOARDS = {
 }
 
 
-def cut_piece(board, box, height, alpha_cut=128, flip=False, open_black=False):
+def turn45(img, squeeze=0.72, drop=0.45):
+    """A long piece turned 45 degrees on the ground, as far as a flat drawing
+    can be: narrowed (its length now runs into the depth) and sheared so
+    its right end comes forward (lower on screen) - nearest-neighbour, so
+    the texels stay crisp. No pack or board draws it turned."""
+    w, h = img.size
+    W = max(1, round(w * squeeze))
+    H = h + round(W * drop)
+    # inverse map: source x = X / squeeze, source y = Y - X * drop
+    return img.transform((W, H), Image.AFFINE, (1.0 / squeeze, 0, 0, -drop, 1, 0), resample=Image.NEAREST)
+
+
+def cut_piece(board, box, height, alpha_cut=128, flip=False, open_black=False, main_only=False,
+              rim_floor=1e-3, own_alpha=0):
     rgb = np.asarray(board.crop(box).convert("RGB")).astype(np.float32)
+    if own_alpha:
+        # A board that comes cut out (its own transparency, a soft painted
+        # halo round each piece): the piece is where its alpha is at least
+        # own_alpha; the halo and the black are both board.
+        a = np.asarray(board.crop(box).convert("RGBA"))[..., 3]
+        solid = a >= own_alpha
+        lab, n = nd.label(solid)
+        if n:
+            sizes = nd.sum(solid, lab, range(1, n + 1))
+            solid = (lab == 1 + int(np.argmax(sizes))) if main_only else np.isin(lab, 1 + np.nonzero(sizes >= SPECK)[0])
+        ys, xs = np.nonzero(solid)
+        rgb = rgb[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+        solid = solid[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+        img = Image.fromarray(np.dstack([rgb, solid * 255.0]).astype(np.uint8), "RGBA")
+        k = height / float(img.height)
+        size = (max(1, round(img.width * k)), height)
+        small = np.asarray(img.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")).copy()
+        small[..., 3] = np.where(small[..., 3] >= alpha_cut, 255, 0)
+        small[small[..., 3] == 0, :3] = 0
+        out = Image.fromarray(small, "RGBA")
+        return out.transpose(Image.FLIP_TOP_BOTTOM) if flip else out
     bright = rgb.max(axis=2)
     # The background is the black reached from the crop's edge; black
     # enclosed by the piece is its own deep shading (the designer shades
@@ -351,6 +408,8 @@ def cut_piece(board, box, height, alpha_cut=128, flip=False, open_black=False):
     if n:
         sizes = nd.sum(solid, lab, range(1, n + 1))
         solid = np.isin(lab, 1 + np.nonzero(sizes >= SPECK)[0])
+        if main_only:   # only the piece itself: a neighbour reaching into its box goes
+            solid = lab == 1 + int(np.argmax(sizes))
     # The outermost rim is blended into the black: soft there (RAMP), so
     # the shrink does not draw a dark line round the piece.
     rim = solid & ~nd.binary_erosion(solid, iterations=2)
@@ -360,7 +419,9 @@ def cut_piece(board, box, height, alpha_cut=128, flip=False, open_black=False):
     alpha = alpha[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
     # Colour stays as painted inside; the rim's blend with black is taken
     # back out (unpremultiply) where its alpha is soft.
-    col = np.clip(rgb / np.maximum(alpha, 1e-3)[..., None], 0, 255)
+    # (rim_floor > 0: a board whose blacks carry a colour cast would turn
+    # that cast into a coloured fringe when brightened all the way.)
+    col = np.clip(rgb / np.maximum(alpha, rim_floor)[..., None], 0, 255)
     img = Image.fromarray(np.dstack([col, alpha * 255]).astype(np.uint8), "RGBA")
     k = height / float(img.height)
     size = (max(1, round(img.width * k)), height)
@@ -379,7 +440,10 @@ def build(role, cfg):
              [(Image.open(SRC % src), box, h) for src, box, h in cfg.get("more", [])]
     for i, (b, box, height) in enumerate(pieces):
         img = cut_piece(b, box, height, cfg.get("alpha_cut", 128), cfg.get("flip", False),
-                        cfg.get("open_black", False))
+                        cfg.get("open_black", False), cfg.get("main_only", False),
+                        cfg.get("rim_floor", 1e-3), cfg.get("own_alpha", 0))
+        if cfg.get("turn45"):
+            img = turn45(img)
         img.save(OUT % (role, i))
         print("%s_%d: %dx%d" % (role, i, img.width, img.height))
 
