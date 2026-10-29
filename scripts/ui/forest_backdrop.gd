@@ -44,7 +44,20 @@ static func add_to(root: Control, dim_amount: float = 0.35) -> ForestBackdrop:
 	root.move_child(bd, 0)
 	return bd
 
-const TREE_DIR := "res://assets/sprites/craftpix/tileset_forest/Objects_separated/"
+## The designer's Greenwood trees (tools/cut_prop_boards.py, 2026-10-29; was
+## the forest pack's Tree1-11). Each old slot keeps its look and its height:
+## `scale` below is the old factor, applied as the old pack tree's visible
+## height (~76 px), so the skyline and the framing trees stand as tall.
+const TREE_DIR := "res://assets/textures/props/boards/"
+const TREES := {
+	1: "forest_tree_big_2.png",   # round broadleaf
+	2: "forest_tree_big_0.png",   # yellow-green conifer
+	3: "forest_tree_big_3.png",   # broadleaf on pale roots
+	5: "forest_tree_climb_0.png", # the great oak
+	6: "forest_tree_big_1.png",   # columnar broadleaf
+	11: "forest_tree_6.png",      # wide broadleaf
+}
+const OLD_TREE_H := 76.0
 # Back row along the horizon: [tree, x as a fraction of the width, scale, y lift]
 const BACK_TREES := [
 	[1, 0.02, 2.0, 18.0], [5, 0.10, 2.0, 10.0], [2, 0.19, 2.0, 22.0], [6, 0.27, 2.0, 6.0],
@@ -56,16 +69,26 @@ const FRONT_TREES := [[1, -0.03, 4.5], [5, 0.07, 3.2], [2, 1.03, 4.5], [6, 0.94,
 
 static var _tree_cache: Dictionary = {}
 
-## A pack tree pre-scaled with nearest-neighbour (crisp pixels under the
-## project's linear canvas filter), cached per tree and scale.
+## A tree pre-scaled with nearest-neighbour (crisp pixels under the
+## project's linear canvas filter), cached per tree and scale: `factor` is
+## the old pack factor, turned into this art's own by height.
 static func tree_tex(index: int, factor: float) -> Texture2D:
 	var key := "%d@%.2f" % [index, factor]
 	if not _tree_cache.has(key):
-		var tex := load(TREE_DIR + "Tree%d.png" % index) as Texture2D
+		var path: String = TREE_DIR + str(TREES.get(index, TREES[1]))
+		var tex := load(path) as Texture2D
 		if tex == null:
 			return null
-		_tree_cache[key] = _bake(TREE_DIR + "Tree%d.png" % index, factor)
+		_tree_cache[key] = _bake(path, factor * OLD_TREE_H / float(tex.get_height()))
 	return _tree_cache[key]
+
+const GRASS := "res://assets/textures/ground/forest_grass.png"
+static var _grass: Texture2D = null
+
+static func _grass_tex() -> Texture2D:
+	if _grass == null and ResourceLoader.exists(GRASS):
+		_grass = _bake(GRASS, 2.0)
+	return _grass
 
 static func _bake(path: String, factor: float) -> ImageTexture:
 	var img: Image = (load(path) as Texture2D).get_image()
@@ -116,8 +139,14 @@ static func draw_backdrop(ci: CanvasItem, size: Vector2, g: float, _t: float, pa
 			var my := g - 110.0 + u * 110.0 + sin(_t * 0.4 + k * 0.7) * 3.0
 			var a := mist.a * u * u * (0.75 + 0.25 * sin(_t * 0.3 + k * 0.9))
 			ci.draw_rect(Rect2(0, my, size.x, 8.0), Color(mist, a))
-	# Ground
-	ci.draw_rect(Rect2(0, g, size.x, size.y - g), pal.get("ground", Color(0.05, 0.12, 0.06)))
+	# Ground: the designer's Greenwood grass (2026-10-29), darkened to the
+	# palette's night ground, tiled at the art's own pixels doubled.
+	var ground_c: Color = pal.get("ground", Color(0.05, 0.12, 0.06))
+	ci.draw_rect(Rect2(0, g, size.x, size.y - g), ground_c)
+	var grass := _grass_tex()
+	if grass:
+		var tint := Color(minf(ground_c.r * 3.2, 1.0), minf(ground_c.g * 3.2, 1.0), minf(ground_c.b * 3.2, 1.0))
+		ci.draw_texture_rect(grass, Rect2(0, g, size.x, size.y - g), true, tint)
 	ci.draw_rect(Rect2(0, g, size.x, 3.0), pal.get("ground_edge", Color(0.10, 0.22, 0.10)))
 	# Fireflies / dust motes drifting over the glade.
 	var mote: Color = pal.get("motes", Color(0.85, 1.0, 0.45))
@@ -152,8 +181,8 @@ static func draw_tree(ci: CanvasItem, index: int, foot: Vector2, factor: float, 
 	if tex == null:
 		return
 	var sz := tex.get_size()
-	# The pack trees stand a little above the bottom of their cell.
-	ci.draw_texture(tex, foot - Vector2(sz.x * 0.5, sz.y * 0.94), tint)
+	# The designer's trees are cut tight: their roots stand on the bottom edge.
+	ci.draw_texture(tex, foot - Vector2(sz.x * 0.5, sz.y * 0.97), tint)
 
 static func draw_front_trees(ci: CanvasItem, size: Vector2, pal: Dictionary) -> void:
 	var tint: Color = pal.get("tree_front", Color(0.05, 0.10, 0.07))
