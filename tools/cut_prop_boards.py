@@ -315,6 +315,13 @@ BOARDS = {
         "src": "town_stalls_board.webp",
         "pieces": [((1047, 656, 1507, 985), 89)],
     },
+    # 2026-10-29: the designer's stash, a vault door set into the plaza
+    # (stash_vault_board.webp): laid flat on the ground by town.gd, 2.4
+    # tiles across.
+    "town_stash_vault": {
+        "src": "stash_vault_board.webp",
+        "pieces": [((196, 45, 1339, 985), 126)],
+    },
     "forest_fern": {
         "src": "forest_logs_ferns_board.webp",
         "pieces": [

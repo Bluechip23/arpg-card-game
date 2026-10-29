@@ -2647,20 +2647,24 @@ func _add_stall_keeper(stall: Node3D, kind: String, node_name: String) -> void:
 	k.scale = Vector3.ONE * TOWN_NPC_SCALE
 	_townsfolk.append(k)
 
+## The stash: the designer's vault door set into the plaza, leading down
+## into the ground (2026-10-29; tools/cut_prop_boards.py town_stash_vault).
+## It lies flat, a hair above the cobbles, stretched along the depth so the
+## plan camera's foreshortening shows it as drawn; 64 texels a tile.
+const STASH_VAULT_TEX := "res://assets/textures/props/boards/town_stash_vault_0.png"
+
 func _build_stash_chest(stash: Node3D) -> void:
-	# Same 16-bit chest billboard the dungeons use, scaled up for the stash.
-	var chest := Sprite3D.new()
-	chest.name = "Chest"
-	chest.texture = load(CraftpixProps.PROPS["chest_wood_closed"]["variants"][0]["path"])
-	chest.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	chest.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD  # writes depth: per-pixel sorting
-	chest.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	chest.shaded = false
-	chest.pixel_size = 0.03125
-	var s := 1.4
-	chest.scale = Vector3(s, s, s)
-	CameraView.stand_on_ground(chest)
-	stash.add_child(chest)
+	var vault := Sprite3D.new()
+	vault.name = "Vault"
+	vault.texture = load(STASH_VAULT_TEX)
+	vault.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	vault.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+	vault.shaded = false
+	vault.pixel_size = 1.0 / 64.0
+	vault.rotation_degrees = Vector3(-90, 0, 0)   # face up, lying on the ground
+	vault.scale = Vector3(1.0, 1.0 / CameraView.ground_foreshortening(), 1.0)
+	vault.position = Vector3(0, 0.012, 0)
+	stash.add_child(vault)
 
 
 func _build_lamp(parent: Node3D, pos: Vector3) -> void:
