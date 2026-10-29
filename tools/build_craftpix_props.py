@@ -108,7 +108,7 @@ ROLES = {
     "desert_bush": {"scale": 1.0, "src": [f"{D}/Small_bush*.png", f"{D}/Grass_element2_*_grass_shadow.png", f"{D}/Grass_element3_*_grass_shadow.png"]},
     "desert_tuft": {"scale": 1.0, "src": [f"{D}/Grass_element1.png", f"{D}/Grass_element2.png", f"{D}/Grass_element3.png", f"{D}/Grass_element4.png", f"{D}/Grass_element4_*_grass_shadow.png"]},
     "desert_flower": {"scale": 1.0, "src": [f"{D}/Red_flower*.png", f"{D}/Violet_flower*.png", f"{D}/White_flower*.png", f"{D}/Yellow_flower*.png"]},
-    "desert_bones": {"scale": 1.0, "src": [f"{D}/Bones_grass_shadow*.png", f"{D}/Bone_element_grass*.png", f"{D}/Scull_grass_shadow*.png", f"{D}/Sculls_grass_shadow*.png"]},
+    # "desert_bones": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Bones_grass_shadow*.png", f"{D}/Bone_element_grass*.png", f"{D}/Scull_grass_shadow*.png", f"{D}/Sculls_grass_shadow*.png"]
     "desert_pebble": {"scale": 1.0, "src": [f"{D}/Sand_element*.png"]},
     "desert_ruin": {"scale": 0.8, "src": [f"{D}/Ruins*.png", f"{D}/pyramid_grass_shadow*.png", f"{D}/Gates*.png", f"{D}/small_gate*.png"]},
     # --- World 3 Frostreach (winter pack; snow-shadow variants) ---
@@ -348,6 +348,7 @@ DESIGNER = {
     "chest_legendary_open": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_legendary_open_0.png"]},
     "chest_mythic_closed": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_mythic_closed_0.png"]},
     "chest_mythic_open": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_mythic_open_0.png"]},
+    "desert_bones": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_bones_%d.png" % i for i in range(15)]},
     "town_card_shelf": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_shelf_0.png"]},
     "town_card_table": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_table_0.png"]},
     "town_card_players": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_players_0.png"]},

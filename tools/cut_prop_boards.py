@@ -362,6 +362,26 @@ BOARDS = {
     "chest_wood_open": {"src": "chests_board.webp", "pieces": [((803, 475, 1150, 911), 72)]},
     "chest_mythic_closed": {"src": "chests_board.webp", "main_only": True, "pieces": [((1156, 139, 1508, 412), 44)]},
     "chest_mythic_open": {"src": "chests_board.webp", "pieces": [((1149, 469, 1516, 908), 73)]},
+    # 2026-10-29: the designer's desert bones (desert_bones_board.webp, on
+    # black: spines, skulls, ribs and great serpent skeletons half-sunk in
+    # sand and dry grass). One scale for all, as drawn (0.4 a board px).
+    "desert_bones": {"src": "desert_bones_board.webp", "main_only": True, "pieces": [
+            ((36, 84, 296, 215), 52),
+            ((344, 24, 569, 211), 75),
+            ((585, 81, 817, 204), 49),
+            ((846, 47, 1118, 211), 66),
+            ((1164, 21, 1475, 219), 79),
+            ((42, 232, 503, 591), 144),
+            ((566, 244, 1045, 500), 102, [(862, 338, 1045, 500, 999)]),   # its lower right corner is the next skeleton's grass
+            ((890, 345, 1507, 581), 94),
+            ((38, 595, 322, 802), 83),
+            ((380, 596, 619, 785), 76),
+            ((672, 629, 867, 780), 60),
+            ((935, 628, 1352, 792), 66),
+            ((41, 799, 542, 999), 80),
+            ((576, 790, 859, 1004), 86),
+            ((912, 852, 1492, 1001), 60),
+        ]},
     "town_stash_vault": {
         "src": "stash_vault_board.webp",
         "pieces": [((196, 45, 1339, 985), 126)],
@@ -465,13 +485,14 @@ def build(role, cfg):
     board = Image.open(SRC % cfg["src"])
     os.makedirs(os.path.dirname(OUT % (role, 0)), exist_ok=True)
     # "more": pieces from other boards, (board, box, height), after the rest.
-    pieces = [(board, box, h) for box, h in cfg["pieces"]] + \
-             [(Image.open(SRC % src), box, h) for src, box, h in cfg.get("more", [])]
-    for i, (b, box, height) in enumerate(pieces):
+    # A piece may carry a third item: its own clear_dim boxes (added to the role's).
+    pieces = [(board, p[0], p[1], p[2] if len(p) > 2 else ()) for p in cfg["pieces"]] + \
+             [(Image.open(SRC % src), box, h, ()) for src, box, h in cfg.get("more", [])]
+    for i, (b, box, height, own_clear) in enumerate(pieces):
         img = cut_piece(b, box, height, cfg.get("alpha_cut", 128), cfg.get("flip", False),
                         cfg.get("open_black", False), cfg.get("main_only", False),
                         cfg.get("rim_floor", 1e-3), cfg.get("own_alpha", 0),
-                        cfg.get("black_level"), cfg.get("clear_dim", ()))
+                        cfg.get("black_level"), tuple(cfg.get("clear_dim", ())) + tuple(own_clear))
         if cfg.get("turn45"):
             img = turn45(img)
         img.save(OUT % (role, i))

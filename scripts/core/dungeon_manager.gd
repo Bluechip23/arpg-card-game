@@ -3059,6 +3059,8 @@ func _build_decorations() -> void:
 	var _deco_barrels: Array = []
 	var _deco_berries: Array = []
 	var _deco_pebbles: Array = []
+	var _deco_bones: Array = []   # the Amber Wastes' bleached skeletons (the designer's, 2026-10-29)
+	var desert := _prop_biome() == "desert"
 	var butterfly_cells: Array = []
 	var meadow_cells: Array = []
 	var wall_edges: Array = []   # buildings: [{pos, dir}] for wall sconces
@@ -3118,6 +3120,10 @@ func _build_decorations() -> void:
 					_deco_pebbles.append({"pos": p3,
 							"scale": 0.8 + _tile_noise(x, z, 107) * 0.5,
 							"color": pal["wall_a"].lerp(pal["step"], 0.4)})
+				elif desert and not near_wall and n > 0.70 and n <= 0.72 and _tile_noise(x, z, 111) < 0.6:
+					# Bones half-sunk in the open sand: spines, skulls, ribs.
+					_deco_bones.append({"pos": p3, "scale": 0.85 + _tile_noise(x, z, 113) * 0.3,
+							"color": Color.WHITE})
 				elif n > 0.925:
 					if _tile_noise(x, z, 109) < 0.4:
 						_deco_berries.append({"pos": p3,
@@ -3159,6 +3165,7 @@ func _build_decorations() -> void:
 	_add_prop_decos(_deco_barrels, "barrel")
 	_add_prop_decos(_deco_berries, "berry")
 	_add_prop_decos(_deco_pebbles, "pebble")
+	_add_prop_decos(_deco_bones, "bones")
 
 	if interior_kind == "":
 		_place_signposts(pal)

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://csfcw13q1733p"
-path="res://.godot/imported/desert_bones_3.png-6927045d676e1f6d202a02f3dbe83e58.ctex"
+uid="uid://bm6a7raor0xh"
+path="res://.godot/imported/desert_bones_11.png-3e7fec9b10042facfe2a7e40e80b8445.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/craftpix/props/desert_bones_3.png"
-dest_files=["res://.godot/imported/desert_bones_3.png-6927045d676e1f6d202a02f3dbe83e58.ctex"]
+source_file="res://assets/textures/props/boards/desert_bones_11.png"
+dest_files=["res://.godot/imported/desert_bones_11.png-3e7fec9b10042facfe2a7e40e80b8445.ctex"]
 
 [params]
 
