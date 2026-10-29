@@ -11,11 +11,6 @@ The battlefield is an elevation-aware grid seen from a fixed top-down view — n
 The heroes, nearly every enemy and boss, the summons and the townsfolk are the designer's own hand-drawn art — four-direction pose boards cut into game sprites (`tools/cut_pose_boards.py`) and drawn smooth, never blurred or recompressed. So, now, is most of the world: each realm's ground, cliffs, trees, rocks, ruins and landmarks are the designer's boards, cut into tiles and props (`tools/cut_ground_boards.py`, `tools/cut_prop_boards.py`). What still comes from the purchased art packs is listed in [`docs/ASSET_PACKS.md`](docs/ASSET_PACKS.md).
 
 
-
-| Level up (mist swirl + full restore) |
-|---|
-| ![Level up](docs/screenshots/anim_level_up.png) |
-
 ### The realms
 
 One character, one journey across the realms — each with its own ground, growth, ruins and foes:
