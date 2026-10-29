@@ -1343,13 +1343,13 @@ func _setup_hand_area_background() -> void:
 ## face, icon painted in; the live number sits where the board painted one.
 ## [face size, number centre (or none)] in screen px, as the cutter prints.
 const HUD_FACES := {
-	"draw": [Vector2(70, 54), Vector2(50, 17)], "info": [Vector2(22, 21), null],
-	"flash": [Vector2(120, 35), Vector2(83, 20)], "boots": [Vector2(31, 35), null],
-	"sidestep": [Vector2(29, 35), null], "quick": [Vector2(35, 35), null],
-	"brain": [Vector2(120, 34), Vector2(83, 18)], "peek": [Vector2(42, 34), null],
-	"buy": [Vector2(39, 34), Vector2(30, 9)], "attack": [Vector2(148, 34), Vector2(48, 18)],
-	"block": [Vector2(66, 34), Vector2(42, 18)], "wait": [Vector2(216, 40), Vector2(173, 17)],
-	"discard": [Vector2(77, 81), Vector2(53, 63)],
+	"draw": [Vector2(71, 55), Vector2(51, 17)], "info": [Vector2(23, 22), null],
+	"flash": [Vector2(118, 34), Vector2(85, 18)], "boots": [Vector2(31, 34), null],
+	"sidestep": [Vector2(29, 34), null], "quick": [Vector2(34, 34), null],
+	"brain": [Vector2(118, 33), Vector2(85, 17)], "peek": [Vector2(42, 33), null],
+	"buy": [Vector2(40, 33), Vector2(30, 10)], "attack": [Vector2(148, 34), Vector2(49, 18)],
+	"block": [Vector2(66, 34), Vector2(42, 18)], "wait": [Vector2(216, 38), Vector2(173, 17)],
+	"discard": [Vector2(79, 79), Vector2(53, 59)],
 }
 
 func _hud_face(face: String, tint: Color = Color(1, 1, 1)) -> StyleBoxTexture:
@@ -2294,8 +2294,8 @@ func _setup_deck_info_vertical() -> void:
 	disc_wrap.name = "DiscardButtonContainer"
 	ui.add_child(disc_wrap)
 	disc_wrap.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	disc_wrap.offset_left = -8.0 - 77.0    # the designer's stone face
-	disc_wrap.offset_top = -132.0 - 81.0
+	disc_wrap.offset_left = -8.0 - 79.0    # the designer's stone face
+	disc_wrap.offset_top = -132.0 - 79.0
 	disc_wrap.offset_right = -8.0
 	disc_wrap.offset_bottom = -132.0
 	var disc_pair := _create_pile_button("DiscardButton", false, Color(1.0, 0.85, 0.25))

@@ -27,6 +27,9 @@ width.
 
 Output: assets/textures/ui/hud/*.png, and the layout (px, at output scale)
 printed for scripts/core/main.gd.
+(The sidestep face keeps hud_actions_board_v1.webp's straight-across arrow
+over the newer board's ducking man, as the designer asked.)
+
 Run: python3 tools/cut_hud_panels.py
 """
 import os
@@ -224,20 +227,24 @@ def cut_bars():
 # side by side rebuild the painting), the painted numbers to paint out, and
 # where the live number goes (its centre, board px) for the HUD's labels.
 ACTIONS = {
-    "draw":    {"box": (35, 15, 385, 285), "erase": [(240, 60, 330, 135)], "num": (285, 98)},
-    "info":    {"box": (385, 112, 497, 218), "erase": [], "num": None},
-    "flash":   {"box": (30, 285, 628, 462), "erase": [(405, 345, 490, 430)], "num": (447, 385)},
-    "boots":   {"box": (628, 285, 782, 462), "erase": [], "num": None},
-    "sidestep": {"box": (782, 285, 928, 462), "erase": [], "num": None},
-    "quick":   {"box": (928, 285, 1102, 462), "erase": [], "num": None},
-    "brain":   {"box": (30, 462, 628, 632), "erase": [(405, 510, 490, 595)], "num": (447, 550)},
-    "peek":    {"box": (628, 462, 838, 632), "erase": [], "num": None},
-    "buy":     {"box": (838, 462, 1032, 632), "erase": [(966, 486, 1003, 526)], "num": (987, 507)},
-    "attack":  {"box": (30, 632, 772, 802), "erase": [(270, 680, 660, 770)], "num": (270, 722)},
-    "block":   {"box": (772, 632, 1102, 802), "erase": [(925, 680, 1040, 770)], "num": (982, 722)},
-    "wait":    {"box": (30, 802, 1112, 1000), "erase": [(840, 840, 955, 935)], "num": (897, 885)},
-    "discard": {"box": (1135, 285, 1518, 692), "erase": [(1372, 565, 1428, 632)], "num": (1400, 598)},
+    "draw":    {"box": (35, 15, 390, 290), "erase": [(250, 65, 330, 130)], "num": (290, 98)},
+    "info":    {"box": (390, 112, 505, 220), "erase": [], "num": None},
+    "flash":   {"box": (30, 290, 618, 458), "erase": [(410, 340, 500, 420)], "num": (455, 378)},
+    "boots":   {"box": (618, 290, 774, 458), "erase": [], "num": None},
+    "sidestep": {"box": (774, 290, 920, 458), "erase": [(864, 324, 902, 352), (863, 350, 904, 372), (822, 337, 863, 350)], "num": None},
+    "quick":   {"box": (920, 290, 1090, 458), "erase": [], "num": None},
+    "brain":   {"box": (30, 458, 618, 625), "erase": [(410, 505, 500, 585)], "num": (455, 543)},
+    "peek":    {"box": (618, 458, 828, 625), "erase": [], "num": None},
+    "buy":     {"box": (828, 458, 1028, 625), "erase": [(960, 485, 1000, 528)], "num": (980, 507)},
+    "attack":  {"box": (30, 625, 768, 795), "erase": [(275, 675, 660, 765)], "num": (275, 715)},
+    "block":   {"box": (768, 625, 1100, 795), "erase": [(925, 675, 1035, 765)], "num": (980, 715)},
+    "wait":    {"box": (30, 795, 1110, 985), "erase": [(840, 840, 950, 925)], "num": (895, 882)},
+    "discard": {"box": (1118, 295, 1515, 690), "erase": [(1361, 553, 1407, 618)], "num": (1385, 588)},
 }
+# The sidestep's ducking man (2026-10-29) keeps the first board's arrow that
+# points straight across, not his own pointing down: (source box on
+# hud_actions_board_v1.webp, where its top-left lands on this board).
+SIDESTEP_ARROW = ((818, 326, 905, 360), (810, 314))
 
 
 def cut_actions():
@@ -248,6 +255,14 @@ def cut_actions():
         for x0, y0, x1, y1 in spec["erase"]:
             m[y0:y1, x0:x1] = True
     clean = inpaint(rgb, m)
+    # Paste the straight-across arrow (its bright strokes and their outline).
+    old = load("hud_actions_board_v1.webp")
+    (sx0, sy0, sx1, sy1), (dx, dy) = SIDESTEP_ARROW
+    src = old[sy0:sy1, sx0:sx1]
+    bright = src.max(axis=2) > 90
+    keep = bright | ((src.max(axis=2) < 18) & nd.binary_dilation(bright, iterations=2))
+    dst = clean[dy:dy + src.shape[0], dx:dx + src.shape[1]]
+    dst[keep] = src[keep]
     layout = {}
     for name, spec in ACTIONS.items():
         x0, y0, x1, y1 = spec["box"]
