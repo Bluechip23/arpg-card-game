@@ -341,6 +341,15 @@ BOARDS = {
     "town_contract_desk": {"src": "sellsword_board.webp", "black_level": 24, "pieces": [((815, 352, 1516, 932), 72)]},
     # 2026-10-29: two straw target dummies stuck with arrows (dojo_master_board.webp).
     "town_target_dummy": {"src": "dojo_master_board.webp", "pieces": [((10, 112, 490, 852), 104), ((510, 120, 930, 868), 106)]},
+    # 2026-10-29: the healing well (fireflies over its glowing water) and the
+    # waypoint shrine (a rune circle between raven statues and glowing
+    # standing stones) — well_waypoint_board.webp, on black. Above the rune
+    # circle only the beam and sparks are kept, not their dim halo.
+    "well_healing": {"src": "well_waypoint_board.webp",
+                     "pieces": [((8, 30, 798, 846), 116)]},
+    "waypoint_shrine": {"src": "well_waypoint_board.webp",
+                        "clear_dim": [(1150, 48, 1460, 400, 90)],
+                        "pieces": [((836, 48, 1770, 866), 140)]},
     "town_stash_vault": {
         "src": "stash_vault_board.webp",
         "pieces": [((196, 45, 1339, 985), 126)],
@@ -369,7 +378,7 @@ def turn45(img, squeeze=0.72, drop=0.45):
 
 
 def cut_piece(board, box, height, alpha_cut=128, flip=False, open_black=False, main_only=False,
-              rim_floor=1e-3, own_alpha=0, black_level=None):
+              rim_floor=1e-3, own_alpha=0, black_level=None, clear_dim=()):
     black_at = BLACK if black_level is None else black_level
     rgb = np.asarray(board.crop(box).convert("RGB")).astype(np.float32)
     if own_alpha:
@@ -405,6 +414,13 @@ def cut_piece(board, box, height, alpha_cut=128, flip=False, open_black=False, m
     solid = ~np.isin(lab, list(edge_labels | see_through))
     if open_black:
         solid &= ~black   # a piece with no dark paint of its own (the webs): every black is the board
+    # clear_dim: (x0, y0, x1, y1, level) boxes in board px where only light
+    # brighter than `level` is the piece (a painted glow over open air: the
+    # beam and sparks stay, the dim halo round them is board).
+    for x0, y0, x1, y1, level in clear_dim:
+        sub = np.zeros_like(solid)
+        sub[max(0, y0 - box[1]):max(0, y1 - box[1]), max(0, x0 - box[0]):max(0, x1 - box[0])] = True
+        solid &= ~(sub & (bright < level))
     lab, n = nd.label(solid)
     if n:
         sizes = nd.sum(solid, lab, range(1, n + 1))
@@ -443,7 +459,7 @@ def build(role, cfg):
         img = cut_piece(b, box, height, cfg.get("alpha_cut", 128), cfg.get("flip", False),
                         cfg.get("open_black", False), cfg.get("main_only", False),
                         cfg.get("rim_floor", 1e-3), cfg.get("own_alpha", 0),
-                        cfg.get("black_level"))
+                        cfg.get("black_level"), cfg.get("clear_dim", ()))
         if cfg.get("turn45"):
             img = turn45(img)
         img.save(OUT % (role, i))

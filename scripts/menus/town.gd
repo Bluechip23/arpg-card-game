@@ -2892,29 +2892,9 @@ func _create_town_waypoint() -> void:
 	_town_waypoint_node = Node3D.new()
 	_town_waypoint_node.name = "TransportPortal"
 
-	# Slightly raised dirt mound so the portal reads as a landmark (matches
-	# the dungeon waypoints).
-	var mound = MeshInstance3D.new()
-	var mound_mesh = CylinderMesh.new()
-	mound_mesh.top_radius = 0.68
-	mound_mesh.bottom_radius = 0.95
-	mound_mesh.height = DungeonManager.WAYPOINT_MOUND_HEIGHT
-	mound_mesh.radial_segments = 12
-	mound.mesh = mound_mesh
-	var mound_mat = StandardMaterial3D.new()
-	mound_mat.albedo_texture = load(TOWN_PLAZA_TEX)
-	mound_mat.albedo_color = Color(0.92, 0.92, 0.88)   # a grassy rise (the town is all grass, 2026-10-29)
-	mound_mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	mound_mat.uv1_triplanar = true
-	mound_mat.uv1_scale = Vector3(0.25, 0.25, 0.25)
-	mound_mat.roughness = 1.0
-	mound.material_override = mound_mat
-	mound.position = Vector3(0, DungeonManager.WAYPOINT_MOUND_HEIGHT * 0.5, 0)
-	_town_waypoint_node.add_child(mound)
-
-	# Pixel rune-ring on the mound's top, matching the dungeon waypoints
-	# (teal = transport; town's is always lit).
-	var pillar := DungeonManager.make_waypoint_ring(Color8(0x62, 0xa3, 0xb0), 1.0)
+	# The designer's waypoint shrine, like the dungeon waypoints (2026-10-29;
+	# was a rune ring on a dirt mound). Lit once the world is open.
+	var pillar := DungeonManager.make_waypoint_shrine(true)
 	pillar.name = "Runes"
 	_town_waypoint_node.add_child(pillar)
 
@@ -2942,7 +2922,7 @@ func _create_town_waypoint() -> void:
 
 	# Position near the town entrance area, centred on its tile so the
 	# player stands squarely on the mound when they walk onto it.
-	_town_waypoint_node.position = grid_manager.grid_to_world(Vector2i(4, 10))
+	_town_waypoint_node.position = grid_manager.grid_to_world(Vector2i(7, 10))   # clear of the smithy (2026-10-29; was (4, 10))
 	add_child(_town_waypoint_node)
 	print("[TOWN] Created transport portal")
 
@@ -3105,32 +3085,11 @@ func _create_town_well() -> void:
 	var well = StaticBody3D.new()
 	well.name = "TownWell"
 	well.position = grid_manager.grid_to_world(Vector2i(8, 4))
-	var ring = MeshInstance3D.new()
-	var rm = CylinderMesh.new()
-	rm.top_radius = 0.55
-	rm.bottom_radius = 0.6
-	rm.height = 0.7
-	rm.radial_segments = 10
-	ring.mesh = rm
-	var rmat = StandardMaterial3D.new()
-	rmat.albedo_texture = load("res://assets/textures/craftpix/wall_field.png")
-	rmat.albedo_color = Color(0.8, 0.8, 0.85)
-	rmat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	ring.material_override = rmat
-	ring.position = Vector3(0, 0.35, 0)
-	well.add_child(ring)
-	var water = MeshInstance3D.new()
-	var wm = CylinderMesh.new()
-	wm.top_radius = 0.42
-	wm.bottom_radius = 0.42
-	wm.height = 0.05
-	water.mesh = wm
+	# The designer's healing well (2026-10-29; was a stone ring of grey
+	# water): greyed until Holy Water blesses it.
+	var water := CraftpixProps.make_sprite("well_healing", 1.0, 0)
 	water.name = "Water"
-	var wmat = StandardMaterial3D.new()
-	wmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	wmat.albedo_color = Color(0.3, 0.32, 0.36)
-	water.material_override = wmat
-	water.position = Vector3(0, 0.7, 0)
+	water.position.z -= 0.45
 	well.add_child(water)
 	var collision = CollisionShape3D.new()
 	var shape = BoxShape3D.new()
@@ -3143,7 +3102,7 @@ func _create_town_well() -> void:
 	label.font_size = 20
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = Color(0.8, 0.95, 1.0)
-	label.position = Vector3(0, 1.4, 0)
+	label.position = Vector3(0, 1.4, -2.2)   # over the well's roof
 	WorldText.crisp(label)
 	well.add_child(label)
 	$Vendors.add_child(well)
@@ -3153,14 +3112,10 @@ func _refresh_well_visual() -> void:
 	var well = get_node_or_null("Vendors/TownWell")
 	if well == null:
 		return
-	var water = well.get_node_or_null("Water") as MeshInstance3D
-	if water and water.material_override is StandardMaterial3D:
+	var water = well.get_node_or_null("Water") as Sprite3D
+	if water:
 		var blessed: bool = quest_manager != null and quest_manager.has_flag("town_well_blessed")
-		var mat := water.material_override as StandardMaterial3D
-		mat.albedo_color = Color(0.55, 0.85, 1.0) if blessed else Color(0.3, 0.32, 0.36)
-		mat.emission_enabled = blessed
-		mat.emission = Color(0.35, 0.65, 1.0)
-		mat.emission_energy_multiplier = 1.4
+		water.modulate = Color.WHITE if blessed else Color(0.48, 0.5, 0.52)
 
 func _on_accept_quest(quest_id: String) -> void:
 	if quest_manager.accept_quest(quest_id):
@@ -3249,7 +3204,7 @@ func _refresh_leave_gate() -> void:
 	if _town_waypoint_node:
 		var runes = _town_waypoint_node.get_node_or_null("Runes")
 		if runes:
-			runes.modulate = Color8(0x62, 0xa3, 0xb0) if open else Color(0.35, 0.4, 0.42)
+			runes.modulate = Color.WHITE if open else DungeonManager.WAYPOINT_DIM
 
 
 func _town_ground_y(world_pos: Vector3) -> float:

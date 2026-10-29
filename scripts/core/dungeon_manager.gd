@@ -33,7 +33,7 @@ const WALL_HEIGHT: float = 0.06    # wall slab thickness (see _build_walls)
 ## sheets — the Craftpix fills cut by tools/extract_craftpix_tiles.py — with the
 ## edge bands painted in the palette (_build_autotile_ground). The camera is
 ## fixed (CameraView).
-const WAYPOINT_MOUND_HEIGHT: float = 0.22  # Raised dirt mound under every waypoint ring
+const WAYPOINT_MOUND_HEIGHT: float = 0.0  # (was the raised dirt mound under the old rune ring; the designer's shrine stands on the ground)
 # Height of fog-of-war volume tiles. Must exceed the tallest wall so unexplored
 # walls stay hidden: max wall = 1.5 + 0.9 noise + 2 elevation * ELEV_STEP = 3.4,
 # and the fog box top sits at FOG_HEIGHT - 0.5 (see _fog_shown_xform).
@@ -729,36 +729,6 @@ func _make_prop_sprite(role: String, scale: float = 1.0, k: int = 0, lift: float
 	sprite.scale = Vector3(sc, sc, sc)
 	sprite.position = Vector3(0, lift, 0)
 	return sprite
-
-
-## The chunky pixel rune-ring that marks every waypoint, laid flat on the
-## mound's top and tinted per destination (dimmed until discovered; it lights
-## up in discover_waypoint). Waypoints are the mound with the teal highlights.
-static func make_waypoint_ring(tint: Color, alpha: float = 0.75) -> Sprite3D:
-	var ring := Sprite3D.new()
-	ring.texture = load("res://assets/textures/props/waypoint_ring.png")
-	ring.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	ring.shaded = false
-	ring.pixel_size = 0.045  # ring spans ~1.2 tiles
-	ring.rotation_degrees = Vector3(-90, 0, 0)
-	ring.modulate = Color(tint, alpha)
-	ring.position = Vector3(0, 0.25, 0)  # resting on the mound's top
-	return ring
-
-
-## The raised dirt mound a waypoint ring sits on (a landmark at a glance
-## instead of a flat glow on the ground).
-static func make_waypoint_mound(material: Material) -> MeshInstance3D:
-	var mound := MeshInstance3D.new()
-	var mound_mesh := CylinderMesh.new()
-	mound_mesh.top_radius = 0.68
-	mound_mesh.bottom_radius = 0.95
-	mound_mesh.height = WAYPOINT_MOUND_HEIGHT
-	mound_mesh.radial_segments = 12
-	mound.mesh = mound_mesh
-	mound.material_override = material
-	mound.position = Vector3(0, WAYPOINT_MOUND_HEIGHT * 0.5, 0)
-	return mound
 
 
 ## The Return Scroll's town portal: a swirling purple oval (a flattened
@@ -5765,26 +5735,9 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 	var wp_root = Node3D.new()
 	wp_root.name = "Waypoint_%s" % target
 
-	# Slightly raised dirt mound under the ring, so waypoints read as a
-	# landmark at a glance instead of a flat glow on the ground.
-	var mound := make_waypoint_mound(_pixel_mat(trail_texture_path(), Color(0.62, 0.5, 0.36)))
-	wp_root.add_child(mound)
-
-	# Waypoint visual: chunky pixel rune-ring laid flat on the mound's top,
-	# tinted per destination (master-palette tints, style guide §2).
-	var tint: Color
-	match target:
-		"transport":
-			tint = Color8(0x62, 0xa3, 0xb0)  # TEAL_1
-		"town":
-			tint = Color8(0x3e, 0x67, 0x94)  # SKY_4
-		"next_world":
-			tint = Color8(0x38, 0x98, 0x78)  # TEAL_3
-		"prev_world":
-			tint = Color8(0xd8, 0xd3, 0x96)  # GOLD_2
-		_:
-			tint = Color8(0xb6, 0xc5, 0xc5)  # STEEL_6
-	var pillar := make_waypoint_ring(tint)  # dimmed until discovered
+	# The designer's shrine (2026-10-29; was a rune ring on a dirt mound,
+	# tinted per destination): dim until discovered.
+	var pillar := make_waypoint_shrine(false)
 	wp_root.add_child(pillar)
 
 	# Label
@@ -5794,7 +5747,7 @@ func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) 
 	label.font_size = 20
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = Color(1.0, 1.0, 0.8)
-	label.position = Vector3(0, 0.8, 0)
+	label.position = Vector3(0, 0.8, -2.6)   # over the shrine's stones (-z is up the screen)
 	WorldText.crisp(label)
 	wp_root.add_child(label)
 
@@ -5835,6 +5788,19 @@ func get_nearby_waypoint(player_grid: Vector2i) -> int:
 			return i
 	return -1
 
+## The designer's waypoint shrine (2026-10-29): rune circle, raven statues
+## and glowing standing stones, set just behind its tile so a unit on the
+## tile draws in front of it. Dim until discovered.
+const WAYPOINT_DIM := Color(0.5, 0.52, 0.58)
+
+static func make_waypoint_shrine(lit: bool) -> Sprite3D:
+	var shrine := CraftpixProps.make_sprite("waypoint_shrine", 1.0, 0)
+	shrine.name = "Shrine"
+	shrine.position.z -= 0.55
+	shrine.modulate = Color.WHITE if lit else WAYPOINT_DIM
+	return shrine
+
+
 func discover_waypoint(index: int) -> bool:
 	## Marks a waypoint as discovered. Returns true if newly discovered.
 	if index < 0 or index >= waypoint_nodes.size():
@@ -5846,7 +5812,7 @@ func discover_waypoint(index: int) -> bool:
 	# Visual change: the ring lights up to full strength once activated
 	var pillar = waypoint_nodes[index]["pillar_mesh"] as Sprite3D
 	if pillar:
-		pillar.modulate = Color(pillar.modulate.lightened(0.35), 1.0)
+		pillar.modulate = Color.WHITE   # the shrine lights up
 	# Update interact label text
 	var lbl = waypoint_nodes[index]["label_node"] as Label3D
 	if lbl:
@@ -6192,31 +6158,12 @@ func _create_fountain(grid_pos: Vector2i) -> void:
 	var root = Node3D.new()
 	root.name = "Fountain_%d" % fountain_nodes.size()
 
-	# Stone basin (pixel rock texture, like the sewer rubble and cave props).
-	var basin = MeshInstance3D.new()
-	var basin_mesh = CylinderMesh.new()
-	basin_mesh.top_radius = 0.6
-	basin_mesh.bottom_radius = 0.72
-	basin_mesh.height = 0.45
-	basin_mesh.radial_segments = 10
-	basin.mesh = basin_mesh
-	basin.material_override = _pixel_mat(wall_texture_path(), Color(0.78, 0.78, 0.84))
-	basin.position = Vector3(0, 0.225, 0)
-	root.add_child(basin)
-
-	# The water: glows while blessed, dull grey once drunk dry.
-	var water = MeshInstance3D.new()
-	var water_mesh = CylinderMesh.new()
-	water_mesh.top_radius = 0.48
-	water_mesh.bottom_radius = 0.48
-	water_mesh.height = 0.05
-	water_mesh.radial_segments = 10
-	water.mesh = water_mesh
-	water.position = Vector3(0, 0.46, 0)
-	var wmat = StandardMaterial3D.new()
-	wmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	water.material_override = wmat
-	root.add_child(water)
+	# The designer's healing well (2026-10-29; was a stone basin of glowing
+	# water): bright while blessed, greyed once drunk dry.
+	var well := CraftpixProps.make_sprite("well_healing", 1.0, 0)
+	well.name = "Well"
+	well.position.z -= 0.45
+	root.add_child(well)
 
 	var label = Label3D.new()
 	label.name = "FountainLabel"
@@ -6224,7 +6171,7 @@ func _create_fountain(grid_pos: Vector2i) -> void:
 	label.font_size = 20
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.modulate = Color(0.8, 0.95, 1.0)
-	label.position = Vector3(0, 1.1, 0)
+	label.position = Vector3(0, 1.1, -2.2)   # over the well's roof
 	WorldText.crisp(label)
 	root.add_child(label)
 
@@ -6249,7 +6196,7 @@ func _create_fountain(grid_pos: Vector2i) -> void:
 		"node": root,
 		"grid_pos": grid_pos,
 		"label_node": interact_label,
-		"water_mesh": water,
+		"water_mesh": well,   # the well sprite (the old basin's water mesh)
 		"blessed": true,
 		"xp_used": false,
 	})
@@ -6278,16 +6225,9 @@ func set_fountain_state(index: int, blessed: bool, xp_used: bool) -> void:
 	_apply_fountain_visual(index)
 
 func _apply_fountain_visual(index: int) -> void:
-	var water: MeshInstance3D = fountain_nodes[index]["water_mesh"]
-	var mat := water.material_override as StandardMaterial3D
-	if fountain_nodes[index]["blessed"]:
-		mat.albedo_color = Color(0.55, 0.85, 1.0)
-		mat.emission_enabled = true
-		mat.emission = Color(0.35, 0.65, 1.0)
-		mat.emission_energy_multiplier = 1.4
-	else:
-		mat.albedo_color = Color(0.32, 0.33, 0.36)
-		mat.emission_enabled = false
+	var well: Sprite3D = fountain_nodes[index]["water_mesh"]
+	# Blessed: the well as painted, its water glowing; drunk dry: greyed.
+	well.modulate = Color.WHITE if fountain_nodes[index]["blessed"] else Color(0.48, 0.5, 0.52)
 
 func get_nearby_fountain(player_grid: Vector2i) -> int:
 	## Index of a fountain within 1 tile of the player, or -1.
