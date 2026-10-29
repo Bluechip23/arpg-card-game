@@ -42,7 +42,7 @@ func _initialize() -> void:
 	pm.size = Vector2(40, 24)
 	ground.mesh = pm
 	var mat := StandardMaterial3D.new()
-	mat.albedo_texture = load("res://assets/textures/craftpix/floor_grass_field.png")
+	mat.albedo_texture = load("res://assets/textures/ground/field_grass.png")
 	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	mat.uv1_triplanar = true
 	mat.uv1_scale = Vector3(0.25, 0.25, 0.25)

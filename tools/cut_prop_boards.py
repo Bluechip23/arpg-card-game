@@ -30,10 +30,11 @@ from scipy import ndimage as nd
 
 SRC = "assets/sprites/paintings/%s"
 OUT = "assets/textures/props/boards/%s_%d.png"
+STRIP = "assets/textures/props/boards/%s_strip.png"
 BLACK = 10      # brightness (max channel) at or below this is the board's black
 RAMP = 40       # ...and alpha ramps to full over this many levels above it
 SPECK = 40      # pieces of a cut-out smaller than this (source px) are dropped
-HOLE = 1000     # enclosed black bigger than this (source px) is the board seen
+HOLE = 1000     # enclosed black bigger than this (source px; a role's "hole" overrides) is the board seen
                 # through the piece (under the ruin ring's vine arch), not shading
 
 # role -> board and pieces: (crop box (x0, y0, x1, y1) in source px, height
@@ -362,6 +363,199 @@ BOARDS = {
     "chest_wood_open": {"src": "chests_board.webp", "pieces": [((803, 475, 1150, 911), 72)]},
     "chest_mythic_closed": {"src": "chests_board.webp", "main_only": True, "pieces": [((1156, 139, 1508, 412), 44)]},
     "chest_mythic_open": {"src": "chests_board.webp", "pieces": [((1149, 469, 1516, 908), 73)]},
+    # 2026-10-29: the designer's desert bones (desert_bones_board.webp, on
+    # black: spines, skulls, ribs and great serpent skeletons half-sunk in
+    # sand and dry grass). One scale for all, as drawn (0.4 a board px).
+    "desert_bones": {"src": "desert_bones_board.webp", "main_only": True, "pieces": [
+            ((36, 84, 296, 215), 52),
+            ((344, 24, 569, 211), 75),
+            ((585, 81, 817, 204), 49),
+            ((846, 47, 1118, 211), 66),
+            ((1164, 21, 1475, 219), 79),
+            ((42, 232, 503, 591), 144),
+            ((566, 244, 1045, 500), 102, [(862, 338, 1045, 500, 999)]),   # its lower right corner is the next skeleton's grass
+            ((890, 345, 1507, 581), 94),
+            ((38, 595, 322, 802), 83),
+            ((380, 596, 619, 785), 76),
+            ((672, 629, 867, 780), 60),
+            ((935, 628, 1352, 792), 66),
+            ((41, 799, 542, 999), 80),
+            ((576, 790, 859, 1004), 86),
+            ((912, 852, 1492, 1001), 60),
+        ]},
+    # 2026-10-29: the designer's desert plants (desert_plants_board.webp, on
+    # black): flowering barrel cacti, leafy and
+    # spiky scrub (its bushes), dry grass clumps (unused since the tufts
+    # board), and prickly
+    # pears and barrel cacti. One scale for all, as drawn (0.36 a board px).
+    # The flowering barrel cacti are cacti since the flowers board (2026-10-29).
+    "desert_flower": {"src": "desert_flowers_board.webp", "main_only": True, "pieces": [((137, 7, 540, 247), 86), ((597, 25, 895, 251), 81), ((979, 47, 1189, 249), 73), ((125, 253, 557, 500), 89), ((608, 289, 905, 505), 78), ((987, 319, 1188, 493), 63), ((125, 505, 557, 752), 89), ((603, 529, 902, 744), 77), ((968, 556, 1198, 744), 68), ((125, 752, 557, 1001), 90), ((603, 774, 896, 1000), 81), ((973, 803, 1185, 985), 66)]},
+    "desert_bush": {"src": "desert_plants_board.webp", "main_only": True, "pieces": [((62, 273, 406, 444), 62), ((448, 290, 756, 451), 58), ((785, 316, 1037, 450), 48), ((93, 632, 393, 811), 64), ((422, 641, 653, 808), 60), ((684, 655, 887, 811), 56), ((921, 680, 1097, 805), 45)]},
+    "desert_cactus": {"src": "desert_plants_board.webp", "main_only": True, "pieces": [((93, 15, 400, 269), 91), ((428, 44, 675, 271), 82), ((707, 82, 945, 274), 69), ((985, 125, 1151, 271), 53), ((34, 807, 282, 1005), 71), ((306, 812, 523, 1005), 69), ((543, 827, 725, 1003), 63), ((753, 858, 917, 995), 49), ((947, 839, 1150, 995), 56), ((1169, 861, 1331, 991), 47), ((1352, 879, 1501, 988), 39)]},
+    # 2026-10-29: the designer's mesa pillars (desert_mesas_board.webp, on
+    # black: stacked sandstone columns, three carved with a face, and two
+    # low blocks), one scale as drawn (0.5 a board px, the tallest ~2.5 tiles).
+    "desert_mesa": {"src": "desert_mesas_board.webp", "main_only": True, "pieces": [((90, 81, 357, 348), 134), ((456, 25, 710, 348), 162), ((838, 34, 1067, 348), 157), ((1187, 25, 1417, 345), 160), ((68, 395, 356, 675), 140), ((456, 363, 708, 680), 158), ((842, 363, 1088, 680), 158), ((1212, 368, 1442, 680), 156), ((56, 801, 362, 973), 86), ((463, 691, 700, 997), 153), ((826, 691, 1067, 997), 153), ((1155, 801, 1483, 992), 96)]},
+    # 2026-10-29: the designer's desert ruins and pebbles (desert_ruins_board.webp,
+    # on black): three sandstone rock piles (pebbles); the falcon-headed
+    # temple over its stair, the orb shrine, a collapsed ruin, a rubble
+    # ruin (ruins); a rock-framed cave arch; and an eye-crowned door, open
+    # and shut. One scale for the structures (0.44 a board px: the cave
+    # arch spans a cave mouth's three tiles), the pebbles smaller.
+    "desert_pebble": {"src": "desert_ruins_board.webp", "main_only": True, "pieces": [((183, 14, 527, 198), 55), ((637, 71, 903, 195), 37), ((1001, 78, 1214, 196), 35)]},
+    "desert_ruin": {"src": "desert_ruins_board.webp", "main_only": True, "pieces": [((21, 192, 500, 624), 190), ((534, 258, 1008, 621), 160), ((23, 637, 508, 993), 157), ((544, 700, 903, 988), 127)]},
+    "desert_cave_arch": {"src": "desert_ruins_board.webp", "main_only": True, "pieces": [((1055, 296, 1504, 616), 141)]},
+    "desert_door": {"src": "desert_ruins_board.webp", "main_only": True, "pieces": [((948, 692, 1228, 969), 122), ((1240, 692, 1520, 972), 123)]},
+    # 2026-10-29: the designer's desert trees (fern-crowned, round-crowned
+    # and palm trees, three sizes each), twisted dead trees and dry grass
+    # tufts — desert_trees / desert_dead_trees / desert_tufts boards.
+    "desert_tree": {"src": "desert_trees_board.webp", "main_only": True, "pieces": [((23, 8, 343, 329), 135), ((373, 60, 601, 335), 116), ((614, 139, 771, 337), 83), ((814, 28, 1113, 350), 135), ((1121, 90, 1344, 342), 106), ((1361, 158, 1523, 342), 77), ((23, 336, 358, 663), 137), ((389, 373, 627, 659), 120), ((654, 440, 844, 656), 91), ((28, 669, 360, 1005), 141), ((371, 692, 618, 1001), 130), ((631, 756, 826, 999), 102), ((854, 642, 1125, 997), 149), ((1134, 700, 1359, 996), 124), ((1369, 779, 1522, 985), 87)]},
+    "desert_tree_dead": {"src": "desert_dead_trees_board.webp", "main_only": True, "pieces": [((7, 10, 533, 584), 172), ((576, 17, 1096, 569), 166), ((1126, 9, 1511, 805), 239), ((500, 568, 1155, 1001), 130), ((77, 660, 485, 984), 97)]},
+    "desert_tuft": {"src": "desert_tufts_board.webp", "main_only": True, "pieces": [((23, 253, 530, 597), 41), ((588, 364, 1109, 597), 28), ((1140, 17, 1510, 639), 75), ((99, 659, 664, 976), 38), ((781, 720, 1425, 976), 31)]},
+    # 2026-10-29: Frostreach's props, World 3 (winter_ice / winter_rocks /
+    # winter_trees boards, on black). Ice trees, carved bear totems, snowy
+    # stone piles, ice crystals and blocks, ice flowers, red-cored ice shrubs;
+    # red-stemmed snow mushrooms and two ice-capped mushroom trees,
+    # snowmen, snow-capped rocks, stone ruins (an arch, a heap, broken
+    # arches, a hut with a door, a ring); snowy broadleaves, bare trees,
+    # teal and green firs, two decorated Christmas trees, and bushes.
+    "winter_tree_big": {"src": "winter_trees_board.webp", "main_only": True, "pieces": [((13, 6, 333, 391), 170), ((337, 8, 599, 393), 160), ((602, 31, 834, 393), 150), ((835, 79, 1082, 398), 140), ((9, 396, 335, 806), 175), ((341, 407, 633, 792), 160), ((638, 429, 890, 792), 160)]},
+    "winter_tree": {"src": "winter_trees_board.webp", "main_only": True, "pieces": [((1082, 110, 1286, 378), 110), ((1283, 193, 1428, 384), 80), ((1429, 240, 1529, 393), 65), ((897, 494, 1084, 785), 120), ((1092, 548, 1243, 782), 100), ((1256, 585, 1392, 777), 85), ((1418, 642, 1511, 772), 60)]},
+    "winter_bush": {"src": "winter_trees_board.webp", "main_only": True, "pieces": [((11, 819, 191, 1018), 70), ((189, 851, 324, 1016), 58), ((331, 871, 435, 1003), 45), ((439, 810, 611, 1013), 72), ((616, 811, 765, 1015), 72), ((770, 832, 890, 1008), 62), ((901, 862, 1010, 1011), 52),
+                                    ((1037, 833, 1205, 1010), 62), ((1205, 833, 1341, 1010), 55), ((1340, 879, 1449, 1002), 44), ((1453, 906, 1529, 998), 34)]},
+    "winter_ice_tree": {"hole": 30, "src": "winter_ice_board.webp", "main_only": True, "pieces": [((10, 10, 324, 432), 160), ((321, 38, 605, 430), 150), ((583, 154, 785, 430), 110), ((785, 225, 923, 434), 85), ((1158, 838, 1295, 1012), 75), ((1295, 838, 1426, 1012), 70), ((1427, 901, 1527, 1011), 50)]},
+    "winter_idol": {"src": "winter_ice_board.webp", "main_only": True, "pieces": [((925, 105, 1085, 457), 141), ((1089, 181, 1271, 447), 106), ((1288, 215, 1408, 452), 95), ((1418, 290, 1518, 435), 58)]},
+    "winter_pebble": {"src": "winter_ice_board.webp", "main_only": True, "pieces": [((20, 431, 228, 612), 54), ((242, 430, 471, 613), 55), ((487, 457, 662, 612), 46), ((670, 488, 797, 601), 34), ((817, 496, 941, 605), 33), ((965, 522, 1068, 602), 24), ((1103, 531, 1185, 601), 21)]},
+    "winter_crystal": {"src": "winter_ice_board.webp", "main_only": True, "pieces": [((23, 612, 242, 808), 78), ((278, 619, 448, 813), 78), ((467, 633, 607, 813), 72), ((625, 680, 714, 811), 52), ((741, 631, 955, 802), 68), ((961, 661, 1115, 806), 58), ((1119, 685, 1259, 802), 47), ((1272, 697, 1387, 802), 42), ((1404, 714, 1507, 792), 31)]},
+    "winter_flower": {"src": "winter_ice_board.webp", "main_only": True, "pieces": [((15, 804, 201, 1014), 74), ((205, 819, 354, 1011), 67), ((367, 840, 485, 1011), 60), ((491, 857, 605, 1009), 53), ((624, 888, 705, 1002), 40), ((715, 805, 898, 1014), 73), ((913, 821, 1025, 1010), 66), ((1045, 848, 1141, 1011), 57)]},
+    "winter_shroom": {"src": "winter_rocks_board.webp", "main_only": True, "pieces": [((13, 0, 226, 246), 110), ((247, 11, 421, 245), 105), ((435, 68, 551, 242), 78), ((570, 106, 643, 237), 59), ((640, 738, 854, 1012), 123), ((875, 796, 1033, 1011), 97), ((1059, 791, 1203, 1011), 99), ((1251, 833, 1335, 1005), 77), ((1401, 869, 1475, 1008), 63),
+                                      ((10, 692, 320, 1012), 145), ((362, 734, 576, 1006), 122)]},
+    "winter_snowman": {"src": "winter_rocks_board.webp", "main_only": True, "pieces": [((673, 67, 803, 248), 72), ((830, 54, 939, 248), 78), ((955, 80, 1106, 263), 73), ((1124, 108, 1270, 264), 62), ((1270, 108, 1415, 264), 62), ((1416, 160, 1515, 265), 42)]},
+    "winter_rock": {"src": "winter_rocks_board.webp", "main_only": True, "pieces": [((11, 253, 241, 435), 91), ((248, 256, 461, 444), 94), ((473, 277, 669, 447), 85), ((686, 283, 843, 441), 79), ((861, 296, 1006, 434), 69), ((1029, 317, 1151, 426), 55), ((1170, 330, 1280, 427), 49), ((1300, 347, 1393, 422), 38)]},
+    # The ruins keep their loose stones; the hut (below) is a building's
+    # door, the first arch a cave's mouth (DungeonManager._build_winter_site).
+    "winter_ruin": {"hole": 30, "src": "winter_rocks_board.webp", "pieces": [((10, 436, 285, 690), 140), ((285, 473, 506, 690), 119), ((522, 449, 839, 742), 161), ((1223, 452, 1532, 748), 163)]},
+    # The hut keeps its dark doorway (no enclosed black is see-through).
+    "winter_hut": {"hole": 10 ** 9, "src": "winter_rocks_board.webp", "pieces": [((855, 437, 1196, 759), 177, [(975, 650, 1050, 710, 30)])]},
+    # 2026-10-29: the designer's hell (hell_features / hell_rocks / hell_props
+    # boards, on black) for Emberfall (World 4) beside its cursed set, its
+    # edge landmarks, and Hell's Gate and the Labyrinth (their spires and
+    # rocks). Egg clusters, red crystal-leaf plants, eyeballs on rope; black
+    # stalagmite spires and a red crystal, vein-bound black rocks, red-leafed
+    # pod plants; vein branches, lava vents, lava-veined horns and spikes,
+    # vein arches, skull-hung trees, skull-hung fences, posts and spikes,
+    # bones; and three animations (a clawed hand reaching from the earth, a
+    # fire-tipped tentacle, a lava pool bubbling: hell_*_strip.png) and the
+    # horned demon idol hung with trinkets. ~0.35-0.5 a board px.
+    "hell_pustule": {"hole": 30, "src": "hell_features_board.webp", "main_only": True, "pieces": [((45, 31, 264, 195), 57), ((283, 50, 437, 174), 43), ((471, 80, 594, 176), 34), ((632, 92, 741, 177), 30), ((879, 783, 1113, 980), 69), ((1126, 814, 1317, 967), 54), ((1344, 846, 1473, 952), 37)]},
+    "hell_leaf": {"src": "hell_features_board.webp", "main_only": True, "pieces": [((28, 208, 267, 412), 71), ((275, 244, 467, 412), 59), ((481, 282, 639, 408), 44), ((672, 299, 777, 409), 38)]},
+    "hell_eye": {"src": "hell_features_board.webp", "main_only": True, "pieces": [((28, 737, 393, 977), 84), ((439, 803, 621, 977), 61), ((682, 823, 822, 968), 51)]},
+    "hell_idol": {"src": "hell_features_board.webp", "pieces": [((900, 34, 1488, 420), 130)]},
+    "hell_hand": {"hole": 30, "src": "hell_features_board.webp", "height": 130, "frames": [(62, 440, 194, 722), (185, 440, 317, 722), (300, 440, 432, 722), (426, 440, 558, 722), (547, 440, 679, 722), (674, 440, 806, 722)]},
+    "hell_tentacle": {"hole": 30, "src": "hell_features_board.webp", "height": 150, "frames": [(844, 430, 956, 740), (957, 430, 1069, 740), (1068, 430, 1180, 740), (1180, 430, 1292, 740), (1291, 430, 1403, 740), (1402, 430, 1514, 740)]},
+    "hell_spire": {"src": "hell_rocks_board.webp", "main_only": True, "pieces": [((27, 8, 358, 318), 124), ((386, 28, 639, 331), 121), ((665, 67, 872, 315), 99), ((920, 95, 1100, 315), 88), ((1145, 143, 1302, 317), 70)]},
+    "hell_rock": {"hole": 30, "src": "hell_rocks_board.webp", "main_only": True, "pieces": [((11, 343, 406, 692), 140), ((420, 396, 724, 680), 114), ((746, 454, 1020, 677), 89), ((1063, 483, 1272, 662), 72), ((1341, 527, 1494, 651), 50)]},
+    "hell_bloom": {"src": "hell_rocks_board.webp", "main_only": True, "pieces": [((33, 720, 372, 987), 93), ((414, 732, 738, 964), 81), ((784, 772, 1078, 984), 74), ((1150, 792, 1412, 984), 67)]},
+    "hell_shard": {"src": "hell_rocks_board.webp", "main_only": True, "pieces": [((1371, 174, 1501, 315), 50)], "more": [("hell_props_board.webp", (1447, 369, 1513, 457), 34)]},
+    "hell_veins": {"hole": 30, "src": "hell_props_board.webp", "main_only": True, "pieces": [((13, 14, 352, 316), 90), ((290, 20, 688, 314), 88), ((575, 17, 909, 334), 95), ((893, 41, 1010, 331), 87), ((988, 39, 1126, 308), 81)]},
+    "hell_vent": {"src": "hell_props_board.webp", "main_only": True, "pieces": [((22, 325, 220, 471), 58), ((230, 332, 403, 467), 54), ((411, 334, 580, 459), 50), ((601, 342, 753, 456), 46), ((764, 344, 898, 459), 46), ((909, 364, 1020, 458), 38), ((1034, 369, 1134, 446), 31), ((1146, 389, 1220, 446), 23), ((1233, 368, 1327, 450), 33), ((1337, 407, 1384, 446), 16), ((1395, 408, 1439, 444), 14)]},
+    "hell_lava": {"src": "hell_props_board.webp", "height": 64, "frames": [(446, 462, 545, 562), (545, 462, 646, 562), (646, 462, 746, 562), (746, 462, 843, 562), (843, 462, 938, 562), (938, 462, 1035, 562), (1035, 462, 1132, 562), (1132, 462, 1231, 562), (1231, 462, 1328, 562), (1328, 462, 1425, 562), (1425, 462, 1522, 562)]},
+    "hell_horn": {"src": "hell_props_board.webp", "main_only": True, "pieces": [((13, 479, 226, 742), 131), ((213, 482, 363, 738), 128), ((356, 549, 457, 724), 88), ((454, 574, 570, 732), 79), ((571, 597, 645, 728), 66), ((645, 623, 726, 725), 51), ((725, 635, 803, 732), 49), ((802, 643, 859, 732), 45), ((860, 663, 928, 731), 34),
+                                    ((1293, 564, 1393, 674), 55), ((1396, 569, 1453, 679), 55), ((1446, 570, 1523, 711), 70), ((1156, 703, 1275, 805), 51), ((1258, 717, 1326, 800), 42), ((1318, 684, 1398, 782), 49), ((1400, 708, 1465, 788), 40), ((1469, 735, 1518, 788), 26)]},
+    "hell_arch": {"hole": 30, "src": "hell_props_board.webp", "main_only": True, "pieces": [((919, 565, 1170, 794), 137), ((1144, 565, 1297, 701), 82)]},
+    "hell_tree": {"hole": 30, "src": "hell_props_board.webp", "main_only": True, "pieces": [((13, 745, 109, 980), 115), ((95, 748, 192, 1000), 125), ((185, 748, 283, 1000), 125), ((263, 790, 389, 996), 103)]},
+    "hell_fence": {"hole": 30, "src": "hell_props_board.webp", "main_only": True, "pieces": [((385, 744, 613, 931), 94), ((647, 748, 831, 868), 60), ((625, 870, 848, 999), 65)]},
+    "hell_post": {"src": "hell_props_board.webp", "main_only": True, "pieces": [((1319, 795, 1394, 984), 85), ((1409, 797, 1464, 976), 80), ((1462, 828, 1515, 985), 70), ((836, 748, 901, 857), 49), ((1186, 814, 1232, 902), 40), ((1231, 823, 1312, 916), 42), ((847, 881, 913, 992), 50)]},
+    "hell_bones": {"src": "hell_props_board.webp", "main_only": True, "pieces": [((917, 813, 1003, 889), 30), ((1006, 824, 1119, 904), 32), ((1125, 841, 1183, 897), 22), ((993, 940, 1043, 985), 18), ((1046, 907, 1145, 999), 37), ((1150, 922, 1243, 997), 30), ((1240, 921, 1314, 988), 27)]},
+    "hell_fire": {"src": "hell_props_board.webp", "main_only": True, "pieces": [((911, 893, 995, 1009), 52)]},
+    # 2026-10-29: the barrow land's props, World 5 and the Boneyard
+    # (undead_bones / graves / ruins / trees boards, on black). Heights keep
+    # the pack pieces' sizes (twice their texels, at 64 a tile), so the
+    # Boneyard's placements (the gate arch, its pillars, the crypt door, the
+    # posts along the walls) stand as they did.
+    # Bones: a horned dragon skull, a bone, vertebrae, a bird skull, a bone;
+    # a skull, three skulls, an upright bone, a ribcage pile, a tusk, ribs.
+    "undead_bones": {"src": "undead_bones_board.webp", "main_only": True, "pieces": [((31, 25, 361, 266), 60), ((410, 52, 606, 234), 44), ((689, 88, 834, 234), 36), ((896, 45, 1040, 246), 50), ((1119, 80, 1259, 221), 34),
+                                          ((16, 844, 195, 971), 32), ((228, 828, 454, 978), 44), ((477, 781, 656, 982), 50), ((711, 793, 1024, 989), 54), ((1079, 757, 1244, 992), 58), ((1253, 712, 1518, 997), 70)]},
+    # Dry thornbushes (four sizes) and red-berried black thorn vines (three).
+    "undead_bush": {"hole": 30, "src": "undead_bones_board.webp", "main_only": True, "pieces": [((23, 272, 435, 531), 78), ((495, 303, 784, 519), 65), ((865, 363, 1080, 524), 48), ((1114, 380, 1271, 512), 40),
+                                         ((12, 531, 417, 773), 73), ((428, 550, 899, 760), 63), ((921, 573, 1133, 733), 48)]},
+    # Headstones in ivy: three tall, eight small; and five pale green plants.
+    "undead_grave": {"src": "undead_graves_board.webp", "main_only": True, "pieces": [((42, 35, 335, 414), 64), ((385, 75, 699, 389), 53), ((755, 96, 1043, 407), 53),
+                                           ((15, 750, 194, 997), 42), ((211, 743, 370, 997), 43), ((388, 763, 542, 981), 37), ((558, 743, 731, 991), 42),
+                                           ((748, 757, 932, 997), 41), ((951, 763, 1134, 991), 39), ((1150, 777, 1309, 977), 34), ((1332, 750, 1526, 997), 42)]},
+    "undead_plant": {"src": "undead_graves_board.webp", "main_only": True, "pieces": [((1082, 49, 1500, 457), 82), ((62, 426, 413, 715), 58), ((512, 479, 766, 694), 43), ((840, 479, 1093, 695), 43), ((1233, 513, 1409, 695), 36)]},
+    # Ruins: a broken wall by a column (the gate's pillars), an arch over
+    # columns (the gate), a rubble heap (the posts along the walls), fallen
+    # columns by a standing one, and a great colonnade's wreck.
+    "undead_ruin": {"hole": 30, "src": "undead_ruins_board.webp", "main_only": True, "pieces": [((601, 59, 797, 273), 150), ((1, 13, 329, 272), 124), ((812, 149, 1001, 269), 60), ((321, 31, 597, 281), 120), ((13, 746, 505, 1014), 140)]},
+    "undead_skull_door": {"src": "undead_ruins_board.webp", "main_only": True, "pieces": [((1012, 25, 1185, 264), 94), ((1193, 25, 1357, 264), 94), ((1365, 25, 1529, 264), 94)]},
+    "undead_skulls": {"src": "undead_ruins_board.webp", "main_only": True, "pieces": [((6, 316, 329, 535), 90)]},
+    "undead_stump": {"src": "undead_ruins_board.webp", "main_only": True, "pieces": [((336, 340, 529, 544), 64), ((538, 367, 777, 543), 56), ((788, 361, 1036, 543), 56)]},
+    "undead_rock": {"src": "undead_ruins_board.webp", "main_only": True, "pieces": [((16, 555, 244, 747), 96), ((262, 584, 452, 744), 80), ((483, 610, 632, 747), 68), ((665, 632, 751, 731), 50), ((788, 642, 849, 716), 37)]},
+    # Trees: two pale bone-white trees, two great dead trees over skulls, and
+    # a shattered bone spire.
+    "undead_tree": {"hole": 30, "src": "undead_ruins_board.webp", "main_only": True, "pieces": [((1045, 276, 1268, 591), 130), ((1284, 316, 1520, 590), 115)],
+                    "more": [("undead_trees_board.webp", (14, 145, 577, 865), 170), ("undead_trees_board.webp", (606, 218, 1058, 860), 150), ("undead_trees_board.webp", (1075, 392, 1519, 875), 110)]},
+    # 2026-10-29: the Verdant Frontier's props, World 1 (field_board.webp,
+    # the board's lower right, on black): a round broadleaf and a pine (big,
+    # and again small), a round bush, a fern, a clump of daisies, four rocks
+    # and four pebbles, a fallen log and a stick, a stump and a signpost.
+    # About a texel a board px (a ground tile there is ~105 px). The two
+    # fence pieces have no slot yet.
+    "field_tree": {"src": "field_board.webp", "main_only": True, "pieces": [((1040, 583, 1170, 739), 156), ((1181, 577, 1295, 739), 150)]},
+    "field_tree_small": {"src": "field_board.webp", "main_only": True, "pieces": [((1040, 583, 1170, 739), 98), ((1181, 577, 1295, 739), 96)]},
+    "field_bush": {"src": "field_board.webp", "main_only": True, "pieces": [((1301, 636, 1404, 729), 60)]},
+    "field_fern": {"src": "field_board.webp", "main_only": True, "pieces": [((1399, 581, 1468, 640), 40)]},
+    "field_flower": {"src": "field_board.webp", "main_only": True, "pieces": [((1434, 642, 1520, 728), 50)]},
+    "field_rock": {"src": "field_board.webp", "main_only": True, "pieces": [((878, 832, 1019, 983), 90), ((996, 759, 1093, 859), 60), ((1033, 921, 1105, 987), 40), ((1110, 788, 1173, 844), 34)]},
+    "field_pebble": {"src": "field_board.webp", "main_only": True, "pieces": [((911, 770, 972, 813), 26), ((1037, 885, 1074, 916), 19), ((1103, 868, 1142, 898), 18), ((1101, 921, 1129, 944), 14)]},
+    "field_log": {"src": "field_board.webp", "main_only": True, "pieces": [((1199, 757, 1392, 874), 70), ((1457, 836, 1515, 888), 30)]},
+    "field_stump": {"src": "field_board.webp", "main_only": True, "pieces": [((1341, 826, 1430, 894), 44)]},
+    "field_sign": {"src": "field_board.webp", "main_only": True, "pieces": [((1419, 750, 1507, 840), 56)]},
+    # 2026-10-29: the designer's cursed land, World 4 (cursed_features_board
+    # .webp, on black): seven eye-stalked tentacle crawlers; yellow egg
+    # clusters netted in veins and dark vein-wrapped rocks, four each; four
+    # spiky vein-split pods and three eyeballs on rooted stalks; four
+    # many-eyed mushroom caps on roots and five pink tube corals. Then
+    # cursed_features2_board.webp: four vein-wrapped stone ruins (a broken
+    # wall, an arch, a block, a broken ring) over the tall growths (tentacle
+    # plant, meat flower, jaws plant, three-eyed crawler). One scale a board
+    # (~0.4 a board px; the tall growths and ruins ~0.42-0.48).
+    "cursed_plant": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((33, 51, 229, 212), 64), ((253, 78, 460, 209), 52), ((485, 44, 632, 220), 70), ((655, 28, 888, 221), 77), ((909, 44, 1108, 231), 75), ((1132, 61, 1302, 231), 68), ((1323, 44, 1493, 227), 73)]},
+    # (hell_pustule: the cursed board's four egg clusters gave way to the hell board's seven, below)
+    "cursed_rock": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((784, 262, 1032, 503), 101), ((1042, 303, 1217, 494), 80), ((1228, 332, 1372, 485), 64), ((1386, 360, 1503, 500), 59)]},
+    "cursed_pod": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((16, 486, 260, 729), 92), ((263, 489, 459, 736), 94), ((465, 505, 660, 730), 86), ((664, 492, 904, 736), 93)]},
+    "cursed_eye": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((926, 517, 1160, 752), 94), ((1154, 509, 1329, 760), 100), ((1336, 528, 1518, 752), 86)]},
+    "cursed_shroom": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((24, 746, 235, 993), 99), ((240, 770, 415, 998), 91), ((427, 758, 602, 999), 96), ((618, 752, 778, 995), 97)]},
+    "cursed_coral": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((814, 771, 984, 978), 83), ((1012, 815, 1130, 984), 68), ((1163, 837, 1273, 988), 60), ((1298, 840, 1399, 985), 58), ((1429, 882, 1508, 982), 40)]},
+    "cursed_tree": {"hole": 30, "src": "cursed_features2_board.webp", "main_only": True, "pieces": [((15, 517, 416, 940), 178), ((434, 632, 746, 941), 130), ((756, 464, 1190, 941), 200), ((1135, 587, 1524, 940), 148)],
+                    "more": [("cursed_features3_board.webp", (902, 358, 1215, 726), 155), ("cursed_features3_board.webp", (1242, 432, 1504, 715), 119), ("cursed_features3_board.webp", (31, 573, 462, 974), 168)]},
+    # The ruins keep their loose stones (not main_only); the broken ring's
+    # box clears the tentacle tree's curls below it.
+    "cursed_ruin": {"hole": 30, "src": "cursed_features2_board.webp", "pieces": [((12, 96, 475, 504), 196), ((484, 168, 814, 442), 132), ((824, 172, 1096, 452), 134), ((1121, 91, 1526, 491), 192)],
+                    "more": [("cursed_features3_board.webp", (782, 44, 1129, 348), 146), ("cursed_features3_board.webp", (1114, 46, 1524, 394), 167, [(1114, 340, 1230, 394, 999)]),
+                             ("cursed_features3_board.webp", (325, 331, 607, 627), 142), ("cursed_features3_board.webp", (616, 352, 901, 627), 132)]},
+    # 2026-10-29: cursed_features3_board.webp (on black): a skull, a bone, two
+    # flesh mounds full of eyes, a curved ruined wall, a broken ring with a
+    # door, a mound over a dark cave mouth, two vein-bound stone blocks, the
+    # tentacle plant, meat flower and jaws plant again, and four bone piles
+    # (bones, a ribcage, skulls, crossed bones). The mound is the cave mouth,
+    # cut larger (it spans a cave's three-tile mouth); the bones ~0.33 a px.
+    "cursed_cave": {"src": "cursed_features3_board.webp", "main_only": True, "pieces": [((14, 328, 315, 583), 153)]},
+    "cursed_eye_rock": {"hole": 30, "src": "cursed_features3_board.webp", "main_only": True, "pieces": [((305, 75, 552, 299), 90), ((563, 118, 769, 297), 72)]},
+    "cursed_bones": {"hole": 30, "src": "cursed_features3_board.webp", "main_only": True, "pieces": [((14, 152, 151, 257), 35), ((163, 125, 291, 237), 37), ((473, 759, 744, 957), 65), ((776, 800, 1044, 961), 53), ((1076, 806, 1310, 958), 50), ((1342, 778, 1504, 955), 58)]},
+    # 2026-10-29: the title cutscene's actors and props (not world props):
+    # the small boy in three poses (cutscene_boy_board.webp: facing left,
+    # front, facing right) and the pipe and lounge chair
+    # (cutscene_pipe_chair_board.webp). The pipe's painted smoke is cleared
+    # (the cutscene puffs its own).
+    "cutscene_boy": {"src": "cutscene_boy_board.webp", "pieces": [
+        ((78, 163, 482, 852), 120), ((562, 160, 955, 844), 120), ((1053, 163, 1458, 852), 120)]},
+    "cutscene_pipe": {"src": "cutscene_pipe_chair_board.webp", "main_only": True,
+                      "pieces": [((55, 180, 625, 672), 32, [(55, 180, 300, 490, 999)])]},
+    "cutscene_chair": {"src": "cutscene_pipe_chair_board.webp", "main_only": True,
+                       "pieces": [((405, 305, 1530, 840), 110)]},
     "town_stash_vault": {
         "src": "stash_vault_board.webp",
         "pieces": [((196, 45, 1339, 985), 126)],
@@ -390,7 +584,7 @@ def turn45(img, squeeze=0.72, drop=0.45):
 
 
 def cut_piece(board, box, height, alpha_cut=128, flip=False, open_black=False, main_only=False,
-              rim_floor=1e-3, own_alpha=0, black_level=None, clear_dim=()):
+              rim_floor=1e-3, own_alpha=0, black_level=None, clear_dim=(), hole=HOLE):
     black_at = BLACK if black_level is None else black_level
     rgb = np.asarray(board.crop(box).convert("RGB")).astype(np.float32)
     if own_alpha:
@@ -422,7 +616,7 @@ def cut_piece(board, box, height, alpha_cut=128, flip=False, open_black=False, m
     lab, n = nd.label(black)
     edge_labels = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
     sizes = nd.sum(black, lab, range(1, n + 1)) if n else []
-    see_through = {i + 1 for i, sz in enumerate(sizes) if sz > HOLE}
+    see_through = {i + 1 for i, sz in enumerate(sizes) if sz > hole}
     solid = ~np.isin(lab, list(edge_labels | see_through))
     if open_black:
         solid &= ~black   # a piece with no dark paint of its own (the webs): every black is the board
@@ -461,17 +655,53 @@ def cut_piece(board, box, height, alpha_cut=128, flip=False, open_black=False, m
     return out.transpose(Image.FLIP_TOP_BOTTOM) if flip else out
 
 
+def _content_box(board, box, black_at=BLACK):
+    """The bounding box (board px) of the largest piece inside `box`."""
+    bright = np.asarray(board.crop(box).convert("RGB")).max(axis=2)
+    lab, n = nd.label(bright > black_at)
+    sizes = nd.sum(lab > 0, lab, range(1, n + 1))
+    ys, xs = np.nonzero(lab == 1 + int(np.argmax(sizes)))
+    return box[0] + xs.min(), box[1] + ys.min(), box[0] + xs.max() + 1, box[1] + ys.max() + 1
+
+
+def build_strip(role, cfg):
+    """An animation strip: frames painted side by side on a board (each in
+    its window of `frames`), cut at one scale (the tallest frame `height`
+    texels) and laid in a row of equal cells, each frame placed as it sits in
+    its window, so the animation keeps the painter's registration."""
+    board = Image.open(SRC % cfg["src"])
+    boxes = [_content_box(board, w) for w in cfg["frames"]]
+    k = cfg["height"] / float(max(b[3] - b[1] for b in boxes))
+    left = min(b[0] - w[0] for b, w in zip(boxes, cfg["frames"]))
+    bottom = max(w[3] - b[3] for b, w in zip(boxes, cfg["frames"]))
+    cells = []
+    for b, w in zip(boxes, cfg["frames"]):
+        img = cut_piece(board, w, max(1, round((b[3] - b[1]) * k)), cfg.get("alpha_cut", 128), main_only=True, hole=cfg.get("hole", HOLE))
+        cells.append((img, round((b[0] - w[0] - left) * k), round((w[3] - b[3] - bottom) * k)))
+    cw = max(img.width + x for img, x, _ in cells)
+    ch = max(img.height + y for img, _, y in cells)
+    out = Image.new("RGBA", (cw * len(cells), ch))
+    for i, (img, x, y) in enumerate(cells):
+        out.paste(img, (i * cw + x, ch - y - img.height))
+    out.save(STRIP % role)
+    print("%s strip: %d frames of %dx%d" % (role, len(cells), cw, ch))
+
+
 def build(role, cfg):
+    if "frames" in cfg:
+        return build_strip(role, cfg)
     board = Image.open(SRC % cfg["src"])
     os.makedirs(os.path.dirname(OUT % (role, 0)), exist_ok=True)
-    # "more": pieces from other boards, (board, box, height), after the rest.
-    pieces = [(board, box, h) for box, h in cfg["pieces"]] + \
-             [(Image.open(SRC % src), box, h) for src, box, h in cfg.get("more", [])]
-    for i, (b, box, height) in enumerate(pieces):
+    # "more": pieces from other boards, (board, box, height[, clear_dim]), after the rest.
+    # A piece may carry a third item: its own clear_dim boxes (added to the role's).
+    pieces = [(board, p[0], p[1], p[2] if len(p) > 2 else ()) for p in cfg["pieces"]] + \
+             [(Image.open(SRC % m[0]), m[1], m[2], m[3] if len(m) > 3 else ()) for m in cfg.get("more", [])]
+    for i, (b, box, height, own_clear) in enumerate(pieces):
         img = cut_piece(b, box, height, cfg.get("alpha_cut", 128), cfg.get("flip", False),
                         cfg.get("open_black", False), cfg.get("main_only", False),
                         cfg.get("rim_floor", 1e-3), cfg.get("own_alpha", 0),
-                        cfg.get("black_level"), cfg.get("clear_dim", ()))
+                        cfg.get("black_level"), tuple(cfg.get("clear_dim", ())) + tuple(own_clear),
+                        cfg.get("hole", HOLE))
         if cfg.get("turn45"):
             img = turn45(img)
         img.save(OUT % (role, i))

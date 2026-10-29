@@ -290,7 +290,7 @@ func setup(kind: String) -> void:
 		var pool: Array = cfg.get("variants", range(pcfg["variants"].size()))
 		var v: Dictionary = pcfg["variants"][pool[randi() % pool.size()]]
 		_sprite.texture = load(v["path"])
-		_sprite.pixel_size = PIXEL_SIZE
+		_sprite.pixel_size = PIXEL_SIZE * float(pcfg["scale"])   # the designer's props are 64 texels a tile (scale 0.5)
 		_sprite.region_rect = Rect2(0, 0, int(v["w"]), int(v["h"]))
 	elif cfg.has("icon"):
 		# A Craftpix monster icon as a static battler (single 32x32 PNG).

@@ -40,18 +40,18 @@ R = "rocks_stones"  # free rocks & stones top-down pack (8 styles x 5 sizes)
 # would stand four cells tall, so the big canopies get a 0.7 base.
 ROLES = {
     # --- World 1 field (grassland pack) ---
-    "field_tree": {"scale": 0.7, "src": [f"{G}/Tree1.png", f"{G}/Tree2.png", f"{G}/Tree4.png"]},
-    "field_tree_fruit": {"scale": 0.7, "src": [f"{G}/Tree3.png"]},
-    "field_tree_small": {"scale": 1.0, "src": [f"{G}/Tree5.png"]},
-    "field_stump": {"scale": 1.0, "src": [f"{G}/Broken_tree1.png", f"{G}/Broken_tree2.png", f"{G}/Broken_tree4.png", f"{G}/Broken_tree5.png"]},
-    "field_rock": {"scale": 1.0, "src": [f"{G}/Stone1_grass_shadow.png", f"{G}/Stone2_grass_shadow.png", f"{G}/Stone3_grass_shadow.png", f"{G}/Stone4_grass_shadow.png", f"{G}/Rpck_grass1.png", f"{G}/Rpck_grass2.png", f"{G}/Rpck_grass3.png", f"{G}/Rpck_grass4.png"]},
-    "field_bush": {"scale": 1.0, "src": [f"{G}/Bush2.png", f"{G}/Bush3.png", f"{G}/Bush4.png", f"{G}/Bush5.png", f"{G}/Bush7.png", f"{G}/Bush9.png"]},
+    # "field_tree": the designer's since 2026-10-29 (DESIGNER below); was [f"{G}/Tree1.png", f"{G}/Tree2.png", f"{G}/Tree4.png"]
+    # "field_tree_fruit": dropped 2026-10-29 (World 1's trees are the designer's); was [f"{G}/Tree3.png"]
+    # "field_tree_small": the designer's since 2026-10-29 (DESIGNER below); was [f"{G}/Tree5.png"]
+    # "field_stump": the designer's since 2026-10-29 (DESIGNER below); was [f"{G}/Broken_tree1.png", f"{G}/Broken_tree2.png", f"{G}/Broken_tree4.png", f"{G}/Broken_tree5.png"]
+    # "field_rock": the designer's since 2026-10-29 (DESIGNER below); was [f"{G}/Stone1_grass_shadow.png", f"{G}/Stone2_grass_shadow.png", f"{G}/Stone3_grass_shadow.png", f"{G}/Stone4_grass_shadow.png", f"{G}/Rpck_grass1.png", f"{G}/Rpck_grass2.png", f"{G}/Rpck_grass3.png", f"{G}/Rpck_grass4.png"]
+    # "field_bush": the designer's since 2026-10-29 (DESIGNER below); was [f"{G}/Bush2.png", f"{G}/Bush3.png", f"{G}/Bush4.png", f"{G}/Bush5.png", f"{G}/Bush7.png", f"{G}/Bush9.png"]
     "field_berry": {"scale": 1.0, "src": [f"{G}/Bush1.png", f"{G}/Bush6.png", f"{G}/Bush8.png", f"{G}/Bush14.png", f"{G}/Bush15.png", f"{G}/Bush17.png"]},
-    "field_fern": {"scale": 1.0, "src": [f"{G}/Bush12.png", f"{G}/Bush13.png", f"{G}/Bush18.png", f"{F}/Bush8.png", f"{F}/Bush10.png"]},
-    "field_flower": {"scale": 1.0, "src": [f"{G}/Flower{i}.png" for i in range(1, 12)]},
+    # "field_fern": the designer's since 2026-10-29 (DESIGNER below); was [f"{G}/Bush12.png", f"{G}/Bush13.png", f"{G}/Bush18.png", f"{F}/Bush8.png", f"{F}/Bush10.png"]
+    # "field_flower": the designer's since 2026-10-29 (DESIGNER below); was [f"{G}/Flower{i}.png" for i in range(1, 12)]
     "field_tuft": {"scale": 1.0, "src": [f"{G}/grass_element1.png", f"{G}/grass_element2.png", f"{G}/grass_element3.png", f"{G}/Bush10.png", f"{G}/Bush16.png", f"{G}/Bush19.png"]},
     # "field_shroom": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Brown_mushroom1.png", f"{F}/Brown_mushroom2.png", f"{F}/Red_mushroom1.png"]
-    "field_pebble": {"scale": 1.0, "src": [f"{G}/ground_element20.png", f"{G}/ground_element21.png", f"{G}/ground_element22.png", f"{G}/ground_element23.png", f"{G}/Rock_grass_element13.png"]},
+    # "field_pebble": the designer's since 2026-10-29 (DESIGNER below); was [f"{G}/ground_element20.png", f"{G}/ground_element21.png", f"{G}/ground_element22.png", f"{G}/ground_element23.png", f"{G}/Rock_grass_element13.png"]
     "field_ruin": {"scale": 0.8, "src": [f"{G}/Ruin1_grass_shadow.png", f"{G}/Ruin2_grass_shadow.png", f"{G}/Ruin3_grass_shadow.png", f"{G}/Ruin4_grass_shadow.png", f"{G}/Ruin5_grass_shadow.png"]},
     # --- Greenwood (forest pack) ---
     # "forest_tree": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Tree4.png", f"{F}/Tree7.png", f"{F}/Tree8.png", f"{F}/Tree9.png", f"{F}/Tree10.png", f"{F}/Tree12.png", f"{F}/Tree13.png", f"{F}/Tree14.png"]
@@ -81,48 +81,48 @@ ROLES = {
     # doors and the way back out of every interior.
     "gate_small": {"scale": 1.0, "src": [f"{D}/small_gate.png"]},
     # Skull-mouth doorway (undead pack): the graveyard's way down.
-    "undead_skull_door": {"scale": 1.0, "src": [f"{U}/Scull_door_shadow1.png", f"{U}/Scull_door_shadow2.png", f"{U}/Scull_door_shadow3.png"]},
+    # "undead_skull_door": the designer's since 2026-10-29 (DESIGNER below); was [f"{U}/Scull_door_shadow1.png", f"{U}/Scull_door_shadow2.png", f"{U}/Scull_door_shadow3.png"]
     # --- World 5 barrow land (undead pack) ---
-    "undead_tree": {"scale": 0.8, "src": [f"{U}/Dead_tree_shadow1_1.png", f"{U}/Dead_tree_shadow1_2.png", f"{U}/Dead_tree_shadow1_3.png", f"{U}/Tree_shadow1_1.png", f"{U}/Tree_shadow1_2.png"]},
-    "undead_stump": {"scale": 1.0, "src": [f"{U}/Broken_tree_shadow1_2.png", f"{U}/Broken_tree_shadow1_3.png", f"{U}/Broken_tree_shadow1_4.png", f"{U}/Broken_tree_shadow1_5.png"]},
-    "undead_rock": {"scale": 1.0, "src": [f"{U}/Rock_shadow1_{i}.png" for i in range(1, 6)]},
-    "undead_bush": {"scale": 1.0, "src": [f"{U}/Plant_shadow1_{i}.png" for i in range(1, 6)] + [f"{U}/Thorn_plant_shadow1_{i}.png" for i in (1, 2, 3)]},
-    "undead_bones": {"scale": 1.0, "src": [f"{U}/Bones_shadow1_{i}.png" for i in (2, 3, 5, 7, 8, 9, 12, 13, 16, 17, 18)]},
-    "undead_grave": {"scale": 1.0, "src": [f"{U}/Grave_shadow1_{i}.png" for i in range(1, 12)]},
-    "undead_ruin": {"scale": 0.8, "src": [f"{U}/Ruin_shadow1_{i}.png" for i in range(1, 6)]},
-    "undead_skulls": {"scale": 1.0, "src": [f"{U}/Pile_sculls_shadow1.png"]},
-    "undead_crystal": {"scale": 1.0, "src": [f"{U}/Crystal_shadow1_{i}.png" for i in range(1, 5)]},
+    # "undead_tree": the designer's since 2026-10-29 (DESIGNER below); was [f"{U}/Dead_tree_shadow1_1.png", f"{U}/Dead_tree_shadow1_2.png", f"{U}/Dead_tree_shadow1_3.png", f"{U}/Tree_shadow1_1.png", f"{U}/Tree_shadow1_2.png"]
+    # "undead_stump": the designer's since 2026-10-29 (DESIGNER below); was [f"{U}/Broken_tree_shadow1_2.png", f"{U}/Broken_tree_shadow1_3.png", f"{U}/Broken_tree_shadow1_4.png", f"{U}/Broken_tree_shadow1_5.png"]
+    # "undead_rock": the designer's since 2026-10-29 (DESIGNER below); was [f"{U}/Rock_shadow1_{i}.png" for i in range(1, 6)]
+    # "undead_bush": the designer's since 2026-10-29 (DESIGNER below); was [f"{U}/Plant_shadow1_{i}.png" for i in range(1, 6)] + [f"{U}/Thorn_plant_shadow1_{i}.png" for i in (1, 2, 3)]
+    # "undead_bones": the designer's since 2026-10-29 (DESIGNER below); was [f"{U}/Bones_shadow1_{i}.png" for i in (2, 3, 5, 7, 8, 9, 12, 13, 16, 17, 18)]
+    # "undead_grave": the designer's since 2026-10-29 (DESIGNER below); was [f"{U}/Grave_shadow1_{i}.png" for i in range(1, 12)]
+    # "undead_ruin": the designer's since 2026-10-29 (DESIGNER below); was [f"{U}/Ruin_shadow1_{i}.png" for i in range(1, 6)]
+    # "undead_skulls": the designer's since 2026-10-29 (DESIGNER below); was [f"{U}/Pile_sculls_shadow1.png"]
+    # "undead_crystal": dropped 2026-10-29 (World 5's flowers are the designer's green plants); was [f"{U}/Crystal_shadow1_{i}.png" for i in range(1, 5)]
     # --- World 4 hell (cursed land pack) ---
-    "cursed_rock": {"scale": 1.0, "src": [f"{X}/Rock1_shadow1_{i}.png" for i in range(1, 6)] + [f"{X}/Rock3_shadow1_{i}.png" for i in (3, 4, 5)]},
-    "cursed_plant": {"scale": 1.0, "src": [f"{X}/Eye_plant_shadow1_1.png", f"{X}/Eye_plant_shadow1_2.png", f"{X}/Many_eyes_plant_shadow1_1.png", f"{X}/Tubular_plant_shadow1_1.png", f"{X}/Tubular_plant_shadow1_2.png", f"{X}/Spike_plant_shadow1_3.png", f"{X}/Spike_plant_shadow1_4.png", f"{X}/Pustules_shadow1_1.png", f"{X}/Pustules_shadow1_2.png"]},
-    "cursed_tree": {"scale": 0.8, "src": [f"{X}/Tentacle_plant_shadow1_1.png", f"{X}/Meat_flower_shadow1_1.png", f"{X}/Jaws_plant_shadow1_1.png", f"{X}/Spike_plant_shadow1_2.png"]},
-    "cursed_bones": {"scale": 1.0, "src": [f"{X}/Bones_shadow1_{i}.png" for i in (2, 3, 5, 7, 8, 9, 10, 11)]},
-    "cursed_ruin": {"scale": 0.8, "src": [f"{X}/Ruins_shadow2_1.png", f"{X}/Ruins_shadow2_2.png", f"{X}/Ruins_shadow2_3.png", f"{X}/Ruins_shadow2_4.png"]},
-    "cursed_eye": {"scale": 1.0, "src": [f"{X}/Rock_eyes_shadow1_1.png", f"{X}/Rock_eyes_shadow1_2.png"]},
+    # "cursed_rock": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Rock1_shadow1_{i}.png" for i in range(1, 6)] + [f"{X}/Rock3_shadow1_{i}.png" for i in (3, 4, 5)]
+    # "cursed_plant": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Eye_plant_shadow1_1.png", f"{X}/Eye_plant_shadow1_2.png", f"{X}/Many_eyes_plant_shadow1_1.png", f"{X}/Tubular_plant_shadow1_1.png", f"{X}/Tubular_plant_shadow1_2.png", f"{X}/Spike_plant_shadow1_3.png", f"{X}/Spike_plant_shadow1_4.png", f"{X}/Pustules_shadow1_1.png", f"{X}/Pustules_shadow1_2.png"]
+    # "cursed_tree": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Tentacle_plant_shadow1_1.png", f"{X}/Meat_flower_shadow1_1.png", f"{X}/Jaws_plant_shadow1_1.png", f"{X}/Spike_plant_shadow1_2.png"]
+    # "cursed_bones": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Bones_shadow1_{i}.png" for i in (2, 3, 5, 7, 8, 9, 10, 11)]
+    # "cursed_ruin": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Ruins_shadow2_1.png", f"{X}/Ruins_shadow2_2.png", f"{X}/Ruins_shadow2_3.png", f"{X}/Ruins_shadow2_4.png"]
+    # "cursed_eye": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Rock_eyes_shadow1_1.png", f"{X}/Rock_eyes_shadow1_2.png"]
     # --- World 2 Amber Wastes (desert pack; the "grass" shadow variants sit on the scrub floor) ---
-    "desert_tree": {"scale": 0.85, "src": [f"{D}/Tree1_grass_shadow*.png", f"{D}/Tree2_grass_shadow*.png", f"{D}/Tree4_grass_shadow*.png", f"{D}/Tree3_*.png"]},
-    "desert_tree_dead": {"scale": 1.0, "src": [f"{D}/curved_tree_grass*.png"], "limit": 10},
-    "desert_cactus": {"scale": 1.0, "src": [f"{D}/Cactus1_grass_shadow*.png", f"{D}/Cactus2_grass_shadow*.png", f"{D}/Cactus3_grass_shadow*.png"]},
+    # "desert_tree": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Tree1_grass_shadow*.png", f"{D}/Tree2_grass_shadow*.png", f"{D}/Tree4_grass_shadow*.png", f"{D}/Tree3_*.png"]
+    # "desert_tree_dead": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/curved_tree_grass*.png"], "limit": 10
+    # "desert_cactus": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Cactus1_grass_shadow*.png", f"{D}/Cactus2_grass_shadow*.png", f"{D}/Cactus3_grass_shadow*.png"]
     "desert_rock": {"scale": 1.0, "src": [f"{D}/Rock2_*.png", f"{D}/Rock4_*.png", f"{D}/Rock9_*.png", f"{D}/Rock3_*.png"]},
-    "desert_mesa": {"scale": 0.9, "src": [f"{D}/Rock1_*.png", f"{D}/Rock5_*.png", f"{D}/Rock7_*.png"]},
-    "desert_bush": {"scale": 1.0, "src": [f"{D}/Small_bush*.png", f"{D}/Grass_element2_*_grass_shadow.png", f"{D}/Grass_element3_*_grass_shadow.png"]},
-    "desert_tuft": {"scale": 1.0, "src": [f"{D}/Grass_element1.png", f"{D}/Grass_element2.png", f"{D}/Grass_element3.png", f"{D}/Grass_element4.png", f"{D}/Grass_element4_*_grass_shadow.png"]},
-    "desert_flower": {"scale": 1.0, "src": [f"{D}/Red_flower*.png", f"{D}/Violet_flower*.png", f"{D}/White_flower*.png", f"{D}/Yellow_flower*.png"]},
-    "desert_bones": {"scale": 1.0, "src": [f"{D}/Bones_grass_shadow*.png", f"{D}/Bone_element_grass*.png", f"{D}/Scull_grass_shadow*.png", f"{D}/Sculls_grass_shadow*.png"]},
-    "desert_pebble": {"scale": 1.0, "src": [f"{D}/Sand_element*.png"]},
-    "desert_ruin": {"scale": 0.8, "src": [f"{D}/Ruins*.png", f"{D}/pyramid_grass_shadow*.png", f"{D}/Gates*.png", f"{D}/small_gate*.png"]},
+    # "desert_mesa": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Rock1_*.png", f"{D}/Rock5_*.png", f"{D}/Rock7_*.png"]
+    # "desert_bush": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Small_bush*.png", f"{D}/Grass_element2_*_grass_shadow.png", f"{D}/Grass_element3_*_grass_shadow.png"]
+    # "desert_tuft": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Grass_element1.png", f"{D}/Grass_element2.png", f"{D}/Grass_element3.png", f"{D}/Grass_element4.png", f"{D}/Grass_element4_*_grass_shadow.png"]
+    # "desert_flower": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Red_flower*.png", f"{D}/Violet_flower*.png", f"{D}/White_flower*.png", f"{D}/Yellow_flower*.png"]
+    # "desert_bones": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Bones_grass_shadow*.png", f"{D}/Bone_element_grass*.png", f"{D}/Scull_grass_shadow*.png", f"{D}/Sculls_grass_shadow*.png"]
+    # "desert_pebble": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Sand_element*.png"]
+    # "desert_ruin": the designer's since 2026-10-29 (DESIGNER below); was [f"{D}/Ruins*.png", f"{D}/pyramid_grass_shadow*.png", f"{D}/Gates*.png", f"{D}/small_gate*.png"]
     # --- World 3 Frostreach (winter pack; snow-shadow variants) ---
-    "winter_tree": {"scale": 1.0, "src": [f"{W}/64/Trees1_snow_shadow2.png", f"{W}/64/Trees2_snow_shadow3.png", f"{W}/64/Trees3_snow_shadow3.png", f"{W}/64/Trees4_snow_shadow4.png", f"{W}/32/Trees1_snow_shadow3.png"]},
-    "winter_tree_big": {"scale": 0.7, "src": [f"{W}/128/Trees1_snow_shadow1.png", f"{W}/128/Trees2_snow_shadow1.png", f"{W}/128/Trees2_snow_shadow2.png", f"{W}/128/Trees3_snow_shadow1.png", f"{W}/128/Trees3_snow_shadow2.png", f"{W}/128/Trees4_snow_shadow1.png", f"{W}/128/Trees4_snow_shadow2.png"]},
-    "winter_ice_tree": {"scale": 0.7, "src": [f"{W}/64/Ice_trees_snow_shadow4.png", f"{W}/128/Ice_trees_snow_shadow2.png", f"{W}/128/Ice_trees_snow_shadow3.png"]},
-    "winter_rock": {"scale": 1.0, "src": [f"{W}/64/Stones_snow_shadow1.png", f"{W}/64/Stones_snow_shadow2.png", f"{W}/32/Stones_snow_shadow3.png", f"{W}/32/Stones_snow_shadow4.png"]},
-    "winter_pebble": {"scale": 1.0, "src": [f"{W}/16/Stones_snow_shadow5.png", f"{W}/32/Stones_snow_shadow4.png"]},
-    "winter_crystal": {"scale": 1.0, "src": [f"{W}/64/Crystal_sharp_snow_shadow2.png", f"{W}/64/Crystal_sharp_snow_shadow3.png", f"{W}/64/Crystal_square_snow_shadow3.png", f"{W}/64/Crystal_square_snow_shadow4.png", f"{W}/32/Crystal_square_snow_shadow1.png", f"{W}/32/Crystal_square_snow_shadow2.png"]},
-    "winter_flower": {"scale": 1.0, "src": [f"{W}/64/Ice_flowers_snow_shadow1.png", f"{W}/64/Ice_flowers_snow_shadow2.png", f"{W}/32/Ice_flowers_snow_shadow3.png", f"{W}/64/Crystal_flower_snow_shadow2.png", f"{W}/64/Crystal_flower_snow_shadow3.png"]},
-    "winter_shroom": {"scale": 1.0, "src": [f"{W}/64/Mushroom1_snow_shadow2.png", f"{W}/64/Mushroom1_snow_shadow3.png", f"{W}/64/Mushroom2_snow_shadow1.png", f"{W}/64/Mushroom2_snow_shadow2.png", f"{W}/64/Mushroom2_snow_shadow3.png"]},
-    "winter_snowman": {"scale": 1.0, "src": [f"{W}/64/Snowmen_snow_shadow1.png", f"{W}/64/Snowmen_snow_shadow2.png", f"{W}/64/Snowmen_snow_shadow3.png", f"{W}/64/Snowmen_snow_shadow4.png", f"{W}/32/Snowmen_snow_shadow5.png", f"{W}/32/Snowmen_snow_shadow6.png"]},
-    "winter_ruin": {"scale": 0.8, "src": [f"{W}/64/Ruins1_snow_shadow3.png", f"{W}/64/Ruins1_snow_shadow4.png", f"{W}/64/Ruins2_snow_shadow3.png", f"{W}/32/Ruins1_snow_shadow5.png", f"{W}/32/Ruins2_snow_shadow4.png", f"{W}/128/Ruins1_snow_shadow1.png", f"{W}/128/Ruins2_snow_shadow1.png"]},
-    "winter_idol": {"scale": 0.8, "src": [f"{W}/64/Idols_snow_shadow2.png", f"{W}/128/Idols_snow_shadow1.png"]},
+    # "winter_tree": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/64/Trees1_snow_shadow2.png", f"{W}/64/Trees2_snow_shadow3.png", f"{W}/64/Trees3_snow_shadow3.png", f"{W}/64/Trees4_snow_shadow4.png", f"{W}/32/Trees1_snow_shadow3.png"]
+    # "winter_tree_big": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/128/Trees1_snow_shadow1.png", f"{W}/128/Trees2_snow_shadow1.png", f"{W}/128/Trees2_snow_shadow2.png", f"{W}/128/Trees3_snow_shadow1.png", f"{W}/128/Trees3_snow_shadow2.png", f"{W}/128/Trees4_snow_shadow1.png", f"{W}/128/Trees4_snow_shadow2.png"]
+    # "winter_ice_tree": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/64/Ice_trees_snow_shadow4.png", f"{W}/128/Ice_trees_snow_shadow2.png", f"{W}/128/Ice_trees_snow_shadow3.png"]
+    # "winter_rock": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/64/Stones_snow_shadow1.png", f"{W}/64/Stones_snow_shadow2.png", f"{W}/32/Stones_snow_shadow3.png", f"{W}/32/Stones_snow_shadow4.png"]
+    # "winter_pebble": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/16/Stones_snow_shadow5.png", f"{W}/32/Stones_snow_shadow4.png"]
+    # "winter_crystal": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/64/Crystal_sharp_snow_shadow2.png", f"{W}/64/Crystal_sharp_snow_shadow3.png", f"{W}/64/Crystal_square_snow_shadow3.png", f"{W}/64/Crystal_square_snow_shadow4.png", f"{W}/32/Crystal_square_snow_shadow1.png", f"{W}/32/Crystal_square_snow_shadow2.png"]
+    # "winter_flower": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/64/Ice_flowers_snow_shadow1.png", f"{W}/64/Ice_flowers_snow_shadow2.png", f"{W}/32/Ice_flowers_snow_shadow3.png", f"{W}/64/Crystal_flower_snow_shadow2.png", f"{W}/64/Crystal_flower_snow_shadow3.png"]
+    # "winter_shroom": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/64/Mushroom1_snow_shadow2.png", f"{W}/64/Mushroom1_snow_shadow3.png", f"{W}/64/Mushroom2_snow_shadow1.png", f"{W}/64/Mushroom2_snow_shadow2.png", f"{W}/64/Mushroom2_snow_shadow3.png"]
+    # "winter_snowman": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/64/Snowmen_snow_shadow1.png", f"{W}/64/Snowmen_snow_shadow2.png", f"{W}/64/Snowmen_snow_shadow3.png", f"{W}/64/Snowmen_snow_shadow4.png", f"{W}/32/Snowmen_snow_shadow5.png", f"{W}/32/Snowmen_snow_shadow6.png"]
+    # "winter_ruin": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/64/Ruins1_snow_shadow3.png", f"{W}/64/Ruins1_snow_shadow4.png", f"{W}/64/Ruins2_snow_shadow3.png", f"{W}/32/Ruins1_snow_shadow5.png", f"{W}/32/Ruins2_snow_shadow4.png", f"{W}/128/Ruins1_snow_shadow1.png", f"{W}/128/Ruins2_snow_shadow1.png"]
+    # "winter_idol": the designer's since 2026-10-29 (DESIGNER below); was [f"{W}/64/Idols_snow_shadow2.png", f"{W}/128/Idols_snow_shadow1.png"]
     # --- Wall boulders (rocks_stones pack): one style per zone, five
     # sizes each, no painted shadow (they pile on the wall cap).
     # DungeonManager._build_rock_walls dresses every wall tile near floor.
@@ -136,26 +136,23 @@ ROLES = {
     "wallrock_lava": {"scale": 0.7, "src": [f"{R}/Rock8_{i}_no_shadow.png" for i in range(1, 6)]},
     # --- Hell (World 4): the cave pack's volcanic and demonic pieces join the
     # cursed-land flesh (Emberfall is where both belong).
-    "hell_spire": {"scale": 1.0, "src": [f"{C}/Red_stone_vertical{i}.png" for i in range(1, 5)] + [f"{C}/black_stalagmites_light_shadow{i}.png" for i in range(1, 6)]},
-    "hell_rock": {"scale": 1.0, "src": [f"{C}/Red_stone_light_shadow{i}.png" for i in range(1, 5)] + [f"{X}/Rock2_shadow2_{i}.png" for i in range(1, 6)]},
-    "hell_demon": {"scale": 0.8, "src": [f"{C}/Demon_head_light_shadow_frame1.png", f"{C}/Demon_hand_light_shadow_frame1.png", f"{C}/Demon_tail_light_shadow_frame1.png"]},
-    "hell_volcano": {"scale": 1.0, "src": [f"{C}/Volcano1_light_shadow_frame1.png", f"{C}/Volcano2_light_shadow_frame1.png", f"{C}/Volcano4_light_shadow_frame1.png", f"{C}/Volcano5_light_shadow_frame1.png"]},
-    "hell_vent": {"scale": 1.0, "src": [f"{C}/Volcano3_light_shadow_frame1.png"]},
-    "hell_pustule": {"scale": 1.0, "src": [f"{X}/Pustules_shadow1_{i}.png" for i in range(1, 4)]},
-    "hell_veins": {"scale": 0.6, "src": [f"{X}/Veins_shadow1_{i}.png" for i in range(1, 5)]},
-    "hell_fetus": {"scale": 0.8, "src": [f"{X}/Fetus_shadow1_{i}.png" for i in range(1, 4)]},
+    # "hell_spire": the designer's since 2026-10-29 (DESIGNER below / cut_prop_boards.py hell_*); was [f"{C}/Red_stone_vertical{i}.png" for i in range(1, 5)] + [f"{C}/black_stalagmites_light_shadow{i}.png" for i in range(1, 6)]
+    # "hell_rock": the designer's since 2026-10-29 (DESIGNER below / cut_prop_boards.py hell_*); was [f"{C}/Red_stone_light_shadow{i}.png" for i in range(1, 5)] + [f"{X}/Rock2_shadow2_{i}.png" for i in range(1, 6)]
+    # "hell_demon": the designer's since 2026-10-29 (DESIGNER below / cut_prop_boards.py hell_*); was [f"{C}/Demon_head_light_shadow_frame1.png", f"{C}/Demon_hand_light_shadow_frame1.png", f"{C}/Demon_tail_light_shadow_frame1.png"]
+    # "hell_volcano": the designer's since 2026-10-29 (DESIGNER below / cut_prop_boards.py hell_*); was [f"{C}/Volcano1_light_shadow_frame1.png", f"{C}/Volcano2_light_shadow_frame1.png", f"{C}/Volcano4_light_shadow_frame1.png", f"{C}/Volcano5_light_shadow_frame1.png"]
+    # "hell_vent": dropped 2026-10-29 (World 4 is the designer's cursed set); was [f"{C}/Volcano3_light_shadow_frame1.png"]
+    # "hell_pustule": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Pustules_shadow1_{i}.png" for i in range(1, 4)]
+    # "hell_veins": dropped 2026-10-29 (World 4 is the designer's cursed set); was [f"{X}/Veins_shadow1_{i}.png" for i in range(1, 5)]
+    # "hell_fetus": dropped 2026-10-29 (World 4 is the designer's cursed set); was [f"{X}/Fetus_shadow1_{i}.png" for i in range(1, 4)]
 }
 
 # Frame strips for the animated landmarks (AnimatedSprite3D via
 # DungeonManager._make_pixel_anim): name -> [frame files], written to
 # assets/textures/props/<name>_strip.png, frames side by side, uncropped.
 STRIPS = {
-    "hell_volcano1": [f"{C}/Volcano1_light_shadow_frame{i}.png" for i in range(1, 7)],
-    "hell_volcano2": [f"{C}/Volcano2_light_shadow_frame{i}.png" for i in range(1, 7)],
-    "hell_volcano4": [f"{C}/Volcano4_light_shadow_frame{i}.png" for i in range(1, 7)],
-    "hell_demon_head": [f"{C}/Demon_head_light_shadow_frame{i}.png" for i in range(1, 7)],
-    "hell_demon_hand": [f"{C}/Demon_hand_light_shadow_frame{i}.png" for i in range(1, 7)],
-    "hell_demon_tail": [f"{C}/Demon_tail_light_shadow_frame{i}.png" for i in range(1, 7)],
+    # (all six — the volcanoes and the demon head, hand and tail — gave way on
+    # 2026-10-29 to the designer's hell boards: tools/cut_prop_boards.py cuts
+    # hell_hand / hell_tentacle / hell_lava_strip.png and the static idol.)
 }
 
 
@@ -348,6 +345,84 @@ DESIGNER = {
     "chest_legendary_open": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_legendary_open_0.png"]},
     "chest_mythic_closed": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_mythic_closed_0.png"]},
     "chest_mythic_open": {"scale": 0.5, "files": ["assets/textures/props/boards/chest_mythic_open_0.png"]},
+    "desert_bones": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_bones_%d.png" % i for i in range(15)]},
+    "desert_flower": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_flower_%d.png" % i for i in range(12)]},
+    "desert_bush": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_bush_%d.png" % i for i in range(7)]},
+    "desert_tuft": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_tuft_%d.png" % i for i in range(5)]},
+    "desert_cactus": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_cactus_%d.png" % i for i in range(11)]},
+    "desert_mesa": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_mesa_%d.png" % i for i in range(12)]},
+    "desert_pebble": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_pebble_%d.png" % i for i in range(3)]},
+    "desert_ruin": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_ruin_%d.png" % i for i in range(4)]},
+    "desert_cave_arch": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_cave_arch_%d.png" % i for i in range(1)]},
+    "desert_door": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_door_%d.png" % i for i in range(2)]},
+    "desert_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_tree_%d.png" % i for i in range(15)]},
+    "desert_tree_dead": {"scale": 0.5, "files": ["assets/textures/props/boards/desert_tree_dead_%d.png" % i for i in range(5)]},
+    # 2026-10-29: Frostreach, World 3 (cut_prop_boards.py, winter_* boards).
+    "winter_tree_big": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_tree_big_%d.png" % i for i in range(7)]},
+    "winter_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_tree_%d.png" % i for i in range(7)]},
+    "winter_bush": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_bush_%d.png" % i for i in range(11)]},
+    "winter_ice_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_ice_tree_%d.png" % i for i in range(7)]},
+    "winter_idol": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_idol_%d.png" % i for i in range(4)]},
+    "winter_pebble": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_pebble_%d.png" % i for i in range(7)]},
+    "winter_crystal": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_crystal_%d.png" % i for i in range(9)]},
+    "winter_flower": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_flower_%d.png" % i for i in range(8)]},
+    "winter_shroom": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_shroom_%d.png" % i for i in range(11)]},
+    "winter_snowman": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_snowman_%d.png" % i for i in range(6)]},
+    "winter_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_rock_%d.png" % i for i in range(8)]},
+    "winter_ruin": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_ruin_%d.png" % i for i in range(4)]},
+    "winter_hut": {"scale": 0.5, "files": ["assets/textures/props/boards/winter_hut_%d.png" % i for i in range(1)]},
+    # 2026-10-29: the designer's hell (cut_prop_boards.py, hell_* boards).
+    "hell_pustule": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_pustule_%d.png" % i for i in range(7)]},
+    "hell_leaf": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_leaf_%d.png" % i for i in range(4)]},
+    "hell_eye": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_eye_%d.png" % i for i in range(3)]},
+    "hell_idol": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_idol_%d.png" % i for i in range(1)]},
+    "hell_spire": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_spire_%d.png" % i for i in range(5)]},
+    "hell_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_rock_%d.png" % i for i in range(5)]},
+    "hell_bloom": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_bloom_%d.png" % i for i in range(4)]},
+    "hell_shard": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_shard_%d.png" % i for i in range(2)]},
+    "hell_veins": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_veins_%d.png" % i for i in range(5)]},
+    "hell_vent": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_vent_%d.png" % i for i in range(11)]},
+    "hell_horn": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_horn_%d.png" % i for i in range(17)]},
+    "hell_arch": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_arch_%d.png" % i for i in range(2)]},
+    "hell_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_tree_%d.png" % i for i in range(4)]},
+    "hell_fence": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_fence_%d.png" % i for i in range(3)]},
+    "hell_post": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_post_%d.png" % i for i in range(7)]},
+    "hell_bones": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_bones_%d.png" % i for i in range(7)]},
+    "hell_fire": {"scale": 0.5, "files": ["assets/textures/props/boards/hell_fire_%d.png" % i for i in range(1)]},
+    # 2026-10-29: the barrow land, World 5 and the Boneyard (cut_prop_boards.py, undead_* boards).
+    "undead_bones": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_bones_%d.png" % i for i in range(11)]},
+    "undead_bush": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_bush_%d.png" % i for i in range(7)]},
+    "undead_grave": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_grave_%d.png" % i for i in range(11)]},
+    "undead_plant": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_plant_%d.png" % i for i in range(5)]},
+    "undead_ruin": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_ruin_%d.png" % i for i in range(5)]},
+    "undead_skull_door": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_skull_door_%d.png" % i for i in range(3)]},
+    "undead_skulls": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_skulls_%d.png" % i for i in range(1)]},
+    "undead_stump": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_stump_%d.png" % i for i in range(3)]},
+    "undead_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_rock_%d.png" % i for i in range(5)]},
+    "undead_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/undead_tree_%d.png" % i for i in range(5)]},
+    # 2026-10-29: the Verdant Frontier, World 1 (cut_prop_boards.py, field_board.webp).
+    "field_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/field_tree_%d.png" % i for i in range(2)]},
+    "field_tree_small": {"scale": 0.5, "files": ["assets/textures/props/boards/field_tree_small_%d.png" % i for i in range(2)]},
+    "field_bush": {"scale": 0.5, "files": ["assets/textures/props/boards/field_bush_%d.png" % i for i in range(1)]},
+    "field_fern": {"scale": 0.5, "files": ["assets/textures/props/boards/field_fern_%d.png" % i for i in range(1)]},
+    "field_flower": {"scale": 0.5, "files": ["assets/textures/props/boards/field_flower_%d.png" % i for i in range(1)]},
+    "field_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/field_rock_%d.png" % i for i in range(4)]},
+    "field_pebble": {"scale": 0.5, "files": ["assets/textures/props/boards/field_pebble_%d.png" % i for i in range(4)]},
+    "field_log": {"scale": 0.5, "files": ["assets/textures/props/boards/field_log_%d.png" % i for i in range(2)]},
+    "field_stump": {"scale": 0.5, "files": ["assets/textures/props/boards/field_stump_%d.png" % i for i in range(1)]},
+    "field_sign": {"scale": 0.5, "files": ["assets/textures/props/boards/field_sign_%d.png" % i for i in range(1)]},
+    # 2026-10-29: the designer's cursed land, World 4 (cut_prop_boards.py).
+    "cursed_plant": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_plant_%d.png" % i for i in range(7)]},
+    "cursed_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_rock_%d.png" % i for i in range(4)]},
+    "cursed_pod": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_pod_%d.png" % i for i in range(4)]},
+    "cursed_eye": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_eye_%d.png" % i for i in range(3)]},
+    "cursed_shroom": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_shroom_%d.png" % i for i in range(4)]},
+    "cursed_coral": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_coral_%d.png" % i for i in range(5)]},
+    "cursed_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_tree_%d.png" % i for i in range(7)]},
+    "cursed_ruin": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_ruin_%d.png" % i for i in range(8)]},
+    "cursed_cave": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_cave_0.png"]},
+    "cursed_eye_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_eye_rock_%d.png" % i for i in range(2)]},
+    "cursed_bones": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_bones_%d.png" % i for i in range(6)]},
     "town_card_shelf": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_shelf_0.png"]},
     "town_card_table": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_table_0.png"]},
     "town_card_players": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_players_0.png"]},
