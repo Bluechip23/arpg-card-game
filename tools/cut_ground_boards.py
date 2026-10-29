@@ -54,6 +54,25 @@ BOARDS = {
             "forest_cliff": (1052, 488, 1510, 622),   # grass over rock; the block below is the same cliff
         },
     },
+    # 2026-10-29: the caves' ground (cave_ground_board.webp, on black: a cliff
+    # block hanging in stalactites, earth floor, earth floor glittering with
+    # blue crystals; a rock wall, dark water, a rock wall hung with glowing
+    # crystals). Every other cave is a crystal cave (DungeonManager.cave_glows).
+    "cave_ground_board.webp": {
+        "sheets": {
+            "cave_floor": (570, 45, 965, 440),
+            "cave_floor_glow": (1075, 45, 1470, 440),
+            "cave_wall": (40, 510, 470, 940),
+            "cave_water": (555, 515, 980, 940),
+            "cave_wall_glow": (1065, 510, 1495, 940),
+        },
+        # The cliff block's deep right side, where the face hangs its full
+        # depth (it shallows toward the corner on the left): one tile of
+        # face, its lip over its hanging rock, widened with mirrored copies.
+        "faces": {
+            "cave_cliff": (250, 88, 488, 416),
+        },
+    },
 }
 
 
@@ -118,6 +137,10 @@ ATLASES = {
     # biome: {terrain sheet names}
     "forest": {"grass": "forest_grass", "dirt": "forest_dirt", "water": "forest_water",
                "high": "forest_grass_high"},
+    # Caves: no trail or raised-ground sheet of their own (the floor serves,
+    # trodden darker / lit lighter).
+    "cave": {"grass": "cave_floor", "water": "cave_water"},
+    "cave_glow": {"grass": "cave_floor_glow", "water": "cave_water"},
 }
 N_, E_, S_, W_ = 1, 2, 4, 8
 
@@ -158,7 +181,9 @@ def build_atlas(biome, names):
               for k, v in names.items()}
     grass = sheets["grass"]
     pit = grass * 0.45
-    terrains = [grass, sheets["dirt"], sheets["water"], pit, sheets["high"]]
+    dirt = sheets.get("dirt", grass * 0.82)
+    high = sheets.get("high", np.clip(grass * 1.14, 0, 255))
+    terrains = [grass, dirt, sheets["water"], pit, high]
     n = TILE
     atlas = np.zeros((len(terrains) * 16 * n, 16 * n, 3), np.float32)
     for t, sheet in enumerate(terrains):
@@ -189,6 +214,32 @@ def build_atlas(biome, names):
     print("%s_atlas: %dx%d" % (biome, out.width, out.height))
 
 
+def cut_face(board, box):
+    """A cliff strip from a stretch of a cliff block's face: shrunk to the
+    strip's height (its lip over its face, one tile) and laid out with
+    mirrored copies to give the strip its width; the ends are the first
+    piece and its mirror."""
+    cell = TILE // 2
+    rgb = np.asarray(board.crop(box).convert("RGB")).astype(np.float32)
+    black = rgb.max(axis=2) <= BLACK
+    lab, _ = nd.label(black)
+    edge = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
+    solid = ~np.isin(lab, list(edge))
+    img = Image.fromarray(np.dstack([rgb, solid * 255.0]).astype(np.uint8), "RGBA")
+    h = cell * 2
+    w = round(img.width * h / img.height)
+    small = np.asarray(img.convert("RGBa").resize((w, h), Image.LANCZOS).convert("RGBA")).copy()
+    small[..., 3] = np.where(small[..., 3] >= 128, 255, 0)
+    wide = np.concatenate([small, small[:, ::-1], small, small[:, ::-1]], axis=1)
+    out = Image.new("RGBA", (cell * 6, h))
+    out.paste(Image.fromarray(wide[:, :cell], "RGBA"), (0, 0))                     # L
+    for i in range(4):                                                                # middles, spread
+        x0 = cell + round(i * (wide.shape[1] - 3 * cell) / 4)
+        out.paste(Image.fromarray(wide[:, x0:x0 + cell], "RGBA"), ((1 + i) * cell, 0))
+    out.paste(Image.fromarray(wide[:, :cell][:, ::-1].copy(), "RGBA"), (5 * cell, 0))  # R: L mirrored
+    return out
+
+
 def main():
     os.makedirs(os.path.dirname(OUT % "x"), exist_ok=True)
     for src, cfg in BOARDS.items():
@@ -196,6 +247,10 @@ def main():
         for name, box in cfg.get("sheets", {}).items():
             cut_sheet(board, box).save(OUT % name)
             print("%s: %dx%d sheet" % (name, SHEET, SHEET))
+        for name, box in cfg.get("faces", {}).items():
+            img = cut_face(board, box)
+            img.save(OUT % name)
+            print("%s: %dx%d strip" % (name, img.width, img.height))
         for name, box in cfg.get("strips", {}).items():
             img = cut_strip(board, box)
             img.save(OUT % name)

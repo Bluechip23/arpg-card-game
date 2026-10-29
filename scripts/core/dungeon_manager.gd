@@ -540,7 +540,9 @@ func floor_texture_path() -> String:
 			return CP_TEX + "/floor_glowing_cave.png"  # wet stone (glowing-cave pack; the plain cave fill went black under the sewer's dim light)
 		"building", "dojo":
 			return CP_TEX + "/floor_undead.png"  # grey flagstones (undead pack's cracked stone)
-		"cave", "hellgate", "labyrinth":
+		"cave":
+			return GROUND_TEX + ("/cave_floor_glow.png" if cave_glows() else "/cave_floor.png")   # the designer's (2026-10-29)
+		"hellgate", "labyrinth":
 			return CP_TEX + "/floor_cave.png"
 		"forest":
 			return GROUND_TEX + "/forest_grass.png"   # the designer's (2026-10-29); was the pack's floor_grass_forest
@@ -595,7 +597,9 @@ func wall_texture_path() -> String:
 			return CP_TEX + "/wall_cave.png"  # dark cave rock
 		"building":
 			return CP_TEX + "/wall_undead.png"  # grey barrow stone
-		"cave", "hellgate", "labyrinth":
+		"cave":
+			return GROUND_TEX + ("/cave_wall_glow.png" if cave_glows() else "/cave_wall.png")   # the designer's (2026-10-29)
+		"hellgate", "labyrinth":
 			return CP_TEX + "/wall_cave.png"
 		"forest":
 			return GROUND_TEX + "/forest_wall.png"   # the designer's mossy cobble (2026-10-29)
@@ -618,7 +622,9 @@ func water_texture_path() -> String:
 			return CP_TEX + "/water_undead.png"
 		"hellgate", "labyrinth":
 			return CP_TEX + "/water_lava.png"  # the pools at Hell's threshold, and in the Minotaur's court, are lava (cave pack)
-		"cave", "sewer", "ratking":
+		"cave":
+			return GROUND_TEX + "/cave_water.png"   # the designer's dark cave water (2026-10-29)
+		"sewer", "ratking":
 			return CP_TEX + "/water_cave.png"
 		"forest":
 			return GROUND_TEX + "/forest_water.png"   # the designer's (2026-10-29)
@@ -2255,7 +2261,15 @@ func _neighbor_differs(x: int, z: int, nx: int, nz: int, t: int) -> bool:
 func ground_atlas_path() -> String:
 	if interior_kind == "forest":
 		return GROUND_TEX + "/forest_atlas.png"
+	if interior_kind == "cave":
+		return GROUND_TEX + ("/cave_glow_atlas.png" if cave_glows() else "/cave_atlas.png")
 	return ""
+
+
+## Every other cave is a crystal cave: the designer's glowing floor and
+## crystal-hung rock (cave_1, cave_3 ...).
+func cave_glows() -> bool:
+	return interior_kind == "cave" and int(interior_id.get_slice("_", 1)) % 2 == 1
 
 var _atlas_pre := false   # the ground mesh uses a prebuilt atlas (_atlas_cell)
 
@@ -2377,7 +2391,7 @@ func _make_ground_atlas(pal: Dictionary) -> ImageTexture:
 	## the 16 mask columns get palette-coloured edge bands on the sides where
 	## the neighbouring terrain differs (plus a lip shadow under raised
 	## ground). Cached per palette + interior.
-	var key: String = str(pal.get("name", "")) + "|" + interior_kind
+	var key: String = str(pal.get("name", "")) + "|" + interior_kind + "|" + floor_texture_path()
 	if _atlas_cache.has(key):
 		return _atlas_cache[key]
 	# Tile size: the floor sheet's (a 4x4 sheet: 32 px tiles for the packs,
@@ -2556,7 +2570,9 @@ var _wall_atlas_cache: Dictionary = {}
 ## The cliff strip for this location (see tools/extract_craftpix_cliffs.py).
 func cliff_strip_path() -> String:
 	match interior_kind:
-		"sewer", "cave", "ratking", "hellgate", "labyrinth":
+		"cave":
+			return GROUND_TEX + "/cave_cliff.png"   # the designer's hanging rock face, 32 px cells (2026-10-29)
+		"sewer", "ratking", "hellgate", "labyrinth":
 			return CP_TEX + "/cliff_cave.png"
 		"boneyard":
 			return CP_TEX + "/cliff_undead.png"
@@ -2586,7 +2602,7 @@ func cap_texture_path() -> String:
 
 
 func _make_wall_atlas(pal: Dictionary) -> ImageTexture:
-	var key: String = str(pal.get("name", "")) + "|" + interior_kind + "|" + str(world_level)
+	var key: String = str(pal.get("name", "")) + "|" + interior_kind + "|" + str(world_level) + "|" + wall_texture_path()
 	if _wall_atlas_cache.has(key):
 		return _wall_atlas_cache[key]
 	# The cliff strip sets the cell size: 16 px pieces for the packs, 32 for
@@ -2607,7 +2623,10 @@ func _make_wall_atlas(pal: Dictionary) -> ImageTexture:
 	# like floor the player could not step onto.
 	var cap := _fit_sheet(_sheet_image(cap_texture_path()), n * 2)
 	var is_rock := interior_kind in ["cave", "sewer", "ratking", "hellgate", "labyrinth"]
-	cap.adjust_bcs(0.55 if is_rock else 0.72, 1.0, 0.85)
+	# The designer's rock is painted dark already: shaded only lightly, it
+	# lands where the pack rock's heavier shading did.
+	var designer_cap := cap_texture_path().begins_with(GROUND_TEX)
+	cap.adjust_bcs((0.85 if designer_cap else 0.55) if is_rock else (0.9 if designer_cap else 0.72), 1.0, 0.85)
 	var floor_b: Color = pal.get("floor_b", Color(0.25, 0.42, 0.2))
 	# Outline colours follow the pack art: a dark line the colour of the
 	# ground's own shadow, then a lit rim.
