@@ -427,8 +427,22 @@ BOARDS = {
     "cursed_eye": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((926, 517, 1160, 752), 94), ((1154, 509, 1329, 760), 100), ((1336, 528, 1518, 752), 86)]},
     "cursed_shroom": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((24, 746, 235, 993), 99), ((240, 770, 415, 998), 91), ((427, 758, 602, 999), 96), ((618, 752, 778, 995), 97)]},
     "cursed_coral": {"hole": 30, "src": "cursed_features_board.webp", "main_only": True, "pieces": [((814, 771, 984, 978), 83), ((1012, 815, 1130, 984), 68), ((1163, 837, 1273, 988), 60), ((1298, 840, 1399, 985), 58), ((1429, 882, 1508, 982), 40)]},
-    "cursed_tree": {"hole": 30, "src": "cursed_features2_board.webp", "main_only": True, "pieces": [((15, 517, 416, 940), 178), ((434, 632, 746, 941), 130), ((756, 464, 1190, 941), 200), ((1135, 587, 1524, 940), 148)]},
-    "cursed_ruin": {"hole": 30, "src": "cursed_features2_board.webp", "main_only": True, "pieces": [((12, 96, 475, 504), 196), ((484, 168, 814, 442), 132), ((824, 172, 1096, 452), 134), ((1121, 91, 1526, 491), 192)]},
+    "cursed_tree": {"hole": 30, "src": "cursed_features2_board.webp", "main_only": True, "pieces": [((15, 517, 416, 940), 178), ((434, 632, 746, 941), 130), ((756, 464, 1190, 941), 200), ((1135, 587, 1524, 940), 148)],
+                    "more": [("cursed_features3_board.webp", (902, 358, 1215, 726), 155), ("cursed_features3_board.webp", (1242, 432, 1504, 715), 119), ("cursed_features3_board.webp", (31, 573, 462, 974), 168)]},
+    # The ruins keep their loose stones (not main_only); the broken ring's
+    # box clears the tentacle tree's curls below it.
+    "cursed_ruin": {"hole": 30, "src": "cursed_features2_board.webp", "pieces": [((12, 96, 475, 504), 196), ((484, 168, 814, 442), 132), ((824, 172, 1096, 452), 134), ((1121, 91, 1526, 491), 192)],
+                    "more": [("cursed_features3_board.webp", (782, 44, 1129, 348), 146), ("cursed_features3_board.webp", (1114, 46, 1524, 394), 167, [(1114, 340, 1230, 394, 999)]),
+                             ("cursed_features3_board.webp", (325, 331, 607, 627), 142), ("cursed_features3_board.webp", (616, 352, 901, 627), 132)]},
+    # 2026-10-29: cursed_features3_board.webp (on black): a skull, a bone, two
+    # flesh mounds full of eyes, a curved ruined wall, a broken ring with a
+    # door, a mound over a dark cave mouth, two vein-bound stone blocks, the
+    # tentacle plant, meat flower and jaws plant again, and four bone piles
+    # (bones, a ribcage, skulls, crossed bones). The mound is the cave mouth,
+    # cut larger (it spans a cave's three-tile mouth); the bones ~0.33 a px.
+    "cursed_cave": {"src": "cursed_features3_board.webp", "main_only": True, "pieces": [((14, 328, 315, 583), 153)]},
+    "cursed_eye_rock": {"hole": 30, "src": "cursed_features3_board.webp", "main_only": True, "pieces": [((305, 75, 552, 299), 90), ((563, 118, 769, 297), 72)]},
+    "cursed_bones": {"hole": 30, "src": "cursed_features3_board.webp", "main_only": True, "pieces": [((14, 152, 151, 257), 35), ((163, 125, 291, 237), 37), ((473, 759, 744, 957), 65), ((776, 800, 1044, 961), 53), ((1076, 806, 1310, 958), 50), ((1342, 778, 1504, 955), 58)]},
     # 2026-10-29: the title cutscene's actors and props (not world props):
     # the small boy in three poses (cutscene_boy_board.webp: facing left,
     # front, facing right) and the pipe and lounge chair
@@ -542,10 +556,10 @@ def cut_piece(board, box, height, alpha_cut=128, flip=False, open_black=False, m
 def build(role, cfg):
     board = Image.open(SRC % cfg["src"])
     os.makedirs(os.path.dirname(OUT % (role, 0)), exist_ok=True)
-    # "more": pieces from other boards, (board, box, height), after the rest.
+    # "more": pieces from other boards, (board, box, height[, clear_dim]), after the rest.
     # A piece may carry a third item: its own clear_dim boxes (added to the role's).
     pieces = [(board, p[0], p[1], p[2] if len(p) > 2 else ()) for p in cfg["pieces"]] + \
-             [(Image.open(SRC % src), box, h, ()) for src, box, h in cfg.get("more", [])]
+             [(Image.open(SRC % m[0]), m[1], m[2], m[3] if len(m) > 3 else ()) for m in cfg.get("more", [])]
     for i, (b, box, height, own_clear) in enumerate(pieces):
         img = cut_piece(b, box, height, cfg.get("alpha_cut", 128), cfg.get("flip", False),
                         cfg.get("open_black", False), cfg.get("main_only", False),

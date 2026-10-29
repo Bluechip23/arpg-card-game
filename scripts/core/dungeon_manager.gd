@@ -690,7 +690,7 @@ const PROP_ROLES := {
 		"berry": ["undead_bush"], "fern": ["undead_bush"], "flower": ["undead_crystal"], "tuft": ["undead_bones"],
 		"shroom": ["undead_skulls"], "pebble": ["undead_bones"], "bones": ["undead_bones"], "reeds": ["forest_reeds"],
 		"wallrock": ["wallrock_dark"]},
-	"cursed": {"tree": ["cursed_tree"], "stump": ["cursed_eye"], "rock": ["cursed_rock"],   # the designer's cursed land (2026-10-29)
+	"cursed": {"tree": ["cursed_tree"], "stump": ["cursed_eye"], "rock": ["cursed_rock", "cursed_eye_rock"],   # the designer's cursed land (2026-10-29)
 		"bush": ["cursed_pod"], "berry": ["hell_pustule"], "fern": ["cursed_plant"], "flower": ["cursed_coral"],
 		"tuft": ["cursed_bones"], "shroom": ["cursed_shroom"], "pebble": ["cursed_bones"], "bones": ["cursed_bones"], "reeds": ["forest_reeds"],
 		"wallrock": ["wallrock_lava"]},
@@ -2872,7 +2872,7 @@ func _place_hell_landmarks() -> void:
 		["res://assets/textures/craftpix/props/hell_demon_tail_strip.png", 55, 97, 0.8],
 		["res://assets/textures/craftpix/props/hell_volcano4_strip.png", 31, 30, 1.0],
 	]
-	const RUINS := 4   # the four ruins share the draw with the six strips
+	var RUINS: int = CraftpixProps.PROPS["cursed_ruin"]["variants"].size() if CraftpixProps.has("cursed_ruin") else 0   # the ruins share the draw with the six strips
 	var placed: Array = []
 	var count := 0
 	for x in range(GRID_W):
@@ -4964,12 +4964,13 @@ func _build_desert_site(root: Node3D, kind: String, fp_w: int, fp_d: int, salt: 
 
 
 ## Emberfall's sites (the designer's vein-wrapped ruins, 2026-10-29): a
-## building is the broken wall or the stone block, a cave the arch or the
-## broken ring, by site. Feet on the footprint's south edge.
+## building is the broken ring with its door or the arch, by site; a cave the
+## mound over its dark mouth. Feet on the footprint's south edge.
 func _build_cursed_site(root: Node3D, kind: String, fp_w: int, fp_d: int, salt: int) -> void:
-	var k := (0 if salt % 2 == 0 else 2) if kind == "building" else (1 if salt % 2 == 0 else 3)
+	var role := "cursed_cave" if kind == "cave" else "cursed_ruin"
+	var k := 0 if kind == "cave" else (5 if salt % 2 == 0 else 1)
 	var door_x := 0.5 if fp_w % 2 == 0 else 0.0
-	var sprite := _make_prop_sprite("cursed_ruin", 1.0, k)
+	var sprite := _make_prop_sprite(role, 1.0, k)
 	if sprite:
 		sprite.position = Vector3(door_x, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.05)
 		root.add_child(sprite)

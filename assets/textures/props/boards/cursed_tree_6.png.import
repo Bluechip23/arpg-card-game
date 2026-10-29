@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dvnbvwgtnctja"
-path="res://.godot/imported/cursed_bones_1.png-ae5a323e9b2f72706f489db1d3be2c18.ctex"
+uid="uid://c48ltgs2vqr8r"
+path="res://.godot/imported/cursed_tree_6.png-c5b3103acaa3587e37b8c0ae955537b1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/craftpix/props/cursed_bones_1.png"
-dest_files=["res://.godot/imported/cursed_bones_1.png-ae5a323e9b2f72706f489db1d3be2c18.ctex"]
+source_file="res://assets/textures/props/boards/cursed_tree_6.png"
+dest_files=["res://.godot/imported/cursed_tree_6.png-c5b3103acaa3587e37b8c0ae955537b1.ctex"]
 
 [params]
 

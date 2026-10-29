@@ -96,7 +96,7 @@ ROLES = {
     # "cursed_rock": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Rock1_shadow1_{i}.png" for i in range(1, 6)] + [f"{X}/Rock3_shadow1_{i}.png" for i in (3, 4, 5)]
     # "cursed_plant": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Eye_plant_shadow1_1.png", f"{X}/Eye_plant_shadow1_2.png", f"{X}/Many_eyes_plant_shadow1_1.png", f"{X}/Tubular_plant_shadow1_1.png", f"{X}/Tubular_plant_shadow1_2.png", f"{X}/Spike_plant_shadow1_3.png", f"{X}/Spike_plant_shadow1_4.png", f"{X}/Pustules_shadow1_1.png", f"{X}/Pustules_shadow1_2.png"]
     # "cursed_tree": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Tentacle_plant_shadow1_1.png", f"{X}/Meat_flower_shadow1_1.png", f"{X}/Jaws_plant_shadow1_1.png", f"{X}/Spike_plant_shadow1_2.png"]
-    "cursed_bones": {"scale": 1.0, "src": [f"{X}/Bones_shadow1_{i}.png" for i in (2, 3, 5, 7, 8, 9, 10, 11)]},
+    # "cursed_bones": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Bones_shadow1_{i}.png" for i in (2, 3, 5, 7, 8, 9, 10, 11)]
     # "cursed_ruin": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Ruins_shadow2_1.png", f"{X}/Ruins_shadow2_2.png", f"{X}/Ruins_shadow2_3.png", f"{X}/Ruins_shadow2_4.png"]
     # "cursed_eye": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Rock_eyes_shadow1_1.png", f"{X}/Rock_eyes_shadow1_2.png"]
     # --- World 2 Amber Wastes (desert pack; the "grass" shadow variants sit on the scrub floor) ---
@@ -368,8 +368,11 @@ DESIGNER = {
     "cursed_eye": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_eye_%d.png" % i for i in range(3)]},
     "cursed_shroom": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_shroom_%d.png" % i for i in range(4)]},
     "cursed_coral": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_coral_%d.png" % i for i in range(5)]},
-    "cursed_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_tree_%d.png" % i for i in range(4)]},
-    "cursed_ruin": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_ruin_%d.png" % i for i in range(4)]},
+    "cursed_tree": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_tree_%d.png" % i for i in range(7)]},
+    "cursed_ruin": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_ruin_%d.png" % i for i in range(8)]},
+    "cursed_cave": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_cave_0.png"]},
+    "cursed_eye_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_eye_rock_%d.png" % i for i in range(2)]},
+    "cursed_bones": {"scale": 0.5, "files": ["assets/textures/props/boards/cursed_bones_%d.png" % i for i in range(6)]},
     "town_card_shelf": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_shelf_0.png"]},
     "town_card_table": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_table_0.png"]},
     "town_card_players": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_players_0.png"]},
