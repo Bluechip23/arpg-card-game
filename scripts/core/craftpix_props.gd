@@ -105,7 +105,6 @@ const PROPS := {
 	"goods_pile": {"scale": 0.50, "variants": [{"path": "res://assets/textures/props/boards/goods_sack_0.png", "w": 53, "h": 48}, {"path": "res://assets/textures/props/boards/goods_sack_1.png", "w": 52, "h": 48}], "density": 64},
 	"town_bench": {"scale": 0.50, "variants": [{"path": "res://assets/textures/props/boards/town_bench_0.png", "w": 107, "h": 62}, {"path": "res://assets/textures/props/boards/town_bench_1.png", "w": 115, "h": 62}], "density": 64},
 	"town_shelf": {"scale": 0.50, "variants": [{"path": "res://assets/textures/props/boards/town_shelf_0.png", "w": 115, "h": 94}, {"path": "res://assets/textures/props/boards/town_shelf_1.png", "w": 120, "h": 94}, {"path": "res://assets/textures/props/boards/town_shelf_2.png", "w": 122, "h": 94}], "density": 64},
-	"town_bench_angled": {"scale": 0.50, "variants": [{"path": "res://assets/textures/props/boards/town_bench_angled_0.png", "w": 77, "h": 97}], "density": 64},
 	"smith_forge": {"scale": 0.50, "variants": [{"path": "res://assets/textures/props/boards/smith_forge_0.png", "w": 157, "h": 140}], "density": 64},
 	"smith_bellows": {"scale": 0.50, "variants": [{"path": "res://assets/textures/props/boards/smith_bellows_0.png", "w": 83, "h": 62}], "density": 64},
 	"smith_anvil": {"scale": 0.50, "variants": [{"path": "res://assets/textures/props/boards/smith_anvil_0.png", "w": 63, "h": 54}], "density": 64},

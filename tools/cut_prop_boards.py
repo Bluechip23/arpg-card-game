@@ -318,12 +318,6 @@ BOARDS = {
     # 2026-10-29: the designer's stash, a vault door set into the plaza
     # (stash_vault_board.webp): laid flat on the ground by town.gd, 2.4
     # tiles across.
-    # The smith's old anvil workbench, turned 45 degrees (designer, 2026-10-29).
-    "town_bench_angled": {
-        "src": "town_stalls_board.webp",
-        "turn45": True,
-        "pieces": [((322, 12, 720, 242), 62)],
-    },
     # 2026-10-29: the designer's forge (blacksmith_forge_board.webp, on
     # black): the forge, the bellows, the anvil on its stump, the rack of
     # tongs and weapon molds, a workbench, a box of coal, a water bucket, a

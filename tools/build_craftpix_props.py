@@ -323,7 +323,6 @@ DESIGNER = {
     "goods_pile": {"scale": 0.5, "files": ["assets/textures/props/boards/goods_sack_%d.png" % i for i in range(2)]},
     "town_bench": {"scale": 0.5, "files": ["assets/textures/props/boards/town_bench_%d.png" % i for i in range(2)]},
     "town_shelf": {"scale": 0.5, "files": ["assets/textures/props/boards/town_shelf_%d.png" % i for i in range(3)]},
-    "town_bench_angled": {"scale": 0.5, "files": ["assets/textures/props/boards/town_bench_angled_0.png"]},
     "smith_forge": {"scale": 0.5, "files": ["assets/textures/props/boards/smith_forge_0.png"]},
     "smith_bellows": {"scale": 0.5, "files": ["assets/textures/props/boards/smith_bellows_0.png"]},
     "smith_anvil": {"scale": 0.5, "files": ["assets/textures/props/boards/smith_anvil_0.png"]},
