@@ -102,6 +102,28 @@ BOARDS = {
         "src": "forest_logs_ferns_board.webp",
         "pieces": [((1029, 144, 1479, 465), 56)],
     },
+    # 2026-10-29: the designer's forest rocks (forest_rocks_board.webp, 12 on
+    # black in three rows: rock clusters; cracked stone pillars, big to
+    # small, and a low block; mossy clusters). Each of the first eight takes
+    # the place of the pack rock it most resembles at its height (doubled);
+    # the other four are new variants, sized like the clusters beside them.
+    "forest_rock": {
+        "src": "forest_rocks_board.webp",
+        "pieces": [
+            ((32, 343, 405, 662), 126),     # the big pillar
+            ((471, 411, 756, 663), 94),     # the middle pillar
+            ((872, 441, 1105, 655), 68),    # the small pillar
+            ((27, 686, 403, 972), 70),      # mossy cluster, left
+            ((1230, 741, 1486, 947), 58),   # mossy cluster, small
+            ((440, 113, 792, 327), 56),     # the wide cluster
+            ((842, 96, 1213, 337), 64),     # the slab cluster
+            ((1271, 113, 1486, 288), 40),   # the lone pointed stone
+            ((51, 77, 384, 319), 65),       # new: the tall pointed cluster
+            ((1218, 473, 1489, 647), 47),   # new: the low block
+            ((438, 701, 792, 963), 71),     # new: mossy cluster, middle
+            ((828, 702, 1175, 972), 73),    # new: mossy cluster, right
+        ],
+    },
     "forest_fern": {
         "src": "forest_logs_ferns_board.webp",
         "pieces": [

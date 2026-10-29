@@ -59,7 +59,7 @@ ROLES = {
     # "forest_tree_climb": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Tree5.png"]
     # "forest_stump": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Broken_tree2.png", f"{F}/Broken_tree3.png", f"{F}/Broken_tree4.png", f"{F}/Broken_tree5.png"]
     # "forest_log": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Broken_tree1.png", f"{F}/Broken_tree6.png"]
-    "forest_rock": {"scale": 1.0, "src": [f"{F}/Light_stone_grass1.png", f"{F}/Light_stone_grass2.png", f"{F}/Light_stone_grass3.png", f"{F}/Brown_stone_grass1.png", f"{F}/Brown_stone_grass2.png", f"{F}/Beige_stone_grass1.png", f"{F}/Beige_stone_grass4.png", f"{F}/Beige_stone_grass8.png"]},
+    # "forest_rock": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Light_stone_grass1.png", f"{F}/Light_stone_grass2.png", f"{F}/Light_stone_grass3.png", f"{F}/Brown_stone_grass1.png", f"{F}/Brown_stone_grass2.png", f"{F}/Beige_stone_grass1.png", f"{F}/Beige_stone_grass4.png", f"{F}/Beige_stone_grass8.png"]
     # "forest_bush": the designer's own bushes since 2026-10-29 (DESIGNER below); was [f"{F}/Bush1.png", f"{F}/Bush2.png", f"{F}/Bush3.png", f"{F}/Bush4.png", f"{F}/Bush5.png", f"{F}/Bush11.png", f"{F}/Bush13.png"]
     # "forest_fern": the designer's own since 2026-10-29 (DESIGNER below); was [f"{F}/Bush6.png", f"{F}/Bush8.png", f"{F}/Bush10.png", f"{F}/Layer7.png"]
     "forest_shroom": {"scale": 1.0, "src": [f"{F}/Brown_mushroom1.png", f"{F}/Brown_mushroom2.png", f"{F}/Red_mushroom1.png", f"{F}/Red_mushroom2.png", f"{F}/Red_mushroom3.png"]},
@@ -327,6 +327,7 @@ DESIGNER = {
     "forest_tree_climb": {"scale": 0.375, "files": ["assets/textures/props/boards/forest_tree_climb_0.png"]},
     "forest_stump": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_stump_0.png"]},
     "forest_log": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_log_%d.png" % i for i in range(2)]},
+    "forest_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_rock_%d.png" % i for i in range(12)]},
     "forest_fern": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_fern_%d.png" % i for i in range(3)]},
 }
 DESIGNER_DENSITY = 64   # texels a tile of the DESIGNER art (the packs': 32)
