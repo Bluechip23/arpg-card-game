@@ -181,8 +181,8 @@ CELLS = {
     # offsets caught halves of two icons each and showed backpacks and gold
     # bars as "crates" and "barrels" (fixed 2026-10-23). No pack has a crate
     # or a barrel: those are BESPOKE below.
-    "goods_sack": {"scale": 1.0, "cells": [(f"{T}/Objects.png", 0, 192, 32, 32)]},
-    "goods_pile": {"scale": 1.0, "cells": [(f"{T}/Objects.png", 0, 192, 32, 32)]},
+    # "goods_sack": the designer's coin sacks since 2026-10-29 (DESIGNER below); was [(f"{T}/Objects.png", 0, 192, 32, 32)]
+    # "goods_pile": the designer's coin sacks since 2026-10-29 (DESIGNER below); was [(f"{T}/Objects.png", 0, 192, 32, 32)]
     # Armoury furniture: shelves are 48 wide in the left column, tables
     # ~42 wide in the right one (measured from the sheet; a 32-wide cut
     # showed half a shelf, or the edges of two tables).
@@ -319,6 +319,13 @@ DESIGNER = {
     "forest_ruin": {"scale": 0.4, "files": ["assets/textures/props/boards/forest_ruin_%d.png" % i for i in range(5)]},
     "forest_log": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_log_%d.png" % i for i in range(2)]},
     "forest_rock": {"scale": 0.5, "files": ["assets/textures/props/boards/forest_rock_%d.png" % i for i in range(12)]},
+    "goods_sack": {"scale": 0.5, "files": ["assets/textures/props/boards/goods_sack_%d.png" % i for i in range(2)]},
+    "goods_pile": {"scale": 0.5, "files": ["assets/textures/props/boards/goods_sack_%d.png" % i for i in range(2)]},
+    "town_bench": {"scale": 0.5, "files": ["assets/textures/props/boards/town_bench_%d.png" % i for i in range(2)]},
+    "town_shelf": {"scale": 0.5, "files": ["assets/textures/props/boards/town_shelf_%d.png" % i for i in range(3)]},
+    "town_card_shelf": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_shelf_0.png"]},
+    "town_card_table": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_table_0.png"]},
+    "town_card_players": {"scale": 0.5, "files": ["assets/textures/props/boards/town_card_players_0.png"]},
     "cave_crystal": {"scale": 0.5, "files": ["assets/textures/props/boards/cave_crystal_%d.png" % i for i in range(15)]},
     "cave_stalagmite": {"scale": 0.5, "files": ["assets/textures/props/boards/cave_stalagmite_%d.png" % i for i in range(17)]},
     "cave_stalactite": {"scale": 0.5, "files": ["assets/textures/props/boards/cave_stalactite_%d.png" % i for i in range(8)]},

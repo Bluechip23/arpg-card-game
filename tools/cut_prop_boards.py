@@ -278,6 +278,43 @@ BOARDS = {
             ((368, 784, 591, 927), 36),     # a brown chunk (the pack's was one of its rock chunks too)
         ],
     },
+    # 2026-10-29: the designer's town stalls (town_stalls_board.webp, on
+    # black: two coin sacks; the smith's workbench with its anvil; the
+    # armorer's bench with fabric, shears and a fitting dummy; three goods
+    # shelves; a shelf of cards; the card table; two card players at their
+    # table). All at one scale, as drawn relative to each other (0.27 a
+    # board px, ~2.2 tiles for the card table), the sacks a little smaller.
+    "goods_sack": {
+        "src": "town_stalls_board.webp",
+        "pieces": [((43, 29, 279, 243), 48), ((1263, 24, 1499, 243), 48)],
+    },
+    "town_bench": {
+        "src": "town_stalls_board.webp",
+        "pieces": [
+            ((322, 12, 720, 242), 62),      # the smith's workbench
+            ((778, 25, 1206, 255), 62),     # the armorer's bench
+        ],
+    },
+    "town_shelf": {
+        "src": "town_stalls_board.webp",
+        "pieces": [
+            ((48, 267, 472, 615), 94),      # swords, armour, helm, gauntlets
+            ((532, 266, 976, 615), 94),     # spear, shield, hammer, boots, belt, cloak
+            ((1060, 267, 1511, 615), 94),   # wand, tome, cloaks, rings, trident, arrows
+        ],
+    },
+    "town_card_shelf": {
+        "src": "town_stalls_board.webp",
+        "pieces": [((31, 620, 453, 977), 96)],
+    },
+    "town_card_table": {
+        "src": "town_stalls_board.webp",
+        "pieces": [((473, 632, 1013, 978), 93)],
+    },
+    "town_card_players": {
+        "src": "town_stalls_board.webp",
+        "pieces": [((1047, 656, 1507, 985), 89)],
+    },
     "forest_fern": {
         "src": "forest_logs_ferns_board.webp",
         "pieces": [

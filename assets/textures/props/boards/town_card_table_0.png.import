@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b7cltqvhlvpso"
-path="res://.godot/imported/goods_sack_0.png-80f9ee28f235c8d0c3a6326e40e628d5.ctex"
+uid="uid://s0p7w7rkgatl"
+path="res://.godot/imported/town_card_table_0.png-35d5b9bd3f2a34b2df6c1091b0e334de.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/craftpix/props/goods_sack_0.png"
-dest_files=["res://.godot/imported/goods_sack_0.png-80f9ee28f235c8d0c3a6326e40e628d5.ctex"]
+source_file="res://assets/textures/props/boards/town_card_table_0.png"
+dest_files=["res://.godot/imported/town_card_table_0.png-35d5b9bd3f2a34b2df6c1091b0e334de.ctex"]
 
 [params]
 

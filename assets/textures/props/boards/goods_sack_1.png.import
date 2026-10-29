@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://o36wgtkcadyv"
-path="res://.godot/imported/goods_pile_0.png-152ffdb3bf1c48043c3e9b1c13318a9a.ctex"
+uid="uid://b61y6van8heg3"
+path="res://.godot/imported/goods_sack_1.png-3f9c378f5c8ad27ad4c7a3ebfd8086d1.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/craftpix/props/goods_pile_0.png"
-dest_files=["res://.godot/imported/goods_pile_0.png-152ffdb3bf1c48043c3e9b1c13318a9a.ctex"]
+source_file="res://assets/textures/props/boards/goods_sack_1.png"
+dest_files=["res://.godot/imported/goods_sack_1.png-3f9c378f5c8ad27ad4c7a3ebfd8086d1.ctex"]
 
 [params]
 

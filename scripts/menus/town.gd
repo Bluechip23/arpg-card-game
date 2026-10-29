@@ -2593,50 +2593,43 @@ func _build_stall(vendor: Node3D, awning: Color, vn: String) -> void:
 	var stall := Node3D.new()
 	stall.name = "Stall"
 	vendor.add_child(stall)
-	# The pack's market props instead of primitive boxes: a goods table is
-	# every vendor's counter (tinted in the shop's colour), and each trade
-	# gets its own display beside it.
-	var table := CraftpixProps.make_sprite("goods_table", 1.0, 0 if vn in ["Blacksmith", "CardDealer"] else 1)
-	if table:
-		table.position += Vector3(0, 0, 0.55)
-		table.modulate = Color(1, 1, 1).lerp(awning, 0.25)
-		stall.add_child(table)
+	# The designer's town stalls (2026-10-29, tools/cut_prop_boards.py): each
+	# trade's own counter in front of its keeper, its goods on shelves behind
+	# or beside. The Armory's display is its two weapon and armour shelves;
+	# the armorer's bench (cloth, shears, a fitting dummy) is the Accessory
+	# Shop's counter. (awning: the shop's colour, kept for the callers.)
 	match vn:
 		"Blacksmith":
-			# The designer's Blacksmith stands behind his counter (his NPC
+			_stall_prop(stall, "town_bench", 0, Vector3(0, 0, 0.55))       # the anvil workbench
+			# The designer's Blacksmith stands behind his bench (his NPC
 			# sheet's four standing poses), turning to face a nearby player.
 			_add_stall_keeper(stall, "npc_blacksmith", "Smith")
-			var barrel := CraftpixProps.make_sprite("goods_barrel", 1.0, 0)
-			if barrel:
-				barrel.position += Vector3(-1.1, 0, 0.5)
-				stall.add_child(barrel)
-			var pile := CraftpixProps.make_sprite("goods_pile", 1.0, 0)
-			if pile:
-				pile.position += Vector3(1.1, 0, 0.6)
-				stall.add_child(pile)
+			_stall_prop(stall, "goods_barrel", 0, Vector3(-1.6, 0, 0.2))
+			_stall_prop(stall, "goods_pile", 0, Vector3(-1.25, 0, 1.0))     # his takings (his right side is the Armory's shelf)
 		"Armory":
 			_add_stall_keeper(stall, "npc_armory", "Keeper")
-			# The pack's shelves are a tile and a half wide: they stand clear of the counter.
-			var rack := CraftpixProps.make_sprite("goods_rack", 1.0, 0)
-			if rack:
-				rack.position += Vector3(-1.7, 0, 0.1)
-				stall.add_child(rack)
-			var rack2 := CraftpixProps.make_sprite("goods_rack", 1.0, 1)
-			if rack2:
-				rack2.position += Vector3(1.7, 0, 0.1)
-				stall.add_child(rack2)
+			# Weapon and armour shelves, a tile and a half wide, clear of the bench.
+			_stall_prop(stall, "town_shelf", 0, Vector3(-1.75, 0, -0.2))
+			_stall_prop(stall, "town_shelf", 1, Vector3(1.75, 0, -0.2))
 		"CardDealer":
+			# The card shelf behind the Dealer, the card table in front of him,
+			# and two players at their game beside him.
+			_stall_prop(stall, "town_card_shelf", 0, Vector3(0, 0, -1.05))
 			_add_stall_keeper(stall, "npc_card_dealer", "Dealer")
-			var crate := CraftpixProps.make_sprite("goods_crate", 1.0, 1)
-			if crate:
-				crate.position += Vector3(1.1, 0, 0.5)
-				stall.add_child(crate)
+			_stall_prop(stall, "town_card_table", 0, Vector3(0, 0, 0.6))
+			_stall_prop(stall, "town_card_players", 0, Vector3(2.1, 0, 0.1))
 		"AccessoryShop":
-			var sack := CraftpixProps.make_sprite("goods_sack", 1.0, 2)
-			if sack:
-				sack.position += Vector3(-1.1, 0, 0.5)
-				stall.add_child(sack)
+			_stall_prop(stall, "town_shelf", 2, Vector3(0, 0, -0.9))       # rings, cloaks, tome, arrows
+			_stall_prop(stall, "town_bench", 1, Vector3(0, 0, 0.55))       # the armorer's bench
+			_stall_prop(stall, "goods_sack", 1, Vector3(1.3, 0, 0.5))
 	return
+
+## One prop sprite (CraftpixProps role, variant `k`) placed in a stall.
+func _stall_prop(stall: Node3D, role: String, k: int, at: Vector3) -> void:
+	var prop := CraftpixProps.make_sprite(role, 1.0, k)
+	if prop:
+		prop.position += at
+		stall.add_child(prop)
 
 ## A shopkeeper behind the counter (the designer's NPC sheets, 2026-10-27/28):
 ## the Blacksmith, the Armory keeper, the Card Dealer. They turn to look at a
