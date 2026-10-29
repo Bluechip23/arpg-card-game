@@ -411,6 +411,17 @@ BOARDS = {
     "desert_tree": {"src": "desert_trees_board.webp", "main_only": True, "pieces": [((23, 8, 343, 329), 135), ((373, 60, 601, 335), 116), ((614, 139, 771, 337), 83), ((814, 28, 1113, 350), 135), ((1121, 90, 1344, 342), 106), ((1361, 158, 1523, 342), 77), ((23, 336, 358, 663), 137), ((389, 373, 627, 659), 120), ((654, 440, 844, 656), 91), ((28, 669, 360, 1005), 141), ((371, 692, 618, 1001), 130), ((631, 756, 826, 999), 102), ((854, 642, 1125, 997), 149), ((1134, 700, 1359, 996), 124), ((1369, 779, 1522, 985), 87)]},
     "desert_tree_dead": {"src": "desert_dead_trees_board.webp", "main_only": True, "pieces": [((7, 10, 533, 584), 172), ((576, 17, 1096, 569), 166), ((1126, 9, 1511, 805), 239), ((500, 568, 1155, 1001), 130), ((77, 660, 485, 984), 97)]},
     "desert_tuft": {"src": "desert_tufts_board.webp", "main_only": True, "pieces": [((23, 253, 530, 597), 41), ((588, 364, 1109, 597), 28), ((1140, 17, 1510, 639), 75), ((99, 659, 664, 976), 38), ((781, 720, 1425, 976), 31)]},
+    # 2026-10-29: the title cutscene's actors and props (not world props):
+    # the small boy in three poses (cutscene_boy_board.webp: facing left,
+    # front, facing right) and the pipe and lounge chair
+    # (cutscene_pipe_chair_board.webp). The pipe's painted smoke is cleared
+    # (the cutscene puffs its own).
+    "cutscene_boy": {"src": "cutscene_boy_board.webp", "pieces": [
+        ((78, 163, 482, 852), 120), ((562, 160, 955, 844), 120), ((1053, 163, 1458, 852), 120)]},
+    "cutscene_pipe": {"src": "cutscene_pipe_chair_board.webp", "main_only": True,
+                      "pieces": [((55, 180, 625, 672), 32, [(55, 180, 300, 490, 999)])]},
+    "cutscene_chair": {"src": "cutscene_pipe_chair_board.webp", "main_only": True,
+                       "pieces": [((405, 305, 1530, 840), 110)]},
     "town_stash_vault": {
         "src": "stash_vault_board.webp",
         "pieces": [((196, 45, 1339, 985), 126)],
