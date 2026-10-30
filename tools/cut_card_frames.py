@@ -138,6 +138,36 @@ FRAMES = {
         "hourglass": {"at": (816, 52), "scale": 1.059},
         "numbers": [(88, 172, 206, 252), (872, 132, 932, 214)],
     },
+    # The Attack cards (2026-10-30): blood-red iron with steel spikes, a
+    # bloodied great-axe down the left side, a war-painted berserker roaring
+    # in the rules box's corner, a sword in a rock at the foot. Its middle
+    # emblem (crossed swords in a ring) is painted out for the game's logo
+    # and its blood drop and red-sand hourglass covered by the standard
+    # ones (designer). The board is taller than the card's shape: its art
+    # window's middle rows are squeezed (squeeze: y0, y1, new height) —
+    # everything below them moves up 243 rows. Rules text white.
+    "attack": {
+        "src": "assets/sprites/paintings/card_attack_board.webp",
+        "card": (63, 85, 898, 1497),
+        "dots": [(429, 196), (505, 196), (583, 196)],
+        "dot_r": 28,
+        "bands": [
+            (385, 160, 632, 234),
+            (380, 250, 692, 338),
+            (170, 930, 362, 1005),
+            (598, 930, 842, 1005),
+        ],
+        "art": (268, 378, 764, 898),
+        "art_keep": [],
+        "logo_ring": ((485, 952), 100),
+        "logo_boxes": [(462, 826, 508, 870), (462, 1030, 508, 1080)],
+        "text": (165, 1078, 485, 1222),
+        "text_light": True,
+        "drop": {"at": (64, 61), "scale": 1.0},
+        "hourglass": {"at": (717, 82), "scale": 1.12},
+        "numbers": [(96, 192, 207, 270), (776, 168, 836, 254)],
+        "squeeze": (420, 860, 197),
+    },
 }
 
 
@@ -278,6 +308,14 @@ def ground_alpha(src_rgb, card):
     return np.maximum(a, nd.binary_erosion(fg, iterations=3))
 
 
+def squeeze_rows(rgba, y0, y1, new_h):
+    """A board taller than the card's shape: rows y0..y1 (plain panel by
+    then — the art window, its art painted out) resampled to new_h, the
+    rest untouched, so nothing with a face is squashed."""
+    band = cv2.resize(rgba[y0:y1], (rgba.shape[1], new_h), interpolation=cv2.INTER_AREA)
+    return np.concatenate([rgba[:y0], band, rgba[y1:]], axis=0)
+
+
 def shrink(rgba, k):
     img = Image.fromarray(rgba, "RGBA")
     size = (round(img.width * k), round(img.height * k))
@@ -305,6 +343,8 @@ def main():
         rgb = blank(cfg)
         alpha = ground_alpha(src, cfg["card"])
         rgba = np.dstack([rgb, (alpha * 255).astype(np.uint8)])
+        if "squeeze" in cfg:
+            rgba = squeeze_rows(rgba, *cfg["squeeze"])
         out = shrink(rgba, k)
         out.save(os.path.join(OUT_DIR, "frame_%s.png" % name))
         print("frame_%s: %dx%d (card at %s on the board, x%.4f)" % (name, out.width, out.height, cfg["card"], k))

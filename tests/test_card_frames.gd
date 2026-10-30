@@ -7,7 +7,8 @@ extends SceneTree
 ## keep the drawn one.
 ## Every card with an upkeep wears the Maintain frame instead (white text on
 ## its stone); a Defense card the Defensive frame; a Utility card the Utility
-## frame (the logo where its art meets its rules box).
+## frame (the logo where its art meets its rules box); an Attack the Attack
+## frame.
 ## Run: godot --headless --path . --script tests/test_card_frames.gd
 
 var failures := 0
@@ -86,10 +87,26 @@ func _run() -> void:
 	_check(ul != null and absf(ul.position.y + ul.size.y * 0.5 - 128.0) < 1.0, "its logo sits where the art window meets the rules box")
 	u.queue_free()
 
+	# Attack cards wear the Attack frame, the name clear of its axe head.
 	var atk := _face("slash")
 	await process_frame
-	_check(atk.get_node_or_null("Panel/FrameArt") == null, "an Attack keeps the drawn frame until its own lands")
-	_check(atk.get_theme_stylebox("panel") is StyleBoxFlat, "with its drawn border")
+	var aa: TextureRect = atk.get_node_or_null("Panel/FrameArt")
+	_check(aa != null and aa.texture.resource_path.ends_with("frame_attack.png"), "an Attack wears the Attack frame")
+	_check(atk.title_bar.get_theme_stylebox("panel").content_margin_left >= 37.0, "its name starts right of the axe head")
+	atk.queue_free()
+
+	# A type the designer has not framed yet keeps the drawn frame.
+	for f in DirAccess.get_files_at("res://data/cards"):
+		if not f.ends_with(".tres"):
+			continue
+		var c: Card = load("res://data/cards/" + f)
+		if c.card_type == Card.CardType.ENCHANTMENT and c.maintain_cost == 0:
+			var e := _face(f.get_basename())
+			await process_frame
+			_check(e.get_node_or_null("Panel/FrameArt") == null and e.get_theme_stylebox("panel") is StyleBoxFlat,
+				"an Enchantment keeps the drawn frame until its own lands")
+			e.queue_free()
+			break
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

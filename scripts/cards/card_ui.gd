@@ -89,6 +89,7 @@ const FRAMES := {
 		"mana_at": Vector2(17.5, 12.2),
 		"tempo_at": Vector2(134.8, 11.2),   # on the Instant card's hourglass, set over the board's own
 		"dots_y": 8.1,
+		"dots_span": Vector2(56, 94),   # between the banners
 		"logo_at": Vector2(74.7, 106.3),
 		"desc_box": Vector2(70, 42),
 		"desc_right": 50.0,
@@ -115,6 +116,29 @@ const FRAMES := {
 		# type line; the rules box takes the rest.
 		"top": 19.0, "title_h": 22.0, "art_h": 85.0, "type_h": 19.0,
 	},
+	# Attack cards: blood-red iron and steel spikes, a bloodied great-axe down
+	# the left, white text beside a roaring berserker. Its emblem painted out
+	# for the game's logo, standard drop and hourglass. The board ran taller
+	# than a card: its art window was squeezed (tools/cut_card_frames.py),
+	# so the window is a little shorter here. The name starts right of the
+	# axe head.
+	"attack": {
+		"tex": "res://assets/textures/cards/frame_attack.png",
+		"rect": Rect2(-11.32, -15.27, 169.0, 256.5),
+		"mana_at": Vector2(15.9, 26.1),
+		"tempo_at": Vector2(133.3, 22.6),
+		"dots_y": 19.9,
+		"dots_span": Vector2(52, 118),  # right of the axe head
+		"logo_at": Vector2(75.8, 112.1),
+		"desc_box": Vector2(72, 40),
+		"desc_right": 48.0,
+		"desc_full": Vector2(116, 56),
+		"desc_top": 9.0,
+		"ink": Color(0.96, 0.94, 0.9),
+		"ink_dark": false,
+		"top": 28.0, "title_h": 24.0, "art_h": 51.0, "type_h": 24.0,
+		"title_left": 37.0, "title_right": 20.0, "name_w": 67,
+	},
 }
 const FRAMED_DOT := 8.0
 const FRAMED_LOGO_SIZE := 48
@@ -127,7 +151,7 @@ const FRAMED_DESC_FULL := Vector2(116, 78)
 const FRAMED_DESC_FULL_MAX := 9   # ... no bigger than this, so it covers as little of the picture as it can
 
 ## The painted frame a card wears: Maintain for any card with an upkeep
-## (whatever its type), then by type — Instant, Defense, Utility; {} for the drawn
+## (whatever its type), then by type — Instant, Defense, Utility, Attack; {} for the drawn
 ## frame.
 static func frame_for(card: Card) -> Dictionary:
 	if card == null:
@@ -141,6 +165,8 @@ static func frame_for(card: Card) -> Dictionary:
 			return FRAMES["defensive"]
 		Card.CardType.UTILITY:
 			return FRAMES["utility"]
+		Card.CardType.ATTACK:
+			return FRAMES["attack"]
 	return {}
 
 var _frame: Dictionary = {}
@@ -658,7 +684,7 @@ func _fit_name() -> void:
 	if font == null:
 		return
 	var fs := NAME_FONT_MAX
-	while fs > NAME_FONT_MIN and font.get_string_size(name_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > NAME_WIDTH:
+	while fs > NAME_FONT_MIN and font.get_string_size(name_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > _frame.get("name_w", NAME_WIDTH):
 		fs -= 1
 	name_label.add_theme_font_size_override("font_size", fs)
 
@@ -1065,8 +1091,8 @@ func _style_painted_frame() -> void:
 		vbox.add_theme_constant_override("separation", 0)
 	if title_bar:
 		var tb := StyleBoxEmpty.new()
-		tb.content_margin_left = 21
-		tb.content_margin_right = 16
+		tb.content_margin_left = _frame.get("title_left", 21.0)
+		tb.content_margin_right = _frame.get("title_right", 16.0)
 		tb.content_margin_bottom = 3
 		title_bar.add_theme_stylebox_override("panel", tb)
 		title_bar.custom_minimum_size = Vector2(0, _frame.get("title_h", 22.0))
@@ -1088,7 +1114,7 @@ func _style_painted_frame() -> void:
 		var box := StyleBoxEmpty.new()
 		box.content_margin_left = 3.5
 		box.content_margin_right = _frame["desc_right"]
-		box.content_margin_top = 4
+		box.content_margin_top = _frame.get("desc_top", 4.0)
 		desc_panel.add_theme_stylebox_override("panel", box)
 	if desc_panel:
 		desc_panel.clip_contents = true   # a long text never shoves the bars above it
@@ -1102,6 +1128,7 @@ func _style_painted_frame() -> void:
 			desc_label.add_theme_constant_override("outline_size", 3)
 	_place_framed_costs()
 	_place_framed_logo()
+	_fit_name()   # this frame's name bar may be narrower
 
 
 ## The upkeep on the Maintain frame's top strip, right of the tempo dots.
@@ -1221,11 +1248,18 @@ func _build_tempo_bars(card: Card, tempo_override: int = -1, resolve_override: i
 	# on the card, not the inner panel.
 	bar_container.position = Vector2(-3, -3)
 	bar_container.size = Vector2(CARD_W, 9)
+	var dot_px := FRAMED_DOT
 	if not _frame.is_empty():
-		# On the painted frame's dot strip (the Panel sits at the card's corner).
-		bar_container.position = Vector2(0, float(_frame["dots_y"]) - FRAMED_DOT * 0.5)
-		bar_container.size = Vector2(CARD_W, FRAMED_DOT)
-		bar_container.add_theme_constant_override("separation", 3)
+		# On the painted frame's dot strip (the Panel sits at the card's
+		# corner), between its ends: a long row shrinks its dots to fit.
+		var span: Vector2 = _frame.get("dots_span", Vector2(34, 118))
+		var sep := 3.0
+		if effective_tempo * dot_px + (effective_tempo - 1) * sep > span.y - span.x:
+			sep = 2.0
+			dot_px = floorf((span.y - span.x - (effective_tempo - 1) * sep) / maxf(1.0, effective_tempo))
+		bar_container.position = Vector2(span.x, float(_frame["dots_y"]) - dot_px * 0.5)
+		bar_container.size = Vector2(span.y - span.x, dot_px)
+		bar_container.add_theme_constant_override("separation", int(sep))
 	host.add_child(bar_container)
 
 	var resolve_tick = resolve_override if resolve_override >= 0 else mini(card.resolve_tick, effective_tempo)
@@ -1238,7 +1272,7 @@ func _build_tempo_bars(card: Card, tempo_override: int = -1, resolve_override: i
 			pd.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			pd.stretch_mode = TextureRect.STRETCH_SCALE
 			pd.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-			pd.custom_minimum_size = Vector2(FRAMED_DOT, FRAMED_DOT)
+			pd.custom_minimum_size = Vector2(dot_px, dot_px)
 			pd.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			pd.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			bar_container.add_child(pd)
