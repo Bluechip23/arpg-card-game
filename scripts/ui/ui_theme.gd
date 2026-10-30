@@ -13,8 +13,9 @@ func _ready() -> void:
 	# control and window falls back to ThemeDB's default theme.
 	var theme := ThemeDB.get_default_theme()
 	# Emerald Sanctum, like the menus: dark emerald glass, gold frame, Courgette.
-	theme.set_stylebox("panel", "TooltipPanel",
-		CrestStyleBox.new(EmeraldTheme.PANEL_BG_SOLID, EmeraldTheme.GOLD_DIM))
+	var tip_crest := CrestStyleBox.new(EmeraldTheme.PANEL_BG_SOLID, EmeraldTheme.GOLD_DIM)
+	tip_crest.rise = 0.0   # an engine tooltip is a window: nothing may stick out of it
+	theme.set_stylebox("panel", "TooltipPanel", tip_crest)
 	theme.set_color("font_color", "TooltipLabel", EmeraldTheme.TEXT)
 	theme.set_font("font", "TooltipLabel", EmeraldTheme.font())
 	theme.set_font_size("font_size", "TooltipLabel", 14)

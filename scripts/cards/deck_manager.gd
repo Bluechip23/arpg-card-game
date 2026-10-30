@@ -657,7 +657,8 @@ func compute_play_cost(card: Card, index: int, target = null, debuff_mgr = null,
 		if commit: print("[DECK] Fire synergy: -%d mana (%d fire spell(s) this cycle)" % [fire_spells_this_turn * 10, fire_spells_this_turn])
 
 	if debuff_mgr:
-		if card.card_type == Card.CardType.ATTACK:
+		# Staggered: "Attack cards cost more" — attacks, not spells.
+		if card.is_attack():
 			mana_cost += debuff_mgr.get_attack_mana_increase()
 
 		mana_cost += debuff_mgr.card_hex_surcharge(card)
@@ -766,10 +767,11 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 			print("[DECK] Cannot play cards - Stunned or Frozen!")
 			return { "played": false, "half_tempo": false }
 		
-		# Disarm blocks PHYSICAL offensive cards (offensive → attack school).
-		# A disarmed caster can still hurl spells; Silence is their counter.
-		if card.card_type == Card.CardType.ATTACK and card.school == Card.CardSchool.PHYSICAL \
-				and not debuff_mgr.can_play_attack_cards():
+		# Disarm blocks every attack (is_attack(): the Attack shape, and any card
+		# tagged attack — an attack-and-spell card like If Pigs Could Fly too,
+		# designer 2026-10-30). A disarmed caster can still hurl a pure spell;
+		# Silence is its counter.
+		if card.is_attack() and not debuff_mgr.can_play_attack_cards():
 			print("[DECK] Cannot play attack cards - Disarmed!")
 			return { "played": false, "half_tempo": false }
 
@@ -864,8 +866,9 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 
 	var was_half_tempo = next_attack_half_tempo and card.is_attack()  # DEX: attacks only
 
-	# Only consume proc bonus when an attack card is played
-	if card.card_type == Card.CardType.ATTACK:
+	# Only an attack spends the proc (a spell is offensive, not an attack:
+	# casting one must not waste a pending DEX proc).
+	if card.is_attack():
 		next_attack_half_tempo = false
 		next_attack_mana_discount = 0
 
@@ -898,7 +901,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		# into the hand, which is a new stay, not the old claim.
 		debuff_mgr.release_card_claims(card)
 		# Weighted burns a stack on every card (Staggered/Clumsy ride the clock).
-		debuff_mgr.on_card_played(card.card_type == Card.CardType.ATTACK)
+		debuff_mgr.on_card_played(card.is_attack())
 
 	var damage_reduction_pct = 0.0
 	var self_damage_percent = 0.0
@@ -923,7 +926,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		card.execute(target, player_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
 
 		# Flurry Form (DEX keystone): a proc-empowered attack strikes a second time.
-		if was_half_tempo and card.card_type == Card.CardType.ATTACK \
+		if was_half_tempo and card.is_attack() \
 				and player_stats and player_stats.keystone_dex_twin_strike:
 			card.execute(target, player_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
 			print("[DECK] Flurry Form: second strike!")
@@ -940,7 +943,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 				card.execute(target, player_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
 				print("[DECK] Free hand echo: %s strikes twice!" % card.card_name)
 
-		if debuff_mgr and card.card_type == Card.CardType.ATTACK:
+		if debuff_mgr and card.is_attack():
 			debuff_mgr.on_attack()
 
 		if inventory:
@@ -1070,7 +1073,7 @@ func execute_deferred_card(card: Card, target, player_node = null) -> void:
 	if ally_cast:
 		effect_stats._ally_cast = false
 
-	if debuff_mgr and card.card_type == Card.CardType.ATTACK:
+	if debuff_mgr and card.is_attack():
 		debuff_mgr.on_attack()
 
 	if inventory:

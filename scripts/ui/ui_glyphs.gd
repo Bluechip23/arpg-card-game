@@ -13,7 +13,9 @@ static var _cache: Dictionary = {}
 ## The Trials of Olorin logo (the designer's, tools/cut_logo.py, 2026-10-30;
 ## was a drawn sword-T through a silver O): the cut nearest `px` tall, drawn
 ## 1:1 so it stays crisp.
-const LOGO_SIZES := [20, 26, 32, 48, 64, 128, 256]
+const LOGO_SIZES := [20, 24, 26, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 128, 256]
+## How tall the logo seal stands on a card's type bar (px).
+static var card_logo_size: int = 40   # the designer's pick, 2026-10-30
 
 static func to_logo(px: int = 26) -> Texture2D:
 	var best: int = LOGO_SIZES[0]

@@ -722,8 +722,8 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 					var ms_regen: int = PassiveScaling.value("mad_scientist", "regen", ms_lvl)
 					buff_mgr.apply_buff(Buff.create_regen(ms_regen, 15, "Mad Scientist"))
 					main.add_battle_log("Mad Scientist: +%d regen!" % ms_regen, Color(0.4, 0.9, 0.4))
-			elif last_type == Card.CardType.ATTACK:
-				# Attack → Heal: rank-scaled strengthen (2..8) on the healed target
+			elif _last_played_card.is_attack():
+				# Attack → Heal (the Attack shape: an offensive spell is not one): rank-scaled strengthen (2..8) on the healed target
 				if buff_mgr:
 					var ms_str: int = PassiveScaling.value("mad_scientist", "strengthen", ms_lvl)
 					buff_mgr.apply_buff(Buff.create_strengthen(ms_str, 3, "Mad Scientist"))
@@ -1377,10 +1377,10 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target, isolation_ref = n
 			if stats.st_scouted_hits >= 3:
 				stats.st_scouted_bonus_active = true
 				stats.st_scouted_hits = 0
-				# Grant auto-crit on next attack
-				var buff_mgr = main.player.get_buff_manager()
-				if buff_mgr:
-					buff_mgr.apply_buff(Buff.create_enlightened(100, 1, "Scouted"))
+				# Auto-crit on the next ATTACK (designer, 2026-10-30: attacks
+				# only) — rolled from st_scouted_crit_active in
+				# BuffManager.roll_crit, which only an attack arms; a spell's
+				# roll neither gains nor spends it (a generic Enlightened did).
 				var sc_range: int = PassiveScaling.value("scouted", "range", stats.get_passive_level("scouted"))
 				main.add_battle_log("Scouted: 3 hits! +%d range and auto-crit on your next attack — any target!" % sc_range, Color(0.4, 0.9, 0.4))
 		else:
@@ -1498,8 +1498,9 @@ func arm_pre_attack_passives(card: Card, target) -> void:
 		and stats.has_skill_tree_passive("scouted")
 
 	# Snapshot the target's pre-hit state for post-resolution passives that
-	# judge "as it was before the hit" conditions (Surprise Opener).
-	if is_attack and target is Enemy and is_instance_valid(target):
+	# judge "as it was before the hit" conditions (Surprise Opener, which
+	# fires on any offensive card — a spell's first strike counts too).
+	if is_offensive and target is Enemy and is_instance_valid(target):
 		stats.st_pre_attack_target_id = target.get_instance_id()
 		stats.st_pre_attack_armor = target.current_armor
 		stats.st_pre_attack_health = target.current_health
@@ -1699,12 +1700,13 @@ func _trigger_skill_tree_cory_on_card_play(card: Card) -> void:
 
 	# Budding: track card types (no back-to-back same type)
 	if stats.has_skill_tree_passive("budding"):
+		# "An offensive card, a utility and a defense" (designer, 2026-10-30):
+		# an attack or an offensive spell fills the offensive slot alike.
 		var ctype = ""
-		if card.is_attack():
-			ctype = "attack"
+		if card.is_offensive():
+			ctype = "offensive"
 		else:
 			match card.card_type:
-				Card.CardType.ATTACK: ctype = "utility"  # an offensive spell: not an attack
 				Card.CardType.DEFENSE: ctype = "defense"
 				Card.CardType.UTILITY: ctype = "utility"
 
@@ -1719,7 +1721,7 @@ func _trigger_skill_tree_cory_on_card_play(card: Card) -> void:
 			stats.st_budding_last_type = ctype
 
 			# Check if all 3 types played — heal and temp HP scale with rank (5..19)
-			if stats.st_budding_types.has("attack") and stats.st_budding_types.has("defense") and stats.st_budding_types.has("utility"):
+			if stats.st_budding_types.has("offensive") and stats.st_budding_types.has("defense") and stats.st_budding_types.has("utility"):
 				var bud_amount: int = PassiveScaling.value("budding", "amount", stats.get_passive_level("budding"))
 				stats.heal(bud_amount)
 				stats.add_temp_health(bud_amount, 15)
@@ -1906,15 +1908,20 @@ func _trigger_skill_tree_cory_on_shuffle() -> void:
 	if not stats:
 		return
 
-	# Circle of Life: gain rank-scaled armor and the same bonus attack damage
-	# for 3 attacks (10..24)
+	# Circle of Life: gain rank-scaled armor and the same bonus damage for 3
+	# offensive cards (10..24) — attacks and spells alike, unlike other
+	# Strengthen
 	if stats.has_skill_tree_passive("circle_of_life"):
 		var col_amount: int = PassiveScaling.value("circle_of_life", "amount", stats.get_passive_level("circle_of_life"))
 		stats.add_armor(col_amount)
 		var buff_mgr = main.player.get_buff_manager()
 		if buff_mgr:
-			buff_mgr.apply_buff(Buff.new(Buff.BuffType.STRENGTHEN, col_amount, -1, 3))
-		main.add_battle_log("Circle of Life: +%d armor, +%d damage (3 attacks)!" % [col_amount, col_amount], Color(0.8, 0.4, 0.9))
+			var col_buff := Buff.new(Buff.BuffType.STRENGTHEN, col_amount, -1, 3)
+			col_buff.source_name = "Circle of Life"
+			col_buff.offensive_reach = true
+			col_buff._set_name_and_description()
+			buff_mgr.apply_buff(col_buff)
+		main.add_battle_log("Circle of Life: +%d armor, +%d damage (3 offensive cards)!" % [col_amount, col_amount], Color(0.8, 0.4, 0.9))
 
 func _trigger_skill_tree_cory_on_enemy_enter_melee(enemy: Enemy) -> void:
 	# Territorial Death: re-apply 1 random existing debuff
@@ -1988,7 +1995,7 @@ func on_card_ticks_started(card: Card) -> void:
 	var stats = main.player.get_stats() if main.player else null
 	if not stats or card == null:
 		return
-	if stats.has_skill_tree_passive("arcane_overflow") and card.is_offensive() \
+	if stats.has_skill_tree_passive("arcane_overflow") and card.school == Card.CardSchool.SPELL \
 			and card.mana_cost > 0 and stats.current_mana <= 0:
 		var ao_cooldown: int = PassiveScaling.value("arcane_overflow", "cooldown", stats.get_passive_level("arcane_overflow"))
 		if main.tempo_manager.get_global_tempo() - stats.st_arcane_overflow_last_tempo >= ao_cooldown:
@@ -2365,11 +2372,9 @@ func _trigger_sphere_passives(trigger: String, context: Dictionary = {}) -> void
 					target.apply_debuff("poison", 4)  # Bleed equivalent (enemies use poison)
 					main.add_battle_log("Blood Hunter: Applied enhanced bleed!", Color(0.75, 0.15, 0.15))
 			"arcane_current":
-				# Constellation: +5 spell damage — applied as bonus damage on the card
-				var card = context.get("card", null)
-				if card:
-					card.bonus_damage += 5
-					main.add_battle_log("Arcane Current: +5 spell damage", Color(0.5, 0.2, 0.85))
+				# Constellation: +5 spell damage — added on the cast itself
+				# (Card.execute's riders); this only tells the log.
+				main.add_battle_log("Arcane Current: +5 spell damage", Color(0.5, 0.2, 0.85))
 			"unyielding":
 				# Constellation: Below 50% HP: gain 3 armor each cycle
 				if stats.get_health_percent() <= 0.5:

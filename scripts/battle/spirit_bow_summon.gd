@@ -47,7 +47,7 @@ func _build_visuals() -> void:
 	# teal, on the diagonal it is drawn at; a bud is a smaller sprout of it.
 	var scale_mult := 0.6 if is_bud else 1.0
 	var bow := Sprite3D.new()
-	bow.texture = load(SpriteFigure.WEAPON_ICON_DIR + "/icon_31.png")
+	bow.texture = load("res://assets/sprites/craftpix/weapon_icons/icon_31.png")
 	bow.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	bow.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
 	bow.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST

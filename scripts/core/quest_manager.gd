@@ -218,7 +218,7 @@ func _define_quests() -> void:
 		"Olorin", {"gold": 50, "xp": 40})
 	q.prerequisites = ["olorin_kill_wererats"]
 	q.objectives.append(Objective.new("kill_high_ground", "*", 3, "Kill 3 enemies from high ground"))
-	q.teaches = "Climb a sturdy tree or stand on a pillar: ranged attacks gain damage and reach from high ground."
+	q.teaches = "Climb a sturdy tree or stand on a pillar: ranged offensive cards gain damage and reach from high ground."
 	_add(q)
 
 	# --- Trial Warning ---

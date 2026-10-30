@@ -26,8 +26,6 @@ func _initialize() -> void:
 		{"name": "battle_ryan", "kind": "battle", "who": "Ryan", "wait": 70},
 		{"name": "character_select", "kind": "scene",
 			"path": "res://scenes/character/character_select.tscn", "wait": 60},
-		{"name": "sprite_viewer", "kind": "scene",
-			"path": "res://scenes/demo/character_viewer.tscn", "wait": 30},
 	]
 	_next_job()
 

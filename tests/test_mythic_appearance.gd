@@ -33,7 +33,7 @@ func _initialize() -> void:
 	_test_painted_art_shrinks()
 	_test_non_mythics_fall_back()
 	await _test_inventory_shows_art()
-	_test_held_art_size()
+	# (The held-in-hand check went with the weapon swing, deleted 2026-10-30.)
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
@@ -195,23 +195,6 @@ func _test_inventory_shows_art() -> void:
 	panel.queue_free()
 	inv.queue_free()
 	stats.queue_free()
-
-func _test_held_art_size() -> void:
-	## A held mythic weapon is fitted by size: the 128px painted art is held at
-	## the same length a 32px icon was.
-	print("-- Held art --")
-	for slug in ["sabre_tooth", "bladed_doughnut"]:
-		var tex: Texture2D = ItemData.create(slug).get_appearance_texture()
-		var fig := SpriteFigure.new()
-		get_root().add_child(fig)
-		fig.setup("Brad")
-		fig.set_weapon_kind("sword", false, tex)
-		_check(fig._present_held("sword"), "%s: held art presented" % slug)
-		var held: Sprite3D = fig._held
-		var long_side := maxf(tex.get_width(), tex.get_height()) * held.scale.x * held.pixel_size
-		_check(absf(long_side - SpriteFigure.ART_HELD_SIZE) < 0.01,
-			"%s held %.2f world units long (want %.2f)" % [slug, long_side, SpriteFigure.ART_HELD_SIZE])
-		fig.free()
 
 func _test_non_mythics_fall_back() -> void:
 	## Only mythics carry art today; everything else keeps the slot silhouette.

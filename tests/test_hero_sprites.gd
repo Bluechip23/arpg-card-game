@@ -72,16 +72,16 @@ func _initialize() -> void:
 		f.set_walking(false)
 		f._process(0.05)
 		_check(body.offset == f._body_offset, "%s stands on the ground when still" % hero)
-		# Attacks still swing the weapon layer, grown to the hero's size.
-		_check(absf(f._weapon_front.pixel_size - SpriteFigure.PIXEL_SIZE * SpriteFigure.BOARD_HEIGHT / SpriteFigure.PACK_BODY_HEIGHT) < 0.0001,
-			"%s's weapon layer is scaled to the hero" % hero)
+		# Attacks lunge the body toward the target; no weapon is drawn (the
+		# pack's weapon swing was deleted for the designer's own, 2026-10-30).
 		f.set_weapon_kind("sword", false)
 		f.play_action("attack", D.EAST)
-		var swung := false
+		var lunged := false
 		for _i in range(8):
 			f._process(0.03)
-			swung = swung or f._weapon_front.visible or f._weapon_back.visible
-		_check(swung, "%s swings the sword" % hero)
+			lunged = lunged or f._npc_sprite.position.x > 0.0
+		_check(lunged, "%s lunges into the attack" % hero)
+		_check(not ("_weapon_front" in f), "%s carries no weapon layer" % hero)
 		f.free()
 	# The NPC mode still draws the dojo's ally dogs.
 	var dog := SpriteFigure.new()

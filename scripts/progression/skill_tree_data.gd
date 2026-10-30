@@ -513,7 +513,7 @@ static func create_cory_tree(max_level: int = 20) -> SkillTreeData:
 			description = "Add +1 charge to the debuff applied to an enemy. Cooldown 15→1 tempo (scales with rank; tempo gated, not per-debuff gated)",
 			color = Color(0.4, 0.9, 0.4)},
 		{level = 5, slot = 3, archetype = "Druid", name = "Budding",
-			description = "When playing an attack, a utility, and a defense in any order (none back to back), heal 5→19 and gain the same temp HP for 15 tempo (scales with rank)",
+			description = "When playing an offensive card, a utility, and a defense in any order (none back to back), heal 5→19 and gain the same temp HP for 15 tempo (scales with rank)",
 			color = Color(0.8, 0.4, 0.9)},
 		{level = 7, slot = 1, archetype = "Lurker", name = "Eat",
 			description = "Killing enemies with a card, gauntlet skill, or auto attack heals you 1%→15% of your max health. You gain 1% damage for each percentage point of health the enemy is below 11%→39% (scales with rank)",

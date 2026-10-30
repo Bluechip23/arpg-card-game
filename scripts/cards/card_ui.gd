@@ -45,6 +45,166 @@ const TWEEN_DURATION: float = 0.12
 # MtG-style frame colour per card type (border, title/type bars, art tint).
 var _type_color: Color = Color(0.45, 0.45, 0.55)
 
+## The designer's painted frames (tools/cut_card_frames.py, 2026-10-30),
+## picked by frame_for(). Each says where its texture sits over the 150x210
+## card ("rect": the board's card rectangle maps onto the card, its drop,
+## hourglass and ornaments hanging outside it) and where its painting puts
+## things, in card pixels: the cost numbers' centres on the painted drop and
+## hourglass, the tempo dots' row, the logo's ring, the rules text's box
+## (clear of the corner picture) and its ink. A card no frame claims keeps
+## the drawn frame.
+const FRAMES := {
+	# Instants: gilt and feathers, ink on parchment above a ducking hero.
+	"instant": {
+		"tex": "res://assets/textures/cards/frame_instant.png",
+		"rect": Rect2(-5.7, -18.3, 161.8, 242.0),
+		"mana_at": Vector2(14.1, 12.5),
+		"tempo_at": Vector2(136.2, 12.3),
+		"dots_y": 7.1,
+		"logo_at": Vector2(74.7, 109.7),
+		"desc_box": Vector2(116.1, 39.4),
+		"desc_right": 3.9,
+		"ink": Color(0.16, 0.1, 0.05),
+		"ink_dark": true,
+		"top": 13.1, "title_h": 22.8, "art_h": 66.4, "type_h": 18.7, "desc_top": 4.2,
+		"title_left": 21.0, "title_right": 15.9, "name_w": 86,
+	},
+	# Every card with an upkeep: amethyst-shot stone, white text beside the
+	# mind-mage in the corner.
+	"maintain": {
+		"tex": "res://assets/textures/cards/frame_maintain.png",
+		"rect": Rect2(-5.2, -11.7, 160.8, 235.5),
+		"mana_at": Vector2(14.8, 16.0),
+		"tempo_at": Vector2(135.4, 15.8),
+		"dots_y": 11.9,
+		"logo_at": Vector2(74.3, 111.9),
+		"desc_box": Vector2(81.9, 46.7),
+		"desc_right": 37.1,
+		"ink": Color(0.96, 0.94, 0.9),
+		"ink_dark": false,
+		"top": 18.9, "title_h": 22.4, "art_h": 65.0, "type_h": 18.3, "desc_top": 4.1,
+		"title_left": 21.0, "title_right": 16.1, "name_w": 86,
+	},
+	# Defense cards: a stone wall veined with blue lightning, white text left
+	# of the knight catching arrows on his shield.
+	"defensive": {
+		"tex": "res://assets/textures/cards/frame_defensive.png",
+		"rect": Rect2(-3.6, -4.7, 157.2, 222.1),
+		"mana_at": Vector2(18.2, 22.3),
+		"tempo_at": Vector2(133.9, 21.3),   # on the Instant card's hourglass, set over the board's own
+		"dots_y": 18.3,
+		"dots_span": Vector2(56.2, 93.7),   # between the banners
+		"logo_at": Vector2(74.6, 113.4),
+		"desc_box": Vector2(69.1, 40.7),
+		"desc_right": 50.2,
+		"ink": Color(0.96, 0.94, 0.9),
+		"ink_dark": false,
+		"top": 24.0, "title_h": 21.3, "art_h": 62.0, "type_h": 17.4, "desc_top": 3.9,
+		"title_left": 21.4, "title_right": 16.7, "name_w": 85,
+	},
+	# Utility cards: green scale-work wound with ivy. No type bar of its
+	# own: a taller art window, the logo set where the window meets the
+	# rules box with the type words either side of it at the box's top, and
+	# white text left of the pack and potions. Standard drop and hourglass.
+	"utility": {
+		"tex": "res://assets/textures/cards/frame_utility.png",
+		"rect": Rect2(-5.1, -7.8, 160.6, 228.8),
+		"mana_at": Vector2(17.5, 24.3),
+		"tempo_at": Vector2(133.2, 18.7),
+		"dots_y": 16.4,
+		"logo_at": Vector2(75.0, 128.6),
+		"desc_box": Vector2(63.8, 43.4),
+		"desc_right": 55.9,
+		"desc_full": Vector2(115.6, 45.3),
+		"ink": Color(0.96, 0.94, 0.9),
+		"ink_dark": false,
+		# The sections' heights down the card: name bar from top, art window,
+		# type line; the rules box takes the rest.
+		"top": 21.2, "title_h": 21.7, "art_h": 83.8, "type_h": 18.7, "desc_top": 3.9,
+		"title_left": 21.2, "title_right": 16.1, "name_w": 86,
+	},
+	# Attack cards: blood-red iron and steel spikes, a bloodied great-axe down
+	# the left, white text beside a roaring berserker. Its emblem painted out
+	# for the game's logo, standard drop and hourglass. The board ran taller
+	# than a card: its art window was squeezed (tools/cut_card_frames.py),
+	# so the window is a little shorter here. The name starts right of the
+	# axe head.
+	"attack": {
+		"tex": "res://assets/textures/cards/frame_attack.png",
+		"rect": Rect2(-11.1, -16.6, 168.6, 257.4),
+		"mana_at": Vector2(16.0, 24.9),
+		"tempo_at": Vector2(133.2, 21.4),
+		"dots_y": 18.7,
+		"dots_span": Vector2(52.1, 117.9),  # right of the axe head
+		"logo_at": Vector2(75.8, 111.2),
+		"desc_box": Vector2(71.8, 40.1),
+		"desc_right": 48.0,
+		"desc_full": Vector2(115.7, 56.2),
+		"ink": Color(0.96, 0.94, 0.9),
+		"ink_dark": false,
+		"top": 26.8, "title_h": 24.1, "art_h": 51.2, "type_h": 24.1, "desc_top": 9.0,
+		"title_left": 37.1, "title_right": 20.1, "name_w": 67,
+	},
+	# Spell cards: blackened stone veined with molten red, a fire comet
+	# round the top-left, a wizard calling down meteors in the rules box. The
+	# standard drop (over the comet's tail) and hourglass, the logo in the
+	# type bar's middle. Squeezed like the Attack board.
+	"spell": {
+		"tex": "res://assets/textures/cards/frame_spell.png",
+		"rect": Rect2(-13.7, -15.8, 169.2, 256.5),
+		"mana_at": Vector2(14.6, 25.1),
+		"tempo_at": Vector2(131.2, 22.7),
+		"dots_y": 19.6,
+		"dots_span": Vector2(54.1, 116.1),   # right of the comet
+		"logo_at": Vector2(75.1, 117.5),
+		"desc_box": Vector2(78.1, 40.0),
+		"desc_right": 41.9,
+		"desc_full": Vector2(116.1, 56.0),
+		"ink": Color(0.96, 0.94, 0.9),
+		"ink_dark": false,
+		"top": 27.5, "title_h": 24.0, "art_h": 51.0, "type_h": 24.0, "desc_top": 9.0,
+		"title_left": 40.1, "title_right": 19.9, "name_w": 62,
+	},
+}
+const FRAMED_DOT := 8.0
+const FRAMED_LOGO_SIZE := 48
+const FRAMED_NAME := Color(0.97, 0.92, 0.8)    # the name's cream
+const MAINTAIN_WORD := Color(0.88, 0.36, 0.95)  # the Maintain board's magenta
+const UPKEEP_RIGHT := 124.0                     # the upkeep's right edge, short of the hourglass
+## A rules text too long for its frame's box beside the corner picture
+## takes the box's whole width (over the picture), this tall.
+const FRAMED_DESC_FULL := Vector2(116, 78)
+const FRAMED_DESC_FULL_MAX := 9   # ... no bigger than this, so it covers as little of the picture as it can
+
+## The painted frame a card wears: Maintain for any card with an upkeep
+## (whatever its type), Instant for the instants, Spell for every spell;
+## then by type — Instant, Defense, Utility — and the Attack shape
+## (is_attack(), never an offensive spell); {} for the drawn frame.
+static func frame_for(card: Card) -> Dictionary:
+	if card == null:
+		return {}
+	if card.maintain_cost > 0:
+		return FRAMES["maintain"]
+	# An instant is an instant first, spell or not (Healthy Bliss).
+	if card.card_type == Card.CardType.REACTION:
+		return FRAMES["instant"]
+	# Spells are their own family (designer, 2026-10-30): an offensive spell
+	# is stored as an Attack-type card, but it wears the Spell frame, never
+	# the Attack one — and so does a utility spell.
+	if card.school == Card.CardSchool.SPELL:
+		return FRAMES["spell"]
+	match card.card_type:
+		Card.CardType.DEFENSE:
+			return FRAMES["defensive"]
+		Card.CardType.UTILITY:
+			return FRAMES["utility"]
+	if card.is_attack():
+		return FRAMES["attack"]
+	return {}
+
+var _frame: Dictionary = {}
+var _frame_art: TextureRect = null
+
 func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_active: bool = false, pocket_knife: bool = false, greedy_tax: Dictionary = {}) -> void:
 	_card = card
 	_index = index
@@ -77,6 +237,7 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 			Card.CardType.ENCHANTMENT:
 				type_label.add_theme_color_override("font_color", Color(0.2, 0.9, 0.8))
 				_type_color = Color(0.18, 0.58, 0.55)
+		_frame = frame_for(card)
 		_style_frame()
 
 	if range_label:
@@ -134,6 +295,15 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 			cost_label.visible = true
 		else:
 			cost_label.visible = false
+		if card.maintain_cost > 0 and _frame == FRAMES["maintain"]:
+			# The Maintain frame says "Maintain" on its type line in the
+			# board's magenta (as the board does), puts the upkeep on the top
+			# strip beside the dots, and leaves the name bar to the name.
+			cost_label.visible = false
+			if type_label:
+				type_label.text = "Maintain"
+				type_label.add_theme_color_override("font_color", MAINTAIN_WORD)
+			_place_upkeep(card.maintain_cost)
 
 	_pending_mana = str(display_mana)
 	_pending_tempo = str(display_tempo)
@@ -164,7 +334,7 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 		tint = Color(0.82, 0.6, 1.0)
 	elif debuff_mgr and debuff_mgr.get_tempo_increase() > 0:
 		tint = Color(0.72, 0.72, 0.76)
-	elif debuff_mgr and card.card_type == Card.CardType.ATTACK and debuff_mgr.get_attack_mana_increase() > 0:
+	elif debuff_mgr and card.is_attack() and debuff_mgr.get_attack_mana_increase() > 0:
 		tint = Color(0.78, 0.78, 0.8)
 	elif debuff_mgr and debuff_mgr.has_debuff(Debuff.DebuffType.CLUMSY):
 		tint = Color(0.85, 0.7, 0.55)
@@ -233,11 +403,14 @@ func _make_cost_badge(host: Node, icon_path: String, pos: Vector2, num_y_bias: f
 	var badge := Control.new()
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	badge.position = pos
-	badge.size = Vector2(32, 40)  # matches the icon texture 1:1 (grid rule)
+	badge.size = Vector2(32, 40)
 	host.add_child(badge)
+	# The designer's painted drop and hourglass (tools/cut_card_badges.py,
+	# 2026-10-30), cut at 3x the box and shrunk smoothly into it.
 	var icon := TextureRect.new()
-	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	icon.texture = load(icon_path)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -330,19 +503,21 @@ func _ensure_to_logo() -> void:
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var shadow := TextureRect.new()
 	shadow.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
-	shadow.texture = UIGlyphs.to_logo(32)
+	# Centred on the bar's middle (7, 0 in the holder), whatever its size.
+	var ls: float = UIGlyphs.card_logo_size
+	shadow.texture = UIGlyphs.to_logo(int(ls))
 	shadow.stretch_mode = TextureRect.STRETCH_SCALE
-	shadow.position = Vector2(-7.5, -14.5)
-	shadow.size = Vector2(32, 32)
+	shadow.position = Vector2(8.5 - ls * 0.5, 1.5 - ls * 0.5)
+	shadow.size = Vector2(ls, ls)
 	shadow.modulate = Color(0, 0, 0, 0.5)
 	shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(shadow)
 	var seal := TextureRect.new()
 	seal.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
-	seal.texture = UIGlyphs.to_logo(32)
+	seal.texture = UIGlyphs.to_logo(int(ls))
 	seal.stretch_mode = TextureRect.STRETCH_SCALE
-	seal.position = Vector2(-9, -16)
-	seal.size = Vector2(32, 32)
+	seal.position = Vector2(7.0 - ls * 0.5, -ls * 0.5)
+	seal.size = Vector2(ls, ls)
 	seal.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(seal)
 	# Sit between the type text (left, expanding) and the range text (right,
@@ -483,7 +658,12 @@ func _update_description() -> void:
 	var effective := {}
 	if value_provider.is_valid():
 		effective = value_provider.call(_card)
-	desc_label.text = _card.get_display_description(effective)
+	var text: String = _card.get_display_description(effective)
+	if _frame.get("ink_dark", false):
+		# The light greens and reds read on the dark box, not the parchment.
+		text = text.replace("#8be98b", "#1d6b1d").replace("#ff9c9c", "#9a1d16") \
+			.replace("[color=green]", "[color=#1d6b1d]").replace("[color=red]", "[color=#9a1d16]")
+	desc_label.text = text
 	_fit_description()
 
 ## Long card text shrinks to fit the face instead of spilling off it: the
@@ -503,12 +683,32 @@ func _fit_description() -> void:
 	if font == null:
 		return
 	var plain: String = desc_label.get_parsed_text()
-	var width: float = desc_label.size.x if desc_label.size.x > 40.0 else DESC_BOX.x
 	var fs := DESC_FONT_MAX
-	while fs > DESC_FONT_MIN and font.get_multiline_string_size(plain, HORIZONTAL_ALIGNMENT_LEFT, width, fs).y > DESC_BOX.y:
-		fs -= 1
+	if _frame.is_empty():
+		var width: float = desc_label.size.x if desc_label.size.x > 40.0 else DESC_BOX.x
+		while fs > DESC_FONT_MIN and font.get_multiline_string_size(plain, HORIZONTAL_ALIGNMENT_LEFT, width, fs).y > DESC_BOX.y:
+			fs -= 1
+	else:
+		# The frame's box beside its corner picture; a text that cannot fit
+		# there even at the smallest size spreads over the box's whole width.
+		var box: Vector2 = _frame["desc_box"]
+		fs = _fit_size(font, plain, box)
+		var right: float = _frame["desc_right"]
+		if font.get_multiline_string_size(plain, HORIZONTAL_ALIGNMENT_LEFT, box.x, fs).y > box.y:
+			fs = _fit_size(font, plain, _frame.get("desc_full", FRAMED_DESC_FULL), FRAMED_DESC_FULL_MAX)
+			right = 4.0
+		if desc_panel:
+			var st := desc_panel.get_theme_stylebox("panel")
+			if st is StyleBoxEmpty:
+				st.content_margin_right = right
 	desc_label.add_theme_font_size_override("normal_font_size", fs)
 	desc_label.add_theme_font_size_override("bold_font_size", fs)
+
+func _fit_size(font: Font, plain: String, box: Vector2, top: int = DESC_FONT_MAX) -> int:
+	var fs := top
+	while fs > DESC_FONT_MIN and font.get_multiline_string_size(plain, HORIZONTAL_ALIGNMENT_LEFT, box.x, fs).y > box.y:
+		fs -= 1
+	return fs
 
 func _fit_name() -> void:
 	if not name_label:
@@ -517,7 +717,7 @@ func _fit_name() -> void:
 	if font == null:
 		return
 	var fs := NAME_FONT_MAX
-	while fs > NAME_FONT_MIN and font.get_string_size(name_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > NAME_WIDTH:
+	while fs > NAME_FONT_MIN and font.get_string_size(name_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > _frame.get("name_w", NAME_WIDTH):
 		fs -= 1
 	name_label.add_theme_font_size_override("font_size", fs)
 
@@ -795,6 +995,16 @@ func animate_play(target_screen_pos: Vector2, on_complete: Callable = Callable()
 	)
 
 func _apply_gold_trim() -> void:
+	if not _frame.is_empty():
+		# The painted frame keeps its look; a gold line rings it when chosen.
+		var ring := StyleBoxFlat.new()
+		ring.draw_center = false
+		ring.set_border_width_all(2)
+		ring.border_color = Color(1.0, 0.84, 0.0)
+		ring.set_corner_radius_all(8)
+		ring.set_expand_margin_all(2)
+		add_theme_stylebox_override("panel", ring)
+		return
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.11, 0.1, 0.09, 1.0)
 	style.border_width_left = 3
@@ -809,6 +1019,9 @@ func _apply_gold_trim() -> void:
 	add_theme_stylebox_override("panel", style)
 
 func _apply_default_style() -> void:
+	if not _frame.is_empty():
+		add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+		return
 	# MtG-style outer frame: a thick dark "card back" edge with the type's
 	# colour glowing through the inner border.
 	var style = StyleBoxFlat.new()
@@ -849,6 +1062,9 @@ func _style_frame() -> void:
 	## art window (placeholder until real artwork lands), type line, and a
 	## parchment-dark rules box.
 	_apply_default_style()
+	if not _frame.is_empty():
+		_style_painted_frame()
+		return
 	if title_bar:
 		# Extra side margins keep the title clear of the corner cost badges.
 		var tb := _bar_style(_type_color.darkened(0.45))
@@ -874,6 +1090,140 @@ func _style_frame() -> void:
 		box.content_margin_top = 4
 		box.content_margin_bottom = 4
 		desc_panel.add_theme_stylebox_override("panel", box)
+
+## Dress the card in its type's painted frame: the frame drawn behind
+## everything, the bars bare so the painting shows, each line laid on the
+## painted bar it belongs to; the costs written on the painted drop and
+## hourglass, the logo on the type bar's ring spot.
+func _style_painted_frame() -> void:
+	var host: Control = get_node_or_null("Panel")
+	if host == null:
+		return
+	host.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	if _frame_art == null:
+		_frame_art = TextureRect.new()
+		_frame_art.name = "FrameArt"
+		_frame_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_frame_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_frame_art.stretch_mode = TextureRect.STRETCH_SCALE
+		_frame_art.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		host.add_child(_frame_art)
+		host.move_child(_frame_art, 0)
+	_frame_art.texture = load(_frame["tex"])
+	var r: Rect2 = _frame["rect"]
+	_frame_art.position = r.position
+	_frame_art.size = r.size
+	# The sections stacked onto the painted bars (card pixels): name bar
+	# 14-36, art window 36-100, type bar 100-118, parchment from 118.
+	var vbox: VBoxContainer = host.get_node_or_null("VBox")
+	if vbox:
+		vbox.offset_left = 14.0
+		vbox.offset_right = -12.0
+		vbox.offset_top = _frame.get("top", 14.0)
+		vbox.offset_bottom = -8.0
+		vbox.add_theme_constant_override("separation", 0)
+	if title_bar:
+		var tb := StyleBoxEmpty.new()
+		tb.content_margin_left = _frame.get("title_left", 21.0)
+		tb.content_margin_right = _frame.get("title_right", 16.0)
+		tb.content_margin_bottom = 3
+		title_bar.add_theme_stylebox_override("panel", tb)
+		title_bar.custom_minimum_size = Vector2(0, _frame.get("title_h", 22.0))
+	if name_label:
+		name_label.add_theme_color_override("font_color", FRAMED_NAME)
+		name_label.add_theme_color_override("font_outline_color", Color(0.1, 0.06, 0.02))
+		name_label.add_theme_constant_override("outline_size", 4)
+	if art_box:
+		art_box.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+		art_box.custom_minimum_size = Vector2(0, _frame.get("art_h", 64.0))
+		_set_card_art()
+	if type_bar:
+		var tp := StyleBoxEmpty.new()
+		tp.content_margin_left = 2
+		tp.content_margin_right = 3
+		type_bar.add_theme_stylebox_override("panel", tp)
+		type_bar.custom_minimum_size = Vector2(0, _frame.get("type_h", 18.0))
+	if desc_panel:
+		var box := StyleBoxEmpty.new()
+		box.content_margin_left = 3.5
+		box.content_margin_right = _frame["desc_right"]
+		box.content_margin_top = _frame.get("desc_top", 4.0)
+		desc_panel.add_theme_stylebox_override("panel", box)
+	if desc_panel:
+		desc_panel.clip_contents = true   # a long text never shoves the bars above it
+	if desc_label:
+		desc_label.fit_content = false
+		desc_label.custom_minimum_size = Vector2(0.1, 10)
+		desc_label.add_theme_color_override("default_color", _frame["ink"])
+		if not _frame["ink_dark"]:
+			# Light text on the dark stone: a dark rim keeps it off the texture.
+			desc_label.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.06))
+			desc_label.add_theme_constant_override("outline_size", 3)
+	_place_framed_costs()
+	_place_framed_logo()
+	_fit_name()   # this frame's name bar may be narrower
+
+
+## The upkeep on the Maintain frame's top strip, right of the tempo dots.
+func _place_upkeep(upkeep: int) -> void:
+	var host: Control = get_node_or_null("Panel")
+	if host == null:
+		return
+	var l: Label = host.get_node_or_null("Upkeep")
+	if l == null:
+		l = Label.new()
+		l.name = "Upkeep"
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		l.add_theme_font_size_override("font_size", 9)
+		l.add_theme_color_override("font_color", MAINTAIN_WORD)
+		l.add_theme_color_override("font_outline_color", Color(0.06, 0.02, 0.08))
+		l.add_theme_constant_override("outline_size", 3)
+		host.add_child(l)
+	l.text = "%dM" % upkeep
+	l.tooltip_text = "Upkeep: %d mana to maintain" % upkeep
+	l.size = Vector2(30, 12)
+	l.position = Vector2(UPKEEP_RIGHT - 30.0, float(_frame["dots_y"]) - 6.0)
+
+
+## The costs written straight onto the painted drop and hourglass.
+func _place_framed_costs() -> void:
+	_ensure_cost_badges()
+	for pair in [[_mana_badge, _mana_num, _frame["mana_at"]], [_tempo_badge, _tempo_num, _frame["tempo_at"]]]:
+		var badge: Control = pair[0]
+		var num: Label = pair[1]
+		if badge == null:
+			continue
+		for c in badge.get_children():
+			if c is TextureRect:
+				c.visible = false
+		var at: Vector2 = pair[2]
+		badge.position = at - badge.size * 0.5
+		num.offset_top = 0.0
+
+
+## The logo on the painted frame's ring spot (the frame's own was painted
+## out), in place of the seal riding the type line.
+func _place_framed_logo() -> void:
+	var held: Node = get_node_or_null("Panel/VBox/TypeBar/TypeHBox/TOLogo")
+	if held:
+		for c in held.get_children():
+			c.visible = false
+	var host: Control = get_node_or_null("Panel")
+	if host == null or host.get_node_or_null("FrameLogo"):
+		return
+	var ls := float(FRAMED_LOGO_SIZE)
+	var seal := TextureRect.new()
+	seal.name = "FrameLogo"
+	seal.texture = UIGlyphs.to_logo(FRAMED_LOGO_SIZE)
+	seal.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	seal.stretch_mode = TextureRect.STRETCH_SCALE
+	seal.size = Vector2(ls, ls)
+	seal.position = (Vector2(_frame["logo_at"]) - Vector2(ls, ls) * 0.5).round()
+	seal.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	host.add_child(seal)
+
 
 func _set_card_art() -> void:
 	## Craftpix skill icon in the art window (SkillIconArt picks per card_id,
@@ -931,11 +1281,35 @@ func _build_tempo_bars(card: Card, tempo_override: int = -1, resolve_override: i
 	# on the card, not the inner panel.
 	bar_container.position = Vector2(-3, -3)
 	bar_container.size = Vector2(CARD_W, 9)
+	var dot_px := FRAMED_DOT
+	if not _frame.is_empty():
+		# On the painted frame's dot strip (the Panel sits at the card's
+		# corner), between its ends: a long row shrinks its dots to fit.
+		var span: Vector2 = _frame.get("dots_span", Vector2(34, 118))
+		var sep := 3.0
+		if effective_tempo * dot_px + (effective_tempo - 1) * sep > span.y - span.x:
+			sep = 2.0
+			dot_px = floorf((span.y - span.x - (effective_tempo - 1) * sep) / maxf(1.0, effective_tempo))
+		bar_container.position = Vector2(span.x, float(_frame["dots_y"]) - dot_px * 0.5)
+		bar_container.size = Vector2(span.y - span.x, dot_px)
+		bar_container.add_theme_constant_override("separation", int(sep))
 	host.add_child(bar_container)
 
 	var resolve_tick = resolve_override if resolve_override >= 0 else mini(card.resolve_tick, effective_tempo)
 
 	for i in range(effective_tempo):
+		if not _frame.is_empty():
+			# The designer's glossy dots: gold on the tick it resolves on.
+			var pd := TextureRect.new()
+			pd.texture = load("res://assets/textures/cards/dot_gold.png" if i + 1 == resolve_tick else "res://assets/textures/cards/dot_dark.png")
+			pd.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			pd.stretch_mode = TextureRect.STRETCH_SCALE
+			pd.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+			pd.custom_minimum_size = Vector2(dot_px, dot_px)
+			pd.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			pd.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			bar_container.add_child(pd)
+			continue
 		var dot := Panel.new()
 		dot.custom_minimum_size = Vector2(9, 9)
 		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
