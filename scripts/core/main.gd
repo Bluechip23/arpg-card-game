@@ -5698,6 +5698,110 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_refresh_unit_tracker()
 
 #endregion
+#region ENEMY ACTION LOG
+## The battle log tells what the enemies do, not only what the player does
+## (designer, 2026-10-30): one line per enemy action, gathered while it runs
+## — "Goblin used Bite on you: 8 damage (3 blocked by armor), applied 2
+## Bleed." — and written at the end of the frame. Hits come from the enemy's
+## hit_landed; effects are the debuffs that land on a player while the
+## action runs. Plain movement with nothing to report stays out of the log.
+const ELOG_MOVES := ["move", "scurry", "scurry_away", "get_into_range", "seek_nest", "dig_walk",
+	"wander", "flee", "retreat", "approach", "reposition", "follow", "chase", "hop", "fly", "creep", "burrow"]
+const ELOG_COLOR := Color(1.0, 0.62, 0.45)
+var _elog_entries: Array = []
+var _elog_current = null          # the entry the running action fills
+var _elog_flush_queued := false
+
+func _elog_entry(enemy: Enemy, key: String, label: String) -> Dictionary:
+	var e := {"id": enemy.get_instance_id(), "enemy": enemy.enemy_name, "key": key, "label": label, "hits": [], "effects": []}
+	_elog_entries.append(e)
+	if not _elog_flush_queued:
+		_elog_flush_queued = true
+		_elog_flush.call_deferred()
+	return e
+
+func _elog_watch_players() -> void:
+	for p in _all_players():
+		if is_instance_valid(p) and p.has_method("get_debuff_manager") and p.get_debuff_manager():
+			var dm = p.get_debuff_manager()
+			if not dm.debuff_applied.is_connected(_elog_on_player_debuff):
+				dm.debuff_applied.connect(_elog_on_player_debuff.bind(p))
+
+func _elog_on_action_fired(enemy: Enemy, action_name: String) -> void:
+	_elog_watch_players()
+	_elog_current = _elog_entry(enemy, action_name, enemy.last_action_label)
+
+func _elog_on_action_finished(_enemy: Enemy) -> void:
+	_elog_current = null
+
+func _elog_on_hit(enemy: Enemy, victim: Node, attack_name: String, damage: int, health_lost: int) -> void:
+	if _elog_current == null or _elog_current["id"] != enemy.get_instance_id():
+		# A blow outside an action (a projectile landing, a boss's own clock).
+		_elog_watch_players()
+		_elog_current = _elog_entry(enemy, attack_name.to_lower(), attack_name.capitalize())
+		(func(): _elog_current = null).call_deferred()
+	_elog_current["hits"].append({"victim": _elog_victim_name(victim), "damage": damage, "lost": health_lost})
+
+func _elog_on_player_debuff(debuff: Debuff, who: Node) -> void:
+	if _elog_current == null or debuff == null:
+		return
+	var txt := debuff.debuff_name
+	if debuff.value > 0:
+		txt = "%d %s" % [debuff.value, debuff.debuff_name]
+	elif debuff.duration > 0:
+		txt = "%s (%d tempo)" % [debuff.debuff_name, debuff.duration]
+	if who != player:
+		txt += " to " + _elog_victim_name(who)
+	_elog_current["effects"].append(txt)
+
+func _elog_victim_name(victim: Node) -> String:
+	if victim == player:
+		return "you"
+	if victim is Player:
+		return "your ally"
+	for key in ["display_name", "enemy_name"]:
+		var v = victim.get(key) if is_instance_valid(victim) else null
+		if v is String and v != "":
+			return "your " + v
+	return "your ally"
+
+func _elog_flush() -> void:
+	_elog_flush_queued = false
+	for e in _elog_entries:
+		var line := _elog_line(e)
+		if line != "":
+			add_battle_log(line, ELOG_COLOR)
+	_elog_entries.clear()
+
+## The one-line telling of an enemy action ("" when there is nothing to tell).
+static func _elog_line(e: Dictionary) -> String:
+	var hits: Array = e["hits"]
+	var effects: Array = e["effects"]
+	if hits.is_empty() and effects.is_empty() and str(e["key"]) in ELOG_MOVES:
+		return ""
+	var line := "%s used %s" % [e["enemy"], e["label"]]
+	var parts: Array = []
+	var by_victim := {}
+	for h in hits:
+		var v: String = h["victim"]
+		if not by_victim.has(v):
+			by_victim[v] = {"damage": 0, "lost": 0}
+		by_victim[v]["damage"] += int(h["damage"])
+		by_victim[v]["lost"] += int(h["lost"])
+	for v in by_victim:
+		var d: int = by_victim[v]["damage"]
+		var blocked: int = d - int(by_victim[v]["lost"])
+		var t := "hit %s for %d damage" % [v, d]
+		if blocked > 0:
+			t += " (%d blocked)" % blocked
+		parts.append(t)
+	if not effects.is_empty():
+		parts.append("applied " + ", ".join(effects))
+	if parts.is_empty():
+		return line + "."
+	return line + ": " + "; ".join(parts) + "."
+
+#endregion
 #region ENEMY SIGNAL HANDLERS
 func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	## Connect debuff signals for skill tree passives (Pop Rocks, etc.).
@@ -5706,6 +5810,9 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	enemy.exposed.connect(_on_enemy_exposed)
 	enemy.attacked_player.connect(_on_enemy_attacked_player)
 	enemy.attacking_player.connect(_on_enemy_attacking_player)
+	enemy.action_fired.connect(_elog_on_action_fired)
+	enemy.action_finished.connect(_elog_on_action_finished)
+	enemy.hit_landed.connect(_elog_on_hit)
 	enemy.damaged.connect(_on_enemy_damaged.bind(enemy))
 	enemy.movement_completed.connect(_on_enemy_movement_completed)
 	enemy.barricade_attacked.connect(_on_enemy_barricade_attacked)

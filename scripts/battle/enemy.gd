@@ -312,6 +312,14 @@ var chosen_action: Dictionary = {}
 ##                      "damaged", "exposed", "ally_died", "half_health".
 ##   "label": "Name"    Display name (defaults to name.capitalize()).
 signal action_fired(enemy: Enemy, action_name: String)
+## The action that action_fired announced has run (its sync effects are in);
+## the battle log closes its line here.
+signal action_finished(enemy: Enemy)
+## A blow landed on `victim` (the player, the partner, a summon): `damage`
+## as swung, `health_lost` what got past armor. The battle log reads it.
+signal hit_landed(enemy: Enemy, victim: Node, attack_name: String, damage: int, health_lost: int)
+## The display name of the action now running (Enemy.action_label), for the log.
+var last_action_label: String = ""
 signal channel_broken(enemy: Enemy, action_name: String)  # a Channel collapsed (disrupted)
 var _async_counters: Dictionary = {}     # action name -> tempo counted on its own clock
 var _async_gap: bool = true              # true when no Async clock was mid-count at the end of the last tempo
@@ -2062,8 +2070,11 @@ func _fire_ready_async(player_node: Node3D) -> void:
 
 func _execute_now(action: Dictionary, player_node: Node3D) -> bool:
 	var nm := str(action["name"])
+	last_action_label = Enemy.action_label(action)
 	action_fired.emit(self, nm)
-	return _execute_action(nm, _move_target_for(player_node))
+	var ok := _execute_action(nm, _move_target_for(player_node))
+	action_finished.emit(self)
+	return ok
 
 func _begin_channel(action: Dictionary, kind: String) -> void:
 	_channel_action = action
@@ -5309,7 +5320,13 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 		if "last_attacker" in player_node:
 			player_node.last_attacker = self  # a destroyed Specter answers its killer
 		if effective_damage > 0:
+			var sum_hp_before = player_node.get("current_health")
 			player_node.take_damage(effective_damage)
+			var sum_hp_after = player_node.get("current_health") if is_instance_valid(player_node) else null
+			var sum_lost: int = effective_damage
+			if sum_hp_before is int and sum_hp_after is int:
+				sum_lost = maxi(0, sum_hp_before - sum_hp_after)
+			hit_landed.emit(self, player_node, attack_name, effective_damage, sum_lost)
 		return
 
 	if player_node.has_method("get_stats"):
@@ -5368,7 +5385,9 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 					and ds_main.offer_defensive_sacrifice(self, player_node, effective_damage, debuff_mgr, buff_mgr, dmg_type):
 				return
 
+			var hp_before: int = player_stats_ref.current_health
 			player_stats_ref.take_damage(effective_damage, debuff_mgr, buff_mgr, dmg_type)
+			hit_landed.emit(self, player_node, attack_name, effective_damage, maxi(0, hp_before - player_stats_ref.current_health))
 			_finish_player_hit(player_node)
 
 	# Attack flash on figure, sprite, or mesh
