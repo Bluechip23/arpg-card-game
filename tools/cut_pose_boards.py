@@ -57,7 +57,18 @@ These boards have one frame a direction: Idle is the still pose; Walk is the
 movement pose where there is one (the beaver), else the still pose again
 (the figure bobs it in step while it moves).
 
+Action sheets (2026-10-30): a creature may also have an "actions" board —
+the designer's werewolf_slash_board.webp, two rows of a slash on black,
+facing right then facing left — cut into one or more multi-frame sheets
+(Attack.png, Attack2.png) with only the two side rows (left, right): the
+figure turns to a side to play them when it faces front or back. The board
+is cut by brightness off its black (the slash's red glow keeps a soft
+alpha), scaled so one named pose stands as tall as the Idle side view, and
+packed in the same cells as the Idle sheet (SpriteEnemyFigure indexes every
+sheet by the Idle cell).
+
 Output: assets/sprites/generated/sheets/<creature>/{Idle,Walk}.png
+        (+ the action sheets, e.g. Attack.png / Attack2.png)
 Run: python3 tools/cut_pose_boards.py [creature ...]   (Pillow, numpy)
 """
 import os
@@ -1125,6 +1136,48 @@ BOARDS = {
             "right": (727, 190, 1132, 748),
             "left": (1172, 190, 1528, 748),
         },
+        # 2026-10-30: the designer's slash board — the same werewolf, two
+        # rows on black, facing right then facing left: a wind-up with the
+        # far arm raised, a downward rake with the near arm (a red arc past
+        # the muzzle), a lunging sweep with the far arm (a red arc over the
+        # head), and the recovery, claws forward. Each row is flanked by
+        # half a figure (the board tiles), not used. The slash arcs reach
+        # into the neighbouring frames' boxes, so those slivers are cleared
+        # (bg boxes, in each box's own coordinates). The recovery pose is
+        # scaled to the Idle side view's height. Claw = Attack (wind-up,
+        # rake, recovery); the rake on a debuffed target, a second hit with
+        # the other arm = Attack2 (wind-up, rake, sweep, recovery).
+        "actions": {
+            "src": "werewolf_slash_board.webp",
+            "shadow_band": 0.10,
+            "match": "recover",
+            "frames": {
+                "right": {
+                    "windup": (62, 50, 340, 410),
+                    "rake": (318, 55, 606, 410),
+                    "sweep": (553, 75, 932, 410),
+                    "recover": (893, 90, 1125, 410),
+                },
+                "left": {
+                    "windup": (95, 462, 350, 812),
+                    "rake": (343, 474, 616, 812),
+                    "sweep": (616, 500, 955, 812),
+                    "recover": (955, 490, 1158, 812),
+                },
+            },
+            "bg_boxes": {
+                ("right", "windup"): [(256, 245, 278, 360), (273, 100, 278, 195)],   # the rake's tail and back
+                ("right", "rake"): [(0, 195, 28, 245), (237, 290, 288, 355)],   # the wind-up's claw; the sweep's left foot
+                ("right", "sweep"): [(0, 0, 54, 267), (338, 228, 379, 335)],   # the rake's arc; the recovery's tail
+                ("right", "recover"): [(0, 0, 37, 212)],          # the sweep's claw
+                ("left", "windup"): [(240, 95, 255, 228)],        # the rake's arc
+                ("left", "recover"): [(185, 0, 203, 215)],        # the next tile's half figure
+            },
+            "sheets": {
+                "Attack": ["windup", "rake", "recover"],
+                "Attack2": ["windup", "rake", "sweep", "recover"],
+            },
+        },
     },
     "roc": {
         # 2026-10-28: the Roc — a great golden-brown eagle, ruff raised,
@@ -1589,6 +1642,68 @@ def _cut_black_key(rgb: np.ndarray) -> Image.Image:
     return Image.fromarray(rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
 
 
+ACTION_ROWS = ["left", "right"]   # the rows of an action sheet (SpriteEnemyFigure: a two-row sheet)
+
+
+def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0) -> Image.Image:
+    """One figure and the glow of its attack on pure black (the werewolf's
+    slash board): alpha from brightness as the black key does, the dim
+    glow of the slash arcs kept soft and un-darkened, then only the
+    biggest lit piece (the figure) and the reddish pieces (the arcs)
+    survive — a neighbouring frame's claw or tail that reaches into the
+    box is dropped, its arc cleared by a bg box. The soft painted shadow
+    at the feet (dim, colourless, in the bottom `shadow_band` of the
+    figure and not inside the body) goes too."""
+    rgb = rgb.copy()
+    for x0, y0, x1, y1 in bg_boxes:
+        rgb[y0:y1, x0:x1] = 0
+    lum = rgb.max(axis=2).astype(float)
+    sat = (rgb.max(axis=2) - rgb.min(axis=2)).astype(float)
+    alpha = np.clip((lum - BLACK_FLOOR) / float(BLACK_SOLID - BLACK_FLOOR), 0.0, 1.0)
+    body = (lum > BLACK_BODY).astype(np.uint8)
+    outside = np.pad(1 - body, 1, constant_values=1)
+    flood = outside.copy()
+    cv2.floodFill(flood, None, (0, 0), 2)
+    filled = (flood[1:-1, 1:-1] != 2).astype(np.uint8)
+    # Dark paint inside the body (shaded fur) is solid, but the black the
+    # slash arc closes in against the chest is the board: only small
+    # enclosed pockets are filled.
+    holes = (filled & (1 - body)).astype(np.uint8)
+    hn, hlab, hst, _ = cv2.connectedComponentsWithStats(holes, connectivity=4)
+    for i in range(1, hn):
+        if hst[i, cv2.CC_STAT_AREA] > HOLE_FILL_MAX:
+            filled[hlab == i] = 0
+    core = cv2.erode(filled, np.ones((3, 3), np.uint8)).astype(bool)
+    soft = alpha < 1.0
+    alpha[core] = 1.0
+    lit = (alpha > 0).astype(np.uint8)
+    n, lab, st, _ = cv2.connectedComponentsWithStats(lit, connectivity=8)
+    if n > 1:
+        areas = st[1:, cv2.CC_STAT_AREA]
+        biggest = 1 + int(np.argmax(areas))
+        keep = np.zeros(n, bool)
+        keep[biggest] = True
+        for i in range(1, n):
+            if i == biggest or areas[i - 1] < BLACK_SPECK:
+                continue
+            px = rgb[lab == i].astype(float)
+            r, g, b = px[:, 0].mean(), px[:, 1].mean(), px[:, 2].mean()
+            keep[i] = r > 1.4 * max(g, b) + 8   # a red slash arc
+        alpha[~keep[lab]] = 0.0
+    if shadow_band > 0:
+        ys = np.nonzero((alpha > 0).any(axis=1))[0]
+        y0 = int(ys.max() + 1 - (ys.max() + 1 - ys.min()) * shadow_band)
+        shadow = soft & (sat < 20) & (lum < BLACK_SOLID)
+        shadow[:y0] = False
+        alpha[shadow] = 0.0
+    a = np.maximum(alpha, 1e-6)[..., None]
+    col = np.clip(rgb / a, 0, 255)
+    col = np.where(alpha[..., None] > 0, col, 0)
+    rgba = np.dstack([col, alpha * 255.0]).round().astype(np.uint8)
+    ys, xs = np.nonzero(rgba[..., 3] > 0)
+    return Image.fromarray(rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
+
+
 def _sharpen(img: Image.Image, amount: float) -> Image.Image:
     """Unsharp mask on the colour (alpha untouched), for boards whose source is
     soft (lossy or upscaled): the detail reads after the cut is shrunk."""
@@ -1630,6 +1745,36 @@ def pack(frames: dict, cell: int) -> Image.Image:
         f = frames[d]
         sheet.paste(f, ((cell - f.width) // 2, r * cell + cell - f.height), f)
     return sheet
+
+
+def pack_action(frames: dict, poses: list, cell: int) -> Image.Image:
+    """An action sheet: `poses` in order across, the two side rows down
+    (left, then right), each frame bottom-centred in its cell."""
+    sheet = Image.new("RGBA", (cell * len(poses), cell * len(ACTION_ROWS)))
+    for r, d in enumerate(ACTION_ROWS):
+        for c, pose in enumerate(poses):
+            f = frames[d][pose]
+            sheet.paste(f, (c * cell + (cell - f.width) // 2, r * cell + cell - f.height), f)
+    return sheet
+
+
+def cut_actions(cfg: dict, full: dict) -> dict:
+    """The frames of a creature's action board, full size, each side's
+    scaled so its `match` pose stands as tall as that side's Idle pose:
+    {direction: {pose: image}}."""
+    act = cfg["actions"]
+    board = Image.open(SRC % act["src"])
+    out = {}
+    for d, poses in act["frames"].items():
+        out[d] = {}
+        for pose, box in poses.items():
+            rgb = np.asarray(board.crop(box).convert("RGB")).astype(int)
+            out[d][pose] = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0))
+        k = full["Idle"][d].height / float(out[d][act["match"]].height) * act.get("match_scale", 1.0)
+        for pose, f in out[d].items():
+            size = (max(1, round(f.width * k)), max(1, round(f.height * k)))
+            out[d][pose] = f.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")
+    return out
 
 
 def build(name: str, cfg: dict) -> None:
@@ -1692,27 +1837,37 @@ def build(name: str, cfg: dict) -> None:
             full[anim][d] = Image.fromarray(a, "RGBA")
     if "Walk" not in full:
         full["Walk"] = full["Idle"]
+    # The action board's frames (the werewolf's slash), already at the Idle
+    # side views' scale: they share the cells with Idle / Walk below.
+    actions = cut_actions(cfg, full) if "actions" in cfg else {}
     factor = full["Idle"]["front"].height / float(round(cfg["tiles"] * DENSITY))
     small = {a: {d: shrink(f, factor) for d, f in fs.items()} for a, fs in full.items()}
-    cell = max(max(f.width, f.height) for fs in small.values() for f in fs.values()) + 2
+    small_act = {d: {p: shrink(f, factor) for p, f in fs.items()} for d, fs in actions.items()}
+    cell = max(max(f.width, f.height) for fs in list(small.values()) + list(small_act.values()) for f in fs.values()) + 2
     os.makedirs(OUT % name, exist_ok=True)
     for anim, fs in small.items():
         pack(fs, cell).save(os.path.join(OUT % name, anim + ".png"))
+    for anim, poses in cfg.get("actions", {}).get("sheets", {}).items():
+        pack_action(small_act, poses, cell).save(os.path.join(OUT % name, anim + ".png"))
     dims = ", ".join("%s %dx%d" % (d, f.width, f.height) for d, f in small["Idle"].items())
     print("%-13s ÷%.1f, %d-px cells: %s" % (name, factor, cell, dims))
     # The smooth version (smooth_art): the same cut-outs at SMOOTH_DENSITY
     # texels a tile, soft-filtered with soft alpha, kept beside the pixel one.
     sfac = full["Idle"]["front"].height / float(round(cfg["tiles"] * smooth_art.SMOOTH_DENSITY))
     soft = {a: {d: smooth_art.trim(smooth_art.resample(f, sfac)) for d, f in fs.items()} for a, fs in full.items()}
+    soft_act = {d: {p: smooth_art.trim(smooth_art.resample(f, sfac)) for p, f in fs.items()} for d, fs in actions.items()}
     # SMOOTH_GUTTER empty rows under each pose: the smooth sheets are drawn
     # with mipmaps, and a pose standing on its cell's bottom edge bled into the
     # top of the row below (a faint mark over Olorin's hat, 2026-10-28). The
     # feet are found from the art, so the gutter doesn't lift the figure.
-    scell = max(max(f.width, f.height) for fs in soft.values() for f in fs.values()) + 2 + SMOOTH_GUTTER
+    scell = max(max(f.width, f.height) for fs in list(soft.values()) + list(soft_act.values()) for f in fs.values()) + 2 + SMOOTH_GUTTER
     sdir = os.path.join(smooth_art.ROOT, "sheets", name)
     os.makedirs(sdir, exist_ok=True)
     for anim, fs in soft.items():
         smooth_art.pack([[fs[d]] for d in ROWS], scell, 1, lambda row, ci: row[0], air=SMOOTH_GUTTER).save(os.path.join(sdir, anim + ".png"))
+    for anim, poses in cfg.get("actions", {}).get("sheets", {}).items():
+        rows = [[soft_act[d][p] for p in poses] for d in ACTION_ROWS]
+        smooth_art.pack(rows, scell, len(poses), lambda row, ci: row[ci], air=SMOOTH_GUTTER).save(os.path.join(sdir, anim + ".png"))
 
 
 def main() -> None:

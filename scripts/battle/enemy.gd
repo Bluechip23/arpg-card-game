@@ -3899,10 +3899,16 @@ func _try_werewolf_claw(target_node: Node3D) -> bool:
 	var p_stats = target_node.get_stats() if target_node.has_method("get_stats") else null
 	if p_stats and p_stats.get_total_armor() > 0:
 		dmg += 3
-	_deal_damage_to_player(target_node, dmg, "Claw")
-	# A debuffed target gets raked a second time for half damage.
+	# A debuffed target gets raked a second time for half damage — and the
+	# figure plays the double claw: the slash board's rake with the other
+	# arm after the first (SpriteEnemyFigure Attack2), in place of the one
+	# swing _execute_action started.
 	var dm = target_node.get_debuff_manager() if target_node.has_method("get_debuff_manager") else null
-	if dm and dm.debuffs.size() > 0:
+	var rake: bool = dm != null and dm.debuffs.size() > 0
+	if rake:
+		_play_enemy_animation("werewolf_claw_double")
+	_deal_damage_to_player(target_node, dmg, "Claw")
+	if rake:
 		_deal_damage_to_player(target_node, maxi(1, dmg / 2), "Claw (rake)")
 	turn_completed.emit()
 	return true
