@@ -80,6 +80,31 @@ FRAMES = {
         "text_light": True,
         "numbers": [(55, 120, 205, 235), (870, 115, 955, 235)],
     },
+    # The Defense cards (2026-10-30): a grey stone wall veined with blue
+    # lightning, blue banners over the dots, shields at the corners, a
+    # knight behind his shield catching arrows in the rules box's corner and
+    # a skirmish below the text. Rules text is white on the stone. The wall
+    # is broader than the others: the card rectangle is set so its art
+    # window and type bar fall where the other boards' do.
+    "defensive": {
+        "src": "assets/sprites/paintings/card_defensive_board.webp",
+        "card": (30, 103, 1014, 1480),
+        "dots": [(443, 156), (513, 156), (582, 156)],
+        "dot_r": 24,
+        "bands": [
+            (402, 128, 625, 183),
+            (318, 200, 738, 292),
+            (140, 780, 390, 842),
+            (632, 780, 914, 842),
+        ],
+        "art": (276, 330, 772, 752),
+        "art_keep": [],
+        "logo_ring": ((520, 800), 101),
+        "logo_boxes": [(428, 690, 614, 742), (494, 645, 548, 945)],
+        "text": (140, 930, 510, 1080),
+        "text_light": True,
+        "numbers": [(88, 140, 202, 226), (880, 150, 948, 228)],
+    },
 }
 
 

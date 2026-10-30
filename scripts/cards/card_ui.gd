@@ -81,6 +81,20 @@ const FRAMES := {
 		"ink": Color(0.96, 0.94, 0.9),
 		"ink_dark": false,
 	},
+	# Defense cards: a stone wall veined with blue lightning, white text left
+	# of the knight catching arrows on his shield.
+	"defensive": {
+		"tex": "res://assets/textures/cards/frame_defensive.png",
+		"rect": Rect2(-4.57, -15.7, 159.3, 229.4),
+		"mana_at": Vector2(17.5, 12.2),
+		"tempo_at": Vector2(134.8, 13.0),
+		"dots_y": 8.1,
+		"logo_at": Vector2(74.7, 106.3),
+		"desc_box": Vector2(70, 42),
+		"desc_right": 50.0,
+		"ink": Color(0.96, 0.94, 0.9),
+		"ink_dark": false,
+	},
 }
 const FRAMED_DOT := 8.0
 const FRAMED_LOGO_SIZE := 48
@@ -90,16 +104,21 @@ const UPKEEP_RIGHT := 124.0                     # the upkeep's right edge, short
 ## A rules text too long for its frame's box beside the corner picture
 ## takes the box's whole width (over the picture), this tall.
 const FRAMED_DESC_FULL := Vector2(116, 78)
+const FRAMED_DESC_FULL_MAX := 9   # ... no bigger than this, so it covers as little of the picture as it can
 
 ## The painted frame a card wears: Maintain for any card with an upkeep
-## (whatever its type), Instant for the instants; {} for the drawn frame.
+## (whatever its type), then by type — Instant, Defense; {} for the drawn
+## frame.
 static func frame_for(card: Card) -> Dictionary:
 	if card == null:
 		return {}
 	if card.maintain_cost > 0:
 		return FRAMES["maintain"]
-	if card.card_type == Card.CardType.REACTION:
-		return FRAMES["instant"]
+	match card.card_type:
+		Card.CardType.REACTION:
+			return FRAMES["instant"]
+		Card.CardType.DEFENSE:
+			return FRAMES["defensive"]
 	return {}
 
 var _frame: Dictionary = {}
@@ -595,7 +614,7 @@ func _fit_description() -> void:
 		fs = _fit_size(font, plain, box)
 		var right: float = _frame["desc_right"]
 		if font.get_multiline_string_size(plain, HORIZONTAL_ALIGNMENT_LEFT, box.x, fs).y > box.y:
-			fs = _fit_size(font, plain, FRAMED_DESC_FULL)
+			fs = _fit_size(font, plain, FRAMED_DESC_FULL, FRAMED_DESC_FULL_MAX)
 			right = 4.0
 		if desc_panel:
 			var st := desc_panel.get_theme_stylebox("panel")
@@ -604,8 +623,8 @@ func _fit_description() -> void:
 	desc_label.add_theme_font_size_override("normal_font_size", fs)
 	desc_label.add_theme_font_size_override("bold_font_size", fs)
 
-func _fit_size(font: Font, plain: String, box: Vector2) -> int:
-	var fs := DESC_FONT_MAX
+func _fit_size(font: Font, plain: String, box: Vector2, top: int = DESC_FONT_MAX) -> int:
+	var fs := top
 	while fs > DESC_FONT_MIN and font.get_multiline_string_size(plain, HORIZONTAL_ALIGNMENT_LEFT, box.x, fs).y > box.y:
 		fs -= 1
 	return fs
