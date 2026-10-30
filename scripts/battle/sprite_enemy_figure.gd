@@ -33,19 +33,9 @@ const SHEETS := "res://assets/sprites/generated/sheets"
 ## same F,B,L,R order; the map stays per pack so an exception is one line.
 const CP_ROWS := {
 	"giant_rat": "FBLR",
-	"lich": "FBLR",
 	"demons": "FBLR",
-	"golem": "FBLR",
 	"ghost": "FBLR",
-	"gnolls": "FBLR",
-	"zombie": "FBLR",
-	"lizardmen": "FBLR",
-	"slime": "FBLR",
 	"swordsman_lvl4_6": "FBLR",
-	"skeletons": "FBLR",
-	"goblins": "FBLR",
-	"vampires": "FBLR",
-	"ent": "FBLR",
 }
 ## Frames per second per Craftpix animation. One-shots (Attack, Hurt, Death)
 ## return to Idle/Walk when they finish; Death holds its last frame.

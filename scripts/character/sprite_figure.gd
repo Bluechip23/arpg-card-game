@@ -2,7 +2,6 @@ class_name SpriteFigure
 extends Node3D
 
 ## Billboard Sprite3D character for battle, drawing the Mana Seed sprite packs
-## (see scripts/demo/sprite_character.gd for the 2D demo equivalent).
 ##
 ## The one battle figure for playable characters: exposes the verbs the
 ## Player facade calls (play_action, set_walking, set_facing_from_velocity,
@@ -13,18 +12,15 @@ extends Node3D
 ## All five heroes wear the designer's hero sprites (2026-10-23,
 ## tools/cut_hero_sprites.py): one detailed pose per direction, drawn finer
 ## than the 32-texel tiles so the art keeps its nuance; walking steps the body
-## up and down, and attacks overlay the base pack's weapon layer (swing +
-## swoosh), scaled to the hero, with a small body lunge. The NPC mode (an NPC
-## pack sheet with walk frames, the same overlay) draws the dojo's dogs; the
-## paper-doll mode (body + outfit + hair on the character base, with real
-## attack poses) remains for any roster entry that names one.
+## up and down, and attacks lunge the body toward the target (the pack's
+## weapon swing was deleted on 2026-10-30 for the designer's own attacks). The NPC mode (an NPC
+## pack sheet with walk frames, the same overlay) draws the dojo's dogs. (The
+## Mana Seed paper-doll mode went with its art on 2026-10-30.)
 
 const SEED := "res://assets/sprites/SeedcharacterBase"
 
-## Which sprites each playable character uses. NPC entries use the raw NPC
-## sheet; doll entries are outfit/hair (and optional hat) layered on the
-## character base. A "gen:" prefix resolves to assets/sprites/generated/
-## (recolored / edited sheets baked from the pack sources).
+## Which sprites each playable character uses: a hero board, or the raw NPC
+## sheet.
 const ROSTER := {
 	"Brad": {"board": "res://assets/sprites/generated/heroes/brad.png"},      # the warrior, the War Rack over his shoulder
 	"Cory": {"board": "res://assets/sprites/generated/heroes/cory.png"},      # the hooded monk
@@ -36,22 +32,11 @@ const ROSTER := {
 	"Dog": {"npc": "res://assets/sprites/NPCpackage2/npc dog v01.png"},
 }
 
-const GENERATED := "res://assets/sprites/generated"
-
-
-## Resolve a paper-doll layer sheet path: "gen:<name>" comes from the baked
-## generated sheets, anything else from the pack's standard folders.
-static func _layer_path(page: String, folder: String, code: String, spec: String) -> String:
-	if spec.begins_with("gen:"):
-		return "%s/char_a_%s_%s_%s.png" % [GENERATED, page, code, spec.substr(4)]
-	return "%s/char_a_%s/%s/char_a_%s_%s_%s.png" % [SEED, page, folder, page, code, spec]
-
 # Sheet rows per facing (CharacterAnimator.Direction order: S, N, E, W).
-const DOLL_ROW := [0, 1, 2, 3]   # base pack runs S,N,E,W
+const DOLL_ROW := [0, 1, 2, 3]   # hero boards and the shield sheet run S,N,E,W
 const NPC_ROW := [0, 2, 1, 3]    # NPC packs run S,E,N,W
 
 const ATTACK_TIMES := [0.16, 0.065, 0.065, 0.2]
-const WALK_TIME := 0.135
 const NPC_WALK_TIME := 0.18
 const PIXEL_SIZE := 0.03125
 ## The designer's hero sprites stand this tall (world units = tiles), drawn
@@ -74,48 +59,15 @@ const PACK_BODY_HEIGHT := 29.0 * 0.03125
 const STEP_LIFT := 2.0 * 0.03125
 const STEP_HZ := 3.5
 
-# pONE3 cells (row, col) where the weapon draws in front of the body,
-# from the pack's layer-order guide.
-const WEAPON_FRONT_CELLS := [Vector2i(2, 1), Vector2i(3, 1)]
 
-## Card actions that read as heavy chops — these use the second, heavier
-## slash (with the held weapon); every other attack-flavoured action uses
-## the first slash, or the thrust / bow / cast the held weapon calls for.
-const AXE_ACTIONS := ["heavy_swing", "attack_heavy", "shed_weight", "wear_down"]
-## Shield-flavoured attacks: the pack's shield-bash frames, when a shield is held.
-const SHIELD_BASH_ACTIONS := ["shield_slam", "shield_bash", "bash", "bouncing_shield"]
 
-## Held-item art for the categories the character base has no weapon layer
-## for, from the Craftpix weapon icon packs. Each entry names the icon (or a
-## region of the Weapons sheet) and the angle the art is drawn at (degrees,
-## 0 = pointing east, 45 = up-right) so it can be turned to face the target.
-## The item sits flat under the plan-view camera, which lets it point any way.
-const WEAPON_ICON_DIR := "res://assets/sprites/craftpix/weapon_icons"
-const WEAPON_SHEET := "res://assets/sprites/craftpix/armor_weapons_icons/Weapons.png"
-const KIND_ART := {
-	"dagger": {"icon": "icon_11", "angle": 45.0, "scale": 0.5},
-	"spear": {"sheet": true, "region": Rect2(64, 48, 32, 16), "angle": 0.0, "scale": 1.1},
-	"bow": {"icon": "icon_31", "angle": 45.0, "scale": 0.7},
-	"wand": {"icon": "icon_91", "angle": 45.0, "scale": 0.5},
-	"staff": {"icon": "icon_93", "angle": 45.0, "scale": 0.8},
-	"tome": {"icon": "icon_92", "angle": 45.0, "scale": 0.55},
-}
-const ART_HELD_SIZE := 0.6   # an item's own picture, held: its longer side in world units
-const ARROW_ICON := "icon_43"
-const ARROW_ANGLE := 45.0
-const ARROW_SCALE := 0.6
-## Under the plan-view camera "up the screen" is north (-Z): the held item is
-## pushed north so it draws at hand height on the upright body sprite.
-const HAND_LIFT := 0.36
-const ARROW_FLIGHT := 2.4   # world units the arrow travels
-const ARROW_TIME := 0.3
 const GUARD_ACTIONS := ["block", "defend", "parry", "cover", "barricade", "harden",
 		"hold_the_line", "hunker_down", "approach_stance", "magic_barrier", "vengeful_shield"]
 const HOP_ACTIONS := ["roll", "dodge", "bob_and_weave", "heroic_leap", "rise"]
 
 var facing: int = CharacterAnimator.Direction.SOUTH
 
-var _mode := "doll"
+var _mode := "board"
 # The body sheet of the NPC and hero-sprite ("board") modes: cell size, the
 # row each facing reads (S, N, E, W order), and walk frames per row.
 var _body_cell := 32
@@ -126,26 +78,16 @@ var _hand_scale := 1.0             # held items ride this much higher on a talle
 var _shadow_scale := 1.0           # the contact shadow grows with a bigger hero
 var _step_clock := 0.0
 var _sprites: Array[Sprite3D] = []       # every sprite (for modulate passes)
-var _doll_layers: Array[Sprite3D] = []   # body, outfit, hair
 var _npc_sprite: Sprite3D = null
-var _weapon_back: Sprite3D = null
-var _weapon_front: Sprite3D = null
-var _weapon_textures := {}
-# The held weapon's category (see Inventory.held_weapon_kind) picks the
-# weapon layer and the attack animation; a shield adds the shield layer.
+# The held weapon's category (see Inventory.held_weapon_kind); a shield adds
+# the shield layer (raised on guard).
 var _weapon_kind := "none"
 var _has_shield := false
 var _shield_back: Sprite3D = null
 var _shield_front: Sprite3D = null
 var _shield_texture: Texture2D = null
-var _show_weapon := true   # false = bare-handed / ranged swing: no weapon layer
 var _show_shield := false
-var _shield_bash := false
-var _held: Sprite3D = null        # icon-pack item in hand (dagger, spear, bow, wand…)
-var _held_angle := 45.0
-var _held_tween: Tween = null
-var _weapon_art: Texture2D = null  # the equipped item's own picture (mythics), if any
-var _doll_page_textures := {}
+var _shield_in_front := false   # guard: the shield raised before the body
 
 var _frames: Array = []
 var _frame_i := 0
@@ -166,15 +108,9 @@ func setup(character_name: String) -> void:
 	if _rig and is_instance_valid(_rig):
 		_rig.queue_free()
 	_sprites.clear()
-	_doll_layers.clear()
 	_npc_sprite = null
-	_weapon_back = null
-	_weapon_front = null
 	_shield_back = null
 	_shield_front = null
-	_held = null
-	_weapon_textures.clear()
-	_doll_page_textures.clear()
 	_frames = []
 	var cfg: Dictionary = ROSTER.get(character_name, ROSTER["Brad"])
 	_rig = Node3D.new()
@@ -182,10 +118,8 @@ func setup(character_name: String) -> void:
 	add_child(_rig)
 	if cfg.has("board"):
 		_setup_board(cfg["board"])
-	elif cfg.has("npc"):
-		_setup_npc(cfg["npc"])
 	else:
-		_setup_doll(cfg["outfit"], cfg["hair"], cfg.get("hat", ""))
+		_setup_npc(cfg["npc"])
 	# Contact shadow lives OUTSIDE the rig: hops/knockback move the rig, the
 	# shadow stays on the ground and shrinks with height (see _process).
 	position.y = CameraView.SPRITE_LIFT  # nearer the camera than any wall slab (plan view depth)
@@ -270,35 +204,6 @@ static func preset_for(data: CharacterData) -> String:
 	return "Brad"
 
 
-func _setup_doll(outfit: String, hair: String, hat: String = "") -> void:
-	_mode = "doll"
-	_hand_scale = 1.0
-	_shadow_scale = 1.0
-	for page in ["p1", "pONE3"]:
-		var paths := [
-			"%s/char_a_%s/char_a_%s_0bas_humn_v01.png" % [SEED, page, page],
-			_layer_path(page, "1out", "1out", outfit),
-			_layer_path(page, "4har", "4har", hair),
-		]
-		if hat != "":
-			paths.append(_layer_path(page, "5hat", "5hat", hat))
-		var texs: Array = []
-		for p in paths:
-			texs.append(load(p))
-		_doll_page_textures[page] = texs
-	# Doll body pixels sit with feet at y=44 of the 64px cell — 12px below the
-	# cell centre — so the centred sprite lifts 12px for feet to touch ground.
-	var y := 12.0 * PIXEL_SIZE
-	var layer_count: int = _doll_page_textures["p1"].size()
-	_shield_back = _make_sprite(64, y, -0.03)
-	_weapon_back = _make_sprite(64, y, -0.02)
-	for i in range(layer_count):
-		_doll_layers.append(_make_sprite(64, y, 0.01 * i))
-	_weapon_front = _make_sprite(64, y, 0.05)
-	_shield_front = _make_sprite(64, y, 0.06)
-	_load_weapons()
-
-
 func _setup_npc(sheet_path: String) -> void:
 	_mode = "npc"
 	_body_cell = 32
@@ -309,10 +214,8 @@ func _setup_npc(sheet_path: String) -> void:
 	# NPC bodies fill their 32px cell to the bottom edge.
 	var y := 16.0 * PIXEL_SIZE
 	_shield_back = _make_sprite(64, y - 4.0 * PIXEL_SIZE, -0.03)
-	_weapon_back = _make_sprite(64, y - 4.0 * PIXEL_SIZE, -0.02)
 	_npc_sprite = _make_sprite(32, y, 0.0)
 	_npc_sprite.texture = load(sheet_path)
-	_weapon_front = _make_sprite(64, y - 4.0 * PIXEL_SIZE, 0.05)
 	_shield_front = _make_sprite(64, y - 4.0 * PIXEL_SIZE, 0.06)
 	_load_weapons()
 
@@ -338,11 +241,10 @@ func _setup_board(sheet_path: String) -> void:
 	var px := 1.0 / (ArtStyle.SMOOTH_DENSITY if smooth else BOARD_DENSITY)
 	var grow := BOARD_HEIGHT / PACK_BODY_HEIGHT
 	_hand_scale = grow
-	# The weapon and shield layers sit as on the pack's people, scaled about
-	# the feet to the hero's height so the swing comes from the hero's hand.
+	# The shield layer sits as on the pack's people, scaled about the feet to
+	# the hero's height.
 	var wy := 12.0 * PIXEL_SIZE
 	_shield_back = _make_sprite(64, wy, -0.03)
-	_weapon_back = _make_sprite(64, wy, -0.02)
 	_npc_sprite = _make_sprite(_body_cell, _body_cell * 0.5 * PIXEL_SIZE, 0.0)
 	_npc_sprite.texture = tex
 	if smooth:
@@ -353,25 +255,19 @@ func _setup_board(sheet_path: String) -> void:
 	# The pack's people (about a tile tall) cast a 0.62-wide shadow; a hero
 	# casts one as much wider as the hero is broader than them.
 	_shadow_scale = BOARD_WIDEN * BOARD_HEIGHT / 1.25
-	_weapon_front = _make_sprite(64, wy, 0.05)
 	_shield_front = _make_sprite(64, wy, 0.06)
-	for s in [_shield_back, _weapon_back, _weapon_front, _shield_front]:
+	for s in [_shield_back, _shield_front]:
 		s.pixel_size = PIXEL_SIZE * grow
 	_load_weapons()
 
 
 func _load_weapons() -> void:
-	## The pack's one-handed weapon layers: sword, axe and mace (the mace
-	## stands in for hammers). Daggers, spears, bows, wands, tomes and staffs
-	## are drawn from the icon packs instead (see KIND_ART).
-	_weapon_textures["sword"] = load("%s/char_a_pONE3/6tla/char_a_pONE3_6tla_sw01_v01.png" % SEED)
-	_weapon_textures["axe"] = load("%s/char_a_pONE3/6tla/char_a_pONE3_6tla_ax01_v01.png" % SEED)
-	_weapon_textures["mace"] = load("%s/char_a_pONE3/6tla/char_a_pONE3_6tla_mc01_v01.png" % SEED)
+	## The pack's shield layer, raised on guard. (The weapon swing layers —
+	## sword, axe, mace — and the held icon-pack items were deleted on
+	## 2026-10-30: the designer is drawing each hero's own attack animations.)
 	_shield_texture = load("%s/char_a_pONE3/7tlb/char_a_pONE3_7tlb_sh01_v01.png" % SEED)
 	_shield_back.texture = _shield_texture
 	_shield_front.texture = _shield_texture
-	_weapon_back.visible = false
-	_weapon_front.visible = false
 	_shield_back.visible = false
 	_shield_front.visible = false
 
@@ -382,156 +278,6 @@ func _load_weapons() -> void:
 func set_weapon_kind(kind: String, has_shield: bool, art: Texture2D = null) -> void:
 	_weapon_kind = kind if kind != "" else "none"
 	_has_shield = has_shield
-	_weapon_art = art
-
-
-# --- Held items from the icon packs -----------------------------------------
-
-func _ensure_held() -> Sprite3D:
-	if _held and is_instance_valid(_held):
-		return _held
-	if _rig == null:
-		return null
-	_held = _flat_sprite()
-	_held.name = "HeldItem"
-	_held.visible = false
-	_rig.add_child(_held)
-	return _held
-
-
-## A sprite lying flat on the ground plane: under the near-top-down camera it
-## reads exactly like a billboard, but can be turned to point any direction.
-func _flat_sprite() -> Sprite3D:
-	var s := Sprite3D.new()
-	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	s.pixel_size = PIXEL_SIZE
-	s.rotation = Vector3(-PI / 2.0, 0.0, 0.0)
-	s.shaded = false
-	s.no_depth_test = true
-	s.render_priority = 5
-	return s
-
-
-## Point a flat sprite whose art is drawn at `art_angle` along `dir`.
-static func _aim_flat(s: Sprite3D, dir: Vector3, art_angle: float) -> void:
-	var angle_d := rad_to_deg(atan2(-dir.z, dir.x))
-	s.rotation = Vector3(-PI / 2.0, deg_to_rad(angle_d - art_angle), 0.0)
-
-
-func _present_held(kind: String) -> bool:
-	var s := _ensure_held()
-	if s == null:
-		return false
-	if _weapon_art != null:
-		s.texture = _weapon_art
-		s.region_enabled = false
-		# Fitted by size: a 32px generated icon and a 128px painted one hold the same.
-		var long_px := maxf(1.0, maxf(_weapon_art.get_width(), _weapon_art.get_height()))
-		s.scale = Vector3.ONE * (ART_HELD_SIZE / (long_px * PIXEL_SIZE))
-		s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS if long_px > 32.0 \
-				else BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		_held_angle = 45.0
-		return true
-	if not KIND_ART.has(kind):
-		return false
-	s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	var cfg: Dictionary = KIND_ART[kind]
-	if cfg.get("sheet", false):
-		s.texture = load(WEAPON_SHEET)
-		s.region_enabled = true
-		s.region_rect = cfg["region"]
-	else:
-		s.texture = load("%s/%s.png" % [WEAPON_ICON_DIR, cfg["icon"]])
-		s.region_enabled = false
-	s.scale = Vector3.ONE * float(cfg.get("scale", 1.0))
-	_held_angle = float(cfg["angle"])
-	return true
-
-
-## The hand: a little ahead of the body and to its right, at chest height.
-func _hand_pos(extra_forward: float = 0.0) -> Vector3:
-	var fwd := _forward_vec()
-	var right := Vector3(-fwd.z, 0, fwd.x)
-	return fwd * (0.22 + extra_forward) + right * 0.12 + Vector3(0, 0.5, -HAND_LIFT * _hand_scale)
-
-
-func _place_held(extra_forward: float = 0.0) -> void:
-	_held.position = _hand_pos(extra_forward)
-	_aim_flat(_held, _forward_vec(), _held_angle)
-	_held.visible = true
-
-
-func _kill_held_tween() -> void:
-	if _held_tween and _held_tween.is_valid():
-		_held_tween.kill()
-	_held_tween = null
-
-
-func _hide_held() -> void:
-	if _held and is_instance_valid(_held):
-		_held.visible = false
-
-
-## Dagger / spear: the blade darts out along the facing and back.
-func _held_thrust(kind: String, reach: float) -> void:
-	if not _present_held(kind):
-		return
-	_kill_held_tween()
-	_place_held()
-	var start := _held.position
-	var fwd := _forward_vec()
-	_held_tween = create_tween()
-	_held_tween.tween_property(_held, "position", start + fwd * reach, 0.1) \
-			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	_held_tween.tween_interval(0.06)
-	_held_tween.tween_property(_held, "position", start, 0.12)
-	_held_tween.tween_callback(_hide_held)
-
-
-## Bow: draw back, then loose an arrow from the icon pack toward the facing.
-func _held_shoot() -> void:
-	if not _present_held("bow"):
-		return
-	_kill_held_tween()
-	_place_held()
-	var start := _held.position
-	var fwd := _forward_vec()
-	_held_tween = create_tween()
-	_held_tween.tween_property(_held, "position", start - fwd * 0.08, 0.12)
-	_held_tween.tween_callback(_shoot_icon_arrow)
-	_held_tween.tween_property(_held, "position", start + fwd * 0.04, 0.05)
-	_held_tween.tween_interval(0.25)
-	_held_tween.tween_callback(_hide_held)
-
-
-func _shoot_icon_arrow() -> void:
-	var a := _flat_sprite()
-	a.texture = load("%s/%s.png" % [WEAPON_ICON_DIR, ARROW_ICON])
-	a.scale = Vector3.ONE * ARROW_SCALE
-	var fwd := _forward_vec()
-	# Outside the rig so a hop doesn't carry the arrow with it.
-	a.position = (_rig.position if _rig else Vector3.ZERO) + _hand_pos(0.1)
-	_aim_flat(a, fwd, ARROW_ANGLE)
-	add_child(a)
-	var tw := a.create_tween()
-	tw.tween_property(a, "position", a.position + fwd * ARROW_FLIGHT, ARROW_TIME) \
-			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.tween_callback(a.queue_free)
-
-
-## Wand / tome / staff: raise the focus, then lower it.
-func _held_cast(kind: String) -> void:
-	if not _present_held(kind):
-		return
-	_kill_held_tween()
-	_place_held()
-	var start := _held.position
-	_held_tween = create_tween()
-	_held_tween.tween_property(_held, "position", start + Vector3(0, 0.14, 0) - _forward_vec() * 0.05, 0.12) \
-			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	_held_tween.tween_interval(0.1)
-	_held_tween.tween_property(_held, "position", start, 0.15)
-	_held_tween.tween_callback(_hide_held)
 
 
 func _make_sprite(cell: int, y: float, sort: float) -> Sprite3D:
@@ -566,21 +312,16 @@ func _make_sprite(cell: int, y: float, sort: float) -> Sprite3D:
 
 func play_action(action: String, direction: int = CharacterAnimator.Direction.SOUTH) -> void:
 	set_facing(direction)
-	# A held shield turns shield-flavoured attacks into the pack's shield
-	# bash (its bespoke effect, if any, still plays on top).
-	if _has_shield and action in SHIELD_BASH_ACTIONS:
-		_play("attack_shield_bash")
-		if _fx and ActionFX.handles(action):
-			_fx.play(action)
-		return
 	# Bespoke per-card effects first: ActionFX supplies the signature visual
 	# (icicle, fireball, flying pig, …) and we play a matching body motion.
 	if _fx and ActionFX.handles(action):
 		_play_body(ActionFX.body_for(action))
 		_fx.play(action)
 		return
-	if action in AXE_ACTIONS or _is_attack(action):
-		_play_weapon_attack(action in AXE_ACTIONS)
+	if _is_attack(action):
+		# No weapon swing (deleted 2026-10-30; the designer is drawing each
+		# hero's basic and card attacks): the body lunges toward the target.
+		_play("attack_unarmed")
 	elif action in GUARD_ACTIONS:
 		_guard_fx()
 		if _has_shield:
@@ -596,34 +337,6 @@ func play_action(action: String, direction: int = CharacterAnimator.Direction.SO
 		# Casts, buffs, taunts, item use, … — a readable generic "do something".
 		flash(Color(1.0, 1.0, 0.8))
 		_bounce_fx()
-
-
-## The attack the held weapon calls for. Heavy chops use the pack's second
-## slash; daggers and spears thrust; a bow looses an arrow; magic weapons
-## cast (no carried sprite exists for those yet); bare hands swing empty.
-func _play_weapon_attack(heavy: bool) -> void:
-	match _weapon_kind:
-		"bow":
-			_bounce_fx()
-			_held_shoot()
-		"wand", "tome", "staff":
-			flash(Color(0.8, 0.85, 1.0))
-			_bounce_fx()
-			_held_cast(_weapon_kind)
-		"axe":
-			_play("attack_axe")
-		"hammer":
-			_play("attack_hammer")
-		"dagger":
-			_play("attack_thrust")
-			_held_thrust("dagger", 0.45)
-		"spear":
-			_play("attack_thrust")
-			_held_thrust("spear", 0.8)
-		"none":
-			_play("attack_unarmed")
-		_:
-			_play("attack_sword2" if heavy else "attack_sword")
 
 
 func _is_attack(action: String) -> bool:
@@ -676,8 +389,7 @@ func _forward_vec() -> Vector3:
 ## Body motion played alongside an ActionFX effect (hint from ActionFX.BODY).
 func _play_body(hint: String) -> void:
 	match hint:
-		"sword": _play("attack_sword")
-		"axe": _play("attack_axe")
+		"sword", "axe": _play("attack_unarmed")  # the weapon swing is gone (designer, 2026-10-30): a body lunge
 		"guard": _guard_fx()
 		"crouch": _crouch_fx()
 		"hop": _hop_fx()
@@ -849,37 +561,16 @@ func _play(anim: String, _force: bool = false) -> void:
 	match anim:
 		"idle":
 			_looping = true
-			if _mode == "doll":
-				_set_doll_page("p1")
-				_frames = [{"col": 0, "row": DOLL_ROW[facing], "t": 1.0}]
-			else:
-				_frames = [{"col": 0, "row": _body_rows[facing], "t": 1.0}]
+			_frames = [{"col": 0, "row": _body_rows[facing], "t": 1.0}]
 			_hide_weapon()
 		"walk":
 			_looping = true
 			_frames = []
-			if _mode == "doll":
-				_set_doll_page("p1")
-				for c in range(6):
-					_frames.append({"col": c, "row": 4 + DOLL_ROW[facing], "t": WALK_TIME})
-			else:
-				for c in range(_body_walk_frames):
-					_frames.append({"col": c, "row": _body_rows[facing], "t": NPC_WALK_TIME})
+			for c in range(_body_walk_frames):
+				_frames.append({"col": c, "row": _body_rows[facing], "t": NPC_WALK_TIME})
 			_hide_weapon()
-		"attack_sword":
-			_start_attack("sword", 0)
-		"attack_sword2":
-			_start_attack("sword", 4)
-		"attack_axe":
-			_start_attack("axe", 4)
-		"attack_hammer":
-			_start_attack("mace", 4)
-		"attack_thrust":
-			_start_attack("", 0, 4)  # the icon-pack item in hand does the stabbing
 		"attack_unarmed":
-			_start_attack("", 0)
-		"attack_shield_bash":
-			_start_attack("", 4, 4, true)
+			_start_attack(0)
 		"guard_shield":
 			_start_guard()
 	_apply_frame()
@@ -891,42 +582,24 @@ func _play(anim: String, _force: bool = false) -> void:
 func _start_guard() -> void:
 	_looping = false
 	_attacking = true
-	if _mode == "doll":
-		_set_doll_page("pONE3")
 	_frames = [{"col": 4, "row": DOLL_ROW[facing] + 4, "t": 0.45}]
-	_show_weapon = false
 	_show_shield = _has_shield and _shield_texture != null and _shield_back != null
-	_shield_bash = true
+	_shield_in_front = true
 
 
-## pONE3 layout: top half = slash 1 (cols 0-3) and slash 2 (cols 4-7),
-## bottom half (row_off 4) = thrust (cols 0-3) and shield bash (cols 4-7).
-func _start_attack(weapon: String, col0: int, row_off: int = 0, shield_bash: bool = false) -> void:
+## An attack's four timed frames (the body lunges on the middle two); no
+## weapon is drawn and the shield, if any, stays behind the body.
+func _start_attack(col0: int, row_off: int = 0) -> void:
 	_looping = false
 	_attacking = true
-	if _mode == "doll":
-		_set_doll_page("pONE3")
 	_frames = []
 	for i in range(4):
 		_frames.append({"col": col0 + i, "row": DOLL_ROW[facing] + row_off, "t": ATTACK_TIMES[i]})
-	_show_weapon = weapon != "" and _weapon_textures.has(weapon)
-	if _show_weapon:
-		_weapon_back.texture = _weapon_textures[weapon]
-		_weapon_front.texture = _weapon_textures[weapon]
 	_show_shield = _has_shield and _shield_texture != null and _shield_back != null
-	_shield_bash = shield_bash
-
-
-func _set_doll_page(page: String) -> void:
-	var texs: Array = _doll_page_textures[page]
-	for i in range(_doll_layers.size()):
-		_doll_layers[i].texture = texs[i]
+	_shield_in_front = false
 
 
 func _hide_weapon() -> void:
-	if _weapon_back:
-		_weapon_back.visible = false
-		_weapon_front.visible = false
 	if _shield_back:
 		_shield_back.visible = false
 		_shield_front.visible = false
@@ -975,39 +648,24 @@ func _apply_frame() -> void:
 	var f: Dictionary = _frames[_frame_i]
 	if _attacking:
 		var row: int = f["row"]
-		var in_front := Vector2i(row % 4, f["col"]) in WEAPON_FRONT_CELLS
-		_weapon_front.visible = _show_weapon and in_front
-		_weapon_back.visible = _show_weapon and not in_front
 		var rect := Rect2(f["col"] * 64, row * 64, 64, 64)
-		_weapon_front.region_rect = rect
-		_weapon_back.region_rect = rect
 		if _shield_back:
-			# The shield rides behind the body except when it is the thing
-			# swinging (shield bash).
-			_shield_front.visible = _show_shield and _shield_bash
-			_shield_back.visible = _show_shield and not _shield_bash
+			# The shield rides behind the body except when it is raised (guard).
+			_shield_front.visible = _show_shield and _shield_in_front
+			_shield_back.visible = _show_shield and not _shield_in_front
 			_shield_front.region_rect = rect
 			_shield_back.region_rect = rect
-		if _mode == "doll":
-			for s in _doll_layers:
-				s.region_rect = rect
-		else:
-			# NPC sheets have no attack pose: hold the stand frame and lunge a
-			# couple of pixels on the active swing frames to sell the swing.
-			_npc_sprite.region_rect = Rect2(0, _body_rows[facing] * _body_cell, _body_cell, _body_cell)
-			var lunge := Vector3.ZERO
-			if f["col"] % 4 in [1, 2]:
-				match facing:
-					CharacterAnimator.Direction.NORTH: lunge = Vector3(0, 0, -0.1)
-					CharacterAnimator.Direction.SOUTH: lunge = Vector3(0, 0, 0.1)
-					CharacterAnimator.Direction.EAST: lunge = Vector3(0.1, 0, 0)
-					CharacterAnimator.Direction.WEST: lunge = Vector3(-0.1, 0, 0)
-			_npc_sprite.position.x = lunge.x
-			_npc_sprite.position.z = lunge.z
+		# The bodies have no attack pose: hold the stand frame and lunge a
+		# couple of pixels on the active swing frames to sell the swing.
+		_npc_sprite.region_rect = Rect2(0, _body_rows[facing] * _body_cell, _body_cell, _body_cell)
+		var lunge := Vector3.ZERO
+		if f["col"] % 4 in [1, 2]:
+			match facing:
+				CharacterAnimator.Direction.NORTH: lunge = Vector3(0, 0, -0.1)
+				CharacterAnimator.Direction.SOUTH: lunge = Vector3(0, 0, 0.1)
+				CharacterAnimator.Direction.EAST: lunge = Vector3(0.1, 0, 0)
+				CharacterAnimator.Direction.WEST: lunge = Vector3(-0.1, 0, 0)
+		_npc_sprite.position.x = lunge.x
+		_npc_sprite.position.z = lunge.z
 		return
-	if _mode == "doll":
-		var rect := Rect2(f["col"] * 64, f["row"] * 64, 64, 64)
-		for s in _doll_layers:
-			s.region_rect = rect
-	else:
-		_npc_sprite.region_rect = Rect2(f["col"] * _body_cell, f["row"] * _body_cell, _body_cell, _body_cell)
+	_npc_sprite.region_rect = Rect2(f["col"] * _body_cell, f["row"] * _body_cell, _body_cell, _body_cell)

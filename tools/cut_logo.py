@@ -18,7 +18,7 @@ from scipy import ndimage as nd
 
 SRC = "assets/sprites/paintings/logo_board.webp"
 OUT = "assets/textures/ui/to_logo_%d.png"
-SIZES = [20, 26, 32, 36, 40, 44, 48, 52, 56, 64, 128, 256]
+SIZES = [20, 24, 26, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 128, 256]
 
 
 def floor_mask(a):
