@@ -330,19 +330,21 @@ func _ensure_to_logo() -> void:
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var shadow := TextureRect.new()
 	shadow.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
-	shadow.texture = UIGlyphs.to_logo(32)
+	# Centred on the bar's middle (7, 0 in the holder), whatever its size.
+	var ls: float = UIGlyphs.card_logo_size
+	shadow.texture = UIGlyphs.to_logo(int(ls))
 	shadow.stretch_mode = TextureRect.STRETCH_SCALE
-	shadow.position = Vector2(-7.5, -14.5)
-	shadow.size = Vector2(32, 32)
+	shadow.position = Vector2(8.5 - ls * 0.5, 1.5 - ls * 0.5)
+	shadow.size = Vector2(ls, ls)
 	shadow.modulate = Color(0, 0, 0, 0.5)
 	shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(shadow)
 	var seal := TextureRect.new()
 	seal.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
-	seal.texture = UIGlyphs.to_logo(32)
+	seal.texture = UIGlyphs.to_logo(int(ls))
 	seal.stretch_mode = TextureRect.STRETCH_SCALE
-	seal.position = Vector2(-9, -16)
-	seal.size = Vector2(32, 32)
+	seal.position = Vector2(7.0 - ls * 0.5, -ls * 0.5)
+	seal.size = Vector2(ls, ls)
 	seal.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(seal)
 	# Sit between the type text (left, expanding) and the range text (right,

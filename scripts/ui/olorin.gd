@@ -518,8 +518,8 @@ func _build_speech_bar(title: String, paragraphs: Array, icon: Control, icon_aft
 	bar.offset_top = -SPEECH_MARGIN
 	bar.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	var style := CrestStyleBox.new(SPEECH_BG, SPEECH_BORDER, 10, 2)
-	style.crest_size = 26.0
-	style.content_margin_top = 18.0
+	style.crest_size = CrestStyleBox.default_size * 1.3
+	style.content_margin_top = maxf(18.0, style.content_margin_top)   # room for the crest
 	style.content_margin_left = 16.0
 	style.content_margin_right = 20.0
 	style.content_margin_bottom = 14.0
