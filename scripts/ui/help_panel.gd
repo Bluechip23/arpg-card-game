@@ -28,10 +28,32 @@ var _prompt: Control = null
 func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS   # usable while the game is paused
+	_dress()
 	if close_button:
 		close_button.pressed.connect(_on_close_pressed)
 	if settings_tab:
 		settings_tab.tick_speed_changed.connect(func(speed): tick_speed_changed.emit(speed))
+
+## The menus' Emerald Sanctum look (2026-10-30; was the engine's plain grey
+## panel and tabs): dark emerald glass framed in gold, Courgette throughout,
+## the tabs named for people rather than nodes, a gilt Close button.
+const TAB_TITLES := ["Keywords", "How to Play", "Settings"]
+
+func _dress() -> void:
+	if panel == null:
+		return
+	EmeraldTheme.apply_in_game(panel)
+	var frame := EmeraldTheme.panel_box(EmeraldTheme.PANEL_BG_SOLID, EmeraldTheme.GOLD_DIM, 2, 8, 14.0)
+	panel.add_theme_stylebox_override("panel", frame)
+	if tab_container:
+		for i in mini(tab_container.get_tab_count(), TAB_TITLES.size()):
+			tab_container.set_tab_title(i, TAB_TITLES[i])
+		tab_container.add_theme_font_size_override("font_size", 18)
+	if close_button:
+		close_button.text = "Close  [H / Esc]"
+		close_button.custom_minimum_size = Vector2(0, 34)
+		close_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+		EmeraldTheme.style_button(close_button, 16)
 
 ## Show the Save / Quit to Menu / Quit to Desktop row under the tabs. With
 ## `can_save` off (the sandbox arena: nothing there is a saved character)

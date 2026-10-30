@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://0fnsodmxpqu8"
-path="res://.godot/imported/act_attack.png-a38e6defd4d7ea1375ab184e7d2956b8.ctex"
+uid="uid://6mon0myp5471"
+path="res://.godot/imported/act_attack_slim.png-72e73594a2ce0e8a31d39fb580307162.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/ui/hud/act_attack.png"
-dest_files=["res://.godot/imported/act_attack.png-a38e6defd4d7ea1375ab184e7d2956b8.ctex"]
+source_file="res://assets/textures/ui/hud/act_attack_slim.png"
+dest_files=["res://.godot/imported/act_attack_slim.png-72e73594a2ce0e8a31d39fb580307162.ctex"]
 
 [params]
 

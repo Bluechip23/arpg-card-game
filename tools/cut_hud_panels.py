@@ -265,8 +265,8 @@ def cut_actions():
     dst[keep] = src[keep]
     layout = {}
     for name, spec in ACTIONS.items():
-        if name == "wait":
-            continue   # only its compact cut (below) is on screen
+        if name in ("wait", "attack", "block"):
+            continue   # only their slimmed cuts (below) are on screen
         x0, y0, x1, y1 = spec["box"]
         img = np.dstack([clean, fg * 255]).astype(np.uint8)[y0:y1, x0:x1]
         im = save(shrink(img, ACT_K), "act_%s" % name)
@@ -274,16 +274,31 @@ def cut_actions():
         if spec["num"]:
             num = (round((spec["num"][0] - x0) * ACT_K), round((spec["num"][1] - y0) * ACT_K))
         layout[name] = {"size": (im.width, im.height), "num": num}
-    # Wait, compact, to sit in the attack row: the long frame's left end
-    # with the hand, joined to its right end cap, at the attack row's height.
-    x0, y0, x1, y1 = ACTIONS["wait"]["box"]
-    full = np.dstack([clean, fg * 255]).astype(np.uint8)[y0:y1, x0:x1]
-    cut_at, cap = 335 - x0, 1030 - x0
-    short = np.concatenate([full[:, :cut_at], full[:, cap:]], axis=1)
-    rows = layout["attack"]["size"][1]
-    k = rows / float(short.shape[0])
-    im = save(shrink(np.ascontiguousarray(short), size=(round(short.shape[1] * k), rows)), "act_wait_short")
-    layout["wait_short"] = {"size": (im.width, im.height), "num": (round((298 - x0) * k), round((885 - y0) * k))}
+    # The attack row is as wide as the flash row above it (the designer:
+    # attack and shield 90%, wait 10%). Its faces are slimmed by dropping
+    # stretches of empty interior (board px column spans kept, joined edge to
+    # edge), at the row's height; wait is the long frame's two ends round
+    # the hand alone (its tempo is in the tooltip).
+    art = np.dstack([clean, fg * 255]).astype(np.uint8)
+    rows = round((ACTIONS["attack"]["box"][3] - ACTIONS["attack"]["box"][1]) * ACT_K)
+    for name, row_box, spans, num in [
+            ("attack_slim", ACTIONS["attack"]["box"], [(30, 555), (668, 768)], (275, 715)),
+            ("block_slim", ACTIONS["block"]["box"], [(768, 1035), (1068, 1100)], (980, 715)),
+            ("wait_slim", ACTIONS["wait"]["box"], [(30, 60), (140, 226), (1084, 1110)], None)]:
+        y0, y1 = row_box[1], row_box[3]
+        parts = [art[y0:y1, a:b] for a, b in spans]
+        joined = np.ascontiguousarray(np.concatenate(parts, axis=1))
+        k = rows / float(joined.shape[0])
+        im = save(shrink(joined, size=(round(joined.shape[1] * k), rows)), "act_" + name)
+        n = None
+        if num:
+            off = 0
+            for a, b in spans:
+                if a <= num[0] < b:
+                    n = (round((off + num[0] - a) * k), round((num[1] - y0) * k))
+                    break
+                off += b - a
+        layout[name] = {"size": (im.width, im.height), "num": n}
     return layout
 
 

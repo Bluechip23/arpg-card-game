@@ -1347,8 +1347,8 @@ const HUD_FACES := {
 	"flash": [Vector2(118, 34), Vector2(85, 18)], "boots": [Vector2(31, 34), null],
 	"sidestep": [Vector2(29, 34), null], "quick": [Vector2(34, 34), null],
 	"brain": [Vector2(118, 33), Vector2(85, 17)], "peek": [Vector2(42, 33), null],
-	"buy": [Vector2(40, 33), Vector2(30, 10)], "attack": [Vector2(148, 34), Vector2(49, 18)],
-	"block": [Vector2(66, 34), Vector2(42, 18)], "wait_short": [Vector2(69, 34), Vector2(48, 17)],
+	"buy": [Vector2(40, 33), Vector2(30, 10)], "attack_slim": [Vector2(125, 34), Vector2(49, 18)],
+	"block_slim": [Vector2(60, 34), Vector2(42, 18)], "wait_slim": [Vector2(25, 34), null],
 	"discard": [Vector2(79, 79), Vector2(53, 59)],
 }
 
@@ -1602,7 +1602,7 @@ func _setup_action_buttons() -> void:
 	_attack_tempo_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	atk_row.add_child(_attack_tempo_label)
 	_attack_button.add_child(atk_row)
-	_skin_hud_button(_attack_button, "attack")
+	_skin_hud_button(_attack_button, "attack_slim")
 	# Auto attack and Raise Shield share one row: the two basic actions side
 	# by side, the shield showing the armor it gives beside its tempo.
 	var attack_row := HBoxContainer.new()
@@ -1623,7 +1623,8 @@ func _setup_action_buttons() -> void:
 	_block_button.disabled = true
 	_block_button.pressed.connect(_on_block_pressed)
 	attack_row.add_child(_block_button)
-	_skin_hud_button(_block_button, "block")
+	_skin_hud_button(_block_button, "block_slim")
+	_block_button.add_theme_font_size_override("font_size", 14)
 
 	# War Rack button (Brad only): swap hands with the gear on his back.
 	_rack_button = Button.new()
@@ -1635,16 +1636,15 @@ func _setup_action_buttons() -> void:
 	_rack_button.visible = false
 	vbox.add_child(_rack_button)
 
-	# Wait (raised hand + the 1 tempo it advances) closes the attack row, beside
-	# Raise Shield (designer, 2026-10-29; it had a row of its own). Its face is
-	# the long wait frame cut short to the row's height.
+	# Wait closes the attack row (designer, 2026-10-30: attack and shield take
+	# 90% of a row as wide as the others, wait the last 10%): the raised hand
+	# in a narrow frame, its 1 tempo in the tooltip.
 	var wait_btn := Button.new()
 	wait_btn.name = "WaitButton"
-	wait_btn.text = "1T"
-	wait_btn.tooltip_text = "Advance the tempo clock by 1 without playing a card"
+	wait_btn.tooltip_text = "Wait: advance the tempo clock by 1 without playing a card"
 	wait_btn.pressed.connect(_on_wait_pressed)
 	attack_row.add_child(wait_btn)
-	_skin_hud_button(wait_btn, "wait_short")
+	_skin_hud_button(wait_btn, "wait_slim")
 
 #endregion
 #region TICK BAR & ACTION QUEUE
@@ -8170,14 +8170,14 @@ func _update_attack_button_text() -> void:
 		# Glow red when the dex proc is active (next attack benefits from it):
 		# the stone face under a hot red cast.
 		if proc_active:
-			_attack_button.add_theme_stylebox_override("normal", _hud_face("attack", Color(1.55, 0.62, 0.55)))
-			_attack_button.add_theme_stylebox_override("hover", _hud_face("attack", Color(1.75, 0.75, 0.65)))
+			_attack_button.add_theme_stylebox_override("normal", _hud_face("attack_slim", Color(1.55, 0.62, 0.55)))
+			_attack_button.add_theme_stylebox_override("hover", _hud_face("attack_slim", Color(1.75, 0.75, 0.65)))
 			if _attack_tempo_label:
 				_attack_tempo_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.85))
 		else:
 			# Back to the plain stone face.
-			_attack_button.add_theme_stylebox_override("normal", _hud_face("attack"))
-			_attack_button.add_theme_stylebox_override("hover", _hud_face("attack", Color(1.22, 1.22, 1.12)))
+			_attack_button.add_theme_stylebox_override("normal", _hud_face("attack_slim"))
+			_attack_button.add_theme_stylebox_override("hover", _hud_face("attack_slim", Color(1.22, 1.22, 1.12)))
 			if _attack_tempo_label:
 				_attack_tempo_label.add_theme_color_override("font_color", Color(1.0, 0.96, 0.86))
 
