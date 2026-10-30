@@ -45,6 +45,32 @@ const TWEEN_DURATION: float = 0.12
 # MtG-style frame colour per card type (border, title/type bars, art tint).
 var _type_color: Color = Color(0.45, 0.45, 0.55)
 
+## The designer's painted frames, one per card type as they land
+## (tools/cut_card_frames.py, 2026-10-30). "rect" is where the frame
+## texture sits over the 150x210 card: the board's card rectangle maps onto
+## the card, its feathers, drop and hourglass hanging outside it. A type
+## without one keeps the drawn frame.
+const FRAMES := {
+	Card.CardType.REACTION: {
+		"tex": "res://assets/textures/cards/frame_instant.png",
+		"rect": Rect2(-5.73, -16.25, 161.6, 233.1),
+	},
+}
+## Where the painted frames put things (card pixels; every board shares
+## the Instant board's layout): the cost numbers' centres on the painted drop
+## and hourglass, the tempo dots' row, the logo's ring.
+const FRAMED_MANA_AT := Vector2(14.1, 13.4)
+const FRAMED_TEMPO_AT := Vector2(136.1, 13.2)
+const FRAMED_DOTS_Y := 8.2
+const FRAMED_DOT := 8.0
+const FRAMED_LOGO_AT := Vector2(74.6, 107.1)   # the ring's centre
+const FRAMED_LOGO_SIZE := 48
+const FRAMED_DESC_BOX := Vector2(116, 38)      # the parchment above its picture
+const FRAMED_INK := Color(0.16, 0.1, 0.05)     # rules text on the parchment
+const FRAMED_NAME := Color(0.97, 0.92, 0.8)    # the name's cream
+var _frame: Dictionary = {}
+var _frame_art: TextureRect = null
+
 func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_active: bool = false, pocket_knife: bool = false, greedy_tax: Dictionary = {}) -> void:
 	_card = card
 	_index = index
@@ -77,6 +103,7 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 			Card.CardType.ENCHANTMENT:
 				type_label.add_theme_color_override("font_color", Color(0.2, 0.9, 0.8))
 				_type_color = Color(0.18, 0.58, 0.55)
+		_frame = FRAMES.get(card.card_type, {})
 		_style_frame()
 
 	if range_label:
@@ -488,7 +515,12 @@ func _update_description() -> void:
 	var effective := {}
 	if value_provider.is_valid():
 		effective = value_provider.call(_card)
-	desc_label.text = _card.get_display_description(effective)
+	var text: String = _card.get_display_description(effective)
+	if not _frame.is_empty():
+		# The light greens and reds read on the dark box, not the parchment.
+		text = text.replace("#8be98b", "#1d6b1d").replace("#ff9c9c", "#9a1d16") \
+			.replace("[color=green]", "[color=#1d6b1d]").replace("[color=red]", "[color=#9a1d16]")
+	desc_label.text = text
 	_fit_description()
 
 ## Long card text shrinks to fit the face instead of spilling off it: the
@@ -508,9 +540,10 @@ func _fit_description() -> void:
 	if font == null:
 		return
 	var plain: String = desc_label.get_parsed_text()
-	var width: float = desc_label.size.x if desc_label.size.x > 40.0 else DESC_BOX.x
+	var box: Vector2 = DESC_BOX if _frame.is_empty() else FRAMED_DESC_BOX
+	var width: float = desc_label.size.x if desc_label.size.x > 40.0 else box.x
 	var fs := DESC_FONT_MAX
-	while fs > DESC_FONT_MIN and font.get_multiline_string_size(plain, HORIZONTAL_ALIGNMENT_LEFT, width, fs).y > DESC_BOX.y:
+	while fs > DESC_FONT_MIN and font.get_multiline_string_size(plain, HORIZONTAL_ALIGNMENT_LEFT, width, fs).y > box.y:
 		fs -= 1
 	desc_label.add_theme_font_size_override("normal_font_size", fs)
 	desc_label.add_theme_font_size_override("bold_font_size", fs)
@@ -800,6 +833,16 @@ func animate_play(target_screen_pos: Vector2, on_complete: Callable = Callable()
 	)
 
 func _apply_gold_trim() -> void:
+	if not _frame.is_empty():
+		# The painted frame keeps its look; a gold line rings it when chosen.
+		var ring := StyleBoxFlat.new()
+		ring.draw_center = false
+		ring.set_border_width_all(2)
+		ring.border_color = Color(1.0, 0.84, 0.0)
+		ring.set_corner_radius_all(8)
+		ring.set_expand_margin_all(2)
+		add_theme_stylebox_override("panel", ring)
+		return
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.11, 0.1, 0.09, 1.0)
 	style.border_width_left = 3
@@ -814,6 +857,9 @@ func _apply_gold_trim() -> void:
 	add_theme_stylebox_override("panel", style)
 
 func _apply_default_style() -> void:
+	if not _frame.is_empty():
+		add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+		return
 	# MtG-style outer frame: a thick dark "card back" edge with the type's
 	# colour glowing through the inner border.
 	var style = StyleBoxFlat.new()
@@ -854,6 +900,9 @@ func _style_frame() -> void:
 	## art window (placeholder until real artwork lands), type line, and a
 	## parchment-dark rules box.
 	_apply_default_style()
+	if not _frame.is_empty():
+		_style_painted_frame()
+		return
 	if title_bar:
 		# Extra side margins keep the title clear of the corner cost badges.
 		var tb := _bar_style(_type_color.darkened(0.45))
@@ -879,6 +928,108 @@ func _style_frame() -> void:
 		box.content_margin_top = 4
 		box.content_margin_bottom = 4
 		desc_panel.add_theme_stylebox_override("panel", box)
+
+## Dress the card in its type's painted frame: the frame drawn behind
+## everything, the bars bare so the painting shows, each line laid on the
+## painted bar it belongs to; the costs written on the painted drop and
+## hourglass, the logo on the type bar's ring spot.
+func _style_painted_frame() -> void:
+	var host: Control = get_node_or_null("Panel")
+	if host == null:
+		return
+	host.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+	if _frame_art == null:
+		_frame_art = TextureRect.new()
+		_frame_art.name = "FrameArt"
+		_frame_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_frame_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_frame_art.stretch_mode = TextureRect.STRETCH_SCALE
+		_frame_art.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		host.add_child(_frame_art)
+		host.move_child(_frame_art, 0)
+	_frame_art.texture = load(_frame["tex"])
+	var r: Rect2 = _frame["rect"]
+	_frame_art.position = r.position
+	_frame_art.size = r.size
+	# The sections stacked onto the painted bars (card pixels): name bar
+	# 14-36, art window 36-100, type bar 100-118, parchment from 118.
+	var vbox: VBoxContainer = host.get_node_or_null("VBox")
+	if vbox:
+		vbox.offset_left = 14.0
+		vbox.offset_right = -12.0
+		vbox.offset_top = 14.0
+		vbox.offset_bottom = -8.0
+		vbox.add_theme_constant_override("separation", 0)
+	if title_bar:
+		var tb := StyleBoxEmpty.new()
+		tb.content_margin_left = 21
+		tb.content_margin_right = 16
+		tb.content_margin_bottom = 3
+		title_bar.add_theme_stylebox_override("panel", tb)
+		title_bar.custom_minimum_size = Vector2(0, 22)
+	if name_label:
+		name_label.add_theme_color_override("font_color", FRAMED_NAME)
+		name_label.add_theme_color_override("font_outline_color", Color(0.1, 0.06, 0.02))
+		name_label.add_theme_constant_override("outline_size", 4)
+	if art_box:
+		art_box.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+		art_box.custom_minimum_size = Vector2(0, 64)
+		_set_card_art()
+	if type_bar:
+		var tp := StyleBoxEmpty.new()
+		tp.content_margin_left = 2
+		tp.content_margin_right = 3
+		type_bar.add_theme_stylebox_override("panel", tp)
+		type_bar.custom_minimum_size = Vector2(0, 18)
+	if desc_panel:
+		var box := StyleBoxEmpty.new()
+		box.content_margin_left = 3.5
+		box.content_margin_right = 4
+		box.content_margin_top = 4
+		desc_panel.add_theme_stylebox_override("panel", box)
+	if desc_label:
+		desc_label.add_theme_color_override("default_color", FRAMED_INK)
+	_place_framed_costs()
+	_place_framed_logo()
+
+
+## The costs written straight onto the painted drop and hourglass.
+func _place_framed_costs() -> void:
+	_ensure_cost_badges()
+	for pair in [[_mana_badge, _mana_num, FRAMED_MANA_AT], [_tempo_badge, _tempo_num, FRAMED_TEMPO_AT]]:
+		var badge: Control = pair[0]
+		var num: Label = pair[1]
+		if badge == null:
+			continue
+		for c in badge.get_children():
+			if c is TextureRect:
+				c.visible = false
+		var at: Vector2 = pair[2]
+		badge.position = at - badge.size * 0.5
+		num.offset_top = 0.0
+
+
+## The logo on the painted frame's ring spot (the frame's own was painted
+## out), in place of the seal riding the type line.
+func _place_framed_logo() -> void:
+	var held: Node = get_node_or_null("Panel/VBox/TypeBar/TypeHBox/TOLogo")
+	if held:
+		for c in held.get_children():
+			c.visible = false
+	var host: Control = get_node_or_null("Panel")
+	if host == null or host.get_node_or_null("FrameLogo"):
+		return
+	var ls := float(FRAMED_LOGO_SIZE)
+	var seal := TextureRect.new()
+	seal.name = "FrameLogo"
+	seal.texture = UIGlyphs.to_logo(FRAMED_LOGO_SIZE)
+	seal.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	seal.stretch_mode = TextureRect.STRETCH_SCALE
+	seal.size = Vector2(ls, ls)
+	seal.position = (FRAMED_LOGO_AT - Vector2(ls, ls) * 0.5).round()
+	seal.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	host.add_child(seal)
+
 
 func _set_card_art() -> void:
 	## Craftpix skill icon in the art window (SkillIconArt picks per card_id,
@@ -936,11 +1087,28 @@ func _build_tempo_bars(card: Card, tempo_override: int = -1, resolve_override: i
 	# on the card, not the inner panel.
 	bar_container.position = Vector2(-3, -3)
 	bar_container.size = Vector2(CARD_W, 9)
+	if not _frame.is_empty():
+		# On the painted frame's dot strip (the Panel sits at the card's corner).
+		bar_container.position = Vector2(0, FRAMED_DOTS_Y - FRAMED_DOT * 0.5)
+		bar_container.size = Vector2(CARD_W, FRAMED_DOT)
+		bar_container.add_theme_constant_override("separation", 3)
 	host.add_child(bar_container)
 
 	var resolve_tick = resolve_override if resolve_override >= 0 else mini(card.resolve_tick, effective_tempo)
 
 	for i in range(effective_tempo):
+		if not _frame.is_empty():
+			# The designer's glossy dots: gold on the tick it resolves on.
+			var pd := TextureRect.new()
+			pd.texture = load("res://assets/textures/cards/dot_gold.png" if i + 1 == resolve_tick else "res://assets/textures/cards/dot_dark.png")
+			pd.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			pd.stretch_mode = TextureRect.STRETCH_SCALE
+			pd.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+			pd.custom_minimum_size = Vector2(FRAMED_DOT, FRAMED_DOT)
+			pd.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			pd.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			bar_container.add_child(pd)
+			continue
 		var dot := Panel.new()
 		dot.custom_minimum_size = Vector2(9, 9)
 		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
