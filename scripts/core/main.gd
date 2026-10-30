@@ -878,6 +878,7 @@ func _mark_prompts_dirty() -> void:
 	_prompts_dirty = true
 
 func _process(delta: float) -> void:
+	_update_menu_tempo_hold()
 	_update_hand_hover()
 	_update_battlefield_enemy_hover()
 	_update_status_icon_hover()
@@ -13171,6 +13172,23 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 #endregion
 #region INPUT ROUTING & UI GATES
+## Menus pause the clock: while any window is open (the ones
+## _is_ui_window_open lists) pending card ticks wait, and the tempo bar says
+## so (designer, 2026-10-30). Nothing else changes: with no ticks pending
+## the clock was already still.
+func _update_menu_tempo_hold() -> void:
+	if tempo_manager == null:
+		return
+	var hold := _is_ui_window_open()
+	if hold == tempo_manager.menu_hold:
+		return
+	tempo_manager.menu_hold = hold
+	if _tick_bar_label and is_instance_valid(_tick_bar_label):
+		if hold and tempo_manager.is_ticking():
+			_tick_bar_label.text = "(%d) Paused while a menu is open" % tempo_manager.get_global_tempo()
+		elif not hold and _tick_bar_label.text.ends_with("Paused while a menu is open"):
+			_tick_bar_label.text = "(%d) Resumed" % tempo_manager.get_global_tempo()
+
 func _is_ui_window_open() -> bool:
 	## True when any scrollable HUD window is open. Mouse-wheel/drag over the
 	## battlefield should not zoom/orbit the camera while the player is reading
