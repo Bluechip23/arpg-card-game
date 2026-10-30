@@ -95,6 +95,14 @@ func _run() -> void:
 	_check(atk.title_bar.get_theme_stylebox("panel").content_margin_left >= 37.0, "its name starts right of the axe head")
 	atk.queue_free()
 
+	# A spell is not an attack: Fireball (an offensive spell, stored as an
+	# Attack-type card) keeps the drawn frame until the spell frames land.
+	var sp := _face("fireball")
+	await process_frame
+	_check(sp.get_card().school == Card.CardSchool.SPELL and sp.get_node_or_null("Panel/FrameArt") == null,
+		"an offensive spell does not wear the Attack frame")
+	sp.queue_free()
+
 	# A type the designer has not framed yet keeps the drawn frame.
 	for f in DirAccess.get_files_at("res://data/cards"):
 		if not f.ends_with(".tres"):

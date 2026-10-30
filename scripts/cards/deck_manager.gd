@@ -864,8 +864,9 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 
 	var was_half_tempo = next_attack_half_tempo and card.is_attack()  # DEX: attacks only
 
-	# Only consume proc bonus when an attack card is played
-	if card.card_type == Card.CardType.ATTACK:
+	# Only an attack spends the proc (a spell is offensive, not an attack:
+	# casting one must not waste a pending DEX proc).
+	if card.is_attack():
 		next_attack_half_tempo = false
 		next_attack_mana_discount = 0
 
@@ -923,7 +924,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		card.execute(target, player_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
 
 		# Flurry Form (DEX keystone): a proc-empowered attack strikes a second time.
-		if was_half_tempo and card.card_type == Card.CardType.ATTACK \
+		if was_half_tempo and card.is_attack() \
 				and player_stats and player_stats.keystone_dex_twin_strike:
 			card.execute(target, player_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
 			print("[DECK] Flurry Form: second strike!")

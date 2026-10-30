@@ -151,22 +151,29 @@ const FRAMED_DESC_FULL := Vector2(116, 78)
 const FRAMED_DESC_FULL_MAX := 9   # ... no bigger than this, so it covers as little of the picture as it can
 
 ## The painted frame a card wears: Maintain for any card with an upkeep
-## (whatever its type), then by type — Instant, Defense, Utility, Attack; {} for the drawn
-## frame.
+## (whatever its type); a spell keeps the drawn frame (spells get their
+## own); then by type — Instant, Defense, Utility — and the Attack shape
+## (is_attack(), never an offensive spell); {} for the drawn frame.
 static func frame_for(card: Card) -> Dictionary:
 	if card == null:
 		return {}
 	if card.maintain_cost > 0:
 		return FRAMES["maintain"]
+	# An instant is an instant first, spell or not (Healthy Bliss).
+	if card.card_type == Card.CardType.REACTION:
+		return FRAMES["instant"]
+	# Spells are their own family (designer, 2026-10-30): an offensive spell
+	# is stored as an Attack-type card, but it never wears the Attack frame;
+	# spells keep the drawn frame until their own frames land.
+	if card.school == Card.CardSchool.SPELL:
+		return {}
 	match card.card_type:
-		Card.CardType.REACTION:
-			return FRAMES["instant"]
 		Card.CardType.DEFENSE:
 			return FRAMES["defensive"]
 		Card.CardType.UTILITY:
 			return FRAMES["utility"]
-		Card.CardType.ATTACK:
-			return FRAMES["attack"]
+	if card.is_attack():
+		return FRAMES["attack"]
 	return {}
 
 var _frame: Dictionary = {}

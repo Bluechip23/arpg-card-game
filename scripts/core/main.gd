@@ -9081,7 +9081,9 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 
 	# Sphere grid passive triggers for card play
 	progression_triggers._trigger_sphere_passives("on_card_play", {"card": card, "target": target})
-	if card.card_type == Card.CardType.ATTACK:
+	# "On attack" passives fire for the Attack shape only — an offensive
+	# spell is not an attack (designer, 2026-10-30); spells have on_spell_cast.
+	if card.is_attack():
 		progression_triggers._trigger_sphere_passives("on_attack", {"card": card, "target": target})
 	# "Casting a spell" is defined by the school tag — offensive spells
 	# (Fireball) count exactly like support ones (previously only paid
