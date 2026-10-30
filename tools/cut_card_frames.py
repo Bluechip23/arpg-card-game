@@ -103,7 +103,11 @@ FRAMES = {
         "logo_boxes": [(428, 690, 614, 742), (494, 645, 548, 945)],
         "text": (140, 930, 510, 1080),
         "text_light": True,
-        "numbers": [(88, 140, 202, 226), (880, 150, 948, 228)],
+        # This board's hourglass runs blue sand; the designer's hourglass is
+        # the Instant card's brass one with gold sand (2026-10-30), set over
+        # it: its crop's corner here, scaled to cover it cap to cap.
+        "hourglass": {"at": (832, 60), "scale": 1.013},
+        "numbers": [(88, 140, 202, 226), (884, 136, 946, 218)],
     },
 }
 
@@ -138,6 +142,28 @@ def box_mask(shape, box):
     x0, y0, x1, y1 = box
     m[y0:y1, x0:x1] = True
     return m
+
+
+# The designer's hourglass: the Instant card's, cut by its traced outline
+# (tools/cut_card_badges.py).
+HOURGLASS_SRC = "assets/sprites/paintings/card_instant_board.webp"
+
+
+def paste_hourglass(rgb, spec):
+    from cut_card_badges import HOURGLASS_BOX, hourglass_mask
+    board = np.asarray(Image.open(HOURGLASS_SRC).convert("RGB"))
+    x0, y0, x1, y1 = HOURGLASS_BOX
+    crop = board[y0:y1, x0:x1]
+    mask = hourglass_mask(crop).astype(np.float32)
+    k = spec["scale"]
+    size = (round(crop.shape[1] * k), round(crop.shape[0] * k))
+    crop = np.asarray(Image.fromarray(crop).resize(size, Image.LANCZOS)).astype(np.float32)
+    a = cv2.GaussianBlur(cv2.resize(mask, size, interpolation=cv2.INTER_LINEAR), (0, 0), 0.8)[..., None]
+    ax, ay = spec["at"]
+    out = rgb.astype(np.float32)
+    region = out[ay:ay + size[1], ax:ax + size[0]]
+    out[ay:ay + size[1], ax:ax + size[0]] = region * (1 - a) + crop * a
+    return out.clip(0, 255).astype(np.uint8)
 
 
 def blank(cfg):
@@ -178,6 +204,9 @@ def blank(cfg):
     tx = box_mask(shape, cfg["text"]) & ink
     tx = nd.binary_dilation(tx, iterations=4) & box_mask(shape, cfg["text"])
     rgb = cv2.inpaint(rgb, tx.astype(np.uint8) * 255, 7, cv2.INPAINT_TELEA)
+
+    if "hourglass" in cfg:
+        rgb = paste_hourglass(rgb, cfg["hourglass"])
 
     # The cost numbers: white glyphs with a thick black rim.
     num = np.zeros(shape, bool)

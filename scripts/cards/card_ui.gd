@@ -87,7 +87,7 @@ const FRAMES := {
 		"tex": "res://assets/textures/cards/frame_defensive.png",
 		"rect": Rect2(-4.57, -15.7, 159.3, 229.4),
 		"mana_at": Vector2(17.5, 12.2),
-		"tempo_at": Vector2(134.8, 13.0),
+		"tempo_at": Vector2(134.8, 11.2),   # on the Instant card's hourglass, set over the board's own
 		"dots_y": 8.1,
 		"logo_at": Vector2(74.7, 106.3),
 		"desc_box": Vector2(70, 42),
