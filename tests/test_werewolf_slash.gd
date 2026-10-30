@@ -1,11 +1,12 @@
 extends SceneTree
 
-## The Werewolf's slash (the designer's slash board, 2026-10-30;
+## The Werewolf's slash (the designer's slash boards, 2026-10-30;
 ## tools/cut_pose_boards.py "actions"): Attack.png is the claw — wind-up,
 ## rake, recovery — and Attack2.png the claw with the rake of the other arm
-## after it, both cut with only the two side rows (left, right) and in the
-## Idle sheet's cells. Facing front or back the figure turns to the side it
-## leans toward to slash. A claw on a debuffed player (the second rake for
+## after it, cut from the side board and the front/back board into the
+## four Craftpix rows, in the Idle sheet's cells. A two-row (side-only)
+## action sheet still plays: facing front or back the figure turns to the
+## side it leans toward. A claw on a debuffed player (the second rake for
 ## half) plays the double; a plain claw the single.
 ## Run: godot --headless --path . --script tests/test_werewolf_slash.gd
 
@@ -58,37 +59,63 @@ func _test_figure() -> void:
 	var cell: int = fig._cp_cell
 	for anim in ["Attack", "Attack2"]:
 		var tex: Texture2D = fig._cp_sheets[anim]
-		_check(tex.get_height() == 2 * cell, "%s holds only the two side rows in the Idle sheet's %d-px cells (%dx%d)" % [anim, cell, tex.get_width(), tex.get_height()])
-		_check(fig._cp_side_only(anim), "%s is a side-only sheet" % anim)
-	_check(not fig._cp_side_only("Idle") and not fig._cp_side_only("Walk"), "Idle and Walk are four-row sheets")
-	# The feet of every slash frame stand on the Idle side views' ground row.
-	var idle_feet: float = _feet(fig, "Idle", 3, 0)
+		_check(tex.get_height() == 4 * cell, "%s holds the four facing rows in the Idle sheet's %d-px cells (%dx%d)" % [anim, cell, tex.get_width(), tex.get_height()])
+		_check(not fig._cp_side_only(anim), "%s is a four-row sheet" % anim)
+	# The feet of every slash frame stand on the Idle ground row of its facing.
 	var worst := 0.0
-	for col in range(4):
-		for row in range(2):
+	for row in range(4):
+		var idle_feet: float = _feet(fig, "Idle", row, 0)
+		for col in range(4):
 			worst = maxf(worst, absf(_feet(fig, "Attack2", row, col) - idle_feet))
 	_check(worst <= 3.0 * (2.0 if fig.smooth else 1.0), "the slash frames' feet sit on the idle ground row (off by at most %.0f texels)" % worst)
+	# Every slash frame is drawn: the arcs reach wide, the figure stays near his idle height.
+	var sheet_img: Image = fig._cp_sheets["Attack2"].get_image()
+	if sheet_img.is_compressed():
+		sheet_img.decompress()
+	var idle_img: Image = fig._cp_sheets["Idle"].get_image()
+	if idle_img.is_compressed():
+		idle_img.decompress()
+	var ok_size := true
+	for row in range(4):
+		var idle_h: int = idle_img.get_region(Rect2i(0, row * cell, cell, cell)).get_used_rect().size.y
+		for col in range(4):
+			var used := sheet_img.get_region(Rect2i(col * cell, row * cell, cell, cell)).get_used_rect()
+			ok_size = ok_size and used.size.x > cell / 4 and used.size.y > idle_h * 0.8 and used.size.y < idle_h * 1.25
+	_check(ok_size, "every slash frame is drawn, between 0.8 and 1.25 of the idle height")
 	_check(fig._cp_fps.get("Attack", 0.0) == 8.0 and fig._cp_fps.get("Attack2", 0.0) == 8.0, "the slash plays at the werewolf's own 8 fps")
-	# Facing a side: that side's row.
+	# Each facing plays its own row.
 	fig.set_facing(CharacterAnimator.Direction.EAST)
 	fig.play_action("claw")
-	_check(fig._cp_anim == "Attack" and int(fig._sprite.region_rect.position.y / cell) == 1, "Claw facing east: Attack, the right-facing row")
+	_check(fig._cp_anim == "Attack" and int(fig._sprite.region_rect.position.y / cell) == 3, "Claw facing east: Attack, the right-facing row")
 	fig.set_facing(CharacterAnimator.Direction.WEST)
-	_check(int(fig._sprite.region_rect.position.y / cell) == 0, "turned west mid-swing: the left-facing row")
-	# Facing front or back: the side it leans toward.
+	_check(int(fig._sprite.region_rect.position.y / cell) == 2, "turned west mid-swing: the left-facing row")
+	fig.set_facing(CharacterAnimator.Direction.SOUTH)
+	_check(int(fig._sprite.region_rect.position.y / cell) == 0, "facing south: the front row, slashing at the camera")
+	fig.set_facing(CharacterAnimator.Direction.NORTH)
+	_check(int(fig._sprite.region_rect.position.y / cell) == 1, "facing north: the back row")
+	# A side-only action sheet (two rows, left then right — the slash board
+	# alone gave one): facing front or back, the side the figure leans toward.
+	var four: Texture2D = fig._cp_sheets["Attack"]
+	var two_img := Image.create(four.get_width(), 2 * cell, false, Image.FORMAT_RGBA8)
+	two_img.blit_rect(four.get_image(), Rect2i(0, 2 * cell, four.get_width(), 2 * cell), Vector2i.ZERO)
+	fig._cp_sheets["Attack"] = ImageTexture.create_from_image(two_img)
+	_check(fig._cp_side_only("Attack"), "a two-row sheet is side-only")
 	fig._facing_x = 1.0
 	fig.set_facing(CharacterAnimator.Direction.SOUTH)
-	_check(int(fig._sprite.region_rect.position.y / cell) == 1, "facing south, leaning east: slashes on the right-facing row")
+	fig.play_action("claw")
+	_check(int(fig._sprite.region_rect.position.y / cell) == 1, "on a side-only sheet, facing south leaning east: the right-facing row")
 	fig._facing_x = -1.0
 	fig.set_facing(CharacterAnimator.Direction.NORTH)
-	_check(int(fig._sprite.region_rect.position.y / cell) == 0, "facing north, leaning west: slashes on the left-facing row")
+	_check(int(fig._sprite.region_rect.position.y / cell) == 0, "facing north leaning west: the left-facing row")
+	fig._cp_sheets["Attack"] = four
+	fig.set_facing(CharacterAnimator.Direction.NORTH)
 	# The double claw: the other arm's rake after the first.
 	fig.play_action("werewolf_claw_double")
 	_check(fig._cp_anim == "Attack2" and fig._cp_frame == 0, "a double claw plays Attack2 from its wind-up")
 	fig._cp_step(2.5 / 8.0)   # two and a half frames in at 8 fps
 	_check(fig._cp_anim == "Attack2" and fig._cp_frame == 2, "two and a half frames in, the sweep of the other arm shows (frame %d)" % fig._cp_frame)
 	fig._cp_step(1.0)
-	_check(fig._cp_anim == "Idle" and int(fig._sprite.region_rect.position.y / cell) == 1, "the swing done, the werewolf stands idle on its four-row sheet, facing north")
+	_check(fig._cp_anim == "Idle" and int(fig._sprite.region_rect.position.y / cell) == 1, "the swing done, the werewolf stands idle, facing north")
 	# Being hit mid-swing never cuts to Hurt (there is none) — and a plain
 	# attack while a double plays restarts as the single.
 	fig.play_action("werewolf_claw_double")

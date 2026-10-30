@@ -57,15 +57,20 @@ These boards have one frame a direction: Idle is the still pose; Walk is the
 movement pose where there is one (the beaver), else the still pose again
 (the figure bobs it in step while it moves).
 
-Action sheets (2026-10-30): a creature may also have an "actions" board —
-the designer's werewolf_slash_board.webp, two rows of a slash on black,
-facing right then facing left — cut into one or more multi-frame sheets
-(Attack.png, Attack2.png) with only the two side rows (left, right): the
-figure turns to a side to play them when it faces front or back. The board
-is cut by brightness off its black (the slash's red glow keeps a soft
-alpha), scaled so one named pose stands as tall as the Idle side view, and
-packed in the same cells as the Idle sheet (SpriteEnemyFigure indexes every
-sheet by the Idle cell).
+Action sheets (2026-10-30): a creature may also have "actions" boards —
+the designer's werewolf_slash_board.webp (two rows of a slash on black,
+facing right then facing left) and werewolf_slash_front_back_board.webp
+(the same slash seen from the front and from behind) — cut into one or
+more multi-frame sheets (Attack.png, Attack2.png) in the Craftpix row order
+(front, back, left, right), or with only the two side rows (left, right)
+when a board has no front or back: the figure then turns to a side to play
+them when it faces front or back. The boards are cut by brightness off
+their black (the slash's red glow keeps a soft alpha), each facing scaled
+so one named pose stands as tall as its Idle pose, and packed in the same
+cells as the Idle sheet (SpriteEnemyFigure indexes every sheet by the Idle
+cell). A pose may be ("mirror", box) — cut and flipped, so a back-view
+sweep drawn with the right arm becomes the left arm's — or ("same",
+pose), another pose of that facing again.
 
 Output: assets/sprites/generated/sheets/<creature>/{Idle,Walk}.png
         (+ the action sheets, e.g. Attack.png / Attack2.png)
@@ -1136,33 +1141,61 @@ BOARDS = {
             "right": (727, 190, 1132, 748),
             "left": (1172, 190, 1528, 748),
         },
-        # 2026-10-30: the designer's slash board — the same werewolf, two
-        # rows on black, facing right then facing left: a wind-up with the
-        # far arm raised, a downward rake with the near arm (a red arc past
-        # the muzzle), a lunging sweep with the far arm (a red arc over the
-        # head), and the recovery, claws forward. Each row is flanked by
-        # half a figure (the board tiles), not used. The slash arcs reach
-        # into the neighbouring frames' boxes, so those slivers are cleared
-        # (bg boxes, in each box's own coordinates). The recovery pose is
-        # scaled to the Idle side view's height. Claw = Attack (wind-up,
-        # rake, recovery); the rake on a debuffed target, a second hit with
-        # the other arm = Attack2 (wind-up, rake, sweep, recovery).
+        # 2026-10-30: the designer's slash boards. werewolf_slash_board.webp:
+        # the same werewolf, two rows on black, facing right then facing
+        # left — a wind-up with the far arm raised, a downward rake with the
+        # near arm (a red arc past the muzzle), a lunging sweep with the far
+        # arm (a red arc over the head), and the recovery, claws forward;
+        # each row flanked by half a figure (the board tiles), not used.
+        # werewolf_slash_front_back_board.webp (a screenshot, a blurred bar
+        # across its top): two rows facing the camera and two from behind,
+        # each with a wind-up, an arc rake, a lunging sweep and standing
+        # poses; the front's rake arcs to the viewer's right and its sweep
+        # to the left, the back's rake and sweep both to the right, so the
+        # back sweep is mirrored and the two arcs alternate arms as the
+        # side views' do. The slash arcs reach into the neighbouring
+        # frames' boxes, so those slivers are cleared (bg boxes, in each
+        # box's own coordinates). Each facing's recovery (the front's
+        # square stance, the back's standing pose) is scaled to its Idle
+        # pose's height. Claw = Attack (wind-up, rake, recovery); the rake
+        # on a debuffed target, a second hit with the other arm = Attack2
+        # (wind-up, rake, sweep, recovery), the front and back recovering
+        # in the sweep's three-quarter turn.
         "actions": {
-            "src": "werewolf_slash_board.webp",
+            "src": {"left": "werewolf_slash_board.webp", "right": "werewolf_slash_board.webp",
+                    "front": "werewolf_slash_front_back_board.webp", "back": "werewolf_slash_front_back_board.webp"},
             "shadow_band": 0.10,
-            "match": "recover",
+            "match": {"left": "recover", "right": "recover", "front": "stance", "back": "recover"},
+            "match_scale": {"front": 0.9, "back": 0.9},   # the front/back board draws him bulkier than his Idle
             "frames": {
                 "right": {
                     "windup": (62, 50, 340, 410),
                     "rake": (318, 55, 606, 410),
                     "sweep": (553, 75, 932, 410),
                     "recover": (893, 90, 1125, 410),
+                    "recover2": ("same", "recover"),
                 },
                 "left": {
                     "windup": (95, 462, 350, 812),
                     "rake": (343, 474, 616, 812),
                     "sweep": (616, 500, 955, 812),
                     "recover": (955, 490, 1158, 812),
+                    "recover2": ("same", "recover"),
+                },
+                "front": {
+                    "windup": (14, 272, 212, 505),
+                    "rake": (216, 44, 472, 275),
+                    "sweep": (437, 294, 716, 506),
+                    "recover": (692, 74, 910, 275),      # claws forward, turned the rake's way
+                    "recover2": (716, 300, 930, 506),    # claws forward, turned the sweep's way
+                    "stance": (912, 300, 1078, 505),     # the square front stance: the height reference only
+                },
+                "back": {
+                    "windup": (22, 530, 226, 775),
+                    "rake": (247, 530, 518, 775),
+                    "sweep": ("mirror", (510, 556, 812, 775)),
+                    "recover": (840, 556, 1056, 775),    # standing, as the Idle back
+                    "recover2": (772, 808, 1036, 1033),  # the arm still out the sweep's way
                 },
             },
             "bg_boxes": {
@@ -1172,10 +1205,11 @@ BOARDS = {
                 ("right", "recover"): [(0, 0, 37, 212)],          # the sweep's claw
                 ("left", "windup"): [(240, 95, 255, 228)],        # the rake's arc
                 ("left", "recover"): [(185, 0, 203, 215)],        # the next tile's half figure
+                ("back", "sweep"): [(0, 0, 7, 118)],              # the rake's arc tip and glow (before the mirror)
             },
             "sheets": {
                 "Attack": ["windup", "rake", "recover"],
-                "Attack2": ["windup", "rake", "sweep", "recover"],
+                "Attack2": ["windup", "rake", "sweep", "recover2"],
             },
         },
     },
@@ -1747,11 +1781,18 @@ def pack(frames: dict, cell: int) -> Image.Image:
     return sheet
 
 
-def pack_action(frames: dict, poses: list, cell: int) -> Image.Image:
-    """An action sheet: `poses` in order across, the two side rows down
-    (left, then right), each frame bottom-centred in its cell."""
-    sheet = Image.new("RGBA", (cell * len(poses), cell * len(ACTION_ROWS)))
-    for r, d in enumerate(ACTION_ROWS):
+def action_rows(cfg: dict) -> list:
+    """The rows of a creature's action sheets: the four Craftpix rows when
+    its boards show every facing, else the two side rows."""
+    frames = cfg["actions"]["frames"]
+    return ROWS if all(d in frames for d in ROWS) else ACTION_ROWS
+
+
+def pack_action(frames: dict, poses: list, cell: int, rows: list) -> Image.Image:
+    """An action sheet: `poses` in order across, the facings down `rows`,
+    each frame bottom-centred in its cell."""
+    sheet = Image.new("RGBA", (cell * len(poses), cell * len(rows)))
+    for r, d in enumerate(rows):
         for c, pose in enumerate(poses):
             f = frames[d][pose]
             sheet.paste(f, (c * cell + (cell - f.width) // 2, r * cell + cell - f.height), f)
@@ -1759,22 +1800,46 @@ def pack_action(frames: dict, poses: list, cell: int) -> Image.Image:
 
 
 def cut_actions(cfg: dict, full: dict) -> dict:
-    """The frames of a creature's action board, full size, each side's
-    scaled so its `match` pose stands as tall as that side's Idle pose:
-    {direction: {pose: image}}."""
+    """The frames of a creature's action boards, full size, each facing's
+    scaled so its `match` pose stands as tall as that facing's Idle pose:
+    {direction: {pose: image}}. A pose is a box on the facing's board,
+    ("mirror", box) for the box flipped, or ("same", pose) for another
+    pose of the facing again."""
     act = cfg["actions"]
-    board = Image.open(SRC % act["src"])
+    boards = {}
+
+    def board(d: str) -> Image.Image:
+        name = act["src"][d] if isinstance(act["src"], dict) else act["src"]
+        if name not in boards:
+            boards[name] = Image.open(SRC % name)
+        return boards[name]
+
+    def per_dir(key: str, default, d: str):
+        v = act.get(key, default)
+        return v.get(d, default) if isinstance(v, dict) else v
+
     out = {}
     for d, poses in act["frames"].items():
         out[d] = {}
-        for pose, box in poses.items():
-            rgb = np.asarray(board.crop(box).convert("RGB")).astype(int)
-            out[d][pose] = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0))
-        k = full["Idle"][d].height / float(out[d][act["match"]].height) * act.get("match_scale", 1.0)
+        again = []
+        for pose, spec in poses.items():
+            if spec[0] == "same":
+                again.append((pose, spec[1]))
+                continue
+            mirror = spec[0] == "mirror"
+            box = spec[1] if mirror else spec
+            rgb = np.asarray(board(d).crop(box).convert("RGB")).astype(int)
+            img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0))
+            out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
+        for pose, other in again:
+            out[d][pose] = out[d][other]
+        k = full["Idle"][d].height / float(out[d][per_dir("match", "recover", d)].height) * per_dir("match_scale", 1.0, d)
         for pose, f in out[d].items():
             size = (max(1, round(f.width * k)), max(1, round(f.height * k)))
             out[d][pose] = f.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")
-    return out
+    # Only the poses a sheet plays are packed (a height reference is not).
+    used = {p for poses in act["sheets"].values() for p in poses}
+    return {d: {p: f for p, f in fs.items() if p in used} for d, fs in out.items()}
 
 
 def build(name: str, cfg: dict) -> None:
@@ -1848,7 +1913,7 @@ def build(name: str, cfg: dict) -> None:
     for anim, fs in small.items():
         pack(fs, cell).save(os.path.join(OUT % name, anim + ".png"))
     for anim, poses in cfg.get("actions", {}).get("sheets", {}).items():
-        pack_action(small_act, poses, cell).save(os.path.join(OUT % name, anim + ".png"))
+        pack_action(small_act, poses, cell, action_rows(cfg)).save(os.path.join(OUT % name, anim + ".png"))
     dims = ", ".join("%s %dx%d" % (d, f.width, f.height) for d, f in small["Idle"].items())
     print("%-13s ÷%.1f, %d-px cells: %s" % (name, factor, cell, dims))
     # The smooth version (smooth_art): the same cut-outs at SMOOTH_DENSITY
@@ -1866,7 +1931,7 @@ def build(name: str, cfg: dict) -> None:
     for anim, fs in soft.items():
         smooth_art.pack([[fs[d]] for d in ROWS], scell, 1, lambda row, ci: row[0], air=SMOOTH_GUTTER).save(os.path.join(sdir, anim + ".png"))
     for anim, poses in cfg.get("actions", {}).get("sheets", {}).items():
-        rows = [[soft_act[d][p] for p in poses] for d in ACTION_ROWS]
+        rows = [[soft_act[d][p] for p in poses] for d in action_rows(cfg)]
         smooth_art.pack(rows, scell, len(poses), lambda row, ci: row[ci], air=SMOOTH_GUTTER).save(os.path.join(sdir, anim + ".png"))
 
 
