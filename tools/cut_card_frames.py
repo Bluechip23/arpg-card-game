@@ -58,6 +58,28 @@ FRAMES = {
         "text": (138, 900, 515, 1075),
         "numbers": [(55, 140, 200, 240), (875, 145, 950, 240)],
     },
+    # Every card with an upkeep (2026-10-30): dark amethyst-shot stone, a
+    # violet vortex behind the drop, a mind-mage with glowing eyes in the
+    # rules box's corner. Rules text is white on the stone.
+    "maintain": {
+        "src": "assets/sprites/paintings/card_maintain_board.webp",
+        "card": (34, 105, 1008, 1467),
+        "dots": [(442, 151), (513, 151), (583, 151)],
+        "dot_r": 24,
+        "bands": [
+            (400, 126, 628, 177),
+            (318, 200, 732, 290),
+            (125, 778, 354, 840),
+            (632, 778, 922, 840),
+        ],
+        "art": (280, 330, 772, 754),
+        "art_keep": [(748, 316, 44)],
+        "logo_ring": ((517, 790), 101),
+        "logo_boxes": [(428, 680, 614, 735), (494, 638, 548, 945)],
+        "text": (138, 935, 528, 1095),
+        "text_light": True,
+        "numbers": [(55, 120, 205, 235), (870, 115, 955, 235)],
+    },
 }
 
 
@@ -123,8 +145,12 @@ def blank(cfg):
         bands |= box_mask(shape, b)
     rgb = row_fill(rgb, bands)
 
-    # The rules text: dark ink on the parchment.
-    tx = box_mask(shape, cfg["text"]) & (rgb.max(axis=2) < 95)
+    # The rules text: dark ink on the parchment (or white on the stone).
+    if cfg.get("text_light"):
+        ink = rgb.min(axis=2) > 150
+    else:
+        ink = rgb.max(axis=2) < 95
+    tx = box_mask(shape, cfg["text"]) & ink
     tx = nd.binary_dilation(tx, iterations=4) & box_mask(shape, cfg["text"])
     rgb = cv2.inpaint(rgb, tx.astype(np.uint8) * 255, 7, cv2.INPAINT_TELEA)
 
@@ -132,7 +158,7 @@ def blank(cfg):
     num = np.zeros(shape, bool)
     for b in cfg["numbers"]:
         white = (rgb.min(axis=2) > 200) & box_mask(shape, b)
-        num |= nd.binary_dilation(white, iterations=8) & box_mask(shape, b)
+        num |= nd.binary_dilation(white, iterations=13) & box_mask(shape, b)
     rgb = cv2.inpaint(rgb, num.astype(np.uint8) * 255, 9, cv2.INPAINT_TELEA)
     return rgb
 

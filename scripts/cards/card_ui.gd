@@ -45,29 +45,63 @@ const TWEEN_DURATION: float = 0.12
 # MtG-style frame colour per card type (border, title/type bars, art tint).
 var _type_color: Color = Color(0.45, 0.45, 0.55)
 
-## The designer's painted frames, one per card type as they land
-## (tools/cut_card_frames.py, 2026-10-30). "rect" is where the frame
-## texture sits over the 150x210 card: the board's card rectangle maps onto
-## the card, its feathers, drop and hourglass hanging outside it. A type
-## without one keeps the drawn frame.
+## The designer's painted frames (tools/cut_card_frames.py, 2026-10-30),
+## picked by frame_for(). Each says where its texture sits over the 150x210
+## card ("rect": the board's card rectangle maps onto the card, its drop,
+## hourglass and ornaments hanging outside it) and where its painting puts
+## things, in card pixels: the cost numbers' centres on the painted drop and
+## hourglass, the tempo dots' row, the logo's ring, the rules text's box
+## (clear of the corner picture) and its ink. A card no frame claims keeps
+## the drawn frame.
 const FRAMES := {
-	Card.CardType.REACTION: {
+	# Instants: gilt and feathers, ink on parchment above a ducking hero.
+	"instant": {
 		"tex": "res://assets/textures/cards/frame_instant.png",
 		"rect": Rect2(-5.73, -16.25, 161.6, 233.1),
+		"mana_at": Vector2(14.1, 13.4),
+		"tempo_at": Vector2(136.1, 13.2),
+		"dots_y": 8.2,
+		"logo_at": Vector2(74.6, 107.1),
+		"desc_box": Vector2(116, 38),
+		"desc_right": 4.0,
+		"ink": Color(0.16, 0.1, 0.05),
+		"ink_dark": true,
+	},
+	# Every card with an upkeep: amethyst-shot stone, white text beside the
+	# mind-mage in the corner.
+	"maintain": {
+		"tex": "res://assets/textures/cards/frame_maintain.png",
+		"rect": Rect2(-5.24, -16.17, 160.9, 231.8),
+		"mana_at": Vector2(14.8, 11.1),
+		"tempo_at": Vector2(135.5, 10.9),
+		"dots_y": 7.1,
+		"logo_at": Vector2(74.4, 105.5),
+		"desc_box": Vector2(82, 46),
+		"desc_right": 37.0,
+		"ink": Color(0.96, 0.94, 0.9),
+		"ink_dark": false,
 	},
 }
-## Where the painted frames put things (card pixels; every board shares
-## the Instant board's layout): the cost numbers' centres on the painted drop
-## and hourglass, the tempo dots' row, the logo's ring.
-const FRAMED_MANA_AT := Vector2(14.1, 13.4)
-const FRAMED_TEMPO_AT := Vector2(136.1, 13.2)
-const FRAMED_DOTS_Y := 8.2
 const FRAMED_DOT := 8.0
-const FRAMED_LOGO_AT := Vector2(74.6, 107.1)   # the ring's centre
 const FRAMED_LOGO_SIZE := 48
-const FRAMED_DESC_BOX := Vector2(116, 38)      # the parchment above its picture
-const FRAMED_INK := Color(0.16, 0.1, 0.05)     # rules text on the parchment
 const FRAMED_NAME := Color(0.97, 0.92, 0.8)    # the name's cream
+const MAINTAIN_WORD := Color(0.88, 0.36, 0.95)  # the Maintain board's magenta
+const UPKEEP_RIGHT := 124.0                     # the upkeep's right edge, short of the hourglass
+## A rules text too long for its frame's box beside the corner picture
+## takes the box's whole width (over the picture), this tall.
+const FRAMED_DESC_FULL := Vector2(116, 78)
+
+## The painted frame a card wears: Maintain for any card with an upkeep
+## (whatever its type), Instant for the instants; {} for the drawn frame.
+static func frame_for(card: Card) -> Dictionary:
+	if card == null:
+		return {}
+	if card.maintain_cost > 0:
+		return FRAMES["maintain"]
+	if card.card_type == Card.CardType.REACTION:
+		return FRAMES["instant"]
+	return {}
+
 var _frame: Dictionary = {}
 var _frame_art: TextureRect = null
 
@@ -103,7 +137,7 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 			Card.CardType.ENCHANTMENT:
 				type_label.add_theme_color_override("font_color", Color(0.2, 0.9, 0.8))
 				_type_color = Color(0.18, 0.58, 0.55)
-		_frame = FRAMES.get(card.card_type, {})
+		_frame = frame_for(card)
 		_style_frame()
 
 	if range_label:
@@ -161,6 +195,15 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 			cost_label.visible = true
 		else:
 			cost_label.visible = false
+		if card.maintain_cost > 0 and _frame == FRAMES["maintain"]:
+			# The Maintain frame says "Maintain" on its type line in the
+			# board's magenta (as the board does), puts the upkeep on the top
+			# strip beside the dots, and leaves the name bar to the name.
+			cost_label.visible = false
+			if type_label:
+				type_label.text = "Maintain"
+				type_label.add_theme_color_override("font_color", MAINTAIN_WORD)
+			_place_upkeep(card.maintain_cost)
 
 	_pending_mana = str(display_mana)
 	_pending_tempo = str(display_tempo)
@@ -516,7 +559,7 @@ func _update_description() -> void:
 	if value_provider.is_valid():
 		effective = value_provider.call(_card)
 	var text: String = _card.get_display_description(effective)
-	if not _frame.is_empty():
+	if _frame.get("ink_dark", false):
 		# The light greens and reds read on the dark box, not the parchment.
 		text = text.replace("#8be98b", "#1d6b1d").replace("#ff9c9c", "#9a1d16") \
 			.replace("[color=green]", "[color=#1d6b1d]").replace("[color=red]", "[color=#9a1d16]")
@@ -540,13 +583,32 @@ func _fit_description() -> void:
 	if font == null:
 		return
 	var plain: String = desc_label.get_parsed_text()
-	var box: Vector2 = DESC_BOX if _frame.is_empty() else FRAMED_DESC_BOX
-	var width: float = desc_label.size.x if desc_label.size.x > 40.0 else box.x
 	var fs := DESC_FONT_MAX
-	while fs > DESC_FONT_MIN and font.get_multiline_string_size(plain, HORIZONTAL_ALIGNMENT_LEFT, width, fs).y > box.y:
-		fs -= 1
+	if _frame.is_empty():
+		var width: float = desc_label.size.x if desc_label.size.x > 40.0 else DESC_BOX.x
+		while fs > DESC_FONT_MIN and font.get_multiline_string_size(plain, HORIZONTAL_ALIGNMENT_LEFT, width, fs).y > DESC_BOX.y:
+			fs -= 1
+	else:
+		# The frame's box beside its corner picture; a text that cannot fit
+		# there even at the smallest size spreads over the box's whole width.
+		var box: Vector2 = _frame["desc_box"]
+		fs = _fit_size(font, plain, box)
+		var right: float = _frame["desc_right"]
+		if font.get_multiline_string_size(plain, HORIZONTAL_ALIGNMENT_LEFT, box.x, fs).y > box.y:
+			fs = _fit_size(font, plain, FRAMED_DESC_FULL)
+			right = 4.0
+		if desc_panel:
+			var st := desc_panel.get_theme_stylebox("panel")
+			if st is StyleBoxEmpty:
+				st.content_margin_right = right
 	desc_label.add_theme_font_size_override("normal_font_size", fs)
 	desc_label.add_theme_font_size_override("bold_font_size", fs)
+
+func _fit_size(font: Font, plain: String, box: Vector2) -> int:
+	var fs := DESC_FONT_MAX
+	while fs > DESC_FONT_MIN and font.get_multiline_string_size(plain, HORIZONTAL_ALIGNMENT_LEFT, box.x, fs).y > box.y:
+		fs -= 1
+	return fs
 
 func _fit_name() -> void:
 	if not name_label:
@@ -984,19 +1046,50 @@ func _style_painted_frame() -> void:
 	if desc_panel:
 		var box := StyleBoxEmpty.new()
 		box.content_margin_left = 3.5
-		box.content_margin_right = 4
+		box.content_margin_right = _frame["desc_right"]
 		box.content_margin_top = 4
 		desc_panel.add_theme_stylebox_override("panel", box)
+	if desc_panel:
+		desc_panel.clip_contents = true   # a long text never shoves the bars above it
 	if desc_label:
-		desc_label.add_theme_color_override("default_color", FRAMED_INK)
+		desc_label.fit_content = false
+		desc_label.custom_minimum_size = Vector2(0.1, 10)
+		desc_label.add_theme_color_override("default_color", _frame["ink"])
+		if not _frame["ink_dark"]:
+			# Light text on the dark stone: a dark rim keeps it off the texture.
+			desc_label.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.06))
+			desc_label.add_theme_constant_override("outline_size", 3)
 	_place_framed_costs()
 	_place_framed_logo()
+
+
+## The upkeep on the Maintain frame's top strip, right of the tempo dots.
+func _place_upkeep(upkeep: int) -> void:
+	var host: Control = get_node_or_null("Panel")
+	if host == null:
+		return
+	var l: Label = host.get_node_or_null("Upkeep")
+	if l == null:
+		l = Label.new()
+		l.name = "Upkeep"
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		l.add_theme_font_size_override("font_size", 9)
+		l.add_theme_color_override("font_color", MAINTAIN_WORD)
+		l.add_theme_color_override("font_outline_color", Color(0.06, 0.02, 0.08))
+		l.add_theme_constant_override("outline_size", 3)
+		host.add_child(l)
+	l.text = "%dM" % upkeep
+	l.tooltip_text = "Upkeep: %d mana to maintain" % upkeep
+	l.size = Vector2(30, 12)
+	l.position = Vector2(UPKEEP_RIGHT - 30.0, float(_frame["dots_y"]) - 6.0)
 
 
 ## The costs written straight onto the painted drop and hourglass.
 func _place_framed_costs() -> void:
 	_ensure_cost_badges()
-	for pair in [[_mana_badge, _mana_num, FRAMED_MANA_AT], [_tempo_badge, _tempo_num, FRAMED_TEMPO_AT]]:
+	for pair in [[_mana_badge, _mana_num, _frame["mana_at"]], [_tempo_badge, _tempo_num, _frame["tempo_at"]]]:
 		var badge: Control = pair[0]
 		var num: Label = pair[1]
 		if badge == null:
@@ -1026,7 +1119,7 @@ func _place_framed_logo() -> void:
 	seal.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	seal.stretch_mode = TextureRect.STRETCH_SCALE
 	seal.size = Vector2(ls, ls)
-	seal.position = (FRAMED_LOGO_AT - Vector2(ls, ls) * 0.5).round()
+	seal.position = (Vector2(_frame["logo_at"]) - Vector2(ls, ls) * 0.5).round()
 	seal.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	host.add_child(seal)
 
@@ -1089,7 +1182,7 @@ func _build_tempo_bars(card: Card, tempo_override: int = -1, resolve_override: i
 	bar_container.size = Vector2(CARD_W, 9)
 	if not _frame.is_empty():
 		# On the painted frame's dot strip (the Panel sits at the card's corner).
-		bar_container.position = Vector2(0, FRAMED_DOTS_Y - FRAMED_DOT * 0.5)
+		bar_container.position = Vector2(0, float(_frame["dots_y"]) - FRAMED_DOT * 0.5)
 		bar_container.size = Vector2(CARD_W, FRAMED_DOT)
 		bar_container.add_theme_constant_override("separation", 3)
 	host.add_child(bar_container)

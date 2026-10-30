@@ -5,6 +5,8 @@ extends SceneTree
 ## written on its painted drop and hourglass, the logo on its ring spot, the
 ## rules text in ink on the parchment. Types without a frame of their own
 ## keep the drawn one.
+## Every card with an upkeep wears the Maintain frame instead (white text on
+## its stone).
 ## Run: godot --headless --path . --script tests/test_card_frames.gd
 
 var failures := 0
@@ -42,7 +44,7 @@ func _run() -> void:
 		if c is TextureRect and c.visible:
 			icons_hidden = false
 	_check(icons_hidden, "the costs are written on the painted drop and hourglass")
-	_check(absf(inst._mana_badge.position.x + inst._mana_badge.size.x * 0.5 - CardUI.FRAMED_MANA_AT.x) < 0.5,
+	_check(absf(inst._mana_badge.position.x + inst._mana_badge.size.x * 0.5 - CardUI.FRAMES["instant"]["mana_at"].x) < 0.5,
 		"the mana sits on the drop")
 	_check(inst.get_node_or_null("Panel/FrameLogo") != null, "the logo sits on the frame's ring spot")
 	_check(inst.desc_label.get_theme_color("default_color").v < 0.3, "the rules text is ink on the parchment")
@@ -51,6 +53,19 @@ func _run() -> void:
 	_check(sel != null and not sel.draw_center, "chosen, a gold ring goes round the painting (not over it)")
 	inst.set_selected(false)
 	_check(inst.get_theme_stylebox("panel") is StyleBoxEmpty, "and comes off again")
+
+	# Every card with an upkeep wears the Maintain frame, whatever its type.
+	for id in ["armored_discipline", "forever_armor", "peshtigos_kiss"]:
+		var m := _face(id)
+		await process_frame
+		var ma: TextureRect = m.get_node_or_null("Panel/FrameArt")
+		_check(ma != null and ma.texture.resource_path.ends_with("frame_maintain.png"),
+			"%s (upkeep %d) wears the Maintain frame" % [id, m.get_card().maintain_cost])
+		_check(m.desc_label.get_theme_color("default_color").v > 0.8, "%s's rules text is white on the stone" % id)
+		_check(m.type_label.text == "Maintain", "%s's type line says Maintain" % id)
+		var up: Label = m.get_node_or_null("Panel/Upkeep")
+		_check(up != null and up.text == "%dM" % m.get_card().maintain_cost, "%s's upkeep sits beside the dots" % id)
+		m.queue_free()
 
 	var atk := _face("slash")
 	await process_frame
