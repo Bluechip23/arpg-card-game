@@ -168,6 +168,32 @@ FRAMES = {
         "numbers": [(96, 192, 207, 270), (776, 168, 836, 254)],
         "squeeze": (420, 860, 197),
     },
+    # The Spell cards (2026-10-30): blackened stone veined with molten red, a
+    # fire comet curling round the top-left corner, a book of runes at the
+    # foot, a wizard calling down meteors in the rules box. No mana drop and
+    # no logo of its own: the standard drop (over the comet's tail) and
+    # hourglass are set on it, and the game puts its logo in the type bar's
+    # middle (designer). The same shape as the Attack board, squeezed alike.
+    "spell": {
+        "src": "assets/sprites/paintings/card_spell_board.webp",
+        "card": (76, 85, 911, 1497),
+        "dots": [(431, 197), (507, 197), (583, 197)],
+        "dot_r": 28,
+        "bands": [
+            (385, 160, 632, 235),
+            (380, 250, 702, 340),
+            (195, 936, 342, 1014),
+            (600, 936, 836, 1014),
+        ],
+        "art": (243, 382, 775, 908),
+        "art_keep": [],
+        "text": (178, 1078, 488, 1222),
+        "text_light": True,
+        "drop": {"at": (70, 58), "scale": 1.0},
+        "hourglass": {"at": (717, 85), "scale": 1.12},
+        "numbers": [(102, 186, 213, 267), (776, 171, 836, 257)],
+        "squeeze": (425, 865, 197),
+    },
 }
 
 

@@ -139,6 +139,27 @@ const FRAMES := {
 		"top": 28.0, "title_h": 24.0, "art_h": 51.0, "type_h": 24.0,
 		"title_left": 37.0, "title_right": 20.0, "name_w": 67,
 	},
+	# Spell cards: blackened stone veined with molten red, a fire comet
+	# round the top-left, a wizard calling down meteors in the rules box. The
+	# standard drop (over the comet's tail) and hourglass, the logo in the
+	# type bar's middle. Squeezed like the Attack board.
+	"spell": {
+		"tex": "res://assets/textures/cards/frame_spell.png",
+		"rect": Rect2(-13.65, -15.27, 169.0, 256.5),
+		"mana_at": Vector2(14.6, 25.6),
+		"tempo_at": Vector2(131.0, 23.2),
+		"dots_y": 20.1,
+		"dots_span": Vector2(54, 116),   # right of the comet
+		"logo_at": Vector2(75.0, 118.0),
+		"desc_box": Vector2(78, 40),
+		"desc_right": 42.0,
+		"desc_full": Vector2(116, 56),
+		"desc_top": 9.0,
+		"ink": Color(0.96, 0.94, 0.9),
+		"ink_dark": false,
+		"top": 28.0, "title_h": 24.0, "art_h": 51.0, "type_h": 24.0,
+		"title_left": 40.0, "title_right": 20.0, "name_w": 62,
+	},
 }
 const FRAMED_DOT := 8.0
 const FRAMED_LOGO_SIZE := 48
@@ -151,8 +172,8 @@ const FRAMED_DESC_FULL := Vector2(116, 78)
 const FRAMED_DESC_FULL_MAX := 9   # ... no bigger than this, so it covers as little of the picture as it can
 
 ## The painted frame a card wears: Maintain for any card with an upkeep
-## (whatever its type); a spell keeps the drawn frame (spells get their
-## own); then by type — Instant, Defense, Utility — and the Attack shape
+## (whatever its type), Instant for the instants, Spell for every spell;
+## then by type — Instant, Defense, Utility — and the Attack shape
 ## (is_attack(), never an offensive spell); {} for the drawn frame.
 static func frame_for(card: Card) -> Dictionary:
 	if card == null:
@@ -163,10 +184,10 @@ static func frame_for(card: Card) -> Dictionary:
 	if card.card_type == Card.CardType.REACTION:
 		return FRAMES["instant"]
 	# Spells are their own family (designer, 2026-10-30): an offensive spell
-	# is stored as an Attack-type card, but it never wears the Attack frame;
-	# spells keep the drawn frame until their own frames land.
+	# is stored as an Attack-type card, but it wears the Spell frame, never
+	# the Attack one — and so does a utility spell.
 	if card.school == Card.CardSchool.SPELL:
-		return {}
+		return FRAMES["spell"]
 	match card.card_type:
 		Card.CardType.DEFENSE:
 			return FRAMES["defensive"]

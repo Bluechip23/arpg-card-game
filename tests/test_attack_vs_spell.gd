@@ -41,9 +41,9 @@ func _initialize() -> void:
 	_check(slash_stag > slash_plain, "Staggered makes Slash cost more (%d -> %d)" % [slash_plain, slash_stag])
 	_check(fire_stag == fire_plain, "Staggered leaves Fireball's cost alone (%d -> %d)" % [fire_plain, fire_stag])
 
-	# The Attack frame is for attacks; a spell waits for its own.
+	# The Attack frame is for attacks; a spell wears the Spell frame.
 	_check(CardUI.frame_for(slash) == CardUI.FRAMES["attack"], "Slash wears the Attack frame")
-	_check(CardUI.frame_for(fireball).is_empty(), "Fireball does not")
+	_check(CardUI.frame_for(fireball) == CardUI.FRAMES["spell"], "Fireball wears the Spell frame")
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)

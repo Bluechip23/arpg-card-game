@@ -81,8 +81,7 @@ Attack→Heal, and Scouted's range. Spell procs read `school == SPELL`
 (Arcane Overflow's priming, Arcane Current). Surprise Opener, worded for
 any offensive card, now snapshots a spell's target too.
 
-Spells also get their own card frames; until those land a spell keeps the
-drawn frame, never the Attack one.
+Spells also have their own card frame (the Spell frame), never the Attack one.
 
 Open questions for the designer are tracked in `docs/CARD_REFERENCE.md`
 (the per-card "Mismatch" lines).

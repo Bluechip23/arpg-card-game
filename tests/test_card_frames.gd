@@ -96,11 +96,12 @@ func _run() -> void:
 	atk.queue_free()
 
 	# A spell is not an attack: Fireball (an offensive spell, stored as an
-	# Attack-type card) keeps the drawn frame until the spell frames land.
+	# Attack-type card) wears the Spell frame.
 	var sp := _face("fireball")
 	await process_frame
-	_check(sp.get_card().school == Card.CardSchool.SPELL and sp.get_node_or_null("Panel/FrameArt") == null,
-		"an offensive spell does not wear the Attack frame")
+	var spa: TextureRect = sp.get_node_or_null("Panel/FrameArt")
+	_check(spa != null and spa.texture.resource_path.ends_with("frame_spell.png"),
+		"an offensive spell wears the Spell frame, not the Attack one")
 	sp.queue_free()
 
 	# A type the designer has not framed yet keeps the drawn frame.
