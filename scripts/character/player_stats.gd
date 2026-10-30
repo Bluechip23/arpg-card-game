@@ -253,6 +253,13 @@ var inventory = null  # Inventory - untyped to avoid circular dependency
 # SPHERE GRID BONUSES (tracked separately from equipment)
 # ============================================
 var sphere_grid_passives: Array[Dictionary] = []  # Active passives from sphere grid
+
+## Whether a sphere / constellation passive with this effect is active.
+func has_sphere_passive_effect(effect: String) -> bool:
+	for p in sphere_grid_passives:
+		if str(p.get("effect", "")) == effect:
+			return true
+	return false
 # Each entry: { "node_id": int, "trigger": String, "effect": String, "value": int/float, "chance": float }
 # Triggers: "on_kill", "on_card_play", "on_move", "on_cycle", "on_attack", "on_dodge",
 #           "on_heal", "on_block", "on_crit", "on_spell_cast", "on_discard", "on_draw",

@@ -183,7 +183,7 @@ func _process_manifest(card: Card, effect: OverflowEffect) -> void:
 		remove_overflow_effect(effect)
 
 func _process_enhance(card: Card, effect: OverflowEffect) -> void:
-	if card.card_type == Card.CardType.ATTACK and not card.is_enhanced:
+	if card.is_attack() and not card.is_enhanced:
 		card.bonus_damage += effect.effect_value
 		card.is_enhanced = true
 		card.description = "%s (+%d enhanced)" % [card.description, effect.effect_value]
@@ -211,7 +211,7 @@ func _process_quiver(card: Card, effect: OverflowEffect) -> void:
 	# Bottomless Quiver: attack cards go to the Manifest zone, where they can be
 	# played later at full cost; non-attacks are discarded. Every overflowed
 	# card spends a charge, attack or not.
-	if card.card_type == Card.CardType.ATTACK:
+	if card.is_attack():   # attack cards — an offensive spell is discarded
 		manifest_zone.append({
 			"card": card,
 			"effect": effect,

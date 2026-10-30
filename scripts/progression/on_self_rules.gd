@@ -140,7 +140,7 @@ static func qualifies(card, kind: String) -> bool:
 		"melee offensive":
 			return card.is_offensive() and not card.is_ranged
 		"attack":
-			return card.card_type == Card.CardType.ATTACK
+			return card.is_attack()
 		"defense":
 			return card.card_type == Card.CardType.DEFENSE
 		"utility":

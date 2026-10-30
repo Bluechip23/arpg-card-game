@@ -722,8 +722,8 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 					var ms_regen: int = PassiveScaling.value("mad_scientist", "regen", ms_lvl)
 					buff_mgr.apply_buff(Buff.create_regen(ms_regen, 15, "Mad Scientist"))
 					main.add_battle_log("Mad Scientist: +%d regen!" % ms_regen, Color(0.4, 0.9, 0.4))
-			elif last_type == Card.CardType.ATTACK:
-				# Attack → Heal: rank-scaled strengthen (2..8) on the healed target
+			elif _last_played_card.is_attack():
+				# Attack → Heal (the Attack shape: an offensive spell is not one): rank-scaled strengthen (2..8) on the healed target
 				if buff_mgr:
 					var ms_str: int = PassiveScaling.value("mad_scientist", "strengthen", ms_lvl)
 					buff_mgr.apply_buff(Buff.create_strengthen(ms_str, 3, "Mad Scientist"))
@@ -1498,8 +1498,9 @@ func arm_pre_attack_passives(card: Card, target) -> void:
 		and stats.has_skill_tree_passive("scouted")
 
 	# Snapshot the target's pre-hit state for post-resolution passives that
-	# judge "as it was before the hit" conditions (Surprise Opener).
-	if is_attack and target is Enemy and is_instance_valid(target):
+	# judge "as it was before the hit" conditions (Surprise Opener, which
+	# fires on any offensive card — a spell's first strike counts too).
+	if is_offensive and target is Enemy and is_instance_valid(target):
 		stats.st_pre_attack_target_id = target.get_instance_id()
 		stats.st_pre_attack_armor = target.current_armor
 		stats.st_pre_attack_health = target.current_health
@@ -1988,7 +1989,7 @@ func on_card_ticks_started(card: Card) -> void:
 	var stats = main.player.get_stats() if main.player else null
 	if not stats or card == null:
 		return
-	if stats.has_skill_tree_passive("arcane_overflow") and card.is_offensive() \
+	if stats.has_skill_tree_passive("arcane_overflow") and card.school == Card.CardSchool.SPELL \
 			and card.mana_cost > 0 and stats.current_mana <= 0:
 		var ao_cooldown: int = PassiveScaling.value("arcane_overflow", "cooldown", stats.get_passive_level("arcane_overflow"))
 		if main.tempo_manager.get_global_tempo() - stats.st_arcane_overflow_last_tempo >= ao_cooldown:
@@ -2365,11 +2366,9 @@ func _trigger_sphere_passives(trigger: String, context: Dictionary = {}) -> void
 					target.apply_debuff("poison", 4)  # Bleed equivalent (enemies use poison)
 					main.add_battle_log("Blood Hunter: Applied enhanced bleed!", Color(0.75, 0.15, 0.15))
 			"arcane_current":
-				# Constellation: +5 spell damage — applied as bonus damage on the card
-				var card = context.get("card", null)
-				if card:
-					card.bonus_damage += 5
-					main.add_battle_log("Arcane Current: +5 spell damage", Color(0.5, 0.2, 0.85))
+				# Constellation: +5 spell damage — added on the cast itself
+				# (Card.execute's riders); this only tells the log.
+				main.add_battle_log("Arcane Current: +5 spell damage", Color(0.5, 0.2, 0.85))
 			"unyielding":
 				# Constellation: Below 50% HP: gain 3 armor each cycle
 				if stats.get_health_percent() <= 0.5:

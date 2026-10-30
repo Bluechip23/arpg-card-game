@@ -657,7 +657,8 @@ func compute_play_cost(card: Card, index: int, target = null, debuff_mgr = null,
 		if commit: print("[DECK] Fire synergy: -%d mana (%d fire spell(s) this cycle)" % [fire_spells_this_turn * 10, fire_spells_this_turn])
 
 	if debuff_mgr:
-		if card.card_type == Card.CardType.ATTACK:
+		# Staggered: "Attack cards cost more" — attacks, not spells.
+		if card.is_attack():
 			mana_cost += debuff_mgr.get_attack_mana_increase()
 
 		mana_cost += debuff_mgr.card_hex_surcharge(card)
@@ -899,7 +900,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		# into the hand, which is a new stay, not the old claim.
 		debuff_mgr.release_card_claims(card)
 		# Weighted burns a stack on every card (Staggered/Clumsy ride the clock).
-		debuff_mgr.on_card_played(card.card_type == Card.CardType.ATTACK)
+		debuff_mgr.on_card_played(card.is_attack())
 
 	var damage_reduction_pct = 0.0
 	var self_damage_percent = 0.0
@@ -941,7 +942,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 				card.execute(target, player_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
 				print("[DECK] Free hand echo: %s strikes twice!" % card.card_name)
 
-		if debuff_mgr and card.card_type == Card.CardType.ATTACK:
+		if debuff_mgr and card.is_attack():
 			debuff_mgr.on_attack()
 
 		if inventory:
@@ -1071,7 +1072,7 @@ func execute_deferred_card(card: Card, target, player_node = null) -> void:
 	if ally_cast:
 		effect_stats._ally_cast = false
 
-	if debuff_mgr and card.card_type == Card.CardType.ATTACK:
+	if debuff_mgr and card.is_attack():
 		debuff_mgr.on_attack()
 
 	if inventory:

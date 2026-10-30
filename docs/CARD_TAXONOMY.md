@@ -61,5 +61,28 @@ counter and its proc (half tempo, mana discount, Killing Rhythm), Collect
 Arrows. **Heavy Swing** is worded "offensive" and reads `is_offensive()`.
 Disarm blocks the Attack shape; Silence blocks the Spell school.
 
+## Attack and spell are different tags (designer, 2026-10-30)
+
+"Attack and spell cards are distinctly different. Both offensive, but
+attack and spell are different tags." Only attacks trigger attack procs,
+only spells trigger spell procs, and both trigger offensive ones. So the
+raw `card_type == ATTACK` — true for an offensive spell too — is never the
+test for an attack proc: use `is_attack()`. Brought in line on this ruling:
+"on attack" sphere passives (spells have "on spell cast"), the DEX proc's
+spend and Flurry Form, Blind's miss, Staggered's surcharge, Burn's on-attack
+tick, the Sneakers streak, the Life Steal buff and every attack-lifesteal
+(sphere nodes, Hannibals Mask, Coffin Lid, Vitality, Resourceful
+Replenish), Boot Holsters and the on-self "attack" rider, Armor Chopper,
+Deadeye Form, the ranged-attack bonus, Fallen's Wrath / Purge Wrath and
+Nine Ruins (Wrath, Vitality), Monk of the Night, Psionic Flow's attack
+mode, Poseidons Trident, the Bottomless Quiver (overflowing spells are
+discarded), Blade Barrage's and Best Offense's counts, Mad Scientist's
+Attack→Heal, and Scouted's range. Spell procs read `school == SPELL`
+(Arcane Overflow's priming, Arcane Current). Surprise Opener, worded for
+any offensive card, now snapshots a spell's target too.
+
+Spells also get their own card frames; until those land a spell keeps the
+drawn frame, never the Attack one.
+
 Open questions for the designer are tracked in `docs/CARD_REFERENCE.md`
 (the per-card "Mismatch" lines).

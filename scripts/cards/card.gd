@@ -1402,7 +1402,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		Card.active_element_remap = str(Card.ELEMENT_DEBUFFS.get(feral_col, ""))
 
 	# Cyde Livingstons Sneakers: a non-attack card breaks the consecutive-attack streak.
-	if card_type != CardType.ATTACK and player_stats and player_stats.consecutive_attacks_draw_at > 0:
+	if not is_attack() and player_stats and player_stats.consecutive_attacks_draw_at > 0:
 		player_stats.consecutive_attacks = 0
 
 	# Knife Toed Boots: mark melee offensive resolution so crit_multiply adds the
@@ -1418,7 +1418,8 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 	# debuff now); PlayerStats.is_blinded is only a legacy fallback for a
 	# caller that hands no deck manager. Enemies expose take_damage but not
 	# get_stats (players have get_stats).
-	if card_type == CardType.ATTACK and player_stats \
+	# (Attack cards only — "your attacks": a spell never misses from Blind.)
+	if is_attack() and player_stats \
 			and target and target.has_method("take_damage") and not target.has_method("get_stats"):
 		var blind_dm = deck_manager.debuff_manager if deck_manager and "debuff_manager" in deck_manager else null
 		var miss_chance: float = 0.0
@@ -1708,8 +1709,9 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 				if tsr_gap_bonus > 0:
 					_gauntlet_bonus_applied += tsr_gap_bonus
 					print("[CARD] Tigers Sunday Red: +%d damage (%.0f%% health-gap bonus)" % [tsr_gap_bonus, tsr_gap_pct])
-		# Weapons pass: Wrath and Vitality ride every offensive card.
-		if is_offensive() and player_stats.inventory and "equipped_weapons" in player_stats.inventory:
+		# Weapons pass: Wrath and Vitality ride every attack ("your attacks
+		# deal +Wrath damage", "+2 attack damage") — not spells.
+		if is_attack() and player_stats.inventory and "equipped_weapons" in player_stats.inventory:
 			for wpn in player_stats.inventory.equipped_weapons:
 				if wpn == null:
 					continue
@@ -1718,6 +1720,12 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 					print("[CARD] Fallen's Wrath: +%d damage (Wrath)" % floori(wpn.wrath * wpn.rider_scale()))
 				if wpn.vitality_weapon and wpn.vitality_stacks > 0:
 					_gauntlet_bonus_applied += floori(wpn.vitality_stacks * 2 * wpn.rider_scale())
+		# Arcane Current (constellation): spell cards deal +5 damage — on this
+		# cast, like every rider here (it once landed after the cast and stuck
+		# to the card for good).
+		if school == CardSchool.SPELL and player_stats.has_method("has_sphere_passive_effect") \
+				and player_stats.has_sphere_passive_effect("arcane_current"):
+			_gauntlet_bonus_applied += 5
 		# Blast Stick: offensive spells hit harder the more they cost — the
 		# bonus reads the SURCHARGED price, matching what the wielder pays.
 		if is_offensive() and school == CardSchool.SPELL \
@@ -1733,18 +1741,18 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 					_gauntlet_bonus_applied += bs_bonus
 					print("[CARD] %s: +%d damage (%.0f%% of %d mana)" % [bs_w.item_name, bs_bonus, bs_w.spell_damage_per_mana_percent, bs_cost])
 		# Purge Wrath: the armed percent lands on this attack, then clears.
-		if is_offensive() and player_stats.pending_wrath_flat > 0:
+		if is_attack() and player_stats.pending_wrath_flat > 0:
 			_gauntlet_bonus_applied += player_stats.pending_wrath_flat
 			print("[CARD] Purge Wrath: +%d flat (banked Wrath)" % player_stats.pending_wrath_flat)
 			player_stats.pending_wrath_flat = 0
-		if is_offensive() and player_stats.pending_wrath_percent > 0:
+		if is_attack() and player_stats.pending_wrath_percent > 0:
 			var pwp_bonus: int = floori((base_damage + bonus_damage + _gauntlet_bonus_applied) * player_stats.pending_wrath_percent / 100.0)
 			_gauntlet_bonus_applied += pwp_bonus
 			print("[CARD] Purge Wrath: +%d damage (+%d%%)" % [pwp_bonus, player_stats.pending_wrath_percent])
 			player_stats.pending_wrath_percent = 0
 		# Armor Chopper: MELEE ATTACK cards (and the auto attack, in main) shred
 		# extra enemy armor (armor only).
-		if card_type == CardType.ATTACK and not is_ranged and player_stats.equipment_armor_shred > 0 and target \
+		if is_attack() and not is_ranged and player_stats.equipment_armor_shred > 0 and target \
 				and "current_armor" in target and target.current_armor > 0:
 			target.current_armor = max(0, target.current_armor - player_stats.equipment_armor_shred)
 			if target.has_method("_update_armor_bar"):
@@ -1769,7 +1777,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 
 	# Apply ranged damage bonus from equipped items (quivers)
 	var _ranged_bonus_applied = 0
-	if is_ranged and card_type == CardType.ATTACK and player_stats and player_stats.ranged_damage_bonus > 0:
+	if is_ranged and is_attack() and player_stats and player_stats.ranged_damage_bonus > 0:
 		_ranged_bonus_applied = player_stats.ranged_damage_bonus
 		bonus_damage += _ranged_bonus_applied
 		print("[CARD] Ranged bonus: +%d damage from equipment" % _ranged_bonus_applied)
@@ -1779,7 +1787,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 	# Tracked and reverted in cleanup — a permanent mutation would compound
 	# on every play of the same card.
 	var _deadeye_delta := 0
-	if is_ranged and card_type == CardType.ATTACK and player_stats and player_stats.keystone_dex_ranged:
+	if is_ranged and is_attack() and player_stats and player_stats.keystone_dex_ranged:
 		_deadeye_delta = floori(player_stats.dexterity / 2.0) - player_stats.get_strength_damage_bonus()
 		bonus_damage += _deadeye_delta
 
@@ -2416,7 +2424,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			print("[CARD] Unknown card: %s" % card_id)
 
 	# Life Steal: if an attack dealt damage and we have life steal buff, heal for damage dealt
-	if card_type == CardType.ATTACK and buff_mgr and buff_mgr.has_life_steal():
+	if is_attack() and buff_mgr and buff_mgr.has_life_steal():
 		var dealt := last_damage_dealt if last_damage_dealt > 0 else damage
 		if dealt > 0:
 			buff_mgr.consume_life_steal(dealt)
@@ -2431,8 +2439,8 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 
 	# Sphere grid "Life Steal +X%" nodes, equipment lifesteal (Hannibals Mask),
 	# Vitality stacks (Nine Ruins: +1% each), and a maintained Resourceful
-	# Replenish: attacks heal a % of damage dealt.
-	if card_type == CardType.ATTACK and player_stats:
+	# Replenish: attacks heal a % of damage dealt (attacks, not spells).
+	if is_attack() and player_stats:
 		# get_equipment_lifesteal folds in the Coffin Lid's below-half bonus.
 		var ls_pct := player_stats.sphere_bonus_life_steal + player_stats.get_equipment_lifesteal() \
 			+ player_stats.quest_life_steal_bonus  # The Faithless' kept shrine
@@ -2474,7 +2482,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 
 	# Monk of the Night (Umbral Eclipse, maintained): attacks bank part of
 	# their damage as block. Lv.3 converts 15% instead of 10%.
-	if is_offensive() and player_stats and deck_manager and deck_manager.has_method("get_maintained_cards"):
+	if is_attack() and player_stats and deck_manager and deck_manager.has_method("get_maintained_cards"):
 		for monk in deck_manager.get_maintained_cards():
 			if monk and monk.card_id == "monk_of_the_night":
 				var monk_dealt := last_damage_dealt if last_damage_dealt > 0 else damage
@@ -3006,7 +3014,7 @@ func get_burden_tempo_cost() -> int:
 	# Conditional cards pay a tempo surcharge when a bow makes them ranged.
 	cost += get_conditional_tempo_penalty()
 	# Boot Holsters: slotted attack cards cost less tempo.
-	if card_type == CardType.ATTACK and slotted_in_item:
+	if is_attack() and slotted_in_item:
 		cost -= get_on_self_bonus().get("attack_tempo_reduction", 0)
 	# Chewbaccas Bandolier: slotted RANGED offensive cards cost less tempo.
 	if is_offensive() and is_ranged and slotted_in_item:
@@ -3808,7 +3816,7 @@ func _execute_blade_barrage(target, player_stats: PlayerStats, deck_manager, buf
 	var attack_count = 0
 	if deck_manager and deck_manager.hand:
 		for c in deck_manager.hand:
-			if c.card_type == CardType.ATTACK:
+			if c.is_attack():
 				attack_count += 1
 	var total_damage := _roll_hit_damage(attack_count * 10, player_stats, buff_mgr, false, null, false, 0.0, "[CARD] Blade Barrage CRIT!")
 	if target and target.has_method("take_damage"):
@@ -4088,7 +4096,7 @@ func _execute_best_offense(player_stats: PlayerStats, deck_manager = null, buff_
 	if deck_manager:
 		var has_attack = false
 		for card in deck_manager.hand:
-			if card.card_type == CardType.ATTACK:
+			if card.is_attack():
 				has_attack = true
 				break
 		if not has_attack:

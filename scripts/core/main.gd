@@ -8385,7 +8385,7 @@ func select_card(index: int) -> void:
 		# damage on ranged offensive cards.)
 		var st_stats := player.get_stats()
 		# Scouted: rank-scaled bonus range (2..6) on next attack after 3 consecutive hits
-		if st_stats and st_stats.st_scouted_bonus_active:
+		if st_stats and st_stats.st_scouted_bonus_active and card.is_attack():
 			effective_range += int(PassiveScaling.value("scouted", "range", st_stats.get_passive_level("scouted")))
 		# Sphere grid "Range +X" nodes
 		if st_stats and st_stats.sphere_bonus_range > 0:
@@ -9745,14 +9745,16 @@ func _weapon_post_card_effects(card: Card, target) -> void:
 			hh_card.execute(null, stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
 			_fire_instant_site_effect(hh_card, {"target": target})
 
-	# Psionic Flow, attack mode: the strike hits harder and shoves.
-	if card.is_offensive() and target and is_instance_valid(target) and target is Enemy:
+	# Psionic Flow, attack mode: the strike hits harder and shoves ("when you
+	# play an attack" — not a spell).
+	if card.is_attack() and target and is_instance_valid(target) and target is Enemy:
 		var pf := deck_manager.trigger_reactions("psionic_flow")
 		for pf_card in pf:
 			_fire_instant_site_effect(pf_card, {"target": target, "mode": "attack"})
 
-	# Poseidons Trident: the thrust continues through the target in a line.
-	if card.is_offensive() and target and is_instance_valid(target) and target is Enemy \
+	# Poseidons Trident: the thrust continues through the target in a line
+	# ("your attacks").
+	if card.is_attack() and target and is_instance_valid(target) and target is Enemy \
 			and card.last_damage_dealt > 0 and grid_manager and enemy_spawner:
 		var pierce := 0
 		var pt_inv := player.get_inventory()
@@ -9775,8 +9777,9 @@ func _weapon_post_card_effects(card: Card, target) -> void:
 							e.take_damage(card.last_damage_dealt, true)
 							add_battle_log("The trident runs %s through!" % e.enemy_name, Color(0.4, 0.7, 0.9))
 
-	# Nine Ruins of Sanguine: attacks build Vitality; the ninth calls the penguin.
-	if card.is_offensive():
+	# Nine Ruins of Sanguine: attacks build Vitality; the ninth calls the
+	# penguin ("every attack" — spells do not).
+	if card.is_attack():
 		var nr_inv := player.get_inventory()
 		if nr_inv:
 			for vw in nr_inv.equipped_weapons:
@@ -11874,7 +11877,7 @@ func _ranged_card_max_range(card: Card, in_play: bool = false) -> int:
 		max_range += 2
 	var st_stats := player.get_stats() if player else null
 	# Scouted: rank-scaled bonus range (2..6) on next attack after 3 consecutive hits
-	if st_stats and st_stats.st_scouted_bonus_active:
+	if st_stats and st_stats.st_scouted_bonus_active and card.is_attack():
 		max_range += int(PassiveScaling.value("scouted", "range", st_stats.get_passive_level("scouted")))
 	# Sphere grid "Range +X" nodes
 	if st_stats and st_stats.sphere_bonus_range > 0:
@@ -14337,7 +14340,7 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 
 	# Check and deduct mana (with Staggered debuff modifier)
 	var mana_cost = card.mana_cost
-	if debuff_mgr:
+	if debuff_mgr and card.is_attack():
 		mana_cost += debuff_mgr.get_attack_mana_increase()
 	mana_cost = max(0, mana_cost)
 
@@ -14377,7 +14380,7 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 			add_battle_log("Free hand echo: %s strikes twice!" % card.card_name, Color(1.0, 0.9, 0.4))
 
 	# Notify debuffs of attack
-	if debuff_mgr and card.card_type == Card.CardType.ATTACK:
+	if debuff_mgr and card.is_attack():
 		debuff_mgr.on_attack()
 
 	# Apply tempo. A Quiver / Manifest play IS a card play, so Weighted both
@@ -14386,7 +14389,7 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 	var tempo_cost = card.get_burden_tempo_cost()
 	if debuff_mgr:
 		tempo_cost += debuff_mgr.get_tempo_increase()
-		debuff_mgr.on_card_played(card.card_type == Card.CardType.ATTACK)
+		debuff_mgr.on_card_played(card.is_attack())
 	tempo_manager.add_card_tempo(tempo_cost)
 
 	# Apply card world effects
