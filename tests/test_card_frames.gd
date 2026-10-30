@@ -84,7 +84,7 @@ func _run() -> void:
 	var ua: TextureRect = u.get_node_or_null("Panel/FrameArt")
 	_check(ua != null and ua.texture.resource_path.ends_with("frame_utility.png"), "a Utility card wears the Utility frame")
 	var ul: Control = u.get_node_or_null("Panel/FrameLogo")
-	_check(ul != null and absf(ul.position.y + ul.size.y * 0.5 - 128.0) < 1.0, "its logo sits where the art window meets the rules box")
+	_check(ul != null and absf(ul.position.y + ul.size.y * 0.5 - CardUI.FRAMES["utility"]["logo_at"].y) <= 1.0, "its logo sits where the art window meets the rules box")
 	u.queue_free()
 
 	# Attack cards wear the Attack frame, the name clear of its axe head.

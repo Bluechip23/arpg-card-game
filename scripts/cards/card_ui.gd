@@ -57,44 +57,50 @@ const FRAMES := {
 	# Instants: gilt and feathers, ink on parchment above a ducking hero.
 	"instant": {
 		"tex": "res://assets/textures/cards/frame_instant.png",
-		"rect": Rect2(-5.73, -16.25, 161.6, 233.1),
-		"mana_at": Vector2(14.1, 13.4),
-		"tempo_at": Vector2(136.1, 13.2),
-		"dots_y": 8.2,
-		"logo_at": Vector2(74.6, 107.1),
-		"desc_box": Vector2(116, 38),
-		"desc_right": 4.0,
+		"rect": Rect2(-5.7, -18.3, 161.8, 242.0),
+		"mana_at": Vector2(14.1, 12.5),
+		"tempo_at": Vector2(136.2, 12.3),
+		"dots_y": 7.1,
+		"logo_at": Vector2(74.7, 109.7),
+		"desc_box": Vector2(116.1, 39.4),
+		"desc_right": 3.9,
 		"ink": Color(0.16, 0.1, 0.05),
 		"ink_dark": true,
+		"top": 13.1, "title_h": 22.8, "art_h": 66.4, "type_h": 18.7, "desc_top": 4.2,
+		"title_left": 21.0, "title_right": 15.9, "name_w": 86,
 	},
 	# Every card with an upkeep: amethyst-shot stone, white text beside the
 	# mind-mage in the corner.
 	"maintain": {
 		"tex": "res://assets/textures/cards/frame_maintain.png",
-		"rect": Rect2(-5.24, -16.17, 160.9, 231.8),
-		"mana_at": Vector2(14.8, 11.1),
-		"tempo_at": Vector2(135.5, 10.9),
-		"dots_y": 7.1,
-		"logo_at": Vector2(74.4, 105.5),
-		"desc_box": Vector2(82, 46),
-		"desc_right": 37.0,
+		"rect": Rect2(-5.2, -11.7, 160.8, 235.5),
+		"mana_at": Vector2(14.8, 16.0),
+		"tempo_at": Vector2(135.4, 15.8),
+		"dots_y": 11.9,
+		"logo_at": Vector2(74.3, 111.9),
+		"desc_box": Vector2(81.9, 46.7),
+		"desc_right": 37.1,
 		"ink": Color(0.96, 0.94, 0.9),
 		"ink_dark": false,
+		"top": 18.9, "title_h": 22.4, "art_h": 65.0, "type_h": 18.3, "desc_top": 4.1,
+		"title_left": 21.0, "title_right": 16.1, "name_w": 86,
 	},
 	# Defense cards: a stone wall veined with blue lightning, white text left
 	# of the knight catching arrows on his shield.
 	"defensive": {
 		"tex": "res://assets/textures/cards/frame_defensive.png",
-		"rect": Rect2(-4.57, -15.7, 159.3, 229.4),
-		"mana_at": Vector2(17.5, 12.2),
-		"tempo_at": Vector2(134.8, 11.2),   # on the Instant card's hourglass, set over the board's own
-		"dots_y": 8.1,
-		"dots_span": Vector2(56, 94),   # between the banners
-		"logo_at": Vector2(74.7, 106.3),
-		"desc_box": Vector2(70, 42),
-		"desc_right": 50.0,
+		"rect": Rect2(-3.6, -4.7, 157.2, 222.1),
+		"mana_at": Vector2(18.2, 22.3),
+		"tempo_at": Vector2(133.9, 21.3),   # on the Instant card's hourglass, set over the board's own
+		"dots_y": 18.3,
+		"dots_span": Vector2(56.2, 93.7),   # between the banners
+		"logo_at": Vector2(74.6, 113.4),
+		"desc_box": Vector2(69.1, 40.7),
+		"desc_right": 50.2,
 		"ink": Color(0.96, 0.94, 0.9),
 		"ink_dark": false,
+		"top": 24.0, "title_h": 21.3, "art_h": 62.0, "type_h": 17.4, "desc_top": 3.9,
+		"title_left": 21.4, "title_right": 16.7, "name_w": 85,
 	},
 	# Utility cards: green scale-work wound with ivy. No type bar of its
 	# own: a taller art window, the logo set where the window meets the
@@ -102,19 +108,20 @@ const FRAMES := {
 	# white text left of the pack and potions. Standard drop and hourglass.
 	"utility": {
 		"tex": "res://assets/textures/cards/frame_utility.png",
-		"rect": Rect2(-5.4, -10.33, 161.1, 232.2),
-		"mana_at": Vector2(17.2, 22.2),
-		"tempo_at": Vector2(133.3, 16.5),
-		"dots_y": 14.2,
-		"logo_at": Vector2(74.9, 128.0),
-		"desc_box": Vector2(64, 44),
-		"desc_right": 56.0,
-		"desc_full": Vector2(116, 46),
+		"rect": Rect2(-5.1, -7.8, 160.6, 228.8),
+		"mana_at": Vector2(17.5, 24.3),
+		"tempo_at": Vector2(133.2, 18.7),
+		"dots_y": 16.4,
+		"logo_at": Vector2(75.0, 128.6),
+		"desc_box": Vector2(63.8, 43.4),
+		"desc_right": 55.9,
+		"desc_full": Vector2(115.6, 45.3),
 		"ink": Color(0.96, 0.94, 0.9),
 		"ink_dark": false,
 		# The sections' heights down the card: name bar from top, art window,
 		# type line; the rules box takes the rest.
-		"top": 19.0, "title_h": 22.0, "art_h": 85.0, "type_h": 19.0,
+		"top": 21.2, "title_h": 21.7, "art_h": 83.8, "type_h": 18.7, "desc_top": 3.9,
+		"title_left": 21.2, "title_right": 16.1, "name_w": 86,
 	},
 	# Attack cards: blood-red iron and steel spikes, a bloodied great-axe down
 	# the left, white text beside a roaring berserker. Its emblem painted out
@@ -124,20 +131,19 @@ const FRAMES := {
 	# axe head.
 	"attack": {
 		"tex": "res://assets/textures/cards/frame_attack.png",
-		"rect": Rect2(-11.32, -15.27, 169.0, 256.5),
-		"mana_at": Vector2(15.9, 26.1),
-		"tempo_at": Vector2(133.3, 22.6),
-		"dots_y": 19.9,
-		"dots_span": Vector2(52, 118),  # right of the axe head
-		"logo_at": Vector2(75.8, 112.1),
-		"desc_box": Vector2(72, 40),
+		"rect": Rect2(-11.1, -16.6, 168.6, 257.4),
+		"mana_at": Vector2(16.0, 24.9),
+		"tempo_at": Vector2(133.2, 21.4),
+		"dots_y": 18.7,
+		"dots_span": Vector2(52.1, 117.9),  # right of the axe head
+		"logo_at": Vector2(75.8, 111.2),
+		"desc_box": Vector2(71.8, 40.1),
 		"desc_right": 48.0,
-		"desc_full": Vector2(116, 56),
-		"desc_top": 9.0,
+		"desc_full": Vector2(115.7, 56.2),
 		"ink": Color(0.96, 0.94, 0.9),
 		"ink_dark": false,
-		"top": 28.0, "title_h": 24.0, "art_h": 51.0, "type_h": 24.0,
-		"title_left": 37.0, "title_right": 20.0, "name_w": 67,
+		"top": 26.8, "title_h": 24.1, "art_h": 51.2, "type_h": 24.1, "desc_top": 9.0,
+		"title_left": 37.1, "title_right": 20.1, "name_w": 67,
 	},
 	# Spell cards: blackened stone veined with molten red, a fire comet
 	# round the top-left, a wizard calling down meteors in the rules box. The
@@ -145,20 +151,19 @@ const FRAMES := {
 	# type bar's middle. Squeezed like the Attack board.
 	"spell": {
 		"tex": "res://assets/textures/cards/frame_spell.png",
-		"rect": Rect2(-13.65, -15.27, 169.0, 256.5),
-		"mana_at": Vector2(14.6, 25.6),
-		"tempo_at": Vector2(131.0, 23.2),
-		"dots_y": 20.1,
-		"dots_span": Vector2(54, 116),   # right of the comet
-		"logo_at": Vector2(75.0, 118.0),
-		"desc_box": Vector2(78, 40),
-		"desc_right": 42.0,
-		"desc_full": Vector2(116, 56),
-		"desc_top": 9.0,
+		"rect": Rect2(-13.7, -15.8, 169.2, 256.5),
+		"mana_at": Vector2(14.6, 25.1),
+		"tempo_at": Vector2(131.2, 22.7),
+		"dots_y": 19.6,
+		"dots_span": Vector2(54.1, 116.1),   # right of the comet
+		"logo_at": Vector2(75.1, 117.5),
+		"desc_box": Vector2(78.1, 40.0),
+		"desc_right": 41.9,
+		"desc_full": Vector2(116.1, 56.0),
 		"ink": Color(0.96, 0.94, 0.9),
 		"ink_dark": false,
-		"top": 28.0, "title_h": 24.0, "art_h": 51.0, "type_h": 24.0,
-		"title_left": 40.0, "title_right": 20.0, "name_w": 62,
+		"top": 27.5, "title_h": 24.0, "art_h": 51.0, "type_h": 24.0, "desc_top": 9.0,
+		"title_left": 40.1, "title_right": 19.9, "name_w": 62,
 	},
 }
 const FRAMED_DOT := 8.0

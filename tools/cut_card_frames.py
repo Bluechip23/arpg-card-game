@@ -31,14 +31,18 @@ from scipy import ndimage as nd
 
 OUT_DIR = "assets/textures/cards"
 CARD_W = 150          # the card face's width in game (CardUI.CARD_W)
+CARD_H = 210          # ... and height (CardUI.CARD_H)
 CARD_SCALE = 2        # texels a card pixel in the saved frame
 
 FRAMES = {
     "instant": {
         "src": "assets/sprites/paintings/card_instant_board.webp",
-        # The card's own rectangle on the board (x0, y0, x1, y1): the gold
-        # frame's outer edge. Feathers, drop and hourglass hang outside it.
-        "card": (37, 105, 1006, 1460),
+        # The card's own rectangle on the board (x0, y0, x1, y1): the frame
+        # body's outer edge (measured: where the black ground meets the plain
+        # border, ornaments aside). It maps EXACTLY onto the 150x210 card —
+        # every frame the same size (designer, 2026-10-30), each stretched a
+        # few percent at most. Feathers, drop and hourglass hang outside it.
+        "card": (37, 114, 1005, 1421),
         "dots": [(445, 158), (515, 158), (583, 158)],
         "dot_r": 24,
         # Bands painted out whole, row by row: the dots' strip, the name,
@@ -63,7 +67,7 @@ FRAMES = {
     # rules box's corner. Rules text is white on the stone.
     "maintain": {
         "src": "assets/sprites/paintings/card_maintain_board.webp",
-        "card": (34, 105, 1008, 1467),
+        "card": (34, 75, 1009, 1417),
         "dots": [(442, 151), (513, 151), (583, 151)],
         "dot_r": 24,
         "bands": [
@@ -88,7 +92,7 @@ FRAMES = {
     # window and type bar fall where the other boards' do.
     "defensive": {
         "src": "assets/sprites/paintings/card_defensive_board.webp",
-        "card": (30, 103, 1014, 1480),
+        "card": (24, 32, 1021, 1455),
         "dots": [(443, 156), (513, 156), (582, 156)],
         "dot_r": 24,
         "bands": [
@@ -118,7 +122,7 @@ FRAMES = {
     # ones. Rules text is white on the green.
     "utility": {
         "src": "assets/sprites/paintings/card_utility_board.webp",
-        "card": (35, 67, 1008, 1429),
+        "card": (33, 51, 1009, 1433),
         "dots": [(442, 159), (513, 159), (582, 159)],
         "dot_r": 24,
         "bands": [
@@ -148,7 +152,7 @@ FRAMES = {
     # everything below them moves up 243 rows. Rules text white.
     "attack": {
         "src": "assets/sprites/paintings/card_attack_board.webp",
-        "card": (63, 85, 898, 1497),
+        "card": (62, 92, 899, 1500),
         "dots": [(429, 196), (505, 196), (583, 196)],
         "dot_r": 28,
         "bands": [
@@ -176,7 +180,7 @@ FRAMES = {
     # middle (designer). The same shape as the Attack board, squeezed alike.
     "spell": {
         "src": "assets/sprites/paintings/card_spell_board.webp",
-        "card": (76, 85, 911, 1497),
+        "card": (76, 88, 910, 1500),
         "dots": [(431, 197), (507, 197), (583, 197)],
         "dot_r": 28,
         "bands": [
@@ -342,6 +346,12 @@ def squeeze_rows(rgba, y0, y1, new_h):
     return np.concatenate([rgba[:y0], band, rgba[y1:]], axis=0)
 
 
+def shrink2(rgba, kx, ky):
+    img = Image.fromarray(rgba, "RGBA")
+    size = (round(img.width * kx), round(img.height * ky))
+    return img.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")
+
+
 def shrink(rgba, k):
     img = Image.fromarray(rgba, "RGBA")
     size = (round(img.width * k), round(img.height * k))
@@ -364,16 +374,26 @@ def main():
     first = True
     for name, cfg in FRAMES.items():
         src = np.asarray(Image.open(cfg["src"]).convert("RGB"))
-        x0, _, x1, _ = cfg["card"]
-        k = CARD_W * CARD_SCALE / float(x1 - x0)
+        x0, y0, x1, y1 = cfg["card"]
+        removed = 0
+        if "squeeze" in cfg:
+            sy0, sy1, new_h = cfg["squeeze"]
+            removed = (sy1 - sy0) - new_h
+        # The body fills the card exactly: its own scale across and down.
+        kx = CARD_W * CARD_SCALE / float(x1 - x0)
+        ky = CARD_H * CARD_SCALE / float(y1 - removed - y0)
         rgb = blank(cfg)
         alpha = ground_alpha(src, cfg["card"])
         rgba = np.dstack([rgb, (alpha * 255).astype(np.uint8)])
         if "squeeze" in cfg:
             rgba = squeeze_rows(rgba, *cfg["squeeze"])
-        out = shrink(rgba, k)
+        out = shrink2(rgba, kx, ky)
         out.save(os.path.join(OUT_DIR, "frame_%s.png" % name))
-        print("frame_%s: %dx%d (card at %s on the board, x%.4f)" % (name, out.width, out.height, cfg["card"], k))
+        h, w = rgba.shape[:2]
+        print("frame_%s: %dx%d; CardUI rect Rect2(%.1f, %.1f, %.1f, %.1f) (stretch %.3f)" % (
+            name, out.width, out.height, -x0 * kx / CARD_SCALE, -y0 * ky / CARD_SCALE,
+            w * kx / CARD_SCALE, h * ky / CARD_SCALE, ky / kx))
+        k = kx
         if first:
             cut_dots(cfg, k)
             first = False
