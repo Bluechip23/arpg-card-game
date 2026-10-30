@@ -53,7 +53,7 @@ func _test_scene_boot() -> void:
 	var ally = main._dojo_allies[0]
 	_check(ally is Player and ally.get_stats().max_health == 500, "ally dummies are Players with a fat health pool")
 	_check(main._player_at_position(ally.position) == ally, "ally-target cards can find a dog")
-	_check(main._action_vbox.get_node("WaitPauseRow").get_node_or_null("DojoResetButton") != null, "the Reset button sits beside Wait")
+	_check(main._action_vbox.get_node("AttackRow").get_node_or_null("DojoResetButton") != null, "the Reset button sits beside Wait")
 	_check(not main._dojo_entry_deck_state.has("live") and main._dojo_entry_deck_state.has("hand"), "the entry hand is snapshotted as data")
 	_check(not main._dojo_entry_progression.is_empty() or main.player_progression.is_empty(), "the entry progression is kept")
 

@@ -1348,7 +1348,7 @@ const HUD_FACES := {
 	"sidestep": [Vector2(29, 34), null], "quick": [Vector2(34, 34), null],
 	"brain": [Vector2(118, 33), Vector2(85, 17)], "peek": [Vector2(42, 33), null],
 	"buy": [Vector2(40, 33), Vector2(30, 10)], "attack": [Vector2(148, 34), Vector2(49, 18)],
-	"block": [Vector2(66, 34), Vector2(42, 18)], "wait": [Vector2(216, 38), Vector2(173, 17)],
+	"block": [Vector2(66, 34), Vector2(42, 18)], "wait_short": [Vector2(69, 34), Vector2(48, 17)],
 	"discard": [Vector2(79, 79), Vector2(53, 59)],
 }
 
@@ -1635,27 +1635,16 @@ func _setup_action_buttons() -> void:
 	_rack_button.visible = false
 	vbox.add_child(_rack_button)
 
-	# Bottom row: Wait, stretched to the column (= attack) width. (Pause used to
-	# sit beside it; it now lives on the tempo ticker next to the ▶ speed
-	# button, where the clock it stops is.)
-	var bottom_row := HBoxContainer.new()
-	bottom_row.name = "WaitPauseRow"
-	bottom_row.custom_minimum_size = Vector2(0, 36)
-	bottom_row.size_flags_horizontal = Control.SIZE_FILL
-	bottom_row.add_theme_constant_override("separation", 0)
-	vbox.add_child(bottom_row)
-
-	# Wait: raised hand + the 1 tempo it advances (takes the full width).
+	# Wait (raised hand + the 1 tempo it advances) closes the attack row, beside
+	# Raise Shield (designer, 2026-10-29; it had a row of its own). Its face is
+	# the long wait frame cut short to the row's height.
 	var wait_btn := Button.new()
 	wait_btn.name = "WaitButton"
-	wait_btn.icon = UIGlyphs.get_glyph("wait_hand")
 	wait_btn.text = "1T"
-	wait_btn.custom_minimum_size = Vector2(0, 36)
-	wait_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	wait_btn.tooltip_text = "Advance the tempo clock by 1 without playing a card"
 	wait_btn.pressed.connect(_on_wait_pressed)
-	bottom_row.add_child(wait_btn)
-	_skin_hud_button(wait_btn, "wait")
+	attack_row.add_child(wait_btn)
+	_skin_hud_button(wait_btn, "wait_short")
 
 #endregion
 #region TICK BAR & ACTION QUEUE
@@ -16921,15 +16910,15 @@ func _build_dojo_side_marker(cells: Array, text: String, color: Color) -> void:
 	root.add_child(title)
 
 func _setup_dojo_reset_button() -> void:
-	## Reset sits beside Wait in the action column.
-	var row := _action_vbox.get_node_or_null("WaitPauseRow") if _action_vbox else null
+	## Reset sits beside Wait, at the end of the attack row.
+	var row := _action_vbox.get_node_or_null("AttackRow") if _action_vbox else null
 	if row == null:
 		return
 	var btn := Button.new()
 	btn.name = "DojoResetButton"
 	btn.text = "Reset"
-	btn.custom_minimum_size = Vector2(0, 36)
-	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.custom_minimum_size = Vector2(0, 34)
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	btn.tooltip_text = "Dojo: full health, mana and armor, buffs and debuffs cleared, tempo back to 0, the hand you walked in with, dummies restored"
 	btn.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 	btn.pressed.connect(_dojo_reset)

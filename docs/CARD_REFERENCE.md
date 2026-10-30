@@ -58,7 +58,7 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Code: execute() -> _execute_absorb_essence only prints. main._apply_card_world_effects 'absorb_essence' deals a flat, unscaled 1 damage to every living enemy, 1 to each barricade obstacle, 1 direct damage to every ally in _all_allies() (you, the co-op partner, dojo practice allies) and 1 to every living summon (_all_summons: worms, Frankensteins, wolves, skeletons, spirit bows, clones, the penguin), counting each hit; misery spread over the enemies; it queues {total_damage, tempo_remaining:10}. _process_pending_absorb_essences (run every cycle) counts down 5/cycle and after 10 tempo adds an Energy Ball card to hand whose damage = number of things hit. Card is AOE circle range 100, target all_nearby (plays with a click anywhere), spell school, 50 mana / 5 tempo.
   - **Mismatch:** Sheet type 'spell, Offensive' agrees (school SPELL, keywords spell/offensive).
 - **Attack** (`slash`) — Common · 20 mana, 3 tempo · range melee · targets enemy · slots: deck only · sheet: Attack
-  - Card text: 10 damage. Conditional: melee with a melee weapon, Ranged 5 with a bow or a magic weapon.
+  - Card text: 10 damage. Conditional.
   - Code: _execute_slash: 10 base physical-scaled damage + Strengthen, crit, Cursed reduction, single target. conditional_range + conditional_magic_ranged: DeckManager._apply_conditional_range sets is_ranged=true (range 5) when the inventory holds a ranged weapon or a magic weapon, else melee; when ranged, get_burden_tempo_cost adds CONDITIONAL_RANGED_TEMPO_PENALTY = 1 tempo. 20 mana, 3 tempo.
   - **Mismatch:** Minor: when it resolves as ranged the card costs +1 tempo (CONDITIONAL_RANGED_TEMPO_PENALTY), which the description does not mention.
 - **Balistic Arrow** (`balistic_arrow`) — Mythic · 75 mana, 5 tempo · range 5 · targets point · slots: Arrow · not on the sheet (item kit / token)
@@ -123,7 +123,7 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Card text: Deal damage equal to 0.5x the enemy's missing health %.
   - Code: _execute_exposed_artery: dmg = floor(0.5 * missing-health-percent of target) (e.g. 60% missing -> 30), dealt via target.take_damage(dmg, true) with no stat scaling, no Strengthen, no crit; 0 damage at full health. Melee (is_ranged false), 50 mana, 2 tempo.
 - **Exposing Strike** (`exposing_strike`) — Common · 30 mana, 3 tempo · range melee · targets enemy · slots: deck only · not on the sheet (starter card, 2026-10-20)
-  - Card text: 10 damage and 1 Vulnerable. Conditional: melee with a melee weapon, Ranged 5 with a bow or a magic weapon.
+  - Card text: 10 damage and 1 Vulnerable. Conditional.
   - Code: execute() 'exposing_strike': _execute_slash (10 base physical-scaled damage + Strengthen, crit, Cursed reduction, single target), then target.apply_debuff('vulnerable', 1). conditional_range + conditional_magic_ranged, exactly as the Attack card: ranged 5 with a bow or a magic weapon (+1 tempo, CONDITIONAL_RANGED_TEMPO_PENALTY), else melee. One of the five starter cards (DeckManager.BASIC_DECK_IDS). 30 mana / 3 tempo.
   - **Mismatch:** Minor: like the Attack card, the +1 tempo when it resolves ranged is not in the description.
 - **Fire Punch** (`fire_punch`) — Mythic · 5 mana, 1 tempo · range melee · targets enemy · slots: deck only · not on the sheet (item kit / token)
@@ -254,7 +254,7 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Card text: Deal 8 damage. Arrow shoots through all enemies and obstructions in a direct line.
   - Code: execute() 'spirit_arrow' -> _compute_attack_damage(spell=false, buff_mgr): 8 base STR-scaled physical damage + Strengthen and a crit roll, stored. main._apply_card_world_effects 'spirit_arrow': extends the line from the player through the aim point 100 units and every living enemy within 0.8 of that line takes the damage (enemy_spawner.get_enemies_in_line ignores walls/obstacles, so it pierces obstructions); misery spread. Ranged 5, point target. 30 mana / 5 tempo.
 - **Splinter** (`splinter`) — Basic · 20 mana, 2 tempo · range 3 · targets enemy · slots: deck only · not on the sheet (item kit / token)
-  - Card text: Apply 1 Bleed: the enemy takes 1 damage per tile it moves. Range 3.
+  - Card text: Apply 1 Bleed. Range 3.
   - Code: execute() branch 'splinter': no damage; target.apply_debuff('bleed', 1). Enemy bleed: 1 damage per tile moved, each removing a stack (enemy.gd:4372). is_ranged with modifier -2 -> range 3. 20 mana, 2 tempo.
 - **Sprinkle** (`sprinkle`) — Mythic · 0 mana, 0 tempo · range melee · targets enemy · slots: deck only · not on the sheet (item kit / token)
   - Card text: Deal 25 damage. Erased after play.
@@ -273,7 +273,7 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Card text: Surrounding enemies within one square are disarmed for 5 tempo. Deal 3 damage.
   - Code: Played without a click target (main.gd ~12515 'all_nearby' -> play_selected_card(player)). _execute_sweeping_disarm computes 3 base STR-scaled + Strengthen + crit into last_damage_dealt; main 'sweeping_disarm' (main.gd ~12144) applies take_damage(last_damage_dealt) and apply_debuff('disarmed', 5) (5-tempo disarm, enemy.gd ~5106) to every enemy within 1.5 tiles of the player. Melee, 20 mana/5 tempo.
 - **Switch Kick** (`switch_kick`) — Legendary · 2 mana, 2 tempo · range melee · targets enemy · slots: deck only · not on the sheet (item kit / token)
-  - Card text: Deal 2 damage and Disarm the enemy for 5 tempo (it skips its next attack).
+  - Card text: Deal 2 damage and Disarm the enemy for 5 tempo.
   - Code: execute() 'switch_kick' (card.gd:1872): _execute_slash deals base 2 through the physical pipeline (+STR, crit, strengthen), then apply_debuff('disarm_attacks', 1): since the status rework one stack is DISARM_TEMPO_PER_STACK = 5 tempo of ordinary Disarm (enemy.gd 'disarm_attacks'), so the enemy cannot attack for 5 tempo. Melee, enemy target. Also conjured into hand by main.gd:11112.
 - **Territorial Mark** (`territorial_mark`) — Mythic · 45 mana, 5 tempo · range 10 · targets enemy · slots: Arrow · not on the sheet (item kit / token)
   - Card text: Costs 35 health. Deal 15 damage at range 10. The arrow's path — and 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside are Weakened until they leave.
@@ -395,7 +395,7 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Card text: Gain 40 armor. Become staggered for 40 tempo.
   - Code: _execute_tower_shield: add_armor(block=40) then applies Debuff.create_timed(STAGGERED, 40) to the player: a clock-timed Staggered — attack cards cost +15 mana (Debuff.STAGGERED_MANA) for 40 tempo, and playing attacks burns no stacks. Self, 50 mana, 5 tempo.
 - **Turtle Up** (`turtle_up`) — Common · 30 mana, 0 tempo · range melee · targets self · slots: Bulwark · sheet: Defense, self
-  - Card text: Armor does not decay for 20 tempo.
+  - Card text: Gain Fortify for 20 tempo.
   - Code: execute() -> _execute_turtle_up (card.gd:3110): Buff.create_fortify(20) — armor does not decay for 20 tempo. Self target, 30 mana / 0 tempo.
 - **Vined Encasing** (`vined_encasing`) — Legendary · 50 mana, 4 tempo · range melee · targets self · slots: deck only · not on the sheet (item kit / token)
   - Card text: Gain 1 thorn for each point of armor you currently have, for 20 tempo. You lose X thorns whenever you receive X damage.
@@ -431,7 +431,7 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Card text: Apply 3 Vulnerable to self. Gain 3 mana. Gain 3 Strengthen for 20 tempo.
   - Code: execute() -> _execute_bloodlust: applies Debuff VULNERABLE value 3 to the player's own debuff manager (each hit taken +30% damage, consumes 1 stack), gains 30 mana via player_stats.gain_mana(30), and applies Buff.create_strengthen_timed(3, 20): +3 damage on every attack for 20 tempo (a clock, not charges; meeting a charge-based Strengthen, the values add and the clock wins). Self target, 0 mana, 5 tempo. No main.gd handling.
 - **Bottomless Quiver** (`bottomless_quiver`) — Legendary · 40 mana, 4 tempo · range melee · targets self · slots: Arrow · sheet: Utility
-  - Card text: Manifest 5: Overflow attack cards are stored in the Manifest zone and can be played at full cost. Non-attack overflow cards are discarded. Every overflowed card spends a charge.
+  - Card text: Manifest 5: overflowing attack cards are manifested and can be played at full cost. Non-attack overflow cards are discarded. Every overflowed card spends a charge.
   - Code: _execute_bottomless_quiver only prints; main (post-play) adds OverflowEffect.create_quiver(5). overflow_manager._process_quiver: an overflowed ATTACK card is stored in the Manifest zone (manifest_id 'quiver_card', with its mana/tempo cost), any other overflowed card goes to the discard pile; each overflow consumes one of the 5 charges. Clicking a stored card in the Manifest UI runs the quiver targeting flow and main.play_quiver_card plays it at its full mana_cost (+Staggered) and normal tempo, removing it from the zone.
 - **Clear Mind** (`clear_mind`) — Legendary · 50 mana, 4 tempo · range melee · targets self · slots: deck only · not on the sheet (item kit / token)
   - Card text: Purge 3 random debuffs on you — whole stacks — and draw 1 card for each debuff purged.
@@ -487,7 +487,7 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Card text: Blink up to 5 spaces. Enemies within 3 of the space you left are stunned for 3 tempo.
   - Code: execute() branch is 'pass'; main._apply_card_world_effects 'escape_and_bewilder': blinks the player to the clicked tile if within 5 grid cells and not a blocked tile, then every living enemy within 3 cells of the ORIGINAL tile gets apply_debuff('stun', 3) (3 tempo). 50 mana / 2 tempo, point target.
 - **Fleet Etching** (`fleet_etching`) — Common · 0 mana, 2 tempo · range melee · targets self · slots: Swift — Engrave · not on the sheet (item kit / token)
-  - Card text: Engrave. Gain Haste: +1 tempo-free tile on your next 2 moves.
+  - Card text: Engrave. Gain Haste 1 for your next 2 moves.
   - Code: execute() 'fleet_etching' branch (card.gd:1645) applies Buff.create_haste(1, 2): +1 tempo-free tile on each of the next 2 moves (one charge consumed per move, buff_manager.gd:566). requires_engraving = true so it cannot sit in the deck unless slotted (deck_manager.gd:487). Self target, 0 mana / 2 tempo. No main.gd handling.
 - **Forever Armor** (`forever_armor`) — Rare · 20 mana, 4 tempo, maintain 20 · range melee · targets self · slots: Crown / Buckler / Sword · sheet: Utility, Self
   - Card text: Maintain: gain 6 max unerring armor.
@@ -503,7 +503,7 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Card text: Heal 3 and gain +1 strength for 20 tempo. Sticky 4.
   - Code: _execute_gargle_and_spit: player_stats.heal(3) and Buff.create_might(1, 20) (+1 STR for 20 tempo) on the target's buff manager; when aimed at the co-op partner, execute_deferred_card reroutes stats/buff manager to that ally. sticky=4: stays in hand for 4 plays (each play pays 10 mana / 1 tempo). is_ranged, modifier 0 -> range 5.
 - **Gift from the Gods** (`gift_from_the_gods`) — Mythic · 40 mana, 4 tempo · range melee · targets self · slots: deck only · not on the sheet (item kit / token)
-  - Card text: Gain 3 Enlightened (10% crit chance; one stack is consumed per attack).
+  - Card text: Gain 3 Enlightened (10% crit chance).
   - Code: execute() 'gift_from_the_gods': buff_mgr.apply_buff(Buff.new(ENLIGHTENED, 10, -1, 3)) — +10% crit with 3 charges; BuffManager.roll_crit spends one charge per attack roll (crit or not). Lv3 granting item: 4 stacks and removes 3 random debuffs.
 - **Give In** (`give_in`) — Common · 0 mana, 2 tempo · range melee · targets self · slots: deck only · sheet: Utility, self
   - Card text: Immediately gain 3 mana. The next time you would draw from Tempo being triggered, you don't.
@@ -633,7 +633,7 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Card text: Engrave. Draw a card.
   - Code: requires_engraving=true + CROWN keyword: deck_manager.play_card refuses it unless slotted into a helm (Engrave). execute() 'regal_etching' -> _execute_draw: draw 1 card. 5 mana, 2 tempo, self.
 - **Release Soul** (`release_soul`) — Basic · 15 mana, 2 tempo · range melee · targets self · slots: deck only · not on the sheet (item kit / token)
-  - Card text: A piece of your soul, caged. While it is in your hand you are Drained (10 mana a cycle) and it saps 1 damage per tempo (5 at each cycle). Play (15 mana, 2 tempo) to release it — every living Spirit Collector gains 5 Strengthen.
+  - Card text: A piece of your soul, caged. While it is in your hand you suffer Drain and it saps 1 damage per tempo. Play (15 mana, 2 tempo) to release it — every living Spirit Collector gains 5 Strengthen.
   - Code: held_damage_per_cycle = 5: DeckManager.process_turn calls player_stats.take_damage(5) each cycle while it is in hand (the sheet's 1 per tempo, charged per 5-tempo cycle); in_hand_debuff 'drain_1' holds the holder at 1 Drain while it is held (Main._sync_held_drain). linger=true (may exceed hand cap). Playing it erases it (erase_on_play) and gives every living Spirit Collector 5 Strengthen. 15 mana / 2 tempo, self.
 - **Release Tension** (`release_tension`) — Rare · 30 mana, 5 tempo · range melee · targets enemy · slots: Wand / Staff · sheet: Utility, melee
   - Card text: Remove a stack of any debuff from the enemy and heal for the amount of debuffs removed x3. Choose which debuff.
@@ -675,7 +675,7 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Card text: Manifest 3: Overflow cards become Shuriken. Each Shuriken deals 3 damage to a random enemy (free, ranged, counts as attack).
   - Code: execute() -> _execute_shuriken_pouch only prints; main.gd post-play (line ~8730) adds OverflowEffect.create_manifest_shuriken(3) — a Manifest with 3 charges so overflow cards become Shuriken (0 mana, 0 tempo). Manifest resolution (main ~13115) deals flat 3 damage to a random living enemy and calls stats.register_attack() so it counts as an attack. Self, 30 mana / 2 tempo.
 - **Song of a Swords Sing** (`song_of_a_swords_sing`) — Legendary · 35 mana, 3 tempo · range melee · targets enemy · slots: deck only · not on the sheet (item kit / token)
-  - Card text: Disarm the enemy for 5 tempo (it skips its next attack) and gain 2 armor for every KIND of debuff on it (3 burn is one kind; burn + frost + disarm is three).
+  - Card text: Disarm the enemy for 5 tempo and gain 2 armor for every KIND of debuff on it (3 burn is one kind; burn + frost + disarm is three).
   - Code: execute() branch: counts distinct debuff kinds on the target with Card.count_debuff_kinds (stack fields counted once each), applies target.apply_debuff('disarm_attacks', 1) (5 tempo of Disarm), and player_stats.add_armor(kinds*2) (kinds counted BEFORE the disarm is added). Melee (is_ranged=false), enemy target, 35 mana, 3 tempo.
 - **Succumb** (`succumb`) — Rare · 0 mana, 0 tempo · range 4 · targets self, ally · slots: Crown / Fist — Engrave · sheet: Utility, allies, ranged 4
   - Card text: For 20 tempo, gain fortify, blessed 2, strengthen 5, and Resilient 20%. After 10 tempo, take 10 damage. After 10 additional tempo, take 10 more damage and become cuffed, drained, and disarmed for 10 tempo.
@@ -842,10 +842,10 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
 ### Unplayable (3)
 
 - **Lightly Dazed** (`lightly_dazed`) — Common · 0 mana, 0 tempo · range — · targets self · slots: deck only · sheet: Unplayable
-  - Card text: This card cannot be played. Linger. Erases from deck after 40 tempo, in your hand or the draw or discard pile (frozen while jailed).
+  - Card text: Linger. Erase 40.
   - Code: UNPLAYABLE (play_card refuses it); linger=true lets it exceed the hand cap; erase_tempo=40 ticks down 5 per cycle in the hand, draw and discard piles and freezes in jail (negative card: Card.is_negative_card, DeckManager._process_erase_timers) and the card is permanently removed at 0. Added to the player's hand by an enemy attack (enemy.gd:4009). No execute branch (never executes).
 - **Minor Wounds** (`minor_wounds`) — Common · 0 mana, 0 tempo · range — · targets — · slots: deck only · sheet: Unplayable
-  - Card text: On draw, deal 2 damage to self. Erase: 40 (in your hand or the draw or discard pile; frozen while jailed).
+  - Card text: On draw, deal 2 damage to self. Erase 40.
   - Code: Unplayable status card. has_on_draw 'deal_2_self': main._on_card_on_draw_triggered (main.gd:14342) calls stats.take_damage(2) (armor applies) on draw. erase_tempo 40: DeckManager ticks erase_tempo_remaining -5 per cycle in the hand, draw and discard piles, frozen in jail (negative card: Card.is_negative_card, DeckManager._process_erase_timers) and erases it at 0. Created 2 at a time by Reckless Strike (main.gd:8741).
 - **Petey the Pet Rock** (`petey_the_pet_rock`) — Common · 0 mana, 0 tempo · range — · targets — · slots: Pocket · sheet: Unplayable
   - Card text: On Draw: Draw 3 cards. On Discard: Discard 2 cards. While in hand: Slowed 2.

@@ -265,6 +265,8 @@ def cut_actions():
     dst[keep] = src[keep]
     layout = {}
     for name, spec in ACTIONS.items():
+        if name == "wait":
+            continue   # only its compact cut (below) is on screen
         x0, y0, x1, y1 = spec["box"]
         img = np.dstack([clean, fg * 255]).astype(np.uint8)[y0:y1, x0:x1]
         im = save(shrink(img, ACT_K), "act_%s" % name)
@@ -272,6 +274,16 @@ def cut_actions():
         if spec["num"]:
             num = (round((spec["num"][0] - x0) * ACT_K), round((spec["num"][1] - y0) * ACT_K))
         layout[name] = {"size": (im.width, im.height), "num": num}
+    # Wait, compact, to sit in the attack row: the long frame's left end
+    # with the hand, joined to its right end cap, at the attack row's height.
+    x0, y0, x1, y1 = ACTIONS["wait"]["box"]
+    full = np.dstack([clean, fg * 255]).astype(np.uint8)[y0:y1, x0:x1]
+    cut_at, cap = 335 - x0, 1030 - x0
+    short = np.concatenate([full[:, :cut_at], full[:, cap:]], axis=1)
+    rows = layout["attack"]["size"][1]
+    k = rows / float(short.shape[0])
+    im = save(shrink(np.ascontiguousarray(short), size=(round(short.shape[1] * k), rows)), "act_wait_short")
+    layout["wait_short"] = {"size": (im.width, im.height), "num": (round((298 - x0) * k), round((885 - y0) * k))}
     return layout
 
 

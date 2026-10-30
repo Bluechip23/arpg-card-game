@@ -6,7 +6,7 @@
 script = ExtResource("1_t68rc")
 card_id = "splinter"
 card_name = "Splinter"
-description = "Apply 1 Bleed: the enemy takes 1 damage per tile it moves. Range 3."
+description = "Apply 1 Bleed. Range 3."
 mana_cost = 20
 tempo_cost = 2
 is_ranged = true

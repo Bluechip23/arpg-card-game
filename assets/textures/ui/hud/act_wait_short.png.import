@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c852bv5yivpon"
-path="res://.godot/imported/act_wait.png-af4d55a23d0ddbb10d2ae73cd4cf7e64.ctex"
+uid="uid://dgi7og4f1m7k2"
+path="res://.godot/imported/act_wait_short.png-920e0b54990bc9eaf4d3264e0f5c7cf5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/ui/hud/act_wait.png"
-dest_files=["res://.godot/imported/act_wait.png-af4d55a23d0ddbb10d2ae73cd4cf7e64.ctex"]
+source_file="res://assets/textures/ui/hud/act_wait_short.png"
+dest_files=["res://.godot/imported/act_wait_short.png-920e0b54990bc9eaf4d3264e0f5c7cf5.ctex"]
 
 [params]
 

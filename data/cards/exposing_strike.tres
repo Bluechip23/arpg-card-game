@@ -6,7 +6,7 @@
 script = ExtResource("1_xm00l")
 card_id = "exposing_strike"
 card_name = "Exposing Strike"
-description = "10 damage and 1 Vulnerable. Conditional: melee with a melee weapon, Ranged 5 with a bow or a magic weapon."
+description = "10 damage and 1 Vulnerable. Conditional."
 mana_cost = 30
 damage = 10
 tempo_cost = 3

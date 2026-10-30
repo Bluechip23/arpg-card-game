@@ -6,7 +6,7 @@
 script = ExtResource("1_comex")
 card_id = "fleet_etching"
 card_name = "Fleet Etching"
-description = "Engrave. Gain Haste: +1 tempo-free tile on your next 2 moves."
+description = "Engrave. Gain Haste 1 for your next 2 moves."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 0
