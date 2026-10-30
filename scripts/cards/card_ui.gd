@@ -95,6 +95,26 @@ const FRAMES := {
 		"ink": Color(0.96, 0.94, 0.9),
 		"ink_dark": false,
 	},
+	# Utility cards: green scale-work wound with ivy. No type bar of its
+	# own: a taller art window, the logo set where the window meets the
+	# rules box with the type words either side of it at the box's top, and
+	# white text left of the pack and potions. Standard drop and hourglass.
+	"utility": {
+		"tex": "res://assets/textures/cards/frame_utility.png",
+		"rect": Rect2(-5.4, -10.33, 161.1, 232.2),
+		"mana_at": Vector2(17.2, 22.2),
+		"tempo_at": Vector2(133.3, 16.5),
+		"dots_y": 14.2,
+		"logo_at": Vector2(74.9, 128.0),
+		"desc_box": Vector2(64, 44),
+		"desc_right": 56.0,
+		"desc_full": Vector2(116, 46),
+		"ink": Color(0.96, 0.94, 0.9),
+		"ink_dark": false,
+		# The sections' heights down the card: name bar from top, art window,
+		# type line; the rules box takes the rest.
+		"top": 19.0, "title_h": 22.0, "art_h": 85.0, "type_h": 19.0,
+	},
 }
 const FRAMED_DOT := 8.0
 const FRAMED_LOGO_SIZE := 48
@@ -107,7 +127,7 @@ const FRAMED_DESC_FULL := Vector2(116, 78)
 const FRAMED_DESC_FULL_MAX := 9   # ... no bigger than this, so it covers as little of the picture as it can
 
 ## The painted frame a card wears: Maintain for any card with an upkeep
-## (whatever its type), then by type — Instant, Defense; {} for the drawn
+## (whatever its type), then by type — Instant, Defense, Utility; {} for the drawn
 ## frame.
 static func frame_for(card: Card) -> Dictionary:
 	if card == null:
@@ -119,6 +139,8 @@ static func frame_for(card: Card) -> Dictionary:
 			return FRAMES["instant"]
 		Card.CardType.DEFENSE:
 			return FRAMES["defensive"]
+		Card.CardType.UTILITY:
+			return FRAMES["utility"]
 	return {}
 
 var _frame: Dictionary = {}
@@ -614,7 +636,7 @@ func _fit_description() -> void:
 		fs = _fit_size(font, plain, box)
 		var right: float = _frame["desc_right"]
 		if font.get_multiline_string_size(plain, HORIZONTAL_ALIGNMENT_LEFT, box.x, fs).y > box.y:
-			fs = _fit_size(font, plain, FRAMED_DESC_FULL, FRAMED_DESC_FULL_MAX)
+			fs = _fit_size(font, plain, _frame.get("desc_full", FRAMED_DESC_FULL), FRAMED_DESC_FULL_MAX)
 			right = 4.0
 		if desc_panel:
 			var st := desc_panel.get_theme_stylebox("panel")
@@ -1038,7 +1060,7 @@ func _style_painted_frame() -> void:
 	if vbox:
 		vbox.offset_left = 14.0
 		vbox.offset_right = -12.0
-		vbox.offset_top = 14.0
+		vbox.offset_top = _frame.get("top", 14.0)
 		vbox.offset_bottom = -8.0
 		vbox.add_theme_constant_override("separation", 0)
 	if title_bar:
@@ -1047,21 +1069,21 @@ func _style_painted_frame() -> void:
 		tb.content_margin_right = 16
 		tb.content_margin_bottom = 3
 		title_bar.add_theme_stylebox_override("panel", tb)
-		title_bar.custom_minimum_size = Vector2(0, 22)
+		title_bar.custom_minimum_size = Vector2(0, _frame.get("title_h", 22.0))
 	if name_label:
 		name_label.add_theme_color_override("font_color", FRAMED_NAME)
 		name_label.add_theme_color_override("font_outline_color", Color(0.1, 0.06, 0.02))
 		name_label.add_theme_constant_override("outline_size", 4)
 	if art_box:
 		art_box.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
-		art_box.custom_minimum_size = Vector2(0, 64)
+		art_box.custom_minimum_size = Vector2(0, _frame.get("art_h", 64.0))
 		_set_card_art()
 	if type_bar:
 		var tp := StyleBoxEmpty.new()
 		tp.content_margin_left = 2
 		tp.content_margin_right = 3
 		type_bar.add_theme_stylebox_override("panel", tp)
-		type_bar.custom_minimum_size = Vector2(0, 18)
+		type_bar.custom_minimum_size = Vector2(0, _frame.get("type_h", 18.0))
 	if desc_panel:
 		var box := StyleBoxEmpty.new()
 		box.content_margin_left = 3.5

@@ -109,6 +109,35 @@ FRAMES = {
         "hourglass": {"at": (832, 60), "scale": 1.013},
         "numbers": [(88, 140, 202, 226), (884, 136, 946, 218)],
     },
+    # The Utility cards (2026-10-30): deep green scale-work in a gilt frame
+    # wound with ivy, emerald points, a potion medallion at the foot, a pack,
+    # scroll, compass and potions in the rules box's corner. It has no type
+    # bar and no logo: the art window runs taller and the game sets the logo
+    # where the window meets the rules box (designer: "add the TO logo in
+    # the middle"). Its green drop and hourglass are covered by the standard
+    # ones. Rules text is white on the green.
+    "utility": {
+        "src": "assets/sprites/paintings/card_utility_board.webp",
+        "card": (35, 67, 1008, 1429),
+        "dots": [(442, 159), (513, 159), (582, 159)],
+        "dot_r": 24,
+        "bands": [
+            (398, 122, 630, 194),
+            (380, 206, 690, 309),
+        ],
+        "art": (176, 342, 870, 879),
+        "art_keep": [],
+        "text": (140, 995, 530, 1150),
+        "text_light": True,
+        # The white text's dark glow will not inpaint cleanly; the green
+        # scale-work is even, so clean panel is laid over it: its top half
+        # from above the text, its bottom half from below (clear of the
+        # rocks at the picture's foot). (box, dy)
+        "text_patch": [((140, 995, 530, 1073), -78), ((140, 1073, 530, 1150), 78)],
+        "drop": {"at": (52, 28), "scale": 1.08},
+        "hourglass": {"at": (816, 52), "scale": 1.059},
+        "numbers": [(88, 172, 206, 252), (872, 132, 932, 214)],
+    },
 }
 
 
@@ -144,17 +173,18 @@ def box_mask(shape, box):
     return m
 
 
-# The designer's hourglass: the Instant card's, cut by its traced outline
-# (tools/cut_card_badges.py).
-HOURGLASS_SRC = "assets/sprites/paintings/card_instant_board.webp"
+# The standard drop and hourglass (designer, 2026-10-30): the Instant
+# card's, cut by GrabCut / their traced outline (tools/cut_card_badges.py),
+# set over a board that paints its own.
+BADGE_SRC = "assets/sprites/paintings/card_instant_board.webp"
 
 
-def paste_hourglass(rgb, spec):
-    from cut_card_badges import HOURGLASS_BOX, hourglass_mask
-    board = np.asarray(Image.open(HOURGLASS_SRC).convert("RGB"))
-    x0, y0, x1, y1 = HOURGLASS_BOX
-    crop = board[y0:y1, x0:x1]
-    mask = hourglass_mask(crop).astype(np.float32)
+def paste_badge(rgb, kind, spec):
+    from cut_card_badges import DROP_BOX, HOURGLASS_BOX, drop_mask, hourglass_mask
+    board = np.asarray(Image.open(BADGE_SRC).convert("RGB"))
+    x0, y0, x1, y1 = HOURGLASS_BOX if kind == "hourglass" else DROP_BOX
+    crop = board[y0:y1, x0:x1].copy()
+    mask = (hourglass_mask(crop) if kind == "hourglass" else drop_mask(crop)).astype(np.float32)
     k = spec["scale"]
     size = (round(crop.shape[1] * k), round(crop.shape[0] * k))
     crop = np.asarray(Image.fromarray(crop).resize(size, Image.LANCZOS)).astype(np.float32)
@@ -183,12 +213,14 @@ def blank(cfg):
         keep = nd.binary_opening(keep, iterations=1)
         rgb[keep] = src[keep]
 
-    # The logo, across the window's foot, the type bar and the rules box.
-    (cx, cy), r = cfg["logo_ring"]
-    logo = (xx - cx) ** 2 + (yy - cy) ** 2 <= r * r
-    for b in cfg["logo_boxes"]:
-        logo |= box_mask(shape, b)
-    rgb = row_fill(rgb, logo)
+    # The logo, across the window's foot, the type bar and the rules box
+    # (a board without one gets the game's own on the spot it is given).
+    if "logo_ring" in cfg:
+        (cx, cy), r = cfg["logo_ring"]
+        logo = (xx - cx) ** 2 + (yy - cy) ** 2 <= r * r
+        for b in cfg["logo_boxes"]:
+            logo |= box_mask(shape, b)
+        rgb = row_fill(rgb, logo)
 
     # The dots' strip, the name and the type-line words: whole bands.
     bands = np.zeros(shape, bool)
@@ -196,17 +228,31 @@ def blank(cfg):
         bands |= box_mask(shape, b)
     rgb = row_fill(rgb, bands)
 
+    for (x0, y0, x1, y1), dy in cfg.get("text_patch", []):
+        # Lay clean panel from dy away over this part of the text box,
+        # feathered at the box's outer edge.
+        src_px = rgb.astype(np.float32)
+        out = src_px.copy()
+        m = np.zeros(shape, np.float32)
+        X0, Y0, X1, Y1 = cfg["text"]
+        m[Y0:Y1, X0:X1] = 1.0
+        m = np.clip(cv2.GaussianBlur(m, (0, 0), 6) * m * 2.0, 0, 1)[..., None]
+        out[y0:y1, x0:x1] = src_px[y0:y1, x0:x1] * (1 - m[y0:y1, x0:x1]) + src_px[y0 + dy:y1 + dy, x0:x1] * m[y0:y1, x0:x1]
+        rgb = out.clip(0, 255).astype(np.uint8)
+
     # The rules text: dark ink on the parchment (or white on the stone).
     if cfg.get("text_light"):
         ink = rgb.min(axis=2) > 150
     else:
         ink = rgb.max(axis=2) < 95
     tx = box_mask(shape, cfg["text"]) & ink
-    tx = nd.binary_dilation(tx, iterations=4) & box_mask(shape, cfg["text"])
+    # (White text carries a soft dark shadow: take a wider rim with it.)
+    tx = nd.binary_dilation(tx, iterations=8 if cfg.get("text_light") else 4) & box_mask(shape, cfg["text"])
     rgb = cv2.inpaint(rgb, tx.astype(np.uint8) * 255, 7, cv2.INPAINT_TELEA)
 
-    if "hourglass" in cfg:
-        rgb = paste_hourglass(rgb, cfg["hourglass"])
+    for kind in ("drop", "hourglass"):
+        if kind in cfg:
+            rgb = paste_badge(rgb, kind, cfg[kind])
 
     # The cost numbers: white glyphs with a thick black rim.
     num = np.zeros(shape, bool)

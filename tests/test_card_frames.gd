@@ -6,7 +6,8 @@ extends SceneTree
 ## rules text in ink on the parchment. Types without a frame of their own
 ## keep the drawn one.
 ## Every card with an upkeep wears the Maintain frame instead (white text on
-## its stone); a Defense card the Defensive frame.
+## its stone); a Defense card the Defensive frame; a Utility card the Utility
+## frame (the logo where its art meets its rules box).
 ## Run: godot --headless --path . --script tests/test_card_frames.gd
 
 var failures := 0
@@ -74,6 +75,16 @@ func _run() -> void:
 	_check(da != null and da.texture.resource_path.ends_with("frame_defensive.png"), "a Defense card wears the Defensive frame")
 	_check(d.desc_label.get_theme_color("default_color").v > 0.8, "its rules text is white on the stone")
 	d.queue_free()
+
+	# Utility cards wear the Utility frame, the logo where its art meets its
+	# rules box.
+	var u := _face("blink")
+	await process_frame
+	var ua: TextureRect = u.get_node_or_null("Panel/FrameArt")
+	_check(ua != null and ua.texture.resource_path.ends_with("frame_utility.png"), "a Utility card wears the Utility frame")
+	var ul: Control = u.get_node_or_null("Panel/FrameLogo")
+	_check(ul != null and absf(ul.position.y + ul.size.y * 0.5 - 128.0) < 1.0, "its logo sits where the art window meets the rules box")
+	u.queue_free()
 
 	var atk := _face("slash")
 	await process_frame
