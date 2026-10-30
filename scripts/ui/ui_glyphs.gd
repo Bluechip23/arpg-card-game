@@ -10,7 +10,26 @@ const SZ := 24
 static var _cache: Dictionary = {}
 
 
+## The Trials of Olorin logo (the designer's, tools/cut_logo.py, 2026-10-30;
+## was a drawn sword-T through a silver O): the cut nearest `px` tall, drawn
+## 1:1 so it stays crisp.
+const LOGO_SIZES := [20, 26, 32, 48, 64, 128, 256]
+
+static func to_logo(px: int = 26) -> Texture2D:
+	var best: int = LOGO_SIZES[0]
+	for s in LOGO_SIZES:
+		if absi(s - px) < absi(best - px):
+			best = s
+	# Kept: a stylebox draws the logo straight to a canvas item, and a texture
+	# no one holds is freed before the frame renders (a white square).
+	var key := "to_logo_%d" % best
+	if not _cache.has(key):
+		_cache[key] = load("res://assets/textures/ui/%s.png" % key)
+	return _cache[key]
+
 static func get_glyph(key: String) -> Texture2D:
+	if key == "to_sigil":
+		return to_logo(26)
 	if _cache.has(key):
 		return _cache[key]
 	var img := Image.create(SZ, SZ, false, Image.FORMAT_RGBA8)
@@ -28,7 +47,6 @@ static func get_glyph(key: String) -> Texture2D:
 		"recycle": _draw_recycle(img)
 		"feather": _draw_feather(img)
 		"flash_bolt": _draw_flash_bolt(img)
-		"to_sigil": _draw_to_sigil(img)
 		"card_draw": _draw_card_draw(img)
 		"boots": _draw_boots(img)
 		"duck": _draw_duck(img)
@@ -411,29 +429,6 @@ static func _ring(img: Image, cx: float, cy: float, r: float, th: float, c: Colo
 			var d := Vector2(px - cx, py - cy).length()
 			if absf(d - r) <= th * 0.5:
 				_px(img, px, py, c)
-
-static func _draw_to_sigil(img: Image) -> void:
-	## Tutorial/tooltip sigil: a green capital T whose stem is a sword blade
-	## ending in a tip, threaded through a silver capital O. Layering per the
-	## design: the O's top sits just below the crossbar and passes IN FRONT of
-	## the stem; the O's bottom passes BEHIND the blade.
-	var green := Color(0.3, 0.8, 0.35)
-	var green_dark := Color(0.16, 0.5, 0.22)
-	var silver := Color(0.8, 0.82, 0.88)
-	var silver_dark := Color(0.55, 0.58, 0.66)
-	# T: crossbar with shaded underside, stem doubling as the blade.
-	_rect(img, 4, 1, 16, 3, green)
-	_rect(img, 4, 4, 16, 1, green_dark)
-	_rect(img, 10, 5, 4, 12, green)
-	# Silver O threaded on the stem, top just below the crossbar (drawn over
-	# the stem — the O is in front here).
-	_ring(img, 12.0, 12.0, 6.2, 2.4, silver)
-	_ring(img, 12.0, 12.0, 7.4, 0.8, silver_dark)  # outer rim shade
-	# Lower stem + sword tip drawn back OVER the ring's bottom arc — the O's
-	# bottom disappears behind the blade.
-	_rect(img, 10, 11, 4, 6, green)
-	_tri(img, Vector2(9, 17), Vector2(15, 17), Vector2(12, 23), green)
-	_line(img, 12, 12, 12, 20, green_dark, 1.0)  # blade fuller
 
 static func _draw_flash_bolt(img: Image) -> void:
 	## Gold lightning bolt (flash points — Agility's quickness resource).

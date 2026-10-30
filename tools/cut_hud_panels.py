@@ -265,6 +265,8 @@ def cut_actions():
     dst[keep] = src[keep]
     layout = {}
     for name, spec in ACTIONS.items():
+        if name in ("wait", "attack", "block"):
+            continue   # only their slimmed cuts (below) are on screen
         x0, y0, x1, y1 = spec["box"]
         img = np.dstack([clean, fg * 255]).astype(np.uint8)[y0:y1, x0:x1]
         im = save(shrink(img, ACT_K), "act_%s" % name)
@@ -272,6 +274,31 @@ def cut_actions():
         if spec["num"]:
             num = (round((spec["num"][0] - x0) * ACT_K), round((spec["num"][1] - y0) * ACT_K))
         layout[name] = {"size": (im.width, im.height), "num": num}
+    # The attack row is as wide as the flash row above it (the designer:
+    # attack and shield 90%, wait 10%). Its faces are slimmed by dropping
+    # stretches of empty interior (board px column spans kept, joined edge to
+    # edge), at the row's height; wait is the long frame's two ends round
+    # the hand alone (its tempo is in the tooltip).
+    art = np.dstack([clean, fg * 255]).astype(np.uint8)
+    rows = round((ACTIONS["attack"]["box"][3] - ACTIONS["attack"]["box"][1]) * ACT_K)
+    for name, row_box, spans, num in [
+            ("attack_slim", ACTIONS["attack"]["box"], [(30, 555), (668, 768)], (275, 715)),
+            ("block_slim", ACTIONS["block"]["box"], [(768, 1035), (1068, 1100)], (980, 715)),
+            ("wait_slim", ACTIONS["wait"]["box"], [(30, 60), (140, 226), (1084, 1110)], None)]:
+        y0, y1 = row_box[1], row_box[3]
+        parts = [art[y0:y1, a:b] for a, b in spans]
+        joined = np.ascontiguousarray(np.concatenate(parts, axis=1))
+        k = rows / float(joined.shape[0])
+        im = save(shrink(joined, size=(round(joined.shape[1] * k), rows)), "act_" + name)
+        n = None
+        if num:
+            off = 0
+            for a, b in spans:
+                if a <= num[0] < b:
+                    n = (round((off + num[0] - a) * k), round((num[1] - y0) * k))
+                    break
+                off += b - a
+        layout[name] = {"size": (im.width, im.height), "num": n}
     return layout
 
 

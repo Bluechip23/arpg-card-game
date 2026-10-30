@@ -6,7 +6,7 @@
 script = ExtResource("1_7ufev")
 card_id = "switch_kick"
 card_name = "Switch Kick"
-description = "Deal 2 damage and Disarm the enemy for 5 tempo (it skips its next attack)."
+description = "Deal 2 damage and Disarm the enemy for 5 tempo."
 mana_cost = 2
 damage = 2
 tempo_cost = 2

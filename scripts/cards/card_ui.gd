@@ -319,8 +319,8 @@ func _ensure_to_logo() -> void:
 	var type_hbox: Node = get_node_or_null("Panel/VBox/TypeBar/TypeHBox")
 	if type_hbox == null or type_hbox.get_node_or_null("TOLogo"):
 		return
-	# The game's actual sigil — the green sword-T threaded through the silver
-	# O — shared with the tooltip/tutorial crests via UIGlyphs. The holder
+	# The game's logo — the designer's emerald sword through the silver ring
+	# (2026-10-30) — shared with the tooltip/tutorial crests via UIGlyphs. The holder
 	# claims almost no layout height so the type bar stays thin; the sigil
 	# itself draws larger than the bar with a drop shadow, so it reads as a
 	# seal risen off the card face.
@@ -330,19 +330,19 @@ func _ensure_to_logo() -> void:
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var shadow := TextureRect.new()
 	shadow.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
-	shadow.texture = UIGlyphs.get_glyph("to_sigil")
+	shadow.texture = UIGlyphs.to_logo(32)
 	shadow.stretch_mode = TextureRect.STRETCH_SCALE
-	shadow.position = Vector2(-4.5, -11.5)
-	shadow.size = Vector2(26, 26)
+	shadow.position = Vector2(-7.5, -14.5)
+	shadow.size = Vector2(32, 32)
 	shadow.modulate = Color(0, 0, 0, 0.5)
 	shadow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(shadow)
 	var seal := TextureRect.new()
 	seal.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
-	seal.texture = UIGlyphs.get_glyph("to_sigil")
+	seal.texture = UIGlyphs.to_logo(32)
 	seal.stretch_mode = TextureRect.STRETCH_SCALE
-	seal.position = Vector2(-6, -13)
-	seal.size = Vector2(26, 26)
+	seal.position = Vector2(-9, -16)
+	seal.size = Vector2(32, 32)
 	seal.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(seal)
 	# Sit between the type text (left, expanding) and the range text (right,

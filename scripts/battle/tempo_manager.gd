@@ -68,6 +68,11 @@ var debuff_manager = null  # DebuffManager — Slowed prices movement tempo here
 # Tick system state
 var _ticking: bool = false          # Whether we're currently processing ticks
 var _tick_timer: float = 0.0        # Countdown to next tick
+## Held while the player has a menu open (the character sheet, the skill
+## tree, the deck, the quest log, Help...): pending ticks wait, so a played
+## card never resolves — and enemies never act — behind a window being read
+## (designer, 2026-10-30). Set each frame by Main.
+var menu_hold: bool = false
 var _pending_ticks: int = 0         # Global ticks remaining until ALL cards finish (max, not sum)
 
 # Active card tracking — per-owner sequential, cross-owner concurrent.
@@ -90,7 +95,7 @@ func initialize(p_stats: PlayerStats) -> void:
 	print("[TEMPO] Initialized (ticked). Cycle every %d tempo, tick speed %.2fs" % [tempo_threshold, tick_speed])
 
 func _process(delta: float) -> void:
-	if not _ticking or _pending_ticks <= 0:
+	if not _ticking or _pending_ticks <= 0 or menu_hold:
 		return
 
 	_tick_timer -= delta

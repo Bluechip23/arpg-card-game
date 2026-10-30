@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1_xm00l")
-description = "10 damage. Conditional: melee with a melee weapon, Ranged 5 with a bow or a magic weapon."
+description = "10 damage. Conditional."
 mana_cost = 20
 damage = 10
 tempo_cost = 3

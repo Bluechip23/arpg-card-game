@@ -6,7 +6,7 @@
 script = ExtResource("1_wg0m4")
 card_id = "turtle_up"
 card_name = "Turtle Up"
-description = "Armor does not decay for 20 tempo."
+description = "Gain Fortify for 20 tempo."
 card_type = 1
 card_type_name = "Defense"
 mana_cost = 30

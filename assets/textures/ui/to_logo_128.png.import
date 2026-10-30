@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://diorvomygsw7m"
-path="res://.godot/imported/act_block.png-68d81d1a67b38f2ce96d8e3798f1cbea.ctex"
+uid="uid://cwj00r1rvqoe6"
+path="res://.godot/imported/to_logo_128.png-2cd85baaff154413b58d7c7d154d7ca0.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/ui/hud/act_block.png"
-dest_files=["res://.godot/imported/act_block.png-68d81d1a67b38f2ce96d8e3798f1cbea.ctex"]
+source_file="res://assets/textures/ui/to_logo_128.png"
+dest_files=["res://.godot/imported/to_logo_128.png-2cd85baaff154413b58d7c7d154d7ca0.ctex"]
 
 [params]
 

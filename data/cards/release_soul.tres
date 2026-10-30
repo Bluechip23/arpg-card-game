@@ -6,7 +6,7 @@
 script = ExtResource("1_of01b")
 card_id = "release_soul"
 card_name = "Release Soul"
-description = "A piece of your soul, caged. While it is in your hand you are Drained (10 mana a cycle) and it saps 1 damage per tempo (5 at each cycle). Play (15 mana, 2 tempo) to release it — every living Spirit Collector gains 5 Strengthen."
+description = "A piece of your soul, caged. While it is in your hand you suffer Drain and it saps 1 damage per tempo. Play (15 mana, 2 tempo) to release it — every living Spirit Collector gains 5 Strengthen."
 card_type = 2
 card_type_name = "Curse"
 mana_cost = 15

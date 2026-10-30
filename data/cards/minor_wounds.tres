@@ -6,7 +6,7 @@
 script = ExtResource("1_bgtd7")
 card_id = "minor_wounds"
 card_name = "Minor Wounds"
-description = "On draw, deal 2 damage to self. Erase: 40 (in your hand or the draw or discard pile; frozen while jailed)."
+description = "On draw, deal 2 damage to self. Erase 40."
 card_type = 4
 card_type_name = "Status"
 mana_cost = 0
