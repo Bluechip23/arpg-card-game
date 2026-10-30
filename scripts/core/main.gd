@@ -8378,8 +8378,9 @@ func select_card(index: int) -> void:
 		var buff_mgr := player.get_buff_manager() if player else null
 		if buff_mgr and buff_mgr.tighten_string_charges > 0 and card.is_attack():
 			effective_range += 6  # ranged ATTACKS, not spells
-		# Include High Ground bonus if on pillar or elevated terrain
-		if card.is_attack() and _is_on_high_ground(player.position):
+		# Include High Ground bonus if on pillar or elevated terrain (any
+		# ranged offensive card)
+		if card.is_offensive() and _is_on_high_ground(player.position):
 			effective_range += 2
 		# (Eagle Eye no longer grants range — it now deals range-scaled bonus
 		# damage on ranged offensive cards.)
@@ -8426,12 +8427,14 @@ func calculate_damage_preview_split(card: Card, target_enemy: Enemy) -> Dictiona
 	if not player.get_stats():
 		return none
 	var buff_mgr := player.get_buff_manager()
-	var is_ranged_attack := card.is_ranged and card.is_attack()  # the Attack shape: a spell is not an attack
+	# High Ground is for every ranged offensive card, attack or spell
+	# (designer, 2026-10-30).
+	var is_ranged_offensive := card.is_ranged and card.is_offensive()
 
 	# High Ground is the one position-dependent flat the vacuum number skips;
 	# feed it through the shared pipeline so Cursed still reduces it.
 	var high_ground := 0
-	if is_ranged_attack and _has_high_ground(player.position, target_enemy):
+	if is_ranged_offensive and _has_high_ground(player.position, target_enemy):
 		high_ground = 4
 
 	# Full player-side pipeline, shared with the card-face numbers.
@@ -8668,7 +8671,8 @@ func play_selected_card(target) -> void:
 	var high_ground_applied = false
 	# Sky Attack takes the damage half only — never the range bonus.
 	var hg_range: int = 0 if card.card_id == "sky_attack" else 2
-	if is_ranged_attack and (_has_high_ground(player.position, target) or card.card_id == "sky_attack"):
+	# (Every ranged offensive card, spells too — designer, 2026-10-30.)
+	if card.is_ranged and card.is_offensive() and (_has_high_ground(player.position, target) or card.card_id == "sky_attack"):
 		card.bonus_damage += 4
 		card.range_modifier += hg_range
 		high_ground_applied = true
@@ -11873,7 +11877,7 @@ func _ranged_card_max_range(card: Card, in_play: bool = false) -> int:
 	var buff_mgr := player.get_buff_manager() if player else null
 	if not in_play and buff_mgr and buff_mgr.tighten_string_charges > 0 and card.is_attack():
 		max_range += 6
-	if not in_play and card.is_attack() and player and _is_on_high_ground(player.position):
+	if not in_play and card.is_ranged and card.is_offensive() and player and _is_on_high_ground(player.position):
 		max_range += 2
 	var st_stats := player.get_stats() if player else null
 	# Scouted: rank-scaled bonus range (2..6) on next attack after 3 consecutive hits

@@ -1187,7 +1187,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"on-discard": "Card triggers an effect when discarded",
 		"in-hand": "Card applies a persistent effect while it remains in your hand",
 		"sticky": "Card stays in hand for X uses before being discarded",
-		"high ground": "Ranged attacks from elevated positions deal +4 damage and gain +2 range",
+		"high ground": "Ranged offensive cards from elevated positions deal +4 damage and gain +2 range",
 		"conditional": "Melee or ranged depending on your held weapon: a bow makes it ranged (+1 tempo to play; the Attack cards also go ranged with a magic weapon), anything else makes it melee",
 		"cycle": "1 cycle = every 5 tempo. Mana regen and buff/debuff ticks happen per cycle; the deck draws a card every 25 tempo (5 cycles)",
 		"glut": "Lose the ability to play cards for X tempo. Players must press the wait button if playing solo",

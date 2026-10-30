@@ -9,7 +9,7 @@ rarity = 3
 level_3_overrides = {
 "granted_card_ids": Array[String](["polymorph", "polymorph", "polymorph"])
 }
-level_3_description = "+9 WIS, -5 STR, +21 mana. 3 card slots (1 bonus, 2 plain). Your damaging attacks Silence the enemy for 5 tempo. Grants THREE copies of Polymorph (instant): when you land a 5th distinct debuff on an enemy, they become a pig for 5 tempo — able only to walk and make basic melee attacks; jailed 25 tempo after it fires."
+level_3_description = "+9 WIS, -5 STR, +21 mana. 3 card slots (1 bonus, 2 plain). Your damaging offensive cards Silence the enemy for 5 tempo. Grants THREE copies of Polymorph (instant): when you land a 5th distinct debuff on an enemy, they become a pig for 5 tempo — able only to walk and make basic melee attacks; jailed 25 tempo after it fires."
 weight = 10
 strength_bonus = -5
 wisdom_bonus = 8
@@ -19,6 +19,6 @@ granted_card_ids = Array[String](["polymorph", "polymorph"])
 card_slots = 1
 vanilla_slots = 2
 attack_apply_silence = 1
-description = "+8 WIS, -5 STR, +20 mana. 3 card slots (1 bonus, 2 plain). Your damaging attacks Silence the enemy for 5 tempo. Grants TWO copies of Polymorph (instant): when you land a 5th distinct debuff on an enemy, they become a pig for 5 tempo — able only to walk and make basic melee attacks; jailed 25 tempo after it fires."
+description = "+8 WIS, -5 STR, +20 mana. 3 card slots (1 bonus, 2 plain). Your damaging offensive cards Silence the enemy for 5 tempo. Grants TWO copies of Polymorph (instant): when you land a 5th distinct debuff on an enemy, they become a pig for 5 tempo — able only to walk and make basic melee attacks; jailed 25 tempo after it fires."
 appearance = "A thin tree branch with smaller living branches coiled around its length — the sorceress's wand exactly as the tale tells it."
 appearance_icon = "res://assets/items/mythic/circes_wand_of_cauldron_stirring.png"

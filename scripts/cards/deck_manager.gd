@@ -767,10 +767,11 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 			print("[DECK] Cannot play cards - Stunned or Frozen!")
 			return { "played": false, "half_tempo": false }
 		
-		# Disarm blocks PHYSICAL offensive cards (offensive → attack school).
-		# A disarmed caster can still hurl spells; Silence is their counter.
-		if card.card_type == Card.CardType.ATTACK and card.school == Card.CardSchool.PHYSICAL \
-				and not debuff_mgr.can_play_attack_cards():
+		# Disarm blocks every attack (is_attack(): the Attack shape, and any card
+		# tagged attack — an attack-and-spell card like If Pigs Could Fly too,
+		# designer 2026-10-30). A disarmed caster can still hurl a pure spell;
+		# Silence is its counter.
+		if card.is_attack() and not debuff_mgr.can_play_attack_cards():
 			print("[DECK] Cannot play attack cards - Disarmed!")
 			return { "played": false, "half_tempo": false }
 

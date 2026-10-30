@@ -116,7 +116,7 @@ Playable cards come in four roles. A card can be more than one at once (a spell 
 
 [color=yellow]High Ground:[/color]
 - Being elevated (e.g., standing on a pillar from Rise) grants combat bonuses
-- Ranged attacks from high ground deal [color=green]+4 damage[/color] and gain [color=green]+2 range[/color]
+- Ranged offensive cards from high ground deal [color=green]+4 damage[/color] and gain [color=green]+2 range[/color]
 - Some cards like Lead Arrow require high ground to be played
 - Example: Lead Arrow does 1.8x damage but requires high ground
 

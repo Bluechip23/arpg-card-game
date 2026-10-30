@@ -55,8 +55,8 @@ blocks the Spell school in any role.
 ## Rulings on "attack"-worded systems
 
 Settled by the designer (2026-10-05): these read the **Attack shape**
-(`is_attack()`), never offensive spells — Tighten String and the High Ground
-bonus (ranged attacks), Empower, Wear Down, Armor Break, the DEX attack-speed
+(`is_attack()`), never offensive spells — Tighten String (ranged attacks;
+High Ground moved to offensive cards on 2026-10-30, below), Empower, Wear Down, Armor Break, the DEX attack-speed
 counter and its proc (half tempo, mana discount, Killing Rhythm), Collect
 Arrows. **Heavy Swing** is worded "offensive" and reads `is_offensive()`.
 Disarm blocks the Attack shape; Silence blocks the Spell school.
@@ -80,6 +80,19 @@ discarded), Blade Barrage's and Best Offense's counts, Mad Scientist's
 Attack→Heal, and Scouted's range. Spell procs read `school == SPELL`
 (Arcane Overflow's priming, Arcane Current). Surprise Opener, worded for
 any offensive card, now snapshots a spell's target too.
+
+Settled on the follow-up questions (designer, 2026-10-30):
+- **Strengthen** is for attacks only — except **Circle of Life**'s, which is
+  "bonus damage for 3 offensive cards" (`Buff.offensive_reach`).
+- **Circe's Wand** and **Reaper Scythe**: "your damaging *offensive cards*"
+  Silence / apply Vulnerable (`is_offensive()`).
+- **Disarm** blocks every `is_attack()` card — an attack-and-spell card (If
+  Pigs Could Fly) included.
+- **Budding**: "an *offensive card*, a utility and a defense".
+- **High Ground** (+4 damage, +2 range) and **Mountain Boots** (+20%): any
+  ranged / any offensive card, spells too — this replaces the 2026-10-05
+  "ranged attacks" ruling for High Ground.
+- **Scouted**'s auto-crit stays with the next *attack*.
 
 Spells also have their own card frame (the Spell frame), never the Attack one.
 

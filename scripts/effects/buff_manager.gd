@@ -87,8 +87,15 @@ func apply_buff(buff: Buff) -> void:
 		buffs_changed.emit()
 		return
 
-	# Check if buff already exists (refresh or stack)
+	# Check if buff already exists (refresh or stack). An offensive-reach
+	# Strengthen (Circle of Life) and an attacks-only one live side by side.
 	var existing = get_buff(buff.buff_type)
+	if buff.buff_type == Buff.BuffType.STRENGTHEN:
+		existing = null
+		for sb in get_buffs(Buff.BuffType.STRENGTHEN):
+			if sb.offensive_reach == buff.offensive_reach:
+				existing = sb
+				break
 	if buff.buff_type == Buff.BuffType.INVISIBLE and existing == null:
 		# Deferred so the buff is in place when the handler looks.
 		print("[BUFF] Entering invisibility (%s)" % buff.source_name)
@@ -567,23 +574,29 @@ func consume_life_steal(damage_dealt: int) -> int:
 	return 0
 
 func get_strengthen_bonus() -> int:
-	var strengthen = get_buff(Buff.BuffType.STRENGTHEN)
-	return strengthen.value if strengthen else 0
+	var total := 0
+	for st in get_buffs(Buff.BuffType.STRENGTHEN):
+		total += st.value
+	return total
 
 func consume_strengthen() -> int:
-	# Returns bonus and uses a charge. Strengthen is "+X on your next
-	# offensive cards": a resolving card that is not offensive (a damaging
-	# utility without the rider) neither gains nor spends it.
-	if owner_stats and "st_pre_attack_armed" in owner_stats and owner_stats.st_pre_attack_armed \
-			and not owner_stats.st_pre_attack_is_offensive:
+	# Returns the bonus and uses a charge of each Strengthen that applies.
+	# Strengthen is "+X on your next attacks" (designer, 2026-10-30): a spell
+	# neither gains nor spends it — except Circle of Life's, which is for
+	# offensive cards (offensive_reach). A card that is not offensive at all
+	# (a damaging utility without the rider) touches none.
+	var armed: bool = owner_stats and "st_pre_attack_armed" in owner_stats and owner_stats.st_pre_attack_armed
+	if armed and not owner_stats.st_pre_attack_is_offensive:
 		return 0
-	var strengthen = get_buff(Buff.BuffType.STRENGTHEN)
-	if strengthen:
-		var bonus = strengthen.value
+	var attack_ok: bool = not armed or owner_stats.st_pre_attack_is_attack
+	var bonus := 0
+	for strengthen in get_buffs(Buff.BuffType.STRENGTHEN):
+		if not attack_ok and not strengthen.offensive_reach:
+			continue
+		bonus += strengthen.value
 		if strengthen.use_charge():
-			remove_buff(Buff.BuffType.STRENGTHEN)
-		return bonus
-	return 0
+			remove_buff_instance(strengthen)
+	return bonus
 
 func get_enlightened_crit_chance() -> int:
 	# Enlightened grants the crit % of its highest live instance (most sources
@@ -642,6 +655,9 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	if keen_buff:
 		keen_crit = keen_buff.value
 	var total_chance: float = float(innate_crit + base_crit_chance + get_enlightened_crit_chance() + int(sphere_crit) + rd_crit + hand_crit + keen_crit) + ebs_crit
+	# Scouted (Stephen): the scouted ATTACK auto-crits (armed for attacks only).
+	if owner_stats and "st_scouted_crit_active" in owner_stats and owner_stats.st_scouted_crit_active:
+		total_chance += 100.0
 	if total_chance <= 0.0:
 		return false
 

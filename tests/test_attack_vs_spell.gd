@@ -41,6 +41,29 @@ func _initialize() -> void:
 	_check(slash_stag > slash_plain, "Staggered makes Slash cost more (%d -> %d)" % [slash_plain, slash_stag])
 	_check(fire_stag == fire_plain, "Staggered leaves Fireball's cost alone (%d -> %d)" % [fire_plain, fire_stag])
 
+	# Strengthen is for attacks only; Circle of Life's reaches every offensive
+	# card.
+	var stats := PlayerStats.new()
+	var bm := BuffManager.new()
+	bm.owner_stats = stats
+	get_root().add_child(bm)
+	bm.apply_buff(Buff.create_strengthen(5, 3, "Belt"))
+	stats.st_pre_attack_armed = true
+	stats.st_pre_attack_is_offensive = true
+	stats.st_pre_attack_is_attack = false   # a spell resolving
+	_check(bm.consume_strengthen() == 0, "a spell neither gains nor spends Strengthen")
+	var col := Buff.new(Buff.BuffType.STRENGTHEN, 7, -1, 3)
+	col.offensive_reach = true
+	bm.apply_buff(col)
+	_check(bm.get_buffs(Buff.BuffType.STRENGTHEN).size() == 2, "Circle of Life's Strengthen stands beside the attack one")
+	_check(bm.consume_strengthen() == 7, "a spell takes Circle of Life's bonus only")
+	stats.st_pre_attack_is_attack = true    # an attack resolving
+	_check(bm.consume_strengthen() == 12, "an attack takes both")
+
+	# Disarm blocks every attack-tagged card, an attack-and-spell one included.
+	var pigs: Card = load("res://data/cards/if_pigs_could_fly.tres")
+	_check(pigs.school == Card.CardSchool.SPELL and pigs.is_attack(), "If Pigs Could Fly is a spell and an attack (Disarm blocks it)")
+
 	# The Attack frame is for attacks; a spell wears the Spell frame.
 	_check(CardUI.frame_for(slash) == CardUI.FRAMES["attack"], "Slash wears the Attack frame")
 	_check(CardUI.frame_for(fireball) == CardUI.FRAMES["spell"], "Fireball wears the Spell frame")

@@ -466,7 +466,7 @@ var vitality_stacks: int = 0    # Nine Ruins: current Vitality
 @export var sidestep_bonus_armor: int = 0          # +armor on a flash sidestep (Titanium Toe Tuckers 2)
 @export var movement_flash_discount: int = 0       # movement flash costs X less (Rollerblades 1)
 @export var movement_flash_tempo_threshold: int = 0  # after X movement flash spent, -1 tempo from a hand card (Boots of Speed 36)
-@export var highground_damage_percent: float = 0.0  # +X% damage while attacking from high ground (Mountain Boots 20)
+@export var highground_damage_percent: float = 0.0  # +X% damage on offensive cards played from high ground (Mountain Boots 20)
 @export var trap_damage_percent: float = 0.0        # traps you spring on ENEMIES deal +X% (Hermes Boots 25)
 @export var missing_life_damage_rate: float = 0.0   # +rate × enemy missing-health% as bonus damage (Jordan 1s 0.5)
 @export var missing_life_threshold: int = 0         # only below this enemy health% (Jordan 1s 50)
@@ -519,7 +519,7 @@ var vitality_stacks: int = 0    # Nine Ruins: current Vitality
 # ============================================
 # Global on-hit debuffs: unlike the on_self_apply_* family these ride EVERY
 # damaging offensive card the wielder plays, not just cards slotted here.
-@export var attack_apply_burn: int = 0        # your damaging attacks apply X Burn (Fire Book 1)
+@export var attack_apply_burn: int = 0        # your damaging offensive cards apply X Burn (Fire Book 1)
 @export var attack_apply_cold: int = 0        # ... X Cold (Frost Book 1, Ice Orb 2)
 @export var attack_apply_shock: int = 0       # ... X Shock (Car Battery 3)
 @export var attack_debuffs_on_self_only: bool = false  # the attack_apply_* riders only ride cards slotted in this item (Car Battery)

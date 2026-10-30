@@ -136,7 +136,7 @@ func _build_legend() -> void:
 	_add_keyword("On-Discard", "Card triggers an effect when discarded from hand", Color(1.0, 0.5, 0.3))
 	_add_keyword("In-Hand", "Card applies a persistent effect while it remains in your hand", Color(0.7, 0.5, 0.9))
 	_add_keyword("Sticky", "Card stays in hand for X uses before being discarded. Does not leave hand after playing", Color(0.8, 0.8, 0.3))
-	_add_keyword("High Ground", "Ranged attacks from elevated positions deal +4 damage and gain +2 range. Some cards require high ground", Color(0.6, 0.4, 0.2))
+	_add_keyword("High Ground", "Ranged offensive cards from elevated positions deal +4 damage and gain +2 range. Some cards require high ground", Color(0.6, 0.4, 0.2))
 	_add_keyword("Maintain", "Reserves X mana from your max mana pool while the card is active. The effect persists each cycle. If your mana drops to 0 by any means, all maintained cards are discarded and their effects end", Color(0.8, 0.5, 1.0))
 	_add_keyword("Cycle", "1 cycle = every 5 tempo. Mana regen, buff/debuff ticks, and armor decay all happen per cycle; the timed card draw comes every 5 cycles (25 tempo)", Color(0.7, 0.7, 0.9))
 	_add_keyword("Glut", "Lose the ability to play cards for X tempo. Players must press the wait button if playing solo", Color(0.9, 0.4, 0.4))

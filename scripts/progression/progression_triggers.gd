@@ -1377,10 +1377,10 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target, isolation_ref = n
 			if stats.st_scouted_hits >= 3:
 				stats.st_scouted_bonus_active = true
 				stats.st_scouted_hits = 0
-				# Grant auto-crit on next attack
-				var buff_mgr = main.player.get_buff_manager()
-				if buff_mgr:
-					buff_mgr.apply_buff(Buff.create_enlightened(100, 1, "Scouted"))
+				# Auto-crit on the next ATTACK (designer, 2026-10-30: attacks
+				# only) — rolled from st_scouted_crit_active in
+				# BuffManager.roll_crit, which only an attack arms; a spell's
+				# roll neither gains nor spends it (a generic Enlightened did).
 				var sc_range: int = PassiveScaling.value("scouted", "range", stats.get_passive_level("scouted"))
 				main.add_battle_log("Scouted: 3 hits! +%d range and auto-crit on your next attack — any target!" % sc_range, Color(0.4, 0.9, 0.4))
 		else:
@@ -1700,12 +1700,13 @@ func _trigger_skill_tree_cory_on_card_play(card: Card) -> void:
 
 	# Budding: track card types (no back-to-back same type)
 	if stats.has_skill_tree_passive("budding"):
+		# "An offensive card, a utility and a defense" (designer, 2026-10-30):
+		# an attack or an offensive spell fills the offensive slot alike.
 		var ctype = ""
-		if card.is_attack():
-			ctype = "attack"
+		if card.is_offensive():
+			ctype = "offensive"
 		else:
 			match card.card_type:
-				Card.CardType.ATTACK: ctype = "utility"  # an offensive spell: not an attack
 				Card.CardType.DEFENSE: ctype = "defense"
 				Card.CardType.UTILITY: ctype = "utility"
 
@@ -1720,7 +1721,7 @@ func _trigger_skill_tree_cory_on_card_play(card: Card) -> void:
 			stats.st_budding_last_type = ctype
 
 			# Check if all 3 types played — heal and temp HP scale with rank (5..19)
-			if stats.st_budding_types.has("attack") and stats.st_budding_types.has("defense") and stats.st_budding_types.has("utility"):
+			if stats.st_budding_types.has("offensive") and stats.st_budding_types.has("defense") and stats.st_budding_types.has("utility"):
 				var bud_amount: int = PassiveScaling.value("budding", "amount", stats.get_passive_level("budding"))
 				stats.heal(bud_amount)
 				stats.add_temp_health(bud_amount, 15)
@@ -1907,15 +1908,20 @@ func _trigger_skill_tree_cory_on_shuffle() -> void:
 	if not stats:
 		return
 
-	# Circle of Life: gain rank-scaled armor and the same bonus attack damage
-	# for 3 attacks (10..24)
+	# Circle of Life: gain rank-scaled armor and the same bonus damage for 3
+	# offensive cards (10..24) — attacks and spells alike, unlike other
+	# Strengthen
 	if stats.has_skill_tree_passive("circle_of_life"):
 		var col_amount: int = PassiveScaling.value("circle_of_life", "amount", stats.get_passive_level("circle_of_life"))
 		stats.add_armor(col_amount)
 		var buff_mgr = main.player.get_buff_manager()
 		if buff_mgr:
-			buff_mgr.apply_buff(Buff.new(Buff.BuffType.STRENGTHEN, col_amount, -1, 3))
-		main.add_battle_log("Circle of Life: +%d armor, +%d damage (3 attacks)!" % [col_amount, col_amount], Color(0.8, 0.4, 0.9))
+			var col_buff := Buff.new(Buff.BuffType.STRENGTHEN, col_amount, -1, 3)
+			col_buff.source_name = "Circle of Life"
+			col_buff.offensive_reach = true
+			col_buff._set_name_and_description()
+			buff_mgr.apply_buff(col_buff)
+		main.add_battle_log("Circle of Life: +%d armor, +%d damage (3 offensive cards)!" % [col_amount, col_amount], Color(0.8, 0.4, 0.9))
 
 func _trigger_skill_tree_cory_on_enemy_enter_melee(enemy: Enemy) -> void:
 	# Territorial Death: re-apply 1 random existing debuff

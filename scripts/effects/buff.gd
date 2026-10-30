@@ -49,6 +49,10 @@ var custom_icon_key: String = ""       # GENERIC display buffs: StatusIcons glyp
 ## Resilient: a re-application from the same source adds its tempo to the
 ## running clock instead of keeping the longer one (Endured Tolerance).
 var extends_on_reapply: bool = false
+## Strengthen only: this one also powers offensive spells (Circle of Life,
+## "bonus damage for 3 offensive cards"); every other Strengthen is for
+## attacks alone (designer, 2026-10-30).
+var offensive_reach: bool = false
 var decay_by_damage: bool = false      # THORNS variant (Vined Encasing): lose X thorns per X damage received instead of 1 per hit
 
 func _init(type: BuffType, val: int = 0, dur: int = 15, chrg: int = -1) -> void:
@@ -85,10 +89,11 @@ func _set_name_and_description() -> void:
 			description = "%d%% crit chance for your next %d crit rolls. Separate Enlightened never add up: the highest %% applies and is spent first" % [value, charges]
 		BuffType.STRENGTHEN:
 			buff_name = "Strengthen"
+			var st_what := "offensive card" if offensive_reach else "attack"
 			if charges < 0 and duration > 0:
-				description = "+%d damage on every attack (%d tempo)" % [value, duration]
+				description = "+%d damage on every %s (%d tempo)" % [value, st_what, duration]
 			else:
-				description = "+%d damage on next %d attacks" % [value, charges]
+				description = "+%d damage on next %d %ss" % [value, charges, st_what]
 		BuffType.BOLSTER:
 			buff_name = "Bolster"
 			description = "+%d armor next %d times you gain armor" % [value, charges]
