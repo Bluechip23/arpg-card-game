@@ -233,11 +233,14 @@ func _make_cost_badge(host: Node, icon_path: String, pos: Vector2, num_y_bias: f
 	var badge := Control.new()
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	badge.position = pos
-	badge.size = Vector2(32, 40)  # matches the icon texture 1:1 (grid rule)
+	badge.size = Vector2(32, 40)
 	host.add_child(badge)
+	# The designer's painted drop and hourglass (tools/cut_card_badges.py,
+	# 2026-10-30), cut at 3x the box and shrunk smoothly into it.
 	var icon := TextureRect.new()
-	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST  # pixel art stays crisp under the linear canvas default
+	icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	icon.texture = load(icon_path)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon.set_anchors_preset(Control.PRESET_FULL_RECT)
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
