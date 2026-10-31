@@ -879,6 +879,7 @@ func _mark_prompts_dirty() -> void:
 
 func _process(delta: float) -> void:
 	_update_menu_tempo_hold()
+	_update_card_closeup()
 	_update_hand_hover()
 	_update_battlefield_enemy_hover()
 	_update_status_icon_hover()
@@ -8321,6 +8322,63 @@ func update_peaked_display() -> void:
 	else:
 		peaked_label.text = "NEXT: %s" % " → ".join(names)
 		peaked_label.visible = true
+
+# ---- The chosen card, up close -------------------------------------------
+## Clicking a card in hand shows it big beside the battlefield (designer,
+## 2026-10-31): a full-size face at CLOSEUP_SCALE in the open strip left of
+## the map, between the stat bars and the action buttons, so its text reads
+## while the field stays clear for picking a target. It never takes the
+## mouse, and goes when the card is played, cancelled or swapped.
+const CLOSEUP_SCALE := 1.75
+var _closeup: Control = null
+var _closeup_card: Card = null
+
+func _update_card_closeup() -> void:
+	var want: Card = null
+	if selected_card_index >= 0 and deck_manager and selected_card_index < deck_manager.hand.size():
+		want = deck_manager.hand[selected_card_index]
+	if want == _closeup_card:
+		return
+	_closeup_card = want
+	if _closeup and is_instance_valid(_closeup):
+		_closeup.queue_free()
+	_closeup = null
+	if want == null:
+		return
+	var holder := Control.new()
+	holder.name = "CardCloseup"
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.z_index = 50
+	holder.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+	var w := CardUI.CARD_W * CLOSEUP_SCALE
+	var h := CardUI.CARD_H * CLOSEUP_SCALE
+	holder.offset_left = 18.0
+	holder.offset_right = 18.0 + w
+	holder.offset_top = -h * 0.5 - 40.0     # between the stat bars and the action buttons
+	holder.offset_bottom = h * 0.5 - 40.0
+	($UI as CanvasLayer).add_child(holder)
+	var face: CardUI = CardUIScene.instantiate()
+	face.scale = Vector2(CLOSEUP_SCALE, CLOSEUP_SCALE)
+	holder.add_child(face)
+	face.setup(want, selected_card_index, player.get_debuff_manager() if player else null)
+	# A hand card scales about its bottom centre (the fan); this one grows
+	# from its corner to fill the holder.
+	face.pivot_offset = Vector2.ZERO
+	face.position = Vector2.ZERO
+	_ignore_mouse_tree(face)
+	var kb = face.get_node_or_null("Panel/KeybindBadge")
+	if kb:
+		kb.visible = false
+	# Fade in, so it reads as the card lifted up to the eye.
+	holder.modulate.a = 0.0
+	holder.create_tween().tween_property(holder, "modulate:a", 1.0, 0.12)
+	_closeup = holder
+
+func _ignore_mouse_tree(n: Node) -> void:
+	if n is Control:
+		n.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for c in n.get_children():
+		_ignore_mouse_tree(c)
 
 func update_card_highlights() -> void:
 	# Highlight the stack that contains the selected card.
