@@ -152,8 +152,8 @@ func _initialize() -> void:
 	get_root().add_child(brad)
 	brad.setup("Brad")
 	brad.play_action("basic_block", D.NORTH)
-	_check(not brad._action_sprite.visible and brad._npc_sprite.visible,
-		"Brad's block facing north (not drawn) keeps the old guard")
+	_check(brad._action_sprite.visible and brad.facing == D.NORTH,
+		"Brad blocks facing north too (his front's frames, the board having no back view)")
 	brad.free()
 	var undrawn := SpriteFigure.new()
 	get_root().add_child(undrawn)

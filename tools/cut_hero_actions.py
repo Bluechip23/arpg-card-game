@@ -35,6 +35,9 @@ import cut_hero_sprites as hs  # noqa: E402
 OUT = "assets/sprites/generated/heroes/%s_%s.png"
 ACTION_FLOOR = 8        # the ground sits a 1/ACTION_FLOOR of the cell up from its bottom
 ACTION_KEEP_PX = 25     # pieces smaller than this (source px) are specks, not dust
+STREAK_CORE = 11        # "streaks": the body's core is what survives an opening this wide...
+STREAK_KEEP = 9         # ...grown back this much...
+STREAK_DARK = 120       # ...and outside it, pixels darker than this go
 CELL_INSET = 4          # px kept clear of the grid lines
 DARK_PIECE = 40         # "drop_dark": a piece whose 90th-percentile channel is under this goes
 
@@ -56,6 +59,10 @@ ACTIONS = {
     # Thing" style), the glowing feather showing through. No back view.
     ("brad", "block"): {
         "src": "brad_block_board.webp",
+        "pockets": False,   # the dark cracks between his stones are the ground's colour
+        "narrow": 7,
+        "close": 5,
+        "copy": {"north": "south"},
         "cols": [119, 274, 429, 586, 742, 898, 1055, 1211, 1367, 1525, 1682, 1839, 1992],
         "rows": [(53, 228), (235, 409), (416, 591)],
         "facings": ["south", "west", "east"],
@@ -92,6 +99,7 @@ ACTIONS = {
     ("stephen", "block"): {
         "src": "stephen_block_board.webp",
         "haze": True,       # the flash's dark glow
+        "streaks": True,    # ...and its dim arcs
         "pockets": False,
         "narrow": 7,
         "cols": [115, 310, 519, 720, 924, 1130, 1333, 1530],
@@ -103,6 +111,7 @@ ACTIONS = {
     # cut at the line.
     ("ryan", "attack"): {
         "src": "ryan_attack_board.webp",
+        "tol": 4,           # his near-black clothes sit close to the ground's colour
         "pockets": False,   # near-black clothes on a near-black ground: the
         "narrow": 7,        # shadows between his straps are the ground's colour
         "close": 7,
@@ -114,6 +123,7 @@ ACTIONS = {
     # own panel, a frame-number strip under it.
     ("ryan", "block"): {
         "src": "ryan_block_board.webp",
+        "tol": 4,           # his near-black clothes sit close to the ground's colour
         "drop_dark": True,  # the shadow on the floor under the flip
         "narrow": 7,        # his near-black wraps: as for his flurry
         "close": 7,
@@ -136,7 +146,7 @@ ACTIONS = {
     ("cory", "block"): {
         "src": "cory_block_board.webp",
         "pockets": False,
-        "haze": True,       # the field's dark blue outer glow
+        "glow": "blue",     # the field's light fades into what is behind it
         "cols": [115, 292, 470, 648, 825, 1002, 1179, 1356, 1532],
         "rows": [(52, 267), (267, 478), (478, 689), (689, 900)],
         "facings": ["south", "north", "west", "east"],
@@ -144,17 +154,29 @@ ACTIONS = {
 }
 
 
-def cut_cell(cell, pockets=True, haze=False, narrow=0, drop_dark=False, close=0):
+def cut_cell(cell, pockets=True, haze=False, narrow=0, drop_dark=False, close=0, tol=None, haze_dark=None, glow=False, glow_edge=0, streaks=False):
     """One cell's figure (and its dust) on transparency, cell-sized, plus
     the kept pixels' box."""
     import cv2
-    rgba = hs.cut_opaque_cell(cell, pockets, haze, narrow)
+    rgba = hs.cut_opaque_cell(cell, pockets, haze, narrow, tol, haze_dark, glow, glow_edge)
+    if streaks:
+        # Thin dark strands off the body (a flash's dim arcs, Stephen's
+        # parry): what is cut but outside the body's thick core, and dark,
+        # goes. Blades are thin too, but bright.
+        sol = (rgba[..., 3] > 0).astype(np.uint8)
+        core = cv2.morphologyEx(sol, cv2.MORPH_OPEN, np.ones((STREAK_CORE, STREAK_CORE), np.uint8))
+        nc, clab, cst, _ = cv2.connectedComponentsWithStats(core, connectivity=8)
+        if nc > 1:
+            core = (clab == 1 + int(np.argmax(cst[1:, 4]))).astype(np.uint8)
+        core = cv2.dilate(core, np.ones((STREAK_KEEP, STREAK_KEEP), np.uint8)) > 0
+        dark = cell[..., :3].max(axis=2) < STREAK_DARK
+        rgba[(sol > 0) & ~core & dark] = 0
     solid = (rgba[..., 3] > 0).astype(np.uint8)
     if close:
         # Notches in the silhouette under `close` px across are the figure's
         # own dark seams (between Ryan's leg wraps), opened onto the ground.
         solid = cv2.morphologyEx(solid, cv2.MORPH_CLOSE, np.ones((close, close), np.uint8))
-        rgba[..., 3] = solid * 255
+        rgba[..., 3] = np.maximum(rgba[..., 3], solid * 255)
     n, lab, stats, _ = cv2.connectedComponentsWithStats(solid, connectivity=8)
     keep = np.zeros(solid.shape, bool)
     bright = cell[..., :3].max(axis=2)
@@ -205,8 +227,18 @@ def build(hero, action, spec):
             cell = board[top + i:bottom - i + 1, cols[c] + i:cols[c + 1] - i + 1]
             cells[(facing, c)] = cut_cell(cell, spec.get("pockets", True), spec.get("haze", False),
                                           spec.get("narrow", 0), spec.get("drop_dark", False),
-                                          spec.get("close", 0))
+                                          spec.get("close", 0), spec.get("tol"), spec.get("haze_dark"),
+                                          spec.get("glow", False), spec.get("glow_edge", 0),
+                                          spec.get("streaks", False))
     n = len(cols) - 1
+    # A facing the board does not draw, shown with another's frames ("copy":
+    # {missing: drawn}; Brad's block from behind is his front, designer
+    # 2026-10-31).
+    facings = list(spec["facings"])
+    for dst, src in spec.get("copy", {}).items():
+        for c in range(n):
+            cells[(dst, c)] = cells[(src, c)]
+        facings.append(dst)
     # The hero's scale: his standing front (the south row's first frame).
     box = cells[("south", 0)][1]
     factor = (box[3] - box[1]) / float(hs.HEIGHT)
@@ -215,7 +247,7 @@ def build(hero, action, spec):
     # the boards draw some poses bulkier or taller than his still sprite
     # (designer, 2026-10-31: "some of the models are much bigger").
     row_factor = {}
-    for facing in spec["facings"]:
+    for facing in facings:
         ref = still_size(hero, facing)
         got = mass(hs.resample(cells[(facing, 0)][0], factor))
         row_factor[facing] = factor * (match_scale(got, ref) if ref and got else 1.0)

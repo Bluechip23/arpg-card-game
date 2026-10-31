@@ -162,7 +162,7 @@ WALKS = {
              [126, 308, 490, 669, 850, 1031, 1204, 1373, 1528],
              [10, 246, 469, 688, 909],
              ["north", "south", "west", "east"],
-             set(), "opaque", {"narrow": 7, "close": 7}),   # his dark leg wraps
+             set(), "opaque", {"narrow": 7, "close": 7, "tol": 4}),   # his dark leg wraps, near the ground's colour
     # 2026-10-31: Jeremy's walk board, the same layout and ground as Ryan's
     # (his rings already painted on), all four rows used.
     "jeremy": ("jeremy_walk_board.webp",
@@ -180,7 +180,7 @@ WALKS = {
              [126, 307, 489, 670, 850, 1030, 1209, 1382, 1526],
              [12, 244, 469, 687, 907],
              ["north", "south", "west", "east"],
-             set(), "opaque"),
+             set(), "opaque", {"glow": "red", "glow_edge": 10}),   # the feather's glow fades out
 }
 # A direction redrawn on a board of its own, in WALKS' form: Stephen's right
 # (2026-10-31, "Walk Right (Corrected)": his human arm on the near side,
@@ -188,7 +188,7 @@ WALKS = {
 WALK_EXTRA = {
     "stephen": [("stephen_walk_right_board.webp",
                  [10, 234, 458, 683, 907, 1122, 1341, 1562, 1770], [87, 738],
-                 ["east"], set(), "opaque")],
+                 ["east"], set(), "opaque", {"tol": 4, "narrow": 7})],   # his dark trousers
 }
 # The opaque boards' ground, fitted a cell (_ground_fit): within
 # WALK_GROUND_TOL of the fit (max channel) and reached from the edge is ground;
@@ -207,6 +207,14 @@ RIM_DARK = 34         # ...no channel brighter than this...
 RIM_RATIO = 0.55      # ...and under this share of the figure's brightness round it...
 RIM_WINDOW = 9        # ...(this many px square)
 NARROW_CREEP = 8      # px the narrow fill creeps past its wide openings
+GLOW_CHANNEL = 2      # the glow's hue (channel) for glow=True: blue (Cory's field)
+GLOW_REACH = 21       # ...within this of the cut figure...
+GLOW_MIN = 5          # ...adding at least this much light...
+GLOW_BODY = 3         # the body's silhouette closes gaps this wide
+GLOW_EDGE_DARK = 140  # (glow_edge: the band's glow is dark...
+GLOW_EDGE_NEAR = 15   # ...within this of the glowing thing itself)
+GLOW_LEAN = 4         # a glow pixel: one channel above the ground this much more than the next...
+GLOW_FULL = 110       # ...and fully solid once it adds this much light
 HAZE_DARK = 60        # haze (cut_opaque_cell): no channel brighter than this...
 HAZE_FLAT = 4.0       # ...and as smooth as the ground (5x5 spread)
 
@@ -507,7 +515,8 @@ def cut_walk_board(path, xs, ys, facings, skip, ground, opts=None):
             i = WALK_CELL_INSET
             cell = board[ys[r] + i:ys[r + 1] - i + 1, xs[c] + i:xs[c + 1] - i + 1]
             if ground == "opaque":
-                cell = cut_opaque_cell(cell, True, False, opts.get("narrow", 0))
+                cell = cut_opaque_cell(cell, True, False, opts.get("narrow", 0), opts.get("tol"), None,
+                                       opts.get("glow", False), opts.get("glow_edge", 0))
                 if opts.get("close"):
                     k = np.ones((opts["close"], opts["close"]), np.uint8)
                     a = cv2.morphologyEx((cell[..., 3] > 0).astype(np.uint8), cv2.MORPH_CLOSE, k)
@@ -543,10 +552,10 @@ def _ground_fit(rgb, mask):
     return np.tensordot(np.stack(terms, axis=-1), coef, axes=1)
 
 
-def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0):
+def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dark=None, glow=False, glow_edge=0):
     """One cell of an opaque walk board, its ground made transparent (hard
     alpha). The ground is fitted as a smooth glow (_ground_fit) and filled in
-    from the cell's edge wherever a pixel is within WALK_GROUND_TOL of it,
+    from the cell's edge wherever a pixel is within TOL of it,
     refitting to what the fill reached a few times; the figure's own dark
     outline stops the fill, so cloth as dark as the ground (Cory's robe)
     stays. Then its enclosed pockets (unless `pockets` is off: a shadow as
@@ -558,6 +567,8 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0):
     on), so a shadow as dark as the ground reached through a slit (the back
     of Stephen's neck, between hair and hood) stays."""
     import cv2  # tool dependency (opencv-python-headless)
+    TOL = WALK_GROUND_TOL if tol is None else tol   # (a board may need a closer match)
+    HDARK = HAZE_DARK if haze_dark is None else haze_dark
     rgb = cell[..., :3].astype(int)
     h, w, _ = rgb.shape
     edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
@@ -568,11 +579,11 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0):
     f = rgb.astype(np.float32)
     mean = cv2.blur(f, (5, 5))
     spread = np.sqrt(np.maximum(cv2.blur(f * f, (5, 5)) - mean * mean, 0)).max(axis=2)
-    soft = (rgb.max(axis=2) < HAZE_DARK) & (spread <= HAZE_FLAT) if haze else np.zeros((h, w), bool)
+    soft = (rgb.max(axis=2) < HDARK) & (spread <= HAZE_FLAT) if haze else np.zeros((h, w), bool)
     for _ in range(WALK_FIT_PASSES):
         model = _ground_fit(rgb, ground & ~soft)
         off = np.abs(rgb - model).max(axis=2)
-        near = off <= WALK_GROUND_TOL
+        near = off <= TOL
         # A floor shadow (under the feet): smooth, and darker than the
         # ground in every channel.
         shade = (rgb < model - SHADE_UNDER).all(axis=2) & (spread <= SHADE_FLAT)
@@ -625,9 +636,66 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0):
         if x == 0 or y == 0 or x + bw >= w or y + bh >= h:
             continue
         hole = lab == j
-        if np.median(off[hole]) > WALK_GROUND_TOL:
+        if np.median(off[hole]) > TOL:
             solid |= hole
-    return np.dstack([rgb.astype(np.uint8), np.where(solid, 255, 0).astype(np.uint8)])
+    alpha = np.where(solid, 255.0, 0.0)
+    out_rgb = rgb.astype(np.float32)
+    if glow:
+        # A coloured glow (Cory's field): light added over the ground, not
+        # a solid thing. Where a pixel's colour above the ground leans hard
+        # to one hue (GLOW_LEAN over the other two), it becomes see-through
+        # by how much light it adds, its colour unblended from the ground,
+        # so the halo fades into whatever it is drawn over.
+        d = rgb.astype(np.float32) - model
+        top = d.max(axis=2)
+        rest = np.sort(d, axis=2)[..., 1]
+        # (faint glow leans by ratio: blue at least twice what it adds to
+        # the other channels)
+        lean = top - np.maximum(rest, 0)
+        hue = {"red": 0, "green": 1, "blue": 2}.get(glow, GLOW_CHANNEL)   # glow: True or a hue name
+        lit = (lean > np.maximum(GLOW_LEAN, 0.5 * top)) & (d.argmax(axis=2) == hue)
+        a = np.clip(top / GLOW_FULL, 0.0, 1.0)
+        a_safe = np.maximum(a, 1e-3)[..., None]
+        unblend = np.clip(model + d / a_safe, 0, 255)
+        # Only light, not cloth: smooth (cloth has texture), near the
+        # figure, and adding a real amount of light.
+        # The body: what is cut and not the glow's hue, closed and filled.
+        # The glow over the body stays as painted; the glow out past it
+        # becomes see-through.
+        body = (solid & ~lit & (off > TOL)).astype(np.uint8)
+        body = cv2.morphologyEx(body, cv2.MORPH_CLOSE, np.ones((GLOW_BODY, GLOW_BODY), np.uint8))
+        nb, blab, bst, _ = cv2.connectedComponentsWithStats(body, connectivity=8)
+        if nb > 1:
+            body = (blab == 1 + int(np.argmax(bst[1:, 4]))).astype(np.uint8)
+        holes = body.copy()
+        ff = np.zeros((h + 2, w + 2), np.uint8)
+        cv2.floodFill(holes, ff, (0, 0), 1)
+        body = (body | (1 - holes)) > 0
+        reach = cv2.dilate(solid.astype(np.uint8), np.ones((GLOW_REACH, GLOW_REACH), np.uint8)) > 0
+        lit &= reach & (top > GLOW_MIN) & ~body
+        if glow_edge:
+            # A thin glow on the outline only (Brad's feather): smooth, and
+            # within glow_edge of the outside; hair and cloth have texture.
+            outside = (~solid).astype(np.uint8)
+            band = cv2.dilate(outside, np.ones((2 * glow_edge + 1, 2 * glow_edge + 1), np.uint8)) > 0
+            # ...and only round the glowing thing itself (the feather's
+            # bright orange), never his hair or boots.
+            src = ((rgb[..., 0] > 200) & (rgb[..., 1] - rgb[..., 2] > 30) & (rgb[..., 0] - rgb[..., 2] > 90)).astype(np.uint8)
+            # (the glowing thing: the biggest such patch, not a speck of
+            # orange on his face)
+            ns, slab, sst, _ = cv2.connectedComponentsWithStats(src, connectivity=8)
+            src = (slab == 1 + int(np.argmax(sst[1:, 4]))).astype(np.uint8) if ns > 1 else src
+            near_src = cv2.dilate(src, np.ones((GLOW_EDGE_NEAR, GLOW_EDGE_NEAR), np.uint8)) > 0
+            lit &= band & near_src & (rgb.max(axis=2) < GLOW_EDGE_DARK)
+        glow_px = lit & (a < 1.0)
+        # The ground seen through the field (inside its ring, past the body)
+        # is ground.
+        through = solid & ~body & ~lit & (off <= TOL) & reach & (not glow_edge)
+        out_rgb = np.where(glow_px[..., None], unblend, out_rgb)
+        alpha = np.where(glow_px, np.maximum(a * 255.0, np.where(solid & ~glow_px, 255.0, 0.0)), alpha)
+        alpha = np.where(lit & (a >= 1.0), 255.0, alpha)
+        alpha = np.where(through, 0.0, alpha)
+    return np.dstack([out_rgb.astype(np.uint8), alpha.astype(np.uint8)])
 
 
 def resample(img, factor):
@@ -735,6 +803,13 @@ def soft_frame(img, factor):
     return smooth_art.bleed(out)
 
 
+def _mass(f):
+    """A cut frame's (height, filled texels)."""
+    a = f[..., 3] > 0
+    ys = np.nonzero(a.any(axis=1))[0]
+    return (ys[-1] - ys[0] + 1, int(a.sum()))
+
+
 def build(hero, poses):
     scale = None
     full = {}
@@ -755,27 +830,32 @@ def build(hero, poses):
         factor = scale[1] if path == scale[0] and hero not in MATCH_HEIGHT else img.height / float(ref_h)
         full[facing] = resample(img, factor)
         soft[facing] = soft_frame(img, factor)
+    raw = {}   # direction -> (frames, base factor, opaque)
     if hero in WALKS:
         walks, ref = cut_walk(hero)
-        wf = ref / float(HEIGHT)
-        for d, frames in walks.items():
-            for i, img in enumerate(frames):
-                # The opaque boards' figures are dark-clad on a dark ground:
-                # peeling their outline would eat gloves and cloth.
-                if not OUTLINE and WALKS[hero][5] != "opaque":
-                    img = peel_painted_outline(img)
-                full[(d, i)] = resample(img, wf)
-                soft[(d, i)] = soft_frame(img, wf)
+        for d, fr in walks.items():
+            raw[d] = (fr, ref / float(HEIGHT), WALKS[hero][5] == "opaque")
     # A direction redrawn on a board of its own (WALK_EXTRA), at its own
     # size: its tallest frame stands as tall as the main board's.
     for board in WALK_EXTRA.get(hero, []):
-        for d, frames in cut_walk_board(*board).items():
-            ef = max(f.height for f in frames) / float(HEIGHT)
-            for i, img in enumerate(frames):
-                if not OUTLINE and board[5] != "opaque":
-                    img = peel_painted_outline(img)
-                full[(d, i)] = resample(img, ef)
-                soft[(d, i)] = soft_frame(img, ef)
+        for d, fr in cut_walk_board(*board).items():
+            raw[d] = (fr, max(f.height for f in fr) / float(HEIGHT), board[5] == "opaque")
+    for d, (fr, wf, opaque) in raw.items():
+        # The opaque boards' figures are dark-clad on a dark ground: peeling
+        # their outline would eat gloves and cloth.
+        fr = [img if OUTLINE or opaque else peel_painted_outline(img) for img in fr]
+        # Each way he walks, his stride is the size of his still pose that
+        # way (designer, 2026-10-31: Stephen grew as he walked): the median
+        # frame's height and bulk matched to it, as the actions are.
+        if d in full:
+            got = [_mass(resample(img, wf)) for img in fr]
+            want = _mass(full[d])
+            h = want[0] / float(np.median([g[0] for g in got]))
+            m = (want[1] / float(np.median([g[1] for g in got]))) ** 0.5
+            wf = wf / (h * m) ** 0.5
+        for i, img in enumerate(fr):
+            full[(d, i)] = resample(img, wf)
+            soft[(d, i)] = soft_frame(img, wf)
     full = {d: vibrance(f) for d, f in full.items()}
     full = tidy_palette(full)
     frames = {}
