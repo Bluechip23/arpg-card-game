@@ -849,6 +849,19 @@ func _update_tick_speed_buttons() -> void:
 		_tick_speed_buttons[i].add_theme_color_override("font_color",
 			Color(1.0, 0.85, 0.4) if active else Color(0.45, 0.42, 0.38))
 
+## The camera rides with the player, smoothly, every frame, and keeps the
+## player wherever on screen they put him: the scroll (_camera_pan) and the
+## zoom are the player's, never reset by a step (designer, 2026-10-31: zoom
+## in, centre on him, and he stays centred as he walks).
+func _follow_camera() -> void:
+	if not player or not is_instance_valid(player):
+		return
+	var want := player.position + Vector3(2, 0, 0)
+	if want.is_equal_approx(_camera_focus):
+		return
+	_camera_focus = want
+	_update_camera()
+
 func _update_camera() -> void:
 	var camera := get_world_camera()
 	if not camera:
@@ -884,6 +897,8 @@ func _mark_prompts_dirty() -> void:
 	_prompts_dirty = true
 
 func _process(delta: float) -> void:
+	if dungeon_manager:
+		_follow_camera()
 	_update_menu_tempo_hold()
 	_update_card_closeup()
 	_update_hand_hover()
@@ -3860,11 +3875,7 @@ func _on_player_tile_reached(mover: Player = null) -> void:
 	_update_fog_of_war()
 	# Check if player stepped onto a waypoint to discover it
 	waypoint_mgr._check_waypoint_discovery(player_cell)
-	# Update camera focus to follow player
-	if dungeon_manager:
-		_camera_focus = player.position + Vector3(2, 0, 0)
-		_camera_pan = Vector3.ZERO  # following again: drop any manual scroll
-		_update_camera()
+	# (The camera follows the player every frame: _follow_camera.)
 
 func _on_player_move_completed() -> void:
 	# High-ground riders (Mountain Boots) read a cached flag: refresh it the
@@ -4579,9 +4590,7 @@ func _respawn_at_level_start() -> void:
 		if beside.x >= 0:
 			_follower.place_at(_ground_pos(beside), beside)
 	if dungeon_manager:
-		_camera_focus = player.position + Vector3(2, 0, 0)
-		_camera_pan = Vector3.ZERO  # following again: drop any manual scroll
-		_update_camera()
+		_follow_camera()
 		_update_fog_of_war()
 	_solo_fallen = false
 	add_battle_log("You rise again at the start of %s." % get_location_label(), Color(0.5, 1.0, 0.6))
