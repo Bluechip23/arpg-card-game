@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Mythic appearance icons: one 32x32 sprite per mythic item, drawn from that
 item's `appearance` description in scripts/progression/item_data.gd — for the
-mythics the designer has not painted. Every other mythic is the designer's
-painting, cut from its sheet by tools/cut_mythic_art.py; since 2026-10-23
-the only one left here is the Bladed Doughnut.
+mythics the designer has not painted. Every mythic is the designer's
+painting now, cut by tools/cut_mythic_art.py (the Bladed Doughnut, the last,
+since 2026-10-31), so ICONS is empty; the drawing kit stays for
+tools/generate_gauntlet_skill_icons.py.
 
 Output: assets/items/mythic/<slug>.png — the art the inventory shows for the
 mythic (its storage cell, equipment slot and detail panel).
@@ -253,49 +254,10 @@ def _regions(canvas):
 # The mythics — each function draws what its appearance description says.
 # ---------------------------------------------------------------------------
 
-def bladed_doughnut():
-    ## "Fried dough gone wrong: the outer rim is hammered steel filed into
-    ## razor teeth, the pink glaze never quite dries, sprinkles are bone."
-    c = Canvas()
-    # Eight razor teeth filed around the rim, then the steel band, then dough.
-    for i in range(8):
-        a = math.tau * i / 8.0 - math.pi / 2.0
-        ux, uy = math.cos(a), math.sin(a)
-        px_, py_ = -uy, ux  # perpendicular, for the tooth's base
-        c.poly([(16 + ux * 11 + px_ * 2.6, 16 + uy * 11 + py_ * 2.6),
-                (16 + ux * 11 - px_ * 2.6, 16 + uy * 11 - py_ * 2.6),
-                (16 + ux * 15.0, 16 + uy * 15.0)], "steel")
-    c.ellipse((3, 3, 28, 28), "steel")
-    c.ellipse((5, 5, 26, 26), "wood")
-    # Pink glaze poured over the top, drooling down the left and right and
-    # clipped to the dough so it never spills onto the steel rim.
-    glaze = _rect_mask((0, 0, G - 1, G - 1))
-    gpx = glaze.load()
-    for x in range(G):
-        drip = 19 + (4 if x in (8, 9, 10) else 0) + (5 if x in (19, 20) else 0)
-        for y in range(drip + 1, G):
-            gpx[x, y] = 0
-    glaze = ImageChops.multiply(glaze, _ellipse_mask((5, 5, 26, 26)))
-    c.stamp(glaze, "rose", "hi")
-    # The glaze keeps its own lower lip in the mid tone so it reads as poured on.
-    gpx = glaze.load()
-    for x in range(G):
-        for y in range(G - 1):
-            if gpx[x, y] and not gpx[x, y + 1]:
-                c.set(x, y, "rose", "base")
-                c.set(x, y - 1, "rose", "base")
-    # Bite hole in the middle.
-    c.carve(_ellipse_mask((12, 12, 19, 19)))
-    # Bone sprinkles scattered across the glaze.
-    for (sx, sy) in ((10, 8), (11, 9), (15, 6), (16, 7), (20, 9), (21, 10),
-                     (9, 14), (13, 17), (22, 15), (18, 19)):
-        c.dot(sx, sy, "bone", "hi")
-    return c
-
-
-ICONS = {
-    "bladed_doughnut": bladed_doughnut,
-}
+# Every mythic is the designer's painting now (the Bladed Doughnut, the
+# last, since 2026-10-31): nothing is drawn here. The drawing kit above stays
+# — tools/generate_gauntlet_skill_icons.py borrows it.
+ICONS = {}
 
 
 def main():
