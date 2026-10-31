@@ -91,7 +91,7 @@ const KINDS := {
 	"consumed": {"sheets": SHEETS + "/consumed", "scale": BOARD_SCALE},  # the designer's crawler board (tools/cut_pose_boards.py; on the Screecher by mistake until 2026-10-27); was MonsterKit cell (6, 2)
 	"sewer_croc": {"sheets": SHEETS + "/sewer_cobra", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the mountain-monster Snake (the kind keeps its old croc name)
 	# --- generated sprites (drawn/derived in our pipeline, palette-conformant) ---
-	"rat": {"sheets": SHEETS + "/wererat", "scale": BOARD_SCALE},  # the Wererat: the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the giant-rat pack's Rat1
+	"rat": {"sheets": SHEETS + "/wererat", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the Wererat: the designer's board (tools/cut_pose_boards.py, 2026-10-26), and his bite board (2026-10-31: Attack is the leap and bite); was the giant-rat pack's Rat1
 	# The designer's Archer Rat: up on its hind legs, bow in hand.
 	"archer_rat": {"sheets": SHEETS + "/archer_rat", "scale": BOARD_SCALE},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26)
 	# The designer's own boss boards (no pack has these bosses).
