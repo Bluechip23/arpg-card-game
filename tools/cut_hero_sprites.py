@@ -191,6 +191,9 @@ WALK_GROUND_TOL = 10
 WALK_POCKET_MIN = 40
 WALK_HALO_PEEL = 2
 WALK_FIT_PASSES = 4   # ground fits, each to what the last fill reached
+NARROW_CREEP = 8      # px the narrow fill creeps past its wide openings
+HAZE_DARK = 60        # haze (cut_opaque_cell): no channel brighter than this...
+HAZE_FLAT = 4.0       # ...and as smooth as the ground (5x5 spread)
 
 # The sources' ground: a flat dark grey (with a few levels of compression
 # noise). Anything within GROUND_TOL of it, reached from the crop's edge, is
@@ -514,13 +517,20 @@ def _ground_fit(rgb, mask):
     return np.tensordot(np.stack(terms, axis=-1), coef, axes=1)
 
 
-def cut_opaque_cell(cell):
+def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0):
     """One cell of an opaque walk board, its ground made transparent (hard
     alpha). The ground is fitted as a smooth glow (_ground_fit) and filled in
     from the cell's edge wherever a pixel is within WALK_GROUND_TOL of it,
     refitting to what the fill reached a few times; the figure's own dark
     outline stops the fill, so cloth as dark as the ground (Cory's robe)
-    stays. Then its enclosed pockets and the halo round the figure go."""
+    stays. Then its enclosed pockets (unless `pockets` is off: a shadow as
+    dark as the ground inside the figure, like the back of Stephen's neck)
+    and the halo round the figure go. `haze`: a soft glow round an effect
+    (the flash of Stephen's crossed knives), dark and as smooth as the
+    ground but off its colour, is ground too. `narrow`: the fill only gets
+    through openings at least this many px wide (then creeps NARROW_CREEP px
+    on), so a shadow as dark as the ground reached through a slit (the back
+    of Stephen's neck, between hair and hood) stays."""
     import cv2  # tool dependency (opencv-python-headless)
     rgb = cell[..., :3].astype(int)
     h, w, _ = rgb.shape
@@ -529,16 +539,25 @@ def cut_opaque_cell(cell):
     ground = np.zeros((h, w), bool)
     ground[:6] = ground[-6:] = True
     ground[:, :6] = ground[:, -6:] = True
-    for _ in range(WALK_FIT_PASSES):
-        model = _ground_fit(rgb, ground)
-        off = np.abs(rgb - model).max(axis=2)
-        near = off <= WALK_GROUND_TOL
-        ground = _flood(near, edge)
-    solid = ~ground
     f = rgb.astype(np.float32)
     mean = cv2.blur(f, (5, 5))
     spread = np.sqrt(np.maximum(cv2.blur(f * f, (5, 5)) - mean * mean, 0)).max(axis=2)
-    flat = (solid & near & (spread <= POCKET_FLAT)).astype(np.uint8)
+    soft = (rgb.max(axis=2) < HAZE_DARK) & (spread <= HAZE_FLAT) if haze else np.zeros((h, w), bool)
+    for _ in range(WALK_FIT_PASSES):
+        model = _ground_fit(rgb, ground & ~soft)
+        off = np.abs(rgb - model).max(axis=2)
+        near = off <= WALK_GROUND_TOL
+        open_ = near | soft
+        if narrow:
+            k = np.ones((narrow, narrow), np.uint8)
+            core = _flood(cv2.morphologyEx(open_.astype(np.uint8), cv2.MORPH_OPEN, k) > 0, edge)
+            for _ in range(NARROW_CREEP):
+                core |= (cv2.dilate(core.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0) & open_
+            ground = core
+        else:
+            ground = _flood(open_, edge)
+    solid = ~ground
+    flat = (solid & near & (spread <= POCKET_FLAT) & pockets).astype(np.uint8)
     n, lab, stats, _ = cv2.connectedComponentsWithStats(flat, connectivity=4)
     k = np.ones((3, 3), np.uint8)
     for j in range(1, n):

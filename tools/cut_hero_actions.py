@@ -36,9 +36,13 @@ OUT = "assets/sprites/generated/heroes/%s_%s.png"
 ACTION_FLOOR = 8        # the ground sits a 1/ACTION_FLOOR of the cell up from its bottom
 ACTION_KEEP_PX = 25     # pieces smaller than this (source px) are specks, not dust
 CELL_INSET = 4          # px kept clear of the grid lines
+DARK_PIECE = 40         # "drop_dark": a piece whose 90th-percentile channel is under this goes
 
 # Per hero and action: the board, its grid (column lines; each row's top and
-# bottom line) and the facing each row draws.
+# bottom line) and the facing each row draws; optionally "pockets": False
+# and "haze": True, "narrow": px for cut_hero_sprites.cut_opaque_cell;
+# "drop_dark": True drops unlit pieces (floor shadows); "close": px fills
+# notches in the silhouette that narrow.
 ACTIONS = {
     # 2026-10-31: Brad's jumping overhead smash — crouch, leap with both
     # fists raised, slam down in a burst of sparks and dust.
@@ -56,20 +60,90 @@ ACTIONS = {
         "rows": [(53, 228), (235, 409), (416, 591)],
         "facings": ["south", "west", "east"],
     },
+    # 2026-10-31: Jeremy's backwind bone blade — he winds back and a bone
+    # blade sweeps out of his arm in a glowing arc.
+    ("jeremy", "attack"): {
+        "src": "jeremy_attack_board.webp",
+        "cols": [115, 282, 460, 637, 812, 992, 1170, 1352, 1530],
+        "rows": [(53, 269), (269, 482), (482, 682), (682, 893)],
+        "facings": ["south", "north", "west", "east"],
+    },
+    # 2026-10-31: Jeremy's block — arms spread, a wall of bones and skulls
+    # rises before him.
+    ("jeremy", "block"): {
+        "src": "jeremy_block_board.webp",
+        "cols": [111, 287, 465, 642, 821, 998, 1177, 1355, 1531],
+        "rows": [(50, 258), (258, 468), (468, 677), (677, 897)],
+        "facings": ["south", "north", "west", "east"],
+    },
+    # 2026-10-31: Stephen's bear transformation swipe (revised) — his head
+    # turns bear and the bear arm rakes across; he ends in the bear's head.
+    ("stephen", "attack"): {
+        "src": "stephen_attack_board.webp",
+        "pockets": False,   # the back of his neck is as dark as the ground...
+        "narrow": 7,        # ...and the fill reaches it through a slit
+        "cols": [116, 293, 470, 649, 825, 1003, 1178, 1356, 1529],
+        "rows": [(52, 266), (266, 481), (481, 684), (684, 902)],
+        "facings": ["south", "north", "west", "east"],
+    },
+    # 2026-10-31: Stephen's defensive parry — two knives drawn and crossed
+    # with a flash, then sheathed.
+    ("stephen", "block"): {
+        "src": "stephen_block_board.webp",
+        "haze": True,       # the flash's dark glow
+        "pockets": False,
+        "narrow": 7,
+        "cols": [115, 310, 519, 720, 924, 1130, 1333, 1530],
+        "rows": [(52, 267), (267, 482), (482, 684), (684, 902)],
+        "facings": ["south", "north", "west", "east"],
+    },
+    # 2026-10-31: Ryan's dual blade flurry — four alternating stabs. Its
+    # cells are narrow; a stab's streak that crosses into the next cell is
+    # cut at the line.
+    ("ryan", "attack"): {
+        "src": "ryan_attack_board.webp",
+        "pockets": False,   # near-black clothes on a near-black ground: the
+        "narrow": 7,        # shadows between his straps are the ground's colour
+        "close": 7,
+        "cols": [100, 202, 303, 405, 508, 610, 713, 815, 918, 1021, 1125, 1227, 1330, 1432, 1532],
+        "rows": [(55, 270), (270, 481), (481, 684), (684, 894)],
+        "facings": ["south", "north", "west", "east"],
+    },
+    # 2026-10-31: Ryan's block is a backflip (a full 360). Each row is its
+    # own panel, a frame-number strip under it.
+    ("ryan", "block"): {
+        "src": "ryan_block_board.webp",
+        "drop_dark": True,  # the shadow on the floor under the flip
+        "cols": [99, 190, 283, 378, 469, 562, 655, 751, 847, 944, 1039, 1137, 1233, 1330, 1427, 1526],
+        "rows": [(59, 247), (296, 483), (532, 715), (760, 946)],
+        "facings": ["south", "north", "west", "east"],
+    },
 }
 
 
-def cut_cell(cell):
+def cut_cell(cell, pockets=True, haze=False, narrow=0, drop_dark=False, close=0):
     """One cell's figure (and its dust) on transparency, cell-sized, plus
     the kept pixels' box."""
     import cv2
-    rgba = hs.cut_opaque_cell(cell)
+    rgba = hs.cut_opaque_cell(cell, pockets, haze, narrow)
     solid = (rgba[..., 3] > 0).astype(np.uint8)
+    if close:
+        # Notches in the silhouette under `close` px across are the figure's
+        # own dark seams (between Ryan's leg wraps), opened onto the ground.
+        solid = cv2.morphologyEx(solid, cv2.MORPH_CLOSE, np.ones((close, close), np.uint8))
+        rgba[..., 3] = solid * 255
     n, lab, stats, _ = cv2.connectedComponentsWithStats(solid, connectivity=8)
     keep = np.zeros(solid.shape, bool)
+    bright = cell[..., :3].max(axis=2)
     for k in range(1, n):
-        if stats[k][4] >= ACTION_KEEP_PX:
-            keep |= lab == k
+        if stats[k][4] < ACTION_KEEP_PX:
+            continue
+        piece = lab == k
+        # A piece with nothing lit in it is a shadow on the floor, not the
+        # hero or his effect (Ryan's backflip casts one under him).
+        if drop_dark and np.percentile(bright[piece], 90) < DARK_PIECE:
+            continue
+        keep |= piece
     rgba[~keep] = 0
     ys, xs = np.nonzero(keep)
     return Image.fromarray(rgba, "RGBA"), (xs.min(), ys.min(), xs.max() + 1, ys.max() + 1)
@@ -82,7 +156,9 @@ def build(hero, action, spec):
     for (top, bottom), facing in zip(spec["rows"], spec["facings"]):
         for c in range(len(cols) - 1):
             cell = board[top + i:bottom - i + 1, cols[c] + i:cols[c + 1] - i + 1]
-            cells[(facing, c)] = cut_cell(cell)
+            cells[(facing, c)] = cut_cell(cell, spec.get("pockets", True), spec.get("haze", False),
+                                          spec.get("narrow", 0), spec.get("drop_dark", False),
+                                          spec.get("close", 0))
     n = len(cols) - 1
     # The hero's scale: his standing front (the south row's first frame).
     box = cells[("south", 0)][1]

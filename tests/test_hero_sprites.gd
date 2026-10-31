@@ -116,41 +116,46 @@ func _initialize() -> void:
 	# plays the sheet (the body hidden), feet on the ground line, and gives
 	# the body back when done; facing north the block has no drawing, so
 	# the old guard plays.
+	for hero in ["Brad", "Jeremy", "Stephen", "Ryan"]:
+		var fig := SpriteFigure.new()
+		get_root().add_child(fig)
+		fig.setup(hero)
+		for action in ["basic_attack", "basic_block"]:
+			var a: Dictionary = fig._actions.get(action, {})
+			_check(not a.is_empty(), "%s has his drawn %s" % [hero, action])
+			if a.is_empty():
+				continue
+			var cell: int = a["cell"]
+			var still := _used(a["tex"], Rect2(0, 0, cell, cell))
+			_check(absi(still.end.y - (cell - cell / SpriteFigure.ACTION_FLOOR)) <= 1,   # (a texel's rounding)
+				"%s's %s stands on its ground line (%d of %d)" % [hero, action, still.end.y, cell])
+			_check(absf(still.size.y * fig._npc_sprite.pixel_size - SpriteFigure.BOARD_HEIGHT) < 0.06,
+				"%s's %s stands his height (%.2f tiles)" % [hero, action, still.size.y * fig._npc_sprite.pixel_size])
+			fig.play_action(action, D.EAST)
+			_check(fig._action_sprite.visible and not fig._npc_sprite.visible,
+				"%s's %s draws in place of his body" % [hero, action])
+			var cols := {}
+			for _i in range(120):
+				fig._process(0.03)
+				if fig._action_sprite.visible:
+					cols[int(fig._action_sprite.region_rect.position.x / cell)] = true
+			_check(cols.size() == int(a["frames"]), "%s's %s plays all %d frames (%d)" % [hero, action, a["frames"], cols.size()])
+			_check(not fig._action_sprite.visible and fig._npc_sprite.visible and not fig._attacking,
+				"%s stands again after his %s" % [hero, action])
+		fig.free()
 	var brad := SpriteFigure.new()
 	get_root().add_child(brad)
 	brad.setup("Brad")
-	for action in ["basic_attack", "basic_block"]:
-		var a: Dictionary = brad._actions.get(action, {})
-		_check(not a.is_empty(), "Brad has his drawn %s" % action)
-		if a.is_empty():
-			continue
-		var cell: int = a["cell"]
-		var still := _used(a["tex"], Rect2(0, 0, cell, cell))
-		_check(absi(still.end.y - (cell - cell / SpriteFigure.ACTION_FLOOR)) <= 1,   # (a texel's rounding)
-			"Brad's %s stands on its ground line (%d of %d)" % [action, still.end.y, cell])
-		_check(absf(still.size.y * brad._npc_sprite.pixel_size - SpriteFigure.BOARD_HEIGHT) < 0.06,
-			"Brad's %s stands his height (%.2f tiles)" % [action, still.size.y * brad._npc_sprite.pixel_size])
-		brad.play_action(action, D.EAST)
-		_check(brad._action_sprite.visible and not brad._npc_sprite.visible,
-			"Brad's %s draws in place of his body" % action)
-		var cols := {}
-		for _i in range(80):
-			brad._process(0.03)
-			if brad._action_sprite.visible:
-				cols[int(brad._action_sprite.region_rect.position.x / cell)] = true
-		_check(cols.size() == int(a["frames"]), "Brad's %s plays all %d frames (%d)" % [action, a["frames"], cols.size()])
-		_check(not brad._action_sprite.visible and brad._npc_sprite.visible and not brad._attacking,
-			"Brad stands again after his %s" % action)
 	brad.play_action("basic_block", D.NORTH)
 	_check(not brad._action_sprite.visible and brad._npc_sprite.visible,
 		"Brad's block facing north (not drawn) keeps the old guard")
 	brad.free()
-	var ryan := SpriteFigure.new()
-	get_root().add_child(ryan)
-	ryan.setup("Ryan")
-	ryan.play_action("basic_attack", D.EAST)
-	_check(ryan._action_sprite == null and ryan._attacking, "a hero not yet drawn lunges into his basic attack")
-	ryan.free()
+	var undrawn := SpriteFigure.new()
+	get_root().add_child(undrawn)
+	undrawn.setup("Cory")
+	undrawn.play_action("basic_attack", D.EAST)
+	_check(undrawn._action_sprite == null and undrawn._attacking, "a hero not yet drawn lunges into his basic attack")
+	undrawn.free()
 	var slash := Card.create_by_id("slash")
 	var block := Card.create_by_id("block")
 	_check(slash.get_animation_action() == "basic_attack" and block.get_animation_action() == "basic_block",
