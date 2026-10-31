@@ -41,10 +41,14 @@ const CP_ROWS := {
 ## Hurt, Death) return to Idle/Walk when they finish; Death holds its last
 ## frame. Attack2 is a creature's double attack (the werewolf's claw and
 ## rake with the other arm); a kind's "fps" overrides these per animation.
-const CP_FPS := {"Idle": 5.0, "Walk": 8.0, "Run": 10.0, "Attack": 12.0, "Attack2": 12.0, "Hurt": 12.0, "Death": 10.0}
+const CP_FPS := {"Idle": 5.0, "Walk": 8.0, "Run": 10.0, "Draw": 8.0, "Attack": 12.0, "Attack2": 12.0, "Hurt": 12.0, "Death": 10.0}
 const CP_ONESHOT := ["Attack", "Attack2", "Hurt", "Death"]
+## Held poses: played once, then the last frame stays until another
+## animation plays (the archer rat at full draw, from two tempo before its
+## shot until the shot). A hit does not break them.
+const CP_HOLD := ["Draw"]
 ## Every sheet an animation may come as (Craftpix packs and our own).
-const CP_ANIMS := ["Idle", "Walk", "Run", "Attack", "Attack2", "Hurt", "Death"]
+const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Hurt", "Death"]
 
 # NPC sheets run S,W,N,E top to bottom (battle uses CharacterAnimator order S,N,E,W).
 const NPC_ROW := [0, 2, 1, 3]  # NPC packs run S,E,N,W
@@ -93,7 +97,7 @@ const KINDS := {
 	# --- generated sprites (drawn/derived in our pipeline, palette-conformant) ---
 	"rat": {"sheets": SHEETS + "/wererat", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the Wererat: the designer's board (tools/cut_pose_boards.py, 2026-10-26), and his bite board (2026-10-31: Attack is the leap and bite); was the giant-rat pack's Rat1
 	# The designer's Archer Rat: up on its hind legs, bow in hand.
-	"archer_rat": {"sheets": SHEETS + "/archer_rat", "scale": BOARD_SCALE},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26)
+	"archer_rat": {"sheets": SHEETS + "/archer_rat", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26), and his shoot board (2026-10-31: Draw is the nock and the held draw, Attack the shot)
 	# The designer's own boss boards (no pack has these bosses).
 	"rat_king": {"sheets": SHEETS + "/rat_king", "scale": BOARD_SCALE},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26), 2.1 tiles — bigger than the Wererat
 	"fire_goblin_soldier": {"sheets": SHEETS + "/fire_goblin", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the goblin pack's Goblin2
@@ -658,6 +662,14 @@ func play_action(action: String) -> void:
 		return
 	if a == "idle" or a == "stance":
 		set_walking(false)
+		if _cp_mode and _cp_anim in CP_HOLD:
+			_cp_play("Walk" if _walking else "Idle", true)   # let a held pose go
+		return
+	if "draw" in a:
+		# The archer rat nocks and draws, then holds at full draw until its
+		# shot (Enemy.DRAW_TEMPO before the shot fires). No Draw sheet: nothing.
+		if _cp_mode and _cp_sheets.has("Draw"):
+			_cp_play("Draw", true)
 		return
 	if "heal" in a:
 		flash(Color(0.5, 1.0, 0.5))
@@ -800,7 +812,7 @@ func _cp_forward() -> Vector3:
 func play_hit() -> void:
 	# White palette-saturating flash on damage (SNES hit flash), plus shake.
 	flash(Color(3.0, 3.0, 3.0))
-	if _cp_mode and not _cp_anim.begins_with("Attack"):
+	if _cp_mode and not _cp_anim.begins_with("Attack") and not _cp_anim in CP_HOLD:
 		_cp_play("Hurt", true)
 	if _rig:
 		var t := create_tween()
@@ -989,7 +1001,7 @@ func _cp_step(delta: float) -> void:
 	while _cp_clock >= 1.0 / fps:
 		_cp_clock -= 1.0 / fps
 		if _cp_frame + 1 >= count:
-			if _cp_anim == "Death":
+			if _cp_anim == "Death" or _cp_anim in CP_HOLD:
 				return  # hold the last frame
 			if _cp_anim in CP_ONESHOT:
 				_cp_play("Walk" if _walking else "Idle", true)

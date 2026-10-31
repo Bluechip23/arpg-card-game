@@ -842,6 +842,62 @@ BOARDS = {
             "left": (11, 523, 511, 866),
             "right": (541, 523, 1017, 866),
         },
+        # 2026-10-31: the designer's shoot board — archer_rat_shoot_board.webp,
+        # four labelled rows on black (NORTH (FRONT), SOUTH (BACK), WEST
+        # (LEFT), EAST (RIGHT), the board's "north" facing the camera): the
+        # stance, the arrow nocked, the string drawn, drawn again, the
+        # release (the front and back rows with the arrow in flight beside
+        # the rat; the side rows the arrow alone, then the rat with the
+        # bow sprung), the bow lowered / the stance. Draw.png is the nock
+        # and the draw, held at full draw (SpriteEnemyFigure CP_HOLD) from
+        # two tempo before the shot; Attack.png the shot: full draw, the
+        # release, the bow lowered. The flying arrows are loose pieces and
+        # fall away (only the rat and anything red is kept). The stance
+        # is the height reference, matched to each facing's Idle.
+        "actions": {
+            "src": "archer_rat_shoot_board.webp",
+            "shadow_band": 0.08,
+            "fill_holes": 7,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (108, 45, 275, 250),
+                    "nock": (280, 45, 462, 250),
+                    "draw": (465, 33, 670, 250),
+                    "full": (671, 30, 868, 250),
+                    "release": (868, 42, 1040, 250),
+                    "lower": (1125, 38, 1330, 250),
+                },
+                "back": {
+                    "stance": (108, 296, 300, 488),
+                    "nock": (325, 270, 495, 488),
+                    "draw": (502, 260, 675, 488),
+                    "full": (705, 259, 880, 488),
+                    "release": (898, 310, 1090, 488),
+                    "lower": (1156, 270, 1348, 488),
+                },
+                "left": {
+                    "stance": (108, 535, 325, 722),
+                    "nock": (310, 524, 505, 722),
+                    "draw": (518, 504, 705, 720),
+                    "full": (726, 504, 918, 720),
+                    "release": (1050, 530, 1325, 720),
+                    "lower": (1338, 538, 1536, 722),
+                },
+                "right": {
+                    "stance": (108, 763, 300, 952),
+                    "nock": (295, 741, 478, 952),
+                    "draw": (470, 745, 708, 952),
+                    "full": (640, 752, 900, 952),
+                    "release": (1078, 760, 1325, 952),
+                    "lower": (1330, 766, 1530, 952),
+                },
+            },
+            "sheets": {
+                "Draw": ["nock", "draw"],
+                "Attack": ["full", "release", "lower"],
+            },
+        },
     },
     "magma_spider": {
         # 2026-10-26: the Magma Spider — a spider of cracked black rock with
