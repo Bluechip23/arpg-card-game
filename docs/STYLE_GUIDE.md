@@ -129,8 +129,8 @@ conforms to them.
   a ramp that only changes value is a defect.
 - Budgets: any single generated sprite/tile ≤ **15 colors + transparency**.
   Purchased sheets are exempt (audited, not enforced). Generated **item
-  icons** (the mythic art the designer has not painted — only the Bladed Doughnut since 2026-10-23,
-  `tools/generate_mythic_icons.py`; painted mythics come from
+  icons** (none left among the mythics since 2026-10-31 — every one is painted;
+  `tools/generate_mythic_icons.py` keeps the drawing kit; painted mythics come from
   `tools/cut_mythic_art.py` at 128 px and are exempt) follow the
   Craftpix icon packs they sit beside instead: a near-black, hue-tinted
   outline, a bright upper-left rim with one white glint, two shadow bands

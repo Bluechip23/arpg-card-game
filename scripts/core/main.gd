@@ -885,6 +885,7 @@ func _mark_prompts_dirty() -> void:
 
 func _process(delta: float) -> void:
 	_update_menu_tempo_hold()
+	_update_card_closeup()
 	_update_hand_hover()
 	_update_battlefield_enemy_hover()
 	_update_status_icon_hover()
@@ -1406,6 +1407,15 @@ func _skin_hud_button(btn: Button, face: String) -> void:
 	btn.add_theme_color_override("font_outline_color", Color(0.04, 0.05, 0.03))
 	btn.add_theme_constant_override("outline_size", 4)
 
+## The Flash and Brain counters take the shield button's width.
+func _match_counters_to_shield() -> void:
+	if _block_button == null:
+		return
+	var w: float = _block_button.size.x
+	for count_btn in [_flash_button, _brain_button]:
+		if count_btn and absf(count_btn.custom_minimum_size.x - w) > 0.5:
+			count_btn.custom_minimum_size.x = w
+
 func _setup_action_buttons() -> void:
 	var ui := $UI as CanvasLayer
 
@@ -1632,6 +1642,17 @@ func _setup_action_buttons() -> void:
 	attack_row.add_child(_block_button)
 	_skin_hud_button(_block_button, "block_slim")
 	_block_button.add_theme_font_size_override("font_size", 14)
+	# The Flash and Brain counters are exactly the shield button's width
+	# (designer, 2026-10-31); their spend buttons share the rest of the row.
+	for count_btn in [_flash_button, _brain_button]:
+		count_btn.size_flags_horizontal = Control.SIZE_FILL
+		count_btn.size_flags_stretch_ratio = 1.0
+	for spend_btn in [_flash_move_button, _flash_block_button, _flash_proc_button,
+			_brain_peek_button, _brain_draw_button]:
+		spend_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		spend_btn.size_flags_stretch_ratio = 1.0
+	_block_button.resized.connect(_match_counters_to_shield)
+	_match_counters_to_shield.call_deferred()
 
 	# War Rack button (Brad only): swap hands with the gear on his back.
 	_rack_button = Button.new()
@@ -3493,6 +3514,9 @@ func _setup_unit_tracker() -> void:
 	enemy_inspect_ui.offset_left = 258.0
 	enemy_inspect_ui.offset_top = -200.0
 	unit_tracker.enemy_clicked.connect(_on_tracker_enemy_clicked)
+	unit_tracker.ally_clicked.connect(func(u):
+		if enemy_inspect_ui:
+			enemy_inspect_ui.show_ally(u))
 
 	# Connect hover signals for bidirectional highlighting
 	unit_tracker.enemy_hovered.connect(_on_tracker_enemy_hovered)
@@ -8308,6 +8332,63 @@ func update_peaked_display() -> void:
 	else:
 		peaked_label.text = "NEXT: %s" % " → ".join(names)
 		peaked_label.visible = true
+
+# ---- The chosen card, up close -------------------------------------------
+## Clicking a card in hand shows it big beside the battlefield (designer,
+## 2026-10-31): a full-size face at CLOSEUP_SCALE in the open strip left of
+## the map, between the stat bars and the action buttons, so its text reads
+## while the field stays clear for picking a target. It never takes the
+## mouse, and goes when the card is played, cancelled or swapped.
+const CLOSEUP_SCALE := 1.75
+var _closeup: Control = null
+var _closeup_card: Card = null
+
+func _update_card_closeup() -> void:
+	var want: Card = null
+	if selected_card_index >= 0 and deck_manager and selected_card_index < deck_manager.hand.size():
+		want = deck_manager.hand[selected_card_index]
+	if want == _closeup_card:
+		return
+	_closeup_card = want
+	if _closeup and is_instance_valid(_closeup):
+		_closeup.queue_free()
+	_closeup = null
+	if want == null:
+		return
+	var holder := Control.new()
+	holder.name = "CardCloseup"
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.z_index = 50
+	holder.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+	var w := CardUI.CARD_W * CLOSEUP_SCALE
+	var h := CardUI.CARD_H * CLOSEUP_SCALE
+	holder.offset_left = 18.0
+	holder.offset_right = 18.0 + w
+	holder.offset_top = -h * 0.5 - 40.0     # between the stat bars and the action buttons
+	holder.offset_bottom = h * 0.5 - 40.0
+	($UI as CanvasLayer).add_child(holder)
+	var face: CardUI = CardUIScene.instantiate()
+	face.scale = Vector2(CLOSEUP_SCALE, CLOSEUP_SCALE)
+	holder.add_child(face)
+	face.setup(want, selected_card_index, player.get_debuff_manager() if player else null)
+	# A hand card scales about its bottom centre (the fan); this one grows
+	# from its corner to fill the holder.
+	face.pivot_offset = Vector2.ZERO
+	face.position = Vector2.ZERO
+	_ignore_mouse_tree(face)
+	var kb = face.get_node_or_null("Panel/KeybindBadge")
+	if kb:
+		kb.visible = false
+	# Fade in, so it reads as the card lifted up to the eye.
+	holder.modulate.a = 0.0
+	holder.create_tween().tween_property(holder, "modulate:a", 1.0, 0.12)
+	_closeup = holder
+
+func _ignore_mouse_tree(n: Node) -> void:
+	if n is Control:
+		n.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for c in n.get_children():
+		_ignore_mouse_tree(c)
 
 func update_card_highlights() -> void:
 	# Highlight the stack that contains the selected card.
@@ -13346,6 +13427,12 @@ func _is_ui_window_open() -> bool:
 		return true
 	return false
 
+## Whether the pointer is over a GUI control that takes the mouse (a menu,
+## panel, button, the log...): the open battlefield has none.
+func _pointer_over_gui() -> bool:
+	var c := get_viewport().gui_get_hovered_control()
+	return c != null and c.is_visible_in_tree()
+
 func _input(event: InputEvent) -> void:
 	# Both heroes are down — the defeat overlay takes over.
 	if _co_op_defeated:
@@ -13366,6 +13453,13 @@ func _input(event: InputEvent) -> void:
 		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 			chest_loot_ui._close_chest_modal()
 		return
+
+	# Typing into a menu's text box (a search field, a number spinner) is the
+	# box's, not a hotkey for the game behind it.
+	if event is InputEventKey:
+		var focus := get_viewport().gui_get_focus_owner()
+		if focus is LineEdit or focus is TextEdit or focus is SpinBox:
+			return
 
 	if event is InputEventKey and event.pressed and not event.echo:
 		# Chest / waypoint / cave / building interaction (Shift key)
@@ -13520,6 +13614,15 @@ func _input(event: InputEvent) -> void:
 			if trade_ui:
 				trade_ui.close()
 	
+	# Over a menu or panel (the log, the sandbox, a tooltip, any HUD window):
+	# the mouse belongs to it — its wheel scrolls it, a drag drags in it, a
+	# click clicks it — and never zooms, pans or orders the battlefield
+	# behind it (designer, 2026-10-31).
+	if event is InputEventMouseButton and _pointer_over_gui():
+		if not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			_camera_panning = false
+		return
+
 	# Left click - play card or use gauntlet skill
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		# Mythic reveal sequence: clicking the present opens it; clicking the

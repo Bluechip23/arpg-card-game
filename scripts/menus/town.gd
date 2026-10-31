@@ -520,6 +520,15 @@ func _input(event: InputEvent) -> void:
 			KEY_D:
 				_wasd_step(Vector2(1, 0))
 
+	# Over a menu or panel the mouse is the menu's: no zoom, pan or move order
+	# behind it (designer, 2026-10-31).
+	if event is InputEventMouseButton:
+		var hov := get_viewport().gui_get_hovered_control()
+		if hov != null and hov.is_visible_in_tree():
+			if not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+				_camera_panning = false
+			return
+
 	# Mouse wheel zoom
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:

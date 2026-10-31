@@ -430,38 +430,19 @@ class SpotlightOverlay extends Control:
 
 ## The Bladed Doughnut: a long john with chocolate frosting and pink, teal,
 ## and white sprinkles, drawn above Olorin's raised hands.
-class DoughnutIcon extends Control:
-	const DOUGH := Color(0.85, 0.62, 0.32)
-	const FROSTING := Color(0.3, 0.17, 0.09)
-	const SPRINKLE_COLORS := [Color(1.0, 0.5, 0.7), Color(0.3, 0.85, 0.8), Color(0.95, 0.95, 0.95)]
-	# Fixed sprinkle placements (x, y, rotation) so redraws don't reshuffle them.
-	const SPRINKLES := [
-		[38, 34, 0.5], [58, 28, -0.9], [76, 38, 1.2], [95, 27, 0.2],
-		[112, 36, -0.6], [130, 29, 0.9], [148, 37, -1.2], [66, 45, 2.1],
-		[104, 46, -1.8], [142, 46, 0.4], [50, 42, 1.6], [122, 44, 2.4],
-	]
-
+## The Bladed Doughnut held up to the light: the designer's painting
+## (assets/items/mythic/bladed_doughnut.png, 2026-10-31) — the same art its
+## inventory cell shows. (It was once drawn here from boxes as a plain long
+## john.)
+class DoughnutIcon extends TextureRect:
 	func _init() -> void:
-		custom_minimum_size = Vector2(190, 84)
+		texture = load("res://assets/items/mythic/bladed_doughnut.png")
+		expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		custom_minimum_size = Vector2(96, 96)
 		size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-
-	func _draw() -> void:
-		# Long john body
-		var dough_box := StyleBoxFlat.new()
-		dough_box.bg_color = DOUGH
-		dough_box.set_corner_radius_all(22)
-		draw_style_box(dough_box, Rect2(8, 24, 174, 52))
-		# Chocolate frosting draped over the top
-		var frosting_box := StyleBoxFlat.new()
-		frosting_box.bg_color = FROSTING
-		frosting_box.set_corner_radius_all(16)
-		draw_style_box(frosting_box, Rect2(14, 18, 162, 34))
-		# Sprinkles (pink, teal, white)
-		for i in range(SPRINKLES.size()):
-			var s: Array = SPRINKLES[i]
-			draw_set_transform(Vector2(s[0], s[1]), s[2], Vector2.ONE)
-			draw_rect(Rect2(-4.5, -1.4, 9.0, 2.8), SPRINKLE_COLORS[i % SPRINKLE_COLORS.size()])
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 # ----- UI ---------------------------------------------------------------------
 
