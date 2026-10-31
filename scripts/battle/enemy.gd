@@ -282,6 +282,11 @@ var _crawler_attack_streak: int = 0       # Crypt Crawler: webs after 3 consecut
 
 ## Independent per-enemy tempo counter. Increments with global tempo.
 var action_tempo_counter: int = 0
+## The Archer Rat draws its string DRAW_TEMPO tempo before its shot fires
+## (designer, 2026-10-31): the figure nocks, draws and holds at full draw
+## until the shot. Set while the draw is shown for the current shot.
+const DRAW_TEMPO := 2
+var _bow_drawn := false
 
 ## Accumulator for tracking tempo cycles (used for status effect durations).
 var _cycle_accumulator: int = 0
@@ -312,6 +317,9 @@ var chosen_action: Dictionary = {}
 ##                      "damaged", "exposed", "ally_died", "half_health".
 ##   "label": "Name"    Display name (defaults to name.capitalize()).
 signal action_fired(enemy: Enemy, action_name: String)
+## An attack swing began on the figure and runs this many seconds: Main
+## holds the tick clock for it (TempoManager.hold_for, the swing hold).
+signal swing_started(enemy: Enemy, seconds: float)
 ## The action that action_fired announced has run (its sync effects are in);
 ## the battle log closes its line here.
 signal action_finished(enemy: Enemy)
@@ -613,6 +621,8 @@ func _play_enemy_animation(action: String) -> void:
 	## Play an animation by action name (procedural figure, or legacy sprite sheet).
 	if _enemy_figure:
 		_enemy_figure.play_action(action)
+		if _enemy_figure.last_swing_time > 0.0:
+			swing_started.emit(self, _enemy_figure.last_swing_time)
 		return
 	if not _enemy_animator or not _enemy_animator.sprite_sheet_loaded:
 		return
@@ -1989,6 +1999,7 @@ func _tick_action_clocks(player_node: Node3D) -> void:
 		_choose_action(player_node)
 	if not chosen_action.is_empty() and (action_tempo_counter > 0 or gap):
 		action_tempo_counter += 1
+	_update_draw(player_node)
 
 	if can_act:
 		_fire_ready_async(player_node)
@@ -1996,6 +2007,25 @@ func _tick_action_clocks(player_node: Node3D) -> void:
 			_fire_ready_sync(player_node)
 
 	_async_gap = _all_async_idle()
+
+## The Archer Rat's draw: with a Shoot armed and DRAW_TEMPO tempo (or
+## fewer) left on it, the figure turns to its target and draws its string,
+## holding at full draw until the shot fires (the Attack sheet then plays
+## the release). A shot given up before it fires lets the draw go.
+func _update_draw(player_node: Node3D) -> void:
+	var shooting: bool = not chosen_action.is_empty() and str(chosen_action.get("name", "")) == "shoot"
+	if shooting and action_tempo_counter > 0 and _effective_cost(chosen_action) - action_tempo_counter <= DRAW_TEMPO:
+		if not _bow_drawn:
+			_bow_drawn = true
+			var target: Node3D = _move_target_for(player_node)
+			if _enemy_figure and is_instance_valid(target):
+				var to_target: Vector3 = target.global_position - global_position
+				_enemy_figure.set_facing_from_velocity(Vector3(to_target.x, 0, to_target.z))
+			_play_enemy_animation("draw")
+	elif _bow_drawn and not shooting:
+		_bow_drawn = false
+		_play_enemy_animation("idle")
+
 
 func _move_target_for(player_node: Node3D) -> Node3D:
 	if taunt_target and is_instance_valid(taunt_target):
@@ -3147,7 +3177,8 @@ func _get_action(action_name: String) -> Dictionary:
 # ============================================
 
 func _execute_action(action_name: String, move_target: Node3D) -> bool:
-	# Play animation for this action
+	# Play animation for this action (the Archer Rat's shot ends its draw)
+	_bow_drawn = false
 	_play_enemy_animation(action_name)
 
 	match action_name:
@@ -3899,10 +3930,16 @@ func _try_werewolf_claw(target_node: Node3D) -> bool:
 	var p_stats = target_node.get_stats() if target_node.has_method("get_stats") else null
 	if p_stats and p_stats.get_total_armor() > 0:
 		dmg += 3
-	_deal_damage_to_player(target_node, dmg, "Claw")
-	# A debuffed target gets raked a second time for half damage.
+	# A debuffed target gets raked a second time for half damage — and the
+	# figure plays the double claw: the slash board's rake with the other
+	# arm after the first (SpriteEnemyFigure Attack2), in place of the one
+	# swing _execute_action started.
 	var dm = target_node.get_debuff_manager() if target_node.has_method("get_debuff_manager") else null
-	if dm and dm.debuffs.size() > 0:
+	var rake: bool = dm != null and dm.debuffs.size() > 0
+	if rake:
+		_play_enemy_animation("werewolf_claw_double")
+	_deal_damage_to_player(target_node, dmg, "Claw")
+	if rake:
 		_deal_damage_to_player(target_node, maxi(1, dmg / 2), "Claw (rake)")
 	turn_completed.emit()
 	return true

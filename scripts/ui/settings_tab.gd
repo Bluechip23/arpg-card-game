@@ -27,3 +27,27 @@ func _ready() -> void:
 	desc.add_theme_font_size_override("font_size", 12)
 	desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
 	content.add_child(desc)
+
+	# The swing hold (designer, 2026-10-31): the clock pauses while an enemy
+	# swings so the attack can be seen; off, ticks resolve as they always did.
+	var hold_header = Label.new()
+	hold_header.text = "ENEMY SWINGS"
+	hold_header.add_theme_font_size_override("font_size", 18)
+	hold_header.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	content.add_child(hold_header)
+	var hold_sep = HSeparator.new()
+	hold_sep.add_theme_color_override("color", Color(0.3, 0.3, 0.45))
+	content.add_child(hold_sep)
+	var hold = CheckButton.new()
+	hold.name = "SwingHold"
+	hold.text = "Pause the clock while an enemy swings"
+	hold.button_pressed = TempoManager.swing_hold_enabled()
+	hold.add_theme_font_size_override("font_size", 13)
+	hold.toggled.connect(func(on: bool): TempoManager.remember_swing_hold(on))
+	content.add_child(hold)
+	var hold_desc = Label.new()
+	hold_desc.text = "On, the tempo clock waits for each enemy attack to play out before the next tick lands, so slashes, bites and shots can be seen. Off, ticks resolve at the tick speed regardless."
+	hold_desc.autowrap_mode = TextServer.AUTOWRAP_WORD
+	hold_desc.add_theme_font_size_override("font_size", 12)
+	hold_desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	content.add_child(hold_desc)

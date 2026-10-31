@@ -56,10 +56,13 @@ const NPC_WALK_TIME := 0.18
 ##                     facing, flipped for west — like the MonsterKit battlers)
 ## MonsterKit battler: {cell: Vector2i(col,row), tint?: Color, scale?: float}
 ## Generated battler:  {tex: "<name>", tint?: Color, scale?: float}
-## Directional sheets: {sheets: "<folder>", scale?} — Idle.png / Walk.png in
+## Directional sheets: {sheets: "<folder>", scale?, fps?} — Idle.png / Walk.png in
 ##                     the Craftpix layout (rows front, back, left, right),
 ##                     cut from the designer's boards (tools/cut_pose_boards.py,
 ##                     tools/cut_creature_sheets.py). Played like a Craftpix pack.
+##                     An action sheet (Attack.png, Attack2.png) may hold only
+##                     the two side rows (left, right): the figure turns to
+##                     the side it leans toward to play it facing front or back.
 ## Craftpix icon:      {icon: "<pack>/<file>", faces?: "left"|"right"|"front",
 ##                     tint?, scale?} (a single 32x32 monster icon used as a
 ##                     static battler; flipped for the far side like the
@@ -77,19 +80,19 @@ const KINDS := {
 	"screecher": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},  # back on the pale ghost for now (2026-10-27): the crawler board was meant for the Consumed
 	"giant_beaver": {"sheets": SHEETS + "/giant_beaver", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py): stands on its hind legs, walks on all fours
 	"mini_bear": {"sheets": SHEETS + "/mini_bear", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Bear
-	"wolf": {"sheets": SHEETS + "/wolf", "scale": BOARD_SCALE},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-22)
-	"coyote": {"sheets": SHEETS + "/coyote", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the old MonsterKit wolf battler, tinted
+	"wolf": {"sheets": SHEETS + "/wolf", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-22), and his bite board (tools/cut_pose_boards.py, 2026-10-31: Attack is the leap and bite)
+	"coyote": {"sheets": SHEETS + "/coyote", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and his nip board (2026-10-31: Attack is the nip); was the old MonsterKit wolf battler, tinted
 	"djinn": {"sheets": SHEETS + "/djinn", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-24); was the MonsterKit cell (4, 1)
 	"specter": {"cp": "ghost/Ghost1", "scale": 1.2},
 	"treasure_bunny": {"sheets": SHEETS + "/treasure_bunny", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the Treasure Bunny on MonsterKit cell (7, 1)
-	"skeleton": {"sheets": SHEETS + "/skeleton", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the Craftpix Skeleton1
+	"skeleton": {"sheets": SHEETS + "/skeleton", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and his slash board (2026-10-31: Attack is the scimitar slash); was the Craftpix Skeleton1
 	"treant": {"sheets": SHEETS + "/treant", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the Craftpix Ent pack's Ent3
 	"consumed": {"sheets": SHEETS + "/consumed", "scale": BOARD_SCALE},  # the designer's crawler board (tools/cut_pose_boards.py; on the Screecher by mistake until 2026-10-27); was MonsterKit cell (6, 2)
 	"sewer_croc": {"sheets": SHEETS + "/sewer_cobra", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the mountain-monster Snake (the kind keeps its old croc name)
 	# --- generated sprites (drawn/derived in our pipeline, palette-conformant) ---
-	"rat": {"sheets": SHEETS + "/wererat", "scale": BOARD_SCALE},  # the Wererat: the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the giant-rat pack's Rat1
+	"rat": {"sheets": SHEETS + "/wererat", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the Wererat: the designer's board (tools/cut_pose_boards.py, 2026-10-26), and his bite board (2026-10-31: Attack is the leap and bite); was the giant-rat pack's Rat1
 	# The designer's Archer Rat: up on its hind legs, bow in hand.
-	"archer_rat": {"sheets": SHEETS + "/archer_rat", "scale": BOARD_SCALE},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26)
+	"archer_rat": {"sheets": SHEETS + "/archer_rat", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26), and his shoot board (2026-10-31: Draw is the nock and the held draw, Attack the shot)
 	# The designer's own boss boards (no pack has these bosses).
 	"rat_king": {"sheets": SHEETS + "/rat_king", "scale": BOARD_SCALE},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26), 2.1 tiles — bigger than the Wererat
 	"fire_goblin_soldier": {"sheets": SHEETS + "/fire_goblin", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the goblin pack's Goblin2
@@ -114,7 +117,7 @@ const KINDS := {
 	"wyvern": {"sheets": SHEETS + "/wyvern", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"cerberus": {"sheets": SHEETS + "/cerberus", "scale": BOARD_SCALE},  # the designer's boss trio board (tools/cut_pose_boards.py, 2026-10-27); was the walk-sheet cut
 	"hades": {"sheets": SHEETS + "/hades", "scale": BOARD_SCALE},  # the boss trio board (2026-10-27); art in place, no Hades enemy exists yet
-	"werewolf": {"sheets": SHEETS + "/werewolf", "scale": BOARD_SCALE},
+	"werewolf": {"sheets": SHEETS + "/werewolf", "scale": BOARD_SCALE, "fps": {"Attack": 8.0, "Attack2": 8.0}},  # the designer's board, and his slash boards, side and front/back (tools/cut_pose_boards.py, 2026-10-30): Attack is the claw, Attack2 the claw and the rake with the other arm
 	"sabertooth": {"sheets": SHEETS + "/sabertooth", "scale": BOARD_SCALE},
 	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": BOARD_SCALE},
 	"roc": {"sheets": SHEETS + "/roc", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28); was the mountain-monster Bird, tinted
@@ -216,6 +219,10 @@ var _npc_facing := 0     # CharacterAnimator.Direction
 var _walk_clock := 0.0
 var _walk_frame := 0
 var _fx_tween: Tween = null
+## Seconds the swing play_attack last started runs for (its frames at their
+## fps, or the lunge alone); 0 after any other action. The tempo clock
+## holds this long for it (TempoManager.hold_for).
+var last_swing_time := 0.0
 var _base_y := 26.0 * PIXEL_SIZE
 
 # Craftpix animated mode
@@ -229,6 +236,7 @@ var _cp_clock := 0.0
 var _cp_dir: int = CharacterAnimator.Direction.SOUTH
 var _cp_dead := false
 var _fr_mode := false          # frame-per-file pack (side view, one facing)
+var _cp_fps := CP_FPS          # CP_FPS, with the kind's own "fps" over it
 
 
 static func supports(kind: String) -> bool:
@@ -239,6 +247,9 @@ func setup(kind: String) -> void:
 	figure_kind = kind
 	var cfg: Dictionary = KINDS.get(kind, KINDS["wolf"])
 	_tint = cfg.get("tint", Color.WHITE)
+	if cfg.has("fps"):
+		_cp_fps = CP_FPS.duplicate()
+		_cp_fps.merge(cfg["fps"], true)
 	position.y = CameraView.SPRITE_LIFT  # nearer the camera than any wall slab (plan view depth)
 	_rig = Node3D.new()
 	_rig.name = "Rig"
@@ -338,7 +349,7 @@ func _setup_craftpix(spec: String) -> void:
 	var variant := spec.get_slice("/", 1)
 	_cp_rows = CP_ROWS.get(pack, "FBLR")
 	var folder := "%s/%s/%s/Without_shadow" % [CP, pack, variant]
-	for anim in ["Idle", "Walk", "Run", "Attack", "Hurt", "Death"]:
+	for anim in CP_ANIMS:
 		var tex := _cp_load_sheet(folder, variant, anim)
 		if tex:
 			_cp_sheets[anim] = tex
@@ -351,12 +362,13 @@ func _setup_craftpix(spec: String) -> void:
 
 
 ## Directional sheets of our own (the designer's bosses): Idle.png and
-## Walk.png (and any of Run / Attack / Hurt / Death if ever drawn) in the
-## Craftpix layout, four rows front/back/left/right, square cells.
+## Walk.png (and any of Run / Attack / Attack2 / Hurt / Death if drawn) in
+## the Craftpix layout, four rows front/back/left/right, square cells — or,
+## for an action, the two side rows only (the werewolf's slash).
 func _setup_sheets(folder: String) -> void:
 	_cp_mode = true
 	_cp_rows = "FBLR"
-	for anim in ["Idle", "Walk", "Run", "Attack", "Hurt", "Death"]:
+	for anim in CP_ANIMS:
 		var path := "%s/%s.png" % [folder, anim]
 		if ResourceLoader.exists(path):
 			_cp_sheets[anim] = load(path)
@@ -462,6 +474,24 @@ func _cp_row(direction: int) -> int:
 	return maxi(_cp_rows.find(letter), 0)
 
 
+## A sheet with only the two side rows (left, then right): an action the
+## designer drew in profile (the werewolf's slash board).
+func _cp_side_only(anim: String) -> bool:
+	var sheet = _cp_sheets.get(anim)
+	return sheet is Texture2D and _cp_cell > 0 and sheet.get_height() < _cp_cell * 4
+
+
+## The row of the current animation's sheet for the facing: on a side-only
+## sheet a figure facing front or back turns to the side it leans toward
+## (its last horizontal lean, _facing_x).
+func _cp_row_now() -> int:
+	if not _cp_side_only(_cp_anim):
+		return _cp_row(_cp_dir)
+	var east := _cp_dir == CharacterAnimator.Direction.EAST \
+			or (_cp_dir != CharacterAnimator.Direction.WEST and _facing_x > 0.0)
+	return 1 if east else 0
+
+
 func _cp_frame_count(anim: String) -> int:
 	var sheet = _cp_sheets.get(anim)
 	if sheet == null:
@@ -495,7 +525,7 @@ func _cp_apply_frame() -> void:
 		_fr_apply_offset()
 		_update_flip()
 		return
-	_sprite.region_rect = Rect2(_cp_frame * _cp_cell, _cp_row(_cp_dir) * _cp_cell, _cp_cell, _cp_cell)
+	_sprite.region_rect = Rect2(_cp_frame * _cp_cell, _cp_row_now() * _cp_cell, _cp_cell, _cp_cell)
 
 
 ## Drawn width of the idle front frame (texels) for the shadow ellipse.
@@ -620,6 +650,7 @@ func portrait_extent() -> Vector2:
 
 func play_action(action: String) -> void:
 	var a := action.to_lower()
+	last_swing_time = 0.0
 	for token in ["move", "walk", "advance", "reposition", "scurry", "crawl", "stalk", "prowl", "flee"]:
 		if token in a:
 			set_walking(true)
@@ -631,11 +662,21 @@ func play_action(action: String) -> void:
 		return
 	if a == "idle" or a == "stance":
 		set_walking(false)
+		if _cp_mode and _cp_anim in CP_HOLD:
+			_cp_play("Walk" if _walking else "Idle", true)   # let a held pose go
+		return
+	if "draw" in a:
+		# The archer rat nocks and draws, then holds at full draw until its
+		# shot (Enemy.DRAW_TEMPO before the shot fires). No Draw sheet: nothing.
+		if _cp_mode and _cp_sheets.has("Draw"):
+			_cp_play("Draw", true)
 		return
 	if "heal" in a:
 		flash(Color(0.5, 1.0, 0.5))
 		return
-	play_attack()
+	# A double attack (the werewolf's claw and rake): the Attack2 sheet,
+	# the second hit with the other arm, where a kind has one.
+	play_attack("double" in a)
 
 
 ## Death animation (Craftpix packs only). Returns how long the caller should
@@ -736,20 +777,34 @@ func set_quadruped(_on: bool) -> void:
 	pass  # Battler art doesn't change stance.
 
 
-func play_attack() -> void:
+## The attack swing. `double`: a two-hit attack — the Attack2 sheet where
+## the kind has one (the werewolf's claw, then the rake with the other arm),
+## with a second, shorter lunge for the second hit; else the one swing.
+func play_attack(double: bool = false) -> void:
 	if not _rig:
 		return
 	if _fx_tween:
 		_fx_tween.kill()
 	var dir := Vector3(_facing_x * 0.28, 0, 0.1)
+	var two := false
 	if _cp_mode:
 		# Real swing frames; the lunge is a smaller step along the true facing.
-		_cp_play("Attack", true)
+		two = double and _cp_sheets.has("Attack2")
+		_cp_play("Attack2" if two else "Attack", true)
 		dir = Vector3(_facing_x * 0.16, 0, 0) if _fr_mode else _cp_forward() * 0.16
+	last_swing_time = attack_time()
 	_fx_tween = create_tween()
 	_fx_tween.tween_property(_rig, "position", -dir * 0.3, 0.12 * ATTACK_SLOW)
 	_fx_tween.tween_property(_rig, "position", dir, 0.08 * ATTACK_SLOW).set_ease(Tween.EASE_OUT)
 	_fx_tween.tween_property(_rig, "position", Vector3.ZERO, 0.18 * ATTACK_SLOW).set_ease(Tween.EASE_IN_OUT)
+
+
+## How long the swing now playing runs: the Attack frames at their fps on
+## a sheet (Craftpix or the designer's), else the procedural lunge.
+func attack_time() -> float:
+	if _cp_mode and _cp_anim.begins_with("Attack"):
+		return float(_cp_frame_count(_cp_anim)) / float(_cp_fps.get(_cp_anim, 8.0))
+	return 0.38   # the lunge tween: 0.12 + 0.08 + 0.18
 
 
 func _cp_forward() -> Vector3:
@@ -763,7 +818,7 @@ func _cp_forward() -> Vector3:
 func play_hit() -> void:
 	# White palette-saturating flash on damage (SNES hit flash), plus shake.
 	flash(Color(3.0, 3.0, 3.0))
-	if _cp_mode and _cp_anim != "Attack":
+	if _cp_mode and not _cp_anim.begins_with("Attack") and not _cp_anim in CP_HOLD:
 		_cp_play("Hurt", true)
 	if _rig:
 		var t := create_tween()
@@ -946,13 +1001,13 @@ func _process(delta: float) -> void:
 ## Advance the Craftpix animation clock. Loops Idle/Walk/Run; one-shots run
 ## once, Death holding its last frame, the others handing back to Idle/Walk.
 func _cp_step(delta: float) -> void:
-	var fps: float = CP_FPS.get(_cp_anim, 8.0)
+	var fps: float = _cp_fps.get(_cp_anim, 8.0)
 	_cp_clock += delta
 	var count := _cp_frame_count(_cp_anim)
 	while _cp_clock >= 1.0 / fps:
 		_cp_clock -= 1.0 / fps
 		if _cp_frame + 1 >= count:
-			if _cp_anim == "Death":
+			if _cp_anim == "Death" or _cp_anim in CP_HOLD:
 				return  # hold the last frame
 			if _cp_anim in CP_ONESHOT:
 				_cp_play("Walk" if _walking else "Idle", true)
