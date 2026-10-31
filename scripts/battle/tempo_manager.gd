@@ -55,6 +55,45 @@ static func load_preferred_tick_speed() -> float:
 			preferred_tick_speed = float(cfg.get_value("tempo", "tick_speed", -1.0))
 	return preferred_tick_speed
 
+## The swing hold (designer, 2026-10-31): when an enemy's attack fires, the
+## tick clock pauses for the length of its swing (SpriteEnemyFigure's
+## attack frames, or the lunge) plus SWING_HOLD_BEAT, so the slash, bite or
+## shot plays out before the next tick lands — otherwise at the fast tick
+## tiers the swing is shorter than the tick and zips by. On by default;
+## the Settings tab turns it off, and then ticks resolve as they always
+## did. Kept for the session and in the settings file like the tick speed.
+const SWING_HOLD_BEAT := 0.1
+static var preferred_swing_hold: int = -1   # -1 unread, 0 off, 1 on
+
+static func remember_swing_hold(on: bool) -> void:
+	preferred_swing_hold = 1 if on else 0
+	var cfg := ConfigFile.new()
+	cfg.load(SETTINGS_PATH)
+	cfg.set_value("tempo", "swing_hold", on)
+	cfg.save(SETTINGS_PATH)
+
+## Whether the swing hold is on: the player's choice, else on.
+static func swing_hold_enabled() -> bool:
+	if preferred_swing_hold < 0:
+		var cfg := ConfigFile.new()
+		var on := true
+		if cfg.load(SETTINGS_PATH) == OK:
+			on = bool(cfg.get_value("tempo", "swing_hold", true))
+		preferred_swing_hold = 1 if on else 0
+	return preferred_swing_hold == 1
+
+var _hold_timer: float = 0.0   # seconds the tick clock still waits for a swing
+
+## Pause the tick clock for `seconds` (the longest swing on screen wins).
+func hold_for(seconds: float) -> void:
+	if seconds <= 0.0 or not swing_hold_enabled():
+		return
+	_hold_timer = maxf(_hold_timer, seconds)
+
+## True while the clock waits for an enemy's swing.
+func is_holding_for_swing() -> bool:
+	return _hold_timer > 0.0
+
 var current_tempo: int = 0   # Accumulator for the UI bar (resets at each cycle)
 var global_tempo: int = 0    # Ever-increasing universal tempo clock
 var _cycles_since_flash_refresh: int = 0  # Counts cycles toward the flash-point refresh
@@ -96,6 +135,10 @@ func initialize(p_stats: PlayerStats) -> void:
 
 func _process(delta: float) -> void:
 	if not _ticking or _pending_ticks <= 0 or menu_hold:
+		return
+	if _hold_timer > 0.0:
+		# An enemy's swing is playing: the clock waits for it (hold_for).
+		_hold_timer -= delta
 		return
 
 	_tick_timer -= delta

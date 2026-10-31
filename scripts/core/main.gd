@@ -830,6 +830,12 @@ func get_mouse_world_position() -> Vector3:
 		return Vector3.ZERO
 	return from + dir * t
 
+## The swing hold: an enemy's attack swing is on screen for `seconds`, so
+## the tick clock waits for it (plus a beat) before the next tick lands.
+func _on_enemy_swing_started(_enemy: Enemy, seconds: float) -> void:
+	if tempo_manager:
+		tempo_manager.hold_for(seconds + TempoManager.SWING_HOLD_BEAT)
+
 func _on_tick_speed_changed(speed: float) -> void:
 	tempo_manager.tick_speed = speed
 	TempoManager.remember_tick_speed(speed)  # survives every scene change
@@ -5812,6 +5818,7 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	enemy.attacking_player.connect(_on_enemy_attacking_player)
 	enemy.action_fired.connect(_elog_on_action_fired)
 	enemy.action_finished.connect(_elog_on_action_finished)
+	enemy.swing_started.connect(_on_enemy_swing_started)
 	enemy.hit_landed.connect(_elog_on_hit)
 	enemy.damaged.connect(_on_enemy_damaged.bind(enemy))
 	enemy.movement_completed.connect(_on_enemy_movement_completed)

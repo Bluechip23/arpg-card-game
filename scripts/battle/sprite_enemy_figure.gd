@@ -224,6 +224,10 @@ var _npc_facing := 0     # CharacterAnimator.Direction
 var _walk_clock := 0.0
 var _walk_frame := 0
 var _fx_tween: Tween = null
+## Seconds the swing play_attack last started runs for (its frames at their
+## fps, or the lunge alone); 0 after any other action. The tempo clock
+## holds this long for it (TempoManager.hold_for).
+var last_swing_time := 0.0
 var _base_y := 26.0 * PIXEL_SIZE
 
 # Craftpix animated mode
@@ -651,6 +655,7 @@ func portrait_extent() -> Vector2:
 
 func play_action(action: String) -> void:
 	var a := action.to_lower()
+	last_swing_time = 0.0
 	for token in ["move", "walk", "advance", "reposition", "scurry", "crawl", "stalk", "prowl", "flee"]:
 		if token in a:
 			set_walking(true)
@@ -792,6 +797,7 @@ func play_attack(double: bool = false) -> void:
 		two = double and _cp_sheets.has("Attack2")
 		_cp_play("Attack2" if two else "Attack", true)
 		dir = Vector3(_facing_x * 0.16, 0, 0) if _fr_mode else _cp_forward() * 0.16
+	last_swing_time = attack_time()
 	_fx_tween = create_tween()
 	_fx_tween.tween_property(_rig, "position", -dir * 0.3, 0.12)
 	_fx_tween.tween_property(_rig, "position", dir, 0.08).set_ease(Tween.EASE_OUT)
@@ -799,6 +805,14 @@ func play_attack(double: bool = false) -> void:
 		_fx_tween.tween_property(_rig, "position", dir * 0.4, 0.08).set_ease(Tween.EASE_IN_OUT)
 		_fx_tween.tween_property(_rig, "position", dir * 1.1, 0.07).set_ease(Tween.EASE_OUT)
 	_fx_tween.tween_property(_rig, "position", Vector3.ZERO, 0.18).set_ease(Tween.EASE_IN_OUT)
+
+
+## How long the swing now playing runs: the Attack frames at their fps on
+## a sheet (Craftpix or the designer's), else the procedural lunge.
+func attack_time() -> float:
+	if _cp_mode and _cp_anim.begins_with("Attack"):
+		return float(_cp_frame_count(_cp_anim)) / float(_cp_fps.get(_cp_anim, 8.0))
+	return 0.38   # the lunge tween: 0.12 + 0.08 + 0.18
 
 
 func _cp_forward() -> Vector3:

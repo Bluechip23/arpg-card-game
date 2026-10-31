@@ -317,6 +317,9 @@ var chosen_action: Dictionary = {}
 ##                      "damaged", "exposed", "ally_died", "half_health".
 ##   "label": "Name"    Display name (defaults to name.capitalize()).
 signal action_fired(enemy: Enemy, action_name: String)
+## An attack swing began on the figure and runs this many seconds: Main
+## holds the tick clock for it (TempoManager.hold_for, the swing hold).
+signal swing_started(enemy: Enemy, seconds: float)
 ## The action that action_fired announced has run (its sync effects are in);
 ## the battle log closes its line here.
 signal action_finished(enemy: Enemy)
@@ -618,6 +621,8 @@ func _play_enemy_animation(action: String) -> void:
 	## Play an animation by action name (procedural figure, or legacy sprite sheet).
 	if _enemy_figure:
 		_enemy_figure.play_action(action)
+		if _enemy_figure.last_swing_time > 0.0:
+			swing_started.emit(self, _enemy_figure.last_swing_time)
 		return
 	if not _enemy_animator or not _enemy_animator.sprite_sheet_loaded:
 		return
