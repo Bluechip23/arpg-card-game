@@ -672,6 +672,52 @@ BOARDS = {
             "left": (112, 510, 679, 915),
             "right": (853, 511, 1413, 915),
         },
+        # 2026-10-31: the designer's nip board — coyote_nip_board.webp, four
+        # labelled rows on black (NORTH (UP) facing the camera, SOUTH (DOWN)
+        # from behind, WEST (LEFT), EAST (RIGHT)), the coyote on a painted
+        # floor shadow: the stance, the head lowered, lower still, the nip
+        # (jaws open, lunging), the head coming back up, and the stance
+        # again. The stance is the height reference, matched to each
+        # facing's Idle.
+        "actions": {
+            "src": "coyote_nip_board.webp",
+            "shadow_band": 0.12,
+            "fill_holes": 7,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (190, 30, 303, 252),
+                    "crouch": (408, 72, 518, 252),
+                    "low": (630, 63, 748, 252),
+                    "nip": (855, 61, 974, 252),
+                    "recover": (1092, 61, 1208, 252),
+                },
+                "back": {
+                    "stance": (187, 272, 295, 506),
+                    "crouch": (383, 287, 510, 506),
+                    "low": (607, 287, 738, 506),
+                    "nip": (844, 305, 976, 506),
+                    "recover": (1096, 288, 1221, 506),
+                },
+                "left": {
+                    "stance": (134, 532, 372, 720),
+                    "crouch": (367, 544, 597, 720),
+                    "low": (587, 558, 820, 720),
+                    "nip": (819, 569, 1052, 720),
+                    "recover": (1048, 552, 1287, 720),
+                },
+                "right": {
+                    "stance": (134, 772, 363, 960),
+                    "crouch": (348, 782, 585, 960),
+                    "low": (572, 781, 806, 960),
+                    "nip": (785, 798, 1039, 960),
+                    "recover": (1046, 780, 1285, 960),
+                },
+            },
+            "sheets": {
+                "Attack": ["crouch", "low", "nip", "recover"],
+            },
+        },
     },
     "succubus": {
         # 2026-10-26: the Succubus — horned, bat-winged, in purple and black
