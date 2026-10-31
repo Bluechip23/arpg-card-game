@@ -124,7 +124,7 @@ func _initialize() -> void:
 	var cory := tex.get_image()
 	if cory.is_compressed():
 		cory.decompress()
-	var cell := cory.get_width()
+	var cell := cory.get_height() / 4   # (columns past the first: his walk cycle)
 	for row in [0, 2, 3]:
 		var blue := 0
 		for y in range(row * cell, row * cell + cell / 3):

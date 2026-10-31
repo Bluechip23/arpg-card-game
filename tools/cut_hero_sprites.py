@@ -46,7 +46,7 @@ cells, one column, rows in CharacterAnimator order: south (front), north
 
 Walk cycles (WALKS): a hero with the designer's walk board
 (eight frames a direction on a ruled grid)
-(Stephen, Jeremy, Ryan; 2026-10-31) gets them as columns 1.. beside the still pose in column 0, at the still
+(all five heroes, 2026-10-31) gets them as columns 1.. beside the still pose in column 0, at the still
 poses' scale and on their shared palette; SpriteFigure strides through them
 instead of stepping the still pose up and down.
 
@@ -141,8 +141,8 @@ HEROES = {
 # Walk boards: (source, grid-line x's, grid-line y's, the facing each grid
 # row draws, facings left out, ground). The cells sit between consecutive
 # lines. Ground None: the figures are cut on the board's own alpha;
-# "opaque": the board is painted on a flat dark ground, filled in from each
-# cell's edge (cut_opaque_cell). Stephen's board (2026-10-31):
+# "opaque": the board is painted on a dark ground with a soft glow behind
+# the figure, fitted and filled in from each cell's edge (cut_opaque_cell). Stephen's board (2026-10-31):
 # back, front, left, right rows. Its right row is left out: from frame 3 on
 # it shows the bear arm on his near side, the mistake the designer had fixed
 # on his still pose (2026-10-28), so facing east he steps his still pose
@@ -170,16 +170,27 @@ WALKS = {
                [11, 247, 471, 685, 910],
                ["north", "south", "west", "east"],
                set(), "opaque"),
+    # 2026-10-31: Cory's and Brad's walk boards, the same layout and ground.
+    "cory": ("cory_walk_board.webp",
+             [125, 309, 490, 670, 846, 1022, 1196, 1359, 1526],
+             [14, 247, 470, 686, 910],
+             ["north", "south", "west", "east"],
+             set(), "opaque"),
+    "brad": ("brad_walk_board.webp",
+             [126, 307, 489, 670, 850, 1030, 1209, 1382, 1526],
+             [12, 244, 469, 687, 907],
+             ["north", "south", "west", "east"],
+             set(), "opaque"),
 }
-# The opaque boards' ground, taken from each cell's border: within
-# WALK_GROUND_TOL of it (max channel) and reached from the edge is ground;
+# The opaque boards' ground, fitted a cell (_ground_fit): within
+# WALK_GROUND_TOL of the fit (max channel) and reached from the edge is ground;
 # enclosed pockets of it (between arm and body) WALK_POCKET_MIN px or more,
 # as flat as the ground, go too; then WALK_HALO_PEEL passes take the
 # in-between tones (within BLEND_TOL: the foot shadow's rim) off the edge.
 WALK_GROUND_TOL = 10
 WALK_POCKET_MIN = 40
 WALK_HALO_PEEL = 2
-WALK_PLUM_LUM = 55    # the glow: plum (blue over green, not under red) this dark
+WALK_FIT_PASSES = 4   # ground fits, each to what the last fill reached
 
 # The sources' ground: a flat dark grey (with a few levels of compression
 # noise). Anything within GROUND_TOL of it, reached from the crop's edge, is
@@ -489,37 +500,52 @@ def cut_walk(hero):
     return out, ref
 
 
+def _ground_fit(rgb, mask):
+    """The ground as a smooth field: a cubic in (x, y) a channel, fitted to
+    the pixels in `mask` (the boards' ground is a soft glow, brightest
+    behind the figure, that no single colour matches)."""
+    h, w, _ = rgb.shape
+    yy, xx = np.mgrid[0:h, 0:w]
+    u, v = xx / float(w) - 0.5, yy / float(h) - 0.5
+    terms = [np.ones_like(u), u, v, u * u, u * v, v * v, u ** 3, u * u * v, u * v * v, v ** 3]
+    A = np.stack([t[mask] for t in terms], axis=1)
+    step = max(1, len(A) // 6000)
+    coef, *_ = np.linalg.lstsq(A[::step], rgb[mask][::step].astype(float), rcond=None)
+    return np.tensordot(np.stack(terms, axis=-1), coef, axes=1)
+
+
 def cut_opaque_cell(cell):
     """One cell of an opaque walk board, its ground made transparent (hard
-    alpha): flood-filled in from the cell's edge, then its enclosed pockets
-    and the halo round the figure."""
+    alpha). The ground is fitted as a smooth glow (_ground_fit) and filled in
+    from the cell's edge wherever a pixel is within WALK_GROUND_TOL of it,
+    refitting to what the fill reached a few times; the figure's own dark
+    outline stops the fill, so cloth as dark as the ground (Cory's robe)
+    stays. Then its enclosed pockets and the halo round the figure go."""
     import cv2  # tool dependency (opencv-python-headless)
     rgb = cell[..., :3].astype(int)
     h, w, _ = rgb.shape
-    border = np.concatenate([rgb[:6].reshape(-1, 3), rgb[-6:].reshape(-1, 3),
-                             rgb[:, :6].reshape(-1, 3), rgb[:, -6:].reshape(-1, 3)])
-    ground = np.median(border, axis=0)
-    off = np.abs(rgb - ground).max(axis=2)
-    # ...or the ground's own plum, a little lit: the boards glow faintly
-    # behind the figure (Jeremy's), brighter than the border's ground.
-    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-    plum = (rgb.mean(axis=2) < WALK_PLUM_LUM) & (b >= g + 5) & (b >= r - 3) & \
-           (rgb.max(axis=2) - rgb.min(axis=2) < 18)
-    near = (off <= WALK_GROUND_TOL) | plum
     edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
            [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
-    solid = ~_flood(near, edge)
+    ground = np.zeros((h, w), bool)
+    ground[:6] = ground[-6:] = True
+    ground[:, :6] = ground[:, -6:] = True
+    for _ in range(WALK_FIT_PASSES):
+        model = _ground_fit(rgb, ground)
+        off = np.abs(rgb - model).max(axis=2)
+        near = off <= WALK_GROUND_TOL
+        ground = _flood(near, edge)
+    solid = ~ground
     f = rgb.astype(np.float32)
     mean = cv2.blur(f, (5, 5))
     spread = np.sqrt(np.maximum(cv2.blur(f * f, (5, 5)) - mean * mean, 0)).max(axis=2)
-    flat = (solid & (off <= WALK_GROUND_TOL) & (spread <= POCKET_FLAT)).astype(np.uint8)
+    flat = (solid & near & (spread <= POCKET_FLAT)).astype(np.uint8)
     n, lab, stats, _ = cv2.connectedComponentsWithStats(flat, connectivity=4)
     k = np.ones((3, 3), np.uint8)
     for j in range(1, n):
         if stats[j][4] >= WALK_POCKET_MIN:
-            piece = (cv2.dilate((lab == j).astype(np.uint8), k) > 0) & (off <= WALK_GROUND_TOL)
+            piece = (cv2.dilate((lab == j).astype(np.uint8), k) > 0) & near
             solid &= ~piece
-    blend = (off <= BLEND_TOL) | plum
+    blend = off <= BLEND_TOL
     for _ in range(WALK_HALO_PEEL):
         open_ = cv2.dilate((~solid).astype(np.uint8), k) > 0
         solid &= ~(open_ & blend)
