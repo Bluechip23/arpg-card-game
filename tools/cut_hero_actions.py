@@ -172,6 +172,30 @@ def cut_cell(cell, pockets=True, haze=False, narrow=0, drop_dark=False, close=0)
     return Image.fromarray(rgba, "RGBA"), (xs.min(), ys.min(), xs.max() + 1, ys.max() + 1)
 
 
+def mass(f):
+    """A cut frame's (height, filled texels): what the eye reads as its size."""
+    a = f[..., 3] > 0
+    ys = np.nonzero(a.any(axis=1))[0]
+    return (ys[-1] - ys[0] + 1, int(a.sum())) if len(ys) else None
+
+
+def still_size(hero, facing):
+    """The hero's still pose that way, from his cut sheet (column 0)."""
+    sheet = np.asarray(Image.open(hs.OUT % hero).convert("RGBA"))
+    c = sheet.shape[0] // len(hs.ROWS)
+    r = hs.ROWS.index(facing)
+    return mass(sheet[r * c:(r + 1) * c, 0:c])
+
+
+def match_scale(got, ref):
+    """How much larger to draw a frame of size `got` to look the size of
+    `ref`: the mean (geometric) of matching its height and its visual mass,
+    so neither the crown nor the bulk jumps."""
+    h = ref[0] / float(got[0])
+    m = (ref[1] / float(got[1])) ** 0.5
+    return 1.0 / (h * m) ** 0.5   # (factor divides: a larger scale is a smaller factor)
+
+
 def build(hero, action, spec):
     board = np.asarray(Image.open(hs.SRC % spec["src"]).convert("RGB"))
     cols, i = spec["cols"], CELL_INSET
@@ -186,12 +210,21 @@ def build(hero, action, spec):
     # The hero's scale: his standing front (the south row's first frame).
     box = cells[("south", 0)][1]
     factor = (box[3] - box[1]) / float(hs.HEIGHT)
+    # Each facing then matches the hero's own still pose that way (his
+    # sheet's column 0), so nothing jumps when the action starts or ends:
+    # the boards draw some poses bulkier or taller than his still sprite
+    # (designer, 2026-10-31: "some of the models are much bigger").
+    row_factor = {}
+    for facing in spec["facings"]:
+        ref = still_size(hero, facing)
+        got = mass(hs.resample(cells[(facing, 0)][0], factor))
+        row_factor[facing] = factor * (match_scale(got, ref) if ref and got else 1.0)
     pix, soft, place = {}, {}, {}
     for (facing, c), (img, _) in cells.items():
         b0 = cells[(facing, 0)][1]
         anchor = ((b0[0] + b0[2]) / 2.0, float(b0[3]))   # the row's standing feet
-        p = hs.resample(img, factor)
-        s = hs.soft_frame(img, factor)
+        p = hs.resample(img, row_factor[facing])
+        s = hs.soft_frame(img, row_factor[facing])
         sx, sy = p.shape[1] / float(img.width), p.shape[0] / float(img.height)
         pix[(facing, c)] = p
         soft[(facing, c)] = s

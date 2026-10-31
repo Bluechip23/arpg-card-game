@@ -129,8 +129,13 @@ func _initialize() -> void:
 			var still := _used(a["tex"], Rect2(0, 0, cell, cell))
 			_check(absi(still.end.y - (cell - cell / SpriteFigure.ACTION_FLOOR)) <= 1,   # (a texel's rounding)
 				"%s's %s stands on its ground line (%d of %d)" % [hero, action, still.end.y, cell])
-			_check(absf(still.size.y * fig._npc_sprite.pixel_size - SpriteFigure.BOARD_HEIGHT) < 0.06,
-				"%s's %s stands his height (%.2f tiles)" % [hero, action, still.size.y * fig._npc_sprite.pixel_size])
+			# Each way it draws, it stands the size of his still pose that way
+			# (within 12% in height), so nothing jumps as it starts or ends.
+			for r in a["rows"]:
+				var act := _used(a["tex"], Rect2(0, r * cell, cell, cell))
+				var pose := _used(fig._npc_sprite.texture, Rect2(0, r * fig._body_cell, fig._body_cell, fig._body_cell))
+				_check(absf(float(act.size.y) / pose.size.y - 1.0) <= 0.12,
+					"%s's %s row %d stands his still pose's height (%d vs %d)" % [hero, action, r, act.size.y, pose.size.y])
 			fig.play_action(action, D.EAST)
 			_check(fig._action_sprite.visible and not fig._npc_sprite.visible,
 				"%s's %s draws in place of his body" % [hero, action])
