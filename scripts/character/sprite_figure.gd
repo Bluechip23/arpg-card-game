@@ -345,10 +345,24 @@ func _load_actions(actions: Dictionary) -> void:
 	_action_sprite.visible = false
 
 
+## The standard poses many cards share (Card.get_animation_action: an
+## Attack card's default "attack_slash", a defensive card's "block") are the
+## hero's drawn basic attack and block wherever he has them (designer,
+## 2026-10-31: every card attack plays it, every block card too).
+const DRAWN_ALIAS := {"attack_slash": "basic_attack", "block": "basic_block"}
+
+
+## The drawn action `action` plays as ("" when none).
+func _drawn_name(action: String) -> String:
+	var a: String = DRAWN_ALIAS.get(action, action)
+	return a if _actions.has(a) else ""
+
+
 ## The hero has `action` drawn for the way he faces (or for `direction`).
 func has_drawn_action(action: String, direction: int = -1) -> bool:
 	var d := facing if direction < 0 else direction
-	return _actions.has(action) and _body_rows[d] in _actions[action]["rows"]
+	var a := _drawn_name(action)
+	return a != "" and _body_rows[d] in _actions[a]["rows"]
 
 
 ## Seconds from the start of `action` (facing `direction`) to the frame its
@@ -356,7 +370,7 @@ func has_drawn_action(action: String, direction: int = -1) -> bool:
 func hit_delay(action: String, direction: int) -> float:
 	if not has_drawn_action(action, direction):
 		return 0.0
-	var a: Dictionary = _actions[action]
+	var a: Dictionary = _actions[_drawn_name(action)]
 	return maxf(0.0, float(a.get("hit", 1)) - 1.0) * float(a["t"])
 
 
@@ -410,12 +424,17 @@ func _make_sprite(cell: int, y: float, sort: float) -> Sprite3D:
 # =============================================================
 
 func play_action(action: String, direction: int = CharacterAnimator.Direction.SOUTH) -> void:
+	# Taking a blow is not a turn: the hero keeps the way he faces (and any
+	# swing he is in the middle of), only flashing and shaking.
+	if action.begins_with("hit") or action == "stunned":
+		play_hit()
+		return
 	set_facing(direction)
 	# Bespoke per-card effects first: ActionFX supplies the signature visual
 	# (icicle, fireball, flying pig, …) and we play a matching body motion.
 	# The designer's drawn actions (Brad's basic attack and block, …).
 	if has_drawn_action(action):
-		_play(action)
+		_play(_drawn_name(action))
 		return
 	if _fx and ActionFX.handles(action):
 		_play_body(ActionFX.body_for(action))

@@ -52,7 +52,8 @@ func _test_figures() -> void:
 	var brad := SpriteFigure.new()
 	get_root().add_child(brad)
 	brad.setup("Brad")
-	_check(brad.hit_delay("attack_slash", D.EAST) == 0.0, "an action with nothing drawn waits for nothing")
+	_check(absf(brad.hit_delay("attack_slash", D.EAST) - 0.36) < 0.001, "a card attack's swing is his drawn smash, and waits for its blow")
+	_check(brad.hit_delay("heavy_swing", D.EAST) == 0.0, "an action with nothing drawn waits for nothing")
 	brad.free()
 
 

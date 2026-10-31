@@ -156,6 +156,27 @@ func _initialize() -> void:
 	undrawn.play_action("basic_attack", D.EAST)
 	_check(undrawn._action_sprite == null and undrawn._attacking, "a figure with nothing drawn lunges into its basic attack")
 	undrawn.free()
+	# Every card attack and block card plays them (the shared "attack_slash"
+	# and "block" poses), whichever way the hero faces; a blow taken never
+	# turns him.
+	var fig2 := SpriteFigure.new()
+	get_root().add_child(fig2)
+	fig2.setup("Stephen")
+	for d in [D.SOUTH, D.NORTH, D.EAST, D.WEST]:
+		for pose in ["attack_slash", "block"]:
+			fig2.play_action(pose, d)
+			_check(fig2._action_sprite.visible and fig2.facing == d,
+				"Stephen's %s plays his drawn action facing %d" % [pose, d])
+			for _i in range(120):
+				fig2._process(0.03)
+	fig2.set_facing(D.WEST)
+	fig2.play_action("hit")
+	_check(fig2.facing == D.WEST, "a blow taken does not turn him to face south")
+	fig2.play_action("attack_slash", D.EAST)
+	fig2._process(0.05)
+	fig2.play_action("hit")
+	_check(fig2._action_sprite.visible and fig2.facing == D.EAST, "nor cut his swing short")
+	fig2.free()
 	var slash := Card.create_by_id("slash")
 	var block := Card.create_by_id("block")
 	_check(slash.get_animation_action() == "basic_attack" and block.get_animation_action() == "basic_block",
