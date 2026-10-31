@@ -8366,19 +8366,33 @@ func update_peaked_display() -> void:
 		peaked_label.visible = true
 
 # ---- The chosen card, up close -------------------------------------------
-## Clicking a card in hand shows it big beside the battlefield (designer,
-## 2026-10-31): a full-size face at CLOSEUP_SCALE in the open strip left of
-## the map, between the stat bars and the action buttons, so its text reads
-## while the field stays clear for picking a target. It never takes the
-## mouse, and goes when the card is played, cancelled or swapped.
+## Right-clicking a card in hand shows it big beside the battlefield
+## (designer, 2026-10-31; selecting a card, by click or key, no longer does):
+## a full-size face at CLOSEUP_SCALE in the open strip left of the map,
+## between the stat bars and the action buttons, so its text reads while the
+## field stays clear. It never takes the mouse. Right-clicking it again, or
+## anywhere off the hand, or Esc puts it away; so does the card leaving the
+## hand (played, discarded, swapped).
 const CLOSEUP_SCALE := 1.75
 var _closeup: Control = null
 var _closeup_card: Card = null
+var _closeup_pick: Card = null   # the card right-clicked for a close look
+
+## A right-click on the hand: the card under the mouse up close (or put away
+## if it is already). True when the click was the hand's.
+func _hand_right_click() -> bool:
+	var i := _current_hand_hover_index
+	if i < 0 or i >= _hand_groups.size():
+		return false
+	var card: Card = _hand_groups[i].get("rep")
+	_closeup_pick = null if card == _closeup_pick else card
+	return true
 
 func _update_card_closeup() -> void:
-	var want: Card = null
-	if selected_card_index >= 0 and deck_manager and selected_card_index < deck_manager.hand.size():
-		want = deck_manager.hand[selected_card_index]
+	var want: Card = _closeup_pick
+	if want != null and (deck_manager == null or not want in deck_manager.hand):
+		want = null
+		_closeup_pick = null
 	if want == _closeup_card:
 		return
 	_closeup_card = want
@@ -8402,7 +8416,7 @@ func _update_card_closeup() -> void:
 	var face: CardUI = CardUIScene.instantiate()
 	face.scale = Vector2(CLOSEUP_SCALE, CLOSEUP_SCALE)
 	holder.add_child(face)
-	face.setup(want, selected_card_index, player.get_debuff_manager() if player else null)
+	face.setup(want, deck_manager.hand.find(want), player.get_debuff_manager() if player else null)
 	# A hand card scales about its bottom centre (the fan); this one grows
 	# from its corner to fill the holder.
 	face.pivot_offset = Vector2.ZERO
@@ -13517,6 +13531,13 @@ func _input(event: InputEvent) -> void:
 			chest_loot_ui._close_chest_modal()
 		return
 
+	# Right click on a hand card: it up close (not a move order).
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		if _hand_right_click():
+			get_viewport().set_input_as_handled()
+			return
+		_closeup_pick = null   # a right-click off the hand puts the close look away
+
 	# Typing into a menu's text box (a search field, a number spinner) is the
 	# box's, not a hotkey for the game behind it.
 	if event is InputEventKey:
@@ -13654,6 +13675,7 @@ func _input(event: InputEvent) -> void:
 				return
 		
 		if event.keycode == KEY_ESCAPE:
+			_closeup_pick = null
 			if player and player.is_moving:
 				player.cancel_movement()
 				add_battle_log("Movement stopped.", Color(1.0, 0.85, 0.4))
