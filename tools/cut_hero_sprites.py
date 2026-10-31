@@ -145,8 +145,8 @@ HEROES = {
 # the figure, fitted and filled in from each cell's edge (cut_opaque_cell). Stephen's board (2026-10-31):
 # back, front, left, right rows. Its right row is left out: from frame 3 on
 # it shows the bear arm on his near side, the mistake the designer had fixed
-# on his still pose (2026-10-28), so facing east he steps his still pose
-# until that row is redrawn.
+# on his still pose (2026-10-28); the redrawn row is its own board
+# (WALK_EXTRA).
 WALK_CELL_INSET = 4   # px kept clear of the grid lines
 WALK_ALPHA = 40       # source alpha over this is figure (for finding it; the
                       # cut keeps the soft alpha for the resample)
@@ -181,6 +181,14 @@ WALKS = {
              [12, 244, 469, 687, 907],
              ["north", "south", "west", "east"],
              set(), "opaque"),
+}
+# A direction redrawn on a board of its own, in WALKS' form: Stephen's right
+# (2026-10-31, "Walk Right (Corrected)": his human arm on the near side,
+# where his main board's right row showed the bear arm).
+WALK_EXTRA = {
+    "stephen": [("stephen_walk_right_board.webp",
+                 [10, 234, 458, 683, 907, 1122, 1341, 1562, 1770], [87, 738],
+                 ["east"], set(), "opaque")],
 }
 # The opaque boards' ground, fitted a cell (_ground_fit): within
 # WALK_GROUND_TOL of the fit (max channel) and reached from the edge is ground;
@@ -472,8 +480,13 @@ def _clear_ground(rgb, solid, ground):
 def cut_walk(hero):
     """The hero's walk frames: {facing: [full-size RGBA cut-outs]}, plus the
     source height the south frames reach (their scale's reference)."""
+    out = cut_walk_board(*WALKS[hero])
+    return out, max(f.height for f in out["south"])
+
+
+def cut_walk_board(path, xs, ys, facings, skip, ground):
+    """One walk board's frames: {facing: [full-size RGBA cut-outs]}."""
     import cv2  # tool dependency (opencv-python-headless)
-    path, xs, ys, facings, skip, ground = WALKS[hero]
     board = np.asarray(Image.open(SRC % path).convert("RGBA"))
     out = {}
     for r, facing in enumerate(facings):
@@ -499,8 +512,7 @@ def cut_walk(hero):
             yy, xx = np.nonzero(keep)
             frames.append(Image.fromarray(f[yy.min():yy.max() + 1, xx.min():xx.max() + 1], "RGBA"))
         out[facing] = frames
-    ref = max(f.height for f in out["south"])
-    return out, ref
+    return out
 
 
 def _ground_fit(rgb, mask):
@@ -707,6 +719,16 @@ def build(hero, poses):
                     img = peel_painted_outline(img)
                 full[(d, i)] = resample(img, wf)
                 soft[(d, i)] = soft_frame(img, wf)
+    # A direction redrawn on a board of its own (WALK_EXTRA), at its own
+    # size: its tallest frame stands as tall as the main board's.
+    for board in WALK_EXTRA.get(hero, []):
+        for d, frames in cut_walk_board(*board).items():
+            ef = max(f.height for f in frames) / float(HEIGHT)
+            for i, img in enumerate(frames):
+                if not OUTLINE and board[5] != "opaque":
+                    img = peel_painted_outline(img)
+                full[(d, i)] = resample(img, ef)
+                soft[(d, i)] = soft_frame(img, ef)
     full = {d: vibrance(f) for d, f in full.items()}
     full = tidy_palette(full)
     frames = {}
