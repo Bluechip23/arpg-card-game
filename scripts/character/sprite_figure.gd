@@ -24,19 +24,21 @@ const SEED := "res://assets/sprites/SeedcharacterBase"
 ## sheet.
 const ROSTER := {
 	# Every hero strides (their walk boards, 2026-10-31): "walk_rows" are
-	# the sheet rows whose columns 1.. hold a walk cycle. Stephen's east row
-	# waits for a redraw (it shows the bear arm on the near side), so facing
-	# east he still steps his one pose.
+	# the sheet rows whose columns 1.. hold a walk cycle (Stephen's east
+	# row from its own corrected board, tools/cut_hero_sprites.py WALK_EXTRA).
 	# "actions": the designer's drawn actions (tools/cut_hero_actions.py),
 	# played in place of the fallback motion: the sheet, its frames, the
 	# rows it draws (S, N, E, W = 0-3), seconds a frame, and optionally a
-	# hold on the last frame and a quicker play back to the first. The basic
-	# Attack (card and auto attack) and Block (card and shield button).
+	# hold on the last frame, a quicker play back to the first, and the
+	# frame (from 1, as the board numbers them) on which the blow lands: the
+	# damage waits for it (hit_delay; Main holds the tick clock meanwhile).
+	# The basic Attack (card and auto attack) and Block (card and shield
+	# button).
 	"Brad": {"board": "res://assets/sprites/generated/heroes/brad.png", "walk_rows": [0, 1, 2, 3],  # the warrior, the War Rack over his shoulder
 		"actions": {
 			# The jumping overhead smash; it slams down on frame 7.
 			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/brad_attack.png",
-				"frames": 8, "rows": [0, 1, 2, 3], "t": 0.06},
+				"frames": 8, "rows": [0, 1, 2, 3], "t": 0.06, "hit": 7},
 			# Stone encases him, holds, and crumbles back off (no back view).
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/brad_block.png",
 				"frames": 12, "rows": [0, 2, 3], "t": 0.06, "hold": 0.5, "reverse": 0.035},
@@ -45,29 +47,29 @@ const ROSTER := {
 		"actions": {
 			# The aerial shadow kick combo: a leap, kicks trailing violet
 			# shadow, a spinning kick, and he lands.
-			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/cory_attack.png", "frames": 10, "rows": [0, 1, 2, 3], "t": 0.055},
+			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/cory_attack.png", "frames": 10, "rows": [0, 1, 2, 3], "t": 0.055, "hit": 5},
 			# The energy field: a palm raised, a ring of blue force flares.
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/cory_block.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.065},
 		}},
-	"Stephen": {"board": "res://assets/sprites/generated/heroes/stephen.png", "walk_rows": [0, 1, 3],  # the apex hunter, bow and axe on his back
+	"Stephen": {"board": "res://assets/sprites/generated/heroes/stephen.png", "walk_rows": [0, 1, 2, 3],  # the apex hunter, bow and axe on his back
 		"actions": {
 			# The bear transformation swipe: his head turns bear and the bear
 			# arm rakes; the bear lingers a beat before he is himself again.
-			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/stephen_attack.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.06, "hold": 0.15},
+			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/stephen_attack.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.06, "hold": 0.15, "hit": 7},
 			# The parry: two knives drawn and crossed with a flash, sheathed.
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/stephen_block.png", "frames": 7, "rows": [0, 1, 2, 3], "t": 0.065},
 		}},
 	"Jeremy": {"board": "res://assets/sprites/generated/heroes/jeremy.png", "walk_rows": [0, 1, 2, 3],  # the cloaked skeleton
 		"actions": {
 			# The backwind bone blade: a bone blade sweeps out in a glowing arc.
-			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/jeremy_attack.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.06},
+			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/jeremy_attack.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.06, "hit": 7},
 			# The bone wall rises, holds, and sinks back into the ground.
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/jeremy_block.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.06, "hold": 0.5, "reverse": 0.035},
 		}},
 	"Ryan": {"board": "res://assets/sprites/generated/heroes/ryan.png", "walk_rows": [0, 1, 2, 3],      # the rogue outlaw
 		"actions": {
 			# The dual blade flurry: four alternating stabs.
-			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/ryan_attack.png", "frames": 14, "rows": [0, 1, 2, 3], "t": 0.045},
+			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/ryan_attack.png", "frames": 14, "rows": [0, 1, 2, 3], "t": 0.045, "hit": 7},
 			# His block is a backflip, a full 360 out of harm's way.
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/ryan_block.png", "frames": 15, "rows": [0, 1, 2, 3], "t": 0.045},
 		}},
@@ -343,9 +345,19 @@ func _load_actions(actions: Dictionary) -> void:
 	_action_sprite.visible = false
 
 
-## The hero has `action` drawn for the way he faces.
-func has_drawn_action(action: String) -> bool:
-	return _actions.has(action) and _body_rows[facing] in _actions[action]["rows"]
+## The hero has `action` drawn for the way he faces (or for `direction`).
+func has_drawn_action(action: String, direction: int = -1) -> bool:
+	var d := facing if direction < 0 else direction
+	return _actions.has(action) and _body_rows[d] in _actions[action]["rows"]
+
+
+## Seconds from the start of `action` (facing `direction`) to the frame its
+## blow lands on; 0 when it is not drawn that way or marks no hit.
+func hit_delay(action: String, direction: int) -> float:
+	if not has_drawn_action(action, direction):
+		return 0.0
+	var a: Dictionary = _actions[action]
+	return maxf(0.0, float(a.get("hit", 1)) - 1.0) * float(a["t"])
 
 
 func _load_weapons() -> void:
