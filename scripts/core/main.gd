@@ -1400,6 +1400,15 @@ func _skin_hud_button(btn: Button, face: String) -> void:
 	btn.add_theme_color_override("font_outline_color", Color(0.04, 0.05, 0.03))
 	btn.add_theme_constant_override("outline_size", 4)
 
+## The Flash and Brain counters take the shield button's width.
+func _match_counters_to_shield() -> void:
+	if _block_button == null:
+		return
+	var w: float = _block_button.size.x
+	for count_btn in [_flash_button, _brain_button]:
+		if count_btn and absf(count_btn.custom_minimum_size.x - w) > 0.5:
+			count_btn.custom_minimum_size.x = w
+
 func _setup_action_buttons() -> void:
 	var ui := $UI as CanvasLayer
 
@@ -1626,6 +1635,17 @@ func _setup_action_buttons() -> void:
 	attack_row.add_child(_block_button)
 	_skin_hud_button(_block_button, "block_slim")
 	_block_button.add_theme_font_size_override("font_size", 14)
+	# The Flash and Brain counters are exactly the shield button's width
+	# (designer, 2026-10-31); their spend buttons share the rest of the row.
+	for count_btn in [_flash_button, _brain_button]:
+		count_btn.size_flags_horizontal = Control.SIZE_FILL
+		count_btn.size_flags_stretch_ratio = 1.0
+	for spend_btn in [_flash_move_button, _flash_block_button, _flash_proc_button,
+			_brain_peek_button, _brain_draw_button]:
+		spend_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		spend_btn.size_flags_stretch_ratio = 1.0
+	_block_button.resized.connect(_match_counters_to_shield)
+	_match_counters_to_shield.call_deferred()
 
 	# War Rack button (Brad only): swap hands with the gear on his back.
 	_rack_button = Button.new()
