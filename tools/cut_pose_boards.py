@@ -498,6 +498,54 @@ BOARDS = {
             "left": (192, 612, 451, 1055),
             "right": (857, 612, 1120, 1055),
         },
+        # 2026-10-31: the designer's slash board — skeleton_slash_board.webp,
+        # four labelled rows on black (NORTH (FRONT), SOUTH (BACK), WEST
+        # (LEFT), EAST (RIGHT), the board's "north" facing the camera): the
+        # stance, the scimitar raised, the downward slash (a grey arc
+        # trailing the blade), the follow-through at the ground in sparks,
+        # the recovery, and the stance again. The stance is the height
+        # reference, matched to each facing's Idle. The cloak's dark folds
+        # are paint: every pocket inside the outline is solid.
+        "actions": {
+            "src": "skeleton_slash_board.webp",
+            "shadow_band": 0.08,
+            "keep_share": 0.035,
+            "fill_holes": 7,   # the cloak's folds are painted (lum 10+); the black between his legs is the backdrop (3-5)
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (108, 40, 340, 262),
+                    "windup": (350, 5, 545, 262),
+                    "slash": (548, 30, 785, 262),
+                    "follow": (788, 70, 1045, 262),
+                    "recover": (1050, 55, 1268, 262),
+                },
+                "back": {
+                    "stance": (150, 290, 375, 505),
+                    "windup": (378, 265, 581, 505),
+                    "slash": (582, 268, 795, 505),
+                    "follow": (800, 320, 1050, 505),
+                    "recover": (1055, 310, 1290, 505),
+                },
+                "left": {
+                    "stance": (120, 530, 300, 755),
+                    "windup": (370, 515, 540, 755),
+                    "slash": (555, 535, 780, 755),
+                    "follow": (783, 575, 1050, 755),
+                    "recover": (1075, 548, 1290, 755),
+                },
+                "right": {
+                    "stance": (150, 772, 330, 998),
+                    "windup": (385, 760, 550, 998),
+                    "slash": (555, 765, 790, 998),
+                    "follow": (790, 815, 1050, 998),
+                    "recover": (1052, 800, 1265, 998),
+                },
+            },
+            "sheets": {
+                "Attack": ["windup", "slash", "follow", "recover"],
+            },
+        },
     },
     "sewer_cobra": {
         # 2026-10-25: the Sewer Cobra — a coiled black cobra with a manhole-cover hood
@@ -680,6 +728,72 @@ BOARDS = {
             "back": (742, 99, 1214, 587),
             "left": (9, 681, 627, 1060),
             "right": (664, 684, 1249, 1056),
+        },
+        # 2026-10-31: the designer's bite board — wererat_bite_board.webp,
+        # four labelled rows on black (NORTH (FRONT), SOUTH (BACK), WEST
+        # (LEFT), EAST (RIGHT) — the board's "north" faces the camera, the
+        # game's front). The front and back rows: a crouch, a tensed crouch
+        # (ready), the rat in the air, the bite — the rat landing behind a
+        # red arc in a burst of dust — the landing, hunched, a settling
+        # crouch and the crouch again. The side rows draw the leap and its
+        # slash as one picture, so the leap is that picture with the arc
+        # and dust cleared and the bite the whole of it. The tails are
+        # drawn apart from the bodies (keep_share). The first crouch of
+        # each row is the height reference, matched to that facing's Idle.
+        "actions": {
+            "src": "wererat_bite_board.webp",
+            "shadow_band": 0.10,
+            "keep_share": 0.035,
+            "fill_holes": True,
+            "levels": (6, 30, 8),   # the backdrop is 5-6; his fur starts at 8
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (115, 95, 314, 278),
+                    "ready": (316, 95, 508, 278),
+                    "leap": (448, 40, 694, 230),
+                    "bite": (690, 60, 866, 278),
+                    "land": (866, 120, 1082, 278),
+                    "settle": (1086, 100, 1303, 278),
+                },
+                "back": {
+                    "stance": (116, 330, 312, 530),
+                    "ready": (316, 335, 514, 530),
+                    "leap": (517, 285, 752, 515),
+                    "bite": (724, 318, 880, 530),
+                    "land": (880, 360, 1092, 530),
+                    "settle": (1092, 342, 1305, 530),
+                },
+                "left": {
+                    "stance": (115, 575, 336, 750),
+                    "ready": (322, 572, 540, 750),
+                    "leap": (540, 540, 782, 750),
+                    "bite": (540, 540, 880, 750),
+                    "land": (880, 590, 1094, 750),
+                    "settle": (1094, 578, 1306, 750),
+                },
+                "right": {
+                    "stance": (115, 806, 324, 975),
+                    "ready": (324, 790, 540, 975),
+                    "leap": (537, 762, 792, 975),
+                    "bite": (537, 762, 890, 975),
+                    "land": (886, 818, 1078, 975),
+                    "settle": (1086, 806, 1302, 975),
+                },
+            },
+            "bg_boxes": {
+                ("front", "ready"): [(136, 0, 192, 55)],       # the leap's tail
+                ("front", "leap"): [(0, 95, 56, 190), (240, 60, 246, 190)],   # the ready crouch's flank; the bite's paw
+                ("front", "bite"): [(0, 0, 12, 100)],          # the leap's claw tips
+                ("back", "leap"): [(223, 45, 235, 230), (173, 140, 235, 230)],   # the bite's arc and left paw
+                ("back", "bite"): [(0, 0, 27, 84)],            # the leap's claw
+                ("left", "ready"): [(0, 120, 15, 178)],        # the crouch's claws
+                ("left", "leap"): [(150, 150, 242, 210), (220, 0, 242, 160), (0, 150, 32, 210)],   # the slash's dust, the arc's glow, the ready crouch's claws
+                ("right", "leap"): [(163, 190, 255, 213), (236, 0, 255, 118)],   # the slash's dust and the arc's glow
+            },
+            "sheets": {
+                "Attack": ["ready", "leap", "bite", "land", "settle"],
+            },
         },
     },
     "zombie": {
@@ -1679,22 +1793,33 @@ def _cut_black_key(rgb: np.ndarray) -> Image.Image:
 ACTION_ROWS = ["left", "right"]   # the rows of an action sheet (SpriteEnemyFigure: a two-row sheet)
 
 
-def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0) -> Image.Image:
+def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep_share: float = 0.0,
+                    fill_holes: bool = False, levels=None) -> Image.Image:
     """One figure and the glow of its attack on pure black (the werewolf's
     slash board): alpha from brightness as the black key does, the dim
     glow of the slash arcs kept soft and un-darkened, then only the
     biggest lit piece (the figure) and the reddish pieces (the arcs)
     survive — a neighbouring frame's claw or tail that reaches into the
-    box is dropped, its arc cleared by a bg box. The soft painted shadow
+    box is dropped, its arc cleared by a bg box — and, with `keep_share`,
+    every piece at least that share of the biggest (the wererat's tail,
+    drawn apart from its body). Every pocket the outline closes in is
+    solid with `fill_holes` (the wererat's near-black fur is paint as dark
+    as the backdrop, and nothing on his board closes a pocket of backdrop
+    in); with a brightness, also those painted brighter than it; else only
+    small pockets are. `levels` (floor, solid, body) stand
+    in for BLACK_FLOOR / BLACK_SOLID / BLACK_BODY: the wererat's black
+    fur sits just above the backdrop's black, so his levels are low. The
+    soft painted shadow
     at the feet (dim, colourless, in the bottom `shadow_band` of the
     figure and not inside the body) goes too."""
     rgb = rgb.copy()
     for x0, y0, x1, y1 in bg_boxes:
         rgb[y0:y1, x0:x1] = 0
+    floor, solid_at, body_at = levels or (BLACK_FLOOR, BLACK_SOLID, BLACK_BODY)
     lum = rgb.max(axis=2).astype(float)
     sat = (rgb.max(axis=2) - rgb.min(axis=2)).astype(float)
-    alpha = np.clip((lum - BLACK_FLOOR) / float(BLACK_SOLID - BLACK_FLOOR), 0.0, 1.0)
-    body = (lum > BLACK_BODY).astype(np.uint8)
+    alpha = np.clip((lum - floor) / float(solid_at - floor), 0.0, 1.0)
+    body = (lum > body_at).astype(np.uint8)
     outside = np.pad(1 - body, 1, constant_values=1)
     flood = outside.copy()
     cv2.floodFill(flood, None, (0, 0), 2)
@@ -1702,11 +1827,18 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0) -> I
     # Dark paint inside the body (shaded fur) is solid, but the black the
     # slash arc closes in against the chest is the board: only small
     # enclosed pockets are filled.
-    holes = (filled & (1 - body)).astype(np.uint8)
-    hn, hlab, hst, _ = cv2.connectedComponentsWithStats(holes, connectivity=4)
-    for i in range(1, hn):
-        if hst[i, cv2.CC_STAT_AREA] > HOLE_FILL_MAX:
-            filled[hlab == i] = 0
+    if fill_holes is not True:
+        # Small pockets are always the figure's; a bigger one only when
+        # `fill_holes` is a brightness and the pocket is painted brighter
+        # than that (the skeleton's cloak folds: the backdrop between his
+        # legs, closed in by his foot shadow, is pure black and stays open).
+        holes = (filled & (1 - body)).astype(np.uint8)
+        hn, hlab, hst, _ = cv2.connectedComponentsWithStats(holes, connectivity=4)
+        for i in range(1, hn):
+            if hst[i, cv2.CC_STAT_AREA] > HOLE_FILL_MAX:
+                painted = fill_holes not in (False, None) and lum[hlab == i].mean() > float(fill_holes)
+                if not painted:
+                    filled[hlab == i] = 0
     core = cv2.erode(filled, np.ones((3, 3), np.uint8)).astype(bool)
     soft = alpha < 1.0
     alpha[core] = 1.0
@@ -1720,6 +1852,9 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0) -> I
         for i in range(1, n):
             if i == biggest or areas[i - 1] < BLACK_SPECK:
                 continue
+            if keep_share > 0 and areas[i - 1] >= areas[biggest - 1] * keep_share:
+                keep[i] = True
+                continue
             px = rgb[lab == i].astype(float)
             r, g, b = px[:, 0].mean(), px[:, 1].mean(), px[:, 2].mean()
             keep[i] = r > 1.4 * max(g, b) + 8   # a red slash arc
@@ -1727,7 +1862,7 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0) -> I
     if shadow_band > 0:
         ys = np.nonzero((alpha > 0).any(axis=1))[0]
         y0 = int(ys.max() + 1 - (ys.max() + 1 - ys.min()) * shadow_band)
-        shadow = soft & (sat < 20) & (lum < BLACK_SOLID)
+        shadow = soft & (sat < 20) & (lum < solid_at)
         shadow[:y0] = False
         alpha[shadow] = 0.0
     a = np.maximum(alpha, 1e-6)[..., None]
@@ -1829,7 +1964,8 @@ def cut_actions(cfg: dict, full: dict) -> dict:
             mirror = spec[0] == "mirror"
             box = spec[1] if mirror else spec
             rgb = np.asarray(board(d).crop(box).convert("RGB")).astype(int)
-            img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0))
+            img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
+                                  act.get("keep_share", 0.0), act.get("fill_holes", False), act.get("levels"))
             out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
         for pose, other in again:
             out[d][pose] = out[d][other]
