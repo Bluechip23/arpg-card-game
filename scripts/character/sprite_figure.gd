@@ -13,7 +13,7 @@ extends Node3D
 ## tools/cut_hero_sprites.py): one detailed pose per direction, drawn finer
 ## than the 32-texel tiles so the art keeps its nuance; walking steps the body
 ## up and down (or strides through a drawn walk cycle where the hero's sheet
-## has one, Stephen's from 2026-10-31), and attacks lunge the body toward the target (the pack's
+## has one: Stephen's, Jeremy's and Ryan's from 2026-10-31), and attacks lunge the body toward the target (the pack's
 ## weapon swing was deleted on 2026-10-30 for the designer's own attacks). The NPC mode (an NPC
 ## pack sheet with walk frames, the same overlay) draws the dojo's dogs. (The
 ## Mana Seed paper-doll mode went with its art on 2026-10-30.)
@@ -25,13 +25,13 @@ const SEED := "res://assets/sprites/SeedcharacterBase"
 const ROSTER := {
 	"Brad": {"board": "res://assets/sprites/generated/heroes/brad.png"},      # the warrior, the War Rack over his shoulder
 	"Cory": {"board": "res://assets/sprites/generated/heroes/cory.png"},      # the hooded monk
-	# Stephen strides (his walk board, 2026-10-31) facing south, north and
-	# west: "walk_rows" are the sheet rows whose columns 1.. hold a walk
+	# Stephen, Jeremy and Ryan stride (their walk boards, 2026-10-31);
+	# Stephen only facing south, north and west: "walk_rows" are the sheet rows whose columns 1.. hold a walk
 	# cycle. His east row waits for a redraw (it shows the bear arm on the
 	# near side), so facing east he still steps his one pose.
 	"Stephen": {"board": "res://assets/sprites/generated/heroes/stephen.png", "walk_rows": [0, 1, 3]},  # the apex hunter, bow and axe on his back
-	"Jeremy": {"board": "res://assets/sprites/generated/heroes/jeremy.png"},  # the cloaked skeleton
-	"Ryan": {"board": "res://assets/sprites/generated/heroes/ryan.png"},      # the rogue outlaw
+	"Jeremy": {"board": "res://assets/sprites/generated/heroes/jeremy.png", "walk_rows": [0, 1, 2, 3]},  # the cloaked skeleton
+	"Ryan": {"board": "res://assets/sprites/generated/heroes/ryan.png", "walk_rows": [0, 1, 2, 3]},      # the rogue outlaw
 	# The dojo's ally training dummies wear the NPC-pack dog sheet (same
 	# 32px cell and S,E,N,W row order as the humanoid NPC sheets).
 	"Dog": {"npc": "res://assets/sprites/NPCpackage2/npc dog v01.png"},

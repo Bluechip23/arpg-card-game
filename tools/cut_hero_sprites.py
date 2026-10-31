@@ -44,9 +44,9 @@ pieces near its size survive). Poses are packed bottom-centred into square
 cells, one column, rows in CharacterAnimator order: south (front), north
 (back), east, west; a missing side is the mirror of the other.
 
-Walk cycles (WALKS): a hero with the designer's walk board (Stephen,
-2026-10-31: eight frames a direction on a ruled grid, transparent ground)
-gets them as columns 1.. beside the still pose in column 0, at the still
+Walk cycles (WALKS): a hero with the designer's walk board
+(eight frames a direction on a ruled grid)
+(Stephen, Jeremy, Ryan; 2026-10-31) gets them as columns 1.. beside the still pose in column 0, at the still
 poses' scale and on their shared palette; SpriteFigure strides through them
 instead of stepping the still pose up and down.
 
@@ -139,8 +139,10 @@ HEROES = {
 }
 
 # Walk boards: (source, grid-line x's, grid-line y's, the facing each grid
-# row draws, facings left out). The cells sit between consecutive lines;
-# the figures are cut on the board's own alpha. Stephen's board (2026-10-31):
+# row draws, facings left out, ground). The cells sit between consecutive
+# lines. Ground None: the figures are cut on the board's own alpha;
+# "opaque": the board is painted on a flat dark ground, filled in from each
+# cell's edge (cut_opaque_cell). Stephen's board (2026-10-31):
 # back, front, left, right rows. Its right row is left out: from frame 3 on
 # it shows the bear arm on his near side, the mistake the designer had fixed
 # on his still pose (2026-10-28), so facing east he steps his still pose
@@ -153,8 +155,31 @@ WALKS = {
                 [92, 226, 359, 490, 619, 749, 872, 994, 1118],
                 [10, 182, 344, 503, 669],
                 ["north", "south", "west", "east"],
-                {"east"}),
+                {"east"}, None),
+    # 2026-10-31: Ryan's walk board, on a dark plum ground with a soft
+    # shadow under the feet: back, front, left, right rows, all used.
+    "ryan": ("ryan_walk_board.webp",
+             [126, 308, 490, 669, 850, 1031, 1204, 1373, 1528],
+             [10, 246, 469, 688, 909],
+             ["north", "south", "west", "east"],
+             set(), "opaque"),
+    # 2026-10-31: Jeremy's walk board, the same layout and ground as Ryan's
+    # (his rings already painted on), all four rows used.
+    "jeremy": ("jeremy_walk_board.webp",
+               [126, 309, 489, 668, 844, 1019, 1194, 1368, 1526],
+               [11, 247, 471, 685, 910],
+               ["north", "south", "west", "east"],
+               set(), "opaque"),
 }
+# The opaque boards' ground, taken from each cell's border: within
+# WALK_GROUND_TOL of it (max channel) and reached from the edge is ground;
+# enclosed pockets of it (between arm and body) WALK_POCKET_MIN px or more,
+# as flat as the ground, go too; then WALK_HALO_PEEL passes take the
+# in-between tones (within BLEND_TOL: the foot shadow's rim) off the edge.
+WALK_GROUND_TOL = 10
+WALK_POCKET_MIN = 40
+WALK_HALO_PEEL = 2
+WALK_PLUM_LUM = 55    # the glow: plum (blue over green, not under red) this dark
 
 # The sources' ground: a flat dark grey (with a few levels of compression
 # noise). Anything within GROUND_TOL of it, reached from the crop's edge, is
@@ -434,7 +459,7 @@ def cut_walk(hero):
     """The hero's walk frames: {facing: [full-size RGBA cut-outs]}, plus the
     source height the south frames reach (their scale's reference)."""
     import cv2  # tool dependency (opencv-python-headless)
-    path, xs, ys, facings, skip = WALKS[hero]
+    path, xs, ys, facings, skip, ground = WALKS[hero]
     board = np.asarray(Image.open(SRC % path).convert("RGBA"))
     out = {}
     for r, facing in enumerate(facings):
@@ -444,6 +469,8 @@ def cut_walk(hero):
         for c in range(len(xs) - 1):
             i = WALK_CELL_INSET
             cell = board[ys[r] + i:ys[r + 1] - i + 1, xs[c] + i:xs[c + 1] - i + 1]
+            if ground == "opaque":
+                cell = cut_opaque_cell(cell)
             solid = (cell[..., 3] > WALK_ALPHA).astype(np.uint8)
             n, lab, stats, _ = cv2.connectedComponentsWithStats(solid, connectivity=8)
             biggest = stats[1:, 4].max()
@@ -460,6 +487,43 @@ def cut_walk(hero):
         out[facing] = frames
     ref = max(f.height for f in out["south"])
     return out, ref
+
+
+def cut_opaque_cell(cell):
+    """One cell of an opaque walk board, its ground made transparent (hard
+    alpha): flood-filled in from the cell's edge, then its enclosed pockets
+    and the halo round the figure."""
+    import cv2  # tool dependency (opencv-python-headless)
+    rgb = cell[..., :3].astype(int)
+    h, w, _ = rgb.shape
+    border = np.concatenate([rgb[:6].reshape(-1, 3), rgb[-6:].reshape(-1, 3),
+                             rgb[:, :6].reshape(-1, 3), rgb[:, -6:].reshape(-1, 3)])
+    ground = np.median(border, axis=0)
+    off = np.abs(rgb - ground).max(axis=2)
+    # ...or the ground's own plum, a little lit: the boards glow faintly
+    # behind the figure (Jeremy's), brighter than the border's ground.
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    plum = (rgb.mean(axis=2) < WALK_PLUM_LUM) & (b >= g + 5) & (b >= r - 3) & \
+           (rgb.max(axis=2) - rgb.min(axis=2) < 18)
+    near = (off <= WALK_GROUND_TOL) | plum
+    edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
+           [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
+    solid = ~_flood(near, edge)
+    f = rgb.astype(np.float32)
+    mean = cv2.blur(f, (5, 5))
+    spread = np.sqrt(np.maximum(cv2.blur(f * f, (5, 5)) - mean * mean, 0)).max(axis=2)
+    flat = (solid & (off <= WALK_GROUND_TOL) & (spread <= POCKET_FLAT)).astype(np.uint8)
+    n, lab, stats, _ = cv2.connectedComponentsWithStats(flat, connectivity=4)
+    k = np.ones((3, 3), np.uint8)
+    for j in range(1, n):
+        if stats[j][4] >= WALK_POCKET_MIN:
+            piece = (cv2.dilate((lab == j).astype(np.uint8), k) > 0) & (off <= WALK_GROUND_TOL)
+            solid &= ~piece
+    blend = (off <= BLEND_TOL) | plum
+    for _ in range(WALK_HALO_PEEL):
+        open_ = cv2.dilate((~solid).astype(np.uint8), k) > 0
+        solid &= ~(open_ & blend)
+    return np.dstack([rgb.astype(np.uint8), np.where(solid, 255, 0).astype(np.uint8)])
 
 
 def resample(img, factor):
@@ -592,7 +656,10 @@ def build(hero, poses):
         wf = ref / float(HEIGHT)
         for d, frames in walks.items():
             for i, img in enumerate(frames):
-                img = peel_painted_outline(img) if not OUTLINE else img
+                # The opaque boards' figures are dark-clad on a dark ground:
+                # peeling their outline would eat gloves and cloth.
+                if not OUTLINE and WALKS[hero][5] != "opaque":
+                    img = peel_painted_outline(img)
                 full[(d, i)] = resample(img, wf)
                 soft[(d, i)] = soft_frame(img, wf)
     full = {d: vibrance(f) for d, f in full.items()}
