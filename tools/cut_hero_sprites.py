@@ -44,6 +44,12 @@ pieces near its size survive). Poses are packed bottom-centred into square
 cells, one column, rows in CharacterAnimator order: south (front), north
 (back), east, west; a missing side is the mirror of the other.
 
+Walk cycles (WALKS): a hero with the designer's walk board (Stephen,
+2026-10-31: eight frames a direction on a ruled grid, transparent ground)
+gets them as columns 1.. beside the still pose in column 0, at the still
+poses' scale and on their shared palette; SpriteFigure strides through them
+instead of stepping the still pose up and down.
+
 Output: assets/sprites/generated/heroes/<hero>.png
 Run: python3 tools/cut_hero_sprites.py   (Pillow, numpy; opencv-python-headless
 for Stephen's bow)
@@ -130,6 +136,24 @@ HEROES = {
         (STEPHEN, (60, 286, 205, 620), "east"),
         (STEPHEN, (305, 286, 442, 620), "west"),
     ],
+}
+
+# Walk boards: (source, grid-line x's, grid-line y's, the facing each grid
+# row draws, facings left out). The cells sit between consecutive lines;
+# the figures are cut on the board's own alpha. Stephen's board (2026-10-31):
+# back, front, left, right rows. Its right row is left out: from frame 3 on
+# it shows the bear arm on his near side, the mistake the designer had fixed
+# on his still pose (2026-10-28), so facing east he steps his still pose
+# until that row is redrawn.
+WALK_CELL_INSET = 4   # px kept clear of the grid lines
+WALK_ALPHA = 40       # source alpha over this is figure (for finding it; the
+                      # cut keeps the soft alpha for the resample)
+WALKS = {
+    "stephen": ("stephen_walk_board.webp",
+                [92, 226, 359, 490, 619, 749, 872, 994, 1118],
+                [10, 182, 344, 503, 669],
+                ["north", "south", "west", "east"],
+                {"east"}),
 }
 
 # The sources' ground: a flat dark grey (with a few levels of compression
@@ -406,6 +430,38 @@ def _clear_ground(rgb, solid, ground):
     return solid
 
 
+def cut_walk(hero):
+    """The hero's walk frames: {facing: [full-size RGBA cut-outs]}, plus the
+    source height the south frames reach (their scale's reference)."""
+    import cv2  # tool dependency (opencv-python-headless)
+    path, xs, ys, facings, skip = WALKS[hero]
+    board = np.asarray(Image.open(SRC % path).convert("RGBA"))
+    out = {}
+    for r, facing in enumerate(facings):
+        if facing in skip:
+            continue
+        frames = []
+        for c in range(len(xs) - 1):
+            i = WALK_CELL_INSET
+            cell = board[ys[r] + i:ys[r + 1] - i + 1, xs[c] + i:xs[c + 1] - i + 1]
+            solid = (cell[..., 3] > WALK_ALPHA).astype(np.uint8)
+            n, lab, stats, _ = cv2.connectedComponentsWithStats(solid, connectivity=8)
+            biggest = stats[1:, 4].max()
+            keep = np.zeros(solid.shape, bool)
+            for k in range(1, n):
+                if stats[k][4] >= biggest * KEEP_SHARE:
+                    keep |= lab == k
+            # The soft edge round what is kept, nothing else in the cell.
+            near = cv2.dilate(keep.astype(np.uint8), np.ones((5, 5), np.uint8)) > 0
+            f = cell.copy()
+            f[~near] = 0
+            yy, xx = np.nonzero(keep)
+            frames.append(Image.fromarray(f[yy.min():yy.max() + 1, xx.min():xx.max() + 1], "RGBA"))
+        out[facing] = frames
+    ref = max(f.height for f in out["south"])
+    return out, ref
+
+
 def resample(img, factor):
     """Down by `factor` (and WIDEN times less across) with a sharp (Lanczos)
     filter on premultiplied colour, then on/off alpha: crisp pixel edges, the
@@ -531,6 +587,14 @@ def build(hero, poses):
         factor = scale[1] if path == scale[0] and hero not in MATCH_HEIGHT else img.height / float(ref_h)
         full[facing] = resample(img, factor)
         soft[facing] = soft_frame(img, factor)
+    if hero in WALKS:
+        walks, ref = cut_walk(hero)
+        wf = ref / float(HEIGHT)
+        for d, frames in walks.items():
+            for i, img in enumerate(frames):
+                img = peel_painted_outline(img) if not OUTLINE else img
+                full[(d, i)] = resample(img, wf)
+                soft[(d, i)] = soft_frame(img, wf)
     full = {d: vibrance(f) for d, f in full.items()}
     full = tidy_palette(full)
     frames = {}
@@ -541,12 +605,15 @@ def build(hero, poses):
         frames["east"] = frames["west"].transpose(Image.FLIP_LEFT_RIGHT)
     if "west" not in frames:
         frames["west"] = frames["east"].transpose(Image.FLIP_LEFT_RIGHT)
+    cols = 1 + max([k[1] + 1 for k in frames if isinstance(k, tuple)] or [0])
     cell = max(max(f.size) for f in frames.values()) + 2
     cell += cell % 2
-    sheet = Image.new("RGBA", (cell, cell * len(ROWS)))
+    sheet = Image.new("RGBA", (cell * cols, cell * len(ROWS)))
     for r, d in enumerate(ROWS):
-        f = frames[d]
-        sheet.paste(f, ((cell - f.width) // 2, r * cell + cell - f.height), f)
+        for c in range(cols):
+            f = frames.get(d if c == 0 else (d, c - 1))
+            if f is not None:
+                sheet.paste(f, (c * cell + (cell - f.width) // 2, r * cell + cell - f.height), f)
     os.makedirs(os.path.dirname(OUT % hero), exist_ok=True)
     sheet.save(OUT % hero)
     # The smooth version, kept beside the pixel sheet.
@@ -561,8 +628,10 @@ def build(hero, poses):
     scell += scell % 2
     sout = os.path.join(smooth_art.ROOT, "heroes", "%s.png" % hero)
     os.makedirs(os.path.dirname(sout), exist_ok=True)
-    smooth_art.pack([[soft[d]] for d in ROWS], scell, 1, lambda row, ci: row[0], air=0).save(sout)
-    print("%-7s cell %d: %s" % (hero, cell, ", ".join("%s %dx%d" % (d, frames[d].width, frames[d].height) for d in ROWS)))
+    blank = Image.new("RGBA", (1, 1))
+    grid = [[soft[d]] + [soft.get((d, c - 1), blank) for c in range(1, cols)] for d in ROWS]
+    smooth_art.pack(grid, scell, cols, lambda row, ci: row[ci], air=0).save(sout)
+    print("%-7s cell %d, %d col(s): %s" % (hero, cell, cols, ", ".join("%s %dx%d" % (d, frames[d].width, frames[d].height) for d in ROWS)))
 
 
 def main():

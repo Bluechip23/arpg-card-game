@@ -12,7 +12,8 @@ extends Node3D
 ## All five heroes wear the designer's hero sprites (2026-10-23,
 ## tools/cut_hero_sprites.py): one detailed pose per direction, drawn finer
 ## than the 32-texel tiles so the art keeps its nuance; walking steps the body
-## up and down, and attacks lunge the body toward the target (the pack's
+## up and down (or strides through a drawn walk cycle where the hero's sheet
+## has one, Stephen's from 2026-10-31), and attacks lunge the body toward the target (the pack's
 ## weapon swing was deleted on 2026-10-30 for the designer's own attacks). The NPC mode (an NPC
 ## pack sheet with walk frames, the same overlay) draws the dojo's dogs. (The
 ## Mana Seed paper-doll mode went with its art on 2026-10-30.)
@@ -24,7 +25,11 @@ const SEED := "res://assets/sprites/SeedcharacterBase"
 const ROSTER := {
 	"Brad": {"board": "res://assets/sprites/generated/heroes/brad.png"},      # the warrior, the War Rack over his shoulder
 	"Cory": {"board": "res://assets/sprites/generated/heroes/cory.png"},      # the hooded monk
-	"Stephen": {"board": "res://assets/sprites/generated/heroes/stephen.png"},  # the apex hunter, bow and axe on his back
+	# Stephen strides (his walk board, 2026-10-31) facing south, north and
+	# west: "walk_rows" are the sheet rows whose columns 1.. hold a walk
+	# cycle. His east row waits for a redraw (it shows the bear arm on the
+	# near side), so facing east he still steps his one pose.
+	"Stephen": {"board": "res://assets/sprites/generated/heroes/stephen.png", "walk_rows": [0, 1, 3]},  # the apex hunter, bow and axe on his back
 	"Jeremy": {"board": "res://assets/sprites/generated/heroes/jeremy.png"},  # the cloaked skeleton
 	"Ryan": {"board": "res://assets/sprites/generated/heroes/ryan.png"},      # the rogue outlaw
 	# The dojo's ally training dummies wear the NPC-pack dog sheet (same
@@ -38,6 +43,8 @@ const NPC_ROW := [0, 2, 1, 3]    # NPC packs run S,E,N,W
 
 const ATTACK_TIMES := [0.16, 0.065, 0.065, 0.2]
 const NPC_WALK_TIME := 0.18
+## Each frame of a hero's drawn walk cycle (eight frames: a 0.8 s stride).
+const BOARD_WALK_TIME := 0.1
 const PIXEL_SIZE := 0.03125
 ## The designer's hero sprites stand this tall (world units = tiles), drawn
 ## at whatever pixel size makes their front pose this height, so their detail
@@ -73,6 +80,7 @@ var _mode := "board"
 var _body_cell := 32
 var _body_rows: Array = NPC_ROW
 var _body_walk_frames := 4
+var _walk_rows: Array = []         # board rows with a drawn walk cycle (the rest step their pose)
 var _body_offset := Vector2.ZERO   # the board body's offset with its feet on the ground
 var _hand_scale := 1.0             # held items ride this much higher on a taller hero
 var _shadow_scale := 1.0           # the contact shadow grows with a bigger hero
@@ -112,12 +120,13 @@ func setup(character_name: String) -> void:
 	_shield_back = null
 	_shield_front = null
 	_frames = []
+	_walk_rows = []
 	var cfg: Dictionary = ROSTER.get(character_name, ROSTER["Brad"])
 	_rig = Node3D.new()
 	_rig.name = "Rig"
 	add_child(_rig)
 	if cfg.has("board"):
-		_setup_board(cfg["board"])
+		_setup_board(cfg["board"], cfg.get("walk_rows", []))
 	else:
 		_setup_npc(cfg["npc"])
 	# Contact shadow lives OUTSIDE the rig: hops/knockback move the rig, the
@@ -225,7 +234,7 @@ func _setup_npc(sheet_path: String) -> void:
 ## edge. Drawn finer than the tiles (BOARD_HEIGHT tall); the NPC path does the
 ## rest — the same body sprite, weapon overlay and attack lunge — with one
 ## frame a direction, and walking steps it instead (_process).
-func _setup_board(sheet_path: String) -> void:
+func _setup_board(sheet_path: String, walk_rows: Array = []) -> void:
 	_mode = "board"
 	# The smooth look (ArtStyle): the hero's art itself at SMOOTH_DENSITY a
 	# tile, filtered, soft-edged; the pixel sheet otherwise.
@@ -234,7 +243,9 @@ func _setup_board(sheet_path: String) -> void:
 	var tex: Texture2D = load(soft if smooth else sheet_path)
 	_body_cell = int(tex.get_height() / 4)
 	_body_rows = DOLL_ROW
-	_body_walk_frames = 1
+	# Columns past the first hold the walk cycle, on the rows that have one.
+	_body_walk_frames = maxi(1, int(tex.get_width() / _body_cell) - 1)
+	_walk_rows = walk_rows if _body_walk_frames > 1 else []
 	# One art texel a 64th of a tile (tools/cut_hero_sprites.py cuts every
 	# hero at that fineness, BOARD_HEIGHT tall): one screen pixel at zoom 2,
 	# two at zoom 4 — never a fraction, so no row or column is skipped.
@@ -566,8 +577,15 @@ func _play(anim: String, _force: bool = false) -> void:
 		"walk":
 			_looping = true
 			_frames = []
-			for c in range(_body_walk_frames):
-				_frames.append({"col": c, "row": _body_rows[facing], "t": NPC_WALK_TIME})
+			if _mode == "board":
+				if _strides():
+					for c in range(_body_walk_frames):
+						_frames.append({"col": c + 1, "row": _body_rows[facing], "t": BOARD_WALK_TIME})
+				else:
+					_frames.append({"col": 0, "row": _body_rows[facing], "t": 1.0})
+			else:
+				for c in range(_body_walk_frames):
+					_frames.append({"col": c, "row": _body_rows[facing], "t": NPC_WALK_TIME})
 			_hide_weapon()
 		"attack_unarmed":
 			_start_attack(0)
@@ -599,6 +617,11 @@ func _start_attack(col0: int, row_off: int = 0) -> void:
 	_shield_in_front = false
 
 
+## A board hero walking this way has a drawn walk cycle to stride through.
+func _strides() -> bool:
+	return _mode == "board" and _body_rows[facing] in _walk_rows
+
+
 func _hide_weapon() -> void:
 	if _shield_back:
 		_shield_back.visible = false
@@ -620,8 +643,10 @@ func _process(delta: float) -> void:
 		# Lifted along the sprite's own up (its offset, in its texels):
 		# screen-up under the plan camera; the feet return to the ground row
 		# every step.
-		_step_clock = _step_clock + delta if _walking and not _attacking else 0.0
-		var up := _walking and not _attacking and fmod(_step_clock * STEP_HZ, 1.0) >= 0.5
+		# (A drawn walk cycle carries its own stride: no step.)
+		var stepping := _walking and not _attacking and not _strides()
+		_step_clock = _step_clock + delta if stepping else 0.0
+		var up := stepping and fmod(_step_clock * STEP_HZ, 1.0) >= 0.5
 		var lift := roundf(STEP_LIFT / _npc_sprite.pixel_size) if up else 0.0
 		_npc_sprite.offset = _body_offset + Vector2(0, lift)
 	if _frames.is_empty():
