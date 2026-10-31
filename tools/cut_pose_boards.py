@@ -672,6 +672,52 @@ BOARDS = {
             "left": (112, 510, 679, 915),
             "right": (853, 511, 1413, 915),
         },
+        # 2026-10-31: the designer's nip board — coyote_nip_board.webp, four
+        # labelled rows on black (NORTH (UP) facing the camera, SOUTH (DOWN)
+        # from behind, WEST (LEFT), EAST (RIGHT)), the coyote on a painted
+        # floor shadow: the stance, the head lowered, lower still, the nip
+        # (jaws open, lunging), the head coming back up, and the stance
+        # again. The stance is the height reference, matched to each
+        # facing's Idle.
+        "actions": {
+            "src": "coyote_nip_board.webp",
+            "shadow_band": 0.12,
+            "fill_holes": 7,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (190, 30, 303, 252),
+                    "crouch": (408, 72, 518, 252),
+                    "low": (630, 63, 748, 252),
+                    "nip": (855, 61, 974, 252),
+                    "recover": (1092, 61, 1208, 252),
+                },
+                "back": {
+                    "stance": (187, 272, 295, 506),
+                    "crouch": (383, 287, 510, 506),
+                    "low": (607, 287, 738, 506),
+                    "nip": (844, 305, 976, 506),
+                    "recover": (1096, 288, 1221, 506),
+                },
+                "left": {
+                    "stance": (134, 532, 372, 720),
+                    "crouch": (367, 544, 597, 720),
+                    "low": (587, 558, 820, 720),
+                    "nip": (819, 569, 1052, 720),
+                    "recover": (1048, 552, 1287, 720),
+                },
+                "right": {
+                    "stance": (134, 772, 363, 960),
+                    "crouch": (348, 782, 585, 960),
+                    "low": (572, 781, 806, 960),
+                    "nip": (785, 798, 1039, 960),
+                    "recover": (1046, 780, 1285, 960),
+                },
+            },
+            "sheets": {
+                "Attack": ["crouch", "low", "nip", "recover"],
+            },
+        },
     },
     "succubus": {
         # 2026-10-26: the Succubus — horned, bat-winged, in purple and black
@@ -796,6 +842,56 @@ BOARDS = {
             },
         },
     },
+    "wolf": {
+        # 2026-10-31: the Wolf's bite — wolf_bite_board.webp, four labelled
+        # rows on black (Up: from behind, Down: facing the camera, Left,
+        # Right), the wolf on a painted floor shadow: the stance, a crouch,
+        # the leap, the bite low to the ground, the recovery and the stance
+        # again. The board slips twice: the Up row's bite faces the camera
+        # and the Down row's sixth frame is seen from behind, so that one
+        # is the back's bite. The Wolf's Idle / Walk are the designer's
+        # walk sheet (tools/cut_creature_sheets.py): no board here, the
+        # bite is scaled to those sheets' rows and their cells regrown.
+        "actions": {
+            "src": "wolf_bite_board.webp",
+            "shadow_band": 0.16,
+            "match": "stance",
+            "match_scale": {"left": 0.88, "right": 0.88},   # the board's side views run longer and bulkier than the walk sheet's wolf
+            "frames": {
+                "front": {
+                    "stance": (115, 300, 244, 520),
+                    "crouch": (440, 305, 588, 522),
+                    "leap": (596, 280, 752, 522),
+                    "bite": (758, 332, 944, 526),
+                    "recover": (1145, 322, 1295, 524),
+                },
+                "back": {
+                    "stance": (113, 52, 240, 290),
+                    "crouch": (428, 52, 560, 290),
+                    "leap": (578, 30, 745, 290),
+                    "bite": (952, 304, 1104, 522),
+                    "recover": (963, 52, 1094, 290),
+                },
+                "left": {
+                    "stance": (92, 585, 297, 742),
+                    "crouch": (288, 598, 505, 742),
+                    "leap": (495, 560, 745, 740),
+                    "bite": (757, 600, 1024, 750),
+                    "recover": (997, 588, 1286, 750),
+                },
+                "right": {
+                    "stance": (98, 800, 297, 972),
+                    "crouch": (298, 820, 530, 972),
+                    "leap": (500, 770, 770, 952),
+                    "bite": (772, 830, 1032, 972),
+                    "recover": (1002, 804, 1288, 972),
+                },
+            },
+            "sheets": {
+                "Attack": ["crouch", "leap", "bite", "recover"],
+            },
+        },
+    },
     "zombie": {
         # 2026-10-26: the Zombie — a gaunt, rotting man with an exposed
         # brain, a torn purple-and-green vest and shredded trousers — four
@@ -841,6 +937,62 @@ BOARDS = {
             "back": (660, 79, 995, 456),
             "left": (11, 523, 511, 866),
             "right": (541, 523, 1017, 866),
+        },
+        # 2026-10-31: the designer's shoot board — archer_rat_shoot_board.webp,
+        # four labelled rows on black (NORTH (FRONT), SOUTH (BACK), WEST
+        # (LEFT), EAST (RIGHT), the board's "north" facing the camera): the
+        # stance, the arrow nocked, the string drawn, drawn again, the
+        # release (the front and back rows with the arrow in flight beside
+        # the rat; the side rows the arrow alone, then the rat with the
+        # bow sprung), the bow lowered / the stance. Draw.png is the nock
+        # and the draw, held at full draw (SpriteEnemyFigure CP_HOLD) from
+        # two tempo before the shot; Attack.png the shot: full draw, the
+        # release, the bow lowered. The flying arrows are loose pieces and
+        # fall away (only the rat and anything red is kept). The stance
+        # is the height reference, matched to each facing's Idle.
+        "actions": {
+            "src": "archer_rat_shoot_board.webp",
+            "shadow_band": 0.08,
+            "fill_holes": 7,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (108, 45, 275, 250),
+                    "nock": (280, 45, 462, 250),
+                    "draw": (465, 33, 670, 250),
+                    "full": (671, 30, 868, 250),
+                    "release": (868, 42, 1040, 250),
+                    "lower": (1125, 38, 1330, 250),
+                },
+                "back": {
+                    "stance": (108, 296, 300, 488),
+                    "nock": (325, 270, 495, 488),
+                    "draw": (502, 260, 675, 488),
+                    "full": (705, 259, 880, 488),
+                    "release": (898, 310, 1090, 488),
+                    "lower": (1156, 270, 1348, 488),
+                },
+                "left": {
+                    "stance": (108, 535, 325, 722),
+                    "nock": (310, 524, 505, 722),
+                    "draw": (518, 504, 705, 720),
+                    "full": (726, 504, 918, 720),
+                    "release": (1050, 530, 1325, 720),
+                    "lower": (1338, 538, 1536, 722),
+                },
+                "right": {
+                    "stance": (108, 763, 300, 952),
+                    "nock": (295, 741, 478, 952),
+                    "draw": (470, 745, 708, 952),
+                    "full": (640, 752, 900, 952),
+                    "release": (1078, 760, 1325, 952),
+                    "lower": (1330, 766, 1530, 952),
+                },
+            },
+            "sheets": {
+                "Draw": ["nock", "draw"],
+                "Attack": ["full", "release", "lower"],
+            },
         },
     },
     "magma_spider": {
@@ -1923,20 +2075,19 @@ def action_rows(cfg: dict) -> list:
     return ROWS if all(d in frames for d in ROWS) else ACTION_ROWS
 
 
-def pack_action(frames: dict, poses: list, cell: int, rows: list) -> Image.Image:
+def pack_action(frames: dict, poses: list, cell: int, rows: list, air: int = 0) -> Image.Image:
     """An action sheet: `poses` in order across, the facings down `rows`,
-    each frame bottom-centred in its cell."""
+    each frame bottom-centred in its cell, `air` empty rows under the feet."""
     sheet = Image.new("RGBA", (cell * len(poses), cell * len(rows)))
     for r, d in enumerate(rows):
         for c, pose in enumerate(poses):
             f = frames[d][pose]
-            sheet.paste(f, (c * cell + (cell - f.width) // 2, r * cell + cell - f.height), f)
+            sheet.paste(f, (c * cell + (cell - f.width) // 2, r * cell + cell - air - f.height), f)
     return sheet
 
 
-def cut_actions(cfg: dict, full: dict) -> dict:
-    """The frames of a creature's action boards, full size, each facing's
-    scaled so its `match` pose stands as tall as that facing's Idle pose:
+def cut_action_frames(cfg: dict) -> dict:
+    """The frames of a creature's action boards, full size, uncut to scale:
     {direction: {pose: image}}. A pose is a box on the facing's board,
     ("mirror", box) for the box flipped, or ("same", pose) for another
     pose of the facing again."""
@@ -1948,10 +2099,6 @@ def cut_actions(cfg: dict, full: dict) -> dict:
         if name not in boards:
             boards[name] = Image.open(SRC % name)
         return boards[name]
-
-    def per_dir(key: str, default, d: str):
-        v = act.get(key, default)
-        return v.get(d, default) if isinstance(v, dict) else v
 
     out = {}
     for d, poses in act["frames"].items():
@@ -1969,16 +2116,104 @@ def cut_actions(cfg: dict, full: dict) -> dict:
             out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
         for pose, other in again:
             out[d][pose] = out[d][other]
-        k = full["Idle"][d].height / float(out[d][per_dir("match", "recover", d)].height) * per_dir("match_scale", 1.0, d)
-        for pose, f in out[d].items():
+    return out
+
+
+def _action_setting(cfg: dict, key: str, default, d: str):
+    v = cfg["actions"].get(key, default)
+    return v.get(d, default) if isinstance(v, dict) else v
+
+
+def _used_poses(cfg: dict) -> set:
+    return {p for poses in cfg["actions"]["sheets"].values() for p in poses}
+
+
+def cut_actions(cfg: dict, full: dict) -> dict:
+    """The action frames, full size, each facing's scaled so its `match`
+    pose stands as tall as that facing's Idle pose (full size too)."""
+    out = cut_action_frames(cfg)
+    for d, fs in out.items():
+        k = full["Idle"][d].height / float(fs[_action_setting(cfg, "match", "recover", d)].height) * _action_setting(cfg, "match_scale", 1.0, d)
+        for pose, f in fs.items():
             size = (max(1, round(f.width * k)), max(1, round(f.height * k)))
-            out[d][pose] = f.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")
+            fs[pose] = f.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")
     # Only the poses a sheet plays are packed (a height reference is not).
-    used = {p for poses in act["sheets"].values() for p in poses}
+    used = _used_poses(cfg)
     return {d: {p: f for p, f in fs.items() if p in used} for d, fs in out.items()}
 
 
+def _sheet_rows(sheet: Image.Image, cell: int):
+    """Each row's drawn height and the empty rows under its feet (its air)
+    in a packed four-row sheet, from the first column."""
+    out = []
+    for r in range(4):
+        box = sheet.crop((0, r * cell, cell, (r + 1) * cell)).getchannel("A").point(lambda v: 255 if v > 8 else 0).getbbox()
+        out.append((box[3] - box[1], cell - box[3]) if box else (cell, 0))
+    return out
+
+
+def _regrow(sheet: Image.Image, old: int, new: int) -> Image.Image:
+    """A packed sheet in bigger square cells: every cell's content shifted
+    to sit bottom-centred in its new cell, so nothing else moves."""
+    cols, rows = sheet.width // old, sheet.height // old
+    out = Image.new("RGBA", (cols * new, rows * new))
+    dx, dy = (new - old) // 2, new - old
+    for r in range(rows):
+        for c in range(cols):
+            out.paste(sheet.crop((c * old, r * old, (c + 1) * old, (r + 1) * old)), (c * new + dx, r * new + dy))
+    return out
+
+
+def build_actions_on_sheets(name: str, cfg: dict) -> None:
+    """Action sheets for a creature whose Idle / Walk were cut by another
+    tool (the wolf's walk sheet, tools/cut_creature_sheets.py): each facing
+    is scaled so its `match` pose stands as tall as that row of the
+    existing Idle sheet (pixel and smooth each), and the frames are packed
+    with the Idle rows' own air under the feet. When a frame outgrows the
+    Idle cell, Idle.png and Walk.png are regrown to the new cell (their
+    content shifted, not resampled: SpriteEnemyFigure indexes every sheet
+    by the Idle cell)."""
+    raw = cut_action_frames(cfg)
+    used = _used_poses(cfg)
+    rows = action_rows(cfg)
+    frames = {}
+    for root, kind in ((OUT % name, "pixel"), (os.path.join(smooth_art.ROOT, "sheets", name), "smooth")):
+        idle = Image.open(os.path.join(root, "Idle.png"))
+        cell = idle.height // 4
+        info = dict(zip(ROWS, _sheet_rows(idle, cell)))
+        frames = {}
+        for d, fs in raw.items():
+            k = info[d][0] / float(fs[_action_setting(cfg, "match", "recover", d)].height) * _action_setting(cfg, "match_scale", 1.0, d)
+            frames[d] = {}
+            for pose, f in fs.items():
+                if pose not in used:
+                    continue
+                if kind == "pixel":
+                    frames[d][pose] = shrink(f, 1.0 / k)
+                else:
+                    frames[d][pose] = smooth_art.trim(smooth_art.resample(f, 1.0 / k))
+        air = max(a for _, a in info.values())
+        need = max(max(f.width, f.height) for fs in frames.values() for f in fs.values()) + 2 + air
+        if need > cell:
+            for anim in ("Idle", "Walk"):
+                path = os.path.join(root, anim + ".png")
+                if os.path.exists(path):
+                    _regrow(Image.open(path), cell, need).save(path)
+            print("%-13s %s cells %d -> %d px (Idle / Walk regrown)" % (name, kind, cell, need))
+            cell = need
+        for anim, poses in cfg["actions"]["sheets"].items():
+            if kind == "pixel":
+                pack_action(frames, poses, cell, rows, air).save(os.path.join(root, anim + ".png"))
+            else:
+                smooth_art.pack([[frames[d][p] for p in poses] for d in rows], cell, len(poses), lambda row, ci: row[ci], air=air).save(os.path.join(root, anim + ".png"))
+    dims = ", ".join("%s %dx%d" % (d, f.width, f.height) for d, f in frames[rows[0]].items())
+    print("%-13s on its own sheets: %s" % (name, dims))
+
+
 def build(name: str, cfg: dict) -> None:
+    if "src" not in cfg:
+        build_actions_on_sheets(name, cfg)
+        return
     board = Image.open(SRC % cfg["src"])
     full = {}
     for anim in ("Idle", "Walk"):
