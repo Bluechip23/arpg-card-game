@@ -20,9 +20,9 @@ head and the fletching, each turned half a turn about the arrow's midpoint —
 after the panel is cut away, on a padded canvas (the fletching is longer
 than the head, so at the head's end it reaches past the panel's frame).
 
-These replace the 32x32 icons tools/generate_mythic_icons.py used to draw;
-that tool keeps only the mythic this art does not cover (the Bladed
-Doughnut).
+These replace the 32x32 icons tools/generate_mythic_icons.py used to draw.
+The Bladed Doughnut, the last of them, came on its own panel on 2026-10-31
+(mythic_bladed_doughnut.png).
 
 Output: assets/items/mythic/<slug>.png (CANVAS x CANVAS RGBA)
 Run: python3 tools/cut_mythic_art.py   (Pillow, numpy)
@@ -109,6 +109,11 @@ PIECES = {
         ("presence_of_mind", _BL),
         ("crooked_dueling_shield", _BR),
     ],
+    # The Bladed Doughnut on its own panel (2026-10-31): a frosted doughnut
+    # ringed with steel spikes. Cropped inside the panel's purple bevel.
+    "bladed_doughnut": [
+        ("bladed_doughnut", (10, 12, 334, 340)),
+    ],
     "bows": [
         ("bow_of_arash", _TL),
         ("belthronding", (573, 63, 963, 450)),   # past a speck of frame bevel in the corner
@@ -187,14 +192,20 @@ def _components(mask: np.ndarray):
     return comps
 
 
-def cut(sheet: Image.Image, box, fix=None) -> Image.Image:
+# Panels whose plain ground is less even than the boxed sheets': the
+# doughnut's has a soft dark shadow along its foot (sheet -> (bg, edge) tol).
+TOLS = {"bladed_doughnut": (16, 30)}
+
+
+def cut(sheet: Image.Image, box, fix=None, tols=None) -> Image.Image:
+    bg_tol, edge_tol = tols or (BG_TOL, EDGE_TOL)
     rgb = np.asarray(sheet.crop(box).convert("RGB")).astype(int)
     h, w, _ = rgb.shape
     ring = np.concatenate([rgb[0], rgb[-1], rgb[:, 0], rgb[:, -1]])
     bg = np.median(ring, axis=0)
     dist = np.abs(rgb - bg).max(axis=2)
 
-    near = dist <= BG_TOL
+    near = dist <= bg_tol
     edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
            [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
     panel = _flood(near, edge)
@@ -211,8 +222,8 @@ def cut(sheet: Image.Image, box, fix=None) -> Image.Image:
     touching[:-1] |= panel[1:]
     touching[:, 1:] |= panel[:, :-1]
     touching[:, :-1] |= panel[:, 1:]
-    rim = touching & ~panel & (dist < EDGE_TOL)
-    alpha[rim] = (dist[rim] - BG_TOL) / float(EDGE_TOL - BG_TOL)
+    rim = touching & ~panel & (dist < edge_tol)
+    alpha[rim] = (dist[rim] - bg_tol) / float(edge_tol - bg_tol)
 
     for comp in _components(alpha > 0):
         if len(comp) < SPECK:
@@ -237,11 +248,11 @@ def cut(sheet: Image.Image, box, fix=None) -> Image.Image:
 
 def main() -> None:
     for sheet_name, pieces in PIECES.items():
-        path = next(SRC % sheet_name + ext for ext in (".jpg", ".webp")
+        path = next(SRC % sheet_name + ext for ext in (".jpg", ".webp", ".png")
                     if os.path.exists(SRC % sheet_name + ext))
         sheet = Image.open(path)
         for slug, box in pieces:
-            img = cut(sheet, box, FIXES.get(slug))
+            img = cut(sheet, box, FIXES.get(slug), TOLS.get(sheet_name))
             img.save(OUT % slug)
             bb = img.getbbox()
             print("%-32s %s -> %dx%d on %d" % (slug, sheet_name, bb[2] - bb[0], bb[3] - bb[1], CANVAS))
