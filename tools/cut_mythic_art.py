@@ -57,13 +57,11 @@ _BR = (569, 570, 963, 964)
 PIECES = {
     "helms": [
         ("the_headbandz", (36, 36, 490, 280)),
-        ("hannibals_mask", (36, 294, 490, 490)),
         ("mane_of_narashimha", (36, 532, 490, 988)),
         ("scholars_cap", (532, 640, 988, 988)),
     ],
     "chests": [
         ("adimantium", _TL),
-        ("tigers_sunday_red", _TR),
         ("divine_resistance", _BL),
         ("hide_of_garmr", _BR),
     ],
@@ -74,7 +72,6 @@ PIECES = {
         ("poseidons_trident", _BR),
     ],
     "gauntlets": [
-        ("gauntlets_of_dungeon_mastering", _TL),
         ("hallowed_trunk", _TR),
         ("cuffs_of_current", _BL),
         ("concealed_carry", _BR),
@@ -108,6 +105,20 @@ PIECES = {
         ("steve_rodgers_bastion", _TR),
         ("presence_of_mind", _BL),
         ("crooked_dueling_shield", _BR),
+    ],
+    # The designer's redraws on their own panels (2026-10-31), replacing
+    # their pieces of the sheets above: the polo with a black fist-pumping
+    # golfer silhouette on its chest, the gauntlets with a 20 on every die,
+    # the mask with blood round its grille. Cropped inside each panel's
+    # purple border.
+    "tigers_sunday_red": [
+        ("tigers_sunday_red", (30, 30, 1259, 1191)),
+    ],
+    "gauntlets_of_dungeon_mastering": [
+        ("gauntlets_of_dungeon_mastering", (30, 30, 1249, 1200)),
+    ],
+    "hannibals_mask": [
+        ("hannibals_mask", (30, 30, 1040, 978)),
     ],
     # The Bladed Doughnut on its own panel (2026-10-31): a frosted doughnut
     # ringed with steel spikes. Cropped inside the panel's purple bevel.
@@ -194,10 +205,16 @@ def _components(mask: np.ndarray):
 
 # Panels whose plain ground is less even than the boxed sheets': the
 # doughnut's has a soft dark shadow along its foot (sheet -> (bg, edge) tol).
-TOLS = {"bladed_doughnut": (16, 30)}
+TOLS = {"bladed_doughnut": (16, 30), "tigers_sunday_red": (16, 30),
+        "gauntlets_of_dungeon_mastering": (16, 30), "hannibals_mask": (10, 20)}
 
 
-def cut(sheet: Image.Image, box, fix=None, tols=None) -> Image.Image:
+# Pieces with no see-through gaps, whose dark shading must never be taken
+# for an enclosed pocket of panel (the gauntlets' steel).
+NO_HOLES = {"gauntlets_of_dungeon_mastering"}
+
+
+def cut(sheet: Image.Image, box, fix=None, tols=None, no_holes=False) -> Image.Image:
     bg_tol, edge_tol = tols or (BG_TOL, EDGE_TOL)
     rgb = np.asarray(sheet.crop(box).convert("RGB")).astype(int)
     h, w, _ = rgb.shape
@@ -211,7 +228,7 @@ def cut(sheet: Image.Image, box, fix=None, tols=None) -> Image.Image:
     panel = _flood(near, edge)
     # Enclosed pockets of plain panel (ring middles, arch gaps).
     for comp in _components((dist <= HOLE_TOL) & ~panel):
-        if len(comp) >= HOLE_MIN:
+        if len(comp) >= HOLE_MIN and not no_holes:
             panel |= _flood(near, comp)
 
     alpha = np.where(panel, 0.0, 1.0)
@@ -250,134 +267,13 @@ def cut(sheet: Image.Image, box, fix=None, tols=None) -> Image.Image:
     return out
 
 
-# ---------------------------------------------------------------------------
-# Touches the designer asked for (2026-10-31), drawn as pixel art on the
-# finished 128px icon so they read at the size the game shows it. Positions
-# are given on the panel crop and mapped onto the canvas.
-# ---------------------------------------------------------------------------
-
-_DIGITS = {  # 3x5 pixel digits
-    "2": ("111", "001", "111", "100", "111"),
-    "0": ("111", "101", "101", "101", "111"),
-}
-INK = (24, 22, 32, 255)
-
-
-def _write(px, x, y, text, ink=INK, plate=None):
-    """`text` in 3x5 digits with its top-left at (x, y); `plate` lays a
-    1px-padded backing first."""
-    w = len(text) * 4 - 1
-    if plate:
-        for yy in range(y - 1, y + 6):
-            for xx in range(x - 1, x + w + 1):
-                px[xx, yy] = plate
-    for i, ch in enumerate(text):
-        for r, row in enumerate(_DIGITS[ch]):
-            for c, bit in enumerate(row):
-                if bit == "1":
-                    px[x + i * 4 + c, y + r] = ink
-
-
-def _twenty_dice(img, at):
-    """Gauntlets of Dungeon Mastering: every die reads 20 — the two big
-    dice on the backs of the hands (painted with a 20 the shrink blurs
-    away) and the eight knuckle dice (which had none). Dark digits on the
-    silver; the big dice keep their pale face behind them."""
-    px = img.load()
-    big = [(96, 171), (300, 171)]
-    knuckles = [(42, 134), (69, 126), (100, 124), (131, 126),
-                (260, 126), (291, 124), (322, 126), (352, 134)]
-    face = (214, 220, 228, 255)
-    for cx, cy in big:
-        x, y = at(cx, cy)
-        _write(px, x - 3, y - 2, "20", plate=face)
-    # The knuckle dice are only 6..9px across here: their 20 is engraved
-    # straight into the silver (dark digits, no face plate, which read as a
-    # sticker), the outer two nudged inward to stay on their die.
-    for i, (cx, cy) in enumerate(knuckles):
-        x, y = at(cx, cy)
-        nudge = 1 if i == 0 else (-1 if i == len(knuckles) - 1 else 0)
-        _write(px, x - 3 + nudge, y - 2, "20", ink=(30, 32, 44, 255))
-
-
-def _blood_on_mask(img, at):
-    """Hannibals Mask: a few small blood drops round the mouth grille —
-    drips running from its lower lip and rounding off at the end, and a few
-    spatters beside it."""
-    px = img.load()
-    dark, mid, hi = (92, 6, 10, 255), (148, 12, 18, 255), (210, 48, 48, 255)
-    # Drips from the grille's lower lip: (x, top y, length). A drip is two
-    # pixels wide where it runs, ending in a round bead a shade darker.
-    for x, y, n in [(43, 90, 5), (50, 91, 8), (57, 90, 4)]:
-        for k in range(n):
-            px[x, y + k] = mid
-            px[x + 1, y + k] = dark
-        px[x, y] = hi
-        for bx, by, c in [(x - 1, y + n, dark), (x, y + n, mid), (x + 1, y + n, dark),
-                          (x - 1, y + n + 1, dark), (x, y + n + 1, dark), (x + 1, y + n + 1, dark),
-                          (x, y + n - 1, hi)]:
-            px[bx, by] = c
-    # Spatters beside the grille: a bead (2x2) and a few specks.
-    for x, y in [(35, 80), (65, 78)]:
-        px[x, y] = mid; px[x + 1, y] = dark; px[x, y + 1] = dark; px[x + 1, y + 1] = dark
-        px[x, y - 1] = hi
-    for x, y, c in [(37, 85, mid), (63, 85, mid), (66, 82, dark), (46, 98, dark), (60, 97, mid)]:
-        px[x, y] = c
-
-
-def _sunday_figurine(img, at):
-    """Tigers Sunday Red: a small figurine on the right chest (the viewer's
-    right, where a polo's logo sits) — a little gold golfer, fist pumped
-    high, club held down in the other hand. Gold so it reads on the red
-    stripes; a tiny emblem, not a portrait."""
-    px = img.load()
-    colors = {
-        "K": (40, 20, 10, 255),     # outline
-        "H": (255, 236, 150, 255),  # gold highlight
-        "Y": (232, 184, 64, 255),   # gold
-        "D": (168, 116, 30, 255),   # gold shadow
-        "S": (196, 200, 210, 255),  # club (steel)
-    }
-    sprite = [
-        "...KKK.....",
-        "..KHYYK....",
-        "..KYYDK....",
-        ".KKYDKK....",
-        "KHK.K......",
-        "KYK.KK.....",
-        ".KYKYYKK...",
-        "..KYYYYDK..",
-        "...KYYDKSK.",
-        "...KYYDK.S.",
-        "...KYDDK.S.",
-        "..KYYKDDK.S",
-        "..KYK.KDK.S",
-        ".KYYK.KDDKS",
-        ".KKKK.KKKK.",
-    ]
-    x0, y0 = 81, 42
-    for y, row in enumerate(sprite):
-        for x, ch in enumerate(row):
-            if ch != ".":
-                px[x0 + x, y0 + y] = colors[ch]
-
-
-TOUCHES = {
-    "gauntlets_of_dungeon_mastering": _twenty_dice,
-    "hannibals_mask": _blood_on_mask,
-    "tigers_sunday_red": _sunday_figurine,
-}
-
-
 def main() -> None:
     for sheet_name, pieces in PIECES.items():
         path = next(SRC % sheet_name + ext for ext in (".jpg", ".webp", ".png")
                     if os.path.exists(SRC % sheet_name + ext))
         sheet = Image.open(path)
         for slug, box in pieces:
-            img = cut(sheet, box, FIXES.get(slug), TOLS.get(sheet_name))
-            if slug in TOUCHES:
-                TOUCHES[slug](img, cut.last_map)
+            img = cut(sheet, box, FIXES.get(slug), TOLS.get(sheet_name), slug in NO_HOLES)
             img.save(OUT % slug)
             bb = img.getbbox()
             print("%-32s %s -> %dx%d on %d" % (slug, sheet_name, bb[2] - bb[0], bb[3] - bb[1], CANVAS))
