@@ -39,7 +39,10 @@ const CP_ROWS := {
 }
 ## Frames per second per Craftpix animation. One-shots (Attack, Hurt, Death)
 ## return to Idle/Walk when they finish; Death holds its last frame.
-const CP_FPS := {"Idle": 5.0, "Walk": 8.0, "Run": 10.0, "Attack": 12.0, "Hurt": 12.0, "Death": 10.0}
+## Enemy attacks play ATTACK_SLOW times slower than they were (designer,
+## 2026-10-31: "still a little too fast") — the swing frames and the lunge.
+const ATTACK_SLOW := 1.4
+const CP_FPS := {"Idle": 5.0, "Walk": 8.0, "Run": 10.0, "Attack": 12.0 / ATTACK_SLOW, "Hurt": 12.0, "Death": 10.0}
 const CP_ONESHOT := ["Attack", "Hurt", "Death"]
 
 # NPC sheets run S,W,N,E top to bottom (battle uses CharacterAnimator order S,N,E,W).
@@ -744,9 +747,9 @@ func play_attack() -> void:
 		_cp_play("Attack", true)
 		dir = Vector3(_facing_x * 0.16, 0, 0) if _fr_mode else _cp_forward() * 0.16
 	_fx_tween = create_tween()
-	_fx_tween.tween_property(_rig, "position", -dir * 0.3, 0.12)
-	_fx_tween.tween_property(_rig, "position", dir, 0.08).set_ease(Tween.EASE_OUT)
-	_fx_tween.tween_property(_rig, "position", Vector3.ZERO, 0.18).set_ease(Tween.EASE_IN_OUT)
+	_fx_tween.tween_property(_rig, "position", -dir * 0.3, 0.12 * ATTACK_SLOW)
+	_fx_tween.tween_property(_rig, "position", dir, 0.08 * ATTACK_SLOW).set_ease(Tween.EASE_OUT)
+	_fx_tween.tween_property(_rig, "position", Vector3.ZERO, 0.18 * ATTACK_SLOW).set_ease(Tween.EASE_IN_OUT)
 
 
 func _cp_forward() -> Vector3:
