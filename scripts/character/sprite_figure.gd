@@ -41,7 +41,14 @@ const ROSTER := {
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/brad_block.png",
 				"frames": 12, "rows": [0, 2, 3], "t": 0.06, "hold": 0.5, "reverse": 0.035},
 		}},
-	"Cory": {"board": "res://assets/sprites/generated/heroes/cory.png", "walk_rows": [0, 1, 2, 3]},      # the hooded monk
+	"Cory": {"board": "res://assets/sprites/generated/heroes/cory.png", "walk_rows": [0, 1, 2, 3],      # the hooded monk
+		"actions": {
+			# The aerial shadow kick combo: a leap, kicks trailing violet
+			# shadow, a spinning kick, and he lands.
+			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/cory_attack.png", "frames": 10, "rows": [0, 1, 2, 3], "t": 0.055},
+			# The energy field: a palm raised, a ring of blue force flares.
+			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/cory_block.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.065},
+		}},
 	"Stephen": {"board": "res://assets/sprites/generated/heroes/stephen.png", "walk_rows": [0, 1, 3],  # the apex hunter, bow and axe on his back
 		"actions": {
 			# The bear transformation swipe: his head turns bear and the bear

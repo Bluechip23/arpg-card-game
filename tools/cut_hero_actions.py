@@ -118,6 +118,26 @@ ACTIONS = {
         "rows": [(59, 247), (296, 483), (532, 715), (760, 946)],
         "facings": ["south", "north", "west", "east"],
     },
+    # 2026-10-31: Cory's aerial shadow kick combo — a crouch, a leap, kicks
+    # trailing violet shadow, a spinning kick, and he lands.
+    ("cory", "attack"): {
+        "src": "cory_attack_board.webp",
+        "pockets": False,   # his robe's dark folds by the hood are the ground's colour
+        "narrow": 7,        # and the fill reaches them through slits
+        "cols": [108, 242, 381, 523, 662, 810, 947, 1094, 1230, 1393, 1528],
+        "rows": [(52, 257), (257, 471), (471, 678), (678, 896)],
+        "facings": ["south", "north", "west", "east"],
+    },
+    # 2026-10-31: Cory's energy field — a palm raised, a ring of blue force
+    # flares before it and fades.
+    ("cory", "block"): {
+        "src": "cory_block_board.webp",
+        "pockets": False,
+        "haze": True,       # the field's dark blue outer glow
+        "cols": [115, 292, 470, 648, 825, 1002, 1179, 1356, 1532],
+        "rows": [(52, 267), (267, 478), (478, 689), (689, 900)],
+        "facings": ["south", "north", "west", "east"],
+    },
 }
 
 

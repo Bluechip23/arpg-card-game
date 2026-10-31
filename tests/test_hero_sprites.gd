@@ -116,7 +116,7 @@ func _initialize() -> void:
 	# plays the sheet (the body hidden), feet on the ground line, and gives
 	# the body back when done; facing north the block has no drawing, so
 	# the old guard plays.
-	for hero in ["Brad", "Jeremy", "Stephen", "Ryan"]:
+	for hero in ["Brad", "Cory", "Jeremy", "Stephen", "Ryan"]:
 		var fig := SpriteFigure.new()
 		get_root().add_child(fig)
 		fig.setup(hero)
@@ -152,9 +152,9 @@ func _initialize() -> void:
 	brad.free()
 	var undrawn := SpriteFigure.new()
 	get_root().add_child(undrawn)
-	undrawn.setup("Cory")
+	undrawn.setup("Dog")
 	undrawn.play_action("basic_attack", D.EAST)
-	_check(undrawn._action_sprite == null and undrawn._attacking, "a hero not yet drawn lunges into his basic attack")
+	_check(undrawn._action_sprite == null and undrawn._attacking, "a figure with nothing drawn lunges into its basic attack")
 	undrawn.free()
 	var slash := Card.create_by_id("slash")
 	var block := Card.create_by_id("block")
