@@ -242,8 +242,131 @@ def cut(sheet: Image.Image, box, fix=None, tols=None) -> Image.Image:
     size = (max(1, round(piece.width * scale)), max(1, round(piece.height * scale)))
     small = piece.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")
     out = Image.new("RGBA", (CANVAS, CANVAS))
-    out.paste(small, ((CANVAS - size[0]) // 2, (CANVAS - size[1]) // 2))
+    ox, oy = (CANVAS - size[0]) // 2, (CANVAS - size[1]) // 2
+    out.paste(small, (ox, oy))
+    # Where a point of the panel crop lands on the canvas (for TOUCHES).
+    pad = PAD if fix is not None else 0
+    cut.last_map = lambda px, py: (round((px + pad - x0) * scale + ox), round((py + pad - y0) * scale + oy))
     return out
+
+
+# ---------------------------------------------------------------------------
+# Touches the designer asked for (2026-10-31), drawn as pixel art on the
+# finished 128px icon so they read at the size the game shows it. Positions
+# are given on the panel crop and mapped onto the canvas.
+# ---------------------------------------------------------------------------
+
+_DIGITS = {  # 3x5 pixel digits
+    "2": ("111", "001", "111", "100", "111"),
+    "0": ("111", "101", "101", "101", "111"),
+}
+INK = (24, 22, 32, 255)
+
+
+def _write(px, x, y, text, ink=INK, plate=None):
+    """`text` in 3x5 digits with its top-left at (x, y); `plate` lays a
+    1px-padded backing first."""
+    w = len(text) * 4 - 1
+    if plate:
+        for yy in range(y - 1, y + 6):
+            for xx in range(x - 1, x + w + 1):
+                px[xx, yy] = plate
+    for i, ch in enumerate(text):
+        for r, row in enumerate(_DIGITS[ch]):
+            for c, bit in enumerate(row):
+                if bit == "1":
+                    px[x + i * 4 + c, y + r] = ink
+
+
+def _twenty_dice(img, at):
+    """Gauntlets of Dungeon Mastering: every die reads 20 — the two big
+    dice on the backs of the hands (painted with a 20 the shrink blurs
+    away) and the eight knuckle dice (which had none). Dark digits on the
+    silver; the big dice keep their pale face behind them."""
+    px = img.load()
+    big = [(96, 171), (300, 171)]
+    knuckles = [(42, 134), (69, 126), (100, 124), (131, 126),
+                (260, 126), (291, 124), (322, 126), (352, 134)]
+    face = (214, 220, 228, 255)
+    for cx, cy in big:
+        x, y = at(cx, cy)
+        _write(px, x - 3, y - 2, "20", plate=face)
+    # The knuckle dice are only 6..9px across here: their 20 is engraved
+    # straight into the silver (dark digits, no face plate, which read as a
+    # sticker), the outer two nudged inward to stay on their die.
+    for i, (cx, cy) in enumerate(knuckles):
+        x, y = at(cx, cy)
+        nudge = 1 if i == 0 else (-1 if i == len(knuckles) - 1 else 0)
+        _write(px, x - 3 + nudge, y - 2, "20", ink=(30, 32, 44, 255))
+
+
+def _blood_on_mask(img, at):
+    """Hannibals Mask: a few small blood drops round the mouth grille —
+    drips running from its lower lip and rounding off at the end, and a few
+    spatters beside it."""
+    px = img.load()
+    dark, mid, hi = (92, 6, 10, 255), (148, 12, 18, 255), (210, 48, 48, 255)
+    # Drips from the grille's lower lip: (x, top y, length). A drip is two
+    # pixels wide where it runs, ending in a round bead a shade darker.
+    for x, y, n in [(43, 90, 5), (50, 91, 8), (57, 90, 4)]:
+        for k in range(n):
+            px[x, y + k] = mid
+            px[x + 1, y + k] = dark
+        px[x, y] = hi
+        for bx, by, c in [(x - 1, y + n, dark), (x, y + n, mid), (x + 1, y + n, dark),
+                          (x - 1, y + n + 1, dark), (x, y + n + 1, dark), (x + 1, y + n + 1, dark),
+                          (x, y + n - 1, hi)]:
+            px[bx, by] = c
+    # Spatters beside the grille: a bead (2x2) and a few specks.
+    for x, y in [(35, 80), (65, 78)]:
+        px[x, y] = mid; px[x + 1, y] = dark; px[x, y + 1] = dark; px[x + 1, y + 1] = dark
+        px[x, y - 1] = hi
+    for x, y, c in [(37, 85, mid), (63, 85, mid), (66, 82, dark), (46, 98, dark), (60, 97, mid)]:
+        px[x, y] = c
+
+
+def _sunday_figurine(img, at):
+    """Tigers Sunday Red: a small figurine on the right chest (the viewer's
+    right, where a polo's logo sits) — a little gold golfer, fist pumped
+    high, club held down in the other hand. Gold so it reads on the red
+    stripes; a tiny emblem, not a portrait."""
+    px = img.load()
+    colors = {
+        "K": (40, 20, 10, 255),     # outline
+        "H": (255, 236, 150, 255),  # gold highlight
+        "Y": (232, 184, 64, 255),   # gold
+        "D": (168, 116, 30, 255),   # gold shadow
+        "S": (196, 200, 210, 255),  # club (steel)
+    }
+    sprite = [
+        "...KKK.....",
+        "..KHYYK....",
+        "..KYYDK....",
+        ".KKYDKK....",
+        "KHK.K......",
+        "KYK.KK.....",
+        ".KYKYYKK...",
+        "..KYYYYDK..",
+        "...KYYDKSK.",
+        "...KYYDK.S.",
+        "...KYDDK.S.",
+        "..KYYKDDK.S",
+        "..KYK.KDK.S",
+        ".KYYK.KDDKS",
+        ".KKKK.KKKK.",
+    ]
+    x0, y0 = 81, 42
+    for y, row in enumerate(sprite):
+        for x, ch in enumerate(row):
+            if ch != ".":
+                px[x0 + x, y0 + y] = colors[ch]
+
+
+TOUCHES = {
+    "gauntlets_of_dungeon_mastering": _twenty_dice,
+    "hannibals_mask": _blood_on_mask,
+    "tigers_sunday_red": _sunday_figurine,
+}
 
 
 def main() -> None:
@@ -253,6 +376,8 @@ def main() -> None:
         sheet = Image.open(path)
         for slug, box in pieces:
             img = cut(sheet, box, FIXES.get(slug), TOLS.get(sheet_name))
+            if slug in TOUCHES:
+                TOUCHES[slug](img, cut.last_map)
             img.save(OUT % slug)
             bb = img.getbbox()
             print("%-32s %s -> %dx%d on %d" % (slug, sheet_name, bb[2] - bb[0], bb[3] - bb[1], CANVAS))
