@@ -162,7 +162,7 @@ WALKS = {
              [126, 308, 490, 669, 850, 1031, 1204, 1373, 1528],
              [10, 246, 469, 688, 909],
              ["north", "south", "west", "east"],
-             set(), "opaque"),
+             set(), "opaque", {"narrow": 7, "close": 7}),   # his dark leg wraps
     # 2026-10-31: Jeremy's walk board, the same layout and ground as Ryan's
     # (his rings already painted on), all four rows used.
     "jeremy": ("jeremy_walk_board.webp",
@@ -199,6 +199,13 @@ WALK_GROUND_TOL = 10
 WALK_POCKET_MIN = 40
 WALK_HALO_PEEL = 2
 WALK_FIT_PASSES = 4   # ground fits, each to what the last fill reached
+SHADE_UNDER = 3       # a floor shadow: darker than the ground fit by this in every channel...
+SHADE_FLAT = 4.0      # ...and as smooth as the ground (5x5 spread)
+SOLE_CLOSE = 13       # but notches it bites into the figure this wide are the figure (a sole)
+RIM_PASSES = 3        # the near-black rim round an opaque board's figure: this deep...
+RIM_DARK = 34         # ...no channel brighter than this...
+RIM_RATIO = 0.55      # ...and under this share of the figure's brightness round it...
+RIM_WINDOW = 9        # ...(this many px square)
 NARROW_CREEP = 8      # px the narrow fill creeps past its wide openings
 HAZE_DARK = 60        # haze (cut_opaque_cell): no channel brighter than this...
 HAZE_FLAT = 4.0       # ...and as smooth as the ground (5x5 spread)
@@ -484,8 +491,11 @@ def cut_walk(hero):
     return out, max(f.height for f in out["south"])
 
 
-def cut_walk_board(path, xs, ys, facings, skip, ground):
-    """One walk board's frames: {facing: [full-size RGBA cut-outs]}."""
+def cut_walk_board(path, xs, ys, facings, skip, ground, opts=None):
+    """One walk board's frames: {facing: [full-size RGBA cut-outs]}. `opts`:
+    "narrow" for cut_opaque_cell, and "close": px, notches in the silhouette
+    that narrow filled (near-black clothes on the near-black ground)."""
+    opts = opts or {}
     import cv2  # tool dependency (opencv-python-headless)
     board = np.asarray(Image.open(SRC % path).convert("RGBA"))
     out = {}
@@ -497,7 +507,11 @@ def cut_walk_board(path, xs, ys, facings, skip, ground):
             i = WALK_CELL_INSET
             cell = board[ys[r] + i:ys[r + 1] - i + 1, xs[c] + i:xs[c + 1] - i + 1]
             if ground == "opaque":
-                cell = cut_opaque_cell(cell)
+                cell = cut_opaque_cell(cell, True, False, opts.get("narrow", 0))
+                if opts.get("close"):
+                    k = np.ones((opts["close"], opts["close"]), np.uint8)
+                    a = cv2.morphologyEx((cell[..., 3] > 0).astype(np.uint8), cv2.MORPH_CLOSE, k)
+                    cell[..., 3] = a * 255
             solid = (cell[..., 3] > WALK_ALPHA).astype(np.uint8)
             n, lab, stats, _ = cv2.connectedComponentsWithStats(solid, connectivity=8)
             biggest = stats[1:, 4].max()
@@ -559,7 +573,10 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0):
         model = _ground_fit(rgb, ground & ~soft)
         off = np.abs(rgb - model).max(axis=2)
         near = off <= WALK_GROUND_TOL
-        open_ = near | soft
+        # A floor shadow (under the feet): smooth, and darker than the
+        # ground in every channel.
+        shade = (rgb < model - SHADE_UNDER).all(axis=2) & (spread <= SHADE_FLAT)
+        open_ = near | soft | shade
         if narrow:
             k = np.ones((narrow, narrow), np.uint8)
             core = _flood(cv2.morphologyEx(open_.astype(np.uint8), cv2.MORPH_OPEN, k) > 0, edge)
@@ -580,6 +597,36 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0):
     for _ in range(WALK_HALO_PEEL):
         open_ = cv2.dilate((~solid).astype(np.uint8), k) > 0
         solid &= ~(open_ & blend)
+    # The rim: the boards paint a soft near-black shadow and outline round
+    # the figure that the fill stops short of (designer, 2026-10-31: "a lot
+    # of black spacing around" Stephen's parry). An edge pixel near-black
+    # and far darker than the figure just inside it goes, RIM_PASSES deep;
+    # dark cloth next to dark cloth stays.
+    bright = rgb.max(axis=2).astype(np.float32)
+    for _ in range(RIM_PASSES):
+        edge = solid & (cv2.dilate((~solid).astype(np.uint8), k) > 0)
+        win = (RIM_WINDOW, RIM_WINDOW)
+        n = cv2.boxFilter(solid.astype(np.float32), -1, win, normalize=False, borderType=cv2.BORDER_CONSTANT)
+        v = cv2.boxFilter(np.where(solid, bright, 0).astype(np.float32), -1, win, normalize=False, borderType=cv2.BORDER_CONSTANT)
+        around = v / np.maximum(n, 1.0)
+        rim = edge & (bright <= RIM_DARK) & (bright < around * RIM_RATIO)
+        if not rim.any():
+            break
+        solid &= ~rim
+    # A notch the floor-shadow rule bit into the figure (a shoe's dark sole
+    # seen from behind, open at the bottom) is the figure's own.
+    closed = cv2.morphologyEx(solid.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((SOLE_CLOSE, SOLE_CLOSE), np.uint8)) > 0
+    solid |= closed & shade
+    # A hole the figure closes round that is not the ground's colour (a
+    # shoe's dark sole, taken for a floor shadow) is the figure's own.
+    n, lab, stats, _ = cv2.connectedComponentsWithStats((~solid).astype(np.uint8), connectivity=4)
+    for j in range(1, n):
+        x, y, bw, bh, _area = stats[j]
+        if x == 0 or y == 0 or x + bw >= w or y + bh >= h:
+            continue
+        hole = lab == j
+        if np.median(off[hole]) > WALK_GROUND_TOL:
+            solid |= hole
     return np.dstack([rgb.astype(np.uint8), np.where(solid, 255, 0).astype(np.uint8)])
 
 

@@ -2811,7 +2811,8 @@ func _on_block_pressed() -> void:
 
 	# Pound the chest + raise the shield icon.
 	if player.has_method("play_animation"):
-		player.play_animation("basic_block", CharacterAnimator.Direction.SOUTH)
+		# Blocks the way he faces, not always toward the camera.
+		player.play_animation("basic_block", player.get_facing() if player.has_method("get_facing") else CharacterAnimator.Direction.SOUTH)
 
 	# No Weighted surcharge: Weighted taxes card plays, and Block is not one.
 	var tempo_cost := BASIC_BLOCK_TEMPO
@@ -12097,10 +12098,13 @@ func _get_nearest_enemy() -> Enemy:
 	return nearest
 
 func _facing_dir_toward(target) -> CharacterAnimator.Direction:
-	## Returns the CharacterAnimator.Direction the player should face to act on target.
-	var dir = CharacterAnimator.Direction.SOUTH
+	## Returns the CharacterAnimator.Direction the player should face to act on target
+	## (the way he already faces when there is none, or it is himself).
+	var dir = player.get_facing() if player and player.has_method("get_facing") else CharacterAnimator.Direction.SOUTH
 	if target and target is Node3D and is_instance_valid(target):
 		var to_target = target.position - player.position
+		if Vector2(to_target.x, to_target.z).length() < 0.05:
+			return dir
 		if abs(to_target.x) > abs(to_target.z):
 			dir = CharacterAnimator.Direction.EAST if to_target.x > 0 else CharacterAnimator.Direction.WEST
 		else:
@@ -12130,9 +12134,10 @@ func _play_card_animation(card: Card, target) -> void:
 	# Face where the card goes: the creature it is cast at, or, for a card
 	# aimed at a point or along a line (Fireball, A Snowball's Chance...),
 	# the aimed spot — a point click passes the CASTER as the target, so
-	# reading `target` alone left those casts facing south.
+	# reading `target` alone left those casts facing south. A card on the
+	# hero himself (Block, a heal) keeps the way he faces.
 	var aim = _card_aim_point(card, target)
-	var dir := CharacterAnimator.Direction.SOUTH
+	var dir: CharacterAnimator.Direction = player.get_facing() if player.has_method("get_facing") else CharacterAnimator.Direction.SOUTH
 	if aim != null:
 		var to_aim: Vector3 = aim - player.position
 		if abs(to_aim.x) > abs(to_aim.z):

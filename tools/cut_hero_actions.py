@@ -64,6 +64,7 @@ ACTIONS = {
     # blade sweeps out of his arm in a glowing arc.
     ("jeremy", "attack"): {
         "src": "jeremy_attack_board.webp",
+        "close": 5,         # gaps between his dark trouser folds
         "cols": [115, 282, 460, 637, 812, 992, 1170, 1352, 1530],
         "rows": [(53, 269), (269, 482), (482, 682), (682, 893)],
         "facings": ["south", "north", "west", "east"],
@@ -114,6 +115,8 @@ ACTIONS = {
     ("ryan", "block"): {
         "src": "ryan_block_board.webp",
         "drop_dark": True,  # the shadow on the floor under the flip
+        "narrow": 7,        # his near-black wraps: as for his flurry
+        "close": 7,
         "cols": [99, 190, 283, 378, 469, 562, 655, 751, 847, 944, 1039, 1137, 1233, 1330, 1427, 1526],
         "rows": [(59, 247), (296, 483), (532, 715), (760, 946)],
         "facings": ["south", "north", "west", "east"],

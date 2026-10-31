@@ -114,6 +114,12 @@ func play_animation(action: String, direction: CharacterAnimator.Direction = Cha
 	if _figure:
 		_figure.play_action(action, direction)
 
+## The way the figure faces now (CharacterAnimator.Direction).
+func get_facing() -> CharacterAnimator.Direction:
+	if _figure:
+		return _figure.facing
+	return CharacterAnimator.Direction.SOUTH
+
 ## Seconds into `action` (facing `direction`) that its blow lands, as the
 ## hero's drawn animation shows it; 0 when nothing is drawn.
 func hit_delay(action: String, direction: CharacterAnimator.Direction = CharacterAnimator.Direction.SOUTH) -> float:
