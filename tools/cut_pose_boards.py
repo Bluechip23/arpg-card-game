@@ -498,6 +498,54 @@ BOARDS = {
             "left": (192, 612, 451, 1055),
             "right": (857, 612, 1120, 1055),
         },
+        # 2026-10-31: the designer's slash board — skeleton_slash_board.webp,
+        # four labelled rows on black (NORTH (FRONT), SOUTH (BACK), WEST
+        # (LEFT), EAST (RIGHT), the board's "north" facing the camera): the
+        # stance, the scimitar raised, the downward slash (a grey arc
+        # trailing the blade), the follow-through at the ground in sparks,
+        # the recovery, and the stance again. The stance is the height
+        # reference, matched to each facing's Idle. The cloak's dark folds
+        # are paint: every pocket inside the outline is solid.
+        "actions": {
+            "src": "skeleton_slash_board.webp",
+            "shadow_band": 0.08,
+            "keep_share": 0.035,
+            "fill_holes": 7,   # the cloak's folds are painted (lum 10+); the black between his legs is the backdrop (3-5)
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (108, 40, 340, 262),
+                    "windup": (350, 5, 545, 262),
+                    "slash": (548, 30, 785, 262),
+                    "follow": (788, 70, 1045, 262),
+                    "recover": (1050, 55, 1268, 262),
+                },
+                "back": {
+                    "stance": (150, 290, 375, 505),
+                    "windup": (378, 265, 581, 505),
+                    "slash": (582, 268, 795, 505),
+                    "follow": (800, 320, 1050, 505),
+                    "recover": (1055, 310, 1290, 505),
+                },
+                "left": {
+                    "stance": (120, 530, 300, 755),
+                    "windup": (370, 515, 540, 755),
+                    "slash": (555, 535, 780, 755),
+                    "follow": (783, 575, 1050, 755),
+                    "recover": (1075, 548, 1290, 755),
+                },
+                "right": {
+                    "stance": (150, 772, 330, 998),
+                    "windup": (385, 760, 550, 998),
+                    "slash": (555, 765, 790, 998),
+                    "follow": (790, 815, 1050, 998),
+                    "recover": (1052, 800, 1265, 998),
+                },
+            },
+            "sheets": {
+                "Attack": ["windup", "slash", "follow", "recover"],
+            },
+        },
     },
     "sewer_cobra": {
         # 2026-10-25: the Sewer Cobra — a coiled black cobra with a manhole-cover hood
@@ -1757,7 +1805,8 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
     drawn apart from its body). Every pocket the outline closes in is
     solid with `fill_holes` (the wererat's near-black fur is paint as dark
     as the backdrop, and nothing on his board closes a pocket of backdrop
-    in); else only small pockets are. `levels` (floor, solid, body) stand
+    in); with a brightness, also those painted brighter than it; else only
+    small pockets are. `levels` (floor, solid, body) stand
     in for BLACK_FLOOR / BLACK_SOLID / BLACK_BODY: the wererat's black
     fur sits just above the backdrop's black, so his levels are low. The
     soft painted shadow
@@ -1778,12 +1827,18 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
     # Dark paint inside the body (shaded fur) is solid, but the black the
     # slash arc closes in against the chest is the board: only small
     # enclosed pockets are filled.
-    if not fill_holes:
+    if fill_holes is not True:
+        # Small pockets are always the figure's; a bigger one only when
+        # `fill_holes` is a brightness and the pocket is painted brighter
+        # than that (the skeleton's cloak folds: the backdrop between his
+        # legs, closed in by his foot shadow, is pure black and stays open).
         holes = (filled & (1 - body)).astype(np.uint8)
         hn, hlab, hst, _ = cv2.connectedComponentsWithStats(holes, connectivity=4)
         for i in range(1, hn):
             if hst[i, cv2.CC_STAT_AREA] > HOLE_FILL_MAX:
-                filled[hlab == i] = 0
+                painted = fill_holes not in (False, None) and lum[hlab == i].mean() > float(fill_holes)
+                if not painted:
+                    filled[hlab == i] = 0
     core = cv2.erode(filled, np.ones((3, 3), np.uint8)).astype(bool)
     soft = alpha < 1.0
     alpha[core] = 1.0
