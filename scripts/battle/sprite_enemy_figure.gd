@@ -37,13 +37,22 @@ const CP_ROWS := {
 	"ghost": "FBLR",
 	"swordsman_lvl4_6": "FBLR",
 }
-## Frames per second per Craftpix animation. One-shots (Attack, Hurt, Death)
-## return to Idle/Walk when they finish; Death holds its last frame.
+## Frames per second per Craftpix animation. One-shots (Attack, Attack2,
+## Hurt, Death) return to Idle/Walk when they finish; Death holds its last
+## frame. Attack2 is a creature's double attack (the werewolf's claw and
+## rake with the other arm); a kind's "fps" overrides these per animation.
 ## Enemy attacks play ATTACK_SLOW times slower than they were (designer,
 ## 2026-10-31: "still a little too fast") — the swing frames and the lunge.
 const ATTACK_SLOW := 1.4
-const CP_FPS := {"Idle": 5.0, "Walk": 8.0, "Run": 10.0, "Attack": 12.0 / ATTACK_SLOW, "Hurt": 12.0, "Death": 10.0}
-const CP_ONESHOT := ["Attack", "Hurt", "Death"]
+const CP_FPS := {"Idle": 5.0, "Walk": 8.0, "Run": 10.0, "Draw": 8.0, "Attack": 12.0 / ATTACK_SLOW,
+		"Attack2": 12.0 / ATTACK_SLOW, "Hurt": 12.0, "Death": 10.0}
+const CP_ONESHOT := ["Attack", "Attack2", "Hurt", "Death"]
+## Held poses: played once, then the last frame stays until another
+## animation plays (the archer rat at full draw, from two tempo before its
+## shot until the shot). A hit does not break them.
+const CP_HOLD := ["Draw"]
+## Every sheet an animation may come as (Craftpix packs and our own).
+const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Hurt", "Death"]
 
 # NPC sheets run S,W,N,E top to bottom (battle uses CharacterAnimator order S,N,E,W).
 const NPC_ROW := [0, 2, 1, 3]  # NPC packs run S,E,N,W
@@ -796,6 +805,9 @@ func play_attack(double: bool = false) -> void:
 	_fx_tween = create_tween()
 	_fx_tween.tween_property(_rig, "position", -dir * 0.3, 0.12 * ATTACK_SLOW)
 	_fx_tween.tween_property(_rig, "position", dir, 0.08 * ATTACK_SLOW).set_ease(Tween.EASE_OUT)
+	if two:
+		_fx_tween.tween_property(_rig, "position", dir * 0.4, 0.08 * ATTACK_SLOW).set_ease(Tween.EASE_IN_OUT)
+		_fx_tween.tween_property(_rig, "position", dir * 1.1, 0.07 * ATTACK_SLOW).set_ease(Tween.EASE_OUT)
 	_fx_tween.tween_property(_rig, "position", Vector3.ZERO, 0.18 * ATTACK_SLOW).set_ease(Tween.EASE_IN_OUT)
 
 
