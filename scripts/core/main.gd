@@ -2643,7 +2643,7 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 	if free or (buff_mgr and buff_mgr.consume_steady()):
 		# Steady (or a passive's free swing): resolve immediately with no tempo
 		if player.has_method("play_animation"):
-			player.play_animation("attack_slash", _facing_dir_toward(target))
+			player.play_animation("basic_attack", _facing_dir_toward(target))
 		if _blind_misses("Attack", target):
 			_basic_attack_whiff(stats, buff_mgr, debuff_mgr, not basic_attack_proc)
 			return
@@ -2672,7 +2672,7 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 	elif tempo_cost <= 0:
 		# Dex proc reduced tempo to 0: resolve immediately
 		if player.has_method("play_animation"):
-			player.play_animation("attack_slash", _facing_dir_toward(target))
+			player.play_animation("basic_attack", _facing_dir_toward(target))
 		if _blind_misses("Attack", target):
 			_basic_attack_whiff(stats, buff_mgr, debuff_mgr, false)
 			return
@@ -2780,7 +2780,7 @@ func _on_block_pressed() -> void:
 
 	# Pound the chest + raise the shield icon.
 	if player.has_method("play_animation"):
-		player.play_animation("block", CharacterAnimator.Direction.SOUTH)
+		player.play_animation("basic_block", CharacterAnimator.Direction.SOUTH)
 
 	# No Weighted surcharge: Weighted taxes card plays, and Block is not one.
 	var tempo_cost := BASIC_BLOCK_TEMPO
@@ -9071,7 +9071,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	if data.get("is_basic_attack", false):
 		# Swing exactly when the hit lands (facing wherever the target is NOW).
 		if player.has_method("play_animation"):
-			player.play_animation("attack_slash", _facing_dir_toward(target))
+			player.play_animation("basic_attack", _facing_dir_toward(target))
 			if target is Node3D and is_instance_valid(target) and player.has_method("face_toward"):
 				player.face_toward(target.position)
 		var damage = data["basic_attack_damage"]

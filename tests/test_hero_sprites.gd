@@ -112,6 +112,49 @@ func _initialize() -> void:
 		_check(lunged, "%s lunges into the attack" % hero)
 		_check(not ("_weapon_front" in f), "%s carries no weapon layer" % hero)
 		f.free()
+	# Brad's drawn basic attack and block (2026-10-31): the action sprite
+	# plays the sheet (the body hidden), feet on the ground line, and gives
+	# the body back when done; facing north the block has no drawing, so
+	# the old guard plays.
+	var brad := SpriteFigure.new()
+	get_root().add_child(brad)
+	brad.setup("Brad")
+	for action in ["basic_attack", "basic_block"]:
+		var a: Dictionary = brad._actions.get(action, {})
+		_check(not a.is_empty(), "Brad has his drawn %s" % action)
+		if a.is_empty():
+			continue
+		var cell: int = a["cell"]
+		var still := _used(a["tex"], Rect2(0, 0, cell, cell))
+		_check(absi(still.end.y - (cell - cell / SpriteFigure.ACTION_FLOOR)) <= 1,   # (a texel's rounding)
+			"Brad's %s stands on its ground line (%d of %d)" % [action, still.end.y, cell])
+		_check(absf(still.size.y * brad._npc_sprite.pixel_size - SpriteFigure.BOARD_HEIGHT) < 0.06,
+			"Brad's %s stands his height (%.2f tiles)" % [action, still.size.y * brad._npc_sprite.pixel_size])
+		brad.play_action(action, D.EAST)
+		_check(brad._action_sprite.visible and not brad._npc_sprite.visible,
+			"Brad's %s draws in place of his body" % action)
+		var cols := {}
+		for _i in range(80):
+			brad._process(0.03)
+			if brad._action_sprite.visible:
+				cols[int(brad._action_sprite.region_rect.position.x / cell)] = true
+		_check(cols.size() == int(a["frames"]), "Brad's %s plays all %d frames (%d)" % [action, a["frames"], cols.size()])
+		_check(not brad._action_sprite.visible and brad._npc_sprite.visible and not brad._attacking,
+			"Brad stands again after his %s" % action)
+	brad.play_action("basic_block", D.NORTH)
+	_check(not brad._action_sprite.visible and brad._npc_sprite.visible,
+		"Brad's block facing north (not drawn) keeps the old guard")
+	brad.free()
+	var ryan := SpriteFigure.new()
+	get_root().add_child(ryan)
+	ryan.setup("Ryan")
+	ryan.play_action("basic_attack", D.EAST)
+	_check(ryan._action_sprite == null and ryan._attacking, "a hero not yet drawn lunges into his basic attack")
+	ryan.free()
+	var slash := Card.create_by_id("slash")
+	var block := Card.create_by_id("block")
+	_check(slash.get_animation_action() == "basic_attack" and block.get_animation_action() == "basic_block",
+		"the Attack and Block cards play the basic attack and block")
 	# The NPC mode still draws the dojo's ally dogs.
 	var dog := SpriteFigure.new()
 	get_root().add_child(dog)

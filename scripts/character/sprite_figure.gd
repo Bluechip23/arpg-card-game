@@ -27,7 +27,20 @@ const ROSTER := {
 	# the sheet rows whose columns 1.. hold a walk cycle. Stephen's east row
 	# waits for a redraw (it shows the bear arm on the near side), so facing
 	# east he still steps his one pose.
-	"Brad": {"board": "res://assets/sprites/generated/heroes/brad.png", "walk_rows": [0, 1, 2, 3]},      # the warrior, the War Rack over his shoulder
+	# "actions": the designer's drawn actions (tools/cut_hero_actions.py),
+	# played in place of the fallback motion: the sheet, its frames, the
+	# rows it draws (S, N, E, W = 0-3), seconds a frame, and optionally a
+	# hold on the last frame and a quicker play back to the first. The basic
+	# Attack (card and auto attack) and Block (card and shield button).
+	"Brad": {"board": "res://assets/sprites/generated/heroes/brad.png", "walk_rows": [0, 1, 2, 3],  # the warrior, the War Rack over his shoulder
+		"actions": {
+			# The jumping overhead smash; it slams down on frame 7.
+			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/brad_attack.png",
+				"frames": 8, "rows": [0, 1, 2, 3], "t": 0.06},
+			# Stone encases him, holds, and crumbles back off (no back view).
+			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/brad_block.png",
+				"frames": 12, "rows": [0, 2, 3], "t": 0.06, "hold": 0.5, "reverse": 0.035},
+		}},
 	"Cory": {"board": "res://assets/sprites/generated/heroes/cory.png", "walk_rows": [0, 1, 2, 3]},      # the hooded monk
 	"Stephen": {"board": "res://assets/sprites/generated/heroes/stephen.png", "walk_rows": [0, 1, 3]},  # the apex hunter, bow and axe on his back
 	"Jeremy": {"board": "res://assets/sprites/generated/heroes/jeremy.png", "walk_rows": [0, 1, 2, 3]},  # the cloaked skeleton
@@ -54,6 +67,10 @@ const BOARD_HEIGHT := 1.6
 ## ...and drawn this much wider than tall, for a stockier, heavier build
 ## (designer, 2026-10-24: "a little bigger and thicker").
 const BOARD_WIDEN := 1.12
+## An action sheet's ground sits this fraction of its cell up from the cell's
+## bottom, with the hero's standing anchor at the cell's middle
+## (tools/cut_hero_actions.py ACTION_FLOOR): room below for dust.
+const ACTION_FLOOR := 8
 ## Texels a tile the hero sheets are cut at.
 const BOARD_DENSITY := 64.0
 ## Wearing the smooth (non-pixelated) hero sheet (ArtStyle).
@@ -68,7 +85,7 @@ const STEP_HZ := 3.5
 
 
 
-const GUARD_ACTIONS := ["block", "defend", "parry", "cover", "barricade", "harden",
+const GUARD_ACTIONS := ["block", "basic_block", "defend", "parry", "cover", "barricade", "harden",
 		"hold_the_line", "hunker_down", "approach_stance", "magic_barrier", "vengeful_shield"]
 const HOP_ACTIONS := ["roll", "dodge", "bob_and_weave", "heroic_leap", "rise"]
 
@@ -81,6 +98,8 @@ var _body_cell := 32
 var _body_rows: Array = NPC_ROW
 var _body_walk_frames := 4
 var _walk_rows: Array = []         # board rows with a drawn walk cycle (the rest step their pose)
+var _actions: Dictionary = {}      # drawn actions: name -> {tex, cell, frames, rows, t, hold, reverse}
+var _action_sprite: Sprite3D = null  # draws them, the body hidden meanwhile
 var _body_offset := Vector2.ZERO   # the board body's offset with its feet on the ground
 var _hand_scale := 1.0             # held items ride this much higher on a taller hero
 var _shadow_scale := 1.0           # the contact shadow grows with a bigger hero
@@ -121,12 +140,14 @@ func setup(character_name: String) -> void:
 	_shield_front = null
 	_frames = []
 	_walk_rows = []
+	_actions = {}
+	_action_sprite = null
 	var cfg: Dictionary = ROSTER.get(character_name, ROSTER["Brad"])
 	_rig = Node3D.new()
 	_rig.name = "Rig"
 	add_child(_rig)
 	if cfg.has("board"):
-		_setup_board(cfg["board"], cfg.get("walk_rows", []))
+		_setup_board(cfg["board"], cfg.get("walk_rows", []), cfg.get("actions", {}))
 	else:
 		_setup_npc(cfg["npc"])
 	# Contact shadow lives OUTSIDE the rig: hops/knockback move the rig, the
@@ -234,7 +255,7 @@ func _setup_npc(sheet_path: String) -> void:
 ## edge. Drawn finer than the tiles (BOARD_HEIGHT tall); the NPC path does the
 ## rest — the same body sprite, weapon overlay and attack lunge — with one
 ## frame a direction, and walking steps it instead (_process).
-func _setup_board(sheet_path: String, walk_rows: Array = []) -> void:
+func _setup_board(sheet_path: String, walk_rows: Array = [], actions: Dictionary = {}) -> void:
 	_mode = "board"
 	# The smooth look (ArtStyle): the hero's art itself at SMOOTH_DENSITY a
 	# tile, filtered, soft-edged; the pixel sheet otherwise.
@@ -270,6 +291,35 @@ func _setup_board(sheet_path: String, walk_rows: Array = []) -> void:
 	for s in [_shield_back, _shield_front]:
 		s.pixel_size = PIXEL_SIZE * grow
 	_load_weapons()
+	_load_actions(actions)
+
+
+## The hero's drawn actions: each sheet (its smooth twin under the smooth
+## look) at the body's fineness, drawn by one more sprite.
+func _load_actions(actions: Dictionary) -> void:
+	for action_name in actions:
+		var a: Dictionary = actions[action_name]
+		var path: String = a["sheet"]
+		var soft := ArtStyle.smooth_file(path) if smooth else ""
+		var tex: Texture2D = load(soft if soft != "" else path)
+		if tex == null:
+			continue
+		var entry := a.duplicate()
+		entry["tex"] = tex
+		entry["cell"] = int(tex.get_height() / 4)
+		_actions[action_name] = entry
+	if _actions.is_empty():
+		return
+	_action_sprite = _make_sprite(64, 0.0, 0.0)
+	_action_sprite.pixel_size = _npc_sprite.pixel_size
+	_action_sprite.texture_filter = _npc_sprite.texture_filter
+	_action_sprite.alpha_cut = _npc_sprite.alpha_cut
+	_action_sprite.visible = false
+
+
+## The hero has `action` drawn for the way he faces.
+func has_drawn_action(action: String) -> bool:
+	return _actions.has(action) and _body_rows[facing] in _actions[action]["rows"]
 
 
 func _load_weapons() -> void:
@@ -325,6 +375,10 @@ func play_action(action: String, direction: int = CharacterAnimator.Direction.SO
 	set_facing(direction)
 	# Bespoke per-card effects first: ActionFX supplies the signature visual
 	# (icicle, fireball, flying pig, …) and we play a matching body motion.
+	# The designer's drawn actions (Brad's basic attack and block, …).
+	if has_drawn_action(action):
+		_play(action)
+		return
 	if _fx and ActionFX.handles(action):
 		_play_body(ActionFX.body_for(action))
 		_fx.play(action)
@@ -591,6 +645,9 @@ func _play(anim: String, _force: bool = false) -> void:
 			_start_attack(0)
 		"guard_shield":
 			_start_guard()
+		_:
+			if has_drawn_action(anim):
+				_start_drawn_action(anim)
 	_apply_frame()
 
 
@@ -603,6 +660,23 @@ func _start_guard() -> void:
 	_frames = [{"col": 4, "row": DOLL_ROW[facing] + 4, "t": 0.45}]
 	_show_shield = _has_shield and _shield_texture != null and _shield_back != null
 	_shield_in_front = true
+
+
+## A drawn action's frames, then its hold and its play back, if any.
+func _start_drawn_action(action: String) -> void:
+	var a: Dictionary = _actions[action]
+	var row: int = _body_rows[facing]
+	var n: int = a["frames"]
+	_looping = false
+	_attacking = true
+	_show_shield = false
+	_frames = []
+	for c in range(n):
+		_frames.append({"col": c, "row": row, "t": a["t"], "act": action})
+	_frames[n - 1]["t"] = a["t"] + a.get("hold", 0.0)
+	if a.has("reverse"):
+		for c in range(n - 2, -1, -1):
+			_frames.append({"col": c, "row": row, "t": a["reverse"], "act": action})
 
 
 ## An attack's four timed frames (the body lunges on the middle two); no
@@ -671,6 +745,8 @@ func _apply_frame() -> void:
 		return
 	_frame_i = clampi(_frame_i, 0, _frames.size() - 1)
 	var f: Dictionary = _frames[_frame_i]
+	if _apply_drawn_action(f):
+		return
 	if _attacking:
 		var row: int = f["row"]
 		var rect := Rect2(f["col"] * 64, row * 64, 64, 64)
@@ -694,3 +770,25 @@ func _apply_frame() -> void:
 		_npc_sprite.position.z = lunge.z
 		return
 	_npc_sprite.region_rect = Rect2(f["col"] * _body_cell, f["row"] * _body_cell, _body_cell, _body_cell)
+
+
+## Show a drawn action's frame (and hide the body), or put the body back.
+## True when `f` is a drawn action's frame.
+func _apply_drawn_action(f: Dictionary) -> bool:
+	if not f.has("act"):
+		if _action_sprite and _action_sprite.visible:
+			_action_sprite.visible = false
+			_npc_sprite.visible = true
+		return false
+	var a: Dictionary = _actions[f["act"]]
+	var cell: int = a["cell"]
+	_action_sprite.texture = a["tex"]
+	_action_sprite.region_rect = Rect2(f["col"] * cell, f["row"] * cell, cell, cell)
+	# Uncentred: offset.y is the cell's bottom edge, ACTION_FLOOR below the feet.
+	_action_sprite.offset = Vector2(-cell * 0.5, -float(cell) / ACTION_FLOOR)
+	_action_sprite.visible = true
+	_npc_sprite.visible = false
+	if _shield_back:
+		_shield_back.visible = false
+		_shield_front.visible = false
+	return true
