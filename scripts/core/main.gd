@@ -2643,54 +2643,64 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 	if free or (buff_mgr and buff_mgr.consume_steady()):
 		# Steady (or a passive's free swing): resolve immediately with no tempo
 		if player.has_method("play_animation"):
-			player.play_animation("attack_slash", _facing_dir_toward(target))
-		if _blind_misses("Attack", target):
-			_basic_attack_whiff(stats, buff_mgr, debuff_mgr, not basic_attack_proc)
-			return
-		target.take_damage(damage, true)
-		progression_triggers.brad_life_steal(damage)
-		_basic_attack_armor_shred(target)
-		if buff_mgr.last_crit_hit:
-			buff_mgr.last_crit_hit = false
-			progression_triggers._trigger_skill_tree_on_crit(target)
-		# Proc-bonus attacks don't count towards the next cycle
-		if not basic_attack_proc:
-			stats.register_attack()
-			if stats.consume_free_hand_echo() and is_instance_valid(target):
-				target.take_damage(damage, true)
-				progression_triggers.brad_life_steal(damage)
-				_basic_attack_armor_shred(target)
-				add_battle_log("Free hand echo! The strike lands twice.", Color(1.0, 0.9, 0.4))
-		if debuff_mgr:
-			debuff_mgr.on_attack()
-		add_battle_log("Attack: %d damage to %s (Steady!)" % [damage, target.enemy_name], Color(0.4, 1.0, 0.5))
-		print("[MAIN] Basic Attack (Steady): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
-		_ring_note_big_hit(damage)
-		_belthronding_share(player.position, damage, player)
-		PlayerStats.hit_source_offensive = false
-		PlayerStats.hit_source_direct = false
+			player.play_animation("basic_attack", _facing_dir_toward(target))
+		# The blow lands on the animation's hit frame (the swing hold waits).
+		var land := func() -> void:
+			if not is_instance_valid(target) or (target is Enemy and target.is_dead):
+				return
+			if _blind_misses("Attack", target):
+				_basic_attack_whiff(stats, buff_mgr, debuff_mgr, not basic_attack_proc)
+				return
+			target.take_damage(damage, true)
+			progression_triggers.brad_life_steal(damage)
+			_basic_attack_armor_shred(target)
+			if buff_mgr.last_crit_hit:
+				buff_mgr.last_crit_hit = false
+				progression_triggers._trigger_skill_tree_on_crit(target)
+			# Proc-bonus attacks don't count towards the next cycle
+			if not basic_attack_proc:
+				stats.register_attack()
+				if stats.consume_free_hand_echo() and is_instance_valid(target):
+					target.take_damage(damage, true)
+					progression_triggers.brad_life_steal(damage)
+					_basic_attack_armor_shred(target)
+					add_battle_log("Free hand echo! The strike lands twice.", Color(1.0, 0.9, 0.4))
+			if debuff_mgr:
+				debuff_mgr.on_attack()
+			add_battle_log("Attack: %d damage to %s (Steady!)" % [damage, target.enemy_name], Color(0.4, 1.0, 0.5))
+			print("[MAIN] Basic Attack (Steady): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
+			_ring_note_big_hit(damage)
+			_belthronding_share(player.position, damage, player)
+			PlayerStats.hit_source_offensive = false
+			PlayerStats.hit_source_direct = false
+		_after_hit(_hit_wait("basic_attack", target), land)
 	elif tempo_cost <= 0:
 		# Dex proc reduced tempo to 0: resolve immediately
 		if player.has_method("play_animation"):
-			player.play_animation("attack_slash", _facing_dir_toward(target))
-		if _blind_misses("Attack", target):
-			_basic_attack_whiff(stats, buff_mgr, debuff_mgr, false)
-			return
-		target.take_damage(damage, true)
-		progression_triggers.brad_life_steal(damage)
-		_basic_attack_armor_shred(target)
-		if buff_mgr and buff_mgr.last_crit_hit:
-			buff_mgr.last_crit_hit = false
-			progression_triggers._trigger_skill_tree_on_crit(target)
-		# Proc-bonus attack: don't count towards next cycle
-		if debuff_mgr:
-			debuff_mgr.on_attack()
-		add_battle_log("Attack: %d damage to %s (Proc!)" % [damage, target.enemy_name], Color(1.0, 0.3, 0.3))
-		print("[MAIN] Basic Attack (Dex Proc): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
-		_ring_note_big_hit(damage)
-		_belthronding_share(player.position, damage, player)
-		PlayerStats.hit_source_offensive = false
-		PlayerStats.hit_source_direct = false
+			player.play_animation("basic_attack", _facing_dir_toward(target))
+		# The blow lands on the animation's hit frame (the swing hold waits).
+		var land := func() -> void:
+			if not is_instance_valid(target) or (target is Enemy and target.is_dead):
+				return
+			if _blind_misses("Attack", target):
+				_basic_attack_whiff(stats, buff_mgr, debuff_mgr, false)
+				return
+			target.take_damage(damage, true)
+			progression_triggers.brad_life_steal(damage)
+			_basic_attack_armor_shred(target)
+			if buff_mgr and buff_mgr.last_crit_hit:
+				buff_mgr.last_crit_hit = false
+				progression_triggers._trigger_skill_tree_on_crit(target)
+			# Proc-bonus attack: don't count towards next cycle
+			if debuff_mgr:
+				debuff_mgr.on_attack()
+			add_battle_log("Attack: %d damage to %s (Proc!)" % [damage, target.enemy_name], Color(1.0, 0.3, 0.3))
+			print("[MAIN] Basic Attack (Dex Proc): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
+			_ring_note_big_hit(damage)
+			_belthronding_share(player.position, damage, player)
+			PlayerStats.hit_source_offensive = false
+			PlayerStats.hit_source_direct = false
+		_after_hit(_hit_wait("basic_attack", target), land)
 	else:
 		# Queue basic attack through the ticked tempo system (the resolve
 		# raises the hit-source flags again when the swing lands).
@@ -2728,6 +2738,27 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 
 		add_battle_log("Winding up Attack on %s (resolves tick %d/%d)" % [target.enemy_name, resolve_tick, tempo_cost], Color(1.0, 0.85, 0.4))
 		print("[MAIN] Basic Attack queued: %d damage to %s (%d tempo, resolve tick %d)" % [damage, target.enemy_name, tempo_cost, resolve_tick])
+
+## The hit wait (designer, 2026-10-31): a hero's drawn attack lands its
+## blow partway through (the hit frame, SpriteFigure "hit"), so the damage
+## waits for it: seconds from the swing's start to the blow, 0 when the
+## figure draws nothing that way or the swing hold is off in Settings.
+func _hit_wait(action: String, target) -> float:
+	if not TempoManager.swing_hold_enabled() or not player or not player.has_method("hit_delay"):
+		return 0.0
+	return player.hit_delay(action, _facing_dir_toward(target))
+
+## Run `land` after `seconds` (now when 0), the tick clock held meanwhile so
+## nothing else resolves before the blow lands.
+func _after_hit(seconds: float, land: Callable) -> void:
+	if seconds <= 0.0:
+		land.call()
+		return
+	if tempo_manager:
+		tempo_manager.hold_for(seconds + TempoManager.SWING_HOLD_BEAT)
+	get_tree().create_timer(seconds).timeout.connect(func() -> void:
+		if is_instance_valid(player):
+			land.call())
 
 ## A blinded swing that missed: like a blinded Attack card it still counts
 ## as an attack swung (the DEX counter, Burn's on-attack sting) and keeps
@@ -2780,7 +2811,7 @@ func _on_block_pressed() -> void:
 
 	# Pound the chest + raise the shield icon.
 	if player.has_method("play_animation"):
-		player.play_animation("block", CharacterAnimator.Direction.SOUTH)
+		player.play_animation("basic_block", CharacterAnimator.Direction.SOUTH)
 
 	# No Weighted surcharge: Weighted taxes card plays, and Block is not one.
 	var tempo_cost := BASIC_BLOCK_TEMPO
@@ -8887,6 +8918,12 @@ func _on_card_ticks_started(card: Card) -> void:
 	if progression_triggers:
 		progression_triggers.on_card_ticks_started(card)
 
+## The hit frame came: the card waiting on it resolves (as its owner, in
+## co-op), the target checked again as it does.
+func _land_queued_entry(entry: Dictionary) -> void:
+	_pending_resolve_queue.push_front(entry)
+	_on_card_tick_resolved(entry["card"])
+
 func _on_card_tick_resolved(card: Card) -> void:
 	## Called by TempoManager when a card's resolve_tick is reached. In co-op the
 	## resolving card may belong to the player NOT currently being controlled, so
@@ -9067,11 +9104,31 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 			update_deck_info()
 		return
 
+	# The hit wait: a drawn attack's blow lands partway through its swing,
+	# so the swing starts now and the card resolves on the hit frame (the
+	# entry goes back in the queue meanwhile, and the target is checked
+	# again then). The second pass skips this and the animation.
+	if not data.get("hit_landing", false):
+		var swing := "basic_attack" if data.get("is_basic_attack", false) else card.get_animation_action()
+		var wait := _hit_wait(swing, target)
+		if wait > 0.0:
+			data["hit_landing"] = true
+			data["anim_played"] = true
+			if data.get("is_basic_attack", false):
+				if player.has_method("play_animation"):
+					player.play_animation("basic_attack", _facing_dir_toward(target))
+					if target is Node3D and is_instance_valid(target) and player.has_method("face_toward"):
+						player.face_toward(target.position)
+			else:
+				_play_card_animation(card, target)
+			_after_hit(wait, func() -> void: _land_queued_entry(entry))
+			return
+
 	# --- Basic attack resolution: deal damage directly ---
 	if data.get("is_basic_attack", false):
 		# Swing exactly when the hit lands (facing wherever the target is NOW).
-		if player.has_method("play_animation"):
-			player.play_animation("attack_slash", _facing_dir_toward(target))
+		if not data.get("anim_played", false) and player.has_method("play_animation"):
+			player.play_animation("basic_attack", _facing_dir_toward(target))
 			if target is Node3D and is_instance_valid(target) and player.has_method("face_toward"):
 				player.face_toward(target.position)
 		var damage = data["basic_attack_damage"]
@@ -9121,7 +9178,8 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 
 	# The action happens NOW — play the character's animation at resolution
 	# rather than back when the card was played and the wind-up began.
-	_play_card_animation(card, target)
+	if not data.get("anim_played", false):
+		_play_card_animation(card, target)
 
 	# Harnessed Power (Jeremy): scale everything this card produces.
 	if data.get("harnessed_power_applied", false):

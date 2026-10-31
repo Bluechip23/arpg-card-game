@@ -1029,6 +1029,12 @@ func get_animation_action() -> String:
 	# Per-card bespoke animations take priority over the card-type default.
 	# Each maps to a case in SpriteFigure.play_action() / ActionFX.play().
 	match card_id:
+		# The basic Attack and Block: each hero's own drawn attack and block
+		# (SpriteFigure ROSTER "actions"), shared with the auto attack and the
+		# shield's block button; a hero not yet drawn falls back to the lunge
+		# and the guard.
+		"slash", "basic_attack": return "basic_attack"
+		"block": return "basic_block"
 		# Brad — bespoke motion
 		"approach": return "approach_stance"
 		"charge": return "charge"

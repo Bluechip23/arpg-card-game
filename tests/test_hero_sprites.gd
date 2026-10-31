@@ -61,17 +61,46 @@ func _initialize() -> void:
 				"%s facing %d keeps the hero's proportions (%d vs front %d)" % [hero, d, u.size.y, front.size.y])
 			_check(u.end.y == f._body_cell, "%s facing %d stands on the cell's floor" % [hero, d])
 		_check(rows.size() == 4, "%s has a pose for each direction" % hero)
-		# Walking: one pose, so the body steps up and back down.
+		# Walking with one pose (no drawn walk cycle that way): the body steps
+		# up and back down.
 		f.set_facing(D.EAST)
 		f.set_walking(true)
 		var lifts := {}
 		for _i in range(12):
 			f._process(0.05)
 			lifts[body.offset.y - f._body_offset.y] = true
-		_check(lifts.size() == 2 and lifts.has(0.0), "%s steps while walking (%s)" % [hero, lifts.keys()])
+		if f._strides():
+			_check(lifts.size() == 1 and lifts.has(0.0), "%s strides east without stepping" % hero)
+		else:
+			_check(lifts.size() == 2 and lifts.has(0.0), "%s steps while walking (%s)" % [hero, lifts.keys()])
 		f.set_walking(false)
 		f._process(0.05)
 		_check(body.offset == f._body_offset, "%s stands on the ground when still" % hero)
+		# A drawn walk cycle (2026-10-31: Stephen, Jeremy, Ryan): facing a
+		# way that has one, the hero strides through eight frames on the
+		# ground, and stands on column 0 again when he stops.
+		if not f._walk_rows.is_empty():
+			f.set_facing(D.SOUTH)
+			f.set_walking(true)
+			var cols := {}
+			var grounded := true
+			for _i in range(16):
+				f._process(SpriteFigure.BOARD_WALK_TIME)
+				cols[int(body.region_rect.position.x / f._body_cell)] = true
+				grounded = grounded and body.offset == f._body_offset
+			_check(grounded, "%s strides without stepping" % hero)
+			_check(cols.size() == 8 and not cols.has(0), "%s strides through his walk frames (%s)" % [hero, cols.keys()])
+			for d in [D.SOUTH, D.NORTH, D.EAST, D.WEST]:
+				f.set_facing(d)
+				if not f._strides():
+					continue
+				for c in range(1, 9):
+					var u := _used(body.texture, Rect2(c * f._body_cell, body.region_rect.position.y, f._body_cell, f._body_cell))
+					_check(u.size.y > 0 and absf(u.size.y - front.size.y) <= front.size.y * 0.12 and u.end.y == f._body_cell,
+						"%s facing %d walk frame %d stands his height on the floor (%d)" % [hero, d, c, u.size.y])
+			f.set_walking(false)
+			f._process(0.05)
+			_check(body.region_rect.position.x == 0.0, "%s stands in his still pose when he stops" % hero)
 		# Attacks lunge the body toward the target; no weapon is drawn (the
 		# pack's weapon swing was deleted for the designer's own, 2026-10-30).
 		f.set_weapon_kind("sword", false)
@@ -83,6 +112,54 @@ func _initialize() -> void:
 		_check(lunged, "%s lunges into the attack" % hero)
 		_check(not ("_weapon_front" in f), "%s carries no weapon layer" % hero)
 		f.free()
+	# Brad's drawn basic attack and block (2026-10-31): the action sprite
+	# plays the sheet (the body hidden), feet on the ground line, and gives
+	# the body back when done; facing north the block has no drawing, so
+	# the old guard plays.
+	for hero in ["Brad", "Cory", "Jeremy", "Stephen", "Ryan"]:
+		var fig := SpriteFigure.new()
+		get_root().add_child(fig)
+		fig.setup(hero)
+		for action in ["basic_attack", "basic_block"]:
+			var a: Dictionary = fig._actions.get(action, {})
+			_check(not a.is_empty(), "%s has his drawn %s" % [hero, action])
+			if a.is_empty():
+				continue
+			var cell: int = a["cell"]
+			var still := _used(a["tex"], Rect2(0, 0, cell, cell))
+			_check(absi(still.end.y - (cell - cell / SpriteFigure.ACTION_FLOOR)) <= 1,   # (a texel's rounding)
+				"%s's %s stands on its ground line (%d of %d)" % [hero, action, still.end.y, cell])
+			_check(absf(still.size.y * fig._npc_sprite.pixel_size - SpriteFigure.BOARD_HEIGHT) < 0.06,
+				"%s's %s stands his height (%.2f tiles)" % [hero, action, still.size.y * fig._npc_sprite.pixel_size])
+			fig.play_action(action, D.EAST)
+			_check(fig._action_sprite.visible and not fig._npc_sprite.visible,
+				"%s's %s draws in place of his body" % [hero, action])
+			var cols := {}
+			for _i in range(120):
+				fig._process(0.03)
+				if fig._action_sprite.visible:
+					cols[int(fig._action_sprite.region_rect.position.x / cell)] = true
+			_check(cols.size() == int(a["frames"]), "%s's %s plays all %d frames (%d)" % [hero, action, a["frames"], cols.size()])
+			_check(not fig._action_sprite.visible and fig._npc_sprite.visible and not fig._attacking,
+				"%s stands again after his %s" % [hero, action])
+		fig.free()
+	var brad := SpriteFigure.new()
+	get_root().add_child(brad)
+	brad.setup("Brad")
+	brad.play_action("basic_block", D.NORTH)
+	_check(not brad._action_sprite.visible and brad._npc_sprite.visible,
+		"Brad's block facing north (not drawn) keeps the old guard")
+	brad.free()
+	var undrawn := SpriteFigure.new()
+	get_root().add_child(undrawn)
+	undrawn.setup("Dog")
+	undrawn.play_action("basic_attack", D.EAST)
+	_check(undrawn._action_sprite == null and undrawn._attacking, "a figure with nothing drawn lunges into its basic attack")
+	undrawn.free()
+	var slash := Card.create_by_id("slash")
+	var block := Card.create_by_id("block")
+	_check(slash.get_animation_action() == "basic_attack" and block.get_animation_action() == "basic_block",
+		"the Attack and Block cards play the basic attack and block")
 	# The NPC mode still draws the dojo's ally dogs.
 	var dog := SpriteFigure.new()
 	get_root().add_child(dog)
@@ -95,7 +172,7 @@ func _initialize() -> void:
 	var cory := tex.get_image()
 	if cory.is_compressed():
 		cory.decompress()
-	var cell := cory.get_width()
+	var cell := cory.get_height() / 4   # (columns past the first: his walk cycle)
 	for row in [0, 2, 3]:
 		var blue := 0
 		for y in range(row * cell, row * cell + cell / 3):

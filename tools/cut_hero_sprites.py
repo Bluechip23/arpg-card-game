@@ -44,6 +44,12 @@ pieces near its size survive). Poses are packed bottom-centred into square
 cells, one column, rows in CharacterAnimator order: south (front), north
 (back), east, west; a missing side is the mirror of the other.
 
+Walk cycles (WALKS): a hero with the designer's walk board
+(eight frames a direction on a ruled grid)
+(all five heroes, 2026-10-31) gets them as columns 1.. beside the still pose in column 0, at the still
+poses' scale and on their shared palette; SpriteFigure strides through them
+instead of stepping the still pose up and down.
+
 Output: assets/sprites/generated/heroes/<hero>.png
 Run: python3 tools/cut_hero_sprites.py   (Pillow, numpy; opencv-python-headless
 for Stephen's bow)
@@ -131,6 +137,71 @@ HEROES = {
         (STEPHEN, (305, 286, 442, 620), "west"),
     ],
 }
+
+# Walk boards: (source, grid-line x's, grid-line y's, the facing each grid
+# row draws, facings left out, ground). The cells sit between consecutive
+# lines. Ground None: the figures are cut on the board's own alpha;
+# "opaque": the board is painted on a dark ground with a soft glow behind
+# the figure, fitted and filled in from each cell's edge (cut_opaque_cell). Stephen's board (2026-10-31):
+# back, front, left, right rows. Its right row is left out: from frame 3 on
+# it shows the bear arm on his near side, the mistake the designer had fixed
+# on his still pose (2026-10-28); the redrawn row is its own board
+# (WALK_EXTRA).
+WALK_CELL_INSET = 4   # px kept clear of the grid lines
+WALK_ALPHA = 40       # source alpha over this is figure (for finding it; the
+                      # cut keeps the soft alpha for the resample)
+WALKS = {
+    "stephen": ("stephen_walk_board.webp",
+                [92, 226, 359, 490, 619, 749, 872, 994, 1118],
+                [10, 182, 344, 503, 669],
+                ["north", "south", "west", "east"],
+                {"east"}, None),
+    # 2026-10-31: Ryan's walk board, on a dark plum ground with a soft
+    # shadow under the feet: back, front, left, right rows, all used.
+    "ryan": ("ryan_walk_board.webp",
+             [126, 308, 490, 669, 850, 1031, 1204, 1373, 1528],
+             [10, 246, 469, 688, 909],
+             ["north", "south", "west", "east"],
+             set(), "opaque"),
+    # 2026-10-31: Jeremy's walk board, the same layout and ground as Ryan's
+    # (his rings already painted on), all four rows used.
+    "jeremy": ("jeremy_walk_board.webp",
+               [126, 309, 489, 668, 844, 1019, 1194, 1368, 1526],
+               [11, 247, 471, 685, 910],
+               ["north", "south", "west", "east"],
+               set(), "opaque"),
+    # 2026-10-31: Cory's and Brad's walk boards, the same layout and ground.
+    "cory": ("cory_walk_board.webp",
+             [125, 309, 490, 670, 846, 1022, 1196, 1359, 1526],
+             [14, 247, 470, 686, 910],
+             ["north", "south", "west", "east"],
+             set(), "opaque"),
+    "brad": ("brad_walk_board.webp",
+             [126, 307, 489, 670, 850, 1030, 1209, 1382, 1526],
+             [12, 244, 469, 687, 907],
+             ["north", "south", "west", "east"],
+             set(), "opaque"),
+}
+# A direction redrawn on a board of its own, in WALKS' form: Stephen's right
+# (2026-10-31, "Walk Right (Corrected)": his human arm on the near side,
+# where his main board's right row showed the bear arm).
+WALK_EXTRA = {
+    "stephen": [("stephen_walk_right_board.webp",
+                 [10, 234, 458, 683, 907, 1122, 1341, 1562, 1770], [87, 738],
+                 ["east"], set(), "opaque")],
+}
+# The opaque boards' ground, fitted a cell (_ground_fit): within
+# WALK_GROUND_TOL of the fit (max channel) and reached from the edge is ground;
+# enclosed pockets of it (between arm and body) WALK_POCKET_MIN px or more,
+# as flat as the ground, go too; then WALK_HALO_PEEL passes take the
+# in-between tones (within BLEND_TOL: the foot shadow's rim) off the edge.
+WALK_GROUND_TOL = 10
+WALK_POCKET_MIN = 40
+WALK_HALO_PEEL = 2
+WALK_FIT_PASSES = 4   # ground fits, each to what the last fill reached
+NARROW_CREEP = 8      # px the narrow fill creeps past its wide openings
+HAZE_DARK = 60        # haze (cut_opaque_cell): no channel brighter than this...
+HAZE_FLAT = 4.0       # ...and as smooth as the ground (5x5 spread)
 
 # The sources' ground: a flat dark grey (with a few levels of compression
 # noise). Anything within GROUND_TOL of it, reached from the crop's edge, is
@@ -406,6 +477,112 @@ def _clear_ground(rgb, solid, ground):
     return solid
 
 
+def cut_walk(hero):
+    """The hero's walk frames: {facing: [full-size RGBA cut-outs]}, plus the
+    source height the south frames reach (their scale's reference)."""
+    out = cut_walk_board(*WALKS[hero])
+    return out, max(f.height for f in out["south"])
+
+
+def cut_walk_board(path, xs, ys, facings, skip, ground):
+    """One walk board's frames: {facing: [full-size RGBA cut-outs]}."""
+    import cv2  # tool dependency (opencv-python-headless)
+    board = np.asarray(Image.open(SRC % path).convert("RGBA"))
+    out = {}
+    for r, facing in enumerate(facings):
+        if facing in skip:
+            continue
+        frames = []
+        for c in range(len(xs) - 1):
+            i = WALK_CELL_INSET
+            cell = board[ys[r] + i:ys[r + 1] - i + 1, xs[c] + i:xs[c + 1] - i + 1]
+            if ground == "opaque":
+                cell = cut_opaque_cell(cell)
+            solid = (cell[..., 3] > WALK_ALPHA).astype(np.uint8)
+            n, lab, stats, _ = cv2.connectedComponentsWithStats(solid, connectivity=8)
+            biggest = stats[1:, 4].max()
+            keep = np.zeros(solid.shape, bool)
+            for k in range(1, n):
+                if stats[k][4] >= biggest * KEEP_SHARE:
+                    keep |= lab == k
+            # The soft edge round what is kept, nothing else in the cell.
+            near = cv2.dilate(keep.astype(np.uint8), np.ones((5, 5), np.uint8)) > 0
+            f = cell.copy()
+            f[~near] = 0
+            yy, xx = np.nonzero(keep)
+            frames.append(Image.fromarray(f[yy.min():yy.max() + 1, xx.min():xx.max() + 1], "RGBA"))
+        out[facing] = frames
+    return out
+
+
+def _ground_fit(rgb, mask):
+    """The ground as a smooth field: a cubic in (x, y) a channel, fitted to
+    the pixels in `mask` (the boards' ground is a soft glow, brightest
+    behind the figure, that no single colour matches)."""
+    h, w, _ = rgb.shape
+    yy, xx = np.mgrid[0:h, 0:w]
+    u, v = xx / float(w) - 0.5, yy / float(h) - 0.5
+    terms = [np.ones_like(u), u, v, u * u, u * v, v * v, u ** 3, u * u * v, u * v * v, v ** 3]
+    A = np.stack([t[mask] for t in terms], axis=1)
+    step = max(1, len(A) // 6000)
+    coef, *_ = np.linalg.lstsq(A[::step], rgb[mask][::step].astype(float), rcond=None)
+    return np.tensordot(np.stack(terms, axis=-1), coef, axes=1)
+
+
+def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0):
+    """One cell of an opaque walk board, its ground made transparent (hard
+    alpha). The ground is fitted as a smooth glow (_ground_fit) and filled in
+    from the cell's edge wherever a pixel is within WALK_GROUND_TOL of it,
+    refitting to what the fill reached a few times; the figure's own dark
+    outline stops the fill, so cloth as dark as the ground (Cory's robe)
+    stays. Then its enclosed pockets (unless `pockets` is off: a shadow as
+    dark as the ground inside the figure, like the back of Stephen's neck)
+    and the halo round the figure go. `haze`: a soft glow round an effect
+    (the flash of Stephen's crossed knives), dark and as smooth as the
+    ground but off its colour, is ground too. `narrow`: the fill only gets
+    through openings at least this many px wide (then creeps NARROW_CREEP px
+    on), so a shadow as dark as the ground reached through a slit (the back
+    of Stephen's neck, between hair and hood) stays."""
+    import cv2  # tool dependency (opencv-python-headless)
+    rgb = cell[..., :3].astype(int)
+    h, w, _ = rgb.shape
+    edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
+           [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
+    ground = np.zeros((h, w), bool)
+    ground[:6] = ground[-6:] = True
+    ground[:, :6] = ground[:, -6:] = True
+    f = rgb.astype(np.float32)
+    mean = cv2.blur(f, (5, 5))
+    spread = np.sqrt(np.maximum(cv2.blur(f * f, (5, 5)) - mean * mean, 0)).max(axis=2)
+    soft = (rgb.max(axis=2) < HAZE_DARK) & (spread <= HAZE_FLAT) if haze else np.zeros((h, w), bool)
+    for _ in range(WALK_FIT_PASSES):
+        model = _ground_fit(rgb, ground & ~soft)
+        off = np.abs(rgb - model).max(axis=2)
+        near = off <= WALK_GROUND_TOL
+        open_ = near | soft
+        if narrow:
+            k = np.ones((narrow, narrow), np.uint8)
+            core = _flood(cv2.morphologyEx(open_.astype(np.uint8), cv2.MORPH_OPEN, k) > 0, edge)
+            for _ in range(NARROW_CREEP):
+                core |= (cv2.dilate(core.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0) & open_
+            ground = core
+        else:
+            ground = _flood(open_, edge)
+    solid = ~ground
+    flat = (solid & near & (spread <= POCKET_FLAT) & pockets).astype(np.uint8)
+    n, lab, stats, _ = cv2.connectedComponentsWithStats(flat, connectivity=4)
+    k = np.ones((3, 3), np.uint8)
+    for j in range(1, n):
+        if stats[j][4] >= WALK_POCKET_MIN:
+            piece = (cv2.dilate((lab == j).astype(np.uint8), k) > 0) & near
+            solid &= ~piece
+    blend = off <= BLEND_TOL
+    for _ in range(WALK_HALO_PEEL):
+        open_ = cv2.dilate((~solid).astype(np.uint8), k) > 0
+        solid &= ~(open_ & blend)
+    return np.dstack([rgb.astype(np.uint8), np.where(solid, 255, 0).astype(np.uint8)])
+
+
 def resample(img, factor):
     """Down by `factor` (and WIDEN times less across) with a sharp (Lanczos)
     filter on premultiplied colour, then on/off alpha: crisp pixel edges, the
@@ -531,6 +708,27 @@ def build(hero, poses):
         factor = scale[1] if path == scale[0] and hero not in MATCH_HEIGHT else img.height / float(ref_h)
         full[facing] = resample(img, factor)
         soft[facing] = soft_frame(img, factor)
+    if hero in WALKS:
+        walks, ref = cut_walk(hero)
+        wf = ref / float(HEIGHT)
+        for d, frames in walks.items():
+            for i, img in enumerate(frames):
+                # The opaque boards' figures are dark-clad on a dark ground:
+                # peeling their outline would eat gloves and cloth.
+                if not OUTLINE and WALKS[hero][5] != "opaque":
+                    img = peel_painted_outline(img)
+                full[(d, i)] = resample(img, wf)
+                soft[(d, i)] = soft_frame(img, wf)
+    # A direction redrawn on a board of its own (WALK_EXTRA), at its own
+    # size: its tallest frame stands as tall as the main board's.
+    for board in WALK_EXTRA.get(hero, []):
+        for d, frames in cut_walk_board(*board).items():
+            ef = max(f.height for f in frames) / float(HEIGHT)
+            for i, img in enumerate(frames):
+                if not OUTLINE and board[5] != "opaque":
+                    img = peel_painted_outline(img)
+                full[(d, i)] = resample(img, ef)
+                soft[(d, i)] = soft_frame(img, ef)
     full = {d: vibrance(f) for d, f in full.items()}
     full = tidy_palette(full)
     frames = {}
@@ -541,12 +739,15 @@ def build(hero, poses):
         frames["east"] = frames["west"].transpose(Image.FLIP_LEFT_RIGHT)
     if "west" not in frames:
         frames["west"] = frames["east"].transpose(Image.FLIP_LEFT_RIGHT)
+    cols = 1 + max([k[1] + 1 for k in frames if isinstance(k, tuple)] or [0])
     cell = max(max(f.size) for f in frames.values()) + 2
     cell += cell % 2
-    sheet = Image.new("RGBA", (cell, cell * len(ROWS)))
+    sheet = Image.new("RGBA", (cell * cols, cell * len(ROWS)))
     for r, d in enumerate(ROWS):
-        f = frames[d]
-        sheet.paste(f, ((cell - f.width) // 2, r * cell + cell - f.height), f)
+        for c in range(cols):
+            f = frames.get(d if c == 0 else (d, c - 1))
+            if f is not None:
+                sheet.paste(f, (c * cell + (cell - f.width) // 2, r * cell + cell - f.height), f)
     os.makedirs(os.path.dirname(OUT % hero), exist_ok=True)
     sheet.save(OUT % hero)
     # The smooth version, kept beside the pixel sheet.
@@ -561,8 +762,10 @@ def build(hero, poses):
     scell += scell % 2
     sout = os.path.join(smooth_art.ROOT, "heroes", "%s.png" % hero)
     os.makedirs(os.path.dirname(sout), exist_ok=True)
-    smooth_art.pack([[soft[d]] for d in ROWS], scell, 1, lambda row, ci: row[0], air=0).save(sout)
-    print("%-7s cell %d: %s" % (hero, cell, ", ".join("%s %dx%d" % (d, frames[d].width, frames[d].height) for d in ROWS)))
+    blank = Image.new("RGBA", (1, 1))
+    grid = [[soft[d]] + [soft.get((d, c - 1), blank) for c in range(1, cols)] for d in ROWS]
+    smooth_art.pack(grid, scell, cols, lambda row, ci: row[ci], air=0).save(sout)
+    print("%-7s cell %d, %d col(s): %s" % (hero, cell, cols, ", ".join("%s %dx%d" % (d, frames[d].width, frames[d].height) for d in ROWS)))
 
 
 def main():
