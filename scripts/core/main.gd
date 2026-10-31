@@ -13339,6 +13339,12 @@ func _is_ui_window_open() -> bool:
 		return true
 	return false
 
+## Whether the pointer is over a GUI control that takes the mouse (a menu,
+## panel, button, the log...): the open battlefield has none.
+func _pointer_over_gui() -> bool:
+	var c := get_viewport().gui_get_hovered_control()
+	return c != null and c.is_visible_in_tree()
+
 func _input(event: InputEvent) -> void:
 	# Both heroes are down — the defeat overlay takes over.
 	if _co_op_defeated:
@@ -13359,6 +13365,13 @@ func _input(event: InputEvent) -> void:
 		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 			chest_loot_ui._close_chest_modal()
 		return
+
+	# Typing into a menu's text box (a search field, a number spinner) is the
+	# box's, not a hotkey for the game behind it.
+	if event is InputEventKey:
+		var focus := get_viewport().gui_get_focus_owner()
+		if focus is LineEdit or focus is TextEdit or focus is SpinBox:
+			return
 
 	if event is InputEventKey and event.pressed and not event.echo:
 		# Chest / waypoint / cave / building interaction (Shift key)
@@ -13513,6 +13526,15 @@ func _input(event: InputEvent) -> void:
 			if trade_ui:
 				trade_ui.close()
 	
+	# Over a menu or panel (the log, the sandbox, a tooltip, any HUD window):
+	# the mouse belongs to it — its wheel scrolls it, a drag drags in it, a
+	# click clicks it — and never zooms, pans or orders the battlefield
+	# behind it (designer, 2026-10-31).
+	if event is InputEventMouseButton and _pointer_over_gui():
+		if not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			_camera_panning = false
+		return
+
 	# Left click - play card or use gauntlet skill
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		# Mythic reveal sequence: clicking the present opens it; clicking the
