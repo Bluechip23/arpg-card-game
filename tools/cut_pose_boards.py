@@ -445,11 +445,11 @@ BOARDS = {
         # four labelled rows on black (NORTH (FRONT), SOUTH (BACK), LEFT,
         # RIGHT, the board's "north" facing the camera), the bear on a
         # painted floor shadow, ten frames a row: the stance twice, a paw
-        # raised, the swipe, the paw coming down, a hunkered crouch, then
-        # a knock-down (flat, then on its back), rising, and the stance.
-        # The swipe is the Attack; the knock-down frames are not cut (a
-        # death sheet, if the designer wants one). The stance is the
-        # height reference, matched to each facing's Idle.
+        # raised, the swipe, the paw coming down, a hunkered crouch, flat
+        # on its face, rolled onto its back, rising, and the stance. The
+        # whole of it is the Attack: a cute little bear that swipes, goes
+        # over in a heap and scrambles back up (designer, 2026-11-01). The
+        # stance is the height reference, matched to each facing's Idle.
         "actions": {
             "src": "mini_bear_attack_board.webp",
             "shadow_band": 0.10,
@@ -464,6 +464,9 @@ BOARDS = {
                     "swipe": (558, 85, 681, 248),
                     "follow": (705, 93, 819, 248),
                     "settle": (841, 103, 962, 248),
+                    "flat": (974, 140, 1110, 248),
+                    "roll": (1114, 124, 1250, 248),
+                    "rise": (1257, 112, 1384, 248),
                 },
                 "back": {
                     "stance": (129, 315, 241, 480),
@@ -471,6 +474,9 @@ BOARDS = {
                     "swipe": (551, 315, 680, 480),
                     "follow": (700, 320, 822, 480),
                     "settle": (845, 333, 964, 480),
+                    "flat": (980, 366, 1113, 480),
+                    "roll": (1119, 352, 1253, 480),
+                    "rise": (1264, 342, 1392, 480),
                 },
                 "left": {
                     "stance": (114, 552, 251, 688),
@@ -478,6 +484,9 @@ BOARDS = {
                     "swipe": (538, 545, 677, 688),
                     "follow": (681, 553, 819, 688),
                     "settle": (823, 574, 966, 688),
+                    "flat": (970, 593, 1113, 688),
+                    "roll": (1113, 571, 1246, 688),
+                    "rise": (1246, 566, 1385, 688),
                 },
                 "right": {
                     "stance": (114, 764, 255, 900),
@@ -485,10 +494,13 @@ BOARDS = {
                     "swipe": (541, 755, 682, 900),
                     "follow": (691, 766, 826, 900),
                     "settle": (831, 787, 974, 900),
+                    "flat": (980, 807, 1123, 900),
+                    "roll": (1116, 786, 1249, 900),
+                    "rise": (1250, 779, 1393, 900),
                 },
             },
             "sheets": {
-                "Attack": ["raise", "swipe", "follow", "settle"],
+                "Attack": ["raise", "swipe", "follow", "settle", "flat", "roll", "rise"],
             },
         },
     },
