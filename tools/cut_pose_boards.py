@@ -906,6 +906,53 @@ BOARDS = {
             "left": (241, 508, 358, 929),
             "right": (678, 510, 794, 929),
         },
+        # 2026-11-01: the designer's attack board — zombie_attack_board.webp,
+        # four labelled rows on black (NORTH (FRONT), SOUTH (BACK), WEST
+        # (LEFT), EAST (RIGHT), the board's "north" facing the camera), the
+        # flies still about its head: the stance, the arms coming up, the
+        # reach, the grab with both arms thrown forward, the arms drawing
+        # back, and the stance twice. The flies are loose specks and fall
+        # away as on the pose board. The stance is the height reference,
+        # matched to each facing's Idle.
+        "actions": {
+            "src": "zombie_attack_board.webp",
+            "shadow_band": 0.06,
+            "fill_holes": 7,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (190, 10, 295, 245),
+                    "ready": (380, 25, 492, 245),
+                    "reach": (565, 30, 692, 245),
+                    "grab": (760, 30, 908, 245),
+                    "recover": (950, 30, 1096, 245),
+                },
+                "back": {
+                    "stance": (190, 258, 295, 495),
+                    "ready": (372, 268, 510, 495),
+                    "reach": (560, 270, 706, 495),
+                    "grab": (760, 268, 908, 495),
+                    "recover": (960, 268, 1100, 495),
+                },
+                "left": {
+                    "stance": (190, 508, 280, 738),
+                    "ready": (375, 518, 490, 738),
+                    "reach": (537, 525, 686, 738),
+                    "grab": (735, 515, 888, 738),
+                    "recover": (942, 515, 1086, 738),
+                },
+                "right": {
+                    "stance": (195, 750, 285, 985),
+                    "ready": (388, 762, 497, 985),
+                    "reach": (575, 765, 727, 985),
+                    "grab": (782, 758, 934, 985),
+                    "recover": (986, 760, 1114, 985),
+                },
+            },
+            "sheets": {
+                "Attack": ["ready", "reach", "grab", "recover"],
+            },
+        },
     },
     "rat_king": {
         # 2026-10-26: the Rat King, redrawn — a hulking black rat in a spiked
