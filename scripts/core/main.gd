@@ -16374,7 +16374,7 @@ func _ensure_loot_tooltip() -> void:
 	style.content_margin_bottom = 6
 	_loot_tooltip.add_theme_stylebox_override("panel", style)
 	_loot_tooltip_label = Label.new()
-	_loot_tooltip_label.add_theme_font_size_override("font_size", 14)
+	_loot_tooltip_label.add_theme_font_size_override("font_size", 18)
 	_loot_tooltip_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.55))
 	_loot_tooltip.add_child(_loot_tooltip_label)
 	window_layer().add_child(_loot_tooltip)

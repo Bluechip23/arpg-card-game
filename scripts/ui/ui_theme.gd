@@ -5,7 +5,7 @@ extends Node
 ## blocks instead of letting it run the full width of the screen.
 ## Explicit per-control theme overrides (existing popups) are unaffected.
 
-const WRAP_WIDTH := 52  # characters per tooltip line
+const WRAP_WIDTH := 46  # characters per tooltip line
 
 func _ready() -> void:
 	# Style tooltips via the engine DEFAULT theme: tooltip popups are separate
@@ -18,7 +18,7 @@ func _ready() -> void:
 	theme.set_stylebox("panel", "TooltipPanel", tip_crest)
 	theme.set_color("font_color", "TooltipLabel", EmeraldTheme.TEXT)
 	theme.set_font("font", "TooltipLabel", EmeraldTheme.font())
-	theme.set_font_size("font_size", "TooltipLabel", 14)
+	theme.set_font_size("font_size", "TooltipLabel", 18)   # designer, 2026-11-01: bigger, no squinting
 	get_tree().node_added.connect(_on_node_added)
 
 # ---- Tooltip block-wrapping -------------------------------------------------
