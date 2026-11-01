@@ -718,6 +718,9 @@ func _ready() -> void:
 		# the active player, which is P2 whenever you're controlling it; hazards
 		# and Slowed pricing land on the bound stepper either way).
 		if _p2_player:
+			var p2_inv = _p2_player.get_inventory()
+			if p2_inv and not p2_inv.equipment_changed.is_connected(_on_equipment_changed):
+				p2_inv.equipment_changed.connect(_on_equipment_changed)   # the shared Block button follows both shields
 			_p2_player.tile_reached.connect(_on_player_tile_reached.bind(_p2_player))
 			_wire_marvolo_hooks(_p2_player)
 			_p2_player.move_completed.connect(_on_player_move_completed)
@@ -2812,8 +2815,8 @@ func _on_block_pressed() -> void:
 		return
 
 	var shield := inventory.get_equipped_shield()
-	if not shield:
-		print("[MAIN] Basic Block - No shield equipped!")
+	if not shield or not _all_players_shielded():
+		print("[MAIN] Basic Block - No shield equipped (on every hero)!")
 		return
 
 	var block_amount = shield.armor_bonus
@@ -2919,11 +2922,23 @@ func _update_rack_button() -> void:
 		_rack_button.text = "Rack %dT" % inv.rack_cooldown_tempo
 		_rack_button.tooltip_text = "War Rack recharging: ready in %d tempo.\nOn the rack: %s" % [inv.rack_cooldown_tempo, rack_names]
 
+## Co-op: the basic Block is a shared action, so the button lights only
+## when BOTH heroes wear a shield (designer, 2026-11-01); solo, the one.
+func _all_players_shielded() -> bool:
+	var inv := player.get_inventory() if player else null
+	if inv == null or not inv.has_shield_equipped():
+		return false
+	if is_multiplayer and _p2_player and is_instance_valid(_p2_player):
+		var inv2 = _p2_player.get_inventory()
+		if inv2 == null or not inv2.has_shield_equipped():
+			return false
+	return true
+
 func _update_block_button_visibility() -> void:
 	if not _block_button:
 		return
 	var inventory := player.get_inventory()
-	if inventory and inventory.has_shield_equipped():
+	if inventory and _all_players_shielded():
 		var shield := inventory.get_equipped_shield()
 		var block_val = shield.armor_bonus if shield.armor_bonus > 0 else 3
 		block_val += inventory.get_two_hand_block_bonus(shield)
@@ -2934,7 +2949,8 @@ func _update_block_button_visibility() -> void:
 		# Always on the bar; greyed out (a disabled button still shows its
 		# tooltip) until a shield is worn.
 		_block_button.text = "%dT" % BASIC_BLOCK_TEMPO
-		_block_button.tooltip_text = "Equip a shield to activate button"
+		_block_button.tooltip_text = "Both heroes must wear a shield to activate button" \
+			if (is_multiplayer and _p2_player) else "Equip a shield to activate button"
 		_block_button.disabled = true
 	_block_button.visible = true
 

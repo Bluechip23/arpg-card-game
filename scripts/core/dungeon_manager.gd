@@ -33,7 +33,10 @@ const WALL_HEIGHT: float = 0.06    # wall slab thickness (see _build_walls)
 ## sheets — the Craftpix fills cut by tools/extract_craftpix_tiles.py — with the
 ## edge bands painted in the palette (_build_autotile_ground). The camera is
 ## fixed (CameraView).
-const WAYPOINT_MOUND_HEIGHT: float = 0.0  # (was the raised dirt mound under the old rune ring; the designer's shrine stands on the ground)
+## The waypoint's shrine is a platform: a hero walking onto its tile climbs
+## up and stands on it (designer, 2026-11-01), not through it. In world
+## units, the height of the shrine's stone top.
+const WAYPOINT_MOUND_HEIGHT: float = 0.34
 # Height of fog-of-war volume tiles. Must exceed the tallest wall so unexplored
 # walls stay hidden: max wall = 1.5 + 0.9 noise + 2 elevation * ELEV_STEP = 3.4,
 # and the fog box top sits at FOG_HEIGHT - 0.5 (see _fog_shown_xform).
@@ -5928,6 +5931,9 @@ static func make_waypoint_shrine(lit: bool) -> Sprite3D:
 	var shrine := CraftpixProps.make_sprite("waypoint_shrine", 1.0, 0)
 	shrine.name = "Shrine"
 	shrine.position.z -= 0.55
+	# Drawn behind whoever stands on it (a hero on the tile is lifted onto
+	# the platform; the shrine's stone face must not cover his feet).
+	shrine.sorting_offset = -0.6
 	shrine.modulate = Color.WHITE if lit else WAYPOINT_DIM
 	return shrine
 
