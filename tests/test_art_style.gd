@@ -39,7 +39,8 @@ func _initialize() -> void:
 		p.setup(kind)
 		var img: Image = load(folder + "/Idle.png").get_image()
 		var cell := img.get_height() / 4
-		var px_h := float(img.get_region(Rect2i(0, 0, cell, cell)).get_used_rect().size.y) * SpriteEnemyFigure.PIXEL_SIZE * float(SpriteEnemyFigure.KINDS[kind].get("scale", 1.0))
+		var px_h := float(img.get_region(Rect2i(0, 0, cell, cell)).get_used_rect().size.y) * SpriteEnemyFigure.PIXEL_SIZE \
+			* float(SpriteEnemyFigure.KINDS[kind].get("scale", 1.0)) * float(SpriteEnemyFigure.KINDS[kind].get("tall", 1.0))
 		_check(absf(h_now - px_h) < 0.15, "%s stands %.2f tiles in both looks (pixel %.2f)" % [kind, h_now, px_h])
 		p.free()
 	for hero in ["Brad", "Cory", "Jeremy", "Ryan", "Stephen"]:
