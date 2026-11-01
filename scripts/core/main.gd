@@ -15964,6 +15964,10 @@ func _money_bag_sprite() -> Sprite3D:
 	sprite.centered = false
 	sprite.offset = Vector2(-w * 0.5, 0.0)
 	sprite.position = Vector3(0, CameraView.SPRITE_LIFT, 0)
+	# Behind whoever stands on the tile: at the figures' own lift the bag
+	# and a hero on its tile sat at one depth and traded places frame to
+	# frame (designer, 2026-11-01). The hero is always in front.
+	sprite.sorting_offset = -0.5
 	return sprite
 
 func _loot_mesh(parent: Node3D, mesh: Mesh, pos: Vector3, color: Color, emissive := false) -> MeshInstance3D:

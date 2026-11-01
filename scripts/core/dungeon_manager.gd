@@ -35,8 +35,8 @@ const WALL_HEIGHT: float = 0.06    # wall slab thickness (see _build_walls)
 ## fixed (CameraView).
 ## The waypoint's shrine is a platform: a hero walking onto its tile climbs
 ## up and stands on it (designer, 2026-11-01), not through it. In world
-## units, the height of the shrine's stone top.
-const WAYPOINT_MOUND_HEIGHT: float = 0.34
+## units: lifts his feet to the middle of the shrine's dais on screen.
+const WAYPOINT_MOUND_HEIGHT: float = 0.85
 # Height of fog-of-war volume tiles. Must exceed the tallest wall so unexplored
 # walls stay hidden: max wall = 1.5 + 0.9 noise + 2 elevation * ELEV_STEP = 3.4,
 # and the fog box top sits at FOG_HEIGHT - 0.5 (see _fog_shown_xform).
