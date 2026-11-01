@@ -32,7 +32,11 @@ def bleed(img: Image.Image, passes: int = 6) -> Image.Image:
     dark fringe in from the empty pixels' black."""
     a = np.asarray(img).astype(np.float32)
     rgb, al = a[..., :3], a[..., 3]
-    have = al > 0
+    # Only the solid figure seeds the bleed: a half-covered edge pixel
+    # carries the painted outline's dark, which must not spread.
+    have = al >= 255
+    if not have.any():
+        have = al > 0
     for _ in range(passes):
         if have.all():
             break

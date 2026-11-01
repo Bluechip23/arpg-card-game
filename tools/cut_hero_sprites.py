@@ -202,7 +202,7 @@ MATTE_BAND = 3        # the matte (cut_opaque_cell): edge pixels within this of 
 MATTE_EDGE = 1        # ...but only the outermost this-many px actually fade
 MATTE_WINDOW = 9      # ...read the figure just inside them over this window...
 MATTE_MIN_CONTRAST = 40.0   # ...unless that is as near the ground as they are (dark cloth)
-MATTE_DROP = 0.12     # coverage under this is ground
+MATTE_KEEP = 0.5      # coverage from this up is the figure (solid); below, ground
 RIM_PASSES = 3        # the near-black rim round an opaque board's figure: this deep...
 RIM_DARK = 34         # ...no channel brighter than this...
 RIM_RATIO = 0.55      # ...and under this share of the figure's brightness round it...
@@ -731,8 +731,11 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
         a_safe = np.maximum(cov, 0.05)[..., None]
         unblend = np.clip(model + (fm - model) / a_safe, 0, 255)
         out_rgb = np.where((band & (cov < 1.0))[..., None], unblend, out_rgb)
-        alpha = np.where(band, np.round(cov * 255.0), alpha)
-        alpha = np.where(band & (cov < MATTE_DROP), 0.0, alpha)
+        # No translucent rim (designer, 2026-11-01: a half-covered dark
+        # edge pixel reads as a grey halo on the grass): an edge pixel is
+        # either the figure, with its colour un-blended from the ground,
+        # or it is ground.
+        alpha = np.where(band, np.where(cov >= MATTE_KEEP, 255.0, 0.0), alpha)
     if glow:
         # A coloured glow (Cory's field): light added over the ground, not
         # a solid thing. Where a pixel's colour above the ground leans hard
@@ -893,7 +896,11 @@ def soft_frame(img, factor):
     k = SMOOTH_HEIGHT / float(HEIGHT)
     size = (max(1, round(img.width * WIDEN * k / factor)), max(1, round(img.height * k / factor)))
     out = img.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")
-    return smooth_art.bleed(out)
+    # The resample's soft edge is a translucent ring of the outline's dark:
+    # on/off alpha here too, the colour bled out from the solid figure.
+    a = np.asarray(out).copy()
+    a[..., 3] = np.where(a[..., 3] >= 128, 255, 0)
+    return smooth_art.bleed(Image.fromarray(a, "RGBA"))
 
 
 def _mass(f):
