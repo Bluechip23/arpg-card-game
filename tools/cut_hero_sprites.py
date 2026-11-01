@@ -180,7 +180,7 @@ WALKS = {
              [126, 307, 489, 670, 850, 1030, 1209, 1382, 1526],
              [12, 244, 469, 687, 907],
              ["north", "south", "west", "east"],
-             set(), "opaque", {"glow": "red", "glow_edge": 10}),   # the feather's glow fades out
+             set(), "opaque", {"halo": True}),   # the feather's glow stripped (HALO_STRIP)
 }
 # A direction redrawn on a board of its own, in WALKS' form: Stephen's right
 # (2026-10-31, "Walk Right (Corrected)": his human arm on the near side,
@@ -200,8 +200,14 @@ WALK_POCKET_MIN = 40
 WALK_HALO_PEEL = 2
 WALK_FIT_PASSES = 4   # ground fits, each to what the last fill reached
 SHADE_UNDER = 3       # a floor shadow: darker than the ground fit by this in every channel...
-SHADE_FLAT = 4.0      # ...and as smooth as the ground (5x5 spread)
+SHADE_FLAT = 4.0      # ...and as smooth as the ground (5x5 spread)...
+SHADE_ZONE = 0.3      # ...in the cell's lowest share (where feet are)
 SOLE_CLOSE = 13       # but notches it bites into the figure this wide are the figure (a sole)
+MATTE_BAND = 3        # the matte (cut_opaque_cell): edge pixels within this of the outside...
+MATTE_EDGE = 1        # ...but only the outermost this-many px actually fade
+MATTE_WINDOW = 9      # ...read the figure just inside them over this window...
+MATTE_MIN_CONTRAST = 40.0   # ...unless that is as near the ground as they are (dark cloth)
+MATTE_DROP = 0.12     # coverage under this is ground
 RIM_PASSES = 3        # the near-black rim round an opaque board's figure: this deep...
 RIM_DARK = 34         # ...no channel brighter than this...
 RIM_RATIO = 0.55      # ...and under this share of the figure's brightness round it...
@@ -428,6 +434,33 @@ def erase_marks(sheet, hero, facing):
     return cv2.inpaint(bgr, marks.astype(np.uint8) * 255, 4, cv2.INPAINT_TELEA)[..., ::-1]
 
 
+def strip_halo(rgba, core_px, keep_px, dark):
+    """Drop what hangs off the figure's body (its thick core, what survives
+    an opening core_px wide, grown back keep_px) and is dark or a coloured
+    glow (max channel under `dark`, or orange: r > g > b with r - b > 60):
+    Brad's feather glow, which the boards paint out past his chest."""
+    import cv2  # tool dependency (opencv-python-headless)
+    sol = (rgba[..., 3] > 0).astype(np.uint8)
+    core = cv2.morphologyEx(sol, cv2.MORPH_OPEN, np.ones((core_px, core_px), np.uint8))
+    n, lab, st, _ = cv2.connectedComponentsWithStats(core, connectivity=8)
+    if n > 1:
+        core = (lab == 1 + int(np.argmax(st[1:, 4]))).astype(np.uint8)
+    core = cv2.dilate(core, np.ones((keep_px, keep_px), np.uint8)) > 0
+    r, g, b = [rgba[..., i].astype(int) for i in range(3)]
+    glow = (r > g) & (g > b) & (r - b > 60)
+    drop = (sol > 0) & ~core & ((rgba[..., :3].max(axis=2) < dark) | glow)
+    out = rgba.copy()
+    out[drop] = 0
+    return out
+
+
+# Boards whose figure casts a painted glow out past its silhouette (Brad's
+# feather): strip_halo's (core, keep, dark), on the still poses too
+# (designer, 2026-11-01: "remove the black in front of Brad's chest
+# completely, even when he is standing still").
+HALO_STRIP = {"brad": (11, 7, 120)}
+
+
 def cut(path, box, hero=None, facing=None):
     """The figure in `box`, full size, on transparency, cropped to itself."""
     sheet = np.asarray(Image.open(SRC % path).convert("RGB"))
@@ -451,6 +484,9 @@ def cut(path, box, hero=None, facing=None):
             keep[tuple(np.array(comp).T)] = True
     ys, xs = np.nonzero(keep)
     rgba = np.dstack([rgb.astype(np.uint8), np.where(keep, 255, 0).astype(np.uint8)])
+    if hero in HALO_STRIP:
+        rgba = strip_halo(rgba, *HALO_STRIP[hero])
+        ys, xs = np.nonzero(rgba[..., 3])
     return Image.fromarray(rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
 
 
@@ -520,7 +556,9 @@ def cut_walk_board(path, xs, ys, facings, skip, ground, opts=None):
                 if opts.get("close"):
                     k = np.ones((opts["close"], opts["close"]), np.uint8)
                     a = cv2.morphologyEx((cell[..., 3] > 0).astype(np.uint8), cv2.MORPH_CLOSE, k)
-                    cell[..., 3] = a * 255
+                    cell[..., 3] = np.maximum(cell[..., 3], a * 255)
+                if opts.get("halo"):
+                    cell = strip_halo(cell, *HALO_STRIP["brad"])
             solid = (cell[..., 3] > WALK_ALPHA).astype(np.uint8)
             n, lab, stats, _ = cv2.connectedComponentsWithStats(solid, connectivity=8)
             biggest = stats[1:, 4].max()
@@ -587,6 +625,7 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
         # A floor shadow (under the feet): smooth, and darker than the
         # ground in every channel.
         shade = (rgb < model - SHADE_UNDER).all(axis=2) & (spread <= SHADE_FLAT)
+        shade[:int(h * (1.0 - SHADE_ZONE))] = False   # (only under the feet: black cloth mid-body is cloth)
         open_ = near | soft | shade
         if narrow:
             k = np.ones((narrow, narrow), np.uint8)
@@ -614,8 +653,15 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
     # and far darker than the figure just inside it goes, RIM_PASSES deep;
     # dark cloth next to dark cloth stays.
     bright = rgb.max(axis=2).astype(np.float32)
+    # The rim is on the OUTER outline: a hole inside the figure (black
+    # pouch pockets the fill reached) keeps its edge.
+    outer = np.zeros((h, w), np.uint8)
+    ffm = np.zeros((h + 2, w + 2), np.uint8)
+    tmp = (~solid).astype(np.uint8).copy()
+    cv2.floodFill(tmp, ffm, (0, 0), 2)
+    outer_ground = tmp == 2
     for _ in range(RIM_PASSES):
-        edge = solid & (cv2.dilate((~solid).astype(np.uint8), k) > 0)
+        edge = solid & (cv2.dilate(outer_ground.astype(np.uint8), k) > 0)
         win = (RIM_WINDOW, RIM_WINDOW)
         n = cv2.boxFilter(solid.astype(np.float32), -1, win, normalize=False, borderType=cv2.BORDER_CONSTANT)
         v = cv2.boxFilter(np.where(solid, bright, 0).astype(np.float32), -1, win, normalize=False, borderType=cv2.BORDER_CONSTANT)
@@ -624,6 +670,7 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
         if not rim.any():
             break
         solid &= ~rim
+        outer_ground |= rim
     # A notch the floor-shadow rule bit into the figure (a shoe's dark sole
     # seen from behind, open at the bottom) is the figure's own.
     closed = cv2.morphologyEx(solid.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((SOLE_CLOSE, SOLE_CLOSE), np.uint8)) > 0
@@ -640,6 +687,47 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
             solid |= hole
     alpha = np.where(solid, 255.0, 0.0)
     out_rgb = rgb.astype(np.float32)
+    # The matte: the boards paint the figure's edge soft, blended into the
+    # dark ground, so an edge pixel kept as it is wears a dark fringe in the
+    # game (designer, 2026-11-01: "a lot of leftover black"). Within
+    # MATTE_BAND of the outside, how far a pixel sits from the ground,
+    # against how far the figure just inside it sits, is its coverage: its
+    # alpha, and its colour un-blended from the ground by it.
+    # Specks the figure closes round (what the pocket rule left: a few
+    # ground-coloured pixels in a black pouch) are the figure's, or the
+    # matte below would fade the cloth round each into a nick.
+    ff = np.zeros((h + 2, w + 2), np.uint8)
+    outside = (~solid).astype(np.uint8).copy()
+    cv2.floodFill(outside, ff, (0, 0), 2)
+    enclosed = (outside == 1)
+    solid = solid | enclosed
+    k3 = np.ones((3, 3), np.uint8)
+    inner = cv2.erode(solid.astype(np.uint8), np.ones((2 * MATTE_BAND + 1, 2 * MATTE_BAND + 1), np.uint8)) > 0
+    # The band is the outline only: pixels within MATTE_BAND of the
+    # OUTSIDE (the ground the fill reached), not of every hole.
+    out_reach = cv2.dilate((~solid).astype(np.uint8), np.ones((2 * MATTE_BAND + 1, 2 * MATTE_BAND + 1), np.uint8)) > 0
+    band = solid & ~inner & out_reach
+    if band.any():
+        fm = rgb.astype(np.float32)
+        win = (MATTE_WINDOW, MATTE_WINDOW)
+        n_in = cv2.boxFilter(inner.astype(np.float32), -1, win, normalize=False, borderType=cv2.BORDER_CONSTANT)
+        c_in = cv2.boxFilter(np.where(inner[..., None], fm, 0).astype(np.float32), -1, win, normalize=False, borderType=cv2.BORDER_CONSTANT)
+        ref = c_in / np.maximum(n_in, 1.0)[..., None]
+        d_px = np.linalg.norm(fm - model, axis=2)
+        d_in = np.linalg.norm(ref - model, axis=2)
+        cov = np.clip(d_px / np.maximum(d_in, 1.0), 0.0, 1.0)
+        # Dark cloth is as near the ground as its own edge: no matte there.
+        cov = np.where(d_in < MATTE_MIN_CONTRAST, 1.0, cov)
+        # Only the outermost MATTE_EDGE px fade; deeper band pixels that
+        # are merely darker cloth stay solid.
+        edge_px = cv2.dilate((~solid).astype(np.uint8), np.ones((2 * MATTE_EDGE + 1, 2 * MATTE_EDGE + 1), np.uint8)) > 0
+        cov = np.where(edge_px, cov, 1.0)
+        cov = np.where((n_in > 0) & band, cov, 1.0)
+        a_safe = np.maximum(cov, 0.05)[..., None]
+        unblend = np.clip(model + (fm - model) / a_safe, 0, 255)
+        out_rgb = np.where((band & (cov < 1.0))[..., None], unblend, out_rgb)
+        alpha = np.where(band, np.round(cov * 255.0), alpha)
+        alpha = np.where(band & (cov < MATTE_DROP), 0.0, alpha)
     if glow:
         # A coloured glow (Cory's field): light added over the ground, not
         # a solid thing. Where a pixel's colour above the ground leans hard
@@ -850,9 +938,10 @@ def build(hero, poses):
         if d in full:
             got = [_mass(resample(img, wf)) for img in fr]
             want = _mass(full[d])
-            h = want[0] / float(np.median([g[0] for g in got]))
-            m = (want[1] / float(np.median([g[1] for g in got]))) ** 0.5
-            wf = wf / (h * m) ** 0.5
+            # Height only (designer, 2026-11-01: balancing in the bulk left
+            # the side views "wider and shorter"): the tallest stride stands
+            # as tall as the still pose.
+            wf = wf / (want[0] / float(max(g[0] for g in got)))
         for i, img in enumerate(fr):
             full[(d, i)] = resample(img, wf)
             soft[(d, i)] = soft_frame(img, wf)
