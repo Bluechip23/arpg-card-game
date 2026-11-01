@@ -162,7 +162,7 @@ WALKS = {
              [126, 308, 490, 669, 850, 1031, 1204, 1373, 1528],
              [10, 246, 469, 688, 909],
              ["north", "south", "west", "east"],
-             set(), "opaque", {"narrow": 7, "close": 7, "tol": 4}),   # his dark leg wraps, near the ground's colour
+             set(), "opaque", {"narrow": 7, "close": 7, "tol": 4}),   # 2026-11-01 board; his black trousers are the ground's colour
     # 2026-10-31: Jeremy's walk board, the same layout and ground as Ryan's
     # (his rings already painted on), all four rows used.
     "jeremy": ("jeremy_walk_board.webp",
