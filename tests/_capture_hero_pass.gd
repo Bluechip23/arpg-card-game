@@ -48,6 +48,9 @@ func _run() -> void:
 	await _frames(5)
 	# Freeze the figure's own clocks: every frame is picked by hand.
 	Engine.time_scale = 0.0001
+	if OS.get_environment("NOSHADOW") == "1":
+		for n in get_root().find_children("*", "BlobShadow", true, false):
+			n.visible = false
 	var fig: SpriteFigure = _main.player._figure
 	var D := CharacterAnimator.Direction
 	var dirs := {"S": D.SOUTH, "N": D.NORTH, "E": D.EAST, "W": D.WEST}
