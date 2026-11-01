@@ -12,6 +12,7 @@ from PIL import Image
 
 SMOOTH_DENSITY = 128   # texels a tile: 1:1 with the screen at the closest zoom
 ROOT = "assets/sprites/generated/smooth"
+SHEET_BLEED = 14   # px of edge colour out past the figure on a packed sheet (mip 3 at zoom 1 reads 8)
 
 
 def to_image(frame) -> Image.Image:
@@ -72,4 +73,6 @@ def pack(rows: list, cell: int, cols: int, pick, air: int = 1) -> Image.Image:
         for ci in range(cols):
             f = pick(row, ci)
             sheet.paste(f, (ci * cell + (cell - f.width) // 2, ri * cell + cell - air - f.height))
-    return bleed(sheet, 2)
+    # Bled far: the game's mipmaps (zoomed out) average the empty pixels'
+    # colour into the edge, and the import's own border fix reaches a pixel.
+    return bleed(sheet, SHEET_BLEED)

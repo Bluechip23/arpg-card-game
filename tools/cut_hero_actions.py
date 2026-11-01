@@ -302,7 +302,7 @@ def build(hero, action, spec):
     os.makedirs(os.path.dirname(out), exist_ok=True)
     sheet.save(out)
     sout = os.path.join(smooth_art.ROOT, "heroes", "%s_%s.png" % (hero, action))
-    smooth_art.bleed(ssheet, 2).save(sout)
+    smooth_art.bleed(ssheet, smooth_art.SHEET_BLEED).save(sout)
     print("%s %s: %d frames, cell %d, rows %s" % (hero, action, n, C, ", ".join(spec["facings"])))
 
 

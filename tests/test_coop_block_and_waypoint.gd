@@ -41,6 +41,15 @@ func _run() -> void:
 			"a hero on the waypoint tile stands %.2f up on the platform" % (on - beside))
 		var shrine = dm.waypoint_nodes[0]["pillar_mesh"]
 		_check(shrine.sorting_offset < 0.0, "the shrine draws behind whoever stands on it")
+	# A loot bag draws behind whoever stands on its tile (it sat at the
+	# figures' own depth and traded places with the hero frame to frame).
+	main._spawn_loot_drop({"gold": 5}, main.player.position + Vector3(2, 0, 0))
+	var bag = null
+	for d in main._loot_drops:
+		for ch in d["node"].get_children():
+			if ch is Sprite3D:
+				bag = ch
+	_check(bag != null and bag.sorting_offset < 0.0, "a loot bag sits behind the hero on its tile")
 	# Co-op block.
 	main._on_sandbox_add_ally("Jeremy")
 	await process_frame
