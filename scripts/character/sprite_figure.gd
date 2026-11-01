@@ -190,7 +190,7 @@ func setup(character_name: String) -> void:
 	var old_shadow := get_node_or_null("Shadow")
 	if old_shadow:
 		old_shadow.queue_free()
-	_shadow = BlobShadow.attach(self, 0.62 * _shadow_scale)
+	_shadow = BlobShadow.attach(self, 0.54 * _shadow_scale)   # a touch tighter under the feet (2026-11-01)
 	# Effect layer for bespoke card animations. Outside the rig so hops and
 	# knockback don't drag mid-flight projectiles along with the body.
 	if _fx and is_instance_valid(_fx):
