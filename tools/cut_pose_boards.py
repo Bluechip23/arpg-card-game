@@ -441,6 +441,68 @@ BOARDS = {
             "left": (148, 688, 581, 1008),
             "right": (730, 688, 1153, 1008),
         },
+        # 2026-11-01: the designer's attack board — mini_bear_attack_board.webp,
+        # four labelled rows on black (NORTH (FRONT), SOUTH (BACK), LEFT,
+        # RIGHT, the board's "north" facing the camera), the bear on a
+        # painted floor shadow, ten frames a row: the stance twice, a paw
+        # raised, the swipe, the paw coming down, a hunkered crouch, flat
+        # on its face, rolled onto its back, rising, and the stance. The
+        # whole of it is the Attack: a cute little bear that swipes, goes
+        # over in a heap and scrambles back up (designer, 2026-11-01). The
+        # stance is the height reference, matched to each facing's Idle.
+        "actions": {
+            "src": "mini_bear_attack_board.webp",
+            "shadow_band": 0.10,
+            "levels": (4, 36, 8),   # the underside's fur is near-black; the backdrop is pure black
+            "fill_holes": 5,
+            "match_scale": {"front": 1.08, "back": 1.08, "left": 1.15, "right": 1.15},   # the board draws him taller in proportion than his Idle: matched by bulk, not height
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (128, 85, 243, 248),
+                    "raise": (410, 85, 535, 248),
+                    "swipe": (558, 85, 681, 248),
+                    "follow": (705, 93, 819, 248),
+                    "settle": (841, 103, 962, 248),
+                    "flat": (974, 140, 1110, 248),
+                    "roll": (1114, 124, 1250, 248),
+                    "rise": (1257, 112, 1384, 248),
+                },
+                "back": {
+                    "stance": (129, 315, 241, 480),
+                    "raise": (406, 315, 528, 480),
+                    "swipe": (551, 315, 680, 480),
+                    "follow": (700, 320, 822, 480),
+                    "settle": (845, 333, 964, 480),
+                    "flat": (980, 366, 1113, 480),
+                    "roll": (1119, 352, 1253, 480),
+                    "rise": (1264, 342, 1392, 480),
+                },
+                "left": {
+                    "stance": (114, 552, 251, 688),
+                    "raise": (391, 548, 534, 688),
+                    "swipe": (538, 545, 677, 688),
+                    "follow": (681, 553, 819, 688),
+                    "settle": (823, 574, 966, 688),
+                    "flat": (970, 593, 1113, 688),
+                    "roll": (1113, 571, 1246, 688),
+                    "rise": (1246, 566, 1385, 688),
+                },
+                "right": {
+                    "stance": (114, 764, 255, 900),
+                    "raise": (394, 758, 536, 900),
+                    "swipe": (541, 755, 682, 900),
+                    "follow": (691, 766, 826, 900),
+                    "settle": (831, 787, 974, 900),
+                    "flat": (980, 807, 1123, 900),
+                    "roll": (1116, 786, 1249, 900),
+                    "rise": (1250, 779, 1393, 900),
+                },
+            },
+            "sheets": {
+                "Attack": ["raise", "swipe", "follow", "settle", "flat", "roll", "rise"],
+            },
+        },
     },
     "necromancer": {
         # 2026-10-25: the Necromancer — a hooded, ragged black-robed figure
@@ -905,6 +967,53 @@ BOARDS = {
             "back": (668, 29, 833, 442),
             "left": (241, 508, 358, 929),
             "right": (678, 510, 794, 929),
+        },
+        # 2026-11-01: the designer's attack board — zombie_attack_board.webp,
+        # four labelled rows on black (NORTH (FRONT), SOUTH (BACK), WEST
+        # (LEFT), EAST (RIGHT), the board's "north" facing the camera), the
+        # flies still about its head: the stance, the arms coming up, the
+        # reach, the grab with both arms thrown forward, the arms drawing
+        # back, and the stance twice. The flies are loose specks and fall
+        # away as on the pose board. The stance is the height reference,
+        # matched to each facing's Idle.
+        "actions": {
+            "src": "zombie_attack_board.webp",
+            "shadow_band": 0.06,
+            "fill_holes": 7,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (190, 10, 295, 245),
+                    "ready": (380, 25, 492, 245),
+                    "reach": (565, 30, 692, 245),
+                    "grab": (760, 30, 908, 245),
+                    "recover": (950, 30, 1096, 245),
+                },
+                "back": {
+                    "stance": (190, 258, 295, 495),
+                    "ready": (372, 268, 510, 495),
+                    "reach": (560, 270, 706, 495),
+                    "grab": (760, 268, 908, 495),
+                    "recover": (960, 268, 1100, 495),
+                },
+                "left": {
+                    "stance": (190, 508, 280, 738),
+                    "ready": (375, 518, 490, 738),
+                    "reach": (537, 525, 686, 738),
+                    "grab": (735, 515, 888, 738),
+                    "recover": (942, 515, 1086, 738),
+                },
+                "right": {
+                    "stance": (195, 750, 285, 985),
+                    "ready": (388, 762, 497, 985),
+                    "reach": (575, 765, 727, 985),
+                    "grab": (782, 758, 934, 985),
+                    "recover": (986, 760, 1114, 985),
+                },
+            },
+            "sheets": {
+                "Attack": ["ready", "reach", "grab", "recover"],
+            },
         },
     },
     "rat_king": {
