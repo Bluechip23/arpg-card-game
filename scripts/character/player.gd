@@ -175,6 +175,11 @@ func show_level_up() -> void:
 	if _figure:
 		_figure.pop_level_up()
 
+func show_no_mana() -> void:
+	## The "no mana" sign over the hero: a card refused for want of mana.
+	if _figure and _figure.has_method("pop_no_mana"):
+		_figure.pop_no_mana()
+
 func show_worm_summon() -> void:
 	## Spawns the Alaskan Bull Worm VFX — call when Worms Armageddon summons one.
 	if _figure:

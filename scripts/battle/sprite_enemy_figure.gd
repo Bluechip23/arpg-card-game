@@ -175,7 +175,8 @@ const KINDS := {
 	"shadow_hound": {"sheets": SHEETS + "/shadow_hound", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28)
 	"battle_turtle": {"sheets": SHEETS + "/battle_turtle", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28)
 	# --- townsfolk (town.gd): the designer's NPC sheets, four standing poses ---
-	"olorin": {"sheets": SHEETS + "/olorin", "scale": BOARD_SCALE},  # the designer's board, with his bear (tools/cut_pose_boards.py, 2026-10-28)
+	"olorin": {"sheets": SHEETS + "/olorin", "scale": BOARD_SCALE, "tall": 1.08},  # the designer's board, his bear painted out (tools/fix_olorin_board.py, 2026-11-01); a touch taller
+	"olorin_bear": {"sheets": SHEETS + "/olorin_bear", "scale": BOARD_SCALE},  # his bear, asleep (its own board, 2026-11-01)
 	"npc_armory": {"sheets": SHEETS + "/npc_armory", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-28
 	"npc_dojo_master": {"sheets": SHEETS + "/npc_dojo_master", "scale": BOARD_SCALE},  # the designer's sensei (tools/cut_pose_boards.py, 2026-10-29); was the NPC pack's old man
 	"npc_card_dealer": {"sheets": SHEETS + "/npc_card_dealer", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-28
@@ -338,6 +339,7 @@ func setup(kind: String) -> void:
 	var s: float = cfg.get("scale", 1.0)
 	if smooth:
 		s = 32.0 / ArtStyle.SMOOTH_DENSITY   # SMOOTH_DENSITY texels a tile
+	s *= float(cfg.get("tall", 1.0))   # a kind drawn larger than its board's "tiles" (Olorin, designer 2026-11-01)
 	_rig.scale = Vector3(s, s, s)
 	_rig.add_child(_sprite)
 	_sprite.modulate = _tint

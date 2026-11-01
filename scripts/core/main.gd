@@ -8941,6 +8941,11 @@ func play_selected_card(target) -> void:
 			if s_ui and is_instance_valid(s_ui):
 				s_ui.show_sticky_counter(card.consecutive_uses, card.sticky)
 	else:
+		# Refused for mana: the sign over the hero's head (designer, 2026-11-01).
+		var p_stats := player.get_stats()
+		if p_stats and not p_stats.has_mana(card.get_burden_mana_cost() if card.has_method("get_burden_mana_cost") else card.mana_cost) \
+				and player.has_method("show_no_mana"):
+			player.show_no_mana()
 		# Card didn't play - undo temporary modifications
 		if ao_spent and ao_stats:
 			ao_stats.st_arcane_overflow_discount = true  # the play failed: keep the discount
