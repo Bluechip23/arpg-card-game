@@ -67,10 +67,7 @@ const ROSTER := {
 			# The bone wall rises, holds, and sinks back into the ground.
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/jeremy_block.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.06, "hold": 0.5, "reverse": 0.035},
 		}},
-	# Ryan walks left and right as his own side pose (the designer's vertical
-	# board), stepping, not the walk sheet's side rows: those draw him a
-	# bulkier, squarer figure than his character (designer, 2026-11-01).
-	"Ryan": {"board": "res://assets/sprites/generated/heroes/ryan.png", "walk_rows": [0, 1],      # the rogue outlaw
+	"Ryan": {"board": "res://assets/sprites/generated/heroes/ryan.png", "walk_rows": [0, 1, 2, 3],      # the rogue outlaw
 		"actions": {
 			# The dual blade flurry: four alternating stabs.
 			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/ryan_attack.png", "frames": 14, "rows": [0, 1, 2, 3], "t": 0.045, "hit": 7},
