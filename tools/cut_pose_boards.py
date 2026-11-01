@@ -441,6 +441,56 @@ BOARDS = {
             "left": (148, 688, 581, 1008),
             "right": (730, 688, 1153, 1008),
         },
+        # 2026-11-01: the designer's attack board — mini_bear_attack_board.webp,
+        # four labelled rows on black (NORTH (FRONT), SOUTH (BACK), LEFT,
+        # RIGHT, the board's "north" facing the camera), the bear on a
+        # painted floor shadow, ten frames a row: the stance twice, a paw
+        # raised, the swipe, the paw coming down, a hunkered crouch, then
+        # a knock-down (flat, then on its back), rising, and the stance.
+        # The swipe is the Attack; the knock-down frames are not cut (a
+        # death sheet, if the designer wants one). The stance is the
+        # height reference, matched to each facing's Idle.
+        "actions": {
+            "src": "mini_bear_attack_board.webp",
+            "shadow_band": 0.10,
+            "levels": (4, 36, 8),   # the underside's fur is near-black; the backdrop is pure black
+            "fill_holes": 5,
+            "match_scale": {"front": 1.08, "back": 1.08, "left": 1.15, "right": 1.15},   # the board draws him taller in proportion than his Idle: matched by bulk, not height
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (128, 85, 243, 248),
+                    "raise": (410, 85, 535, 248),
+                    "swipe": (558, 85, 681, 248),
+                    "follow": (705, 93, 819, 248),
+                    "settle": (841, 103, 962, 248),
+                },
+                "back": {
+                    "stance": (129, 315, 241, 480),
+                    "raise": (406, 315, 528, 480),
+                    "swipe": (551, 315, 680, 480),
+                    "follow": (700, 320, 822, 480),
+                    "settle": (845, 333, 964, 480),
+                },
+                "left": {
+                    "stance": (114, 552, 251, 688),
+                    "raise": (391, 548, 534, 688),
+                    "swipe": (538, 545, 677, 688),
+                    "follow": (681, 553, 819, 688),
+                    "settle": (823, 574, 966, 688),
+                },
+                "right": {
+                    "stance": (114, 764, 255, 900),
+                    "raise": (394, 758, 536, 900),
+                    "swipe": (541, 755, 682, 900),
+                    "follow": (691, 766, 826, 900),
+                    "settle": (831, 787, 974, 900),
+                },
+            },
+            "sheets": {
+                "Attack": ["raise", "swipe", "follow", "settle"],
+            },
+        },
     },
     "necromancer": {
         # 2026-10-25: the Necromancer — a hooded, ragged black-robed figure
