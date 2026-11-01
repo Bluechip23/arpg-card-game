@@ -51,6 +51,8 @@ ACTIONS = {
     # fists raised, slam down in a burst of sparks and dust.
     ("brad", "attack"): {
         "src": "brad_attack_board.webp",
+        "pockets": False,   # his dark pouches and trousers are near the ground's colour
+        "narrow": 7,
         "cols": [117, 295, 471, 647, 827, 1002, 1179, 1356, 1528],
         "rows": [(53, 271), (271, 485), (485, 685), (685, 894)],
         "facings": ["south", "north", "west", "east"],
@@ -154,11 +156,13 @@ ACTIONS = {
 }
 
 
-def cut_cell(cell, pockets=True, haze=False, narrow=0, drop_dark=False, close=0, tol=None, haze_dark=None, glow=False, glow_edge=0, streaks=False):
+def cut_cell(cell, pockets=True, haze=False, narrow=0, drop_dark=False, close=0, tol=None, haze_dark=None, glow=False, glow_edge=0, streaks=False, halo=False):
     """One cell's figure (and its dust) on transparency, cell-sized, plus
     the kept pixels' box."""
     import cv2
     rgba = hs.cut_opaque_cell(cell, pockets, haze, narrow, tol, haze_dark, glow, glow_edge)
+    if halo:
+        rgba = hs.strip_halo(rgba, *hs.HALO_STRIP["brad"])
     if streaks:
         # Thin dark strands off the body (a flash's dim arcs, Stephen's
         # parry): what is cut but outside the body's thick core, and dark,
@@ -210,12 +214,11 @@ def still_size(hero, facing):
 
 
 def match_scale(got, ref):
-    """How much larger to draw a frame of size `got` to look the size of
-    `ref`: the mean (geometric) of matching its height and its visual mass,
-    so neither the crown nor the bulk jumps."""
-    h = ref[0] / float(got[0])
-    m = (ref[1] / float(got[1])) ** 0.5
-    return 1.0 / (h * m) ** 0.5   # (factor divides: a larger scale is a smaller factor)
+    """The factor (relative) that draws a frame of size `got` the height of
+    `ref`."""
+    # Height only (designer, 2026-11-01: balancing in the bulk left poses
+    # "wider and shorter"): the standing frame stands as tall as the still.
+    return float(got[0]) / ref[0]   # (factor divides: a larger scale is a smaller factor)
 
 
 def build(hero, action, spec):
@@ -229,7 +232,7 @@ def build(hero, action, spec):
                                           spec.get("narrow", 0), spec.get("drop_dark", False),
                                           spec.get("close", 0), spec.get("tol"), spec.get("haze_dark"),
                                           spec.get("glow", False), spec.get("glow_edge", 0),
-                                          spec.get("streaks", False))
+                                          spec.get("streaks", False), spec.get("halo", False))
     n = len(cols) - 1
     # A facing the board does not draw, shown with another's frames ("copy":
     # {missing: drawn}; Brad's block from behind is his front, designer
