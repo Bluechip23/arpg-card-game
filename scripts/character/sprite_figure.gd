@@ -39,9 +39,10 @@ const ROSTER := {
 			# The jumping overhead smash; it slams down on frame 7.
 			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/brad_attack.png",
 				"frames": 8, "rows": [0, 1, 2, 3], "t": 0.06, "hit": 7},
-			# Stone encases him, holds, and crumbles back off (no back view).
+			# Stone encases him, holds, and crumbles back off (from behind: his
+			# front, the board having no back view).
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/brad_block.png",
-				"frames": 12, "rows": [0, 2, 3], "t": 0.06, "hold": 0.5, "reverse": 0.035},
+				"frames": 12, "rows": [0, 1, 2, 3], "t": 0.06, "hold": 0.5, "reverse": 0.035},
 		}},
 	"Cory": {"board": "res://assets/sprites/generated/heroes/cory.png", "walk_rows": [0, 1, 2, 3],      # the hooded monk
 		"actions": {
@@ -99,6 +100,10 @@ const BOARD_WIDEN := 1.12
 ## bottom, with the hero's standing anchor at the cell's middle
 ## (tools/cut_hero_actions.py ACTION_FLOOR): room below for dust.
 const ACTION_FLOOR := 8
+## Every hero's drawn actions play this much slower than the frame times in
+## ROSTER (designer, 2026-10-31: "can move slightly slower"); the blow's
+## timing (hit_delay) follows.
+const ACTION_SLOW := 1.35
 ## Texels a tile the hero sheets are cut at.
 const BOARD_DENSITY := 64.0
 ## Wearing the smooth (non-pixelated) hero sheet (ArtStyle).
@@ -333,6 +338,9 @@ func _load_actions(actions: Dictionary) -> void:
 		if tex == null:
 			continue
 		var entry := a.duplicate()
+		for k in ["t", "hold", "reverse"]:
+			if entry.has(k):
+				entry[k] = float(entry[k]) * ACTION_SLOW
 		entry["tex"] = tex
 		entry["cell"] = int(tex.get_height() / 4)
 		_actions[action_name] = entry

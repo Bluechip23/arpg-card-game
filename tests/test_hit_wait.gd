@@ -40,7 +40,7 @@ func _run() -> void:
 func _test_figures() -> void:
 	print("-- The figures --")
 	var D := CharacterAnimator.Direction
-	var want := {"Brad": 0.36, "Jeremy": 0.36, "Stephen": 0.36, "Ryan": 0.27, "Cory": 0.22}
+	var want := {"Brad": 0.36 * SpriteFigure.ACTION_SLOW, "Jeremy": 0.36 * SpriteFigure.ACTION_SLOW, "Stephen": 0.36 * SpriteFigure.ACTION_SLOW, "Ryan": 0.27 * SpriteFigure.ACTION_SLOW, "Cory": 0.22 * SpriteFigure.ACTION_SLOW}
 	for hero in want:
 		var f := SpriteFigure.new()
 		get_root().add_child(f)
@@ -52,7 +52,7 @@ func _test_figures() -> void:
 	var brad := SpriteFigure.new()
 	get_root().add_child(brad)
 	brad.setup("Brad")
-	_check(absf(brad.hit_delay("attack_slash", D.EAST) - 0.36) < 0.001, "a card attack's swing is his drawn smash, and waits for its blow")
+	_check(absf(brad.hit_delay("attack_slash", D.EAST) - 0.36 * SpriteFigure.ACTION_SLOW) < 0.001, "a card attack's swing is his drawn smash, and waits for its blow")
 	_check(brad.hit_delay("heavy_swing", D.EAST) == 0.0, "an action with nothing drawn waits for nothing")
 	brad.free()
 
@@ -82,7 +82,7 @@ func _test_battle() -> void:
 	w.current_health = 999
 	w.current_armor = 0
 	var wait: float = main._hit_wait("basic_attack", w)
-	_check(absf(wait - 0.36) < 0.001, "Brad's smash waits %.2f s for its blow" % wait)
+	_check(absf(wait - 0.36 * SpriteFigure.ACTION_SLOW) < 0.001, "Brad's smash waits %.2f s for its blow" % wait)
 
 	# The queued auto attack: swings now, lands on the hit frame.
 	var card := Card.create_by_id("slash")
