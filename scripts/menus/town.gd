@@ -3033,7 +3033,7 @@ func _render_quest_section(giver: String) -> void:
 		if quest.teaches != "":
 			var tip_lbl = Label.new()
 			tip_lbl.text = "  Tip: %s" % quest.teaches
-			tip_lbl.add_theme_font_size_override("font_size", 12)
+			tip_lbl.add_theme_font_size_override("font_size", 16)
 			tip_lbl.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
 			tip_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			vendor_item_list.add_child(tip_lbl)

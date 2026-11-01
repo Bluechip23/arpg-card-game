@@ -104,7 +104,7 @@ func _make_custom_tooltip(_for_text: String) -> Control:
 	var title = Label.new()
 	title.text = "Jailed Cards"
 	title.add_theme_color_override("font_color", JAIL_COLOR)
-	title.add_theme_font_size_override("font_size", 15)
+	title.add_theme_font_size_override("font_size", 19)
 	vbox.add_child(title)
 
 	for card in _cards:
@@ -113,8 +113,8 @@ func _make_custom_tooltip(_for_text: String) -> Control:
 		line.fit_content = true
 		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		line.custom_minimum_size.x = 260
-		line.add_theme_font_size_override("normal_font_size", 13)
-		line.add_theme_font_size_override("bold_italics_font_size", 13)
+		line.add_theme_font_size_override("normal_font_size", 17)
+		line.add_theme_font_size_override("bold_italics_font_size", 17)
 		line.add_theme_color_override("default_color", Color(0.85, 0.85, 0.85))
 		var time_txt := ""
 		if card.jail_time_remaining > 0:
@@ -126,7 +126,7 @@ func _make_custom_tooltip(_for_text: String) -> Control:
 	var hint = Label.new()
 	hint.text = "Click icon to view the jail pile"
 	hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.6))
-	hint.add_theme_font_size_override("font_size", 11)
+	hint.add_theme_font_size_override("font_size", 14)
 	vbox.add_child(hint)
 
 	return panel

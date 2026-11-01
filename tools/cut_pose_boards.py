@@ -429,6 +429,26 @@ BOARDS = {
             "right": (518, 22, 700, 246),
         },
     },
+    "olorin_bear": {
+        # 2026-11-01: Olorin's bear on its own — the designer's five poses on
+        # a painted checker: facing up (its face), facing down (its back), the
+        # two sides, and asleep. Idle is the standing bear; "Sleep" the curled
+        # one (one pose, shown from every way), used by the title cutscene
+        # where it dozes a few paces behind Olorin.
+        "src": "olorin_bear_board.webp", "bg": "checker_light", "tiles": 1.6,
+        "Idle": {
+            "front": (72, 145, 294, 500),
+            "back": (372, 145, 583, 493),
+            "left": (615, 203, 1049, 490),
+            "right": (1099, 203, 1528, 490),
+        },
+        "Sleep": {
+            "front": (559, 645, 984, 891),
+            "back": ("mirror", "front"),
+            "left": (559, 645, 984, 891),
+            "right": ("mirror", "front"),
+        },
+    },
     "mini_bear": {
         # 2026-10-25: the Mini Bear — a young brown bear — four poses on
         # black. Its "NORTH" pose shows the face and "SOUTH" its back: picked
@@ -2304,7 +2324,7 @@ def build_actions_on_sheets(name: str, cfg: dict) -> None:
         air = max(a for _, a in info.values())
         need = max(max(f.width, f.height) for fs in frames.values() for f in fs.values()) + 2 + air
         if need > cell:
-            for anim in ("Idle", "Walk"):
+            for anim in ("Idle", "Walk", "Sleep"):
                 path = os.path.join(root, anim + ".png")
                 if os.path.exists(path):
                     _regrow(Image.open(path), cell, need).save(path)
@@ -2325,7 +2345,7 @@ def build(name: str, cfg: dict) -> None:
         return
     board = Image.open(SRC % cfg["src"])
     full = {}
-    for anim in ("Idle", "Walk"):
+    for anim in ("Idle", "Walk", "Sleep"):
         if anim not in cfg:
             continue
         full[anim] = {}

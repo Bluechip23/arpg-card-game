@@ -461,6 +461,11 @@ def strip_halo(rgba, core_px, keep_px, dark):
 # (designer, 2026-11-01: "remove the black in front of Brad's chest
 # completely, even when he is standing still").
 HALO_STRIP = {"brad": (11, 7, 120)}
+# Per hero, cut_opaque_cell's options for the still poses.
+STILL_OPTS = {
+    "stephen": {"haze": True, "pockets": False, "narrow": 7},
+    "ryan": {"tol": 4, "narrow": 7},   # his black trousers are the ground's colour
+}
 
 
 def cut(path, box, hero=None, facing=None):
@@ -472,12 +477,16 @@ def cut(path, box, hero=None, facing=None):
         sheet = draw_rings(sheet, hero, facing)
     rgb = sheet[box[1]:box[3], box[0]:box[2]].astype(int)
     h, w, _ = rgb.shape
-    ground = np.array(GROUND.get(path, (0, 0, 0)))
-    dark = np.abs(rgb - ground).max(axis=2) <= GROUND_TOL
-    edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
-           [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
-    solid = ~_flood(dark, edge)
-    solid = _clear_ground(rgb, solid, ground)
+    # The still poses are cut the way the walk and action boards are
+    # (2026-11-01): the ground fitted and filled in from the crop's edge,
+    # the soft edge matted (its coverage as alpha, its colour un-blended
+    # from the ground), the painted rim peeled; STILL_OPTS adds a hero's
+    # own needs (Stephen's board paints a smooth dark halo round him that
+    # fills the bow's curve: haze).
+    o = STILL_OPTS.get(hero, {})
+    matted = cut_opaque_cell(rgb.astype(np.uint8), o.get("pockets", True), o.get("haze", False),
+                             o.get("narrow", 0), o.get("tol"), o.get("haze_dark"))
+    solid = matted[..., 3] > 0
     comps = _components(solid)
     biggest = max(len(c) for c in comps)
     keep = np.zeros_like(solid)
@@ -485,7 +494,8 @@ def cut(path, box, hero=None, facing=None):
         if len(comp) >= biggest * KEEP_SHARE:
             keep[tuple(np.array(comp).T)] = True
     ys, xs = np.nonzero(keep)
-    rgba = np.dstack([rgb.astype(np.uint8), np.where(keep, 255, 0).astype(np.uint8)])
+    rgba = matted.copy()
+    rgba[~keep] = 0
     if hero in HALO_STRIP:
         rgba = strip_halo(rgba, *HALO_STRIP[hero])
         ys, xs = np.nonzero(rgba[..., 3])

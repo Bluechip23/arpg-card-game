@@ -595,6 +595,31 @@ func pop_heart() -> void: _pop_text("+HP", Color(0.5, 1.0, 0.55))
 func pop_level_up() -> void: _pop_text("LEVEL UP!", Color(1.0, 0.9, 0.4))
 func pop_worm() -> void: _pop_text("WORM!", Color(0.8, 0.5, 0.8))
 
+## The designer's "no mana" sign (a barred blue drop) over the hero's head
+## when a card is refused for mana (2026-11-01): rises and fades.
+const NO_MANA_ICON := "res://assets/ui/icons/no_mana.png"
+
+func pop_no_mana() -> void:
+	var sp := Sprite3D.new()
+	sp.texture = load(NO_MANA_ICON)
+	sp.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	sp.no_depth_test = true
+	sp.shaded = false
+	sp.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+	sp.pixel_size = 0.012
+	# Over the crown. The camera looks almost straight down (CameraView
+	# PITCH), so "up the screen" is world -Z, not +Y: the sign sits a little
+	# up in Y (clear of the ground sort) and the rest of the way up the
+	# screen in -Z, then drifts further up as it fades.
+	var up := BOARD_HEIGHT + 0.5
+	sp.position = Vector3(0, 0.6, -up)
+	sp.sorting_offset = 2.0   # in front of whatever stands beside him
+	add_child(sp)
+	var t := create_tween()
+	t.tween_property(sp, "position:z", -(up + 0.6), 0.9).set_ease(Tween.EASE_OUT)
+	t.parallel().tween_property(sp, "modulate:a", 0.0, 0.9).set_delay(0.4)
+	t.tween_callback(sp.queue_free)
+
 
 func _pop_text(text: String, color: Color) -> void:
 	var label := Label3D.new()

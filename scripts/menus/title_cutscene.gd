@@ -49,14 +49,14 @@ func _p(key: String, fallback):
 # ---- Forest backdrop: ForestBackdrop (scripts/ui/forest_backdrop.gd) ----
 
 # ---- Actors and props: the designer's art ----
-## Olorin and his bear: his town sheet's four standing poses (rows front,
+## Olorin: his town sheet's four standing poses (rows front,
 ## back, left, right), the smooth cut. For lying back on the chair he is cut
 ## from his west-facing pose without the bear (x >= OLORIN_SPLIT), and the
 ## bear, his staff planted beside it, stands by the chair (x < OLORIN_SPLIT).
 const OLORIN_SHEET := "res://assets/sprites/generated/smooth/sheets/olorin/Idle.png"
 const ROW_W := 2
 const ROW_E := 3
-const OLORIN_SCALE := 0.8
+const OLORIN_SCALE := 0.87     # (designer, 2026-11-01: a touch taller)
 const OLORIN_SPLIT := 130.0     # cell px: bear and staff to the left, Olorin to the right (west pose)
 const OLORIN_MOUTH := Vector2(9.5, -176.0)   # west pose, cell px from the cell's bottom centre
 const OLORIN_FEET_X := 185.0    # west pose: his own boots, cell px (the pivot he lies back on)
@@ -70,7 +70,7 @@ const PIPE_RIM := Vector2(8.5, 13.0)    # the bowl's rim, where the smoke rises
 const CHAIR_TEX := "res://assets/textures/props/boards/cutscene_chair_0.png"
 const RUN_FRAME_TIME := 0.11
 
-const PIPE_SCALE := 1.0
+const PIPE_SCALE := 0.7        # (designer, 2026-11-01: smaller)
 # Radians. Held in the mouth the pipe hangs as drawn, bowl low and forward;
 # lying back it is turned bowl-up to the sky; on the ground, level.
 const PIPE_HOLD_ANGLE := 0.0
@@ -79,6 +79,13 @@ const PIPE_GROUND_ANGLE := 0.21
 const LOUNGE_ROT := 1.15          # Olorin tipped back onto the chair (radians, clockwise)
 
 var _olorin_tex: Texture2D = load(OLORIN_SHEET)
+## His bear, asleep a few paces behind him (its own board, 2026-11-01): the
+## bear no longer stands at his side.
+const BEAR_SLEEP_SHEET := "res://assets/sprites/generated/smooth/sheets/olorin_bear/Sleep.png"
+const BEAR_SCALE := 0.62
+const BEAR_BEHIND := 250.0      # px behind Olorin's feet (to the right, up the field)
+const BEAR_UP := 14.0           # px up the field: a pace back, feet in the grass
+var _bear_tex: Texture2D = load(BEAR_SLEEP_SHEET)
 var _boy_left: Texture2D = load(BOY_LEFT)
 var _boy_right: Texture2D = load(BOY_RIGHT)
 var _pipe_tex: Texture2D = load(PIPE_TEX)
@@ -366,22 +373,37 @@ func _draw_olorin_cell(row: int, x0: float, x1: float, foot: Vector2, rot: float
 		Rect2(x0, row * c, x1 - x0, c))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
-func _draw_olorin_lounging(base: Vector2, pipe_in_hand: bool) -> void:
+func _draw_bear_sleeping() -> void:
+	## The bear dozing a few paces behind Olorin, drawn first so he and the
+	## chair stand in front of it.
+	var c := float(_bear_tex.get_height()) / 4.0
+	var foot := _olorin_foot() + Vector2(BEAR_BEHIND, -BEAR_UP)
+	draw_set_transform(foot, 0.0, Vector2(BEAR_SCALE, BEAR_SCALE))
+	draw_texture_rect_region(_bear_tex, Rect2(Vector2(-c * 0.5, -c), Vector2(c, c)), Rect2(0, 0, c, c))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+func _draw_olorin_lounging(_base: Vector2, pipe_in_hand: bool) -> void:
 	## Olorin lying back on the chair: his west-facing pose without the bear,
-	## tipped back about his feet on the leg rest, face to the sky. His bear
-	## stands beside the chair with the staff he planted in the ground.
+	## tipped back about his feet on the leg rest, face to the sky.
 	var c := _cell()
-	_draw_olorin_cell(ROW_W, 0.0, OLORIN_SPLIT, Vector2(base.x + float(_chair_tex.get_width()) * 0.78, base.y))
+	_draw_bear_sleeping()
 	_draw_olorin_cell(ROW_W, OLORIN_SPLIT, c, _lounge_feet(), LOUNGE_ROT, OLORIN_FEET_X)
 	if pipe_in_hand:
 		_draw_pipe(_mouth_pos(), PIPE_LOUNGE_ANGLE, PIPE_SCALE, true)
 
 func _draw_olorin_standing(foot: Vector2, facing: float, scratching: bool) -> void:
-	## Olorin and his bear. facing: -1 looks left, +1 looks right. While
+	## Olorin, his bear asleep behind him. facing: -1 looks left, +1 looks right. While
 	## pondering ("scratching"), a slow rock on the heels.
 	var row := ROW_W if facing < 0.0 else ROW_E
 	var rot := sin(_t * 3.0) * 0.035 if scratching else 0.0
-	_draw_olorin_cell(row, 0.0, _cell(), foot, rot)
+	_draw_bear_sleeping()
+	# His own half of the cell: the bear painted beside him stays unseen
+	# (left of the split facing west; the east pose is its mirror).
+	var c := _cell()
+	if facing < 0.0:
+		_draw_olorin_cell(row, OLORIN_SPLIT, c, foot, rot)
+	else:
+		_draw_olorin_cell(row, 0.0, c - OLORIN_SPLIT, foot, rot)
 
 func _draw_boy(base: Vector2, t: float, running: bool, facing: float) -> void:
 	## The small boy. facing +1 = to the right (toward Olorin), -1 = left.
