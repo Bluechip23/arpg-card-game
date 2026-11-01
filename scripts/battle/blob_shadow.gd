@@ -12,6 +12,8 @@ extends Sprite3D
 ## zoom, and no re-tuning if the fixed pitch ever changes.
 
 const TEXTURE := "res://assets/textures/blob_shadow.png"
+## The shadow's strength: the texture's alpha times this.
+const SHADE := 0.6
 ## Screen aspect (height / width) the shadow should show.
 const SCREEN_ASPECT := 0.5
 ## Texture aspect (16 / 32).
@@ -33,6 +35,11 @@ static func attach(parent: Node3D, width: float) -> BlobShadow:
 	s.scale = Vector3(1.0, depth_stretch, 1.0)
 	s.position = Vector3(0, 0.012, 0)
 	s.sorting_offset = -0.5  # draw beneath the body sprite
+	# Lighter than the texture paints it (designer, 2026-11-01: the dark
+	# ground under a wide pose read as black under the arms and between
+	# stepping legs). Set here, not in the PNG, so no stale import cache
+	# can ever show the quad before its alpha is in.
+	s.modulate = Color(1, 1, 1, SHADE)
 	parent.add_child(s)
 	return s
 
