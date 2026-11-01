@@ -107,15 +107,16 @@ HEROES = {
         (FB, (364, 0, 599, 411), "north"),
         (SIDE, (334, 2, 466, 372), "east"),
     ],
-    # 2026-11-01: the designer's Ryan, redrawn leaner (no axes on his back;
-    # true profiles for the sides): his own board on black, front, back and
-    # the two sides stacked.
+    # 2026-11-01: the designer's Ryan (goggles, masked, crossed axes on
+    # his back, knives and potions at his belt): his own board on black,
+    # the two profiles, back and front side by side.
     "ryan": [
-        (RYAN, (193, 6, 473, 490), "south"),
-        (RYAN, (190, 492, 472, 1001), "north"),
-        (RYAN, (230, 1461, 408, 1988), "east"),
-        (RYAN, (249, 1003, 430, 1460), "west"),
+        (RYAN, (1069, np.int64(26), 1391, np.int64(611)), "south"),
+        (RYAN, (608, np.int64(28), 925, np.int64(611)), "north"),
+        (RYAN, (1557, np.int64(28), 1756, np.int64(614)), "east"),
+        (RYAN, (241, np.int64(28), 445, np.int64(615)), "west"),
     ],
+
 
     # 2026-10-28: the new Brad (fur-trimmed scale armour over red sleeves,
     # a gorget over his mouth, the War Rack on his back, the glowing feather
