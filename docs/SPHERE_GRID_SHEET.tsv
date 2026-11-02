@@ -1,0 +1,297 @@
+SECTION 1: NODE TYPE SUMMARY
+
+Node type	Count	What the whole grid adds up to	Node ids
+Start (Origin)	1		0
+Stat bonus	31	+13 STR, +13 DEX, +16 INT, +16 WIS, +10 AGI, +13 DET	1, 2, 3, 4, 5, 6, 7, 9, 11, 13, 15, 17, 39, 43, 47, 51, 55, 59, 63, 66, 70, 74, 81, 93, 97, 102, 105, 109, 113, 117, 120
+Free stat points	6	+18 free stat points	19, 21, 23, 25, 27, 29
+Max health	12	+206 max HP	8, 10, 18, 20, 22, 30, 38, 64, 71, 88, 96, 123
+Max mana	7	+95 max Mana	12, 14, 16, 24, 26, 28, 126
+Combat bonus	54	see breakdown below	40, 42, 44, 46, 48, 49, 50, 52, 54, 56, 57, 61, 68, 72, 73, 75, 76, 77, 79, 82, 84, 86, 90, 92, 94, 95, 98, 99, 100, 101, 116, 121, 124, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154
+Keystone	17	17 keystones, max 3 attached at once	85, 89, 103, 104, 106, 107, 110, 112, 114, 118, 127, 128, 129, 130, 131, 132, 133
+Culling stone	5	5 culling stones	53, 67, 69, 91, 125
+Null (path only)	22		31, 32, 33, 34, 35, 36, 37, 41, 45, 58, 60, 62, 65, 78, 80, 83, 87, 108, 111, 115, 119, 122
+Triggered passive	0		
+Retrospective	0		
+Feather (retired)	0		
+TOTAL	155		
+
+Stat bonus nodes by stat	Count	Total on grid	Node ids (value)
+STR (Strength)	5	+13	1 (+1), 7 (+1), 39 (+3), 63 (+3), 102 (+5)
+DEX (Dexterity)	5	+13	2 (+1), 9 (+1), 43 (+3), 66 (+3), 105 (+5)
+INT (Intelligence)	6	+16	3 (+1), 11 (+1), 47 (+3), 70 (+3), 93 (+3), 109 (+5)
+WIS (Wisdom)	6	+16	4 (+1), 13 (+1), 51 (+3), 74 (+3), 97 (+3), 113 (+5)
+AGI (Agility)	4	+10	5 (+1), 15 (+1), 55 (+3), 117 (+5)
+DET (Determination)	5	+13	6 (+1), 17 (+1), 59 (+3), 81 (+3), 120 (+5)
+
+Vitality nodes by size	Count	Total	Node ids
+HP +10	4	+40	8, 10, 18, 38
+HP +12	3	+36	20, 22, 30
+HP +20	2	+40	64, 71
+HP +25	1	+25	88
+HP +30	1	+30	96
+HP +35	1	+35	123
+Mana +10	3	+30	12, 14, 16
+Mana +15	3	+45	24, 26, 28
+Mana +20	1	+20	126
+
+Combat bonus group	Count	Total on grid	Node ids (label)
+Block	4	+4	40 (Block +1), 61 (Block +1), 90 (Block +1), 121 (Block +1)
+Damage	2	+2	48 (Damage +1), 73 (Damage +1)
+Heal power	3	+3	52 (Heal +1), 77 (Heal +1), 116 (Heal +1)
+Crit chance %	3	+3	56 (Crit +1%), 82 (Crit +1%), 100 (Crit +1%)
+Thorns	3	+3	44 (Thorns +1), 68 (Thorns +1), 124 (Thorns +1)
+Regen / cycle	2	+2	46 (Regen +1), 98 (Regen +1)
+Life steal %	2	+2	42 (Life Steal +1%), 75 (Life Steal +1%)
+Resist %	2	+2	50 (Resist +1%), 92 (Resist +1%)
+Range	1	+1	84 (Range +1)
+Armor (once)	1	+1	86 (Armor +1)
+Unerring cap	5	+9	49 (Unerring +2), 57 (Unerring +1), 79 (Unerring +2), 95 (Unerring +1), 99 (Unerring +3)
+Armor / cycle	2	+2	54 (Arm/Cyc +1), 94 (Arm/Cyc +1)
+Debuff amp: Vulnerable %	2	+30	72 (Vuln Amp +15%), 101 (Vuln Amp +15%)
+Debuff amp: Weaken %	1	+25	76 (Weaken Amp +25%)
+Buff amp (self-buffs)	9	9 distinct amps	134 (Haste Amp +1), 135 (Enlight Amp +10%), 136 (Brace Amp +10%), 137 (Blessed Draw +1), 138 (Blessed Amp +1), 139 (Strength Amp +5), 140 (Bolster Amp +5), 141 (Cleanse Amp +1), 142 (Resil Amp +10%)
+Debuff amp (hex arc)	12	12 distinct amps	143 (Bleed Amp +1), 144 (Stun Amp +1), 145 (Disarm Amp +1), 146 (Silence Amp +1), 147 (Burn Amp +1), 148 (Poison Amp +5), 149 (Curse Amp +10%), 150 (Curse Pain +10%), 151 (Shatter +5), 152 (Shock Amp +1), 153 (Slow Amp +1), 154 (Root Amp +1)
+
+Nodes per ring	Count	Radius (px)	Node ids
+Ring 0 (Origin)	1	0	0
+Ring 1	6	90	1-6
+Ring 2	12	170	7-18
+Ring 3 (+ null links 31-36)	18	260/305	19-36
+Ring 4	24	350	37-60
+Ring 5	39	440	61-99
+Ring 6	34	540	100-133
+Buff-amp arc	9	620	134-142
+Debuff-amp (hex) arc	12	700	143-154
+
+
+SECTION 2: ALL NODES
+
+Id	Ring	Type	Label	Effect	Stat gate	Keystone id	Constellations	Connected to
+0	0	Start (Origin)	Origin	Starting point				1, 2, 3, 4, 5, 6
+1	1	Stat bonus	STR +1	Strength +1			Iron Will, Blood Hunter	0, 2, 6, 7, 8
+2	1	Stat bonus	DEX +1	Dexterity +1				0, 1, 3, 9, 10
+3	1	Stat bonus	INT +1	Intelligence +1			Arcane Current, Mind Weaver	0, 2, 4, 11, 12
+4	1	Stat bonus	WIS +1	Wisdom +1			Sage's Insight	0, 3, 5, 13, 14
+5	1	Stat bonus	AGI +1	Agility +1			Windwalker, Storm Runner	0, 4, 6, 15, 16
+6	1	Stat bonus	DET +1	Determination +1			Unyielding	0, 1, 5, 17, 18
+7	2	Stat bonus	STR +1	Strength +1			Iron Will	1, 8, 18, 19, 20
+8	2	Max health	HP +10	Max Health +10			Iron Will, Blood Hunter	1, 7, 9, 20
+9	2	Stat bonus	DEX +1	Dexterity +1			Blood Hunter	2, 8, 10, 21, 22
+10	2	Max health	HP +10	Max Health +10			Mind Weaver	2, 9, 11, 22
+11	2	Stat bonus	INT +1	Intelligence +1			Arcane Current, Mind Weaver	3, 10, 12, 23, 24
+12	2	Max mana	Mana +10	Max Mana +10			Arcane Current	3, 11, 13, 24
+13	2	Stat bonus	WIS +1	Wisdom +1			Sage's Insight	4, 12, 14, 25, 26
+14	2	Max mana	Mana +10	Max Mana +10			Sage's Insight	4, 13, 15, 26
+15	2	Stat bonus	AGI +1	Agility +1			Windwalker	5, 14, 16, 27, 28
+16	2	Max mana	Mana +10	Max Mana +10			Windwalker, Storm Runner	5, 15, 17, 28
+17	2	Stat bonus	DET +1	Determination +1			Storm Runner, Unyielding	6, 16, 18, 29, 30
+18	2	Max health	HP +10	Max Health +10			Unyielding	6, 7, 17, 30
+19	3	Free stat points	+3 Stats	Bank 3 stat points to spend however you like			Iron Will, Iron Bastion	7, 31, 37, 38
+20	3	Max health	HP +12	Max Health +12			Iron Will, Crimson Edge	7, 8, 39, 40
+21	3	Free stat points	+3 Stats	Bank 3 stat points to spend however you like			Blood Hunter, Crimson Edge	9, 32, 41, 42
+22	3	Max health	HP +12	Max Health +12			Blood Hunter	9, 10, 43, 44
+23	3	Free stat points	+3 Stats	Bank 3 stat points to spend however you like			Mind Weaver	11, 33, 45, 46
+24	3	Max mana	Mana +15	Max Mana +15			Mind Weaver	11, 12, 47, 48
+25	3	Free stat points	+3 Stats	Bank 3 stat points to spend however you like			Arcane Current	13, 34, 49, 50
+26	3	Max mana	Mana +15	Max Mana +15			Arcane Current	13, 14, 51, 52
+27	3	Free stat points	+3 Stats	Bank 3 stat points to spend however you like				15, 35, 53, 54
+28	3	Max mana	Mana +15	Max Mana +15			Sage's Insight, Nature's Grace	15, 16, 55, 56
+29	3	Free stat points	+3 Stats	Bank 3 stat points to spend however you like			Sage's Insight, Nature's Grace	17, 36, 57, 58
+30	3	Max health	HP +12	Max Health +12			Nature's Grace	17, 18, 59, 60
+31	3	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.			Windwalker, Shadow Strike	19
+32	3	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.			Windwalker, Storm Runner, Shadow Strike	21
+33	3	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.			Storm Runner	23
+34	3	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.				25
+35	3	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.			Unyielding	27
+36	3	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.			Unyielding, Iron Bastion	29
+37	4	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.			Iron Bastion	19, 38, 60, 61, 62
+38	4	Max health	HP +10	Max Health +10			Crimson Edge	19, 37, 39, 62, 63
+39	4	Stat bonus	STR +3	Strength +3			Crimson Edge	20, 38, 40, 64, 65
+40	4	Combat bonus	Block +1	Block cards grant +1 additional block			Crimson Edge	20, 39, 41, 65, 66
+41	4	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.				21, 40, 42, 67, 68
+42	4	Combat bonus	Life Steal +1%	Attack cards heal you for 1% of the damage they deal				21, 41, 43, 69, 70
+43	4	Stat bonus	DEX +3	Dexterity +3				22, 42, 44, 70, 71
+44	4	Combat bonus	Thorns +1	Deal 1 damage to attackers when hit				22, 43, 45, 72, 73
+45	4	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.				23, 44, 46, 74, 75
+46	4	Combat bonus	Regen +1	Regenerate 1 HP per tempo cycle				23, 45, 47, 75, 76
+47	4	Stat bonus	INT +3	Intelligence +3				24, 46, 48, 77, 78
+48	4	Combat bonus	Damage +1	Your attacks and spells deal +1 bonus damage				24, 47, 49, 78, 79
+49	4	Combat bonus	Unerring +2	Unerring armor cap +2 (the capped, regenerating armor from periodic-armor items and Arm/Cyc nodes)				25, 48, 50, 80, 81
+50	4	Combat bonus	Resist +1%	Reduce all incoming damage by 1%				25, 49, 51, 82, 83
+51	4	Stat bonus	WIS +3	Wisdom +3			Nature's Grace	26, 50, 52, 83, 84
+52	4	Combat bonus	Heal +1	Heal cards restore +1 additional HP			Nature's Grace	26, 51, 53, 85, 86
+53	4	Culling stone	Cull Stone	Grants 1 Culling Stone				27, 52, 54, 87, 88
+54	4	Combat bonus	Arm/Cyc +1	Gain 1 unerring armor each tempo cycle (up to your unerring cap)			Shadow Strike	27, 53, 55, 88, 89
+55	4	Stat bonus	AGI +3	Agility +3			Shadow Strike	28, 54, 56, 90, 91
+56	4	Combat bonus	Crit +1%	Critical hit chance +1%			Shadow Strike	28, 55, 57, 91, 92
+57	4	Combat bonus	Unerring +1	Unerring armor cap +1 (the capped, regenerating armor from periodic-armor items and Arm/Cyc nodes)				29, 56, 58, 93, 94
+58	4	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.				29, 57, 59, 95, 96
+59	4	Stat bonus	DET +3	Determination +3			Iron Bastion	30, 58, 60, 96, 97
+60	4	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.			Iron Bastion	30, 37, 59, 98, 99
+61	5	Combat bonus	Block +1	Block cards grant +1 additional block				37, 62, 99, 100, 101
+62	5	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.				37, 38, 61, 63, 100, 101
+63	5	Stat bonus	STR +3	Strength +3				38, 62, 64, 101, 102
+64	5	Max health	HP +20	Max Health +20				39, 63, 65, 102, 103
+65	5	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.				39, 40, 64, 66, 103, 104
+66	5	Stat bonus	DEX +3	Dexterity +3				40, 65, 67, 104, 105
+67	5	Culling stone	Cull Stone	Grants 1 Culling Stone				41, 66, 68, 105, 106
+68	5	Combat bonus	Thorns +1	Deal 1 damage to attackers when hit				41, 67, 69, 106, 107
+69	5	Culling stone	Cull Stone	Grants 1 Culling Stone				42, 68, 70, 106, 107
+70	5	Stat bonus	INT +3	Intelligence +3				42, 43, 69, 71, 107, 108
+71	5	Max health	HP +20	Max Health +20				43, 70, 72, 108, 109
+72	5	Combat bonus	Vuln Amp +15%	Vulnerable you apply amplifies damage by 45% instead of 30%				44, 71, 73, 109, 110
+73	5	Combat bonus	Damage +1	Your attacks and spells deal +1 bonus damage				44, 72, 74, 110, 111
+74	5	Stat bonus	WIS +3	Wisdom +3				45, 73, 75, 111, 112
+75	5	Combat bonus	Life Steal +1%	Attack cards heal you for 1% of the damage they deal				45, 46, 74, 76, 112, 113
+76	5	Combat bonus	Weaken Amp +25%	Weaken you apply saps an extra 25% of enemy damage (30% base)				46, 75, 77, 113, 114
+77	5	Combat bonus	Heal +1	Heal cards restore +1 additional HP				47, 76, 78, 113, 114
+78	5	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.				47, 48, 77, 79, 114, 115
+79	5	Combat bonus	Unerring +2	Unerring armor cap +2 (the capped, regenerating armor from periodic-armor items and Arm/Cyc nodes)				48, 78, 80, 115, 116
+80	5	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.				49, 79, 81, 116, 117
+81	5	Stat bonus	DET +3	Determination +3				49, 80, 82, 117, 118
+82	5	Combat bonus	Crit +1%	Critical hit chance +1%	DEX 20			50, 81, 83, 118, 119
+83	5	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.				50, 51, 82, 84, 119, 120
+84	5	Combat bonus	Range +1	Ranged cards gain +1 range				51, 83, 85, 120, 121
+85	5	Keystone	Bulwark Soul	Keystone: gain +2 max health per point of Determination — past and future.	DET 12	det_vitality		52, 84, 86, 120, 121
+86	5	Combat bonus	Armor +1	Gain 1 armor once, when unlocked				52, 85, 87, 121, 122
+87	5	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.				53, 86, 88, 122, 123
+88	5	Max health	HP +25	Max Health +25				53, 54, 87, 89, 123, 124
+89	5	Keystone	Deadeye Form	Keystone: ranged attacks scale with Dexterity instead of Strength.	DEX 15	dex_ranged		54, 88, 90, 124, 125
+90	5	Combat bonus	Block +1	Block cards grant +1 additional block				55, 89, 91, 125, 126
+91	5	Culling stone	Cull Stone	Grants 1 Culling Stone				55, 56, 90, 92, 126, 127
+92	5	Combat bonus	Resist +1%	Reduce all incoming damage by 1%				56, 91, 93, 127, 128
+93	5	Stat bonus	INT +3	Intelligence +3				57, 92, 94, 127, 128
+94	5	Combat bonus	Arm/Cyc +1	Gain 1 unerring armor each tempo cycle (up to your unerring cap)				57, 93, 95, 128, 129
+95	5	Combat bonus	Unerring +1	Unerring armor cap +1 (the capped, regenerating armor from periodic-armor items and Arm/Cyc nodes)				58, 94, 96, 129, 130
+96	5	Max health	HP +30	Max Health +30				58, 59, 95, 97, 130, 131
+97	5	Stat bonus	WIS +3	Wisdom +3				59, 96, 98, 131, 132
+98	5	Combat bonus	Regen +1	Regenerate 1 HP per tempo cycle				60, 97, 99, 132, 133
+99	5	Combat bonus	Unerring +3	Unerring armor cap +3 (the capped, regenerating armor from periodic-armor items and Arm/Cyc nodes)				60, 61, 98, 100, 133
+100	6	Combat bonus	Crit +1%	Critical hit chance +1%				61, 62, 99, 101, 133, 134, 154
+101	6	Combat bonus	Vuln Amp +15%	Vulnerable you apply amplifies damage by an extra 15% (stacks with the other Vuln Amp node)				61, 62, 63, 100, 102, 134, 143
+102	6	Stat bonus	STR +5	Strength +5				63, 64, 101, 103, 143
+103	6	Keystone	Weighted Strikes	Keystone: your basic attack gains a heavy weapon's weight-to-damage bonus even wielded one-handed (+1 damage per 10 weapon weight).	STR 15	str_weight_basic		64, 65, 102, 104
+104	6	Keystone	Balanced Load	Keystone: pick an equipment slot — its items weigh 10% less, stacking with any other weight reduction on that slot.	STR 15	str_light_slot		65, 66, 103, 105, 135, 144
+105	6	Stat bonus	DEX +5	Dexterity +5				66, 67, 104, 106, 135, 144
+106	6	Keystone	Flurry Form	Keystone: your Dexterity attack proc now strikes TWICE, but every attack deals 2 less damage — a faster, lighter flurry.	DEX 18	dex_twin_strike		67, 68, 69, 105, 107
+107	6	Keystone	Arcane Ward	Keystone: every time your mana regenerates, gain armor equal to half your Intelligence.	INT 15	int_regen_armor		68, 69, 70, 106, 108, 145
+108	6	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.				70, 71, 107, 109, 136, 145
+109	6	Stat bonus	INT +5	Intelligence +5				71, 72, 108, 110, 136
+110	6	Keystone	Arcane Echo	Keystone: each spell you cast has an INT/3% chance to deal INT/2 bonus damage to a random enemy.	INT 15	int_spell_proc		72, 73, 109, 111, 146
+111	6	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.				73, 74, 110, 112, 137, 146
+112	6	Keystone	Quick Study	Keystone: whenever your hand empties, immediately draw 1 card — without disturbing the countdown to your next timed draw.	WIS 15	wis_empty_draw		74, 75, 111, 113, 137
+113	6	Stat bonus	WIS +5	Wisdom +5				75, 76, 77, 112, 114, 147
+114	6	Keystone	Tactician's Eye	Keystone: gain +2% critical hit chance for every card currently in your hand.	WIS 15	wis_hand_crit		76, 77, 78, 113, 115, 147
+115	6	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.				78, 79, 114, 116, 138
+116	6	Combat bonus	Heal +1	Heal cards restore +1 additional HP				79, 80, 115, 117, 138, 148
+117	6	Stat bonus	AGI +5	Agility +5				80, 81, 116, 118, 148
+118	6	Keystone	Flash Cut	Keystone: the Sidestep action becomes an attack — spend 3 Flash points to strike the nearest enemy for 1 damage instead of gaining block.	AGI 15	flash_strike		81, 82, 117, 119, 149
+119	6	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.				82, 83, 118, 120, 139, 149
+120	6	Stat bonus	DET +5	Determination +5				83, 84, 85, 119, 121, 139
+121	6	Combat bonus	Block +1	Block cards grant +1 additional block				84, 85, 86, 120, 122, 150
+122	6	Null (path only)	(null)	A bare link in the web. It offers nothing but the path onward.				86, 87, 121, 123, 150
+123	6	Max health	HP +35	Max Health +35				87, 88, 122, 124, 140
+124	6	Combat bonus	Thorns +1	Deal 1 damage to attackers when hit				88, 89, 123, 125, 140, 151
+125	6	Culling stone	Cull Stone	Grants 1 Culling Stone				89, 90, 124, 126, 151
+126	6	Max mana	Mana +20	Max Mana +20				90, 91, 125, 127, 141
+127	6	Keystone	Killing Rhythm	Keystone: give up the Dexterity tempo/mana proc — instead, each time it would trigger, your next attack deals bonus damage equal to half your Dexterity.	DEX 18	dex_flat_damage		91, 92, 93, 126, 128, 141, 152
+128	6	Keystone	Unbroken Will	Keystone: Determination can no longer gut your stats — its penalty floor rises from 10% to 50%, so low health never drops a stat below half its base.	DET 15	det_floor		92, 93, 94, 127, 129, 152
+129	6	Keystone	Wild Abandon	Keystone: Determination's effect per point is amplified 50% — bigger stat swings, up AND down, as your health rises and falls.	DET 15	det_amplify		94, 95, 128, 130
+130	6	Keystone	Sanguine Barrier	Keystone: life steal no longer heals — stolen life becomes temporary HP (5 tempo) instead.		lifesteal_temp_hp		95, 96, 129, 131, 142, 153
+131	6	Keystone	Living Bulwark	Keystone: armor you would gain becomes temporary HP (5 tempo) instead.		armor_temp_hp		96, 97, 130, 132, 142, 153
+132	6	Keystone	Arcane Blood	Keystone: damage is split evenly between health and mana. If mana runs dry, health takes the rest — and death still comes only at 0 HP.		mana_blood		97, 98, 131, 133
+133	6	Keystone	Willspring	Keystone: Determination now answers to your mana instead of your health — your stats swing as mana drains, not HP.		det_mana		98, 99, 100, 132, 154
+134	7	Combat bonus	Haste Amp +1	Haste you gain lasts 1 extra movement				100, 101
+135	7	Combat bonus	Enlight Amp +10%	Enlightened you gain grants +10% more crit chance (20% total)				104, 105
+136	7	Combat bonus	Brace Amp +10%	Brace you gain blocks 10 more percentage points of damage				108, 109
+137	7	Combat bonus	Blessed Draw +1	Blessed you gain draws 1 extra card per cycle				111, 112
+138	7	Combat bonus	Blessed Amp +1	Blessed you gain lasts 1 extra cycle				115, 116
+139	7	Combat bonus	Strength Amp +5	Strengthen you gain deals 5 more damage per attack				119, 120
+140	7	Combat bonus	Bolster Amp +5	Bolster you gain grants 5 more armor per charge				123, 124
+141	7	Combat bonus	Cleanse Amp +1	Cleanse you gain removes 1 extra debuff				126, 127
+142	7	Combat bonus	Resil Amp +10%	Resilient you gain negates 10 more percentage points of damage				130, 131
+143	8	Combat bonus	Bleed Amp +1	Bleed you apply deals 1 additional damage per tile moved				101, 102
+144	8	Combat bonus	Stun Amp +1	Stuns you apply last 1 additional tempo				104, 105
+145	8	Combat bonus	Disarm Amp +1	Disarms you apply last 1 additional tempo				107, 108
+146	8	Combat bonus	Silence Amp +1	Silences you apply last 1 additional tempo				110, 111
+147	8	Combat bonus	Burn Amp +1	Burn you apply deals 1 additional damage after each normal tick				113, 114
+148	8	Combat bonus	Poison Amp +5	Poison you apply: each tick has a stacks% chance to spike for 5 bonus damage				116, 117
+149	8	Combat bonus	Curse Amp +10%	Cursed enemies deal 30% less damage instead of 20%				118, 119
+150	8	Combat bonus	Curse Pain +10%	Cursed enemies deal 30% of their damage to themselves instead of 20%				121, 122
+151	8	Combat bonus	Shatter +5	Enemies take 5 damage when your Frozen thaws				124, 125
+152	8	Combat bonus	Shock Amp +1	Shock you apply lands 1 additional stack				127, 128
+153	8	Combat bonus	Slow Amp +1	Slows you apply make movement cost 4 tempo instead of 3				130, 131
+154	8	Combat bonus	Root Amp +1	Roots you apply last 1 additional tempo				100, 133
+
+
+SECTION 3: KEYSTONES (unique effects; a character may attach at most 3)
+
+Id	Ring	Name	Keystone id	Stat gate	Effect	Constellations
+85	5	Bulwark Soul	det_vitality	DET 12	gain +2 max health per point of Determination — past and future.	none
+89	5	Deadeye Form	dex_ranged	DEX 15	ranged attacks scale with Dexterity instead of Strength.	none
+103	6	Weighted Strikes	str_weight_basic	STR 15	your basic attack gains a heavy weapon's weight-to-damage bonus even wielded one-handed (+1 damage per 10 weapon weight).	none
+104	6	Balanced Load	str_light_slot	STR 15	pick an equipment slot — its items weigh 10% less, stacking with any other weight reduction on that slot.	none
+106	6	Flurry Form	dex_twin_strike	DEX 18	your Dexterity attack proc now strikes TWICE, but every attack deals 2 less damage — a faster, lighter flurry.	none
+107	6	Arcane Ward	int_regen_armor	INT 15	every time your mana regenerates, gain armor equal to half your Intelligence.	none
+110	6	Arcane Echo	int_spell_proc	INT 15	each spell you cast has an INT/3% chance to deal INT/2 bonus damage to a random enemy.	none
+112	6	Quick Study	wis_empty_draw	WIS 15	whenever your hand empties, immediately draw 1 card — without disturbing the countdown to your next timed draw.	none
+114	6	Tactician's Eye	wis_hand_crit	WIS 15	gain +2% critical hit chance for every card currently in your hand.	none
+118	6	Flash Cut	flash_strike	AGI 15	the Sidestep action becomes an attack — spend 3 Flash points to strike the nearest enemy for 1 damage instead of gaining block.	none
+127	6	Killing Rhythm	dex_flat_damage	DEX 18	give up the Dexterity tempo/mana proc — instead, each time it would trigger, your next attack deals bonus damage equal to half your Dexterity.	none
+128	6	Unbroken Will	det_floor	DET 15	Determination can no longer gut your stats — its penalty floor rises from 10% to 50%, so low health never drops a stat below half its base.	none
+129	6	Wild Abandon	det_amplify	DET 15	Determination's effect per point is amplified 50% — bigger stat swings, up AND down, as your health rises and falls.	none
+130	6	Sanguine Barrier	lifesteal_temp_hp	none	life steal no longer heals — stolen life becomes temporary HP (5 tempo) instead.	none
+131	6	Living Bulwark	armor_temp_hp	none	armor you would gain becomes temporary HP (5 tempo) instead.	none
+132	6	Arcane Blood	mana_blood	none	damage is split evenly between health and mana. If mana runs dry, health takes the rest — and death still comes only at 0 HP.	none
+133	6	Willspring	det_mana	none	Determination now answers to your mana instead of your health — your stats swing as mana drains, not HP.	none
+
+
+SECTION 4: CONSTELLATIONS
+
+Constellation	Id	Bonus	Required nodes (id: label)	Node count	Conflicts with (shares nodes)	Shared node ids
+Iron Will	iron_will	On kill: gain 3 armor and heal 2 HP	1: STR +1; 7: STR +1; 8: HP +10; 19: +3 Stats; 20: HP +12	5	Blood Hunter, Crimson Edge, Iron Bastion	Blood Hunter: 1, 8; Crimson Edge: 20; Iron Bastion: 19
+Blood Hunter	blood_hunter	Attacks have +15% chance to apply bleed. Bleed deals +2 per tick	1: STR +1; 8: HP +10; 9: DEX +1; 21: +3 Stats; 22: HP +12	5	Iron Will, Crimson Edge	Iron Will: 1, 8; Crimson Edge: 21
+Arcane Current	arcane_current	Spell cards deal +5 bonus damage	3: INT +1; 11: INT +1; 12: Mana +10; 25: +3 Stats; 26: Mana +15	5	Mind Weaver	Mind Weaver: 3, 11
+Mind Weaver	mind_weaver	On spell cast: 20% chance to draw a card. +30 max mana	3: INT +1; 10: HP +10; 11: INT +1; 23: +3 Stats; 24: Mana +15	5	Arcane Current	Arcane Current: 3, 11
+Windwalker	windwalker	+5 AGI (+5 max flash points). First card played after moving costs 10 less	5: AGI +1; 15: AGI +1; 16: Mana +10; 31: null; 32: null	5	Storm Runner, Shadow Strike	Storm Runner: 5, 16, 32; Shadow Strike: 31, 32
+Storm Runner	storm_runner	+5 AGI (+5 max flash points). Gain 20 mana on each move	5: AGI +1; 16: Mana +10; 17: DET +1; 32: null; 33: null	5	Windwalker, Unyielding, Shadow Strike	Windwalker: 5, 16, 32; Unyielding: 17; Shadow Strike: 32
+Sage's Insight	sages_insight	Draw 1 extra card per tempo cycle	4: WIS +1; 13: WIS +1; 14: Mana +10; 28: Mana +15; 29: +3 Stats	5	Nature's Grace	Nature's Grace: 28, 29
+Unyielding	unyielding	Below 50% HP: gain 3 armor each cycle. Determination scaling +20%	6: DET +1; 17: DET +1; 18: HP +10; 35: null; 36: null	5	Storm Runner, Iron Bastion	Storm Runner: 17; Iron Bastion: 36
+Crimson Edge	crimson_edge	Attacks heal for 8% of damage dealt	20: HP +12; 21: +3 Stats; 38: HP +10; 39: STR +3; 40: Block +1	5	Iron Will, Blood Hunter	Iron Will: 20; Blood Hunter: 21
+Shadow Strike	shadow_strike	Critical hits deal 2x damage instead of 1.5x	31: null; 32: null; 54: Arm/Cyc +1; 55: AGI +3; 56: Crit +1%	5	Windwalker, Storm Runner	Windwalker: 31, 32; Storm Runner: 32
+Iron Bastion	iron_bastion	Gain 5 armor once, on completion. When hit: 15% chance to reduce damage by 50%	19: +3 Stats; 36: null; 37: null; 59: DET +3; 60: null	5	Iron Will, Unyielding	Iron Will: 19; Unyielding: 36
+Nature's Grace	natures_grace	Regenerate 2 HP each tempo cycle. Heal cards restore +5 additional HP	28: Mana +15; 29: +3 Stats; 30: HP +12; 51: WIS +3; 52: Heal +1	5	Sage's Insight	Sage's Insight: 28, 29
+
+Node	Label	Member of
+1	STR +1	Iron Will, Blood Hunter
+3	INT +1	Arcane Current, Mind Weaver
+5	AGI +1	Windwalker, Storm Runner
+8	HP +10	Iron Will, Blood Hunter
+11	INT +1	Arcane Current, Mind Weaver
+16	Mana +10	Windwalker, Storm Runner
+17	DET +1	Storm Runner, Unyielding
+19	+3 Stats	Iron Will, Iron Bastion
+20	HP +12	Iron Will, Crimson Edge
+21	+3 Stats	Blood Hunter, Crimson Edge
+28	Mana +15	Sage's Insight, Nature's Grace
+29	+3 Stats	Sage's Insight, Nature's Grace
+31	(null)	Windwalker, Shadow Strike
+32	(null)	Windwalker, Storm Runner, Shadow Strike
+36	(null)	Unyielding, Iron Bastion
+
+
+SECTION 5: NOTES
+
+Topic	Note
+Unlocking	A node can be unlocked when any neighbour is unlocked. Origin (id 0) starts unlocked.
+Keystone cap	MAX_KEYSTONES = 3. A fourth keystone cannot be unlocked while three are attached.
+Stat gates	Gated nodes compare against the character's BASE stat (sphere and equipment bonuses excluded; DET uses the live determination value).
+Constellations	Completing all required nodes offers the bonus. Two constellations that share a node cannot both be active: the newer one replaces the older (replacement modal), and the old bonus is removed.
+Null nodes	Ids 31-36 are placeholder links between Rings 3 and 4 kept so Windwalker, Storm Runner, Unyielding, Shadow Strike and Iron Bastion stay completable.
+Free stat nodes	'+3 Stats' banks 3 points into the level-up pool; the player allocates them on the stat screen.
+Armor +1	Grants 1 armor once on unlock (not a permanent max); also adds to sphere_bonus_armor.
+Unyielding (text vs code)	Tooltip says 'Determination scaling +20%'. Code grants a flat +2 Determination (apply_sphere_grid_stat('determination', 2)).
+Vuln Amp (text)	Node 72 reads '45% instead of 30%'; node 101 reads 'an extra 15% (stacks)'. Both add +15 to sphere_vulnerable_amp.
+Conversion keystones	Ids 130-133 (Sanguine Barrier, Living Bulwark, Arcane Blood, Willspring) have no stat gate yet; placement and gates await the layout pass.
+Shelved passives	16 triggered PASSIVE nodes were retired from Rings 4-6 (now null links); those effects are destined for item engravings.
+Source	scripts/progression/sphere_grid.gd (data), scripts/progression/progression_triggers.gd (node + constellation effects), scripts/character/player_stats.gd (combat bonus parsing).
