@@ -108,19 +108,20 @@ ACTIONS = {
         "rows": [(52, 267), (267, 482), (482, 684), (684, 902)],
         "facings": ["south", "north", "west", "east"],
     },
-    # 2026-10-31: Ryan's dual blade flurry — four alternating stabs. Its
-    # cells are narrow; a stab's streak that crosses into the next cell is
-    # cut at the line.
+    # 2026-11-02: Ryan's auto attack redrawn — four quick stabs, alternating
+    # hands, twelve frames; front, back, left, right rows (number strips
+    # between them).
     ("ryan", "attack"): {
         "src": "ryan_attack_board.webp",
         "tol": 4,           # his near-black clothes sit close to the ground's colour
         "pockets": False,   # near-black clothes on a near-black ground: the
         "narrow": 7,        # shadows between his straps are the ground's colour
         "close": 7,
-        "cols": [100, 202, 303, 405, 508, 610, 713, 815, 918, 1021, 1125, 1227, 1330, 1432, 1532],
-        "rows": [(55, 270), (270, 481), (481, 684), (684, 894)],
+        "cols": [109, 228, 343, 461, 579, 697, 816, 935, 1053, 1172, 1290, 1407, 1522],
+        "rows": [(77, 288), (326, 529), (568, 757), (795, 984)],
         "facings": ["south", "north", "west", "east"],
     },
+
     # 2026-10-31: Ryan's block is a backflip (a full 360). Each row is its
     # own panel, a frame-number strip under it.
     ("ryan", "block"): {
@@ -133,16 +134,19 @@ ACTIONS = {
         "rows": [(59, 247), (296, 483), (532, 715), (760, 946)],
         "facings": ["south", "north", "west", "east"],
     },
-    # 2026-10-31: Cory's aerial shadow kick combo — a crouch, a leap, kicks
-    # trailing violet shadow, a spinning kick, and he lands.
+    # 2026-11-02: Cory's aerial shadow kick combo, redrawn — a crouch, a
+    # leap in a burst of dust, kicks trailing violet shadow, the spinning
+    # kick (its cell drawn wider for the arc), and he lands.
     ("cory", "attack"): {
         "src": "cory_attack_board.webp",
         "pockets": False,   # his robe's dark folds by the hood are the ground's colour
         "narrow": 7,        # and the fill reaches them through slits
-        "cols": [108, 242, 381, 523, 662, 810, 947, 1094, 1230, 1393, 1528],
-        "rows": [(52, 257), (257, 471), (471, 678), (678, 896)],
+        "glow": "violet",   # the shadow smoke's faint haze fades out; its dark core stays solid
+        "cols": [105, 237, 368, 500, 628, 761, 888, 1018, 1177, 1309, 1442],
+        "rows": [(59, 284), (284, 507), (507, 724), (724, 945)],
         "facings": ["south", "north", "west", "east"],
     },
+
     # 2026-10-31: Cory's energy field — a palm raised, a ring of blue force
     # flares before it and fades.
     ("cory", "block"): {
@@ -156,11 +160,12 @@ ACTIONS = {
 }
 
 
-def cut_cell(cell, pockets=True, haze=False, narrow=0, drop_dark=False, close=0, tol=None, haze_dark=None, glow=False, glow_edge=0, streaks=False, halo=False):
+def cut_cell(cell, pockets=True, haze=False, narrow=0, drop_dark=False, close=0, tol=None, haze_dark=None, glow=False, glow_edge=0, streaks=False, halo=False,
+             see_through=True):
     """One cell's figure (and its dust) on transparency, cell-sized, plus
     the kept pixels' box."""
     import cv2
-    rgba = hs.cut_opaque_cell(cell, pockets, haze, narrow, tol, haze_dark, glow, glow_edge)
+    rgba = hs.cut_opaque_cell(cell, pockets, haze, narrow, tol, haze_dark, glow, glow_edge, see_through)
     if halo:
         rgba = hs.strip_halo(rgba, *hs.HALO_STRIP["brad"])
     if streaks:
@@ -232,7 +237,8 @@ def build(hero, action, spec):
                                           spec.get("narrow", 0), spec.get("drop_dark", False),
                                           spec.get("close", 0), spec.get("tol"), spec.get("haze_dark"),
                                           spec.get("glow", False), spec.get("glow_edge", 0),
-                                          spec.get("streaks", False), spec.get("halo", False))
+                                          spec.get("streaks", False), spec.get("halo", False),
+                                          spec.get("see_through", True))
     n = len(cols) - 1
     # A facing the board does not draw, shown with another's frames ("copy":
     # {missing: drawn}; Brad's block from behind is his front, designer

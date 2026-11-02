@@ -40,7 +40,7 @@ func _run() -> void:
 func _test_figures() -> void:
 	print("-- The figures --")
 	var D := CharacterAnimator.Direction
-	var want := {"Brad": 0.36 * SpriteFigure.ACTION_SLOW, "Jeremy": 0.36 * SpriteFigure.ACTION_SLOW, "Stephen": 0.36 * SpriteFigure.ACTION_SLOW, "Ryan": 0.27 * SpriteFigure.ACTION_SLOW, "Cory": 0.22 * SpriteFigure.ACTION_SLOW}
+	var want := {"Brad": 0.36 * SpriteFigure.ACTION_SLOW, "Jeremy": 0.36 * SpriteFigure.ACTION_SLOW, "Stephen": 0.36 * SpriteFigure.ACTION_SLOW, "Ryan": 0.09 * SpriteFigure.ACTION_SLOW, "Cory": 0.22 * SpriteFigure.ACTION_SLOW}
 	for hero in want:
 		var f := SpriteFigure.new()
 		get_root().add_child(f)

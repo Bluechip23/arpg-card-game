@@ -210,6 +210,7 @@ MATTE_EDGE = 1        # ...but only the outermost this-many px actually fade
 MATTE_WINDOW = 9      # ...read the figure just inside them over this window...
 MATTE_MIN_CONTRAST = 40.0   # ...unless that is as near the ground as they are (dark cloth)
 MATTE_KEEP = 0.5      # coverage from this up is the figure (solid); below, ground
+SOFT_KEEP_BRIGHT = 110  # soft_frame: a translucent pixel this bright (max channel) is a glow and stays soft
 RIM_PASSES = 3        # the near-black rim round an opaque board's figure: this deep...
 RIM_DARK = 34         # ...no channel brighter than this...
 RIM_RATIO = 0.55      # ...and under this share of the figure's brightness round it...
@@ -221,6 +222,10 @@ GLOW_MIN = 5          # ...adding at least this much light...
 GLOW_BODY = 3         # the body's silhouette closes gaps this wide
 GLOW_EDGE_DARK = 140  # (glow_edge: the band's glow is dark...
 GLOW_EDGE_NEAR = 15   # ...within this of the glowing thing itself)
+DEBUG_MASKS = None    # set to a dict to receive cut_opaque_cell's glow stages
+SEALED_SHARE = 0.05   # the fill from the edge reaching under this share of the cell means the edge is sealed
+GLOW_SPECK = 400      # violet: a run of ground colour inside the cut over this many px is ground, under it smoke
+GLOW_HAZE = 7         # violet: the fading haze is the cut's outer band this many px deep; deeper is solid smoke
 GLOW_LEAN = 4         # a glow pixel: one channel above the ground this much more than the next...
 GLOW_FULL = 110       # ...and fully solid once it adds this much light
 HAZE_DARK = 60        # haze (cut_opaque_cell): no channel brighter than this...
@@ -602,7 +607,8 @@ def _ground_fit(rgb, mask):
     return np.tensordot(np.stack(terms, axis=-1), coef, axes=1)
 
 
-def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dark=None, glow=False, glow_edge=0):
+def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dark=None, glow=False, glow_edge=0,
+                    see_through=True):
     """One cell of an opaque walk board, its ground made transparent (hard
     alpha). The ground is fitted as a smooth glow (_ground_fit) and filled in
     from the cell's edge wherever a pixel is within TOL of it,
@@ -647,6 +653,13 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
             ground = core
         else:
             ground = _flood(open_, edge)
+        if ground.sum() < SEALED_SHARE * h * w:
+            # A glow's haze reaches every edge of the cell (Cory's arc), so
+            # the fill from the edge finds no way in: the biggest run of
+            # the ground's colour is the ground.
+            ng, glab, gst, _ = cv2.connectedComponentsWithStats(open_.astype(np.uint8), connectivity=4)
+            if ng > 1:
+                ground = glab == 1 + int(np.argmax(gst[1:, 4]))
     solid = ~ground
     flat = (solid & near & (spread <= POCKET_FLAT) & pockets).astype(np.uint8)
     n, lab, stats, _ = cv2.connectedComponentsWithStats(flat, connectivity=4)
@@ -755,8 +768,13 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
         # (faint glow leans by ratio: blue at least twice what it adds to
         # the other channels)
         lean = top - np.maximum(rest, 0)
-        hue = {"red": 0, "green": 1, "blue": 2}.get(glow, GLOW_CHANNEL)   # glow: True or a hue name
-        lit = (lean > np.maximum(GLOW_LEAN, 0.5 * top)) & (d.argmax(axis=2) == hue)
+        if glow == "violet":
+            # Violet (Cory's shadow smoke): red and blue both over green.
+            top = np.maximum(d[..., 0], d[..., 2])
+            lit = (d[..., 0] > d[..., 1] + GLOW_LEAN) & (d[..., 2] > d[..., 1] + GLOW_LEAN) & (top > 0)
+        else:
+            hue = {"red": 0, "green": 1, "blue": 2}.get(glow, GLOW_CHANNEL)   # glow: True or a hue name
+            lit = (lean > np.maximum(GLOW_LEAN, 0.5 * top)) & (d.argmax(axis=2) == hue)
         a = np.clip(top / GLOW_FULL, 0.0, 1.0)
         a_safe = np.maximum(a, 1e-3)[..., None]
         unblend = np.clip(model + d / a_safe, 0, 255)
@@ -790,14 +808,41 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
             src = (slab == 1 + int(np.argmax(sst[1:, 4]))).astype(np.uint8) if ns > 1 else src
             near_src = cv2.dilate(src, np.ones((GLOW_EDGE_NEAR, GLOW_EDGE_NEAR), np.uint8)) > 0
             lit &= band & near_src & (rgb.max(axis=2) < GLOW_EDGE_DARK)
+        core = np.zeros((h, w), bool)
+        if glow == "violet":
+            # The smoke is a thing with a glowing rim, not light: its dark
+            # core and its bright rim are solid, as painted. The haze is a
+            # thin band on the OUTSIDE of the cut, so only lit pixels within
+            # GLOW_HAZE of the outside fade; anything deeper is solid smoke.
+            # "Outside" means the ground, and the ground inside the curve of
+            # an arc is a ground-coloured pocket the fill never reached: a
+            # large one is ground (cleared below, and the haze beside it
+            # fades); a speck of ground colour inside the smoke is smoke.
+            nearg = solid & ~body & ~lit & (off <= TOL)
+            nn, nlab, nst, _ = cv2.connectedComponentsWithStats(nearg.astype(np.uint8), connectivity=4)
+            bigg = np.zeros((h, w), bool)
+            for j in range(1, nn):
+                if nst[j][4] > GLOW_SPECK:
+                    bigg |= nlab == j
+            solid2 = solid & ~bigg
+            kh = np.ones((2 * GLOW_HAZE + 1, 2 * GLOW_HAZE + 1), np.uint8)
+            deep = cv2.erode(solid2.astype(np.uint8), kh) > 0
+            core = solid2 & ~body & deep
+            lit &= ~core
         glow_px = lit & (a < 1.0)
         # The ground seen through the field (inside its ring, past the body)
         # is ground.
-        through = solid & ~body & ~lit & (off <= TOL) & reach & (not glow_edge)
+        # (see_through off: a glow whose core is as dark as the ground —
+        # Cory's shadow smoke — keeps that core solid, not punched out.)
+        through = solid & ~body & ~lit & (off <= TOL) & reach & (not glow_edge) & see_through
         out_rgb = np.where(glow_px[..., None], unblend, out_rgb)
         alpha = np.where(glow_px, np.maximum(a * 255.0, np.where(solid & ~glow_px, 255.0, 0.0)), alpha)
         alpha = np.where(lit & (a >= 1.0), 255.0, alpha)
         alpha = np.where(through, 0.0, alpha)
+        alpha = np.where(core, 255.0, alpha)
+        if DEBUG_MASKS is not None:   # (a dict: the stages, for a diagnostic dump)
+            DEBUG_MASKS.update(solid=solid.copy(), lit=lit.copy(), body=body.copy(), core=core.copy(),
+                               off=off.copy(), top=top.copy(), alpha=alpha.copy())
     return np.dstack([out_rgb.astype(np.uint8), alpha.astype(np.uint8)])
 
 
@@ -903,10 +948,17 @@ def soft_frame(img, factor):
     k = SMOOTH_HEIGHT / float(HEIGHT)
     size = (max(1, round(img.width * WIDEN * k / factor)), max(1, round(img.height * k / factor)))
     out = img.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")
-    # The resample's soft edge is a translucent ring of the outline's dark:
-    # on/off alpha here too, the colour bled out from the solid figure.
+    # The resample's soft edge is a translucent ring of the outline's dark,
+    # which on grass draws as a halo the figure's shape: on/off alpha
+    # there, the colour bled out from the solid figure. A glow's haze
+    # (Cory's shadow smoke, the feather's light) is translucent too, but
+    # BRIGHT once un-blended from the ground: that softness is the art's
+    # and stays. So a translucent pixel keeps its alpha only when bright.
     a = np.asarray(out).copy()
-    a[..., 3] = np.where(a[..., 3] >= 128, 255, 0)
+    al = a[..., 3]
+    bright = a[..., :3].max(axis=2) >= SOFT_KEEP_BRIGHT
+    glow_px = bright & (al > 0) & (al < 255)
+    a[..., 3] = np.where(glow_px, al, np.where(al >= 128, 255, 0))
     return smooth_art.bleed(Image.fromarray(a, "RGBA"))
 
 
