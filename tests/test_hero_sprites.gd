@@ -96,7 +96,8 @@ func _initialize() -> void:
 					continue
 				for c in range(1, 9):
 					var u := _used(body.texture, Rect2(c * f._body_cell, body.region_rect.position.y, f._body_cell, f._body_cell))
-					_check(u.size.y > 0 and absf(u.size.y - front.size.y) <= front.size.y * 0.12 and u.end.y == f._body_cell,
+					# (within a fifth: a stride row drawn stockier is matched halfway, WALK_ROW_SCALE)
+					_check(u.size.y > 0 and absf(u.size.y - front.size.y) <= front.size.y * 0.2 and u.end.y == f._body_cell,
 						"%s facing %d walk frame %d stands his height on the floor (%d)" % [hero, d, c, u.size.y])
 			f.set_walking(false)
 			f._process(0.05)
@@ -129,12 +130,14 @@ func _initialize() -> void:
 			var still := _used(a["tex"], Rect2(0, 0, cell, cell))
 			_check(absi(still.end.y - (cell - cell / SpriteFigure.ACTION_FLOOR)) <= 1,   # (a texel's rounding)
 				"%s's %s stands on its ground line (%d of %d)" % [hero, action, still.end.y, cell])
-			# Each way it draws, it stands the size of his still pose that way
-			# (within 12% in height), so nothing jumps as it starts or ends.
+			# Each way it draws, it stands the size of his still pose that way:
+			# the height within a fifth, since a row the board draws at other
+			# proportions (Stephen's parry in profile, his back) is matched
+			# halfway between its height and its head width (row_scale).
 			for r in a["rows"]:
 				var act := _used(a["tex"], Rect2(0, r * cell, cell, cell))
 				var pose := _used(fig._npc_sprite.texture, Rect2(0, r * fig._body_cell, fig._body_cell, fig._body_cell))
-				_check(absf(float(act.size.y) / pose.size.y - 1.0) <= 0.12,
+				_check(absf(float(act.size.y) / pose.size.y - 1.0) <= 0.2,
 					"%s's %s row %d stands his still pose's height (%d vs %d)" % [hero, action, r, act.size.y, pose.size.y])
 			fig.play_action(action, D.EAST)
 			_check(fig._action_sprite.visible and not fig._npc_sprite.visible,

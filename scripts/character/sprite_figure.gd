@@ -69,8 +69,9 @@ const ROSTER := {
 		}},
 	"Ryan": {"board": "res://assets/sprites/generated/heroes/ryan.png", "walk_rows": [0, 1, 2, 3],      # the rogue outlaw
 		"actions": {
-			# The dual blade flurry: four alternating stabs.
-			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/ryan_attack.png", "frames": 14, "rows": [0, 1, 2, 3], "t": 0.045, "hit": 7},
+			# Four quick stabs, alternating hands (redrawn 2026-11-02); the first
+			# lands on frame 3.
+			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/ryan_attack.png", "frames": 12, "rows": [0, 1, 2, 3], "t": 0.045, "hit": 3},
 			# His block is a backflip, a full 360 out of harm's way.
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/ryan_block.png", "frames": 15, "rows": [0, 1, 2, 3], "t": 0.045},
 		}},
@@ -105,6 +106,11 @@ const ACTION_FLOOR := 8
 ## slower again); the blow's
 ## timing (hit_delay) follows.
 const ACTION_SLOW := 1.8
+## The heroes' contact shadow (BlobShadow, style guide §4): off (designer,
+## 2026-11-02). Seen through the gap between striding legs and beside the
+## boots it read as sheet background left round the figure, and on the
+## designer's build it drew as a light slab. Enemies keep theirs.
+const CONTACT_SHADOW := false
 ## Texels a tile the hero sheets are cut at.
 const BOARD_DENSITY := 64.0
 ## Wearing the smooth (non-pixelated) hero sheet (ArtStyle).
@@ -190,7 +196,9 @@ func setup(character_name: String) -> void:
 	var old_shadow := get_node_or_null("Shadow")
 	if old_shadow:
 		old_shadow.queue_free()
-	_shadow = BlobShadow.attach(self, 0.54 * _shadow_scale)   # a touch tighter under the feet (2026-11-01)
+	_shadow = null
+	if CONTACT_SHADOW:
+		_shadow = BlobShadow.attach(self, 0.54 * _shadow_scale)
 	# Effect layer for bespoke card animations. Outside the rig so hops and
 	# knockback don't drag mid-flight projectiles along with the body.
 	if _fx and is_instance_valid(_fx):

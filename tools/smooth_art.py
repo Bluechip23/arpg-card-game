@@ -32,11 +32,14 @@ def bleed(img: Image.Image, passes: int = 6) -> Image.Image:
     dark fringe in from the empty pixels' black."""
     a = np.asarray(img).astype(np.float32)
     rgb, al = a[..., :3], a[..., 3]
-    # Only the solid figure seeds the bleed: a half-covered edge pixel
-    # carries the painted outline's dark, which must not spread.
+    # The solid figure seeds the bleed. A pixel with any alpha keeps its
+    # own colour (a glow's haze is bright and translucent: painting it
+    # over with the dark cloth beside it would turn the haze into a
+    # shadow); once reached it carries that colour on outward.
     have = al >= 255
     if not have.any():
         have = al > 0
+    keep = al > 0
     for _ in range(passes):
         if have.all():
             break
@@ -47,7 +50,8 @@ def bleed(img: Image.Image, passes: int = 6) -> Image.Image:
             acc += np.roll(rgb, (dy, dx), (0, 1)) * sh[..., None]
             cnt += sh
         new = ~have & (cnt > 0)
-        rgb[new] = acc[new] / cnt[new][:, None]
+        paint = new & ~keep
+        rgb[paint] = acc[paint] / cnt[paint][:, None]
         have = have | new
     out = np.dstack([rgb, al]).clip(0, 255).astype(np.uint8)
     return Image.fromarray(out, "RGBA")

@@ -190,8 +190,13 @@ WALKS = {
 WALK_EXTRA = {
     "stephen": [("stephen_walk_right_board.webp",
                  [10, 234, 458, 683, 907, 1122, 1341, 1562, 1770], [87, 738],
-                 ["east"], set(), "opaque", {"tol": 4, "narrow": 7})],   # his dark trousers
+                 ["east"], set(), "opaque", {"tol": 4, "narrow": 7, "grow": True})],   # his dark trousers; armpit shadows
 }
+# Walk rows drawn at other proportions than the still pose (designer,
+# 2026-11-02: "Stephen looks like different sizes"): the row's scale, the
+# square root of the still/row head-width ratio (halfway between matching
+# the height and matching the head). Measured on the cut sheets.
+WALK_ROW_SCALE = {"stephen": {"south": 0.95, "east": 0.94, "west": 0.87}}
 # The opaque boards' ground, fitted a cell (_ground_fit): within
 # WALK_GROUND_TOL of the fit (max channel) and reached from the edge is ground;
 # enclosed pockets of it (between arm and body) WALK_POCKET_MIN px or more,
@@ -201,15 +206,31 @@ WALK_GROUND_TOL = 10
 WALK_POCKET_MIN = 40
 WALK_HALO_PEEL = 2
 WALK_FIT_PASSES = 4   # ground fits, each to what the last fill reached
-SHADE_UNDER = 3       # a floor shadow: darker than the ground fit by this in every channel...
+SHADE_UNDER = 3       # a floor shadow: darker than the ground fit by this on average...
+SHADE_OVER = 2        # ...and brighter than it in no channel by more than this...
 SHADE_FLAT = 4.0      # ...and as smooth as the ground (5x5 spread)...
 SHADE_ZONE = 0.3      # ...in the cell's lowest share (where feet are)
+SHADE_MIN = 120       # a floor-shadow blob this big inside the cut is cleared outright...
+SHADE_BLOB_FLAT = 7   # ...allowing this much texture (5x5 spread)...
+SHADE_FOOT = 8        # ...when its bottom lies within this of the figure's lowest row
+SHADE_LIT = 8         # ...with nothing of the figure (brighter than the ground by this) below it
+SHADE_HUE = 7         # ...in the ground's own hue (_chroma within this): dark leather is warmer
+FIT_LIKE = 64         # _ground_fit, first pass: a border pixel this close (max channel) to the border's median may be ground (a glow is; a figure crossing the edge is not)
+FIT_SLACK = 40        # ...and the fit never leaves the range of the pixels it was fitted to by more than this
+TRAP_MEDIAN = 5       # trapped ground (see cut_opaque_cell): distance from the ground, median-filtered this wide...
+TRAP_TOL = 4          # ...within this is the ground's colour...
+TRAP_MIN = 200        # ...in a run this big...
+TRAP_PURE = 3.0       # ...whose median sits this close to the ground
+TRAP_GROW_TOL = 12    # grow (per board): from a pocket into touching pixels this near the ground...
+TRAP_GROW_MAX = 60    # ...up to this many px out
+SPECK_MAX = 80        # an enclosed hole up to this many px is a speck the figure keeps
 SOLE_CLOSE = 13       # but notches it bites into the figure this wide are the figure (a sole)
 MATTE_BAND = 3        # the matte (cut_opaque_cell): edge pixels within this of the outside...
 MATTE_EDGE = 1        # ...but only the outermost this-many px actually fade
 MATTE_WINDOW = 9      # ...read the figure just inside them over this window...
 MATTE_MIN_CONTRAST = 40.0   # ...unless that is as near the ground as they are (dark cloth)
 MATTE_KEEP = 0.5      # coverage from this up is the figure (solid); below, ground
+SOFT_KEEP_BRIGHT = 110  # soft_frame: a translucent pixel this bright (max channel) is a glow and stays soft
 RIM_PASSES = 3        # the near-black rim round an opaque board's figure: this deep...
 RIM_DARK = 34         # ...no channel brighter than this...
 RIM_RATIO = 0.55      # ...and under this share of the figure's brightness round it...
@@ -221,6 +242,10 @@ GLOW_MIN = 5          # ...adding at least this much light...
 GLOW_BODY = 3         # the body's silhouette closes gaps this wide
 GLOW_EDGE_DARK = 140  # (glow_edge: the band's glow is dark...
 GLOW_EDGE_NEAR = 15   # ...within this of the glowing thing itself)
+DEBUG_MASKS = None    # set to a dict to receive cut_opaque_cell's glow stages
+SEALED_SHARE = 0.05   # the fill from the edge reaching under this share of the cell means the edge is sealed
+GLOW_SPECK = 400      # violet: a run of ground colour inside the cut over this many px is ground, under it smoke
+GLOW_HAZE = 7         # violet: the fading haze is the cut's outer band this many px deep; deeper is solid smoke
 GLOW_LEAN = 4         # a glow pixel: one channel above the ground this much more than the next...
 GLOW_FULL = 110       # ...and fully solid once it adds this much light
 HAZE_DARK = 60        # haze (cut_opaque_cell): no channel brighter than this...
@@ -463,7 +488,7 @@ def strip_halo(rgba, core_px, keep_px, dark):
 HALO_STRIP = {"brad": (11, 7, 120)}
 # Per hero, cut_opaque_cell's options for the still poses.
 STILL_OPTS = {
-    "stephen": {"haze": True, "pockets": False, "narrow": 7},
+    "stephen": {"haze": True, "pockets": False, "narrow": 7, "grow": True},
     "ryan": {"tol": 4, "narrow": 7},   # his black trousers are the ground's colour
 }
 
@@ -485,7 +510,7 @@ def cut(path, box, hero=None, facing=None):
     # fills the bow's curve: haze).
     o = STILL_OPTS.get(hero, {})
     matted = cut_opaque_cell(rgb.astype(np.uint8), o.get("pockets", True), o.get("haze", False),
-                             o.get("narrow", 0), o.get("tol"), o.get("haze_dark"))
+                             o.get("narrow", 0), o.get("tol"), o.get("haze_dark"), grow=o.get("grow", False))
     solid = matted[..., 3] > 0
     comps = _components(solid)
     biggest = max(len(c) for c in comps)
@@ -564,7 +589,7 @@ def cut_walk_board(path, xs, ys, facings, skip, ground, opts=None):
             cell = board[ys[r] + i:ys[r + 1] - i + 1, xs[c] + i:xs[c + 1] - i + 1]
             if ground == "opaque":
                 cell = cut_opaque_cell(cell, True, False, opts.get("narrow", 0), opts.get("tol"), None,
-                                       opts.get("glow", False), opts.get("glow_edge", 0))
+                                       opts.get("glow", False), opts.get("glow_edge", 0), grow=opts.get("grow", False))
                 if opts.get("close"):
                     k = np.ones((opts["close"], opts["close"]), np.uint8)
                     a = cv2.morphologyEx((cell[..., 3] > 0).astype(np.uint8), cv2.MORPH_CLOSE, k)
@@ -588,21 +613,45 @@ def cut_walk_board(path, xs, ys, facings, skip, ground, opts=None):
     return out
 
 
-def _ground_fit(rgb, mask):
+def _ground_fit(rgb, mask, ring=False):
     """The ground as a smooth field: a cubic in (x, y) a channel, fitted to
     the pixels in `mask` (the boards' ground is a soft glow, brightest
-    behind the figure, that no single colour matches)."""
+    behind the figure, that no single colour matches). With `ring` the
+    mask is the cell's border: a figure crossing the edge (Stephen's bow
+    tip) puts bright pixels there, and a cubic through those swung into
+    the thousands across the cell (2026-11-02), so pixels further than
+    FIT_LIKE from the border's median are left out; the fit is then
+    clamped FIT_SLACK past the range of what it was fitted to."""
     h, w, _ = rgb.shape
+    if not mask.any():
+        return np.zeros((h, w, 3))
+    pts_mask = mask
+    if ring:
+        pts = rgb[mask].astype(float)
+        like = np.abs(pts - np.median(pts, axis=0)).max(axis=1) <= FIT_LIKE
+        if like.sum() >= 50:
+            pts_mask = np.zeros(mask.shape, bool)
+            pts_mask[mask] = like
     yy, xx = np.mgrid[0:h, 0:w]
     u, v = xx / float(w) - 0.5, yy / float(h) - 0.5
     terms = [np.ones_like(u), u, v, u * u, u * v, v * v, u ** 3, u * u * v, u * v * v, v ** 3]
-    A = np.stack([t[mask] for t in terms], axis=1)
+    A = np.stack([t[pts_mask] for t in terms], axis=1)
+    pts = rgb[pts_mask].astype(float)
     step = max(1, len(A) // 6000)
-    coef, *_ = np.linalg.lstsq(A[::step], rgb[mask][::step].astype(float), rcond=None)
-    return np.tensordot(np.stack(terms, axis=-1), coef, axes=1)
+    coef, *_ = np.linalg.lstsq(A[::step], pts[::step], rcond=None)
+    model = np.tensordot(np.stack(terms, axis=-1), coef, axes=1)
+    return np.clip(model, pts.min(axis=0) - FIT_SLACK, pts.max(axis=0) + FIT_SLACK)
 
 
-def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dark=None, glow=False, glow_edge=0):
+def _chroma(rgb):
+    """A colour's hue, roughly, as (red - blue, 2 green - red - blue): the
+    ground darkened in its own hue (a floor shadow) keeps the ground's;
+    dark leather (a boot's sole) is warmer."""
+    return np.stack([rgb[..., 0] - rgb[..., 2], 2 * rgb[..., 1] - rgb[..., 0] - rgb[..., 2]], axis=-1)
+
+
+def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dark=None, glow=False, glow_edge=0,
+                    see_through=True, grow=False):
     """One cell of an opaque walk board, its ground made transparent (hard
     alpha). The ground is fitted as a smooth glow (_ground_fit) and filled in
     from the cell's edge wherever a pixel is within TOL of it,
@@ -630,13 +679,35 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
     mean = cv2.blur(f, (5, 5))
     spread = np.sqrt(np.maximum(cv2.blur(f * f, (5, 5)) - mean * mean, 0)).max(axis=2)
     soft = (rgb.max(axis=2) < HDARK) & (spread <= HAZE_FLAT) if haze else np.zeros((h, w), bool)
-    for _ in range(WALK_FIT_PASSES):
-        model = _ground_fit(rgb, ground & ~soft)
+    model0 = None
+    near = np.ones((h, w), bool)
+    for fit_pass in range(WALK_FIT_PASSES):
+        # Each refit samples the ground proper: what the last fill reached
+        # AND lies within TOL of the last model. A floor shadow and a
+        # glow's haze are opened for the fill to pass (below) but never
+        # fitted to: with them in, the model sank a few levels a pass
+        # toward Ryan's landing shadow until the plain ground round it was
+        # further than TOL off and the fill lost it (2026-11-02).
+        fit_mask = ground if fit_pass == 0 else (ground & near)
+        if fit_pass and fit_mask.sum() < 50:
+            fit_mask = ground
+        model = _ground_fit(rgb, fit_mask, ring=(fit_pass == 0))
+        if model0 is None:
+            model0 = model   # the border's own level: what a floor shadow is darker than
         off = np.abs(rgb - model).max(axis=2)
+        if DEBUG_MASKS is not None:
+            DEBUG_MASKS.setdefault("passes", []).append((ground.copy(), model.copy(), off.copy()))
         near = off <= TOL
-        # A floor shadow (under the feet): smooth, and darker than the
-        # ground in every channel.
-        shade = (rgb < model - SHADE_UNDER).all(axis=2) & (spread <= SHADE_FLAT)
+        # A floor shadow (under the feet): smooth, the ground darkened —
+        # darker than the ground by SHADE_UNDER on average and brighter in
+        # no channel (Ryan's landing shadow sits a level under the ground's
+        # red and ten under its blue; "darker in every channel" missed it).
+        under = (model - rgb).mean(axis=2) >= SHADE_UNDER
+        shade = under & ((rgb - model).max(axis=2) <= SHADE_OVER) & (spread <= SHADE_FLAT)
+        # ...and in the ground's own hue: the underside of Brad's lifted
+        # boot is a smooth dark oval too, but warm leather on a neutral
+        # ground (red 12 over blue where the ground has them level).
+        shade &= np.abs(_chroma(rgb) - _chroma(model)).max(axis=2) <= SHADE_HUE
         shade[:int(h * (1.0 - SHADE_ZONE))] = False   # (only under the feet: black cloth mid-body is cloth)
         open_ = near | soft | shade
         if narrow:
@@ -647,7 +718,16 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
             ground = core
         else:
             ground = _flood(open_, edge)
+        if ground.sum() < SEALED_SHARE * h * w:
+            # A glow's haze reaches every edge of the cell (Cory's arc), so
+            # the fill from the edge finds no way in: the biggest run of
+            # the ground's colour is the ground.
+            ng, glab, gst, _ = cv2.connectedComponentsWithStats(open_.astype(np.uint8), connectivity=4)
+            if ng > 1:
+                ground = glab == 1 + int(np.argmax(gst[1:, 4]))
     solid = ~ground
+    if DEBUG_MASKS is not None:
+        DEBUG_MASKS.setdefault("stages", []).append(("fill", solid.copy()))
     flat = (solid & near & (spread <= POCKET_FLAT) & pockets).astype(np.uint8)
     n, lab, stats, _ = cv2.connectedComponentsWithStats(flat, connectivity=4)
     k = np.ones((3, 3), np.uint8)
@@ -655,10 +735,85 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
         if stats[j][4] >= WALK_POCKET_MIN:
             piece = (cv2.dilate((lab == j).astype(np.uint8), k) > 0) & near
             solid &= ~piece
+    if DEBUG_MASKS is not None:
+        DEBUG_MASKS.setdefault("stages", []).append(("pockets", solid.copy()))
+    # Trapped ground (designer, 2026-11-02, "the shadow under his arms"):
+    # a run of the ground's own colour inside the cut that the fill never
+    # reached — enclosed by limbs, or open to the outside only through a
+    # slit the narrow fill refused — is ground when it is BIG (TRAP_MIN px)
+    # and PURE (its median within TRAP_PURE of the ground: the noise of the
+    # ground, not a near-black robe sitting a few levels off it), whatever
+    # the pockets option says. A painted shadow of the ground's colour (the
+    # back of Stephen's neck, ~130 px) is small and stays.
+    # Membership through a median of the distance from the ground, so the
+    # painted outline (near-black too) and the cracks between stones, both
+    # thin, never bridge a pocket into the hair and the boots.
+    offm = cv2.medianBlur(np.clip(off, 0, 255).astype(np.uint8), TRAP_MEDIAN)
+    trap_near = solid & (offm <= TRAP_TOL)
+    trapped = np.zeros((h, w), bool)
+    nt, tlab, tst, _ = cv2.connectedComponentsWithStats(trap_near.astype(np.uint8), connectivity=4)
+    if DEBUG_MASKS is not None:
+        DEBUG_MASKS.update(trap_near=trap_near.copy(), trap_off=off.copy(), trap_offm=offm.copy(), trap_solid=solid.copy())
+    for j in range(1, nt):
+        if tst[j][4] < TRAP_MIN:
+            continue
+        piece = tlab == j
+        if np.median(off[piece]) <= TRAP_PURE:
+            solid &= ~piece
+            trapped |= piece
+    if grow and trapped.any():
+        # The painter's shadow where a limb meets the body is near-black
+        # and runs into the ground of the pocket (Stephen's armpits: values
+        # 3-9 on a 0-1 ground), so it reads as the pocket's black left on.
+        # From each pocket the cut grows into touching pixels this dark
+        # (off <= TRAP_GROW_TOL), stopping at anything brighter: the fur,
+        # the straps, the cloth. Only from the pockets: never from the
+        # outside, so dark cloth at the silhouette (Ryan's trousers) is safe.
+        dark = solid & (off <= TRAP_GROW_TOL)
+        reach = trapped.copy()
+        for _ in range(TRAP_GROW_MAX):
+            nxt = (cv2.dilate(reach.astype(np.uint8), k) > 0) & dark & ~reach
+            if not nxt.any():
+                break
+            reach |= nxt
+        solid &= ~reach
+    if DEBUG_MASKS is not None:
+        DEBUG_MASKS.setdefault("stages", []).append(("trap", solid.copy()))
+    # A flat shadow painted on the floor under the feet (Ryan's landing)
+    # that the fill left inside the cut, as a blob: the ground darkened in
+    # its own hue, judged against the border's fit (model0: what the
+    # ground is before any shadow), not too textured, SHADE_MIN px, wider
+    # than tall and lying at the feet (its bottom within SHADE_FOOT of the
+    # figure's lowest row), which no patch of dark trousers is.
+    shade_blob = (solid & ((model0 - rgb).mean(axis=2) >= SHADE_UNDER) & ((rgb - model0).max(axis=2) <= SHADE_OVER)
+                  & (spread <= SHADE_BLOB_FLAT) & (np.abs(_chroma(rgb) - _chroma(model0)).max(axis=2) <= SHADE_HUE))
+    shade_blob[:int(h * (1.0 - SHADE_ZONE))] = False
+    # A limb standing in the shadow (Ryan's rear leg in his dash: trousers
+    # of the ground's own darkness, a boot under them) is cloth, not
+    # shadow: a pixel with something LIT of the figure below it in its
+    # column (brighter than the ground by SHADE_LIT in some channel — a
+    # boot, a wrap, dust; a shadow never is) stays. A shadow lies under
+    # the feet, with nothing of the figure under it.
+    lit = solid & ((rgb - model0).max(axis=2) > SHADE_LIT)
+    lit_below = np.flip(np.cumsum(np.flip(lit, 0), axis=0), 0) > 0
+    shade_blob &= ~lit_below
+    fig_rows = np.nonzero(solid.any(axis=1))[0]
+    fig_bottom = int(fig_rows.max()) if len(fig_rows) else h - 1
+    ns, slab, sst, _ = cv2.connectedComponentsWithStats(shade_blob.astype(np.uint8), connectivity=4)
+    cut_shade = shade.copy()   # what the floor-shadow rules cut (a sole among it, repaired below)
+    for j in range(1, ns):
+        x, y, bw, bh, area = sst[j]
+        if area >= SHADE_MIN and bw >= bh and y + bh >= fig_bottom - SHADE_FOOT:
+            solid &= ~(slab == j)
+            cut_shade |= slab == j
+    if DEBUG_MASKS is not None:
+        DEBUG_MASKS.setdefault("stages", []).append(("shade_blob", solid.copy()))
     blend = off <= BLEND_TOL
     for _ in range(WALK_HALO_PEEL):
         open_ = cv2.dilate((~solid).astype(np.uint8), k) > 0
         solid &= ~(open_ & blend)
+    if DEBUG_MASKS is not None:
+        DEBUG_MASKS.setdefault("stages", []).append(("peel", solid.copy()))
     # The rim: the boards paint a soft near-black shadow and outline round
     # the figure that the fill stops short of (designer, 2026-10-31: "a lot
     # of black spacing around" Stephen's parry). An edge pixel near-black
@@ -683,10 +838,15 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
             break
         solid &= ~rim
         outer_ground |= rim
-    # A notch the floor-shadow rule bit into the figure (a shoe's dark sole
+    if DEBUG_MASKS is not None:
+        DEBUG_MASKS.setdefault("stages", []).append(("rim", solid.copy()))
+    # A notch the floor-shadow rules bit into the figure (a shoe's dark sole
     # seen from behind, open at the bottom) is the figure's own.
     closed = cv2.morphologyEx(solid.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((SOLE_CLOSE, SOLE_CLOSE), np.uint8)) > 0
-    solid |= closed & shade
+    solid |= closed & cut_shade
+    if DEBUG_MASKS is not None:
+        DEBUG_MASKS.update(cut_shade=cut_shade.copy(), model0=model0, lit=lit.copy())
+        DEBUG_MASKS.setdefault("stages", []).append(("sole", solid.copy()))
     # A hole the figure closes round that is not the ground's colour (a
     # shoe's dark sole, taken for a floor shadow) is the figure's own.
     n, lab, stats, _ = cv2.connectedComponentsWithStats((~solid).astype(np.uint8), connectivity=4)
@@ -697,6 +857,8 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
         hole = lab == j
         if np.median(off[hole]) > TOL:
             solid |= hole
+    if DEBUG_MASKS is not None:
+        DEBUG_MASKS.setdefault("stages", []).append(("holes", solid.copy()))
     alpha = np.where(solid, 255.0, 0.0)
     out_rgb = rgb.astype(np.float32)
     # The matte: the boards paint the figure's edge soft, blended into the
@@ -712,7 +874,14 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
     outside = (~solid).astype(np.uint8).copy()
     cv2.floodFill(outside, ff, (0, 0), 2)
     enclosed = (outside == 1)
-    solid = solid | enclosed
+    # ...small ones only: a hole the size of a pocket between an arm and
+    # the body is ground (cleared above), not a speck.
+    ne, elab, est, _ = cv2.connectedComponentsWithStats(enclosed.astype(np.uint8), connectivity=4)
+    for j in range(1, ne):
+        if est[j][4] <= SPECK_MAX:
+            solid |= elab == j
+    if DEBUG_MASKS is not None:
+        DEBUG_MASKS.setdefault("stages", []).append(("specks", solid.copy()))
     k3 = np.ones((3, 3), np.uint8)
     inner = cv2.erode(solid.astype(np.uint8), np.ones((2 * MATTE_BAND + 1, 2 * MATTE_BAND + 1), np.uint8)) > 0
     # The band is the outline only: pixels within MATTE_BAND of the
@@ -755,8 +924,13 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
         # (faint glow leans by ratio: blue at least twice what it adds to
         # the other channels)
         lean = top - np.maximum(rest, 0)
-        hue = {"red": 0, "green": 1, "blue": 2}.get(glow, GLOW_CHANNEL)   # glow: True or a hue name
-        lit = (lean > np.maximum(GLOW_LEAN, 0.5 * top)) & (d.argmax(axis=2) == hue)
+        if glow == "violet":
+            # Violet (Cory's shadow smoke): red and blue both over green.
+            top = np.maximum(d[..., 0], d[..., 2])
+            lit = (d[..., 0] > d[..., 1] + GLOW_LEAN) & (d[..., 2] > d[..., 1] + GLOW_LEAN) & (top > 0)
+        else:
+            hue = {"red": 0, "green": 1, "blue": 2}.get(glow, GLOW_CHANNEL)   # glow: True or a hue name
+            lit = (lean > np.maximum(GLOW_LEAN, 0.5 * top)) & (d.argmax(axis=2) == hue)
         a = np.clip(top / GLOW_FULL, 0.0, 1.0)
         a_safe = np.maximum(a, 1e-3)[..., None]
         unblend = np.clip(model + d / a_safe, 0, 255)
@@ -790,14 +964,41 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
             src = (slab == 1 + int(np.argmax(sst[1:, 4]))).astype(np.uint8) if ns > 1 else src
             near_src = cv2.dilate(src, np.ones((GLOW_EDGE_NEAR, GLOW_EDGE_NEAR), np.uint8)) > 0
             lit &= band & near_src & (rgb.max(axis=2) < GLOW_EDGE_DARK)
+        core = np.zeros((h, w), bool)
+        if glow == "violet":
+            # The smoke is a thing with a glowing rim, not light: its dark
+            # core and its bright rim are solid, as painted. The haze is a
+            # thin band on the OUTSIDE of the cut, so only lit pixels within
+            # GLOW_HAZE of the outside fade; anything deeper is solid smoke.
+            # "Outside" means the ground, and the ground inside the curve of
+            # an arc is a ground-coloured pocket the fill never reached: a
+            # large one is ground (cleared below, and the haze beside it
+            # fades); a speck of ground colour inside the smoke is smoke.
+            nearg = solid & ~body & ~lit & (off <= TOL)
+            nn, nlab, nst, _ = cv2.connectedComponentsWithStats(nearg.astype(np.uint8), connectivity=4)
+            bigg = np.zeros((h, w), bool)
+            for j in range(1, nn):
+                if nst[j][4] > GLOW_SPECK:
+                    bigg |= nlab == j
+            solid2 = solid & ~bigg
+            kh = np.ones((2 * GLOW_HAZE + 1, 2 * GLOW_HAZE + 1), np.uint8)
+            deep = cv2.erode(solid2.astype(np.uint8), kh) > 0
+            core = solid2 & ~body & deep
+            lit &= ~core
         glow_px = lit & (a < 1.0)
         # The ground seen through the field (inside its ring, past the body)
         # is ground.
-        through = solid & ~body & ~lit & (off <= TOL) & reach & (not glow_edge)
+        # (see_through off: a glow whose core is as dark as the ground —
+        # Cory's shadow smoke — keeps that core solid, not punched out.)
+        through = solid & ~body & ~lit & (off <= TOL) & reach & (not glow_edge) & see_through
         out_rgb = np.where(glow_px[..., None], unblend, out_rgb)
         alpha = np.where(glow_px, np.maximum(a * 255.0, np.where(solid & ~glow_px, 255.0, 0.0)), alpha)
         alpha = np.where(lit & (a >= 1.0), 255.0, alpha)
         alpha = np.where(through, 0.0, alpha)
+        alpha = np.where(core, 255.0, alpha)
+        if DEBUG_MASKS is not None:   # (a dict: the stages, for a diagnostic dump)
+            DEBUG_MASKS.update(solid=solid.copy(), lit=lit.copy(), body=body.copy(), core=core.copy(),
+                               off=off.copy(), top=top.copy(), alpha=alpha.copy())
     return np.dstack([out_rgb.astype(np.uint8), alpha.astype(np.uint8)])
 
 
@@ -903,10 +1104,17 @@ def soft_frame(img, factor):
     k = SMOOTH_HEIGHT / float(HEIGHT)
     size = (max(1, round(img.width * WIDEN * k / factor)), max(1, round(img.height * k / factor)))
     out = img.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")
-    # The resample's soft edge is a translucent ring of the outline's dark:
-    # on/off alpha here too, the colour bled out from the solid figure.
+    # The resample's soft edge is a translucent ring of the outline's dark,
+    # which on grass draws as a halo the figure's shape: on/off alpha
+    # there, the colour bled out from the solid figure. A glow's haze
+    # (Cory's shadow smoke, the feather's light) is translucent too, but
+    # BRIGHT once un-blended from the ground: that softness is the art's
+    # and stays. So a translucent pixel keeps its alpha only when bright.
     a = np.asarray(out).copy()
-    a[..., 3] = np.where(a[..., 3] >= 128, 255, 0)
+    al = a[..., 3]
+    bright = a[..., :3].max(axis=2) >= SOFT_KEEP_BRIGHT
+    glow_px = bright & (al > 0) & (al < 255)
+    a[..., 3] = np.where(glow_px, al, np.where(al >= 128, 255, 0))
     return smooth_art.bleed(Image.fromarray(a, "RGBA"))
 
 
@@ -961,6 +1169,11 @@ def build(hero, poses):
             # the side views "wider and shorter"): the tallest stride stands
             # as tall as the still pose.
             wf = wf / (want[0] / float(max(g[0] for g in got)))
+            # A row the board draws stockier than the still pose that way
+            # (Stephen's west walk: a head 48 texels wide to the still's 36)
+            # splits the difference, as the actions do: scaled by the square
+            # root of the still/row head-width ratio (WALK_ROW_SCALE).
+            wf = wf / float(WALK_ROW_SCALE.get(hero, {}).get(d, 1.0))
         for i, img in enumerate(fr):
             full[(d, i)] = resample(img, wf)
             soft[(d, i)] = soft_frame(img, wf)
