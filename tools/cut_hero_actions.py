@@ -90,8 +90,10 @@ ACTIONS = {
     # turns bear and the bear arm rakes across; he ends in the bear's head.
     ("stephen", "attack"): {
         "src": "stephen_attack_board.webp",
+        "grow": True,       # the armpit shadows run into the ground's black
         "pockets": False,   # the back of his neck is as dark as the ground...
         "narrow": 7,        # ...and the fill reaches it through a slit
+        "row_scale": {"east": 0.90, "west": 0.91},   # sqrt(33/41), sqrt(35/42)
         "cols": [116, 293, 470, 649, 825, 1003, 1178, 1356, 1529],
         "rows": [(52, 266), (266, 481), (481, 684), (684, 902)],
         "facings": ["south", "north", "west", "east"],
@@ -100,8 +102,10 @@ ACTIONS = {
     # with a flash, then sheathed.
     ("stephen", "block"): {
         "src": "stephen_block_board.webp",
+        "grow": True,
         "haze": True,       # the flash's dark glow
         "streaks": True,    # ...and its dim arcs
+        "row_scale": {"east": 0.81, "west": 0.86, "north": 1.13},   # sqrt(33/50), sqrt(35/47): his side views drawn stockier; sqrt(45/35): his back drawn small
         "pockets": False,
         "narrow": 7,
         "cols": [115, 310, 519, 720, 924, 1130, 1333, 1530],
@@ -161,11 +165,11 @@ ACTIONS = {
 
 
 def cut_cell(cell, pockets=True, haze=False, narrow=0, drop_dark=False, close=0, tol=None, haze_dark=None, glow=False, glow_edge=0, streaks=False, halo=False,
-             see_through=True):
+             see_through=True, grow=False):
     """One cell's figure (and its dust) on transparency, cell-sized, plus
     the kept pixels' box."""
     import cv2
-    rgba = hs.cut_opaque_cell(cell, pockets, haze, narrow, tol, haze_dark, glow, glow_edge, see_through)
+    rgba = hs.cut_opaque_cell(cell, pockets, haze, narrow, tol, haze_dark, glow, glow_edge, see_through, grow)
     if halo:
         rgba = hs.strip_halo(rgba, *hs.HALO_STRIP["brad"])
     if streaks:
@@ -238,7 +242,7 @@ def build(hero, action, spec):
                                           spec.get("close", 0), spec.get("tol"), spec.get("haze_dark"),
                                           spec.get("glow", False), spec.get("glow_edge", 0),
                                           spec.get("streaks", False), spec.get("halo", False),
-                                          spec.get("see_through", True))
+                                          spec.get("see_through", True), spec.get("grow", False))
     n = len(cols) - 1
     # A facing the board does not draw, shown with another's frames ("copy":
     # {missing: drawn}; Brad's block from behind is his front, designer
@@ -260,6 +264,11 @@ def build(hero, action, spec):
         ref = still_size(hero, facing)
         got = mass(hs.resample(cells[(facing, 0)][0], factor))
         row_factor[facing] = factor * (match_scale(got, ref) if ref and got else 1.0)
+        # A row the board draws stockier than the hero's still pose that way
+        # (Stephen's side views in his parry: head 50 px to the still's 33 at
+        # the same height) splits the difference: "row_scale" scales the
+        # row by the square root of the still/board head-width ratio.
+        row_factor[facing] /= float(spec.get("row_scale", {}).get(facing, 1.0))
     pix, soft, place = {}, {}, {}
     for (facing, c), (img, _) in cells.items():
         b0 = cells[(facing, 0)][1]
