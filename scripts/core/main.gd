@@ -18,6 +18,7 @@ extends Node3D
 var draw_label: Label = null     # re-pointed at the pile buttons in _setup_deck_info_vertical
 var discard_label: Label = null
 var _draw_pile_btn: Button = null       # left draw pile button (for its tooltip)
+var _pile_passive_icon: PilePassiveIcon = null  # Cory's gauntlet-mana / Jeremy's ring-double clock beside the pile
 var _hand_info_btn: Button = null       # small ⓘ button beside the hand icon
 var _hand_info_popup: PanelContainer = null  # hand size / overflow info popup
 var _hand_info_vbox: VBoxContainer = null    # popup content (rebuilt on refresh)
@@ -2301,6 +2302,15 @@ func _setup_deck_info_vertical() -> void:
 	_hand_info_btn.tooltip_text = "Hand size and overflow info"
 	_hand_info_btn.pressed.connect(_toggle_hand_info_popup)
 	draw_row.add_child(_hand_info_btn)
+	# Cory's gauntlet-mana / Jeremy's ring-double clock: a small gauntlet or
+	# ring beside the pile whose three bands light as the passive nears its
+	# next trigger. Hidden for everyone else (refreshed once the character
+	# is known, then with the gauntlet skill circles).
+	_pile_passive_icon = PilePassiveIcon.new()
+	_pile_passive_icon.name = "PilePassiveIcon"
+	_pile_passive_icon.visible = false
+	_pile_passive_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	draw_row.add_child(_pile_passive_icon)
 	if _action_vbox:
 		_action_vbox.add_child(draw_row)
 		_action_vbox.move_child(draw_row, 0)  # top of the column
@@ -3263,6 +3273,15 @@ func _update_gauntlet_skills_ui() -> void:
 	for child in gauntlet_skills_container.get_children():
 		if child is GauntletSkillUI:
 			child.update_display()
+	_update_pile_passive_icon()
+
+func _update_pile_passive_icon() -> void:
+	## The clock icon beside the Draw pile (Cory's gauntlet mana, Jeremy's
+	## ring double) follows the active player's inventory.
+	if _pile_passive_icon == null or not is_instance_valid(_pile_passive_icon):
+		return
+	var inv = player.get_inventory() if (player and is_instance_valid(player)) else null
+	_pile_passive_icon.refresh(inv, tempo_manager)
 
 func _on_gauntlet_skill_activated(gauntlet: ItemData) -> void:
 	var inventory := player.get_inventory()
@@ -3354,10 +3373,13 @@ func _on_ring_triggered_visual(_ring: ItemData, _effect: String, owner_player: P
 	## ring just triggered.
 	if owner_player and is_instance_valid(owner_player):
 		owner_player.show_ring_trigger()
+	if owner_player == player:
+		_update_pile_passive_icon()
 
 func _on_equipment_changed() -> void:
 	_update_passive_display_ui()
 	_setup_gauntlet_skills_ui()
+	_update_pile_passive_icon()
 	_update_block_button_visibility()
 	_update_attack_button_text()
 	_sync_figure_weapons()
@@ -3751,6 +3773,7 @@ func select_character(character: CharacterData) -> void:
 	deck_manager.initialize_deck(character)
 	player.get_inventory().apply_equipped_item_card_effects()
 	_setup_gauntlet_skills_ui()
+	_update_pile_passive_icon()
 	# Connect gauntlet cooldown signal so UI updates when skills come off cooldown
 	var inventory := player.get_inventory()
 	if inventory and not inventory.gauntlet_skill_ready.is_connected(_on_gauntlet_skill_ready):
