@@ -28,6 +28,7 @@ func _settle(frames: int = 6) -> void:
 func _run() -> void:
 	print("=== Snow Wraith snowball test ===")
 	_test_figure()
+	await _test_snowball()
 	await _test_enemy()
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
@@ -72,6 +73,49 @@ func _test_figure() -> void:
 	fig.free()
 
 
+func _thrown(n: Node) -> Array:
+	var out: Array = []
+	for c in n.get_children():
+		if c is ThrownSprite:
+			out.append(c)
+	return out
+
+
+## The snowball in flight (snow_wraith_snowball_strip.webp, Snowball.png):
+## it leaves her hand on the throw frame and flies at hand height to the target.
+func _test_snowball() -> void:
+	print("-- The snowball --")
+	var host := Node3D.new()
+	root.add_child(host)
+	var holder := Node3D.new()
+	host.add_child(holder)
+	var fig := SpriteEnemyFigure.new()
+	holder.add_child(fig)
+	fig.setup("snow_wraith")
+	await process_frame
+	fig.set_facing(CharacterAnimator.Direction.WEST)
+	fig.play_action("snowball")
+	var target := fig.global_position + Vector3(-4, 0, 0)
+	var secs := fig.throw_projectile(target)
+	var ts := _thrown(host)
+	_check(ts.size() == 1, "her Snowball sends a snowball after the throw")
+	if ts.is_empty():
+		host.free()
+		return
+	var b: ThrownSprite = ts[0]
+	var release: float = 3.0 / fig._cp_fps["Throw"]
+	_check(is_equal_approx(b._delay, release), "it leaves her hand on the throw frame (%.2f s)" % b._delay)
+	_check(b._frames == 8, "eight frames turning over in flight")
+	_check(is_equal_approx(secs, release + 3.65 / 8.0), "it flies at 8 tiles a second: there in %.2f s" % secs)
+	_check(b._sprite.flip_h, "flying left, mirrored")
+	_check(b._sprite.position.y > CameraView.SPRITE_LIFT + 0.5, "at her hand's height, not along the ground")
+	b._process(release + 0.2)
+	_check(b._sprite.visible and b.global_position.x < fig.global_position.x - 0.4, "thrown, it flies toward the target")
+	b._process(2.0)
+	_check(b.global_position.is_equal_approx(target), "and stops on the target")
+	host.free()
+
+
 func _test_enemy() -> void:
 	print("-- The enemy --")
 	main = load("res://scenes/core/main.tscn").instantiate()
@@ -95,4 +139,5 @@ func _test_enemy() -> void:
 	_check(fig != null and fig._cp_sheets.has("Throw"), "the wraith enemy wears the throw sheet")
 	w._execute_action("snowball", main.player)
 	_check(fig != null and fig._cp_anim == "Throw", "the Wraith's Snowball plays the throw (%s)" % (fig._cp_anim if fig else "no figure"))
+	_check(_thrown(w.get_parent()).size() == 1, "and a snowball flies from her toward the player")
 	main.enemy_spawner.despawn_enemy(w)

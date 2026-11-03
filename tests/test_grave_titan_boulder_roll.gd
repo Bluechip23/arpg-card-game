@@ -5,7 +5,7 @@ extends SceneTree
 ## Throw.png is his throw — removing the boulder, the grip, the wind-ups,
 ## the release and his recovery — in the four facing rows; Boulder.png the
 ## boulder rolling, one row. Boulder Roll plays the throw, and the boulder
-## (RollingBoulder) leaves his hands on the release frame and rolls to the
+## (ThrownSprite) leaves his hands on the release frame and rolls to the
 ## target; the tick clock waits for it.
 ## Run: godot --headless --path . --script tests/test_grave_titan_boulder_roll.gd
 
@@ -37,7 +37,7 @@ func _run() -> void:
 func _boulders(n: Node) -> Array:
 	var out: Array = []
 	for c in n.get_children():
-		if c is RollingBoulder:
+		if c is ThrownSprite:
 			out.append(c)
 	return out
 
@@ -64,16 +64,16 @@ func _test_figure() -> void:
 	_check(fig._cp_anim == "Attack", "his Smash still plays the smash")
 	fig.play_action("boulder_roll")
 	var target := fig.global_position + Vector3(3, 0, 0)
-	var secs := fig.roll_boulder(target)
+	var secs := fig.throw_projectile(target)
 	var bs := _boulders(host)
 	_check(bs.size() == 1, "the boulder is launched beside him")
 	if bs.is_empty():
 		host.free()
 		return
-	var b: RollingBoulder = bs[0]
+	var b: ThrownSprite = bs[0]
 	var release: float = 4.0 / fig._cp_fps["Throw"]
 	_check(is_equal_approx(b._delay, release), "it waits for the release frame (%.2f s)" % b._delay)
-	_check(is_equal_approx(secs, release + 2.5 / RollingBoulder.SPEED), "and reaches the target %.2f s from now" % secs)
+	_check(is_equal_approx(secs, release + 2.5 / ThrownSprite.SPEED), "and reaches the target %.2f s from now" % secs)
 	_check(not b._sprite.visible, "unseen while still in his hands")
 	_check(not b._sprite.flip_h, "rolling right, as drawn")
 	b._process(release + 0.01)
@@ -84,13 +84,13 @@ func _test_figure() -> void:
 	_check(b.global_position.x > x0 and b._sprite.region_rect.position.x != r0, "it rolls on, turning over")
 	b._process(5.0)
 	_check(b.global_position.is_equal_approx(target), "it stops on the target")
-	var left := fig.roll_boulder(fig.global_position + Vector3(-2, 0, 0))
-	var bl: RollingBoulder = _boulders(host).back()
+	var left := fig.throw_projectile(fig.global_position + Vector3(-2, 0, 0))
+	var bl: ThrownSprite = _boulders(host).back()
 	_check(left > 0.0 and bl._sprite.flip_h, "rolling left, it is mirrored")
 	var other := SpriteEnemyFigure.new()
 	holder.add_child(other)
 	other.setup("zombie")
-	_check(other.roll_boulder(target) == 0.0, "a kind with no boulder rolls nothing")
+	_check(other.throw_projectile(target) == 0.0, "a kind with no boulder rolls nothing")
 	host.free()
 
 

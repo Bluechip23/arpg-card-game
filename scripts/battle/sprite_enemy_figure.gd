@@ -121,13 +121,13 @@ const KINDS := {
 	"armored_troll": {"sheets": SHEETS + "/armored_troll", "scale": BOARD_SCALE, "fps": {"Kick": 10.0, "Attack": 8.0}, "action_sheets": {"kick": "Kick"}},  # the designer's board (2026-10-25), his kick board and his double smash board (tools/cut_pose_boards.py, 2026-11-03: Kick is the shift, knee up, chamber, full extend and recoil; Attack, his Smash, is the grip, the club overhead, the first smash, the recoil, the second smash and the recovery); was the mountain-monster Orc
 	"ice_troll": {"sheets": SHEETS + "/ice_troll", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Yeti
 	"granite_colossus": {"sheets": SHEETS + "/granite_colossus", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the golem pack's Golem1
-	"grave_titan": {"sheets": SHEETS + "/grave_titan", "scale": BOARD_SCALE, "fps": {"Attack": 8.0, "Throw": 8.0}, "action_sheets": {"boulder_roll": "Throw"}, "release": 4},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and his smash board (2026-11-03: Attack is the lift, the boulder overhead, the swing down, the impact and the recovery); was the golem pack's Golem2
+	"grave_titan": {"sheets": SHEETS + "/grave_titan", "scale": BOARD_SCALE, "fps": {"Attack": 8.0, "Throw": 8.0}, "action_sheets": {"boulder_roll": "Throw"}, "release": 4, "projectile": {"sheet": "Boulder", "speed": 4.0, "fps": 12.0}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and his smash board (2026-11-03: Attack is the lift, the boulder overhead, the swing down, the impact and the recovery); was the golem pack's Golem2
 	"inflamed_minotaur": {"sheets": SHEETS + "/inflamed_minotaur", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"demon": {"cp": "demons/Demon1", "scale": 0.85},
 	"pit_fiend": {"sheets": SHEETS + "/pit_fiend", "scale": BOARD_SCALE},  # the designer's new board, stills (tools/cut_pose_boards.py, 2026-10-28)
 	"bugbear": {"sheets": SHEETS + "/bugbear", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the gnoll pack's Gnoll2
 	"ifrit": {"sheets": SHEETS + "/ifrit", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
-	"snow_wraith": {"sheets": SHEETS + "/snow_wraith", "scale": BOARD_SCALE, "fps": {"Throw": 8.0}, "action_sheets": {"snowball": "Throw"}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and her snowball board (2026-11-03: Throw is the frost gathering, the snowball forming, raised, thrown and the follow-through; her Ice Blast keeps its lunge); was the ghost pack's Ghost2
+	"snow_wraith": {"sheets": SHEETS + "/snow_wraith", "scale": BOARD_SCALE, "fps": {"Throw": 8.0}, "action_sheets": {"snowball": "Throw"}, "release": 3, "projectile": {"sheet": "Snowball", "speed": 8.0, "fps": 12.0, "lift": 0.85, "ahead": 0.35}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and her snowball board (2026-11-03: Throw is the frost gathering, the snowball forming, raised, thrown and the follow-through; her Ice Blast keeps its lunge); was the ghost pack's Ghost2
 	# The designer's 4x4 walk sheets (tools/cut_creature_sheets.py).
 	"hydra": {"sheets": SHEETS + "/hydra", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the designer's pose board (tools/cut_pose_boards.py, 2026-10-28), and her attack sheets (2026-11-03: Attack is the heads rearing up, the roar, the strike with every mouth agape, the heads spread wide and drawn back in)
 	"hydra_5": {"sheets": SHEETS + "/hydra_5", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the Hydra after her second hit, five heads: the designer's board and attack board (tools/cut_pose_boards.py, 2026-11-03)
@@ -213,7 +213,7 @@ const PAINTED_SHADOW_KINDS := ["swarm", "sludge",
 
 var figure_kind := ""   # the KINDS entry this figure was set up as
 var smooth := false     # wearing the smooth (non-pixelated) sheets (ArtStyle)
-var _sheet_folder := ""  # the folder the sheets were loaded from (the Titan's Boulder.png lives there)
+var _sheet_folder := ""  # the folder the sheets were loaded from (a thrown projectile's strip lives there)
 var _sprite: Sprite3D = null
 var _rig: Node3D = null
 var _tint := Color.WHITE
@@ -890,31 +890,37 @@ func play_attack(double: bool = false, sheet: String = "") -> void:
 	_fx_tween.tween_property(_rig, "position", Vector3.ZERO, 0.18 * ATTACK_SLOW).set_ease(Tween.EASE_IN_OUT)
 
 
-## The Grave Titan's Boulder Roll: the boulder (Boulder.png beside his
-## sheets) leaves his hands on his throw's release frame (the kind's
-## "release": the frame index in Throw) and rolls along the ground to
-## `target` (global). Returns the seconds from now until it gets there, 0
-## when the kind has no boulder. The boulder is added beside the enemy, so
-## it rolls on in the world whatever the figure does.
-func roll_boulder(target: Vector3) -> float:
-	var path := _sheet_folder + "/Boulder.png"
-	if _sheet_folder == "" or not ResourceLoader.exists(path):
+## Throw the kind's projectile (its "projectile": the Grave Titan's
+## boulder, Boulder.png beside his sheets, rolling along the ground; the
+## Snow Wraith's snowball, Snowball.png, flying at her hand's height): it
+## leaves the hands on the throw's release frame (the kind's "release": the
+## frame index in Throw) and travels to `target` (global). Returns the
+## seconds from now until it gets there, 0 when the kind throws nothing. It
+## is added beside the enemy, so it flies on in the world whatever the
+## figure does.
+func throw_projectile(target: Vector3) -> float:
+	var cfg: Dictionary = KINDS.get(figure_kind, {})
+	var proj: Dictionary = cfg.get("projectile", {})
+	var path := "%s/%s.png" % [_sheet_folder, proj.get("sheet", "")]
+	if proj.is_empty() or _sheet_folder == "" or not ResourceLoader.exists(path):
 		return 0.0
 	var release := 0.0
 	if _cp_anim == "Throw":
 		var fps: float = _cp_fps.get("Throw", 8.0)
-		var frame: int = int(KINDS.get(figure_kind, {}).get("release", 0))
+		var frame: int = int(cfg.get("release", 0))
 		release = maxf(0.0, (float(frame) - float(_cp_frame)) / fps - _cp_clock)
-	var b := RollingBoulder.new()
+	var b := ThrownSprite.new()
 	var host: Node = get_parent().get_parent() if get_parent() and get_parent().get_parent() else get_parent()
 	host.add_child(b)
 	var from := global_position
 	from.y = target.y
 	var dir := Vector3(target.x - from.x, 0, target.z - from.z)
 	if dir.length() > 0.01:
-		from += dir.normalized() * 0.5   # out of his hands, in front of him
+		from += dir.normalized() * float(proj.get("ahead", 0.5))   # out of the hands, in front
 	var gutter := 8 if smooth else 0      # SMOOTH_GUTTER under the smooth strip's art
-	b.launch(load(path), _sprite.pixel_size * _rig.scale.x, gutter, smooth, from, target, release)
+	b.launch(load(path), _sprite.pixel_size * _rig.scale.x, gutter, smooth, from, target, release,
+			float(proj.get("speed", ThrownSprite.SPEED)), float(proj.get("fps", ThrownSprite.SPIN_FPS)),
+			float(proj.get("lift", 0.0)))
 	return b.total_time()
 
 

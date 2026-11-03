@@ -534,7 +534,7 @@ BOARDS = {
         # (transparent), its painted shadow under it, pebbles and dust
         # thrown up behind it. Packed as one row, Boulder.png, into his
         # folder; Enemy's Boulder Roll sends it from his hands to the target
-        # (SpriteEnemyFigure.roll_boulder, RollingBoulder), mirrored when it
+        # (SpriteEnemyFigure.throw_projectile, ThrownSprite), mirrored when it
         # rolls left. As wide as the boulder he carries: 1.1 tiles.
         "into": "grave_titan",
         "strip": {
@@ -1028,6 +1028,25 @@ BOARDS = {
             "sheets": {
                 "Throw": ["gather", "form", "raise", "throw", "follow"],
             },
+        },
+    },
+    "snow_wraith_snowball": {
+        # 2026-11-03: the Snow Wraith's snowball in flight —
+        # snow_wraith_snowball_strip.webp, eight frames of the snowball
+        # flying right, cut out (transparent): a packed ball with a frosty
+        # trail streaming behind it, sparkles about it and a blue glow,
+        # turning over as it flies. Snowball.png in her folder; her Snowball
+        # sends it from her hand to the target (SpriteEnemyFigure.
+        # throw_projectile, ThrownSprite), mirrored when it flies left. The
+        # first frame (ball, trail and sparkles) 0.45 tiles wide: the ball
+        # about 0.3, a little bigger than in her hand so it reads in flight.
+        "into": "snow_wraith",
+        "strip": {
+            "src": "snow_wraith_snowball_strip.webp",
+            "sheet": "Snowball",
+            "width_tiles": 0.45,
+            "align": "board",
+            "frames": [(0, 380, 217, 600), (217, 380, 420, 600), (420, 380, 626, 600), (626, 380, 834, 600), (834, 380, 1045, 600), (1045, 380, 1259, 600), (1259, 380, 1465, 600), (1465, 380, 1672, 600)],
         },
     },
     "fire_goblin": {
@@ -3073,7 +3092,15 @@ def build_strip(name: str, cfg: dict) -> None:
         a = np.asarray(f).copy()
         a[..., 3] = np.where(a[..., 3] >= 128, 255, 0)   # the board's faint haze goes
         f = Image.fromarray(a, "RGBA")
-        raw.append(f.crop(f.getbbox()))
+        raw.append(f)
+    # Trimmed to each frame's art; with `align` "board" every frame keeps the
+    # rows they span together, so a ball flying level doesn't bob as its
+    # sparkles come and go (the snowball).
+    boxes = [f.getbbox() for f in raw]
+    if st.get("align") == "board":
+        y0, y1 = min(b[1] for b in boxes), max(b[3] for b in boxes)
+        boxes = [(b[0], y0, b[2], y1) for b in boxes]
+    raw = [f.crop(b) for f, b in zip(raw, boxes)]
     width = raw[0].width
     for root, kind, density, air in ((OUT % cfg["into"], "pixel", DENSITY, 0),
                                      (os.path.join(smooth_art.ROOT, "sheets", cfg["into"]), "smooth", smooth_art.SMOOTH_DENSITY, SMOOTH_GUTTER)):
