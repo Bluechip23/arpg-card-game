@@ -1378,6 +1378,44 @@ BOARDS = {
             },
         },
     },
+    "hydra_heal": {
+        # 2026-11-03: the Hydra's heal — hydra_heal_board.webp, "5 HEADS ->
+        # 8 HEADS / HEAL + REGROW": twelve numbered frames facing the camera
+        # on a checkerboard, in two framed panels: five heads on all fours,
+        # rising onto her hind legs, rearing tall with her claws up, the
+        # heads roaring, new necks sprouting and budding into heads, eight
+        # heads roaring, and settling. One facing: the figure plays it
+        # facing the camera whichever way she faces. Packed into the full
+        # Hydra's folder (her Heal plays as she regrows every head), its
+        # first frame standing as tall as the five-head Hydra's front Idle.
+        "into": "hydra",
+        "match_to": "hydra_5",
+        "actions": {
+            "src": "hydra_heal_board.webp",
+            "bg": "checker_light",
+            "rows": ["front"],
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (26, 211, 250, 475),
+                    "rise": (277, 190, 506, 476),
+                    "rear": (520, 179, 753, 476),
+                    "up": (776, 153, 1009, 476),
+                    "tall": (1032, 129, 1263, 476),
+                    "roar": (1288, 119, 1523, 476),
+                    "sprout": (12, 561, 256, 919),
+                    "bud": (264, 566, 505, 919),
+                    "grown": (520, 564, 745, 919),
+                    "crown": (776, 547, 1002, 919),
+                    "howl": (1032, 550, 1259, 919),
+                    "settle": (1288, 543, 1527, 919),
+                },
+            },
+            "sheets": {
+                "Heal": ["stance", "rise", "rear", "up", "tall", "roar", "sprout", "bud", "grown", "crown", "howl", "settle"],
+            },
+        },
+    },
     "hydra_8": {
         # 2026-11-03: the Hydra with eight heads — the designer's board of
         # her after the first hit she takes (every hit costs her heads; her
@@ -2486,6 +2524,8 @@ def pack(frames: dict, cell: int) -> Image.Image:
 def action_rows(cfg: dict) -> list:
     """The rows of a creature's action sheets: the four Craftpix rows when
     its boards show every facing, else the two side rows."""
+    if "rows" in cfg["actions"]:
+        return cfg["actions"]["rows"]   # the heal: the front row only
     frames = cfg["actions"]["frames"]
     return ROWS if all(d in frames for d in ROWS) else ACTION_ROWS
 
@@ -2525,6 +2565,12 @@ def cut_action_frames(cfg: dict) -> dict:
                 continue
             mirror = spec[0] == "mirror"
             box = spec[1] if mirror else spec
+            if act.get("bg"):
+                # A board on a checkerboard (the Hydra's heal): cut as the
+                # pose boards are, not by brightness off black.
+                img = cut(board(d), box, act["bg"])
+                out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
+                continue
             rgb = np.asarray(board(d).crop(box).convert("RGB")).astype(int)
             img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
                                   act.get("keep_share", 0.0), act.get("fill_holes", False), act.get("levels"),
@@ -2592,14 +2638,23 @@ def build_actions_on_sheets(name: str, cfg: dict) -> None:
     raw = cut_action_frames(cfg)
     used = _used_poses(cfg)
     rows = action_rows(cfg)
+    folder = cfg.get("into", name)   # the heal is packed into the Hydra's own folder
     frames = {}
-    for root, kind in ((OUT % name, "pixel"), (os.path.join(smooth_art.ROOT, "sheets", name), "smooth")):
+    for root, kind in ((OUT % folder, "pixel"), (os.path.join(smooth_art.ROOT, "sheets", folder), "smooth")):
         idle = Image.open(os.path.join(root, "Idle.png"))
         cell = idle.height // 4
         info = dict(zip(ROWS, _sheet_rows(idle, cell)))
+        # `match_to`: the match pose stands as tall as another kind's Idle
+        # pose of that facing (the heal's five-head stance: the five-head
+        # Hydra's), not as this folder's own.
+        ref = info
+        if cfg.get("match_to"):
+            rroot = root.replace("/" + folder, "/" + cfg["match_to"])
+            ridle = Image.open(os.path.join(rroot, "Idle.png"))
+            ref = dict(zip(ROWS, _sheet_rows(ridle, ridle.height // 4)))
         frames = {}
         for d, fs in raw.items():
-            k = info[d][0] / float(fs[_action_setting(cfg, "match", "recover", d)].height) * _action_setting(cfg, "match_scale", 1.0, d)
+            k = ref[d][0] / float(fs[_action_setting(cfg, "match", "recover", d)].height) * _action_setting(cfg, "match_scale", 1.0, d)
             frames[d] = {}
             for pose, f in fs.items():
                 if pose not in used:
@@ -2611,11 +2666,13 @@ def build_actions_on_sheets(name: str, cfg: dict) -> None:
         air = max(a for _, a in info.values())
         need = max(max(f.width, f.height) for fs in frames.values() for f in fs.values()) + 2 + air
         if need > cell:
-            for anim in ("Idle", "Walk", "Sleep"):
-                path = os.path.join(root, anim + ".png")
-                if os.path.exists(path):
+            # Every sheet in the folder (the Hydra's Attack too, not only
+            # Idle / Walk) is regrown; this entry's own sheets are rewritten.
+            for f in sorted(os.listdir(root)):
+                if f.endswith(".png") and f[:-4] not in cfg["actions"]["sheets"]:
+                    path = os.path.join(root, f)
                     _regrow(Image.open(path), cell, need).save(path)
-            print("%-13s %s cells %d -> %d px (Idle / Walk regrown)" % (name, kind, cell, need))
+            print("%-13s %s cells %d -> %d px (its sheets regrown)" % (folder, kind, cell, need))
             cell = need
         for anim, poses in cfg["actions"]["sheets"].items():
             if kind == "pixel":
@@ -2623,7 +2680,7 @@ def build_actions_on_sheets(name: str, cfg: dict) -> None:
             else:
                 smooth_art.pack([[frames[d][p] for p in poses] for d in rows], cell, len(poses), lambda row, ci: row[ci], air=air).save(os.path.join(root, anim + ".png"))
     dims = ", ".join("%s %dx%d" % (d, f.width, f.height) for d, f in frames[rows[0]].items())
-    print("%-13s on its own sheets: %s" % (name, dims))
+    print("%-13s on %s's sheets: %s" % (name, folder, dims))
 
 
 def build(name: str, cfg: dict) -> None:
@@ -2728,10 +2785,15 @@ def build(name: str, cfg: dict) -> None:
     for anim, poses in cfg.get("actions", {}).get("sheets", {}).items():
         rows = [[soft_act[d][p] for p in poses] for d in action_rows(cfg)]
         smooth_art.pack(rows, scell, len(poses), lambda row, ci: row[ci], air=SMOOTH_GUTTER).save(os.path.join(sdir, anim + ".png"))
+    # Sheets packed into this kind's folder by another entry (the Hydra's
+    # heal) are rebuilt with it, in its new cells.
+    for other, ocfg in BOARDS.items():
+        if ocfg.get("into") == name:
+            build_actions_on_sheets(other, ocfg)
 
 
 def main() -> None:
-    names = sys.argv[1:] or list(BOARDS)
+    names = sys.argv[1:] or [k for k, c in BOARDS.items() if "into" not in c]   # an "into" entry is built with its kind
     for n in names:
         build(n, BOARDS[n])
 

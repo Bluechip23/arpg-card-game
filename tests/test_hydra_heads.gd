@@ -74,7 +74,24 @@ func _test_figure() -> void:
 	_check(fig.figure_kind == "hydra" and _idle_path(fig).contains("sheets/hydra/") and fig._cp_cell == cell_full, "reskinned back: every head, the full sheets' cells")
 	fig.reskin("no_such_kind")
 	_check(fig.figure_kind == "hydra", "an unknown kind is ignored")
+	# Her heal (hydra_heal_board.webp): one row facing the camera, twelve frames.
+	_check(fig._cp_sheets.has("Heal") and fig._cp_frame_count("Heal") == 12, "she has a twelve-frame Heal sheet")
+	_check(fig._cp_sheets.has("Heal") and fig._cp_sheets["Heal"].get_height() == fig._cp_cell, "drawn in one row, in her Idle cells")
+	fig.set_facing(CharacterAnimator.Direction.WEST)
+	fig.play_action("hydra_heal")
+	_check(fig._cp_anim == "Heal" and int(fig._sprite.region_rect.position.y) == 0, "facing west, the heal plays its one row, facing the camera")
+	fig._cp_step(5.5 / fig._cp_fps["Heal"])
+	_check(fig._cp_anim == "Heal" and fig._cp_frame == 5 and int(fig._sprite.region_rect.position.y) == 0, "five and a half frames in she rears tall (frame %d)" % fig._cp_frame)
+	_check(is_equal_approx(fig._cp_fps["Heal"], 7.0), "at 7 fps: the twelve frames take %.1f s" % (12.0 / fig._cp_fps["Heal"]))
+	fig._cp_step(12.0 / fig._cp_fps["Heal"])
+	_check(fig._cp_anim == "Idle" and int(fig._sprite.region_rect.position.y / fig._cp_cell) == 2, "the heal done, she stands idle facing west again")
 	fig.free()
+	var other := SpriteEnemyFigure.new()
+	root.add_child(other)
+	other.setup("hydra_3")
+	other.play_action("hydra_heal")
+	_check(other._cp_anim != "Heal", "a set without the heal sheet only flashes")
+	other.free()
 
 
 func _test_enemy() -> void:
@@ -112,5 +129,6 @@ func _test_enemy() -> void:
 	_check(h.hydra_hits_since_heal == 4 and h.figure_kind == "hydra_3", "a fourth hit: she keeps her last three")
 	h._try_hydra_heal()
 	_check(h.hydra_hits_since_heal == 0 and h.figure_kind == "hydra" and _idle_path(fig).contains("sheets/hydra/"), "her Heal regrows every head")
+	_check(fig._cp_anim == "Heal", "and plays the heal: she rears up as the heads sprout (%s)" % fig._cp_anim)
 	_check(h.strength == 8, "the strength she gained stays")
 	main.enemy_spawner.despawn_enemy(h)

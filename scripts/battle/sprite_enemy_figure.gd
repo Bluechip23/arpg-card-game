@@ -51,14 +51,14 @@ const ATTACK_SLOW := 1.9
 ## is equally slower (see kind_fps).
 const DRAWN_ATTACK_SLOW := ATTACK_SLOW / 1.4
 const CP_FPS := {"Idle": 5.0, "Walk": 8.0, "Run": 10.0, "Draw": 8.0, "Attack": 12.0 / ATTACK_SLOW,
-		"Attack2": 12.0 / ATTACK_SLOW, "Hurt": 12.0, "Death": 10.0}
-const CP_ONESHOT := ["Attack", "Attack2", "Hurt", "Death"]
+		"Attack2": 12.0 / ATTACK_SLOW, "Hurt": 12.0, "Death": 10.0, "Heal": 7.0}
+const CP_ONESHOT := ["Attack", "Attack2", "Hurt", "Death", "Heal"]
 ## Held poses: played once, then the last frame stays until another
 ## animation plays (the archer rat at full draw, from two tempo before its
 ## shot until the shot). A hit does not break them.
 const CP_HOLD := ["Draw"]
 ## Every sheet an animation may come as (Craftpix packs and our own).
-const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Hurt", "Death"]
+const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Hurt", "Death", "Heal"]
 
 # NPC sheets run S,W,N,E top to bottom (battle uses CharacterAnimator order S,N,E,W).
 const NPC_ROW := [0, 2, 1, 3]  # NPC packs run S,E,N,W
@@ -538,6 +538,12 @@ func _cp_row(direction: int) -> int:
 
 ## A sheet with only the two side rows (left, then right): an action the
 ## designer drew in profile (the werewolf's slash board).
+## A one-row action sheet: drawn facing the camera only (the Hydra's heal).
+func _cp_front_only(anim: String) -> bool:
+	var sheet = _cp_sheets.get(anim)
+	return sheet is Texture2D and _cp_cell > 0 and sheet.get_height() <= _cp_cell
+
+
 func _cp_side_only(anim: String) -> bool:
 	var sheet = _cp_sheets.get(anim)
 	return sheet is Texture2D and _cp_cell > 0 and sheet.get_height() < _cp_cell * 4
@@ -547,6 +553,8 @@ func _cp_side_only(anim: String) -> bool:
 ## sheet a figure facing front or back turns to the side it leans toward
 ## (its last horizontal lean, _facing_x).
 func _cp_row_now() -> int:
+	if _cp_front_only(_cp_anim):
+		return 0   # a one-row sheet (the Hydra's heal) faces the camera whatever the figure faces
 	if not _cp_side_only(_cp_anim):
 		return _cp_row(_cp_dir)
 	var east := _cp_dir == CharacterAnimator.Direction.EAST \
@@ -734,6 +742,10 @@ func play_action(action: String) -> void:
 			_cp_play("Draw", true)
 		return
 	if "heal" in a:
+		# The Hydra's heal (her Heal sheet, facing the camera); any other
+		# healer only flashes green.
+		if _cp_mode and _cp_sheets.has("Heal"):
+			_cp_play("Heal", true)
 		flash(Color(0.5, 1.0, 0.5))
 		return
 	# A double attack (the werewolf's claw and rake): the Attack2 sheet,

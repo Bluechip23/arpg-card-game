@@ -3425,6 +3425,11 @@ func _try_hydra_heal() -> bool:
 	print("[%s] Regrows her heads — healed to full!" % enemy_name)
 	hydra_hits_since_heal = 0
 	_hydra_wear_heads()   # every head back
+	# The heal itself — rising onto her hind legs as the new heads sprout —
+	# lives with her full heads' sheets, so it plays once she wears them
+	# (the action's own call came while she still had three).
+	if _enemy_figure:
+		_enemy_figure.play_action("hydra_heal")
 	turn_completed.emit()
 	return true
 
