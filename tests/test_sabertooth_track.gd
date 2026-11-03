@@ -7,7 +7,8 @@ extends SceneTree
 ## sheet's cells, at its drawn 8 fps slowed as every enemy swing is, played
 ## in place (no lunge) for its Track. Its Bite and Claw plays Attack.png
 ## (the designer's bite-and-claw board): the crouch, lunge, bite,
-## pull-through, claw swipe and recovery, at its drawn 10 fps.
+## pull-through, claw swipe and recovery, at its drawn 10 fps; its Sunken
+## Bite Sunken.png (the designer's sunken bite board), at its drawn 10 fps.
 ## Run: godot --headless --path . --script tests/test_sabertooth_track.gd
 
 var failures := 0
@@ -96,6 +97,19 @@ func _test_figure() -> void:
 		for col in range(6):
 			bworst = maxf(bworst, absf(_feet(fig, "Attack", row, col) - bfeet))
 	_check(bworst <= 3.0 * (2.0 if fig.smooth else 1.0), "its paws stay on the idle ground row through the combo (off by at most %.0f texels)" % bworst)
+	# Its Sunken Bite (sabertooth_sunken_bite_board.webp): Sunken.png, the
+	# step, lunge, crouch, the teeth sinking in, the shake, release and rise.
+	fig.play_action("sunken_bite")
+	_check(fig._cp_anim == "Sunken" and fig._cp_frame_count("Sunken") == 10, "its Sunken Bite plays the sunken bite: ten frames")
+	_check(fig._cp_sheets["Sunken"].get_height() == 4 * cell, "in the four facing rows, the Idle sheet's cells")
+	_check(is_equal_approx(fig._cp_fps.get("Sunken", 0.0), 10.0 / SpriteEnemyFigure.DRAWN_ATTACK_SLOW), "at its drawn 10 fps, slowed as every enemy swing is")
+	_check(is_equal_approx(fig.last_swing_time, 10.0 / fig._cp_fps["Sunken"]), "and the clock waits for it (%.2f s)" % fig.last_swing_time)
+	var sworst := 0.0
+	for row in range(4):
+		var sfeet: float = _feet(fig, "Idle", row, 0)
+		for col in [0, 1, 9]:   # the sinking frames' torn earth runs below its paws
+			sworst = maxf(sworst, absf(_feet(fig, "Sunken", row, col) - sfeet))
+	_check(sworst <= 3.0 * (2.0 if fig.smooth else 1.0), "standing, its paws are on the idle ground row (off by at most %.0f texels)" % sworst)
 	fig.free()
 
 
@@ -126,4 +140,6 @@ func _test_enemy() -> void:
 	_check(t.strengthen_stacks == before + 15, "and marks its prey (+15 Strengthen)")
 	t._execute_action("bite_and_claw", main.player)
 	_check(fig != null and fig._cp_anim == "Attack", "its Bite and Claw plays the combo (%s)" % (fig._cp_anim if fig else "no figure"))
+	t._execute_action("sunken_bite", main.player)
+	_check(fig != null and fig._cp_anim == "Sunken", "its Sunken Bite plays the sunken bite (%s)" % (fig._cp_anim if fig else "no figure"))
 	main.enemy_spawner.despawn_enemy(t)

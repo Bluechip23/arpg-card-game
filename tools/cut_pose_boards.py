@@ -1509,6 +1509,101 @@ BOARDS = {
             },
         },
     },
+    "sabertooth_sunken": {
+        # 2026-11-03: the Sabertooth's Sunken Bite — sabertooth_sunken_bite_board.webp,
+        # four labelled rows on black (NORTH, SOUTH, LEFT, RIGHT; north the
+        # back, as on its other boards), fourteen frames a row (the side rows
+        # thirteen, one sink frame fewer: that one is held twice): the
+        # stance, a step, the lunge, the crouch, sinking its teeth in, deeper,
+        # the shake (motion arcs either side), the release, rising, turning
+        # back and the stance. The board turns its head to the camera through
+        # the bite in every row — the back row too: it has no back-view
+        # crouch — and that is used as drawn. Each frame's own pieces are
+        # kept (`isolate`, the arcs by `keep_share`). Packed into its folder
+        # as Sunken.png, scaled to its walk-sheet Idle like its Track.
+        "into": "sabertooth",
+        "actions": {
+            "src": "sabertooth_sunken_bite_board.webp",
+            "levels": (6, 35, 10),
+            "fill_holes": 6,
+            "open_dark": True,
+            "keep_share": 0.01,   # the shake's arcs
+            "glow": False,
+            "isolate": True,
+            "isolate_floor": 14,
+            "match": "stance",
+            "match_scale": {"left": 1.15, "right": 1.15},
+            "frames": {
+                "front": {
+                    "stance": (117, 259, 214, 413),
+                    "step": (237, 259, 331, 413),
+                    "lunge": (355, 266, 451, 413),
+                    "crouch": (459, 279, 574, 413),
+                    "sink1": (582, 281, 704, 413),
+                    "sink2": (704, 282, 829, 413),
+                    "sink3": (829, 283, 950, 413),
+                    "shake1": (950, 284, 1075, 413),
+                    "shake2": (1075, 283, 1202, 413),
+                    "release": (1204, 280, 1314, 413),
+                    "rise": (1331, 266, 1424, 413),
+                    "turn": (1447, 262, 1542, 413),
+                    "back1": (1562, 259, 1656, 413),
+                    "back2": (1677, 259, 1772, 413),
+                },
+                "back": {
+                    "stance": (122, 42, 212, 203),
+                    "step": (240, 42, 329, 203),
+                    "lunge": (360, 51, 458, 203),
+                    "crouch": (470, 62, 576, 203),
+                    "sink1": (589, 66, 697, 203),
+                    "sink2": (699, 68, 820, 203),
+                    "sink3": (820, 70, 942, 203),
+                    "shake1": (942, 69, 1071, 203),
+                    "shake2": (1071, 69, 1202, 203),
+                    "release": (1202, 65, 1313, 203),
+                    "rise": (1323, 52, 1420, 203),
+                    "turn": (1446, 45, 1538, 203),
+                    "back1": (1564, 42, 1654, 203),
+                    "back2": (1678, 41, 1769, 203),
+                },
+                "left": {
+                    "stance": (95, 505, 249, 612),
+                    "step": (249, 505, 391, 612),
+                    "lunge": (391, 498, 534, 612),
+                    "crouch": (534, 515, 676, 612),
+                    "sink1": (676, 519, 808, 612),
+                    "sink2": (808, 517, 939, 612),
+                    "shake1": (939, 518, 1067, 612),
+                    "shake2": (1067, 519, 1195, 612),
+                    "release": (1195, 518, 1312, 612),
+                    "rise": (1316, 511, 1435, 612),
+                    "turn": (1443, 499, 1552, 612),
+                    "back1": (1554, 499, 1660, 612),
+                    "back2": (1661, 500, 1779, 612),
+                    "sink3": ("same", "sink2"),   # the side rows draw one sink frame fewer
+                },
+                "right": {
+                    "stance": (96, 703, 243, 804),
+                    "step": (243, 705, 380, 804),
+                    "lunge": (380, 695, 526, 804),
+                    "crouch": (526, 708, 685, 804),
+                    "sink1": (685, 709, 820, 804),
+                    "sink2": (820, 711, 955, 804),
+                    "shake1": (955, 713, 1081, 804),
+                    "shake2": (1081, 714, 1213, 804),
+                    "release": (1213, 714, 1326, 804),
+                    "rise": (1329, 705, 1446, 804),
+                    "turn": (1446, 703, 1548, 804),
+                    "back1": (1548, 700, 1659, 804),
+                    "back2": (1659, 702, 1779, 804),
+                    "sink3": ("same", "sink2"),   # the side rows draw one sink frame fewer
+                },
+            },
+            "sheets": {
+                "Sunken": ["step", "lunge", "crouch", "sink1", "sink2", "sink3", "shake1", "shake2", "release", "rise"],
+            },
+        },
+    },
     "wolf": {
         # 2026-10-31: the Wolf's bite — wolf_bite_board.webp, four labelled
         # rows on black (Up: from behind, Down: facing the camera, Left,
