@@ -54,7 +54,7 @@ func _test_figure() -> void:
 	var tex: Texture2D = fig._cp_sheets["Attack"]
 	_check(fig._cp_frame_count("Attack") == 7, "Attack: raise, swipe, follow-through, settle, flat, roll, rise (%d frames)" % fig._cp_frame_count("Attack"))
 	_check(tex.get_height() == 4 * cell, "Attack holds the four facing rows in the Idle sheet's %d-px cells (%dx%d)" % [cell, tex.get_width(), tex.get_height()])
-	_check(fig._cp_fps.get("Attack", 0.0) == 8.0, "the pratfall plays at 8 fps")
+	_check(is_equal_approx(fig._cp_fps.get("Attack", 0.0), 8.0 / SpriteEnemyFigure.DRAWN_ATTACK_SLOW), "the pratfall plays at 8 fps, slowed as every enemy swing is")
 	# The feet of every attack frame stand on the Idle ground row of its facing.
 	var worst := 0.0
 	for row in range(4):
@@ -89,9 +89,9 @@ func _test_figure() -> void:
 	_check(fig._cp_anim == "Attack" and int(fig._sprite.region_rect.position.y / cell) == 0, "Attack facing south: Attack, the front row")
 	fig.set_facing(CharacterAnimator.Direction.EAST)
 	_check(int(fig._sprite.region_rect.position.y / cell) == 3, "turned east mid-swipe: the right-facing row")
-	fig._cp_step(2.5 / 8.0)
+	fig._cp_step(2.5 / fig._cp_fps[fig._cp_anim])
 	_check(fig._cp_anim == "Attack" and fig._cp_frame == 2, "two and a half frames in, the paw comes down (frame %d)" % fig._cp_frame)
-	fig._cp_step(3.0 / 8.0)
+	fig._cp_step(3.0 / fig._cp_fps[fig._cp_anim])
 	_check(fig._cp_anim == "Attack" and fig._cp_frame == 5, "five and a half frames in, the bear is on its back (frame %d)" % fig._cp_frame)
 	fig._cp_step(1.0)
 	_check(fig._cp_anim == "Idle", "back on its feet, the bear stands idle")

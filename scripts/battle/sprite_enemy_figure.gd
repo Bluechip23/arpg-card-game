@@ -42,8 +42,14 @@ const CP_ROWS := {
 ## frame. Attack2 is a creature's double attack (the werewolf's claw and
 ## rake with the other arm); a kind's "fps" overrides these per animation.
 ## Enemy attacks play ATTACK_SLOW times slower than they were (designer,
-## 2026-10-31: "still a little too fast") — the swing frames and the lunge.
-const ATTACK_SLOW := 1.4
+## 2026-10-31: "still a little too fast"; 2026-11-03: "still a little
+## rushed", slowed by another 0.5) — the swing frames and the lunge.
+const ATTACK_SLOW := 1.9
+## A kind's own Attack / Attack2 fps (its drawn swing) were chosen while
+## ATTACK_SLOW was 1.4 and never slowed with it; since 2026-11-03 they slow
+## by the same step as the packs' swings (1.9 / 1.4), so every enemy attack
+## is equally slower (see kind_fps).
+const DRAWN_ATTACK_SLOW := ATTACK_SLOW / 1.4
 const CP_FPS := {"Idle": 5.0, "Walk": 8.0, "Run": 10.0, "Draw": 8.0, "Attack": 12.0 / ATTACK_SLOW,
 		"Attack2": 12.0 / ATTACK_SLOW, "Hurt": 12.0, "Death": 10.0}
 const CP_ONESHOT := ["Attack", "Attack2", "Hurt", "Death"]
@@ -119,6 +125,8 @@ const KINDS := {
 	"snow_wraith": {"sheets": SHEETS + "/snow_wraith", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the ghost pack's Ghost2
 	# The designer's 4x4 walk sheets (tools/cut_creature_sheets.py).
 	"hydra": {"sheets": SHEETS + "/hydra", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the designer's pose board (tools/cut_pose_boards.py, 2026-10-28), and her attack sheets (2026-11-03: Attack is the heads rearing up, the roar, the strike with every mouth agape, the heads spread wide and drawn back in)
+	"hydra_5": {"sheets": SHEETS + "/hydra_5", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the Hydra after her second hit, five heads: the designer's board and attack board (tools/cut_pose_boards.py, 2026-11-03)
+	"hydra_3": {"sheets": SHEETS + "/hydra_3", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the Hydra after her third hit, three heads: the designer's attack board, its four views her Idle (tools/cut_pose_boards.py, 2026-11-03)
 	"hydra_8": {"sheets": SHEETS + "/hydra_8", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the Hydra after her first hit, two heads gone: the designer's eight-head board and its attack board (tools/cut_pose_boards.py, 2026-11-03); Enemy swaps her to it as she is hit (HYDRA_HEADS) and back when she heals
 	"white_manticore": {"sheets": SHEETS + "/white_manticore", "scale": BOARD_SCALE},
 	# --- battler variations where the species genuinely matches ---
@@ -259,9 +267,7 @@ func setup(kind: String) -> void:
 	figure_kind = kind
 	var cfg: Dictionary = KINDS.get(kind, KINDS["wolf"])
 	_tint = cfg.get("tint", Color.WHITE)
-	if cfg.has("fps"):
-		_cp_fps = CP_FPS.duplicate()
-		_cp_fps.merge(cfg["fps"], true)
+	_cp_fps = kind_fps(kind)
 	position.y = CameraView.SPRITE_LIFT  # nearer the camera than any wall slab (plan view depth)
 	_rig = Node3D.new()
 	_rig.name = "Rig"
@@ -354,6 +360,17 @@ func setup(kind: String) -> void:
 		BlobShadow.attach(_rig, body_w * 0.7)
 
 
+## The frames a second a kind plays each animation at: CP_FPS with the
+## kind's own "fps" over it, its drawn attacks slowed by DRAWN_ATTACK_SLOW.
+static func kind_fps(kind: String) -> Dictionary:
+	var fps: Dictionary = CP_FPS.duplicate()
+	var own: Dictionary = KINDS.get(kind, {}).get("fps", {})
+	for anim in own:
+		var f := float(own[anim])
+		fps[anim] = f / DRAWN_ATTACK_SLOW if anim.begins_with("Attack") else f
+	return fps
+
+
 ## Swap to another sheets kind mid-fight (the Hydra loses heads as she is
 ## hit and regrows them when she heals): the same rig, sprite, scale and
 ## facing; the new kind's sheets, cell and fps. Whatever was playing goes on
@@ -364,9 +381,7 @@ func reskin(kind: String) -> void:
 	if not cfg.has("sheets") or not _cp_mode or _fr_mode or _cp_dead:
 		return
 	figure_kind = kind
-	_cp_fps = CP_FPS.duplicate()
-	if cfg.has("fps"):
-		_cp_fps.merge(cfg["fps"], true)
+	_cp_fps = kind_fps(kind)
 	var anim := _cp_anim
 	var frame := _cp_frame
 	var clock := _cp_clock
