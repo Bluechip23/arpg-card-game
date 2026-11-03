@@ -557,6 +557,68 @@ BOARDS = {
             "left": (89, 580, 455, 1126),
             "right": (852, 580, 1220, 1126),
         },
+        # 2026-11-03: the designer's kick board — armored_troll_kick_board.webp,
+        # "KICK ATTACK (4 DIRECTIONS x 7 FRAMES)", four labelled rows on
+        # black (NORTH (FRONT), SOUTH (BACK), WEST (LEFT), EAST (RIGHT), the
+        # board's "north" facing the camera), seven frames a row under
+        # column captions: idle, shift, knee up, chamber (90 degrees), full
+        # extend, recoil, return. Mid-kick his standing leg is drawn apart
+        # from his body in the side rows, so every piece a frame owns is
+        # kept (`keep_share`) and a neighbour's reaching into its box
+        # blanked (`isolate`); each box runs to the row's ground line. Kick.png,
+        # played for his Kick only (his Smash keeps its lunge); the idle is
+        # the height reference, matched to each facing's Idle.
+        "actions": {
+            "src": "armored_troll_kick_board.webp",
+            "levels": (4, 30, 6),   # his scale mail is near-black, just above the backdrop's 0
+            "fill_holes": 4,
+            "open_dark": True,
+            "keep_share": 0.02,   # his standing leg mid-kick
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (112, 85, 303, 283),
+                    "shift": (302, 86, 495, 283),
+                    "knee": (490, 83, 683, 283),
+                    "chamber": (678, 83, 869, 283),
+                    "extend": (873, 83, 1062, 283),
+                    "recoil": (1059, 85, 1246, 283),
+                    "back": (1244, 85, 1434, 283),
+                },
+                "back": {
+                    "stance": (129, 304, 317, 500),
+                    "shift": (319, 306, 510, 500),
+                    "knee": (507, 304, 693, 500),
+                    "chamber": (699, 304, 888, 500),
+                    "extend": (892, 305, 1076, 500),
+                    "recoil": (1081, 306, 1265, 500),
+                    "back": (1265, 303, 1451, 500),
+                },
+                "left": {
+                    "stance": (124, 522, 280, 730),
+                    "shift": (313, 525, 466, 730),
+                    "knee": (508, 521, 654, 730),
+                    "chamber": (699, 523, 841, 730),
+                    "extend": (877, 522, 1034, 730),
+                    "recoil": (1079, 524, 1223, 730),
+                    "back": (1258, 523, 1410, 730),
+                },
+                "right": {
+                    "stance": (149, 757, 302, 960),
+                    "shift": (342, 753, 489, 960),
+                    "knee": (535, 755, 673, 960),
+                    "chamber": (714, 754, 848, 960),
+                    "extend": (903, 753, 1074, 960),
+                    "recoil": (1096, 752, 1240, 960),
+                    "back": (1282, 753, 1432, 960),
+                },
+            },
+            "sheets": {
+                "Kick": ["shift", "knee", "chamber", "extend", "recoil"],
+            },
+        },
     },
     "ice_troll": {
         # 2026-10-25: the Ice Troll — blue hide, white shag and ice crystals —
@@ -2718,7 +2780,11 @@ def cut_action_frames(cfg: dict) -> dict:
             labels[name] = cv2.connectedComponentsWithStats((lum > floor).astype(np.uint8), connectivity=8)
         _, lab, _, cen = labels[name]
         x0, y0, x1, y1 = box
-        sub = lab[y0:y1, x0:x1]
+        # The box may run past the board (the crop pads it with black).
+        sub = np.zeros((y1 - y0, x1 - x0), lab.dtype)
+        cx0, cy0 = max(0, x0), max(0, y0)
+        cx1, cy1 = min(lab.shape[1], x1), min(lab.shape[0], y1)
+        sub[cy0 - y0:cy1 - y0, cx0 - x0:cx1 - x0] = lab[cy0:cy1, cx0:cx1]
         ids = np.unique(sub)
         away = [i for i in ids if i and not (x0 <= cen[i][0] < x1 and y0 <= cen[i][1] < y1)]
         return np.isin(sub, away)
