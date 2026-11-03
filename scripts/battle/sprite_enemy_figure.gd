@@ -233,6 +233,7 @@ var _fx_tween: Tween = null
 ## fps, or the lunge alone); 0 after any other action. The tempo clock
 ## holds this long for it (TempoManager.hold_for).
 var last_swing_time := 0.0
+var _swing_end_msec: int = 0  # when the swing play_attack last started finishes
 var _base_y := 26.0 * PIXEL_SIZE
 
 # Craftpix animated mode
@@ -804,6 +805,7 @@ func play_attack(double: bool = false) -> void:
 		_cp_play("Attack2" if two else "Attack", true)
 		dir = Vector3(_facing_x * 0.16, 0, 0) if _fr_mode else _cp_forward() * 0.16
 	last_swing_time = attack_time()
+	_swing_end_msec = Time.get_ticks_msec() + int(last_swing_time * 1000.0)
 	_fx_tween = create_tween()
 	_fx_tween.tween_property(_rig, "position", -dir * 0.3, 0.12 * ATTACK_SLOW)
 	_fx_tween.tween_property(_rig, "position", dir, 0.08 * ATTACK_SLOW).set_ease(Tween.EASE_OUT)
@@ -819,6 +821,11 @@ func attack_time() -> float:
 	if _cp_mode and _cp_anim.begins_with("Attack"):
 		return float(_cp_frame_count(_cp_anim)) / float(_cp_fps.get(_cp_anim, 8.0))
 	return 0.38   # the lunge tween: 0.12 + 0.08 + 0.18
+
+
+## Seconds still to run on the swing now playing; 0 when none is.
+func attack_time_left() -> float:
+	return maxf(0.0, float(_swing_end_msec - Time.get_ticks_msec()) / 1000.0)
 
 
 func _cp_forward() -> Vector3:

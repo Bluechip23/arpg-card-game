@@ -48,6 +48,17 @@ func _ready() -> void:
 		add_child(stats_node)
 		stats = stats_node
 
+	# Every hero shows its own overhead heart / shield: a heal or an armour
+	# gain from any source (self, an ally, a ring, a passive…) lands on these
+	# signals, so the hero answers them itself (designer, 2026-11-03).
+	if stats:
+		stats.healed.connect(func(amount: int):
+			if amount > 0:
+				show_heal_icon())
+		stats.armor_gained.connect(func(amount: int):
+			if amount > 0:
+				show_armor_gained())
+
 	if not has_node("Inventory"):
 		var inv_node = Inventory.new()
 		inv_node.name = "Inventory"
@@ -125,6 +136,13 @@ func get_facing() -> CharacterAnimator.Direction:
 func hit_delay(action: String, direction: CharacterAnimator.Direction = CharacterAnimator.Direction.SOUTH) -> float:
 	if _figure and _figure.has_method("hit_delay"):
 		return _figure.hit_delay(action, direction)
+	return 0.0
+
+## Seconds the whole of `action` runs as drawn (frames, hold, play back);
+## 0 when nothing is drawn.
+func action_time(action: String, direction: CharacterAnimator.Direction = CharacterAnimator.Direction.SOUTH) -> float:
+	if _figure and _figure.has_method("action_time"):
+		return _figure.action_time(action, direction)
 	return 0.0
 
 func set_weapon_kind(kind: String, has_shield: bool, art: Texture2D = null) -> void:

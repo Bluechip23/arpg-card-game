@@ -23,6 +23,7 @@ const MARKER_GRAY := Color(0.62, 0.62, 0.66)
 
 var starting_character: CharacterData = null
 var player2_character: CharacterData = null  # Persistent co-op partner (recruited at the Sellsword)
+var _held_move := HeldMoveKeys.new()  # WASD keys held down: keep walking
 var discovered_waypoints: Array = []
 var quest_state: Dictionary = {}
 var player_progression: Dictionary = {}
@@ -414,6 +415,7 @@ func _process(_delta: float) -> void:
 			_stash_message_label.text = ""
 
 	_update_move_path_cursor()
+	_update_held_move()
 	_face_townsfolk()
 
 	if vendor_open:
@@ -511,14 +513,10 @@ func _input(event: InputEvent) -> void:
 			KEY_PERIOD:
 				_camera_distance = max(CAMERA_ZOOM_MIN, _camera_distance - CAMERA_ZOOM_STEP)  # farther
 				_update_camera()
-			KEY_W:
-				_wasd_step(Vector2(0, 1))
-			KEY_S:
-				_wasd_step(Vector2(0, -1))
-			KEY_A:
-				_wasd_step(Vector2(-1, 0))
-			KEY_D:
-				_wasd_step(Vector2(1, 0))
+			KEY_W, KEY_S, KEY_A, KEY_D:
+				# Held down, the hero keeps walking (see _update_held_move).
+				_held_move.press(event.keycode)
+				_wasd_step(HeldMoveKeys.dir_for(event.keycode))
 
 	# Over a menu or panel the mouse is the menu's: no zoom, pan or move order
 	# behind it (designer, 2026-10-31).
@@ -566,6 +564,25 @@ func _input(event: InputEvent) -> void:
 		if mouse_pos != Vector3.ZERO:
 			var distance = _get_grid_distance(player.position, mouse_pos)
 			player.move_to_grid(mouse_pos, max(1, distance))
+
+## Hold-to-walk: while a WASD key stays down the hero takes the next step as
+## soon as the last one lands; a window opening or a blocked step ends it.
+func _update_held_move() -> void:
+	var dir := _held_move.current_dir()
+	if dir == Vector2.ZERO:
+		return
+	if player == null or not is_instance_valid(player) or player.is_moving:
+		return
+	if _modal_open or vendor_open or _stash_open:
+		_held_move.clear()
+		return
+	var focus := get_viewport().gui_get_focus_owner()
+	if focus is LineEdit or focus is TextEdit or focus is SpinBox:
+		_held_move.clear()
+		return
+	_wasd_step(dir)
+	if not player.is_moving:
+		_held_move.clear()  # blocked: let go and press again to retry
 
 func _wasd_step(dir: Vector2) -> void:
 	## Step the player one grid cell in a camera-relative direction (same short

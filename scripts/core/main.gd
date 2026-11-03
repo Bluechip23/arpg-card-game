@@ -201,7 +201,12 @@ const CARD_KEYS = [
 var selected_card_index: int = -1
 var _basic_attack_pending: bool = false  # Attack button armed — next enemy click swings
 var _pending_enemy_pick: Dictionary = {}  # a resolved card waiting for the player to choose its enemy (Life Swap)
-var _pending_gauntlet_skill: ItemData = null  # Targeted gauntlet skill armed — next click picks its target
+# Targeted gauntlet skill armed — next click picks its target. Its circle
+# shows a green outline while armed.
+var _pending_gauntlet_skill: ItemData = null:
+	set(value):
+		_pending_gauntlet_skill = value
+		_refresh_gauntlet_armed_outline()
 
 # Gauntlet skills that need a target picked by clicking (like cards do).
 const ENEMY_TARGET_GAUNTLET_SKILLS := ["power_grip", "rage_strike", "worldsplitter",
@@ -417,6 +422,7 @@ var _last_played_target = null
 # is drawn for one viewpoint. Only the focus and the zoom distance move.
 var _camera_focus: Vector3 = Vector3(10, 0, 6)  # Center of the 20x12 grid
 var _camera_yaw: float = CameraView.YAW      # Locked; kept for the WASD basis
+var _held_move := HeldMoveKeys.new()          # WASD keys held down: keep walking
 var _camera_pitch: float = CameraView.PITCH  # Locked
 var _camera_distance: float = CameraView.ZOOM_DEFAULT  # Zoom: screen pixels per texel (1..4)
 ## Player-driven scroll away from the follow focus (left-drag or arrow
@@ -914,6 +920,7 @@ func _process(delta: float) -> void:
 	_update_damage_preview()
 	_update_loot_hover()
 	_update_move_path_cursor()
+	_update_held_move()
 	# Update chest interact prompts, waypoints, sites, and enemy fog visibility
 	if dungeon_manager and grid_manager:
 		var pg := grid_manager.world_to_grid(player.position)
@@ -2701,7 +2708,7 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 			_belthronding_share(player.position, damage, player)
 			PlayerStats.hit_source_offensive = false
 			PlayerStats.hit_source_direct = false
-		_after_hit(_hit_wait("basic_attack", target), land)
+		_after_hit(_hit_wait("basic_attack", target), land, _swing_time("basic_attack", target))
 	elif tempo_cost <= 0:
 		# Dex proc reduced tempo to 0: resolve immediately
 		if player.has_method("play_animation"):
@@ -2728,7 +2735,7 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 			_belthronding_share(player.position, damage, player)
 			PlayerStats.hit_source_offensive = false
 			PlayerStats.hit_source_direct = false
-		_after_hit(_hit_wait("basic_attack", target), land)
+		_after_hit(_hit_wait("basic_attack", target), land, _swing_time("basic_attack", target))
 	else:
 		# Queue basic attack through the ticked tempo system (the resolve
 		# raises the hit-source flags again when the swing lands).
@@ -2776,9 +2783,21 @@ func _hit_wait(action: String, target) -> float:
 		return 0.0
 	return player.hit_delay(action, _facing_dir_toward(target))
 
-## Run `land` after `seconds` (now when 0), the tick clock held meanwhile so
-## nothing else resolves before the blow lands.
-func _after_hit(seconds: float, land: Callable) -> void:
+## Seconds the whole drawn swing runs (wind-up, blow, follow-through and
+## play back); 0 when nothing is drawn or the swing hold is off.
+func _swing_time(action: String, target) -> float:
+	if not TempoManager.swing_hold_enabled() or not player or not player.has_method("action_time"):
+		return 0.0
+	return player.action_time(action, _facing_dir_toward(target))
+
+## Run `land` after `seconds` (now when 0). The tick clock is held for the
+## whole swing (`total`, when longer than the wait for the blow), so a kill
+## on the hit frame never cuts the follow-through short: nothing else
+## resolves — no next action restarting the hero's animation — until the
+## swing has played out (designer, 2026-11-03).
+func _after_hit(seconds: float, land: Callable, total: float = 0.0) -> void:
+	if tempo_manager and total > 0.0:
+		tempo_manager.hold_for(maxf(seconds, total) + TempoManager.SWING_HOLD_BEAT)
 	if seconds <= 0.0:
 		land.call()
 		return
@@ -3275,6 +3294,13 @@ func _update_gauntlet_skills_ui() -> void:
 			child.update_display()
 	_update_pile_passive_icon()
 
+func _refresh_gauntlet_armed_outline() -> void:
+	if gauntlet_skills_container == null or not is_instance_valid(gauntlet_skills_container):
+		return
+	for child in gauntlet_skills_container.get_children():
+		if child is GauntletSkillUI:
+			child.set_armed(_pending_gauntlet_skill != null and child.gauntlet == _pending_gauntlet_skill)
+
 func _update_pile_passive_icon() -> void:
 	## The clock icon beside the Draw pile (Cory's gauntlet mana, Jeremy's
 	## ring double) follows the active player's inventory.
@@ -3710,7 +3736,6 @@ func select_character(character: CharacterData) -> void:
 	_refresh_carry_bar()
 	player.get_stats().armor_changed.connect(_on_player_armor_changed)
 	player.get_stats().unerring_changed.connect(_on_player_unerring_changed)
-	player.get_stats().armor_gained.connect(_on_player_armor_gained)
 	player.get_stats().dexterity_proc.connect(_on_dexterity_proc)
 	player.get_stats().flash_points_changed.connect(_on_flash_points_changed)
 	player.get_stats().brain_points_changed.connect(_on_brain_points_changed)
@@ -6622,11 +6647,6 @@ func _refresh_carry_bar() -> void:
 	if stats:
 		_on_player_carry_changed(stats.current_carry_load, stats.get_carry_capacity())
 
-func _on_player_armor_gained(_amount: int) -> void:
-	## Armour gained from any source — pop the overhead armour icon.
-	if player and player.has_method("show_armor_gained"):
-		player.show_armor_gained()
-
 func _on_player_armor_changed(_current: int) -> void:
 	## The shield reads REGULAR armor only; unerring armor has its own grey bar.
 	var stats := player.get_stats() if player else null
@@ -6910,9 +6930,7 @@ func _on_player_health_damage_taken(hp_amount: int) -> void:
 
 func _on_player_healed(amount: int) -> void:
 	player.spawn_heal_number(amount)
-	# Heal from any source pops the overhead heart icon.
-	if amount > 0 and player.has_method("show_heal_icon"):
-		player.show_heal_icon()
+	# (The overhead heart pops from the hero itself — Player._ready.)
 	# Sphere grid passive triggers for healing
 	var stats := player.get_stats()
 	var overheal = 0
@@ -7147,6 +7165,30 @@ func _pan_camera(delta: Vector3) -> void:
 	_camera_pan.z = clampf(_camera_pan.z, -CAMERA_PAN_LIMIT, CAMERA_PAN_LIMIT)
 	_update_camera()
 
+
+## Hold-to-walk: while a WASD key stays down the hero takes the next step as
+## soon as the last one lands. Anything that would refuse a tapped step (a
+## window open, typing, the action still ticking, a wall) ends the hold
+## quietly instead of retrying every frame.
+func _update_held_move() -> void:
+	var dir := _held_move.current_dir()
+	if dir == Vector2.ZERO:
+		return
+	if player == null or not is_instance_valid(player) or player.is_moving:
+		return
+	if _co_op_defeated or _donation_active or _waypoint_menu_visible or _chest_modal_open:
+		_held_move.clear()
+		return
+	var focus := get_viewport().gui_get_focus_owner()
+	if focus is LineEdit or focus is TextEdit or focus is SpinBox:
+		_held_move.clear()
+		return
+	if _movement_locked():
+		_held_move.clear()
+		return
+	_wasd_step(dir)
+	if not player.is_moving:
+		_held_move.clear()  # blocked: let go and press again to retry
 
 func _wasd_step(dir: Vector2) -> void:
 	## Move the active player one grid cell in a camera-relative direction.
@@ -9189,7 +9231,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 						player.face_toward(target.position)
 			else:
 				_play_card_animation(card, target)
-			_after_hit(wait, func() -> void: _land_queued_entry(entry))
+			_after_hit(wait, func() -> void: _land_queued_entry(entry), _swing_time(swing, target))
 			return
 
 	# --- Basic attack resolution: deal damage directly ---
@@ -13702,19 +13744,11 @@ func _input(event: InputEvent) -> void:
 
 		# WASD: step one grid cell in the camera-relative direction. A quick
 		# alternative to right-clicking for short hops; right-click still works.
-		match event.keycode:
-			KEY_W:
-				_wasd_step(Vector2(0, 1))
-				return
-			KEY_S:
-				_wasd_step(Vector2(0, -1))
-				return
-			KEY_A:
-				_wasd_step(Vector2(-1, 0))
-				return
-			KEY_D:
-				_wasd_step(Vector2(1, 0))
-				return
+		# Held down, the hero keeps walking (see _update_held_move).
+		if HeldMoveKeys.is_move_key(event.keycode):
+			_held_move.press(event.keycode)
+			_wasd_step(HeldMoveKeys.dir_for(event.keycode))
+			return
 
 		# ~ (the key left of 1): arm the auto attack, same as clicking its button.
 		if event.keycode == KEY_QUOTELEFT or event.keycode == KEY_ASCIITILDE:
