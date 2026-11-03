@@ -1049,6 +1049,90 @@ BOARDS = {
             "frames": [(0, 380, 217, 600), (217, 380, 420, 600), (420, 380, 626, 600), (626, 380, 834, 600), (834, 380, 1045, 600), (1045, 380, 1259, 600), (1259, 380, 1465, 600), (1465, 380, 1672, 600)],
         },
     },
+    "snow_wraith_ice_blast": {
+        # 2026-11-03: the Snow Wraith's Ice Blast — snow_wraith_ice_blast_board.webp,
+        # four labelled rows on black (NORTH, SOUTH, LEFT, RIGHT; "north"
+        # facing the camera), eleven frames a row: the stance, her arms
+        # rising, spread, a crystal forming at her breast, growing, ringed
+        # in frost, full, her arm thrown out (the crystal gone), then the ice
+        # spear flying off from her hand and breaking up, and the stance.
+        # The spear touches her hand from the eighth frame (in the left row
+        # three frames and their spears run together), so the cast is cut
+        # through her thrown-out arm and holds it while the spear flies: the
+        # flying ice is its own sprite (snow_wraith_ice_shard). Cut like her
+        # snowball and packed into her folder as Cast.png; the stance is the
+        # height reference, matched to each facing's Idle.
+        "into": "snow_wraith",
+        "actions": {
+            "src": "snow_wraith_ice_blast_board.webp",
+            "levels": (14, 45, 18),   # the crystal's and hands' glow fades out through dim navy: above that, so it doesn't ring them dark
+            "fill_holes": 8,
+            "open_dark": True,
+            "glow": False,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (100, 0, 233, 166),
+                    "arms": (277, 0, 404, 166),
+                    "open": (446, 0, 577, 166),
+                    "form": (618, 0, 752, 166),
+                    "grow": (790, 0, 926, 166),
+                    "crystal": (961, 0, 1099, 166),
+                    "extend": (1136, 0, 1291, 166),
+                    "hold": ("same", "extend"),
+                },
+                "back": {
+                    "stance": (108, 168, 236, 334),
+                    "arms": (283, 168, 407, 334),
+                    "open": (450, 168, 579, 334),
+                    "form": (623, 168, 752, 334),
+                    "grow": (792, 168, 927, 334),
+                    "crystal": (961, 168, 1100, 334),
+                    "extend": (1138, 168, 1291, 334),
+                    "hold": ("same", "extend"),
+                },
+                "left": {
+                    "stance": (112, 337, 237, 499),
+                    "arms": (281, 337, 408, 499),
+                    "open": (436, 337, 581, 499),
+                    "form": (601, 337, 751, 499),
+                    "grow": (765, 337, 923, 499),
+                    "crystal": (932, 337, 1093, 499),
+                    "extend": (1097, 337, 1252, 499),
+                    "hold": ("same", "extend"),
+                },
+                "right": {
+                    "stance": (80, 499, 202, 667),
+                    "arms": (231, 499, 368, 667),
+                    "open": (400, 499, 541, 667),
+                    "form": (567, 499, 710, 667),
+                    "grow": (736, 499, 881, 667),
+                    "crystal": (904, 499, 1044, 667),
+                    "extend": (1072, 499, 1219, 667),
+                    "hold": ("same", "extend"),
+                },
+            },
+            "sheets": {
+                "Cast": ["arms", "open", "form", "grow", "crystal", "extend", "hold"],
+            },
+        },
+    },
+    "snow_wraith_ice_shard": {
+        # 2026-11-03: the ice in flight — snow_wraith_ice_shard_strip.webp,
+        # eight frames of a jagged ice spear flying right, cut out
+        # (transparent), splinters peeling off behind it, smaller as it
+        # goes. IceShard.png in her folder; her Ice Blast sends it from her
+        # hand to the target (ThrownSprite), mirrored when it flies left.
+        # The first frame 1.3 tiles long.
+        "into": "snow_wraith",
+        "strip": {
+            "src": "snow_wraith_ice_shard_strip.webp",
+            "sheet": "IceShard",
+            "width_tiles": 1.3,
+            "align": "board",
+            "frames": [(30, 240, 245, 380), (280, 240, 495, 380), (530, 240, 745, 380), (780, 240, 995, 380), (1005, 240, 1250, 380), (1290, 240, 1500, 380), (1550, 240, 1750, 380), (1800, 240, 1995, 380)],
+        },
+    },
     "fire_goblin": {
         # 2026-10-25: the Fire Goblin — a goblin in red leather with a torch,
         # scimitar and round shield; the fire goblin soldier and shaman wear it
@@ -3063,10 +3147,15 @@ def build_actions_on_sheets(name: str, cfg: dict) -> None:
         if need > cell:
             # Every sheet in the folder (the Hydra's Attack too, not only
             # Idle / Walk) is regrown; this entry's own sheets are rewritten.
+            # A thrown strip (Boulder.png, Snowball.png) has cells of its
+            # own and is left as it is.
             for f in sorted(os.listdir(root)):
                 if f.endswith(".png") and f[:-4] not in cfg["actions"]["sheets"]:
                     path = os.path.join(root, f)
-                    _regrow(Image.open(path), cell, need).save(path)
+                    im = Image.open(path)
+                    if im.height % cell or im.width % cell:
+                        continue
+                    _regrow(im, cell, need).save(path)
             print("%-13s %s cells %d -> %d px (its sheets regrown)" % (folder, kind, cell, need))
             cell = need
         for anim, poses in cfg["actions"]["sheets"].items():

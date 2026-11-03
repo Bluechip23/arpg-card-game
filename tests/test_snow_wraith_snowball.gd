@@ -4,8 +4,9 @@ extends SceneTree
 ## tools/cut_pose_boards.py "actions"): Throw.png is the frost gathering at
 ## her hand, the snowball forming, raised, thrown and the follow-through —
 ## in the four facing rows, in the Idle sheet's cells, at her drawn 8 fps
-## slowed as every enemy swing is. Her Snowball plays it; her Ice Blast
-## keeps its lunge.
+## slowed as every enemy swing is. Her Snowball plays it and the snowball
+## then flies from her hand. Her Ice Blast plays Cast.png (the crystal
+## forming and her arm thrown out) and an ice spear flies.
 ## Run: godot --headless --path . --script tests/test_snow_wraith_snowball.gd
 
 var failures := 0
@@ -69,7 +70,15 @@ func _test_figure() -> void:
 	fig._cp_step(2.0)
 	_check(fig._cp_anim == "Idle", "the throw done, she hovers idle")
 	fig.play_action("ice_blast")
-	_check(fig._cp_anim != "Throw" and fig.last_swing_time > 0.0, "her Ice Blast does not play the throw: it lunges")
+	_check(fig._cp_anim == "Cast" and fig._cp_frame_count("Cast") == 7, "her Ice Blast plays the cast: seven frames")
+	_check(fig._cp_sheets["Cast"].get_height() == 4 * cell, "in the four facing rows, the Idle sheet's cells")
+	_check(is_equal_approx(fig._cp_fps.get("Cast", 0.0), 10.0 / SpriteEnemyFigure.DRAWN_ATTACK_SLOW), "at her drawn 10 fps, slowed as every enemy swing is")
+	var cworst := 0.0
+	for row in range(4):
+		var cfeet: float = _feet(fig, "Idle", row, 0)
+		for col in range(7):
+			cworst = maxf(cworst, absf(_feet(fig, "Cast", row, col) - cfeet))
+	_check(cworst <= 3.0 * (2.0 if fig.smooth else 1.0), "the cast frames' smoke trails end on the idle ground row (off by at most %.0f texels)" % cworst)
 	fig.free()
 
 
@@ -96,7 +105,7 @@ func _test_snowball() -> void:
 	fig.set_facing(CharacterAnimator.Direction.WEST)
 	fig.play_action("snowball")
 	var target := fig.global_position + Vector3(-4, 0, 0)
-	var secs := fig.throw_projectile(target)
+	var secs := fig.throw_projectile(target, "snowball")
 	var ts := _thrown(host)
 	_check(ts.size() == 1, "her Snowball sends a snowball after the throw")
 	if ts.is_empty():
@@ -113,6 +122,16 @@ func _test_snowball() -> void:
 	_check(b._sprite.visible and b.global_position.x < fig.global_position.x - 0.4, "thrown, it flies toward the target")
 	b._process(2.0)
 	_check(b.global_position.is_equal_approx(target), "and stops on the target")
+	# Her Ice Blast: the spear leaves her thrown-out hand at the cast's last frame.
+	fig.set_facing(CharacterAnimator.Direction.EAST)
+	fig.play_action("ice_blast")
+	var right := fig.global_position + Vector3(5, 0, 0)
+	var isecs := fig.throw_projectile(right, "ice_blast")
+	var ice: ThrownSprite = _thrown(host).back()
+	var irelease: float = 6.0 / fig._cp_fps["Cast"]
+	_check(ice != b and is_equal_approx(ice._delay, irelease), "her Ice Blast sends the ice spear on the cast's last frame (%.2f s)" % ice._delay)
+	_check(is_equal_approx(isecs, irelease + 4.4 / 10.0) and not ice._sprite.flip_h, "flying right at 10 tiles a second, as drawn: there in %.2f s" % isecs)
+	_check(fig.throw_projectile(right, "move") == 0.0, "an action that throws nothing sends nothing")
 	host.free()
 
 
@@ -140,4 +159,7 @@ func _test_enemy() -> void:
 	w._execute_action("snowball", main.player)
 	_check(fig != null and fig._cp_anim == "Throw", "the Wraith's Snowball plays the throw (%s)" % (fig._cp_anim if fig else "no figure"))
 	_check(_thrown(w.get_parent()).size() == 1, "and a snowball flies from her toward the player")
+	w._execute_action("ice_blast", main.player)
+	_check(fig != null and fig._cp_anim == "Cast", "the Wraith's Ice Blast plays the cast (%s)" % (fig._cp_anim if fig else "no figure"))
+	_check(_thrown(w.get_parent()).size() == 2, "and an ice spear flies after it")
 	main.enemy_spawner.despawn_enemy(w)

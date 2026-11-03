@@ -64,7 +64,7 @@ func _test_figure() -> void:
 	_check(fig._cp_anim == "Attack", "his Smash still plays the smash")
 	fig.play_action("boulder_roll")
 	var target := fig.global_position + Vector3(3, 0, 0)
-	var secs := fig.throw_projectile(target)
+	var secs := fig.throw_projectile(target, "boulder_roll")
 	var bs := _boulders(host)
 	_check(bs.size() == 1, "the boulder is launched beside him")
 	if bs.is_empty():
@@ -84,13 +84,13 @@ func _test_figure() -> void:
 	_check(b.global_position.x > x0 and b._sprite.region_rect.position.x != r0, "it rolls on, turning over")
 	b._process(5.0)
 	_check(b.global_position.is_equal_approx(target), "it stops on the target")
-	var left := fig.throw_projectile(fig.global_position + Vector3(-2, 0, 0))
+	var left := fig.throw_projectile(fig.global_position + Vector3(-2, 0, 0), "boulder_roll")
 	var bl: ThrownSprite = _boulders(host).back()
 	_check(left > 0.0 and bl._sprite.flip_h, "rolling left, it is mirrored")
 	var other := SpriteEnemyFigure.new()
 	holder.add_child(other)
 	other.setup("zombie")
-	_check(other.throw_projectile(target) == 0.0, "a kind with no boulder rolls nothing")
+	_check(other.throw_projectile(target, "boulder_roll") == 0.0, "a kind with no boulder rolls nothing")
 	host.free()
 
 

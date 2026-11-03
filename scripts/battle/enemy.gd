@@ -3909,9 +3909,9 @@ func _choose_titan_action(distance: int) -> void:
 ## A thrown attack's projectile (the Titan's boulder, the Wraith's
 ## snowball): the figure sends it from the hands to the target, and the tick
 ## clock waits for it to get there as it waits for a swing.
-func _throw_at(target_node: Node3D) -> void:
+func _throw_at(target_node: Node3D, action: String) -> void:
 	if _enemy_figure and _enemy_figure.has_method("throw_projectile") and is_instance_valid(target_node):
-		var secs: float = _enemy_figure.throw_projectile(target_node.global_position)
+		var secs: float = _enemy_figure.throw_projectile(target_node.global_position, action)
 		if secs > 0.0:
 			swing_started.emit(self, secs)
 
@@ -3920,7 +3920,7 @@ func _try_boulder_roll(target_node: Node3D) -> bool:
 	if is_disarmed or _get_cell_distance(target_node) > 3:
 		return _try_move(target_node)
 	_deal_damage_to_player(target_node, attack_damage, "Boulder Roll")
-	_throw_at(target_node)   # the boulder rolls from his hands to the target
+	_throw_at(target_node, "boulder_roll")   # the boulder rolls from his hands to the target
 	turn_completed.emit()
 	return true
 
@@ -4774,7 +4774,7 @@ func _try_snowball(target_node: Node3D) -> bool:
 	_apply_player_debuff(target_node, Debuff.create_timed(Debuff.DebuffType.SLOWED, 3, enemy_name))
 	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.COLD, 2, 5))  # sheet: Cold's timer is 5 tempo
 	print("[%s] Snowball: Slowed 3 tempo + 2 Cold" % enemy_name)
-	_throw_at(target_node)   # the snowball flies from her hand to the target
+	_throw_at(target_node, "snowball")   # the snowball flies from her hand to the target
 	turn_completed.emit()
 	return true
 
@@ -4789,6 +4789,7 @@ func _try_ice_blast(target_node: Node3D) -> bool:
 			dmg += 3
 	_deal_damage_to_player(target_node, dmg, "Ice Blast", DamageTypes.Type.ICE)
 	_apply_player_debuff(target_node, Debuff.create_timed(Debuff.DebuffType.SLOWED, 3, enemy_name))
+	_throw_at(target_node, "ice_blast")   # the ice spear flies from her hand to the target
 	turn_completed.emit()
 	return true
 
