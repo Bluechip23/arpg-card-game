@@ -253,6 +253,7 @@ var _hook_recharge: int = 0                        # Infected Hunter: raw tempo 
 var _net_cooldown: int = 0                         # Infected Hunter: raw tempo until Net Throw is ready again (sheet: cooldown 8)
 var _drops_to_all_fours: bool = false              # Large Bear: posture change below 20% HP (visual)
 var hydra_heal_unlocked: bool = false
+var hydra_hits_since_heal: int = 0  # Hydra: hits since her last Heal — the heads she has lost (HYDRA_HEADS)
 
 # --- Elite first-pass trait state ---
 var strengthen_stacks: int = 0        # Large Bear: +1 attack damage per stack (gained while Mini Bears watch)
@@ -583,6 +584,22 @@ var door_sealed_tempo: int = 0
 var _door_thresholds_hit: Array = []
 const DOOR_SEAL_THRESHOLDS := [0.75, 0.5, 0.33]
 const DOOR_SEAL_TEMPO := 10
+
+## The Hydra's heads (designer, 2026-11-03): every hit she takes costs her
+## heads — the first takes her from her full crown to eight — and her Heal
+## regrows them all. The figure kind she wears, by hits since her last Heal;
+## past the end of the list she keeps the last set. Only the eight-head set
+## is drawn so far: the sets for the second and third hit wait on the
+## designer, so those hits wear eight heads too until they land.
+const HYDRA_HEADS := ["hydra", "hydra_8"]
+
+func _hydra_wear_heads() -> void:
+	if enemy_type != EnemyType.HYDRA or _enemy_figure == null:
+		return
+	var kind: String = HYDRA_HEADS[mini(hydra_hits_since_heal, HYDRA_HEADS.size() - 1)]
+	if kind != figure_kind:
+		figure_kind = kind
+		_enemy_figure.reskin(kind)
 
 func _setup_sprite() -> void:
 	## Builds the figure for enemy types that have one (EnemyDefs "figure_kind"),
@@ -1166,7 +1183,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SKELETON: "At range ≤1: Attacks.\nOtherwise: Moves toward player.",
 		EnemyType.ARMORED_TROLL: "Regenerates 3 HP every 6 global tempo. Resists 30% physical / 15% fire / 15% lightning.\nAt range ≤1: 60% Smash (5 tempo, 14 dmg + Lightly Dazed card) / 40% Kick (3 tempo, 6 dmg).\nMove (4 tempo): 2 spaces.",
 		EnemyType.ARCHER_RAT: "Range 6.\nAt range ≤2: Scurries 5 tiles away.\nAt range 3-6: Shoots for 2 damage.\nAt range >6: Moves 2 tiles closer.",
-		EnemyType.HYDRA: "Resists 25% physical / fire / lightning. Grows stronger with every hit she takes, whoever or whatever lands it: +2 strength per hit. On the 4th hit she also gains +40 max HP and unlocks Heal.\nStrike (8 tempo): 7 + strength damage.\nMove (6 tempo): 3 spaces.\nHeal (5 tempo): heals to full (after the 4th hit).",
+		EnemyType.HYDRA: "Resists 25% physical / fire / lightning. Grows stronger with every hit she takes, whoever or whatever lands it: +2 strength per hit, and every hit costs her heads. On the 4th hit she also gains +40 max HP and unlocks Heal.\nStrike (8 tempo): 7 + strength damage.\nMove (6 tempo): 3 spaces.\nHeal (5 tempo): heals to full and regrows her heads (after the 4th hit).",
 		EnemyType.FIRE_GOBLIN_SOLDIER: "Range 0.\nAttack (3 tempo): 2 damage.\nMove (2 tempo): 4 spaces.",
 		EnemyType.FIRE_GOBLIN_MAGE: "Range 4.\nEmber (4 tempo): 7 damage + 1 burn.\nMove (3 tempo): 2 spaces.",
 		EnemyType.FIRE_GOBLIN_SHAMAN: "Range 5.\nFire Wall (8 tempo): raises a wall; if the player walks into it they take 6 damage + 3 burn.\nSear Wounds (6 tempo): 2 damage to all allies (can kill), then heals survivors 6.\nMove (3 tempo): 2 spaces.",
@@ -3408,6 +3425,8 @@ func _try_hydra_heal() -> bool:
 	## Heals to full (only used once the 4th hit has enraged her).
 	_regenerate(max_health)
 	print("[%s] Regrows her heads — healed to full!" % enemy_name)
+	hydra_hits_since_heal = 0
+	_hydra_wear_heads()   # every head back
 	turn_completed.emit()
 	return true
 
@@ -6072,6 +6091,8 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		hits_taken += 1
 		strength += 2
 		print("[%s] Enraged by hit %d — strength now %d" % [enemy_name, hits_taken, strength])
+		hydra_hits_since_heal += 1
+		_hydra_wear_heads()   # the hit costs her heads
 		if hits_taken == 4:
 			max_health += 40
 			current_health += 40

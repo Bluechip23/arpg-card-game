@@ -1371,6 +1371,79 @@ BOARDS = {
             },
         },
     },
+    "hydra_8": {
+        # 2026-11-03: the Hydra with eight heads — the designer's board of
+        # her after the first hit she takes (every hit costs her heads; her
+        # heal regrows them all): four labelled poses on a checkerboard,
+        # NORTH (FRONT), SOUTH (BACK), WEST (LEFT), EAST (RIGHT), the same
+        # green serpent-beast with two heads fewer. The board draws her
+        # stockier and lower-crowned than her full board, so she is sized
+        # by her body, not her height: at 1.8 tiles her legs and trunk
+        # match the full Hydra's attack stance (2.2 tiles would make her
+        # a quarter bulkier for losing heads).
+        "src": "hydra_8_board.webp", "bg": "checker_light", "tiles": 1.8,
+        "Idle": {
+            "front": (209, 8, 606, 496),
+            "back": (832, 8, 1236, 496),
+            "left": (69, 539, 661, 1003),
+            "right": (769, 539, 1372, 1003),
+        },
+        # Her attack board — hydra_8_attack_board.webp, the four views
+        # across the top (not used: the pose board is twice as fine) and
+        # four labelled rows on black, eight numbered frames a row: the
+        # stance, the heads rearing up, the roar, the strike, the heads
+        # flung widest (the side views lunge them forward), drawing back
+        # in, nearly the stance, and the stance — the same swing as the
+        # full Hydra's sheets. The frames are small (a third of the pose
+        # board's height) and are grown to the Idle's size.
+        "actions": {
+            "src": "hydra_8_attack_board.webp",
+            "fill_holes": 12,
+            "glow": False,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (162, 270, 292, 428),
+                    "rear": (338, 274, 474, 427),
+                    "roar": (502, 274, 649, 428),
+                    "strike": (660, 268, 835, 427),
+                    "spread": (839, 268, 1025, 428),
+                    "settle": (1040, 273, 1189, 426),
+                    "recover": (1223, 273, 1354, 428),
+                },
+                "back": {
+                    "stance": (171, 463, 295, 617),
+                    "rear": (336, 463, 486, 617),
+                    "roar": (503, 463, 656, 616),
+                    "strike": (668, 461, 845, 616),
+                    "spread": (844, 459, 1032, 617),
+                    "settle": (1042, 462, 1198, 617),
+                    "recover": (1224, 461, 1363, 617),
+                },
+                "left": {
+                    "stance": (161, 650, 309, 796),
+                    "rear": (324, 655, 477, 795),
+                    "roar": (479, 649, 649, 795),
+                    "strike": (644, 650, 830, 796),
+                    "spread": (821, 657, 1034, 795),
+                    "settle": (1032, 651, 1203, 794),
+                    "recover": (1223, 652, 1368, 795),
+                },
+                "right": {
+                    "stance": (151, 833, 301, 982),
+                    "rear": (317, 832, 479, 981),
+                    "roar": (486, 827, 663, 982),
+                    "strike": (661, 829, 846, 981),
+                    "spread": (835, 831, 1031, 981),
+                    "settle": (1036, 834, 1199, 981),
+                    "recover": (1211, 832, 1364, 981),
+                },
+            },
+            "sheets": {
+                "Attack": ["rear", "roar", "strike", "spread", "settle", "recover"],
+            },
+        },
+    },
     "olorin": {
         # 2026-10-28: Olorin — the grey wanderer in a wide hat and tattered
         # cloak, an orb-topped branch staff, a sword on his back, his bear at

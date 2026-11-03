@@ -119,6 +119,7 @@ const KINDS := {
 	"snow_wraith": {"sheets": SHEETS + "/snow_wraith", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the ghost pack's Ghost2
 	# The designer's 4x4 walk sheets (tools/cut_creature_sheets.py).
 	"hydra": {"sheets": SHEETS + "/hydra", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the designer's pose board (tools/cut_pose_boards.py, 2026-10-28), and her attack sheets (2026-11-03: Attack is the heads rearing up, the roar, the strike with every mouth agape, the heads spread wide and drawn back in)
+	"hydra_8": {"sheets": SHEETS + "/hydra_8", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the Hydra after her first hit, two heads gone: the designer's eight-head board and its attack board (tools/cut_pose_boards.py, 2026-11-03); Enemy swaps her to it as she is hit (HYDRA_HEADS) and back when she heals
 	"white_manticore": {"sheets": SHEETS + "/white_manticore", "scale": BOARD_SCALE},
 	# --- battler variations where the species genuinely matches ---
 	"large_bear": {"sheets": SHEETS + "/large_bear", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Bear
@@ -351,6 +352,40 @@ func setup(kind: String) -> void:
 		if _cp_mode or _fr_mode:
 			body_w = _measure_body_width() * _sprite.pixel_size
 		BlobShadow.attach(_rig, body_w * 0.7)
+
+
+## Swap to another sheets kind mid-fight (the Hydra loses heads as she is
+## hit and regrows them when she heals): the same rig, sprite, scale and
+## facing; the new kind's sheets, cell and fps. Whatever was playing goes on
+## from its frame — a swing hit mid-strike keeps striking — and an animation
+## the new kind lacks falls back to Idle. Only for kinds with sheets.
+func reskin(kind: String) -> void:
+	var cfg: Dictionary = KINDS.get(kind, {})
+	if not cfg.has("sheets") or not _cp_mode or _fr_mode or _cp_dead:
+		return
+	figure_kind = kind
+	_cp_fps = CP_FPS.duplicate()
+	if cfg.has("fps"):
+		_cp_fps.merge(cfg["fps"], true)
+	var anim := _cp_anim
+	var frame := _cp_frame
+	var clock := _cp_clock
+	_cp_sheets = {}
+	var soft := ArtStyle.smooth_folder(cfg["sheets"])
+	_setup_sheets(soft if soft != "" else cfg["sheets"])
+	# The feet pivot, from the new Idle row (as setup does).
+	_sprite.offset = Vector2(-_sprite.region_rect.size.x * 0.5,
+			-(_sprite.region_rect.size.y - _measure_ground_rows()))
+	_ground_offset = _sprite.offset
+	if not _cp_sheets.has(anim):
+		anim = "Idle"
+		frame = 0
+		clock = 0.0
+	_cp_anim = anim
+	_cp_frame = mini(frame, _cp_frame_count(anim) - 1)
+	_cp_clock = clock
+	_sprite.texture = _cp_sheets[anim]
+	_cp_apply_frame()
 
 
 ## Load a Craftpix pack variant: every animation sheet it ships, cell size
