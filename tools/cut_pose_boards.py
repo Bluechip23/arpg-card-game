@@ -1312,6 +1312,64 @@ BOARDS = {
             "left": (652, 126, 1123, 580),
             "right": (1157, 105, 1529, 580),
         },
+        # 2026-11-03: the designer's attack sheets — one board a facing on
+        # black (hydra_attack_front_board.webp, _back_, _left_, _right_),
+        # eight frames across, unlabelled, no floor shadow: the stance, the
+        # heads rearing up and apart, the roar with every mouth opening, the
+        # strike with the heads flung up and wide (the side views lunge
+        # them forward), the heads spread out, drawing back in, nearly the
+        # stance, and the stance. The frames crowd their slots — a head
+        # reaches into the next frame's box — but no two touch, so the cut
+        # keeps each frame's own figure and drops the neighbour's head. The
+        # stance is the height reference, matched to each facing's Idle.
+        "actions": {
+            "src": {"front": "hydra_attack_front_board.webp", "back": "hydra_attack_back_board.webp",
+                    "left": "hydra_attack_left_board.webp", "right": "hydra_attack_right_board.webp"},
+            "fill_holes": 12,   # the black between the necks is the backdrop (mean ~2) and stays open; painted pockets are brighter
+            "glow": False,   # no slash glow: a neighbouring head's red tongue in the box is not an arc to keep
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (22, 138, 234, 480),
+                    "rear": (264, 138, 488, 480),
+                    "roar": (502, 136, 748, 482),
+                    "strike": (750, 126, 1024, 480),
+                    "spread": (1030, 136, 1266, 482),
+                    "settle": (1278, 144, 1502, 480),
+                    "recover": (1526, 138, 1740, 482),
+                },
+                "back": {
+                    "stance": (26, 108, 234, 508),
+                    "rear": (266, 104, 486, 508),
+                    "roar": (506, 94, 744, 508),
+                    "strike": (750, 76, 1000, 508),
+                    "spread": (1016, 94, 1258, 508),
+                    "settle": (1276, 100, 1496, 508),
+                    "recover": (1524, 112, 1738, 508),
+                },
+                "left": {
+                    "stance": (18, 196, 244, 414),
+                    "rear": (254, 198, 478, 414),
+                    "roar": (474, 196, 754, 414),
+                    "strike": (724, 206, 1036, 414),
+                    "spread": (1014, 196, 1298, 414),
+                    "settle": (1284, 196, 1522, 414),
+                    "recover": (1540, 196, 1764, 414),
+                },
+                "right": {
+                    "stance": (6, 200, 244, 442),
+                    "rear": (246, 200, 478, 442),
+                    "roar": (464, 198, 736, 442),
+                    "strike": (690, 200, 1038, 442),
+                    "spread": (948, 210, 1302, 442),
+                    "settle": (1246, 200, 1520, 442),
+                    "recover": (1506, 200, 1750, 442),
+                },
+            },
+            "sheets": {
+                "Attack": ["rear", "roar", "strike", "spread", "settle", "recover"],
+            },
+        },
     },
     "olorin": {
         # 2026-10-28: Olorin — the grey wanderer in a wide hat and tattered
@@ -2075,7 +2133,7 @@ ACTION_ROWS = ["left", "right"]   # the rows of an action sheet (SpriteEnemyFigu
 
 
 def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep_share: float = 0.0,
-                    fill_holes: bool = False, levels=None) -> Image.Image:
+                    fill_holes: bool = False, levels=None, glow: bool = True) -> Image.Image:
     """One figure and the glow of its attack on pure black (the werewolf's
     slash board): alpha from brightness as the black key does, the dim
     glow of the slash arcs kept soft and un-darkened, then only the
@@ -2092,7 +2150,10 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
     fur sits just above the backdrop's black, so his levels are low. The
     soft painted shadow
     at the feet (dim, colourless, in the bottom `shadow_band` of the
-    figure and not inside the body) goes too."""
+    figure and not inside the body) goes too. A board with no glow (`glow`
+    False: the hydra's attack sheets) keeps nothing by its colour, so a
+    neighbouring frame's red tongue in the box is dropped with the rest of
+    that frame."""
     rgb = rgb.copy()
     for x0, y0, x1, y1 in bg_boxes:
         rgb[y0:y1, x0:x1] = 0
@@ -2138,7 +2199,7 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
                 continue
             px = rgb[lab == i].astype(float)
             r, g, b = px[:, 0].mean(), px[:, 1].mean(), px[:, 2].mean()
-            keep[i] = r > 1.4 * max(g, b) + 8   # a red slash arc
+            keep[i] = glow and r > 1.4 * max(g, b) + 8   # a red slash arc
         alpha[~keep[lab]] = 0.0
     if shadow_band > 0:
         ys = np.nonzero((alpha > 0).any(axis=1))[0]
@@ -2241,7 +2302,8 @@ def cut_action_frames(cfg: dict) -> dict:
             box = spec[1] if mirror else spec
             rgb = np.asarray(board(d).crop(box).convert("RGB")).astype(int)
             img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
-                                  act.get("keep_share", 0.0), act.get("fill_holes", False), act.get("levels"))
+                                  act.get("keep_share", 0.0), act.get("fill_holes", False), act.get("levels"),
+                                  act.get("glow", True))
             out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
         for pose, other in again:
             out[d][pose] = out[d][other]

@@ -118,7 +118,7 @@ const KINDS := {
 	"ifrit": {"sheets": SHEETS + "/ifrit", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"snow_wraith": {"sheets": SHEETS + "/snow_wraith", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the ghost pack's Ghost2
 	# The designer's 4x4 walk sheets (tools/cut_creature_sheets.py).
-	"hydra": {"sheets": SHEETS + "/hydra", "scale": BOARD_SCALE},
+	"hydra": {"sheets": SHEETS + "/hydra", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the designer's pose board (tools/cut_pose_boards.py, 2026-10-28), and her attack sheets (2026-11-03: Attack is the heads rearing up, the roar, the strike with every mouth agape, the heads spread wide and drawn back in)
 	"white_manticore": {"sheets": SHEETS + "/white_manticore", "scale": BOARD_SCALE},
 	# --- battler variations where the species genuinely matches ---
 	"large_bear": {"sheets": SHEETS + "/large_bear", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Bear
