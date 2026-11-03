@@ -1440,6 +1440,75 @@ BOARDS = {
             },
         },
     },
+    "sabertooth_bite": {
+        # 2026-11-03: the Sabertooth's Bite and Claw — sabertooth_bite_claw_board.webp,
+        # "BITE & CLAW COMBO ATTACK", four labelled rows on black between
+        # rule lines (NORTH (BACK VIEW), SOUTH (FRONT VIEW), WEST (LEFT
+        # VIEW), EAST (RIGHT VIEW); unlike its track board, each side row
+        # faces its own way), eight captioned frames a row: idle, crouch,
+        # lunge, the bite (impact), the pull-through, the claw swipe,
+        # recovery, return. The side rows' frames crowd each other: each
+        # frame's own pieces are kept (`isolate`). Packed into its folder
+        # as Attack.png, scaled to its walk-sheet Idle like its Track (the
+        # sides by bulk); its Bite and Claw plays it.
+        "into": "sabertooth",
+        "actions": {
+            "src": "sabertooth_bite_claw_board.webp",
+            "levels": (6, 35, 10),
+            "fill_holes": 6,
+            "open_dark": True,
+            "glow": False,
+            "isolate": True,
+            "isolate_floor": 14,   # the right row's lunge and bite touch through their fur's faint fringe
+            "match": "stance",
+            "match_scale": {"left": 1.15, "right": 1.15},
+            "frames": {
+                "back": {
+                    "stance": (164, 84, 267, 261),
+                    "crouch": (327, 107, 437, 261),
+                    "lunge": (482, 94, 598, 261),
+                    "bite": (636, 73, 756, 261),
+                    "pull": (800, 80, 930, 261),
+                    "claw": (963, 81, 1121, 261),
+                    "recover": (1147, 94, 1258, 261),
+                    "back": (1311, 84, 1416, 261),
+                },
+                "front": {
+                    "stance": (159, 335, 280, 514),
+                    "crouch": (318, 354, 442, 514),
+                    "lunge": (477, 340, 601, 514),
+                    "bite": (624, 352, 777, 514),
+                    "pull": (793, 348, 927, 514),
+                    "claw": (954, 334, 1119, 514),
+                    "recover": (1136, 345, 1262, 514),
+                    "back": (1304, 335, 1425, 514),
+                },
+                "left": {
+                    "stance": (138, 606, 302, 741),
+                    "crouch": (300, 613, 465, 741),
+                    "lunge": (458, 614, 637, 741),
+                    "bite": (625, 606, 806, 741),
+                    "pull": (786, 600, 967, 741),
+                    "claw": (959, 596, 1138, 741),
+                    "recover": (1130, 609, 1301, 741),
+                    "back": (1295, 607, 1449, 741),
+                },
+                "right": {
+                    "stance": (145, 851, 307, 976),
+                    "crouch": (298, 862, 466, 976),
+                    "lunge": (455, 858, 624, 976),   # the lunge and the bite touch: the boxes meet at the seam
+                    "bite": (624, 845, 790, 976),
+                    "pull": (772, 848, 957, 976),
+                    "claw": (935, 834, 1118, 976),
+                    "recover": (1114, 851, 1294, 976),
+                    "back": (1292, 851, 1448, 976),
+                },
+            },
+            "sheets": {
+                "Attack": ["crouch", "lunge", "bite", "pull", "claw", "recover"],
+            },
+        },
+    },
     "wolf": {
         # 2026-10-31: the Wolf's bite — wolf_bite_board.webp, four labelled
         # rows on black (Up: from behind, Down: facing the camera, Left,
@@ -3076,7 +3145,10 @@ def cut_action_frames(cfg: dict) -> dict:
         name = act["src"][d] if isinstance(act["src"], dict) else act["src"]
         if name not in labels:
             lum = np.asarray(board(d).convert("RGB")).max(axis=2)
-            floor = (act.get("levels") or (BLACK_FLOOR,))[0]
+            # `isolate_floor`: tell the frames apart above the cut's own
+            # floor where two touch only through their faint fringes (the
+            # Sabertooth's lunge and bite).
+            floor = act.get("isolate_floor", (act.get("levels") or (BLACK_FLOOR,))[0])
             labels[name] = cv2.connectedComponentsWithStats((lum > floor).astype(np.uint8), connectivity=8)
         _, lab, _, cen = labels[name]
         x0, y0, x1, y1 = box
@@ -3278,6 +3350,12 @@ def build(name: str, cfg: dict) -> None:
         return
     if "src" not in cfg:
         build_actions_on_sheets(name, cfg)
+        if "into" not in cfg:
+            # Sheets packed into its folder by other entries (the
+            # Sabertooth's bite and claw beside its Track) are rebuilt with it.
+            for other, ocfg in BOARDS.items():
+                if ocfg.get("into") == name:
+                    build(other, ocfg)
         return
     board = Image.open(SRC % cfg["src"])
     full = {}
