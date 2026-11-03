@@ -586,12 +586,10 @@ const DOOR_SEAL_THRESHOLDS := [0.75, 0.5, 0.33]
 const DOOR_SEAL_TEMPO := 10
 
 ## The Hydra's heads (designer, 2026-11-03): every hit she takes costs her
-## heads — the first takes her from her full crown to eight — and her Heal
-## regrows them all. The figure kind she wears, by hits since her last Heal;
-## past the end of the list she keeps the last set. Only the eight-head set
-## is drawn so far: the sets for the second and third hit wait on the
-## designer, so those hits wear eight heads too until they land.
-const HYDRA_HEADS := ["hydra", "hydra_8"]
+## heads — the first leaves eight, the second five, the third three — and
+## her Heal regrows them all. The figure kind she wears, by hits since her
+## last Heal; past the end of the list she keeps her last three.
+const HYDRA_HEADS := ["hydra", "hydra_8", "hydra_5", "hydra_3"]
 
 func _hydra_wear_heads() -> void:
 	if enemy_type != EnemyType.HYDRA or _enemy_figure == null:

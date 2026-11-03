@@ -95,6 +95,12 @@ SRC = "assets/sprites/paintings/%s"
 OUT = "assets/sprites/generated/sheets/%s"
 MATTES = "assets/sprites/paintings/mattes"   # model mattes (tools/make_mattes.py)
 ROWS = ["front", "back", "left", "right"]
+# The Hydra's head-loss sets are sized by her body, not her height: each
+# board draws her heads and her bulk in its own proportions, and losing
+# heads must make her shorter, not bigger. Set so her front stance's legs
+# and trunk match the full Hydra's (tools: measured on the cut sheets).
+TILES_H5 = 1.7
+TILES_H3 = 1.7
 
 # Per creature: board, how its background is told apart, the front Idle's
 # height in texels, and a box (x0, y0, x1, y1) around each pose. A pose given
@@ -1327,6 +1333,7 @@ BOARDS = {
                     "left": "hydra_attack_left_board.webp", "right": "hydra_attack_right_board.webp"},
             "fill_holes": 12,   # the black between the necks is the backdrop (mean ~2) and stays open; painted pockets are brighter
             "glow": False,   # no slash glow: a neighbouring head's red tongue in the box is not an arc to keep
+            "open_dark": True,   # the black between legs and under the tail is backdrop, however small
             "match": "stance",
             "frames": {
                 "front": {
@@ -1400,6 +1407,7 @@ BOARDS = {
             "src": "hydra_8_attack_board.webp",
             "fill_holes": 12,
             "glow": False,
+            "open_dark": True,
             "match": "stance",
             "frames": {
                 "front": {
@@ -1437,6 +1445,146 @@ BOARDS = {
                     "spread": (835, 831, 1031, 981),
                     "settle": (1036, 834, 1199, 981),
                     "recover": (1211, 832, 1364, 981),
+                },
+            },
+            "sheets": {
+                "Attack": ["rear", "roar", "strike", "spread", "settle", "recover"],
+            },
+        },
+    },
+    "hydra_5": {
+        # 2026-11-03: the Hydra with five heads — after her second hit —
+        # four labelled poses on a checkerboard, NORTH (FRONT), SOUTH
+        # (BACK), WEST (LEFT), EAST (RIGHT). Sized by her body like the
+        # eight-head set (TILES_H5), so the sets swap without her swelling.
+        "src": "hydra_5_board.webp", "bg": "checker_light", "tiles": TILES_H5,
+        "Idle": {
+            "front": (185, 12, 609, 488),
+            "back": (947, 12, 1458, 494),
+            "left": (88, 494, 718, 966),
+            "right": (853, 496, 1449, 965),
+        },
+        # Her attack board — hydra_5_attack_board.webp: the four views across
+        # the top (not used: the pose board is finer) and four labelled rows
+        # in framed panels on a dark navy backdrop, eight numbered frames a
+        # row, the same swing as the other sets. The backdrop is ~15-26, not
+        # black: the levels sit above it, and only pockets painted brighter
+        # than it are filled (the navy between the necks stays open). The
+        # panel frames and numbers are pieces apart from her and fall away.
+        "actions": {
+            "src": "hydra_5_attack_board.webp",
+            "levels": (30, 60, 36),
+            "fill_holes": 28,   # the navy is 15-26: a pocket brighter than that is painted shade
+            "glow": False,
+            "open_dark": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (168, 266, 294, 418),
+                    "rear": (340, 269, 468, 418),
+                    "roar": (502, 270, 649, 418),
+                    "strike": (671, 264, 837, 418),
+                    "spread": (844, 264, 1021, 418),
+                    "settle": (1034, 269, 1176, 418),
+                    "recover": (1214, 269, 1347, 419),
+                },
+                "back": {
+                    "stance": (163, 456, 293, 600),
+                    "rear": (338, 455, 477, 602),
+                    "roar": (502, 455, 654, 602),
+                    "strike": (670, 454, 837, 603),
+                    "spread": (846, 453, 1020, 603),
+                    "settle": (1034, 454, 1190, 604),
+                    "recover": (1216, 455, 1353, 603),
+                },
+                "left": {
+                    "stance": (157, 638, 309, 781),
+                    "rear": (330, 637, 479, 780),
+                    "roar": (496, 638, 651, 780),
+                    "strike": (656, 640, 844, 780),
+                    "spread": (833, 636, 1035, 781),
+                    "settle": (1034, 639, 1203, 780),
+                    "recover": (1210, 637, 1369, 780),
+                },
+                "right": {
+                    "stance": (150, 821, 306, 970),
+                    "rear": (324, 819, 480, 971),
+                    "roar": (492, 817, 662, 971),
+                    "strike": (665, 818, 845, 972),
+                    "spread": (839, 818, 1036, 972),
+                    "settle": (1032, 819, 1193, 971),
+                    "recover": (1203, 821, 1356, 971),
+                },
+            },
+            "sheets": {
+                "Attack": ["rear", "roar", "strike", "spread", "settle", "recover"],
+            },
+        },
+    },
+    "hydra_3": {
+        # 2026-11-03: the Hydra with three heads — after her third hit, the
+        # last set. One board, hydra_3_attack_board.webp, on the same dark
+        # navy as the five-head attack board: her four views across the top
+        # (NORTH (FRONT), SOUTH (BACK), WEST (LEFT), EAST (RIGHT): her Idle,
+        # cut by brightness — there is no pose board of her own) and four
+        # rows of eight numbered attack frames below. Sized by her body like
+        # the other sets (TILES_H3).
+        "src": "hydra_3_attack_board.webp", "bg": "black_glow", "tiles": TILES_H3,
+        "levels": (30, 60, 36),
+        "fill_holes": 28,
+        "open_dark": True,
+        "Idle": {
+            "front": (313, 10, 489, 194),
+            "back": (602, 9, 761, 192),
+            "left": (861, 10, 1072, 191),
+            "right": (1192, 11, 1399, 191),
+        },
+        "actions": {
+            "src": "hydra_3_attack_board.webp",
+            "levels": (30, 60, 36),
+            "fill_holes": 28,
+            "glow": False,
+            "open_dark": True,
+            # The left spread's box reaches the panel's frame line, which
+            # her topmost head touches: the line's three rows are cleared.
+            "bg_boxes": {("left", "spread"): [(0, 0, 220, 3)]},
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (168, 254, 291, 396),
+                    "rear": (343, 254, 472, 396),
+                    "roar": (508, 253, 651, 395),
+                    "strike": (669, 250, 834, 395),
+                    "spread": (836, 247, 1016, 395),
+                    "settle": (1037, 257, 1177, 395),
+                    "recover": (1219, 254, 1341, 396),
+                },
+                "back": {
+                    "stance": (174, 440, 288, 586),
+                    "rear": (340, 438, 462, 586),
+                    "roar": (506, 438, 646, 586),
+                    "strike": (672, 438, 830, 587),
+                    "spread": (849, 438, 1021, 587),
+                    "settle": (1044, 439, 1178, 586),
+                    "recover": (1224, 439, 1346, 587),
+                },
+                "left": {
+                    "stance": (159, 625, 295, 761),
+                    "rear": (330, 624, 472, 760),
+                    "roar": (493, 620, 653, 761),
+                    "strike": (650, 619, 830, 761),
+                    "spread": (814, 618, 1027, 761),
+                    "settle": (1030, 622, 1186, 761),
+                    "recover": (1214, 623, 1358, 761),
+                },
+                "right": {
+                    "stance": (154, 806, 295, 955),
+                    "rear": (327, 807, 474, 955),
+                    "roar": (495, 804, 651, 955),
+                    "strike": (661, 801, 845, 955),
+                    "spread": (836, 801, 1037, 955),
+                    "settle": (1034, 805, 1187, 955),
+                    "recover": (1208, 806, 1355, 955),
                 },
             },
             "sheets": {
@@ -2206,7 +2354,8 @@ ACTION_ROWS = ["left", "right"]   # the rows of an action sheet (SpriteEnemyFigu
 
 
 def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep_share: float = 0.0,
-                    fill_holes: bool = False, levels=None, glow: bool = True) -> Image.Image:
+                    fill_holes: bool = False, levels=None, glow: bool = True,
+                    open_dark: bool = False) -> Image.Image:
     """One figure and the glow of its attack on pure black (the werewolf's
     slash board): alpha from brightness as the black key does, the dim
     glow of the slash arcs kept soft and un-darkened, then only the
@@ -2226,7 +2375,10 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
     figure and not inside the body) goes too. A board with no glow (`glow`
     False: the hydra's attack sheets) keeps nothing by its colour, so a
     neighbouring frame's red tongue in the box is dropped with the rest of
-    that frame."""
+    that frame. With `open_dark` (the Hydra's small attack frames, where a
+    gap between two legs is only a few dozen pixels) a pocket no brighter
+    than `fill_holes` stays open whatever its size: it is the backdrop,
+    not shading."""
     rgb = rgb.copy()
     for x0, y0, x1, y1 in bg_boxes:
         rgb[y0:y1, x0:x1] = 0
@@ -2250,7 +2402,7 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
         holes = (filled & (1 - body)).astype(np.uint8)
         hn, hlab, hst, _ = cv2.connectedComponentsWithStats(holes, connectivity=4)
         for i in range(1, hn):
-            if hst[i, cv2.CC_STAT_AREA] > HOLE_FILL_MAX:
+            if hst[i, cv2.CC_STAT_AREA] > HOLE_FILL_MAX or open_dark:
                 painted = fill_holes not in (False, None) and lum[hlab == i].mean() > float(fill_holes)
                 if not painted:
                     filled[hlab == i] = 0
@@ -2376,7 +2528,7 @@ def cut_action_frames(cfg: dict) -> dict:
             rgb = np.asarray(board(d).crop(box).convert("RGB")).astype(int)
             img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
                                   act.get("keep_share", 0.0), act.get("fill_holes", False), act.get("levels"),
-                                  act.get("glow", True))
+                                  act.get("glow", True), act.get("open_dark", False))
             out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
         for pose, other in again:
             out[d][pose] = out[d][other]
@@ -2496,6 +2648,14 @@ def build(name: str, cfg: dict) -> None:
                     else cfg.get("fg", {}).get(key, ())
                 bg_hints = cfg.get("matte_bg", {}).get(key, ()) if bg_kind.startswith("matte:") \
                     else cfg.get("bg_hint", {}).get(key, ())
+                if bg_kind == "black_glow":
+                    # A pose on a dark board (the three-head Hydra's views
+                    # head her attack board: no board of her own): cut as
+                    # the attack frames are, by brightness off the backdrop.
+                    rgb = np.asarray(board.crop(box).convert("RGB")).astype(int)
+                    full[anim][d] = _cut_black_glow(rgb, (), 0.0, 0.0, cfg.get("fill_holes", False),
+                                                    cfg.get("levels"), False, cfg.get("open_dark", False))
+                    continue
                 full[anim][d] = cut(board, box, bg_kind, fg_hints,
                                     cfg.get("sat_grow", 0), cfg.get("snow", False),
                                     cfg.get("feet_trim", True), cfg.get("drop_ice", False),

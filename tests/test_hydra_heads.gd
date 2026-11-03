@@ -1,8 +1,9 @@
 extends SceneTree
 
 ## The Hydra's heads (designer, 2026-11-03): every hit she takes costs her
-## heads — the first takes her from her full crown to the eight-head sheets
-## (tools/cut_pose_boards.py "hydra_8") — and her Heal regrows them all.
+## heads — eight after the first, five after the second, three after the
+## third (tools/cut_pose_boards.py "hydra_8", "hydra_5", "hydra_3") — and
+## her Heal regrows them all.
 ## SpriteEnemyFigure.reskin swaps the sheets on the same rig, mid-swing;
 ## Enemy.HYDRA_HEADS picks the set by hits since her last Heal.
 ## Run: godot --headless --path . --script tests/test_hydra_heads.gd
@@ -47,7 +48,7 @@ func _test_figure() -> void:
 	var scale: Vector3 = fig._rig.scale
 	fig.set_facing(CharacterAnimator.Direction.WEST)
 	fig.play_action("hydra_attack")
-	fig._cp_step(1.5 / 8.0)
+	fig._cp_step(1.5 / fig._cp_fps[fig._cp_anim])
 	_check(fig._cp_anim == "Attack" and fig._cp_frame == 1, "mid-swing, the full Hydra roars (frame %d)" % fig._cp_frame)
 	fig.reskin("hydra_8")
 	_check(fig.figure_kind == "hydra_8" and _idle_path(fig).contains("sheets/hydra_8/"), "reskinned: she wears the eight-head sheets (%s)" % _idle_path(fig).get_file())
@@ -102,8 +103,14 @@ func _test_enemy() -> void:
 	h.take_damage(0, false)
 	_check(h.hydra_hits_since_heal == 1, "a hit for nothing costs nothing")
 	h.take_damage(5, true)
-	_check(h.hydra_hits_since_heal == 2 and h.figure_kind == "hydra_8", "the second hit: no later set drawn yet, she keeps eight")
+	_check(h.hydra_hits_since_heal == 2 and h.figure_kind == "hydra_5" and _idle_path(fig).contains("sheets/hydra_5/"), "the second hit: five heads left")
+	_check(fig._cp_sheets.has("Attack") and fig._cp_frame_count("Attack") == 6, "and the five-head strike")
+	h.take_damage(5, false)
+	_check(h.hydra_hits_since_heal == 3 and h.figure_kind == "hydra_3" and _idle_path(fig).contains("sheets/hydra_3/"), "the third hit: three heads left")
+	_check(fig._cp_sheets.has("Attack") and fig._cp_frame_count("Attack") == 6, "and the three-head strike")
+	h.take_damage(5, false)
+	_check(h.hydra_hits_since_heal == 4 and h.figure_kind == "hydra_3", "a fourth hit: she keeps her last three")
 	h._try_hydra_heal()
 	_check(h.hydra_hits_since_heal == 0 and h.figure_kind == "hydra" and _idle_path(fig).contains("sheets/hydra/"), "her Heal regrows every head")
-	_check(h.strength == 4, "the strength she gained stays")
+	_check(h.strength == 8, "the strength she gained stays")
 	main.enemy_spawner.despawn_enemy(h)
