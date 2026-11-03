@@ -110,7 +110,7 @@ func _initialize() -> void:
 	cory.unequip_item(ItemData.ItemType.GAUNTLETS, 0)
 	cory.unequip_item(ItemData.ItemType.GAUNTLETS, 1)
 	icon.refresh(cory, tm)
-	_check(icon.visible and icon.modulate.a < 0.5 and icon.lit_bands() == 0, "icon fades out with no gauntlet equipped")
+	_check(icon.visible and icon.modulate.a < 1.0 and icon.modulate.a >= 0.5 and icon.lit_bands() == 0, "icon dims, but stays visible, with no gauntlet equipped")
 	jeremy.ring_triggered_this_turn = false
 	jeremy.process_turn()
 	jeremy.process_turn()  # cycle 6: armed
