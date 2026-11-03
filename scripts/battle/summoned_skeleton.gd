@@ -125,5 +125,13 @@ func gain_armor(amount: int) -> int:
 	return gained
 
 
+## Battle Turtle: it gives itself armor (its own regain, not an ally
+## turtle's passive): the designer's armor board plays, the brick dug up
+## and tossed onto its shell.
+func play_armor_up() -> void:
+	if _figure and _figure.has_method("play_armor"):
+		_figure.play_armor()
+
+
 func get_armor_display() -> Array:
 	return [unerring_armor, unerring_cap] if kind == "battle_turtle" else [0, 0]

@@ -13,6 +13,10 @@ Each pose is given to the model with PAD px of board around its box (the
 model judges a figure better with some of its setting), then the mask is
 cropped back to the box. Output, next to the boards (.gdignore'd):
   assets/sprites/paintings/mattes/<kind>_<direction>.png  (white = figure)
+An action board that asks for mattes ("actions": {"matte": True}: the Battle
+Turtle's armor board, whose dark shading is as dark as its navy backdrop)
+gets one per frame too, <kind>_act_<direction>_<pose>.png
+(cut_pose_boards.action_matte_path).
 
 Needs (tool dependencies only, not the game's): rembg[cpu] (onnxruntime),
 which downloads the birefnet-general-lite model on first use.
@@ -35,7 +39,8 @@ def main() -> None:
     from rembg import new_session, remove
     session = new_session(MODEL)
     os.makedirs(OUT, exist_ok=True)
-    names = sys.argv[1:] or [k for k, cfg in boards.BOARDS.items() if cfg.get("matte")]
+    names = sys.argv[1:] or [k for k, cfg in boards.BOARDS.items()
+                             if cfg.get("matte") or cfg.get("actions", {}).get("matte")]
     for kind in names:
         cfg = boards.BOARDS[kind]
         board = Image.open(boards.SRC % cfg["src"])
@@ -53,6 +58,20 @@ def main() -> None:
             mask = mask.crop((PAD, PAD, PAD + x1 - x0, PAD + y1 - y0))
             mask.point(lambda v: 255 if v > 127 else 0).save(os.path.join(OUT, "%s_%s.png" % (kind, d.replace(":", "_"))))
             print(kind, d)
+        act = cfg.get("actions", {})
+        if act.get("matte"):
+            for d, poses in act["frames"].items():
+                name = act["src"][d] if isinstance(act["src"], dict) else act["src"]
+                src = Image.open(boards.SRC % name).convert("RGB")
+                for pose, spec in poses.items():
+                    if spec[0] == "same":
+                        continue
+                    x0, y0, x1, y1 = spec[1] if spec[0] == "mirror" else spec
+                    big = src.crop((x0 - PAD, y0 - PAD, x1 + PAD, y1 + PAD))
+                    mask = remove(big, session=session, only_mask=True)
+                    mask = mask.crop((PAD, PAD, PAD + x1 - x0, PAD + y1 - y0))
+                    mask.point(lambda v: 255 if v > 127 else 0).save(boards.action_matte_path(kind, d, pose))
+                    print(kind, "action", d, pose)
 
 
 if __name__ == "__main__":

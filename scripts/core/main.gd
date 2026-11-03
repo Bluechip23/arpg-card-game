@@ -10215,6 +10215,9 @@ func _regain_turtle_armor(t, amount: int) -> void:
 		var gained: int = t.gain_armor(t.armor_regain())
 		if gained <= 0:
 			continue
+		# It gave itself armor: the armor board plays on this turtle only
+		# (the allies it shares with below just gain it).
+		t.play_armor_up()
 		for p in [_p1_player, _p2_player] if _p1_player else [player]:
 			if p and is_instance_valid(p) and p.get_stats():
 				p.get_stats().add_armor(gained)

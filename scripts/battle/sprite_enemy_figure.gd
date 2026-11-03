@@ -41,14 +41,16 @@ const CP_ROWS := {
 ## Hurt, Death) return to Idle/Walk when they finish; Death holds its last
 ## frame. Attack2 is a creature's double attack (the werewolf's claw and
 ## rake with the other arm); a kind's "fps" overrides these per animation.
-const CP_FPS := {"Idle": 5.0, "Walk": 8.0, "Run": 10.0, "Draw": 8.0, "Attack": 12.0, "Attack2": 12.0, "Hurt": 12.0, "Death": 10.0}
-const CP_ONESHOT := ["Attack", "Attack2", "Hurt", "Death"]
+const CP_FPS := {"Idle": 5.0, "Walk": 8.0, "Run": 10.0, "Draw": 8.0, "Attack": 12.0, "Attack2": 12.0, "Armor": 8.0, "Hurt": 12.0, "Death": 10.0}
+const CP_ONESHOT := ["Attack", "Attack2", "Armor", "Hurt", "Death"]
 ## Held poses: played once, then the last frame stays until another
 ## animation plays (the archer rat at full draw, from two tempo before its
 ## shot until the shot). A hit does not break them.
 const CP_HOLD := ["Draw"]
 ## Every sheet an animation may come as (Craftpix packs and our own).
-const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Hurt", "Death"]
+## Armor: the Battle Turtle digs up a brick and tosses it onto itself, each
+## time it gives itself armor (play_armor).
+const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Armor", "Hurt", "Death"]
 
 # NPC sheets run S,W,N,E top to bottom (battle uses CharacterAnimator order S,N,E,W).
 const NPC_ROW := [0, 2, 1, 3]  # NPC packs run S,E,N,W
@@ -807,6 +809,15 @@ func play_attack(double: bool = false) -> void:
 	_fx_tween.tween_property(_rig, "position", Vector3.ZERO, 0.18).set_ease(Tween.EASE_IN_OUT)
 
 
+## The Battle Turtle giving itself armor: its Armor sheet, once (a hit
+## doesn't break it). Returns false for a figure with no Armor sheet.
+func play_armor() -> bool:
+	if not _cp_mode or not _cp_sheets.has("Armor"):
+		return false
+	_cp_play("Armor", true)
+	return true
+
+
 ## How long the swing now playing runs: the Attack frames at their fps on
 ## a sheet (Craftpix or the designer's), else the procedural lunge.
 func attack_time() -> float:
@@ -826,7 +837,7 @@ func _cp_forward() -> Vector3:
 func play_hit() -> void:
 	# White palette-saturating flash on damage (SNES hit flash), plus shake.
 	flash(Color(3.0, 3.0, 3.0))
-	if _cp_mode and not _cp_anim.begins_with("Attack") and not _cp_anim in CP_HOLD:
+	if _cp_mode and not _cp_anim.begins_with("Attack") and _cp_anim != "Armor" and not _cp_anim in CP_HOLD:
 		_cp_play("Hurt", true)
 	if _rig:
 		var t := create_tween()
