@@ -76,7 +76,7 @@ func _test_figure() -> void:
 	_check(fig._cp_anim == "Draw", "a hit does not break the draw")
 	fig.play_action("shoot")
 	_check(fig._cp_anim == "Attack" and fig._cp_frame == 0, "the shot plays Attack from full draw")
-	_check(fig._cp_fps.get("Attack", 0.0) == 10.0, "at the rat's 10 fps")
+	_check(is_equal_approx(fig._cp_fps.get("Attack", 0.0), 10.0 / SpriteEnemyFigure.DRAWN_ATTACK_SLOW), "at the rat's 10 fps, slowed as every enemy swing is")
 	fig._cp_step(1.0)
 	_check(fig._cp_anim == "Idle", "the shot done, the rat stands idle")
 	fig.play_action("draw")

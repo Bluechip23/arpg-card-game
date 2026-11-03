@@ -102,7 +102,7 @@ func _test_enemy() -> void:
 	_check(not tm.is_holding_for_swing(), "nothing holds the clock before the bite")
 	w._execute_action("wolf_bite", main.player)
 	var swing: float = fig.attack_time() if fig else 0.0
-	_check(fig != null and fig._cp_anim == "Attack" and absf(swing - 0.4) < 0.01, "the bite swings for %.2f s (4 frames at 10 fps)" % swing)
+	_check(fig != null and fig._cp_anim == "Attack" and absf(swing - 0.4 * SpriteEnemyFigure.DRAWN_ATTACK_SLOW) < 0.01, "the bite swings for %.2f s (4 frames at the wolf's 10 fps, slowed)" % swing)
 	_check(tm.is_holding_for_swing() and absf(tm._hold_timer - (swing + TempoManager.SWING_HOLD_BEAT)) < 0.01,
 		"the fired bite holds the clock for the swing and a beat (%.2f s)" % tm._hold_timer)
 	tm._hold_timer = 0.0

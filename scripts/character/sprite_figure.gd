@@ -103,9 +103,9 @@ const BOARD_WIDEN := 1.12
 const ACTION_FLOOR := 8
 ## Every hero's drawn actions play this much slower than the frame times in
 ## ROSTER (designer, 2026-10-31: "can move slightly slower"; 2026-11-01:
-## slower again); the blow's
-## timing (hit_delay) follows.
-const ACTION_SLOW := 1.8
+## slower again; 2026-11-03: "still a little rushed", another 0.5); the
+## blow's timing (hit_delay) follows.
+const ACTION_SLOW := 2.3
 ## The heroes' contact shadow (BlobShadow, style guide §4): off (designer,
 ## 2026-11-02). Seen through the gap between striding legs and beside the
 ## boots it read as sheet background left round the figure, and on the

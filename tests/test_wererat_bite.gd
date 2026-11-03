@@ -53,7 +53,7 @@ func _test_figure() -> void:
 	var tex: Texture2D = fig._cp_sheets["Attack"]
 	_check(fig._cp_frame_count("Attack") == 5, "Attack: ready, leap, bite, land, settle (%d frames)" % fig._cp_frame_count("Attack"))
 	_check(tex.get_height() == 4 * cell, "Attack holds the four facing rows in the Idle sheet's %d-px cells (%dx%d)" % [cell, tex.get_width(), tex.get_height()])
-	_check(fig._cp_fps.get("Attack", 0.0) == 10.0, "the bite plays at the rat's 10 fps")
+	_check(is_equal_approx(fig._cp_fps.get("Attack", 0.0), 10.0 / SpriteEnemyFigure.DRAWN_ATTACK_SLOW), "the bite plays at the rat's 10 fps, slowed as every enemy swing is")
 	# The feet of every bite frame stand on the Idle ground row of its facing
 	# (the airborne leap excepted: it is packed on the ground row too).
 	var worst := 0.0
@@ -89,7 +89,7 @@ func _test_figure() -> void:
 	_check(fig._cp_anim == "Attack" and int(fig._sprite.region_rect.position.y / cell) == 0, "Bite facing south: Attack, the front row")
 	fig.set_facing(CharacterAnimator.Direction.EAST)
 	_check(int(fig._sprite.region_rect.position.y / cell) == 3, "turned east mid-bite: the right-facing row")
-	fig._cp_step(2.5 / 10.0)
+	fig._cp_step(2.5 / fig._cp_fps[fig._cp_anim])
 	_check(fig._cp_anim == "Attack" and fig._cp_frame == 2, "two and a half frames in, the bite lands (frame %d)" % fig._cp_frame)
 	fig._cp_step(1.0)
 	_check(fig._cp_anim == "Idle", "the bite done, the rat crouches idle")

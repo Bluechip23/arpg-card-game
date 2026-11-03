@@ -54,7 +54,7 @@ func _test_figure() -> void:
 	var tex: Texture2D = fig._cp_sheets["Attack"]
 	_check(fig._cp_frame_count("Attack") == 4, "Attack: wind-up, slash, follow-through, recovery (%d frames)" % fig._cp_frame_count("Attack"))
 	_check(tex.get_height() == 4 * cell, "Attack holds the four facing rows in the Idle sheet's %d-px cells (%dx%d)" % [cell, tex.get_width(), tex.get_height()])
-	_check(fig._cp_fps.get("Attack", 0.0) == 10.0, "the slash plays at the skeleton's 10 fps")
+	_check(is_equal_approx(fig._cp_fps.get("Attack", 0.0), 10.0 / SpriteEnemyFigure.DRAWN_ATTACK_SLOW), "the slash plays at the skeleton's 10 fps, slowed as every enemy swing is")
 	# The feet of every slash frame stand on the Idle ground row of its facing.
 	var worst := 0.0
 	for row in range(4):
@@ -89,7 +89,7 @@ func _test_figure() -> void:
 	_check(fig._cp_anim == "Attack" and int(fig._sprite.region_rect.position.y / cell) == 0, "Attack facing south: Attack, the front row")
 	fig.set_facing(CharacterAnimator.Direction.EAST)
 	_check(int(fig._sprite.region_rect.position.y / cell) == 3, "turned east mid-swing: the right-facing row")
-	fig._cp_step(1.5 / 10.0)
+	fig._cp_step(1.5 / fig._cp_fps[fig._cp_anim])
 	_check(fig._cp_anim == "Attack" and fig._cp_frame == 1, "a frame and a half in, the blade comes down (frame %d)" % fig._cp_frame)
 	fig._cp_step(1.0)
 	_check(fig._cp_anim == "Idle", "the swing done, the skeleton stands idle")

@@ -82,7 +82,7 @@ func _test_figure() -> void:
 			var used := sheet_img.get_region(Rect2i(col * cell, row * cell, cell, cell)).get_used_rect()
 			ok_size = ok_size and used.size.x > cell / 4 and used.size.y > idle_h * 0.8 and used.size.y < idle_h * 1.25
 	_check(ok_size, "every slash frame is drawn, between 0.8 and 1.25 of the idle height")
-	_check(fig._cp_fps.get("Attack", 0.0) == 8.0 and fig._cp_fps.get("Attack2", 0.0) == 8.0, "the slash plays at the werewolf's own 8 fps")
+	_check(is_equal_approx(fig._cp_fps.get("Attack", 0.0), 8.0 / SpriteEnemyFigure.DRAWN_ATTACK_SLOW) and is_equal_approx(fig._cp_fps.get("Attack2", 0.0), 8.0 / SpriteEnemyFigure.DRAWN_ATTACK_SLOW), "the slash plays at the werewolf's own 8 fps, slowed as every enemy swing is")
 	# Each facing plays its own row.
 	fig.set_facing(CharacterAnimator.Direction.EAST)
 	fig.play_action("claw")
@@ -112,7 +112,7 @@ func _test_figure() -> void:
 	# The double claw: the other arm's rake after the first.
 	fig.play_action("werewolf_claw_double")
 	_check(fig._cp_anim == "Attack2" and fig._cp_frame == 0, "a double claw plays Attack2 from its wind-up")
-	fig._cp_step(2.5 / 8.0)   # two and a half frames in at 8 fps
+	fig._cp_step(2.5 / fig._cp_fps[fig._cp_anim])   # two and a half frames in at its slowed 8 fps
 	_check(fig._cp_anim == "Attack2" and fig._cp_frame == 2, "two and a half frames in, the sweep of the other arm shows (frame %d)" % fig._cp_frame)
 	fig._cp_step(1.0)
 	_check(fig._cp_anim == "Idle" and int(fig._sprite.region_rect.position.y / cell) == 1, "the swing done, the werewolf stands idle, facing north")
