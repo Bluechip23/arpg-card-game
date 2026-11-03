@@ -6981,6 +6981,21 @@ func _die_visuals() -> void:
 	var death_col := get_node_or_null("CollisionShape3D")
 	if death_col is CollisionShape3D:
 		death_col.set_deferred("disabled", true)
+	# Killed mid-swing (a counter, thorns or a reaction after its blow
+	# landed): the swing plays out to the end before the body falls, so the
+	# attack is never cut short (designer, 2026-11-03).
+	var swing_left := 0.0
+	if _enemy_figure and _enemy_figure.has_method("attack_time_left"):
+		swing_left = _enemy_figure.attack_time_left()
+	if swing_left > 0.0:
+		var wait := create_tween()
+		wait.tween_interval(swing_left)
+		wait.tween_callback(_die_body_visuals)
+	else:
+		_die_body_visuals()
+
+## The fall itself: the death frames (if any), then the shrink-away.
+func _die_body_visuals() -> void:
 	# Figures with real death frames (Craftpix packs) play them out first;
 	# the shrink-away then removes the corpse.
 	var hold := 0.0

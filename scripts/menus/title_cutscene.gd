@@ -84,7 +84,13 @@ var _olorin_tex: Texture2D = load(OLORIN_SHEET)
 const BEAR_SLEEP_SHEET := "res://assets/sprites/generated/smooth/sheets/olorin_bear/Sleep.png"
 const BEAR_SCALE := 0.62
 const BEAR_BEHIND := 250.0      # px behind Olorin's feet (to the right, up the field)
-const BEAR_UP := 14.0           # px up the field: a pace back, feet in the grass
+# Feet on the grass (designer, 2026-11-03: everyone touches the ground for
+# the whole skit). The sheets carry empty rows under the feet, so each actor
+# is pushed down by its own padding, then a few px into the grass so the
+# boots read as planted rather than resting on the ground's edge.
+const OLORIN_FOOT_PAD := 8.0    # Idle.png: empty cell px under his boots
+const BEAR_FOOT_PAD := 8.0      # Sleep.png: empty cell px under the bear
+const FEET_SINK := 5.0          # screen px into the grass
 var _bear_tex: Texture2D = load(BEAR_SLEEP_SHEET)
 var _boy_left: Texture2D = load(BOY_LEFT)
 var _boy_right: Texture2D = load(BOY_RIGHT)
@@ -159,8 +165,9 @@ func _smoke_source() -> Vector2:
 	return _pipe_bowl(_mouth_pos(), PIPE_LOUNGE_ANGLE, PIPE_SCALE, true)
 
 func _olorin_foot() -> Vector2:
-	## Ground point under standing Olorin's sheet cell (bottom centre).
-	return Vector2(_olorin_x() - 40.0, _ground_y())
+	## Standing Olorin's sheet cell bottom centre: low enough that his boots,
+	## not the empty rows beneath them, meet the grass.
+	return Vector2(_olorin_x() - 40.0, _ground_y() + OLORIN_FOOT_PAD * OLORIN_SCALE + FEET_SINK)
 
 func _standing_mouth(facing: float) -> Vector2:
 	## Olorin's mouth while standing (pipe mouthpiece anchor).
@@ -377,7 +384,8 @@ func _draw_bear_sleeping() -> void:
 	## The bear dozing a few paces behind Olorin, drawn first so he and the
 	## chair stand in front of it.
 	var c := float(_bear_tex.get_height()) / 4.0
-	var foot := _olorin_foot() + Vector2(BEAR_BEHIND, -BEAR_UP)
+	var foot := Vector2(_olorin_foot().x + BEAR_BEHIND,
+		_ground_y() + BEAR_FOOT_PAD * BEAR_SCALE + FEET_SINK)
 	draw_set_transform(foot, 0.0, Vector2(BEAR_SCALE, BEAR_SCALE))
 	draw_texture_rect_region(_bear_tex, Rect2(Vector2(-c * 0.5, -c), Vector2(c, c)), Rect2(0, 0, c, c))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
@@ -407,16 +415,19 @@ func _draw_olorin_standing(foot: Vector2, facing: float, scratching: bool) -> vo
 
 func _draw_boy(base: Vector2, t: float, running: bool, facing: float) -> void:
 	## The small boy. facing +1 = to the right (toward Olorin), -1 = left.
-	## Running, he bobs and leans into it (his art is one standing pose).
+	## Running, he bounces and leans into it (his art is one standing pose).
+	## The bounce is a squash about his feet, never a hop: his boots stay on
+	## the grass the whole way (designer, 2026-11-03).
 	var tex := _boy_right if facing > 0.0 else _boy_left
 	var sz := tex.get_size() * BOY_SCALE
-	var lift := 0.0
+	var squash := 0.0
 	var lean := 0.0
 	if running:
 		var ph := t / RUN_FRAME_TIME
-		lift = absf(sin(ph * PI * 0.5)) * 7.0
+		squash = absf(sin(ph * PI * 0.5))
 		lean = 0.08 * facing
-	draw_set_transform(base - Vector2(0, lift), lean, Vector2.ONE)
+	var feet := base + Vector2(0, FEET_SINK)
+	draw_set_transform(feet, lean, Vector2(1.0 + 0.03 * squash, 1.0 - 0.06 * squash))
 	draw_texture_rect(tex, Rect2(Vector2(-sz.x * 0.5, -sz.y), sz), false)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 

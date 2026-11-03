@@ -14,14 +14,18 @@ extends Control
 ## nearly invisible. The state readers are static so tests can drive them
 ## without a scene.
 
-const SIZE := 28.0
+# As tall as the Draw pile button (HUD_FACES["draw"] is 71x55) so the clock
+# reads at a glance (designer, 2026-11-03).
+const SIZE := 55.0
 const BANDS := 3
 const GAP := 1.0
 const TEX_GAUNTLET := preload("res://assets/textures/ui_icons/slot_gauntlets.png")
 const TEX_RING := preload("res://assets/textures/ui_icons/slot_ring.png")
 const COL_LIT := Color(1, 1, 1, 1)
-const COL_UNLIT := Color(0.5, 0.5, 0.55, 0.5)
-const ALPHA_UNEQUIPPED := 0.28
+# Unlit bands and the unequipped icon stay clearly visible, only dimmed —
+# the faded stage must never read as missing (designer, 2026-11-03).
+const COL_UNLIT := Color(0.62, 0.62, 0.68, 0.8)
+const ALPHA_UNEQUIPPED := 0.8
 const TRIM := Color(0.85, 0.7, 0.35)  # gold, same as the passive tray boxes
 
 var kind: String = ""          # "gauntlet", "ring" or "" (nothing to show)
@@ -144,4 +148,4 @@ func _draw() -> void:
 		var col := COL_LIT if (equipped and i < lit) else COL_UNLIT
 		draw_texture_rect_region(tex, dst, src, col)
 	if is_ready():
-		draw_rect(Rect2(Vector2.ZERO, Vector2(SIZE, SIZE)), TRIM, false, 1.0)
+		draw_rect(Rect2(Vector2.ZERO, Vector2(SIZE, SIZE)), TRIM, false, 2.0)

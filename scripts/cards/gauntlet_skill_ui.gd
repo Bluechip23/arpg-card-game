@@ -17,6 +17,9 @@ var tempo_manager: TempoManager = null  # set by main before setup(); drives the
 var _on_cooldown: bool = false
 var _is_passive: bool = false  # 3 count: shown for its icon + recharge, never clickable
 var _icon_tex: Texture2D = null
+var _armed: bool = false  # selected and waiting for its target click: green outline
+
+const ARMED_COLOR := Color(0.35, 1.0, 0.4)
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(DIAMETER, DIAMETER)
@@ -73,6 +76,16 @@ func update_display() -> void:
 		disabled = _is_passive  # passives never take a click
 	queue_redraw()
 
+## Main calls this whenever the armed (selected, about to play) skill changes.
+func set_armed(on: bool) -> void:
+	if _armed == on:
+		return
+	_armed = on
+	queue_redraw()
+
+func is_armed() -> bool:
+	return _armed
+
 ## BaseButton's press callback (an engine virtual, not an unreferenced
 ## function — do not strip it). A ready active skill hands its gauntlet to
 ## main, which arms a target or fires it; passives and recharging skills are
@@ -91,6 +104,10 @@ func _draw() -> void:
 	# Gold rim for clickable skills; silver for automatic passives.
 	var rim := Color(0.62, 0.64, 0.7) if _is_passive else Color(0.85, 0.7, 0.35)
 	draw_arc(center, radius, 0.0, TAU, 48, rim, 2.0, true)
+	if _armed:
+		# Selected and ready to play: a bold green outline just outside the rim.
+		draw_arc(center, radius + 1.0, 0.0, TAU, 48, ARMED_COLOR, 3.0, true)
+		draw_arc(center, radius - 2.5, 0.0, TAU, 48, Color(ARMED_COLOR, 0.45), 2.0, true)
 
 	var font := get_theme_default_font()
 	if _icon_tex:

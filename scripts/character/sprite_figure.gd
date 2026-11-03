@@ -391,6 +391,19 @@ func hit_delay(action: String, direction: int) -> float:
 	return maxf(0.0, float(a.get("hit", 1)) - 1.0) * float(a["t"])
 
 
+## Seconds the whole of `action` (facing `direction`) runs as drawn: every
+## frame, the hold on the last one and the play back. 0 when not drawn.
+func action_time(action: String, direction: int) -> float:
+	if not has_drawn_action(action, direction):
+		return 0.0
+	var a: Dictionary = _actions[_drawn_name(action)]
+	var n: int = a["frames"]
+	var total: float = float(n) * float(a["t"]) + float(a.get("hold", 0.0))
+	if a.has("reverse"):
+		total += float(n - 1) * float(a["reverse"])
+	return total
+
+
 func _load_weapons() -> void:
 	## The pack's shield layer, raised on guard. (The weapon swing layers —
 	## sword, axe, mace — and the held icon-pack items were deleted on
@@ -596,10 +609,15 @@ func play_hit() -> void:
 
 
 # Overhead feedback popups (armour gained, ring procs, heals, level-ups…).
-func pop_armor_icon() -> void: _pop_text("+ARMOR", Color(0.75, 0.8, 0.95))
+## Heals and armour gains show the designer's icons (2026-11-03): a heart
+## with a green plus, a steel shield. Side by side when both land at once.
+const HEAL_ICON := "res://assets/ui/icons/heal_heart.png"
+const ARMOR_ICON := "res://assets/ui/icons/armor_shield.png"
+
+func pop_armor_icon() -> void: _pop_icon(ARMOR_ICON, 0.28)
 func pop_ring_icon() -> void: _pop_text("RING!", Color(0.55, 0.85, 1.0))
 func pop_gauntlet_icon() -> void: _pop_text("GAUNTLET!", Color(0.9, 0.75, 0.4))
-func pop_heart() -> void: _pop_text("+HP", Color(0.5, 1.0, 0.55))
+func pop_heart() -> void: _pop_icon(HEAL_ICON, -0.28)
 func pop_level_up() -> void: _pop_text("LEVEL UP!", Color(1.0, 0.9, 0.4))
 func pop_worm() -> void: _pop_text("WORM!", Color(0.8, 0.5, 0.8))
 
@@ -608,19 +626,24 @@ func pop_worm() -> void: _pop_text("WORM!", Color(0.8, 0.5, 0.8))
 const NO_MANA_ICON := "res://assets/ui/icons/no_mana.png"
 
 func pop_no_mana() -> void:
+	_pop_icon(NO_MANA_ICON, 0.0, 0.012)
+
+## An icon over the hero's head that rises and fades. x_offset nudges it
+## left/right so two icons popping together (a heal and armour) don't overlap.
+func _pop_icon(path: String, x_offset: float = 0.0, px_size: float = 0.008) -> void:
 	var sp := Sprite3D.new()
-	sp.texture = load(NO_MANA_ICON)
+	sp.texture = load(path)
 	sp.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	sp.no_depth_test = true
 	sp.shaded = false
 	sp.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
-	sp.pixel_size = 0.012
+	sp.pixel_size = px_size
 	# Over the crown. The camera looks almost straight down (CameraView
 	# PITCH), so "up the screen" is world -Z, not +Y: the sign sits a little
 	# up in Y (clear of the ground sort) and the rest of the way up the
 	# screen in -Z, then drifts further up as it fades.
 	var up := BOARD_HEIGHT + 0.5
-	sp.position = Vector3(0, 0.6, -up)
+	sp.position = Vector3(x_offset, 0.6, -up)
 	sp.sorting_offset = 2.0   # in front of whatever stands beside him
 	add_child(sp)
 	var t := create_tween()
