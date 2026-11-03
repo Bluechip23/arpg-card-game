@@ -396,6 +396,68 @@ BOARDS = {
             "left": (215, 620, 520, 1120),
             "right": (745, 625, 1060, 1120),
         },
+        # 2026-11-03: the designer's smash board — grave_titan_smash_board.webp,
+        # "SMASH ATTACK (4 DIRECTIONS)", four labelled rows on black (NORTH
+        # (FRONT), SOUTH (BACK), WEST (LEFT), EAST (RIGHT), the board's
+        # "north" facing the camera), seven captioned frames a row: idle,
+        # lift (start), overhead (raise), swing down (dark motion arcs about
+        # the boulder), impact (rubble and dust thrown wide), recovery, and
+        # return (idle). The arcs and the rubble are pieces apart from him
+        # and are kept (`keep_share`); each box stops above its caption. The
+        # board's idle is the height reference, matched to each facing's
+        # Idle; its last frame is the idle again and is not played.
+        "actions": {
+            "src": "grave_titan_smash_board.webp",
+            "shadow_band": 0.10,
+            "shadow_lum": 45,   # the floor shadow is colourless grey under 45, brighter than his robe's solid level
+            "levels": (4, 30, 6),   # his robe is near-black purple, just above the backdrop's 0-3
+            "fill_holes": 4,   # a pocket brighter than the backdrop is his robe's painted folds
+            "open_dark": True,   # the black between his legs and under his arms is backdrop, however small
+            "keep_share": 0.002,   # the swing's arcs, the impact's rubble
+            "glow": False,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (155, 96, 320, 277),
+                    "lift": (335, 94, 500, 276),
+                    "overhead": (518, 63, 675, 277),
+                    "swing": (683, 91, 849, 277),
+                    "impact": (849, 134, 1067, 281),
+                    "recover": (1067, 106, 1249, 278),
+                    "back": (1252, 94, 1421, 277),
+                },
+                "back": {
+                    "stance": (162, 332, 323, 510),
+                    "lift": (338, 332, 501, 511),
+                    "overhead": (515, 300, 678, 511),
+                    "swing": (691, 338, 842, 512),
+                    "impact": (842, 358, 1071, 514),
+                    "recover": (1071, 346, 1253, 513),
+                    "back": (1259, 332, 1423, 511),
+                },
+                "left": {
+                    "stance": (165, 569, 306, 748),
+                    "lift": (334, 564, 489, 748),
+                    "overhead": (497, 533, 650, 748),
+                    "swing": (661, 562, 828, 748),
+                    "impact": (828, 606, 1058, 751),
+                    "recover": (1058, 597, 1258, 748),
+                    "back": (1265, 569, 1416, 748),
+                },
+                "right": {
+                    "stance": (166, 815, 311, 993),
+                    "lift": (337, 808, 496, 993),
+                    "overhead": (513, 774, 671, 993),
+                    "swing": (674, 815, 827, 993),
+                    "impact": (827, 849, 1070, 997),
+                    "recover": (1070, 840, 1262, 994),
+                    "back": (1264, 815, 1411, 993),
+                },
+            },
+            "sheets": {
+                "Attack": ["lift", "overhead", "swing", "impact", "recover"],
+            },
+        },
     },
     "armored_troll": {
         # 2026-10-25: the Armored Troll — grey-blue, spiked pauldrons, chain
@@ -2393,7 +2455,7 @@ ACTION_ROWS = ["left", "right"]   # the rows of an action sheet (SpriteEnemyFigu
 
 def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep_share: float = 0.0,
                     fill_holes: bool = False, levels=None, glow: bool = True,
-                    open_dark: bool = False) -> Image.Image:
+                    open_dark: bool = False, shadow_lum: float = 0.0) -> Image.Image:
     """One figure and the glow of its attack on pure black (the werewolf's
     slash board): alpha from brightness as the black key does, the dim
     glow of the slash arcs kept soft and un-darkened, then only the
@@ -2416,7 +2478,9 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
     that frame. With `open_dark` (the Hydra's small attack frames, where a
     gap between two legs is only a few dozen pixels) a pocket no brighter
     than `fill_holes` stays open whatever its size: it is the backdrop,
-    not shading."""
+    not shading. `shadow_lum` is the brightest a floor-shadow pixel is
+    (else the solid level): the Grave Titan's robe needs a low solid level
+    and his floor shadow is brighter than it."""
     rgb = rgb.copy()
     for x0, y0, x1, y1 in bg_boxes:
         rgb[y0:y1, x0:x1] = 0
@@ -2467,7 +2531,7 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
     if shadow_band > 0:
         ys = np.nonzero((alpha > 0).any(axis=1))[0]
         y0 = int(ys.max() + 1 - (ys.max() + 1 - ys.min()) * shadow_band)
-        shadow = soft & (sat < 20) & (lum < solid_at)
+        shadow = (soft | (lum < (shadow_lum or solid_at))) & (sat < 20) & (lum < (shadow_lum or solid_at))
         shadow[:y0] = False
         alpha[shadow] = 0.0
     a = np.maximum(alpha, 1e-6)[..., None]
@@ -2574,7 +2638,7 @@ def cut_action_frames(cfg: dict) -> dict:
             rgb = np.asarray(board(d).crop(box).convert("RGB")).astype(int)
             img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
                                   act.get("keep_share", 0.0), act.get("fill_holes", False), act.get("levels"),
-                                  act.get("glow", True), act.get("open_dark", False))
+                                  act.get("glow", True), act.get("open_dark", False), act.get("shadow_lum", 0.0))
             out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
         for pose, other in again:
             out[d][pose] = out[d][other]

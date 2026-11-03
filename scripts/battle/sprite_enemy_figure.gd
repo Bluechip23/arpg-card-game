@@ -117,7 +117,7 @@ const KINDS := {
 	"armored_troll": {"sheets": SHEETS + "/armored_troll", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Orc
 	"ice_troll": {"sheets": SHEETS + "/ice_troll", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Yeti
 	"granite_colossus": {"sheets": SHEETS + "/granite_colossus", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the golem pack's Golem1
-	"grave_titan": {"sheets": SHEETS + "/grave_titan", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the golem pack's Golem2
+	"grave_titan": {"sheets": SHEETS + "/grave_titan", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and his smash board (2026-11-03: Attack is the lift, the boulder overhead, the swing down, the impact and the recovery); was the golem pack's Golem2
 	"inflamed_minotaur": {"sheets": SHEETS + "/inflamed_minotaur", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"demon": {"cp": "demons/Demon1", "scale": 0.85},
 	"pit_fiend": {"sheets": SHEETS + "/pit_fiend", "scale": BOARD_SCALE},  # the designer's new board, stills (tools/cut_pose_boards.py, 2026-10-28)
