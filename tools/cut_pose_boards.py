@@ -459,6 +459,92 @@ BOARDS = {
             },
         },
     },
+    "grave_titan_throw": {
+        # 2026-11-03: the Grave Titan's boulder roll — grave_titan_throw_board.webp,
+        # "BOULDER ROLL (ATTACK)", four labelled rows on black (NORTH (FRONT),
+        # SOUTH (BACK), WEST (LEFT), EAST (RIGHT)), eight captioned frames a
+        # row: idle (boulder on his shoulder), removing it, stepping in to
+        # grip it with both hands, the wind-up, the full twisted wind-up,
+        # the throw (motion lines past his arm), the boulder rolling away,
+        # and his recovery (no boulder). The seventh frame draws only the
+        # boulder in the side rows — the rolling boulder is its own sprite
+        # (grave_titan_boulder) and he is not drawn leaving — so it is not
+        # used. The frames crowd each other (a wind-up's dust reaches the
+        # next frame's box): each frame's own pieces are kept (`isolate`).
+        # Cut like his smash; packed into his folder as Throw.png, each
+        # row's idle matched to that facing's Idle.
+        "into": "grave_titan",
+        "actions": {
+            "src": "grave_titan_throw_board.webp",
+            "shadow_band": 0.10,
+            "shadow_lum": 45,
+            "levels": (4, 30, 6),
+            "fill_holes": 4,
+            "open_dark": True,
+            "keep_share": 0.002,   # the dust at his feet, the throw's motion lines
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (105, 63, 266, 246),
+                    "remove": (268, 63, 432, 247),
+                    "grip": (417, 65, 582, 247),
+                    "windup": (569, 66, 747, 247),
+                    "full": (716, 63, 914, 247),
+                    "throw": (877, 64, 1081, 247),
+                    "recover": (1264, 59, 1421, 247),
+                },
+                "back": {
+                    "stance": (105, 304, 267, 494),
+                    "remove": (265, 304, 426, 492),
+                    "grip": (418, 304, 585, 494),
+                    "windup": (572, 304, 752, 494),
+                    "full": (721, 304, 919, 493),
+                    "throw": (888, 308, 1088, 493),
+                    "recover": (1273, 304, 1420, 493),
+                },
+                "left": {
+                    "stance": (114, 551, 254, 745),
+                    "remove": (263, 549, 419, 744),
+                    "grip": (396, 559, 578, 744),
+                    "windup": (549, 555, 735, 742),
+                    "full": (716, 550, 916, 743),
+                    "throw": (869, 556, 1089, 743),
+                    "recover": (1288, 563, 1430, 744),
+                },
+                "right": {
+                    "stance": (112, 804, 254, 997),
+                    "remove": (266, 805, 415, 997),
+                    "grip": (403, 811, 590, 997),
+                    "windup": (568, 806, 755, 997),
+                    "full": (718, 806, 916, 996),
+                    "throw": (881, 806, 1100, 996),
+                    "recover": (1282, 804, 1429, 996),
+                },
+            },
+            "sheets": {
+                "Throw": ["remove", "grip", "windup", "full", "throw", "recover"],
+            },
+        },
+    },
+    "grave_titan_boulder": {
+        # 2026-11-03: the boulder he rolls — grave_titan_boulder_strip.webp,
+        # eight frames of the mossy boulder rolling to the right, cut out
+        # (transparent), its painted shadow under it, pebbles and dust
+        # thrown up behind it. Packed as one row, Boulder.png, into his
+        # folder; Enemy's Boulder Roll sends it from his hands to the target
+        # (SpriteEnemyFigure.roll_boulder, RollingBoulder), mirrored when it
+        # rolls left. As wide as the boulder he carries: 1.1 tiles.
+        "into": "grave_titan",
+        "strip": {
+            "src": "grave_titan_boulder_strip.webp",
+            "sheet": "Boulder",
+            "width_tiles": 1.1,
+            "frames": [(10, 200, 250, 460), (260, 200, 500, 460), (505, 200, 750, 460), (750, 200, 1000, 460),
+                       (1000, 200, 1250, 460), (1250, 200, 1500, 460), (1500, 200, 1750, 460), (1750, 200, 1990, 460)],
+        },
+    },
     "armored_troll": {
         # 2026-10-25: the Armored Troll — grey-blue, spiked pauldrons, chain
         # and a spiked club — four unlabelled poses on black: front, back,
@@ -2619,6 +2705,24 @@ def cut_action_frames(cfg: dict) -> dict:
             boards[name] = Image.open(SRC % name)
         return boards[name]
 
+    labels = {}
+
+    def others(d: str, box) -> np.ndarray:
+        """`isolate`: a mask of the pieces of the board in `box` that belong
+        to another frame (their centre lies outside the box) — a crowded
+        board's neighbouring dust cloud reaching in (the Titan's throw)."""
+        name = act["src"][d] if isinstance(act["src"], dict) else act["src"]
+        if name not in labels:
+            lum = np.asarray(board(d).convert("RGB")).max(axis=2)
+            floor = (act.get("levels") or (BLACK_FLOOR,))[0]
+            labels[name] = cv2.connectedComponentsWithStats((lum > floor).astype(np.uint8), connectivity=8)
+        _, lab, _, cen = labels[name]
+        x0, y0, x1, y1 = box
+        sub = lab[y0:y1, x0:x1]
+        ids = np.unique(sub)
+        away = [i for i in ids if i and not (x0 <= cen[i][0] < x1 and y0 <= cen[i][1] < y1)]
+        return np.isin(sub, away)
+
     out = {}
     for d, poses in act["frames"].items():
         out[d] = {}
@@ -2636,6 +2740,8 @@ def cut_action_frames(cfg: dict) -> dict:
                 out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
                 continue
             rgb = np.asarray(board(d).crop(box).convert("RGB")).astype(int)
+            if act.get("isolate"):
+                rgb[others(d, box)] = 0
             img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
                                   act.get("keep_share", 0.0), act.get("fill_holes", False), act.get("levels"),
                                   act.get("glow", True), act.get("open_dark", False), act.get("shadow_lum", 0.0))
@@ -2747,7 +2853,44 @@ def build_actions_on_sheets(name: str, cfg: dict) -> None:
     print("%-13s on %s's sheets: %s" % (name, folder, dims))
 
 
+def build_strip(name: str, cfg: dict) -> None:
+    """A one-row strip of frames that is not the creature itself (the Grave
+    Titan's rolling boulder): the board came cut out (its own alpha), each
+    box's pieces kept whole (pebbles and dust too), every frame scaled so the
+    first stands `width_tiles` wide, packed bottom-centred into square cells
+    in one row — pixel (on/off alpha) and smooth — into the kind's folder."""
+    st = cfg["strip"]
+    board = Image.open(SRC % st["src"]).convert("RGBA")
+    raw = []
+    for box in st["frames"]:
+        f = board.crop(box)
+        a = np.asarray(f).copy()
+        a[..., 3] = np.where(a[..., 3] >= 128, 255, 0)   # the board's faint haze goes
+        f = Image.fromarray(a, "RGBA")
+        raw.append(f.crop(f.getbbox()))
+    width = raw[0].width
+    for root, kind, density, air in ((OUT % cfg["into"], "pixel", DENSITY, 0),
+                                     (os.path.join(smooth_art.ROOT, "sheets", cfg["into"]), "smooth", smooth_art.SMOOTH_DENSITY, SMOOTH_GUTTER)):
+        factor = width / float(st["width_tiles"] * density)
+        if kind == "pixel":
+            fs = [shrink(f, factor) for f in raw]
+        else:
+            fs = [smooth_art.trim(smooth_art.resample(f, factor)) for f in raw]
+        cell = max(max(f.width, f.height) for f in fs) + 2 + air
+        if kind == "pixel":
+            sheet = Image.new("RGBA", (cell * len(fs), cell))
+            for i, f in enumerate(fs):
+                sheet.paste(f, (i * cell + (cell - f.width) // 2, cell - air - f.height), f)
+        else:
+            sheet = smooth_art.pack([fs], cell, len(fs), lambda row, ci: row[ci], air=air)
+        sheet.save(os.path.join(root, st["sheet"] + ".png"))
+        print("%-13s %s: %d frames, %d-px cells into %s" % (name, kind, len(fs), cell, cfg["into"]))
+
+
 def build(name: str, cfg: dict) -> None:
+    if "strip" in cfg:
+        build_strip(name, cfg)
+        return
     if "src" not in cfg:
         build_actions_on_sheets(name, cfg)
         return
@@ -2853,7 +2996,7 @@ def build(name: str, cfg: dict) -> None:
     # heal) are rebuilt with it, in its new cells.
     for other, ocfg in BOARDS.items():
         if ocfg.get("into") == name:
-            build_actions_on_sheets(other, ocfg)
+            build(other, ocfg)
 
 
 def main() -> None:

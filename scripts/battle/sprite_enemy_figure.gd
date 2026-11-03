@@ -52,14 +52,17 @@ const ATTACK_SLOW := 2.3
 ## is equally slower (see kind_fps).
 const DRAWN_ATTACK_SLOW := ATTACK_SLOW / 1.4
 const CP_FPS := {"Idle": 5.0, "Walk": 8.0, "Run": 10.0, "Draw": 8.0, "Attack": 12.0 / ATTACK_SLOW,
-		"Attack2": 12.0 / ATTACK_SLOW, "Hurt": 12.0, "Death": 10.0, "Heal": 7.0}
-const CP_ONESHOT := ["Attack", "Attack2", "Hurt", "Death", "Heal"]
+		"Attack2": 12.0 / ATTACK_SLOW, "Throw": 12.0 / ATTACK_SLOW, "Hurt": 12.0, "Death": 10.0, "Heal": 7.0}
+const CP_ONESHOT := ["Attack", "Attack2", "Throw", "Hurt", "Death", "Heal"]
+## The swings: an attack's sheets (Throw: the Grave Titan's boulder roll,
+## played for that action by his kind's "action_sheets").
+const ATTACK_SHEETS := ["Attack", "Attack2", "Throw"]
 ## Held poses: played once, then the last frame stays until another
 ## animation plays (the archer rat at full draw, from two tempo before its
 ## shot until the shot). A hit does not break them.
 const CP_HOLD := ["Draw"]
 ## Every sheet an animation may come as (Craftpix packs and our own).
-const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Hurt", "Death", "Heal"]
+const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Throw", "Hurt", "Death", "Heal"]
 
 # NPC sheets run S,W,N,E top to bottom (battle uses CharacterAnimator order S,N,E,W).
 const NPC_ROW := [0, 2, 1, 3]  # NPC packs run S,E,N,W
@@ -117,7 +120,7 @@ const KINDS := {
 	"armored_troll": {"sheets": SHEETS + "/armored_troll", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Orc
 	"ice_troll": {"sheets": SHEETS + "/ice_troll", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Yeti
 	"granite_colossus": {"sheets": SHEETS + "/granite_colossus", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the golem pack's Golem1
-	"grave_titan": {"sheets": SHEETS + "/grave_titan", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and his smash board (2026-11-03: Attack is the lift, the boulder overhead, the swing down, the impact and the recovery); was the golem pack's Golem2
+	"grave_titan": {"sheets": SHEETS + "/grave_titan", "scale": BOARD_SCALE, "fps": {"Attack": 8.0, "Throw": 8.0}, "action_sheets": {"boulder_roll": "Throw"}, "release": 4},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and his smash board (2026-11-03: Attack is the lift, the boulder overhead, the swing down, the impact and the recovery); was the golem pack's Golem2
 	"inflamed_minotaur": {"sheets": SHEETS + "/inflamed_minotaur", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"demon": {"cp": "demons/Demon1", "scale": 0.85},
 	"pit_fiend": {"sheets": SHEETS + "/pit_fiend", "scale": BOARD_SCALE},  # the designer's new board, stills (tools/cut_pose_boards.py, 2026-10-28)
@@ -209,6 +212,7 @@ const PAINTED_SHADOW_KINDS := ["swarm", "sludge",
 
 var figure_kind := ""   # the KINDS entry this figure was set up as
 var smooth := false     # wearing the smooth (non-pixelated) sheets (ArtStyle)
+var _sheet_folder := ""  # the folder the sheets were loaded from (the Titan's Boulder.png lives there)
 var _sprite: Sprite3D = null
 var _rig: Node3D = null
 var _tint := Color.WHITE
@@ -368,7 +372,7 @@ static func kind_fps(kind: String) -> Dictionary:
 	var own: Dictionary = KINDS.get(kind, {}).get("fps", {})
 	for anim in own:
 		var f := float(own[anim])
-		fps[anim] = f / DRAWN_ATTACK_SLOW if anim.begins_with("Attack") else f
+		fps[anim] = f / DRAWN_ATTACK_SLOW if anim in ATTACK_SHEETS else f
 	return fps
 
 
@@ -388,6 +392,7 @@ func reskin(kind: String) -> void:
 	var clock := _cp_clock
 	_cp_sheets = {}
 	var soft := ArtStyle.smooth_folder(cfg["sheets"])
+	smooth = soft != ""
 	_setup_sheets(soft if soft != "" else cfg["sheets"])
 	# The feet pivot, from the new Idle row (as setup does).
 	_sprite.offset = Vector2(-_sprite.region_rect.size.x * 0.5,
@@ -429,6 +434,7 @@ func _setup_craftpix(spec: String) -> void:
 ## the Craftpix layout, four rows front/back/left/right, square cells — or,
 ## for an action, the two side rows only (the werewolf's slash).
 func _setup_sheets(folder: String) -> void:
+	_sheet_folder = folder
 	_cp_mode = true
 	_cp_rows = "FBLR"
 	for anim in CP_ANIMS:
@@ -750,8 +756,10 @@ func play_action(action: String) -> void:
 		flash(Color(0.5, 1.0, 0.5))
 		return
 	# A double attack (the werewolf's claw and rake): the Attack2 sheet,
-	# the second hit with the other arm, where a kind has one.
-	play_attack("double" in a)
+	# the second hit with the other arm, where a kind has one. An action
+	# with a sheet of its own (the Grave Titan's boulder roll: Throw) plays it.
+	var own: String = KINDS.get(figure_kind, {}).get("action_sheets", {}).get(a, "")
+	play_attack("double" in a, own)
 
 
 ## Death animation (Craftpix packs only). Returns how long the caller should
@@ -855,7 +863,7 @@ func set_quadruped(_on: bool) -> void:
 ## The attack swing. `double`: a two-hit attack — the Attack2 sheet where
 ## the kind has one (the werewolf's claw, then the rake with the other arm),
 ## with a second, shorter lunge for the second hit; else the one swing.
-func play_attack(double: bool = false) -> void:
+func play_attack(double: bool = false, sheet: String = "") -> void:
 	if not _rig:
 		return
 	if _fx_tween:
@@ -865,7 +873,10 @@ func play_attack(double: bool = false) -> void:
 	if _cp_mode:
 		# Real swing frames; the lunge is a smaller step along the true facing.
 		two = double and _cp_sheets.has("Attack2")
-		_cp_play("Attack2" if two else "Attack", true)
+		if sheet != "" and _cp_sheets.has(sheet):
+			_cp_play(sheet, true)
+		else:
+			_cp_play("Attack2" if two else "Attack", true)
 		dir = Vector3(_facing_x * 0.16, 0, 0) if _fr_mode else _cp_forward() * 0.16
 	last_swing_time = attack_time()
 	_swing_end_msec = Time.get_ticks_msec() + int(last_swing_time * 1000.0)
@@ -878,10 +889,38 @@ func play_attack(double: bool = false) -> void:
 	_fx_tween.tween_property(_rig, "position", Vector3.ZERO, 0.18 * ATTACK_SLOW).set_ease(Tween.EASE_IN_OUT)
 
 
+## The Grave Titan's Boulder Roll: the boulder (Boulder.png beside his
+## sheets) leaves his hands on his throw's release frame (the kind's
+## "release": the frame index in Throw) and rolls along the ground to
+## `target` (global). Returns the seconds from now until it gets there, 0
+## when the kind has no boulder. The boulder is added beside the enemy, so
+## it rolls on in the world whatever the figure does.
+func roll_boulder(target: Vector3) -> float:
+	var path := _sheet_folder + "/Boulder.png"
+	if _sheet_folder == "" or not ResourceLoader.exists(path):
+		return 0.0
+	var release := 0.0
+	if _cp_anim == "Throw":
+		var fps: float = _cp_fps.get("Throw", 8.0)
+		var frame: int = int(KINDS.get(figure_kind, {}).get("release", 0))
+		release = maxf(0.0, (float(frame) - float(_cp_frame)) / fps - _cp_clock)
+	var b := RollingBoulder.new()
+	var host: Node = get_parent().get_parent() if get_parent() and get_parent().get_parent() else get_parent()
+	host.add_child(b)
+	var from := global_position
+	from.y = target.y
+	var dir := Vector3(target.x - from.x, 0, target.z - from.z)
+	if dir.length() > 0.01:
+		from += dir.normalized() * 0.5   # out of his hands, in front of him
+	var gutter := 8 if smooth else 0      # SMOOTH_GUTTER under the smooth strip's art
+	b.launch(load(path), _sprite.pixel_size * _rig.scale.x, gutter, smooth, from, target, release)
+	return b.total_time()
+
+
 ## How long the swing now playing runs: the Attack frames at their fps on
 ## a sheet (Craftpix or the designer's), else the procedural lunge.
 func attack_time() -> float:
-	if _cp_mode and _cp_anim.begins_with("Attack"):
+	if _cp_mode and _cp_anim in ATTACK_SHEETS:
 		return float(_cp_frame_count(_cp_anim)) / float(_cp_fps.get(_cp_anim, 8.0))
 	return 0.38   # the lunge tween: 0.12 + 0.08 + 0.18
 
@@ -902,7 +941,7 @@ func _cp_forward() -> Vector3:
 func play_hit() -> void:
 	# White palette-saturating flash on damage (SNES hit flash), plus shake.
 	flash(Color(3.0, 3.0, 3.0))
-	if _cp_mode and not _cp_anim.begins_with("Attack") and not _cp_anim in CP_HOLD:
+	if _cp_mode and not _cp_anim in ATTACK_SHEETS and not _cp_anim in CP_HOLD:
 		_cp_play("Hurt", true)
 	if _rig:
 		var t := create_tween()

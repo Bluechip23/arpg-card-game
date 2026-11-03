@@ -3911,6 +3911,12 @@ func _try_boulder_roll(target_node: Node3D) -> bool:
 	if is_disarmed or _get_cell_distance(target_node) > 3:
 		return _try_move(target_node)
 	_deal_damage_to_player(target_node, attack_damage, "Boulder Roll")
+	# The boulder itself rolls from his hands to the target; the tick clock
+	# waits for it to get there as it waits for a swing.
+	if _enemy_figure and _enemy_figure.has_method("roll_boulder") and is_instance_valid(target_node):
+		var secs: float = _enemy_figure.roll_boulder(target_node.global_position)
+		if secs > 0.0:
+			swing_started.emit(self, secs)
 	turn_completed.emit()
 	return true
 
