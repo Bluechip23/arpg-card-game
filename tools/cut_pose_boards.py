@@ -620,6 +620,79 @@ BOARDS = {
             },
         },
     },
+    "armored_troll_smash": {
+        # 2026-11-03: the Armored Troll's smash — armored_troll_smash_board.webp,
+        # "DOUBLE SMASH ATTACK", a table on black: four labelled rows (NORTH
+        # (FRONT), SOUTH (BACK), WEST (LEFT), EAST (RIGHT), the board's
+        # "north" facing the camera) of eight frames under numbered column
+        # captions: idle, grip, raise (club overhead), smash 1 (the club into
+        # the ground, a splash of earth), recoil (club up again), smash 2,
+        # recovery, return. Each box stays inside its row's table lines.
+        # Cut like his kick and packed into his folder as Attack.png: his
+        # Smash plays it (his Kick has its own sheet); the idle is the height
+        # reference, matched to each facing's Idle.
+        "into": "armored_troll",
+        "actions": {
+            "src": "armored_troll_smash_board.webp",
+            "levels": (4, 30, 6),
+            "fill_holes": 4,
+            "open_dark": True,
+            "keep_share": 0.02,   # the smashes' flying earth
+            "glow": False,
+            "isolate": True,
+            # The raised club's tip reaches the table line above the back,
+            # left and right rows; the line's dim fringe (the box's top two
+            # rows) would cling to it.
+            "bg_boxes": {("back", "raise"): [(0, 0, 400, 2)], ("left", "raise"): [(0, 0, 400, 2)],
+                         ("right", "raise"): [(0, 0, 400, 2)]},
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (136, 170, 290, 359),
+                    "grip": (296, 173, 449, 359),
+                    "raise": (459, 160, 610, 359),
+                    "smash1": (626, 195, 790, 359),
+                    "recoil": (804, 168, 942, 359),
+                    "smash2": (955, 195, 1123, 359),
+                    "recover": (1119, 169, 1274, 359),
+                    "back": (1275, 171, 1437, 359),
+                },
+                "back": {
+                    "stance": (144, 383, 298, 569),
+                    "grip": (316, 386, 470, 569),
+                    "raise": (468, 370, 609, 569),
+                    "smash1": (622, 407, 795, 569),
+                    "recoil": (807, 372, 938, 569),
+                    "smash2": (950, 407, 1127, 569),
+                    "recover": (1136, 385, 1295, 569),
+                    "back": (1295, 383, 1437, 569),
+                },
+                "left": {
+                    "stance": (136, 600, 266, 781),
+                    "grip": (282, 600, 432, 781),
+                    "raise": (458, 580, 602, 781),
+                    "smash1": (591, 621, 779, 781),
+                    "recoil": (768, 598, 929, 781),
+                    "smash2": (930, 627, 1123, 781),
+                    "recover": (1113, 599, 1255, 781),
+                    "back": (1276, 600, 1419, 781),
+                },
+                "right": {
+                    "stance": (151, 813, 290, 991),
+                    "grip": (310, 812, 460, 991),
+                    "raise": (462, 792, 606, 991),
+                    "smash1": (616, 836, 795, 991),
+                    "recoil": (804, 795, 928, 991),
+                    "smash2": (942, 842, 1132, 991),
+                    "recover": (1139, 813, 1292, 991),
+                    "back": (1305, 812, 1437, 991),
+                },
+            },
+            "sheets": {
+                "Attack": ["grip", "raise", "smash1", "recoil", "smash2", "recover"],
+            },
+        },
+    },
     "ice_troll": {
         # 2026-10-25: the Ice Troll — blue hide, white shag and ice crystals —
         # four unlabelled poses on black: front, back, facing left, right.
@@ -2786,7 +2859,13 @@ def cut_action_frames(cfg: dict) -> dict:
         cx1, cy1 = min(lab.shape[1], x1), min(lab.shape[0], y1)
         sub[cy0 - y0:cy1 - y0, cx0 - x0:cx1 - x0] = lab[cy0:cy1, cx0:cx1]
         ids = np.unique(sub)
-        away = [i for i in ids if i and not (x0 <= cen[i][0] < x1 and y0 <= cen[i][1] < y1)]
+        # A piece spanning the board is a table's lines (the Troll's smash
+        # board), with whatever figure touches them: never blanked — the
+        # lines themselves lie outside the frames' boxes.
+        stats = labels[name][2]
+        h, w = lab.shape
+        away = [i for i in ids if i and not (x0 <= cen[i][0] < x1 and y0 <= cen[i][1] < y1)
+                and stats[i, cv2.CC_STAT_WIDTH] < w * 0.5 and stats[i, cv2.CC_STAT_HEIGHT] < h * 0.5]
         return np.isin(sub, away)
 
     out = {}

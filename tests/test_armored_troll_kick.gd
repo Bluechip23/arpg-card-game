@@ -4,7 +4,9 @@ extends SceneTree
 ## tools/cut_pose_boards.py "actions"): Kick.png is the shift, knee up,
 ## chamber, full extend and recoil — in the four facing rows, in the Idle
 ## sheet's cells, at his drawn 10 fps slowed as every enemy swing is. His
-## Kick plays it; his Smash keeps its lunge.
+## Kick plays it. His Smash plays Attack.png, the double smash (the
+## designer's smash board, 2026-11-03): grip, raise, smash, recoil, smash,
+## recovery, at his drawn 8 fps.
 ## Run: godot --headless --path . --script tests/test_armored_troll_kick.gd
 
 var failures := 0
@@ -94,7 +96,15 @@ func _test_figure() -> void:
 	fig._cp_step(1.0)
 	_check(fig._cp_anim == "Idle", "the kick done, the troll stands idle")
 	fig.play_action("smash")
-	_check(fig._cp_anim != "Kick" and fig.last_swing_time > 0.0, "his Smash does not play the kick: it lunges")
+	_check(fig._cp_anim == "Attack" and fig._cp_frame_count("Attack") == 6, "his Smash plays the double smash: six frames")
+	_check(fig._cp_sheets["Attack"].get_height() == 4 * cell, "in the four facing rows, the Idle sheet's cells")
+	_check(is_equal_approx(fig._cp_fps.get("Attack", 0.0), 8.0 / SpriteEnemyFigure.DRAWN_ATTACK_SLOW), "at his drawn 8 fps, slowed as every enemy swing is")
+	var sworst := 0.0
+	for row in range(4):
+		var sfeet: float = _feet(fig, "Idle", row, 0)
+		for col in [0, 1, 3, 5]:   # the smashes' splash of earth runs below his feet
+			sworst = maxf(sworst, absf(_feet(fig, "Attack", row, col) - sfeet))
+	_check(sworst <= 3.0 * (2.0 if fig.smooth else 1.0), "the smash frames' feet sit on the idle ground row (off by at most %.0f texels)" % sworst)
 	fig.free()
 
 
@@ -125,4 +135,6 @@ func _test_enemy() -> void:
 	r._execute_action("kick", main.player)
 	_check(fig != null and fig._cp_anim == "Kick", "the Troll's Kick plays the kick (%s)" % (fig._cp_anim if fig else "no figure"))
 	_check(before - (int(st.current_health) + int(st.current_armor)) > 0, "and it struck")
+	r._execute_action("smash", main.player)
+	_check(fig != null and fig._cp_anim == "Attack", "the Troll's Smash plays the double smash (%s)" % (fig._cp_anim if fig else "no figure"))
 	main.enemy_spawner.despawn_enemy(r)
