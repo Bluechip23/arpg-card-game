@@ -127,7 +127,7 @@ const KINDS := {
 	"pit_fiend": {"sheets": SHEETS + "/pit_fiend", "scale": BOARD_SCALE},  # the designer's new board, stills (tools/cut_pose_boards.py, 2026-10-28)
 	"bugbear": {"sheets": SHEETS + "/bugbear", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the gnoll pack's Gnoll2
 	"ifrit": {"sheets": SHEETS + "/ifrit", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
-	"snow_wraith": {"sheets": SHEETS + "/snow_wraith", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the ghost pack's Ghost2
+	"snow_wraith": {"sheets": SHEETS + "/snow_wraith", "scale": BOARD_SCALE, "fps": {"Throw": 8.0}, "action_sheets": {"snowball": "Throw"}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and her snowball board (2026-11-03: Throw is the frost gathering, the snowball forming, raised, thrown and the follow-through; her Ice Blast keeps its lunge); was the ghost pack's Ghost2
 	# The designer's 4x4 walk sheets (tools/cut_creature_sheets.py).
 	"hydra": {"sheets": SHEETS + "/hydra", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the designer's pose board (tools/cut_pose_boards.py, 2026-10-28), and her attack sheets (2026-11-03: Attack is the heads rearing up, the roar, the strike with every mouth agape, the heads spread wide and drawn back in)
 	"hydra_5": {"sheets": SHEETS + "/hydra_5", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the Hydra after her second hit, five heads: the designer's board and attack board (tools/cut_pose_boards.py, 2026-11-03)

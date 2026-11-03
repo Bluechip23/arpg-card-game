@@ -968,6 +968,67 @@ BOARDS = {
             "left": (122, 626, 543, 1180),
             "right": (693, 626, 1121, 1180),
         },
+        # 2026-11-03: the designer's snowball board — snow_wraith_snowball_board.webp,
+        # four labelled rows on black (NORTH, SOUTH, WEST, EAST; "north"
+        # facing the camera, as on her pose board), seven frames a row: the
+        # stance, a swirl of frost gathering at her hand, the snowball
+        # formed and glowing, raised, thrown (the ball leaving her
+        # fingers), the follow-through, and the stance. The frost and the
+        # ball are pieces apart from her and are kept (`keep_share`); a
+        # neighbour's reaching into a box is blanked (`isolate`). Throw.png,
+        # played for her Snowball (her Ice Blast keeps its lunge); the
+        # stance is the height reference, matched to each facing's Idle.
+        "actions": {
+            "src": "snow_wraith_snowball_board.webp",
+            "levels": (4, 30, 6),   # her cloak's shadows are near-black navy, just above the backdrop's 0
+            "fill_holes": 4,
+            "open_dark": True,
+            "keep_share": 0.001,   # the frost swirl's motes, the snowball in flight
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (90, 7, 295, 250),
+                    "gather": (288, 7, 485, 250),
+                    "form": (479, 7, 675, 250),
+                    "raise": (667, 7, 869, 250),
+                    "throw": (857, 7, 1064, 250),
+                    "follow": (1051, 7, 1258, 250),
+                    "back": (1247, 7, 1448, 250),
+                },
+                "back": {
+                    "stance": (103, 272, 301, 512),
+                    "gather": (300, 272, 486, 512),
+                    "form": (489, 272, 675, 512),
+                    "raise": (666, 272, 873, 512),
+                    "throw": (862, 272, 1077, 512),
+                    "follow": (1057, 272, 1257, 512),
+                    "back": (1256, 272, 1448, 512),
+                },
+                "left": {
+                    "stance": (120, 547, 302, 776),
+                    "gather": (296, 547, 489, 776),
+                    "form": (479, 547, 675, 776),
+                    "raise": (662, 547, 869, 776),
+                    "throw": (820, 547, 1065, 776),
+                    "follow": (1037, 548, 1261, 776),
+                    "back": (1270, 547, 1448, 776),
+                },
+                "right": {
+                    "stance": (83, 811, 270, 1045),
+                    "gather": (275, 811, 475, 1045),
+                    "form": (468, 811, 666, 1045),
+                    "raise": (662, 812, 867, 1045),
+                    "throw": (851, 812, 1087, 1045),
+                    "follow": (1046, 811, 1259, 1045),
+                    "back": (1241, 811, 1420, 1045),
+                },
+            },
+            "sheets": {
+                "Throw": ["gather", "form", "raise", "throw", "follow"],
+            },
+        },
     },
     "fire_goblin": {
         # 2026-10-25: the Fire Goblin — a goblin in red leather with a torch,
