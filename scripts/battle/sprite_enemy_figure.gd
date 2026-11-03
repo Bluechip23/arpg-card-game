@@ -43,11 +43,12 @@ const CP_ROWS := {
 ## rake with the other arm); a kind's "fps" overrides these per animation.
 ## Enemy attacks play ATTACK_SLOW times slower than they were (designer,
 ## 2026-10-31: "still a little too fast"; 2026-11-03: "still a little
-## rushed", slowed by another 0.5) — the swing frames and the lunge.
-const ATTACK_SLOW := 1.9
+## rushed", then matched to the heroes' SpriteFigure.ACTION_SLOW) — the
+## swing frames and the lunge.
+const ATTACK_SLOW := 2.3
 ## A kind's own Attack / Attack2 fps (its drawn swing) were chosen while
 ## ATTACK_SLOW was 1.4 and never slowed with it; since 2026-11-03 they slow
-## by the same step as the packs' swings (1.9 / 1.4), so every enemy attack
+## by the same step as the packs' swings (2.3 / 1.4), so every enemy attack
 ## is equally slower (see kind_fps).
 const DRAWN_ATTACK_SLOW := ATTACK_SLOW / 1.4
 const CP_FPS := {"Idle": 5.0, "Walk": 8.0, "Run": 10.0, "Draw": 8.0, "Attack": 12.0 / ATTACK_SLOW,
