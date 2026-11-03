@@ -52,18 +52,22 @@ const ATTACK_SLOW := 2.3
 ## is equally slower (see kind_fps).
 const DRAWN_ATTACK_SLOW := ATTACK_SLOW / 1.4
 const CP_FPS := {"Idle": 5.0, "Walk": 8.0, "Run": 10.0, "Draw": 8.0, "Attack": 12.0 / ATTACK_SLOW,
-		"Attack2": 12.0 / ATTACK_SLOW, "Throw": 12.0 / ATTACK_SLOW, "Kick": 12.0 / ATTACK_SLOW, "Cast": 12.0 / ATTACK_SLOW, "Hurt": 12.0, "Death": 10.0, "Heal": 7.0}
-const CP_ONESHOT := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Hurt", "Death", "Heal"]
+		"Attack2": 12.0 / ATTACK_SLOW, "Throw": 12.0 / ATTACK_SLOW, "Kick": 12.0 / ATTACK_SLOW, "Cast": 12.0 / ATTACK_SLOW, "Track": 12.0 / ATTACK_SLOW, "Hurt": 12.0, "Death": 10.0, "Heal": 7.0}
+const CP_ONESHOT := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Hurt", "Death", "Heal"]
 ## The swings: an attack's sheets (Throw: the Grave Titan's boulder roll;
-## Kick: the Armored Troll's kick; Cast: the Snow Wraith's Ice Blast — each
-## played for that action by the kind's "action_sheets").
-const ATTACK_SHEETS := ["Attack", "Attack2", "Throw", "Kick", "Cast"]
+## Kick: the Armored Troll's kick; Cast: the Snow Wraith's Ice Blast; Track:
+## the Sabertooth's stalking crouch — each played for that action by the
+## kind's "action_sheets").
+const ATTACK_SHEETS := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track"]
+## Swings played in place, with no lunge toward the target: the Sabertooth
+## sizing up its prey is no blow.
+const STILL_SHEETS := ["Track"]
 ## Held poses: played once, then the last frame stays until another
 ## animation plays (the archer rat at full draw, from two tempo before its
 ## shot until the shot). A hit does not break them.
 const CP_HOLD := ["Draw"]
 ## Every sheet an animation may come as (Craftpix packs and our own).
-const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Throw", "Kick", "Cast", "Hurt", "Death", "Heal"]
+const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Hurt", "Death", "Heal"]
 
 # NPC sheets run S,W,N,E top to bottom (battle uses CharacterAnimator order S,N,E,W).
 const NPC_ROW := [0, 2, 1, 3]  # NPC packs run S,E,N,W
@@ -141,7 +145,7 @@ const KINDS := {
 	"cerberus": {"sheets": SHEETS + "/cerberus", "scale": BOARD_SCALE},  # the designer's boss trio board (tools/cut_pose_boards.py, 2026-10-27); was the walk-sheet cut
 	"hades": {"sheets": SHEETS + "/hades", "scale": BOARD_SCALE},  # the boss trio board (2026-10-27); art in place, no Hades enemy exists yet
 	"werewolf": {"sheets": SHEETS + "/werewolf", "scale": BOARD_SCALE, "fps": {"Attack": 8.0, "Attack2": 8.0}},  # the designer's board, and his slash boards, side and front/back (tools/cut_pose_boards.py, 2026-10-30): Attack is the claw, Attack2 the claw and the rake with the other arm
-	"sabertooth": {"sheets": SHEETS + "/sabertooth", "scale": BOARD_SCALE},
+	"sabertooth": {"sheets": SHEETS + "/sabertooth", "scale": BOARD_SCALE, "fps": {"Track": 8.0}, "action_sheets": {"track": "Track"}},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-28), and its track board (tools/cut_pose_boards.py, 2026-11-03: Track is the paw scraping, the crouch, the deepest ready crouch and the rise, played in place)
 	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": BOARD_SCALE},
 	"roc": {"sheets": SHEETS + "/roc", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28); was the mountain-monster Bird, tinted
 	"ash_harpy": {"sheets": SHEETS + "/ash_harpy", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the chaos-monster Icon22
@@ -876,6 +880,11 @@ func play_attack(double: bool = false, sheet: String = "") -> void:
 		two = double and _cp_sheets.has("Attack2")
 		if sheet != "" and _cp_sheets.has(sheet):
 			_cp_play(sheet, true)
+			if sheet in STILL_SHEETS:
+				_rig.position = Vector3.ZERO
+				last_swing_time = attack_time()
+				_swing_end_msec = Time.get_ticks_msec() + int(last_swing_time * 1000.0)
+				return
 		else:
 			_cp_play("Attack2" if two else "Attack", true)
 		dir = Vector3(_facing_x * 0.16, 0, 0) if _fr_mode else _cp_forward() * 0.16

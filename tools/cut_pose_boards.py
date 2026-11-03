@@ -1377,6 +1377,69 @@ BOARDS = {
             },
         },
     },
+    "sabertooth": {
+        # 2026-11-03: the Sabertooth's Track — sabertooth_track_board.webp,
+        # four labelled rows on black (NORTH (BACK), SOUTH (FRONT), WEST
+        # (LEFT), EAST (RIGHT): this board's north is the back), seven
+        # captioned frames a row: idle, a paw scraping the ground, scraping
+        # deeper, a crouch, ready (the deepest crouch, eyes on its prey),
+        # rising, and the idle again. Both side rows face right, so the
+        # right is the east row and the left its mirror. The Sabertooth's
+        # Idle / Walk are its walk sheet (tools/cut_creature_sheets.py):
+        # the frames are scaled to those sheets' rows (the board's idle
+        # stands as tall as each facing's Idle) and the cells regrown.
+        # Track.png, played in place for its Track.
+        "actions": {
+            "src": "sabertooth_track_board.webp",
+            "levels": (6, 35, 10),   # its belly's shading runs dark; the backdrop is 0-2
+            "fill_holes": 6,
+            "open_dark": True,
+            "glow": False,
+            "match": "stance",
+            "match_scale": {"left": 1.15, "right": 1.15},   # the walk sheet's side view is longer-bodied than this board's: matched by bulk, not height
+            "frames": {
+                "front": {
+                    "stance": (141, 299, 277, 510),
+                    "paw": (337, 299, 466, 510),
+                    "scrape": (522, 307, 656, 510),
+                    "crouch": (703, 323, 848, 510),
+                    "ready": (892, 335, 1048, 510),
+                    "rise": (1090, 309, 1225, 510),
+                    "back": (1280, 299, 1415, 510),
+                },
+                "back": {
+                    "stance": (145, 21, 271, 248),
+                    "paw": (336, 28, 457, 248),
+                    "scrape": (525, 38, 651, 248),
+                    "crouch": (714, 57, 843, 248),
+                    "ready": (903, 75, 1043, 248),
+                    "rise": (1099, 33, 1227, 248),
+                    "back": (1282, 21, 1409, 248),
+                },
+                "left": {
+                    "stance": ("mirror", (113, 825, 306, 955)),
+                    "paw": ("mirror", (305, 827, 494, 955)),
+                    "scrape": ("mirror", (495, 829, 687, 955)),
+                    "crouch": ("mirror", (685, 837, 880, 955)),
+                    "ready": ("mirror", (877, 848, 1068, 955)),
+                    "rise": ("mirror", (1064, 827, 1248, 955)),
+                    "back": ("mirror", (1249, 825, 1438, 955)),
+                },
+                "right": {
+                    "stance": (113, 825, 306, 955),
+                    "paw": (305, 827, 494, 955),
+                    "scrape": (495, 829, 687, 955),
+                    "crouch": (685, 837, 880, 955),
+                    "ready": (877, 848, 1068, 955),
+                    "rise": (1064, 827, 1248, 955),
+                    "back": (1249, 825, 1438, 955),
+                },
+            },
+            "sheets": {
+                "Track": ["paw", "scrape", "crouch", "ready", "rise"],
+            },
+        },
+    },
     "wolf": {
         # 2026-10-31: the Wolf's bite — wolf_bite_board.webp, four labelled
         # rows on black (Up: from behind, Down: facing the camera, Left,
