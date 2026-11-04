@@ -96,12 +96,40 @@ func _initialize() -> void:
 					continue
 				for c in range(1, 9):
 					var u := _used(body.texture, Rect2(c * f._body_cell, body.region_rect.position.y, f._body_cell, f._body_cell))
-					# (within a fifth: a stride row drawn stockier is matched halfway, WALK_ROW_SCALE)
-					_check(u.size.y > 0 and absf(u.size.y - front.size.y) <= front.size.y * 0.2 and u.end.y == f._body_cell,
+					# (a stride row drawn stockier stands his height, drawn narrower: WALK_SQUEEZE)
+					_check(u.size.y > 0 and absf(u.size.y - front.size.y) <= front.size.y * 0.12 and u.end.y == f._body_cell,
 						"%s facing %d walk frame %d stands his height on the floor (%d)" % [hero, d, c, u.size.y])
+			# Back-to-back steps stride on (designer, 2026-11-04): WASD held
+			# lands a tile at a time (0.2 s) and asks for the next a frame
+			# later. Eight such tiles show the whole cycle, never its first
+			# frames over and over, and never the still pose between.
+			f.set_facing(D.EAST)
+			var stepped := {}
+			var stood := false
+			for _tile in range(8):
+				f.set_walking(true)
+				for _i in range(12):
+					f._process(1.0 / 60.0)
+					var c := int(body.region_rect.position.x / f._body_cell)
+					stepped[c] = true
+					stood = stood or c == 0
+				f.set_walking(false)
+				f._process(1.0 / 60.0)
+				stood = stood or body.region_rect.position.x == 0.0
+			_check(stepped.size() == 8 and not stood, "%s strides on from tile to tile (%s)" % [hero, stepped.keys()])
+			# A turn keeps the stride's place; so does a new walk after a stop.
+			f.set_walking(true)
+			var col := body.region_rect.position.x
+			f.set_facing(D.NORTH)
+			_check(body.region_rect.position.x == col and body.region_rect.position.y == f._body_rows[D.NORTH] * f._body_cell,
+				"%s turns mid-stride without restarting it" % hero)
 			f.set_walking(false)
-			f._process(0.05)
+			f._process(SpriteFigure.WALK_STOP_GRACE)
 			_check(body.region_rect.position.x == 0.0, "%s stands in his still pose when he stops" % hero)
+			f.set_walking(true)
+			_check(body.region_rect.position.x == col, "%s's next walk picks the stride up where it left off" % hero)
+			f.set_walking(false)
+			f._process(SpriteFigure.WALK_STOP_GRACE)
 		# Attacks lunge the body toward the target; no weapon is drawn (the
 		# pack's weapon swing was deleted for the designer's own, 2026-10-30).
 		f.set_weapon_kind("sword", false)
@@ -130,20 +158,21 @@ func _initialize() -> void:
 			var still := _used(a["tex"], Rect2(0, 0, cell, cell))
 			_check(absi(still.end.y - (cell - cell / SpriteFigure.ACTION_FLOOR)) <= 1,   # (a texel's rounding)
 				"%s's %s stands on its ground line (%d of %d)" % [hero, action, still.end.y, cell])
-			# Each way it draws, it stands the size of his still pose that way:
-			# the height within a fifth, since a row the board draws at other
-			# proportions (Stephen's parry in profile, his back) is matched
-			# halfway between its height and its head width (row_scale).
+			# Each way it draws, it stands the size of his still pose that way
+			# (within 12% in height), so nothing jumps as it starts or ends; a
+			# row the board draws stockier (Stephen's parry in profile, his
+			# back) stands his height, drawn narrower ("squeeze").
 			for r in a["rows"]:
 				var act := _used(a["tex"], Rect2(0, r * cell, cell, cell))
 				var pose := _used(fig._npc_sprite.texture, Rect2(0, r * fig._body_cell, fig._body_cell, fig._body_cell))
-				_check(absf(float(act.size.y) / pose.size.y - 1.0) <= 0.2,
+				_check(absf(float(act.size.y) / pose.size.y - 1.0) <= 0.12,
 					"%s's %s row %d stands his still pose's height (%d vs %d)" % [hero, action, r, act.size.y, pose.size.y])
 			fig.play_action(action, D.EAST)
 			_check(fig._action_sprite.visible and not fig._npc_sprite.visible,
 				"%s's %s draws in place of his body" % [hero, action])
 			var cols := {}
-			for _i in range(120):
+			# (as long as the action runs at ACTION_SLOW, and a few ticks more)
+			for _i in range(int(ceil(fig.action_time(action, D.EAST) / 0.03)) + 5):
 				fig._process(0.03)
 				if fig._action_sprite.visible:
 					cols[int(fig._action_sprite.region_rect.position.x / cell)] = true
