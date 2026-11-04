@@ -1101,7 +1101,7 @@ func _cp_forward() -> Vector3:
 func play_hit() -> void:
 	# White palette-saturating flash on damage (SNES hit flash), plus shake.
 	flash(Color(3.0, 3.0, 3.0))
-	if _cp_mode and not _cp_anim in ATTACK_SHEETS and not _cp_anim in CP_HOLD:
+	if _cp_mode and not _cp_anim.begins_with("Attack") and _cp_anim != "Armor" and not _cp_anim in CP_HOLD:
 		_cp_play("Hurt", true)
 	if _rig:
 		var t := create_tween()

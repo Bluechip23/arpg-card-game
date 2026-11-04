@@ -72,6 +72,8 @@ func _initialize() -> void:
 	# --- Overhead heal / armour icons ---
 	_check(ResourceLoader.exists(SpriteFigure.HEAL_ICON), "heal heart icon exists")
 	_check(ResourceLoader.exists(SpriteFigure.ARMOR_ICON), "armour shield icon exists")
+	_check(ResourceLoader.exists(SpriteFigure.MANA_ICON), "mana drop icon exists")
+
 
 	# --- A drawn swing's full time covers its hit frame ---
 	var fig := SpriteFigure.new()
@@ -87,6 +89,26 @@ func _initialize() -> void:
 			_check(total > hit and hit > 0.0, "Stephen's swing (dir %d) runs past its blow: %.2fs > %.2fs" % [dir, total, hit])
 			break
 	fig.queue_free()
+
+	_mana_check.call_deferred()
+
+func _mana_check() -> void:
+	await process_frame
+	# --- The mana drop pops only when the pool really rises ---
+	var hero: Player = load("res://scenes/character/player.tscn").instantiate()
+	get_root().add_child(hero)
+	var st: PlayerStats = hero.get_stats()
+	st.max_mana = 100
+	st.current_mana = 40.0
+	st.mana_changed.emit(st.current_mana, st.max_mana)
+	st.gain_mana(10)
+	_check(int(st.current_mana) == 50, "gain_mana raised the pool to 50")
+	_check(not hero._mana_rose, "the drop popped and used up the rise")
+	st.current_mana = float(st.get_available_max_mana())
+	st.mana_changed.emit(st.current_mana, st.max_mana)
+	st.gain_mana(10)
+	_check(not hero._mana_rose, "a gain at a full pool raises nothing: no drop")
+	hero.queue_free()
 
 	print("=== %s ===" % ("ALL PASSED" if failures == 0 else "%d FAILED" % failures))
 	quit(1 if failures > 0 else 0)

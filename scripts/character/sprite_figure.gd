@@ -88,6 +88,14 @@ const ATTACK_TIMES := [0.16, 0.065, 0.065, 0.2]
 const NPC_WALK_TIME := 0.18
 ## Each frame of a hero's drawn walk cycle (eight frames: a 0.8 s stride).
 const BOARD_WALK_TIME := 0.1
+## A walk carries on across back-to-back steps (designer, 2026-11-04: with
+## WASD held the hero lands a tile at a time and asks for the next a frame
+## later, so every tile restarted the cycle — its first two frames over and
+## over, the still pose flashing between — and only Cory looked to walk).
+## A stopped walk shows the still pose only after this long, a step begun
+## meanwhile strides straight on, and a new walk (or a turn) picks the cycle
+## up where the last one left it.
+const WALK_STOP_GRACE := 0.1   # (a step's gap is a frame: this holds down to ~10 fps)
 const PIXEL_SIZE := 0.03125
 ## The designer's hero sprites stand this tall (world units = tiles), drawn
 ## at whatever pixel size makes their front pose this height, so their detail
@@ -162,6 +170,9 @@ var _clock := 0.0
 var _looping := true
 var _attacking := false
 var _walking := false
+var _stop_left := 0.0     # a stopped walk's seconds left before the still pose (WALK_STOP_GRACE)
+var _walk_phase := 0      # the walk cycle's frame and clock the next walk resumes at
+var _walk_clock := 0.0
 var _base_modulate := Color.WHITE
 var _fx_tween: Tween = null
 var _rig: Node3D = null   # sprites parent; effect tweens move/scale this
@@ -505,6 +516,12 @@ func set_walking(on: bool) -> void:
 	_walking = on
 	if _attacking:
 		return
+	if on and _stop_left > 0.0:
+		_stop_left = 0.0   # the next step began before he stood still: stride on
+		return
+	if not on and _in_walk_cycle():
+		_stop_left = WALK_STOP_GRACE
+		return
 	_play("walk" if on else "idle")
 
 
@@ -513,10 +530,12 @@ func set_facing(direction: int) -> void:
 		return
 	facing = direction
 	_apply_fx_facing()
-	if not _attacking:
-		_play("walk" if _walking else "idle", true)
-	else:
+	if _attacking:
 		_apply_frame()
+	elif _walking or _stop_left > 0.0:
+		_play("walk", true)   # the stride carries on the new way (_play keeps its place)
+	else:
+		_play("idle", true)
 
 
 func _apply_fx_facing() -> void:
@@ -613,6 +632,11 @@ func play_hit() -> void:
 ## with a green plus, a steel shield. Side by side when both land at once.
 const HEAL_ICON := "res://assets/ui/icons/heal_heart.png"
 const ARMOR_ICON := "res://assets/ui/icons/armor_shield.png"
+## Mana regen / gain (designer, 2026-11-04): a blue drop with a green plus,
+## centred and a little higher so it clears a heart or shield popping with it.
+const MANA_ICON := "res://assets/ui/icons/mana_gain.png"
+
+func pop_mana_icon() -> void: _pop_icon(MANA_ICON, 0.0, 0.008, 0.45)
 
 func pop_armor_icon() -> void: _pop_icon(ARMOR_ICON, 0.28)
 func pop_ring_icon() -> void: _pop_text("RING!", Color(0.55, 0.85, 1.0))
@@ -630,7 +654,7 @@ func pop_no_mana() -> void:
 
 ## An icon over the hero's head that rises and fades. x_offset nudges it
 ## left/right so two icons popping together (a heal and armour) don't overlap.
-func _pop_icon(path: String, x_offset: float = 0.0, px_size: float = 0.008) -> void:
+func _pop_icon(path: String, x_offset: float = 0.0, px_size: float = 0.008, lift: float = 0.0) -> void:
 	var sp := Sprite3D.new()
 	sp.texture = load(path)
 	sp.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -642,7 +666,7 @@ func _pop_icon(path: String, x_offset: float = 0.0, px_size: float = 0.008) -> v
 	# PITCH), so "up the screen" is world -Z, not +Y: the sign sits a little
 	# up in Y (clear of the ground sort) and the rest of the way up the
 	# screen in -Z, then drifts further up as it fades.
-	var up := BOARD_HEIGHT + 0.5
+	var up := BOARD_HEIGHT + 0.5 + lift
 	sp.position = Vector3(x_offset, 0.6, -up)
 	sp.sorting_offset = 2.0   # in front of whatever stands beside him
 	add_child(sp)
@@ -742,6 +766,12 @@ func _bounce_fx() -> void:
 # =============================================================
 
 func _play(anim: String, _force: bool = false) -> void:
+	# A walk cycle's place is kept for the next walk (WALK_STOP_GRACE).
+	if _in_walk_cycle():
+		_walk_phase = _frame_i
+		_walk_clock = _clock
+	if anim != "walk":
+		_stop_left = 0.0
 	_frame_i = 0
 	_clock = 0.0
 	_attacking = false
@@ -756,12 +786,15 @@ func _play(anim: String, _force: bool = false) -> void:
 			if _mode == "board":
 				if _strides():
 					for c in range(_body_walk_frames):
-						_frames.append({"col": c + 1, "row": _body_rows[facing], "t": BOARD_WALK_TIME})
+						_frames.append({"col": c + 1, "row": _body_rows[facing], "t": BOARD_WALK_TIME, "walk": true})
 				else:
 					_frames.append({"col": 0, "row": _body_rows[facing], "t": 1.0})
 			else:
 				for c in range(_body_walk_frames):
-					_frames.append({"col": c, "row": _body_rows[facing], "t": NPC_WALK_TIME})
+					_frames.append({"col": c, "row": _body_rows[facing], "t": NPC_WALK_TIME, "walk": true})
+			if _in_walk_cycle():
+				_frame_i = _walk_phase % _frames.size()
+				_clock = minf(_walk_clock, float(_frames[_frame_i]["t"]))
 			_hide_weapon()
 		"attack_unarmed":
 			_start_attack(0)
@@ -813,6 +846,11 @@ func _start_attack(col0: int, row_off: int = 0) -> void:
 	_shield_in_front = false
 
 
+## Showing a walk cycle (a drawn stride or the NPC sheets' steps).
+func _in_walk_cycle() -> bool:
+	return not _frames.is_empty() and bool(_frames[0].get("walk", false))
+
+
 ## A board hero walking this way has a drawn walk cycle to stride through.
 func _strides() -> bool:
 	return _mode == "board" and _body_rows[facing] in _walk_rows
@@ -845,6 +883,13 @@ func _process(delta: float) -> void:
 		var up := stepping and fmod(_step_clock * STEP_HZ, 1.0) >= 0.5
 		var lift := roundf(STEP_LIFT / _npc_sprite.pixel_size) if up else 0.0
 		_npc_sprite.offset = _body_offset + Vector2(0, lift)
+	if _stop_left > 0.0:
+		_stop_left -= delta
+		if _stop_left <= 0.0:
+			_stop_left = 0.0
+			if not _walking and not _attacking:
+				_play("idle")
+				return
 	if _frames.is_empty():
 		return
 	_clock += delta

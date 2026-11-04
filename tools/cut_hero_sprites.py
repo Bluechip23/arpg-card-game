@@ -192,11 +192,15 @@ WALK_EXTRA = {
                  [10, 234, 458, 683, 907, 1122, 1341, 1562, 1770], [87, 738],
                  ["east"], set(), "opaque", {"tol": 4, "narrow": 7, "grow": True})],   # his dark trousers; armpit shadows
 }
-# Walk rows drawn at other proportions than the still pose (designer,
-# 2026-11-02: "Stephen looks like different sizes"): the row's scale, the
-# square root of the still/row head-width ratio (halfway between matching
-# the height and matching the head). Measured on the cut sheets.
-WALK_ROW_SCALE = {"stephen": {"south": 0.95, "east": 0.94, "west": 0.87}}
+# Walk rows the board draws stockier than the still pose that way: each
+# stands the still's height and is drawn this much narrower (designer,
+# 2026-11-04: "when Ryan walks he gets more bulky", Stephen "gets shorter
+# and wider when going left" — the halfway scale of 2026-11-02 shrank the
+# row instead). Judged frame by frame against the still, at the game's size.
+WALK_SQUEEZE = {
+    "stephen": {"south": 0.90, "north": 0.90, "west": 0.85},
+    "ryan": {"south": 0.88, "north": 0.88, "east": 0.92, "west": 0.92},
+}
 # The opaque boards' ground, fitted a cell (_ground_fit): within
 # WALK_GROUND_TOL of the fit (max channel) and reached from the edge is ground;
 # enclosed pockets of it (between arm and body) WALK_POCKET_MIN px or more,
@@ -1002,11 +1006,12 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
     return np.dstack([out_rgb.astype(np.uint8), alpha.astype(np.uint8)])
 
 
-def resample(img, factor):
-    """Down by `factor` (and WIDEN times less across) with a sharp (Lanczos)
-    filter on premultiplied colour, then on/off alpha: crisp pixel edges, the
-    art's detail kept."""
-    size = (max(1, round(img.width * WIDEN / factor)), max(1, round(img.height / factor)))
+def resample(img, factor, squeeze=1.0):
+    """Down by `factor` (and WIDEN times less across, then `squeeze` times
+    as wide: a row the board draws stockier) with a sharp (Lanczos) filter on
+    premultiplied colour, then on/off alpha: crisp pixel edges, the art's
+    detail kept."""
+    size = (max(1, round(img.width * WIDEN * squeeze / factor)), max(1, round(img.height / factor)))
     small = img.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")
     a = np.asarray(small).copy()
     a[..., 3] = np.where(a[..., 3] >= 128, 255, 0)
@@ -1097,12 +1102,13 @@ def ink_outline(f):
     return out
 
 
-def soft_frame(img, factor):
+def soft_frame(img, factor, squeeze=1.0):
     """The smooth version of a pose (smooth_art): the cut-out at
-    SMOOTH_HEIGHT / HEIGHT times the pixel sheet's size, WIDEN as wide,
-    soft-filtered with soft alpha — no palette tidy, no ink outline."""
+    SMOOTH_HEIGHT / HEIGHT times the pixel sheet's size, WIDEN (and
+    `squeeze`) as wide, soft-filtered with soft alpha — no palette tidy, no
+    ink outline."""
     k = SMOOTH_HEIGHT / float(HEIGHT)
-    size = (max(1, round(img.width * WIDEN * k / factor)), max(1, round(img.height * k / factor)))
+    size = (max(1, round(img.width * WIDEN * squeeze * k / factor)), max(1, round(img.height * k / factor)))
     out = img.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")
     # The resample's soft edge is a translucent ring of the outline's dark,
     # which on grass draws as a halo the figure's shape: on/off alpha
@@ -1169,14 +1175,11 @@ def build(hero, poses):
             # the side views "wider and shorter"): the tallest stride stands
             # as tall as the still pose.
             wf = wf / (want[0] / float(max(g[0] for g in got)))
-            # A row the board draws stockier than the still pose that way
-            # (Stephen's west walk: a head 48 texels wide to the still's 36)
-            # splits the difference, as the actions do: scaled by the square
-            # root of the still/row head-width ratio (WALK_ROW_SCALE).
-            wf = wf / float(WALK_ROW_SCALE.get(hero, {}).get(d, 1.0))
+        # ...and as slim as the still that way (WALK_SQUEEZE).
+        sq = float(WALK_SQUEEZE.get(hero, {}).get(d, 1.0))
         for i, img in enumerate(fr):
-            full[(d, i)] = resample(img, wf)
-            soft[(d, i)] = soft_frame(img, wf)
+            full[(d, i)] = resample(img, wf, sq)
+            soft[(d, i)] = soft_frame(img, wf, sq)
     full = {d: vibrance(f) for d, f in full.items()}
     full = tidy_palette(full)
     frames = {}
