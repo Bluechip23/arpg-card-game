@@ -1228,7 +1228,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SPECTER: "Spirit Spit (5 tempo, range 2): 2 damage.\nInvisible (8 tempo, Async): fades out for 3 tempo — it cannot be targeted.\nMove (1 tempo): 1 space.",
 		EnemyType.MAGMA_SPIDER: "It never moves.\nFire Web (8 tempo): spins a web of fire on the ground around it — while you stand in it you are Slowed and take 1 fire damage every 3 tempo.",
 		EnemyType.PIT_FIEND: "[Design mock-up — stats & moves TBD.]",
-		EnemyType.ASH_HARPY: "Flying: ignores your high-ground bonus.\nPeck (5 tempo): 3 damage.\nCard Steal (8 tempo, once per harpy): spots a card from 4 squares, flies in to melee and snatches it from your hand; kill the harpy and the card comes back.\nMove (1 tempo): 1 space.",
+		EnemyType.ASH_HARPY: "Flying: ignores your high-ground bonus.\nPeck (5 tempo): 3 damage. Range 4, but she flies into melee range to land it.\nCard Steal (8 tempo, once per harpy, range 5): her vortex sweeps a card from your hand back to her; kill the harpy and the card comes back.\nMove (1 tempo): 1 space.",
 		EnemyType.INFLAMED_MINOTAUR: "Leaves fire in its wake (a trap on every tile it walks off — and along every charge: 10 damage + 2 Burn, lingers 15 tempo) and heals 10 whenever that fire burns a player. Resists 15% physical / 50% fire / 25% lightning. Slow is his weakness: every Slow stack shortens the leap (Sword of Theseus).\nAttack (5 tempo): 35 damage + 2 Burn.\nLabyrinth Leap (auto, once he has taken over 20 damage since his last leap — a running total, not one blow): springs away 14 spaces (minus 1 per Slow) to a random open tile.\nBull Rush (a random 5 to 15 tempo after landing): charges the player — damage equals the spaces covered by leap + rush, with a spaces x4% chance to stun (5 tempo) AND weaken; the target and everything trampled en route are left Vulnerable.\nMove (5 tempo): 6 spaces.\nThe room: every 25 tempo you are Lost in the Labyrinth for 15 — your hand is scrambled, must be played left to right, and you cannot draw.",
 		# --- Heavens ---
 		EnemyType.CHERUB: "5 armor, range 4.\nLove's Arrow: 2 damage, and for 5 tempo you cannot attack the Cherub directly (poison, burn and area damage still land). The first arrow flies the moment you enter its reach; after that it is a 10-tempo attack.\nMove (3 tempo): 2 spaces.",
@@ -1955,6 +1955,13 @@ func _async_actions() -> Array:
 			out.append(a)
 	return out
 
+## A Sync action that may start whatever the Async clocks are doing: a move
+## (designer, 2026-11-04). Two Async clocks of different lengths are rarely
+## at 0 together — the Sabertooth's Track 10 and Sunken Bite 15 only every 30
+## tempo — and the gate kept it from closing on its prey at all.
+func _sync_can_start(action: Dictionary) -> bool:
+	return MOVEMENT_ACTIONS.has(str(action.get("name", "")))
+
 func _all_async_idle() -> bool:
 	for a in _async_actions():
 		if int(_async_counters.get(str(a["name"]), 0)) > 0:
@@ -2012,7 +2019,7 @@ func _tick_action_clocks(player_node: Node3D) -> void:
 
 	if chosen_action.is_empty() and can_act:
 		_choose_action(player_node)
-	if not chosen_action.is_empty() and (action_tempo_counter > 0 or gap):
+	if not chosen_action.is_empty() and (action_tempo_counter > 0 or gap or _sync_can_start(chosen_action)):
 		action_tempo_counter += 1
 	_update_draw(player_node)
 
@@ -2227,7 +2234,11 @@ func get_display_action() -> Dictionary:
 			"counter": total - _channel_remaining, "cost": total, "kind": "channel"}
 	var best: Dictionary = {}
 	var best_left := 1 << 30
-	if not chosen_action.is_empty():
+	# A Sync action still waiting for the Async clocks to clear (not started,
+	# not a move) is not counting down: it is not what fires soonest, and the
+	# bar showed it while an Async action went off unannounced (2026-11-04).
+	var sync_counting := action_tempo_counter > 0 or _async_gap or _sync_can_start(chosen_action)
+	if not chosen_action.is_empty() and sync_counting:
 		var cost := maxi(1, _effective_cost(chosen_action))
 		best = {"name": chosen_action["name"], "label": action_label(chosen_action),
 			"counter": action_tempo_counter, "cost": cost, "kind": "sync"}
@@ -2610,6 +2621,12 @@ func _try_infest(target_node: Node3D) -> bool:
 	## holder if it is still in the hand 5 tempo later (DeckManager counts
 	## the fuse, hand only); playing it for 50 mana or discarding it ends
 	## the brood.
+	# The smoke rises about the victim's feet and liquefies into rats as he
+	# points; the tick clock waits for it, as it waits for a swing.
+	if _enemy_figure and _enemy_figure.has_method("spot_effect") and is_instance_valid(target_node):
+		var secs: float = _enemy_figure.spot_effect(target_node.global_position, "infest")
+		if secs > 0.0:
+			swing_started.emit(self, secs)
 	var deck = target_node.get_deck_manager() if target_node.has_method("get_deck_manager") else null
 	if deck == null:
 		turn_completed.emit()
@@ -3192,10 +3209,28 @@ func _get_action(action_name: String) -> Dictionary:
 # ============================================
 
 func _execute_action(action_name: String, move_target: Node3D) -> bool:
-	# Play animation for this action (the Archer Rat's shot ends its draw)
+	# Play animation for this action (the Archer Rat's shot ends its draw).
+	# An Async action whose tempo comes up while it cannot land is spent
+	# (docs/ENEMY_ACTION_KEYWORDS.md): it plays only when it lands, so the
+	# Sabertooth doesn't mime its Sunken Bite at prey five tiles off
+	# (designer, 2026-11-04).
 	_bow_drawn = false
-	_play_enemy_animation(action_name)
+	var async := _is_async_name(action_name)
+	if not async:
+		_play_enemy_animation(action_name)
+	var ok := _run_action(action_name, move_target)
+	if async and ok:
+		_play_enemy_animation(action_name)
+	return ok
 
+## Whether `action_name` is one of this enemy's Async actions.
+func _is_async_name(action_name: String) -> bool:
+	for a in actions:
+		if str(a["name"]) == action_name:
+			return is_async_action(a) and not is_trigger_action(a)
+	return false
+
+func _run_action(action_name: String, move_target: Node3D) -> bool:
 	match action_name:
 		"attack":
 			return _try_attack(move_target)
@@ -3386,7 +3421,7 @@ func _execute_action(action_name: String, move_target: Node3D) -> bool:
 		"demon_attack":
 			return _try_elemental(move_target, attack_damage, "Attack")
 		"peck":
-			return _try_elemental(move_target, attack_damage, "Peck")
+			return _try_harpy_peck(move_target)   # only the Ash Harpy pecks
 		"card_steal":
 			return _try_card_steal(move_target)
 		"fire_web":
@@ -4383,6 +4418,16 @@ func _try_chain_lightning(target_node: Node3D) -> bool:
 		_djinn_zap(next)
 		current = next
 	print("[%s] Chain lightning arcs through %d unit(s)!" % [enemy_name, hit.size()])
+	# The bolts: from his hands to the first struck, then link to link. The
+	# tick clock waits for the last to flash out, as it waits for a swing.
+	if _enemy_figure and _enemy_figure.has_method("chain_arcs"):
+		var pts: Array = [global_position]
+		for u in hit:
+			if is_instance_valid(u):
+				pts.append(u.global_position)
+		var secs: float = _enemy_figure.chain_arcs(pts, "chain_lightning")
+		if secs > 0.0:
+			swing_started.emit(self, secs)
 	turn_completed.emit()
 	return true
 
@@ -4988,27 +5033,50 @@ var _harpy_steal_used: bool = false   # Ash Harpy: Card Steal fires once per har
 var _stolen_card: Card = null         # the card it carries until it dies
 var _stolen_from: Node3D = null       # whose hand it came from
 
+## Designer, 2026-11-04: Card Steal is cast from range 5 (her vortex sweeps
+## the card back to her); Peck spots its prey from 4 squares, but the harpy
+## must fly into melee range to land it.
+const HARPY_STEAL_RANGE := 5
+const HARPY_PECK_RANGE := 4
+
 func _choose_harpy_action(distance: int) -> void:
-	if not _harpy_steal_used and distance <= 4:
+	if not _harpy_steal_used and distance <= HARPY_STEAL_RANGE:
 		chosen_action = _get_action("card_steal")
-	elif distance <= 1:
+	elif distance <= HARPY_PECK_RANGE:
 		chosen_action = _get_action("peck")
 	else:
 		chosen_action = _get_action("move")
 
-## Card Steal (sheet, 8): spots a card from 4 squares, flies into melee and
-## takes one random card from the hand; the card returns when the harpy dies.
+## Peck (sheet, 5): 3 damage. Range 4, but she has to fly into melee range
+## to do it: from up to 4 squares off she lands beside her prey (as the Roc
+## dives) and pecks; further off, or with nowhere to land, she moves instead.
+func _try_harpy_peck(target_node: Node3D) -> bool:
+	if not is_instance_valid(target_node) or _cells_between(self, target_node) > HARPY_PECK_RANGE:
+		return _try_move(target_node)
+	if is_disarmed:
+		return false
+	if _cells_between(self, target_node) > 1:
+		if rooted_tempo > 0:
+			return false
+		var perch := _free_cell_near(target_node.position, 1)
+		if grid_manager and grid_manager.world_to_grid(perch) == grid_manager.world_to_grid(target_node.position):
+			return _try_move(target_node)   # nowhere to land beside them
+		_land_at(perch)
+	return _try_elemental(target_node, attack_damage, "Peck")
+
+## Card Steal (sheet, 8): cast from range 5 — her vortex sweeps one random
+## card from the hand back to her; the card returns when the harpy dies.
 ## The card is lifted, not discarded: no discard count, no discard triggers.
 ## sheet: with nothing in the hand to take the harpy pecks instead and keeps
 ## its one steal for later.
 func _try_card_steal(target_node: Node3D) -> bool:
 	if _harpy_steal_used:
 		return false
-	if _cells_between(self, target_node) > 1:
+	if _cells_between(self, target_node) > HARPY_STEAL_RANGE:
 		return _try_move(target_node)
 	var dm = target_node.get_deck_manager() if target_node.has_method("get_deck_manager") else null
 	if dm == null or dm.hand.is_empty():
-		return _try_elemental(target_node, attack_damage, "Peck")
+		return _try_harpy_peck(target_node)
 	var idx: int = randi() % dm.hand.size()
 	var card: Card = dm.hand[idx]
 	dm.hand.remove_at(idx)
@@ -5019,6 +5087,15 @@ func _try_card_steal(target_node: Node3D) -> bool:
 	_stolen_from = target_node
 	_harpy_steal_used = true
 	print("[%s] Card Steal: snatches %s from the hand" % [enemy_name, card.card_name])
+	# She turns to her victim, and the vortex sweeps the card from them back
+	# to her through her three flaps; the tick clock waits for it.
+	if _enemy_figure:
+		var to_target: Vector3 = target_node.global_position - global_position
+		_enemy_figure.set_facing_from_velocity(Vector3(to_target.x, 0, to_target.z))
+		if _enemy_figure.has_method("sweep_vortex"):
+			var secs: float = _enemy_figure.sweep_vortex(global_position, target_node.global_position, "card_steal")
+			if secs > 0.0:
+				swing_started.emit(self, secs)
 	turn_completed.emit()
 	return true
 

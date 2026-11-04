@@ -106,7 +106,7 @@ const KINDS := {
 	"mini_bear": {"sheets": SHEETS + "/mini_bear", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the designer's board (2026-10-25), and its attack board (tools/cut_pose_boards.py, 2026-11-01: Attack is the swipe, the tumble onto its back and the scramble up — a cute little bear trying its best); was the mountain-monster Bear
 	"wolf": {"sheets": SHEETS + "/wolf", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-22), and his bite board (tools/cut_pose_boards.py, 2026-10-31: Attack is the leap and bite)
 	"coyote": {"sheets": SHEETS + "/coyote", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and his nip board (2026-10-31: Attack is the nip); was the old MonsterKit wolf battler, tinted
-	"djinn": {"sheets": SHEETS + "/djinn", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-24); was the MonsterKit cell (4, 1)
+	"djinn": {"sheets": SHEETS + "/djinn", "scale": BOARD_SCALE, "fps": {"Cast": 10.0}, "action_sheets": {"chain_lightning": "Cast"}, "arcs": {"chain_lightning": {"sheet": "Arc", "release": 4, "fps": 24.0, "hop": 0.1, "lift": 0.9}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-24), and his chain lightning board and arc strip (2026-11-04: Cast is the eyes glowing, crackling, the surge down his arms, the lightning gathered, unleashed, the chain, recovery; Arc the bolt laid between each pair of the chain's links); was the MonsterKit cell (4, 1)
 	"specter": {"cp": "ghost/Ghost1", "scale": 1.2},
 	"treasure_bunny": {"sheets": SHEETS + "/treasure_bunny", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the Treasure Bunny on MonsterKit cell (7, 1)
 	"skeleton": {"sheets": SHEETS + "/skeleton", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and his slash board (2026-10-31: Attack is the scimitar slash); was the Craftpix Skeleton1
@@ -118,7 +118,7 @@ const KINDS := {
 	# The designer's Archer Rat: up on its hind legs, bow in hand.
 	"archer_rat": {"sheets": SHEETS + "/archer_rat", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26), and his shoot board (2026-10-31: Draw is the nock and the held draw, Attack the shot)
 	# The designer's own boss boards (no pack has these bosses).
-	"rat_king": {"sheets": SHEETS + "/rat_king", "scale": BOARD_SCALE},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26), 2.1 tiles — bigger than the Wererat
+	"rat_king": {"sheets": SHEETS + "/rat_king", "scale": BOARD_SCALE, "fps": {"Cast": 10.0, "Attack": 10.0}, "action_sheets": {"infest": "Cast"}, "spots": {"infest": {"sheet": "Infest", "release": 3, "meet": [5, 6], "hang": 0.27}}},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26), 2.1 tiles — bigger than the Wererat; and his Infest board (2026-11-04: Cast is the crouch, eyes glowing purple and green, the paws rubbed together, the claw pointed with eyes gone white; Infest the smoke-to-rats effect on the victim's square; Attack, his Bite, the jaws opening, the crouch, lunge, bite, snap, pull back and rise)
 	"fire_goblin_soldier": {"sheets": SHEETS + "/fire_goblin", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the goblin pack's Goblin2
 	"fire_goblin_mage": {"sheets": SHEETS + "/fire_goblin_mage", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the goblin pack's Goblin1
 	"fire_goblin_shaman": {"sheets": SHEETS + "/fire_goblin_shaman", "scale": BOARD_SCALE},  # his own board (tools/cut_pose_boards.py, 2026-10-28); wore the soldier's, and before that the goblin pack's Goblin3
@@ -148,7 +148,7 @@ const KINDS := {
 	"sabertooth": {"sheets": SHEETS + "/sabertooth", "scale": BOARD_SCALE, "fps": {"Track": 8.0, "Attack": 10.0, "Sunken": 10.0}, "action_sheets": {"track": "Track", "sunken_bite": "Sunken"}},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-28), its track board and its bite-and-claw board (tools/cut_pose_boards.py, 2026-11-03: Track is the paw scraping, the crouch, the deepest ready crouch and the rise, played in place; Attack, its Bite and Claw, the crouch, lunge, bite, pull-through, claw swipe and recovery; Sunken, its Sunken Bite, the lunge, the crouch, the teeth sinking in, the shake, the release and rising)
 	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": BOARD_SCALE},
 	"roc": {"sheets": SHEETS + "/roc", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28); was the mountain-monster Bird, tinted
-	"ash_harpy": {"sheets": SHEETS + "/ash_harpy", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the chaos-monster Icon22
+	"ash_harpy": {"sheets": SHEETS + "/ash_harpy", "scale": BOARD_SCALE, "fps": {"Cast": 10.0}, "action_sheets": {"card_steal": "Cast"}, "vortex": {"card_steal": {"sheet": "Vortex", "lift": 0.9, "span": 0.96, "mid": 0.45, "thickness": 1.35, "frames": 77}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and her flap board and vortex strip (2026-11-04: Cast is three wing flaps; Vortex the wind that sweeps a card from the player back to her, played across the flaps); was the chaos-monster Icon22
 	"magma_spider": {"sheets": SHEETS + "/magma_spider", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the Crypt Crawler's MonsterKit cell (3, 0), tinted
 	# (Every roster kind now has a sprite; ART_TODO.md still tracks hand-drawn
 	# replacements for the generated first-pass battlers above.)
@@ -935,13 +935,146 @@ func throw_projectile(target: Vector3, action: String) -> float:
 	return b.total_time()
 
 
-## The Battle Turtle giving itself armor: its Armor sheet, once (a hit
-## doesn't break it). Returns false for a figure with no Armor sheet.
-func play_armor() -> bool:
-	if not _cp_mode or not _cp_sheets.has("Armor"):
-		return false
-	_cp_play("Armor", true)
-	return true
+## Lay `action`'s lightning along a chain of points (the kind's "arcs" by
+## action: the Djinn's Chain Lightning, Arc.png beside his sheets): `points`
+## are global positions — his own first, then each unit struck in turn. The
+## first bolt leaves his hands on the release frame (its "release": the
+## frame index in the action's own sheet, while that plays), each next one
+## `hop` seconds after it, all `lift` tiles up the screen ("on_top": drawn
+## over the figures it lies across — the Harpy's vortex). Returns the seconds
+## from now until the last bolt's flash is over, 0 when the action lays none.
+func chain_arcs(points: Array, action: String) -> float:
+	var cfg: Dictionary = KINDS.get(figure_kind, {})
+	var arc: Dictionary = cfg.get("arcs", {}).get(action, {})
+	var path := "%s/%s.png" % [_sheet_folder, arc.get("sheet", "")]
+	if arc.is_empty() or points.size() < 2 or _sheet_folder == "" or not ResourceLoader.exists(path):
+		return 0.0
+	var release := 0.0
+	var sheet: String = cfg.get("action_sheets", {}).get(action, "")
+	if sheet != "" and _cp_anim == sheet:
+		var fps: float = _cp_fps.get(sheet, 8.0)
+		release = maxf(0.0, (float(arc.get("release", 0)) - float(_cp_frame)) / fps - _cp_clock)
+	var host: Node = get_parent().get_parent() if get_parent() and get_parent().get_parent() else get_parent()
+	var tex: Texture2D = load(path)
+	var arc_fps := float(arc.get("fps", 24.0))
+	if arc.get("fit", false) and sheet != "" and _cp_sheets.has(sheet):
+		# Its frames spread across what is left of the action's own sheet
+		# from the release on (the Harpy's vortex: through all three flaps).
+		var left := (float(_cp_frame_count(sheet)) - float(arc.get("release", 0))) / float(_cp_fps.get(sheet, 8.0))
+		arc_fps = float(_strip_frames(tex, int(arc.get("frames", 0)))) / maxf(0.1, left)
+	# Chest height on a billboard is along screen-up, not up the world's Y.
+	var lift := Vector3(0, CameraView.SPRITE_LIFT, 0) + CameraView.screen_up() * float(arc.get("lift", 0.0))
+	var hop: float = float(arc.get("hop", 0.1))
+	var longest := 0.0
+	for i in range(points.size() - 1):
+		var b := ArcBolt.new()
+		host.add_child(b)
+		var a_pt: Vector3 = points[i]
+		var b_pt: Vector3 = points[i + 1]
+		if i == 0:
+			# Out of his hands, a little in front of him.
+			var dir := Vector3(b_pt.x - a_pt.x, 0, b_pt.z - a_pt.z)
+			if dir.length() > 0.7:
+				a_pt += dir.normalized() * float(arc.get("ahead", 0.35))
+		b.launch(tex, _sprite.pixel_size * _rig.scale.x, smooth, a_pt + lift, b_pt + lift,
+				release + hop * i, arc_fps, float(arc.get("span", 0.0)), float(arc.get("mid", -1.0)),
+				float(arc.get("thickness", 0.0)), _strip_rows(tex, int(arc.get("frames", 0))),
+				bool(arc.get("on_top", false)))
+		longest = maxf(longest, b.total_time())
+	return longest
+
+
+## Play `action`'s effect on a spot of the ground (the kind's "spots" by
+## action: the Rat King's Infest, Infest.png beside his sheets, on the
+## victim's square). It starts on the action sheet's "release" frame, and
+## its pace is set so its frame `meet[0]` lands on the sheet's frame
+## `meet[1]` (the rats appear as he points); `hang`: see SpotEffect.
+## Returns the seconds from now until it is gone, 0 when the action has none.
+func spot_effect(at: Vector3, action: String) -> float:
+	var cfg: Dictionary = KINDS.get(figure_kind, {})
+	var spot: Dictionary = cfg.get("spots", {}).get(action, {})
+	var path := "%s/%s.png" % [_sheet_folder, spot.get("sheet", "")]
+	if spot.is_empty() or _sheet_folder == "" or not ResourceLoader.exists(path):
+		return 0.0
+	var sheet: String = cfg.get("action_sheets", {}).get(action, "")
+	var sheet_fps: float = _cp_fps.get(sheet, 8.0)
+	var release_frame := float(spot.get("release", 0))
+	var meet: Array = spot.get("meet", [1, release_frame + 1.0])
+	var fps := sheet_fps * float(meet[0]) / maxf(0.5, float(meet[1]) - release_frame)
+	var delay := 0.0
+	if sheet != "" and _cp_anim == sheet:
+		delay = maxf(0.0, (release_frame - float(_cp_frame)) / sheet_fps - _cp_clock)
+	var fx := SpotEffect.new()
+	var host: Node = get_parent().get_parent() if get_parent() and get_parent().get_parent() else get_parent()
+	host.add_child(fx)
+	var gutter := 8 if smooth else 0      # SMOOTH_GUTTER under the smooth strip's art
+	fx.launch(load(path), _sprite.pixel_size * _rig.scale.x, gutter, smooth, at, delay, fps,
+			float(spot.get("hang", 0.0)))
+	return fx.total_time()
+
+
+## The Ash Harpy's Card Steal vortex (the kind's "vortex" by action) from
+## `her` to `victim` (global ground positions): a chain of segments, each near
+## the strip's own length, its frames scheduled by VortexPath across what is
+## left of the action's sheet (her three flaps). Returns the seconds from now
+## until it is gone, 0 when the action has none.
+func sweep_vortex(her: Vector3, victim: Vector3, action: String) -> float:
+	var cfg: Dictionary = KINDS.get(figure_kind, {})
+	var vx: Dictionary = cfg.get("vortex", {}).get(action, {})
+	var path := "%s/%s.png" % [_sheet_folder, vx.get("sheet", "")]
+	if vx.is_empty() or _sheet_folder == "" or not ResourceLoader.exists(path):
+		return 0.0
+	var tex: Texture2D = load(path)
+	var frames := int(vx.get("frames", 0))
+	var rows := _strip_rows(tex, frames)
+	var cell := float(_strip_cell(tex, frames))
+	var texel: float = _sprite.pixel_size * _rig.scale.x
+	var span := float(vx.get("span", 0.96))
+	var seg_len := span * cell * texel   # the strip's own length, in world units
+	var lift := Vector3(0, CameraView.SPRITE_LIFT, 0) + CameraView.screen_up() * float(vx.get("lift", 0.0))
+	var a := her + lift
+	var b := victim + lift
+	var flat := Vector2(b.x - a.x, b.z - a.z).length()
+	var n := maxi(1, int(round(flat / seg_len)))
+	var sheet: String = cfg.get("action_sheets", {}).get(action, "")
+	var total := 3.0
+	if sheet != "" and _cp_sheets.has(sheet):
+		var fps: float = _cp_fps.get(sheet, 8.0)
+		total = float(_cp_frame_count(sheet)) / fps
+		if _cp_anim == sheet:
+			total -= float(_cp_frame) / fps + _cp_clock   # what is left of the flaps
+	var host: Node = get_parent().get_parent() if get_parent() and get_parent().get_parent() else get_parent()
+	var vp := VortexPath.new()
+	host.add_child(vp)
+	var bolts: Array = []
+	for i in range(n):
+		# Segment 0 at the victim's end; each runs from her side (the strip's
+		# left end) to the victim's side.
+		var hi := b.lerp(a, float(i) / float(n))
+		var lo := b.lerp(a, float(i + 1) / float(n))
+		var bolt := ArcBolt.new()
+		vp.add_child(bolt)
+		bolt.launch(tex, texel, smooth, lo, hi, 0.0, 24.0, span, float(vx.get("mid", -1.0)),
+				float(vx.get("thickness", 0.0)), rows, true)
+		bolts.append(bolt)
+	vp.setup(bolts, total)
+	return vp.total_time()
+
+
+## A strip's square cell side: one row unless `frames` (a long strip packed
+## in rows — the Harpy's 77-frame vortex; the pixel and smooth sheets pack it
+## differently) says how many cells it holds.
+static func _strip_cell(tex: Texture2D, frames: int) -> int:
+	if frames <= 0:
+		return tex.get_height()
+	return int(round(sqrt(float(tex.get_width() * tex.get_height()) / float(frames))))
+
+static func _strip_rows(tex: Texture2D, frames: int) -> int:
+	return maxi(1, int(round(float(tex.get_height()) / float(_strip_cell(tex, frames)))))
+
+static func _strip_frames(tex: Texture2D, frames: int) -> int:
+	var c := _strip_cell(tex, frames)
+	return int(tex.get_width() / c) * _strip_rows(tex, frames)
 
 
 ## How long the swing now playing runs: the Attack frames at their fps on

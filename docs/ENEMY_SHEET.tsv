@@ -43,7 +43,7 @@ Weregoat	Mid-Tier	6	Act 1 — Mountains	80	0	2	5				Hoof Punch - 6 damage	4	Char
 Wolf	Mid-tier	5	Act 1 — Forest	30	0	4	3				Bite — 7 dmg	5							Within 4 tiles of another wolf: +2 HP regen/cycle and +2 dmg
 Ring Wraith	Special	-	Any act (shadow world)	100	0	5	4				Attack — 15 dmg	2							Ignores invisibility / shadow form	Resummons on death — 0 XP
 Archer Rat	Trash	2	Act 1 — Sewer	6	0	2	2				Shoot — 2 dmg, range 4	5	Scurry Away — dashes 5 tiles (at range <=2)	2					Kiter: repositions to stay at range 3-4
-Ash Harpy	Trash	1	Act 2 — Underworld	6	0	1	1				Peck - 3 damage melee	5	card steal - steal a card from the players hand, upon death, return it. can only trigger once per harpy. Range 4 but the harpy has to fly into melee range in order to do it.	8
+Ash Harpy	Trash	1	Act 2 — Underworld	6	0	1	1				Peck - 3 damage. Range 4 but the harpy has to fly into melee range in order to do it.	5	card steal - steal a card from the players hand, upon death, return it. can only trigger once per harpy. Range 5.	8
 Cherub	Trash	4	Act 3 — Heavens	14	5	2	3				Loves arrow -  2 damage, Cherub can not be attacked by the player directly (can still take poison AOE damage etc) for 5 tempo	First time player enters Cherubs 4 range, from there it is a 10 tempo attack
 Coyote	Trash	1	Act 1 — Forest	6	0	4	3				Nip — 2 dmg	4
 Fire Goblin Soldier	Trash	2	Act 1 — Cave	6	0	4	2				Attack — 2 dmg	3

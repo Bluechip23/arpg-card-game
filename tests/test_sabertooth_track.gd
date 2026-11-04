@@ -140,6 +140,42 @@ func _test_enemy() -> void:
 	_check(t.strengthen_stacks == before + 15, "and marks its prey (+15 Strengthen)")
 	t._execute_action("bite_and_claw", main.player)
 	_check(fig != null and fig._cp_anim == "Attack", "its Bite and Claw plays the combo (%s)" % (fig._cp_anim if fig else "no figure"))
-	t._execute_action("sunken_bite", main.player)
-	_check(fig != null and fig._cp_anim == "Sunken", "its Sunken Bite plays the sunken bite (%s)" % (fig._cp_anim if fig else "no figure"))
+	# Sunken Bite is Async: from three tiles off its tempo is spent, and it
+	# plays nothing (it used to mime the bite at nothing); beside its prey it
+	# plays the sunken bite.
+	fig._cp_play("Idle", true)
+	var hp: int = int(main.player.get_stats().current_health)
+	_check(not t._execute_action("sunken_bite", main.player) and fig._cp_anim == "Idle", "its Sunken Bite out of reach is spent without a bite (%s)" % fig._cp_anim)
+	_check(int(main.player.get_stats().current_health) == hp, "and nothing lands")
+	t.position = main._ground_pos(cell + Vector2i(1, 0))
+	await _settle(2)
+	_check(t._execute_action("sunken_bite", main.player) and fig._cp_anim == "Sunken", "beside its prey, its Sunken Bite plays the sunken bite (%s)" % fig._cp_anim)
+	main.enemy_spawner.despawn_enemy(t)
+	await _test_clocks(cell)
+
+
+## Its clocks (designer, 2026-11-04): Track (10) and Sunken Bite (15) are
+## Async; a Sync action may start only when every Async clock is at 0, which
+## for these two is every 30 tempo — but a move is exempt, so it closes on
+## its prey from the start; the bar shows what really fires next.
+func _test_clocks(cell: Vector2i) -> void:
+	print("-- Its clocks --")
+	var t: Enemy = main.enemy_spawner.spawn_enemy(Enemy.EnemyType.SABERTOOTH, main._ground_pos(cell + Vector2i(5, 0)))
+	await _settle(2)
+	var fired: Array = []
+	t.action_fired.connect(func(_e, nm): fired.append(nm))
+	for _tempo in range(12):
+		t.on_tempo_advanced(1, main.player)
+		await _settle(1)
+	_check(fired.count("move") >= 3, "it moves toward its prey from the first tempo, whatever its Async clocks are doing (%d moves in 12 tempo)" % fired.count("move"))
+	_check(fired.has("track"), "and Tracks on its own clock (tempo 10)")
+	t._async_counters["track"] = 9
+	t._async_counters["sunken_bite"] = 3
+	t.chosen_action = t._get_action("bite_and_claw")
+	t.action_tempo_counter = 0
+	t._async_gap = false
+	var shown2: Dictionary = t.get_display_action()
+	_check(str(shown2.get("name", "")) == "track", "a bite still waiting for the Async clocks is not on the bar: it shows Track, about to fire (%s)" % str(shown2.get("name", "")))
+	t._async_gap = true
+	_check(str(t.get_display_action().get("name", "")) == "track", "and once the bite may start, the bar shows whichever fires first (%s)" % str(t.get_display_action().get("name", "")))
 	main.enemy_spawner.despawn_enemy(t)

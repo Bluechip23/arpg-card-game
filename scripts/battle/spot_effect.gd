@@ -1,0 +1,83 @@
+class_name SpotEffect
+extends Node3D
+
+## An effect played on one spot of the ground (the Rat King's Infest,
+## designer 2026-11-04: a purple ring about the victim's feet, smoke rising
+## from it, the smoke liquefying into little rats that crawl into the
+## square): a one-row strip of the designer's frames (Infest.png beside his
+## sheets, tools/cut_pose_boards.py "rat_king_infest"), a billboard on the
+## spot that waits `delay`, plays its frames once and fades.
+
+## Seconds its last frame takes to fade.
+const FADE := 0.2
+
+var _sprite: Sprite3D
+var _delay := 0.0
+var _fps := 10.0
+var _clock := 0.0
+var _cell := 0
+var _frames := 1
+var _fading := false
+
+
+## Seconds from its launch until it is gone.
+func total_time() -> float:
+	return _delay + float(_frames) / _fps + FADE
+
+
+## `sheet`: the one-row strip in square cells; `texel`: world units a texel;
+## `gutter`: empty rows under the art (the smooth sheets' SMOOTH_GUTTER);
+## `smooth`: filter like the smooth figures; `at`: the spot (global, on the
+## ground); `hang`: the share of the art's height that hangs below the spot
+## (the ring is drawn about the feet, not under them).
+func launch(sheet: Texture2D, texel: float, gutter: int, smooth: bool, at: Vector3,
+		delay: float, fps: float, hang: float = 0.0) -> void:
+	_cell = sheet.get_height()
+	_frames = maxi(1, int(sheet.get_width() / _cell))
+	_delay = maxf(0.0, delay)
+	_fps = maxf(1.0, fps)
+	var art_h := float(_cell - gutter)
+	var img := sheet.get_image()
+	if img:
+		if img.is_compressed():
+			img.decompress()
+		art_h = float(img.get_used_rect().size.y)
+	_sprite = Sprite3D.new()
+	_sprite.texture = sheet
+	_sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_sprite.shaded = false
+	_sprite.region_enabled = true
+	_sprite.centered = false
+	_sprite.pixel_size = texel
+	_sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS if smooth \
+			else BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED   # its smoke is soft: blended, not cut
+	_sprite.offset = Vector2(-_cell * 0.5, -gutter - art_h * hang)
+	_sprite.position.y = CameraView.SPRITE_LIFT
+	add_child(_sprite)
+	global_position = at
+	_sprite.visible = _delay <= 0.0
+	_show_frame(0)
+
+
+func _show_frame(i: int) -> void:
+	_sprite.region_rect = Rect2(clampi(i, 0, _frames - 1) * _cell, 0, _cell, _cell)
+
+
+func _process(delta: float) -> void:
+	if _sprite == null:
+		return
+	_clock += delta
+	if _clock < _delay:
+		return
+	_sprite.visible = true
+	var f := int((_clock - _delay) * _fps)
+	if f < _frames:
+		_show_frame(f)
+		return
+	_show_frame(_frames - 1)
+	if not _fading:
+		_fading = true
+		var tw := create_tween()
+		tw.tween_property(_sprite, "modulate:a", 0.0, FADE)
+		tw.tween_callback(queue_free)

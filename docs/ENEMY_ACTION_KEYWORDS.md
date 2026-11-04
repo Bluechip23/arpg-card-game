@@ -31,6 +31,12 @@ A Sync action may only **start** ticking on a tempo where no Async clock is
 mid-count — right after every Async action has fired (their counters are all
 at 0). Once started it keeps counting whatever the Async clocks do.
 
+**A move is exempt** (designer, 2026-11-04): Move (and every other movement
+action — scurry, flee, get into range…) starts the tempo it is chosen,
+whatever the Async clocks are doing. Two Async clocks of different lengths are
+rarely at 0 together — the Sabertooth's Track 10 and Sunken Bite 15 only every
+30 tempo — and the gate kept it from closing on its prey at all.
+
 ## Async
 
 The action keeps **its own clock**. It counts every tempo, fires when it
@@ -39,7 +45,9 @@ other clock. Async clocks start on the first tempo of the fight, ahead of any
 Sync action.
 
 An Async action whose tempo comes up while it cannot land (target out of
-reach) is spent: the clock restarts anyway.
+reach) is spent: the clock restarts anyway. A spent action plays no
+animation (designer, 2026-11-04: the Sabertooth mimed its Sunken Bite at prey
+five tiles off).
 
 ### Worked example 1 — Punch 3 Async, Kick 5 Sync
 
@@ -131,7 +139,10 @@ down and actions resume when it ends.
 ## Where the keywords show up
 
 - **Overhead bar / unit tracker**: yellow = Sync clock, blue = Async clock,
-  orange = channel. The bar shows whichever clock fires soonest.
+  orange = channel. The bar shows whichever clock fires soonest. A Sync
+  action still waiting for the Async clocks to clear is not counting, so it
+  is not shown while it waits (2026-11-04: the bar read "Move" while the
+  Sabertooth's Track went off unannounced).
 - **Inspect panel**: the current clock plus every action with its keywords.
 - **Compendium**: keywords beside each action's tempo.
 - **Keyword legend**: the "Enemy Actions" section.

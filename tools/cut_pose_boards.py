@@ -102,6 +102,13 @@ ROWS = ["front", "back", "left", "right"]
 # board draws her heads and her bulk in its own proportions, and losing
 # heads must make her shorter, not bigger. Set so her front stance's legs
 # and trunk match the full Hydra's (tools: measured on the cut sheets).
+# The widest a packed strip may be: past it a strip is packed in rows (many
+# GPUs draw nothing from a texture wider than 8192 px).
+MAX_SHEET_PX = 8192
+
+# The Rat King's Infest board draws him squatter than his pose board does:
+# matched to his Idle by bulk (width), not height (2026-11-04).
+MATCH_SCALE_RK = {"front": 0.86, "back": 0.91, "left": 0.94, "right": 0.94}
 TILES_H5 = 1.7
 TILES_H3 = 1.7
 
@@ -198,6 +205,105 @@ BOARDS = {
             "back": (452, 14, 752, 455),
             "left": (798, 12, 1072, 455),
             "right": (1155, 14, 1407, 455),
+        },
+        # 2026-11-04: the designer's chain lightning board —
+        # djinn_chain_lightning_board.webp, four labelled rows on black between
+        # rule lines (NORTH (BACK / UP), SOUTH (FRONT / DOWN), WEST (LEFT), EAST
+        # (RIGHT)), eight captioned frames a row: ready, eyes glowing, the
+        # eyes crackling, the surge down his arms, the lightning gathered in
+        # his hands, unleashed, the chain lightning, recovery. Both side rows
+        # face right (the left is the right mirrored), and their last two
+        # frames throw a long bolt out to the right: those boxes end just
+        # past his hands, and the bolt to whoever is struck is the arc
+        # sprite (djinn_arc) laid between them. The front's chain frame runs
+        # its lightning down to the caption: its box stops above it. Cast.png,
+        # played for his Chain Lightning; the ready pose is the height
+        # reference, matched to each facing's Idle.
+        "actions": {
+            "src": "djinn_chain_lightning_board.webp",
+            "levels": (16, 45, 20),   # the lightning's glow fades out through dim navy: above that, so it doesn't box the bolts in dark
+            "fill_holes": 10,
+            "open_dark": True,
+            "keep_share": 0.002,   # loose sparks of the lightning
+            "glow": False,
+            "isolate": True,
+            "isolate_floor": 14,
+            # The side rows' unleash and chain frames join through the bolt
+            # (one piece, centred in the chain frame): their boxes don't
+            # overlap, so they are cut without isolating.
+            "isolate_skip": (("right", "unleash"), ("right", "chain"), ("left", "unleash"), ("left", "chain")),
+            # The bolts each box cuts through dissolve (`_fade_edge`): the
+            # side rows' at his hands (cut on the right, then mirrored for the
+            # left), the front's at the caption, the back's at the board's top.
+            "edge_fade": {("right", "unleash"): (("right", 24),), ("right", "chain"): (("right", 24),),
+                          ("left", "unleash"): (("right", 24),), ("left", "chain"): (("right", 24),),
+                          ("front", "chain"): (("bottom", 16),), ("back", "chain"): (("top", 16),)},
+            "match": "ready",
+            "frames": {
+                "front": {
+                    "ready": (127, 271, 266, 486),
+                    "eyes": (285, 271, 423, 486),
+                    "crackle": (441, 270, 578, 486),
+                    "surge": (598, 271, 738, 486),
+                    "gather": (750, 271, 909, 486),
+                    "unleash": (915, 271, 1090, 486),
+                    "chain": (1064, 275, 1308, 485),
+                    "recover": (1293, 271, 1431, 486),
+                },
+                "back": {
+                    "ready": (136, 11, 265, 233),
+                    "eyes": (290, 11, 419, 233),
+                    "crackle": (455, 11, 583, 233),
+                    "surge": (616, 10, 749, 233),
+                    "gather": (767, 10, 935, 233),
+                    "unleash": (932, 9, 1105, 233),
+                    "chain": (1088, 0, 1281, 233),
+                    "recover": (1302, 10, 1431, 233),
+                },
+                "left": {
+                    "ready": ("mirror", (130, 787, 241, 1008)),
+                    "eyes": ("mirror", (282, 788, 389, 1008)),
+                    "crackle": ("mirror", (440, 788, 554, 1008)),
+                    "surge": ("mirror", (593, 788, 701, 1008)),
+                    "gather": ("mirror", (736, 787, 883, 1008)),
+                    "unleash": ("mirror", (895, 788, 1042, 1008)),
+                    "chain": ("mirror", (1092, 788, 1195, 1008)),
+                    "recover": ("mirror", (1296, 788, 1408, 1008)),
+                },
+                "right": {
+                    "ready": (130, 787, 241, 1008),
+                    "eyes": (282, 788, 389, 1008),
+                    "crackle": (440, 788, 554, 1008),
+                    "surge": (593, 788, 701, 1008),
+                    "gather": (736, 787, 883, 1008),
+                    "unleash": (895, 788, 1042, 1008),
+                    "chain": (1092, 788, 1195, 1008),
+                    "recover": (1296, 788, 1408, 1008),
+                },
+            },
+            "sheets": {
+                "Cast": ["eyes", "crackle", "surge", "gather", "unleash", "chain", "recover"],
+            },
+        },
+    },
+    "djinn_arc": {
+        # 2026-11-04: the lightning that bounces between Chain Lightning's
+        # targets — djinn_lightning_arc_strip.webp, ten frames on transparency
+        # of a crackling arc between two glowing nodes, growing from a thin
+        # spark to a full arc and dying away. Packed as one row, Arc.png, in
+        # his folder, every frame stretched to the widest frame's width so
+        # the nodes sit at the same place in each (`stretch`); ArcBolt lays
+        # it between the Djinn's hand and each target in turn, stretched to
+        # the distance (its ends sit ~14% in from each side of every frame:
+        # ArcBolt.NODE_SPAN). 1.6 tiles wide as packed.
+        "into": "djinn",
+        "strip": {
+            "src": "djinn_lightning_arc_strip.webp",
+            "sheet": "Arc",
+            "width_tiles": 1.6,
+            "align": "board",
+            "stretch": True,
+            "frames": [(5, 230, 190, 400), (190, 230, 372, 400), (372, 230, 575, 400), (575, 230, 791, 400), (791, 230, 1036, 400), (1036, 230, 1259, 400), (1259, 230, 1456, 400), (1456, 230, 1650, 400), (1650, 230, 1834, 400), (1834, 230, 1995, 400)],
         },
     },
     "ice_mage": {
@@ -957,6 +1063,65 @@ BOARDS = {
             "left": (214, 600, 425, 1155),
             "right": (838, 603, 1040, 1155),
         },
+        # 2026-11-04: the designer's wing-flap board — ash_harpy_flap_board.webp,
+        # cut out (transparent), four labelled rows (NORTH: the face, SOUTH:
+        # the back, LEFT, RIGHT) under numbered columns, eight frames a row:
+        # wings folded, rising, spread wide, flung up, sweeping down, folding
+        # in, folded. Her wings are so wide the frames touch: each row is
+        # split along the narrowest contact between neighbours
+        # (`alpha_split`). Cast.png is frames 2-8 three times over — the
+        # designer: she flaps three times while her vortex steals a card —
+        # played for her Card Steal; frame 1 is the height reference.
+        "actions": {
+            "src": "ash_harpy_flap_board.webp",
+            "bg": "alpha_split",
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (95, 28, 212, 207),
+                    "f2": (212, 28, 348, 207),
+                    "f3": (348, 28, 479, 207),
+                    "f4": (479, 28, 610, 207),
+                    "f5": (610, 28, 741, 207),
+                    "f6": (741, 28, 869, 207),
+                    "f7": (869, 28, 997, 207),
+                    "f8": (997, 28, 1125, 207),
+                },
+                "back": {
+                    "stance": (95, 212, 212, 397),
+                    "f2": (212, 212, 348, 397),
+                    "f3": (348, 212, 479, 397),
+                    "f4": (479, 212, 610, 397),
+                    "f5": (610, 212, 741, 397),
+                    "f6": (741, 212, 869, 397),
+                    "f7": (869, 212, 997, 397),
+                    "f8": (997, 212, 1125, 397),
+                },
+                "left": {
+                    "stance": (95, 400, 212, 597),
+                    "f2": (212, 400, 348, 597),
+                    "f3": (348, 400, 479, 597),
+                    "f4": (479, 400, 610, 597),
+                    "f5": (610, 400, 741, 597),
+                    "f6": (741, 400, 869, 597),
+                    "f7": (869, 400, 997, 597),
+                    "f8": (997, 400, 1125, 597),
+                },
+                "right": {
+                    "stance": (95, 598, 212, 793),
+                    "f2": (212, 598, 348, 793),
+                    "f3": (348, 598, 479, 793),
+                    "f4": (479, 598, 610, 793),
+                    "f5": (610, 598, 741, 793),
+                    "f6": (741, 598, 869, 793),
+                    "f7": (869, 598, 997, 793),
+                    "f8": (997, 598, 1125, 793),
+                },
+            },
+            "sheets": {
+                "Cast": ["f2", "f3", "f4", "f5", "f6", "f7", "f8", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f2", "f3", "f4", "f5", "f6", "f7", "f8"],
+            },
+        },
     },
     "snow_wraith": {
         # 2026-10-25: the Snow Wraith — a hooded, tattered wraith with a snowflake
@@ -1134,6 +1299,29 @@ BOARDS = {
             "width_tiles": 1.3,
             "align": "board",
             "frames": [(30, 240, 245, 380), (280, 240, 495, 380), (530, 240, 745, 380), (780, 240, 995, 380), (1005, 240, 1250, 380), (1290, 240, 1500, 380), (1550, 240, 1750, 380), (1800, 240, 1995, 380)],
+        },
+    },
+    "ash_harpy_vortex": {
+        # 2026-11-04: the Card Steal vortex — ash_harpy_vortex_strip.webp, a
+        # 12-wide grid of frames on black: a wind vortex of dark smoke and
+        # embers that starts at the player (each frame's right end), grows
+        # toward the harpy (its left end), sweeps a small card round inside
+        # it back to her — the card gone as it reaches her — and blows
+        # itself out. The grid's first five frames and last two are empty
+        # and left out. Cut by brightness with soft alpha (`black_key`), each
+        # frame keeping its whole box (`trim` off: where the vortex sits in
+        # its frame is the animation); Vortex.png in her folder. Her Card
+        # Steal lays it from her to the player (ArcBolt), stretched to the
+        # distance, through her three flaps.
+        "into": "ash_harpy",
+        "strip": {
+            "src": "ash_harpy_vortex_strip.webp",
+            "bg": "black_key",
+            "sheet": "Vortex",
+            "width_tiles": 1.4,
+            "trim": False,
+            "alpha_gain": 1.4,
+            "frames": [(697, -4, 836, 114), (836, -4, 975, 114), (975, -4, 1115, 114), (1115, -4, 1254, 114), (1254, -4, 1393, 114), (1393, -4, 1533, 114), (1533, -4, 1672, 114), (0, 112, 139, 230), (139, 112, 279, 230), (279, 112, 418, 230), (418, 112, 557, 230), (557, 112, 697, 230), (697, 112, 836, 230), (836, 112, 975, 230), (975, 112, 1115, 230), (1115, 112, 1254, 230), (1254, 112, 1393, 230), (1393, 112, 1533, 230), (1533, 112, 1672, 230), (0, 231, 139, 349), (139, 231, 279, 349), (279, 231, 418, 349), (418, 231, 557, 349), (557, 231, 697, 349), (697, 231, 836, 349), (836, 231, 975, 349), (975, 231, 1115, 349), (1115, 231, 1254, 349), (1254, 231, 1393, 349), (1393, 231, 1533, 349), (1533, 231, 1672, 349), (0, 351, 139, 469), (139, 351, 279, 469), (279, 351, 418, 469), (418, 351, 557, 469), (557, 351, 697, 469), (697, 351, 836, 469), (836, 351, 975, 469), (975, 351, 1115, 469), (1115, 351, 1254, 469), (1254, 351, 1393, 469), (1393, 351, 1533, 469), (1533, 351, 1672, 469), (0, 470, 139, 588), (139, 470, 279, 588), (279, 470, 418, 588), (418, 470, 557, 588), (557, 470, 697, 588), (697, 470, 836, 588), (836, 470, 975, 588), (975, 470, 1115, 588), (1115, 470, 1254, 588), (1254, 470, 1393, 588), (1393, 470, 1533, 588), (1533, 470, 1672, 588), (0, 590, 139, 708), (139, 590, 279, 708), (279, 590, 418, 708), (418, 590, 557, 708), (557, 590, 697, 708), (697, 590, 836, 708), (836, 590, 975, 708), (975, 590, 1115, 708), (1115, 590, 1254, 708), (1254, 590, 1393, 708), (1393, 590, 1533, 708), (1533, 590, 1672, 708), (0, 702, 139, 820), (139, 702, 279, 820), (279, 702, 418, 820), (418, 702, 557, 820), (557, 702, 697, 820), (697, 702, 836, 820), (836, 702, 975, 820), (975, 702, 1115, 820), (1115, 702, 1254, 820), (1254, 702, 1393, 820)],
         },
     },
     "fire_goblin": {
@@ -1733,6 +1921,188 @@ BOARDS = {
             "back": (569, 46, 970, 458),
             "left": (7, 547, 513, 866),
             "right": (542, 549, 1020, 866),
+        },
+        # 2026-11-04: the designer's Infest board — rat_king_infest_board.webp,
+        # "RAT KING - INFEST (ATTACK ANIMATION)", four labelled rows on black
+        # (NORTH: the face, SOUTH: the back, WEST, EAST), eleven frames a row,
+        # and below them the effect panel (rat_king_infest's strip). In the
+        # designer's words: he crouches low, his eyes glowing an eerie purple
+        # and bright green, rubs his paws together rapidly, points a single
+        # sharp claw at the victim, his eyes turned bright white, and
+        # settles. Frames 2-10 are Cast.png, played for his Infest; the
+        # first is the height reference, matched to each facing's Idle. The
+        # first box starts below the panel title's frame line its crown
+        # nearly touches; the side rows' tails reach the next frame's box
+        # (`isolate`).
+        "actions": {
+            "src": "rat_king_infest_board.webp",
+            "levels": (4, 30, 6),   # his black fur runs just above the backdrop's 0
+            "fill_holes": 4,
+            "open_dark": True,
+            "keep_share": 0.002,   # the sparks about his paws
+            "glow": False,
+            "isolate": True,
+            "isolate_floor": 14,
+            "match": "stance",
+            # The board draws him squatter than his pose board does: matched
+            # by bulk (width), not height, so the crouch doesn't swell him.
+            "match_scale": MATCH_SCALE_RK,
+            "frames": {
+                "front": {
+                    "stance": (102, 30, 253, 122),
+                    "crouch": (264, 30, 398, 122),
+                    "low": (426, 30, 563, 122),
+                    "glow": (592, 30, 729, 122),
+                    "rub": (749, 30, 888, 122),
+                    "rub2": (911, 30, 1051, 122),
+                    "white": (1080, 30, 1220, 122),
+                    "point": (1255, 30, 1392, 122),
+                    "point2": (1440, 30, 1576, 122),
+                    "settle": (1633, 30, 1766, 122),
+                    "back": (1825, 30, 1959, 122),
+                },
+                "back": {
+                    "stance": (111, 130, 240, 246),
+                    "crouch": (265, 131, 394, 246),
+                    "low": (428, 155, 561, 246),
+                    "glow": (590, 133, 718, 246),
+                    "rub": (750, 133, 880, 246),
+                    "rub2": (912, 132, 1047, 246),
+                    "white": (1077, 131, 1211, 246),
+                    "point": (1252, 131, 1390, 246),
+                    "point2": (1438, 130, 1578, 246),
+                    "settle": (1633, 127, 1767, 246),
+                    "back": (1822, 127, 1956, 246),
+                },
+                "left": {
+                    "stance": (103, 250, 261, 348),
+                    "crouch": (261, 256, 423, 348),
+                    "low": (423, 265, 589, 348),
+                    "glow": (590, 262, 752, 348),
+                    "rub": (752, 252, 918, 348),
+                    "rub2": (918, 250, 1082, 348),
+                    "white": (1082, 249, 1248, 348),
+                    "point": (1248, 249, 1431, 348),
+                    "point2": (1432, 249, 1612, 348),
+                    "settle": (1624, 249, 1800, 348),
+                    "back": (1812, 249, 1986, 348),
+                },
+                "right": {
+                    "stance": (95, 357, 255, 458),
+                    "crouch": (255, 357, 417, 458),
+                    "low": (417, 358, 577, 458),
+                    "glow": (577, 354, 740, 458),
+                    "rub": (740, 352, 907, 458),
+                    "rub2": (907, 354, 1072, 458),
+                    "white": (1073, 356, 1251, 458),
+                    "point": (1251, 355, 1439, 458),
+                    "point2": (1439, 354, 1631, 458),
+                    "settle": (1631, 357, 1798, 458),
+                    "back": (1811, 357, 1985, 458),
+                },
+            },
+            "sheets": {
+                "Cast": ["crouch", "low", "glow", "rub", "rub2", "white", "point", "point2", "settle"],
+            },
+        },
+    },
+    "rat_king_bite": {
+        # 2026-11-04: the Rat King's bite — rat_king_bite_board.webp, "RAT
+        # KING - BITE ATTACK", four labelled rows on black (NORTH: the face,
+        # SOUTH: the back, WEST, EAST), ten frames a row: the stance, the
+        # jaws opening, a crouch, the lunge, the bite, the snap, pulling
+        # back, recovering, rising and the stance. Frames 2-9 are Attack.png
+        # (his Bite), cut like his Infest and packed into his folder; the
+        # first box starts below the title box's frame line, which his crown
+        # touches.
+        "into": "rat_king",
+        "actions": {
+            "src": "rat_king_bite_board.webp",
+            "levels": (4, 30, 6),
+            "fill_holes": 4,
+            "open_dark": True,
+            "glow": False,
+            "isolate": True,
+            "isolate_floor": 14,
+            "match": "stance",
+            # Its stance matched to his Idle by width (this board draws him
+            # nearer his pose board's proportions than the Infest board does).
+            "match_scale": {"front": 1.05, "back": 1.0, "left": 1.0, "right": 1.02},
+            "frames": {
+                "front": {
+                    "stance": (107, 37, 262, 170),
+                    "open": (303, 21, 447, 170),
+                    "crouch": (479, 29, 636, 170),
+                    "lunge": (654, 29, 820, 170),
+                    "bite": (838, 34, 1011, 170),
+                    "snap": (1032, 35, 1198, 170),
+                    "pull": (1216, 31, 1391, 170),
+                    "recover": (1410, 25, 1584, 170),
+                    "rise": (1608, 19, 1776, 170),
+                    "back": (1818, 15, 1980, 170),
+                },
+                "back": {
+                    "stance": (105, 171, 261, 326),
+                    "open": (291, 170, 448, 326),
+                    "crouch": (479, 174, 635, 326),
+                    "lunge": (660, 183, 825, 326),
+                    "bite": (843, 189, 1013, 326),
+                    "snap": (1034, 192, 1202, 326),
+                    "pull": (1229, 186, 1393, 326),
+                    "recover": (1425, 170, 1585, 326),
+                    "rise": (1619, 170, 1780, 326),
+                    "back": (1820, 170, 1977, 326),
+                },
+                "left": {
+                    "stance": (100, 335, 280, 460),
+                    "open": (280, 340, 464, 460),
+                    "crouch": (464, 344, 657, 460),
+                    "lunge": (657, 346, 836, 460),
+                    "bite": (836, 335, 1023, 460),
+                    "snap": (1023, 343, 1217, 460),
+                    "pull": (1217, 344, 1410, 460),
+                    "recover": (1410, 340, 1604, 460),
+                    "rise": (1604, 335, 1803, 460),
+                    "back": (1803, 336, 1988, 460),
+                },
+                "right": {
+                    "stance": (100, 486, 280, 619),
+                    "open": (280, 489, 468, 619),
+                    "crouch": (468, 491, 650, 619),
+                    "lunge": (650, 495, 835, 619),
+                    "bite": (835, 488, 1024, 619),
+                    "snap": (1024, 492, 1217, 619),
+                    "pull": (1217, 491, 1405, 619),
+                    "recover": (1405, 490, 1598, 619),
+                    "rise": (1598, 487, 1794, 619),
+                    "back": (1794, 487, 1988, 619),
+                },
+            },
+            "sheets": {
+                "Attack": ["open", "crouch", "lunge", "bite", "snap", "pull", "recover", "rise"],
+            },
+        },
+    },
+    "rat_king_infest": {
+        # 2026-11-04: the Infest effect — the board's lower panel, "INFEST
+        # EFFECT - SMOKE TO RATS (TARGET SQUARE)", eleven frames on black: a
+        # thin purple ring, wispy dark smoke rising from it, the smoke
+        # liquefying into a swarm of little purple-eyed rats that crawl
+        # into the square, thinning out. Cut by brightness with soft alpha
+        # (`bg: "black_key"`: the smoke is translucent, and every rat is a
+        # piece of its own), packed as one row, Infest.png, in his folder;
+        # his Infest lays it on the victim's square (SpotEffect), the ring
+        # about the victim's feet. The full swarm is 2 tiles wide, the square and its edges.
+        "into": "rat_king",
+        "strip": {
+            "src": "rat_king_infest_board.webp",
+            "bg": "black_key",
+            "sheet": "Infest",
+            "width_tiles": 2.0,
+            "alpha_gain": 1.8,   # faint purple wisps on black: thickened to read on the floor
+            "width_of": "max",
+            "align": "board",
+            "frames": [(60, 514, 174, 648), (174, 514, 341, 648), (341, 514, 509, 648), (509, 514, 675, 648), (675, 514, 845, 648), (845, 514, 1019, 648), (1019, 514, 1205, 648), (1205, 514, 1406, 648), (1406, 514, 1612, 648), (1612, 514, 1808, 648), (1808, 514, 1985, 648)],
         },
     },
     "archer_rat": {
@@ -3223,6 +3593,27 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
     return Image.fromarray(rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
 
 
+def _fade_edge(img: Image.Image, side: str, px: int) -> Image.Image:
+    """Alpha ramped to nothing over the last `px` pixels on one side of a
+    cut-out: a bolt the frame box cuts through (the Djinn's lightning, which
+    the arc sprite carries on) dissolves instead of ending on a straight line."""
+    a = np.asarray(img).copy()
+    h, w = a.shape[:2]
+    n = max(1, min(px, w if side in ("left", "right") else h))
+    ramp = np.linspace(0.0, 1.0, n, endpoint=False)[::-1] if side in ("right", "bottom") else np.linspace(0.0, 1.0, n, endpoint=False)
+    alpha = a[..., 3].astype(float)
+    if side == "right":
+        alpha[:, w - n:] *= ramp[None, :]
+    elif side == "left":
+        alpha[:, :n] *= ramp[None, :]
+    elif side == "bottom":
+        alpha[h - n:, :] *= ramp[:, None]
+    else:
+        alpha[:n, :] *= ramp[:, None]
+    a[..., 3] = alpha.round().astype(np.uint8)
+    return Image.fromarray(a, "RGBA")
+
+
 def _sharpen(img: Image.Image, amount: float) -> Image.Image:
     """Unsharp mask on the colour (alpha untouched), for boards whose source is
     soft (lossy or upscaled): the detail reads after the cut is shrunk."""
@@ -3361,6 +3752,59 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
                 and stats[i, cv2.CC_STAT_WIDTH] < w * 0.5 and stats[i, cv2.CC_STAT_HEIGHT] < h * 0.5]
         return np.isin(sub, away)
 
+    split_cache = {}
+
+    def alpha_split(d: str, box) -> Image.Image:
+        """`bg: "alpha_split"`: a board that came cut out (its own alpha), its
+        frames so close their wings touch (the Ash Harpy's flap). Every frame
+        of the row is split at once: each solid pixel goes to the frame whose
+        body (a column at its box's centre) it is nearest through the solid
+        pixels themselves, so touching wings part at their narrowest contact;
+        the soft edge goes with the solid pixels it hugs."""
+        name = act["src"][d] if isinstance(act["src"], dict) else act["src"]
+        row = [b for b in act["frames"][d].values() if b[0] not in ("same", "mirror") and b[1] == box[1] and b[3] == box[3]]
+        key = (name, box[1], box[3])
+        if key not in split_cache:
+            rgba = np.asarray(board(d).convert("RGBA"))
+            y0, y1 = box[1], box[3]
+            X0, X1 = min(b[0] for b in row), max(b[2] for b in row)
+            reg = rgba[y0:y1, X0:X1]
+            solid = reg[..., 3] >= 128
+            h, w = solid.shape
+            lab = np.full((h, w), -1, np.int32)
+            q = deque()
+            for j, b in enumerate(row):
+                cx = (b[0] + b[2]) // 2 - X0
+                for x in range(max(0, cx - 6), min(w, cx + 7)):
+                    for y in np.nonzero(solid[:, x])[0]:
+                        if lab[y, x] < 0:
+                            lab[y, x] = j
+                            q.append((y, x))
+            while q:
+                y, x = q.popleft()
+                for dy, dx in _N4:
+                    ny, nx = y + dy, x + dx
+                    if 0 <= ny < h and 0 <= nx < w and solid[ny, nx] and lab[ny, nx] < 0:
+                        lab[ny, nx] = lab[y, x]
+                        q.append((ny, nx))
+            # Islands no body reaches (a loose flame): the nearest body's.
+            centres = np.array([(b[0] + b[2]) // 2 - X0 for b in row])
+            ys, xs = np.nonzero(solid & (lab < 0))
+            for y, x in zip(ys, xs):
+                lab[y, x] = int(np.argmin(np.abs(centres - x)))
+            # The soft edge: within 4 px of a frame's solid pixels.
+            soft = (reg[..., 3] >= 24) & ~solid
+            for j in range(len(row)):
+                near = cv2.dilate((lab == j).astype(np.uint8), np.ones((9, 9), np.uint8)).astype(bool)
+                lab[soft & near & (lab < 0)] = j
+            split_cache[key] = (reg, lab, X0, row)
+        reg, lab, X0, row = split_cache[key]
+        j = row.index(box)
+        img = reg.copy()
+        img[..., 3] = np.where(lab == j, img[..., 3], 0)
+        ys, xs = np.nonzero(img[..., 3] > 0)
+        return Image.fromarray(img[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
+
     out = {}
     for d, poses in act["frames"].items():
         out[d] = {}
@@ -3371,6 +3815,10 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
                 continue
             mirror = spec[0] == "mirror"
             box = spec[1] if mirror else spec
+            if act.get("bg") == "alpha_split":
+                img = alpha_split(d, box)
+                out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
+                continue
             if act.get("bg"):
                 # A board on a checkerboard (the Hydra's heal): cut as the
                 # pose boards are, not by brightness off black.
@@ -3378,15 +3826,13 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
                 out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
                 continue
             rgb = np.asarray(board(d).crop(box).convert("RGB")).astype(int)
-            if act.get("matte"):
-                img = _cut_action_matte(rgb, action_matte_path(kind, d, pose), act.get("red_lum", 40))
-                out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
-                continue
-            if act.get("isolate"):
+            if act.get("isolate") and (d, pose) not in act.get("isolate_skip", ()):
                 rgb[others(d, box)] = 0
             img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
                                   act.get("keep_share", 0.0), act.get("fill_holes", False), act.get("levels"),
                                   act.get("glow", True), act.get("open_dark", False), act.get("shadow_lum", 0.0))
+            for side, px in act.get("edge_fade", {}).get((d, pose), ()):
+                img = _fade_edge(img, side, px)
             out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
         for pose, other in again:
             out[d][pose] = out[d][other]
@@ -3510,6 +3956,21 @@ def build_strip(name: str, cfg: dict) -> None:
     board = Image.open(SRC % st["src"]).convert("RGBA")
     raw = []
     for box in st["frames"]:
+        if st.get("bg") == "black_key":
+            # A strip on black (the Rat King's Infest smoke): cut by
+            # brightness, soft alpha, every lit piece kept; padded back to
+            # the box so `align` still lines the frames up.
+            rgb = np.asarray(board.convert("RGB").crop(box)).astype(int)
+            lum = rgb.max(axis=2).astype(float)
+            alpha = np.clip((lum - BLACK_FLOOR) / float(BLACK_SOLID - BLACK_FLOOR), 0.0, 1.0)
+            a = np.maximum(alpha, 1e-6)[..., None]
+            col = np.where(alpha[..., None] > 0, np.clip(rgb / a, 0, 255), 0)
+            # `alpha_gain`: the smoke thickened (its colour kept), so a wisp
+            # drawn faint on black still reads as a dark shadow on a lit floor.
+            alpha = np.clip(alpha * float(st.get("alpha_gain", 1.0)), 0.0, 1.0)
+            f = Image.fromarray(np.dstack([col, alpha * 255.0]).round().astype(np.uint8), "RGBA")
+            raw.append(f)
+            continue
         f = board.crop(box)
         a = np.asarray(f).copy()
         a[..., 3] = np.where(a[..., 3] >= 128, 255, 0)   # the board's faint haze goes
@@ -3518,28 +3979,53 @@ def build_strip(name: str, cfg: dict) -> None:
     # Trimmed to each frame's art; with `align` "board" every frame keeps the
     # rows they span together, so a ball flying level doesn't bob as its
     # sparkles come and go (the snowball).
-    boxes = [f.getbbox() for f in raw]
-    if st.get("align") == "board":
+    boxes = [f.getbbox() or (0, 0, f.width, f.height) for f in raw]
+    if st.get("trim") is False:
+        # Each frame keeps its whole box (the Harpy's vortex: it grows from
+        # one end of its frame toward the other, so its place in the frame
+        # is the animation).
+        boxes = [(0, 0, f.width, f.height) for f in raw]
+    elif st.get("align") == "board":
         y0, y1 = min(b[1] for b in boxes), max(b[3] for b in boxes)
         boxes = [(b[0], y0, b[2], y1) for b in boxes]
     raw = [f.crop(b) for f, b in zip(raw, boxes)]
     width = raw[0].width
+    if st.get("width_of") == "max":
+        width = max(f.width for f in raw)   # `width_tiles` is the widest frame's
+    if st.get("stretch"):
+        # Every frame stretched across to the widest frame's width (the
+        # Djinn's arc: its ends then sit at the same place in each frame,
+        # however long the arc has grown), `width_tiles` that width.
+        width = max(f.width for f in raw)
+        raw = [f.convert("RGBa").resize((width, f.height), Image.LANCZOS).convert("RGBA") for f in raw]
     for root, kind, density, air in ((OUT % cfg["into"], "pixel", DENSITY, 0),
                                      (os.path.join(smooth_art.ROOT, "sheets", cfg["into"]), "smooth", smooth_art.SMOOTH_DENSITY, SMOOTH_GUTTER)):
         factor = width / float(st["width_tiles"] * density)
         if kind == "pixel":
             fs = [shrink(f, factor) for f in raw]
+        elif st.get("trim") is False:
+            fs = [smooth_art.resample(f, factor) for f in raw]   # each keeps its whole box
         else:
             fs = [smooth_art.trim(smooth_art.resample(f, factor)) for f in raw]
         cell = max(max(f.width, f.height) for f in fs) + 2 + air
+        # One row, unless that runs past MAX_SHEET_PX: then rows of equal
+        # length (the Harpy's 77-frame vortex is 7 rows of 11; KINDS names
+        # the rows). A texture wider than many GPUs allow draws nothing.
+        cols = len(fs)
+        if cols * cell > MAX_SHEET_PX:
+            nrows = next((r for r in range(2, len(fs) + 1) if len(fs) % r == 0 and len(fs) // r * cell <= MAX_SHEET_PX), None)
+            assert nrows, "%s: %d frames do not split into equal rows under %d px" % (name, len(fs), MAX_SHEET_PX)
+            cols = len(fs) // nrows
+        grid = [fs[i:i + cols] for i in range(0, len(fs), cols)]
         if kind == "pixel":
-            sheet = Image.new("RGBA", (cell * len(fs), cell))
-            for i, f in enumerate(fs):
-                sheet.paste(f, (i * cell + (cell - f.width) // 2, cell - air - f.height), f)
+            sheet = Image.new("RGBA", (cell * cols, cell * len(grid)))
+            for r, row in enumerate(grid):
+                for i, f in enumerate(row):
+                    sheet.paste(f, (i * cell + (cell - f.width) // 2, r * cell + cell - air - f.height), f)
         else:
-            sheet = smooth_art.pack([fs], cell, len(fs), lambda row, ci: row[ci], air=air)
+            sheet = smooth_art.pack(grid, cell, cols, lambda row, ci: row[ci], air=air)
         sheet.save(os.path.join(root, st["sheet"] + ".png"))
-        print("%-13s %s: %d frames, %d-px cells into %s" % (name, kind, len(fs), cell, cfg["into"]))
+        print("%-13s %s: %d frames (%d row(s) of %d), %d-px cells into %s" % (name, kind, len(fs), len(grid), cols, cell, cfg["into"]))
 
 
 def build(name: str, cfg: dict) -> None:
