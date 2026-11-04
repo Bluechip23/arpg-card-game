@@ -1228,7 +1228,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SPECTER: "Spirit Spit (5 tempo, range 2): 2 damage.\nInvisible (8 tempo, Async): fades out for 3 tempo — it cannot be targeted.\nMove (1 tempo): 1 space.",
 		EnemyType.MAGMA_SPIDER: "It never moves.\nFire Web (8 tempo): spins a web of fire on the ground around it — while you stand in it you are Slowed and take 1 fire damage every 3 tempo.",
 		EnemyType.PIT_FIEND: "[Design mock-up — stats & moves TBD.]",
-		EnemyType.ASH_HARPY: "Flying: ignores your high-ground bonus.\nPeck (5 tempo): 3 damage.\nCard Steal (8 tempo, once per harpy): spots a card from 4 squares, flies in to melee and snatches it from your hand; kill the harpy and the card comes back.\nMove (1 tempo): 1 space.",
+		EnemyType.ASH_HARPY: "Flying: ignores your high-ground bonus.\nPeck (5 tempo): 3 damage. Range 4, but she flies into melee range to land it.\nCard Steal (8 tempo, once per harpy, range 5): her vortex sweeps a card from your hand back to her; kill the harpy and the card comes back.\nMove (1 tempo): 1 space.",
 		EnemyType.INFLAMED_MINOTAUR: "Leaves fire in its wake (a trap on every tile it walks off — and along every charge: 10 damage + 2 Burn, lingers 15 tempo) and heals 10 whenever that fire burns a player. Resists 15% physical / 50% fire / 25% lightning. Slow is his weakness: every Slow stack shortens the leap (Sword of Theseus).\nAttack (5 tempo): 35 damage + 2 Burn.\nLabyrinth Leap (auto, once he has taken over 20 damage since his last leap — a running total, not one blow): springs away 14 spaces (minus 1 per Slow) to a random open tile.\nBull Rush (a random 5 to 15 tempo after landing): charges the player — damage equals the spaces covered by leap + rush, with a spaces x4% chance to stun (5 tempo) AND weaken; the target and everything trampled en route are left Vulnerable.\nMove (5 tempo): 6 spaces.\nThe room: every 25 tempo you are Lost in the Labyrinth for 15 — your hand is scrambled, must be played left to right, and you cannot draw.",
 		# --- Heavens ---
 		EnemyType.CHERUB: "5 armor, range 4.\nLove's Arrow: 2 damage, and for 5 tempo you cannot attack the Cherub directly (poison, burn and area damage still land). The first arrow flies the moment you enter its reach; after that it is a 10-tempo attack.\nMove (3 tempo): 2 spaces.",
@@ -3421,7 +3421,7 @@ func _run_action(action_name: String, move_target: Node3D) -> bool:
 		"demon_attack":
 			return _try_elemental(move_target, attack_damage, "Attack")
 		"peck":
-			return _try_elemental(move_target, attack_damage, "Peck")
+			return _try_harpy_peck(move_target)   # only the Ash Harpy pecks
 		"card_steal":
 			return _try_card_steal(move_target)
 		"fire_web":
@@ -5033,27 +5033,50 @@ var _harpy_steal_used: bool = false   # Ash Harpy: Card Steal fires once per har
 var _stolen_card: Card = null         # the card it carries until it dies
 var _stolen_from: Node3D = null       # whose hand it came from
 
+## Designer, 2026-11-04: Card Steal is cast from range 5 (her vortex sweeps
+## the card back to her); Peck spots its prey from 4 squares, but the harpy
+## must fly into melee range to land it.
+const HARPY_STEAL_RANGE := 5
+const HARPY_PECK_RANGE := 4
+
 func _choose_harpy_action(distance: int) -> void:
-	if not _harpy_steal_used and distance <= 4:
+	if not _harpy_steal_used and distance <= HARPY_STEAL_RANGE:
 		chosen_action = _get_action("card_steal")
-	elif distance <= 1:
+	elif distance <= HARPY_PECK_RANGE:
 		chosen_action = _get_action("peck")
 	else:
 		chosen_action = _get_action("move")
 
-## Card Steal (sheet, 8): spots a card from 4 squares, flies into melee and
-## takes one random card from the hand; the card returns when the harpy dies.
+## Peck (sheet, 5): 3 damage. Range 4, but she has to fly into melee range
+## to do it: from up to 4 squares off she lands beside her prey (as the Roc
+## dives) and pecks; further off, or with nowhere to land, she moves instead.
+func _try_harpy_peck(target_node: Node3D) -> bool:
+	if not is_instance_valid(target_node) or _cells_between(self, target_node) > HARPY_PECK_RANGE:
+		return _try_move(target_node)
+	if is_disarmed:
+		return false
+	if _cells_between(self, target_node) > 1:
+		if rooted_tempo > 0:
+			return false
+		var perch := _free_cell_near(target_node.position, 1)
+		if grid_manager and grid_manager.world_to_grid(perch) == grid_manager.world_to_grid(target_node.position):
+			return _try_move(target_node)   # nowhere to land beside them
+		_land_at(perch)
+	return _try_elemental(target_node, attack_damage, "Peck")
+
+## Card Steal (sheet, 8): cast from range 5 — her vortex sweeps one random
+## card from the hand back to her; the card returns when the harpy dies.
 ## The card is lifted, not discarded: no discard count, no discard triggers.
 ## sheet: with nothing in the hand to take the harpy pecks instead and keeps
 ## its one steal for later.
 func _try_card_steal(target_node: Node3D) -> bool:
 	if _harpy_steal_used:
 		return false
-	if _cells_between(self, target_node) > 1:
+	if _cells_between(self, target_node) > HARPY_STEAL_RANGE:
 		return _try_move(target_node)
 	var dm = target_node.get_deck_manager() if target_node.has_method("get_deck_manager") else null
 	if dm == null or dm.hand.is_empty():
-		return _try_elemental(target_node, attack_damage, "Peck")
+		return _try_harpy_peck(target_node)
 	var idx: int = randi() % dm.hand.size()
 	var card: Card = dm.hand[idx]
 	dm.hand.remove_at(idx)

@@ -95,7 +95,7 @@ code was altered in this pass to match; "Built" means the enemy or action did no
 | Snow Wraith | Trash 3 | Built | Snowball (8): Slowed 3 tempo + 2 Cold; Ice Blast: 5 ice +3 vs armor, Slowed 3 tempo. Open: Ice Blast has no tempo on the sheet (5 used) and no range (5 used). |
 | Specter | Trash 1 | Built | Spirit Spit 2 at range 2; Invisible (Async 8) hides it 3 tempo. |
 | Succubus | Trash 4 | Built | Mana Drain −10; Damaging Snap = missing mana / 20 + 4. Open: no range on the sheet (4 used). |
-| Ash Harpy | Trash 1 | Built | Peck 3; Card Steal once per harpy: flies in from 4, takes a random card out of the hand (not a discard), returns it on death / despawn / save. |
+| Ash Harpy | Trash 1 | Built | Peck 3, range 4: she flies in beside her prey to land it (designer, 2026-11-04). Card Steal once per harpy, range 5 (was "flies in from 4"): takes a random card out of the hand (not a discard), returns it on death / despawn / save. |
 | Cherub | Trash 4 | Built | Love's Arrow 2 and the Cherub cannot be attacked directly for 5 tempo; the first arrow flies the moment a unit enters range 4, then it is a 10-tempo clock. |
 | Magma Spider | Trash 1 | Built | Fire Web: the 3×3 around the spider; inside it the player is Slowed and takes 1 fire damage every 3 tempo; lasts while the spider lives. Open: size, duration and the cast tempo (8) are all unstated on the sheet. |
 | Mind Eater | Trash 3 | Built | Mind Slow (10): every card in the hand costs +20 mana until played (one Hex per card); Manipulate Mind Space (8): Cuffed 15. Open: range (6). |
