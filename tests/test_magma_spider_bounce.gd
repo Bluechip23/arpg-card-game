@@ -7,6 +7,8 @@ extends SceneTree
 ## its height above the ground (the airborne frames stay in the air). Its
 ## Fire Bounce plays it facing the leap, lands at once on the board, and the
 ## figure is carried across through the airborne frames (leap_from).
+## Its Fire Web plays Cast.png (the designer's web board) and spits a glob
+## of fire at its prey, the web's flames showing as it lands.
 ## Run: godot --headless --path . --script tests/test_magma_spider_bounce.gd
 
 var failures := 0
@@ -126,4 +128,51 @@ func _test_enemy() -> void:
 	_check(fig.global_position.distance_to(Vector3(take_off.x, fig.global_position.y, take_off.z)) < 0.05, "still crouched on its take-off square")
 	await create_timer(3.5 / fps).timeout
 	_check(fig.global_position.distance_to(Vector3(landing.x, fig.global_position.y, landing.z)) < 0.05, "through the air and down on its landing square")
+	main.enemy_spawner.despawn_enemy(s)
+	await _test_web(cell)
+
+
+func _thrown(n: Node) -> Array:
+	var out: Array = []
+	for c in n.get_children():
+		if c is ThrownSprite:
+			out.append(c)
+	return out
+
+
+## Its Fire Web (the designer's web board, 2026-11-04): Cast.png — rearing,
+## aiming, spitting a glob of fire — and the glob flies to its prey, the
+## web's flames showing as it lands.
+func _test_web(cell: Vector2i) -> void:
+	print("-- Fire Web --")
+	var s: Enemy = main.enemy_spawner.spawn_enemy(Enemy.EnemyType.MAGMA_SPIDER, main._ground_pos(cell + Vector2i(3, 0)))
+	s.chosen_action = {}
+	await _settle(2)
+	var fig: SpriteEnemyFigure = s._enemy_figure
+	_check(fig._cp_sheets.has("Cast") and fig._cp_frame_count("Cast") == 7, "a seven-frame Cast sheet")
+	_check(fig._cp_sheets["Cast"].get_height() == 4 * fig._cp_cell, "in the four facing rows, the Idle sheet's cells")
+	_check(is_equal_approx(fig._cp_fps.get("Cast", 0.0), 10.0 / SpriteEnemyFigure.DRAWN_ATTACK_SLOW), "at its drawn 10 fps, slowed as every enemy swing is")
+	var holds: Array = []
+	s.swing_started.connect(func(_e, sec): holds.append(sec))
+	s._execute_action("fire_web", main.player)
+	_check(fig._cp_anim == "Cast", "its Fire Web plays the spit (%s)" % fig._cp_anim)
+	var globs := _thrown(s.get_parent())
+	_check(globs.size() == 1, "a glob of fire flies at its prey")
+	var release: float = 4.0 / fig._cp_fps["Cast"]
+	_check(globs.size() == 1 and is_equal_approx(globs[0]._delay, release), "it leaves as the spider flicks it off (%.2f s)" % (globs[0]._delay if globs.size() else -1.0))
+	_check(globs.size() == 1 and globs[0]._to.distance_to(main.player.global_position) < 0.01, "to the player")
+	var web: Dictionary = main._fire_webs.back() if not main._fire_webs.is_empty() else {}
+	_check(not web.is_empty() and main.grid_manager.world_to_grid(main.player.position) in web["cells"], "the web is laid around the player at once")
+	var hidden := true
+	for v in web.get("nodes", []):
+		if v.visible:
+			hidden = false
+	_check(hidden, "its flames hidden while the glob flies")
+	_check(holds.size() >= 2 and holds.max() > release, "the clock waits for the glob (%s s)" % str(holds))
+	await create_timer(holds.max() + 0.2).timeout
+	var shown := true
+	for v in web.get("nodes", []):
+		if is_instance_valid(v) and not v.visible:
+			shown = false
+	_check(shown, "and they spring up as it lands")
 	main.enemy_spawner.despawn_enemy(s)

@@ -5201,7 +5201,15 @@ func _try_fire_web(target_node: Node3D) -> bool:
 	for dx in range(-1, 2):
 		for dz in range(-1, 2):
 			cells.append(centre + Vector2i(dx, dz))
-	main.register_fire_web(self, cells)
+	# It spits a glob of fire-web at its prey; the web's flames show as the
+	# glob lands (the web itself is laid now: the tick clock waits for the
+	# glob, so no tempo passes before it lands).
+	var reveal := 0.0
+	if _enemy_figure and _enemy_figure.has_method("throw_projectile"):
+		reveal = _enemy_figure.throw_projectile(target_node.global_position, "fire_web")
+		if reveal > 0.0:
+			swing_started.emit(self, reveal)
+	main.register_fire_web(self, cells, reveal)
 	print("[%s] Fire Web: the ground around it catches" % enemy_name)
 	turn_completed.emit()
 	return true

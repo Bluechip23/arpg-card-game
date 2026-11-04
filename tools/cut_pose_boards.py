@@ -1795,6 +1795,103 @@ BOARDS = {
             },
         },
     },
+    "magma_spider_web": {
+        # 2026-11-04: the Magma Spider's Fire Web — magma_spider_web_board.webp,
+        # "FIRE-WEB SHOOTING ATTACK", four labelled rows on black (NORTH: the
+        # face, SOUTH: the back, WEST, EAST), eight numbered frames a row:
+        # the stance, rearing, drawing back, aiming, spitting a glob of fire
+        # (still strung to its jaws), and the recoil while the glob flies
+        # off (the board draws it flying away across the next frames, into
+        # their boxes). Frames 2-8 are Cast.png, packed into its folder; the
+        # glob that flies off is its own sprite (magma_spider_glob), sent to
+        # its prey. Each row is split at the contacts between neighbours
+        # (`split`: a glob touches the next frame's spider), and only pieces
+        # near the spider's size are kept (`keep_share`): a loose glob falls
+        # away.
+        "into": "magma_spider",
+        "actions": {
+            "src": "magma_spider_web_board.webp",
+            "levels": (6, 35, 10),   # its black rock runs just above the backdrop's 0
+            "fill_holes": 6,
+            "open_dark": True,
+            "keep_share": 0.2,       # a detached leg, not a flying glob (a tenth of the spider)
+            "glow": False,
+            "split": True,           # its globs touch the next frame's spider: parted at the contact
+            # The painted globs (the flying one is its own sprite): dropped
+            # with whatever lies nearer them than a spider (a strand parts
+            # half way).
+            # The spit frame's glob, still strung to its jaws, is kept on the
+            # front and back rows (the flying glob leaves from there); the
+            # side rows shoot it backward out of the abdomen, away from where
+            # it faces, so theirs go and the flying glob leaves its head.
+            "discard": {"front": [(1020, 234), (1190, 247)],
+                        "back": [(1022, 327), (1191, 319), (1356, 312)],
+                        "left": [(766, 673), (907, 682), (1074, 691), (1257, 703)],
+                        "right": [(766, 916), (944, 918), (1122, 932), (1281, 942)]},
+            "isolate_floor": 14,
+            "match": "stance",
+            "match_scale": {"left": 1.0, "right": 1.0},
+            "frames": {
+                "front": {
+                    "stance": (110, 62, 273, 250),
+                    "rear": (273, 62, 440, 250),
+                    "draw": (440, 62, 605, 250),
+                    "aim": (605, 62, 770, 250),
+                    "spit": (770, 62, 936, 250),
+                    "flick": (936, 62, 1105, 250),
+                    "recoil": (1105, 62, 1273, 250),
+                    "back": (1273, 62, 1440, 250),
+                },
+                "back": {
+                    "stance": (110, 296, 273, 500),
+                    "rear": (273, 296, 440, 500),
+                    "draw": (440, 296, 605, 500),
+                    "aim": (605, 296, 770, 500),
+                    "spit": (770, 296, 936, 500),
+                    "flick": (936, 296, 1105, 500),
+                    "recoil": (1105, 296, 1273, 500),
+                    "back": (1273, 296, 1440, 500),
+                },
+                "left": {
+                    "stance": (110, 585, 273, 726),
+                    "rear": (273, 585, 440, 726),
+                    "draw": (440, 585, 605, 726),
+                    "aim": (605, 585, 770, 726),
+                    "spit": (770, 585, 936, 726),
+                    "flick": (936, 585, 1105, 726),
+                    "recoil": (1105, 585, 1273, 726),
+                    "back": (1273, 585, 1440, 726),
+                },
+                "right": {
+                    "stance": (110, 825, 273, 966),
+                    "rear": (273, 825, 440, 966),
+                    "draw": (440, 825, 605, 966),
+                    "aim": (605, 825, 770, 966),
+                    "spit": (770, 825, 936, 966),
+                    "flick": (936, 825, 1105, 966),
+                    "recoil": (1105, 825, 1273, 966),
+                    "back": (1273, 825, 1440, 966),
+                },
+            },
+            "sheets": {
+                "Cast": ["rear", "draw", "aim", "spit", "flick", "recoil", "back"],
+            },
+        },
+    },
+    "magma_spider_glob": {
+        # The glob of fire-web in flight: the East row's last glob on the
+        # same board, flying right with its trail, cut by brightness with
+        # soft alpha. Glob.png in its folder; its Fire Web sends it to its
+        # prey (ThrownSprite), mirrored when it flies left. 0.55 tiles, glob and trail.
+        "into": "magma_spider",
+        "strip": {
+            "src": "magma_spider_web_board.webp",
+            "bg": "black_key",
+            "sheet": "Glob",
+            "width_tiles": 0.55,
+            "frames": [(1236, 920, 1306, 964)],
+        },
+    },
     "wolf": {
         # 2026-10-31: the Wolf's bite — wolf_bite_board.webp, four labelled
         # rows on black (Up: from behind, Down: facing the camera, Left,
@@ -3841,15 +3938,36 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
             y0, y1 = box[1], box[3]
             X0, X1 = min(b[0] for b in row), max(b[2] for b in row)
             reg = rgba[y0:y1, X0:X1]
-            solid = reg[..., 3] >= 128
+            if act.get("bg") == "alpha_split":
+                solid = reg[..., 3] >= 128
+            else:
+                # `split` on a board on black: what is lit is solid (the
+                # Magma Spider's web board, its globs touching the next
+                # frame's spider).
+                floor = act.get("isolate_floor", (act.get("levels") or (BLACK_FLOOR,))[0])
+                solid = reg[..., :3].max(axis=2) > floor
             h, w = solid.shape
             lab = np.full((h, w), -1, np.int32)
             q = deque()
+            # `discard`: points on the board (the Magma Spider's painted
+            # globs) that seed a label of their own; what is nearer them than
+            # any frame's body goes with them and is dropped.
+            for gx, gy in act.get("discard", {}).get(d, ()):
+                if y0 <= gy < y1 and X0 <= gx < X1:
+                    for yy in range(max(0, gy - y0 - 4), min(h, gy - y0 + 5)):
+                        for xx in range(max(0, gx - X0 - 4), min(w, gx - X0 + 5)):
+                            if solid[yy, xx] and lab[yy, xx] < 0:
+                                lab[yy, xx] = len(row)
+                                q.append((yy, xx))
+            near_glob = np.zeros((h, w), bool)   # body seeds stay clear of a discard point
+            for gx, gy in act.get("discard", {}).get(d, ()):
+                yy0, xx0 = gy - y0, gx - X0
+                near_glob[max(0, yy0 - 20):max(0, yy0 + 21), max(0, xx0 - 20):max(0, xx0 + 21)] = True
             for j, b in enumerate(row):
                 cx = (b[0] + b[2]) // 2 - X0
                 for x in range(max(0, cx - 6), min(w, cx + 7)):
                     for y in np.nonzero(solid[:, x])[0]:
-                        if lab[y, x] < 0:
+                        if lab[y, x] < 0 and not near_glob[y, x]:
                             lab[y, x] = j
                             q.append((y, x))
             while q:
@@ -3908,7 +4026,17 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
                 out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
                 continue
             rgb = np.asarray(board(d).crop(box).convert("RGB")).astype(int)
-            if act.get("isolate") and (d, pose) not in act.get("isolate_skip", ()):
+            if act.get("split"):
+                # Each pixel to the frame whose body it is nearest through
+                # the lit pixels: touching frames part at their narrowest
+                # contact (see alpha_split, which does the same on alpha).
+                part = np.asarray(alpha_split(d, box))
+                key = (act["src"][d] if isinstance(act["src"], dict) else act["src"], box[1], box[3])
+                reg, lab, X0, row = split_cache[key]
+                j = row.index(box)
+                mine = lab[:, box[0] - X0:box[2] - X0] == j
+                rgb[~mine] = 0
+            elif act.get("isolate") and (d, pose) not in act.get("isolate_skip", ()):
                 rgb[others(d, box)] = 0
             img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
                                   act.get("keep_share", 0.0), act.get("fill_holes", False), act.get("levels"),

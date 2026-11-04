@@ -11034,13 +11034,20 @@ const FIRE_WEB_TICK_TEMPO: int = 3
 const FIRE_WEB_TICK_DAMAGE: int = 1
 const FIRE_WEB_SLOW_TEMPO: int = 2   # refreshed every tempo inside, so it outlasts the stay by one tick
 
-func register_fire_web(owner: Enemy, cells: Array) -> void:
+## `reveal_after`: seconds before its flames show (the Magma Spider's glob
+## is still in flight); the web takes effect at once.
+func register_fire_web(owner: Enemy, cells: Array, reveal_after: float = 0.0) -> void:
 	_remove_fire_web_of(owner)
 	var nodes: Array = []
 	for c in cells:
 		var v := _spawn_fire_wall_visual(c)
 		if v:
 			nodes.append(v)
+			if reveal_after > 0.0:
+				v.visible = false
+				get_tree().create_timer(reveal_after).timeout.connect(func():
+					if is_instance_valid(v):
+						v.visible = true)
 	_fire_webs.append({"owner": owner, "cells": cells, "nodes": nodes, "inside_tempo": {}})
 	add_battle_log("%s spins a web of fire across the ground!" % owner.enemy_name, Color(1.0, 0.5, 0.2))
 
