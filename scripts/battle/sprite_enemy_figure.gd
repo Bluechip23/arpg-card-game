@@ -164,7 +164,7 @@ const KINDS := {
 	"zombie": {"sheets": SHEETS + "/zombie", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and its attack board (2026-11-01: Attack is the reach and grab, slow); was the zombie pack's Zombie1
 	"infected_hunter": {"sheets": SHEETS + "/infected_hunter", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the zombie pack's Zombie3
 	"succubus": {"sheets": SHEETS + "/succubus", "scale": BOARD_SCALE, "fps": {"Cast": 10.0, "Attack": 10.0}, "action_sheets": {"mana_drain": "Cast", "damaging_snap": "Attack"}, "projectiles": {"mana_drain": {"sheet": "Orb", "release": 3, "arrive": 6, "reverse": true, "fps": 12.0, "lift": 0.95, "ahead": 0.3}, "damaging_snap": {"sheet": "Scythe", "release": 6, "speed": 7.0, "fps": 16.0, "lift": 1.1, "ahead": 0.3}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and her Mana Drain board (2026-11-04: Cast is her reaching out, curling her fingers and beckoning, the ball caught in her hand; Orb the ball of mana drawn from her victim back to her hand; and her finger snap board: Attack, her Damaging Snap, the hand raised and the snap; Scythe the spinning scythe it sends); was the chaos-monster Icon14
-	"cherub": {"sheets": SHEETS + "/cherub", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the NPC baby sheet, tinted
+	"cherub": {"sheets": SHEETS + "/cherub", "scale": BOARD_SCALE, "projectiles": {"loves_arrow": {"sheet": "Arrow", "speed": 10.0, "lift": 0.7, "ahead": 0.35, "facings": true, "centered": true}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the NPC baby sheet, tinted; and its arrow board (2026-11-04: Arrow, one view a way, shot by its Love's Arrow)
 	"corrupted_archangel": {"sheets": SHEETS + "/corrupted_archangel", "scale": BOARD_SCALE},  # the boss trio board (tools/cut_pose_boards.py, 2026-10-27); was the walk-sheet cut
 	# --- the generic Minion / Elite / Boss tiers (and custom enemies): the
 	# Craftpix swordsman's three gear tiers, lvl4 → lvl6 increasingly heavy,
@@ -952,7 +952,8 @@ func throw_projectile(target: Vector3, action: String) -> float:
 		speed = Vector2(to.x - from.x, to.z - from.z).length() / travel
 	var gutter := 8 if smooth else 0      # SMOOTH_GUTTER under the smooth strip's art
 	b.launch(load(path), _sprite.pixel_size * _rig.scale.x, gutter, smooth, from, to, release,
-			speed, float(proj.get("fps", ThrownSprite.SPIN_FPS)), float(proj.get("lift", 0.0)))
+			speed, float(proj.get("fps", ThrownSprite.SPIN_FPS)), float(proj.get("lift", 0.0)),
+			bool(proj.get("facings", false)), bool(proj.get("centered", false)))
 	return b.total_time()
 
 

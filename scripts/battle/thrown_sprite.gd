@@ -26,6 +26,7 @@ var _clock := 0.0
 var _cell := 0
 var _frames := 1
 var _fading := false
+var _facing_frame := -1   # `facings`: the one frame it shows
 
 
 ## Seconds from its launch until it reaches the target (the delay and the flight).
@@ -39,9 +40,14 @@ func total_time() -> float:
 ## smooth figures. `from` / `to`: global ground positions. `speed`: tiles a
 ## second; `fps`: frames a second; `lift`: how far up the screen (tiles)
 ## above its ground point it flies (0: it rolls along the ground, the boulder).
+## `facings`: the strip is one frame a way, east, west, north, south (the
+## Cherub's arrow): the one nearest the way it flies is shown, no frames
+## turning, no mirroring. `centered`: its frames are centred in their cells,
+## the middle on its flight line rather than its foot.
 func launch(sheet: Texture2D, texel: float, gutter: int, smooth: bool,
 		from: Vector3, to: Vector3, delay: float,
-		speed: float = SPEED, fps: float = SPIN_FPS, lift: float = 0.0) -> void:
+		speed: float = SPEED, fps: float = SPIN_FPS, lift: float = 0.0,
+		facings: bool = false, centered: bool = false) -> void:
 	_cell = sheet.get_height()
 	_frames = maxi(1, int(sheet.get_width() / _cell))
 	_from = from
@@ -61,9 +67,14 @@ func launch(sheet: Texture2D, texel: float, gutter: int, smooth: bool,
 			else BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_OPAQUE_PREPASS if smooth else SpriteBase3D.ALPHA_CUT_DISCARD
 	# Its foot at the node: the strip's bottom (less its gutter) on the ground.
-	_sprite.offset = Vector2(-_cell * 0.5, -gutter)
+	_sprite.offset = Vector2(-_cell * 0.5, -_cell * 0.5 if centered else -gutter)
 	# Going toward the screen's left: the strip mirrored.
-	_sprite.flip_h = to.x < from.x - 0.01
+	_sprite.flip_h = to.x < from.x - 0.01 and not facings
+	if facings:
+		# East, west, north (screen-up: -Z), south: whichever is nearest.
+		var dx := to.x - from.x
+		var dz := to.z - from.z
+		_facing_frame = (0 if dx >= 0.0 else 1) if absf(dx) >= absf(dz) else (2 if dz < 0.0 else 3)
 	# `lift` up the screen (a billboard's height runs along screen-up, not
 	# the world's Y: the camera looks nearly straight down).
 	_sprite.position = Vector3(0, CameraView.SPRITE_LIFT, 0) + CameraView.screen_up() * lift
@@ -74,6 +85,8 @@ func launch(sheet: Texture2D, texel: float, gutter: int, smooth: bool,
 
 
 func _show_frame(i: int) -> void:
+	if _facing_frame >= 0:
+		i = _facing_frame
 	_sprite.region_rect = Rect2((i % _frames) * _cell, 0, _cell, _cell)
 
 

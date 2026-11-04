@@ -1517,6 +1517,26 @@ BOARDS = {
             "frames": [(20, 428, 203, 640), (203, 428, 392, 640), (392, 428, 583, 640), (583, 428, 780, 640), (780, 428, 977, 640), (977, 428, 1165, 640), (1165, 428, 1348, 640), (1348, 428, 1520, 640)],
         },
     },
+    "cherub_arrow": {
+        # 2026-11-04: the arrow the Cherub shoots for its Love's Arrow —
+        # cherub_arrow_board.webp, one arrow drawn four ways on black (NORTH,
+        # SOUTH, WEST, EAST: pointing up, down, left, right), a heart-shaped
+        # head, a gold-capped shaft, a pink bow with a heart charm and white
+        # fletching, sparkles about it. Arrow.png in its folder, one frame a
+        # way in the order east, west, north, south, each centred in its
+        # cell; ThrownSprite shows the one nearest the way it flies. The
+        # arrow (head to fletching, 440 board pixels) 0.9 tiles long.
+        "into": "cherub",
+        "strip": {
+            "src": "cherub_arrow_board.webp",
+            "bg": "black_key",
+            "sheet": "Arrow",
+            "width_tiles": 0.9,
+            "width_px": 440,
+            "center": True,
+            "frames": [(686, 775, 1144, 930), (110, 775, 570, 930), (275, 115, 420, 530), (835, 128, 994, 540)],
+        },
+    },
     "fire_goblin": {
         # 2026-10-25: the Fire Goblin — a goblin in red leather with a torch,
         # scimitar and round shield; the fire goblin soldier and shaman wear it
@@ -4820,9 +4840,22 @@ def build_strip(name: str, cfg: dict) -> None:
         y0, y1 = min(b[1] for b in boxes), max(b[3] for b in boxes)
         boxes = [(b[0], y0, b[2], y1) for b in boxes]
     raw = [f.crop(b) for f, b in zip(raw, boxes)]
+    if st.get("center"):
+        # Each frame centred in a square as big as the largest frame (the
+        # Cherub's arrow, one view a direction: whichever is shown, its
+        # middle sits on the flight line).
+        side = max(max(f.width, f.height) for f in raw)
+        sq = []
+        for f in raw:
+            pad = Image.new("RGBA", (side, side))
+            pad.paste(f, ((side - f.width) // 2, (side - f.height) // 2))
+            sq.append(pad)
+        raw = sq
     width = raw[0].width
     if st.get("width_of") == "max":
         width = max(f.width for f in raw)   # `width_tiles` is the widest frame's
+    if st.get("width_px"):
+        width = int(st["width_px"])   # `width_tiles` is this many board pixels
     if st.get("stretch"):
         # Every frame stretched across to the widest frame's width (the
         # Djinn's arc: its ends then sit at the same place in each frame,
@@ -4834,8 +4867,8 @@ def build_strip(name: str, cfg: dict) -> None:
         factor = width / float(st["width_tiles"] * density)
         if kind == "pixel":
             fs = [shrink(f, factor) for f in raw]
-        elif st.get("trim") is False:
-            fs = [smooth_art.resample(f, factor) for f in raw]   # each keeps its whole box
+        elif st.get("trim") is False or st.get("center"):
+            fs = [smooth_art.resample(f, factor) for f in raw]   # each keeps its whole box (or its centring)
         else:
             fs = [smooth_art.trim(smooth_art.resample(f, factor)) for f in raw]
         cell = max(max(f.width, f.height) for f in fs) + 2 + air

@@ -5387,6 +5387,7 @@ func _try_loves_arrow(target_node: Node3D) -> bool:
 	if is_silenced or not _in_attack_range(target_node):
 		return _try_move(target_node)
 	_deal_damage_to_player(target_node, attack_damage, "Love's Arrow")
+	_throw_at(target_node, "loves_arrow")   # its arrow flies to its victim
 	_cherub_first_arrow = false
 	set_hidden(CHERUB_HIDDEN_TEMPO)
 	turn_completed.emit()
