@@ -11,8 +11,9 @@ extends SceneTree
 const EquipmentSlotCellScript = preload("res://scripts/character/equipment_slot_cell.gd")
 
 ## Every mythic wears the designer's painting (tools/cut_mythic_art.py,
-## 2026-10-23) except these, which keep their generated 32px icon.
-const GENERATED := ["bladed_doughnut"]
+## 2026-10-23; the Bladed Doughnut, the last, 2026-10-31) — none keeps a
+## generated 32px icon any more.
+const GENERATED := []
 const PAINTED_SIZE := Vector2(128, 128)
 
 var failures := 0
@@ -69,8 +70,10 @@ func _test_pixel_art_scaling() -> void:
 	## The slot blows a small sprite up by whole texels only — never a
 	## fractional enlargement (style guide §1); a box too small for it shrinks it.
 	print("-- Whole-texel scaling --")
-	var tex: Texture2D = ItemData.create("bladed_doughnut").get_appearance_texture()
-	_check(tex != null and tex.get_size() == Vector2(32, 32), "a generated 32px icon to scale")
+	# No mythic is a 32px sprite any more; the slot still scales one by whole
+	# texels (other small icons go through it).
+	var tex: Texture2D = ImageTexture.create_from_image(Image.create(32, 32, false, Image.FORMAT_RGBA8))
+	_check(tex != null and tex.get_size() == Vector2(32, 32), "a 32px sprite to scale")
 	for box in [Vector2(72, 64), Vector2(40, 40), Vector2(20, 20), Vector2(200, 200)]:
 		var rect: TextureRect = EquipmentSlotCellScript.make_pixel_art_rect(tex, box)
 		var steps: float = rect.custom_minimum_size.x / 32.0

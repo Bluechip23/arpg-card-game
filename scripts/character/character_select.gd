@@ -316,7 +316,7 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 	vb.add_child(title)
 
 	var sub := Label.new()
-	sub.text = "Every hero starts at 3 in each stat. Spend %d points to shape your build —\nhover or read the notes to learn what each stat does." % ALLOC_TOTAL
+	sub.text = "Every hero starts at 3 in each stat. Spend %d points to shape your build.\nClick a stat's name to read what it does." % ALLOC_TOTAL
 	sub.add_theme_font_size_override("font_size", 15)
 	sub.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -335,7 +335,7 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 	var rows_scroll := ScrollContainer.new()
 	rows_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	var vp_h := get_viewport_rect().size.y
-	rows_scroll.custom_minimum_size = Vector2(720, clampf(vp_h - 340.0, 180.0, 420.0))
+	rows_scroll.custom_minimum_size = Vector2(420, clampf(vp_h - 340.0, 180.0, 420.0))
 	vb.add_child(rows_scroll)
 	var rows_vb := VBoxContainer.new()
 	rows_vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -345,14 +345,19 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 	for key in CharacterData.STAT_KEYS:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
-		row.tooltip_text = CharacterData.stat_description(key)
 
-		var name_lbl := Label.new()
-		name_lbl.text = CharacterData.stat_full_name(key)
-		name_lbl.custom_minimum_size = Vector2(130, 0)
-		name_lbl.add_theme_font_size_override("font_size", 18)
-		name_lbl.add_theme_color_override("font_color", EmeraldTheme.TEXT)
-		row.add_child(name_lbl)
+		# The stat's name is a button: clicking it opens a large note on
+		# what the stat does (designer, 2026-11-01: no inline text, and
+		# tooltips big enough to read without squinting).
+		var name_btn := Button.new()
+		name_btn.text = CharacterData.stat_full_name(key)
+		name_btn.custom_minimum_size = Vector2(170, 36)
+		name_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		EmeraldTheme.style_button(name_btn, 18)
+		name_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		name_btn.tooltip_text = "Click to read what %s does" % CharacterData.stat_full_name(key)
+		name_btn.pressed.connect(_alloc_show_note.bind(key, name_btn))
+		row.add_child(name_btn)
 
 		var minus := Button.new()
 		minus.text = "−"
@@ -377,15 +382,6 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 		plus.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		plus.pressed.connect(_alloc_add.bind(key, 1))
 		row.add_child(plus)
-
-		var desc := Label.new()
-		desc.text = CharacterData.stat_description(key)
-		desc.custom_minimum_size = Vector2(420, 0)
-		desc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		desc.add_theme_font_size_override("font_size", 14)
-		desc.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
-		row.add_child(desc)
 
 		rows_vb.add_child(row)
 
@@ -412,6 +408,58 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 	btn_row.add_child(_alloc_confirm_btn)
 
 	_alloc_refresh()
+
+## The large note on a stat (ALLOC_NOTE_FONT text in a panel beside the
+## rows), opened by its name button; another click, Esc, or leaving the
+## allocation closes it.
+const ALLOC_NOTE_FONT := 20
+var _alloc_note: PanelContainer = null
+
+func _alloc_show_note(key: String, anchor: Control) -> void:
+	_alloc_hide_note()
+	var panel := PanelContainer.new()
+	panel.name = "StatNote"
+	var style := EmeraldTheme.panel_box(EmeraldTheme.PANEL_BG_SOLID, EmeraldTheme.GOLD_DIM, 2, 8, 18.0)
+	style.content_margin_left = 20
+	style.content_margin_right = 20
+	panel.add_theme_stylebox_override("panel", style)
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 6)
+	panel.add_child(vb)
+	var title := Label.new()
+	title.text = CharacterData.stat_full_name(key)
+	EmeraldTheme.style_title(title, 24)
+	vb.add_child(title)
+	var body := Label.new()
+	body.text = CharacterData.stat_description(key)
+	body.custom_minimum_size = Vector2(440, 0)
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_theme_font_size_override("font_size", ALLOC_NOTE_FONT)
+	body.add_theme_color_override("font_color", EmeraldTheme.TEXT)
+	vb.add_child(body)
+	var hint := Label.new()
+	hint.text = "Click anywhere to close"
+	hint.add_theme_font_size_override("font_size", 14)
+	hint.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
+	vb.add_child(hint)
+	# A click anywhere on the note puts it away.
+	panel.gui_input.connect(func(ev: InputEvent) -> void:
+		if ev is InputEventMouseButton and ev.pressed:
+			_alloc_hide_note())
+	_alloc_overlay.add_child(panel)
+	# Beside the stat's row: to its right, kept on screen.
+	await get_tree().process_frame
+	var vp := get_viewport_rect().size
+	var at: Vector2 = anchor.get_global_rect().position + Vector2(anchor.size.x + 12.0, -8.0)
+	at.x = minf(at.x, vp.x - panel.size.x - 12.0)
+	at.y = clampf(at.y, 12.0, vp.y - panel.size.y - 12.0)
+	panel.global_position = at
+	_alloc_note = panel
+
+func _alloc_hide_note() -> void:
+	if _alloc_note and is_instance_valid(_alloc_note):
+		_alloc_note.queue_free()
+	_alloc_note = null
 
 func _alloc_add(key: String, delta: int) -> void:
 	if delta > 0 and _alloc_points <= 0:
@@ -451,6 +499,7 @@ func _alloc_cancel() -> void:
 	confirm_overlay.visible = true
 
 func _close_alloc_overlay() -> void:
+	_alloc_hide_note()
 	_alloc_on_confirm = Callable()
 	_alloc_char = null
 	_alloc_value_labels = {}

@@ -3,7 +3,7 @@ extends Node3D
 
 ## The mythic loot ceremony. Looting a mythic doesn't just add it to the bag:
 ##  1. A big yellow glow bursts out of the player and expands as it travels.
-##  2. Where the glow ends, a green present with a purple ribbon appears —
+##  2. Where the glow ends, the designer's present (green, purple bow) appears —
 ##     in battle, on an open tile right beside the player (`land_at`).
 ##  3. Clicking the present opens it: the mythic's icon rises out with flashy
 ##     coloration swirling around it.
@@ -12,6 +12,9 @@ signal claimed(item: ItemData)
 
 const GLOW_DURATION := 1.4      # seconds for the expansion
 const PRESENT_CLICK_RADIUS := 1.2
+const PRESENT_TEXTURE := "res://assets/textures/props/mythic_present.png"
+const PRESENT_HEIGHT := 0.75      # world units, about three quarters of a tile
+const ICON_SIZE := 0.9            # the mythic's art, whatever its pixel size
 
 # Tunable per spawn (the Animation Lab shrinks and pins these to keep the
 # present inside its preview camera's frame).
@@ -110,15 +113,18 @@ func _spawn_present() -> void:
 	_present_root.position = _present_offset
 	add_child(_present_root)
 
-	var green := Color(0.2, 0.7, 0.25)
-	var purple := Color(0.55, 0.2, 0.8)
-	_reveal_mesh(_present_root, _box(Vector3(0.42, 0.32, 0.42)), Vector3(0, 0.16, 0), green)
-	# Ribbon: two straps crossing the box, and a bow on top.
-	_reveal_mesh(_present_root, _box(Vector3(0.44, 0.34, 0.1)), Vector3(0, 0.16, 0), purple, true)
-	_reveal_mesh(_present_root, _box(Vector3(0.1, 0.34, 0.44)), Vector3(0, 0.16, 0), purple, true)
-	_reveal_mesh(_present_root, _sphere(0.07), Vector3(0, 0.36, 0), purple, true)
-	# Lid seam so it reads as a present, not a crate.
-	_reveal_mesh(_present_root, _box(Vector3(0.46, 0.05, 0.46)), Vector3(0, 0.28, 0), green.darkened(0.2))
+	# The designer's present (tools/cut_mythic_present.py, 2026-10-31): a
+	# green box with a gold-edged purple bow, standing on the tile.
+	var tex: Texture2D = load(PRESENT_TEXTURE)
+	var box := Sprite3D.new()
+	box.name = "Present"
+	box.texture = tex
+	box.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	box.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	box.pixel_size = PRESENT_HEIGHT / float(tex.get_height())
+	box.offset = Vector2(0, tex.get_height() * 0.5)   # stands on the tile
+	box.no_depth_test = true
+	_present_root.add_child(box)
 
 	# Arrive with a pop, then bob gently until clicked.
 	_present_root.scale = Vector3.ZERO
@@ -152,8 +158,11 @@ func _spawn_icon() -> void:
 		var sprite := Sprite3D.new()
 		sprite.texture = tex
 		sprite.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		sprite.pixel_size = 0.028  # 32px icon -> ~0.9 world units
+		# ICON_SIZE across whatever the art's size (the mythics are 128px
+		# paintings now; 0.028 a pixel was for the old 32px icons and blew the
+		# painted ones up four times over).
+		sprite.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		sprite.pixel_size = ICON_SIZE / float(maxi(tex.get_width(), tex.get_height()))
 		sprite.no_depth_test = true
 		_icon_root.add_child(sprite)
 	else:
@@ -218,11 +227,6 @@ func _reveal_mesh(parent: Node3D, mesh: Mesh, pos: Vector3, color: Color, emissi
 	mi.material_override = mat
 	parent.add_child(mi)
 	return mi
-
-func _box(size: Vector3) -> BoxMesh:
-	var b := BoxMesh.new()
-	b.size = size
-	return b
 
 func _sphere(r: float) -> SphereMesh:
 	var s := SphereMesh.new()

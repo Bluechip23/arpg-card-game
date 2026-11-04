@@ -41,16 +41,33 @@ const CP_ROWS := {
 ## Hurt, Death) return to Idle/Walk when they finish; Death holds its last
 ## frame. Attack2 is a creature's double attack (the werewolf's claw and
 ## rake with the other arm); a kind's "fps" overrides these per animation.
-const CP_FPS := {"Idle": 5.0, "Walk": 8.0, "Run": 10.0, "Draw": 8.0, "Attack": 12.0, "Attack2": 12.0, "Armor": 8.0, "Hurt": 12.0, "Death": 10.0}
-const CP_ONESHOT := ["Attack", "Attack2", "Armor", "Hurt", "Death"]
+## Enemy attacks play ATTACK_SLOW times slower than they were (designer,
+## 2026-10-31: "still a little too fast"; 2026-11-03: "still a little
+## rushed", then matched to the heroes' SpriteFigure.ACTION_SLOW) — the
+## swing frames and the lunge.
+const ATTACK_SLOW := 2.3
+## A kind's own Attack / Attack2 fps (its drawn swing) were chosen while
+## ATTACK_SLOW was 1.4 and never slowed with it; since 2026-11-03 they slow
+## by the same step as the packs' swings (2.3 / 1.4), so every enemy attack
+## is equally slower (see kind_fps).
+const DRAWN_ATTACK_SLOW := ATTACK_SLOW / 1.4
+const CP_FPS := {"Idle": 5.0, "Walk": 8.0, "Run": 10.0, "Draw": 8.0, "Attack": 12.0 / ATTACK_SLOW,
+		"Attack2": 12.0 / ATTACK_SLOW, "Throw": 12.0 / ATTACK_SLOW, "Kick": 12.0 / ATTACK_SLOW, "Cast": 12.0 / ATTACK_SLOW, "Track": 12.0 / ATTACK_SLOW, "Sunken": 12.0 / ATTACK_SLOW, "Hurt": 12.0, "Death": 10.0, "Heal": 7.0}
+const CP_ONESHOT := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Hurt", "Death", "Heal"]
+## The swings: an attack's sheets (Throw: the Grave Titan's boulder roll;
+## Kick: the Armored Troll's kick; Cast: the Snow Wraith's Ice Blast; Track
+## and Sunken: the Sabertooth's stalking crouch and its Sunken Bite — each
+## played for that action by the kind's "action_sheets").
+const ATTACK_SHEETS := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken"]
+## Swings played in place, with no lunge toward the target: the Sabertooth
+## sizing up its prey is no blow.
+const STILL_SHEETS := ["Track"]
 ## Held poses: played once, then the last frame stays until another
 ## animation plays (the archer rat at full draw, from two tempo before its
 ## shot until the shot). A hit does not break them.
 const CP_HOLD := ["Draw"]
 ## Every sheet an animation may come as (Craftpix packs and our own).
-## Armor: the Battle Turtle digs up a brick and tosses it onto itself, each
-## time it gives itself armor (play_armor).
-const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Armor", "Hurt", "Death"]
+const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Hurt", "Death", "Heal"]
 
 # NPC sheets run S,W,N,E top to bottom (battle uses CharacterAnimator order S,N,E,W).
 const NPC_ROW := [0, 2, 1, 3]  # NPC packs run S,E,N,W
@@ -86,7 +103,7 @@ const KINDS := {
 	"giant_hawk": {"sheets": SHEETS + "/giant_hawk", "scale": BOARD_SCALE},  # the designer's board (2026-10-25), perched; was the mountain-monster Bird
 	"screecher": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},  # back on the pale ghost for now (2026-10-27): the crawler board was meant for the Consumed
 	"giant_beaver": {"sheets": SHEETS + "/giant_beaver", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py): stands on its hind legs, walks on all fours
-	"mini_bear": {"sheets": SHEETS + "/mini_bear", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Bear
+	"mini_bear": {"sheets": SHEETS + "/mini_bear", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the designer's board (2026-10-25), and its attack board (tools/cut_pose_boards.py, 2026-11-01: Attack is the swipe, the tumble onto its back and the scramble up — a cute little bear trying its best); was the mountain-monster Bear
 	"wolf": {"sheets": SHEETS + "/wolf", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-22), and his bite board (tools/cut_pose_boards.py, 2026-10-31: Attack is the leap and bite)
 	"coyote": {"sheets": SHEETS + "/coyote", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and his nip board (2026-10-31: Attack is the nip); was the old MonsterKit wolf battler, tinted
 	"djinn": {"sheets": SHEETS + "/djinn", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-24); was the MonsterKit cell (4, 1)
@@ -105,18 +122,21 @@ const KINDS := {
 	"fire_goblin_soldier": {"sheets": SHEETS + "/fire_goblin", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the goblin pack's Goblin2
 	"fire_goblin_mage": {"sheets": SHEETS + "/fire_goblin_mage", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the goblin pack's Goblin1
 	"fire_goblin_shaman": {"sheets": SHEETS + "/fire_goblin_shaman", "scale": BOARD_SCALE},  # his own board (tools/cut_pose_boards.py, 2026-10-28); wore the soldier's, and before that the goblin pack's Goblin3
-	"armored_troll": {"sheets": SHEETS + "/armored_troll", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Orc
+	"armored_troll": {"sheets": SHEETS + "/armored_troll", "scale": BOARD_SCALE, "fps": {"Kick": 10.0, "Attack": 8.0}, "action_sheets": {"kick": "Kick"}},  # the designer's board (2026-10-25), his kick board and his double smash board (tools/cut_pose_boards.py, 2026-11-03: Kick is the shift, knee up, chamber, full extend and recoil; Attack, his Smash, is the grip, the club overhead, the first smash, the recoil, the second smash and the recovery); was the mountain-monster Orc
 	"ice_troll": {"sheets": SHEETS + "/ice_troll", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Yeti
 	"granite_colossus": {"sheets": SHEETS + "/granite_colossus", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the golem pack's Golem1
-	"grave_titan": {"sheets": SHEETS + "/grave_titan", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the golem pack's Golem2
+	"grave_titan": {"sheets": SHEETS + "/grave_titan", "scale": BOARD_SCALE, "fps": {"Attack": 8.0, "Throw": 8.0}, "action_sheets": {"boulder_roll": "Throw"}, "projectiles": {"boulder_roll": {"sheet": "Boulder", "release": 4, "speed": 4.0, "fps": 12.0}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and his smash board (2026-11-03: Attack is the lift, the boulder overhead, the swing down, the impact and the recovery); was the golem pack's Golem2
 	"inflamed_minotaur": {"sheets": SHEETS + "/inflamed_minotaur", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"demon": {"cp": "demons/Demon1", "scale": 0.85},
 	"pit_fiend": {"sheets": SHEETS + "/pit_fiend", "scale": BOARD_SCALE},  # the designer's new board, stills (tools/cut_pose_boards.py, 2026-10-28)
 	"bugbear": {"sheets": SHEETS + "/bugbear", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the gnoll pack's Gnoll2
 	"ifrit": {"sheets": SHEETS + "/ifrit", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
-	"snow_wraith": {"sheets": SHEETS + "/snow_wraith", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the ghost pack's Ghost2
+	"snow_wraith": {"sheets": SHEETS + "/snow_wraith", "scale": BOARD_SCALE, "fps": {"Throw": 8.0, "Cast": 10.0}, "action_sheets": {"snowball": "Throw", "ice_blast": "Cast"}, "projectiles": {"snowball": {"sheet": "Snowball", "release": 3, "speed": 8.0, "fps": 12.0, "lift": 0.85, "ahead": 0.35}, "ice_blast": {"sheet": "IceShard", "release": 6, "speed": 10.0, "fps": 12.0, "lift": 0.85, "ahead": 0.6}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and her snowball board (2026-11-03: Throw is the frost gathering, the snowball forming, raised, thrown and the follow-through; her Ice Blast keeps its lunge); was the ghost pack's Ghost2
 	# The designer's 4x4 walk sheets (tools/cut_creature_sheets.py).
-	"hydra": {"sheets": SHEETS + "/hydra", "scale": BOARD_SCALE},
+	"hydra": {"sheets": SHEETS + "/hydra", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the designer's pose board (tools/cut_pose_boards.py, 2026-10-28), and her attack sheets (2026-11-03: Attack is the heads rearing up, the roar, the strike with every mouth agape, the heads spread wide and drawn back in)
+	"hydra_5": {"sheets": SHEETS + "/hydra_5", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the Hydra after her second hit, five heads: the designer's board and attack board (tools/cut_pose_boards.py, 2026-11-03)
+	"hydra_3": {"sheets": SHEETS + "/hydra_3", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the Hydra after her third hit, three heads: the designer's attack board, its four views her Idle (tools/cut_pose_boards.py, 2026-11-03)
+	"hydra_8": {"sheets": SHEETS + "/hydra_8", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the Hydra after her first hit, two heads gone: the designer's eight-head board and its attack board (tools/cut_pose_boards.py, 2026-11-03); Enemy swaps her to it as she is hit (HYDRA_HEADS) and back when she heals
 	"white_manticore": {"sheets": SHEETS + "/white_manticore", "scale": BOARD_SCALE},
 	# --- battler variations where the species genuinely matches ---
 	"large_bear": {"sheets": SHEETS + "/large_bear", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the mountain-monster Bear
@@ -125,7 +145,7 @@ const KINDS := {
 	"cerberus": {"sheets": SHEETS + "/cerberus", "scale": BOARD_SCALE},  # the designer's boss trio board (tools/cut_pose_boards.py, 2026-10-27); was the walk-sheet cut
 	"hades": {"sheets": SHEETS + "/hades", "scale": BOARD_SCALE},  # the boss trio board (2026-10-27); art in place, no Hades enemy exists yet
 	"werewolf": {"sheets": SHEETS + "/werewolf", "scale": BOARD_SCALE, "fps": {"Attack": 8.0, "Attack2": 8.0}},  # the designer's board, and his slash boards, side and front/back (tools/cut_pose_boards.py, 2026-10-30): Attack is the claw, Attack2 the claw and the rake with the other arm
-	"sabertooth": {"sheets": SHEETS + "/sabertooth", "scale": BOARD_SCALE},
+	"sabertooth": {"sheets": SHEETS + "/sabertooth", "scale": BOARD_SCALE, "fps": {"Track": 8.0, "Attack": 10.0, "Sunken": 10.0}, "action_sheets": {"track": "Track", "sunken_bite": "Sunken"}},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-28), its track board and its bite-and-claw board (tools/cut_pose_boards.py, 2026-11-03: Track is the paw scraping, the crouch, the deepest ready crouch and the rise, played in place; Attack, its Bite and Claw, the crouch, lunge, bite, pull-through, claw swipe and recovery; Sunken, its Sunken Bite, the lunge, the crouch, the teeth sinking in, the shake, the release and rising)
 	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": BOARD_SCALE},
 	"roc": {"sheets": SHEETS + "/roc", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28); was the mountain-monster Bird, tinted
 	"ash_harpy": {"sheets": SHEETS + "/ash_harpy", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the chaos-monster Icon22
@@ -141,7 +161,7 @@ const KINDS := {
 	"necromancer": {"sheets": SHEETS + "/necromancer", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the lich pack's Lich2
 	"spirit_collector": {"sheets": SHEETS + "/spirit_collector", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the lich pack's Lich1
 	"vampire": {"sheets": SHEETS + "/vampire", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the vampire pack's Vampires3
-	"zombie": {"sheets": SHEETS + "/zombie", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the zombie pack's Zombie1
+	"zombie": {"sheets": SHEETS + "/zombie", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and its attack board (2026-11-01: Attack is the reach and grab, slow); was the zombie pack's Zombie1
 	"infected_hunter": {"sheets": SHEETS + "/infected_hunter", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the zombie pack's Zombie3
 	"succubus": {"sheets": SHEETS + "/succubus", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the chaos-monster Icon14
 	"cherub": {"sheets": SHEETS + "/cherub", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the NPC baby sheet, tinted
@@ -173,7 +193,8 @@ const KINDS := {
 	"shadow_hound": {"sheets": SHEETS + "/shadow_hound", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28)
 	"battle_turtle": {"sheets": SHEETS + "/battle_turtle", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28)
 	# --- townsfolk (town.gd): the designer's NPC sheets, four standing poses ---
-	"olorin": {"sheets": SHEETS + "/olorin", "scale": BOARD_SCALE},  # the designer's board, with his bear (tools/cut_pose_boards.py, 2026-10-28)
+	"olorin": {"sheets": SHEETS + "/olorin", "scale": BOARD_SCALE, "tall": 1.08},  # the designer's board, his bear painted out (tools/fix_olorin_board.py, 2026-11-01); a touch taller
+	"olorin_bear": {"sheets": SHEETS + "/olorin_bear", "scale": BOARD_SCALE},  # his bear, asleep (its own board, 2026-11-01)
 	"npc_armory": {"sheets": SHEETS + "/npc_armory", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-28
 	"npc_dojo_master": {"sheets": SHEETS + "/npc_dojo_master", "scale": BOARD_SCALE},  # the designer's sensei (tools/cut_pose_boards.py, 2026-10-29); was the NPC pack's old man
 	"npc_card_dealer": {"sheets": SHEETS + "/npc_card_dealer", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-28
@@ -196,6 +217,7 @@ const PAINTED_SHADOW_KINDS := ["swarm", "sludge",
 
 var figure_kind := ""   # the KINDS entry this figure was set up as
 var smooth := false     # wearing the smooth (non-pixelated) sheets (ArtStyle)
+var _sheet_folder := ""  # the folder the sheets were loaded from (a thrown projectile's strip lives there)
 var _sprite: Sprite3D = null
 var _rig: Node3D = null
 var _tint := Color.WHITE
@@ -230,6 +252,7 @@ var _fx_tween: Tween = null
 ## fps, or the lunge alone); 0 after any other action. The tempo clock
 ## holds this long for it (TempoManager.hold_for).
 var last_swing_time := 0.0
+var _swing_end_msec: int = 0  # when the swing play_attack last started finishes
 var _base_y := 26.0 * PIXEL_SIZE
 
 # Craftpix animated mode
@@ -254,9 +277,7 @@ func setup(kind: String) -> void:
 	figure_kind = kind
 	var cfg: Dictionary = KINDS.get(kind, KINDS["wolf"])
 	_tint = cfg.get("tint", Color.WHITE)
-	if cfg.has("fps"):
-		_cp_fps = CP_FPS.duplicate()
-		_cp_fps.merge(cfg["fps"], true)
+	_cp_fps = kind_fps(kind)
 	position.y = CameraView.SPRITE_LIFT  # nearer the camera than any wall slab (plan view depth)
 	_rig = Node3D.new()
 	_rig.name = "Rig"
@@ -336,6 +357,7 @@ func setup(kind: String) -> void:
 	var s: float = cfg.get("scale", 1.0)
 	if smooth:
 		s = 32.0 / ArtStyle.SMOOTH_DENSITY   # SMOOTH_DENSITY texels a tile
+	s *= float(cfg.get("tall", 1.0))   # a kind drawn larger than its board's "tiles" (Olorin, designer 2026-11-01)
 	_rig.scale = Vector3(s, s, s)
 	_rig.add_child(_sprite)
 	_sprite.modulate = _tint
@@ -346,6 +368,50 @@ func setup(kind: String) -> void:
 		if _cp_mode or _fr_mode:
 			body_w = _measure_body_width() * _sprite.pixel_size
 		BlobShadow.attach(_rig, body_w * 0.7)
+
+
+## The frames a second a kind plays each animation at: CP_FPS with the
+## kind's own "fps" over it, its drawn attacks slowed by DRAWN_ATTACK_SLOW.
+static func kind_fps(kind: String) -> Dictionary:
+	var fps: Dictionary = CP_FPS.duplicate()
+	var own: Dictionary = KINDS.get(kind, {}).get("fps", {})
+	for anim in own:
+		var f := float(own[anim])
+		fps[anim] = f / DRAWN_ATTACK_SLOW if anim in ATTACK_SHEETS else f
+	return fps
+
+
+## Swap to another sheets kind mid-fight (the Hydra loses heads as she is
+## hit and regrows them when she heals): the same rig, sprite, scale and
+## facing; the new kind's sheets, cell and fps. Whatever was playing goes on
+## from its frame — a swing hit mid-strike keeps striking — and an animation
+## the new kind lacks falls back to Idle. Only for kinds with sheets.
+func reskin(kind: String) -> void:
+	var cfg: Dictionary = KINDS.get(kind, {})
+	if not cfg.has("sheets") or not _cp_mode or _fr_mode or _cp_dead:
+		return
+	figure_kind = kind
+	_cp_fps = kind_fps(kind)
+	var anim := _cp_anim
+	var frame := _cp_frame
+	var clock := _cp_clock
+	_cp_sheets = {}
+	var soft := ArtStyle.smooth_folder(cfg["sheets"])
+	smooth = soft != ""
+	_setup_sheets(soft if soft != "" else cfg["sheets"])
+	# The feet pivot, from the new Idle row (as setup does).
+	_sprite.offset = Vector2(-_sprite.region_rect.size.x * 0.5,
+			-(_sprite.region_rect.size.y - _measure_ground_rows()))
+	_ground_offset = _sprite.offset
+	if not _cp_sheets.has(anim):
+		anim = "Idle"
+		frame = 0
+		clock = 0.0
+	_cp_anim = anim
+	_cp_frame = mini(frame, _cp_frame_count(anim) - 1)
+	_cp_clock = clock
+	_sprite.texture = _cp_sheets[anim]
+	_cp_apply_frame()
 
 
 ## Load a Craftpix pack variant: every animation sheet it ships, cell size
@@ -373,6 +439,7 @@ func _setup_craftpix(spec: String) -> void:
 ## the Craftpix layout, four rows front/back/left/right, square cells — or,
 ## for an action, the two side rows only (the werewolf's slash).
 func _setup_sheets(folder: String) -> void:
+	_sheet_folder = folder
 	_cp_mode = true
 	_cp_rows = "FBLR"
 	for anim in CP_ANIMS:
@@ -483,6 +550,12 @@ func _cp_row(direction: int) -> int:
 
 ## A sheet with only the two side rows (left, then right): an action the
 ## designer drew in profile (the werewolf's slash board).
+## A one-row action sheet: drawn facing the camera only (the Hydra's heal).
+func _cp_front_only(anim: String) -> bool:
+	var sheet = _cp_sheets.get(anim)
+	return sheet is Texture2D and _cp_cell > 0 and sheet.get_height() <= _cp_cell
+
+
 func _cp_side_only(anim: String) -> bool:
 	var sheet = _cp_sheets.get(anim)
 	return sheet is Texture2D and _cp_cell > 0 and sheet.get_height() < _cp_cell * 4
@@ -492,6 +565,8 @@ func _cp_side_only(anim: String) -> bool:
 ## sheet a figure facing front or back turns to the side it leans toward
 ## (its last horizontal lean, _facing_x).
 func _cp_row_now() -> int:
+	if _cp_front_only(_cp_anim):
+		return 0   # a one-row sheet (the Hydra's heal) faces the camera whatever the figure faces
 	if not _cp_side_only(_cp_anim):
 		return _cp_row(_cp_dir)
 	var east := _cp_dir == CharacterAnimator.Direction.EAST \
@@ -679,11 +754,17 @@ func play_action(action: String) -> void:
 			_cp_play("Draw", true)
 		return
 	if "heal" in a:
+		# The Hydra's heal (her Heal sheet, facing the camera); any other
+		# healer only flashes green.
+		if _cp_mode and _cp_sheets.has("Heal"):
+			_cp_play("Heal", true)
 		flash(Color(0.5, 1.0, 0.5))
 		return
 	# A double attack (the werewolf's claw and rake): the Attack2 sheet,
-	# the second hit with the other arm, where a kind has one.
-	play_attack("double" in a)
+	# the second hit with the other arm, where a kind has one. An action
+	# with a sheet of its own (the Grave Titan's boulder roll: Throw) plays it.
+	var own: String = KINDS.get(figure_kind, {}).get("action_sheets", {}).get(a, "")
+	play_attack("double" in a, own)
 
 
 ## Death animation (Craftpix packs only). Returns how long the caller should
@@ -787,7 +868,7 @@ func set_quadruped(_on: bool) -> void:
 ## The attack swing. `double`: a two-hit attack — the Attack2 sheet where
 ## the kind has one (the werewolf's claw, then the rake with the other arm),
 ## with a second, shorter lunge for the second hit; else the one swing.
-func play_attack(double: bool = false) -> void:
+func play_attack(double: bool = false, sheet: String = "") -> void:
 	if not _rig:
 		return
 	if _fx_tween:
@@ -797,16 +878,61 @@ func play_attack(double: bool = false) -> void:
 	if _cp_mode:
 		# Real swing frames; the lunge is a smaller step along the true facing.
 		two = double and _cp_sheets.has("Attack2")
-		_cp_play("Attack2" if two else "Attack", true)
+		if sheet != "" and _cp_sheets.has(sheet):
+			_cp_play(sheet, true)
+			if sheet in STILL_SHEETS:
+				_rig.position = Vector3.ZERO
+				last_swing_time = attack_time()
+				_swing_end_msec = Time.get_ticks_msec() + int(last_swing_time * 1000.0)
+				return
+		else:
+			_cp_play("Attack2" if two else "Attack", true)
 		dir = Vector3(_facing_x * 0.16, 0, 0) if _fr_mode else _cp_forward() * 0.16
 	last_swing_time = attack_time()
+	_swing_end_msec = Time.get_ticks_msec() + int(last_swing_time * 1000.0)
 	_fx_tween = create_tween()
-	_fx_tween.tween_property(_rig, "position", -dir * 0.3, 0.12)
-	_fx_tween.tween_property(_rig, "position", dir, 0.08).set_ease(Tween.EASE_OUT)
+	_fx_tween.tween_property(_rig, "position", -dir * 0.3, 0.12 * ATTACK_SLOW)
+	_fx_tween.tween_property(_rig, "position", dir, 0.08 * ATTACK_SLOW).set_ease(Tween.EASE_OUT)
 	if two:
-		_fx_tween.tween_property(_rig, "position", dir * 0.4, 0.08).set_ease(Tween.EASE_IN_OUT)
-		_fx_tween.tween_property(_rig, "position", dir * 1.1, 0.07).set_ease(Tween.EASE_OUT)
-	_fx_tween.tween_property(_rig, "position", Vector3.ZERO, 0.18).set_ease(Tween.EASE_IN_OUT)
+		_fx_tween.tween_property(_rig, "position", dir * 0.4, 0.08 * ATTACK_SLOW).set_ease(Tween.EASE_IN_OUT)
+		_fx_tween.tween_property(_rig, "position", dir * 1.1, 0.07 * ATTACK_SLOW).set_ease(Tween.EASE_OUT)
+	_fx_tween.tween_property(_rig, "position", Vector3.ZERO, 0.18 * ATTACK_SLOW).set_ease(Tween.EASE_IN_OUT)
+
+
+## Throw what `action` throws (the kind's "projectiles" by action: the
+## Grave Titan's boulder, Boulder.png beside his sheets, rolling along the
+## ground; the Snow Wraith's snowball and her Ice Blast's spear,
+## Snowball.png and IceShard.png, flying at her hand's height): it leaves
+## the hands on the release frame (its "release": the frame index in the
+## action's own sheet, while that plays) and travels to `target` (global).
+## Returns the seconds from now until it gets there, 0 when the action
+## throws nothing. It is added beside the enemy, so it flies on in the
+## world whatever the figure does.
+func throw_projectile(target: Vector3, action: String) -> float:
+	var cfg: Dictionary = KINDS.get(figure_kind, {})
+	var proj: Dictionary = cfg.get("projectiles", {}).get(action, {})
+	var path := "%s/%s.png" % [_sheet_folder, proj.get("sheet", "")]
+	if proj.is_empty() or _sheet_folder == "" or not ResourceLoader.exists(path):
+		return 0.0
+	var release := 0.0
+	var sheet: String = cfg.get("action_sheets", {}).get(action, "")
+	if sheet != "" and _cp_anim == sheet:
+		var fps: float = _cp_fps.get(sheet, 8.0)
+		var frame: int = int(proj.get("release", 0))
+		release = maxf(0.0, (float(frame) - float(_cp_frame)) / fps - _cp_clock)
+	var b := ThrownSprite.new()
+	var host: Node = get_parent().get_parent() if get_parent() and get_parent().get_parent() else get_parent()
+	host.add_child(b)
+	var from := global_position
+	from.y = target.y
+	var dir := Vector3(target.x - from.x, 0, target.z - from.z)
+	if dir.length() > 0.01:
+		from += dir.normalized() * float(proj.get("ahead", 0.5))   # out of the hands, in front
+	var gutter := 8 if smooth else 0      # SMOOTH_GUTTER under the smooth strip's art
+	b.launch(load(path), _sprite.pixel_size * _rig.scale.x, gutter, smooth, from, target, release,
+			float(proj.get("speed", ThrownSprite.SPEED)), float(proj.get("fps", ThrownSprite.SPIN_FPS)),
+			float(proj.get("lift", 0.0)))
+	return b.total_time()
 
 
 ## The Battle Turtle giving itself armor: its Armor sheet, once (a hit
@@ -821,9 +947,14 @@ func play_armor() -> bool:
 ## How long the swing now playing runs: the Attack frames at their fps on
 ## a sheet (Craftpix or the designer's), else the procedural lunge.
 func attack_time() -> float:
-	if _cp_mode and _cp_anim.begins_with("Attack"):
+	if _cp_mode and _cp_anim in ATTACK_SHEETS:
 		return float(_cp_frame_count(_cp_anim)) / float(_cp_fps.get(_cp_anim, 8.0))
 	return 0.38   # the lunge tween: 0.12 + 0.08 + 0.18
+
+
+## Seconds still to run on the swing now playing; 0 when none is.
+func attack_time_left() -> float:
+	return maxf(0.0, float(_swing_end_msec - Time.get_ticks_msec()) / 1000.0)
 
 
 func _cp_forward() -> Vector3:

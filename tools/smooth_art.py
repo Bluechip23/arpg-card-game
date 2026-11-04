@@ -12,6 +12,7 @@ from PIL import Image
 
 SMOOTH_DENSITY = 128   # texels a tile: 1:1 with the screen at the closest zoom
 ROOT = "assets/sprites/generated/smooth"
+SHEET_BLEED = 14   # px of edge colour out past the figure on a packed sheet (mip 3 at zoom 1 reads 8)
 
 
 def to_image(frame) -> Image.Image:
@@ -31,7 +32,14 @@ def bleed(img: Image.Image, passes: int = 6) -> Image.Image:
     dark fringe in from the empty pixels' black."""
     a = np.asarray(img).astype(np.float32)
     rgb, al = a[..., :3], a[..., 3]
-    have = al > 0
+    # The solid figure seeds the bleed. A pixel with any alpha keeps its
+    # own colour (a glow's haze is bright and translucent: painting it
+    # over with the dark cloth beside it would turn the haze into a
+    # shadow); once reached it carries that colour on outward.
+    have = al >= 255
+    if not have.any():
+        have = al > 0
+    keep = al > 0
     for _ in range(passes):
         if have.all():
             break
@@ -42,7 +50,8 @@ def bleed(img: Image.Image, passes: int = 6) -> Image.Image:
             acc += np.roll(rgb, (dy, dx), (0, 1)) * sh[..., None]
             cnt += sh
         new = ~have & (cnt > 0)
-        rgb[new] = acc[new] / cnt[new][:, None]
+        paint = new & ~keep
+        rgb[paint] = acc[paint] / cnt[paint][:, None]
         have = have | new
     out = np.dstack([rgb, al]).clip(0, 255).astype(np.uint8)
     return Image.fromarray(out, "RGBA")
@@ -72,4 +81,6 @@ def pack(rows: list, cell: int, cols: int, pick, air: int = 1) -> Image.Image:
         for ci in range(cols):
             f = pick(row, ci)
             sheet.paste(f, (ci * cell + (cell - f.width) // 2, ri * cell + cell - air - f.height))
-    return bleed(sheet, 2)
+    # Bled far: the game's mipmaps (zoomed out) average the empty pixels'
+    # colour into the edge, and the import's own border fix reaches a pixel.
+    return bleed(sheet, SHEET_BLEED)

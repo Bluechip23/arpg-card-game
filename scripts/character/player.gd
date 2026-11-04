@@ -48,6 +48,17 @@ func _ready() -> void:
 		add_child(stats_node)
 		stats = stats_node
 
+	# Every hero shows its own overhead heart / shield: a heal or an armour
+	# gain from any source (self, an ally, a ring, a passive…) lands on these
+	# signals, so the hero answers them itself (designer, 2026-11-03).
+	if stats:
+		stats.healed.connect(func(amount: int):
+			if amount > 0:
+				show_heal_icon())
+		stats.armor_gained.connect(func(amount: int):
+			if amount > 0:
+				show_armor_gained())
+
 	if not has_node("Inventory"):
 		var inv_node = Inventory.new()
 		inv_node.name = "Inventory"
@@ -114,6 +125,26 @@ func play_animation(action: String, direction: CharacterAnimator.Direction = Cha
 	if _figure:
 		_figure.play_action(action, direction)
 
+## The way the figure faces now (CharacterAnimator.Direction).
+func get_facing() -> CharacterAnimator.Direction:
+	if _figure:
+		return _figure.facing
+	return CharacterAnimator.Direction.SOUTH
+
+## Seconds into `action` (facing `direction`) that its blow lands, as the
+## hero's drawn animation shows it; 0 when nothing is drawn.
+func hit_delay(action: String, direction: CharacterAnimator.Direction = CharacterAnimator.Direction.SOUTH) -> float:
+	if _figure and _figure.has_method("hit_delay"):
+		return _figure.hit_delay(action, direction)
+	return 0.0
+
+## Seconds the whole of `action` runs as drawn (frames, hold, play back);
+## 0 when nothing is drawn.
+func action_time(action: String, direction: CharacterAnimator.Direction = CharacterAnimator.Direction.SOUTH) -> float:
+	if _figure and _figure.has_method("action_time"):
+		return _figure.action_time(action, direction)
+	return 0.0
+
 func set_weapon_kind(kind: String, has_shield: bool, art: Texture2D = null) -> void:
 	## What the figure is holding (weapon layer + attack animation); `art` is
 	## the item's own picture when it has one (mythics).
@@ -161,6 +192,11 @@ func show_level_up() -> void:
 	## Plays the level-up mist swirl — call whenever the character gains a level.
 	if _figure:
 		_figure.pop_level_up()
+
+func show_no_mana() -> void:
+	## The "no mana" sign over the hero: a card refused for want of mana.
+	if _figure and _figure.has_method("pop_no_mana"):
+		_figure.pop_no_mana()
 
 func show_worm_summon() -> void:
 	## Spawns the Alaskan Bull Worm VFX — call when Worms Armageddon summons one.

@@ -30,6 +30,9 @@ func _initialize() -> void:
 	_run()
 
 func _run() -> void:
+	# The rules, not the timing: blows land at once (no hit wait for the
+	# heroes' drawn attacks, test_hit_wait.gd covers it).
+	TempoManager.preferred_swing_hold = 0
 	var packed: PackedScene = load("res://scenes/core/main.tscn")
 	main = packed.instantiate()
 	main.set("starting_character", CharacterData.create_stephen())

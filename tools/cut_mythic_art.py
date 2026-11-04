@@ -20,9 +20,9 @@ head and the fletching, each turned half a turn about the arrow's midpoint —
 after the panel is cut away, on a padded canvas (the fletching is longer
 than the head, so at the head's end it reaches past the panel's frame).
 
-These replace the 32x32 icons tools/generate_mythic_icons.py used to draw;
-that tool keeps only the mythic this art does not cover (the Bladed
-Doughnut).
+These replace the 32x32 icons tools/generate_mythic_icons.py used to draw.
+The Bladed Doughnut, the last of them, came on its own panel on 2026-10-31
+(mythic_bladed_doughnut.png).
 
 Output: assets/items/mythic/<slug>.png (CANVAS x CANVAS RGBA)
 Run: python3 tools/cut_mythic_art.py   (Pillow, numpy)
@@ -57,13 +57,11 @@ _BR = (569, 570, 963, 964)
 PIECES = {
     "helms": [
         ("the_headbandz", (36, 36, 490, 280)),
-        ("hannibals_mask", (36, 294, 490, 490)),
         ("mane_of_narashimha", (36, 532, 490, 988)),
         ("scholars_cap", (532, 640, 988, 988)),
     ],
     "chests": [
         ("adimantium", _TL),
-        ("tigers_sunday_red", _TR),
         ("divine_resistance", _BL),
         ("hide_of_garmr", _BR),
     ],
@@ -74,7 +72,6 @@ PIECES = {
         ("poseidons_trident", _BR),
     ],
     "gauntlets": [
-        ("gauntlets_of_dungeon_mastering", _TL),
         ("hallowed_trunk", _TR),
         ("cuffs_of_current", _BL),
         ("concealed_carry", _BR),
@@ -108,6 +105,25 @@ PIECES = {
         ("steve_rodgers_bastion", _TR),
         ("presence_of_mind", _BL),
         ("crooked_dueling_shield", _BR),
+    ],
+    # The designer's redraws on their own panels (2026-10-31), replacing
+    # their pieces of the sheets above: the polo with a black fist-pumping
+    # golfer silhouette on its chest, the gauntlets with a 20 on every die,
+    # the mask with blood round its grille. Cropped inside each panel's
+    # purple border.
+    "tigers_sunday_red": [
+        ("tigers_sunday_red", (30, 30, 1259, 1191)),
+    ],
+    "gauntlets_of_dungeon_mastering": [
+        ("gauntlets_of_dungeon_mastering", (30, 30, 1249, 1200)),
+    ],
+    "hannibals_mask": [
+        ("hannibals_mask", (30, 30, 1040, 978)),
+    ],
+    # The Bladed Doughnut on its own panel (2026-10-31): a frosted doughnut
+    # ringed with steel spikes. Cropped inside the panel's purple bevel.
+    "bladed_doughnut": [
+        ("bladed_doughnut", (10, 12, 334, 340)),
     ],
     "bows": [
         ("bow_of_arash", _TL),
@@ -187,20 +203,32 @@ def _components(mask: np.ndarray):
     return comps
 
 
-def cut(sheet: Image.Image, box, fix=None) -> Image.Image:
+# Panels whose plain ground is less even than the boxed sheets': the
+# doughnut's has a soft dark shadow along its foot (sheet -> (bg, edge) tol).
+TOLS = {"bladed_doughnut": (16, 30), "tigers_sunday_red": (16, 30),
+        "gauntlets_of_dungeon_mastering": (16, 30), "hannibals_mask": (10, 20)}
+
+
+# Pieces with no see-through gaps, whose dark shading must never be taken
+# for an enclosed pocket of panel (the gauntlets' steel).
+NO_HOLES = {"gauntlets_of_dungeon_mastering"}
+
+
+def cut(sheet: Image.Image, box, fix=None, tols=None, no_holes=False) -> Image.Image:
+    bg_tol, edge_tol = tols or (BG_TOL, EDGE_TOL)
     rgb = np.asarray(sheet.crop(box).convert("RGB")).astype(int)
     h, w, _ = rgb.shape
     ring = np.concatenate([rgb[0], rgb[-1], rgb[:, 0], rgb[:, -1]])
     bg = np.median(ring, axis=0)
     dist = np.abs(rgb - bg).max(axis=2)
 
-    near = dist <= BG_TOL
+    near = dist <= bg_tol
     edge = [(0, x) for x in range(w)] + [(h - 1, x) for x in range(w)] + \
            [(y, 0) for y in range(h)] + [(y, w - 1) for y in range(h)]
     panel = _flood(near, edge)
     # Enclosed pockets of plain panel (ring middles, arch gaps).
     for comp in _components((dist <= HOLE_TOL) & ~panel):
-        if len(comp) >= HOLE_MIN:
+        if len(comp) >= HOLE_MIN and not no_holes:
             panel |= _flood(near, comp)
 
     alpha = np.where(panel, 0.0, 1.0)
@@ -211,8 +239,8 @@ def cut(sheet: Image.Image, box, fix=None) -> Image.Image:
     touching[:-1] |= panel[1:]
     touching[:, 1:] |= panel[:, :-1]
     touching[:, :-1] |= panel[:, 1:]
-    rim = touching & ~panel & (dist < EDGE_TOL)
-    alpha[rim] = (dist[rim] - BG_TOL) / float(EDGE_TOL - BG_TOL)
+    rim = touching & ~panel & (dist < edge_tol)
+    alpha[rim] = (dist[rim] - bg_tol) / float(edge_tol - bg_tol)
 
     for comp in _components(alpha > 0):
         if len(comp) < SPECK:
@@ -231,17 +259,21 @@ def cut(sheet: Image.Image, box, fix=None) -> Image.Image:
     size = (max(1, round(piece.width * scale)), max(1, round(piece.height * scale)))
     small = piece.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")
     out = Image.new("RGBA", (CANVAS, CANVAS))
-    out.paste(small, ((CANVAS - size[0]) // 2, (CANVAS - size[1]) // 2))
+    ox, oy = (CANVAS - size[0]) // 2, (CANVAS - size[1]) // 2
+    out.paste(small, (ox, oy))
+    # Where a point of the panel crop lands on the canvas (for TOUCHES).
+    pad = PAD if fix is not None else 0
+    cut.last_map = lambda px, py: (round((px + pad - x0) * scale + ox), round((py + pad - y0) * scale + oy))
     return out
 
 
 def main() -> None:
     for sheet_name, pieces in PIECES.items():
-        path = next(SRC % sheet_name + ext for ext in (".jpg", ".webp")
+        path = next(SRC % sheet_name + ext for ext in (".jpg", ".webp", ".png")
                     if os.path.exists(SRC % sheet_name + ext))
         sheet = Image.open(path)
         for slug, box in pieces:
-            img = cut(sheet, box, FIXES.get(slug))
+            img = cut(sheet, box, FIXES.get(slug), TOLS.get(sheet_name), slug in NO_HOLES)
             img.save(OUT % slug)
             bb = img.getbbox()
             print("%-32s %s -> %dx%d on %d" % (slug, sheet_name, bb[2] - bb[0], bb[3] - bb[1], CANVAS))

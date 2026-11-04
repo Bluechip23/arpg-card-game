@@ -43,7 +43,7 @@ func _make_custom_tooltip(_for_text: String) -> Control:
 	var title = Label.new()
 	title.text = "Reserved Mana"
 	title.add_theme_color_override("font_color", Color(0.5, 0.7, 1.0))
-	title.add_theme_font_size_override("font_size", 15)
+	title.add_theme_font_size_override("font_size", 19)
 	vbox.add_child(title)
 
 	var total := 0
@@ -54,8 +54,8 @@ func _make_custom_tooltip(_for_text: String) -> Control:
 		line.fit_content = true
 		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		line.custom_minimum_size.x = 200
-		line.add_theme_font_size_override("normal_font_size", 13)
-		line.add_theme_font_size_override("bold_italics_font_size", 13)
+		line.add_theme_font_size_override("normal_font_size", 17)
+		line.add_theme_font_size_override("bold_italics_font_size", 17)
 		line.add_theme_color_override("default_color", Color(0.85, 0.85, 0.85))
 		line.text = "[b][i]%s[/i][/b]: %dM reserved" % [card.card_name, card.maintain_cost]
 		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -65,7 +65,7 @@ func _make_custom_tooltip(_for_text: String) -> Control:
 		var total_lbl = Label.new()
 		total_lbl.text = "Total: %dM" % total
 		total_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
-		total_lbl.add_theme_font_size_override("font_size", 12)
+		total_lbl.add_theme_font_size_override("font_size", 16)
 		vbox.add_child(total_lbl)
 
 	return panel

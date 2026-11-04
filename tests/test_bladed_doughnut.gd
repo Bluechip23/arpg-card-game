@@ -115,11 +115,14 @@ func _test_wooden_sword() -> void:
 		and sword.granted_card_ids.size() == 1 and sword.granted_card_ids[0] == "splinter",
 		"grants Splinter while equipped")
 
-	# A slotted attack card picks up the +1 on-self damage
-	var slash = Card.create_by_id("slash")
-	_check(sword.can_slot_card(slash), "attack cards fit the slot")
-	sword.slot_card(slash)
-	_check(slash.get_on_self_bonus()["damage"] == 1, "slotted Slash gains the +1 damage bonus")
+	# A slotted sword-labelled attack picks up the +1 on-self damage. (Slash
+	# carries no slot label, and an unlabelled card never slots — the slot
+	# rule since the labels pass; Savage Strike is a Sword card.)
+	var strike = Card.create_by_id("savage_strike")
+	_check(sword.can_slot_card(strike), "a Sword-labelled attack fits the slot")
+	_check(not sword.can_slot_card(Card.create_by_id("slash")), "an unlabelled card (Slash) does not")
+	sword.slot_card(strike)
+	_check(strike.get_on_self_bonus()["damage"] == 1, "slotted Savage Strike gains the +1 damage bonus")
 
 	# Equipping brings Splinter into the deck; unequipping removes it
 	var inv = Inventory.new()

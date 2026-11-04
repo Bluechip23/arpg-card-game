@@ -18,6 +18,7 @@ extends Node3D
 var draw_label: Label = null     # re-pointed at the pile buttons in _setup_deck_info_vertical
 var discard_label: Label = null
 var _draw_pile_btn: Button = null       # left draw pile button (for its tooltip)
+var _pile_passive_icon: PilePassiveIcon = null  # Cory's gauntlet-mana / Jeremy's ring-double clock beside the pile
 var _hand_info_btn: Button = null       # small ⓘ button beside the hand icon
 var _hand_info_popup: PanelContainer = null  # hand size / overflow info popup
 var _hand_info_vbox: VBoxContainer = null    # popup content (rebuilt on refresh)
@@ -200,7 +201,12 @@ const CARD_KEYS = [
 var selected_card_index: int = -1
 var _basic_attack_pending: bool = false  # Attack button armed — next enemy click swings
 var _pending_enemy_pick: Dictionary = {}  # a resolved card waiting for the player to choose its enemy (Life Swap)
-var _pending_gauntlet_skill: ItemData = null  # Targeted gauntlet skill armed — next click picks its target
+# Targeted gauntlet skill armed — next click picks its target. Its circle
+# shows a green outline while armed.
+var _pending_gauntlet_skill: ItemData = null:
+	set(value):
+		_pending_gauntlet_skill = value
+		_refresh_gauntlet_armed_outline()
 
 # Gauntlet skills that need a target picked by clicking (like cards do).
 const ENEMY_TARGET_GAUNTLET_SKILLS := ["power_grip", "rage_strike", "worldsplitter",
@@ -416,6 +422,7 @@ var _last_played_target = null
 # is drawn for one viewpoint. Only the focus and the zoom distance move.
 var _camera_focus: Vector3 = Vector3(10, 0, 6)  # Center of the 20x12 grid
 var _camera_yaw: float = CameraView.YAW      # Locked; kept for the WASD basis
+var _held_move := HeldMoveKeys.new()          # WASD keys held down: keep walking
 var _camera_pitch: float = CameraView.PITCH  # Locked
 var _camera_distance: float = CameraView.ZOOM_DEFAULT  # Zoom: screen pixels per texel (1..4)
 ## Player-driven scroll away from the follow focus (left-drag or arrow
@@ -718,6 +725,9 @@ func _ready() -> void:
 		# the active player, which is P2 whenever you're controlling it; hazards
 		# and Slowed pricing land on the bound stepper either way).
 		if _p2_player:
+			var p2_inv = _p2_player.get_inventory()
+			if p2_inv and not p2_inv.equipment_changed.is_connected(_on_equipment_changed):
+				p2_inv.equipment_changed.connect(_on_equipment_changed)   # the shared Block button follows both shields
 			_p2_player.tile_reached.connect(_on_player_tile_reached.bind(_p2_player))
 			_wire_marvolo_hooks(_p2_player)
 			_p2_player.move_completed.connect(_on_player_move_completed)
@@ -849,6 +859,19 @@ func _update_tick_speed_buttons() -> void:
 		_tick_speed_buttons[i].add_theme_color_override("font_color",
 			Color(1.0, 0.85, 0.4) if active else Color(0.45, 0.42, 0.38))
 
+## The camera rides with the player, smoothly, every frame, and keeps the
+## player wherever on screen they put him: the scroll (_camera_pan) and the
+## zoom are the player's, never reset by a step (designer, 2026-10-31: zoom
+## in, centre on him, and he stays centred as he walks).
+func _follow_camera() -> void:
+	if not player or not is_instance_valid(player):
+		return
+	var want := player.position + Vector3(2, 0, 0)
+	if want.is_equal_approx(_camera_focus):
+		return
+	_camera_focus = want
+	_update_camera()
+
 func _update_camera() -> void:
 	var camera := get_world_camera()
 	if not camera:
@@ -884,7 +907,10 @@ func _mark_prompts_dirty() -> void:
 	_prompts_dirty = true
 
 func _process(delta: float) -> void:
+	if dungeon_manager:
+		_follow_camera()
 	_update_menu_tempo_hold()
+	_update_card_closeup()
 	_update_hand_hover()
 	_update_battlefield_enemy_hover()
 	_update_status_icon_hover()
@@ -894,6 +920,7 @@ func _process(delta: float) -> void:
 	_update_damage_preview()
 	_update_loot_hover()
 	_update_move_path_cursor()
+	_update_held_move()
 	# Update chest interact prompts, waypoints, sites, and enemy fog visibility
 	if dungeon_manager and grid_manager:
 		var pg := grid_manager.world_to_grid(player.position)
@@ -1406,6 +1433,15 @@ func _skin_hud_button(btn: Button, face: String) -> void:
 	btn.add_theme_color_override("font_outline_color", Color(0.04, 0.05, 0.03))
 	btn.add_theme_constant_override("outline_size", 4)
 
+## The Flash and Brain counters take the shield button's width.
+func _match_counters_to_shield() -> void:
+	if _block_button == null:
+		return
+	var w: float = _block_button.size.x
+	for count_btn in [_flash_button, _brain_button]:
+		if count_btn and absf(count_btn.custom_minimum_size.x - w) > 0.5:
+			count_btn.custom_minimum_size.x = w
+
 func _setup_action_buttons() -> void:
 	var ui := $UI as CanvasLayer
 
@@ -1632,6 +1668,17 @@ func _setup_action_buttons() -> void:
 	attack_row.add_child(_block_button)
 	_skin_hud_button(_block_button, "block_slim")
 	_block_button.add_theme_font_size_override("font_size", 14)
+	# The Flash and Brain counters are exactly the shield button's width
+	# (designer, 2026-10-31); their spend buttons share the rest of the row.
+	for count_btn in [_flash_button, _brain_button]:
+		count_btn.size_flags_horizontal = Control.SIZE_FILL
+		count_btn.size_flags_stretch_ratio = 1.0
+	for spend_btn in [_flash_move_button, _flash_block_button, _flash_proc_button,
+			_brain_peek_button, _brain_draw_button]:
+		spend_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		spend_btn.size_flags_stretch_ratio = 1.0
+	_block_button.resized.connect(_match_counters_to_shield)
+	_match_counters_to_shield.call_deferred()
 
 	# War Rack button (Brad only): swap hands with the gear on his back.
 	_rack_button = Button.new()
@@ -2262,6 +2309,15 @@ func _setup_deck_info_vertical() -> void:
 	_hand_info_btn.tooltip_text = "Hand size and overflow info"
 	_hand_info_btn.pressed.connect(_toggle_hand_info_popup)
 	draw_row.add_child(_hand_info_btn)
+	# Cory's gauntlet-mana / Jeremy's ring-double clock: a small gauntlet or
+	# ring beside the pile whose three bands light as the passive nears its
+	# next trigger. Hidden for everyone else (refreshed once the character
+	# is known, then with the gauntlet skill circles).
+	_pile_passive_icon = PilePassiveIcon.new()
+	_pile_passive_icon.name = "PilePassiveIcon"
+	_pile_passive_icon.visible = false
+	_pile_passive_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	draw_row.add_child(_pile_passive_icon)
 	if _action_vbox:
 		_action_vbox.add_child(draw_row)
 		_action_vbox.move_child(draw_row, 0)  # top of the column
@@ -2622,54 +2678,64 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 	if free or (buff_mgr and buff_mgr.consume_steady()):
 		# Steady (or a passive's free swing): resolve immediately with no tempo
 		if player.has_method("play_animation"):
-			player.play_animation("attack_slash", _facing_dir_toward(target))
-		if _blind_misses("Attack", target):
-			_basic_attack_whiff(stats, buff_mgr, debuff_mgr, not basic_attack_proc)
-			return
-		target.take_damage(damage, true)
-		progression_triggers.brad_life_steal(damage)
-		_basic_attack_armor_shred(target)
-		if buff_mgr.last_crit_hit:
-			buff_mgr.last_crit_hit = false
-			progression_triggers._trigger_skill_tree_on_crit(target)
-		# Proc-bonus attacks don't count towards the next cycle
-		if not basic_attack_proc:
-			stats.register_attack()
-			if stats.consume_free_hand_echo() and is_instance_valid(target):
-				target.take_damage(damage, true)
-				progression_triggers.brad_life_steal(damage)
-				_basic_attack_armor_shred(target)
-				add_battle_log("Free hand echo! The strike lands twice.", Color(1.0, 0.9, 0.4))
-		if debuff_mgr:
-			debuff_mgr.on_attack()
-		add_battle_log("Attack: %d damage to %s (Steady!)" % [damage, target.enemy_name], Color(0.4, 1.0, 0.5))
-		print("[MAIN] Basic Attack (Steady): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
-		_ring_note_big_hit(damage)
-		_belthronding_share(player.position, damage, player)
-		PlayerStats.hit_source_offensive = false
-		PlayerStats.hit_source_direct = false
+			player.play_animation("basic_attack", _facing_dir_toward(target))
+		# The blow lands on the animation's hit frame (the swing hold waits).
+		var land := func() -> void:
+			if not is_instance_valid(target) or (target is Enemy and target.is_dead):
+				return
+			if _blind_misses("Attack", target):
+				_basic_attack_whiff(stats, buff_mgr, debuff_mgr, not basic_attack_proc)
+				return
+			target.take_damage(damage, true)
+			progression_triggers.brad_life_steal(damage)
+			_basic_attack_armor_shred(target)
+			if buff_mgr.last_crit_hit:
+				buff_mgr.last_crit_hit = false
+				progression_triggers._trigger_skill_tree_on_crit(target)
+			# Proc-bonus attacks don't count towards the next cycle
+			if not basic_attack_proc:
+				stats.register_attack()
+				if stats.consume_free_hand_echo() and is_instance_valid(target):
+					target.take_damage(damage, true)
+					progression_triggers.brad_life_steal(damage)
+					_basic_attack_armor_shred(target)
+					add_battle_log("Free hand echo! The strike lands twice.", Color(1.0, 0.9, 0.4))
+			if debuff_mgr:
+				debuff_mgr.on_attack()
+			add_battle_log("Attack: %d damage to %s (Steady!)" % [damage, target.enemy_name], Color(0.4, 1.0, 0.5))
+			print("[MAIN] Basic Attack (Steady): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
+			_ring_note_big_hit(damage)
+			_belthronding_share(player.position, damage, player)
+			PlayerStats.hit_source_offensive = false
+			PlayerStats.hit_source_direct = false
+		_after_hit(_hit_wait("basic_attack", target), land, _swing_time("basic_attack", target))
 	elif tempo_cost <= 0:
 		# Dex proc reduced tempo to 0: resolve immediately
 		if player.has_method("play_animation"):
-			player.play_animation("attack_slash", _facing_dir_toward(target))
-		if _blind_misses("Attack", target):
-			_basic_attack_whiff(stats, buff_mgr, debuff_mgr, false)
-			return
-		target.take_damage(damage, true)
-		progression_triggers.brad_life_steal(damage)
-		_basic_attack_armor_shred(target)
-		if buff_mgr and buff_mgr.last_crit_hit:
-			buff_mgr.last_crit_hit = false
-			progression_triggers._trigger_skill_tree_on_crit(target)
-		# Proc-bonus attack: don't count towards next cycle
-		if debuff_mgr:
-			debuff_mgr.on_attack()
-		add_battle_log("Attack: %d damage to %s (Proc!)" % [damage, target.enemy_name], Color(1.0, 0.3, 0.3))
-		print("[MAIN] Basic Attack (Dex Proc): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
-		_ring_note_big_hit(damage)
-		_belthronding_share(player.position, damage, player)
-		PlayerStats.hit_source_offensive = false
-		PlayerStats.hit_source_direct = false
+			player.play_animation("basic_attack", _facing_dir_toward(target))
+		# The blow lands on the animation's hit frame (the swing hold waits).
+		var land := func() -> void:
+			if not is_instance_valid(target) or (target is Enemy and target.is_dead):
+				return
+			if _blind_misses("Attack", target):
+				_basic_attack_whiff(stats, buff_mgr, debuff_mgr, false)
+				return
+			target.take_damage(damage, true)
+			progression_triggers.brad_life_steal(damage)
+			_basic_attack_armor_shred(target)
+			if buff_mgr and buff_mgr.last_crit_hit:
+				buff_mgr.last_crit_hit = false
+				progression_triggers._trigger_skill_tree_on_crit(target)
+			# Proc-bonus attack: don't count towards next cycle
+			if debuff_mgr:
+				debuff_mgr.on_attack()
+			add_battle_log("Attack: %d damage to %s (Proc!)" % [damage, target.enemy_name], Color(1.0, 0.3, 0.3))
+			print("[MAIN] Basic Attack (Dex Proc): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
+			_ring_note_big_hit(damage)
+			_belthronding_share(player.position, damage, player)
+			PlayerStats.hit_source_offensive = false
+			PlayerStats.hit_source_direct = false
+		_after_hit(_hit_wait("basic_attack", target), land, _swing_time("basic_attack", target))
 	else:
 		# Queue basic attack through the ticked tempo system (the resolve
 		# raises the hit-source flags again when the swing lands).
@@ -2708,6 +2774,39 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 		add_battle_log("Winding up Attack on %s (resolves tick %d/%d)" % [target.enemy_name, resolve_tick, tempo_cost], Color(1.0, 0.85, 0.4))
 		print("[MAIN] Basic Attack queued: %d damage to %s (%d tempo, resolve tick %d)" % [damage, target.enemy_name, tempo_cost, resolve_tick])
 
+## The hit wait (designer, 2026-10-31): a hero's drawn attack lands its
+## blow partway through (the hit frame, SpriteFigure "hit"), so the damage
+## waits for it: seconds from the swing's start to the blow, 0 when the
+## figure draws nothing that way or the swing hold is off in Settings.
+func _hit_wait(action: String, target) -> float:
+	if not TempoManager.swing_hold_enabled() or not player or not player.has_method("hit_delay"):
+		return 0.0
+	return player.hit_delay(action, _facing_dir_toward(target))
+
+## Seconds the whole drawn swing runs (wind-up, blow, follow-through and
+## play back); 0 when nothing is drawn or the swing hold is off.
+func _swing_time(action: String, target) -> float:
+	if not TempoManager.swing_hold_enabled() or not player or not player.has_method("action_time"):
+		return 0.0
+	return player.action_time(action, _facing_dir_toward(target))
+
+## Run `land` after `seconds` (now when 0). The tick clock is held for the
+## whole swing (`total`, when longer than the wait for the blow), so a kill
+## on the hit frame never cuts the follow-through short: nothing else
+## resolves — no next action restarting the hero's animation — until the
+## swing has played out (designer, 2026-11-03).
+func _after_hit(seconds: float, land: Callable, total: float = 0.0) -> void:
+	if tempo_manager and total > 0.0:
+		tempo_manager.hold_for(maxf(seconds, total) + TempoManager.SWING_HOLD_BEAT)
+	if seconds <= 0.0:
+		land.call()
+		return
+	if tempo_manager:
+		tempo_manager.hold_for(seconds + TempoManager.SWING_HOLD_BEAT)
+	get_tree().create_timer(seconds).timeout.connect(func() -> void:
+		if is_instance_valid(player):
+			land.call())
+
 ## A blinded swing that missed: like a blinded Attack card it still counts
 ## as an attack swung (the DEX counter, Burn's on-attack sting) and keeps
 ## the tempo it cost — it only loses the hit and everything riding the hit
@@ -2745,8 +2844,8 @@ func _on_block_pressed() -> void:
 		return
 
 	var shield := inventory.get_equipped_shield()
-	if not shield:
-		print("[MAIN] Basic Block - No shield equipped!")
+	if not shield or not _all_players_shielded():
+		print("[MAIN] Basic Block - No shield equipped (on every hero)!")
 		return
 
 	var block_amount = shield.armor_bonus
@@ -2759,7 +2858,8 @@ func _on_block_pressed() -> void:
 
 	# Pound the chest + raise the shield icon.
 	if player.has_method("play_animation"):
-		player.play_animation("block", CharacterAnimator.Direction.SOUTH)
+		# Blocks the way he faces, not always toward the camera.
+		player.play_animation("basic_block", player.get_facing() if player.has_method("get_facing") else CharacterAnimator.Direction.SOUTH)
 
 	# No Weighted surcharge: Weighted taxes card plays, and Block is not one.
 	var tempo_cost := BASIC_BLOCK_TEMPO
@@ -2851,11 +2951,23 @@ func _update_rack_button() -> void:
 		_rack_button.text = "Rack %dT" % inv.rack_cooldown_tempo
 		_rack_button.tooltip_text = "War Rack recharging: ready in %d tempo.\nOn the rack: %s" % [inv.rack_cooldown_tempo, rack_names]
 
+## Co-op: the basic Block is a shared action, so the button lights only
+## when BOTH heroes wear a shield (designer, 2026-11-01); solo, the one.
+func _all_players_shielded() -> bool:
+	var inv := player.get_inventory() if player else null
+	if inv == null or not inv.has_shield_equipped():
+		return false
+	if is_multiplayer and _p2_player and is_instance_valid(_p2_player):
+		var inv2 = _p2_player.get_inventory()
+		if inv2 == null or not inv2.has_shield_equipped():
+			return false
+	return true
+
 func _update_block_button_visibility() -> void:
 	if not _block_button:
 		return
 	var inventory := player.get_inventory()
-	if inventory and inventory.has_shield_equipped():
+	if inventory and _all_players_shielded():
 		var shield := inventory.get_equipped_shield()
 		var block_val = shield.armor_bonus if shield.armor_bonus > 0 else 3
 		block_val += inventory.get_two_hand_block_bonus(shield)
@@ -2866,7 +2978,8 @@ func _update_block_button_visibility() -> void:
 		# Always on the bar; greyed out (a disabled button still shows its
 		# tooltip) until a shield is worn.
 		_block_button.text = "%dT" % BASIC_BLOCK_TEMPO
-		_block_button.tooltip_text = "Equip a shield to activate button"
+		_block_button.tooltip_text = "Both heroes must wear a shield to activate button" \
+			if (is_multiplayer and _p2_player) else "Equip a shield to activate button"
 		_block_button.disabled = true
 	_block_button.visible = true
 
@@ -3179,6 +3292,22 @@ func _update_gauntlet_skills_ui() -> void:
 	for child in gauntlet_skills_container.get_children():
 		if child is GauntletSkillUI:
 			child.update_display()
+	_update_pile_passive_icon()
+
+func _refresh_gauntlet_armed_outline() -> void:
+	if gauntlet_skills_container == null or not is_instance_valid(gauntlet_skills_container):
+		return
+	for child in gauntlet_skills_container.get_children():
+		if child is GauntletSkillUI:
+			child.set_armed(_pending_gauntlet_skill != null and child.gauntlet == _pending_gauntlet_skill)
+
+func _update_pile_passive_icon() -> void:
+	## The clock icon beside the Draw pile (Cory's gauntlet mana, Jeremy's
+	## ring double) follows the active player's inventory.
+	if _pile_passive_icon == null or not is_instance_valid(_pile_passive_icon):
+		return
+	var inv = player.get_inventory() if (player and is_instance_valid(player)) else null
+	_pile_passive_icon.refresh(inv, tempo_manager)
 
 func _on_gauntlet_skill_activated(gauntlet: ItemData) -> void:
 	var inventory := player.get_inventory()
@@ -3270,10 +3399,13 @@ func _on_ring_triggered_visual(_ring: ItemData, _effect: String, owner_player: P
 	## ring just triggered.
 	if owner_player and is_instance_valid(owner_player):
 		owner_player.show_ring_trigger()
+	if owner_player == player:
+		_update_pile_passive_icon()
 
 func _on_equipment_changed() -> void:
 	_update_passive_display_ui()
 	_setup_gauntlet_skills_ui()
+	_update_pile_passive_icon()
 	_update_block_button_visibility()
 	_update_attack_button_text()
 	_sync_figure_weapons()
@@ -3493,6 +3625,9 @@ func _setup_unit_tracker() -> void:
 	enemy_inspect_ui.offset_left = 258.0
 	enemy_inspect_ui.offset_top = -200.0
 	unit_tracker.enemy_clicked.connect(_on_tracker_enemy_clicked)
+	unit_tracker.ally_clicked.connect(func(u):
+		if enemy_inspect_ui:
+			enemy_inspect_ui.show_ally(u))
 
 	# Connect hover signals for bidirectional highlighting
 	unit_tracker.enemy_hovered.connect(_on_tracker_enemy_hovered)
@@ -3601,7 +3736,6 @@ func select_character(character: CharacterData) -> void:
 	_refresh_carry_bar()
 	player.get_stats().armor_changed.connect(_on_player_armor_changed)
 	player.get_stats().unerring_changed.connect(_on_player_unerring_changed)
-	player.get_stats().armor_gained.connect(_on_player_armor_gained)
 	player.get_stats().dexterity_proc.connect(_on_dexterity_proc)
 	player.get_stats().flash_points_changed.connect(_on_flash_points_changed)
 	player.get_stats().brain_points_changed.connect(_on_brain_points_changed)
@@ -3664,6 +3798,7 @@ func select_character(character: CharacterData) -> void:
 	deck_manager.initialize_deck(character)
 	player.get_inventory().apply_equipped_item_card_effects()
 	_setup_gauntlet_skills_ui()
+	_update_pile_passive_icon()
 	# Connect gauntlet cooldown signal so UI updates when skills come off cooldown
 	var inventory := player.get_inventory()
 	if inventory and not inventory.gauntlet_skill_ready.is_connected(_on_gauntlet_skill_ready):
@@ -3804,11 +3939,7 @@ func _on_player_tile_reached(mover: Player = null) -> void:
 	_update_fog_of_war()
 	# Check if player stepped onto a waypoint to discover it
 	waypoint_mgr._check_waypoint_discovery(player_cell)
-	# Update camera focus to follow player
-	if dungeon_manager:
-		_camera_focus = player.position + Vector3(2, 0, 0)
-		_camera_pan = Vector3.ZERO  # following again: drop any manual scroll
-		_update_camera()
+	# (The camera follows the player every frame: _follow_camera.)
 
 func _on_player_move_completed() -> void:
 	# High-ground riders (Mountain Boots) read a cached flag: refresh it the
@@ -4523,9 +4654,7 @@ func _respawn_at_level_start() -> void:
 		if beside.x >= 0:
 			_follower.place_at(_ground_pos(beside), beside)
 	if dungeon_manager:
-		_camera_focus = player.position + Vector3(2, 0, 0)
-		_camera_pan = Vector3.ZERO  # following again: drop any manual scroll
-		_update_camera()
+		_follow_camera()
 		_update_fog_of_war()
 	_solo_fallen = false
 	add_battle_log("You rise again at the start of %s." % get_location_label(), Color(0.5, 1.0, 0.6))
@@ -6518,11 +6647,6 @@ func _refresh_carry_bar() -> void:
 	if stats:
 		_on_player_carry_changed(stats.current_carry_load, stats.get_carry_capacity())
 
-func _on_player_armor_gained(_amount: int) -> void:
-	## Armour gained from any source — pop the overhead armour icon.
-	if player and player.has_method("show_armor_gained"):
-		player.show_armor_gained()
-
 func _on_player_armor_changed(_current: int) -> void:
 	## The shield reads REGULAR armor only; unerring armor has its own grey bar.
 	var stats := player.get_stats() if player else null
@@ -6806,9 +6930,7 @@ func _on_player_health_damage_taken(hp_amount: int) -> void:
 
 func _on_player_healed(amount: int) -> void:
 	player.spawn_heal_number(amount)
-	# Heal from any source pops the overhead heart icon.
-	if amount > 0 and player.has_method("show_heal_icon"):
-		player.show_heal_icon()
+	# (The overhead heart pops from the hero itself — Player._ready.)
 	# Sphere grid passive triggers for healing
 	var stats := player.get_stats()
 	var overheal = 0
@@ -7043,6 +7165,30 @@ func _pan_camera(delta: Vector3) -> void:
 	_camera_pan.z = clampf(_camera_pan.z, -CAMERA_PAN_LIMIT, CAMERA_PAN_LIMIT)
 	_update_camera()
 
+
+## Hold-to-walk: while a WASD key stays down the hero takes the next step as
+## soon as the last one lands. Anything that would refuse a tapped step (a
+## window open, typing, the action still ticking, a wall) ends the hold
+## quietly instead of retrying every frame.
+func _update_held_move() -> void:
+	var dir := _held_move.current_dir()
+	if dir == Vector2.ZERO:
+		return
+	if player == null or not is_instance_valid(player) or player.is_moving:
+		return
+	if _co_op_defeated or _donation_active or _waypoint_menu_visible or _chest_modal_open:
+		_held_move.clear()
+		return
+	var focus := get_viewport().gui_get_focus_owner()
+	if focus is LineEdit or focus is TextEdit or focus is SpinBox:
+		_held_move.clear()
+		return
+	if _movement_locked():
+		_held_move.clear()
+		return
+	_wasd_step(dir)
+	if not player.is_moving:
+		_held_move.clear()  # blocked: let go and press again to retry
 
 func _wasd_step(dir: Vector2) -> void:
 	## Move the active player one grid cell in a camera-relative direction.
@@ -8309,6 +8455,77 @@ func update_peaked_display() -> void:
 		peaked_label.text = "NEXT: %s" % " → ".join(names)
 		peaked_label.visible = true
 
+# ---- The chosen card, up close -------------------------------------------
+## Right-clicking a card in hand shows it big beside the battlefield
+## (designer, 2026-10-31; selecting a card, by click or key, no longer does):
+## a full-size face at CLOSEUP_SCALE in the open strip left of the map,
+## between the stat bars and the action buttons, so its text reads while the
+## field stays clear. It never takes the mouse. Right-clicking it again, or
+## anywhere off the hand, or Esc puts it away; so does the card leaving the
+## hand (played, discarded, swapped).
+const CLOSEUP_SCALE := 1.75
+var _closeup: Control = null
+var _closeup_card: Card = null
+var _closeup_pick: Card = null   # the card right-clicked for a close look
+
+## A right-click on the hand: the card under the mouse up close (or put away
+## if it is already). True when the click was the hand's.
+func _hand_right_click() -> bool:
+	var i := _current_hand_hover_index
+	if i < 0 or i >= _hand_groups.size():
+		return false
+	var card: Card = _hand_groups[i].get("rep")
+	_closeup_pick = null if card == _closeup_pick else card
+	return true
+
+func _update_card_closeup() -> void:
+	var want: Card = _closeup_pick
+	if want != null and (deck_manager == null or not want in deck_manager.hand):
+		want = null
+		_closeup_pick = null
+	if want == _closeup_card:
+		return
+	_closeup_card = want
+	if _closeup and is_instance_valid(_closeup):
+		_closeup.queue_free()
+	_closeup = null
+	if want == null:
+		return
+	var holder := Control.new()
+	holder.name = "CardCloseup"
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.z_index = 50
+	holder.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+	var w := CardUI.CARD_W * CLOSEUP_SCALE
+	var h := CardUI.CARD_H * CLOSEUP_SCALE
+	holder.offset_left = 18.0
+	holder.offset_right = 18.0 + w
+	holder.offset_top = -h * 0.5 - 40.0     # between the stat bars and the action buttons
+	holder.offset_bottom = h * 0.5 - 40.0
+	($UI as CanvasLayer).add_child(holder)
+	var face: CardUI = CardUIScene.instantiate()
+	face.scale = Vector2(CLOSEUP_SCALE, CLOSEUP_SCALE)
+	holder.add_child(face)
+	face.setup(want, deck_manager.hand.find(want), player.get_debuff_manager() if player else null)
+	# A hand card scales about its bottom centre (the fan); this one grows
+	# from its corner to fill the holder.
+	face.pivot_offset = Vector2.ZERO
+	face.position = Vector2.ZERO
+	_ignore_mouse_tree(face)
+	var kb = face.get_node_or_null("Panel/KeybindBadge")
+	if kb:
+		kb.visible = false
+	# Fade in, so it reads as the card lifted up to the eye.
+	holder.modulate.a = 0.0
+	holder.create_tween().tween_property(holder, "modulate:a", 1.0, 0.12)
+	_closeup = holder
+
+func _ignore_mouse_tree(n: Node) -> void:
+	if n is Control:
+		n.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for c in n.get_children():
+		_ignore_mouse_tree(c)
+
 func update_card_highlights() -> void:
 	# Highlight the stack that contains the selected card.
 	var sel_card: Card = null
@@ -8789,6 +9006,11 @@ func play_selected_card(target) -> void:
 			if s_ui and is_instance_valid(s_ui):
 				s_ui.show_sticky_counter(card.consecutive_uses, card.sticky)
 	else:
+		# Refused for mana: the sign over the hero's head (designer, 2026-11-01).
+		var p_stats := player.get_stats()
+		if p_stats and not p_stats.has_mana(card.get_burden_mana_cost() if card.has_method("get_burden_mana_cost") else card.mana_cost) \
+				and player.has_method("show_no_mana"):
+			player.show_no_mana()
 		# Card didn't play - undo temporary modifications
 		if ao_spent and ao_stats:
 			ao_stats.st_arcane_overflow_discount = true  # the play failed: keep the discount
@@ -8805,6 +9027,12 @@ func play_selected_card(target) -> void:
 func _on_card_ticks_started(card: Card) -> void:
 	if progression_triggers:
 		progression_triggers.on_card_ticks_started(card)
+
+## The hit frame came: the card waiting on it resolves (as its owner, in
+## co-op), the target checked again as it does.
+func _land_queued_entry(entry: Dictionary) -> void:
+	_pending_resolve_queue.push_front(entry)
+	_on_card_tick_resolved(entry["card"])
 
 func _on_card_tick_resolved(card: Card) -> void:
 	## Called by TempoManager when a card's resolve_tick is reached. In co-op the
@@ -8986,11 +9214,31 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 			update_deck_info()
 		return
 
+	# The hit wait: a drawn attack's blow lands partway through its swing,
+	# so the swing starts now and the card resolves on the hit frame (the
+	# entry goes back in the queue meanwhile, and the target is checked
+	# again then). The second pass skips this and the animation.
+	if not data.get("hit_landing", false):
+		var swing := "basic_attack" if data.get("is_basic_attack", false) else card.get_animation_action()
+		var wait := _hit_wait(swing, target)
+		if wait > 0.0:
+			data["hit_landing"] = true
+			data["anim_played"] = true
+			if data.get("is_basic_attack", false):
+				if player.has_method("play_animation"):
+					player.play_animation("basic_attack", _facing_dir_toward(target))
+					if target is Node3D and is_instance_valid(target) and player.has_method("face_toward"):
+						player.face_toward(target.position)
+			else:
+				_play_card_animation(card, target)
+			_after_hit(wait, func() -> void: _land_queued_entry(entry), _swing_time(swing, target))
+			return
+
 	# --- Basic attack resolution: deal damage directly ---
 	if data.get("is_basic_attack", false):
 		# Swing exactly when the hit lands (facing wherever the target is NOW).
-		if player.has_method("play_animation"):
-			player.play_animation("attack_slash", _facing_dir_toward(target))
+		if not data.get("anim_played", false) and player.has_method("play_animation"):
+			player.play_animation("basic_attack", _facing_dir_toward(target))
 			if target is Node3D and is_instance_valid(target) and player.has_method("face_toward"):
 				player.face_toward(target.position)
 		var damage = data["basic_attack_damage"]
@@ -9040,7 +9288,8 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 
 	# The action happens NOW — play the character's animation at resolution
 	# rather than back when the card was played and the wind-up began.
-	_play_card_animation(card, target)
+	if not data.get("anim_played", false):
+		_play_card_animation(card, target)
 
 	# Harnessed Power (Jeremy): scale everything this card produces.
 	if data.get("harnessed_power_applied", false):
@@ -11961,10 +12210,13 @@ func _get_nearest_enemy() -> Enemy:
 	return nearest
 
 func _facing_dir_toward(target) -> CharacterAnimator.Direction:
-	## Returns the CharacterAnimator.Direction the player should face to act on target.
-	var dir = CharacterAnimator.Direction.SOUTH
+	## Returns the CharacterAnimator.Direction the player should face to act on target
+	## (the way he already faces when there is none, or it is himself).
+	var dir = player.get_facing() if player and player.has_method("get_facing") else CharacterAnimator.Direction.SOUTH
 	if target and target is Node3D and is_instance_valid(target):
 		var to_target = target.position - player.position
+		if Vector2(to_target.x, to_target.z).length() < 0.05:
+			return dir
 		if abs(to_target.x) > abs(to_target.z):
 			dir = CharacterAnimator.Direction.EAST if to_target.x > 0 else CharacterAnimator.Direction.WEST
 		else:
@@ -11994,9 +12246,10 @@ func _play_card_animation(card: Card, target) -> void:
 	# Face where the card goes: the creature it is cast at, or, for a card
 	# aimed at a point or along a line (Fireball, A Snowball's Chance...),
 	# the aimed spot — a point click passes the CASTER as the target, so
-	# reading `target` alone left those casts facing south.
+	# reading `target` alone left those casts facing south. A card on the
+	# hero himself (Block, a heal) keeps the way he faces.
 	var aim = _card_aim_point(card, target)
-	var dir := CharacterAnimator.Direction.SOUTH
+	var dir: CharacterAnimator.Direction = player.get_facing() if player.has_method("get_facing") else CharacterAnimator.Direction.SOUTH
 	if aim != null:
 		var to_aim: Vector3 = aim - player.position
 		if abs(to_aim.x) > abs(to_aim.z):
@@ -13349,6 +13602,12 @@ func _is_ui_window_open() -> bool:
 		return true
 	return false
 
+## Whether the pointer is over a GUI control that takes the mouse (a menu,
+## panel, button, the log...): the open battlefield has none.
+func _pointer_over_gui() -> bool:
+	var c := get_viewport().gui_get_hovered_control()
+	return c != null and c.is_visible_in_tree()
+
 func _input(event: InputEvent) -> void:
 	# Both heroes are down — the defeat overlay takes over.
 	if _co_op_defeated:
@@ -13369,6 +13628,20 @@ func _input(event: InputEvent) -> void:
 		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 			chest_loot_ui._close_chest_modal()
 		return
+
+	# Right click on a hand card: it up close (not a move order).
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
+		if _hand_right_click():
+			get_viewport().set_input_as_handled()
+			return
+		_closeup_pick = null   # a right-click off the hand puts the close look away
+
+	# Typing into a menu's text box (a search field, a number spinner) is the
+	# box's, not a hotkey for the game behind it.
+	if event is InputEventKey:
+		var focus := get_viewport().gui_get_focus_owner()
+		if focus is LineEdit or focus is TextEdit or focus is SpinBox:
+			return
 
 	if event is InputEventKey and event.pressed and not event.echo:
 		# Chest / waypoint / cave / building interaction (Shift key)
@@ -13474,19 +13747,11 @@ func _input(event: InputEvent) -> void:
 
 		# WASD: step one grid cell in the camera-relative direction. A quick
 		# alternative to right-clicking for short hops; right-click still works.
-		match event.keycode:
-			KEY_W:
-				_wasd_step(Vector2(0, 1))
-				return
-			KEY_S:
-				_wasd_step(Vector2(0, -1))
-				return
-			KEY_A:
-				_wasd_step(Vector2(-1, 0))
-				return
-			KEY_D:
-				_wasd_step(Vector2(1, 0))
-				return
+		# Held down, the hero keeps walking (see _update_held_move).
+		if HeldMoveKeys.is_move_key(event.keycode):
+			_held_move.press(event.keycode)
+			_wasd_step(HeldMoveKeys.dir_for(event.keycode))
+			return
 
 		# ~ (the key left of 1): arm the auto attack, same as clicking its button.
 		if event.keycode == KEY_QUOTELEFT or event.keycode == KEY_ASCIITILDE:
@@ -13500,6 +13765,7 @@ func _input(event: InputEvent) -> void:
 				return
 		
 		if event.keycode == KEY_ESCAPE:
+			_closeup_pick = null
 			if player and player.is_moving:
 				player.cancel_movement()
 				add_battle_log("Movement stopped.", Color(1.0, 0.85, 0.4))
@@ -13523,6 +13789,15 @@ func _input(event: InputEvent) -> void:
 			if trade_ui:
 				trade_ui.close()
 	
+	# Over a menu or panel (the log, the sandbox, a tooltip, any HUD window):
+	# the mouse belongs to it — its wheel scrolls it, a drag drags in it, a
+	# click clicks it — and never zooms, pans or orders the battlefield
+	# behind it (designer, 2026-10-31).
+	if event is InputEventMouseButton and _pointer_over_gui():
+		if not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			_camera_panning = false
+		return
+
 	# Left click - play card or use gauntlet skill
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		# Mythic reveal sequence: clicking the present opens it; clicking the
@@ -15754,6 +16029,10 @@ func _money_bag_sprite() -> Sprite3D:
 	sprite.centered = false
 	sprite.offset = Vector2(-w * 0.5, 0.0)
 	sprite.position = Vector3(0, CameraView.SPRITE_LIFT, 0)
+	# Behind whoever stands on the tile: at the figures' own lift the bag
+	# and a hero on its tile sat at one depth and traded places frame to
+	# frame (designer, 2026-11-01). The hero is always in front.
+	sprite.sorting_offset = -0.5
 	return sprite
 
 func _loot_mesh(parent: Node3D, mesh: Mesh, pos: Vector3, color: Color, emissive := false) -> MeshInstance3D:
@@ -16160,7 +16439,7 @@ func _ensure_loot_tooltip() -> void:
 	style.content_margin_bottom = 6
 	_loot_tooltip.add_theme_stylebox_override("panel", style)
 	_loot_tooltip_label = Label.new()
-	_loot_tooltip_label.add_theme_font_size_override("font_size", 14)
+	_loot_tooltip_label.add_theme_font_size_override("font_size", 18)
 	_loot_tooltip_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.55))
 	_loot_tooltip.add_child(_loot_tooltip_label)
 	window_layer().add_child(_loot_tooltip)

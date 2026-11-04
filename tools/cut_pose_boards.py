@@ -98,6 +98,12 @@ SRC = "assets/sprites/paintings/%s"
 OUT = "assets/sprites/generated/sheets/%s"
 MATTES = "assets/sprites/paintings/mattes"   # model mattes (tools/make_mattes.py)
 ROWS = ["front", "back", "left", "right"]
+# The Hydra's head-loss sets are sized by her body, not her height: each
+# board draws her heads and her bulk in its own proportions, and losing
+# heads must make her shorter, not bigger. Set so her front stance's legs
+# and trunk match the full Hydra's (tools: measured on the cut sheets).
+TILES_H5 = 1.7
+TILES_H3 = 1.7
 
 # Per creature: board, how its background is told apart, the front Idle's
 # height in texels, and a box (x0, y0, x1, y1) around each pose. A pose given
@@ -393,6 +399,154 @@ BOARDS = {
             "left": (215, 620, 520, 1120),
             "right": (745, 625, 1060, 1120),
         },
+        # 2026-11-03: the designer's smash board — grave_titan_smash_board.webp,
+        # "SMASH ATTACK (4 DIRECTIONS)", four labelled rows on black (NORTH
+        # (FRONT), SOUTH (BACK), WEST (LEFT), EAST (RIGHT), the board's
+        # "north" facing the camera), seven captioned frames a row: idle,
+        # lift (start), overhead (raise), swing down (dark motion arcs about
+        # the boulder), impact (rubble and dust thrown wide), recovery, and
+        # return (idle). The arcs and the rubble are pieces apart from him
+        # and are kept (`keep_share`); each box stops above its caption. The
+        # board's idle is the height reference, matched to each facing's
+        # Idle; its last frame is the idle again and is not played.
+        "actions": {
+            "src": "grave_titan_smash_board.webp",
+            "shadow_band": 0.10,
+            "shadow_lum": 45,   # the floor shadow is colourless grey under 45, brighter than his robe's solid level
+            "levels": (4, 30, 6),   # his robe is near-black purple, just above the backdrop's 0-3
+            "fill_holes": 4,   # a pocket brighter than the backdrop is his robe's painted folds
+            "open_dark": True,   # the black between his legs and under his arms is backdrop, however small
+            "keep_share": 0.002,   # the swing's arcs, the impact's rubble
+            "glow": False,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (155, 96, 320, 277),
+                    "lift": (335, 94, 500, 276),
+                    "overhead": (518, 63, 675, 277),
+                    "swing": (683, 91, 849, 277),
+                    "impact": (849, 134, 1067, 281),
+                    "recover": (1067, 106, 1249, 278),
+                    "back": (1252, 94, 1421, 277),
+                },
+                "back": {
+                    "stance": (162, 332, 323, 510),
+                    "lift": (338, 332, 501, 511),
+                    "overhead": (515, 300, 678, 511),
+                    "swing": (691, 338, 842, 512),
+                    "impact": (842, 358, 1071, 514),
+                    "recover": (1071, 346, 1253, 513),
+                    "back": (1259, 332, 1423, 511),
+                },
+                "left": {
+                    "stance": (165, 569, 306, 748),
+                    "lift": (334, 564, 489, 748),
+                    "overhead": (497, 533, 650, 748),
+                    "swing": (661, 562, 828, 748),
+                    "impact": (828, 606, 1058, 751),
+                    "recover": (1058, 597, 1258, 748),
+                    "back": (1265, 569, 1416, 748),
+                },
+                "right": {
+                    "stance": (166, 815, 311, 993),
+                    "lift": (337, 808, 496, 993),
+                    "overhead": (513, 774, 671, 993),
+                    "swing": (674, 815, 827, 993),
+                    "impact": (827, 849, 1070, 997),
+                    "recover": (1070, 840, 1262, 994),
+                    "back": (1264, 815, 1411, 993),
+                },
+            },
+            "sheets": {
+                "Attack": ["lift", "overhead", "swing", "impact", "recover"],
+            },
+        },
+    },
+    "grave_titan_throw": {
+        # 2026-11-03: the Grave Titan's boulder roll — grave_titan_throw_board.webp,
+        # "BOULDER ROLL (ATTACK)", four labelled rows on black (NORTH (FRONT),
+        # SOUTH (BACK), WEST (LEFT), EAST (RIGHT)), eight captioned frames a
+        # row: idle (boulder on his shoulder), removing it, stepping in to
+        # grip it with both hands, the wind-up, the full twisted wind-up,
+        # the throw (motion lines past his arm), the boulder rolling away,
+        # and his recovery (no boulder). The seventh frame draws only the
+        # boulder in the side rows — the rolling boulder is its own sprite
+        # (grave_titan_boulder) and he is not drawn leaving — so it is not
+        # used. The frames crowd each other (a wind-up's dust reaches the
+        # next frame's box): each frame's own pieces are kept (`isolate`).
+        # Cut like his smash; packed into his folder as Throw.png, each
+        # row's idle matched to that facing's Idle.
+        "into": "grave_titan",
+        "actions": {
+            "src": "grave_titan_throw_board.webp",
+            "shadow_band": 0.10,
+            "shadow_lum": 45,
+            "levels": (4, 30, 6),
+            "fill_holes": 4,
+            "open_dark": True,
+            "keep_share": 0.002,   # the dust at his feet, the throw's motion lines
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (105, 63, 266, 246),
+                    "remove": (268, 63, 432, 247),
+                    "grip": (417, 65, 582, 247),
+                    "windup": (569, 66, 747, 247),
+                    "full": (716, 63, 914, 247),
+                    "throw": (877, 64, 1081, 247),
+                    "recover": (1264, 59, 1421, 247),
+                },
+                "back": {
+                    "stance": (105, 304, 267, 494),
+                    "remove": (265, 304, 426, 492),
+                    "grip": (418, 304, 585, 494),
+                    "windup": (572, 304, 752, 494),
+                    "full": (721, 304, 919, 493),
+                    "throw": (888, 308, 1088, 493),
+                    "recover": (1273, 304, 1420, 493),
+                },
+                "left": {
+                    "stance": (114, 551, 254, 745),
+                    "remove": (263, 549, 419, 744),
+                    "grip": (396, 559, 578, 744),
+                    "windup": (549, 555, 735, 742),
+                    "full": (716, 550, 916, 743),
+                    "throw": (869, 556, 1089, 743),
+                    "recover": (1288, 563, 1430, 744),
+                },
+                "right": {
+                    "stance": (112, 804, 254, 997),
+                    "remove": (266, 805, 415, 997),
+                    "grip": (403, 811, 590, 997),
+                    "windup": (568, 806, 755, 997),
+                    "full": (718, 806, 916, 996),
+                    "throw": (881, 806, 1100, 996),
+                    "recover": (1282, 804, 1429, 996),
+                },
+            },
+            "sheets": {
+                "Throw": ["remove", "grip", "windup", "full", "throw", "recover"],
+            },
+        },
+    },
+    "grave_titan_boulder": {
+        # 2026-11-03: the boulder he rolls — grave_titan_boulder_strip.webp,
+        # eight frames of the mossy boulder rolling to the right, cut out
+        # (transparent), its painted shadow under it, pebbles and dust
+        # thrown up behind it. Packed as one row, Boulder.png, into his
+        # folder; Enemy's Boulder Roll sends it from his hands to the target
+        # (SpriteEnemyFigure.throw_projectile, ThrownSprite), mirrored when it
+        # rolls left. As wide as the boulder he carries: 1.1 tiles.
+        "into": "grave_titan",
+        "strip": {
+            "src": "grave_titan_boulder_strip.webp",
+            "sheet": "Boulder",
+            "width_tiles": 1.1,
+            "frames": [(10, 200, 250, 460), (260, 200, 500, 460), (505, 200, 750, 460), (750, 200, 1000, 460),
+                       (1000, 200, 1250, 460), (1250, 200, 1500, 460), (1500, 200, 1750, 460), (1750, 200, 1990, 460)],
+        },
     },
     "armored_troll": {
         # 2026-10-25: the Armored Troll — grey-blue, spiked pauldrons, chain
@@ -405,6 +559,141 @@ BOARDS = {
             "back": (767, 20, 1208, 562),
             "left": (89, 580, 455, 1126),
             "right": (852, 580, 1220, 1126),
+        },
+        # 2026-11-03: the designer's kick board — armored_troll_kick_board.webp,
+        # "KICK ATTACK (4 DIRECTIONS x 7 FRAMES)", four labelled rows on
+        # black (NORTH (FRONT), SOUTH (BACK), WEST (LEFT), EAST (RIGHT), the
+        # board's "north" facing the camera), seven frames a row under
+        # column captions: idle, shift, knee up, chamber (90 degrees), full
+        # extend, recoil, return. Mid-kick his standing leg is drawn apart
+        # from his body in the side rows, so every piece a frame owns is
+        # kept (`keep_share`) and a neighbour's reaching into its box
+        # blanked (`isolate`); each box runs to the row's ground line. Kick.png,
+        # played for his Kick only (his Smash keeps its lunge); the idle is
+        # the height reference, matched to each facing's Idle.
+        "actions": {
+            "src": "armored_troll_kick_board.webp",
+            "levels": (4, 30, 6),   # his scale mail is near-black, just above the backdrop's 0
+            "fill_holes": 4,
+            "open_dark": True,
+            "keep_share": 0.02,   # his standing leg mid-kick
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (112, 85, 303, 283),
+                    "shift": (302, 86, 495, 283),
+                    "knee": (490, 83, 683, 283),
+                    "chamber": (678, 83, 869, 283),
+                    "extend": (873, 83, 1062, 283),
+                    "recoil": (1059, 85, 1246, 283),
+                    "back": (1244, 85, 1434, 283),
+                },
+                "back": {
+                    "stance": (129, 304, 317, 500),
+                    "shift": (319, 306, 510, 500),
+                    "knee": (507, 304, 693, 500),
+                    "chamber": (699, 304, 888, 500),
+                    "extend": (892, 305, 1076, 500),
+                    "recoil": (1081, 306, 1265, 500),
+                    "back": (1265, 303, 1451, 500),
+                },
+                "left": {
+                    "stance": (124, 522, 280, 730),
+                    "shift": (313, 525, 466, 730),
+                    "knee": (508, 521, 654, 730),
+                    "chamber": (699, 523, 841, 730),
+                    "extend": (877, 522, 1034, 730),
+                    "recoil": (1079, 524, 1223, 730),
+                    "back": (1258, 523, 1410, 730),
+                },
+                "right": {
+                    "stance": (149, 757, 302, 960),
+                    "shift": (342, 753, 489, 960),
+                    "knee": (535, 755, 673, 960),
+                    "chamber": (714, 754, 848, 960),
+                    "extend": (903, 753, 1074, 960),
+                    "recoil": (1096, 752, 1240, 960),
+                    "back": (1282, 753, 1432, 960),
+                },
+            },
+            "sheets": {
+                "Kick": ["shift", "knee", "chamber", "extend", "recoil"],
+            },
+        },
+    },
+    "armored_troll_smash": {
+        # 2026-11-03: the Armored Troll's smash — armored_troll_smash_board.webp,
+        # "DOUBLE SMASH ATTACK", a table on black: four labelled rows (NORTH
+        # (FRONT), SOUTH (BACK), WEST (LEFT), EAST (RIGHT), the board's
+        # "north" facing the camera) of eight frames under numbered column
+        # captions: idle, grip, raise (club overhead), smash 1 (the club into
+        # the ground, a splash of earth), recoil (club up again), smash 2,
+        # recovery, return. Each box stays inside its row's table lines.
+        # Cut like his kick and packed into his folder as Attack.png: his
+        # Smash plays it (his Kick has its own sheet); the idle is the height
+        # reference, matched to each facing's Idle.
+        "into": "armored_troll",
+        "actions": {
+            "src": "armored_troll_smash_board.webp",
+            "levels": (4, 30, 6),
+            "fill_holes": 4,
+            "open_dark": True,
+            "keep_share": 0.02,   # the smashes' flying earth
+            "glow": False,
+            "isolate": True,
+            # The raised club's tip reaches the table line above the back,
+            # left and right rows; the line's dim fringe (the box's top two
+            # rows) would cling to it.
+            "bg_boxes": {("back", "raise"): [(0, 0, 400, 2)], ("left", "raise"): [(0, 0, 400, 2)],
+                         ("right", "raise"): [(0, 0, 400, 2)]},
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (136, 170, 290, 359),
+                    "grip": (296, 173, 449, 359),
+                    "raise": (459, 160, 610, 359),
+                    "smash1": (626, 195, 790, 359),
+                    "recoil": (804, 168, 942, 359),
+                    "smash2": (955, 195, 1123, 359),
+                    "recover": (1119, 169, 1274, 359),
+                    "back": (1275, 171, 1437, 359),
+                },
+                "back": {
+                    "stance": (144, 383, 298, 569),
+                    "grip": (316, 386, 470, 569),
+                    "raise": (468, 370, 609, 569),
+                    "smash1": (622, 407, 795, 569),
+                    "recoil": (807, 372, 938, 569),
+                    "smash2": (950, 407, 1127, 569),
+                    "recover": (1136, 385, 1295, 569),
+                    "back": (1295, 383, 1437, 569),
+                },
+                "left": {
+                    "stance": (136, 600, 266, 781),
+                    "grip": (282, 600, 432, 781),
+                    "raise": (458, 580, 602, 781),
+                    "smash1": (591, 621, 779, 781),
+                    "recoil": (768, 598, 929, 781),
+                    "smash2": (930, 627, 1123, 781),
+                    "recover": (1113, 599, 1255, 781),
+                    "back": (1276, 600, 1419, 781),
+                },
+                "right": {
+                    "stance": (151, 813, 290, 991),
+                    "grip": (310, 812, 460, 991),
+                    "raise": (462, 792, 606, 991),
+                    "smash1": (616, 836, 795, 991),
+                    "recoil": (804, 795, 928, 991),
+                    "smash2": (942, 842, 1132, 991),
+                    "recover": (1139, 813, 1292, 991),
+                    "back": (1305, 812, 1437, 991),
+                },
+            },
+            "sheets": {
+                "Attack": ["grip", "raise", "smash1", "recoil", "smash2", "recover"],
+            },
         },
     },
     "ice_troll": {
@@ -432,6 +721,26 @@ BOARDS = {
             "right": (518, 22, 700, 246),
         },
     },
+    "olorin_bear": {
+        # 2026-11-01: Olorin's bear on its own — the designer's five poses on
+        # a painted checker: facing up (its face), facing down (its back), the
+        # two sides, and asleep. Idle is the standing bear; "Sleep" the curled
+        # one (one pose, shown from every way), used by the title cutscene
+        # where it dozes a few paces behind Olorin.
+        "src": "olorin_bear_board.webp", "bg": "checker_light", "tiles": 1.6,
+        "Idle": {
+            "front": (72, 145, 294, 500),
+            "back": (372, 145, 583, 493),
+            "left": (615, 203, 1049, 490),
+            "right": (1099, 203, 1528, 490),
+        },
+        "Sleep": {
+            "front": (559, 645, 984, 891),
+            "back": ("mirror", "front"),
+            "left": (559, 645, 984, 891),
+            "right": ("mirror", "front"),
+        },
+    },
     "mini_bear": {
         # 2026-10-25: the Mini Bear — a young brown bear — four poses on
         # black. Its "NORTH" pose shows the face and "SOUTH" its back: picked
@@ -443,6 +752,68 @@ BOARDS = {
             "back": (792, 208, 1057, 566),
             "left": (148, 688, 581, 1008),
             "right": (730, 688, 1153, 1008),
+        },
+        # 2026-11-01: the designer's attack board — mini_bear_attack_board.webp,
+        # four labelled rows on black (NORTH (FRONT), SOUTH (BACK), LEFT,
+        # RIGHT, the board's "north" facing the camera), the bear on a
+        # painted floor shadow, ten frames a row: the stance twice, a paw
+        # raised, the swipe, the paw coming down, a hunkered crouch, flat
+        # on its face, rolled onto its back, rising, and the stance. The
+        # whole of it is the Attack: a cute little bear that swipes, goes
+        # over in a heap and scrambles back up (designer, 2026-11-01). The
+        # stance is the height reference, matched to each facing's Idle.
+        "actions": {
+            "src": "mini_bear_attack_board.webp",
+            "shadow_band": 0.10,
+            "levels": (4, 36, 8),   # the underside's fur is near-black; the backdrop is pure black
+            "fill_holes": 5,
+            "match_scale": {"front": 1.08, "back": 1.08, "left": 1.15, "right": 1.15},   # the board draws him taller in proportion than his Idle: matched by bulk, not height
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (128, 85, 243, 248),
+                    "raise": (410, 85, 535, 248),
+                    "swipe": (558, 85, 681, 248),
+                    "follow": (705, 93, 819, 248),
+                    "settle": (841, 103, 962, 248),
+                    "flat": (974, 140, 1110, 248),
+                    "roll": (1114, 124, 1250, 248),
+                    "rise": (1257, 112, 1384, 248),
+                },
+                "back": {
+                    "stance": (129, 315, 241, 480),
+                    "raise": (406, 315, 528, 480),
+                    "swipe": (551, 315, 680, 480),
+                    "follow": (700, 320, 822, 480),
+                    "settle": (845, 333, 964, 480),
+                    "flat": (980, 366, 1113, 480),
+                    "roll": (1119, 352, 1253, 480),
+                    "rise": (1264, 342, 1392, 480),
+                },
+                "left": {
+                    "stance": (114, 552, 251, 688),
+                    "raise": (391, 548, 534, 688),
+                    "swipe": (538, 545, 677, 688),
+                    "follow": (681, 553, 819, 688),
+                    "settle": (823, 574, 966, 688),
+                    "flat": (970, 593, 1113, 688),
+                    "roll": (1113, 571, 1246, 688),
+                    "rise": (1246, 566, 1385, 688),
+                },
+                "right": {
+                    "stance": (114, 764, 255, 900),
+                    "raise": (394, 758, 536, 900),
+                    "swipe": (541, 755, 682, 900),
+                    "follow": (691, 766, 826, 900),
+                    "settle": (831, 787, 974, 900),
+                    "flat": (980, 807, 1123, 900),
+                    "roll": (1116, 786, 1249, 900),
+                    "rise": (1250, 779, 1393, 900),
+                },
+            },
+            "sheets": {
+                "Attack": ["raise", "swipe", "follow", "settle", "flat", "roll", "rise"],
+            },
         },
     },
     "necromancer": {
@@ -599,6 +970,170 @@ BOARDS = {
             "back": (775, 11, 1215, 580),
             "left": (122, 626, 543, 1180),
             "right": (693, 626, 1121, 1180),
+        },
+        # 2026-11-03: the designer's snowball board — snow_wraith_snowball_board.webp,
+        # four labelled rows on black (NORTH, SOUTH, WEST, EAST; "north"
+        # facing the camera, as on her pose board), seven frames a row: the
+        # stance, a swirl of frost gathering at her hand, the snowball
+        # formed and glowing, raised, thrown (the ball leaving her
+        # fingers), the follow-through, and the stance. The frost and the
+        # ball are pieces apart from her and are kept (`keep_share`); a
+        # neighbour's reaching into a box is blanked (`isolate`). Throw.png,
+        # played for her Snowball (her Ice Blast keeps its lunge); the
+        # stance is the height reference, matched to each facing's Idle.
+        "actions": {
+            "src": "snow_wraith_snowball_board.webp",
+            "levels": (4, 30, 6),   # her cloak's shadows are near-black navy, just above the backdrop's 0
+            "fill_holes": 4,
+            "open_dark": True,
+            "keep_share": 0.001,   # the frost swirl's motes, the snowball in flight
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (90, 7, 295, 250),
+                    "gather": (288, 7, 485, 250),
+                    "form": (479, 7, 675, 250),
+                    "raise": (667, 7, 869, 250),
+                    "throw": (857, 7, 1064, 250),
+                    "follow": (1051, 7, 1258, 250),
+                    "back": (1247, 7, 1448, 250),
+                },
+                "back": {
+                    "stance": (103, 272, 301, 512),
+                    "gather": (300, 272, 486, 512),
+                    "form": (489, 272, 675, 512),
+                    "raise": (666, 272, 873, 512),
+                    "throw": (862, 272, 1077, 512),
+                    "follow": (1057, 272, 1257, 512),
+                    "back": (1256, 272, 1448, 512),
+                },
+                "left": {
+                    "stance": (120, 547, 302, 776),
+                    "gather": (296, 547, 489, 776),
+                    "form": (479, 547, 675, 776),
+                    "raise": (662, 547, 869, 776),
+                    "throw": (820, 547, 1065, 776),
+                    "follow": (1037, 548, 1261, 776),
+                    "back": (1270, 547, 1448, 776),
+                },
+                "right": {
+                    "stance": (83, 811, 270, 1045),
+                    "gather": (275, 811, 475, 1045),
+                    "form": (468, 811, 666, 1045),
+                    "raise": (662, 812, 867, 1045),
+                    "throw": (851, 812, 1087, 1045),
+                    "follow": (1046, 811, 1259, 1045),
+                    "back": (1241, 811, 1420, 1045),
+                },
+            },
+            "sheets": {
+                "Throw": ["gather", "form", "raise", "throw", "follow"],
+            },
+        },
+    },
+    "snow_wraith_snowball": {
+        # 2026-11-03: the Snow Wraith's snowball in flight —
+        # snow_wraith_snowball_strip.webp, eight frames of the snowball
+        # flying right, cut out (transparent): a packed ball with a frosty
+        # trail streaming behind it, sparkles about it and a blue glow,
+        # turning over as it flies. Snowball.png in her folder; her Snowball
+        # sends it from her hand to the target (SpriteEnemyFigure.
+        # throw_projectile, ThrownSprite), mirrored when it flies left. The
+        # first frame (ball, trail and sparkles) 0.45 tiles wide: the ball
+        # about 0.3, a little bigger than in her hand so it reads in flight.
+        "into": "snow_wraith",
+        "strip": {
+            "src": "snow_wraith_snowball_strip.webp",
+            "sheet": "Snowball",
+            "width_tiles": 0.45,
+            "align": "board",
+            "frames": [(0, 380, 217, 600), (217, 380, 420, 600), (420, 380, 626, 600), (626, 380, 834, 600), (834, 380, 1045, 600), (1045, 380, 1259, 600), (1259, 380, 1465, 600), (1465, 380, 1672, 600)],
+        },
+    },
+    "snow_wraith_ice_blast": {
+        # 2026-11-03: the Snow Wraith's Ice Blast — snow_wraith_ice_blast_board.webp,
+        # four labelled rows on black (NORTH, SOUTH, LEFT, RIGHT; "north"
+        # facing the camera), eleven frames a row: the stance, her arms
+        # rising, spread, a crystal forming at her breast, growing, ringed
+        # in frost, full, her arm thrown out (the crystal gone), then the ice
+        # spear flying off from her hand and breaking up, and the stance.
+        # The spear touches her hand from the eighth frame (in the left row
+        # three frames and their spears run together), so the cast is cut
+        # through her thrown-out arm and holds it while the spear flies: the
+        # flying ice is its own sprite (snow_wraith_ice_shard). Cut like her
+        # snowball and packed into her folder as Cast.png; the stance is the
+        # height reference, matched to each facing's Idle.
+        "into": "snow_wraith",
+        "actions": {
+            "src": "snow_wraith_ice_blast_board.webp",
+            "levels": (14, 45, 18),   # the crystal's and hands' glow fades out through dim navy: above that, so it doesn't ring them dark
+            "fill_holes": 8,
+            "open_dark": True,
+            "glow": False,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (100, 0, 233, 166),
+                    "arms": (277, 0, 404, 166),
+                    "open": (446, 0, 577, 166),
+                    "form": (618, 0, 752, 166),
+                    "grow": (790, 0, 926, 166),
+                    "crystal": (961, 0, 1099, 166),
+                    "extend": (1136, 0, 1291, 166),
+                    "hold": ("same", "extend"),
+                },
+                "back": {
+                    "stance": (108, 168, 236, 334),
+                    "arms": (283, 168, 407, 334),
+                    "open": (450, 168, 579, 334),
+                    "form": (623, 168, 752, 334),
+                    "grow": (792, 168, 927, 334),
+                    "crystal": (961, 168, 1100, 334),
+                    "extend": (1138, 168, 1291, 334),
+                    "hold": ("same", "extend"),
+                },
+                "left": {
+                    "stance": (112, 337, 237, 499),
+                    "arms": (281, 337, 408, 499),
+                    "open": (436, 337, 581, 499),
+                    "form": (601, 337, 751, 499),
+                    "grow": (765, 337, 923, 499),
+                    "crystal": (932, 337, 1093, 499),
+                    "extend": (1097, 337, 1252, 499),
+                    "hold": ("same", "extend"),
+                },
+                "right": {
+                    "stance": (80, 499, 202, 667),
+                    "arms": (231, 499, 368, 667),
+                    "open": (400, 499, 541, 667),
+                    "form": (567, 499, 710, 667),
+                    "grow": (736, 499, 881, 667),
+                    "crystal": (904, 499, 1044, 667),
+                    "extend": (1072, 499, 1219, 667),
+                    "hold": ("same", "extend"),
+                },
+            },
+            "sheets": {
+                "Cast": ["arms", "open", "form", "grow", "crystal", "extend", "hold"],
+            },
+        },
+    },
+    "snow_wraith_ice_shard": {
+        # 2026-11-03: the ice in flight — snow_wraith_ice_shard_strip.webp,
+        # eight frames of a jagged ice spear flying right, cut out
+        # (transparent), splinters peeling off behind it, smaller as it
+        # goes. IceShard.png in her folder; her Ice Blast sends it from her
+        # hand to the target (ThrownSprite), mirrored when it flies left.
+        # The first frame 1.3 tiles long.
+        "into": "snow_wraith",
+        "strip": {
+            "src": "snow_wraith_ice_shard_strip.webp",
+            "sheet": "IceShard",
+            "width_tiles": 1.3,
+            "align": "board",
+            "frames": [(30, 240, 245, 380), (280, 240, 495, 380), (530, 240, 745, 380), (780, 240, 995, 380), (1005, 240, 1250, 380), (1290, 240, 1500, 380), (1550, 240, 1750, 380), (1800, 240, 1995, 380)],
         },
     },
     "fire_goblin": {
@@ -845,6 +1380,233 @@ BOARDS = {
             },
         },
     },
+    "sabertooth": {
+        # 2026-11-03: the Sabertooth's Track — sabertooth_track_board.webp,
+        # four labelled rows on black (NORTH (BACK), SOUTH (FRONT), WEST
+        # (LEFT), EAST (RIGHT): this board's north is the back), seven
+        # captioned frames a row: idle, a paw scraping the ground, scraping
+        # deeper, a crouch, ready (the deepest crouch, eyes on its prey),
+        # rising, and the idle again. Both side rows face right, so the
+        # right is the east row and the left its mirror. The Sabertooth's
+        # Idle / Walk are its walk sheet (tools/cut_creature_sheets.py):
+        # the frames are scaled to those sheets' rows (the board's idle
+        # stands as tall as each facing's Idle) and the cells regrown.
+        # Track.png, played in place for its Track.
+        "actions": {
+            "src": "sabertooth_track_board.webp",
+            "levels": (6, 35, 10),   # its belly's shading runs dark; the backdrop is 0-2
+            "fill_holes": 6,
+            "open_dark": True,
+            "glow": False,
+            "match": "stance",
+            "match_scale": {"left": 1.15, "right": 1.15},   # the walk sheet's side view is longer-bodied than this board's: matched by bulk, not height
+            "frames": {
+                "front": {
+                    "stance": (141, 299, 277, 510),
+                    "paw": (337, 299, 466, 510),
+                    "scrape": (522, 307, 656, 510),
+                    "crouch": (703, 323, 848, 510),
+                    "ready": (892, 335, 1048, 510),
+                    "rise": (1090, 309, 1225, 510),
+                    "back": (1280, 299, 1415, 510),
+                },
+                "back": {
+                    "stance": (145, 21, 271, 248),
+                    "paw": (336, 28, 457, 248),
+                    "scrape": (525, 38, 651, 248),
+                    "crouch": (714, 57, 843, 248),
+                    "ready": (903, 75, 1043, 248),
+                    "rise": (1099, 33, 1227, 248),
+                    "back": (1282, 21, 1409, 248),
+                },
+                "left": {
+                    "stance": ("mirror", (113, 825, 306, 955)),
+                    "paw": ("mirror", (305, 827, 494, 955)),
+                    "scrape": ("mirror", (495, 829, 687, 955)),
+                    "crouch": ("mirror", (685, 837, 880, 955)),
+                    "ready": ("mirror", (877, 848, 1068, 955)),
+                    "rise": ("mirror", (1064, 827, 1248, 955)),
+                    "back": ("mirror", (1249, 825, 1438, 955)),
+                },
+                "right": {
+                    "stance": (113, 825, 306, 955),
+                    "paw": (305, 827, 494, 955),
+                    "scrape": (495, 829, 687, 955),
+                    "crouch": (685, 837, 880, 955),
+                    "ready": (877, 848, 1068, 955),
+                    "rise": (1064, 827, 1248, 955),
+                    "back": (1249, 825, 1438, 955),
+                },
+            },
+            "sheets": {
+                "Track": ["paw", "scrape", "crouch", "ready", "rise"],
+            },
+        },
+    },
+    "sabertooth_bite": {
+        # 2026-11-03: the Sabertooth's Bite and Claw — sabertooth_bite_claw_board.webp,
+        # "BITE & CLAW COMBO ATTACK", four labelled rows on black between
+        # rule lines (NORTH (BACK VIEW), SOUTH (FRONT VIEW), WEST (LEFT
+        # VIEW), EAST (RIGHT VIEW); unlike its track board, each side row
+        # faces its own way), eight captioned frames a row: idle, crouch,
+        # lunge, the bite (impact), the pull-through, the claw swipe,
+        # recovery, return. The side rows' frames crowd each other: each
+        # frame's own pieces are kept (`isolate`). Packed into its folder
+        # as Attack.png, scaled to its walk-sheet Idle like its Track (the
+        # sides by bulk); its Bite and Claw plays it.
+        "into": "sabertooth",
+        "actions": {
+            "src": "sabertooth_bite_claw_board.webp",
+            "levels": (6, 35, 10),
+            "fill_holes": 6,
+            "open_dark": True,
+            "glow": False,
+            "isolate": True,
+            "isolate_floor": 14,   # the right row's lunge and bite touch through their fur's faint fringe
+            "match": "stance",
+            "match_scale": {"left": 1.15, "right": 1.15},
+            "frames": {
+                "back": {
+                    "stance": (164, 84, 267, 261),
+                    "crouch": (327, 107, 437, 261),
+                    "lunge": (482, 94, 598, 261),
+                    "bite": (636, 73, 756, 261),
+                    "pull": (800, 80, 930, 261),
+                    "claw": (963, 81, 1121, 261),
+                    "recover": (1147, 94, 1258, 261),
+                    "back": (1311, 84, 1416, 261),
+                },
+                "front": {
+                    "stance": (159, 335, 280, 514),
+                    "crouch": (318, 354, 442, 514),
+                    "lunge": (477, 340, 601, 514),
+                    "bite": (624, 352, 777, 514),
+                    "pull": (793, 348, 927, 514),
+                    "claw": (954, 334, 1119, 514),
+                    "recover": (1136, 345, 1262, 514),
+                    "back": (1304, 335, 1425, 514),
+                },
+                "left": {
+                    "stance": (138, 606, 302, 741),
+                    "crouch": (300, 613, 465, 741),
+                    "lunge": (458, 614, 637, 741),
+                    "bite": (625, 606, 806, 741),
+                    "pull": (786, 600, 967, 741),
+                    "claw": (959, 596, 1138, 741),
+                    "recover": (1130, 609, 1301, 741),
+                    "back": (1295, 607, 1449, 741),
+                },
+                "right": {
+                    "stance": (145, 851, 307, 976),
+                    "crouch": (298, 862, 466, 976),
+                    "lunge": (455, 858, 624, 976),   # the lunge and the bite touch: the boxes meet at the seam
+                    "bite": (624, 845, 790, 976),
+                    "pull": (772, 848, 957, 976),
+                    "claw": (935, 834, 1118, 976),
+                    "recover": (1114, 851, 1294, 976),
+                    "back": (1292, 851, 1448, 976),
+                },
+            },
+            "sheets": {
+                "Attack": ["crouch", "lunge", "bite", "pull", "claw", "recover"],
+            },
+        },
+    },
+    "sabertooth_sunken": {
+        # 2026-11-03: the Sabertooth's Sunken Bite — sabertooth_sunken_bite_board.webp,
+        # four labelled rows on black (NORTH, SOUTH, LEFT, RIGHT; north the
+        # back, as on its other boards), fourteen frames a row (the side rows
+        # thirteen, one sink frame fewer: that one is held twice): the
+        # stance, a step, the lunge, the crouch, sinking its teeth in, deeper,
+        # the shake (motion arcs either side), the release, rising, turning
+        # back and the stance. The board turns its head to the camera through
+        # the bite in every row — the back row too: it has no back-view
+        # crouch — and that is used as drawn. Each frame's own pieces are
+        # kept (`isolate`, the arcs by `keep_share`). Packed into its folder
+        # as Sunken.png, scaled to its walk-sheet Idle like its Track.
+        "into": "sabertooth",
+        "actions": {
+            "src": "sabertooth_sunken_bite_board.webp",
+            "levels": (6, 35, 10),
+            "fill_holes": 6,
+            "open_dark": True,
+            "keep_share": 0.01,   # the shake's arcs
+            "glow": False,
+            "isolate": True,
+            "isolate_floor": 14,
+            "match": "stance",
+            "match_scale": {"left": 1.15, "right": 1.15},
+            "frames": {
+                "front": {
+                    "stance": (117, 259, 214, 413),
+                    "step": (237, 259, 331, 413),
+                    "lunge": (355, 266, 451, 413),
+                    "crouch": (459, 279, 574, 413),
+                    "sink1": (582, 281, 704, 413),
+                    "sink2": (704, 282, 829, 413),
+                    "sink3": (829, 283, 950, 413),
+                    "shake1": (950, 284, 1075, 413),
+                    "shake2": (1075, 283, 1202, 413),
+                    "release": (1204, 280, 1314, 413),
+                    "rise": (1331, 266, 1424, 413),
+                    "turn": (1447, 262, 1542, 413),
+                    "back1": (1562, 259, 1656, 413),
+                    "back2": (1677, 259, 1772, 413),
+                },
+                "back": {
+                    "stance": (122, 42, 212, 203),
+                    "step": (240, 42, 329, 203),
+                    "lunge": (360, 51, 458, 203),
+                    "crouch": (470, 62, 576, 203),
+                    "sink1": (589, 66, 697, 203),
+                    "sink2": (699, 68, 820, 203),
+                    "sink3": (820, 70, 942, 203),
+                    "shake1": (942, 69, 1071, 203),
+                    "shake2": (1071, 69, 1202, 203),
+                    "release": (1202, 65, 1313, 203),
+                    "rise": (1323, 52, 1420, 203),
+                    "turn": (1446, 45, 1538, 203),
+                    "back1": (1564, 42, 1654, 203),
+                    "back2": (1678, 41, 1769, 203),
+                },
+                "left": {
+                    "stance": (95, 505, 249, 612),
+                    "step": (249, 505, 391, 612),
+                    "lunge": (391, 498, 534, 612),
+                    "crouch": (534, 515, 676, 612),
+                    "sink1": (676, 519, 808, 612),
+                    "sink2": (808, 517, 939, 612),
+                    "shake1": (939, 518, 1067, 612),
+                    "shake2": (1067, 519, 1195, 612),
+                    "release": (1195, 518, 1312, 612),
+                    "rise": (1316, 511, 1435, 612),
+                    "turn": (1443, 499, 1552, 612),
+                    "back1": (1554, 499, 1660, 612),
+                    "back2": (1661, 500, 1779, 612),
+                    "sink3": ("same", "sink2"),   # the side rows draw one sink frame fewer
+                },
+                "right": {
+                    "stance": (96, 703, 243, 804),
+                    "step": (243, 705, 380, 804),
+                    "lunge": (380, 695, 526, 804),
+                    "crouch": (526, 708, 685, 804),
+                    "sink1": (685, 709, 820, 804),
+                    "sink2": (820, 711, 955, 804),
+                    "shake1": (955, 713, 1081, 804),
+                    "shake2": (1081, 714, 1213, 804),
+                    "release": (1213, 714, 1326, 804),
+                    "rise": (1329, 705, 1446, 804),
+                    "turn": (1446, 703, 1548, 804),
+                    "back1": (1548, 700, 1659, 804),
+                    "back2": (1659, 702, 1779, 804),
+                    "sink3": ("same", "sink2"),   # the side rows draw one sink frame fewer
+                },
+            },
+            "sheets": {
+                "Sunken": ["step", "lunge", "crouch", "sink1", "sink2", "sink3", "shake1", "shake2", "release", "rise"],
+            },
+        },
+    },
     "wolf": {
         # 2026-10-31: the Wolf's bite — wolf_bite_board.webp, four labelled
         # rows on black (Up: from behind, Down: facing the camera, Left,
@@ -908,6 +1670,53 @@ BOARDS = {
             "back": (668, 29, 833, 442),
             "left": (241, 508, 358, 929),
             "right": (678, 510, 794, 929),
+        },
+        # 2026-11-01: the designer's attack board — zombie_attack_board.webp,
+        # four labelled rows on black (NORTH (FRONT), SOUTH (BACK), WEST
+        # (LEFT), EAST (RIGHT), the board's "north" facing the camera), the
+        # flies still about its head: the stance, the arms coming up, the
+        # reach, the grab with both arms thrown forward, the arms drawing
+        # back, and the stance twice. The flies are loose specks and fall
+        # away as on the pose board. The stance is the height reference,
+        # matched to each facing's Idle.
+        "actions": {
+            "src": "zombie_attack_board.webp",
+            "shadow_band": 0.06,
+            "fill_holes": 7,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (190, 10, 295, 245),
+                    "ready": (380, 25, 492, 245),
+                    "reach": (565, 30, 692, 245),
+                    "grab": (760, 30, 908, 245),
+                    "recover": (950, 30, 1096, 245),
+                },
+                "back": {
+                    "stance": (190, 258, 295, 495),
+                    "ready": (372, 268, 510, 495),
+                    "reach": (560, 270, 706, 495),
+                    "grab": (760, 268, 908, 495),
+                    "recover": (960, 268, 1100, 495),
+                },
+                "left": {
+                    "stance": (190, 508, 280, 738),
+                    "ready": (375, 518, 490, 738),
+                    "reach": (537, 525, 686, 738),
+                    "grab": (735, 515, 888, 738),
+                    "recover": (942, 515, 1086, 738),
+                },
+                "right": {
+                    "stance": (195, 750, 285, 985),
+                    "ready": (388, 762, 497, 985),
+                    "reach": (575, 765, 727, 985),
+                    "grab": (782, 758, 934, 985),
+                    "recover": (986, 760, 1114, 985),
+                },
+            },
+            "sheets": {
+                "Attack": ["ready", "reach", "grab", "recover"],
+            },
         },
     },
     "rat_king": {
@@ -1251,6 +2060,317 @@ BOARDS = {
             "back": (322, 73, 636, 580),
             "left": (652, 126, 1123, 580),
             "right": (1157, 105, 1529, 580),
+        },
+        # 2026-11-03: the designer's attack sheets — one board a facing on
+        # black (hydra_attack_front_board.webp, _back_, _left_, _right_),
+        # eight frames across, unlabelled, no floor shadow: the stance, the
+        # heads rearing up and apart, the roar with every mouth opening, the
+        # strike with the heads flung up and wide (the side views lunge
+        # them forward), the heads spread out, drawing back in, nearly the
+        # stance, and the stance. The frames crowd their slots — a head
+        # reaches into the next frame's box — but no two touch, so the cut
+        # keeps each frame's own figure and drops the neighbour's head. The
+        # stance is the height reference, matched to each facing's Idle.
+        "actions": {
+            "src": {"front": "hydra_attack_front_board.webp", "back": "hydra_attack_back_board.webp",
+                    "left": "hydra_attack_left_board.webp", "right": "hydra_attack_right_board.webp"},
+            "fill_holes": 12,   # the black between the necks is the backdrop (mean ~2) and stays open; painted pockets are brighter
+            "glow": False,   # no slash glow: a neighbouring head's red tongue in the box is not an arc to keep
+            "open_dark": True,   # the black between legs and under the tail is backdrop, however small
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (22, 138, 234, 480),
+                    "rear": (264, 138, 488, 480),
+                    "roar": (502, 136, 748, 482),
+                    "strike": (750, 126, 1024, 480),
+                    "spread": (1030, 136, 1266, 482),
+                    "settle": (1278, 144, 1502, 480),
+                    "recover": (1526, 138, 1740, 482),
+                },
+                "back": {
+                    "stance": (26, 108, 234, 508),
+                    "rear": (266, 104, 486, 508),
+                    "roar": (506, 94, 744, 508),
+                    "strike": (750, 76, 1000, 508),
+                    "spread": (1016, 94, 1258, 508),
+                    "settle": (1276, 100, 1496, 508),
+                    "recover": (1524, 112, 1738, 508),
+                },
+                "left": {
+                    "stance": (18, 196, 244, 414),
+                    "rear": (254, 198, 478, 414),
+                    "roar": (474, 196, 754, 414),
+                    "strike": (724, 206, 1036, 414),
+                    "spread": (1014, 196, 1298, 414),
+                    "settle": (1284, 196, 1522, 414),
+                    "recover": (1540, 196, 1764, 414),
+                },
+                "right": {
+                    "stance": (6, 200, 244, 442),
+                    "rear": (246, 200, 478, 442),
+                    "roar": (464, 198, 736, 442),
+                    "strike": (690, 200, 1038, 442),
+                    "spread": (948, 210, 1302, 442),
+                    "settle": (1246, 200, 1520, 442),
+                    "recover": (1506, 200, 1750, 442),
+                },
+            },
+            "sheets": {
+                "Attack": ["rear", "roar", "strike", "spread", "settle", "recover"],
+            },
+        },
+    },
+    "hydra_heal": {
+        # 2026-11-03: the Hydra's heal — hydra_heal_board.webp, "5 HEADS ->
+        # 8 HEADS / HEAL + REGROW": twelve numbered frames facing the camera
+        # on a checkerboard, in two framed panels: five heads on all fours,
+        # rising onto her hind legs, rearing tall with her claws up, the
+        # heads roaring, new necks sprouting and budding into heads, eight
+        # heads roaring, and settling. One facing: the figure plays it
+        # facing the camera whichever way she faces. Packed into the full
+        # Hydra's folder (her Heal plays as she regrows every head), its
+        # first frame standing as tall as the five-head Hydra's front Idle.
+        "into": "hydra",
+        "match_to": "hydra_5",
+        "actions": {
+            "src": "hydra_heal_board.webp",
+            "bg": "checker_light",
+            "rows": ["front"],
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (26, 211, 250, 475),
+                    "rise": (277, 190, 506, 476),
+                    "rear": (520, 179, 753, 476),
+                    "up": (776, 153, 1009, 476),
+                    "tall": (1032, 129, 1263, 476),
+                    "roar": (1288, 119, 1523, 476),
+                    "sprout": (12, 561, 256, 919),
+                    "bud": (264, 566, 505, 919),
+                    "grown": (520, 564, 745, 919),
+                    "crown": (776, 547, 1002, 919),
+                    "howl": (1032, 550, 1259, 919),
+                    "settle": (1288, 543, 1527, 919),
+                },
+            },
+            "sheets": {
+                "Heal": ["stance", "rise", "rear", "up", "tall", "roar", "sprout", "bud", "grown", "crown", "howl", "settle"],
+            },
+        },
+    },
+    "hydra_8": {
+        # 2026-11-03: the Hydra with eight heads — the designer's board of
+        # her after the first hit she takes (every hit costs her heads; her
+        # heal regrows them all): four labelled poses on a checkerboard,
+        # NORTH (FRONT), SOUTH (BACK), WEST (LEFT), EAST (RIGHT), the same
+        # green serpent-beast with two heads fewer. The board draws her
+        # stockier and lower-crowned than her full board, so she is sized
+        # by her body, not her height: at 1.8 tiles her legs and trunk
+        # match the full Hydra's attack stance (2.2 tiles would make her
+        # a quarter bulkier for losing heads).
+        "src": "hydra_8_board.webp", "bg": "checker_light", "tiles": 1.8,
+        "Idle": {
+            "front": (209, 8, 606, 496),
+            "back": (832, 8, 1236, 496),
+            "left": (69, 539, 661, 1003),
+            "right": (769, 539, 1372, 1003),
+        },
+        # Her attack board — hydra_8_attack_board.webp, the four views
+        # across the top (not used: the pose board is twice as fine) and
+        # four labelled rows on black, eight numbered frames a row: the
+        # stance, the heads rearing up, the roar, the strike, the heads
+        # flung widest (the side views lunge them forward), drawing back
+        # in, nearly the stance, and the stance — the same swing as the
+        # full Hydra's sheets. The frames are small (a third of the pose
+        # board's height) and are grown to the Idle's size.
+        "actions": {
+            "src": "hydra_8_attack_board.webp",
+            "fill_holes": 12,
+            "glow": False,
+            "open_dark": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (162, 270, 292, 428),
+                    "rear": (338, 274, 474, 427),
+                    "roar": (502, 274, 649, 428),
+                    "strike": (660, 268, 835, 427),
+                    "spread": (839, 268, 1025, 428),
+                    "settle": (1040, 273, 1189, 426),
+                    "recover": (1223, 273, 1354, 428),
+                },
+                "back": {
+                    "stance": (171, 463, 295, 617),
+                    "rear": (336, 463, 486, 617),
+                    "roar": (503, 463, 656, 616),
+                    "strike": (668, 461, 845, 616),
+                    "spread": (844, 459, 1032, 617),
+                    "settle": (1042, 462, 1198, 617),
+                    "recover": (1224, 461, 1363, 617),
+                },
+                "left": {
+                    "stance": (161, 650, 309, 796),
+                    "rear": (324, 655, 477, 795),
+                    "roar": (479, 649, 649, 795),
+                    "strike": (644, 650, 830, 796),
+                    "spread": (821, 657, 1034, 795),
+                    "settle": (1032, 651, 1203, 794),
+                    "recover": (1223, 652, 1368, 795),
+                },
+                "right": {
+                    "stance": (151, 833, 301, 982),
+                    "rear": (317, 832, 479, 981),
+                    "roar": (486, 827, 663, 982),
+                    "strike": (661, 829, 846, 981),
+                    "spread": (835, 831, 1031, 981),
+                    "settle": (1036, 834, 1199, 981),
+                    "recover": (1211, 832, 1364, 981),
+                },
+            },
+            "sheets": {
+                "Attack": ["rear", "roar", "strike", "spread", "settle", "recover"],
+            },
+        },
+    },
+    "hydra_5": {
+        # 2026-11-03: the Hydra with five heads — after her second hit —
+        # four labelled poses on a checkerboard, NORTH (FRONT), SOUTH
+        # (BACK), WEST (LEFT), EAST (RIGHT). Sized by her body like the
+        # eight-head set (TILES_H5), so the sets swap without her swelling.
+        "src": "hydra_5_board.webp", "bg": "checker_light", "tiles": TILES_H5,
+        "Idle": {
+            "front": (185, 12, 609, 488),
+            "back": (947, 12, 1458, 494),
+            "left": (88, 494, 718, 966),
+            "right": (853, 496, 1449, 965),
+        },
+        # Her attack board — hydra_5_attack_board.webp: the four views across
+        # the top (not used: the pose board is finer) and four labelled rows
+        # in framed panels on a dark navy backdrop, eight numbered frames a
+        # row, the same swing as the other sets. The backdrop is ~15-26, not
+        # black: the levels sit above it, and only pockets painted brighter
+        # than it are filled (the navy between the necks stays open). The
+        # panel frames and numbers are pieces apart from her and fall away.
+        "actions": {
+            "src": "hydra_5_attack_board.webp",
+            "levels": (30, 60, 36),
+            "fill_holes": 28,   # the navy is 15-26: a pocket brighter than that is painted shade
+            "glow": False,
+            "open_dark": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (168, 266, 294, 418),
+                    "rear": (340, 269, 468, 418),
+                    "roar": (502, 270, 649, 418),
+                    "strike": (671, 264, 837, 418),
+                    "spread": (844, 264, 1021, 418),
+                    "settle": (1034, 269, 1176, 418),
+                    "recover": (1214, 269, 1347, 419),
+                },
+                "back": {
+                    "stance": (163, 456, 293, 600),
+                    "rear": (338, 455, 477, 602),
+                    "roar": (502, 455, 654, 602),
+                    "strike": (670, 454, 837, 603),
+                    "spread": (846, 453, 1020, 603),
+                    "settle": (1034, 454, 1190, 604),
+                    "recover": (1216, 455, 1353, 603),
+                },
+                "left": {
+                    "stance": (157, 638, 309, 781),
+                    "rear": (330, 637, 479, 780),
+                    "roar": (496, 638, 651, 780),
+                    "strike": (656, 640, 844, 780),
+                    "spread": (833, 636, 1035, 781),
+                    "settle": (1034, 639, 1203, 780),
+                    "recover": (1210, 637, 1369, 780),
+                },
+                "right": {
+                    "stance": (150, 821, 306, 970),
+                    "rear": (324, 819, 480, 971),
+                    "roar": (492, 817, 662, 971),
+                    "strike": (665, 818, 845, 972),
+                    "spread": (839, 818, 1036, 972),
+                    "settle": (1032, 819, 1193, 971),
+                    "recover": (1203, 821, 1356, 971),
+                },
+            },
+            "sheets": {
+                "Attack": ["rear", "roar", "strike", "spread", "settle", "recover"],
+            },
+        },
+    },
+    "hydra_3": {
+        # 2026-11-03: the Hydra with three heads — after her third hit, the
+        # last set. One board, hydra_3_attack_board.webp, on the same dark
+        # navy as the five-head attack board: her four views across the top
+        # (NORTH (FRONT), SOUTH (BACK), WEST (LEFT), EAST (RIGHT): her Idle,
+        # cut by brightness — there is no pose board of her own) and four
+        # rows of eight numbered attack frames below. Sized by her body like
+        # the other sets (TILES_H3).
+        "src": "hydra_3_attack_board.webp", "bg": "black_glow", "tiles": TILES_H3,
+        "levels": (30, 60, 36),
+        "fill_holes": 28,
+        "open_dark": True,
+        "Idle": {
+            "front": (313, 10, 489, 194),
+            "back": (602, 9, 761, 192),
+            "left": (861, 10, 1072, 191),
+            "right": (1192, 11, 1399, 191),
+        },
+        "actions": {
+            "src": "hydra_3_attack_board.webp",
+            "levels": (30, 60, 36),
+            "fill_holes": 28,
+            "glow": False,
+            "open_dark": True,
+            # The left spread's box reaches the panel's frame line, which
+            # her topmost head touches: the line's three rows are cleared.
+            "bg_boxes": {("left", "spread"): [(0, 0, 220, 3)]},
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (168, 254, 291, 396),
+                    "rear": (343, 254, 472, 396),
+                    "roar": (508, 253, 651, 395),
+                    "strike": (669, 250, 834, 395),
+                    "spread": (836, 247, 1016, 395),
+                    "settle": (1037, 257, 1177, 395),
+                    "recover": (1219, 254, 1341, 396),
+                },
+                "back": {
+                    "stance": (174, 440, 288, 586),
+                    "rear": (340, 438, 462, 586),
+                    "roar": (506, 438, 646, 586),
+                    "strike": (672, 438, 830, 587),
+                    "spread": (849, 438, 1021, 587),
+                    "settle": (1044, 439, 1178, 586),
+                    "recover": (1224, 439, 1346, 587),
+                },
+                "left": {
+                    "stance": (159, 625, 295, 761),
+                    "rear": (330, 624, 472, 760),
+                    "roar": (493, 620, 653, 761),
+                    "strike": (650, 619, 830, 761),
+                    "spread": (814, 618, 1027, 761),
+                    "settle": (1030, 622, 1186, 761),
+                    "recover": (1214, 623, 1358, 761),
+                },
+                "right": {
+                    "stance": (154, 806, 295, 955),
+                    "rear": (327, 807, 474, 955),
+                    "roar": (495, 804, 651, 955),
+                    "strike": (661, 801, 845, 955),
+                    "spread": (836, 801, 1037, 955),
+                    "settle": (1034, 805, 1187, 955),
+                    "recover": (1208, 806, 1355, 955),
+                },
+            },
+            "sheets": {
+                "Attack": ["rear", "roar", "strike", "spread", "settle", "recover"],
+            },
         },
     },
     "olorin": {
@@ -2015,7 +3135,8 @@ ACTION_ROWS = ["left", "right"]   # the rows of an action sheet (SpriteEnemyFigu
 
 
 def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep_share: float = 0.0,
-                    fill_holes: bool = False, levels=None) -> Image.Image:
+                    fill_holes: bool = False, levels=None, glow: bool = True,
+                    open_dark: bool = False, shadow_lum: float = 0.0) -> Image.Image:
     """One figure and the glow of its attack on pure black (the werewolf's
     slash board): alpha from brightness as the black key does, the dim
     glow of the slash arcs kept soft and un-darkened, then only the
@@ -2032,7 +3153,15 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
     fur sits just above the backdrop's black, so his levels are low. The
     soft painted shadow
     at the feet (dim, colourless, in the bottom `shadow_band` of the
-    figure and not inside the body) goes too."""
+    figure and not inside the body) goes too. A board with no glow (`glow`
+    False: the hydra's attack sheets) keeps nothing by its colour, so a
+    neighbouring frame's red tongue in the box is dropped with the rest of
+    that frame. With `open_dark` (the Hydra's small attack frames, where a
+    gap between two legs is only a few dozen pixels) a pocket no brighter
+    than `fill_holes` stays open whatever its size: it is the backdrop,
+    not shading. `shadow_lum` is the brightest a floor-shadow pixel is
+    (else the solid level): the Grave Titan's robe needs a low solid level
+    and his floor shadow is brighter than it."""
     rgb = rgb.copy()
     for x0, y0, x1, y1 in bg_boxes:
         rgb[y0:y1, x0:x1] = 0
@@ -2056,7 +3185,7 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
         holes = (filled & (1 - body)).astype(np.uint8)
         hn, hlab, hst, _ = cv2.connectedComponentsWithStats(holes, connectivity=4)
         for i in range(1, hn):
-            if hst[i, cv2.CC_STAT_AREA] > HOLE_FILL_MAX:
+            if hst[i, cv2.CC_STAT_AREA] > HOLE_FILL_MAX or open_dark:
                 painted = fill_holes not in (False, None) and lum[hlab == i].mean() > float(fill_holes)
                 if not painted:
                     filled[hlab == i] = 0
@@ -2078,12 +3207,12 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
                 continue
             px = rgb[lab == i].astype(float)
             r, g, b = px[:, 0].mean(), px[:, 1].mean(), px[:, 2].mean()
-            keep[i] = r > 1.4 * max(g, b) + 8   # a red slash arc
+            keep[i] = glow and r > 1.4 * max(g, b) + 8   # a red slash arc
         alpha[~keep[lab]] = 0.0
     if shadow_band > 0:
         ys = np.nonzero((alpha > 0).any(axis=1))[0]
         y0 = int(ys.max() + 1 - (ys.max() + 1 - ys.min()) * shadow_band)
-        shadow = soft & (sat < 20) & (lum < solid_at)
+        shadow = (soft | (lum < (shadow_lum or solid_at))) & (sat < 20) & (lum < (shadow_lum or solid_at))
         shadow[:y0] = False
         alpha[shadow] = 0.0
     a = np.maximum(alpha, 1e-6)[..., None]
@@ -2140,6 +3269,8 @@ def pack(frames: dict, cell: int) -> Image.Image:
 def action_rows(cfg: dict) -> list:
     """The rows of a creature's action sheets: the four Craftpix rows when
     its boards show every facing, else the two side rows."""
+    if "rows" in cfg["actions"]:
+        return cfg["actions"]["rows"]   # the heal: the front row only
     frames = cfg["actions"]["frames"]
     return ROWS if all(d in frames for d in ROWS) else ACTION_ROWS
 
@@ -2199,6 +3330,37 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
             boards[name] = Image.open(SRC % name)
         return boards[name]
 
+    labels = {}
+
+    def others(d: str, box) -> np.ndarray:
+        """`isolate`: a mask of the pieces of the board in `box` that belong
+        to another frame (their centre lies outside the box) — a crowded
+        board's neighbouring dust cloud reaching in (the Titan's throw)."""
+        name = act["src"][d] if isinstance(act["src"], dict) else act["src"]
+        if name not in labels:
+            lum = np.asarray(board(d).convert("RGB")).max(axis=2)
+            # `isolate_floor`: tell the frames apart above the cut's own
+            # floor where two touch only through their faint fringes (the
+            # Sabertooth's lunge and bite).
+            floor = act.get("isolate_floor", (act.get("levels") or (BLACK_FLOOR,))[0])
+            labels[name] = cv2.connectedComponentsWithStats((lum > floor).astype(np.uint8), connectivity=8)
+        _, lab, _, cen = labels[name]
+        x0, y0, x1, y1 = box
+        # The box may run past the board (the crop pads it with black).
+        sub = np.zeros((y1 - y0, x1 - x0), lab.dtype)
+        cx0, cy0 = max(0, x0), max(0, y0)
+        cx1, cy1 = min(lab.shape[1], x1), min(lab.shape[0], y1)
+        sub[cy0 - y0:cy1 - y0, cx0 - x0:cx1 - x0] = lab[cy0:cy1, cx0:cx1]
+        ids = np.unique(sub)
+        # A piece spanning the board is a table's lines (the Troll's smash
+        # board), with whatever figure touches them: never blanked — the
+        # lines themselves lie outside the frames' boxes.
+        stats = labels[name][2]
+        h, w = lab.shape
+        away = [i for i in ids if i and not (x0 <= cen[i][0] < x1 and y0 <= cen[i][1] < y1)
+                and stats[i, cv2.CC_STAT_WIDTH] < w * 0.5 and stats[i, cv2.CC_STAT_HEIGHT] < h * 0.5]
+        return np.isin(sub, away)
+
     out = {}
     for d, poses in act["frames"].items():
         out[d] = {}
@@ -2209,13 +3371,22 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
                 continue
             mirror = spec[0] == "mirror"
             box = spec[1] if mirror else spec
+            if act.get("bg"):
+                # A board on a checkerboard (the Hydra's heal): cut as the
+                # pose boards are, not by brightness off black.
+                img = cut(board(d), box, act["bg"])
+                out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
+                continue
             rgb = np.asarray(board(d).crop(box).convert("RGB")).astype(int)
             if act.get("matte"):
                 img = _cut_action_matte(rgb, action_matte_path(kind, d, pose), act.get("red_lum", 40))
                 out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
                 continue
+            if act.get("isolate"):
+                rgb[others(d, box)] = 0
             img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
-                                  act.get("keep_share", 0.0), act.get("fill_holes", False), act.get("levels"))
+                                  act.get("keep_share", 0.0), act.get("fill_holes", False), act.get("levels"),
+                                  act.get("glow", True), act.get("open_dark", False), act.get("shadow_lum", 0.0))
             out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
         for pose, other in again:
             out[d][pose] = out[d][other]
@@ -2279,14 +3450,23 @@ def build_actions_on_sheets(name: str, cfg: dict) -> None:
     raw = cut_action_frames(cfg, name)
     used = _used_poses(cfg)
     rows = action_rows(cfg)
+    folder = cfg.get("into", name)   # the heal is packed into the Hydra's own folder
     frames = {}
-    for root, kind in ((OUT % name, "pixel"), (os.path.join(smooth_art.ROOT, "sheets", name), "smooth")):
+    for root, kind in ((OUT % folder, "pixel"), (os.path.join(smooth_art.ROOT, "sheets", folder), "smooth")):
         idle = Image.open(os.path.join(root, "Idle.png"))
         cell = idle.height // 4
         info = dict(zip(ROWS, _sheet_rows(idle, cell)))
+        # `match_to`: the match pose stands as tall as another kind's Idle
+        # pose of that facing (the heal's five-head stance: the five-head
+        # Hydra's), not as this folder's own.
+        ref = info
+        if cfg.get("match_to"):
+            rroot = root.replace("/" + folder, "/" + cfg["match_to"])
+            ridle = Image.open(os.path.join(rroot, "Idle.png"))
+            ref = dict(zip(ROWS, _sheet_rows(ridle, ridle.height // 4)))
         frames = {}
         for d, fs in raw.items():
-            k = info[d][0] / float(fs[_action_setting(cfg, "match", "recover", d)].height) * _action_setting(cfg, "match_scale", 1.0, d)
+            k = ref[d][0] / float(fs[_action_setting(cfg, "match", "recover", d)].height) * _action_setting(cfg, "match_scale", 1.0, d)
             frames[d] = {}
             for pose, f in fs.items():
                 if pose not in used:
@@ -2298,11 +3478,18 @@ def build_actions_on_sheets(name: str, cfg: dict) -> None:
         air = max(a for _, a in info.values())
         need = max(max(f.width, f.height) for fs in frames.values() for f in fs.values()) + 2 + air
         if need > cell:
-            for anim in ("Idle", "Walk"):
-                path = os.path.join(root, anim + ".png")
-                if os.path.exists(path):
-                    _regrow(Image.open(path), cell, need).save(path)
-            print("%-13s %s cells %d -> %d px (Idle / Walk regrown)" % (name, kind, cell, need))
+            # Every sheet in the folder (the Hydra's Attack too, not only
+            # Idle / Walk) is regrown; this entry's own sheets are rewritten.
+            # A thrown strip (Boulder.png, Snowball.png) has cells of its
+            # own and is left as it is.
+            for f in sorted(os.listdir(root)):
+                if f.endswith(".png") and f[:-4] not in cfg["actions"]["sheets"]:
+                    path = os.path.join(root, f)
+                    im = Image.open(path)
+                    if im.height % cell or im.width % cell:
+                        continue
+                    _regrow(im, cell, need).save(path)
+            print("%-13s %s cells %d -> %d px (its sheets regrown)" % (folder, kind, cell, need))
             cell = need
         for anim, poses in cfg["actions"]["sheets"].items():
             if kind == "pixel":
@@ -2310,16 +3497,67 @@ def build_actions_on_sheets(name: str, cfg: dict) -> None:
             else:
                 smooth_art.pack([[frames[d][p] for p in poses] for d in rows], cell, len(poses), lambda row, ci: row[ci], air=air).save(os.path.join(root, anim + ".png"))
     dims = ", ".join("%s %dx%d" % (d, f.width, f.height) for d, f in frames[rows[0]].items())
-    print("%-13s on its own sheets: %s" % (name, dims))
+    print("%-13s on %s's sheets: %s" % (name, folder, dims))
+
+
+def build_strip(name: str, cfg: dict) -> None:
+    """A one-row strip of frames that is not the creature itself (the Grave
+    Titan's rolling boulder): the board came cut out (its own alpha), each
+    box's pieces kept whole (pebbles and dust too), every frame scaled so the
+    first stands `width_tiles` wide, packed bottom-centred into square cells
+    in one row — pixel (on/off alpha) and smooth — into the kind's folder."""
+    st = cfg["strip"]
+    board = Image.open(SRC % st["src"]).convert("RGBA")
+    raw = []
+    for box in st["frames"]:
+        f = board.crop(box)
+        a = np.asarray(f).copy()
+        a[..., 3] = np.where(a[..., 3] >= 128, 255, 0)   # the board's faint haze goes
+        f = Image.fromarray(a, "RGBA")
+        raw.append(f)
+    # Trimmed to each frame's art; with `align` "board" every frame keeps the
+    # rows they span together, so a ball flying level doesn't bob as its
+    # sparkles come and go (the snowball).
+    boxes = [f.getbbox() for f in raw]
+    if st.get("align") == "board":
+        y0, y1 = min(b[1] for b in boxes), max(b[3] for b in boxes)
+        boxes = [(b[0], y0, b[2], y1) for b in boxes]
+    raw = [f.crop(b) for f, b in zip(raw, boxes)]
+    width = raw[0].width
+    for root, kind, density, air in ((OUT % cfg["into"], "pixel", DENSITY, 0),
+                                     (os.path.join(smooth_art.ROOT, "sheets", cfg["into"]), "smooth", smooth_art.SMOOTH_DENSITY, SMOOTH_GUTTER)):
+        factor = width / float(st["width_tiles"] * density)
+        if kind == "pixel":
+            fs = [shrink(f, factor) for f in raw]
+        else:
+            fs = [smooth_art.trim(smooth_art.resample(f, factor)) for f in raw]
+        cell = max(max(f.width, f.height) for f in fs) + 2 + air
+        if kind == "pixel":
+            sheet = Image.new("RGBA", (cell * len(fs), cell))
+            for i, f in enumerate(fs):
+                sheet.paste(f, (i * cell + (cell - f.width) // 2, cell - air - f.height), f)
+        else:
+            sheet = smooth_art.pack([fs], cell, len(fs), lambda row, ci: row[ci], air=air)
+        sheet.save(os.path.join(root, st["sheet"] + ".png"))
+        print("%-13s %s: %d frames, %d-px cells into %s" % (name, kind, len(fs), cell, cfg["into"]))
 
 
 def build(name: str, cfg: dict) -> None:
+    if "strip" in cfg:
+        build_strip(name, cfg)
+        return
     if "src" not in cfg:
         build_actions_on_sheets(name, cfg)
+        if "into" not in cfg:
+            # Sheets packed into its folder by other entries (the
+            # Sabertooth's bite and claw beside its Track) are rebuilt with it.
+            for other, ocfg in BOARDS.items():
+                if ocfg.get("into") == name:
+                    build(other, ocfg)
         return
     board = Image.open(SRC % cfg["src"])
     full = {}
-    for anim in ("Idle", "Walk"):
+    for anim in ("Idle", "Walk", "Sleep"):
         if anim not in cfg:
             continue
         full[anim] = {}
@@ -2335,6 +3573,14 @@ def build(name: str, cfg: dict) -> None:
                     else cfg.get("fg", {}).get(key, ())
                 bg_hints = cfg.get("matte_bg", {}).get(key, ()) if bg_kind.startswith("matte:") \
                     else cfg.get("bg_hint", {}).get(key, ())
+                if bg_kind == "black_glow":
+                    # A pose on a dark board (the three-head Hydra's views
+                    # head her attack board: no board of her own): cut as
+                    # the attack frames are, by brightness off the backdrop.
+                    rgb = np.asarray(board.crop(box).convert("RGB")).astype(int)
+                    full[anim][d] = _cut_black_glow(rgb, (), 0.0, 0.0, cfg.get("fill_holes", False),
+                                                    cfg.get("levels"), False, cfg.get("open_dark", False))
+                    continue
                 full[anim][d] = cut(board, box, bg_kind, fg_hints,
                                     cfg.get("sat_grow", 0), cfg.get("snow", False),
                                     cfg.get("feet_trim", True), cfg.get("drop_ice", False),
@@ -2407,10 +3653,15 @@ def build(name: str, cfg: dict) -> None:
     for anim, poses in cfg.get("actions", {}).get("sheets", {}).items():
         rows = [[soft_act[d][p] for p in poses] for d in action_rows(cfg)]
         smooth_art.pack(rows, scell, len(poses), lambda row, ci: row[ci], air=SMOOTH_GUTTER).save(os.path.join(sdir, anim + ".png"))
+    # Sheets packed into this kind's folder by another entry (the Hydra's
+    # heal) are rebuilt with it, in its new cells.
+    for other, ocfg in BOARDS.items():
+        if ocfg.get("into") == name:
+            build(other, ocfg)
 
 
 def main() -> None:
-    names = sys.argv[1:] or list(BOARDS)
+    names = sys.argv[1:] or [k for k, c in BOARDS.items() if "into" not in c]   # an "into" entry is built with its kind
     for n in names:
         build(n, BOARDS[n])
 

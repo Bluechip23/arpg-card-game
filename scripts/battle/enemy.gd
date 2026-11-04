@@ -253,6 +253,7 @@ var _hook_recharge: int = 0                        # Infected Hunter: raw tempo 
 var _net_cooldown: int = 0                         # Infected Hunter: raw tempo until Net Throw is ready again (sheet: cooldown 8)
 var _drops_to_all_fours: bool = false              # Large Bear: posture change below 20% HP (visual)
 var hydra_heal_unlocked: bool = false
+var hydra_hits_since_heal: int = 0  # Hydra: hits since her last Heal — the heads she has lost (HYDRA_HEADS)
 
 # --- Elite first-pass trait state ---
 var strengthen_stacks: int = 0        # Large Bear: +1 attack damage per stack (gained while Mini Bears watch)
@@ -583,6 +584,20 @@ var door_sealed_tempo: int = 0
 var _door_thresholds_hit: Array = []
 const DOOR_SEAL_THRESHOLDS := [0.75, 0.5, 0.33]
 const DOOR_SEAL_TEMPO := 10
+
+## The Hydra's heads (designer, 2026-11-03): every hit she takes costs her
+## heads — the first leaves eight, the second five, the third three — and
+## her Heal regrows them all. The figure kind she wears, by hits since her
+## last Heal; past the end of the list she keeps her last three.
+const HYDRA_HEADS := ["hydra", "hydra_8", "hydra_5", "hydra_3"]
+
+func _hydra_wear_heads() -> void:
+	if enemy_type != EnemyType.HYDRA or _enemy_figure == null:
+		return
+	var kind: String = HYDRA_HEADS[mini(hydra_hits_since_heal, HYDRA_HEADS.size() - 1)]
+	if kind != figure_kind:
+		figure_kind = kind
+		_enemy_figure.reskin(kind)
 
 func _setup_sprite() -> void:
 	## Builds the figure for enemy types that have one (EnemyDefs "figure_kind"),
@@ -1166,7 +1181,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.SKELETON: "At range ≤1: Attacks.\nOtherwise: Moves toward player.",
 		EnemyType.ARMORED_TROLL: "Regenerates 3 HP every 6 global tempo. Resists 30% physical / 15% fire / 15% lightning.\nAt range ≤1: 60% Smash (5 tempo, 14 dmg + Lightly Dazed card) / 40% Kick (3 tempo, 6 dmg).\nMove (4 tempo): 2 spaces.",
 		EnemyType.ARCHER_RAT: "Range 6.\nAt range ≤2: Scurries 5 tiles away.\nAt range 3-6: Shoots for 2 damage.\nAt range >6: Moves 2 tiles closer.",
-		EnemyType.HYDRA: "Resists 25% physical / fire / lightning. Grows stronger with every hit she takes, whoever or whatever lands it: +2 strength per hit. On the 4th hit she also gains +40 max HP and unlocks Heal.\nStrike (8 tempo): 7 + strength damage.\nMove (6 tempo): 3 spaces.\nHeal (5 tempo): heals to full (after the 4th hit).",
+		EnemyType.HYDRA: "Resists 25% physical / fire / lightning. Grows stronger with every hit she takes, whoever or whatever lands it: +2 strength per hit, and every hit costs her heads. On the 4th hit she also gains +40 max HP and unlocks Heal.\nStrike (8 tempo): 7 + strength damage.\nMove (6 tempo): 3 spaces.\nHeal (5 tempo): heals to full and regrows her heads (after the 4th hit).",
 		EnemyType.FIRE_GOBLIN_SOLDIER: "Range 0.\nAttack (3 tempo): 2 damage.\nMove (2 tempo): 4 spaces.",
 		EnemyType.FIRE_GOBLIN_MAGE: "Range 4.\nEmber (4 tempo): 7 damage + 1 burn.\nMove (3 tempo): 2 spaces.",
 		EnemyType.FIRE_GOBLIN_SHAMAN: "Range 5.\nFire Wall (8 tempo): raises a wall; if the player walks into it they take 6 damage + 3 burn.\nSear Wounds (6 tempo): 2 damage to all allies (can kill), then heals survivors 6.\nMove (3 tempo): 2 spaces.",
@@ -3408,6 +3423,13 @@ func _try_hydra_heal() -> bool:
 	## Heals to full (only used once the 4th hit has enraged her).
 	_regenerate(max_health)
 	print("[%s] Regrows her heads — healed to full!" % enemy_name)
+	hydra_hits_since_heal = 0
+	_hydra_wear_heads()   # every head back
+	# The heal itself — rising onto her hind legs as the new heads sprout —
+	# lives with her full heads' sheets, so it plays once she wears them
+	# (the action's own call came while she still had three).
+	if _enemy_figure:
+		_enemy_figure.play_action("hydra_heal")
 	turn_completed.emit()
 	return true
 
@@ -3884,11 +3906,21 @@ func _choose_titan_action(distance: int) -> void:
 	else:
 		chosen_action = _get_action("move")
 
+## A thrown attack's projectile (the Titan's boulder, the Wraith's
+## snowball): the figure sends it from the hands to the target, and the tick
+## clock waits for it to get there as it waits for a swing.
+func _throw_at(target_node: Node3D, action: String) -> void:
+	if _enemy_figure and _enemy_figure.has_method("throw_projectile") and is_instance_valid(target_node):
+		var secs: float = _enemy_figure.throw_projectile(target_node.global_position, action)
+		if secs > 0.0:
+			swing_started.emit(self, secs)
+
 func _try_boulder_roll(target_node: Node3D) -> bool:
 	## Rolls the boulder at anything within 3 squares.
 	if is_disarmed or _get_cell_distance(target_node) > 3:
 		return _try_move(target_node)
 	_deal_damage_to_player(target_node, attack_damage, "Boulder Roll")
+	_throw_at(target_node, "boulder_roll")   # the boulder rolls from his hands to the target
 	turn_completed.emit()
 	return true
 
@@ -4742,6 +4774,7 @@ func _try_snowball(target_node: Node3D) -> bool:
 	_apply_player_debuff(target_node, Debuff.create_timed(Debuff.DebuffType.SLOWED, 3, enemy_name))
 	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.COLD, 2, 5))  # sheet: Cold's timer is 5 tempo
 	print("[%s] Snowball: Slowed 3 tempo + 2 Cold" % enemy_name)
+	_throw_at(target_node, "snowball")   # the snowball flies from her hand to the target
 	turn_completed.emit()
 	return true
 
@@ -4756,6 +4789,7 @@ func _try_ice_blast(target_node: Node3D) -> bool:
 			dmg += 3
 	_deal_damage_to_player(target_node, dmg, "Ice Blast", DamageTypes.Type.ICE)
 	_apply_player_debuff(target_node, Debuff.create_timed(Debuff.DebuffType.SLOWED, 3, enemy_name))
+	_throw_at(target_node, "ice_blast")   # the ice spear flies from her hand to the target
 	turn_completed.emit()
 	return true
 
@@ -6072,6 +6106,8 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		hits_taken += 1
 		strength += 2
 		print("[%s] Enraged by hit %d — strength now %d" % [enemy_name, hits_taken, strength])
+		hydra_hits_since_heal += 1
+		_hydra_wear_heads()   # the hit costs her heads
 		if hits_taken == 4:
 			max_health += 40
 			current_health += 40
@@ -6981,6 +7017,21 @@ func _die_visuals() -> void:
 	var death_col := get_node_or_null("CollisionShape3D")
 	if death_col is CollisionShape3D:
 		death_col.set_deferred("disabled", true)
+	# Killed mid-swing (a counter, thorns or a reaction after its blow
+	# landed): the swing plays out to the end before the body falls, so the
+	# attack is never cut short (designer, 2026-11-03).
+	var swing_left := 0.0
+	if _enemy_figure and _enemy_figure.has_method("attack_time_left"):
+		swing_left = _enemy_figure.attack_time_left()
+	if swing_left > 0.0:
+		var wait := create_tween()
+		wait.tween_interval(swing_left)
+		wait.tween_callback(_die_body_visuals)
+	else:
+		_die_body_visuals()
+
+## The fall itself: the death frames (if any), then the shrink-away.
+func _die_body_visuals() -> void:
 	# Figures with real death frames (Craftpix packs) play them out first;
 	# the shrink-away then removes the corpse.
 	var hold := 0.0

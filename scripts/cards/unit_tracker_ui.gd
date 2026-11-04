@@ -14,6 +14,7 @@ extends Control
 signal enemy_hovered(enemy: Enemy)    # Emitted when hovering a portrait
 signal enemy_unhovered()              # Emitted when leaving a portrait
 signal enemy_clicked(enemy: Enemy)    # Emitted when clicking a portrait (opens the inspect panel)
+signal ally_clicked(unit)             # Emitted when clicking an ally / summon row (opens the same box)
 
 var enemy_spawner = null
 var _content: VBoxContainer
@@ -755,7 +756,13 @@ func _create_ally_row(u) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.name = "Ally_%d" % u.get_instance_id()
 	row.add_theme_constant_override("separation", 6)
-	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Clicking the row opens the ally's box, as an enemy's square does.
+	row.mouse_filter = Control.MOUSE_FILTER_STOP
+	row.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	row.gui_input.connect(func(ev: InputEvent):
+		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT \
+				and is_instance_valid(u):
+			ally_clicked.emit(u))
 
 	var sq := PanelContainer.new()
 	sq.custom_minimum_size = Vector2(ALLY_SQUARE, ALLY_SQUARE)

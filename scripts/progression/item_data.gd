@@ -623,8 +623,7 @@ var ring_counters: Dictionary = {}
 # A mythic is a thing you can picture, not just a stat line: `appearance`
 # describes what it LOOKS like, and `appearance_icon` points at its picture
 # (assets/items/mythic/): the designer's painting, cut at 128px by
-# tools/cut_mythic_art.py, or — for mythics not painted yet — a 32px sprite
-# drawn from the description by tools/generate_mythic_icons.py. The inventory
+# tools/cut_mythic_art.py (every mythic, since 2026-10-31). The inventory
 # shows it in the item's storage cell, in its equipment slot (in place of the
 # generic slot silhouette) and atop its detail panel, which also prints the
 # description; a held mythic weapon shows it in hand.
