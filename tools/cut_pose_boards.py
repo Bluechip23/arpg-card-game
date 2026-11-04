@@ -70,7 +70,10 @@ so one named pose stands as tall as its Idle pose, and packed in the same
 cells as the Idle sheet (SpriteEnemyFigure indexes every sheet by the Idle
 cell). A pose may be ("mirror", box) — cut and flipped, so a back-view
 sweep drawn with the right arm becomes the left arm's — or ("same",
-pose), another pose of that facing again.
+pose), another pose of that facing again. An action board whose figure is
+as dark as its backdrop (the Battle Turtle's armor board, 2026-11-03) sets
+"matte": each frame is cut by a model matte (tools/make_mattes.py), with
+the lit red pieces (a tossed brick, dug dirt) added back.
 
 Output: assets/sprites/generated/sheets/<creature>/{Idle,Walk}.png
         (+ the action sheets, e.g. Attack.png / Attack2.png)
@@ -1959,6 +1962,72 @@ BOARDS = {
             "left": (791, 115, 1147, 576),
             "right": (1201, 115, 1514, 576),
         },
+        # 2026-11-03: the designer's armor board — battle_turtle_armor_board.webp,
+        # four rows of ten on dark navy (facing the camera, its shell, facing
+        # right, facing left): the stance, a crouch, a claw reaching down,
+        # the claw digging in, a brick pulled from the dirt, the brick held
+        # up, tossed over its head with a roar, the brick in the air, the
+        # brick landing on it (its armor), and the stance again. Armor.png is
+        # crouch to land; it plays each time the turtle gives itself armor
+        # (main._regain_turtle_armor). Its shading is as dark as the navy
+        # backdrop, so each frame is cut by a model matte, as its Idle is
+        # (tools/make_mattes.py), with the brick and its dirt added back as
+        # the red pieces. The stance is the height reference, matched to
+        # each facing's Idle.
+        "actions": {
+            "src": "battle_turtle_armor_board.webp",
+            "matte": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (10, 22, 155, 262),
+                    "crouch": (155, 22, 305, 262),
+                    "reach": (305, 22, 442, 262),
+                    "dig": (442, 22, 587, 262),
+                    "pull": (587, 22, 729, 262),
+                    "lift": (729, 22, 876, 262),
+                    "toss": (876, 22, 1014, 262),
+                    "high": (1014, 22, 1160, 262),
+                    "land": (1160, 22, 1305, 262),
+                },
+                "back": {
+                    "stance": (6, 276, 157, 515),
+                    "crouch": (157, 276, 302, 515),
+                    "reach": (302, 276, 441, 515),
+                    "dig": (441, 276, 585, 515),
+                    "pull": (585, 276, 730, 515),
+                    "lift": (730, 276, 873, 515),
+                    "toss": (873, 276, 1017, 515),
+                    "high": (1017, 276, 1162, 515),
+                    "land": (1162, 276, 1305, 515),
+                },
+                "right": {
+                    "stance": (6, 530, 151, 778),
+                    "crouch": (151, 530, 297, 778),
+                    "reach": (297, 530, 438, 778),
+                    "dig": (438, 530, 585, 778),
+                    "pull": (585, 530, 727, 778),
+                    "lift": (727, 530, 866, 778),
+                    "toss": (866, 530, 1018, 778),
+                    "high": (1018, 530, 1154, 778),
+                    "land": (1154, 530, 1300, 778),
+                },
+                "left": {
+                    "stance": (12, 789, 159, 1035),
+                    "crouch": (159, 789, 304, 1035),
+                    "reach": (304, 789, 442, 1035),
+                    "dig": (442, 789, 589, 1035),
+                    "pull": (589, 789, 734, 1035),
+                    "lift": (734, 789, 867, 1035),
+                    "toss": (867, 789, 1020, 1035),
+                    "high": (1020, 789, 1169, 1035),
+                    "land": (1169, 789, 1311, 1035),
+                },
+            },
+            "sheets": {
+                "Armor": ["crouch", "reach", "dig", "pull", "lift", "toss", "high", "land"],
+            },
+        },
     },
     "shadow_hound": {
         # 2026-10-28: the Shadow Hound summon (Summon Shadow Hound) — a wolf of
@@ -3217,11 +3286,41 @@ def pack_action(frames: dict, poses: list, cell: int, rows: list, air: int = 0) 
     return sheet
 
 
-def cut_action_frames(cfg: dict) -> dict:
+def action_matte_path(kind: str, d: str, pose: str) -> str:
+    """The saved model matte of one action frame (tools/make_mattes.py)."""
+    return os.path.join(MATTES, "%s_act_%s_%s.png" % (kind, d, pose))
+
+
+def _cut_action_matte(rgb: np.ndarray, matte: str, red_lum: int) -> Image.Image:
+    """One action frame by its model matte (the Battle Turtle's armor board:
+    its shading is as dark as the navy backdrop, so brightness can't part
+    them). The matte is the figure, solid; the pieces the model leaves out
+    that are red and lit (the brick flying over its head, the dirt it digs)
+    are added back. Pieces under KEEP_SHARE of the biggest go (specks)."""
+    fg = np.asarray(Image.open(matte).convert("L")) > 127
+    lum = rgb.max(axis=2)
+    red = (lum > red_lum) & (rgb[..., 0] > 1.25 * np.maximum(rgb[..., 1], rgb[..., 2]) + 6)
+    n, lab, st, _ = cv2.connectedComponentsWithStats(red.astype(np.uint8), connectivity=8)
+    for i in range(1, n):
+        if st[i, cv2.CC_STAT_AREA] >= BLACK_SPECK * 4:
+            fg |= lab == i
+    n, lab, st, _ = cv2.connectedComponentsWithStats(fg.astype(np.uint8), connectivity=8)
+    if n > 1:
+        areas = st[1:, cv2.CC_STAT_AREA]
+        keep = np.zeros(n, bool)
+        keep[1:] = areas >= areas.max() * KEEP_SHARE * 0.25
+        fg = keep[lab]
+    ys, xs = np.nonzero(fg)
+    rgba = np.dstack([rgb.astype(np.uint8), np.where(fg, 255, 0).astype(np.uint8)])
+    return Image.fromarray(rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
+
+
+def cut_action_frames(cfg: dict, kind: str = "") -> dict:
     """The frames of a creature's action boards, full size, uncut to scale:
     {direction: {pose: image}}. A pose is a box on the facing's board,
     ("mirror", box) for the box flipped, or ("same", pose) for another
-    pose of the facing again."""
+    pose of the facing again. With "matte" each frame is cut by its model
+    matte (tools/make_mattes.py) instead of by brightness off the black."""
     act = cfg["actions"]
     boards = {}
 
@@ -3279,6 +3378,10 @@ def cut_action_frames(cfg: dict) -> dict:
                 out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
                 continue
             rgb = np.asarray(board(d).crop(box).convert("RGB")).astype(int)
+            if act.get("matte"):
+                img = _cut_action_matte(rgb, action_matte_path(kind, d, pose), act.get("red_lum", 40))
+                out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
+                continue
             if act.get("isolate"):
                 rgb[others(d, box)] = 0
             img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
@@ -3299,10 +3402,10 @@ def _used_poses(cfg: dict) -> set:
     return {p for poses in cfg["actions"]["sheets"].values() for p in poses}
 
 
-def cut_actions(cfg: dict, full: dict) -> dict:
+def cut_actions(name: str, cfg: dict, full: dict) -> dict:
     """The action frames, full size, each facing's scaled so its `match`
     pose stands as tall as that facing's Idle pose (full size too)."""
-    out = cut_action_frames(cfg)
+    out = cut_action_frames(cfg, name)
     for d, fs in out.items():
         k = full["Idle"][d].height / float(fs[_action_setting(cfg, "match", "recover", d)].height) * _action_setting(cfg, "match_scale", 1.0, d)
         for pose, f in fs.items():
@@ -3344,7 +3447,7 @@ def build_actions_on_sheets(name: str, cfg: dict) -> None:
     Idle cell, Idle.png and Walk.png are regrown to the new cell (their
     content shifted, not resampled: SpriteEnemyFigure indexes every sheet
     by the Idle cell)."""
-    raw = cut_action_frames(cfg)
+    raw = cut_action_frames(cfg, name)
     used = _used_poses(cfg)
     rows = action_rows(cfg)
     folder = cfg.get("into", name)   # the heal is packed into the Hydra's own folder
@@ -3521,7 +3624,7 @@ def build(name: str, cfg: dict) -> None:
         full["Walk"] = full["Idle"]
     # The action board's frames (the werewolf's slash), already at the Idle
     # side views' scale: they share the cells with Idle / Walk below.
-    actions = cut_actions(cfg, full) if "actions" in cfg else {}
+    actions = cut_actions(name, cfg, full) if "actions" in cfg else {}
     factor = full["Idle"]["front"].height / float(round(cfg["tiles"] * DENSITY))
     small = {a: {d: shrink(f, factor) for d, f in fs.items()} for a, fs in full.items()}
     small_act = {d: {p: shrink(f, factor) for p, f in fs.items()} for d, fs in actions.items()}

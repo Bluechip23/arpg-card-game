@@ -935,6 +935,15 @@ func throw_projectile(target: Vector3, action: String) -> float:
 	return b.total_time()
 
 
+## The Battle Turtle giving itself armor: its Armor sheet, once (a hit
+## doesn't break it). Returns false for a figure with no Armor sheet.
+func play_armor() -> bool:
+	if not _cp_mode or not _cp_sheets.has("Armor"):
+		return false
+	_cp_play("Armor", true)
+	return true
+
+
 ## How long the swing now playing runs: the Attack frames at their fps on
 ## a sheet (Craftpix or the designer's), else the procedural lunge.
 func attack_time() -> float:
@@ -959,7 +968,7 @@ func _cp_forward() -> Vector3:
 func play_hit() -> void:
 	# White palette-saturating flash on damage (SNES hit flash), plus shake.
 	flash(Color(3.0, 3.0, 3.0))
-	if _cp_mode and not _cp_anim in ATTACK_SHEETS and not _cp_anim in CP_HOLD:
+	if _cp_mode and not _cp_anim.begins_with("Attack") and _cp_anim != "Armor" and not _cp_anim in CP_HOLD:
 		_cp_play("Hurt", true)
 	if _rig:
 		var t := create_tween()
