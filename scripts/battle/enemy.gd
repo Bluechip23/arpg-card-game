@@ -1955,6 +1955,13 @@ func _async_actions() -> Array:
 			out.append(a)
 	return out
 
+## A Sync action that may start whatever the Async clocks are doing: a move
+## (designer, 2026-11-04). Two Async clocks of different lengths are rarely
+## at 0 together — the Sabertooth's Track 10 and Sunken Bite 15 only every 30
+## tempo — and the gate kept it from closing on its prey at all.
+func _sync_can_start(action: Dictionary) -> bool:
+	return MOVEMENT_ACTIONS.has(str(action.get("name", "")))
+
 func _all_async_idle() -> bool:
 	for a in _async_actions():
 		if int(_async_counters.get(str(a["name"]), 0)) > 0:
@@ -2012,7 +2019,7 @@ func _tick_action_clocks(player_node: Node3D) -> void:
 
 	if chosen_action.is_empty() and can_act:
 		_choose_action(player_node)
-	if not chosen_action.is_empty() and (action_tempo_counter > 0 or gap):
+	if not chosen_action.is_empty() and (action_tempo_counter > 0 or gap or _sync_can_start(chosen_action)):
 		action_tempo_counter += 1
 	_update_draw(player_node)
 
@@ -2227,7 +2234,11 @@ func get_display_action() -> Dictionary:
 			"counter": total - _channel_remaining, "cost": total, "kind": "channel"}
 	var best: Dictionary = {}
 	var best_left := 1 << 30
-	if not chosen_action.is_empty():
+	# A Sync action still waiting for the Async clocks to clear (not started,
+	# not a move) is not counting down: it is not what fires soonest, and the
+	# bar showed it while an Async action went off unannounced (2026-11-04).
+	var sync_counting := action_tempo_counter > 0 or _async_gap or _sync_can_start(chosen_action)
+	if not chosen_action.is_empty() and sync_counting:
 		var cost := maxi(1, _effective_cost(chosen_action))
 		best = {"name": chosen_action["name"], "label": action_label(chosen_action),
 			"counter": action_tempo_counter, "cost": cost, "kind": "sync"}
@@ -3192,10 +3203,28 @@ func _get_action(action_name: String) -> Dictionary:
 # ============================================
 
 func _execute_action(action_name: String, move_target: Node3D) -> bool:
-	# Play animation for this action (the Archer Rat's shot ends its draw)
+	# Play animation for this action (the Archer Rat's shot ends its draw).
+	# An Async action whose tempo comes up while it cannot land is spent
+	# (docs/ENEMY_ACTION_KEYWORDS.md): it plays only when it lands, so the
+	# Sabertooth doesn't mime its Sunken Bite at prey five tiles off
+	# (designer, 2026-11-04).
 	_bow_drawn = false
-	_play_enemy_animation(action_name)
+	var async := _is_async_name(action_name)
+	if not async:
+		_play_enemy_animation(action_name)
+	var ok := _run_action(action_name, move_target)
+	if async and ok:
+		_play_enemy_animation(action_name)
+	return ok
 
+## Whether `action_name` is one of this enemy's Async actions.
+func _is_async_name(action_name: String) -> bool:
+	for a in actions:
+		if str(a["name"]) == action_name:
+			return is_async_action(a) and not is_trigger_action(a)
+	return false
+
+func _run_action(action_name: String, move_target: Node3D) -> bool:
 	match action_name:
 		"attack":
 			return _try_attack(move_target)
