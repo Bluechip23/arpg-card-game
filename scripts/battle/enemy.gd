@@ -2621,6 +2621,12 @@ func _try_infest(target_node: Node3D) -> bool:
 	## holder if it is still in the hand 5 tempo later (DeckManager counts
 	## the fuse, hand only); playing it for 50 mana or discarding it ends
 	## the brood.
+	# The smoke rises about the victim's feet and liquefies into rats as he
+	# points; the tick clock waits for it, as it waits for a swing.
+	if _enemy_figure and _enemy_figure.has_method("spot_effect") and is_instance_valid(target_node):
+		var secs: float = _enemy_figure.spot_effect(target_node.global_position, "infest")
+		if secs > 0.0:
+			swing_started.emit(self, secs)
 	var deck = target_node.get_deck_manager() if target_node.has_method("get_deck_manager") else null
 	if deck == null:
 		turn_completed.emit()

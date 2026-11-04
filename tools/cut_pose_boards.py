@@ -1830,6 +1830,111 @@ BOARDS = {
             "left": (7, 547, 513, 866),
             "right": (542, 549, 1020, 866),
         },
+        # 2026-11-04: the designer's Infest board — rat_king_infest_board.webp,
+        # "RAT KING - INFEST (ATTACK ANIMATION)", four labelled rows on black
+        # (NORTH: the face, SOUTH: the back, WEST, EAST), eleven frames a row,
+        # and below them the effect panel (rat_king_infest's strip). In the
+        # designer's words: he crouches low, his eyes glowing an eerie purple
+        # and bright green, rubs his paws together rapidly, points a single
+        # sharp claw at the victim, his eyes turned bright white, and
+        # settles. Frames 2-10 are Cast.png, played for his Infest; the
+        # first is the height reference, matched to each facing's Idle. The
+        # first box starts below the panel title's frame line its crown
+        # nearly touches; the side rows' tails reach the next frame's box
+        # (`isolate`).
+        "actions": {
+            "src": "rat_king_infest_board.webp",
+            "levels": (4, 30, 6),   # his black fur runs just above the backdrop's 0
+            "fill_holes": 4,
+            "open_dark": True,
+            "keep_share": 0.002,   # the sparks about his paws
+            "glow": False,
+            "isolate": True,
+            "isolate_floor": 14,
+            "match": "stance",
+            # The board draws him squatter than his pose board does: matched
+            # by bulk (width), not height, so the crouch doesn't swell him.
+            "match_scale": {"front": 0.86, "back": 0.91, "left": 0.94, "right": 0.94},
+            "frames": {
+                "front": {
+                    "stance": (102, 30, 253, 122),
+                    "crouch": (264, 30, 398, 122),
+                    "low": (426, 30, 563, 122),
+                    "glow": (592, 30, 729, 122),
+                    "rub": (749, 30, 888, 122),
+                    "rub2": (911, 30, 1051, 122),
+                    "white": (1080, 30, 1220, 122),
+                    "point": (1255, 30, 1392, 122),
+                    "point2": (1440, 30, 1576, 122),
+                    "settle": (1633, 30, 1766, 122),
+                    "back": (1825, 30, 1959, 122),
+                },
+                "back": {
+                    "stance": (111, 130, 240, 246),
+                    "crouch": (265, 131, 394, 246),
+                    "low": (428, 155, 561, 246),
+                    "glow": (590, 133, 718, 246),
+                    "rub": (750, 133, 880, 246),
+                    "rub2": (912, 132, 1047, 246),
+                    "white": (1077, 131, 1211, 246),
+                    "point": (1252, 131, 1390, 246),
+                    "point2": (1438, 130, 1578, 246),
+                    "settle": (1633, 127, 1767, 246),
+                    "back": (1822, 127, 1956, 246),
+                },
+                "left": {
+                    "stance": (103, 250, 261, 348),
+                    "crouch": (261, 256, 423, 348),
+                    "low": (423, 265, 589, 348),
+                    "glow": (590, 262, 752, 348),
+                    "rub": (752, 252, 918, 348),
+                    "rub2": (918, 250, 1082, 348),
+                    "white": (1082, 249, 1248, 348),
+                    "point": (1248, 249, 1431, 348),
+                    "point2": (1432, 249, 1612, 348),
+                    "settle": (1624, 249, 1800, 348),
+                    "back": (1812, 249, 1986, 348),
+                },
+                "right": {
+                    "stance": (95, 357, 255, 458),
+                    "crouch": (255, 357, 417, 458),
+                    "low": (417, 358, 577, 458),
+                    "glow": (577, 354, 740, 458),
+                    "rub": (740, 352, 907, 458),
+                    "rub2": (907, 354, 1072, 458),
+                    "white": (1073, 356, 1251, 458),
+                    "point": (1251, 355, 1439, 458),
+                    "point2": (1439, 354, 1631, 458),
+                    "settle": (1631, 357, 1798, 458),
+                    "back": (1811, 357, 1985, 458),
+                },
+            },
+            "sheets": {
+                "Cast": ["crouch", "low", "glow", "rub", "rub2", "white", "point", "point2", "settle"],
+            },
+        },
+    },
+    "rat_king_infest": {
+        # 2026-11-04: the Infest effect — the board's lower panel, "INFEST
+        # EFFECT - SMOKE TO RATS (TARGET SQUARE)", eleven frames on black: a
+        # thin purple ring, wispy dark smoke rising from it, the smoke
+        # liquefying into a swarm of little purple-eyed rats that crawl
+        # into the square, thinning out. Cut by brightness with soft alpha
+        # (`bg: "black_key"`: the smoke is translucent, and every rat is a
+        # piece of its own), packed as one row, Infest.png, in his folder;
+        # his Infest lays it on the victim's square (SpotEffect), the ring
+        # about the victim's feet. The full swarm is 2 tiles wide, the square and its edges.
+        "into": "rat_king",
+        "strip": {
+            "src": "rat_king_infest_board.webp",
+            "bg": "black_key",
+            "sheet": "Infest",
+            "width_tiles": 2.0,
+            "alpha_gain": 1.8,   # faint purple wisps on black: thickened to read on the floor
+            "width_of": "max",
+            "align": "board",
+            "frames": [(60, 514, 174, 648), (174, 514, 341, 648), (341, 514, 509, 648), (509, 514, 675, 648), (675, 514, 845, 648), (845, 514, 1019, 648), (1019, 514, 1205, 648), (1205, 514, 1406, 648), (1406, 514, 1612, 648), (1612, 514, 1808, 648), (1808, 514, 1985, 648)],
+        },
     },
     "archer_rat": {
         # 2026-10-26: the Archer Rat, redrawn — a brown rat on its hind legs
@@ -3529,6 +3634,21 @@ def build_strip(name: str, cfg: dict) -> None:
     board = Image.open(SRC % st["src"]).convert("RGBA")
     raw = []
     for box in st["frames"]:
+        if st.get("bg") == "black_key":
+            # A strip on black (the Rat King's Infest smoke): cut by
+            # brightness, soft alpha, every lit piece kept; padded back to
+            # the box so `align` still lines the frames up.
+            rgb = np.asarray(board.convert("RGB").crop(box)).astype(int)
+            lum = rgb.max(axis=2).astype(float)
+            alpha = np.clip((lum - BLACK_FLOOR) / float(BLACK_SOLID - BLACK_FLOOR), 0.0, 1.0)
+            a = np.maximum(alpha, 1e-6)[..., None]
+            col = np.where(alpha[..., None] > 0, np.clip(rgb / a, 0, 255), 0)
+            # `alpha_gain`: the smoke thickened (its colour kept), so a wisp
+            # drawn faint on black still reads as a dark shadow on a lit floor.
+            alpha = np.clip(alpha * float(st.get("alpha_gain", 1.0)), 0.0, 1.0)
+            f = Image.fromarray(np.dstack([col, alpha * 255.0]).round().astype(np.uint8), "RGBA")
+            raw.append(f)
+            continue
         f = board.crop(box)
         a = np.asarray(f).copy()
         a[..., 3] = np.where(a[..., 3] >= 128, 255, 0)   # the board's faint haze goes
@@ -3543,6 +3663,8 @@ def build_strip(name: str, cfg: dict) -> None:
         boxes = [(b[0], y0, b[2], y1) for b in boxes]
     raw = [f.crop(b) for f, b in zip(raw, boxes)]
     width = raw[0].width
+    if st.get("width_of") == "max":
+        width = max(f.width for f in raw)   # `width_tiles` is the widest frame's
     if st.get("stretch"):
         # Every frame stretched across to the widest frame's width (the
         # Djinn's arc: its ends then sit at the same place in each frame,

@@ -118,7 +118,7 @@ const KINDS := {
 	# The designer's Archer Rat: up on its hind legs, bow in hand.
 	"archer_rat": {"sheets": SHEETS + "/archer_rat", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26), and his shoot board (2026-10-31: Draw is the nock and the held draw, Attack the shot)
 	# The designer's own boss boards (no pack has these bosses).
-	"rat_king": {"sheets": SHEETS + "/rat_king", "scale": BOARD_SCALE},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26), 2.1 tiles — bigger than the Wererat
+	"rat_king": {"sheets": SHEETS + "/rat_king", "scale": BOARD_SCALE, "fps": {"Cast": 10.0}, "action_sheets": {"infest": "Cast"}, "spots": {"infest": {"sheet": "Infest", "release": 3, "meet": [5, 6], "hang": 0.27}}},  # the designer's redrawn board (tools/cut_pose_boards.py, 2026-10-26), 2.1 tiles — bigger than the Wererat; and his Infest board (2026-11-04: Cast is the crouch, eyes glowing purple and green, the paws rubbed together, the claw pointed with eyes gone white; Infest the smoke-to-rats effect on the victim's square)
 	"fire_goblin_soldier": {"sheets": SHEETS + "/fire_goblin", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the goblin pack's Goblin2
 	"fire_goblin_mage": {"sheets": SHEETS + "/fire_goblin_mage", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the goblin pack's Goblin1
 	"fire_goblin_shaman": {"sheets": SHEETS + "/fire_goblin_shaman", "scale": BOARD_SCALE},  # his own board (tools/cut_pose_boards.py, 2026-10-28); wore the soldier's, and before that the goblin pack's Goblin3
@@ -973,6 +973,35 @@ func chain_arcs(points: Array, action: String) -> float:
 				release + hop * i, float(arc.get("fps", 24.0)))
 		longest = maxf(longest, b.total_time())
 	return longest
+
+
+## Play `action`'s effect on a spot of the ground (the kind's "spots" by
+## action: the Rat King's Infest, Infest.png beside his sheets, on the
+## victim's square). It starts on the action sheet's "release" frame, and
+## its pace is set so its frame `meet[0]` lands on the sheet's frame
+## `meet[1]` (the rats appear as he points); `hang`: see SpotEffect.
+## Returns the seconds from now until it is gone, 0 when the action has none.
+func spot_effect(at: Vector3, action: String) -> float:
+	var cfg: Dictionary = KINDS.get(figure_kind, {})
+	var spot: Dictionary = cfg.get("spots", {}).get(action, {})
+	var path := "%s/%s.png" % [_sheet_folder, spot.get("sheet", "")]
+	if spot.is_empty() or _sheet_folder == "" or not ResourceLoader.exists(path):
+		return 0.0
+	var sheet: String = cfg.get("action_sheets", {}).get(action, "")
+	var sheet_fps: float = _cp_fps.get(sheet, 8.0)
+	var release_frame := float(spot.get("release", 0))
+	var meet: Array = spot.get("meet", [1, release_frame + 1.0])
+	var fps := sheet_fps * float(meet[0]) / maxf(0.5, float(meet[1]) - release_frame)
+	var delay := 0.0
+	if sheet != "" and _cp_anim == sheet:
+		delay = maxf(0.0, (release_frame - float(_cp_frame)) / sheet_fps - _cp_clock)
+	var fx := SpotEffect.new()
+	var host: Node = get_parent().get_parent() if get_parent() and get_parent().get_parent() else get_parent()
+	host.add_child(fx)
+	var gutter := 8 if smooth else 0      # SMOOTH_GUTTER under the smooth strip's art
+	fx.launch(load(path), _sprite.pixel_size * _rig.scale.x, gutter, smooth, at, delay, fps,
+			float(spot.get("hang", 0.0)))
+	return fx.total_time()
 
 
 ## How long the swing now playing runs: the Attack frames at their fps on
