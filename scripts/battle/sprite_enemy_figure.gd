@@ -108,7 +108,7 @@ const KINDS := {
 	"coyote": {"sheets": SHEETS + "/coyote", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and his nip board (2026-10-31: Attack is the nip); was the old MonsterKit wolf battler, tinted
 	"djinn": {"sheets": SHEETS + "/djinn", "scale": BOARD_SCALE, "fps": {"Cast": 10.0}, "action_sheets": {"chain_lightning": "Cast"}, "arcs": {"chain_lightning": {"sheet": "Arc", "release": 4, "fps": 24.0, "hop": 0.1, "lift": 0.9}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-24), and his chain lightning board and arc strip (2026-11-04: Cast is the eyes glowing, crackling, the surge down his arms, the lightning gathered, unleashed, the chain, recovery; Arc the bolt laid between each pair of the chain's links); was the MonsterKit cell (4, 1)
 	"specter": {"cp": "ghost/Ghost1", "scale": 1.2},
-	"treasure_bunny": {"sheets": SHEETS + "/treasure_bunny", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the Treasure Bunny on MonsterKit cell (7, 1)
+	"treasure_bunny": {"sheets": SHEETS + "/treasure_bunny", "scale": BOARD_SCALE, "spots": {"vanish": {"sheet": "Smoke", "fps": 12.0}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the Treasure Bunny on MonsterKit cell (7, 1)
 	"skeleton": {"sheets": SHEETS + "/skeleton", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and his slash board (2026-10-31: Attack is the scimitar slash); was the Craftpix Skeleton1
 	"treant": {"sheets": SHEETS + "/treant", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the Craftpix Ent pack's Ent3
 	"consumed": {"sheets": SHEETS + "/consumed", "scale": BOARD_SCALE},  # the designer's crawler board (tools/cut_pose_boards.py; on the Screecher by mistake until 2026-10-27); was MonsterKit cell (6, 2)
@@ -744,6 +744,8 @@ func play_action(action: String) -> void:
 	if a == "hit":
 		play_hit()
 		return
+	if a == "vanish":
+		return   # the Treasure Bunny's escape is a puff of smoke (Enemy._try_vanish), not a swing
 	if a == "idle" or a == "stance":
 		set_walking(false)
 		if _cp_mode and _cp_anim in CP_HOLD:

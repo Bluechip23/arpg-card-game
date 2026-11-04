@@ -3879,15 +3879,40 @@ func _try_flee(target_node: Node3D) -> bool:
 		_dash_away_from(target_node.position, maxi(1, int(move_distance)))
 	return true
 
+## The designer's vanish smoke (Smoke.png, 2026-11-04): a puff of smoke rises
+## where the bunny stood and billows into a cloud with a sad frown; the
+## bunny is gone once the cloud covers it (VANISH_COVER_FRAMES in).
+const VANISH_COVER_FRAMES := 2.5
+
+var _vanishing := false
+
 func _try_vanish() -> bool:
 	## The escape: gone in a puff of smoke — no loot, no XP, no death.
+	if _vanishing:
+		return true
+	_vanishing = true
 	print("[%s] Vanishes in a puff of smoke!" % enemy_name)
+	var cover := 0.0
+	if _enemy_figure and _enemy_figure.has_method("spot_effect"):
+		var secs: float = _enemy_figure.spot_effect(global_position, "vanish", 0.0)
+		if secs > 0.0:
+			swing_started.emit(self, secs)
+			var fx = _enemy_figure.last_spot
+			cover = VANISH_COVER_FRAMES / (fx._fps if fx else 12.0)
+	if cover > 0.0 and is_inside_tree():
+		get_tree().create_timer(cover).timeout.connect(_vanish_now)
+	else:
+		_vanish_now()
+	return true
+
+func _vanish_now() -> void:
+	if not is_instance_valid(self) or is_queued_for_deletion():
+		return
 	var main := get_parent()
 	if main and "enemy_spawner" in main and main.enemy_spawner:
 		main.enemy_spawner.despawn_enemy(self)
 	else:
 		queue_free()
-	return true
 
 ## --- Crypt Crawler ---
 

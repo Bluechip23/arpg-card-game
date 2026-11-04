@@ -1496,6 +1496,27 @@ BOARDS = {
             "frames": [(1088, 573, 1134, 619)],
         },
     },
+    "treasure_bunny_vanish": {
+        # 2026-11-04: the Treasure Bunny's escape — treasure_bunny_vanish_strip.webp,
+        # "VANISH SMOKE - SAD FROWN (8 FRAMES)", eight numbered frames in a
+        # framed panel on black: a puff of grey smoke rising from the
+        # ground, billowing into a cloud with a sad frowning face, thinning
+        # and drifting away. Cut by brightness with soft alpha (smoke);
+        # Smoke.png in its folder; its Vanish plays it where it stood
+        # (SpotEffect), the bunny gone as the cloud covers it. The fullest
+        # cloud 1.3 tiles wide.
+        "into": "treasure_bunny",
+        "strip": {
+            "src": "treasure_bunny_vanish_strip.webp",
+            "bg": "black_key",
+            "sheet": "Smoke",
+            "width_tiles": 1.3,
+            "width_of": "max",
+            "align": "board",
+            "alpha_gain": 1.3,
+            "frames": [(20, 428, 203, 640), (203, 428, 392, 640), (392, 428, 583, 640), (583, 428, 780, 640), (780, 428, 977, 640), (977, 428, 1165, 640), (1165, 428, 1348, 640), (1348, 428, 1520, 640)],
+        },
+    },
     "fire_goblin": {
         # 2026-10-25: the Fire Goblin — a goblin in red leather with a torch,
         # scimitar and round shield; the fire goblin soldier and shaman wear it
