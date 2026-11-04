@@ -5319,6 +5319,7 @@ func _try_damaging_snap(target_node: Node3D) -> bool:
 		if st:
 			dmg += int(floor(maxf(0.0, st.max_mana - st.current_mana) / 20.0))
 	_deal_damage_to_player(target_node, dmg, "Damaging Snap")
+	_throw_at(target_node, "damaging_snap")   # her snap sends a spinning scythe at her victim
 	turn_completed.emit()
 	return true
 

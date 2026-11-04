@@ -1397,6 +1397,91 @@ BOARDS = {
             "frames": [(697, -4, 836, 114), (836, -4, 975, 114), (975, -4, 1115, 114), (1115, -4, 1254, 114), (1254, -4, 1393, 114), (1393, -4, 1533, 114), (1533, -4, 1672, 114), (0, 112, 139, 230), (139, 112, 279, 230), (279, 112, 418, 230), (418, 112, 557, 230), (557, 112, 697, 230), (697, 112, 836, 230), (836, 112, 975, 230), (975, 112, 1115, 230), (1115, 112, 1254, 230), (1254, 112, 1393, 230), (1393, 112, 1533, 230), (1533, 112, 1672, 230), (0, 231, 139, 349), (139, 231, 279, 349), (279, 231, 418, 349), (418, 231, 557, 349), (557, 231, 697, 349), (697, 231, 836, 349), (836, 231, 975, 349), (975, 231, 1115, 349), (1115, 231, 1254, 349), (1254, 231, 1393, 349), (1393, 231, 1533, 349), (1533, 231, 1672, 349), (0, 351, 139, 469), (139, 351, 279, 469), (279, 351, 418, 469), (418, 351, 557, 469), (557, 351, 697, 469), (697, 351, 836, 469), (836, 351, 975, 469), (975, 351, 1115, 469), (1115, 351, 1254, 469), (1254, 351, 1393, 469), (1393, 351, 1533, 469), (1533, 351, 1672, 469), (0, 470, 139, 588), (139, 470, 279, 588), (279, 470, 418, 588), (418, 470, 557, 588), (557, 470, 697, 588), (697, 470, 836, 588), (836, 470, 975, 588), (975, 470, 1115, 588), (1115, 470, 1254, 588), (1254, 470, 1393, 588), (1393, 470, 1533, 588), (1533, 470, 1672, 588), (0, 590, 139, 708), (139, 590, 279, 708), (279, 590, 418, 708), (418, 590, 557, 708), (557, 590, 697, 708), (697, 590, 836, 708), (836, 590, 975, 708), (975, 590, 1115, 708), (1115, 590, 1254, 708), (1254, 590, 1393, 708), (1393, 590, 1533, 708), (1533, 590, 1672, 708), (0, 702, 139, 820), (139, 702, 279, 820), (279, 702, 418, 820), (418, 702, 557, 820), (557, 702, 697, 820), (697, 702, 836, 820), (836, 702, 975, 820), (975, 702, 1115, 820), (1115, 702, 1254, 820), (1254, 702, 1393, 820)],
         },
     },
+    "succubus_snap": {
+        # 2026-11-04: the Succubus's Damaging Snap — succubus_snap_board.webp,
+        # "SUCCUBUS - FINGER SNAP", four labelled rows in framed panels on
+        # black (NORTH: the face, SOUTH: the back, WEST, EAST), eight
+        # numbered frames a row: the stance, raising her hand, lifting it,
+        # pointing, pinching her fingers, ready, the snap, and the flash of
+        # the snap (a blue star at her fingers). Frames 2-8 are Attack.png,
+        # packed into her folder, for her Damaging Snap; the scythe it sends
+        # is its own sprite (succubus_scythe).
+        "into": "succubus",
+        "actions": {
+            "src": "succubus_snap_board.webp",
+            "levels": (8, 36, 10),
+            "fill_holes": 20,
+            "open_dark": True,
+            "keep_share": 0.002,     # the snap's flash
+            "glow": False,
+            "isolate": True,
+            "isolate_floor": 12,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (100, 72, 275, 293),
+                    "raise": (275, 72, 451, 293),
+                    "lift": (451, 72, 627, 293),
+                    "point": (627, 72, 805, 293),
+                    "pinch": (805, 72, 983, 293),
+                    "ready": (983, 72, 1162, 293),
+                    "snap": (1162, 72, 1343, 293),
+                    "flash": (1343, 72, 1524, 293),
+                },
+                "back": {
+                    "stance": (100, 301, 275, 527),
+                    "raise": (275, 301, 451, 527),
+                    "lift": (451, 301, 629, 527),
+                    "point": (629, 301, 806, 527),
+                    "pinch": (806, 301, 983, 527),
+                    "ready": (983, 301, 1163, 527),
+                    "snap": (1163, 301, 1345, 527),
+                    "flash": (1345, 301, 1524, 527),
+                },
+                "left": {
+                    "stance": (100, 536, 277, 744),
+                    "raise": (277, 536, 453, 744),
+                    "lift": (453, 536, 629, 744),
+                    "point": (629, 536, 806, 744),
+                    "pinch": (806, 536, 984, 744),
+                    "ready": (984, 536, 1165, 744),
+                    "snap": (1165, 536, 1346, 744),
+                    "flash": (1346, 536, 1524, 744),
+                },
+                "right": {
+                    "stance": (100, 751, 265, 976),
+                    "raise": (265, 751, 442, 976),
+                    "lift": (442, 751, 619, 976),
+                    "point": (619, 751, 797, 976),
+                    "pinch": (797, 751, 973, 976),
+                    "ready": (973, 751, 1152, 976),
+                    "snap": (1152, 751, 1335, 976),
+                    "flash": (1335, 751, 1524, 976),
+                },
+            },
+            "sheets": {
+                "Attack": ["raise", "lift", "point", "pinch", "ready", "snap", "flash"],
+            },
+        },
+    },
+    "succubus_scythe": {
+        # The scythe her snap sends — succubus_scythe_strip.webp, "MINI
+        # REAPER SCYTHE (SPINNING PROJECTILE)", eight numbered frames in a
+        # framed panel on black of a small reaper's scythe spinning in a
+        # blue glow (the eighth is the first again: seven are used). Cut by
+        # brightness with soft alpha; Scythe.png in her folder; her Damaging
+        # Snap sends it spinning at her victim (ThrownSprite). 0.6 tiles.
+        "into": "succubus",
+        "strip": {
+            "src": "succubus_scythe_strip.webp",
+            "bg": "black_key",
+            "sheet": "Scythe",
+            "width_tiles": 0.6,
+            "width_of": "max",
+            "align": "board",
+            "frames": [(35, 428, 220, 618), (220, 428, 406, 618), (406, 428, 592, 618), (592, 428, 777, 618), (777, 428, 964, 618), (964, 428, 1151, 618), (1151, 428, 1339, 618)],
+        },
+    },
     "succubus_orb": {
         # The ball of drained mana: the left row's ball on her drain board,
         # cut by brightness with soft alpha. Orb.png in her folder; her Mana

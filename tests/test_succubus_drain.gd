@@ -5,7 +5,8 @@ extends SceneTree
 ## is her reaching out, curling her fingers, beckoning and catching the ball
 ## — four facing rows, at her drawn 10 fps slowed as every enemy swing is.
 ## The ball of mana (Orb.png) starts at her victim and is drawn back to her
-## hand, arriving on the catch frame.
+## hand, arriving on the catch frame. Her Damaging Snap plays Attack.png
+## (her finger snap) and sends a spinning scythe (Scythe.png) at her victim.
 ## Run: godot --headless --path . --script tests/test_succubus_drain.gd
 
 var failures := 0
@@ -71,7 +72,14 @@ func _test_figure() -> void:
 	fig.play_action("mana_drain")
 	_check(fig._cp_anim == "Cast" and int(fig._sprite.region_rect.position.y / cell) == 2, "Mana Drain facing west: the drain, the left-facing row")
 	fig.play_action("damaging_snap")
-	_check(fig._cp_anim != "Cast", "her Damaging Snap does not drain")
+	_check(fig._cp_anim == "Attack" and fig._cp_frame_count("Attack") == 7, "her Damaging Snap plays the snap (succubus_snap_board.webp): seven frames")
+	_check(fig._cp_sheets["Attack"].get_height() == 4 * cell, "in the four facing rows, the Idle sheet's cells")
+	var sworst := 0.0
+	for row in range(4):
+		var sfeet: float = _feet(fig, "Idle", row, 0)
+		for col in range(7):
+			sworst = maxf(sworst, absf(_feet(fig, "Attack", row, col) - sfeet))
+	_check(sworst <= 3.0 * (2.0 if fig.smooth else 1.0), "her heels stay on the ground row through the snap (off by at most %.0f texels)" % sworst)
 	fig.free()
 
 
@@ -113,4 +121,14 @@ func _test_enemy() -> void:
 		_check(is_equal_approx(o._delay, 3.0 / fps), "it leaves her victim as she curls her fingers (%.2f s)" % o._delay)
 		_check(is_equal_approx(o.total_time(), 6.0 / fps), "and reaches her hand on the catch frame (%.2f s)" % o.total_time())
 	_check(holds.size() >= 2, "the clock waits for it (%s s)" % str(holds))
+	# Her Damaging Snap: the snap, and a scythe spinning at her victim.
+	var before := _thrown(e.get_parent()).size()
+	e._execute_action("damaging_snap", main.player)
+	_check(fig._cp_anim == "Attack", "her Damaging Snap plays the snap (%s)" % fig._cp_anim)
+	var all := _thrown(e.get_parent())
+	_check(all.size() == before + 1, "and sends a scythe")
+	if all.size() == before + 1:
+		var sc: ThrownSprite = all.back()
+		_check(sc._frames == 7 and is_equal_approx(sc._delay, 6.0 / fig._cp_fps["Attack"]), "spinning through seven frames, leaving her fingers on the snap (%.2f s)" % sc._delay)
+		_check(Vector2(sc._to.x - main.player.global_position.x, sc._to.z - main.player.global_position.z).length() < 0.01, "at her victim")
 	main.enemy_spawner.despawn_enemy(e)
