@@ -1702,7 +1702,7 @@ func _setup_action_buttons() -> void:
 
 #endregion
 #region TICK BAR & ACTION QUEUE
-const TICK_SPEED_ROW_H := 20.0  # the speed row (the pause sign is the tallest, 19) plus the 1px separation
+const TICK_SPEED_ROW_H := 22.0  # the row above the ticks ("Ready" sets its height, 21) plus the 1px separation
 
 func _setup_tick_bar() -> void:
 	## Build the 20-tick global tempo bar centered at the top of the screen,
@@ -1742,9 +1742,9 @@ func _setup_tick_bar() -> void:
 	tick_container.add_theme_constant_override("separation", 1)
 	frame.add_child(tick_container)
 
-	# Speed tiers and pause sit on their own row ABOVE the ticks (designer,
-	# 2026-11-04); the frame starts higher by that row so the ticks
-	# themselves stay where they were.
+	# "Ready", the queue arrow, the speed tiers and pause sit on one row
+	# ABOVE the ticks (designer, 2026-11-04); the frame starts higher by
+	# that row so the ticks themselves stay where they were.
 	var speed_row := HBoxContainer.new()
 	speed_row.name = "TickSpeedRow"
 	speed_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1789,11 +1789,9 @@ func _setup_tick_bar() -> void:
 	shelf.add_theme_stylebox_override("panel", shelf_style)
 	tick_container.add_child(shelf)
 
-	# Status label + queue dropdown arrow, side by side
-	var label_row := HBoxContainer.new()
-	label_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	label_row.add_theme_constant_override("separation", 4)
-	tick_container.add_child(label_row)
+	# Status label + queue dropdown arrow lead the row above the ticks, the
+	# speed tiers after them (designer, 2026-11-04: all of it above).
+	var label_row := speed_row
 
 	_tick_bar_label = Label.new()
 	_tick_bar_label.name = "TickBarLabel"
@@ -1819,6 +1817,9 @@ func _setup_tick_bar() -> void:
 	# Speed tiers on the row above the ticks: tap an arrow to change the tick
 	# speed in real time. ▶ is normal; more forward arrows are faster, rewind
 	# arrows slower.
+	var speed_gap := Control.new()
+	speed_gap.custom_minimum_size.x = 10
+	speed_row.add_child(speed_gap)
 	_tick_speed_buttons.clear()
 	for tier in TICK_SPEED_TIERS:
 		var sbtn := Button.new()
