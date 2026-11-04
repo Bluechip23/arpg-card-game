@@ -104,10 +104,21 @@ func _run() -> void:
 	# The Screecher wears the designer's crawler board (2026-10-25), no longer
 	# the Snow Wraith's ghost.
 	# The crawler board is the Consumed's (2026-10-27: it was on the Screecher
-	# by mistake); the Screecher is back on the pale ghost for now.
+	# by mistake). The Screecher wears its own four-pose board (2026-11-04):
+	# the hooded wraith, one pose a direction.
 	_check(str(SpriteEnemyFigure.KINDS["consumed"].get("sheets", "")).ends_with("/consumed"), "the Consumed wears the crawler board")
 	_check(not "consumed" in SpriteEnemyFigure.PAINTED_SHADOW_KINDS, "the crawling Consumed casts a blob shadow")
-	_check(SpriteEnemyFigure.KINDS["screecher"].get("cp", "") == "ghost/Ghost2", "the Screecher is the pale ghost again")
+	_check(str(SpriteEnemyFigure.KINDS["screecher"].get("sheets", "")).ends_with("/screecher"), "the Screecher wears its own board")
+	var scr: Enemy = main.enemy_spawner.spawn_enemy(Enemy.EnemyType.SCREECHER, main.player.position + Vector3(x, 0, -5))
+	await process_frame
+	var scf = scr._enemy_figure
+	var sc_rows := {}
+	for d in [CharacterAnimator.Direction.SOUTH, CharacterAnimator.Direction.NORTH,
+			CharacterAnimator.Direction.WEST, CharacterAnimator.Direction.EAST]:
+		scf.set_facing(d)
+		sc_rows[int(scf._sprite.region_rect.position.y / scf._cp_cell)] = true
+	_check(sc_rows.size() == 4, "the Screecher shows a different pose for each of the four facings")
+	scr.queue_free()
 	# The Rat King wears the designer's redrawn four-pose board (2026-10-26):
 	# one pose a direction, no walk cycle, and bigger than the normal rat
 	# (the Wererat) — the designer's ask.

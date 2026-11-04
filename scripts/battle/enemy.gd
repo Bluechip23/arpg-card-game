@@ -3879,15 +3879,40 @@ func _try_flee(target_node: Node3D) -> bool:
 		_dash_away_from(target_node.position, maxi(1, int(move_distance)))
 	return true
 
+## The designer's vanish smoke (Smoke.png, 2026-11-04): a puff of smoke rises
+## where the bunny stood and billows into a cloud with a sad frown; the
+## bunny is gone once the cloud covers it (VANISH_COVER_FRAMES in).
+const VANISH_COVER_FRAMES := 2.5
+
+var _vanishing := false
+
 func _try_vanish() -> bool:
 	## The escape: gone in a puff of smoke — no loot, no XP, no death.
+	if _vanishing:
+		return true
+	_vanishing = true
 	print("[%s] Vanishes in a puff of smoke!" % enemy_name)
+	var cover := 0.0
+	if _enemy_figure and _enemy_figure.has_method("spot_effect"):
+		var secs: float = _enemy_figure.spot_effect(global_position, "vanish", 0.0)
+		if secs > 0.0:
+			swing_started.emit(self, secs)
+			var fx = _enemy_figure.last_spot
+			cover = VANISH_COVER_FRAMES / (fx._fps if fx else 12.0)
+	if cover > 0.0 and is_inside_tree():
+		get_tree().create_timer(cover).timeout.connect(_vanish_now)
+	else:
+		_vanish_now()
+	return true
+
+func _vanish_now() -> void:
+	if not is_instance_valid(self) or is_queued_for_deletion():
+		return
 	var main := get_parent()
 	if main and "enemy_spawner" in main and main.enemy_spawner:
 		main.enemy_spawner.despawn_enemy(self)
 	else:
 		queue_free()
-	return true
 
 ## --- Crypt Crawler ---
 
@@ -5215,11 +5240,20 @@ func _try_fire_web(target_node: Node3D) -> bool:
 	# glob lands (the web itself is laid now: the tick clock waits for the
 	# glob, so no tempo passes before it lands).
 	var reveal := 0.0
+	var web_art: Array = []
 	if _enemy_figure and _enemy_figure.has_method("throw_projectile"):
 		reveal = _enemy_figure.throw_projectile(target_node.global_position, "fire_web")
-		if reveal > 0.0:
-			swing_started.emit(self, reveal)
-	main.register_fire_web(self, cells, reveal)
+		var done := reveal
+		# Where it lands: the impact and the web spreading out, its last
+		# frame held on the ground as the web for as long as the web lasts.
+		_enemy_figure.last_spot = null
+		var spread: float = _enemy_figure.spot_effect(grid_manager.grid_to_world(centre), "fire_web", reveal, true)
+		if spread > 0.0 and _enemy_figure.last_spot:
+			web_art.append(_enemy_figure.last_spot)
+			done = maxf(done, spread)
+		if done > 0.0:
+			swing_started.emit(self, done)
+	main.register_fire_web(self, cells, reveal, web_art)
 	print("[%s] Fire Web: the ground around it catches" % enemy_name)
 	turn_completed.emit()
 	return true
@@ -5305,6 +5339,7 @@ func _try_mana_drain(target_node: Node3D) -> bool:
 			if st.current_mana <= 0.0 and st.maintained_mana > 0 and st.has_method("_break_maintained_cards"):
 				st._break_maintained_cards()
 			print("[%s] Mana Drain: -10 mana" % enemy_name)
+	_throw_at(target_node, "mana_drain")   # the ball of mana drawn from her victim to her hand
 	turn_completed.emit()
 	return true
 
@@ -5318,6 +5353,7 @@ func _try_damaging_snap(target_node: Node3D) -> bool:
 		if st:
 			dmg += int(floor(maxf(0.0, st.max_mana - st.current_mana) / 20.0))
 	_deal_damage_to_player(target_node, dmg, "Damaging Snap")
+	_throw_at(target_node, "damaging_snap")   # her snap sends a spinning scythe at her victim
 	turn_completed.emit()
 	return true
 
@@ -5351,6 +5387,7 @@ func _try_loves_arrow(target_node: Node3D) -> bool:
 	if is_silenced or not _in_attack_range(target_node):
 		return _try_move(target_node)
 	_deal_damage_to_player(target_node, attack_damage, "Love's Arrow")
+	_throw_at(target_node, "loves_arrow")   # its arrow flies to its victim
 	_cherub_first_arrow = false
 	set_hidden(CHERUB_HIDDEN_TEMPO)
 	turn_completed.emit()

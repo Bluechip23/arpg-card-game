@@ -52,22 +52,22 @@ const ATTACK_SLOW := 2.3
 ## is equally slower (see kind_fps).
 const DRAWN_ATTACK_SLOW := ATTACK_SLOW / 1.4
 const CP_FPS := {"Idle": 5.0, "Walk": 8.0, "Run": 10.0, "Draw": 8.0, "Attack": 12.0 / ATTACK_SLOW,
-		"Attack2": 12.0 / ATTACK_SLOW, "Throw": 12.0 / ATTACK_SLOW, "Kick": 12.0 / ATTACK_SLOW, "Cast": 12.0 / ATTACK_SLOW, "Track": 12.0 / ATTACK_SLOW, "Sunken": 12.0 / ATTACK_SLOW, "Bounce": 12.0 / ATTACK_SLOW, "Hurt": 12.0, "Death": 10.0, "Heal": 7.0}
-const CP_ONESHOT := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce", "Hurt", "Death", "Heal"]
+		"Attack2": 12.0 / ATTACK_SLOW, "Throw": 12.0 / ATTACK_SLOW, "Kick": 12.0 / ATTACK_SLOW, "Cast": 12.0 / ATTACK_SLOW, "Track": 12.0 / ATTACK_SLOW, "Sunken": 12.0 / ATTACK_SLOW, "Bounce": 12.0 / ATTACK_SLOW, "Writhe": 12.0 / ATTACK_SLOW, "Hurt": 12.0, "Death": 10.0, "Heal": 7.0}
+const CP_ONESHOT := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce", "Writhe", "Hurt", "Death", "Heal"]
 ## The swings: an attack's sheets (Throw: the Grave Titan's boulder roll;
 ## Kick: the Armored Troll's kick; Cast: the Snow Wraith's Ice Blast; Track
 ## and Sunken: the Sabertooth's stalking crouch and its Sunken Bite — each
 ## played for that action by the kind's "action_sheets").
-const ATTACK_SHEETS := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce"]
+const ATTACK_SHEETS := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce", "Writhe"]
 ## Swings played in place, with no lunge toward the target: the Sabertooth
 ## sizing up its prey is no blow.
-const STILL_SHEETS := ["Track", "Bounce"]   # Bounce: the Magma Spider's leap carries it (leap_from)
+const STILL_SHEETS := ["Track", "Bounce", "Writhe"]   # Bounce: the Magma Spider's leap carries it (leap_from); Writhe: the Mind Eater's tentacles, cast from afar
 ## Held poses: played once, then the last frame stays until another
 ## animation plays (the archer rat at full draw, from two tempo before its
 ## shot until the shot). A hit does not break them.
 const CP_HOLD := ["Draw"]
 ## Every sheet an animation may come as (Craftpix packs and our own).
-const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce", "Hurt", "Death", "Heal"]
+const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce", "Writhe", "Hurt", "Death", "Heal"]
 
 # NPC sheets run S,W,N,E top to bottom (battle uses CharacterAnimator order S,N,E,W).
 const NPC_ROW := [0, 2, 1, 3]  # NPC packs run S,E,N,W
@@ -96,23 +96,23 @@ const NPC_WALK_TIME := 0.18
 const KINDS := {
 	# --- direct battler matches ---
 	"sludge": {"sheets": SHEETS + "/sludge", "scale": BOARD_SCALE, "fps": {"Throw": 10.0, "Attack": 10.0}, "action_sheets": {"sludge_spit": "Throw"}, "projectiles": {"sludge_spit": {"sheet": "Ball", "release": 3, "speed": 7.0, "fps": 12.0, "lift": 0.6, "ahead": 0.35}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and its throw board (2026-11-04: Throw is the ball drawn back, coiled, swung and hurled, the arm lowered; Ball the ball in flight, thrown at its prey by its Spit; and its hammer board: Attack, its melee, the ball morphing into a hammer of slime, raised, swung and smashed down in a splash); was the slime pack's Slime1 tinted green
-	"mind_eater": {"sheets": SHEETS + "/mind_eater", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28); was a MonsterKit battler
+	"mind_eater": {"sheets": SHEETS + "/mind_eater", "scale": BOARD_SCALE, "fps": {"Writhe": 10.0}, "action_sheets": {"mind_slow": "Writhe", "mind_cuff": "Writhe"}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28), and its tentacle board (2026-11-04: Writhe, its tentacles writhing, played in place for its Mind Slow and Manipulate Mind Space); was a MonsterKit battler
 	"pipe_crawler": {"cell": Vector2i(2, 0)},
 	"crypt_crawler": {"sheets": SHEETS + "/crypt_crawler", "scale": BOARD_SCALE},  # the designer's grave spider (tools/cut_pose_boards.py, 2026-10-28); was a MonsterKit battler
 	"swarm": {"sheets": SHEETS + "/swarm", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py black_key, 2026-10-26); was MonsterKit cell (4, 0)
 	"giant_hawk": {"sheets": SHEETS + "/giant_hawk", "scale": BOARD_SCALE},  # the designer's board (2026-10-25), perched; was the mountain-monster Bird
-	"screecher": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},  # back on the pale ghost for now (2026-10-27): the crawler board was meant for the Consumed
+	"screecher": {"sheets": SHEETS + "/screecher", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-11-04: the hooded wraith facing N/E/W/S, its legs trailing into smoke); was the pale Craftpix ghost
 	"giant_beaver": {"sheets": SHEETS + "/giant_beaver", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py): stands on its hind legs, walks on all fours
 	"mini_bear": {"sheets": SHEETS + "/mini_bear", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the designer's board (2026-10-25), and its attack board (tools/cut_pose_boards.py, 2026-11-01: Attack is the swipe, the tumble onto its back and the scramble up — a cute little bear trying its best); was the mountain-monster Bear
 	"wolf": {"sheets": SHEETS + "/wolf", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-22), and his bite board (tools/cut_pose_boards.py, 2026-10-31: Attack is the leap and bite)
 	"coyote": {"sheets": SHEETS + "/coyote", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and his nip board (2026-10-31: Attack is the nip); was the old MonsterKit wolf battler, tinted
 	"djinn": {"sheets": SHEETS + "/djinn", "scale": BOARD_SCALE, "fps": {"Cast": 10.0}, "action_sheets": {"chain_lightning": "Cast"}, "arcs": {"chain_lightning": {"sheet": "Arc", "release": 4, "fps": 24.0, "hop": 0.1, "lift": 0.9}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-24), and his chain lightning board and arc strip (2026-11-04: Cast is the eyes glowing, crackling, the surge down his arms, the lightning gathered, unleashed, the chain, recovery; Arc the bolt laid between each pair of the chain's links); was the MonsterKit cell (4, 1)
 	"specter": {"cp": "ghost/Ghost1", "scale": 1.2},
-	"treasure_bunny": {"sheets": SHEETS + "/treasure_bunny", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the Treasure Bunny on MonsterKit cell (7, 1)
+	"treasure_bunny": {"sheets": SHEETS + "/treasure_bunny", "scale": BOARD_SCALE, "spots": {"vanish": {"sheet": "Smoke", "fps": 12.0}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the Treasure Bunny on MonsterKit cell (7, 1)
 	"skeleton": {"sheets": SHEETS + "/skeleton", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and his slash board (2026-10-31: Attack is the scimitar slash); was the Craftpix Skeleton1
 	"treant": {"sheets": SHEETS + "/treant", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the Craftpix Ent pack's Ent3
 	"consumed": {"sheets": SHEETS + "/consumed", "scale": BOARD_SCALE},  # the designer's crawler board (tools/cut_pose_boards.py; on the Screecher by mistake until 2026-10-27); was MonsterKit cell (6, 2)
-	"sewer_croc": {"sheets": SHEETS + "/sewer_cobra", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the mountain-monster Snake (the kind keeps its old croc name)
+	"sewer_croc": {"sheets": SHEETS + "/sewer_cobra", "scale": BOARD_SCALE, "fps": {"Cast": 10.0, "Attack": 10.0}, "action_sheets": {"venom_spray": "Cast"}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the mountain-monster Snake (the kind keeps its old croc name)
 	# --- generated sprites (drawn/derived in our pipeline, palette-conformant) ---
 	"rat": {"sheets": SHEETS + "/wererat", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the Wererat: the designer's board (tools/cut_pose_boards.py, 2026-10-26), and his bite board (2026-10-31: Attack is the leap and bite); was the giant-rat pack's Rat1
 	# The designer's Archer Rat: up on its hind legs, bow in hand.
@@ -149,7 +149,7 @@ const KINDS := {
 	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": BOARD_SCALE},
 	"roc": {"sheets": SHEETS + "/roc", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28); was the mountain-monster Bird, tinted
 	"ash_harpy": {"sheets": SHEETS + "/ash_harpy", "scale": BOARD_SCALE, "fps": {"Cast": 10.0}, "action_sheets": {"card_steal": "Cast"}, "vortex": {"card_steal": {"sheet": "Vortex", "lift": 0.9, "span": 0.96, "mid": 0.45, "thickness": 1.35, "frames": 77}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and her flap board and vortex strip (2026-11-04: Cast is three wing flaps; Vortex the wind that sweeps a card from the player back to her, played across the flaps); was the chaos-monster Icon22
-	"magma_spider": {"sheets": SHEETS + "/magma_spider", "scale": BOARD_SCALE, "fps": {"Bounce": 10.0, "Cast": 10.0}, "action_sheets": {"fire_bounce": "Bounce", "fire_web": "Cast"}, "leap": {"fire_bounce": [2, 4]}, "projectiles": {"fire_web": {"sheet": "Glob", "release": 4, "speed": 7.0, "fps": 12.0, "lift": 0.3, "ahead": 0.3}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and its Fire Bounce board (2026-11-04: Bounce is the crouch, the spring off a burst of fire, the leap carried across by leap_from, the landing in fire and the settle; and its Fire Web board, 2026-11-04: Cast is it rearing, aiming and spitting a glob of fire, Glob the glob in flight to its prey); was the Crypt Crawler's MonsterKit cell (3, 0), tinted
+	"magma_spider": {"sheets": SHEETS + "/magma_spider", "scale": BOARD_SCALE, "fps": {"Bounce": 10.0, "Cast": 10.0}, "action_sheets": {"fire_bounce": "Bounce", "fire_web": "Cast"}, "leap": {"fire_bounce": [2, 4]}, "projectiles": {"fire_web": {"sheet": "Glob", "release": 4, "speed": 7.0, "fps": 10.0, "lift": 0.3, "ahead": 0.3}}, "spots": {"fire_web": {"sheet": "WebLand", "fps": 12.0, "hang": 0.49, "ground": true}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and its Fire Bounce board (2026-11-04: Bounce is the crouch, the spring off a burst of fire, the leap carried across by leap_from, the landing in fire and the settle; and its Fire Web board, 2026-11-04: Cast is it rearing, aiming and spitting a glob of fire, Glob the ball of webbing in flight to its prey, WebLand its impact and the web spreading where it lands, held as the web); was the Crypt Crawler's MonsterKit cell (3, 0), tinted
 	# (Every roster kind now has a sprite; ART_TODO.md still tracks hand-drawn
 	# replacements for the generated first-pass battlers above.)
 	# --- NPC-pack humanoids (real 4-direction walk frames) ---
@@ -163,8 +163,8 @@ const KINDS := {
 	"vampire": {"sheets": SHEETS + "/vampire", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the vampire pack's Vampires3
 	"zombie": {"sheets": SHEETS + "/zombie", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and its attack board (2026-11-01: Attack is the reach and grab, slow); was the zombie pack's Zombie1
 	"infected_hunter": {"sheets": SHEETS + "/infected_hunter", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the zombie pack's Zombie3
-	"succubus": {"sheets": SHEETS + "/succubus", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the chaos-monster Icon14
-	"cherub": {"sheets": SHEETS + "/cherub", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the NPC baby sheet, tinted
+	"succubus": {"sheets": SHEETS + "/succubus", "scale": BOARD_SCALE, "fps": {"Cast": 10.0, "Attack": 10.0}, "action_sheets": {"mana_drain": "Cast", "damaging_snap": "Attack"}, "projectiles": {"mana_drain": {"sheet": "Orb", "release": 3, "arrive": 6, "reverse": true, "fps": 12.0, "lift": 0.95, "ahead": 0.3}, "damaging_snap": {"sheet": "Scythe", "release": 6, "speed": 7.0, "fps": 16.0, "lift": 1.1, "ahead": 0.3}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and her Mana Drain board (2026-11-04: Cast is her reaching out, curling her fingers and beckoning, the ball caught in her hand; Orb the ball of mana drawn from her victim back to her hand; and her finger snap board: Attack, her Damaging Snap, the hand raised and the snap; Scythe the spinning scythe it sends); was the chaos-monster Icon14
+	"cherub": {"sheets": SHEETS + "/cherub", "scale": BOARD_SCALE, "projectiles": {"loves_arrow": {"sheet": "Arrow", "speed": 10.0, "lift": 0.7, "ahead": 0.35, "facings": true, "centered": true}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the NPC baby sheet, tinted; and its arrow board (2026-11-04: Arrow, one view a way, shot by its Love's Arrow)
 	"corrupted_archangel": {"sheets": SHEETS + "/corrupted_archangel", "scale": BOARD_SCALE},  # the boss trio board (tools/cut_pose_boards.py, 2026-10-27); was the walk-sheet cut
 	# --- the generic Minion / Elite / Boss tiers (and custom enemies): the
 	# Craftpix swordsman's three gear tiers, lvl4 → lvl6 increasingly heavy,
@@ -217,6 +217,7 @@ const PAINTED_SHADOW_KINDS := ["swarm", "sludge",
 
 var figure_kind := ""   # the KINDS entry this figure was set up as
 var smooth := false     # wearing the smooth (non-pixelated) sheets (ArtStyle)
+var last_spot: SpotEffect = null   # the effect spot_effect laid last
 var _leap_tween: Tween = null   # leap_from: the figure carried from its take-off square
 var _sheet_folder := ""  # the folder the sheets were loaded from (a thrown projectile's strip lives there)
 var _sprite: Sprite3D = null
@@ -743,6 +744,8 @@ func play_action(action: String) -> void:
 	if a == "hit":
 		play_hit()
 		return
+	if a == "vanish":
+		return   # the Treasure Bunny's escape is a puff of smoke (Enemy._try_vanish), not a swing
 	if a == "idle" or a == "stance":
 		set_walking(false)
 		if _cp_mode and _cp_anim in CP_HOLD:
@@ -934,10 +937,23 @@ func throw_projectile(target: Vector3, action: String) -> float:
 	var dir := Vector3(target.x - from.x, 0, target.z - from.z)
 	if dir.length() > 0.01:
 		from += dir.normalized() * float(proj.get("ahead", 0.5))   # out of the hands, in front
+	var to := target
+	if proj.get("reverse", false):
+		# Drawn from the target back into the hands (the Succubus's Mana
+		# Drain: the ball of mana starts at her victim).
+		var swap := from
+		from = to
+		to = swap
+	var speed := float(proj.get("speed", ThrownSprite.SPEED))
+	if proj.has("arrive") and sheet != "":
+		# Paced to reach the hands on the sheet's "arrive" frame.
+		var fps2: float = _cp_fps.get(sheet, 8.0)
+		var travel := maxf(0.05, (float(proj["arrive"]) - float(proj.get("release", 0))) / fps2)
+		speed = Vector2(to.x - from.x, to.z - from.z).length() / travel
 	var gutter := 8 if smooth else 0      # SMOOTH_GUTTER under the smooth strip's art
-	b.launch(load(path), _sprite.pixel_size * _rig.scale.x, gutter, smooth, from, target, release,
-			float(proj.get("speed", ThrownSprite.SPEED)), float(proj.get("fps", ThrownSprite.SPIN_FPS)),
-			float(proj.get("lift", 0.0)))
+	b.launch(load(path), _sprite.pixel_size * _rig.scale.x, gutter, smooth, from, to, release,
+			speed, float(proj.get("fps", ThrownSprite.SPIN_FPS)), float(proj.get("lift", 0.0)),
+			bool(proj.get("facings", false)), bool(proj.get("centered", false)))
 	return b.total_time()
 
 
@@ -996,7 +1012,10 @@ func chain_arcs(points: Array, action: String) -> float:
 ## its pace is set so its frame `meet[0]` lands on the sheet's frame
 ## `meet[1]` (the rats appear as he points); `hang`: see SpotEffect.
 ## Returns the seconds from now until it is gone, 0 when the action has none.
-func spot_effect(at: Vector3, action: String) -> float:
+## `after` (>= 0): start that many seconds from now instead (the Magma
+## Spider's web, as its ball lands); `hold`: keep its last frame (see
+## SpotEffect). The effect is left in `last_spot`.
+func spot_effect(at: Vector3, action: String, after: float = -1.0, hold: bool = false) -> float:
 	var cfg: Dictionary = KINDS.get(figure_kind, {})
 	var spot: Dictionary = cfg.get("spots", {}).get(action, {})
 	var path := "%s/%s.png" % [_sheet_folder, spot.get("sheet", "")]
@@ -1007,15 +1026,20 @@ func spot_effect(at: Vector3, action: String) -> float:
 	var release_frame := float(spot.get("release", 0))
 	var meet: Array = spot.get("meet", [1, release_frame + 1.0])
 	var fps := sheet_fps * float(meet[0]) / maxf(0.5, float(meet[1]) - release_frame)
+	if spot.has("fps"):
+		fps = float(spot["fps"])
 	var delay := 0.0
 	if sheet != "" and _cp_anim == sheet:
 		delay = maxf(0.0, (release_frame - float(_cp_frame)) / sheet_fps - _cp_clock)
+	if after >= 0.0:
+		delay = after
 	var fx := SpotEffect.new()
 	var host: Node = get_parent().get_parent() if get_parent() and get_parent().get_parent() else get_parent()
 	host.add_child(fx)
 	var gutter := 8 if smooth else 0      # SMOOTH_GUTTER under the smooth strip's art
 	fx.launch(load(path), _sprite.pixel_size * _rig.scale.x, gutter, smooth, at, delay, fps,
-			float(spot.get("hang", 0.0)))
+			float(spot.get("hang", 0.0)), hold, bool(spot.get("ground", false)))
+	last_spot = fx
 	return fx.total_time()
 
 

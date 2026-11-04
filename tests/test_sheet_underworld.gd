@@ -326,7 +326,8 @@ func _test_fight() -> void:
 	_place(main, wc + Vector2i(1, 0))
 	_check(s._try_fire_web(main.player), "Fire Web is laid")
 	_check(main._fire_webs.size() == 1 and main._fire_webs[0]["cells"].size() == 9 and (wc + Vector2i(1, 0)) in main._fire_webs[0]["cells"] and (wc + Vector2i(2, 0)) in main._fire_webs[0]["cells"], "one web of the 3x3 around the player")
-	_check(main._fire_webs[0]["nodes"].size() == 9, "each tile wears the fire walls' flame")
+	var web_nodes: Array = main._fire_webs[0]["nodes"]
+	_check(web_nodes.size() == 1 and web_nodes[0] is SpotEffect, "it wears the designer's web (one sprite over the 3x3), not nine flames")
 	_check(s._try_fire_web(main.player) and main._fire_webs.size() == 1, "a recast lays it afresh: still one web")
 	stats.current_armor = 0
 	var whp0: int = int(stats.current_health)

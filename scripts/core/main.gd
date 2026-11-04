@@ -11035,11 +11035,13 @@ const FIRE_WEB_TICK_DAMAGE: int = 1
 const FIRE_WEB_SLOW_TEMPO: int = 2   # refreshed every tempo inside, so it outlasts the stay by one tick
 
 ## `reveal_after`: seconds before its flames show (the Magma Spider's glob
-## is still in flight); the web takes effect at once.
-func register_fire_web(owner: Enemy, cells: Array, reveal_after: float = 0.0) -> void:
+## is still in flight); the web takes effect at once. `art`: the web's own
+## look (the designer's web, laid where the ball lands), worn instead of the
+## fire walls' flames and freed with the web.
+func register_fire_web(owner: Enemy, cells: Array, reveal_after: float = 0.0, art: Array = []) -> void:
 	_remove_fire_web_of(owner)
-	var nodes: Array = []
-	for c in cells:
+	var nodes: Array = art.duplicate()
+	for c in ([] if not art.is_empty() else cells):
 		var v := _spawn_fire_wall_visual(c)
 		if v:
 			nodes.append(v)

@@ -18,11 +18,13 @@ var _clock := 0.0
 var _cell := 0
 var _frames := 1
 var _fading := false
+var _hold := false   # its last frame stays until it is freed (the Magma Spider's web lasts while the web does)
 
 
-## Seconds from its launch until it is gone.
+## Seconds from its launch until it is gone (until its last frame shows,
+## when it holds it).
 func total_time() -> float:
-	return _delay + float(_frames) / _fps + FADE
+	return _delay + float(_frames) / _fps + (0.0 if _hold else FADE)
 
 
 ## `sheet`: the one-row strip in square cells; `texel`: world units a texel;
@@ -31,7 +33,8 @@ func total_time() -> float:
 ## ground); `hang`: the share of the art's height that hangs below the spot
 ## (the ring is drawn about the feet, not under them).
 func launch(sheet: Texture2D, texel: float, gutter: int, smooth: bool, at: Vector3,
-		delay: float, fps: float, hang: float = 0.0) -> void:
+		delay: float, fps: float, hang: float = 0.0, hold: bool = false, ground: bool = false) -> void:
+	_hold = hold
 	_cell = sheet.get_height()
 	_frames = maxi(1, int(sheet.get_width() / _cell))
 	_delay = maxf(0.0, delay)
@@ -53,7 +56,9 @@ func launch(sheet: Texture2D, texel: float, gutter: int, smooth: bool, at: Vecto
 			else BaseMaterial3D.TEXTURE_FILTER_NEAREST
 	_sprite.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED   # its smoke is soft: blended, not cut
 	_sprite.offset = Vector2(-_cell * 0.5, -gutter - art_h * hang)
-	_sprite.position.y = CameraView.SPRITE_LIFT
+	# `ground`: lying on the floor under whoever stands on it (the Magma
+	# Spider's web), at the ground cover's height, below the standing figures.
+	_sprite.position.y = CameraView.GROUND_COVER_LIFT if ground else CameraView.SPRITE_LIFT
 	add_child(_sprite)
 	global_position = at
 	_sprite.visible = _delay <= 0.0
@@ -76,6 +81,8 @@ func _process(delta: float) -> void:
 		_show_frame(f)
 		return
 	_show_frame(_frames - 1)
+	if _hold:
+		return
 	if not _fading:
 		_fading = true
 		var tw := create_tween()

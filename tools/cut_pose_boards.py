@@ -1044,6 +1044,79 @@ BOARDS = {
             "left": (37, 610, 536, 1142),
             "right": (688, 618, 1211, 1145),
         },
+        # 2026-11-04: the designer's Venom Spray board — sewer_cobra_spray_board.webp,
+        # "SEWER COBRA - VENOM SPRAY", four labelled rows in framed panels on
+        # black (NORTH: the face, SOUTH: the back, WEST, EAST), eight
+        # numbered frames a row: the stance, venom welling in its jaws, the
+        # mouth opening, the spray starting, spraying, the full spray, the
+        # spray dying, at rest. The spray is drawn from its mouth into the
+        # neighbouring frame's space: each row is split at the contacts
+        # (`split`), so every frame keeps its own spray. Frames 2-8 are
+        # Cast.png, for its Venom Spray; the stance matched to its Idle. The
+        # side rows' spraying boxes reach out the way the spray goes.
+        "actions": {
+            "src": "sewer_cobra_spray_board.webp",
+            "levels": (4, 30, 6),    # its black scales and dark collar run just above the backdrop's 0
+            "fill_holes": 22,        # its painted shading is brighter; the spray's faint haze between streaks stays open
+            "open_dark": True,
+            "keep_share": 0.01,      # the spray's droplets
+            "glow": False,
+            "split": True,
+            "isolate_floor": 6,
+            "split_floor": 30,       # split on its bright parts: the venom haze no longer bridges frames
+            # Its body columns (the side rows' spraying boxes are widened).
+            "split_centres": {"front": [188, 367, 541, 717, 897, 1076, 1255, 1432],
+                              "back": [188, 367, 541, 717, 897, 1076, 1255, 1432],
+                              "left": [214, 382, 560, 720, 905, 1080, 1265, 1452],
+                              "right": [168, 342, 518, 700, 885, 1065, 1250, 1420]},
+            "drop_dim_green": 45,    # the haze painted on black: a dark smudge on a lit floor
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (110, 70, 277, 292),
+                    "draw": (277, 70, 454, 292),
+                    "open": (454, 70, 629, 292),
+                    "spit": (629, 70, 807, 292),
+                    "spray": (807, 70, 986, 292),
+                    "full": (986, 70, 1165, 292),
+                    "trail": (1165, 70, 1343, 292),
+                    "rest": (1343, 70, 1524, 292),
+                },
+                "back": {
+                    "stance": (110, 302, 277, 529),
+                    "draw": (277, 302, 454, 529),
+                    "open": (454, 302, 629, 529),
+                    "spit": (629, 302, 807, 529),
+                    "spray": (807, 302, 986, 529),
+                    "full": (986, 302, 1165, 529),
+                    "trail": (1165, 302, 1343, 529),
+                    "rest": (1343, 302, 1524, 529),
+                },
+                "left": {
+                    "stance": (110, 538, 278, 750),
+                    "draw": (278, 538, 455, 750),
+                    "open": (455, 538, 625, 750),
+                    "spit": (545, 538, 795, 750),
+                    "spray": (715, 538, 970, 750),
+                    "full": (890, 538, 1148, 750),
+                    "trail": (1068, 538, 1341, 750),
+                    "rest": (1341, 538, 1524, 750),
+                },
+                "right": {
+                    "stance": (110, 758, 269, 975),
+                    "draw": (269, 758, 445, 975),
+                    "open": (445, 758, 629, 975),
+                    "spit": (629, 758, 906, 975),
+                    "spray": (826, 758, 1093, 975),
+                    "full": (1013, 758, 1260, 975),
+                    "trail": (1180, 758, 1429, 975),
+                    "rest": (1349, 758, 1524, 975),
+                },
+            },
+            "sheets": {
+                "Cast": ["draw", "open", "spit", "spray", "full", "trail", "rest"],
+            },
+        },
     },
     "ash_harpy": {
         # 2026-10-25: the Ash Harpy — a feathered harpy with a burning ponytail; the
@@ -1324,6 +1397,166 @@ BOARDS = {
             "frames": [(697, -4, 836, 114), (836, -4, 975, 114), (975, -4, 1115, 114), (1115, -4, 1254, 114), (1254, -4, 1393, 114), (1393, -4, 1533, 114), (1533, -4, 1672, 114), (0, 112, 139, 230), (139, 112, 279, 230), (279, 112, 418, 230), (418, 112, 557, 230), (557, 112, 697, 230), (697, 112, 836, 230), (836, 112, 975, 230), (975, 112, 1115, 230), (1115, 112, 1254, 230), (1254, 112, 1393, 230), (1393, 112, 1533, 230), (1533, 112, 1672, 230), (0, 231, 139, 349), (139, 231, 279, 349), (279, 231, 418, 349), (418, 231, 557, 349), (557, 231, 697, 349), (697, 231, 836, 349), (836, 231, 975, 349), (975, 231, 1115, 349), (1115, 231, 1254, 349), (1254, 231, 1393, 349), (1393, 231, 1533, 349), (1533, 231, 1672, 349), (0, 351, 139, 469), (139, 351, 279, 469), (279, 351, 418, 469), (418, 351, 557, 469), (557, 351, 697, 469), (697, 351, 836, 469), (836, 351, 975, 469), (975, 351, 1115, 469), (1115, 351, 1254, 469), (1254, 351, 1393, 469), (1393, 351, 1533, 469), (1533, 351, 1672, 469), (0, 470, 139, 588), (139, 470, 279, 588), (279, 470, 418, 588), (418, 470, 557, 588), (557, 470, 697, 588), (697, 470, 836, 588), (836, 470, 975, 588), (975, 470, 1115, 588), (1115, 470, 1254, 588), (1254, 470, 1393, 588), (1393, 470, 1533, 588), (1533, 470, 1672, 588), (0, 590, 139, 708), (139, 590, 279, 708), (279, 590, 418, 708), (418, 590, 557, 708), (557, 590, 697, 708), (697, 590, 836, 708), (836, 590, 975, 708), (975, 590, 1115, 708), (1115, 590, 1254, 708), (1254, 590, 1393, 708), (1393, 590, 1533, 708), (1533, 590, 1672, 708), (0, 702, 139, 820), (139, 702, 279, 820), (279, 702, 418, 820), (418, 702, 557, 820), (557, 702, 697, 820), (697, 702, 836, 820), (836, 702, 975, 820), (975, 702, 1115, 820), (1115, 702, 1254, 820), (1254, 702, 1393, 820)],
         },
     },
+    "succubus_snap": {
+        # 2026-11-04: the Succubus's Damaging Snap — succubus_snap_board.webp,
+        # "SUCCUBUS - FINGER SNAP", four labelled rows in framed panels on
+        # black (NORTH: the face, SOUTH: the back, WEST, EAST), eight
+        # numbered frames a row: the stance, raising her hand, lifting it,
+        # pointing, pinching her fingers, ready, the snap, and the flash of
+        # the snap (a blue star at her fingers). Frames 2-8 are Attack.png,
+        # packed into her folder, for her Damaging Snap; the scythe it sends
+        # is its own sprite (succubus_scythe).
+        "into": "succubus",
+        "actions": {
+            "src": "succubus_snap_board.webp",
+            "levels": (8, 36, 10),
+            "fill_holes": 20,
+            "open_dark": True,
+            "keep_share": 0.002,     # the snap's flash
+            "glow": False,
+            "isolate": True,
+            "isolate_floor": 12,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (100, 72, 275, 293),
+                    "raise": (275, 72, 451, 293),
+                    "lift": (451, 72, 627, 293),
+                    "point": (627, 72, 805, 293),
+                    "pinch": (805, 72, 983, 293),
+                    "ready": (983, 72, 1162, 293),
+                    "snap": (1162, 72, 1343, 293),
+                    "flash": (1343, 72, 1524, 293),
+                },
+                "back": {
+                    "stance": (100, 301, 275, 527),
+                    "raise": (275, 301, 451, 527),
+                    "lift": (451, 301, 629, 527),
+                    "point": (629, 301, 806, 527),
+                    "pinch": (806, 301, 983, 527),
+                    "ready": (983, 301, 1163, 527),
+                    "snap": (1163, 301, 1345, 527),
+                    "flash": (1345, 301, 1524, 527),
+                },
+                "left": {
+                    "stance": (100, 536, 277, 744),
+                    "raise": (277, 536, 453, 744),
+                    "lift": (453, 536, 629, 744),
+                    "point": (629, 536, 806, 744),
+                    "pinch": (806, 536, 984, 744),
+                    "ready": (984, 536, 1165, 744),
+                    "snap": (1165, 536, 1346, 744),
+                    "flash": (1346, 536, 1524, 744),
+                },
+                "right": {
+                    "stance": (100, 751, 265, 976),
+                    "raise": (265, 751, 442, 976),
+                    "lift": (442, 751, 619, 976),
+                    "point": (619, 751, 797, 976),
+                    "pinch": (797, 751, 973, 976),
+                    "ready": (973, 751, 1152, 976),
+                    "snap": (1152, 751, 1335, 976),
+                    "flash": (1335, 751, 1524, 976),
+                },
+            },
+            "sheets": {
+                "Attack": ["raise", "lift", "point", "pinch", "ready", "snap", "flash"],
+            },
+        },
+    },
+    "succubus_scythe": {
+        # The scythe her snap sends — succubus_scythe_strip.webp, "MINI
+        # REAPER SCYTHE (SPINNING PROJECTILE)", eight numbered frames in a
+        # framed panel on black of a small reaper's scythe spinning in a
+        # blue glow (the eighth is the first again: seven are used). Cut by
+        # brightness with soft alpha; Scythe.png in her folder; her Damaging
+        # Snap sends it spinning at her victim (ThrownSprite). 0.6 tiles.
+        "into": "succubus",
+        "strip": {
+            "src": "succubus_scythe_strip.webp",
+            "bg": "black_key",
+            "sheet": "Scythe",
+            "width_tiles": 0.6,
+            "width_of": "max",
+            "align": "board",
+            "frames": [(35, 428, 220, 618), (220, 428, 406, 618), (406, 428, 592, 618), (592, 428, 777, 618), (777, 428, 964, 618), (964, 428, 1151, 618), (1151, 428, 1339, 618)],
+        },
+    },
+    "succubus_orb": {
+        # The ball of drained mana: the left row's ball on her drain board,
+        # cut by brightness with soft alpha. Orb.png in her folder; her Mana
+        # Drain sends it from her target back to her hand (ThrownSprite,
+        # reversed). 0.35 tiles.
+        "into": "succubus",
+        "strip": {
+            "src": "succubus_drain_board.webp",
+            "bg": "black_key",
+            "sheet": "Orb",
+            "width_tiles": 0.35,
+            "frames": [(1088, 573, 1134, 619)],
+        },
+    },
+    "treasure_bunny_vanish": {
+        # 2026-11-04: the Treasure Bunny's escape — treasure_bunny_vanish_strip.webp,
+        # "VANISH SMOKE - SAD FROWN (8 FRAMES)", eight numbered frames in a
+        # framed panel on black: a puff of grey smoke rising from the
+        # ground, billowing into a cloud with a sad frowning face, thinning
+        # and drifting away. Cut by brightness with soft alpha (smoke);
+        # Smoke.png in its folder; its Vanish plays it where it stood
+        # (SpotEffect), the bunny gone as the cloud covers it. The fullest
+        # cloud 1.3 tiles wide.
+        "into": "treasure_bunny",
+        "strip": {
+            "src": "treasure_bunny_vanish_strip.webp",
+            "bg": "black_key",
+            "sheet": "Smoke",
+            "width_tiles": 1.3,
+            "width_of": "max",
+            "align": "board",
+            "alpha_gain": 1.3,
+            "frames": [(20, 428, 203, 640), (203, 428, 392, 640), (392, 428, 583, 640), (583, 428, 780, 640), (780, 428, 977, 640), (977, 428, 1165, 640), (1165, 428, 1348, 640), (1348, 428, 1520, 640)],
+        },
+    },
+    "cherub_arrow": {
+        # 2026-11-04: the arrow the Cherub shoots for its Love's Arrow —
+        # cherub_arrow_board.webp, one arrow drawn four ways on black (NORTH,
+        # SOUTH, WEST, EAST: pointing up, down, left, right), a heart-shaped
+        # head, a gold-capped shaft, a pink bow with a heart charm and white
+        # fletching, sparkles about it. Arrow.png in its folder, one frame a
+        # way in the order east, west, north, south, each centred in its
+        # cell; ThrownSprite shows the one nearest the way it flies. The
+        # arrow (head to fletching, 440 board pixels) 0.9 tiles long.
+        "into": "cherub",
+        "strip": {
+            "src": "cherub_arrow_board.webp",
+            "bg": "black_key",
+            "sheet": "Arrow",
+            "width_tiles": 0.9,
+            "width_px": 440,
+            "center": True,
+            "frames": [(686, 775, 1144, 930), (110, 775, 570, 930), (275, 115, 420, 530), (835, 128, 994, 540)],
+        },
+    },
+    "screecher": {
+        # 2026-11-04: the Screecher — a hooded wraith in a tattered,
+        # moth-eaten shroud, a screaming fanged face with glowing eyes, its
+        # legs a translucent wisp of blue smoke — four labelled poses on
+        # black: NORTH (the face), SOUTH (the back), WEST (facing left), EAST
+        # (facing right). Cut by brightness (`black_glow`), so its smoke
+        # legs keep their soft see-through edge; the boxes stop above the
+        # labels. Replaces the Craftpix ghost it wore as a stand-in.
+        "src": "screecher_board.webp", "bg": "black_glow", "tiles": 1.85,
+        "levels": (6, 32, 10),   # the shroud's darkest rags run just above the backdrop
+        "drop_dim_below": (0.3, 34),   # the haze about its smoke legs, below the hem: a dark smudge on a lit floor
+        "fill_holes": 20,
+        "open_dark": True,
+        "Idle": {
+            "front": (197, 8, 555, 538),
+            "back": (702, 9, 1050, 538),
+            "left": (255, 584, 560, 1135),
+            "right": (674, 585, 998, 1136),
+        },
+    },
     "fire_goblin": {
         # 2026-10-25: the Fire Goblin — a goblin in red leather with a torch,
         # scimitar and round shield; the fire goblin soldier and shaman wear it
@@ -1421,6 +1654,75 @@ BOARDS = {
             },
             "sheets": {
                 "Throw": ["lift", "coil", "swing", "throw", "follow", "lower", "rest"],
+            },
+        },
+    },
+    "sewer_cobra_bite": {
+        # 2026-11-04: the Sewer Cobra's Bite — sewer_cobra_bite_board.webp,
+        # "SEWER COBRA - BITE ATTACK", the same four framed rows as its spray
+        # board, eight numbered frames a row: the stance, rearing back, coiled
+        # with the jaws open, the strike (motion arcs and a spatter of
+        # venom), the bite, snapping shut, recovering, at rest. Frames 2-8
+        # are Attack.png, packed into its folder, for its Bite; cut like its
+        # spray, the green motion arcs kept.
+        "into": "sewer_cobra",
+        "actions": {
+            "src": "sewer_cobra_bite_board.webp",
+            "levels": (4, 30, 6),
+            "fill_holes": 22,
+            "open_dark": True,
+            "keep_share": 0.01,      # the strike's arcs, the venom spatter
+            "glow": False,
+            "split": True,
+            "isolate_floor": 6,
+            "split_floor": 30,
+            "split_centres": {"front": [190, 368, 541, 718, 898, 1076, 1252, 1435], "back": [190, 370, 543, 722, 898, 1080, 1255, 1435], "left": [180, 360, 525, 705, 895, 1080, 1265, 1440], "right": [180, 360, 535, 710, 900, 1080, 1265, 1435]},
+            "drop_dim_green": 28,    # the faintest of the arcs' glow only: the arcs themselves stay
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (105, 70, 279, 292),
+                    "rear": (279, 70, 454, 292),
+                    "coil": (454, 70, 629, 292),
+                    "strike": (629, 70, 808, 292),
+                    "bite": (808, 70, 987, 292),
+                    "snap": (987, 70, 1164, 292),
+                    "recover": (1164, 70, 1343, 292),
+                    "rest": (1343, 70, 1524, 292),
+                },
+                "back": {
+                    "stance": (105, 302, 280, 527),
+                    "rear": (280, 302, 456, 527),
+                    "coil": (456, 302, 632, 527),
+                    "strike": (632, 302, 810, 527),
+                    "bite": (810, 302, 989, 527),
+                    "snap": (989, 302, 1167, 527),
+                    "recover": (1167, 302, 1345, 527),
+                    "rest": (1345, 302, 1524, 527),
+                },
+                "left": {
+                    "stance": (105, 538, 270, 748),
+                    "rear": (270, 538, 442, 748),
+                    "coil": (442, 538, 615, 748),
+                    "strike": (615, 538, 800, 748),
+                    "bite": (800, 538, 987, 748),
+                    "snap": (987, 538, 1172, 748),
+                    "recover": (1172, 538, 1352, 748),
+                    "rest": (1352, 538, 1524, 748),
+                },
+                "right": {
+                    "stance": (105, 758, 270, 975),
+                    "rear": (270, 758, 447, 975),
+                    "coil": (447, 758, 622, 975),
+                    "strike": (622, 758, 805, 975),
+                    "bite": (805, 758, 990, 975),
+                    "snap": (990, 758, 1172, 975),
+                    "recover": (1172, 758, 1350, 975),
+                    "rest": (1350, 758, 1524, 975),
+                },
+            },
+            "sheets": {
+                "Attack": ["rear", "coil", "strike", "bite", "snap", "recover", "rest"],
             },
         },
     },
@@ -1611,6 +1913,76 @@ BOARDS = {
             "back": (697, 3, 1148, 558),
             "left": (204, 595, 463, 1167),
             "right": (773, 596, 1014, 1167),
+        },
+        # 2026-11-04: the designer's Mana Drain board — succubus_drain_board.webp,
+        # four labelled rows on black (FRONT, BACK, LEFT, RIGHT) under
+        # numbered columns, eight frames a row: she lowers her hand, reaches
+        # out, raises it, curls her fingers, beckons, the ball of blue energy
+        # drawn back to her along its trail, and caught glowing in her hand.
+        # The designer: the ball starts at her target and is brought back to
+        # her hand — it is its own sprite (succubus_orb), so the seventh
+        # frame, which paints it in flight, holds her beckoning pose instead.
+        # Frames 2-8 are Cast.png, for her Mana Drain; the stance matched to
+        # her Idle. The left row's sixth frame and the seventh frame's ball
+        # touch: split at the contact (`split`, the balls `discard` points).
+        "actions": {
+            "src": "succubus_drain_board.webp",
+            "levels": (8, 36, 10),   # her black wings run just above the backdrop
+            "fill_holes": 20,
+            "open_dark": True,
+            "keep_share": 0.002,     # the glow in her hand
+            "glow": False,
+            "split": True,
+            "isolate_floor": 12,
+            "split_floor": 20,
+            "discard": {"front": [(1168, 203)], "left": [(1110, 595)],
+                        "right": [(1160, 852), (1125, 851), (1115, 841)]},
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (100, 30, 269, 250),
+                    "lower": (269, 30, 445, 250),
+                    "reach": (445, 30, 621, 250),
+                    "raise": (621, 30, 797, 250),
+                    "curl": (797, 30, 973, 250),
+                    "pull": (973, 30, 1147, 250),
+                    "draw": ("same", "pull"),   # the board draws the ball in flight here: it is its own sprite
+                    "catch": (1310, 30, 1448, 250),
+                },
+                "back": {
+                    "stance": (100, 279, 269, 505),
+                    "lower": (269, 279, 445, 505),
+                    "reach": (445, 279, 621, 505),
+                    "raise": (621, 279, 797, 505),
+                    "curl": (797, 279, 973, 505),
+                    "pull": (973, 279, 1147, 505),
+                    "draw": ("same", "pull"),   # the board draws the ball in flight here: it is its own sprite
+                    "catch": (1310, 279, 1448, 505),
+                },
+                "left": {
+                    "stance": (100, 534, 267, 765),
+                    "lower": (267, 534, 441, 765),
+                    "reach": (441, 534, 616, 765),
+                    "raise": (616, 534, 791, 765),
+                    "curl": (791, 534, 965, 765),
+                    "pull": (965, 534, 1135, 765),
+                    "draw": ("same", "pull"),   # the board draws the ball in flight here: it is its own sprite
+                    "catch": (1297, 534, 1448, 765),
+                },
+                "right": {
+                    "stance": (100, 796, 266, 1035),
+                    "lower": (266, 796, 441, 1035),
+                    "reach": (441, 796, 617, 1035),
+                    "raise": (617, 796, 792, 1035),
+                    "curl": (792, 796, 966, 1035),
+                    "pull": (966, 796, 1140, 1035),
+                    "draw": ("same", "pull"),   # the board draws the ball in flight here: it is its own sprite
+                    "catch": (1303, 796, 1448, 1035),
+                },
+            },
+            "sheets": {
+                "Cast": ["lower", "reach", "raise", "curl", "pull", "draw", "catch"],
+            },
         },
     },
     "cherub": {
@@ -2033,17 +2405,39 @@ BOARDS = {
         },
     },
     "magma_spider_glob": {
-        # The glob of fire-web in flight: the East row's last glob on the
-        # same board, flying right with its trail, cut by brightness with
-        # soft alpha. Glob.png in its folder; its Fire Web sends it to its
-        # prey (ThrownSprite), mirrored when it flies left. 0.55 tiles, glob and trail.
+        # 2026-11-04: the Fire Web in flight and where it lands —
+        # magma_spider_web_strip.webp, twelve frames on black: a ball of
+        # webbing glowing with fire flying right, its trail streaming
+        # longer as it goes (1-5); the impact, a burst of fire (6); the web
+        # spreading out flat across the ground (7-12). Glob.png is the five
+        # flying frames, its Fire Web's projectile (ThrownSprite), mirrored
+        # when it flies left; the widest frame (ball and trail) 0.95 tiles.
         "into": "magma_spider",
         "strip": {
-            "src": "magma_spider_web_board.webp",
+            "src": "magma_spider_web_strip.webp",
             "bg": "black_key",
             "sheet": "Glob",
-            "width_tiles": 0.55,
-            "frames": [(1236, 920, 1306, 964)],
+            "width_tiles": 0.95,
+            "width_of": "max",
+            "align": "board",
+            "frames": [(18, 400, 90, 525), (90, 400, 199, 525), (199, 400, 323, 525), (323, 400, 452, 525), (452, 400, 583, 525)],
+        },
+    },
+    "magma_spider_webland": {
+        # The impact and the web spreading (the strip's frames 6-12):
+        # WebLand.png, laid on its prey's square as the ball lands
+        # (SpotEffect), its last frame — the full web — held on the ground
+        # for as long as the web lasts, in place of the fire walls' flames.
+        # The full web 3 tiles wide: the 3x3 it covers.
+        "into": "magma_spider",
+        "strip": {
+            "src": "magma_spider_web_strip.webp",
+            "bg": "black_key",
+            "sheet": "WebLand",
+            "width_tiles": 3.0,
+            "width_of": "max",
+            "align": "board",
+            "frames": [(583, 400, 708, 525), (708, 400, 831, 525), (831, 400, 967, 525), (967, 400, 1117, 525), (1117, 400, 1278, 525), (1278, 400, 1463, 525), (1463, 400, 1665, 525)],
         },
     },
     "wolf": {
@@ -3142,6 +3536,70 @@ BOARDS = {
             "right": (20, 610, 545, 1180),   # labelled LEFT, faces right
             "left": (735, 615, 1232, 1188),  # labelled RIGHT, faces left
         },
+        # 2026-11-04: the designer's tentacle board — mind_eater_writhe_board.webp,
+        # "TENTACLED HORROR - TENTACLE IDLE (LOOP)", four labelled rows in
+        # framed panels on black (NORTH (FRONT), SOUTH (BACK), WEST (LEFT),
+        # EAST (RIGHT), each facing its own way), eight numbered frames a row
+        # of its tentacles writhing. The designer: this is what it does when
+        # it attacks — Writhe.png, all eight frames, played in place for its
+        # Mind Slow and its Manipulate Mind Space. The first frame is the
+        # height reference, matched to each facing's Idle. The bright band
+        # across the back row is its bodies lining up, not a line.
+        "actions": {
+            "src": "mind_eater_writhe_board.webp",
+            "levels": (8, 36, 10),
+            "fill_holes": 20,
+            "open_dark": True,
+            "glow": False,
+            "split": True,
+            "isolate_floor": 14,
+            "match": "w1",
+            "frames": {
+                "front": {
+                    "w1": (102, 68, 277, 293),
+                    "w2": (277, 68, 453, 293),
+                    "w3": (453, 68, 628, 293),
+                    "w4": (628, 68, 805, 293),
+                    "w5": (805, 68, 983, 293),
+                    "w6": (983, 68, 1161, 293),
+                    "w7": (1161, 68, 1340, 293),
+                    "w8": (1340, 68, 1525, 293),
+                },
+                "back": {
+                    "w1": (102, 300, 280, 506),
+                    "w2": (280, 300, 456, 506),
+                    "w3": (456, 300, 632, 506),
+                    "w4": (632, 300, 808, 506),
+                    "w5": (808, 300, 986, 506),
+                    "w6": (986, 300, 1165, 506),
+                    "w7": (1165, 300, 1342, 506),
+                    "w8": (1342, 300, 1525, 506),
+                },
+                "left": {
+                    "w1": (102, 513, 287, 744),
+                    "w2": (287, 513, 462, 744),
+                    "w3": (462, 513, 636, 744),
+                    "w4": (636, 513, 811, 744),
+                    "w5": (811, 513, 987, 744),
+                    "w6": (987, 513, 1166, 744),
+                    "w7": (1166, 513, 1347, 744),
+                    "w8": (1347, 513, 1525, 744),
+                },
+                "right": {
+                    "w1": (102, 750, 277, 976),
+                    "w2": (277, 750, 455, 976),
+                    "w3": (455, 750, 633, 976),
+                    "w4": (633, 750, 809, 976),
+                    "w5": (809, 750, 986, 976),
+                    "w6": (986, 750, 1164, 976),
+                    "w7": (1164, 750, 1342, 976),
+                    "w8": (1342, 750, 1525, 976),
+                },
+            },
+            "sheets": {
+                "Writhe": ["w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8"],
+            },
+        },
     },
     "hell_door": {
         # 2026-10-28: Hell's Door — a horned skull of cracked stone over a
@@ -4098,7 +4556,7 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
                 # `split` on a board on black: what is lit is solid (the
                 # Magma Spider's web board, its globs touching the next
                 # frame's spider).
-                floor = act.get("isolate_floor", (act.get("levels") or (BLACK_FLOOR,))[0])
+                floor = act.get("split_floor", act.get("isolate_floor", (act.get("levels") or (BLACK_FLOOR,))[0]))
                 solid = reg[..., :3].max(axis=2) > floor
             h, w = solid.shape
             lab = np.full((h, w), -1, np.int32)
@@ -4117,8 +4575,12 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
             for gx, gy in act.get("discard", {}).get(d, ()):
                 yy0, xx0 = gy - y0, gx - X0
                 near_glob[max(0, yy0 - 20):max(0, yy0 + 21), max(0, xx0 - 20):max(0, xx0 + 21)] = True
+            # `split_centres`: each frame's body column on the board, when a
+            # box was widened toward its spray and its middle no longer is.
+            given = act.get("split_centres", {}).get(d)
+            body_x = [int(given[k]) if given else (b[0] + b[2]) // 2 for k, b in enumerate(row)]
             for j, b in enumerate(row):
-                cx = (b[0] + b[2]) // 2 - X0
+                cx = body_x[j] - X0
                 for x in range(max(0, cx - 6), min(w, cx + 7)):
                     for y in np.nonzero(solid[:, x])[0]:
                         if lab[y, x] < 0 and not near_glob[y, x]:
@@ -4131,8 +4593,22 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
                     if 0 <= ny < h and 0 <= nx < w and solid[ny, nx] and lab[ny, nx] < 0:
                         lab[ny, nx] = lab[y, x]
                         q.append((ny, nx))
+            if act.get("bg") != "alpha_split" and act.get("split_floor"):
+                # Split on the bright parts only (`split_floor`): faint haze
+                # no longer bridges one frame to the next; then each label
+                # grows a few pixels into the dim pixels beside it (its own
+                # dark shading), never across a frame's bright parts.
+                dim = reg[..., :3].max(axis=2) > (act.get("levels") or (BLACK_FLOOR,))[0]
+                for _ in range(int(act.get("split_grow", 6))):
+                    grown = lab.copy()
+                    for dy, dx in _N4:
+                        sh = np.roll(lab, (dy, dx), axis=(0, 1))
+                        take = (grown < 0) & dim & (sh >= 0)
+                        grown[take] = sh[take]
+                    lab = grown
+                solid = solid | (dim & (lab >= 0))
             # Islands no body reaches (a loose flame): the nearest body's.
-            centres = np.array([(b[0] + b[2]) // 2 - X0 for b in row])
+            centres = np.array([x - X0 for x in body_x])
             ys, xs = np.nonzero(solid & (lab < 0))
             for y, x in zip(ys, xs):
                 lab[y, x] = int(np.argmin(np.abs(centres - x)))
@@ -4190,6 +4666,11 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
                 j = row.index(box)
                 mine = lab[:, box[0] - X0:box[2] - X0] == j
                 rgb[~mine] = 0
+            if act.get("drop_dim_green"):
+                # A glow painted on black (the Cobra's venom haze) reads as a
+                # dark smudge on a lit floor: its dim green goes.
+                g, r_, b_ = rgb[..., 1], rgb[..., 0], rgb[..., 2]
+                rgb[(g > r_ * 1.2) & (g > b_ * 1.2) & (rgb.max(axis=2) < act["drop_dim_green"])] = 0
             elif act.get("isolate") and (d, pose) not in act.get("isolate_skip", ()):
                 rgb[others(d, box)] = 0
             img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
@@ -4379,9 +4860,22 @@ def build_strip(name: str, cfg: dict) -> None:
         y0, y1 = min(b[1] for b in boxes), max(b[3] for b in boxes)
         boxes = [(b[0], y0, b[2], y1) for b in boxes]
     raw = [f.crop(b) for f, b in zip(raw, boxes)]
+    if st.get("center"):
+        # Each frame centred in a square as big as the largest frame (the
+        # Cherub's arrow, one view a direction: whichever is shown, its
+        # middle sits on the flight line).
+        side = max(max(f.width, f.height) for f in raw)
+        sq = []
+        for f in raw:
+            pad = Image.new("RGBA", (side, side))
+            pad.paste(f, ((side - f.width) // 2, (side - f.height) // 2))
+            sq.append(pad)
+        raw = sq
     width = raw[0].width
     if st.get("width_of") == "max":
         width = max(f.width for f in raw)   # `width_tiles` is the widest frame's
+    if st.get("width_px"):
+        width = int(st["width_px"])   # `width_tiles` is this many board pixels
     if st.get("stretch"):
         # Every frame stretched across to the widest frame's width (the
         # Djinn's arc: its ends then sit at the same place in each frame,
@@ -4393,8 +4887,8 @@ def build_strip(name: str, cfg: dict) -> None:
         factor = width / float(st["width_tiles"] * density)
         if kind == "pixel":
             fs = [shrink(f, factor) for f in raw]
-        elif st.get("trim") is False:
-            fs = [smooth_art.resample(f, factor) for f in raw]   # each keeps its whole box
+        elif st.get("trim") is False or st.get("center"):
+            fs = [smooth_art.resample(f, factor) for f in raw]   # each keeps its whole box (or its centring)
         else:
             fs = [smooth_art.trim(smooth_art.resample(f, factor)) for f in raw]
         cell = max(max(f.width, f.height) for f in fs) + 2 + air
@@ -4486,6 +4980,16 @@ def build(name: str, cfg: dict) -> None:
                     # head her attack board: no board of her own): cut as
                     # the attack frames are, by brightness off the backdrop.
                     rgb = np.asarray(board.crop(box).convert("RGB")).astype(int)
+                    if cfg.get("drop_dim_below"):
+                        # A glow painted on black (the haze about the
+                        # Screecher's smoke legs) reads as a dark smudge on a
+                        # lit floor: below its hem (the bottom `frac` of the
+                        # box) the dim pixels go, the bright wisps stay. Above
+                        # it the same dim values are its shroud's folds.
+                        frac, lum_max = cfg["drop_dim_below"]
+                        y0 = int(rgb.shape[0] * (1.0 - frac))
+                        band = rgb[y0:]
+                        band[band.max(axis=2) < lum_max] = 0
                     full[anim][d] = _cut_black_glow(rgb, (), 0.0, 0.0, cfg.get("fill_holes", False),
                                                     cfg.get("levels"), False, cfg.get("open_dark", False))
                     continue
