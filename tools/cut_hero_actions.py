@@ -36,6 +36,7 @@ OUT = "assets/sprites/generated/heroes/%s_%s.png"
 ACTION_FLOOR = 8        # the ground sits a 1/ACTION_FLOOR of the cell up from its bottom
 ACTION_KEEP_PX = 25     # pieces smaller than this (source px) are specks, not dust
 STREAK_CORE = 11        # "streaks": the body's core is what survives an opening this wide...
+STREAK_PIECE = 150      # ...every piece of it this big (a boot parted from its leg)...
 STREAK_KEEP = 9         # ...grown back this much...
 STREAK_DARK = 120       # ...and outside it, pixels darker than this go
 CELL_INSET = 4          # px kept clear of the grid lines
@@ -51,6 +52,15 @@ ACTIONS = {
     # fists raised, slam down in a burst of sparks and dust.
     ("brad", "attack"): {
         "src": "brad_attack_board.webp",
+        # The board draws him smaller from the crouch on: his head a tenth
+        # smaller as he crouches, a fifth in the leap and the landing (front),
+        # less in the back and side views. Scaled back frame by frame.
+        "frame_scale": {
+            "south": [1.0, 1.08, 1.10, 1.18, 1.18, 1.18, 1.20, 1.20],
+            "north": [1.0, 1.04, 1.06, 1.10, 1.10, 1.10, 1.10, 1.10],
+            "east": [1.0, 1.0, 1.04, 1.08, 1.08, 1.08, 1.09, 1.09],
+            "west": [1.0, 1.0, 1.04, 1.08, 1.08, 1.08, 1.09, 1.09],
+        },
         "pockets": False,   # his dark pouches and trousers are near the ground's colour
         "narrow": 7,
         "cols": [117, 295, 471, 647, 827, 1002, 1179, 1356, 1528],
@@ -90,10 +100,16 @@ ACTIONS = {
     # turns bear and the bear arm rakes across; he ends in the bear's head.
     ("stephen", "attack"): {
         "src": "stephen_attack_board.webp",
-        "grow": True,       # the armpit shadows run into the ground's black
+        # His shirt and trousers are a few levels off the ground's black:
+        # matched within 4 (as Ryan's), the ground clears and they stay
+        # (designer, 2026-11-04: "parts of his body cropped out" facing
+        # forward; the wider match and the armpit "grow" of 2026-11-02 ate
+        # his shirt under the arm and his legs). The trapped-ground rule
+        # still clears the gaps under his arms.
+        "tol": 4,
         "pockets": False,   # the back of his neck is as dark as the ground...
         "narrow": 7,        # ...and the fill reaches it through a slit
-        "row_scale": {"east": 0.90, "west": 0.91},   # sqrt(33/41), sqrt(35/42)
+        "squeeze": {"east": 0.90, "west": 0.90},   # his profiles drawn stockier than the still's
         "cols": [116, 293, 470, 649, 825, 1003, 1178, 1356, 1529],
         "rows": [(52, 266), (266, 481), (481, 684), (684, 902)],
         "facings": ["south", "north", "west", "east"],
@@ -102,10 +118,10 @@ ACTIONS = {
     # with a flash, then sheathed.
     ("stephen", "block"): {
         "src": "stephen_block_board.webp",
-        "grow": True,
+        "tol": 4,           # as his attack: his boots, legs and knife arm stay
         "haze": True,       # the flash's dark glow
         "streaks": True,    # ...and its dim arcs
-        "row_scale": {"east": 0.81, "west": 0.86, "north": 1.13},   # sqrt(33/50), sqrt(35/47): his side views drawn stockier; sqrt(45/35): his back drawn small
+        "squeeze": {"east": 0.85, "west": 0.85, "north": 0.90},   # his profiles and back drawn stockier than the still's
         "pockets": False,
         "narrow": 7,
         "cols": [115, 310, 519, 720, 924, 1130, 1333, 1530],
@@ -180,7 +196,11 @@ def cut_cell(cell, pockets=True, haze=False, narrow=0, drop_dark=False, close=0,
         core = cv2.morphologyEx(sol, cv2.MORPH_OPEN, np.ones((STREAK_CORE, STREAK_CORE), np.uint8))
         nc, clab, cst, _ = cv2.connectedComponentsWithStats(core, connectivity=8)
         if nc > 1:
-            core = (clab == 1 + int(np.argmax(cst[1:, 4]))).astype(np.uint8)
+            # Every thick piece is the body's: a boot the floor rules part
+            # from the leg above it is a piece of its own (designer,
+            # 2026-11-04: Stephen's parry "cropped out" from the front, his
+            # boots gone), and an arc is too thin to leave one at all.
+            core = np.isin(clab, 1 + np.nonzero(cst[1:, 4] >= STREAK_PIECE)[0]).astype(np.uint8)
         core = cv2.dilate(core, np.ones((STREAK_KEEP, STREAK_KEEP), np.uint8)) > 0
         dark = cell[..., :3].max(axis=2) < STREAK_DARK
         rgba[(sol > 0) & ~core & dark] = 0
@@ -264,17 +284,24 @@ def build(hero, action, spec):
         ref = still_size(hero, facing)
         got = mass(hs.resample(cells[(facing, 0)][0], factor))
         row_factor[facing] = factor * (match_scale(got, ref) if ref and got else 1.0)
-        # A row the board draws stockier than the hero's still pose that way
-        # (Stephen's side views in his parry: head 50 px to the still's 33 at
-        # the same height) splits the difference: "row_scale" scales the
-        # row by the square root of the still/board head-width ratio.
-        row_factor[facing] /= float(spec.get("row_scale", {}).get(facing, 1.0))
+    # A row the board draws stockier than the hero's still pose that way
+    # (Stephen's profiles and back) stands his height and is drawn
+    # narrower: "squeeze" (designer, 2026-11-04: the halfway scale of
+    # 2026-11-02 left him "shorter and wider"). And a board that draws the
+    # hero smaller as the action goes on (Brad's smash: his head a fifth
+    # smaller in the leap and the landing than as he sets off — "Brad still
+    # gets small when he performs his attack") has each frame scaled back,
+    # about the row's standing feet: "frame_scale", per facing, a factor a
+    # frame, judged by his head against his still pose.
     pix, soft, place = {}, {}, {}
     for (facing, c), (img, _) in cells.items():
         b0 = cells[(facing, 0)][1]
         anchor = ((b0[0] + b0[2]) / 2.0, float(b0[3]))   # the row's standing feet
-        p = hs.resample(img, row_factor[facing])
-        s = hs.soft_frame(img, row_factor[facing])
+        fs = spec.get("frame_scale", {}).get(facing)
+        f = row_factor[facing] / (float(fs[c]) if fs else 1.0)
+        sq = float(spec.get("squeeze", {}).get(facing, 1.0))
+        p = hs.resample(img, f, sq)
+        s = hs.soft_frame(img, f, sq)
         sx, sy = p.shape[1] / float(img.width), p.shape[0] / float(img.height)
         pix[(facing, c)] = p
         soft[(facing, c)] = s
