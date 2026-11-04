@@ -39,6 +39,9 @@ var _stuck_frames: int = 0
 const STUCK_THRESHOLD: int = 10  # Cancel movement after this many frames with no progress
 const CLIMB_GLIDE_SPEED: float = 3.5  # Vertical units/sec when stepping up/down terrain
 
+var _mana_seen: float = 0.0   # the mana pool as last reported (mana_changed)
+var _mana_rose: bool = false  # the last report raised it: a gain worth showing
+
 func _ready() -> void:
 	target_position = position
 
@@ -58,6 +61,16 @@ func _ready() -> void:
 		stats.armor_gained.connect(func(amount: int):
 			if amount > 0:
 				show_armor_gained())
+		# Mana regen or any other gain pops the mana drop — only when the
+		# bar really rose (regen ticks at a full pool gain nothing).
+		_mana_seen = stats.current_mana
+		stats.mana_changed.connect(func(cur, _max):
+			_mana_rose = float(cur) > _mana_seen + 0.01
+			_mana_seen = float(cur))
+		stats.mana_gained.connect(func(amount: int, _is_regen: bool):
+			if amount > 0 and _mana_rose:
+				_mana_rose = false
+				show_mana_gained())
 
 	if not has_node("Inventory"):
 		var inv_node = Inventory.new()
@@ -172,6 +185,11 @@ func show_armor_gained() -> void:
 	## Pops the overhead armour icon — call whenever armour is gained from any source.
 	if _figure:
 		_figure.pop_armor_icon()
+
+func show_mana_gained() -> void:
+	## Pops the overhead mana drop — mana regen or any other mana gain.
+	if _figure and _figure.has_method("pop_mana_icon"):
+		_figure.pop_mana_icon()
 
 func show_ring_trigger() -> void:
 	## Pops the overhead ring icon — call whenever an equipped ring triggers.

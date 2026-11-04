@@ -632,6 +632,11 @@ func play_hit() -> void:
 ## with a green plus, a steel shield. Side by side when both land at once.
 const HEAL_ICON := "res://assets/ui/icons/heal_heart.png"
 const ARMOR_ICON := "res://assets/ui/icons/armor_shield.png"
+## Mana regen / gain (designer, 2026-11-04): a blue drop with a green plus,
+## centred and a little higher so it clears a heart or shield popping with it.
+const MANA_ICON := "res://assets/ui/icons/mana_gain.png"
+
+func pop_mana_icon() -> void: _pop_icon(MANA_ICON, 0.0, 0.008, 0.45)
 
 func pop_armor_icon() -> void: _pop_icon(ARMOR_ICON, 0.28)
 func pop_ring_icon() -> void: _pop_text("RING!", Color(0.55, 0.85, 1.0))
@@ -649,7 +654,7 @@ func pop_no_mana() -> void:
 
 ## An icon over the hero's head that rises and fades. x_offset nudges it
 ## left/right so two icons popping together (a heal and armour) don't overlap.
-func _pop_icon(path: String, x_offset: float = 0.0, px_size: float = 0.008) -> void:
+func _pop_icon(path: String, x_offset: float = 0.0, px_size: float = 0.008, lift: float = 0.0) -> void:
 	var sp := Sprite3D.new()
 	sp.texture = load(path)
 	sp.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -661,7 +666,7 @@ func _pop_icon(path: String, x_offset: float = 0.0, px_size: float = 0.008) -> v
 	# PITCH), so "up the screen" is world -Z, not +Y: the sign sits a little
 	# up in Y (clear of the ground sort) and the rest of the way up the
 	# screen in -Z, then drifts further up as it fades.
-	var up := BOARD_HEIGHT + 0.5
+	var up := BOARD_HEIGHT + 0.5 + lift
 	sp.position = Vector3(x_offset, 0.6, -up)
 	sp.sorting_offset = 2.0   # in front of whatever stands beside him
 	add_child(sp)
