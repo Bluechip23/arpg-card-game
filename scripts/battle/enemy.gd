@@ -5092,8 +5092,8 @@ func _try_card_steal(target_node: Node3D) -> bool:
 	if _enemy_figure:
 		var to_target: Vector3 = target_node.global_position - global_position
 		_enemy_figure.set_facing_from_velocity(Vector3(to_target.x, 0, to_target.z))
-		if _enemy_figure.has_method("chain_arcs"):
-			var secs: float = _enemy_figure.chain_arcs([global_position, target_node.global_position], "card_steal")
+		if _enemy_figure.has_method("sweep_vortex"):
+			var secs: float = _enemy_figure.sweep_vortex(global_position, target_node.global_position, "card_steal")
 			if secs > 0.0:
 				swing_started.emit(self, secs)
 	turn_completed.emit()

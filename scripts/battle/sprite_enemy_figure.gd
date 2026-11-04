@@ -148,7 +148,7 @@ const KINDS := {
 	"sabertooth": {"sheets": SHEETS + "/sabertooth", "scale": BOARD_SCALE, "fps": {"Track": 8.0, "Attack": 10.0, "Sunken": 10.0}, "action_sheets": {"track": "Track", "sunken_bite": "Sunken"}},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-28), its track board and its bite-and-claw board (tools/cut_pose_boards.py, 2026-11-03: Track is the paw scraping, the crouch, the deepest ready crouch and the rise, played in place; Attack, its Bite and Claw, the crouch, lunge, bite, pull-through, claw swipe and recovery; Sunken, its Sunken Bite, the lunge, the crouch, the teeth sinking in, the shake, the release and rising)
 	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": BOARD_SCALE},
 	"roc": {"sheets": SHEETS + "/roc", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28); was the mountain-monster Bird, tinted
-	"ash_harpy": {"sheets": SHEETS + "/ash_harpy", "scale": BOARD_SCALE, "fps": {"Cast": 10.0}, "action_sheets": {"card_steal": "Cast"}, "arcs": {"card_steal": {"sheet": "Vortex", "release": 0, "fit": true, "ahead": 0.0, "lift": 0.9, "on_top": true, "span": 0.96, "mid": 0.45, "thickness": 1.35, "frames": 77}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and her flap board and vortex strip (2026-11-04: Cast is three wing flaps; Vortex the wind that sweeps a card from the player back to her, played across the flaps); was the chaos-monster Icon22
+	"ash_harpy": {"sheets": SHEETS + "/ash_harpy", "scale": BOARD_SCALE, "fps": {"Cast": 10.0}, "action_sheets": {"card_steal": "Cast"}, "vortex": {"card_steal": {"sheet": "Vortex", "lift": 0.9, "span": 0.96, "mid": 0.45, "thickness": 1.35, "frames": 77}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and her flap board and vortex strip (2026-11-04: Cast is three wing flaps; Vortex the wind that sweeps a card from the player back to her, played across the flaps); was the chaos-monster Icon22
 	"magma_spider": {"sheets": SHEETS + "/magma_spider", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the Crypt Crawler's MonsterKit cell (3, 0), tinted
 	# (Every roster kind now has a sprite; ART_TODO.md still tracks hand-drawn
 	# replacements for the generated first-pass battlers above.)
@@ -1011,6 +1011,54 @@ func spot_effect(at: Vector3, action: String) -> float:
 	fx.launch(load(path), _sprite.pixel_size * _rig.scale.x, gutter, smooth, at, delay, fps,
 			float(spot.get("hang", 0.0)))
 	return fx.total_time()
+
+
+## The Ash Harpy's Card Steal vortex (the kind's "vortex" by action) from
+## `her` to `victim` (global ground positions): a chain of segments, each near
+## the strip's own length, its frames scheduled by VortexPath across what is
+## left of the action's sheet (her three flaps). Returns the seconds from now
+## until it is gone, 0 when the action has none.
+func sweep_vortex(her: Vector3, victim: Vector3, action: String) -> float:
+	var cfg: Dictionary = KINDS.get(figure_kind, {})
+	var vx: Dictionary = cfg.get("vortex", {}).get(action, {})
+	var path := "%s/%s.png" % [_sheet_folder, vx.get("sheet", "")]
+	if vx.is_empty() or _sheet_folder == "" or not ResourceLoader.exists(path):
+		return 0.0
+	var tex: Texture2D = load(path)
+	var frames := int(vx.get("frames", 0))
+	var rows := _strip_rows(tex, frames)
+	var cell := float(_strip_cell(tex, frames))
+	var texel: float = _sprite.pixel_size * _rig.scale.x
+	var span := float(vx.get("span", 0.96))
+	var seg_len := span * cell * texel   # the strip's own length, in world units
+	var lift := Vector3(0, CameraView.SPRITE_LIFT, 0) + CameraView.screen_up() * float(vx.get("lift", 0.0))
+	var a := her + lift
+	var b := victim + lift
+	var flat := Vector2(b.x - a.x, b.z - a.z).length()
+	var n := maxi(1, int(round(flat / seg_len)))
+	var sheet: String = cfg.get("action_sheets", {}).get(action, "")
+	var total := 3.0
+	if sheet != "" and _cp_sheets.has(sheet):
+		var fps: float = _cp_fps.get(sheet, 8.0)
+		total = float(_cp_frame_count(sheet)) / fps
+		if _cp_anim == sheet:
+			total -= float(_cp_frame) / fps + _cp_clock   # what is left of the flaps
+	var host: Node = get_parent().get_parent() if get_parent() and get_parent().get_parent() else get_parent()
+	var vp := VortexPath.new()
+	host.add_child(vp)
+	var bolts: Array = []
+	for i in range(n):
+		# Segment 0 at the victim's end; each runs from her side (the strip's
+		# left end) to the victim's side.
+		var hi := b.lerp(a, float(i) / float(n))
+		var lo := b.lerp(a, float(i + 1) / float(n))
+		var bolt := ArcBolt.new()
+		vp.add_child(bolt)
+		bolt.launch(tex, texel, smooth, lo, hi, 0.0, 24.0, span, float(vx.get("mid", -1.0)),
+				float(vx.get("thickness", 0.0)), rows, true)
+		bolts.append(bolt)
+	vp.setup(bolts, total)
+	return vp.total_time()
 
 
 ## A strip's square cell side: one row unless `frames` (a long strip packed

@@ -27,6 +27,9 @@ var _cell := 0
 var _frames := 1
 var _cols := 1
 var _mirrored := false   # drawn from the strip's mirror image (it runs toward the screen's left)
+## Driven from outside (VortexPath picks its frame each tick with show_frame):
+## its own clock is off.
+var manual := false
 
 ## Mirror images of the strips, made once each (see launch).
 static var _mirrors: Dictionary = {}
@@ -121,8 +124,17 @@ func _show_frame(i: int) -> void:
 	_sprite.region_rect = Rect2(col * _cell, (f / _cols) * _cell, _cell, _cell)
 
 
-func _process(delta: float) -> void:
+## For a driven bolt (`manual`): show frame `i`, or nothing for -1.
+func show_frame(i: int) -> void:
 	if _sprite == null:
+		return
+	_sprite.visible = i >= 0
+	if i >= 0:
+		_show_frame(i)
+
+
+func _process(delta: float) -> void:
+	if _sprite == null or manual:
 		return
 	_clock += delta
 	if _clock < _delay:
