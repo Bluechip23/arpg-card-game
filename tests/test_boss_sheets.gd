@@ -34,7 +34,7 @@ func _frame_rects(path: String, cols: int) -> Array:
 		rows.append(row)
 	return rows
 
-func _check_fig(fig, name: String, walks: bool = true) -> void:
+func _check_fig(fig, name: String, _walks: bool = true) -> void:
 	_check(fig is SpriteEnemyFigure and fig._cp_mode, "%s plays directional sheets" % name)
 	if not (fig is SpriteEnemyFigure):
 		return
@@ -50,8 +50,10 @@ func _check_fig(fig, name: String, walks: bool = true) -> void:
 		fig.set_facing(d)
 		rows[int(fig._sprite.region_rect.position.y / cell)] = true
 	_check(rows.size() == 4, "%s shows a different row for each of the four facings" % name)
-	if walks:
-		_check(fig._cp_frame_count("Walk") >= 3, "%s walks through %d frames" % [name, fig._cp_frame_count("Walk")])
+	# No enemy walks through a cycle (the designer, 2026-11-04): moving, it
+	# shows its idle pose and steps.
+	_check(fig._cp_frame_count("Walk") == 1 and not fig._cp_sheets.has("Run"),
+			"%s has no walk cycle (%d walk frames)" % [name, fig._cp_frame_count("Walk")])
 	_check(cell >= 36, "%s cell is a sensible size" % name)
 
 func _run() -> void:
@@ -119,6 +121,27 @@ func _run() -> void:
 		sc_rows[int(scf._sprite.region_rect.position.y / scf._cp_cell)] = true
 	_check(sc_rows.size() == 4, "the Screecher shows a different pose for each of the four facings")
 	scr.queue_free()
+	# The Craftpix Demon and Specter leave their pack walk and run cycles
+	# unused (2026-11-04): moving, they play their idle and step.
+	for kind in ["demon", "specter"]:
+		var wf := SpriteEnemyFigure.new()
+		get_root().add_child(pf)
+		wf.setup(kind)
+		_check(wf._cp_sheets["Walk"] == wf._cp_sheets["Idle"] and not wf._cp_sheets.has("Run") and wf._walk_still,
+				"the %s has no walk cycle" % kind)
+		wf.set_walking(true)
+		var lifted := false
+		for _i in range(30):
+			wf._process(1.0 / 30.0)
+			lifted = lifted or wf._sprite.offset != wf._ground_offset
+		_check(lifted, "the %s steps as it moves" % kind)
+		wf.queue_free()
+	# A summon-only kind keeps its pack's walk.
+	var sk := SpriteEnemyFigure.new()
+	get_root().add_child(sk)
+	sk.setup("summon_skeleton")
+	_check(not SpriteEnemyFigure.is_enemy_kind("summon_skeleton") and not sk._walk_still, "a summon-only kind keeps its walk")
+	sk.queue_free()
 	# The Rat King wears the designer's redrawn four-pose board (2026-10-26):
 	# one pose a direction, no walk cycle, and bigger than the normal rat
 	# (the Wererat) — the designer's ask.

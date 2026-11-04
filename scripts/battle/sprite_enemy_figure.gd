@@ -248,6 +248,7 @@ var _icon_faces := "left"  # icon battlers: the side the art faces ("front" neve
 var _npc_mode := false
 var _npc_facing := 0     # CharacterAnimator.Direction
 var _walk_clock := 0.0
+var _walk_still := false   # an enemy: its "Walk" is its idle, stepped (_drop_walk_cycle)
 var _walk_frame := 0
 var _fx_tween: Tween = null
 ## Seconds the swing play_attack last started runs for (its frames at their
@@ -434,6 +435,35 @@ func _setup_craftpix(spec: String) -> void:
 	_sprite.texture = idle
 	_sprite.pixel_size = PIXEL_SIZE
 	_sprite.region_rect = Rect2(0, _cp_row(_cp_dir) * _cp_cell, _cp_cell, _cp_cell)
+	_drop_walk_cycle()
+
+
+## Enemies have no walk cycle (the designer, 2026-11-04): only their attack
+## and action boards animate. Moving, an enemy shows its idle and steps
+## (STEP_LIFT) like the one-pose boards; a pack's walk and run sheets are
+## left unused. A one-frame Walk is a pose, not a cycle (the Giant Beaver
+## drops to all fours to move), and stays. Kinds only summons wear keep theirs.
+func _drop_walk_cycle() -> void:
+	if not is_enemy_kind(figure_kind) or not _cp_sheets.has("Idle"):
+		return
+	if _cp_frame_count("Walk") <= 1 and not _cp_sheets.has("Run"):
+		return
+	_cp_sheets.erase("Run")
+	_cp_sheets["Walk"] = _cp_sheets["Idle"]
+	_cp_fps["Walk"] = _cp_fps.get("Idle", 5.0)
+	_walk_still = true
+
+
+static var _enemy_kinds := {}
+
+## True when an enemy of the world (EnemyDefs) wears this kind.
+static func is_enemy_kind(kind: String) -> bool:
+	if _enemy_kinds.is_empty():
+		for key in EnemyDefs.DEFS:
+			var k := str(EnemyDefs.DEFS[key].get("figure_kind", ""))
+			if k != "":
+				_enemy_kinds[k] = true
+	return _enemy_kinds.has(kind)
 
 
 ## Directional sheets of our own (the designer's bosses): Idle.png and
@@ -454,6 +484,7 @@ func _setup_sheets(folder: String) -> void:
 	_sprite.texture = idle
 	_sprite.pixel_size = PIXEL_SIZE
 	_sprite.region_rect = Rect2(0, _cp_row(_cp_dir) * _cp_cell, _cp_cell, _cp_cell)
+	_drop_walk_cycle()
 
 
 ## Load a frame-per-file pack (mountain monsters): every PNG in the folder,
@@ -1357,5 +1388,5 @@ func _cp_step(delta: float) -> void:
 	# The body never bobs off its ground row: the packs animate that in-art.
 	_sprite.position.y = _base_y
 	if _cp_cell > 0:
-		var stepping := _cp_anim == "Walk" and count == 1 and fmod(_time * STEP_HZ, 1.0) < 0.5
+		var stepping := _cp_anim == "Walk" and (count == 1 or _walk_still) and fmod(_time * STEP_HZ, 1.0) < 0.5
 		_sprite.offset = _ground_offset + (Vector2(0, step_lift()) if stepping else Vector2.ZERO)

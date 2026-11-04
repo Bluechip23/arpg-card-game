@@ -40,6 +40,8 @@ Things the designer asked to be raised again when the related system is reworked
 
 The purchased packs (catalogued in [`docs/ASSET_PACKS.md`](docs/ASSET_PACKS.md): Craftpix tilesets and props, MonsterKit battlers, the NPC packs, the Mana Seed base) are the game's art. **Whenever a pack already shows a thing, use that piece — never design your own version of it.** High ground is the pack's cliff tiles, a gate is the pack's arch, a headstone is the pack's headstone, a digger wears an NPC sheet; procedural meshes or coloured boxes standing in for any of these are wrong. Bespoke art is for what the packs genuinely lack (the Rat King's nest, say): draw it in the packs' palette and texel size so it sits in unison with them, and say in a comment that no pack covers it. The point is one look, with nothing that reads as placeholder.
 
+**Enemies have no walk cycles** (designer, 2026-11-04): only their attack and action boards animate. Moving, an enemy shows its idle pose and steps (`SpriteEnemyFigure._drop_walk_cycle`); don't cut or wire enemy walk strips.
+
 ## Card Taxonomy
 
 The designer's card web — Playable (Power / Offensive / Defensive / Utility), Instant, Unplayable, Enchantment; Attack and Spell as the shapes under Offensive; tags, not behaviour, decide — is written down in [`docs/CARD_TAXONOMY.md`](docs/CARD_TAXONOMY.md). Read it before adding a card or anything that says "attack", "spell" or "offensive", and use `Card.is_offensive()` / `Card.is_attack()` rather than the raw `card_type`.

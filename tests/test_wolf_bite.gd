@@ -55,7 +55,9 @@ func _test_figure() -> void:
 	_check(fig._cp_frame_count("Attack") == 4, "Attack: crouch, leap, bite, recovery (%d frames)" % fig._cp_frame_count("Attack"))
 	_check(tex.get_height() == 4 * cell, "Attack holds the four facing rows in the Idle sheet's %d-px cells (%dx%d)" % [cell, tex.get_width(), tex.get_height()])
 	_check(is_equal_approx(fig._cp_fps.get("Attack", 0.0), 10.0 / SpriteEnemyFigure.DRAWN_ATTACK_SLOW), "the bite plays at the wolf's 10 fps, slowed as every enemy swing is")
-	_check(fig._cp_frame_count("Walk") == 4, "the walk cycle still has its 4 frames (%d)" % fig._cp_frame_count("Walk"))
+	# Enemies have no walk cycle (the designer, 2026-11-04): the wolf moves on
+	# its idle pose, stepped.
+	_check(fig._cp_frame_count("Walk") == 1 and fig._walk_still, "the wolf has no walk cycle (%d walk frames)" % fig._cp_frame_count("Walk"))
 	# The feet of every bite frame stand on the Idle ground row of its facing.
 	var worst := 0.0
 	for row in range(4):
