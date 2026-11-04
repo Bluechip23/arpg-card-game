@@ -1497,6 +1497,75 @@ BOARDS = {
             },
         },
     },
+    "sewer_cobra_bite": {
+        # 2026-11-04: the Sewer Cobra's Bite — sewer_cobra_bite_board.webp,
+        # "SEWER COBRA - BITE ATTACK", the same four framed rows as its spray
+        # board, eight numbered frames a row: the stance, rearing back, coiled
+        # with the jaws open, the strike (motion arcs and a spatter of
+        # venom), the bite, snapping shut, recovering, at rest. Frames 2-8
+        # are Attack.png, packed into its folder, for its Bite; cut like its
+        # spray, the green motion arcs kept.
+        "into": "sewer_cobra",
+        "actions": {
+            "src": "sewer_cobra_bite_board.webp",
+            "levels": (4, 30, 6),
+            "fill_holes": 22,
+            "open_dark": True,
+            "keep_share": 0.01,      # the strike's arcs, the venom spatter
+            "glow": False,
+            "split": True,
+            "isolate_floor": 6,
+            "split_floor": 30,
+            "split_centres": {"front": [190, 368, 541, 718, 898, 1076, 1252, 1435], "back": [190, 370, 543, 722, 898, 1080, 1255, 1435], "left": [180, 360, 525, 705, 895, 1080, 1265, 1440], "right": [180, 360, 535, 710, 900, 1080, 1265, 1435]},
+            "drop_dim_green": 28,    # the faintest of the arcs' glow only: the arcs themselves stay
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (105, 70, 279, 292),
+                    "rear": (279, 70, 454, 292),
+                    "coil": (454, 70, 629, 292),
+                    "strike": (629, 70, 808, 292),
+                    "bite": (808, 70, 987, 292),
+                    "snap": (987, 70, 1164, 292),
+                    "recover": (1164, 70, 1343, 292),
+                    "rest": (1343, 70, 1524, 292),
+                },
+                "back": {
+                    "stance": (105, 302, 280, 527),
+                    "rear": (280, 302, 456, 527),
+                    "coil": (456, 302, 632, 527),
+                    "strike": (632, 302, 810, 527),
+                    "bite": (810, 302, 989, 527),
+                    "snap": (989, 302, 1167, 527),
+                    "recover": (1167, 302, 1345, 527),
+                    "rest": (1345, 302, 1524, 527),
+                },
+                "left": {
+                    "stance": (105, 538, 270, 748),
+                    "rear": (270, 538, 442, 748),
+                    "coil": (442, 538, 615, 748),
+                    "strike": (615, 538, 800, 748),
+                    "bite": (800, 538, 987, 748),
+                    "snap": (987, 538, 1172, 748),
+                    "recover": (1172, 538, 1352, 748),
+                    "rest": (1352, 538, 1524, 748),
+                },
+                "right": {
+                    "stance": (105, 758, 270, 975),
+                    "rear": (270, 758, 447, 975),
+                    "coil": (447, 758, 622, 975),
+                    "strike": (622, 758, 805, 975),
+                    "bite": (805, 758, 990, 975),
+                    "snap": (990, 758, 1172, 975),
+                    "recover": (1172, 758, 1350, 975),
+                    "rest": (1350, 758, 1524, 975),
+                },
+            },
+            "sheets": {
+                "Attack": ["rear", "coil", "strike", "bite", "snap", "recover", "rest"],
+            },
+        },
+    },
     "sludge_hammer": {
         # 2026-11-04: the Sludge Being's melee — sludge_hammer_board.webp,
         # "SLUDGE HAMMER ATTACK (MELEE)", four labelled rows in framed

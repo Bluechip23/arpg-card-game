@@ -4,7 +4,8 @@ extends SceneTree
 ## tools/cut_pose_boards.py "sewer_cobra" actions): Cast.png is the venom
 ## welling in its jaws, the mouth opening, the spray starting, spraying, the
 ## full spray, the spray dying and at rest — four facing rows, at its drawn
-## 10 fps slowed as every enemy swing is. Its Venom Spray plays it.
+## 10 fps slowed as every enemy swing is. Its Venom Spray plays it; its Bite
+## plays Attack.png (the designer's bite board).
 ## Run: godot --headless --path . --script tests/test_sewer_cobra_spray.gd
 
 var failures := 0
@@ -62,7 +63,15 @@ func _test_figure() -> void:
 	fig.play_action("venom_spray")
 	_check(fig._cp_anim == "Cast" and int(fig._sprite.region_rect.position.y / cell) == 3, "Venom Spray facing east: the spray, the right-facing row")
 	fig.play_action("bite")
-	_check(fig._cp_anim != "Cast", "its Bite does not spray")
+	_check(fig._cp_anim == "Attack" and fig._cp_frame_count("Attack") == 7, "its Bite plays the bite (sewer_cobra_bite_board.webp): seven frames")
+	_check(fig._cp_sheets["Attack"].get_height() == 4 * cell, "in the four facing rows, the Idle sheet's cells")
+	_check(is_equal_approx(fig._cp_fps.get("Attack", 0.0), 10.0 / SpriteEnemyFigure.DRAWN_ATTACK_SLOW), "at its drawn 10 fps, slowed as every enemy swing is")
+	var bworst := 0.0
+	for row in range(4):
+		var bfeet: float = _feet(fig, "Idle", row, 0)
+		for col in range(7):
+			bworst = maxf(bworst, absf(_feet(fig, "Attack", row, col) - bfeet))
+	_check(bworst <= 3.0 * (2.0 if fig.smooth else 1.0), "its coils stay on the ground row through the bite (off by at most %.0f texels)" % bworst)
 	fig.free()
 
 
@@ -89,4 +98,8 @@ func _test_enemy() -> void:
 	var fig: SpriteEnemyFigure = c._enemy_figure
 	c._execute_action("venom_spray", main.player)
 	_check(fig != null and fig._cp_anim == "Cast", "its Venom Spray plays the spray (%s)" % (fig._cp_anim if fig else "no figure"))
+	c.position = main._ground_pos(cell + Vector2i(1, 0))
+	await _settle(2)
+	c._execute_action("bite", main.player)
+	_check(fig != null and fig._cp_anim == "Attack", "its Bite plays the bite (%s)" % (fig._cp_anim if fig else "no figure"))
 	main.enemy_spawner.despawn_enemy(c)
