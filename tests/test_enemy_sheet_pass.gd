@@ -37,7 +37,7 @@ func _run() -> void:
 		"Granite Colossus": [Enemy.EnemyType.GRANITE_COLOSSUS, 350, 250, 3, []],
 		"Demon": [Enemy.EnemyType.DEMON, 65, 0, 2, ["mimic", "demon_cuff", "demon_attack", "move"]],
 		"Ash Harpy": [Enemy.EnemyType.ASH_HARPY, 6, 0, 1, ["peck", "card_steal", "move"]],
-		"Magma Spider": [Enemy.EnemyType.MAGMA_SPIDER, 4, 0, 0, ["fire_web"]],
+		"Magma Spider": [Enemy.EnemyType.MAGMA_SPIDER, 4, 0, 0, ["fire_web", "fire_bounce"]],
 		"Mind Eater": [Enemy.EnemyType.MIND_EATER, 20, 0, 0, ["mind_slow", "mind_cuff"]],
 		"Specter": [Enemy.EnemyType.SPECTER, 10, 0, 1, ["spirit_spit", "specter_vanish", "move"]],
 		"Succubus": [Enemy.EnemyType.SUCCUBUS, 25, 5, 1, ["mana_drain", "damaging_snap", "move"]],

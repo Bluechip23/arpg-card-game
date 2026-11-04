@@ -52,22 +52,22 @@ const ATTACK_SLOW := 2.3
 ## is equally slower (see kind_fps).
 const DRAWN_ATTACK_SLOW := ATTACK_SLOW / 1.4
 const CP_FPS := {"Idle": 5.0, "Walk": 8.0, "Run": 10.0, "Draw": 8.0, "Attack": 12.0 / ATTACK_SLOW,
-		"Attack2": 12.0 / ATTACK_SLOW, "Throw": 12.0 / ATTACK_SLOW, "Kick": 12.0 / ATTACK_SLOW, "Cast": 12.0 / ATTACK_SLOW, "Track": 12.0 / ATTACK_SLOW, "Sunken": 12.0 / ATTACK_SLOW, "Hurt": 12.0, "Death": 10.0, "Heal": 7.0}
-const CP_ONESHOT := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Hurt", "Death", "Heal"]
+		"Attack2": 12.0 / ATTACK_SLOW, "Throw": 12.0 / ATTACK_SLOW, "Kick": 12.0 / ATTACK_SLOW, "Cast": 12.0 / ATTACK_SLOW, "Track": 12.0 / ATTACK_SLOW, "Sunken": 12.0 / ATTACK_SLOW, "Bounce": 12.0 / ATTACK_SLOW, "Hurt": 12.0, "Death": 10.0, "Heal": 7.0}
+const CP_ONESHOT := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce", "Hurt", "Death", "Heal"]
 ## The swings: an attack's sheets (Throw: the Grave Titan's boulder roll;
 ## Kick: the Armored Troll's kick; Cast: the Snow Wraith's Ice Blast; Track
 ## and Sunken: the Sabertooth's stalking crouch and its Sunken Bite — each
 ## played for that action by the kind's "action_sheets").
-const ATTACK_SHEETS := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken"]
+const ATTACK_SHEETS := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce"]
 ## Swings played in place, with no lunge toward the target: the Sabertooth
 ## sizing up its prey is no blow.
-const STILL_SHEETS := ["Track"]
+const STILL_SHEETS := ["Track", "Bounce"]   # Bounce: the Magma Spider's leap carries it (leap_from)
 ## Held poses: played once, then the last frame stays until another
 ## animation plays (the archer rat at full draw, from two tempo before its
 ## shot until the shot). A hit does not break them.
 const CP_HOLD := ["Draw"]
 ## Every sheet an animation may come as (Craftpix packs and our own).
-const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Hurt", "Death", "Heal"]
+const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce", "Hurt", "Death", "Heal"]
 
 # NPC sheets run S,W,N,E top to bottom (battle uses CharacterAnimator order S,N,E,W).
 const NPC_ROW := [0, 2, 1, 3]  # NPC packs run S,E,N,W
@@ -95,7 +95,7 @@ const NPC_WALK_TIME := 0.18
 ## NPC humanoid:       {npc: "<path>", tint?: Color, scale?: float}
 const KINDS := {
 	# --- direct battler matches ---
-	"sludge": {"sheets": SHEETS + "/sludge", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the slime pack's Slime1 tinted green
+	"sludge": {"sheets": SHEETS + "/sludge", "scale": BOARD_SCALE, "fps": {"Throw": 10.0, "Attack": 10.0}, "action_sheets": {"sludge_spit": "Throw"}, "projectiles": {"sludge_spit": {"sheet": "Ball", "release": 3, "speed": 7.0, "fps": 12.0, "lift": 0.6, "ahead": 0.35}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and its throw board (2026-11-04: Throw is the ball drawn back, coiled, swung and hurled, the arm lowered; Ball the ball in flight, thrown at its prey by its Spit; and its hammer board: Attack, its melee, the ball morphing into a hammer of slime, raised, swung and smashed down in a splash); was the slime pack's Slime1 tinted green
 	"mind_eater": {"sheets": SHEETS + "/mind_eater", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28); was a MonsterKit battler
 	"pipe_crawler": {"cell": Vector2i(2, 0)},
 	"crypt_crawler": {"sheets": SHEETS + "/crypt_crawler", "scale": BOARD_SCALE},  # the designer's grave spider (tools/cut_pose_boards.py, 2026-10-28); was a MonsterKit battler
@@ -149,7 +149,7 @@ const KINDS := {
 	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": BOARD_SCALE},
 	"roc": {"sheets": SHEETS + "/roc", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28); was the mountain-monster Bird, tinted
 	"ash_harpy": {"sheets": SHEETS + "/ash_harpy", "scale": BOARD_SCALE, "fps": {"Cast": 10.0}, "action_sheets": {"card_steal": "Cast"}, "vortex": {"card_steal": {"sheet": "Vortex", "lift": 0.9, "span": 0.96, "mid": 0.45, "thickness": 1.35, "frames": 77}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and her flap board and vortex strip (2026-11-04: Cast is three wing flaps; Vortex the wind that sweeps a card from the player back to her, played across the flaps); was the chaos-monster Icon22
-	"magma_spider": {"sheets": SHEETS + "/magma_spider", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the Crypt Crawler's MonsterKit cell (3, 0), tinted
+	"magma_spider": {"sheets": SHEETS + "/magma_spider", "scale": BOARD_SCALE, "fps": {"Bounce": 10.0, "Cast": 10.0}, "action_sheets": {"fire_bounce": "Bounce", "fire_web": "Cast"}, "leap": {"fire_bounce": [2, 4]}, "projectiles": {"fire_web": {"sheet": "Glob", "release": 4, "speed": 7.0, "fps": 12.0, "lift": 0.3, "ahead": 0.3}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and its Fire Bounce board (2026-11-04: Bounce is the crouch, the spring off a burst of fire, the leap carried across by leap_from, the landing in fire and the settle; and its Fire Web board, 2026-11-04: Cast is it rearing, aiming and spitting a glob of fire, Glob the glob in flight to its prey); was the Crypt Crawler's MonsterKit cell (3, 0), tinted
 	# (Every roster kind now has a sprite; ART_TODO.md still tracks hand-drawn
 	# replacements for the generated first-pass battlers above.)
 	# --- NPC-pack humanoids (real 4-direction walk frames) ---
@@ -217,6 +217,7 @@ const PAINTED_SHADOW_KINDS := ["swarm", "sludge",
 
 var figure_kind := ""   # the KINDS entry this figure was set up as
 var smooth := false     # wearing the smooth (non-pixelated) sheets (ArtStyle)
+var _leap_tween: Tween = null   # leap_from: the figure carried from its take-off square
 var _sheet_folder := ""  # the folder the sheets were loaded from (a thrown projectile's strip lives there)
 var _sprite: Sprite3D = null
 var _rig: Node3D = null
@@ -753,6 +754,11 @@ func play_action(action: String) -> void:
 		if _cp_mode and _cp_sheets.has("Draw"):
 			_cp_play("Draw", true)
 		return
+	if "bounce" in a and str(KINDS.get(figure_kind, {}).get("action_sheets", {}).get(a, "")) == "":
+		# A Fire Bounce with no sheet drawn: a leap away, not a blow — no
+		# lunge toward its prey, a flash of its fire as it goes.
+		flash(Color(1.6, 0.8, 0.3))
+		return
 	if "heal" in a:
 		# The Hydra's heal (her Heal sheet, facing the camera); any other
 		# healer only flashes green.
@@ -1059,6 +1065,31 @@ func sweep_vortex(her: Vector3, victim: Vector3, action: String) -> float:
 		bolts.append(bolt)
 	vp.setup(bolts, total)
 	return vp.total_time()
+
+
+## A leap the enemy has already made (the Magma Spider's Fire Bounce: it
+## lands at once, for the board's sake): the figure is drawn back at `from`
+## (global) and carried to its new square through the action sheet's
+## airborne frames (the kind's "leap": [last frame on the ground at take-off,
+## last frame in the air]) — its feet leave the take-off square's burst and
+## come down in the landing's. Returns the seconds until it lands.
+func leap_from(from: Vector3, action: String) -> float:
+	var cfg: Dictionary = KINDS.get(figure_kind, {})
+	var leap: Array = cfg.get("leap", {}).get(action, [])
+	var sheet: String = cfg.get("action_sheets", {}).get(action, "")
+	if leap.size() < 2 or sheet == "" or _cp_anim != sheet:
+		return 0.0
+	var fps: float = _cp_fps.get(sheet, 8.0)
+	var lift_off := maxf(0.0, (float(leap[0]) + 1.0 - float(_cp_frame)) / fps - _cp_clock)
+	var air := (float(leap[1]) - float(leap[0])) / fps
+	var rest := position
+	position = rest + Vector3(from.x - global_position.x, 0.0, from.z - global_position.z)
+	if _leap_tween:
+		_leap_tween.kill()
+	_leap_tween = create_tween()
+	_leap_tween.tween_interval(lift_off)
+	_leap_tween.tween_property(self, "position", rest, air).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	return lift_off + air
 
 
 ## A strip's square cell side: one row unless `frames` (a long strip packed

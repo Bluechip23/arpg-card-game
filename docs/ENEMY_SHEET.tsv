@@ -47,7 +47,7 @@ Ash Harpy	Trash	1	Act 2 — Underworld	6	0	1	1				Peck - 3 damage. Range 4 but t
 Cherub	Trash	4	Act 3 — Heavens	14	5	2	3				Loves arrow -  2 damage, Cherub can not be attacked by the player directly (can still take poison AOE damage etc) for 5 tempo	First time player enters Cherubs 4 range, from there it is a 10 tempo attack
 Coyote	Trash	1	Act 1 — Forest	6	0	4	3				Nip — 2 dmg	4
 Fire Goblin Soldier	Trash	2	Act 1 — Cave	6	0	4	2				Attack — 2 dmg	3
-Magma Spider	Trash	1	Act 2 — Underworld	4	0	0	0				Fire web - create a web of fire on the ground, while in it, the player is slowed and takes 1 damage ever 3 tempo
+Magma Spider	Trash	1	Act 2 — Underworld	4	0	0	0				Fire web - create a web of fire on the ground, while in it, the player is slowed and takes 1 damage ever 3 tempo. Range 3.		Fire bounce - Spider jumps 4 paces away from the enemy leaving a tile of fire from where it jumps to where it lands for 3 tempo	
 Mind Eater	Trash	3	Act 2 — Underworld	20	0	0	0				Mind Slow - Increase the mana cost of all cards in the players hand by 20	10	Manipulate mind space - cuff the player for 15 tempo	8
 Mini Bear	Trash	3	Act 1 — Forest	14	0	5	5				Attack — 4 dmg	3							Pack: +2 dmg when a packmate in sight is hurt
 Pipe Crawler	Trash	2	Act 1 — Sewer	20	0	2	2				Claw — 5 dmg, 25% chance to Disarm (5 tempo)	5							Disruptor: claw can knock your weapon loose

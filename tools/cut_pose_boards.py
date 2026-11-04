@@ -1353,6 +1353,160 @@ BOARDS = {
             "left": (34, 617, 576, 1115),
             "right": (661, 617, 1212, 1115),
         },
+        # 2026-11-04: the designer's throw board — sludge_throw_board.webp,
+        # four labelled rows on black (NORTH: the face, SOUTH: the back,
+        # WEST, EAST), eight frames a row: holding the ball of slime up (its
+        # Idle), drawing it back, coiling, swinging, the throw, the follow-
+        # through as the ball flies off (the board draws it flying across
+        # the next frames' boxes), lowering its arm, at rest. Frames 2-8 are
+        # Throw.png, for its Spit; the ball in flight is its own sprite
+        # (sludge_ball). The row is split at the frames' contacts (`split`),
+        # the thrown balls seeded to go with what lies nearest them
+        # (`discard`); the first frame (the ball held, as its Idle) is the
+        # height reference.
+        "actions": {
+            "src": "sludge_throw_board.webp",
+            "levels": (8, 40, 12),   # its dark shading runs just above the backdrop's 0
+            "fill_holes": 8,
+            "open_dark": True,
+            "keep_share": 0.2,       # a drop of slime falls away; the ball's own drips with it
+            "glow": False,
+            "split": True,
+            "isolate_floor": 16,
+            "discard": {"back": [(1155, 232), (1372, 222)],
+                        "left": [(989, 491), (1200, 487)],
+                        "right": [(1202, 706), (1424, 710)]},
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (110, 5, 316, 208),
+                    "lift": (316, 5, 536, 208),
+                    "coil": (536, 5, 765, 208),
+                    "swing": (765, 5, 996, 208),
+                    "throw": ("same", "swing"),   # its ball is painted over its puddle and cannot be parted from it: the swing held
+                    "follow": (1222, 5, 1436, 208),
+                    "lower": (1436, 5, 1623, 208),
+                    "rest": (1623, 5, 1774, 208),
+                },
+                "back": {
+                    "stance": (110, 208, 313, 405),
+                    "lift": (313, 208, 542, 405),
+                    "coil": (542, 208, 769, 405),
+                    "swing": (769, 208, 993, 405),
+                    "throw": (993, 208, 1210, 405),
+                    "follow": (1210, 208, 1420, 405),
+                    "lower": (1420, 208, 1616, 405),
+                    "rest": (1616, 208, 1774, 405),
+                },
+                "left": {
+                    "stance": (110, 410, 317, 628),
+                    "lift": (317, 410, 530, 628),
+                    "coil": (530, 410, 751, 628),
+                    "swing": (751, 410, 992, 628),
+                    "throw": (992, 410, 1215, 628),
+                    "follow": (1215, 410, 1429, 628),
+                    "lower": (1429, 410, 1619, 628),
+                    "rest": (1619, 410, 1774, 628),
+                },
+                "right": {
+                    "stance": (110, 632, 303, 850),
+                    "lift": (303, 632, 527, 850),
+                    "coil": (527, 632, 759, 850),
+                    "swing": (759, 632, 988, 850),
+                    "throw": (988, 632, 1195, 850),
+                    "follow": (1195, 632, 1413, 850),
+                    "lower": (1413, 632, 1612, 850),
+                    "rest": (1612, 632, 1774, 850),
+                },
+            },
+            "sheets": {
+                "Throw": ["lift", "coil", "swing", "throw", "follow", "lower", "rest"],
+            },
+        },
+    },
+    "sludge_hammer": {
+        # 2026-11-04: the Sludge Being's melee — sludge_hammer_board.webp,
+        # "SLUDGE HAMMER ATTACK (MELEE)", four labelled rows in framed
+        # panels on black (NORTH: the face, SOUTH: the back, WEST, EAST),
+        # eight numbered frames a row: the ball held up (its Idle), the ball
+        # swelling, morphing into a hammer of slime, raised, swung (motion
+        # arcs), brought down, the smash in a splash of slime, and at rest
+        # with the hammer melted back. Frames 2-8 are Attack.png, packed into
+        # its folder, for its melee; the arcs and the splash are pieces apart
+        # from it and kept. The boxes stay inside the panel lines and below
+        # the column numbers; the bright rows between frames are its
+        # puddles lining up, not lines.
+        "into": "sludge",
+        "actions": {
+            "src": "sludge_hammer_board.webp",
+            "levels": (8, 40, 12),
+            "fill_holes": 8,
+            "open_dark": True,
+            "keep_share": 0.03,      # the swing's arcs, the splash
+            "glow": False,
+            "isolate": True,
+            "isolate_floor": 16,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (105, 70, 279, 294),
+                    "morph": (279, 70, 451, 294),
+                    "raise": (451, 70, 624, 294),
+                    "hammer": (624, 70, 797, 294),
+                    "swing": (797, 70, 982, 294),
+                    "smash": (982, 70, 1158, 294),
+                    "splash": (1158, 70, 1341, 294),
+                    "rest": (1341, 70, 1510, 294),
+                },
+                "back": {
+                    "stance": (115, 302, 282, 527),
+                    "morph": (282, 302, 454, 527),
+                    "raise": (454, 302, 637, 527),
+                    "hammer": (637, 302, 813, 527),
+                    "swing": (813, 302, 990, 527),
+                    "smash": (990, 302, 1165, 527),
+                    "splash": (1165, 302, 1353, 527),
+                    "rest": (1353, 302, 1522, 527),
+                },
+                "left": {
+                    "stance": (102, 535, 282, 743),
+                    "morph": (282, 535, 453, 743),
+                    "raise": (453, 535, 623, 743),
+                    "hammer": (623, 535, 798, 743),
+                    "swing": (798, 535, 985, 743),
+                    "smash": (985, 535, 1156, 743),
+                    "splash": (1156, 535, 1346, 743),
+                    "rest": (1346, 535, 1516, 743),
+                },
+                "right": {
+                    "stance": (107, 752, 281, 977),
+                    "morph": (281, 752, 449, 977),
+                    "raise": (449, 752, 633, 977),
+                    "hammer": (633, 752, 809, 977),
+                    "swing": (809, 752, 992, 977),
+                    "smash": (992, 752, 1161, 977),
+                    "splash": (1161, 752, 1349, 977),
+                    "rest": (1349, 752, 1524, 977),
+                },
+            },
+            "sheets": {
+                "Attack": ["morph", "raise", "hammer", "swing", "smash", "splash", "rest"],
+            },
+        },
+    },
+    "sludge_ball": {
+        # The ball of slime in flight: the East row's ball as it leaves the
+        # hand, flying right, cut by brightness with soft alpha. Ball.png in
+        # its folder; its Spit throws it at its prey (ThrownSprite),
+        # mirrored when it flies left. As big as the ball it holds.
+        "into": "sludge",
+        "strip": {
+            "src": "sludge_throw_board.webp",
+            "bg": "black_key",
+            "sheet": "Ball",
+            "width_tiles": 0.55,
+            "frames": [(1172, 682, 1234, 731)],
+        },
     },
     "fire_goblin_mage": {
         # 2026-10-25: the Goblin Fire Mage — a goblin in a ragged black-and-
@@ -1795,6 +1949,103 @@ BOARDS = {
             },
         },
     },
+    "magma_spider_web": {
+        # 2026-11-04: the Magma Spider's Fire Web — magma_spider_web_board.webp,
+        # "FIRE-WEB SHOOTING ATTACK", four labelled rows on black (NORTH: the
+        # face, SOUTH: the back, WEST, EAST), eight numbered frames a row:
+        # the stance, rearing, drawing back, aiming, spitting a glob of fire
+        # (still strung to its jaws), and the recoil while the glob flies
+        # off (the board draws it flying away across the next frames, into
+        # their boxes). Frames 2-8 are Cast.png, packed into its folder; the
+        # glob that flies off is its own sprite (magma_spider_glob), sent to
+        # its prey. Each row is split at the contacts between neighbours
+        # (`split`: a glob touches the next frame's spider), and only pieces
+        # near the spider's size are kept (`keep_share`): a loose glob falls
+        # away.
+        "into": "magma_spider",
+        "actions": {
+            "src": "magma_spider_web_board.webp",
+            "levels": (6, 35, 10),   # its black rock runs just above the backdrop's 0
+            "fill_holes": 6,
+            "open_dark": True,
+            "keep_share": 0.2,       # a detached leg, not a flying glob (a tenth of the spider)
+            "glow": False,
+            "split": True,           # its globs touch the next frame's spider: parted at the contact
+            # The painted globs (the flying one is its own sprite): dropped
+            # with whatever lies nearer them than a spider (a strand parts
+            # half way).
+            # The spit frame's glob, still strung to its jaws, is kept on the
+            # front and back rows (the flying glob leaves from there); the
+            # side rows shoot it backward out of the abdomen, away from where
+            # it faces, so theirs go and the flying glob leaves its head.
+            "discard": {"front": [(1020, 234), (1190, 247)],
+                        "back": [(1022, 327), (1191, 319), (1356, 312)],
+                        "left": [(766, 673), (907, 682), (1074, 691), (1257, 703)],
+                        "right": [(766, 916), (944, 918), (1122, 932), (1281, 942)]},
+            "isolate_floor": 14,
+            "match": "stance",
+            "match_scale": {"left": 1.0, "right": 1.0},
+            "frames": {
+                "front": {
+                    "stance": (110, 62, 273, 250),
+                    "rear": (273, 62, 440, 250),
+                    "draw": (440, 62, 605, 250),
+                    "aim": (605, 62, 770, 250),
+                    "spit": (770, 62, 936, 250),
+                    "flick": (936, 62, 1105, 250),
+                    "recoil": (1105, 62, 1273, 250),
+                    "back": (1273, 62, 1440, 250),
+                },
+                "back": {
+                    "stance": (110, 296, 273, 500),
+                    "rear": (273, 296, 440, 500),
+                    "draw": (440, 296, 605, 500),
+                    "aim": (605, 296, 770, 500),
+                    "spit": (770, 296, 936, 500),
+                    "flick": (936, 296, 1105, 500),
+                    "recoil": (1105, 296, 1273, 500),
+                    "back": (1273, 296, 1440, 500),
+                },
+                "left": {
+                    "stance": (110, 585, 273, 726),
+                    "rear": (273, 585, 440, 726),
+                    "draw": (440, 585, 605, 726),
+                    "aim": (605, 585, 770, 726),
+                    "spit": (770, 585, 936, 726),
+                    "flick": (936, 585, 1105, 726),
+                    "recoil": (1105, 585, 1273, 726),
+                    "back": (1273, 585, 1440, 726),
+                },
+                "right": {
+                    "stance": (110, 825, 273, 966),
+                    "rear": (273, 825, 440, 966),
+                    "draw": (440, 825, 605, 966),
+                    "aim": (605, 825, 770, 966),
+                    "spit": (770, 825, 936, 966),
+                    "flick": (936, 825, 1105, 966),
+                    "recoil": (1105, 825, 1273, 966),
+                    "back": (1273, 825, 1440, 966),
+                },
+            },
+            "sheets": {
+                "Cast": ["rear", "draw", "aim", "spit", "flick", "recoil", "back"],
+            },
+        },
+    },
+    "magma_spider_glob": {
+        # The glob of fire-web in flight: the East row's last glob on the
+        # same board, flying right with its trail, cut by brightness with
+        # soft alpha. Glob.png in its folder; its Fire Web sends it to its
+        # prey (ThrownSprite), mirrored when it flies left. 0.55 tiles, glob and trail.
+        "into": "magma_spider",
+        "strip": {
+            "src": "magma_spider_web_board.webp",
+            "bg": "black_key",
+            "sheet": "Glob",
+            "width_tiles": 0.55,
+            "frames": [(1236, 920, 1306, 964)],
+        },
+    },
     "wolf": {
         # 2026-10-31: the Wolf's bite — wolf_bite_board.webp, four labelled
         # rows on black (Up: from behind, Down: facing the camera, Left,
@@ -2199,6 +2450,77 @@ BOARDS = {
             "back": (540, 100, 1003, 452),
             "left": (539, 544, 1007, 866),    # the board's "EAST (RIGHT)"
             "right": (23, 544, 499, 866),     # the board's "WEST (LEFT)"
+        },
+        # 2026-11-04: the designer's Fire Bounce board — magma_spider_bounce_board.webp,
+        # cut out (transparent), four labelled rows (NORTH: the face, SOUTH:
+        # the back, WEST, EAST) under numbered columns, ten frames a row: the
+        # stance, a crouch, a burst of fire under it as it springs, lifting
+        # off, high in the air, coming down, landing in a burst of fire, the
+        # flare dying, settling, the stance. Frames 2-10 are Bounce.png, for
+        # its Fire Bounce: it leaps between its take-off and landing squares
+        # through the airborne frames (SpriteEnemyFigure.leap_from). Each row
+        # is split along the narrowest contact between neighbours
+        # (`alpha_split`), and every frame keeps its height above the ground
+        # (`keep_ground`): the airborne frames stay in the air, the bursts
+        # reach below its feet.
+        "actions": {
+            "src": "magma_spider_bounce_board.webp",
+            "bg": "alpha_split",
+            "keep_ground": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (88, 33, 196, 205),
+                    "crouch": (196, 33, 303, 205),
+                    "burst": (303, 33, 408, 205),
+                    "lift": (408, 33, 513, 205),
+                    "rise": (513, 33, 617, 205),
+                    "fall": (617, 33, 722, 205),
+                    "land": (722, 33, 826, 205),
+                    "flare": (826, 33, 929, 205),
+                    "settle": (929, 33, 1029, 205),
+                    "back": (1029, 33, 1125, 205),
+                },
+                "back": {
+                    "stance": (88, 205, 196, 395),
+                    "crouch": (196, 205, 303, 395),
+                    "burst": (303, 205, 408, 395),
+                    "lift": (408, 205, 513, 395),
+                    "rise": (513, 205, 617, 395),
+                    "fall": (617, 205, 722, 395),
+                    "land": (722, 205, 826, 395),
+                    "flare": (826, 205, 929, 395),
+                    "settle": (929, 205, 1029, 395),
+                    "back": (1029, 205, 1125, 395),
+                },
+                "left": {
+                    "stance": (88, 395, 196, 585),
+                    "crouch": (196, 395, 303, 585),
+                    "burst": (303, 395, 408, 585),
+                    "lift": (408, 395, 513, 585),
+                    "rise": (513, 395, 617, 585),
+                    "fall": (617, 395, 722, 585),
+                    "land": (722, 395, 826, 585),
+                    "flare": (826, 395, 929, 585),
+                    "settle": (929, 395, 1029, 585),
+                    "back": (1029, 395, 1125, 585),
+                },
+                "right": {
+                    "stance": (88, 585, 196, 775),
+                    "crouch": (196, 585, 303, 775),
+                    "burst": (303, 585, 408, 775),
+                    "lift": (408, 585, 513, 775),
+                    "rise": (513, 585, 617, 775),
+                    "fall": (617, 585, 722, 775),
+                    "land": (722, 585, 826, 775),
+                    "flare": (826, 585, 929, 775),
+                    "settle": (929, 585, 1029, 775),
+                    "back": (1029, 585, 1125, 775),
+                },
+            },
+            "sheets": {
+                "Bounce": ["crouch", "burst", "lift", "rise", "fall", "land", "flare", "settle", "back"],
+            },
         },
     },
     "treasure_bunny": {
@@ -3753,6 +4075,7 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
         return np.isin(sub, away)
 
     split_cache = {}
+    bottoms = {}
 
     def alpha_split(d: str, box) -> Image.Image:
         """`bg: "alpha_split"`: a board that came cut out (its own alpha), its
@@ -3769,15 +4092,36 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
             y0, y1 = box[1], box[3]
             X0, X1 = min(b[0] for b in row), max(b[2] for b in row)
             reg = rgba[y0:y1, X0:X1]
-            solid = reg[..., 3] >= 128
+            if act.get("bg") == "alpha_split":
+                solid = reg[..., 3] >= 128
+            else:
+                # `split` on a board on black: what is lit is solid (the
+                # Magma Spider's web board, its globs touching the next
+                # frame's spider).
+                floor = act.get("isolate_floor", (act.get("levels") or (BLACK_FLOOR,))[0])
+                solid = reg[..., :3].max(axis=2) > floor
             h, w = solid.shape
             lab = np.full((h, w), -1, np.int32)
             q = deque()
+            # `discard`: points on the board (the Magma Spider's painted
+            # globs) that seed a label of their own; what is nearer them than
+            # any frame's body goes with them and is dropped.
+            for gx, gy in act.get("discard", {}).get(d, ()):
+                if y0 <= gy < y1 and X0 <= gx < X1:
+                    for yy in range(max(0, gy - y0 - 4), min(h, gy - y0 + 5)):
+                        for xx in range(max(0, gx - X0 - 4), min(w, gx - X0 + 5)):
+                            if solid[yy, xx] and lab[yy, xx] < 0:
+                                lab[yy, xx] = len(row)
+                                q.append((yy, xx))
+            near_glob = np.zeros((h, w), bool)   # body seeds stay clear of a discard point
+            for gx, gy in act.get("discard", {}).get(d, ()):
+                yy0, xx0 = gy - y0, gx - X0
+                near_glob[max(0, yy0 - 20):max(0, yy0 + 21), max(0, xx0 - 20):max(0, xx0 + 21)] = True
             for j, b in enumerate(row):
                 cx = (b[0] + b[2]) // 2 - X0
                 for x in range(max(0, cx - 6), min(w, cx + 7)):
                     for y in np.nonzero(solid[:, x])[0]:
-                        if lab[y, x] < 0:
+                        if lab[y, x] < 0 and not near_glob[y, x]:
                             lab[y, x] = j
                             q.append((y, x))
             while q:
@@ -3803,6 +4147,16 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
         img = reg.copy()
         img[..., 3] = np.where(lab == j, img[..., 3], 0)
         ys, xs = np.nonzero(img[..., 3] > 0)
+        # Its lowest solid row on the board (`keep_ground` measures heights
+        # against it).
+        solid_ys = np.nonzero(img[..., 3] >= 128)[0]
+        bottom = int(solid_ys.max() if len(solid_ys) else ys.max())
+        bottoms[(d, box)] = box[1] + bottom
+        if act.get("keep_ground"):
+            # Heights are measured from the lowest solid row: the faint
+            # painted shadow below it would stand the frame on the shadow,
+            # lifting it (the game draws its own shadow).
+            return Image.fromarray(img[ys.min():bottom + 1, xs.min():xs.max() + 1], "RGBA")
         return Image.fromarray(img[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
 
     out = {}
@@ -3826,7 +4180,17 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
                 out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
                 continue
             rgb = np.asarray(board(d).crop(box).convert("RGB")).astype(int)
-            if act.get("isolate") and (d, pose) not in act.get("isolate_skip", ()):
+            if act.get("split"):
+                # Each pixel to the frame whose body it is nearest through
+                # the lit pixels: touching frames part at their narrowest
+                # contact (see alpha_split, which does the same on alpha).
+                part = np.asarray(alpha_split(d, box))
+                key = (act["src"][d] if isinstance(act["src"], dict) else act["src"], box[1], box[3])
+                reg, lab, X0, row = split_cache[key]
+                j = row.index(box)
+                mine = lab[:, box[0] - X0:box[2] - X0] == j
+                rgb[~mine] = 0
+            elif act.get("isolate") and (d, pose) not in act.get("isolate_skip", ()):
                 rgb[others(d, box)] = 0
             img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
                                   act.get("keep_share", 0.0), act.get("fill_holes", False), act.get("levels"),
@@ -3836,6 +4200,29 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
             out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
         for pose, other in again:
             out[d][pose] = out[d][other]
+        if act.get("keep_ground"):
+            # A jump (the Magma Spider's Fire Bounce): every frame keeps its
+            # height above the ground line — the match pose's lowest solid
+            # row — instead of standing on it: an airborne frame is padded
+            # down to the line, and how far a frame reaches below it (a fire
+            # burst at the feet) is kept for the packing (act["_drops"]).
+            line = bottoms[(d, poses[act.get("match", "recover") if isinstance(act.get("match"), str) else act["match"][d]])]
+            act.setdefault("_drops", {})
+            for pose, spec in poses.items():
+                if spec[0] in ("same", "mirror") or (d, spec) not in bottoms:
+                    continue
+                img = out[d][pose]
+                lowest = bottoms[(d, spec)]
+                # the image's bottom edge on the board: its soft fringe may
+                # run a little below the lowest solid row
+                below = max(0, lowest - line)
+                gap = max(0, line - lowest)
+                if gap:
+                    pad = Image.new("RGBA", (img.width, img.height + gap))
+                    pad.paste(img, (0, 0))
+                    out[d][pose] = pad
+                act["_drops"][(d, pose)] = below
+                act.setdefault("_air", {})[(d, pose)] = gap
     return out
 
 
@@ -3857,6 +4244,9 @@ def cut_actions(name: str, cfg: dict, full: dict) -> dict:
         for pose, f in fs.items():
             size = (max(1, round(f.width * k)), max(1, round(f.height * k)))
             fs[pose] = f.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")
+            if (d, pose) in cfg["actions"].get("_drops", {}):
+                cfg["actions"]["_drops"][(d, pose)] *= k   # full size, as the Idle
+                cfg["actions"]["_air"][(d, pose)] *= k
     # Only the poses a sheet plays are packed (a height reference is not).
     used = _used_poses(cfg)
     return {d: {p: f for p, f in fs.items() if p in used} for d, fs in out.items()}
@@ -4028,6 +4418,38 @@ def build_strip(name: str, cfg: dict) -> None:
         print("%-13s %s: %d frames (%d row(s) of %d), %d-px cells into %s" % (name, kind, len(fs), len(grid), cols, cell, cfg["into"]))
 
 
+def _pad_bottom(img: Image.Image, n: int) -> Image.Image:
+    if n <= 0:
+        return img
+    out = Image.new("RGBA", (img.width, img.height + n))
+    out.paste(img, (0, 0))
+    return out
+
+
+def _keep_ground(cfg: dict, still: dict, act_frames: dict, factor: float, trimmed: bool = False) -> None:
+    """`keep_ground` actions (see cut_action_frames): every sheet gets the
+    same room under the ground line, as deep as the lowest-reaching frame
+    (a fire burst at the spider's feet), so frames reaching below it are
+    not lifted onto it and the Idle's feet stay on the same line. Airborne
+    frames were padded down to the line at full size; `trimmed` (the smooth
+    look trims its frames) pads them again here, from what was cut away."""
+    act = cfg.get("actions", {})
+    drops = act.get("_drops")
+    if not act.get("keep_ground") or not drops:
+        return
+    deepest = max(drops.values()) / factor
+    for fs in still.values():
+        for d in list(fs.keys()):
+            fs[d] = _pad_bottom(fs[d], round(deepest))
+    for d, fs in act_frames.items():
+        for p in list(fs.keys()):
+            below = drops.get((d, p), 0.0) / factor
+            pad = deepest - below
+            if trimmed:
+                pad += act.get("_air", {}).get((d, p), 0.0) / factor
+            fs[p] = _pad_bottom(fs[p], round(pad))
+
+
 def build(name: str, cfg: dict) -> None:
     if "strip" in cfg:
         build_strip(name, cfg)
@@ -4114,6 +4536,7 @@ def build(name: str, cfg: dict) -> None:
     factor = full["Idle"]["front"].height / float(round(cfg["tiles"] * DENSITY))
     small = {a: {d: shrink(f, factor) for d, f in fs.items()} for a, fs in full.items()}
     small_act = {d: {p: shrink(f, factor) for p, f in fs.items()} for d, fs in actions.items()}
+    _keep_ground(cfg, small, small_act, factor)
     cell = max(max(f.width, f.height) for fs in list(small.values()) + list(small_act.values()) for f in fs.values()) + 2
     os.makedirs(OUT % name, exist_ok=True)
     for anim, fs in small.items():
@@ -4127,6 +4550,7 @@ def build(name: str, cfg: dict) -> None:
     sfac = full["Idle"]["front"].height / float(round(cfg["tiles"] * smooth_art.SMOOTH_DENSITY))
     soft = {a: {d: smooth_art.trim(smooth_art.resample(f, sfac)) for d, f in fs.items()} for a, fs in full.items()}
     soft_act = {d: {p: smooth_art.trim(smooth_art.resample(f, sfac)) for p, f in fs.items()} for d, fs in actions.items()}
+    _keep_ground(cfg, soft, soft_act, sfac, trimmed=True)
     # SMOOTH_GUTTER empty rows under each pose: the smooth sheets are drawn
     # with mipmaps, and a pose standing on its cell's bottom edge bled into the
     # top of the row below (a faint mark over Olorin's hat, 2026-10-28). The
