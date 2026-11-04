@@ -1702,6 +1702,8 @@ func _setup_action_buttons() -> void:
 
 #endregion
 #region TICK BAR & ACTION QUEUE
+const TICK_SPEED_ROW_H := 20.0  # the speed row (the pause sign is the tallest, 19) plus the 1px separation
+
 func _setup_tick_bar() -> void:
 	## Build the 20-tick global tempo bar centered at the top of the screen,
 	## framed like a little bookshelf (dark walnut box, gold trim, and a shelf
@@ -1719,7 +1721,7 @@ func _setup_tick_bar() -> void:
 	frame.grow_vertical = Control.GROW_DIRECTION_END
 	frame.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	frame.offset_left = 0.0
-	frame.offset_top = 32.0
+	frame.offset_top = 32.0 - TICK_SPEED_ROW_H  # the speed row above the ticks; ticks stay put
 	frame.offset_right = 0.0
 	frame.offset_bottom = 0.0
 	var frame_style := StyleBoxFlat.new()
@@ -1739,6 +1741,15 @@ func _setup_tick_bar() -> void:
 	tick_container.name = "TickBarContainer"
 	tick_container.add_theme_constant_override("separation", 1)
 	frame.add_child(tick_container)
+
+	# Speed tiers and pause sit on their own row ABOVE the ticks (designer,
+	# 2026-11-04); the frame starts higher by that row so the ticks
+	# themselves stay where they were.
+	var speed_row := HBoxContainer.new()
+	speed_row.name = "TickSpeedRow"
+	speed_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	speed_row.add_theme_constant_override("separation", 4)
+	tick_container.add_child(speed_row)
 
 	# Card name label
 	_tick_bar_card_name_label = Label.new()
@@ -1805,12 +1816,9 @@ func _setup_tick_bar() -> void:
 	_queue_toggle_btn.process_mode = Node.PROCESS_MODE_ALWAYS
 	label_row.add_child(_queue_toggle_btn)
 
-	# Speed tiers live on the counter itself: tap an arrow to change the tick
+	# Speed tiers on the row above the ticks: tap an arrow to change the tick
 	# speed in real time. ▶ is normal; more forward arrows are faster, rewind
 	# arrows slower.
-	var speed_gap := Control.new()
-	speed_gap.custom_minimum_size.x = 10
-	label_row.add_child(speed_gap)
 	_tick_speed_buttons.clear()
 	for tier in TICK_SPEED_TIERS:
 		var sbtn := Button.new()
@@ -1820,12 +1828,12 @@ func _setup_tick_bar() -> void:
 		sbtn.custom_minimum_size = Vector2(24, 16)
 		sbtn.add_theme_font_size_override("font_size", 10)
 		sbtn.pressed.connect(_on_tick_speed_changed.bind(float(tier["secs"])))
-		label_row.add_child(sbtn)
+		speed_row.add_child(sbtn)
 		_tick_speed_buttons.append(sbtn)
 		if is_equal_approx(float(tier["mult"]), 1.0):
 			# Pause sits right beside the normal-speed ▶ on the counter: a
 			# red stop sign that becomes a green play triangle while paused.
-			label_row.add_child(_build_pause_button())
+			speed_row.add_child(_build_pause_button())
 	_update_tick_speed_buttons()
 
 	# The dropdown itself: hangs below the tick bar, hidden until opened.
