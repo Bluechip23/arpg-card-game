@@ -3366,7 +3366,7 @@ func _run_action(action_name: String, move_target: Node3D) -> bool:
 		"sludge_melee":
 			return _try_elemental(move_target, attack_damage, "Sludge")
 		"sludge_spit":
-			return _try_elemental(move_target, attack_damage, "Spit")
+			return _try_sludge_spit(move_target)
 		"pipe_attack":
 			return _try_pipe_claw(move_target)
 		"croc_bite":
@@ -3579,6 +3579,16 @@ func _blind_player(player_node: Node3D, stacks: int = 1) -> void:
 
 ## Generic elemental strike: moves into range if needed, otherwise hits for `dmg`
 ## (using this enemy's damage_type) and applies any debuffs in `opts`.
+## The Sludge's Spit (range 6): it hurls the ball of slime it holds at its
+## prey (designer's throw board, 2026-11-04) — the ball flies there and the
+## tick clock waits for it. Out of range or disarmed, it moves instead.
+func _try_sludge_spit(target_node: Node3D) -> bool:
+	var thrown := not is_disarmed and is_instance_valid(target_node) and _in_attack_range(target_node)
+	var ok := _try_elemental(target_node, attack_damage, "Spit")
+	if thrown:
+		_throw_at(target_node, "sludge_spit")
+	return ok
+
 func _try_elemental(target_node: Node3D, dmg: int, label: String, opts := {}) -> bool:
 	if is_disarmed:
 		return _try_move(target_node)

@@ -1353,6 +1353,90 @@ BOARDS = {
             "left": (34, 617, 576, 1115),
             "right": (661, 617, 1212, 1115),
         },
+        # 2026-11-04: the designer's throw board — sludge_throw_board.webp,
+        # four labelled rows on black (NORTH: the face, SOUTH: the back,
+        # WEST, EAST), eight frames a row: holding the ball of slime up (its
+        # Idle), drawing it back, coiling, swinging, the throw, the follow-
+        # through as the ball flies off (the board draws it flying across
+        # the next frames' boxes), lowering its arm, at rest. Frames 2-8 are
+        # Throw.png, for its Spit; the ball in flight is its own sprite
+        # (sludge_ball). The row is split at the frames' contacts (`split`),
+        # the thrown balls seeded to go with what lies nearest them
+        # (`discard`); the first frame (the ball held, as its Idle) is the
+        # height reference.
+        "actions": {
+            "src": "sludge_throw_board.webp",
+            "levels": (8, 40, 12),   # its dark shading runs just above the backdrop's 0
+            "fill_holes": 8,
+            "open_dark": True,
+            "keep_share": 0.2,       # a drop of slime falls away; the ball's own drips with it
+            "glow": False,
+            "split": True,
+            "isolate_floor": 16,
+            "discard": {"back": [(1155, 232), (1372, 222)],
+                        "left": [(989, 491), (1200, 487)],
+                        "right": [(1202, 706), (1424, 710)]},
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (110, 5, 316, 208),
+                    "lift": (316, 5, 536, 208),
+                    "coil": (536, 5, 765, 208),
+                    "swing": (765, 5, 996, 208),
+                    "throw": ("same", "swing"),   # its ball is painted over its puddle and cannot be parted from it: the swing held
+                    "follow": (1222, 5, 1436, 208),
+                    "lower": (1436, 5, 1623, 208),
+                    "rest": (1623, 5, 1774, 208),
+                },
+                "back": {
+                    "stance": (110, 208, 313, 405),
+                    "lift": (313, 208, 542, 405),
+                    "coil": (542, 208, 769, 405),
+                    "swing": (769, 208, 993, 405),
+                    "throw": (993, 208, 1210, 405),
+                    "follow": (1210, 208, 1420, 405),
+                    "lower": (1420, 208, 1616, 405),
+                    "rest": (1616, 208, 1774, 405),
+                },
+                "left": {
+                    "stance": (110, 410, 317, 628),
+                    "lift": (317, 410, 530, 628),
+                    "coil": (530, 410, 751, 628),
+                    "swing": (751, 410, 992, 628),
+                    "throw": (992, 410, 1215, 628),
+                    "follow": (1215, 410, 1429, 628),
+                    "lower": (1429, 410, 1619, 628),
+                    "rest": (1619, 410, 1774, 628),
+                },
+                "right": {
+                    "stance": (110, 632, 303, 850),
+                    "lift": (303, 632, 527, 850),
+                    "coil": (527, 632, 759, 850),
+                    "swing": (759, 632, 988, 850),
+                    "throw": (988, 632, 1195, 850),
+                    "follow": (1195, 632, 1413, 850),
+                    "lower": (1413, 632, 1612, 850),
+                    "rest": (1612, 632, 1774, 850),
+                },
+            },
+            "sheets": {
+                "Throw": ["lift", "coil", "swing", "throw", "follow", "lower", "rest"],
+            },
+        },
+    },
+    "sludge_ball": {
+        # The ball of slime in flight: the East row's ball as it leaves the
+        # hand, flying right, cut by brightness with soft alpha. Ball.png in
+        # its folder; its Spit throws it at its prey (ThrownSprite),
+        # mirrored when it flies left. As big as the ball it holds.
+        "into": "sludge",
+        "strip": {
+            "src": "sludge_throw_board.webp",
+            "bg": "black_key",
+            "sheet": "Ball",
+            "width_tiles": 0.55,
+            "frames": [(1172, 682, 1234, 731)],
+        },
     },
     "fire_goblin_mage": {
         # 2026-10-25: the Goblin Fire Mage — a goblin in a ragged black-and-
