@@ -2344,17 +2344,39 @@ BOARDS = {
         },
     },
     "magma_spider_glob": {
-        # The glob of fire-web in flight: the East row's last glob on the
-        # same board, flying right with its trail, cut by brightness with
-        # soft alpha. Glob.png in its folder; its Fire Web sends it to its
-        # prey (ThrownSprite), mirrored when it flies left. 0.55 tiles, glob and trail.
+        # 2026-11-04: the Fire Web in flight and where it lands —
+        # magma_spider_web_strip.webp, twelve frames on black: a ball of
+        # webbing glowing with fire flying right, its trail streaming
+        # longer as it goes (1-5); the impact, a burst of fire (6); the web
+        # spreading out flat across the ground (7-12). Glob.png is the five
+        # flying frames, its Fire Web's projectile (ThrownSprite), mirrored
+        # when it flies left; the widest frame (ball and trail) 0.95 tiles.
         "into": "magma_spider",
         "strip": {
-            "src": "magma_spider_web_board.webp",
+            "src": "magma_spider_web_strip.webp",
             "bg": "black_key",
             "sheet": "Glob",
-            "width_tiles": 0.55,
-            "frames": [(1236, 920, 1306, 964)],
+            "width_tiles": 0.95,
+            "width_of": "max",
+            "align": "board",
+            "frames": [(18, 400, 90, 525), (90, 400, 199, 525), (199, 400, 323, 525), (323, 400, 452, 525), (452, 400, 583, 525)],
+        },
+    },
+    "magma_spider_webland": {
+        # The impact and the web spreading (the strip's frames 6-12):
+        # WebLand.png, laid on its prey's square as the ball lands
+        # (SpotEffect), its last frame — the full web — held on the ground
+        # for as long as the web lasts, in place of the fire walls' flames.
+        # The full web 3 tiles wide: the 3x3 it covers.
+        "into": "magma_spider",
+        "strip": {
+            "src": "magma_spider_web_strip.webp",
+            "bg": "black_key",
+            "sheet": "WebLand",
+            "width_tiles": 3.0,
+            "width_of": "max",
+            "align": "board",
+            "frames": [(583, 400, 708, 525), (708, 400, 831, 525), (831, 400, 967, 525), (967, 400, 1117, 525), (1117, 400, 1278, 525), (1278, 400, 1463, 525), (1463, 400, 1665, 525)],
         },
     },
     "wolf": {

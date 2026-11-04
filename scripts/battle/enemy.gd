@@ -5215,11 +5215,20 @@ func _try_fire_web(target_node: Node3D) -> bool:
 	# glob lands (the web itself is laid now: the tick clock waits for the
 	# glob, so no tempo passes before it lands).
 	var reveal := 0.0
+	var web_art: Array = []
 	if _enemy_figure and _enemy_figure.has_method("throw_projectile"):
 		reveal = _enemy_figure.throw_projectile(target_node.global_position, "fire_web")
-		if reveal > 0.0:
-			swing_started.emit(self, reveal)
-	main.register_fire_web(self, cells, reveal)
+		var done := reveal
+		# Where it lands: the impact and the web spreading out, its last
+		# frame held on the ground as the web for as long as the web lasts.
+		_enemy_figure.last_spot = null
+		var spread: float = _enemy_figure.spot_effect(grid_manager.grid_to_world(centre), "fire_web", reveal, true)
+		if spread > 0.0 and _enemy_figure.last_spot:
+			web_art.append(_enemy_figure.last_spot)
+			done = maxf(done, spread)
+		if done > 0.0:
+			swing_started.emit(self, done)
+	main.register_fire_web(self, cells, reveal, web_art)
 	print("[%s] Fire Web: the ground around it catches" % enemy_name)
 	turn_completed.emit()
 	return true

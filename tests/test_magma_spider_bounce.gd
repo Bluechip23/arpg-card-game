@@ -163,16 +163,29 @@ func _test_web(cell: Vector2i) -> void:
 	_check(globs.size() == 1 and globs[0]._to.distance_to(main.player.global_position) < 0.01, "to the player")
 	var web: Dictionary = main._fire_webs.back() if not main._fire_webs.is_empty() else {}
 	_check(not web.is_empty() and main.grid_manager.world_to_grid(main.player.position) in web["cells"], "the web is laid around the player at once")
+	_check(globs.size() == 1 and globs[0]._frames == 5, "the ball of webbing flies through its five frames (magma_spider_web_strip.webp)")
+	var art: Array = web.get("nodes", [])
+	_check(art.size() == 1 and art[0] is SpotEffect, "the web wears the designer's web, not the fire walls' flames")
+	if art.size() == 1 and art[0] is SpotEffect:
+		var sp: SpotEffect = art[0]
+		_check(sp._frames == 7 and sp._hold, "the impact and the web spreading, its last frame held (%d frames)" % sp._frames)
+		_check(is_equal_approx(sp._delay, globs[0].total_time()), "it starts as the ball lands (%.2f s)" % sp._delay)
+		_check(sp._sprite.position.y < CameraView.SPRITE_LIFT, "laid under whoever stands on it")
 	var hidden := true
 	for v in web.get("nodes", []):
-		if v.visible:
+		if (v._sprite.visible if v is SpotEffect else v.visible):
 			hidden = false
-	_check(hidden, "its flames hidden while the glob flies")
+	_check(hidden, "nothing on the ground while the ball flies")
 	_check(holds.size() >= 2 and holds.max() > release, "the clock waits for the glob (%s s)" % str(holds))
 	await create_timer(holds.max() + 0.2).timeout
 	var shown := true
 	for v in web.get("nodes", []):
-		if is_instance_valid(v) and not v.visible:
+		if is_instance_valid(v) and not (v._sprite.visible if v is SpotEffect else v.visible):
 			shown = false
-	_check(shown, "and they spring up as it lands")
-	main.enemy_spawner.despawn_enemy(s)
+	_check(shown, "and the web spreads as it lands")
+	await create_timer(1.0).timeout
+	_check(art.size() == 1 and is_instance_valid(art[0]) and art[0]._sprite.visible, "the web stays on the ground while it lasts")
+	s.die()
+	main.tempo_manager.add_tempo(1)
+	await _settle(2)
+	_check(art.is_empty() or not is_instance_valid(art[0]) or art[0].is_queued_for_deletion(), "and goes with the spider")

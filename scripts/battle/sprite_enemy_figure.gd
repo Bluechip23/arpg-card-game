@@ -149,7 +149,7 @@ const KINDS := {
 	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": BOARD_SCALE},
 	"roc": {"sheets": SHEETS + "/roc", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28); was the mountain-monster Bird, tinted
 	"ash_harpy": {"sheets": SHEETS + "/ash_harpy", "scale": BOARD_SCALE, "fps": {"Cast": 10.0}, "action_sheets": {"card_steal": "Cast"}, "vortex": {"card_steal": {"sheet": "Vortex", "lift": 0.9, "span": 0.96, "mid": 0.45, "thickness": 1.35, "frames": 77}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and her flap board and vortex strip (2026-11-04: Cast is three wing flaps; Vortex the wind that sweeps a card from the player back to her, played across the flaps); was the chaos-monster Icon22
-	"magma_spider": {"sheets": SHEETS + "/magma_spider", "scale": BOARD_SCALE, "fps": {"Bounce": 10.0, "Cast": 10.0}, "action_sheets": {"fire_bounce": "Bounce", "fire_web": "Cast"}, "leap": {"fire_bounce": [2, 4]}, "projectiles": {"fire_web": {"sheet": "Glob", "release": 4, "speed": 7.0, "fps": 12.0, "lift": 0.3, "ahead": 0.3}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and its Fire Bounce board (2026-11-04: Bounce is the crouch, the spring off a burst of fire, the leap carried across by leap_from, the landing in fire and the settle; and its Fire Web board, 2026-11-04: Cast is it rearing, aiming and spitting a glob of fire, Glob the glob in flight to its prey); was the Crypt Crawler's MonsterKit cell (3, 0), tinted
+	"magma_spider": {"sheets": SHEETS + "/magma_spider", "scale": BOARD_SCALE, "fps": {"Bounce": 10.0, "Cast": 10.0}, "action_sheets": {"fire_bounce": "Bounce", "fire_web": "Cast"}, "leap": {"fire_bounce": [2, 4]}, "projectiles": {"fire_web": {"sheet": "Glob", "release": 4, "speed": 7.0, "fps": 10.0, "lift": 0.3, "ahead": 0.3}}, "spots": {"fire_web": {"sheet": "WebLand", "fps": 12.0, "hang": 0.49, "ground": true}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and its Fire Bounce board (2026-11-04: Bounce is the crouch, the spring off a burst of fire, the leap carried across by leap_from, the landing in fire and the settle; and its Fire Web board, 2026-11-04: Cast is it rearing, aiming and spitting a glob of fire, Glob the ball of webbing in flight to its prey, WebLand its impact and the web spreading where it lands, held as the web); was the Crypt Crawler's MonsterKit cell (3, 0), tinted
 	# (Every roster kind now has a sprite; ART_TODO.md still tracks hand-drawn
 	# replacements for the generated first-pass battlers above.)
 	# --- NPC-pack humanoids (real 4-direction walk frames) ---
@@ -217,6 +217,7 @@ const PAINTED_SHADOW_KINDS := ["swarm", "sludge",
 
 var figure_kind := ""   # the KINDS entry this figure was set up as
 var smooth := false     # wearing the smooth (non-pixelated) sheets (ArtStyle)
+var last_spot: SpotEffect = null   # the effect spot_effect laid last
 var _leap_tween: Tween = null   # leap_from: the figure carried from its take-off square
 var _sheet_folder := ""  # the folder the sheets were loaded from (a thrown projectile's strip lives there)
 var _sprite: Sprite3D = null
@@ -1008,7 +1009,10 @@ func chain_arcs(points: Array, action: String) -> float:
 ## its pace is set so its frame `meet[0]` lands on the sheet's frame
 ## `meet[1]` (the rats appear as he points); `hang`: see SpotEffect.
 ## Returns the seconds from now until it is gone, 0 when the action has none.
-func spot_effect(at: Vector3, action: String) -> float:
+## `after` (>= 0): start that many seconds from now instead (the Magma
+## Spider's web, as its ball lands); `hold`: keep its last frame (see
+## SpotEffect). The effect is left in `last_spot`.
+func spot_effect(at: Vector3, action: String, after: float = -1.0, hold: bool = false) -> float:
 	var cfg: Dictionary = KINDS.get(figure_kind, {})
 	var spot: Dictionary = cfg.get("spots", {}).get(action, {})
 	var path := "%s/%s.png" % [_sheet_folder, spot.get("sheet", "")]
@@ -1019,15 +1023,20 @@ func spot_effect(at: Vector3, action: String) -> float:
 	var release_frame := float(spot.get("release", 0))
 	var meet: Array = spot.get("meet", [1, release_frame + 1.0])
 	var fps := sheet_fps * float(meet[0]) / maxf(0.5, float(meet[1]) - release_frame)
+	if spot.has("fps"):
+		fps = float(spot["fps"])
 	var delay := 0.0
 	if sheet != "" and _cp_anim == sheet:
 		delay = maxf(0.0, (release_frame - float(_cp_frame)) / sheet_fps - _cp_clock)
+	if after >= 0.0:
+		delay = after
 	var fx := SpotEffect.new()
 	var host: Node = get_parent().get_parent() if get_parent() and get_parent().get_parent() else get_parent()
 	host.add_child(fx)
 	var gutter := 8 if smooth else 0      # SMOOTH_GUTTER under the smooth strip's art
 	fx.launch(load(path), _sprite.pixel_size * _rig.scale.x, gutter, smooth, at, delay, fps,
-			float(spot.get("hang", 0.0)))
+			float(spot.get("hang", 0.0)), hold, bool(spot.get("ground", false)))
+	last_spot = fx
 	return fx.total_time()
 
 
