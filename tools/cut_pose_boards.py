@@ -2200,6 +2200,77 @@ BOARDS = {
             "left": (539, 544, 1007, 866),    # the board's "EAST (RIGHT)"
             "right": (23, 544, 499, 866),     # the board's "WEST (LEFT)"
         },
+        # 2026-11-04: the designer's Fire Bounce board — magma_spider_bounce_board.webp,
+        # cut out (transparent), four labelled rows (NORTH: the face, SOUTH:
+        # the back, WEST, EAST) under numbered columns, ten frames a row: the
+        # stance, a crouch, a burst of fire under it as it springs, lifting
+        # off, high in the air, coming down, landing in a burst of fire, the
+        # flare dying, settling, the stance. Frames 2-10 are Bounce.png, for
+        # its Fire Bounce: it leaps between its take-off and landing squares
+        # through the airborne frames (SpriteEnemyFigure.leap_from). Each row
+        # is split along the narrowest contact between neighbours
+        # (`alpha_split`), and every frame keeps its height above the ground
+        # (`keep_ground`): the airborne frames stay in the air, the bursts
+        # reach below its feet.
+        "actions": {
+            "src": "magma_spider_bounce_board.webp",
+            "bg": "alpha_split",
+            "keep_ground": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (88, 33, 196, 205),
+                    "crouch": (196, 33, 303, 205),
+                    "burst": (303, 33, 408, 205),
+                    "lift": (408, 33, 513, 205),
+                    "rise": (513, 33, 617, 205),
+                    "fall": (617, 33, 722, 205),
+                    "land": (722, 33, 826, 205),
+                    "flare": (826, 33, 929, 205),
+                    "settle": (929, 33, 1029, 205),
+                    "back": (1029, 33, 1125, 205),
+                },
+                "back": {
+                    "stance": (88, 205, 196, 395),
+                    "crouch": (196, 205, 303, 395),
+                    "burst": (303, 205, 408, 395),
+                    "lift": (408, 205, 513, 395),
+                    "rise": (513, 205, 617, 395),
+                    "fall": (617, 205, 722, 395),
+                    "land": (722, 205, 826, 395),
+                    "flare": (826, 205, 929, 395),
+                    "settle": (929, 205, 1029, 395),
+                    "back": (1029, 205, 1125, 395),
+                },
+                "left": {
+                    "stance": (88, 395, 196, 585),
+                    "crouch": (196, 395, 303, 585),
+                    "burst": (303, 395, 408, 585),
+                    "lift": (408, 395, 513, 585),
+                    "rise": (513, 395, 617, 585),
+                    "fall": (617, 395, 722, 585),
+                    "land": (722, 395, 826, 585),
+                    "flare": (826, 395, 929, 585),
+                    "settle": (929, 395, 1029, 585),
+                    "back": (1029, 395, 1125, 585),
+                },
+                "right": {
+                    "stance": (88, 585, 196, 775),
+                    "crouch": (196, 585, 303, 775),
+                    "burst": (303, 585, 408, 775),
+                    "lift": (408, 585, 513, 775),
+                    "rise": (513, 585, 617, 775),
+                    "fall": (617, 585, 722, 775),
+                    "land": (722, 585, 826, 775),
+                    "flare": (826, 585, 929, 775),
+                    "settle": (929, 585, 1029, 775),
+                    "back": (1029, 585, 1125, 775),
+                },
+            },
+            "sheets": {
+                "Bounce": ["crouch", "burst", "lift", "rise", "fall", "land", "flare", "settle", "back"],
+            },
+        },
     },
     "treasure_bunny": {
         # 2026-10-26: the Treasure Bunny (was the Wererabbit) — a golden,
@@ -3753,6 +3824,7 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
         return np.isin(sub, away)
 
     split_cache = {}
+    bottoms = {}
 
     def alpha_split(d: str, box) -> Image.Image:
         """`bg: "alpha_split"`: a board that came cut out (its own alpha), its
@@ -3803,6 +3875,16 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
         img = reg.copy()
         img[..., 3] = np.where(lab == j, img[..., 3], 0)
         ys, xs = np.nonzero(img[..., 3] > 0)
+        # Its lowest solid row on the board (`keep_ground` measures heights
+        # against it).
+        solid_ys = np.nonzero(img[..., 3] >= 128)[0]
+        bottom = int(solid_ys.max() if len(solid_ys) else ys.max())
+        bottoms[(d, box)] = box[1] + bottom
+        if act.get("keep_ground"):
+            # Heights are measured from the lowest solid row: the faint
+            # painted shadow below it would stand the frame on the shadow,
+            # lifting it (the game draws its own shadow).
+            return Image.fromarray(img[ys.min():bottom + 1, xs.min():xs.max() + 1], "RGBA")
         return Image.fromarray(img[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
 
     out = {}
@@ -3836,6 +3918,29 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
             out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
         for pose, other in again:
             out[d][pose] = out[d][other]
+        if act.get("keep_ground"):
+            # A jump (the Magma Spider's Fire Bounce): every frame keeps its
+            # height above the ground line — the match pose's lowest solid
+            # row — instead of standing on it: an airborne frame is padded
+            # down to the line, and how far a frame reaches below it (a fire
+            # burst at the feet) is kept for the packing (act["_drops"]).
+            line = bottoms[(d, poses[act.get("match", "recover") if isinstance(act.get("match"), str) else act["match"][d]])]
+            act.setdefault("_drops", {})
+            for pose, spec in poses.items():
+                if spec[0] in ("same", "mirror") or (d, spec) not in bottoms:
+                    continue
+                img = out[d][pose]
+                lowest = bottoms[(d, spec)]
+                # the image's bottom edge on the board: its soft fringe may
+                # run a little below the lowest solid row
+                below = max(0, lowest - line)
+                gap = max(0, line - lowest)
+                if gap:
+                    pad = Image.new("RGBA", (img.width, img.height + gap))
+                    pad.paste(img, (0, 0))
+                    out[d][pose] = pad
+                act["_drops"][(d, pose)] = below
+                act.setdefault("_air", {})[(d, pose)] = gap
     return out
 
 
@@ -3857,6 +3962,9 @@ def cut_actions(name: str, cfg: dict, full: dict) -> dict:
         for pose, f in fs.items():
             size = (max(1, round(f.width * k)), max(1, round(f.height * k)))
             fs[pose] = f.convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")
+            if (d, pose) in cfg["actions"].get("_drops", {}):
+                cfg["actions"]["_drops"][(d, pose)] *= k   # full size, as the Idle
+                cfg["actions"]["_air"][(d, pose)] *= k
     # Only the poses a sheet plays are packed (a height reference is not).
     used = _used_poses(cfg)
     return {d: {p: f for p, f in fs.items() if p in used} for d, fs in out.items()}
@@ -4028,6 +4136,38 @@ def build_strip(name: str, cfg: dict) -> None:
         print("%-13s %s: %d frames (%d row(s) of %d), %d-px cells into %s" % (name, kind, len(fs), len(grid), cols, cell, cfg["into"]))
 
 
+def _pad_bottom(img: Image.Image, n: int) -> Image.Image:
+    if n <= 0:
+        return img
+    out = Image.new("RGBA", (img.width, img.height + n))
+    out.paste(img, (0, 0))
+    return out
+
+
+def _keep_ground(cfg: dict, still: dict, act_frames: dict, factor: float, trimmed: bool = False) -> None:
+    """`keep_ground` actions (see cut_action_frames): every sheet gets the
+    same room under the ground line, as deep as the lowest-reaching frame
+    (a fire burst at the spider's feet), so frames reaching below it are
+    not lifted onto it and the Idle's feet stay on the same line. Airborne
+    frames were padded down to the line at full size; `trimmed` (the smooth
+    look trims its frames) pads them again here, from what was cut away."""
+    act = cfg.get("actions", {})
+    drops = act.get("_drops")
+    if not act.get("keep_ground") or not drops:
+        return
+    deepest = max(drops.values()) / factor
+    for fs in still.values():
+        for d in list(fs.keys()):
+            fs[d] = _pad_bottom(fs[d], round(deepest))
+    for d, fs in act_frames.items():
+        for p in list(fs.keys()):
+            below = drops.get((d, p), 0.0) / factor
+            pad = deepest - below
+            if trimmed:
+                pad += act.get("_air", {}).get((d, p), 0.0) / factor
+            fs[p] = _pad_bottom(fs[p], round(pad))
+
+
 def build(name: str, cfg: dict) -> None:
     if "strip" in cfg:
         build_strip(name, cfg)
@@ -4114,6 +4254,7 @@ def build(name: str, cfg: dict) -> None:
     factor = full["Idle"]["front"].height / float(round(cfg["tiles"] * DENSITY))
     small = {a: {d: shrink(f, factor) for d, f in fs.items()} for a, fs in full.items()}
     small_act = {d: {p: shrink(f, factor) for p, f in fs.items()} for d, fs in actions.items()}
+    _keep_ground(cfg, small, small_act, factor)
     cell = max(max(f.width, f.height) for fs in list(small.values()) + list(small_act.values()) for f in fs.values()) + 2
     os.makedirs(OUT % name, exist_ok=True)
     for anim, fs in small.items():
@@ -4127,6 +4268,7 @@ def build(name: str, cfg: dict) -> None:
     sfac = full["Idle"]["front"].height / float(round(cfg["tiles"] * smooth_art.SMOOTH_DENSITY))
     soft = {a: {d: smooth_art.trim(smooth_art.resample(f, sfac)) for d, f in fs.items()} for a, fs in full.items()}
     soft_act = {d: {p: smooth_art.trim(smooth_art.resample(f, sfac)) for p, f in fs.items()} for d, fs in actions.items()}
+    _keep_ground(cfg, soft, soft_act, sfac, trimmed=True)
     # SMOOTH_GUTTER empty rows under each pose: the smooth sheets are drawn
     # with mipmaps, and a pose standing on its cell's bottom edge bled into the
     # top of the row below (a faint mark over Olorin's hat, 2026-10-28). The

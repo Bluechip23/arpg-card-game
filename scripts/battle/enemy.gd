@@ -5163,7 +5163,17 @@ func _try_fire_bounce(target_node: Node3D) -> bool:
 		var c := grid_manager.world_to_grid(p)
 		if not c in tiles:
 			tiles.append(c)
+	var take_off := global_position
+	if _enemy_figure:
+		# It springs the way it is going (the board's leap runs forward).
+		var way: Vector3 = route.back() - position
+		_enemy_figure.set_facing_from_velocity(Vector3(way.x, 0, way.z))
+		_enemy_figure.play_action("fire_bounce")   # restart, facing the leap
 	_land_at(route.back())
+	# On the board it lands at once; the figure is carried there through
+	# its airborne frames.
+	if _enemy_figure and _enemy_figure.has_method("leap_from"):
+		_enemy_figure.leap_from(take_off, "fire_bounce")
 	var main := get_parent()
 	if main and main.has_method("register_fire_wall"):
 		# heal_source self with heal 0: no "wall of fire" log line, no healing.
