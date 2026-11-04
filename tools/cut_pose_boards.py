@@ -99,6 +99,9 @@ ROWS = ["front", "back", "left", "right"]
 # board draws her heads and her bulk in its own proportions, and losing
 # heads must make her shorter, not bigger. Set so her front stance's legs
 # and trunk match the full Hydra's (tools: measured on the cut sheets).
+# The Rat King's Infest board draws him squatter than his pose board does:
+# matched to his Idle by bulk (width), not height (2026-11-04).
+MATCH_SCALE_RK = {"front": 0.86, "back": 0.91, "left": 0.94, "right": 0.94}
 TILES_H5 = 1.7
 TILES_H3 = 1.7
 
@@ -1854,7 +1857,7 @@ BOARDS = {
             "match": "stance",
             # The board draws him squatter than his pose board does: matched
             # by bulk (width), not height, so the crouch doesn't swell him.
-            "match_scale": {"front": 0.86, "back": 0.91, "left": 0.94, "right": 0.94},
+            "match_scale": MATCH_SCALE_RK,
             "frames": {
                 "front": {
                     "stance": (102, 30, 253, 122),
@@ -1911,6 +1914,83 @@ BOARDS = {
             },
             "sheets": {
                 "Cast": ["crouch", "low", "glow", "rub", "rub2", "white", "point", "point2", "settle"],
+            },
+        },
+    },
+    "rat_king_bite": {
+        # 2026-11-04: the Rat King's bite — rat_king_bite_board.webp, "RAT
+        # KING - BITE ATTACK", four labelled rows on black (NORTH: the face,
+        # SOUTH: the back, WEST, EAST), ten frames a row: the stance, the
+        # jaws opening, a crouch, the lunge, the bite, the snap, pulling
+        # back, recovering, rising and the stance. Frames 2-9 are Attack.png
+        # (his Bite), cut like his Infest and packed into his folder; the
+        # first box starts below the title box's frame line, which his crown
+        # touches.
+        "into": "rat_king",
+        "actions": {
+            "src": "rat_king_bite_board.webp",
+            "levels": (4, 30, 6),
+            "fill_holes": 4,
+            "open_dark": True,
+            "glow": False,
+            "isolate": True,
+            "isolate_floor": 14,
+            "match": "stance",
+            # Its stance matched to his Idle by width (this board draws him
+            # nearer his pose board's proportions than the Infest board does).
+            "match_scale": {"front": 1.05, "back": 1.0, "left": 1.0, "right": 1.02},
+            "frames": {
+                "front": {
+                    "stance": (107, 37, 262, 170),
+                    "open": (303, 21, 447, 170),
+                    "crouch": (479, 29, 636, 170),
+                    "lunge": (654, 29, 820, 170),
+                    "bite": (838, 34, 1011, 170),
+                    "snap": (1032, 35, 1198, 170),
+                    "pull": (1216, 31, 1391, 170),
+                    "recover": (1410, 25, 1584, 170),
+                    "rise": (1608, 19, 1776, 170),
+                    "back": (1818, 15, 1980, 170),
+                },
+                "back": {
+                    "stance": (105, 171, 261, 326),
+                    "open": (291, 170, 448, 326),
+                    "crouch": (479, 174, 635, 326),
+                    "lunge": (660, 183, 825, 326),
+                    "bite": (843, 189, 1013, 326),
+                    "snap": (1034, 192, 1202, 326),
+                    "pull": (1229, 186, 1393, 326),
+                    "recover": (1425, 170, 1585, 326),
+                    "rise": (1619, 170, 1780, 326),
+                    "back": (1820, 170, 1977, 326),
+                },
+                "left": {
+                    "stance": (100, 335, 280, 460),
+                    "open": (280, 340, 464, 460),
+                    "crouch": (464, 344, 657, 460),
+                    "lunge": (657, 346, 836, 460),
+                    "bite": (836, 335, 1023, 460),
+                    "snap": (1023, 343, 1217, 460),
+                    "pull": (1217, 344, 1410, 460),
+                    "recover": (1410, 340, 1604, 460),
+                    "rise": (1604, 335, 1803, 460),
+                    "back": (1803, 336, 1988, 460),
+                },
+                "right": {
+                    "stance": (100, 486, 280, 619),
+                    "open": (280, 489, 468, 619),
+                    "crouch": (468, 491, 650, 619),
+                    "lunge": (650, 495, 835, 619),
+                    "bite": (835, 488, 1024, 619),
+                    "snap": (1024, 492, 1217, 619),
+                    "pull": (1217, 491, 1405, 619),
+                    "recover": (1405, 490, 1598, 619),
+                    "rise": (1598, 487, 1794, 619),
+                    "back": (1794, 487, 1988, 619),
+                },
+            },
+            "sheets": {
+                "Attack": ["open", "crouch", "lunge", "bite", "snap", "pull", "recover", "rise"],
             },
         },
     },

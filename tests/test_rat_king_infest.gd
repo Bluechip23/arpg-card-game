@@ -6,7 +6,8 @@ extends SceneTree
 ## rubbed together and the claw pointed with eyes gone white — four facing
 ## rows, at his drawn 10 fps slowed as every enemy swing is. Infest.png, the
 ## smoke-to-rats effect, plays on the victim's square (SpotEffect) from the
-## paw-rubbing, its rats appearing as he points.
+## paw-rubbing, its rats appearing as he points. His Bite plays Attack.png
+## (the designer's bite board), at his drawn 10 fps.
 ## Run: godot --headless --path . --script tests/test_rat_king_infest.gd
 
 var failures := 0
@@ -99,6 +100,17 @@ func _test_figure() -> void:
 	holder.add_child(other)
 	other.setup("zombie")
 	_check(other.spot_effect(at, "infest") == 0.0, "a kind with no effect lays none")
+	# His Bite (rat_king_bite_board.webp): Attack.png, eight frames.
+	fig.play_action("bite")
+	_check(fig._cp_anim == "Attack" and fig._cp_frame_count("Attack") == 8, "his Bite plays the bite: eight frames")
+	_check(fig._cp_sheets["Attack"].get_height() == 4 * cell, "in the four facing rows, the Idle sheet's cells")
+	_check(is_equal_approx(fig._cp_fps.get("Attack", 0.0), 10.0 / SpriteEnemyFigure.DRAWN_ATTACK_SLOW), "at his drawn 10 fps, slowed as every enemy swing is")
+	var bworst := 0.0
+	for row in range(4):
+		var bfeet: float = _feet(fig, "Idle", row, 0)
+		for col in range(8):
+			bworst = maxf(bworst, absf(_feet(fig, "Attack", row, col) - bfeet))
+	_check(bworst <= 3.0 * (2.0 if fig.smooth else 1.0), "his paws stay on the idle ground row through the bite (off by at most %.0f texels)" % bworst)
 	host.free()
 
 
@@ -131,4 +143,8 @@ func _test_enemy() -> void:
 	_check(fx.size() == 1 and fx[0].global_position.distance_to(main.player.global_position) < 0.01, "the smoke rises on the player's square")
 	_check(main.player.get_deck_manager().hand.size() > hand_before, "and the brood squirms into the hand")
 	_check(holds.size() >= 2 and holds[1] > 0.0, "the clock waits for the rats (%s s)" % str(holds))
+	k.position = main._ground_pos(cell + Vector2i(1, 0))
+	await _settle(2)
+	k._execute_action("bite", main.player)
+	_check(fig != null and fig._cp_anim == "Attack", "his Bite plays the bite (%s)" % (fig._cp_anim if fig else "no figure"))
 	main.enemy_spawner.despawn_enemy(k)
