@@ -1397,6 +1397,20 @@ BOARDS = {
             "frames": [(697, -4, 836, 114), (836, -4, 975, 114), (975, -4, 1115, 114), (1115, -4, 1254, 114), (1254, -4, 1393, 114), (1393, -4, 1533, 114), (1533, -4, 1672, 114), (0, 112, 139, 230), (139, 112, 279, 230), (279, 112, 418, 230), (418, 112, 557, 230), (557, 112, 697, 230), (697, 112, 836, 230), (836, 112, 975, 230), (975, 112, 1115, 230), (1115, 112, 1254, 230), (1254, 112, 1393, 230), (1393, 112, 1533, 230), (1533, 112, 1672, 230), (0, 231, 139, 349), (139, 231, 279, 349), (279, 231, 418, 349), (418, 231, 557, 349), (557, 231, 697, 349), (697, 231, 836, 349), (836, 231, 975, 349), (975, 231, 1115, 349), (1115, 231, 1254, 349), (1254, 231, 1393, 349), (1393, 231, 1533, 349), (1533, 231, 1672, 349), (0, 351, 139, 469), (139, 351, 279, 469), (279, 351, 418, 469), (418, 351, 557, 469), (557, 351, 697, 469), (697, 351, 836, 469), (836, 351, 975, 469), (975, 351, 1115, 469), (1115, 351, 1254, 469), (1254, 351, 1393, 469), (1393, 351, 1533, 469), (1533, 351, 1672, 469), (0, 470, 139, 588), (139, 470, 279, 588), (279, 470, 418, 588), (418, 470, 557, 588), (557, 470, 697, 588), (697, 470, 836, 588), (836, 470, 975, 588), (975, 470, 1115, 588), (1115, 470, 1254, 588), (1254, 470, 1393, 588), (1393, 470, 1533, 588), (1533, 470, 1672, 588), (0, 590, 139, 708), (139, 590, 279, 708), (279, 590, 418, 708), (418, 590, 557, 708), (557, 590, 697, 708), (697, 590, 836, 708), (836, 590, 975, 708), (975, 590, 1115, 708), (1115, 590, 1254, 708), (1254, 590, 1393, 708), (1393, 590, 1533, 708), (1533, 590, 1672, 708), (0, 702, 139, 820), (139, 702, 279, 820), (279, 702, 418, 820), (418, 702, 557, 820), (557, 702, 697, 820), (697, 702, 836, 820), (836, 702, 975, 820), (975, 702, 1115, 820), (1115, 702, 1254, 820), (1254, 702, 1393, 820)],
         },
     },
+    "succubus_orb": {
+        # The ball of drained mana: the left row's ball on her drain board,
+        # cut by brightness with soft alpha. Orb.png in her folder; her Mana
+        # Drain sends it from her target back to her hand (ThrownSprite,
+        # reversed). 0.35 tiles.
+        "into": "succubus",
+        "strip": {
+            "src": "succubus_drain_board.webp",
+            "bg": "black_key",
+            "sheet": "Orb",
+            "width_tiles": 0.35,
+            "frames": [(1088, 573, 1134, 619)],
+        },
+    },
     "fire_goblin": {
         # 2026-10-25: the Fire Goblin — a goblin in red leather with a torch,
         # scimitar and round shield; the fire goblin soldier and shaman wear it
@@ -1753,6 +1767,76 @@ BOARDS = {
             "back": (697, 3, 1148, 558),
             "left": (204, 595, 463, 1167),
             "right": (773, 596, 1014, 1167),
+        },
+        # 2026-11-04: the designer's Mana Drain board — succubus_drain_board.webp,
+        # four labelled rows on black (FRONT, BACK, LEFT, RIGHT) under
+        # numbered columns, eight frames a row: she lowers her hand, reaches
+        # out, raises it, curls her fingers, beckons, the ball of blue energy
+        # drawn back to her along its trail, and caught glowing in her hand.
+        # The designer: the ball starts at her target and is brought back to
+        # her hand — it is its own sprite (succubus_orb), so the seventh
+        # frame, which paints it in flight, holds her beckoning pose instead.
+        # Frames 2-8 are Cast.png, for her Mana Drain; the stance matched to
+        # her Idle. The left row's sixth frame and the seventh frame's ball
+        # touch: split at the contact (`split`, the balls `discard` points).
+        "actions": {
+            "src": "succubus_drain_board.webp",
+            "levels": (8, 36, 10),   # her black wings run just above the backdrop
+            "fill_holes": 20,
+            "open_dark": True,
+            "keep_share": 0.002,     # the glow in her hand
+            "glow": False,
+            "split": True,
+            "isolate_floor": 12,
+            "split_floor": 20,
+            "discard": {"front": [(1168, 203)], "left": [(1110, 595)],
+                        "right": [(1160, 852), (1125, 851), (1115, 841)]},
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (100, 30, 269, 250),
+                    "lower": (269, 30, 445, 250),
+                    "reach": (445, 30, 621, 250),
+                    "raise": (621, 30, 797, 250),
+                    "curl": (797, 30, 973, 250),
+                    "pull": (973, 30, 1147, 250),
+                    "draw": ("same", "pull"),   # the board draws the ball in flight here: it is its own sprite
+                    "catch": (1310, 30, 1448, 250),
+                },
+                "back": {
+                    "stance": (100, 279, 269, 505),
+                    "lower": (269, 279, 445, 505),
+                    "reach": (445, 279, 621, 505),
+                    "raise": (621, 279, 797, 505),
+                    "curl": (797, 279, 973, 505),
+                    "pull": (973, 279, 1147, 505),
+                    "draw": ("same", "pull"),   # the board draws the ball in flight here: it is its own sprite
+                    "catch": (1310, 279, 1448, 505),
+                },
+                "left": {
+                    "stance": (100, 534, 267, 765),
+                    "lower": (267, 534, 441, 765),
+                    "reach": (441, 534, 616, 765),
+                    "raise": (616, 534, 791, 765),
+                    "curl": (791, 534, 965, 765),
+                    "pull": (965, 534, 1135, 765),
+                    "draw": ("same", "pull"),   # the board draws the ball in flight here: it is its own sprite
+                    "catch": (1297, 534, 1448, 765),
+                },
+                "right": {
+                    "stance": (100, 796, 266, 1035),
+                    "lower": (266, 796, 441, 1035),
+                    "reach": (441, 796, 617, 1035),
+                    "raise": (617, 796, 792, 1035),
+                    "curl": (792, 796, 966, 1035),
+                    "pull": (966, 796, 1140, 1035),
+                    "draw": ("same", "pull"),   # the board draws the ball in flight here: it is its own sprite
+                    "catch": (1303, 796, 1448, 1035),
+                },
+            },
+            "sheets": {
+                "Cast": ["lower", "reach", "raise", "curl", "pull", "draw", "catch"],
+            },
         },
     },
     "cherub": {

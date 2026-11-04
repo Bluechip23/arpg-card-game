@@ -163,7 +163,7 @@ const KINDS := {
 	"vampire": {"sheets": SHEETS + "/vampire", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the vampire pack's Vampires3
 	"zombie": {"sheets": SHEETS + "/zombie", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and its attack board (2026-11-01: Attack is the reach and grab, slow); was the zombie pack's Zombie1
 	"infected_hunter": {"sheets": SHEETS + "/infected_hunter", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the zombie pack's Zombie3
-	"succubus": {"sheets": SHEETS + "/succubus", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the chaos-monster Icon14
+	"succubus": {"sheets": SHEETS + "/succubus", "scale": BOARD_SCALE, "fps": {"Cast": 10.0}, "action_sheets": {"mana_drain": "Cast"}, "projectiles": {"mana_drain": {"sheet": "Orb", "release": 3, "arrive": 6, "reverse": true, "fps": 12.0, "lift": 0.95, "ahead": 0.3}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and her Mana Drain board (2026-11-04: Cast is her reaching out, curling her fingers and beckoning, the ball caught in her hand; Orb the ball of mana drawn from her victim back to her hand); was the chaos-monster Icon14
 	"cherub": {"sheets": SHEETS + "/cherub", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the NPC baby sheet, tinted
 	"corrupted_archangel": {"sheets": SHEETS + "/corrupted_archangel", "scale": BOARD_SCALE},  # the boss trio board (tools/cut_pose_boards.py, 2026-10-27); was the walk-sheet cut
 	# --- the generic Minion / Elite / Boss tiers (and custom enemies): the
@@ -934,10 +934,22 @@ func throw_projectile(target: Vector3, action: String) -> float:
 	var dir := Vector3(target.x - from.x, 0, target.z - from.z)
 	if dir.length() > 0.01:
 		from += dir.normalized() * float(proj.get("ahead", 0.5))   # out of the hands, in front
+	var to := target
+	if proj.get("reverse", false):
+		# Drawn from the target back into the hands (the Succubus's Mana
+		# Drain: the ball of mana starts at her victim).
+		var swap := from
+		from = to
+		to = swap
+	var speed := float(proj.get("speed", ThrownSprite.SPEED))
+	if proj.has("arrive") and sheet != "":
+		# Paced to reach the hands on the sheet's "arrive" frame.
+		var fps2: float = _cp_fps.get(sheet, 8.0)
+		var travel := maxf(0.05, (float(proj["arrive"]) - float(proj.get("release", 0))) / fps2)
+		speed = Vector2(to.x - from.x, to.z - from.z).length() / travel
 	var gutter := 8 if smooth else 0      # SMOOTH_GUTTER under the smooth strip's art
-	b.launch(load(path), _sprite.pixel_size * _rig.scale.x, gutter, smooth, from, target, release,
-			float(proj.get("speed", ThrownSprite.SPEED)), float(proj.get("fps", ThrownSprite.SPIN_FPS)),
-			float(proj.get("lift", 0.0)))
+	b.launch(load(path), _sprite.pixel_size * _rig.scale.x, gutter, smooth, from, to, release,
+			speed, float(proj.get("fps", ThrownSprite.SPIN_FPS)), float(proj.get("lift", 0.0)))
 	return b.total_time()
 
 

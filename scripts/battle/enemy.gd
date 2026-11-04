@@ -5305,6 +5305,7 @@ func _try_mana_drain(target_node: Node3D) -> bool:
 			if st.current_mana <= 0.0 and st.maintained_mana > 0 and st.has_method("_break_maintained_cards"):
 				st._break_maintained_cards()
 			print("[%s] Mana Drain: -10 mana" % enemy_name)
+	_throw_at(target_node, "mana_drain")   # the ball of mana drawn from her victim to her hand
 	turn_completed.emit()
 	return true
 
