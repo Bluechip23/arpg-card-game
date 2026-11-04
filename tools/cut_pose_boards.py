@@ -1044,6 +1044,79 @@ BOARDS = {
             "left": (37, 610, 536, 1142),
             "right": (688, 618, 1211, 1145),
         },
+        # 2026-11-04: the designer's Venom Spray board — sewer_cobra_spray_board.webp,
+        # "SEWER COBRA - VENOM SPRAY", four labelled rows in framed panels on
+        # black (NORTH: the face, SOUTH: the back, WEST, EAST), eight
+        # numbered frames a row: the stance, venom welling in its jaws, the
+        # mouth opening, the spray starting, spraying, the full spray, the
+        # spray dying, at rest. The spray is drawn from its mouth into the
+        # neighbouring frame's space: each row is split at the contacts
+        # (`split`), so every frame keeps its own spray. Frames 2-8 are
+        # Cast.png, for its Venom Spray; the stance matched to its Idle. The
+        # side rows' spraying boxes reach out the way the spray goes.
+        "actions": {
+            "src": "sewer_cobra_spray_board.webp",
+            "levels": (4, 30, 6),    # its black scales and dark collar run just above the backdrop's 0
+            "fill_holes": 22,        # its painted shading is brighter; the spray's faint haze between streaks stays open
+            "open_dark": True,
+            "keep_share": 0.01,      # the spray's droplets
+            "glow": False,
+            "split": True,
+            "isolate_floor": 6,
+            "split_floor": 30,       # split on its bright parts: the venom haze no longer bridges frames
+            # Its body columns (the side rows' spraying boxes are widened).
+            "split_centres": {"front": [188, 367, 541, 717, 897, 1076, 1255, 1432],
+                              "back": [188, 367, 541, 717, 897, 1076, 1255, 1432],
+                              "left": [214, 382, 560, 720, 905, 1080, 1265, 1452],
+                              "right": [168, 342, 518, 700, 885, 1065, 1250, 1420]},
+            "drop_dim_green": 45,    # the haze painted on black: a dark smudge on a lit floor
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (110, 70, 277, 292),
+                    "draw": (277, 70, 454, 292),
+                    "open": (454, 70, 629, 292),
+                    "spit": (629, 70, 807, 292),
+                    "spray": (807, 70, 986, 292),
+                    "full": (986, 70, 1165, 292),
+                    "trail": (1165, 70, 1343, 292),
+                    "rest": (1343, 70, 1524, 292),
+                },
+                "back": {
+                    "stance": (110, 302, 277, 529),
+                    "draw": (277, 302, 454, 529),
+                    "open": (454, 302, 629, 529),
+                    "spit": (629, 302, 807, 529),
+                    "spray": (807, 302, 986, 529),
+                    "full": (986, 302, 1165, 529),
+                    "trail": (1165, 302, 1343, 529),
+                    "rest": (1343, 302, 1524, 529),
+                },
+                "left": {
+                    "stance": (110, 538, 278, 750),
+                    "draw": (278, 538, 455, 750),
+                    "open": (455, 538, 625, 750),
+                    "spit": (545, 538, 795, 750),
+                    "spray": (715, 538, 970, 750),
+                    "full": (890, 538, 1148, 750),
+                    "trail": (1068, 538, 1341, 750),
+                    "rest": (1341, 538, 1524, 750),
+                },
+                "right": {
+                    "stance": (110, 758, 269, 975),
+                    "draw": (269, 758, 445, 975),
+                    "open": (445, 758, 629, 975),
+                    "spit": (629, 758, 906, 975),
+                    "spray": (826, 758, 1093, 975),
+                    "full": (1013, 758, 1260, 975),
+                    "trail": (1180, 758, 1429, 975),
+                    "rest": (1349, 758, 1524, 975),
+                },
+            },
+            "sheets": {
+                "Cast": ["draw", "open", "spit", "spray", "full", "trail", "rest"],
+            },
+        },
     },
     "ash_harpy": {
         # 2026-10-25: the Ash Harpy — a feathered harpy with a burning ponytail; the
@@ -4098,7 +4171,7 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
                 # `split` on a board on black: what is lit is solid (the
                 # Magma Spider's web board, its globs touching the next
                 # frame's spider).
-                floor = act.get("isolate_floor", (act.get("levels") or (BLACK_FLOOR,))[0])
+                floor = act.get("split_floor", act.get("isolate_floor", (act.get("levels") or (BLACK_FLOOR,))[0]))
                 solid = reg[..., :3].max(axis=2) > floor
             h, w = solid.shape
             lab = np.full((h, w), -1, np.int32)
@@ -4117,8 +4190,12 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
             for gx, gy in act.get("discard", {}).get(d, ()):
                 yy0, xx0 = gy - y0, gx - X0
                 near_glob[max(0, yy0 - 20):max(0, yy0 + 21), max(0, xx0 - 20):max(0, xx0 + 21)] = True
+            # `split_centres`: each frame's body column on the board, when a
+            # box was widened toward its spray and its middle no longer is.
+            given = act.get("split_centres", {}).get(d)
+            body_x = [int(given[k]) if given else (b[0] + b[2]) // 2 for k, b in enumerate(row)]
             for j, b in enumerate(row):
-                cx = (b[0] + b[2]) // 2 - X0
+                cx = body_x[j] - X0
                 for x in range(max(0, cx - 6), min(w, cx + 7)):
                     for y in np.nonzero(solid[:, x])[0]:
                         if lab[y, x] < 0 and not near_glob[y, x]:
@@ -4131,8 +4208,22 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
                     if 0 <= ny < h and 0 <= nx < w and solid[ny, nx] and lab[ny, nx] < 0:
                         lab[ny, nx] = lab[y, x]
                         q.append((ny, nx))
+            if act.get("bg") != "alpha_split" and act.get("split_floor"):
+                # Split on the bright parts only (`split_floor`): faint haze
+                # no longer bridges one frame to the next; then each label
+                # grows a few pixels into the dim pixels beside it (its own
+                # dark shading), never across a frame's bright parts.
+                dim = reg[..., :3].max(axis=2) > (act.get("levels") or (BLACK_FLOOR,))[0]
+                for _ in range(int(act.get("split_grow", 6))):
+                    grown = lab.copy()
+                    for dy, dx in _N4:
+                        sh = np.roll(lab, (dy, dx), axis=(0, 1))
+                        take = (grown < 0) & dim & (sh >= 0)
+                        grown[take] = sh[take]
+                    lab = grown
+                solid = solid | (dim & (lab >= 0))
             # Islands no body reaches (a loose flame): the nearest body's.
-            centres = np.array([(b[0] + b[2]) // 2 - X0 for b in row])
+            centres = np.array([x - X0 for x in body_x])
             ys, xs = np.nonzero(solid & (lab < 0))
             for y, x in zip(ys, xs):
                 lab[y, x] = int(np.argmin(np.abs(centres - x)))
@@ -4190,6 +4281,11 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
                 j = row.index(box)
                 mine = lab[:, box[0] - X0:box[2] - X0] == j
                 rgb[~mine] = 0
+            if act.get("drop_dim_green"):
+                # A glow painted on black (the Cobra's venom haze) reads as a
+                # dark smudge on a lit floor: its dim green goes.
+                g, r_, b_ = rgb[..., 1], rgb[..., 0], rgb[..., 2]
+                rgb[(g > r_ * 1.2) & (g > b_ * 1.2) & (rgb.max(axis=2) < act["drop_dim_green"])] = 0
             elif act.get("isolate") and (d, pose) not in act.get("isolate_skip", ()):
                 rgb[others(d, box)] = 0
             img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
