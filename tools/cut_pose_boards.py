@@ -99,6 +99,10 @@ ROWS = ["front", "back", "left", "right"]
 # board draws her heads and her bulk in its own proportions, and losing
 # heads must make her shorter, not bigger. Set so her front stance's legs
 # and trunk match the full Hydra's (tools: measured on the cut sheets).
+# The widest a packed strip may be: past it a strip is packed in rows (many
+# GPUs draw nothing from a texture wider than 8192 px).
+MAX_SHEET_PX = 8192
+
 # The Rat King's Infest board draws him squatter than his pose board does:
 # matched to his Idle by bulk (width), not height (2026-11-04).
 MATCH_SCALE_RK = {"front": 0.86, "back": 0.91, "left": 0.94, "right": 0.94}
@@ -1056,6 +1060,65 @@ BOARDS = {
             "left": (214, 600, 425, 1155),
             "right": (838, 603, 1040, 1155),
         },
+        # 2026-11-04: the designer's wing-flap board — ash_harpy_flap_board.webp,
+        # cut out (transparent), four labelled rows (NORTH: the face, SOUTH:
+        # the back, LEFT, RIGHT) under numbered columns, eight frames a row:
+        # wings folded, rising, spread wide, flung up, sweeping down, folding
+        # in, folded. Her wings are so wide the frames touch: each row is
+        # split along the narrowest contact between neighbours
+        # (`alpha_split`). Cast.png is frames 2-8 three times over — the
+        # designer: she flaps three times while her vortex steals a card —
+        # played for her Card Steal; frame 1 is the height reference.
+        "actions": {
+            "src": "ash_harpy_flap_board.webp",
+            "bg": "alpha_split",
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (95, 28, 212, 207),
+                    "f2": (212, 28, 348, 207),
+                    "f3": (348, 28, 479, 207),
+                    "f4": (479, 28, 610, 207),
+                    "f5": (610, 28, 741, 207),
+                    "f6": (741, 28, 869, 207),
+                    "f7": (869, 28, 997, 207),
+                    "f8": (997, 28, 1125, 207),
+                },
+                "back": {
+                    "stance": (95, 212, 212, 397),
+                    "f2": (212, 212, 348, 397),
+                    "f3": (348, 212, 479, 397),
+                    "f4": (479, 212, 610, 397),
+                    "f5": (610, 212, 741, 397),
+                    "f6": (741, 212, 869, 397),
+                    "f7": (869, 212, 997, 397),
+                    "f8": (997, 212, 1125, 397),
+                },
+                "left": {
+                    "stance": (95, 400, 212, 597),
+                    "f2": (212, 400, 348, 597),
+                    "f3": (348, 400, 479, 597),
+                    "f4": (479, 400, 610, 597),
+                    "f5": (610, 400, 741, 597),
+                    "f6": (741, 400, 869, 597),
+                    "f7": (869, 400, 997, 597),
+                    "f8": (997, 400, 1125, 597),
+                },
+                "right": {
+                    "stance": (95, 598, 212, 793),
+                    "f2": (212, 598, 348, 793),
+                    "f3": (348, 598, 479, 793),
+                    "f4": (479, 598, 610, 793),
+                    "f5": (610, 598, 741, 793),
+                    "f6": (741, 598, 869, 793),
+                    "f7": (869, 598, 997, 793),
+                    "f8": (997, 598, 1125, 793),
+                },
+            },
+            "sheets": {
+                "Cast": ["f2", "f3", "f4", "f5", "f6", "f7", "f8", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f2", "f3", "f4", "f5", "f6", "f7", "f8"],
+            },
+        },
     },
     "snow_wraith": {
         # 2026-10-25: the Snow Wraith — a hooded, tattered wraith with a snowflake
@@ -1233,6 +1296,29 @@ BOARDS = {
             "width_tiles": 1.3,
             "align": "board",
             "frames": [(30, 240, 245, 380), (280, 240, 495, 380), (530, 240, 745, 380), (780, 240, 995, 380), (1005, 240, 1250, 380), (1290, 240, 1500, 380), (1550, 240, 1750, 380), (1800, 240, 1995, 380)],
+        },
+    },
+    "ash_harpy_vortex": {
+        # 2026-11-04: the Card Steal vortex — ash_harpy_vortex_strip.webp, a
+        # 12-wide grid of frames on black: a wind vortex of dark smoke and
+        # embers that starts at the player (each frame's right end), grows
+        # toward the harpy (its left end), sweeps a small card round inside
+        # it back to her — the card gone as it reaches her — and blows
+        # itself out. The grid's first five frames and last two are empty
+        # and left out. Cut by brightness with soft alpha (`black_key`), each
+        # frame keeping its whole box (`trim` off: where the vortex sits in
+        # its frame is the animation); Vortex.png in her folder. Her Card
+        # Steal lays it from her to the player (ArcBolt), stretched to the
+        # distance, through her three flaps.
+        "into": "ash_harpy",
+        "strip": {
+            "src": "ash_harpy_vortex_strip.webp",
+            "bg": "black_key",
+            "sheet": "Vortex",
+            "width_tiles": 1.4,
+            "trim": False,
+            "alpha_gain": 1.4,
+            "frames": [(697, -4, 836, 114), (836, -4, 975, 114), (975, -4, 1115, 114), (1115, -4, 1254, 114), (1254, -4, 1393, 114), (1393, -4, 1533, 114), (1533, -4, 1672, 114), (0, 112, 139, 230), (139, 112, 279, 230), (279, 112, 418, 230), (418, 112, 557, 230), (557, 112, 697, 230), (697, 112, 836, 230), (836, 112, 975, 230), (975, 112, 1115, 230), (1115, 112, 1254, 230), (1254, 112, 1393, 230), (1393, 112, 1533, 230), (1533, 112, 1672, 230), (0, 231, 139, 349), (139, 231, 279, 349), (279, 231, 418, 349), (418, 231, 557, 349), (557, 231, 697, 349), (697, 231, 836, 349), (836, 231, 975, 349), (975, 231, 1115, 349), (1115, 231, 1254, 349), (1254, 231, 1393, 349), (1393, 231, 1533, 349), (1533, 231, 1672, 349), (0, 351, 139, 469), (139, 351, 279, 469), (279, 351, 418, 469), (418, 351, 557, 469), (557, 351, 697, 469), (697, 351, 836, 469), (836, 351, 975, 469), (975, 351, 1115, 469), (1115, 351, 1254, 469), (1254, 351, 1393, 469), (1393, 351, 1533, 469), (1533, 351, 1672, 469), (0, 470, 139, 588), (139, 470, 279, 588), (279, 470, 418, 588), (418, 470, 557, 588), (557, 470, 697, 588), (697, 470, 836, 588), (836, 470, 975, 588), (975, 470, 1115, 588), (1115, 470, 1254, 588), (1254, 470, 1393, 588), (1393, 470, 1533, 588), (1533, 470, 1672, 588), (0, 590, 139, 708), (139, 590, 279, 708), (279, 590, 418, 708), (418, 590, 557, 708), (557, 590, 697, 708), (697, 590, 836, 708), (836, 590, 975, 708), (975, 590, 1115, 708), (1115, 590, 1254, 708), (1254, 590, 1393, 708), (1393, 590, 1533, 708), (1533, 590, 1672, 708), (0, 702, 139, 820), (139, 702, 279, 820), (279, 702, 418, 820), (418, 702, 557, 820), (557, 702, 697, 820), (697, 702, 836, 820), (836, 702, 975, 820), (975, 702, 1115, 820), (1115, 702, 1254, 820), (1254, 702, 1393, 820)],
         },
     },
     "fire_goblin": {
@@ -3567,6 +3653,59 @@ def cut_action_frames(cfg: dict) -> dict:
                 and stats[i, cv2.CC_STAT_WIDTH] < w * 0.5 and stats[i, cv2.CC_STAT_HEIGHT] < h * 0.5]
         return np.isin(sub, away)
 
+    split_cache = {}
+
+    def alpha_split(d: str, box) -> Image.Image:
+        """`bg: "alpha_split"`: a board that came cut out (its own alpha), its
+        frames so close their wings touch (the Ash Harpy's flap). Every frame
+        of the row is split at once: each solid pixel goes to the frame whose
+        body (a column at its box's centre) it is nearest through the solid
+        pixels themselves, so touching wings part at their narrowest contact;
+        the soft edge goes with the solid pixels it hugs."""
+        name = act["src"][d] if isinstance(act["src"], dict) else act["src"]
+        row = [b for b in act["frames"][d].values() if b[0] not in ("same", "mirror") and b[1] == box[1] and b[3] == box[3]]
+        key = (name, box[1], box[3])
+        if key not in split_cache:
+            rgba = np.asarray(board(d).convert("RGBA"))
+            y0, y1 = box[1], box[3]
+            X0, X1 = min(b[0] for b in row), max(b[2] for b in row)
+            reg = rgba[y0:y1, X0:X1]
+            solid = reg[..., 3] >= 128
+            h, w = solid.shape
+            lab = np.full((h, w), -1, np.int32)
+            q = deque()
+            for j, b in enumerate(row):
+                cx = (b[0] + b[2]) // 2 - X0
+                for x in range(max(0, cx - 6), min(w, cx + 7)):
+                    for y in np.nonzero(solid[:, x])[0]:
+                        if lab[y, x] < 0:
+                            lab[y, x] = j
+                            q.append((y, x))
+            while q:
+                y, x = q.popleft()
+                for dy, dx in _N4:
+                    ny, nx = y + dy, x + dx
+                    if 0 <= ny < h and 0 <= nx < w and solid[ny, nx] and lab[ny, nx] < 0:
+                        lab[ny, nx] = lab[y, x]
+                        q.append((ny, nx))
+            # Islands no body reaches (a loose flame): the nearest body's.
+            centres = np.array([(b[0] + b[2]) // 2 - X0 for b in row])
+            ys, xs = np.nonzero(solid & (lab < 0))
+            for y, x in zip(ys, xs):
+                lab[y, x] = int(np.argmin(np.abs(centres - x)))
+            # The soft edge: within 4 px of a frame's solid pixels.
+            soft = (reg[..., 3] >= 24) & ~solid
+            for j in range(len(row)):
+                near = cv2.dilate((lab == j).astype(np.uint8), np.ones((9, 9), np.uint8)).astype(bool)
+                lab[soft & near & (lab < 0)] = j
+            split_cache[key] = (reg, lab, X0, row)
+        reg, lab, X0, row = split_cache[key]
+        j = row.index(box)
+        img = reg.copy()
+        img[..., 3] = np.where(lab == j, img[..., 3], 0)
+        ys, xs = np.nonzero(img[..., 3] > 0)
+        return Image.fromarray(img[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
+
     out = {}
     for d, poses in act["frames"].items():
         out[d] = {}
@@ -3577,6 +3716,10 @@ def cut_action_frames(cfg: dict) -> dict:
                 continue
             mirror = spec[0] == "mirror"
             box = spec[1] if mirror else spec
+            if act.get("bg") == "alpha_split":
+                img = alpha_split(d, box)
+                out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
+                continue
             if act.get("bg"):
                 # A board on a checkerboard (the Hydra's heal): cut as the
                 # pose boards are, not by brightness off black.
@@ -3737,8 +3880,13 @@ def build_strip(name: str, cfg: dict) -> None:
     # Trimmed to each frame's art; with `align` "board" every frame keeps the
     # rows they span together, so a ball flying level doesn't bob as its
     # sparkles come and go (the snowball).
-    boxes = [f.getbbox() for f in raw]
-    if st.get("align") == "board":
+    boxes = [f.getbbox() or (0, 0, f.width, f.height) for f in raw]
+    if st.get("trim") is False:
+        # Each frame keeps its whole box (the Harpy's vortex: it grows from
+        # one end of its frame toward the other, so its place in the frame
+        # is the animation).
+        boxes = [(0, 0, f.width, f.height) for f in raw]
+    elif st.get("align") == "board":
         y0, y1 = min(b[1] for b in boxes), max(b[3] for b in boxes)
         boxes = [(b[0], y0, b[2], y1) for b in boxes]
     raw = [f.crop(b) for f, b in zip(raw, boxes)]
@@ -3756,17 +3904,29 @@ def build_strip(name: str, cfg: dict) -> None:
         factor = width / float(st["width_tiles"] * density)
         if kind == "pixel":
             fs = [shrink(f, factor) for f in raw]
+        elif st.get("trim") is False:
+            fs = [smooth_art.resample(f, factor) for f in raw]   # each keeps its whole box
         else:
             fs = [smooth_art.trim(smooth_art.resample(f, factor)) for f in raw]
         cell = max(max(f.width, f.height) for f in fs) + 2 + air
+        # One row, unless that runs past MAX_SHEET_PX: then rows of equal
+        # length (the Harpy's 77-frame vortex is 7 rows of 11; KINDS names
+        # the rows). A texture wider than many GPUs allow draws nothing.
+        cols = len(fs)
+        if cols * cell > MAX_SHEET_PX:
+            nrows = next((r for r in range(2, len(fs) + 1) if len(fs) % r == 0 and len(fs) // r * cell <= MAX_SHEET_PX), None)
+            assert nrows, "%s: %d frames do not split into equal rows under %d px" % (name, len(fs), MAX_SHEET_PX)
+            cols = len(fs) // nrows
+        grid = [fs[i:i + cols] for i in range(0, len(fs), cols)]
         if kind == "pixel":
-            sheet = Image.new("RGBA", (cell * len(fs), cell))
-            for i, f in enumerate(fs):
-                sheet.paste(f, (i * cell + (cell - f.width) // 2, cell - air - f.height), f)
+            sheet = Image.new("RGBA", (cell * cols, cell * len(grid)))
+            for r, row in enumerate(grid):
+                for i, f in enumerate(row):
+                    sheet.paste(f, (i * cell + (cell - f.width) // 2, r * cell + cell - air - f.height), f)
         else:
-            sheet = smooth_art.pack([fs], cell, len(fs), lambda row, ci: row[ci], air=air)
+            sheet = smooth_art.pack(grid, cell, cols, lambda row, ci: row[ci], air=air)
         sheet.save(os.path.join(root, st["sheet"] + ".png"))
-        print("%-13s %s: %d frames, %d-px cells into %s" % (name, kind, len(fs), cell, cfg["into"]))
+        print("%-13s %s: %d frames (%d row(s) of %d), %d-px cells into %s" % (name, kind, len(fs), len(grid), cols, cell, cfg["into"]))
 
 
 def build(name: str, cfg: dict) -> None:

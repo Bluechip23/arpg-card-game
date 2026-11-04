@@ -99,7 +99,10 @@ func _test_figure() -> void:
 	var tex: float = b._sprite.pixel_size
 	var end_a := t * Vector3(-half * tex, 0, 0)
 	var end_b := t * Vector3(half * tex, 0, 0)
-	_check(end_a.distance_to(p1 + lift) < 0.05 and end_b.distance_to(p2 + lift) < 0.05, "the bounce's ends land on the two units it joins")
+	var ends_ok := (end_a.distance_to(p1 + lift) < 0.05 and end_b.distance_to(p2 + lift) < 0.05) \
+			or (end_a.distance_to(p2 + lift) < 0.05 and end_b.distance_to(p1 + lift) < 0.05)
+	_check(ends_ok, "the bounce's ends land on the two units it joins")
+	_check(b.global_transform.basis.z.dot(CameraView.toward_camera()) > 0.0, "and it faces the camera")
 	_check(a.global_transform.origin.x < p0.x, "the first runs out from him toward the first unit")
 	_check(not a._sprite.visible, "unseen until he unleashes")
 	a._process(release + 0.01)

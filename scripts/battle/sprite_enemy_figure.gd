@@ -148,7 +148,7 @@ const KINDS := {
 	"sabertooth": {"sheets": SHEETS + "/sabertooth", "scale": BOARD_SCALE, "fps": {"Track": 8.0, "Attack": 10.0, "Sunken": 10.0}, "action_sheets": {"track": "Track", "sunken_bite": "Sunken"}},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-28), its track board and its bite-and-claw board (tools/cut_pose_boards.py, 2026-11-03: Track is the paw scraping, the crouch, the deepest ready crouch and the rise, played in place; Attack, its Bite and Claw, the crouch, lunge, bite, pull-through, claw swipe and recovery; Sunken, its Sunken Bite, the lunge, the crouch, the teeth sinking in, the shake, the release and rising)
 	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": BOARD_SCALE},
 	"roc": {"sheets": SHEETS + "/roc", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28); was the mountain-monster Bird, tinted
-	"ash_harpy": {"sheets": SHEETS + "/ash_harpy", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the chaos-monster Icon22
+	"ash_harpy": {"sheets": SHEETS + "/ash_harpy", "scale": BOARD_SCALE, "fps": {"Cast": 10.0}, "action_sheets": {"card_steal": "Cast"}, "arcs": {"card_steal": {"sheet": "Vortex", "release": 0, "fit": true, "ahead": 0.0, "lift": 0.9, "on_top": true, "span": 0.96, "mid": 0.45, "thickness": 1.35, "frames": 77}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and her flap board and vortex strip (2026-11-04: Cast is three wing flaps; Vortex the wind that sweeps a card from the player back to her, played across the flaps); was the chaos-monster Icon22
 	"magma_spider": {"sheets": SHEETS + "/magma_spider", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the Crypt Crawler's MonsterKit cell (3, 0), tinted
 	# (Every roster kind now has a sprite; ART_TODO.md still tracks hand-drawn
 	# replacements for the generated first-pass battlers above.)
@@ -940,7 +940,8 @@ func throw_projectile(target: Vector3, action: String) -> float:
 ## are global positions — his own first, then each unit struck in turn. The
 ## first bolt leaves his hands on the release frame (its "release": the
 ## frame index in the action's own sheet, while that plays), each next one
-## `hop` seconds after it, all `lift` tiles up the screen. Returns the seconds
+## `hop` seconds after it, all `lift` tiles up the screen ("on_top": drawn
+## over the figures it lies across — the Harpy's vortex). Returns the seconds
 ## from now until the last bolt's flash is over, 0 when the action lays none.
 func chain_arcs(points: Array, action: String) -> float:
 	var cfg: Dictionary = KINDS.get(figure_kind, {})
@@ -955,6 +956,12 @@ func chain_arcs(points: Array, action: String) -> float:
 		release = maxf(0.0, (float(arc.get("release", 0)) - float(_cp_frame)) / fps - _cp_clock)
 	var host: Node = get_parent().get_parent() if get_parent() and get_parent().get_parent() else get_parent()
 	var tex: Texture2D = load(path)
+	var arc_fps := float(arc.get("fps", 24.0))
+	if arc.get("fit", false) and sheet != "" and _cp_sheets.has(sheet):
+		# Its frames spread across what is left of the action's own sheet
+		# from the release on (the Harpy's vortex: through all three flaps).
+		var left := (float(_cp_frame_count(sheet)) - float(arc.get("release", 0))) / float(_cp_fps.get(sheet, 8.0))
+		arc_fps = float(_strip_frames(tex, int(arc.get("frames", 0)))) / maxf(0.1, left)
 	# Chest height on a billboard is along screen-up, not up the world's Y.
 	var lift := Vector3(0, CameraView.SPRITE_LIFT, 0) + CameraView.screen_up() * float(arc.get("lift", 0.0))
 	var hop: float = float(arc.get("hop", 0.1))
@@ -970,7 +977,9 @@ func chain_arcs(points: Array, action: String) -> float:
 			if dir.length() > 0.7:
 				a_pt += dir.normalized() * float(arc.get("ahead", 0.35))
 		b.launch(tex, _sprite.pixel_size * _rig.scale.x, smooth, a_pt + lift, b_pt + lift,
-				release + hop * i, float(arc.get("fps", 24.0)))
+				release + hop * i, arc_fps, float(arc.get("span", 0.0)), float(arc.get("mid", -1.0)),
+				float(arc.get("thickness", 0.0)), _strip_rows(tex, int(arc.get("frames", 0))),
+				bool(arc.get("on_top", false)))
 		longest = maxf(longest, b.total_time())
 	return longest
 
@@ -1002,6 +1011,22 @@ func spot_effect(at: Vector3, action: String) -> float:
 	fx.launch(load(path), _sprite.pixel_size * _rig.scale.x, gutter, smooth, at, delay, fps,
 			float(spot.get("hang", 0.0)))
 	return fx.total_time()
+
+
+## A strip's square cell side: one row unless `frames` (a long strip packed
+## in rows — the Harpy's 77-frame vortex; the pixel and smooth sheets pack it
+## differently) says how many cells it holds.
+static func _strip_cell(tex: Texture2D, frames: int) -> int:
+	if frames <= 0:
+		return tex.get_height()
+	return int(round(sqrt(float(tex.get_width() * tex.get_height()) / float(frames))))
+
+static func _strip_rows(tex: Texture2D, frames: int) -> int:
+	return maxi(1, int(round(float(tex.get_height()) / float(_strip_cell(tex, frames)))))
+
+static func _strip_frames(tex: Texture2D, frames: int) -> int:
+	var c := _strip_cell(tex, frames)
+	return int(tex.get_width() / c) * _strip_rows(tex, frames)
 
 
 ## How long the swing now playing runs: the Attack frames at their fps on

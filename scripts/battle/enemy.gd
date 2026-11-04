@@ -5064,6 +5064,15 @@ func _try_card_steal(target_node: Node3D) -> bool:
 	_stolen_from = target_node
 	_harpy_steal_used = true
 	print("[%s] Card Steal: snatches %s from the hand" % [enemy_name, card.card_name])
+	# She turns to her victim, and the vortex sweeps the card from them back
+	# to her through her three flaps; the tick clock waits for it.
+	if _enemy_figure:
+		var to_target: Vector3 = target_node.global_position - global_position
+		_enemy_figure.set_facing_from_velocity(Vector3(to_target.x, 0, to_target.z))
+		if _enemy_figure.has_method("chain_arcs"):
+			var secs: float = _enemy_figure.chain_arcs([global_position, target_node.global_position], "card_steal")
+			if secs > 0.0:
+				swing_started.emit(self, secs)
 	turn_completed.emit()
 	return true
 
