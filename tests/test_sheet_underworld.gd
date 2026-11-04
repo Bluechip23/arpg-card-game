@@ -325,7 +325,7 @@ func _test_fight() -> void:
 	var s: Enemy = _spawn(main, Enemy.EnemyType.MAGMA_SPIDER, wc)
 	_place(main, wc + Vector2i(1, 0))
 	_check(s._try_fire_web(main.player), "Fire Web is laid")
-	_check(main._fire_webs.size() == 1 and main._fire_webs[0]["cells"].size() == 9, "one web of the 3x3 around the spider")
+	_check(main._fire_webs.size() == 1 and main._fire_webs[0]["cells"].size() == 9 and (wc + Vector2i(1, 0)) in main._fire_webs[0]["cells"] and (wc + Vector2i(2, 0)) in main._fire_webs[0]["cells"], "one web of the 3x3 around the player")
 	_check(main._fire_webs[0]["nodes"].size() == 9, "each tile wears the fire walls' flame")
 	_check(s._try_fire_web(main.player) and main._fire_webs.size() == 1, "a recast lays it afresh: still one web")
 	stats.current_armor = 0
@@ -351,6 +351,43 @@ func _test_fight() -> void:
 		await _settle(1)
 	_check(int(stats.current_health) == whp0 - 2, "outside the web: no more ticks")
 	_check(not pdm.has_debuff(Debuff.DebuffType.SLOWED), "and the Slowed has run out")
+	# Range 3 (designer, 2026-11-04): webbed from 3 squares, not from 4; the
+	# spider picks its move by how close its prey is. (With the player beside
+	# it while the web ticked, it has bounced away: set it back.)
+	s._land_at(main._ground_pos(wc))
+	s.chosen_action = {}
+	_place(main, wc + Vector2i(3, 0))
+	s._choose_magma_spider_action(s._get_cell_distance(main.player))
+	_check(str(s.chosen_action.get("name", "")) == "fire_web", "3 squares off: Fire Web")
+	_check(s._try_fire_web(main.player) and (wc + Vector2i(3, 0)) in main._fire_webs[0]["cells"], "the web lands on the player 3 squares off")
+	_place(main, wc + Vector2i(4, 0))
+	s._choose_magma_spider_action(s._get_cell_distance(main.player))
+	_check(s.chosen_action.is_empty(), "4 squares off: out of range, it waits (it never walks)")
+	_check(not s._try_fire_web(main.player), "and a web from 4 squares does not land")
+	pdm.clear_all_debuffs()
+	# Fire Bounce: beside it, the spider jumps 4 squares away, fire in its wake.
+	main._clear_fire_webs()
+	_place(main, wc + Vector2i(-1, 0))
+	s._choose_magma_spider_action(s._get_cell_distance(main.player))
+	_check(str(s.chosen_action.get("name", "")) == "fire_bounce", "adjacent: Fire Bounce")
+	var walls0: int = main._fire_walls.size()
+	var from_cell: Vector2i = main.grid_manager.world_to_grid(s.position)
+	_check(s._try_fire_bounce(main.player), "it bounces")
+	var land: Vector2i = main.grid_manager.world_to_grid(s.position)
+	_check(s._get_cell_distance(main.player) > 1 and s._manhattan_dist(land, from_cell) <= 4, "away from the player, up to 4 squares (landed %s from %s)" % [land, from_cell])
+	_check(main._fire_walls.size() == walls0 + 1, "a trail of fire is laid")
+	var trail: Dictionary = main._fire_walls.back()
+	_check(from_cell in trail["tiles"] and land in trail["tiles"], "from where it jumped to where it landed (%d tiles)" % trail["tiles"].size())
+	_check(trail["tiles"].size() == s._manhattan_dist(land, from_cell) + 1, "every square of the way")
+	_check(int(trail["tempo_left"]) == 3, "burning for 3 tempo")
+	for _t in range(3):
+		main.tempo_manager.add_tempo(1)
+		await _settle(1)
+	_check(not main._fire_walls.has(trail), "after 3 tempo the trail is out")
+	s.rooted_tempo = 2
+	_place(main, main.grid_manager.world_to_grid(s.position) + Vector2i(1, 0))
+	_check(not s._try_fire_bounce(main.player), "rooted, it cannot bounce")
+	s.rooted_tempo = 0
 	s.die()
 	main.tempo_manager.add_tempo(1)
 	await _settle(1)

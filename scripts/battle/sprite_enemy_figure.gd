@@ -753,6 +753,11 @@ func play_action(action: String) -> void:
 		if _cp_mode and _cp_sheets.has("Draw"):
 			_cp_play("Draw", true)
 		return
+	if "bounce" in a:
+		# The Magma Spider's Fire Bounce: a leap away, not a blow — no lunge
+		# toward its prey, a flash of its fire as it goes.
+		flash(Color(1.6, 0.8, 0.3))
+		return
 	if "heal" in a:
 		# The Hydra's heal (her Heal sheet, facing the camera); any other
 		# healer only flashes green.

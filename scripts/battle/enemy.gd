@@ -360,6 +360,7 @@ const NON_MELEE_ACTIONS := {
 	"damaging_snap": true, "loves_arrow": true,
 	# Act 1a (the enemy sheet): the Rat King's brood, the cobra's spray
 	"infest": true, "venom_spray": true,
+	"fire_bounce": true,
 }
 var next_melee_tempo_tax: int = 0
 
@@ -368,6 +369,7 @@ var next_melee_tempo_tax: int = 0
 const MOVEMENT_ACTIONS := {
 	"move": true, "hydra_move": true, "goblin_move": true, "scurry": true,
 	"scurry_away": true, "get_into_range": true, "flee": true, "roc_retreat": true,
+	"fire_bounce": true,
 }
 
 ## Armored Troll passive: accumulator for regeneration (heals 3 HP every 6 global tempo).
@@ -983,6 +985,8 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 		EnemyType.MAGMA_SPIDER:
 			actions = [
 				{"name": "fire_web", "tempo_cost": 8},  # the sheet gives no tempo — first-pass 8
+				# designer, 2026-11-04: Fire Bounce; no tempo given — first-pass 5
+				{"name": "fire_bounce", "tempo_cost": 5},
 			]
 		EnemyType.MIND_EATER:
 			actions = [
@@ -1159,7 +1163,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.IFRIT: [{"name": "Attack", "tempo": 3}, {"name": "Fire Breath", "tempo": 8}, {"name": "Move", "tempo": 4}],
 		EnemyType.MIND_EATER: [{"name": "Mind Slow", "tempo": 10}, {"name": "Manipulate Mind Space", "tempo": 8}],
 		EnemyType.SPECTER: [{"name": "Spirit Spit", "tempo": 5}, {"name": "Invisible", "tempo": 8}, {"name": "Move", "tempo": 1}],
-		EnemyType.MAGMA_SPIDER: [{"name": "Fire Web", "tempo": 8}],
+		EnemyType.MAGMA_SPIDER: [{"name": "Fire Web", "tempo": 8}, {"name": "Fire Bounce", "tempo": 5}],
 		EnemyType.PIT_FIEND: [],
 		EnemyType.ASH_HARPY: [{"name": "Peck", "tempo": 5}, {"name": "Card Steal", "tempo": 8}, {"name": "Move", "tempo": 1}],
 		EnemyType.INFLAMED_MINOTAUR: [{"name": "Attack", "tempo": 5}, {"name": "Bull Rush", "tempo": 5}, {"name": "Move", "tempo": 5}],
@@ -1226,7 +1230,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.IFRIT: "Resists 20% physical / 15% fire / 15% lightning.\nAttack (3 tempo): 45 damage.\nFire Breath (8 tempo, used from up to 4 tiles out): a 5x5 sheet of flame in front — 20 fire damage + 5 Burn; the tiles keep burning for 3 tempo.\nBackflip (auto): a single blow over 40 damage sends it leaping 3 squares backwards.\nMove (4 tempo): 5 spaces.",
 		EnemyType.MIND_EATER: "It never moves (range 6).\nMind Slow (10 tempo): every card in your hand costs 20 more mana.\nManipulate Mind Space (8 tempo): you cannot draw for 15 tempo.",
 		EnemyType.SPECTER: "Spirit Spit (5 tempo, range 2): 2 damage.\nInvisible (8 tempo, Async): fades out for 3 tempo — it cannot be targeted.\nMove (1 tempo): 1 space.",
-		EnemyType.MAGMA_SPIDER: "It never moves.\nFire Web (8 tempo): spins a web of fire on the ground around it — while you stand in it you are Slowed and take 1 fire damage every 3 tempo.",
+		EnemyType.MAGMA_SPIDER: "It never walks.\nFire Web (8 tempo, range 3): spins a web of fire on the ground around you — while you stand in it you are Slowed and take 1 fire damage every 3 tempo.\nFire Bounce (5 tempo): when you close in, it jumps 4 squares away, leaving a trail of fire from where it jumped to where it landed for 3 tempo.",
 		EnemyType.PIT_FIEND: "[Design mock-up — stats & moves TBD.]",
 		EnemyType.ASH_HARPY: "Flying: ignores your high-ground bonus.\nPeck (5 tempo): 3 damage. Range 4, but she flies into melee range to land it.\nCard Steal (8 tempo, once per harpy, range 5): her vortex sweeps a card from your hand back to her; kill the harpy and the card comes back.\nMove (1 tempo): 1 space.",
 		EnemyType.INFLAMED_MINOTAUR: "Leaves fire in its wake (a trap on every tile it walks off — and along every charge: 10 damage + 2 Burn, lingers 15 tempo) and heals 10 whenever that fire burns a player. Resists 15% physical / 50% fire / 25% lightning. Slow is his weakness: every Slow stack shortens the leap (Sword of Theseus).\nAttack (5 tempo): 35 damage + 2 Burn.\nLabyrinth Leap (auto, once he has taken over 20 damage since his last leap — a running total, not one blow): springs away 14 spaces (minus 1 per Slow) to a random open tile.\nBull Rush (a random 5 to 15 tempo after landing): charges the player — damage equals the spaces covered by leap + rush, with a spaces x4% chance to stun (5 tempo) AND weaken; the target and everything trampled en route are left Vulnerable.\nMove (5 tempo): 6 spaces.\nThe room: every 25 tempo you are Lost in the Labyrinth for 15 — your hand is scrambled, must be played left to right, and you cannot draw.",
@@ -3426,6 +3430,8 @@ func _run_action(action_name: String, move_target: Node3D) -> bool:
 			return _try_card_steal(move_target)
 		"fire_web":
 			return _try_fire_web(move_target)
+		"fire_bounce":
+			return _try_fire_bounce(move_target)
 		"mind_slow":
 			return _try_mind_slow(move_target)
 		"mind_cuff":
@@ -5122,21 +5128,65 @@ func _exit_tree() -> void:
 
 # --- Magma Spider ---
 
-func _choose_magma_spider_action(_distance: int) -> void:
-	chosen_action = _get_action("fire_web")
+## Designer, 2026-11-04: Fire Web has range 3, and Fire Bounce jumps the
+## spider 4 squares away from its enemy, leaving fire along the way for 3
+## tempo. It never walks: with its prey beside it, it bounces away; within
+## 3 squares, it webs them; further off, it waits.
+const FIRE_WEB_RANGE := 3
+const FIRE_BOUNCE_SQUARES := 4
+const FIRE_BOUNCE_TEMPO := 3     # the trail burns this long
+const FIRE_BOUNCE_BURN := 1      # TODO(sheet): no damage given — 1 (its bite) + 1 Burn to who steps in
 
-## Fire Web (sheet): a web of fire on the ground around the spider — inside it
-## the player is Slowed and takes 1 fire damage every 3 tempo. The zone itself
-## lives in main (register_fire_web, beside the Territorial Mark zones).
-## sheet: no size or duration given — the 3x3 around the spider, lasting until
-## the spider dies; one web per spider, a recast lays it afresh.
-func _try_fire_web(_target_node: Node3D) -> bool:
-	if is_silenced or grid_manager == null:
+func _choose_magma_spider_action(distance: int) -> void:
+	if distance <= 1:
+		chosen_action = _get_action("fire_bounce")
+	elif distance <= FIRE_WEB_RANGE:
+		chosen_action = _get_action("fire_web")
+	else:
+		chosen_action = {}
+
+## Fire Bounce: the spider jumps up to 4 squares away from its enemy (a route
+## that keeps to the floor and round walls and units, as the Roc's retreat
+## does) and lands at its end; every square from where it jumped to where it
+## landed burns for 3 tempo — a fire wall on the clock, as the Ifrit's breath
+## lingers. Rooted, it cannot jump; boxed in, it stays put and nothing burns.
+func _try_fire_bounce(target_node: Node3D) -> bool:
+	if rooted_tempo > 0 or not is_instance_valid(target_node) or grid_manager == null:
+		return false
+	var from := grid_manager.world_to_grid(position)
+	var threat := grid_manager.world_to_grid(target_node.position)
+	var route := _build_greedy_path(position, threat, FIRE_BOUNCE_SQUARES, true)
+	if route.is_empty():
+		return false
+	var tiles: Array = [from]
+	for p in route:
+		var c := grid_manager.world_to_grid(p)
+		if not c in tiles:
+			tiles.append(c)
+	_land_at(route.back())
+	var main := get_parent()
+	if main and main.has_method("register_fire_wall"):
+		# heal_source self with heal 0: no "wall of fire" log line, no healing.
+		main.register_fire_wall(tiles, attack_damage, FIRE_BOUNCE_BURN, 99, FIRE_BOUNCE_TEMPO, self, 0)
+	print("[%s] Fire Bounce: leaps %d square(s), fire in its wake" % [enemy_name, tiles.size() - 1])
+	turn_completed.emit()
+	return true
+
+## Fire Web (sheet; range 3, designer 2026-11-04): a web of fire on the
+## ground around its prey — inside it the player is Slowed and takes 1 fire
+## damage every 3 tempo. The zone itself lives in main (register_fire_web,
+## beside the Territorial Mark zones). sheet: no size or duration given — the
+## 3x3 around the target, lasting until the spider dies; one web per spider,
+## a recast lays it afresh.
+func _try_fire_web(target_node: Node3D) -> bool:
+	if is_silenced or grid_manager == null or not is_instance_valid(target_node):
+		return false
+	if _get_cell_distance(target_node) > FIRE_WEB_RANGE:
 		return false
 	var main := get_parent()
 	if main == null or not main.has_method("register_fire_web"):
 		return false
-	var centre: Vector2i = grid_manager.world_to_grid(position)
+	var centre: Vector2i = grid_manager.world_to_grid(target_node.position)
 	var cells: Array = []
 	for dx in range(-1, 2):
 		for dz in range(-1, 2):

@@ -97,7 +97,7 @@ code was altered in this pass to match; "Built" means the enemy or action did no
 | Succubus | Trash 4 | Built | Mana Drain −10; Damaging Snap = missing mana / 20 + 4. Open: no range on the sheet (4 used). |
 | Ash Harpy | Trash 1 | Built | Peck 3, range 4: she flies in beside her prey to land it (designer, 2026-11-04). Card Steal once per harpy, range 5 (was "flies in from 4"): takes a random card out of the hand (not a discard), returns it on death / despawn / save. |
 | Cherub | Trash 4 | Built | Love's Arrow 2 and the Cherub cannot be attacked directly for 5 tempo; the first arrow flies the moment a unit enters range 4, then it is a 10-tempo clock. |
-| Magma Spider | Trash 1 | Built | Fire Web: the 3×3 around the spider; inside it the player is Slowed and takes 1 fire damage every 3 tempo; lasts while the spider lives. Open: size, duration and the cast tempo (8) are all unstated on the sheet. |
+| Magma Spider | Trash 1 | Built | Fire Web, range 3 (designer, 2026-11-04): the 3×3 around its prey; inside it the player is Slowed and takes 1 fire damage every 3 tempo; lasts while the spider lives. Fire Bounce (designer, 2026-11-04): with its prey beside it, it jumps up to 4 squares away, every square from take-off to landing burning for 3 tempo (1 damage + 1 Burn to who steps in). It never walks; beyond range 3 it waits. Open: web size and duration, the cast tempos (Web 8, Bounce 5) and the trail's damage are unstated on the sheet. |
 | Mind Eater | Trash 3 | Built | Mind Slow (10): every card in the hand costs +20 mana until played (one Hex per card); Manipulate Mind Space (8): Cuffed 15. Open: range (6). |
 | Wererat | Trash 1 | Open | Sheet: Scurry "dashes away (at range ≥6)"; code dashes 5 tiles **toward** you at range ≥6 (its compendium text says so too). Left as is — fleeing from a target already 6 away reads as a typo. |
 | Ring Wraith | Special | Match | 15 damage / 2 tempo, ignores invisibility and shadow form, 0 XP; "resummons" = comes back fresh at the next shadow form, not during the same one. |
@@ -112,7 +112,7 @@ code was altered in this pass to match; "Built" means the enemy or action did no
 - Snow Wraith: range 5; Ice Blast 5 tempo.
 - Demon mimics copy statuses once at creation and then evolve on their own; only health/armor keep mirroring.
 - Ash Harpy with an empty hand pecks and keeps its steal.
-- Magma Spider web 3×3, one per spider, recast refreshes, dies with the spider; Silence blocks the cast.
+- Magma Spider web 3×3 around its prey within range 3, one per spider, recast refreshes, dies with the spider; Silence blocks the cast. Fire Bounce away from an adjacent foe, a 3-tempo fire trail.
 - Mind Eater Mind Slow needs range 6 and not Silenced.
 - Cherub: every arrow (not only the first) hides it for 5 tempo.
 - Rat King Infest: used when the player is not adjacent and no Infest is in the hand; a discarded Infest is erased,
