@@ -117,7 +117,7 @@ func _test_snowball() -> void:
 	_check(b._frames == 8, "eight frames turning over in flight")
 	_check(is_equal_approx(secs, release + 3.65 / 8.0), "it flies at 8 tiles a second: there in %.2f s" % secs)
 	_check(b._sprite.flip_h, "flying left, mirrored")
-	_check(b._sprite.position.y > CameraView.SPRITE_LIFT + 0.5, "at her hand's height, not along the ground")
+	_check(b._sprite.position.dot(CameraView.screen_up()) > 0.5, "at her hand's height up the screen, not along the ground")
 	b._process(release + 0.2)
 	_check(b._sprite.visible and b.global_position.x < fig.global_position.x - 0.4, "thrown, it flies toward the target")
 	b._process(2.0)

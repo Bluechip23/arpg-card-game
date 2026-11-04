@@ -196,6 +196,105 @@ BOARDS = {
             "left": (798, 12, 1072, 455),
             "right": (1155, 14, 1407, 455),
         },
+        # 2026-11-04: the designer's chain lightning board —
+        # djinn_chain_lightning_board.webp, four labelled rows on black between
+        # rule lines (NORTH (BACK / UP), SOUTH (FRONT / DOWN), WEST (LEFT), EAST
+        # (RIGHT)), eight captioned frames a row: ready, eyes glowing, the
+        # eyes crackling, the surge down his arms, the lightning gathered in
+        # his hands, unleashed, the chain lightning, recovery. Both side rows
+        # face right (the left is the right mirrored), and their last two
+        # frames throw a long bolt out to the right: those boxes end just
+        # past his hands, and the bolt to whoever is struck is the arc
+        # sprite (djinn_arc) laid between them. The front's chain frame runs
+        # its lightning down to the caption: its box stops above it. Cast.png,
+        # played for his Chain Lightning; the ready pose is the height
+        # reference, matched to each facing's Idle.
+        "actions": {
+            "src": "djinn_chain_lightning_board.webp",
+            "levels": (16, 45, 20),   # the lightning's glow fades out through dim navy: above that, so it doesn't box the bolts in dark
+            "fill_holes": 10,
+            "open_dark": True,
+            "keep_share": 0.002,   # loose sparks of the lightning
+            "glow": False,
+            "isolate": True,
+            "isolate_floor": 14,
+            # The side rows' unleash and chain frames join through the bolt
+            # (one piece, centred in the chain frame): their boxes don't
+            # overlap, so they are cut without isolating.
+            "isolate_skip": (("right", "unleash"), ("right", "chain"), ("left", "unleash"), ("left", "chain")),
+            # The bolts each box cuts through dissolve (`_fade_edge`): the
+            # side rows' at his hands (cut on the right, then mirrored for the
+            # left), the front's at the caption, the back's at the board's top.
+            "edge_fade": {("right", "unleash"): (("right", 24),), ("right", "chain"): (("right", 24),),
+                          ("left", "unleash"): (("right", 24),), ("left", "chain"): (("right", 24),),
+                          ("front", "chain"): (("bottom", 16),), ("back", "chain"): (("top", 16),)},
+            "match": "ready",
+            "frames": {
+                "front": {
+                    "ready": (127, 271, 266, 486),
+                    "eyes": (285, 271, 423, 486),
+                    "crackle": (441, 270, 578, 486),
+                    "surge": (598, 271, 738, 486),
+                    "gather": (750, 271, 909, 486),
+                    "unleash": (915, 271, 1090, 486),
+                    "chain": (1064, 275, 1308, 485),
+                    "recover": (1293, 271, 1431, 486),
+                },
+                "back": {
+                    "ready": (136, 11, 265, 233),
+                    "eyes": (290, 11, 419, 233),
+                    "crackle": (455, 11, 583, 233),
+                    "surge": (616, 10, 749, 233),
+                    "gather": (767, 10, 935, 233),
+                    "unleash": (932, 9, 1105, 233),
+                    "chain": (1088, 0, 1281, 233),
+                    "recover": (1302, 10, 1431, 233),
+                },
+                "left": {
+                    "ready": ("mirror", (130, 787, 241, 1008)),
+                    "eyes": ("mirror", (282, 788, 389, 1008)),
+                    "crackle": ("mirror", (440, 788, 554, 1008)),
+                    "surge": ("mirror", (593, 788, 701, 1008)),
+                    "gather": ("mirror", (736, 787, 883, 1008)),
+                    "unleash": ("mirror", (895, 788, 1042, 1008)),
+                    "chain": ("mirror", (1092, 788, 1195, 1008)),
+                    "recover": ("mirror", (1296, 788, 1408, 1008)),
+                },
+                "right": {
+                    "ready": (130, 787, 241, 1008),
+                    "eyes": (282, 788, 389, 1008),
+                    "crackle": (440, 788, 554, 1008),
+                    "surge": (593, 788, 701, 1008),
+                    "gather": (736, 787, 883, 1008),
+                    "unleash": (895, 788, 1042, 1008),
+                    "chain": (1092, 788, 1195, 1008),
+                    "recover": (1296, 788, 1408, 1008),
+                },
+            },
+            "sheets": {
+                "Cast": ["eyes", "crackle", "surge", "gather", "unleash", "chain", "recover"],
+            },
+        },
+    },
+    "djinn_arc": {
+        # 2026-11-04: the lightning that bounces between Chain Lightning's
+        # targets — djinn_lightning_arc_strip.webp, ten frames on transparency
+        # of a crackling arc between two glowing nodes, growing from a thin
+        # spark to a full arc and dying away. Packed as one row, Arc.png, in
+        # his folder, every frame stretched to the widest frame's width so
+        # the nodes sit at the same place in each (`stretch`); ArcBolt lays
+        # it between the Djinn's hand and each target in turn, stretched to
+        # the distance (its ends sit ~14% in from each side of every frame:
+        # ArcBolt.NODE_SPAN). 1.6 tiles wide as packed.
+        "into": "djinn",
+        "strip": {
+            "src": "djinn_lightning_arc_strip.webp",
+            "sheet": "Arc",
+            "width_tiles": 1.6,
+            "align": "board",
+            "stretch": True,
+            "frames": [(5, 230, 190, 400), (190, 230, 372, 400), (372, 230, 575, 400), (575, 230, 791, 400), (791, 230, 1036, 400), (1036, 230, 1259, 400), (1259, 230, 1456, 400), (1456, 230, 1650, 400), (1650, 230, 1834, 400), (1834, 230, 1995, 400)],
+        },
     },
     "ice_mage": {
         # 2026-10-27: the Ice Mage redrawn — a hooded frost mage in a fur-
@@ -3154,6 +3253,27 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
     return Image.fromarray(rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
 
 
+def _fade_edge(img: Image.Image, side: str, px: int) -> Image.Image:
+    """Alpha ramped to nothing over the last `px` pixels on one side of a
+    cut-out: a bolt the frame box cuts through (the Djinn's lightning, which
+    the arc sprite carries on) dissolves instead of ending on a straight line."""
+    a = np.asarray(img).copy()
+    h, w = a.shape[:2]
+    n = max(1, min(px, w if side in ("left", "right") else h))
+    ramp = np.linspace(0.0, 1.0, n, endpoint=False)[::-1] if side in ("right", "bottom") else np.linspace(0.0, 1.0, n, endpoint=False)
+    alpha = a[..., 3].astype(float)
+    if side == "right":
+        alpha[:, w - n:] *= ramp[None, :]
+    elif side == "left":
+        alpha[:, :n] *= ramp[None, :]
+    elif side == "bottom":
+        alpha[h - n:, :] *= ramp[:, None]
+    else:
+        alpha[:n, :] *= ramp[:, None]
+    a[..., 3] = alpha.round().astype(np.uint8)
+    return Image.fromarray(a, "RGBA")
+
+
 def _sharpen(img: Image.Image, amount: float) -> Image.Image:
     """Unsharp mask on the colour (alpha untouched), for boards whose source is
     soft (lossy or upscaled): the detail reads after the cut is shrunk."""
@@ -3279,11 +3399,13 @@ def cut_action_frames(cfg: dict) -> dict:
                 out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
                 continue
             rgb = np.asarray(board(d).crop(box).convert("RGB")).astype(int)
-            if act.get("isolate"):
+            if act.get("isolate") and (d, pose) not in act.get("isolate_skip", ()):
                 rgb[others(d, box)] = 0
             img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
                                   act.get("keep_share", 0.0), act.get("fill_holes", False), act.get("levels"),
                                   act.get("glow", True), act.get("open_dark", False), act.get("shadow_lum", 0.0))
+            for side, px in act.get("edge_fade", {}).get((d, pose), ()):
+                img = _fade_edge(img, side, px)
             out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
         for pose, other in again:
             out[d][pose] = out[d][other]
@@ -3421,6 +3543,12 @@ def build_strip(name: str, cfg: dict) -> None:
         boxes = [(b[0], y0, b[2], y1) for b in boxes]
     raw = [f.crop(b) for f, b in zip(raw, boxes)]
     width = raw[0].width
+    if st.get("stretch"):
+        # Every frame stretched across to the widest frame's width (the
+        # Djinn's arc: its ends then sit at the same place in each frame,
+        # however long the arc has grown), `width_tiles` that width.
+        width = max(f.width for f in raw)
+        raw = [f.convert("RGBa").resize((width, f.height), Image.LANCZOS).convert("RGBA") for f in raw]
     for root, kind, density, air in ((OUT % cfg["into"], "pixel", DENSITY, 0),
                                      (os.path.join(smooth_art.ROOT, "sheets", cfg["into"]), "smooth", smooth_art.SMOOTH_DENSITY, SMOOTH_GUTTER)):
         factor = width / float(st["width_tiles"] * density)

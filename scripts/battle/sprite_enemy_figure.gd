@@ -106,7 +106,7 @@ const KINDS := {
 	"mini_bear": {"sheets": SHEETS + "/mini_bear", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the designer's board (2026-10-25), and its attack board (tools/cut_pose_boards.py, 2026-11-01: Attack is the swipe, the tumble onto its back and the scramble up — a cute little bear trying its best); was the mountain-monster Bear
 	"wolf": {"sheets": SHEETS + "/wolf", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-22), and his bite board (tools/cut_pose_boards.py, 2026-10-31: Attack is the leap and bite)
 	"coyote": {"sheets": SHEETS + "/coyote", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and his nip board (2026-10-31: Attack is the nip); was the old MonsterKit wolf battler, tinted
-	"djinn": {"sheets": SHEETS + "/djinn", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-24); was the MonsterKit cell (4, 1)
+	"djinn": {"sheets": SHEETS + "/djinn", "scale": BOARD_SCALE, "fps": {"Cast": 10.0}, "action_sheets": {"chain_lightning": "Cast"}, "arcs": {"chain_lightning": {"sheet": "Arc", "release": 4, "fps": 24.0, "hop": 0.1, "lift": 0.9}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-24), and his chain lightning board and arc strip (2026-11-04: Cast is the eyes glowing, crackling, the surge down his arms, the lightning gathered, unleashed, the chain, recovery; Arc the bolt laid between each pair of the chain's links); was the MonsterKit cell (4, 1)
 	"specter": {"cp": "ghost/Ghost1", "scale": 1.2},
 	"treasure_bunny": {"sheets": SHEETS + "/treasure_bunny", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the Treasure Bunny on MonsterKit cell (7, 1)
 	"skeleton": {"sheets": SHEETS + "/skeleton", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and his slash board (2026-10-31: Attack is the scimitar slash); was the Craftpix Skeleton1
@@ -933,6 +933,46 @@ func throw_projectile(target: Vector3, action: String) -> float:
 			float(proj.get("speed", ThrownSprite.SPEED)), float(proj.get("fps", ThrownSprite.SPIN_FPS)),
 			float(proj.get("lift", 0.0)))
 	return b.total_time()
+
+
+## Lay `action`'s lightning along a chain of points (the kind's "arcs" by
+## action: the Djinn's Chain Lightning, Arc.png beside his sheets): `points`
+## are global positions — his own first, then each unit struck in turn. The
+## first bolt leaves his hands on the release frame (its "release": the
+## frame index in the action's own sheet, while that plays), each next one
+## `hop` seconds after it, all `lift` tiles up the screen. Returns the seconds
+## from now until the last bolt's flash is over, 0 when the action lays none.
+func chain_arcs(points: Array, action: String) -> float:
+	var cfg: Dictionary = KINDS.get(figure_kind, {})
+	var arc: Dictionary = cfg.get("arcs", {}).get(action, {})
+	var path := "%s/%s.png" % [_sheet_folder, arc.get("sheet", "")]
+	if arc.is_empty() or points.size() < 2 or _sheet_folder == "" or not ResourceLoader.exists(path):
+		return 0.0
+	var release := 0.0
+	var sheet: String = cfg.get("action_sheets", {}).get(action, "")
+	if sheet != "" and _cp_anim == sheet:
+		var fps: float = _cp_fps.get(sheet, 8.0)
+		release = maxf(0.0, (float(arc.get("release", 0)) - float(_cp_frame)) / fps - _cp_clock)
+	var host: Node = get_parent().get_parent() if get_parent() and get_parent().get_parent() else get_parent()
+	var tex: Texture2D = load(path)
+	# Chest height on a billboard is along screen-up, not up the world's Y.
+	var lift := Vector3(0, CameraView.SPRITE_LIFT, 0) + CameraView.screen_up() * float(arc.get("lift", 0.0))
+	var hop: float = float(arc.get("hop", 0.1))
+	var longest := 0.0
+	for i in range(points.size() - 1):
+		var b := ArcBolt.new()
+		host.add_child(b)
+		var a_pt: Vector3 = points[i]
+		var b_pt: Vector3 = points[i + 1]
+		if i == 0:
+			# Out of his hands, a little in front of him.
+			var dir := Vector3(b_pt.x - a_pt.x, 0, b_pt.z - a_pt.z)
+			if dir.length() > 0.7:
+				a_pt += dir.normalized() * float(arc.get("ahead", 0.35))
+		b.launch(tex, _sprite.pixel_size * _rig.scale.x, smooth, a_pt + lift, b_pt + lift,
+				release + hop * i, float(arc.get("fps", 24.0)))
+		longest = maxf(longest, b.total_time())
+	return longest
 
 
 ## How long the swing now playing runs: the Attack frames at their fps on

@@ -4412,6 +4412,16 @@ func _try_chain_lightning(target_node: Node3D) -> bool:
 		_djinn_zap(next)
 		current = next
 	print("[%s] Chain lightning arcs through %d unit(s)!" % [enemy_name, hit.size()])
+	# The bolts: from his hands to the first struck, then link to link. The
+	# tick clock waits for the last to flash out, as it waits for a swing.
+	if _enemy_figure and _enemy_figure.has_method("chain_arcs"):
+		var pts: Array = [global_position]
+		for u in hit:
+			if is_instance_valid(u):
+				pts.append(u.global_position)
+		var secs: float = _enemy_figure.chain_arcs(pts, "chain_lightning")
+		if secs > 0.0:
+			swing_started.emit(self, secs)
 	turn_completed.emit()
 	return true
 

@@ -55,6 +55,16 @@ const ZOOM_DEFAULT := 2.0
 
 
 ## Screen-height factor of a flat ground-plane length under this pitch.
+## Screen-up and toward-the-camera, as world directions. A billboard stands
+## along screen-up, so a point at a figure's chest is its feet moved this way
+## (nearly north on the ground under this plan view), not up the world's Y:
+## the thrown snowball, the Djinn's lightning (2026-11-04).
+static func screen_up() -> Vector3:
+	return Basis.from_euler(Vector3(PITCH, YAW, 0)) * Vector3.UP
+
+static func toward_camera() -> Vector3:
+	return Basis.from_euler(Vector3(PITCH, YAW, 0)) * Vector3.BACK
+
 static func ground_foreshortening() -> float:
 	return absf(sin(PITCH))
 

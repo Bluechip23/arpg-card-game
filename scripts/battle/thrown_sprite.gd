@@ -37,8 +37,8 @@ func total_time() -> float:
 ## (the figure's pixel size times its rig scale); `gutter`: empty rows under
 ## the art (the smooth sheets' SMOOTH_GUTTER); `smooth`: filter like the
 ## smooth figures. `from` / `to`: global ground positions. `speed`: tiles a
-## second; `fps`: frames a second; `lift`: world units above the ground it
-## flies at (0: it rolls along the ground, the boulder).
+## second; `fps`: frames a second; `lift`: how far up the screen (tiles)
+## above its ground point it flies (0: it rolls along the ground, the boulder).
 func launch(sheet: Texture2D, texel: float, gutter: int, smooth: bool,
 		from: Vector3, to: Vector3, delay: float,
 		speed: float = SPEED, fps: float = SPIN_FPS, lift: float = 0.0) -> void:
@@ -64,7 +64,9 @@ func launch(sheet: Texture2D, texel: float, gutter: int, smooth: bool,
 	_sprite.offset = Vector2(-_cell * 0.5, -gutter)
 	# Going toward the screen's left: the strip mirrored.
 	_sprite.flip_h = to.x < from.x - 0.01
-	_sprite.position.y = CameraView.SPRITE_LIFT + lift
+	# `lift` up the screen (a billboard's height runs along screen-up, not
+	# the world's Y: the camera looks nearly straight down).
+	_sprite.position = Vector3(0, CameraView.SPRITE_LIFT, 0) + CameraView.screen_up() * lift
 	add_child(_sprite)
 	global_position = from
 	_sprite.visible = _delay <= 0.0
