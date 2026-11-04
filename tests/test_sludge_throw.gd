@@ -5,6 +5,7 @@ extends SceneTree
 ## the ball of slime drawn back, coiled, swung and hurled, the arm lowered
 ## and at rest — four facing rows, at its drawn 10 fps slowed as every enemy
 ## swing is. Its Spit plays it, and the ball (Ball.png) flies to its prey.
+## Its melee plays Attack.png (the designer's hammer board).
 ## Run: godot --headless --path . --script tests/test_sludge_throw.gd
 
 var failures := 0
@@ -66,6 +67,19 @@ func _test_figure() -> void:
 		for col in range(7):
 			worst = maxf(worst, absf(_feet(fig, "Throw", row, col) - idle_feet))
 	_check(worst <= 3.0 * (2.0 if fig.smooth else 1.0), "its puddle stays on the idle ground row (off by at most %.0f texels)" % worst)
+	# Its melee (sludge_hammer_board.webp): Attack.png, the ball morphing
+	# into a hammer of slime, raised, swung and smashed down.
+	_check(fig._cp_sheets.has("Attack") and fig._cp_frame_count("Attack") == 7, "a seven-frame hammer Attack sheet")
+	_check(fig._cp_sheets["Attack"].get_height() == 4 * cell, "in the four facing rows, the Idle sheet's cells")
+	_check(is_equal_approx(fig._cp_fps.get("Attack", 0.0), 10.0 / SpriteEnemyFigure.DRAWN_ATTACK_SLOW), "at its drawn 10 fps, slowed as every enemy swing is")
+	var hworst := 0.0
+	for row in range(4):
+		var hfeet: float = _feet(fig, "Idle", row, 0)
+		for col in range(7):
+			hworst = maxf(hworst, absf(_feet(fig, "Attack", row, col) - hfeet))
+	_check(hworst <= 3.0 * (2.0 if fig.smooth else 1.0), "its puddle stays on the ground row through the smash (off by at most %.0f texels)" % hworst)
+	fig.play_action("sludge_melee")
+	_check(fig._cp_anim == "Attack", "its melee plays the hammer (%s)" % fig._cp_anim)
 	fig.set_facing(CharacterAnimator.Direction.WEST)
 	fig.play_action("sludge_spit")
 	_check(fig._cp_anim == "Throw" and int(fig._sprite.region_rect.position.y / cell) == 2, "Spit facing west: the throw, the left-facing row")
@@ -106,4 +120,10 @@ func _test_enemy() -> void:
 	_check(balls.size() == 1 and is_equal_approx(balls[0]._delay, release), "it leaves its hand on the throw (%.2f s)" % (balls[0]._delay if balls.size() else -1.0))
 	_check(balls.size() == 1 and balls[0]._sprite.flip_h, "flying left, mirrored")
 	_check(holds.size() >= 2 and holds.max() > release, "the clock waits for it (%s s)" % str(holds))
+	e.position = main._ground_pos(cell + Vector2i(1, 0))
+	await _settle(2)
+	var hp1: int = int(st.current_health) + int(st.current_armor)
+	e._execute_action("sludge_melee", main.player)
+	_check(fig._cp_anim == "Attack", "its melee swings the hammer (%s)" % fig._cp_anim)
+	_check(hp1 - (int(st.current_health) + int(st.current_armor)) > 0, "and it struck")
 	main.enemy_spawner.despawn_enemy(e)

@@ -1424,6 +1424,76 @@ BOARDS = {
             },
         },
     },
+    "sludge_hammer": {
+        # 2026-11-04: the Sludge Being's melee — sludge_hammer_board.webp,
+        # "SLUDGE HAMMER ATTACK (MELEE)", four labelled rows in framed
+        # panels on black (NORTH: the face, SOUTH: the back, WEST, EAST),
+        # eight numbered frames a row: the ball held up (its Idle), the ball
+        # swelling, morphing into a hammer of slime, raised, swung (motion
+        # arcs), brought down, the smash in a splash of slime, and at rest
+        # with the hammer melted back. Frames 2-8 are Attack.png, packed into
+        # its folder, for its melee; the arcs and the splash are pieces apart
+        # from it and kept. The boxes stay inside the panel lines and below
+        # the column numbers; the bright rows between frames are its
+        # puddles lining up, not lines.
+        "into": "sludge",
+        "actions": {
+            "src": "sludge_hammer_board.webp",
+            "levels": (8, 40, 12),
+            "fill_holes": 8,
+            "open_dark": True,
+            "keep_share": 0.03,      # the swing's arcs, the splash
+            "glow": False,
+            "isolate": True,
+            "isolate_floor": 16,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (105, 70, 279, 294),
+                    "morph": (279, 70, 451, 294),
+                    "raise": (451, 70, 624, 294),
+                    "hammer": (624, 70, 797, 294),
+                    "swing": (797, 70, 982, 294),
+                    "smash": (982, 70, 1158, 294),
+                    "splash": (1158, 70, 1341, 294),
+                    "rest": (1341, 70, 1510, 294),
+                },
+                "back": {
+                    "stance": (115, 302, 282, 527),
+                    "morph": (282, 302, 454, 527),
+                    "raise": (454, 302, 637, 527),
+                    "hammer": (637, 302, 813, 527),
+                    "swing": (813, 302, 990, 527),
+                    "smash": (990, 302, 1165, 527),
+                    "splash": (1165, 302, 1353, 527),
+                    "rest": (1353, 302, 1522, 527),
+                },
+                "left": {
+                    "stance": (102, 535, 282, 743),
+                    "morph": (282, 535, 453, 743),
+                    "raise": (453, 535, 623, 743),
+                    "hammer": (623, 535, 798, 743),
+                    "swing": (798, 535, 985, 743),
+                    "smash": (985, 535, 1156, 743),
+                    "splash": (1156, 535, 1346, 743),
+                    "rest": (1346, 535, 1516, 743),
+                },
+                "right": {
+                    "stance": (107, 752, 281, 977),
+                    "morph": (281, 752, 449, 977),
+                    "raise": (449, 752, 633, 977),
+                    "hammer": (633, 752, 809, 977),
+                    "swing": (809, 752, 992, 977),
+                    "smash": (992, 752, 1161, 977),
+                    "splash": (1161, 752, 1349, 977),
+                    "rest": (1349, 752, 1524, 977),
+                },
+            },
+            "sheets": {
+                "Attack": ["morph", "raise", "hammer", "swing", "smash", "splash", "rest"],
+            },
+        },
+    },
     "sludge_ball": {
         # The ball of slime in flight: the East row's ball as it leaves the
         # hand, flying right, cut by brightness with soft alpha. Ball.png in
