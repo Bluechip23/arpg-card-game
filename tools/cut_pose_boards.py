@@ -1537,6 +1537,26 @@ BOARDS = {
             "frames": [(686, 775, 1144, 930), (110, 775, 570, 930), (275, 115, 420, 530), (835, 128, 994, 540)],
         },
     },
+    "screecher": {
+        # 2026-11-04: the Screecher — a hooded wraith in a tattered,
+        # moth-eaten shroud, a screaming fanged face with glowing eyes, its
+        # legs a translucent wisp of blue smoke — four labelled poses on
+        # black: NORTH (the face), SOUTH (the back), WEST (facing left), EAST
+        # (facing right). Cut by brightness (`black_glow`), so its smoke
+        # legs keep their soft see-through edge; the boxes stop above the
+        # labels. Replaces the Craftpix ghost it wore as a stand-in.
+        "src": "screecher_board.webp", "bg": "black_glow", "tiles": 1.85,
+        "levels": (6, 32, 10),   # the shroud's darkest rags run just above the backdrop
+        "drop_dim_below": (0.3, 34),   # the haze about its smoke legs, below the hem: a dark smudge on a lit floor
+        "fill_holes": 20,
+        "open_dark": True,
+        "Idle": {
+            "front": (197, 8, 555, 538),
+            "back": (702, 9, 1050, 538),
+            "left": (255, 584, 560, 1135),
+            "right": (674, 585, 998, 1136),
+        },
+    },
     "fire_goblin": {
         # 2026-10-25: the Fire Goblin — a goblin in red leather with a torch,
         # scimitar and round shield; the fire goblin soldier and shaman wear it
@@ -4960,6 +4980,16 @@ def build(name: str, cfg: dict) -> None:
                     # head her attack board: no board of her own): cut as
                     # the attack frames are, by brightness off the backdrop.
                     rgb = np.asarray(board.crop(box).convert("RGB")).astype(int)
+                    if cfg.get("drop_dim_below"):
+                        # A glow painted on black (the haze about the
+                        # Screecher's smoke legs) reads as a dark smudge on a
+                        # lit floor: below its hem (the bottom `frac` of the
+                        # box) the dim pixels go, the bright wisps stay. Above
+                        # it the same dim values are its shroud's folds.
+                        frac, lum_max = cfg["drop_dim_below"]
+                        y0 = int(rgb.shape[0] * (1.0 - frac))
+                        band = rgb[y0:]
+                        band[band.max(axis=2) < lum_max] = 0
                     full[anim][d] = _cut_black_glow(rgb, (), 0.0, 0.0, cfg.get("fill_holes", False),
                                                     cfg.get("levels"), False, cfg.get("open_dark", False))
                     continue

@@ -101,7 +101,7 @@ const KINDS := {
 	"crypt_crawler": {"sheets": SHEETS + "/crypt_crawler", "scale": BOARD_SCALE},  # the designer's grave spider (tools/cut_pose_boards.py, 2026-10-28); was a MonsterKit battler
 	"swarm": {"sheets": SHEETS + "/swarm", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py black_key, 2026-10-26); was MonsterKit cell (4, 0)
 	"giant_hawk": {"sheets": SHEETS + "/giant_hawk", "scale": BOARD_SCALE},  # the designer's board (2026-10-25), perched; was the mountain-monster Bird
-	"screecher": {"cp": "ghost/Ghost2", "scale": 1.2, "tint": Color(0.85, 0.95, 1.15)},  # back on the pale ghost for now (2026-10-27): the crawler board was meant for the Consumed
+	"screecher": {"sheets": SHEETS + "/screecher", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-11-04: the hooded wraith facing N/E/W/S, its legs trailing into smoke); was the pale Craftpix ghost
 	"giant_beaver": {"sheets": SHEETS + "/giant_beaver", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py): stands on its hind legs, walks on all fours
 	"mini_bear": {"sheets": SHEETS + "/mini_bear", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the designer's board (2026-10-25), and its attack board (tools/cut_pose_boards.py, 2026-11-01: Attack is the swipe, the tumble onto its back and the scramble up — a cute little bear trying its best); was the mountain-monster Bear
 	"wolf": {"sheets": SHEETS + "/wolf", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-22), and his bite board (tools/cut_pose_boards.py, 2026-10-31: Attack is the leap and bite)
