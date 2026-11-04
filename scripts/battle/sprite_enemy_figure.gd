@@ -52,22 +52,22 @@ const ATTACK_SLOW := 2.3
 ## is equally slower (see kind_fps).
 const DRAWN_ATTACK_SLOW := ATTACK_SLOW / 1.4
 const CP_FPS := {"Idle": 5.0, "Walk": 8.0, "Run": 10.0, "Draw": 8.0, "Attack": 12.0 / ATTACK_SLOW,
-		"Attack2": 12.0 / ATTACK_SLOW, "Throw": 12.0 / ATTACK_SLOW, "Kick": 12.0 / ATTACK_SLOW, "Cast": 12.0 / ATTACK_SLOW, "Track": 12.0 / ATTACK_SLOW, "Sunken": 12.0 / ATTACK_SLOW, "Bounce": 12.0 / ATTACK_SLOW, "Hurt": 12.0, "Death": 10.0, "Heal": 7.0}
-const CP_ONESHOT := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce", "Hurt", "Death", "Heal"]
+		"Attack2": 12.0 / ATTACK_SLOW, "Throw": 12.0 / ATTACK_SLOW, "Kick": 12.0 / ATTACK_SLOW, "Cast": 12.0 / ATTACK_SLOW, "Track": 12.0 / ATTACK_SLOW, "Sunken": 12.0 / ATTACK_SLOW, "Bounce": 12.0 / ATTACK_SLOW, "Writhe": 12.0 / ATTACK_SLOW, "Hurt": 12.0, "Death": 10.0, "Heal": 7.0}
+const CP_ONESHOT := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce", "Writhe", "Hurt", "Death", "Heal"]
 ## The swings: an attack's sheets (Throw: the Grave Titan's boulder roll;
 ## Kick: the Armored Troll's kick; Cast: the Snow Wraith's Ice Blast; Track
 ## and Sunken: the Sabertooth's stalking crouch and its Sunken Bite — each
 ## played for that action by the kind's "action_sheets").
-const ATTACK_SHEETS := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce"]
+const ATTACK_SHEETS := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce", "Writhe"]
 ## Swings played in place, with no lunge toward the target: the Sabertooth
 ## sizing up its prey is no blow.
-const STILL_SHEETS := ["Track", "Bounce"]   # Bounce: the Magma Spider's leap carries it (leap_from)
+const STILL_SHEETS := ["Track", "Bounce", "Writhe"]   # Bounce: the Magma Spider's leap carries it (leap_from); Writhe: the Mind Eater's tentacles, cast from afar
 ## Held poses: played once, then the last frame stays until another
 ## animation plays (the archer rat at full draw, from two tempo before its
 ## shot until the shot). A hit does not break them.
 const CP_HOLD := ["Draw"]
 ## Every sheet an animation may come as (Craftpix packs and our own).
-const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce", "Hurt", "Death", "Heal"]
+const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce", "Writhe", "Hurt", "Death", "Heal"]
 
 # NPC sheets run S,W,N,E top to bottom (battle uses CharacterAnimator order S,N,E,W).
 const NPC_ROW := [0, 2, 1, 3]  # NPC packs run S,E,N,W
@@ -96,7 +96,7 @@ const NPC_WALK_TIME := 0.18
 const KINDS := {
 	# --- direct battler matches ---
 	"sludge": {"sheets": SHEETS + "/sludge", "scale": BOARD_SCALE, "fps": {"Throw": 10.0, "Attack": 10.0}, "action_sheets": {"sludge_spit": "Throw"}, "projectiles": {"sludge_spit": {"sheet": "Ball", "release": 3, "speed": 7.0, "fps": 12.0, "lift": 0.6, "ahead": 0.35}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and its throw board (2026-11-04: Throw is the ball drawn back, coiled, swung and hurled, the arm lowered; Ball the ball in flight, thrown at its prey by its Spit; and its hammer board: Attack, its melee, the ball morphing into a hammer of slime, raised, swung and smashed down in a splash); was the slime pack's Slime1 tinted green
-	"mind_eater": {"sheets": SHEETS + "/mind_eater", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28); was a MonsterKit battler
+	"mind_eater": {"sheets": SHEETS + "/mind_eater", "scale": BOARD_SCALE, "fps": {"Writhe": 10.0}, "action_sheets": {"mind_slow": "Writhe", "mind_cuff": "Writhe"}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28), and its tentacle board (2026-11-04: Writhe, its tentacles writhing, played in place for its Mind Slow and Manipulate Mind Space); was a MonsterKit battler
 	"pipe_crawler": {"cell": Vector2i(2, 0)},
 	"crypt_crawler": {"sheets": SHEETS + "/crypt_crawler", "scale": BOARD_SCALE},  # the designer's grave spider (tools/cut_pose_boards.py, 2026-10-28); was a MonsterKit battler
 	"swarm": {"sheets": SHEETS + "/swarm", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py black_key, 2026-10-26); was MonsterKit cell (4, 0)

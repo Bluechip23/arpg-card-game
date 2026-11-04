@@ -3475,6 +3475,70 @@ BOARDS = {
             "right": (20, 610, 545, 1180),   # labelled LEFT, faces right
             "left": (735, 615, 1232, 1188),  # labelled RIGHT, faces left
         },
+        # 2026-11-04: the designer's tentacle board — mind_eater_writhe_board.webp,
+        # "TENTACLED HORROR - TENTACLE IDLE (LOOP)", four labelled rows in
+        # framed panels on black (NORTH (FRONT), SOUTH (BACK), WEST (LEFT),
+        # EAST (RIGHT), each facing its own way), eight numbered frames a row
+        # of its tentacles writhing. The designer: this is what it does when
+        # it attacks — Writhe.png, all eight frames, played in place for its
+        # Mind Slow and its Manipulate Mind Space. The first frame is the
+        # height reference, matched to each facing's Idle. The bright band
+        # across the back row is its bodies lining up, not a line.
+        "actions": {
+            "src": "mind_eater_writhe_board.webp",
+            "levels": (8, 36, 10),
+            "fill_holes": 20,
+            "open_dark": True,
+            "glow": False,
+            "split": True,
+            "isolate_floor": 14,
+            "match": "w1",
+            "frames": {
+                "front": {
+                    "w1": (102, 68, 277, 293),
+                    "w2": (277, 68, 453, 293),
+                    "w3": (453, 68, 628, 293),
+                    "w4": (628, 68, 805, 293),
+                    "w5": (805, 68, 983, 293),
+                    "w6": (983, 68, 1161, 293),
+                    "w7": (1161, 68, 1340, 293),
+                    "w8": (1340, 68, 1525, 293),
+                },
+                "back": {
+                    "w1": (102, 300, 280, 506),
+                    "w2": (280, 300, 456, 506),
+                    "w3": (456, 300, 632, 506),
+                    "w4": (632, 300, 808, 506),
+                    "w5": (808, 300, 986, 506),
+                    "w6": (986, 300, 1165, 506),
+                    "w7": (1165, 300, 1342, 506),
+                    "w8": (1342, 300, 1525, 506),
+                },
+                "left": {
+                    "w1": (102, 513, 287, 744),
+                    "w2": (287, 513, 462, 744),
+                    "w3": (462, 513, 636, 744),
+                    "w4": (636, 513, 811, 744),
+                    "w5": (811, 513, 987, 744),
+                    "w6": (987, 513, 1166, 744),
+                    "w7": (1166, 513, 1347, 744),
+                    "w8": (1347, 513, 1525, 744),
+                },
+                "right": {
+                    "w1": (102, 750, 277, 976),
+                    "w2": (277, 750, 455, 976),
+                    "w3": (455, 750, 633, 976),
+                    "w4": (633, 750, 809, 976),
+                    "w5": (809, 750, 986, 976),
+                    "w6": (986, 750, 1164, 976),
+                    "w7": (1164, 750, 1342, 976),
+                    "w8": (1342, 750, 1525, 976),
+                },
+            },
+            "sheets": {
+                "Writhe": ["w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8"],
+            },
+        },
     },
     "hell_door": {
         # 2026-10-28: Hell's Door — a horned skull of cracked stone over a
