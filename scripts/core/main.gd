@@ -14418,7 +14418,8 @@ func _apply_world_ambience() -> void:
 		return
 	var pal: Dictionary = dungeon_manager.get_palette()
 	var in_cave := current_interior_id.begins_with("cave") or current_interior_id.begins_with("hellgate") \
-		or current_interior_id.begins_with("labyrinth")
+		or current_interior_id.begins_with("labyrinth") or current_interior_id.begins_with("closet") \
+		or current_interior_id.begins_with("thanatoshall")
 	var in_building := current_interior_id.begins_with("building")
 	var in_sewer := current_interior_id.begins_with("sewer") or current_interior_id.begins_with("ratking")
 	var in_forest := current_interior_id.begins_with("forest")
@@ -16984,6 +16985,7 @@ func _boss_room_boss_type() -> int:
 		"boneyard": return Enemy.EnemyType.BONE_DRAGON
 		"hellgate": return Enemy.EnemyType.HELL_DOOR
 		"labyrinth": return Enemy.EnemyType.INFLAMED_MINOTAUR
+		"thanatoshall": return Enemy.EnemyType.THANATOS
 	return -1
 
 func _setup_boss_room() -> void:
@@ -16992,6 +16994,7 @@ func _setup_boss_room() -> void:
 		"boneyard": _setup_boneyard()
 		"hellgate": _setup_hellgate()
 		"labyrinth": _setup_labyrinth()
+		"thanatoshall": _setup_thanatos_hall()
 
 # ---- The Labyrinth: the Inflamed Minotaur ----
 # The bull waits in the open court at the heart of the maze (see
@@ -17016,6 +17019,22 @@ func _setup_labyrinth() -> void:
 	_update_enemy_count()
 	_refresh_unit_tracker()
 	add_battle_log("The Labyrinth. The passages close behind you; something is burning at its heart.", Color(1.0, 0.7, 0.45))
+
+# ---- Thanatos's Hall: the bottom of Thanatos Closet ----
+# Death waits on his dais at the east end, between two rows of pillars
+# (DungeonManager._generate_thanatos_hall_layout); his kit is on the Enemy
+# (Reap, Death Bolt, Raise the Dead). First pass: he wears the Corrupted
+# Archangel until his own art is made.
+func _setup_thanatos_hall() -> void:
+	if _boss_cleared("thanatoshall"):
+		add_battle_log("The hall is empty. Death has gone elsewhere — for now.", Color(0.7, 0.95, 0.75))
+		return
+	_spawn_lair_unit(Enemy.EnemyType.THANATOS, dungeon_manager.thanatos_cell)
+	_sync_dungeon_blocked_tiles()
+	_sync_occupied_tiles()
+	_update_enemy_count()
+	_refresh_unit_tracker()
+	add_battle_log("Thanatos's Hall. The door seals behind you. At the far end, Death turns to look.", Color(0.7, 0.95, 0.75))
 
 func _labyrinth_minotaur() -> Enemy:
 	for e in enemy_spawner.get_living_enemies():

@@ -310,6 +310,10 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		interior_kind = "forest"
 	elif interior_id.begins_with("mountains"):
 		interior_kind = "mountains"  # the Mountain Pass (Act 1, Mountains habitat)
+	elif interior_id.begins_with("closet"):
+		interior_kind = "closet"  # Thanatos Closet (the Underworld): undead crypts under the burning ground
+	elif interior_id.begins_with("thanatoshall"):
+		interior_kind = "thanatoshall"  # Thanatos's Hall: the boss room at the Closet's bottom
 	elif interior_id.begins_with("icecave"):
 		interior_kind = "icecave"  # a frozen cave (off the Mountain Pass, and Frostreach's caves)
 	elif interior_id.begins_with("trolllair"):
@@ -336,7 +340,7 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 			fog_reveal_radius = 9   # open, bright country: the view runs far
 		"dojo":
 			fog_reveal_radius = 64  # a lit hall: nothing to explore, nothing hidden
-		"ratking", "boneyard", "hellgate", "labyrinth":
+		"ratking", "boneyard", "hellgate", "labyrinth", "thanatoshall":
 			fog_reveal_radius = 64  # a boss arena: the whole room is in view from the gate
 		_:
 			fog_reveal_radius = FOG_REVEAL_RADIUS
@@ -369,8 +373,10 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 			_generate_forest_layout()
 		"mountains":
 			_generate_mountain_layout()
-		"icecave":
-			_generate_cave_layout()   # the cave's chambers and tunnels, frozen
+		"icecave", "closet":
+			_generate_cave_layout()   # the cave's chambers and tunnels (frozen; or a crypt)
+		"thanatoshall":
+			_generate_thanatos_hall_layout()
 		"trolllair":
 			_generate_troll_lair_layout()
 		"dojo":
@@ -425,6 +431,9 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 			_place_boss_door("deep", "east", "labyrinth", "labyrinth", "The Labyrinth", Color(1.0, 0.7, 0.45), Color(1.0, 0.45, 0.1))
 		elif interior_kind == "mountains":
 			_place_mountain_caves()
+		elif interior_kind == "closet":
+			# The Closet's deepest crypt: the way down to Thanatos.
+			_place_boss_door("deep", "east", "thanatoshall", "thanatoshall", "Thanatos's Hall", Color(0.75, 0.95, 0.8), Color(0.45, 1.0, 0.6))
 	_place_chests()
 	_place_fountains()
 	_place_shrine()
@@ -487,6 +496,17 @@ func _set_world_size() -> void:
 		GRID_W = DOJO_W
 		GRID_H = DOJO_H
 		player_start = Vector2i(DOJO_W / 2, DOJO_H - 3)
+		return
+	if interior_kind == "closet":
+		# Thanatos Closet: a crypt warren bigger than a cave, entered from the west.
+		GRID_W = 46 + world_level * 2
+		GRID_H = 30 + world_level
+		player_start = Vector2i(3, GRID_H / 2)
+		return
+	if interior_kind == "thanatoshall":
+		GRID_W = TH_SIZE.x
+		GRID_H = TH_SIZE.y
+		player_start = Vector2i(TH_FLOOR.position.x + 1, TH_FLOOR.get_center().y)
 		return
 	if interior_kind == "trolllair":
 		GRID_W = TL_SIZE.x
@@ -580,7 +600,7 @@ func art_world() -> int:
 func get_palette() -> Dictionary:
 	if interior_kind == "cave" or interior_kind == "hellgate" or interior_kind == "labyrinth":
 		return CAVE_PALETTE
-	if interior_kind == "graveyard" or interior_kind == "boneyard":
+	if interior_kind in ["graveyard", "boneyard", "closet", "thanatoshall"]:
 		return _get_graveyard_palette()
 	if interior_kind == "building" or interior_kind == "dojo":
 		return BUILDING_PALETTE
@@ -605,7 +625,7 @@ const GROUND_TEX := "res://assets/textures/ground"
 
 func floor_texture_path() -> String:
 	match interior_kind:
-		"boneyard":
+		"boneyard", "closet", "thanatoshall":   # the undead land: the Boneyard and Thanatos Closet
 			return GROUND_TEX + "/undead_floor.png"   # the designer's barrow land (2026-10-29)
 		"sewer", "ratking":
 			return CP_TEX + "/floor_glowing_cave.png"  # wet stone (glowing-cave pack; the plain cave fill went black under the sewer's dim light)
@@ -646,7 +666,7 @@ func trail_texture_path() -> String:
 			return GROUND_TEX + "/forest_dirt.png"   # the designer's cobbled dirt (2026-10-29)
 		"cave", "sewer", "building", "ratking", "hellgate", "labyrinth":
 			return CP_TEX + "/floor_dirt_forest.png"  # trodden dark earth
-		"boneyard":
+		"boneyard", "closet", "thanatoshall":
 			return GROUND_TEX + "/undead_cobble.png"   # the designer's barrow land (2026-10-29)
 		"mountains", "icecave", "trolllair":
 			return CP_TEX + "/floor_undead_sand.png"  # trodden grey slush: the trails and the steps up the cliffs
@@ -666,7 +686,7 @@ func trail_texture_path() -> String:
 ## Cliff faces / rock walls: the matching pack's cobbled cliff fill.
 func wall_texture_path() -> String:
 	match interior_kind:
-		"boneyard":
+		"boneyard", "closet", "thanatoshall":   # the undead land: the Boneyard and Thanatos Closet
 			return GROUND_TEX + "/undead_wall.png"   # the designer's barrow land (2026-10-29)
 		"sewer", "ratking":
 			return CP_TEX + "/wall_cave.png"  # dark cave rock
@@ -695,7 +715,7 @@ func wall_texture_path() -> String:
 ## Still water: the pack's water colour under its foam overlay.
 func water_texture_path() -> String:
 	match interior_kind:
-		"boneyard":
+		"boneyard", "closet", "thanatoshall":   # the undead land: the Boneyard and Thanatos Closet
 			return GROUND_TEX + "/undead_water.png"   # the designer's barrow land (2026-10-29)
 		"hellgate", "labyrinth":
 			return CP_TEX + "/water_lava.png"  # the pools at Hell's threshold, and in the Minotaur's court, are lava (cave pack)
@@ -736,7 +756,7 @@ func _prop_biome() -> String:
 			return "goods"
 		"sewer", "ratking":
 			return "sewer"
-		"boneyard":
+		"boneyard", "closet", "thanatoshall":
 			return "undead"
 		"hellgate", "labyrinth":
 			return "cave"
@@ -772,6 +792,9 @@ const PROP_ROLES := {
 		"crystal": ["cave_crystal"], "pebble": ["cave_pebble"], "bones": ["undead_bones"], "web": ["cave_web"],
 		"wallrock": ["wallrock_grey"]},
 	"undead": {"tree": ["undead_tree"], "stump": ["undead_stump"], "rock": ["undead_rock"], "bush": ["undead_bush"],
+		# underground (Thanatos Closet, through the cave's dressing): headstones
+		# for its stalagmites, the cave's stalactites, pale grave plants
+		"stalagmite": ["undead_grave"], "stalactite": ["cave_stalactite"], "crystal": ["undead_plant"],
 		"berry": ["undead_bush"], "fern": ["undead_plant"], "flower": ["undead_plant"], "tuft": ["undead_bones"],   # the designer's barrow land (2026-10-29)
 		"shroom": ["undead_skulls"], "pebble": ["undead_bones"], "bones": ["undead_bones"], "reeds": ["forest_reeds"],
 		"wallrock": ["wallrock_dark"]},
@@ -914,6 +937,10 @@ func get_location_name() -> String:
 		return "Ice Cave %d" % (int(interior_id.get_slice("_", 1)) + 1)
 	if interior_kind == "trolllair":
 		return "Ice Troll Lair"
+	if interior_kind == "closet":
+		return "Thanatos Closet"
+	if interior_kind == "thanatoshall":
+		return "Thanatos's Hall"
 	if interior_kind == "graveyard":
 		return "Old Graveyard"
 	if interior_kind == "dojo":
@@ -966,11 +993,11 @@ var cleared_bosses: Array = []
 ## Interiors that are boss rooms (cutscene fights behind a sealed door).
 static func is_boss_room(id: String) -> bool:
 	return id.begins_with("ratking") or id.begins_with("boneyard") or id.begins_with("hellgate") \
-		or id.begins_with("labyrinth")
+		or id.begins_with("labyrinth") or id.begins_with("thanatoshall")
 
 ## The boss-room key of an interior id ("ratking_lair" -> "ratking").
 static func boss_room_key(id: String) -> String:
-	for key in ["ratking", "boneyard", "hellgate", "labyrinth"]:
+	for key in ["ratking", "boneyard", "hellgate", "labyrinth", "thanatoshall"]:
 		if id.begins_with(key):
 			return key
 	return ""
@@ -2457,6 +2484,203 @@ func _nearest_free_floor(c: Vector2i, avoid: Array) -> Vector2i:
 	return Vector2i(-1, -1)
 
 # ============================================
+# THANATOS CLOSET AND THANATOS'S HALL (the Underworld; designer, 2026-11-05:
+# "a cave or some sort of underground area that utilizes the undead land
+# pixel art ... called Thanatos Closet ... the player will adventure around
+# and eventually fight Thanatos")
+# The Closet: crypt warrens under the Underworld (the cave's chambers and
+# tunnels) in the undead land art — barrow earth, its rock, its green bog
+# for puddles, headstones, ruined pillars and skull doors along the walls,
+# bones and skulls underfoot. Specters drift through it, mind eaters and
+# demons lurk in its chambers; its deepest crypt opens on Thanatos's Hall,
+# the boss room (sealed until he falls), where he waits on his dais between
+# rows of pillars.
+# ============================================
+
+## The Underworld's far reaches (World 2): the Closet's way down, in the
+## free field room farthest from the start (picked without the layout's
+## dice). Its footprint is a raised block of the land, the skull door in it.
+func _place_closet_site(candidates: Array) -> void:
+	if world_level != 2 or interior_kind != "" or candidates.is_empty():
+		return
+	var pick := -1
+	var best := -1
+	for room_idx in candidates:
+		var c: Vector2i = rooms[room_idx]["rect"].get_center()
+		var d := absi(c.x - player_start.x) + absi(c.y - player_start.y)
+		if d > best:
+			best = d
+			pick = room_idx
+	var rect: Rect2i = rooms[pick]["rect"]
+	var fp_w := 3
+	var fp_d := 3
+	var fx = clampi(rect.get_center().x - fp_w / 2, rect.position.x + 1, rect.end.x - fp_w - 1)
+	var fz = rect.position.y + 1
+	var footprint: Array = []
+	for x in range(fx, fx + fp_w):
+		for z in range(fz, fz + fp_d):
+			footprint.append(Vector2i(x, z))
+	var entrance = Vector2i(fx + fp_w / 2, fz + fp_d)
+	if not is_floor(entrance) or not _try_block_footprint(footprint):
+		return
+	candidates.erase(pick)
+	rooms[pick]["kind"] = "site"
+	_create_site("closet", "closet_0", "Thanatos Closet", footprint, entrance, fx, fz, fp_w, fp_d)
+
+func _build_closet_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
+	## The undead land pack on the burning ground: its skull-mouthed door in
+	## the block's face, ruined pillars either side, a dead tree behind.
+	var door := _make_prop_sprite("undead_skull_door", 1.4)
+	if door:
+		door.position = Vector3(0, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.35)
+		root.add_child(door)
+	for side in [-1.0, 1.0]:
+		var pillar := _make_prop_sprite("undead_ruin", 1.1, 0)
+		if pillar:
+			pillar.position = Vector3(side * fp_w * 0.38, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.5)
+			root.add_child(pillar)
+	var tree := _make_prop_sprite("undead_tree", 1.0, 2)
+	if tree:
+		tree.position = Vector3(0.2, CameraView.SPRITE_LIFT, -fp_d / 2.0 + 0.4)
+		root.add_child(tree)
+	var glow = OmniLight3D.new()
+	glow.light_color = Color(0.45, 1.0, 0.6)
+	glow.light_energy = 0.7
+	glow.omni_range = 3.0
+	glow.position = Vector3(0, 0.5, fp_d / 2.0)
+	root.add_child(glow)
+
+## The Closet's dwellers: specters drifting everywhere, mind eaters in the
+## chambers, a demon or two in the deeper crypts and the deepest.
+func _define_closet_spawn_zones() -> void:
+	for room in rooms:
+		var rect: Rect2i = room["rect"]
+		var kind: String = room["kind"]
+		if kind in ["start", "exit"]:
+			continue
+		if kind != "deep" and _rng.randf() >= 0.8:
+			continue
+		var depth := float(rect.get_center().x) / float(GRID_W)
+		var n := clampi(2 + rect.get_area() / 40, 2, 5)
+		var points: Array = []
+		var types: Array = []
+		for _i in range(n):
+			var cell := _pick_free_cell(rect, points)
+			if cell.x < 0:
+				continue
+			points.append(cell)
+			var roll := _rng.randf()
+			if roll < 0.15 + depth * 0.15:
+				types.append(Enemy.EnemyType.DEMON)
+			elif roll < 0.5:
+				types.append(Enemy.EnemyType.MIND_EATER)
+			else:
+				types.append(Enemy.EnemyType.SPECTER)
+		if points.is_empty():
+			continue
+		if kind == "deep":
+			types[0] = Enemy.EnemyType.DEMON
+		spawn_zones.append({"trigger_rect": rect.grow(1), "spawn_points": points, "enemy_types": types, "spawned": false})
+	for z in spawn_zones:
+		for p in z["spawn_points"]:
+			_reserved[p] = true
+	print("[DUNGEON] Defined %d Thanatos Closet spawn zones" % spawn_zones.size())
+
+## Along the crypt walls, the undead land pack: ruined pillars, skull doors
+## set in the rock and the odd dead tree (never on the row nearest the
+## camera, where a tall sprite would stand over the ground).
+func _dress_crypt_walls() -> void:
+	var placed := 0
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			if grid[x][z] != Tile.WALL or not _has_adjacent_floor(x, z) or _is_floor_at(x, z - 1):
+				continue
+			var n := _tile_noise(x, z, 911)
+			var world := grid_manager.grid_to_world(Vector2i(x, z)) + Vector3(0, CameraView.SPRITE_LIFT, 0.3)
+			var sprite: Sprite3D = null
+			if n < 0.16:
+				sprite = _make_prop_sprite("undead_ruin", 1.0, int(n * 100) % 3)
+			elif n < 0.20:
+				sprite = _make_prop_sprite("undead_skull_door", 1.0)
+			elif n < 0.26:
+				sprite = _make_prop_sprite("undead_tree", 0.9, int(n * 100) % 5)
+			if sprite:
+				sprite.position = world
+				_visuals_root.add_child(sprite)
+				placed += 1
+	print("[DUNGEON] Crypt walls dressed: %d pieces" % placed)
+
+const TH_SIZE := Vector2i(28, 19)
+const TH_FLOOR := Rect2i(1, 1, 26, 17)
+## Thanatos's dais cell (east end of the hall).
+var thanatos_cell := Vector2i(-1, -1)
+## The hall's pillars (wall tiles in two rows down its length).
+var thanatos_pillars: Array = []
+
+func _generate_thanatos_hall_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	thanatos_pillars.clear()
+	_carve_rect(TH_FLOOR)
+	rooms.append({"rect": TH_FLOOR, "kind": "boss", "elev": 0})
+	var mid := TH_FLOOR.get_center().y
+	# Two rows of pillars down the hall, cover from his bolts.
+	for x in [7, 11, 15, 19]:
+		for z in [mid - 4, mid + 4]:
+			var c := Vector2i(x, z)
+			grid[c.x][c.y] = Tile.WALL
+			thanatos_pillars.append(c)
+	thanatos_cell = Vector2i(TH_FLOOR.end.x - 3, mid)
+	_enforce_border_walls()
+
+func _build_thanatos_hall_decorations() -> void:
+	## The undead land pack: a ruined pillar on every pillar tile, skull
+	## doors and pillars along the walls, headstones and bones about the
+	## floor, a dead tree either side of his dais.
+	_reserve_area(thanatos_cell, 1)
+	_reserve_area(player_start, 1)
+	for c in thanatos_pillars:
+		var pillar := _make_prop_sprite("undead_ruin", 1.2, 0)
+		if pillar:
+			pillar.position = grid_manager.grid_to_world(c) + Vector3(0, CameraView.SPRITE_LIFT, 0.3)
+			_visuals_root.add_child(pillar)
+	_dress_crypt_walls()
+	for dz in [-2, 2]:
+		var tree := _make_prop_sprite("undead_tree", 1.1, 1 if dz < 0 else 3)
+		if tree:
+			tree.position = grid_manager.grid_to_world(thanatos_cell + Vector2i(1, dz)) + Vector3(0, CameraView.SPRITE_LIFT, 0)
+			_visuals_root.add_child(tree)
+	var bones := 0
+	for x in range(TH_FLOOR.position.x, TH_FLOOR.end.x):
+		for z in range(TH_FLOOR.position.y, TH_FLOOR.end.y):
+			var pos := Vector2i(x, z)
+			if _reserved.has(pos) or not is_floor(pos):
+				continue
+			var n := _tile_noise(x, z, 931)
+			var role := ""
+			if n < 0.05:
+				role = "undead_bones"
+			elif n < 0.08:
+				role = "undead_skulls"
+			elif n < 0.10:
+				role = "undead_grave"
+			if role == "":
+				continue
+			var piece := _make_prop_sprite(role, 0.9, int(_tile_noise(x, z, 937) * 11))
+			if piece:
+				piece.position = grid_manager.grid_to_world(pos) + Vector3(0, CameraView.SPRITE_LIFT, 0)
+				_visuals_root.add_child(piece)
+				bones += 1
+	# A pale green light over the dais.
+	var light = OmniLight3D.new()
+	light.light_color = Color(0.5, 1.0, 0.65)
+	light.light_energy = 1.6
+	light.omni_range = 6.0
+	light.position = grid_manager.grid_to_world(thanatos_cell) + Vector3(0, 1.2, 0)
+	_visuals_root.add_child(light)
+	print("[DUNGEON] Thanatos's Hall dressed: %d pillars, %d bones and graves" % [thanatos_pillars.size(), bones])
+
+# ============================================
 # BUILDING INTERIOR LAYOUT
 # A central hall with rooms partitioned off either side, joined by doorways.
 # ============================================
@@ -2609,7 +2833,7 @@ func _generate_elevation() -> void:
 	if interior_kind == "sewer":
 		return  # Sewers are flat; channels are carved into the floor, not raised
 	if interior_kind == "boneyard" or interior_kind == "hellgate" or interior_kind == "labyrinth" \
-			or interior_kind == "trolllair":
+			or interior_kind == "trolllair" or interior_kind == "thanatoshall" or interior_kind == "closet":
 		return  # a walled graveyard square / the gate hall / the maze: flat
 	if interior_kind == "ratking":
 		# The lair's three cliffs: the walkable top rows behind each cliff
@@ -3188,8 +3412,8 @@ func _natural_boundary() -> bool:
 		return false
 	if interior_kind == "forest":
 		return true
-	if interior_kind in ["mountains", "icecave", "trolllair"]:
-		return false   # rock all round: the mountain's own cliffs
+	if interior_kind in ["mountains", "icecave", "trolllair", "closet", "thanatoshall"]:
+		return false   # rock all round
 	return art_world() in [1, 2, 3]
 
 func _build_walls() -> void:
@@ -3270,7 +3494,7 @@ func cliff_strip_path() -> String:
 			return GROUND_TEX + "/cave_cliff.png"   # the designer's hanging rock face, 32 px cells (2026-10-29)
 		"sewer", "ratking", "hellgate", "labyrinth":
 			return CP_TEX + "/cliff_cave.png"
-		"boneyard":
+		"boneyard", "closet", "thanatoshall":   # the undead land: the Boneyard and Thanatos Closet
 			return GROUND_TEX + "/undead_cliff.png"   # the designer's barrow land (2026-10-29)
 		"forest":
 			return GROUND_TEX + "/forest_cliff.png"   # the designer's grass-over-rock strip, 32 px cells (2026-10-29)
@@ -3590,7 +3814,7 @@ func _build_boundary_props() -> void:
 ## covering the spaces that are unreachable"; the designs come later).
 ## A building's walls and roof cover its footprint already; the forest
 ## trail's is filled with woods (_build_forest_entrance).
-const SITE_BLOCK_KINDS := ["cave", "sewer", "mountains", "graveyard"]
+const SITE_BLOCK_KINDS := ["cave", "sewer", "mountains", "graveyard", "closet"]
 
 ## Every block-kind site's footprint drawn as the land's cliff: rock (or
 ## earth) on top, the cliff face along its south edge, the entrance art on
@@ -3853,6 +4077,13 @@ func _build_decorations() -> void:
 		return
 	if interior_kind == "boneyard":
 		_build_boneyard_decorations()
+		return
+	if interior_kind == "closet":
+		_build_cave_decorations()   # the undead roles: headstones, bones, skulls
+		_dress_crypt_walls()
+		return
+	if interior_kind == "thanatoshall":
+		_build_thanatos_hall_decorations()
 		return
 	if interior_kind == "hellgate":
 		_build_hellgate_decorations()
@@ -5572,6 +5803,7 @@ func _place_sites() -> void:
 		_create_site(kind, id, display_name, footprint, entrance, fx, fz, fp_w, fp_d)
 
 	_place_mountain_site(candidates)
+	_place_closet_site(candidates)
 	_place_hidden_graveyard(candidates)
 	print("[DUNGEON] Placed %d enterable sites" % site_nodes.size())
 
@@ -5755,6 +5987,8 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 			_build_forest_entrance(site_root, fp_w, fp_d)
 		"mountains":
 			_build_mountain_entrance(site_root, fp_w, fp_d)
+		"closet":
+			_build_closet_entrance(site_root, fp_w, fp_d)
 		_:
 			_build_cave_entrance(site_root, fp_w, fp_d)
 	# Its walls, pillars and lintels stay under the sprites, so the player at
@@ -6435,6 +6669,10 @@ func _define_spawn_zones() -> void:
 
 	if interior_kind == "icecave":
 		_define_ice_cave_spawn_zones()
+		return
+
+	if interior_kind == "closet":
+		_define_closet_spawn_zones()
 		return
 
 	if interior_kind == "trolllair":
