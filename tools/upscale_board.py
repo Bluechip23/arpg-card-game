@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
 """Upscale a designer's board that draws a hero smaller than his other boards.
 
-Stephen's walk board (stephen_walk_board.webp, 2026-10-31) draws him about
-135 px tall where his still poses are 277 px and his right walk about 430,
-so the game had to enlarge its front, back and left walks and they came out
-soft beside his crisp still poses (designer, 2026-11-05: "his walking in
-both directions is incorrect", "the correct resolution" being the stills').
-This runs the board through Real-ESRGAN's anime model (realesrgan-x4plus-anime,
-BSD-3-Clause, the ncnn build that realesrgan-ncnn-vulkan ships) at 4x on the
-CPU, then brings it down to `--scale` with Lanczos, so its figures stand as
-tall as the still poses' and keep a clean edge. Colour and alpha go through
-the model separately, as realesrgan-ncnn-vulkan does with RGBA input.
+A board that draws the hero much smaller than his still poses (Stephen's
+first walk board, 2026-10-31, drew him about 135 px tall to his stills'
+277) has to be enlarged in the game, and its frames come out soft beside
+the stills. This runs such a board through Real-ESRGAN's anime model
+(realesrgan-x4plus-anime, BSD-3-Clause, the ncnn build that
+realesrgan-ncnn-vulkan ships) at 4x on the CPU, then brings it down to
+`--scale` with Lanczos, so its figures stand as tall as the still poses'
+and keep a clean edge. Colour and alpha go through the model separately,
+as realesrgan-ncnn-vulkan does with RGBA input.
 
 It is a resize, not new art: the drawing, colours and proportions are the
-board's own. A board the designer draws at the size of the others replaces
-the output.
+board's own, and a board the designer redraws at full size replaces it
+(Stephen's walks were, 2026-11-05; no board needs it now).
 
 Needs `pip install ncnn` and the model's two files
 (realesrgan-x4plus-anime.param / .bin, from the realesrgan-ncnn-vulkan

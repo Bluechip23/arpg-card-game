@@ -136,7 +136,10 @@ HEROES = {
     # 2026-11-05: the board's right pose, enlarged from a 69x138 image,
     # was "grainy and isn't as clean"; the walk board draws him standing,
     # feet together, at its first and last frames, in the walk's own
-    # resolution).
+    # resolution). The designer's corrected standing turnaround
+    # (stephen_turnaround_board.webp, 2026-11-05) is kept for reference
+    # only: the four standing poses here are the ones the designer
+    # approved, "do not adjust that piece at all".
     "stephen": [
         (STEPHEN, (34, 0, 242, 287), "south"),
         (STEPHEN, (248, 0, 472, 291), "north"),
@@ -149,24 +152,21 @@ HEROES = {
 # row draws, facings left out, ground). The cells sit between consecutive
 # lines. Ground None: the figures are cut on the board's own alpha;
 # "opaque": the board is painted on a dark ground with a soft glow behind
-# the figure, fitted and filled in from each cell's edge (cut_opaque_cell). Stephen's board (2026-10-31):
-# back, front, left, right rows. Its right row is left out: from frame 3 on
-# it shows the bear arm on his near side, the mistake the designer had fixed
-# on his still pose (2026-10-28); the redrawn row is its own board
-# (WALK_EXTRA).
+# the figure, fitted and filled in from each cell's edge (cut_opaque_cell).
+# Stephen's walks are a board a way (WALKS: his front; WALK_EXTRA: his
+# back, left and right).
 WALK_CELL_INSET = 4   # px kept clear of the grid lines
 WALK_ALPHA = 40       # source alpha over this is figure (for finding it; the
                       # cut keeps the soft alpha for the resample)
 WALKS = {
-    # (stephen_walk_board.webp at twice its size, tools/upscale_board.py:
-    # it draws him half as tall as his still poses, so the game enlarged
-    # his front, back and left walks and they came out soft beside them,
-    # designer 2026-11-05. The grid lines are the board's, doubled.)
-    "stephen": ("stephen_walk_board_x2.webp",
-                [184, 452, 718, 980, 1238, 1498, 1744, 1988, 2236],
-                [20, 364, 688, 1006, 1338],
-                ["north", "south", "west", "east"],
-                {"east"}, None, {"inset": 8}),
+    # 2026-11-05: Stephen's walks redrawn by the designer at his still
+    # poses' resolution, a board a way, one row of eight frames on a dark
+    # ground (his old board drew him half as tall, so the game enlarged
+    # those walks and they came out soft). His dark trousers and boots are
+    # matched within 4, as on his right walk; the default match ate them.
+    "stephen": ("stephen_walk_south_board.webp",
+                [9, 251, 501, 750, 1000, 1250, 1500, 1750, 1994], [72, 577],
+                ["south"], set(), "opaque", {"tol": 4, "narrow": 7}),
     # 2026-10-31: Ryan's walk board, on a dark plum ground with a soft
     # shadow under the feet: back, front, left, right rows, all used.
     "ryan": ("ryan_walk_board.webp",
@@ -193,21 +193,27 @@ WALKS = {
              ["north", "south", "west", "east"],
              set(), "opaque", {"halo": True}),   # the feather's glow stripped (HALO_STRIP)
 }
-# A direction redrawn on a board of its own, in WALKS' form: Stephen's right
-# (2026-10-31, "Walk Right (Corrected)": his human arm on the near side,
-# where his main board's right row showed the bear arm).
+# A direction on a board of its own, in WALKS' form: Stephen's back and
+# left (2026-11-05) and his right (2026-10-31, "Walk Right (Corrected)": his
+# human arm on the near side).
 WALK_EXTRA = {
-    "stephen": [("stephen_walk_right_board.webp",
+    "stephen": [("stephen_walk_north_board.webp",
+                 [7, 251, 501, 751, 1000, 1250, 1500, 1750, 1995], [70, 578],
+                 ["north"], set(), "opaque", {"tol": 4, "narrow": 7}),
+                ("stephen_walk_left_board.webp",
+                 [10, 263, 510, 759, 1007, 1253, 1500, 1747, 1995], [73, 579],
+                 ["west"], set(), "opaque", {"tol": 4, "narrow": 7}),
+                ("stephen_walk_right_board.webp",
                  [10, 234, 458, 683, 907, 1122, 1341, 1562, 1770], [87, 738],
                  ["east"], set(), "opaque", {"tol": 4, "narrow": 7, "grow": True})],   # his dark trousers; armpit shadows
 }
 # Walk rows the board draws stockier than the still pose that way: each
 # stands the still's height and is drawn this much narrower (designer,
-# 2026-11-04: "when Ryan walks he gets more bulky", Stephen "gets shorter
-# and wider when going left" — the halfway scale of 2026-11-02 shrank the
-# row instead). Judged frame by frame against the still, at the game's size.
+# 2026-11-04: "when Ryan walks he gets more bulky"). Judged frame by frame
+# against the still, at the game's size. (Stephen's walks, redrawn
+# 2026-11-05, stand his height at his still poses' own drawing scale —
+# his belt orb the same size — and need none.)
 WALK_SQUEEZE = {
-    "stephen": {"south": 0.90, "north": 0.90, "west": 0.85},
     "ryan": {"south": 0.88, "north": 0.88, "east": 0.92, "west": 0.92},
 }
 # The opaque boards' ground, fitted a cell (_ground_fit): within
@@ -607,7 +613,7 @@ def cut_walk_board(path, xs, ys, facings, skip, ground, opts=None):
             continue
         frames = []
         for c in range(len(xs) - 1):
-            i = opts.get("inset", WALK_CELL_INSET)
+            i = WALK_CELL_INSET
             cell = board[ys[r] + i:ys[r + 1] - i + 1, xs[c] + i:xs[c + 1] - i + 1]
             if ground == "opaque":
                 cell = cut_opaque_cell(cell, True, False, opts.get("narrow", 0), opts.get("tol"), None,
