@@ -20,7 +20,14 @@ gets one per frame too, <kind>_act_<direction>_<pose>.png
 
 Needs (tool dependencies only, not the game's): rembg[cpu] (onnxruntime),
 which downloads the birefnet-general-lite model on first use.
+Hero action boards that ask for mattes ("matte": True in
+tools/cut_hero_actions.py: Cory's kick, whose shadow legs are as dark as
+the board's ground) get one a grid cell,
+<hero>_<action>_<facing>_<col>.png (hero_action_matte_path).
+
 Run: python3 tools/make_mattes.py [kind ...]
+     python3 tools/make_mattes.py <kind> --actions   (only its action frames)
+     python3 tools/make_mattes.py --hero [hero_action ...]   (e.g. cory_attack)
 """
 import os
 import sys
@@ -35,12 +42,50 @@ PAD = 80
 OUT = "assets/sprites/paintings/mattes"
 
 
+def hero_action_matte_path(hero: str, action: str, facing: str, col: int) -> str:
+    """A hero action cell's matte (tools/cut_hero_actions.py, "matte": True)."""
+    return os.path.join(OUT, "%s_%s_%s_%d.png" % (hero, action, facing, col))
+
+
+def hero_actions(session, remove, which) -> None:
+    """Mattes for the hero action boards that ask for them ("matte": True in
+    cut_hero_actions.ACTIONS): one a grid cell, the cell given to the model
+    padded with its own ground colour (the next cells' figures would be in
+    a padding of board), so the model judges the figure alone."""
+    import numpy as np
+    import cut_hero_actions as ha
+    for (hero, action), spec in ha.ACTIONS.items():
+        if not spec.get("matte") or (which and "%s_%s" % (hero, action) not in which):
+            continue
+        board = np.asarray(Image.open(ha.hs.SRC % spec["src"]).convert("RGB"))
+        cols, i = spec["cols"], ha.CELL_INSET
+        for (top, bottom), facing in zip(spec["rows"], spec["facings"]):
+            for c in range(len(cols) - 1):
+                cell = board[top + i:bottom - i + 1, cols[c] + i:cols[c + 1] - i + 1]
+                border = np.concatenate([cell[0], cell[-1], cell[:, 0], cell[:, -1]])
+                ground = np.median(border, axis=0).astype(np.uint8)
+                big = np.empty((cell.shape[0] + 2 * PAD, cell.shape[1] + 2 * PAD, 3), np.uint8)
+                big[:] = ground
+                big[PAD:PAD + cell.shape[0], PAD:PAD + cell.shape[1]] = cell
+                mask = remove(Image.fromarray(big), session=session, only_mask=True)
+                mask = mask.crop((PAD, PAD, PAD + cell.shape[1], PAD + cell.shape[0]))
+                mask.point(lambda v: 255 if v > 127 else 0).save(hero_action_matte_path(hero, action, facing, c))
+                print(hero, action, facing, c)
+
+
 def main() -> None:
     from rembg import new_session, remove
     session = new_session(MODEL)
     os.makedirs(OUT, exist_ok=True)
-    names = sys.argv[1:] or [k for k, cfg in boards.BOARDS.items()
-                             if cfg.get("matte") or cfg.get("actions", {}).get("matte")]
+    if sys.argv[1:2] == ["--hero"]:
+        hero_actions(session, remove, sys.argv[2:])
+        return
+    args = sys.argv[1:]
+    actions_only = "--actions" in args   # only the action frames' mattes (the poses' are kept)
+    args = [a for a in args if a != "--actions"]
+    names = args or [k for k, cfg in boards.BOARDS.items()
+                     if cfg.get("matte") or cfg.get("actions", {}).get("matte")
+                     or cfg.get("actions", {}).get("matte_union")]
     for kind in names:
         cfg = boards.BOARDS[kind]
         board = Image.open(boards.SRC % cfg["src"])
@@ -49,7 +94,7 @@ def main() -> None:
             white.alpha_composite(board)
             board = white
         board = board.convert("RGB")
-        for d in cfg.get("matte", ()):
+        for d in (() if actions_only else cfg.get("matte", ())):
             # "Walk:left" names a pose of another animation (its own matte file).
             anim, dd = d.split(":") if ":" in d else ("Idle", d)
             x0, y0, x1, y1 = cfg[anim][dd]
@@ -59,7 +104,7 @@ def main() -> None:
             mask.point(lambda v: 255 if v > 127 else 0).save(os.path.join(OUT, "%s_%s.png" % (kind, d.replace(":", "_"))))
             print(kind, d)
         act = cfg.get("actions", {})
-        if act.get("matte"):
+        if act.get("matte") or act.get("matte_union"):
             for d, poses in act["frames"].items():
                 name = act["src"][d] if isinstance(act["src"], dict) else act["src"]
                 src = Image.open(boards.SRC % name).convert("RGB")

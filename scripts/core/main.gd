@@ -3893,6 +3893,8 @@ func _on_player_tile_reached(mover: Player = null) -> void:
 		return
 	# Check if the player stepped onto an enemy-occupied tile (pass-through costs 2 tempo)
 	var player_cell := grid_manager.world_to_grid(player.position)
+	# Gold lying on the ground (the Ice Troll Lair's hoard): walked onto, taken.
+	_check_gold_pile_pickup()
 	var passed_through_enemy = false
 	for enemy in enemy_spawner.get_living_enemies():
 		if enemy.is_structure:
@@ -5970,7 +5972,8 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	# Walls/pits/barricades/trees this enemy must not walk through. Without this
 	# a freshly-spawned enemy has an empty list and clips through structures.
 	if grid_manager:
-		enemy.blocked_tiles = _enemy_blocked_tiles()
+		var et := _enemy_blocked_tiles()
+		enemy.blocked_tiles = _blocked_tiles_for_enemy(enemy, et, _climber_blocked_tiles(et))
 	# Smooth terrain-following Y (elevation, pillars)
 	enemy.ground_y_provider = Callable(self, "_desired_ground_y")
 	# Live player/summon tiles: a route that would end on one is cut short.
@@ -10348,7 +10351,7 @@ func _update_skeletons(amount: int) -> void:
 			var stopped := false
 			for _step in range(s.move_steps):
 				var nxt: Vector2i = cur + dir
-				if not _summon_can_step(nxt, s):
+				if not _summon_can_step(nxt, s, cur):
 					stopped = true
 					break
 				cur = nxt
@@ -10371,8 +10374,11 @@ func _enemy_beside(cell: Vector2i, enemies: Array) -> Enemy:
 
 ## Can summon `who` step onto `cell`: on the map, floor, no wall or obstacle,
 ## no enemy, player or other summon there (or headed there).
-func _summon_can_step(cell: Vector2i, who) -> bool:
+func _summon_can_step(cell: Vector2i, who, from: Vector2i = Vector2i(-9999, -9999)) -> bool:
 	if cell.x < 0 or cell.y < 0 or cell.x >= grid_manager.grid_width or cell.y >= grid_manager.grid_height:
+		return false
+	# From `from`: up or down one level a step, no marching up a cliff.
+	if from.x > -9000 and dungeon_manager and not dungeon_manager.can_step(from, cell):
 		return false
 	if player and (cell in player.blocked_tiles):
 		return false
@@ -13442,6 +13448,9 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			if blink_cell in player.blocked_tiles:
 				add_battle_log("Cannot blink into a wall or obstacle!", Color(1.0, 0.4, 0.4))
 				print("[MAIN] Blink blocked: target tile is a wall/obstacle")
+			elif dungeon_manager and not dungeon_manager.blink_clear(grid_manager.world_to_grid(player.position), blink_cell):
+				add_battle_log("The mountains are too high to blink across!", Color(1.0, 0.4, 0.4))
+				print("[MAIN] Blink blocked: high mountains in the way")
 			else:
 				player.blink_to(blink_pos)
 				progression_triggers._trigger_skill_tree_on_displacement()
@@ -14187,13 +14196,36 @@ func _enemy_blocked_tiles() -> Array[Vector2i]:
 	## cover every trunk, climbable or not).
 	return _player_blocked_tiles()
 
+## The same, less the rock faces of the Mountain Pass's cliffs
+## (DungeonManager.cliff_face_tiles): what a climber (PlayerStats.
+## climbs_cliffs) or a flier (Enemy.immune_to_high_ground) is blocked by.
+func _climber_blocked_tiles(tiles: Array[Vector2i]) -> Array[Vector2i]:
+	if dungeon_manager == null or dungeon_manager.cliff_face_tiles.is_empty():
+		return tiles
+	var out: Array[Vector2i] = []
+	for c in tiles:
+		if not dungeon_manager.cliff_face_tiles.has(c):
+			out.append(c)
+	return out
+
+func _blocked_tiles_for_enemy(enemy, tiles: Array[Vector2i], climber_tiles: Array[Vector2i]) -> Array[Vector2i]:
+	return climber_tiles if enemy.immune_to_high_ground else tiles
+
 func _sync_dungeon_blocked_tiles() -> void:
 	## Combines dungeon walls + barricades + pits + tree trunks for pathfinding.
 	var tiles := _player_blocked_tiles()
-	player.blocked_tiles = tiles
+	var climber_tiles := _climber_blocked_tiles(tiles)
+	var climbs: bool = player.get_stats() != null and player.get_stats().climbs_cliffs
+	player.blocked_tiles = climber_tiles if climbs else tiles
+	# Up or down one level a step: every hero walks by the terrain's rule.
+	for p in _all_players():
+		if p != null and is_instance_valid(p):
+			p.step_check = Callable(dungeon_manager, "can_step")
+			p.blink_check = Callable(dungeon_manager, "blink_clear")
 	var enemy_tiles := _enemy_blocked_tiles()
+	var enemy_climb_tiles := _climber_blocked_tiles(enemy_tiles)
 	for enemy in enemy_spawner.get_living_enemies():
-		enemy.blocked_tiles = enemy_tiles
+		enemy.blocked_tiles = _blocked_tiles_for_enemy(enemy, enemy_tiles, enemy_climb_tiles)
 
 func _check_dungeon_zones() -> void:
 	## Check if player has entered any new spawn zones.
@@ -14386,16 +14418,22 @@ func _apply_world_ambience() -> void:
 		return
 	var pal: Dictionary = dungeon_manager.get_palette()
 	var in_cave := current_interior_id.begins_with("cave") or current_interior_id.begins_with("hellgate") \
-		or current_interior_id.begins_with("labyrinth")
+		or current_interior_id.begins_with("labyrinth") or current_interior_id.begins_with("closet") \
+		or current_interior_id.begins_with("thanatoshall")
 	var in_building := current_interior_id.begins_with("building")
 	var in_sewer := current_interior_id.begins_with("sewer") or current_interior_id.begins_with("ratking")
 	var in_forest := current_interior_id.begins_with("forest")
+	# A frozen cave (the Ice Caves, the Ice Troll Lair): the ice holds some
+	# light, but the hero still carries a torch.
+	var in_ice := current_interior_id.begins_with("icecave") or current_interior_id.begins_with("trolllair")
 
 	var world_env := get_node_or_null("WorldEnvironment") as WorldEnvironment
 	if world_env and world_env.environment:
 		var env := world_env.environment
 		env.ambient_light_color = pal.get("ambient", Color(0.3, 0.3, 0.35))
-		if in_cave:
+		if in_ice:
+			env.ambient_light_energy = 0.45  # ice glows faintly in the dark
+		elif in_cave:
 			env.ambient_light_energy = 0.14  # darker even than the sewers
 		elif in_sewer:
 			env.ambient_light_energy = 0.32  # dim; torches do most of the work
@@ -14416,7 +14454,9 @@ func _apply_world_ambience() -> void:
 	if sun:
 		sun.light_color = pal.get("sun", Color(1, 0.95, 0.9))
 		var energy: float = pal.get("sun_energy", 1.2)
-		if in_cave:
+		if in_ice:
+			energy = 0.3
+		elif in_cave:
 			energy = 0.16
 		elif in_sewer:
 			energy = 0.22
@@ -14431,7 +14471,7 @@ func _apply_world_ambience() -> void:
 		sun.light_energy = energy
 
 	# Underground (sewers and caves), each player carries their own pool of light.
-	_ensure_player_torch(in_sewer or in_cave)
+	_ensure_player_torch(in_sewer or in_cave or in_ice)
 
 func _ensure_player_torch(enable: bool) -> void:
 	## Gives each player a warm point light (the "lit circle" around the
@@ -15080,6 +15120,8 @@ func _rat_step_toward(cell: Vector2i, target: Vector2i, blocked: Array, enemy_ce
 			continue
 		if cand in blocked or cand in enemy_cells or cand in rat_cells:
 			continue
+		if dungeon_manager and not dungeon_manager.can_step(cell, cand):
+			continue  # a cliff face (DungeonManager.can_step)
 		var dist := _manhattan(cand, target)
 		if dist < best_dist:
 			best_dist = dist
@@ -15446,6 +15488,8 @@ func _sync_blocked_tiles() -> void:
 	for obs in barricade_obstacles:
 		tiles.append(grid_manager.world_to_grid(obs["position"]))
 	player.blocked_tiles = tiles
+	player.step_check = Callable()
+	player.blink_check = Callable()
 	for enemy in enemy_spawner.get_living_enemies():
 		enemy.blocked_tiles = tiles
 
@@ -16078,6 +16122,18 @@ func _mesh_sphere(r: float) -> SphereMesh:
 ## consumables); everything else waits in the loot menu for a click.
 const LOOT_AUTO_KEYS := ["gold", "culling_stones", "holy_water"]
 const LOOT_CHOICE_KEYS := ["item", "card", "card_pack"]
+
+## Every hero standing on a gold pile (DungeonManager.gold_piles) scoops it
+## up — tempo-free, like a loot pile's gold.
+func _check_gold_pile_pickup() -> void:
+	if dungeon_manager == null or dungeon_manager.gold_piles.is_empty():
+		return
+	for p in _all_players():
+		if not is_instance_valid(p):
+			continue
+		var amount: int = dungeon_manager.take_gold_pile(grid_manager.world_to_grid(p.position))
+		if amount > 0:
+			_collect_loot({"gold": amount}, p)
 
 func _check_loot_pickup() -> void:
 	## Any player standing on a loot pile's tile takes its gold and
@@ -16929,6 +16985,7 @@ func _boss_room_boss_type() -> int:
 		"boneyard": return Enemy.EnemyType.BONE_DRAGON
 		"hellgate": return Enemy.EnemyType.HELL_DOOR
 		"labyrinth": return Enemy.EnemyType.INFLAMED_MINOTAUR
+		"thanatoshall": return Enemy.EnemyType.THANATOS
 	return -1
 
 func _setup_boss_room() -> void:
@@ -16937,6 +16994,7 @@ func _setup_boss_room() -> void:
 		"boneyard": _setup_boneyard()
 		"hellgate": _setup_hellgate()
 		"labyrinth": _setup_labyrinth()
+		"thanatoshall": _setup_thanatos_hall()
 
 # ---- The Labyrinth: the Inflamed Minotaur ----
 # The bull waits in the open court at the heart of the maze (see
@@ -16961,6 +17019,22 @@ func _setup_labyrinth() -> void:
 	_update_enemy_count()
 	_refresh_unit_tracker()
 	add_battle_log("The Labyrinth. The passages close behind you; something is burning at its heart.", Color(1.0, 0.7, 0.45))
+
+# ---- Thanatos's Hall: the bottom of Thanatos Closet ----
+# Death waits on his dais at the east end, between two rows of pillars
+# (DungeonManager._generate_thanatos_hall_layout); his kit is on the Enemy
+# (Reap, Death Bolt, Raise the Dead). First pass: he wears the Corrupted
+# Archangel until his own art is made.
+func _setup_thanatos_hall() -> void:
+	if _boss_cleared("thanatoshall"):
+		add_battle_log("The hall is empty. Death has gone elsewhere — for now.", Color(0.7, 0.95, 0.75))
+		return
+	_spawn_lair_unit(Enemy.EnemyType.THANATOS, dungeon_manager.thanatos_cell)
+	_sync_dungeon_blocked_tiles()
+	_sync_occupied_tiles()
+	_update_enemy_count()
+	_refresh_unit_tracker()
+	add_battle_log("Thanatos's Hall. The door seals behind you. At the far end, Death turns to look.", Color(0.7, 0.95, 0.75))
 
 func _labyrinth_minotaur() -> Enemy:
 	for e in enemy_spawner.get_living_enemies():

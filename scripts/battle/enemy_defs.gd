@@ -430,6 +430,24 @@ const DEFS := {
 		"resists": [0, 15, 15],
 		"color": Color(0.12, 0.11, 0.16),
 	},
+	"THANATOS": {
+		# Death himself (designer, 2026-11-05): the boss of Thanatos Closet in
+		# the Underworld. First-pass numbers; his figure is the designer's
+		# black-winged reaper (thanatos_board.webp, 2026-11-05).
+		"name": "Thanatos",
+		"tier": "Boss",
+		"intended_level": 30,
+		"figure_kind": "thanatos",
+		"health": 400,
+		"armor": 40,
+		"damage": 25,
+		"range": 1.5,
+		"move": 5.0,
+		"aggro": 16.0,
+		"xp": 250,
+		"resists": [25, 25, 25],
+		"color": Color(0.20, 0.18, 0.24),
+	},
 	"BONE_DRAGON": {
 		"name": "Bone Dragon",
 		"tier": "Boss",

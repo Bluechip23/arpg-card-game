@@ -97,7 +97,7 @@ const WORLD_PALETTES := {
 		"trail": Color(0.40, 0.38, 0.36),
 	},
 	4: {
-		"name": "Emberfall",
+		"name": "The Underworld",   # Hell: World 2 wears it (art_world); was Emberfall
 		"water": Color(0.66, 0.24, 0.07),      # lava
 		"water_edge": Color(1.0, 0.72, 0.2),   # its glowing crust
 		"ground": Color(0.10, 0.08, 0.08),
@@ -145,6 +145,25 @@ const CAVE_PALETTE := {
 	"sun_energy": 0.3,
 	"water": Color(0.06, 0.08, 0.10),     # cold cave puddle
 	"water_edge": Color(0.12, 0.15, 0.17),
+}
+
+## A frozen cave: Frostreach's frost in the gloom (dimmer than the
+## snowfields, brighter than a rock cave — the ice holds the light).
+const ICE_CAVE_PALETTE := {
+	"name": "Ice Cave",
+	"ground": Color(0.05, 0.07, 0.10),
+	"floor_a": Color(0.55, 0.60, 0.68),
+	"floor_b": Color(0.44, 0.50, 0.60),
+	"wall_a": Color(0.30, 0.36, 0.46),
+	"wall_b": Color(0.20, 0.25, 0.34),
+	"cliff": Color(0.26, 0.31, 0.41),
+	"step": Color(0.46, 0.52, 0.60),
+	"accent": Color(0.62, 0.72, 0.82),
+	"ambient": Color(0.40, 0.46, 0.56),
+	"sun": Color(0.80, 0.88, 1.0),
+	"sun_energy": 0.5,
+	"water": Color(0.30, 0.45, 0.60),    # frozen pool
+	"water_edge": Color(0.70, 0.82, 0.92),
 }
 
 const BUILDING_PALETTE := {
@@ -236,6 +255,8 @@ var fog_reveal_radius: int = FOG_REVEAL_RADIUS
 var chest_nodes: Array = []     # [{node, grid_pos, opened, looted, contents, sprite}]
 var spawn_zones: Array = []     # [{trigger_rect, spawn_points, enemy_types, spawned}]
 var waypoint_nodes: Array = []  # [{node, grid_pos, target, display_name, label_node, discovered, pillar_mesh}]
+## The waypoint shrines' sides and back (_block_waypoint_shrine): walls.
+var waypoint_block_tiles: Dictionary = {}
 var site_nodes: Array = []      # [{node, grid_pos (entrance), id, kind, display_name, label_node, footprint}]
 var fountain_nodes: Array = []  # [{node, grid_pos, label_node, water_mesh, blessed, xp_used}] — see _place_fountains
 var shrine_node: Dictionary = {}  # The Faithless' drowned shrine (sewer deep chamber): {node, grid_pos, label_node}
@@ -287,6 +308,16 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		interior_kind = "sewer"
 	elif interior_id.begins_with("forest"):
 		interior_kind = "forest"
+	elif interior_id.begins_with("mountains"):
+		interior_kind = "mountains"  # the Mountain Pass (Act 1, Mountains habitat)
+	elif interior_id.begins_with("closet"):
+		interior_kind = "closet"  # Thanatos Closet (the Underworld): undead crypts under the burning ground
+	elif interior_id.begins_with("thanatoshall"):
+		interior_kind = "thanatoshall"  # Thanatos's Hall: the boss room at the Closet's bottom
+	elif interior_id.begins_with("icecave"):
+		interior_kind = "icecave"  # a frozen cave (off the Mountain Pass, and Frostreach's caves)
+	elif interior_id.begins_with("trolllair"):
+		interior_kind = "trolllair"  # the Ice Troll Lair (off the Mountain Pass): its vault of gold
 	elif interior_id.begins_with("graveyard"):
 		interior_kind = "graveyard"
 	elif interior_id.begins_with("dojo"):
@@ -305,11 +336,11 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 	match interior_kind:
 		"sewer":
 			fog_reveal_radius = 4
-		"forest":
-			fog_reveal_radius = 9
+		"forest", "mountains":
+			fog_reveal_radius = 9   # open, bright country: the view runs far
 		"dojo":
 			fog_reveal_radius = 64  # a lit hall: nothing to explore, nothing hidden
-		"ratking", "boneyard", "hellgate", "labyrinth":
+		"ratking", "boneyard", "hellgate", "labyrinth", "thanatoshall":
 			fog_reveal_radius = 64  # a boss arena: the whole room is in view from the gate
 		_:
 			fog_reveal_radius = FOG_REVEAL_RADIUS
@@ -340,6 +371,14 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 			_generate_sewer_layout()
 		"forest":
 			_generate_forest_layout()
+		"mountains":
+			_generate_mountain_layout()
+		"icecave", "closet":
+			_generate_cave_layout()   # the cave's chambers and tunnels (frozen; or a crypt)
+		"thanatoshall":
+			_generate_thanatos_hall_layout()
+		"trolllair":
+			_generate_troll_lair_layout()
 		"dojo":
 			_generate_dojo_layout()
 		"ratking":
@@ -353,6 +392,7 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		_:
 			_generate_overworld_layout()
 	_generate_elevation()
+	_detect_cliffs()
 
 	# Interactables (placed before visuals so decorations avoid their tiles)
 	_reserved.clear()
@@ -389,9 +429,16 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		elif interior_kind == "cave" and world_level == 2:
 			# The deepest cave of the Underworld: the Labyrinth, the Inflamed Minotaur's maze.
 			_place_boss_door("deep", "east", "labyrinth", "labyrinth", "The Labyrinth", Color(1.0, 0.7, 0.45), Color(1.0, 0.45, 0.1))
+		elif interior_kind == "mountains":
+			_place_mountain_caves()
+		elif interior_kind == "closet":
+			# The Closet's deepest crypt: the way down to Thanatos.
+			_place_boss_door("deep", "east", "thanatoshall", "thanatoshall", "Thanatos's Hall", Color(0.75, 0.95, 0.8), Color(0.45, 1.0, 0.6))
 	_place_chests()
 	_place_fountains()
 	_place_shrine()
+	if interior_kind == "trolllair":
+		_place_troll_hoard()
 	_define_spawn_zones()
 
 	# Terrain visuals
@@ -450,7 +497,23 @@ func _set_world_size() -> void:
 		GRID_H = DOJO_H
 		player_start = Vector2i(DOJO_W / 2, DOJO_H - 3)
 		return
-	if interior_kind == "cave" or interior_kind == "graveyard":
+	if interior_kind == "closet":
+		# Thanatos Closet: a crypt warren bigger than a cave, entered from the west.
+		GRID_W = 46 + world_level * 2
+		GRID_H = 30 + world_level
+		player_start = Vector2i(3, GRID_H / 2)
+		return
+	if interior_kind == "thanatoshall":
+		GRID_W = TH_SIZE.x
+		GRID_H = TH_SIZE.y
+		player_start = Vector2i(TH_FLOOR.position.x + 1, TH_FLOOR.get_center().y)
+		return
+	if interior_kind == "trolllair":
+		GRID_W = TL_SIZE.x
+		GRID_H = TL_SIZE.y
+		player_start = Vector2i(2, TL_SIZE.y / 2)
+		return
+	if interior_kind == "cave" or interior_kind == "graveyard" or interior_kind == "icecave":
 		GRID_W = 36 + world_level * 2
 		GRID_H = 26 + world_level
 		player_start = Vector2i(3, GRID_H / 2)
@@ -466,6 +529,13 @@ func _set_world_size() -> void:
 		GRID_W = 56 + world_level * 2
 		GRID_H = 34 + world_level
 		player_start = Vector2i(3, GRID_H / 2)
+		return
+	if interior_kind == "mountains":
+		# A mountainside climbing up the screen: the trailhead at the foot,
+		# south-west, the summit to the north-east.
+		GRID_W = 62 + world_level * 2
+		GRID_H = 44 + world_level
+		player_start = Vector2i(4, GRID_H - 6)
 		return
 	if interior_kind == "forest":
 		# A wide, open woodland of clearings and trails — the bright counterpoint
@@ -513,10 +583,24 @@ func _get_graveyard_palette() -> Dictionary:
 		_graveyard_palette["sun_energy"] = 0.35
 	return _graveyard_palette
 
+## Which world's art a world wears (designer, 2026-11-05: "build out Hell"):
+## World 2 is the Underworld — Act 2, Hell, below Hell's Gate — so it wears
+## the hell art first painted for World 4 (cursed earth, lava, volcanoes and
+## demon idols); World 4 (Act 4, the corrupted Earth) takes the Amber
+## Wastes' desert in exchange. Gameplay keys on world_level; only the look
+## follows this.
+func art_world() -> int:
+	match world_level:
+		2:
+			return 4
+		4:
+			return 2
+	return world_level
+
 func get_palette() -> Dictionary:
 	if interior_kind == "cave" or interior_kind == "hellgate" or interior_kind == "labyrinth":
 		return CAVE_PALETTE
-	if interior_kind == "graveyard" or interior_kind == "boneyard":
+	if interior_kind in ["graveyard", "boneyard", "closet", "thanatoshall"]:
 		return _get_graveyard_palette()
 	if interior_kind == "building" or interior_kind == "dojo":
 		return BUILDING_PALETTE
@@ -524,7 +608,11 @@ func get_palette() -> Dictionary:
 		return SEWER_PALETTE
 	if interior_kind == "forest":
 		return FOREST_PALETTE
-	return WORLD_PALETTES.get(world_level, WORLD_PALETTES[1])
+	if interior_kind == "mountains":
+		return WORLD_PALETTES[3]   # Frostreach's snow and frost (the winter pack)
+	if interior_kind == "icecave" or interior_kind == "trolllair":
+		return ICE_CAVE_PALETTE
+	return WORLD_PALETTES.get(art_world(), WORLD_PALETTES[1])
 
 ## Ground sheets per location flavour. Craftpix top-down tileset fills
 ## (assets/textures/craftpix/, cut by tools/extract_craftpix_tiles.py), the
@@ -537,7 +625,7 @@ const GROUND_TEX := "res://assets/textures/ground"
 
 func floor_texture_path() -> String:
 	match interior_kind:
-		"boneyard":
+		"boneyard", "closet", "thanatoshall":   # the undead land: the Boneyard and Thanatos Closet
 			return GROUND_TEX + "/undead_floor.png"   # the designer's barrow land (2026-10-29)
 		"sewer", "ratking":
 			return CP_TEX + "/floor_glowing_cave.png"  # wet stone (glowing-cave pack; the plain cave fill went black under the sewer's dim light)
@@ -549,7 +637,9 @@ func floor_texture_path() -> String:
 			return CP_TEX + "/floor_cave.png"
 		"forest":
 			return GROUND_TEX + "/forest_grass.png"   # the designer's (2026-10-29); was the pack's floor_grass_forest
-	match world_level:
+		"mountains", "icecave", "trolllair":
+			return CP_TEX + "/floor_winter.png"   # Frostreach's snowfield (winter pack)
+	match art_world():
 		4:  # Emberfall — the designer's flesh-pink cursed earth (2026-10-29; was the cursed land pack's)
 			return GROUND_TEX + "/cursed_floor.png"
 		5:  # Umbral Expanse — the designer's pocked grey barrow earth (2026-10-29; was the undead land pack's)
@@ -576,17 +666,19 @@ func trail_texture_path() -> String:
 			return GROUND_TEX + "/forest_dirt.png"   # the designer's cobbled dirt (2026-10-29)
 		"cave", "sewer", "building", "ratking", "hellgate", "labyrinth":
 			return CP_TEX + "/floor_dirt_forest.png"  # trodden dark earth
-		"boneyard":
+		"boneyard", "closet", "thanatoshall":
 			return GROUND_TEX + "/undead_cobble.png"   # the designer's barrow land (2026-10-29)
-	if world_level == 1:
+		"mountains", "icecave", "trolllair":
+			return CP_TEX + "/floor_undead_sand.png"  # trodden grey slush: the trails and the steps up the cliffs
+	if art_world() == 1:
 		return GROUND_TEX + "/field_dirt.png"   # the designer's dirt (2026-10-29)
-	if world_level == 2:
+	if art_world() == 2:
 		return GROUND_TEX + "/desert_sand.png"  # the designer's sand tracks through the scrub
-	if world_level == 3:
+	if art_world() == 3:
 		return CP_TEX + "/floor_undead_sand.png"  # trodden grey slush through the snow
-	if world_level == 4:
+	if art_world() == 4:
 		return GROUND_TEX + "/cursed_dark.png"  # the designer's dark cracked earth (2026-10-29)
-	if world_level == 5:
+	if art_world() == 5:
 		return GROUND_TEX + "/undead_cobble.png"  # the designer's pale cobbles (2026-10-29)
 	return GROUND_TEX + "/field_dirt.png"
 
@@ -594,7 +686,7 @@ func trail_texture_path() -> String:
 ## Cliff faces / rock walls: the matching pack's cobbled cliff fill.
 func wall_texture_path() -> String:
 	match interior_kind:
-		"boneyard":
+		"boneyard", "closet", "thanatoshall":   # the undead land: the Boneyard and Thanatos Closet
 			return GROUND_TEX + "/undead_wall.png"   # the designer's barrow land (2026-10-29)
 		"sewer", "ratking":
 			return CP_TEX + "/wall_cave.png"  # dark cave rock
@@ -606,7 +698,9 @@ func wall_texture_path() -> String:
 			return CP_TEX + "/wall_cave.png"
 		"forest":
 			return GROUND_TEX + "/forest_wall.png"   # the designer's mossy cobble (2026-10-29)
-	match world_level:
+		"mountains", "icecave", "trolllair":
+			return CP_TEX + "/wall_undead.png"  # grey rock under the frost palette, as Frostreach's
+	match art_world():
 		4:
 			return GROUND_TEX + "/cursed_wall.png"   # the designer's woven veins (2026-10-29)
 		5:
@@ -621,17 +715,21 @@ func wall_texture_path() -> String:
 ## Still water: the pack's water colour under its foam overlay.
 func water_texture_path() -> String:
 	match interior_kind:
-		"boneyard":
+		"boneyard", "closet", "thanatoshall":   # the undead land: the Boneyard and Thanatos Closet
 			return GROUND_TEX + "/undead_water.png"   # the designer's barrow land (2026-10-29)
 		"hellgate", "labyrinth":
 			return CP_TEX + "/water_lava.png"  # the pools at Hell's threshold, and in the Minotaur's court, are lava (cave pack)
 		"cave":
+			if hell_cave():
+				return CP_TEX + "/water_lava.png"   # Hell's caves: lava, as at Hell's Gate (cave pack)
 			return GROUND_TEX + "/cave_water.png"   # the designer's dark cave water (2026-10-29)
 		"sewer", "ratking":
 			return CP_TEX + "/water_cave.png"
 		"forest":
 			return GROUND_TEX + "/forest_water.png"   # the designer's (2026-10-29)
-	match world_level:
+		"icecave", "trolllair", "mountains":
+			return CP_TEX + "/water_winter.png"  # frozen over
+	match art_world():
 		4:
 			return GROUND_TEX + "/cursed_water.png"  # the designer's dark water (2026-10-29; was the cave pack's lava)
 		5:
@@ -658,11 +756,15 @@ func _prop_biome() -> String:
 			return "goods"
 		"sewer", "ratking":
 			return "sewer"
-		"boneyard":
+		"boneyard", "closet", "thanatoshall":
 			return "undead"
 		"hellgate", "labyrinth":
 			return "cave"
-	match world_level:
+		"mountains":
+			return "winter"   # snow-laden pines, snowy stones, ice
+		"icecave", "trolllair":
+			return "ice"      # the cave's dressing in ice (PROP_ROLES "ice")
+	match art_world():
 		2:
 			return "desert"
 		3:
@@ -690,6 +792,9 @@ const PROP_ROLES := {
 		"crystal": ["cave_crystal"], "pebble": ["cave_pebble"], "bones": ["undead_bones"], "web": ["cave_web"],
 		"wallrock": ["wallrock_grey"]},
 	"undead": {"tree": ["undead_tree"], "stump": ["undead_stump"], "rock": ["undead_rock"], "bush": ["undead_bush"],
+		# underground (Thanatos Closet, through the cave's dressing): headstones
+		# for its stalagmites, the cave's stalactites, pale grave plants
+		"stalagmite": ["undead_grave"], "stalactite": ["cave_stalactite"], "crystal": ["undead_plant"],
 		"berry": ["undead_bush"], "fern": ["undead_plant"], "flower": ["undead_plant"], "tuft": ["undead_bones"],   # the designer's barrow land (2026-10-29)
 		"shroom": ["undead_skulls"], "pebble": ["undead_bones"], "bones": ["undead_bones"], "reeds": ["forest_reeds"],
 		"wallrock": ["wallrock_dark"]},
@@ -707,6 +812,12 @@ const PROP_ROLES := {
 	"winter": {"tree": ["winter_tree", "winter_tree_big"], "stump": ["winter_snowman", "winter_idol"], "rock": ["winter_rock"], "bush": ["winter_bush"],   # the designer's Frostreach (2026-10-29)
 		"berry": ["winter_flower"], "fern": ["winter_crystal"], "flower": ["winter_flower"], "tuft": ["winter_pebble"],
 		"shroom": ["winter_shroom"], "pebble": ["winter_pebble"], "bones": ["undead_bones"], "reeds": ["winter_ice_tree"],
+		"wallrock": ["wallrock_snow"]},
+	# A frozen cave (icecave, trolllair): the cave's dressing in ice — the
+	# winter pack's crystals rise as its stalagmites (no pack draws ice
+	# stalagmites), snowy stones and pebbles, the cave's own stalactites.
+	"ice": {"stalagmite": ["winter_crystal"], "stalactite": ["cave_stalactite"], "shroom": ["winter_shroom"],
+		"crystal": ["winter_crystal"], "pebble": ["winter_pebble"], "rock": ["wallrock_snow"], "bones": ["undead_bones"],
 		"wallrock": ["wallrock_snow"]},
 	"goods": {"crate": ["goods_crate", "goods_sack"], "barrel": ["goods_barrel", "goods_rack", "goods_table"]},
 	"sewer": {"bones": ["undead_bones"], "reeds": ["forest_reeds"], "rubble": ["cave_pebble", "cave_rock"],
@@ -813,13 +924,23 @@ func _add_prop_decos(items: Array, base: String) -> void:
 
 func get_location_name() -> String:
 	if interior_kind == "cave":
-		return "Cave %d" % (int(interior_id.get_slice("_", 1)) + 1)
+		return ("Burning Cave %d" if hell_cave() else "Cave %d") % (int(interior_id.get_slice("_", 1)) + 1)
 	if interior_kind == "building":
 		return "Building %d" % (int(interior_id.get_slice("_", 1)) + 1)
 	if interior_kind == "sewer":
 		return "Sewers"
 	if interior_kind == "forest":
 		return "Greenwood"
+	if interior_kind == "mountains":
+		return "Mountain Pass"
+	if interior_kind == "icecave":
+		return "Ice Cave %d" % (int(interior_id.get_slice("_", 1)) + 1)
+	if interior_kind == "trolllair":
+		return "Ice Troll Lair"
+	if interior_kind == "closet":
+		return "Thanatos Closet"
+	if interior_kind == "thanatoshall":
+		return "Thanatos's Hall"
 	if interior_kind == "graveyard":
 		return "Old Graveyard"
 	if interior_kind == "dojo":
@@ -872,11 +993,11 @@ var cleared_bosses: Array = []
 ## Interiors that are boss rooms (cutscene fights behind a sealed door).
 static func is_boss_room(id: String) -> bool:
 	return id.begins_with("ratking") or id.begins_with("boneyard") or id.begins_with("hellgate") \
-		or id.begins_with("labyrinth")
+		or id.begins_with("labyrinth") or id.begins_with("thanatoshall")
 
 ## The boss-room key of an interior id ("ratking_lair" -> "ratking").
 static func boss_room_key(id: String) -> String:
-	for key in ["ratking", "boneyard", "hellgate", "labyrinth"]:
+	for key in ["ratking", "boneyard", "hellgate", "labyrinth", "thanatoshall"]:
 		if id.begins_with(key):
 			return key
 	return ""
@@ -1469,8 +1590,8 @@ func _generate_overworld_layout() -> void:
 		for x in range(maxi(0, rect.position.x), mini(rect.end.x, GRID_W)):
 			for z in range(maxi(0, rect.position.y), mini(rect.end.y, GRID_H)):
 				trail[x][z] = false
-	if world_level == 4:
-		_place_lava_pools()  # Emberfall: molten pools in the open ground
+	if art_world() == 4:
+		_place_lava_pools()  # Hell (the Underworld, World 2): molten pools in the open ground
 
 func _connect_rooms(a: Rect2i, b: Rect2i) -> void:
 	## Carves a 2-wide L-shaped corridor between the centers of two rooms.
@@ -1533,12 +1654,23 @@ func _place_cave_puddles() -> void:
 		if grid[cx][cz] != Tile.FLOOR:
 			continue
 		# A puddle is a tight blob of 1–4 adjacent floor tiles.
-		water[cx][cz] = true
+		var blob: Array = [Vector2i(cx, cz)]
 		for d in [Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)]:
 			if _rng.randf() < 0.5:
 				var p = Vector2i(cx + d.x, cz + d.y)
 				if is_floor(p):
-					water[p.x][p.y] = true
+					blob.append(p)
+		if hell_cave():
+			# Hell's caves (World 2): the puddles are lava — blocked, like the
+			# Underworld's pools — and only where they cut no tunnel.
+			if blob.has(player_start) or not _try_block_footprint(blob):
+				continue
+		for p in blob:
+			water[p.x][p.y] = true
+
+## A cave of the Underworld (World 2, Hell): lava for puddles, glowing.
+func hell_cave() -> bool:
+	return interior_kind == "cave" and world_level == 2
 
 func _carve_tunnel(from: Vector2i, to: Vector2i) -> void:
 	## Drunkard-walk tunnel: biased toward the target with random wandering.
@@ -1794,6 +1926,761 @@ func _carve_trail(from: Vector2i, to: Vector2i) -> void:
 	_marking_trails = false
 
 # ============================================
+# MOUNTAIN PASS LAYOUT (Act 1, Mountains habitat; 2026-11-05)
+# A snowy mountainside climbing up the screen to the north-east in terraces
+# MOUNTAIN_TIER_STEP levels apart, with raised outcrops on the lower ones.
+# Neighbouring terraces are a cliff apart: nothing walks up or down one
+# (can_step). A south-facing drop is a rock face — a wall tile the pack's
+# cliff face draws (cliff_face_tiles) that only climbers and fliers cross;
+# other drops are the ledge's lip. The way up is a step: one tile halfway up
+# a cliff (step_tiles, drawn as a trodden track), laid wherever the climb
+# must go on (every ledge is reachable on foot) and a few more for choice.
+# ============================================
+
+const MOUNTAIN_TIERS := 4            # valley floor, two terraces, the summit
+const MOUNTAIN_TIER_STEP := 2        # levels between terraces: a cliff (MAX_STEP + 1)
+## Rock faces (wall tiles) under a south-facing drop: blocked to walkers,
+## crossed by climbers and fliers (main gives them their own blocked list).
+var cliff_face_tiles: Dictionary = {}
+## Steps up a cliff: odd-level tiles between two terraces.
+var step_tiles: Dictionary = {}
+
+func _generate_mountain_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	obstacle_tiles.clear()
+	trap_defs.clear()
+	pit_tiles.clear()
+	cliff_face_tiles.clear()
+	step_tiles.clear()
+	elevation.clear()
+	for x in range(GRID_W):
+		var col: Array = []
+		for z in range(GRID_H):
+			col.append(0)
+		elevation.append(col)
+
+	# The open mountainside: overlapping snowfields joined by trails, from the
+	# trailhead (south-west, the valley floor) up toward the summit (north-east).
+	var entry_c := player_start + Vector2i(1, -1)
+	_carve_circle(entry_c, 4)
+	rooms.append({"rect": _circle_rect(entry_c, 4), "kind": "start", "elev": 0, "center": entry_c, "radius": 4})
+	var fields: Array = []
+	var count := 16 + world_level * 2
+	var prev := entry_c
+	for i in range(count):
+		# Spread west to east, any height: the terraces come from the slope.
+		var fx := int(lerpf(10.0, GRID_W - 7.0, float(i) / float(count - 1))) + _rng.randi_range(-4, 4)
+		var c := Vector2i(clampi(fx, 6, GRID_W - 7), _rng.randi_range(6, GRID_H - 7))
+		var r := _rng.randi_range(4, 7)
+		_carve_tunnel(prev, c)   # unmarked: the only trodden ground here is the steps
+		_carve_circle(c, r)
+		fields.append({"center": c, "radius": r})
+		prev = c
+	_smooth_cave_walls()
+	_smooth_cave_walls()
+	_enforce_border_walls()
+
+	# The slope: higher to the north (up the screen) and a little to the east,
+	# broken by coarse noise so the terrace lines wander; then a majority
+	# pass so no ledge is a stray tile.
+	var tier := []
+	for x in range(GRID_W):
+		var col: Array = []
+		for z in range(GRID_H):
+			var u := 0.72 * (1.0 - float(z) / GRID_H) + 0.28 * (float(x) / GRID_W) \
+					+ 0.22 * (_tile_noise(x / 2, z / 2, 401) - 0.5)
+			col.append(clampi(int(floor((u - 0.18) * MOUNTAIN_TIERS / 0.72)), 0, MOUNTAIN_TIERS - 1))
+		tier.append(col)
+	for _pass in range(3):
+		var next := []
+		for x in range(GRID_W):
+			var col: Array = []
+			for z in range(GRID_H):
+				var votes := {}
+				for dx in [-1, 0, 1]:
+					for dz in [-1, 0, 1]:
+						var nx: int = clampi(x + dx, 0, GRID_W - 1)
+						var nz: int = clampi(z + dz, 0, GRID_H - 1)
+						votes[tier[nx][nz]] = int(votes.get(tier[nx][nz], 0)) + 1
+				var best: int = tier[x][z]
+				for t in votes:
+					if int(votes[t]) > int(votes[best]):
+						best = t
+				col.append(best)
+			next.append(col)
+		tier = next
+	# The trailhead stays on the valley floor.
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if absi(x - entry_c.x) + absi(z - entry_c.y) <= 7:
+				tier[x][z] = 0
+
+	# Outcrops: knolls a terrace higher than the ground round them, a perch
+	# for whatever keeps watch over the pass.
+	var outcrops: Array = []
+	for _o in range(4 + world_level):
+		var oc := Vector2i(_rng.randi_range(12, GRID_W - 8), _rng.randi_range(6, GRID_H - 7))
+		if grid[oc.x][oc.y] != Tile.FLOOR or tier[oc.x][oc.y] >= MOUNTAIN_TIERS - 1:
+			continue
+		if absi(oc.x - entry_c.x) + absi(oc.y - entry_c.y) < 12:
+			continue
+		var base_t: int = tier[oc.x][oc.y]
+		var rad := _rng.randi_range(2, 3)
+		for x in range(oc.x - rad, oc.x + rad + 1):
+			for z in range(oc.y - rad, oc.y + rad + 1):
+				if x < 1 or z < 1 or x >= GRID_W - 1 or z >= GRID_H - 1:
+					continue
+				if (x - oc.x) * (x - oc.x) + (z - oc.y) * (z - oc.y) <= rad * rad and tier[x][z] == base_t:
+					tier[x][z] = base_t + 1
+		outcrops.append({"center": oc, "radius": rad})
+
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if grid[x][z] == Tile.FLOOR:
+				elevation[x][z] = int(tier[x][z]) * MOUNTAIN_TIER_STEP
+
+	# Rock faces: the floor tile under a south-facing drop of a cliff or more
+	# becomes the cliff face (it stands a level under the ledge above, so a
+	# climber goes up it one level a step like anyone climbing).
+	for x in range(1, GRID_W - 1):
+		for z in range(2, GRID_H - 1):
+			if grid[x][z] != Tile.FLOOR or grid[x][z - 1] != Tile.FLOOR:
+				continue
+			if elevation[x][z - 1] - elevation[x][z] > MAX_STEP:
+				grid[x][z] = Tile.WALL
+				cliff_face_tiles[Vector2i(x, z)] = true
+				elevation[x][z] = elevation[x][z - 1] - 1
+
+	_mountain_connect(player_start)
+	# A few more ways up, so the climb is a choice and not one path.
+	for _extra in range(3 + world_level):
+		var cands := _mountain_step_candidates({})
+		if cands.is_empty():
+			break
+		_mountain_lay_step(cands[_rng.randi_range(0, cands.size() - 1)])
+
+	_mountain_tidy_steps()
+
+	# Rooms (for spawns, chests and fountains): every snowfield and outcrop,
+	# its terrace taken from its centre; the highest the summit ("deep").
+	var best_i := -1
+	var best_e := -1
+	for f in fields + outcrops:
+		var c: Vector2i = f["center"]
+		if grid[c.x][c.y] != Tile.FLOOR:
+			continue
+		var e: int = elevation[c.x][c.y]
+		# A chest waits up on each outcrop (and the summit): the climb pays.
+		var outcrop: bool = f in outcrops
+		rooms.append({"rect": _circle_rect(c, int(f["radius"]) - (1 if outcrop else 0)), "kind": "treasure" if outcrop else "clearing",
+			"elev": e, "center": c, "radius": f["radius"], "outcrop": outcrop})
+		if e > best_e or (e == best_e and c.x > rooms[best_i]["center"].x):
+			best_e = e
+			best_i = rooms.size() - 1
+	if best_i >= 0:
+		rooms[best_i]["kind"] = "deep"
+
+## Lay steps until every floor tile can be walked to from `start`; anything
+## no step can reach (more than a cliff above everything round it) is rock.
+func _mountain_connect(start: Vector2i) -> void:
+	for _i in range(400):
+		var seen := _mountain_reach(start)
+		var cands := _mountain_step_candidates(seen)
+		if cands.is_empty():
+			break
+		_mountain_lay_step(cands[_rng.randi_range(0, cands.size() - 1)])
+	var seen := _mountain_reach(start)
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if grid[x][z] == Tile.FLOOR and not seen.has(Vector2i(x, z)):
+				grid[x][z] = Tile.WALL
+
+## Floor reachable on foot from `start` (can_step).
+func _mountain_reach(start: Vector2i) -> Dictionary:
+	var seen := {start: true}
+	var queue: Array = [start]
+	var head := 0
+	while head < queue.size():
+		var cur: Vector2i = queue[head]
+		head += 1
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var n: Vector2i = cur + d
+			if seen.has(n) or n.x < 0 or n.y < 0 or n.x >= GRID_W or n.y >= GRID_H:
+				continue
+			if grid[n.x][n.y] != Tile.FLOOR or not can_step(cur, n):
+				continue
+			seen[n] = true
+			queue.append(n)
+	return seen
+
+## Where a step would join two terraces a cliff apart: {tile, level} pairs.
+## With `seen` (the reachable floor) only steps from it into new ground.
+## A rock face between two terraces becomes a step; elsewhere the lower
+## tile of a side or back drop rises to meet the ledge.
+func _mountain_step_candidates(seen: Dictionary) -> Array:
+	var out: Array = []
+	var any := seen.is_empty()
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			var t := Vector2i(x, z)
+			if cliff_face_tiles.has(t) and grid[x][z] == Tile.WALL:
+				var below := Vector2i(x, z + 1)
+				var above := Vector2i(x, z - 1)
+				if grid[below.x][below.y] != Tile.FLOOR or grid[above.x][above.y] != Tile.FLOOR:
+					continue
+				if elevation[above.x][above.y] - elevation[below.x][below.y] != MOUNTAIN_TIER_STEP:
+					continue
+				if any or (seen.has(below) != seen.has(above)):
+					out.append({"tile": t, "level": elevation[below.x][below.y] + 1})
+				continue
+			if grid[x][z] != Tile.FLOOR or step_tiles.has(t):
+				continue
+			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1)]:
+				var n: Vector2i = t + d
+				if grid[n.x][n.y] != Tile.FLOOR:
+					continue
+				if elevation[n.x][n.y] - elevation[x][z] != MOUNTAIN_TIER_STEP:
+					continue
+				if any or (seen.has(t) != seen.has(n)):
+					out.append({"tile": t, "level": elevation[x][z] + 1})
+	return out
+
+## A step left joining nothing (the pocket below it turned out unreachable
+## and became rock) is part of the ledge it sits on again.
+func _mountain_tidy_steps() -> void:
+	for t in step_tiles.keys():
+		var e: int = elevation[t.x][t.y]
+		var up := false
+		var down := false
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var n: Vector2i = t + d
+			if is_floor(n):
+				up = up or elevation[n.x][n.y] == e + 1
+				down = down or elevation[n.x][n.y] == e - 1
+		if up and down:
+			continue
+		step_tiles.erase(t)
+		elevation[t.x][t.y] = e + 1 if up else e - 1
+
+func _mountain_lay_step(c: Dictionary) -> void:
+	var t: Vector2i = c["tile"]
+	grid[t.x][t.y] = Tile.FLOOR
+	cliff_face_tiles.erase(t)
+	elevation[t.x][t.y] = int(c["level"])
+	step_tiles[t] = true
+
+# ============================================
+# ICE CAVES AND THE ICE TROLL LAIR (off the Mountain Pass; 2026-11-05)
+# ============================================
+
+## Cave mouths in the Mountain Pass's cliffs: an Ice Cave on a lower
+## terrace, the Ice Troll Lair high up near the summit. Each stands on a
+## ledge with rock directly behind it (north), so it opens out of the cliff.
+func _place_mountain_caves() -> void:
+	var cave := _mountain_cave_cell(MOUNTAIN_TIER_STEP, false)
+	if cave.x >= 0:
+		_place_door_site(cave, "icecave_0", "icecave", "Ice Cave", Color(0.75, 0.9, 1.0))
+	var lair := _mountain_cave_cell(MOUNTAIN_TIER_STEP * 2, true)
+	if lair.x >= 0:
+		_place_door_site(lair, "trolllair_0", "trolllair", "Ice Troll Lair", Color(0.6, 0.85, 1.0))
+
+## A floor tile at `min_level` or higher with rock behind it (north) and
+## open ledge in front, clear of steps and spawns: the westmost (or with
+## `east`, the eastmost) such tile.
+func _mountain_cave_cell(min_level: int, east: bool) -> Vector2i:
+	var best := Vector2i(-1, -1)
+	for x in range(3, GRID_W - 3):
+		for z in range(3, GRID_H - 3):
+			var c := Vector2i(x, z)
+			if not is_floor(c) or step_tiles.has(c) or _reserved.has(c):
+				continue
+			if elevation[x][z] < min_level or grid[x][z - 1] != Tile.WALL:
+				continue
+			var open := true
+			for d in [Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 2)]:
+				var n: Vector2i = c + d
+				open = open and is_floor(n) and elevation[n.x][n.y] == elevation[x][z] and not step_tiles.has(n)
+			if not open:
+				continue
+			if best.x < 0 or (x > best.x if east else x < best.x):
+				best = c
+	return best
+
+## A door into another interior from inside this one (the Mountain Pass's
+## caves): the pack's dark archway against the rock behind the tile, a
+## frosty glow, its name. Shift beside it enters (`id`).
+func _place_door_site(cell: Vector2i, id: String, kind: String, display_name: String, tint: Color) -> void:
+	_reserve_area(cell, 1)
+	var site_root = Node3D.new()
+	site_root.name = "Site_%s" % id
+	site_root.position = grid_manager.grid_to_world(cell) + Vector3(0, get_elevation_world_y(cell), -0.6)
+	var mouth := _make_prop_sprite("gate_small", 1.3)
+	if mouth:
+		mouth.modulate = tint
+		site_root.add_child(mouth)
+	for side in [-1.0, 1.0]:
+		var rock := _make_prop_sprite("wallrock_snow", 0.9, 0 if side < 0 else 1)
+		if rock:
+			rock.position = Vector3(side * 0.95, CameraView.SPRITE_LIFT, 0.15)
+			site_root.add_child(rock)
+	var glow = OmniLight3D.new()
+	glow.light_color = tint
+	glow.light_energy = 0.8
+	glow.omni_range = 3.0
+	glow.position = Vector3(0, 0.6, 0.4)
+	site_root.add_child(glow)
+	var label = Label3D.new()
+	label.text = display_name
+	label.font_size = 20
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.modulate = tint
+	label.position = Vector3(0, 2.0, 0)
+	WorldText.crisp(label)
+	site_root.add_child(label)
+	var interact_label = Label3D.new()
+	interact_label.name = "InteractLabel"
+	interact_label.text = "[Shift] Enter"
+	interact_label.font_size = 16
+	interact_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	interact_label.modulate = Color(1.0, 0.9, 0.4)
+	interact_label.position = Vector3(0, 1.7, 0)
+	interact_label.visible = false
+	WorldText.crisp(interact_label)
+	site_root.add_child(interact_label)
+	_visuals_root.add_child(site_root)
+	site_nodes.append({
+		"node": site_root,
+		"grid_pos": cell,
+		"id": id,
+		"kind": kind,
+		"display_name": display_name,
+		"label_node": interact_label,
+		"footprint": [],
+	})
+
+## An Ice Cave's creatures: the Mountain Pass's roster underground — weregoats
+## and sabertooths in the chambers, snow wraiths in the dark, an ice troll in
+## the deepest chamber.
+func _define_ice_cave_spawn_zones() -> void:
+	var common := [Enemy.EnemyType.WEREGOAT, Enemy.EnemyType.SABERTOOTH, Enemy.EnemyType.SNOW_WRAITH,
+		Enemy.EnemyType.SNOW_WRAITH]
+	for room in rooms:
+		var rect: Rect2i = room["rect"]
+		var kind: String = room["kind"]
+		if kind in ["start", "exit"]:
+			continue
+		if kind != "deep" and _rng.randf() >= 0.7:
+			continue
+		var n := clampi(2 + rect.get_area() / 40, 2, 4)
+		var points: Array = []
+		var types: Array = []
+		for _i in range(n):
+			var cell := _pick_free_cell(rect, points)
+			if cell.x < 0:
+				continue
+			points.append(cell)
+			types.append(common[_rng.randi_range(0, common.size() - 1)])
+		if points.is_empty():
+			continue
+		if kind == "deep":
+			types[0] = Enemy.EnemyType.ICE_TROLL
+		spawn_zones.append({"trigger_rect": rect.grow(1), "spawn_points": points, "enemy_types": types, "spawned": false})
+	for z in spawn_zones:
+		for p in z["spawn_points"]:
+			_reserved[p] = true
+	print("[DUNGEON] Defined %d ice cave spawn zones" % spawn_zones.size())
+
+# The Ice Troll Lair (designer, 2026-11-05: "an Ice troll lair that has 5
+# ice trolls in it and a few trash enemies ... a legendary chest ... gold
+# laying around ... all the gold and treasure chest enclosed by ice
+# stalactites with a small one square entrance"; then: "in the corner of
+# the room is the loot enclosed with one opening, so the player can't dance
+# around collecting stuff, they have to walk into the enclosed area"). A
+# short tunnel from the door opens on the den, one big frozen room holding
+# the trolls; in its north-east corner the vault, walled by the room's rock
+# and by high mountains on the other two (mountain_wall_tiles; designer,
+# 2026-11-05: "instead of icicles ... high mountains the player CANNOT blink
+# through or walk on top of") with a single gap facing the room. No one
+# walks the mountains (walls, climbers too: the climbing stat crosses only
+# the Mountain Pass's cliff faces — a later boots quest, Olorin's advice,
+# would let climbers in), and no blink crosses them (blink_clear).
+const TL_SIZE := Vector2i(40, 28)
+const TL_ROOM := Rect2i(8, 3, 28, 22)     # the den: x 8..35, z 3..24
+const TL_VAULT := Rect2i(29, 3, 7, 6)     # the vault's floor, in the den's north-east corner
+## The high mountains walling the vault in (walls: the cave's rock under
+## the winter pack's snowy stone piles, heaped high). No blink crosses them.
+var mountain_wall_tiles: Dictionary = {}
+var troll_vault_entrance := Vector2i(-1, -1)
+var troll_vault_chest_cell := Vector2i(-1, -1)
+## Gold lying on the ground: [{cell, amount, key, node}]; walked onto, it is
+## taken (take_gold_pile) and remembered (its key in the world state).
+var gold_piles: Array = []
+
+func _generate_troll_lair_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	mountain_wall_tiles.clear()
+	var mid := TL_SIZE.y / 2
+	# The tunnel in from the door.
+	_carve_rect(Rect2i(1, mid - 1, TL_ROOM.position.x, 3))
+	rooms.append({"rect": Rect2i(1, mid - 1, 6, 3), "kind": "start", "elev": 0})
+	# The trolls' den: one big frozen room. Its west and south sides are
+	# broken up so it reads as a cavern; the vault's corner stays square.
+	_carve_rect(TL_ROOM)
+	for c in [Vector2i(TL_ROOM.position.x, TL_ROOM.position.y + 4), Vector2i(TL_ROOM.position.x + 6, TL_ROOM.end.y - 1),
+			Vector2i(TL_ROOM.position.x, TL_ROOM.end.y - 5), Vector2i(TL_ROOM.position.x + 16, TL_ROOM.end.y)]:
+		_carve_circle(c, 2)
+	rooms.append({"rect": TL_ROOM, "kind": "lair", "elev": 0, "center": TL_ROOM.get_center()})
+	# The vault in the room's north-east corner: the room's own rock on its
+	# north and east, ice spikes on its west and south, and one gap in the
+	# south side, facing the trolls.
+	var ring := TL_VAULT.grow(1)
+	for x in range(ring.position.x, ring.end.x):
+		for z in range(ring.position.y, ring.end.y):
+			var c := Vector2i(x, z)
+			if TL_VAULT.has_point(c) or grid[x][z] != Tile.FLOOR:
+				continue
+			grid[x][z] = Tile.WALL
+			mountain_wall_tiles[c] = true
+	troll_vault_entrance = Vector2i(TL_VAULT.position.x + TL_VAULT.size.x / 2, TL_VAULT.end.y)
+	grid[troll_vault_entrance.x][troll_vault_entrance.y] = Tile.FLOOR
+	mountain_wall_tiles.erase(troll_vault_entrance)
+	troll_vault_chest_cell = Vector2i(TL_VAULT.end.x - 1, TL_VAULT.position.y)   # tucked in the corner
+	rooms.append({"rect": TL_VAULT, "kind": "vault", "elev": 0})
+	_enforce_border_walls()
+
+## The hoard: gold heaped about the vault floor round the chest (not in the
+## gap's mouth, so the way in stays clear).
+func _place_troll_hoard() -> void:
+	var cells: Array = []
+	for x in range(TL_VAULT.position.x, TL_VAULT.end.x):
+		for z in range(TL_VAULT.position.y, TL_VAULT.end.y):
+			var c := Vector2i(x, z)
+			if c == troll_vault_chest_cell or c == troll_vault_entrance + Vector2i(0, -1):
+				continue
+			if (x + 2 * z) % 4 == 0:
+				cells.append(c)
+	var k := 0
+	for c in cells:
+		_place_gold_pile(c, 40 + ((c.x * 7 + c.y * 13) % 5) * 15 + world_level * 10, k)
+		k += 1
+	# The cave's dressing keeps out of the vault and off the ground round its
+	# ring: the hoard's floor, and the gap plain to see from the den.
+	var clear := TL_VAULT.grow(2)
+	for x in range(clear.position.x, clear.end.x):
+		for z in range(clear.position.y, clear.end.y):
+			_reserved[Vector2i(x, z)] = true
+
+func _gold_key(index: int) -> String:
+	return "world_%d_%s_gold_%d" % [world_level, interior_id, index]
+
+func _place_gold_pile(cell: Vector2i, amount: int, index: int) -> void:
+	var key := _gold_key(index)
+	if _opened_chests_ref.get(key, false):
+		return   # taken on an earlier visit
+	var sprite := _make_prop_sprite("treasure_gold", 1.0, index)
+	if sprite == null:
+		return
+	var root := Node3D.new()
+	root.name = "GoldPile_%d" % index
+	root.position = grid_manager.grid_to_world(cell) + Vector3(0, get_elevation_world_y(cell), 0)
+	root.add_child(sprite)
+	_visuals_root.add_child(root)
+	_reserve_area(cell, 0)
+	gold_piles.append({"cell": cell, "amount": amount, "key": key, "node": root})
+
+## Take the gold lying on `cell`: its amount (0 when there is none); it is
+## gone for good (remembered in the world state).
+func take_gold_pile(cell: Vector2i) -> int:
+	for i in range(gold_piles.size()):
+		var g: Dictionary = gold_piles[i]
+		if g["cell"] != cell:
+			continue
+		_opened_chests_ref[g["key"]] = true
+		if is_instance_valid(g["node"]):
+			g["node"].queue_free()
+		gold_piles.remove_at(i)
+		prompts_changed.emit()
+		return int(g["amount"])
+	return 0
+
+## The vault's mountains: on each tile of the cave's rock (drawn by the
+## cliff walls) a great snowy stone pile of the winter pack, heaped well
+## above a hero's head so the ring reads as peaks, not a fence.
+func _build_troll_vault_mountains() -> void:
+	var k := 0
+	for c in mountain_wall_tiles:
+		# The two peaks either side of the gap are smaller and lean away from
+		# it, so the one way in shows as a pass between them.
+		var side: int = c.x - troll_vault_entrance.x if c.y == troll_vault_entrance.y else 0
+		var flank := absi(side) == 1
+		var sc: float = 1.0 if flank else 1.6 + _tile_noise(c.x, c.y, 811) * 0.4
+		var peak := _make_prop_sprite("winter_rock", sc, k % 3)
+		if peak == null:
+			continue
+		peak.position = grid_manager.grid_to_world(c) + Vector3(0.3 * side if flank else 0.0, CameraView.SPRITE_LIFT, 0.3)
+		_visuals_root.add_child(peak)
+		k += 1
+
+## May a blink (a teleport, a card's leap to a tile) go from `from` to `to`?
+## Not onto a mountain, nor across one: the straight line between the two
+## tiles' centres may not pass over any of the vault's mountains.
+func blink_clear(from: Vector2i, to: Vector2i) -> bool:
+	if mountain_wall_tiles.is_empty():
+		return true
+	if mountain_wall_tiles.has(to):
+		return false
+	var a := Vector2(from.x + 0.5, from.y + 0.5)
+	var b := Vector2(to.x + 0.5, to.y + 0.5)
+	var steps := int(ceil(a.distance_to(b) * 4.0))
+	for i in range(1, steps + 1):
+		var p := a.lerp(b, float(i) / float(steps))
+		if mountain_wall_tiles.has(Vector2i(int(floor(p.x)), int(floor(p.y)))):
+			return false
+	return true
+
+func _define_troll_lair_spawn_zones() -> void:
+	var door := troll_vault_entrance
+	var r := TL_ROOM
+	# Five ice trolls in the den: two either side of the vault's gap, three
+	# spread through the room; four snow wraiths round its edges. All wake as
+	# one when the hero steps out of the tunnel into the den.
+	var want: Array = [
+		[door + Vector2i(-2, 2), Enemy.EnemyType.ICE_TROLL],
+		[door + Vector2i(2, 2), Enemy.EnemyType.ICE_TROLL],
+		[Vector2i(r.position.x + 8, r.position.y + 5), Enemy.EnemyType.ICE_TROLL],
+		[Vector2i(r.position.x + 9, r.end.y - 5), Enemy.EnemyType.ICE_TROLL],
+		[Vector2i(r.position.x + 17, r.get_center().y + 2), Enemy.EnemyType.ICE_TROLL],
+		[Vector2i(r.position.x + 3, r.position.y + 2), Enemy.EnemyType.SNOW_WRAITH],
+		[Vector2i(r.position.x + 3, r.end.y - 3), Enemy.EnemyType.SNOW_WRAITH],
+		[Vector2i(r.end.x - 3, r.end.y - 3), Enemy.EnemyType.SNOW_WRAITH],
+		[Vector2i(r.position.x + 15, r.position.y + 1), Enemy.EnemyType.SNOW_WRAITH],
+	]
+	var points: Array = []
+	var types: Array = []
+	for w in want:
+		var c := _nearest_free_floor(w[0], points)
+		if c.x < 0:
+			continue
+		points.append(c)
+		types.append(w[1])
+	spawn_zones.append({"trigger_rect": r.grow(1), "spawn_points": points,
+		"enemy_types": types, "spawned": false})
+	for p in points:
+		_reserved[p] = true
+
+## The floor tile nearest `c` (spiralling out) that is not reserved, nor in
+## `avoid`, nor in the vault.
+func _nearest_free_floor(c: Vector2i, avoid: Array) -> Vector2i:
+	for r in range(0, 5):
+		for dx in range(-r, r + 1):
+			for dz in range(-r, r + 1):
+				if maxi(absi(dx), absi(dz)) != r:
+					continue
+				var n := c + Vector2i(dx, dz)
+				if is_floor(n) and not _reserved.has(n) and not (n in avoid) and not TL_VAULT.grow(1).has_point(n):
+					return n
+	return Vector2i(-1, -1)
+
+# ============================================
+# THANATOS CLOSET AND THANATOS'S HALL (the Underworld; designer, 2026-11-05:
+# "a cave or some sort of underground area that utilizes the undead land
+# pixel art ... called Thanatos Closet ... the player will adventure around
+# and eventually fight Thanatos")
+# The Closet: crypt warrens under the Underworld (the cave's chambers and
+# tunnels) in the undead land art — barrow earth, its rock, its green bog
+# for puddles, headstones, ruined pillars and skull doors along the walls,
+# bones and skulls underfoot. Specters drift through it, mind eaters and
+# demons lurk in its chambers; its deepest crypt opens on Thanatos's Hall,
+# the boss room (sealed until he falls), where he waits on his dais between
+# rows of pillars.
+# ============================================
+
+## The Underworld's far reaches (World 2): the Closet's way down, in the
+## free field room farthest from the start (picked without the layout's
+## dice). Its footprint is a raised block of the land, the skull door in it.
+func _place_closet_site(candidates: Array) -> void:
+	if world_level != 2 or interior_kind != "" or candidates.is_empty():
+		return
+	var pick := -1
+	var best := -1
+	for room_idx in candidates:
+		var c: Vector2i = rooms[room_idx]["rect"].get_center()
+		var d := absi(c.x - player_start.x) + absi(c.y - player_start.y)
+		if d > best:
+			best = d
+			pick = room_idx
+	var rect: Rect2i = rooms[pick]["rect"]
+	var fp_w := 3
+	var fp_d := 3
+	var fx = clampi(rect.get_center().x - fp_w / 2, rect.position.x + 1, rect.end.x - fp_w - 1)
+	var fz = rect.position.y + 1
+	var footprint: Array = []
+	for x in range(fx, fx + fp_w):
+		for z in range(fz, fz + fp_d):
+			footprint.append(Vector2i(x, z))
+	var entrance = Vector2i(fx + fp_w / 2, fz + fp_d)
+	if not is_floor(entrance) or not _try_block_footprint(footprint):
+		return
+	candidates.erase(pick)
+	rooms[pick]["kind"] = "site"
+	_create_site("closet", "closet_0", "Thanatos Closet", footprint, entrance, fx, fz, fp_w, fp_d)
+
+func _build_closet_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
+	## The undead land pack on the burning ground: its skull-mouthed door in
+	## the block's face, ruined pillars either side, a dead tree behind.
+	var door := _make_prop_sprite("undead_skull_door", 1.4)
+	if door:
+		door.position = Vector3(0, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.35)
+		root.add_child(door)
+	for side in [-1.0, 1.0]:
+		var pillar := _make_prop_sprite("undead_ruin", 1.1, 0)
+		if pillar:
+			pillar.position = Vector3(side * fp_w * 0.38, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.5)
+			root.add_child(pillar)
+	var tree := _make_prop_sprite("undead_tree", 1.0, 2)
+	if tree:
+		tree.position = Vector3(0.2, CameraView.SPRITE_LIFT, -fp_d / 2.0 + 0.4)
+		root.add_child(tree)
+	var glow = OmniLight3D.new()
+	glow.light_color = Color(0.45, 1.0, 0.6)
+	glow.light_energy = 0.7
+	glow.omni_range = 3.0
+	glow.position = Vector3(0, 0.5, fp_d / 2.0)
+	root.add_child(glow)
+
+## The Closet's dwellers: specters drifting everywhere, mind eaters in the
+## chambers, a demon or two in the deeper crypts and the deepest.
+func _define_closet_spawn_zones() -> void:
+	for room in rooms:
+		var rect: Rect2i = room["rect"]
+		var kind: String = room["kind"]
+		if kind in ["start", "exit"]:
+			continue
+		if kind != "deep" and _rng.randf() >= 0.8:
+			continue
+		var depth := float(rect.get_center().x) / float(GRID_W)
+		var n := clampi(2 + rect.get_area() / 40, 2, 5)
+		var points: Array = []
+		var types: Array = []
+		for _i in range(n):
+			var cell := _pick_free_cell(rect, points)
+			if cell.x < 0:
+				continue
+			points.append(cell)
+			var roll := _rng.randf()
+			if roll < 0.15 + depth * 0.15:
+				types.append(Enemy.EnemyType.DEMON)
+			elif roll < 0.5:
+				types.append(Enemy.EnemyType.MIND_EATER)
+			else:
+				types.append(Enemy.EnemyType.SPECTER)
+		if points.is_empty():
+			continue
+		if kind == "deep":
+			types[0] = Enemy.EnemyType.DEMON
+		spawn_zones.append({"trigger_rect": rect.grow(1), "spawn_points": points, "enemy_types": types, "spawned": false})
+	for z in spawn_zones:
+		for p in z["spawn_points"]:
+			_reserved[p] = true
+	print("[DUNGEON] Defined %d Thanatos Closet spawn zones" % spawn_zones.size())
+
+## Along the crypt walls, the undead land pack: ruined pillars, skull doors
+## set in the rock and the odd dead tree (never on the row nearest the
+## camera, where a tall sprite would stand over the ground).
+func _dress_crypt_walls() -> void:
+	var placed := 0
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			if grid[x][z] != Tile.WALL or not _has_adjacent_floor(x, z) or _is_floor_at(x, z - 1):
+				continue
+			var n := _tile_noise(x, z, 911)
+			var world := grid_manager.grid_to_world(Vector2i(x, z)) + Vector3(0, CameraView.SPRITE_LIFT, 0.3)
+			var sprite: Sprite3D = null
+			if n < 0.16:
+				sprite = _make_prop_sprite("undead_ruin", 1.0, int(n * 100) % 3)
+			elif n < 0.20:
+				sprite = _make_prop_sprite("undead_skull_door", 1.0)
+			elif n < 0.26:
+				sprite = _make_prop_sprite("undead_tree", 0.9, int(n * 100) % 5)
+			if sprite:
+				sprite.position = world
+				_visuals_root.add_child(sprite)
+				placed += 1
+	print("[DUNGEON] Crypt walls dressed: %d pieces" % placed)
+
+const TH_SIZE := Vector2i(28, 19)
+const TH_FLOOR := Rect2i(1, 1, 26, 17)
+## Thanatos's dais cell (east end of the hall).
+var thanatos_cell := Vector2i(-1, -1)
+## The hall's pillars (wall tiles in two rows down its length).
+var thanatos_pillars: Array = []
+
+func _generate_thanatos_hall_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	thanatos_pillars.clear()
+	_carve_rect(TH_FLOOR)
+	rooms.append({"rect": TH_FLOOR, "kind": "boss", "elev": 0})
+	var mid := TH_FLOOR.get_center().y
+	# Two rows of pillars down the hall, cover from his bolts.
+	for x in [7, 11, 15, 19]:
+		for z in [mid - 4, mid + 4]:
+			var c := Vector2i(x, z)
+			grid[c.x][c.y] = Tile.WALL
+			thanatos_pillars.append(c)
+	thanatos_cell = Vector2i(TH_FLOOR.end.x - 3, mid)
+	_enforce_border_walls()
+
+func _build_thanatos_hall_decorations() -> void:
+	## The undead land pack: a ruined pillar on every pillar tile, skull
+	## doors and pillars along the walls, headstones and bones about the
+	## floor, a dead tree either side of his dais.
+	_reserve_area(thanatos_cell, 1)
+	_reserve_area(player_start, 1)
+	for c in thanatos_pillars:
+		var pillar := _make_prop_sprite("undead_ruin", 1.2, 0)
+		if pillar:
+			pillar.position = grid_manager.grid_to_world(c) + Vector3(0, CameraView.SPRITE_LIFT, 0.3)
+			_visuals_root.add_child(pillar)
+	_dress_crypt_walls()
+	for dz in [-2, 2]:
+		var tree := _make_prop_sprite("undead_tree", 1.1, 1 if dz < 0 else 3)
+		if tree:
+			tree.position = grid_manager.grid_to_world(thanatos_cell + Vector2i(1, dz)) + Vector3(0, CameraView.SPRITE_LIFT, 0)
+			_visuals_root.add_child(tree)
+	var bones := 0
+	for x in range(TH_FLOOR.position.x, TH_FLOOR.end.x):
+		for z in range(TH_FLOOR.position.y, TH_FLOOR.end.y):
+			var pos := Vector2i(x, z)
+			if _reserved.has(pos) or not is_floor(pos):
+				continue
+			var n := _tile_noise(x, z, 931)
+			var role := ""
+			if n < 0.05:
+				role = "undead_bones"
+			elif n < 0.08:
+				role = "undead_skulls"
+			elif n < 0.10:
+				role = "undead_grave"
+			if role == "":
+				continue
+			var piece := _make_prop_sprite(role, 0.9, int(_tile_noise(x, z, 937) * 11))
+			if piece:
+				piece.position = grid_manager.grid_to_world(pos) + Vector3(0, CameraView.SPRITE_LIFT, 0)
+				_visuals_root.add_child(piece)
+				bones += 1
+	# A pale green light over the dais.
+	var light = OmniLight3D.new()
+	light.light_color = Color(0.5, 1.0, 0.65)
+	light.light_energy = 1.6
+	light.omni_range = 6.0
+	light.position = grid_manager.grid_to_world(thanatos_cell) + Vector3(0, 1.2, 0)
+	_visuals_root.add_child(light)
+	print("[DUNGEON] Thanatos's Hall dressed: %d pillars, %d bones and graves" % [thanatos_pillars.size(), bones])
+
+# ============================================
 # BUILDING INTERIOR LAYOUT
 # A central hall with rooms partitioned off either side, joined by doorways.
 # ============================================
@@ -1932,6 +2819,8 @@ func _carve_corridor_v(x: int, from_z: int, to_z: int) -> void:
 # ============================================
 
 func _generate_elevation() -> void:
+	if interior_kind == "mountains":
+		return  # the layout terraced it (_generate_mountain_layout)
 	elevation.clear()
 	for x in range(GRID_W):
 		var col: Array = []
@@ -1943,7 +2832,8 @@ func _generate_elevation() -> void:
 		return  # Buildings and the dojo are flat inside
 	if interior_kind == "sewer":
 		return  # Sewers are flat; channels are carved into the floor, not raised
-	if interior_kind == "boneyard" or interior_kind == "hellgate" or interior_kind == "labyrinth":
+	if interior_kind == "boneyard" or interior_kind == "hellgate" or interior_kind == "labyrinth" \
+			or interior_kind == "trolllair" or interior_kind == "thanatoshall" or interior_kind == "closet":
 		return  # a walled graveyard square / the gate hall / the maze: flat
 	if interior_kind == "ratking":
 		# The lair's three cliffs: the walkable top rows behind each cliff
@@ -2013,6 +2903,7 @@ func build_high_ground(center: Vector2i, radius: int = 1, elev: int = 1) -> Dict
 			handle["cells"].append(Vector2i(x, z))
 	if not handle["cells"].is_empty():
 		_rebuild_pack_ledges()
+		_detect_cliffs()
 	return handle
 
 func remove_high_ground(handle: Dictionary) -> void:
@@ -2027,6 +2918,7 @@ func remove_high_ground(handle: Dictionary) -> void:
 			node.queue_free()
 	if not handle.get("cells", []).is_empty():
 		_rebuild_pack_ledges()
+		_detect_cliffs()
 
 
 func get_elevation(grid_pos: Vector2i) -> int:
@@ -2036,6 +2928,38 @@ func get_elevation(grid_pos: Vector2i) -> int:
 	if grid_pos.x >= elevation.size() or grid_pos.y >= elevation[grid_pos.x].size():
 		return 0
 	return elevation[grid_pos.x][grid_pos.y]
+
+## Walking up or down: one elevation level a step (designer, 2026-11-05).
+## Neighbouring tiles more than MAX_STEP levels apart are a cliff face that
+## nothing walks up or down; the way up is a chain of ledges and steps (the
+## Mountains). Fliers cross it (Enemy.immune_to_high_ground), and so does a
+## climber (PlayerStats.climbs_cliffs, for climbing gear); a blink, leap,
+## charge or knockback is not walking and ignores it.
+const MAX_STEP := 1
+## Whether any two neighbouring floor tiles here are a cliff apart: enemies
+## then take the real way round (Enemy._build_route_path) rather than a
+## greedy step that would stall at a cliff's foot.
+var has_cliffs: bool = false
+
+func can_step(from: Vector2i, to: Vector2i) -> bool:
+	return absi(get_elevation(to) - get_elevation(from)) <= MAX_STEP
+
+func _detect_cliffs() -> void:
+	# The Mountain Pass: its south-facing cliffs are rock faces (walls), so
+	# its floor alone need not show a cliff — but its walkers need the route.
+	has_cliffs = interior_kind == "mountains"
+	if has_cliffs:
+		return
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if grid[x][z] != Tile.FLOOR:
+				continue
+			for d in [Vector2i(1, 0), Vector2i(0, 1)]:
+				var n: Vector2i = Vector2i(x, z) + d
+				if n.x < GRID_W and n.y < GRID_H and grid[n.x][n.y] == Tile.FLOOR \
+						and not can_step(Vector2i(x, z), n):
+					has_cliffs = true
+					return
 
 func get_elevation_world_y(grid_pos: Vector2i) -> float:
 	## Returns the world Y position for the given grid tile based on elevation.
@@ -2113,9 +3037,9 @@ static func is_colour_authored(texture_path: String) -> bool:
 func high_texture_path() -> String:
 	if interior_kind == "forest":
 		return GROUND_TEX + "/forest_grass_high.png"   # worn grass, like the top of the designer's cliff block
-	if interior_kind == "" and world_level == 2:
+	if interior_kind == "" and art_world() == 2:
 		return GROUND_TEX + "/desert_sand.png"   # sand, like the top of the designer's desert cliff
-	if interior_kind == "" and world_level == 4:
+	if interior_kind == "" and art_world() == 4:
 		return GROUND_TEX + "/cursed_floor.png"   # the cursed earth, like the lip of the designer's cliff
 	return ""
 
@@ -2220,6 +3144,8 @@ func _terrain_of(x: int, z: int) -> int:
 		return Terrain.WATER
 	if pit_tiles.has(Vector2i(x, z)):
 		return Terrain.PIT
+	if step_tiles.has(Vector2i(x, z)):
+		return Terrain.DIRT   # a step up a cliff: the trodden track, not the ledge (no pack draws stairs)
 	if elevation[x][z] > 0:
 		return Terrain.HIGH
 	if trail[x][z]:
@@ -2246,9 +3172,9 @@ func ground_atlas_path() -> String:
 		return GROUND_TEX + "/forest_atlas.png"
 	if interior_kind == "cave":
 		return GROUND_TEX + ("/cave_glow_atlas.png" if cave_glows() else "/cave_atlas.png")
-	if interior_kind == "" and world_level == 2:
+	if interior_kind == "" and art_world() == 2:
 		return GROUND_TEX + "/desert_atlas.png"
-	if interior_kind == "" and world_level == 4:
+	if interior_kind == "" and art_world() == 4:
 		return GROUND_TEX + "/cursed_atlas.png"
 	if floor_texture_path() == GROUND_TEX + "/undead_floor.png":
 		return GROUND_TEX + "/undead_atlas.png"   # World 5 and the Boneyard
@@ -2312,8 +3238,8 @@ func _build_autotile_ground() -> void:
 					continue
 				# Outdoors the land runs on under the blocked tiles: plain
 				# ground there too, so the tree line stands on grass, not void.
-				if natural and grid[x][z] == Tile.WALL and not site_tiles.has(Vector2i(x, z)) \
-						and _near_floor(x, z, 3):
+				if (natural or waypoint_block_tiles.has(Vector2i(x, z))) and grid[x][z] == Tile.WALL \
+						and not site_tiles.has(Vector2i(x, z)) and _near_floor(x, z, 3):
 					var wc := _atlas_cell(Terrain.GRASS, 0, x, z)
 					var wy: float = _max_adjacent_floor_elevation(x, z) * ELEV_STEP + 0.004
 					_ground_quad(st, x, z, wy, wc.x, wc.y, tw, th)
@@ -2486,7 +3412,9 @@ func _natural_boundary() -> bool:
 		return false
 	if interior_kind == "forest":
 		return true
-	return world_level in [1, 2, 3]
+	if interior_kind in ["mountains", "icecave", "trolllair", "closet", "thanatoshall"]:
+		return false   # rock all round
+	return art_world() in [1, 2, 3]
 
 func _build_walls() -> void:
 	## Rock walls drawn the way the packs draw cliffs: a flat autotiled mesh
@@ -2507,8 +3435,9 @@ func _build_walls() -> void:
 			_build_boundary_props()
 		else:
 			_build_cliff_walls()
-			if world_level == 4 and interior_kind == "":
+			if art_world() == 4 and interior_kind == "":
 				_place_hell_landmarks()
+		_build_site_blocks()
 		return
 	var items: Array = []
 	var site_tiles = _all_site_footprint_tiles()
@@ -2565,11 +3494,13 @@ func cliff_strip_path() -> String:
 			return GROUND_TEX + "/cave_cliff.png"   # the designer's hanging rock face, 32 px cells (2026-10-29)
 		"sewer", "ratking", "hellgate", "labyrinth":
 			return CP_TEX + "/cliff_cave.png"
-		"boneyard":
+		"boneyard", "closet", "thanatoshall":   # the undead land: the Boneyard and Thanatos Closet
 			return GROUND_TEX + "/undead_cliff.png"   # the designer's barrow land (2026-10-29)
 		"forest":
 			return GROUND_TEX + "/forest_cliff.png"   # the designer's grass-over-rock strip, 32 px cells (2026-10-29)
-	match world_level:
+		"mountains", "icecave", "trolllair":
+			return CP_TEX + "/cliff_undead.png"  # grey rock faces under the frost palette, as Frostreach's
+	match art_world():
 		4:
 			return GROUND_TEX + "/cursed_cliff.png"   # the designer's veined cliff under its earth lip (2026-10-29)
 		5:
@@ -2716,11 +3647,13 @@ static func _add_wall_quad(st: SurfaceTool, u0: float, cw: float, ax: float, y: 
 	st.set_uv(Vector2(u0, 1)); st.add_vertex(d)
 
 
-func _build_cliff_walls() -> void:
+## `only`: draw just these wall tiles (a site's footprint as a raised block
+## of the land's own cliff: _build_site_blocks), under `mesh_name`.
+func _build_cliff_walls(only: Dictionary = {}, mesh_name: String = "CliffWalls") -> void:
 	var pal = get_palette()
 	var atlas := _make_wall_atlas(pal)
 	var rows := cliff_face_rows()
-	var site_tiles = _all_site_footprint_tiles()
+	var site_tiles = _structure_tiles()
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var cw := 1.0 / WALL_ATLAS_CELLS
@@ -2729,7 +3662,10 @@ func _build_cliff_walls() -> void:
 		for z in range(GRID_H):
 			if grid[x][z] != Tile.WALL:
 				continue
-			if site_tiles.has(Vector2i(x, z)):
+			if not only.is_empty():
+				if not only.has(Vector2i(x, z)):
+					continue
+			elif site_tiles.has(Vector2i(x, z)):
 				continue  # Site structures draw their own exteriors
 			if is_water(Vector2i(x, z)):
 				continue  # a lava pool: the ground autotile draws it
@@ -2799,7 +3735,7 @@ func _build_cliff_walls() -> void:
 	if count == 0:
 		return
 	var mi := MeshInstance3D.new()
-	mi.name = "CliffWalls"
+	mi.name = mesh_name
 	mi.mesh = st.commit()
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = atlas
@@ -2819,7 +3755,7 @@ func _build_cliff_walls() -> void:
 ## ground (the row nearest the camera) take low props only (rocks, bushes),
 ## so nothing tall stands between the camera and a character at the edge.
 func _build_boundary_props() -> void:
-	var site_tiles = _all_site_footprint_tiles()
+	var site_tiles = _structure_tiles()
 	var trees: Array = []
 	var rocks: Array = []
 	var bushes: Array = []
@@ -2872,11 +3808,33 @@ func _build_boundary_props() -> void:
 	_add_prop_decos(bushes, "bush")
 	print("[DUNGEON] Natural boundary: %d trees, %d rocks, %d bushes (%s)" % [trees.size(), rocks.size(), bushes.size(), get_location_name()])
 
+## Kinds of site whose footprint is a raised block of the land's own cliff
+## (designer, 2026-11-05: the space behind an entrance was empty ground no
+## one could reach — "build out the rest of the cave ... just make sure it is
+## covering the spaces that are unreachable"; the designs come later).
+## A building's walls and roof cover its footprint already; the forest
+## trail's is filled with woods (_build_forest_entrance).
+const SITE_BLOCK_KINDS := ["cave", "sewer", "mountains", "graveyard", "closet"]
+
+## Every block-kind site's footprint drawn as the land's cliff: rock (or
+## earth) on top, the cliff face along its south edge, the entrance art on
+## that face.
+func _build_site_blocks() -> void:
+	if interior_kind != "":
+		return
+	var tiles := {}
+	for site in site_nodes:
+		if site["kind"] in SITE_BLOCK_KINDS:
+			for c in site["footprint"]:
+				tiles[c] = true
+	if not tiles.is_empty():
+		_build_cliff_walls(tiles, "SiteBlocks")
+
 ## Emberfall's skyline: animated volcanoes and demon idols (cave pack) and
 ## the designer's vein-wrapped ruins (2026-10-29) on the blocked tiles along
 ## the edge of the ground, well apart, never on the camera side of the land.
 func _place_hell_landmarks() -> void:
-	var site_tiles = _all_site_footprint_tiles()
+	var site_tiles = _structure_tiles()
 	# The designer's hell (tools/cut_prop_boards.py, 2026-10-29; was the cave
 	# pack's volcanoes and demon head, hand and tail): three animations
 	# [strip, fps] and the still pieces [role, variant] — the horned idol,
@@ -2951,7 +3909,13 @@ func _place_lava_pools() -> void:
 	# start field) so they never cut a route.
 	var pools := 6 + _rng.randi_range(0, 4)
 	var made := 0
-	for _i in range(pools * 4):
+	# Never in the rooms that matter whole: the start field, the arena (its
+	# fight is laid out on fixed points) and the exit room.
+	var keep_clear: Array = []
+	for room in rooms:
+		if room["kind"] in ["start", "arena", "exit"]:
+			keep_clear.append((room["rect"] as Rect2i).grow(1))
+	for _i in range(pools * 30):   # World 2 is smaller than World 4 was: more tries to find open ground
 		if made >= pools:
 			break
 		var cx = _rng.randi_range(12, GRID_W - 5)
@@ -2963,6 +3927,9 @@ func _place_lava_pools() -> void:
 				var q = Vector2i(cx + dx, cz + dz)
 				if not is_floor(q) or trail[q.x][q.y] or is_water(q):
 					open = false
+				for kc in keep_clear:
+					if kc.has_point(q):
+						open = false
 		if not open:
 			continue
 		for dx in range(-r, r + 1):
@@ -2973,7 +3940,23 @@ func _place_lava_pools() -> void:
 				grid[p.x][p.y] = Tile.WALL
 				water[p.x][p.y] = true
 		made += 1
-	print("[DUNGEON] Emberfall: %d lava pools" % made)
+	# A floor tile a pool walled in (a gap left inside its ring) is lava too:
+	# the ground stays one piece, or no site could be placed on it.
+	var seen := {player_start: true}
+	var stack: Array = [player_start]
+	while not stack.is_empty():
+		var c: Vector2i = stack.pop_back()
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var n: Vector2i = c + d
+			if not seen.has(n) and is_floor(n):
+				seen[n] = true
+				stack.append(n)
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if grid[x][z] == Tile.FLOOR and not seen.has(Vector2i(x, z)):
+				grid[x][z] = Tile.WALL
+				water[x][z] = true
+	print("[DUNGEON] The Underworld: %d lava pools" % made)
 
 func _has_adjacent_floor(x: int, z: int) -> bool:
 	for dx in [-1, 0, 1]:
@@ -3082,8 +4065,10 @@ func _build_decorations() -> void:
 	if interior_kind == "forest":
 		_build_forest_decorations()
 		return
-	if interior_kind == "cave":
-		_build_cave_decorations()
+	if interior_kind == "cave" or interior_kind == "icecave" or interior_kind == "trolllair":
+		_build_cave_decorations()   # the ice kinds wear the "ice" prop roles
+		if interior_kind == "trolllair":
+			_build_troll_vault_mountains()
 		return
 	if interior_kind == "dojo":
 		return  # bare boards: the dummies are the furniture
@@ -3092,6 +4077,13 @@ func _build_decorations() -> void:
 		return
 	if interior_kind == "boneyard":
 		_build_boneyard_decorations()
+		return
+	if interior_kind == "closet":
+		_build_cave_decorations()   # the undead roles: headstones, bones, skulls
+		_dress_crypt_walls()
+		return
+	if interior_kind == "thanatoshall":
+		_build_thanatos_hall_decorations()
 		return
 	if interior_kind == "hellgate":
 		_build_hellgate_decorations()
@@ -4550,8 +5542,28 @@ func _build_cave_decorations() -> void:
 	# A few slow drips falling from the larger stalactites add life to the gloom.
 	_place_cave_drips(stalactite_items)
 	_place_crystal_lights(crystal_items)
+	if hell_cave():
+		_place_lava_glow()
 	print("[DUNGEON] Cave dressing: %d stalagmites, %d stalactites, %d crystals, %d divots" % [
 		stalagmite_items.size(), stalactite_items.size(), crystal_items.size(), divot_items.size()])
+
+## Hell's caves: a low orange light over every few lava tiles, so the pools
+## light the rock round them.
+func _place_lava_glow() -> void:
+	var made := 0
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if made >= 14 or not is_water(Vector2i(x, z)) or (x + z * 3) % 3 != 0:
+				continue
+			var light = OmniLight3D.new()
+			light.light_color = Color(1.0, 0.45, 0.15)
+			light.light_energy = 1.4
+			light.omni_range = 3.5
+			light.omni_attenuation = 2.0
+			light.shadow_enabled = false
+			light.position = Vector3(x + 0.5, 0.5, z + 0.5)
+			_visuals_root.add_child(light)
+			made += 1
 
 func _place_crystal_lights(crystal_items: Array) -> void:
 	## Every few crystal clusters carries a dim, tight teal light — enough to
@@ -4742,7 +5754,10 @@ func _place_sites() -> void:
 			kind = "sewer"
 		elif world_level == 1 and s == 1:
 			kind = "forest"
-		elif s % 2 == 0:
+		elif cave_count <= building_count:
+			# Caves and buildings take turns by what has been placed, so a
+			# room that could not take one (its way in a lava pool) leaves
+			# the turn for the next room rather than skipping it.
 			kind = "cave"
 		else:
 			kind = "building"
@@ -4758,8 +5773,9 @@ func _place_sites() -> void:
 				footprint.append(Vector2i(x, z))
 		var entrance = Vector2i(fx + fp_w / 2, fz + fp_d)
 
-		# Block the footprint, then verify the world is still fully walkable
-		if not _try_block_footprint(footprint):
+		# The way in must be open ground (not a lava pool); then block the
+		# footprint and verify the world is still fully walkable.
+		if not is_floor(entrance) or not _try_block_footprint(footprint):
 			continue
 		rooms[room_idx]["kind"] = "site"
 
@@ -4779,14 +5795,61 @@ func _place_sites() -> void:
 				display_name = "Building"
 				building_count += 1
 			_:
-				id = "cave_%d" % cave_count
-				display_name = "Cave"
+				# Frostreach's caves are frozen (designer, 2026-11-05).
+				id = ("icecave_%d" if world_level == 3 else "cave_%d") % cave_count
+				display_name = "Ice Cave" if world_level == 3 else "Cave"
 				cave_count += 1
 
 		_create_site(kind, id, display_name, footprint, entrance, fx, fz, fp_w, fp_d)
 
+	_place_mountain_site(candidates)
+	_place_closet_site(candidates)
 	_place_hidden_graveyard(candidates)
 	print("[DUNGEON] Placed %d enterable sites" % site_nodes.size())
+
+## The Mountain Pass (Act 1, Mountains habitat; 2026-11-05): World 1's
+## trail up into the mountains, in the free field room nearest the top of
+## the map (the mountains rise to the north) that is not the far room the
+## Old Graveyard takes. Picked without the layout's dice, so the rest of the
+## world keeps the layout it had.
+func _place_mountain_site(candidates: Array) -> void:
+	if world_level != 1 or interior_kind != "" or candidates.size() < 2:
+		return
+	var far_idx := -1
+	var far_d := -1
+	for room_idx in candidates:
+		var c: Vector2i = rooms[room_idx]["rect"].get_center()
+		var d := absi(c.x - player_start.x) + absi(c.y - player_start.y)
+		if d > far_d:
+			far_d = d
+			far_idx = room_idx
+	var pick := -1
+	var best := 1 << 30
+	for room_idx in candidates:
+		if room_idx == far_idx:
+			continue
+		var c: Vector2i = rooms[room_idx]["rect"].get_center()
+		var score: int = c.y * 4 - c.x
+		if score < best:
+			best = score
+			pick = room_idx
+	if pick < 0:
+		return
+	var rect: Rect2i = rooms[pick]["rect"]
+	var fp_w := 3
+	var fp_d := 3
+	var fx = clampi(rect.get_center().x - fp_w / 2, rect.position.x + 1, rect.end.x - fp_w - 1)
+	var fz = rect.position.y + 1
+	var footprint: Array = []
+	for x in range(fx, fx + fp_w):
+		for z in range(fz, fz + fp_d):
+			footprint.append(Vector2i(x, z))
+	var entrance = Vector2i(fx + fp_w / 2, fz + fp_d)
+	if not is_floor(entrance) or not _try_block_footprint(footprint):
+		return
+	candidates.erase(pick)
+	rooms[pick]["kind"] = "site"
+	_create_site("mountains", "mountains_0", "Mountain Pass", footprint, entrance, fx, fz, fp_w, fp_d)
 
 func _place_hidden_graveyard(candidates: Array) -> void:
 	## What the Crows Saw: World 1 hides an Old Graveyard in the field room
@@ -4814,7 +5877,7 @@ func _place_hidden_graveyard(candidates: Array) -> void:
 		for z in range(fz, fz + fp_d):
 			footprint.append(Vector2i(x, z))
 	var entrance = Vector2i(fx + fp_w / 2, fz + fp_d)
-	if not _try_block_footprint(footprint):
+	if not is_floor(entrance) or not _try_block_footprint(footprint):
 		return
 	rooms[best_idx]["kind"] = "site"
 	_create_site("graveyard", "graveyard_0", "Old Graveyard", footprint, entrance, fx, fz, fp_w, fp_d)
@@ -4906,10 +5969,10 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 	ground.position = Vector3(0, 0.006, 0)
 	site_root.add_child(ground)
 
-	var ruin_site := interior_kind == "" and world_level in [2, 3, 4] and kind in ["building", "cave"]
-	if ruin_site and world_level == 3:
+	var ruin_site := interior_kind == "" and art_world() in [2, 3, 4] and kind in ["building", "cave"]
+	if ruin_site and art_world() == 3:
 		_build_winter_site(site_root, kind, fp_w, fp_d)
-	elif ruin_site and world_level == 4:
+	elif ruin_site and art_world() == 4:
 		_build_cursed_site(site_root, kind, fp_w, fp_d, fx + fz)
 	elif ruin_site:
 		_build_desert_site(site_root, kind, fp_w, fp_d, fx + fz)
@@ -4922,6 +5985,10 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 			_build_sewer_entrance(site_root, fp_w, fp_d)
 		"forest":
 			_build_forest_entrance(site_root, fp_w, fp_d)
+		"mountains":
+			_build_mountain_entrance(site_root, fp_w, fp_d)
+		"closet":
+			_build_closet_entrance(site_root, fp_w, fp_d)
 		_:
 			_build_cave_entrance(site_root, fp_w, fp_d)
 	# Its walls, pillars and lintels stay under the sprites, so the player at
@@ -5156,6 +6223,26 @@ func _build_sewer_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	glow.position = Vector3(0, 0.3, fp_d / 2.0 - 0.1)
 	root.add_child(glow)
 
+func _build_mountain_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
+	## The foot of the Mountain Pass: snow-capped boulders heaped on the
+	## rock block (_build_site_blocks), two snow pines flanking the trail and
+	## a carved bear totem marking where it climbs (the winter pack's).
+	var back_z := -fp_d / 2.0 + 0.5
+	for spec in [[-fp_w * 0.3, back_z, 1.2, 0], [0.05, back_z - 0.2, 1.4, 1], [fp_w * 0.32, back_z, 1.2, 2]]:
+		var rock := _make_prop_sprite("wallrock_snow", spec[2], spec[3])
+		if rock:
+			rock.position = Vector3(spec[0], CameraView.SPRITE_LIFT, spec[1])
+			root.add_child(rock)
+	for side in [-1.0, 1.0]:
+		var pine := _make_prop_sprite("winter_tree", 0.9, 0 if side < 0 else 1)
+		if pine:
+			pine.position = Vector3(side * fp_w * 0.4, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.6)
+			root.add_child(pine)
+	var totem := _make_prop_sprite("winter_idol", 0.8)
+	if totem:
+		totem.position = Vector3(0.0, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.45)
+		root.add_child(totem)
+
 func _build_forest_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	## A trailhead: two flanking trees over a wooden arch, opening onto a path
 	## that leads into the deep woods.
@@ -5178,6 +6265,15 @@ func _build_forest_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 		tree.position = Vector3(side * fp_w * 0.42, 0, -0.1)
 		CameraView.stand_on_ground(tree)  # on its roots at the sprite height, sorted by row
 		root.add_child(tree)
+
+	# The woods behind the arch fill the rest of the footprint (nobody walks
+	# there): bushes and young trees of the field.
+	for spec in [[-0.55, -fp_d / 2.0 + 0.45, "field_bush", 0.9, 0], [0.55, -fp_d / 2.0 + 0.4, "field_bush", 0.9, 2],
+			[0.0, -fp_d / 2.0 + 0.2, "field_tree_small", 1.0, 1]]:
+		var shrub := _make_prop_sprite(spec[2], spec[3], spec[4])
+		if shrub:
+			shrub.position = Vector3(spec[0], CameraView.SPRITE_LIFT, spec[1])
+			root.add_child(shrub)
 
 	# A simple wooden lintel spanning the two trees.
 	var lintel = MeshInstance3D.new()
@@ -5256,6 +6352,15 @@ func _place_exit_site(at: Vector2i = Vector2i(-9999, -9999), id: String = "exit"
 		"footprint": [],
 	})
 
+## Tiles a structure stands on, which the land's edge dressing (treeline,
+## cliff walls, landmarks) leaves alone: the sites' footprints and the
+## waypoint shrines' sides and back (waypoint_block_tiles).
+func _structure_tiles() -> Dictionary:
+	var tiles := _all_site_footprint_tiles()
+	for c in waypoint_block_tiles:
+		tiles[c] = true
+	return tiles
+
 func _all_site_footprint_tiles() -> Dictionary:
 	var tiles: Dictionary = {}
 	for site in site_nodes:
@@ -5320,6 +6425,9 @@ func _place_chests() -> void:
 		# it always holds a card and a common item so deck-building and
 		# gearing start before the first fight.
 		_create_chest(cell, kind == "start" and world_level == 1)
+	# The Ice Troll Lair's vault: one legendary chest at its back.
+	if interior_kind == "trolllair":
+		_create_chest(troll_vault_chest_cell, false, true)
 
 	# Restore previously opened chests from prior visits
 	_restore_opened_chests()
@@ -5414,7 +6522,7 @@ func _chest_design(contents: Dictionary) -> String:
 		return "rare"
 	return "wood"
 
-func _create_chest(grid_pos: Vector2i, starter: bool = false) -> void:
+func _create_chest(grid_pos: Vector2i, starter: bool = false, legendary: bool = false) -> void:
 	var chest_root = Node3D.new()
 	chest_root.name = "TreasureChest_%d" % chest_nodes.size()
 
@@ -5423,7 +6531,7 @@ func _create_chest(grid_pos: Vector2i, starter: bool = false) -> void:
 	# Generate chest contents first (deterministic seed, so the same chest
 	# always holds the same loot) — the chest's design is chosen by them.
 	var chest_index = chest_nodes.size()
-	var contents = _generate_chest_contents(chest_index, starter)
+	var contents = _generate_chest_contents(chest_index, starter, legendary)
 	var design := _chest_design(contents)
 	var closed := _first_prop_variant("chest_%s_closed" % design)
 	var sprite = Sprite3D.new()
@@ -5472,7 +6580,7 @@ func _create_chest(grid_pos: Vector2i, starter: bool = false) -> void:
 # found it, across saves and world transitions.
 var loot_salt: int = 0
 
-func _generate_chest_contents(chest_index: int, starter: bool = false) -> Dictionary:
+func _generate_chest_contents(chest_index: int, starter: bool = false, legendary: bool = false) -> Dictionary:
 	# Deterministic RNG seeded by world + chest index + the character's loot
 	# salt, so the same chest always generates the same loot for this
 	# character even if the dungeon is recreated.
@@ -5485,6 +6593,15 @@ func _generate_chest_contents(chest_index: int, starter: bool = false) -> Dictio
 	var gold = rng.randi_range(15, 50) + (world_level - 1) * 10
 	var contents: Dictionary = {"gold": gold, "item": null, "card": null, "card_pack": null}
 
+	if legendary:
+		# A hoard's chest (the Ice Troll Lair's vault, designer 2026-11-05):
+		# a legendary item and a heap of gold — the one chest that breaks the
+		# rule that legendaries never come from chests.
+		var pool = ItemData.get_items_of_rarity(ItemData.Rarity.LEGENDARY)
+		if not pool.is_empty():
+			contents["item"] = pool[rng.randi() % pool.size()]
+		contents["gold"] = gold * 4
+		return contents
 	if starter:
 		# Act-1 starter chest: a card AND a common item, guaranteed.
 		var commons = ItemData.get_items_of_rarity(ItemData.Rarity.COMMON)
@@ -5546,6 +6663,22 @@ func _define_spawn_zones() -> void:
 		_define_forest_spawn_zones()
 		return
 
+	if interior_kind == "mountains":
+		_define_mountain_spawn_zones()
+		return
+
+	if interior_kind == "icecave":
+		_define_ice_cave_spawn_zones()
+		return
+
+	if interior_kind == "closet":
+		_define_closet_spawn_zones()
+		return
+
+	if interior_kind == "trolllair":
+		_define_troll_lair_spawn_zones()
+		return
+
 	if interior_kind == "graveyard":
 		_define_graveyard_spawn_zones()
 		return
@@ -5561,6 +6694,17 @@ func _define_spawn_zones() -> void:
 		base_melee = Enemy.EnemyType.FIRE_GOBLIN_SOLDIER
 		mid_melee = Enemy.EnemyType.FIRE_GOBLIN_SOLDIER
 		ranged = Enemy.EnemyType.FIRE_GOBLIN_MAGE
+	# The Underworld (World 2, Hell: its surface and its caves) is the
+	# demons' (STORY.md 5.4, Underworld): succubi, magma spiders, mind eaters
+	# and specters the rank and file (rolled per enemy, UNDERWORLD_TRASH),
+	# demons the mid tier, ash harpies at range, ifrits the heavies. Its caves
+	# keep a Fire Goblin Shaman (the Channel lesson) and lead to the Labyrinth.
+	var underworld := world_level == 2 and interior_kind in ["", "cave"]
+	if underworld:
+		base_melee = Enemy.EnemyType.SUCCUBUS
+		mid_melee = Enemy.EnemyType.DEMON
+		heavy = Enemy.EnemyType.IFRIT
+		ranged = Enemy.EnemyType.ASH_HARPY
 	var deep_lords := [Enemy.EnemyType.IFRIT, Enemy.EnemyType.INFLAMED_MINOTAUR, Enemy.EnemyType.DJINN]
 	var deep_lord_i := 0
 	var shaman_placed := false
@@ -5597,7 +6741,10 @@ func _define_spawn_zones() -> void:
 			if cell.x < 0:
 				continue
 			points.append(cell)
-			types.append(_pick_enemy_type(depth, kind, base_melee, mid_melee, heavy, ranged))
+			var picked = _pick_enemy_type(depth, kind, base_melee, mid_melee, heavy, ranged)
+			if underworld and picked == base_melee:
+				picked = UNDERWORLD_TRASH[_rng.randi_range(0, UNDERWORLD_TRASH.size() - 1)]
+			types.append(picked)
 		# Deep cave chambers are guarded by an elite-grade enemy
 		if kind == "deep" and types.size() > 0:
 			types[0] = heavy if world_level < 3 else Enemy.EnemyType.ELITE
@@ -5625,6 +6772,11 @@ func _define_spawn_zones() -> void:
 			_reserved[p] = true
 
 	print("[DUNGEON] Defined %d spawn zones for %s" % [spawn_zones.size(), get_location_name()])
+
+## The Underworld's rank and file (_define_spawn_zones). (The Pit Fiend is
+## a mock-up with no moves yet and stays out.)
+const UNDERWORLD_TRASH := [Enemy.EnemyType.SUCCUBUS, Enemy.EnemyType.MAGMA_SPIDER,
+	Enemy.EnemyType.MIND_EATER, Enemy.EnemyType.SPECTER]
 
 func _pick_enemy_type(depth: float, kind: String, base_melee, mid_melee, heavy, ranged):
 	## Weighted pick; deeper rooms and cave chambers skew tougher.
@@ -5685,6 +6837,10 @@ func _define_arena_zone(rect: Rect2i, mid_melee, heavy, ranged) -> void:
 	if world_level >= 4:
 		boss_points = [c + Vector2i(0, -2), c + Vector2i(2, 0), c + Vector2i(0, 2), c + Vector2i(3, -1)]
 		boss_types = [Enemy.EnemyType.BOSS, Enemy.EnemyType.ELITE, heavy, ranged]
+	elif world_level == 2:
+		# The Underworld's arena: an ifrit, two demons and a harpy overhead.
+		boss_points = [c + Vector2i(0, -2), c + Vector2i(2, 1), c + Vector2i(-2, 1), c + Vector2i(1, 3)]
+		boss_types = [Enemy.EnemyType.IFRIT, Enemy.EnemyType.DEMON, Enemy.EnemyType.DEMON, ranged]
 	elif world_level >= 2:
 		boss_points = [c + Vector2i(0, -2), c + Vector2i(2, 1), c + Vector2i(1, 3)]
 		boss_types = [Enemy.EnemyType.ELITE, heavy, ranged]
@@ -5692,6 +6848,12 @@ func _define_arena_zone(rect: Rect2i, mid_melee, heavy, ranged) -> void:
 		boss_points = [c + Vector2i(0, 0), c + Vector2i(2, 2)]
 		boss_types = [Enemy.EnemyType.SKELETON, mid_melee]
 
+	# A point on rock or lava moves to the nearest open floor.
+	for i in range(boss_points.size()):
+		if not is_floor(boss_points[i]):
+			var near := pick_free_cell_near(boss_points[i], 3)
+			if near.x >= 0:
+				boss_points[i] = near
 	spawn_zones.append({
 		"trigger_rect": rect.grow(1),
 		"spawn_points": boss_points,
@@ -5847,23 +7009,111 @@ func _define_forest_spawn_zones() -> void:
 
 	print("[DUNGEON] Defined %d forest spawn zones" % spawn_zones.size())
 
+## The Mountain Pass's creatures (STORY.md 5.4, Mountains): weregoats and
+## sabertooths roam the lower snowfields; the snow wraiths keep to the
+## ledges and outcrops, throwing down at whoever climbs; ice trolls guard the
+## upper terraces; wyverns, white manticores and rocs ride the heights (they
+## fly over the cliffs). The summit holds the strongest. (The Granite
+## Colossus has no moves yet and stays out.)
+func _define_mountain_spawn_zones() -> void:
+	var low := [Enemy.EnemyType.WEREGOAT, Enemy.EnemyType.WEREGOAT, Enemy.EnemyType.SABERTOOTH]
+	var perch := [Enemy.EnemyType.SNOW_WRAITH, Enemy.EnemyType.SNOW_WRAITH, Enemy.EnemyType.ICE_TROLL]
+	var fliers := [Enemy.EnemyType.WYVERN, Enemy.EnemyType.WHITE_MANTICORE, Enemy.EnemyType.ROC]
+	for room in rooms:
+		var rect: Rect2i = room["rect"]
+		var kind: String = room["kind"]
+		if kind in ["start", "exit"]:
+			continue
+		var high: bool = int(room["elev"]) >= MOUNTAIN_TIER_STEP or room.get("outcrop", false)
+		if kind != "deep" and _rng.randf() >= (0.85 if high else 0.6):
+			continue
+		var n := clampi(2 + rect.get_area() / 45, 2, 4)
+		var points: Array = []
+		var types: Array = []
+		for _i in range(n * 3):
+			if points.size() >= n:
+				break
+			var cell := _pick_free_cell(rect, points)
+			if cell.x < 0:
+				continue
+			if step_tiles.has(cell):
+				continue   # nobody waits on the steps themselves
+			points.append(cell)
+			var e: int = elevation[cell.x][cell.y]
+			if e >= MOUNTAIN_TIER_STEP and _rng.randf() < 0.25:
+				types.append(fliers[_rng.randi_range(0, fliers.size() - 1)])
+			elif e >= MOUNTAIN_TIER_STEP or room.get("outcrop", false):
+				types.append(perch[_rng.randi_range(0, perch.size() - 1)])
+			else:
+				types.append(low[_rng.randi_range(0, low.size() - 1)])
+		if points.is_empty():
+			continue
+		if kind == "deep":
+			types[0] = Enemy.EnemyType.ICE_TROLL
+			if types.size() > 1:
+				types[1] = fliers[_rng.randi_range(0, fliers.size() - 1)]
+		spawn_zones.append({
+			"trigger_rect": rect.grow(2),
+			"spawn_points": points,
+			"enemy_types": types,
+			"spawned": false,
+		})
+	for z in spawn_zones:
+		for p in z["spawn_points"]:
+			_reserved[p] = true
+	print("[DUNGEON] Defined %d mountain spawn zones" % spawn_zones.size())
+
 # ============================================
 # WAYPOINTS
 # ============================================
 
 func _place_waypoints() -> void:
 	var mid_z = GRID_H / 2
+	waypoint_block_tiles.clear()
 
-	# Transport portal in starting room
+	# Transport portal in starting room. The hero arrives on its front step.
 	_create_waypoint(Vector2i(3, mid_z), "transport", "Transport Portal")
+	player_start = Vector2i(3, mid_z + 1)
+	_reserve_area(player_start, 1)
 
 	# Exit to next world (in the far exit room)
 	if world_level < 5:
 		_create_waypoint(Vector2i(GRID_W - 4, mid_z), "next_world", "World %d" % (world_level + 1))
 
-	# Exit to previous world
+	# Exit to previous world (a row clear of the Transport Portal's back)
 	if world_level > 1:
-		_create_waypoint(Vector2i(3, mid_z - 3), "prev_world", "World %d" % (world_level - 1))
+		_create_waypoint(Vector2i(3, mid_z - 4), "prev_world", "World %d" % (world_level - 1))
+	for wp in waypoint_nodes:
+		_block_waypoint_shrine(wp["grid_pos"])
+
+## The shrine is a platform you walk up onto from the front, over its steps
+## (designer, 2026-11-05: "they should walk on top of the portal floor, not
+## through it ... they can not walk out the back or the side"): the tiles
+## its stones stand on — either side of its tile and the two rows behind —
+## are blocked, so its tile opens only to the south.
+func _block_waypoint_shrine(cell: Vector2i) -> void:
+	var tiles: Array = shrine_block_cells(cell)
+	var front := cell + Vector2i(0, 1)
+	if not is_floor(front):
+		return
+	var free: Array = []
+	for c in tiles:
+		if c.x >= 0 and c.y >= 0 and c.x < GRID_W and c.y < GRID_H:
+			free.append(c)
+	if _try_block_footprint(free):
+		for c in free:
+			waypoint_block_tiles[c] = true
+
+## The tiles a waypoint shrine on `cell` stands on besides its own (the
+## sides and the two rows behind): town uses it too.
+static func shrine_block_cells(cell: Vector2i) -> Array:
+	var out: Array = []
+	for dz in [-2, -1, 0]:
+		for dx in [-1, 0, 1]:
+			var c := cell + Vector2i(dx, dz)
+			if c != cell:
+				out.append(c)
+	return out
 
 func _create_waypoint(grid_pos: Vector2i, target: String, display_name: String) -> void:
 	var wp_root = Node3D.new()
@@ -6259,7 +7509,7 @@ func disarm_trap(index: int) -> bool:
 const FOUNTAIN_ROOM_KINDS := ["field", "chamber", "room", "deep", "clearing"]
 
 func _place_fountains() -> void:
-	if interior_kind == "dojo" or is_boss_room(interior_id):
+	if interior_kind == "dojo" or interior_kind == "trolllair" or is_boss_room(interior_id):
 		return  # the dojo is a room, not a pilgrimage; a boss room is a fight
 	var want: int = 2 if interior_kind == "" else 1
 	var candidates: Array = []

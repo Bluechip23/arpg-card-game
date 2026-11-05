@@ -51,7 +51,7 @@ const SECTIONS := [
 		Enemy.EnemyType.CERBERUS, Enemy.EnemyType.SUCCUBUS, Enemy.EnemyType.DEMON,
 		Enemy.EnemyType.IFRIT, Enemy.EnemyType.MIND_EATER, Enemy.EnemyType.SPECTER,
 		Enemy.EnemyType.MAGMA_SPIDER, Enemy.EnemyType.PIT_FIEND, Enemy.EnemyType.ASH_HARPY,
-		Enemy.EnemyType.INFLAMED_MINOTAUR,
+		Enemy.EnemyType.INFLAMED_MINOTAUR, Enemy.EnemyType.THANATOS,
 	]},
 	{"title": "HEAVENS", "types": [
 		Enemy.EnemyType.CHERUB, Enemy.EnemyType.DJINN, Enemy.EnemyType.CORRUPTED_ARCHANGEL,

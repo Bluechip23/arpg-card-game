@@ -2580,7 +2580,8 @@ BOARDS = {
         # nearly touches; the side rows' tails reach the next frame's box
         # (`isolate`).
         "actions": {
-            "src": "rat_king_infest_board.webp",
+            "matte_union": True,   # the upscale takes his darkest fur to the backdrop's black: kept by a model matte a frame (tools/make_mattes.py rat_king --actions)
+            "src": "rat_king_infest_board_x3.webp",   # 3x by tools/upscale_board.py (2026-11-05: the board draws him ~92 px tall, a third of his size in the game, and the enlargement read "pretty blurry"); the boxes are the original board's x3
             "levels": (4, 30, 6),   # his black fur runs just above the backdrop's 0
             "fill_holes": 4,
             "open_dark": True,
@@ -2593,57 +2594,57 @@ BOARDS = {
             # by bulk (width), not height, so the crouch doesn't swell him.
             "match_scale": MATCH_SCALE_RK,
             "frames": {
-                "front": {
-                    "stance": (102, 30, 253, 122),
-                    "crouch": (264, 30, 398, 122),
-                    "low": (426, 30, 563, 122),
-                    "glow": (592, 30, 729, 122),
-                    "rub": (749, 30, 888, 122),
-                    "rub2": (911, 30, 1051, 122),
-                    "white": (1080, 30, 1220, 122),
-                    "point": (1255, 30, 1392, 122),
-                    "point2": (1440, 30, 1576, 122),
-                    "settle": (1633, 30, 1766, 122),
-                    "back": (1825, 30, 1959, 122),
+                "front": {   # (2026-11-05: tops raised from 30 to 12 on the original board: his crown tips were cut off)
+                    "stance": (306, 90, 759, 366),   # (top kept at 30: above it is the board's caption)
+                    "crouch": (792, 90, 1194, 366),   # (top kept at 30: above it is the board's caption)
+                    "low": (1278, 36, 1689, 366),
+                    "glow": (1776, 36, 2187, 366),
+                    "rub": (2247, 36, 2664, 366),
+                    "rub2": (2733, 36, 3153, 366),
+                    "white": (3240, 36, 3660, 366),
+                    "point": (3765, 36, 4176, 366),
+                    "point2": (4320, 36, 4728, 366),
+                    "settle": (4899, 36, 5298, 366),
+                    "back": (5475, 36, 5877, 366),
                 },
                 "back": {
-                    "stance": (111, 130, 240, 246),
-                    "crouch": (265, 131, 394, 246),
-                    "low": (428, 155, 561, 246),
-                    "glow": (590, 133, 718, 246),
-                    "rub": (750, 133, 880, 246),
-                    "rub2": (912, 132, 1047, 246),
-                    "white": (1077, 131, 1211, 246),
-                    "point": (1252, 131, 1390, 246),
-                    "point2": (1438, 130, 1578, 246),
-                    "settle": (1633, 127, 1767, 246),
-                    "back": (1822, 127, 1956, 246),
+                    "stance": (333, 390, 720, 738),
+                    "crouch": (795, 393, 1182, 738),
+                    "low": (1284, 390, 1683, 738),   # (2026-11-05: its top was below his crown, cut off since the board came)
+                    "glow": (1770, 399, 2154, 738),
+                    "rub": (2250, 399, 2640, 738),
+                    "rub2": (2736, 396, 3141, 738),
+                    "white": (3231, 393, 3633, 738),
+                    "point": (3756, 393, 4170, 738),
+                    "point2": (4314, 390, 4734, 738),
+                    "settle": (4899, 381, 5301, 738),
+                    "back": (5466, 381, 5868, 738),
                 },
                 "left": {
-                    "stance": (103, 250, 261, 348),
-                    "crouch": (261, 256, 423, 348),
-                    "low": (423, 265, 589, 348),
-                    "glow": (590, 262, 752, 348),
-                    "rub": (752, 252, 918, 348),
-                    "rub2": (918, 250, 1082, 348),
-                    "white": (1082, 249, 1248, 348),
-                    "point": (1248, 249, 1431, 348),
-                    "point2": (1432, 249, 1612, 348),
-                    "settle": (1624, 249, 1800, 348),
-                    "back": (1812, 249, 1986, 348),
+                    "stance": (309, 750, 783, 1044),
+                    "crouch": (783, 768, 1269, 1044),
+                    "low": (1269, 795, 1767, 1044),
+                    "glow": (1770, 786, 2256, 1044),
+                    "rub": (2256, 756, 2754, 1044),
+                    "rub2": (2754, 750, 3246, 1044),
+                    "white": (3246, 747, 3744, 1044),
+                    "point": (3744, 747, 4293, 1044),
+                    "point2": (4296, 747, 4836, 1044),
+                    "settle": (4872, 747, 5400, 1044),
+                    "back": (5436, 747, 5958, 1044),
                 },
                 "right": {
-                    "stance": (95, 357, 255, 458),
-                    "crouch": (255, 357, 417, 458),
-                    "low": (417, 358, 577, 458),
-                    "glow": (577, 354, 740, 458),
-                    "rub": (740, 352, 907, 458),
-                    "rub2": (907, 354, 1072, 458),
-                    "white": (1073, 356, 1251, 458),
-                    "point": (1251, 355, 1439, 458),
-                    "point2": (1439, 354, 1631, 458),
-                    "settle": (1631, 357, 1798, 458),
-                    "back": (1811, 357, 1985, 458),
+                    "stance": (285, 1071, 765, 1374),
+                    "crouch": (765, 1071, 1251, 1374),
+                    "low": (1251, 1074, 1731, 1374),
+                    "glow": (1731, 1062, 2220, 1374),
+                    "rub": (2220, 1056, 2721, 1374),
+                    "rub2": (2721, 1062, 3216, 1374),
+                    "white": (3219, 1068, 3753, 1374),
+                    "point": (3753, 1065, 4317, 1374),
+                    "point2": (4317, 1062, 4893, 1374),
+                    "settle": (4893, 1071, 5394, 1374),
+                    "back": (5433, 1071, 5955, 1374),
                 },
             },
             "sheets": {
@@ -2740,14 +2741,14 @@ BOARDS = {
         # about the victim's feet. The full swarm is 2 tiles wide, the square and its edges.
         "into": "rat_king",
         "strip": {
-            "src": "rat_king_infest_board.webp",
+            "src": "rat_king_infest_board_x3.webp",   # 3x, as his Cast frames (above)
             "bg": "black_key",
             "sheet": "Infest",
             "width_tiles": 2.0,
             "alpha_gain": 1.8,   # faint purple wisps on black: thickened to read on the floor
             "width_of": "max",
             "align": "board",
-            "frames": [(60, 514, 174, 648), (174, 514, 341, 648), (341, 514, 509, 648), (509, 514, 675, 648), (675, 514, 845, 648), (845, 514, 1019, 648), (1019, 514, 1205, 648), (1205, 514, 1406, 648), (1406, 514, 1612, 648), (1612, 514, 1808, 648), (1808, 514, 1985, 648)],
+            "frames": [(180, 1542, 522, 1944), (522, 1542, 1023, 1944), (1023, 1542, 1527, 1944), (1527, 1542, 2025, 1944), (2025, 1542, 2535, 1944), (2535, 1542, 3057, 1944), (3057, 1542, 3615, 1944), (3615, 1542, 4218, 1944), (4218, 1542, 4836, 1944), (4836, 1542, 5424, 1944), (5424, 1542, 5955, 1944)],
         },
     },
     "archer_rat": {
@@ -2945,6 +2946,22 @@ BOARDS = {
             "back": (877, 18, 1167, 320),
             "left": (1230, 18, 1438, 320),
             "right": (574, 18, 782, 320),
+        },
+    },
+    "thanatos": {
+        # 2026-11-05: the designer's Thanatos — a black-winged reaper in dark
+        # violet plate, red-eyed, a scythe in hand, black smoke curling round
+        # him — one row on black: his face (labelled "facing up"), his back
+        # ("facing down"), then facing left and facing right. The smoke is
+        # his: the model's matte keeps it where it is lit at all.
+        "src": "thanatos_board.webp", "bg": "grabcut", "tiles": 2.0,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 40)] for d in ("front", "back", "left", "right")},
+        "Idle": {
+            "front": (8, 2, 396, 484),
+            "back": (396, 2, 772, 484),
+            "left": (790, 2, 1160, 484),
+            "right": (1160, 2, 1534, 484),
         },
     },
     "cerberus": {
@@ -4286,7 +4303,7 @@ ACTION_ROWS = ["left", "right"]   # the rows of an action sheet (SpriteEnemyFigu
 
 def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep_share: float = 0.0,
                     fill_holes: bool = False, levels=None, glow: bool = True,
-                    open_dark: bool = False, shadow_lum: float = 0.0) -> Image.Image:
+                    open_dark: bool = False, shadow_lum: float = 0.0, matte=None) -> Image.Image:
     """One figure and the glow of its attack on pure black (the werewolf's
     slash board): alpha from brightness as the black key does, the dim
     glow of the slash arcs kept soft and un-darkened, then only the
@@ -4365,6 +4382,11 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
         shadow = (soft | (lum < (shadow_lum or solid_at))) & (sat < 20) & (lum < (shadow_lum or solid_at))
         shadow[:y0] = False
         alpha[shadow] = 0.0
+    if matte is not None:
+        # `matte_union`: what the model matte calls figure is solid, in the
+        # board's own colour, whatever its brightness (fur as black as the
+        # backdrop); the brightness cut's glow and sparks round it stay.
+        alpha[matte] = 1.0
     a = np.maximum(alpha, 1e-6)[..., None]
     col = np.clip(rgb / a, 0, 255)
     col = np.where(alpha[..., None] > 0, col, 0)
@@ -4673,9 +4695,17 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
                 rgb[(g > r_ * 1.2) & (g > b_ * 1.2) & (rgb.max(axis=2) < act["drop_dim_green"])] = 0
             elif act.get("isolate") and (d, pose) not in act.get("isolate_skip", ()):
                 rgb[others(d, box)] = 0
+            matte = None
+            if act.get("matte_union"):
+                matte = np.asarray(Image.open(action_matte_path(kind, d, pose)).convert("L")) > 127
+                if matte.shape != rgb.shape[:2]:
+                    raise ValueError("matte %s is %s, box %s" % (action_matte_path(kind, d, pose), matte.shape, rgb.shape[:2]))
+                if act.get("isolate") and (d, pose) not in act.get("isolate_skip", ()):
+                    matte &= ~others(d, box)
             img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
                                   act.get("keep_share", 0.0), act.get("fill_holes", False), act.get("levels"),
-                                  act.get("glow", True), act.get("open_dark", False), act.get("shadow_lum", 0.0))
+                                  act.get("glow", True), act.get("open_dark", False), act.get("shadow_lum", 0.0),
+                                  matte)
             for side, px in act.get("edge_fade", {}).get((d, pose), ()):
                 img = _fade_edge(img, side, px)
             out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img

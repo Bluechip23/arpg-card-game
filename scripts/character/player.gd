@@ -33,6 +33,14 @@ var untargetable: bool = false  # Cryonics: enemies cannot target this character
 var grid_manager: GridManager
 var enemy_spawner = null  # Set by main.gd so pathfinding can avoid enemy tiles
 var blocked_tiles: Array[Vector2i] = []  # Set by main.gd for barricade obstacles
+## The terrain's step rule (DungeonManager.can_step: up or down one elevation
+## level a step, no walking a cliff face); set by main.gd in a dungeon, empty
+## elsewhere (town, menus). Climbing gear waives it (PlayerStats.climbs_cliffs).
+var step_check: Callable = Callable()
+## The terrain's blink rule (DungeonManager.blink_clear: no teleporting onto
+## or across high mountains); set by main.gd in a dungeon. A blink it
+## refuses does not happen.
+var blink_check: Callable = Callable()
 var ground_y_provider: Callable = Callable()  # Set by main.gd: world_pos -> desired ground Y
 var _last_position: Vector3 = Vector3.ZERO
 var _stuck_frames: int = 0
@@ -336,6 +344,7 @@ func calculate_path_to(target_pos: Vector3) -> Array[Vector3]:
 	came_from[current_grid] = current_grid
 
 	var directions = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	var climbing_rule := step_check.is_valid() and not (stats != null and stats.climbs_cliffs)
 
 	while frontier_head < frontier.size():
 		var current = frontier[frontier_head]
@@ -352,6 +361,8 @@ func calculate_path_to(target_pos: Vector3) -> Array[Vector3]:
 				continue
 			if next.x < 0 or next.x >= grid_manager.grid_width or next.y < 0 or next.y >= grid_manager.grid_height:
 				continue
+			if climbing_rule and not step_check.call(current, next):
+				continue  # a cliff face: up or down one level at a time
 			came_from[next] = current
 			frontier.append(next)
 
@@ -536,6 +547,9 @@ func cancel_movement() -> void:
 func blink_to(target_pos: Vector3) -> void:
 	if grid_manager:
 		target_pos = grid_manager.snap_to_grid(target_pos)
+		if blink_check.is_valid() and not blink_check.call(grid_manager.world_to_grid(position), grid_manager.world_to_grid(target_pos)):
+			print("[PLAYER] Blink refused: high mountains in the way")
+			return
 	position = target_pos
 	# Teleports land directly at terrain height (no glide)
 	if ground_y_provider.is_valid():

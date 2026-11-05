@@ -192,6 +192,11 @@ CELLS = {
     # "chest_rare_open": the designer's since 2026-10-29 (DESIGNER below); was [(f"{T}/chests.png", 96, 64, 32, 32)]
     # "chest_mythic_closed": the designer's since 2026-10-29 (DESIGNER below); was [(f"{T}/chests.png", 224, 0, 32, 32)]
     # "chest_mythic_open": the designer's since 2026-10-29 (DESIGNER below); was [(f"{T}/chests.png", 224, 64, 32, 32)]
+    # Gold lying on the ground (the Ice Troll Lair's hoard, 2026-11-05): the
+    # treasure sheet's gold mounds and a pair of gold bars, picked up by
+    # walking onto them (DungeonManager.gold_piles).
+    "treasure_gold": {"scale": 1.0, "cells": [(f"{T}/Objects.png", 0, 64, 32, 32), (f"{T}/Objects.png", 32, 64, 32, 32),
+                                              (f"{T}/Objects.png", 0, 96, 32, 32), (f"{T}/Objects.png", 192, 64, 32, 16)]},
     # Glowing-cave totem, 12 animation frames (uncropped so they line up):
     # the waypoint / transport-portal marker.
     "waypoint_totem": {"scale": 1.0, "crop": False, "cells": [("tileset_glowing_cave/Totem_animation.png", c * 96, r * 88, 96, 88) for r in range(2) for c in range(6)]},

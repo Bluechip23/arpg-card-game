@@ -164,6 +164,10 @@ ACTIONS = {
     # kick (its cell drawn wider for the arc), and he lands.
     ("cory", "attack"): {
         "src": "cory_attack_board.webp",   # redrawn by the designer 2026-11-05
+        # Below the waist he kicks on shadow legs as dark as the ground (2026-11-05:
+        # "his body basically dissolves when he performs a kick"): a model matte
+        # a cell (tools/make_mattes.py --hero cory_attack) keeps them solid.
+        "matte": True,
         "pockets": False,   # his robe's dark folds by the hood are the ground's colour
         "narrow": 7,        # and the fill reaches them through slits
         "glow": "violet",   # the shadow smoke's faint haze fades out; its dark core stays solid
@@ -226,13 +230,18 @@ def fill_face(rgba, cell):
 
 
 def cut_cell(cell, pockets=True, haze=False, narrow=0, drop_dark=False, close=0, tol=None, haze_dark=None, glow=False, glow_edge=0, streaks=False, halo=False,
-             see_through=True, grow=False, face=False):
+             see_through=True, grow=False, face=False, matte=None):
     """One cell's figure (and its dust) on transparency, cell-sized, plus
-    the kept pixels' box."""
+    the kept pixels' box. `matte` (a cell-sized bool mask from
+    tools/make_mattes.py --hero): figure the colour rules cannot tell from
+    the ground, kept solid in the board's own colour."""
     import cv2
     rgba = hs.cut_opaque_cell(cell, pockets, haze, narrow, tol, haze_dark, glow, glow_edge, see_through, grow)
     if face:
         rgba = fill_face(rgba, cell)
+    if matte is not None:
+        rgba[matte, :3] = cell[matte, :3]
+        rgba[matte, 3] = 255
     if halo:
         rgba = hs.strip_halo(rgba, *hs.HALO_STRIP["brad"])
     if streaks:
@@ -297,6 +306,21 @@ def match_scale(got, ref):
     return float(got[0]) / ref[0]   # (factor divides: a larger scale is a smaller factor)
 
 
+def _cell_matte(spec, hero, action, facing, c, cell):
+    """The cell's model matte when the board asks for one, else None."""
+    if not spec.get("matte"):
+        return None
+    import make_mattes
+    m = np.asarray(Image.open(make_mattes.hero_action_matte_path(hero, action, facing, c)).convert("L")) > 127
+    if m.shape != cell.shape[:2]:
+        raise ValueError("matte for %s %s %s %d is %s, cell %s" % (hero, action, facing, c, m.shape, cell.shape[:2]))
+    # A piece on the cell's edge is the board's grid line or caption, not him.
+    import cv2
+    n, lab = cv2.connectedComponents(m.astype(np.uint8), connectivity=8)
+    edge = np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))
+    return m & ~np.isin(lab, edge[edge > 0])
+
+
 def build(hero, action, spec):
     board = np.asarray(Image.open(hs.SRC % spec["src"]).convert("RGB"))
     cols, i = spec["cols"], CELL_INSET
@@ -313,7 +337,7 @@ def build(hero, action, spec):
                                           glow, spec.get("glow_edge", 0),
                                           spec.get("streaks", False), spec.get("halo", False),
                                           spec.get("see_through", True), spec.get("grow", False),
-                                          spec.get("face", False))
+                                          spec.get("face", False), _cell_matte(spec, hero, action, facing, c, cell))
     n = len(cols) - 1
     # A facing the board does not draw, shown with another's frames ("copy":
     # {missing: drawn}; Brad's block from behind is his front, designer

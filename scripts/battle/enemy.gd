@@ -46,7 +46,10 @@ enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_R
 	GRAVESTONE, GRAVE_DIGGER,
 	# Hell's Door: the gate Cerberus guards (a structure the player breaks
 	# through; seals itself for 10 tempo at 75/50/33%). Tail-appended.
-	HELL_DOOR }
+	HELL_DOOR,
+	# Thanatos, death itself: the boss at the bottom of Thanatos Closet
+	# (the Underworld, 2026-11-05). Tail-appended.
+	THANATOS }
 
 
 ## Intended player level for this type (EnemyDefs "intended_level") — the
@@ -347,7 +350,7 @@ const NON_MELEE_ACTIONS := {
 	"scurry_away": true, "get_into_range": true, "flee": true, "vanish": true,
 	"hydra_heal": true, "treant_heal": true, "sear_wounds": true,
 	"collect_soul": true, "summon_skeleton": true, "fire_wall": true,
-	"shoot": true, "ember": true, "dark_bolt": true, "frost_bolt": true,
+	"shoot": true, "ember": true, "dark_bolt": true, "frost_bolt": true, "death_bolt": true,
 	"fire_bolt": true, "spark_bolt": true, "sludge_spit": true, "web": true,
 	"hook": true, "net_throw": true, "breath_swarm": true, "screech": true, "gust": true,
 	"roar": true, "absorb": true, "chain_lightning": true, "fire_breath": true,
@@ -829,6 +832,15 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 				{"name": "summon_skeleton",  "tempo_cost": 8},
 				{"name": "move",             "tempo_cost": 6},
 			]
+		EnemyType.THANATOS:
+			# First pass (designer, 2026-11-05: his art and kit are still
+			# being made; he wears the Corrupted Archangel's figure).
+			actions = [
+				{"name": "thanatos_reap",    "tempo_cost": 5},
+				{"name": "death_bolt",       "tempo_cost": 6},
+				{"name": "summon_skeleton",  "tempo_cost": 10},
+				{"name": "move",             "tempo_cost": 5},
+			]
 		EnemyType.BONE_DRAGON:
 			actions = [
 				{"name": "dragon_bite",  "tempo_cost": 5},
@@ -1138,6 +1150,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.TREASURE_BUNNY: [{"name": "Flee", "tempo": 1}, {"name": "Vanish", "tempo": 1}],
 		EnemyType.VAMPIRE: [{"name": "Bite", "tempo": 5}, {"name": "Absorb", "tempo": 3}, {"name": "Move", "tempo": 5}],
 		EnemyType.NECROMANCER: [{"name": "Bolt", "tempo": 5}, {"name": "Summon", "tempo": 8}, {"name": "Move", "tempo": 6}],
+		EnemyType.THANATOS: [{"name": "Reap", "tempo": 5}, {"name": "Death Bolt", "tempo": 6}, {"name": "Raise the Dead", "tempo": 10}, {"name": "Move", "tempo": 5}],
 		EnemyType.BONE_DRAGON: [{"name": "Bite", "tempo": 5}, {"name": "Breath", "tempo": 6}, {"name": "Move", "tempo": 5}],
 		EnemyType.SPIRIT_COLLECTOR: [{"name": "Strike", "tempo": 3}, {"name": "Collect Soul", "tempo": 8}, {"name": "Move", "tempo": 4}],
 		EnemyType.GRAVE_TITAN: [{"name": "Smash", "tempo": 8}, {"name": "Boulder Roll", "tempo": 5}, {"name": "Move", "tempo": 8}],
@@ -1208,6 +1221,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.TREASURE_BUNNY: "Loot monster — does not attack.\nFlees for 3 cycles, then Vanishes in a puff of smoke.\nMove (1 tempo): 2 spaces.",
 		EnemyType.VAMPIRE: "Life steal. Resists 10% physical/fire/lightning.\nBite (5 tempo): 10 damage; heals 100% of damage dealt to HEALTH (not armor).\nBat Form (below 50% HP, 2 charges, never recharges): flits 6 squares away...\nAbsorb (3 tempo, always right after Bat Form): drains the healthiest ally on the map (you included) — 20 the first time, then 10.\nMove (5 tempo): 5 spaces.",
 		EnemyType.NECROMANCER: "Range 10. Resists 15% fire/lightning.\nBolt (5 tempo): 4 damage + Hexes 2 cards in your hand (each +30 mana until played, for up to 25 tempo).\nSummon (8 tempo): raises undead (skeletons and zombies, first pass).\nRaise the Fallen (passive): every summon of his that dies rises again as a Skeleton — and costs him 10 health; any other ally that dies within 8 squares of him rises as a Skeleton too. A risen Skeleton rises no further and costs him nothing.\nMove (6 tempo): 8 spaces.",
+		EnemyType.THANATOS: "Death himself, at the bottom of Thanatos Closet (first pass: his kit is still being made). Resists 25% physical/fire/lightning.\nReap (5 tempo): his scythe, 25 damage + 6 Bleed, beside him.\nDeath Bolt (6 tempo): 15 damage at up to 6 squares, and Hexes a card in your hand (+30 mana until played, for up to 25 tempo).\nRaise the Dead (10 tempo): a skeleton or zombie rises beside him, two at most; each of his servants that falls rises again as a Skeleton and costs him 10 health.\nMove (5 tempo): 5 spaces.",
 		EnemyType.BONE_DRAGON: "Fought as a boss in the Boneyard, where every standing gravestone regenerates it 1 health a cycle (Gravebound — break the stones, and kill the diggers who repair them). Resists 45% physical / 45% fire.\nBite (5 tempo): 12 damage.\nBreath Swarm (6 tempo): 12 damage down a 6-tile line; a Swarm hatches beside everyone it hits.\nMove (5 tempo): 5 spaces.",
 		EnemyType.SPIRIT_COLLECTOR: "Strengthen it gains adds to every Strike and Collect Soul and never fades.\nStrike (3 tempo): 8 damage.\nCollect Soul (8 tempo): 8 damage; adds a 'Release Soul' card to your hand. While it is in your hand you are Drained (10 mana a cycle) and it saps 1 damage per tempo (charged 5 at each cycle). Play it (15 mana, 2 tempo) to be rid of it — but releasing the soul gives every living Spirit Collector 5 Strengthen.",
 		EnemyType.GRAVE_TITAN: "30 armor.\nSmash (8 tempo): 15 damage in front.\nBoulder Roll (range 3, 5 tempo): rolls the boulder for 15 damage.\nMove (8 tempo): 4 spaces.",
@@ -2345,6 +2359,8 @@ func _choose_action(player_node: Node3D) -> void:
 			_choose_vampire_action(distance)
 		EnemyType.NECROMANCER:
 			_choose_necromancer_action(distance)
+		EnemyType.THANATOS:
+			_choose_thanatos_action(distance)
 		EnemyType.BONE_DRAGON:
 			_choose_bone_dragon_action(distance)
 		EnemyType.SPIRIT_COLLECTOR:
@@ -3145,6 +3161,36 @@ func _choose_necromancer_action(distance: int) -> void:
 	else:
 		chosen_action = _get_action("move")
 
+## --- Thanatos (first pass) ---
+const THANATOS_REAP_BLEED := 6
+const THANATOS_BOLT_RANGE := 6
+const THANATOS_BOLT_DAMAGE := 15
+const THANATOS_SERVANTS := 2
+
+func _choose_thanatos_action(distance: int) -> void:
+	## Beside you he reaps (now and then raising a servant); in bolt range he
+	## hexes from afar or raises the dead; beyond it he closes in.
+	var can_raise := not is_silenced and _necro_summons_alive < THANATOS_SERVANTS
+	if distance <= 1:
+		chosen_action = _get_action("summon_skeleton") if can_raise and randf() < 0.25 else _get_action("thanatos_reap")
+	elif distance <= THANATOS_BOLT_RANGE and not is_silenced:
+		chosen_action = _get_action("summon_skeleton") if can_raise and randf() < 0.35 else _get_action("death_bolt")
+	else:
+		chosen_action = _get_action("move")
+
+func _try_death_bolt(target_node: Node3D) -> bool:
+	if is_disarmed or is_silenced:
+		return _try_move(target_node)
+	if _get_cell_distance(target_node) > THANATOS_BOLT_RANGE:
+		return _try_move(target_node)
+	_deal_damage_to_player(target_node, THANATOS_BOLT_DAMAGE, "Death Bolt")
+	if target_node.has_method("get_debuff_manager"):
+		var dm = target_node.get_debuff_manager()
+		if dm:
+			dm.apply_debuff(Debuff.create(Debuff.DebuffType.HEXED, 30, 25))
+	turn_completed.emit()
+	return true
+
 func _choose_bone_dragon_action(distance: int) -> void:
 	if distance <= 1:
 		chosen_action = _get_action("dragon_bite") if randf() < 0.6 else _get_action("breath_swarm")
@@ -3342,6 +3388,10 @@ func _run_action(action_name: String, move_target: Node3D) -> bool:
 			return _try_vanish()
 		"dark_bolt":
 			return _try_necro_bolt(move_target)
+		"thanatos_reap":
+			return _try_elemental(move_target, attack_damage, "Reap", {"bleed": THANATOS_REAP_BLEED})
+		"death_bolt":
+			return _try_death_bolt(move_target)
 		"summon_skeleton":
 			return _try_necro_summon(move_target)
 		"dragon_bite":
@@ -4536,6 +4586,16 @@ func walk_map() -> Dictionary:
 			dist[nxt] = int(dist[cur]) + 1
 			queue.append(nxt)
 	return dist
+
+## The terrain's step rule between two neighbouring squares
+## (DungeonManager.can_step: up or down one elevation level, no walking a
+## cliff face). Fliers (immune_to_high_ground) cross cliffs. walk_map()
+## leaves it out: a target up a cliff is still the one to go for (a wraith
+## on a ledge throws at whoever is below; a weregoat goes round by the steps).
+func _can_step(from: Vector2i, to: Vector2i) -> bool:
+	if immune_to_high_ground or dungeon_manager == null:
+		return true
+	return dungeon_manager.can_step(from, to)
 
 ## A square this enemy could ever walk on (units aside).
 func _walkable_square(cell: Vector2i, check_walls := true) -> bool:
@@ -6012,6 +6072,8 @@ func _build_greedy_path(start_pos: Vector3, goal_cell: Vector2i, tiles: int, awa
 				continue  # Other enemies
 			if candidate in unit_cells:
 				continue  # Players (current + destination tiles) and summons
+			if not _can_step(last_cell, candidate):
+				continue  # A cliff face
 			var dist := _manhattan_dist(candidate, goal_cell)
 			var better := dist > best_dist if away else dist < best_dist
 			if better:
@@ -6039,13 +6101,23 @@ func _build_route_path(start_pos: Vector3, goal_cell: Vector2i, tiles: int) -> A
 	var start := grid_manager.world_to_grid(start_pos)
 	if _manhattan_dist(start, goal_cell) <= 1:
 		return path
-	var unit_cells: Array = _unit_cells()
+	# Every blocker in one lookup: on a big open map (the Mountain Pass,
+	# where every walker takes this route) array scans per tile were slow.
+	var stop := {}
+	for c in blocked_tiles:
+		stop[c] = true
+	for c in occupied_tiles:
+		stop[c] = true
+	for c in _unit_cells():
+		stop[c] = true
 	var came_from := {start: start}
 	var queue: Array = [start]
+	var head := 0
 	var found := Vector2i(-9999, -9999)
 	var dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
-	while not queue.is_empty():
-		var cur: Vector2i = queue.pop_front()
+	while head < queue.size():
+		var cur: Vector2i = queue[head]
+		head += 1
 		if _manhattan_dist(cur, goal_cell) <= 1:
 			found = cur
 			break
@@ -6053,10 +6125,12 @@ func _build_route_path(start_pos: Vector3, goal_cell: Vector2i, tiles: int) -> A
 			var nxt: Vector2i = cur + d
 			if came_from.has(nxt) or nxt == goal_cell:
 				continue
-			if nxt in blocked_tiles or nxt in occupied_tiles or nxt in unit_cells:
+			if stop.has(nxt):
 				continue
 			if nxt.x < 0 or nxt.y < 0 or nxt.x >= grid_manager.grid_width or nxt.y >= grid_manager.grid_height:
 				continue
+			if not _can_step(cur, nxt):
+				continue  # A cliff face
 			came_from[nxt] = cur
 			queue.append(nxt)
 	if found.x < -9000:
@@ -6135,7 +6209,11 @@ func move_towards_target(pos: Vector3) -> void:
 		# Follow a tile-by-tile route so we never glide through walls or corners.
 		# The Inflamed Minotaur knows his Labyrinth: he takes the real way
 		# round its walls where a greedy step would dead-end.
-		if enemy_type == EnemyType.INFLAMED_MINOTAUR:
+		# So does anyone walking terrain with cliffs (the Mountains): the
+		# greedy step would stall at a cliff's foot; the route finds the steps.
+		var cliffs: bool = dungeon_manager != null and dungeon_manager.get("has_cliffs") == true \
+				and not immune_to_high_ground
+		if enemy_type == EnemyType.INFLAMED_MINOTAUR or cliffs:
 			var route := _build_route_path(position, player_cell, tiles)
 			if not route.is_empty():
 				_start_path(route)
