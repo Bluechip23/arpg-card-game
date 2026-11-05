@@ -40,6 +40,11 @@ STREAK_PIECE = 150      # ...every piece of it this big (a boot parted from its 
 STREAK_KEEP = 9         # ...grown back this much...
 STREAK_DARK = 120       # ...and outside it, pixels darker than this go
 CELL_INSET = 4          # px kept clear of the grid lines
+FACE_REACH = 16         # "face": ground-dark px this close to the glowing eyes...
+FACE_RAYS = 16          # ...with the figure met by this many rays of FACE_RAYS...
+FACE_SHUT = 11
+FACE_RAY_LEN = 24       # ...within this many px, are the face inside the hood
+FACE_DARK = 45          # (and no channel brighter than this)
 DARK_PIECE = 40         # "drop_dark": a piece whose 90th-percentile channel is under this goes
 
 # Per hero and action: the board, its grid (column lines; each row's top and
@@ -158,12 +163,14 @@ ACTIONS = {
     # leap in a burst of dust, kicks trailing violet shadow, the spinning
     # kick (its cell drawn wider for the arc), and he lands.
     ("cory", "attack"): {
-        "src": "cory_attack_board.webp",
+        "src": "cory_attack_board.webp",   # redrawn by the designer 2026-11-05
         "pockets": False,   # his robe's dark folds by the hood are the ground's colour
         "narrow": 7,        # and the fill reaches them through slits
         "glow": "violet",   # the shadow smoke's faint haze fades out; its dark core stays solid
-        "cols": [105, 237, 368, 500, 628, 761, 888, 1018, 1177, 1309, 1442],
-        "rows": [(59, 284), (284, 507), (507, 724), (724, 945)],
+        "glow_frames": range(2, 9),   # the smoke is drawn from the leap to the last kick; he stands and lands without it (purple boots)
+        "face": True,       # the face inside his hood is the ground's colour: kept round the eyes (fill_face)
+        "cols": [113, 245, 373, 504, 637, 769, 903, 1036, 1176, 1308, 1440],
+        "rows": [(58, 289), (289, 509), (509, 727), (727, 944)],
         "facings": ["south", "north", "west", "east"],
     },
 
@@ -180,12 +187,52 @@ ACTIONS = {
 }
 
 
+def fill_face(rgba, cell):
+    """The face inside a hood (Cory's), painted as dark as the ground: in
+    profile the hood opens to the side and the fill takes the face through
+    the opening, leaving his eyes floating (designer, 2026-11-05). A dark
+    pixel near the glowing eyes that the figure shuts in on most sides
+    (FACE_SHUT of FACE_RAYS rays meet it within FACE_RAY_LEN) is the face;
+    the ground in front of the hood is open on half its sides and stays."""
+    import cv2
+    rgb = cell[..., :3].astype(int)
+    eye = (rgb[..., 2] >= 170) & (rgb[..., 1] >= 140) & (rgb[..., 0] <= 140) & (rgb[..., 2] - rgb[..., 0] >= 60)
+    if eye.sum() < 3:
+        return rgba
+    disc = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * FACE_REACH + 1, 2 * FACE_REACH + 1))
+    near = cv2.dilate(eye.astype(np.uint8), disc) > 0
+    h, w = eye.shape
+    angles = np.arange(FACE_RAYS) * (2 * np.pi / FACE_RAYS)
+    for _ in range(3):
+        solid = rgba[..., 3] > 0
+        ys, xs = np.nonzero(near & ~solid & (rgb.max(axis=2) <= FACE_DARK))
+        if len(ys) == 0:
+            break
+        hits = np.zeros(len(ys), int)
+        for ang in angles:
+            hit = np.zeros(len(ys), bool)
+            for step in range(1, FACE_RAY_LEN + 1):
+                px = np.round(xs + np.cos(ang) * step).astype(int)
+                py = np.round(ys + np.sin(ang) * step).astype(int)
+                inb = (px >= 0) & (px < w) & (py >= 0) & (py < h)
+                hit |= inb & solid[np.clip(py, 0, h - 1), np.clip(px, 0, w - 1)]
+            hits += hit
+        shut = hits >= FACE_SHUT
+        if not shut.any():
+            break
+        rgba[ys[shut], xs[shut], :3] = cell[ys[shut], xs[shut], :3]
+        rgba[ys[shut], xs[shut], 3] = 255
+    return rgba
+
+
 def cut_cell(cell, pockets=True, haze=False, narrow=0, drop_dark=False, close=0, tol=None, haze_dark=None, glow=False, glow_edge=0, streaks=False, halo=False,
-             see_through=True, grow=False):
+             see_through=True, grow=False, face=False):
     """One cell's figure (and its dust) on transparency, cell-sized, plus
     the kept pixels' box."""
     import cv2
     rgba = hs.cut_opaque_cell(cell, pockets, haze, narrow, tol, haze_dark, glow, glow_edge, see_through, grow)
+    if face:
+        rgba = fill_face(rgba, cell)
     if halo:
         rgba = hs.strip_halo(rgba, *hs.HALO_STRIP["brad"])
     if streaks:
@@ -257,12 +304,16 @@ def build(hero, action, spec):
     for (top, bottom), facing in zip(spec["rows"], spec["facings"]):
         for c in range(len(cols) - 1):
             cell = board[top + i:bottom - i + 1, cols[c] + i:cols[c + 1] - i + 1]
+            # ("glow_frames": the frames the glow is drawn in; the rest, a
+            # standing pose or a landing with no smoke, are cut plain.)
+            glow = spec.get("glow", False) if c in spec.get("glow_frames", range(c + 1)) else False
             cells[(facing, c)] = cut_cell(cell, spec.get("pockets", True), spec.get("haze", False),
                                           spec.get("narrow", 0), spec.get("drop_dark", False),
                                           spec.get("close", 0), spec.get("tol"), spec.get("haze_dark"),
-                                          spec.get("glow", False), spec.get("glow_edge", 0),
+                                          glow, spec.get("glow_edge", 0),
                                           spec.get("streaks", False), spec.get("halo", False),
-                                          spec.get("see_through", True), spec.get("grow", False))
+                                          spec.get("see_through", True), spec.get("grow", False),
+                                          spec.get("face", False))
     n = len(cols) - 1
     # A facing the board does not draw, shown with another's frames ("copy":
     # {missing: drawn}; Brad's block from behind is his front, designer

@@ -263,11 +263,12 @@ GLOW_EDGE_DARK = 140  # (glow_edge: the band's glow is dark...
 GLOW_EDGE_NEAR = 15   # ...within this of the glowing thing itself)
 DEBUG_MASKS = None    # set to a dict to receive cut_opaque_cell's glow stages
 SEALED_SHARE = 0.05   # the fill from the edge reaching under this share of the cell means the edge is sealed
-GLOW_SPECK = 400      # violet: a run of ground colour inside the cut over this many px is ground, under it smoke
 GLOW_HAZE = 7         # violet: the fading haze is the cut's outer band this many px deep; deeper is solid smoke
 GLOW_LEAN = 4         # a glow pixel: one channel above the ground this much more than the next...
 GLOW_VIOLET_BLUE = 0.6  # violet: blue over green at least this share of red over green (the robe's mauve is redder)
 GLOW_VIOLET_FULL = 45  # violet: fully solid once a pixel adds this much light (see GLOW_FULL)
+GLOW_THROUGH_TOL = 3   # violet: ground seen through the smoke is within this of the fit...
+GLOW_THROUGH_FLAT = 2.5  # ...and this flat (5x5 spread); his textured dark legs are not
 GLOW_FULL = 110       # ...and fully solid once it adds this much light
 HAZE_DARK = 60        # haze (cut_opaque_cell): no channel brighter than this...
 HAZE_FLAT = 4.0       # ...and as smooth as the ground (5x5 spread)
@@ -1005,21 +1006,15 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
             # The smoke is a thing with a glowing rim, not light: its dark
             # core and its bright rim are solid, as painted. The haze is a
             # thin band on the OUTSIDE of the cut, so only lit pixels within
-            # GLOW_HAZE of the outside fade; anything deeper is solid smoke.
-            # "Outside" means the ground, and the ground inside the curve of
-            # an arc is a ground-coloured pocket the fill never reached: a
-            # large one is ground (cleared below, and the haze beside it
-            # fades); a speck of ground colour inside the smoke is smoke.
-            nearg = solid & ~body & ~lit & (off <= TOL)
-            nn, nlab, nst, _ = cv2.connectedComponentsWithStats(nearg.astype(np.uint8), connectivity=4)
-            bigg = np.zeros((h, w), bool)
-            for j in range(1, nn):
-                if nst[j][4] > GLOW_SPECK:
-                    bigg |= nlab == j
-            solid2 = solid & ~bigg
+            # GLOW_HAZE of the outside fade; anything deeper is solid smoke
+            # (or his legs inside it, painted as dark as the ground on his
+            # redrawn kick, 2026-11-05: they are not taken for the ground
+            # inside an arc any more — the trapped-ground rule clears a
+            # pure pocket of ground, and see-through below only opens onto
+            # the ground outside).
             kh = np.ones((2 * GLOW_HAZE + 1, 2 * GLOW_HAZE + 1), np.uint8)
-            deep = cv2.erode(solid2.astype(np.uint8), kh) > 0
-            core = solid2 & ~body & deep
+            deep = cv2.erode(solid.astype(np.uint8), kh) > 0
+            core = solid & ~body & deep
             lit &= ~core
         glow_px = lit & (a < 1.0)
         # The ground seen through the field (inside its ring, past the body)
@@ -1027,13 +1022,27 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
         # (see_through off: a glow whose core is as dark as the ground —
         # Cory's shadow smoke — keeps that core solid, not punched out.)
         through = solid & ~body & ~lit & (off <= TOL) & reach & (not glow_edge) & see_through
+        if glow == "violet":
+            # ...only plain ground — flat and within GLOW_THROUGH_TOL of the
+            # fit, as the ground round the figure is (off 0-1, spread under
+            # 1) — and only where it opens onto the ground outside (designer,
+            # 2026-11-05, Cory's redrawn kick: his legs inside the smoke are
+            # painted as dark as the ground, textured, and every dark fleck
+            # in them was punched out, "very spotty"). Ground between the
+            # wisps runs out to the open ground; a fleck in a leg is shut in
+            # by the leg.
+            through &= (off <= GLOW_THROUGH_TOL) & (spread <= GLOW_THROUGH_FLAT)
+            open_ = (~solid | through).astype(np.uint8)
+            ffo = np.zeros((h + 2, w + 2), np.uint8)
+            cv2.floodFill(open_, ffo, (0, 0), 2)
+            through &= open_ == 2
         out_rgb = np.where(glow_px[..., None], unblend, out_rgb)
         alpha = np.where(glow_px, np.maximum(a * 255.0, np.where(solid & ~glow_px, 255.0, 0.0)), alpha)
         alpha = np.where(lit & (a >= 1.0), 255.0, alpha)
         alpha = np.where(through, 0.0, alpha)
         alpha = np.where(core, 255.0, alpha)
         if DEBUG_MASKS is not None:   # (a dict: the stages, for a diagnostic dump)
-            DEBUG_MASKS.update(solid=solid.copy(), lit=lit.copy(), body=body.copy(), core=core.copy(),
+            DEBUG_MASKS.update(through=through.copy(), solid=solid.copy(), lit=lit.copy(), body=body.copy(), core=core.copy(),
                                off=off.copy(), top=top.copy(), alpha=alpha.copy())
     return np.dstack([out_rgb.astype(np.uint8), alpha.astype(np.uint8)])
 
