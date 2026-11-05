@@ -128,7 +128,7 @@ of the threat.* Think Middle-earth / LOTR.
 - **Habitats it draws from:** Forest, Graveyard, Cave, Sewer, Mountains.
 - **Tone:** familiar, grounded fantasy. The sickness is subtle here — felt by
   Olorin, not yet obvious. This is where the mystery is seeded.
-- **Part slots:** 1) **Town & Sewers** — *the Sewers are built* (the opening dungeon; Olorin's first quests; Rat King mini-boss). See Section 5.4. · 2) Cemetery / Library (first clues) `[TBD]` · 3) **Forests / wilds** — *the Greenwood forest and the Caves are built* (climbable trees, hunters' traps, woodland beasts; dark dripping cave tunnels). See Section 5.4. · 4) Act 1 climax / **threshold downward — Hell's Gate is built** (Cerberus guarding Hell's Door at the bottom of the first world's deepest cave; through the broken door lies the next world) — the climax around it `[TBD]`.
+- **Part slots:** 1) **Town & Sewers** — *the Sewers are built* (the opening dungeon; Olorin's first quests; Rat King mini-boss). See Section 5.4. · 2) Cemetery / Library (first clues) `[TBD]` · 3) **Forests / wilds** — *the Greenwood forest, the Caves and the Mountain Pass are built* (climbable trees, hunters' traps, woodland beasts; dark dripping cave tunnels). See Section 5.4. · 4) Act 1 climax / **threshold downward — Hell's Gate is built** (Cerberus guarding Hell's Door at the bottom of the first world's deepest cave; through the broken door lies the next world) — the climax around it `[TBD]`.
 
 ### Act 2 — Hell: The Underworld
 *The descent. The apparent source of the rot.*
@@ -393,6 +393,7 @@ built level. The roster is themed and in code:*
 >   never interacts with them).
 
 #### Mountains
+**The Mountain Pass is built** (2026-11-05; `interior_kind == "mountains"`, reached from World 1's overworld by the Mountain Pass site): a snowy mountainside climbing up the screen in four terraces (valley floor, two terraces, the summit), with raised outcrops on the lower ones. **Elevation is walked one level a step** (`DungeonManager.can_step`): neighbouring terraces are a cliff apart, and no one walks up or down a cliff — a south-facing drop is a rock face (`cliff_face_tiles`), the rest the ledge's lip. The way up is a **step** halfway up a cliff (`step_tiles`, the trodden track); every ledge can be reached on foot. Fliers (`immune_to_high_ground`) cross cliffs; so would a climber (`PlayerStats.climbs_cliffs`, for climbing gear — none in the game yet); a blink, leap or knockback is not walking. Weregoats and sabertooths roam the low snowfields; snow wraiths and ice trolls hold the ledges and outcrops; wyverns, white manticores and rocs ride the heights; the summit holds an ice troll and a flier. A chest waits on each outcrop and the summit. Art: Frostreach's winter pack ground, rock and props (no pack draws stairs: the steps are the slush track). Granite Colossi stay out until they have moves.
 - **Weregoat**
 - **Wyvern** — *in code*. Elite. Flier (ignores high ground). **Talon Grab** (2-cycle cooldown): flies above its target, 25 damage, and drags them to an open space **8 squares away**.
 - **Rocs**
@@ -559,6 +560,7 @@ the repo. Keep this table honest as the code changes.
 | **Habitats / biomes** | `dungeon_manager.gd` palettes + `CAVE_PALETTE`, `BUILDING_PALETTE`, `SEWER_PALETTE`; site generation (caves, buildings, sewers) | The generator distinguishes overworld vs. cave vs. building vs. **sewer** interiors — a natural hook for habitat-specific enemy spawn tables (Section 5). |
 | **The Sewers (Act 1, Part 1)** | `dungeon_manager.gd` (`interior_kind == "sewer"`: `_generate_sewer_layout`, `_build_sewer_decorations`, `_define_sewer_spawn_zones`), `main.gd` (`_apply_world_ambience` sewer branch + `_ensure_player_torch`), `torch_flicker.gd`, `sewer_critter.gd` | **Built.** The opening dungeon: trunk + water channels, Rat King arena, west→east rat/ooze → boss → croc/swarm/crawler progression, dim torchlit atmosphere, reduced fog. Reached via a sewer grate site in World 1. See Section 5.4. |
 | **The Greenwood (Act 1, Forest)** | `dungeon_manager.gd` (`interior_kind == "forest"`: `_generate_forest_layout`, `_place_forest_features`, `_build_forest_decorations`, `_define_forest_spawn_zones`), `main.gd` (forest ambience, terrain-trap + tree-climb systems, tutorial), `sewer_critter.gd` (squirrels) | **Built.** Open clearings/trails/hills; climbable trees → high ground (+ one-time tutorial); bear traps (7 dmg / 10 to bears) and hunter dart tripwires (5 dmg) that hit players *and* enemies; pits; squirrels; bright fog. Reached via a forest trailhead site in World 1. See Section 5.4. |
+| **The Mountain Pass (Act 1, Mountains)** | `dungeon_manager.gd` (`interior_kind == "mountains"`: `_generate_mountain_layout`, `_mountain_connect`, `_define_mountain_spawn_zones`; `can_step`, `cliff_face_tiles`, `step_tiles`), `player.gd` (`step_check`), `enemy.gd` (`_can_step`, route-first on cliffs), `main.gd` (`_climber_blocked_tiles`) | **Built.** Terraced snowy mountainside, cliffs walked round by steps, enemies on the ledges, fliers over the cliffs. Reached via the Mountain Pass site in World 1. See Section 5.4. |
 | **Caves (Act 1, Cave)** | `dungeon_manager.gd` (`interior_kind == "cave"`: `_generate_cave_layout` + `_place_cave_puddles`, `_build_cave_decorations`, darkened `CAVE_PALETTE`), `main.gd` (cave ambience + player torch) | **Built/enhanced.** Dark stone tunnels darker than the sewers; stalagmites, stalactites (dripping), puddles, divots, player torch. Reached via cave-mouth sites. See Section 5.4. |
 | **The City (end-game loop)** | `scripts/city/` (state, expeditions, raids, bridge, trials); Town Hall panel in `town.gd`; kill hook in `main.gd`; saved in `SaveData.city` | Wired and tested (`tests/test_city_loop.gd`, `tests/test_city_wiring.gd`). See Section 6.5. |
 | **Bestiary** | `Enemy.EnemyType`, `CharacterData.defeated_monster_ids` | Per-character record of story kills; feeds the compendium and future intent-reveals. 68 enemy types today, structures, the dojo dummy and design mock-ups included (Section 5.4). |
@@ -589,6 +591,9 @@ Decided:
   Sewer, Mountains, Underworld, Heavens), as flexible guidelines.
 - ✅ **The Sewers (Act 1, Part 1) are built** — opening dungeon, themed roster,
   Rat King mini-boss, dim torchlit atmosphere. See Section 5.4 / Section 8.
+- ✅ **The Mountain Pass is built** (Act 1, Mountains) — and with it, walking
+  elevation: up or down one level a step, cliffs walked round by their steps.
+  See Section 5.4 / §8.
 - ✅ **The Greenwood forest and the Caves are built** — woodland of clearings,
   trails and hills with climbable trees (high ground + tutorial), bear traps and
   hunters' dart tripwires, pits and squirrels; and dark, dripping cave tunnels

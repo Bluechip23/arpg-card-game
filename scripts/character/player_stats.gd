@@ -1284,6 +1284,9 @@ var current_flash_points: int = 0
 # HUD toggle (the lightning-bolt button): spending flash on movement is the
 # player's CHOICE — off by default, moves cost tempo as normal.
 var flash_movement_enabled: bool = false
+## Climbing gear (none in the game yet — climbing boots, say): walks up and
+## down cliff faces like any step (DungeonManager.can_step is waived).
+var climbs_cliffs: bool = false
 
 func get_max_flash_points() -> int:
 	# Movement enchantments feed the pool too: each old "+1 free move per tempo"

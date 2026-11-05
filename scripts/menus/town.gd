@@ -227,6 +227,12 @@ func _ready() -> void:
 	player.position = grid_manager.snap_to_grid(player.position)
 	player.target_position = player.position
 	player.ground_y_provider = Callable(self, "_town_ground_y")
+	# The Transport Portal is a platform walked onto over its front steps:
+	# its sides and back are blocked (DungeonManager.shrine_block_cells).
+	var shrine_cells: Array[Vector2i] = []
+	for c in DungeonManager.shrine_block_cells(WAYPOINT_CELL):
+		shrine_cells.append(c)
+	player.blocked_tiles = shrine_cells
 
 	_move_path_cursor = MovePathCursor.new()
 	_move_path_cursor.name = "MovePathCursor"

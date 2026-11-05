@@ -50,7 +50,13 @@ func _run() -> void:
 	var gm = main.grid_manager
 	var p = main.player
 	var here: Vector2i = gm.world_to_grid(p.position)
-	var at: Vector2i = here + Vector2i(-3, -3)
+	# The marches below need the start room's open ground: the Transport
+	# Portal's stones (its sides and back are solid) are lifted for this test.
+	var dm = main.dungeon_manager
+	for c in dm.waypoint_block_tiles:
+		dm.grid[c.x][c.y] = DungeonManager.Tile.FLOOR
+	main._sync_blocked_tiles()
+	var at: Vector2i = here + Vector2i(-4, -4)   # open ground north of the Transport Portal (the hero arrives on its front step)
 
 	# The player's heading is their last step.
 	p.heading = Vector2i(1, 0)

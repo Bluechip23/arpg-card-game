@@ -4537,6 +4537,16 @@ func walk_map() -> Dictionary:
 			queue.append(nxt)
 	return dist
 
+## The terrain's step rule between two neighbouring squares
+## (DungeonManager.can_step: up or down one elevation level, no walking a
+## cliff face). Fliers (immune_to_high_ground) cross cliffs. walk_map()
+## leaves it out: a target up a cliff is still the one to go for (a wraith
+## on a ledge throws at whoever is below; a weregoat goes round by the steps).
+func _can_step(from: Vector2i, to: Vector2i) -> bool:
+	if immune_to_high_ground or dungeon_manager == null:
+		return true
+	return dungeon_manager.can_step(from, to)
+
 ## A square this enemy could ever walk on (units aside).
 func _walkable_square(cell: Vector2i, check_walls := true) -> bool:
 	if cell.x < 0 or cell.y < 0 or cell.x >= grid_manager.grid_width or cell.y >= grid_manager.grid_height:
@@ -6012,6 +6022,8 @@ func _build_greedy_path(start_pos: Vector3, goal_cell: Vector2i, tiles: int, awa
 				continue  # Other enemies
 			if candidate in unit_cells:
 				continue  # Players (current + destination tiles) and summons
+			if not _can_step(last_cell, candidate):
+				continue  # A cliff face
 			var dist := _manhattan_dist(candidate, goal_cell)
 			var better := dist > best_dist if away else dist < best_dist
 			if better:
@@ -6039,13 +6051,23 @@ func _build_route_path(start_pos: Vector3, goal_cell: Vector2i, tiles: int) -> A
 	var start := grid_manager.world_to_grid(start_pos)
 	if _manhattan_dist(start, goal_cell) <= 1:
 		return path
-	var unit_cells: Array = _unit_cells()
+	# Every blocker in one lookup: on a big open map (the Mountain Pass,
+	# where every walker takes this route) array scans per tile were slow.
+	var stop := {}
+	for c in blocked_tiles:
+		stop[c] = true
+	for c in occupied_tiles:
+		stop[c] = true
+	for c in _unit_cells():
+		stop[c] = true
 	var came_from := {start: start}
 	var queue: Array = [start]
+	var head := 0
 	var found := Vector2i(-9999, -9999)
 	var dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
-	while not queue.is_empty():
-		var cur: Vector2i = queue.pop_front()
+	while head < queue.size():
+		var cur: Vector2i = queue[head]
+		head += 1
 		if _manhattan_dist(cur, goal_cell) <= 1:
 			found = cur
 			break
@@ -6053,10 +6075,12 @@ func _build_route_path(start_pos: Vector3, goal_cell: Vector2i, tiles: int) -> A
 			var nxt: Vector2i = cur + d
 			if came_from.has(nxt) or nxt == goal_cell:
 				continue
-			if nxt in blocked_tiles or nxt in occupied_tiles or nxt in unit_cells:
+			if stop.has(nxt):
 				continue
 			if nxt.x < 0 or nxt.y < 0 or nxt.x >= grid_manager.grid_width or nxt.y >= grid_manager.grid_height:
 				continue
+			if not _can_step(cur, nxt):
+				continue  # A cliff face
 			came_from[nxt] = cur
 			queue.append(nxt)
 	if found.x < -9000:
@@ -6135,7 +6159,11 @@ func move_towards_target(pos: Vector3) -> void:
 		# Follow a tile-by-tile route so we never glide through walls or corners.
 		# The Inflamed Minotaur knows his Labyrinth: he takes the real way
 		# round its walls where a greedy step would dead-end.
-		if enemy_type == EnemyType.INFLAMED_MINOTAUR:
+		# So does anyone walking terrain with cliffs (the Mountains): the
+		# greedy step would stall at a cliff's foot; the route finds the steps.
+		var cliffs: bool = dungeon_manager != null and dungeon_manager.get("has_cliffs") == true \
+				and not immune_to_high_ground
+		if enemy_type == EnemyType.INFLAMED_MINOTAUR or cliffs:
 			var route := _build_route_path(position, player_cell, tiles)
 			if not route.is_empty():
 				_start_path(route)

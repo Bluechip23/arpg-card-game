@@ -45,7 +45,7 @@ func _run() -> void:
 	await process_frame
 	var gm = main.grid_manager
 	var p = main.player
-	var at: Vector2i = gm.world_to_grid(p.position) + Vector2i(-3, -3)
+	var at: Vector2i = gm.world_to_grid(p.position) + Vector2i(-4, -4)   # open ground north of the Transport Portal (the hero arrives on its front step)
 	p.heading = Vector2i(1, 0)
 	var D := Debuff.DebuffType
 

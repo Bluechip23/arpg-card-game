@@ -5970,7 +5970,8 @@ func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	# Walls/pits/barricades/trees this enemy must not walk through. Without this
 	# a freshly-spawned enemy has an empty list and clips through structures.
 	if grid_manager:
-		enemy.blocked_tiles = _enemy_blocked_tiles()
+		var et := _enemy_blocked_tiles()
+		enemy.blocked_tiles = _blocked_tiles_for_enemy(enemy, et, _climber_blocked_tiles(et))
 	# Smooth terrain-following Y (elevation, pillars)
 	enemy.ground_y_provider = Callable(self, "_desired_ground_y")
 	# Live player/summon tiles: a route that would end on one is cut short.
@@ -10348,7 +10349,7 @@ func _update_skeletons(amount: int) -> void:
 			var stopped := false
 			for _step in range(s.move_steps):
 				var nxt: Vector2i = cur + dir
-				if not _summon_can_step(nxt, s):
+				if not _summon_can_step(nxt, s, cur):
 					stopped = true
 					break
 				cur = nxt
@@ -10371,8 +10372,11 @@ func _enemy_beside(cell: Vector2i, enemies: Array) -> Enemy:
 
 ## Can summon `who` step onto `cell`: on the map, floor, no wall or obstacle,
 ## no enemy, player or other summon there (or headed there).
-func _summon_can_step(cell: Vector2i, who) -> bool:
+func _summon_can_step(cell: Vector2i, who, from: Vector2i = Vector2i(-9999, -9999)) -> bool:
 	if cell.x < 0 or cell.y < 0 or cell.x >= grid_manager.grid_width or cell.y >= grid_manager.grid_height:
+		return false
+	# From `from`: up or down one level a step, no marching up a cliff.
+	if from.x > -9000 and dungeon_manager and not dungeon_manager.can_step(from, cell):
 		return false
 	if player and (cell in player.blocked_tiles):
 		return false
@@ -14187,13 +14191,35 @@ func _enemy_blocked_tiles() -> Array[Vector2i]:
 	## cover every trunk, climbable or not).
 	return _player_blocked_tiles()
 
+## The same, less the rock faces of the Mountain Pass's cliffs
+## (DungeonManager.cliff_face_tiles): what a climber (PlayerStats.
+## climbs_cliffs) or a flier (Enemy.immune_to_high_ground) is blocked by.
+func _climber_blocked_tiles(tiles: Array[Vector2i]) -> Array[Vector2i]:
+	if dungeon_manager == null or dungeon_manager.cliff_face_tiles.is_empty():
+		return tiles
+	var out: Array[Vector2i] = []
+	for c in tiles:
+		if not dungeon_manager.cliff_face_tiles.has(c):
+			out.append(c)
+	return out
+
+func _blocked_tiles_for_enemy(enemy, tiles: Array[Vector2i], climber_tiles: Array[Vector2i]) -> Array[Vector2i]:
+	return climber_tiles if enemy.immune_to_high_ground else tiles
+
 func _sync_dungeon_blocked_tiles() -> void:
 	## Combines dungeon walls + barricades + pits + tree trunks for pathfinding.
 	var tiles := _player_blocked_tiles()
-	player.blocked_tiles = tiles
+	var climber_tiles := _climber_blocked_tiles(tiles)
+	var climbs: bool = player.get_stats() != null and player.get_stats().climbs_cliffs
+	player.blocked_tiles = climber_tiles if climbs else tiles
+	# Up or down one level a step: every hero walks by the terrain's rule.
+	for p in _all_players():
+		if p != null and is_instance_valid(p):
+			p.step_check = Callable(dungeon_manager, "can_step")
 	var enemy_tiles := _enemy_blocked_tiles()
+	var enemy_climb_tiles := _climber_blocked_tiles(enemy_tiles)
 	for enemy in enemy_spawner.get_living_enemies():
-		enemy.blocked_tiles = enemy_tiles
+		enemy.blocked_tiles = _blocked_tiles_for_enemy(enemy, enemy_tiles, enemy_climb_tiles)
 
 func _check_dungeon_zones() -> void:
 	## Check if player has entered any new spawn zones.
@@ -15080,6 +15106,8 @@ func _rat_step_toward(cell: Vector2i, target: Vector2i, blocked: Array, enemy_ce
 			continue
 		if cand in blocked or cand in enemy_cells or cand in rat_cells:
 			continue
+		if dungeon_manager and not dungeon_manager.can_step(cell, cand):
+			continue  # a cliff face (DungeonManager.can_step)
 		var dist := _manhattan(cand, target)
 		if dist < best_dist:
 			best_dist = dist
@@ -15446,6 +15474,7 @@ func _sync_blocked_tiles() -> void:
 	for obs in barricade_obstacles:
 		tiles.append(grid_manager.world_to_grid(obs["position"]))
 	player.blocked_tiles = tiles
+	player.step_check = Callable()
 	for enemy in enemy_spawner.get_living_enemies():
 		enemy.blocked_tiles = tiles
 
