@@ -1,0 +1,445 @@
+{
+ "sheets": [
+  {
+   "character": "skeleton",
+   "animation": "Idle",
+   "sheet": "docs/sprite_audit/pilot_skeleton/sheets/skeleton/Idle.png",
+   "key": "sheets/skeleton",
+   "boards": [
+    "assets/sprites/paintings/skeleton_board.webp"
+   ],
+   "canvas": [
+    500,
+    434
+   ],
+   "anchor": [
+    257,
+    432
+   ],
+   "frames": [
+    {
+     "row": "front",
+     "col": 0,
+     "board": "skeleton_board.webp",
+     "box": [
+      118,
+      87,
+      513,
+      512
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      261,
+      419
+     ]
+    },
+    {
+     "row": "back",
+     "col": 0,
+     "board": "skeleton_board.webp",
+     "box": [
+      798,
+      87,
+      1195,
+      510
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      150,
+      416
+     ]
+    },
+    {
+     "row": "left",
+     "col": 0,
+     "board": "skeleton_board.webp",
+     "box": [
+      192,
+      612,
+      451,
+      1055
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      155,
+      437
+     ]
+    },
+    {
+     "row": "right",
+     "col": 0,
+     "board": "skeleton_board.webp",
+     "box": [
+      857,
+      612,
+      1120,
+      1055
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      99,
+      435
+     ]
+    }
+   ]
+  },
+  {
+   "character": "skeleton",
+   "animation": "Walk",
+   "sheet": "docs/sprite_audit/pilot_skeleton/sheets/skeleton/Walk.png",
+   "key": "sheets/skeleton",
+   "boards": [
+    "assets/sprites/paintings/skeleton_board.webp"
+   ],
+   "canvas": [
+    500,
+    434
+   ],
+   "anchor": [
+    257,
+    432
+   ],
+   "frames": [
+    {
+     "row": "front",
+     "col": 0,
+     "board": "skeleton_board.webp",
+     "box": [
+      118,
+      87,
+      513,
+      512
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      261,
+      419
+     ]
+    },
+    {
+     "row": "back",
+     "col": 0,
+     "board": "skeleton_board.webp",
+     "box": [
+      798,
+      87,
+      1195,
+      510
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      150,
+      416
+     ]
+    },
+    {
+     "row": "left",
+     "col": 0,
+     "board": "skeleton_board.webp",
+     "box": [
+      192,
+      612,
+      451,
+      1055
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      155,
+      437
+     ]
+    },
+    {
+     "row": "right",
+     "col": 0,
+     "board": "skeleton_board.webp",
+     "box": [
+      857,
+      612,
+      1120,
+      1055
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      99,
+      435
+     ]
+    }
+   ]
+  },
+  {
+   "character": "skeleton",
+   "animation": "Attack",
+   "sheet": "docs/sprite_audit/pilot_skeleton/sheets/skeleton/Attack.png",
+   "key": "sheets/skeleton",
+   "boards": [
+    "assets/sprites/paintings/skeleton_slash_board.webp"
+   ],
+   "canvas": [
+    500,
+    434
+   ],
+   "anchor": [
+    257,
+    432
+   ],
+   "frames": [
+    {
+     "row": "front",
+     "col": 0,
+     "board": "skeleton_slash_board.webp",
+     "box": [
+      350,
+      5,
+      545,
+      262
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      82,
+      246
+     ]
+    },
+    {
+     "row": "front",
+     "col": 1,
+     "board": "skeleton_slash_board.webp",
+     "box": [
+      548,
+      30,
+      785,
+      262
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      125,
+      221
+     ]
+    },
+    {
+     "row": "front",
+     "col": 2,
+     "board": "skeleton_slash_board.webp",
+     "box": [
+      788,
+      70,
+      1045,
+      262
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      175,
+      181
+     ]
+    },
+    {
+     "row": "front",
+     "col": 3,
+     "board": "skeleton_slash_board.webp",
+     "box": [
+      1050,
+      55,
+      1268,
+      262
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      116,
+      196
+     ]
+    },
+    {
+     "row": "back",
+     "col": 0,
+     "board": "skeleton_slash_board.webp",
+     "box": [
+      378,
+      265,
+      581,
+      505
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      88,
+      231
+     ]
+    },
+    {
+     "row": "back",
+     "col": 1,
+     "board": "skeleton_slash_board.webp",
+     "box": [
+      582,
+      268,
+      795,
+      505
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      85,
+      228
+     ]
+    },
+    {
+     "row": "back",
+     "col": 2,
+     "board": "skeleton_slash_board.webp",
+     "box": [
+      800,
+      320,
+      1050,
+      505
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      172,
+      176
+     ]
+    },
+    {
+     "row": "back",
+     "col": 3,
+     "board": "skeleton_slash_board.webp",
+     "box": [
+      1055,
+      310,
+      1290,
+      505
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      114,
+      186
+     ]
+    },
+    {
+     "row": "left",
+     "col": 0,
+     "board": "skeleton_slash_board.webp",
+     "box": [
+      370,
+      515,
+      540,
+      755
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      74,
+      229
+     ]
+    },
+    {
+     "row": "left",
+     "col": 1,
+     "board": "skeleton_slash_board.webp",
+     "box": [
+      555,
+      535,
+      780,
+      755
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      92,
+      209
+     ]
+    },
+    {
+     "row": "left",
+     "col": 2,
+     "board": "skeleton_slash_board.webp",
+     "box": [
+      783,
+      575,
+      1050,
+      755
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      71,
+      169
+     ]
+    },
+    {
+     "row": "left",
+     "col": 3,
+     "board": "skeleton_slash_board.webp",
+     "box": [
+      1075,
+      548,
+      1290,
+      755
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      125,
+      196
+     ]
+    },
+    {
+     "row": "right",
+     "col": 0,
+     "board": "skeleton_slash_board.webp",
+     "box": [
+      385,
+      760,
+      550,
+      998
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      54,
+      228
+     ]
+    },
+    {
+     "row": "right",
+     "col": 1,
+     "board": "skeleton_slash_board.webp",
+     "box": [
+      555,
+      765,
+      790,
+      998
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      118,
+      223
+     ]
+    },
+    {
+     "row": "right",
+     "col": 2,
+     "board": "skeleton_slash_board.webp",
+     "box": [
+      790,
+      815,
+      1050,
+      998
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      182,
+      173
+     ]
+    },
+    {
+     "row": "right",
+     "col": 3,
+     "board": "skeleton_slash_board.webp",
+     "box": [
+      1052,
+      800,
+      1265,
+      998
+     ],
+     "mirror": false,
+     "anchor_in_crop": [
+      98,
+      188
+     ]
+    }
+   ]
+  }
+ ]
+}

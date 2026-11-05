@@ -1,0 +1,266 @@
+{
+ "_doc": "Per character: output path (under --out), and per animation the board, its matte (a file per frame, or a brightness key on black) and each frame's box (x0, y0, x1, y1) on the board, rows front/back/left/right. See tools/recut_sprites.py.",
+ "skeleton": {
+  "path": "sheets/skeleton",
+  "audit_name": "skeleton",
+  "animations": {
+   "Idle": {
+    "board": "skeleton_board.webp",
+    "matte": {
+     "kind": "file",
+     "per_frame": {
+      "front": "mattes/skeleton_front.png",
+      "back": "mattes/skeleton_back.png",
+      "left": "mattes/skeleton_left.png",
+      "right": "mattes/skeleton_right.png"
+     },
+     "keep_share": 0.04
+    },
+    "rows": {
+     "front": [
+      {
+       "box": [
+        118,
+        87,
+        513,
+        512
+       ]
+      }
+     ],
+     "back": [
+      {
+       "box": [
+        798,
+        87,
+        1195,
+        510
+       ]
+      }
+     ],
+     "left": [
+      {
+       "box": [
+        192,
+        612,
+        451,
+        1055
+       ]
+      }
+     ],
+     "right": [
+      {
+       "box": [
+        857,
+        612,
+        1120,
+        1055
+       ]
+      }
+     ]
+    }
+   },
+   "Walk": {
+    "board": "skeleton_board.webp",
+    "matte": {
+     "kind": "file",
+     "per_frame": {
+      "front": "mattes/skeleton_front.png",
+      "back": "mattes/skeleton_back.png",
+      "left": "mattes/skeleton_left.png",
+      "right": "mattes/skeleton_right.png"
+     },
+     "keep_share": 0.04
+    },
+    "rows": {
+     "front": [
+      {
+       "box": [
+        118,
+        87,
+        513,
+        512
+       ]
+      }
+     ],
+     "back": [
+      {
+       "box": [
+        798,
+        87,
+        1195,
+        510
+       ]
+      }
+     ],
+     "left": [
+      {
+       "box": [
+        192,
+        612,
+        451,
+        1055
+       ]
+      }
+     ],
+     "right": [
+      {
+       "box": [
+        857,
+        612,
+        1120,
+        1055
+       ]
+      }
+     ]
+    }
+   },
+   "Attack": {
+    "board": "skeleton_slash_board.webp",
+    "matte": {
+     "kind": "black_key",
+     "threshold": 40,
+     "keep_share": 0.035,
+     "fill_holes": 60
+    },
+    "rows": {
+     "front": [
+      {
+       "box": [
+        350,
+        5,
+        545,
+        262
+       ]
+      },
+      {
+       "box": [
+        548,
+        30,
+        785,
+        262
+       ]
+      },
+      {
+       "box": [
+        788,
+        70,
+        1045,
+        262
+       ]
+      },
+      {
+       "box": [
+        1050,
+        55,
+        1268,
+        262
+       ]
+      }
+     ],
+     "back": [
+      {
+       "box": [
+        378,
+        265,
+        581,
+        505
+       ]
+      },
+      {
+       "box": [
+        582,
+        268,
+        795,
+        505
+       ]
+      },
+      {
+       "box": [
+        800,
+        320,
+        1050,
+        505
+       ]
+      },
+      {
+       "box": [
+        1055,
+        310,
+        1290,
+        505
+       ]
+      }
+     ],
+     "left": [
+      {
+       "box": [
+        370,
+        515,
+        540,
+        755
+       ]
+      },
+      {
+       "box": [
+        555,
+        535,
+        780,
+        755
+       ]
+      },
+      {
+       "box": [
+        783,
+        575,
+        1050,
+        755
+       ]
+      },
+      {
+       "box": [
+        1075,
+        548,
+        1290,
+        755
+       ]
+      }
+     ],
+     "right": [
+      {
+       "box": [
+        385,
+        760,
+        550,
+        998
+       ]
+      },
+      {
+       "box": [
+        555,
+        765,
+        790,
+        998
+       ]
+      },
+      {
+       "box": [
+        790,
+        815,
+        1050,
+        998
+       ]
+      },
+      {
+       "box": [
+        1052,
+        800,
+        1265,
+        998
+       ]
+      }
+     ]
+    }
+   }
+  }
+ }
+}
