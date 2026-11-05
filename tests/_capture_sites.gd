@@ -78,8 +78,14 @@ func _run() -> void:
 		for k in range(0, steps.size(), maxi(1, steps.size() / 4)):
 			spots.append(steps[k])
 		for r in dm.rooms:
-			if r["kind"] == "deep":
+			if r["kind"] == "deep" and r.has("center"):
 				spots.append(r["center"] + Vector2i(0, 2))
+		for st in dm.site_nodes:
+			if st["id"] != "exit":
+				spots.append(st["grid_pos"] + Vector2i(0, 1))   # each door out of here
+		if dm.troll_vault_chest_cell.x >= 0:
+			spots.append(dm.troll_vault_entrance + Vector2i(-1, 0))   # at the vault's gap
+			spots.append(dm.troll_vault_chest_cell + Vector2i(-3, 0))   # inside, by the hoard
 		for k in range(spots.size()):
 			await _shot(spots[k], "in_%d" % k, 1280, 720)
 		quit()

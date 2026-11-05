@@ -3893,6 +3893,8 @@ func _on_player_tile_reached(mover: Player = null) -> void:
 		return
 	# Check if the player stepped onto an enemy-occupied tile (pass-through costs 2 tempo)
 	var player_cell := grid_manager.world_to_grid(player.position)
+	# Gold lying on the ground (the Ice Troll Lair's hoard): walked onto, taken.
+	_check_gold_pile_pickup()
 	var passed_through_enemy = false
 	for enemy in enemy_spawner.get_living_enemies():
 		if enemy.is_structure:
@@ -14416,12 +14418,17 @@ func _apply_world_ambience() -> void:
 	var in_building := current_interior_id.begins_with("building")
 	var in_sewer := current_interior_id.begins_with("sewer") or current_interior_id.begins_with("ratking")
 	var in_forest := current_interior_id.begins_with("forest")
+	# A frozen cave (the Ice Caves, the Ice Troll Lair): the ice holds some
+	# light, but the hero still carries a torch.
+	var in_ice := current_interior_id.begins_with("icecave") or current_interior_id.begins_with("trolllair")
 
 	var world_env := get_node_or_null("WorldEnvironment") as WorldEnvironment
 	if world_env and world_env.environment:
 		var env := world_env.environment
 		env.ambient_light_color = pal.get("ambient", Color(0.3, 0.3, 0.35))
-		if in_cave:
+		if in_ice:
+			env.ambient_light_energy = 0.45  # ice glows faintly in the dark
+		elif in_cave:
 			env.ambient_light_energy = 0.14  # darker even than the sewers
 		elif in_sewer:
 			env.ambient_light_energy = 0.32  # dim; torches do most of the work
@@ -14442,7 +14449,9 @@ func _apply_world_ambience() -> void:
 	if sun:
 		sun.light_color = pal.get("sun", Color(1, 0.95, 0.9))
 		var energy: float = pal.get("sun_energy", 1.2)
-		if in_cave:
+		if in_ice:
+			energy = 0.3
+		elif in_cave:
 			energy = 0.16
 		elif in_sewer:
 			energy = 0.22
@@ -14457,7 +14466,7 @@ func _apply_world_ambience() -> void:
 		sun.light_energy = energy
 
 	# Underground (sewers and caves), each player carries their own pool of light.
-	_ensure_player_torch(in_sewer or in_cave)
+	_ensure_player_torch(in_sewer or in_cave or in_ice)
 
 func _ensure_player_torch(enable: bool) -> void:
 	## Gives each player a warm point light (the "lit circle" around the
@@ -16107,6 +16116,18 @@ func _mesh_sphere(r: float) -> SphereMesh:
 ## consumables); everything else waits in the loot menu for a click.
 const LOOT_AUTO_KEYS := ["gold", "culling_stones", "holy_water"]
 const LOOT_CHOICE_KEYS := ["item", "card", "card_pack"]
+
+## Every hero standing on a gold pile (DungeonManager.gold_piles) scoops it
+## up — tempo-free, like a loot pile's gold.
+func _check_gold_pile_pickup() -> void:
+	if dungeon_manager == null or dungeon_manager.gold_piles.is_empty():
+		return
+	for p in _all_players():
+		if not is_instance_valid(p):
+			continue
+		var amount: int = dungeon_manager.take_gold_pile(grid_manager.world_to_grid(p.position))
+		if amount > 0:
+			_collect_loot({"gold": amount}, p)
 
 func _check_loot_pickup() -> void:
 	## Any player standing on a loot pile's tile takes its gold and

@@ -147,6 +147,25 @@ const CAVE_PALETTE := {
 	"water_edge": Color(0.12, 0.15, 0.17),
 }
 
+## A frozen cave: Frostreach's frost in the gloom (dimmer than the
+## snowfields, brighter than a rock cave — the ice holds the light).
+const ICE_CAVE_PALETTE := {
+	"name": "Ice Cave",
+	"ground": Color(0.05, 0.07, 0.10),
+	"floor_a": Color(0.55, 0.60, 0.68),
+	"floor_b": Color(0.44, 0.50, 0.60),
+	"wall_a": Color(0.30, 0.36, 0.46),
+	"wall_b": Color(0.20, 0.25, 0.34),
+	"cliff": Color(0.26, 0.31, 0.41),
+	"step": Color(0.46, 0.52, 0.60),
+	"accent": Color(0.62, 0.72, 0.82),
+	"ambient": Color(0.40, 0.46, 0.56),
+	"sun": Color(0.80, 0.88, 1.0),
+	"sun_energy": 0.5,
+	"water": Color(0.30, 0.45, 0.60),    # frozen pool
+	"water_edge": Color(0.70, 0.82, 0.92),
+}
+
 const BUILDING_PALETTE := {
 	"name": "Building",
 	"ground": Color(0.10, 0.08, 0.06),
@@ -291,6 +310,10 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		interior_kind = "forest"
 	elif interior_id.begins_with("mountains"):
 		interior_kind = "mountains"  # the Mountain Pass (Act 1, Mountains habitat)
+	elif interior_id.begins_with("icecave"):
+		interior_kind = "icecave"  # a frozen cave (off the Mountain Pass, and Frostreach's caves)
+	elif interior_id.begins_with("trolllair"):
+		interior_kind = "trolllair"  # the Ice Troll Lair (off the Mountain Pass): its vault of gold
 	elif interior_id.begins_with("graveyard"):
 		interior_kind = "graveyard"
 	elif interior_id.begins_with("dojo"):
@@ -346,6 +369,10 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 			_generate_forest_layout()
 		"mountains":
 			_generate_mountain_layout()
+		"icecave":
+			_generate_cave_layout()   # the cave's chambers and tunnels, frozen
+		"trolllair":
+			_generate_troll_lair_layout()
 		"dojo":
 			_generate_dojo_layout()
 		"ratking":
@@ -396,9 +423,13 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		elif interior_kind == "cave" and world_level == 2:
 			# The deepest cave of the Underworld: the Labyrinth, the Inflamed Minotaur's maze.
 			_place_boss_door("deep", "east", "labyrinth", "labyrinth", "The Labyrinth", Color(1.0, 0.7, 0.45), Color(1.0, 0.45, 0.1))
+		elif interior_kind == "mountains":
+			_place_mountain_caves()
 	_place_chests()
 	_place_fountains()
 	_place_shrine()
+	if interior_kind == "trolllair":
+		_place_troll_hoard()
 	_define_spawn_zones()
 
 	# Terrain visuals
@@ -457,7 +488,12 @@ func _set_world_size() -> void:
 		GRID_H = DOJO_H
 		player_start = Vector2i(DOJO_W / 2, DOJO_H - 3)
 		return
-	if interior_kind == "cave" or interior_kind == "graveyard":
+	if interior_kind == "trolllair":
+		GRID_W = TL_SIZE.x
+		GRID_H = TL_SIZE.y
+		player_start = Vector2i(2, TL_SIZE.y / 2)
+		return
+	if interior_kind == "cave" or interior_kind == "graveyard" or interior_kind == "icecave":
 		GRID_W = 36 + world_level * 2
 		GRID_H = 26 + world_level
 		player_start = Vector2i(3, GRID_H / 2)
@@ -540,6 +576,8 @@ func get_palette() -> Dictionary:
 		return FOREST_PALETTE
 	if interior_kind == "mountains":
 		return WORLD_PALETTES[3]   # Frostreach's snow and frost (the winter pack)
+	if interior_kind == "icecave" or interior_kind == "trolllair":
+		return ICE_CAVE_PALETTE
 	return WORLD_PALETTES.get(world_level, WORLD_PALETTES[1])
 
 ## Ground sheets per location flavour. Craftpix top-down tileset fills
@@ -565,7 +603,7 @@ func floor_texture_path() -> String:
 			return CP_TEX + "/floor_cave.png"
 		"forest":
 			return GROUND_TEX + "/forest_grass.png"   # the designer's (2026-10-29); was the pack's floor_grass_forest
-		"mountains":
+		"mountains", "icecave", "trolllair":
 			return CP_TEX + "/floor_winter.png"   # Frostreach's snowfield (winter pack)
 	match world_level:
 		4:  # Emberfall — the designer's flesh-pink cursed earth (2026-10-29; was the cursed land pack's)
@@ -596,7 +634,7 @@ func trail_texture_path() -> String:
 			return CP_TEX + "/floor_dirt_forest.png"  # trodden dark earth
 		"boneyard":
 			return GROUND_TEX + "/undead_cobble.png"   # the designer's barrow land (2026-10-29)
-		"mountains":
+		"mountains", "icecave", "trolllair":
 			return CP_TEX + "/floor_undead_sand.png"  # trodden grey slush: the trails and the steps up the cliffs
 	if world_level == 1:
 		return GROUND_TEX + "/field_dirt.png"   # the designer's dirt (2026-10-29)
@@ -626,7 +664,7 @@ func wall_texture_path() -> String:
 			return CP_TEX + "/wall_cave.png"
 		"forest":
 			return GROUND_TEX + "/forest_wall.png"   # the designer's mossy cobble (2026-10-29)
-		"mountains":
+		"mountains", "icecave", "trolllair":
 			return CP_TEX + "/wall_undead.png"  # grey rock under the frost palette, as Frostreach's
 	match world_level:
 		4:
@@ -686,6 +724,8 @@ func _prop_biome() -> String:
 			return "cave"
 		"mountains":
 			return "winter"   # snow-laden pines, snowy stones, ice
+		"icecave", "trolllair":
+			return "ice"      # the cave's dressing in ice (PROP_ROLES "ice")
 	match world_level:
 		2:
 			return "desert"
@@ -731,6 +771,12 @@ const PROP_ROLES := {
 	"winter": {"tree": ["winter_tree", "winter_tree_big"], "stump": ["winter_snowman", "winter_idol"], "rock": ["winter_rock"], "bush": ["winter_bush"],   # the designer's Frostreach (2026-10-29)
 		"berry": ["winter_flower"], "fern": ["winter_crystal"], "flower": ["winter_flower"], "tuft": ["winter_pebble"],
 		"shroom": ["winter_shroom"], "pebble": ["winter_pebble"], "bones": ["undead_bones"], "reeds": ["winter_ice_tree"],
+		"wallrock": ["wallrock_snow"]},
+	# A frozen cave (icecave, trolllair): the cave's dressing in ice — the
+	# winter pack's crystals rise as its stalagmites (no pack draws ice
+	# stalagmites), snowy stones and pebbles, the cave's own stalactites.
+	"ice": {"stalagmite": ["winter_crystal"], "stalactite": ["cave_stalactite"], "shroom": ["winter_shroom"],
+		"crystal": ["winter_crystal"], "pebble": ["winter_pebble"], "rock": ["wallrock_snow"], "bones": ["undead_bones"],
 		"wallrock": ["wallrock_snow"]},
 	"goods": {"crate": ["goods_crate", "goods_sack"], "barrel": ["goods_barrel", "goods_rack", "goods_table"]},
 	"sewer": {"bones": ["undead_bones"], "reeds": ["forest_reeds"], "rubble": ["cave_pebble", "cave_rock"],
@@ -846,6 +892,10 @@ func get_location_name() -> String:
 		return "Greenwood"
 	if interior_kind == "mountains":
 		return "Mountain Pass"
+	if interior_kind == "icecave":
+		return "Ice Cave %d" % (int(interior_id.get_slice("_", 1)) + 1)
+	if interior_kind == "trolllair":
+		return "Ice Troll Lair"
 	if interior_kind == "graveyard":
 		return "Old Graveyard"
 	if interior_kind == "dojo":
@@ -2065,6 +2115,288 @@ func _mountain_lay_step(c: Dictionary) -> void:
 	step_tiles[t] = true
 
 # ============================================
+# ICE CAVES AND THE ICE TROLL LAIR (off the Mountain Pass; 2026-11-05)
+# ============================================
+
+## Cave mouths in the Mountain Pass's cliffs: an Ice Cave on a lower
+## terrace, the Ice Troll Lair high up near the summit. Each stands on a
+## ledge with rock directly behind it (north), so it opens out of the cliff.
+func _place_mountain_caves() -> void:
+	var cave := _mountain_cave_cell(MOUNTAIN_TIER_STEP, false)
+	if cave.x >= 0:
+		_place_door_site(cave, "icecave_0", "icecave", "Ice Cave", Color(0.75, 0.9, 1.0))
+	var lair := _mountain_cave_cell(MOUNTAIN_TIER_STEP * 2, true)
+	if lair.x >= 0:
+		_place_door_site(lair, "trolllair_0", "trolllair", "Ice Troll Lair", Color(0.6, 0.85, 1.0))
+
+## A floor tile at `min_level` or higher with rock behind it (north) and
+## open ledge in front, clear of steps and spawns: the westmost (or with
+## `east`, the eastmost) such tile.
+func _mountain_cave_cell(min_level: int, east: bool) -> Vector2i:
+	var best := Vector2i(-1, -1)
+	for x in range(3, GRID_W - 3):
+		for z in range(3, GRID_H - 3):
+			var c := Vector2i(x, z)
+			if not is_floor(c) or step_tiles.has(c) or _reserved.has(c):
+				continue
+			if elevation[x][z] < min_level or grid[x][z - 1] != Tile.WALL:
+				continue
+			var open := true
+			for d in [Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, 2)]:
+				var n: Vector2i = c + d
+				open = open and is_floor(n) and elevation[n.x][n.y] == elevation[x][z] and not step_tiles.has(n)
+			if not open:
+				continue
+			if best.x < 0 or (x > best.x if east else x < best.x):
+				best = c
+	return best
+
+## A door into another interior from inside this one (the Mountain Pass's
+## caves): the pack's dark archway against the rock behind the tile, a
+## frosty glow, its name. Shift beside it enters (`id`).
+func _place_door_site(cell: Vector2i, id: String, kind: String, display_name: String, tint: Color) -> void:
+	_reserve_area(cell, 1)
+	var site_root = Node3D.new()
+	site_root.name = "Site_%s" % id
+	site_root.position = grid_manager.grid_to_world(cell) + Vector3(0, get_elevation_world_y(cell), -0.6)
+	var mouth := _make_prop_sprite("gate_small", 1.3)
+	if mouth:
+		mouth.modulate = tint
+		site_root.add_child(mouth)
+	for side in [-1.0, 1.0]:
+		var rock := _make_prop_sprite("wallrock_snow", 0.9, 0 if side < 0 else 1)
+		if rock:
+			rock.position = Vector3(side * 0.95, CameraView.SPRITE_LIFT, 0.15)
+			site_root.add_child(rock)
+	var glow = OmniLight3D.new()
+	glow.light_color = tint
+	glow.light_energy = 0.8
+	glow.omni_range = 3.0
+	glow.position = Vector3(0, 0.6, 0.4)
+	site_root.add_child(glow)
+	var label = Label3D.new()
+	label.text = display_name
+	label.font_size = 20
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.modulate = tint
+	label.position = Vector3(0, 2.0, 0)
+	WorldText.crisp(label)
+	site_root.add_child(label)
+	var interact_label = Label3D.new()
+	interact_label.name = "InteractLabel"
+	interact_label.text = "[Shift] Enter"
+	interact_label.font_size = 16
+	interact_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	interact_label.modulate = Color(1.0, 0.9, 0.4)
+	interact_label.position = Vector3(0, 1.7, 0)
+	interact_label.visible = false
+	WorldText.crisp(interact_label)
+	site_root.add_child(interact_label)
+	_visuals_root.add_child(site_root)
+	site_nodes.append({
+		"node": site_root,
+		"grid_pos": cell,
+		"id": id,
+		"kind": kind,
+		"display_name": display_name,
+		"label_node": interact_label,
+		"footprint": [],
+	})
+
+## An Ice Cave's creatures: the Mountain Pass's roster underground — weregoats
+## and sabertooths in the chambers, snow wraiths in the dark, an ice troll in
+## the deepest chamber.
+func _define_ice_cave_spawn_zones() -> void:
+	var common := [Enemy.EnemyType.WEREGOAT, Enemy.EnemyType.SABERTOOTH, Enemy.EnemyType.SNOW_WRAITH,
+		Enemy.EnemyType.SNOW_WRAITH]
+	for room in rooms:
+		var rect: Rect2i = room["rect"]
+		var kind: String = room["kind"]
+		if kind in ["start", "exit"]:
+			continue
+		if kind != "deep" and _rng.randf() >= 0.7:
+			continue
+		var n := clampi(2 + rect.get_area() / 40, 2, 4)
+		var points: Array = []
+		var types: Array = []
+		for _i in range(n):
+			var cell := _pick_free_cell(rect, points)
+			if cell.x < 0:
+				continue
+			points.append(cell)
+			types.append(common[_rng.randi_range(0, common.size() - 1)])
+		if points.is_empty():
+			continue
+		if kind == "deep":
+			types[0] = Enemy.EnemyType.ICE_TROLL
+		spawn_zones.append({"trigger_rect": rect.grow(1), "spawn_points": points, "enemy_types": types, "spawned": false})
+	for z in spawn_zones:
+		for p in z["spawn_points"]:
+			_reserved[p] = true
+	print("[DUNGEON] Defined %d ice cave spawn zones" % spawn_zones.size())
+
+# The Ice Troll Lair (designer, 2026-11-05: "an Ice troll lair that has 5
+# ice trolls in it and a few trash enemies ... a legendary chest ... gold
+# laying around ... a nice little treasure pocket ... all the gold and
+# treasure chest enclosed by ice stalactites with a small one square
+# entrance"). A short tunnel from the door opens on a frozen cavern; at its
+# far end a passage leads to the vault: a room ringed by ice spikes
+# (ice_wall_tiles: walls drawn as the winter pack's crystals) with one gap.
+# The trolls hold the cavern and the vault door; the snow wraiths drift
+# round the cavern's edge.
+const TL_SIZE := Vector2i(40, 28)
+const TL_VAULT := Rect2i(28, 10, 8, 8)    # the vault's floor (its ring is one tile out)
+## The ice spikes ringing the vault (walls drawn as crystals, not rock).
+var ice_wall_tiles: Dictionary = {}
+var troll_vault_entrance := Vector2i(-1, -1)
+var troll_vault_chest_cell := Vector2i(-1, -1)
+## Gold lying on the ground: [{cell, amount, key, node}]; walked onto, it is
+## taken (take_gold_pile) and remembered (its key in the world state).
+var gold_piles: Array = []
+
+func _generate_troll_lair_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	ice_wall_tiles.clear()
+	var mid := TL_SIZE.y / 2
+	# The tunnel in from the door.
+	_carve_rect(Rect2i(1, mid - 1, 8, 3))
+	rooms.append({"rect": Rect2i(1, mid - 1, 6, 3), "kind": "start", "elev": 0})
+	# The cavern: a big frozen hollow with two lobes.
+	var cavern_c := Vector2i(16, mid)
+	_carve_circle(cavern_c, 8)
+	_carve_circle(Vector2i(13, mid - 5), 4)
+	_carve_circle(Vector2i(14, mid + 5), 4)
+	_smooth_cave_walls()
+	rooms.append({"rect": Rect2i(8, 3, 17, TL_SIZE.y - 6), "kind": "lair", "elev": 0, "center": cavern_c})
+	# The passage to the vault door.
+	var ring := TL_VAULT.grow(1)
+	_carve_rect(Rect2i(23, mid - 1, ring.position.x - 23, 3))
+	# The vault: its floor, ringed by ice spikes, one gap facing the cavern.
+	_carve_rect(TL_VAULT)
+	for x in range(ring.position.x, ring.end.x):
+		for z in range(ring.position.y, ring.end.y):
+			if TL_VAULT.has_point(Vector2i(x, z)):
+				continue
+			grid[x][z] = Tile.WALL
+			ice_wall_tiles[Vector2i(x, z)] = true
+	troll_vault_entrance = Vector2i(ring.position.x, mid)
+	grid[troll_vault_entrance.x][troll_vault_entrance.y] = Tile.FLOOR
+	ice_wall_tiles.erase(troll_vault_entrance)
+	troll_vault_chest_cell = Vector2i(TL_VAULT.end.x - 1, mid)
+	rooms.append({"rect": TL_VAULT, "kind": "vault", "elev": 0})
+	_enforce_border_walls()
+
+## The hoard: gold heaped about the vault floor round the chest (not in the
+## gap's mouth, so the way in stays clear).
+func _place_troll_hoard() -> void:
+	var cells: Array = []
+	for x in range(TL_VAULT.position.x, TL_VAULT.end.x):
+		for z in range(TL_VAULT.position.y, TL_VAULT.end.y):
+			var c := Vector2i(x, z)
+			if c == troll_vault_chest_cell or c.x == TL_VAULT.position.x:
+				continue
+			if (x + 2 * z) % 4 == 0:
+				cells.append(c)
+	var k := 0
+	for c in cells:
+		_place_gold_pile(c, 40 + ((c.x * 7 + c.y * 13) % 5) * 15 + world_level * 10, k)
+		k += 1
+	# The cave's dressing keeps out of the vault: its floor is the hoard's.
+	for x in range(TL_VAULT.position.x, TL_VAULT.end.x):
+		for z in range(TL_VAULT.position.y, TL_VAULT.end.y):
+			_reserved[Vector2i(x, z)] = true
+
+func _gold_key(index: int) -> String:
+	return "world_%d_%s_gold_%d" % [world_level, interior_id, index]
+
+func _place_gold_pile(cell: Vector2i, amount: int, index: int) -> void:
+	var key := _gold_key(index)
+	if _opened_chests_ref.get(key, false):
+		return   # taken on an earlier visit
+	var sprite := _make_prop_sprite("treasure_gold", 1.0, index)
+	if sprite == null:
+		return
+	var root := Node3D.new()
+	root.name = "GoldPile_%d" % index
+	root.position = grid_manager.grid_to_world(cell) + Vector3(0, get_elevation_world_y(cell), 0)
+	root.add_child(sprite)
+	_visuals_root.add_child(root)
+	_reserve_area(cell, 0)
+	gold_piles.append({"cell": cell, "amount": amount, "key": key, "node": root})
+
+## Take the gold lying on `cell`: its amount (0 when there is none); it is
+## gone for good (remembered in the world state).
+func take_gold_pile(cell: Vector2i) -> int:
+	for i in range(gold_piles.size()):
+		var g: Dictionary = gold_piles[i]
+		if g["cell"] != cell:
+			continue
+		_opened_chests_ref[g["key"]] = true
+		if is_instance_valid(g["node"]):
+			g["node"].queue_free()
+		gold_piles.remove_at(i)
+		prompts_changed.emit()
+		return int(g["amount"])
+	return 0
+
+## The vault's ring drawn as ice spikes — the winter pack's crystals (no
+## pack draws ice stalactites; its spikiest crystals stand in), one to a
+## tile, the ground under them.
+func _build_troll_vault_ice() -> void:
+	var k := 0
+	for c in ice_wall_tiles:
+		var spike := _make_prop_sprite("winter_crystal", 0.95 + _tile_noise(c.x, c.y, 811) * 0.3, k % 4)
+		if spike == null:
+			continue
+		spike.position = grid_manager.grid_to_world(c) + Vector3(0, CameraView.SPRITE_LIFT, 0.05)
+		_visuals_root.add_child(spike)
+		k += 1
+
+func _define_troll_lair_spawn_zones() -> void:
+	var mid := TL_SIZE.y / 2
+	var door := troll_vault_entrance
+	# Five ice trolls: two at the vault's door, three about the cavern; four
+	# snow wraiths round the cavern's edge. All wake as one when the hero
+	# steps into the cavern.
+	var want: Array = [
+		[door + Vector2i(-2, -1), Enemy.EnemyType.ICE_TROLL],
+		[door + Vector2i(-2, 1), Enemy.EnemyType.ICE_TROLL],
+		[Vector2i(17, mid - 4), Enemy.EnemyType.ICE_TROLL],
+		[Vector2i(17, mid + 4), Enemy.EnemyType.ICE_TROLL],
+		[Vector2i(20, mid), Enemy.EnemyType.ICE_TROLL],
+		[Vector2i(13, mid - 6), Enemy.EnemyType.SNOW_WRAITH],
+		[Vector2i(14, mid + 6), Enemy.EnemyType.SNOW_WRAITH],
+		[Vector2i(21, mid - 6), Enemy.EnemyType.SNOW_WRAITH],
+		[Vector2i(21, mid + 6), Enemy.EnemyType.SNOW_WRAITH],
+	]
+	var points: Array = []
+	var types: Array = []
+	for w in want:
+		var c := _nearest_free_floor(w[0], points)
+		if c.x < 0:
+			continue
+		points.append(c)
+		types.append(w[1])
+	spawn_zones.append({"trigger_rect": Rect2i(8, 1, 18, TL_SIZE.y - 2), "spawn_points": points,
+		"enemy_types": types, "spawned": false})
+	for p in points:
+		_reserved[p] = true
+
+## The floor tile nearest `c` (spiralling out) that is not reserved, nor in
+## `avoid`, nor in the vault.
+func _nearest_free_floor(c: Vector2i, avoid: Array) -> Vector2i:
+	for r in range(0, 5):
+		for dx in range(-r, r + 1):
+			for dz in range(-r, r + 1):
+				if maxi(absi(dx), absi(dz)) != r:
+					continue
+				var n := c + Vector2i(dx, dz)
+				if is_floor(n) and not _reserved.has(n) and not (n in avoid) and not TL_VAULT.grow(1).has_point(n):
+					return n
+	return Vector2i(-1, -1)
+
+# ============================================
 # BUILDING INTERIOR LAYOUT
 # A central hall with rooms partitioned off either side, joined by doorways.
 # ============================================
@@ -2216,7 +2548,8 @@ func _generate_elevation() -> void:
 		return  # Buildings and the dojo are flat inside
 	if interior_kind == "sewer":
 		return  # Sewers are flat; channels are carved into the floor, not raised
-	if interior_kind == "boneyard" or interior_kind == "hellgate" or interior_kind == "labyrinth":
+	if interior_kind == "boneyard" or interior_kind == "hellgate" or interior_kind == "labyrinth" \
+			or interior_kind == "trolllair":
 		return  # a walled graveyard square / the gate hall / the maze: flat
 	if interior_kind == "ratking":
 		# The lair's three cliffs: the walkable top rows behind each cliff
@@ -2621,7 +2954,7 @@ func _build_autotile_ground() -> void:
 					continue
 				# Outdoors the land runs on under the blocked tiles: plain
 				# ground there too, so the tree line stands on grass, not void.
-				if (natural or waypoint_block_tiles.has(Vector2i(x, z))) and grid[x][z] == Tile.WALL \
+				if (natural or waypoint_block_tiles.has(Vector2i(x, z)) or ice_wall_tiles.has(Vector2i(x, z))) and grid[x][z] == Tile.WALL \
 						and not site_tiles.has(Vector2i(x, z)) and _near_floor(x, z, 3):
 					var wc := _atlas_cell(Terrain.GRASS, 0, x, z)
 					var wy: float = _max_adjacent_floor_elevation(x, z) * ELEV_STEP + 0.004
@@ -2795,7 +3128,7 @@ func _natural_boundary() -> bool:
 		return false
 	if interior_kind == "forest":
 		return true
-	if interior_kind == "mountains":
+	if interior_kind in ["mountains", "icecave", "trolllair"]:
 		return false   # rock all round: the mountain's own cliffs
 	return world_level in [1, 2, 3]
 
@@ -2881,7 +3214,7 @@ func cliff_strip_path() -> String:
 			return GROUND_TEX + "/undead_cliff.png"   # the designer's barrow land (2026-10-29)
 		"forest":
 			return GROUND_TEX + "/forest_cliff.png"   # the designer's grass-over-rock strip, 32 px cells (2026-10-29)
-		"mountains":
+		"mountains", "icecave", "trolllair":
 			return CP_TEX + "/cliff_undead.png"  # grey rock faces under the frost palette, as Frostreach's
 	match world_level:
 		4:
@@ -3423,8 +3756,10 @@ func _build_decorations() -> void:
 	if interior_kind == "forest":
 		_build_forest_decorations()
 		return
-	if interior_kind == "cave":
-		_build_cave_decorations()
+	if interior_kind == "cave" or interior_kind == "icecave" or interior_kind == "trolllair":
+		_build_cave_decorations()   # the ice kinds wear the "ice" prop roles
+		if interior_kind == "trolllair":
+			_build_troll_vault_ice()
 		return
 	if interior_kind == "dojo":
 		return  # bare boards: the dummies are the furniture
@@ -5120,8 +5455,9 @@ func _place_sites() -> void:
 				display_name = "Building"
 				building_count += 1
 			_:
-				id = "cave_%d" % cave_count
-				display_name = "Cave"
+				# Frostreach's caves are frozen (designer, 2026-11-05).
+				id = ("icecave_%d" if world_level == 3 else "cave_%d") % cave_count
+				display_name = "Ice Cave" if world_level == 3 else "Cave"
 				cave_count += 1
 
 		_create_site(kind, id, display_name, footprint, entrance, fx, fz, fp_w, fp_d)
@@ -5680,6 +6016,8 @@ func _structure_tiles() -> Dictionary:
 	var tiles := _all_site_footprint_tiles()
 	for c in waypoint_block_tiles:
 		tiles[c] = true
+	for c in ice_wall_tiles:
+		tiles[c] = true
 	return tiles
 
 func _all_site_footprint_tiles() -> Dictionary:
@@ -5746,6 +6084,9 @@ func _place_chests() -> void:
 		# it always holds a card and a common item so deck-building and
 		# gearing start before the first fight.
 		_create_chest(cell, kind == "start" and world_level == 1)
+	# The Ice Troll Lair's vault: one legendary chest at its back.
+	if interior_kind == "trolllair":
+		_create_chest(troll_vault_chest_cell, false, true)
 
 	# Restore previously opened chests from prior visits
 	_restore_opened_chests()
@@ -5840,7 +6181,7 @@ func _chest_design(contents: Dictionary) -> String:
 		return "rare"
 	return "wood"
 
-func _create_chest(grid_pos: Vector2i, starter: bool = false) -> void:
+func _create_chest(grid_pos: Vector2i, starter: bool = false, legendary: bool = false) -> void:
 	var chest_root = Node3D.new()
 	chest_root.name = "TreasureChest_%d" % chest_nodes.size()
 
@@ -5849,7 +6190,7 @@ func _create_chest(grid_pos: Vector2i, starter: bool = false) -> void:
 	# Generate chest contents first (deterministic seed, so the same chest
 	# always holds the same loot) — the chest's design is chosen by them.
 	var chest_index = chest_nodes.size()
-	var contents = _generate_chest_contents(chest_index, starter)
+	var contents = _generate_chest_contents(chest_index, starter, legendary)
 	var design := _chest_design(contents)
 	var closed := _first_prop_variant("chest_%s_closed" % design)
 	var sprite = Sprite3D.new()
@@ -5898,7 +6239,7 @@ func _create_chest(grid_pos: Vector2i, starter: bool = false) -> void:
 # found it, across saves and world transitions.
 var loot_salt: int = 0
 
-func _generate_chest_contents(chest_index: int, starter: bool = false) -> Dictionary:
+func _generate_chest_contents(chest_index: int, starter: bool = false, legendary: bool = false) -> Dictionary:
 	# Deterministic RNG seeded by world + chest index + the character's loot
 	# salt, so the same chest always generates the same loot for this
 	# character even if the dungeon is recreated.
@@ -5911,6 +6252,15 @@ func _generate_chest_contents(chest_index: int, starter: bool = false) -> Dictio
 	var gold = rng.randi_range(15, 50) + (world_level - 1) * 10
 	var contents: Dictionary = {"gold": gold, "item": null, "card": null, "card_pack": null}
 
+	if legendary:
+		# A hoard's chest (the Ice Troll Lair's vault, designer 2026-11-05):
+		# a legendary item and a heap of gold — the one chest that breaks the
+		# rule that legendaries never come from chests.
+		var pool = ItemData.get_items_of_rarity(ItemData.Rarity.LEGENDARY)
+		if not pool.is_empty():
+			contents["item"] = pool[rng.randi() % pool.size()]
+		contents["gold"] = gold * 4
+		return contents
 	if starter:
 		# Act-1 starter chest: a card AND a common item, guaranteed.
 		var commons = ItemData.get_items_of_rarity(ItemData.Rarity.COMMON)
@@ -5974,6 +6324,14 @@ func _define_spawn_zones() -> void:
 
 	if interior_kind == "mountains":
 		_define_mountain_spawn_zones()
+		return
+
+	if interior_kind == "icecave":
+		_define_ice_cave_spawn_zones()
+		return
+
+	if interior_kind == "trolllair":
+		_define_troll_lair_spawn_zones()
 		return
 
 	if interior_kind == "graveyard":
@@ -6777,7 +7135,7 @@ func disarm_trap(index: int) -> bool:
 const FOUNTAIN_ROOM_KINDS := ["field", "chamber", "room", "deep", "clearing"]
 
 func _place_fountains() -> void:
-	if interior_kind == "dojo" or is_boss_room(interior_id):
+	if interior_kind == "dojo" or interior_kind == "trolllair" or is_boss_room(interior_id):
 		return  # the dojo is a room, not a pilgrimage; a boss room is a fight
 	var want: int = 2 if interior_kind == "" else 1
 	var candidates: Array = []
