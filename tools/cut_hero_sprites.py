@@ -132,10 +132,15 @@ HEROES = {
     # back, a bear's arm for his left), from his own board on black, built by
     # tools/build_stephen_board.py: the right-facing view is the designer's
     # separate image (the board's own had the bear arm on the wrong side).
+    # Facing right he stands as frame 1 of his right walk (designer,
+    # 2026-11-05: the board's right pose, enlarged from a 69x138 image,
+    # was "grainy and isn't as clean"; the walk board draws him standing,
+    # feet together, at its first and last frames, in the walk's own
+    # resolution).
     "stephen": [
         (STEPHEN, (34, 0, 242, 287), "south"),
         (STEPHEN, (248, 0, 472, 291), "north"),
-        (STEPHEN, (60, 286, 205, 620), "east"),
+        ("stephen_walk_right_board.webp", (14, 91, 231, 735), "east"),
         (STEPHEN, (305, 286, 442, 620), "west"),
     ],
 }
@@ -153,11 +158,15 @@ WALK_CELL_INSET = 4   # px kept clear of the grid lines
 WALK_ALPHA = 40       # source alpha over this is figure (for finding it; the
                       # cut keeps the soft alpha for the resample)
 WALKS = {
-    "stephen": ("stephen_walk_board.webp",
-                [92, 226, 359, 490, 619, 749, 872, 994, 1118],
-                [10, 182, 344, 503, 669],
+    # (stephen_walk_board.webp at twice its size, tools/upscale_board.py:
+    # it draws him half as tall as his still poses, so the game enlarged
+    # his front, back and left walks and they came out soft beside them,
+    # designer 2026-11-05. The grid lines are the board's, doubled.)
+    "stephen": ("stephen_walk_board_x2.webp",
+                [184, 452, 718, 980, 1238, 1498, 1744, 1988, 2236],
+                [20, 364, 688, 1006, 1338],
                 ["north", "south", "west", "east"],
-                {"east"}, None),
+                {"east"}, None, {"inset": 8}),
     # 2026-10-31: Ryan's walk board, on a dark plum ground with a soft
     # shadow under the feet: back, front, left, right rows, all used.
     "ryan": ("ryan_walk_board.webp",
@@ -251,6 +260,8 @@ SEALED_SHARE = 0.05   # the fill from the edge reaching under this share of the 
 GLOW_SPECK = 400      # violet: a run of ground colour inside the cut over this many px is ground, under it smoke
 GLOW_HAZE = 7         # violet: the fading haze is the cut's outer band this many px deep; deeper is solid smoke
 GLOW_LEAN = 4         # a glow pixel: one channel above the ground this much more than the next...
+GLOW_VIOLET_BLUE = 0.6  # violet: blue over green at least this share of red over green (the robe's mauve is redder)
+GLOW_VIOLET_FULL = 45  # violet: fully solid once a pixel adds this much light (see GLOW_FULL)
 GLOW_FULL = 110       # ...and fully solid once it adds this much light
 HAZE_DARK = 60        # haze (cut_opaque_cell): no channel brighter than this...
 HAZE_FLAT = 4.0       # ...and as smooth as the ground (5x5 spread)
@@ -495,6 +506,12 @@ STILL_OPTS = {
     "stephen": {"haze": True, "pockets": False, "narrow": 7, "grow": True},
     "ryan": {"tol": 4, "narrow": 7},   # his black trousers are the ground's colour
 }
+# A still pose cut from another board than the hero's others: that board's
+# own options, over STILL_OPTS ("peel": False when its walk frames are cut
+# without the outline peel, so the pose and the walk it starts match).
+STILL_POSE_OPTS = {
+    ("stephen", "east"): {"haze": False, "pockets": True, "tol": 4, "narrow": 7, "grow": True, "peel": False},
+}
 
 
 def cut(path, box, hero=None, facing=None):
@@ -512,7 +529,8 @@ def cut(path, box, hero=None, facing=None):
     # from the ground), the painted rim peeled; STILL_OPTS adds a hero's
     # own needs (Stephen's board paints a smooth dark halo round him that
     # fills the bow's curve: haze).
-    o = STILL_OPTS.get(hero, {})
+    o = dict(STILL_OPTS.get(hero, {}))
+    o.update(STILL_POSE_OPTS.get((hero, facing), {}))
     matted = cut_opaque_cell(rgb.astype(np.uint8), o.get("pockets", True), o.get("haze", False),
                              o.get("narrow", 0), o.get("tol"), o.get("haze_dark"), grow=o.get("grow", False))
     solid = matted[..., 3] > 0
@@ -589,7 +607,7 @@ def cut_walk_board(path, xs, ys, facings, skip, ground, opts=None):
             continue
         frames = []
         for c in range(len(xs) - 1):
-            i = WALK_CELL_INSET
+            i = opts.get("inset", WALK_CELL_INSET)
             cell = board[ys[r] + i:ys[r + 1] - i + 1, xs[c] + i:xs[c + 1] - i + 1]
             if ground == "opaque":
                 cell = cut_opaque_cell(cell, True, False, opts.get("narrow", 0), opts.get("tol"), None,
@@ -929,13 +947,21 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
         # the other channels)
         lean = top - np.maximum(rest, 0)
         if glow == "violet":
-            # Violet (Cory's shadow smoke): red and blue both over green.
+            # Violet (Cory's shadow smoke): red and blue both over green,
+            # and the blue at least GLOW_VIOLET_BLUE of the red. His robe
+            # and hood are a reddish mauve (over the ground: red 19-30 above
+            # green, blue only 6), which as "light" faded his hood away mid-
+            # leap (designer, 2026-11-05: his body "dissolves", "very
+            # spotty"); the smoke's blue matches or beats its red.
             top = np.maximum(d[..., 0], d[..., 2])
-            lit = (d[..., 0] > d[..., 1] + GLOW_LEAN) & (d[..., 2] > d[..., 1] + GLOW_LEAN) & (top > 0)
+            rg, bg = d[..., 0] - d[..., 1], d[..., 2] - d[..., 1]
+            lit = (rg > GLOW_LEAN) & (bg > GLOW_LEAN) & (bg >= GLOW_VIOLET_BLUE * rg) & (top > 0)
         else:
             hue = {"red": 0, "green": 1, "blue": 2}.get(glow, GLOW_CHANNEL)   # glow: True or a hue name
             lit = (lean > np.maximum(GLOW_LEAN, 0.5 * top)) & (d.argmax(axis=2) == hue)
-        a = np.clip(top / GLOW_FULL, 0.0, 1.0)
+        # (violet: solid much sooner, so the dark boots and shins inside
+        # the smoke stay, and only the faint haze round it fades)
+        a = np.clip(top / (GLOW_VIOLET_FULL if glow == "violet" else GLOW_FULL), 0.0, 1.0)
         a_safe = np.maximum(a, 1e-3)[..., None]
         unblend = np.clip(model + d / a_safe, 0, 255)
         # Only light, not cloth: smooth (cloth has texture), near the
@@ -1137,7 +1163,7 @@ def build(hero, poses):
     soft = {}
     for path, box, facing in poses:
         img = cut(path, box, hero, facing)
-        if not OUTLINE:
+        if not OUTLINE and STILL_POSE_OPTS.get((hero, facing), {}).get("peel", True):
             img = peel_painted_outline(img)
         if facing == "south" and hero in FEATHER:
             draw_feather(img, **FEATHER[hero])
