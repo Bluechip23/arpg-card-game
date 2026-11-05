@@ -2237,15 +2237,17 @@ func _define_ice_cave_spawn_zones() -> void:
 
 # The Ice Troll Lair (designer, 2026-11-05: "an Ice troll lair that has 5
 # ice trolls in it and a few trash enemies ... a legendary chest ... gold
-# laying around ... a nice little treasure pocket ... all the gold and
-# treasure chest enclosed by ice stalactites with a small one square
-# entrance"). A short tunnel from the door opens on a frozen cavern; at its
-# far end a passage leads to the vault: a room ringed by ice spikes
-# (ice_wall_tiles: walls drawn as the winter pack's crystals) with one gap.
-# The trolls hold the cavern and the vault door; the snow wraiths drift
-# round the cavern's edge.
+# laying around ... all the gold and treasure chest enclosed by ice
+# stalactites with a small one square entrance"; then: "in the corner of
+# the room is the loot enclosed with one opening, so the player can't dance
+# around collecting stuff, they have to walk into the enclosed area"). A
+# short tunnel from the door opens on the den, one big frozen room holding
+# the trolls; in its north-east corner the vault, walled by the room's rock
+# and by ice spikes (ice_wall_tiles: walls drawn as the winter pack's
+# crystals) with a single gap facing the room.
 const TL_SIZE := Vector2i(40, 28)
-const TL_VAULT := Rect2i(28, 10, 8, 8)    # the vault's floor (its ring is one tile out)
+const TL_ROOM := Rect2i(8, 3, 28, 22)     # the den: x 8..35, z 3..24
+const TL_VAULT := Rect2i(29, 3, 7, 6)     # the vault's floor, in the den's north-east corner
 ## The ice spikes ringing the vault (walls drawn as crystals, not rock).
 var ice_wall_tiles: Dictionary = {}
 var troll_vault_entrance := Vector2i(-1, -1)
@@ -2260,30 +2262,30 @@ func _generate_troll_lair_layout() -> void:
 	ice_wall_tiles.clear()
 	var mid := TL_SIZE.y / 2
 	# The tunnel in from the door.
-	_carve_rect(Rect2i(1, mid - 1, 8, 3))
+	_carve_rect(Rect2i(1, mid - 1, TL_ROOM.position.x, 3))
 	rooms.append({"rect": Rect2i(1, mid - 1, 6, 3), "kind": "start", "elev": 0})
-	# The cavern: a big frozen hollow with two lobes.
-	var cavern_c := Vector2i(16, mid)
-	_carve_circle(cavern_c, 8)
-	_carve_circle(Vector2i(13, mid - 5), 4)
-	_carve_circle(Vector2i(14, mid + 5), 4)
-	_smooth_cave_walls()
-	rooms.append({"rect": Rect2i(8, 3, 17, TL_SIZE.y - 6), "kind": "lair", "elev": 0, "center": cavern_c})
-	# The passage to the vault door.
+	# The trolls' den: one big frozen room. Its west and south sides are
+	# broken up so it reads as a cavern; the vault's corner stays square.
+	_carve_rect(TL_ROOM)
+	for c in [Vector2i(TL_ROOM.position.x, TL_ROOM.position.y + 4), Vector2i(TL_ROOM.position.x + 6, TL_ROOM.end.y - 1),
+			Vector2i(TL_ROOM.position.x, TL_ROOM.end.y - 5), Vector2i(TL_ROOM.position.x + 16, TL_ROOM.end.y)]:
+		_carve_circle(c, 2)
+	rooms.append({"rect": TL_ROOM, "kind": "lair", "elev": 0, "center": TL_ROOM.get_center()})
+	# The vault in the room's north-east corner: the room's own rock on its
+	# north and east, ice spikes on its west and south, and one gap in the
+	# south side, facing the trolls.
 	var ring := TL_VAULT.grow(1)
-	_carve_rect(Rect2i(23, mid - 1, ring.position.x - 23, 3))
-	# The vault: its floor, ringed by ice spikes, one gap facing the cavern.
-	_carve_rect(TL_VAULT)
 	for x in range(ring.position.x, ring.end.x):
 		for z in range(ring.position.y, ring.end.y):
-			if TL_VAULT.has_point(Vector2i(x, z)):
+			var c := Vector2i(x, z)
+			if TL_VAULT.has_point(c) or grid[x][z] != Tile.FLOOR:
 				continue
 			grid[x][z] = Tile.WALL
-			ice_wall_tiles[Vector2i(x, z)] = true
-	troll_vault_entrance = Vector2i(ring.position.x, mid)
+			ice_wall_tiles[c] = true
+	troll_vault_entrance = Vector2i(TL_VAULT.position.x + TL_VAULT.size.x / 2, TL_VAULT.end.y)
 	grid[troll_vault_entrance.x][troll_vault_entrance.y] = Tile.FLOOR
 	ice_wall_tiles.erase(troll_vault_entrance)
-	troll_vault_chest_cell = Vector2i(TL_VAULT.end.x - 1, mid)
+	troll_vault_chest_cell = Vector2i(TL_VAULT.end.x - 1, TL_VAULT.position.y)   # tucked in the corner
 	rooms.append({"rect": TL_VAULT, "kind": "vault", "elev": 0})
 	_enforce_border_walls()
 
@@ -2294,7 +2296,7 @@ func _place_troll_hoard() -> void:
 	for x in range(TL_VAULT.position.x, TL_VAULT.end.x):
 		for z in range(TL_VAULT.position.y, TL_VAULT.end.y):
 			var c := Vector2i(x, z)
-			if c == troll_vault_chest_cell or c.x == TL_VAULT.position.x:
+			if c == troll_vault_chest_cell or c == troll_vault_entrance + Vector2i(0, -1):
 				continue
 			if (x + 2 * z) % 4 == 0:
 				cells.append(c)
@@ -2302,9 +2304,11 @@ func _place_troll_hoard() -> void:
 	for c in cells:
 		_place_gold_pile(c, 40 + ((c.x * 7 + c.y * 13) % 5) * 15 + world_level * 10, k)
 		k += 1
-	# The cave's dressing keeps out of the vault: its floor is the hoard's.
-	for x in range(TL_VAULT.position.x, TL_VAULT.end.x):
-		for z in range(TL_VAULT.position.y, TL_VAULT.end.y):
+	# The cave's dressing keeps out of the vault and off the ground round its
+	# ring: the hoard's floor, and the gap plain to see from the den.
+	var clear := TL_VAULT.grow(2)
+	for x in range(clear.position.x, clear.end.x):
+		for z in range(clear.position.y, clear.end.y):
 			_reserved[Vector2i(x, z)] = true
 
 func _gold_key(index: int) -> String:
@@ -2354,21 +2358,21 @@ func _build_troll_vault_ice() -> void:
 		k += 1
 
 func _define_troll_lair_spawn_zones() -> void:
-	var mid := TL_SIZE.y / 2
 	var door := troll_vault_entrance
-	# Five ice trolls: two at the vault's door, three about the cavern; four
-	# snow wraiths round the cavern's edge. All wake as one when the hero
-	# steps into the cavern.
+	var r := TL_ROOM
+	# Five ice trolls in the den: two either side of the vault's gap, three
+	# spread through the room; four snow wraiths round its edges. All wake as
+	# one when the hero steps out of the tunnel into the den.
 	var want: Array = [
-		[door + Vector2i(-2, -1), Enemy.EnemyType.ICE_TROLL],
-		[door + Vector2i(-2, 1), Enemy.EnemyType.ICE_TROLL],
-		[Vector2i(17, mid - 4), Enemy.EnemyType.ICE_TROLL],
-		[Vector2i(17, mid + 4), Enemy.EnemyType.ICE_TROLL],
-		[Vector2i(20, mid), Enemy.EnemyType.ICE_TROLL],
-		[Vector2i(13, mid - 6), Enemy.EnemyType.SNOW_WRAITH],
-		[Vector2i(14, mid + 6), Enemy.EnemyType.SNOW_WRAITH],
-		[Vector2i(21, mid - 6), Enemy.EnemyType.SNOW_WRAITH],
-		[Vector2i(21, mid + 6), Enemy.EnemyType.SNOW_WRAITH],
+		[door + Vector2i(-2, 2), Enemy.EnemyType.ICE_TROLL],
+		[door + Vector2i(2, 2), Enemy.EnemyType.ICE_TROLL],
+		[Vector2i(r.position.x + 8, r.position.y + 5), Enemy.EnemyType.ICE_TROLL],
+		[Vector2i(r.position.x + 9, r.end.y - 5), Enemy.EnemyType.ICE_TROLL],
+		[Vector2i(r.position.x + 17, r.get_center().y + 2), Enemy.EnemyType.ICE_TROLL],
+		[Vector2i(r.position.x + 3, r.position.y + 2), Enemy.EnemyType.SNOW_WRAITH],
+		[Vector2i(r.position.x + 3, r.end.y - 3), Enemy.EnemyType.SNOW_WRAITH],
+		[Vector2i(r.end.x - 3, r.end.y - 3), Enemy.EnemyType.SNOW_WRAITH],
+		[Vector2i(r.position.x + 15, r.position.y + 1), Enemy.EnemyType.SNOW_WRAITH],
 	]
 	var points: Array = []
 	var types: Array = []
@@ -2378,7 +2382,7 @@ func _define_troll_lair_spawn_zones() -> void:
 			continue
 		points.append(c)
 		types.append(w[1])
-	spawn_zones.append({"trigger_rect": Rect2i(8, 1, 18, TL_SIZE.y - 2), "spawn_points": points,
+	spawn_zones.append({"trigger_rect": r.grow(1), "spawn_points": points,
 		"enemy_types": types, "spawned": false})
 	for p in points:
 		_reserved[p] = true

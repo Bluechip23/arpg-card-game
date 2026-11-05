@@ -84,7 +84,7 @@ func _run() -> void:
 			if st["id"] != "exit":
 				spots.append(st["grid_pos"] + Vector2i(0, 1))   # each door out of here
 		if dm.troll_vault_chest_cell.x >= 0:
-			spots.append(dm.troll_vault_entrance + Vector2i(-1, 0))   # at the vault's gap
+			spots.append(dm.troll_vault_entrance + Vector2i(-6, 3))   # the den, the vault in its corner
 			spots.append(dm.troll_vault_chest_cell + Vector2i(-3, 0))   # inside, by the hoard
 		for k in range(spots.size()):
 			await _shot(spots[k], "in_%d" % k, 1280, 720)

@@ -3,9 +3,10 @@ extends SceneTree
 ## The Mountain Pass's caves (designer, 2026-11-05):
 ##  - The Mountain Pass opens on an Ice Cave and the Ice Troll Lair, each a
 ##    cave mouth in a cliff; Frostreach's (World 3's) caves are Ice Caves too.
-##  - The Ice Troll Lair: five ice trolls and a few trash enemies (snow
-##    wraiths); a vault ringed by ice spikes with a single one-tile way in,
-##    holding a legendary chest and gold lying about.
+##  - The Ice Troll Lair: one den with five ice trolls and a few trash
+##    enemies (snow wraiths); in its corner a vault walled by rock and ice
+##    spikes with a single one-tile way in, holding a legendary chest and
+##    gold lying about: the loot is taken only by walking in.
 ##  - Gold piles: walked onto, the gold is the hero's, and it stays taken.
 ## Run: godot --headless --path . --script tests/test_ice_troll_lair.gd
 
@@ -98,10 +99,17 @@ func _test_lair_layout() -> void:
 			if dm.is_floor(c):
 				gaps.append(c)
 	_check(gaps.size() == 1 and gaps[0] == dm.troll_vault_entrance, "the vault's ring has one way in, one tile wide (%s)" % [gaps])
-	var spikes := 0
+	var spikes_on_ring := true
 	for c in dm.ice_wall_tiles:
-		spikes += 1
-	_check(spikes == (ring.size.x * 2 + ring.size.y * 2 - 4) - 1, "the rest of the ring is ice spikes (%d)" % spikes)
+		spikes_on_ring = spikes_on_ring and ring.has_point(c) and not vault.has_point(c) and not dm.is_floor(c)
+	_check(dm.ice_wall_tiles.size() >= 10 and spikes_on_ring, "ice spikes wall it off (%d)" % dm.ice_wall_tiles.size())
+	# In the corner of the den: the room's rock behind it, the gap opening
+	# straight into the room where the trolls are.
+	var room: Rect2i = DungeonManager.TL_ROOM
+	_check(room.encloses(vault) and vault.end.x == room.end.x and vault.position.y == room.position.y,
+		"the vault is the den's north-east corner")
+	var outside: Vector2i = dm.troll_vault_entrance + Vector2i(0, 1)
+	_check(room.has_point(outside) and dm.is_floor(outside), "its gap opens into the den")
 	# Every vault tile is reached only through the gap.
 	var seen := {dm.player_start: true}
 	var q: Array = [dm.player_start]
