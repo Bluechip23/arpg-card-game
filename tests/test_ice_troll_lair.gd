@@ -5,7 +5,7 @@ extends SceneTree
 ##    cave mouth in a cliff; Frostreach's (World 3's) caves are Ice Caves too.
 ##  - The Ice Troll Lair: one den with five ice trolls and a few trash
 ##    enemies (snow wraiths); in its corner a vault walled by rock and ice
-##    spikes with a single one-tile way in, holding a legendary chest and
+##    high mountains (no walking on them, no blinking across) with a single one-tile way in, holding a legendary chest and
 ##    gold lying about: the loot is taken only by walking in.
 ##  - Gold piles: walked onto, the gold is the hero's, and it stays taken.
 ## Run: godot --headless --path . --script tests/test_ice_troll_lair.gd
@@ -99,10 +99,20 @@ func _test_lair_layout() -> void:
 			if dm.is_floor(c):
 				gaps.append(c)
 	_check(gaps.size() == 1 and gaps[0] == dm.troll_vault_entrance, "the vault's ring has one way in, one tile wide (%s)" % [gaps])
-	var spikes_on_ring := true
-	for c in dm.ice_wall_tiles:
-		spikes_on_ring = spikes_on_ring and ring.has_point(c) and not vault.has_point(c) and not dm.is_floor(c)
-	_check(dm.ice_wall_tiles.size() >= 10 and spikes_on_ring, "ice spikes wall it off (%d)" % dm.ice_wall_tiles.size())
+	var on_ring := true
+	for c in dm.mountain_wall_tiles:
+		on_ring = on_ring and ring.has_point(c) and not vault.has_point(c) and not dm.is_floor(c)
+	_check(dm.mountain_wall_tiles.size() >= 10 and on_ring, "high mountains wall it off (%d)" % dm.mountain_wall_tiles.size())
+	# No blink over them: not from the den into the vault, not onto a peak;
+	# straight through the gap is fine.
+	var den_cell: Vector2i = dm.troll_vault_entrance + Vector2i(-3, 3)
+	var in_vault: Vector2i = dm.troll_vault_chest_cell + Vector2i(-1, 1)
+	var peak: Vector2i = dm.mountain_wall_tiles.keys()[0]
+	_check(not dm.blink_clear(den_cell, in_vault) and not dm.blink_clear(den_cell, peak),
+		"no blinking across the mountains or onto them")
+	_check(dm.blink_clear(dm.troll_vault_entrance + Vector2i(0, 3), dm.troll_vault_entrance + Vector2i(0, -2)),
+		"a blink straight through the gap is fine")
+	_check(dm.blink_clear(den_cell, den_cell + Vector2i(-4, 2)), "blinking about the den is fine")
 	# In the corner of the den: the room's rock behind it, the gap opening
 	# straight into the room where the trolls are.
 	var room: Rect2i = DungeonManager.TL_ROOM
@@ -193,5 +203,12 @@ func _test_in_game() -> void:
 		if e.enemy_type == Enemy.EnemyType.ICE_TROLL:
 			trolls += 1
 	_check(trolls == 5, "stepping into the cavern wakes the five trolls (%d)" % trolls)
+	# The hero cannot blink over the mountains into the vault.
+	var outside: Vector2i = dm.troll_vault_entrance + Vector2i(-3, 3)
+	main.player.blink_to(main._ground_pos(outside))
+	main.player.blink_to(main._ground_pos(dm.troll_vault_chest_cell + Vector2i(-1, 1)))
+	_check(main.grid_manager.world_to_grid(main.player.position) == outside, "a blink across the mountains does not happen")
+	_check(main.player.get_stats().climbs_cliffs == false and dm.mountain_wall_tiles.keys()[0] in main.player.blocked_tiles,
+		"and no one walks on them")
 	main.queue_free()
 	await _settle(2)

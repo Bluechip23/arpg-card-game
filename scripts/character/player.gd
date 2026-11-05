@@ -37,6 +37,10 @@ var blocked_tiles: Array[Vector2i] = []  # Set by main.gd for barricade obstacle
 ## level a step, no walking a cliff face); set by main.gd in a dungeon, empty
 ## elsewhere (town, menus). Climbing gear waives it (PlayerStats.climbs_cliffs).
 var step_check: Callable = Callable()
+## The terrain's blink rule (DungeonManager.blink_clear: no teleporting onto
+## or across high mountains); set by main.gd in a dungeon. A blink it
+## refuses does not happen.
+var blink_check: Callable = Callable()
 var ground_y_provider: Callable = Callable()  # Set by main.gd: world_pos -> desired ground Y
 var _last_position: Vector3 = Vector3.ZERO
 var _stuck_frames: int = 0
@@ -543,6 +547,9 @@ func cancel_movement() -> void:
 func blink_to(target_pos: Vector3) -> void:
 	if grid_manager:
 		target_pos = grid_manager.snap_to_grid(target_pos)
+		if blink_check.is_valid() and not blink_check.call(grid_manager.world_to_grid(position), grid_manager.world_to_grid(target_pos)):
+			print("[PLAYER] Blink refused: high mountains in the way")
+			return
 	position = target_pos
 	# Teleports land directly at terrain height (no glide)
 	if ground_y_provider.is_valid():

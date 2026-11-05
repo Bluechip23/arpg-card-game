@@ -2243,13 +2243,18 @@ func _define_ice_cave_spawn_zones() -> void:
 # around collecting stuff, they have to walk into the enclosed area"). A
 # short tunnel from the door opens on the den, one big frozen room holding
 # the trolls; in its north-east corner the vault, walled by the room's rock
-# and by ice spikes (ice_wall_tiles: walls drawn as the winter pack's
-# crystals) with a single gap facing the room.
+# and by high mountains on the other two (mountain_wall_tiles; designer,
+# 2026-11-05: "instead of icicles ... high mountains the player CANNOT blink
+# through or walk on top of") with a single gap facing the room. No one
+# walks the mountains (walls, climbers too: the climbing stat crosses only
+# the Mountain Pass's cliff faces — a later boots quest, Olorin's advice,
+# would let climbers in), and no blink crosses them (blink_clear).
 const TL_SIZE := Vector2i(40, 28)
 const TL_ROOM := Rect2i(8, 3, 28, 22)     # the den: x 8..35, z 3..24
 const TL_VAULT := Rect2i(29, 3, 7, 6)     # the vault's floor, in the den's north-east corner
-## The ice spikes ringing the vault (walls drawn as crystals, not rock).
-var ice_wall_tiles: Dictionary = {}
+## The high mountains walling the vault in (walls: the cave's rock under
+## the winter pack's snowy stone piles, heaped high). No blink crosses them.
+var mountain_wall_tiles: Dictionary = {}
 var troll_vault_entrance := Vector2i(-1, -1)
 var troll_vault_chest_cell := Vector2i(-1, -1)
 ## Gold lying on the ground: [{cell, amount, key, node}]; walked onto, it is
@@ -2259,7 +2264,7 @@ var gold_piles: Array = []
 func _generate_troll_lair_layout() -> void:
 	_init_grid_walls()
 	rooms.clear()
-	ice_wall_tiles.clear()
+	mountain_wall_tiles.clear()
 	var mid := TL_SIZE.y / 2
 	# The tunnel in from the door.
 	_carve_rect(Rect2i(1, mid - 1, TL_ROOM.position.x, 3))
@@ -2281,10 +2286,10 @@ func _generate_troll_lair_layout() -> void:
 			if TL_VAULT.has_point(c) or grid[x][z] != Tile.FLOOR:
 				continue
 			grid[x][z] = Tile.WALL
-			ice_wall_tiles[c] = true
+			mountain_wall_tiles[c] = true
 	troll_vault_entrance = Vector2i(TL_VAULT.position.x + TL_VAULT.size.x / 2, TL_VAULT.end.y)
 	grid[troll_vault_entrance.x][troll_vault_entrance.y] = Tile.FLOOR
-	ice_wall_tiles.erase(troll_vault_entrance)
+	mountain_wall_tiles.erase(troll_vault_entrance)
 	troll_vault_chest_cell = Vector2i(TL_VAULT.end.x - 1, TL_VAULT.position.y)   # tucked in the corner
 	rooms.append({"rect": TL_VAULT, "kind": "vault", "elev": 0})
 	_enforce_border_walls()
@@ -2344,18 +2349,40 @@ func take_gold_pile(cell: Vector2i) -> int:
 		return int(g["amount"])
 	return 0
 
-## The vault's ring drawn as ice spikes — the winter pack's crystals (no
-## pack draws ice stalactites; its spikiest crystals stand in), one to a
-## tile, the ground under them.
-func _build_troll_vault_ice() -> void:
+## The vault's mountains: on each tile of the cave's rock (drawn by the
+## cliff walls) a great snowy stone pile of the winter pack, heaped well
+## above a hero's head so the ring reads as peaks, not a fence.
+func _build_troll_vault_mountains() -> void:
 	var k := 0
-	for c in ice_wall_tiles:
-		var spike := _make_prop_sprite("winter_crystal", 0.95 + _tile_noise(c.x, c.y, 811) * 0.3, k % 4)
-		if spike == null:
+	for c in mountain_wall_tiles:
+		# The two peaks either side of the gap are smaller and lean away from
+		# it, so the one way in shows as a pass between them.
+		var side: int = c.x - troll_vault_entrance.x if c.y == troll_vault_entrance.y else 0
+		var flank := absi(side) == 1
+		var sc: float = 1.0 if flank else 1.6 + _tile_noise(c.x, c.y, 811) * 0.4
+		var peak := _make_prop_sprite("winter_rock", sc, k % 3)
+		if peak == null:
 			continue
-		spike.position = grid_manager.grid_to_world(c) + Vector3(0, CameraView.SPRITE_LIFT, 0.05)
-		_visuals_root.add_child(spike)
+		peak.position = grid_manager.grid_to_world(c) + Vector3(0.3 * side if flank else 0.0, CameraView.SPRITE_LIFT, 0.3)
+		_visuals_root.add_child(peak)
 		k += 1
+
+## May a blink (a teleport, a card's leap to a tile) go from `from` to `to`?
+## Not onto a mountain, nor across one: the straight line between the two
+## tiles' centres may not pass over any of the vault's mountains.
+func blink_clear(from: Vector2i, to: Vector2i) -> bool:
+	if mountain_wall_tiles.is_empty():
+		return true
+	if mountain_wall_tiles.has(to):
+		return false
+	var a := Vector2(from.x + 0.5, from.y + 0.5)
+	var b := Vector2(to.x + 0.5, to.y + 0.5)
+	var steps := int(ceil(a.distance_to(b) * 4.0))
+	for i in range(1, steps + 1):
+		var p := a.lerp(b, float(i) / float(steps))
+		if mountain_wall_tiles.has(Vector2i(int(floor(p.x)), int(floor(p.y)))):
+			return false
+	return true
 
 func _define_troll_lair_spawn_zones() -> void:
 	var door := troll_vault_entrance
@@ -2958,7 +2985,7 @@ func _build_autotile_ground() -> void:
 					continue
 				# Outdoors the land runs on under the blocked tiles: plain
 				# ground there too, so the tree line stands on grass, not void.
-				if (natural or waypoint_block_tiles.has(Vector2i(x, z)) or ice_wall_tiles.has(Vector2i(x, z))) and grid[x][z] == Tile.WALL \
+				if (natural or waypoint_block_tiles.has(Vector2i(x, z))) and grid[x][z] == Tile.WALL \
 						and not site_tiles.has(Vector2i(x, z)) and _near_floor(x, z, 3):
 					var wc := _atlas_cell(Terrain.GRASS, 0, x, z)
 					var wy: float = _max_adjacent_floor_elevation(x, z) * ELEV_STEP + 0.004
@@ -3763,7 +3790,7 @@ func _build_decorations() -> void:
 	if interior_kind == "cave" or interior_kind == "icecave" or interior_kind == "trolllair":
 		_build_cave_decorations()   # the ice kinds wear the "ice" prop roles
 		if interior_kind == "trolllair":
-			_build_troll_vault_ice()
+			_build_troll_vault_mountains()
 		return
 	if interior_kind == "dojo":
 		return  # bare boards: the dummies are the furniture
@@ -6019,8 +6046,6 @@ func _place_exit_site(at: Vector2i = Vector2i(-9999, -9999), id: String = "exit"
 func _structure_tiles() -> Dictionary:
 	var tiles := _all_site_footprint_tiles()
 	for c in waypoint_block_tiles:
-		tiles[c] = true
-	for c in ice_wall_tiles:
 		tiles[c] = true
 	return tiles
 

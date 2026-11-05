@@ -13448,6 +13448,9 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			if blink_cell in player.blocked_tiles:
 				add_battle_log("Cannot blink into a wall or obstacle!", Color(1.0, 0.4, 0.4))
 				print("[MAIN] Blink blocked: target tile is a wall/obstacle")
+			elif dungeon_manager and not dungeon_manager.blink_clear(grid_manager.world_to_grid(player.position), blink_cell):
+				add_battle_log("The mountains are too high to blink across!", Color(1.0, 0.4, 0.4))
+				print("[MAIN] Blink blocked: high mountains in the way")
 			else:
 				player.blink_to(blink_pos)
 				progression_triggers._trigger_skill_tree_on_displacement()
@@ -14218,6 +14221,7 @@ func _sync_dungeon_blocked_tiles() -> void:
 	for p in _all_players():
 		if p != null and is_instance_valid(p):
 			p.step_check = Callable(dungeon_manager, "can_step")
+			p.blink_check = Callable(dungeon_manager, "blink_clear")
 	var enemy_tiles := _enemy_blocked_tiles()
 	var enemy_climb_tiles := _climber_blocked_tiles(enemy_tiles)
 	for enemy in enemy_spawner.get_living_enemies():
@@ -15484,6 +15488,7 @@ func _sync_blocked_tiles() -> void:
 		tiles.append(grid_manager.world_to_grid(obs["position"]))
 	player.blocked_tiles = tiles
 	player.step_check = Callable()
+	player.blink_check = Callable()
 	for enemy in enemy_spawner.get_living_enemies():
 		enemy.blocked_tiles = tiles
 
