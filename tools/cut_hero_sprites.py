@@ -136,7 +136,10 @@ HEROES = {
     # 2026-11-05: the board's right pose, enlarged from a 69x138 image,
     # was "grainy and isn't as clean"; the walk board draws him standing,
     # feet together, at its first and last frames, in the walk's own
-    # resolution).
+    # resolution). The designer's corrected standing turnaround
+    # (stephen_turnaround_board.webp, 2026-11-05) is kept for reference
+    # only: the four standing poses here are the ones the designer
+    # approved, "do not adjust that piece at all".
     "stephen": [
         (STEPHEN, (34, 0, 242, 287), "south"),
         (STEPHEN, (248, 0, 472, 291), "north"),
@@ -149,24 +152,21 @@ HEROES = {
 # row draws, facings left out, ground). The cells sit between consecutive
 # lines. Ground None: the figures are cut on the board's own alpha;
 # "opaque": the board is painted on a dark ground with a soft glow behind
-# the figure, fitted and filled in from each cell's edge (cut_opaque_cell). Stephen's board (2026-10-31):
-# back, front, left, right rows. Its right row is left out: from frame 3 on
-# it shows the bear arm on his near side, the mistake the designer had fixed
-# on his still pose (2026-10-28); the redrawn row is its own board
-# (WALK_EXTRA).
+# the figure, fitted and filled in from each cell's edge (cut_opaque_cell).
+# Stephen's walks are a board a way (WALKS: his front; WALK_EXTRA: his
+# back, left and right).
 WALK_CELL_INSET = 4   # px kept clear of the grid lines
 WALK_ALPHA = 40       # source alpha over this is figure (for finding it; the
                       # cut keeps the soft alpha for the resample)
 WALKS = {
-    # (stephen_walk_board.webp at twice its size, tools/upscale_board.py:
-    # it draws him half as tall as his still poses, so the game enlarged
-    # his front, back and left walks and they came out soft beside them,
-    # designer 2026-11-05. The grid lines are the board's, doubled.)
-    "stephen": ("stephen_walk_board_x2.webp",
-                [184, 452, 718, 980, 1238, 1498, 1744, 1988, 2236],
-                [20, 364, 688, 1006, 1338],
-                ["north", "south", "west", "east"],
-                {"east"}, None, {"inset": 8}),
+    # 2026-11-05: Stephen's walks redrawn by the designer at his still
+    # poses' resolution, a board a way, one row of eight frames on a dark
+    # ground (his old board drew him half as tall, so the game enlarged
+    # those walks and they came out soft). His dark trousers and boots are
+    # matched within 4, as on his right walk; the default match ate them.
+    "stephen": ("stephen_walk_south_board.webp",
+                [9, 251, 501, 750, 1000, 1250, 1500, 1750, 1994], [72, 577],
+                ["south"], set(), "opaque", {"tol": 4, "narrow": 7}),
     # 2026-10-31: Ryan's walk board, on a dark plum ground with a soft
     # shadow under the feet: back, front, left, right rows, all used.
     "ryan": ("ryan_walk_board.webp",
@@ -193,21 +193,27 @@ WALKS = {
              ["north", "south", "west", "east"],
              set(), "opaque", {"halo": True}),   # the feather's glow stripped (HALO_STRIP)
 }
-# A direction redrawn on a board of its own, in WALKS' form: Stephen's right
-# (2026-10-31, "Walk Right (Corrected)": his human arm on the near side,
-# where his main board's right row showed the bear arm).
+# A direction on a board of its own, in WALKS' form: Stephen's back and
+# left (2026-11-05) and his right (2026-10-31, "Walk Right (Corrected)": his
+# human arm on the near side).
 WALK_EXTRA = {
-    "stephen": [("stephen_walk_right_board.webp",
+    "stephen": [("stephen_walk_north_board.webp",
+                 [7, 251, 501, 751, 1000, 1250, 1500, 1750, 1995], [70, 578],
+                 ["north"], set(), "opaque", {"tol": 4, "narrow": 7}),
+                ("stephen_walk_left_board.webp",
+                 [10, 263, 510, 759, 1007, 1253, 1500, 1747, 1995], [73, 579],
+                 ["west"], set(), "opaque", {"tol": 4, "narrow": 7}),
+                ("stephen_walk_right_board.webp",
                  [10, 234, 458, 683, 907, 1122, 1341, 1562, 1770], [87, 738],
                  ["east"], set(), "opaque", {"tol": 4, "narrow": 7, "grow": True})],   # his dark trousers; armpit shadows
 }
 # Walk rows the board draws stockier than the still pose that way: each
 # stands the still's height and is drawn this much narrower (designer,
-# 2026-11-04: "when Ryan walks he gets more bulky", Stephen "gets shorter
-# and wider when going left" — the halfway scale of 2026-11-02 shrank the
-# row instead). Judged frame by frame against the still, at the game's size.
+# 2026-11-04: "when Ryan walks he gets more bulky"). Judged frame by frame
+# against the still, at the game's size. (Stephen's walks, redrawn
+# 2026-11-05, stand his height at his still poses' own drawing scale —
+# his belt orb the same size — and need none.)
 WALK_SQUEEZE = {
-    "stephen": {"south": 0.90, "north": 0.90, "west": 0.85},
     "ryan": {"south": 0.88, "north": 0.88, "east": 0.92, "west": 0.92},
 }
 # The opaque boards' ground, fitted a cell (_ground_fit): within
@@ -257,11 +263,12 @@ GLOW_EDGE_DARK = 140  # (glow_edge: the band's glow is dark...
 GLOW_EDGE_NEAR = 15   # ...within this of the glowing thing itself)
 DEBUG_MASKS = None    # set to a dict to receive cut_opaque_cell's glow stages
 SEALED_SHARE = 0.05   # the fill from the edge reaching under this share of the cell means the edge is sealed
-GLOW_SPECK = 400      # violet: a run of ground colour inside the cut over this many px is ground, under it smoke
 GLOW_HAZE = 7         # violet: the fading haze is the cut's outer band this many px deep; deeper is solid smoke
 GLOW_LEAN = 4         # a glow pixel: one channel above the ground this much more than the next...
 GLOW_VIOLET_BLUE = 0.6  # violet: blue over green at least this share of red over green (the robe's mauve is redder)
 GLOW_VIOLET_FULL = 45  # violet: fully solid once a pixel adds this much light (see GLOW_FULL)
+GLOW_THROUGH_TOL = 3   # violet: ground seen through the smoke is within this of the fit...
+GLOW_THROUGH_FLAT = 2.5  # ...and this flat (5x5 spread); his textured dark legs are not
 GLOW_FULL = 110       # ...and fully solid once it adds this much light
 HAZE_DARK = 60        # haze (cut_opaque_cell): no channel brighter than this...
 HAZE_FLAT = 4.0       # ...and as smooth as the ground (5x5 spread)
@@ -607,7 +614,7 @@ def cut_walk_board(path, xs, ys, facings, skip, ground, opts=None):
             continue
         frames = []
         for c in range(len(xs) - 1):
-            i = opts.get("inset", WALK_CELL_INSET)
+            i = WALK_CELL_INSET
             cell = board[ys[r] + i:ys[r + 1] - i + 1, xs[c] + i:xs[c + 1] - i + 1]
             if ground == "opaque":
                 cell = cut_opaque_cell(cell, True, False, opts.get("narrow", 0), opts.get("tol"), None,
@@ -999,21 +1006,15 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
             # The smoke is a thing with a glowing rim, not light: its dark
             # core and its bright rim are solid, as painted. The haze is a
             # thin band on the OUTSIDE of the cut, so only lit pixels within
-            # GLOW_HAZE of the outside fade; anything deeper is solid smoke.
-            # "Outside" means the ground, and the ground inside the curve of
-            # an arc is a ground-coloured pocket the fill never reached: a
-            # large one is ground (cleared below, and the haze beside it
-            # fades); a speck of ground colour inside the smoke is smoke.
-            nearg = solid & ~body & ~lit & (off <= TOL)
-            nn, nlab, nst, _ = cv2.connectedComponentsWithStats(nearg.astype(np.uint8), connectivity=4)
-            bigg = np.zeros((h, w), bool)
-            for j in range(1, nn):
-                if nst[j][4] > GLOW_SPECK:
-                    bigg |= nlab == j
-            solid2 = solid & ~bigg
+            # GLOW_HAZE of the outside fade; anything deeper is solid smoke
+            # (or his legs inside it, painted as dark as the ground on his
+            # redrawn kick, 2026-11-05: they are not taken for the ground
+            # inside an arc any more — the trapped-ground rule clears a
+            # pure pocket of ground, and see-through below only opens onto
+            # the ground outside).
             kh = np.ones((2 * GLOW_HAZE + 1, 2 * GLOW_HAZE + 1), np.uint8)
-            deep = cv2.erode(solid2.astype(np.uint8), kh) > 0
-            core = solid2 & ~body & deep
+            deep = cv2.erode(solid.astype(np.uint8), kh) > 0
+            core = solid & ~body & deep
             lit &= ~core
         glow_px = lit & (a < 1.0)
         # The ground seen through the field (inside its ring, past the body)
@@ -1021,13 +1022,27 @@ def cut_opaque_cell(cell, pockets=True, haze=False, narrow=0, tol=None, haze_dar
         # (see_through off: a glow whose core is as dark as the ground —
         # Cory's shadow smoke — keeps that core solid, not punched out.)
         through = solid & ~body & ~lit & (off <= TOL) & reach & (not glow_edge) & see_through
+        if glow == "violet":
+            # ...only plain ground — flat and within GLOW_THROUGH_TOL of the
+            # fit, as the ground round the figure is (off 0-1, spread under
+            # 1) — and only where it opens onto the ground outside (designer,
+            # 2026-11-05, Cory's redrawn kick: his legs inside the smoke are
+            # painted as dark as the ground, textured, and every dark fleck
+            # in them was punched out, "very spotty"). Ground between the
+            # wisps runs out to the open ground; a fleck in a leg is shut in
+            # by the leg.
+            through &= (off <= GLOW_THROUGH_TOL) & (spread <= GLOW_THROUGH_FLAT)
+            open_ = (~solid | through).astype(np.uint8)
+            ffo = np.zeros((h + 2, w + 2), np.uint8)
+            cv2.floodFill(open_, ffo, (0, 0), 2)
+            through &= open_ == 2
         out_rgb = np.where(glow_px[..., None], unblend, out_rgb)
         alpha = np.where(glow_px, np.maximum(a * 255.0, np.where(solid & ~glow_px, 255.0, 0.0)), alpha)
         alpha = np.where(lit & (a >= 1.0), 255.0, alpha)
         alpha = np.where(through, 0.0, alpha)
         alpha = np.where(core, 255.0, alpha)
         if DEBUG_MASKS is not None:   # (a dict: the stages, for a diagnostic dump)
-            DEBUG_MASKS.update(solid=solid.copy(), lit=lit.copy(), body=body.copy(), core=core.copy(),
+            DEBUG_MASKS.update(through=through.copy(), solid=solid.copy(), lit=lit.copy(), body=body.copy(), core=core.copy(),
                                off=off.copy(), top=top.copy(), alpha=alpha.copy())
     return np.dstack([out_rgb.astype(np.uint8), alpha.astype(np.uint8)])
 
