@@ -213,6 +213,22 @@ WALK_EXTRA = {
 # against the still, at the game's size. (Stephen's walks, redrawn
 # 2026-11-05, stand his height at his still poses' own drawing scale —
 # his belt orb the same size — and need none.)
+# Front and back, each hero stands in his walk board's own standing frame
+# (the walk index; 0 = the board's frame 1), at the walk's scale, so
+# nothing changes when he stops (designer, 2026-11-05: "Stephen's walking
+# north and south is slightly slimmer than his standing so there is a
+# noticeable stretch when he stops walking"). The standing boards and the
+# walk boards are different drawings of each hero: measured, every hero's
+# front or back walk was 5-20% narrower than his still pose that way. His
+# right side already stood this way ("side walks are good now"). The
+# still poses in HEROES still set each hero's scale and the walks' height.
+STILL_FROM_WALK = {
+    "stephen": {"south": 0, "north": 0},
+    "ryan": {"south": 0, "north": 0},
+    "jeremy": {"south": 0, "north": 0},
+    "cory": {"south": 0, "north": 0},
+    "brad": {"south": 0, "north": 0},
+}
 WALK_SQUEEZE = {
     "ryan": {"south": 0.88, "north": 0.88, "east": 0.92, "west": 0.92},
 }
@@ -1221,6 +1237,9 @@ def build(hero, poses):
         for i, img in enumerate(fr):
             full[(d, i)] = resample(img, wf, sq)
             soft[(d, i)] = soft_frame(img, wf, sq)
+    for d, k in STILL_FROM_WALK.get(hero, {}).items():
+        full[d] = full[(d, k)]
+        soft[d] = soft[(d, k)]
     full = {d: vibrance(f) for d, f in full.items()}
     full = tidy_palette(full)
     frames = {}
