@@ -7,7 +7,8 @@ extends SceneTree
 ##    door to Thanatos's Hall.
 ##  - Thanatos's Hall: a boss room, sealed until Thanatos falls; then open,
 ##    and remembered as cleared.
-##  - Thanatos (first pass): a boss in the Corrupted Archangel's figure —
+##  - Thanatos (first pass): a boss in his own figure (the designer's
+##    black-winged reaper; he wore the Corrupted Archangel's until it came) —
 ##    Reap, Death Bolt, Raise the Dead, Move.
 ## Run: godot --headless --path . --script tests/test_thanatos.gd
 
@@ -113,8 +114,8 @@ func _test_thanatos() -> void:
 	for a in e.actions:
 		names.append(a["name"])
 	_check(names == ["thanatos_reap", "death_bolt", "summon_skeleton", "move"], "reaps, bolts, raises the dead, moves (%s)" % [names])
-	_check(EnemyDefs.DEFS["THANATOS"]["figure_kind"] == "corrupted_archangel" and EnemyDefs.DEFS["THANATOS"]["tier"] == "Boss",
-		"a boss in the Corrupted Archangel's figure for now")
+	_check(EnemyDefs.DEFS["THANATOS"]["figure_kind"] == "thanatos" and EnemyDefs.DEFS["THANATOS"]["tier"] == "Boss",
+		"a boss in his own figure (the designer's board, 2026-11-05)")
 	e.free()
 
 func _settle(frames: int = 8) -> void:

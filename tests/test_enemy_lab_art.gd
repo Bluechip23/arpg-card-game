@@ -35,7 +35,7 @@ func _run() -> void:
 		Enemy.EnemyType.CERBERUS: "cerberus", Enemy.EnemyType.CORRUPTED_ARCHANGEL: "corrupted_archangel",
 		Enemy.EnemyType.PIT_FIEND: "pit_fiend",
 		Enemy.EnemyType.GIANT_BEAVER: "giant_beaver", Enemy.EnemyType.WYVERN: "wyvern",
-		Enemy.EnemyType.RING_WRAITH: "ring_wraith",
+		Enemy.EnemyType.RING_WRAITH: "ring_wraith", Enemy.EnemyType.THANATOS: "thanatos",
 	}
 	for t in designer:
 		var name: String = Enemy.EnemyType.keys()[t]

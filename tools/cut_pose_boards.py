@@ -2948,6 +2948,22 @@ BOARDS = {
             "right": (574, 18, 782, 320),
         },
     },
+    "thanatos": {
+        # 2026-11-05: the designer's Thanatos — a black-winged reaper in dark
+        # violet plate, red-eyed, a scythe in hand, black smoke curling round
+        # him — one row on black: his face (labelled "facing up"), his back
+        # ("facing down"), then facing left and facing right. The smoke is
+        # his: the model's matte keeps it where it is lit at all.
+        "src": "thanatos_board.webp", "bg": "grabcut", "tiles": 2.0,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 40)] for d in ("front", "back", "left", "right")},
+        "Idle": {
+            "front": (8, 2, 396, 484),
+            "back": (396, 2, 772, 484),
+            "left": (790, 2, 1160, 484),
+            "right": (1160, 2, 1534, 484),
+        },
+    },
     "cerberus": {
         # 2026-10-27: from the designer's boss trio board (boss_trio_board.webp:
         # the Corrupted Archangel, Cerberus and Hades, four labelled poses each

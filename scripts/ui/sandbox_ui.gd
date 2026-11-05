@@ -24,7 +24,7 @@ const BOSS_ROOMS := [
 	["boneyard", "The Boneyard", "Graveyard — the Bone Dragon, twelve stones, three diggers"],
 	["hellgate", "Hell's Gate", "Caves — Cerberus and Hell's Door (break the door)"],
 	["labyrinth", "The Labyrinth", "Underworld — the Inflamed Minotaur, Lost in the Labyrinth"],
-	["thanatoshall", "Thanatos's Hall", "Underworld — Thanatos (first pass: the Corrupted Archangel's figure)"],
+	["thanatoshall", "Thanatos's Hall", "Underworld — Thanatos (first pass)"],
 ]
 
 # card_id lists grouped by the character whose kit they belong to, matching
