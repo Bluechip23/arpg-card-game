@@ -1885,6 +1885,118 @@ BOARDS = {
             "width_tiles": 1.35,
         },
     },
+    "infected_hunter_hook": {
+        # 2026-11-06: the Infected Hunter's Hook — infected_hunter_hook_board.webp,
+        # a table on black of four labelled rows (NORTH its front, SOUTH its
+        # back, WEST, EAST), twelve cells a row: the stance, the hook swung
+        # back, wound up in two frames, the throw (its chain running out of
+        # the hand across the next cell to the hook), the hook pulled back,
+        # and five frames settling to the stance. Each box sits inside its
+        # cell: the chain past the hand is left out (it flies as its own
+        # sprites, a stretch of links repeated out to its prey and the hook
+        # at its end: "infected_hunter_chain" / "_hookhead" below), and the
+        # cell it crosses is skipped. Throw.png holds the throw while the
+        # chain runs out and reels its prey in; the stance is the height
+        # reference, matched to each facing's Idle.
+        "into": "infected_hunter",
+        "actions": {
+            "src": "infected_hunter_hook_board.webp",
+            "levels": (4, 16, 6),
+            "open_flat": (8, 5, 250),
+            "keep_share": 0.02,   # the hook, apart from the hand
+            "glow": False,
+            "isolate": True,
+            "isolate_floor": 14,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (80, 6, 201, 251),
+                    "swing": (205, 6, 325, 251),
+                    "wind1": (329, 6, 446, 251),
+                    "wind2": (450, 6, 571, 251),
+                    "throw": (575, 6, 695, 251),
+                    "pull": (823, 6, 954, 251),
+                    "r1": (958, 6, 1074, 251),
+                    "r2": (1078, 6, 1200, 251),
+                    "r3": (1204, 6, 1317, 251),
+                    "r4": (1321, 6, 1427, 251),
+                    "r5": (1431, 6, 1531, 251),
+                },
+                "back": {
+                    "stance": (80, 256, 201, 493),
+                    "swing": (205, 256, 325, 493),
+                    "wind1": (329, 256, 446, 493),
+                    "wind2": (450, 256, 571, 493),
+                    "throw": (575, 256, 695, 493),
+                    "pull": (823, 256, 954, 493),
+                    "r1": (958, 256, 1074, 493),
+                    "r2": (1078, 256, 1200, 493),
+                    "r3": (1204, 256, 1317, 493),
+                    "r4": (1321, 256, 1427, 493),
+                    "r5": (1431, 256, 1531, 493),
+                },
+                # The board's WEST row throws to the screen's right, away
+                # from where it faces: the EAST row, mirrored, stands in.
+                "left": {
+                    "stance": ("mirror", (80, 738, 201, 985)),
+                    "swing": ("mirror", (205, 738, 325, 985)),
+                    "wind1": ("mirror", (329, 738, 446, 985)),
+                    "wind2": ("mirror", (450, 738, 571, 985)),
+                    "throw": ("mirror", (575, 738, 695, 985)),
+                    "pull": ("mirror", (823, 738, 954, 985)),
+                    "r1": ("mirror", (958, 738, 1074, 985)),
+                    "r2": ("mirror", (1078, 738, 1200, 985)),
+                    "r3": ("mirror", (1204, 738, 1317, 985)),
+                    "r4": ("mirror", (1321, 738, 1427, 985)),
+                    "r5": ("mirror", (1431, 738, 1531, 985)),
+                },
+                "right": {
+                    "stance": (80, 738, 201, 985),
+                    "swing": (205, 738, 325, 985),
+                    "wind1": (329, 738, 446, 985),
+                    "wind2": (450, 738, 571, 985),
+                    "throw": (575, 738, 695, 985),
+                    "pull": (823, 738, 954, 985),
+                    "r1": (958, 738, 1074, 985),
+                    "r2": (1078, 738, 1200, 985),
+                    "r3": (1204, 738, 1317, 985),
+                    "r4": (1321, 738, 1427, 985),
+                    "r5": (1431, 738, 1531, 985),
+                },
+            },
+            "sheets": {
+                "Throw": ["swing", "wind1", "wind2", "throw", "throw", "throw", "throw", "pull", "r1", "r2", "r3", "r4", "r5"],
+            },
+        },
+    },
+    "infected_hunter_chain": {
+        # 2026-11-06: two links of the Hunter's chain (from the throw frame of
+        # the hook board's EAST row, cut joint to joint so it repeats without
+        # a seam). The designer: "snip and paste the chain multiple times" —
+        # ChainHook lays it end to end from his hand out to his prey. Chain.png,
+        # at the board's scale (the hunter ~227 px = 1.7 tiles).
+        "into": "infected_hunter",
+        "strip": {
+            "src": "infected_hunter_hook_board.webp", "bg": "black_key",
+            "sheet": "Chain",
+            "frames": [(716, 806, 746, 838)],
+            "trim": False, "center": True,
+            "width_px": 133, "width_tiles": 1.0,
+        },
+    },
+    "infected_hunter_hookhead": {
+        # 2026-11-06: the hook at the chain's end (the same throw frame),
+        # pointing the way it flies (right). Hook.png, at the board's scale,
+        # centred on the chain's line as Chain.png is.
+        "into": "infected_hunter",
+        "strip": {
+            "src": "infected_hunter_hook_board.webp", "bg": "black_key",
+            "sheet": "Hook",
+            "frames": [(776, 790, 824, 854)],
+            "trim": False, "center": True,
+            "width_px": 133, "width_tiles": 1.0,
+        },
+    },
     "screecher": {
         # 2026-11-04: the Screecher — a hooded wraith in a tattered,
         # moth-eaten shroud, a screaming fanged face with glowing eyes, its

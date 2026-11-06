@@ -3719,9 +3719,18 @@ func _try_hook(target_node: Node3D) -> bool:
 		var world := grid_manager.grid_to_world(dest)
 		if dungeon_manager:
 			world.y = dungeon_manager.get_elevation_world_y(dest)
-		target_node.target_position = world
-		if "is_moving" in target_node:
-			target_node.is_moving = true
+		# The chain runs out from his hand (the designer's hook board,
+		# 2026-11-06) and reels them in when the hook bites; without it they
+		# are pulled in at once.
+		var reel := 0.0
+		if _enemy_figure and _enemy_figure.has_method("throw_chain"):
+			reel = _enemy_figure.throw_chain(target_node, world, "hook")
+		if reel > 0.0:
+			swing_started.emit(self, reel)
+		else:
+			target_node.target_position = world
+			if "is_moving" in target_node:
+				target_node.is_moving = true
 	print("[%s] Hooks the target and reels them in!" % enemy_name)
 	_hook_recharge = 8  # sheet: Hook's 8 tempo — the next one needs winding again
 	turn_completed.emit()

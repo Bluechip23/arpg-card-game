@@ -162,7 +162,7 @@ const KINDS := {
 	"spirit_collector": {"sheets": SHEETS + "/spirit_collector", "scale": BOARD_SCALE, "fps": {"Cast": 10.0}, "action_sheets": {"collect_soul": "Cast", "collect_soul_out": "Cast"}, "projectiles": {"collect_soul": {"sheet": "Soul", "release": 1, "arrive": 3, "reverse": true, "fps": 12.0, "lift": 0.9, "ahead": 0.3}, "collect_soul_out": {"sheet": "Soul", "release": 4, "speed": 4.0, "fps": 12.0, "lift": 0.9, "ahead": 0.3}}},  # the designer's board (2026-10-25), and its Collect Soul board (tools/cut_pose_boards.py, 2026-11-06: Cast is the lantern raised and lifted high, a soul drawn in and swirling into it, a soul sent out; Soul the skull-headed wisp, drawn from its victim into the lantern, then sent back); was the lich pack's Lich1
 	"vampire": {"sheets": SHEETS + "/vampire", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the vampire pack's Vampires3
 	"zombie": {"sheets": SHEETS + "/zombie", "scale": BOARD_SCALE, "fps": {"Attack": 8.0}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and its attack board (2026-11-01: Attack is the reach and grab, slow); was the zombie pack's Zombie1
-	"infected_hunter": {"sheets": SHEETS + "/infected_hunter", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the zombie pack's Zombie3
+	"infected_hunter": {"sheets": SHEETS + "/infected_hunter", "scale": BOARD_SCALE, "fps": {"Throw": 10.0}, "action_sheets": {"hook": "Throw"}, "chains": {"hook": {"chain": "Chain", "hook": "Hook", "release": 3, "speed": 16.0, "lift": 1.0, "ahead": 0.4}}},  # the designer's board (2026-10-25), and its hook board (tools/cut_pose_boards.py, 2026-11-06: Throw is the hook swung back, wound up, thrown and held while the chain runs out and reels its prey in, then pulled back and settled; Chain two links and Hook the hook, laid out by ChainHook, the links repeated to its reach); was the zombie pack's Zombie3
 	"succubus": {"sheets": SHEETS + "/succubus", "scale": BOARD_SCALE, "fps": {"Cast": 10.0, "Attack": 10.0}, "action_sheets": {"mana_drain": "Cast", "damaging_snap": "Attack"}, "projectiles": {"mana_drain": {"sheet": "Orb", "release": 3, "arrive": 6, "reverse": true, "fps": 12.0, "lift": 0.95, "ahead": 0.3}, "damaging_snap": {"sheet": "Scythe", "release": 6, "speed": 7.0, "fps": 16.0, "lift": 1.1, "ahead": 0.3}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and her Mana Drain board (2026-11-04: Cast is her reaching out, curling her fingers and beckoning, the ball caught in her hand; Orb the ball of mana drawn from her victim back to her hand; and her finger snap board: Attack, her Damaging Snap, the hand raised and the snap; Scythe the spinning scythe it sends); was the chaos-monster Icon14
 	"cherub": {"sheets": SHEETS + "/cherub", "scale": BOARD_SCALE, "projectiles": {"loves_arrow": {"sheet": "Arrow", "speed": 10.0, "lift": 0.7, "ahead": 0.35, "facings": true, "centered": true}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26); was the NPC baby sheet, tinted; and its arrow board (2026-11-04: Arrow, one view a way, shot by its Love's Arrow)
 	"corrupted_archangel": {"sheets": SHEETS + "/corrupted_archangel", "scale": BOARD_SCALE},
@@ -1169,6 +1169,35 @@ func cancel_swing() -> void:
 	_swing_end_msec = 0
 	_hold_facing_msec = 0
 	_cp_play("Walk" if _walking else "Idle", true)
+
+
+## Throw `action`'s chain (the kind's "chains" by action: the Infected
+## Hunter's Hook, Chain.png and Hook.png beside his sheets) at `victim`: it
+## leaves the hand on the action sheet's "release" frame, runs out to them,
+## reels them in to `dest` (their target_position: in their parent's space)
+## and comes home (see ChainHook). Returns
+## the seconds until it is home, 0 when the action throws no chain — then
+## the caller moves the victim itself.
+func throw_chain(victim: Node3D, dest: Vector3, action: String) -> float:
+	var cfg: Dictionary = KINDS.get(figure_kind, {})
+	var ch: Dictionary = cfg.get("chains", {}).get(action, {})
+	var chain_path := "%s/%s.png" % [_sheet_folder, ch.get("chain", "")]
+	var hook_path := "%s/%s.png" % [_sheet_folder, ch.get("hook", "")]
+	if ch.is_empty() or _sheet_folder == "" or not ResourceLoader.exists(chain_path) or not ResourceLoader.exists(hook_path):
+		return 0.0
+	var release := 0.0
+	var sheet: String = cfg.get("action_sheets", {}).get(action, "")
+	if sheet != "" and _cp_anim == sheet:
+		var fps: float = _cp_fps.get(sheet, 8.0)
+		release = maxf(0.0, (float(ch.get("release", 0)) - float(_cp_frame)) / fps - _cp_clock)
+	var c := ChainHook.new()
+	var host: Node = get_parent().get_parent() if get_parent() and get_parent().get_parent() else get_parent()
+	host.add_child(c)
+	var gutter := 8 if smooth else 0      # SMOOTH_GUTTER under the smooth strips' art
+	c.launch(load(chain_path), load(hook_path), _sprite.pixel_size * _rig.scale.x, gutter, smooth,
+			get_parent() as Node3D, victim, dest, release, float(ch.get("speed", 16.0)),
+			float(ch.get("lift", 1.0)), float(ch.get("ahead", 0.4)))
+	return c.total_time()
 
 
 ## A strip's square cell side: one row unless `frames` (a long strip packed
