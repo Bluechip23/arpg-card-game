@@ -3995,8 +3995,29 @@ func _try_crawler_web(target_node: Node3D) -> bool:
 		if deck:
 			deck.add_card_to_hand(Card.create_by_id("paralysis"))
 			print("[%s] Webs its prey — Paralysis added to the hand!" % enemy_name)
+	_web_art_at(target_node)
 	turn_completed.emit()
 	return true
+
+## The corpse on its back rises and throws a ball of web (the designer's
+## board, 2026-11-06); where it lands the web is strung about its victim's
+## feet, and stays while they hold the Paralysis card. The tick clock waits
+## for the ball to land.
+func _web_art_at(target_node: Node3D) -> void:
+	if _enemy_figure == null or not _enemy_figure.has_method("throw_projectile") or not is_instance_valid(target_node):
+		return
+	var lands: float = _enemy_figure.throw_projectile(target_node.global_position, "web")
+	var done := lands
+	_enemy_figure.last_spot = null
+	var spread: float = _enemy_figure.spot_effect(target_node.global_position, "web", lands, true)
+	var fx = _enemy_figure.last_spot
+	if spread > 0.0 and fx is SpotEffect:
+		var victim: Node3D = target_node
+		fx.hold_while = func() -> bool:
+			return is_instance_valid(victim) and _hand_has_card_id(victim, "paralysis")   # (the crawler gone: the web goes too)
+		done = maxf(done, spread)
+	if done > 0.0:
+		swing_started.emit(self, done)
 
 ## --- Spirit Collector ---
 

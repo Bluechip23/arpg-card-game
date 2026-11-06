@@ -1783,6 +1783,98 @@ BOARDS = {
             "width_tiles": 0.9,
         },
     },
+    "crypt_crawler_web": {
+        # 2026-11-06: the Crypt Crawler's Web — crypt_crawler_web_board.webp,
+        # a table on black of four labelled rows (NORTH its front, SOUTH its
+        # back, WEST, EAST), eight frames a row: the stance, the corpse on its
+        # back rising out of the grave in three frames, a ball of web in its
+        # hand, the throw, the ball alone in flight (left out: the ball flies
+        # as its own sprite; on the side rows the corpse has sunk again
+        # there), and the corpse roaring. Each box sits inside its table
+        # cell. Throw.png runs the rise, the hold, the throw and the roar,
+        # then the rise backwards so the corpse sinks into the grave again;
+        # the stance is the height reference, matched to each facing's Idle.
+        "into": "crypt_crawler",
+        "actions": {
+            "src": "crypt_crawler_web_board.webp",
+            # cut as the Demon's boards are: its legs and back are painted
+            # nearly as dark as the backdrop
+            "levels": (1, 12, 2),
+            "open_flat": (5, 5, 250),
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (94, 3, 268, 249),
+                    "rise1": (274, 3, 453, 249),
+                    "rise2": (459, 3, 636, 249),
+                    "rise3": (642, 3, 821, 249),
+                    "hold": (827, 3, 1005, 249),
+                    "throw": (1011, 3, 1191, 249),
+                    "roar": (1356, 3, 1533, 249),
+                },
+                "back": {
+                    "stance": (94, 255, 268, 507),
+                    "rise1": (274, 255, 453, 507),
+                    "rise2": (459, 255, 636, 507),
+                    "rise3": (642, 255, 821, 507),
+                    "hold": (827, 255, 1005, 507),
+                    "throw": (1011, 255, 1191, 507),
+                    "roar": (1356, 255, 1533, 507),
+                },
+                "left": {
+                    "stance": (94, 513, 269, 752),
+                    "rise1": (275, 513, 452, 752),
+                    "rise2": (458, 513, 634, 752),
+                    "rise3": (640, 513, 817, 752),
+                    "hold": (823, 513, 998, 752),
+                    "throw": (1004, 513, 1179, 752),
+                    "roar": (1362, 513, 1533, 752),
+                },
+                "right": {
+                    "stance": (94, 758, 269, 982),
+                    "rise1": (275, 758, 452, 982),
+                    "rise2": (458, 758, 634, 982),
+                    "rise3": (640, 758, 817, 982),
+                    "hold": (823, 758, 998, 982),
+                    "throw": (1004, 758, 1179, 982),
+                    "roar": (1362, 758, 1533, 982),
+                },
+            },
+            "sheets": {
+                "Throw": ["rise1", "rise2", "rise3", "hold", "throw", "roar", "rise2", "rise1"],
+            },
+        },
+    },
+    "crypt_crawler_ball": {
+        # 2026-11-06: the ball of web the Crypt Crawler throws (the left half
+        # of crypt_crawler_web_art.webp: a knot of web trailing strands,
+        # flying right, already cut out). Ball.png, 0.75 tiles long.
+        "into": "crypt_crawler",
+        "strip": {
+            "src": "crypt_crawler_web_art.webp",
+            "keep_alpha": True,
+            "sheet": "Ball",
+            "frames": [(20, 275, 830, 605)],
+            "width_tiles": 0.75,
+        },
+    },
+    "crypt_crawler_webart": {
+        # 2026-11-06: the web the ball makes where it lands (the right half
+        # of crypt_crawler_web_art.webp: a web strung between a cross, a
+        # headstone and bone posts, a skull at its heart, moss hanging).
+        # Web.png, 1.35 tiles across, held on its victim's square while they
+        # are paralysed.
+        "into": "crypt_crawler",
+        "strip": {
+            "src": "crypt_crawler_web_art.webp",
+            "keep_alpha": True,
+            "sheet": "Web",
+            "frames": [(935, 18, 1765, 872)],
+            "width_tiles": 1.35,
+        },
+    },
     "screecher": {
         # 2026-11-04: the Screecher — a hooded wraith in a tattered,
         # moth-eaten shroud, a screaming fanged face with glowing eyes, its
