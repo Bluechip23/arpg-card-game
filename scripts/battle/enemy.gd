@@ -5098,14 +5098,72 @@ func _try_mimic(_target_node: Node3D) -> bool:
 	var main := get_parent()
 	if not main or not ("enemy_spawner" in main) or not main.enemy_spawner:
 		return false
-	var m: Enemy = main.enemy_spawner.spawn_enemy(EnemyType.DEMON, _free_cell_near(position, 2))
+	# It tears in two side by side (the designer's board, 2026-11-06): the
+	# copy steps out onto the square beside it, east or west, when one is
+	# free; else anywhere near, as before, with no split to show.
+	var side = _mimic_side_cell()
+	var spot: Vector3 = _free_cell_near(position, 2)
+	if side != null:
+		spot = grid_manager.grid_to_world(side)
+		if dungeon_manager:
+			spot.y = dungeon_manager.get_elevation_world_y(side)
+	var m: Enemy = main.enemy_spawner.spawn_enemy(EnemyType.DEMON, spot)
 	if m == null:
 		return false
 	m.become_mimic_of(self)
 	_mimics.append(m)
+	var here := position
+	# Which of the two is the real one is a coin toss (designer): half the
+	# time the demon itself is the one that stepped out.
+	if randf() < 0.5:
+		_land_at(m.position)
+		m._land_at(here)
+	if side != null:
+		_play_mimic_split(m, here, spot)
 	print("[%s] Mimic: a second demon steps out of the first (%d of %d)" % [enemy_name, _mimics.size(), MIMIC_CAP])
 	turn_completed.emit()
 	return true
+
+## The free square beside the demon on screen (east or west, the board's
+## split runs sideways), either side first at random; null when neither is.
+func _mimic_side_cell() -> Variant:
+	if grid_manager == null:
+		return null
+	var base := grid_manager.world_to_grid(position)
+	var sides := [Vector2i(1, 0), Vector2i(-1, 0)]
+	if randf() < 0.5:
+		sides.reverse()
+	for d in sides:
+		if _cell_is_free(base + d):
+			return base + d
+	return null
+
+## The split itself: both figures hidden while the board plays midway
+## between the two squares (the one demon raising its trident, the red power,
+## the tearing in two), then the two demons stand where it left them (and
+## turn to their prey as ever). The tick clock waits for it, as for a swing.
+func _play_mimic_split(m: Enemy, a: Vector3, b: Vector3) -> void:
+	if _enemy_figure == null or not _enemy_figure.has_method("spot_effect"):
+		return
+	var mid := (a + b) * 0.5
+	if get_parent() is Node3D:
+		mid = (get_parent() as Node3D).to_global(mid)
+	var secs: float = _enemy_figure.spot_effect(mid, "mimic", -1.0, true)
+	if secs <= 0.0:
+		return
+	var fx: Node = _enemy_figure.last_spot
+	var figs: Array = [_enemy_figure]
+	if m._enemy_figure:
+		figs.append(m._enemy_figure)
+	for f in figs:
+		f.visible = false
+	swing_started.emit(self, secs)
+	get_tree().create_timer(secs).timeout.connect(func():
+		for f in figs:
+			if is_instance_valid(f):
+				f.visible = true
+		if is_instance_valid(fx):
+			fx.queue_free())
 
 func _prune_mimics() -> void:
 	_mimics = _mimics.filter(func(m): return m != null and is_instance_valid(m) and m.is_alive())

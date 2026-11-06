@@ -1557,6 +1557,43 @@ BOARDS = {
             "right": (1129, 155, 1398, 826),
         },
     },
+    "demon_mimic": {
+        # 2026-11-06: the Demon's Mimic — demon_mimic_board.jpg, eight panels
+        # on black, the front view only: it stands, raises its trident, red
+        # power rings the trident and runs through its body, it tears in two
+        # (red strands between the halves), the strands part, and two demons
+        # stand side by side. One strip, Mimic.png, played on the ground
+        # midway between the demon and its new copy while both figures are
+        # hidden (Enemy._try_mimic): each box is centred on the demon's belt
+        # (the pair's midpoint once it splits), so the split keeps the
+        # board's spacing. Scaled so its horns-to-feet (322 board px) stand
+        # as tall as the Idle's (1.79 tiles).
+        "into": "demon",
+        "strip": {
+            "src": "demon_mimic_board.jpg", "bg": "black_glow",
+            "levels": (2, 16, 4),
+            "open_flat": (6, 5, 250),
+            "keep_share": 0.05,     # the second demon, once apart
+            "trim": False,
+            "sheet": "Mimic",
+            "frames": [
+                (-3, 0, 467, 421),
+                (433, 0, 903, 421),
+                (873, 0, 1343, 421),
+                (1279, 0, 1749, 421),
+                (0, 437, 470, 858),
+                (427, 437, 897, 858),
+                (875, 437, 1345, 858),
+                (1316, 437, 1786, 858),
+            ],
+            # the rings of red power about the trident, above its head and
+            # hand (frames 3 and 4)
+            "soft_boxes": {2: [(1015, 0, 1250, 70), (1015, 70, 1160, 88), (1200, 70, 1250, 88)],
+                           3: [(1470, 0, 1705, 72), (1470, 72, 1610, 88), (1645, 72, 1705, 88)]},
+            "clips": [(69, 354), (528, 802), (957, 1245), (1389, 1686), (42, 388), (462, 858), (888, 1299), (1324, 1749)],
+            "width_px": 322, "width_tiles": 1.79,
+        },
+    },
     "screecher": {
         # 2026-11-04: the Screecher — a hooded wraith in a tattered,
         # moth-eaten shroud, a screaming fanged face with glowing eyes, its
@@ -4520,7 +4557,7 @@ ACTION_ROWS = ["left", "right"]   # the rows of an action sheet (SpriteEnemyFigu
 def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep_share: float = 0.0,
                     fill_holes: bool = False, levels=None, glow: bool = True,
                     open_dark: bool = False, shadow_lum: float = 0.0, matte=None,
-                    open_flat=None) -> Image.Image:
+                    open_flat=None, trim: bool = True) -> Image.Image:
     """One figure and the glow of its attack on pure black (the werewolf's
     slash board): alpha from brightness as the black key does, the dim
     glow of the slash arcs kept soft and un-darkened, then only the
@@ -4623,6 +4660,8 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
     col = np.clip(rgb / a, 0, 255)
     col = np.where(alpha[..., None] > 0, col, 0)
     rgba = np.dstack([col, alpha * 255.0]).round().astype(np.uint8)
+    if not trim:
+        return Image.fromarray(rgba, "RGBA")   # the whole box (a strip that keeps its frames' places)
     ys, xs = np.nonzero(rgba[..., 3] > 0)
     return Image.fromarray(rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
 
@@ -5088,7 +5127,46 @@ def build_strip(name: str, cfg: dict) -> None:
     st = cfg["strip"]
     board = Image.open(SRC % st["src"]).convert("RGBA")
     raw = []
-    for box in st["frames"]:
+    for fi, box in enumerate(st["frames"]):
+        if st.get("bg") == "black_glow":
+            # A strip of the creature itself on black (the Demon's Mimic: it
+            # raises its trident and splits in two), cut as the pose boards
+            # on black are — near-black paint kept solid (`open_flat`), the
+            # red glow kept soft — each frame its whole box, so the frames
+            # keep their places. `clips`: the board columns a frame's art
+            # spans; what a neighbouring panel reaches into its box is
+            # blanked first.
+            rgb = np.asarray(board.convert("RGB").crop(box)).astype(int)
+            if st.get("clips"):
+                cx0, cx1 = st["clips"][fi]
+                rgb[:, :max(0, cx0 - box[0])] = 0
+                rgb[:, max(0, cx1 - box[0]):] = 0
+            f = _cut_black_glow(rgb, (), 0.0, st.get("keep_share", 0.0), st.get("fill_holes", False),
+                                st.get("levels"), True, st.get("open_dark", False),
+                                open_flat=st.get("open_flat"), trim=False)
+            # `soft_boxes`: board boxes, by frame, where a glow is painted on
+            # black (the red power ringing the Demon's trident). The levels
+            # that keep its near-black paint solid would make the glow an
+            # opaque dark smear: there its red pixels take their alpha from
+            # their brightness, softly, in their full colour. Its colour is
+            # the skin's too, so only these boxes are softened.
+            sb = st.get("soft_boxes", {}).get(fi, ())
+            if sb:
+                fa = np.asarray(f).astype(float)
+                lum = rgb.max(axis=2).astype(float)
+                red = np.maximum(rgb[..., 1], rgb[..., 2]) < 0.7 * rgb[..., 0]
+                soft_a = np.clip((lum - 2.0) / 150.0, 0.0, 1.0)
+                for x0, y0, x1, y1 in sb:
+                    m = np.zeros(lum.shape, bool)
+                    m[max(0, y0 - box[1]):max(0, y1 - box[1]), max(0, x0 - box[0]):max(0, x1 - box[0])] = True
+                    m &= red & (fa[..., 3] > 0)
+                    a_new = np.minimum(fa[..., 3] / 255.0, soft_a)
+                    fa[..., 3][m] = a_new[m] * 255.0
+                    col = np.clip(rgb / np.maximum(a_new, 1e-6)[..., None], 0, 255)
+                    fa[..., :3][m] = col[m]
+                f = Image.fromarray(fa.round().astype(np.uint8), "RGBA")
+            raw.append(f)
+            continue
         if st.get("bg") == "black_key":
             # A strip on black (the Rat King's Infest smoke): cut by
             # brightness, soft alpha, every lit piece kept; padded back to
