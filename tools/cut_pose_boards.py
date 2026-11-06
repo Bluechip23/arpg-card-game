@@ -1537,6 +1537,26 @@ BOARDS = {
             "frames": [(686, 775, 1144, 930), (110, 775, 570, 930), (275, 115, 420, 530), (835, 128, 994, 540)],
         },
     },
+    "demon": {
+        # 2026-11-06: the Demon — red-skinned, horned and fanged, a trident
+        # hung with red ribbons, one horned pauldron, a ragged red-and-black
+        # sash, a barbed tail — four unlabelled poses on black: front, back,
+        # facing left, facing right. Replaced the Craftpix pack's Demon1.
+        "src": "demon_board.webp", "bg": "black_glow", "tiles": 1.9,
+        # Its hair, breeches and sash are painted nearly black, and the
+        # board's backdrop is 0 to 4 (the compression's ringing): the levels
+        # sit just above it, and a pocket is open only when it is big and
+        # flat black (`open_flat`: between the legs and arms, inside the
+        # trident's prongs) — the dark paint's pockets are small or speckled.
+        "levels": (1, 12, 2),
+        "open_flat": (5, 5, 250),
+        "Idle": {
+            "front": (18, 150, 402, 826),
+            "back": (462, 150, 806, 826),
+            "left": (842, 155, 1110, 826),
+            "right": (1129, 155, 1398, 826),
+        },
+    },
     "screecher": {
         # 2026-11-04: the Screecher — a hooded wraith in a tattered,
         # moth-eaten shroud, a screaming fanged face with glowing eyes, its
@@ -4499,7 +4519,8 @@ ACTION_ROWS = ["left", "right"]   # the rows of an action sheet (SpriteEnemyFigu
 
 def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep_share: float = 0.0,
                     fill_holes: bool = False, levels=None, glow: bool = True,
-                    open_dark: bool = False, shadow_lum: float = 0.0, matte=None) -> Image.Image:
+                    open_dark: bool = False, shadow_lum: float = 0.0, matte=None,
+                    open_flat=None) -> Image.Image:
     """One figure and the glow of its attack on pure black (the werewolf's
     slash board): alpha from brightness as the black key does, the dim
     glow of the slash arcs kept soft and un-darkened, then only the
@@ -4540,7 +4561,22 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
     # Dark paint inside the body (shaded fur) is solid, but the black the
     # slash arc closes in against the chest is the board: only small
     # enclosed pockets are filled.
-    if fill_holes is not True:
+    if open_flat:
+        # `open_flat` (lum_max, k, min_area): the Demon's hair, breeches and
+        # sash are painted as near-black as its backdrop, so brightness alone
+        # cannot tell a pocket of paint from one of backdrop. The backdrop's
+        # pockets (between its legs, inside the trident's prongs) are big
+        # and hold a flat patch, at least k px across, no brighter than
+        # lum_max; the paint's are small or speckled. Only those stay open.
+        lum_max, k, min_area = open_flat
+        flat = cv2.morphologyEx((lum <= lum_max).astype(np.uint8), cv2.MORPH_OPEN,
+                                np.ones((k, k), np.uint8)).astype(bool)
+        holes = (filled & (1 - body)).astype(np.uint8)
+        hn, hlab, hst, _ = cv2.connectedComponentsWithStats(holes, connectivity=4)
+        for i in range(1, hn):
+            if hst[i, cv2.CC_STAT_AREA] >= min_area and flat[hlab == i].any():
+                filled[hlab == i] = 0
+    elif fill_holes is not True:
         # Small pockets are always the figure's; a bigger one only when
         # `fill_holes` is a brightness and the pocket is painted brighter
         # than that (the skeleton's cloak folds: the backdrop between his
@@ -5217,7 +5253,8 @@ def build(name: str, cfg: dict) -> None:
                         band = rgb[y0:]
                         band[band.max(axis=2) < lum_max] = 0
                     full[anim][d] = _cut_black_glow(rgb, (), 0.0, 0.0, cfg.get("fill_holes", False),
-                                                    cfg.get("levels"), False, cfg.get("open_dark", False))
+                                                    cfg.get("levels"), False, cfg.get("open_dark", False),
+                                                    open_flat=cfg.get("open_flat"))
                     continue
                 full[anim][d] = cut(board, box, bg_kind, fg_hints,
                                     cfg.get("sat_grow", 0), cfg.get("snow", False),

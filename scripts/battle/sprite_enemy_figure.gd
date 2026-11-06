@@ -127,7 +127,7 @@ const KINDS := {
 	"granite_colossus": {"sheets": SHEETS + "/granite_colossus", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25); was the golem pack's Golem1
 	"grave_titan": {"sheets": SHEETS + "/grave_titan", "scale": BOARD_SCALE, "fps": {"Attack": 8.0, "Throw": 8.0}, "action_sheets": {"boulder_roll": "Throw"}, "projectiles": {"boulder_roll": {"sheet": "Boulder", "release": 4, "speed": 4.0, "fps": 12.0}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and his smash board (2026-11-03: Attack is the lift, the boulder overhead, the swing down, the impact and the recovery); was the golem pack's Golem2
 	"inflamed_minotaur": {"sheets": SHEETS + "/inflamed_minotaur", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
-	"demon": {"cp": "demons/Demon1", "scale": 0.85},
+	"demon": {"sheets": SHEETS + "/demon", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-11-06: the red trident-bearer, front, back, left, right); was the Craftpix pack's Demon1
 	"pit_fiend": {"sheets": SHEETS + "/pit_fiend", "scale": BOARD_SCALE},  # the designer's new board, stills (tools/cut_pose_boards.py, 2026-10-28)
 	"bugbear": {"sheets": SHEETS + "/bugbear", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's board (2026-10-25), and its strike board (tools/cut_pose_boards.py, 2026-11-06: Attack is the quick jab with its free fist, the shift, the mace wound up, the heavy swing with its arc, the follow-through and the recovery, for its Strike); was the gnoll pack's Gnoll2
 	"ifrit": {"sheets": SHEETS + "/ifrit", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
