@@ -4014,6 +4014,10 @@ func _try_collect_soul(target_node: Node3D) -> bool:
 	if is_disarmed or not _in_attack_range(target_node):
 		return _try_move(target_node)
 	_deal_damage_to_player(target_node, attack_damage + strengthen_stacks, "Collect Soul")
+	# He raises the lantern: a soul is drawn out of the victim into it, then
+	# one is sent back out to them (the designer's board, 2026-11-06).
+	_throw_at(target_node, "collect_soul")
+	_throw_at(target_node, "collect_soul_out")
 	if target_node.has_method("get_deck_manager"):
 		var deck = target_node.get_deck_manager()
 		if deck:

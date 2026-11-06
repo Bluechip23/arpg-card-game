@@ -1701,6 +1701,88 @@ BOARDS = {
             },
         },
     },
+    "spirit_collector_collect": {
+        # 2026-11-06: the Spirit Collector's Collect Soul —
+        # spirit_collector_collect_board.webp, four unlabelled rows on black
+        # (its front, its back, facing left, facing right), six frames a row:
+        # the stance, the lantern raised, lifted high, a soul drawn in, the
+        # soul swirling into the lantern, a soul sent out. The souls painted
+        # flying in the drain and send frames are left out (only the figure,
+        # its biggest piece, is kept): the soul flies as its own sprite,
+        # Soul.png (below), from its victim into the lantern and back.
+        # Cast.png; the stance is the height reference, matched to each
+        # facing's Idle.
+        "into": "spirit_collector",
+        "actions": {
+            "src": "spirit_collector_collect_board.webp",
+            # cut as the Demon's boards are: his black coat is painted as
+            # dark as the backdrop
+            "levels": (1, 12, 2),
+            "open_flat": (5, 5, 250),
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            # the lantern's light stays a soft cyan glow
+            "soft_glow": {"poses": ["stance", "raise", "lift", "drain", "swirl", "send"], "cyan": True},
+            # the souls painted flying (their glow touches the lantern's), in
+            # each box's own pixels: the flying sprite replaces them
+            "bg_boxes": {("front", "drain"): [(0, 40, 118, 130)], ("front", "send"): [(0, 95, 92, 200)],
+                         ("back", "drain"): [(0, 53, 110, 123)], ("back", "send"): [(232, 105, 276, 193)],
+                         ("left", "drain"): [(0, 40, 96, 115)], ("left", "send"): [(0, 80, 84, 160)],
+                         ("right", "drain"): [(0, 40, 110, 120)], ("right", "send"): [(216, 55, 276, 150)]},
+            "frames": {
+                "front": {
+                    "stance": (40, 0, 270, 247),
+                    "raise": (270, 0, 530, 247),
+                    "lift": (530, 0, 734, 247),
+                    "drain": (734, 0, 1030, 247),
+                    "swirl": (1030, 0, 1260, 247),
+                    "send": (1260, 0, 1536, 247),
+                },
+                "back": {
+                    "stance": (40, 247, 270, 503),
+                    "raise": (270, 247, 530, 503),
+                    "lift": (530, 247, 734, 503),
+                    "drain": (734, 247, 1030, 503),
+                    "swirl": (1030, 247, 1260, 503),
+                    "send": (1260, 247, 1536, 503),
+                },
+                "left": {
+                    "stance": (40, 503, 270, 760),
+                    "raise": (270, 503, 530, 760),
+                    "lift": (530, 503, 734, 760),
+                    "drain": (734, 503, 1030, 760),
+                    "swirl": (1030, 503, 1260, 760),
+                    "send": (1260, 503, 1536, 760),
+                },
+                "right": {
+                    "stance": (40, 760, 270, 1015),
+                    "raise": (270, 760, 530, 1015),
+                    "lift": (530, 760, 734, 1015),
+                    "drain": (734, 760, 1030, 1015),
+                    "swirl": (1030, 760, 1260, 1015),
+                    "send": (1260, 760, 1536, 1015),
+                },
+            },
+            "sheets": {
+                "Cast": ["raise", "lift", "drain", "swirl", "send"],
+            },
+        },
+    },
+    "spirit_collector_soul": {
+        # 2026-11-06: the soul the Spirit Collector draws from its victim and
+        # sends back — spirit_collector_soul.png, one cyan skull-headed wisp
+        # trailing tendrils, flying right, already cut out (soft alpha kept).
+        # Soul.png in its folder, 0.9 tiles long.
+        "into": "spirit_collector",
+        "strip": {
+            "src": "spirit_collector_soul.png",
+            "keep_alpha": True,
+            "sheet": "Soul",
+            "frames": [(120, 380, 1135, 835)],
+            "width_tiles": 0.9,
+        },
+    },
     "screecher": {
         # 2026-11-04: the Screecher — a hooded wraith in a tattered,
         # moth-eaten shroud, a screaming fanged face with glowing eyes, its
@@ -4763,8 +4845,7 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
         # Demon's trident head): the levels that keep near-black paint solid
         # would make its red halo an opaque dark disc, so there its red
         # pixels take a soft alpha from their brightness, in full colour.
-        red = np.maximum(rgb[..., 1], rgb[..., 2]) < 0.75 * rgb[..., 0]
-        m = soft_mask & red & (alpha > 0)
+        m = soft_mask & (alpha > 0)
         alpha[m] = np.minimum(alpha, np.clip((lum - 2.0) / 150.0, 0.0, 1.0))[m]
     if matte is not None:
         # `matte_union`: what the model matte calls figure is solid, in the
@@ -4783,19 +4864,26 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
 
 def _glow_mask(rgb: np.ndarray, act: dict, pose: str):
     """`soft_glow` {"poses": [...], "core": lum, "pad": px, "top": share}: on
-    those poses, the ground about the glow's bright core (pixels at least
-    `core` bright in the box's top `share`, grown by `pad`) where its halo is
-    soft (see _cut_black_glow); None
+    those poses, the red pixels about the glow's bright core (pixels at least
+    `core` bright in the box's top `share`, grown by `pad`), whose halo is
+    made soft; or, with "cyan": True, every cyan pixel (see _cut_black_glow); None
     elsewhere."""
     sg = act.get("soft_glow")
     if not sg or pose not in sg["poses"]:
         return None
+    if sg.get("cyan"):
+        # A cyan glow (the Spirit Collector's lantern of souls): no other
+        # paint on him is cyan, so its colour alone marks it, wherever it is.
+        # Its faintest halo is barely tinted, but tinted all the same (the
+        # coat's darks are brown or grey, never cyan).
+        return np.minimum(rgb[..., 1], rgb[..., 2]) >= rgb[..., 0] + 2
     core = (rgb.max(axis=2) >= sg["core"]).astype(np.uint8)
     core[int(core.shape[0] * sg.get("top", 1.0)):] = 0   # the glow is up there; the armour's highlights are lower
     if not core.any():
         return None
     k = 2 * int(sg["pad"]) + 1
-    return cv2.dilate(core, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))).astype(bool)
+    near = cv2.dilate(core, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))).astype(bool)
+    return near & (np.maximum(rgb[..., 1], rgb[..., 2]) < 0.75 * rgb[..., 0])   # its red halo only
 
 
 def _fade_edge(img: Image.Image, side: str, px: int) -> Image.Image:
@@ -5315,9 +5403,12 @@ def build_strip(name: str, cfg: dict) -> None:
             raw.append(f)
             continue
         f = board.crop(box)
-        a = np.asarray(f).copy()
-        a[..., 3] = np.where(a[..., 3] >= 128, 255, 0)   # the board's faint haze goes
-        f = Image.fromarray(a, "RGBA")
+        if not st.get("keep_alpha"):
+            # the board's faint haze goes (`keep_alpha`: a wisp drawn soft
+            # keeps its soft alpha — the Spirit Collector's flying soul)
+            a = np.asarray(f).copy()
+            a[..., 3] = np.where(a[..., 3] >= 128, 255, 0)
+            f = Image.fromarray(a, "RGBA")
         raw.append(f)
     # Trimmed to each frame's art; with `align` "board" every frame keeps the
     # rows they span together, so a ball flying level doesn't bob as its
