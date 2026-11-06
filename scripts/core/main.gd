@@ -1002,6 +1002,22 @@ func _update_move_path_cursor() -> void:
 	var route := player.preview_path_cells(target_world, ROUTE_BUDGET)
 	move_path_cursor.show_path(target_cell, route, preview_move_tempo(route))
 
+## An Air Totem's vortex (designer, 2026-11-06: "enemies of the Air Mage
+## have their movement decreased by 4 - N where N equals the number of spaces
+## away from the vortex"): the extra tempo a tile moved from `cell` costs —
+## a step is 1 tempo, so -1 movement is +1 tempo a tile — 3 beside a totem,
+## 2 at two squares, 1 at three. The strongest totem counts, not their sum.
+## Paid like climbing: on top of the step, flash and free tiles or not.
+func vortex_drag(cell: Vector2i) -> int:
+	if enemy_spawner == null or grid_manager == null:
+		return 0
+	var best := 0
+	for e in enemy_spawner.get_living_enemies():
+		if e.enemy_type == Enemy.EnemyType.AIR_TOTEM:
+			var n: int = grid_manager.get_distance_in_cells(grid_manager.grid_to_world(cell), e.position)
+			best = maxi(best, Enemy.TOTEM_VORTEX - n)
+	return best
+
 ## The tempo a walk along `route` would cost the active character, tile by
 ## tile as the move itself charges it (_on_player_tile_reached and
 ## TempoManager.add_movement_tempo): squeezing past an enemy +2, climbing
@@ -1030,6 +1046,7 @@ func preview_move_tempo(route: Array) -> int:
 			total += 2
 		if dungeon_manager:
 			total += maxi(0, dungeon_manager.get_elevation(cell) - dungeon_manager.get_elevation(prev))
+		total += vortex_drag(prev)
 		if free_tiles > 0:
 			free_tiles -= 1
 		elif stats.flash_movement_enabled and flash >= flash_cost:
@@ -3916,6 +3933,13 @@ func _on_player_tile_reached(mover: Player = null) -> void:
 			tempo_manager.add_tempo(climb_cost)
 			add_battle_log("Climbing! +%d tempo" % climb_cost, Color(0.8, 0.7, 0.4))
 			print("[MAIN] Climbing penalty: +%d tempo (elev %d -> %d)" % [climb_cost, prev_elev, curr_elev])
+	# An Air Totem's vortex: each tile moved within it costs 4 - N extra
+	# tempo, N the squares between the tile stepped from and the totem.
+	if _player_last_grid_cell.x >= 0 and _player_last_grid_cell != player_cell:
+		var drag := vortex_drag(_player_last_grid_cell)
+		if drag > 0:
+			tempo_manager.add_tempo(drag)
+			add_battle_log("The vortex drags at you! +%d tempo" % drag, Color(0.6, 0.85, 1.0))
 	var _vacated_cell := _player_last_grid_cell
 	_player_last_grid_cell = player_cell
 	# A rescued NPC follows one tile behind, onto the tile just vacated.
@@ -10345,7 +10369,7 @@ func _update_skeletons(amount: int) -> void:
 		s.move_accum += amount
 		var cur: Vector2i = s.get_destination_cell()
 		var start_cell := cur
-		var cost: int = s.move_interval * s.move_cost_mult()   # Slowed: each move costs more
+		var cost: int = s.move_interval * s.move_cost_mult() + vortex_drag(cur)   # Slowed: each move costs more; an Air Totem's vortex drags
 		while s.move_accum >= cost:
 			s.move_accum -= cost
 			var stopped := false
