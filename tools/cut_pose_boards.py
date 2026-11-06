@@ -1784,66 +1784,76 @@ BOARDS = {
         },
     },
     "crypt_crawler_web": {
-        # 2026-11-06: the Crypt Crawler's Web — crypt_crawler_web_board.webp,
-        # a table on black of four labelled rows (NORTH its front, SOUTH its
-        # back, WEST, EAST), eight frames a row: the stance, the corpse on its
-        # back rising out of the grave in three frames, a ball of web in its
-        # hand, the throw, the ball alone in flight (left out: the ball flies
-        # as its own sprite; on the side rows the corpse has sunk again
-        # there), and the corpse roaring. Each box sits inside its table
-        # cell. Throw.png runs the rise, the hold, the throw and the roar,
-        # then the rise backwards so the corpse sinks into the grave again;
-        # the stance is the height reference, matched to each facing's Idle.
+        # 2026-11-06: the Crypt Crawler's Web — crypt_crawler_web_board_v5.webp
+        # (the designer's fifth pass, drawn to match its idle board's spider;
+        # the first four are kept beside it), four unlabelled rows on black
+        # (its front, its back, facing left, facing right), eight frames a
+        # row: the stance, the corpse on its back rising in two frames,
+        # pulling strands of web from the spider, gathering them into a ball
+        # over its head, the throw, the corpse sunk again as the ball flies
+        # (the painted ball, apart from the spider, is left out: it flies as
+        # its own sprite), and the stance. Throw.png runs the seven frames
+        # after the stance; the stance is the height reference, matched to
+        # each facing's Idle.
         "into": "crypt_crawler",
         "actions": {
-            "src": "crypt_crawler_web_board.webp",
+            "src": "crypt_crawler_web_board_v5.webp",
             # cut as the Demon's boards are: its legs and back are painted
             # nearly as dark as the backdrop
-            "levels": (1, 12, 2),
-            "open_flat": (5, 5, 250),
+            "levels": (4, 16, 6),
+            "open_flat": (8, 5, 250),
             "glow": False,
             "isolate": True,
+            "isolate_floor": 14,   # its frames' faint fringes touch: they are told apart on what is lit
+            # the ball painted in flight, its strands still tied to the
+            # spider (in each box's own pixels): the flying sprite replaces it
+            "bg_boxes": {("front", "flight"): [(112, 55, 178, 100)], ("back", "flight"): [(122, 38, 182, 82)],
+                         ("left", "flight"): [(0, 55, 47, 95)], ("right", "flight"): [(0, 55, 42, 95)]},
             "match": "stance",
             "frames": {
                 "front": {
-                    "stance": (94, 3, 268, 249),
-                    "rise1": (274, 3, 453, 249),
-                    "rise2": (459, 3, 636, 249),
-                    "rise3": (642, 3, 821, 249),
-                    "hold": (827, 3, 1005, 249),
-                    "throw": (1011, 3, 1191, 249),
-                    "roar": (1356, 3, 1533, 249),
+                    "stance": (0, 5, 191, 250),
+                    "rise1": (191, 5, 373, 250),
+                    "rise2": (373, 5, 553, 250),
+                    "gather": (553, 5, 734, 250),
+                    "overhead": (734, 5, 915, 250),
+                    "throw": (915, 5, 1095, 250),
+                    "flight": (1095, 5, 1273, 250),
+                    "end": (1273, 5, 1448, 250),
                 },
                 "back": {
-                    "stance": (94, 255, 268, 507),
-                    "rise1": (274, 255, 453, 507),
-                    "rise2": (459, 255, 636, 507),
-                    "rise3": (642, 255, 821, 507),
-                    "hold": (827, 255, 1005, 507),
-                    "throw": (1011, 255, 1191, 507),
-                    "roar": (1356, 255, 1533, 507),
+                    "stance": (0, 255, 190, 515),
+                    "rise1": (190, 255, 372, 515),
+                    "rise2": (372, 255, 553, 515),
+                    "gather": (553, 255, 734, 515),
+                    "overhead": (734, 255, 914, 515),
+                    "throw": (914, 255, 1095, 515),
+                    "flight": (1095, 255, 1277, 515),
+                    "end": (1277, 255, 1448, 515),
                 },
                 "left": {
-                    "stance": (94, 513, 269, 752),
-                    "rise1": (275, 513, 452, 752),
-                    "rise2": (458, 513, 634, 752),
-                    "rise3": (640, 513, 817, 752),
-                    "hold": (823, 513, 998, 752),
-                    "throw": (1004, 513, 1179, 752),
-                    "roar": (1362, 513, 1533, 752),
+                    "stance": (0, 520, 187, 780),
+                    "rise1": (187, 520, 368, 780),
+                    "rise2": (368, 520, 549, 780),
+                    "gather": (549, 520, 730, 780),
+                    "overhead": (730, 520, 910, 780),
+                    "throw": (910, 520, 1090, 780),
+                    "flight": (1090, 520, 1270, 780),
+                    "end": (1270, 520, 1448, 780),
                 },
                 "right": {
-                    "stance": (94, 758, 269, 982),
-                    "rise1": (275, 758, 452, 982),
-                    "rise2": (458, 758, 634, 982),
-                    "rise3": (640, 758, 817, 982),
-                    "hold": (823, 758, 998, 982),
-                    "throw": (1004, 758, 1179, 982),
-                    "roar": (1362, 758, 1533, 982),
+                    "stance": (0, 785, 188, 1045),
+                    "rise1": (188, 785, 370, 1045),
+                    "rise2": (370, 785, 551, 1045),
+                    "gather": (551, 785, 731, 1045),
+                    "overhead": (731, 785, 912, 1045),
+                    "throw": (912, 785, 1090, 1045),
+                    "flight": (1090, 785, 1270, 1045),
+                    "end": (1270, 785, 1448, 1045),
                 },
             },
             "sheets": {
-                "Throw": ["rise1", "rise2", "rise3", "hold", "throw", "roar", "rise2", "rise1"],
+                "Throw": ["rise1", "rise2", "gather", "overhead", "throw", "flight", "end"],
             },
         },
     },

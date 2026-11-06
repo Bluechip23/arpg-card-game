@@ -2,8 +2,9 @@ extends SceneTree
 
 ## The Crypt Crawler's Web (the designer's web board, 2026-11-06;
 ## tools/cut_pose_boards.py "crypt_crawler_web" / "_ball" / "_webart"):
-## Throw.png is the corpse on its back rising, a ball of web in its hand, the
-## throw and its roar, then sinking again, four facing rows. The ball flies
+## Throw.png (its fifth board, drawn to match its idle) is the corpse on its
+## back rising, pulling strands of web from the spider, gathering them into a
+## ball over its head, the throw, and sinking again, four facing rows. The ball flies
 ## to its prey (Ball.png) and where it lands the web (Web.png) is strung
 ## about their feet, held while they hold the Paralysis card.
 ## Run: godot --headless --path . --script tests/test_crypt_crawler_web.gd
@@ -39,7 +40,7 @@ func _run() -> void:
 	fig.setup("crypt_crawler")
 	await process_frame
 	var cell: int = fig._cp_cell
-	_check(fig._cp_sheets.has("Throw") and fig._cp_frame_count("Throw") == 8, "an eight-frame Throw sheet (%s)" % ("smooth" if fig.smooth else "pixel"))
+	_check(fig._cp_sheets.has("Throw") and fig._cp_frame_count("Throw") == 7, "a seven-frame Throw sheet (%s)" % ("smooth" if fig.smooth else "pixel"))
 	if fig._cp_sheets.has("Throw"):
 		_check(fig._cp_sheets["Throw"].get_height() == 4 * cell, "in the four facing rows, the Idle sheet's cells")
 		var img: Image = fig._cp_sheets["Throw"].get_image()
@@ -47,7 +48,7 @@ func _run() -> void:
 			img.decompress()
 		var drawn := true
 		for row in range(4):
-			for col in range(8):
+			for col in range(7):
 				if img.get_region(Rect2i(col * cell, row * cell, cell, cell)).get_used_rect().size.y < cell * 0.4:
 					drawn = false
 		_check(drawn, "every frame of the four rows holds it")
