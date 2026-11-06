@@ -2389,6 +2389,77 @@ BOARDS = {
             },
         },
     },
+    "weregoat_punch": {
+        # 2026-11-06: the Weregoat's Hoof Punch — weregoat_punch_board.webp,
+        # four labelled rows on black (NORTH its face, SOUTH its back, WEST,
+        # EAST), eight frames a row: the stance, fists up, the fist drawn
+        # back, cocked, the punch (motion lines off the hoof), drawing back,
+        # settling, the stance. The punch's motion lines touch the frame
+        # beside it on the side rows, so each row is parted at the narrowest
+        # contact (`split`, the punch frames' bodies given). Packed into its
+        # folder as Attack.png, scaled to its walk-sheet Idle.
+        "into": "weregoat",
+        "actions": {
+            "src": "weregoat_punch_board.webp",
+            "levels": (6, 35, 10),
+            "fill_holes": 6,
+            "open_dark": True,
+            "keep_share": 0.004,   # the motion lines
+            "glow": False,
+            "split": True,
+            "isolate_floor": 14,
+            "match": "stance",
+            # the punch frames' centres are put out along the punching arm,
+            # so the loose motion lines past the hoof go with the punch
+            "split_centres": {"left": [250, 432, 620, 805, 960, 1220, 1407, 1588],
+                              "right": [247, 436, 618, 815, 1060, 1240, 1410, 1592]},
+            "frames": {
+                "front": {
+                    "stance": (170, 12, 343, 212),
+                    "ready": (343, 12, 533, 212),
+                    "wind1": (533, 12, 726, 212),
+                    "wind2": (726, 12, 922, 212),
+                    "punch": (922, 12, 1140, 212),
+                    "follow": (1140, 12, 1327, 212),
+                    "settle": (1327, 12, 1513, 212),
+                    "stance2": (1513, 12, 1672, 212),
+                },
+                "back": {
+                    "stance": (170, 240, 346, 452),
+                    "ready": (346, 240, 535, 452),
+                    "wind1": (535, 240, 723, 452),
+                    "wind2": (723, 240, 921, 452),
+                    "punch": (921, 240, 1133, 452),
+                    "follow": (1133, 240, 1315, 452),
+                    "settle": (1315, 240, 1504, 452),
+                    "stance2": (1504, 240, 1672, 452),
+                },
+                "left": {
+                    "stance": (170, 480, 342, 676),
+                    "ready": (342, 480, 524, 676),
+                    "wind1": (524, 480, 705, 676),
+                    "wind2": (705, 480, 890, 676),
+                    "punch": (890, 480, 1120, 676),
+                    "follow": (1120, 480, 1316, 676),
+                    "settle": (1316, 480, 1499, 676),
+                    "stance2": (1499, 480, 1672, 676),
+                },
+                "right": {
+                    "stance": (170, 702, 343, 900),
+                    "ready": (343, 702, 526, 900),
+                    "wind1": (526, 702, 708, 900),
+                    "wind2": (708, 702, 915, 900),
+                    "punch": (915, 702, 1148, 900),
+                    "follow": (1148, 702, 1315, 900),
+                    "settle": (1315, 702, 1503, 900),
+                    "stance2": (1503, 702, 1672, 900),
+                },
+            },
+            "sheets": {
+                "Attack": ["ready", "wind1", "wind2", "punch", "follow", "settle"],
+            },
+        },
+    },
     "magma_spider_web": {
         # 2026-11-04: the Magma Spider's Fire Web — magma_spider_web_board.webp,
         # "FIRE-WEB SHOOTING ATTACK", four labelled rows on black (NORTH: the

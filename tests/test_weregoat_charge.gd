@@ -60,6 +60,18 @@ func _test_figure() -> void:
 	fig.play_action("goat_charge")
 	_check(fig._cp_anim == "Charge" and int(fig._sprite.region_rect.position.y / cell) == 2, "Charge facing west: the left-facing row")
 	_check(fig._fx_tween == null or not fig._fx_tween.is_valid(), "no lunge: the run carries it")
+	# Its Hoof Punch (the designer's punch board, 2026-11-06): Attack.png.
+	_check(fig._cp_sheets.has("Attack") and fig._cp_frame_count("Attack") == 6, "a six-frame Hoof Punch sheet")
+	_check(is_equal_approx(fig._cp_fps.get("Attack", 0.0), 10.0 / SpriteEnemyFigure.DRAWN_ATTACK_SLOW), "the punch at its drawn 10 fps, slowed")
+	var pimg: Image = fig._cp_sheets["Attack"].get_image()
+	if pimg.is_compressed():
+		pimg.decompress()
+	var pdrawn := true
+	for row in range(4):
+		for col in range(6):
+			if pimg.get_region(Rect2i(col * cell, row * cell, cell, cell)).get_used_rect().size.y < cell * 0.4:
+				pdrawn = false
+	_check(pdrawn, "every punch frame of the four rows holds the goat")
 	fig.cancel_swing()
 	_check(fig._cp_anim == "Idle" and fig.attack_time_left() == 0.0, "a called-off charge goes back to the idle")
 	fig.free()
@@ -103,6 +115,13 @@ func _test_enemy() -> void:
 	await create_timer(2.5 / fps).timeout
 	_check(fig.global_position.distance_to(Vector3(landing.x, fig.global_position.y, landing.z)) < 0.05, "down the lane and pulled up on its landing square")
 	main.enemy_spawner.despawn_enemy(g)
+	# Beside its prey it throws the Hoof Punch: the punch board.
+	var pg: Enemy = main.enemy_spawner.spawn_enemy(Enemy.EnemyType.WEREGOAT, main._ground_pos(cell + Vector2i(1, 0)))
+	pg.chosen_action = {}
+	await _settle(2)
+	pg._execute_action("hoof_punch", main.player)
+	_check(pg._enemy_figure._cp_anim == "Attack", "its Hoof Punch plays the punch board (%s)" % pg._enemy_figure._cp_anim)
+	main.enemy_spawner.despawn_enemy(pg)
 	# Rooted, it cannot charge: the stamping it began gives way to a walk.
 	var r: Enemy = main.enemy_spawner.spawn_enemy(Enemy.EnemyType.WEREGOAT, main._ground_pos(cell + Vector2i(0, 4)))
 	r.chosen_action = {}
