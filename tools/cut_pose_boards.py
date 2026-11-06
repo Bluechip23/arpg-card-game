@@ -3884,6 +3884,63 @@ BOARDS = {
             "left": (69, 584, 488, 1122),
             "right": (804, 584, 1210, 1122),
         },
+        # 2026-11-06: the designer's strike board — bugbear_strike_board.webp,
+        # four labelled rows on black (NORTH (FRONT), SOUTH (BACK), WEST
+        # (LEFT), EAST (RIGHT)), seven frames a row under column captions:
+        # idle, quick jab (the free fist), recover / shift, wind up (the
+        # mace), the heavy swing (an arc behind the mace), follow-through,
+        # recovery to idle. Attack.png, played for its Strike; the idle is
+        # the height reference, matched to each facing's Idle.
+        "actions": {
+            "src": "bugbear_strike_board.webp",
+            "fill_holes": 4,
+            "open_dark": True,
+            "keep_share": 0.02,   # the swing's arc
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (108, 52, 319, 238),
+                    "jab": (319, 52, 540, 238),
+                    "shift": (540, 52, 756, 238),
+                    "windup": (756, 52, 974, 238),
+                    "swing": (974, 52, 1222, 238),
+                    "follow": (1222, 52, 1439, 238),
+                    "recovery": (1439, 52, 1672, 238),
+                },
+                "back": {
+                    "stance": (108, 240, 339, 437),
+                    "jab": (339, 240, 563, 437),
+                    "shift": (563, 240, 774, 437),
+                    "windup": (774, 240, 982, 437),
+                    "swing": (982, 240, 1235, 437),
+                    "follow": (1235, 240, 1478, 437),
+                    "recovery": (1478, 240, 1672, 437),
+                },
+                "left": {
+                    "stance": (108, 438, 311, 658),
+                    "jab": (311, 438, 536, 658),
+                    "shift": (536, 438, 747, 658),
+                    "windup": (747, 438, 975, 658),
+                    "swing": (975, 438, 1214, 658),
+                    "follow": (1214, 438, 1459, 658),
+                    "recovery": (1459, 438, 1672, 658),
+                },
+                "right": {
+                    "stance": (108, 660, 341, 890),
+                    "jab": (341, 660, 551, 890),
+                    "shift": (551, 660, 760, 890),
+                    "windup": (760, 660, 980, 890),
+                    "swing": (980, 660, 1225, 890),
+                    "follow": (1225, 660, 1484, 890),
+                    "recovery": (1484, 660, 1672, 890),
+                },
+            },
+            "sheets": {
+                "Attack": ["jab", "shift", "windup", "swing", "follow", "recovery"],
+            },
+        },
     },
     "werewolf": {
         # 2026-10-28: the designer's updated Werewolf — a shaggy, muscled

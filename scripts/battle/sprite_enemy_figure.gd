@@ -129,7 +129,7 @@ const KINDS := {
 	"inflamed_minotaur": {"sheets": SHEETS + "/inflamed_minotaur", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"demon": {"cp": "demons/Demon1", "scale": 0.85},
 	"pit_fiend": {"sheets": SHEETS + "/pit_fiend", "scale": BOARD_SCALE},  # the designer's new board, stills (tools/cut_pose_boards.py, 2026-10-28)
-	"bugbear": {"sheets": SHEETS + "/bugbear", "scale": BOARD_SCALE},  # the designer's board (2026-10-25); was the gnoll pack's Gnoll2
+	"bugbear": {"sheets": SHEETS + "/bugbear", "scale": BOARD_SCALE, "fps": {"Attack": 10.0}},  # the designer's board (2026-10-25), and its strike board (tools/cut_pose_boards.py, 2026-11-06: Attack is the quick jab with its free fist, the shift, the mace wound up, the heavy swing with its arc, the follow-through and the recovery, for its Strike); was the gnoll pack's Gnoll2
 	"ifrit": {"sheets": SHEETS + "/ifrit", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py)
 	"snow_wraith": {"sheets": SHEETS + "/snow_wraith", "scale": BOARD_SCALE, "fps": {"Throw": 8.0, "Cast": 10.0}, "action_sheets": {"snowball": "Throw", "ice_blast": "Cast"}, "projectiles": {"snowball": {"sheet": "Snowball", "release": 3, "speed": 8.0, "fps": 12.0, "lift": 0.85, "ahead": 0.35}, "ice_blast": {"sheet": "IceShard", "release": 6, "speed": 10.0, "fps": 12.0, "lift": 0.85, "ahead": 0.6}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and her snowball board (2026-11-03: Throw is the frost gathering, the snowball forming, raised, thrown and the follow-through; her Ice Blast keeps its lunge); was the ghost pack's Ghost2
 	# The designer's 4x4 walk sheets (tools/cut_creature_sheets.py).
