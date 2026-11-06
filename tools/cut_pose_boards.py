@@ -1969,6 +1969,72 @@ BOARDS = {
             },
         },
     },
+    "infected_hunter_cleave": {
+        # 2026-11-06: the Infected Hunter's Cleave — infected_hunter_cleave_board.webp,
+        # a table on black of four labelled rows (NORTH its front, SOUTH its
+        # back, WEST, EAST), eight cells a row: the stance, the hook ready,
+        # dropped low, raised, swung overhead (an arc behind it), the cleave
+        # down and across (a sweep of motion at its feet), the follow-through
+        # and the stance. Each box sits inside its cell. Attack.png runs the
+        # six frames between the stances, for its Cleave; the stance is the
+        # height reference, matched to each facing's Idle.
+        "into": "infected_hunter",
+        "actions": {
+            "src": "infected_hunter_cleave_board.webp",
+            "levels": (4, 16, 6),
+            "open_flat": (8, 5, 250),
+            "keep_share": 0.01,   # the swing's arcs
+            "glow": False,
+            "isolate": True,
+            "isolate_floor": 14,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (97, 6, 271, 252),
+                    "ready": (277, 6, 455, 252),
+                    "wind": (461, 6, 639, 252),
+                    "raise": (645, 6, 823, 252),
+                    "overhead": (829, 6, 1009, 252),
+                    "cleave": (1015, 6, 1195, 252),
+                    "follow": (1201, 6, 1372, 252),
+                    "end": (1378, 6, 1531, 252),
+                },
+                "back": {
+                    "stance": (97, 259, 271, 499),
+                    "ready": (277, 259, 455, 499),
+                    "wind": (461, 259, 639, 499),
+                    "raise": (645, 259, 823, 499),
+                    "overhead": (829, 259, 1009, 499),
+                    "cleave": (1015, 259, 1195, 499),
+                    "follow": (1201, 259, 1372, 499),
+                    "end": (1378, 259, 1531, 499),
+                },
+                "left": {
+                    "stance": (97, 506, 271, 731),
+                    "ready": (277, 506, 455, 731),
+                    "wind": (461, 506, 639, 731),
+                    "raise": (645, 506, 823, 731),
+                    "overhead": (829, 506, 1009, 731),
+                    "cleave": (1015, 506, 1195, 731),
+                    "follow": (1201, 506, 1372, 731),
+                    "end": (1378, 506, 1531, 731),
+                },
+                "right": {
+                    "stance": (97, 738, 271, 991),
+                    "ready": (277, 738, 455, 991),
+                    "wind": (461, 738, 639, 991),
+                    "raise": (645, 738, 823, 991),
+                    "overhead": (829, 738, 1009, 991),
+                    "cleave": (1015, 738, 1195, 991),
+                    "follow": (1201, 738, 1372, 991),
+                    "end": (1378, 738, 1531, 991),
+                },
+            },
+            "sheets": {
+                "Attack": ["ready", "wind", "raise", "overhead", "cleave", "follow"],
+            },
+        },
+    },
     "infected_hunter_chain": {
         # 2026-11-06: two links of the Hunter's chain (from the throw frame of
         # the hook board's EAST row, cut joint to joint so it repeats without

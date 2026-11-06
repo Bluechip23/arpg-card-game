@@ -67,6 +67,21 @@ func _run() -> void:
 					if a == b:
 						same += 1
 		_check(lit > 0 and float(same) / float(lit) > 0.85, "the west throw is the east's, mirrored (%d of %d alike)" % [same, lit])
+	# Its Cleave (the designer's cleave board, 2026-11-06): Attack.png.
+	_check(fig._cp_sheets.has("Attack") and fig._cp_frame_count("Attack") == 6, "a six-frame Cleave sheet")
+	if fig._cp_sheets.has("Attack"):
+		var cimg: Image = fig._cp_sheets["Attack"].get_image()
+		if cimg.is_compressed():
+			cimg.decompress()
+		var cdrawn := true
+		for row in range(4):
+			for col in range(6):
+				if cimg.get_region(Rect2i(col * cell, row * cell, cell, cell)).get_used_rect().size.y < cell * 0.4:
+					cdrawn = false
+		_check(cdrawn, "every cleave frame of the four rows holds him")
+		fig.set_facing(CharacterAnimator.Direction.WEST)
+		fig.play_action("cleave")
+		_check(fig._cp_anim == "Attack" and int(fig._sprite.region_rect.position.y / cell) == fig._cp_row(CharacterAnimator.Direction.WEST), "its Cleave plays the cleave board")
 	for nm in ["Chain", "Hook"]:
 		_check(ResourceLoader.exists(fig._sheet_folder + "/%s.png" % nm), "%s.png beside his sheets" % nm)
 	fig.free()
