@@ -2321,6 +2321,74 @@ BOARDS = {
             },
         },
     },
+    "weregoat_charge": {
+        # 2026-11-06: the Weregoat's Charge — weregoat_charge_board.webp, four
+        # labelled rows on black (NORTH its face, SOUTH its back, WEST, EAST),
+        # eight frames a row: the stance, three stamps of a hoof (dirt kicked
+        # up), the crouch, and the run, dust boiling up behind it. The run's
+        # dust touches the next frame on the east row, so the row is parted
+        # at the narrowest contact (`split`). Packed into its folder as
+        # Charge.png, scaled to its walk-sheet Idle like the Sabertooth's
+        # boards; the game carries it down its lane through the run frames
+        # (SpriteEnemyFigure "leap").
+        "into": "weregoat",
+        "actions": {
+            "src": "weregoat_charge_board.webp",
+            "levels": (6, 35, 10),
+            "fill_holes": 6,
+            "open_dark": True,
+            "keep_share": 0.01,   # the kicked-up dirt
+            "glow": False,
+            "split": True,
+            "isolate_floor": 14,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (165, 14, 341, 212),
+                    "stomp1": (341, 14, 549, 212),
+                    "stomp2": (549, 14, 737, 212),
+                    "stomp3": (737, 14, 943, 212),
+                    "crouch": (943, 14, 1144, 212),
+                    "run1": (1144, 14, 1347, 212),
+                    "run2": (1347, 14, 1545, 212),
+                    "run3": (1545, 14, 1774, 212),
+                },
+                "back": {
+                    "stance": (165, 230, 342, 440),
+                    "stomp1": (342, 230, 546, 440),
+                    "stomp2": (546, 230, 736, 440),
+                    "stomp3": (736, 230, 940, 440),
+                    "crouch": (940, 230, 1145, 440),
+                    "run1": (1145, 230, 1347, 440),
+                    "run2": (1347, 230, 1544, 440),
+                    "run3": (1544, 230, 1774, 440),
+                },
+                "left": {
+                    "stance": (165, 450, 333, 645),
+                    "stomp1": (333, 450, 530, 645),
+                    "stomp2": (530, 450, 706, 645),
+                    "stomp3": (706, 450, 900, 645),
+                    "crouch": (900, 450, 1102, 645),
+                    "run1": (1102, 450, 1321, 645),
+                    "run2": (1321, 450, 1540, 645),
+                    "run3": (1540, 450, 1774, 645),
+                },
+                "right": {
+                    "stance": (165, 658, 333, 858),
+                    "stomp1": (333, 658, 540, 858),
+                    "stomp2": (540, 658, 710, 858),
+                    "stomp3": (710, 658, 914, 858),
+                    "crouch": (914, 658, 1105, 858),
+                    "run1": (1105, 658, 1312, 858),
+                    "run2": (1312, 658, 1522, 858),
+                    "run3": (1522, 658, 1774, 858),
+                },
+            },
+            "sheets": {
+                "Charge": ["stomp1", "stomp2", "stomp3", "crouch", "run1", "run2", "run3"],
+            },
+        },
+    },
     "magma_spider_web": {
         # 2026-11-04: the Magma Spider's Fire Web — magma_spider_web_board.webp,
         # "FIRE-WEB SHOOTING ATTACK", four labelled rows on black (NORTH: the

@@ -52,22 +52,22 @@ const ATTACK_SLOW := 2.3
 ## is equally slower (see kind_fps).
 const DRAWN_ATTACK_SLOW := ATTACK_SLOW / 1.4
 const CP_FPS := {"Idle": 5.0, "Walk": 8.0, "Run": 10.0, "Draw": 8.0, "Attack": 12.0 / ATTACK_SLOW,
-		"Attack2": 12.0 / ATTACK_SLOW, "Throw": 12.0 / ATTACK_SLOW, "Kick": 12.0 / ATTACK_SLOW, "Cast": 12.0 / ATTACK_SLOW, "Track": 12.0 / ATTACK_SLOW, "Sunken": 12.0 / ATTACK_SLOW, "Bounce": 12.0 / ATTACK_SLOW, "Writhe": 12.0 / ATTACK_SLOW, "Hurt": 12.0, "Death": 10.0, "Heal": 7.0}
-const CP_ONESHOT := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce", "Writhe", "Hurt", "Death", "Heal"]
+		"Attack2": 12.0 / ATTACK_SLOW, "Throw": 12.0 / ATTACK_SLOW, "Kick": 12.0 / ATTACK_SLOW, "Cast": 12.0 / ATTACK_SLOW, "Track": 12.0 / ATTACK_SLOW, "Sunken": 12.0 / ATTACK_SLOW, "Bounce": 12.0 / ATTACK_SLOW, "Writhe": 12.0 / ATTACK_SLOW, "Charge": 12.0 / ATTACK_SLOW, "Hurt": 12.0, "Death": 10.0, "Heal": 7.0}
+const CP_ONESHOT := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce", "Writhe", "Charge", "Hurt", "Death", "Heal"]
 ## The swings: an attack's sheets (Throw: the Grave Titan's boulder roll;
 ## Kick: the Armored Troll's kick; Cast: the Snow Wraith's Ice Blast; Track
 ## and Sunken: the Sabertooth's stalking crouch and its Sunken Bite — each
 ## played for that action by the kind's "action_sheets").
-const ATTACK_SHEETS := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce", "Writhe"]
+const ATTACK_SHEETS := ["Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce", "Writhe", "Charge"]
 ## Swings played in place, with no lunge toward the target: the Sabertooth
 ## sizing up its prey is no blow.
-const STILL_SHEETS := ["Track", "Bounce", "Writhe"]   # Bounce: the Magma Spider's leap carries it (leap_from); Writhe: the Mind Eater's tentacles, cast from afar
+const STILL_SHEETS := ["Track", "Bounce", "Writhe", "Charge"]   # Bounce: the Magma Spider's leap carries it (leap_from); Writhe: the Mind Eater's tentacles, cast from afar; Charge: the Weregoat's run carries it the same way
 ## Held poses: played once, then the last frame stays until another
 ## animation plays (the archer rat at full draw, from two tempo before its
 ## shot until the shot). A hit does not break them.
 const CP_HOLD := ["Draw"]
 ## Every sheet an animation may come as (Craftpix packs and our own).
-const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce", "Writhe", "Hurt", "Death", "Heal"]
+const CP_ANIMS := ["Idle", "Walk", "Run", "Draw", "Attack", "Attack2", "Throw", "Kick", "Cast", "Track", "Sunken", "Bounce", "Writhe", "Charge", "Hurt", "Death", "Heal"]
 
 # NPC sheets run S,W,N,E top to bottom (battle uses CharacterAnimator order S,N,E,W).
 const NPC_ROW := [0, 2, 1, 3]  # NPC packs run S,E,N,W
@@ -146,7 +146,7 @@ const KINDS := {
 	"hades": {"sheets": SHEETS + "/hades", "scale": BOARD_SCALE},  # the boss trio board (2026-10-27); art in place, no Hades enemy exists yet
 	"werewolf": {"sheets": SHEETS + "/werewolf", "scale": BOARD_SCALE, "fps": {"Attack": 8.0, "Attack2": 8.0}},  # the designer's board, and his slash boards, side and front/back (tools/cut_pose_boards.py, 2026-10-30): Attack is the claw, Attack2 the claw and the rake with the other arm
 	"sabertooth": {"sheets": SHEETS + "/sabertooth", "scale": BOARD_SCALE, "fps": {"Track": 8.0, "Attack": 10.0, "Sunken": 10.0}, "action_sheets": {"track": "Track", "sunken_bite": "Sunken"}},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-28), its track board and its bite-and-claw board (tools/cut_pose_boards.py, 2026-11-03: Track is the paw scraping, the crouch, the deepest ready crouch and the rise, played in place; Attack, its Bite and Claw, the crouch, lunge, bite, pull-through, claw swipe and recovery; Sunken, its Sunken Bite, the lunge, the crouch, the teeth sinking in, the shake, the release and rising)
-	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": BOARD_SCALE},
+	"weregoat": {"sheets": SHEETS + "/weregoat", "scale": BOARD_SCALE, "fps": {"Charge": 10.0}, "action_sheets": {"goat_charge": "Charge"}, "leap": {"goat_charge": [3, 6]}},  # the designer's walk sheet (tools/cut_creature_sheets.py, 2026-10-27; its walk unused since 2026-11-04), and its charge board (tools/cut_pose_boards.py, 2026-11-06: Charge is three stamps of a hoof, the crouch, and the run in a boil of dust, carried down its lane through the run frames by leap_from)
 	"roc": {"sheets": SHEETS + "/roc", "scale": BOARD_SCALE},  # the designer's board (tools/cut_pose_boards.py, 2026-10-28); was the mountain-monster Bird, tinted
 	"ash_harpy": {"sheets": SHEETS + "/ash_harpy", "scale": BOARD_SCALE, "fps": {"Cast": 10.0}, "action_sheets": {"card_steal": "Cast"}, "vortex": {"card_steal": {"sheet": "Vortex", "lift": 0.9, "span": 0.96, "mid": 0.45, "thickness": 1.35, "frames": 77}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-25), and her flap board and vortex strip (2026-11-04: Cast is three wing flaps; Vortex the wind that sweeps a card from the player back to her, played across the flaps); was the chaos-monster Icon22
 	"magma_spider": {"sheets": SHEETS + "/magma_spider", "scale": BOARD_SCALE, "fps": {"Bounce": 10.0, "Cast": 10.0}, "action_sheets": {"fire_bounce": "Bounce", "fire_web": "Cast"}, "leap": {"fire_bounce": [2, 4]}, "projectiles": {"fire_web": {"sheet": "Glob", "release": 4, "speed": 7.0, "fps": 10.0, "lift": 0.3, "ahead": 0.3}}, "spots": {"fire_web": {"sheet": "WebLand", "fps": 12.0, "hang": 0.49, "ground": true}}},  # the designer's board (tools/cut_pose_boards.py, 2026-10-26), and its Fire Bounce board (2026-11-04: Bounce is the crouch, the spring off a burst of fire, the leap carried across by leap_from, the landing in fire and the settle; and its Fire Web board, 2026-11-04: Cast is it rearing, aiming and spitting a glob of fire, Glob the ball of webbing in flight to its prey, WebLand its impact and the web spreading where it lands, held as the web); was the Crypt Crawler's MonsterKit cell (3, 0), tinted
@@ -220,6 +220,7 @@ var figure_kind := ""   # the KINDS entry this figure was set up as
 var smooth := false     # wearing the smooth (non-pixelated) sheets (ArtStyle)
 var last_spot: SpotEffect = null   # the effect spot_effect laid last
 var _leap_tween: Tween = null   # leap_from: the figure carried from its take-off square
+var _hold_facing_msec: int = 0  # leap_from: it keeps facing its leap until the sheet is done
 var _sheet_folder := ""  # the folder the sheets were loaded from (a thrown projectile's strip lives there)
 var _sprite: Sprite3D = null
 var _rig: Node3D = null
@@ -855,6 +856,11 @@ func set_facing(direction: int) -> void:
 
 
 func set_facing_from_velocity(vel: Vector3) -> void:
+	if Time.get_ticks_msec() < _hold_facing_msec:
+		# Mid-leap (the Weregoat's charge, the Magma Spider's bounce): it
+		# has already landed on the board and turns to its prey there, but
+		# the figure is still running the other way.
+		return
 	if _fr_mode:
 		if absf(vel.x) > 0.05:
 			_facing_x = 1.0 if vel.x > 0.0 else -1.0
@@ -1145,7 +1151,22 @@ func leap_from(from: Vector3, action: String) -> float:
 	_leap_tween = create_tween()
 	_leap_tween.tween_interval(lift_off)
 	_leap_tween.tween_property(self, "position", rest, air).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	var sheet_left := maxf(0.0, float(_cp_frame_count(sheet) - _cp_frame) / fps - _cp_clock)
+	_hold_facing_msec = Time.get_ticks_msec() + int(maxf(sheet_left, lift_off + air) * 1000.0)
 	return lift_off + air
+
+
+## Drop a swing that will not land after all (the Weregoat rooted as it
+## goes to charge, so it walks instead): back to the walk or the idle, the
+## lunge undone. Called before any leap starts.
+func cancel_swing() -> void:
+	if not _cp_mode or not _cp_anim in ATTACK_SHEETS:
+		return
+	_rig.position = Vector3.ZERO
+	last_swing_time = 0.0
+	_swing_end_msec = 0
+	_hold_facing_msec = 0
+	_cp_play("Walk" if _walking else "Idle", true)
 
 
 ## A strip's square cell side: one row unless `frames` (a long strip packed

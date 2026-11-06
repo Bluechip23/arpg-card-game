@@ -4662,6 +4662,7 @@ func _choose_weregoat_action(distance: int) -> void:
 ## target instead and lands beside it — stun only, nothing was in the path.
 func _try_goat_charge(target_node: Node3D) -> bool:
 	if is_disarmed or rooted_tempo > 0:
+		_goat_charge_called_off()
 		return _try_move(target_node)
 	if not grid_manager:
 		return _try_elemental(target_node, GOAT_CHARGE_DAMAGE, "Charge")
@@ -4695,13 +4696,26 @@ func _try_goat_charge(target_node: Node3D) -> bool:
 		# beside it (or just walk if even that is out of reach).
 		var path := _build_route_path(position, grid_manager.world_to_grid(target_node.position), GOAT_CHARGE_SQUARES)
 		if path.is_empty():
+			_goat_charge_called_off()
 			return _try_move(target_node)
 		land_cell = grid_manager.world_to_grid(path[path.size() - 1])
 	# The blows land from where the run starts: the lane is clear of walls by
 	# construction, so nothing is hit through one.
 	for u in hits:
 		_hit_unit(u, GOAT_CHARGE_DAMAGE, "Charge")
-	_land_at(grid_manager.grid_to_world(land_cell))
+	var take_off := global_position
+	var land_world := grid_manager.grid_to_world(land_cell)
+	if _enemy_figure:
+		# It stamps and crouches facing its lane (the board's run goes
+		# forward), then runs.
+		var way: Vector3 = land_world - position
+		_enemy_figure.set_facing_from_velocity(Vector3(way.x, 0, way.z))
+		_enemy_figure.play_action("goat_charge")   # restart, facing the lane
+	_land_at(land_world)
+	# On the board it lands at once; the figure is carried down the lane
+	# through the board's run frames.
+	if _enemy_figure and _enemy_figure.has_method("leap_from"):
+		_enemy_figure.leap_from(take_off, "goat_charge")
 	var stunned := 0
 	for u in _units_within(units, land_cell, 1):
 		_apply_player_debuff(u, Debuff.create(Debuff.DebuffType.STUN, 0, GOAT_CHARGE_STUN_TEMPO))
@@ -4709,6 +4723,12 @@ func _try_goat_charge(target_node: Node3D) -> bool:
 	print("[%s] CHARGE — %d unit(s) trampled, %d stunned where it lands" % [enemy_name, hits.size(), stunned])
 	turn_completed.emit()
 	return true
+
+## The charge will not happen after all (rooted, disarmed, nowhere to run):
+## its stamping, already begun, gives way to the walk.
+func _goat_charge_called_off() -> void:
+	if _enemy_figure and _enemy_figure.has_method("cancel_swing"):
+		_enemy_figure.cancel_swing()
 
 ## One straight charge lane from `from` along `dir`, up to 8 squares. It stops
 ## short of walls, other enemies, pillars and the edge of the floor (and never
