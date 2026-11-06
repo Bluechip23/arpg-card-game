@@ -1537,6 +1537,532 @@ BOARDS = {
             "frames": [(686, 775, 1144, 930), (110, 775, 570, 930), (275, 115, 420, 530), (835, 128, 994, 540)],
         },
     },
+    "demon": {
+        # 2026-11-06: the Demon — red-skinned, horned and fanged, a trident
+        # hung with red ribbons, one horned pauldron, a ragged red-and-black
+        # sash, a barbed tail — four unlabelled poses on black: front, back,
+        # facing left, facing right. Replaced the Craftpix pack's Demon1.
+        "src": "demon_board.webp", "bg": "black_glow", "tiles": 1.9,
+        # Its hair, breeches and sash are painted nearly black, and the
+        # board's backdrop is 0 to 4 (the compression's ringing): the levels
+        # sit just above it, and a pocket is open only when it is big and
+        # flat black (`open_flat`: between the legs and arms, inside the
+        # trident's prongs) — the dark paint's pockets are small or speckled.
+        "levels": (1, 12, 2),
+        "open_flat": (5, 5, 250),
+        "Idle": {
+            "front": (18, 150, 402, 826),
+            "back": (462, 150, 806, 826),
+            "left": (842, 155, 1110, 826),
+            "right": (1129, 155, 1398, 826),
+        },
+    },
+    "demon_mimic": {
+        # 2026-11-06: the Demon's Mimic — demon_mimic_board.jpg, eight panels
+        # on black, the front view only: it stands, raises its trident, red
+        # power rings the trident and runs through its body, it tears in two
+        # (red strands between the halves), the strands part, and two demons
+        # stand side by side. One strip, Mimic.png, played on the ground
+        # midway between the demon and its new copy while both figures are
+        # hidden (Enemy._try_mimic): each box is centred on the demon's belt
+        # (the pair's midpoint once it splits), so the split keeps the
+        # board's spacing. Scaled so its horns-to-feet (322 board px) stand
+        # as tall as the Idle's (1.79 tiles).
+        "into": "demon",
+        "strip": {
+            "src": "demon_mimic_board.jpg", "bg": "black_glow",
+            "levels": (2, 16, 4),
+            "open_flat": (6, 5, 250),
+            "keep_share": 0.05,     # the second demon, once apart
+            "trim": False,
+            "sheet": "Mimic",
+            "frames": [
+                (-3, 0, 467, 421),
+                (433, 0, 903, 421),
+                (873, 0, 1343, 421),
+                (1279, 0, 1749, 421),
+                (0, 437, 470, 858),
+                (427, 437, 897, 858),
+                (875, 437, 1345, 858),
+                (1316, 437, 1786, 858),
+            ],
+            # the rings of red power about the trident, above its head and
+            # hand (frames 3 and 4)
+            "soft_boxes": {2: [(1015, 0, 1250, 70), (1015, 70, 1160, 88), (1200, 70, 1250, 88)],
+                           3: [(1470, 0, 1705, 72), (1470, 72, 1610, 88), (1645, 72, 1705, 88)]},
+            "clips": [(69, 354), (528, 802), (957, 1245), (1389, 1686), (42, 388), (462, 858), (888, 1299), (1324, 1749)],
+            "width_px": 322, "width_tiles": 1.79,
+        },
+    },
+    "demon_attack": {
+        # 2026-11-06: the Demon's Attack — demon_attack_board.webp, four
+        # unlabelled rows on black (its back, its front, facing right, facing
+        # left), five frames a row: the stance, the trident gripped two-handed,
+        # drawn back, the thrust, the stance again. Attack.png, played for its
+        # Attack; the stance is the height reference, matched to each
+        # facing's Idle.
+        "into": "demon",
+        "actions": {
+            "src": "demon_attack_board.webp",
+            # cut as its pose board is: its near-black paint kept solid,
+            # only the big flat-black pockets open
+            "levels": (1, 12, 2),
+            "open_flat": (5, 5, 250),
+            "keep_share": 0.02,
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            "frames": {
+                "back": {
+                    "stance": (20, 0, 298, 269),
+                    "grip": (298, 0, 569, 269),
+                    "draw": (569, 0, 843, 269),
+                    "thrust": (843, 0, 1123, 269),
+                    "back_up": (1123, 0, 1402, 269),
+                },
+                "front": {
+                    "stance": (20, 269, 281, 551),
+                    "grip": (281, 269, 568, 551),
+                    "draw": (568, 269, 846, 551),
+                    "thrust": (846, 269, 1124, 551),
+                    "back_up": (1124, 269, 1402, 551),
+                },
+                "right": {
+                    "stance": (20, 551, 270, 812),
+                    "grip": (270, 551, 560, 812),
+                    "draw": (560, 551, 820, 812),
+                    "thrust": (820, 551, 1155, 812),
+                    "back_up": (1155, 551, 1402, 812),
+                },
+                "left": {
+                    "stance": (20, 812, 268, 1075),
+                    "grip": (268, 812, 552, 1075),
+                    "draw": (552, 812, 808, 1075),
+                    "thrust": (808, 812, 1147, 1075),
+                    "back_up": (1147, 812, 1402, 1075),
+                },
+            },
+            "sheets": {
+                "Attack": ["grip", "draw", "thrust", "back_up"],
+            },
+        },
+    },
+    "demon_cuff": {
+        # 2026-11-06: the Demon's Cuff — demon_cuff_board.webp, four
+        # unlabelled rows on black (its back, its front, facing right, facing
+        # left), five frames a row: the stance, the trident lifted, raised
+        # high, its head lit with red power, held. Cast.png, played for its
+        # Cuff (you cannot draw).
+        "into": "demon",
+        "actions": {
+            "src": "demon_cuff_board.webp",
+            # the light at the trident head stays a soft glow
+            "soft_glow": {"poses": ["glow1", "glow2"], "core": 235, "pad": 24, "top": 0.3},
+            # cut as its pose board is: its near-black paint kept solid,
+            # only the big flat-black pockets open
+            "levels": (1, 12, 2),
+            "open_flat": (5, 5, 250),
+            "keep_share": 0.02,
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            "frames": {
+                "back": {
+                    "stance": (20, 0, 299, 258),
+                    "lift": (299, 0, 564, 258),
+                    "raise": (564, 0, 834, 258),
+                    "glow1": (834, 0, 1096, 258),
+                    "glow2": (1096, 0, 1402, 258),
+                },
+                "front": {
+                    "stance": (20, 258, 296, 523),
+                    "lift": (296, 258, 560, 523),
+                    "raise": (560, 258, 834, 523),
+                    "glow1": (834, 258, 1098, 523),
+                    "glow2": (1098, 258, 1402, 523),
+                },
+                "right": {
+                    "stance": (20, 523, 291, 778),
+                    "lift": (291, 523, 563, 778),
+                    "raise": (563, 523, 832, 778),
+                    "glow1": (832, 523, 1083, 778),
+                    "glow2": (1083, 523, 1402, 778),
+                },
+                "left": {
+                    "stance": (20, 778, 294, 1050),
+                    "lift": (294, 778, 554, 1050),
+                    "raise": (554, 778, 830, 1050),
+                    "glow1": (830, 778, 1096, 1050),
+                    "glow2": (1096, 778, 1402, 1050),
+                },
+            },
+            "sheets": {
+                "Cast": ["lift", "raise", "glow1", "glow2"],
+            },
+        },
+    },
+    "spirit_collector_collect": {
+        # 2026-11-06: the Spirit Collector's Collect Soul —
+        # spirit_collector_collect_board.webp, four unlabelled rows on black
+        # (its front, its back, facing left, facing right), six frames a row:
+        # the stance, the lantern raised, lifted high, a soul drawn in, the
+        # soul swirling into the lantern, a soul sent out. The souls painted
+        # flying in the drain and send frames are left out (only the figure,
+        # its biggest piece, is kept): the soul flies as its own sprite,
+        # Soul.png (below), from its victim into the lantern and back.
+        # Cast.png; the stance is the height reference, matched to each
+        # facing's Idle.
+        "into": "spirit_collector",
+        "actions": {
+            "src": "spirit_collector_collect_board.webp",
+            # cut as the Demon's boards are: his black coat is painted as
+            # dark as the backdrop
+            "levels": (1, 12, 2),
+            "open_flat": (5, 5, 250),
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            # the lantern's light stays a soft cyan glow
+            "soft_glow": {"poses": ["stance", "raise", "lift", "drain", "swirl", "send"], "cyan": True},
+            # the souls painted flying (their glow touches the lantern's), in
+            # each box's own pixels: the flying sprite replaces them
+            "bg_boxes": {("front", "drain"): [(0, 40, 118, 130)], ("front", "send"): [(0, 95, 92, 200)],
+                         ("back", "drain"): [(0, 53, 110, 123)], ("back", "send"): [(232, 105, 276, 193)],
+                         ("left", "drain"): [(0, 40, 96, 115)], ("left", "send"): [(0, 80, 84, 160)],
+                         ("right", "drain"): [(0, 40, 110, 120)], ("right", "send"): [(216, 55, 276, 150)]},
+            "frames": {
+                "front": {
+                    "stance": (40, 0, 270, 247),
+                    "raise": (270, 0, 530, 247),
+                    "lift": (530, 0, 734, 247),
+                    "drain": (734, 0, 1030, 247),
+                    "swirl": (1030, 0, 1260, 247),
+                    "send": (1260, 0, 1536, 247),
+                },
+                "back": {
+                    "stance": (40, 247, 270, 503),
+                    "raise": (270, 247, 530, 503),
+                    "lift": (530, 247, 734, 503),
+                    "drain": (734, 247, 1030, 503),
+                    "swirl": (1030, 247, 1260, 503),
+                    "send": (1260, 247, 1536, 503),
+                },
+                "left": {
+                    "stance": (40, 503, 270, 760),
+                    "raise": (270, 503, 530, 760),
+                    "lift": (530, 503, 734, 760),
+                    "drain": (734, 503, 1030, 760),
+                    "swirl": (1030, 503, 1260, 760),
+                    "send": (1260, 503, 1536, 760),
+                },
+                "right": {
+                    "stance": (40, 760, 270, 1015),
+                    "raise": (270, 760, 530, 1015),
+                    "lift": (530, 760, 734, 1015),
+                    "drain": (734, 760, 1030, 1015),
+                    "swirl": (1030, 760, 1260, 1015),
+                    "send": (1260, 760, 1536, 1015),
+                },
+            },
+            "sheets": {
+                "Cast": ["raise", "lift", "drain", "swirl", "send"],
+            },
+        },
+    },
+    "spirit_collector_soul": {
+        # 2026-11-06: the soul the Spirit Collector draws from its victim and
+        # sends back — spirit_collector_soul.png, one cyan skull-headed wisp
+        # trailing tendrils, flying right, already cut out (soft alpha kept).
+        # Soul.png in its folder, 0.9 tiles long.
+        "into": "spirit_collector",
+        "strip": {
+            "src": "spirit_collector_soul.png",
+            "keep_alpha": True,
+            "sheet": "Soul",
+            "frames": [(120, 380, 1135, 835)],
+            "width_tiles": 0.9,
+        },
+    },
+    "crypt_crawler_web": {
+        # 2026-11-06: the Crypt Crawler's Web — crypt_crawler_web_board_v5.webp
+        # (the designer's fifth pass, drawn to match its idle board's spider;
+        # the first four are kept beside it), four unlabelled rows on black
+        # (its front, its back, facing left, facing right), eight frames a
+        # row: the stance, the corpse on its back rising in two frames,
+        # pulling strands of web from the spider, gathering them into a ball
+        # over its head, the throw, the corpse sunk again as the ball flies
+        # (the painted ball, apart from the spider, is left out: it flies as
+        # its own sprite), and the stance. Throw.png runs the seven frames
+        # after the stance; the stance is the height reference, matched to
+        # each facing's Idle.
+        "into": "crypt_crawler",
+        "actions": {
+            "src": "crypt_crawler_web_board_v5.webp",
+            # cut as the Demon's boards are: its legs and back are painted
+            # nearly as dark as the backdrop
+            "levels": (4, 16, 6),
+            "open_flat": (8, 5, 250),
+            "glow": False,
+            "isolate": True,
+            "isolate_floor": 14,   # its frames' faint fringes touch: they are told apart on what is lit
+            # the ball painted in flight, its strands still tied to the
+            # spider (in each box's own pixels): the flying sprite replaces it
+            "bg_boxes": {("front", "flight"): [(112, 55, 178, 100)], ("back", "flight"): [(122, 38, 182, 82)],
+                         ("left", "flight"): [(0, 55, 47, 95)], ("right", "flight"): [(0, 55, 42, 95)]},
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (0, 5, 191, 250),
+                    "rise1": (191, 5, 373, 250),
+                    "rise2": (373, 5, 553, 250),
+                    "gather": (553, 5, 734, 250),
+                    "overhead": (734, 5, 915, 250),
+                    "throw": (915, 5, 1095, 250),
+                    "flight": (1095, 5, 1273, 250),
+                    "end": (1273, 5, 1448, 250),
+                },
+                "back": {
+                    "stance": (0, 255, 190, 515),
+                    "rise1": (190, 255, 372, 515),
+                    "rise2": (372, 255, 553, 515),
+                    "gather": (553, 255, 734, 515),
+                    "overhead": (734, 255, 914, 515),
+                    "throw": (914, 255, 1095, 515),
+                    "flight": (1095, 255, 1277, 515),
+                    "end": (1277, 255, 1448, 515),
+                },
+                "left": {
+                    "stance": (0, 520, 187, 780),
+                    "rise1": (187, 520, 368, 780),
+                    "rise2": (368, 520, 549, 780),
+                    "gather": (549, 520, 730, 780),
+                    "overhead": (730, 520, 910, 780),
+                    "throw": (910, 520, 1090, 780),
+                    "flight": (1090, 520, 1270, 780),
+                    "end": (1270, 520, 1448, 780),
+                },
+                "right": {
+                    "stance": (0, 785, 188, 1045),
+                    "rise1": (188, 785, 370, 1045),
+                    "rise2": (370, 785, 551, 1045),
+                    "gather": (551, 785, 731, 1045),
+                    "overhead": (731, 785, 912, 1045),
+                    "throw": (912, 785, 1090, 1045),
+                    "flight": (1090, 785, 1270, 1045),
+                    "end": (1270, 785, 1448, 1045),
+                },
+            },
+            "sheets": {
+                "Throw": ["rise1", "rise2", "gather", "overhead", "throw", "flight", "end"],
+            },
+        },
+    },
+    "crypt_crawler_ball": {
+        # 2026-11-06: the ball of web the Crypt Crawler throws (the left half
+        # of crypt_crawler_web_art.webp: a knot of web trailing strands,
+        # flying right, already cut out). Ball.png, 0.75 tiles long.
+        "into": "crypt_crawler",
+        "strip": {
+            "src": "crypt_crawler_web_art.webp",
+            "keep_alpha": True,
+            "sheet": "Ball",
+            "frames": [(20, 275, 830, 605)],
+            "width_tiles": 0.75,
+        },
+    },
+    "crypt_crawler_webart": {
+        # 2026-11-06: the web the ball makes where it lands (the right half
+        # of crypt_crawler_web_art.webp: a web strung between a cross, a
+        # headstone and bone posts, a skull at its heart, moss hanging).
+        # Web.png, 1.35 tiles across, held on its victim's square while they
+        # are paralysed.
+        "into": "crypt_crawler",
+        "strip": {
+            "src": "crypt_crawler_web_art.webp",
+            "keep_alpha": True,
+            "sheet": "Web",
+            "frames": [(935, 18, 1765, 872)],
+            "width_tiles": 1.35,
+        },
+    },
+    "infected_hunter_hook": {
+        # 2026-11-06: the Infected Hunter's Hook — infected_hunter_hook_board.webp,
+        # a table on black of four labelled rows (NORTH its front, SOUTH its
+        # back, WEST, EAST), twelve cells a row: the stance, the hook swung
+        # back, wound up in two frames, the throw (its chain running out of
+        # the hand across the next cell to the hook), the hook pulled back,
+        # and five frames settling to the stance. Each box sits inside its
+        # cell: the chain past the hand is left out (it flies as its own
+        # sprites, a stretch of links repeated out to its prey and the hook
+        # at its end: "infected_hunter_chain" / "_hookhead" below), and the
+        # cell it crosses is skipped. Throw.png holds the throw while the
+        # chain runs out and reels its prey in; the stance is the height
+        # reference, matched to each facing's Idle.
+        "into": "infected_hunter",
+        "actions": {
+            "src": "infected_hunter_hook_board.webp",
+            "levels": (4, 16, 6),
+            "open_flat": (8, 5, 250),
+            "keep_share": 0.02,   # the hook, apart from the hand
+            "glow": False,
+            "isolate": True,
+            "isolate_floor": 14,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (80, 6, 201, 251),
+                    "swing": (205, 6, 325, 251),
+                    "wind1": (329, 6, 446, 251),
+                    "wind2": (450, 6, 571, 251),
+                    "throw": (575, 6, 695, 251),
+                    "pull": (823, 6, 954, 251),
+                    "r1": (958, 6, 1074, 251),
+                    "r2": (1078, 6, 1200, 251),
+                    "r3": (1204, 6, 1317, 251),
+                    "r4": (1321, 6, 1427, 251),
+                    "r5": (1431, 6, 1531, 251),
+                },
+                "back": {
+                    "stance": (80, 256, 201, 493),
+                    "swing": (205, 256, 325, 493),
+                    "wind1": (329, 256, 446, 493),
+                    "wind2": (450, 256, 571, 493),
+                    "throw": (575, 256, 695, 493),
+                    "pull": (823, 256, 954, 493),
+                    "r1": (958, 256, 1074, 493),
+                    "r2": (1078, 256, 1200, 493),
+                    "r3": (1204, 256, 1317, 493),
+                    "r4": (1321, 256, 1427, 493),
+                    "r5": (1431, 256, 1531, 493),
+                },
+                # The board's WEST row throws to the screen's right, away
+                # from where it faces: the EAST row, mirrored, stands in.
+                "left": {
+                    "stance": ("mirror", (80, 738, 201, 985)),
+                    "swing": ("mirror", (205, 738, 325, 985)),
+                    "wind1": ("mirror", (329, 738, 446, 985)),
+                    "wind2": ("mirror", (450, 738, 571, 985)),
+                    "throw": ("mirror", (575, 738, 695, 985)),
+                    "pull": ("mirror", (823, 738, 954, 985)),
+                    "r1": ("mirror", (958, 738, 1074, 985)),
+                    "r2": ("mirror", (1078, 738, 1200, 985)),
+                    "r3": ("mirror", (1204, 738, 1317, 985)),
+                    "r4": ("mirror", (1321, 738, 1427, 985)),
+                    "r5": ("mirror", (1431, 738, 1531, 985)),
+                },
+                "right": {
+                    "stance": (80, 738, 201, 985),
+                    "swing": (205, 738, 325, 985),
+                    "wind1": (329, 738, 446, 985),
+                    "wind2": (450, 738, 571, 985),
+                    "throw": (575, 738, 695, 985),
+                    "pull": (823, 738, 954, 985),
+                    "r1": (958, 738, 1074, 985),
+                    "r2": (1078, 738, 1200, 985),
+                    "r3": (1204, 738, 1317, 985),
+                    "r4": (1321, 738, 1427, 985),
+                    "r5": (1431, 738, 1531, 985),
+                },
+            },
+            "sheets": {
+                "Throw": ["swing", "wind1", "wind2", "throw", "throw", "throw", "throw", "pull", "r1", "r2", "r3", "r4", "r5"],
+            },
+        },
+    },
+    "infected_hunter_cleave": {
+        # 2026-11-06: the Infected Hunter's Cleave — infected_hunter_cleave_board.webp,
+        # a table on black of four labelled rows (NORTH its front, SOUTH its
+        # back, WEST, EAST), eight cells a row: the stance, the hook ready,
+        # dropped low, raised, swung overhead (an arc behind it), the cleave
+        # down and across (a sweep of motion at its feet), the follow-through
+        # and the stance. Each box sits inside its cell. Attack.png runs the
+        # six frames between the stances, for its Cleave; the stance is the
+        # height reference, matched to each facing's Idle.
+        "into": "infected_hunter",
+        "actions": {
+            "src": "infected_hunter_cleave_board.webp",
+            "levels": (4, 16, 6),
+            "open_flat": (8, 5, 250),
+            "keep_share": 0.01,   # the swing's arcs
+            "glow": False,
+            "isolate": True,
+            "isolate_floor": 14,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (97, 6, 271, 252),
+                    "ready": (277, 6, 455, 252),
+                    "wind": (461, 6, 639, 252),
+                    "raise": (645, 6, 823, 252),
+                    "overhead": (829, 6, 1009, 252),
+                    "cleave": (1015, 6, 1195, 252),
+                    "follow": (1201, 6, 1372, 252),
+                    "end": (1378, 6, 1531, 252),
+                },
+                "back": {
+                    "stance": (97, 259, 271, 499),
+                    "ready": (277, 259, 455, 499),
+                    "wind": (461, 259, 639, 499),
+                    "raise": (645, 259, 823, 499),
+                    "overhead": (829, 259, 1009, 499),
+                    "cleave": (1015, 259, 1195, 499),
+                    "follow": (1201, 259, 1372, 499),
+                    "end": (1378, 259, 1531, 499),
+                },
+                "left": {
+                    "stance": (97, 506, 271, 731),
+                    "ready": (277, 506, 455, 731),
+                    "wind": (461, 506, 639, 731),
+                    "raise": (645, 506, 823, 731),
+                    "overhead": (829, 506, 1009, 731),
+                    "cleave": (1015, 506, 1195, 731),
+                    "follow": (1201, 506, 1372, 731),
+                    "end": (1378, 506, 1531, 731),
+                },
+                "right": {
+                    "stance": (97, 738, 271, 991),
+                    "ready": (277, 738, 455, 991),
+                    "wind": (461, 738, 639, 991),
+                    "raise": (645, 738, 823, 991),
+                    "overhead": (829, 738, 1009, 991),
+                    "cleave": (1015, 738, 1195, 991),
+                    "follow": (1201, 738, 1372, 991),
+                    "end": (1378, 738, 1531, 991),
+                },
+            },
+            "sheets": {
+                "Attack": ["ready", "wind", "raise", "overhead", "cleave", "follow"],
+            },
+        },
+    },
+    "infected_hunter_chain": {
+        # 2026-11-06: two links of the Hunter's chain (from the throw frame of
+        # the hook board's EAST row, cut joint to joint so it repeats without
+        # a seam). The designer: "snip and paste the chain multiple times" —
+        # ChainHook lays it end to end from his hand out to his prey. Chain.png,
+        # at the board's scale (the hunter ~227 px = 1.7 tiles).
+        "into": "infected_hunter",
+        "strip": {
+            "src": "infected_hunter_hook_board.webp", "bg": "black_key",
+            "sheet": "Chain",
+            "frames": [(716, 806, 746, 838)],
+            "trim": False, "center": True,
+            "width_px": 133, "width_tiles": 1.0,
+        },
+    },
+    "infected_hunter_hookhead": {
+        # 2026-11-06: the hook at the chain's end (the same throw frame),
+        # pointing the way it flies (right). Hook.png, at the board's scale,
+        # centred on the chain's line as Chain.png is.
+        "into": "infected_hunter",
+        "strip": {
+            "src": "infected_hunter_hook_board.webp", "bg": "black_key",
+            "sheet": "Hook",
+            "frames": [(776, 790, 824, 854)],
+            "trim": False, "center": True,
+            "width_px": 133, "width_tiles": 1.0,
+        },
+    },
     "screecher": {
         # 2026-11-04: the Screecher — a hooded wraith in a tattered,
         # moth-eaten shroud, a screaming fanged face with glowing eyes, its
@@ -2318,6 +2844,145 @@ BOARDS = {
             },
             "sheets": {
                 "Sunken": ["step", "lunge", "crouch", "sink1", "sink2", "sink3", "shake1", "shake2", "release", "rise"],
+            },
+        },
+    },
+    "weregoat_charge": {
+        # 2026-11-06: the Weregoat's Charge — weregoat_charge_board.webp, four
+        # labelled rows on black (NORTH its face, SOUTH its back, WEST, EAST),
+        # eight frames a row: the stance, three stamps of a hoof (dirt kicked
+        # up), the crouch, and the run, dust boiling up behind it. The run's
+        # dust touches the next frame on the east row, so the row is parted
+        # at the narrowest contact (`split`). Packed into its folder as
+        # Charge.png, scaled to its walk-sheet Idle like the Sabertooth's
+        # boards; the game carries it down its lane through the run frames
+        # (SpriteEnemyFigure "leap").
+        "into": "weregoat",
+        "actions": {
+            "src": "weregoat_charge_board.webp",
+            "levels": (6, 35, 10),
+            "fill_holes": 6,
+            "open_dark": True,
+            "keep_share": 0.01,   # the kicked-up dirt
+            "glow": False,
+            "split": True,
+            "isolate_floor": 14,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (165, 14, 341, 212),
+                    "stomp1": (341, 14, 549, 212),
+                    "stomp2": (549, 14, 737, 212),
+                    "stomp3": (737, 14, 943, 212),
+                    "crouch": (943, 14, 1144, 212),
+                    "run1": (1144, 14, 1347, 212),
+                    "run2": (1347, 14, 1545, 212),
+                    "run3": (1545, 14, 1774, 212),
+                },
+                "back": {
+                    "stance": (165, 230, 342, 440),
+                    "stomp1": (342, 230, 546, 440),
+                    "stomp2": (546, 230, 736, 440),
+                    "stomp3": (736, 230, 940, 440),
+                    "crouch": (940, 230, 1145, 440),
+                    "run1": (1145, 230, 1347, 440),
+                    "run2": (1347, 230, 1544, 440),
+                    "run3": (1544, 230, 1774, 440),
+                },
+                "left": {
+                    "stance": (165, 450, 333, 645),
+                    "stomp1": (333, 450, 530, 645),
+                    "stomp2": (530, 450, 706, 645),
+                    "stomp3": (706, 450, 900, 645),
+                    "crouch": (900, 450, 1102, 645),
+                    "run1": (1102, 450, 1321, 645),
+                    "run2": (1321, 450, 1540, 645),
+                    "run3": (1540, 450, 1774, 645),
+                },
+                "right": {
+                    "stance": (165, 658, 333, 858),
+                    "stomp1": (333, 658, 540, 858),
+                    "stomp2": (540, 658, 710, 858),
+                    "stomp3": (710, 658, 914, 858),
+                    "crouch": (914, 658, 1105, 858),
+                    "run1": (1105, 658, 1312, 858),
+                    "run2": (1312, 658, 1522, 858),
+                    "run3": (1522, 658, 1774, 858),
+                },
+            },
+            "sheets": {
+                "Charge": ["stomp1", "stomp2", "stomp3", "crouch", "run1", "run2", "run3"],
+            },
+        },
+    },
+    "weregoat_punch": {
+        # 2026-11-06: the Weregoat's Hoof Punch — weregoat_punch_board.webp,
+        # four labelled rows on black (NORTH its face, SOUTH its back, WEST,
+        # EAST), eight frames a row: the stance, fists up, the fist drawn
+        # back, cocked, the punch (motion lines off the hoof), drawing back,
+        # settling, the stance. The punch's motion lines touch the frame
+        # beside it on the side rows, so each row is parted at the narrowest
+        # contact (`split`, the punch frames' bodies given). Packed into its
+        # folder as Attack.png, scaled to its walk-sheet Idle.
+        "into": "weregoat",
+        "actions": {
+            "src": "weregoat_punch_board.webp",
+            "levels": (6, 35, 10),
+            "fill_holes": 6,
+            "open_dark": True,
+            "keep_share": 0.004,   # the motion lines
+            "glow": False,
+            "split": True,
+            "isolate_floor": 14,
+            "match": "stance",
+            # the punch frames' centres are put out along the punching arm,
+            # so the loose motion lines past the hoof go with the punch
+            "split_centres": {"left": [250, 432, 620, 805, 960, 1220, 1407, 1588],
+                              "right": [247, 436, 618, 815, 1060, 1240, 1410, 1592]},
+            "frames": {
+                "front": {
+                    "stance": (170, 12, 343, 212),
+                    "ready": (343, 12, 533, 212),
+                    "wind1": (533, 12, 726, 212),
+                    "wind2": (726, 12, 922, 212),
+                    "punch": (922, 12, 1140, 212),
+                    "follow": (1140, 12, 1327, 212),
+                    "settle": (1327, 12, 1513, 212),
+                    "stance2": (1513, 12, 1672, 212),
+                },
+                "back": {
+                    "stance": (170, 240, 346, 452),
+                    "ready": (346, 240, 535, 452),
+                    "wind1": (535, 240, 723, 452),
+                    "wind2": (723, 240, 921, 452),
+                    "punch": (921, 240, 1133, 452),
+                    "follow": (1133, 240, 1315, 452),
+                    "settle": (1315, 240, 1504, 452),
+                    "stance2": (1504, 240, 1672, 452),
+                },
+                "left": {
+                    "stance": (170, 480, 342, 676),
+                    "ready": (342, 480, 524, 676),
+                    "wind1": (524, 480, 705, 676),
+                    "wind2": (705, 480, 890, 676),
+                    "punch": (890, 480, 1120, 676),
+                    "follow": (1120, 480, 1316, 676),
+                    "settle": (1316, 480, 1499, 676),
+                    "stance2": (1499, 480, 1672, 676),
+                },
+                "right": {
+                    "stance": (170, 702, 343, 900),
+                    "ready": (343, 702, 526, 900),
+                    "wind1": (526, 702, 708, 900),
+                    "wind2": (708, 702, 915, 900),
+                    "punch": (915, 702, 1148, 900),
+                    "follow": (1148, 702, 1315, 900),
+                    "settle": (1315, 702, 1503, 900),
+                    "stance2": (1503, 702, 1672, 900),
+                },
+            },
+            "sheets": {
+                "Attack": ["ready", "wind1", "wind2", "punch", "follow", "settle"],
             },
         },
     },
@@ -3745,6 +4410,63 @@ BOARDS = {
             "left": (69, 584, 488, 1122),
             "right": (804, 584, 1210, 1122),
         },
+        # 2026-11-06: the designer's strike board — bugbear_strike_board.webp,
+        # four labelled rows on black (NORTH (FRONT), SOUTH (BACK), WEST
+        # (LEFT), EAST (RIGHT)), seven frames a row under column captions:
+        # idle, quick jab (the free fist), recover / shift, wind up (the
+        # mace), the heavy swing (an arc behind the mace), follow-through,
+        # recovery to idle. Attack.png, played for its Strike; the idle is
+        # the height reference, matched to each facing's Idle.
+        "actions": {
+            "src": "bugbear_strike_board.webp",
+            "fill_holes": 4,
+            "open_dark": True,
+            "keep_share": 0.02,   # the swing's arc
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (108, 52, 319, 238),
+                    "jab": (319, 52, 540, 238),
+                    "shift": (540, 52, 756, 238),
+                    "windup": (756, 52, 974, 238),
+                    "swing": (974, 52, 1222, 238),
+                    "follow": (1222, 52, 1439, 238),
+                    "recovery": (1439, 52, 1672, 238),
+                },
+                "back": {
+                    "stance": (108, 240, 339, 437),
+                    "jab": (339, 240, 563, 437),
+                    "shift": (563, 240, 774, 437),
+                    "windup": (774, 240, 982, 437),
+                    "swing": (982, 240, 1235, 437),
+                    "follow": (1235, 240, 1478, 437),
+                    "recovery": (1478, 240, 1672, 437),
+                },
+                "left": {
+                    "stance": (108, 438, 311, 658),
+                    "jab": (311, 438, 536, 658),
+                    "shift": (536, 438, 747, 658),
+                    "windup": (747, 438, 975, 658),
+                    "swing": (975, 438, 1214, 658),
+                    "follow": (1214, 438, 1459, 658),
+                    "recovery": (1459, 438, 1672, 658),
+                },
+                "right": {
+                    "stance": (108, 660, 341, 890),
+                    "jab": (341, 660, 551, 890),
+                    "shift": (551, 660, 760, 890),
+                    "windup": (760, 660, 980, 890),
+                    "swing": (980, 660, 1225, 890),
+                    "follow": (1225, 660, 1484, 890),
+                    "recovery": (1484, 660, 1672, 890),
+                },
+            },
+            "sheets": {
+                "Attack": ["jab", "shift", "windup", "swing", "follow", "recovery"],
+            },
+        },
     },
     "werewolf": {
         # 2026-10-28: the designer's updated Werewolf — a shaggy, muscled
@@ -4303,7 +5025,8 @@ ACTION_ROWS = ["left", "right"]   # the rows of an action sheet (SpriteEnemyFigu
 
 def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep_share: float = 0.0,
                     fill_holes: bool = False, levels=None, glow: bool = True,
-                    open_dark: bool = False, shadow_lum: float = 0.0, matte=None) -> Image.Image:
+                    open_dark: bool = False, shadow_lum: float = 0.0, matte=None,
+                    open_flat=None, trim: bool = True, soft_mask=None) -> Image.Image:
     """One figure and the glow of its attack on pure black (the werewolf's
     slash board): alpha from brightness as the black key does, the dim
     glow of the slash arcs kept soft and un-darkened, then only the
@@ -4344,7 +5067,22 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
     # Dark paint inside the body (shaded fur) is solid, but the black the
     # slash arc closes in against the chest is the board: only small
     # enclosed pockets are filled.
-    if fill_holes is not True:
+    if open_flat:
+        # `open_flat` (lum_max, k, min_area): the Demon's hair, breeches and
+        # sash are painted as near-black as its backdrop, so brightness alone
+        # cannot tell a pocket of paint from one of backdrop. The backdrop's
+        # pockets (between its legs, inside the trident's prongs) are big
+        # and hold a flat patch, at least k px across, no brighter than
+        # lum_max; the paint's are small or speckled. Only those stay open.
+        lum_max, k, min_area = open_flat
+        flat = cv2.morphologyEx((lum <= lum_max).astype(np.uint8), cv2.MORPH_OPEN,
+                                np.ones((k, k), np.uint8)).astype(bool)
+        holes = (filled & (1 - body)).astype(np.uint8)
+        hn, hlab, hst, _ = cv2.connectedComponentsWithStats(holes, connectivity=4)
+        for i in range(1, hn):
+            if hst[i, cv2.CC_STAT_AREA] >= min_area and flat[hlab == i].any():
+                filled[hlab == i] = 0
+    elif fill_holes is not True:
         # Small pockets are always the figure's; a bigger one only when
         # `fill_holes` is a brightness and the pocket is painted brighter
         # than that (the skeleton's cloak folds: the backdrop between his
@@ -4382,6 +5120,13 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
         shadow = (soft | (lum < (shadow_lum or solid_at))) & (sat < 20) & (lum < (shadow_lum or solid_at))
         shadow[:y0] = False
         alpha[shadow] = 0.0
+    if soft_mask is not None:
+        # A glow painted on black inside `soft_mask` (the light at the
+        # Demon's trident head): the levels that keep near-black paint solid
+        # would make its red halo an opaque dark disc, so there its red
+        # pixels take a soft alpha from their brightness, in full colour.
+        m = soft_mask & (alpha > 0)
+        alpha[m] = np.minimum(alpha, np.clip((lum - 2.0) / 150.0, 0.0, 1.0))[m]
     if matte is not None:
         # `matte_union`: what the model matte calls figure is solid, in the
         # board's own colour, whatever its brightness (fur as black as the
@@ -4391,8 +5136,34 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
     col = np.clip(rgb / a, 0, 255)
     col = np.where(alpha[..., None] > 0, col, 0)
     rgba = np.dstack([col, alpha * 255.0]).round().astype(np.uint8)
+    if not trim:
+        return Image.fromarray(rgba, "RGBA")   # the whole box (a strip that keeps its frames' places)
     ys, xs = np.nonzero(rgba[..., 3] > 0)
     return Image.fromarray(rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
+
+
+def _glow_mask(rgb: np.ndarray, act: dict, pose: str):
+    """`soft_glow` {"poses": [...], "core": lum, "pad": px, "top": share}: on
+    those poses, the red pixels about the glow's bright core (pixels at least
+    `core` bright in the box's top `share`, grown by `pad`), whose halo is
+    made soft; or, with "cyan": True, every cyan pixel (see _cut_black_glow); None
+    elsewhere."""
+    sg = act.get("soft_glow")
+    if not sg or pose not in sg["poses"]:
+        return None
+    if sg.get("cyan"):
+        # A cyan glow (the Spirit Collector's lantern of souls): no other
+        # paint on him is cyan, so its colour alone marks it, wherever it is.
+        # Its faintest halo is barely tinted, but tinted all the same (the
+        # coat's darks are brown or grey, never cyan).
+        return np.minimum(rgb[..., 1], rgb[..., 2]) >= rgb[..., 0] + 2
+    core = (rgb.max(axis=2) >= sg["core"]).astype(np.uint8)
+    core[int(core.shape[0] * sg.get("top", 1.0)):] = 0   # the glow is up there; the armour's highlights are lower
+    if not core.any():
+        return None
+    k = 2 * int(sg["pad"]) + 1
+    near = cv2.dilate(core, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))).astype(bool)
+    return near & (np.maximum(rgb[..., 1], rgb[..., 2]) < 0.75 * rgb[..., 0])   # its red halo only
 
 
 def _fade_edge(img: Image.Image, side: str, px: int) -> Image.Image:
@@ -4705,7 +5476,7 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
             img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
                                   act.get("keep_share", 0.0), act.get("fill_holes", False), act.get("levels"),
                                   act.get("glow", True), act.get("open_dark", False), act.get("shadow_lum", 0.0),
-                                  matte)
+                                  matte, open_flat=act.get("open_flat"), soft_mask=_glow_mask(rgb, act, pose))
             for side, px in act.get("edge_fade", {}).get((d, pose), ()):
                 img = _fade_edge(img, side, px)
             out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
@@ -4856,7 +5627,46 @@ def build_strip(name: str, cfg: dict) -> None:
     st = cfg["strip"]
     board = Image.open(SRC % st["src"]).convert("RGBA")
     raw = []
-    for box in st["frames"]:
+    for fi, box in enumerate(st["frames"]):
+        if st.get("bg") == "black_glow":
+            # A strip of the creature itself on black (the Demon's Mimic: it
+            # raises its trident and splits in two), cut as the pose boards
+            # on black are — near-black paint kept solid (`open_flat`), the
+            # red glow kept soft — each frame its whole box, so the frames
+            # keep their places. `clips`: the board columns a frame's art
+            # spans; what a neighbouring panel reaches into its box is
+            # blanked first.
+            rgb = np.asarray(board.convert("RGB").crop(box)).astype(int)
+            if st.get("clips"):
+                cx0, cx1 = st["clips"][fi]
+                rgb[:, :max(0, cx0 - box[0])] = 0
+                rgb[:, max(0, cx1 - box[0]):] = 0
+            f = _cut_black_glow(rgb, (), 0.0, st.get("keep_share", 0.0), st.get("fill_holes", False),
+                                st.get("levels"), True, st.get("open_dark", False),
+                                open_flat=st.get("open_flat"), trim=False)
+            # `soft_boxes`: board boxes, by frame, where a glow is painted on
+            # black (the red power ringing the Demon's trident). The levels
+            # that keep its near-black paint solid would make the glow an
+            # opaque dark smear: there its red pixels take their alpha from
+            # their brightness, softly, in their full colour. Its colour is
+            # the skin's too, so only these boxes are softened.
+            sb = st.get("soft_boxes", {}).get(fi, ())
+            if sb:
+                fa = np.asarray(f).astype(float)
+                lum = rgb.max(axis=2).astype(float)
+                red = np.maximum(rgb[..., 1], rgb[..., 2]) < 0.7 * rgb[..., 0]
+                soft_a = np.clip((lum - 2.0) / 150.0, 0.0, 1.0)
+                for x0, y0, x1, y1 in sb:
+                    m = np.zeros(lum.shape, bool)
+                    m[max(0, y0 - box[1]):max(0, y1 - box[1]), max(0, x0 - box[0]):max(0, x1 - box[0])] = True
+                    m &= red & (fa[..., 3] > 0)
+                    a_new = np.minimum(fa[..., 3] / 255.0, soft_a)
+                    fa[..., 3][m] = a_new[m] * 255.0
+                    col = np.clip(rgb / np.maximum(a_new, 1e-6)[..., None], 0, 255)
+                    fa[..., :3][m] = col[m]
+                f = Image.fromarray(fa.round().astype(np.uint8), "RGBA")
+            raw.append(f)
+            continue
         if st.get("bg") == "black_key":
             # A strip on black (the Rat King's Infest smoke): cut by
             # brightness, soft alpha, every lit piece kept; padded back to
@@ -4873,9 +5683,12 @@ def build_strip(name: str, cfg: dict) -> None:
             raw.append(f)
             continue
         f = board.crop(box)
-        a = np.asarray(f).copy()
-        a[..., 3] = np.where(a[..., 3] >= 128, 255, 0)   # the board's faint haze goes
-        f = Image.fromarray(a, "RGBA")
+        if not st.get("keep_alpha"):
+            # the board's faint haze goes (`keep_alpha`: a wisp drawn soft
+            # keeps its soft alpha — the Spirit Collector's flying soul)
+            a = np.asarray(f).copy()
+            a[..., 3] = np.where(a[..., 3] >= 128, 255, 0)
+            f = Image.fromarray(a, "RGBA")
         raw.append(f)
     # Trimmed to each frame's art; with `align` "board" every frame keeps the
     # rows they span together, so a ball flying level doesn't bob as its
@@ -5021,7 +5834,8 @@ def build(name: str, cfg: dict) -> None:
                         band = rgb[y0:]
                         band[band.max(axis=2) < lum_max] = 0
                     full[anim][d] = _cut_black_glow(rgb, (), 0.0, 0.0, cfg.get("fill_holes", False),
-                                                    cfg.get("levels"), False, cfg.get("open_dark", False))
+                                                    cfg.get("levels"), False, cfg.get("open_dark", False),
+                                                    open_flat=cfg.get("open_flat"))
                     continue
                 full[anim][d] = cut(board, box, bg_kind, fg_hints,
                                     cfg.get("sat_grow", 0), cfg.get("snow", False),

@@ -19,6 +19,10 @@ var _cell := 0
 var _frames := 1
 var _fading := false
 var _hold := false   # its last frame stays until it is freed (the Magma Spider's web lasts while the web does)
+## Held, it fades once this returns false (the Crypt Crawler's web: while its
+## victim still holds the Paralysis card) — or once whoever made it is gone.
+## Checked every frame; unset, a held effect stays until it is freed.
+var hold_while: Callable = Callable()
 
 
 ## Seconds from its launch until it is gone (until its last frame shows,
@@ -81,7 +85,7 @@ func _process(delta: float) -> void:
 		_show_frame(f)
 		return
 	_show_frame(_frames - 1)
-	if _hold:
+	if _hold and (hold_while.is_null() or (hold_while.is_valid() and hold_while.call())):
 		return
 	if not _fading:
 		_fading = true

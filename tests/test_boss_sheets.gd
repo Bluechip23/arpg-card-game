@@ -121,9 +121,11 @@ func _run() -> void:
 		sc_rows[int(scf._sprite.region_rect.position.y / scf._cp_cell)] = true
 	_check(sc_rows.size() == 4, "the Screecher shows a different pose for each of the four facings")
 	scr.queue_free()
-	# The Craftpix Demon and Specter leave their pack walk and run cycles
-	# unused (2026-11-04): moving, they play their idle and step.
-	for kind in ["demon", "specter"]:
+	# The Craftpix Specter leaves its pack walk and run cycles unused
+	# (2026-11-04): moving, it plays its idle and steps. (The Demon was on
+	# the pack too, until its own board, 2026-11-06.)
+	_check(str(SpriteEnemyFigure.KINDS["demon"].get("sheets", "")).ends_with("/demon"), "the Demon wears its own board")
+	for kind in ["specter"]:
 		var wf := SpriteEnemyFigure.new()
 		get_root().add_child(pf)
 		wf.setup(kind)

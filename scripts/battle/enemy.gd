@@ -3719,9 +3719,18 @@ func _try_hook(target_node: Node3D) -> bool:
 		var world := grid_manager.grid_to_world(dest)
 		if dungeon_manager:
 			world.y = dungeon_manager.get_elevation_world_y(dest)
-		target_node.target_position = world
-		if "is_moving" in target_node:
-			target_node.is_moving = true
+		# The chain runs out from his hand (the designer's hook board,
+		# 2026-11-06) and reels them in when the hook bites; without it they
+		# are pulled in at once.
+		var reel := 0.0
+		if _enemy_figure and _enemy_figure.has_method("throw_chain"):
+			reel = _enemy_figure.throw_chain(target_node, world, "hook")
+		if reel > 0.0:
+			swing_started.emit(self, reel)
+		else:
+			target_node.target_position = world
+			if "is_moving" in target_node:
+				target_node.is_moving = true
 	print("[%s] Hooks the target and reels them in!" % enemy_name)
 	_hook_recharge = 8  # sheet: Hook's 8 tempo — the next one needs winding again
 	turn_completed.emit()
@@ -3995,8 +4004,29 @@ func _try_crawler_web(target_node: Node3D) -> bool:
 		if deck:
 			deck.add_card_to_hand(Card.create_by_id("paralysis"))
 			print("[%s] Webs its prey — Paralysis added to the hand!" % enemy_name)
+	_web_art_at(target_node)
 	turn_completed.emit()
 	return true
+
+## The corpse on its back rises and throws a ball of web (the designer's
+## board, 2026-11-06); where it lands the web is strung about its victim's
+## feet, and stays while they hold the Paralysis card. The tick clock waits
+## for the ball to land.
+func _web_art_at(target_node: Node3D) -> void:
+	if _enemy_figure == null or not _enemy_figure.has_method("throw_projectile") or not is_instance_valid(target_node):
+		return
+	var lands: float = _enemy_figure.throw_projectile(target_node.global_position, "web")
+	var done := lands
+	_enemy_figure.last_spot = null
+	var spread: float = _enemy_figure.spot_effect(target_node.global_position, "web", lands, true)
+	var fx = _enemy_figure.last_spot
+	if spread > 0.0 and fx is SpotEffect:
+		var victim: Node3D = target_node
+		fx.hold_while = func() -> bool:
+			return is_instance_valid(victim) and _hand_has_card_id(victim, "paralysis")   # (the crawler gone: the web goes too)
+		done = maxf(done, spread)
+	if done > 0.0:
+		swing_started.emit(self, done)
 
 ## --- Spirit Collector ---
 
@@ -4014,6 +4044,10 @@ func _try_collect_soul(target_node: Node3D) -> bool:
 	if is_disarmed or not _in_attack_range(target_node):
 		return _try_move(target_node)
 	_deal_damage_to_player(target_node, attack_damage + strengthen_stacks, "Collect Soul")
+	# He raises the lantern: a soul is drawn out of the victim into it, then
+	# one is sent back out to them (the designer's board, 2026-11-06).
+	_throw_at(target_node, "collect_soul")
+	_throw_at(target_node, "collect_soul_out")
 	if target_node.has_method("get_deck_manager"):
 		var deck = target_node.get_deck_manager()
 		if deck:
@@ -4662,6 +4696,7 @@ func _choose_weregoat_action(distance: int) -> void:
 ## target instead and lands beside it — stun only, nothing was in the path.
 func _try_goat_charge(target_node: Node3D) -> bool:
 	if is_disarmed or rooted_tempo > 0:
+		_goat_charge_called_off()
 		return _try_move(target_node)
 	if not grid_manager:
 		return _try_elemental(target_node, GOAT_CHARGE_DAMAGE, "Charge")
@@ -4695,13 +4730,26 @@ func _try_goat_charge(target_node: Node3D) -> bool:
 		# beside it (or just walk if even that is out of reach).
 		var path := _build_route_path(position, grid_manager.world_to_grid(target_node.position), GOAT_CHARGE_SQUARES)
 		if path.is_empty():
+			_goat_charge_called_off()
 			return _try_move(target_node)
 		land_cell = grid_manager.world_to_grid(path[path.size() - 1])
 	# The blows land from where the run starts: the lane is clear of walls by
 	# construction, so nothing is hit through one.
 	for u in hits:
 		_hit_unit(u, GOAT_CHARGE_DAMAGE, "Charge")
-	_land_at(grid_manager.grid_to_world(land_cell))
+	var take_off := global_position
+	var land_world := grid_manager.grid_to_world(land_cell)
+	if _enemy_figure:
+		# It stamps and crouches facing its lane (the board's run goes
+		# forward), then runs.
+		var way: Vector3 = land_world - position
+		_enemy_figure.set_facing_from_velocity(Vector3(way.x, 0, way.z))
+		_enemy_figure.play_action("goat_charge")   # restart, facing the lane
+	_land_at(land_world)
+	# On the board it lands at once; the figure is carried down the lane
+	# through the board's run frames.
+	if _enemy_figure and _enemy_figure.has_method("leap_from"):
+		_enemy_figure.leap_from(take_off, "goat_charge")
 	var stunned := 0
 	for u in _units_within(units, land_cell, 1):
 		_apply_player_debuff(u, Debuff.create(Debuff.DebuffType.STUN, 0, GOAT_CHARGE_STUN_TEMPO))
@@ -4709,6 +4757,12 @@ func _try_goat_charge(target_node: Node3D) -> bool:
 	print("[%s] CHARGE — %d unit(s) trampled, %d stunned where it lands" % [enemy_name, hits.size(), stunned])
 	turn_completed.emit()
 	return true
+
+## The charge will not happen after all (rooted, disarmed, nowhere to run):
+## its stamping, already begun, gives way to the walk.
+func _goat_charge_called_off() -> void:
+	if _enemy_figure and _enemy_figure.has_method("cancel_swing"):
+		_enemy_figure.cancel_swing()
 
 ## One straight charge lane from `from` along `dir`, up to 8 squares. It stops
 ## short of walls, other enemies, pillars and the edge of the floor (and never
@@ -5078,14 +5132,72 @@ func _try_mimic(_target_node: Node3D) -> bool:
 	var main := get_parent()
 	if not main or not ("enemy_spawner" in main) or not main.enemy_spawner:
 		return false
-	var m: Enemy = main.enemy_spawner.spawn_enemy(EnemyType.DEMON, _free_cell_near(position, 2))
+	# It tears in two side by side (the designer's board, 2026-11-06): the
+	# copy steps out onto the square beside it, east or west, when one is
+	# free; else anywhere near, as before, with no split to show.
+	var side = _mimic_side_cell()
+	var spot: Vector3 = _free_cell_near(position, 2)
+	if side != null:
+		spot = grid_manager.grid_to_world(side)
+		if dungeon_manager:
+			spot.y = dungeon_manager.get_elevation_world_y(side)
+	var m: Enemy = main.enemy_spawner.spawn_enemy(EnemyType.DEMON, spot)
 	if m == null:
 		return false
 	m.become_mimic_of(self)
 	_mimics.append(m)
+	var here := position
+	# Which of the two is the real one is a coin toss (designer): half the
+	# time the demon itself is the one that stepped out.
+	if randf() < 0.5:
+		_land_at(m.position)
+		m._land_at(here)
+	if side != null:
+		_play_mimic_split(m, here, spot)
 	print("[%s] Mimic: a second demon steps out of the first (%d of %d)" % [enemy_name, _mimics.size(), MIMIC_CAP])
 	turn_completed.emit()
 	return true
+
+## The free square beside the demon on screen (east or west, the board's
+## split runs sideways), either side first at random; null when neither is.
+func _mimic_side_cell() -> Variant:
+	if grid_manager == null:
+		return null
+	var base := grid_manager.world_to_grid(position)
+	var sides := [Vector2i(1, 0), Vector2i(-1, 0)]
+	if randf() < 0.5:
+		sides.reverse()
+	for d in sides:
+		if _cell_is_free(base + d):
+			return base + d
+	return null
+
+## The split itself: both figures hidden while the board plays midway
+## between the two squares (the one demon raising its trident, the red power,
+## the tearing in two), then the two demons stand where it left them (and
+## turn to their prey as ever). The tick clock waits for it, as for a swing.
+func _play_mimic_split(m: Enemy, a: Vector3, b: Vector3) -> void:
+	if _enemy_figure == null or not _enemy_figure.has_method("spot_effect"):
+		return
+	var mid := (a + b) * 0.5
+	if get_parent() is Node3D:
+		mid = (get_parent() as Node3D).to_global(mid)
+	var secs: float = _enemy_figure.spot_effect(mid, "mimic", -1.0, true)
+	if secs <= 0.0:
+		return
+	var fx: Node = _enemy_figure.last_spot
+	var figs: Array = [_enemy_figure]
+	if m._enemy_figure:
+		figs.append(m._enemy_figure)
+	for f in figs:
+		f.visible = false
+	swing_started.emit(self, secs)
+	get_tree().create_timer(secs).timeout.connect(func():
+		for f in figs:
+			if is_instance_valid(f):
+				f.visible = true
+		if is_instance_valid(fx):
+			fx.queue_free())
 
 func _prune_mimics() -> void:
 	_mimics = _mimics.filter(func(m): return m != null and is_instance_valid(m) and m.is_alive())
