@@ -34,11 +34,13 @@ const ROSTER := {
 	# damage waits for it (hit_delay; Main holds the tick clock meanwhile).
 	# The basic Attack (card and auto attack) and Block (card and shield
 	# button).
+	# The attacks play ~30% quicker than the blocks (designer, 2026-11-06:
+	# "a little slow making the attacks look a little choppy").
 	"Brad": {"board": "res://assets/sprites/generated/heroes/brad.png", "walk_rows": [0, 1, 2, 3],  # the warrior, the War Rack over his shoulder
 		"actions": {
 			# The jumping overhead smash; it slams down on frame 7.
 			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/brad_attack.png",
-				"frames": 8, "rows": [0, 1, 2, 3], "t": 0.06, "hit": 7},
+				"frames": 8, "rows": [0, 1, 2, 3], "t": 0.042, "hit": 7},
 			# Stone encases him, holds, and crumbles back off (from behind: his
 			# front, the board having no back view).
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/brad_block.png",
@@ -48,7 +50,7 @@ const ROSTER := {
 		"actions": {
 			# The aerial shadow kick combo: a leap, kicks trailing violet
 			# shadow, a spinning kick, and he lands.
-			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/cory_attack.png", "frames": 10, "rows": [0, 1, 2, 3], "t": 0.055, "hit": 5},
+			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/cory_attack.png", "frames": 10, "rows": [0, 1, 2, 3], "t": 0.04, "hit": 5},
 			# The energy field: a palm raised, a ring of blue force flares.
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/cory_block.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.065},
 		}},
@@ -56,14 +58,14 @@ const ROSTER := {
 		"actions": {
 			# The bear transformation swipe: his head turns bear and the bear
 			# arm rakes; the bear lingers a beat before he is himself again.
-			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/stephen_attack.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.06, "hold": 0.15, "hit": 7},
+			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/stephen_attack.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.042, "hold": 0.12, "hit": 7},
 			# The parry: two knives drawn and crossed with a flash, sheathed.
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/stephen_block.png", "frames": 7, "rows": [0, 1, 2, 3], "t": 0.065},
 		}},
 	"Jeremy": {"board": "res://assets/sprites/generated/heroes/jeremy.png", "walk_rows": [0, 1, 2, 3],  # the cloaked skeleton
 		"actions": {
 			# The backwind bone blade: a bone blade sweeps out in a glowing arc.
-			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/jeremy_attack.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.06, "hit": 7},
+			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/jeremy_attack.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.042, "hit": 7},
 			# The bone wall rises, holds, and sinks back into the ground.
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/jeremy_block.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.06, "hold": 0.5, "reverse": 0.035},
 		}},
@@ -71,7 +73,7 @@ const ROSTER := {
 		"actions": {
 			# Four quick stabs, alternating hands (redrawn 2026-11-02); the first
 			# lands on frame 3.
-			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/ryan_attack.png", "frames": 12, "rows": [0, 1, 2, 3], "t": 0.045, "hit": 3},
+			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/ryan_attack.png", "frames": 12, "rows": [0, 1, 2, 3], "t": 0.032, "hit": 3},
 			# His block is a backflip, a full 360 out of harm's way.
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/ryan_block.png", "frames": 15, "rows": [0, 1, 2, 3], "t": 0.045},
 		}},
@@ -112,7 +114,9 @@ const ACTION_FLOOR := 8
 ## Every hero's drawn actions play this much slower than the frame times in
 ## ROSTER (designer, 2026-10-31: "can move slightly slower"; 2026-11-01:
 ## slower again; 2026-11-03: "still a little rushed", another 0.5); the
-## blow's timing (hit_delay) follows.
+## blow's timing (hit_delay) follows. (2026-11-06: the attacks' own frame
+## times in ROSTER were cut ~30% — "a little slow ... choppy" — the blocks
+## kept theirs.)
 const ACTION_SLOW := 2.3
 ## The heroes' contact shadow (BlobShadow, style guide §4): off (designer,
 ## 2026-11-02). Seen through the gap between striding legs and beside the
