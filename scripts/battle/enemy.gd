@@ -49,7 +49,11 @@ enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_R
 	HELL_DOOR,
 	# Thanatos, death itself: the boss at the bottom of Thanatos Closet
 	# (the Underworld, 2026-11-05). Tail-appended.
-	THANATOS }
+	THANATOS,
+	# The five mages' totems (designer, 2026-11-06): each mage raises its
+	# element's totem, a structure that pulses its element round it until it
+	# is broken. Tail-appended.
+	AIR_TOTEM, EARTH_TOTEM, LIGHTNING_TOTEM, FIRE_TOTEM, ICE_TOTEM }
 
 
 ## Intended player level for this type (EnemyDefs "intended_level") — the
@@ -349,7 +353,7 @@ const NON_MELEE_ACTIONS := {
 	"seek_nest": true, "nest_heal": true, "dig_walk": true, "repair": true, "cerberus_roar": true,
 	"scurry_away": true, "get_into_range": true, "flee": true, "vanish": true,
 	"hydra_heal": true, "treant_heal": true, "sear_wounds": true,
-	"collect_soul": true, "summon_skeleton": true, "fire_wall": true,
+	"collect_soul": true, "summon_skeleton": true, "fire_wall": true, "raise_totem": true,
 	"shoot": true, "ember": true, "dark_bolt": true, "frost_bolt": true, "death_bolt": true,
 	"fire_bolt": true, "spark_bolt": true, "sludge_spit": true, "web": true,
 	"hook": true, "net_throw": true, "breath_swarm": true, "screech": true, "gust": true,
@@ -782,26 +786,31 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 			actions = [
 				{"name": "frost_bolt", "tempo_cost": 3},
 				{"name": "move",       "tempo_cost": 5},
+				{"name": "raise_totem", "tempo_cost": TOTEM_RAISE_TEMPO},
 			]
 		EnemyType.FIRE_MAGE:
 			actions = [
 				{"name": "fire_bolt", "tempo_cost": 3},
 				{"name": "move",      "tempo_cost": 3},
+				{"name": "raise_totem", "tempo_cost": TOTEM_RAISE_TEMPO},
 			]
 		EnemyType.SPARK_MAGE:
 			actions = [
 				{"name": "spark_bolt", "tempo_cost": 2},
 				{"name": "move",       "tempo_cost": 3},
+				{"name": "raise_totem", "tempo_cost": TOTEM_RAISE_TEMPO},
 			]
 		EnemyType.AIR_MAGE:
 			actions = [
 				{"name": "gust", "tempo_cost": 5},
 				{"name": "move", "tempo_cost": 3},
+				{"name": "raise_totem", "tempo_cost": TOTEM_RAISE_TEMPO},
 			]
 		EnemyType.EARTH_MAGE:
 			actions = [
 				{"name": "boulder", "tempo_cost": 6},
 				{"name": "move",    "tempo_cost": 5},
+				{"name": "raise_totem", "tempo_cost": TOTEM_RAISE_TEMPO},
 			]
 
 		# ===================== GRAVEYARD ACT =====================
@@ -833,8 +842,7 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 				{"name": "move",             "tempo_cost": 6},
 			]
 		EnemyType.THANATOS:
-			# First pass (designer, 2026-11-05: his art and kit are still
-			# being made; he wears the Corrupted Archangel's figure).
+			# First pass (designer, 2026-11-05: his kit is still being made).
 			actions = [
 				{"name": "thanatos_reap",    "tempo_cost": 5},
 				{"name": "death_bolt",       "tempo_cost": 6},
@@ -1140,11 +1148,11 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.INFECTED_HUNTER: [{"name": "Hook", "tempo": 8}, {"name": "Cleave", "tempo": 3}, {"name": "Net Throw", "tempo": 2}, {"name": "Move", "tempo": 3}],
 		EnemyType.GIANT_HAWK: [{"name": "Swoop", "tempo": 4}, {"name": "Move", "tempo": 3}],
 		EnemyType.TREANT: [{"name": "Slam", "tempo": 10}, {"name": "Root", "tempo": 8}, {"name": "Heal", "tempo": 5}, {"name": "Move", "tempo": 10}],
-		EnemyType.ICE_MAGE: [{"name": "Frost Bolt", "tempo": 3}, {"name": "Move", "tempo": 5}],
-		EnemyType.FIRE_MAGE: [{"name": "Fire Bolt", "tempo": 3}, {"name": "Move", "tempo": 3}],
-		EnemyType.SPARK_MAGE: [{"name": "Spark", "tempo": 2}, {"name": "Move", "tempo": 3}],
-		EnemyType.AIR_MAGE: [{"name": "Gust", "tempo": 5}, {"name": "Move", "tempo": 3}],
-		EnemyType.EARTH_MAGE: [{"name": "Boulder", "tempo": 6}, {"name": "Move", "tempo": 5}],
+		EnemyType.ICE_MAGE: [{"name": "Frost Bolt", "tempo": 3}, {"name": "Move", "tempo": 5}, {"name": "Raise Totem", "tempo": TOTEM_RAISE_TEMPO}],
+		EnemyType.FIRE_MAGE: [{"name": "Fire Bolt", "tempo": 3}, {"name": "Move", "tempo": 3}, {"name": "Raise Totem", "tempo": TOTEM_RAISE_TEMPO}],
+		EnemyType.SPARK_MAGE: [{"name": "Spark", "tempo": 2}, {"name": "Move", "tempo": 3}, {"name": "Raise Totem", "tempo": TOTEM_RAISE_TEMPO}],
+		EnemyType.AIR_MAGE: [{"name": "Gust", "tempo": 5}, {"name": "Move", "tempo": 3}, {"name": "Raise Totem", "tempo": TOTEM_RAISE_TEMPO}],
+		EnemyType.EARTH_MAGE: [{"name": "Boulder", "tempo": 6}, {"name": "Move", "tempo": 5}, {"name": "Raise Totem", "tempo": TOTEM_RAISE_TEMPO}],
 		EnemyType.ZOMBIE: [{"name": "Attack", "tempo": 6}, {"name": "Move", "tempo": 8}],
 		EnemyType.WEREWOLF: [{"name": "Claw", "tempo": 5}, {"name": "Move", "tempo": 3}],
 		EnemyType.TREASURE_BUNNY: [{"name": "Flee", "tempo": 1}, {"name": "Vanish", "tempo": 1}],
@@ -1189,6 +1197,11 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.GRAVESTONE: [],
 		EnemyType.GRAVE_DIGGER: [{"name": "Walk", "tempo": 2}, {"name": "Repair", "tempo": 8}],
 		EnemyType.HELL_DOOR: [],
+		EnemyType.AIR_TOTEM: [],
+		EnemyType.EARTH_TOTEM: [],
+		EnemyType.LIGHTNING_TOTEM: [],
+		EnemyType.FIRE_TOTEM: [],
+		EnemyType.ICE_TOTEM: [],
 	}
 	var _specials := {
 		EnemyType.MINION: "At range ≤1: Attacks.\nOtherwise: Moves toward player.",
@@ -1211,11 +1224,11 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.INFECTED_HUNTER: "Hook (range 2-7, 8 tempo): reels you in beside it. The first hook is ready at once; after each one it takes 8 tempo to recharge.\nCleave (3 tempo): 8 damage to everything on the three squares in front of it.\nNet Throw (2 tempo, within 3 squares, 8-tempo cooldown): Weighted for every card in your hand — each card costs +2 tempo until that many have been played.\nMove (3 tempo): 2 spaces.",
 		EnemyType.GIANT_HAWK: "Flying — ignores your high-ground bonus.\nSwoop (4 tempo, reach 2): 9 damage, 20% to Blind (1 stack, 5 tempo).\nMove (3 tempo): 8 spaces.",
 		EnemyType.TREANT: "Heals 5 HP every 5 tempo, +2 per 10% HP below 60%. Every 10 tempo, strips all thorns from its enemies and heals for the total. Resists 25% physical / 55% lightning, but takes 10% EXTRA fire damage.\nSlam (10 tempo): 14 earth damage.\nRoot (8 tempo): pins you for 8 tempo (can attack, cannot move).\nHeal (5 tempo): when badly hurt and out of melee, it stops to mend.\nMove (10 tempo): 9 spaces.",
-		EnemyType.ICE_MAGE: "Attacks Slow your movement.\nFrost Bolt (range 3, 3 tempo): 6 ice damage + Slow.\nMove (5 tempo): 3 spaces.",
-		EnemyType.FIRE_MAGE: "Attacks apply 2 Burn.\nFire Bolt (range 2, 3 tempo): 7 fire damage + 2 Burn.\nMove (3 tempo): 2 spaces.",
-		EnemyType.SPARK_MAGE: "Attacks apply 1 Shock.\nSpark (range 6, 2 tempo): 3 lightning damage + 1 Shock.\nMove (3 tempo): 2 spaces.",
-		EnemyType.AIR_MAGE: "Gust (range 8, 5 tempo): 5 wind damage.\nMove (3 tempo): 6 spaces.",
-		EnemyType.EARTH_MAGE: "Gains 4 armor every time it is hit.\nBoulder (melee, 6 tempo): 9 earth damage.\nMove (5 tempo): 5 spaces.",
+		EnemyType.ICE_MAGE: "Attacks Slow your movement.\nFrost Bolt (range 3, 3 tempo): 6 ice damage + Slow.\nMove (5 tempo): 3 spaces.\nRaise Totem (6 tempo): raises its Ice Totem beside it — one standing at a time, another 30 tempo after it is broken.",
+		EnemyType.FIRE_MAGE: "Attacks apply 2 Burn.\nFire Bolt (range 2, 3 tempo): 7 fire damage + 2 Burn.\nMove (3 tempo): 2 spaces.\nRaise Totem (6 tempo): raises its Fire Totem beside it — one standing at a time, another 30 tempo after it is broken.",
+		EnemyType.SPARK_MAGE: "Attacks apply 1 Shock.\nSpark (range 6, 2 tempo): 3 lightning damage + 1 Shock.\nMove (3 tempo): 2 spaces.\nRaise Totem (6 tempo): raises its Lightning Totem beside it — one standing at a time, another 30 tempo after it is broken.",
+		EnemyType.AIR_MAGE: "Gust (range 8, 5 tempo): 5 wind damage.\nMove (3 tempo): 6 spaces.\nRaise Totem (6 tempo): raises its Air Totem beside it — one standing at a time, another 30 tempo after it is broken.",
+		EnemyType.EARTH_MAGE: "Gains 4 armor every time it is hit.\nBoulder (melee, 6 tempo): 9 earth damage.\nMove (5 tempo): 5 spaces.\nRaise Totem (6 tempo): raises its Earth Totem beside it — one standing at a time, another 30 tempo after it is broken.",
 		EnemyType.ZOMBIE: "At range ≤1: Attacks (5 dmg, 6 tempo).\nOtherwise: shambles toward player (3 spaces / 8 tempo).",
 		EnemyType.WEREWOLF: "Resists 25% physical/fire/lightning.\nClaw (5 tempo): 10 damage, +3 vs armor; a debuffed target is raked a SECOND time for half. Each consecutive claw on the same target arms 1 tempo faster (5, 4, 3...); switching targets resets it.\nMove (3 tempo): 3 spaces.",
 		EnemyType.TREASURE_BUNNY: "Loot monster — does not attack.\nFlees for 3 cycles, then Vanishes in a puff of smoke.\nMove (1 tempo): 2 spaces.",
@@ -1263,6 +1276,11 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.GRAVESTONE: "Every one left standing regenerates the Bone Dragon 1 health a cycle, and that regen never fades — break the stones to starve him of it. Grants no XP, drops nothing.",
 		EnemyType.GRAVE_DIGGER: "Walks out of the Boneyard's crypt to a broken gravestone and sets it back to full in 8 tempo, then is gone. Three come in all, one at a time. Cut him down before he finishes.\nWalk (2 tempo): 6 spaces.\nRepair (8 tempo): the stone stands again.",
 		EnemyType.RAT_NEST: "Tread on it and its Archer Rat scrambles up to the high ground. The wounded king feeds on an untouched nest (left 20%, middle 30%, right 50% of his health) — tear the nests down and he has nowhere to run. Grants no XP, drops nothing.",
+		EnemyType.AIR_TOTEM: "Raised by an Air Mage. Every 5 tempo its whirlwind blows anyone within 2 squares 2 squares away from it. A structure: it holds its square and never moves. Break it to end its pulse. Grants no XP, drops nothing.",
+		EnemyType.EARTH_TOTEM: "Raised by an Earth Mage. Every 5 tempo each of its allies within 3 squares gains 3 armor (up to 15 more than their own). A structure: it holds its square and never moves. Break it to end its pulse. Grants no XP, drops nothing.",
+		EnemyType.LIGHTNING_TOTEM: "Raised by a Spark Mage. Every 5 tempo it strikes the nearest of you within 5 squares: 4 lightning damage + 1 Shock. A structure: it holds its square and never moves. Break it to end its pulse. Grants no XP, drops nothing.",
+		EnemyType.FIRE_TOTEM: "Raised by a Fire Mage. Every 5 tempo it sears everyone within 3 squares: 2 Burn. A structure: it holds its square and never moves. Break it to end its pulse. Grants no XP, drops nothing.",
+		EnemyType.ICE_TOTEM: "Raised by an Ice Mage. Every 5 tempo its frost Slows everyone within 3 squares. A structure: it holds its square and never moves. Break it to end its pulse. Grants no XP, drops nothing.",
 	}
 
 	var result: Array = []
@@ -1631,6 +1649,16 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 		_hook_deathyard_dog()
 		_guardian_scan()
 		_tick_venom(amount)
+
+	# The mages' totems pulse their element every cycle; a mage counts down
+	# to raising another once its totem is broken.
+	if is_totem():
+		_totem_accumulator += amount
+		while _totem_accumulator >= TOTEM_PULSE_TEMPO:
+			_totem_accumulator -= TOTEM_PULSE_TEMPO
+			_totem_pulse()
+	if _totem_cooldown > 0:
+		_totem_cooldown = maxi(0, _totem_cooldown - amount)
 
 	# Bone Dragon in the Boneyard: 1 health a cycle for every gravestone
 	# still standing — regen that never decays; only breaking stones lowers it.
@@ -2334,15 +2362,30 @@ func _choose_action(player_node: Node3D) -> void:
 		EnemyType.TREANT:
 			_choose_treant_action(distance)
 		EnemyType.ICE_MAGE:
-			_choose_ranged_action(distance, "frost_bolt")
+			if _can_raise_totem(distance):
+				chosen_action = _get_action("raise_totem")
+			else:
+				_choose_ranged_action(distance, "frost_bolt")
 		EnemyType.FIRE_MAGE:
-			_choose_ranged_action(distance, "fire_bolt")
+			if _can_raise_totem(distance):
+				chosen_action = _get_action("raise_totem")
+			else:
+				_choose_ranged_action(distance, "fire_bolt")
 		EnemyType.SPARK_MAGE:
-			_choose_ranged_action(distance, "spark_bolt")
+			if _can_raise_totem(distance):
+				chosen_action = _get_action("raise_totem")
+			else:
+				_choose_ranged_action(distance, "spark_bolt")
 		EnemyType.AIR_MAGE:
-			_choose_ranged_action(distance, "gust")
+			if _can_raise_totem(distance):
+				chosen_action = _get_action("raise_totem")
+			else:
+				_choose_ranged_action(distance, "gust")
 		EnemyType.EARTH_MAGE:
-			_choose_melee_action(distance, "boulder")
+			if _can_raise_totem(distance):
+				chosen_action = _get_action("raise_totem")
+			else:
+				_choose_melee_action(distance, "boulder")
 		# ----- Graveyard act -----
 		EnemyType.ZOMBIE:
 			_choose_melee_action(distance, "attack")
@@ -3394,6 +3437,8 @@ func _run_action(action_name: String, move_target: Node3D) -> bool:
 			return _try_death_bolt(move_target)
 		"summon_skeleton":
 			return _try_necro_summon(move_target)
+		"raise_totem":
+			return _try_raise_totem()
 		"dragon_bite":
 			return _try_elemental(move_target, attack_damage, "Bite")
 		"breath_swarm":
@@ -4190,6 +4235,145 @@ func _necro_spawn(t: EnemyType) -> Enemy:
 
 func _on_necro_summon_died(_e: Enemy) -> void:
 	_necro_summons_alive = maxi(0, _necro_summons_alive - 1)
+
+## --- The mages' totems (designer, 2026-11-06: "the 5 wizard types ... all
+## will create their own totems"). FIRST PASS: what each totem does was not
+## specced; each pulses its mage's element. A mage raises its totem on a
+## free square beside it, one standing at a time, and may raise another
+## TOTEM_REBUILD_TEMPO after it is broken. A totem is a structure (it holds
+## its square, never acts, no XP, no loot, the wave does not wait on it) and
+## crumbles when its mage falls.
+
+const TOTEM_RAISE_TEMPO := 6      # the mage's Raise Totem
+const TOTEM_PULSE_TEMPO := 5      # a totem pulses once a cycle
+const TOTEM_REBUILD_TEMPO := 30   # a broken totem: this long before the next
+const TOTEM_ENGAGE := 8           # a mage raises one once its prey is this close
+const TOTEM_RANGE := 3            # the fire, ice and earth totems' reach
+const TOTEM_AIR_RANGE := 2        # the air totem blows away whoever is this close...
+const TOTEM_AIR_PUSH := 2         # ...this many squares
+const TOTEM_BOLT_RANGE := 5       # the lightning totem's reach
+const TOTEM_BOLT_DAMAGE := 4      # (+1 Shock)
+const TOTEM_BURN := 2
+const TOTEM_ARMOR := 3            # the earth totem's armor a pulse, per ally...
+const TOTEM_ARMOR_CAP := 15       # ...up to this much over the ally's own
+const MAGE_TOTEMS := {
+	EnemyType.AIR_MAGE: EnemyType.AIR_TOTEM,
+	EnemyType.EARTH_MAGE: EnemyType.EARTH_TOTEM,
+	EnemyType.SPARK_MAGE: EnemyType.LIGHTNING_TOTEM,
+	EnemyType.FIRE_MAGE: EnemyType.FIRE_TOTEM,
+	EnemyType.ICE_MAGE: EnemyType.ICE_TOTEM,
+}
+
+var totem_owner: Enemy = null   # on a totem: the mage that raised it
+var _totem: Enemy = null        # on a mage: its standing totem
+var _totem_cooldown: int = 0    # on a mage: tempo until it may raise another
+var _totem_accumulator: int = 0 # on a totem: tempo toward its next pulse
+
+func is_totem() -> bool:
+	return enemy_type in MAGE_TOTEMS.values()
+
+func has_totem() -> bool:
+	return _totem != null and is_instance_valid(_totem) and _totem.is_alive()
+
+func _can_raise_totem(distance: int) -> bool:
+	if not MAGE_TOTEMS.has(enemy_type) or is_silenced or _totem_cooldown > 0 or has_totem():
+		return false
+	return distance <= TOTEM_ENGAGE
+
+func _try_raise_totem() -> bool:
+	if not is_silenced and not has_totem():
+		var main := get_parent()
+		if main and "enemy_spawner" in main and main.enemy_spawner:
+			var t: Enemy = main.enemy_spawner.spawn_enemy(MAGE_TOTEMS[enemy_type], _free_cell_near(position, 2))
+			if t:
+				t.totem_owner = self
+				_totem = t
+				t.died.connect(_on_totem_died)
+				if not died.is_connected(_on_totem_mage_died):
+					died.connect(_on_totem_mage_died)
+				print("[%s] Raises the %s!" % [enemy_name, t.enemy_name])
+	turn_completed.emit()
+	return true
+
+func _on_totem_died(_e: Enemy) -> void:
+	_totem = null
+	_totem_cooldown = TOTEM_REBUILD_TEMPO
+
+## The mage falls: its totem crumbles with it.
+func _on_totem_mage_died(_e: Enemy) -> void:
+	if has_totem():
+		_totem.die()
+
+func _totem_pulse() -> void:
+	if is_dead:
+		return
+	match enemy_type:
+		EnemyType.FIRE_TOTEM:
+			for u in _player_units():
+				if is_instance_valid(u) and _cells_between(self, u) <= TOTEM_RANGE:
+					_apply_burn_to_player(u, TOTEM_BURN)
+		EnemyType.ICE_TOTEM:
+			for u in _player_units():
+				if is_instance_valid(u) and _cells_between(self, u) <= TOTEM_RANGE:
+					_apply_player_debuff(u, Debuff.create_slowed(1, enemy_name))
+		EnemyType.LIGHTNING_TOTEM:
+			var best: Node3D = null
+			var best_d := TOTEM_BOLT_RANGE + 1
+			for u in _player_units():
+				if is_instance_valid(u):
+					var d := _cells_between(self, u)
+					if d < best_d:
+						best = u
+						best_d = d
+			if best != null:
+				var dmg := maxi(1, roundi(TOTEM_BOLT_DAMAGE * _pps_dmg))
+				if best.has_method("get_stats"):
+					_deal_damage_to_player(best, dmg, "Lightning Totem", DamageTypes.Type.LIGHTNING)
+					_apply_player_debuff(best, Debuff.create(Debuff.DebuffType.SHOCKED, 1, 15))
+				elif best.has_method("take_damage"):
+					best.take_damage(dmg)
+		EnemyType.EARTH_TOTEM:
+			var main := get_parent()
+			if main and "enemy_spawner" in main and main.enemy_spawner:
+				for e in main.enemy_spawner.get_living_enemies():
+					if e == self or e.is_structure or _cells_between(self, e) > TOTEM_RANGE:
+						continue
+					var room: int = e.max_armor + TOTEM_ARMOR_CAP - e.current_armor
+					if room > 0:
+						e._gain_armor(mini(TOTEM_ARMOR, room))
+		EnemyType.AIR_TOTEM:
+			for u in _player_units():
+				if is_instance_valid(u) and _cells_between(self, u) <= TOTEM_AIR_RANGE:
+					_totem_blow_away(u)
+
+## The air totem's whirlwind: `u` is blown straight away from the totem (on
+## the longer axis between them) up to TOTEM_AIR_PUSH squares, stopping at
+## a wall, a cliff or anyone in the way.
+func _totem_blow_away(u: Node3D) -> void:
+	if grid_manager == null or not ("target_position" in u):
+		return
+	var at: Vector2i = grid_manager.world_to_grid(u.position)
+	var diff: Vector2i = at - grid_manager.world_to_grid(position)
+	var dir := Vector2i(signi(diff.x), 0) if absi(diff.x) >= absi(diff.y) else Vector2i(0, signi(diff.y))
+	if dir == Vector2i.ZERO:
+		dir = Vector2i(1, 0)
+	var cell := at
+	for _i in range(TOTEM_AIR_PUSH):
+		var nxt: Vector2i = cell + dir
+		if not _cell_is_free(nxt):
+			break
+		if dungeon_manager and (not dungeon_manager.is_floor(nxt) or not dungeon_manager.can_step(cell, nxt)):
+			break
+		cell = nxt
+	if cell == at:
+		return
+	var world := grid_manager.grid_to_world(cell)
+	if dungeon_manager:
+		world.y = dungeon_manager.get_elevation_world_y(cell)
+	u.target_position = world
+	if "is_moving" in u:
+		u.is_moving = true
+	print("[%s] The whirlwind blows %s back %d squares!" % [enemy_name, u.name, absi((cell - at).x) + absi((cell - at).y)])
 
 const NECRO_RISE_RANGE := 8            # an ally that falls within this many squares of him rises
 const NECRO_SUMMON_DEATH_DAMAGE := 10  # what every death among his own summons costs him

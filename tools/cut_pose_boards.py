@@ -3624,6 +3624,86 @@ BOARDS = {
             },
         },
     },
+    "air_totem": {
+        # 2026-11-06: the Air Mage's totem (designer: "the 5 wizard types ...
+        # all will create their own totems") — a winged stone pillar wrapped in rope, a blue gem at its brow and a torn banner below, a whirlwind of cloud spiralling up out of its horned crown — one view on black. A
+        # totem looks the same from every side, so all four directions are the
+        # one view; a head taller than its mage.
+        "src": "air_totem_board.webp", "bg": "grabcut", "tiles": 2.2,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model may trim the glow and wisps: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
+        "Idle": {
+            "front": (290, 12, 952, 1198),
+            "back": (290, 12, 952, 1198),
+            "left": (290, 12, 952, 1198),
+            "right": (290, 12, 952, 1198),
+        },
+    },
+    "earth_totem": {
+        # 2026-11-06: the Earth Mage's totem (designer: "the 5 wizard types ...
+        # all will create their own totems") — a bearded titan carved out of a crag, palms open, bound in purple rose vines and moss, a mountain sigil on his chest, on a stone plinth — one view on black. A
+        # totem looks the same from every side, so all four directions are the
+        # one view; a head taller than its mage.
+        "src": "earth_totem_board.webp", "bg": "grabcut", "tiles": 2.2,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model may trim the glow and wisps: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
+        "Idle": {
+            "front": (310, 0, 922, 1254),
+            "back": (310, 0, 922, 1254),
+            "left": (310, 0, 922, 1254),
+            "right": (310, 0, 922, 1254),
+        },
+    },
+    "lightning_totem": {
+        # 2026-11-06: the Spark (lightning) Mage's totem (designer: "the 5 wizard types ...
+        # all will create their own totems") — an iron-banded stone mast with insulators on its crossarm, a crackling glass orb on top, storm cloud coiling round it and lightning runes on the rocks at its foot — one view on black. A
+        # totem looks the same from every side, so all four directions are the
+        # one view; a head taller than its mage.
+        "src": "lightning_totem_board.webp", "bg": "grabcut", "tiles": 2.2,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model may trim the glow and wisps: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
+        "Idle": {
+            "front": (12, 4, 1000, 1512),
+            "back": (12, 4, 1000, 1512),
+            "left": (12, 4, 1000, 1512),
+            "right": (12, 4, 1000, 1512),
+        },
+    },
+    "fire_totem": {
+        # 2026-11-06: the Fire Mage's totem (designer: "the 5 wizard types ...
+        # all will create their own totems") — a spire of black rock veined with lava, a molten orb in its crown of spikes, a flame sigil on its band and fire spiralling round it — one view on black. A
+        # totem looks the same from every side, so all four directions are the
+        # one view; a head taller than its mage.
+        "src": "fire_totem_board.webp", "bg": "grabcut", "tiles": 2.2,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model may trim the glow and wisps: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
+        "Idle": {
+            "front": (66, 12, 930, 1520),
+            "back": (66, 12, 930, 1520),
+            "left": (66, 12, 930, 1520),
+            "right": (66, 12, 930, 1520),
+        },
+    },
+    "ice_totem": {
+        # 2026-11-06: the Ice Mage's totem (designer: "the 5 wizard types ...
+        # all will create their own totems") — an ice-crystal obelisk with an ice dragon coiled round it, a frosted pocket watch hanging from its jaws, a snowflake band on a snowy rock base — one view on black. A
+        # totem looks the same from every side, so all four directions are the
+        # one view; a head taller than its mage.
+        "src": "ice_totem_board.webp", "bg": "grabcut", "tiles": 2.2,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model may trim the glow and wisps: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
+        "Idle": {
+            "front": (92, 12, 904, 1526),
+            "back": (92, 12, 904, 1526),
+            "left": (92, 12, 904, 1526),
+            "right": (92, 12, 904, 1526),
+        },
+    },
     "hell_door": {
         # 2026-10-28: Hell's Door — a horned skull of cracked stone over a
         # doorway of molten light, rubble piled round it — one view on black;
