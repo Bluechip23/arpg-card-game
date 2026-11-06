@@ -1594,6 +1594,113 @@ BOARDS = {
             "width_px": 322, "width_tiles": 1.79,
         },
     },
+    "demon_attack": {
+        # 2026-11-06: the Demon's Attack — demon_attack_board.webp, four
+        # unlabelled rows on black (its back, its front, facing right, facing
+        # left), five frames a row: the stance, the trident gripped two-handed,
+        # drawn back, the thrust, the stance again. Attack.png, played for its
+        # Attack; the stance is the height reference, matched to each
+        # facing's Idle.
+        "into": "demon",
+        "actions": {
+            "src": "demon_attack_board.webp",
+            # cut as its pose board is: its near-black paint kept solid,
+            # only the big flat-black pockets open
+            "levels": (1, 12, 2),
+            "open_flat": (5, 5, 250),
+            "keep_share": 0.02,
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            "frames": {
+                "back": {
+                    "stance": (20, 0, 298, 269),
+                    "grip": (298, 0, 569, 269),
+                    "draw": (569, 0, 843, 269),
+                    "thrust": (843, 0, 1123, 269),
+                    "back_up": (1123, 0, 1402, 269),
+                },
+                "front": {
+                    "stance": (20, 269, 281, 551),
+                    "grip": (281, 269, 568, 551),
+                    "draw": (568, 269, 846, 551),
+                    "thrust": (846, 269, 1124, 551),
+                    "back_up": (1124, 269, 1402, 551),
+                },
+                "right": {
+                    "stance": (20, 551, 270, 812),
+                    "grip": (270, 551, 560, 812),
+                    "draw": (560, 551, 820, 812),
+                    "thrust": (820, 551, 1155, 812),
+                    "back_up": (1155, 551, 1402, 812),
+                },
+                "left": {
+                    "stance": (20, 812, 268, 1075),
+                    "grip": (268, 812, 552, 1075),
+                    "draw": (552, 812, 808, 1075),
+                    "thrust": (808, 812, 1147, 1075),
+                    "back_up": (1147, 812, 1402, 1075),
+                },
+            },
+            "sheets": {
+                "Attack": ["grip", "draw", "thrust", "back_up"],
+            },
+        },
+    },
+    "demon_cuff": {
+        # 2026-11-06: the Demon's Cuff — demon_cuff_board.webp, four
+        # unlabelled rows on black (its back, its front, facing right, facing
+        # left), five frames a row: the stance, the trident lifted, raised
+        # high, its head lit with red power, held. Cast.png, played for its
+        # Cuff (you cannot draw).
+        "into": "demon",
+        "actions": {
+            "src": "demon_cuff_board.webp",
+            # the light at the trident head stays a soft glow
+            "soft_glow": {"poses": ["glow1", "glow2"], "core": 235, "pad": 24, "top": 0.3},
+            # cut as its pose board is: its near-black paint kept solid,
+            # only the big flat-black pockets open
+            "levels": (1, 12, 2),
+            "open_flat": (5, 5, 250),
+            "keep_share": 0.02,
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            "frames": {
+                "back": {
+                    "stance": (20, 0, 299, 258),
+                    "lift": (299, 0, 564, 258),
+                    "raise": (564, 0, 834, 258),
+                    "glow1": (834, 0, 1096, 258),
+                    "glow2": (1096, 0, 1402, 258),
+                },
+                "front": {
+                    "stance": (20, 258, 296, 523),
+                    "lift": (296, 258, 560, 523),
+                    "raise": (560, 258, 834, 523),
+                    "glow1": (834, 258, 1098, 523),
+                    "glow2": (1098, 258, 1402, 523),
+                },
+                "right": {
+                    "stance": (20, 523, 291, 778),
+                    "lift": (291, 523, 563, 778),
+                    "raise": (563, 523, 832, 778),
+                    "glow1": (832, 523, 1083, 778),
+                    "glow2": (1083, 523, 1402, 778),
+                },
+                "left": {
+                    "stance": (20, 778, 294, 1050),
+                    "lift": (294, 778, 554, 1050),
+                    "raise": (554, 778, 830, 1050),
+                    "glow1": (830, 778, 1096, 1050),
+                    "glow2": (1096, 778, 1402, 1050),
+                },
+            },
+            "sheets": {
+                "Cast": ["lift", "raise", "glow1", "glow2"],
+            },
+        },
+    },
     "screecher": {
         # 2026-11-04: the Screecher — a hooded wraith in a tattered,
         # moth-eaten shroud, a screaming fanged face with glowing eyes, its
@@ -4557,7 +4664,7 @@ ACTION_ROWS = ["left", "right"]   # the rows of an action sheet (SpriteEnemyFigu
 def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep_share: float = 0.0,
                     fill_holes: bool = False, levels=None, glow: bool = True,
                     open_dark: bool = False, shadow_lum: float = 0.0, matte=None,
-                    open_flat=None, trim: bool = True) -> Image.Image:
+                    open_flat=None, trim: bool = True, soft_mask=None) -> Image.Image:
     """One figure and the glow of its attack on pure black (the werewolf's
     slash board): alpha from brightness as the black key does, the dim
     glow of the slash arcs kept soft and un-darkened, then only the
@@ -4651,6 +4758,14 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
         shadow = (soft | (lum < (shadow_lum or solid_at))) & (sat < 20) & (lum < (shadow_lum or solid_at))
         shadow[:y0] = False
         alpha[shadow] = 0.0
+    if soft_mask is not None:
+        # A glow painted on black inside `soft_mask` (the light at the
+        # Demon's trident head): the levels that keep near-black paint solid
+        # would make its red halo an opaque dark disc, so there its red
+        # pixels take a soft alpha from their brightness, in full colour.
+        red = np.maximum(rgb[..., 1], rgb[..., 2]) < 0.75 * rgb[..., 0]
+        m = soft_mask & red & (alpha > 0)
+        alpha[m] = np.minimum(alpha, np.clip((lum - 2.0) / 150.0, 0.0, 1.0))[m]
     if matte is not None:
         # `matte_union`: what the model matte calls figure is solid, in the
         # board's own colour, whatever its brightness (fur as black as the
@@ -4664,6 +4779,23 @@ def _cut_black_glow(rgb: np.ndarray, bg_boxes=(), shadow_band: float = 0.0, keep
         return Image.fromarray(rgba, "RGBA")   # the whole box (a strip that keeps its frames' places)
     ys, xs = np.nonzero(rgba[..., 3] > 0)
     return Image.fromarray(rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1], "RGBA")
+
+
+def _glow_mask(rgb: np.ndarray, act: dict, pose: str):
+    """`soft_glow` {"poses": [...], "core": lum, "pad": px, "top": share}: on
+    those poses, the ground about the glow's bright core (pixels at least
+    `core` bright in the box's top `share`, grown by `pad`) where its halo is
+    soft (see _cut_black_glow); None
+    elsewhere."""
+    sg = act.get("soft_glow")
+    if not sg or pose not in sg["poses"]:
+        return None
+    core = (rgb.max(axis=2) >= sg["core"]).astype(np.uint8)
+    core[int(core.shape[0] * sg.get("top", 1.0)):] = 0   # the glow is up there; the armour's highlights are lower
+    if not core.any():
+        return None
+    k = 2 * int(sg["pad"]) + 1
+    return cv2.dilate(core, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))).astype(bool)
 
 
 def _fade_edge(img: Image.Image, side: str, px: int) -> Image.Image:
@@ -4976,7 +5108,7 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
             img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
                                   act.get("keep_share", 0.0), act.get("fill_holes", False), act.get("levels"),
                                   act.get("glow", True), act.get("open_dark", False), act.get("shadow_lum", 0.0),
-                                  matte)
+                                  matte, open_flat=act.get("open_flat"), soft_mask=_glow_mask(rgb, act, pose))
             for side, px in act.get("edge_fade", {}).get((d, pose), ()):
                 img = _fade_edge(img, side, px)
             out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
