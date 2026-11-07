@@ -77,8 +77,10 @@ func _initialize() -> void:
 		f._process(0.05)
 		_check(body.offset == f._body_offset, "%s stands on the ground when still" % hero)
 		# A drawn walk cycle (2026-10-31: Stephen, Jeremy, Ryan): facing a
-		# way that has one, the hero strides through eight frames on the
-		# ground, and stands on column 0 again when he stops.
+		# way that has one, the hero strides through every frame on the
+		# ground (eight, or seven where the board's last frame repeats its
+		# first stand: tools/cut_hero_sprites.py "drop_last"), and stands on
+		# column 0 again when he stops.
 		if not f._walk_rows.is_empty():
 			f.set_facing(D.SOUTH)
 			f.set_walking(true)
@@ -89,12 +91,12 @@ func _initialize() -> void:
 				cols[int(body.region_rect.position.x / f._body_cell)] = true
 				grounded = grounded and body.offset == f._body_offset
 			_check(grounded, "%s strides without stepping" % hero)
-			_check(cols.size() == 8 and not cols.has(0), "%s strides through his walk frames (%s)" % [hero, cols.keys()])
+			_check(f._body_walk_frames >= 7 and cols.size() == f._body_walk_frames and not cols.has(0), "%s strides through his walk frames (%s)" % [hero, cols.keys()])
 			for d in [D.SOUTH, D.NORTH, D.EAST, D.WEST]:
 				f.set_facing(d)
 				if not f._strides():
 					continue
-				for c in range(1, 9):
+				for c in range(1, f._body_walk_frames + 1):
 					var u := _used(body.texture, Rect2(c * f._body_cell, body.region_rect.position.y, f._body_cell, f._body_cell))
 					# (a stride row drawn stockier stands his height, drawn narrower: WALK_SQUEEZE)
 					_check(u.size.y > 0 and absf(u.size.y - front.size.y) <= front.size.y * 0.12 and u.end.y == f._body_cell,
@@ -116,7 +118,7 @@ func _initialize() -> void:
 				f.set_walking(false)
 				f._process(1.0 / 60.0)
 				stood = stood or body.region_rect.position.x == 0.0
-			_check(stepped.size() == 8 and not stood, "%s strides on from tile to tile (%s)" % [hero, stepped.keys()])
+			_check(stepped.size() == f._body_walk_frames and not stood, "%s strides on from tile to tile (%s)" % [hero, stepped.keys()])
 			# A turn keeps the stride's place; so does a new walk after a stop.
 			f.set_walking(true)
 			var col := body.region_rect.position.x

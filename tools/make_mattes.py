@@ -28,7 +28,7 @@ the board's ground) get one a grid cell,
 Run: python3 tools/make_mattes.py [kind ...]
      python3 tools/make_mattes.py <kind> --actions   (only its action frames)
      python3 tools/make_mattes.py --hero [hero_action ...]   (e.g. cory_attack)
-     python3 tools/make_mattes.py --walk [hero ...]   (the walk boards that ask, e.g. brad)
+     python3 tools/make_mattes.py --walk [hero ...]   (the walk boards that ask, e.g. brad stephen)
 """
 import os
 import sys
@@ -76,12 +76,15 @@ def hero_actions(session, remove, which) -> None:
 
 def hero_walks(session, remove, which) -> None:
     """Mattes for the hero walk boards that ask for them ("matte" in
-    cut_hero_sprites.WALKS' options: Brad's, whose War Rack is dark wood on
-    the board's dark ground): one a grid cell, padded with the cell's own
+    cut_hero_sprites.WALKS' or WALK_EXTRA's options: Brad's, whose War Rack
+    is dark wood on the board's dark ground; Stephen's sides, his dark
+    trousers where his legs part): one a grid cell, padded with the cell's own
     ground colour, saved where cut_hero_sprites.hero_walk_matte_path reads."""
     import numpy as np
     import cut_hero_sprites as hs
-    for hero, w in hs.WALKS.items():
+    boards = [(hero, w) for hero, w in hs.WALKS.items()]
+    boards += [(hero, w) for hero, ws in hs.WALK_EXTRA.items() for w in ws]   # (Stephen's side boards)
+    for hero, w in boards:
         opts = w[6] if len(w) > 6 else {}
         if not opts.get("matte") or (which and hero not in which):
             continue
