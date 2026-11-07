@@ -2547,13 +2547,21 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			print("[CARD] On-Self: %s heals %d" % [slotted_in_item.item_name, int(osb_g["support_heal"])])
 		# Corset of Cure: cleanse stacks of a random debuff on the card's target
 		# (players/allies only — enemies keep their ailments).
-		if int(osb_g.get("cleanse_stacks", 0)) > 0 and target.has_method("get_debuff_manager"):
+		# (A card with no target — an instant firing, an untargeted play — has
+		# nothing to cleanse; guarded so it never errors out of the play.)
+		if int(osb_g.get("cleanse_stacks", 0)) > 0 and target != null and is_instance_valid(target) \
+				and target.has_method("get_debuff_manager"):
 			var cdm = target.get_debuff_manager()
 			if cdm and cdm.debuffs.size() > 0:
 				var pick = cdm.debuffs[randi() % cdm.debuffs.size()]
-				pick.stacks -= int(osb_g["cleanse_stacks"])
-				if pick.stacks <= 0:
+				# A debuff's stack count is its `value` (Debuff.stacks only
+				# counts applications) — "cleanse 3 stacks" takes 3 off it.
+				pick.value -= int(osb_g["cleanse_stacks"])
+				if pick.value <= 0:
 					cdm.remove_debuff(pick.debuff_type)
+				else:
+					pick._set_name_and_description()
+					cdm.debuffs_changed.emit()
 				print("[CARD] On-Self: cleansed %d stacks of %s" % [int(osb_g["cleanse_stacks"]), pick.debuff_name])
 
 	# Burgonet: a DEFENSE card that grants no armor of its own grants the boots'
