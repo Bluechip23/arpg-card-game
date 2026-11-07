@@ -82,6 +82,7 @@ const WolfScript = preload("res://scripts/battle/summoned_wolf.gd")
 const SpecterScript = preload("res://scripts/battle/summoned_specter.gd")
 var _specters: Array = []        # Seance: specters raised on empty tiles
 var _last_aim_world = null       # the tile a point-targeted card was aimed at
+var _resolving_aim_world = null  # that tile, for the queued point card now resolving
 var _smoke_zones: Array = []     # smoke bomb: {position, tempo}
 var _skeletons: Array = []       # Sack of Bone Arrows: raised skeletons (cap 3)
 const SkeletonScript = preload("res://scripts/battle/summoned_skeleton.gd")
@@ -6641,6 +6642,11 @@ func _on_player_health_changed(current: int, max_hp: int) -> void:
 			if card.card_id == "gift_from_the_phoenix":
 				var heal_target := int(max_hp * 0.8)
 				var heal_amount := heal_target - current
+				# "Heal up to 80%": heal() adds the INT / healing-gear bonus on
+				# top, which carried the heal past 80% — pass the base that
+				# lands on 80% once the bonus is added.
+				while heal_amount > 1 and stats.get_effective_heal_amount(heal_amount) > heal_target - current:
+					heal_amount -= 1
 				if heal_amount > 0:
 					stats.heal(heal_amount)
 				# Apply 5 burn to nearest enemy
@@ -7598,6 +7604,13 @@ func _process_maintained_card_effects() -> void:
 			if ally != player and Vector3(halo_diff.x, 0, halo_diff.z).length() > 3.0:
 				continue
 			ally.get_stats().heal(halo_heal, ally != player, true)
+		# "heal all allies ... radius of 3": summons inside the circle are
+		# allies too (Healthy Bliss heals them the same way) — they were skipped.
+		var halo_summon_heal: int = stats.get_effective_heal_amount(halo_heal)
+		for s in _all_summons():
+			var halo_sdiff = s.position - player.position
+			if Vector3(halo_sdiff.x, 0, halo_sdiff.z).length() <= 3.0:
+				s.heal(halo_summon_heal)
 		print("[MAIN] Maintained cards healed for %d HP" % maintained_result["total_heal"])
 	if maintained_result["self_damage"] > 0 and stats:
 		stats.take_direct_damage(maintained_result["self_damage"])
@@ -7768,18 +7781,21 @@ func _healthy_bliss_heal(card: Card) -> void:
 
 func _healthy_bliss_sweep(card: Card) -> void:
 	var stats := player.get_stats()
+	var base_amt: int = card.heal_amount
 	var heal_amt = card.heal_amount
 	if stats:
-		heal_amt = stats.get_effective_heal_amount(card.heal_amount)
 		# Blood Libation boosts the caster's performed heal ONCE for the sweep
-		heal_amt = stats.boost_performed_heal(heal_amt)
+		base_amt = stats.boost_performed_heal(card.heal_amount)
+		heal_amt = stats.get_effective_heal_amount(base_amt)
 	add_battle_log("Healthy Bliss heals all allies for %d!" % heal_amt, Color(0.4, 1.0, 0.5))
 	for ally in _all_allies():
 		if not is_instance_valid(ally):
 			continue
 		var ally_stats = ally.get_stats()
 		if ally_stats:
-			ally_stats.heal(heal_amt, ally != player, true)
+			# heal() adds the INT / healing bonus itself — passing the already
+			# boosted amount counted it twice ("heal all allies for 10").
+			ally_stats.heal(base_amt, ally != player, true)
 	for summon in _all_summons():
 		summon.heal(heal_amt)
 
@@ -9407,7 +9423,10 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	# Strengthen is active, so the empowered hits can't feed the next round.
 	_ring_note_big_hit(card.last_damage_dealt)
 
-	# Apply world effects (knockback, movement, AOE)
+	# Apply world effects (knockback, movement, AOE). A point card lands on the
+	# tile it was aimed at when played, not wherever the cursor has wandered
+	# during its wind-up (Fireball resolves on tick 6).
+	_resolving_aim_world = data.get("aim_world", null)
 	_apply_card_world_effects(card, target)
 	# Skilled Momentum (Stephen): the attack plays a second time, in full —
 	# its own crit roll, riders and debuffs — for no tempo. One-shot buffs
@@ -9426,6 +9445,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 			if buff_mgr and buff_mgr.last_crit_hit:
 				buff_mgr.last_crit_hit = false
 				progression_triggers._trigger_skill_tree_on_crit(target)
+	_resolving_aim_world = null
 
 	# The play is over: undo the folded bonus, disarm the passives, close
 	# the scope and drop the hit-source flags.
@@ -12366,6 +12386,8 @@ func _point_aim(target, mouse_pos: Vector3) -> Vector3:
 
 func _apply_card_world_effects(card: Card, target) -> void:
 	var mouse_pos := get_mouse_world_position()
+	if _resolving_aim_world != null and "point" in card.target_types:
+		mouse_pos = _resolving_aim_world
 
 	# Generic helm on-self world effects (independent of card_id).
 	_helm_card_world_effects(card, target)
@@ -15904,7 +15926,9 @@ func _fire_instant_site_effect(card: Card, ctx: Dictionary) -> void:
 			# The armor lands in execute; the counter-stun is the site's.
 			_stun_nearest_enemy(1.5)  # melee range, per the card text
 		"hard_helmet":
-			var hh_victim: Enemy = target if target is Enemy else _get_nearest_enemy()
+			# "deal 2 damage to the closest enemy" — the closest, not whatever
+			# the utility card that set it off was aimed at.
+			var hh_victim: Enemy = _get_nearest_enemy()
 			if hh_victim:
 				hh_victim.take_damage(2, true)
 				add_battle_log("Hard Helmet clonks %s for 2!" % hh_victim.enemy_name, Color(0.8, 0.7, 0.4))

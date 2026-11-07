@@ -2894,14 +2894,11 @@ func _execute_discard(deck_manager) -> void:
 	if deck_manager and deck_manager.hand.size() > 0:
 		var random_index = randi() % deck_manager.hand.size()
 		var discarded = deck_manager.hand[random_index]
-		deck_manager.hand.remove_at(random_index)
-		deck_manager.discard_pile.append(discarded)
-		# A true discard, not a play — announce it so discard-reactive passives
-		# (Ladder Work, Abjurers Cane) see it like any other.
-		deck_manager.discards_this_cycle += 1
-		deck_manager.card_discarded.emit(discarded)
-		deck_manager.non_play_discard.emit(discarded)
-		deck_manager.hand_updated.emit()
+		# A true discard, not a play: the shared path counts it in
+		# true_discards_this_cycle (Exacerbate Wounds' "card discarded this
+		# cycle" — it was missed here) and announces it to the discard-reactive
+		# passives (Ladder Work, Abjurers Cane) like any other.
+		deck_manager.discard_card_from_hand(discarded)
 		print("[CARD] Discarded: %s" % discarded.card_name)
 	else:
 		print("[CARD] No cards to discard!")
