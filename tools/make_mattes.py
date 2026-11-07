@@ -28,6 +28,7 @@ the board's ground) get one a grid cell,
 Run: python3 tools/make_mattes.py [kind ...]
      python3 tools/make_mattes.py <kind> --actions   (only its action frames)
      python3 tools/make_mattes.py --hero [hero_action ...]   (e.g. cory_attack)
+     python3 tools/make_mattes.py --walk [hero ...]   (the walk boards that ask, e.g. brad)
 """
 import os
 import sys
@@ -73,10 +74,43 @@ def hero_actions(session, remove, which) -> None:
                 print(hero, action, facing, c)
 
 
+def hero_walks(session, remove, which) -> None:
+    """Mattes for the hero walk boards that ask for them ("matte" in
+    cut_hero_sprites.WALKS' options: Brad's, whose War Rack is dark wood on
+    the board's dark ground): one a grid cell, padded with the cell's own
+    ground colour, saved where cut_hero_sprites.hero_walk_matte_path reads."""
+    import numpy as np
+    import cut_hero_sprites as hs
+    for hero, w in hs.WALKS.items():
+        opts = w[6] if len(w) > 6 else {}
+        if not opts.get("matte") or (which and hero not in which):
+            continue
+        path, xs, ys, facings, skip = w[:5]
+        board = np.asarray(Image.open(hs.SRC % path).convert("RGB"))
+        i = hs.WALK_CELL_INSET
+        for r, facing in enumerate(facings):
+            if facing in skip:
+                continue
+            for c in range(len(xs) - 1):
+                cell = board[ys[r] + i:ys[r + 1] - i + 1, xs[c] + i:xs[c + 1] - i + 1]
+                border = np.concatenate([cell[0], cell[-1], cell[:, 0], cell[:, -1]])
+                ground = np.median(border, axis=0).astype(np.uint8)
+                big = np.empty((cell.shape[0] + 2 * PAD, cell.shape[1] + 2 * PAD, 3), np.uint8)
+                big[:] = ground
+                big[PAD:PAD + cell.shape[0], PAD:PAD + cell.shape[1]] = cell
+                mask = remove(Image.fromarray(big), session=session, only_mask=True)
+                mask = mask.crop((PAD, PAD, PAD + cell.shape[1], PAD + cell.shape[0]))
+                mask.point(lambda v: 255 if v > 127 else 0).save(hs.hero_walk_matte_path(hero, facing, c))
+                print(hero, "walk", facing, c)
+
+
 def main() -> None:
     from rembg import new_session, remove
     session = new_session(MODEL)
     os.makedirs(OUT, exist_ok=True)
+    if sys.argv[1:2] == ["--walk"]:
+        hero_walks(session, remove, sys.argv[2:])
+        return
     if sys.argv[1:2] == ["--hero"]:
         hero_actions(session, remove, sys.argv[2:])
         return
