@@ -9595,7 +9595,9 @@ func _helm_card_world_effects(card, target = null) -> void:
 
 	# Shamans mask: a UTILITY card zaps a random enemy within 3. The zap is a
 	# fixed 1 spell damage — capped at 1, no INT/enchant/sphere modifiers.
-	if card.card_type == Card.CardType.UTILITY:
+	# Utility = the type or the tag (CARD_TAXONOMY: Healthy Bliss).
+	var is_utility: bool = card.card_type == Card.CardType.UTILITY or card.has_keyword("utility")
+	if is_utility:
 		var spell_dmg := int(osb.get("utility_spell_damage", 0))
 		if spell_dmg > 0:
 			var victim = _random_enemy_within(3)
@@ -9612,14 +9614,16 @@ func _helm_card_world_effects(card, target = null) -> void:
 		_spawn_wolf()
 
 	# Slotted Sash: a slotted UTILITY card Weakens a random enemy within 5.
-	if card.card_type == Card.CardType.UTILITY and int(osb.get("utility_weaken", 0)) > 0:
+	if is_utility and int(osb.get("utility_weaken", 0)) > 0:
 		var sash_victim = _random_enemy_within(5)
 		if sash_victim and sash_victim.has_method("apply_debuff"):
 			sash_victim.apply_debuff("weaken", int(osb["utility_weaken"]))
 			add_battle_log("%s: %s Weakened" % [card.slotted_in_item.item_name, sash_victim.enemy_name], Color(0.6, 0.6, 0.85))
 
 	# Tactical belt: a slotted card detonates around its target (enemies only).
-	if int(osb.get("target_aoe_damage", 0)) > 0 and target and is_instance_valid(target) and "position" in target:
+	# Only a card AIMED AT AN ENEMY (the tooltip): a self- or ally-targeted
+	# card used to blast every enemy standing next to the player/ally.
+	if int(osb.get("target_aoe_damage", 0)) > 0 and target is Enemy and is_instance_valid(target):
 		var blast := int(osb["target_aoe_damage"])
 		var blast_hits := 0
 		for be in enemy_spawner.get_living_enemies():
