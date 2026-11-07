@@ -217,7 +217,7 @@ def passives():
         h = re.match(r"^## (\w+) \(\d+ passives\)", ln)
         if h:
             char = h.group(1)
-        m = re.match(r"^- \*\*(.+?)\*\* \(`(\w+)`, level (\d+)\)", ln)
+        m = re.match(r"^- \*\*(.+?)\*\* \(`([\w']+)`, level (\d+)\)", ln)
         if m:
             out.append({"name": m.group(1), "id": m.group(2), "level": int(m.group(3)), "character": char})
     return out
