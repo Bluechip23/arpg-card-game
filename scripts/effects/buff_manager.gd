@@ -23,6 +23,7 @@ var understanding_tempo: int = 0  # Delayed crit: when reaches 0, apply ENLIGHTE
 var enchanted_quiver_charges: int = 0  # Next N ranged attacks create a free arrow card
 var tighten_string_charges: int = 0  # Next N ranged attacks: +3 tempo, +6 dmg, +6 range, +20% crit
 var last_crit_hit: bool = false      # Set true when roll_crit succeeds, cleared after checking
+var crit_hits: int = 0               # Crits rolled since main last zeroed it (a card's hits each count — Eye Scrape)
 
 func initialize(stats = null, owner: Node3D = null) -> void:
 	owner_stats = stats
@@ -687,6 +688,7 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	if is_crit:
 		print("[BUFF] CRITICAL HIT! (rolled %.1f < %.2f)" % [roll, total_chance])
 		last_crit_hit = true
+		crit_hits += 1
 
 	return is_crit
 

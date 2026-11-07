@@ -693,7 +693,11 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 
 	# Stimulant: healing with a Pocket card → the HEALED character draws a card
 	# (rank-scaled cooldown 19..5 tempo, ticked per tempo)
-	if stats.has_skill_tree_passive("stimulant") and card.has_slot_label(Card.CardKeyword.POCKET) and card.heal_amount > 0 and stats.st_stimulant_cooldown <= 0:
+	# A heal Poisoned Blood turned into damage healed nobody: no draw, no
+	# cooldown ("when healing yourself or an ally").
+	var stim_flipped: bool = PlayerStats.heal_to_damage and card.is_heal_card()
+	if stats.has_skill_tree_passive("stimulant") and card.has_slot_label(Card.CardKeyword.POCKET) and card.heal_amount > 0 \
+			and not stim_flipped and stats.st_stimulant_cooldown <= 0:
 		stats.st_stimulant_cooldown = PassiveScaling.value("stimulant", "cooldown", stats.get_passive_level("stimulant"))
 		var healed_deck = main._deck_for_player(target) if target is Player else main.deck_manager
 		healed_deck.attempt_draw()
@@ -730,20 +734,32 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 					main.add_battle_log("Mad Scientist: +%d strengthen!" % ms_str, Color(0.4, 0.9, 0.4))
 
 		elif is_poison_outcome:
-			if last_type == Card.CardType.UTILITY:
-				# Utility → Poison: rank-scaled bonus poison stacks (2..9)
-				if target and target.has_method("apply_debuff"):
-					var ms_poison: int = PassiveScaling.value("mad_scientist", "poison", ms_lvl)
-					target.apply_debuff("poison", ms_poison)
-					main.add_battle_log("Mad Scientist: +%d poison stacks!" % ms_poison, Color(0.4, 0.9, 0.4))
-			elif last_type == Card.CardType.DEFENSE:
-				# Defense → Poison: lower enemy physical defense by a rank-scaled %
-				# (1..15) for 1 stack — sheet: a stack is 5 tempo, and each
-				# application is its own group on its own clock.
-				if target and target is Enemy:
-					var ms_def: int = PassiveScaling.value("mad_scientist", "phys_defense", ms_lvl)
-					target.apply_phys_defense_debuff(float(ms_def), 1)
-					main.add_battle_log("Mad Scientist: -%d%% physical defense (1 stack, 5 tempo)!" % ms_def, Color(0.4, 0.9, 0.4))
+			# The outcome lands on the enemies the potion poisoned: Poison Bomb
+			# is aimed at a tile and poisons everyone around it (main records
+			# them), so its card-play target is no enemy at all.
+			var ms_victims: Array = []
+			if card.card_id == "poison_bomb" and not main.last_poison_bomb_hits.is_empty():
+				ms_victims = main.last_poison_bomb_hits.duplicate()
+				main.last_poison_bomb_hits.clear()
+			elif target != null:
+				ms_victims = [target]
+			for ms_t in ms_victims:
+				if ms_t == null or not is_instance_valid(ms_t):
+					continue
+				if last_type == Card.CardType.UTILITY:
+					# Utility → Poison: rank-scaled bonus poison stacks (2..9)
+					if ms_t.has_method("apply_debuff"):
+						var ms_poison: int = PassiveScaling.value("mad_scientist", "poison", ms_lvl)
+						ms_t.apply_debuff("poison", ms_poison)
+						main.add_battle_log("Mad Scientist: +%d poison stacks!" % ms_poison, Color(0.4, 0.9, 0.4))
+				elif last_type == Card.CardType.DEFENSE:
+					# Defense → Poison: lower enemy physical defense by a rank-scaled %
+					# (1..15) for 1 stack — sheet: a stack is 5 tempo, and each
+					# application is its own group on its own clock.
+					if ms_t is Enemy:
+						var ms_def: int = PassiveScaling.value("mad_scientist", "phys_defense", ms_lvl)
+						ms_t.apply_phys_defense_debuff(float(ms_def), 1)
+						main.add_battle_log("Mad Scientist: -%d%% physical defense (1 stack, 5 tempo)!" % ms_def, Color(0.4, 0.9, 0.4))
 
 	_last_played_card = card
 
@@ -927,7 +943,10 @@ func _solemn_surrounded() -> bool:
 				return true
 	return false
 
-func _trigger_skill_tree_on_crit(target) -> void:
+## `crit_count`: how many critical strikes this report covers — a multi-hit
+## card that crits on several hits is several critical strikes for Eye Scrape
+## (the sphere on-crit passives and the Dragon Skull still fire once).
+func _trigger_skill_tree_on_crit(target, crit_count: int = 1) -> void:
 	var stats = main.player.get_stats()
 	if not stats:
 		return
@@ -936,19 +955,20 @@ func _trigger_skill_tree_on_crit(target) -> void:
 	_trigger_sphere_passives("on_crit", {"target": target})
 
 	# Eye Scrape: every Nth crit (rank-scaled 15..1) → invisibility, on a
-	# 10 tempo cooldown
+	# 10 tempo cooldown. Each crit counts on its own.
 	if stats.has_skill_tree_passive("eye_scrape"):
 		var es_required: int = PassiveScaling.value("eye_scrape", "crits_required", stats.get_passive_level("eye_scrape"))
-		stats.st_crit_counter += 1
-		if stats.st_crit_counter >= es_required \
-				and main.tempo_manager.get_global_tempo() - stats.st_eye_scrape_last_tempo >= 10:
-			stats.st_crit_counter = 0
-			stats.st_eye_scrape_last_tempo = main.tempo_manager.get_global_tempo()
-			var buff_mgr = main.player.get_buff_manager()
-			if buff_mgr:
-				buff_mgr.apply_buff(Buff.create_invisible(5, "Eye Scrape"))
-				main._set_player_invisible(true)
-				main.add_battle_log("Eye Scrape: Invisibility!", Color(0.8, 0.4, 0.9))
+		for _es_i in range(maxi(1, crit_count)):
+			stats.st_crit_counter += 1
+			if stats.st_crit_counter >= es_required \
+					and main.tempo_manager.get_global_tempo() - stats.st_eye_scrape_last_tempo >= 10:
+				stats.st_crit_counter = 0
+				stats.st_eye_scrape_last_tempo = main.tempo_manager.get_global_tempo()
+				var buff_mgr = main.player.get_buff_manager()
+				if buff_mgr:
+					buff_mgr.apply_buff(Buff.create_invisible(5, "Eye Scrape"))
+					main._set_player_invisible(true)
+					main.add_battle_log("Eye Scrape: Invisibility!", Color(0.8, 0.4, 0.9))
 
 	# Dragon Skull: landing a crit breathes a fire cone in front of the wearer.
 	main._helm_crit_fire_cone(target)
@@ -1048,7 +1068,8 @@ func _trigger_skill_tree_brad_on_damage_taken(damage: int) -> void:
 		var ew_cooldown: int = PassiveScaling.value("enraged_will", "cooldown", ew_lvl)
 		var ew_threshold: float = PassiveScaling.value("enraged_will", "hp_threshold", ew_lvl)
 		var ew_elapsed = main.tempo_manager.get_global_tempo() - stats.st_enraged_will_last_tempo
-		if stats.get_health_percent() <= ew_threshold and stats.current_health > 0 and ew_elapsed >= ew_cooldown:
+		# "Below" the threshold, as written: exactly 10% does not trigger it.
+		if stats.get_health_percent() < ew_threshold and stats.current_health > 0 and ew_elapsed >= ew_cooldown:
 			stats.st_enraged_will_last_tempo = main.tempo_manager.get_global_tempo()
 			var enemies = main.enemy_spawner.get_enemies_in_radius(main.player.position, 2.0) if main.enemy_spawner else []
 			if enemies.size() > 0:
@@ -1725,7 +1746,8 @@ func _trigger_skill_tree_cory_on_damage_taken(damage: int) -> void:
 	if stats.has_skill_tree_passive("expel_negativity"):
 		_expel_try_refresh_charges(stats)
 		var en_threshold: float = PassiveScaling.value("expel_negativity", "hp_threshold", stats.get_passive_level("expel_negativity"))
-		if stats.st_expel_charges > 0 and stats.get_health_percent() <= en_threshold:
+		# "Drop below" the threshold, as written: exactly at it does not count.
+		if stats.st_expel_charges > 0 and stats.get_health_percent() < en_threshold:
 			var debuff_mgr = main.player.get_debuff_manager()
 			# Only debuffs an enemy can actually carry are transferable — the
 			# player's names differ from the enemy's keys (Slowed → slow).
@@ -1827,7 +1849,7 @@ func _trigger_skill_tree_cory_on_enemy_damaged(enemy: Enemy, damage: int) -> voi
 		if enemy_id not in stats.st_serial_killer_enemies:
 			var sk_threshold: float = PassiveScaling.value("serial_killer", "hp_threshold", stats.get_passive_level("serial_killer"))
 			var hp_pct = float(enemy.current_health) / float(enemy.max_health)
-			if hp_pct <= sk_threshold:
+			if hp_pct < sk_threshold:  # "drops below", as written
 				stats.st_serial_killer_enemies[enemy_id] = true
 				# Add player to enemy's ignore list so it never targets them again
 				enemy.target = null

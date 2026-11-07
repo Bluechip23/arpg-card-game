@@ -97,6 +97,7 @@ var _wraiths: Array = []         # The Precious: the hostile hunters, on the fie
 var _draupnir_spawn_frame: int = -1  # frame of the last clone spawn (Jeremy's doubled fire lands the same frame)
 var _harnessed_reentry: bool = false # guard: the Harnessed Sun's +2 burn must not amplify itself
 var _phoenix_singed_this_play: bool = false # Phoenix Feather: backlash fires once per play, not per burn source
+var last_poison_bomb_hits: Array = []  # The enemies the last Poison Bomb poisoned (Mad Scientist's poison riders land on them)
 var _three_count_cd: int = 0     # Mits of Chingiz: cycles until 3 count can fire again
 var _offensive_streak: int = 0   # consecutive offensive cards played (3 count)
 var _cuffs_cycle_accum: int = 0  # Cuffs of Current: cycles banked toward the next free draw
@@ -9346,6 +9347,9 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		passive_bonus += progression_triggers._trigger_skill_tree_cory_on_attack(card, target)
 	if passive_bonus > 0:
 		card.bonus_damage += passive_bonus
+	# Eye Scrape counts every critical strike: a multi-hit card's crits each count.
+	if player.get_buff_manager():
+		player.get_buff_manager().crit_hits = 0
 	# Execute the card's effect (damage, block, heal, etc.)
 	deck_manager.execute_deferred_card(card, target, player)
 	# Clean Exchange's flat block: a separate "gain X block" on top of whatever
@@ -9395,10 +9399,10 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		if pa_stats:
 			pa_stats.st_consecutive_defense = 0
 
-	# Crit-based skill tree passives (Eye Scrape)
+	# Crit-based skill tree passives (Eye Scrape): every crit the card rolled.
 	if buff_mgr and buff_mgr.last_crit_hit:
 		buff_mgr.last_crit_hit = false
-		progression_triggers._trigger_skill_tree_on_crit(target)
+		progression_triggers._trigger_skill_tree_on_crit(target, maxi(1, buff_mgr.crit_hits))
 		# Bow of Budding Blasts: a crit with a slotted card buds a bow turret.
 		if card.slotted_in_item and bool(card.get_on_self_bonus().get("crit_bud_bow", false)):
 			_spawn_bud_bow()
@@ -9417,6 +9421,8 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		sm_stats.st_skilled_momentum_echo = false
 		if not (target is Enemy) or (is_instance_valid(target) and not target.is_dead):
 			progression_triggers.arm_pre_attack_passives(card, target)
+			if buff_mgr:
+				buff_mgr.crit_hits = 0
 			deck_manager.execute_deferred_card(card, target, player)
 			if card.is_attack() and sm_stats.has_method("register_attack"):
 				sm_stats.register_attack()  # a second attack for the DEX counter
@@ -9425,7 +9431,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 				add_battle_log("%s again — %d damage" % [card.card_name, card.last_damage_dealt], Color(0.9, 0.3, 0.3))
 			if buff_mgr and buff_mgr.last_crit_hit:
 				buff_mgr.last_crit_hit = false
-				progression_triggers._trigger_skill_tree_on_crit(target)
+				progression_triggers._trigger_skill_tree_on_crit(target, maxi(1, buff_mgr.crit_hits))
 
 	# The play is over: undo the folded bonus, disarm the passives, close
 	# the scope and drop the hit-source flags.
@@ -12490,6 +12496,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 						pbm_hits += 1
 						pbm_list.append(pe)
 			_apply_misery_spread(pbm_list)
+			last_poison_bomb_hits = pbm_list
 			add_battle_log("Poison Bomb: %d enem%s poisoned (6)" % [pbm_hits, "y" if pbm_hits == 1 else "ies"], Color(0.4, 0.8, 0.3))
 
 		"fire_punch":
@@ -14734,6 +14741,8 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 	PlayerStats.hit_source_direct = true
 	Card.play_scope_open = true
 	progression_triggers.arm_pre_attack_passives(card, target)
+	if buff_mgr:
+		buff_mgr.crit_hits = 0
 	card.execute(target, stats, deck_manager, damage_reduction, self_damage, buff_mgr)
 
 	# Register attack for attack speed counter (DEX proc): attacks, not spells
@@ -14743,6 +14752,12 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 		if stats.consume_free_hand_echo():
 			card.execute(target, stats, deck_manager, damage_reduction, self_damage, buff_mgr)
 			add_battle_log("Free hand echo: %s strikes twice!" % card.card_name, Color(1.0, 0.9, 0.4))
+
+	# Crit passives (Eye Scrape: "every Nth critical strike") see a Quiver /
+	# Manifest card's crits as they do a hand card's.
+	if buff_mgr and buff_mgr.last_crit_hit:
+		buff_mgr.last_crit_hit = false
+		progression_triggers._trigger_skill_tree_on_crit(target, maxi(1, buff_mgr.crit_hits))
 
 	# Notify debuffs of attack
 	if debuff_mgr and card.is_attack():
