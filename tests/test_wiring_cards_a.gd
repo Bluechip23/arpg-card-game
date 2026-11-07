@@ -988,7 +988,7 @@ func _test_cupids_arrows() -> void:
 	_costs("cupids_golden_arrow", res, 45, 3)
 	_check(1000 - d1.current_health == _phys(10) and d1.vulnerable_stacks == 2, "cupids_golden_arrow: 10 damage and 2 Vulnerable")
 	# The resolving tick is the first of the 5.
-	_check(d1.taunt_tempo == 4 and d1.taunt_target == main.player, "cupids_golden_arrow: on its 50%, taunted toward you for 5 tempo (%d left)" % d1.taunt_tempo)
+	_check(d1.taunt_tempo == 4 and d1.taunt_target == main.player, "cupids_golden_arrow: on its 50%%, taunted toward you for 5 tempo (%d left)" % d1.taunt_tempo)
 	_drain()
 	var l := Card.create_by_id("cupids_lead_arrow")
 	l.rng_selected_index = -2
@@ -1010,7 +1010,7 @@ func _test_cupids_arrows() -> void:
 	l2.rng_selected_index = 0
 	l2.rng_roll_tempo = tm.global_tempo
 	_play(l2, d1)
-	_check(d1.fear_tempo == 4 and d1.fear_source == main.player, "cupids_lead_arrow: on its 50%, fleeing from you for 5 tempo (%d left)" % d1.fear_tempo)
+	_check(d1.fear_tempo == 4 and d1.fear_source == main.player, "cupids_lead_arrow: on its 50%%, fleeing from you for 5 tempo (%d left)" % d1.fear_tempo)
 	_drain()
 
 func _test_curse_of_the_living() -> void:

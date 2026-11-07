@@ -18,7 +18,7 @@
 | Poof and Weave | card | CORRECT | — | — | test_wiring_cards_d.gd::Poof and Weave: +10 armor; ::Poof and Weave: draws a card; ::Poof and Weave: invisible; ::the invisibility lasts 5 tempo |
 | Potion of Continuance | card | CORRECT | — | — | test_wiring_cards_d.gd::Potion of Continuance: draws 2 |
 | Preemptive Answer | card | CORRECT | — | — | test_wiring_cards_d.gd::Preemptive Answer fires on the hit that drops you to 25%; ::Preemptive Answer purges 3 debuffs; ::Preemptive Answer heals 20 (+heal power) |
-| Premeditated | card | CORRECT | — | — | test_wiring_cards_d.gd::Premeditated: breaking the armor marks the enemy for +15; ::the next card at that enemy deals +15 on top of its effect; ::…only the next one |
+| Premeditated | card | FIXED | *(Phase 6 re-check)* A second Premeditated at the exposed enemy did not carry the +15 (`card_id != "premeditated"`), so the bonus waited for a later card. | The exclusion is gone: "your next card" includes another Premeditated. | test_recheck_fixes.gd::Premeditated; test_wiring_cards_d.gd::Premeditated: breaking the armor marks the enemy for +15; ::the next card at that enemy deals +15 on top of its effect; ::…only the next one |
 | Preparation | card | CORRECT | — | — | test_wiring_cards_d.gd::Preparation: the next utility card costs 2 less; ::Preparation: …and the one after; ::Preparation: the third pays full price |
 | Prepare | card | CORRECT | — | — | test_wiring_cards_d.gd::Prepare: draws 3; ::Prepare: Erase 1 — erased at the next tick it sits in hand |
 | Protection From Alnitak | card | CORRECT | — | — | test_wiring_cards_d.gd::Protection From Alnitak: +10 armor; ::Brace = empty hand slots (2%) for 5 attacks |

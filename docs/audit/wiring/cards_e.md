@@ -63,7 +63,7 @@ formation, Understanding, Sky Fall).
 | twenty_twenty | card | CORRECT | | | wce::+3 range on ranged offensive cards; wce::not on melee cards |
 | understanding | card | CORRECT | | | wce::armed after 10 tempo; wce::the next damaging card auto-crits |
 | vengeful_shield | card | CORRECT | | | wce::exposed: it fires for 5 armor; wce::…and stuns the enemy in melee range for 5 tempo |
-| vined_encasing | card | CORRECT | | | wce::1 thorn per armor (12) for 20 tempo, shed X per X damage |
+| vined_encasing | card | FIXED | *(Phase 6 re-check)* Meeting thorns already up (Spiked Mitts, Spiked Shield…), the Vined thorns merged into them and lost their rule — the lot then fell 1 per hit; ordinary thorns gained later started shedding by damage. | `Buff.vined_value` keeps the Vined share inside the one Thorns buff: hits wear only the plain share, damage taken sheds only the Vined share. | test_recheck_fixes.gd::Vined Encasing; wce::1 thorn per armor (12) for 20 tempo, shed X per X damage |
 | vines | card | CORRECT | | | wce::held in place for 15 tempo; wce::4 damage every 5 tempo, three times |
 | volatile_mixture | card | CORRECT | | | wce::On Discard: 8 to the nearest enemy; wce::5 tempo in hand: discarded; wce::…after 8 self-damage |
 | wear_down | card | FLAGGED | Card text omits the enemy-side limit (the reduction clears after the enemy's next 2 attacks); see Flagged. | | wce::lasts 15 tempo; wce::a hit: enemy attack -1; wce::a consecutive hit: -2 |

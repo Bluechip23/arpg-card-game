@@ -2,18 +2,18 @@
 
 Every card, item, enemy, summon and passive was read against its stated description, its code path traced (cost, targeting, triggers, stacking, duration, the tempo clock), marked, and **proven by a test**. Eleven slices were audited in parallel; each slice's full notes are in `docs/audit/wiring/<slice>.md`. Regenerate this page with `python3 tools/audit/wiring_merge.py`.
 
-Status: **CORRECT** (code does what the text says) · **FIXED** (was wrong; code changed to match the text) · **MISSING** (described, not built; now built) · **FLAGGED** (the text is unclear or contradicts another system — a question for you below; where a slice also fixed the clear part, the row says so).
+Status: **CORRECT** (code does what the text says) · **FIXED** (was wrong; code changed to match the text) · **MISSING** (described, not built; now built) · **FLAGGED** (the text is unclear or contradicts another system — a question for you below; where a slice also fixed the clear part, the row says so) · **BLOCKED** (too large to fix safely in the audit; plan in `validation.md`). Rows marked *(Phase 6 re-check)* were CORRECT until the independent re-check in `validation.md` found them wrong.
 
 ## Totals
 
-| type | CORRECT | FIXED | MISSING | FLAGGED | total |
-|---|---|---|---|---|---|
-| card | 216 | 22 | 1 | 16 | 255 |
-| enemy | 66 | 4 | 0 | 4 | 74 |
-| item | 164 | 15 | 0 | 10 | 189 |
-| passive | 45 | 8 | 0 | 7 | 60 |
-| summon | 14 | 0 | 0 | 2 | 16 |
-| **all** | **505** | **49** | **1** | **39** | **594** |
+| type | CORRECT | FIXED | MISSING | FLAGGED | BLOCKED | total |
+|---|---|---|---|---|---|---|
+| card | 210 | 28 | 1 | 16 | 0 | 255 |
+| enemy | 66 | 4 | 0 | 4 | 0 | 74 |
+| item | 162 | 15 | 0 | 11 | 1 | 189 |
+| passive | 42 | 8 | 0 | 9 | 1 | 60 |
+| summon | 13 | 0 | 0 | 3 | 0 | 16 |
+| **all** | **493** | **55** | **1** | **43** | **2** | **594** |
 
 ## FLAGGED — questions for the designer
 
@@ -180,7 +180,7 @@ Status: **CORRECT** (code does what the text says) · **FIXED** (was wrong; code
 | Cover (`cover`) | card | CORRECT | — | — | test_wiring_cards_a.gd::cover: the hit is reduced by the hand size, Cover included (3); ::cover: costs its 2 tempo (summons: test_card_sheet_pass.gd) |
 | Crack of Mintaka (`crack_of_mintaka`) | card | CORRECT | — | — | test_wiring_cards_a.gd::crack_of_mintaka: 10 damage to an enemy within that many squares; ::crack_of_mintaka: 2 discards do not reach an enemy 3 squares away; ::crack_of_mintaka: +3% crit damage per card discarded |
 | Crops (`crops`) | card | FIXED | A bushel could grow on the cell of an ally already standing there and was eaten on the next tempo — fewer than 5 bushels, and eaten without anyone walking over it | `main._apply_card_world_effects` "crops": cells occupied by an ally are skipped when placing | test_wiring_cards_a.gd::crops: every cast grows 5 bushels, none under an ally standing there; ::crops: walking over one eats it for 20 life and 20 mana; ::crops: bushels do not expire on their own |
-| Cryonics (`cryonics`) | card | CORRECT | — | — | test_wiring_cards_a.gd::cryonics: the encased ally is untargetable; ::cryonics: they cannot act; ::cryonics: heals 3 health per 5 tempo; ::cryonics: after 15 tempo the ice melts |
+| Cryonics (`cryonics`) | card | FIXED + FLAGGED | *(Phase 6 re-check)* Picking a summon as the ally encased and stunned the caster instead. | A summon pick is refused, nothing spent (`main.HERO_ONLY_ALLY_CARDS`). FLAGGED: should a summon count as Cryonics' "ally"? | test_recheck_fixes.gd::Cryonics / Friendship on a summon; test_wiring_cards_a.gd::cryonics: the encased ally is untargetable; ::cryonics: they cannot act; ::cryonics: heals 3 health per 5 tempo; ::cryonics: after 15 tempo the ice melts |
 | Cultish Wounds (`cultish_wounds`) | card | CORRECT | — | — | test_wiring_cards_a.gd::cultish_wounds: Maintain 2M (20 reserved); ::cultish_wounds: 1 damage to self, ignoring armor; ::cultish_wounds: repeats every 5 tempo (the cycle) |
 | Golden (`cupids_golden_arrow`) | card | CORRECT | — | — | test_wiring_cards_a.gd::cupids_golden_arrow: 10 damage and 2 Vulnerable; ::cupids_golden_arrow: on its 50%, taunted toward you for 5 tempo; ::cupids arrows: carrying both marks turns it into a tree for 4 tempo |
 | Lead (`cupids_lead_arrow`) | card | CORRECT | — | — | test_wiring_cards_a.gd::cupids_lead_arrow: 2 Weaken; the fear only on its 50%; ::cupids_lead_arrow: on its 50%, fleeing from you for 5 tempo; ::cupids arrows: the tree regrows 3 health on each of its first 3 tempo, and ends after 4 |
@@ -223,7 +223,7 @@ Status: **CORRECT** (code does what the text says) · **FIXED** (was wrong; code
 | Forever Armor (`forever_armor`) | card | CORRECT | — | — | test_wiring_cards_b.gd::Maintain: +6 max unerring armor |
 | Fortify Alliance (`fortify_alliance`) | card | CORRECT | — | — | test_wiring_cards_b.gd::Fortify Alliance heals the ally for 5 / and gives the caster 5 armor |
 | Fountain of Health (`fountain_of_life`) | card | CORRECT | — | — | test_wiring_cards_b.gd::every cycle: 2 damage to self / and a card drawn |
-| Friendship (`friendship`) | card | CORRECT | — (a 1-damage hit is not split: it cannot be halved) | — | test_wiring_cards_b.gd::when one heals, both heal / damage is split / the bond lasts 5 tempo |
+| Friendship (`friendship`) | card | FIXED + FLAGGED | *(Phase 6 re-check)* Picking a summon as the first ally made the caster the first ally instead. | A summon pick is refused, nothing spent. FLAGGED: summons have no PlayerStats, so can a summon be linked? In solo with no partner the card has no second ally. | test_recheck_fixes.gd::Cryonics / Friendship on a summon; test_wiring_cards_b.gd::when one heals, both heal / damage is split / the bond lasts 5 tempo |
 | From the Ashes (`from_the_ashes`) | card | CORRECT | — | — | test_wiring_cards_b.gd::enemies within 3 take 5 per stack purged / heal 5 per stack / Regen equal to half the stacks |
 | Energy (`gain_mana`) | card | CORRECT | — | — | test_wiring_cards_b.gd::Energy: gain 2 mana (20 on the x10 scale) |
 | Gargle and Spit (`gargle_and_spit`) | card | CORRECT | — | — | test_wiring_cards_b.gd::heal 3 / +1 strength for 20 tempo / after the 4th play it is discarded |
@@ -274,7 +274,7 @@ Status: **CORRECT** (code does what the text says) · **FIXED** (was wrong; code
 | Mark | card | FLAGGED | The text says "extra damage from your **attacks**". The code raises **every** player hit by 15%, including spells (shown with Fireball), and any `take_damage(x, true)`. CARD_TAXONOMY treats "attack" as the Attack shape. The 15% and the 25 tempo work. | — | test_wiring_cards_c.gd::Mark: 25 tempo; ::…your hits on it land 15% harder; ::…and it wears off after 25 tempo; ::…(as built, a spell's hit is marked up too) |
 | Meditate | card | CORRECT | — | — | test_wiring_cards_c.gd::Meditate: discards the hand and draws to full -2; ::…heals to 80%; ::…Glut 5 |
 | Meister of Faustmesser | card | CORRECT | — | — | test_wiring_cards_c.gd::Meister of Faustmesser: zero-cost cards in the discard pile come to hand, others stay; ::…and the card is jailed for 20. (The hand cap still applies, as it does to every non-Linger card.) |
-| Mend | card | CORRECT | — | — | test_wiring_cards_c.gd::Mend: 20% health (+INT) and 20% mana restored; ::…and armor equal to the health restored; ::…an ally within 4 squares too; ::…not one 6 squares away. (Of the summons, only Frankensteins are healed.) |
+| Mend | card | FIXED | *(Phase 6 re-check)* Only heroes and Frankenstein's Monsters were restored; wolves, skeletons, worms, spirit bows, clones and the penguin in range got nothing. | Every friendly summon within 4 is restored (as Halo and the Greaves aura already were). | test_recheck_fixes.gd::Mend; test_wiring_cards_c.gd::Mend: 20% health (+INT) and 20% mana restored; ::…and armor equal to the health restored; ::…an ally within 4 squares too; ::…not one 6 squares away. (Of the summons, only Frankensteins are healed.) |
 | Mind Mend | card | CORRECT | — | — | test_wiring_cards_c.gd::Mind Mend: costs 15 health, no mana; ::…restores 60 mana |
 | Mind over Matter | card | CORRECT | — | — | test_wiring_cards_c.gd::Mind over Matter: the next hit is halved and paid in mana, 1 per point; ::…only the next hit; also tests/test_shields_pass.gd |
 | Minor Wounds | card | CORRECT | — | — | test_wiring_cards_c.gd::Minor Wounds: 2 damage to self on draw; ::…Erase 40 |
@@ -292,7 +292,7 @@ Status: **CORRECT** (code does what the text says) · **FIXED** (was wrong; code
 | Parry | card | CORRECT | — | — | test_wiring_cards_c.gd::Parry: 5 armor, 5 damage; ::…10% physical resistance for 1 attack |
 | Patience | card | CORRECT | — | — | test_wiring_cards_c.gd::Patience: the draw is due 15 tempo after the play; ::…in 15 tempo, draw 3 |
 | Peshtigo's Kiss | card | CORRECT | — | — | tests/test_peshtigo_live.gd (hits for 10 + 5 per enemy in the INT/8 circle, asks to Maintain, burns for half every cycle, goes out when dismissed); test_wiring_cards_c.gd::peshtigos_kiss: played for its 60 mana / 5 tempo |
-| Petey the Pet Rock | card | CORRECT | — | — | test_wiring_cards_c.gd::Petey: on draw, draw 3 cards; ::…while in hand: Slowed 2; ::…on discard: discard 2 cards |
+| Petey the Pet Rock | card | FIXED | *(Phase 6 re-check)* The Slowed went on only at a 5-tempo cycle boundary, only when none was there, so it fell to 1 stack between cycles, and nothing lifted it when Petey left the hand. | `main._sync_held_slow`: put on when drawn, topped back to 2 each cycle, lifted with the last copy (mirrors Release Soul's Drain). | test_recheck_fixes.gd::Petey; test_wiring_cards_c.gd::Petey: on draw, draw 3 cards; ::…while in hand: Slowed 2; ::…on discard: discard 2 cards |
 | Poison Bomb | card | CORRECT | — | — | test_wiring_cards_c.gd::Poison Bomb: 6 Poison on every enemy within 2 squares; ::…none 3 squares out |
 | Poisoned Blood | card | FIXED | The 5 charges sit on the caster, but a heal aimed at an ally resolved on the ally's buff manager. That manager has no Poisoned Blood, so the ally was healed instead of hurt. Heals on yourself and on summons already worked. | `DeckManager.execute_deferred_card` hands the caster's buff manager to `Card.execute` (`Card.caster_buff_manager`) during an ally-routed cast. Poisoned Blood reads and spends the caster's charges from it. | test_wiring_cards_d.gd::Poisoned Blood: a heal on an ally deals damage instead; ::that heal spent one instance; ::a heal on yourself deals damage instead; ::a heal on a summon deals damage instead; ::gone after 5 instances |
 | Poke | card | CORRECT | — | — | test_wiring_cards_d.gd::Poke: 2 + half the modifiers; ::Poke is melee (the formula with real STR also: test_card_sheet_pass.gd::Poke = 2 + half the modifiers) |
@@ -300,7 +300,7 @@ Status: **CORRECT** (code does what the text says) · **FIXED** (was wrong; code
 | Poof and Weave | card | CORRECT | — | — | test_wiring_cards_d.gd::Poof and Weave: +10 armor; ::Poof and Weave: draws a card; ::Poof and Weave: invisible; ::the invisibility lasts 5 tempo |
 | Potion of Continuance | card | CORRECT | — | — | test_wiring_cards_d.gd::Potion of Continuance: draws 2 |
 | Preemptive Answer | card | CORRECT | — | — | test_wiring_cards_d.gd::Preemptive Answer fires on the hit that drops you to 25%; ::Preemptive Answer purges 3 debuffs; ::Preemptive Answer heals 20 (+heal power) |
-| Premeditated | card | CORRECT | — | — | test_wiring_cards_d.gd::Premeditated: breaking the armor marks the enemy for +15; ::the next card at that enemy deals +15 on top of its effect; ::…only the next one |
+| Premeditated | card | FIXED | *(Phase 6 re-check)* A second Premeditated at the exposed enemy did not carry the +15 (`card_id != "premeditated"`), so the bonus waited for a later card. | The exclusion is gone: "your next card" includes another Premeditated. | test_recheck_fixes.gd::Premeditated; test_wiring_cards_d.gd::Premeditated: breaking the armor marks the enemy for +15; ::the next card at that enemy deals +15 on top of its effect; ::…only the next one |
 | Preparation | card | CORRECT | — | — | test_wiring_cards_d.gd::Preparation: the next utility card costs 2 less; ::Preparation: …and the one after; ::Preparation: the third pays full price |
 | Prepare | card | CORRECT | — | — | test_wiring_cards_d.gd::Prepare: draws 3; ::Prepare: Erase 1 — erased at the next tick it sits in hand |
 | Protection From Alnitak | card | CORRECT | — | — | test_wiring_cards_d.gd::Protection From Alnitak: +10 armor; ::Brace = empty hand slots (2%) for 5 attacks |
@@ -389,7 +389,7 @@ Status: **CORRECT** (code does what the text says) · **FIXED** (was wrong; code
 | twenty_twenty | card | CORRECT |  |  | wce::+3 range on ranged offensive cards; wce::not on melee cards |
 | understanding | card | CORRECT |  |  | wce::armed after 10 tempo; wce::the next damaging card auto-crits |
 | vengeful_shield | card | CORRECT |  |  | wce::exposed: it fires for 5 armor; wce::…and stuns the enemy in melee range for 5 tempo |
-| vined_encasing | card | CORRECT |  |  | wce::1 thorn per armor (12) for 20 tempo, shed X per X damage |
+| vined_encasing | card | FIXED | *(Phase 6 re-check)* Meeting thorns already up (Spiked Mitts, Spiked Shield…), the Vined thorns merged into them and lost their rule — the lot then fell 1 per hit; ordinary thorns gained later started shedding by damage. | `Buff.vined_value` keeps the Vined share inside the one Thorns buff: hits wear only the plain share, damage taken sheds only the Vined share. | test_recheck_fixes.gd::Vined Encasing; wce::1 thorn per armor (12) for 20 tempo, shed X per X damage |
 | vines | card | CORRECT |  |  | wce::held in place for 15 tempo; wce::4 damage every 5 tempo, three times |
 | volatile_mixture | card | CORRECT |  |  | wce::On Discard: 8 to the nearest enemy; wce::5 tempo in hand: discarded; wce::…after 8 self-damage |
 | wear_down | card | FLAGGED | Card text omits the enemy-side limit (the reduction clears after the enemy's next 2 attacks); see Flagged. |  | wce::lasts 15 tempo; wce::a hit: enemy attack -1; wce::a consecutive hit: -2 |
@@ -474,7 +474,7 @@ Status: **CORRECT** (code does what the text says) · **FIXED** (was wrong; code
 | HealableSummon | summon | CORRECT |  |  | test_wiring_enemies_b.gd::Healable summon: heals land on it |
 | MarkableSummon (Shepherd's Mark) | summon | CORRECT |  |  | test_wiring_enemies_b.gd::Markable summon: Shepherd's Mark — survives at 1 HP with its armor; ::Markable summon: …and the caster takes 8 |
 | Spirit Bow (maintained) | summon | FLAGGED | The item says its bow summons gain "+2 damage … per living bow summon"; the code adds +2 per OTHER bow (a lone spirit bow hits for 10, as the Spirit Bow card says) but counts every bow, itself included, for the +5% crit | none | test_ranged_pass.gd (10 damage every 4 tempo); test_wiring_enemies_b.gd::Spirit Bow: with no mana held for it, it dissolves |
-| Budded bow | summon | CORRECT |  |  | test_ranged_pass.gd (6 damage every 5 tempo, any damage kills it); test_wiring_enemies_b.gd::Budded bows: up to 4 at once; ::Budded bow: …it withers after 2 attacks |
+| Budded bow | summon | FLAGGED | *(Phase 6 re-check)* Same question as the Spirit Bow flag below: +2 damage per *other* bow, +5% crit per bow including itself. |  | test_ranged_pass.gd (6 damage every 5 tempo, any damage kills it); test_wiring_enemies_b.gd::Budded bows: up to 4 at once; ::Budded bow: …it withers after 2 attacks |
 | Draupnir's duplicate (summoned_clone) | summon | CORRECT |  |  | test_rings_pass.gd (9th hit drips one, trigger waits); test_wiring_enemies_b.gd::Draupnir: a quarter of your health; ::Draupnir: only one at a time; ::Draupnir: when a duplicate dies, Strengthen |
 | Bone-arrow skeleton (Sack of Bone Arrows) | summon | CORRECT |  |  | test_wiring_enemies_b.gd::Bone skeletons: up to 3 at once; ::Bone skeleton: the victim's half health, 5 damage, 4 squares a tempo, attacks every 5 tempo |
 | Manifest spirit / golem (summoned_skeleton kinds) | summon | FLAGGED | No card or item text summons them: only the sandbox and the `summon_spirit` / `summon_golem` manifest branches in `main.gd`, which no data file produces | none | (none — no stated description) |
@@ -555,7 +555,7 @@ Status: **CORRECT** (code does what the text says) · **FIXED** (was wrong; code
 | fanned_bracers | item | CORRECT | — | — | T::fanned_bracers: Fan Save inflicts 1 Weaken; T::Fanned Bracers: 10 tempo cooldown |
 | feathered_hat | item | CORRECT | — | — | T::feathered_hat: the 25th flash point arms a crit and resets the counter; T::feathered_hat: the next ranged offensive card crits and spends it; T::feathered_hat: a slotted card resolves with +10% crit damage |
 | feral_evocation | item | FIXED | Its colored slots also ran the Staff label gate. Only Fireball and Peshtigo's Kiss carry that label, so the blue, yellow and green slots could never be filled and no conversion could happen. This is why `test_spell_weapons_pass` was failing on the base commit. | `item_data.gd` `_slot_gate_ok`: on a colored slot, the card's element alone decides. | T::feral_evocation: playing the red card turns the blue card in hand red; T::feral_evocation: the conversion deals 4 damage to an enemy within 4; T::feral_evocation: a converted card reverts once it has left the hand; test_spell_weapons_pass |
-| fire_book | item | CORRECT | — | — | T::fire_book: an unslotted Slash applies 1 burn_stacks; T::fire_book: an unslotted Slash deals +1 |
+| fire_book | item | BLOCKED | *(Phase 6 re-check)* The Burn rides only cards aimed at one enemy; area and point cards (played with you as the target) get the +1 damage but never Burn. | BLOCKED with Life Steal: needs a shared on-hit hook for main.gd's area hits. | T::fire_book: an unslotted Slash applies 1 burn_stacks; T::fire_book: an unslotted Slash deals +1 |
 | fire_quiver | item | CORRECT | — | — | T::fire_quiver: a slotted damaging card deals +2; T::fire_quiver: a slotted Slash that hits applies 1 burn_stacks |
 | frankensteins_screws | item | CORRECT | — | — | T::frankensteins_screws: a summon below 25% beside you heals 3; T::its_alive costs 20 mana, 5 tempo as its item says |
 | friendship_ring | item | CORRECT | — | — | T::friendship_ring: heals are 5 larger |
@@ -566,7 +566,7 @@ Status: **CORRECT** (code does what the text says) · **FIXED** (was wrong; code
 | gold_band | item | CORRECT | — | — | T::gold_band: 10 shield gained -> two zaps of 2 |
 | gravity_gauntlets | item | CORRECT | — | — | T::gravity_gauntlets: a slotted offensive card holds the target 5 tempo; T::gravity_gauntlets: an enemy 2 squares off is pulled into the target area |
 | guardian_greaves | item | FIXED | "Restore 6 health … to all allies (you included) within 4": among summons, only Frankenstein's Monsters were healed. Wolves, skeletons, bows, worms and the penguin were skipped, though `main._all_summons` defines them as allies for card text. | `main.gd` `_helm_on_cycle_passives`: the aura heals every summon from `_all_summons()` within the radius. | T::guardian_greaves: an ally summon within 4 regains 6 too; T::guardian_greaves: you regain 6 health a cycle; T::guardian_greaves: and 5% physical resistance inside the aura |
-| hallowed_trunk | item | CORRECT | — | — | T::hallowed_trunk: the 10th armor point removed grants 1 Regen; T::hallowed_trunk: imbue tree grants 5 Regen and 10 Thorns |
+| hallowed_trunk | item | FLAGGED | *(Phase 6 re-check)* Only armor taken by hits counts toward "every 10 armor removed"; the 2-per-cycle armor decay does not. Should decay count? | — | T::hallowed_trunk: the 10th armor point removed grants 1 Regen; T::hallowed_trunk: imbue tree grants 5 Regen and 10 Thorns |
 | hammer_of_ajax | item | CORRECT | — | — | T::hammer_of_ajax: a slotted offensive card adds 10% of max health |
 | hannibals_mask | item | CORRECT | — | — | T::hannibals_mask: a slotted attack heals 15% of its damage; T::hannibals_mask: Resourceful Replenish maintained — attacks lifesteal 5% |
 | harnessed_sun | item | CORRECT | — | — | T::harnessed_sun: a 1-Burn application lands as 3 (+2); T::harnessed_sun: the 25th Burn cleanses a debuff on you |
@@ -683,7 +683,7 @@ Status: **CORRECT** (code does what the text says) · **FIXED** (was wrong; code
 | The Way of the Plate | passive | CORRECT | — | — | test_wiring_passives.gd::The Way of the Plate r15: the 2th refunds 10 mana and 1 tempo |
 | Ancestral Aid | passive | FIXED | "More defense" counted only the Defense type; the taxonomy's defensive card is the type or the `defense` tag (Vengeful Shield). | `progression_triggers.gd`: new `_is_defensive()` used for the hand count. | test_wiring_passives.gd::Ancestral Aid r15: more defense cards (a defense-tagged instant counts) heals 17 |
 | Redemption | passive | CORRECT | — | — | test_wiring_passives.gd::Redemption r15: the next offensive card's roll spends it |
-| Life Steal | passive | CORRECT | (Stolen life is a heal, so the INT heal bonus rides on it — system-wide, not this passive.) | — | test_wiring_passives.gd::Life Steal r15: a passive hit of 200 steals 8% = 16 |
+| Life Steal | passive | BLOCKED | *(Phase 6 re-check)* Heals `max(1, damage dealt × %)` once per attack card, and falls back to the card's printed damage when the play recorded none — a whiff heals, and an area attack steals from one hit only. | BLOCKED: area attacks resolve in main.gd with no record of what they hit. Plan in docs/audit/validation.md. | test_wiring_passives.gd::Life Steal r15: a passive hit of 200 steals 8% = 16 |
 | Pristine Armor | passive | CORRECT | — | — | test_wiring_passives.gd::Pristine Armor r15: three in a row add +14 more; ::a utility in between resets the streak |
 | Vines Codependence | passive | FLAGGED | Fires on any direct heal Brad *receives* (an ally's heal on him included) and not on a heal he casts on an ally. "Whenever you heal" can read either way. | — | test_wiring_passives.gd::Vines Codependence r15: a direct heal grants 8 thorns for 5 tempo |
 | Solemn Independence | passive | CORRECT | — | — | test_wiring_passives.gd::Solemn Independence r15: an offensive hit of 100 lands for 112 |
@@ -704,7 +704,7 @@ Status: **CORRECT** (code does what the text says) · **FIXED** (was wrong; code
 | Tricks of Death | passive | CORRECT | — | — | test_wiring_passives.gd::Tricks of Death r15: card chances +12.0 points |
 | A Mage's Favor | passive | CORRECT | — | — | test_wiring_passives.gd::A Mage's Favor r15: a reroll batch that changed an outcome adds one 0m/0t Magic Barrier instant (16 armor)…; test_passive_feedback2.gd (the barrier is up before the blow) |
 | Harnessed Power | passive | CORRECT | — | — | test_wiring_passives.gd::Harnessed Power r15: damage +32% / armor gain +32% / healing +32% |
-| Whispers of the Flock | passive | CORRECT | (Dojo only: the ally dummy refills on `health_changed` before the mark can save it, so the mark never shows on the dog.) | — | test_wiring_passives.gd::Whispers r15: the marked ally survives lethal at 1 HP with 19 armor; Jeremy takes 8 |
+| Whispers of the Flock | passive | FLAGGED | *(Phase 6 re-check)* Only a card with a printed heal aimed at another ally grants the Mark; Communal Donation, Mend and Halo's per-cycle heals never do. Should every heal of an ally count? | — | test_wiring_passives.gd::Whispers r15: the marked ally survives lethal at 1 HP with 19 armor; Jeremy takes 8 |
 | Seance | passive | CORRECT | — | — | test_wiring_passives.gd::Seance r15: 33 HP, 33 damage to its killer |
 | Kinetic Armor | passive | FIXED | "Defensive cards in your deck" counted only the Defense type, not `defense`-tagged cards. | `progression_triggers.gd`: `_is_defensive()` for hand, draw and discard. | test_wiring_passives.gd::Kinetic Armor r15: past 16 tempo the nearest enemy gets shock = defense cards in the deck |
 | Mana Surge | passive | FLAGGED | The conjured card said "gain 1 mana"; it gains 10, as the passive says — fixed. Open: the text calls the card an "Attack" but it is a Spell (school SPELL, INT-scaled, card face "Spell"); and spending is recorded when each card resolves, from its printed cost (a Demonic-Rage play paid in health still counts as mana spent). | `card.gd` `create_mana_surge`: description "gain 10 mana". | test_wiring_passives.gd::Mana Surge r15: 100 mana within 5 tempo adds a 0m/2t Mana Surge dealing 18; ::the card says it gains 10 mana |
@@ -714,7 +714,7 @@ Status: **CORRECT** (code does what the text says) · **FIXED** (was wrong; code
 | Keep Them Guessing | passive | CORRECT | — | — | test_wiring_passives.gd::Keep Them Guessing r15: the 4th discard cuts a hand card by 3 tempo for 5 tempo |
 | Quick Step | passive | CORRECT | — | — | test_wiring_passives.gd::Quick Step r15: an instant fired from hand grants 16 armor |
 | Stimulant | passive | FIXED | Drew a card (and spent its cooldown) when Poisoned Blood turned the Pocket heal into damage, so nobody was healed. | `progression_triggers.gd`: skip when `heal_to_damage` flipped the heal. | test_wiring_passives.gd::Stimulant r15: a heal Poisoned Blood flipped to damage heals nobody: no draw, no cooldown |
-| Now You See Me | passive | CORRECT | — | — | test_wiring_passives.gd::Now You See Me r15: a displacement grants invisibility for 5 tempo; test_passive_triggers / test_passive_feedback2 (the displacement sources) |
+| Now You See Me | passive | FLAGGED | *(Phase 6 re-check)* Charge and the Repelled Block push move you without counting as "non-standard movement"; Roll and Heroic Leap count. Should they? | — | test_wiring_passives.gd::Now You See Me r15: a displacement grants invisibility for 5 tempo; test_passive_triggers / test_passive_feedback2 (the displacement sources) |
 | From the Hip | passive | CORRECT | — | — | test_wiring_passives.gd::From the Hip r15: a drawn attack costs -30m/-2t |
 | Ladder Work | passive | CORRECT | — | — | test_wiring_passives.gd::Ladder Work r15: the first attack this cycle deals +6 per card discarded last cycle |
 | Pop Rocks | passive | CORRECT | — | — | test_wiring_passives.gd::Pop Rocks r15: poisoning a poisoned enemy deals 1/3 of its stacks (9 → 3) |

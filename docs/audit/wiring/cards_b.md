@@ -48,7 +48,7 @@ Harden, Harness Lightning — none of their texts names a tempo).
 | Forever Armor (`forever_armor`) | card | CORRECT | — | — | test_wiring_cards_b.gd::Maintain: +6 max unerring armor |
 | Fortify Alliance (`fortify_alliance`) | card | CORRECT | — | — | test_wiring_cards_b.gd::Fortify Alliance heals the ally for 5 / and gives the caster 5 armor |
 | Fountain of Health (`fountain_of_life`) | card | CORRECT | — | — | test_wiring_cards_b.gd::every cycle: 2 damage to self / and a card drawn |
-| Friendship (`friendship`) | card | CORRECT | — (a 1-damage hit is not split: it cannot be halved) | — | test_wiring_cards_b.gd::when one heals, both heal / damage is split / the bond lasts 5 tempo |
+| Friendship (`friendship`) | card | FIXED + FLAGGED | *(Phase 6 re-check)* Picking a summon as the first ally made the caster the first ally instead. | A summon pick is refused, nothing spent. FLAGGED: summons have no PlayerStats, so can a summon be linked? In solo with no partner the card has no second ally. | test_recheck_fixes.gd::Cryonics / Friendship on a summon; test_wiring_cards_b.gd::when one heals, both heal / damage is split / the bond lasts 5 tempo |
 | From the Ashes (`from_the_ashes`) | card | CORRECT | — | — | test_wiring_cards_b.gd::enemies within 3 take 5 per stack purged / heal 5 per stack / Regen equal to half the stacks |
 | Energy (`gain_mana`) | card | CORRECT | — | — | test_wiring_cards_b.gd::Energy: gain 2 mana (20 on the x10 scale) |
 | Gargle and Spit (`gargle_and_spit`) | card | CORRECT | — | — | test_wiring_cards_b.gd::heal 3 / +1 strength for 20 tempo / after the 4th play it is discarded |

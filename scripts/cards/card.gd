@@ -1401,7 +1401,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 	# carries +15 onto its hit; main pays it out directly if the card deals none.
 	premeditated_target = null
 	if target is Object and is_instance_valid(target) and "premeditated_card_bonus" in target \
-			and int(target.premeditated_card_bonus) > 0 and card_id != "premeditated":
+			and int(target.premeditated_card_bonus) > 0:  # "your next card", a second Premeditated included
 		target.bonus_damage_next_hit += int(target.premeditated_card_bonus)
 		target.premeditated_card_bonus = 0
 		premeditated_target = target

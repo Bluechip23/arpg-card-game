@@ -4595,6 +4595,11 @@ func _all_players() -> Array:
 ## the party plus the dojo's practice allies. Every ally-targeted effect
 ## (heals, auras, Hold the Line, Psionic Flow...) enumerates through here.
 ## Frankenstein's Monsters are not Player nodes and keep their own hooks.
+## Ally cards that only work on a hero (Player): Cryonics encases and stuns
+## a PlayerStats, Friendship links two. Whether a summon should count as
+## their "ally" is FLAGGED (docs/audit/validation.md).
+const HERO_ONLY_ALLY_CARDS := ["cryonics", "friendship"]
+
 func _all_allies() -> Array:
 	var out: Array = []
 	for p in _all_players() + _dojo_allies:
@@ -6941,6 +6946,7 @@ func _on_hand_updated() -> void:
 	# Release Soul's Drain follows the card in and out of the hand.
 	if player and deck_manager and player.get_buff_manager():
 		_sync_held_drain(player.get_buff_manager().debuff_manager)
+		_sync_held_slow(player.get_buff_manager().debuff_manager)
 	# Drawing consumes revealed peek knowledge — keep the NEXT display honest.
 	update_peaked_display()
 
@@ -7659,12 +7665,37 @@ func _apply_in_hand_debuffs() -> void:
 		if card.in_hand_debuff != "":
 			match card.in_hand_debuff:
 				"slowed_2":
-					# "While in hand: Slowed 2" — hold it at 2, never stack it.
-					if not debuff_mgr.has_debuff(Debuff.DebuffType.SLOWED):
-						debuff_mgr.apply_debuff(Debuff.create_slowed(2, card.card_name))
+					pass  # held at 2 stacks by _sync_held_slow below, which also runs on every hand change
 				"drain_1":
 					pass  # held at 1 stack by _sync_held_drain below, which also runs on every hand change
 	_sync_held_drain(debuff_mgr)
+	_sync_held_slow(debuff_mgr)
+
+## The source name on the Slowed that Petey the Pet Rock holds on you.
+const HELD_SLOW_SOURCE := "Petey the Pet Rock"
+
+## Petey the Pet Rock: "While in hand: Slowed 2". Put on the moment it is
+## drawn, topped back up to 2 after the stack falls each cycle, and lifted
+## when the last copy leaves the hand. A Slowed from another source is
+## topped up but never removed here.
+func _sync_held_slow(debuff_mgr) -> void:
+	if debuff_mgr == null:
+		return
+	var held := false
+	for card in deck_manager.hand:
+		if card.in_hand_debuff == "slowed_2":
+			held = true
+			break
+	var slow = debuff_mgr.get_debuff(Debuff.DebuffType.SLOWED)
+	if held:
+		if slow == null:
+			debuff_mgr.apply_debuff(Debuff.create_slowed(2, HELD_SLOW_SOURCE))
+		elif not slow.clock_timed and slow.value < 2:
+			slow.value = 2  # a Slowed's stacks are its value
+			slow._set_name_and_description()
+			debuff_mgr.debuffs_changed.emit()
+	elif slow != null and slow.source_name == HELD_SLOW_SOURCE:
+		debuff_mgr.remove_debuff(Debuff.DebuffType.SLOWED)
 
 ## The source name on the Drain that Release Soul puts there, so only that
 ## Drain is lifted when the card leaves — one from another source is kept.
@@ -12633,9 +12664,11 @@ func _apply_card_world_effects(card: Card, target) -> void:
 					if mend_armor > 0:
 						a_st.add_armor(mend_armor)
 					mend_healed += 1
-			for m in _frankensteins:
-				if is_instance_valid(m) and not m.is_dead and grid_manager.get_distance_in_cells(player.position, m.position) <= 4:
-					m.heal(maxi(1, floori(m.max_health * mend_pct)))
+			# "Allies" includes every friendly summon, not only Frankenstein's
+			# Monsters (summons have no mana pool; their armor is not tracked).
+			for m in _all_summons():
+				if not bool(m.get("is_dead")) and grid_manager.get_distance_in_cells(player.position, m.position) <= 4:
+					m.heal(maxi(1, floori(int(m.get("max_health")) * mend_pct)))
 					mend_healed += 1
 			add_battle_log("Mend: %d all%s restored" % [mend_healed, "y" if mend_healed == 1 else "ies"], Color(0.5, 0.9, 0.7))
 
@@ -13960,7 +13993,11 @@ func _input(event: InputEvent) -> void:
 						var tgt_summon := _summon_at_position(mouse_pos)
 						if tgt_summon:
 							tgt = tgt_summon
-					if tgt != player and card.is_ranged and not _is_target_in_card_range(card, tgt):
+					if not (tgt is Player) and card.card_id in HERO_ONLY_ALLY_CARDS:
+						# These resolve on a hero's stats; a summon pick used to land
+						# on the caster instead. Refuse it, nothing spent.
+						add_battle_log("%s must target a hero, not a summon." % card.card_name, Color(1.0, 0.6, 0.4))
+					elif tgt != player and card.is_ranged and not _is_target_in_card_range(card, tgt):
 						add_battle_log("Out of range! %s is too far (max range: %d)" % [tgt.name, card.get_effective_range()], Color(1.0, 0.4, 0.4))
 					elif card.card_id == "friendship":
 						# The clicked ally (range 5) is the first; pick the second
