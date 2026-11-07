@@ -4698,7 +4698,7 @@ func _respawn_at_level_start() -> void:
 	print("[MAIN] Respawned at %s" % str(grid_manager.world_to_grid(start)))
 
 #endregion
-#region QUEST NPCS: RESCUES, FOLLOWERS, THE LUMBER DEPOT
+#region QUEST NPCS: RESCUES, FOLLOWERS
 var _rescue_npcs: Array = []      # RescueNpc nodes placed for active quests
 var _follower: RescueNpc = null   # the one currently trailing the player
 
@@ -4714,8 +4714,7 @@ func _ground_pos(cell: Vector2i) -> Vector3:
 
 func _place_quest_npcs() -> void:
 	## Rescue targets appear in their interior while their quest wants them
-	## found or walked out; the rescued foreman stands at the Greenwood
-	## trailhead on the surface as a lumber depot afterwards.
+	## found or walked out.
 	if quest_manager == null or dungeon_manager == null or sandbox_mode:
 		return
 	var kind: String = dungeon_manager.interior_kind
@@ -4725,8 +4724,6 @@ func _place_quest_npcs() -> void:
 	if kind == "cave" and (quest_manager.is_objective_active("sellswords_debt", 0)
 			or quest_manager.is_objective_active("sellswords_debt", 1)):
 		_spawn_rescue_npc("npc_partner", "Maren", PARTNER_SHEET, "deep")
-	if kind == "" and quest_manager.has_flag("woodcutter_rescued"):
-		_place_woodcutter_depot()
 	# What the Crows Saw: feathers lead from the start to the hidden graveyard.
 	if kind == "" and quest_manager.is_objective_active("what_the_crows_saw", 0):
 		for s in dungeon_manager.site_nodes:
@@ -4779,22 +4776,6 @@ func _spawn_rescue_npc(id: String, display_name: String, sheet: String, room_kin
 	print("[MAIN] Placed rescue NPC %s at %s" % [id, cell])
 	return npc
 
-func _place_woodcutter_depot() -> void:
-	for s in dungeon_manager.site_nodes:
-		if s["kind"] != "forest":
-			continue
-		var cell: Vector2i = dungeon_manager.pick_free_cell_near(s["grid_pos"], 3)
-		if cell.x < 0:
-			return
-		var npc := RescueNpc.new()
-		npc.depot = true
-		npc.setup("npc_woodcutter_depot", "Aldric — Lumber Depot", WOODCUTTER_SHEET, "[Shift] Send satchel home")
-		add_child(npc)
-		npc.place_at(_ground_pos(cell), cell)
-		npc.visible = false
-		_rescue_npcs.append(npc)
-		return
-
 func _check_hidden_site_discovery(pg: Vector2i) -> void:
 	## Walking up to a site that is on no map puts it on the map.
 	if dungeon_manager == null:
@@ -4835,9 +4816,6 @@ func _try_interact_rescue_npc() -> bool:
 		if olorin:
 			olorin.show_field_tour(true)
 		return true
-	if npc.depot:
-		_send_satchel_home_at_depot(npc)
-		return true
 	if npc.following:
 		add_battle_log("%s: \"Right behind you.\"" % npc.display_name, Color(0.9, 0.85, 0.7))
 		return true
@@ -4858,26 +4836,6 @@ func _deliver_follower() -> void:
 		quest_manager.on_event("escort", {"npc": _follower.npc_id})
 	add_battle_log("You lead %s out into the daylight." % _follower.display_name, Color(0.6, 1.0, 0.6))
 	_follower = null
-
-func _send_satchel_home_at_depot(npc: RescueNpc) -> void:
-	## The rescued foreman hauls the satchel to the city so town resources
-	## bank without a trip home (and never touch the stash).
-	if not CityBridge.city_started(player_progression):
-		add_battle_log("%s: \"No city to haul to yet. Found one at the Town Hall.\"" % npc.display_name, Color(0.9, 0.85, 0.7))
-		return
-	var pouch: Dictionary = CityBridge.satchel(player_progression)
-	var empty := true
-	for res in pouch:
-		if int(pouch[res]) > 0:
-			empty = false
-	if empty:
-		add_battle_log("%s: \"Your satchel's empty, friend.\"" % npc.display_name, Color(0.9, 0.85, 0.7))
-		return
-	var result := CityBridge.bank_satchel(player_progression, int(Time.get_unix_time_from_system()))
-	var msg := "%s hauls %s home to the city." % [npc.display_name, CityBridge.format_resources(result["banked"])]
-	if not result["lost"].is_empty():
-		msg += " The warehouses overflowed — %s went to waste." % CityBridge.format_resources(result["lost"])
-	add_battle_log(msg, Color(0.75, 0.7, 0.5))
 
 #endregion
 #region QUEST WORLD OBJECTS: TRAP DISARM, DROWNED SHRINE, CHANNEL BREAKS
@@ -6218,19 +6176,6 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 			_active_digger = null
 		call_deferred("_maybe_send_grave_digger")
 
-	# City loop: every kill adds habitat resources to the satchel headed home,
-	# and ticks any brewing trial's countdown (STORY.md §6).
-	if not sandbox_mode and current_character and not enemy.is_structure:
-		var zone := CityBridge.zone_for_area(
-			dungeon_manager.interior_kind if dungeon_manager else "", current_world_level)
-		var loot_tier: String = enemy_spawner.get_loot_tier(enemy.enemy_type)
-		var elite := loot_tier == DropRates.TIER_ELITE or loot_tier == DropRates.TIER_BOSS
-		var gained := CityBridge.add_kill_to_satchel(player_progression, zone, elite)
-		if not gained.is_empty():
-			add_battle_log("Satchel: %s" % CityBridge.format_resources(gained), Color(0.75, 0.7, 0.5))
-		if TrialSystem.on_kill(player_progression):
-			_announce_trial()
-
 	# First-room tutorial: the very first rat felled in the story carries the
 	# Bladed Doughnut (injected into its loot in _on_loot_dropped, which fires
 	# right after this handler).
@@ -6278,24 +6223,6 @@ func _on_all_enemies_defeated() -> void:
 	# (The Wrist Rocket's banked crit is cumulative — one journey, no resets.)
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
 	_refresh_unit_tracker()
-
-func _announce_trial() -> void:
-	## A trial just struck the city — Olorin's flute sounds the alarm
-	## (the signal item he gave the player when the city was founded).
-	var warning := TrialSystem.warning_text(player_progression)
-	add_battle_log("A shrill flute-note pierces the air! %s" % warning, Color(1.0, 0.4, 0.35))
-	print("[MAIN] Trial struck: %s" % warning)
-	if olorin:
-		olorin.show_tutorial(
-			"trial_strike",
-			"The Flute Cries Out",
-			[
-				"A single piercing note cuts through the din of battle — Olorin's flute, and it does not sing for nothing.",
-				"\"%s\"" % warning,
-				"Return to town swiftly and the garrison will not stand alone. Linger, and the city must weather it without you.",
-			],
-			true  # the flute sounds for every trial, not just the first
-		)
 
 #endregion
 #region FIRE WALLS (Fire Goblin Shaman)
@@ -16745,8 +16672,6 @@ func _save_player_progression(return_stolen: bool = true) -> Dictionary:
 			progression["deck_state"]["live"]["hand"].append(card)
 	# Explored ground, here and everywhere visited before.
 	progression["explored"] = _explored_snapshot()
-	# City-loop state (satchel, city, pending trial) rides along untouched.
-	CityBridge.carry_keys(player_progression, progression)
 	# Equipped items and stored items (Resource objects survive scene change)
 	var inv := player.get_inventory()
 	if inv:
@@ -16818,7 +16743,6 @@ func _build_save_data(slot: int) -> SaveData:
 	data.character_level = stats.current_level if stats else 1
 	var stats_snapshot: Dictionary = progression.get("stats", stats.save_progression() if stats else {})
 	data.progression = ProgressionIO.to_disk(progression, stats_snapshot)
-	data.city = progression.get("city", player_progression.get("city", {}))
 	data.progression["quest_state"] = quests
 	data.progression["discovered_waypoints"] = discovered_waypoints.duplicate(true)
 	data.progression["opened_chests"] = opened_chests.duplicate(true)

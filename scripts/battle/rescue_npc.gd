@@ -6,16 +6,12 @@ extends Node3D
 ## beside them, then follows one tile behind (Main moves them onto the tile
 ## the player just left). Delivered when the player leaves the interior with
 ## them in tow. First pass: enemies ignore them.
-##
-## With `depot` set, the same figure is a standing post instead (the rescued
-## foreman at the Greenwood trailhead): Shift sends the satchel home.
 
 const SHEET_FRAME := Rect2(0, 0, 32, 32)  # south-facing idle on the NPC pack sheets
 
 var npc_id: String = ""
 var display_name: String = ""
 var following: bool = false
-var depot: bool = false
 var grid_cell: Vector2i = Vector2i(-1, -1)
 
 var _sprite: Sprite3D

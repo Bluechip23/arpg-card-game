@@ -29,11 +29,6 @@ extends Resource
 # sphere inventory + unlocked nodes, quest state, waypoints and opened chests.
 @export var progression: Dictionary = {}
 
-# The character's city (CityState.to_dict()) — the city end-game loop:
-# expeditions gather resources, buildings grow the city, raids loot rivals.
-# Empty until the character founds their city. See docs/STORY.md §6.5.
-@export var city: Dictionary = {}
-
 # Save metadata
 @export var save_slot: int = 0
 @export var save_timestamp: String = ""

@@ -171,8 +171,6 @@ func _go_to_town(save: SaveData) -> void:
 	town_scene.starting_character = save.character_data
 	town_scene.player2_character = save.player2_character
 	town_scene.player_progression = ProgressionIO.to_live(save.progression)
-	if not save.city.is_empty():
-		town_scene.player_progression["city"] = save.city
 	town_scene.return_world_level = save.world_level
 	town_scene.quest_state = save.progression.get("quest_state", {})
 	town_scene.discovered_waypoints = save.progression.get("discovered_waypoints", [])

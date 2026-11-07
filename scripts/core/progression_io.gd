@@ -56,8 +56,6 @@ static func to_disk(live: Dictionary, stats_override: Dictionary = {}) -> Dictio
 	# Explored ground (fog of war) is plain bytes per place.
 	if live.has("explored"):
 		disk["explored"] = live["explored"]
-	# City-loop state is already plain data — it round-trips as-is.
-	CityBridge.carry_keys(live, disk)
 	return disk
 
 const _ITEM_LISTS := ["equipped_helms", "equipped_chests", "equipped_rings", "equipped_belts",
@@ -130,14 +128,18 @@ static func _inventory_to_live(disk_inv: Dictionary) -> Dictionary:
 ## Rebuild a live progression dict (consumable by Main._restore_player_progression
 ## and Town's _ready restore) from a disk-safe snapshot. Returns {} for an empty
 ## snapshot so callers can treat it like "no progression".
+## Progression keys of the removed town-building end-game (city, the resource
+## satchel, trials; "city_calamity" is the trials' older name).
+const RETIRED_CITY_KEYS := ["city", "city_satchel", "city_trial", "city_calamity"]
+
 static func to_live(disk: Dictionary) -> Dictionary:
 	var live := {}
 	if disk == null or disk.is_empty():
 		return live
-	# Trials were called calamities in older saves.
-	if disk.has("city_calamity") and not disk.has("city_trial"):
-		disk["city_trial"] = disk["city_calamity"]
-		disk.erase("city_calamity")
+	# Saves from before the town-building end-game was removed (2026-11-07)
+	# carry its state; it is dropped on load.
+	for k in RETIRED_CITY_KEYS:
+		disk.erase(k)
 	if disk.has("stats"):
 		live["stats"] = disk["stats"]
 	if disk.has("deck_state"):
@@ -161,5 +163,4 @@ static func to_live(disk: Dictionary) -> Dictionary:
 		live["inventory"] = _inventory_to_live(disk["inventory"])
 	if disk.has("explored"):
 		live["explored"] = disk["explored"]
-	CityBridge.carry_keys(disk, live)
 	return live

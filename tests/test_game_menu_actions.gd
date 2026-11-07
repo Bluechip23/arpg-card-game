@@ -162,8 +162,6 @@ func _run() -> void:
 	town.starting_character = loaded.character_data
 	town.player2_character = loaded.player2_character
 	town.player_progression = ProgressionIO.to_live(loaded.progression)
-	if not loaded.city.is_empty():
-		town.player_progression["city"] = loaded.city
 	town.return_world_level = loaded.world_level
 	town.quest_state = loaded.progression.get("quest_state", {})
 	town.discovered_waypoints = loaded.progression.get("discovered_waypoints", [])

@@ -14,7 +14,6 @@ extends Node
 ##   escort           {npc}                             target = npc id delivered, once
 ##   meld             {item}                            target = item name melded at the Blacksmith, or "*"
 ##   choice           (via choose())                    target = shrine id; the player picks an option
-##   trial_answered {}                               once
 ## Objectives with a zone filter only count inside that interior kind
 ## ("sewer", "forest", "cave", "" = overworld); no filter = anywhere.
 ## Sequential quests advance one objective at a time; parallel ones track all.
@@ -50,7 +49,7 @@ class Objective:
 		return current >= count
 
 	func text() -> String:
-		if type in ["reach", "escort", "choice", "trial_answered", "meld"]:
+		if type in ["reach", "escort", "choice", "meld"]:
 			return label + (" ✓" if is_done() else "")
 		return "%s (%d/%d)" % [label, mini(current, count), count]
 
@@ -219,15 +218,6 @@ func _define_quests() -> void:
 	q.prerequisites = ["olorin_kill_wererats"]
 	q.objectives.append(Objective.new("kill_high_ground", "*", 3, "Kill 3 enemies from high ground"))
 	q.teaches = "Climb a sturdy tree or stand on a pillar: ranged offensive cards gain damage and reach from high ground."
-	_add(q)
-
-	# --- Trial Warning ---
-	q = Quest.new("trial_warning", "Trial Warning",
-		"When the flute sounds, a trial has struck the city. Get home before it is over and stand with the garrison.",
-		"Olorin", {"gold": 100, "xp": 80, "flags": ["garrison_veteran"]})
-	q.prerequisites = ["holy_water_well"]
-	q.objectives.append(Objective.new("trial_answered", "", 1, "Answer the flute in time and defend the city"))
-	q.teaches = "Kills tick the trial countdown. When the flute sounds, head home within a few kills."
 	_add(q)
 
 	# --- Ferryman's Toll (Act 2) ---
@@ -450,8 +440,6 @@ func _objective_takes(o: Objective, kind: String, data: Dictionary) -> bool:
 			if kind != "meld":
 				return false
 			return o.target == "*" or o.target == str(data.get("item", ""))
-		"trial_answered":
-			return kind == "trial_answered"
 	return false
 
 func _after_progress(quest: Quest, o: Objective) -> void:
@@ -535,23 +523,15 @@ func save_state() -> Dictionary:
 			state["chosen"][quest.id] = quest.chosen
 	return state
 
-const LEGACY_QUEST_IDS := {"calamity_warning": "trial_warning"}  # renamed quests in older saves
-
-static func _migrate_ids(ids: Array) -> Array:
-	var out: Array = []
-	for id in ids:
-		out.append(LEGACY_QUEST_IDS.get(str(id), str(id)))
-	return out
-
 func load_state(state: Dictionary) -> void:
 	if state.is_empty():
 		return
-	var accepted_ids: Array = _migrate_ids(state.get("accepted_ids", []))
-	var completed_ids: Array = _migrate_ids(state.get("completed_ids", []))
+	# Ids of quests that no longer exist (the city's Trial Warning, removed
+	# with the town-building end-game) are skipped below: they are not in
+	# available_quests.
+	var accepted_ids: Array = state.get("accepted_ids", [])
+	var completed_ids: Array = state.get("completed_ids", [])
 	var progress: Dictionary = state.get("progress", {})
-	for old_id in LEGACY_QUEST_IDS:
-		if progress.has(old_id):
-			progress[LEGACY_QUEST_IDS[old_id]] = progress[old_id]
 	var chosen: Dictionary = state.get("chosen", {})
 	for f in state.get("flags", {}):
 		flags[str(f)] = bool(state["flags"][f])
