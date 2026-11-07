@@ -3802,8 +3802,10 @@ func select_character(character: CharacterData) -> void:
 	player.get_buff_manager().buff_applied.connect(_on_player_buff_applied_ring)
 	player.get_buff_manager().invisibility_entered.connect(_on_player_entered_invisibility)
 	player.get_buff_manager().buffs_changed.connect(_restore_player_visibility_if_seen)
-	player.get_debuff_manager().debuff_expired.connect(_on_player_debuff_expired)
-	_wire_dot_log(player)
+	# Marvolo Gaunt: the save's Misunderstanding and its expiry, plus the DoT
+	# log. (Only Player 2 was wired for marvolo_triggered, so a solo hero's
+	# save never applied "deals 25 damage after 7 tempo unless purged".)
+	_wire_marvolo_hooks(player)
 
 	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager, player.get_buff_manager(), player.get_debuff_manager())
 	character_panel.swap_tempo_spent.connect(_on_swap_tempo_spent)

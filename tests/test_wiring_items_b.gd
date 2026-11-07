@@ -85,6 +85,8 @@ func _run() -> void:
 	_test_self_riders()
 	_test_summon_and_stealth_riders()
 	_test_cost_riders()
+	_test_ring_zaps()
+	_test_ring_bespoke()
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
@@ -595,4 +597,175 @@ func _test_cost_riders() -> void:
 	_clear_slots(meg)
 	var draw_cost: int = int(dm.compute_play_cost(_slotted("healing_potion", meg), 0)["mana"])
 	_check(draw_cost == Card.create_by_id("healing_potion").mana_cost * 2, "megingjord: any card, not only damaging ones (%d)" % draw_cost)
+	_strip()
+
+# ---------------------------------------------------------------- rings
+
+func _dummy_loss() -> int:
+	var lost := 0
+	for d in dummies:
+		lost += 1000 - d.current_health
+	return lost
+
+func _reset_dummies() -> void:
+	for d in dummies:
+		_reset_dummy(d)
+
+func _test_ring_zaps() -> void:
+	print("-- Heal Stone / Gold Band / Emerald: 2 damage to a random enemy within 5 --")
+	_place_dummies()
+	var em := _equip("emerald")
+	dummies[1].apply_debuff("poison", 4)
+	_check(_dummy_loss() == 0, "emerald: 4 Poison applied — no zap yet")
+	dummies[1].apply_debuff("poison", 1)
+	_check(_dummy_loss() == 2, "emerald: the 5th Poison zaps an enemy within 5 for 2 (%d)" % _dummy_loss())
+	_strip()
+	_reset_dummies()
+	_equip("gold_band")
+	stats.add_armor(4)
+	_check(_dummy_loss() == 0, "gold_band: 4 shield gained — no zap yet")
+	stats.add_armor(6)
+	_check(_dummy_loss() == 4, "gold_band: 10 shield gained -> two zaps of 2 (%d)" % _dummy_loss())
+	stats.current_armor = 0
+	_strip()
+	_reset_dummies()
+	_equip("heal_stone")
+	stats.current_health = 100
+	stats.heal(5)
+	_check(_dummy_loss() == 2, "heal_stone: a heal of 5+ zaps an enemy for 2 (%d)" % _dummy_loss())
+	_reset_dummies()
+	var hs = inv.equipped_rings[0]
+	var banked: int = int(hs.ring_counters.get("heal", 0))
+	stats.current_health = 100
+	stats.apply_life_steal(10)
+	_check(int(hs.ring_counters.get("heal", 0)) == banked and _dummy_loss() == 0, "heal_stone: lifesteal does not count")
+	bm.apply_buff(Buff.create_regen(10, 15, "test"))
+	bm.process_turn_start()
+	_check(int(hs.ring_counters.get("heal", 0)) == banked and _dummy_loss() == 0, "heal_stone: regen does not count")
+	bm.remove_buff(Buff.BuffType.REGEN)
+	stats.current_health = stats.max_health
+	_strip()
+	# Out of reach: an enemy 6+ squares away is never zapped.
+	_reset_dummies()
+	_place(dummies[0], _pcell() + Vector2i(7, 0))
+	_place(dummies[1], _pcell() + Vector2i(0, 8))
+	_equip("heal_stone")
+	stats.current_health = 100
+	stats.heal(5)
+	_check(_dummy_loss() == 0, "heal_stone: enemies beyond 5 squares are not zapped (%d)" % _dummy_loss())
+	stats.current_health = stats.max_health
+	_strip()
+	_place_dummies()
+
+func _test_ring_bespoke() -> void:
+	print("-- Harnessed Sun, Stone Hide, Nibelung, Marvolo, Friendship, Legend --")
+	var d: Enemy = dummies[1]
+	_reset_dummy(d)
+	_equip("harnessed_sun")
+	d.apply_debuff("burn", 1)
+	_check(d.burn_stacks == 3, "harnessed_sun: a 1-Burn application lands as 3 (+2) (%d)" % d.burn_stacks)
+	var sun = inv.equipped_rings[0]
+	_check(int(sun.ring_counters.get("burn", 0)) == 3, "harnessed_sun: all 3 count toward the 25 (%d)" % int(sun.ring_counters.get("burn", 0)))
+	var pdm = main.player.get_debuff_manager()
+	pdm.clear_all_debuffs()
+	pdm.apply_debuff(Debuff.create(Debuff.DebuffType.SLOWED, 1, 15))
+	for i in range(7):
+		d.apply_debuff("burn", 1)  # 3 counted each: 3 + 21 = 24
+	_check(pdm.debuffs.size() == 1, "harnessed_sun: 24 Burn applied — your debuff stays")
+	d.apply_debuff("burn", 1)
+	_check(pdm.debuffs.size() == 0, "harnessed_sun: the 25th Burn cleanses a debuff on you (%d left)" % pdm.debuffs.size())
+	_strip()
+	_reset_dummy(d)
+	# Ring of Stone Hide: +4 block on block cards; 100 block -> stone skin.
+	stats.current_armor = 0
+	_resolve(Card.create_by_id("block"), main.player)
+	var plain_block: int = stats.current_armor
+	_equip("ring_of_stone_hide")
+	stats.current_armor = 0
+	_resolve(Card.create_by_id("block"), main.player)
+	_check(stats.current_armor == plain_block + 4, "ring_of_stone_hide: a Block gives +4 (%d vs %d)" % [stats.current_armor, plain_block])
+	bm.remove_buff(Buff.BuffType.RESILIENT)
+	stats.current_armor = 0
+	stats.add_armor(100)
+	var rb = bm.get_buff(Buff.BuffType.RESILIENT)
+	_check(rb != null and rb.value == 10 and rb.duration == 15, "ring_of_stone_hide: 100 block gained -> 10%% resistance for 15 tempo (%s)" % (str([rb.value, rb.duration]) if rb else "none"))
+	bm.remove_buff(Buff.BuffType.RESILIENT)
+	stats.current_armor = 0
+	_strip()
+	# Ring of Nibelung: after 5 heals, the Curse carries the healed total.
+	_equip("ring_of_nibelung")
+	dm.hand.clear()
+	var total := 0
+	for i in range(5):
+		stats.current_health = 100
+		stats.heal(4)
+		total += stats.current_health - 100
+	var curse: Card = null
+	for c in dm.hand:
+		if c.card_id == "the_nibelung_curse":
+			curse = c
+	_check(curse != null and int(curse.get_meta("curse_value", 0)) == total,
+		"ring_of_nibelung: the 5th heal brings the Curse carrying the healed total %d (%s)" % [total, str(curse.get_meta("curse_value", 0)) if curse else "none"])
+	_check(curse != null and curse.mana_cost == 70 and curse.tempo_cost == 5 and curse.erase_on_play,
+		"ring_of_nibelung: the Curse costs 70 mana, 5 tempo and is erased")
+	for i in range(5):
+		stats.current_health = 100
+		stats.heal(4)
+	var copies := 0
+	for c in _all_zones():
+		if c.card_id == "the_nibelung_curse":
+			copies += 1
+	_check(copies == 1, "ring_of_nibelung: only one copy can exist (%d)" % copies)
+	dm.hand.clear()
+	stats.current_health = stats.max_health
+	_strip()
+	# Marvolo Gaunt: the lethal blow, the heal, the Misunderstanding.
+	var mg := _equip("marvolo_gaunt")
+	pdm.clear_all_debuffs()
+	stats.invulnerable_tempo = 0
+	stats.current_armor = 0
+	stats.current_health = 10
+	stats.take_direct_damage(50)
+	_check(stats.current_health == 1 + stats.get_effective_heal_amount(25), "marvolo_gaunt: a lethal blow leaves you at 1 and heals 25 (%d)" % stats.current_health)
+	_check(stats.invulnerable_tempo == 3, "marvolo_gaunt: invulnerable for 3 tempo")
+	var mis = null
+	for db in pdm.debuffs:
+		if db.debuff_type == Debuff.DebuffType.GENERIC and db.source_name == "Marvolo Gaunt":
+			mis = db
+	_check(mis != null and mis.value == 25 and mis.duration == 7, "marvolo_gaunt: Marvolo's Misunderstanding — 25 damage in 7 tempo")
+	stats.invulnerable_tempo = 0
+	var hp: int = stats.current_health
+	pdm.advance_time(7)
+	_check(stats.current_health == hp - 25, "marvolo_gaunt: left alone it lands for 25 (%d -> %d)" % [hp, stats.current_health])
+	_check(int(mg.ring_counters.get("cd", 0)) == 50, "marvolo_gaunt: then a 50-tempo cooldown")
+	# Purged before it lands: no damage.
+	mg.ring_counters["cd"] = 0
+	stats.current_health = 10
+	stats.take_direct_damage(50)
+	stats.invulnerable_tempo = 0
+	hp = stats.current_health
+	pdm.remove_debuff(Debuff.DebuffType.GENERIC)
+	pdm.advance_time(10)
+	_check(stats.current_health == hp, "marvolo_gaunt: purged, the Misunderstanding deals nothing")
+	stats.current_health = stats.max_health
+	_strip()
+	# Friendship Ring: +5 to heals. Legend Has It: 5% resistance to all damage.
+	stats.current_health = 100
+	stats.heal(10)
+	var plain_heal: int = stats.current_health - 100
+	_equip("friendship_ring")
+	stats.current_health = 100
+	stats.heal(10)
+	_check(stats.current_health - 100 == plain_heal + 5, "friendship_ring: heals are 5 larger (%d vs %d)" % [stats.current_health - 100, plain_heal])
+	_strip()
+	stats.current_health = 200
+	stats.current_armor = 0
+	stats.take_damage(100)
+	var plain_hit: int = 200 - stats.current_health
+	_equip("legend_has_it")
+	stats.current_health = 200
+	stats.current_armor = 0
+	stats.take_damage(100)
+	_check(200 - stats.current_health == plain_hit - 5, "legend_has_it: a 100 hit lands 5 lighter (%d vs %d)" % [200 - stats.current_health, plain_hit])
+	stats.current_health = stats.max_health
 	_strip()
