@@ -9638,7 +9638,9 @@ func _helm_card_world_effects(card, target = null) -> void:
 			add_battle_log("%s: %s Weakened" % [card.slotted_in_item.item_name, sash_victim.enemy_name], Color(0.6, 0.6, 0.85))
 
 	# Tactical belt: a slotted card detonates around its target (enemies only).
-	if int(osb.get("target_aoe_damage", 0)) > 0 and target and is_instance_valid(target) and "position" in target:
+	# Only a card AIMED AT AN ENEMY (the tooltip): a self- or ally-targeted
+	# card used to blast every enemy standing next to the player/ally.
+	if int(osb.get("target_aoe_damage", 0)) > 0 and target is Enemy and is_instance_valid(target):
 		var blast := int(osb["target_aoe_damage"])
 		var blast_hits := 0
 		for be in enemy_spawner.get_living_enemies():
