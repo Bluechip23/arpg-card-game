@@ -69,42 +69,101 @@ const LESSONS := [
 			"\"Ah — there you are. I felt you cross the gate before I saw you; the grass leans toward a traveller the way a dog leans toward its master.\"",
 			"\"Before you go further, let me show you how this world keeps time, and how to read what your eyes are given.\"",
 		]},
-		{"title": "Tempo", "paragraphs": [
+		{"title": "Tempo", "focus": "counter", "paragraphs": [
 			"\"Nothing here waits its turn. The world runs on TEMPO — a clock that moves only when you act. Every card you play, every tile you walk, every breath you wait spends some, and as it passes your foes take their own steps.\"",
 			"\"This counter is your action ticking down. A card's ticks glow green; the gold mark is the moment it lands. Until it lands you are committed — no walking off mid-swing.\"",
 			"\"The arrows beside it set how fast the ticks run, the stop sign holds everything, and the small arrow opens your queue, where an action whose tempo has not yet begun can still be called back.\"",
 		]},
-		{"title": "Your Measure", "paragraphs": [
+		{"title": "Your Measure", "focus": "bars", "paragraphs": [
 			"\"To the left, your measure. Red is your health. The grey sliver under it is unerring armor — the shell some gear regrows on its own — and the shield beside them counts the armor you raise yourself.\"",
 			"\"Blue is mana, the well your cards drink from. It refills a little every five tempo; the drop counts down to the next.\"",
 			"\"Brown is what you carry against what your strength can bear — overload it and it turns red. The thin gold line is experience, your level beside it. And the map fills in as you walk.\"",
+		], "tutorial_paragraphs": [
+			"\"STRENGTH sets that brown bar: ten more carrying for every point, and half a point of melee damage. Carry near your limit and your attacks come slower.\"",
+			"\"DETERMINATION decides what low health does to you. At 15 it does nothing. Above 15 your stats climb as your health falls; below 15 they sink.\"",
 		]},
-		{"title": "The Journal", "paragraphs": [
+		{"title": "What Gear Gives", "focus": "bars", "tutorial_only": true, "paragraphs": [
+			"\"Mark this: no stat raises your health, and no stat raises your mana. Those grow with your gear — and a little with each level and the sphere grid.\"",
+			"\"The same holds for armor, critical chance and resistances. Gear, cards and passives give them; your stats never will.\"",
+		]},
+		{"title": "The Journal", "focus": "icons", "paragraphs": [
 			"\"Top right. The figure opens your character — gear, stats, the cards you hold. The rising arrow is your level, and the points waiting to be spent. The scroll is your quest journal, the box your deck, and the question mark a book of everything I have ever told you, should your memory fail before mine does.\"",
 		]},
-		{"title": "Your Hands", "paragraphs": [
+		{"title": "Your Hands", "focus": "column", "paragraphs": [
 			"\"Bottom left, what you can do without a card. The stack at the top is your draw pile — cards come to your hand on their own as tempo passes. The sword is a plain attack, five tempo of it; the raised hand waits a single tempo; the stop sign holds the world still.\"",
 			"\"And the shield beside it raises the one you carry, for four tempo — it sits grey until you bear a shield.\"",
 		]},
-		{"title": "Flash", "paragraphs": [
+		{"title": "Flash", "focus": "flash", "paragraphs": [
 			"\"The bolt is FLASH — quickness of the body. One point for every point of Agility, refilled every three cycles.\"",
 			"\"Switch the boots on and each step spends flash instead of tempo, three a tile, until you switch them off or the flash runs dry. The crouching figure buys a sidestep for a little block — or, with a hand free, a quick cut at the nearest foe. The crossed daggers hurry your next attack along, five points a tick.\"",
+		], "tutorial_paragraphs": [
+			"\"So AGILITY is how much flash you have: more Agility, more free steps and sidesteps.\"",
 		]},
-		{"title": "Brain", "paragraphs": [
+		{"title": "Brain", "focus": "brain", "paragraphs": [
 			"\"The brain is Wisdom's pool — a point for every point of Wisdom, refilled every five cycles. The eye shows you the next card of your draw pile; the card with the plus draws one outright.\"",
 			"\"Each use in a window costs more than the last, so spend them with intent.\"",
+		], "tutorial_paragraphs": [
+			"\"WISDOM fills that pool, and every ten points of it lets you hold one more card in your hand.\"",
 		]},
-		{"title": "Your Cards", "paragraphs": [
-			"\"Last, the cards themselves. Every card has a TYPE, and the type says what it is for. ATTACK cards wound. DEFENSE cards raise armor or turn a blow aside. UTILITY cards do the rest — draw, heal, move, strengthen. A POWER is held up with mana for as long as you keep it. A REACTION waits in your hand and springs on its own when its moment comes. An ENCHANTMENT is never played at all: it works by being held, and leaves when it is spent.\"",
-			"\"Each card also says how far it reaches. MELEE is the next tile. RANGED is five tiles unless the card says otherwise. And a few are CONDITIONAL — they take the reach of whatever weapon is in your hand.\"",
+		{"title": "Speed and Crits", "focus": "column", "tutorial_only": true, "paragraphs": [
+			"\"DEXTERITY is your attack speed. Play enough attack cards — forty-five, less half your Dexterity — and your next attack costs half its tempo and twenty less mana.\"",
+			"\"It also makes your critical strikes hit harder: three percent more for every point. How OFTEN you strike critically is gear's business, not a stat's.\"",
 		]},
-		{"title": "Offensive", "paragraphs": [
+		{"title": "Holding Your Weapons", "tutorial_only": true, "paragraphs": [
+			"\"ONE HAND, one free: a single weapon or shield with the other hand empty. Every twelfth attack strikes twice, and your sidestep costs one flash less.\"",
+			"\"TWO IN HAND — two weapons, or two shields: your attack speed needs four fewer attacks, but whatever sits in the off hand gives ninety parts in a hundred of its bonuses.\"",
+			"\"TWO-HANDED: grip one weapon or shield with both hands. It weighs half as much to carry and gains a point of damage (or block) for every twenty-five of its weight, but you can carry only seven-tenths of what you could. Bows and staffs always take both hands, and gain nothing for it.\"",
+		]},
+		{"title": "Your Cards", "focus": "hand", "paragraphs": [
+			"\"Last, the cards themselves. Every card has a TYPE, and the type says what it is for. Let me show you each.\"",
+		]},
+		{"title": "Attack", "card": "slash", "paragraphs": [
+			"\"An ATTACK. It wounds, and it grows with your strength.\"",
+		]},
+		{"title": "Defense", "card": "block", "paragraphs": [
+			"\"A DEFENSE card. It raises armor or turns a blow aside.\"",
+		]},
+		{"title": "Utility", "card": "draw", "paragraphs": [
+			"\"UTILITY does the rest: draw, heal, move, strengthen.\"",
+		]},
+		{"title": "Power", "card": "armored_discipline", "paragraphs": [
+			"\"A POWER stays in play for as long as you hold its mana up. The more you maintain, the less mana you have to spend.\"",
+		]},
+		{"title": "Reaction", "card": "cover", "paragraphs": [
+			"\"A REACTION waits in your hand and springs on its own when its moment comes.\"",
+		]},
+		{"title": "Instant", "card": "hard_helmet", "paragraphs": [
+			"\"An INSTANT is the same, at no mana: it fires from your hand the moment its condition is met.\"",
+		]},
+		{"title": "Enchantment", "card": "enchantment_attack", "paragraphs": [
+			"\"An ENCHANTMENT is never played. It works by being held, and leaves when it is spent.\"",
+		]},
+		{"title": "Reach", "card": "dagger_throw", "paragraphs": [
+			"\"Each card also says how far it reaches. MELEE is the next tile. RANGED is five tiles unless the card says otherwise. A few are CONDITIONAL — they take the reach of the weapon in your hand: ranged with a bow, melee with anything else.\"",
+		]},
+		{"title": "Offensive", "card": "fireball", "paragraphs": [
 			"\"Above the types sits a broader word: OFFENSIVE. Anything that wounds is offensive — every attack card, and every spell or trick that deals damage.\"",
-			"\"It branches two ways. An ATTACK is the body's work, and grows with your strength. A SPELL is the mind's, grows with your intellect, and drinks deeper from your mana. When gear or a passive speaks of OFFENSIVE cards, it means the whole family; when it names attacks or spells, it means that branch alone.\"",
+			"\"It branches two ways. An ATTACK is the body's work, and grows with your strength. A SPELL, like this one, is the mind's, grows with your intellect, and drinks deeper from your mana.\"",
+		], "tutorial_paragraphs": [
+			"\"INTELLIGENCE is that intellect: half a point of spell and healing power for every point, and one more mana back every cycle.\"",
 		]},
 		{"title": "The Road Out", "paragraphs": [
 			"\"That is the reading of it. I will keep to the portal a while, should you want it told again.\"",
 			"\"Now go. The grass has been restless for days, and I would know why.\"",
+		]},
+	]},
+	{"id": "first_level_up", "title": "Your First Level — the sphere grid and stats", "beats": [
+		{"title": "Your First Level", "paragraphs": [
+			"\"Feel that? You have grown. Every level heals you fully, fills your mana, and adds a little to your health.\"",
+		]},
+		{"title": "Stats", "focus": "icons", "paragraphs": [
+			"\"Every level also gives you three STAT POINTS. Open your level — the rising arrow at the top right — and spend them on your six stats. They stay where you put them.\"",
+		], "tutorial_paragraphs": [
+			"\"The points you set aside at the start are waiting there too. Now that you know what each stat does, spend them as your road demands.\"",
+		]},
+		{"title": "The Sphere Grid", "focus": "icons", "paragraphs": [
+			"\"Beside it lies the SPHERE GRID. Each level brings two spheres; spend one to open a node, and nodes open only beside ones you already hold — so the grid is a path you choose.\"",
+			"\"Nodes give stats, health, mana and passives. Some belong to a CONSTELLATION: open every node of one and its bonus is yours for good.\"",
 		]},
 	]},
 	{"id": "combat_intro", "title": "Olorin's Counsel — the first foe", "beats": [
@@ -260,18 +319,49 @@ func show_field_tour(force: bool = false) -> bool:
 	var hand_area = m.get_node_or_null("UI/HandArea")
 	if hand_area:
 		hand.append(hand_area)
-	var focus_by_beat: Array = [[], counter, bars, icons, column, flash_row, brain_row, hand, hand, []]
+	var focus_by_key := {"": [], "counter": counter, "bars": bars, "icons": icons, "column": column,
+		"flash": flash_row, "brain": brain_row, "hand": hand}
+	return show_tour(FIELD_TOUR_ID, lesson_steps(0, focus_by_key), force)
+
+## A lesson's beats as tour steps: each lights its "focus" (a key of
+## `focus_by_key`), shows its example "card" in the middle of the screen, and
+## — for a hero in tutorial mode (CharacterData.tutorial_mode) — adds its
+## "tutorial_paragraphs" and the "tutorial_only" beats (designer, 2026-11-07:
+## the stats are taught in the lessons instead of allocated up front).
+func lesson_steps(lesson_index: int, focus_by_key: Dictionary = {}) -> Array:
+	var m = main
+	var c = _character()
+	var tutorial: bool = c != null and "tutorial_mode" in c and c.tutorial_mode
 	var steps: Array = []
-	var beats: Array = LESSONS[0]["beats"]
-	for i in range(beats.size()):
-		var paragraphs: Array = beats[i]["paragraphs"].duplicate()
-		if beats[i]["title"] == "Your Hands":
+	for beat in LESSONS[lesson_index]["beats"]:
+		if beat.get("tutorial_only", false) and not tutorial:
+			continue
+		var paragraphs: Array = beat["paragraphs"].duplicate()
+		if beat["title"] == "Your Hands" and m != null:
 			# The shield line only when a shield is actually carried.
 			var has_shield: bool = "_block_button" in m and m._block_button and m._block_button.visible
 			if not has_shield:
 				paragraphs.resize(1)
-		steps.append({"title": beats[i]["title"], "focus": focus_by_beat[i], "paragraphs": paragraphs})
-	return show_tour(FIELD_TOUR_ID, steps, force)
+		if tutorial:
+			paragraphs.append_array(beat.get("tutorial_paragraphs", []))
+		steps.append({"title": beat["title"], "focus": focus_by_key.get(beat.get("focus", ""), []),
+			"paragraphs": paragraphs, "card": beat.get("card", "")})
+	return steps
+
+
+const FIRST_LEVEL_UP_ID := "first_level_up"
+
+## Olorin's lesson at the hero's first level-up (designer, 2026-11-07): the
+## full heal, stat points and how to spend them, the sphere grid and its
+## constellations. Shown once per character.
+func show_first_level_up() -> bool:
+	for i in range(LESSONS.size()):
+		if LESSONS[i]["id"] == FIRST_LEVEL_UP_ID:
+			var focus := {}
+			if main and "hud_icon_bar" in main and main.hud_icon_bar:
+				focus["icons"] = [main.hud_icon_bar]
+			return show_tour(FIRST_LEVEL_UP_ID, lesson_steps(i, focus))
+	return false
 
 ## A guided tour: several beats, each lighting the Controls in its `focus`
 ## list while the rest of the screen dims. Steps are dictionaries of
@@ -305,6 +395,75 @@ var _tour_index: int = -1
 var _tour_panel: PanelContainer = null  # the current beat's speech bar
 var _spotlight: SpotlightOverlay = null
 
+var _tour_card: Control = null   # the example card a beat shows, enlarged
+
+## How large a beat's example card stands (CardUI scale), at most: it also
+## shrinks to fit between the top of the screen and the speech bar.
+const TOUR_CARD_SCALE := 1.9
+
+## A beat's example card, enlarged in the middle of the screen above the
+## speech bar (designer, 2026-11-07: "have them pop up enlarged in the middle
+## of the screen and go through them that way"). "" clears it.
+func _show_tour_card(card_id: String) -> void:
+	if _tour_card and is_instance_valid(_tour_card):
+		_tour_card.queue_free()
+	_tour_card = null
+	if card_id == "" or _layer == null or not is_instance_valid(_layer):
+		return
+	var card := Card.create_by_id(card_id)
+	if card == null:
+		return
+	var vp := get_viewport().get_visible_rect().size
+	var sc := minf(TOUR_CARD_SCALE, (vp.y - SPEECH_ZONE - 40.0) / CardUI.CARD_H)
+	var w := CardUI.CARD_W * sc
+	var h := CardUI.CARD_H * sc
+	var holder := Control.new()
+	holder.name = "TourCard"
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.size = Vector2(w, h)
+	holder.position = Vector2((vp.x - w) * 0.5, maxf(16.0, (vp.y - SPEECH_ZONE - h) * 0.5))
+	_layer.add_child(holder)
+	var face: CardUI = (load("res://scenes/cards/card_ui.tscn") as PackedScene).instantiate()
+	face.scale = Vector2(sc, sc)
+	holder.add_child(face)
+	face.setup(card, 0)
+	# A hand card scales about its bottom centre (the fan); this one grows
+	# from its corner to fill the holder.
+	face.pivot_offset = Vector2.ZERO
+	face.position = Vector2.ZERO
+	for n in face.find_children("*", "Control", true, false):
+		n.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var kb = face.get_node_or_null("Panel/KeybindBadge")
+	if kb:
+		kb.visible = false
+	holder.modulate.a = 0.0
+	holder.create_tween().tween_property(holder, "modulate:a", 1.0, 0.15)
+	_tour_card = holder
+
+## Fit the beat's card into the screen space the speech bar leaves (the bar
+## grows with Olorin's words, so this waits for its layout): as large as
+## TOUR_CARD_SCALE allows, centred in that space.
+func _fit_tour_card() -> void:
+	await get_tree().process_frame
+	if _tour_card == null or not is_instance_valid(_tour_card) or _tour_panel == null or not is_instance_valid(_tour_panel):
+		return
+	var vp := get_viewport().get_visible_rect().size
+	var bar := _tour_panel.get_global_rect()
+	var top := 16.0
+	var bottom := vp.y - 16.0
+	if bar.position.y > vp.y * 0.5:
+		bottom = bar.position.y - 12.0      # the bar along the bottom
+	else:
+		top = bar.end.y + 12.0              # the bar along the top
+	var sc := minf(TOUR_CARD_SCALE, maxf(0.6, (bottom - top) / CardUI.CARD_H))
+	var face := _tour_card.get_child(0) as Control
+	if face:
+		face.scale = Vector2(sc, sc)
+	_tour_card.size = Vector2(CardUI.CARD_W * sc, CardUI.CARD_H * sc)
+	_tour_card.position = Vector2((vp.x - _tour_card.size.x) * 0.5,
+		top + ((bottom - top) - _tour_card.size.y) * 0.5)
+
 func tour_step_index() -> int:
 	return _tour_index
 
@@ -324,12 +483,15 @@ func _tour_next() -> void:
 		_tour_panel.queue_free()
 	var last := _tour_index == _tour_steps.size() - 1
 	# A tour of several beats can be left at any beat but the last.
+	_show_tour_card(str(step.get("card", "")))
 	_tour_panel = _build_speech_bar(str(step.get("title", "")), step.get("paragraphs", []), null, -1,
 			OLORIN_SPEAKER, "Farewell" if last else "Continue", _tour_next,
 			"" if last else "Skip", _close)
 	_layer.add_child(_tour_panel)
 	_dock_bar(_tour_panel, placement_for(hole, get_viewport().get_visible_rect().size))
 	_keep_clear(_tour_panel, hole)
+	if _tour_card:
+		_fit_tour_card.call_deferred()
 
 ## The screen rectangle covering every visible Control in `focus`, padded.
 ## Rect2() (empty) when nothing is lit.
@@ -662,6 +824,7 @@ func _close() -> void:
 		_layer.queue_free()
 		_layer = null
 	_tour_panel = null
+	_tour_card = null   # freed with the layer
 	_spotlight = null
 	_tour_steps = []
 	_tour_index = -1

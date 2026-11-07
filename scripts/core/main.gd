@@ -6576,6 +6576,7 @@ func _is_climbed_tree(world_pos: Vector3) -> bool:
 #region XP & LEVEL-UP
 func _on_player_leveled_up(new_level: int) -> void:
 	print("[MAIN] *** LEVEL UP to %d! ***" % new_level)
+	_olorin_first_level_up()
 	# Swirling mist flourish on the character
 	player.show_level_up()
 	_update_attack_button_text()
@@ -6597,6 +6598,17 @@ func _on_player_leveled_up(new_level: int) -> void:
 
 func _on_player_xp_changed(current_xp: int, xp_to_next: int) -> void:
 	_update_xp_display()
+
+## The first level-up: Olorin explains the full heal, stat points, the
+## sphere grid and constellations — once per character, after any dialog
+## already open.
+func _olorin_first_level_up() -> void:
+	if olorin == null or sandbox_mode or olorin.has_seen(OlorinTutorial.FIRST_LEVEL_UP_ID):
+		return
+	if olorin.is_busy():
+		olorin.dialog_closed.connect(_olorin_first_level_up, CONNECT_ONE_SHOT)
+		return
+	olorin.show_first_level_up()
 
 func _on_ally_leveled_up(new_level: int) -> void:
 	## The co-op partner leveled up: flourish + log. (Sphere/skill-tree rewards
