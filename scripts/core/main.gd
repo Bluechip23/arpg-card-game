@@ -598,6 +598,7 @@ func _ready() -> void:
 	deck_manager.reaction_triggered.connect(_animate_card_instant)
 	deck_manager.reaction_triggered.connect(_arm_lethal_recall)
 	deck_manager.reaction_triggered.connect(func(c): progression_triggers._trigger_skill_tree_on_instant(c))
+	deck_manager.reaction_triggered.connect(_slotted_instant_fired)  # Boot Holsters
 	deck_manager.card_drawn.connect(_on_card_drawn_sphere_passive)
 	# Endured Tolerance's Erase fuse waits while the player is Glutted.
 	deck_manager.glut_active = func() -> bool: return glut_tempo_remaining > 0
@@ -9540,7 +9541,8 @@ func _helm_range_bonus(card) -> int:
 	if not card.is_offensive():
 		return bonus
 	if card.slotted_in_item and card.slotted_in_item.has_method("get_on_self_bonus"):
-		var osb = card.slotted_in_item.get_on_self_bonus()
+		# The card's own bonus: a card in a plain (vanilla) slot gets no riders.
+		var osb = card.get_on_self_bonus()
 		var r := int(osb.get("range_offensive", 0))
 		if r > 0 and (not osb.get("range_requires_ranged", false) or card.is_ranged):
 			bonus += r
@@ -9554,12 +9556,28 @@ func _helm_range_bonus(card) -> int:
 		bonus += maxi(0, player.get_stats().equipment_ranged_range_bonus)
 	return bonus
 
+## Boot Holsters: "On-self: if an instant, deal 10 damage to the nearest enemy
+## within 3 squares." Instants never go through a play (deck_manager refuses
+## them; they fire from the hand), so the rider hangs off reaction_triggered —
+## the one signal every way an instant fires emits.
+func _slotted_instant_fired(card: Card) -> void:
+	if card == null or card.slotted_in_item == null or not player or not enemy_spawner or not grid_manager:
+		return
+	var inst_dmg := int(card.get_on_self_bonus().get("instant_damage_nearest", 0))
+	if inst_dmg <= 0:
+		return
+	var nearest := _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
+	if nearest and grid_manager.get_distance_in_cells(player.position, nearest.position) <= 3:
+		nearest.take_damage(inst_dmg, true)
+		add_battle_log("%s: %d damage to %s" % [card.slotted_in_item.item_name, inst_dmg, nearest.enemy_name], Color(0.8, 0.7, 0.4))
+
 ## Shamans mask: playing a UTILITY card zaps a random enemy within 3 tiles for
 ## a little INT-scaled spell damage. (The utility heal is applied in execute().)
 func _helm_card_world_effects(card, target = null) -> void:
 	if not card or not card.slotted_in_item or not player or not enemy_spawner or not grid_manager:
 		return
-	var osb = card.slotted_in_item.get_on_self_bonus()
+	# The card's own bonus: a card in a plain (vanilla) slot gets no riders.
+	var osb = card.get_on_self_bonus()
 
 	# Shamans mask: a UTILITY card zaps a random enemy within 3. The zap is a
 	# fixed 1 spell damage — capped at 1, no INT/enchant/sphere modifiers.
@@ -9571,14 +9589,8 @@ func _helm_card_world_effects(card, target = null) -> void:
 				victim.take_damage(spell_dmg, true)
 				add_battle_log("%s: %d spell damage to %s" % [card.slotted_in_item.item_name, spell_dmg, victim.enemy_name], Color(0.5, 0.85, 0.6))
 
-	# Boot Holsters: a slotted instant (REACTION) hits the nearest enemy in 3.
-	if card.card_type == Card.CardType.REACTION:
-		var inst_dmg := int(osb.get("instant_damage_nearest", 0))
-		if inst_dmg > 0:
-			var nearest := _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
-			if nearest and grid_manager.get_distance_in_cells(player.position, nearest.position) <= 3:
-				nearest.take_damage(inst_dmg, true)
-				add_battle_log("%s: %d damage to %s" % [card.slotted_in_item.item_name, inst_dmg, nearest.enemy_name], Color(0.8, 0.7, 0.4))
+	# (Boot Holsters' instant rider lives in _slotted_instant_fired: instants
+	# fire from the hand and never pass through here.)
 
 	# Gauntlets of Dungeon Mastering: a slotted card play summons a wolf.
 	var wolf_count := int(osb.get("summon_wolf", 0))
