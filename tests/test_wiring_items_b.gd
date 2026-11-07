@@ -220,6 +220,14 @@ func _test_stat_blocks() -> void:
 			if absf(float(back[k]) - float(before[k])) > 0.001:
 				left.append(k)
 		_check(left.is_empty(), "%s: unequipping takes them all back %s" % [id, str(left)])
+		# "3 card slots (2 bonus, 1 plain)": the slot layout the text promises.
+		var sre := RegEx.new()
+		sre.compile("(\\d+) card slots \\((\\d+) bonus, (\\d+) plain\\)")
+		var sm := sre.search(proto.description)
+		if sm:
+			_check(proto.total_card_slots() == int(sm.get_string(1)) and proto.card_slots == int(sm.get_string(2))
+				and proto.vanilla_slots == int(sm.get_string(3)),
+				"%s: %s as described (%d bonus, %d plain)" % [id, sm.get_string(0), proto.card_slots, proto.vanilla_slots])
 	_strip()
 
 func _all_zones() -> Array:
@@ -542,7 +550,17 @@ func _test_self_riders() -> void:
 	_resolve(_slotted("draw", hermes), main.player)
 	_check(stats.current_flash_points == 1, "hermes_boots: any slotted card restores 1 flash point (%d)" % stats.current_flash_points)
 	_check(is_equal_approx(stats.equipment_trap_damage_percent, 25.0), "hermes_boots: traps deal 25% more")
+	_reset_dummy(d)
+	main._spring_trap({"kind": "bear", "cell": Vector2i.ZERO}, d, false)
+	var trapped: int = 1000 - d.current_health
 	_strip()
+	_reset_dummy(d)
+	main._spring_trap({"kind": "bear", "cell": Vector2i.ZERO}, d, false)
+	var bare: int = 1000 - d.current_health
+	_check(trapped == floori(bare * 1.25), "hermes_boots: a trap springing on an enemy deals 25%% more (%d vs %d)" % [trapped, bare])
+	_reset_dummy(d)
+	_check(Inventory.is_two_hand_only(ItemData.create("magic_staff")) and Inventory.is_two_hand_only(ItemData.create("reaper_scythe")),
+		"magic_staff / reaper_scythe: two-handed")
 	_reset_dummy(d)
 
 func _test_summon_and_stealth_riders() -> void:
@@ -1280,10 +1298,44 @@ func _test_misc_items() -> void:
 		if is_instance_valid(main._town_portal_node):
 			_check(main.grid_manager.get_distance_in_cells(main.player.position, main._town_portal_node.position) <= 1,
 				"return_scroll: the portal stands beside you")
+	# Granted Maintains the item text spells out: 20/20 (+3 range on ranged
+	# offensive cards) and Resourceful Replenish (attacks lifesteal 5%).
+	var tt := Card.create_by_id("twenty_twenty")
+	dm.maintained_cards.append(tt)
+	_check(main._helm_range_bonus(Card.create_by_id("dagger_throw")) == 3 and main._helm_range_bonus(Card.create_by_id("slash")) == 0,
+		"monocle: 20/20 maintained gives ranged offensive cards +3 range")
+	dm.maintained_cards.erase(tt)
+	var rr := Card.create_by_id("resourceful_replenish")
+	dm.maintained_cards.append(rr)
+	stats.current_health = 100
+	var rr_hit: int = _dmg(Card.create_by_id("slash"), d)
+	_check(stats.current_health == 100 + stats.get_effective_heal_amount(maxi(1, floori(rr_hit * 0.05))),
+		"hannibals_mask: Resourceful Replenish maintained — attacks lifesteal 5%% (+%d)" % (stats.current_health - 100))
+	dm.maintained_cards.erase(rr)
+	stats.current_health = stats.max_health
+	var shiv := Card.create_by_id("shiv")
+	_check(shiv.base_damage == 2 and not shiv.is_ranged and shiv.is_offensive(), "knife_toed_boots: Shiv is a 2-damage melee card")
+	# Dungeon Mastering wolves: attacks apply Bleed; each other wolf adds +20% and +1 Bleed.
+	main._clear_wolves()
+	_reset_dummy(d)
+	_place(d, _pcell() + Vector2i(3, 0))
+	main._spawn_wolf()
+	main._spawn_wolf()
+	var w0 = main._wolves[0]
+	var w1 = main._wolves[1]
+	_place(w0, _pcell() + Vector2i(2, 0))
+	_place(w1, _pcell() + Vector2i(-5, 0))
+	w0.attack_accum = w0.ATTACK_INTERVAL
+	w1.attack_accum = 0
+	main._update_wolves(0)
+	_check(1000 - d.current_health == floori(w0.BASE_ATTACK * 1.2) and d.bleed_stacks == 2,
+		"gauntlets_of_dungeon_mastering: a wolf with one packmate bites for +20%% and 2 Bleed (%d, %d)" % [1000 - d.current_health, d.bleed_stacks])
+	main._clear_wolves()
+	_place_dummies()
 	# Granted cards: the prices the item text quotes.
 	for row in [["serene_center", 30, 4], ["purge_wrath", 55, 8], ["its_alive", 20, 5], ["mend", 30, 4],
-			["resourceful_replenish", -1, 2], ["ragnarok", 45, 5], ["escape_and_bewilder", 50, 2], ["shiv", 5, 1],
-			["neither_man_nor_beast", 10, 2], ["terrain_formation", 25, 3], ["twenty_twenty", -1, 3],
+			["resourceful_replenish", 20, 2], ["ragnarok", 45, 5], ["escape_and_bewilder", 50, 2], ["shiv", 5, 1],
+			["neither_man_nor_beast", 10, 2], ["terrain_formation", 25, 3], ["twenty_twenty", 25, 3],
 			["wrath_of_the_sea", -1, 8], ["mind_over_matter", 20, 2], ["grounding", 200, 10], ["tricks_of_alberich", 50, 6]]:
 		var c := Card.create_by_id(row[0])
 		_check(c != null, "%s exists" % row[0])
