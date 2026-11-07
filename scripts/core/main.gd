@@ -3,6 +3,9 @@ extends Node3D
 
 ## Main game scene - turn-based card ARPG
 
+const MeshUtil = preload("res://scripts/shared/mesh_util.gd")
+const CameraPan = preload("res://scripts/shared/camera_pan.gd")
+
 @onready var deck_manager: DeckManager = $DeckManager
 @onready var buff_bar: BuffBarUI = $UI/BuffBar
 @onready var draw_timer: DrawTimer = $DrawTimer
@@ -145,7 +148,6 @@ var _waypoint_menu_visible: bool = false
 var _minimap_panel: PanelContainer = null
 var _minimap_texture_rect: TextureRect = null
 var _minimap_image: Image = null
-const MINIMAP_SIZE: int = 100
 ## Left edge of the stat bars and the status rows under them.
 const STATUS_LEFT: float = 8.0
 const MINIMAP_PIXEL_SCALE: int = 4
@@ -5976,7 +5978,6 @@ static func _elog_line(e: Dictionary) -> String:
 func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	## Connect debuff signals for skill tree passives (Pop Rocks, etc.).
 	enemy.debuff_applied.connect(_on_enemy_debuff_applied)
-	enemy.debuff_expired.connect(_on_enemy_debuff_expired)
 	enemy.exposed.connect(_on_enemy_exposed)
 	enemy.attacked_player.connect(_on_enemy_attacked_player)
 	enemy.attacking_player.connect(_on_enemy_attacking_player)
@@ -6097,9 +6098,6 @@ func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> 
 			pm_card.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
 			_fire_instant_site_effect(pm_card, {"target": enemy})
 			_polymorph_firing = false
-
-func _on_enemy_debuff_expired(enemy: Enemy, debuff_name: String) -> void:
-	progression_triggers._trigger_skill_tree_on_debuff_expired(enemy)
 
 func _on_enemy_exposed(enemy: Enemy) -> void:
 	progression_triggers._trigger_skill_tree_stephen_on_expose(enemy)
@@ -7196,9 +7194,7 @@ func _select_slot(slot: int) -> void:
 ## Scroll the view by a world-space delta, clamped so the character can
 ## never be scrolled out of reach.
 func _pan_camera(delta: Vector3) -> void:
-	_camera_pan += Vector3(delta.x, 0, delta.z)
-	_camera_pan.x = clampf(_camera_pan.x, -CAMERA_PAN_LIMIT, CAMERA_PAN_LIMIT)
-	_camera_pan.z = clampf(_camera_pan.z, -CAMERA_PAN_LIMIT, CAMERA_PAN_LIMIT)
+	_camera_pan = CameraPan.panned(_camera_pan, delta, CAMERA_PAN_LIMIT)
 	_update_camera()
 
 
@@ -7478,8 +7474,6 @@ func _on_tempo_threshold_reached(times: int) -> void:
 	_helm_on_cycle_passives()
 	# Shield per-cycle passives (Vanguard's Regen, Spiked Shield's Thorns)
 	_shield_on_cycle_passives()
-	if tempo_manager.last_tempo_source == "movement":
-		progression_triggers._trigger_skill_tree_on_movement_cycle()
 
 	# Reset per-cycle movement tracking (after passives have read it)
 	tempo_manager.spaces_moved_this_cycle = 0
@@ -16093,7 +16087,7 @@ func _build_loot_visual(drop: Node3D, loot: Dictionary) -> void:
 		glint_color = Color(0.85, 0.45, 1.0)
 	elif loot.get("card_pack") != null:
 		glint_color = CardPack.create(loot["card_pack"]).get_tier_color()
-	var glint := _loot_mesh(drop, _mesh_sphere(0.035), Vector3(0, 1.1, 0), glint_color, true)
+	var glint := _loot_mesh(drop, MeshUtil.sphere(0.035), Vector3(0, 1.1, 0), glint_color, true)
 	var tw := drop.create_tween().set_loops()
 	tw.tween_property(glint, "scale", Vector3.ONE * 1.6, 0.5).set_trans(Tween.TRANS_SINE)
 	tw.parallel().tween_property(drop, "position:y", drop.position.y + 0.04, 0.5).set_trans(Tween.TRANS_SINE)
@@ -16135,12 +16129,6 @@ func _loot_mesh(parent: Node3D, mesh: Mesh, pos: Vector3, color: Color, emissive
 	mi.material_override = mat
 	parent.add_child(mi)
 	return mi
-
-func _mesh_sphere(r: float) -> SphereMesh:
-	var s := SphereMesh.new()
-	s.radius = r
-	s.height = r * 2.0
-	return s
 
 ## Loot keys scooped up the moment a player steps on the pile (currency and
 ## consumables); everything else waits in the loot menu for a click.

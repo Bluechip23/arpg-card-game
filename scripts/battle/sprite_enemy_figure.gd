@@ -23,7 +23,6 @@ extends Node3D
 ## (the player's summons stand on the same table, Summon._build_figure).
 
 const SHEET := "res://assets/sprites/MonsterKit/monster battler set.png"
-const NPC1 := "res://assets/sprites/NPCpackage1"
 const CP := "res://assets/sprites/craftpix"
 const SHEETS := "res://assets/sprites/generated/sheets"
 

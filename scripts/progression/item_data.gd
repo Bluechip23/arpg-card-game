@@ -362,7 +362,6 @@ var conjured_in_manifest: int = 0    # Cinquedea copies currently parked in the 
 # held two-handed is not in the off hand.
 var is_in_off_hand: bool = false
 var off_hand_scale: float = 1.0
-const OFF_HAND_RIDER_SCALE := 0.9  # the default modifier (Inventory.DEFAULT_OFF_HAND_PENALTY)
 
 ## Multiplier for a continuous rider (a percent, a float amount).
 func rider_scale() -> float:

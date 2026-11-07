@@ -2155,7 +2155,6 @@ func switch_build(target: int) -> Dictionary:
 
 const RACK_COOLDOWN: int = 60      # tempo from one draw to the next
 const RACK_DEPLOY_TEMPO: int = 20  # tempo the rack's weapon stays in hand
-const RACK_FREE_SWAP_COOLDOWN: int = RACK_COOLDOWN  # old name, same number
 var rack_deploy_tempo: int = 0     # > 0 while the rack's weapon is in hand
 var rack_parked: Array = []        # hand gear set aside while deployed (by slot, nulls kept)
 var rack_parked_two_hand: int = -1 # the two-handed slot the parked gear had
@@ -2363,13 +2362,6 @@ func advance_rack_tempo(amount: int) -> void:
 			rack_deploy_tempo -= amount
 	if changed:
 		rack_changed.emit()
-
-## Old entry points (the HUD button, the tester): one toggle — draw the rack,
-## or return early while it is out. Nothing about it is ever paid.
-func can_rack_exchange(_free: bool = true) -> Dictionary:
-	if rack_is_deployed():
-		return {"ok": true, "reason": ""}
-	return can_rack_deploy()
 
 func rack_exchange(_free: bool = true) -> Dictionary:
 	if rack_is_deployed():

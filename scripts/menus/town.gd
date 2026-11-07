@@ -2,6 +2,8 @@ extends Node3D
 
 ## Town scene - vendors, stash, and preparation before battle
 
+const CameraPan = preload("res://scripts/shared/camera_pan.gd")
+
 @onready var player: Player = $Player
 @onready var grid_manager: GridManager = $GridManager
 @onready var interact_prompt: Label = $UI/InteractPrompt
@@ -373,9 +375,7 @@ func _update_camera() -> void:
 
 
 func _pan_camera(delta: Vector3) -> void:
-	_camera_pan += Vector3(delta.x, 0, delta.z)
-	_camera_pan.x = clampf(_camera_pan.x, -CAMERA_PAN_LIMIT, CAMERA_PAN_LIMIT)
-	_camera_pan.z = clampf(_camera_pan.z, -CAMERA_PAN_LIMIT, CAMERA_PAN_LIMIT)
+	_camera_pan = CameraPan.panned(_camera_pan, delta, CAMERA_PAN_LIMIT)
 	_update_camera()
 
 func _apply_styles() -> void:

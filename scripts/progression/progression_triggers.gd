@@ -1030,21 +1030,6 @@ func _trigger_skill_tree_on_debuff_applied(target, debuff_name: String, value: i
 			target.take_damage(pop_damage, true)
 			main.add_battle_log("Pop Rocks: %d damage! (%d poison stacks)" % [pop_damage, target.poison_stacks], Color(0.4, 0.9, 0.4))
 
-func _trigger_skill_tree_on_debuff_expired(target) -> void:
-	var stats = main.player.get_stats()
-	if not stats:
-		return
-
-	pass
-
-func _trigger_skill_tree_on_movement_cycle() -> void:
-	var stats = main.player.get_stats()
-	if not stats:
-		return
-
-	# Let's Dance moved to _trigger_skill_tree_on_cycle (triggers every cycle, not just movement)
-	pass
-
 # ============================================
 # BRAD SKILL TREE PASSIVE TRIGGERS
 # ============================================

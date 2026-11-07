@@ -136,13 +136,6 @@ func get_archetype_lanes() -> Array:
 			by_name[opt.archetype]["passives"].append(opt)
 	return lanes
 
-## Get the row for a specific level (returns null if not defined)
-func get_row_for_level(level: int) -> SkillRow:
-	for row in rows:
-		if row.level == level:
-			return row
-	return null
-
 var retrospective_picks: Dictionary = {}  # level -> Array[int] of additional option indices
 var retro_level_choices: Dictionary = {}  # retro_level -> {source_level: int, option_index: int}
 static func create_auto_grant_for_level(level: int) -> AutoGrant:

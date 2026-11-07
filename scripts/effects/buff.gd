@@ -267,11 +267,6 @@ static func create_thorns(damage: int = 3, duration: int = 15, source: String = 
 	buff.source_name = source
 	return buff
 
-static func create_focused(duration: int = 15, source: String = "") -> Buff:
-	var buff = Buff.new(BuffType.FOCUSED, 1, duration)
-	buff.source_name = source
-	return buff
-
 static func create_regen(heal_per_cycle: int = 2, duration: int = 15, source: String = "") -> Buff:
 
 	var buff = Buff.new(BuffType.REGEN, heal_per_cycle, duration)

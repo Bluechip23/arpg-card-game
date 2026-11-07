@@ -2531,6 +2531,19 @@ func _ensure_sync_choice(distance: int) -> void:
 ## purpose: the Weregoat (2-square walk, 8-square charge) and the Ash Harpy
 ## (1-square walk) can't overshoot, and their attacks also fall back to a
 ## walk when there is no route or nowhere to land.
+## How far each enemy's ranged action reaches (grid steps). One number per
+## action, read by its chooser, by its executor and by _ranged_reach, which
+## used to repeat the literal in each place.
+const HUNTER_HOOK_MIN := 2
+const HUNTER_HOOK_RANGE := 7
+const HUNTER_NET_RANGE := 3       # TODO(sheet): the sheet gives no range
+const TREANT_ROOT_RANGE := 4
+const BONE_DRAGON_BREATH_RANGE := 6
+const WYVERN_TALON_RANGE := 3
+const IFRIT_BREATH_RANGE := 4     # the 5x5 in front reaches 4 tiles out
+const TITAN_BOULDER_RANGE := 3
+const DJINN_CHAIN_RANGE := 5
+
 func _ranged_reach(target: Node3D) -> int:
 	if target == null or not is_instance_valid(target):
 		return 0
@@ -2550,19 +2563,19 @@ func _ranged_reach(target: Node3D) -> int:
 		EnemyType.THANATOS:
 			return THANATOS_BOLT_RANGE
 		EnemyType.BONE_DRAGON:
-			return 6
+			return BONE_DRAGON_BREATH_RANGE
 		EnemyType.IFRIT:
-			return 4
+			return IFRIT_BREATH_RANGE
 		EnemyType.GRAVE_TITAN:
-			return 3
+			return TITAN_BOULDER_RANGE
 		EnemyType.TREANT:
-			return 4
+			return TREANT_ROOT_RANGE
 		EnemyType.WYVERN:
-			return 3 if _talon_cooldown <= 0 else 0
+			return WYVERN_TALON_RANGE if _talon_cooldown <= 0 else 0
 		EnemyType.INFECTED_HUNTER:
 			if _hook_recharge <= 0:
-				return 7
-			return 3 if _net_cooldown <= 0 else 0
+				return HUNTER_HOOK_RANGE
+			return HUNTER_NET_RANGE if _net_cooldown <= 0 else 0
 		EnemyType.CRYPT_CRAWLER:
 			return CRAWLER_WEB_RANGE if _crawler_can_web(target) else 0
 		EnemyType.SPIRIT_COLLECTOR:
@@ -3216,9 +3229,9 @@ func _choose_hunter_action(distance: int) -> void:
 	# whenever it is off its 8-tempo cooldown and the target is close
 	# (sheet: no range given — within 3 squares, TODO(sheet)); cleave is the
 	# melee swipe.
-	if _hook_recharge <= 0 and distance >= 2 and distance <= 7:
+	if _hook_recharge <= 0 and distance >= HUNTER_HOOK_MIN and distance <= HUNTER_HOOK_RANGE:
 		chosen_action = _get_action("hook")
-	elif _net_cooldown <= 0 and distance <= 3:
+	elif _net_cooldown <= 0 and distance <= HUNTER_NET_RANGE:
 		chosen_action = _get_action("net_throw")
 	elif distance <= 1:
 		chosen_action = _get_action("cleave")
@@ -3231,7 +3244,7 @@ func _choose_treant_action(distance: int) -> void:
 	elif current_health * 2 < max_health:
 		# Badly hurt and out of melee: draw deep and mend.
 		chosen_action = _get_action("treant_heal")
-	elif distance <= 4:
+	elif distance <= TREANT_ROOT_RANGE:
 		chosen_action = _get_action("root")
 	else:
 		chosen_action = _get_action("move")
@@ -3317,7 +3330,7 @@ func _try_death_bolt(target_node: Node3D) -> bool:
 func _choose_bone_dragon_action(distance: int) -> void:
 	if distance <= 1:
 		chosen_action = _get_action("dragon_bite") if randf() < 0.6 else _get_action("breath_swarm")
-	elif distance <= 6 and not is_silenced:
+	elif distance <= BONE_DRAGON_BREATH_RANGE and not is_silenced:
 		chosen_action = _get_action("breath_swarm")
 	else:
 		chosen_action = _get_action("move")
@@ -3333,7 +3346,7 @@ func _choose_manticore_action(distance: int) -> void:
 
 func _choose_wyvern_action(distance: int) -> void:
 	# Talon Grab reaches out to 3 tiles (it flies above its target).
-	if distance <= 3 and _talon_cooldown <= 0:
+	if distance <= WYVERN_TALON_RANGE and _talon_cooldown <= 0:
 		chosen_action = _get_action("talon_grab")
 	elif distance <= 1:
 		chosen_action = _get_action("wyvern_bite")
@@ -3344,7 +3357,7 @@ func _choose_ifrit_action(distance: int) -> void:
 	# Fire Breath covers a 5x5 in front, so it fires from up to 4 tiles out.
 	if distance <= 1:
 		chosen_action = _get_action("ifrit_attack") if randf() < 0.6 else _get_action("fire_breath")
-	elif distance <= 4 and not is_silenced:
+	elif distance <= IFRIT_BREATH_RANGE and not is_silenced:
 		chosen_action = _get_action("fire_breath")
 	else:
 		chosen_action = _get_action("move")
@@ -3834,7 +3847,7 @@ func _try_swoop(target_node: Node3D) -> bool:
 func _try_hook(target_node: Node3D) -> bool:
 	## Reach out (range 2-7) and reel the player in to just in front of the hunter.
 	var dist := _get_cell_distance(target_node)
-	if dist < 2 or dist > 7:
+	if dist < HUNTER_HOOK_MIN or dist > HUNTER_HOOK_RANGE:
 		return _try_move(target_node)
 	if grid_manager:
 		var my_cell := grid_manager.world_to_grid(position)
@@ -3902,7 +3915,7 @@ func _try_net_throw(target_node: Node3D) -> bool:
 	## many have been played (the closest the stack-driven debuff comes to a
 	## whole hand). 2 tempo, then 8 tempo of cooldown. The sheet gives no
 	## range: within 3 squares (TODO(sheet)).
-	if is_disarmed or _get_cell_distance(target_node) > 3:
+	if is_disarmed or _get_cell_distance(target_node) > HUNTER_NET_RANGE:
 		return _try_move(target_node)
 	var hand_size := 0
 	if target_node.has_method("get_deck_manager"):
@@ -3920,7 +3933,7 @@ func _try_net_throw(target_node: Node3D) -> bool:
 	return true
 
 func _try_root(target_node: Node3D) -> bool:
-	if _get_cell_distance(target_node) > 4:
+	if _get_cell_distance(target_node) > TREANT_ROOT_RANGE:
 		return _try_move(target_node)
 	# Rooted: pinned in place (can still attack) for ~8 tempo.
 	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.ROOTED, 0, 8))
@@ -4303,7 +4316,7 @@ func _try_collect_soul(target_node: Node3D) -> bool:
 func _choose_titan_action(distance: int) -> void:
 	if distance <= 1:
 		chosen_action = _get_action("titan_smash")
-	elif distance <= 3:
+	elif distance <= TITAN_BOULDER_RANGE:
 		chosen_action = _get_action("boulder_roll")
 	else:
 		chosen_action = _get_action("move")
@@ -4319,7 +4332,7 @@ func _throw_at(target_node: Node3D, action: String) -> void:
 
 func _try_boulder_roll(target_node: Node3D) -> bool:
 	## Rolls the boulder at anything within 3 squares.
-	if is_disarmed or _get_cell_distance(target_node) > 3:
+	if is_disarmed or _get_cell_distance(target_node) > TITAN_BOULDER_RANGE:
 		return _try_move(target_node)
 	_deal_damage_to_player(target_node, attack_damage, "Boulder Roll")
 	_throw_at(target_node, "boulder_roll")   # the boulder rolls from his hands to the target
@@ -4678,7 +4691,7 @@ func _try_breath_swarm(target_node: Node3D) -> bool:
 	if dir == Vector2i.ZERO:
 		dir = Vector2i(1, 0)
 	var line: Array = []
-	for i in range(1, 7):
+	for i in range(1, BONE_DRAGON_BREATH_RANGE + 1):
 		line.append(my_cell + dir * i)
 	var main := get_parent()
 	var hits := 0
@@ -4763,7 +4776,7 @@ func _try_talon_grab(target_node: Node3D) -> bool:
 	## to an unoccupied space 8 squares away.
 	if is_disarmed:
 		return _try_move(target_node)
-	if _get_cell_distance(target_node) > 3:
+	if _get_cell_distance(target_node) > WYVERN_TALON_RANGE:
 		return _try_move(target_node)
 	_deal_damage_to_player(target_node, maxi(1, roundi(25 * _pps_dmg)), "Talon Grab")
 	if grid_manager and is_instance_valid(target_node):
@@ -4926,7 +4939,7 @@ func _try_chain_lightning(target_node: Node3D) -> bool:
 	## bound arcs up to 4 squares from the last unit struck.
 	if is_disarmed or is_silenced:
 		return _try_move(target_node)
-	if _get_cell_distance(target_node) > 5:
+	if _get_cell_distance(target_node) > DJINN_CHAIN_RANGE:
 		return _try_move(target_node)
 	var hit: Array = [target_node]
 	_djinn_zap(target_node)

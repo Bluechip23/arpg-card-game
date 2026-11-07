@@ -300,10 +300,6 @@ func get_total_deck_size() -> int:
 func is_total_deck_full() -> bool:
 	return get_total_deck_size() >= MAX_TOTAL_DECK_SIZE
 
-## How many more cards the total cap allows in (0 when full).
-func get_total_deck_room() -> int:
-	return maxi(0, MAX_TOTAL_DECK_SIZE - get_total_deck_size())
-
 func expel_unslotted_engraved() -> void:
 	var expelled := 0
 	for pile in [draw_pile, hand, discard_pile, jail_pile, maintained_cards]:

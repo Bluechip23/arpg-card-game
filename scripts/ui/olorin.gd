@@ -368,7 +368,6 @@ static func _overlap_area(a: Rect2, b: Rect2) -> float:
 
 ## Height the bar is planned around (portrait, a few lines, buttons).
 const SPEECH_ZONE := 250.0
-const TOUR_MARGIN := 24.0
 
 ## Pin the speech bar to the bottom or top edge (full width either way).
 func _dock_bar(bar: Control, edge: String) -> void:

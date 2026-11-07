@@ -82,40 +82,11 @@ func get_display_text() -> String:
 # FACTORY METHODS
 # ============================================
 
-static func create_jailed(charges: int = 3, source: String = "") -> OverflowEffect:
-	var effect = OverflowEffect.new(OverflowType.JAILED, "Jailed", 0, charges)
-	effect.source_name = source
-	return effect
-
 static func create_manifest(manifest_name: String, manifest_id: String, charges: int = -1, source: String = "") -> OverflowEffect:
 	var effect = OverflowEffect.new(OverflowType.MANIFEST, manifest_name, 0, charges)
 	effect.manifest_effect_id = manifest_id
 	effect.manifest_description = manifest_name
 	effect.source_name = source
-	return effect
-
-static func create_manifest_skeleton(charges: int = 3, source: String = "") -> OverflowEffect:
-	var effect = create_manifest("Skeleton", "summon_skeleton", charges, source)
-	effect.manifest_description = "Summon a Skeleton ally"
-	effect.manifest_mana_cost = 0
-	effect.manifest_tempo_cost = 1
-	effect.effect_value = 1
-	return effect
-
-static func create_manifest_mushroom(charges: int = -1, source: String = "") -> OverflowEffect:
-	var effect = create_manifest("Mushroom", "use_mushroom", charges, source)
-	effect.manifest_description = "Heal 3 HP"
-	effect.manifest_mana_cost = 0
-	effect.manifest_tempo_cost = 0
-	effect.effect_value = 3
-	return effect
-
-static func create_manifest_spirit(charges: int = 3, source: String = "") -> OverflowEffect:
-	var effect = create_manifest("Spirit", "summon_spirit", charges, source)
-	effect.manifest_description = "Summon a Spirit ally"
-	effect.manifest_mana_cost = 0
-	effect.manifest_tempo_cost = 1
-	effect.effect_value = 1
 	return effect
 
 static func create_manifest_shuriken(charges: int = 3, source: String = "") -> OverflowEffect:
@@ -126,38 +97,11 @@ static func create_manifest_shuriken(charges: int = 3, source: String = "") -> O
 	effect.effect_value = 3
 	return effect
 
-static func create_enhance(bonus_damage: int = 3, charges: int = 3, source: String = "") -> OverflowEffect:
-	var effect = OverflowEffect.new(OverflowType.ENHANCE, "Enhance", bonus_damage, charges)
-	effect.source_name = source
-	return effect
-
-static func create_skip(charges: int = 3, source: String = "") -> OverflowEffect:
-	var effect = OverflowEffect.new(OverflowType.SKIP, "Skip", 0, charges)
-	effect.source_name = source
-	return effect
-
-static func create_peak(charges: int = -1, source: String = "") -> OverflowEffect:
-	var effect = OverflowEffect.new(OverflowType.PEAK, "Peak", 0, charges)
-	effect.source_name = source
-	return effect
-
 static func create_overcharge(effect_name: String, effect_id: String, value: int, charges: int = -1, source: String = "") -> OverflowEffect:
 	var effect = OverflowEffect.new(OverflowType.OVERCHARGE, effect_name, value, charges)
 	effect.overcharge_effect_id = effect_id
 	effect.source_name = source
 	return effect
-
-static func create_overcharge_health(value: int = 2, charges: int = -1, source: String = "") -> OverflowEffect:
-	return create_overcharge("+%d Health" % value, "gain_health", value, charges, source)
-
-static func create_overcharge_mana(value: int = 20, charges: int = -1, source: String = "") -> OverflowEffect:
-	return create_overcharge("+%d Mana" % value, "gain_mana", value, charges, source)
-
-static func create_overcharge_armor(value: int = 2, charges: int = -1, source: String = "") -> OverflowEffect:
-	return create_overcharge("+%d Armor" % value, "gain_armor", value, charges, source)
-
-static func create_overcharge_damage(value: int = 3, charges: int = -1, source: String = "") -> OverflowEffect:
-	return create_overcharge("%d Damage All" % value, "damage_all", value, charges, source)
 
 static func create_quiver(charges: int = 5, source: String = "") -> OverflowEffect:
 	var effect = OverflowEffect.new(OverflowType.QUIVER, "Bottomless Quiver", 0, charges)

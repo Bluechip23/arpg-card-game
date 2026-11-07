@@ -1,5 +1,5 @@
 class_name AnimationLab
-extends Control
+extends "res://scripts/shared/lab_menu_base.gd"
 
 ## Animation Lab — a development workbench for authoring card/passive animations.
 ##
@@ -17,7 +17,6 @@ extends Control
 const TitleMenuScene := "res://scenes/menus/title_menu.tscn"
 
 var _figure: SpriteFigure = null
-var _list_vbox: VBoxContainer = null
 var _status_label: Label = null
 var _filter_edit: LineEdit = null
 var _left_column: VBoxContainer = null
@@ -26,7 +25,6 @@ var _camera: Camera3D = null
 var _reveal: MythicReveal = null  # active Mythic Reveal preview, if any
 
 # Each entry button: { "button": Button, "search": String }
-var _entry_buttons: Array[Dictionary] = []
 
 var _current_dir: int = CharacterAnimator.Direction.SOUTH
 var _current_action: String = ""
@@ -229,13 +227,6 @@ func _build_viewport() -> void:
 		char_row.add_child(cbtn)
 
 
-func _add_dir_button(parent: Node, label: String, dir: int) -> void:
-	var btn := Button.new()
-	btn.text = label
-	btn.pressed.connect(_on_set_direction.bind(dir))
-	parent.add_child(btn)
-
-
 # =============================================================
 # LIST POPULATION
 # =============================================================
@@ -253,16 +244,6 @@ func _populate_list() -> void:
 	_add_section_header("PASSIVES")
 	for entry in _collect_passives():
 		_add_entry(entry["label"], entry["action"], entry["search"])
-
-
-func _add_section_header(text: String) -> void:
-	var header := Label.new()
-	header.text = text
-	EmeraldTheme.style_heading(header, 19)
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 6)
-	_list_vbox.add_child(spacer)
-	_list_vbox.add_child(header)
 
 
 func _add_entry(label: String, action: String, search: String, grants_armor: bool = false, grants_heal: bool = false) -> void:
@@ -435,13 +416,6 @@ func _on_viewport_input(event: InputEvent) -> void:
 	_reveal.try_click(origin + dir * t)
 
 
-func _on_filter_changed(text: String) -> void:
-	var needle := text.strip_edges().to_lower()
-	for entry in _entry_buttons:
-		var btn: Button = entry["button"]
-		btn.visible = needle == "" or entry["search"].contains(needle)
-
-
 func _on_back() -> void:
 	var title = load(TitleMenuScene).instantiate()
 	get_tree().root.add_child(title)
@@ -453,27 +427,4 @@ func _on_back() -> void:
 # =============================================================
 
 ## Seat a column on a dark emerald glass panel so it reads over the forest.
-func _glass_panel(column: Control, expand: bool) -> PanelContainer:
-	var panel := PanelContainer.new()
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL if expand else Control.SIZE_FILL
-	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	panel.add_theme_stylebox_override("panel",
-		EmeraldTheme.panel_box(EmeraldTheme.PANEL_BG, EmeraldTheme.GOLD_DIM, 1, 6, 10))
-	panel.add_child(column)
-	return panel
-
 ## List rows: bare text until hovered, then the theme's glass and gold.
-static func _style_list_button(btn: Button) -> void:
-	var bare := StyleBoxEmpty.new()
-	bare.content_margin_left = 8
-	bare.content_margin_right = 8
-	bare.content_margin_top = 1
-	bare.content_margin_bottom = 3
-	btn.add_theme_stylebox_override("normal", bare)
-	var hover := EmeraldTheme.button_box(EmeraldTheme.PALETTE["btn_hover_bg"], EmeraldTheme.PALETTE["btn_hover_border"], 1, 3)
-	hover.content_margin_left = 8
-	hover.content_margin_top = 1
-	hover.content_margin_bottom = 3
-	btn.add_theme_stylebox_override("hover", hover)
-	btn.add_theme_stylebox_override("pressed", hover)
-	btn.add_theme_constant_override("outline_size", 0)

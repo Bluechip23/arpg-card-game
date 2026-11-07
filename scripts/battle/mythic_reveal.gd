@@ -8,6 +8,8 @@ extends Node3D
 ##  3. Clicking the present opens it: the mythic's icon rises out with flashy
 ##     coloration swirling around it.
 ##  4. Clicking the icon claims it — main stores it in the player's inventory.
+
+const MeshUtil = preload("res://scripts/shared/mesh_util.gd")
 signal claimed(item: ItemData)
 
 const GLOW_DURATION := 1.4      # seconds for the expansion
@@ -167,12 +169,12 @@ func _spawn_icon() -> void:
 		_icon_root.add_child(sprite)
 	else:
 		# No icon authored yet: a golden gem stands in.
-		_reveal_mesh(_icon_root, _sphere(0.22), Vector3.ZERO, Color(1.0, 0.8, 0.2), true)
+		_reveal_mesh(_icon_root, MeshUtil.sphere(0.22), Vector3.ZERO, Color(1.0, 0.8, 0.2), true)
 
 	# Mildly flashy coloration: a ring of hue-cycling sparks orbiting the icon.
 	_sparkles.clear()
 	for i in range(6):
-		var s := _reveal_mesh(_icon_root, _sphere(0.045), Vector3.ZERO, Color(1, 1, 1), true)
+		var s := _reveal_mesh(_icon_root, MeshUtil.sphere(0.045), Vector3.ZERO, Color(1, 1, 1), true)
 		_sparkles.append(s)
 
 	var light := OmniLight3D.new()
@@ -228,8 +230,3 @@ func _reveal_mesh(parent: Node3D, mesh: Mesh, pos: Vector3, color: Color, emissi
 	parent.add_child(mi)
 	return mi
 
-func _sphere(r: float) -> SphereMesh:
-	var s := SphereMesh.new()
-	s.radius = r
-	s.height = r * 2.0
-	return s
