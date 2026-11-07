@@ -191,7 +191,14 @@ WALKS = {
              [126, 307, 489, 670, 850, 1030, 1209, 1382, 1526],
              [12, 244, 469, 687, 907],
              ["north", "south", "west", "east"],
-             set(), "opaque", {"halo": True}),   # the feather's glow stripped (HALO_STRIP)
+             set(), "opaque", {"halo": True, "matte": True, "anchor": "board"}),
+    # ^ Brad, re-cut from the start (designer, 2026-11-07: "there are too
+    # many mistakes. You need to just start over"): the colour cut dropped
+    # his War Rack (dark wood on the dark ground) from most frames, so each
+    # cell has a model matte (tools/make_mattes.py --walk brad) kept solid;
+    # every frame centred on its own box slid him side to side as his stride
+    # changed, so the frames keep the board's placement ("anchor"); the
+    # feather's glow is stripped (HALO_STRIP).
 }
 # A direction on a board of its own, in WALKS' form: Stephen's back and
 # left (2026-11-05) and his right (2026-10-31, "Walk Right (Corrected)": his
@@ -604,8 +611,16 @@ def _clear_ground(rgb, solid, ground):
 def cut_walk(hero):
     """The hero's walk frames: {facing: [full-size RGBA cut-outs]}, plus the
     source height the south frames reach (their scale's reference)."""
-    out = cut_walk_board(*WALKS[hero])
+    w = WALKS[hero]
+    opts = dict(w[6]) if len(w) > 6 else {}
+    opts["hero"] = hero
+    out = cut_walk_board(*w[:6], opts)
     return out, max(f.height for f in out["south"])
+
+
+def hero_walk_matte_path(hero, facing, col):
+    """A walk cell's model matte (tools/make_mattes.py --walk; WALKS "matte")."""
+    return os.path.join("assets/sprites/paintings/mattes", "%s_walk_%s_%d.png" % (hero, facing, col))
 
 
 def cut_walk_board(path, xs, ys, facings, skip, ground, opts=None):
@@ -630,6 +645,14 @@ def cut_walk_board(path, xs, ys, facings, skip, ground, opts=None):
                     k = np.ones((opts["close"], opts["close"]), np.uint8)
                     a = cv2.morphologyEx((cell[..., 3] > 0).astype(np.uint8), cv2.MORPH_CLOSE, k)
                     cell[..., 3] = np.maximum(cell[..., 3], a * 255)
+                if opts.get("matte"):
+                    # The model matte (make_mattes.py --walk): figure the
+                    # colour cut cannot tell from the ground (Brad's War
+                    # Rack, dark wood on the dark ground) kept solid.
+                    m = np.asarray(Image.open(hero_walk_matte_path(opts["hero"], facing, c)).convert("L")) > 127
+                    raw = board[ys[r] + i:ys[r + 1] - i + 1, xs[c] + i:xs[c + 1] - i + 1]
+                    cell[m, :3] = raw[m, :3]
+                    cell[m, 3] = 255
                 if opts.get("halo"):
                     cell = strip_halo(cell, *HALO_STRIP["brad"])
             solid = (cell[..., 3] > WALK_ALPHA).astype(np.uint8)
@@ -644,7 +667,45 @@ def cut_walk_board(path, xs, ys, facings, skip, ground, opts=None):
             f = cell.copy()
             f[~near] = 0
             yy, xx = np.nonzero(keep)
-            frames.append(Image.fromarray(f[yy.min():yy.max() + 1, xx.min():xx.max() + 1], "RGBA"))
+            if opts.get("anchor") == "board":
+                frames.append((f, keep))
+            else:
+                frames.append(Image.fromarray(f[yy.min():yy.max() + 1, xx.min():xx.max() + 1], "RGBA"))
+        if opts.get("anchor") == "board":
+            # Where the board stands him in each cell, kept: every frame is
+            # cut to the row's shared box (the union of its frames), so they
+            # pack bottom-centred without sliding the body as the stride
+            # widens and narrows (each frame centred on its own box did).
+            # He walks in place: his torso (a band from 15% to 45% down the
+            # figure) holds still while his legs and arms swing. Frames are
+            # laid on a shared canvas with their torsos on its centre line
+            # and their feet on its floor (the board's cells are not
+            # all one width — Brad's last is 144 px to the others' ~181 — nor
+            # is he always centred in them), then cut to the union.
+            def torso_x(k):
+                rows = np.nonzero(k.any(axis=1))[0]
+                t, b = rows.min(), rows.max()
+                band = k[t + int((b - t) * 0.15):t + int((b - t) * 0.45)]
+                return float(np.nonzero(band)[1].mean())
+            # Each stands on its own feet (its lowest kept row on the floor):
+            # the board's ground line wanders a few px from cell to cell.
+            def to_feet(f, k):
+                b = int(np.nonzero(k.any(axis=1))[0].max()) + 1
+                return f[:b], k[:b]
+            frames = [to_feet(f, k) for f, k in frames]
+            H = max(f.shape[0] for f, _ in frames)
+            W = 2 * max(f.shape[1] for f, _ in frames)
+            laid = []
+            union = np.zeros((H, W), bool)
+            for f, k in frames:
+                y0, x0 = H - f.shape[0], W // 2 - int(round(torso_x(k)))
+                g = np.zeros((H, W, 4), np.uint8)
+                g[y0:, x0:x0 + f.shape[1]] = f
+                union[y0:, x0:x0 + f.shape[1]] |= k | (f[..., 3] > 0)
+                laid.append(g)
+            yy, xx = np.nonzero(union)
+            frames = [Image.fromarray(np.ascontiguousarray(g[yy.min():yy.max() + 1, xx.min():xx.max() + 1]), "RGBA")
+                      for g in laid]
         out[facing] = frames
     return out
 
@@ -1253,9 +1314,24 @@ def build(hero, poses):
     os.makedirs(os.path.dirname(OUT % hero), exist_ok=True)
     sheet.save(OUT % hero)
     # The smooth version, kept beside the pixel sheet.
+    anchored = hero in WALKS and len(WALKS[hero]) > 6 and WALKS[hero][6].get("anchor") == "board"
     for d in list(soft):
-        f = soft[d]
-        soft[d] = smooth_art.trim(f)
+        if anchored and isinstance(d, tuple):
+            continue
+        soft[d] = smooth_art.trim(soft[d])
+    if anchored:
+        # The anchored walks keep the board's placement here too: each
+        # direction's frames are trimmed to their shared box, not their own.
+        for d in {k[0] for k in soft if isinstance(k, tuple)}:
+            keys = [k for k in soft if isinstance(k, tuple) and k[0] == d]
+            box = None
+            for k in keys:
+                b = soft[k].getchannel("A").point(lambda v: 255 if v > 8 else 0).getbbox()
+                if b:
+                    box = b if box is None else (min(box[0], b[0]), min(box[1], b[1]), max(box[2], b[2]), max(box[3], b[3]))
+            for k in keys:
+                if box:
+                    soft[k] = soft[k].crop(box)
     if "east" not in soft:
         soft["east"] = soft["west"].transpose(Image.FLIP_LEFT_RIGHT)
     if "west" not in soft:
