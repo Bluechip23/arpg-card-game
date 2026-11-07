@@ -4438,7 +4438,8 @@ func _execute_shed_weight(deck_manager) -> void:
 static func create_mana_surge(damage_amount: int = 5) -> Card:
 	var card := create_by_id("mana_surge")
 	# damage_amount comes from the Mana Surge passive's rank (4..18)
-	card.description = "Deal %d damage, gain 1 mana. Erased after play." % damage_amount
+	# Mana Surge (passive text): "gain 10 mana" — what _execute_mana_surge gives.
+	card.description = "Deal %d damage, gain 10 mana. Erased after play." % damage_amount
 	card.damage = damage_amount
 	card.base_damage = damage_amount
 	return card
