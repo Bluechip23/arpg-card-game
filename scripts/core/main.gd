@@ -12127,8 +12127,10 @@ func _helm_on_cycle_passives() -> void:
 				a_st._passive_heal = false
 				a_st.gain_mana(greaves_mana)
 				a_st.aura_physical_resist = greaves_resist
-		for m in _frankensteins:
-			if is_instance_valid(m) and not m.is_dead and grid_manager.get_distance_in_cells(player.position, m.position) <= greaves_radius:
+		# "All allies": every friendly summon in reach is healed too, not only
+		# Frankenstein's Monsters (summons have no mana pool or resist field).
+		for m in _all_summons():
+			if not bool(m.get("is_dead")) and grid_manager.get_distance_in_cells(player.position, m.position) <= greaves_radius:
 				m.heal(greaves_regen)
 
 	# Void-resistance aura (Mane): presence-based, refreshed every cycle so it

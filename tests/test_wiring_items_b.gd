@@ -87,6 +87,8 @@ func _run() -> void:
 	_test_cost_riders()
 	_test_ring_zaps()
 	_test_ring_bespoke()
+	_test_cycle_passives()
+	_test_armor_clocks()
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
@@ -767,5 +769,135 @@ func _test_ring_bespoke() -> void:
 	stats.current_armor = 0
 	stats.take_damage(100)
 	_check(200 - stats.current_health == plain_hit - 5, "legend_has_it: a 100 hit lands 5 lighter (%d vs %d)" % [200 - stats.current_health, plain_hit])
+	stats.current_health = stats.max_health
+	_strip()
+
+# ------------------------------------------------------------ cycle passives
+
+func _test_cycle_passives() -> void:
+	print("-- Horned Nasal Helm, Mane, Jordan 1s, Frankenstein's Screws, Guardian Greaves --")
+	var pdm = main.player.get_debuff_manager()
+	_equip("horned_nasal_helm")
+	main._purge_cycle_accum = 0
+	pdm.clear_all_debuffs()
+	pdm.apply_debuff(Debuff.create(Debuff.DebuffType.SLOWED, 1, 60))
+	pdm.apply_debuff(Debuff.create(Debuff.DebuffType.BURN, 1, 60))
+	pdm.apply_debuff(Debuff.create(Debuff.DebuffType.POISON, 1, 60))
+	main._helm_on_cycle_passives()
+	main._helm_on_cycle_passives()
+	_check(pdm.debuffs.size() == 3, "horned_nasal_helm: 10 tempo in, nothing purged (%d)" % pdm.debuffs.size())
+	main._helm_on_cycle_passives()
+	_check(pdm.debuffs.size() == 1, "horned_nasal_helm: at 15 tempo 2 random debuffs are purged (%d left)" % pdm.debuffs.size())
+	pdm.clear_all_debuffs()
+	_strip()
+	# Mane of Narashimha: enemies within 2 take 5% more from you.
+	_place_dummies()
+	_place(dummies[1], _pcell() + Vector2i(0, 2))  # 2 squares off
+	_equip("mane_of_narashimha")
+	var near: Enemy = dummies[0]
+	var worn: int = _dmg(Card.create_by_id("lethal_poke") if false else Card.create_by_id("slash"), near)
+	main._helm_on_cycle_passives()
+	_check(near.void_resistance_percent == 5.0, "mane_of_narashimha: an enemy beside you is in the void aura")
+	_check(dummies[1].void_resistance_percent == 5.0, "mane_of_narashimha: an enemy 2 squares off is in it too")
+	var in_aura: int = 0
+	near.current_health = 1000
+	_resolve(Card.create_by_id("slash"), near)
+	in_aura = 1000 - near.current_health
+	_check(in_aura == floori(worn * 1.05), "mane_of_narashimha: your hit lands 5%% harder in the aura (%d vs %d)" % [in_aura, worn])
+	_place(dummies[1], _pcell() + Vector2i(3, 0))
+	main._helm_on_cycle_passives()
+	_check(dummies[1].void_resistance_percent == 0.0, "mane_of_narashimha: 3 squares off, out of the aura")
+	near.current_health = 1000
+	near.take_damage(20, false)
+	_check(1000 - near.current_health == 20, "mane_of_narashimha: only YOUR damage is raised (a non-player hit: %d)" % (1000 - near.current_health))
+	_strip()
+	main._helm_on_cycle_passives()
+	_check(near.void_resistance_percent == 0.0, "mane_of_narashimha: unequipped, the aura is gone next cycle")
+	# Jordan 1s: below 50% enemy health, +0.5 per missing %.
+	_reset_dummies()
+	_place_dummies()
+	_equip("jordan_1s")
+	main._helm_on_cycle_passives()
+	near.current_health = 1000
+	near.take_damage(10, true)
+	_check(1000 - near.current_health == 10, "jordan_1s: at full health no bonus (%d)" % (1000 - near.current_health))
+	near.current_health = 500
+	near.take_damage(10, true)
+	_check(500 - near.current_health == 10, "jordan_1s: at exactly 50%% no bonus — 'below 50%%' (%d)" % (500 - near.current_health))
+	near.current_health = 400
+	near.take_damage(10, true)
+	_check(400 - near.current_health == 10 + 30, "jordan_1s: at 40%% a 10 hit gains 0.5 x 60 = 30 (%d)" % (400 - near.current_health))
+	_strip()
+	main._helm_on_cycle_passives()
+	near.current_health = 400
+	near.take_damage(10, true)
+	_check(400 - near.current_health == 10, "jordan_1s: unequipped, no bonus after the next cycle")
+	_reset_dummies()
+	# Frankenstein's Screws: summons below 25% within 3 heal 3 per cycle.
+	_equip("frankensteins_screws")
+	main._clear_wolves()
+	main._spawn_wolf()
+	main._spawn_wolf()
+	var low = main._wolves[0]
+	var ok_wolf = main._wolves[1]
+	low.health = 4
+	ok_wolf.health = 10
+	main._helm_on_cycle_passives()
+	_check(low.health == 7, "frankensteins_screws: a summon below 25%% beside you heals 3 (%d)" % low.health)
+	_check(ok_wolf.health == 10, "frankensteins_screws: one at 50%% is left alone (%d)" % ok_wolf.health)
+	low.health = 4
+	_place(low, _pcell() + Vector2i(0, 4))
+	main._helm_on_cycle_passives()
+	_check(low.health == 4, "frankensteins_screws: 4 squares away, no heal (%d)" % low.health)
+	main._clear_wolves()
+	_strip()
+	# Guardian Greaves: 6 health and 60 mana a cycle to allies within 4, 5% physical resist inside.
+	_equip("guardian_greaves")
+	stats.current_health = 100
+	stats.current_mana = 0
+	main._spawn_wolf()
+	var pup = main._wolves[0]
+	pup.health = 5
+	main._helm_on_cycle_passives()
+	_check(stats.current_health == 100 + stats.get_effective_heal_amount(6), "guardian_greaves: you regain 6 health a cycle (%d)" % stats.current_health)
+	_check(int(stats.current_mana) == mini(60, stats.max_mana), "guardian_greaves: and 60 mana, up to the pool (%d of max %d)" % [int(stats.current_mana), stats.max_mana])
+	_check(stats.aura_physical_resist == 5.0, "guardian_greaves: and 5% physical resistance inside the aura")
+	_check(pup.health == 11, "guardian_greaves: an ally summon within 4 regains 6 too (%d)" % pup.health)
+	_strip()
+	main._helm_on_cycle_passives()
+	_check(stats.aura_physical_resist == 0.0, "guardian_greaves: off, the resistance leaves next cycle")
+	main._clear_wolves()
+	stats.current_health = stats.max_health
+	stats.current_mana = stats.max_mana
+
+func _test_armor_clocks() -> void:
+	print("-- Kettle Hat / Mail Coif unerring armor, Hallowed Trunk regen --")
+	for row in [["kettle_hat", 2], ["mail_coif", 5]]:
+		var item := _equip(row[0])
+		stats.unerring_armor = 0
+		inv.process_turn()
+		inv.process_turn()
+		_check(stats.unerring_armor == 0, "%s: 10 tempo in, no armor yet" % row[0])
+		inv.process_turn()
+		_check(stats.unerring_armor == mini(int(row[1]), stats.get_unerring_cap()), "%s: at 15 tempo, +%d unerring armor (%d)" % [row[0], row[1], stats.unerring_armor])
+		inv.process_turn()
+		inv.process_turn()
+		_unequip(item)
+		_check(item.armor_per_tempo_accum == 0, "%s: unequipping resets the counter" % row[0])
+		stats.unerring_armor = 0
+	# Hallowed Trunk: every 10 armor removed, 1 Regen.
+	_equip("hallowed_trunk")
+	bm.remove_buff(Buff.BuffType.REGEN)
+	stats.current_armor = 30
+	stats.take_damage(9, null, bm)
+	_check(bm.get_buff(Buff.BuffType.REGEN) == null, "hallowed_trunk: 9 armor removed, no regen yet")
+	stats.take_damage(1, null, bm)
+	var rg = bm.get_buff(Buff.BuffType.REGEN)
+	_check(rg != null and rg.value == 1, "hallowed_trunk: the 10th armor point removed grants 1 Regen")
+	bm.remove_buff(Buff.BuffType.REGEN)
+	stats.current_armor = 0
+	var hp: int = stats.current_health
+	stats.take_damage(20, null, bm)
+	_check(bm.get_buff(Buff.BuffType.REGEN) == null and stats.current_health == hp - 20, "hallowed_trunk: health lost does not count below Lv.3")
 	stats.current_health = stats.max_health
 	_strip()
