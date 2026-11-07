@@ -21,3 +21,7 @@ tools/__pycache__/
 
 # Simulation harness output (tests/sim)
 sim_out/
+
+# Local agent worktrees and Python caches anywhere under tools/
+.claude/worktrees/
+__pycache__/
