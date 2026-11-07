@@ -89,6 +89,9 @@ func _run() -> void:
 	_test_ring_bespoke()
 	_test_cycle_passives()
 	_test_armor_clocks()
+	_test_gauntlet_skills()
+	_test_bespoke_weapons()
+	_test_misc_items()
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
@@ -301,6 +304,10 @@ func _resolve(card: Card, target) -> void:
 ## Damage a resolved card does to dummy `d` (reset first).
 func _dmg(card: Card, d: Enemy) -> int:
 	_reset_dummy(d)
+	# The free-hand stance echoes every 12th attack: keep the count clear so
+	# one measured play is one blow.
+	stats._free_hand_attack_count = 0
+	stats._pending_free_hand_echo = false
 	_resolve(card, d)
 	return 1000 - d.current_health
 
@@ -901,3 +908,387 @@ func _test_armor_clocks() -> void:
 	_check(bm.get_buff(Buff.BuffType.REGEN) == null and stats.current_health == hp - 20, "hallowed_trunk: health lost does not count below Lv.3")
 	stats.current_health = stats.max_health
 	_strip()
+
+# ------------------------------------------------------------ gauntlet skills
+
+## Fire a gauntlet skill the way its button does (mana, cooldown, 1 tempo).
+func _skill(g: ItemData, target) -> bool:
+	stats.current_mana = stats.max_mana
+	var before: float = stats.current_mana
+	main.tempo_manager.current_tempo = 0  # the skill's 1 tempo must not close a cycle mid-check
+	stats._tempo_until_mana_regen = 99  # nor tick mana regen into the price
+	var t0: int = main.tempo_manager.get_global_tempo()
+	main._fire_gauntlet_skill(g, target)
+	var paid: int = int(round(before - stats.current_mana))
+	_check(paid == g.gauntlet_skill_mana_cost, "%s: %s costs %d mana (paid %d)" % [g.item_name, g.gauntlet_skill_name, g.gauntlet_skill_mana_cost, paid])
+	_check(main.tempo_manager.get_global_tempo() - t0 == 1, "%s: the skill takes 1 tempo" % g.item_name)
+	return g.is_on_cooldown()
+
+## The described cooldown in tempo: N cycles of 5 tempo, then ready again.
+func _cooldown(g: ItemData, tempo: int) -> void:
+	_check(g.current_cooldown * 5 == tempo, "%s: %d tempo cooldown (%d)" % [g.item_name, tempo, g.current_cooldown * 5])
+	for i in range(tempo / 5):
+		inv.process_turn()
+	_check(not g.is_on_cooldown(), "%s: ready again after %d tempo" % [g.item_name, tempo])
+
+func _test_gauntlet_skills() -> void:
+	print("-- Gauntlet skills --")
+	_place_dummies()
+	var d: Enemy = dummies[0]
+	var fb := _equip("fanned_bracers")
+	_check(_skill(fb, d), "fanned_bracers: Fan Save fires")
+	_check(d.weaken_stacks == 1, "fanned_bracers: Fan Save inflicts 1 Weaken (%d)" % d.weaken_stacks)
+	_cooldown(fb, 10)
+	_strip()
+	_reset_dummy(d)
+	var gdm := _equip("gauntlets_of_dungeon_mastering")
+	dm.hand.clear()
+	dm.discard_pile.clear()
+	var a := Card.create_by_id("slash")
+	var b := Card.create_by_id("block")
+	dm.discard_pile.append(a)
+	dm.discard_pile.append(b)
+	_check(_skill(gdm, a), "gauntlets_of_dungeon_mastering: House Rule fires")
+	_check(a in dm.hand and not (a in dm.discard_pile) and b in dm.discard_pile,
+		"gauntlets_of_dungeon_mastering: House Rule puts the picked discard card in your hand")
+	_cooldown(gdm, 20)
+	dm.hand.clear()
+	dm.discard_pile.clear()
+	_strip()
+	# Gravity Gauntlets — Suck: enemies within 2 squares of the point are pulled in.
+	var gg := _equip("gravity_gauntlets")
+	var center: Vector2i = _pcell() + Vector2i(4, 0)
+	_place(dummies[0], center + Vector2i(2, 0))
+	_place(dummies[1], center + Vector2i(0, 4))
+	var cam = main.get_world_camera()
+	main.mouse_override = cam.unproject_position(main.grid_manager.grid_to_world(center))
+	_check(_skill(gg, null), "gravity_gauntlets: Suck fires")
+	var c0: Vector2i = main.grid_manager.world_to_grid(dummies[0].position)
+	var c1: Vector2i = main.grid_manager.world_to_grid(dummies[1].position)
+	_check(absi(c0.x - center.x) + absi(c0.y - center.y) <= 1, "gravity_gauntlets: an enemy 2 squares off is pulled into the target area (%s vs %s)" % [c0, center])
+	_check(c1 == center + Vector2i(0, 4), "gravity_gauntlets: one 4 squares off stays put")
+	main.mouse_override = Vector2(-1, -1)
+	_cooldown(gg, 10)
+	_strip()
+	_place_dummies()
+	# Hallowed Trunk — imbue tree: 5 Regen and 10 Thorns.
+	var ht := _equip("hallowed_trunk")
+	bm.remove_buff(Buff.BuffType.REGEN)
+	bm.remove_buff(Buff.BuffType.THORNS)
+	_check(_skill(ht, null), "hallowed_trunk: imbue tree fires")
+	var rg = bm.get_buff(Buff.BuffType.REGEN)
+	var th = bm.get_buff(Buff.BuffType.THORNS)
+	_check(rg != null and rg.value == 5 and th != null and th.value == 10, "hallowed_trunk: imbue tree grants 5 Regen and 10 Thorns")
+	_cooldown(ht, 10)
+	bm.remove_buff(Buff.BuffType.REGEN)
+	bm.remove_buff(Buff.BuffType.THORNS)
+	_strip()
+	# Medic Wraps — Slurp and pad: heal an ally 5, gain 3 armor.
+	var mw := _equip("medic_wraps")
+	stats.current_health = 100
+	stats.current_armor = 0
+	_check(_skill(mw, main.player), "medic_wraps: Slurp and pad fires")
+	_check(stats.current_health == 100 + stats.get_effective_heal_amount(5) and stats.current_armor == 3,
+		"medic_wraps: heals 5 and gains 3 armor (hp +%d, armor %d)" % [stats.current_health - 100, stats.current_armor])
+	_cooldown(mw, 15)
+	stats.current_health = stats.max_health
+	stats.current_armor = 0
+	_strip()
+	# Momentum Mits — Continue to move: draw a card.
+	var mom := _equip("momentum_mits")
+	dm.hand.clear()
+	dm.draw_pile.append(Card.create_by_id("block"))
+	_check(_skill(mom, null), "momentum_mits: Continue to move fires")
+	_check(dm.hand.size() == 1, "momentum_mits: Continue to move draws a card (%d)" % dm.hand.size())
+	_cooldown(mom, 25)
+	dm.hand.clear()
+	_strip()
+	# Mits of Chingiz — 3 count: two offensive cards in a row add a Switch Kick.
+	var mc := _equip("mits_of_chingiz")
+	main._offensive_streak = 0
+	main._three_count_cd = 0
+	dm.hand.clear()
+	_resolve(Card.create_by_id("slash"), d)
+	_check(dm.hand.is_empty(), "mits_of_chingiz: one offensive card adds nothing")
+	_resolve(Card.create_by_id("slash"), d)
+	var kicks := 0
+	for c in dm.hand:
+		if c.card_id == "switch_kick":
+			kicks += 1
+	_check(kicks == 1, "mits_of_chingiz: the second offensive card in a row adds a Switch Kick (%d)" % kicks)
+	_check(main._three_count_cd * 5 == 20, "mits_of_chingiz: then a 20 tempo cooldown (%d)" % (main._three_count_cd * 5))
+	dm.hand.clear()
+	_resolve(Card.create_by_id("slash"), d)
+	_resolve(Card.create_by_id("slash"), d)
+	_check(dm.hand.is_empty(), "mits_of_chingiz: on cooldown, no second kick")
+	for i in range(4):
+		main._helm_on_cycle_passives()
+	main._offensive_streak = 0
+	_resolve(Card.create_by_id("block"), main.player)
+	_resolve(Card.create_by_id("slash"), d)
+	_check(dm.hand.is_empty(), "mits_of_chingiz: a defense card between breaks the count")
+	_resolve(Card.create_by_id("slash"), d)
+	_check(dm.hand.size() == 1, "mits_of_chingiz: 20 tempo later it fires again")
+	dm.hand.clear()
+	_strip()
+	_reset_dummies()
+
+# ------------------------------------------------------------ bespoke weapons
+
+## Play `card` through the deck (costs, combo bookkeeping) and resolve it at
+## once, without spending the tempo clock.
+func _play_now(card: Card, target) -> bool:
+	if not (card in dm.hand):
+		dm.hand.append(card)
+	stats.current_mana = stats.max_mana
+	var res: Dictionary = dm.play_card(dm.hand.find(card), target, main.player, true)
+	if not res["played"]:
+		return false
+	_resolve(card, target)
+	return true
+
+func _test_bespoke_weapons() -> void:
+	print("-- Fallen's Wrath, Feral Evocation, Mauls Sabre, Nine Ruins, Trident, Reaction Rod, Reaper Scythe, Pocket Knife, Laurentius --")
+	_place_dummies()
+	var d: Enemy = dummies[0]
+	# Fallen's Wrath.
+	var fw := _equip("fallens_wrath")
+	var worn: int = _dmg(Card.create_by_id("slash"), d)
+	stats.current_armor = 0
+	for i in range(3):
+		stats.take_damage(1)
+	_check(fw.wrath == 3, "fallens_wrath: each damage instance you take grants 1 Wrath (%d)" % fw.wrath)
+	var wr: int = _dmg(Card.create_by_id("slash"), d)
+	_check(wr == worn + 3, "fallens_wrath: your attacks deal +Wrath damage (%d vs %d)" % [wr, worn])
+	fw.wrath = 30
+	stats.take_damage(1)
+	_check(fw.wrath == 30, "fallens_wrath: Wrath caps at 30")
+	fw.wrath = 0
+	# Same health for both blows (Determination moves STR with health).
+	stats.current_health = 200
+	worn = _dmg(Card.create_by_id("slash"), d)
+	fw.wrath = 0
+	stats.current_health = 200
+	var od: int = _dmg(_slotted("slash", fw), d)
+	var extra: int = floori(worn * 1.5) - worn
+	_check(od == worn + extra, "fallens_wrath: a slotted card deals 1.5x the whole hit (%d vs %d)" % [od, worn])
+	_check(stats.current_health == 200 - ceili(extra / 2.0), "fallens_wrath: and you take half the bonus yourself (%d)" % (200 - stats.current_health))
+	fw.wrath = 0
+	stats.current_health = stats.max_health
+	_strip()
+	# Feral Evocation: a slotted card converts the others in hand; 4 damage each.
+	var fe := _equip("feral_evocation")
+	var red := Card.create_by_id("fireball")
+	var blue := Card.create_by_id("ice_grenade")
+	_check(fe.slot_card(red) and fe.slot_card(blue), "feral_evocation: a red and a blue card take their colored slots")
+	dm.hand.clear()
+	dm.hand.append(blue)
+	_reset_dummies()
+	main._weapon_post_card_effects(red, d)
+	_check(blue.has_meta("feral_color") and str(blue.get_meta("feral_color")) == "red", "feral_evocation: playing the red card turns the blue card in hand red")
+	_check(_dummy_loss() == 4, "feral_evocation: the conversion deals 4 damage to an enemy within 4 (%d)" % _dummy_loss())
+	_reset_dummies()
+	main._weapon_post_card_effects(red, d)
+	_check(_dummy_loss() == 0, "feral_evocation: already red — no conversion, no damage")
+	dm.hand.clear()
+	dm.draw_pile.append(blue)
+	dm.draw_card()
+	_check(not blue.has_meta("feral_color"), "feral_evocation: a converted card reverts once it has left the hand")
+	_check(Inventory.is_two_hand_only(fe), "feral_evocation: two-handed")
+	dm.hand.clear()
+	_strip()
+	# Mauls Sabre: the blue slot and the red slot.
+	var ms := _equip("mauls_sabre")
+	_check(Inventory.is_two_hand_only(ms), "mauls_sabre: two-handed")
+	var blue_c := _slotted("slash", ms)
+	var red_c := _slotted("slash", ms)
+	_check(ms.get_slot_color(blue_c) == "blue" and ms.get_slot_color(red_c) == "red", "mauls_sabre: the first two slots are blue then red")
+	var plain: int = _dmg(Card.create_by_id("slash"), d)
+	stats.current_armor = 0
+	var bd: int = _dmg(blue_c, d)
+	_check(bd == plain + 5 and d.weaken_stacks == 1 and stats.current_armor == 8,
+		"mauls_sabre: blue slot +5 damage, 1 Weaken, +8 block (%d vs %d, weaken %d, armor %d)" % [bd, plain, d.weaken_stacks, stats.current_armor])
+	stats.current_armor = 0
+	dm.hand.clear()
+	var other := Card.create_by_id("block")
+	dm.hand.append(other)
+	_reset_dummy(d)
+	_play_now(red_c, d)
+	var rd: int = 1000 - d.current_health
+	_check(rd == plain + 15, "mauls_sabre: red slot +15 damage (%d vs %d)" % [rd, plain])
+	_check(other in dm.discard_pile, "mauls_sabre: playing the red card discards a card of your choice")
+	_reset_dummy(d)
+	_play_now(blue_c, d)
+	_check(d.vulnerable_stacks == 1, "mauls_sabre: blue right after red also applies 1 Vulnerable (%d)" % d.vulnerable_stacks)
+	_check(red_c.get_burden_tempo_cost() == red_c.tempo_cost - 1, "mauls_sabre: red right after blue costs 1 less tempo")
+	stats.current_armor = 0
+	dm.hand.clear()
+	dm.discard_pile.clear()
+	_strip()
+	# Nine Ruins of Sanguine: attacks build Vitality (+2 damage, +1% lifesteal each).
+	var nr := _equip("nine_ruins_of_sanguine")
+	main._clear_penguin()
+	var nr_worn: int = _dmg(Card.create_by_id("slash"), d)
+	_check(nr.vitality_stacks == 1, "nine_ruins_of_sanguine: an attack grants 1 Vitality (%d)" % nr.vitality_stacks)
+	nr.vitality_stacks = 3
+	stats.current_health = 100
+	var nr_hit: int = _dmg(Card.create_by_id("slash"), d)
+	_check(nr_hit == nr_worn + 6, "nine_ruins_of_sanguine: 3 Vitality: +6 attack damage (%d vs %d)" % [nr_hit, nr_worn])
+	_check(stats.current_health == 100 + stats.get_effective_heal_amount(maxi(1, floori(nr_hit * 0.03))),
+		"nine_ruins_of_sanguine: and 3%% lifesteal (+%d)" % (stats.current_health - 100))
+	_check(nr.vitality_stacks == 4, "nine_ruins_of_sanguine: the hit added one more")
+	nr.vitality_stacks = 0
+	main._summon_penguin()
+	var peng = main._penguin
+	_check(peng != null and peng.max_health == 50 and peng.BASE_ATTACK == 8 and peng.ATTACK_INTERVAL == 5,
+		"nine_ruins_of_sanguine: Sanguine has 50 HP and pecks 8 every 5 tempo")
+	_dmg(Card.create_by_id("slash"), d)
+	_check(nr.vitality_stacks == 0, "nine_ruins_of_sanguine: no Vitality while he lives")
+	stats.current_health = 100
+	peng.take_damage(10)
+	_check(stats.current_health == 100 + stats.get_effective_heal_amount(5), "nine_ruins_of_sanguine: damage he takes heals you half (+%d)" % (stats.current_health - 100))
+	main._clear_penguin()
+	stats.current_health = stats.max_health
+	_strip()
+	# Poseidons Trident: attacks strike 2 squares in a line.
+	_equip("poseidons_trident")
+	_reset_dummies()
+	_place(dummies[0], _pcell() + Vector2i(1, 0))
+	_place(dummies[1], _pcell() + Vector2i(2, 0))
+	_resolve(Card.create_by_id("slash"), dummies[0])
+	var first: int = 1000 - dummies[0].current_health
+	_check(first > 0 and 1000 - dummies[1].current_health == first, "poseidons_trident: the square behind the target takes the same hit (%d / %d)" % [first, 1000 - dummies[1].current_health])
+	_reset_dummies()
+	_place(dummies[1], _pcell() + Vector2i(3, 0))
+	_resolve(Card.create_by_id("slash"), dummies[0])
+	_check(dummies[1].current_health == 1000, "poseidons_trident: a third square is out of reach")
+	_strip()
+	_place_dummies()
+	# Reaction Rod: a melee striker takes 4 Shock.
+	_equip("reaction_rod")
+	_reset_dummy(d)
+	inv.on_attacked_by(d, true)
+	_check(d.shock_stacks == 4, "reaction_rod: an enemy striking from melee takes 4 Shock (%d)" % d.shock_stacks)
+	_reset_dummy(d)
+	inv.on_attacked_by(d, false)
+	_check(d.shock_stacks == 0, "reaction_rod: a ranged striker does not")
+	_strip()
+	# Reaper Scythe: lifesteal above half, mana below; 10% cheaper below half.
+	_equip("reaper_scythe")
+	_reset_dummy(d)
+	stats.current_health = 100
+	stats.current_mana = 0
+	var rs_hit: int = _dmg(Card.create_by_id("slash"), d)
+	_check(stats.current_health == 100 + stats.get_effective_heal_amount(maxi(1, floori(rs_hit * 0.10))) and int(stats.current_mana) == 0,
+		"reaper_scythe: above half health, 10%% lifesteal (+%d)" % (stats.current_health - 100))
+	_check(d.vulnerable_stacks == 1, "reaper_scythe: damaging offensive cards apply 1 Vulnerable")
+	_reset_dummy(d)
+	d.current_health = 400
+	stats.current_health = 100
+	stats.current_mana = 0
+	_resolve(Card.create_by_id("slash"), d)
+	var rs_low: int = 400 - d.current_health
+	_check(stats.current_health == 100 and int(stats.current_mana) == maxi(1, floori(rs_low * 0.10)),
+		"reaper_scythe: below half, 10%% of the damage returns as mana (+%d)" % int(stats.current_mana))
+	var full_cost: int = int(dm.compute_play_cost(Card.create_by_id("slash"), 0, dummies[1])["mana"])
+	_reset_dummy(d)
+	d.current_health = 400
+	var low_cost: int = int(dm.compute_play_cost(Card.create_by_id("slash"), 0, d)["mana"])
+	_check(low_cost == floori(full_cost * 0.9), "reaper_scythe: a card aimed below half costs 10%% less (%d vs %d)" % [low_cost, full_cost])
+	stats.current_health = stats.max_health
+	stats.current_mana = stats.max_mana
+	_strip()
+	_reset_dummy(d)
+	# Pocket Knife: while the DEX proc is armed, attacks cost 2 less tempo and land on the first tick.
+	for knife in [false, true]:
+		if knife:
+			_equip("pocket_knife")
+		dm.hand.clear()
+		var ew := Card.create_by_id("exacerbate_wounds")
+		dm.hand.append(ew)
+		dm.next_attack_half_tempo = true
+		main.select_card(0)
+		main.play_selected_card(d)
+		var entry: Dictionary = {}
+		for e in main.tempo_manager._active_cards:
+			if e["card"] == ew:
+				entry = e
+		if knife:
+			_check(not entry.is_empty() and entry["total_ticks"] == maxi(0, 7 / 2 - 2) and entry["resolve_tick"] == 1,
+				"pocket_knife: a DEX-proc'd 7-tempo attack takes 3 - 2 = 1 tempo and resolves on tick 1 (%s)" % str([entry.get("total_ticks"), entry.get("resolve_tick")]))
+		else:
+			_check(not entry.is_empty() and entry["total_ticks"] == 7 / 2, "pocket_knife: (without it the proc'd attack takes %d)" % entry.get("total_ticks", -1))
+		var guard := 0
+		while main.tempo_manager.is_ticking() and guard < 50:
+			main.tempo_manager._process_one_tick()
+			guard += 1
+		dm.next_attack_half_tempo = false
+	_strip()
+	_reset_dummies()
+	# Laurentius's Lost Spear: slotted self-target cards may target allies.
+	var ll := _equip("laurentius_lost_spear")
+	var blk := _slotted("harden", ll)
+	_check(blk.target_types.has("ally"), "laurentius_lost_spear: a slotted self-target card may target an ally")
+	_slotted("patience", ll)
+	var plain_blk := _slotted("composed_response", ll)
+	_check(ll.is_vanilla_slot(plain_blk) and not plain_blk.target_types.has("ally"), "laurentius_lost_spear: a plain-slot card may not")
+	# One Psionic Flow in hand: an attack gains +8 damage and shoves the target back 1.
+	dm.hand.clear()
+	var pf := Card.create_by_id("psionic_flow")
+	dm.hand.append(pf)
+	var ll_worn: int = _dmg(Card.create_by_id("slash"), dummies[1])  # the flow fires here
+	_check(not (pf in dm.hand), "laurentius_lost_spear: a Psionic Flow fires when you play an attack")
+	var start_cell: Vector2i = main.grid_manager.world_to_grid(dummies[1].position)
+	_place(dummies[1], _pcell() + Vector2i(1, 0))
+	dm.hand.clear()
+	var plain_hit: int = _dmg(Card.create_by_id("slash"), dummies[1])
+	dm.hand.append(Card.create_by_id("psionic_flow"))
+	_place(dummies[1], _pcell() + Vector2i(1, 0))
+	var flow_hit: int = _dmg(Card.create_by_id("slash"), dummies[1])
+	_check(flow_hit == plain_hit + 8, "laurentius_lost_spear: Psionic Flow adds 8 damage (%d vs %d)" % [flow_hit, plain_hit])
+	_check(main.grid_manager.world_to_grid(dummies[1].position) == _pcell() + Vector2i(2, 0), "laurentius_lost_spear: and shoves the target back 1")
+	dm.hand.clear()
+	_strip()
+	_place_dummies()
+
+func _test_misc_items() -> void:
+	print("-- Mountain Boots, Return Scroll, granted card prices --")
+	var d: Enemy = dummies[0]
+	_equip("mountain_boots")
+	stats.on_high_ground = false
+	var flat: int = _dmg(Card.create_by_id("slash"), d)
+	stats.on_high_ground = true
+	var high: int = _dmg(Card.create_by_id("slash"), d)
+	_check(high == floori(flat * 1.2), "mountain_boots: an offensive card from high ground deals 20%% more (%d vs %d)" % [high, flat])
+	stats.on_high_ground = false
+	var vm_flat: int = _dmg(Card.create_by_id("volatile_mixture"), d)
+	stats.on_high_ground = true
+	var vm_high: int = _dmg(Card.create_by_id("volatile_mixture"), d)
+	_check(vm_high == vm_flat, "mountain_boots: a damaging non-offensive card gets nothing (%d vs %d)" % [vm_high, vm_flat])
+	stats.on_high_ground = false
+	_strip()
+	# Return Scroll: right-click opens a portal home.
+	var scroll: ItemData = null
+	for it in inv.stored_items:
+		if it and it.special_id == "return_scroll":
+			scroll = it
+	_check(scroll != null, "return_scroll: the hero carries one")
+	_check(not inv.equip_item(ItemData.create("return_scroll"), 0), "return_scroll: it cannot be equipped")
+	if scroll:
+		main.character_panel._on_stored_item_right_clicked(scroll, inv.stored_items.find(scroll))
+		_check(is_instance_valid(main._town_portal_node), "return_scroll: right-clicking it opens a portal")
+		if is_instance_valid(main._town_portal_node):
+			_check(main.grid_manager.get_distance_in_cells(main.player.position, main._town_portal_node.position) <= 1,
+				"return_scroll: the portal stands beside you")
+	# Granted cards: the prices the item text quotes.
+	for row in [["serene_center", 30, 4], ["purge_wrath", 55, 8], ["its_alive", 20, 5], ["mend", 30, 4],
+			["resourceful_replenish", -1, 2], ["ragnarok", 45, 5], ["escape_and_bewilder", 50, 2], ["shiv", 5, 1],
+			["neither_man_nor_beast", 10, 2], ["terrain_formation", 25, 3], ["twenty_twenty", -1, 3],
+			["wrath_of_the_sea", -1, 8], ["mind_over_matter", 20, 2], ["grounding", 200, 10], ["tricks_of_alberich", 50, 6]]:
+		var c := Card.create_by_id(row[0])
+		_check(c != null, "%s exists" % row[0])
+		if c == null:
+			continue
+		var mana: int = c.maintain_cost if c.card_type == Card.CardType.POWER and c.maintain_cost > 0 else c.mana_cost
+		_check((int(row[1]) < 0 or mana == int(row[1])) and c.tempo_cost == int(row[2]),
+			"%s costs %s mana, %d tempo as its item says (%d, %d)" % [row[0], str(row[1]) if int(row[1]) >= 0 else "-", row[2], mana, c.tempo_cost])

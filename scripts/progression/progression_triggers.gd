@@ -899,7 +899,9 @@ func modify_player_hit(enemy: Enemy, amount: int, preview: bool = false) -> int:
 	# Megingjörð: a slotted card's hits are doubled here, after stat scaling
 	# and every rider — the whole hit, not its base.
 	if PlayerStats.hit_multiplier > 1.0 and not preview:
+		var pre_mult := out
 		out = floori(out * PlayerStats.hit_multiplier)
+		PlayerStats.hit_multiplier_extra += out - pre_mult  # Fallen's Wrath's rebound reads this
 	# Harnessed Power (Jeremy): the resolving card's damage scales while its
 	# multiplier is armed (main sets it around the card's execution).
 	if PlayerStats.harnessed_mult > 1.0 and not preview:
