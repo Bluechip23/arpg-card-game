@@ -663,6 +663,10 @@ static var active_element_remap: String = ""
 # would apply heals its target instead. Set by execute() for every play;
 # main clears it once the play's world effects resolve.
 static var elixir_poison_heals: bool = false
+## The CASTER's buff manager while a card resolves on an ally's stats
+## (DeckManager.execute_deferred_card): Poisoned Blood rides the caster, so a
+## heal aimed at an ally must read the caster's charges, not the ally's.
+static var caster_buff_manager: BuffManager = null
 # Element Pollination (Elemental Weaver maintain): recomputed by main every
 # tempo tick off the maintained pile; enemies read it during debuff ticking.
 static var element_pollination_active: bool = false
@@ -1364,8 +1368,10 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	# Poisoned Blood: a heal card spends one charge and every heal it performs
 	# becomes damage for this play.
 	PlayerStats.heal_to_damage = false
-	if is_heal_card() and buff_mgr and buff_mgr.has_poisoned_blood():
-		buff_mgr.consume_poisoned_blood()
+	# "Allies, summons and yourself included": the charges are the caster's.
+	var pb_mgr: BuffManager = Card.caster_buff_manager if Card.caster_buff_manager else buff_mgr
+	if is_heal_card() and pb_mgr and pb_mgr.has_poisoned_blood():
+		pb_mgr.consume_poisoned_blood()
 		PlayerStats.heal_to_damage = true
 		print("[CARD] Poisoned Blood: %s heals as damage" % card_name)
 	var empower_added := 0
@@ -4383,9 +4389,11 @@ func _execute_shed_weight(deck_manager) -> void:
 	## off a non-defensive card still in hand.
 	if not deck_manager:
 		return
+	# "Defensive" is the taxonomy's word: the Defense type OR the `defense`
+	# tag (an instant like Vengeful Shield), never the raw type alone.
 	var defensive: Array = []
 	for c in deck_manager.hand:
-		if c != self and c.card_type == CardType.DEFENSE:
+		if c != self and (c.card_type == CardType.DEFENSE or c.has_keyword("defense")):
 			defensive.append(c)
 	var discarded := 0
 	for c in defensive:
@@ -4395,7 +4403,7 @@ func _execute_shed_weight(deck_manager) -> void:
 	# time — they can pile onto one card only if the dice say so.
 	var pool: Array = []
 	for c in deck_manager.hand:
-		if c != self and c.card_type != CardType.DEFENSE:
+		if c != self and not (c.card_type == CardType.DEFENSE or c.has_keyword("defense")):
 			pool.append(c)
 	var reduced := 0
 	if not pool.is_empty():
