@@ -7829,11 +7829,14 @@ func _consumed_explode() -> void:
 	## The Consumed: on death, explodes for damage to EVERYTHING nearby —
 	## the player and fellow enemies alike.
 	print("[%s] Bursts apart in a wave of hatred!" % enemy_name)
-	var main := get_parent()
-	if main and "player" in main and main.player and is_instance_valid(main.player):
-		var diff = main.player.position - position
+	# The compendium says "everything nearby": every player-side unit in the
+	# blast — the player(s) and their summons — not only the main player.
+	for u in _player_units():
+		if not is_instance_valid(u):
+			continue
+		var diff = u.position - position
 		if Vector3(diff.x, 0, diff.z).length() <= CONSUMED_EXPLOSION_RANGE:
-			_deal_damage_to_player(main.player, maxi(1, roundi(CONSUMED_EXPLOSION_DAMAGE * _pps_dmg)), "Death Burst")
+			_deal_damage_to_player(u, maxi(1, roundi(CONSUMED_EXPLOSION_DAMAGE * _pps_dmg)), "Death Burst")
 	for e in _sibling_enemies():
 		if e != self and is_instance_valid(e) and e.is_alive():
 			if position.distance_to(e.position) <= CONSUMED_EXPLOSION_RANGE:
