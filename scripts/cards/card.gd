@@ -1506,10 +1506,12 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		# plays grant thorns.
 		if int(on_self.get("thorns", 0)) > 0 and buff_mgr:
 			buff_mgr.apply_buff(Buff.create_thorns(int(on_self["thorns"]), 5, slotted_in_item.item_name))
-		# Slotted Sash: offensive cards +damage; defense cards +armor.
+		# Slotted Sash: offensive cards +damage; defense cards +armor. A defense
+		# card is the Defense type OR the defense tag (CARD_TAXONOMY: Vengeful
+		# Shield is a defensive instant).
 		if int(on_self.get("offensive_damage", 0)) > 0 and is_offensive():
 			_gauntlet_bonus_applied += int(on_self["offensive_damage"])
-		if int(on_self.get("defense_armor", 0)) > 0 and card_type == CardType.DEFENSE and player_stats:
+		if int(on_self.get("defense_armor", 0)) > 0 and (card_type == CardType.DEFENSE or has_keyword("defense")) and player_stats:
 			player_stats.add_armor(int(on_self["defense_armor"]))
 		# Strap of Stone: timed physical resistance on slotted play.
 		if int(on_self.get("physical_resilient", 0)) > 0 and buff_mgr:
@@ -1565,8 +1567,9 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			if bal_armor > 0:
 				player_stats.add_armor(bal_armor)
 				print("[CARD] On-Self: +%d armor (missing-health) from %s" % [bal_armor, slotted_in_item.item_name])
-		# Shamans mask: utility cards heal the player directly on play.
-		if card_type == CardType.UTILITY and on_self.get("utility_heal", 0) > 0 and player_stats:
+		# Shamans mask: utility cards heal the player directly on play (the
+		# Utility type OR the utility tag — CARD_TAXONOMY).
+		if (card_type == CardType.UTILITY or has_keyword("utility")) and on_self.get("utility_heal", 0) > 0 and player_stats:
 			player_stats.heal(on_self["utility_heal"])
 			print("[CARD] On-Self: %s healed %d (utility)" % [slotted_in_item.item_name, on_self["utility_heal"]])
 		# Monocle: offensive ranged cards gain a one-shot crit chance for this play.

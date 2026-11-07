@@ -169,6 +169,16 @@ func _slot(card: Card, item: ItemData) -> Card:
 	card.set_meta("slot_color_index", 0)
 	return card
 
+func _slot_plain(card: Card, item: ItemData) -> Card:
+	## Into the item's first PLAIN (vanilla) slot: no on-self riders at all.
+	for old in item.slotted_cards:
+		old.slotted_in_item = null
+	item.slotted_cards.clear()
+	card.slotted_in_item = item
+	item.slotted_cards.append(card)
+	card.set_meta("slot_color_index", item.card_slots)
+	return card
+
 func _exec(card: Card, target) -> void:
 	## A card's play as main resolves it: execute + world effects inside the
 	## play scope.
@@ -640,6 +650,16 @@ func _test_helms() -> void:
 	_exec(_slot(Card.create_by_id("slash"), sm), dummies[0])
 	_check(stats.current_health == hp0, "Shamans mask: a non-utility card neither heals...")
 	_check(_dmg(dummies[1]) == 0, "...nor zaps")
+	# A utility-TAGGED instant is a utility card (docs/CARD_TAXONOMY.md):
+	# Healthy Bliss (Instant, tags reaction/utility/spell).
+	_reset_dummy(dummies[0])
+	var hbl := _slot(Card.create_by_id("healthy_bliss"), sm)
+	hbl.heal_amount = 0  # only the rider's heal is measured
+	stats.current_health = stats.max_health - 100
+	hp0 = stats.current_health
+	_exec(hbl, main.player)
+	_check(stats.current_health - hp0 == stats.get_effective_heal_amount(3) and _dmg(dummies[0]) == 1,
+		"Shamans mask: a utility-tagged instant counts as a utility card (healed %d, zapped %d)" % [stats.current_health - hp0, _dmg(dummies[0])])
 	_clear_gear()
 
 	# Summoners Cap: +3 on a heal card; a non-heal card heals you 3.
@@ -919,6 +939,11 @@ func _test_belts() -> void:
 	_reset_dummy(dummies[0])
 	_exec(_slot(Card.create_by_id("heal"), tb), main.player)
 	_check(_dmg(dummies[0]) == 0, "Tactical belt: a card aimed at yourself detonates nothing (%d to the enemy beside you)" % _dmg(dummies[0]))
+	# Its plain slot confers nothing.
+	_place(dummies[1], _pcell() + Vector2i(2, 0))
+	_reset_dummy(dummies[1])
+	_exec(_slot_plain(Card.create_by_id("slash"), tb), dummies[0])
+	_check(_dmg(dummies[1]) == 0, "Tactical belt: a card in the plain slot detonates nothing (%d)" % _dmg(dummies[1]))
 	_clear_gear()
 
 	# The Slotted Sash: offensive +2; defense +2 armor; utility Weakens an enemy within 5.
@@ -930,6 +955,22 @@ func _test_belts() -> void:
 	stats.current_armor = 0
 	_exec(_slot(Card.create_by_id("parry"), sash), dummies[0])
 	_check(stats.current_armor == 7, "Slotted Sash: defense cards +2 armor (Parry 5 -> %d)" % stats.current_armor)
+	# A defense-TAGGED instant is a defense card (docs/CARD_TAXONOMY.md):
+	# Vengeful Shield (Instant, tags reaction/defense, 5 armor).
+	stats.current_armor = 0
+	_exec(_slot(Card.create_by_id("vengeful_shield"), sash), main.player)
+	_check(stats.current_armor == 7, "Slotted Sash: a defense-tagged instant counts as a defense card (Vengeful Shield 5 -> %d)" % stats.current_armor)
+	_reset_dummy(dummies[0])
+	_reset_dummy(dummies[1])
+	var hbl := _slot(Card.create_by_id("healthy_bliss"), sash)
+	hbl.heal_amount = 0
+	_exec(hbl, main.player)
+	_check(dummies[0].weaken_stacks + dummies[1].weaken_stacks == 1, "Slotted Sash: a utility-tagged instant Weakens like a utility card")
+	# Its 1 plain slot confers nothing (the riders live in the 6 bonus slots).
+	_reset_dummy(dummies[0])
+	_reset_dummy(dummies[1])
+	_exec(_slot_plain(Card.create_by_id("heal"), sash), main.player)
+	_check(dummies[0].weaken_stacks + dummies[1].weaken_stacks == 0, "Slotted Sash: a utility card in the plain slot Weakens nothing")
 	_reset_dummy(dummies[0])
 	_reset_dummy(dummies[1])
 	_exec(_slot(Card.create_by_id("heal"), sash), main.player)

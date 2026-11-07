@@ -9584,8 +9584,8 @@ func _helm_range_bonus(card) -> int:
 				bonus += floori(wr_w.range_bonus_all_cards * wr_w.rider_scale())
 	if not card.is_offensive():
 		return bonus
-	if card.slotted_in_item and card.slotted_in_item.has_method("get_on_self_bonus"):
-		var osb = card.slotted_in_item.get_on_self_bonus()
+	if card.slotted_in_item and card.has_method("get_on_self_bonus"):
+		var osb = card.get_on_self_bonus()  # neutral in a plain (vanilla) slot
 		var r := int(osb.get("range_offensive", 0))
 		if r > 0 and (not osb.get("range_requires_ranged", false) or card.is_ranged):
 			bonus += r
@@ -9604,11 +9604,15 @@ func _helm_range_bonus(card) -> int:
 func _helm_card_world_effects(card, target = null) -> void:
 	if not card or not card.slotted_in_item or not player or not enemy_spawner or not grid_manager:
 		return
-	var osb = card.slotted_in_item.get_on_self_bonus()
+	# The card's own bonus: neutral in a plain (vanilla) slot, which confers
+	# no on-self riders (ItemData.get_on_self_bonus_for).
+	var osb = card.get_on_self_bonus()
 
 	# Shamans mask: a UTILITY card zaps a random enemy within 3. The zap is a
 	# fixed 1 spell damage — capped at 1, no INT/enchant/sphere modifiers.
-	if card.card_type == Card.CardType.UTILITY:
+	# Utility = the type or the tag (CARD_TAXONOMY: Healthy Bliss).
+	var is_utility: bool = card.card_type == Card.CardType.UTILITY or card.has_keyword("utility")
+	if is_utility:
 		var spell_dmg := int(osb.get("utility_spell_damage", 0))
 		if spell_dmg > 0:
 			var victim = _random_enemy_within(3)
@@ -9631,7 +9635,7 @@ func _helm_card_world_effects(card, target = null) -> void:
 		_spawn_wolf()
 
 	# Slotted Sash: a slotted UTILITY card Weakens a random enemy within 5.
-	if card.card_type == Card.CardType.UTILITY and int(osb.get("utility_weaken", 0)) > 0:
+	if is_utility and int(osb.get("utility_weaken", 0)) > 0:
 		var sash_victim = _random_enemy_within(5)
 		if sash_victim and sash_victim.has_method("apply_debuff"):
 			sash_victim.apply_debuff("weaken", int(osb["utility_weaken"]))
