@@ -2,6 +2,8 @@
 
 Every card, item, enemy, summon and passive was read against its stated description, its code path traced (cost, targeting, triggers, stacking, duration, the tempo clock), marked, and **proven by a test**. Eleven slices were audited in parallel; each slice's full notes are in `docs/audit/wiring/<slice>.md`. Regenerate this page with `python3 tools/audit/wiring_merge.py`.
 
+**Read with [`pass2.md`](pass2.md).** The second pass re-read every CORRECT row on its edge paths: 106 of them disagree with their text and 20 are unclear. That page gives each one's cause and status; this table still shows pass 1's verdict for those rows.
+
 Status: **CORRECT** (code does what the text says) · **FIXED** (was wrong; code changed to match the text) · **MISSING** (described, not built; now built) · **FLAGGED** (the text is unclear or contradicts another system — a question for you below; where a slice also fixed the clear part, the row says so) · **BLOCKED** (too large to fix safely in the audit; plan in `validation.md`). Rows marked *(Phase 6 re-check)* were CORRECT until the independent re-check in `validation.md` found them wrong.
 
 ## Totals
@@ -10,10 +12,10 @@ Status: **CORRECT** (code does what the text says) · **FIXED** (was wrong; code
 |---|---|---|---|---|---|---|
 | card | 210 | 28 | 1 | 16 | 0 | 255 |
 | enemy | 66 | 4 | 0 | 4 | 0 | 74 |
-| item | 162 | 15 | 0 | 11 | 1 | 189 |
-| passive | 42 | 8 | 0 | 9 | 1 | 60 |
+| item | 162 | 16 | 0 | 11 | 0 | 189 |
+| passive | 42 | 9 | 0 | 9 | 0 | 60 |
 | summon | 13 | 0 | 0 | 3 | 0 | 16 |
-| **all** | **493** | **55** | **1** | **43** | **2** | **594** |
+| **all** | **493** | **57** | **1** | **43** | **0** | **594** |
 
 ## FLAGGED — questions for the designer
 
@@ -555,7 +557,7 @@ Status: **CORRECT** (code does what the text says) · **FIXED** (was wrong; code
 | fanned_bracers | item | CORRECT | — | — | T::fanned_bracers: Fan Save inflicts 1 Weaken; T::Fanned Bracers: 10 tempo cooldown |
 | feathered_hat | item | CORRECT | — | — | T::feathered_hat: the 25th flash point arms a crit and resets the counter; T::feathered_hat: the next ranged offensive card crits and spends it; T::feathered_hat: a slotted card resolves with +10% crit damage |
 | feral_evocation | item | FIXED | Its colored slots also ran the Staff label gate. Only Fireball and Peshtigo's Kiss carry that label, so the blue, yellow and green slots could never be filled and no conversion could happen. This is why `test_spell_weapons_pass` was failing on the base commit. | `item_data.gd` `_slot_gate_ok`: on a colored slot, the card's element alone decides. | T::feral_evocation: playing the red card turns the blue card in hand red; T::feral_evocation: the conversion deals 4 damage to an enemy within 4; T::feral_evocation: a converted card reverts once it has left the hand; test_spell_weapons_pass |
-| fire_book | item | BLOCKED | *(Phase 6 re-check)* The Burn rides only cards aimed at one enemy; area and point cards (played with you as the target) get the +1 damage but never Burn. | BLOCKED with Life Steal: needs a shared on-hit hook for main.gd's area hits. | T::fire_book: an unslotted Slash applies 1 burn_stacks; T::fire_book: an unslotted Slash deals +1 |
+| fire_book | item | FIXED | *(Phase 6 re-check)* The Burn rides only cards aimed at one enemy; area and point cards (played with you as the target) get the +1 damage but never Burn. | *(Pass 2)* FIXED: point/area cards apply the Burn to every enemy they damaged (`Card.apply_on_hit_debuffs`). | test_pass2_fixes.gd::A point card carries the item riders; T::fire_book: an unslotted Slash applies 1 burn_stacks; T::fire_book: an unslotted Slash deals +1 |
 | fire_quiver | item | CORRECT | — | — | T::fire_quiver: a slotted damaging card deals +2; T::fire_quiver: a slotted Slash that hits applies 1 burn_stacks |
 | frankensteins_screws | item | CORRECT | — | — | T::frankensteins_screws: a summon below 25% beside you heals 3; T::its_alive costs 20 mana, 5 tempo as its item says |
 | friendship_ring | item | CORRECT | — | — | T::friendship_ring: heals are 5 larger |
@@ -683,7 +685,7 @@ Status: **CORRECT** (code does what the text says) · **FIXED** (was wrong; code
 | The Way of the Plate | passive | CORRECT | — | — | test_wiring_passives.gd::The Way of the Plate r15: the 2th refunds 10 mana and 1 tempo |
 | Ancestral Aid | passive | FIXED | "More defense" counted only the Defense type; the taxonomy's defensive card is the type or the `defense` tag (Vengeful Shield). | `progression_triggers.gd`: new `_is_defensive()` used for the hand count. | test_wiring_passives.gd::Ancestral Aid r15: more defense cards (a defense-tagged instant counts) heals 17 |
 | Redemption | passive | CORRECT | — | — | test_wiring_passives.gd::Redemption r15: the next offensive card's roll spends it |
-| Life Steal | passive | BLOCKED | *(Phase 6 re-check)* Heals `max(1, damage dealt × %)` once per attack card, and falls back to the card's printed damage when the play recorded none — a whiff heals, and an area attack steals from one hit only. | BLOCKED: area attacks resolve in main.gd with no record of what they hit. Plan in docs/audit/validation.md. | test_wiring_passives.gd::Life Steal r15: a passive hit of 200 steals 8% = 16 |
+| Life Steal | passive | FIXED | *(Phase 6 re-check)* Heals `max(1, damage dealt × %)` once per attack card, and falls back to the card's printed damage when the play recorded none — a whiff heals, and an area attack steals from one hit only. | *(Pass 2)* FIXED: point/area attacks steal from the damage their hits actually dealt (`Card.apply_life_steal_for` from `Main._apply_card_world_effects`); a whiff heals nothing. | test_pass2_fixes.gd::Life steal follows the hits; test_wiring_passives.gd::Life Steal r15: a passive hit of 200 steals 8% = 16 |
 | Pristine Armor | passive | CORRECT | — | — | test_wiring_passives.gd::Pristine Armor r15: three in a row add +14 more; ::a utility in between resets the streak |
 | Vines Codependence | passive | FLAGGED | Fires on any direct heal Brad *receives* (an ally's heal on him included) and not on a heal he casts on an ally. "Whenever you heal" can read either way. | — | test_wiring_passives.gd::Vines Codependence r15: a direct heal grants 8 thorns for 5 tempo |
 | Solemn Independence | passive | CORRECT | — | — | test_wiring_passives.gd::Solemn Independence r15: an offensive hit of 100 lands for 112 |

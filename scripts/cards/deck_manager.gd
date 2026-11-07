@@ -711,6 +711,10 @@ func compute_play_cost(card: Card, index: int, target = null, debuff_mgr = null,
 		mana_cost -= arash_life_cost
 		if arash_life_cost > 0:
 			if commit: print("[DECK] Bow of Arash: %d of %s's cost is paid in life" % [arash_life_cost, card.card_name])
+	# Exhausted Assault: "While you have zero mana, this card costs 0 mana" —
+	# after every surcharge (Staggered, Hex…), or it could never be played.
+	if card.card_id == "exhausted_assault" and player_stats and player_stats.current_mana <= 0:
+		mana_cost = 0
 	return {"mana": mana_cost, "arash_life": arash_life_cost}
 
 func play_card(index: int, target, player_node = null, defer_execution: bool = false) -> Dictionary:

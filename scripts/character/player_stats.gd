@@ -384,6 +384,10 @@ var equipment_gold_gain_heal: int = 0             # heal X whenever gold is gain
 var equipment_hp_diff_divisor: int = 0            # health-gap bonus damage divisor, 0 = off (Tigers Sunday Red)
 var equipment_ranged_range_bonus: int = 0         # +range on ranged offensive cards (Tigers Sunday Red)
 var movement_tempo_surcharge: int = 0             # each tile moved on tempo costs this much extra (Adimantium)
+## Donate Cleats: AGI / DEX lent for 5 tempo on top of the base stats. The
+## save writes the base without them, so saving mid-loan keeps nothing.
+var lent_agility: int = 0
+var lent_dexterity: int = 0
 var temp_strength_bonus: int = 0                  # summed MIGHT buffs (Ragnarok); damage only, never carry
 # Timed Determination (Hold the Line): [{"amount", "tempo"}] — summed into the
 # DET the modifier reads, and shed on raw tempo.
@@ -877,10 +881,10 @@ func save_progression() -> Dictionary:
 		"_det_vitality_hp_applied": _det_vitality_hp_applied,
 		# Base stats (may have been boosted by sphere grid / skill tree)
 		"base_strength": base_strength,
-		"base_dexterity": base_dexterity,
+		"base_dexterity": base_dexterity - lent_dexterity,  # a timed loan (Donate Cleats) is never saved
 		"base_intelligence": base_intelligence,
 		"base_wisdom": base_wisdom,
-		"base_agility": base_agility,
+		"base_agility": base_agility - lent_agility,
 		"determination": determination,
 		# Resource caps (sphere grid can raise these)
 		"max_health": max_health,
@@ -1788,7 +1792,13 @@ func get_damage_resistance(damage_type: int) -> float:
 	## Percent reduction (0..100) this character has against `damage_type`.
 	return float(damage_resistances.get(damage_type, 0.0))
 
+## Health the latest hit actually took (after armor, wards, resistances): 0
+## when it was all absorbed. The "drop below X% health" triggers (Tight Rope,
+## Preemptive Answer, Feed into the Pain) judge the crossing by it.
+var last_health_lost: int = 0
+
 func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: int = DamageTypes.Type.PHYSICAL) -> void:
+	last_health_lost = 0
 	# Marvolo Gaunt: nothing touches you while the ring's grace holds.
 	if invulnerable_tempo > 0:
 		print("[STATS] Invulnerable — %d damage ignored" % amount)
@@ -1979,6 +1989,7 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 				_health_loss_accum -= equipment_armor_loss_regen_threshold
 				buff_mgr.apply_buff(Buff.create_regen(1, 15, "Hallowed Trunk"))
 		var old_pct := get_health_percent()
+		last_health_lost = mini(remaining, current_health)
 		current_health = max(0, current_health - remaining)
 		health_changed.emit(current_health, max_health)
 		health_damage_taken.emit(remaining)
@@ -2098,6 +2109,7 @@ func take_direct_damage(amount: int) -> void:
 	if amount <= 0:
 		return
 	var old_pct := get_health_percent()
+	last_health_lost = mini(amount, current_health)
 	current_health = max(0, current_health - amount)
 	health_changed.emit(current_health, max_health)
 	health_damage_taken.emit(amount)

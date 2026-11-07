@@ -52,6 +52,7 @@ def main():
         counts[c[1].strip().lower()][status_of(c[2])] += 1
     L = ["# Phase 2 — wiring audit\n",
          "Every card, item, enemy, summon and passive was read against its stated description, its code path traced (cost, targeting, triggers, stacking, duration, the tempo clock), marked, and **proven by a test**. Eleven slices were audited in parallel; each slice's full notes are in `docs/audit/wiring/<slice>.md`. Regenerate this page with `python3 tools/audit/wiring_merge.py`.\n",
+         "**Read with [`pass2.md`](pass2.md).** The second pass re-read every CORRECT row on its edge paths: 106 of them disagree with their text and 20 are unclear. That page gives each one's cause and status; this table still shows pass 1's verdict for those rows.\n",
          "Status: **CORRECT** (code does what the text says) · **FIXED** (was wrong; code changed to match the text) · **MISSING** (described, not built; now built) · **FLAGGED** (the text is unclear or contradicts another system — a question for you below; where a slice also fixed the clear part, the row says so) · **BLOCKED** (too large to fix safely in the audit; plan in `validation.md`). Rows marked *(Phase 6 re-check)* were CORRECT until the independent re-check in `validation.md` found them wrong.\n",
          "## Totals\n",
          "| type | " + " | ".join(STATUSES) + " | total |", "|---|" + "---|" * (len(STATUSES) + 1)]

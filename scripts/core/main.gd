@@ -4595,10 +4595,13 @@ func _all_players() -> Array:
 ## the party plus the dojo's practice allies. Every ally-targeted effect
 ## (heals, auras, Hold the Line, Psionic Flow...) enumerates through here.
 ## Frankenstein's Monsters are not Player nodes and keep their own hooks.
-## Ally cards that only work on a hero (Player): Cryonics encases and stuns
-## a PlayerStats, Friendship links two. Whether a summon should count as
-## their "ally" is FLAGGED (docs/audit/validation.md).
-const HERO_ONLY_ALLY_CARDS := ["cryonics", "friendship"]
+## The ally-target cards whose effect works on a summon (a heal, Fortify
+## Alliance's heal, Shepherd's Mark). Every other ally card acts on a hero's
+## stats, hand or buffs, and used to land on the CASTER when a summon was
+## picked (Cryonics, Friendship, Lady Luck, Provider, Swap…): a summon pick
+## for those is refused. Whether summons should count as their "ally" is
+## FLAGGED (docs/audit/validation.md, pass2.md).
+const SUMMON_ALLY_CARDS := ["heal", "healing_tonic", "gulped_potion", "fortify_alliance", "shepherds_mark"]
 
 func _all_allies() -> Array:
 	var out: Array = []
@@ -5754,8 +5757,11 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	if unit_tracker:
 		unit_tracker.update_tempo_bars()
 
-	# Summoned Bull Worms move/attack after the enemies act.
-	_update_summoned_worms()
+	# Summoned Bull Worms move/attack after the enemies act: one step (or
+	# bite) per tempo, so a multi-tempo advance (Basic Block's 4) runs them
+	# that many times.
+	for _wt in range(maxi(1, amount)):
+		_update_summoned_worms()
 	# Frankensteins Monsters act on their own tempo cadence.
 	_update_frankensteins(amount)
 	# Elemental Trail Blazers: fire spots burn enemies then fade.
@@ -10266,7 +10272,7 @@ func _update_wolves(amount: int) -> void:
 		if target_enemy == null:
 			continue
 		var tcell := grid_manager.world_to_grid(target_enemy.position)
-		w.attack_accum += amount
+		w.attack_accum = mini(w.attack_accum + amount, w.ATTACK_INTERVAL)  # a walk never banks swings
 		if _manhattan(w.get_cell(), tcell) <= 1:
 			if w.attack_accum >= w.ATTACK_INTERVAL and w.can_attack_now():
 				w.attack_accum -= w.ATTACK_INTERVAL
@@ -10743,7 +10749,7 @@ func _update_spirit_bows(amount: int) -> void:
 		if target_enemy == null:
 			continue
 		var tcell := grid_manager.world_to_grid(target_enemy.position)
-		b.attack_accum += amount
+		b.attack_accum = mini(b.attack_accum + amount, b.attack_interval())  # a walk never banks shots
 		if _manhattan(b.get_cell(), tcell) <= b.ATTACK_RANGE:
 			if b.attack_accum >= b.attack_interval() and b.can_attack_now():
 				b.attack_accum -= b.attack_interval()
@@ -10767,14 +10773,21 @@ func _update_spirit_bows(amount: int) -> void:
 			b.move_accum = 0
 			continue
 		b.move_accum += amount
-		if b.move_accum >= b.SPIRIT_MOVE_INTERVAL * b.move_cost_mult():
+		# "1 square per tempo": a multi-tempo advance walks that many squares,
+		# stopping once the enemy is in reach.
+		while b.move_accum >= b.SPIRIT_MOVE_INTERVAL * b.move_cost_mult():
 			b.move_accum -= b.SPIRIT_MOVE_INTERVAL * b.move_cost_mult()
-			var cur = b.get_cell()
+			var cur = b.get_destination_cell()  # it glides: step on from where it is headed
 			bow_cells.erase(cur)
 			var nxt := _rat_step_toward(cur, tcell, blocked, _living_enemy_cells(), bow_cells)
 			bow_cells.append(nxt)
-			if nxt != cur:
-				b.move_to_cell(nxt)
+			if nxt == cur:
+				b.move_accum = 0
+				break
+			b.move_to_cell(nxt)
+			if _manhattan(nxt, tcell) <= b.ATTACK_RANGE:
+				b.move_accum = 0
+				break
 	_refresh_bow_instances()
 
 ## Shove an enemy inside a rectangular burst to its nearest edge cell (the
@@ -11485,7 +11498,7 @@ func _update_clones(amount: int) -> void:
 		if target_enemy == null:
 			continue
 		var tcell := grid_manager.world_to_grid(target_enemy.position)
-		c.attack_accum += amount
+		c.attack_accum = mini(c.attack_accum + amount, c.ATTACK_INTERVAL)  # a walk never banks swings
 		if _manhattan(c.get_cell(), tcell) <= 1:
 			if c.attack_accum >= c.ATTACK_INTERVAL and c.can_attack_now():
 				c.attack_accum -= c.ATTACK_INTERVAL
@@ -12079,13 +12092,11 @@ func _helm_on_cycle_passives() -> void:
 	# Frankensteins Screws: heal SUMMONS below 25% HP within 3 tiles of the
 	# wearer — all summon types, not just Frankenstein's Monsters.
 	if summon_heal > 0 and grid_manager:
-		var fs_summons: Array = []
-		fs_summons.append_array(_frankensteins)
-		fs_summons.append_array(_wolves)
-		fs_summons.append_array(_skeletons)
-		fs_summons.append_array(_spirit_bows)
-		if _penguin != null:
-			fs_summons.append(_penguin)
+		# Every healable summon: clones and specters were left out before.
+		var fs_summons: Array = _all_summons()
+		for sp in _specters:
+			if is_instance_valid(sp) and sp.has_method("heal") and not sp in fs_summons:
+				fs_summons.append(sp)
 		for m in fs_summons:
 			if m == null or not is_instance_valid(m) or m.is_dead:
 				continue
@@ -12388,7 +12399,35 @@ func _point_aim(target, mouse_pos: Vector3) -> Vector3:
 		return target.position
 	return grid_manager.snap_to_grid(mouse_pos)
 
+## A card's world effects (knockback, movement, area and point damage…).
+## A point or area play (no enemy target) lands its hits here, so its
+## on-hit debuff riders and its life steal follow those hits: once on every
+## enemy the effects actually damaged, from the health and armor they lost.
+## A single-target play already ran both in Card.execute.
 func _apply_card_world_effects(card: Card, target) -> void:
+	if not card.is_offensive() or not card.is_world_resolved(target) or enemy_spawner == null:
+		_apply_card_world_effects_inner(card, target)
+		return
+	var before := {}
+	for e in enemy_spawner.get_living_enemies():
+		if is_instance_valid(e):
+			before[e] = int(e.current_health) + int(e.current_armor)
+	_apply_card_world_effects_inner(card, target)
+	var st: PlayerStats = player.get_stats() if player else null
+	var total := 0
+	for e in before:
+		if not is_instance_valid(e):
+			continue
+		var lost: int = int(before[e]) - (int(e.current_health) + int(e.current_armor))
+		if lost <= 0:
+			continue
+		total += lost
+		if not e.is_dead:
+			card.apply_on_hit_debuffs(e, st)
+	if card.is_attack() and total > 0:
+		card.apply_life_steal_for(total, st, player.get_buff_manager() if player else null, deck_manager)
+
+func _apply_card_world_effects_inner(card: Card, target) -> void:
 	var mouse_pos: Vector3 = _resolving_aim if _resolving_aim is Vector3 else get_mouse_world_position()
 
 	# Generic helm on-self world effects (independent of card_id).
@@ -12624,11 +12663,15 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			if dc_stats:
 				dc_stats.base_agility += 5
 				dc_stats.base_dexterity += 4
+				dc_stats.lent_agility += 5
+				dc_stats.lent_dexterity += 4
 				dc_stats.recalculate_derived_stats()
 				schedule_delayed_effect(5, func():
 					if is_instance_valid(dc_node) and dc_node.get_stats():
 						dc_stats.base_agility -= 5
 						dc_stats.base_dexterity -= 4
+						dc_stats.lent_agility -= 5
+						dc_stats.lent_dexterity -= 4
 						dc_stats.recalculate_derived_stats(), "donate_cleats")
 				add_battle_log("Donate Cleats: +5 AGI, +4 DEX for 5 tempo", Color(0.6, 0.9, 0.6))
 
@@ -13993,9 +14036,9 @@ func _input(event: InputEvent) -> void:
 						var tgt_summon := _summon_at_position(mouse_pos)
 						if tgt_summon:
 							tgt = tgt_summon
-					if not (tgt is Player) and card.card_id in HERO_ONLY_ALLY_CARDS:
-						# These resolve on a hero's stats; a summon pick used to land
-						# on the caster instead. Refuse it, nothing spent.
+					if not (tgt is Player) and not (card.card_id in SUMMON_ALLY_CARDS):
+						# Resolves on a hero's stats; a summon pick used to land on
+						# the caster instead. Refuse it, nothing spent.
 						add_battle_log("%s must target a hero, not a summon." % card.card_name, Color(1.0, 0.6, 0.4))
 					elif tgt != player and card.is_ranged and not _is_target_in_card_range(card, tgt):
 						add_battle_log("Out of range! %s is too far (max range: %d)" % [tgt.name, card.get_effective_range()], Color(1.0, 0.4, 0.4))
@@ -14918,14 +14961,14 @@ func _update_summoned_worms() -> void:
 		for worm in _summoned_worms.duplicate():
 			if not is_instance_valid(worm) or worm.is_dead or worm.burrowed:
 				continue
-			if _manhattan(worm.get_cell(), ecell) == 1:
+			if _manhattan(worm.get_destination_cell(), ecell) == 1:
 				worm.take_damage(enemy.attack_damage)
 				break
 
 	var worm_cells: Array = []
 	for worm in _summoned_worms:
 		if is_instance_valid(worm) and not worm.is_dead:
-			worm_cells.append(worm.get_cell())
+			worm_cells.append(worm.get_destination_cell())
 
 	for worm in _summoned_worms.duplicate():
 		if not is_instance_valid(worm) or worm.is_dead:
@@ -14933,7 +14976,7 @@ func _update_summoned_worms() -> void:
 		var target_enemy := _nearest_reachable_enemy_to(worm.position, enemies)
 		if target_enemy == null:
 			continue
-		var wcell = worm.get_cell()
+		var wcell = worm.get_destination_cell()
 		var tcell := grid_manager.world_to_grid(target_enemy.position)
 		if _manhattan(wcell, tcell) <= 1:
 			if not worm.can_attack_now():
@@ -15087,7 +15130,7 @@ func _update_frankensteins(amount: int) -> void:
 			continue
 		var tcell := grid_manager.world_to_grid(target_enemy.position)
 		# Attack on cadence when adjacent.
-		m.attack_accum += amount
+		m.attack_accum = mini(m.attack_accum + amount, m.ATTACK_INTERVAL)  # a walk never banks swings
 		if _manhattan(m.get_cell(), tcell) <= 1:
 			if m.attack_accum >= m.ATTACK_INTERVAL and m.can_attack_now():
 				m.attack_accum -= m.ATTACK_INTERVAL
@@ -15420,10 +15463,14 @@ func _on_donation_confirmed() -> void:
 	# Distribute healing to allies (as damage, if cast under Poisoned Blood)
 	PlayerStats.heal_to_damage = _donation_heal_to_damage
 	var total_healed = 0
+	# The sliders split ONE pool, the health given: each slider can reach the
+	# whole pool, so the confirmed heals are capped by what is left of it.
+	var pool_left := self_damage
 	for entry in _donation_ally_sliders:
-		var heal_amount := int(entry["slider"].value)
+		var heal_amount := mini(int(entry["slider"].value), pool_left)
 		if heal_amount <= 0:
 			continue
+		pool_left -= heal_amount
 		var ally_name: String = entry["name"]
 		var ally_node = entry.get("node", null)
 		if ally_node == player or ally_name == "Self":
@@ -15815,7 +15862,8 @@ func _on_player_damage_taken(_amount: int) -> void:
 	var tr_stats := player.get_stats()
 	if tr_stats and tr_stats.max_health > 0:
 		var pct := float(tr_stats.current_health) / float(tr_stats.max_health)
-		var prev_pct := float(tr_stats.current_health + _amount) / float(tr_stats.max_health)
+		# Judged on the health the hit actually took, not the blow before armor.
+		var prev_pct := float(tr_stats.current_health + tr_stats.last_health_lost) / float(tr_stats.max_health)
 		if pct < 0.2 and prev_pct >= 0.2:
 			var low_triggered := deck_manager.trigger_reactions("on_health_below_20")
 			for card in low_triggered:
