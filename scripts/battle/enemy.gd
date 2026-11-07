@@ -4083,7 +4083,9 @@ func _try_vanish() -> bool:
 			swing_started.emit(self, secs)
 			var fx = _enemy_figure.last_spot
 			cover = VANISH_COVER_FRAMES / (fx._fps if fx else 12.0)
-	if cover > 0.0 and is_inside_tree():
+	# The puff covers it before it goes — only while swings are held (with
+	# swing hold off, as in the sim, it goes as the action resolves).
+	if cover > 0.0 and is_inside_tree() and TempoManager.swing_hold_enabled():
 		get_tree().create_timer(cover).timeout.connect(_vanish_now)
 	else:
 		_vanish_now()
