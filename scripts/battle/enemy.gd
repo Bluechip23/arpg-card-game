@@ -4052,7 +4052,11 @@ func _random_free_cell_at_distance(from_cell: Vector2i, dist: int) -> Vector2i:
 		for _attempt in range(8):
 			var ang := randf() * TAU
 			var cand := from_cell + Vector2i(roundi(cos(ang) * try_dist), roundi(sin(ang) * try_dist))
-			if _cell_is_free(cand):
+			# An "unoccupied space" (Talon Grab, Labyrinth Leap) is floor on
+			# the map: _cell_is_free alone let a grab drag its prey off the
+			# grid or into the rock past the walls. _can_stand_on is that
+			# check plus the floor / map test.
+			if _can_stand_on(cand):
 				return cand
 	return from_cell
 
@@ -4675,7 +4679,12 @@ func _necro_rise_on_death() -> void:
 	if echo:
 		# The rise comes first: the summon's death and the echo are one moment.
 		print("[%s] A servant falls — %s takes %d" % [enemy_name, necro.enemy_name, NECRO_SUMMON_DEATH_DAMAGE])
-		necro.take_damage(NECRO_SUMMON_DEATH_DAMAGE, false)
+		# Thanatos's compendium: each fallen servant "costs him 10 health".
+		# Through his 40 armor and 25% resist it cost a few points of armor
+		# and no health at all, so his echo goes straight to health. (The
+		# Necromancer's sheet says only "takes 10 damage": unchanged.)
+		var to_health: bool = necro.enemy_type == EnemyType.THANATOS
+		necro.take_damage(NECRO_SUMMON_DEATH_DAMAGE, false, DamageTypes.Type.PHYSICAL, to_health)
 
 ## --- Bone Dragon ---
 
