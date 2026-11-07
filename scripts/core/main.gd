@@ -9585,7 +9585,9 @@ func _helm_range_bonus(card) -> int:
 	if not card.is_offensive():
 		return bonus
 	if card.slotted_in_item and card.slotted_in_item.has_method("get_on_self_bonus"):
-		var osb = card.slotted_in_item.get_on_self_bonus()
+		# The card's own view of the item: a plain (vanilla) slot carries no
+		# riders (Monocle / Long Bow: "3 card slots (2 bonus, 1 plain)").
+		var osb = card.get_on_self_bonus()
 		var r := int(osb.get("range_offensive", 0))
 		if r > 0 and (not osb.get("range_requires_ranged", false) or card.is_ranged):
 			bonus += r
@@ -9604,7 +9606,9 @@ func _helm_range_bonus(card) -> int:
 func _helm_card_world_effects(card, target = null) -> void:
 	if not card or not card.slotted_in_item or not player or not enemy_spawner or not grid_manager:
 		return
-	var osb = card.slotted_in_item.get_on_self_bonus()
+	# Through the card, so a plain (vanilla) slot stays neutral: no wolf
+	# (Dungeon Mastering), no vanishing (Houdini's) from a plain-slot card.
+	var osb = card.get_on_self_bonus()
 
 	# Shamans mask: a UTILITY card zaps a random enemy within 3. The zap is a
 	# fixed 1 spell damage — capped at 1, no INT/enchant/sphere modifiers.
