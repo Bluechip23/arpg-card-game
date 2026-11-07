@@ -68,6 +68,7 @@ Detail pages:
   3. **Summons took one step for a multi-tempo advance, and banked attacks while walking.**
   4. **"Drop below X%" triggers read the hit before armor.**
 - Single fixes: Exhausted Assault, Communal Donation, Donate Cleats (the loan no longer saves), Frankenstein's Screws.
+- **Suite after pass 2:** 226/229 pass. The same 3 failures predate the audit (`test_item_forge`, `test_sprite_imports`, `test_turtle_armor_anim`); the sim is still deterministic.
 
 ### Deleted
 
