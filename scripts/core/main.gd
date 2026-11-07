@@ -5789,6 +5789,8 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 
 	# Fire any scheduled delayed card effects whose timer has elapsed.
 	_process_delayed_effects(amount)
+	# Sky Fall arrows in flight count down on raw tempo too.
+	_process_pending_sky_falls(amount)
 
 	# Mana regen on each character's own tempo interval — and with it the
 	# raw-tempo stat timers (shadow form, invulnerability, temp mana, temp
@@ -7383,7 +7385,6 @@ func _on_tempo_threshold_reached(times: int) -> void:
 			if end_bm:
 				end_bm.process_turn_end()
 
-		_process_pending_sky_falls()
 		_process_pending_absorb_essences()
 		_process_glut_countdown()
 
@@ -7735,10 +7736,14 @@ func _process_healthy_bliss_cards() -> void:
 		if hand_changed:
 			dmgr.hand_updated.emit()
 
-func _process_pending_sky_falls() -> void:
+## Sky Fall: "In 10 tempo, it lands". Counted on raw tempo (like every other
+## "in N tempo" card delay): stepped 5 at a time on the cycle, the arrow came
+## down anywhere from 5 to 10 tempo after the shot depending on where in the
+## cycle it was loosed.
+func _process_pending_sky_falls(amount: int) -> void:
 	for i in range(pending_sky_falls.size() - 1, -1, -1):
 		var sf = pending_sky_falls[i]
-		sf.tempo_remaining -= 5
+		sf.tempo_remaining -= amount
 		if sf.tempo_remaining <= 0:
 			# Arrow lands! Damage whatever stands on the designated square.
 			var enemies_hit := enemy_spawner.get_enemies_in_radius(sf.position, 0.5)
@@ -8876,6 +8881,11 @@ func play_selected_card(target) -> void:
 	var result := deck_manager.play_card(selected_card_index, target, player, true)
 
 	if result["played"]:
+		# Tighten String: "next 3 ranged attacks PLAYED" — the charge is spent
+		# here, at play. Spent at resolve, attacks queued before the first one
+		# resolved were all strung (4 shots off 3 charges, the count went -1).
+		if tighten_applied:
+			buff_mgr.tighten_string_charges -= 1
 		# Played-card visuals: cards headed to the discard pile were already
 		# animated by _animate_card_discard (pop, pause, tube-suck — fired
 		# during play_card). Handle the placements that skip the discard pile.
@@ -9127,9 +9137,7 @@ func _return_dead_target_card(card: Card, data: Dictionary, context: String) -> 
 func _undo_card_temp_mods(card: Card, data: Dictionary) -> void:
 	## Undo temporary card modifications applied before queuing (tighten, high ground, harnessed).
 	if data.get("tighten_applied", false):
-		var buff_mgr := player.get_buff_manager()
-		if buff_mgr:
-			buff_mgr.tighten_string_charges -= 1
+		# (Its Tighten String charge was spent at play — play_selected_card.)
 		card.bonus_damage -= 6
 		card.range_modifier -= 6
 	if data.get("high_ground_applied", false):
