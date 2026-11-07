@@ -1563,7 +1563,8 @@ func _t_skilled_momentum() -> void:
 	var s := Card.create_by_id("slash")
 	_resolve(s, e)
 	var once: int = s.last_damage_dealt
-	_check(once > 0 and e.max_health - e.current_health >= 2 * once - 1, "Skilled Momentum: the armed attack lands twice (%d total, %d each)" % [e.max_health - e.current_health, once])
+	# (Either swing may crit, so compare against the last swing alone.)
+	_check(once > 0 and e.max_health - e.current_health > once, "Skilled Momentum: the armed attack lands twice (%d total, last swing %d)" % [e.max_health - e.current_health, once])
 
 func _t_lethal_resourcefulness() -> void:
 	print("-- Lethal Resourcefulness --")
