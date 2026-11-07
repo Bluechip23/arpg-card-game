@@ -82,7 +82,7 @@ const WolfScript = preload("res://scripts/battle/summoned_wolf.gd")
 const SpecterScript = preload("res://scripts/battle/summoned_specter.gd")
 var _specters: Array = []        # Seance: specters raised on empty tiles
 var _last_aim_world = null       # the tile a point-targeted card was aimed at
-var _resolving_aim_world = null  # that tile, for the queued point card now resolving
+var _resolving_aim = null        # that tile, carried to the point card's resolution (_apply_card_world_effects)
 var _smoke_zones: Array = []     # smoke bomb: {position, tempo}
 var _skeletons: Array = []       # Sack of Bone Arrows: raised skeletons (cap 3)
 const SkeletonScript = preload("res://scripts/battle/summoned_skeleton.gd")
@@ -9371,10 +9371,10 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	# Strengthen is active, so the empowered hits can't feed the next round.
 	_ring_note_big_hit(card.last_damage_dealt)
 
-	# Apply world effects (knockback, movement, AOE). A point card lands on the
-	# tile it was aimed at when played, not wherever the cursor has wandered
-	# during its wind-up (Fireball resolves on tick 6).
-	_resolving_aim_world = data.get("aim_world", null)
+	# Apply world effects (knockback, movement, AOE). A point card lands on
+	# the tile it was aimed at when played ("Pick a point"), not wherever the
+	# cursor has wandered by the end of its wind-up.
+	_resolving_aim = data.get("aim_world", null) if "point" in card.target_types else null
 	_apply_card_world_effects(card, target)
 	# Skilled Momentum (Stephen): the attack plays a second time, in full —
 	# its own crit roll, riders and debuffs — for no tempo. One-shot buffs
@@ -9393,8 +9393,8 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 			if buff_mgr and buff_mgr.last_crit_hit:
 				buff_mgr.last_crit_hit = false
 				progression_triggers._trigger_skill_tree_on_crit(target)
-	_resolving_aim_world = null
 
+	_resolving_aim = null
 	# The play is over: undo the folded bonus, disarm the passives, close
 	# the scope and drop the hit-source flags.
 	if passive_bonus > 0:
@@ -12352,9 +12352,7 @@ func _point_aim(target, mouse_pos: Vector3) -> Vector3:
 	return grid_manager.snap_to_grid(mouse_pos)
 
 func _apply_card_world_effects(card: Card, target) -> void:
-	var mouse_pos := get_mouse_world_position()
-	if _resolving_aim_world != null and "point" in card.target_types:
-		mouse_pos = _resolving_aim_world
+	var mouse_pos: Vector3 = _resolving_aim if _resolving_aim is Vector3 else get_mouse_world_position()
 
 	# Generic helm on-self world effects (independent of card_id).
 	_helm_card_world_effects(card, target)
@@ -13049,7 +13047,10 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				var np := grid_manager.snap_to_grid(roll_start + roll_dir * (step * grid_manager.grid_size))
 				if grid_manager.world_to_grid(np) in player.blocked_tiles:
 					break  # a wall or obstacle ends the roll
-				var hit_enemy := enemy_spawner.get_enemy_at_position(np)
+				# Only an enemy ON the next square ends the roll there: the default
+				# 1.0 reach also caught one a square beyond, stopping the roller
+				# a square short of the character it never touched.
+				var hit_enemy := enemy_spawner.get_enemy_at_position(np, grid_manager.grid_size * 0.5)
 				if hit_enemy:
 					hit_enemy.take_damage(10, true)
 					hit_enemy.apply_debuff("disarmed", 5)
@@ -13531,7 +13532,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			_spawn_barricade()
 
 		"rise":
-			var rise_pos := grid_manager.snap_to_grid(get_mouse_world_position())
+			var rise_pos := grid_manager.snap_to_grid(mouse_pos)  # the aimed tile
 			_spawn_pillar(rise_pos)
 
 		"absorb_essence":

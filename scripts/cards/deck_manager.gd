@@ -1055,6 +1055,9 @@ func execute_deferred_card(card: Card, target, player_node = null) -> void:
 	if ally_cast:
 		effect_stats._ally_cast = true
 		PlayerStats.ally_heal_caster = player_stats  # Blood Libation boosts heals Jeremy performs on others
+		# Poisoned Blood sits on the caster: their heal on an ally hurts too.
+		if player_node and player_node.has_method("get_buff_manager"):
+			Card.caster_buff_manager = player_node.get_buff_manager()
 	card.execute(target, effect_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
 	PlayerStats.ally_heal_caster = null
 
@@ -1070,6 +1073,7 @@ func execute_deferred_card(card: Card, target, player_node = null) -> void:
 			print("[DECK] Free hand echo: %s strikes twice!" % card.card_name)
 	if ally_cast:
 		effect_stats._ally_cast = false
+		Card.caster_buff_manager = null
 
 	if debuff_mgr and card.is_attack():
 		debuff_mgr.on_attack()

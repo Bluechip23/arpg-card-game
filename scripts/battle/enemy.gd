@@ -2330,10 +2330,17 @@ func _choose_action(player_node: Node3D) -> void:
 				if not NON_MELEE_ACTIONS.has(str(pig_a["name"])):
 					chosen_action = pig_a
 					break
+		# Otherwise it walks: its own move action ("move", or the type's
+		# goblin_move / hydra_move / scurry...). _get_action("move") fell back
+		# to actions[0] — a Fire Goblin Mage pig still cast Ember. With no
+		# walk and no bite it simply stands.
 		if chosen_action.is_empty():
-			chosen_action = _get_action("move")
-		if chosen_action.is_empty() and actions.size() > 0:
-			chosen_action = actions[0]
+			chosen_action = _get_action("move") if actions.any(func(a): return str(a["name"]) == "move") else {}
+		if chosen_action.is_empty():
+			for pig_m in actions:
+				if MOVEMENT_ACTIONS.has(str(pig_m["name"])):
+					chosen_action = pig_m
+					break
 		return
 
 	match enemy_type:
