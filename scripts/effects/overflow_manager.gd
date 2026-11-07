@@ -127,12 +127,14 @@ func process_overflow(card: Card) -> void:
 	
 	# No primary effect - just process secondary effects
 	_process_secondary_effects(card)
-	
-	# If no effects at all, discard the card
-	if overflow_effects.size() == 0:
-		if deck_manager:
-			deck_manager.discard_pile.append(card)
-		print("[OVERFLOW] No effects active, card discarded: %s" % card.card_name)
+
+	# No primary effect took the card: it is discarded. (This used to happen
+	# only when no effect at all remained, so under an Overcharge alone —
+	# Composed Response's Overflow 5 — every overflowed card but the last
+	# left the deck for good.)
+	if deck_manager:
+		deck_manager.discard_pile.append(card)
+	print("[OVERFLOW] No primary effect, card discarded: %s" % card.card_name)
 
 func _process_secondary_effects(card: Card) -> void:
 	# Equipment Overdraw riders fire on every overflow, whatever the primary
