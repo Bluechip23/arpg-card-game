@@ -37,6 +37,13 @@ whatever the Async clocks are doing. Two Async clocks of different lengths are
 rarely at 0 together — the Sabertooth's Track 10 and Sunken Bite 15 only every
 30 tempo — and the gate kept it from closing on its prey at all.
 
+**Ranged attacks fire once in range** (designer, 2026-11-07): an enemy with a
+ranged attack ready stops its walk on the first square its attack reaches,
+doesn't walk at all when it already stands in reach, and a chase move still
+winding up gives way to the attack (which then starts its own wind-up) once
+the target is in reach. The reach per enemy is `Enemy._ranged_reach`; melee
+walkers are unchanged.
+
 ## Async
 
 The action keeps **its own clock**. It counts every tempo, fires when it

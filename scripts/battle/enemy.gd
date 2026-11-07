@@ -1236,9 +1236,9 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.NECROMANCER: "Range 10. Resists 15% fire/lightning.\nBolt (5 tempo): 4 damage + Hexes 2 cards in your hand (each +30 mana until played, for up to 25 tempo).\nSummon (8 tempo): raises undead (skeletons and zombies, first pass).\nRaise the Fallen (passive): every summon of his that dies rises again as a Skeleton — and costs him 10 health; any other ally that dies within 8 squares of him rises as a Skeleton too. A risen Skeleton rises no further and costs him nothing.\nMove (6 tempo): 8 spaces.",
 		EnemyType.THANATOS: "Death himself, at the bottom of Thanatos Closet (first pass: his kit is still being made). Resists 25% physical/fire/lightning.\nReap (5 tempo): his scythe, 25 damage + 6 Bleed, beside him.\nDeath Bolt (6 tempo): 15 damage at up to 6 squares, and Hexes a card in your hand (+30 mana until played, for up to 25 tempo).\nRaise the Dead (10 tempo): a skeleton or zombie rises beside him, two at most; each of his servants that falls rises again as a Skeleton and costs him 10 health.\nMove (5 tempo): 5 spaces.",
 		EnemyType.BONE_DRAGON: "Fought as a boss in the Boneyard, where every standing gravestone regenerates it 1 health a cycle (Gravebound — break the stones, and kill the diggers who repair them). Resists 45% physical / 45% fire.\nBite (5 tempo): 12 damage.\nBreath Swarm (6 tempo): 12 damage down a 6-tile line; a Swarm hatches beside everyone it hits.\nMove (5 tempo): 5 spaces.",
-		EnemyType.SPIRIT_COLLECTOR: "Strengthen it gains adds to every Strike and Collect Soul and never fades.\nStrike (3 tempo): 8 damage.\nCollect Soul (8 tempo): 8 damage; adds a 'Release Soul' card to your hand. While it is in your hand you are Drained (10 mana a cycle) and it saps 1 damage per tempo (charged 5 at each cycle). Play it (15 mana, 2 tempo) to be rid of it — but releasing the soul gives every living Spirit Collector 5 Strengthen.",
+		EnemyType.SPIRIT_COLLECTOR: "Strengthen it gains adds to every Strike and Collect Soul and never fades.\nStrike (3 tempo): 8 damage.\nCollect Soul (8 tempo, range 4): 8 damage; adds a 'Release Soul' card to your hand. While it is in your hand you are Drained (10 mana a cycle) and it saps 1 damage per tempo (charged 5 at each cycle). Play it (15 mana, 2 tempo) to be rid of it — but releasing the soul gives every living Spirit Collector 5 Strengthen.",
 		EnemyType.GRAVE_TITAN: "30 armor.\nSmash (8 tempo): 15 damage in front.\nBoulder Roll (range 3, 5 tempo): rolls the boulder for 15 damage.\nMove (8 tempo): 4 spaces.",
-		EnemyType.CRYPT_CRAWLER: "After 3 consecutive attacks it webs you.\nBite (3 tempo): 6 damage.\nWeb: adds a 'Paralysis' card to your hand — you cannot move until it is played (10 mana, 5 tempo; other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
+		EnemyType.CRYPT_CRAWLER: "After 3 consecutive attacks it webs you; it also throws its web from up to 4 squares away.\nBite (3 tempo): 6 damage.\nWeb (3 tempo, range 4): adds a 'Paralysis' card to your hand — you cannot move until it is played (10 mana, 5 tempo; other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
 		EnemyType.SCREECHER: "Invisible until it strikes: you cannot attack it directly (poison, burn and area damage still land).\nScreech (5 tempo): 5 damage; it is seen for 3 tempo after.\nScuttle: 4 spaces / 2 tempo while unseen, 2 spaces / 5 tempo while seen.",
 		EnemyType.CONSUMED: "Attack (5 tempo): 8 damage.\nMove (3 tempo): 5 spaces.\nOn death: explodes for 8 damage to everything nearby.",
 		# --- Mountains ---
@@ -2067,6 +2067,8 @@ func _tick_action_clocks(player_node: Node3D) -> void:
 
 	if chosen_action.is_empty() and can_act:
 		_choose_action(player_node)
+	elif can_act:
+		_maybe_drop_move_for_ranged(player_node)
 	if not chosen_action.is_empty() and (action_tempo_counter > 0 or gap or _sync_can_start(chosen_action)):
 		action_tempo_counter += 1
 	_update_draw(player_node)
@@ -2409,11 +2411,11 @@ func _choose_action(player_node: Node3D) -> void:
 		EnemyType.BONE_DRAGON:
 			_choose_bone_dragon_action(distance)
 		EnemyType.SPIRIT_COLLECTOR:
-			_choose_collector_action(distance)
+			_choose_collector_action(distance, player_node)
 		EnemyType.GRAVE_TITAN:
 			_choose_titan_action(distance)
 		EnemyType.CRYPT_CRAWLER:
-			_choose_crawler_action(distance)
+			_choose_crawler_action(distance, player_node)
 		EnemyType.SCREECHER:
 			_choose_melee_action(distance, "screech")
 		EnemyType.CONSUMED:
@@ -2502,6 +2504,82 @@ func _ensure_sync_choice(distance: int) -> void:
 		if fallback.is_empty():
 			fallback = a
 	chosen_action = fallback
+
+## The chase moves the ranged rule below may cut short or call off. Retreats,
+## dashes and the Archer Rat's own get_into_range are left alone.
+const CHASE_MOVES := {"move": true, "goblin_move": true, "hydra_move": true}
+
+## How far off (grid squares) this enemy's ranged attack can land on `target`
+## right now — 0 when it has none ready. Designer, 2026-11-07: an enemy with a
+## ranged attack uses it once in range, rather than walking on to arm's
+## length. The walk stops at this reach (move_towards_target), and a chase
+## move still winding up gives way once the target is inside it
+## (_tick_action_clocks). Every reach here must match its chooser above: at
+## any distance from 2 to the reach the chooser picks a non-move action, or
+## the enemy would stop short and choose to move again forever. Left out on
+## purpose: the Weregoat (2-square walk, 8-square charge) and the Ash Harpy
+## (1-square walk) can't overshoot, and their attacks also fall back to a
+## walk when there is no route or nowhere to land.
+func _ranged_reach(target: Node3D) -> int:
+	if target == null or not is_instance_valid(target):
+		return 0
+	# Polymorphed it only walks and bites; disarmed or silenced its throws and
+	# casts fall back to a move; taunted it measures to the taunter while its
+	# chooser measures to its usual target — in each case walk in as before.
+	if polymorph_tempo > 0 or is_disarmed or is_silenced:
+		return 0
+	if taunt_target and is_instance_valid(taunt_target):
+		return 0
+	match enemy_type:
+		EnemyType.FIRE_GOBLIN_MAGE, EnemyType.FIRE_GOBLIN_SHAMAN, EnemyType.SLUDGE, \
+		EnemyType.GIANT_HAWK, EnemyType.ICE_MAGE, EnemyType.FIRE_MAGE, EnemyType.SPARK_MAGE, \
+		EnemyType.AIR_MAGE, EnemyType.NECROMANCER, EnemyType.SNOW_WRAITH, EnemyType.SPECTER, \
+		EnemyType.SUCCUBUS, EnemyType.DJINN, EnemyType.CHERUB:
+			return int(attack_range)
+		EnemyType.THANATOS:
+			return THANATOS_BOLT_RANGE
+		EnemyType.BONE_DRAGON:
+			return 6
+		EnemyType.IFRIT:
+			return 4
+		EnemyType.GRAVE_TITAN:
+			return 3
+		EnemyType.TREANT:
+			return 4
+		EnemyType.WYVERN:
+			return 3 if _talon_cooldown <= 0 else 0
+		EnemyType.INFECTED_HUNTER:
+			if _hook_recharge <= 0:
+				return 7
+			return 3 if _net_cooldown <= 0 else 0
+		EnemyType.CRYPT_CRAWLER:
+			return CRAWLER_WEB_RANGE if _crawler_can_web(target) else 0
+		EnemyType.SPIRIT_COLLECTOR:
+			return COLLECT_SOUL_RANGE if _collector_can_collect(target) else 0
+	return 0
+
+## A chase move still winding up, with the target already inside the ranged
+## reach: re-choose, so the enemy fires instead of walking on. The move's
+## clock is dropped (the attack starts its own wind-up); if the chooser
+## still wants to move, the move and its clock are kept as they were.
+func _maybe_drop_move_for_ranged(player_node: Node3D) -> void:
+	if chosen_action.is_empty() or not CHASE_MOVES.has(str(chosen_action.get("name", ""))):
+		return
+	if is_moving or player_node == null or not is_instance_valid(player_node):
+		return
+	var reach := _ranged_reach(player_node)
+	if reach <= 0 or _get_cell_distance(player_node) > reach:
+		return
+	var held: Dictionary = chosen_action
+	var held_count := action_tempo_counter
+	chosen_action = {}
+	_choose_action(player_node)
+	if chosen_action.is_empty() or MOVEMENT_ACTIONS.has(str(chosen_action.get("name", ""))):
+		chosen_action = held
+		action_tempo_counter = held_count
+	else:
+		action_tempo_counter = 0
+		_action_damage.erase(str(held["name"]))
 
 func _get_cell_distance(target_node: Node3D) -> int:
 	if grid_manager:
@@ -4022,14 +4100,27 @@ func _vanish_now() -> void:
 
 ## --- Crypt Crawler ---
 
-func _choose_crawler_action(distance: int) -> void:
-	# After 3 consecutive bites it webs its prey.
-	if _crawler_attack_streak >= 3 and distance <= 2:
+## Web is thrown (the corpse on its back hurls a ball of web), so it reaches
+## past the bite. Designer, 2026-11-07: an enemy with a ranged attack uses it
+## when in range — the crawler webs from up to this far, then closes to bite.
+## TODO(sheet): the sheet gives no reach (the old in-code reach was 2).
+const CRAWLER_WEB_RANGE := 4
+
+func _choose_crawler_action(distance: int, target: Node3D = null) -> void:
+	# In its jaws: after 3 consecutive bites it webs its prey (sheet). Out of
+	# reach: it throws the web at prey not already webbed, else closes in.
+	if distance <= 1:
+		chosen_action = _get_action("web") if _crawler_attack_streak >= 3 else _get_action("crawler_bite")
+	elif distance <= CRAWLER_WEB_RANGE and _crawler_can_web(target):
 		chosen_action = _get_action("web")
-	elif distance <= 1:
-		chosen_action = _get_action("crawler_bite")
 	else:
 		chosen_action = _get_action("move")
+
+## Whether a thrown web would do anything: the prey keeps a hand and holds no
+## Paralysis yet (a second card would only stack the same lock).
+func _crawler_can_web(target: Node3D) -> bool:
+	return target != null and is_instance_valid(target) and target.has_method("get_deck_manager") \
+			and not _hand_has_card_id(target, "paralysis")
 
 func _try_crawler_bite(target_node: Node3D) -> bool:
 	if is_disarmed or not _in_attack_range(target_node):
@@ -4044,7 +4135,7 @@ func _try_crawler_web(target_node: Node3D) -> bool:
 	## Webs the target: a Paralysis card lands in their hand — they cannot
 	## move until it is played (other actions are fine), then it is erased.
 	_crawler_attack_streak = 0
-	if is_disarmed or _get_cell_distance(target_node) > 2:
+	if is_disarmed or _get_cell_distance(target_node) > CRAWLER_WEB_RANGE:
 		return _try_move(target_node)
 	if target_node.has_method("get_deck_manager"):
 		var deck = target_node.get_deck_manager()
@@ -4077,18 +4168,32 @@ func _web_art_at(target_node: Node3D) -> void:
 
 ## --- Spirit Collector ---
 
-func _choose_collector_action(distance: int) -> void:
+## Collect Soul draws the soul out across the floor into his lantern (the
+## designer's board), so it reaches past his shovel. Designer, 2026-11-07: an
+## enemy with a ranged attack uses it when in range.
+## TODO(sheet): the sheet gives no reach.
+const COLLECT_SOUL_RANGE := 4
+
+func _choose_collector_action(distance: int, target: Node3D = null) -> void:
 	if distance <= 1:
 		# Mostly swings; now and then it cages a piece of your soul.
 		chosen_action = _get_action("collect_soul") if randf() < 0.35 else _get_action("collector_swing")
+	elif distance <= COLLECT_SOUL_RANGE and _collector_can_collect(target):
+		# From afar he cages a soul when none of his is held yet; with one
+		# already in the hand he walks in to swing.
+		chosen_action = _get_action("collect_soul")
 	else:
 		chosen_action = _get_action("move")
+
+func _collector_can_collect(target: Node3D) -> bool:
+	return target != null and is_instance_valid(target) and target.has_method("get_deck_manager") \
+			and not _hand_has_card_id(target, "release_soul")
 
 func _try_collect_soul(target_node: Node3D) -> bool:
 	## 8 (+ Strengthen) damage, and a 'Release Soul' card lands in the hand —
 	## it saps and Drains the holder until played (which strengthens every
 	## living collector, see Card._execute_release_soul), then is erased.
-	if is_disarmed or not _in_attack_range(target_node):
+	if is_disarmed or _get_cell_distance(target_node) > COLLECT_SOUL_RANGE:
 		return _try_move(target_node)
 	_deal_damage_to_player(target_node, attack_damage + strengthen_stacks, "Collect Soul")
 	# He raises the lantern: a soul is drawn out of the victim into it, then
@@ -5765,7 +5870,7 @@ func _try_move(target_node: Node3D) -> bool:
 	var diff := target_node.position - position
 	var flat_dist := Vector3(diff.x, 0, diff.z).length()
 	if flat_dist <= aggro_range:
-		move_towards_target(target_node.position)
+		move_towards_target(target_node.position, _ranged_reach(target_node))
 		return true
 	return false  # Out of aggro range - idle
 
@@ -6464,7 +6569,10 @@ func intended_cell() -> Vector2i:
 		return grid_manager.world_to_grid(target_position)
 	return grid_manager.world_to_grid(position)
 
-func move_towards_target(pos: Vector3) -> void:
+## `stop_within` > 0: the walk ends on the first square within that many grid
+## squares of `pos` (where a ranged attack can land — see _ranged_reach), and
+## does not start at all when this enemy already stands within it.
+func move_towards_target(pos: Vector3, stop_within: int = 0) -> void:
 	# Channeling: planted until the channel resolves or breaks.
 	if is_channeling():
 		print("[%s] Channeling - cannot move!" % enemy_name)
@@ -6499,6 +6607,9 @@ func move_towards_target(pos: Vector3) -> void:
 			_start_path(_build_greedy_path(position, flee_cell, tiles, true))
 			return
 		var player_cell := grid_manager.world_to_grid(pos)
+		if stop_within > 0 and _manhattan_dist(grid_manager.world_to_grid(position), player_cell) <= stop_within:
+			print("[%s] Already in range - holds its ground" % enemy_name)
+			return
 		# Follow a tile-by-tile route so we never glide through walls or corners.
 		# The Inflamed Minotaur knows his Labyrinth: he takes the real way
 		# round its walls where a greedy step would dead-end.
@@ -6509,15 +6620,25 @@ func move_towards_target(pos: Vector3) -> void:
 		if enemy_type == EnemyType.INFLAMED_MINOTAUR or cliffs:
 			var route := _build_route_path(position, player_cell, tiles)
 			if not route.is_empty():
-				_start_path(route)
+				_start_path(_cut_at_reach(route, player_cell, stop_within))
 				return
-		_start_path(_build_greedy_path(position, player_cell, tiles))
+		_start_path(_cut_at_reach(_build_greedy_path(position, player_cell, tiles), player_cell, stop_within))
 	else:
 		var diff := pos - position
 		var direction := Vector3(diff.x, 0, diff.z).normalized()
 		var new_target = position + direction * (tiles * 1.0)
 		target_position = new_target
 		is_moving = true
+
+## `path` cut after its first waypoint within `reach` squares of `goal_cell`
+## (unchanged when reach is 0 or no waypoint gets that close).
+func _cut_at_reach(path: Array[Vector3], goal_cell: Vector2i, reach: int) -> Array[Vector3]:
+	if reach <= 0 or grid_manager == null:
+		return path
+	for i in range(path.size()):
+		if _manhattan_dist(grid_manager.world_to_grid(path[i]), goal_cell) <= reach:
+			return path.slice(0, i + 1)
+	return path
 
 func _manhattan_dist(a: Vector2i, b: Vector2i) -> int:
 	return absi(a.x - b.x) + absi(a.y - b.y)
