@@ -386,13 +386,14 @@ BOARDS = {
         },
     },
     "pit_fiend": {
+        # 2026-11-06: 2.5 tiles (was 1.75) — the designer: "he should take up 2 squares"
         # 2026-10-28: the designer's new Pit Fiend — red-skinned and horned,
         # bat wings, spiked armour with a skull belt, a sword at his hip and
         # a glowing chain in hand — one row on black: front, back, then two
         # side views, the first facing left and the second right. Stills
         # only: it replaces the action board (tools/cut_pit_fiend.py, whose
         # walk and tail-sweep frames are not drawn on the new board).
-        "src": "pit_fiend_v2_board.webp", "bg": "grabcut", "tiles": 1.75,
+        "src": "pit_fiend_v2_board.webp", "bg": "grabcut", "tiles": 2.5,
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
         # The model trims fire and glow: keep what is lit.
         "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
@@ -420,11 +421,12 @@ BOARDS = {
         },
     },
     "inflamed_minotaur": {
+        # 2026-11-06: 3.0 tiles (was 2.4) — the designer: "he should take up 2 squares"
         # 2026-10-28: the designer's updated Inflamed Minotaur — flaming mane
         # and horns, a burning axe and a spiked shield, lava-veined armour —
         # a 2x2 board on black: front, back (top), facing left, facing right
         # (bottom). The top row's flames run off the board's top edge.
-        "src": "inflamed_minotaur_v2_board.webp", "bg": "grabcut", "tiles": 2.4,
+        "src": "inflamed_minotaur_v2_board.webp", "bg": "grabcut", "tiles": 3.0,
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
         # The model trims fire and glow: keep what is lit.
         "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
@@ -474,11 +476,12 @@ BOARDS = {
         },
     },
     "granite_colossus": {
+        # 2026-11-06: 3.5 tiles (was 2.6) — the designer: "the granite colossus should take up 4 squares"
         # 2026-10-27: the Granite Colossus redrawn — a hulking golem of mossy
         # cut stone with ember eyes — four labelled poses on black. Its side
         # labels are swapped (the "LEFT" panel faces right), so the poses are
         # picked by what they show.
-        "src": "granite_colossus_board_v2.webp", "bg": "grabcut", "tiles": 2.6,
+        "src": "granite_colossus_board_v2.webp", "bg": "grabcut", "tiles": 3.5,
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
         "Idle": {
             "front": (157, 8, 658, 445),
@@ -3598,12 +3601,13 @@ BOARDS = {
         },
     },
     "corrupted_archangel": {
+        # 2026-11-06: 2.3 tiles (was 1.9) — the designer: "he should take up 2 squares"
         # 2026-10-27: from the designer's boss trio board (boss_trio_board.webp:
         # the Corrupted Archangel, Cerberus and Hades, four labelled poses each
         # — NORTH is the face, SOUTH the back, EAST / WEST the sides). Replaces
         # the walk-sheet cut (tools/cut_boss_sheets.py); kept at the height
         # it had there. The row's title plaque is cleared where it reaches in.
-        "src": "boss_trio_board.webp", "bg": "grabcut", "tiles": 1.9,
+        "src": "boss_trio_board.webp", "bg": "grabcut", "tiles": 2.3,
         "sharpen": 160,   # the source is soft (lossy, small figures): crisped before the shrink
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
         "Idle": {
@@ -3614,12 +3618,13 @@ BOARDS = {
         },
     },
     "thanatos": {
+        # 2026-11-06: 2.5 tiles (was 2.0) — the designer: "he should take up 2 squares"
         # 2026-11-05: the designer's Thanatos — a black-winged reaper in dark
         # violet plate, red-eyed, a scythe in hand, black smoke curling round
         # him — one row on black: his face (labelled "facing up"), his back
         # ("facing down"), then facing left and facing right. The smoke is
         # his: the model's matte keeps it where it is lit at all.
-        "src": "thanatos_board.webp", "bg": "grabcut", "tiles": 2.0,
+        "src": "thanatos_board.webp", "bg": "grabcut", "tiles": 2.5,
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
         "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 40)] for d in ("front", "back", "left", "right")},
         "Idle": {
@@ -3647,12 +3652,13 @@ BOARDS = {
         },
     },
     "hades": {
+        # 2026-11-06: 2.3 tiles (was 1.9) — the designer: "he should take up 2 squares"
         # 2026-10-27: from the designer's boss trio board (boss_trio_board.webp:
         # the Corrupted Archangel, Cerberus and Hades, four labelled poses each
         # — NORTH is the face, SOUTH the back, EAST / WEST the sides). Replaces
         # the walk-sheet cut (tools/cut_boss_sheets.py); kept at the height
         # it had there. The row's title plaque is cleared where it reaches in.
-        "src": "boss_trio_board.webp", "bg": "grabcut", "tiles": 1.9,
+        "src": "boss_trio_board.webp", "bg": "grabcut", "tiles": 2.3,
         "sharpen": 160,   # the source is soft (lossy, small figures): crisped before the shrink
         "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
         "matte_bg": {"front": [(0, 0, 40, 125)]},      # the HADES plaque's edge
@@ -4281,6 +4287,86 @@ BOARDS = {
             "sheets": {
                 "Writhe": ["w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8"],
             },
+        },
+    },
+    "air_totem": {
+        # 2026-11-06: the Air Mage's totem (designer: "the 5 wizard types ...
+        # all will create their own totems") — a winged stone pillar wrapped in rope, a blue gem at its brow and a torn banner below, a whirlwind of cloud spiralling up out of its horned crown — one view on black. A
+        # totem looks the same from every side, so all four directions are the
+        # one view; a head taller than its mage.
+        "src": "air_totem_board.webp", "bg": "grabcut", "tiles": 2.2,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model may trim the glow and wisps: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
+        "Idle": {
+            "front": (290, 12, 952, 1198),
+            "back": (290, 12, 952, 1198),
+            "left": (290, 12, 952, 1198),
+            "right": (290, 12, 952, 1198),
+        },
+    },
+    "earth_totem": {
+        # 2026-11-06: the Earth Mage's totem (designer: "the 5 wizard types ...
+        # all will create their own totems") — a bearded titan carved out of a crag, palms open, bound in purple rose vines and moss, a mountain sigil on his chest, on a stone plinth — one view on black. A
+        # totem looks the same from every side, so all four directions are the
+        # one view; a head taller than its mage.
+        "src": "earth_totem_board.webp", "bg": "grabcut", "tiles": 2.2,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model may trim the glow and wisps: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
+        "Idle": {
+            "front": (310, 0, 922, 1254),
+            "back": (310, 0, 922, 1254),
+            "left": (310, 0, 922, 1254),
+            "right": (310, 0, 922, 1254),
+        },
+    },
+    "lightning_totem": {
+        # 2026-11-06: the Spark (lightning) Mage's totem (designer: "the 5 wizard types ...
+        # all will create their own totems") — an iron-banded stone mast with insulators on its crossarm, a crackling glass orb on top, storm cloud coiling round it and lightning runes on the rocks at its foot — one view on black. A
+        # totem looks the same from every side, so all four directions are the
+        # one view; a head taller than its mage.
+        "src": "lightning_totem_board.webp", "bg": "grabcut", "tiles": 2.2,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model may trim the glow and wisps: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
+        "Idle": {
+            "front": (12, 4, 1000, 1512),
+            "back": (12, 4, 1000, 1512),
+            "left": (12, 4, 1000, 1512),
+            "right": (12, 4, 1000, 1512),
+        },
+    },
+    "fire_totem": {
+        # 2026-11-06: the Fire Mage's totem (designer: "the 5 wizard types ...
+        # all will create their own totems") — a spire of black rock veined with lava, a molten orb in its crown of spikes, a flame sigil on its band and fire spiralling round it — one view on black. A
+        # totem looks the same from every side, so all four directions are the
+        # one view; a head taller than its mage.
+        "src": "fire_totem_board.webp", "bg": "grabcut", "tiles": 2.2,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model may trim the glow and wisps: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
+        "Idle": {
+            "front": (66, 12, 930, 1520),
+            "back": (66, 12, 930, 1520),
+            "left": (66, 12, 930, 1520),
+            "right": (66, 12, 930, 1520),
+        },
+    },
+    "ice_totem": {
+        # 2026-11-06: the Ice Mage's totem (designer: "the 5 wizard types ...
+        # all will create their own totems") — an ice-crystal obelisk with an ice dragon coiled round it, a frosted pocket watch hanging from its jaws, a snowflake band on a snowy rock base — one view on black. A
+        # totem looks the same from every side, so all four directions are the
+        # one view; a head taller than its mage.
+        "src": "ice_totem_board.webp", "bg": "grabcut", "tiles": 2.2,
+        "matte": ("front", "back", "left", "right"),   # the model matte (tools/make_mattes.py)
+        # The model may trim the glow and wisps: keep what is lit.
+        "matte_fg": {d: [(0, 0, 9999, 9999, "lit", 45)] for d in ("front", "back", "left", "right")},
+        "Idle": {
+            "front": (92, 12, 904, 1526),
+            "back": (92, 12, 904, 1526),
+            "left": (92, 12, 904, 1526),
+            "right": (92, 12, 904, 1526),
         },
     },
     "hell_door": {

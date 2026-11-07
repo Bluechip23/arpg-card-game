@@ -26,6 +26,8 @@ const SECTIONS := [
 		Enemy.EnemyType.BUGBEAR, Enemy.EnemyType.INFECTED_HUNTER, Enemy.EnemyType.GIANT_HAWK,
 		Enemy.EnemyType.TREANT, Enemy.EnemyType.ICE_MAGE, Enemy.EnemyType.FIRE_MAGE,
 		Enemy.EnemyType.SPARK_MAGE, Enemy.EnemyType.AIR_MAGE, Enemy.EnemyType.EARTH_MAGE,
+		Enemy.EnemyType.AIR_TOTEM, Enemy.EnemyType.EARTH_TOTEM, Enemy.EnemyType.LIGHTNING_TOTEM,
+		Enemy.EnemyType.FIRE_TOTEM, Enemy.EnemyType.ICE_TOTEM,
 	]},
 	{"title": "GRAVEYARD", "types": [
 		Enemy.EnemyType.SKELETON, Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.WEREWOLF,

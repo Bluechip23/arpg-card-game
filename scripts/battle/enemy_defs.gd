@@ -937,6 +937,106 @@ const DEFS := {
 		"is_structure": true,
 		"color": Color(0.2, 0.08, 0.08),
 	},
+	"AIR_TOTEM": {
+		# A mage's totem (designer, 2026-11-06): raised beside its mage, it
+		# blows back whoever comes within 2 squares every cycle until broken, and crumbles when its
+		# mage falls. A structure: it holds its square and counts for nothing.
+		"name": "Air Totem",
+		"tier": "Special",
+		"intended_level": 15,
+		"figure_kind": "air_totem",
+		"loot_tier": DropRates.TIER_TRASH,
+		"health": 24,
+		"armor": 0,
+		"damage": 0,
+		"range": 0.0,
+		"move": 0.0,
+		"aggro": 0.0,
+		"xp": 0,
+		"is_structure": true,
+		"damage_type": DamageTypes.Type.WIND,
+		"color": Color(0.6, 0.85, 1.0),
+	},
+	"EARTH_TOTEM": {
+		# A mage's totem (designer, 2026-11-06): raised beside its mage, it
+		# armors its allies within 3 squares every cycle until broken, and crumbles when its
+		# mage falls. A structure: it holds its square and counts for nothing.
+		"name": "Earth Totem",
+		"tier": "Special",
+		"intended_level": 15,
+		"figure_kind": "earth_totem",
+		"loot_tier": DropRates.TIER_TRASH,
+		"health": 24,
+		"armor": 0,
+		"damage": 0,
+		"range": 0.0,
+		"move": 0.0,
+		"aggro": 0.0,
+		"xp": 0,
+		"is_structure": true,
+		"damage_type": DamageTypes.Type.EARTH,
+		"color": Color(0.5, 0.45, 0.35),
+	},
+	"LIGHTNING_TOTEM": {
+		# A mage's totem (designer, 2026-11-06): raised beside its mage, it
+		# strikes the nearest foe within 5 squares every cycle until broken, and crumbles when its
+		# mage falls. A structure: it holds its square and counts for nothing.
+		"name": "Lightning Totem",
+		"tier": "Special",
+		"intended_level": 15,
+		"figure_kind": "lightning_totem",
+		"loot_tier": DropRates.TIER_TRASH,
+		"health": 24,
+		"armor": 0,
+		"damage": 0,
+		"range": 0.0,
+		"move": 0.0,
+		"aggro": 0.0,
+		"xp": 0,
+		"is_structure": true,
+		"damage_type": DamageTypes.Type.LIGHTNING,
+		"color": Color(0.45, 0.5, 1.0),
+	},
+	"FIRE_TOTEM": {
+		# A mage's totem (designer, 2026-11-06): raised beside its mage, it
+		# sears everyone within 3 squares every cycle until broken, and crumbles when its
+		# mage falls. A structure: it holds its square and counts for nothing.
+		"name": "Fire Totem",
+		"tier": "Special",
+		"intended_level": 15,
+		"figure_kind": "fire_totem",
+		"loot_tier": DropRates.TIER_TRASH,
+		"health": 24,
+		"armor": 0,
+		"damage": 0,
+		"range": 0.0,
+		"move": 0.0,
+		"aggro": 0.0,
+		"xp": 0,
+		"is_structure": true,
+		"damage_type": DamageTypes.Type.FIRE,
+		"color": Color(1.0, 0.45, 0.15),
+	},
+	"ICE_TOTEM": {
+		# A mage's totem (designer, 2026-11-06): raised beside its mage, it
+		# Slows everyone within 3 squares every cycle until broken, and crumbles when its
+		# mage falls. A structure: it holds its square and counts for nothing.
+		"name": "Ice Totem",
+		"tier": "Special",
+		"intended_level": 15,
+		"figure_kind": "ice_totem",
+		"loot_tier": DropRates.TIER_TRASH,
+		"health": 24,
+		"armor": 0,
+		"damage": 0,
+		"range": 0.0,
+		"move": 0.0,
+		"aggro": 0.0,
+		"xp": 0,
+		"is_structure": true,
+		"damage_type": DamageTypes.Type.ICE,
+		"color": Color(0.6, 0.8, 1.0),
+	},
 	"GRAVE_DIGGER": {
 		# The Boneyard: walks out of the crypt to a broken gravestone,
 		# takes 8 tempo to set it right (back to full), and is gone.

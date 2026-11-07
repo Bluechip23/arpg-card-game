@@ -187,6 +187,12 @@ const KINDS := {
 	"rat_nest": {"sheets": SHEETS + "/rat_nest", "scale": BOARD_SCALE},  # tools/cut_pose_boards.py, 2026-10-28
 	# --- the Boneyard: the undead pack's headstones, and the designer's grave digger ---
 	"gravestone": {"prop": "undead_grave", "scale": 1.6},
+	# --- the mages' totems: the designer's five totem boards (tools/cut_pose_boards.py, 2026-11-06) ---
+	"air_totem": {"sheets": SHEETS + "/air_totem", "scale": BOARD_SCALE},
+	"earth_totem": {"sheets": SHEETS + "/earth_totem", "scale": BOARD_SCALE},
+	"lightning_totem": {"sheets": SHEETS + "/lightning_totem", "scale": BOARD_SCALE},
+	"fire_totem": {"sheets": SHEETS + "/fire_totem", "scale": BOARD_SCALE},
+	"ice_totem": {"sheets": SHEETS + "/ice_totem", "scale": BOARD_SCALE},
 	# --- Hell's Door: the designer's horned skull gate ---
 	"hell_door": {"sheets": SHEETS + "/hell_door", "scale": BOARD_SCALE},  # the designer's redraw of the cave pack's skull gate (tools/cut_pose_boards.py, 2026-10-28)
 	# --- the summon cards' allies (summoned_skeleton.gd, 2026-10-27) ---
