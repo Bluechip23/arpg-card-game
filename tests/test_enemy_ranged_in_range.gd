@@ -10,8 +10,11 @@ extends SceneTree
 ##  - a ranged enemy's walk stops where its attack can reach, and does not
 ##    start at all when it already stands in reach; melee walkers still walk
 ##    their full move;
-##  - a chase move still winding up gives way to the ranged attack once the
-##    target is in reach.
+##  - methodical (designer, 2026-11-07): a wound-up attack is carried out even
+##    if its target walked off (no chase), and the spiders' webs are aimed
+##    when their wind-up begins — a crawler's web that misses is strung on the
+##    floor, and whoever then steps in it is caught;
+##  - the Spirit Collector casts from range until two of his souls are held.
 ## Run: godot --headless --path . --script tests/test_enemy_ranged_in_range.gd
 
 var failures: int = 0
@@ -36,7 +39,7 @@ func _run() -> void:
 	_test_crawler()
 	_test_collector()
 	_test_walk_stops_in_reach()
-	_test_move_gives_way()
+	_test_methodical()
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
 
@@ -149,7 +152,11 @@ func _test_collector() -> void:
 	_check(s._hand_has_card_id(main.player, "release_soul"), "and Release Soul is in the hand")
 	s.chosen_action = {}
 	s._choose_action(main.player)
-	_check(str(s.chosen_action.get("name", "")) == "move", "one of his souls already held: he walks in to swing")
+	_check(str(s.chosen_action.get("name", "")) == "collect_soul", "one soul held: he still casts from range")
+	s._execute_action("collect_soul", main.player)
+	s.chosen_action = {}
+	s._choose_action(main.player)
+	_check(str(s.chosen_action.get("name", "")) == "move", "two of his souls held: he walks in to swing")
 	_despawn(s)
 	_clear_hand("release_soul")
 	main.player.get_debuff_manager().clear_all_debuffs()
@@ -189,18 +196,64 @@ func _test_walk_stops_in_reach() -> void:
 	_check(mage._ranged_reach(main.player) == int(mage.attack_range), "unsilenced, its reach is its range")
 	_despawn(mage)
 
-func _test_move_gives_way() -> void:
-	print("-- A pending move gives way --")
-	var titan := _spawn(Enemy.EnemyType.GRAVE_TITAN, 2)
-	titan.chosen_action = titan._get_action("move")
-	titan.action_tempo_counter = 3
-	titan._maybe_drop_move_for_ranged(main.player)
-	_check(str(titan.chosen_action.get("name", "")) == "boulder_roll", "target inside boulder range mid-wind-up: it rolls instead (now %s)" % titan.chosen_action.get("name", ""))
-	_check(titan.action_tempo_counter == 0, "and the boulder starts its own wind-up")
+func _step_player(by: Vector2i) -> void:
+	var c := _player_cell() + by
+	main.player.position = main._ground_pos(c)
+	main.player.target_position = main.player.position
+	if "is_moving" in main.player:
+		main.player.is_moving = false
+
+func _side() -> Vector2i:
+	return Vector2i(_dir.y, _dir.x)   # a step across the open line
+
+func _test_methodical() -> void:
+	print("-- Methodical wind-ups --")
+	var home := _player_cell()
+	# A Grave Titan's Smash wound up; the player steps off: it still swings.
+	main.player.get_stats().current_health = 500
+	var titan := _spawn(Enemy.EnemyType.GRAVE_TITAN, 1)
+	var t_cell: Vector2i = main.grid_manager.world_to_grid(titan.position)
+	_step_player(-_dir * 3)
+	var smash := titan._get_action("titan_smash")
+	titan._execute_now(smash, main.player)
+	_check(not titan.is_moving and main.grid_manager.world_to_grid(titan.position) == t_cell, "a wound-up Smash whose target stepped off is carried out where it stands — no chase")
+	_check(int(main.player.get_stats().current_health) == 500, "and it lands on nothing")
 	_despawn(titan)
-	var z := _spawn(Enemy.EnemyType.ZOMBIE, 2)
-	z.chosen_action = z._get_action("move")
-	z.action_tempo_counter = 2
-	z._maybe_drop_move_for_ranged(main.player)
-	_check(str(z.chosen_action.get("name", "")) == "move" and z.action_tempo_counter == 2, "a melee walker's move is left alone")
-	_despawn(z)
+	_step_player(home - _player_cell())
+
+	# Crypt Crawler: aimed web, prey stays — caught.
+	_clear_hand("paralysis")
+	var c := _spawn(Enemy.EnemyType.CRYPT_CRAWLER, 3)
+	c._choose_action(main.player)
+	_check(c._aim_cell == _player_cell(), "the web is aimed at its prey's square when the wind-up begins")
+	c._execute_now(c.chosen_action, main.player)
+	_check(c._hand_has_card_id(main.player, "paralysis"), "prey still there: webbed")
+	_clear_hand("paralysis")
+	# Aimed, then the prey steps aside — and out of reach — before it lands.
+	c.chosen_action = {}
+	c._choose_action(main.player)
+	var aimed := c._aim_cell
+	_step_player(_side() + -_dir * 3)
+	_check(c._get_cell_distance(main.player) > Enemy.CRAWLER_WEB_RANGE, "the prey is now out of the web's reach")
+	c._execute_now(c.chosen_action, main.player)
+	_check(not c._hand_has_card_id(main.player, "paralysis"), "it throws anyway and misses")
+	_check(c.floor_web_cells() == [aimed], "the web is strung on the floor where its prey stood")
+	c.chosen_action = {}
+	_step_player(home - _player_cell())
+	c._choose_action(main.player)
+	_check(str(c.chosen_action.get("name", "")) == "web", "a web on the floor does not stop it throwing again")
+	# Walking into the floor web catches you.
+	c._check_floor_webs()
+	_check(c._hand_has_card_id(main.player, "paralysis") and c.floor_web_cells().is_empty(), "stepping into the floor web: caught, and that web is spent")
+	_clear_hand("paralysis")
+	_despawn(c)
+
+	# Magma Spider: Fire Web aimed, the prey walks out of range: it still lands.
+	var m := _spawn(Enemy.EnemyType.MAGMA_SPIDER, 2)
+	m._choose_action(main.player)
+	_check(str(m.chosen_action.get("name", "")) == "fire_web", "a Magma Spider 2 squares off winds up its Fire Web")
+	_step_player(-_dir * 4)
+	_check(m._try_fire_web(main.player), "its prey walked out of range: the Fire Web lands where they stood all the same")
+	_despawn(m)
+	_step_player(home - _player_cell())
+	main.player.get_debuff_manager().clear_all_debuffs()

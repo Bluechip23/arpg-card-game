@@ -1319,7 +1319,7 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 	_detail_panel.add_theme_stylebox_override("panel", style)
 
 	var scroll = ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(240, 0)
+	scroll.custom_minimum_size = Vector2(roundi(240 * DETAIL_BOX_SCALE), 0)
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_detail_panel.add_child(scroll)
 
@@ -1333,27 +1333,27 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 	if item.has_appearance_art():
 		var art_holder = CenterContainer.new()
 		art_holder.add_child(EquipmentSlotCellScript.make_pixel_art_rect(
-			item.get_appearance_texture(), Vector2(96, 96)))
+			item.get_appearance_texture(), Vector2(96, 96) * DETAIL_BOX_SCALE))
 		vbox.add_child(art_holder)
 
 	# Item name (colored by type)
 	var item_name_lbl = Label.new()
 	item_name_lbl.text = item.item_name
-	item_name_lbl.add_theme_font_size_override("font_size", 16)
+	item_name_lbl.add_theme_font_size_override("font_size", _detail_font(16))
 	item_name_lbl.add_theme_color_override("font_color", _get_item_type_color(item.item_type))
 	vbox.add_child(item_name_lbl)
 
 	# Item type
 	var type_lbl = Label.new()
 	type_lbl.text = item.get_type_name()
-	type_lbl.add_theme_font_size_override("font_size", 12)
+	type_lbl.add_theme_font_size_override("font_size", _detail_font(12))
 	type_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
 	vbox.add_child(type_lbl)
 
 	# Rarity, in its colour
 	var rarity_lbl = Label.new()
 	rarity_lbl.text = "Rarity: %s" % item.get_rarity_name()
-	rarity_lbl.add_theme_font_size_override("font_size", 12)
+	rarity_lbl.add_theme_font_size_override("font_size", _detail_font(12))
 	rarity_lbl.add_theme_color_override("font_color", item.get_rarity_color())
 	vbox.add_child(rarity_lbl)
 
@@ -1364,7 +1364,7 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 	if stats_text != "":
 		var stats_lbl = Label.new()
 		stats_lbl.text = stats_text
-		stats_lbl.add_theme_font_size_override("font_size", 13)
+		stats_lbl.add_theme_font_size_override("font_size", _detail_font(13))
 		stats_lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85))
 		stats_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		vbox.add_child(stats_lbl)
@@ -1374,7 +1374,7 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 	if effect_text != "":
 		var effect_lbl = Label.new()
 		effect_lbl.text = effect_text
-		effect_lbl.add_theme_font_size_override("font_size", 12)
+		effect_lbl.add_theme_font_size_override("font_size", _detail_font(12))
 		effect_lbl.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
 		effect_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		vbox.add_child(effect_lbl)
@@ -1384,7 +1384,7 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 		vbox.add_child(_make_separator())
 		var look_lbl = Label.new()
 		look_lbl.text = item.appearance
-		look_lbl.add_theme_font_size_override("font_size", 12)
+		look_lbl.add_theme_font_size_override("font_size", _detail_font(12))
 		look_lbl.add_theme_color_override("font_color", item.get_rarity_color())
 		look_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		vbox.add_child(look_lbl)
@@ -1394,7 +1394,7 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 		vbox.add_child(_make_separator())
 		var desc_lbl = Label.new()
 		desc_lbl.text = item.description
-		desc_lbl.add_theme_font_size_override("font_size", 12)
+		desc_lbl.add_theme_font_size_override("font_size", _detail_font(12))
 		desc_lbl.add_theme_color_override("font_color", Color(0.65, 0.65, 0.75))
 		desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		vbox.add_child(desc_lbl)
@@ -1409,7 +1409,7 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 		var bonus = floori(item.weight / Inventory.TWO_HAND_WEIGHT_DAMAGE_DIVISOR)
 		var bonus_word = "block" if item.weapon_subtype == ItemData.WeaponSubtype.SHIELD else "damage"
 		th_info.text = "Two-handing: carried weight %d (of %d), +%d %s" % [carried, item.weight, bonus, bonus_word]
-		th_info.add_theme_font_size_override("font_size", 12)
+		th_info.add_theme_font_size_override("font_size", _detail_font(12))
 		th_info.add_theme_color_override("font_color", Color(0.95, 0.8, 0.45))
 		th_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		vbox.add_child(th_info)
@@ -1420,27 +1420,27 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 			# A utility item: no Equip. Right-click uses it.
 			var use_hint = Label.new()
 			use_hint.text = "Right-click the scroll to open a portal home."
-			use_hint.add_theme_font_size_override("font_size", 12)
+			use_hint.add_theme_font_size_override("font_size", _detail_font(12))
 			use_hint.add_theme_color_override("font_color", Color(0.8, 0.6, 1.0))
 			use_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			vbox.add_child(use_hint)
-			var use_btn = _make_action_button("Open Portal Home", Color(0.25, 0.15, 0.35), Color(0.7, 0.45, 0.9))
+			var use_btn = _make_detail_button("Open Portal Home", Color(0.25, 0.15, 0.35), Color(0.7, 0.45, 0.9))
 			use_btn.pressed.connect(func(): _on_stored_item_right_clicked(item, storage_index))
 			vbox.add_child(use_btn)
 		elif item.special_id == "":
 			# Stored item - show Equip button
-			var equip_btn = _make_action_button("Equip", Color(0.15, 0.35, 0.2), Color(0.3, 0.7, 0.4))
+			var equip_btn = _make_detail_button("Equip", Color(0.15, 0.35, 0.2), Color(0.3, 0.7, 0.4))
 			equip_btn.pressed.connect(_on_equip_stored_item)
 			vbox.add_child(equip_btn)
 		# Destroy (drop) — permanent, so the button itself asks twice.
 		if item.special_id == "":
-			var destroy_btn = _make_action_button("Destroy", Color(0.3, 0.1, 0.1), Color(0.85, 0.3, 0.3))
+			var destroy_btn = _make_detail_button("Destroy", Color(0.3, 0.1, 0.1), Color(0.85, 0.3, 0.3))
 			destroy_btn.tooltip_text = "Permanently remove this item from your inventory."
 			destroy_btn.pressed.connect(_on_destroy_stored_item.bind(destroy_btn))
 			vbox.add_child(destroy_btn)
 	else:
 		# Equipped item - show Unequip button
-		var unequip_btn = _make_action_button("Unequip", Color(0.35, 0.15, 0.15), Color(0.7, 0.35, 0.35))
+		var unequip_btn = _make_detail_button("Unequip", Color(0.35, 0.15, 0.15), Color(0.7, 0.35, 0.35))
 		unequip_btn.pressed.connect(_on_unequip_item)
 		vbox.add_child(unequip_btn)
 
@@ -1458,19 +1458,19 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 				th_text = "Brace Two-Handed (+%d block)" % th_bonus
 			else:
 				th_text = "Wield Two-Handed (+%d damage)" % th_bonus
-		var th_btn = _make_action_button(th_text, Color(0.3, 0.24, 0.1), Color(0.85, 0.7, 0.3))
+		var th_btn = _make_detail_button(th_text, Color(0.3, 0.24, 0.1), Color(0.85, 0.7, 0.3))
 		th_btn.tooltip_text = "Two-handing halves this item's carried weight but cuts total\ncarry capacity to 70%% and occupies a second hand slot.\nWith an enemy close enough to aggro: %d tempo%s." % [inventory.get_swap_tempo_cost(ItemData.ItemType.WEAPON), " and half your mana"]
 		th_btn.pressed.connect(_on_toggle_two_handed)
 		vbox.add_child(th_btn)
 
 	# Card slot management button (for equipped items with card slots)
 	if item.has_card_slots() and storage_index < 0:
-		var card_btn = _make_action_button("Manage Cards (%d/%d)" % [item.slotted_cards.size(), item.total_card_slots()], Color(0.2, 0.15, 0.3), Color(0.6, 0.4, 0.9))
+		var card_btn = _make_detail_button("Manage Cards (%d/%d)" % [item.slotted_cards.size(), item.total_card_slots()], Color(0.2, 0.15, 0.3), Color(0.6, 0.4, 0.9))
 		card_btn.pressed.connect(_open_card_slot_panel.bind(item))
 		vbox.add_child(card_btn)
 
 	# Close button
-	var close_btn = _make_action_button("Close", Color(0.15, 0.15, 0.2), Color(0.35, 0.35, 0.5))
+	var close_btn = _make_detail_button("Close", Color(0.15, 0.15, 0.2), Color(0.35, 0.35, 0.5))
 	close_btn.pressed.connect(_close_detail_panel)
 	vbox.add_child(close_btn)
 
@@ -1484,10 +1484,24 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 	_detail_panel.anchor_top = 0.0
 	_detail_panel.anchor_bottom = 1.0
 	# Stats + inventory windows occupy the right ~620px; open to their left.
-	_detail_panel.offset_left = -890.0
 	_detail_panel.offset_right = -632.0
+	_detail_panel.offset_left = _detail_panel.offset_right - roundi(258 * DETAIL_BOX_SCALE)
 	_detail_panel.offset_top = 20.0
 	_detail_panel.offset_bottom = -20.0
+
+## The item detail window (hover or click an item). Designer, 2026-11-07:
+## its text 25% bigger and the box 10% bigger.
+const DETAIL_TEXT_SCALE := 1.25
+const DETAIL_BOX_SCALE := 1.1
+
+func _detail_font(n: int) -> int:
+	return roundi(n * DETAIL_TEXT_SCALE)
+
+func _make_detail_button(text: String, bg_color: Color, border_color: Color) -> Button:
+	var btn := _make_action_button(text, bg_color, border_color)
+	btn.add_theme_font_size_override("font_size", _detail_font(13))
+	btn.custom_minimum_size = Vector2(roundi(200 * DETAIL_BOX_SCALE), roundi(32 * DETAIL_BOX_SCALE))
+	return btn
 
 func _make_action_button(text: String, bg_color: Color, border_color: Color) -> Button:
 	var btn = Button.new()

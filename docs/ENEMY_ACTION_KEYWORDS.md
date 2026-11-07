@@ -39,10 +39,22 @@ rarely at 0 together — the Sabertooth's Track 10 and Sunken Bite 15 only every
 
 **Ranged attacks fire once in range** (designer, 2026-11-07): an enemy with a
 ranged attack ready stops its walk on the first square its attack reaches,
-doesn't walk at all when it already stands in reach, and a chase move still
-winding up gives way to the attack (which then starts its own wind-up) once
-the target is in reach. The reach per enemy is `Enemy._ranged_reach`; melee
-walkers are unchanged.
+and doesn't walk at all when it already stands in reach. The reach per enemy
+is `Enemy._ranged_reach`; melee walkers are unchanged.
+
+**Methodical wind-ups** (designer, 2026-11-07): what is wound up is what
+happens.
+- A wound-up attack is carried out when its tempo comes up even if its target
+  has stepped out of reach: it lands on nothing, and the enemy does not turn
+  it into a chase (`Enemy._whiff`; an Async one stays spent and unmimed).
+- A wound-up move whose target has come into reach by the time it fires moves
+  only as far as keeps the enemy in reach and out of arm's length — usually
+  that means it stands still. The move is never swapped for an attack
+  mid-wind-up.
+- The spiders' webs (Crypt Crawler Web, Magma Spider Fire Web) are aimed at
+  their prey's square when the wind-up begins and land there. A Crypt
+  Crawler's web that misses is strung on the floor and catches whoever then
+  walks into it; floor webs never stop it from throwing again.
 
 ## Async
 
