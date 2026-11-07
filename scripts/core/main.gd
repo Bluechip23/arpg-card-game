@@ -3,6 +3,8 @@ extends Node3D
 
 ## Main game scene - turn-based card ARPG
 
+const KeywordBoxes = preload("res://scripts/ui/keyword_boxes.gd")
+
 @onready var deck_manager: DeckManager = $DeckManager
 @onready var buff_bar: BuffBarUI = $UI/BuffBar
 @onready var draw_timer: DrawTimer = $DrawTimer
@@ -7621,30 +7623,12 @@ func _process_maintained_card_effects() -> void:
 		print("[MAIN] Fountain of Life drew %d card(s)" % maintained_result["fountain_draws"])
 
 func _append_keyword_tooltips(parent: VBoxContainer, card: Card) -> void:
-	## Scan a card for keyword matches and append tooltip labels to the parent container.
-	var keywords := card.get_matching_keywords()
-	if keywords.size() == 0:
+	## Each keyword on the card in its own box below the card's text
+	## (KeywordBoxes).
+	if card.get_matching_keywords().is_empty():
 		return
-
-	var sep := HSeparator.new()
-	parent.add_child(sep)
-
-	var header := Label.new()
-	header.text = "Keywords:"
-	header.add_theme_font_size_override("font_size", 11)
-	header.add_theme_color_override("font_color", Color(0.9, 0.8, 0.4))
-	parent.add_child(header)
-
-	for kw in keywords:
-		var kw_label := RichTextLabel.new()
-		kw_label.bbcode_enabled = true
-		kw_label.text = "[color=#cc88ff]%s[/color]: %s" % [kw["keyword"], kw["definition"]]
-		kw_label.fit_content = true
-		kw_label.scroll_active = false
-		kw_label.custom_minimum_size = Vector2(220, 0)
-		kw_label.add_theme_font_size_override("normal_font_size", 10)
-		kw_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		parent.add_child(kw_label)
+	parent.add_child(HSeparator.new())
+	KeywordBoxes.add_for_card(parent, card)
 
 ## Volatile Mixture's fuse: once a copy has sat in hand for 5 tempo it blows —
 ## 8 self-damage, then it is discarded (which also sets off its discard hit).
