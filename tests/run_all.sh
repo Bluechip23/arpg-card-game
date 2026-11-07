@@ -4,6 +4,7 @@
 #   -j N      run N tests in parallel (default 1)
 #   -o DIR    write one log per test into DIR (default: a temp dir)
 #   pattern   only tests whose file name contains it (e.g. "sim")
+# TEST_TIMEOUT (env, seconds, default 1500): the per-test limit
 set -u
 cd "$(dirname "$0")/.."
 jobs=1; logdir=""; pattern=""
@@ -20,7 +21,8 @@ tests=$(ls tests/test_*.gd | grep -- "$pattern")
 run_one() {
 	local t="$1" name
 	name="$(basename "$t" .gd)"
-	if timeout 600 godot --headless --path . --script "$t" > "$logdir/$name.log" 2>&1; then
+	# test_sim_audit alone takes ~9 min; under -j load 600 s timed it out.
+	if timeout "${TEST_TIMEOUT:-1500}" godot --headless --path . --script "$t" > "$logdir/$name.log" 2>&1; then
 		echo "PASS $name"
 	else
 		echo "FAIL $name"

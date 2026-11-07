@@ -28,7 +28,7 @@ from collections import defaultdict
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 GAMEPLAY_DIRS = ("scripts", "resources")
-SKIP_DIRS = {".git", ".godot", "sim_out", "node_modules"}
+SKIP_DIRS = {".git", ".godot", ".claude", "sim_out", "node_modules"}
 
 
 def rel(p):
