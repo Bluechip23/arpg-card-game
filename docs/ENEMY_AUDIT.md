@@ -79,10 +79,10 @@ code was altered in this pass to match; "Built" means the enemy or action did no
 | Werewolf | Elite 7 | Changed | First claw on a **new** target now costs the full 5 (streak resets when the target changes). +3 vs armor, rake on a debuffed target match. |
 | White Manticore | Elite 8 | Changed | Stinger's Clumsy is 3 stacks that each last 5 tempo on the debuff's own clock (the status sheet's rule), i.e. the sheet's 3 cycles. Bite 15, Stinger 25 + 8 Poison, 5-tempo cooldown match. |
 | Wyvern | Elite 7 | Match | Bite 25, Talon Grab 25 + drag 8 squares, 10-tempo cooldown read as "2 cycles". |
-| Spirit Collector | Mid-tier 5 | Changed | Tier Mid-tier. Release Soul now costs 15 mana / 2 tempo, gives every living Spirit Collector +5 Strengthen when played (their Strike / Collect Soul add it), and holds **Drain** (1 stack, re-applied each cycle) while it is in the hand. Held sap stays 5 per cycle (= 1 per tempo). Open: Strengthen amount (5). |
+| Spirit Collector | Mid-tier 5 | Changed | Tier Mid-tier. Release Soul now costs 15 mana / 2 tempo, gives every living Spirit Collector +5 Strengthen when played (their Strike / Collect Soul add it), and holds **Drain** (1 stack, re-applied each cycle) while it is in the hand. Held sap stays 5 per cycle (= 1 per tempo). Collect Soul casts from range 4 when none of his souls is held (designer, 2026-11-07: ranged attacks fire once in range). Open: Strengthen amount (5); Collect Soul range (4). |
 | Air / Earth / Fire / Ice / Spark Mage | Mid-tier | Match | Numbers match. Earth Mage and the others never appear in a spawn table. Earth Mage tier → Mid-tier. |
 | Bugbear | Mid-tier 5 | Changed (tier) | Mid-tier (was Elite). First Strike +8 matches. |
-| Crypt Crawler | Mid-tier 5 | Changed | Paralysis card is 10 mana / 5 tempo (was 0 / 1). Web after 3 bites matches. |
+| Crypt Crawler | Mid-tier 5 | Changed | Paralysis card is 10 mana / 5 tempo (was 0 / 1). Web after 3 bites matches; the web is also thrown from range 4 at prey not yet webbed (designer, 2026-11-07: ranged attacks fire once in range). Open: web range (4). |
 | Demon | Mid-tier 6 | Built | Mimic (Async 8): a 1-HP Demon copy with mirrored name / health / statuses that hits as hard; cap 2 per demon, no XP or loot, collapses when the original dies. Cuff (Async 8, Cuffed 15). Attack 8. |
 | Fire Goblin Mage / Shaman / Soldier | Mid / Mid / Trash | Match | Shaman's Fire Wall keeps its Channel 4 / Disruptable 8 tags (not on the sheet). Soldier loot → trash. |
 | Giant Hawk | Mid-tier 5 | Match | Swoop 9 (reach 2), 20% Blind 5t, flier. |
@@ -136,7 +136,8 @@ code was altered in this pass to match; "Built" means the enemy or action did no
 3. Necromancer's Raise the Fallen: a risen Skeleton is treated as neither summon nor ally (it never rises again,
    its death costs him nothing) so corpses cannot chain forever; mimics, structures and the dummy never rise.
 4. Numbers the sheet leaves blank: Roc Dive Bomb damage; Snow Wraith Ice Blast tempo and range; Magma Spider web
-   size / duration / cast tempo; Succubus and Mind Eater ranges; Net Throw range; Release Soul Strengthen amount;
+   size / duration / cast tempo; Succubus and Mind Eater ranges; Net Throw range; Crypt Crawler Web and Collect Soul ranges (4);
+   Release Soul Strengthen amount;
    Weregoat landing-stun length; Rat King Infest selection rule.
 5. Ifrit "breath continues for 6 tempo"; Minotaur Bull Rush "1 cycle after landing" vs the code's 5–15; Ice Troll
    Clobber "10"; Wererat Scurry "away"; Grave Titan Smash "in front"; Djinn wishes per attack vs per hit.
@@ -291,7 +292,7 @@ its description and its STORY.md line on every point I could check (numbers, tem
   straight out along the dominant direction, no width.
 - **Spirit Collector** — matches (Release Soul card). Never spawns.
 - **Grave Titan** — description says *"15 damage in front"* for Smash; it is single target. Never spawns.
-- **Crypt Crawler** — matches (web after 3 consecutive bites, reach 2, Paralysis card).
+- **Crypt Crawler** — matches (web after 3 consecutive bites, Paralysis card); since 2026-11-07 it also throws the web from up to 4 squares.
 - **Screecher** — the stat comment says *"4 spaces / 2 tempo while invisible"* but there is no invisibility state;
   it is simply always a 2-tempo mover. The "seen only from its noise" idea lives in the figure (half-transparent
   sprite, flashes on attack), not in gameplay.
