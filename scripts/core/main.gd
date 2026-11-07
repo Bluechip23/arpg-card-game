@@ -3970,6 +3970,13 @@ func _on_player_tile_reached(mover: Player = null) -> void:
 
 	# Player Y follows terrain smoothly via ground_y_provider (see player.gd)
 
+	# Approach: "for each movement taken, gain 5 armor" while the card's
+	# window lasts (BuffManager.approach_*, set by the card; nothing paid it
+	# out before). Granted before this step's tempo can close the window.
+	var ap_bm = stepper.get_buff_manager()
+	if ap_bm and ap_bm.approach_armor_per_move > 0 and ap_bm.approach_tempo_remaining > 0 and stepper.get_stats():
+		stepper.get_stats().add_armor(ap_bm.approach_armor_per_move)
+
 	# Normal per-tile tempo (the stepper's own Slowed prices it)
 	tempo_manager.add_movement_tempo(stepper.get_debuff_manager())
 	# Check if player entered a new dungeon zone
@@ -5793,6 +5800,10 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_process_delayed_effects(amount)
 	# Sky Fall arrows in flight count down on raw tempo too.
 	_process_pending_sky_falls(amount)
+	# Absorb Essence's "Delay: 10 tempo" runs on exact tempo, like every other
+	# Delay (it used to count down in whole 5-tempo cycles, so the Energy
+	# Ball could arrive as early as 6 tempo after the cast).
+	_process_pending_absorb_essences(amount)
 
 	# Mana regen on each character's own tempo interval — and with it the
 	# raw-tempo stat timers (shadow form, invulnerability, temp mana, temp
@@ -7392,7 +7403,6 @@ func _on_tempo_threshold_reached(times: int) -> void:
 			if end_bm:
 				end_bm.process_turn_end()
 
-		_process_pending_absorb_essences()
 		_process_glut_countdown()
 
 	# Sphere grid passive triggers for tempo cycle
@@ -8194,10 +8204,10 @@ func _succumb_phase2(caster) -> void:
 	add_battle_log("Succumb: took 10 more damage; cuffed, drained, disarmed", Color(1.0, 0.3, 0.3))
 
 
-func _process_pending_absorb_essences() -> void:
+func _process_pending_absorb_essences(amount: int = 5) -> void:
 	for i in range(pending_absorb_essences.size() - 1, -1, -1):
 		var ae = pending_absorb_essences[i]
-		ae.tempo_remaining -= 5
+		ae.tempo_remaining -= amount
 		if ae.tempo_remaining <= 0:
 			# Create Energy Ball card and add to hand
 			var energy_ball := Card.create_by_id("energy_ball")
@@ -12678,6 +12688,12 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# squares. They last until an ally eats them; enemies trample past.
 			var cr_cells: Array = []
 			var cr_pcell: Vector2i = grid_manager.world_to_grid(player.position)
+			# "An ally who walks over one eats it": a bushel never grows under an
+			# ally already standing there (it was eaten on the spot).
+			var cr_ally_cells: Array = []
+			for cr_a in _all_allies():
+				if is_instance_valid(cr_a):
+					cr_ally_cells.append(grid_manager.world_to_grid(cr_a.position))
 			var cr_tries := 0
 			while cr_cells.size() < 5 and cr_tries < 200:
 				cr_tries += 1
@@ -12685,7 +12701,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				if absi(cr_off.x) + absi(cr_off.y) > 8 or cr_off == Vector2i.ZERO:
 					continue
 				var cr_cell: Vector2i = cr_pcell + cr_off
-				if cr_cell in player.blocked_tiles or cr_cell in cr_cells:
+				if cr_cell in player.blocked_tiles or cr_cell in cr_cells or cr_cell in cr_ally_cells:
 					continue
 				var cr_dup := false
 				for cr_b in _berry_bushels:
@@ -13311,10 +13327,13 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				# Check for enemies at this position and push them back
 				var enemies_at_pos := enemy_spawner.get_enemies_in_radius(next_pos, 0.6)
 				for enemy in enemies_at_pos:
-					enemy.take_damage(card.last_damage_dealt, true)
-					enemy.knockback(start_pos, 2)
+					# "Deal 8 damage to all enemies hit": once each. A knocked-back
+					# enemy lands further along the path and used to be struck
+					# again there; it is still shoved, but takes no second hit.
 					if not enemy in charge_hit:
+						enemy.take_damage(card.last_damage_dealt, true)
 						charge_hit.append(enemy)
+					enemy.knockback(start_pos, 2)
 
 				final_pos = next_pos
 
@@ -14680,17 +14699,19 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 
 	# Demonic Rage: quiver mana costs use health instead
 	var quiver_demonic_rage = buff_mgr and buff_mgr.has_demonic_rage() and mana_cost > 0
+	# 1 health per (design) mana: the same 10-mana-per-HP price as a hand play.
+	var quiver_dr_hp := maxi(1, ceili(mana_cost / 10.0))
 	if quiver_demonic_rage:
-		if stats.current_health <= mana_cost:
-			print("[MAIN] Quiver: Demonic Rage - not enough health to pay %d!" % mana_cost)
+		if stats.current_health <= quiver_dr_hp:
+			print("[MAIN] Quiver: Demonic Rage - not enough health to pay %d!" % quiver_dr_hp)
 			return
 	elif not stats.has_mana(mana_cost):
 		print("[MAIN] Quiver: not enough mana to play %s (need %d)" % [card.card_name, mana_cost])
 		return
 	if mana_cost > 0:
 		if quiver_demonic_rage:
-			var quiver_dr_hp := maxi(1, ceili(mana_cost / 10.0))
-			stats.take_damage(quiver_dr_hp)
+			# "Use health instead": straight out of health, armor never soaks it.
+			stats.take_direct_damage(quiver_dr_hp)
 			buff_mgr.consume_demonic_rage()
 			print("[MAIN] Quiver: Demonic Rage paid %d health instead of %d mana" % [quiver_dr_hp, mana_cost])
 		else:

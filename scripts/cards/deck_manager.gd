@@ -826,7 +826,9 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		if demonic_rage_active:
 			# Spend health instead of mana (10 mana = 1 HP)
 			var dr_buff_mgr = player_node.get_buff_manager()
-			player_stats.take_damage(demonic_rage_hp_cost)
+			# "Use health instead": the price comes out of HEALTH — armor never
+			# soaks it (take_damage let armor eat the whole cost).
+			player_stats.take_direct_damage(demonic_rage_hp_cost)
 			dr_buff_mgr.consume_demonic_rage()
 			health_paid = demonic_rage_hp_cost
 			print("[DECK] Demonic Rage: paid %d health instead of %d mana (%d charges left)" % [demonic_rage_hp_cost, mana_cost, dr_buff_mgr.get_buff(Buff.BuffType.DEMONIC_RAGE).charges if dr_buff_mgr.has_demonic_rage() else 0])
