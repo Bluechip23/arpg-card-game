@@ -161,7 +161,7 @@ func _fresh() -> void:
 	for b in bm.buffs.duplicate():
 		bm.remove_buff(b.buff_type)
 	bm.last_crit_hit = false
-	bm.crit_hits = 0
+	bm.set("crit_hits", 0)
 	main.player.get_debuff_manager().clear_all_debuffs()
 	dm.hand.clear()
 	_park()
@@ -416,13 +416,13 @@ func _t_ancestral_aid() -> void:
 		_check(fb.temp_mana_discount == 0, "Ancestral Aid r%d: the discount ends after 5 tempo" % r)
 		dm.hand.clear()
 		dm.hand.append(Card.create_by_id("block"))
-		dm.hand.append(Card.create_by_id("block"))
+		dm.hand.append(Card.create_by_id("vengeful_shield"))  # an instant tagged defense
 		dm.hand.append(Card.create_by_id("slash"))
 		stats.current_health = 50
 		for _i in range(5):
 			pt._trigger_skill_tree_brad_on_cycle()
 		var heal: int = stats.get_effective_heal_amount(int(_v("ancestral_aid", "heal", r)))
-		_check(stats.current_health == 50 + heal, "Ancestral Aid r%d: more defense cards heals %d (%d)" % [r, heal, stats.current_health - 50])
+		_check(stats.current_health == 50 + heal, "Ancestral Aid r%d: more defense cards (a defense-tagged instant counts) heals %d (%d)" % [r, heal, stats.current_health - 50])
 
 func _t_redemption() -> void:
 	print("-- Redemption --")
@@ -813,6 +813,22 @@ func _t_arcane_overflow() -> void:
 		_advance(1)
 		pt.on_card_ticks_started(sp)
 		_check(stats.st_arcane_overflow_discount, "Arcane Overflow r%d: after %d tempo it primes again" % [r, cd])
+		# Spent at play on the next OFFENSIVE card: one tempo less, once.
+		stats.current_mana = stats.max_mana
+		var e: Enemy = dummies[0]
+		_put(e, Vector2i(1, 0))
+		var tm = main.tempo_manager
+		tm._active_cards.clear()
+		main._pending_resolve_queue.clear()
+		var s1 := Card.create_by_id("slash")
+		dm.hand.append(s1)
+		main.select_card(0)
+		main.play_selected_card(e)
+		var ticks: int = tm._active_cards.back()["total_ticks"] if not tm._active_cards.is_empty() else -1
+		_check(ticks == 2 and not stats.st_arcane_overflow_discount, "Arcane Overflow r%d: the next offensive card costs -1 tempo (Slash 3 → %d)" % [r, ticks])
+		tm._active_cards.clear()
+		main._pending_resolve_queue.clear()
+		tm._ticking = false
 		stats.st_arcane_overflow_discount = false
 
 func _t_i_heal_you() -> void:
@@ -952,7 +968,7 @@ func _t_kinetic_armor() -> void:
 		dm.draw_pile.clear()
 		dm.discard_pile.clear()
 		dm.draw_pile.append(Card.create_by_id("block"))
-		dm.discard_pile.append(Card.create_by_id("block"))
+		dm.discard_pile.append(Card.create_by_id("vengeful_shield"))  # defensive by its tag
 		dm.discard_pile.append(Card.create_by_id("slash"))
 		stats.current_armor = 5
 		stats.st_kinetic_armor_tempo = 0
@@ -1003,9 +1019,9 @@ func _t_haunted_rebuke() -> void:
 		dm.hand.append(Card.create_by_id("block"))
 		main._on_enemy_attacked_player(e, main.player)
 		_check(e.next_action_tempo_tax == 0, "Haunted Rebuke r%d: 2 defense cards in hand do nothing" % r)
-		dm.hand.append(Card.create_by_id("block"))
+		dm.hand.append(Card.create_by_id("vengeful_shield"))  # defensive by its tag
 		main._on_enemy_attacked_player(e, main.player)
-		_check(e.next_action_tempo_tax == 3 and stats.st_haunted_rebuke_cooldown == cd, "Haunted Rebuke r%d: with 3 the attacker's next action takes +3 tempo, cooldown %d" % [r, cd])
+		_check(e.next_action_tempo_tax == 3 and stats.st_haunted_rebuke_cooldown == cd, "Haunted Rebuke r%d: with 3 defensive cards (a defense-tagged instant counts) the attacker's next action takes +3 tempo, cooldown %d" % [r, cd])
 		_advance(cd - 1)
 		main._on_enemy_attacked_player(e, main.player)
 		_check(e.next_action_tempo_tax == 3, "Haunted Rebuke r%d: on cooldown no more" % r)
@@ -1239,9 +1255,9 @@ func _t_nimble_assault() -> void:
 		var cd: int = _v("nimble_assault", "cooldown", r)
 		stats.st_nimble_last_tempo = -1000
 		_fill_draw_pile(10, "draw")
-		dm.hand.append(Card.create_by_id("block"))
+		dm.hand.append(Card.create_by_id("vengeful_shield"))
 		pt._trigger_skill_tree_on_card_play(Card.create_by_id("slash"), null)
-		_check(dm.hand.size() == 1, "Nimble Assault r%d: a Defense card in hand: no draw" % r)
+		_check(dm.hand.size() == 1, "Nimble Assault r%d: a defense card in hand (a defense-tagged instant counts): no draw" % r)
 		dm.hand.clear()
 		dm.hand.append(Card.create_by_id("draw"))
 		pt._trigger_skill_tree_on_card_play(Card.create_by_id("slash"), null)
@@ -1363,12 +1379,11 @@ func _t_deadly() -> void:
 		_put(e, Vector2i(2, 0))
 		_check(pt.deadly_flat_bonus(e) == int(_v("deadly", "damage", r)), "Deadly r%d: +%d damage on a target with no allies within 2 spaces" % [r, _v("deadly", "damage", r)])
 		pt.arm_pre_attack_passives(Card.create_by_id("slash"), e)
-		var crit_on: bool = stats.st_deadly_crit_active
-		var mult: float = stats.get_crit_multiplier() if stats.has_method("get_crit_multiplier") else 0.0
+		var mult: float = stats.get_crit_damage_multiplier()
 		pt.clear_pre_attack_passives()
-		var mult_off: float = stats.get_crit_multiplier() if stats.has_method("get_crit_multiplier") else 0.0
-		_check(crit_on and (mult == 0.0 or is_equal_approx(mult - mult_off, int(_v("deadly", "crit_damage", r)) / 100.0)),
-			"Deadly r%d: and +%d%% crit damage (%.2f vs %.2f)" % [r, _v("deadly", "crit_damage", r), mult, mult_off])
+		var mult_off: float = stats.get_crit_damage_multiplier()
+		_check(is_equal_approx(mult - mult_off, int(_v("deadly", "crit_damage", r)) / 100.0),
+			"Deadly r%d: and +%d%% crit damage (x%.2f vs x%.2f)" % [r, _v("deadly", "crit_damage", r), mult, mult_off])
 		_put(dummies[1], Vector2i(2, 2))
 		_check(pt.deadly_flat_bonus(e) == 0, "Deadly r%d: an ally 2 spaces from the target cancels it" % r)
 
@@ -1486,12 +1501,13 @@ func _t_scouted() -> void:
 		var off_range: int = main._ranged_card_max_range(ms, true)
 		stats.st_scouted_bonus_active = true
 		_check(base_range - off_range == int(_v("scouted", "range", r)), "Scouted r%d: +%d range on the next attack (%d vs %d)" % [r, _v("scouted", "range", r), base_range, off_range])
+		var mult_off: float = stats.get_crit_damage_multiplier()
 		pt.arm_pre_attack_passives(Card.create_by_id("slash"), dummies[1])
-		var auto: bool = stats.st_scouted_crit_active
+		var mult: float = stats.get_crit_damage_multiplier()
 		var crit_hit: bool = main.player.get_buff_manager().roll_crit()
 		pt.clear_pre_attack_passives()
-		_check(auto and crit_hit, "Scouted r%d: the next attack on ANY enemy auto-crits" % r)
-		_check(int(_v("scouted", "crit_damage", r)) == 2 * r, "Scouted r%d: with +%d%% crit damage" % [r, 2 * r])
+		_check(crit_hit, "Scouted r%d: the next attack on ANY enemy auto-crits" % r)
+		_check(is_equal_approx(mult - mult_off, 2 * r / 100.0), "Scouted r%d: with +%d%% crit damage (x%.2f vs x%.2f)" % [r, 2 * r, mult, mult_off])
 		pt._trigger_skill_tree_stephen_on_attack(Card.create_by_id("slash"), dummies[1])
 		_check(not stats.st_scouted_bonus_active, "Scouted r%d: spent by that attack" % r)
 

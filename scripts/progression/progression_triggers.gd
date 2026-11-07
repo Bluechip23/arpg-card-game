@@ -605,6 +605,12 @@ func _apply_skill_tree_option(option) -> void:
 # SKILL TREE PASSIVE TRIGGERS
 # ============================================
 
+## "Defense" / "defensive" in a passive's text (docs/CARD_TAXONOMY.md): the
+## Defense type, or the `defense` tag on an instant or utility (Vengeful
+## Shield). The hand and deck counts read this, as Clean Exchange does.
+static func _is_defensive(c: Card) -> bool:
+	return c != null and (c.card_type == Card.CardType.DEFENSE or c.has_keyword("defense"))
+
 func _trigger_skill_tree_on_discard(card: Card) -> void:
 	## Fired for TRUE discards only (deck_manager.non_play_discard) — a played
 	## card also passes through the discard pile, and must not count.
@@ -670,7 +676,7 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 		if main.tempo_manager.get_global_tempo() - stats.st_nimble_last_tempo >= na_cooldown:
 			var has_defense = false
 			for c in main.deck_manager.hand:
-				if c.card_type == Card.CardType.DEFENSE:
+				if _is_defensive(c):
 					has_defense = true
 					break
 			if not has_defense:
@@ -1254,7 +1260,7 @@ func _trigger_skill_tree_brad_on_cycle() -> void:
 			for c in main.deck_manager.hand:
 				if c.is_offensive():
 					attack_count += 1
-				elif c.card_type == Card.CardType.DEFENSE:
+				elif _is_defensive(c):
 					defense_count += 1
 			if attack_count > defense_count:
 				# Discount a random offensive card (capped at the card's remaining cost)
@@ -2136,13 +2142,13 @@ func _trigger_skill_tree_on_tempo(amount: int) -> void:
 				# Count defense cards across entire deck
 				var defense_count = 0
 				for c in main.deck_manager.hand:
-					if c.card_type == Card.CardType.DEFENSE:
+					if _is_defensive(c):
 						defense_count += 1
 				for c in main.deck_manager.draw_pile:
-					if c.card_type == Card.CardType.DEFENSE:
+					if _is_defensive(c):
 						defense_count += 1
 				for c in main.deck_manager.discard_pile:
-					if c.card_type == Card.CardType.DEFENSE:
+					if _is_defensive(c):
 						defense_count += 1
 				if defense_count > 0:
 					var enemies = main.enemy_spawner.get_living_enemies()
@@ -2171,7 +2177,7 @@ func _trigger_skill_tree_jeremy_on_enemy_attacked(enemy: Enemy) -> void:
 	if stats.has_skill_tree_passive("haunted_rebuke") and stats.st_haunted_rebuke_cooldown <= 0:
 		var defense_in_hand = 0
 		for card in main.deck_manager.hand:
-			if card.card_type == Card.CardType.DEFENSE:
+			if _is_defensive(card):
 				defense_in_hand += 1
 		if defense_in_hand >= 3:
 			stats.st_haunted_rebuke_cooldown = PassiveScaling.value("haunted_rebuke", "cooldown", stats.get_passive_level("haunted_rebuke"))
