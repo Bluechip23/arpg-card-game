@@ -3804,8 +3804,10 @@ func select_character(character: CharacterData) -> void:
 	player.get_buff_manager().buff_applied.connect(_on_player_buff_applied_ring)
 	player.get_buff_manager().invisibility_entered.connect(_on_player_entered_invisibility)
 	player.get_buff_manager().buffs_changed.connect(_restore_player_visibility_if_seen)
-	player.get_debuff_manager().debuff_expired.connect(_on_player_debuff_expired)
-	_wire_dot_log(player)
+	# Marvolo Gaunt: the save's Misunderstanding and its expiry, plus the DoT
+	# log. (Only Player 2 was wired for marvolo_triggered, so a solo hero's
+	# save never applied "deals 25 damage after 7 tempo unless purged".)
+	_wire_marvolo_hooks(player)
 
 	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager, player.get_buff_manager(), player.get_debuff_manager())
 	character_panel.swap_tempo_spent.connect(_on_swap_tempo_spent)
@@ -9551,7 +9553,8 @@ func _helm_range_bonus(card) -> int:
 	if not card.is_offensive():
 		return bonus
 	if card.slotted_in_item and card.slotted_in_item.has_method("get_on_self_bonus"):
-		# The card's own bonus: a card in a plain (vanilla) slot gets no riders.
+		# The card's own view of the item: a plain (vanilla) slot carries no
+		# riders (Monocle / Long Bow: "3 card slots (2 bonus, 1 plain)").
 		var osb = card.get_on_self_bonus()
 		var r := int(osb.get("range_offensive", 0))
 		if r > 0 and (not osb.get("range_requires_ranged", false) or card.is_ranged):
@@ -9586,7 +9589,8 @@ func _slotted_instant_fired(card: Card) -> void:
 func _helm_card_world_effects(card, target = null) -> void:
 	if not card or not card.slotted_in_item or not player or not enemy_spawner or not grid_manager:
 		return
-	# The card's own bonus: a card in a plain (vanilla) slot gets no riders.
+	# Through the card, so a plain (vanilla) slot stays neutral: no wolf
+	# (Dungeon Mastering), no vanishing (Houdini's) from a plain-slot card.
 	var osb = card.get_on_self_bonus()
 
 	# Shamans mask: a UTILITY card zaps a random enemy within 3. The zap is a
@@ -12098,8 +12102,10 @@ func _helm_on_cycle_passives() -> void:
 				a_st._passive_heal = false
 				a_st.gain_mana(greaves_mana)
 				a_st.aura_physical_resist = greaves_resist
-		for m in _frankensteins:
-			if is_instance_valid(m) and not m.is_dead and grid_manager.get_distance_in_cells(player.position, m.position) <= greaves_radius:
+		# "All allies": every friendly summon in reach is healed too, not only
+		# Frankenstein's Monsters (summons have no mana pool or resist field).
+		for m in _all_summons():
+			if not bool(m.get("is_dead")) and grid_manager.get_distance_in_cells(player.position, m.position) <= greaves_radius:
 				m.heal(greaves_regen)
 
 	# Void-resistance aura (Mane): presence-based, refreshed every cycle so it

@@ -1387,6 +1387,7 @@ func is_heal_card() -> bool:
 func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
 	_exec_depth += 1
 	_scope_snapshot = {"adaptive": PlayerStats.adaptive_damage_type, "mult": PlayerStats.hit_multiplier,
+		"rebound": PlayerStats.hit_multiplier_rebound,
 		"pending": player_stats.defense_card_bonus_pending if player_stats else false}
 	last_damage_dealt = 0
 
@@ -1499,7 +1500,6 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 	var _temp_crit_applied := 0.0
 	var _temp_crit_dmg_applied := 0.0
 	var _adaptive_type_prev := -999  # Blue Robe: original damage_type to restore after this play
-	var _overdrive_extra := 0        # Fallen's Wrath: bonus whose half rebounds on the wielder
 	var _slot_block_applied := 0     # Mauls Sabre colored slot: block granted this play, stripped after
 	if slotted_in_item:
 		# Studded belt: the long-dead on_self_thorns finally fires — slotted
@@ -1616,11 +1616,15 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			var slow_bonus: int = target.slow_stacks * int(on_self["slow_damage_per_stack"])
 			if slow_bonus > 0:
 				_gauntlet_bonus_applied += slow_bonus
-		# Fallen's Wrath overdrive: 1.5x damage — half the bonus rebounds on you.
+		# Fallen's Wrath overdrive: "1.5x damage" — the whole hit, like
+		# Megingjörð's double (it used to scale only the card's base and
+		# riders, before STR, so it landed well short of 1.5x). Half of what
+		# the multiplier adds rebounds on you when the play closes
+		# (Card.pay_overdrive_rebound).
 		var _od_mult: float = float(on_self.get("overdrive_multiplier", 1.0))
 		if _od_mult > 1.0 and is_offensive():
-			_overdrive_extra = floori((base_damage + bonus_damage + _gauntlet_bonus_applied) * (_od_mult - 1.0))
-			_gauntlet_bonus_applied += _overdrive_extra
+			PlayerStats.hit_multiplier = _od_mult
+			PlayerStats.hit_multiplier_rebound = 0.5
 		# Colored slots (Mauls Sabre): the slot's own payload rides its card's
 		# play. Combo effects read combo_prev_color, captured at play time.
 		# The discard cost is player-chosen, so it lives in main.gd
@@ -2499,10 +2503,6 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 					print("[CARD] Monk of the Night: +%d block from the strike" % monk_block)
 				break
 
-	# Fallen's Wrath overdrive: half the bonus rebounds on the wielder.
-	if _overdrive_extra > 0 and player_stats:
-		player_stats.take_direct_damage(ceili(_overdrive_extra / 2.0))
-		print("[CARD] Overdrive: took %d rebound damage" % ceili(_overdrive_extra / 2.0))
 
 	# Sabre Tooth: striking the same target twice in a row ticks the
 	# attack-speed counter an extra time and rakes 5 more Bleed.
@@ -2709,11 +2709,13 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		# its riders back.
 		PlayerStats.adaptive_damage_type = _scope_snapshot["adaptive"]
 		PlayerStats.hit_multiplier = _scope_snapshot["mult"]
+		PlayerStats.hit_multiplier_rebound = _scope_snapshot.get("rebound", 0.0)
 		if player_stats:
 			player_stats.defense_card_bonus_pending = _scope_snapshot["pending"]
 	elif not play_scope_open:
 		# A bare execute (no world-effects step follows): clean up here.
 		PlayerStats.adaptive_damage_type = false
+		pay_overdrive_rebound(player_stats)
 		PlayerStats.hit_multiplier = 1.0
 		if player_stats:
 			player_stats.defense_card_bonus_pending = false  # an armorless card leaves nothing waiting
@@ -3011,9 +3013,21 @@ static var play_scope_open: bool = false
 static var _exec_depth: int = 0
 static var _scope_snapshot: Dictionary = {}
 
+## Fallen's Wrath: "you take half the bonus yourself" — half of what the
+## overdrive multiplier added to this play's hits (AoE and world effects
+## included), paid once when the play closes.
+static func pay_overdrive_rebound(player_stats: PlayerStats) -> void:
+	if PlayerStats.hit_multiplier_rebound > 0.0 and PlayerStats.hit_multiplier_extra > 0 and player_stats:
+		var rebound: int = ceili(PlayerStats.hit_multiplier_extra * PlayerStats.hit_multiplier_rebound)
+		player_stats.take_direct_damage(rebound)
+		print("[CARD] Overdrive: took %d rebound damage" % rebound)
+	PlayerStats.hit_multiplier_rebound = 0.0
+	PlayerStats.hit_multiplier_extra = 0
+
 static func close_play_scope(player_stats: PlayerStats) -> void:
 	play_scope_open = false
 	PlayerStats.adaptive_damage_type = false
+	pay_overdrive_rebound(player_stats)
 	PlayerStats.hit_multiplier = 1.0
 	if player_stats:
 		player_stats.defense_card_bonus_pending = false

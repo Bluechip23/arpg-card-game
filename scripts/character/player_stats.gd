@@ -60,6 +60,11 @@ static var ally_heal_caster: PlayerStats = null
 ## Megingjörð: the resolving slotted card's hits are multiplied at the end of
 ## the pipeline (Enemy.take_damage, via the hit modifier) — a true double.
 static var hit_multiplier: float = 1.0
+## Fallen's Wrath overdrive rides the same multiplier ("1.5x damage, and you
+## take half the bonus yourself"): the share of the bonus that rebounds, and
+## the bonus the multiplier has added so far this play (paid when it closes).
+static var hit_multiplier_rebound: float = 0.0
+static var hit_multiplier_extra: int = 0
 ## Blue Robe: the resolving slotted card's hits each take the type the enemy
 ## they strike resists least — re-rolled per enemy inside Enemy.take_damage.
 static var adaptive_damage_type: bool = false

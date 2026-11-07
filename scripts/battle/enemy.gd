@@ -238,7 +238,7 @@ func get_lowest_resistance_type() -> int:
 			best = t
 	return best
 var missing_life_damage_rate: float = 0.0  # Jordan 1s: +rate × missing-health% bonus player damage
-var missing_life_threshold: int = 0        # Jordan 1s: only while at/below this health %
+var missing_life_threshold: int = 0        # Jordan 1s: only while below this health %
 var invisible_to_players: Array = []  # Serial Killer: player nodes this enemy ignores
 
 # Hydra: grows stronger with every hit it takes. After the 4th hit it gains bulk
@@ -6872,7 +6872,7 @@ func preview_player_hit(amount: int, damage_type: int = DamageTypes.Type.PHYSICA
 		amount = floori(amount * (1.0 + vuln_percent / 100.0))
 	if missing_life_damage_rate > 0.0 and max_health > 0:
 		var health_pct: float = float(current_health) / float(max_health) * 100.0
-		if health_pct <= missing_life_threshold:
+		if health_pct < missing_life_threshold:  # Jordan 1s: "below 50%" — 50 itself gets nothing
 			amount += floori(missing_life_damage_rate * (100.0 - health_pct))
 	if ignore_armor:
 		return {"armor": 0, "health": maxi(0, amount)}
@@ -7009,7 +7009,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	# Jordan 1s: below the threshold health %, add rate × missing-health% damage.
 	if from_player and missing_life_damage_rate > 0.0 and max_health > 0:
 		var health_pct: float = float(current_health) / float(max_health) * 100.0
-		if health_pct <= missing_life_threshold:
+		if health_pct < missing_life_threshold:  # Jordan 1s: "below 50%" — 50 itself gets nothing
 			amount += floori(missing_life_damage_rate * (100.0 - health_pct))
 
 	# Armor Break: double damage to armor, no health damage. Zero effect on unarmored.
