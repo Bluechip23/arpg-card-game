@@ -430,6 +430,20 @@ func _test_rings() -> void:
 	_check(bm.is_invisible(), "The Precious: shadow form hides you")
 	Card.create_by_id("slash").execute(dummies[0], stats, dm, 0.0, 0.0, bm)
 	_check(bm.is_invisible(), "The Precious: attacking does not reveal you")
+	# Clicking the badge leaves — but only after 1 tempo inside.
+	var badge := BuffIconUI.new()
+	get_root().add_child(badge)
+	badge.buff = bm.get_buff(Buff.BuffType.INVISIBLE)
+	badge.buff_manager = bm
+	var click := InputEventMouseButton.new()
+	click.pressed = true
+	click.button_index = MOUSE_BUTTON_LEFT
+	badge._gui_input(click)
+	_check(stats.shadow_form_tempo == 10, "The Precious: the badge holds you in until a tempo has passed")
+	stats.shadow_form_tempo = 9
+	badge._gui_input(click)
+	_check(stats.shadow_form_tempo == 0 and main._wraiths.is_empty(), "The Precious: after 1 tempo, clicking the badge leaves shadow form")
+	badge.free()
 	stats.exit_shadow_form()
 	_check(main._wraiths.is_empty() and stats.max_mana == mana_before, "The Precious: leaving returns the mana and sends the wraiths away")
 	var stored: Array = prec.ring_counters.get("wraiths", [])
@@ -476,6 +490,24 @@ func _test_boots() -> void:
 	_check(stats.current_flash_points == 10 - (PlayerStats.FLASH_COST_MOVE - 1),
 		"Rollerblades: a flash move costs 1 less (%d left)" % stats.current_flash_points)
 	stats.flash_movement_enabled = false
+	# Shift: move up to 2 spaces, free.
+	var shift_card: Card = null
+	for c in rb.granted_card_instances:
+		if c.card_id == "shift":
+			shift_card = c
+	var home: Vector2i = _pcell()
+	var cam = main.get_world_camera()
+	_place(dummies[0], home + Vector2i(0, 3))
+	_place(dummies[1], home + Vector2i(0, 4))
+	main.mouse_override = cam.unproject_position(main.grid_manager.grid_to_world(home + Vector2i(-2, 0)))
+	_exec(shift_card, main.player)
+	_check(_pcell() == home + Vector2i(-2, 0), "Rollerblades: Shift moves you 2 spaces")
+	main.mouse_override = cam.unproject_position(main.grid_manager.grid_to_world(_pcell() + Vector2i(-3, 0)))
+	var before_shift: Vector2i = _pcell()
+	_exec(shift_card, main.player)
+	_check(_pcell() == before_shift, "Rollerblades: ...but no further than 2")
+	main.mouse_override = Vector2(-1, -1)
+	_place(main.player, home)
 	_clear_gear()
 
 	# Steel Boots: 1 unerring armor every 15 tempo.
@@ -774,7 +806,13 @@ func _test_chests() -> void:
 		inv.process_turn()
 	_check(stats.unerring_armor == 0, "Steel Plate: nothing at 15 tempo")
 	inv.process_turn()
-	_check(stats.unerring_armor == mini(8, stats.get_unerring_cap()), "Steel Plate: 8 unerring armor at 20 tempo, capped (%d, cap %d)" % [stats.unerring_armor, stats.get_unerring_cap()])
+	_check(stats.unerring_armor == mini(8, stats.get_unerring_cap()), "Steel Plate: at 20 tempo, up to your unerring cap (%d, cap %d)" % [stats.unerring_armor, stats.get_unerring_cap()])
+	stats.equipment_unerring_cap += 50
+	stats.unerring_armor = 0
+	for _c in range(4):
+		inv.process_turn()
+	_check(stats.unerring_armor == 8, "Steel Plate: 8 unerring armor every 20 tempo with room under the cap (%d)" % stats.unerring_armor)
+	stats.equipment_unerring_cap -= 50
 	_clear_gear()
 
 	# Supernova Cuirass: 10% of a hit banked as a stack, 2% mitigated; max 10;
@@ -905,10 +943,18 @@ func _test_belts() -> void:
 	# Strap of Stone: 10 unerring every 20 tempo; slotted card 10% physical for 10 tempo.
 	_fresh()
 	var strap := _equip("strap_of_stone")
+	stats.equipment_unerring_cap += 50
+	stats.unerring_armor = 0
+	for _c in range(3):
+		inv.process_turn()
+	_check(stats.unerring_armor == 0, "Strap of Stone: nothing at 15 tempo")
+	inv.process_turn()
+	_check(stats.unerring_armor == 10, "Strap of Stone: 10 unerring armor every 20 tempo (%d)" % stats.unerring_armor)
+	stats.equipment_unerring_cap -= 50
 	stats.unerring_armor = 0
 	for _c in range(4):
 		inv.process_turn()
-	_check(stats.unerring_armor == mini(10, stats.get_unerring_cap()), "Strap of Stone: 10 unerring armor at 20 tempo, capped (%d)" % stats.unerring_armor)
+	_check(stats.unerring_armor == mini(10, stats.get_unerring_cap()), "Strap of Stone: ...up to your unerring cap (%d)" % stats.unerring_armor)
 	_exec(_slot(Card.create_by_id("slash"), strap), dummies[0])
 	var res = bm.get_buff(Buff.BuffType.RESILIENT)
 	_check(res != null and bm.get_resilient_percent(DamageTypes.Type.PHYSICAL) == 10 and res.duration == 10
@@ -1393,6 +1439,14 @@ func _test_shields() -> void:
 	dummies[0].next_melee_tempo_tax = 0
 	dummies[0]._deal_damage_to_player(main.player, 5, "Attack")
 	_check(dummies[0].next_melee_tempo_tax == 2, "Sword Breaker: melee damage the armor swallows whole costs that enemy 2 tempo (%d)" % dummies[0].next_melee_tempo_tax)
+	var swing := {"name": "attack", "tempo_cost": 3}
+	var taxed: int = dummies[0]._effective_cost(swing)
+	dummies[0].next_melee_tempo_tax = 0
+	_check(taxed == dummies[0]._effective_cost(swing) + 2, "Sword Breaker: ...on its next melee attack's wind-up")
+	dummies[0].current_health = 1000
+	stats.current_armor = 0
+	dummies[0]._deal_damage_to_player(main.player, 5, "Attack")
+	_check(dummies[0].next_melee_tempo_tax == 0, "Sword Breaker: a hit that gets through taxes nothing")
 	dummies[0].next_melee_tempo_tax = 0
 	_clear_gear()
 
