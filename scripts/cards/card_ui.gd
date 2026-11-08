@@ -165,6 +165,29 @@ const FRAMES := {
 		"top": 27.5, "title_h": 24.0, "art_h": 51.0, "type_h": 24.0, "desc_top": 9.0,
 		"title_left": 40.1, "title_right": 19.9, "name_w": 62,
 	},
+	# Enchantments: green cracked-emerald stone in gilt and gold thorns,
+	# jewelled chains off the drop's ring, white text above a hooded figure
+	# reaching for a ruby on an altar. Its own drop and hourglass; its type
+	# bar's ruby painted out for the logo. The board ran taller than a card:
+	# its art window was squeezed harder than the Attack one's, so the window
+	# is shorter here and the rules box roomier. The dots sit between the
+	# chains' pendants.
+	"enchantment": {
+		"tex": "res://assets/textures/cards/frame_enchantment.png",
+		"rect": Rect2(-3.7, -6.8, 159.0, 228.9),
+		"mana_at": Vector2(21.3, 28.2),
+		"tempo_at": Vector2(133.3, 28.4),
+		"dots_y": 24.2,
+		"dots_span": Vector2(50.3, 104.4),  # between the chains' pendants
+		"logo_at": Vector2(75.8, 103.9),
+		"desc_box": Vector2(66.0, 40.0),
+		"desc_right": 52.5,
+		"desc_full": Vector2(115.6, 56.0),
+		"ink": Color(0.96, 0.94, 0.9),
+		"ink_dark": false,
+		"top": 34.6, "title_h": 19.1, "art_h": 39.4, "type_h": 20.9, "desc_top": 8.0,
+		"title_left": 30.4, "title_right": 21.0, "name_w": 72,
+	},
 }
 ## How strongly the rules box is washed over its corner picture (0 = the
 ## picture at full strength, 1 = hidden). See _style_painted_frame.
@@ -182,7 +205,8 @@ const FRAMED_DESC_FULL := Vector2(116, 78)
 const FRAMED_DESC_FULL_MAX := 9   # ... no bigger than this, so it covers as little of the picture as it can
 
 ## The painted frame a card wears: Maintain for any card with an upkeep
-## (whatever its type), Instant for the instants, Spell for every spell;
+## (whatever its type), Instant for the instants, Enchantment for the
+## enchantments, Spell for every spell;
 ## then by type — Instant, Defense, Utility — and the Attack shape
 ## (is_attack(), never an offensive spell); {} for the drawn frame.
 static func frame_for(card: Card) -> Dictionary:
@@ -193,6 +217,12 @@ static func frame_for(card: Card) -> Dictionary:
 	# An instant is an instant first, spell or not (Healthy Bliss).
 	if card.card_type == Card.CardType.REACTION:
 		return FRAMES["instant"]
+	# Enchantment is its own family on the card web (docs/CARD_TAXONOMY.md),
+	# beside Playable and Instant: held, never played. Like an instant it
+	# wears its own frame whatever tags it carries, spell included; only an
+	# upkeep (the Maintain ruling, "whatever its type") outranks it.
+	if card.card_type == Card.CardType.ENCHANTMENT:
+		return FRAMES["enchantment"]
 	# Spells are their own family (designer, 2026-10-30): an offensive spell
 	# is stored as an Attack-type card, but it wears the Spell frame, never
 	# the Attack one — and so does a utility spell.
@@ -1174,6 +1204,28 @@ func _style_painted_frame() -> void:
 	_place_framed_costs()
 	_place_framed_logo()
 	_fit_name()   # this frame's name bar may be narrower
+	_fit_type_word()
+
+
+## The logo's ring, half its width (card pixels): a type word stays left of it.
+const FRAMED_LOGO_RING := 13.0
+const TYPE_FONT_MAX := 9
+const TYPE_FONT_MIN := 7
+
+## A long type word ("Enchantment") steps its size down until it ends short
+## of the logo set in the type bar's middle, instead of running under it.
+func _fit_type_word() -> void:
+	if type_label == null or _frame.is_empty():
+		return
+	var font: Font = type_label.get_theme_font("font")
+	if font == null:
+		return
+	# The bar's text starts at the VBox's left edge (14) plus its margin (2).
+	var room: float = float(_frame["logo_at"].x) - FRAMED_LOGO_RING - 16.0
+	var fs := TYPE_FONT_MAX
+	while fs > TYPE_FONT_MIN and font.get_string_size(type_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
+		fs -= 1
+	type_label.add_theme_font_size_override("font_size", fs)
 
 
 ## The upkeep on the Maintain frame's top strip, right of the tempo dots.
