@@ -121,6 +121,11 @@ and **every other clock pauses** (Sync and Async alike) until the channel
 resolves or breaks. The overhead bar turns orange and reads
 "Channeling <name>".
 
+A channel can also follow an action instead of ending it: the Ifrit's Fire
+Breath lands at once, then he goes straight into **Fire Breath (continued)**,
+a stand-alone Channel 6 that is never chosen on its own (designer,
+2026-11-08: "he continues to breathe the fire for an additional 6 tempo").
+
 **Immediate** is the default: no channel, the action resolves the moment its
 tempo comes up.
 

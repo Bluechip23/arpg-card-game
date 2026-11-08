@@ -222,6 +222,10 @@ func _test_lair_fight() -> void:
 			perched.target_position = perched.position
 			perched.is_moving = false
 			perched._move_path.clear()
+			# Once up, it fights by its tooltip (2026-11-08) — at range ≤2 it
+			# would scurry off again — so stop the clock on arrival.
+			if perched.intended_cell() == perched.perch_cell:
+				break
 		_check(perched.intended_cell() == perched.perch_cell, "it walks up to the top of the high ground (%s -> %s)" % [perched.intended_cell(), perched.perch_cell])
 		_check(main.dungeon_manager.get_elevation(perched.perch_cell) == 1, "the perch is high ground")
 

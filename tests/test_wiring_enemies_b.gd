@@ -489,8 +489,13 @@ func _test_ifrit() -> void:
 	_check(_hp() < hp0, "Ifrit: Fire Breath burns the player in the 5x5 (%d)" % (hp0 - _hp()))
 	_check(burn != null and burn.value >= 5, "Ifrit: …and lays 5 Burn")
 	_check(inside.hits == 1 and outside.hits == 0, "Ifrit: a unit inside the 5x5 is hit, one beside it is not")
-	_check(main._fire_walls.size() == walls0 + 1 and main._fire_walls.back()["tiles"].size() == 25 and int(main._fire_walls.back()["tempo_left"]) == 3,
-		"Ifrit: the 25 tiles keep burning for 3 tempo")
+	# Designer, 2026-11-08: the breath goes on as a 6-tempo Channel, and the
+	# 25 tiles burn while it does and 3 tempo after (this tempo + 6 + 3;
+	# tests/test_open_fixes_enemies.gd).
+	_check(main._fire_walls.size() == walls0 + 1 and main._fire_walls.back()["tiles"].size() == 25 and int(main._fire_walls.back()["tempo_left"]) == 10,
+		"Ifrit: the 25 tiles keep burning while he breathes on, then 3 tempo")
+	_check(f.is_channeling(), "Ifrit: …and he channels the breath")
+	f._reset_action_clocks()
 	main.enemy_spawner.summons = []
 	inside.queue_free()
 	outside.queue_free()
