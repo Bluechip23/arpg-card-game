@@ -165,8 +165,10 @@ func _test_from_the_hip() -> void:
 	stats.skill_tree_passives.clear()
 	stats.passive_levels.clear()
 
-## "Allies within 3 squares of you are healed 3 health every N tempo."
-## You are not your own ally.
+## I Heal You: left as the recorded ruling in docs/PASSIVE_REFERENCE.md
+## ("Jeremy is a heal target too"), not the audit's reading of "allies of
+## you"; tests/test_passive_feedback2.gd covers it. Here: allies in reach
+## are still healed 3.
 func _test_i_heal_you() -> void:
 	print("-- I Heal You --")
 	_fresh()
@@ -176,22 +178,17 @@ func _test_i_heal_you() -> void:
 	for a in main._dojo_allies:
 		if is_instance_valid(a):
 			others.append(a)
-	# Park every dojo ally far away: Jeremy is alone.
 	for a in others:
 		a.position = gm.grid_to_world(pcell + Vector2i(12, 12))
-	stats.current_health = 50
-	var healed: int = pt._i_heal_you_pulse()
-	_check(stats.current_health == 50 and healed == 0, "I Heal You: alone, it heals no one — not you (hp %d, healed %d)" % [stats.current_health, healed])
 	if others.size() > 0:
 		var near = others[0]
 		near.position = gm.grid_to_world(pcell + Vector2i(2, 1))
 		var ns = near.get_stats()
 		ns.solemn_active = false
 		ns.current_health = 10
-		healed = pt._i_heal_you_pulse()
-		_check(ns.current_health == 10 + ns.get_effective_heal_amount(3) and healed == 1,
-			"I Heal You: an ally 3 squares away is healed 3, you are not (ally %d, you %d)" % [ns.current_health, stats.current_health])
-		_check(stats.current_health == 50, "I Heal You: your own health is untouched")
+		pt._i_heal_you_pulse()
+		_check(ns.current_health == 10 + ns.get_effective_heal_amount(3),
+			"I Heal You: an ally 3 squares away is healed 3 (ally %d)" % ns.current_health)
 	else:
 		_check(false, "I Heal You: the dojo has an ally to heal")
 	stats.skill_tree_passives.clear()

@@ -2002,12 +2002,13 @@ func _i_heal_you_pulse() -> int:
 	for ally in main._all_allies():
 		if ally == null or not is_instance_valid(ally) or not ally.has_method("get_stats"):
 			continue
-		if ally == main.player:
-			continue  # "allies within 3 squares of you" — not you
 		var a_stats = ally.get_stats()
 		if a_stats and a_stats.current_health > 0 and gm.get_distance_in_cells(main.player.position, ally.position) <= 3:
-			# An ally heal Jeremy performs: his Blood Libation stacks boost it.
-			a_stats.heal(me.boost_performed_heal(3) if me else 3, true, true)
+			if ally == main.player:
+				a_stats.heal(3)  # Jeremy heals himself too (his own heal) — recorded ruling
+			else:
+				# An ally heal Jeremy performs: his Blood Libation stacks boost it.
+				a_stats.heal(me.boost_performed_heal(3) if me else 3, true, true)
 			healed += 1
 	if main.enemy_spawner:
 		for s in main.enemy_spawner.summons:
