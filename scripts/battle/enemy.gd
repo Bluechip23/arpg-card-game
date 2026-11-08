@@ -101,6 +101,7 @@ var player_hit_modifier: Callable       # (enemy, amount) -> amount: skill-tree 
 var has_been_damaged: bool = false      # any damage from any source has landed (Surprise Opener's first-source check)
 var last_hit_from_player: bool = false  # the most recent hit was the player's own (card, gauntlet skill, auto attack), not a tick or summon
 var last_hit_direct: bool = false  # ...and from the player's own action (card, skill, auto attack), not a summon or zone tick
+var killed_by_player: bool = false  # the killing blow was the player's (from_player) — not a self-destruct, a fallen master, or an enemy's own blow
 var next_action_tempo_tax: int = 0      # Haunted Rebuke: the next action (sync or async) winds up this much longer
 var bonus_damage_next_hit: int = 0    # Applied on the next take_damage call, then cleared
 var premeditated_card_bonus: int = 0  # Premeditated: +15 onto the next card that targets this enemy
@@ -177,7 +178,7 @@ var marked_tempo: int = 0      # Remaining tempo for mark
 const MARKED_BONUS_PERCENT := 15  # Mark: the player's attacks deal +15% to a marked target
 var is_silenced: bool = false  # Cannot cast spells/ranged special attacks when silenced
 var silenced_tempo: int = 0    # Remaining tempo cycles for silence
-var choke_dot_stacks: int = 0  # Choke: take choke_dot_damage per cycle, lose 1 stack per cycle
+var choke_dot_stacks: int = 0  # Choke: take choke_dot_damage per stack at the next cycle, then clear
 var choke_dot_damage: int = 3  # Set at cast (Choke sets a flat 2)
 var cold_stacks: int = 0       # Cold stacks - at 5, becomes frozen; thaws COLD_THAW_PER_CYCLE per cycle
 const COLD_THAW_PER_CYCLE := 3
@@ -238,7 +239,7 @@ func get_lowest_resistance_type() -> int:
 			best = t
 	return best
 var missing_life_damage_rate: float = 0.0  # Jordan 1s: +rate × missing-health% bonus player damage
-var missing_life_threshold: int = 0        # Jordan 1s: only while at/below this health %
+var missing_life_threshold: int = 0        # Jordan 1s: only while below this health %
 var invisible_to_players: Array = []  # Serial Killer: player nodes this enemy ignores
 
 # Hydra: grows stronger with every hit it takes. After the 4th hit it gains bulk
@@ -270,6 +271,10 @@ var _ww_last_target: Node3D = null    # Werewolf: ramping rhythm — same target
 var _ww_streak: int = 0
 var _bat_form_charges: int = 2        # Vampire: bat-form escapes remaining (no way to recharge)
 var _vamp_absorb_pending: bool = false  # Vampire: Absorb always casts right after bat form
+# Vampire: one Absorb owed per Bat Form, in order — its base drain (20 for
+# the first escape, 10 for the second), so two escapes before the first
+# Absorb fires still get two Absorbs, the first for 20.
+var _vamp_absorbs_owed: Array = []
 var _necro_summons_alive: int = 0     # Necromancer: his Summon retinue (capped at 3 by the chooser)
 var raised_by: Enemy = null           # the Necromancer whose Summon raised this one (its death costs him 10)
 var necro_risen: bool = false         # a Skeleton risen from a corpse by a Necromancer: rises no further, echoes nothing
@@ -357,7 +362,7 @@ const NON_MELEE_ACTIONS := {
 	"shoot": true, "ember": true, "dark_bolt": true, "frost_bolt": true, "death_bolt": true,
 	"fire_bolt": true, "spark_bolt": true, "sludge_spit": true, "web": true,
 	"hook": true, "net_throw": true, "breath_swarm": true, "screech": true, "gust": true,
-	"roar": true, "absorb": true, "chain_lightning": true, "fire_breath": true,
+	"roar": true, "absorb": true, "chain_lightning": true, "fire_breath": true, "breathe_on": true,
 	"boulder_roll": true,
 	# second pass (the enemy sheet)
 	"goat_charge": true, "dive_bomb": true, "roc_retreat": true, "track": true,
@@ -553,6 +558,9 @@ var nest_archer_released: bool = false
 var perch_cell: Vector2i = Vector2i(-1, -1)
 var perch_approach: Vector2i = Vector2i(-1, -1)
 var _perch_approach_done: bool = false
+# Set once it has stood on its perch: from then on it fights like any Archer
+# Rat (the tooltip: scurry at ≤2, shoot at 3-6, close in past 6).
+var _perch_reached: bool = false
 # On the RAT_KING: main hands over the live nests; the king flees to a
 # random untouched one at 50%, then 30%, then 30% again (after healing).
 var nest_provider: Callable = Callable()
@@ -943,8 +951,10 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 		EnemyType.ICE_TROLL:
 			actions = [
 				{"name": "ice_club", "tempo_cost": 4},
-				# Clobber (50 dmg) is never chosen — it auto-triggers when an
-				# Ice Troll attack freezes its target (see _try_ice_club).
+				# Clobber (designer, 2026-11-08): "a 10 tempo cost if queued up
+				# or an auto trigger against a frozen enemy" — queued here, and
+				# it still auto-triggers when a blow freezes (_ice_troll_strike).
+				{"name": "clobber",  "tempo_cost": 10},
 				{"name": "move",     "tempo_cost": 3},
 			]
 		EnemyType.WHITE_MANTICORE:
@@ -1029,6 +1039,10 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 			actions = [
 				{"name": "ifrit_attack", "tempo_cost": 3},
 				{"name": "fire_breath",  "tempo_cost": 8},
+				# Designer, 2026-11-08: "he continues to breathe the fire for an
+				# additional 6 tempo … in essence this is a channel". Never chosen:
+				# a breath that lands goes straight into it (_try_fire_breath).
+				{"name": "breathe_on",   "tempo_cost": IFRIT_BREATH_CHANNEL, "channel": IFRIT_BREATH_CHANNEL, "label": "Fire Breath (continued)"},
 				{"name": "move",         "tempo_cost": 4},
 			]
 		EnemyType.INFLAMED_MINOTAUR:
@@ -1173,7 +1187,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WEREGOAT: [{"name": "Hoof Punch", "tempo": 4}, {"name": "Charge", "tempo": 8}, {"name": "Move", "tempo": 5}],
 		EnemyType.ROC: [{"name": "Dive Bomb", "tempo": 5}, {"name": "Eye Scrape", "tempo": 3}, {"name": "Move away", "tempo": 1}],
 		EnemyType.WYVERN: [{"name": "Bite", "tempo": 5}, {"name": "Talon Grab", "tempo": 8}, {"name": "Move", "tempo": 4}],
-		EnemyType.ICE_TROLL: [{"name": "Club", "tempo": 4}, {"name": "Move", "tempo": 3}],
+		EnemyType.ICE_TROLL: [{"name": "Club", "tempo": 4}, {"name": "Clobber", "tempo": 10}, {"name": "Move", "tempo": 3}],
 		EnemyType.SNOW_WRAITH: [{"name": "Snowball", "tempo": 8}, {"name": "Ice Blast", "tempo": 5}, {"name": "Move", "tempo": 5}],
 		EnemyType.GRANITE_COLOSSUS: [],
 		EnemyType.WHITE_MANTICORE: [{"name": "Bite", "tempo": 3}, {"name": "Stinger", "tempo": 5}, {"name": "Move", "tempo": 2}],
@@ -1181,7 +1195,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.CERBERUS: [{"name": "Bite", "tempo": 5}, {"name": "Swipe", "tempo": 8}, {"name": "Venom Tail", "tempo": 15}, {"name": "Roar", "tempo": 12}, {"name": "Move", "tempo": 3}],
 		EnemyType.SUCCUBUS: [{"name": "Mana Drain", "tempo": 10}, {"name": "Damaging Snap", "tempo": 6}, {"name": "Move", "tempo": 2}],
 		EnemyType.DEMON: [{"name": "Mimic", "tempo": 8}, {"name": "Cuff", "tempo": 8}, {"name": "Attack", "tempo": 5}, {"name": "Move", "tempo": 2}],
-		EnemyType.IFRIT: [{"name": "Attack", "tempo": 3}, {"name": "Fire Breath", "tempo": 8}, {"name": "Move", "tempo": 4}],
+		EnemyType.IFRIT: [{"name": "Attack", "tempo": 3}, {"name": "Fire Breath", "tempo": 8}, {"name": "Fire Breath (continued)", "tempo": 6}, {"name": "Move", "tempo": 4}],
 		EnemyType.MIND_EATER: [{"name": "Mind Slow", "tempo": 10}, {"name": "Manipulate Mind Space", "tempo": 8}],
 		EnemyType.SPECTER: [{"name": "Spirit Spit", "tempo": 5}, {"name": "Invisible", "tempo": 8}, {"name": "Move", "tempo": 1}],
 		EnemyType.MAGMA_SPIDER: [{"name": "Fire Web", "tempo": 8}, {"name": "Fire Bounce", "tempo": 5}],
@@ -1245,7 +1259,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WEREGOAT: "Hoof Punch (4 tempo): 6 damage.\nCharge (8 tempo): runs up to 8 squares along the line that crosses the most of your units — 8 damage to everything in its path, and everything within 1 square of where it lands is Stunned for 3 tempo.\nMove (5 tempo): 2 spaces.",
 		EnemyType.WYVERN: "Flying: ignores your high-ground bonus. Resists 25% physical / 35% fire / 25% lightning.\nBite (5 tempo): 25 damage.\nTalon Grab (8 tempo, then 2-cycle cooldown): flies above its target (reach 3), 25 damage, and drags them to an unoccupied space 8 squares away.\nMove (4 tempo): 6 spaces.",
 		EnemyType.ROC: "15 armor. Flying: ignores your high-ground bonus. It always moves AWAY from you: it dives, then keeps its distance until the dive is ready again.\nDive Bomb (5 tempo, from up to 6 squares): 8 damage; the Roc lands beside you.\nEye Scrape (3 tempo, Async): if you have stayed in melee reach for more than 3 tempo it claws your eyes — 2 Weakened.\nMove away (1 tempo): 1 space.",
-		EnemyType.ICE_TROLL: "Every attack adds a stack of frost (Cold, 5 tempo) AND a stack of Brittle (5 tempo). Resists 35% physical / 15% fire / 15% lightning.\nClub (4 tempo): 13 damage.\nClobber (auto): 50 damage — triggers instantly whenever an Ice Troll attack FREEZES its target.\nMove (3 tempo): 3 spaces.",
+		EnemyType.ICE_TROLL: "Every attack adds a stack of frost (Cold, 5 tempo) AND a stack of Brittle (5 tempo). Resists 35% physical / 15% fire / 15% lightning.\nClub (4 tempo): 13 damage.\nClobber (10 tempo): 50 damage. It also triggers instantly whenever an Ice Troll attack FREEZES its target.\nMove (3 tempo): 3 spaces.",
 		EnemyType.SNOW_WRAITH: "Range 5.\nSnowball (8 tempo): Slowed for 3 tempo + 2 Cold.\nIce Blast (5 tempo): 5 ice damage, +3 if you have armor; Slowed for 3 tempo.\nMove (5 tempo): 3 spaces.",
 		EnemyType.GRANITE_COLOSSUS: "350 health under 250 armor; resists 65% physical / 50% fire / 50% lightning.\nMove (5 tempo): 3 spaces.\n[Its attacks are still TBD on the design sheet — it only stands.]",
 		EnemyType.WHITE_MANTICORE: "Flying: ignores your high-ground bonus. Resists 10% physical / 35% fire / 10% lightning.\nBite (3 tempo): 15 damage.\nStinger (5 tempo, then 5-tempo cooldown): 25 damage + 3 Clumsy (3 stacks of 5 tempo = 3 cycles) + 8 Poison.\nMove (2 tempo): 3 spaces.",
@@ -1254,7 +1268,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.CERBERUS: "Guards Hell's Door. Resists 30% physical / 40% fire / 15% lightning. You need not kill him — only break the door he guards — but it is far easier with him dead.\nBite (5 tempo, Async): 25 damage. Below 66% health the second head bites too (25 + 5 Bleed); below 33% the third head as well (25, and he feeds on the wound). A bite that comes up out of reach is spent.\nSwipe (8 tempo): 8 Bleed.\nVenom Tail (15 tempo, Async): you discard 3 random cards and are stunned for 15 tempo; the moment the stun is gone, 2 Vulnerable and Cuffed for 10 tempo.\nRoar (12 tempo): +25 armor and 25 thorns.\nMove (3 tempo): 6 spaces.\nGuardian of Death: Brace 30% for 5 hits the first time he drops below half, and again EVERY time any unit within 8 squares — foe or ally, the door included — drops below half.\nDeathyard Dog: a foe healing within 5 squares gives him 15 Strengthen.",
 		EnemyType.SUCCUBUS: "5 armor, range 4.\nMana Drain (10 tempo): drains 10 mana from your pool.\nDamaging Snap (6 tempo): damage equal to your missing mana / 20, + 4.\nMove (2 tempo): 1 space.",
 		EnemyType.DEMON: "Mimic (8 tempo, Async): conjures a duplicate of itself — it looks identical (health, buffs and debuffs all copied) but has 1 health, and hits as hard as the real one. At most 2 mimics per demon.\nCuff (8 tempo, Async): you cannot draw for 15 tempo.\nAttack (5 tempo): 8 damage.\nMove (2 tempo): 2 spaces.",
-		EnemyType.IFRIT: "Resists 20% physical / 15% fire / 15% lightning.\nAttack (3 tempo): 45 damage.\nFire Breath (8 tempo, used from up to 4 tiles out): a 5x5 sheet of flame in front — 20 fire damage + 5 Burn; the tiles keep burning for 3 tempo.\nBackflip (auto): a single blow over 40 damage sends it leaping 3 squares backwards.\nMove (4 tempo): 5 spaces.",
+		EnemyType.IFRIT: "Resists 20% physical / 15% fire / 15% lightning.\nAttack (3 tempo): 45 damage.\nFire Breath (8 tempo, used from up to 4 tiles out): a 5x5 sheet of flame in front — 20 fire damage + 5 Burn. He then keeps breathing for 6 more tempo (Channel 6: he cannot move or act), and the 5x5 burns all that while — walking into it costs 20 + 5 Burn — and once the breath is over the tiles keep burning for 3 tempo. A stun or freeze cuts the breath short.\nBackflip (auto): a single blow over 40 damage sends it leaping 3 squares backwards.\nMove (4 tempo): 5 spaces.",
 		EnemyType.MIND_EATER: "It never moves (range 6).\nMind Slow (10 tempo): every card in your hand costs 20 more mana.\nManipulate Mind Space (8 tempo): you cannot draw for 15 tempo.",
 		EnemyType.SPECTER: "Spirit Spit (5 tempo, range 2): 2 damage.\nInvisible (8 tempo, Async): fades out for 3 tempo — it cannot be targeted.\nMove (1 tempo): 1 space.",
 		EnemyType.MAGMA_SPIDER: "It never walks.\nFire Web (8 tempo, range 3): spins a web of fire on the ground around you — while you stand in it you are Slowed and take 1 fire damage every 3 tempo.\nFire Bounce (5 tempo): when you close in, it jumps 4 squares away, leaving a trail of fire from where it jumped to where it landed for 3 tempo.",
@@ -1263,7 +1277,7 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.INFLAMED_MINOTAUR: "Leaves fire in its wake (a trap on every tile it walks off — and along every charge: 10 damage + 2 Burn, lingers 15 tempo) and heals 10 whenever that fire burns a player. Resists 15% physical / 50% fire / 25% lightning. Slow is his weakness: every Slow stack shortens the leap (Sword of Theseus).\nAttack (5 tempo): 35 damage + 2 Burn.\nLabyrinth Leap (auto, once he has taken over 20 damage since his last leap — a running total, not one blow): springs away 14 spaces (minus 1 per Slow) to a random open tile.\nBull Rush (a random 5 to 15 tempo after landing): charges the player — damage equals the spaces covered by leap + rush, with a spaces x4% chance to stun (5 tempo) AND weaken; the target and everything trampled en route are left Vulnerable.\nMove (5 tempo): 6 spaces.\nThe room: every 25 tempo you are Lost in the Labyrinth for 15 — your hand is scrambled, must be played left to right, and you cannot draw.",
 		# --- Heavens ---
 		EnemyType.CHERUB: "5 armor, range 4.\nLove's Arrow: 2 damage, and for 5 tempo you cannot attack the Cherub directly (poison, burn and area damage still land). The first arrow flies the moment you enter its reach; after that it is a 10-tempo attack.\nMove (3 tempo): 2 spaces.",
-		EnemyType.DJINN: "Every attack against the Djinn puts 3 WISHES in your hand — each sears you for 1/3 of that attack's damage every cycle it is held, and costs 60 mana (0 tempo) to be rid of. Resists 15% physical/fire/lightning.\nChain Lightning (5 tempo): 35 lightning to everyone it hits — cast reaches 5 squares, each bound arcs 4 from the last one struck.\nMove (3 tempo): 8 spaces.",
+		EnemyType.DJINN: "Every hit against the Djinn — attacks and spells alike — puts 3 WISHES in your hand — each sears you for 1/3 of that hit's damage every cycle it is held, and costs 60 mana (0 tempo) to be rid of. Resists 15% physical/fire/lightning.\nChain Lightning (5 tempo): 35 lightning to everyone it hits — cast reaches 5 squares, each bound arcs 4 from the last one struck.\nMove (3 tempo): 8 spaces.",
 		EnemyType.CORRUPTED_ARCHANGEL: "[Design mock-up — stats & moves TBD.]",
 		EnemyType.SLUDGE: "Melee (5 tempo): 3 damage.\nSpit (range 6, 6 tempo): 3 damage.\nMove (5 tempo): 3 spaces.",
 		EnemyType.PIPE_CRAWLER: "Claw (5 tempo): 5 damage; 25% chance to disarm you (5 tempo).\nMove (2 tempo): 2 spaces.",
@@ -1867,14 +1881,15 @@ func _tick_stack_clock(key: String, stack_field: String, clock: int, amount: int
 	return clock
 
 func _tick_status_durations() -> void:
-	# Choke: deal the caster's half-auto-attack damage per cycle, lose 1 stack
+	# Choke: "deal 2 damage at the next cycle" — every stack (one per use)
+	# lands this cycle, so a 2nd/3rd Sticky use isn't a cycle or two late.
 	if choke_dot_stacks > 0:
-		_dot_hit("Choke", choke_dot_damage, "%d tick(s) left" % (choke_dot_stacks - 1))
-		print("[%s] Choke deals %d damage (%d stacks left)" % [enemy_name, choke_dot_damage, choke_dot_stacks - 1])
-		choke_dot_stacks -= 1
-		if choke_dot_stacks <= 0:
-			print("[%s] Choke expired" % enemy_name)
-			debuff_expired.emit(self, "choke")
+		var choke_hits := choke_dot_stacks
+		choke_dot_stacks = 0
+		for i in choke_hits:
+			_dot_hit("Choke", choke_dot_damage)
+		print("[%s] Choke deals %d x%d damage" % [enemy_name, choke_dot_damage, choke_hits])
+		debuff_expired.emit(self, "choke")
 
 	# Burn: deal doubling damage each cycle (1, 2, 4, 8...)
 	if burn_stacks > 0:
@@ -2040,6 +2055,10 @@ func _reset_action_clocks() -> void:
 	chosen_action = {}
 	_async_counters.clear()
 	_action_damage.clear()
+	# Ifrit: a stun, freeze or death cuts the breath short — the breath is
+	# over, so the tiles' last 3 tempo begin.
+	if enemy_type == EnemyType.IFRIT:
+		_ifrit_breath_over()
 	_channel_action = {}
 	_channel_remaining = 0
 	_channel_kind = ""
@@ -2330,10 +2349,17 @@ func _choose_action(player_node: Node3D) -> void:
 				if not NON_MELEE_ACTIONS.has(str(pig_a["name"])):
 					chosen_action = pig_a
 					break
+		# Otherwise it walks: its own move action ("move", or the type's
+		# goblin_move / hydra_move / scurry...). _get_action("move") fell back
+		# to actions[0] — a Fire Goblin Mage pig still cast Ember. With no
+		# walk and no bite it simply stands.
 		if chosen_action.is_empty():
-			chosen_action = _get_action("move")
-		if chosen_action.is_empty() and actions.size() > 0:
-			chosen_action = actions[0]
+			chosen_action = _get_action("move") if actions.any(func(a): return str(a["name"]) == "move") else {}
+		if chosen_action.is_empty():
+			for pig_m in actions:
+				if MOVEMENT_ACTIONS.has(str(pig_m["name"])):
+					chosen_action = pig_m
+					break
 		return
 
 	match enemy_type:
@@ -2443,7 +2469,7 @@ func _choose_action(player_node: Node3D) -> void:
 			_choose_melee_action(distance, "attack")
 		# ----- Mountains act -----
 		EnemyType.ICE_TROLL:
-			_choose_melee_action(distance, "ice_club")
+			_choose_ice_troll_action(distance)
 		EnemyType.WHITE_MANTICORE:
 			_choose_manticore_action(distance)
 		EnemyType.WYVERN:
@@ -2531,6 +2557,22 @@ func _ensure_sync_choice(distance: int) -> void:
 ## purpose: the Weregoat (2-square walk, 8-square charge) and the Ash Harpy
 ## (1-square walk) can't overshoot, and their attacks also fall back to a
 ## walk when there is no route or nowhere to land.
+## How far each enemy's ranged action reaches (grid steps). One number per
+## action, read by its chooser, by its executor and by _ranged_reach, which
+## used to repeat the literal in each place.
+const HUNTER_HOOK_MIN := 2
+const HUNTER_HOOK_RANGE := 7
+const HUNTER_NET_RANGE := 3       # TODO(sheet): the sheet gives no range
+const TREANT_ROOT_RANGE := 4
+const BONE_DRAGON_BREATH_RANGE := 6
+const WYVERN_TALON_RANGE := 3
+const IFRIT_BREATH_RANGE := 4     # the 5x5 in front reaches 4 tiles out
+const IFRIT_BREATH_CHANNEL := 6   # designer, 2026-11-08: the breath goes on 6 more tempo
+const IFRIT_BREATH_LINGER := 3    # sheet: "once the breath is over, the fire remains … 3 tempo"
+var _ifrit_breath_wall: Dictionary = {}   # main's fire-wall entry for the burning 5x5
+const TITAN_BOULDER_RANGE := 3
+const DJINN_CHAIN_RANGE := 5
+
 func _ranged_reach(target: Node3D) -> int:
 	if target == null or not is_instance_valid(target):
 		return 0
@@ -2550,19 +2592,19 @@ func _ranged_reach(target: Node3D) -> int:
 		EnemyType.THANATOS:
 			return THANATOS_BOLT_RANGE
 		EnemyType.BONE_DRAGON:
-			return 6
+			return BONE_DRAGON_BREATH_RANGE
 		EnemyType.IFRIT:
-			return 4
+			return IFRIT_BREATH_RANGE
 		EnemyType.GRAVE_TITAN:
-			return 3
+			return TITAN_BOULDER_RANGE
 		EnemyType.TREANT:
-			return 4
+			return TREANT_ROOT_RANGE
 		EnemyType.WYVERN:
-			return 3 if _talon_cooldown <= 0 else 0
+			return WYVERN_TALON_RANGE if _talon_cooldown <= 0 else 0
 		EnemyType.INFECTED_HUNTER:
 			if _hook_recharge <= 0:
-				return 7
-			return 3 if _net_cooldown <= 0 else 0
+				return HUNTER_HOOK_RANGE
+			return HUNTER_NET_RANGE if _net_cooldown <= 0 else 0
 		EnemyType.CRYPT_CRAWLER:
 			return CRAWLER_WEB_RANGE if _crawler_can_web(target) else 0
 		EnemyType.SPIRIT_COLLECTOR:
@@ -2600,16 +2642,17 @@ func _choose_troll_action(distance: int) -> void:
 		chosen_action = _get_action("move")
 
 func _choose_archer_rat_action(distance: int) -> void:
-	# A nest's archer climbs to its cliff top and holds it: it walks up first,
-	# then shoots whoever is in range from the high ground and otherwise
-	# waits — no kiting, no chasing.
-	if perch_cell.x >= 0:
+	# A nest's archer first scrambles up to its cliff top; once it has stood
+	# there it plays by the tooltip like any Archer Rat (scurry at ≤2, shoot
+	# at 3-6, close in past 6) — it used to hold the perch, shooting even at
+	# point blank and never closing in.
+	if perch_cell.x >= 0 and not _perch_reached:
 		if _at_perch():
+			_perch_reached = true
 			_home_cell = perch_cell  # idle pacing stays on the cliff top
-			chosen_action = _get_action("shoot") if distance <= int(attack_range) else {}
 		else:
 			chosen_action = _get_action("get_into_range")
-		return
+			return
 	if distance <= 2:
 		# Too close! Scurry away to get distance
 		chosen_action = _get_action("scurry_away")
@@ -2961,8 +3004,13 @@ func _try_cerberus_bite(target_node: Node3D) -> bool:
 		_deal_damage_to_player(target_node, dmg, "Second Head")
 		_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.BLEED, 5, 15))
 	if current_health * 3 < max_health:
+		# "He feeds on the wound": only the health the third head actually
+		# took heals him — armor, a wall, ice or halving can leave no wound.
+		var hp_before := _wound_health(target_node)
 		_deal_damage_to_player(target_node, dmg, "Third Head")
-		_regenerate(dmg)
+		var wound := maxi(0, hp_before - _wound_health(target_node))
+		if wound > 0:
+			_regenerate(wound)
 	turn_completed.emit()
 	return true
 
@@ -3000,19 +3048,39 @@ func _tick_venom(amount: int) -> void:
 	## countdown stays as the upper bound should the stun never have landed.
 	if _venom_countdown <= 0:
 		return
-	_venom_countdown -= amount
+	_venom_countdown = venom_step(_venom_victim, _venom_countdown, amount, enemy_name)
+	if _venom_countdown <= 0:
+		_venom_victim = null
+
+## One step of a Venom Tail aftermath: returns the countdown left, 0 once the
+## 2 Vulnerable and 10 tempo of Cuffed have landed. Static so the spawner can
+## run it on after Cerberus is dead (EnemySpawner.adopt_venom).
+static func venom_step(victim: Node3D, countdown: int, amount: int, who: String) -> int:
+	countdown -= amount
 	var stun_gone := false
-	if _venom_victim != null and is_instance_valid(_venom_victim) and _venom_victim.has_method("get_debuff_manager"):
-		var vdm = _venom_victim.get_debuff_manager()
+	if victim != null and is_instance_valid(victim) and victim.has_method("get_debuff_manager"):
+		var vdm = victim.get_debuff_manager()
 		stun_gone = vdm != null and not vdm.has_debuff(Debuff.DebuffType.STUN)
-	if _venom_countdown > 0 and not stun_gone:
-		return
-	_venom_countdown = 0
-	if _venom_victim != null and is_instance_valid(_venom_victim):
-		_apply_player_debuff(_venom_victim, Debuff.create(Debuff.DebuffType.VULNERABLE, 2, 15))
-		_apply_player_debuff(_venom_victim, Debuff.create(Debuff.DebuffType.CUFFED, 0, 10))
-		print("[%s] The venom lingers: 2 Vulnerable, Cuffed for 10 tempo" % enemy_name)
-	_venom_victim = null
+	if countdown > 0 and not stun_gone:
+		return countdown
+	if victim != null and is_instance_valid(victim) and victim.has_method("get_debuff_manager"):
+		var dm = victim.get_debuff_manager()
+		if dm:
+			dm.apply_debuff(Debuff.create(Debuff.DebuffType.VULNERABLE, 2, 15))
+			dm.apply_debuff(Debuff.create(Debuff.DebuffType.CUFFED, 0, 10))
+		print("[%s] The venom lingers: 2 Vulnerable, Cuffed for 10 tempo" % who)
+	return 0
+
+func _wound_health(u: Node3D) -> int:
+	## Health of a player (stats) or a summon (`health`), for "the wound".
+	if u == null or not is_instance_valid(u):
+		return 0
+	if u.has_method("get_stats"):
+		var st = u.get_stats()
+		return int(st.current_health) if st else 0
+	if "health" in u:
+		return int(u.health)
+	return _unit_health(u)
 
 func _try_cerberus_roar() -> bool:
 	## Roar: 25 armor and 25 thorns.
@@ -3045,12 +3113,19 @@ func _guardian_scan() -> void:
 	for e in _sibling_enemies():
 		if e != self:
 			units.append([e, e.current_health, e.max_health])
+	# "Any unit … foe or ally": the players' summons are foes too.
+	var main := get_parent()
+	if main and "enemy_spawner" in main and main.enemy_spawner:
+		for s in main.enemy_spawner.summons:
+			if is_instance_valid(s) and s.get("is_dead") != true and "health" in s and "max_health" in s:
+				units.append([s, s.health, s.max_health])
 	for u in units:
 		var key: int = u[0].get_instance_id()
 		var below: bool = int(u[1]) * 2 < int(u[2])
 		if _guardian_watch.has(key):
 			if below and not _guardian_watch[key] and _within_tiles(u[0], GUARDIAN_RADIUS):
-				_gain_guardian_brace("%s below half" % (u[0].enemy_name if u[0] is Enemy else "a foe"))
+				var who: String = u[0].enemy_name if u[0] is Enemy else str(u[0].get("display_name")) if "display_name" in u[0] else "a foe"
+				_gain_guardian_brace("%s below half" % who)
 		_guardian_watch[key] = below
 
 func _hook_deathyard_dog() -> void:
@@ -3186,6 +3261,14 @@ func _choose_sludge_action(distance: int) -> void:
 		chosen_action = _get_action("move")
 
 
+func _choose_ice_troll_action(distance: int) -> void:
+	# In reach: Club or a queued Clobber. sheet: no selection rule is given —
+	# an even split is assumed (docs/ENEMY_AUDIT.md, Ice Troll).
+	if distance <= 1:
+		chosen_action = _get_action("clobber") if randf() < 0.5 else _get_action("ice_club")
+	else:
+		chosen_action = _get_action("move")
+
 func _choose_melee_action(distance: int, attack_name: String) -> void:
 	if distance <= 1:
 		chosen_action = _get_action(attack_name)
@@ -3216,9 +3299,9 @@ func _choose_hunter_action(distance: int) -> void:
 	# whenever it is off its 8-tempo cooldown and the target is close
 	# (sheet: no range given — within 3 squares, TODO(sheet)); cleave is the
 	# melee swipe.
-	if _hook_recharge <= 0 and distance >= 2 and distance <= 7:
+	if _hook_recharge <= 0 and distance >= HUNTER_HOOK_MIN and distance <= HUNTER_HOOK_RANGE:
 		chosen_action = _get_action("hook")
-	elif _net_cooldown <= 0 and distance <= 3:
+	elif _net_cooldown <= 0 and distance <= HUNTER_NET_RANGE:
 		chosen_action = _get_action("net_throw")
 	elif distance <= 1:
 		chosen_action = _get_action("cleave")
@@ -3231,7 +3314,7 @@ func _choose_treant_action(distance: int) -> void:
 	elif current_health * 2 < max_health:
 		# Badly hurt and out of melee: draw deep and mend.
 		chosen_action = _get_action("treant_heal")
-	elif distance <= 4:
+	elif distance <= TREANT_ROOT_RANGE:
 		chosen_action = _get_action("root")
 	else:
 		chosen_action = _get_action("move")
@@ -3317,7 +3400,7 @@ func _try_death_bolt(target_node: Node3D) -> bool:
 func _choose_bone_dragon_action(distance: int) -> void:
 	if distance <= 1:
 		chosen_action = _get_action("dragon_bite") if randf() < 0.6 else _get_action("breath_swarm")
-	elif distance <= 6 and not is_silenced:
+	elif distance <= BONE_DRAGON_BREATH_RANGE and not is_silenced:
 		chosen_action = _get_action("breath_swarm")
 	else:
 		chosen_action = _get_action("move")
@@ -3333,7 +3416,7 @@ func _choose_manticore_action(distance: int) -> void:
 
 func _choose_wyvern_action(distance: int) -> void:
 	# Talon Grab reaches out to 3 tiles (it flies above its target).
-	if distance <= 3 and _talon_cooldown <= 0:
+	if distance <= WYVERN_TALON_RANGE and _talon_cooldown <= 0:
 		chosen_action = _get_action("talon_grab")
 	elif distance <= 1:
 		chosen_action = _get_action("wyvern_bite")
@@ -3344,7 +3427,7 @@ func _choose_ifrit_action(distance: int) -> void:
 	# Fire Breath covers a 5x5 in front, so it fires from up to 4 tiles out.
 	if distance <= 1:
 		chosen_action = _get_action("ifrit_attack") if randf() < 0.6 else _get_action("fire_breath")
-	elif distance <= 4 and not is_silenced:
+	elif distance <= IFRIT_BREATH_RANGE and not is_silenced:
 		chosen_action = _get_action("fire_breath")
 	else:
 		chosen_action = _get_action("move")
@@ -3551,6 +3634,8 @@ func _run_action(action_name: String, move_target: Node3D) -> bool:
 		# ----- Mountains act -----
 		"ice_club":
 			return _try_ice_club(move_target)
+		"clobber":
+			return _try_clobber(move_target)
 		"manticore_bite":
 			return _try_elemental(move_target, attack_damage, "Bite")
 		"stinger":
@@ -3564,6 +3649,13 @@ func _run_action(action_name: String, move_target: Node3D) -> bool:
 			return _try_elemental(move_target, attack_damage, "Attack")
 		"fire_breath":
 			return _try_fire_breath(move_target)
+		"breathe_on":
+			# The channel has run its 6 tempo: the breath is over and the
+			# tiles burn 3 tempo more.
+			print("[%s] The breath gutters out" % enemy_name)
+			_ifrit_breath_over()
+			turn_completed.emit()
+			return true
 		"minotaur_attack":
 			return _try_elemental(move_target, attack_damage + strengthen_stacks, "Attack", {"burn": attack_burn})
 		"bull_rush":
@@ -3834,7 +3926,7 @@ func _try_swoop(target_node: Node3D) -> bool:
 func _try_hook(target_node: Node3D) -> bool:
 	## Reach out (range 2-7) and reel the player in to just in front of the hunter.
 	var dist := _get_cell_distance(target_node)
-	if dist < 2 or dist > 7:
+	if dist < HUNTER_HOOK_MIN or dist > HUNTER_HOOK_RANGE:
 		return _try_move(target_node)
 	if grid_manager:
 		var my_cell := grid_manager.world_to_grid(position)
@@ -3902,7 +3994,7 @@ func _try_net_throw(target_node: Node3D) -> bool:
 	## many have been played (the closest the stack-driven debuff comes to a
 	## whole hand). 2 tempo, then 8 tempo of cooldown. The sheet gives no
 	## range: within 3 squares (TODO(sheet)).
-	if is_disarmed or _get_cell_distance(target_node) > 3:
+	if is_disarmed or _get_cell_distance(target_node) > HUNTER_NET_RANGE:
 		return _try_move(target_node)
 	var hand_size := 0
 	if target_node.has_method("get_deck_manager"):
@@ -3920,7 +4012,7 @@ func _try_net_throw(target_node: Node3D) -> bool:
 	return true
 
 func _try_root(target_node: Node3D) -> bool:
-	if _get_cell_distance(target_node) > 4:
+	if _get_cell_distance(target_node) > TREANT_ROOT_RANGE:
 		return _try_move(target_node)
 	# Rooted: pinned in place (can still attack) for ~8 tempo.
 	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.ROOTED, 0, 8))
@@ -3984,6 +4076,8 @@ func _unit_health(u: Node3D) -> int:
 			return int(st.current_health)
 	if "current_health" in u:
 		return int(u.current_health)
+	if "health" in u:
+		return int(u.health)  # summons keep theirs in `health`
 	return 0
 
 func _cells_between(a: Node3D, b: Node3D) -> int:
@@ -4039,7 +4133,11 @@ func _random_free_cell_at_distance(from_cell: Vector2i, dist: int) -> Vector2i:
 		for _attempt in range(8):
 			var ang := randf() * TAU
 			var cand := from_cell + Vector2i(roundi(cos(ang) * try_dist), roundi(sin(ang) * try_dist))
-			if _cell_is_free(cand):
+			# An "unoccupied space" (Talon Grab, Labyrinth Leap) is floor on
+			# the map: _cell_is_free alone let a grab drag its prey off the
+			# grid or into the rock past the walls. _can_stand_on is that
+			# check plus the floor / map test.
+			if _can_stand_on(cand):
 				return cand
 	return from_cell
 
@@ -4083,7 +4181,9 @@ func _try_vanish() -> bool:
 			swing_started.emit(self, secs)
 			var fx = _enemy_figure.last_spot
 			cover = VANISH_COVER_FRAMES / (fx._fps if fx else 12.0)
-	if cover > 0.0 and is_inside_tree():
+	# The puff covers it before it goes — only while swings are held (with
+	# swing hold off, as in the sim, it goes as the action resolves).
+	if cover > 0.0 and is_inside_tree() and TempoManager.swing_hold_enabled():
 		get_tree().create_timer(cover).timeout.connect(_vanish_now)
 	else:
 		_vanish_now()
@@ -4301,7 +4401,7 @@ func _try_collect_soul(target_node: Node3D) -> bool:
 func _choose_titan_action(distance: int) -> void:
 	if distance <= 1:
 		chosen_action = _get_action("titan_smash")
-	elif distance <= 3:
+	elif distance <= TITAN_BOULDER_RANGE:
 		chosen_action = _get_action("boulder_roll")
 	else:
 		chosen_action = _get_action("move")
@@ -4317,7 +4417,7 @@ func _throw_at(target_node: Node3D, action: String) -> void:
 
 func _try_boulder_roll(target_node: Node3D) -> bool:
 	## Rolls the boulder at anything within 3 squares.
-	if is_disarmed or _get_cell_distance(target_node) > 3:
+	if is_disarmed or _get_cell_distance(target_node) > TITAN_BOULDER_RANGE:
 		return _try_move(target_node)
 	_deal_damage_to_player(target_node, attack_damage, "Boulder Roll")
 	_throw_at(target_node, "boulder_roll")   # the boulder rolls from his hands to the target
@@ -4396,8 +4496,9 @@ func _try_vampire_absorb() -> bool:
 	## Cast only (and always) right after a bat-form escape: drains the
 	## healthiest player-side unit on the map — 20 after the first escape,
 	## 10 after the second (10 x charges spent, dwindling).
-	_vamp_absorb_pending = false
-	var amount: int = maxi(1, roundi(10 * (_bat_form_charges + 1) * _pps_dmg))
+	var base: int = int(_vamp_absorbs_owed.pop_front()) if not _vamp_absorbs_owed.is_empty() else 10 * (_bat_form_charges + 1)
+	_vamp_absorb_pending = not _vamp_absorbs_owed.is_empty()
+	var amount: int = maxi(1, roundi(base * _pps_dmg))
 	var best: Node3D = null
 	var best_hp: int = -1
 	for u in _player_units():
@@ -4660,7 +4761,12 @@ func _necro_rise_on_death() -> void:
 	if echo:
 		# The rise comes first: the summon's death and the echo are one moment.
 		print("[%s] A servant falls — %s takes %d" % [enemy_name, necro.enemy_name, NECRO_SUMMON_DEATH_DAMAGE])
-		necro.take_damage(NECRO_SUMMON_DEATH_DAMAGE, false)
+		# Thanatos's compendium: each fallen servant "costs him 10 health".
+		# Through his 40 armor and 25% resist it cost a few points of armor
+		# and no health at all, so his echo goes straight to health. (The
+		# Necromancer's sheet says only "takes 10 damage": unchanged.)
+		var to_health: bool = necro.enemy_type == EnemyType.THANATOS
+		necro.take_damage(NECRO_SUMMON_DEATH_DAMAGE, false, DamageTypes.Type.PHYSICAL, to_health)
 
 ## --- Bone Dragon ---
 
@@ -4676,7 +4782,7 @@ func _try_breath_swarm(target_node: Node3D) -> bool:
 	if dir == Vector2i.ZERO:
 		dir = Vector2i(1, 0)
 	var line: Array = []
-	for i in range(1, 7):
+	for i in range(1, BONE_DRAGON_BREATH_RANGE + 1):
 		line.append(my_cell + dir * i)
 	var main := get_parent()
 	var hits := 0
@@ -4723,6 +4829,14 @@ func _try_ice_club(target_node: Node3D) -> bool:
 	turn_completed.emit()
 	return true
 
+func _try_clobber(target_node: Node3D) -> bool:
+	## The queued Clobber (10 tempo): the same 50, band-scaled, as the auto one.
+	if is_disarmed or not _in_attack_range(target_node):
+		return _try_move(target_node)
+	_ice_troll_strike(target_node, maxi(1, roundi(50 * _pps_dmg)), "Clobber")
+	turn_completed.emit()
+	return true
+
 func _ice_troll_strike(target_node: Node3D, dmg: int, label: String) -> void:
 	## Every Ice Troll attack adds a stack of frost (Cold) and Brittle. If the
 	## blow FREEZES the target (Cold reaching 5), Clobber (50) auto-triggers.
@@ -4761,7 +4875,7 @@ func _try_talon_grab(target_node: Node3D) -> bool:
 	## to an unoccupied space 8 squares away.
 	if is_disarmed:
 		return _try_move(target_node)
-	if _get_cell_distance(target_node) > 3:
+	if _get_cell_distance(target_node) > WYVERN_TALON_RANGE:
 		return _try_move(target_node)
 	_deal_damage_to_player(target_node, maxi(1, roundi(25 * _pps_dmg)), "Talon Grab")
 	if grid_manager and is_instance_valid(target_node):
@@ -4810,10 +4924,26 @@ func _try_fire_breath(target_node: Node3D) -> bool:
 				u.take_damage(breath_dmg)
 	var main := get_parent()
 	if main and main.has_method("register_fire_wall"):
-		main.register_fire_wall(tiles, breath_dmg, 5, 99, 3)  # lingers 3 tempo
+		# The 5x5 burns while he keeps breathing (this tempo + the 6 of the
+		# channel) and 3 tempo after; _ifrit_breath_over() trims the fuse to
+		# those last 3 the moment the breath ends, early or not.
+		_ifrit_breath_wall = main.register_fire_wall(tiles, breath_dmg, 5, 99,
+				IFRIT_BREATH_CHANNEL + 1 + IFRIT_BREATH_LINGER)
+	# …and he keeps breathing: a 6-tempo Channel, counted from the next tempo
+	# (planted, every other clock paused; a stun or freeze breaks it).
+	_begin_channel(_get_action("breathe_on"), "sync")
+	_channel_remaining = IFRIT_BREATH_CHANNEL
 	print("[%s] FIRE BREATH — a 5x5 sheet of flame!" % enemy_name)
 	turn_completed.emit()
 	return true
+
+func _ifrit_breath_over() -> void:
+	## The breath has stopped (its channel ran out, or a stun, freeze or
+	## death broke it): the 5x5 keeps burning for its last 3 tempo.
+	if _ifrit_breath_wall.is_empty():
+		return
+	_ifrit_breath_wall["tempo_left"] = mini(int(_ifrit_breath_wall.get("tempo_left", 0)), IFRIT_BREATH_LINGER)
+	_ifrit_breath_wall = {}
 
 ## --- Inflamed Minotaur ---
 
@@ -4924,7 +5054,7 @@ func _try_chain_lightning(target_node: Node3D) -> bool:
 	## bound arcs up to 4 squares from the last unit struck.
 	if is_disarmed or is_silenced:
 		return _try_move(target_node)
-	if _get_cell_distance(target_node) > 5:
+	if _get_cell_distance(target_node) > DJINN_CHAIN_RANGE:
 		return _try_move(target_node)
 	var hit: Array = [target_node]
 	_djinn_zap(target_node)
@@ -6092,7 +6222,7 @@ func _try_get_into_range(target_node: Node3D) -> bool:
 	## Archer Rat: Move 2 tiles toward target to get into shooting range.
 	# A nest's archer walks up to its cliff top instead (3 tiles a step):
 	# round the side of the cliff first, then onto the top.
-	if perch_cell.x >= 0 and not _at_perch() and grid_manager:
+	if perch_cell.x >= 0 and not _perch_reached and not _at_perch() and grid_manager:
 		var here := grid_manager.world_to_grid(position)
 		if perch_approach.x >= 0 and here == perch_approach:
 			_perch_approach_done = true
@@ -6848,7 +6978,7 @@ func preview_player_hit(amount: int, damage_type: int = DamageTypes.Type.PHYSICA
 		amount = floori(amount * (1.0 + vuln_percent / 100.0))
 	if missing_life_damage_rate > 0.0 and max_health > 0:
 		var health_pct: float = float(current_health) / float(max_health) * 100.0
-		if health_pct <= missing_life_threshold:
+		if health_pct < missing_life_threshold:  # Jordan 1s: "below 50%" — 50 itself gets nothing
 			amount += floori(missing_life_damage_rate * (100.0 - health_pct))
 	if ignore_armor:
 		return {"armor": 0, "health": maxi(0, amount)}
@@ -6884,6 +7014,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		current_health = 0
 		print("[%s] The mimic collapses — it was never real" % enemy_name)
 		update_health_display()
+		killed_by_player = from_player
 		die()
 		return false
 	# Blue Robe: each enemy a slotted card strikes takes the type IT resists least.
@@ -6985,7 +7116,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 	# Jordan 1s: below the threshold health %, add rate × missing-health% damage.
 	if from_player and missing_life_damage_rate > 0.0 and max_health > 0:
 		var health_pct: float = float(current_health) / float(max_health) * 100.0
-		if health_pct <= missing_life_threshold:
+		if health_pct < missing_life_threshold:  # Jordan 1s: "below 50%" — 50 itself gets nothing
 			amount += floori(missing_life_damage_rate * (100.0 - health_pct))
 
 	# Armor Break: double damage to armor, no health damage. Zero effect on unarmored.
@@ -7095,6 +7226,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 				# way to recharge), then Absorb is always the next cast.
 				if _bat_form_charges > 0 and current_health * 2 < max_health:
 					_bat_form_charges -= 1
+					_vamp_absorbs_owed.append(10 * (_bat_form_charges + 1))  # 20, then 10
 					_vamp_absorb_pending = true
 					chosen_action = {}
 					action_tempo_counter = 0
@@ -7120,9 +7252,10 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 					if _minotaur_damage_taken > 20 and not _minotaur_rush_pending:
 						_minotaur_labyrinth_leap()
 			EnemyType.DJINN:
-				# Every attack on the Djinn grants the attacker 3 Wishes, each
-				# searing the holder for 1/3 of that attack's damage per cycle
-				# until bought off (60 mana, 0 tempo).
+				# Every hit on the Djinn — "per hit, so spells will be included"
+				# (designer, 2026-11-08) — grants 3 Wishes, each searing the
+				# holder for 1/3 of that hit's damage per cycle until bought
+				# off (60 mana, 0 tempo).
 				if from_player and incoming_hit > 0:
 					var djinn_main := get_parent()
 					if djinn_main and "player" in djinn_main and djinn_main.player \
@@ -7178,6 +7311,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 			update_health_display()
 			print("[%s] Refilled to %d" % [enemy_name, max_health])
 		else:
+			killed_by_player = from_player  # whose blow felled it (Axe's Axe banks only your kills)
 			die()
 
 	return just_exposed
@@ -7800,6 +7934,14 @@ func die() -> void:
 	for m in _mimics:
 		m.die()
 	_mimics.clear()
+	# Cerberus: a Venom Tail still running when he falls lands all the same
+	# ("the moment the stun is gone") — the spawner carries it on.
+	if enemy_type == EnemyType.CERBERUS and _venom_countdown > 0:
+		var sp_main := get_parent()
+		if sp_main and "enemy_spawner" in sp_main and sp_main.enemy_spawner:
+			sp_main.enemy_spawner.adopt_venom(_venom_victim, _venom_countdown, enemy_name)
+		_venom_countdown = 0
+		_venom_victim = null
 	died.emit(self)
 	# Necromancer: a corpse near him rises as a Skeleton (and his own summons
 	# cost him on the way down).
@@ -7814,11 +7956,14 @@ func _consumed_explode() -> void:
 	## The Consumed: on death, explodes for damage to EVERYTHING nearby —
 	## the player and fellow enemies alike.
 	print("[%s] Bursts apart in a wave of hatred!" % enemy_name)
-	var main := get_parent()
-	if main and "player" in main and main.player and is_instance_valid(main.player):
-		var diff = main.player.position - position
+	# The compendium says "everything nearby": every player-side unit in the
+	# blast — the player(s) and their summons — not only the main player.
+	for u in _player_units():
+		if not is_instance_valid(u):
+			continue
+		var diff = u.position - position
 		if Vector3(diff.x, 0, diff.z).length() <= CONSUMED_EXPLOSION_RANGE:
-			_deal_damage_to_player(main.player, maxi(1, roundi(CONSUMED_EXPLOSION_DAMAGE * _pps_dmg)), "Death Burst")
+			_deal_damage_to_player(u, maxi(1, roundi(CONSUMED_EXPLOSION_DAMAGE * _pps_dmg)), "Death Burst")
 	for e in _sibling_enemies():
 		if e != self and is_instance_valid(e) and e.is_alive():
 			if position.distance_to(e.position) <= CONSUMED_EXPLOSION_RANGE:
@@ -8099,8 +8244,8 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			desc = "Cannot cast spells."
 			remaining = "Remaining: %d tempo" % silenced_tempo
 		"Choke":
-			desc = "Takes %d damage at the end of each cycle." % choke_dot_damage
-			remaining = "Ticks left: %d" % choke_dot_stacks
+			desc = "Takes %d damage per stack at the next cycle." % choke_dot_damage
+			remaining = "Stacks: %d" % choke_dot_stacks
 		"Exposed":
 			desc = "Its armor was broken through — a hit got past it. Once Exposed, it can't be Exposed again for %d tempo." % EXPOSED_COOLDOWN
 			remaining = "Until it gains armor again"

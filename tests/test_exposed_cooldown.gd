@@ -146,6 +146,13 @@ func _test_independent_enemies() -> void:
 	_drop(a)
 	_drop(b)
 
+## The armor Reverberate Regrowth still owes back, over every queued return.
+func _rr_owed(st) -> int:
+	var n := 0
+	for ret in st.pending_armor_returns:
+		n += int(ret["armor"])
+	return n
+
 func _test_player() -> void:
 	print("--- The player: on-expose effects once per 10 tempo ---")
 	var stats: PlayerStats = main.player.get_stats()
@@ -155,8 +162,9 @@ func _test_player() -> void:
 	stats.exposed_cooldown_tempo = 0
 	var broke := [0]
 	stats.armor_broken.connect(func(): broke[0] += 1)
-	# Reverberate Regrowth (maintained) and a Vengeful Shield (on_exposed
-	# reaction) — both should fire on a real Exposed only.
+	# A Vengeful Shield (on_exposed reaction) fires on a real Exposed only;
+	# Reverberate Regrowth (maintained) on every break ("when your armor is
+	# broken through"), cooldown or not.
 	var rr: Card = Card.create_by_id("reverberate_regrowth")
 	dm.maintained_cards.append(rr)
 	var vs: Card = Card.create_by_id("vengeful_shield")
@@ -166,11 +174,10 @@ func _test_player() -> void:
 	stats.take_damage(30)
 	_check(broke[0] == 1, "an armor break Exposes the player")
 	_check(not dm.hand.has(vs), "…the on_exposed reaction fires")
-	_check(stats.pending_armor_return == 10, "…and Reverberate Regrowth banks the 10 armor (%d)" % stats.pending_armor_return)
+	_check(_rr_owed(stats) == 10, "…and Reverberate Regrowth banks the 10 armor (%d)" % _rr_owed(stats))
 	_check(stats.exposed_cooldown_tempo == 10, "…and a 10-tempo cooldown starts")
 
-	stats.pending_armor_return = 0
-	stats.pending_armor_return_tempo = 0
+	stats.pending_armor_returns.clear()
 	var vs2: Card = Card.create_by_id("vengeful_shield")
 	dm.hand.append(vs2)
 	stats.current_armor = 10
@@ -178,15 +185,16 @@ func _test_player() -> void:
 	stats.take_damage(30)
 	_check(broke[0] == 1, "a second break 5 tempo later is not an Exposed")
 	_check(dm.hand.has(vs2), "…the reaction stays in hand")
-	_check(stats.pending_armor_return == 0, "…and Reverberate Regrowth banks nothing")
+	_check(_rr_owed(stats) == 10, "…but Reverberate Regrowth still banks the 10 armor (any break)")
 	_check(stats.current_armor == 0, "…though the armor is still gone")
 
 	stats.process_tempo(5)
 	_check(stats.exposed_cooldown_tempo == 0, "the cooldown runs out after 10 tempo")
+	stats.pending_armor_returns.clear()
 	stats.current_armor = 10
 	stats.take_damage(30)
 	_check(broke[0] == 2 and not dm.hand.has(vs2), "the next break Exposes again and the reaction fires")
-	_check(stats.pending_armor_return == 10, "…and Reverberate Regrowth banks again")
+	_check(_rr_owed(stats) == 10, "…and Reverberate Regrowth banks again")
 
 	# Health lost with no armor up is not an Exposed.
 	stats.exposed_cooldown_tempo = 0
@@ -197,7 +205,7 @@ func _test_player() -> void:
 	_check(broke[0] == 2 and dm.hand.has(vs3), "an armorless hit does not Expose")
 	dm.hand.erase(vs3)
 	dm.maintained_cards.erase(rr)
-	stats.pending_armor_return = 0
+	stats.pending_armor_returns.clear()
 
 	# Each player keeps their own clock.
 	var other := PlayerStats.new()

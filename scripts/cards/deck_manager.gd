@@ -40,6 +40,10 @@ var prep_utility_charges: int = 0   # How many more utility cards get the discou
 var prep_utility_persist: bool = false  # Preparation: the discount waits for utility cards; other plays don't break it
 var discards_this_cycle: int = 0  # Cards that reached the discard pile since the last cycle (plays included)
 var true_discards_this_cycle: int = 0  # Cards DISCARDED (never played) since the last cycle — Exacerbate Wounds
+# True while non_play_discard announces a card that was SPENT or set free, not
+# discarded: an instant firing from hand, a card released from jail. Listeners
+# that want discards only (Keep Them Guessing) skip those.
+var non_play_discard_is_spend: bool = false
 var skip_next_tempo_draw: bool = false  # Give In: suppress the next tempo-triggered draw
 # Brain-point peeks (Wisdom): how many cards from the top of the draw pile are
 # currently revealed. Drawing consumes one revealed card; shuffling the pile
@@ -299,10 +303,6 @@ func get_total_deck_size() -> int:
 
 func is_total_deck_full() -> bool:
 	return get_total_deck_size() >= MAX_TOTAL_DECK_SIZE
-
-## How many more cards the total cap allows in (0 when full).
-func get_total_deck_room() -> int:
-	return maxi(0, MAX_TOTAL_DECK_SIZE - get_total_deck_size())
 
 func expel_unslotted_engraved() -> void:
 	var expelled := 0
@@ -715,6 +715,10 @@ func compute_play_cost(card: Card, index: int, target = null, debuff_mgr = null,
 		mana_cost -= arash_life_cost
 		if arash_life_cost > 0:
 			if commit: print("[DECK] Bow of Arash: %d of %s's cost is paid in life" % [arash_life_cost, card.card_name])
+	# Exhausted Assault: "While you have zero mana, this card costs 0 mana" —
+	# after every surcharge (Staggered, Hex…), or it could never be played.
+	if card.card_id == "exhausted_assault" and player_stats and player_stats.current_mana <= 0:
+		mana_cost = 0
 	return {"mana": mana_cost, "arash_life": arash_life_cost}
 
 func play_card(index: int, target, player_node = null, defer_execution: bool = false) -> Dictionary:
@@ -830,7 +834,9 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		if demonic_rage_active:
 			# Spend health instead of mana (10 mana = 1 HP)
 			var dr_buff_mgr = player_node.get_buff_manager()
-			player_stats.take_damage(demonic_rage_hp_cost)
+			# "Use health instead": the price comes out of HEALTH — armor never
+			# soaks it (take_damage let armor eat the whole cost).
+			player_stats.take_direct_damage(demonic_rage_hp_cost)
 			dr_buff_mgr.consume_demonic_rage()
 			health_paid = demonic_rage_hp_cost
 			print("[DECK] Demonic Rage: paid %d health instead of %d mana (%d charges left)" % [demonic_rage_hp_cost, mana_cost, dr_buff_mgr.get_buff(Buff.BuffType.DEMONIC_RAGE).charges if dr_buff_mgr.has_demonic_rage() else 0])
@@ -1057,6 +1063,9 @@ func execute_deferred_card(card: Card, target, player_node = null) -> void:
 	if ally_cast:
 		effect_stats._ally_cast = true
 		PlayerStats.ally_heal_caster = player_stats  # Blood Libation boosts heals Jeremy performs on others
+		# Poisoned Blood sits on the caster: their heal on an ally hurts too.
+		if player_node and player_node.has_method("get_buff_manager"):
+			Card.caster_buff_manager = player_node.get_buff_manager()
 	card.execute(target, effect_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
 	PlayerStats.ally_heal_caster = null
 
@@ -1072,6 +1081,7 @@ func execute_deferred_card(card: Card, target, player_node = null) -> void:
 			print("[DECK] Free hand echo: %s strikes twice!" % card.card_name)
 	if ally_cast:
 		effect_stats._ally_cast = false
+		Card.caster_buff_manager = null
 
 	if debuff_mgr and card.is_attack():
 		debuff_mgr.on_attack()
@@ -1153,7 +1163,7 @@ func process_turn() -> void:
 			jail_pile.remove_at(i)
 			discard_pile.append(card)
 			true_discards_this_cycle += 1
-			non_play_discard.emit(card)
+			_emit_spent_to_discard(card)  # released, not discarded
 			print("[DECK] Released from jail: %s" % card.card_name)
 
 	# Process Erase: tick down erase timers on all cards and delete expired ones
@@ -1332,11 +1342,13 @@ func can_add_copy(card_id: String) -> bool:
 		return false
 	return true
 
-func add_card_to_deck_from_id(card_id: String, to_draw_pile: bool = true) -> bool:
+func add_card_to_deck_from_id(card_id: String, to_draw_pile: bool = true, ignore_copy_cap: bool = false) -> bool:
 	## Creates a card from its ID and shuffles it into the DRAW pile — "shuffle
 	## into your deck" always means the draw pile unless a card says "discard
-	## pile" (pass to_draw_pile = false for those).
-	if not can_add_copy(card_id):
+	## pile" (pass to_draw_pile = false for those). `ignore_copy_cap`: the
+	## rarity copy limit is a deck-building rule; a card whose own text adds a
+	## copy mid-fight (Savage Strike) adds it regardless.
+	if not ignore_copy_cap and not can_add_copy(card_id):
 		print("[DECK] Copy limit reached for %s (%d max) — not added" % [card_id, Card.max_deck_copies(card_id)])
 		return false
 	var card = _create_card_from_id(card_id)
@@ -1433,7 +1445,7 @@ func trigger_reactions(trigger_type: String) -> Array[Card]:
 			discard_pile.append(card)
 			reaction_triggered.emit(card)
 			true_discards_this_cycle += 1
-			non_play_discard.emit(card)
+			_emit_spent_to_discard(card)  # an instant fired: spent, not discarded
 			print("[DECK] Reaction triggered: %s" % card.card_name)
 	if triggered.size() > 0:
 		hand_updated.emit()
@@ -1456,10 +1468,18 @@ func fire_reaction(card: Card) -> bool:
 	discard_pile.append(card)
 	reaction_triggered.emit(card)
 	true_discards_this_cycle += 1
-	non_play_discard.emit(card)
+	_emit_spent_to_discard(card)  # an instant fired: spent, not discarded
 	hand_updated.emit()
 	print("[DECK] Reaction triggered: %s" % card.card_name)
 	return true
+
+## non_play_discard for a card that was spent or released into the pile, not
+## discarded (see non_play_discard_is_spend).
+func _emit_spent_to_discard(card: Card) -> void:
+	var was := non_play_discard_is_spend
+	non_play_discard_is_spend = true
+	non_play_discard.emit(card)
+	non_play_discard_is_spend = was
 
 ## Fire exactly ONE reaction card of the given trigger from hand, jailing it
 ## for jail_tempo instead of discarding — Polymorph's 25-tempo cooldown, so a

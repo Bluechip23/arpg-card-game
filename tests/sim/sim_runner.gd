@@ -171,12 +171,21 @@ func teardown() -> void:
 
 # --------------------------------------------------------------- boot ----
 
+var _saved_swing_hold: int = -2   # the session's swing-hold setting, put back at teardown
+
 func _boot() -> void:
 	var p: Dictionary = scenario["player"]
 	var cd: CharacterData = (CharacterData as Script).call("create_%s" % p["character"])
 	for tid in SimScenario.TUTORIAL_IDS_SEEN:
 		if not cd.seen_tutorial_ids.has(tid):
 			cd.seen_tutorial_ids.append(tid)
+	# Swing hold (2026-11-03) lands a blow on a wall-clock timer after the
+	# swing's frames; headless, that raced the decision loop and broke
+	# determinism. Off here, as the Settings switch turns it off in the game:
+	# every blow lands as its action resolves.
+	if _saved_swing_hold == -2:
+		_saved_swing_hold = TempoManager.preferred_swing_hold
+	TempoManager.preferred_swing_hold = 0
 	main = _packed.instantiate()
 	main.set("starting_character", cd)
 	main.set("current_interior_id", str(scenario["map"].get("interior", INTERIOR_DEFAULT)))
@@ -631,6 +640,9 @@ func _teardown() -> void:
 	PlayerStats.hit_source_offensive = false
 	PlayerStats.hit_source_direct = false
 	PlayerStats.ally_heal_caster = null
+	if _saved_swing_hold != -2:
+		TempoManager.preferred_swing_hold = _saved_swing_hold
+		_saved_swing_hold = -2
 	await tree.process_frame
 	await tree.process_frame
 

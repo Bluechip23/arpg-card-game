@@ -3,7 +3,8 @@ extends Node3D
 
 ## Main game scene - turn-based card ARPG
 
-const KeywordBoxes = preload("res://scripts/ui/keyword_boxes.gd")
+const MeshUtil = preload("res://scripts/shared/mesh_util.gd")
+const CameraPan = preload("res://scripts/shared/camera_pan.gd")
 
 @onready var deck_manager: DeckManager = $DeckManager
 @onready var buff_bar: BuffBarUI = $UI/BuffBar
@@ -81,6 +82,7 @@ const WolfScript = preload("res://scripts/battle/summoned_wolf.gd")
 const SpecterScript = preload("res://scripts/battle/summoned_specter.gd")
 var _specters: Array = []        # Seance: specters raised on empty tiles
 var _last_aim_world = null       # the tile a point-targeted card was aimed at
+var _resolving_aim = null        # that tile, carried to the point card's resolution (_apply_card_world_effects)
 var _smoke_zones: Array = []     # smoke bomb: {position, tempo}
 var _skeletons: Array = []       # Sack of Bone Arrows: raised skeletons (cap 3)
 const SkeletonScript = preload("res://scripts/battle/summoned_skeleton.gd")
@@ -96,6 +98,7 @@ var _wraiths: Array = []         # The Precious: the hostile hunters, on the fie
 var _draupnir_spawn_frame: int = -1  # frame of the last clone spawn (Jeremy's doubled fire lands the same frame)
 var _harnessed_reentry: bool = false # guard: the Harnessed Sun's +2 burn must not amplify itself
 var _phoenix_singed_this_play: bool = false # Phoenix Feather: backlash fires once per play, not per burn source
+var last_poison_bomb_hits: Array = []  # The enemies the last Poison Bomb poisoned (Mad Scientist's poison riders land on them)
 var _three_count_cd: int = 0     # Mits of Chingiz: cycles until 3 count can fire again
 var _offensive_streak: int = 0   # consecutive offensive cards played (3 count)
 var _cuffs_cycle_accum: int = 0  # Cuffs of Current: cycles banked toward the next free draw
@@ -147,7 +150,6 @@ var _waypoint_menu_visible: bool = false
 var _minimap_panel: PanelContainer = null
 var _minimap_texture_rect: TextureRect = null
 var _minimap_image: Image = null
-const MINIMAP_SIZE: int = 100
 ## Left edge of the stat bars and the status rows under them.
 const STATUS_LEFT: float = 8.0
 const MINIMAP_PIXEL_SCALE: int = 4
@@ -597,6 +599,9 @@ func _ready() -> void:
 	deck_manager.reaction_triggered.connect(_animate_card_instant)
 	deck_manager.reaction_triggered.connect(_arm_lethal_recall)
 	deck_manager.reaction_triggered.connect(func(c): progression_triggers._trigger_skill_tree_on_instant(c))
+	deck_manager.reaction_triggered.connect(_slotted_instant_fired)  # Boot Holsters
+	# Phoenix Feather: an instant firing is a play of its own — its Burn singes anew.
+	deck_manager.reaction_triggered.connect(_phoenix_new_play)
 	deck_manager.card_drawn.connect(_on_card_drawn_sphere_passive)
 	# Endured Tolerance's Erase fuse waits while the player is Glutted.
 	deck_manager.glut_active = func() -> bool: return glut_tempo_remaining > 0
@@ -3773,6 +3778,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().attack_fully_blocked.connect(_on_attack_fully_blocked)
 	player.get_debuff_manager().debuff_removed.connect(_on_player_debuff_removed)
 	player.get_stats().armor_broken.connect(_on_player_armor_broken)
+	player.get_stats().armor_broken_through.connect(_on_player_armor_broken_through)
 	player.get_stats().armor_gained.connect(_on_armor_gained_spiked)
 	player.get_stats().curse_of_the_living_shared.connect(_on_curse_of_the_living_shared)
 	if player.get_inventory():
@@ -3802,8 +3808,10 @@ func select_character(character: CharacterData) -> void:
 	player.get_buff_manager().buff_applied.connect(_on_player_buff_applied_ring)
 	player.get_buff_manager().invisibility_entered.connect(_on_player_entered_invisibility)
 	player.get_buff_manager().buffs_changed.connect(_restore_player_visibility_if_seen)
-	player.get_debuff_manager().debuff_expired.connect(_on_player_debuff_expired)
-	_wire_dot_log(player)
+	# Marvolo Gaunt: the save's Misunderstanding and its expiry, plus the DoT
+	# log. (Only Player 2 was wired for marvolo_triggered, so a solo hero's
+	# save never applied "deals 25 damage after 7 tempo unless purged".)
+	_wire_marvolo_hooks(player)
 
 	character_panel.connect_stats(player.get_stats(), player.get_inventory(), deck_manager, player.get_buff_manager(), player.get_debuff_manager())
 	character_panel.swap_tempo_spent.connect(_on_swap_tempo_spent)
@@ -3967,6 +3975,13 @@ func _on_player_tile_reached(mover: Player = null) -> void:
 	_check_berry_bushels()
 
 	# Player Y follows terrain smoothly via ground_y_provider (see player.gd)
+
+	# Approach: "for each movement taken, gain 5 armor" while the card's
+	# window lasts (BuffManager.approach_*, set by the card; nothing paid it
+	# out before). Granted before this step's tempo can close the window.
+	var ap_bm = stepper.get_buff_manager()
+	if ap_bm and ap_bm.approach_armor_per_move > 0 and ap_bm.approach_tempo_remaining > 0 and stepper.get_stats():
+		stepper.get_stats().add_armor(ap_bm.approach_armor_per_move)
 
 	# Normal per-tile tempo (the stepper's own Slowed prices it)
 	tempo_manager.add_movement_tempo(stepper.get_debuff_manager())
@@ -4583,6 +4598,14 @@ func _all_players() -> Array:
 ## the party plus the dojo's practice allies. Every ally-targeted effect
 ## (heals, auras, Hold the Line, Psionic Flow...) enumerates through here.
 ## Frankenstein's Monsters are not Player nodes and keep their own hooks.
+## The ally-target cards whose effect works on a summon (a heal, Fortify
+## Alliance's heal, Shepherd's Mark). Every other ally card acts on a hero's
+## stats, hand or buffs, and used to land on the CASTER when a summon was
+## picked (Cryonics, Friendship, Lady Luck, Provider, Swap…): a summon pick
+## for those is refused. Whether summons should count as their "ally" is
+## FLAGGED (docs/audit/validation.md, pass2.md).
+const SUMMON_ALLY_CARDS := ["heal", "healing_tonic", "gulped_potion", "fortify_alliance", "shepherds_mark"]
+
 func _all_allies() -> Array:
 	var out: Array = []
 	for p in _all_players() + _dojo_allies:
@@ -4698,7 +4721,7 @@ func _respawn_at_level_start() -> void:
 	print("[MAIN] Respawned at %s" % str(grid_manager.world_to_grid(start)))
 
 #endregion
-#region QUEST NPCS: RESCUES, FOLLOWERS, THE LUMBER DEPOT
+#region QUEST NPCS: RESCUES, FOLLOWERS
 var _rescue_npcs: Array = []      # RescueNpc nodes placed for active quests
 var _follower: RescueNpc = null   # the one currently trailing the player
 
@@ -4714,8 +4737,7 @@ func _ground_pos(cell: Vector2i) -> Vector3:
 
 func _place_quest_npcs() -> void:
 	## Rescue targets appear in their interior while their quest wants them
-	## found or walked out; the rescued foreman stands at the Greenwood
-	## trailhead on the surface as a lumber depot afterwards.
+	## found or walked out.
 	if quest_manager == null or dungeon_manager == null or sandbox_mode:
 		return
 	var kind: String = dungeon_manager.interior_kind
@@ -4725,8 +4747,6 @@ func _place_quest_npcs() -> void:
 	if kind == "cave" and (quest_manager.is_objective_active("sellswords_debt", 0)
 			or quest_manager.is_objective_active("sellswords_debt", 1)):
 		_spawn_rescue_npc("npc_partner", "Maren", PARTNER_SHEET, "deep")
-	if kind == "" and quest_manager.has_flag("woodcutter_rescued"):
-		_place_woodcutter_depot()
 	# What the Crows Saw: feathers lead from the start to the hidden graveyard.
 	if kind == "" and quest_manager.is_objective_active("what_the_crows_saw", 0):
 		for s in dungeon_manager.site_nodes:
@@ -4779,22 +4799,6 @@ func _spawn_rescue_npc(id: String, display_name: String, sheet: String, room_kin
 	print("[MAIN] Placed rescue NPC %s at %s" % [id, cell])
 	return npc
 
-func _place_woodcutter_depot() -> void:
-	for s in dungeon_manager.site_nodes:
-		if s["kind"] != "forest":
-			continue
-		var cell: Vector2i = dungeon_manager.pick_free_cell_near(s["grid_pos"], 3)
-		if cell.x < 0:
-			return
-		var npc := RescueNpc.new()
-		npc.depot = true
-		npc.setup("npc_woodcutter_depot", "Aldric — Lumber Depot", WOODCUTTER_SHEET, "[Shift] Send satchel home")
-		add_child(npc)
-		npc.place_at(_ground_pos(cell), cell)
-		npc.visible = false
-		_rescue_npcs.append(npc)
-		return
-
 func _check_hidden_site_discovery(pg: Vector2i) -> void:
 	## Walking up to a site that is on no map puts it on the map.
 	if dungeon_manager == null:
@@ -4835,9 +4839,6 @@ func _try_interact_rescue_npc() -> bool:
 		if olorin:
 			olorin.show_field_tour(true)
 		return true
-	if npc.depot:
-		_send_satchel_home_at_depot(npc)
-		return true
 	if npc.following:
 		add_battle_log("%s: \"Right behind you.\"" % npc.display_name, Color(0.9, 0.85, 0.7))
 		return true
@@ -4858,26 +4859,6 @@ func _deliver_follower() -> void:
 		quest_manager.on_event("escort", {"npc": _follower.npc_id})
 	add_battle_log("You lead %s out into the daylight." % _follower.display_name, Color(0.6, 1.0, 0.6))
 	_follower = null
-
-func _send_satchel_home_at_depot(npc: RescueNpc) -> void:
-	## The rescued foreman hauls the satchel to the city so town resources
-	## bank without a trip home (and never touch the stash).
-	if not CityBridge.city_started(player_progression):
-		add_battle_log("%s: \"No city to haul to yet. Found one at the Town Hall.\"" % npc.display_name, Color(0.9, 0.85, 0.7))
-		return
-	var pouch: Dictionary = CityBridge.satchel(player_progression)
-	var empty := true
-	for res in pouch:
-		if int(pouch[res]) > 0:
-			empty = false
-	if empty:
-		add_battle_log("%s: \"Your satchel's empty, friend.\"" % npc.display_name, Color(0.9, 0.85, 0.7))
-		return
-	var result := CityBridge.bank_satchel(player_progression, int(Time.get_unix_time_from_system()))
-	var msg := "%s hauls %s home to the city." % [npc.display_name, CityBridge.format_resources(result["banked"])]
-	if not result["lost"].is_empty():
-		msg += " The warehouses overflowed — %s went to waste." % CityBridge.format_resources(result["lost"])
-	add_battle_log(msg, Color(0.75, 0.7, 0.5))
 
 #endregion
 #region QUEST WORLD OBJECTS: TRAP DISARM, DROWNED SHRINE, CHANNEL BREAKS
@@ -5222,9 +5203,12 @@ const RELEASE_TENSION_DEBUFFS := [
 	["disarm", "disarmed_tempo", "is_disarmed"], ["mark", "marked_tempo", "is_marked"],
 	["frozen", "frozen_tempo", "is_frozen"], ["root", "rooted_tempo", ""],
 	["tripped", "tripped_tempo", ""], ["curse", "cursed_tempo", ""],
+	# "any debuff": every kind Enemy.apply_debuff can put on, these two included.
+	["polymorph", "polymorph_tempo", ""], ["narashimha", "narashimha_tempo", ""],
 ]
 const RT_TIMED_FIELDS := ["stun_tempo", "silenced_tempo", "disarmed_tempo", "marked_tempo",
-	"frozen_tempo", "rooted_tempo", "tripped_tempo", "cursed_tempo"]
+	"frozen_tempo", "rooted_tempo", "tripped_tempo", "cursed_tempo",
+	"polymorph_tempo", "narashimha_tempo"]
 
 func _show_release_tension_picker(card: Card, enemy) -> void:
 	## Let the player choose which debuff to drain from the enemy.
@@ -5779,8 +5763,11 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	if unit_tracker:
 		unit_tracker.update_tempo_bars()
 
-	# Summoned Bull Worms move/attack after the enemies act.
-	_update_summoned_worms()
+	# Summoned Bull Worms move/attack after the enemies act: one step (or
+	# bite) per tempo, so a multi-tempo advance (Basic Block's 4) runs them
+	# that many times.
+	for _wt in range(maxi(1, amount)):
+		_update_summoned_worms()
 	# Frankensteins Monsters act on their own tempo cadence.
 	_update_frankensteins(amount)
 	# Elemental Trail Blazers: fire spots burn enemies then fade.
@@ -5831,6 +5818,12 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 
 	# Fire any scheduled delayed card effects whose timer has elapsed.
 	_process_delayed_effects(amount)
+	# Sky Fall arrows in flight count down on raw tempo too.
+	_process_pending_sky_falls(amount)
+	# Absorb Essence's "Delay: 10 tempo" runs on exact tempo, like every other
+	# Delay (it used to count down in whole 5-tempo cycles, so the Energy
+	# Ball could arrive as early as 6 tempo after the cast).
+	_process_pending_absorb_essences(amount)
 
 	# Mana regen on each character's own tempo interval — and with it the
 	# raw-tempo stat timers (shadow form, invulnerability, temp mana, temp
@@ -5978,7 +5971,6 @@ static func _elog_line(e: Dictionary) -> String:
 func _on_enemy_spawned_connect_debuffs(enemy: Enemy) -> void:
 	## Connect debuff signals for skill tree passives (Pop Rocks, etc.).
 	enemy.debuff_applied.connect(_on_enemy_debuff_applied)
-	enemy.debuff_expired.connect(_on_enemy_debuff_expired)
 	enemy.exposed.connect(_on_enemy_exposed)
 	enemy.attacked_player.connect(_on_enemy_attacked_player)
 	enemy.attacking_player.connect(_on_enemy_attacking_player)
@@ -6100,9 +6092,6 @@ func _on_enemy_debuff_applied(enemy: Enemy, debuff_name: String, value: int) -> 
 			_fire_instant_site_effect(pm_card, {"target": enemy})
 			_polymorph_firing = false
 
-func _on_enemy_debuff_expired(enemy: Enemy, debuff_name: String) -> void:
-	progression_triggers._trigger_skill_tree_on_debuff_expired(enemy)
-
 func _on_enemy_exposed(enemy: Enemy) -> void:
 	progression_triggers._trigger_skill_tree_stephen_on_expose(enemy)
 
@@ -6173,9 +6162,26 @@ func _on_enemy_attacking_player(_enemy: Enemy, victim = null) -> void:
 func _on_enemy_attacked_player(enemy: Enemy, victim = null) -> void:
 	if victim != null and victim != player:
 		return  # "when an enemy attacks you": not the partner, not a dojo ally
+	_note_axe_hit_streak()
 	progression_triggers._trigger_skill_tree_brad_on_attacked(enemy)
 	progression_triggers._trigger_skill_tree_stephen_on_attacked(enemy)
 	progression_triggers._trigger_skill_tree_jeremy_on_enemy_attacked(enemy)
+
+## Axe's Axe: "after you are hit 5 times" — an enemy's blow landing on you
+## (attacked_player), not a damage-over-time tick or a cost you pay yourself.
+## Five wind the Death Vortexes: every copy in hand spins at once; a copy
+## that kills climbs back into the hand.
+func _note_axe_hit_streak() -> void:
+	var hs_stats := player.get_stats() if player else null
+	if hs_stats == null:
+		return
+	hs_stats.hit_streak = mini(5, hs_stats.hit_streak + 1)
+	if hs_stats.hit_streak >= 5 and deck_manager and enemy_spawner:
+		var vortexes := deck_manager.trigger_reactions("on_hit_streak_5")
+		if vortexes.size() > 0:
+			hs_stats.hit_streak = 0
+			for dv_card in vortexes:
+				_fire_instant_site_effect(dv_card, {})
 
 func _on_enemy_killed(enemy: Enemy) -> void:
 	print("[MAIN] Enemy killed: %s (XP: %d)" % [enemy.enemy_name, enemy.xp_reward])
@@ -6221,19 +6227,6 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 		if _active_digger == enemy:
 			_active_digger = null
 		call_deferred("_maybe_send_grave_digger")
-
-	# City loop: every kill adds habitat resources to the satchel headed home,
-	# and ticks any brewing trial's countdown (STORY.md §6).
-	if not sandbox_mode and current_character and not enemy.is_structure:
-		var zone := CityBridge.zone_for_area(
-			dungeon_manager.interior_kind if dungeon_manager else "", current_world_level)
-		var loot_tier: String = enemy_spawner.get_loot_tier(enemy.enemy_type)
-		var elite := loot_tier == DropRates.TIER_ELITE or loot_tier == DropRates.TIER_BOSS
-		var gained := CityBridge.add_kill_to_satchel(player_progression, zone, elite)
-		if not gained.is_empty():
-			add_battle_log("Satchel: %s" % CityBridge.format_resources(gained), Color(0.75, 0.7, 0.5))
-		if TrialSystem.on_kill(player_progression):
-			_announce_trial()
 
 	# First-room tutorial: the very first rat felled in the story carries the
 	# Bladed Doughnut (injected into its loot in _on_loot_dropped, which fires
@@ -6283,24 +6276,6 @@ func _on_all_enemies_defeated() -> void:
 	print("[MAIN] Wave complete! Press 'Spawn Wave' for more enemies.")
 	_refresh_unit_tracker()
 
-func _announce_trial() -> void:
-	## A trial just struck the city — Olorin's flute sounds the alarm
-	## (the signal item he gave the player when the city was founded).
-	var warning := TrialSystem.warning_text(player_progression)
-	add_battle_log("A shrill flute-note pierces the air! %s" % warning, Color(1.0, 0.4, 0.35))
-	print("[MAIN] Trial struck: %s" % warning)
-	if olorin:
-		olorin.show_tutorial(
-			"trial_strike",
-			"The Flute Cries Out",
-			[
-				"A single piercing note cuts through the din of battle — Olorin's flute, and it does not sing for nothing.",
-				"\"%s\"" % warning,
-				"Return to town swiftly and the garrison will not stand alone. Linger, and the city must weather it without you.",
-			],
-			true  # the flute sounds for every trial, not just the first
-		)
-
 #endregion
 #region FIRE WALLS (Fire Goblin Shaman)
 # ============================================
@@ -6308,7 +6283,7 @@ func _announce_trial() -> void:
 # ============================================
 
 func register_fire_wall(tiles: Array, damage: int, burn: int, moves: int = 6,
-		tempo: int = -1, heal_source: Node = null, heal_amount: int = 0) -> void:
+		tempo: int = -1, heal_source: Node = null, heal_amount: int = 0) -> Dictionary:
 	## Lays a fire hazard on the given grid cells that burns the player when
 	## they walk into it. Expires after `moves` player moves, or — when
 	## `tempo` >= 0 — after that much raw tempo (Ifrit breath, Minotaur wake).
@@ -6319,12 +6294,14 @@ func register_fire_wall(tiles: Array, damage: int, burn: int, moves: int = 6,
 		var v := _spawn_fire_wall_visual(cell)
 		if v:
 			visuals.append(v)
-	_fire_walls.append({"tiles": tiles, "damage": damage, "burn": burn, "moves_left": moves,
-		"tempo_left": tempo, "heal_source": heal_source, "heal_amount": heal_amount, "visuals": visuals})
+	var wall := {"tiles": tiles, "damage": damage, "burn": burn, "moves_left": moves,
+		"tempo_left": tempo, "heal_source": heal_source, "heal_amount": heal_amount, "visuals": visuals}
+	_fire_walls.append(wall)
 	# A creature's wake (the Minotaur's trail) lays a tile at every step —
 	# the log would be nothing else; only a cast sheet of flame announces itself.
 	if heal_source == null:
 		add_battle_log("A wall of fire erupts!", Color(1.0, 0.5, 0.2))
+	return wall
 
 func _spawn_fire_wall_visual(cell: Vector2i) -> Node3D:
 	## A tongue of flame on the tile (the demons pack's fire sheet — see
@@ -6657,6 +6634,11 @@ func _on_player_health_changed(current: int, max_hp: int) -> void:
 			if card.card_id == "gift_from_the_phoenix":
 				var heal_target := int(max_hp * 0.8)
 				var heal_amount := heal_target - current
+				# "Heal up to 80%": heal() adds the INT / healing-gear bonus on
+				# top, which carried the heal past 80% — pass the base that
+				# lands on 80% once the bonus is added.
+				while heal_amount > 1 and stats.get_effective_heal_amount(heal_amount) > heal_target - current:
+					heal_amount -= 1
 				if heal_amount > 0:
 					stats.heal(heal_amount)
 				# Apply 5 burn to nearest enemy
@@ -7007,6 +6989,7 @@ func _on_hand_updated() -> void:
 	# Release Soul's Drain follows the card in and out of the hand.
 	if player and deck_manager and player.get_buff_manager():
 		_sync_held_drain(player.get_buff_manager().debuff_manager)
+		_sync_held_slow(player.get_buff_manager().debuff_manager)
 	# Drawing consumes revealed peek knowledge — keep the NEXT display honest.
 	update_peaked_display()
 
@@ -7203,6 +7186,11 @@ func _select_slot(slot: int) -> void:
 	## Route a card key press to the card occupying that lettered slot.
 	for g in _hand_groups:
 		if g["slot"] == slot:
+			# Pressing the key of the card already selected puts it back down.
+			if selected_card_index >= 0 and selected_card_index < deck_manager.hand.size() \
+					and deck_manager.hand[selected_card_index] in g["cards"]:
+				select_card(-1)
+				return
 			select_card(deck_manager.hand.find(g["rep"]))
 			return
 	# No card bound to that key — leave the current selection untouched.
@@ -7210,9 +7198,7 @@ func _select_slot(slot: int) -> void:
 ## Scroll the view by a world-space delta, clamped so the character can
 ## never be scrolled out of reach.
 func _pan_camera(delta: Vector3) -> void:
-	_camera_pan += Vector3(delta.x, 0, delta.z)
-	_camera_pan.x = clampf(_camera_pan.x, -CAMERA_PAN_LIMIT, CAMERA_PAN_LIMIT)
-	_camera_pan.z = clampf(_camera_pan.z, -CAMERA_PAN_LIMIT, CAMERA_PAN_LIMIT)
+	_camera_pan = CameraPan.panned(_camera_pan, delta, CAMERA_PAN_LIMIT)
 	_update_camera()
 
 
@@ -7474,8 +7460,6 @@ func _on_tempo_threshold_reached(times: int) -> void:
 			if end_bm:
 				end_bm.process_turn_end()
 
-		_process_pending_sky_falls()
-		_process_pending_absorb_essences()
 		_process_glut_countdown()
 
 	# Sphere grid passive triggers for tempo cycle
@@ -7492,8 +7476,6 @@ func _on_tempo_threshold_reached(times: int) -> void:
 	_helm_on_cycle_passives()
 	# Shield per-cycle passives (Vanguard's Regen, Spiked Shield's Thorns)
 	_shield_on_cycle_passives()
-	if tempo_manager.last_tempo_source == "movement":
-		progression_triggers._trigger_skill_tree_on_movement_cycle()
 
 	# Reset per-cycle movement tracking (after passives have read it)
 	tempo_manager.spaces_moved_this_cycle = 0
@@ -7618,6 +7600,13 @@ func _process_maintained_card_effects() -> void:
 			if ally != player and Vector3(halo_diff.x, 0, halo_diff.z).length() > 3.0:
 				continue
 			ally.get_stats().heal(halo_heal, ally != player, true)
+		# "heal all allies ... radius of 3": summons inside the circle are
+		# allies too (Healthy Bliss heals them the same way) — they were skipped.
+		var halo_summon_heal: int = stats.get_effective_heal_amount(halo_heal)
+		for s in _all_summons():
+			var halo_sdiff = s.position - player.position
+			if Vector3(halo_sdiff.x, 0, halo_sdiff.z).length() <= 3.0:
+				s.heal(halo_summon_heal)
 		print("[MAIN] Maintained cards healed for %d HP" % maintained_result["total_heal"])
 	if maintained_result["self_damage"] > 0 and stats:
 		stats.take_direct_damage(maintained_result["self_damage"])
@@ -7706,12 +7695,37 @@ func _apply_in_hand_debuffs() -> void:
 		if card.in_hand_debuff != "":
 			match card.in_hand_debuff:
 				"slowed_2":
-					# "While in hand: Slowed 2" — hold it at 2, never stack it.
-					if not debuff_mgr.has_debuff(Debuff.DebuffType.SLOWED):
-						debuff_mgr.apply_debuff(Debuff.create_slowed(2, card.card_name))
+					pass  # held at 2 stacks by _sync_held_slow below, which also runs on every hand change
 				"drain_1":
 					pass  # held at 1 stack by _sync_held_drain below, which also runs on every hand change
 	_sync_held_drain(debuff_mgr)
+	_sync_held_slow(debuff_mgr)
+
+## The source name on the Slowed that Petey the Pet Rock holds on you.
+const HELD_SLOW_SOURCE := "Petey the Pet Rock"
+
+## Petey the Pet Rock: "While in hand: Slowed 2". Put on the moment it is
+## drawn, topped back up to 2 after the stack falls each cycle, and lifted
+## when the last copy leaves the hand. A Slowed from another source is
+## topped up but never removed here.
+func _sync_held_slow(debuff_mgr) -> void:
+	if debuff_mgr == null:
+		return
+	var held := false
+	for card in deck_manager.hand:
+		if card.in_hand_debuff == "slowed_2":
+			held = true
+			break
+	var slow = debuff_mgr.get_debuff(Debuff.DebuffType.SLOWED)
+	if held:
+		if slow == null:
+			debuff_mgr.apply_debuff(Debuff.create_slowed(2, HELD_SLOW_SOURCE))
+		elif not slow.clock_timed and slow.value < 2:
+			slow.value = 2  # a Slowed's stacks are its value
+			slow._set_name_and_description()
+			debuff_mgr.debuffs_changed.emit()
+	elif slow != null and slow.source_name == HELD_SLOW_SOURCE:
+		debuff_mgr.remove_debuff(Debuff.DebuffType.SLOWED)
 
 ## The source name on the Drain that Release Soul puts there, so only that
 ## Drain is lifted when the card leaves — one from another source is kept.
@@ -7770,18 +7784,21 @@ func _healthy_bliss_heal(card: Card) -> void:
 
 func _healthy_bliss_sweep(card: Card) -> void:
 	var stats := player.get_stats()
+	var base_amt: int = card.heal_amount
 	var heal_amt = card.heal_amount
 	if stats:
-		heal_amt = stats.get_effective_heal_amount(card.heal_amount)
 		# Blood Libation boosts the caster's performed heal ONCE for the sweep
-		heal_amt = stats.boost_performed_heal(heal_amt)
+		base_amt = stats.boost_performed_heal(card.heal_amount)
+		heal_amt = stats.get_effective_heal_amount(base_amt)
 	add_battle_log("Healthy Bliss heals all allies for %d!" % heal_amt, Color(0.4, 1.0, 0.5))
 	for ally in _all_allies():
 		if not is_instance_valid(ally):
 			continue
 		var ally_stats = ally.get_stats()
 		if ally_stats:
-			ally_stats.heal(heal_amt, ally != player, true)
+			# heal() adds the INT / healing bonus itself — passing the already
+			# boosted amount counted it twice ("heal all allies for 10").
+			ally_stats.heal(base_amt, ally != player, true)
 	for summon in _all_summons():
 		summon.heal(heal_amt)
 
@@ -7810,10 +7827,14 @@ func _process_healthy_bliss_cards() -> void:
 		if hand_changed:
 			dmgr.hand_updated.emit()
 
-func _process_pending_sky_falls() -> void:
+## Sky Fall: "In 10 tempo, it lands". Counted on raw tempo (like every other
+## "in N tempo" card delay): stepped 5 at a time on the cycle, the arrow came
+## down anywhere from 5 to 10 tempo after the shot depending on where in the
+## cycle it was loosed.
+func _process_pending_sky_falls(amount: int) -> void:
 	for i in range(pending_sky_falls.size() - 1, -1, -1):
 		var sf = pending_sky_falls[i]
-		sf.tempo_remaining -= 5
+		sf.tempo_remaining -= amount
 		if sf.tempo_remaining <= 0:
 			# Arrow lands! Damage whatever stands on the designated square.
 			var enemies_hit := enemy_spawner.get_enemies_in_radius(sf.position, 0.5)
@@ -7913,17 +7934,16 @@ func _stun_nearest_enemy(within: float) -> void:
 
 func _harness_lightning_tick() -> void:
 	## Harness Lightning orb: zap a random living enemy within 3 tiles for 4.
-	if not enemy_spawner:
+	if not enemy_spawner or not grid_manager:
 		return
-	var in_range: Array = []
-	for en in enemy_spawner.get_living_enemies():
-		if player.position.distance_to(en.position) <= 3.0:
-			in_range.append(en)
-	if in_range.size() > 0:
+	# "within 3 spaces": grid steps, like every other "within N" (not a 3D
+	# world distance, which cut diagonals and height short).
+	var victim = _random_enemy_within(3)
+	if victim:
 		# 4 base, through the INT spell pipeline.
 		var hl_stats := player.get_stats()
 		var hl_dmg: int = hl_stats.get_effective_spell_damage(4) if hl_stats else 4
-		in_range[randi() % in_range.size()].take_damage(hl_dmg, true)
+		victim.take_damage(hl_dmg, true)
 
 func _cryonics_heal(p, poisoned: bool = false) -> void:
 	if is_instance_valid(p) and p.get_stats():
@@ -8247,10 +8267,10 @@ func _succumb_phase2(caster) -> void:
 	add_battle_log("Succumb: took 10 more damage; cuffed, drained, disarmed", Color(1.0, 0.3, 0.3))
 
 
-func _process_pending_absorb_essences() -> void:
+func _process_pending_absorb_essences(amount: int = 5) -> void:
 	for i in range(pending_absorb_essences.size() - 1, -1, -1):
 		var ae = pending_absorb_essences[i]
-		ae.tempo_remaining -= 5
+		ae.tempo_remaining -= amount
 		if ae.tempo_remaining <= 0:
 			# Create Energy Ball card and add to hand
 			var energy_ball := Card.create_by_id("energy_ball")
@@ -8951,6 +8971,11 @@ func play_selected_card(target) -> void:
 	var result := deck_manager.play_card(selected_card_index, target, player, true)
 
 	if result["played"]:
+		# Tighten String: "next 3 ranged attacks PLAYED" — the charge is spent
+		# here, at play. Spent at resolve, attacks queued before the first one
+		# resolved were all strung (4 shots off 3 charges, the count went -1).
+		if tighten_applied:
+			buff_mgr.tighten_string_charges -= 1
 		# Played-card visuals: cards headed to the discard pile were already
 		# animated by _animate_card_discard (pop, pause, tube-suck — fired
 		# during play_card). Handle the placements that skip the discard pile.
@@ -9202,9 +9227,7 @@ func _return_dead_target_card(card: Card, data: Dictionary, context: String) -> 
 func _undo_card_temp_mods(card: Card, data: Dictionary) -> void:
 	## Undo temporary card modifications applied before queuing (tighten, high ground, harnessed).
 	if data.get("tighten_applied", false):
-		var buff_mgr := player.get_buff_manager()
-		if buff_mgr:
-			buff_mgr.tighten_string_charges -= 1
+		# (Its Tighten String charge was spent at play — play_selected_card.)
 		card.bonus_damage -= 6
 		card.range_modifier -= 6
 	if data.get("high_ground_applied", false):
@@ -9348,6 +9371,13 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		passive_bonus += progression_triggers._trigger_skill_tree_cory_on_attack(card, target)
 	if passive_bonus > 0:
 		card.bonus_damage += passive_bonus
+	# Eye Scrape counts every critical strike: a multi-hit card's crits each count.
+	if player.get_buff_manager():
+		player.get_buff_manager().crit_hits = 0
+	# From the Hip: "the discount is lost when any card is played" — ended
+	# before the effect, so a card that re-prices itself (Consecutive Snap)
+	# keeps its own new cost.
+	progression_triggers.end_from_the_hip_discount()
 	# Execute the card's effect (damage, block, heal, etc.)
 	deck_manager.execute_deferred_card(card, target, player)
 	# Clean Exchange's flat block: a separate "gain X block" on top of whatever
@@ -9397,10 +9427,10 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		if pa_stats:
 			pa_stats.st_consecutive_defense = 0
 
-	# Crit-based skill tree passives (Eye Scrape)
+	# Crit-based skill tree passives (Eye Scrape): every crit the card rolled.
 	if buff_mgr and buff_mgr.last_crit_hit:
 		buff_mgr.last_crit_hit = false
-		progression_triggers._trigger_skill_tree_on_crit(target)
+		progression_triggers._trigger_skill_tree_on_crit(target, maxi(1, buff_mgr.crit_hits))
 		# Bow of Budding Blasts: a crit with a slotted card buds a bow turret.
 		if card.slotted_in_item and bool(card.get_on_self_bonus().get("crit_bud_bow", false)):
 			_spawn_bud_bow()
@@ -9409,7 +9439,10 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	# Strengthen is active, so the empowered hits can't feed the next round.
 	_ring_note_big_hit(card.last_damage_dealt)
 
-	# Apply world effects (knockback, movement, AOE)
+	# Apply world effects (knockback, movement, AOE). A point card lands on
+	# the tile it was aimed at when played ("Pick a point"), not wherever the
+	# cursor has wandered by the end of its wind-up.
+	_resolving_aim = data.get("aim_world", null) if "point" in card.target_types else null
 	_apply_card_world_effects(card, target)
 	# Skilled Momentum (Stephen): the attack plays a second time, in full —
 	# its own crit roll, riders and debuffs — for no tempo. One-shot buffs
@@ -9419,6 +9452,8 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		sm_stats.st_skilled_momentum_echo = false
 		if not (target is Enemy) or (is_instance_valid(target) and not target.is_dead):
 			progression_triggers.arm_pre_attack_passives(card, target)
+			if buff_mgr:
+				buff_mgr.crit_hits = 0
 			deck_manager.execute_deferred_card(card, target, player)
 			if card.is_attack() and sm_stats.has_method("register_attack"):
 				sm_stats.register_attack()  # a second attack for the DEX counter
@@ -9427,8 +9462,9 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 				add_battle_log("%s again — %d damage" % [card.card_name, card.last_damage_dealt], Color(0.9, 0.3, 0.3))
 			if buff_mgr and buff_mgr.last_crit_hit:
 				buff_mgr.last_crit_hit = false
-				progression_triggers._trigger_skill_tree_on_crit(target)
+				progression_triggers._trigger_skill_tree_on_crit(target, maxi(1, buff_mgr.crit_hits))
 
+	_resolving_aim = null
 	# The play is over: undo the folded bonus, disarm the passives, close
 	# the scope and drop the hit-source flags.
 	if passive_bonus > 0:
@@ -9587,7 +9623,9 @@ func _helm_range_bonus(card) -> int:
 	if not card.is_offensive():
 		return bonus
 	if card.slotted_in_item and card.slotted_in_item.has_method("get_on_self_bonus"):
-		var osb = card.slotted_in_item.get_on_self_bonus()
+		# The card's own view of the item: a plain (vanilla) slot carries no
+		# riders (Monocle / Long Bow: "3 card slots (2 bonus, 1 plain)").
+		var osb = card.get_on_self_bonus()
 		var r := int(osb.get("range_offensive", 0))
 		if r > 0 and (not osb.get("range_requires_ranged", false) or card.is_ranged):
 			bonus += r
@@ -9601,16 +9639,39 @@ func _helm_range_bonus(card) -> int:
 		bonus += maxi(0, player.get_stats().equipment_ranged_range_bonus)
 	return bonus
 
+## Boot Holsters: "On-self: if an instant, deal 10 damage to the nearest enemy
+## within 3 squares." Instants never go through a play (deck_manager refuses
+## them; they fire from the hand), so the rider hangs off reaction_triggered —
+## the one signal every way an instant fires emits.
+## Phoenix Feather: "once per play" — an instant firing starts a play of its own.
+func _phoenix_new_play(_card: Card) -> void:
+	_phoenix_singed_this_play = false
+
+func _slotted_instant_fired(card: Card) -> void:
+	if card == null or card.slotted_in_item == null or not player or not enemy_spawner or not grid_manager:
+		return
+	var inst_dmg := int(card.get_on_self_bonus().get("instant_damage_nearest", 0))
+	if inst_dmg <= 0:
+		return
+	var nearest := _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
+	if nearest and grid_manager.get_distance_in_cells(player.position, nearest.position) <= 3:
+		nearest.take_damage(inst_dmg, true)
+		add_battle_log("%s: %d damage to %s" % [card.slotted_in_item.item_name, inst_dmg, nearest.enemy_name], Color(0.8, 0.7, 0.4))
+
 ## Shamans mask: playing a UTILITY card zaps a random enemy within 3 tiles for
 ## a little INT-scaled spell damage. (The utility heal is applied in execute().)
 func _helm_card_world_effects(card, target = null) -> void:
 	if not card or not card.slotted_in_item or not player or not enemy_spawner or not grid_manager:
 		return
-	var osb = card.slotted_in_item.get_on_self_bonus()
+	# Through the card, so a plain (vanilla) slot stays neutral: no wolf
+	# (Dungeon Mastering), no vanishing (Houdini's) from a plain-slot card.
+	var osb = card.get_on_self_bonus()
 
 	# Shamans mask: a UTILITY card zaps a random enemy within 3. The zap is a
 	# fixed 1 spell damage — capped at 1, no INT/enchant/sphere modifiers.
-	if card.card_type == Card.CardType.UTILITY:
+	# Utility = the type or the tag (CARD_TAXONOMY: Healthy Bliss).
+	var is_utility: bool = card.card_type == Card.CardType.UTILITY or card.has_keyword("utility")
+	if is_utility:
 		var spell_dmg := int(osb.get("utility_spell_damage", 0))
 		if spell_dmg > 0:
 			var victim = _random_enemy_within(3)
@@ -9618,14 +9679,8 @@ func _helm_card_world_effects(card, target = null) -> void:
 				victim.take_damage(spell_dmg, true)
 				add_battle_log("%s: %d spell damage to %s" % [card.slotted_in_item.item_name, spell_dmg, victim.enemy_name], Color(0.5, 0.85, 0.6))
 
-	# Boot Holsters: a slotted instant (REACTION) hits the nearest enemy in 3.
-	if card.card_type == Card.CardType.REACTION:
-		var inst_dmg := int(osb.get("instant_damage_nearest", 0))
-		if inst_dmg > 0:
-			var nearest := _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
-			if nearest and grid_manager.get_distance_in_cells(player.position, nearest.position) <= 3:
-				nearest.take_damage(inst_dmg, true)
-				add_battle_log("%s: %d damage to %s" % [card.slotted_in_item.item_name, inst_dmg, nearest.enemy_name], Color(0.8, 0.7, 0.4))
+	# (Boot Holsters' instant rider lives in _slotted_instant_fired: instants
+	# fire from the hand and never pass through here.)
 
 	# Gauntlets of Dungeon Mastering: a slotted card play summons a wolf.
 	var wolf_count := int(osb.get("summon_wolf", 0))
@@ -9633,14 +9688,16 @@ func _helm_card_world_effects(card, target = null) -> void:
 		_spawn_wolf()
 
 	# Slotted Sash: a slotted UTILITY card Weakens a random enemy within 5.
-	if card.card_type == Card.CardType.UTILITY and int(osb.get("utility_weaken", 0)) > 0:
+	if is_utility and int(osb.get("utility_weaken", 0)) > 0:
 		var sash_victim = _random_enemy_within(5)
 		if sash_victim and sash_victim.has_method("apply_debuff"):
 			sash_victim.apply_debuff("weaken", int(osb["utility_weaken"]))
 			add_battle_log("%s: %s Weakened" % [card.slotted_in_item.item_name, sash_victim.enemy_name], Color(0.6, 0.6, 0.85))
 
 	# Tactical belt: a slotted card detonates around its target (enemies only).
-	if int(osb.get("target_aoe_damage", 0)) > 0 and target and is_instance_valid(target) and "position" in target:
+	# Only a card AIMED AT AN ENEMY (the tooltip): a self- or ally-targeted
+	# card used to blast every enemy standing next to the player/ally.
+	if int(osb.get("target_aoe_damage", 0)) > 0 and target is Enemy and is_instance_valid(target):
 		var blast := int(osb["target_aoe_damage"])
 		var blast_hits := 0
 		for be in enemy_spawner.get_living_enemies():
@@ -10175,6 +10232,7 @@ func _on_specter_died(sp, killed: bool) -> void:
 	var killer = sp.last_attacker
 	if killer != null and is_instance_valid(killer) and killer.has_method("take_damage") and not bool(killer.get("is_dead")):
 		killer.take_damage(sp.death_damage, true)
+		_belthronding_share(sp.position, sp.death_damage)  # an ally's damage like any other summon's
 		add_battle_log("Seance: the Specter is destroyed — %d damage to %s!" % [sp.death_damage, killer.enemy_name if "enemy_name" in killer else "its killer"], Color(0.7, 0.5, 1.0))
 
 func _update_specters(amount: int) -> void:
@@ -10246,7 +10304,7 @@ func _update_wolves(amount: int) -> void:
 		if target_enemy == null:
 			continue
 		var tcell := grid_manager.world_to_grid(target_enemy.position)
-		w.attack_accum += amount
+		w.attack_accum = mini(w.attack_accum + amount, w.ATTACK_INTERVAL)  # a walk never banks swings
 		if _manhattan(w.get_cell(), tcell) <= 1:
 			if w.attack_accum >= w.ATTACK_INTERVAL and w.can_attack_now():
 				w.attack_accum -= w.ATTACK_INTERVAL
@@ -10723,7 +10781,7 @@ func _update_spirit_bows(amount: int) -> void:
 		if target_enemy == null:
 			continue
 		var tcell := grid_manager.world_to_grid(target_enemy.position)
-		b.attack_accum += amount
+		b.attack_accum = mini(b.attack_accum + amount, b.attack_interval())  # a walk never banks shots
 		if _manhattan(b.get_cell(), tcell) <= b.ATTACK_RANGE:
 			if b.attack_accum >= b.attack_interval() and b.can_attack_now():
 				b.attack_accum -= b.attack_interval()
@@ -10747,14 +10805,21 @@ func _update_spirit_bows(amount: int) -> void:
 			b.move_accum = 0
 			continue
 		b.move_accum += amount
-		if b.move_accum >= b.SPIRIT_MOVE_INTERVAL * b.move_cost_mult():
+		# "1 square per tempo": a multi-tempo advance walks that many squares,
+		# stopping once the enemy is in reach.
+		while b.move_accum >= b.SPIRIT_MOVE_INTERVAL * b.move_cost_mult():
 			b.move_accum -= b.SPIRIT_MOVE_INTERVAL * b.move_cost_mult()
-			var cur = b.get_cell()
+			var cur = b.get_destination_cell()  # it glides: step on from where it is headed
 			bow_cells.erase(cur)
 			var nxt := _rat_step_toward(cur, tcell, blocked, _living_enemy_cells(), bow_cells)
 			bow_cells.append(nxt)
-			if nxt != cur:
-				b.move_to_cell(nxt)
+			if nxt == cur:
+				b.move_accum = 0
+				break
+			b.move_to_cell(nxt)
+			if _manhattan(nxt, tcell) <= b.ATTACK_RANGE:
+				b.move_accum = 0
+				break
 	_refresh_bow_instances()
 
 ## Shove an enemy inside a rectangular burst to its nearest edge cell (the
@@ -11305,6 +11370,7 @@ func _on_custom_ring_fired(ring: ItemData, kind: String, value: int) -> void:
 		"cyclops_strengthen":
 			buff_mgr.apply_buff(Buff.create_strengthen(value, 2, ring.item_name))
 			ring.ring_counters["empowered"] = 2  # the ring's own hits sit out of the counter
+			ring.ring_counters["str_mark"] = buff_mgr.strengthened_hits  # strengthened hits are counted from here
 			add_battle_log("The Cyclops Ring swells: Strengthen %d for 2 hits." % value, Color(1.0, 0.6, 0.4))
 		"thomas_regen":
 			buff_mgr.apply_buff(Buff.create_regen(value, 15, ring.item_name))
@@ -11465,7 +11531,7 @@ func _update_clones(amount: int) -> void:
 		if target_enemy == null:
 			continue
 		var tcell := grid_manager.world_to_grid(target_enemy.position)
-		c.attack_accum += amount
+		c.attack_accum = mini(c.attack_accum + amount, c.ATTACK_INTERVAL)  # a walk never banks swings
 		if _manhattan(c.get_cell(), tcell) <= 1:
 			if c.attack_accum >= c.ATTACK_INTERVAL and c.can_attack_now():
 				c.attack_accum -= c.ATTACK_INTERVAL
@@ -11571,14 +11637,23 @@ func _on_player_buff_applied_ring(buff: Buff) -> void:
 
 ## Cyclops Ring: a single player hit of 25+ counts. Only the ring's OWN two
 ## empowered hits are excluded — a Strengthen from any other source counts
-## fine. The exclusion is tracked as a 2-hit counter set when the ring fires.
+## fine. "The strengthened hits don't feed the counter": a hit sits out only
+## when it actually drew Strengthen (BuffManager.strengthened_hits moved) while
+## the ring's two charges are out — a spell, which neither spends nor gains
+## Strengthen, feeds the counter as usual and leaves the charges waiting.
 func _ring_note_big_hit(damage: int) -> void:
-	if damage <= 0 or player == null or player.get_inventory() == null:
+	if player == null or player.get_inventory() == null:
 		return
+	var rn_bm := player.get_buff_manager()
 	for r in player.get_inventory().equipped_rings:
-		if r != null and r.item_name == "Cyclops Ring" and int(r.ring_counters.get("empowered", 0)) > 0:
-			r.ring_counters["empowered"] = int(r.ring_counters["empowered"]) - 1
-			return
+		if r != null and r.item_name == "Cyclops Ring" and int(r.ring_counters.get("empowered", 0)) > 0 and rn_bm:
+			var spent: int = rn_bm.strengthened_hits - int(r.ring_counters.get("str_mark", rn_bm.strengthened_hits))
+			r.ring_counters["str_mark"] = rn_bm.strengthened_hits
+			if spent > 0:
+				r.ring_counters["empowered"] = maxi(0, int(r.ring_counters["empowered"]) - spent)
+				return
+	if damage <= 0:
+		return
 	if damage < 25:
 		return
 	player.get_inventory().on_player_big_hit()
@@ -11793,7 +11868,8 @@ func _on_player_debuff_removed(_debuff) -> void:
 ## cooldown (PlayerStats.try_expose is the one gate — a break inside the
 ## 10-tempo window never reaches here). Everything that reacts to Exposed
 ## hangs off this: Briarhide Plate / Adimantium, on_exposed reactions
-## (Vengeful Shield), Reverberate Regrowth.
+## (Vengeful Shield). Reverberate Regrowth hangs off every break instead
+## (_on_player_armor_broken_through).
 func _on_player_armor_broken() -> void:
 	if player and player.get_inventory():
 		player.get_inventory().on_player_exposed()
@@ -11805,8 +11881,11 @@ func _on_player_armor_broken() -> void:
 			_fire_instant_site_effect(rcard, {"target": stats.last_attacker})
 		if exposed_reactions.size() > 0:
 			_refresh_unit_tracker()
-	# Reverberate Regrowth (Steve Rodgers, maintained): the armor that hit ate
-	# comes back 5 tempo later. Only one debt is carried at a time.
+
+## Reverberate Regrowth (Steve Rodgers, maintained): "when your armor is
+## broken through, the armor that hit ate comes back 5 tempo later" — every
+## break, Exposed cooldown or not, each with its own return queued.
+func _on_player_armor_broken_through() -> void:
 	if not player or not deck_manager or not deck_manager.has_method("get_maintained_cards"):
 		return
 	var rr_stats := player.get_stats()
@@ -11814,8 +11893,7 @@ func _on_player_armor_broken() -> void:
 		return
 	for rr in deck_manager.get_maintained_cards():
 		if rr and rr.card_id == "reverberate_regrowth":
-			rr_stats.pending_armor_return = rr_stats.last_exposed_armor
-			rr_stats.pending_armor_return_tempo = 5
+			rr_stats.pending_armor_returns.append({"armor": rr_stats.last_exposed_armor, "tempo": 5})
 			add_battle_log("Reverberate Regrowth: %d armor will echo back in 5 tempo" % rr_stats.last_exposed_armor,
 				Color(0.6, 0.75, 1.0))
 			return
@@ -12059,13 +12137,11 @@ func _helm_on_cycle_passives() -> void:
 	# Frankensteins Screws: heal SUMMONS below 25% HP within 3 tiles of the
 	# wearer — all summon types, not just Frankenstein's Monsters.
 	if summon_heal > 0 and grid_manager:
-		var fs_summons: Array = []
-		fs_summons.append_array(_frankensteins)
-		fs_summons.append_array(_wolves)
-		fs_summons.append_array(_skeletons)
-		fs_summons.append_array(_spirit_bows)
-		if _penguin != null:
-			fs_summons.append(_penguin)
+		# Every healable summon: clones and specters were left out before.
+		var fs_summons: Array = _all_summons()
+		for sp in _specters:
+			if is_instance_valid(sp) and sp.has_method("heal") and not sp in fs_summons:
+				fs_summons.append(sp)
 		for m in fs_summons:
 			if m == null or not is_instance_valid(m) or m.is_dead:
 				continue
@@ -12123,8 +12199,10 @@ func _helm_on_cycle_passives() -> void:
 				a_st._passive_heal = false
 				a_st.gain_mana(greaves_mana)
 				a_st.aura_physical_resist = greaves_resist
-		for m in _frankensteins:
-			if is_instance_valid(m) and not m.is_dead and grid_manager.get_distance_in_cells(player.position, m.position) <= greaves_radius:
+		# "All allies": every friendly summon in reach is healed too, not only
+		# Frankenstein's Monsters (summons have no mana pool or resist field).
+		for m in _all_summons():
+			if not bool(m.get("is_dead")) and grid_manager.get_distance_in_cells(player.position, m.position) <= greaves_radius:
 				m.heal(greaves_regen)
 
 	# Void-resistance aura (Mane): presence-based, refreshed every cycle so it
@@ -12366,8 +12444,36 @@ func _point_aim(target, mouse_pos: Vector3) -> Vector3:
 		return target.position
 	return grid_manager.snap_to_grid(mouse_pos)
 
+## A card's world effects (knockback, movement, area and point damage…).
+## A point or area play (no enemy target) lands its hits here, so its
+## on-hit debuff riders and its life steal follow those hits: once on every
+## enemy the effects actually damaged, from the health and armor they lost.
+## A single-target play already ran both in Card.execute.
 func _apply_card_world_effects(card: Card, target) -> void:
-	var mouse_pos := get_mouse_world_position()
+	if not card.is_offensive() or not card.is_world_resolved(target) or enemy_spawner == null:
+		_apply_card_world_effects_inner(card, target)
+		return
+	var before := {}
+	for e in enemy_spawner.get_living_enemies():
+		if is_instance_valid(e):
+			before[e] = int(e.current_health) + int(e.current_armor)
+	_apply_card_world_effects_inner(card, target)
+	var st: PlayerStats = player.get_stats() if player else null
+	var total := 0
+	for e in before:
+		if not is_instance_valid(e):
+			continue
+		var lost: int = int(before[e]) - (int(e.current_health) + int(e.current_armor))
+		if lost <= 0:
+			continue
+		total += lost
+		if not e.is_dead:
+			card.apply_on_hit_debuffs(e, st)
+	if card.is_attack() and total > 0:
+		card.apply_life_steal_for(total, st, player.get_buff_manager() if player else null, deck_manager)
+
+func _apply_card_world_effects_inner(card: Card, target) -> void:
+	var mouse_pos: Vector3 = _resolving_aim if _resolving_aim is Vector3 else get_mouse_world_position()
 
 	# Generic helm on-self world effects (independent of card_id).
 	_helm_card_world_effects(card, target)
@@ -12492,6 +12598,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 						pbm_hits += 1
 						pbm_list.append(pe)
 			_apply_misery_spread(pbm_list)
+			last_poison_bomb_hits = pbm_list
 			add_battle_log("Poison Bomb: %d enem%s poisoned (6)" % [pbm_hits, "y" if pbm_hits == 1 else "ies"], Color(0.4, 0.8, 0.3))
 
 		"fire_punch":
@@ -12601,11 +12708,15 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			if dc_stats:
 				dc_stats.base_agility += 5
 				dc_stats.base_dexterity += 4
+				dc_stats.lent_agility += 5
+				dc_stats.lent_dexterity += 4
 				dc_stats.recalculate_derived_stats()
 				schedule_delayed_effect(5, func():
 					if is_instance_valid(dc_node) and dc_node.get_stats():
 						dc_stats.base_agility -= 5
 						dc_stats.base_dexterity -= 4
+						dc_stats.lent_agility -= 5
+						dc_stats.lent_dexterity -= 4
 						dc_stats.recalculate_derived_stats(), "donate_cleats")
 				add_battle_log("Donate Cleats: +5 AGI, +4 DEX for 5 tempo", Color(0.6, 0.9, 0.6))
 
@@ -12641,9 +12752,11 @@ func _apply_card_world_effects(card: Card, target) -> void:
 					if mend_armor > 0:
 						a_st.add_armor(mend_armor)
 					mend_healed += 1
-			for m in _frankensteins:
-				if is_instance_valid(m) and not m.is_dead and grid_manager.get_distance_in_cells(player.position, m.position) <= 4:
-					m.heal(maxi(1, floori(m.max_health * mend_pct)))
+			# "Allies" includes every friendly summon, not only Frankenstein's
+			# Monsters (summons have no mana pool; their armor is not tracked).
+			for m in _all_summons():
+				if not bool(m.get("is_dead")) and grid_manager.get_distance_in_cells(player.position, m.position) <= 4:
+					m.heal(maxi(1, floori(int(m.get("max_health")) * mend_pct)))
 					mend_healed += 1
 			add_battle_log("Mend: %d all%s restored" % [mend_healed, "y" if mend_healed == 1 else "ies"], Color(0.5, 0.9, 0.7))
 
@@ -12711,6 +12824,12 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			# squares. They last until an ally eats them; enemies trample past.
 			var cr_cells: Array = []
 			var cr_pcell: Vector2i = grid_manager.world_to_grid(player.position)
+			# "An ally who walks over one eats it": a bushel never grows under an
+			# ally already standing there (it was eaten on the spot).
+			var cr_ally_cells: Array = []
+			for cr_a in _all_allies():
+				if is_instance_valid(cr_a):
+					cr_ally_cells.append(grid_manager.world_to_grid(cr_a.position))
 			var cr_tries := 0
 			while cr_cells.size() < 5 and cr_tries < 200:
 				cr_tries += 1
@@ -12718,7 +12837,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				if absi(cr_off.x) + absi(cr_off.y) > 8 or cr_off == Vector2i.ZERO:
 					continue
 				var cr_cell: Vector2i = cr_pcell + cr_off
-				if cr_cell in player.blocked_tiles or cr_cell in cr_cells:
+				if cr_cell in player.blocked_tiles or cr_cell in cr_cells or cr_cell in cr_ally_cells:
 					continue
 				var cr_dup := false
 				for cr_b in _berry_bushels:
@@ -13029,6 +13148,8 @@ func _apply_card_world_effects(card: Card, target) -> void:
 						target.set(rt[1], 0)
 						if rt[2] != "":
 							target.set(rt[2], false)
+						if rt[1] == "narashimha_tempo":
+							target.set("narashimha_heal_cap", -1)  # the heal ceiling goes with it
 					else:
 						target.set(rt[1], int(v) - 1)
 					if target.has_method("_update_status_indicators"):
@@ -13056,7 +13177,10 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				var np := grid_manager.snap_to_grid(roll_start + roll_dir * (step * grid_manager.grid_size))
 				if grid_manager.world_to_grid(np) in player.blocked_tiles:
 					break  # a wall or obstacle ends the roll
-				var hit_enemy := enemy_spawner.get_enemy_at_position(np)
+				# Only an enemy ON the next square ends the roll there: the default
+				# 1.0 reach also caught one a square beyond, stopping the roller
+				# a square short of the character it never touched.
+				var hit_enemy := enemy_spawner.get_enemy_at_position(np, grid_manager.grid_size * 0.5)
 				if hit_enemy:
 					hit_enemy.take_damage(10, true)
 					hit_enemy.apply_debuff("disarmed", 5)
@@ -13084,7 +13208,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"cupids_golden_arrow":
 			# Cupids Bow: 2 Vulnerable always; 50% (pre-rolled) taunt; golden mark.
-			if target and is_instance_valid(target):
+			if target and is_instance_valid(target) and not card.blind_missed:  # a Blind miss never struck it
 				if target.has_method("apply_debuff"):
 					target.apply_debuff("vulnerable", 2)
 				if card.rng_binary_succeeded() and target.has_method("apply_taunt"):
@@ -13095,7 +13219,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 
 		"cupids_lead_arrow":
 			# Cupids Bow: 2 Weaken always; 50% (pre-rolled) fear; lead mark.
-			if target and is_instance_valid(target):
+			if target and is_instance_valid(target) and not card.blind_missed:  # a Blind miss never struck it
 				if target.has_method("apply_debuff"):
 					target.apply_debuff("weaken", 2)
 				if card.rng_binary_succeeded() and target.has_method("apply_fear"):
@@ -13344,10 +13468,13 @@ func _apply_card_world_effects(card: Card, target) -> void:
 				# Check for enemies at this position and push them back
 				var enemies_at_pos := enemy_spawner.get_enemies_in_radius(next_pos, 0.6)
 				for enemy in enemies_at_pos:
-					enemy.take_damage(card.last_damage_dealt, true)
-					enemy.knockback(start_pos, 2)
+					# "Deal 8 damage to all enemies hit": once each. A knocked-back
+					# enemy lands further along the path and used to be struck
+					# again there; it is still shoved, but takes no second hit.
 					if not enemy in charge_hit:
+						enemy.take_damage(card.last_damage_dealt, true)
 						charge_hit.append(enemy)
+					enemy.knockback(start_pos, 2)
 
 				final_pos = next_pos
 
@@ -13535,7 +13662,7 @@ func _apply_card_world_effects(card: Card, target) -> void:
 			_spawn_barricade()
 
 		"rise":
-			var rise_pos := grid_manager.snap_to_grid(get_mouse_world_position())
+			var rise_pos := grid_manager.snap_to_grid(mouse_pos)  # the aimed tile
 			_spawn_pillar(rise_pos)
 
 		"absorb_essence":
@@ -13938,7 +14065,7 @@ func _input(event: InputEvent) -> void:
 						var range_type := "ranged" if card.is_ranged else "melee"
 						var dist := _get_distance_to_target(enemy)
 						if card.is_ranged:
-							var max_r := card.get_effective_range()
+							var max_r := _ranged_card_max_range(card)  # the reach the check used
 							add_battle_log("Out of range! %s is %d tiles away (max range: %d)" % [enemy.enemy_name, dist, max_r], Color(1.0, 0.4, 0.4))
 						else:
 							add_battle_log("Out of melee range! %s is %d tiles away (need adjacent)" % [enemy.enemy_name, dist], Color(1.0, 0.4, 0.4))
@@ -13956,7 +14083,11 @@ func _input(event: InputEvent) -> void:
 						var tgt_summon := _summon_at_position(mouse_pos)
 						if tgt_summon:
 							tgt = tgt_summon
-					if tgt != player and card.is_ranged and not _is_target_in_card_range(card, tgt):
+					if not (tgt is Player) and not (card.card_id in SUMMON_ALLY_CARDS):
+						# Resolves on a hero's stats; a summon pick used to land on
+						# the caster instead. Refuse it, nothing spent.
+						add_battle_log("%s must target a hero, not a summon." % card.card_name, Color(1.0, 0.6, 0.4))
+					elif tgt != player and card.is_ranged and not _is_target_in_card_range(card, tgt):
 						add_battle_log("Out of range! %s is too far (max range: %d)" % [tgt.name, card.get_effective_range()], Color(1.0, 0.4, 0.4))
 					elif card.card_id == "friendship":
 						# The clicked ally (range 5) is the first; pick the second
@@ -14011,8 +14142,11 @@ func _input(event: InputEvent) -> void:
 					var pc_capped: bool = card.card_id == "blink" \
 							or (card.is_ranged and card.range_modifier < Card.INFINITE_RANGE \
 								and (not card.is_aoe or _aoe_follows_cursor(card)))
-					if pc_capped and pc_dist > card.get_effective_range():
-						add_battle_log("Out of range! %s reaches %d spaces." % [card.card_name, card.get_effective_range()], Color(1.0, 0.4, 0.4))
+					# The helm / 20/20 range ("+3 range on all ranged offensive
+					# cards") counts here as the range ring shows it.
+					var pc_reach: int = card.get_effective_range() + _helm_range_bonus(card)
+					if pc_capped and pc_dist > pc_reach:
+						add_battle_log("Out of range! %s reaches %d spaces." % [card.card_name, pc_reach], Color(1.0, 0.4, 0.4))
 					else:
 						play_selected_card(player)
 				elif "enemy" in tt:
@@ -14690,12 +14824,17 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 	var stats := player.get_stats()
 	if not stats:
 		return
+	_phoenix_singed_this_play = false  # Phoenix Feather backlash: once per play (Quiver / Manifest plays too)
 
 	var buff_mgr := player.get_buff_manager()
 	var debuff_mgr := player.get_debuff_manager()
 
 	# Debuff checks - quiver cards are always attacks
 	if _stun_refuses("play %s" % card.card_name):
+		return
+	# Lead Arrow: "Requires high ground" — from the quiver as from the hand.
+	if card.requires_high_ground and not _has_high_ground(player.position, target):
+		add_battle_log("%s needs high ground over the target." % card.card_name, Color(1.0, 0.4, 0.4))
 		return
 	if debuff_mgr:
 		if not debuff_mgr.can_play_cards():
@@ -14713,17 +14852,19 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 
 	# Demonic Rage: quiver mana costs use health instead
 	var quiver_demonic_rage = buff_mgr and buff_mgr.has_demonic_rage() and mana_cost > 0
+	# 1 health per (design) mana: the same 10-mana-per-HP price as a hand play.
+	var quiver_dr_hp := maxi(1, ceili(mana_cost / 10.0))
 	if quiver_demonic_rage:
-		if stats.current_health <= mana_cost:
-			print("[MAIN] Quiver: Demonic Rage - not enough health to pay %d!" % mana_cost)
+		if stats.current_health <= quiver_dr_hp:
+			print("[MAIN] Quiver: Demonic Rage - not enough health to pay %d!" % quiver_dr_hp)
 			return
 	elif not stats.has_mana(mana_cost):
 		print("[MAIN] Quiver: not enough mana to play %s (need %d)" % [card.card_name, mana_cost])
 		return
 	if mana_cost > 0:
 		if quiver_demonic_rage:
-			var quiver_dr_hp := maxi(1, ceili(mana_cost / 10.0))
-			stats.take_damage(quiver_dr_hp)
+			# "Use health instead": straight out of health, armor never soaks it.
+			stats.take_direct_damage(quiver_dr_hp)
 			buff_mgr.consume_demonic_rage()
 			print("[MAIN] Quiver: Demonic Rage paid %d health instead of %d mana" % [quiver_dr_hp, mana_cost])
 		else:
@@ -14736,6 +14877,8 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 	PlayerStats.hit_source_direct = true
 	Card.play_scope_open = true
 	progression_triggers.arm_pre_attack_passives(card, target)
+	if buff_mgr:
+		buff_mgr.crit_hits = 0
 	card.execute(target, stats, deck_manager, damage_reduction, self_damage, buff_mgr)
 
 	# Register attack for attack speed counter (DEX proc): attacks, not spells
@@ -14745,6 +14888,12 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 		if stats.consume_free_hand_echo():
 			card.execute(target, stats, deck_manager, damage_reduction, self_damage, buff_mgr)
 			add_battle_log("Free hand echo: %s strikes twice!" % card.card_name, Color(1.0, 0.9, 0.4))
+
+	# Crit passives (Eye Scrape: "every Nth critical strike") see a Quiver /
+	# Manifest card's crits as they do a hand card's.
+	if buff_mgr and buff_mgr.last_crit_hit:
+		buff_mgr.last_crit_hit = false
+		progression_triggers._trigger_skill_tree_on_crit(target, maxi(1, buff_mgr.crit_hits))
 
 	# Notify debuffs of attack
 	if debuff_mgr and card.is_attack():
@@ -14867,14 +15016,14 @@ func _update_summoned_worms() -> void:
 		for worm in _summoned_worms.duplicate():
 			if not is_instance_valid(worm) or worm.is_dead or worm.burrowed:
 				continue
-			if _manhattan(worm.get_cell(), ecell) == 1:
+			if _manhattan(worm.get_destination_cell(), ecell) == 1:
 				worm.take_damage(enemy.attack_damage)
 				break
 
 	var worm_cells: Array = []
 	for worm in _summoned_worms:
 		if is_instance_valid(worm) and not worm.is_dead:
-			worm_cells.append(worm.get_cell())
+			worm_cells.append(worm.get_destination_cell())
 
 	for worm in _summoned_worms.duplicate():
 		if not is_instance_valid(worm) or worm.is_dead:
@@ -14882,7 +15031,7 @@ func _update_summoned_worms() -> void:
 		var target_enemy := _nearest_reachable_enemy_to(worm.position, enemies)
 		if target_enemy == null:
 			continue
-		var wcell = worm.get_cell()
+		var wcell = worm.get_destination_cell()
 		var tcell := grid_manager.world_to_grid(target_enemy.position)
 		if _manhattan(wcell, tcell) <= 1:
 			if not worm.can_attack_now():
@@ -15036,7 +15185,7 @@ func _update_frankensteins(amount: int) -> void:
 			continue
 		var tcell := grid_manager.world_to_grid(target_enemy.position)
 		# Attack on cadence when adjacent.
-		m.attack_accum += amount
+		m.attack_accum = mini(m.attack_accum + amount, m.ATTACK_INTERVAL)  # a walk never banks swings
 		if _manhattan(m.get_cell(), tcell) <= 1:
 			if m.attack_accum >= m.ATTACK_INTERVAL and m.can_attack_now():
 				m.attack_accum -= m.ATTACK_INTERVAL
@@ -15369,10 +15518,14 @@ func _on_donation_confirmed() -> void:
 	# Distribute healing to allies (as damage, if cast under Poisoned Blood)
 	PlayerStats.heal_to_damage = _donation_heal_to_damage
 	var total_healed = 0
+	# The sliders split ONE pool, the health given: each slider can reach the
+	# whole pool, so the confirmed heals are capped by what is left of it.
+	var pool_left := self_damage
 	for entry in _donation_ally_sliders:
-		var heal_amount := int(entry["slider"].value)
+		var heal_amount := mini(int(entry["slider"].value), pool_left)
 		if heal_amount <= 0:
 			continue
+		pool_left -= heal_amount
 		var ally_name: String = entry["name"]
 		var ally_node = entry.get("node", null)
 		if ally_node == player or ally_name == "Self":
@@ -15764,7 +15917,8 @@ func _on_player_damage_taken(_amount: int) -> void:
 	var tr_stats := player.get_stats()
 	if tr_stats and tr_stats.max_health > 0:
 		var pct := float(tr_stats.current_health) / float(tr_stats.max_health)
-		var prev_pct := float(tr_stats.current_health + _amount) / float(tr_stats.max_health)
+		# Judged on the health the hit actually took, not the blow before armor.
+		var prev_pct := float(tr_stats.current_health + tr_stats.last_health_lost) / float(tr_stats.max_health)
 		if pct < 0.2 and prev_pct >= 0.2:
 			var low_triggered := deck_manager.trigger_reactions("on_health_below_20")
 			for card in low_triggered:
@@ -15787,15 +15941,6 @@ func _on_player_damage_taken(_amount: int) -> void:
 				fitp_card.execute(null, tr_stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
 			if fitp.size() > 0:
 				_refresh_unit_tracker()
-		# Axe's Axe: five hits taken wind the Death Vortexes — every copy in
-		# hand spins at once; a copy that kills climbs back into the hand.
-		tr_stats.hit_streak = mini(5, tr_stats.hit_streak + 1)
-		if tr_stats.hit_streak >= 5 and deck_manager and enemy_spawner:
-			var vortexes := deck_manager.trigger_reactions("on_hit_streak_5")
-			if vortexes.size() > 0:
-				tr_stats.hit_streak = 0
-				for dv_card in vortexes:
-					_fire_instant_site_effect(dv_card, {})
 		# Psionic Flow, guard mode: you (an ally to yourself) were struck.
 		if deck_manager and tr_stats.last_attacker and is_instance_valid(tr_stats.last_attacker):
 			var pf_guard := deck_manager.trigger_reactions("psionic_flow")
@@ -15906,7 +16051,9 @@ func _fire_instant_site_effect(card: Card, ctx: Dictionary) -> void:
 			# The armor lands in execute; the counter-stun is the site's.
 			_stun_nearest_enemy(1.5)  # melee range, per the card text
 		"hard_helmet":
-			var hh_victim: Enemy = target if target is Enemy else _get_nearest_enemy()
+			# "deal 2 damage to the closest enemy" — the closest, not whatever
+			# the utility card that set it off was aimed at.
+			var hh_victim: Enemy = _get_nearest_enemy()
 			if hh_victim:
 				hh_victim.take_damage(2, true)
 				add_battle_log("Hard Helmet clonks %s for 2!" % hh_victim.enemy_name, Color(0.8, 0.7, 0.4))
@@ -16089,7 +16236,7 @@ func _build_loot_visual(drop: Node3D, loot: Dictionary) -> void:
 		glint_color = Color(0.85, 0.45, 1.0)
 	elif loot.get("card_pack") != null:
 		glint_color = CardPack.create(loot["card_pack"]).get_tier_color()
-	var glint := _loot_mesh(drop, _mesh_sphere(0.035), Vector3(0, 1.1, 0), glint_color, true)
+	var glint := _loot_mesh(drop, MeshUtil.sphere(0.035), Vector3(0, 1.1, 0), glint_color, true)
 	var tw := drop.create_tween().set_loops()
 	tw.tween_property(glint, "scale", Vector3.ONE * 1.6, 0.5).set_trans(Tween.TRANS_SINE)
 	tw.parallel().tween_property(drop, "position:y", drop.position.y + 0.04, 0.5).set_trans(Tween.TRANS_SINE)
@@ -16131,12 +16278,6 @@ func _loot_mesh(parent: Node3D, mesh: Mesh, pos: Vector3, color: Color, emissive
 	mi.material_override = mat
 	parent.add_child(mi)
 	return mi
-
-func _mesh_sphere(r: float) -> SphereMesh:
-	var s := SphereMesh.new()
-	s.radius = r
-	s.height = r * 2.0
-	return s
 
 ## Loot keys scooped up the moment a player steps on the pile (currency and
 ## consumables); everything else waits in the loot menu for a click.
@@ -16753,8 +16894,6 @@ func _save_player_progression(return_stolen: bool = true) -> Dictionary:
 			progression["deck_state"]["live"]["hand"].append(card)
 	# Explored ground, here and everywhere visited before.
 	progression["explored"] = _explored_snapshot()
-	# City-loop state (satchel, city, pending trial) rides along untouched.
-	CityBridge.carry_keys(player_progression, progression)
 	# Equipped items and stored items (Resource objects survive scene change)
 	var inv := player.get_inventory()
 	if inv:
@@ -16826,7 +16965,6 @@ func _build_save_data(slot: int) -> SaveData:
 	data.character_level = stats.current_level if stats else 1
 	var stats_snapshot: Dictionary = progression.get("stats", stats.save_progression() if stats else {})
 	data.progression = ProgressionIO.to_disk(progression, stats_snapshot)
-	data.city = progression.get("city", player_progression.get("city", {}))
 	data.progression["quest_state"] = quests
 	data.progression["discovered_waypoints"] = discovered_waypoints.duplicate(true)
 	data.progression["opened_chests"] = opened_chests.duplicate(true)

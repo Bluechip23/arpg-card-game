@@ -15,9 +15,8 @@ without confirming.
 
 > Reminder from `CLAUDE.md`: **this is a TRUE RPG, not a roguelike.** One
 > persistent character, one journey through a story with a beginning, middle,
-> and end. The end-game is **the City** — defending and growing the home base
-> the player has been feeding all game (Section 6). It layers directly on top
-> of the story; nothing resets.
+> and end. The end-game is being redesigned from scratch (Section 6); whatever
+> it becomes layers on top of the story, and nothing resets.
 
 ---
 
@@ -176,7 +175,7 @@ character tracks the monsters they've defeated
 the character's permanent collection (e.g. the Hydra → Growth Within
 Resilience). Design every notable creature with two lives in mind: its role in
 the **story** *and* its echo in the **end-game** (bestiary entry, intent-reveal
-gate, card source, expedition-zone resident).
+gate, card source).
 
 ### 5.1 How enemies work (so creatures are buildable, not just flavor)
 Grounded in `scripts/battle/enemy.gd`:
@@ -214,7 +213,7 @@ Grounded in `scripts/battle/enemy.gd`:
   ignores high ground** (Giant Hawk). Concepts to add: **summoning**, **charge
   lanes**, **on-death bursts**, **stealth/sound-only visibility**.
 - **Drops:** elites/bosses can drop **cards**. Every kill is recorded to the
-  bestiary, and kills feed the city's expedition rewards (Section 6).
+  bestiary.
 - **Design rule — wakes are Traps:** anything a creature (or player) leaves
   behind in "the wake" of its movement — the Inflamed Minotaur's fire trail,
   future ice trails, ichor, etc. — is a **Trap** unless a design says
@@ -400,7 +399,7 @@ built level. The roster is themed and in code:*
 - **Weregoat**
 - **Wyvern** — *in code*. Elite. Flier (ignores high ground). **Talon Grab** (2-cycle cooldown): flies above its target, 25 damage, and drags them to an open space **8 squares away**.
 - **Rocs**
-- **Ice Troll** — *in code*. Elite. Every attack adds a stack of **frost (Cold) and Brittle**; when an attack **freezes** its target, **Clobber (50)** triggers automatically.
+- **Ice Troll** — *in code*. Elite. Every attack adds a stack of **frost (Cold) and Brittle**; when an attack **freezes** its target, **Clobber (50)** triggers automatically; he can also wind Clobber up as a 10-tempo blow of its own (designer, 2026-11-08).
 - **Snow Wraiths**
 - **Granite Colossi**
 - **White Manticores** — *in code*. Elite. Flier. **Stinger** (5-tempo cooldown): 25 damage + **Clumsy** + **8 Poison**.
@@ -412,7 +411,7 @@ built level. The roster is themed and in code:*
 - **Thanatos** — *in code (first pass)*. Boss of Thanatos Closet; see Act 2 above.
 - **Succubus**
 - **Demon**
-- **Ifrits** — *in code*. Elite. **Fire Breath**: a 5x5 sheet of flame that lingers 3 tempo; **Backflip** springs it 3 squares back from any single blow over 40 damage.
+- **Ifrits** — *in code*. Elite. **Fire Breath**: a 5x5 sheet of flame, and he keeps breathing it for 6 more tempo (a Channel, designer 2026-11-08) — the tiles burn all the while and 3 tempo after; **Backflip** springs it 3 squares back from any single blow over 40 damage.
 - **Mind eater**
 - **Specters**
 - **Echo Beasts**
@@ -428,102 +427,17 @@ built level. The roster is themed and in code:*
 
 ---
 
-## 6. End-Game & Meta-Game: The City
+## 6. End-Game
 
-**The game is, at its heart, a base builder.** The player adventures through
-the story, gathers **resources**, and sends them back to the **home base**. The
-town grows stronger, more robust, and more resilient with everything sent home
-— and after the story ends, defending and growing that city *is* the end-game.
-There is no separate mode bolted on; the end-game is layered **directly on top
-of** the story systems the player has used all along.
+**Being redesigned from scratch** (designer, 2026-11-07). The town-building
+end-game (the City: resources gathered on the adventure and sent home through
+a satchel, buildings and their upgrades, expeditions, raids on rival cities,
+and trials that struck the town) was removed from the game, code and saves
+alike; see `docs/audit/REPORT.md` for what was taken out. The **Town Hall**
+still stands on the town plaza as scenery, with nothing attached.
 
-> The previously planned roguelike end-game has been **removed** (code and
-> all). It may return someday as a separate mode, but it effectively meant
-> building a second game alongside this one — the City is the one end-game.
-
-### 6.1 The loop during the story
-
-- **Gather** — adventuring naturally yields resources (gold, lumber, stone,
-  arcane essence) on top of the usual XP/cards/items. Kills in each habitat
-  feed habitat-flavored yields (`expedition_system.gd`).
-- **Send home** — resources flow back to the base, upgrading production
-  (Lumber Mill, Quarry, Essence Extractor), storage (Warehouse), protection
-  (Vault), military (Barracks, Walls), and hero support (Hero Hall). The Town
-  Hall gates building levels, pacing growth.
-- **Recruit** — along the journey the player **unlocks NPCs** who return to
-  town: builders, shopkeepers, and knights/defenders who help hold the city
-  against whatever comes. (The Sellsword co-op partner is the first of these;
-  the pattern generalizes.)
-
-### 6.2 Trials — defending the base
-
-The city periodically faces **trials**: monster invasions and natural
-disasters. The player gets **a heads-up before they land**, not an ambush:
-
-- **Olorin's summons** — early in the game Olorin gives the player a signal
-  item (working idea: a **flute**, its note heard wherever the player is) so
-  he can call them back when the base — or something elsewhere — needs them.
-- **Card stash matters** — this is where a deep **card collection** (stash,
-  not deck size) pays off. Certain trials/invasions are easier with
-  certain cards in the deck; a player keeps their core build but may make a
-  few smart swaps for the scenario ahead. Adjusting is helpful, not required.
-
-### 6.3 After the story
-
-- **Defend & build** — waves of trials keep coming; the city and the
-  character(s) keep growing to meet them.
-- **Farm zones** — continuous missions/"zones" (drawn from the bestiary
-  habitats: Forest, Sewer, Graveyard, Cave, Mountains, Underworld, Heavens)
-  the player can re-enter to farm XP, cards, item drops, and resources.
-- **Raids** — the city's military plus your hero's power can invade **rival
-  cities** for loot; rivals invade yours while you're away (a defense log
-  shows what happened). PvP is *asynchronous*, Clash-of-Clans style: you
-  attack a snapshot of a city, never a live player — so generated rivals and
-  real player-city snapshots share one code path.
-- **Multiple heroes (planned)** — eventually the player can field **several
-  of their characters together** in the end-game: characters they've built
-  reside in the same city and can be played jointly in its defense.
-
-### 6.4 Design consequences & open questions
-
-- **Flatter story progression** — because the end-game sits directly on top of
-  the story (not adjacent to it), the story itself needs **less level/stat
-  progression** headroom; growth continues seamlessly into the end-game.
-- **`[TBD]` Who designs the town?** Undecided: does the *player* have authority
-  over how the town is constructed (earn resources → choose what to build), or
-  is construction *premeditated* (accomplish a goal → receive a specific wall)?
-  Possibly a hybrid.
-
-### 6.5 Code status
-
-**The loop is wired into the game.** The pieces:
-
-- `scripts/city/city_state.gd` — resources/buildings/power/persistence.
-- `scripts/city/expedition_system.gd` — habitat yields; kills → resources.
-- `scripts/city/raid_system.gd` — rival generation, raid resolution, defense log.
-- `scripts/city/city_bridge.gd` — carries city state (city + satchel +
-  pending trial) inside the `player_progression` dict that already rides
-  between scenes and into saves (`SaveData.city` + `ProgressionIO`).
-- `scripts/city/trial_system.gd` — schedules a trial when leaving town,
-  ticks its countdown on kills, strikes (Olorin's flute sounds, `main.gd
-  _announce_trial`), resolves on reaching town (prompt return = the hero
-  joins the defense).
-- `main.gd _on_enemy_killed` — every kill adds habitat resources to the
-  satchel (elites/bosses triple) and ticks the trial countdown.
-- `town.gd` — the **Town Hall** building on the plaza opens the city panel
-  (stores, production, power, building upgrades, chronicle of attacks);
-  `_arrive_home()` banks the satchel, resolves struck trials, and hands
-  over the flute on the founding shipment.
-- Tested end-to-end: `tests/test_city_loop.gd` (data loop) and
-  `tests/test_city_wiring.gd` (game wiring).
-
-Still ahead: building *placement*/visuals, NPC recruitment beats beyond the
-Sellsword, raids surfaced in the UI, defense as a *playable battle* rather
-than a resolution roll, and the multi-hero end-game.
-
-> The `CLAUDE.md` guardrail still applies: the persistent character remains
-> the spine — the city is what that character builds with their power, not a
-> replacement for them. Nothing about the city loop ever resets.
+What any new end-game must keep: the `CLAUDE.md` guardrail. The persistent
+character is the spine, and nothing resets.
 
 ---
 
@@ -567,11 +481,10 @@ the repo. Keep this table honest as the code changes.
 | **The Mountain Pass (Act 1, Mountains)** | `dungeon_manager.gd` (`interior_kind == "mountains"`: `_generate_mountain_layout`, `_mountain_connect`, `_define_mountain_spawn_zones`; `can_step`, `cliff_face_tiles`, `step_tiles`), `player.gd` (`step_check`), `enemy.gd` (`_can_step`, route-first on cliffs), `main.gd` (`_climber_blocked_tiles`) | **Built.** Terraced snowy mountainside, cliffs walked round by steps, enemies on the ledges, fliers over the cliffs. Reached via the Mountain Pass site in World 1. See Section 5.4. |
 | **Ice Caves & the Ice Troll Lair (Act 1, Mountains)** | `dungeon_manager.gd` (`icecave`: the cave layout, `_define_ice_cave_spawn_zones`; `trolllair`: `_generate_troll_lair_layout`, `mountain_wall_tiles`, `blink_clear`, `_place_troll_hoard`, `gold_piles` / `take_gold_pile`, `_create_chest(..., legendary)`; `_place_mountain_caves`, `_place_door_site`), `main.gd` (`_check_gold_pile_pickup`) | **Built.** Off the Mountain Pass; World 3's caves are Ice Caves. |
 | **Caves (Act 1, Cave)** | `dungeon_manager.gd` (`interior_kind == "cave"`: `_generate_cave_layout` + `_place_cave_puddles`, `_build_cave_decorations`, darkened `CAVE_PALETTE`), `main.gd` (cave ambience + player torch) | **Built/enhanced.** Dark stone tunnels darker than the sewers; stalagmites, stalactites (dripping), puddles, divots, player torch. Reached via cave-mouth sites. See Section 5.4. |
-| **The City (end-game loop)** | `scripts/city/` (state, expeditions, raids, bridge, trials); Town Hall panel in `town.gd`; kill hook in `main.gd`; saved in `SaveData.city` | Wired and tested (`tests/test_city_loop.gd`, `tests/test_city_wiring.gd`). See Section 6.5. |
 | **Bestiary** | `Enemy.EnemyType`, `CharacterData.defeated_monster_ids` | Per-character record of story kills; feeds the compendium and future intent-reveals. 68 enemy types today, structures, the dojo dummy and design mock-ups included (Section 5.4). |
-| **Quests** | `scripts/core/quest_manager.gd` | Data-driven quest chain from Olorin and the Sellsword (Rat Infestation → Holy Water for the Well, Bear Traps, The Faithless, Fire Wall Breach, The High Road, The Missing Woodcutter, A Debt to the Sellsword, What the Crows Saw → Trial Warning; Ferryman's Toll in Act 2). World objects they need: the Town Well, the Drowned Shrine (sewer), rescue NPCs, the feather trail and the hidden Old Graveyard. |
+| **Quests** | `scripts/core/quest_manager.gd` | Data-driven quest chain from Olorin and the Sellsword (Rat Infestation → Holy Water for the Well, Bear Traps, The Faithless, Fire Wall Breach, The High Road, The Missing Woodcutter, A Debt to the Sellsword, What the Crows Saw; Ferryman's Toll in Act 2). World objects they need: the Town Well, the Drowned Shrine (sewer), rescue NPCs, the feather trail and the hidden Old Graveyard. |
 | **Healing fountains** | `scripts/core/dungeon_manager.gd` (`_place_fountains`) | Holy-water basins in every zone: drink to heal (spends the blessing; a vial of Holy Water from enemies restores it) or bathe once for a +20% XP blessing. The pilgrim's rest between Olorin's trials. |
-| **Town hub** | `scripts/menus/town.gd` | Persistent vendors (Blacksmith, Armory, Card Dealer, Accessory Shop, Stash) + Olorin + waypoint/transport. The shell the city loop will be wired into. The first time the player speaks to the Blacksmith, the Armory keeper, the Card Dealer or the Sellsword, each introduces themselves and their trade in the speech bar (`KEEPER_INTROS`, once per character); they go by title only — the designer will name them. |
+| **Town hub** | `scripts/menus/town.gd` | Persistent vendors (Blacksmith, Armory, Card Dealer, Accessory Shop, Stash) + Olorin + waypoint/transport, and the Town Hall as scenery. The first time the player speaks to the Blacksmith, the Armory keeper, the Card Dealer or the Sellsword, each introduces themselves and their trade in the speech bar (`KEEPER_INTROS`, once per character); they go by title only — the designer will name them. |
 
 ### Code naming follow-up `[TODO]`
 The narrative uses **"Act"** exclusively, but the code still says `world_level`
@@ -586,11 +499,9 @@ toward **habitats** rather than acts.
 ## 9. Open Questions & Next Steps
 
 Decided:
-- ✅ **The game is a base builder at heart.** The end-game is the **City**
-  (Section 6): send resources home during the story, recruit NPCs, defend
-  against trials, farm zones, eventually field multiple heroes together.
-  The roguelike end-game is **removed** (may return someday as a separate
-  mode).
+- ✅ **The town-building end-game is removed** (2026-11-07) and the end-game
+  is being redesigned (Section 6). The older roguelike end-game is removed
+  too.
 - ✅ **Terminology:** four **Acts** across one world; each Act is a plane.
 - ✅ **Bestiary taxonomy:** catalogued by **habitat** (Forest, Graveyard, Cave,
   Sewer, Mountains, Underworld, Heavens), as flexible guidelines.
@@ -605,11 +516,7 @@ Decided:
   with stalagmites/stalactites, puddles and a player torch. See Section 5.4 / §8.
 
 Still open:
-0. **Grow the city loop** (the wiring is in — Section 6.5): building
-   placement/visuals, NPC unlock/recruitment beats beyond the Sellsword,
-   raids in the UI, trial defense as a playable battle, the multi-hero
-   end-game. Also decide **who designs the town** (player authority vs.
-   premeditated unlocks — Section 6.4).
+0. **Design the new end-game** (Section 6).
 1. **Solidify creature themes:** go habitat by habitat and define each
    creature's tier, role, signature mechanic, and drops (Section 5.2 template).
    *(Next pass — the roster names are captured; mechanics are `[TBD]`.)*

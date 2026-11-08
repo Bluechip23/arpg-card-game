@@ -54,6 +54,10 @@ var extends_on_reapply: bool = false
 ## attacks alone (designer, 2026-10-30).
 var offensive_reach: bool = false
 var decay_by_damage: bool = false      # THORNS variant (Vined Encasing): lose X thorns per X damage received instead of 1 per hit
+## THORNS only: how much of `value` is Vined Encasing's (shed X per X damage
+## received); the rest is ordinary thorns (lose 1 per hit). One Thorns buff
+## can hold both when they meet (BuffManager.apply_buff).
+var vined_value: int = 0
 
 func _init(type: BuffType, val: int = 0, dur: int = 15, chrg: int = -1) -> void:
 	buff_type = type
@@ -66,7 +70,9 @@ func _set_name_and_description() -> void:
 	match buff_type:
 		BuffType.THORNS:
 			buff_name = "Thorns"
-			if decay_by_damage:
+			if decay_by_damage and vined_value > 0 and vined_value < value:
+				description = "Deal %d damage back to attackers; %d shed by damage taken, the rest lose 1 per hit" % [value, vined_value]
+			elif decay_by_damage:
 				description = "Deal %d damage back to attackers; thorns shed by damage taken" % value
 			else:
 				description = "Deal %d damage back to attackers, lose 1 thorn per hit" % value
@@ -264,11 +270,6 @@ static func create(type: BuffType, val: int = 0, dur: int = 15, chrg: int = -1) 
 
 static func create_thorns(damage: int = 3, duration: int = 15, source: String = "") -> Buff:
 	var buff = Buff.new(BuffType.THORNS, damage, duration)
-	buff.source_name = source
-	return buff
-
-static func create_focused(duration: int = 15, source: String = "") -> Buff:
-	var buff = Buff.new(BuffType.FOCUSED, 1, duration)
 	buff.source_name = source
 	return buff
 

@@ -23,11 +23,17 @@ var understanding_tempo: int = 0  # Delayed crit: when reaches 0, apply ENLIGHTE
 var enchanted_quiver_charges: int = 0  # Next N ranged attacks create a free arrow card
 var tighten_string_charges: int = 0  # Next N ranged attacks: +3 tempo, +6 dmg, +6 range, +20% crit
 var last_crit_hit: bool = false      # Set true when roll_crit succeeds, cleared after checking
+var crit_hits: int = 0               # Crits rolled since main last zeroed it (a card's hits each count — Eye Scrape)
+var strengthened_hits: int = 0       # Hits that drew a Strengthen bonus, ever (Cyclops Ring reads the change per hit)
 
 func initialize(stats = null, owner: Node3D = null) -> void:
 	owner_stats = stats
 	owner_node = owner
 	buffs.clear()
+	# Let the stats find their own buffs on hits that arrive without a buff
+	# manager (DoT ticks): Shield of Growth reads it.
+	if stats != null and "own_buff_manager" in stats:
+		stats.own_buff_manager = self
 
 func connect_debuff_manager(dm) -> void:
 	debuff_manager = dm
@@ -115,6 +121,15 @@ func apply_buff(buff: Buff) -> void:
 		buff_applied.emit(buff)
 		buffs_changed.emit()
 		return
+
+	if existing and buff.buff_type == Buff.BuffType.THORNS:
+		# Vined Encasing's thorns keep their own shedding rule when they meet
+		# ordinary thorns: track the Vined share inside the one buff.
+		if existing.decay_by_damage and existing.vined_value <= 0:
+			existing.vined_value = existing.value
+		if buff.decay_by_damage:
+			existing.vined_value += buff.value
+			existing.decay_by_damage = true
 
 	if existing:
 		# Refresh duration/charges to higher value
@@ -506,7 +521,7 @@ func on_attacked(attacker) -> void:
 		print("[BUFF] Thorns deals %d damage to attacker!" % thorns.value)
 		# Lose 1 thorn after each hit. Vined Encasing thorns skip this — they
 		# shed via decay_thorns_by_damage instead.
-		if not thorns.decay_by_damage:
+		if thorns.value > _vined_share(thorns):
 			thorns.value -= 1
 			thorns._set_name_and_description()
 			if thorns.value <= 0:
@@ -523,7 +538,11 @@ func decay_thorns_by_damage(amount: int) -> void:
 	var thorns = get_buff(Buff.BuffType.THORNS)
 	if thorns == null or not thorns.decay_by_damage:
 		return
-	thorns.value -= amount
+	var shed: int = mini(amount, _vined_share(thorns))
+	thorns.vined_value = _vined_share(thorns) - shed
+	thorns.value -= shed
+	if thorns.vined_value <= 0:
+		thorns.decay_by_damage = false  # only ordinary thorns are left
 	thorns._set_name_and_description()
 	if thorns.value <= 0:
 		remove_buff(Buff.BuffType.THORNS)
@@ -531,6 +550,13 @@ func decay_thorns_by_damage(amount: int) -> void:
 	else:
 		buffs_changed.emit()
 		print("[BUFF] Vined Encasing: -%d thorns (%d left)" % [amount, thorns.value])
+
+## The part of a Thorns buff that sheds by damage (Vined Encasing). A Vined
+## buff that never met ordinary thorns is all Vined.
+func _vined_share(thorns: Buff) -> int:
+	if not thorns.decay_by_damage:
+		return 0
+	return thorns.value if thorns.vined_value <= 0 else mini(thorns.vined_value, thorns.value)
 
 func has_wear_down() -> bool:
 	return has_buff(Buff.BuffType.WEAR_DOWN)
@@ -596,6 +622,8 @@ func consume_strengthen() -> int:
 		bonus += strengthen.value
 		if strengthen.use_charge():
 			remove_buff_instance(strengthen)
+	if bonus > 0:
+		strengthened_hits += 1
 	return bonus
 
 func get_enlightened_crit_chance() -> int:
@@ -687,6 +715,7 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	if is_crit:
 		print("[BUFF] CRITICAL HIT! (rolled %.1f < %.2f)" % [roll, total_chance])
 		last_crit_hit = true
+		crit_hits += 1
 
 	return is_crit
 

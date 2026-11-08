@@ -1,5 +1,5 @@
 class_name EnemyLab
-extends Control
+extends "res://scripts/shared/lab_menu_base.gd"
 
 ## Enemy Lab — a development workbench for browsing every enemy and previewing
 ## its idle, movement and attack animations, the sibling of the Animation Lab.
@@ -69,7 +69,6 @@ var _viewport: SubViewport = null
 var _figure_root: Node3D = null       # holds the current figure/box; tweened for "move"
 var _figure: SpriteEnemyFigure = null
 
-var _list_vbox: VBoxContainer = null
 var _status_label: Label = null
 var _info_label: RichTextLabel = null
 var _filter_edit: LineEdit = null
@@ -77,7 +76,6 @@ var _left_column: VBoxContainer = null
 var _action_row: HBoxContainer = null
 
 # Each entry button: { "button": Button, "search": String }
-var _entry_buttons: Array[Dictionary] = []
 
 var _data_by_type: Dictionary = {}    # EnemyType -> get_all_enemy_data() entry
 var _current_type: int = -1
@@ -297,13 +295,6 @@ func _build_viewport() -> void:
 	info_panel.add_child(_info_label)
 
 
-func _add_dir_button(parent: Node, label: String, dir: int) -> void:
-	var btn := Button.new()
-	btn.text = label
-	btn.pressed.connect(_on_set_direction.bind(dir))
-	parent.add_child(btn)
-
-
 func _add_core_button(parent: Node, label: String, category: String) -> void:
 	var btn := Button.new()
 	btn.text = label
@@ -323,16 +314,6 @@ func _populate_list() -> void:
 			var nm: String = d.get("name", "Enemy")
 			var tier: String = d.get("type", "")
 			_add_entry(type, "%s  (%s)" % [nm, tier], "%s %s" % [nm, tier])
-
-
-func _add_section_header(text: String) -> void:
-	var header := Label.new()
-	header.text = text
-	EmeraldTheme.style_heading(header, 19)
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 6)
-	_list_vbox.add_child(spacer)
-	_list_vbox.add_child(header)
 
 
 func _add_entry(type: int, label: String, search: String) -> void:
@@ -520,13 +501,6 @@ func _facing_offset() -> Vector3:
 # MISC
 # =============================================================
 
-func _on_filter_changed(text: String) -> void:
-	var needle := text.strip_edges().to_lower()
-	for entry in _entry_buttons:
-		var btn: Button = entry["button"]
-		btn.visible = needle == "" or entry["search"].contains(needle)
-
-
 func _on_back() -> void:
 	var title = load(TitleMenuScene).instantiate()
 	get_tree().root.add_child(title)
@@ -538,27 +512,4 @@ func _on_back() -> void:
 # =============================================================
 
 ## Seat a column on a dark emerald glass panel so it reads over the forest.
-func _glass_panel(column: Control, expand: bool) -> PanelContainer:
-	var panel := PanelContainer.new()
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL if expand else Control.SIZE_FILL
-	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	panel.add_theme_stylebox_override("panel",
-		EmeraldTheme.panel_box(EmeraldTheme.PANEL_BG, EmeraldTheme.GOLD_DIM, 1, 6, 10))
-	panel.add_child(column)
-	return panel
-
 ## List rows: bare text until hovered, then the theme's glass and gold.
-static func _style_list_button(btn: Button) -> void:
-	var bare := StyleBoxEmpty.new()
-	bare.content_margin_left = 8
-	bare.content_margin_right = 8
-	bare.content_margin_top = 1
-	bare.content_margin_bottom = 3
-	btn.add_theme_stylebox_override("normal", bare)
-	var hover := EmeraldTheme.button_box(EmeraldTheme.PALETTE["btn_hover_bg"], EmeraldTheme.PALETTE["btn_hover_border"], 1, 3)
-	hover.content_margin_left = 8
-	hover.content_margin_top = 1
-	hover.content_margin_bottom = 3
-	btn.add_theme_stylebox_override("hover", hover)
-	btn.add_theme_stylebox_override("pressed", hover)
-	btn.add_theme_constant_override("outline_size", 0)

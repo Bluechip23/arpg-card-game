@@ -2,8 +2,9 @@ extends SceneTree
 
 ## Rescue NPCs: The Missing Woodcutter is found in the Greenwood's deep
 ## clearing, follows the player tile by tile once spoken to, and is
-## delivered by leaving the forest; the rescued foreman then stands at the
-## trailhead as a lumber depot. Same machinery for the Sellsword's partner.
+## delivered by leaving the forest. Same machinery for the Sellsword's
+## partner. (The rescued foreman's lumber depot went with the town-building
+## end-game, 2026-11-07: after the turn-in nobody stands on the surface.)
 ## Run: godot --headless --path . --script tests/test_escort_quests.gd
 
 var failures := 0
@@ -24,6 +25,12 @@ func _find_main() -> Node:
 		if child.get_script() and "current_interior_id" in child and not child.is_queued_for_deletion():
 			return child
 	return null
+
+## The quest NPCs Main has placed, without the Olorin who waits at the
+## Transport Portal on the first trip out (he shares the list; he arrived
+## after this test was written and is not a rescue).
+func _quest_npcs(m) -> Array:
+	return m._rescue_npcs.filter(func(n): return n != m._field_olorin)
 
 func _initialize() -> void:
 	print("=== Escort quests test ===")
@@ -46,7 +53,7 @@ func _run() -> void:
 	main.set("quest_state", qm.save_state())
 	get_root().add_child(main)
 	await _settle()
-	_check(main._rescue_npcs.is_empty(), "no rescue NPC on the surface before the rescue")
+	_check(_quest_npcs(main).is_empty(), "no rescue NPC on the surface before the rescue")
 
 	var forest_id := ""
 	for s in main.dungeon_manager.site_nodes:
@@ -86,26 +93,13 @@ func _run() -> void:
 	var outside = _find_main()
 	var wq = outside.quest_manager.get_quest("missing_woodcutter")
 	_check(wq != null and wq.is_complete, "walking him out completes The Missing Woodcutter")
-	_check(outside._rescue_npcs.is_empty(), "no depot until the quest is turned in")
+	_check(_quest_npcs(outside).is_empty(), "nobody left standing on the surface once he is out")
 
-	# Turn in (as Olorin would) → the foreman stands at the trailhead as a depot.
+	# Turn in (as Olorin would): the rescue is recorded, and nothing stays behind.
 	outside.quest_manager.turn_in_quest("missing_woodcutter", outside.player.get_stats())
 	_check(outside.quest_manager.has_flag("woodcutter_rescued"), "turn-in records the rescue")
 	outside._place_quest_npcs()
-	var depot = null
-	for n in outside._rescue_npcs:
-		if n.depot:
-			depot = n
-	_check(depot != null, "the foreman now stands on the surface as a lumber depot")
-	if depot:
-		var fcell: Vector2i = Vector2i(-99, -99)
-		for s in outside.dungeon_manager.site_nodes:
-			if s["kind"] == "forest":
-				fcell = s["grid_pos"]
-		_check(absi(depot.grid_cell.x - fcell.x) + absi(depot.grid_cell.y - fcell.y) <= 3, "…beside the Greenwood trailhead")
-		outside.player.position = outside.grid_manager.grid_to_world(depot.grid_cell + Vector2i(1, 0))
-		outside.player.target_position = outside.player.position
-		_check(outside._try_interact_rescue_npc(), "Shift at the depot is handled (no city yet: he says so)")
+	_check(_quest_npcs(outside).is_empty(), "no depot or post appears after the turn-in")
 
 	# The partner uses the same machinery in a cave.
 	var cave_id := ""

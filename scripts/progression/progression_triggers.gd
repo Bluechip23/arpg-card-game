@@ -605,6 +605,12 @@ func _apply_skill_tree_option(option) -> void:
 # SKILL TREE PASSIVE TRIGGERS
 # ============================================
 
+## "Defense" / "defensive" in a passive's text (docs/CARD_TAXONOMY.md): the
+## Defense type, or the `defense` tag on an instant or utility (Vengeful
+## Shield). The hand and deck counts read this, as Clean Exchange does.
+static func _is_defensive(c: Card) -> bool:
+	return c != null and (c.card_type == Card.CardType.DEFENSE or c.has_keyword("defense"))
+
 func _trigger_skill_tree_on_discard(card: Card) -> void:
 	## Fired for TRUE discards only (deck_manager.non_play_discard) — a played
 	## card also passes through the discard pile, and must not count.
@@ -613,8 +619,11 @@ func _trigger_skill_tree_on_discard(card: Card) -> void:
 		return
 
 	# Keep Them Guessing: after a rank-scaled number of discards (18..4),
-	# -3t from a random card in hand that still has tempo to lose.
-	if stats.has_skill_tree_passive("keep_them_guessing"):
+	# -3t from a random card in hand that still has tempo to lose. An instant
+	# firing or a card let out of jail reaches the pile without being
+	# discarded: "after discarding N cards" does not count it.
+	if stats.has_skill_tree_passive("keep_them_guessing") \
+			and not (main.deck_manager and main.deck_manager.non_play_discard_is_spend):
 		var ktg_required: int = PassiveScaling.value("keep_them_guessing", "discards_required", stats.get_passive_level("keep_them_guessing"))
 		stats.st_ktg_discard_count += 1
 		if stats.st_ktg_discard_count >= ktg_required and main.deck_manager:
@@ -646,20 +655,33 @@ func _trigger_skill_tree_on_instant(card: Card) -> void:
 ## what main tracks for Lethal Recall).
 var _last_played_card: Card = null
 
+## From the Hip: "the discount is lost when any card is played". Gives back
+## only what the discount took off, and only while the cost is still the one
+## the discount left: a cost the card set on itself since (Consecutive Snap's
+## per-use cut, its reset when redrawn) stands. Main calls it as a card
+## resolves, BEFORE the card's effect runs (Snap re-prices itself there).
+func end_from_the_hip_discount() -> void:
+	var stats = main.player.get_stats() if main.player else null
+	if not stats or stats.st_from_hip_card == null:
+		return
+	var discounted = stats.st_from_hip_card
+	if is_instance_valid(discounted):
+		if discounted.mana_cost == stats.st_from_hip_mana_left:
+			discounted.mana_cost += stats.st_from_hip_mana_off
+		if discounted.tempo_cost == stats.st_from_hip_tempo_left:
+			discounted.tempo_cost += stats.st_from_hip_tempo_off
+	stats.st_from_hip_card = null
+	stats.st_from_hip_mana_off = 0
+	stats.st_from_hip_tempo_off = 0
+
 func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 	var stats = main.player.get_stats()
 	if not stats:
 		return
 
-	# From the Hip: clear the discount when any card is played
-	if stats.has_skill_tree_passive("from_the_hip") and stats.st_from_hip_card != null:
-		var discounted = stats.st_from_hip_card
-		if is_instance_valid(discounted):
-			discounted.mana_cost = stats.st_from_hip_original_cost
-			discounted.tempo_cost = stats.st_from_hip_original_tempo
-		stats.st_from_hip_card = null
-		stats.st_from_hip_original_cost = 0
-		stats.st_from_hip_original_tempo = 0
+	# From the Hip: clear the discount when any card is played (main already
+	# ended it before the card executed; this covers the other play paths).
+	end_from_the_hip_discount()
 
 	# Nimble Assault: cards in hand but no Defense cards → draw on attack.
 	# An empty hand does NOT qualify — there must be cards, just no Defense.
@@ -670,7 +692,7 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 		if main.tempo_manager.get_global_tempo() - stats.st_nimble_last_tempo >= na_cooldown:
 			var has_defense = false
 			for c in main.deck_manager.hand:
-				if c.card_type == Card.CardType.DEFENSE:
+				if _is_defensive(c):
 					has_defense = true
 					break
 			if not has_defense:
@@ -693,7 +715,11 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 
 	# Stimulant: healing with a Pocket card → the HEALED character draws a card
 	# (rank-scaled cooldown 19..5 tempo, ticked per tempo)
-	if stats.has_skill_tree_passive("stimulant") and card.has_slot_label(Card.CardKeyword.POCKET) and card.heal_amount > 0 and stats.st_stimulant_cooldown <= 0:
+	# A heal Poisoned Blood turned into damage healed nobody: no draw, no
+	# cooldown ("when healing yourself or an ally").
+	var stim_flipped: bool = PlayerStats.heal_to_damage and card.is_heal_card()
+	if stats.has_skill_tree_passive("stimulant") and card.has_slot_label(Card.CardKeyword.POCKET) and card.heal_amount > 0 \
+			and not stim_flipped and stats.st_stimulant_cooldown <= 0:
 		stats.st_stimulant_cooldown = PassiveScaling.value("stimulant", "cooldown", stats.get_passive_level("stimulant"))
 		var healed_deck = main._deck_for_player(target) if target is Player else main.deck_manager
 		healed_deck.attempt_draw()
@@ -730,20 +756,32 @@ func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 					main.add_battle_log("Mad Scientist: +%d strengthen!" % ms_str, Color(0.4, 0.9, 0.4))
 
 		elif is_poison_outcome:
-			if last_type == Card.CardType.UTILITY:
-				# Utility → Poison: rank-scaled bonus poison stacks (2..9)
-				if target and target.has_method("apply_debuff"):
-					var ms_poison: int = PassiveScaling.value("mad_scientist", "poison", ms_lvl)
-					target.apply_debuff("poison", ms_poison)
-					main.add_battle_log("Mad Scientist: +%d poison stacks!" % ms_poison, Color(0.4, 0.9, 0.4))
-			elif last_type == Card.CardType.DEFENSE:
-				# Defense → Poison: lower enemy physical defense by a rank-scaled %
-				# (1..15) for 1 stack — sheet: a stack is 5 tempo, and each
-				# application is its own group on its own clock.
-				if target and target is Enemy:
-					var ms_def: int = PassiveScaling.value("mad_scientist", "phys_defense", ms_lvl)
-					target.apply_phys_defense_debuff(float(ms_def), 1)
-					main.add_battle_log("Mad Scientist: -%d%% physical defense (1 stack, 5 tempo)!" % ms_def, Color(0.4, 0.9, 0.4))
+			# The outcome lands on the enemies the potion poisoned: Poison Bomb
+			# is aimed at a tile and poisons everyone around it (main records
+			# them), so its card-play target is no enemy at all.
+			var ms_victims: Array = []
+			if card.card_id == "poison_bomb" and not main.last_poison_bomb_hits.is_empty():
+				ms_victims = main.last_poison_bomb_hits.duplicate()
+				main.last_poison_bomb_hits.clear()
+			elif target != null:
+				ms_victims = [target]
+			for ms_t in ms_victims:
+				if ms_t == null or not is_instance_valid(ms_t):
+					continue
+				if last_type == Card.CardType.UTILITY:
+					# Utility → Poison: rank-scaled bonus poison stacks (2..9)
+					if ms_t.has_method("apply_debuff"):
+						var ms_poison: int = PassiveScaling.value("mad_scientist", "poison", ms_lvl)
+						ms_t.apply_debuff("poison", ms_poison)
+						main.add_battle_log("Mad Scientist: +%d poison stacks!" % ms_poison, Color(0.4, 0.9, 0.4))
+				elif last_type == Card.CardType.DEFENSE:
+					# Defense → Poison: lower enemy physical defense by a rank-scaled %
+					# (1..15) for 1 stack — sheet: a stack is 5 tempo, and each
+					# application is its own group on its own clock.
+					if ms_t is Enemy:
+						var ms_def: int = PassiveScaling.value("mad_scientist", "phys_defense", ms_lvl)
+						ms_t.apply_phys_defense_debuff(float(ms_def), 1)
+						main.add_battle_log("Mad Scientist: -%d%% physical defense (1 stack, 5 tempo)!" % ms_def, Color(0.4, 0.9, 0.4))
 
 	_last_played_card = card
 
@@ -790,10 +828,7 @@ func _trigger_skill_tree_on_draw(card: Card) -> void:
 	# mana (rank-scaled 10..75m) and, at high ranks, tempo (1..2t)
 	if stats.has_skill_tree_passive("from_the_hip"):
 		# "Most recently drawn": whatever was drawn, the previous discount ends.
-		if stats.st_from_hip_card != null and is_instance_valid(stats.st_from_hip_card):
-			stats.st_from_hip_card.mana_cost = stats.st_from_hip_original_cost
-			stats.st_from_hip_card.tempo_cost = stats.st_from_hip_original_tempo
-			stats.st_from_hip_card = null
+		end_from_the_hip_discount()
 	if stats.has_skill_tree_passive("from_the_hip") and card.is_attack():
 		# Apply new discount: the mana cut needs a mana cost to cut, the tempo
 		# cut (ranks 11+) applies to any attack card drawn.
@@ -801,12 +836,14 @@ func _trigger_skill_tree_on_draw(card: Card) -> void:
 		var fh_mana: int = PassiveScaling.value("from_the_hip", "mana", fh_lvl)
 		var fh_tempo: int = PassiveScaling.value("from_the_hip", "tempo", fh_lvl)
 		if card.mana_cost > 0 or (fh_tempo > 0 and card.tempo_cost > 0):
-			stats.st_from_hip_original_cost = card.mana_cost
-			stats.st_from_hip_original_tempo = card.tempo_cost
 			fh_mana = mini(fh_mana, card.mana_cost)
-			card.mana_cost = maxi(0, card.mana_cost - fh_mana)
-			if fh_tempo > 0:
-				card.tempo_cost = maxi(0, card.tempo_cost - fh_tempo)
+			var fh_tempo_off: int = mini(fh_tempo, card.tempo_cost)
+			card.mana_cost -= fh_mana
+			card.tempo_cost -= fh_tempo_off
+			stats.st_from_hip_mana_off = fh_mana
+			stats.st_from_hip_tempo_off = fh_tempo_off
+			stats.st_from_hip_mana_left = card.mana_cost
+			stats.st_from_hip_tempo_left = card.tempo_cost
 			stats.st_from_hip_card = card
 			var fh_label := "-%dm" % fh_mana if fh_tempo == 0 else "-%dm/-%dt" % [fh_mana, fh_tempo]
 			main.add_battle_log("From the Hip: %s %s" % [card.card_name, fh_label], Color(0.9, 0.3, 0.3))
@@ -899,7 +936,9 @@ func modify_player_hit(enemy: Enemy, amount: int, preview: bool = false) -> int:
 	# Megingjörð: a slotted card's hits are doubled here, after stat scaling
 	# and every rider — the whole hit, not its base.
 	if PlayerStats.hit_multiplier > 1.0 and not preview:
+		var pre_mult := out
 		out = floori(out * PlayerStats.hit_multiplier)
+		PlayerStats.hit_multiplier_extra += out - pre_mult  # Fallen's Wrath's rebound reads this
 	# Harnessed Power (Jeremy): the resolving card's damage scales while its
 	# multiplier is armed (main sets it around the card's execution).
 	if PlayerStats.harnessed_mult > 1.0 and not preview:
@@ -927,7 +966,10 @@ func _solemn_surrounded() -> bool:
 				return true
 	return false
 
-func _trigger_skill_tree_on_crit(target) -> void:
+## `crit_count`: how many critical strikes this report covers — a multi-hit
+## card that crits on several hits is several critical strikes for Eye Scrape
+## (the sphere on-crit passives and the Dragon Skull still fire once).
+func _trigger_skill_tree_on_crit(target, crit_count: int = 1) -> void:
 	var stats = main.player.get_stats()
 	if not stats:
 		return
@@ -936,19 +978,20 @@ func _trigger_skill_tree_on_crit(target) -> void:
 	_trigger_sphere_passives("on_crit", {"target": target})
 
 	# Eye Scrape: every Nth crit (rank-scaled 15..1) → invisibility, on a
-	# 10 tempo cooldown
+	# 10 tempo cooldown. Each crit counts on its own.
 	if stats.has_skill_tree_passive("eye_scrape"):
 		var es_required: int = PassiveScaling.value("eye_scrape", "crits_required", stats.get_passive_level("eye_scrape"))
-		stats.st_crit_counter += 1
-		if stats.st_crit_counter >= es_required \
-				and main.tempo_manager.get_global_tempo() - stats.st_eye_scrape_last_tempo >= 10:
-			stats.st_crit_counter = 0
-			stats.st_eye_scrape_last_tempo = main.tempo_manager.get_global_tempo()
-			var buff_mgr = main.player.get_buff_manager()
-			if buff_mgr:
-				buff_mgr.apply_buff(Buff.create_invisible(5, "Eye Scrape"))
-				main._set_player_invisible(true)
-				main.add_battle_log("Eye Scrape: Invisibility!", Color(0.8, 0.4, 0.9))
+		for _es_i in range(maxi(1, crit_count)):
+			stats.st_crit_counter += 1
+			if stats.st_crit_counter >= es_required \
+					and main.tempo_manager.get_global_tempo() - stats.st_eye_scrape_last_tempo >= 10:
+				stats.st_crit_counter = 0
+				stats.st_eye_scrape_last_tempo = main.tempo_manager.get_global_tempo()
+				var buff_mgr = main.player.get_buff_manager()
+				if buff_mgr:
+					buff_mgr.apply_buff(Buff.create_invisible(5, "Eye Scrape"))
+					main._set_player_invisible(true)
+					main.add_battle_log("Eye Scrape: Invisibility!", Color(0.8, 0.4, 0.9))
 
 	# Dragon Skull: landing a crit breathes a fire cone in front of the wearer.
 	main._helm_crit_fire_cone(target)
@@ -1030,21 +1073,6 @@ func _trigger_skill_tree_on_debuff_applied(target, debuff_name: String, value: i
 			target.take_damage(pop_damage, true)
 			main.add_battle_log("Pop Rocks: %d damage! (%d poison stacks)" % [pop_damage, target.poison_stacks], Color(0.4, 0.9, 0.4))
 
-func _trigger_skill_tree_on_debuff_expired(target) -> void:
-	var stats = main.player.get_stats()
-	if not stats:
-		return
-
-	pass
-
-func _trigger_skill_tree_on_movement_cycle() -> void:
-	var stats = main.player.get_stats()
-	if not stats:
-		return
-
-	# Let's Dance moved to _trigger_skill_tree_on_cycle (triggers every cycle, not just movement)
-	pass
-
 # ============================================
 # BRAD SKILL TREE PASSIVE TRIGGERS
 # ============================================
@@ -1063,7 +1091,8 @@ func _trigger_skill_tree_brad_on_damage_taken(damage: int) -> void:
 		var ew_cooldown: int = PassiveScaling.value("enraged_will", "cooldown", ew_lvl)
 		var ew_threshold: float = PassiveScaling.value("enraged_will", "hp_threshold", ew_lvl)
 		var ew_elapsed = main.tempo_manager.get_global_tempo() - stats.st_enraged_will_last_tempo
-		if stats.get_health_percent() <= ew_threshold and stats.current_health > 0 and ew_elapsed >= ew_cooldown:
+		# "Below" the threshold, as written: exactly 10% does not trigger it.
+		if stats.get_health_percent() < ew_threshold and stats.current_health > 0 and ew_elapsed >= ew_cooldown:
 			stats.st_enraged_will_last_tempo = main.tempo_manager.get_global_tempo()
 			var enemies = main.enemy_spawner.get_enemies_in_radius(main.player.position, 2.0) if main.enemy_spawner else []
 			if enemies.size() > 0:
@@ -1248,7 +1277,7 @@ func _trigger_skill_tree_brad_on_cycle() -> void:
 			for c in main.deck_manager.hand:
 				if c.is_offensive():
 					attack_count += 1
-				elif c.card_type == Card.CardType.DEFENSE:
+				elif _is_defensive(c):
 					defense_count += 1
 			if attack_count > defense_count:
 				# Discount a random offensive card (capped at the card's remaining cost)
@@ -1740,7 +1769,8 @@ func _trigger_skill_tree_cory_on_damage_taken(damage: int) -> void:
 	if stats.has_skill_tree_passive("expel_negativity"):
 		_expel_try_refresh_charges(stats)
 		var en_threshold: float = PassiveScaling.value("expel_negativity", "hp_threshold", stats.get_passive_level("expel_negativity"))
-		if stats.st_expel_charges > 0 and stats.get_health_percent() <= en_threshold:
+		# "Drop below" the threshold, as written: exactly at it does not count.
+		if stats.st_expel_charges > 0 and stats.get_health_percent() < en_threshold:
 			var debuff_mgr = main.player.get_debuff_manager()
 			# Only debuffs an enemy can actually carry are transferable — the
 			# player's names differ from the enemy's keys (Slowed → slow).
@@ -1842,7 +1872,7 @@ func _trigger_skill_tree_cory_on_enemy_damaged(enemy: Enemy, damage: int) -> voi
 		if enemy_id not in stats.st_serial_killer_enemies:
 			var sk_threshold: float = PassiveScaling.value("serial_killer", "hp_threshold", stats.get_passive_level("serial_killer"))
 			var hp_pct = float(enemy.current_health) / float(enemy.max_health)
-			if hp_pct <= sk_threshold:
+			if hp_pct < sk_threshold:  # "drops below", as written
 				stats.st_serial_killer_enemies[enemy_id] = true
 				# Add player to enemy's ignore list so it never targets them again
 				enemy.target = null
@@ -1961,7 +1991,8 @@ func _territorial_death_reapply(enemy: Enemy, log_suffix: String) -> void:
 
 ## I Heal You: 3 HP to every ally within 3 cells (Manhattan) of Jeremy —
 ## other players, the dojo's practice allies, and every summon (wolves,
-## specters, the penguin…). Returns how many were healed.
+## specters, the penguin…). "Allies … of you": never Jeremy himself.
+## Returns how many were healed.
 func _i_heal_you_pulse() -> int:
 	var healed := 0
 	var gm = main.grid_manager
@@ -1974,7 +2005,7 @@ func _i_heal_you_pulse() -> int:
 		var a_stats = ally.get_stats()
 		if a_stats and a_stats.current_health > 0 and gm.get_distance_in_cells(main.player.position, ally.position) <= 3:
 			if ally == main.player:
-				a_stats.heal(3)  # Jeremy heals himself too (his own heal)
+				a_stats.heal(3)  # Jeremy heals himself too (his own heal) — recorded ruling
 			else:
 				# An ally heal Jeremy performs: his Blood Libation stacks boost it.
 				a_stats.heal(me.boost_performed_heal(3) if me else 3, true, true)
@@ -2129,13 +2160,13 @@ func _trigger_skill_tree_on_tempo(amount: int) -> void:
 				# Count defense cards across entire deck
 				var defense_count = 0
 				for c in main.deck_manager.hand:
-					if c.card_type == Card.CardType.DEFENSE:
+					if _is_defensive(c):
 						defense_count += 1
 				for c in main.deck_manager.draw_pile:
-					if c.card_type == Card.CardType.DEFENSE:
+					if _is_defensive(c):
 						defense_count += 1
 				for c in main.deck_manager.discard_pile:
-					if c.card_type == Card.CardType.DEFENSE:
+					if _is_defensive(c):
 						defense_count += 1
 				if defense_count > 0:
 					var enemies = main.enemy_spawner.get_living_enemies()
@@ -2164,7 +2195,7 @@ func _trigger_skill_tree_jeremy_on_enemy_attacked(enemy: Enemy) -> void:
 	if stats.has_skill_tree_passive("haunted_rebuke") and stats.st_haunted_rebuke_cooldown <= 0:
 		var defense_in_hand = 0
 		for card in main.deck_manager.hand:
-			if card.card_type == Card.CardType.DEFENSE:
+			if _is_defensive(card):
 				defense_in_hand += 1
 		if defense_in_hand >= 3:
 			stats.st_haunted_rebuke_cooldown = PassiveScaling.value("haunted_rebuke", "cooldown", stats.get_passive_level("haunted_rebuke"))

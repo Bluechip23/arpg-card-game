@@ -39,16 +39,6 @@ func spawn_test_arena() -> void:
 
 	print("[SPAWNER] Test arena spawned: %d enemies" % enemies.size())
 
-func spawn_fire_goblin_pack() -> void:
-	## A Fire Goblin warband led by a shaman, plus a Hydra — for testing the new
-	## enemies. Does not clear existing enemies.
-	spawn_enemy(Enemy.EnemyType.FIRE_GOBLIN_SOLDIER, Vector3(12.5, 0, 4.0))
-	spawn_enemy(Enemy.EnemyType.FIRE_GOBLIN_SOLDIER, Vector3(13.5, 0, 6.0))
-	spawn_enemy(Enemy.EnemyType.FIRE_GOBLIN_MAGE, Vector3(16.0, 0, 5.0))
-	spawn_enemy(Enemy.EnemyType.FIRE_GOBLIN_SHAMAN, Vector3(17.5, 0, 7.0))
-	spawn_enemy(Enemy.EnemyType.HYDRA, Vector3(15.0, 0, 9.0))
-	print("[SPAWNER] Fire goblin pack + hydra spawned: %d total" % enemies.size())
-
 func spawn_enemy(type: Enemy.EnemyType, pos: Vector3) -> Enemy:
 	var enemy = EnemyScene.instantiate() as Enemy
 	get_parent().add_child(enemy)
@@ -125,9 +115,24 @@ func get_living_enemies() -> Array[Enemy]:
 			living.append(enemy)
 	return living
 
+## [victim, countdown, name] — see adopt_venom.
+var _orphan_venoms: Array = []
+
+## Cerberus died with a Venom Tail stun still on its victim: the aftermath
+## (2 Vulnerable, Cuffed 10) still lands the moment the stun is gone.
+func adopt_venom(victim: Node3D, countdown: int, who: String) -> void:
+	if victim != null and is_instance_valid(victim) and countdown > 0:
+		_orphan_venoms.append([victim, countdown, who])
+
 ## Called every time global tempo advances.
 ## Each enemy manages its own action counter independently.
 func on_tempo_advanced(amount: int) -> void:
+	# Venom Tail aftermaths whose Cerberus died during the stun.
+	for i in range(_orphan_venoms.size() - 1, -1, -1):
+		var v: Array = _orphan_venoms[i]
+		v[1] = Enemy.venom_step(v[0], v[1], amount, v[2])
+		if v[1] <= 0:
+			_orphan_venoms.remove_at(i)
 	var living = get_living_enemies()
 	for enemy in living:
 		# Reserve every other enemy's INTENDED destination (not just its current
@@ -225,7 +230,7 @@ func _on_enemy_died(enemy: Enemy) -> void:
 	if player:
 		var inventory = player.get_inventory()
 		if inventory:
-			inventory.on_enemy_killed()
+			inventory.on_enemy_killed(enemy.killed_by_player)
 
 	# Check if all enemies defeated
 	await get_tree().create_timer(0.6).timeout  # Wait for death animation

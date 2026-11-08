@@ -471,6 +471,8 @@ var consecutive_uses: int = 0  # Track how many times card played in sequence
 var snap_uses_at_play: int = 0  # uses BEFORE the current play (set by play_card; timing-safe for deferred execution)
 @export var requires_high_ground: bool = false  # Needs elevated position
 var last_damage_dealt: int = 0  # Used by cards that need main.gd to apply damage (charge, leap)
+var blind_missed: bool = false  # this execution whiffed to Blind: main skips its on-hit world effects (Cupid's arrows)
+var _spell_power_taken: bool = false  # Wizard Hat: this execution took the armed spell power
 @export var has_on_draw: bool = false  # Card triggers an effect when drawn
 @export var on_draw_effect: String = ""  # Description of the on-draw effect
 @export var discard_on_draw: bool = false  # If true, card is discarded immediately after on-draw effect
@@ -663,6 +665,10 @@ static var active_element_remap: String = ""
 # would apply heals its target instead. Set by execute() for every play;
 # main clears it once the play's world effects resolve.
 static var elixir_poison_heals: bool = false
+## The CASTER's buff manager while a card resolves on an ally's stats
+## (DeckManager.execute_deferred_card): Poisoned Blood rides the caster, so a
+## heal aimed at an ally must read the caster's charges, not the ally's.
+static var caster_buff_manager: BuffManager = null
 # Element Pollination (Elemental Weaver maintain): recomputed by main every
 # tempo tick off the maintained pile; enemies read it during debuff ticking.
 static var element_pollination_active: bool = false
@@ -1365,8 +1371,10 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 	# Poisoned Blood: a heal card spends one charge and every heal it performs
 	# becomes damage for this play.
 	PlayerStats.heal_to_damage = false
-	if is_heal_card() and buff_mgr and buff_mgr.has_poisoned_blood():
-		buff_mgr.consume_poisoned_blood()
+	# "Allies, summons and yourself included": the charges are the caster's.
+	var pb_mgr: BuffManager = Card.caster_buff_manager if Card.caster_buff_manager else buff_mgr
+	if is_heal_card() and pb_mgr and pb_mgr.has_poisoned_blood():
+		pb_mgr.consume_poisoned_blood()
 		PlayerStats.heal_to_damage = true
 		print("[CARD] Poisoned Blood: %s heals as damage" % card_name)
 	var empower_added := 0
@@ -1388,14 +1396,25 @@ func is_heal_card() -> bool:
 func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
 	_exec_depth += 1
 	_scope_snapshot = {"adaptive": PlayerStats.adaptive_damage_type, "mult": PlayerStats.hit_multiplier,
+		"rebound": PlayerStats.hit_multiplier_rebound,
 		"pending": player_stats.defense_card_bonus_pending if player_stats else false}
 	last_damage_dealt = 0
+	blind_missed = false
+	# Wizard Hat: the next spell card takes the armed +5 for its own play —
+	# moved off the pending pool so nothing outside the card can draw on it.
+	# It rides until the play closes (close_play_scope) or, on a bare execute,
+	# until this card finishes.
+	_spell_power_taken = false
+	if school == CardSchool.SPELL and player_stats and player_stats.pending_spell_power_bonus > 0:
+		player_stats.active_spell_power_bonus += player_stats.pending_spell_power_bonus
+		player_stats.pending_spell_power_bonus = 0
+		_spell_power_taken = true
 
 	# Premeditated: the first card to target an exposed-by-Premeditated enemy
 	# carries +15 onto its hit; main pays it out directly if the card deals none.
 	premeditated_target = null
 	if target is Object and is_instance_valid(target) and "premeditated_card_bonus" in target \
-			and int(target.premeditated_card_bonus) > 0 and card_id != "premeditated":
+			and int(target.premeditated_card_bonus) > 0:  # "your next card", a second Premeditated included
 		target.bonus_damage_next_hit += int(target.premeditated_card_bonus)
 		target.premeditated_card_bonus = 0
 		premeditated_target = target
@@ -1436,6 +1455,10 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			miss_chance = player_stats.blind_miss_chance
 		if miss_chance > 0.0 and randf() < miss_chance:
 			print("[CARD] %s missed — blinded!" % card_name)
+			blind_missed = true
+			_exec_depth -= 1  # leaving early: close this execution's nesting level
+			if _spell_power_taken and (_exec_depth > 0 or not play_scope_open):
+				player_stats.active_spell_power_bonus = 0
 			return
 	# Empower's +3 already rides in bonus_damage (see execute); the executors'
 	# own is_empowered branch stays off so it is never counted twice.
@@ -1500,17 +1523,18 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 	var _temp_crit_applied := 0.0
 	var _temp_crit_dmg_applied := 0.0
 	var _adaptive_type_prev := -999  # Blue Robe: original damage_type to restore after this play
-	var _overdrive_extra := 0        # Fallen's Wrath: bonus whose half rebounds on the wielder
 	var _slot_block_applied := 0     # Mauls Sabre colored slot: block granted this play, stripped after
 	if slotted_in_item:
 		# Studded belt: the long-dead on_self_thorns finally fires — slotted
 		# plays grant thorns.
 		if int(on_self.get("thorns", 0)) > 0 and buff_mgr:
 			buff_mgr.apply_buff(Buff.create_thorns(int(on_self["thorns"]), 5, slotted_in_item.item_name))
-		# Slotted Sash: offensive cards +damage; defense cards +armor.
+		# Slotted Sash: offensive cards +damage; defense cards +armor. A defense
+		# card is the Defense type OR the defense tag (CARD_TAXONOMY: Vengeful
+		# Shield is a defensive instant).
 		if int(on_self.get("offensive_damage", 0)) > 0 and is_offensive():
 			_gauntlet_bonus_applied += int(on_self["offensive_damage"])
-		if int(on_self.get("defense_armor", 0)) > 0 and card_type == CardType.DEFENSE and player_stats:
+		if int(on_self.get("defense_armor", 0)) > 0 and (card_type == CardType.DEFENSE or has_keyword("defense")) and player_stats:
 			player_stats.add_armor(int(on_self["defense_armor"]))
 		# Strap of Stone: timed physical resistance on slotted play.
 		if int(on_self.get("physical_resilient", 0)) > 0 and buff_mgr:
@@ -1566,8 +1590,9 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			if bal_armor > 0:
 				player_stats.add_armor(bal_armor)
 				print("[CARD] On-Self: +%d armor (missing-health) from %s" % [bal_armor, slotted_in_item.item_name])
-		# Shamans mask: utility cards heal the player directly on play.
-		if card_type == CardType.UTILITY and on_self.get("utility_heal", 0) > 0 and player_stats:
+		# Shamans mask: utility cards heal the player directly on play (the
+		# Utility type OR the utility tag — CARD_TAXONOMY).
+		if (card_type == CardType.UTILITY or has_keyword("utility")) and on_self.get("utility_heal", 0) > 0 and player_stats:
 			player_stats.heal(on_self["utility_heal"])
 			print("[CARD] On-Self: %s healed %d (utility)" % [slotted_in_item.item_name, on_self["utility_heal"]])
 		# Monocle: offensive ranged cards gain a one-shot crit chance for this play.
@@ -1617,11 +1642,15 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			var slow_bonus: int = target.slow_stacks * int(on_self["slow_damage_per_stack"])
 			if slow_bonus > 0:
 				_gauntlet_bonus_applied += slow_bonus
-		# Fallen's Wrath overdrive: 1.5x damage — half the bonus rebounds on you.
+		# Fallen's Wrath overdrive: "1.5x damage" — the whole hit, like
+		# Megingjörð's double (it used to scale only the card's base and
+		# riders, before STR, so it landed well short of 1.5x). Half of what
+		# the multiplier adds rebounds on you when the play closes
+		# (Card.pay_overdrive_rebound).
 		var _od_mult: float = float(on_self.get("overdrive_multiplier", 1.0))
 		if _od_mult > 1.0 and is_offensive():
-			_overdrive_extra = floori((base_damage + bonus_damage + _gauntlet_bonus_applied) * (_od_mult - 1.0))
-			_gauntlet_bonus_applied += _overdrive_extra
+			PlayerStats.hit_multiplier = _od_mult
+			PlayerStats.hit_multiplier_rebound = 0.5
 		# Colored slots (Mauls Sabre): the slot's own payload rides its card's
 		# play. Combo effects read combo_prev_color, captured at play time.
 		# The discard cost is player-chosen, so it lives in main.gd
@@ -2072,7 +2101,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			pass
 		"reverberate_regrowth", "curse_of_the_living":
 			# Maintained shield powers: the Bastion's echo fires off the
-			# armor_broken signal and the Curse rides every heal(). Playing them
+			# armor_broken_through signal and the Curse rides every heal(). Playing them
 			# only puts them into maintenance.
 			pass
 		"mage_shield":
@@ -2430,42 +2459,11 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
 
-	# Life Steal: if an attack dealt damage and we have life steal buff, heal for damage dealt
-	if is_attack() and buff_mgr and buff_mgr.has_life_steal():
-		var dealt := last_damage_dealt if last_damage_dealt > 0 else damage
-		if dealt > 0:
-			buff_mgr.consume_life_steal(dealt)
-
-	# Life Steal passive (Brad): all ATTACKS (not spells) heal for 1%..8%
-	# (rank-scaled) of damage dealt.
-	if is_attack() and player_stats and player_stats.has_skill_tree_passive("life_steal"):
-		var ls_dealt := last_damage_dealt if last_damage_dealt > 0 else damage
-		if ls_dealt > 0:
-			var ls_passive_pct: float = PassiveScaling.value("life_steal", "percent", player_stats.get_passive_level("life_steal"))
-			player_stats.apply_life_steal(max(1, floori(ls_dealt * ls_passive_pct / 100.0)))
-
-	# Sphere grid "Life Steal +X%" nodes, equipment lifesteal (Hannibals Mask),
-	# Vitality stacks (Nine Ruins: +1% each), and a maintained Resourceful
-	# Replenish: attacks heal a % of damage dealt (attacks, not spells).
-	if is_attack() and player_stats:
-		# get_equipment_lifesteal folds in the Coffin Lid's below-half bonus.
-		var ls_pct := player_stats.sphere_bonus_life_steal + player_stats.get_equipment_lifesteal() \
-			+ player_stats.quest_life_steal_bonus  # The Faithless' kept shrine
-		# Coffin Lid: cards slotted into it drink on their own.
-		ls_pct += float(get_on_self_bonus().get("lifesteal_percent", 0.0))
-		if player_stats.inventory and "equipped_weapons" in player_stats.inventory:
-			for ls_w in player_stats.inventory.equipped_weapons:
-				if ls_w and ls_w.vitality_weapon and ls_w.vitality_stacks > 0:
-					ls_pct += float(ls_w.vitality_stacks) * ls_w.rider_scale()  # off-hand modifier
-		if deck_manager and deck_manager.has_method("get_maintained_cards"):
-			for mc in deck_manager.get_maintained_cards():
-				if mc and mc.card_id == "resourceful_replenish":
-					# Hannibals Mask Lv.3 maintains at 8% instead of 5%.
-					ls_pct += 8.0 if (mc.granted_by_item and mc.granted_by_item.item_level >= 3) else 5.0
-		if ls_pct > 0.0:
-			var sls_dealt := last_damage_dealt if last_damage_dealt > 0 else damage
-			if sls_dealt > 0:
-				player_stats.apply_life_steal(max(1, floori(sls_dealt * ls_pct / 100.0)))
+	# Life steal (the buff, Brad's passive, sphere/equipment/maintained). A point
+	# or area play lands its hits in main, which calls apply_life_steal_for with
+	# the damage those hits actually dealt (main._apply_card_world_effects).
+	if is_attack() and not is_world_resolved(target):
+		apply_life_steal_for(last_damage_dealt if last_damage_dealt > 0 else damage, player_stats, buff_mgr, deck_manager)
 
 	# Reaper Scythe: damage against a target still above half health drinks 10%
 	# back as life; against one below half, 10% returns as MANA instead (the
@@ -2500,10 +2498,6 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 					print("[CARD] Monk of the Night: +%d block from the strike" % monk_block)
 				break
 
-	# Fallen's Wrath overdrive: half the bonus rebounds on the wielder.
-	if _overdrive_extra > 0 and player_stats:
-		player_stats.take_direct_damage(ceili(_overdrive_extra / 2.0))
-		print("[CARD] Overdrive: took %d rebound damage" % ceili(_overdrive_extra / 2.0))
 
 	# Sabre Tooth: striking the same target twice in a row ticks the
 	# attack-speed counter an extra time and rakes 5 more Bleed.
@@ -2548,13 +2542,21 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			print("[CARD] On-Self: %s heals %d" % [slotted_in_item.item_name, int(osb_g["support_heal"])])
 		# Corset of Cure: cleanse stacks of a random debuff on the card's target
 		# (players/allies only — enemies keep their ailments).
-		if int(osb_g.get("cleanse_stacks", 0)) > 0 and target.has_method("get_debuff_manager"):
+		# (A card with no target — an instant firing, an untargeted play — has
+		# nothing to cleanse; guarded so it never errors out of the play.)
+		if int(osb_g.get("cleanse_stacks", 0)) > 0 and target != null and is_instance_valid(target) \
+				and target.has_method("get_debuff_manager"):
 			var cdm = target.get_debuff_manager()
 			if cdm and cdm.debuffs.size() > 0:
 				var pick = cdm.debuffs[randi() % cdm.debuffs.size()]
-				pick.stacks -= int(osb_g["cleanse_stacks"])
-				if pick.stacks <= 0:
+				# A debuff's stack count is its `value` (Debuff.stacks only
+				# counts applications) — "cleanse 3 stacks" takes 3 off it.
+				pick.value -= int(osb_g["cleanse_stacks"])
+				if pick.value <= 0:
 					cdm.remove_debuff(pick.debuff_type)
+				else:
+					pick._set_name_and_description()
+					cdm.debuffs_changed.emit()
 				print("[CARD] On-Self: cleansed %d stacks of %s" % [int(osb_g["cleanse_stacks"]), pick.debuff_name])
 
 	# Burgonet: a DEFENSE card that grants no armor of its own grants the boots'
@@ -2565,102 +2567,10 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		player_stats.add_armor(player_stats.equipment_armorless_defense_block)
 		print("[CARD] %s grants %d armor (armorless defense card)" % [card_name, player_stats.equipment_armorless_defense_block])
 
-	# Apply on-self debuffs (burn/cold/bleed from quivers and helms) to target
-	# after any offensive card that dealt damage
+	# On-hit debuff riders. A point or area play's riders land in main, once on
+	# every enemy its hits actually damaged (main._apply_card_world_effects).
 	if is_offensive() and target and last_damage_dealt > 0 and not target.has_method("get_stats"):
-		var on_self_burn = on_self.get("apply_burn", 0)
-		var on_self_cold = on_self.get("apply_cold", 0)
-		var source_name = slotted_in_item.item_name if slotted_in_item else "Equipment"
-		if on_self_burn > 0:
-			if target.has_method("get_debuff_manager"):
-				var target_debuff_mgr = target.get_debuff_manager()
-				if target_debuff_mgr:
-					var burn := Debuff.create(Debuff.DebuffType.BURN, on_self_burn, 15)
-					burn.source_name = source_name
-					target_debuff_mgr.apply_debuff(burn)
-			elif target.has_method("apply_debuff"):
-				target.apply_debuff("burn", on_self_burn)
-			print("[CARD] On-Self: Applied %d Burn to target from %s" % [on_self_burn, source_name])
-		if on_self_cold > 0:
-			if target.has_method("get_debuff_manager"):
-				var target_debuff_mgr = target.get_debuff_manager()
-				if target_debuff_mgr:
-					var cold := Debuff.create(Debuff.DebuffType.COLD, on_self_cold, 30)
-					cold.source_name = source_name
-					target_debuff_mgr.apply_debuff(cold)
-			elif target.has_method("apply_debuff"):
-				target.apply_debuff("cold", on_self_cold)
-			print("[CARD] On-Self: Applied %d Cold to target from %s" % [on_self_cold, source_name])
-		# Assasian Belt: Vulnerable on the struck target.
-		var on_self_vuln := int(on_self.get("apply_vulnerable", 0))
-		if on_self_vuln > 0 and target.has_method("apply_debuff"):
-			target.apply_debuff("vulnerable", on_self_vuln)
-		var on_self_bleed = on_self.get("apply_bleed", 0)
-		if on_self_bleed > 0:
-			if target.has_method("get_debuff_manager"):
-				var target_debuff_mgr = target.get_debuff_manager()
-				if target_debuff_mgr:
-					var bleed := Debuff.create(Debuff.DebuffType.BLEED, on_self_bleed, 15)
-					bleed.source_name = source_name
-					target_debuff_mgr.apply_debuff(bleed)
-			elif target.has_method("apply_debuff"):
-				target.apply_debuff("bleed", on_self_bleed)
-			print("[CARD] On-Self: Applied %d Bleed to target from %s" % [on_self_bleed, source_name])
-		# Sword of Theseus: slotted attacks bog the target down.
-		var on_self_slow := int(on_self.get("apply_slow", 0))
-		if on_self_slow > 0 and is_offensive() and target.has_method("apply_debuff"):
-			target.apply_debuff("slow", on_self_slow)
-			print("[CARD] On-Self: Applied %d Slow to target from %s" % [on_self_slow, source_name])
-		# Shock Quiver: slotted hits jolt the target.
-		var on_self_shock := int(on_self.get("apply_shock", 0))
-		if on_self_shock > 0 and target.has_method("apply_debuff"):
-			target.apply_debuff("shock", on_self_shock)
-			print("[CARD] On-Self: Applied %d Shock to target from %s" % [on_self_shock, source_name])
-		# Weaken from the item the card is slotted in.
-		var on_self_weaken := int(on_self.get("apply_weaken", 0))
-		if on_self_weaken > 0 and target.has_method("apply_debuff"):
-			target.apply_debuff("weaken", on_self_weaken)
-			print("[CARD] On-Self: Applied %d Weaken to target from %s" % [on_self_weaken, source_name])
-		# Spell weapons: global on-hit debuffs — unlike the on_self family these
-		# ride EVERY damaging offensive card, slotted anywhere or nowhere
-		# (Fire/Frost Book, Ice Orb, Car Battery, Circe's Wand, Reaper Scythe).
-		if player_stats and player_stats.inventory and "equipped_weapons" in player_stats.inventory \
-				and target.has_method("apply_debuff"):
-			for sw in player_stats.inventory.equipped_weapons:
-				if sw == null:
-					continue
-				if sw.attack_debuffs_on_self_only and (slotted_in_item != sw or sw.is_vanilla_slot(self)):
-					continue  # Car Battery: only cards in its BONUS slots carry its Shock
-				for sw_pair in [["burn", sw.attack_apply_burn], ["cold", sw.attack_apply_cold],
-						["shock", sw.attack_apply_shock], ["silenced", sw.attack_apply_silence],
-						["vulnerable", sw.attack_apply_vulnerable]]:
-					var sw_amt: int = int(sw_pair[1])
-					if sw_amt > 0:
-						sw_amt = sw.rider_int(sw_amt)  # off-hand modifier
-						if sw_amt <= 0:
-							print("[CARD] %s: off-hand %s fizzles" % [sw.item_name, str(sw_pair[0])])
-							continue
-						# Silence is timed, not stacked: "1 Silence" reads as one
-						# 5-tempo silence (Circe's Wand).
-						if str(sw_pair[0]) == "silenced":
-							sw_amt *= 5
-						target.apply_debuff(str(sw_pair[0]), sw_amt)
-						print("[CARD] %s: applied %d %s on hit" % [sw.item_name, sw_amt, str(sw_pair[0])])
-		# Colored slots (Mauls Sabre): the slot's debuff payload, plus the
-		# combo bonus when this color was primed by the other one.
-		var slot_fx_late: Dictionary = slotted_in_item.get_slot_effect(self) if slotted_in_item else {}
-		if not slot_fx_late.is_empty() and target.has_method("apply_debuff"):
-			if int(slot_fx_late.get("weaken", 0)) > 0:
-				target.apply_debuff("weaken", int(slot_fx_late["weaken"]))
-				print("[CARD] %s slot: applied %d Weaken" % [slotted_in_item.get_slot_color(self), int(slot_fx_late["weaken"])])
-			if int(slot_fx_late.get("vulnerable", 0)) > 0:
-				target.apply_debuff("vulnerable", int(slot_fx_late["vulnerable"]))
-			if int(slot_fx_late.get("combo_vulnerable", 0)) > 0 \
-					and str(slot_fx_late.get("combo_after", "")) != "" \
-					and has_meta("combo_prev_color") \
-					and str(get_meta("combo_prev_color")) == str(slot_fx_late["combo_after"]):
-				target.apply_debuff("vulnerable", int(slot_fx_late["combo_vulnerable"]))
-				print("[CARD] Combo! %s after %s: +%d Vulnerable" % [slotted_in_item.get_slot_color(self), str(slot_fx_late["combo_after"]), int(slot_fx_late["combo_vulnerable"])])
+		apply_on_hit_debuffs(target, player_stats)
 
 	# Clean up on-self bonuses so they don't stack permanently
 	if on_self_dmg > 0:
@@ -2702,19 +2612,22 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		# its riders back.
 		PlayerStats.adaptive_damage_type = _scope_snapshot["adaptive"]
 		PlayerStats.hit_multiplier = _scope_snapshot["mult"]
+		PlayerStats.hit_multiplier_rebound = _scope_snapshot.get("rebound", 0.0)
 		if player_stats:
 			player_stats.defense_card_bonus_pending = _scope_snapshot["pending"]
 	elif not play_scope_open:
 		# A bare execute (no world-effects step follows): clean up here.
 		PlayerStats.adaptive_damage_type = false
+		pay_overdrive_rebound(player_stats)
 		PlayerStats.hit_multiplier = 1.0
 		if player_stats:
 			player_stats.defense_card_bonus_pending = false  # an armorless card leaves nothing waiting
 	# (Inside an open scope main closes it after the world effects.)
 
-	# Wizard Hat: a spell card consumes the armed spell-power bonus on play.
-	if school == CardSchool.SPELL and player_stats and player_stats.pending_spell_power_bonus > 0:
-		player_stats.pending_spell_power_bonus = 0
+	# Wizard Hat: the bonus this spell took ends with it when no play scope
+	# follows (a bare execute, or an instant nested in another card's play).
+	if _spell_power_taken and player_stats and (_exec_depth > 0 or not play_scope_open):
+		player_stats.active_spell_power_bonus = 0
 
 	# Clear the resolution markers so they can't leak past this play.
 	if player_stats:
@@ -2895,14 +2808,11 @@ func _execute_discard(deck_manager) -> void:
 	if deck_manager and deck_manager.hand.size() > 0:
 		var random_index = randi() % deck_manager.hand.size()
 		var discarded = deck_manager.hand[random_index]
-		deck_manager.hand.remove_at(random_index)
-		deck_manager.discard_pile.append(discarded)
-		# A true discard, not a play — announce it so discard-reactive passives
-		# (Ladder Work, Abjurers Cane) see it like any other.
-		deck_manager.discards_this_cycle += 1
-		deck_manager.card_discarded.emit(discarded)
-		deck_manager.non_play_discard.emit(discarded)
-		deck_manager.hand_updated.emit()
+		# A true discard, not a play: the shared path counts it in
+		# true_discards_this_cycle (Exacerbate Wounds' "card discarded this
+		# cycle" — it was missed here) and announces it to the discard-reactive
+		# passives (Ladder Work, Abjurers Cane) like any other.
+		deck_manager.discard_card_from_hand(discarded)
 		print("[CARD] Discarded: %s" % discarded.card_name)
 	else:
 		print("[CARD] No cards to discard!")
@@ -3007,12 +2917,25 @@ static var play_scope_open: bool = false
 static var _exec_depth: int = 0
 static var _scope_snapshot: Dictionary = {}
 
+## Fallen's Wrath: "you take half the bonus yourself" — half of what the
+## overdrive multiplier added to this play's hits (AoE and world effects
+## included), paid once when the play closes.
+static func pay_overdrive_rebound(player_stats: PlayerStats) -> void:
+	if PlayerStats.hit_multiplier_rebound > 0.0 and PlayerStats.hit_multiplier_extra > 0 and player_stats:
+		var rebound: int = ceili(PlayerStats.hit_multiplier_extra * PlayerStats.hit_multiplier_rebound)
+		player_stats.take_direct_damage(rebound)
+		print("[CARD] Overdrive: took %d rebound damage" % rebound)
+	PlayerStats.hit_multiplier_rebound = 0.0
+	PlayerStats.hit_multiplier_extra = 0
+
 static func close_play_scope(player_stats: PlayerStats) -> void:
 	play_scope_open = false
 	PlayerStats.adaptive_damage_type = false
+	pay_overdrive_rebound(player_stats)
 	PlayerStats.hit_multiplier = 1.0
 	if player_stats:
 		player_stats.defense_card_bonus_pending = false
+		player_stats.active_spell_power_bonus = 0  # Wizard Hat: the spell card's +5 ends with its play
 
 func get_burden_tempo_cost() -> int:
 	var cost := tempo_cost
@@ -4074,12 +3997,37 @@ func _execute_mirror_mirror(deck_manager = null) -> void:
 		return
 	var src = picked_card if picked_card and picked_card in candidates else candidates[randi() % candidates.size()]
 	picked_card = null
-	var dup = deck_manager._create_card_from_id(src.card_id)
+	# "Duplicate a card": a copy of this very instance (rank-scaled numbers,
+	# the item slot it rides), not a fresh catalogue card.
+	var dup = src.duplicate_instance()
 	if dup:
 		dup.erase_tempo = 5
 		dup.erase_tempo_remaining = 5
 		deck_manager.add_card_to_hand(dup)
 		print("[CARD] Mirror Mirror: duplicated %s (Erase 5)" % src.card_name)
+
+## Fields a duplicate starts fresh on: the source's play-time picks and
+## rolls, its jail, its hand age — the things that belong to one play or one
+## stay in the hand, not to what the card is.
+const _DUPLICATE_RESETS := ["picked_card", "picked_cards", "picked_ally", "premeditated_target",
+	"rt_chosen_debuff", "rng_outcomes", "rng_effective_chance", "rng_roll_tempo",
+	"rng_selected_index", "last_damage_dealt", "pending_life_swap", "last_percent_mana_paid",
+	"snap_uses_at_play", "consecutive_uses", "jail_time_remaining", "cycles_in_hand"]
+
+## A true duplicate of this card instance (Mirror Mirror): every field as it
+## stands — exported values and meta via Resource.duplicate, plus the script
+## state duplicate() skips (the item it is slotted in or granted by, its
+## enhancement, burden, in-hand tweaks) — as a separate card.
+func duplicate_instance() -> Card:
+	var dup: Card = duplicate(true)
+	for p in get_property_list():
+		if not (p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE) or (p.usage & PROPERTY_USAGE_STORAGE):
+			continue  # exported fields came over with duplicate()
+		if p.name == "card_keyword" or p.name in _DUPLICATE_RESETS:
+			continue  # card_keyword is a view of the exported slot_labels
+		var v = get(p.name)
+		dup.set(p.name, v.duplicate() if (v is Array or v is Dictionary) else v)
+	return dup
 
 func _execute_harness_lightning(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Create lightning orb effect - handled by main.gd
@@ -4175,7 +4123,9 @@ func _execute_savage_strike(target, is_empowered: bool, player_stats: PlayerStat
 	## discard pile. The copy already carries Erase 20 from its create function.
 	_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 	if add_copy and deck_manager:
-		deck_manager.add_card_to_deck_from_id("savage_strike_copy", false)
+		# "Add a copy of this card to your discard pile" — every play, past
+		# the deck-building copy cap (the copies Erase themselves).
+		deck_manager.add_card_to_deck_from_id("savage_strike_copy", false, true)
 		print("[CARD] Savage Strike! Added a fragile copy (Erase 20) to discard")
 
 func _execute_shield_slam(target, player_stats: PlayerStats) -> void:
@@ -4384,9 +4334,11 @@ func _execute_shed_weight(deck_manager) -> void:
 	## off a non-defensive card still in hand.
 	if not deck_manager:
 		return
+	# "Defensive" is the taxonomy's word: the Defense type OR the `defense`
+	# tag (an instant like Vengeful Shield), never the raw type alone.
 	var defensive: Array = []
 	for c in deck_manager.hand:
-		if c != self and c.card_type == CardType.DEFENSE:
+		if c != self and (c.card_type == CardType.DEFENSE or c.has_keyword("defense")):
 			defensive.append(c)
 	var discarded := 0
 	for c in defensive:
@@ -4396,7 +4348,7 @@ func _execute_shed_weight(deck_manager) -> void:
 	# time — they can pile onto one card only if the dice say so.
 	var pool: Array = []
 	for c in deck_manager.hand:
-		if c != self and c.card_type != CardType.DEFENSE:
+		if c != self and not (c.card_type == CardType.DEFENSE or c.has_keyword("defense")):
 			pool.append(c)
 	var reduced := 0
 	if not pool.is_empty():
@@ -4409,7 +4361,8 @@ func _execute_shed_weight(deck_manager) -> void:
 static func create_mana_surge(damage_amount: int = 5) -> Card:
 	var card := create_by_id("mana_surge")
 	# damage_amount comes from the Mana Surge passive's rank (4..18)
-	card.description = "Deal %d damage, gain 1 mana. Erased after play." % damage_amount
+	# Mana Surge (passive text): "gain 10 mana" — what _execute_mana_surge gives.
+	card.description = "Deal %d damage, gain 10 mana. Erased after play." % damage_amount
 	card.damage = damage_amount
 	card.base_damage = damage_amount
 	return card
@@ -4782,3 +4735,149 @@ static func get_all_cards(include_generated: bool = true) -> Array[Card]:
 		cards.append(create_by_id(cid))
 	return cards
 #endregion
+
+## True when this play's target is not an enemy (a point or area card, played
+## with the caster or nothing as its target): main lands its hits and applies
+## the on-hit riders and life steal for them.
+func is_world_resolved(target) -> bool:
+	return target == null or not is_instance_valid(target) or target.has_method("get_stats")
+
+## An attack's life steal on `dealt` damage: the Life Steal buff, Brad's Life
+## Steal passive, and the sphere / equipment / Vitality / Resourceful
+## Replenish percentages. Nothing when no damage was dealt (a whiff).
+func apply_life_steal_for(dealt: int, player_stats: PlayerStats, buff_mgr: BuffManager, deck_manager = null) -> void:
+	if dealt <= 0:
+		return
+	# Life Steal: if an attack dealt damage and we have life steal buff, heal for damage dealt
+	if buff_mgr and buff_mgr.has_life_steal():
+		buff_mgr.consume_life_steal(dealt)
+
+	# Life Steal passive (Brad): all ATTACKS (not spells) heal for 1%..8%
+	# (rank-scaled) of damage dealt.
+	if player_stats and player_stats.has_skill_tree_passive("life_steal"):
+		var ls_passive_pct: float = PassiveScaling.value("life_steal", "percent", player_stats.get_passive_level("life_steal"))
+		player_stats.apply_life_steal(max(1, floori(dealt * ls_passive_pct / 100.0)))
+
+	# Sphere grid "Life Steal +X%" nodes, equipment lifesteal (Hannibals Mask),
+	# Vitality stacks (Nine Ruins: +1% each), and a maintained Resourceful
+	# Replenish: attacks heal a % of damage dealt (attacks, not spells).
+	if player_stats:
+		# get_equipment_lifesteal folds in the Coffin Lid's below-half bonus.
+		var ls_pct := player_stats.sphere_bonus_life_steal + player_stats.get_equipment_lifesteal() \
+			+ player_stats.quest_life_steal_bonus  # The Faithless' kept shrine
+		# Coffin Lid: cards slotted into it drink on their own.
+		ls_pct += float(get_on_self_bonus().get("lifesteal_percent", 0.0))
+		if player_stats.inventory and "equipped_weapons" in player_stats.inventory:
+			for ls_w in player_stats.inventory.equipped_weapons:
+				if ls_w and ls_w.vitality_weapon and ls_w.vitality_stacks > 0:
+					ls_pct += float(ls_w.vitality_stacks) * ls_w.rider_scale()  # off-hand modifier
+		if deck_manager and deck_manager.has_method("get_maintained_cards"):
+			for mc in deck_manager.get_maintained_cards():
+				if mc and mc.card_id == "resourceful_replenish":
+					# Hannibals Mask Lv.3 maintains at 8% instead of 5%.
+					ls_pct += 8.0 if (mc.granted_by_item and mc.granted_by_item.item_level >= 3) else 5.0
+		if ls_pct > 0.0:
+			player_stats.apply_life_steal(max(1, floori(dealt * ls_pct / 100.0)))
+
+## The on-hit debuff riders of an offensive card on one enemy it damaged:
+## on-self debuffs of the item it is slotted in (quivers, helms, Sword of
+## Theseus, Shock Quiver, Weaken), every equipped spell weapon's debuffs
+## (Fire/Frost Book, Ice Orb, Car Battery, Circe's Wand, Reaper Scythe) and a
+## colored slot's payload (Mauls Sabre).
+func apply_on_hit_debuffs(target, player_stats: PlayerStats) -> void:
+	if target == null or not is_instance_valid(target):
+		return
+	var on_self := get_on_self_bonus()
+	var on_self_burn = on_self.get("apply_burn", 0)
+	var on_self_cold = on_self.get("apply_cold", 0)
+	var source_name = slotted_in_item.item_name if slotted_in_item else "Equipment"
+	if on_self_burn > 0:
+		if target.has_method("get_debuff_manager"):
+			var target_debuff_mgr = target.get_debuff_manager()
+			if target_debuff_mgr:
+				var burn := Debuff.create(Debuff.DebuffType.BURN, on_self_burn, 15)
+				burn.source_name = source_name
+				target_debuff_mgr.apply_debuff(burn)
+		elif target.has_method("apply_debuff"):
+			target.apply_debuff("burn", on_self_burn)
+		print("[CARD] On-Self: Applied %d Burn to target from %s" % [on_self_burn, source_name])
+	if on_self_cold > 0:
+		if target.has_method("get_debuff_manager"):
+			var target_debuff_mgr = target.get_debuff_manager()
+			if target_debuff_mgr:
+				var cold := Debuff.create(Debuff.DebuffType.COLD, on_self_cold, 30)
+				cold.source_name = source_name
+				target_debuff_mgr.apply_debuff(cold)
+		elif target.has_method("apply_debuff"):
+			target.apply_debuff("cold", on_self_cold)
+		print("[CARD] On-Self: Applied %d Cold to target from %s" % [on_self_cold, source_name])
+	# Assasian Belt: Vulnerable on the struck target.
+	var on_self_vuln := int(on_self.get("apply_vulnerable", 0))
+	if on_self_vuln > 0 and target.has_method("apply_debuff"):
+		target.apply_debuff("vulnerable", on_self_vuln)
+	var on_self_bleed = on_self.get("apply_bleed", 0)
+	if on_self_bleed > 0:
+		if target.has_method("get_debuff_manager"):
+			var target_debuff_mgr = target.get_debuff_manager()
+			if target_debuff_mgr:
+				var bleed := Debuff.create(Debuff.DebuffType.BLEED, on_self_bleed, 15)
+				bleed.source_name = source_name
+				target_debuff_mgr.apply_debuff(bleed)
+		elif target.has_method("apply_debuff"):
+			target.apply_debuff("bleed", on_self_bleed)
+		print("[CARD] On-Self: Applied %d Bleed to target from %s" % [on_self_bleed, source_name])
+	# Sword of Theseus: slotted attacks bog the target down.
+	var on_self_slow := int(on_self.get("apply_slow", 0))
+	if on_self_slow > 0 and is_offensive() and target.has_method("apply_debuff"):
+		target.apply_debuff("slow", on_self_slow)
+		print("[CARD] On-Self: Applied %d Slow to target from %s" % [on_self_slow, source_name])
+	# Shock Quiver: slotted hits jolt the target.
+	var on_self_shock := int(on_self.get("apply_shock", 0))
+	if on_self_shock > 0 and target.has_method("apply_debuff"):
+		target.apply_debuff("shock", on_self_shock)
+		print("[CARD] On-Self: Applied %d Shock to target from %s" % [on_self_shock, source_name])
+	# Weaken from the item the card is slotted in.
+	var on_self_weaken := int(on_self.get("apply_weaken", 0))
+	if on_self_weaken > 0 and target.has_method("apply_debuff"):
+		target.apply_debuff("weaken", on_self_weaken)
+		print("[CARD] On-Self: Applied %d Weaken to target from %s" % [on_self_weaken, source_name])
+	# Spell weapons: global on-hit debuffs — unlike the on_self family these
+	# ride EVERY damaging offensive card, slotted anywhere or nowhere
+	# (Fire/Frost Book, Ice Orb, Car Battery, Circe's Wand, Reaper Scythe).
+	if player_stats and player_stats.inventory and "equipped_weapons" in player_stats.inventory \
+			and target.has_method("apply_debuff"):
+		for sw in player_stats.inventory.equipped_weapons:
+			if sw == null:
+				continue
+			if sw.attack_debuffs_on_self_only and (slotted_in_item != sw or sw.is_vanilla_slot(self)):
+				continue  # Car Battery: only cards in its BONUS slots carry its Shock
+			for sw_pair in [["burn", sw.attack_apply_burn], ["cold", sw.attack_apply_cold],
+					["shock", sw.attack_apply_shock], ["silenced", sw.attack_apply_silence],
+					["vulnerable", sw.attack_apply_vulnerable]]:
+				var sw_amt: int = int(sw_pair[1])
+				if sw_amt > 0:
+					sw_amt = sw.rider_int(sw_amt)  # off-hand modifier
+					if sw_amt <= 0:
+						print("[CARD] %s: off-hand %s fizzles" % [sw.item_name, str(sw_pair[0])])
+						continue
+					# Silence is timed, not stacked: "1 Silence" reads as one
+					# 5-tempo silence (Circe's Wand).
+					if str(sw_pair[0]) == "silenced":
+						sw_amt *= 5
+					target.apply_debuff(str(sw_pair[0]), sw_amt)
+					print("[CARD] %s: applied %d %s on hit" % [sw.item_name, sw_amt, str(sw_pair[0])])
+	# Colored slots (Mauls Sabre): the slot's debuff payload, plus the
+	# combo bonus when this color was primed by the other one.
+	var slot_fx_late: Dictionary = slotted_in_item.get_slot_effect(self) if slotted_in_item else {}
+	if not slot_fx_late.is_empty() and target.has_method("apply_debuff"):
+		if int(slot_fx_late.get("weaken", 0)) > 0:
+			target.apply_debuff("weaken", int(slot_fx_late["weaken"]))
+			print("[CARD] %s slot: applied %d Weaken" % [slotted_in_item.get_slot_color(self), int(slot_fx_late["weaken"])])
+		if int(slot_fx_late.get("vulnerable", 0)) > 0:
+			target.apply_debuff("vulnerable", int(slot_fx_late["vulnerable"]))
+		if int(slot_fx_late.get("combo_vulnerable", 0)) > 0 \
+				and str(slot_fx_late.get("combo_after", "")) != "" \
+				and has_meta("combo_prev_color") \
+				and str(get_meta("combo_prev_color")) == str(slot_fx_late["combo_after"]):
+			target.apply_debuff("vulnerable", int(slot_fx_late["combo_vulnerable"]))
+			print("[CARD] Combo! %s after %s: +%d Vulnerable" % [slotted_in_item.get_slot_color(self), str(slot_fx_late["combo_after"]), int(slot_fx_late["combo_vulnerable"])])

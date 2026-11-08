@@ -141,10 +141,12 @@ static func qualifies(card, kind: String) -> bool:
 			return card.is_offensive() and not card.is_ranged
 		"attack":
 			return card.is_attack()
+		# Type or tag (docs/CARD_TAXONOMY.md): Vengeful Shield is a defensive
+		# instant, Healthy Bliss a utility one.
 		"defense":
-			return card.card_type == Card.CardType.DEFENSE
+			return card.card_type == Card.CardType.DEFENSE or card.has_keyword("defense")
 		"utility":
-			return card.card_type == Card.CardType.UTILITY
+			return card.card_type == Card.CardType.UTILITY or card.has_keyword("utility")
 		"utility or defense":
 			return (card.card_type == Card.CardType.UTILITY or card.card_type == Card.CardType.DEFENSE) and not card.is_offensive()
 		"instant":

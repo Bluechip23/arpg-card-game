@@ -362,7 +362,6 @@ var conjured_in_manifest: int = 0    # Cinquedea copies currently parked in the 
 # held two-handed is not in the off hand.
 var is_in_off_hand: bool = false
 var off_hand_scale: float = 1.0
-const OFF_HAND_RIDER_SCALE := 0.9  # the default modifier (Inventory.DEFAULT_OFF_HAND_PENALTY)
 
 ## Multiplier for a continuous rider (a percent, a float amount).
 func rider_scale() -> float:
@@ -878,8 +877,11 @@ func _slot_gate_ok(card, index: int) -> bool:
 	# the gate (a plain slot past the colors takes any labeled card).
 	if feral_weapon:
 		if index >= 0 and index < slot_colors.size():
-			if card.element != str(slot_colors[index]):
-				return false
+			# The color alone decides: only Fireball and Peshtigo's Kiss carry
+			# the Staff label, so the label gate below left the blue, yellow
+			# and green slots unfillable (Ice Grenade, Chain Lightning and
+			# Hemotoxins have no label at all) and nothing could convert.
+			return card.element == str(slot_colors[index])
 	# Slot labels: an unlabeled card lives in the deck only and can never be
 	# slotted; a labeled card may go into any slot one of its labels names.
 	if not card.is_slottable():
