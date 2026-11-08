@@ -217,6 +217,18 @@ WALKS = {
     # every frame centred on its own box slid him side to side as his stride
     # changed, so the frames keep the board's placement ("anchor"); the
     # feather's glow is stripped (HALO_STRIP).
+    # Brad's and Jeremy's side walks (designer, 2026-11-08: they "still do
+    # not walk correctly side to side"): the cut is not at fault. Their
+    # boards' Left and Right rows draw one planted stance eight times over.
+    # The near leg leads in every frame, and the trailing foot lifts and
+    # settles but never swings through: it stays 17 or more texels behind
+    # the torso line, where Cory's, Ryan's and Stephen's come within ~13.
+    # The feet never close to less than ~37 texels apart, where theirs close
+    # to ~21-24. So the loop reads as a skate, with no step in it. No frame of
+    # either board, and no still pose, draws a passing pose that could fill
+    # the gap; frames spliced from the still's legs read as patched. Like
+    # Stephen's "Walk Right (Corrected)", these rows need the designer's
+    # redrawn side boards (WALK_EXTRA can take them a direction at a time).
 }
 # A direction on a board of its own, in WALKS' form: Stephen's back and
 # left (2026-11-05) and his right (2026-10-31, "Walk Right (Corrected)": his
