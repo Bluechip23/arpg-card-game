@@ -45,16 +45,30 @@ func _run() -> void:
 	main._build_hand_groups()
 	main.selected_card_index = -1
 
-	_press(main, KEY_1)
-	var first: int = main.selected_card_index
-	_check(first >= 0, "pressing 1 selects the first slot's card")
-	_press(main, KEY_1)
-	_check(main.selected_card_index == -1, "pressing 1 again deselects it")
-	_press(main, KEY_1)
-	_check(main.selected_card_index == first, "and a third press selects it again")
-	_press(main, KEY_2)
-	_check(main.selected_card_index >= 0 and main.selected_card_index != first, "another card's key switches to that card")
-	_press(main, KEY_2)
+	# Which key holds which card comes from the persistent slot map, not hand
+	# order: take the first two occupied slots and press their keys.
+	var slots: Array = []
+	var card_at := {}
+	for g in main._hand_groups:
+		slots.append(int(g["slot"]))
+		card_at[int(g["slot"])] = dm.hand.find(g["rep"])
+	slots.sort()
+	_check(slots.size() >= 2, "two cards sit on number keys (%s)" % str(slots))
+	if slots.size() < 2:
+		print("=== %d failure(s) ===" % failures)
+		quit(1)
+		return
+	var key_a: Key = main.CARD_KEYS[slots[0]]
+	var key_b: Key = main.CARD_KEYS[slots[1]]
+	_press(main, key_a)
+	_check(main.selected_card_index == card_at[slots[0]], "pressing a card's key selects it")
+	_press(main, key_a)
+	_check(main.selected_card_index == -1, "pressing the same key again deselects it")
+	_press(main, key_a)
+	_check(main.selected_card_index == card_at[slots[0]], "and a third press selects it again")
+	_press(main, key_b)
+	_check(main.selected_card_index == card_at[slots[1]], "another card's key switches to that card")
+	_press(main, key_b)
 	_check(main.selected_card_index == -1, "and its own key puts it back down")
 
 	print("=== %d failure(s) ===" % failures)

@@ -391,14 +391,36 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 	# Tutorial (designer, 2026-11-07): ticked, the stats are not allocated
 	# here — they fade out, Olorin teaches each one as he goes, and the points
 	# wait for the first level-up, when he explains spending them.
+	# Centred in the dialog and drawn light grey with a dark tick, so it
+	# stands out against the dark panel (designer, 2026-11-08).
+	var tut_row := CenterContainer.new()
+	tut_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vb.add_child(tut_row)
 	_alloc_tutorial = CheckBox.new()
 	_alloc_tutorial.name = "TutorialCheck"
 	_alloc_tutorial.text = "Tutorial"
-	_alloc_tutorial.add_theme_font_size_override("font_size", 18)
-	_alloc_tutorial.add_theme_color_override("font_color", EmeraldTheme.GOLD)
+	_alloc_tutorial.add_theme_font_size_override("font_size", 20)
+	_alloc_tutorial.add_theme_icon_override("unchecked", _tutorial_box_icon(false))
+	_alloc_tutorial.add_theme_icon_override("checked", _tutorial_box_icon(true))
+	_alloc_tutorial.add_theme_constant_override("h_separation", 10)
+	var tut_bg := StyleBoxFlat.new()
+	tut_bg.bg_color = TUTORIAL_BOX_GREY
+	tut_bg.set_corner_radius_all(6)
+	tut_bg.set_content_margin_all(8)
+	tut_bg.content_margin_left = 12
+	tut_bg.content_margin_right = 16
+	var tut_hover := tut_bg.duplicate()
+	tut_hover.bg_color = TUTORIAL_BOX_GREY.lightened(0.15)
+	for st in ["normal", "pressed", "focus"]:
+		_alloc_tutorial.add_theme_stylebox_override(st, tut_bg)
+	_alloc_tutorial.add_theme_stylebox_override("hover", tut_hover)
+	_alloc_tutorial.add_theme_stylebox_override("hover_pressed", tut_hover)
+	for fc in ["font_color", "font_pressed_color", "font_hover_color", "font_hover_pressed_color", "font_focus_color"]:
+		_alloc_tutorial.add_theme_color_override(fc, TUTORIAL_TICK_DARK)
 	_alloc_tutorial.toggled.connect(func(_on: bool): _alloc_refresh())
-	vb.add_child(_alloc_tutorial)
+	tut_row.add_child(_alloc_tutorial)
 	var tut_note := Label.new()
+	tut_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tut_note.text = "Olorin explains each stat as you play. Your %d points wait for your first level-up." % ALLOC_TOTAL
 	tut_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	tut_note.custom_minimum_size = Vector2(420, 0)
@@ -506,6 +528,36 @@ func _alloc_refresh() -> void:
 		_alloc_rows.modulate.a = 0.35 if on else 1.0
 		for b in _alloc_rows.find_children("*", "BaseButton", true, false):
 			b.disabled = on
+
+const TUTORIAL_BOX_GREY := Color(0.82, 0.82, 0.84)
+const TUTORIAL_TICK_DARK := Color(0.1, 0.12, 0.14)
+
+## The Tutorial checkbox's box: a large light-grey square with a dark border;
+## ticked, a thick dark check mark.
+func _tutorial_box_icon(checked: bool) -> ImageTexture:
+	const N := 28
+	var img := Image.create(N, N, false, Image.FORMAT_RGBA8)
+	img.fill(Color.WHITE)
+	for i in range(N):
+		for t in range(2):
+			img.set_pixel(i, t, TUTORIAL_TICK_DARK)
+			img.set_pixel(i, N - 1 - t, TUTORIAL_TICK_DARK)
+			img.set_pixel(t, i, TUTORIAL_TICK_DARK)
+			img.set_pixel(N - 1 - t, i, TUTORIAL_TICK_DARK)
+	if checked:
+		# Two strokes of the tick, 3 px thick: down-right, then up-right.
+		var pts: Array = []
+		for k in range(7):
+			pts.append(Vector2i(6 + k, 13 + k))
+		for k in range(12):
+			pts.append(Vector2i(12 + k, 19 - k))
+		for p in pts:
+			for dx in range(-1, 2):
+				for dy in range(-1, 2):
+					var q: Vector2i = p + Vector2i(dx, dy)
+					if q.x >= 2 and q.y >= 2 and q.x < N - 2 and q.y < N - 2:
+						img.set_pixel(q.x, q.y, TUTORIAL_TICK_DARK)
+	return ImageTexture.create_from_image(img)
 
 func _alloc_tutorial_on() -> bool:
 	return _alloc_tutorial != null and is_instance_valid(_alloc_tutorial) and _alloc_tutorial.button_pressed
