@@ -22,8 +22,10 @@ static func ensure_save_dir() -> void:
 static func get_save_path(slot: int) -> String:
 	return SAVE_DIR + "save_slot_%d.tres" % slot
 
+## Checked on disk: ResourceLoader.exists also answers from its cache, so a
+## deleted save would still look present.
 static func save_exists(slot: int) -> bool:
-	return ResourceLoader.exists(get_save_path(slot))
+	return FileAccess.file_exists(get_save_path(slot))
 
 static func save_game(slot: int, save_data: SaveData) -> bool:
 	ensure_save_dir()
@@ -40,13 +42,30 @@ static func save_game(slot: int, save_data: SaveData) -> bool:
 
 static func load_game(slot: int) -> SaveData:
 	var path = get_save_path(slot)
-	if not ResourceLoader.exists(path):
+	if not FileAccess.file_exists(path):
 		return null
 	var data = ResourceLoader.load(path)
 	if data is SaveData:
 		return data
 	push_error("[SAVE] Invalid save data in slot %d" % slot)
 	return null
+
+## Delete a save from disk (designer, 2026-11-08: the load screen asks for a
+## 4-second hold and then an "are you sure" before calling this). A slot the
+## character in play came from is forgotten too, so "save before you quit"
+## never writes back into a deleted slot.
+static func delete_save(slot: int) -> bool:
+	var path := get_save_path(slot)
+	if not FileAccess.file_exists(path):
+		return false
+	var err := DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	if err != OK:
+		push_error("[SAVE] Failed to delete slot %d: %s" % [slot, error_string(err)])
+		return false
+	if current_slot == slot:
+		current_slot = -1
+	print("[SAVE] Deleted slot %d" % slot)
+	return true
 
 static func is_autosave(slot: int) -> bool:
 	return slot == AUTOSAVE_SLOT

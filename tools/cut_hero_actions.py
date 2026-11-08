@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Cut the designer's hero action boards (basic attack, basic block) into
-the sheets SpriteFigure plays for them.
+"""Cut the designer's hero action boards (basic attack, basic block, spell
+card cast) into the sheets SpriteFigure plays for them.
 
 Sources (assets/sprites/paintings/, .gdignore'd): one board an action, its
 frames on a ruled grid over the same dark glowing ground as the walk boards
@@ -46,12 +46,20 @@ FACE_SHUT = 11
 FACE_RAY_LEN = 24       # ...within this many px, are the face inside the hood
 FACE_DARK = 45          # (and no channel brighter than this)
 DARK_PIECE = 40         # "drop_dark": a piece whose 90th-percentile channel is under this goes
+FADE_FULL = 200         # "fade": an effect's light is solid from this much over the ground (max channel)
+FADE_DARK = 24          # ...and the plain ground shut in with it adds under this...
+FADE_OPEN = 3           # ...in patches at least this wide
 
 # Per hero and action: the board, its grid (column lines; each row's top and
 # bottom line) and the facing each row draws; optionally "pockets": False
 # and "haze": True, "narrow": px for cut_hero_sprites.cut_opaque_cell;
 # "drop_dark": True drops unlit pieces (floor shadows); "close": px fills
-# notches in the silhouette that narrow.
+# notches in the silhouette that narrow. "cols" may be a list a row (a
+# board with no cell rules, cut in the gaps between its frames), and "dx"
+# per facing a px a frame that the board sets the figure further right in
+# its cell than the row's first (so he stays put). "fade": the hue(s) of
+# an effect's light (fade_light) in "fade_frames", solid from "fade_full",
+# only "fade_band" px deep when set.
 ACTIONS = {
     # 2026-10-31: Brad's jumping overhead smash — crouch, leap with both
     # fists raised, slam down in a burst of sparks and dust.
@@ -188,6 +196,111 @@ ACTIONS = {
         "rows": [(52, 267), (267, 478), (478, 689), (689, 900)],
         "facings": ["south", "north", "west", "east"],
     },
+
+    # 2026-11-08: the spell card casts — every hero draws a glowing card
+    # from his belt and casts it in his own effect; played for every Spell
+    # card (SpriteFigure DRAWN_SPELL). The effects round the figure are the
+    # spell's look and are kept whole.
+    #
+    # Brad: he flares up in orange fire swirls and thrusts the card out in
+    # a burst (frame 7), settling in embers. His side rows turn round
+    # mid-cast: the board's "Left" row faces left as he draws (1-5) but
+    # thrusts the card out to the RIGHT (6-8), its "Right" row the other way
+    # about. Mapped by the thrust, the cast's payoff, so the card goes toward
+    # the target: "Left" plays facing east, "Right" facing west (and he
+    # draws the card facing away, 1-5).
+    ("brad", "cast"): {
+        "src": "brad_cast_board.webp",
+        "glow": "red",      # the fire's haze fades out (and the ground between its swirls clears)
+        "glow_frames": range(4, 8),   # from the flare-up (frame 5) on
+        "fade": "fire",     # the fire's haze, shut in between its rays and swirls, fades too
+        "fade_frames": range(3, 8),   # from the card drawn (its glow) on
+        "pockets": False,   # his dark pouches and trousers are near the ground's colour (as his smash)
+        "narrow": 7,
+        "cols": [131, 323, 514, 699, 885, 1072, 1259, 1465, 1658],
+        "rows": [(82, 279), (288, 475), (483, 668), (677, 869)],
+        "facings": ["south", "north", "east", "west"],
+    },
+    # Jeremy: green-and-purple spirit swirls, ghostly purple skulls rise
+    # behind him (5-7) and fade (8). No cell rules on the board. His side
+    # rows face one way throughout ("Left" west, "Right" east), the card
+    # held out before him; the skulls rise over his back.
+    ("jeremy", "cast"): {
+        "src": "jeremy_cast_board.webp",
+        "close": 5,         # gaps between his dark trouser folds (as his attack)
+        "fade": ("green", "violet"),   # the spirit smoke and the skulls' haze fade out
+        "fade_frames": range(2, 8),
+        "fade_full": 80,    # (only the dark haze: the skulls keep their shading)
+        "cols": [[174, 356, 522, 702, 884, 1096, 1287, 1478, 1662],
+                 [174, 357, 536, 726, 898, 1099, 1287, 1476, 1662],
+                 [174, 349, 512, 687, 863, 1072, 1272, 1463, 1662],
+                 [174, 351, 530, 721, 890, 1099, 1286, 1473, 1662]],
+        # (his feet matched frame to frame: the skulls push him left on the
+        # board from frame 6)
+        "dx": {"south": [0, -2, 13, 12, 12, -26, -26, -29], "north": [0, -2, 0, -10, 1, -28, -26, -27],
+               "west": [0, 5, 19, 22, 25, -4, -16, -17], "east": [0, 0, -1, -14, 2, -34, -36, -32]},
+        "rows": [(111, 281), (286, 456), (462, 629), (634, 810)],
+        "facings": ["south", "north", "west", "east"],
+    },
+    # Stephen: purple energy and a spectral bear (5-6), purple claw slashes
+    # released (7). His side rows face one way throughout and release the
+    # claws that way ("Left" west, "Right" east).
+    ("stephen", "cast"): {
+        "src": "stephen_cast_board.webp",
+        "tol": 4,           # as his attack: his boots, legs and knife arm stay
+        "fade": "violet",   # the energy, the bear and the claws are light
+        "fade_frames": range(3, 7),
+        "pockets": False,
+        "narrow": 7,
+        "cols": [110, 307, 506, 712, 910, 1122, 1329, 1572, 1764],
+        "rows": [(89, 275), (279, 465), (469, 652), (657, 846)],
+        "facings": ["south", "north", "west", "east"],
+    },
+    # Cory: a purple runic circle (5), a swirl (6), the card rises in a red
+    # aura (7) and a grinning red shadow-face appears (8). No cell rules.
+    # "Left" west, "Right" east, each facing its way to frame 7; frame 8 is
+    # drawn alike in both rows: he faces right, the face to his left — before
+    # him casting west (he has turned round), behind him casting east.
+    ("cory", "cast"): {
+        "src": "cory_cast_board.webp",
+        "fade": ("violet", "red"),   # the runes and swirl, the red aura and the face are light
+        "fade_frames": range(2, 8),
+        "fade_band": 8,     # (their haze round him only: his robe takes their light)
+        "drop_dark": True,  # the board's faint cell panels' edges
+        "pockets": False,   # his robe's dark folds by the hood are the ground's colour
+        "narrow": 7,
+        "face": True,       # the face inside his hood (as his kick)
+        "cols": [188, 390, 579, 779, 955, 1152, 1359, 1543, 1757],
+        # (his feet matched frame to frame: the face pushes him right in frame 8)
+        "dx": {"south": [0, -9, -6, -16, 1, -10, -14, -2], "north": [0, -7, -5, -16, 0, -10, -15, 1],
+               "west": [0, -11, -7, -18, -1, -6, -12, 23], "east": [0, -10, -8, -19, -3, -11, -22, 18]},
+        "rows": [(122, 307), (307, 487), (487, 657), (657, 841)],
+        "facings": ["south", "north", "west", "east"],
+    },
+    # Ryan (the alchemist): the card becomes a purple flask set down in a
+    # glowing ring (4-5), lifted in a swirl (6), thrown up in an arc (7),
+    # bursting in a magenta starburst overhead (8). No cell rules (the
+    # burst's top meets the row's rule on the board). "Left" west, "Right"
+    # east; in frame 7 of each side row he looks back the other way as he
+    # throws the flask up over his head.
+    ("ryan", "cast"): {
+        "src": "ryan_cast_board.webp",
+        "tol": 4,           # his near-black clothes sit close to the ground's colour
+        "fade": "violet",   # the ring, the swirl, the arc and the burst are light
+        "fade_frames": range(2, 8),
+        "fade_full": 80,    # (only the dark haze: the flask and the burst keep their shading)
+        "drop_dark": True,  # the board's faint cell panels' edges
+        "pockets": False,
+        "narrow": 7,
+        "close": 7,
+        "cols": [192, 386, 581, 776, 970, 1164, 1359, 1554, 1748],   # (his frames sit at an even pitch)
+        # (his feet matched frame to frame where they can be: side on, the
+        # flask on the ground pushes him back from it, 4-7; front and back,
+        # crouched over it and under the burst, he stands where the pitch has him)
+        "dx": {"west": [0, 0, -4, 10, 19, -2, 3, 4], "east": [0, -5, -10, -21, -31, -26, -26, -15]},
+        "rows": [(122, 307), (307, 487), (487, 657), (657, 841)],
+        "facings": ["south", "north", "west", "east"],
+    },
 }
 
 
@@ -229,8 +342,89 @@ def fill_face(rgba, cell):
     return rgba
 
 
+def light_mask(rgb, hue):
+    """The pixels painted as `hue` light on the dark ground (`hue`: a name,
+    or a tuple of them)."""
+    if isinstance(hue, (tuple, list)):
+        m = np.zeros(rgb.shape[:2], bool)
+        for one in hue:
+            m |= light_mask(rgb, one)
+        return m
+    r, g, b = [rgb[..., i].astype(float) for i in range(3)]
+    if hue == "violet":
+        # Purple to magenta (Stephen's bear and claws, Cory's runes, Ryan's
+        # flask and burst, Jeremy's skulls): red and blue both over green,
+        # the blue at least 0.6 of the red (Cory's robe is a reddish mauve,
+        # its blue barely over its green).
+        rg, bg = r - g, b - g
+        return (rg > 6) & (bg > 6) & (bg >= 0.6 * rg)
+    if hue == "green":
+        # Jeremy's spirit smoke: green leads (his robe is brown, his bones pale).
+        return g - np.maximum(r, b) > 6
+    if hue == "red":
+        # Cory's shadow-face and aura: red leads, green and blue under 0.3
+        # of it (his robe's mauve carries more of both).
+        return (r - np.maximum(g, b) > 12) & (np.maximum(g, b) < 0.3 * r)
+    if hue == "fire":
+        # Orange to red: red leads, next to no blue (his red sleeves and the
+        # brown leather carry as much blue as green; bright yellow-white
+        # flame is solid anyway).
+        return (r > 12) & (b < 0.1 * r) & (g < 0.65 * r)
+    raise ValueError("no fade hue %r" % hue)
+
+
+def fade_light(rgba, cell, hue, full, band=0):
+    """An effect's light (Brad's fire: its swirls' haze, the glow round the
+    burst) painted over the dark ground: the cut keeps it solid where the
+    fill could not reach it (shut in between the rays and the swirls), a
+    muddy dark-red block off the board. Every pixel of the effect's hue
+    becomes see-through by how much light it adds over the ground (solid
+    from `full` up), its colour unblended from the ground, so the haze
+    fades into what it is drawn over and the bright flame stays."""
+    rgb = cell[..., :3].astype(float)
+    h, w = rgb.shape[:2]
+    border = np.concatenate([rgb[:6].reshape(-1, 3), rgb[-6:].reshape(-1, 3),
+                             rgb[:, :6].reshape(-1, 3), rgb[:, -6:].reshape(-1, 3)])
+    ground = np.percentile(border, 25, axis=0)
+    d = np.maximum(rgb - ground, 0)
+    a = np.clip(d.max(axis=2) / float(full), 0.0, 1.0)
+    on = light_mask(rgb, hue) & (rgba[..., 3] > 0) & (a < 1.0)
+    if band:
+        # Only the haze on the outside, `band` px deep: Cory's robe takes
+        # the runes' violet light and his hood the aura's red, and deeper in
+        # it is him (as his kick's smoke, GLOW_HAZE).
+        import cv2
+        k = np.ones((2 * band + 1, 2 * band + 1), np.uint8)
+        on &= ~(cv2.erode((rgba[..., 3] > 0).astype(np.uint8), k) > 0)
+    a_safe = np.maximum(a, 1e-3)[..., None]
+    col = np.clip(ground + d / a_safe, 0, 255)
+    out = rgba.copy()
+    out[on, :3] = col[on].astype(np.uint8)
+    out[on, 3] = np.minimum(out[on, 3], (a[on] * 255).astype(np.uint8))
+    if band:
+        return out   # (a hero as dark as the ground, Cory: his robe would go too)
+    # The plain ground shut in with it (black specks between the burst's
+    # rays): patches at least FADE_OPEN wide adding under FADE_DARK, open
+    # onto what now shows through, go. (The figure's own dark outline is
+    # thinner; his chain mail and trousers are lit more than that.)
+    import cv2
+    dark = (out[..., 3] == 255) & (d.max(axis=2) < FADE_DARK)
+    dark = cv2.morphologyEx(dark.astype(np.uint8), cv2.MORPH_OPEN, np.ones((FADE_OPEN, FADE_OPEN), np.uint8))
+    for _ in range(4):
+        seen = cv2.dilate((out[..., 3] < 255).astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
+        n, lab = cv2.connectedComponents(dark, connectivity=4)
+        hit = np.unique(lab[seen & (dark > 0)])
+        hit = hit[hit > 0]
+        if len(hit) == 0:
+            break
+        gone = np.isin(lab, hit)
+        out[gone] = 0
+        dark[gone] = 0
+    return out
+
+
 def cut_cell(cell, pockets=True, haze=False, narrow=0, drop_dark=False, close=0, tol=None, haze_dark=None, glow=False, glow_edge=0, streaks=False, halo=False,
-             see_through=True, grow=False, face=False, matte=None):
+             see_through=True, grow=False, face=False, matte=None, fade=None, fade_full=None, fade_band=0):
     """One cell's figure (and its dust) on transparency, cell-sized, plus
     the kept pixels' box. `matte` (a cell-sized bool mask from
     tools/make_mattes.py --hero): figure the colour rules cannot tell from
@@ -242,6 +436,8 @@ def cut_cell(cell, pockets=True, haze=False, narrow=0, drop_dark=False, close=0,
     if matte is not None:
         rgba[matte, :3] = cell[matte, :3]
         rgba[matte, 3] = 255
+    if fade:
+        rgba = fade_light(rgba, cell, fade, fade_full or FADE_FULL, fade_band)
     if halo:
         rgba = hs.strip_halo(rgba, *hs.HALO_STRIP["brad"])
     if streaks:
@@ -323,9 +519,12 @@ def _cell_matte(spec, hero, action, facing, c, cell):
 
 def build(hero, action, spec):
     board = np.asarray(Image.open(hs.SRC % spec["src"]).convert("RGB"))
-    cols, i = spec["cols"], CELL_INSET
+    i = CELL_INSET
     cells = {}
-    for (top, bottom), facing in zip(spec["rows"], spec["facings"]):
+    for r, ((top, bottom), facing) in enumerate(zip(spec["rows"], spec["facings"])):
+        # ("cols": one list for the board, or one a row where the board
+        # rules no cells and the gaps between the frames wander.)
+        cols = spec["cols"][r] if isinstance(spec["cols"][0], (list, tuple)) else spec["cols"]
         for c in range(len(cols) - 1):
             cell = board[top + i:bottom - i + 1, cols[c] + i:cols[c + 1] - i + 1]
             # ("glow_frames": the frames the glow is drawn in; the rest, a
@@ -337,7 +536,9 @@ def build(hero, action, spec):
                                           glow, spec.get("glow_edge", 0),
                                           spec.get("streaks", False), spec.get("halo", False),
                                           spec.get("see_through", True), spec.get("grow", False),
-                                          spec.get("face", False), _cell_matte(spec, hero, action, facing, c, cell))
+                                          spec.get("face", False), _cell_matte(spec, hero, action, facing, c, cell),
+                                          spec.get("fade") if c in spec.get("fade_frames", range(c + 1)) else None,
+                                          spec.get("fade_full"), spec.get("fade_band", 0))
     n = len(cols) - 1
     # A facing the board does not draw, shown with another's frames ("copy":
     # {missing: drawn}; Brad's block from behind is his front, designer
@@ -372,6 +573,10 @@ def build(hero, action, spec):
     for (facing, c), (img, _) in cells.items():
         b0 = cells[(facing, 0)][1]
         anchor = ((b0[0] + b0[2]) / 2.0, float(b0[3]))   # the row's standing feet
+        # ("dx": a board with no cell rules sets its frames down unevenly; px
+        # a frame's figure sits further right in its cell than the row's
+        # first, measured on the board, so he stays put.)
+        anchor = (anchor[0] + spec.get("dx", {}).get(facing, [0] * n)[c], anchor[1])
         fs = spec.get("frame_scale", {}).get(facing)
         f = row_factor[facing] / (float(fs[c]) if fs else 1.0)
         sq = float(spec.get("squeeze", {}).get(facing, 1.0))
@@ -424,8 +629,11 @@ def build(hero, action, spec):
 
 
 def main():
+    # (Optionally only the boards named: python3 tools/cut_hero_actions.py brad:cast)
+    only = {tuple(a.split(":")) for a in sys.argv[1:]}
     for (hero, action), spec in ACTIONS.items():
-        build(hero, action, spec)
+        if not only or (hero, action) in only:
+            build(hero, action, spec)
 
 
 if __name__ == "__main__":

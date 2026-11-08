@@ -34,7 +34,7 @@ const ROSTER := {
 	# frame (from 1, as the board numbers them) on which the blow lands: the
 	# damage waits for it (hit_delay; Main holds the tick clock meanwhile).
 	# The basic Attack (card and auto attack) and Block (card and shield
-	# button).
+	# button), and the spell cast every Spell card plays (DRAWN_SPELL).
 	# The attacks play ~30% quicker than the blocks (designer, 2026-11-06:
 	# "a little slow making the attacks look a little choppy").
 	"Brad": {"board": "res://assets/sprites/generated/heroes/brad.png", "walk_rows": [0, 1, 2, 3],  # the warrior, the War Rack over his shoulder
@@ -46,6 +46,12 @@ const ROSTER := {
 			# front, the board having no back view).
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/brad_block.png",
 				"frames": 12, "rows": [0, 1, 2, 3], "t": 0.06, "hold": 0.5, "reverse": 0.035},
+			# The spell card cast: he draws a glowing card from his belt, flares
+			# up in fire and thrusts it out in a burst (frame 7). (Side on he
+			# draws it facing away and turns to thrust it at the target: the
+			# board's side rows turn round mid-cast, mapped by the thrust.)
+			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/brad_cast.png",
+				"frames": 8, "rows": [0, 1, 2, 3], "t": 0.05, "hit": 7},
 		}},
 	"Cory": {"board": "res://assets/sprites/generated/heroes/cory.png", "walk_rows": [0, 1, 2, 3],      # the hooded monk
 		"actions": {
@@ -54,6 +60,9 @@ const ROSTER := {
 			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/cory_attack.png", "frames": 10, "rows": [0, 1, 2, 3], "t": 0.04, "hit": 5},
 			# The energy field: a palm raised, a ring of blue force flares.
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/cory_block.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.065},
+			# The spell card cast: a runic circle, a swirl, the card rises in a
+			# red aura and a grinning shadow-face appears (frame 8).
+			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/cory_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.05, "hit": 8},
 		}},
 	"Stephen": {"board": "res://assets/sprites/generated/heroes/stephen.png", "walk_rows": [0, 1, 2, 3],  # the apex hunter, bow and axe on his back
 		"actions": {
@@ -62,6 +71,9 @@ const ROSTER := {
 			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/stephen_attack.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.042, "hold": 0.12, "hit": 7},
 			# The parry: two knives drawn and crossed with a flash, sheathed.
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/stephen_block.png", "frames": 7, "rows": [0, 1, 2, 3], "t": 0.065},
+			# The spell card cast: purple energy and a spectral bear surge, and
+			# the claws are released (frame 7).
+			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/stephen_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.05, "hit": 7},
 		}},
 	"Jeremy": {"board": "res://assets/sprites/generated/heroes/jeremy.png", "walk_rows": [0, 1, 2, 3],  # the cloaked skeleton
 		"actions": {
@@ -69,6 +81,9 @@ const ROSTER := {
 			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/jeremy_attack.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.042, "hit": 7},
 			# The bone wall rises, holds, and sinks back into the ground.
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/jeremy_block.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.06, "hold": 0.5, "reverse": 0.035},
+			# The spell card cast: spirit swirls, ghostly skulls rise behind
+			# him and one howls (frame 7), then fades.
+			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/jeremy_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.05, "hit": 7},
 		}},
 	"Ryan": {"board": "res://assets/sprites/generated/heroes/ryan.png", "walk_rows": [0, 1, 2, 3],      # the rogue outlaw
 		"actions": {
@@ -77,6 +92,9 @@ const ROSTER := {
 			"basic_attack": {"sheet": "res://assets/sprites/generated/heroes/ryan_attack.png", "frames": 12, "rows": [0, 1, 2, 3], "t": 0.032, "hit": 3},
 			# His block is a backflip, a full 360 out of harm's way.
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/ryan_block.png", "frames": 15, "rows": [0, 1, 2, 3], "t": 0.045},
+			# The spell card cast (the alchemist): the card becomes a flask set
+			# down in a ring, lifted, thrown up and bursting overhead (frame 8).
+			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/ryan_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.05, "hit": 8},
 		}},
 	# The dojo's ally training dummies wear the NPC-pack dog sheet (same
 	# 32px cell and S,E,N,W row order as the humanoid NPC sheets).
@@ -385,6 +403,13 @@ func _load_actions(actions: Dictionary) -> void:
 ## 2026-10-31: every card attack plays it, every block card too).
 const DRAWN_ALIAS := {"attack_slash": "basic_attack", "block": "basic_block"}
 
+## Every Spell card (Card.school SPELL: Fireball, Lady Luck, ...) plays the
+## hero's drawn spell cast (designer, 2026-11-08: each hero draws a glowing
+## card and casts it in his own effect), the card's own effect (ActionFX)
+## bursting on the cast's blow frame; the card resolves on that frame too,
+## as an attack does on its swing's (Main._card_swing).
+const DRAWN_SPELL := "spell_cast"
+
 
 ## The drawn action `action` plays as ("" when none).
 func _drawn_name(action: String) -> String:
@@ -470,13 +495,22 @@ func _make_sprite(cell: int, y: float, sort: float) -> Sprite3D:
 # FACADE VERBS (called by Player)
 # =============================================================
 
-func play_action(action: String, direction: int = CharacterAnimator.Direction.SOUTH) -> void:
+func play_action(action: String, direction: int = CharacterAnimator.Direction.SOUTH, spell: bool = false) -> void:
 	# Taking a blow is not a turn: the hero keeps the way he faces (and any
 	# swing he is in the middle of), only flashing and shaking.
 	if action.begins_with("hit") or action == "stunned":
 		play_hit()
 		return
 	set_facing(direction)
+	# A Spell card: the hero's drawn cast in place of the card's own body
+	# motion, the card's effect (if it has one) bursting on the blow frame.
+	if spell and has_drawn_action(DRAWN_SPELL):
+		_play(DRAWN_SPELL)
+		if _fx and ActionFX.handles(action):
+			_fx_on_blow(action, hit_delay(DRAWN_SPELL, facing))
+		elif action == "heal":
+			flash(Color(0.55, 1.0, 0.55))
+		return
 	# Bespoke per-card effects first: ActionFX supplies the signature visual
 	# (icicle, fireball, flying pig, …) and we play a matching body motion.
 	# The designer's drawn actions (Brad's basic attack and block, …).
@@ -506,6 +540,17 @@ func play_action(action: String, direction: int = CharacterAnimator.Direction.SO
 		# Casts, buffs, taunts, item use, … — a readable generic "do something".
 		flash(Color(1.0, 1.0, 0.8))
 		_bounce_fx()
+
+
+## A card's effect `wait` seconds on (the cast's blow frame), unless the
+## figure is gone by then.
+func _fx_on_blow(action: String, wait: float) -> void:
+	if wait <= 0.0 or not is_inside_tree():
+		_fx.play(action)
+		return
+	get_tree().create_timer(wait).timeout.connect(func() -> void:
+		if is_instance_valid(_fx):
+			_fx.play(action))
 
 
 func _is_attack(action: String) -> bool:

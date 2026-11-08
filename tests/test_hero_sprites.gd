@@ -146,12 +146,12 @@ func _initialize() -> void:
 	# Brad's drawn basic attack and block (2026-10-31): the action sprite
 	# plays the sheet (the body hidden), feet on the ground line, and gives
 	# the body back when done; facing north the block has no drawing, so
-	# the old guard plays.
+	# the old guard plays. And each hero's spell card cast (2026-11-08).
 	for hero in ["Brad", "Cory", "Jeremy", "Stephen", "Ryan"]:
 		var fig := SpriteFigure.new()
 		get_root().add_child(fig)
 		fig.setup(hero)
-		for action in ["basic_attack", "basic_block"]:
+		for action in ["basic_attack", "basic_block", SpriteFigure.DRAWN_SPELL]:
 			var a: Dictionary = fig._actions.get(action, {})
 			_check(not a.is_empty(), "%s has his drawn %s" % [hero, action])
 			if a.is_empty():
@@ -216,6 +216,40 @@ func _initialize() -> void:
 	fig2.play_action("hit")
 	_check(fig2._action_sprite.visible and fig2.facing == D.EAST, "nor cut his swing short")
 	fig2.free()
+	# Every Spell card plays the hero's drawn cast (2026-11-08), each way he
+	# faces, the card's own effect bursting on the cast's blow frame; a card
+	# that is not a spell keeps its own motion, and a figure with no cast
+	# drawn its old one.
+	var fireball := Card.create_by_id("fireball")
+	var lady_luck := Card.create_by_id("lady_luck")
+	_check(fireball.school == Card.CardSchool.SPELL and lady_luck.school == Card.CardSchool.SPELL,
+		"Fireball and Lady Luck are spells (an offensive one and a utility one)")
+	for hero in ["Brad", "Cory", "Jeremy", "Stephen", "Ryan"]:
+		var caster := SpriteFigure.new()
+		get_root().add_child(caster)
+		caster.setup(hero)
+		for d in [D.SOUTH, D.NORTH, D.EAST, D.WEST]:
+			_check(caster.has_drawn_action(SpriteFigure.DRAWN_SPELL, d), "%s has his spell cast drawn facing %d" % [hero, d])
+			for card in [fireball, lady_luck]:
+				caster.play_action(card.get_animation_action(), d, true)
+				_check(caster._action_sprite.visible and caster._frames[0].get("act", "") == SpriteFigure.DRAWN_SPELL
+					and caster.facing == d, "%s casts %s with his drawn cast facing %d" % [hero, card.card_name, d])
+				for _i in range(120):
+					caster._process(0.03)
+		var hit_frame: int = caster._actions[SpriteFigure.DRAWN_SPELL]["hit"]
+		_check(absf(caster.hit_delay(SpriteFigure.DRAWN_SPELL, D.EAST)
+				- (hit_frame - 1) * caster._actions[SpriteFigure.DRAWN_SPELL]["t"]) < 0.001 and hit_frame >= 7,
+			"%s's spell lands on his cast's blow (frame %d)" % [hero, hit_frame])
+		caster.play_action("basic_attack", D.EAST)
+		_check(caster._frames[0].get("act", "") == "basic_attack", "%s's attack is still his attack" % hero)
+		caster.free()
+	var plain := SpriteFigure.new()
+	get_root().add_child(plain)
+	plain.setup("Dog")
+	plain.play_action("fireball", D.EAST, true)
+	_check(plain._action_sprite == null and not plain.has_drawn_action(SpriteFigure.DRAWN_SPELL),
+		"a figure with no cast drawn keeps its old motion for a spell")
+	plain.free()
 	var slash := Card.create_by_id("slash")
 	var block := Card.create_by_id("block")
 	_check(slash.get_animation_action() == "basic_attack" and block.get_animation_action() == "basic_block",
