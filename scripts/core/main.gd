@@ -652,6 +652,8 @@ func _ready() -> void:
 	enemy_spawner.all_enemies_defeated.connect(_on_all_enemies_defeated)
 	enemy_spawner.loot_dropped.connect(_on_loot_dropped)
 	enemy_spawner.enemy_spawned.connect(_on_enemy_spawned_connect_debuffs)
+	# The hero pause: the clock waits while the hero's drawn action plays.
+	_wire_hero_pause(player)
 	
 	# Test UI
 	
@@ -738,6 +740,7 @@ func _ready() -> void:
 				p2_inv.equipment_changed.connect(_on_equipment_changed)   # the shared Block button follows both shields
 			_p2_player.tile_reached.connect(_on_player_tile_reached.bind(_p2_player))
 			_wire_marvolo_hooks(_p2_player)
+			_wire_hero_pause(_p2_player)
 			_p2_player.move_completed.connect(_on_player_move_completed)
 			# Enemies target the nearest living player; defeat needs both downed.
 			enemy_spawner.players = [_p1_player, _p2_player]
@@ -851,6 +854,24 @@ func get_mouse_world_position() -> Vector3:
 ## The swing hold: an enemy's attack swing is on screen for `seconds`, so
 ## the tick clock waits for it (plus a beat) before the next tick lands.
 func _on_enemy_swing_started(_enemy: Enemy, seconds: float) -> void:
+	if tempo_manager:
+		tempo_manager.hold_for(seconds + TempoManager.SWING_HOLD_BEAT)
+
+## The hero pause (designer, 2026-11-08: "add a pause for the character
+## animations so they are cleaner"): every drawn action a hero plays — the
+## attack (auto attack, Attack cards, Flash Cut), the block (button and
+## cards), the spell cast every Spell card plays — holds the tick clock for
+## its whole drawn length plus a beat, as an enemy's swing does, so the
+## next tick (and the next action restarting the figure) waits for it.
+## The co-op partner's figure is wired the same way. Under the swing hold's
+## switch ("Pause for animations" in Settings; hold_for does nothing when
+## it is off, and the sim turns it off). A hit wait's own hold (_after_hit)
+## is the same length, and holds take the longest, so nothing doubles.
+func _wire_hero_pause(hero: Player) -> void:
+	if hero and not hero.action_started.is_connected(_on_hero_action_started):
+		hero.action_started.connect(_on_hero_action_started)
+
+func _on_hero_action_started(_hero: Player, seconds: float) -> void:
 	if tempo_manager:
 		tempo_manager.hold_for(seconds + TempoManager.SWING_HOLD_BEAT)
 
@@ -4253,6 +4274,7 @@ func _on_sandbox_add_ally(char_name: String) -> void:
 	if _p2_player:
 		_p2_player.tile_reached.connect(_on_player_tile_reached.bind(_p2_player))
 		_wire_marvolo_hooks(_p2_player)
+		_wire_hero_pause(_p2_player)
 		_p2_player.move_completed.connect(_on_player_move_completed)
 		enemy_spawner.players = [_p1_player, _p2_player]
 		# Cover reactions: each partner can mitigate the other's damage.

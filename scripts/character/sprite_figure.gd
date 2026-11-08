@@ -495,7 +495,15 @@ func _make_sprite(cell: int, y: float, sort: float) -> Sprite3D:
 # FACADE VERBS (called by Player)
 # =============================================================
 
+## Seconds the drawn action the last play_action started runs (its frames,
+## hold and play back: action_time); 0 when that action drew nothing (a
+## fallback lunge or hop, a flash, taking a blow). Player reads it to hold
+## the tick clock while the action plays (designer, 2026-11-08).
+var last_action_time: float = 0.0
+
+
 func play_action(action: String, direction: int = CharacterAnimator.Direction.SOUTH, spell: bool = false) -> void:
+	last_action_time = 0.0
 	# Taking a blow is not a turn: the hero keeps the way he faces (and any
 	# swing he is in the middle of), only flashing and shaking.
 	if action.begins_with("hit") or action == "stunned":
@@ -505,6 +513,7 @@ func play_action(action: String, direction: int = CharacterAnimator.Direction.SO
 	# A Spell card: the hero's drawn cast in place of the card's own body
 	# motion, the card's effect (if it has one) bursting on the blow frame.
 	if spell and has_drawn_action(DRAWN_SPELL):
+		last_action_time = action_time(DRAWN_SPELL, facing)
 		_play(DRAWN_SPELL)
 		if _fx and ActionFX.handles(action):
 			_fx_on_blow(action, hit_delay(DRAWN_SPELL, facing))
@@ -515,6 +524,7 @@ func play_action(action: String, direction: int = CharacterAnimator.Direction.SO
 	# (icicle, fireball, flying pig, …) and we play a matching body motion.
 	# The designer's drawn actions (Brad's basic attack and block, …).
 	if has_drawn_action(action):
+		last_action_time = action_time(action, facing)
 		_play(_drawn_name(action))
 		return
 	if _fx and ActionFX.handles(action):
