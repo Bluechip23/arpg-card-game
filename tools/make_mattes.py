@@ -77,13 +77,13 @@ def hero_actions(session, remove, which) -> None:
 def hero_walks(session, remove, which) -> None:
     """Mattes for the hero walk boards that ask for them ("matte" in
     cut_hero_sprites.WALKS' or WALK_EXTRA's options: Brad's, whose War Rack
-    is dark wood on the board's dark ground; Stephen's sides, his dark
+    is dark wood on the board's dark ground, his side board's too; Stephen's sides, his dark
     trousers where his legs part): one a grid cell, padded with the cell's own
     ground colour, saved where cut_hero_sprites.hero_walk_matte_path reads."""
     import numpy as np
     import cut_hero_sprites as hs
     boards = [(hero, w) for hero, w in hs.WALKS.items()]
-    boards += [(hero, w) for hero, ws in hs.WALK_EXTRA.items() for w in ws]   # (Stephen's side boards)
+    boards += [(hero, w) for hero, ws in hs.WALK_EXTRA.items() for w in ws]   # (Stephen's, Brad's side boards)
     for hero, w in boards:
         opts = w[6] if len(w) > 6 else {}
         if not opts.get("matte") or (which and hero not in which):
@@ -94,8 +94,9 @@ def hero_walks(session, remove, which) -> None:
         for r, facing in enumerate(facings):
             if facing in skip:
                 continue
-            for c in range(len(xs) - 1):
-                cell = board[ys[r] + i:ys[r + 1] - i + 1, xs[c] + i:xs[c + 1] - i + 1]
+            y0, y1 = hs.walk_spans(ys)[r]
+            for c, (x0, x1) in enumerate(hs.walk_spans(xs)):
+                cell = board[y0 + i:y1 - i + 1, x0 + i:x1 - i + 1]
                 border = np.concatenate([cell[0], cell[-1], cell[:, 0], cell[:, -1]])
                 ground = np.median(border, axis=0).astype(np.uint8)
                 big = np.empty((cell.shape[0] + 2 * PAD, cell.shape[1] + 2 * PAD, 3), np.uint8)

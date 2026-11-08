@@ -25,7 +25,8 @@ const SEED := "res://assets/sprites/SeedcharacterBase"
 const ROSTER := {
 	# Every hero strides (their walk boards, 2026-10-31): "walk_rows" are
 	# the sheet rows whose columns 1.. hold a walk cycle (Stephen's east
-	# row from its own corrected board, tools/cut_hero_sprites.py WALK_EXTRA).
+	# row from its own corrected board, Brad's and Jeremy's east and west rows from
+	# their redrawn side boards: tools/cut_hero_sprites.py WALK_EXTRA).
 	# "actions": the designer's drawn actions (tools/cut_hero_actions.py),
 	# played in place of the fallback motion: the sheet, its frames, the
 	# rows it draws (S, N, E, W = 0-3), seconds a frame, and optionally a
