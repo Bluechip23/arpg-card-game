@@ -426,8 +426,8 @@ func _refresh() -> void:
 		mods.append("+2 pack aura")
 		total += 2
 	if _enemy.enemy_type == Enemy.EnemyType.BUGBEAR and _enemy.hits_taken == 0:
-		mods.append("+5 first strike (ready)")
-		total += 5
+		mods.append("+%d first strike (ready)" % Enemy.BUGBEAR_FIRST_STRIKE)
+		total += Enemy.BUGBEAR_FIRST_STRIKE
 	if _enemy.attack_reduction > 0:
 		mods.append("-%d worn down" % _enemy.attack_reduction)
 		total -= _enemy.attack_reduction

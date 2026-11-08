@@ -378,6 +378,9 @@ var next_melee_tempo_tax: int = 0
 
 # Movement actions, for the debuffs that tax or scramble movement (Slowed,
 # Inebriate) — mirrors how the same debuffs treat the player's moves.
+## Bugbear's First Strike: +8 damage while it has not been hit yet.
+const BUGBEAR_FIRST_STRIKE := 8
+
 const MOVEMENT_ACTIONS := {
 	"move": true, "hydra_move": true, "goblin_move": true, "scurry": true,
 	"scurry_away": true, "get_into_range": true, "flee": true, "roc_retreat": true,
@@ -3911,7 +3914,7 @@ func _try_wolf_bite(target_node: Node3D) -> bool:
 
 func _try_bugbear_strike(target_node: Node3D) -> bool:
 	# First Strike: if the player has not hit this bugbear yet, +8 damage.
-	var dmg := attack_damage + (8 if hits_taken == 0 else 0)
+	var dmg := attack_damage + (BUGBEAR_FIRST_STRIKE if hits_taken == 0 else 0)
 	return _try_elemental(target_node, dmg, "Strike")
 
 func _try_swoop(target_node: Node3D) -> bool:
