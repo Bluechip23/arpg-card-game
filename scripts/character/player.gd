@@ -144,9 +144,11 @@ func _setup_figure(data: CharacterData) -> void:
 	if label:
 		label.visible = false
 
-func play_animation(action: String, direction: CharacterAnimator.Direction = CharacterAnimator.Direction.SOUTH) -> void:
+## `spell`: a Spell card's (the hero's drawn cast plays, with the card's own
+## effect; SpriteFigure.DRAWN_SPELL).
+func play_animation(action: String, direction: CharacterAnimator.Direction = CharacterAnimator.Direction.SOUTH, spell: bool = false) -> void:
 	if _figure:
-		_figure.play_action(action, direction)
+		_figure.play_action(action, direction, spell)
 
 ## The way the figure faces now (CharacterAnimator.Direction).
 func get_facing() -> CharacterAnimator.Direction:
