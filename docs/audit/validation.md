@@ -72,7 +72,7 @@ The Town Hall is scenery (`town.gd _build_town_hall`).
 
 **New FLAGGED questions** from the unclear verdicts:
 1. **Cryonics / Friendship.** Is a summon an "ally" for these two? Both act on a hero's stats, so summons are refused for now. Also: in solo play with no partner, Friendship has no second ally.
-2. **Now You See Me.** "blinking, being swapped, or other non-standard movement": Roll and Heroic Leap count; Charge and the Repelled Block push do not. Should they?
+2. **Now You See Me.** "blinking, being swapped, or other non-standard movement": Roll and Heroic Leap count; Charge and the Repelled Block push do not. *Already ruled* (`docs/PASSIVE_REFERENCE.md`: "Roll and Heroic Leap count as displacements; Charge does not"). Only the Repelled Block push is still open.
 3. **Hallowed Trunk.** "Every 10 armor removed": only armor that hits take counts, not the 2-per-cycle armor decay. Should decay count?
 4. **Whispers of the Flock.** "When you heal an ally": only cards with a printed heal count. Communal Donation, Mend and Halo's per-cycle heals never grant the Mark. Should every heal count?
 5. **Mana units in card text** (Bloodlust, Anticipation, Fountain of Health, Armored Discipline, Cultish Wounds, Halo). "Gain 3 mana" adds 30 on the bar. This was already flagged in `wiring/cards_a.md`; the re-check found more cards with the same split.

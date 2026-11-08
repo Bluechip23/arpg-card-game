@@ -69,6 +69,11 @@ Detail pages:
   4. **"Drop below X%" triggers read the hit before armor.**
 - Single fixes: Exhausted Assault, Communal Donation, Donate Cleats (the loan no longer saves), Frankenstein's Screws.
 - **Suite after pass 2:** 226/229 pass. The same 3 failures predate the audit (`test_item_forge`, `test_sprite_imports`, `test_turtle_armor_anim`); the sim is still deterministic.
+- **The 22 OPEN bugs (designer go-ahead, 2026-11-08):**
+  - 21 fixed, with four `tests/test_open_fixes_*.gd` files. I Heal You keeps its recorded ruling.
+  - Your rulings are in: Ifrit's breath is a 6-tempo Channel, and the Ice Troll can queue Clobber (10 tempo). Djinn wishes already counted spells; a test now proves it.
+  - Also fixed: summons read as 0 health by enemies.
+  - Details in `pass2.md`.
 
 ### Deleted
 
@@ -93,7 +98,7 @@ The misses are concentrated in a few systems:
 - buffs meeting themselves;
 - bonuses written to fields a card never reads.
 
-Those are listed below as BLOCKED and FLAGGED with plans. 22 confirmed single bugs from the re-read are not fixed yet; they are listed in `pass2.md` under OPEN and are the next work item.
+Those are listed below as BLOCKED and FLAGGED with plans. The 22 confirmed single bugs from the re-read were then fixed (21; one is a recorded ruling), see `pass2.md`.
 
 ## Every FLAGGED and BLOCKED item
 
@@ -133,7 +138,7 @@ Those are listed below as BLOCKED and FLAGGED with plans. 22 confirmed single bu
 
 **Re-check, Phase 6** (`validation.md`):
 - Cryonics / Friendship and summons;
-- Now You See Me (Charge, the Repelled push);
+- Now You See Me (only the Repelled Block push; Charge is already ruled out);
 - Hallowed Trunk (armor decay);
 - Whispers of the Flock (which heals count);
 - mana units in card text.

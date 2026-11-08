@@ -131,14 +131,24 @@ code was altered in this pass to match; "Built" means the enemy or action did no
 
 1. The **Level column vs the level band** (0.1): keep the bands as player-level pacing, or should the sheet's
    1–10 become the band and the scaling be re-tuned?
+   **Answered (designer, 2026-11-08):** keep the bands as they are; a later pass may change it.
 2. **Async consequences** (0.1): Cerberus's Swipe/Roar starving, the Cobra's once-per-15 Bite, the Roc crawling at
    1 square per 3 tempo, the Demon's 8-tempo Attack. Intended, or should some of these be Sync?
+   *Follow-up (2026-11-08):* the designer asked how they starve, since Async actions fire at their own counts.
+   They do. What starves is the **Sync** actions beside them: a Sync action may only start on a tempo when
+   every Async clock is at 0 (this doc's rule). Cerberus's Bite (5) and Venom Tail (15) are both at 0 only
+   every 15 tempo, so Swipe (8) and Roar (12) can each start at most once per 15. The Cobra's Bite (6) waits
+   for Venom Spray (15) the same way. The Demon's Attack (5) waits for Mimic and Cuff (8). The Roc is no longer
+   affected: movement has been exempt since 2026-11-04. Open: keep the gate, or let Sync actions start
+   whatever the Async clocks are doing.
 3. Necromancer's Raise the Fallen: a risen Skeleton is treated as neither summon nor ally (it never rises again,
    its death costs him nothing) so corpses cannot chain forever; mimics, structures and the dummy never rise.
+   *(2026-11-08: noted by the designer, no change asked.)*
 4. Numbers the sheet leaves blank: Roc Dive Bomb damage; Snow Wraith Ice Blast tempo and range; Magma Spider web
    size / duration / cast tempo; Succubus and Mind Eater ranges; Net Throw range; Crypt Crawler Web and Collect Soul ranges (4);
    Release Soul Strengthen amount;
    Weregoat landing-stun length; Rat King Infest selection rule.
+   **Answered (designer, 2026-11-08):** numbers to come with a full monster pass.
 5. Ifrit "breath continues for 6 tempo"; Minotaur Bull Rush "1 cycle after landing" vs the code's 5–15; Ice Troll
    Clobber "10"; Wererat Scurry "away"; Grave Titan Smash "in front"; Djinn wishes per attack vs per hit.
    **Answered (designer, 2026-11-08):**
@@ -149,9 +159,12 @@ code was altered in this pass to match; "Built" means the enemy or action did no
    - Grave Titan (2026-11-08): Smash "in front" is a typo; single-target stands.
    - Djinn (2026-11-08): wishes are per hit, so spells are included; they already were, now proved by a test.
 6. Necromancer summon roster (the sheet says it is still owed).
+   *(2026-11-08)* The designer is working on it. Today his Summon (8 tempo) raises a Skeleton or a Zombie (a coin
+   flip, at most 3 alive), and Raise the Fallen turns his dead allies into Skeletons.
 7. Spawn tables: no Mountains, Underworld or Heavens zone exists yet, so every new enemy (and the Elemental Mages,
    Grave Titan, Spirit Collector, The Consumed, Hydra) is reachable only through the Enemy Lab / sandbox and the
    World 2+ "deep lord" rooms (Ifrit, Minotaur, Djinn).
+   **Answered (designer, 2026-11-08):** fine for now; those worlds will be built later.
 
 ---
 
