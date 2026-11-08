@@ -2084,7 +2084,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			pass
 		"reverberate_regrowth", "curse_of_the_living":
 			# Maintained shield powers: the Bastion's echo fires off the
-			# armor_broken signal and the Curse rides every heal(). Playing them
+			# armor_broken_through signal and the Curse rides every heal(). Playing them
 			# only puts them into maintenance.
 			pass
 		"mage_shield":
@@ -3978,12 +3978,37 @@ func _execute_mirror_mirror(deck_manager = null) -> void:
 		return
 	var src = picked_card if picked_card and picked_card in candidates else candidates[randi() % candidates.size()]
 	picked_card = null
-	var dup = deck_manager._create_card_from_id(src.card_id)
+	# "Duplicate a card": a copy of this very instance (rank-scaled numbers,
+	# the item slot it rides), not a fresh catalogue card.
+	var dup = src.duplicate_instance()
 	if dup:
 		dup.erase_tempo = 5
 		dup.erase_tempo_remaining = 5
 		deck_manager.add_card_to_hand(dup)
 		print("[CARD] Mirror Mirror: duplicated %s (Erase 5)" % src.card_name)
+
+## Fields a duplicate starts fresh on: the source's play-time picks and
+## rolls, its jail, its hand age — the things that belong to one play or one
+## stay in the hand, not to what the card is.
+const _DUPLICATE_RESETS := ["picked_card", "picked_cards", "picked_ally", "premeditated_target",
+	"rt_chosen_debuff", "rng_outcomes", "rng_effective_chance", "rng_roll_tempo",
+	"rng_selected_index", "last_damage_dealt", "pending_life_swap", "last_percent_mana_paid",
+	"snap_uses_at_play", "consecutive_uses", "jail_time_remaining", "cycles_in_hand"]
+
+## A true duplicate of this card instance (Mirror Mirror): every field as it
+## stands — exported values and meta via Resource.duplicate, plus the script
+## state duplicate() skips (the item it is slotted in or granted by, its
+## enhancement, burden, in-hand tweaks) — as a separate card.
+func duplicate_instance() -> Card:
+	var dup: Card = duplicate(true)
+	for p in get_property_list():
+		if not (p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE) or (p.usage & PROPERTY_USAGE_STORAGE):
+			continue  # exported fields came over with duplicate()
+		if p.name == "card_keyword" or p.name in _DUPLICATE_RESETS:
+			continue  # card_keyword is a view of the exported slot_labels
+		var v = get(p.name)
+		dup.set(p.name, v.duplicate() if (v is Array or v is Dictionary) else v)
+	return dup
 
 func _execute_harness_lightning(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Create lightning orb effect - handled by main.gd
@@ -4079,7 +4104,9 @@ func _execute_savage_strike(target, is_empowered: bool, player_stats: PlayerStat
 	## discard pile. The copy already carries Erase 20 from its create function.
 	_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 	if add_copy and deck_manager:
-		deck_manager.add_card_to_deck_from_id("savage_strike_copy", false)
+		# "Add a copy of this card to your discard pile" — every play, past
+		# the deck-building copy cap (the copies Erase themselves).
+		deck_manager.add_card_to_deck_from_id("savage_strike_copy", false, true)
 		print("[CARD] Savage Strike! Added a fragile copy (Erase 20) to discard")
 
 func _execute_shield_slam(target, player_stats: PlayerStats) -> void:

@@ -177,7 +177,7 @@ var marked_tempo: int = 0      # Remaining tempo for mark
 const MARKED_BONUS_PERCENT := 15  # Mark: the player's attacks deal +15% to a marked target
 var is_silenced: bool = false  # Cannot cast spells/ranged special attacks when silenced
 var silenced_tempo: int = 0    # Remaining tempo cycles for silence
-var choke_dot_stacks: int = 0  # Choke: take choke_dot_damage per cycle, lose 1 stack per cycle
+var choke_dot_stacks: int = 0  # Choke: take choke_dot_damage per stack at the next cycle, then clear
 var choke_dot_damage: int = 3  # Set at cast (Choke sets a flat 2)
 var cold_stacks: int = 0       # Cold stacks - at 5, becomes frozen; thaws COLD_THAW_PER_CYCLE per cycle
 const COLD_THAW_PER_CYCLE := 3
@@ -1867,14 +1867,15 @@ func _tick_stack_clock(key: String, stack_field: String, clock: int, amount: int
 	return clock
 
 func _tick_status_durations() -> void:
-	# Choke: deal the caster's half-auto-attack damage per cycle, lose 1 stack
+	# Choke: "deal 2 damage at the next cycle" — every stack (one per use)
+	# lands this cycle, so a 2nd/3rd Sticky use isn't a cycle or two late.
 	if choke_dot_stacks > 0:
-		_dot_hit("Choke", choke_dot_damage, "%d tick(s) left" % (choke_dot_stacks - 1))
-		print("[%s] Choke deals %d damage (%d stacks left)" % [enemy_name, choke_dot_damage, choke_dot_stacks - 1])
-		choke_dot_stacks -= 1
-		if choke_dot_stacks <= 0:
-			print("[%s] Choke expired" % enemy_name)
-			debuff_expired.emit(self, "choke")
+		var choke_hits := choke_dot_stacks
+		choke_dot_stacks = 0
+		for i in choke_hits:
+			_dot_hit("Choke", choke_dot_damage)
+		print("[%s] Choke deals %d x%d damage" % [enemy_name, choke_dot_damage, choke_hits])
+		debuff_expired.emit(self, "choke")
 
 	# Burn: deal doubling damage each cycle (1, 2, 4, 8...)
 	if burn_stacks > 0:
@@ -8133,8 +8134,8 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			desc = "Cannot cast spells."
 			remaining = "Remaining: %d tempo" % silenced_tempo
 		"Choke":
-			desc = "Takes %d damage at the end of each cycle." % choke_dot_damage
-			remaining = "Ticks left: %d" % choke_dot_stacks
+			desc = "Takes %d damage per stack at the next cycle." % choke_dot_damage
+			remaining = "Stacks: %d" % choke_dot_stacks
 		"Exposed":
 			desc = "Its armor was broken through — a hit got past it. Once Exposed, it can't be Exposed again for %d tempo." % EXPOSED_COOLDOWN
 			remaining = "Until it gains armor again"

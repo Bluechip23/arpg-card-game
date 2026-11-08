@@ -3776,6 +3776,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().attack_fully_blocked.connect(_on_attack_fully_blocked)
 	player.get_debuff_manager().debuff_removed.connect(_on_player_debuff_removed)
 	player.get_stats().armor_broken.connect(_on_player_armor_broken)
+	player.get_stats().armor_broken_through.connect(_on_player_armor_broken_through)
 	player.get_stats().armor_gained.connect(_on_armor_gained_spiked)
 	player.get_stats().curse_of_the_living_shared.connect(_on_curse_of_the_living_shared)
 	if player.get_inventory():
@@ -5200,9 +5201,12 @@ const RELEASE_TENSION_DEBUFFS := [
 	["disarm", "disarmed_tempo", "is_disarmed"], ["mark", "marked_tempo", "is_marked"],
 	["frozen", "frozen_tempo", "is_frozen"], ["root", "rooted_tempo", ""],
 	["tripped", "tripped_tempo", ""], ["curse", "cursed_tempo", ""],
+	# "any debuff": every kind Enemy.apply_debuff can put on, these two included.
+	["polymorph", "polymorph_tempo", ""], ["narashimha", "narashimha_tempo", ""],
 ]
 const RT_TIMED_FIELDS := ["stun_tempo", "silenced_tempo", "disarmed_tempo", "marked_tempo",
-	"frozen_tempo", "rooted_tempo", "tripped_tempo", "cursed_tempo"]
+	"frozen_tempo", "rooted_tempo", "tripped_tempo", "cursed_tempo",
+	"polymorph_tempo", "narashimha_tempo"]
 
 func _show_release_tension_picker(card: Card, enemy) -> void:
 	## Let the player choose which debuff to drain from the enemy.
@@ -7910,17 +7914,16 @@ func _stun_nearest_enemy(within: float) -> void:
 
 func _harness_lightning_tick() -> void:
 	## Harness Lightning orb: zap a random living enemy within 3 tiles for 4.
-	if not enemy_spawner:
+	if not enemy_spawner or not grid_manager:
 		return
-	var in_range: Array = []
-	for en in enemy_spawner.get_living_enemies():
-		if player.position.distance_to(en.position) <= 3.0:
-			in_range.append(en)
-	if in_range.size() > 0:
+	# "within 3 spaces": grid steps, like every other "within N" (not a 3D
+	# world distance, which cut diagonals and height short).
+	var victim = _random_enemy_within(3)
+	if victim:
 		# 4 base, through the INT spell pipeline.
 		var hl_stats := player.get_stats()
 		var hl_dmg: int = hl_stats.get_effective_spell_damage(4) if hl_stats else 4
-		in_range[randi() % in_range.size()].take_damage(hl_dmg, true)
+		victim.take_damage(hl_dmg, true)
 
 func _cryonics_heal(p, poisoned: bool = false) -> void:
 	if is_instance_valid(p) and p.get_stats():
@@ -11826,7 +11829,8 @@ func _on_player_debuff_removed(_debuff) -> void:
 ## cooldown (PlayerStats.try_expose is the one gate — a break inside the
 ## 10-tempo window never reaches here). Everything that reacts to Exposed
 ## hangs off this: Briarhide Plate / Adimantium, on_exposed reactions
-## (Vengeful Shield), Reverberate Regrowth.
+## (Vengeful Shield). Reverberate Regrowth hangs off every break instead
+## (_on_player_armor_broken_through).
 func _on_player_armor_broken() -> void:
 	if player and player.get_inventory():
 		player.get_inventory().on_player_exposed()
@@ -11838,8 +11842,11 @@ func _on_player_armor_broken() -> void:
 			_fire_instant_site_effect(rcard, {"target": stats.last_attacker})
 		if exposed_reactions.size() > 0:
 			_refresh_unit_tracker()
-	# Reverberate Regrowth (Steve Rodgers, maintained): the armor that hit ate
-	# comes back 5 tempo later. Only one debt is carried at a time.
+
+## Reverberate Regrowth (Steve Rodgers, maintained): "when your armor is
+## broken through, the armor that hit ate comes back 5 tempo later" — every
+## break, Exposed cooldown or not, each with its own return queued.
+func _on_player_armor_broken_through() -> void:
 	if not player or not deck_manager or not deck_manager.has_method("get_maintained_cards"):
 		return
 	var rr_stats := player.get_stats()
@@ -11847,8 +11854,7 @@ func _on_player_armor_broken() -> void:
 		return
 	for rr in deck_manager.get_maintained_cards():
 		if rr and rr.card_id == "reverberate_regrowth":
-			rr_stats.pending_armor_return = rr_stats.last_exposed_armor
-			rr_stats.pending_armor_return_tempo = 5
+			rr_stats.pending_armor_returns.append({"armor": rr_stats.last_exposed_armor, "tempo": 5})
 			add_battle_log("Reverberate Regrowth: %d armor will echo back in 5 tempo" % rr_stats.last_exposed_armor,
 				Color(0.6, 0.75, 1.0))
 			return
@@ -13103,6 +13109,8 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 						target.set(rt[1], 0)
 						if rt[2] != "":
 							target.set(rt[2], false)
+						if rt[1] == "narashimha_tempo":
+							target.set("narashimha_heal_cap", -1)  # the heal ceiling goes with it
 					else:
 						target.set(rt[1], int(v) - 1)
 					if target.has_method("_update_status_indicators"):
@@ -14018,7 +14026,7 @@ func _input(event: InputEvent) -> void:
 						var range_type := "ranged" if card.is_ranged else "melee"
 						var dist := _get_distance_to_target(enemy)
 						if card.is_ranged:
-							var max_r := card.get_effective_range()
+							var max_r := _ranged_card_max_range(card)  # the reach the check used
 							add_battle_log("Out of range! %s is %d tiles away (max range: %d)" % [enemy.enemy_name, dist, max_r], Color(1.0, 0.4, 0.4))
 						else:
 							add_battle_log("Out of melee range! %s is %d tiles away (need adjacent)" % [enemy.enemy_name, dist], Color(1.0, 0.4, 0.4))
@@ -14095,8 +14103,11 @@ func _input(event: InputEvent) -> void:
 					var pc_capped: bool = card.card_id == "blink" \
 							or (card.is_ranged and card.range_modifier < Card.INFINITE_RANGE \
 								and (not card.is_aoe or _aoe_follows_cursor(card)))
-					if pc_capped and pc_dist > card.get_effective_range():
-						add_battle_log("Out of range! %s reaches %d spaces." % [card.card_name, card.get_effective_range()], Color(1.0, 0.4, 0.4))
+					# The helm / 20/20 range ("+3 range on all ranged offensive
+					# cards") counts here as the range ring shows it.
+					var pc_reach: int = card.get_effective_range() + _helm_range_bonus(card)
+					if pc_capped and pc_dist > pc_reach:
+						add_battle_log("Out of range! %s reaches %d spaces." % [card.card_name, pc_reach], Color(1.0, 0.4, 0.4))
 					else:
 						play_selected_card(player)
 				elif "enemy" in tt:
@@ -14780,6 +14791,10 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 
 	# Debuff checks - quiver cards are always attacks
 	if _stun_refuses("play %s" % card.card_name):
+		return
+	# Lead Arrow: "Requires high ground" — from the quiver as from the hand.
+	if card.requires_high_ground and not _has_high_ground(player.position, target):
+		add_battle_log("%s needs high ground over the target." % card.card_name, Color(1.0, 0.4, 0.4))
 		return
 	if debuff_mgr:
 		if not debuff_mgr.can_play_cards():

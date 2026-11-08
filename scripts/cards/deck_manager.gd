@@ -1338,11 +1338,13 @@ func can_add_copy(card_id: String) -> bool:
 		return false
 	return true
 
-func add_card_to_deck_from_id(card_id: String, to_draw_pile: bool = true) -> bool:
+func add_card_to_deck_from_id(card_id: String, to_draw_pile: bool = true, ignore_copy_cap: bool = false) -> bool:
 	## Creates a card from its ID and shuffles it into the DRAW pile — "shuffle
 	## into your deck" always means the draw pile unless a card says "discard
-	## pile" (pass to_draw_pile = false for those).
-	if not can_add_copy(card_id):
+	## pile" (pass to_draw_pile = false for those). `ignore_copy_cap`: the
+	## rarity copy limit is a deck-building rule; a card whose own text adds a
+	## copy mid-fight (Savage Strike) adds it regardless.
+	if not ignore_copy_cap and not can_add_copy(card_id):
 		print("[DECK] Copy limit reached for %s (%d max) — not added" % [card_id, Card.max_deck_copies(card_id)])
 		return false
 	var card = _create_card_from_id(card_id)

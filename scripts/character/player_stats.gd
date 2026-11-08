@@ -81,6 +81,10 @@ static func apply_cover(victim, amount: int) -> int:
 var friendship_partner: PlayerStats = null
 var friendship_partner_debuff = null
 var friendship_partner_buff = null
+# This player's own BuffManager (set by BuffManager.initialize): hits that
+# arrive without one (DoT ticks, item and world damage) still see buffs that
+# key off "all damage done to you" (Shield of Growth).
+var own_buff_manager = null
 var _friendship_echo: bool = false
 
 # Skill-tree passives needing runtime state:
@@ -378,7 +382,8 @@ var damage_proc_reduction_percent: float = 50.0
 var equipment_block_physical_resist: float = 0.0  # +% physical resist while armor is up (Smithed Excellence)
 var equipment_resist_per_missing10: float = 0.0   # +% all-resist per missing-health step (Divine Resistance)
 var equipment_resist_missing_step: int = 10       # % of missing health per resist grant (Divine Resistance 8, Lv3 7)
-signal armor_broken                               # a hit just broke through your armor and Exposed you (off cooldown): chests, Reverberate Regrowth, on_exposed reactions
+signal armor_broken                               # a hit just broke through your armor and Exposed you (off cooldown): chests, on_exposed reactions
+signal armor_broken_through                       # ANY hit broke through your armor, Exposed or not (Reverberate Regrowth); last_exposed_armor holds what it ate
 signal curse_of_the_living_shared(amount: int)    # Coffin Lid: heal every ally by this much
 var equipment_gold_gain_heal: int = 0             # heal X whenever gold is gained (Suit and Tie)
 var equipment_hp_diff_divisor: int = 0            # health-gap bonus damage divisor, 0 = off (Tigers Sunday Red)
@@ -431,8 +436,7 @@ var temp_mana_tempo_remaining: int = 0            # tempo left on the temp-mana 
 var pending_mana_ward: bool = false               # Mind over Matter: next hit is halved and paid out of mana
 var last_exposed_armor: int = 0                   # armor the most recent armor-breaking hit ate
 var exposed_cooldown_tempo: int = 0               # raw tempo before a break can Expose this player again (each co-op player has their own)
-var pending_armor_return: int = 0                 # Reverberate Regrowth: armor owed back after an Exposed hit
-var pending_armor_return_tempo: int = 0           # raw tempo until that armor reverberates back
+var pending_armor_returns: Array = []             # Reverberate Regrowth: one {"armor", "tempo"} per break, each owed back on its own 5-tempo timer
 # Ranged pass
 var improvised_ammo_crit_bonus: float = 0.0       # Wrist Rocket: +% crit on Improvised Ammo, banked by discards; cumulative — never resets
 var bow_instance_count: int = 0                   # Bow of Budding Blasts: living bow summons (main keeps this current)
@@ -1691,12 +1695,18 @@ func process_tempo(amount: int) -> void:
 		shadow_form_tempo = max(0, shadow_form_tempo - amount)
 		if shadow_form_tempo <= 0:
 			exit_shadow_form()
-	# Reverberate Regrowth: the armor the Exposed hit ate comes back on time.
-	if pending_armor_return > 0:
-		pending_armor_return_tempo = max(0, pending_armor_return_tempo - amount)
-		if pending_armor_return_tempo <= 0:
-			var echoed: int = pending_armor_return
-			pending_armor_return = 0
+	# Reverberate Regrowth: each break's armor comes back on its own timer.
+	if not pending_armor_returns.is_empty():
+		var still_owed: Array = []
+		var echoed := 0
+		for ret in pending_armor_returns:
+			ret["tempo"] = maxi(0, int(ret["tempo"]) - amount)
+			if int(ret["tempo"]) <= 0:
+				echoed += int(ret["armor"])
+			else:
+				still_owed.append(ret)
+		pending_armor_returns = still_owed
+		if echoed > 0:
 			add_armor(echoed)
 			print("[STATS] Reverberate Regrowth: %d armor echoes back" % echoed)
 	# Temporary mana (Bouncing Shield) runs on raw tempo, like the ring timers.
@@ -1814,6 +1824,10 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 		_friendship_echo = false
 		friendship_partner._friendship_echo = false
 
+	# Shield of Growth grows by the damage the hit does to you — read before
+	# Mind over Matter turns part of it into mana.
+	var growth_amount := amount
+
 	# Mind over Matter (Presence of Mind): the armed hit is halved and what is
 	# left is paid out of the mana pool, point for point. Mana that can't cover
 	# it lets the remainder through the normal pipeline — the ward is spent
@@ -1829,6 +1843,7 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 		print("[STATS] Mind over Matter: %d damage paid in mana, %d left over" % [ward_paid, amount])
 		if amount <= 0:
 			# The blow still landed as far as reaction cards are concerned.
+			_grow_shield_of_growth(growth_amount, buff_mgr)
 			damage_taken.emit(ward_incoming)
 			return
 
@@ -1938,9 +1953,10 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 			# The armor is gone either way; whether that is an Exposed (and
 			# sets off what reacts to one) is the cooldown's call.
 			armor_broke = try_expose()
-			if armor_broke:
-				# Reverberate Regrowth reads what the breaking hit actually ate.
-				last_exposed_armor = armor_before
+			# Reverberate Regrowth reads what the breaking hit actually ate —
+			# on every break, Exposed or not ("when your armor is broken through").
+			last_exposed_armor = armor_before
+			armor_broken_through.emit()
 
 		# Hallowed Trunk: bank the armor THIS hit removed. Computed before the
 		# armor_broken reaction below, whose fresh armor (Briarhide/Adimantium)
@@ -1953,8 +1969,8 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 
 		if armor_broke:
 			# Exposed: the one event every on-expose consumer hangs off
-			# (Briarhide / Adimantium, Reverberate Regrowth, on_exposed
-			# reactions — see main._on_player_armor_broken). The reaction
+			# (Briarhide / Adimantium, on_exposed reactions — see
+			# main._on_player_armor_broken). The reaction
 			# armor arrives AFTER this hit resolves.
 			armor_broken.emit()
 
@@ -1999,9 +2015,7 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 
 	# Shield of Growth: while the buff holds, all damage done to you grows your
 	# armor by the same amount (the armor lands AFTER the hit resolves).
-	if buff_mgr and amount > 0 and buff_mgr.get_buff(Buff.BuffType.SHIELD_OF_GROWTH):
-		add_armor(amount)
-		print("[STATS] Shield of Growth: +%d armor from the hit" % amount)
+	_grow_shield_of_growth(growth_amount, buff_mgr)
 
 	# Emit damage_taken for reaction card triggers
 	damage_taken.emit(amount)
@@ -2031,6 +2045,17 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 	# Blood Libation: gain a Sanguine stack whenever Jeremy takes damage.
 	if has_skill_tree_passive("blood_libation"):
 		sanguine_stacks = min(5, sanguine_stacks + 1)
+
+## Shield of Growth: "all damage done to you increases your armor count" —
+## every hit through take_damage, DoT ticks included: a hit that came without
+## a buff manager reads this player's own.
+func _grow_shield_of_growth(amount: int, buff_mgr = null) -> void:
+	var sog_mgr = buff_mgr if buff_mgr else own_buff_manager
+	if amount <= 0 or sog_mgr == null or not is_instance_valid(sog_mgr):
+		return
+	if sog_mgr.get_buff(Buff.BuffType.SHIELD_OF_GROWTH):
+		add_armor(amount)
+		print("[STATS] Shield of Growth: +%d armor from the hit" % amount)
 
 ## Marvolo Gaunt: if lethal damage just landed and the ring is equipped and
 ## off cooldown, survive at 1 HP, become untouchable for 3 tempo, and heal 25.

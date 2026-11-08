@@ -29,6 +29,10 @@ func initialize(stats = null, owner: Node3D = null) -> void:
 	owner_stats = stats
 	owner_node = owner
 	buffs.clear()
+	# Let the stats find their own buffs on hits that arrive without a buff
+	# manager (DoT ticks): Shield of Growth reads it.
+	if stats != null and "own_buff_manager" in stats:
+		stats.own_buff_manager = self
 
 func connect_debuff_manager(dm) -> void:
 	debuff_manager = dm
