@@ -24,6 +24,7 @@ var enchanted_quiver_charges: int = 0  # Next N ranged attacks create a free arr
 var tighten_string_charges: int = 0  # Next N ranged attacks: +3 tempo, +6 dmg, +6 range, +20% crit
 var last_crit_hit: bool = false      # Set true when roll_crit succeeds, cleared after checking
 var crit_hits: int = 0               # Crits rolled since main last zeroed it (a card's hits each count — Eye Scrape)
+var strengthened_hits: int = 0       # Hits that drew a Strengthen bonus, ever (Cyclops Ring reads the change per hit)
 
 func initialize(stats = null, owner: Node3D = null) -> void:
 	owner_stats = stats
@@ -617,6 +618,8 @@ func consume_strengthen() -> int:
 		bonus += strengthen.value
 		if strengthen.use_charge():
 			remove_buff_instance(strengthen)
+	if bonus > 0:
+		strengthened_hits += 1
 	return bonus
 
 func get_enlightened_crit_chance() -> int:

@@ -600,6 +600,8 @@ func _ready() -> void:
 	deck_manager.reaction_triggered.connect(_arm_lethal_recall)
 	deck_manager.reaction_triggered.connect(func(c): progression_triggers._trigger_skill_tree_on_instant(c))
 	deck_manager.reaction_triggered.connect(_slotted_instant_fired)  # Boot Holsters
+	# Phoenix Feather: an instant firing is a play of its own — its Burn singes anew.
+	deck_manager.reaction_triggered.connect(_phoenix_new_play)
 	deck_manager.card_drawn.connect(_on_card_drawn_sphere_passive)
 	# Endured Tolerance's Erase fuse waits while the player is Glutted.
 	deck_manager.glut_active = func() -> bool: return glut_tempo_remaining > 0
@@ -6156,9 +6158,26 @@ func _on_enemy_attacking_player(_enemy: Enemy, victim = null) -> void:
 func _on_enemy_attacked_player(enemy: Enemy, victim = null) -> void:
 	if victim != null and victim != player:
 		return  # "when an enemy attacks you": not the partner, not a dojo ally
+	_note_axe_hit_streak()
 	progression_triggers._trigger_skill_tree_brad_on_attacked(enemy)
 	progression_triggers._trigger_skill_tree_stephen_on_attacked(enemy)
 	progression_triggers._trigger_skill_tree_jeremy_on_enemy_attacked(enemy)
+
+## Axe's Axe: "after you are hit 5 times" — an enemy's blow landing on you
+## (attacked_player), not a damage-over-time tick or a cost you pay yourself.
+## Five wind the Death Vortexes: every copy in hand spins at once; a copy
+## that kills climbs back into the hand.
+func _note_axe_hit_streak() -> void:
+	var hs_stats := player.get_stats() if player else null
+	if hs_stats == null:
+		return
+	hs_stats.hit_streak = mini(5, hs_stats.hit_streak + 1)
+	if hs_stats.hit_streak >= 5 and deck_manager and enemy_spawner:
+		var vortexes := deck_manager.trigger_reactions("on_hit_streak_5")
+		if vortexes.size() > 0:
+			hs_stats.hit_streak = 0
+			for dv_card in vortexes:
+				_fire_instant_site_effect(dv_card, {})
 
 func _on_enemy_killed(enemy: Enemy) -> void:
 	print("[MAIN] Enemy killed: %s (XP: %d)" % [enemy.enemy_name, enemy.xp_reward])
@@ -9627,6 +9646,10 @@ func _helm_range_bonus(card) -> int:
 ## within 3 squares." Instants never go through a play (deck_manager refuses
 ## them; they fire from the hand), so the rider hangs off reaction_triggered —
 ## the one signal every way an instant fires emits.
+## Phoenix Feather: "once per play" — an instant firing starts a play of its own.
+func _phoenix_new_play(_card: Card) -> void:
+	_phoenix_singed_this_play = false
+
 func _slotted_instant_fired(card: Card) -> void:
 	if card == null or card.slotted_in_item == null or not player or not enemy_spawner or not grid_manager:
 		return
@@ -10212,6 +10235,7 @@ func _on_specter_died(sp, killed: bool) -> void:
 	var killer = sp.last_attacker
 	if killer != null and is_instance_valid(killer) and killer.has_method("take_damage") and not bool(killer.get("is_dead")):
 		killer.take_damage(sp.death_damage, true)
+		_belthronding_share(sp.position, sp.death_damage)  # an ally's damage like any other summon's
 		add_battle_log("Seance: the Specter is destroyed — %d damage to %s!" % [sp.death_damage, killer.enemy_name if "enemy_name" in killer else "its killer"], Color(0.7, 0.5, 1.0))
 
 func _update_specters(amount: int) -> void:
@@ -11349,6 +11373,7 @@ func _on_custom_ring_fired(ring: ItemData, kind: String, value: int) -> void:
 		"cyclops_strengthen":
 			buff_mgr.apply_buff(Buff.create_strengthen(value, 2, ring.item_name))
 			ring.ring_counters["empowered"] = 2  # the ring's own hits sit out of the counter
+			ring.ring_counters["str_mark"] = buff_mgr.strengthened_hits  # strengthened hits are counted from here
 			add_battle_log("The Cyclops Ring swells: Strengthen %d for 2 hits." % value, Color(1.0, 0.6, 0.4))
 		"thomas_regen":
 			buff_mgr.apply_buff(Buff.create_regen(value, 15, ring.item_name))
@@ -11615,14 +11640,23 @@ func _on_player_buff_applied_ring(buff: Buff) -> void:
 
 ## Cyclops Ring: a single player hit of 25+ counts. Only the ring's OWN two
 ## empowered hits are excluded — a Strengthen from any other source counts
-## fine. The exclusion is tracked as a 2-hit counter set when the ring fires.
+## fine. "The strengthened hits don't feed the counter": a hit sits out only
+## when it actually drew Strengthen (BuffManager.strengthened_hits moved) while
+## the ring's two charges are out — a spell, which neither spends nor gains
+## Strengthen, feeds the counter as usual and leaves the charges waiting.
 func _ring_note_big_hit(damage: int) -> void:
-	if damage <= 0 or player == null or player.get_inventory() == null:
+	if player == null or player.get_inventory() == null:
 		return
+	var rn_bm := player.get_buff_manager()
 	for r in player.get_inventory().equipped_rings:
-		if r != null and r.item_name == "Cyclops Ring" and int(r.ring_counters.get("empowered", 0)) > 0:
-			r.ring_counters["empowered"] = int(r.ring_counters["empowered"]) - 1
-			return
+		if r != null and r.item_name == "Cyclops Ring" and int(r.ring_counters.get("empowered", 0)) > 0 and rn_bm:
+			var spent: int = rn_bm.strengthened_hits - int(r.ring_counters.get("str_mark", rn_bm.strengthened_hits))
+			r.ring_counters["str_mark"] = rn_bm.strengthened_hits
+			if spent > 0:
+				r.ring_counters["empowered"] = maxi(0, int(r.ring_counters["empowered"]) - spent)
+				return
+	if damage <= 0:
+		return
 	if damage < 25:
 		return
 	player.get_inventory().on_player_big_hit()
@@ -13172,7 +13206,7 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 
 		"cupids_golden_arrow":
 			# Cupids Bow: 2 Vulnerable always; 50% (pre-rolled) taunt; golden mark.
-			if target and is_instance_valid(target):
+			if target and is_instance_valid(target) and not card.blind_missed:  # a Blind miss never struck it
 				if target.has_method("apply_debuff"):
 					target.apply_debuff("vulnerable", 2)
 				if card.rng_binary_succeeded() and target.has_method("apply_taunt"):
@@ -13183,7 +13217,7 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 
 		"cupids_lead_arrow":
 			# Cupids Bow: 2 Weaken always; 50% (pre-rolled) fear; lead mark.
-			if target and is_instance_valid(target):
+			if target and is_instance_valid(target) and not card.blind_missed:  # a Blind miss never struck it
 				if target.has_method("apply_debuff"):
 					target.apply_debuff("weaken", 2)
 				if card.rng_binary_succeeded() and target.has_method("apply_fear"):
@@ -14785,6 +14819,7 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 	var stats := player.get_stats()
 	if not stats:
 		return
+	_phoenix_singed_this_play = false  # Phoenix Feather backlash: once per play (Quiver / Manifest plays too)
 
 	var buff_mgr := player.get_buff_manager()
 	var debuff_mgr := player.get_debuff_manager()
@@ -15897,15 +15932,6 @@ func _on_player_damage_taken(_amount: int) -> void:
 				fitp_card.execute(null, tr_stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
 			if fitp.size() > 0:
 				_refresh_unit_tracker()
-		# Axe's Axe: five hits taken wind the Death Vortexes — every copy in
-		# hand spins at once; a copy that kills climbs back into the hand.
-		tr_stats.hit_streak = mini(5, tr_stats.hit_streak + 1)
-		if tr_stats.hit_streak >= 5 and deck_manager and enemy_spawner:
-			var vortexes := deck_manager.trigger_reactions("on_hit_streak_5")
-			if vortexes.size() > 0:
-				tr_stats.hit_streak = 0
-				for dv_card in vortexes:
-					_fire_instant_site_effect(dv_card, {})
 		# Psionic Flow, guard mode: you (an ally to yourself) were struck.
 		if deck_manager and tr_stats.last_attacker and is_instance_valid(tr_stats.last_attacker):
 			var pf_guard := deck_manager.trigger_reactions("psionic_flow")

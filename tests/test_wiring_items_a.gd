@@ -1087,8 +1087,9 @@ func _test_cyclops_ring() -> void:
 	main._ring_note_big_hit(25)
 	var st: Buff = bm.get_buff(Buff.BuffType.STRENGTHEN)
 	_check(st != null and st.value == 15 and st.charges == 2, "Cyclops Ring: the third 25+ hit grants Strengthen 15 for 2 hits")
-	main._ring_note_big_hit(40)
-	main._ring_note_big_hit(40)
+	# Each strengthened hit draws its Strengthen first, as a real hit does.
+	main._ring_note_big_hit(40 + bm.consume_strengthen())
+	main._ring_note_big_hit(40 + bm.consume_strengthen())
 	_check(int(ring.ring_counters.get("big_hits", 0)) == 0, "Cyclops Ring: the two strengthened hits don't feed the counter")
 	main._ring_note_big_hit(40)
 	_check(int(ring.ring_counters.get("big_hits", 0)) == 1, "Cyclops Ring: the next hit counts again")

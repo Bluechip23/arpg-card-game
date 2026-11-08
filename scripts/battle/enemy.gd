@@ -101,6 +101,7 @@ var player_hit_modifier: Callable       # (enemy, amount) -> amount: skill-tree 
 var has_been_damaged: bool = false      # any damage from any source has landed (Surprise Opener's first-source check)
 var last_hit_from_player: bool = false  # the most recent hit was the player's own (card, gauntlet skill, auto attack), not a tick or summon
 var last_hit_direct: bool = false  # ...and from the player's own action (card, skill, auto attack), not a summon or zone tick
+var killed_by_player: bool = false  # the killing blow was the player's (from_player) — not a self-destruct, a fallen master, or an enemy's own blow
 var next_action_tempo_tax: int = 0      # Haunted Rebuke: the next action (sync or async) winds up this much longer
 var bonus_damage_next_hit: int = 0    # Applied on the next take_damage call, then cleared
 var premeditated_card_bonus: int = 0  # Premeditated: +15 onto the next card that targets this enemy
@@ -7012,6 +7013,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		current_health = 0
 		print("[%s] The mimic collapses — it was never real" % enemy_name)
 		update_health_display()
+		killed_by_player = from_player
 		die()
 		return false
 	# Blue Robe: each enemy a slotted card strikes takes the type IT resists least.
@@ -7308,6 +7310,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 			update_health_display()
 			print("[%s] Refilled to %d" % [enemy_name, max_health])
 		else:
+			killed_by_player = from_player  # whose blow felled it (Axe's Axe banks only your kills)
 			die()
 
 	return just_exposed
