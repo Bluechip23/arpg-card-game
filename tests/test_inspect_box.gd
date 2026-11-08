@@ -44,11 +44,12 @@ func _run() -> void:
 	var small_font: int = box._name_label.get_theme_font_size("font_size")
 	box.toggle_zoom()
 	await _frames(3)
-	_check(box.zoom > 1.0 and box._name_label.get_theme_font_size("font_size") > small_font, "enlarge makes the text bigger")
+	_check(is_equal_approx(small_font, round(18 * box.ZOOM_NORMAL)), "it opens at the old enlarged size (name %d)" % small_font)
+	_check(box.is_enlarged() and box._name_label.get_theme_font_size("font_size") > small_font, "enlarge makes the text bigger")
 	_check(box.size.x > small_w, "and the box wider (%d -> %d)" % [small_w, box.size.x])
 	box.toggle_zoom()
 	await _frames(3)
-	_check(is_equal_approx(box.zoom, 1.0) and absf(box.size.x - small_w) < 2.0, "shrinking puts it back (%d)" % box.size.x)
+	_check(is_equal_approx(box.zoom, box.ZOOM_NORMAL) and absf(box.size.x - small_w) < 2.0, "shrinking puts it back (%d)" % box.size.x)
 
 	var summon = null
 	for u in _main.unit_tracker._allies():

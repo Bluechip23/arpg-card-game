@@ -1236,9 +1236,9 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.NECROMANCER: "Range 10. Resists 15% fire/lightning.\nBolt (5 tempo): 4 damage + Hexes 2 cards in your hand (each +30 mana until played, for up to 25 tempo).\nSummon (8 tempo): raises undead (skeletons and zombies, first pass).\nRaise the Fallen (passive): every summon of his that dies rises again as a Skeleton — and costs him 10 health; any other ally that dies within 8 squares of him rises as a Skeleton too. A risen Skeleton rises no further and costs him nothing.\nMove (6 tempo): 8 spaces.",
 		EnemyType.THANATOS: "Death himself, at the bottom of Thanatos Closet (first pass: his kit is still being made). Resists 25% physical/fire/lightning.\nReap (5 tempo): his scythe, 25 damage + 6 Bleed, beside him.\nDeath Bolt (6 tempo): 15 damage at up to 6 squares, and Hexes a card in your hand (+30 mana until played, for up to 25 tempo).\nRaise the Dead (10 tempo): a skeleton or zombie rises beside him, two at most; each of his servants that falls rises again as a Skeleton and costs him 10 health.\nMove (5 tempo): 5 spaces.",
 		EnemyType.BONE_DRAGON: "Fought as a boss in the Boneyard, where every standing gravestone regenerates it 1 health a cycle (Gravebound — break the stones, and kill the diggers who repair them). Resists 45% physical / 45% fire.\nBite (5 tempo): 12 damage.\nBreath Swarm (6 tempo): 12 damage down a 6-tile line; a Swarm hatches beside everyone it hits.\nMove (5 tempo): 5 spaces.",
-		EnemyType.SPIRIT_COLLECTOR: "Strengthen it gains adds to every Strike and Collect Soul and never fades.\nStrike (3 tempo): 8 damage.\nCollect Soul (8 tempo, range 4): 8 damage; adds a 'Release Soul' card to your hand. While it is in your hand you are Drained (10 mana a cycle) and it saps 1 damage per tempo (charged 5 at each cycle). Play it (15 mana, 2 tempo) to be rid of it — but releasing the soul gives every living Spirit Collector 5 Strengthen.",
+		EnemyType.SPIRIT_COLLECTOR: "Strengthen it gains adds to every Strike and Collect Soul and never fades.\nStrike (3 tempo): 8 damage.\nCollect Soul (8 tempo, range 4 while you hold fewer than 2 of his souls; otherwise beside you): 8 damage; adds a 'Release Soul' card to your hand. While it is in your hand you are Drained (10 mana a cycle) and it saps 1 damage per tempo (charged 5 at each cycle). Play it (15 mana, 2 tempo) to be rid of it — but releasing the soul gives every living Spirit Collector 5 Strengthen.",
 		EnemyType.GRAVE_TITAN: "30 armor.\nSmash (8 tempo): 15 damage in front.\nBoulder Roll (range 3, 5 tempo): rolls the boulder for 15 damage.\nMove (8 tempo): 4 spaces.",
-		EnemyType.CRYPT_CRAWLER: "After 3 consecutive attacks it webs you; it also throws its web from up to 4 squares away.\nBite (3 tempo): 6 damage.\nWeb (3 tempo, range 4): adds a 'Paralysis' card to your hand — you cannot move until it is played (10 mana, 5 tempo; other actions are fine), then it is erased.\nMove (4 tempo): 3 spaces.",
+		EnemyType.CRYPT_CRAWLER: "After 3 consecutive attacks it webs you; it also throws its web from up to 4 squares away.\nBite (3 tempo): 6 damage.\nWeb (3 tempo, range 4): adds a 'Paralysis' card to your hand — you cannot move until it is played (10 mana, 5 tempo; other actions are fine), then it is erased. The web is aimed at your square as it winds up: step off it and the web is strung on the floor there instead, catching whoever walks into it (up to 3 floor webs a crawler; they go when it dies).\nMove (4 tempo): 3 spaces.",
 		EnemyType.SCREECHER: "Invisible until it strikes: you cannot attack it directly (poison, burn and area damage still land).\nScreech (5 tempo): 5 damage; it is seen for 3 tempo after.\nScuttle: 4 spaces / 2 tempo while unseen, 2 spaces / 5 tempo while seen.",
 		EnemyType.CONSUMED: "Attack (5 tempo): 8 damage.\nMove (3 tempo): 5 spaces.\nOn death: explodes for 8 damage to everything nearby.",
 		# --- Mountains ---
@@ -1649,6 +1649,8 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 		_hook_deathyard_dog()
 		_guardian_scan()
 		_tick_venom(amount)
+	if enemy_type == EnemyType.CRYPT_CRAWLER:
+		_check_floor_webs()
 
 	# The mages' totems pulse their element every cycle; a mage counts down
 	# to raising another once its totem is broken.
@@ -2067,8 +2069,6 @@ func _tick_action_clocks(player_node: Node3D) -> void:
 
 	if chosen_action.is_empty() and can_act:
 		_choose_action(player_node)
-	elif can_act:
-		_maybe_drop_move_for_ranged(player_node)
 	if not chosen_action.is_empty() and (action_tempo_counter > 0 or gap or _sync_can_start(chosen_action)):
 		action_tempo_counter += 1
 	_update_draw(player_node)
@@ -2174,7 +2174,13 @@ func _execute_now(action: Dictionary, player_node: Node3D) -> bool:
 	var nm := str(action["name"])
 	last_action_label = Enemy.action_label(action)
 	action_fired.emit(self, nm)
+	# Methodical (designer, 2026-11-07): an attack whose wind-up has run is
+	# carried out where it was aimed even if its target stepped away — it
+	# does not turn into a chase (see _try_move / _whiff).
+	var prev_commit := _committed_action
+	_committed_action = "" if MOVEMENT_ACTIONS.has(nm) else nm
 	var ok := _execute_action(nm, _move_target_for(player_node))
+	_committed_action = prev_commit
 	action_finished.emit(self)
 	return ok
 
@@ -2480,6 +2486,13 @@ func _choose_action(player_node: Node3D) -> void:
 	if not chosen_action.is_empty():
 		print("[%s] Chose action: %s (cost: %d tempo)" % [enemy_name, chosen_action["name"], chosen_action["tempo_cost"]])
 	_ensure_sync_choice(distance)
+	# A thrown web is aimed when its wind-up begins (designer, 2026-11-07):
+	# if its prey walks off, it lands on the floor where they stood.
+	_aim_cell = NO_AIM
+	if not chosen_action.is_empty() and AIMED_ACTIONS.has(str(chosen_action["name"])) and grid_manager:
+		var aim_at: Node3D = _move_target_for(player_node)
+		if is_instance_valid(aim_at):
+			_aim_cell = grid_manager.world_to_grid(aim_at.position)
 
 func _ensure_sync_choice(distance: int) -> void:
 	## The per-species choosers pick by name; an action tagged Async or
@@ -2505,16 +2518,14 @@ func _ensure_sync_choice(distance: int) -> void:
 			fallback = a
 	chosen_action = fallback
 
-## The chase moves the ranged rule below may cut short or call off. Retreats,
-## dashes and the Archer Rat's own get_into_range are left alone.
-const CHASE_MOVES := {"move": true, "goblin_move": true, "hydra_move": true}
-
 ## How far off (grid squares) this enemy's ranged attack can land on `target`
 ## right now — 0 when it has none ready. Designer, 2026-11-07: an enemy with a
 ## ranged attack uses it once in range, rather than walking on to arm's
-## length. The walk stops at this reach (move_towards_target), and a chase
-## move still winding up gives way once the target is inside it
-## (_tick_action_clocks). Every reach here must match its chooser above: at
+## length. The walk stops at this reach (move_towards_target): a move wound
+## up while the target was out of reach, firing once it has come into reach,
+## holds its ground (designer, 2026-11-07: methodical — it does not swap the
+## move for an attack mid-wind-up, and never walks itself out of reach or up
+## to arm's length). Every reach here must match its chooser above: at
 ## any distance from 2 to the reach the chooser picks a non-move action, or
 ## the enemy would stop short and choose to move again forever. Left out on
 ## purpose: the Weregoat (2-square walk, 8-square charge) and the Ash Harpy
@@ -2557,29 +2568,6 @@ func _ranged_reach(target: Node3D) -> int:
 		EnemyType.SPIRIT_COLLECTOR:
 			return COLLECT_SOUL_RANGE if _collector_can_collect(target) else 0
 	return 0
-
-## A chase move still winding up, with the target already inside the ranged
-## reach: re-choose, so the enemy fires instead of walking on. The move's
-## clock is dropped (the attack starts its own wind-up); if the chooser
-## still wants to move, the move and its clock are kept as they were.
-func _maybe_drop_move_for_ranged(player_node: Node3D) -> void:
-	if chosen_action.is_empty() or not CHASE_MOVES.has(str(chosen_action.get("name", ""))):
-		return
-	if is_moving or player_node == null or not is_instance_valid(player_node):
-		return
-	var reach := _ranged_reach(player_node)
-	if reach <= 0 or _get_cell_distance(player_node) > reach:
-		return
-	var held: Dictionary = chosen_action
-	var held_count := action_tempo_counter
-	chosen_action = {}
-	_choose_action(player_node)
-	if chosen_action.is_empty() or MOVEMENT_ACTIONS.has(str(chosen_action.get("name", ""))):
-		chosen_action = held
-		action_tempo_counter = held_count
-	else:
-		action_tempo_counter = 0
-		_action_damage.erase(str(held["name"]))
 
 func _get_cell_distance(target_node: Node3D) -> int:
 	if grid_manager:
@@ -2734,6 +2722,18 @@ func _try_nest_heal() -> bool:
 ## --- Rat King: Infest ---
 
 const INFEST_RADIUS := 10  # sheet: "each rat within a 10 square radius"
+
+func _hand_count_card_id(node: Node3D, cid: String) -> int:
+	if node == null or not node.has_method("get_deck_manager"):
+		return 0
+	var deck = node.get_deck_manager()
+	if deck == null or not ("hand" in deck):
+		return 0
+	var n := 0
+	for c in deck.hand:
+		if c.card_id == cid:
+			n += 1
+	return n
 
 func _hand_has_card_id(node: Node3D, cid: String) -> bool:
 	if node == null or not node.has_method("get_deck_manager"):
@@ -4106,6 +4106,12 @@ func _vanish_now() -> void:
 ## TODO(sheet): the sheet gives no reach (the old in-code reach was 2).
 const CRAWLER_WEB_RANGE := 4
 
+## Actions thrown at a square chosen when their wind-up begins (_aim_cell):
+## the spiders' webs.
+const AIMED_ACTIONS := {"web": true, "fire_web": true}
+const NO_AIM := Vector2i(-99999, -99999)
+var _aim_cell: Vector2i = NO_AIM
+
 func _choose_crawler_action(distance: int, target: Node3D = null) -> void:
 	# In its jaws: after 3 consecutive bites it webs its prey (sheet). Out of
 	# reach: it throws the web at prey not already webbed, else closes in.
@@ -4134,17 +4140,95 @@ func _try_crawler_bite(target_node: Node3D) -> bool:
 func _try_crawler_web(target_node: Node3D) -> bool:
 	## Webs the target: a Paralysis card lands in their hand — they cannot
 	## move until it is played (other actions are fine), then it is erased.
+	## Aimed when the wind-up began (designer, 2026-11-07): thrown at that
+	## square even if the prey has walked off, and then it is strung on the
+	## floor there (_lay_floor_web) — the crawler throws again all the same.
 	_crawler_attack_streak = 0
-	if is_disarmed or _get_cell_distance(target_node) > CRAWLER_WEB_RANGE:
+	var aim := _aim_cell
+	_aim_cell = NO_AIM
+	if is_disarmed:
 		return _try_move(target_node)
-	if target_node.has_method("get_deck_manager"):
-		var deck = target_node.get_deck_manager()
+	if aim == NO_AIM or grid_manager == null:
+		# Not aimed by the clocks (a direct call): the old reach check.
+		if not is_instance_valid(target_node) or _get_cell_distance(target_node) > CRAWLER_WEB_RANGE:
+			return _try_move(target_node)
+		_web_unit(target_node)
+		turn_completed.emit()
+		return true
+	var victim: Node3D = null
+	for u in _player_units():
+		if is_instance_valid(u) and grid_manager.world_to_grid(u.position) == aim:
+			if victim == null or u == target_node:
+				victim = u
+	if victim != null:
+		_web_unit(victim)
+	else:
+		_lay_floor_web(aim)
+	turn_completed.emit()
+	return true
+
+## A Paralysis card into the unit's hand, and the web strung about its feet.
+func _web_unit(unit: Node3D) -> void:
+	if unit.has_method("get_deck_manager"):
+		var deck = unit.get_deck_manager()
 		if deck:
 			deck.add_card_to_hand(Card.create_by_id("paralysis"))
 			print("[%s] Webs its prey — Paralysis added to the hand!" % enemy_name)
-	_web_art_at(target_node)
-	turn_completed.emit()
-	return true
+	_web_art_at(unit)
+
+## Webs a crawler has strung on the floor (its prey had walked off). Whoever
+## of its foes stands in one is caught by it — Paralysis, as a hit would —
+## and that web is spent; the webs go when the crawler dies. At most
+## CRAWLER_FLOOR_WEBS a crawler: a new one takes the oldest's place.
+## TODO(sheet): the designer gave no rule for what a floor web does or how
+## long it stays (2026-11-07: "having a web on the ground does not prohibit
+## them from shooting again").
+const CRAWLER_FLOOR_WEBS := 3
+var _floor_webs: Array = []   # [{"cell": Vector2i}], oldest first
+
+func floor_web_cells() -> Array:
+	var out: Array = []
+	for w in _floor_webs:
+		out.append(w["cell"])
+	return out
+
+func _lay_floor_web(cell: Vector2i) -> void:
+	var web := {"cell": cell}
+	_floor_webs.append(web)
+	while _floor_webs.size() > CRAWLER_FLOOR_WEBS:
+		_floor_webs.pop_front()
+	print("[%s] Its prey is gone — the web strings itself across the floor" % enemy_name)
+	if _enemy_figure == null or not _enemy_figure.has_method("throw_projectile") or grid_manager == null:
+		return
+	var at := grid_manager.grid_to_world(cell)
+	if dungeon_manager:
+		at.y = dungeon_manager.get_elevation_world_y(cell)
+	var lands: float = _enemy_figure.throw_projectile(at, "web")
+	var done := lands
+	_enemy_figure.last_spot = null
+	var spread: float = _enemy_figure.spot_effect(at, "web", lands, true)
+	var fx = _enemy_figure.last_spot
+	if spread > 0.0 and fx is SpotEffect:
+		fx.hold_while = func() -> bool:
+			return web in _floor_webs   # sprung, replaced, or the crawler gone: it fades
+		done = maxf(done, spread)
+	if done > 0.0:
+		swing_started.emit(self, done)
+
+## Each tempo: a foe standing in one of the crawler's floor webs is caught.
+func _check_floor_webs() -> void:
+	if _floor_webs.is_empty() or is_dead or grid_manager == null:
+		return
+	for u in _player_units():
+		if not is_instance_valid(u):
+			continue
+		var c := grid_manager.world_to_grid(u.position)
+		for w in _floor_webs:
+			if w["cell"] == c:
+				_floor_webs.erase(w)
+				print("[%s] Its prey blunders into a web on the floor" % enemy_name)
+				_web_unit(u)
+				break
 
 ## The corpse on its back rises and throws a ball of web (the designer's
 ## board, 2026-11-06); where it lands the web is strung about its victim's
@@ -4179,15 +4263,19 @@ func _choose_collector_action(distance: int, target: Node3D = null) -> void:
 		# Mostly swings; now and then it cages a piece of your soul.
 		chosen_action = _get_action("collect_soul") if randf() < 0.35 else _get_action("collector_swing")
 	elif distance <= COLLECT_SOUL_RANGE and _collector_can_collect(target):
-		# From afar he cages a soul when none of his is held yet; with one
-		# already in the hand he walks in to swing.
+		# From afar he cages a soul while fewer than two of his are held;
+		# with two in the hand he walks in to swing.
 		chosen_action = _get_action("collect_soul")
 	else:
 		chosen_action = _get_action("move")
 
+## From range he cages souls until his prey holds this many Release Souls
+## (designer, 2026-11-07: two, was one).
+const COLLECTOR_SOULS_HELD := 2
+
 func _collector_can_collect(target: Node3D) -> bool:
 	return target != null and is_instance_valid(target) and target.has_method("get_deck_manager") \
-			and not _hand_has_card_id(target, "release_soul")
+			and _hand_count_card_id(target, "release_soul") < COLLECTOR_SOULS_HELD
 
 func _try_collect_soul(target_node: Node3D) -> bool:
 	## 8 (+ Strengthen) damage, and a 'Release Soul' card lands in the hand —
@@ -4422,6 +4510,34 @@ var totem_age: int = 0           # on an ice totem: tempo it has stood (its blas
 
 func is_totem() -> bool:
 	return enemy_type in MAGE_TOTEMS.values()
+
+## The areas this enemy's own standing effects cover, for the inspect box to
+## lay on the floor (designer, 2026-11-07: clicking the fire totem should show
+## its reach). Each: {"reach": squares (grid steps, as the effects measure),
+## "color", "label"}. Empty for an enemy with no such area.
+func aura_zones() -> Array:
+	match enemy_type:
+		EnemyType.FIRE_TOTEM:
+			return [{"reach": TOTEM_FIRE_RANGE, "color": Color(1.0, 0.42, 0.1), "label": "Burn"}]
+		EnemyType.LIGHTNING_TOTEM:
+			return [{"reach": TOTEM_SHOCK_RANGE, "color": Color(1.0, 0.92, 0.25), "label": "Shock"}]
+		EnemyType.EARTH_TOTEM:
+			return [{"reach": TOTEM_EARTH_RANGE, "color": Color(0.35, 0.9, 0.35), "label": "Heals allies"}]
+		EnemyType.ICE_TOTEM:
+			return [{"reach": TOTEM_ICE_RANGE, "color": Color(0.45, 0.85, 1.0), "label": "Blast"}]
+		EnemyType.AIR_TOTEM:
+			return [{"reach": TOTEM_VORTEX - 1, "color": Color(0.85, 0.95, 1.0), "label": "Vortex drag"}]
+		EnemyType.NECROMANCER:
+			return [{"reach": NECRO_RISE_RANGE, "color": Color(0.7, 0.4, 1.0), "label": "Raise the Fallen"}]
+	return []
+
+## The compendium's description of an enemy type (Enemy.get_all_enemy_data's
+## "special" text) — what it does, for the inspect box.
+static func description_for(type: int) -> String:
+	var all := get_all_enemy_data()
+	if type >= 0 and type < all.size():
+		return str(all[type].get("special", ""))
+	return ""
 
 func has_totem() -> bool:
 	return _totem != null and is_instance_valid(_totem) and _totem.is_alive()
@@ -5682,14 +5798,18 @@ func _try_fire_bounce(target_node: Node3D) -> bool:
 ## 3x3 around the target, lasting until the spider dies; one web per spider,
 ## a recast lays it afresh.
 func _try_fire_web(target_node: Node3D) -> bool:
+	# Aimed when the wind-up began (designer, 2026-11-07): it lands where its
+	# prey stood then, even if they have walked out of range since.
+	var aim := _aim_cell
+	_aim_cell = NO_AIM
 	if is_silenced or grid_manager == null or not is_instance_valid(target_node):
 		return false
-	if _get_cell_distance(target_node) > FIRE_WEB_RANGE:
+	if aim == NO_AIM and _get_cell_distance(target_node) > FIRE_WEB_RANGE:
 		return false
 	var main := get_parent()
 	if main == null or not main.has_method("register_fire_web"):
 		return false
-	var centre: Vector2i = grid_manager.world_to_grid(target_node.position)
+	var centre: Vector2i = aim if aim != NO_AIM else grid_manager.world_to_grid(target_node.position)
 	var cells: Array = []
 	for dx in range(-1, 2):
 		for dz in range(-1, 2):
@@ -5700,7 +5820,9 @@ func _try_fire_web(target_node: Node3D) -> bool:
 	var reveal := 0.0
 	var web_art: Array = []
 	if _enemy_figure and _enemy_figure.has_method("throw_projectile"):
-		reveal = _enemy_figure.throw_projectile(target_node.global_position, "fire_web")
+		var centre_at := grid_manager.grid_to_world(centre)
+		centre_at.y = target_node.global_position.y
+		reveal = _enemy_figure.throw_projectile(centre_at, "fire_web")
 		var done := reveal
 		# Where it lands: the impact and the web spreading out, its last
 		# frame held on the ground as the web for as long as the web lasts.
@@ -5866,7 +5988,26 @@ func _try_attack(target_node: Node3D) -> bool:
 		return true
 	return _try_move(target_node)
 
+## The non-movement action being carried out right now by the action clocks
+## ("" otherwise). While it is set, an attack's out-of-reach fallback to a
+## move is a whiff instead (_whiff).
+var _committed_action: String = ""
+
+## A wound-up attack whose target is out of reach (or that the enemy can no
+## longer make — disarmed, silenced): it is carried out at the empty spot and
+## the enemy stays where it is. Sync attacks have already played their swing;
+## an Async one stays spent and unmimed (docs/ENEMY_ACTION_KEYWORDS.md).
+func _whiff(target_node: Node3D) -> bool:
+	if _enemy_figure and is_instance_valid(target_node):
+		var to: Vector3 = target_node.global_position - global_position
+		_enemy_figure.set_facing_from_velocity(Vector3(to.x, 0, to.z))
+	print("[%s] %s comes up empty — its target is out of reach" % [enemy_name, _committed_action])
+	turn_completed.emit()
+	return not _is_async_name(_committed_action)
+
 func _try_move(target_node: Node3D) -> bool:
+	if _committed_action != "":
+		return _whiff(target_node)
 	var diff := target_node.position - position
 	var flat_dist := Vector3(diff.x, 0, diff.z).length()
 	if flat_dist <= aggro_range:
@@ -5917,6 +6058,8 @@ func _try_smash(target_node: Node3D) -> bool:
 
 func _try_shoot(target_node: Node3D) -> bool:
 	## Archer Rat: ranged attack out to its attack_range (6).
+	if _committed_action != "" and (is_disarmed or not _in_attack_range(target_node)):
+		return _whiff(target_node)   # the arrow is loosed at where they stood
 	if is_disarmed:
 		print("[%s] Disarmed - cannot shoot!" % enemy_name)
 		return _try_get_into_range(target_node)

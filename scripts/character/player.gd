@@ -3,6 +3,8 @@ extends CharacterBody3D
 
 ## Player character with tempo-based grid movement in 3D
 
+const LevelUpFX = preload("res://scripts/effects/level_up_fx.gd")
+
 signal move_completed
 signal tile_reached  # Emitted each time the player reaches a single tile
 
@@ -215,7 +217,10 @@ func show_heal_icon() -> void:
 		_figure.pop_heart()
 
 func show_level_up() -> void:
-	## Plays the level-up mist swirl — call whenever the character gains a level.
+	## The level-up pillar of golden light round the hero (the designer's
+	## board, 2026-11-07; it replaced the old mist swirl) — call whenever the
+	## character gains a level. The floating "LEVEL UP!" still pops over it.
+	LevelUpFX.play(self)
 	if _figure:
 		_figure.pop_level_up()
 

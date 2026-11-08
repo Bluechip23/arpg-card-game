@@ -88,7 +88,8 @@ const NPC_ROW := [0, 2, 1, 3]    # NPC packs run S,E,N,W
 
 const ATTACK_TIMES := [0.16, 0.065, 0.065, 0.2]
 const NPC_WALK_TIME := 0.18
-## Each frame of a hero's drawn walk cycle (eight frames: a 0.8 s stride).
+## Each frame of a hero's drawn walk cycle (eight frames, a 0.8 s stride; Ryan's and
+## Stephen's seven, their boards' closing stand dropped: tools/cut_hero_sprites.py).
 const BOARD_WALK_TIME := 0.1
 ## A walk carries on across back-to-back steps (designer, 2026-11-04: with
 ## WASD held the hero lands a tile at a time and asks for the next a frame

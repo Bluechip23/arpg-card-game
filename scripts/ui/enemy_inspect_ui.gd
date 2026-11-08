@@ -13,11 +13,14 @@ extends PanelContainer
 ## the box — for easier reading (designer, 2026-10-31).
 
 const REFRESH_INTERVAL := 0.3
-const ZOOM_LARGE := 1.6
+## Designer, 2026-11-07: the box was too small — it now opens at the size
+## the old enlarge gave (1.6), and enlarging takes it 50% further.
+const ZOOM_NORMAL := 1.6
+const ZOOM_LARGE := ZOOM_NORMAL * 1.5
 
-## How big the box draws: 1.0, or ZOOM_LARGE once enlarged. It stays
+## How big the box draws: ZOOM_NORMAL, or ZOOM_LARGE once enlarged. It stays
 ## enlarged for the next enemy or ally until shrunk again.
-var zoom: float = 1.0
+var zoom: float = ZOOM_NORMAL
 var _ally = null            # a hero or Summon shown instead of an enemy
 var _zoom_btn: Button = null
 
@@ -28,11 +31,21 @@ var _fig: Node3D = null
 var _name_label: Label = null
 var _rows: VBoxContainer = null
 var _timer: Timer = null
+var _scroll: ScrollContainer = null
+var _body: VBoxContainer = null
+## The box keeps this far from the screen's edges, and its top below the
+## top-right menu row, so the close button is never under it.
+const SCREEN_MARGIN := 8.0
+const TOP_CLEAR := 72.0
+const AuraOverlayScript = preload("res://scripts/battle/aura_overlay.gd")
+var _aura = null                # AuraOverlay: the enemy's effect areas, laid on the floor
+var _about: String = ""         # what a totem does (its compendium text)
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(_px(280), 0)
 	visible = false
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	z_index = 110   # over the hand's cards (they rise to 100 when hovered)
 
 	var style = StyleBoxFlat.new()
 	style.bg_color = Color(0.08, 0.08, 0.12, 0.96)
@@ -77,19 +90,31 @@ func _ready() -> void:
 	close_btn.pressed.connect(hide_panel)
 	header.add_child(close_btn)
 
+	# Below the header everything scrolls once the box is taller than the
+	# screen (the enlarged box often is on the 1280x720 canvas).
+	_scroll = ScrollContainer.new()
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	vbox.add_child(_scroll)
+	var body = VBoxContainer.new()
+	body.add_theme_constant_override("separation", 6)
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll.add_child(body)
+	_body = body
+
 	# Live 3D portrait of the monster
 	_portrait_holder = CenterContainer.new()
 	_portrait_holder.custom_minimum_size = Vector2(0, _px(150))
-	vbox.add_child(_portrait_holder)
+	body.add_child(_portrait_holder)
 
 	# Stat / effect rows (rebuilt on every refresh)
 	_rows = VBoxContainer.new()
 	_rows.add_theme_constant_override("separation", 3)
-	vbox.add_child(_rows)
+	body.add_child(_rows)
 
 	_timer = Timer.new()
 	_timer.wait_time = REFRESH_INTERVAL
 	_timer.timeout.connect(_refresh)
+	_timer.timeout.connect(func(): _refit.call_deferred())   # rows come and go: the scroll area follows
 	add_child(_timer)
 
 ## A size scaled by the box's zoom.
@@ -102,9 +127,12 @@ func show_enemy(enemy: Enemy) -> void:
 		return
 	_ally = null
 	_enemy = enemy
+	_about = Enemy.description_for(enemy.enemy_type).split("\n(Level-band")[0] if enemy.is_totem() else ""
+	_show_aura(enemy)
 	_build_portrait()
 	_refresh()
 	visible = true
+	move_to_front()   # over the hand of cards, which shares the UI layer
 	_timer.start()
 	_refit.call_deferred()
 
@@ -115,9 +143,11 @@ func show_ally(u) -> void:
 		return
 	_enemy = null
 	_ally = u
+	_show_aura(null)
 	_build_portrait()
 	_refresh()
 	visible = true
+	move_to_front()   # over the hand of cards, which shares the UI layer
 	_timer.start()
 	_refit.call_deferred()
 
@@ -127,12 +157,30 @@ func hide_panel() -> void:
 	_ally = null
 	_timer.stop()
 	_clear_portrait()
+	_show_aura(null)
+
+## Lay the enemy's effect areas on the floor beside it (null clears them).
+func _show_aura(enemy: Enemy) -> void:
+	if enemy == null or not is_instance_valid(enemy) or enemy.aura_zones().is_empty():
+		if _aura and is_instance_valid(_aura):
+			_aura.clear()
+		return
+	var world := enemy.get_parent()
+	if world == null:
+		return
+	if _aura == null or not is_instance_valid(_aura) or _aura.get_parent() != world:
+		if _aura and is_instance_valid(_aura):
+			_aura.queue_free()
+		_aura = AuraOverlayScript.new()
+		_aura.name = "InspectAura"
+		world.add_child(_aura)
+	_aura.show_for(enemy)
 
 ## Enlarge / shrink everything in the box.
 func toggle_zoom() -> void:
-	zoom = 1.0 if zoom > 1.0 else ZOOM_LARGE
-	_zoom_btn.text = "⤡" if zoom > 1.0 else "⤢"
-	_zoom_btn.tooltip_text = "Shrink" if zoom > 1.0 else "Enlarge"
+	zoom = ZOOM_NORMAL if is_enlarged() else ZOOM_LARGE
+	_zoom_btn.text = "⤡" if is_enlarged() else "⤢"
+	_zoom_btn.tooltip_text = "Shrink" if is_enlarged() else "Enlarge"
 	custom_minimum_size = Vector2(_px(280), 0)
 	_name_label.add_theme_font_size_override("font_size", _px(18))
 	_portrait_holder.custom_minimum_size = Vector2(0, _px(150))
@@ -141,11 +189,20 @@ func toggle_zoom() -> void:
 	_refresh()
 	_refit.call_deferred()
 
+func is_enlarged() -> bool:
+	return zoom > ZOOM_NORMAL + 0.01
+
 ## Shrink-wrap to what the box now holds (the old rows are freed a frame
 ## late), then keep it on screen.
 func _refit() -> void:
 	if not is_inside_tree():
 		return
+	# The scroll area takes what the body needs, up to what the screen has
+	# room for under the header.
+	var vp := get_viewport_rect().size
+	var room: float = vp.y - TOP_CLEAR - SCREEN_MARGIN - (size.y - _scroll.size.y if _scroll.size.y > 0.0 else _px(60))
+	var want: float = _body.get_combined_minimum_size().y
+	_scroll.custom_minimum_size.y = clampf(want, 0.0, maxf(120.0, room))
 	reset_size()
 	_keep_on_screen()
 
@@ -155,7 +212,7 @@ func _keep_on_screen() -> void:
 		return
 	var vp := get_viewport_rect().size
 	var r := get_global_rect()
-	var y := clampf(r.position.y, 8.0, maxf(8.0, vp.y - r.size.y - 8.0))
+	var y := clampf(r.position.y, TOP_CLEAR, maxf(TOP_CLEAR, vp.y - r.size.y - SCREEN_MARGIN))
 	if not is_equal_approx(y, r.position.y):
 		global_position.y = y
 
@@ -277,10 +334,22 @@ func _refresh() -> void:
 		return
 
 	_name_label.text = _enemy.enemy_name
+	if _aura and is_instance_valid(_aura):
+		_aura.refresh()
 
 	for child in _rows.get_children():
 		_rows.remove_child(child)   # out of the layout now, not at frame end
 		child.queue_free()
+
+	# A totem says what it does (designer, 2026-11-07), and any effect area
+	# is named with its reach — the squares are lit on the floor.
+	if _about != "":
+		_add_row("What it does", "", Color(0.9, 0.85, 0.6))
+		for para in _about.split("\n"):
+			if para.strip_edges() != "":
+				_add_sub_row(para.strip_edges())
+	for z in _enemy.aura_zones():
+		_add_row("Reach", "%s: %d squares (lit on the floor)" % [z["label"], int(z["reach"])], z["color"])
 
 	# Health + armor
 	_add_row("Health", "%d / %d" % [_enemy.current_health, _enemy.max_health], Color(0.4, 1.0, 0.4))

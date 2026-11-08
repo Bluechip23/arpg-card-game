@@ -55,6 +55,8 @@ var _alloc_base: Dictionary = {}         # stat key -> base (3)
 var _alloc_value_labels: Dictionary = {}
 var _alloc_remaining_lbl: Label = null
 var _alloc_confirm_btn: Button = null
+var _alloc_rows: Control = null          # the stat rows (faded while the tutorial box is ticked)
+var _alloc_tutorial: CheckBox = null     # "Tutorial": skip allocation, Olorin teaches the stats
 
 func _ready() -> void:
 	_apply_styles()
@@ -384,6 +386,25 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 		row.add_child(plus)
 
 		rows_vb.add_child(row)
+	_alloc_rows = rows_scroll
+
+	# Tutorial (designer, 2026-11-07): ticked, the stats are not allocated
+	# here — they fade out, Olorin teaches each one as he goes, and the points
+	# wait for the first level-up, when he explains spending them.
+	_alloc_tutorial = CheckBox.new()
+	_alloc_tutorial.name = "TutorialCheck"
+	_alloc_tutorial.text = "Tutorial"
+	_alloc_tutorial.add_theme_font_size_override("font_size", 18)
+	_alloc_tutorial.add_theme_color_override("font_color", EmeraldTheme.GOLD)
+	_alloc_tutorial.toggled.connect(func(_on: bool): _alloc_refresh())
+	vb.add_child(_alloc_tutorial)
+	var tut_note := Label.new()
+	tut_note.text = "Olorin explains each stat as you play. Your %d points wait for your first level-up." % ALLOC_TOTAL
+	tut_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tut_note.custom_minimum_size = Vector2(420, 0)
+	tut_note.add_theme_font_size_override("font_size", 14)
+	tut_note.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
+	vb.add_child(tut_note)
 
 	vb.add_child(HSeparator.new())
 
@@ -472,14 +493,36 @@ func _alloc_add(key: String, delta: int) -> void:
 
 func _alloc_refresh() -> void:
 	if _alloc_remaining_lbl:
-		_alloc_remaining_lbl.text = "Points to allocate: %d" % _alloc_points
+		if _alloc_tutorial_on():
+			_alloc_remaining_lbl.text = "%d points set aside for your first level-up" % ALLOC_TOTAL
+		else:
+			_alloc_remaining_lbl.text = "Points to allocate: %d" % _alloc_points
 	for key in _alloc_value_labels:
 		_alloc_value_labels[key].text = str(_alloc_base.get(key, 0) + _alloc.get(key, 0))
 	if _alloc_confirm_btn:
-		_alloc_confirm_btn.disabled = _alloc_points != 0
+		_alloc_confirm_btn.disabled = _alloc_points != 0 and not _alloc_tutorial_on()
+	if _alloc_rows and is_instance_valid(_alloc_rows):
+		var on := _alloc_tutorial_on()
+		_alloc_rows.modulate.a = 0.35 if on else 1.0
+		for b in _alloc_rows.find_children("*", "BaseButton", true, false):
+			b.disabled = on
+
+func _alloc_tutorial_on() -> bool:
+	return _alloc_tutorial != null and is_instance_valid(_alloc_tutorial) and _alloc_tutorial.button_pressed
 
 func _alloc_confirm() -> void:
-	if _alloc_points != 0 or _alloc_char == null:
+	if _alloc_char == null:
+		return
+	if _alloc_tutorial_on():
+		# Nothing spent here: the starting points wait for the first level-up.
+		_alloc_char.tutorial_mode = true
+		_alloc_char.banked_stat_points = ALLOC_TOTAL
+		var tcb := _alloc_on_confirm
+		_close_alloc_overlay()
+		if tcb.is_valid():
+			tcb.call()
+		return
+	if _alloc_points != 0:
 		return
 	var c := _alloc_char
 	c.strength += _alloc.get("STR", 0)
@@ -505,6 +548,8 @@ func _close_alloc_overlay() -> void:
 	_alloc_value_labels = {}
 	_alloc_remaining_lbl = null
 	_alloc_confirm_btn = null
+	_alloc_rows = null
+	_alloc_tutorial = null
 	if _alloc_overlay and is_instance_valid(_alloc_overlay):
 		_alloc_overlay.queue_free()
 	_alloc_overlay = null

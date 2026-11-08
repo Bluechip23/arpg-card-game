@@ -58,6 +58,15 @@ func mark_boss_defeated(room_key: String) -> void:
 # Stored per-character so each playthrough learns the ropes once.
 @export var seen_tutorial_ids: Array = []
 
+# Tutorial mode (the box under the stats on the allocation screen, designer
+# 2026-11-07): the hero skips the opening allocation, Olorin folds each stat
+# into his lessons, and the starting points wait in `banked_stat_points`
+# until the first level-up, when he explains spending them.
+@export var tutorial_mode: bool = false
+# Starting stat points set aside; PlayerStats.initialize banks them once
+# (into unspent_stat_points) and zeroes this.
+@export var banked_stat_points: int = 0
+
 # Act-mythic pity state (see DropRates): acts whose near-guaranteed mythic has
 # already dropped for this character, and story kills accumulated toward the
 # "mythic creep" in acts still waiting on theirs. Per-character forever —

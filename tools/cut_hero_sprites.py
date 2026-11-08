@@ -155,6 +155,24 @@ HEROES = {
 # the figure, fitted and filled in from each cell's edge (cut_opaque_cell).
 # Stephen's walks are a board a way (WALKS: his front; WALK_EXTRA: his
 # back, left and right).
+# Legs that step (designer, 2026-11-07: Cory's "walk actually shows his
+# legs moving ... apply that to the other playable characters"): every
+# hero's board draws his legs stepping and the cut keeps them whole (the
+# model mattes find nothing of Jeremy's, Ryan's or Stephen's legs dropped),
+# but each frame centred on its own box swung the body back as a foot
+# reached forward — up to 11 px on the smooth sheet, 18 on Stephen's left —
+# so the stride read as the whole figure rocking. Jeremy, Ryan and Stephen
+# now keep the board's placement ("anchor", as Brad's): the torso holds
+# still (within ~1 px, and on the still pose's line: align_to_still) and
+# only the legs and arms move. Ryan's and Stephen's boards also stand him
+# feet together at both ends, so the loop stood still two frames running
+# every stride; the closing stand is dropped ("drop_last": a 7-frame walk).
+# Stephen's side boards also lose his dark trousers where his legs part
+# mid-stride (the far thigh, the inside of the knee: near-black on the
+# near-black ground), so they take model mattes too ("matte",
+# tools/make_mattes.py --walk stephen); his front and back do not need them
+# (there the model takes the floor shadow under a lifted boot for figure).
+# Cory's walk is left as it was: it is the one the designer pointed to.
 WALK_CELL_INSET = 4   # px kept clear of the grid lines
 WALK_ALPHA = 40       # source alpha over this is figure (for finding it; the
                       # cut keeps the soft alpha for the resample)
@@ -166,21 +184,21 @@ WALKS = {
     # matched within 4, as on his right walk; the default match ate them.
     "stephen": ("stephen_walk_south_board.webp",
                 [9, 251, 501, 750, 1000, 1250, 1500, 1750, 1994], [72, 577],
-                ["south"], set(), "opaque", {"tol": 4, "narrow": 7}),
+                ["south"], set(), "opaque", {"tol": 4, "narrow": 7, "anchor": "board", "drop_last": True}),
     # 2026-10-31: Ryan's walk board, on a dark plum ground with a soft
     # shadow under the feet: back, front, left, right rows, all used.
     "ryan": ("ryan_walk_board.webp",
              [127, 299, 472, 642, 808, 980, 1157, 1336, 1519],
              [50, 260, 469, 685, 902],
              ["south", "north", "west", "east"],
-             set(), "opaque", {"narrow": 7, "close": 7, "tol": 4}),   # 2026-11-01 board (the leaner walk); his black trousers are the ground's colour
+             set(), "opaque", {"narrow": 7, "close": 7, "tol": 4, "anchor": "board", "drop_last": True}),   # 2026-11-01 board (the leaner walk); his black trousers are the ground's colour
     # 2026-10-31: Jeremy's walk board, the same layout and ground as Ryan's
     # (his rings already painted on), all four rows used.
     "jeremy": ("jeremy_walk_board.webp",
                [126, 309, 489, 668, 844, 1019, 1194, 1368, 1526],
                [11, 247, 471, 685, 910],
                ["north", "south", "west", "east"],
-               set(), "opaque"),
+               set(), "opaque", {"anchor": "board"}),
     # 2026-10-31: Cory's and Brad's walk boards, the same layout and ground.
     "cory": ("cory_walk_board.webp",
              [125, 309, 490, 670, 846, 1022, 1196, 1359, 1526],
@@ -206,13 +224,13 @@ WALKS = {
 WALK_EXTRA = {
     "stephen": [("stephen_walk_north_board.webp",
                  [7, 251, 501, 751, 1000, 1250, 1500, 1750, 1995], [70, 578],
-                 ["north"], set(), "opaque", {"tol": 4, "narrow": 7}),
+                 ["north"], set(), "opaque", {"tol": 4, "narrow": 7, "anchor": "board", "drop_last": True}),
                 ("stephen_walk_left_board.webp",
                  [10, 263, 510, 759, 1007, 1253, 1500, 1747, 1995], [73, 579],
-                 ["west"], set(), "opaque", {"tol": 4, "narrow": 7}),
+                 ["west"], set(), "opaque", {"tol": 4, "narrow": 7, "anchor": "board", "drop_last": True, "matte": True}),
                 ("stephen_walk_right_board.webp",
                  [10, 234, 458, 683, 907, 1122, 1341, 1562, 1770], [87, 738],
-                 ["east"], set(), "opaque", {"tol": 4, "narrow": 7, "grow": True})],   # his dark trousers; armpit shadows
+                 ["east"], set(), "opaque", {"tol": 4, "narrow": 7, "grow": True, "anchor": "board", "drop_last": True, "matte": True})],   # his dark trousers; armpit shadows
 }
 # Walk rows the board draws stockier than the still pose that way: each
 # stands the still's height and is drawn this much narrower (designer,
@@ -635,7 +653,10 @@ def cut_walk_board(path, xs, ys, facings, skip, ground, opts=None):
         if facing in skip:
             continue
         frames = []
-        for c in range(len(xs) - 1):
+        # "drop_last": the board's last frame is its first again (he stands,
+        # feet together, at both ends), so the loop would hold that stand
+        # two frames running — a stop in every stride; it plays once.
+        for c in range(len(xs) - 1 - (1 if opts.get("drop_last") else 0)):
             i = WALK_CELL_INSET
             cell = board[ys[r] + i:ys[r + 1] - i + 1, xs[c] + i:xs[c + 1] - i + 1]
             if ground == "opaque":
@@ -1240,6 +1261,44 @@ def _mass(f):
     return (ys[-1] - ys[0] + 1, int(a.sum()))
 
 
+def anchored_walks(hero):
+    """The facings whose walk board keeps the board's placement ("anchor")."""
+    boards = ([WALKS[hero]] if hero in WALKS else []) + WALK_EXTRA.get(hero, [])
+    return {f for b in boards if len(b) > 6 and b[6].get("anchor") == "board" for f in b[3] if f not in b[4]}
+
+
+def _torso_x(img):
+    """A frame's torso line: the mean column of a band from 15% to 45% down
+    the figure (as cut_walk_board's anchor reads it)."""
+    k = np.asarray(img.getchannel("A")) > 127
+    rows = np.nonzero(k.any(axis=1))[0]
+    t, b = rows.min(), rows.max()
+    return float(np.nonzero(k[t + int((b - t) * 0.15):t + int((b - t) * 0.45)])[1].mean())
+
+
+def align_to_still(frames, anchored, texel):
+    """An anchored walk, packed bottom-centred, keeps its torso where the
+    still pose that way has its own, so he does not shift as he sets off or
+    stops: the walk frames are padded on one side when their torso sits more
+    than a texel (`texel` px on this sheet) off the still's (Stephen's left
+    walk sat 6 off). Frames are {facing or (facing, i): PIL RGBA}."""
+    for d in anchored:
+        keys = [k for k in frames if isinstance(k, tuple) and k[0] == d]
+        if d not in frames or not keys:
+            continue
+        still = frames[d]
+        want = _torso_x(still) - still.width / 2.0
+        got = float(np.mean([_torso_x(frames[k]) - frames[k].width / 2.0 for k in keys]))
+        if abs(want - got) <= texel:
+            continue
+        pad = int(round(2 * abs(want - got)))
+        for k in keys:
+            f = frames[k]
+            g = Image.new("RGBA", (f.width + pad, f.height))
+            g.paste(f, (pad if want > got else 0, 0))
+            frames[k] = g
+
+
 def build(hero, poses):
     scale = None
     full = {}
@@ -1268,7 +1327,9 @@ def build(hero, poses):
     # A direction redrawn on a board of its own (WALK_EXTRA), at its own
     # size: its tallest frame stands as tall as the main board's.
     for board in WALK_EXTRA.get(hero, []):
-        for d, fr in cut_walk_board(*board).items():
+        bopts = dict(board[6]) if len(board) > 6 else {}
+        bopts["hero"] = hero
+        for d, fr in cut_walk_board(*board[:6], bopts).items():
             raw[d] = (fr, max(f.height for f in fr) / float(HEIGHT), board[5] == "opaque")
     for d, (fr, wf, opaque) in raw.items():
         # The opaque boards' figures are dark-clad on a dark ground: peeling
@@ -1302,6 +1363,8 @@ def build(hero, poses):
         frames["east"] = frames["west"].transpose(Image.FLIP_LEFT_RIGHT)
     if "west" not in frames:
         frames["west"] = frames["east"].transpose(Image.FLIP_LEFT_RIGHT)
+    anchored = anchored_walks(hero)
+    align_to_still(frames, anchored, 1.0)
     cols = 1 + max([k[1] + 1 for k in frames if isinstance(k, tuple)] or [0])
     cell = max(max(f.size) for f in frames.values()) + 2
     cell += cell % 2
@@ -1314,15 +1377,14 @@ def build(hero, poses):
     os.makedirs(os.path.dirname(OUT % hero), exist_ok=True)
     sheet.save(OUT % hero)
     # The smooth version, kept beside the pixel sheet.
-    anchored = hero in WALKS and len(WALKS[hero]) > 6 and WALKS[hero][6].get("anchor") == "board"
     for d in list(soft):
-        if anchored and isinstance(d, tuple):
+        if isinstance(d, tuple) and d[0] in anchored:
             continue
         soft[d] = smooth_art.trim(soft[d])
     if anchored:
         # The anchored walks keep the board's placement here too: each
         # direction's frames are trimmed to their shared box, not their own.
-        for d in {k[0] for k in soft if isinstance(k, tuple)}:
+        for d in {k[0] for k in soft if isinstance(k, tuple) and k[0] in anchored}:
             keys = [k for k in soft if isinstance(k, tuple) and k[0] == d]
             box = None
             for k in keys:
@@ -1336,6 +1398,7 @@ def build(hero, poses):
         soft["east"] = soft["west"].transpose(Image.FLIP_LEFT_RIGHT)
     if "west" not in soft:
         soft["west"] = soft["east"].transpose(Image.FLIP_LEFT_RIGHT)
+    align_to_still(soft, anchored, SMOOTH_HEIGHT / float(HEIGHT))
     scell = max(max(f.size) for f in soft.values()) + 2
     scell += scell % 2
     sout = os.path.join(smooth_art.ROOT, "heroes", "%s.png" % hero)
