@@ -8,7 +8,7 @@ extends SceneTree
 ## Every card with an upkeep wears the Maintain frame instead (white text on
 ## its stone); a Defense card the Defensive frame; a Utility card the Utility
 ## frame (the logo where its art meets its rules box); an Attack the Attack
-## frame.
+## frame; an Enchantment the Enchantment frame.
 ## Run: godot --headless --path . --script tests/test_card_frames.gd
 
 var failures := 0
@@ -104,18 +104,46 @@ func _run() -> void:
 		"an offensive spell wears the Spell frame, not the Attack one")
 	sp.queue_free()
 
-	# A type the designer has not framed yet keeps the drawn frame.
+	# Enchantments wear the Enchantment frame (2026-11-08): every one in the
+	# data, with white text on the green stone and the logo in the type
+	# bar's middle (the board's ruby painted out under it), the long type
+	# word stepped down short of the logo.
+	var enchantments := 0
 	for f in DirAccess.get_files_at("res://data/cards"):
 		if not f.ends_with(".tres"):
 			continue
 		var c: Card = load("res://data/cards/" + f)
-		if c.card_type == Card.CardType.ENCHANTMENT and c.maintain_cost == 0:
-			var e := _face(f.get_basename())
-			await process_frame
-			_check(e.get_node_or_null("Panel/FrameArt") == null and e.get_theme_stylebox("panel") is StyleBoxFlat,
-				"an Enchantment keeps the drawn frame until its own lands")
-			e.queue_free()
-			break
+		if c.card_type != Card.CardType.ENCHANTMENT:
+			continue
+		enchantments += 1
+		_check(CardUI.frame_for(c) == CardUI.FRAMES["maintain" if c.maintain_cost > 0 else "enchantment"],
+			"%s wears the Enchantment frame" % f.get_basename())
+		if enchantments > 1:
+			continue
+		var e := _face(f.get_basename())
+		await process_frame
+		var ea: TextureRect = e.get_node_or_null("Panel/FrameArt")
+		_check(ea != null and ea.texture.resource_path.ends_with("frame_enchantment.png"), "an Enchantment's face shows the Enchantment frame")
+		_check(e.desc_label.get_theme_color("default_color").v > 0.8, "its rules text is white on the stone")
+		var el: Control = e.get_node_or_null("Panel/FrameLogo")
+		_check(el != null and absf(el.position.y + el.size.y * 0.5 - CardUI.FRAMES["enchantment"]["logo_at"].y) <= 1.0, "its logo sits in the type bar's middle")
+		var tf: Font = e.type_label.get_theme_font("font")
+		var tw: float = tf.get_string_size(e.type_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, e.type_label.get_theme_font_size("font_size")).x
+		_check(e.type_label.text == "Enchantment" and 16.0 + tw <= CardUI.FRAMES["enchantment"]["logo_at"].x - CardUI.FRAMED_LOGO_RING,
+			"its type word ends short of the logo")
+		e.queue_free()
+	_check(enchantments >= 4, "the Enchantment cards were all looked at (%d)" % enchantments)
+	# An enchantment is its own family: a spell tag does not move it to the
+	# Spell frame.
+	var tagged: Card = load("res://data/cards/enchantment_attack.tres").duplicate()
+	tagged.school = Card.CardSchool.SPELL
+	_check(CardUI.frame_for(tagged) == CardUI.FRAMES["enchantment"], "an enchantment tagged spell still wears the Enchantment frame")
+
+	# Short type words keep their size on every other frame.
+	var sl := _face("slash")
+	await process_frame
+	_check(sl.type_label.get_theme_font_size("font_size") == 9, "a short type word keeps its size")
+	sl.queue_free()
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
