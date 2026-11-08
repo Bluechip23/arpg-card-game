@@ -40,6 +40,10 @@ var prep_utility_charges: int = 0   # How many more utility cards get the discou
 var prep_utility_persist: bool = false  # Preparation: the discount waits for utility cards; other plays don't break it
 var discards_this_cycle: int = 0  # Cards that reached the discard pile since the last cycle (plays included)
 var true_discards_this_cycle: int = 0  # Cards DISCARDED (never played) since the last cycle — Exacerbate Wounds
+# True while non_play_discard announces a card that was SPENT or set free, not
+# discarded: an instant firing from hand, a card released from jail. Listeners
+# that want discards only (Keep Them Guessing) skip those.
+var non_play_discard_is_spend: bool = false
 var skip_next_tempo_draw: bool = false  # Give In: suppress the next tempo-triggered draw
 # Brain-point peeks (Wisdom): how many cards from the top of the draw pile are
 # currently revealed. Drawing consumes one revealed card; shuffling the pile
@@ -1159,7 +1163,7 @@ func process_turn() -> void:
 			jail_pile.remove_at(i)
 			discard_pile.append(card)
 			true_discards_this_cycle += 1
-			non_play_discard.emit(card)
+			_emit_spent_to_discard(card)  # released, not discarded
 			print("[DECK] Released from jail: %s" % card.card_name)
 
 	# Process Erase: tick down erase timers on all cards and delete expired ones
@@ -1439,7 +1443,7 @@ func trigger_reactions(trigger_type: String) -> Array[Card]:
 			discard_pile.append(card)
 			reaction_triggered.emit(card)
 			true_discards_this_cycle += 1
-			non_play_discard.emit(card)
+			_emit_spent_to_discard(card)  # an instant fired: spent, not discarded
 			print("[DECK] Reaction triggered: %s" % card.card_name)
 	if triggered.size() > 0:
 		hand_updated.emit()
@@ -1462,10 +1466,18 @@ func fire_reaction(card: Card) -> bool:
 	discard_pile.append(card)
 	reaction_triggered.emit(card)
 	true_discards_this_cycle += 1
-	non_play_discard.emit(card)
+	_emit_spent_to_discard(card)  # an instant fired: spent, not discarded
 	hand_updated.emit()
 	print("[DECK] Reaction triggered: %s" % card.card_name)
 	return true
+
+## non_play_discard for a card that was spent or released into the pile, not
+## discarded (see non_play_discard_is_spend).
+func _emit_spent_to_discard(card: Card) -> void:
+	var was := non_play_discard_is_spend
+	non_play_discard_is_spend = true
+	non_play_discard.emit(card)
+	non_play_discard_is_spend = was
 
 ## Fire exactly ONE reaction card of the given trigger from hand, jailing it
 ## for jail_tempo instead of discarding — Polymorph's 25-tempo cooldown, so a

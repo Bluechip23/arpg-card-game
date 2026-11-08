@@ -112,8 +112,9 @@ func _test_i_heal_you(stats, pt) -> void:
 	var healed: int = pt._i_heal_you_pulse()
 	_check(near.health == 13, "a wolf 3 cells away is healed 3 (%d)" % near.health)
 	_check(far.health == 10, "a wolf 5 cells away is not")
-	_check(stats.current_health >= 53, "Jeremy himself is a target (%d)" % stats.current_health)
-	_check(healed >= 2, "the pulse reports what it healed (%d)" % healed)
+	# "Allies within 3 squares of you": Jeremy is not his own ally.
+	_check(stats.current_health == 50, "Jeremy himself is not a target (%d)" % stats.current_health)
+	_check(healed == 1, "the pulse reports what it healed (%d)" % healed)
 	# Blood Libation: Jeremy's stacks boost the heals he performs on others.
 	_grant(stats, "blood_libation", 15)
 	stats.sanguine_stacks = 2

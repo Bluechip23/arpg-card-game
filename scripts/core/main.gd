@@ -9356,6 +9356,10 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	# Eye Scrape counts every critical strike: a multi-hit card's crits each count.
 	if player.get_buff_manager():
 		player.get_buff_manager().crit_hits = 0
+	# From the Hip: "the discount is lost when any card is played" — ended
+	# before the effect, so a card that re-prices itself (Consecutive Snap)
+	# keeps its own new cost.
+	progression_triggers.end_from_the_hip_discount()
 	# Execute the card's effect (damage, block, heal, etc.)
 	deck_manager.execute_deferred_card(card, target, player)
 	# Clean Exchange's flat block: a separate "gain X block" on top of whatever
