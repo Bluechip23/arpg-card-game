@@ -619,8 +619,11 @@ func _trigger_skill_tree_on_discard(card: Card) -> void:
 		return
 
 	# Keep Them Guessing: after a rank-scaled number of discards (18..4),
-	# -3t from a random card in hand that still has tempo to lose.
-	if stats.has_skill_tree_passive("keep_them_guessing"):
+	# -3t from a random card in hand that still has tempo to lose. An instant
+	# firing or a card let out of jail reaches the pile without being
+	# discarded: "after discarding N cards" does not count it.
+	if stats.has_skill_tree_passive("keep_them_guessing") \
+			and not (main.deck_manager and main.deck_manager.non_play_discard_is_spend):
 		var ktg_required: int = PassiveScaling.value("keep_them_guessing", "discards_required", stats.get_passive_level("keep_them_guessing"))
 		stats.st_ktg_discard_count += 1
 		if stats.st_ktg_discard_count >= ktg_required and main.deck_manager:
@@ -652,20 +655,33 @@ func _trigger_skill_tree_on_instant(card: Card) -> void:
 ## what main tracks for Lethal Recall).
 var _last_played_card: Card = null
 
+## From the Hip: "the discount is lost when any card is played". Gives back
+## only what the discount took off, and only while the cost is still the one
+## the discount left: a cost the card set on itself since (Consecutive Snap's
+## per-use cut, its reset when redrawn) stands. Main calls it as a card
+## resolves, BEFORE the card's effect runs (Snap re-prices itself there).
+func end_from_the_hip_discount() -> void:
+	var stats = main.player.get_stats() if main.player else null
+	if not stats or stats.st_from_hip_card == null:
+		return
+	var discounted = stats.st_from_hip_card
+	if is_instance_valid(discounted):
+		if discounted.mana_cost == stats.st_from_hip_mana_left:
+			discounted.mana_cost += stats.st_from_hip_mana_off
+		if discounted.tempo_cost == stats.st_from_hip_tempo_left:
+			discounted.tempo_cost += stats.st_from_hip_tempo_off
+	stats.st_from_hip_card = null
+	stats.st_from_hip_mana_off = 0
+	stats.st_from_hip_tempo_off = 0
+
 func _trigger_skill_tree_on_card_play(card: Card, target) -> void:
 	var stats = main.player.get_stats()
 	if not stats:
 		return
 
-	# From the Hip: clear the discount when any card is played
-	if stats.has_skill_tree_passive("from_the_hip") and stats.st_from_hip_card != null:
-		var discounted = stats.st_from_hip_card
-		if is_instance_valid(discounted):
-			discounted.mana_cost = stats.st_from_hip_original_cost
-			discounted.tempo_cost = stats.st_from_hip_original_tempo
-		stats.st_from_hip_card = null
-		stats.st_from_hip_original_cost = 0
-		stats.st_from_hip_original_tempo = 0
+	# From the Hip: clear the discount when any card is played (main already
+	# ended it before the card executed; this covers the other play paths).
+	end_from_the_hip_discount()
 
 	# Nimble Assault: cards in hand but no Defense cards → draw on attack.
 	# An empty hand does NOT qualify — there must be cards, just no Defense.
@@ -812,10 +828,7 @@ func _trigger_skill_tree_on_draw(card: Card) -> void:
 	# mana (rank-scaled 10..75m) and, at high ranks, tempo (1..2t)
 	if stats.has_skill_tree_passive("from_the_hip"):
 		# "Most recently drawn": whatever was drawn, the previous discount ends.
-		if stats.st_from_hip_card != null and is_instance_valid(stats.st_from_hip_card):
-			stats.st_from_hip_card.mana_cost = stats.st_from_hip_original_cost
-			stats.st_from_hip_card.tempo_cost = stats.st_from_hip_original_tempo
-			stats.st_from_hip_card = null
+		end_from_the_hip_discount()
 	if stats.has_skill_tree_passive("from_the_hip") and card.is_attack():
 		# Apply new discount: the mana cut needs a mana cost to cut, the tempo
 		# cut (ranks 11+) applies to any attack card drawn.
@@ -823,12 +836,14 @@ func _trigger_skill_tree_on_draw(card: Card) -> void:
 		var fh_mana: int = PassiveScaling.value("from_the_hip", "mana", fh_lvl)
 		var fh_tempo: int = PassiveScaling.value("from_the_hip", "tempo", fh_lvl)
 		if card.mana_cost > 0 or (fh_tempo > 0 and card.tempo_cost > 0):
-			stats.st_from_hip_original_cost = card.mana_cost
-			stats.st_from_hip_original_tempo = card.tempo_cost
 			fh_mana = mini(fh_mana, card.mana_cost)
-			card.mana_cost = maxi(0, card.mana_cost - fh_mana)
-			if fh_tempo > 0:
-				card.tempo_cost = maxi(0, card.tempo_cost - fh_tempo)
+			var fh_tempo_off: int = mini(fh_tempo, card.tempo_cost)
+			card.mana_cost -= fh_mana
+			card.tempo_cost -= fh_tempo_off
+			stats.st_from_hip_mana_off = fh_mana
+			stats.st_from_hip_tempo_off = fh_tempo_off
+			stats.st_from_hip_mana_left = card.mana_cost
+			stats.st_from_hip_tempo_left = card.tempo_cost
 			stats.st_from_hip_card = card
 			var fh_label := "-%dm" % fh_mana if fh_tempo == 0 else "-%dm/-%dt" % [fh_mana, fh_tempo]
 			main.add_battle_log("From the Hip: %s %s" % [card.card_name, fh_label], Color(0.9, 0.3, 0.3))
@@ -1976,7 +1991,8 @@ func _territorial_death_reapply(enemy: Enemy, log_suffix: String) -> void:
 
 ## I Heal You: 3 HP to every ally within 3 cells (Manhattan) of Jeremy —
 ## other players, the dojo's practice allies, and every summon (wolves,
-## specters, the penguin…). Returns how many were healed.
+## specters, the penguin…). "Allies … of you": never Jeremy himself.
+## Returns how many were healed.
 func _i_heal_you_pulse() -> int:
 	var healed := 0
 	var gm = main.grid_manager
@@ -1986,13 +2002,12 @@ func _i_heal_you_pulse() -> int:
 	for ally in main._all_allies():
 		if ally == null or not is_instance_valid(ally) or not ally.has_method("get_stats"):
 			continue
+		if ally == main.player:
+			continue  # "allies within 3 squares of you" — not you
 		var a_stats = ally.get_stats()
 		if a_stats and a_stats.current_health > 0 and gm.get_distance_in_cells(main.player.position, ally.position) <= 3:
-			if ally == main.player:
-				a_stats.heal(3)  # Jeremy heals himself too (his own heal)
-			else:
-				# An ally heal Jeremy performs: his Blood Libation stacks boost it.
-				a_stats.heal(me.boost_performed_heal(3) if me else 3, true, true)
+			# An ally heal Jeremy performs: his Blood Libation stacks boost it.
+			a_stats.heal(me.boost_performed_heal(3) if me else 3, true, true)
 			healed += 1
 	if main.enemy_spawner:
 		for s in main.enemy_spawner.summons:

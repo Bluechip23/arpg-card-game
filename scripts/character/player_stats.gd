@@ -551,12 +551,14 @@ var skill_tree_passives: Array[String] = []  # Active passive IDs from skill tre
 var st_crit_counter: int = 0          # Eye Scrape: tracks crits toward the rank-scaled invisibility threshold
 var st_eye_scrape_last_tempo: int = -100  # Eye Scrape: global tempo of the last invisibility (10 tempo cooldown)
 var st_ktg_discard_count: int = 0     # Keep Them Guessing: discards toward the rank-scaled -3t proc
-var st_from_hip_original_tempo: int = 0   # From the Hip: tempo cost to restore when the discount clears
+var st_from_hip_tempo_off: int = 0   # From the Hip: tempo the discount took off (added back when it clears)
 var st_pop_rocks_last_tempo: int = -100   # Pop Rocks: global tempo of the last burst (rank-scaled cooldown)
 var st_nimble_last_tempo: int = -100      # Nimble Assault: global tempo of the last free draw (rank-scaled cooldown)
 var st_nysm_last_tempo: int = -100        # Now You See Me: global tempo of the last invisibility (rank-scaled cooldown)
 var st_from_hip_card: Card = null     # From the Hip: the card currently discounted
-var st_from_hip_original_cost: int = 0  # From the Hip: original mana cost to restore
+var st_from_hip_mana_off: int = 0  # From the Hip: mana the discount took off (added back when it clears)
+var st_from_hip_mana_left: int = 0   # From the Hip: the mana cost the discount left (a different cost = the card re-priced itself)
+var st_from_hip_tempo_left: int = 0  # From the Hip: the tempo cost the discount left
 var st_enemy_first_strikes: Dictionary = {}  # Surprise Opener: tracks which enemies have been struck
 var st_pre_attack_target_id: int = -1  # Pre-hit snapshot (set per attack in arm_pre_attack_passives)
 var st_pre_attack_armor: int = 0       # Target's armor before the hit landed
@@ -712,7 +714,9 @@ func _directed_strength_mod() -> int:
 	## Brad's Directed Strength passive: +1..15 STR (rank-scaled) below 50% health, lost above.
 	if not has_skill_tree_passive("directed_strength"):
 		return 0
-	if get_health_percent() > 0.5:
+	# "Below 50% health": exactly half is not below. (Health % counts temp HP,
+	# as every other "below X% health" passive reads it.)
+	if get_health_percent() >= 0.5:
 		return 0
 	return int(PassiveScaling.value("directed_strength", "strength", get_passive_level("directed_strength")))
 
