@@ -39,8 +39,12 @@ func _run() -> void:
 		"an Instant wears the painted Instant frame")
 	_check(art != null and art.get_index() == 0, "the frame is drawn behind the face")
 	_check(inst.get_theme_stylebox("panel") is StyleBoxEmpty, "no drawn border round it")
-	_check(inst.title_bar.get_theme_stylebox("panel") is StyleBoxEmpty and inst.desc_panel.get_theme_stylebox("panel") is StyleBoxEmpty,
-		"its bars are bare, the painting shows")
+	_check(inst.title_bar.get_theme_stylebox("panel") is StyleBoxEmpty, "its title bar is bare, the painting shows")
+	# The rules box carries a translucent wash (designer, 2026-11-08): the
+	# corner picture still shows, faded behind the text.
+	var wash = inst.desc_panel.get_theme_stylebox("panel")
+	_check(wash is StyleBoxFlat and wash.bg_color.a > 0.0 and wash.bg_color.a < 1.0,
+		"its rules box is washed, not covered (alpha %.2f)" % (wash.bg_color.a if wash is StyleBoxFlat else -1.0))
 	var icons_hidden := true
 	for c in inst._mana_badge.get_children() + inst._tempo_badge.get_children():
 		if c is TextureRect and c.visible:

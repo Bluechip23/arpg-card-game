@@ -166,6 +166,11 @@ const FRAMES := {
 		"title_left": 40.1, "title_right": 19.9, "name_w": 62,
 	},
 }
+## How strongly the rules box is washed over its corner picture (0 = the
+## picture at full strength, 1 = hidden). See _style_painted_frame.
+static var text_wash_alpha: float = 0.5
+const TEXT_WASH_DARK := Color(0.03, 0.03, 0.04)
+const TEXT_WASH_PARCHMENT := Color(0.93, 0.87, 0.72)
 const FRAMED_DOT := 8.0
 const FRAMED_LOGO_SIZE := 48
 const FRAMED_NAME := Color(0.97, 0.92, 0.8)    # the name's cream
@@ -1144,7 +1149,14 @@ func _style_painted_frame() -> void:
 		type_bar.add_theme_stylebox_override("panel", tp)
 		type_bar.custom_minimum_size = Vector2(0, _frame.get("type_h", 18.0))
 	if desc_panel:
-		var box := StyleBoxEmpty.new()
+		# A wash over the rules box fades the frame's corner picture behind
+		# the text, so the text reads first (designer, 2026-11-08): dark on
+		# the stone frames, parchment on the Instant frame.
+		var box := StyleBoxFlat.new()
+		var wash: Color = TEXT_WASH_PARCHMENT if _frame["ink_dark"] else TEXT_WASH_DARK
+		wash.a = text_wash_alpha
+		box.bg_color = wash
+		box.set_corner_radius_all(4)
 		box.content_margin_left = 3.5
 		box.content_margin_right = _frame["desc_right"]
 		box.content_margin_top = _frame.get("desc_top", 4.0)
