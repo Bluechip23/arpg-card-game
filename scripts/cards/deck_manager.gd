@@ -754,7 +754,10 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 	# Engrave: the card only works from inside an equipped item's card slot.
 	if card.requires_engraving and card.slotted_in_item == null:
 		print("[DECK] %s must be engraved into an item before it can be played" % card.card_name)
-		return { "played": false, "half_tempo": false }
+		# Said on screen too (Main logs "reason"): a silent refusal read as a
+		# click that did nothing.
+		return { "played": false, "half_tempo": false,
+			"reason": "%s must be engraved into an equipped item's card slot to be played." % card.card_name }
 
 	# A world state holding the card (the Bastion's shield still in flight).
 	if card.world_block_reason() != "":

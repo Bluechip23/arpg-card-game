@@ -12,7 +12,11 @@ var buff_manager: BuffManager
 var _pinned: Array = []
 
 func _ready() -> void:
-	mouse_filter = Control.MOUSE_FILTER_PASS
+	# The row itself takes no mouse: its badges keep their own hover, but the
+	# empty stretch of the 360-px strip is open battlefield. As PASS the
+	# bare strip counted as HUD (Main._pointer_over_gui), and a click on a
+	# tile under it — the dojo's near dummies sit there — did nothing.
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 func pin_front(control: Control) -> void:
 	## Add a persistent control that always renders before the buff icons.

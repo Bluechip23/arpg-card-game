@@ -2034,7 +2034,10 @@ func on_card_ticks_started(card: Card) -> void:
 			stats.st_arcane_overflow_discount = true
 			main.add_battle_log("Arcane Overflow: 0 mana! Next offensive card -1 tempo", Color(0.9, 0.3, 0.3))
 
-func _trigger_skill_tree_jeremy_on_card_play(card: Card, target, aim_world = null) -> void:
+## `aim_was_empty`: whether the aimed tile stood empty when the card was
+## PLAYED (Main captures it with the aim); null judges it now (callers
+## without a play-time reading).
+func _trigger_skill_tree_jeremy_on_card_play(card: Card, target, aim_world = null, aim_was_empty = null) -> void:
 	var stats = main.player.get_stats()
 	if not stats:
 		return
@@ -2079,10 +2082,15 @@ func _trigger_skill_tree_jeremy_on_card_play(card: Card, target, aim_world = nul
 	# Seance: an OFFENSIVE card aimed at an EMPTY tile (a point-targeted cast whose
 	# tile holds no unit) raises a Specter on that tile: a summon enemies
 	# target by proximity, 25 tempo, HP and death damage 5..33 by rank.
+	# The tile is the card's target point — a burst's centre, the green dot
+	# — and "empty" is judged when the card was played (designer,
+	# 2026-11-08): a Fireball at an enemy's tile that kills or shoves it
+	# raises nothing. The Specter still needs the tile free now to stand on.
 	if stats.has_skill_tree_passive("seance") and card.is_offensive() \
 			and "point" in card.target_types and aim_world != null and main.grid_manager:
 		var cell: Vector2i = main.grid_manager.world_to_grid(aim_world)
-		if main._cell_is_empty_for_summon(cell):
+		var was_empty: bool = bool(aim_was_empty) if aim_was_empty != null else main._cell_is_empty_for_summon(cell)
+		if was_empty and main._cell_is_empty_for_summon(cell):
 			var sp_value: int = PassiveScaling.value("seance", "specter", stats.get_passive_level("seance"))
 			if main._spawn_specter(cell, sp_value):
 				main.add_battle_log("Seance: Specter raised on the empty tile (%d HP, 25 tempo)" % sp_value, Color(0.7, 0.5, 1.0))
