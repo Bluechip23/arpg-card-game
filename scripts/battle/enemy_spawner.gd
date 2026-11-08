@@ -215,7 +215,7 @@ func _on_enemy_died(enemy: Enemy) -> void:
 	if player:
 		var inventory = player.get_inventory()
 		if inventory:
-			inventory.on_enemy_killed()
+			inventory.on_enemy_killed(enemy.killed_by_player)
 
 	# Check if all enemies defeated
 	await get_tree().create_timer(0.6).timeout  # Wait for death animation

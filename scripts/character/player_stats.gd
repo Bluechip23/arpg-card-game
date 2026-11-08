@@ -342,6 +342,7 @@ var equipment_spell_power_every_n: int = 0   # trigger every N attacks (Wizard H
 var equipment_spell_power_amount: int = 0    # spell-power granted when it triggers (Wizard Hat 5)
 var _wizard_attack_counter: int = 0
 var pending_spell_power_bonus: int = 0       # applied to the next spell card's damage, then cleared on play
+var active_spell_power_bonus: int = 0        # Wizard Hat: the armed bonus riding on the spell card now resolving (the play only)
 # Boots pass-2 equipment riders
 var equipment_sidestep_bonus_armor: int = 0  # +armor on a flash sidestep (Titanium Toe Tuckers)
 var equipment_movement_flash_discount: int = 0  # movement flash costs this much less (Rollerblades)
@@ -1645,9 +1646,10 @@ func consume_pending_dex_bonus_damage() -> int:
 	return b
 
 func get_effective_spell_damage(base_damage: int) -> int:
-	# INT: +1 damage per point (flat). Wizard Hat's armed spell power (if any)
-	# rides along; it's cleared on the spell's play, not here (this is a query).
-	return max(1, _apply_highground(base_damage + get_intelligence_spell_bonus() + enchantment_damage_bonus + sphere_bonus_damage + pending_spell_power_bonus))
+	# INT: +1 damage per point (flat). Wizard Hat: "your next spell card gains
+	# +5" — only while that spell card resolves (active_spell_power_bonus), so
+	# zone ticks, Harness Lightning or snowballs never pick up the armed bonus.
+	return max(1, _apply_highground(base_damage + get_intelligence_spell_bonus() + enchantment_damage_bonus + sphere_bonus_damage + active_spell_power_bonus))
 
 func get_effective_heal_amount(base_heal: int) -> int:
 	# INT also boosts healing (flat) + flat healing_bonus from equipment + sphere grid heal bonus

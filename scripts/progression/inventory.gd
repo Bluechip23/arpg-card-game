@@ -1169,10 +1169,12 @@ func on_armor_gained(amount: int) -> void:
 					print("[INVENTORY] %s: +%d armor from armor instance" % [item.item_name, item.special_effect_value])
 		_applying_armor_instance_bonus = false
 
-func on_enemy_killed() -> void:
+func on_enemy_killed(by_player: bool = true) -> void:
 	_conjure_on_kill_cards()
 	# Axe's Axe: kills bank flash points — deliberately allowed past the cap.
-	if player_stats:
+	# "Killing an enemy": your kills only, not a totem going off by itself, a
+	# Demon's mimics collapsing with it, or an enemy felling its own kind.
+	if player_stats and by_player:
 		for wpn in equipped_weapons:
 			if wpn and wpn.kill_flash_points > 0:
 				var kf: int = wpn.rider_int(wpn.kill_flash_points)  # off-hand modifier

@@ -471,6 +471,8 @@ var consecutive_uses: int = 0  # Track how many times card played in sequence
 var snap_uses_at_play: int = 0  # uses BEFORE the current play (set by play_card; timing-safe for deferred execution)
 @export var requires_high_ground: bool = false  # Needs elevated position
 var last_damage_dealt: int = 0  # Used by cards that need main.gd to apply damage (charge, leap)
+var blind_missed: bool = false  # this execution whiffed to Blind: main skips its on-hit world effects (Cupid's arrows)
+var _spell_power_taken: bool = false  # Wizard Hat: this execution took the armed spell power
 @export var has_on_draw: bool = false  # Card triggers an effect when drawn
 @export var on_draw_effect: String = ""  # Description of the on-draw effect
 @export var discard_on_draw: bool = false  # If true, card is discarded immediately after on-draw effect
@@ -1396,6 +1398,16 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		"rebound": PlayerStats.hit_multiplier_rebound,
 		"pending": player_stats.defense_card_bonus_pending if player_stats else false}
 	last_damage_dealt = 0
+	blind_missed = false
+	# Wizard Hat: the next spell card takes the armed +5 for its own play —
+	# moved off the pending pool so nothing outside the card can draw on it.
+	# It rides until the play closes (close_play_scope) or, on a bare execute,
+	# until this card finishes.
+	_spell_power_taken = false
+	if school == CardSchool.SPELL and player_stats and player_stats.pending_spell_power_bonus > 0:
+		player_stats.active_spell_power_bonus += player_stats.pending_spell_power_bonus
+		player_stats.pending_spell_power_bonus = 0
+		_spell_power_taken = true
 
 	# Premeditated: the first card to target an exposed-by-Premeditated enemy
 	# carries +15 onto its hit; main pays it out directly if the card deals none.
@@ -1442,6 +1454,10 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			miss_chance = player_stats.blind_miss_chance
 		if miss_chance > 0.0 and randf() < miss_chance:
 			print("[CARD] %s missed — blinded!" % card_name)
+			blind_missed = true
+			_exec_depth -= 1  # leaving early: close this execution's nesting level
+			if _spell_power_taken and (_exec_depth > 0 or not play_scope_open):
+				player_stats.active_spell_power_bonus = 0
 			return
 	# Empower's +3 already rides in bonus_damage (see execute); the executors'
 	# own is_empowered branch stays off so it is never counted twice.
@@ -2607,9 +2623,10 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			player_stats.defense_card_bonus_pending = false  # an armorless card leaves nothing waiting
 	# (Inside an open scope main closes it after the world effects.)
 
-	# Wizard Hat: a spell card consumes the armed spell-power bonus on play.
-	if school == CardSchool.SPELL and player_stats and player_stats.pending_spell_power_bonus > 0:
-		player_stats.pending_spell_power_bonus = 0
+	# Wizard Hat: the bonus this spell took ends with it when no play scope
+	# follows (a bare execute, or an instant nested in another card's play).
+	if _spell_power_taken and player_stats and (_exec_depth > 0 or not play_scope_open):
+		player_stats.active_spell_power_bonus = 0
 
 	# Clear the resolution markers so they can't leak past this play.
 	if player_stats:
@@ -2917,6 +2934,7 @@ static func close_play_scope(player_stats: PlayerStats) -> void:
 	PlayerStats.hit_multiplier = 1.0
 	if player_stats:
 		player_stats.defense_card_bonus_pending = false
+		player_stats.active_spell_power_bonus = 0  # Wizard Hat: the spell card's +5 ends with its play
 
 func get_burden_tempo_cost() -> int:
 	var cost := tempo_cost

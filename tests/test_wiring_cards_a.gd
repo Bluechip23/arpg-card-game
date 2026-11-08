@@ -1053,10 +1053,11 @@ func _test_death_vortex() -> void:
 	_put(d2, Vector2i(0, 1))
 	_put(d3, Vector2i(3, 0))
 	stats.hit_streak = 0
+	# "After you are hit": an enemy's blow landing on you.
 	for i in range(4):
-		stats.take_damage(1, dbm, bm)
+		d3._deal_damage_to_player(main.player, 1, "Bite")
 	_check(dm.hand.has(dv) and d1.current_health == 1000, "death_vortex: nothing before the 5th hit")
-	stats.take_damage(1, dbm, bm)
+	d3._deal_damage_to_player(main.player, 1, "Bite")
 	_check(1000 - d1.current_health == 15 and 1000 - d2.current_health == 15 and d3.current_health == 1000,
 		"death_vortex: after 5 hits, 15 to every adjacent enemy")
 	_check(not dm.hand.has(dv) and dm.discard_pile.has(dv), "death_vortex: spent when it spins")
@@ -1069,7 +1070,7 @@ func _test_death_vortex() -> void:
 	var dv2 := Card.create_by_id("death_vortex")
 	dm.hand.append(dv2)
 	stats.hit_streak = 4
-	stats.take_damage(1, dbm, bm)
+	rat._deal_damage_to_player(main.player, 1, "Bite")
 	_check(rat.is_dead and dm.hand.has(dv2), "death_vortex: if the Vortex kills, it returns to your hand")
 
 func _test_deep_breaths() -> void:
