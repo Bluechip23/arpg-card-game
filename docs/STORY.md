@@ -399,7 +399,7 @@ built level. The roster is themed and in code:*
 - **Weregoat**
 - **Wyvern** — *in code*. Elite. Flier (ignores high ground). **Talon Grab** (2-cycle cooldown): flies above its target, 25 damage, and drags them to an open space **8 squares away**.
 - **Rocs**
-- **Ice Troll** — *in code*. Elite. Every attack adds a stack of **frost (Cold) and Brittle**; when an attack **freezes** its target, **Clobber (50)** triggers automatically.
+- **Ice Troll** — *in code*. Elite. Every attack adds a stack of **frost (Cold) and Brittle**; when an attack **freezes** its target, **Clobber (50)** triggers automatically; he can also wind Clobber up as a 10-tempo blow of its own (designer, 2026-11-08).
 - **Snow Wraiths**
 - **Granite Colossi**
 - **White Manticores** — *in code*. Elite. Flier. **Stinger** (5-tempo cooldown): 25 damage + **Clumsy** + **8 Poison**.
@@ -411,7 +411,7 @@ built level. The roster is themed and in code:*
 - **Thanatos** — *in code (first pass)*. Boss of Thanatos Closet; see Act 2 above.
 - **Succubus**
 - **Demon**
-- **Ifrits** — *in code*. Elite. **Fire Breath**: a 5x5 sheet of flame that lingers 3 tempo; **Backflip** springs it 3 squares back from any single blow over 40 damage.
+- **Ifrits** — *in code*. Elite. **Fire Breath**: a 5x5 sheet of flame, and he keeps breathing it for 6 more tempo (a Channel, designer 2026-11-08) — the tiles burn all the while and 3 tempo after; **Backflip** springs it 3 squares back from any single blow over 40 damage.
 - **Mind eater**
 - **Specters**
 - **Echo Beasts**

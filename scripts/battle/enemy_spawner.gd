@@ -115,9 +115,24 @@ func get_living_enemies() -> Array[Enemy]:
 			living.append(enemy)
 	return living
 
+## [victim, countdown, name] — see adopt_venom.
+var _orphan_venoms: Array = []
+
+## Cerberus died with a Venom Tail stun still on its victim: the aftermath
+## (2 Vulnerable, Cuffed 10) still lands the moment the stun is gone.
+func adopt_venom(victim: Node3D, countdown: int, who: String) -> void:
+	if victim != null and is_instance_valid(victim) and countdown > 0:
+		_orphan_venoms.append([victim, countdown, who])
+
 ## Called every time global tempo advances.
 ## Each enemy manages its own action counter independently.
 func on_tempo_advanced(amount: int) -> void:
+	# Venom Tail aftermaths whose Cerberus died during the stun.
+	for i in range(_orphan_venoms.size() - 1, -1, -1):
+		var v: Array = _orphan_venoms[i]
+		v[1] = Enemy.venom_step(v[0], v[1], amount, v[2])
+		if v[1] <= 0:
+			_orphan_venoms.remove_at(i)
 	var living = get_living_enemies()
 	for enemy in living:
 		# Reserve every other enemy's INTENDED destination (not just its current

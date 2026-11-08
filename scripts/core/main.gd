@@ -6260,7 +6260,7 @@ func _on_all_enemies_defeated() -> void:
 # ============================================
 
 func register_fire_wall(tiles: Array, damage: int, burn: int, moves: int = 6,
-		tempo: int = -1, heal_source: Node = null, heal_amount: int = 0) -> void:
+		tempo: int = -1, heal_source: Node = null, heal_amount: int = 0) -> Dictionary:
 	## Lays a fire hazard on the given grid cells that burns the player when
 	## they walk into it. Expires after `moves` player moves, or — when
 	## `tempo` >= 0 — after that much raw tempo (Ifrit breath, Minotaur wake).
@@ -6271,12 +6271,14 @@ func register_fire_wall(tiles: Array, damage: int, burn: int, moves: int = 6,
 		var v := _spawn_fire_wall_visual(cell)
 		if v:
 			visuals.append(v)
-	_fire_walls.append({"tiles": tiles, "damage": damage, "burn": burn, "moves_left": moves,
-		"tempo_left": tempo, "heal_source": heal_source, "heal_amount": heal_amount, "visuals": visuals})
+	var wall := {"tiles": tiles, "damage": damage, "burn": burn, "moves_left": moves,
+		"tempo_left": tempo, "heal_source": heal_source, "heal_amount": heal_amount, "visuals": visuals}
+	_fire_walls.append(wall)
 	# A creature's wake (the Minotaur's trail) lays a tile at every step —
 	# the log would be nothing else; only a cast sheet of flame announces itself.
 	if heal_source == null:
 		add_battle_log("A wall of fire erupts!", Color(1.0, 0.5, 0.2))
+	return wall
 
 func _spawn_fire_wall_visual(cell: Vector2i) -> Node3D:
 	## A tongue of flame on the tile (the demons pack's fire sheet — see
