@@ -51,7 +51,7 @@ const ROSTER := {
 			# draws it facing away and turns to thrust it at the target: the
 			# board's side rows turn round mid-cast, mapped by the thrust.)
 			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/brad_cast.png",
-				"frames": 8, "rows": [0, 1, 2, 3], "t": 0.05, "hit": 7},
+				"frames": 8, "rows": [0, 1, 2, 3], "t": SPELL_CAST_T, "hit": 7},
 		}},
 	"Cory": {"board": "res://assets/sprites/generated/heroes/cory.png", "walk_rows": [0, 1, 2, 3],      # the hooded monk
 		"actions": {
@@ -62,7 +62,7 @@ const ROSTER := {
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/cory_block.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.065},
 			# The spell card cast: a runic circle, a swirl, the card rises in a
 			# red aura and a grinning shadow-face appears (frame 8).
-			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/cory_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.05, "hit": 8},
+			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/cory_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": SPELL_CAST_T, "hit": 8},
 		}},
 	"Stephen": {"board": "res://assets/sprites/generated/heroes/stephen.png", "walk_rows": [0, 1, 2, 3],  # the apex hunter, bow and axe on his back
 		"actions": {
@@ -73,7 +73,7 @@ const ROSTER := {
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/stephen_block.png", "frames": 7, "rows": [0, 1, 2, 3], "t": 0.065},
 			# The spell card cast: purple energy and a spectral bear surge, and
 			# the claws are released (frame 7).
-			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/stephen_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.05, "hit": 7},
+			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/stephen_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": SPELL_CAST_T, "hit": 7},
 		}},
 	"Jeremy": {"board": "res://assets/sprites/generated/heroes/jeremy.png", "walk_rows": [0, 1, 2, 3],  # the cloaked skeleton
 		"actions": {
@@ -83,7 +83,7 @@ const ROSTER := {
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/jeremy_block.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.06, "hold": 0.5, "reverse": 0.035},
 			# The spell card cast: spirit swirls, ghostly skulls rise behind
 			# him and one howls (frame 7), then fades.
-			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/jeremy_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.05, "hit": 7},
+			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/jeremy_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": SPELL_CAST_T, "hit": 7},
 		}},
 	"Ryan": {"board": "res://assets/sprites/generated/heroes/ryan.png", "walk_rows": [0, 1, 2, 3],      # the rogue outlaw
 		"actions": {
@@ -94,7 +94,7 @@ const ROSTER := {
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/ryan_block.png", "frames": 15, "rows": [0, 1, 2, 3], "t": 0.045},
 			# The spell card cast (the alchemist): the card becomes a flask set
 			# down in a ring, lifted, thrown up and bursting overhead (frame 8).
-			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/ryan_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.05, "hit": 8},
+			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/ryan_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": SPELL_CAST_T, "hit": 8},
 		}},
 	# The dojo's ally training dummies wear the NPC-pack dog sheet (same
 	# 32px cell and S,E,N,W row order as the humanoid NPC sheets).
@@ -409,6 +409,9 @@ const DRAWN_ALIAS := {"attack_slash": "basic_attack", "block": "basic_block"}
 ## bursting on the cast's blow frame; the card resolves on that frame too,
 ## as an attack does on its swing's (Main._card_swing).
 const DRAWN_SPELL := "spell_cast"
+## Seconds a frame of a hero's drawn spell cast: 0.05 played at 80% speed
+## (designer, 2026-11-08: "a little too quick, slow it down by .8").
+const SPELL_CAST_T := 0.0625
 
 
 ## The drawn action `action` plays as ("" when none).

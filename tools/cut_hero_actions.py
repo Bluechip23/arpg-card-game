@@ -220,6 +220,12 @@ ACTIONS = {
         "cols": [131, 323, 514, 699, 885, 1072, 1259, 1465, 1658],
         "rows": [(82, 279), (288, 475), (483, 668), (677, 869)],
         "facings": ["south", "north", "east", "west"],
+        # Each side row turns round mid-cast: "Left" faces left in 1-5 and
+        # thrusts right in 6-8, "Right" the reverse. Rows are mapped by the
+        # thrust (Left -> east) and frames 1-5 traded, so he faces his target
+        # throughout (designer, 2026-11-08): east = Right 1-5 + Left 6-8,
+        # west = Left 1-5 + Right 6-8.
+        "splice": {"frames": range(0, 5), "swap": ("east", "west")},
     },
     # Jeremy: green-and-purple spirit swirls, ghostly purple skulls rise
     # behind him (5-7) and fade (8). No cell rules on the board. His side
@@ -586,6 +592,17 @@ def build(hero, action, spec):
         pix[(facing, c)] = p
         soft[(facing, c)] = s
         place[(facing, c)] = (anchor[0] * sx, anchor[1] * sy)
+    # "splice": frames traded between two facings after each was scaled and
+    # placed by its own board row. Brad's cast (designer, 2026-11-08): each
+    # side row turns round mid-cast, so a side cast takes the drawing-the-card
+    # frames of the row facing the target and the thrust of the other row
+    # ({"frames": first frames to trade, "swap": (facing, facing)}).
+    sp = spec.get("splice")
+    if sp:
+        a, b = sp["swap"]
+        for c in sp["frames"]:
+            for d in (pix, soft, place):
+                d[(a, c)], d[(b, c)] = d[(b, c)], d[(a, c)]
     pix = {k: hs.vibrance(f) for k, f in pix.items()}
     pix = hs.tidy_palette(pix)
     # The cell: room for every frame round the anchor.
