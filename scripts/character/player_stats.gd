@@ -785,6 +785,12 @@ func initialize(data: CharacterData) -> void:
 	base_wisdom = data.wisdom
 	base_agility = data.agility
 	determination = data.determination
+	# Tutorial mode's starting points, set aside at character creation: banked
+	# once for the stat screen (a later restore of saved progression carries
+	# them from then on).
+	if data.banked_stat_points > 0:
+		unspent_stat_points += data.banked_stat_points
+		data.banked_stat_points = 0
 	
 	# Resources
 	max_health = data.base_health

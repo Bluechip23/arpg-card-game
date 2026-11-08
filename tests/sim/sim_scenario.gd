@@ -7,7 +7,7 @@ extends RefCounted
 ## and validates one.
 
 const TUTORIAL_IDS_SEEN := ["combat_intro", "field_tour", "item_levels_intro",
-	"doughnut_keep", "first_climbable_tree", "trial_strike"]
+	"doughnut_keep", "first_climbable_tree", "trial_strike", "first_level_up"]
 
 static func starter_deck() -> Array:
 	## The deck every character starts with (single source: DeckManager).
