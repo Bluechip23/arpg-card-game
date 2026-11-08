@@ -7149,6 +7149,11 @@ func _select_slot(slot: int) -> void:
 	## Route a card key press to the card occupying that lettered slot.
 	for g in _hand_groups:
 		if g["slot"] == slot:
+			# Pressing the key of the card already selected puts it back down.
+			if selected_card_index >= 0 and selected_card_index < deck_manager.hand.size() \
+					and deck_manager.hand[selected_card_index] in g["cards"]:
+				select_card(-1)
+				return
 			select_card(deck_manager.hand.find(g["rep"]))
 			return
 	# No card bound to that key — leave the current selection untouched.
