@@ -734,7 +734,7 @@ func _fit_description() -> void:
 			right = 4.0
 		if desc_panel:
 			var st := desc_panel.get_theme_stylebox("panel")
-			if st is StyleBoxEmpty:
+			if st:   # the rules box's wash (a StyleBoxFlat) carries the margin
 				st.content_margin_right = right
 	desc_label.add_theme_font_size_override("normal_font_size", fs)
 	desc_label.add_theme_font_size_override("bold_font_size", fs)

@@ -150,4 +150,13 @@ func _run() -> void:
 	sl.queue_free()
 
 	print("=== %d failure(s) ===" % failures)
+	# A rules text too long for the box beside the corner picture spreads over
+	# the whole box (the washed box carries the margin, 2026-11-08).
+	var long_face := _face("enchantment_defense")
+	await process_frame
+	await process_frame
+	var lst = long_face.desc_panel.get_theme_stylebox("panel")
+	_check(lst != null and lst.content_margin_right <= 4.0,
+		"a long rules text takes the whole box (right margin %.1f)" % (lst.content_margin_right if lst else -1.0))
+	long_face.queue_free()
 	quit(1 if failures > 0 else 0)
