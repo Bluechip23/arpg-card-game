@@ -9275,7 +9275,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	# entry goes back in the queue meanwhile, and the target is checked
 	# again then). The second pass skips this and the animation.
 	if not data.get("hit_landing", false):
-		var swing := "basic_attack" if data.get("is_basic_attack", false) else card.get_animation_action()
+		var swing := "basic_attack" if data.get("is_basic_attack", false) else _card_swing(card)
 		var wait := _hit_wait(swing, target)
 		if wait > 0.0:
 			data["hit_landing"] = true
@@ -12363,6 +12363,11 @@ func _card_aim_point(card: Card, target):
 			return at
 	return null
 
+## The drawn action a card's blow lands in (the hit wait): a Spell card's
+## is the hero's spell cast, any other card's its own animation.
+func _card_swing(card: Card) -> String:
+	return SpriteFigure.DRAWN_SPELL if card.school == Card.CardSchool.SPELL else card.get_animation_action()
+
 func _play_card_animation(card: Card, target) -> void:
 	if not player or not player.has_method("play_animation"):
 		return
@@ -12379,8 +12384,9 @@ func _play_card_animation(card: Card, target) -> void:
 			dir = CharacterAnimator.Direction.EAST if to_aim.x > 0 else CharacterAnimator.Direction.WEST
 		elif abs(to_aim.z) > 0.01:
 			dir = CharacterAnimator.Direction.SOUTH if to_aim.z > 0 else CharacterAnimator.Direction.NORTH
-	# Card defines its own animation action (shared with the Animation Lab)
-	player.play_animation(card.get_animation_action(), dir)
+	# Card defines its own animation action (shared with the Animation Lab);
+	# a Spell card plays the hero's drawn cast with it (SpriteFigure.DRAWN_SPELL).
+	player.play_animation(card.get_animation_action(), dir, card.school == Card.CardSchool.SPELL)
 	# Then aim precisely so the cast lines up (the cardinal `dir` above only
 	# feeds animations that key off a 4-way facing).
 	if aim != null and player.has_method("face_toward"):
