@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_4h3k5")
 card_id = "enchantment_attack"
-card_name = "Enchantment: Attack"
+card_name = "Attack"
 description = "Cards deal +3 damage while this is in your hand. Discards after 2 cycles."
 card_type = 6
 card_type_name = "Enchantment"

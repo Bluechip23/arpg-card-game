@@ -40,11 +40,23 @@ func _run() -> void:
 	_check(art != null and art.get_index() == 0, "the frame is drawn behind the face")
 	_check(inst.get_theme_stylebox("panel") is StyleBoxEmpty, "no drawn border round it")
 	_check(inst.title_bar.get_theme_stylebox("panel") is StyleBoxEmpty, "its title bar is bare, the painting shows")
-	# The rules box carries a translucent wash (designer, 2026-11-08): the
-	# corner picture still shows, faded behind the text.
-	var wash = inst.desc_panel.get_theme_stylebox("panel")
-	_check(wash is StyleBoxFlat and wash.bg_color.a > 0.0 and wash.bg_color.a < 1.0,
-		"its rules box is washed, not covered (alpha %.2f)" % (wash.bg_color.a if wash is StyleBoxFlat else -1.0))
+	_check(inst.desc_panel.get_theme_stylebox("panel") is StyleBoxEmpty, "its rules box is bare")
+	# A translucent wash sits behind the rules text only (designer,
+	# 2026-11-08): the picture fades where the text is, the rest of the box
+	# and the frame's foot keep their colour.
+	await process_frame
+	await process_frame
+	var wash_node: Panel = inst.get_node_or_null("Panel/TextWash")
+	var wash_sb = wash_node.get_theme_stylebox("panel") if wash_node else null
+	_check(wash_node != null and wash_node.visible and wash_sb is StyleBoxFlat and wash_sb.bg_color.a > 0.0 and wash_sb.bg_color.a < 1.0,
+		"a translucent wash sits behind the text")
+	if wash_node:
+		var host: Control = inst.get_node("Panel")
+		var xf: Transform2D = host.get_global_transform().affine_inverse() * inst.desc_label.get_global_transform()
+		var text_bottom: float = xf.origin.y + inst.desc_label.get_content_height()
+		var box_bottom: float = (host.get_global_transform().affine_inverse() * inst.desc_panel.get_global_transform()).origin.y + inst.desc_panel.size.y
+		_check(wash_node.position.y + wash_node.size.y <= text_bottom + 4.0 and wash_node.position.y + wash_node.size.y < box_bottom,
+			"it ends with the text, short of the box's foot (%.0f vs box %.0f)" % [wash_node.position.y + wash_node.size.y, box_bottom])
 	var icons_hidden := true
 	for c in inst._mana_badge.get_children() + inst._tempo_badge.get_children():
 		if c is TextureRect and c.visible:

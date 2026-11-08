@@ -194,6 +194,7 @@ const FRAMES := {
 static var text_wash_alpha: float = 0.5
 const TEXT_WASH_DARK := Color(0.03, 0.03, 0.04)
 const TEXT_WASH_PARCHMENT := Color(0.93, 0.87, 0.72)
+const TEXT_WASH_PAD := 2.5   # how far the wash reaches past the text, card pixels
 const FRAMED_DOT := 8.0
 const FRAMED_LOGO_SIZE := 48
 const FRAMED_NAME := Color(0.97, 0.92, 0.8)    # the name's cream
@@ -734,10 +735,48 @@ func _fit_description() -> void:
 			right = 4.0
 		if desc_panel:
 			var st := desc_panel.get_theme_stylebox("panel")
-			if st:   # the rules box's wash (a StyleBoxFlat) carries the margin
+			if st:
 				st.content_margin_right = right
 	desc_label.add_theme_font_size_override("normal_font_size", fs)
 	desc_label.add_theme_font_size_override("bold_font_size", fs)
+	if not _frame.is_empty():
+		if not desc_label.resized.is_connected(_place_text_wash):
+			desc_label.resized.connect(_place_text_wash)
+		_place_text_wash.call_deferred()
+
+## A translucent wash behind the rules text only, fading the frame's corner
+## picture where the text sits so the text reads first (designer,
+## 2026-11-08): dark on the stone frames, parchment on the Instant frame. It
+## hugs the lines of text, so the rest of the rules box and the frame's
+## bottom keep their full colour.
+func _place_text_wash() -> void:
+	var host: Control = get_node_or_null("Panel")
+	if host == null or desc_label == null or not is_instance_valid(desc_label):
+		return
+	var w: Panel = host.get_node_or_null("TextWash")
+	if _frame.is_empty() or text_wash_alpha <= 0.0 or desc_label.get_parsed_text().strip_edges() == "":
+		if w:
+			w.visible = false
+		return
+	if w == null:
+		w = Panel.new()
+		w.name = "TextWash"
+		w.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		host.add_child(w)
+		host.move_child(w, 1 if host.get_node_or_null("FrameArt") else 0)   # over the frame, under the text
+	var wash: Color = TEXT_WASH_PARCHMENT if _frame["ink_dark"] else TEXT_WASH_DARK
+	wash.a = text_wash_alpha
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = wash
+	sb.set_corner_radius_all(4)
+	w.add_theme_stylebox_override("panel", sb)
+	# The label's place in the host's own units (cards are scaled as a whole).
+	var xf: Transform2D = host.get_global_transform().affine_inverse() * desc_label.get_global_transform()
+	var text_h: float = minf(float(desc_label.get_content_height()), desc_label.size.y)
+	var pad := TEXT_WASH_PAD
+	w.position = xf.origin - Vector2(pad, pad)
+	w.size = Vector2(desc_label.size.x, text_h) + Vector2(pad, pad) * 2.0
+	w.visible = true
 
 func _fit_size(font: Font, plain: String, box: Vector2, top: int = DESC_FONT_MAX) -> int:
 	var fs := top
@@ -1179,14 +1218,7 @@ func _style_painted_frame() -> void:
 		type_bar.add_theme_stylebox_override("panel", tp)
 		type_bar.custom_minimum_size = Vector2(0, _frame.get("type_h", 18.0))
 	if desc_panel:
-		# A wash over the rules box fades the frame's corner picture behind
-		# the text, so the text reads first (designer, 2026-11-08): dark on
-		# the stone frames, parchment on the Instant frame.
-		var box := StyleBoxFlat.new()
-		var wash: Color = TEXT_WASH_PARCHMENT if _frame["ink_dark"] else TEXT_WASH_DARK
-		wash.a = text_wash_alpha
-		box.bg_color = wash
-		box.set_corner_radius_all(4)
+		var box := StyleBoxEmpty.new()
 		box.content_margin_left = 3.5
 		box.content_margin_right = _frame["desc_right"]
 		box.content_margin_top = _frame.get("desc_top", 4.0)
