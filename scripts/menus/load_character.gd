@@ -3,6 +3,10 @@ extends Control
 
 ## Load character screen - displays saved characters with details
 
+const HoldButtonScript = preload("res://scripts/ui/hold_button.gd")
+const DELETE_HOLD_SECONDS := 4.0   # designer, 2026-11-08
+const DELETE_RED := Color(0.85, 0.3, 0.25)
+
 @onready var title_label: Label = $VBox/TitleLabel
 @onready var subtitle_label: Label = $VBox/SubtitleLabel
 @onready var slot_container: VBoxContainer = $VBox/ScrollContainer/SlotContainer
@@ -152,6 +156,92 @@ func _create_save_slot_card(save: SaveData, slot: int) -> void:
 	EmeraldTheme.style_button(deck_btn, 16)
 	deck_btn.pressed.connect(_show_deck_popup.bind(save))
 	btn_vbox.add_child(deck_btn)
+
+	# Delete: hold for 4 seconds, then confirm (designer, 2026-11-08).
+	var del_btn: Button = HoldButtonScript.new()
+	del_btn.name = "DeleteButton"
+	del_btn.text = "Hold to Delete"
+	del_btn.hold_seconds = DELETE_HOLD_SECONDS
+	del_btn.custom_minimum_size = Vector2(120, 34)
+	EmeraldTheme.style_button(del_btn, 14)
+	del_btn.add_theme_color_override("font_color", DELETE_RED)
+	del_btn.add_theme_color_override("font_hover_color", DELETE_RED.lightened(0.2))
+	del_btn.tooltip_text = "Hold for %d seconds to delete this save" % int(DELETE_HOLD_SECONDS)
+	del_btn.held.connect(_confirm_delete.bind(save, slot))
+	btn_vbox.add_child(del_btn)
+
+## The "are you sure" window after the 4-second hold. Only its Delete button
+## removes the save; Cancel (or clicking outside) leaves it.
+func _confirm_delete(save: SaveData, slot: int) -> void:
+	var old := get_node_or_null("DeleteConfirm")
+	if old:
+		old.queue_free()
+	var overlay := ColorRect.new()
+	overlay.name = "DeleteConfirm"
+	overlay.color = Color(0, 0, 0, 0.65)
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(overlay)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(center)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel",
+		EmeraldTheme.panel_box(EmeraldTheme.PANEL_BG_SOLID, EmeraldTheme.GOLD_DIM, 2, 8, 22.0))
+	center.add_child(panel)
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 14)
+	panel.add_child(vb)
+	var heading := Label.new()
+	heading.text = "Are you sure?"
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	EmeraldTheme.style_heading(heading, 26)
+	vb.add_child(heading)
+	var msg := Label.new()
+	msg.name = "Message"
+	msg.text = "Delete %s (Level %d)%s?\nThis cannot be undone." % [save.character_name, save.character_level,
+		"  — the autosave" if SaveManager.is_autosave(slot) else ""]
+	msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	msg.add_theme_font_size_override("font_size", 17)
+	msg.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
+	vb.add_child(msg)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 16)
+	vb.add_child(row)
+	var cancel := Button.new()
+	cancel.name = "CancelButton"
+	cancel.text = "Cancel"
+	cancel.custom_minimum_size = Vector2(130, 38)
+	EmeraldTheme.style_button(cancel, 17)
+	cancel.pressed.connect(overlay.queue_free)
+	row.add_child(cancel)
+	var yes := Button.new()
+	yes.name = "ConfirmDeleteButton"
+	yes.text = "Delete"
+	yes.custom_minimum_size = Vector2(130, 38)
+	EmeraldTheme.style_button(yes, 17)
+	yes.add_theme_color_override("font_color", DELETE_RED)
+	yes.add_theme_color_override("font_hover_color", DELETE_RED.lightened(0.2))
+	yes.pressed.connect(_do_delete.bind(slot, overlay))
+	row.add_child(yes)
+	overlay.gui_input.connect(func(ev: InputEvent):
+		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT \
+				and not panel.get_global_rect().has_point(ev.global_position):
+			overlay.queue_free())
+	cancel.grab_focus()
+
+func _do_delete(slot: int, overlay: Control) -> void:
+	SaveManager.delete_save(slot)
+	if is_instance_valid(overlay):
+		overlay.queue_free()
+	_refresh_save_slots()
+
+func _refresh_save_slots() -> void:
+	for c in slot_container.get_children():
+		slot_container.remove_child(c)
+		c.queue_free()
+	_load_save_slots()
 
 func _on_load_slot(save: SaveData) -> void:
 	if not save.character_data:
