@@ -129,11 +129,10 @@ const LESSONS := [
 		{"title": "Power", "card": "armored_discipline", "paragraphs": [
 			"\"A POWER stays in play for as long as you hold its mana up. The more you maintain, the less mana you have to spend.\"",
 		]},
-		{"title": "Reaction", "card": "cover", "paragraphs": [
-			"\"A REACTION waits in your hand and springs on its own when its moment comes.\"",
-		]},
-		{"title": "Instant", "card": "hard_helmet", "paragraphs": [
-			"\"An INSTANT is the same, at no mana: it fires from your hand the moment its condition is met.\"",
+		# Reactions and instants are one and the same, and wear the same
+		# frame (designer, 2026-11-08): one beat for both.
+		{"title": "Instant", "card": "cover", "paragraphs": [
+			"\"An INSTANT waits in your hand and fires on its own the moment its condition is met.\"",
 		]},
 		{"title": "Enchantment", "card": "enchantment_attack", "paragraphs": [
 			"\"An ENCHANTMENT is never played. It works by being held, and leaves when it is spent.\"",
@@ -486,12 +485,20 @@ func _tour_next() -> void:
 	_show_tour_card(str(step.get("card", "")))
 	_tour_panel = _build_speech_bar(str(step.get("title", "")), step.get("paragraphs", []), null, -1,
 			OLORIN_SPEAKER, "Farewell" if last else "Continue", _tour_next,
-			"" if last else "Skip", _close)
+			"" if last else "Skip", _close,
+			"< Back" if _tour_index > 0 else "", _tour_prev)
 	_layer.add_child(_tour_panel)
 	_dock_bar(_tour_panel, placement_for(hole, get_viewport().get_visible_rect().size))
 	_keep_clear(_tour_panel, hole)
 	if _tour_card:
 		_fit_tour_card.call_deferred()
+
+## Back one beat, to read it again (designer, 2026-11-08).
+func _tour_prev() -> void:
+	if _tour_index <= 0:
+		return
+	_tour_index -= 2
+	_tour_next()
 
 ## The screen rectangle covering every visible Control in `focus`, padded.
 ## Rect2() (empty) when nothing is lit.
@@ -647,7 +654,8 @@ const OLORIN_PORTRAIT := "res://assets/sprites/portraits/olorin.png"
 ## it, and the same buttons as before at the bottom right.
 func _build_speech_bar(title: String, paragraphs: Array, icon: Control, icon_after_paragraph: int,
 		speaker_name: String, button_text: String, on_button: Callable,
-		secondary_text: String = "", on_secondary: Callable = Callable()) -> PanelContainer:
+		secondary_text: String = "", on_secondary: Callable = Callable(),
+		back_text: String = "", on_back: Callable = Callable()) -> PanelContainer:
 	var bar := PanelContainer.new()
 	bar.name = "SpeechBar"
 	bar.anchor_left = 0.0
@@ -737,6 +745,11 @@ func _build_speech_bar(title: String, paragraphs: Array, icon: Control, icon_aft
 		skip_btn.name = "SkipButton"
 		skip_btn.pressed.connect(on_secondary)
 		buttons.add_child(skip_btn)
+	if back_text != "" and on_back.is_valid():
+		var back_btn = _panel_button(back_text, Color(0.12, 0.13, 0.2), Color(0.35, 0.4, 0.55))
+		back_btn.name = "BackButton"
+		back_btn.pressed.connect(on_back)
+		buttons.add_child(back_btn)
 	var continue_btn = _panel_button(button_text, Color(0.15, 0.25, 0.45), Color(0.4, 0.6, 1.0))
 	continue_btn.name = "ContinueButton"
 	continue_btn.pressed.connect(on_button)
