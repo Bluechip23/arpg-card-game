@@ -49,11 +49,56 @@ var _constellation_modal_overlay: ColorRect = null  # Dim background
 var _pending_constellation_id: String = ""  # Constellation awaiting confirmation
 var _conflicting_constellation_id: String = ""  # Active constellation that would be replaced
 
-# Node drawing constants
-const NODE_RADIUS_BASE: float = 16.0
-const NODE_RADIUS_START: float = 22.0
+# Node drawing constants (world units; the view scales them by _zoom).
+# Sizes by importance: the centre gem biggest, then keystones, then the
+# rest, the null connectors smallest.
+const NODE_RADIUS_BASE: float = 24.0
+const NODE_RADIUS_START: float = 34.0
+const NODE_RADIUS_KEYSTONE: float = 27.0
+const NULL_NODE_SCALE: float = 0.55
 const LINE_WIDTH: float = 3.0
 const HOVER_GROW: float = 4.0
+
+# The look is the designer's sphere grid painting (2026-11-08): the screen
+# stands on the painting itself — its gilt Celtic-knot frame, the raven and
+# wolf down the left, the castle and battle down the right — with its own
+# node web painted out of the dark green middle, and every node wears an orb
+# or plaque cut from that web. Both are cut by tools/cut_sphere_grid_art.py.
+const ART_DIR := "res://assets/textures/sphere_grid/"
+const BACKDROP_PATH := ART_DIR + "backdrop.webp"
+# The painted web's centre (its green gem) and its width on the painting:
+# the backdrop is laid so the grid's centre sits on the gem, and the grid's
+# opening zoom fits it inside the dark middle, as the painting has it.
+const BACKDROP_FOCUS := Vector2(813.5, 421.0)
+const BACKDROP_WEB_WIDTH: float = 858.0
+# Each node type's icon (a file under ART_DIR). Designer: health -> the
+# heart, mana -> the mana drop, pure stats -> the purple star, battle nodes
+# -> the crossed swords. The rest by analogy (see _icon_name_for).
+const ICON_FOR_TYPE := {
+	SphereGrid.NodeType.START: "gem_centre",
+	SphereGrid.NodeType.HEALTH: "orb_heart",
+	SphereGrid.NodeType.MANA: "orb_mana",
+	SphereGrid.NodeType.STAT_BONUS: "orb_star",
+	SphereGrid.NodeType.FREE_STAT: "orb_sparkle",
+	SphereGrid.NodeType.COMBAT_BONUS: "orb_swords",
+	SphereGrid.NodeType.NULL_NODE: "orb_silver",
+	SphereGrid.NodeType.PASSIVE: "plaque_sword",
+	SphereGrid.NodeType.KEYSTONE: "plaque_triquetra",
+	SphereGrid.NodeType.CULLING_STONE: "orb_sun",
+	SphereGrid.NodeType.RETROSPECTIVE: "orb_gold",
+	SphereGrid.NodeType.FEATHER: "orb_gold",
+}
+# Icons drawn as square plaques (their state rings are squares too).
+const PLAQUE_TYPES := [SphereGrid.NodeType.PASSIVE, SphereGrid.NodeType.KEYSTONE]
+# Painted line colours: silver like the painting's, gold once walked.
+const COLOR_LINE_SILVER := Color(0.66, 0.69, 0.74, 1.0)
+const COLOR_LINE_SHADOW := Color(0.02, 0.04, 0.04, 0.8)
+const COLOR_LINE_GOLD := Color(1.0, 0.83, 0.42, 1.0)
+
+# Loaded art, shared by every grid UI: name -> {"tex", "dim", "body_r"}.
+static var _icon_cache: Dictionary = {}
+static var _backdrop_tex: Texture2D = null
+static var _halo_tex: Texture2D = null
 
 # Colors by node type
 const COLOR_LOCKED := Color(0.65, 0.65, 0.72, 1.0)
@@ -69,8 +114,6 @@ const COLOR_CULLING := Color(1.0, 0.35, 0.65, 1.0)  # Crimson/hot-pink - distinc
 const COLOR_RETROSPECTIVE := Color(0.4, 1.0, 0.95, 1.0)  # Teal/cyan - retrospective nodes
 const COLOR_FEATHER := Color(0.95, 0.85, 0.45, 1.0)  # Warm gold - feather nodes for card removal
 const COLOR_FREE_STAT := Color(0.75, 0.55, 1.0, 1.0)  # Bright violet - freely-allocatable stat points
-const COLOR_LINE := Color(0.65, 0.65, 0.8, 1.0)
-const COLOR_LINE_UNLOCKED := Color(0.5, 1.0, 0.6, 1.0)
 const COLOR_BG := Color(0.08, 0.08, 0.13, 0.97)
 const COLOR_HOVER_RING := Color(1.0, 1.0, 0.6, 0.9)
 
@@ -90,6 +133,9 @@ func _ready() -> void:
 	grid_canvas.gui_input.connect(_on_grid_input)
 	grid_canvas.mouse_filter = Control.MOUSE_FILTER_STOP
 	grid_canvas.resized.connect(_on_canvas_resized)
+	# The painting and its cut icons are shrunk smoothly (they are mipmapped).
+	grid_canvas.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	_load_art()
 
 	_build_constellation_list_panel()
 
@@ -180,7 +226,7 @@ func _apply_styles() -> void:
 func show_panel() -> void:
 	visible = true
 	_camera_offset = Vector2.ZERO
-	_zoom = 1.0
+	_zoom = _fit_zoom()
 	_close_detail_popup()
 	_update_points_label()
 	_refresh_constellation_list()
@@ -226,14 +272,49 @@ func _get_node_at_screen(screen_pos: Vector2) -> int:
 		return -1
 	for node in sphere_grid.get_all_nodes():
 		var npos = _world_to_screen(node.position)
-		var r = NODE_RADIUS_BASE * _zoom
-		if node.id == 0:
-			r = NODE_RADIUS_START * _zoom
-		elif node.node_type == SphereGrid.NodeType.NULL_NODE:
-			r *= 0.55  # Null connectors are visibly smaller
-		if screen_pos.distance_to(npos) <= r:
+		var r = _node_radius(node) * _zoom
+		if _is_plaque(node):
+			# A plaque is square: its corners count too.
+			var d = (screen_pos - npos).abs()
+			if d.x <= r and d.y <= r:
+				return node.id
+		elif screen_pos.distance_to(npos) <= r:
 			return node.id
 	return -1
+
+## A node's drawn (and clickable) radius in world units, by importance.
+func _node_radius(node: SphereGrid.GridNode) -> float:
+	if node.id == 0 or node.node_type == SphereGrid.NodeType.START:
+		return NODE_RADIUS_START
+	match node.node_type:
+		SphereGrid.NodeType.NULL_NODE:
+			return NODE_RADIUS_BASE * NULL_NODE_SCALE  # Null connectors are visibly smaller
+		SphereGrid.NodeType.KEYSTONE:
+			return NODE_RADIUS_KEYSTONE
+	return NODE_RADIUS_BASE
+
+func _is_plaque(node: SphereGrid.GridNode) -> bool:
+	return node.node_type in PLAQUE_TYPES
+
+## The zoom the panel opens at: the whole web inside the backdrop's dark
+## middle, as the painting frames its own.
+func _fit_zoom() -> float:
+	if not sphere_grid:
+		return 1.0
+	var center = Vector2(640, 360)
+	var ext = Vector2.ZERO
+	for node in sphere_grid.get_all_nodes():
+		var r = _node_radius(node)
+		ext = ext.max((node.position - center).abs() + Vector2(r, r))
+	if ext.x <= 0.0 or ext.y <= 0.0:
+		return 1.0
+	var canvas = _get_canvas_size()
+	var room = Vector2(canvas.x, canvas.y * 0.88)
+	var rect = _backdrop_rect()
+	if rect.size.x > 0.0:
+		var k = rect.size.x / _backdrop_tex.get_width()
+		room.x = minf(room.x, BACKDROP_WEB_WIDTH * k)
+	return clampf(minf(room.x / (2.0 * ext.x), room.y / (2.0 * ext.y)), 0.4, 2.5)
 
 func _get_type_color(node: SphereGrid.GridNode) -> Color:
 	if node.unlocked:
@@ -267,22 +348,83 @@ func _get_type_color(node: SphereGrid.GridNode) -> Color:
 			return COLOR_RETROSPECTIVE
 	return COLOR_LOCKED
 
-func _get_node_shape(node: SphereGrid.GridNode) -> String:
-	match node.node_type:
-		SphereGrid.NodeType.PASSIVE:
-			return "diamond"
-		SphereGrid.NodeType.FREE_STAT:
-			return "star"
-		SphereGrid.NodeType.COMBAT_BONUS:
-			return "square"
-		SphereGrid.NodeType.CULLING_STONE:
-			return "hexagon"
-		SphereGrid.NodeType.FEATHER:
-			return "hexagon"
-		SphereGrid.NodeType.RETROSPECTIVE:
-			return "star"
-		_:
-			return "circle"
+## The icon a node wears. Designer (2026-11-08): HEALTH the heart, MANA the
+## mana drop, the pure stats the purple star, the battle (COMBAT_BONUS)
+## nodes the crossed swords. FREE_STAT banks unassigned stat points — pure
+## stats too, so it stays in the purple-star family, but takes the painting's
+## other star orb (the smaller dark-rimmed violet sparkle) so it still reads
+## apart from a fixed +1 stat. START is the centre's green gem, NULL_NODE the
+## small silver bosses where the painting's lines meet, KEYSTONE the triquetra
+## plaque (the frame's own emblem, the most distinctive plaque), PASSIVE the
+## sword plaque, CULLING_STONE the sun orb (a card burned away), RETROSPECTIVE
+## (and the retired FEATHER) the plain gold orb.
+static func _icon_name_for(node_type: int) -> String:
+	return ICON_FOR_TYPE.get(node_type, "orb_silver")
+
+## Loads the backdrop and icons once (shared), and makes each icon's locked
+## look: half its colour gone and darkened, so a locked node still shows
+## which kind it is but plainly sits back.
+static func _load_art() -> void:
+	if _backdrop_tex == null and ResourceLoader.exists(BACKDROP_PATH):
+		_backdrop_tex = load(BACKDROP_PATH)
+	if _halo_tex == null:
+		var grad = Gradient.new()
+		grad.set_color(0, Color(1, 1, 1, 1))
+		grad.set_color(1, Color(1, 1, 1, 0))
+		grad.add_point(0.45, Color(1, 1, 1, 0.55))
+		var halo = GradientTexture2D.new()
+		halo.gradient = grad
+		halo.fill = GradientTexture2D.FILL_RADIAL
+		halo.fill_from = Vector2(0.5, 0.5)
+		halo.fill_to = Vector2(1.0, 0.5)
+		halo.width = 64
+		halo.height = 64
+		_halo_tex = halo
+	for icon_name in ICON_FOR_TYPE.values():
+		if _icon_cache.has(icon_name):
+			continue
+		var path = ART_DIR + icon_name + ".png"
+		if not ResourceLoader.exists(path):
+			continue
+		var tex: Texture2D = load(path)
+		_icon_cache[icon_name] = {
+			"tex": tex,
+			"dim": _make_dim(tex),
+			# The cutting tool makes every icon exactly 3x its body radius across.
+			"body_r": tex.get_width() / 3.0,
+		}
+
+static func _make_dim(tex: Texture2D) -> Texture2D:
+	var img: Image = tex.get_image()
+	if img == null:
+		return tex
+	img = img.duplicate()
+	if img.is_compressed():
+		img.decompress()
+	img.clear_mipmaps()
+	img.convert(Image.FORMAT_RGBA8)
+	for y in range(img.get_height()):
+		for x in range(img.get_width()):
+			var c = img.get_pixel(x, y)
+			var l = c.r * 0.3 + c.g * 0.59 + c.b * 0.11
+			var g = Color(l, l, l).lerp(c, 0.5) * 0.72
+			img.set_pixel(x, y, Color(g.r, g.g, g.b, c.a))
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+## Where the backdrop lies on the canvas: it covers the canvas (aspect
+## kept), its web's centre on the grid's centre as far as covering allows.
+func _backdrop_rect() -> Rect2:
+	if _backdrop_tex == null:
+		return Rect2()
+	var canvas = _get_canvas_size()
+	var tsize = Vector2(_backdrop_tex.get_width(), _backdrop_tex.get_height())
+	var k = maxf(canvas.x / tsize.x, canvas.y / tsize.y)
+	var size = tsize * k
+	var pos = canvas / 2.0 - BACKDROP_FOCUS * k
+	pos.x = clampf(pos.x, canvas.x - size.x, 0.0)
+	pos.y = clampf(pos.y, canvas.y - size.y, 0.0)
+	return Rect2(pos, size)
 
 # ============================================
 # DRAWING
@@ -297,11 +439,14 @@ func _on_grid_draw() -> void:
 		grid_canvas.call_deferred("queue_redraw")
 		return
 
+	# The painting behind everything (it stays put while the grid pans).
+	if _backdrop_tex:
+		grid_canvas.draw_texture_rect(_backdrop_tex, _backdrop_rect(), false)
+
 	var all_nodes = sphere_grid.get_all_nodes()
 
 	# Build set of constellation edges for coloring (completed constellations + hovered)
 	var constellation_edge_colors: Dictionary = {}  # "min_max" -> Color
-	var constellation_node_sets: Dictionary = {}  # constellation_id -> node_id set
 	for c in sphere_grid.get_all_constellations():
 		var is_active = c.completed or c.id == _hovered_constellation_id
 		if not is_active:
@@ -315,7 +460,10 @@ func _on_grid_draw() -> void:
 	# Draw constellation shaded areas (behind everything)
 	_draw_constellation_fills()
 
-	# Draw connections first (behind nodes)
+	# Connections first (behind nodes): thin silver lines like the painting's,
+	# a dark edge under them so they read on the painted ground, gold once
+	# both ends are unlocked, a constellation's colour while it is lit.
+	var w = clampf(LINE_WIDTH * 1.2 * _zoom, 1.5, 5.0)
 	for node in all_nodes:
 		var from_pos = _world_to_screen(node.position)
 		for conn_id in node.connections:
@@ -324,159 +472,141 @@ func _on_grid_draw() -> void:
 				if other:
 					var to_pos = _world_to_screen(other.position)
 					var edge_key = "%d_%d" % [mini(node.id, conn_id), maxi(node.id, conn_id)]
-					var line_color = COLOR_LINE
+					grid_canvas.draw_line(from_pos, to_pos, COLOR_LINE_SHADOW, w + 1.6)
 					if edge_key in constellation_edge_colors:
-						line_color = constellation_edge_colors[edge_key]
-						# Draw constellation edges thicker and with glow
-						grid_canvas.draw_line(from_pos, to_pos, Color(line_color.r, line_color.g, line_color.b, 0.5), (LINE_WIDTH + 6) * _zoom)
-						grid_canvas.draw_line(from_pos, to_pos, line_color, (LINE_WIDTH + 2) * _zoom)
+						var cc: Color = constellation_edge_colors[edge_key]
+						grid_canvas.draw_line(from_pos, to_pos, Color(cc.r, cc.g, cc.b, 0.4), w * 3.0)
+						grid_canvas.draw_line(from_pos, to_pos, cc, w * 1.2)
 					elif node.unlocked and other.unlocked:
-						line_color = COLOR_LINE_UNLOCKED
-						grid_canvas.draw_line(from_pos, to_pos, line_color, LINE_WIDTH * _zoom)
+						grid_canvas.draw_line(from_pos, to_pos, Color(COLOR_LINE_GOLD, 0.3), w * 3.0)
+						grid_canvas.draw_line(from_pos, to_pos, COLOR_LINE_GOLD, w)
+						grid_canvas.draw_line(from_pos, to_pos, Color(1.0, 0.97, 0.85), w * 0.35)
 					else:
-						grid_canvas.draw_line(from_pos, to_pos, line_color, LINE_WIDTH * _zoom)
+						grid_canvas.draw_line(from_pos, to_pos, COLOR_LINE_SILVER, w)
+						grid_canvas.draw_line(from_pos, to_pos, Color(0.92, 0.94, 1.0, 0.55), w * 0.35)
 
-	# Draw nodes
+	# Nodes
+	var font = ThemeDB.fallback_font
+	var font_size = int(10 * _zoom)
 	for node in all_nodes:
 		var pos = _world_to_screen(node.position)
-		var radius = NODE_RADIUS_BASE * _zoom
-		if node.id == 0:
-			radius = NODE_RADIUS_START * _zoom
-		elif node.node_type == SphereGrid.NodeType.NULL_NODE:
-			radius *= 0.55  # Null connectors are visibly smaller
-
-		var color = _get_type_color(node)
-		var shape = _get_node_shape(node)
-
-		# Hover highlight
+		var radius = _node_radius(node) * _zoom
 		var is_hovered = (node.id == _hovered_node_id)
-		# Selected node highlight (popup open)
-		var is_selected = (node.id == _popup_node_id)
+		var is_selected = (node.id == _popup_node_id)  # popup open
 		if is_hovered or is_selected:
 			radius += HOVER_GROW * _zoom
+		var state = 2 if node.unlocked else (1 if sphere_grid.is_unlockable(node.id) else 0)
+		_draw_node(pos, radius, node.node_type, state, _is_plaque(node))
+		if is_hovered or is_selected:
+			var ring_color = COLOR_HOVER_RING if not is_selected else Color(1.0, 0.9, 0.3, 1.0)
+			_draw_ring(pos, radius * 1.22 + 2.0, _is_plaque(node), ring_color, maxf(2.0, 2.0 * _zoom))
 
-		# Draw shape
-		match shape:
-			"circle":
-				grid_canvas.draw_circle(pos, radius, color)
-				if is_hovered or is_selected:
-					var ring_color = COLOR_HOVER_RING if not is_selected else Color(1.0, 0.9, 0.3, 1.0)
-					grid_canvas.draw_arc(pos, radius + 2 * _zoom, 0, TAU, 32, ring_color, 2.0 * _zoom)
-			"diamond":
-				var pts = PackedVector2Array([
-					pos + Vector2(0, -radius),
-					pos + Vector2(radius, 0),
-					pos + Vector2(0, radius),
-					pos + Vector2(-radius, 0),
-				])
-				grid_canvas.draw_colored_polygon(pts, color)
-				if is_hovered or is_selected:
-					var outline = pts.duplicate()
-					outline.append(pts[0])
-					var ring_color = COLOR_HOVER_RING if not is_selected else Color(1.0, 0.9, 0.3, 1.0)
-					grid_canvas.draw_polyline(outline, ring_color, 2.0 * _zoom)
-			"square":
-				var rect = Rect2(pos - Vector2(radius, radius), Vector2(radius * 2, radius * 2))
-				grid_canvas.draw_rect(rect, color)
-				if is_hovered or is_selected:
-					var ring_color = COLOR_HOVER_RING if not is_selected else Color(1.0, 0.9, 0.3, 1.0)
-					grid_canvas.draw_rect(rect.grow(2 * _zoom), ring_color, false, 2.0 * _zoom)
-			"hexagon":
-				var hex_pts = PackedVector2Array()
-				for hi in range(6):
-					var ha = TAU / 6.0 * hi - PI / 6.0  # Flat-top hexagon
-					hex_pts.append(pos + Vector2(cos(ha), sin(ha)) * radius)
-				grid_canvas.draw_colored_polygon(hex_pts, color)
-				if is_hovered or is_selected:
-					var outline = hex_pts.duplicate()
-					outline.append(hex_pts[0])
-					var ring_color = COLOR_HOVER_RING if not is_selected else Color(1.0, 0.9, 0.3, 1.0)
-					grid_canvas.draw_polyline(outline, ring_color, 2.0 * _zoom)
-			"star":
-				var star_pts = PackedVector2Array()
-				for si in range(10):
-					var sa = TAU / 10.0 * si - PI / 2.0
-					var sr = radius if si % 2 == 0 else radius * 0.5
-					star_pts.append(pos + Vector2(cos(sa), sin(sa)) * sr)
-				grid_canvas.draw_colored_polygon(star_pts, color)
-				if is_hovered or is_selected:
-					var outline = star_pts.duplicate()
-					outline.append(star_pts[0])
-					var ring_color = COLOR_HOVER_RING if not is_selected else Color(1.0, 0.9, 0.3, 1.0)
-					grid_canvas.draw_polyline(outline, ring_color, 2.0 * _zoom)
-
-		# Draw unlocked checkmark or lock
-		if node.unlocked and node.id != 0:
-			grid_canvas.draw_circle(pos, 4.0 * _zoom, Color(0.0, 0.2, 0.0))
-
-		# Draw label text
-		var font = ThemeDB.fallback_font
-		var font_size = int(10 * _zoom)
+		# Label under the node (once the view is close enough to read it)
 		if font and font_size >= 6:
 			var text_size = font.get_string_size(node.label, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
-			var text_pos = pos - Vector2(text_size.x / 2.0, -radius - 4 * _zoom)
-			grid_canvas.draw_string(font, text_pos, node.label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0.9, 0.9, 0.9))
+			var text_pos = pos - Vector2(text_size.x / 2.0, -radius * 1.15 - 4 * _zoom - text_size.y * 0.5)
+			grid_canvas.draw_string_outline(font, text_pos, node.label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 3, Color(0.0, 0.03, 0.02, 0.85))
+			grid_canvas.draw_string(font, text_pos, node.label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0.93, 0.9, 0.8))
 
 	# Draw legend
 	_draw_legend()
 
+## One node: its icon, and its state as light round it — never a recolouring
+## of the icon. state: 0 locked (icon dimmed and greyed, no light),
+## 1 available (full colour, a soft COLOR_UNLOCKABLE halo and ring),
+## 2 unlocked (full colour, brightened, a COLOR_UNLOCKED halo and ring).
+func _draw_node(pos: Vector2, radius: float, node_type: int, state: int, plaque: bool) -> void:
+	var icon = _icon_cache.get(_icon_name_for(node_type), null)
+	var ring_w = clampf(radius * 0.09, 1.5, 3.5)
+	if state > 0:
+		var glow: Color = COLOR_UNLOCKED if state == 2 else COLOR_UNLOCKABLE
+		var hr = radius * (2.1 if state == 2 else 1.8)
+		if _halo_tex:
+			grid_canvas.draw_texture_rect(_halo_tex, Rect2(pos - Vector2(hr, hr), Vector2(hr, hr) * 2.0), false,
+				Color(glow.r, glow.g, glow.b, 0.75 if state == 2 else 0.5))
+	if icon == null:
+		# No art (a stripped build): the plain disc the grid drew before.
+		var fallback: Color = [COLOR_LOCKED, COLOR_UNLOCKABLE, COLOR_UNLOCKED][state]
+		grid_canvas.draw_circle(pos, radius, fallback)
+	else:
+		var tex: Texture2D = icon["tex"] if state > 0 else icon["dim"]
+		var k = radius / float(icon["body_r"])
+		var tsize = Vector2(tex.get_width(), tex.get_height()) * k
+		var modulate = Color(1.15, 1.15, 1.12) if state == 2 else Color.WHITE
+		grid_canvas.draw_texture_rect(tex, Rect2(pos - tsize / 2.0, tsize), false, modulate)
+	if state > 0:
+		var ring: Color = COLOR_UNLOCKED if state == 2 else COLOR_UNLOCKABLE
+		_draw_ring(pos, radius + ring_w * 0.9, plaque, Color(ring, 0.95 if state == 2 else 0.8), ring_w)
+
+## A ring round a node: a circle round an orb, a square round a plaque.
+func _draw_ring(pos: Vector2, r: float, plaque: bool, color: Color, width: float) -> void:
+	if plaque:
+		grid_canvas.draw_rect(Rect2(pos - Vector2(r, r), Vector2(r, r) * 2.0), color, false, width)
+	else:
+		grid_canvas.draw_arc(pos, r, 0, TAU, 48, color, width, true)
+
 func _draw_legend() -> void:
-	var legend_x = 20.0
-	var legend_y = 60.0
-	var spacing = 22.0
+	## The key, in two columns at the top left (below the tab bar): each
+	## kind of node on this grid with its icon, then the three states.
 	var font = ThemeDB.fallback_font
-	var font_size = 12
 	if not font:
 		return
-
-	var entries = [
-		[COLOR_STAT, "circle", "Stat Bonus"],
-		[COLOR_PASSIVE, "diamond", "Passive"],
-		[COLOR_COMBAT, "square", "Combat Bonus"],
-		[COLOR_HEALTH, "circle", "Health"],
-		[COLOR_MANA, "circle", "Mana"],
-		[COLOR_CULLING, "hexagon", "Culling Stone"],
-		[COLOR_FEATHER, "hexagon", "Feather"],
-		[COLOR_FREE_STAT, "star", "Free Stats"],
-		[COLOR_UNLOCKED, "circle", "Unlocked"],
-		[COLOR_UNLOCKABLE, "circle", "Available"],
-		[COLOR_LOCKED, "circle", "Locked"],
+	var present := {}
+	for node in sphere_grid.get_all_nodes():
+		present[node.node_type] = true
+	var order = [
+		[SphereGrid.NodeType.STAT_BONUS, "Stat Bonus"],
+		[SphereGrid.NodeType.FREE_STAT, "Free Stats"],
+		[SphereGrid.NodeType.HEALTH, "Health"],
+		[SphereGrid.NodeType.MANA, "Mana"],
+		[SphereGrid.NodeType.COMBAT_BONUS, "Combat Bonus"],
+		[SphereGrid.NodeType.PASSIVE, "Passive"],
+		[SphereGrid.NodeType.KEYSTONE, "Keystone"],
+		[SphereGrid.NodeType.CULLING_STONE, "Culling Stone"],
+		[SphereGrid.NodeType.RETROSPECTIVE, "Retrospective"],
+		[SphereGrid.NodeType.NULL_NODE, "Null Node"],
 	]
+	var entries: Array = []  # [node_type, state, label]
+	for e in order:
+		if present.has(e[0]):
+			entries.append([e[0], -1, e[1]])
+	# The states, shown on the heart.
+	entries.append([SphereGrid.NodeType.HEALTH, 2, "Unlocked"])
+	entries.append([SphereGrid.NodeType.HEALTH, 1, "Available"])
+	entries.append([SphereGrid.NodeType.HEALTH, 0, "Locked"])
 
+	var rows = int(ceil(entries.size() / 2.0))
+	var origin = Vector2(12, 80)
+	var col_w = 114.0
+	var row_h = 22.0
+	var back = StyleBoxFlat.new()
+	back.bg_color = Color(0.03, 0.06, 0.05, 0.82)
+	back.border_color = Color(0.62, 0.48, 0.22, 0.9)
+	back.set_border_width_all(1)
+	back.set_corner_radius_all(6)
+	grid_canvas.draw_style_box(back, Rect2(origin, Vector2(col_w * 2 + 12, rows * row_h + 10)))
 	for i in range(entries.size()):
-		var y = legend_y + i * spacing
-		var color: Color = entries[i][0]
-		var shape: String = entries[i][1]
-		var label: String = entries[i][2]
+		var col = i / rows
+		var row = i % rows
+		var c = origin + Vector2(16 + col * col_w, 16 + row * row_h)
+		var t: int = entries[i][0]
+		if i < entries.size() - 3:
+			_draw_key_icon(c, t)  # a kind of node: its icon alone
+		else:
+			_draw_node(c, 7.0, t, entries[i][1], t in PLAQUE_TYPES)  # a state, as the grid shows it
+		grid_canvas.draw_string_outline(font, c + Vector2(14, 4), entries[i][2], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 3, Color(0, 0.02, 0.02, 0.8))
+		grid_canvas.draw_string(font, c + Vector2(14, 4), entries[i][2], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(0.88, 0.86, 0.78))
 
-		match shape:
-			"circle":
-				grid_canvas.draw_circle(Vector2(legend_x + 8, y), 6, color)
-			"diamond":
-				var pts = PackedVector2Array([
-					Vector2(legend_x + 8, y - 6),
-					Vector2(legend_x + 14, y),
-					Vector2(legend_x + 8, y + 6),
-					Vector2(legend_x + 2, y),
-				])
-				grid_canvas.draw_colored_polygon(pts, color)
-			"square":
-				grid_canvas.draw_rect(Rect2(legend_x + 2, y - 6, 12, 12), color)
-			"hexagon":
-				var hex_pts = PackedVector2Array()
-				for hi in range(6):
-					var ha = TAU / 6.0 * hi - PI / 6.0
-					hex_pts.append(Vector2(legend_x + 8, y) + Vector2(cos(ha), sin(ha)) * 6)
-				grid_canvas.draw_colored_polygon(hex_pts, color)
-			"star":
-				var star_pts = PackedVector2Array()
-				for si in range(10):
-					var sa = TAU / 10.0 * si - PI / 2.0
-					var sr = 6.0 if si % 2 == 0 else 3.0
-					star_pts.append(Vector2(legend_x + 8, y) + Vector2(cos(sa), sin(sa)) * sr)
-				grid_canvas.draw_colored_polygon(star_pts, color)
-
-		grid_canvas.draw_string(font, Vector2(legend_x + 22, y + 5), label, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(0.8, 0.8, 0.85))
+## A type's icon in the key: full colour, no state light.
+func _draw_key_icon(c: Vector2, node_type: int) -> void:
+	var icon = _icon_cache.get(_icon_name_for(node_type), null)
+	if icon == null:
+		grid_canvas.draw_circle(c, 6.0, COLOR_LOCKED)
+		return
+	var tex: Texture2D = icon["tex"]
+	var k = 7.5 / float(icon["body_r"])
+	var tsize = Vector2(tex.get_width(), tex.get_height()) * k
+	grid_canvas.draw_texture_rect(tex, Rect2(c - tsize / 2.0, tsize), false)
 
 # ============================================
 # CONSTELLATION RENDERING
