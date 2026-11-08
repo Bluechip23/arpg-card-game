@@ -116,7 +116,6 @@ func _build_legend() -> void:
 	_add_keyword("Defense", "Gives armor or blocks.", Color(0.3, 0.5, 1))
 	_add_keyword("Utility", "Draw, heal, move, buff and other support.", Color(0.3, 1, 0.3))
 	_add_keyword("Power", "Stays in play while you pay its Maintain cost.", Color(0.8, 0.5, 1.0))
-	_add_keyword("Reaction", "Plays itself from your hand when its condition is met. Costs 0 mana; no tempo unless shown.", Color(1, 0.8, 0.2))
 	_add_keyword("Unplayable", "Can't be played. Takes a hand slot.", Color(0.5, 0.5, 0.5))
 
 	# Card Keywords Section

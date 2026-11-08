@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_sj7lb")
 card_id = "enchantment_movement"
-card_name = "Enchantment: Movement"
+card_name = "Movement"
 description = "While this is in your hand, each Flash refresh gives 5 more tiles of flash movement. Discards after 2 cycles."
 card_type = 6
 card_type_name = "Enchantment"

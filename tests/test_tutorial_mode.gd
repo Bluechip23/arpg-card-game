@@ -115,6 +115,8 @@ func _test_tour_beats() -> void:
 
 	var card_steps := tut.filter(func(st): return str(st["card"]) != "")
 	_check(card_steps.size() >= 8, "each card type has its own beat with an example card (%d)" % card_steps.size())
+	var titles := _titles(tut)
+	_check(titles.has("Instant") and not titles.has("Reaction"), "reactions and instants share one beat")
 	var all_real := true
 	for st in card_steps:
 		all_real = all_real and Card.create_by_id(str(st["card"])) != null

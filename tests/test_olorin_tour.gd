@@ -66,7 +66,15 @@ func _run() -> void:
 	_check(olorin.tour_hole() == Rect2(), "a beat with no focus dims the whole screen")
 	_check(main.current_character.seen_tutorial_ids.has("test_tour"), "the tour is remembered on the character")
 
+	_check(olorin._tour_panel.find_child("BackButton", true, false) == null, "the first beat has no Back button")
 	olorin._tour_next()
+	var back_btn = olorin._tour_panel.find_child("BackButton", true, false)
+	_check(back_btn != null, "the second beat has a Back button")
+	if back_btn:
+		back_btn.pressed.emit()
+		_check(olorin.tour_step_index() == 0, "Back returns to the first beat to read it again")
+		olorin._tour_next()
+	_check(olorin.tour_step_index() == 1, "and Continue goes on from there")
 	var hole := olorin.tour_hole()
 	_check(hole.has_point(Vector2(100, 60)), "the second beat lights the top-left widget")
 	_check(not hole.has_point(Vector2(950, 350)), "a hidden Control is not lit")

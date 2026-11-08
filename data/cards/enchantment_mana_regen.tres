@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_dg0iq")
 card_id = "enchantment_mana_regen"
-card_name = "Enchantment: Mana Regen"
+card_name = "Mana Regen"
 description = "Gain +1 mana regen while this is in your hand. Discards after 2 cycles."
 card_type = 6
 card_type_name = "Enchantment"

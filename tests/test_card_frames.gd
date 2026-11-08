@@ -8,7 +8,7 @@ extends SceneTree
 ## Every card with an upkeep wears the Maintain frame instead (white text on
 ## its stone); a Defense card the Defensive frame; a Utility card the Utility
 ## frame (the logo where its art meets its rules box); an Attack the Attack
-## frame.
+## frame; an Enchantment the Enchantment frame.
 ## Run: godot --headless --path . --script tests/test_card_frames.gd
 
 var failures := 0
@@ -39,8 +39,24 @@ func _run() -> void:
 		"an Instant wears the painted Instant frame")
 	_check(art != null and art.get_index() == 0, "the frame is drawn behind the face")
 	_check(inst.get_theme_stylebox("panel") is StyleBoxEmpty, "no drawn border round it")
-	_check(inst.title_bar.get_theme_stylebox("panel") is StyleBoxEmpty and inst.desc_panel.get_theme_stylebox("panel") is StyleBoxEmpty,
-		"its bars are bare, the painting shows")
+	_check(inst.title_bar.get_theme_stylebox("panel") is StyleBoxEmpty, "its title bar is bare, the painting shows")
+	_check(inst.desc_panel.get_theme_stylebox("panel") is StyleBoxEmpty, "its rules box is bare")
+	# A translucent wash sits behind the rules text only (designer,
+	# 2026-11-08): the picture fades where the text is, the rest of the box
+	# and the frame's foot keep their colour.
+	await process_frame
+	await process_frame
+	var wash_node: Panel = inst.get_node_or_null("Panel/TextWash")
+	var wash_sb = wash_node.get_theme_stylebox("panel") if wash_node else null
+	_check(wash_node != null and wash_node.visible and wash_sb is StyleBoxFlat and wash_sb.bg_color.a > 0.0 and wash_sb.bg_color.a < 1.0,
+		"a translucent wash sits behind the text")
+	if wash_node:
+		var host: Control = inst.get_node("Panel")
+		var xf: Transform2D = host.get_global_transform().affine_inverse() * inst.desc_label.get_global_transform()
+		var text_bottom: float = xf.origin.y + inst.desc_label.get_content_height()
+		var box_bottom: float = (host.get_global_transform().affine_inverse() * inst.desc_panel.get_global_transform()).origin.y + inst.desc_panel.size.y
+		_check(wash_node.position.y + wash_node.size.y <= text_bottom + 4.0 and wash_node.position.y + wash_node.size.y < box_bottom,
+			"it ends with the text, short of the box's foot (%.0f vs box %.0f)" % [wash_node.position.y + wash_node.size.y, box_bottom])
 	var icons_hidden := true
 	for c in inst._mana_badge.get_children() + inst._tempo_badge.get_children():
 		if c is TextureRect and c.visible:
@@ -104,18 +120,55 @@ func _run() -> void:
 		"an offensive spell wears the Spell frame, not the Attack one")
 	sp.queue_free()
 
-	# A type the designer has not framed yet keeps the drawn frame.
+	# Enchantments wear the Enchantment frame (2026-11-08): every one in the
+	# data, with white text on the green stone and the logo in the type
+	# bar's middle (the board's ruby painted out under it), the long type
+	# word stepped down short of the logo.
+	var enchantments := 0
 	for f in DirAccess.get_files_at("res://data/cards"):
 		if not f.ends_with(".tres"):
 			continue
 		var c: Card = load("res://data/cards/" + f)
-		if c.card_type == Card.CardType.ENCHANTMENT and c.maintain_cost == 0:
-			var e := _face(f.get_basename())
-			await process_frame
-			_check(e.get_node_or_null("Panel/FrameArt") == null and e.get_theme_stylebox("panel") is StyleBoxFlat,
-				"an Enchantment keeps the drawn frame until its own lands")
-			e.queue_free()
-			break
+		if c.card_type != Card.CardType.ENCHANTMENT:
+			continue
+		enchantments += 1
+		_check(CardUI.frame_for(c) == CardUI.FRAMES["maintain" if c.maintain_cost > 0 else "enchantment"],
+			"%s wears the Enchantment frame" % f.get_basename())
+		if enchantments > 1:
+			continue
+		var e := _face(f.get_basename())
+		await process_frame
+		var ea: TextureRect = e.get_node_or_null("Panel/FrameArt")
+		_check(ea != null and ea.texture.resource_path.ends_with("frame_enchantment.png"), "an Enchantment's face shows the Enchantment frame")
+		_check(e.desc_label.get_theme_color("default_color").v > 0.8, "its rules text is white on the stone")
+		var el: Control = e.get_node_or_null("Panel/FrameLogo")
+		_check(el != null and absf(el.position.y + el.size.y * 0.5 - CardUI.FRAMES["enchantment"]["logo_at"].y) <= 1.0, "its logo sits in the type bar's middle")
+		var tf: Font = e.type_label.get_theme_font("font")
+		var tw: float = tf.get_string_size(e.type_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, e.type_label.get_theme_font_size("font_size")).x
+		_check(e.type_label.text == "Enchantment" and 16.0 + tw <= CardUI.FRAMES["enchantment"]["logo_at"].x - CardUI.FRAMED_LOGO_RING,
+			"its type word ends short of the logo")
+		e.queue_free()
+	_check(enchantments >= 4, "the Enchantment cards were all looked at (%d)" % enchantments)
+	# An enchantment is its own family: a spell tag does not move it to the
+	# Spell frame.
+	var tagged: Card = load("res://data/cards/enchantment_attack.tres").duplicate()
+	tagged.school = Card.CardSchool.SPELL
+	_check(CardUI.frame_for(tagged) == CardUI.FRAMES["enchantment"], "an enchantment tagged spell still wears the Enchantment frame")
+
+	# Short type words keep their size on every other frame.
+	var sl := _face("slash")
+	await process_frame
+	_check(sl.type_label.get_theme_font_size("font_size") == 9, "a short type word keeps its size")
+	sl.queue_free()
 
 	print("=== %d failure(s) ===" % failures)
+	# A rules text too long for the box beside the corner picture spreads over
+	# the whole box (the washed box carries the margin, 2026-11-08).
+	var long_face := _face("enchantment_defense")
+	await process_frame
+	await process_frame
+	var lst = long_face.desc_panel.get_theme_stylebox("panel")
+	_check(lst != null and lst.content_margin_right <= 4.0,
+		"a long rules text takes the whole box (right margin %.1f)" % (lst.content_margin_right if lst else -1.0))
+	long_face.queue_free()
 	quit(1 if failures > 0 else 0)

@@ -72,6 +72,11 @@ SMOOTH_HEIGHT = 204   # the smooth sheet's height, crown to feet: HEIGHT at 128 
 WIDEN = 1.12       # drawn this much wider than tall (SpriteFigure.BOARD_WIDEN), baked in
                    # (designer, 2026-10-24: err on the side of under-pixelating the heroes)
 PALETTE = 96       # colours per hero after the tidy (0 = keep every colour)
+# Heroes whose shared palette is pinned (hero_palette_path): kept as it was
+# fitted before rows of theirs were redrawn (Brad's and Jeremy's side walks,
+# 2026-11-08), so the poses already approved stay byte-identical and the new
+# frames settle onto the same colours. Delete the file to fit it afresh.
+PALETTE_PIN = {"brad", "jeremy"}
 ACCENT_KEEP = 36   # ...but a pixel the tidy would move further than this keeps its colour
 VIBRANCE = 1.12    # SoM's saturated palette: colour pushed this much further from grey
 OUTLINE = False    # the inked one-texel silhouette: off (designer, 2026-10-28: no black
@@ -193,12 +198,13 @@ WALKS = {
              ["south", "north", "west", "east"],
              set(), "opaque", {"narrow": 7, "close": 7, "tol": 4, "anchor": "board", "drop_last": True}),   # 2026-11-01 board (the leaner walk); his black trousers are the ground's colour
     # 2026-10-31: Jeremy's walk board, the same layout and ground as Ryan's
-    # (his rings already painted on), all four rows used.
+    # (his rings already painted on). Its back and front rows are used; his
+    # sides come from his side board (WALK_EXTRA, 2026-11-08).
     "jeremy": ("jeremy_walk_board.webp",
                [126, 309, 489, 668, 844, 1019, 1194, 1368, 1526],
                [11, 247, 471, 685, 910],
                ["north", "south", "west", "east"],
-               set(), "opaque", {"anchor": "board"}),
+               {"west", "east"}, "opaque", {"anchor": "board"}),
     # 2026-10-31: Cory's and Brad's walk boards, the same layout and ground.
     "cory": ("cory_walk_board.webp",
              [125, 309, 490, 670, 846, 1022, 1196, 1359, 1526],
@@ -209,7 +215,7 @@ WALKS = {
              [126, 307, 489, 670, 850, 1030, 1209, 1382, 1526],
              [12, 244, 469, 687, 907],
              ["north", "south", "west", "east"],
-             set(), "opaque", {"halo": True, "matte": True, "anchor": "board"}),
+             {"west", "east"}, "opaque", {"halo": True, "matte": True, "anchor": "board"}),
     # ^ Brad, re-cut from the start (designer, 2026-11-07: "there are too
     # many mistakes. You need to just start over"): the colour cut dropped
     # his War Rack (dark wood on the dark ground) from most frames, so each
@@ -217,10 +223,26 @@ WALKS = {
     # every frame centred on its own box slid him side to side as his stride
     # changed, so the frames keep the board's placement ("anchor"); the
     # feather's glow is stripped (HALO_STRIP).
+    # Brad's and Jeremy's side walks (designer, 2026-11-08: they "still do
+    # not walk correctly side to side"): the cut was not at fault. These
+    # boards' Left and Right rows drew one planted stance eight times over:
+    # the near leg led in every frame and the trailing foot never swung
+    # through (the feet never closed to less than ~37 texels apart, where
+    # Cory's, Ryan's and Stephen's close to ~21-24), so the loop read as a
+    # skate. Those rows are skipped here: the designer redrew both sides
+    # (brad_walk_side_board.webp, jeremy_walk_side_board.webp, 2026-11-08),
+    # taken through WALK_EXTRA, where the legs pass (feet ~20 texels apart
+    # mid-step). Brad's side cells have model mattes as his old ones did
+    # (make_mattes.py --walk brad: the War Rack, his dark trousers).
 }
 # A direction on a board of its own, in WALKS' form: Stephen's back and
 # left (2026-11-05) and his right (2026-10-31, "Walk Right (Corrected)": his
-# human arm on the near side).
+# human arm on the near side); Brad's and Jeremy's left and right
+# (2026-11-08), whose side boards frame each cell apart: each cell's own
+# (left, right) frame lines, and the row's (top, bottom) (walk_spans).
+BRAD_SIDE_X = ([(123, 314), (322, 506), (513, 697), (705, 889), (896, 1080), (1087, 1270), (1278, 1459), (1466, 1649)],   # Walk Left
+               [(124, 315), (322, 506), (514, 697), (705, 889), (896, 1080), (1088, 1270), (1277, 1462), (1471, 1651)])   # Walk Right
+JEREMY_SIDE_X = [(25, 220), (228, 426), (432, 629), (637, 834), (842, 1038), (1046, 1242), (1250, 1446), (1454, 1647)]
 WALK_EXTRA = {
     "stephen": [("stephen_walk_north_board.webp",
                  [7, 251, 501, 751, 1000, 1250, 1500, 1750, 1995], [70, 578],
@@ -231,6 +253,14 @@ WALK_EXTRA = {
                 ("stephen_walk_right_board.webp",
                  [10, 234, 458, 683, 907, 1122, 1341, 1562, 1770], [87, 738],
                  ["east"], set(), "opaque", {"tol": 4, "narrow": 7, "grow": True, "anchor": "board", "drop_last": True, "matte": True})],   # his dark trousers; armpit shadows
+    "brad": [("brad_walk_side_board.webp", BRAD_SIDE_X[0], [(84, 424)],
+              ["west"], set(), "opaque", {"halo": True, "matte": True, "anchor": "board"}),
+             ("brad_walk_side_board.webp", BRAD_SIDE_X[1], [(504, 845)],
+              ["east"], set(), "opaque", {"halo": True, "matte": True, "anchor": "board"})],
+    "jeremy": [("jeremy_walk_side_board.webp", JEREMY_SIDE_X, [(121, 433)],
+                ["west"], set(), "opaque", {"anchor": "board"}),
+               ("jeremy_walk_side_board.webp", JEREMY_SIDE_X, [(545, 857)],
+                ["east"], set(), "opaque", {"anchor": "board"})],
 }
 # Walk rows the board draws stockier than the still pose that way: each
 # stands the still's height and is drawn this much narrower (designer,
@@ -641,6 +671,16 @@ def hero_walk_matte_path(hero, facing, col):
     return os.path.join("assets/sprites/paintings/mattes", "%s_walk_%s_%d.png" % (hero, facing, col))
 
 
+def walk_spans(lines):
+    """A walk board's cells along one axis, as (first, last) line pairs: a
+    ruled grid gives its lines (each cell between consecutive ones); a board
+    whose cells are framed apart, with gaps between (Brad's and Jeremy's
+    side boards, 2026-11-08), gives each cell's own pair of frame lines."""
+    if lines and isinstance(lines[0], (tuple, list)):
+        return [tuple(p) for p in lines]
+    return list(zip(lines[:-1], lines[1:]))
+
+
 def cut_walk_board(path, xs, ys, facings, skip, ground, opts=None):
     """One walk board's frames: {facing: [full-size RGBA cut-outs]}. `opts`:
     "narrow" for cut_opaque_cell, and "close": px, notches in the silhouette
@@ -656,9 +696,11 @@ def cut_walk_board(path, xs, ys, facings, skip, ground, opts=None):
         # "drop_last": the board's last frame is its first again (he stands,
         # feet together, at both ends), so the loop would hold that stand
         # two frames running — a stop in every stride; it plays once.
-        for c in range(len(xs) - 1 - (1 if opts.get("drop_last") else 0)):
+        cols, (y0, y1) = walk_spans(xs), walk_spans(ys)[r]
+        for c in range(len(cols) - (1 if opts.get("drop_last") else 0)):
             i = WALK_CELL_INSET
-            cell = board[ys[r] + i:ys[r + 1] - i + 1, xs[c] + i:xs[c + 1] - i + 1]
+            x0, x1 = cols[c]
+            cell = board[y0 + i:y1 - i + 1, x0 + i:x1 - i + 1]
             if ground == "opaque":
                 cell = cut_opaque_cell(cell, True, False, opts.get("narrow", 0), opts.get("tol"), None,
                                        opts.get("glow", False), opts.get("glow_edge", 0), grow=opts.get("grow", False))
@@ -671,7 +713,7 @@ def cut_walk_board(path, xs, ys, facings, skip, ground, opts=None):
                     # colour cut cannot tell from the ground (Brad's War
                     # Rack, dark wood on the dark ground) kept solid.
                     m = np.asarray(Image.open(hero_walk_matte_path(opts["hero"], facing, c)).convert("L")) > 127
-                    raw = board[ys[r] + i:ys[r + 1] - i + 1, xs[c] + i:xs[c + 1] - i + 1]
+                    raw = board[y0 + i:y1 - i + 1, x0 + i:x1 - i + 1]
                     cell[m, :3] = raw[m, :3]
                     cell[m, 3] = 255
                 if opts.get("halo"):
@@ -1160,14 +1202,30 @@ def vibrance(f):
     return out
 
 
-def tidy_palette(frames):
+def hero_palette_path(hero):
+    """A hero's pinned palette (PALETTE_PIN): a 1x1 image carrying it."""
+    return os.path.join("assets/sprites/paintings/palettes", "%s.png" % hero)
+
+
+def tidy_palette(frames, hero=None):
     """Settle every pose of a hero onto one shared palette of PALETTE colours
-    (median cut, no dithering)."""
+    (median cut, no dithering); a hero in PALETTE_PIN onto his saved one
+    (fitted and saved here when it is missing)."""
     if PALETTE <= 0:
         return frames
-    opaque = np.concatenate([f[f[..., 3] > 0][:, :3] for f in frames.values()])
-    strip = Image.fromarray(opaque.reshape(1, -1, 3).astype(np.uint8), "RGB")
-    pal_img = strip.quantize(colors=PALETTE, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+    pin = hero_palette_path(hero) if hero in PALETTE_PIN else None
+    if pin and os.path.exists(pin):
+        pal_img = Image.open(pin)
+        pal_img.load()
+    else:
+        opaque = np.concatenate([f[f[..., 3] > 0][:, :3] for f in frames.values()])
+        strip = Image.fromarray(opaque.reshape(1, -1, 3).astype(np.uint8), "RGB")
+        pal_img = strip.quantize(colors=PALETTE, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+        if pin:
+            os.makedirs(os.path.dirname(pin), exist_ok=True)
+            p = Image.new("P", (1, 1))
+            p.putpalette(pal_img.getpalette())
+            p.save(pin)
     out = {}
     for d, f in frames.items():
         rgb = np.asarray(Image.fromarray(f[..., :3], "RGB").quantize(
@@ -1354,7 +1412,7 @@ def build(hero, poses):
         full[d] = full[(d, k)]
         soft[d] = soft[(d, k)]
     full = {d: vibrance(f) for d, f in full.items()}
-    full = tidy_palette(full)
+    full = tidy_palette(full, hero)
     frames = {}
     for d, f in full.items():
         frame = ink_outline(f) if OUTLINE else f
@@ -1394,6 +1452,15 @@ def build(hero, poses):
             for k in keys:
                 if box:
                     soft[k] = soft[k].crop(box)
+                    # Each on its own feet: the resample can leave a thin
+                    # sole's last row under the cut-off, which stood that
+                    # frame a pixel off the floor (Jeremy's right walk's first).
+                    b = soft[k].getchannel("A").point(lambda v: 255 if v > 8 else 0).getbbox()
+                    if b and b[3] < soft[k].height:
+                        dy = soft[k].height - b[3]
+                        g = Image.new("RGBA", soft[k].size)
+                        g.paste(soft[k].crop((0, 0, soft[k].width, soft[k].height - dy)), (0, dy))
+                        soft[k] = g
     if "east" not in soft:
         soft["east"] = soft["west"].transpose(Image.FLIP_LEFT_RIGHT)
     if "west" not in soft:

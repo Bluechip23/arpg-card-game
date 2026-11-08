@@ -198,6 +198,37 @@ FRAMES = {
         "numbers": [(102, 186, 213, 267), (776, 171, 836, 257)],
         "squeeze": (425, 865, 197),
     },
+    # The Enchantment cards (2026-11-08): green cracked-emerald stone in a
+    # gilt frame wound with gold thorns, ruby and emerald gems, jewelled
+    # chains hanging from the drop's ring, a hooded figure reaching for a
+    # glowing ruby on an altar in the rules box. Its own drop and brass,
+    # gold-sand hourglass are the standard style and stay (only the numbers
+    # go). The ruby diamond in the type bar's middle is painted out: the
+    # game sets its logo there, as on the Attack and Spell boards. The board
+    # is taller than the card's shape, more than the Attack one: its art
+    # window's rows are squeezed unevenly — the rows with the chains'
+    # pendants least, the thorn hooks more, the plain stretch above the
+    # type bar most — 315 rows in all. Rules text white.
+    "enchantment": {
+        "src": "assets/sprites/paintings/card_enchantment_board.webp",
+        "card": (22, 40, 910, 1598),
+        "dots": [(405, 183), (480, 183), (552, 183)],
+        "dot_r": 28,
+        "bands": [
+            (362, 157, 604, 233),
+            (282, 252, 690, 345),
+            (180, 942, 372, 1003),
+            (545, 942, 815, 1003),
+        ],
+        "art": (222, 367, 774, 906),
+        "art_keep": [],
+        "logo_ring": ((471, 932), 36),
+        "logo_boxes": [(433, 878, 510, 990)],
+        "text": (125, 1085, 448, 1210),
+        "text_light": True,
+        "numbers": [(82, 155, 212, 260), (772, 160, 848, 255)],
+        "squeeze": [(400, 620, 130), (620, 720, 26), (720, 880, 9)],
+    },
 }
 
 
@@ -338,6 +369,16 @@ def ground_alpha(src_rgb, card):
     return np.maximum(a, nd.binary_erosion(fg, iterations=3))
 
 
+def squeeze_bands(cfg):
+    """The squeeze as a list of (y0, y1, new_h) bands, top to bottom: one
+    band, or several (a board whose sides carry ornaments down the art
+    window's rows squeezes them unevenly, the plainest rows most)."""
+    sq = cfg.get("squeeze")
+    if not sq:
+        return []
+    return [tuple(sq)] if isinstance(sq[0], int) else [tuple(b) for b in sq]
+
+
 def squeeze_rows(rgba, y0, y1, new_h):
     """A board taller than the card's shape: rows y0..y1 (plain panel by
     then — the art window, its art painted out) resampled to new_h, the
@@ -375,18 +416,15 @@ def main():
     for name, cfg in FRAMES.items():
         src = np.asarray(Image.open(cfg["src"]).convert("RGB"))
         x0, y0, x1, y1 = cfg["card"]
-        removed = 0
-        if "squeeze" in cfg:
-            sy0, sy1, new_h = cfg["squeeze"]
-            removed = (sy1 - sy0) - new_h
+        removed = sum((sy1 - sy0) - new_h for sy0, sy1, new_h in squeeze_bands(cfg))
         # The body fills the card exactly: its own scale across and down.
         kx = CARD_W * CARD_SCALE / float(x1 - x0)
         ky = CARD_H * CARD_SCALE / float(y1 - removed - y0)
         rgb = blank(cfg)
         alpha = ground_alpha(src, cfg["card"])
         rgba = np.dstack([rgb, (alpha * 255).astype(np.uint8)])
-        if "squeeze" in cfg:
-            rgba = squeeze_rows(rgba, *cfg["squeeze"])
+        for band in reversed(squeeze_bands(cfg)):   # bottom up: the rows above stay put
+            rgba = squeeze_rows(rgba, *band)
         out = shrink2(rgba, kx, ky)
         out.save(os.path.join(OUT_DIR, "frame_%s.png" % name))
         h, w = rgba.shape[:2]

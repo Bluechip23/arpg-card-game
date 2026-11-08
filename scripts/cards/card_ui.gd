@@ -165,7 +165,36 @@ const FRAMES := {
 		"top": 27.5, "title_h": 24.0, "art_h": 51.0, "type_h": 24.0, "desc_top": 9.0,
 		"title_left": 40.1, "title_right": 19.9, "name_w": 62,
 	},
+	# Enchantments: green cracked-emerald stone in gilt and gold thorns,
+	# jewelled chains off the drop's ring, white text above a hooded figure
+	# reaching for a ruby on an altar. Its own drop and hourglass; its type
+	# bar's ruby painted out for the logo. The board ran taller than a card:
+	# its art window was squeezed harder than the Attack one's, so the window
+	# is shorter here and the rules box roomier. The dots sit between the
+	# chains' pendants.
+	"enchantment": {
+		"tex": "res://assets/textures/cards/frame_enchantment.png",
+		"rect": Rect2(-3.7, -6.8, 159.0, 228.9),
+		"mana_at": Vector2(21.3, 28.2),
+		"tempo_at": Vector2(133.3, 28.4),
+		"dots_y": 24.2,
+		"dots_span": Vector2(50.3, 104.4),  # between the chains' pendants
+		"logo_at": Vector2(75.8, 103.9),
+		"desc_box": Vector2(66.0, 40.0),
+		"desc_right": 52.5,
+		"desc_full": Vector2(115.6, 56.0),
+		"ink": Color(0.96, 0.94, 0.9),
+		"ink_dark": false,
+		"top": 34.6, "title_h": 19.1, "art_h": 39.4, "type_h": 20.9, "desc_top": 8.0,
+		"title_left": 30.4, "title_right": 21.0, "name_w": 72,
+	},
 }
+## How strongly the rules box is washed over its corner picture (0 = the
+## picture at full strength, 1 = hidden). See _style_painted_frame.
+static var text_wash_alpha: float = 0.5
+const TEXT_WASH_DARK := Color(0.03, 0.03, 0.04)
+const TEXT_WASH_PARCHMENT := Color(0.93, 0.87, 0.72)
+const TEXT_WASH_PAD := 2.5   # how far the wash reaches past the text, card pixels
 const FRAMED_DOT := 8.0
 const FRAMED_LOGO_SIZE := 48
 const FRAMED_NAME := Color(0.97, 0.92, 0.8)    # the name's cream
@@ -177,7 +206,8 @@ const FRAMED_DESC_FULL := Vector2(116, 78)
 const FRAMED_DESC_FULL_MAX := 9   # ... no bigger than this, so it covers as little of the picture as it can
 
 ## The painted frame a card wears: Maintain for any card with an upkeep
-## (whatever its type), Instant for the instants, Spell for every spell;
+## (whatever its type), Instant for the instants, Enchantment for the
+## enchantments, Spell for every spell;
 ## then by type — Instant, Defense, Utility — and the Attack shape
 ## (is_attack(), never an offensive spell); {} for the drawn frame.
 static func frame_for(card: Card) -> Dictionary:
@@ -188,6 +218,12 @@ static func frame_for(card: Card) -> Dictionary:
 	# An instant is an instant first, spell or not (Healthy Bliss).
 	if card.card_type == Card.CardType.REACTION:
 		return FRAMES["instant"]
+	# Enchantment is its own family on the card web (docs/CARD_TAXONOMY.md),
+	# beside Playable and Instant: held, never played. Like an instant it
+	# wears its own frame whatever tags it carries, spell included; only an
+	# upkeep (the Maintain ruling, "whatever its type") outranks it.
+	if card.card_type == Card.CardType.ENCHANTMENT:
+		return FRAMES["enchantment"]
 	# Spells are their own family (designer, 2026-10-30): an offensive spell
 	# is stored as an Attack-type card, but it wears the Spell frame, never
 	# the Attack one — and so does a utility spell.
@@ -699,10 +735,48 @@ func _fit_description() -> void:
 			right = 4.0
 		if desc_panel:
 			var st := desc_panel.get_theme_stylebox("panel")
-			if st is StyleBoxEmpty:
+			if st:
 				st.content_margin_right = right
 	desc_label.add_theme_font_size_override("normal_font_size", fs)
 	desc_label.add_theme_font_size_override("bold_font_size", fs)
+	if not _frame.is_empty():
+		if not desc_label.resized.is_connected(_place_text_wash):
+			desc_label.resized.connect(_place_text_wash)
+		_place_text_wash.call_deferred()
+
+## A translucent wash behind the rules text only, fading the frame's corner
+## picture where the text sits so the text reads first (designer,
+## 2026-11-08): dark on the stone frames, parchment on the Instant frame. It
+## hugs the lines of text, so the rest of the rules box and the frame's
+## bottom keep their full colour.
+func _place_text_wash() -> void:
+	var host: Control = get_node_or_null("Panel")
+	if host == null or desc_label == null or not is_instance_valid(desc_label):
+		return
+	var w: Panel = host.get_node_or_null("TextWash")
+	if _frame.is_empty() or text_wash_alpha <= 0.0 or desc_label.get_parsed_text().strip_edges() == "":
+		if w:
+			w.visible = false
+		return
+	if w == null:
+		w = Panel.new()
+		w.name = "TextWash"
+		w.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		host.add_child(w)
+		host.move_child(w, 1 if host.get_node_or_null("FrameArt") else 0)   # over the frame, under the text
+	var wash: Color = TEXT_WASH_PARCHMENT if _frame["ink_dark"] else TEXT_WASH_DARK
+	wash.a = text_wash_alpha
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = wash
+	sb.set_corner_radius_all(4)
+	w.add_theme_stylebox_override("panel", sb)
+	# The label's place in the host's own units (cards are scaled as a whole).
+	var xf: Transform2D = host.get_global_transform().affine_inverse() * desc_label.get_global_transform()
+	var text_h: float = minf(float(desc_label.get_content_height()), desc_label.size.y)
+	var pad := TEXT_WASH_PAD
+	w.position = xf.origin - Vector2(pad, pad)
+	w.size = Vector2(desc_label.size.x, text_h) + Vector2(pad, pad) * 2.0
+	w.visible = true
 
 func _fit_size(font: Font, plain: String, box: Vector2, top: int = DESC_FONT_MAX) -> int:
 	var fs := top
@@ -1162,6 +1236,28 @@ func _style_painted_frame() -> void:
 	_place_framed_costs()
 	_place_framed_logo()
 	_fit_name()   # this frame's name bar may be narrower
+	_fit_type_word()
+
+
+## The logo's ring, half its width (card pixels): a type word stays left of it.
+const FRAMED_LOGO_RING := 13.0
+const TYPE_FONT_MAX := 9
+const TYPE_FONT_MIN := 7
+
+## A long type word ("Enchantment") steps its size down until it ends short
+## of the logo set in the type bar's middle, instead of running under it.
+func _fit_type_word() -> void:
+	if type_label == null or _frame.is_empty():
+		return
+	var font: Font = type_label.get_theme_font("font")
+	if font == null:
+		return
+	# The bar's text starts at the VBox's left edge (14) plus its margin (2).
+	var room: float = float(_frame["logo_at"].x) - FRAMED_LOGO_RING - 16.0
+	var fs := TYPE_FONT_MAX
+	while fs > TYPE_FONT_MIN and font.get_string_size(type_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
+		fs -= 1
+	type_label.add_theme_font_size_override("font_size", fs)
 
 
 ## The upkeep on the Maintain frame's top strip, right of the tempo dots.

@@ -165,7 +165,7 @@ func _populate_cards(filter: String) -> void:
 		Card.CardType.DEFENSE: "Defense",
 		Card.CardType.UTILITY: "Utility",
 		Card.CardType.POWER: "Power",
-		Card.CardType.REACTION: "Reaction",
+		Card.CardType.REACTION: "Instant",
 		Card.CardType.ENCHANTMENT: "Enchantment",
 		Card.CardType.UNPLAYABLE: "Unplayable",
 	}
