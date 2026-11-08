@@ -5,6 +5,7 @@ extends Node3D
 
 const MeshUtil = preload("res://scripts/shared/mesh_util.gd")
 const CameraPan = preload("res://scripts/shared/camera_pan.gd")
+const KeywordBoxes = preload("res://scripts/ui/keyword_boxes.gd")
 
 @onready var deck_manager: DeckManager = $DeckManager
 @onready var buff_bar: BuffBarUI = $UI/BuffBar
