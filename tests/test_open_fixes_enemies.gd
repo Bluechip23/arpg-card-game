@@ -48,6 +48,7 @@ func _run() -> void:
 	_test_ifrit()
 	_test_ice_troll()
 	await _test_djinn_spell()
+	_test_unit_health_summon()
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
 
@@ -391,3 +392,16 @@ func _test_djinn_spell() -> void:
 	deck.hand.clear()
 	_despawn(dj)
 	_reset_hp()
+
+## Enemy._unit_health reads a summon's `health` (Vampire's Absorb picks the
+## healthiest unit; the Sabertooth's Track drops a quarry at 0).
+func _test_unit_health_summon() -> void:
+	print("-- A summon's health, as an enemy reads it --")
+	main.deck_manager.maintained_cards.append(Card.create_by_id("spirit_bow"))
+	main._summon_spirit_bow()
+	var bow = main._spirit_bows.back() if main._spirit_bows.size() > 0 else null
+	var e := _spawn(Enemy.EnemyType.SABERTOOTH, Vector2i(4, 0))
+	_check(bow != null and e._unit_health(bow) == int(bow.health) and int(bow.health) > 0,
+		"a living summon reads its health (%d)" % (e._unit_health(bow) if bow else -1))
+	main._clear_spirit_bows()
+	main.deck_manager.maintained_cards.clear()

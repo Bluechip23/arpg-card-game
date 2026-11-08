@@ -4074,6 +4074,8 @@ func _unit_health(u: Node3D) -> int:
 			return int(st.current_health)
 	if "current_health" in u:
 		return int(u.current_health)
+	if "health" in u:
+		return int(u.health)  # summons keep theirs in `health`
 	return 0
 
 func _cells_between(a: Node3D, b: Node3D) -> int:
