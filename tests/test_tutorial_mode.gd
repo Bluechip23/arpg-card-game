@@ -33,7 +33,7 @@ func _settle(n: int = 6) -> void:
 func _run() -> void:
 	print("=== Tutorial mode ===")
 	await _settle(2)   # nodes join the tree after _initialize
-	_test_allocation_box()
+	await _test_allocation_box()
 	_test_banking()
 	await _test_tour_beats()
 	await _test_first_level_up()
@@ -48,6 +48,15 @@ func _test_allocation_box() -> void:
 	var fired := [false]
 	cs._show_stat_allocation(c, func(): fired[0] = true)
 	_check(cs._alloc_tutorial != null, "the allocation screen has a Tutorial box")
+	_check(cs._alloc_tutorial.get_theme_stylebox("normal") is StyleBoxEmpty, "the box sits on no grey panel, just its yellow outline")
+	await process_frame
+	await process_frame
+	var frame: Control = cs._alloc_overlay.get_node_or_null("AllocFrame")
+	var apanel: Control = frame.get_node_or_null("AllocPanel") if frame else null
+	_check(cs._alloc_overlay.get_node_or_null("AllocBoard") != null, "the training-ground painting fills the screen")
+	if apanel:
+		var r := Rect2(apanel.global_position, apanel.size * apanel.scale)
+		_check(frame.get_global_rect().grow(1.0).encloses(r), "the box sits in the painting's empty middle")
 	_check(cs._alloc_confirm_btn.disabled, "Confirm waits for all 8 points while the box is clear")
 	cs._alloc_tutorial.button_pressed = true
 	_check(not cs._alloc_confirm_btn.disabled, "ticked, Confirm goes through without spending")
@@ -117,6 +126,10 @@ func _test_tour_beats() -> void:
 	_check(card_steps.size() >= 8, "each card type has its own beat with an example card (%d)" % card_steps.size())
 	var titles := _titles(tut)
 	_check(titles.has("Instant") and not titles.has("Reaction"), "reactions and instants share one beat")
+	_check(titles.has("Drawing") and titles.has("The Cheese Rule"), "Olorin explains drawing and the cheese rule")
+	var cheese_beat = tut.filter(func(st): return str(st["title"]) == "The Cheese Rule")
+	_check(cheese_beat.size() == 1 and str(cheese_beat[0]["card"]) == "heavy_greedy_cheese",
+		"…showing the Heavy Greedy Cheese card")
 	var all_real := true
 	for st in card_steps:
 		all_real = all_real and Card.create_by_id(str(st["card"])) != null

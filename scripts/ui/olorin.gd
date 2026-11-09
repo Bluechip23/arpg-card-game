@@ -146,6 +146,16 @@ const LESSONS := [
 		], "tutorial_paragraphs": [
 			"\"INTELLIGENCE is that intellect: half a point of spell and healing power for every point, and one more mana back every cycle.\"",
 		]},
+		# Drawing and the thin-deck tax (designer, 2026-11-09: the player
+		# should know what happens when they thin their deck out too much).
+		{"title": "Drawing", "focus": "column", "paragraphs": [
+			"\"A card comes to your hand on its own every twenty-five tempo. Your hand holds four; while it is full, nothing is drawn and the card waits on the pile.\"",
+			"\"When the pile runs dry, your discards are shuffled back to make a new one. Every card you play or discard comes round again.\"",
+		]},
+		{"title": "The Cheese Rule", "card": "heavy_greedy_cheese", "paragraphs": [
+			"\"A lean deck finds its best cards quickly, but do not starve it. If the pile runs dry and fewer than three cards wait in your discards to be shuffled back, a HEAVY GREEDY CHEESE joins them.\"",
+			"\"While you hold a Cheese, every other card in your hand costs a hundred more mana and two more tempo. Playing it rids you of it for good, but it eats a quarter of your mana. Thin your deck, by all means — just not to the bone.\"",
+		]},
 		{"title": "The Road Out", "paragraphs": [
 			"\"That is the reading of it. I will keep to the portal a while, should you want it told again.\"",
 			"\"Now go. The grass has been restless for days, and I would know why.\"",
