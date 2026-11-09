@@ -14578,15 +14578,25 @@ func _try_interact_site() -> bool:
 		# Through Hell's broken door down to the next world — or up through
 		# the Breach, out of the Underworld, to the one after it (arriving
 		# where the way back down stands), or down through the Rent, out of
-		# Heaven, to the one after that.
+		# Heaven, to the one after that (arriving where the way back up
+		# stands).
 		_deliver_follower()
-		var arrive := DungeonManager.HEAVEN_ARRIVAL_ID if site["kind"] == "ascend" and current_world_level == 2 else ""
+		var arrive := ""
+		if site["kind"] == "ascend" and current_world_level == 2:
+			arrive = DungeonManager.HEAVEN_ARRIVAL_ID
+		elif site["kind"] == "descend" and current_world_level == 3:
+			arrive = DungeonManager.EARTH_ARRIVAL_ID
 		_travel_to_world(current_world_level + 1, arrive)
 	elif site["kind"] == DungeonManager.HEAVEN_ARRIVAL_ID:
 		# Heaven's way back down: into the Breach at the top of the Ashen
 		# Stair, at its gate (leaving it returns to the Stair, as ever).
 		_deliver_follower()
 		_travel_to_world(current_world_level - 1, "ascend", "breach", "ascent_0")
+	elif site["kind"] == DungeonManager.EARTH_ARRIVAL_ID:
+		# The Earth's way back up: into the Rent at the end of the Sundered
+		# Causeway, at its lip (leaving it returns to the Causeway).
+		_deliver_follower()
+		_travel_to_world(current_world_level - 1, "descend", "rent", "causeway_0")
 	else:
 		_enter_interior(site["id"], site["display_name"])
 	return true
@@ -17406,6 +17416,17 @@ const GUARDIAN_ROOM_LOGS := {
 		"The Belfry stands empty — its keepers are fallen."],
 	"rent": ["The Rent. The way back seals; its wardens stand at the tear.",
 		"The Rent lies open — its wardens are fallen."],
+	# Act 4, the Earth returned to (2026-11-09).
+	"green": ["The Blighted Green. The hedges close behind you; its keepers turn from the burning well.",
+		"The Blighted Green lies quiet — its keepers are fallen."],
+	"hellmouth": ["The Hellmouth. The way back seals; Hell's keepers rise from the fire.",
+		"The Hellmouth's fires sink — its keepers are fallen."],
+	"reliquary": ["The Fallen Reliquary. The doors close; a djinn turns on the relic.",
+		"The Fallen Reliquary is still — its keepers are fallen."],
+	# The Confluence's final boss is [TBD] (STORY.md section 4): its guard
+	# holds the chamber until the designer names it.
+	"confluence": ["The Confluence. The stair seals below you; its guard stands before the empty dais.",
+		"The Confluence lies quiet — its guard is fallen. The dais stands empty."],
 }
 
 func _setup_guardian_room() -> void:
