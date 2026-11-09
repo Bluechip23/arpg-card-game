@@ -127,7 +127,7 @@ of the threat.* Think Middle-earth / LOTR.
 - **Habitats it draws from:** Forest, Graveyard, Cave, Sewer, Mountains.
 - **Tone:** familiar, grounded fantasy. The sickness is subtle here — felt by
   Olorin, not yet obvious. This is where the mystery is seeded.
-- **Part slots:** 1) **Town & Sewers** — *the Sewers are built* (the opening dungeon; Olorin's first quests; Rat King mini-boss). See Section 5.4. · 2) Cemetery / Library (first clues) `[TBD]` · 3) **Forests / wilds** — *the Greenwood forest, the Caves and the Mountain Pass are built* (climbable trees, hunters' traps, woodland beasts; dark dripping cave tunnels). See Section 5.4. · 4) Act 1 climax / **threshold downward — Hell's Gate is built** (Cerberus guarding Hell's Door at the bottom of the first world's deepest cave; through the broken door lies the next world) — the climax around it `[TBD]`.
+- **Part slots:** 1) **Town & Sewers** — *the Sewers are built* (the opening dungeon; Olorin's first quests; Rat King mini-boss). See Section 5.4. · 2) Cemetery / Library (first clues) — *the Old Graveyard and the **Ruined Library** are built* (the library 2026-11-09, `interior_kind == "library"`, its door in the World 1 field room nearest the Old Graveyard; see Section 5.4, Graveyard); the clues, quests and NPCs of this part `[TBD]` · 3) **Forests / wilds** — *the Greenwood forest, the Caves and the Mountain Pass are built* (climbable trees, hunters' traps, woodland beasts; dark dripping cave tunnels). See Section 5.4. · 4) Act 1 climax / **threshold downward — Hell's Gate is built** (Cerberus guarding Hell's Door at the bottom of the first world's deepest cave; through the broken door lies the next world) — the climax around it `[TBD]`.
 
 ### Act 2 — Hell: The Underworld
 *The descent. The apparent source of the rot.*
@@ -264,9 +264,9 @@ original flavor note. Everything else is `[TBD]` theme/mechanics.
 - **Large Bear** — *in code*. Elite. **Maul applies Bleed**; **Roar** leaves everything within 4 squares Vulnerable. Below 50% HP it **toughens** (30% physical resist, permanent) and **rages** — 1.5x attacks, double Bleed, and it heals from bleed damage its enemies take. With Mini Bears present it gains **Strengthen** every time it is hurt. Drops to all fours below 20% HP.
 - **Infected Hunter** — *in code*. Elite. **Hook** (range 7, starts charged) reels the player in over 2 tempo; AOE **Cleave**.
 - **Treant** — *in code*. Elite. Heals 5 HP/5 tempo (**+2 per 10% HP below 60%**); every 10 tempo it **strips its enemies' thorns and heals for the total**; **Root** pins the player 8 tempo (can attack, cannot move); deals **Earth** damage. Takes 10% extra fire damage.
-- **Elemental Mages** — *in code*. The five caster variants deal **typed damage**: Ice (→ **Slow**), Fire (→ **Burn**), Spark/Lightning (→ **Shock**), Air/Wind, Earth (**gains 3 armor every time it is hit**). **Totems** (designer, 2026-11-06, "at least for right now"; *in code*): each mage **raises its element's totem** beside it (Raise Totem, 6 tempo; one standing at a time, another 30 tempo after it is broken), a 24-HP structure in the designer's art that **crumbles when its mage falls**. **Air Totem** (a winged pillar under a whirlwind): the mage's foes' movement drops by 4 − N, N their squares from the vortex — a tile is 1 tempo, so each tile moved within 3 squares costs 3 / 2 / 1 extra tempo (`Main.vortex_drag`; paid like climbing, flash or not; the strongest totem counts). **Earth Totem** (a titan carved from a crag, bound in rose vines): heals the mage's allies (first pass: 4 health every 5 tempo, within 3 squares); has **thorns** (first pass: 5 back at every direct hit). **Fire Totem** (a lava-veined spire): 3 Burn to every foe within 3 squares every 5 tempo. **Ice Totem** (an ice obelisk coiled by an ice dragon holding a frozen pocket watch): **explodes when it dies** for 1 damage + 1 a tempo it stood, up to 10 — a 10-tempo timer: at 10 it goes off by itself (first pass: on every foe within 3 squares). **Shock Totem** (the Spark Mage's, an iron-banded storm mast): every 5 tempo it hits the nearest foe (first pass: 4 lightning) and gives 1 Shock to every foe within 4 squares. Set numbers scale with the hero's level like every enemy's. `[TBD]`: the first-pass numbers.
+- **Elemental Mages** — *in code*. The five caster variants deal **typed damage**: Ice (→ **Slow**), Fire (→ **Burn**), Spark/Lightning (→ **Shock**), Air/Wind, Earth (**gains 3 armor every time it is hit**). **Totems** (designer, 2026-11-06, "at least for right now"; *in code*): each mage **raises its element's totem** beside it (Raise Totem, 6 tempo; one standing at a time, another 30 tempo after it is broken), a 24-HP structure in the designer's art that **crumbles when its mage falls**. **Air Totem** (a winged pillar under a whirlwind): the mage's foes' movement drops by 4 − N, N their squares from the vortex — a tile is 1 tempo, so each tile moved within 3 squares costs 3 / 2 / 1 extra tempo (`Main.vortex_drag`; paid like climbing, flash or not; the strongest totem counts). **Earth Totem** (a titan carved from a crag, bound in rose vines): heals the mage's allies (first pass: 4 health every 5 tempo, within 3 squares); has **thorns** (first pass: 5 back at every direct hit). **Fire Totem** (a lava-veined spire): 3 Burn to every foe within 3 squares every 5 tempo. **Ice Totem** (an ice obelisk coiled by an ice dragon holding a frozen pocket watch): **explodes when it dies** for 1 damage + 1 a tempo it stood, up to 10 — a 10-tempo timer: at 10 it goes off by itself (first pass: on every foe within 3 squares). **Shock Totem** (the Spark Mage's, an iron-banded storm mast): every 5 tempo it hits the nearest foe (first pass: 4 lightning) and gives 1 Shock to every foe within 4 squares. Set numbers scale with the hero's level like every enemy's. `[TBD]`: the first-pass numbers. **Where:** the Greenwood's elite clearings (2026-11-09) — each mage leads the woodland pack of a clearing of its own, Spark, Air, Fire, Ice, then Earth from west to east (their level bands, 13–17).
 - **Druid** — `[TBD]`.
-- **Hydra** — *in code*.
+- **Hydra** — *in code*. Holds the Greenwood's widest clearing (2026-11-09).
 
 > **The Greenwood (Act 1, Forest) — built.** A bright, open woodland level
 > (`dungeon_manager.gd`, `interior_kind == "forest"`), reached from a **forest
@@ -290,6 +290,9 @@ original flavor note. Everything else is `[TBD]` theme/mechanics.
 > - **Life & dressing:** packs of coyotes, wolves, bears, bugbears and hill-dwelling
 >   hawks (plus elite beavers, hunters and treants); background **squirrels** dart
 >   about; trees, **stumps**, bushes and ferns line the treeline.
+> - **Elite clearings (2026-11-09):** the **Hydra** holds the widest clearing, and
+>   each of the five **Elemental Mages** leads the pack of a clearing of its own
+>   (raising its element's totem in the fight).
 
 #### Graveyard
 - **Skeleton** — *in code*
@@ -305,11 +308,38 @@ original flavor note. Everything else is `[TBD]` theme/mechanics.
 - **Bone Dragon** — *in code*. Elite (150 HP, resists 45% physical / 45% fire; Bite 12, Breath Swarm down a 6-tile line). Fought as the **second boss** in the **Boneyard** (`interior_kind == "boneyard"`, through a door at the east end of the Old Graveyard's deepest crypt): a large walled square gated on the west, with twelve **gravestones** (10 HP) in rows across it. The fight is meant to open with the **Necromancer** — the player's job is to stop him raising the dead, and what he leaves behind is those twelve stones (*the Necromancer part is not yet specified; the room is built in its post-prelude state*). Then the dragon: for every gravestone still standing he has **1 regen that never decays** (1 health a cycle per stone — shown as *Gravebound*); the only way to lower it is to break the stones. The catch: **grave diggers** (20 HP, three in all, only one out at a time) come out of the crypt door and repair a broken stone back to full in **8 tempo**, then vanish. Kill the stones, kill the diggers, and the dragon is beatable.
 - **Bone dragon** — *in code*. Elite. **Breath Swarm**: 12 damage down a 6-tile line, hatching a **Swarm** beside every unit hit.
 - **Grave digger**
-- **The Consumed** — *a golem-like creature but far worse: something that has had its spirit consumed and is now flesh and hatred*
-- **Spirit collector**
-- **Grave titans**
+- **The Consumed** — *a golem-like creature but far worse: something that has had its spirit consumed and is now flesh and hatred* — *in code*. Walks the Old Graveyard's deep crypts and the Ruined Library's deeper rooms.
+- **Spirit collector** — *in code*. Keeps the Ruined Library: its deeper rooms, and two at the archive's dais (each Release Soul strengthens every living collector).
+- **Grave titans** — *in code*. One holds the Old Graveyard's last crypt short of the Necromancer's.
 - **Guilty Shifter**
-- **Crypt Crawlers**
+- **Crypt Crawlers** — *in code*. The Old Graveyard's deep crypts and the Ruined Library's stacks.
+
+> **The Ruined Library (Act 1, Part 2) — built (2026-11-09).** `interior_kind ==
+> "library"` (`dungeon_manager.gd`), its door — a broken stone arch on a raised
+> block — in the World 1 field room nearest the Old Graveyard (the same part of the
+> story, the same corner of the map).
+>
+> - **Layout:** from the door a long **nave** runs east, both its walls lined with
+>   bookcases and a worn runner down it; either side a wing of three bays opening off
+>   it and onto each other — **stacks** (rows of cases one deep, two-tile aisles
+>   between them, a walkway at the ends and a gap through the long rows) and, the
+>   widest bay of each wing, a **reading room** of desks. Across the east end, through
+>   an arch, the **archive**: the deepest room, four ruined pillars, short runs of
+>   cases, the runner leading to the **dais**.
+> - **Dwellers (levels 8–10, the graveyard's band):** screechers heard between the
+>   cases everywhere, crypt crawlers in the stacks, zombies in the near rooms, the
+>   Consumed and Spirit Collectors past the middle; the archive is the elite room —
+>   **two Spirit Collectors** at the dais with the Consumed, a crawler and a screecher.
+> - **Atmosphere:** dim as the crypts; the light is the reading desks' candles (every
+>   desk, and one at the end of every stack) and a cold glow over the dais; the hero
+>   carries a torch. Cobwebs in the corners, bones on the floor, a few fallen cases.
+>   A chest or two, a healing fountain in the archive.
+> - **Art:** the undead pack's flagstones and stone (as the buildings); every bookcase
+>   is the designer's tall case of books and scrolls (`town_scroll_case`), every desk
+>   the designer's desk with its candle, quill and papers (`town_contract_desk`) — no
+>   Craftpix pack draws a bookcase; the barrow pack's ruined pillars, arch, stones and
+>   bones; the cave's cobwebs.
+> - `[TBD]`: what the player finds here (the "first clues"), its quests and NPCs.
 
 #### Cave
 - **Bear**
@@ -394,7 +424,7 @@ built level. The roster is themed and in code:*
 >   never interacts with them).
 
 #### Mountains
-**The Mountain Pass is built** (2026-11-05; `interior_kind == "mountains"`, reached from World 1's overworld by the Mountain Pass site): a snowy mountainside climbing up the screen in four terraces (valley floor, two terraces, the summit), with raised outcrops on the lower ones. **Elevation is walked one level a step** (`DungeonManager.can_step`): neighbouring terraces are a cliff apart, and no one walks up or down a cliff — a south-facing drop is a rock face (`cliff_face_tiles`), the rest the ledge's lip. The way up is a **step** halfway up a cliff (`step_tiles`, the trodden track); every ledge can be reached on foot. Fliers (`immune_to_high_ground`) cross cliffs; so would a climber (`PlayerStats.climbs_cliffs`, for climbing gear — none in the game yet); a blink, leap or knockback is not walking. Weregoats and sabertooths roam the low snowfields; snow wraiths and ice trolls hold the ledges and outcrops; wyverns, white manticores and rocs ride the heights; the summit holds an ice troll and a flier. A chest waits on each outcrop and the summit. Art: Frostreach's winter pack ground, rock and props (no pack draws stairs: the steps are the slush track). Granite Colossi stay out until they have moves.
+**The Mountain Pass is built** (2026-11-05; `interior_kind == "mountains"`, reached from World 1's overworld by the Mountain Pass site): a snowy mountainside climbing up the screen in four terraces (valley floor, two terraces, the summit), with raised outcrops on the lower ones. **Elevation is walked one level a step** (`DungeonManager.can_step`): neighbouring terraces are a cliff apart, and no one walks up or down a cliff — a south-facing drop is a rock face (`cliff_face_tiles`), the rest the ledge's lip. The way up is a **step** halfway up a cliff (`step_tiles`, the trodden track); every ledge can be reached on foot. Fliers (`immune_to_high_ground`) cross cliffs; so would a climber (`PlayerStats.climbs_cliffs`, for climbing gear — none in the game yet); a blink, leap or knockback is not walking. Weregoats and sabertooths roam the low snowfields; snow wraiths and ice trolls hold the ledges and outcrops; wyverns, white manticores and rocs ride the heights; the summit holds an ice troll and a flier; every one of the seven is met on the Pass (2026-11-09: one the dice leave out takes the place of a kin that came up twice). A chest waits on each outcrop and the summit. Art: Frostreach's winter pack ground, rock and props (no pack draws stairs: the steps are the slush track). Granite Colossi stay out until they have moves.
 **Its caves** (2026-11-05): two cave mouths open out of the Pass's cliffs. The **Ice Cave** (`interior_kind == "icecave"`, on a lower terrace) is the cave layout frozen — snow floor, frosted rock, ice crystals for stalagmites — with the mountain's creatures and an ice troll in its deepest chamber; **Frostreach's (World 3's) caves are Ice Caves too.** The **Ice Troll Lair** (`interior_kind == "trolllair"`, high up near the summit) is a treasure pocket meant to kill the unready: a tunnel opens on the trolls' den, one frozen room where **five ice trolls** (two at the vault's gap) and four snow wraiths wake together; in the den's corner the **vault**, walled by **high mountains** (no walking on them, no blinking across them — `blink_clear`; a later quest might have Olorin send the hero for mountain boots) with a **single one-tile way in**, holds a **legendary chest** (the one chest allowed a legendary) and **gold lying about the floor** — walked onto, it is taken, and stays taken (`DungeonManager.gold_piles`, the treasure pack's gold). No fountain in the lair.
 - **Weregoat**
 - **Wyvern** — *in code*. Elite. Flier (ignores high ground). **Talon Grab** (2-cycle cooldown): flies above its target, 25 damage, and drags them to an open space **8 squares away**.
@@ -478,6 +508,8 @@ the repo. Keep this table honest as the code changes.
 | **Habitats / biomes** | `dungeon_manager.gd` palettes + `CAVE_PALETTE`, `BUILDING_PALETTE`, `SEWER_PALETTE`; site generation (caves, buildings, sewers) | The generator distinguishes overworld vs. cave vs. building vs. **sewer** interiors — a natural hook for habitat-specific enemy spawn tables (Section 5). |
 | **The Sewers (Act 1, Part 1)** | `dungeon_manager.gd` (`interior_kind == "sewer"`: `_generate_sewer_layout`, `_build_sewer_decorations`, `_define_sewer_spawn_zones`), `main.gd` (`_apply_world_ambience` sewer branch + `_ensure_player_torch`), `torch_flicker.gd`, `sewer_critter.gd` | **Built.** The opening dungeon: trunk + water channels, Rat King arena, west→east rat/ooze → boss → croc/swarm/crawler progression, dim torchlit atmosphere, reduced fog. Reached via a sewer grate site in World 1. See Section 5.4. |
 | **The Greenwood (Act 1, Forest)** | `dungeon_manager.gd` (`interior_kind == "forest"`: `_generate_forest_layout`, `_place_forest_features`, `_build_forest_decorations`, `_define_forest_spawn_zones`), `main.gd` (forest ambience, terrain-trap + tree-climb systems, tutorial), `sewer_critter.gd` (squirrels) | **Built.** Open clearings/trails/hills; climbable trees → high ground (+ one-time tutorial); bear traps (7 dmg / 10 to bears) and hunter dart tripwires (5 dmg) that hit players *and* enemies; pits; squirrels; bright fog. Reached via a forest trailhead site in World 1. See Section 5.4. |
+| **The Ruined Library (Act 1, Part 2)** | `dungeon_manager.gd` (`interior_kind == "library"`: `_generate_library_layout`, `_library_stack_rows`, `_place_library_desks`, `_build_library_decorations`, `_define_library_spawn_zones`; `_place_library_site`, `_build_library_entrance`), `main.gd` (`_apply_world_ambience` library branch + player torch) | **Built** (2026-11-09). Nave, stacks and reading rooms, the archive (two Spirit Collectors); candle-lit; door beside the Old Graveyard in World 1. Its clues `[TBD]`. See Section 5.4, Graveyard. |
+| **Act 1 spawn tables** | `dungeon_manager.gd` (`_define_forest_spawn_zones` + `_forest_heads`, `_define_graveyard_spawn_zones`, `_define_mountain_spawn_zones`, `_ensure_zone_types`), `tests/test_act1_spawns.gd` | Every built Act 1 creature lives somewhere in World 1 (2026-11-09): the Hydra and the five Elemental Mages in the Greenwood, the Grave Titan and the Consumed in the Old Graveyard, the Spirit Collectors in the Ruined Library, all seven of the Mountains roster on the Mountain Pass. The Granite Colossus (no moves) stays out. |
 | **The Mountain Pass (Act 1, Mountains)** | `dungeon_manager.gd` (`interior_kind == "mountains"`: `_generate_mountain_layout`, `_mountain_connect`, `_define_mountain_spawn_zones`; `can_step`, `cliff_face_tiles`, `step_tiles`), `player.gd` (`step_check`), `enemy.gd` (`_can_step`, route-first on cliffs), `main.gd` (`_climber_blocked_tiles`) | **Built.** Terraced snowy mountainside, cliffs walked round by steps, enemies on the ledges, fliers over the cliffs. Reached via the Mountain Pass site in World 1. See Section 5.4. |
 | **Ice Caves & the Ice Troll Lair (Act 1, Mountains)** | `dungeon_manager.gd` (`icecave`: the cave layout, `_define_ice_cave_spawn_zones`; `trolllair`: `_generate_troll_lair_layout`, `mountain_wall_tiles`, `blink_clear`, `_place_troll_hoard`, `gold_piles` / `take_gold_pile`, `_create_chest(..., legendary)`; `_place_mountain_caves`, `_place_door_site`), `main.gd` (`_check_gold_pile_pickup`) | **Built.** Off the Mountain Pass; World 3's caves are Ice Caves. |
 | **Caves (Act 1, Cave)** | `dungeon_manager.gd` (`interior_kind == "cave"`: `_generate_cave_layout` + `_place_cave_puddles`, `_build_cave_decorations`, darkened `CAVE_PALETTE`), `main.gd` (cave ambience + player torch) | **Built/enhanced.** Dark stone tunnels darker than the sewers; stalagmites, stalactites (dripping), puddles, divots, player torch. Reached via cave-mouth sites. See Section 5.4. |
@@ -510,6 +542,8 @@ Decided:
 - ✅ **The Mountain Pass is built** (Act 1, Mountains) — and with it, walking
   elevation: up or down one level a step, cliffs walked round by their steps.
   See Section 5.4 / §8.
+- ✅ **The Ruined Library is built** (2026-11-09; Act 1, Part 2 beside the Old
+  Graveyard) and **every built Act 1 creature is placed** in World 1. See Section 5.4 / §8.
 - ✅ **The Greenwood forest and the Caves are built** — woodland of clearings,
   trails and hills with climbable trees (high ground + tutorial), bear traps and
   hunters' dart tripwires, pits and squirrels; and dark, dripping cave tunnels

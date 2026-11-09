@@ -14668,6 +14668,9 @@ func _apply_world_ambience() -> void:
 	# A frozen cave (the Ice Caves, the Ice Troll Lair): the ice holds some
 	# light, but the hero still carries a torch.
 	var in_ice := current_interior_id.begins_with("icecave") or current_interior_id.begins_with("trolllair")
+	# The Ruined Library: dim as the crypts, lit by its desk candles and a
+	# few sconces; the hero carries a torch through the stacks.
+	var in_library := current_interior_id.begins_with("library")
 
 	var world_env := get_node_or_null("WorldEnvironment") as WorldEnvironment
 	if world_env and world_env.environment:
@@ -14675,6 +14678,8 @@ func _apply_world_ambience() -> void:
 		env.ambient_light_color = pal.get("ambient", Color(0.3, 0.3, 0.35))
 		if in_ice:
 			env.ambient_light_energy = 0.45  # ice glows faintly in the dark
+		elif in_library:
+			env.ambient_light_energy = 0.3  # candlelight between the cases
 		elif in_cave:
 			env.ambient_light_energy = 0.14  # darker even than the sewers
 		elif in_sewer:
@@ -14698,6 +14703,8 @@ func _apply_world_ambience() -> void:
 		var energy: float = pal.get("sun_energy", 1.2)
 		if in_ice:
 			energy = 0.3
+		elif in_library:
+			energy = 0.2
 		elif in_cave:
 			energy = 0.16
 		elif in_sewer:
@@ -14713,7 +14720,7 @@ func _apply_world_ambience() -> void:
 		sun.light_energy = energy
 
 	# Underground (sewers and caves), each player carries their own pool of light.
-	_ensure_player_torch(in_sewer or in_cave or in_ice)
+	_ensure_player_torch(in_sewer or in_cave or in_ice or in_library)
 
 func _ensure_player_torch(enable: bool) -> void:
 	## Gives each player a warm point light (the "lit circle" around the
