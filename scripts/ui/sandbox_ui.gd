@@ -25,6 +25,9 @@ const BOSS_ROOMS := [
 	["hellgate", "Hell's Gate", "Caves — Cerberus and Hell's Door (break the door)"],
 	["labyrinth", "The Labyrinth", "Underworld — the Inflamed Minotaur, Lost in the Labyrinth"],
 	["thanatoshall", "Thanatos's Hall", "Underworld — Thanatos (first pass)"],
+	["crucible", "The Crucible", "Underworld — two ifrits round a lava lake (off the Brimstone Rift)"],
+	["throne", "Throne of Dis", "Underworld — the court of Dis (off the Citadel of Dis)"],
+	["breach", "The Breach", "Underworld — the wardens of the way up (off the Ashen Stair)"],
 ]
 
 # card_id lists grouped by the character whose kit they belong to, matching

@@ -320,3 +320,7 @@ Scene: `scenes/core/main.tscn`, booted with the map's world level and interior i
 | w4_overworld | FLAGGED invisible wall | (29, 61) | wall beside reachable floor, nothing drawn |
 | w4_overworld | FLAGGED invisible wall | (61, 61) | wall beside reachable floor, nothing drawn |
 | w4_overworld | FLAGGED invisible wall | (76, 61) | wall beside reachable floor, nothing drawn |
+
+## Addendum, 2026-11-09 — Act 2's new places
+
+World 2 re-dumped and audited after the Brimstone Rift, the Citadel of Dis, the Ashen Stair and their sealed rooms (the Crucible, the Throne of Dis, the Breach) were added: `w2_overworld`, `w2_rift_0`, `w2_crucible`, `w2_citadel_0`, `w2_throne`, `w2_ascent_0`, `w2_breach` (found by following doors). None of them has an invisible blocker, an invisible wall, an unreachable pocket, POI or site, a stuck spawn or a dead end. Their only findings are of the kinds already accepted above: walk-through scatter (the cursed biome's rocks, the healing wells) on 0–5 cells each, and the battle's AOE indicator dot (a bare cylinder at no cell, `AOEIndicator/CenterDot`), which every map now shows, the old ones included.

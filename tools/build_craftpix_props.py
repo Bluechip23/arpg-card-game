@@ -200,6 +200,11 @@ CELLS = {
     # Glowing-cave totem, 12 animation frames (uncropped so they line up):
     # the waypoint / transport-portal marker.
     "waypoint_totem": {"scale": 1.0, "crop": False, "cells": [("tileset_glowing_cave/Totem_animation.png", c * 96, r * 88, 96, 88) for r in range(2) for c in range(6)]},
+    # The cursed land pack's red vein bridges (bridges.png, boxes found by
+    # connected components, 2026-11-09): the Brimstone Rift's bridges over
+    # the lava, east-west and north-south.
+    "cursed_bridge_h": {"scale": 1.0, "cells": [("tileset_cursed_land/bridges.png", 288, 177, 97, 63), ("tileset_cursed_land/bridges.png", 385, 178, 95, 61)]},
+    "cursed_bridge_v": {"scale": 1.0, "cells": [("tileset_cursed_land/bridges.png", 546, 0, 65, 98), ("tileset_cursed_land/bridges.png", 610, 0, 62, 98)]},
 }
 
 
