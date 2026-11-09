@@ -165,6 +165,9 @@ code was altered in this pass to match; "Built" means the enemy or action did no
    Grave Titan, Spirit Collector, The Consumed, Hydra) is reachable only through the Enemy Lab / sandbox and the
    World 2+ "deep lord" rooms (Ifrit, Minotaur, Djinn).
    **Answered (designer, 2026-11-08):** fine for now; those worlds will be built later.
+   *Act 1 placed (2026-11-09):* the Mountains roster on the Mountain Pass and its caves, the Grave Titan and the
+   Consumed in the Old Graveyard, the Spirit Collectors in the new Ruined Library, the Hydra and the five Elemental
+   Mages in the Greenwood (see Section 1's roster table, "Where it spawns"). The Granite Colossus stays out (no moves).
 
 ---
 
@@ -184,7 +187,7 @@ so they are not counted.
 | Skeleton | Minion | 7 | 20/12/6 → 19/11/6 | 1 / 5 | - | Graveyard | overworld mid melee W1-2 / base W3+, graveyard shallow, Necromancer summon | built |
 | Armored Troll | Elite | 12 | 60/40/7 → 72/48/8 | 2 / 4 | 30/15/15 | Cave | overworld heavy W1-3, cave deep guard | built |
 | Archer Rat | Minion | 2 | 6/0/2 → 5/0/2 | 2 / 2 (Shoot 5) | - | Sewer | overworld ranged, sewer, Rat King's Lair (nest archers) | built |
-| Hydra | Elite | 14 | 80/0/7 → 104/0/8 | 3 / 6 | - | Forest | ONLY the sandbox test arena (spawn_test_arena) | built, unplaced |
+| Hydra | Elite | 14 | 80/0/7 → 104/0/8 | 3 / 6 | - | Forest | the Greenwood's widest clearing (one, leads its pack; 2026-11-09); also the sandbox test arena | built |
 | Fire Goblin Soldier | Minion | 9 | 6/0/2 → 6/0/2 | 4 / 2 | - | Cave | caves (base/mid melee) | built |
 | Fire Goblin Mage | Minion | 9 | 10/0/7 → 11/0/7 | 2 / 3 | - | Cave | caves (ranged) | built |
 | Fire Goblin Shaman | Elite | 10 | 16/0/6 → 18/0/6 | 2 / 3 | - | Cave | one per cave | built |
@@ -197,35 +200,35 @@ so they are not counted.
 | Infected Hunter | Elite | 16 | 40/0/8 → 56/0/10 | 2 / 3 | - | Forest | Greenwood elites | built |
 | Giant Hawk | Minion | 15 | 28/0/9 → 38/0/11 | 8 / 3 | - | Forest | Greenwood minions + hills | built |
 | Treant | Elite | 19 | 110/0/14 → 160/0/18 | 9 / 10 | 25/-10/55 | Forest | Greenwood elites | built |
-| Ice Mage | Minion | 15 | 40/0/6 → 54/0/7 | 3 / 5 | - | Forest | nowhere (no spawn table lists it) | built, unplaced |
-| Fire Mage | Minion | 15 | 32/0/7 → 43/0/9 | 2 / 3 | - | Forest | nowhere | built, unplaced |
-| Spark Mage | Minion | 13 | 16/0/3 → 20/0/4 | 2 / 3 | - | Forest | nowhere | built, unplaced |
-| Air Mage | Minion | 14 | 30/0/5 → 39/0/6 | 6 / 3 | - | Forest | nowhere | built, unplaced |
-| Earth Mage | Elite | 17 | 65/0/9 → 94/0/12 | 5 / 5 | - | Forest | nowhere | built, unplaced |
-| Zombie | Minion | 7 | 12/0/5 → 11/0/5 | 3 / 8 | - | Graveyard | graveyard shallow + deep, Necromancer summon | built |
+| Ice Mage | Minion | 15 | 40/0/6 → 54/0/7 | 3 / 5 | - | Forest | the Greenwood: leads a clearing of its own, with its Ice Totem (2026-11-09) | built |
+| Fire Mage | Minion | 15 | 32/0/7 → 43/0/9 | 2 / 3 | - | Forest | the Greenwood: leads a clearing of its own, with its Fire Totem (2026-11-09) | built |
+| Spark Mage | Minion | 13 | 16/0/3 → 20/0/4 | 2 / 3 | - | Forest | the Greenwood: leads a clearing of its own, with its Shock Totem (2026-11-09) | built |
+| Air Mage | Minion | 14 | 30/0/5 → 39/0/6 | 6 / 3 | - | Forest | the Greenwood: leads a clearing of its own, with its Air Totem (2026-11-09) | built |
+| Earth Mage | Elite | 17 | 65/0/9 → 94/0/12 | 5 / 5 | - | Forest | the Greenwood: leads a clearing of its own, with its Earth Totem (2026-11-09) | built |
+| Zombie | Minion | 7 | 12/0/5 → 11/0/5 | 3 / 8 | - | Graveyard | graveyard shallow + deep, the Ruined Library's near rooms, Necromancer summon | built |
 | Werewolf | Elite | 10 | 55/0/10 → 61/0/11 | 3 / 3 | 25/25/25 | Graveyard | graveyard deep | built |
 | Treasure Bunny | Minion | 8 | 25/0/0 → 25/0/0 | 2 / 1 | - | Graveyard | graveyard shallow | built |
 | Vampire | Elite | 10 | 95/0/10 → 105/0/11 | 5 / 5 | 10/10/10 | Graveyard | graveyard deep | built |
 | Necromancer | Elite | 11 | 60/0/4 → 69/0/4 | 8 / 6 | 0/15/15 | Graveyard | graveyard deepest room | built |
 | Bone Dragon | Elite | 12 | 150/0/12 → 180/0/14 | 5 / 5 | 45/45/0 | Graveyard | Necromancer's 6th raise; Boneyard boss room | built (boss-room boss shown as Elite) |
-| Spirit Collector | Elite | 10 | 50/0/8 → 55/0/9 | 3 / 4 | - | Graveyard | nowhere | built, unplaced |
-| Grave Titan | Boss | 12 | 130/30/15 → 156/36/17 | 4 / 8 | - | Graveyard | nowhere (boss loot tier, never spawns) | built, unplaced |
-| Crypt Crawler | Minion | 8 | 28/0/6 → 28/0/6 | 3 / 4 | - | Graveyard | graveyard deep | built |
-| Screecher | Minion | 8 | 14/0/5 → 14/0/5 | 4 / 2 | - | Graveyard | graveyard shallow | built |
-| The Consumed | Elite | 9 | 35/0/8 → 37/0/8 | 5 / 3 | - | Graveyard | nowhere | built, unplaced |
+| Spirit Collector | Elite | 10 | 50/0/8 → 55/0/9 | 3 / 4 | - | Graveyard | the Ruined Library: its deeper rooms, and two at the archive's dais (2026-11-09) | built |
+| Grave Titan | Boss | 12 | 130/30/15 → 156/36/17 | 4 / 8 | - | Graveyard | the Old Graveyard: the last crypt short of the Necromancer's, one (2026-11-09) | built |
+| Crypt Crawler | Minion | 8 | 28/0/6 → 28/0/6 | 3 / 4 | - | Graveyard | graveyard deep (always at least one), the Ruined Library (stacks and archive) | built |
+| Screecher | Minion | 8 | 14/0/5 → 14/0/5 | 4 / 2 | - | Graveyard | graveyard shallow, the Ruined Library (everywhere: the nave, the stacks, the archive) | built |
+| The Consumed | Elite | 9 | 35/0/8 → 37/0/8 | 5 / 3 | - | Graveyard | graveyard deep (always at least one), the Ruined Library's deeper rooms and archive (2026-11-09) | built |
 | Sludge Being | Minion | 2 | 10/0/3 → 9/0/3 | 3 / 5 | - | Sewer | sewer west + east | built |
 | Pipe Crawler | Minion | 3 | 20/0/5 → 18/0/5 | 2 / 2 | - | Sewer | sewer east | built |
 | Sewer Cobra (enum SEWER_CROC) | Elite | 5 | 40/20/12 → 36/18/11 | 2 / 5 | - | Sewer | sewer east, deepest-room guard | built |
 | Rat King | Elite | 5 | 90/10/6 → 81/9/5 | 2 / 2 | - | Sewer | Rat King's Lair (boss room 1) | built (mini-boss shown as Elite) |
 | Swarm | Minion | 3 | 10/0/3 → 9/0/3 | 8 / 3 | - | Sewer | sewer east, Bone Dragon breath | built |
-| Weregoat | Elite | — | — | - | - | Mountains | - | mock-up |
-| Wyvern | Elite | 21 | 125/0/25 → 181/0/33 | 6 / 4 | 25/35/25 | Mountains | nowhere (no mountain zone exists) | built, unplaced |
-| Roc | Boss | — | — | - | - | Mountains | - | mock-up |
-| Ice Troll | Elite | 22 | 150/55/13 → 218/80/17 | 3 / 3 | 35/15/15 | Mountains | nowhere | built, unplaced |
-| Snow Wraith | Minion | — | — | - | - | Mountains | - | mock-up |
+| Weregoat | Mid-tier | 22 | — | - | - | Mountains | the Mountain Pass's snowfields, the Ice Caves | built |
+| Wyvern | Elite | 21 | 125/0/25 → 181/0/33 | 6 / 4 | 25/35/25 | Mountains | the Mountain Pass's heights (2026-11-05) | built |
+| Roc | Mid-tier | 22 | — | - | - | Mountains | the Mountain Pass's heights | built |
+| Ice Troll | Elite | 22 | 150/55/13 → 218/80/17 | 3 / 3 | 35/15/15 | Mountains | the Mountain Pass's ledges and summit, every Ice Cave's deepest chamber, the Ice Troll Lair (five) | built |
+| Snow Wraith | Trash | 20 | — | - | - | Mountains | the Mountain Pass's ledges, the Ice Caves, the Ice Troll Lair | built |
 | Granite Colossus | Boss | — | — | - | - | Mountains | - | mock-up (listed in boss loot tier) |
-| White Manticore | Elite | 23 | 75/15/15 → 109/22/20 | 3 / 2 | 10/35/10 | Mountains | nowhere | built, unplaced |
-| Sabertooth | Minion | — | — | - | - | Mountains | - | mock-up |
+| White Manticore | Elite | 23 | 75/15/15 → 109/22/20 | 3 / 2 | 10/35/10 | Mountains | the Mountain Pass's heights | built |
+| Sabertooth | Mid-tier | 21 | — | - | - | Mountains | the Mountain Pass's snowfields (always at least one; 2026-11-09), the Ice Caves | built |
 | Cerberus | Boss | 10 | 250/50/25 → 275/55/27 | 6 / 3 | 30/40/15 | Underworld | Hell's Gate (boss room 3) | built |
 | Succubus | Elite | — | — | - | - | Underworld | - | mock-up |
 | Demon | Elite | — | — | - | - | Underworld | - | mock-up |
@@ -255,6 +258,12 @@ so they are not counted.
 Grave Titan, The Consumed, Wyvern, Ice Troll, White Manticore. There is no Mountains zone at all, and the graveyard
 tables never pull Spirit Collector / Grave Titan / Consumed. Everything in this list has finished behaviour and a
 hand-built figure; it just needs a spawn table.
+*Placed (2026-11-05 and 2026-11-09):* the Mountains roster lives on the Mountain Pass, its Ice Caves and the Ice
+Troll Lair (every one of the seven is met on the Pass); the Grave Titan holds the Old Graveyard's last crypt short of
+the Necromancer's and the Consumed walk its deep crypts; the Spirit Collectors, the Consumed, Crypt Crawlers and
+Screechers fill the new **Ruined Library** (`interior_kind == "library"`, off World 1 beside the Old Graveyard); the
+Hydra holds the Greenwood's widest clearing and each Elemental Mage leads a clearing of its own. Only the Granite
+Colossus (no moves) stays unplaced. `tests/test_act1_spawns.gd` generates every Act 1 map's tables and wakes them.
 
 **Tier labels that disagree with the role.** Rat King is a boss-room boss with boss loot but displays "Elite".
 Bone Dragon is the Boneyard's boss and displays "Elite" (the sheet's call, noted in code). Grave Titan and
