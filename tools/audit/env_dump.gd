@@ -10,8 +10,9 @@ extends SceneTree
 ## Run: godot --headless --path . --script tools/audit/env_dump.gd -- <out_dir> [world_levels=1,2,3,4]
 
 ## (and "breach_down": Heaven's way back down is a door to World 2's Breach,
-## not an interior of World 3 — the Breach is dumped with World 2.)
-const SKIP_PREFIXES := ["cave", "icecave", "building", "breach_down"]
+## not an interior of World 3 — the Breach is dumped with World 2; likewise
+## "rent_up", the Earth's way back up to World 3's Rent.)
+const SKIP_PREFIXES := ["cave", "icecave", "building", "breach_down", "rent_up"]
 const CRITTER_PREFIXES := ["Butterfly", "Crow", "TrailCrow", "Squirrel", "Mouse", "LeafFall", "CloudShadows", "Feather"]
 
 var _out := ""

@@ -44,6 +44,10 @@ func spawn_enemy(type: Enemy.EnemyType, pos: Vector3) -> Enemy:
 	get_parent().add_child(enemy)
 
 	enemy.position = pos
+	# Where the ground sets a band (Act 4), everything met on it stands there.
+	var main = get_parent()
+	if main and "dungeon_manager" in main and main.dungeon_manager:
+		enemy.band_floor = main.dungeon_manager.spawn_band_floor()
 	enemy.initialize(type, grid_manager)
 	enemy.died.connect(_on_enemy_died)
 	enemy.turn_completed.connect(_on_enemy_turn_completed)

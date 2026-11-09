@@ -173,6 +173,28 @@ const FROST_PALETTE := {
 	"trail": Color(0.40, 0.38, 0.36),
 }
 
+## Act 4, the Earth returned to (World 4, 2026-11-09; was the Amber Wastes'
+## desert): the Verdant Frontier's light gone sick — the sun dimmed and
+## reddened by the fires breaking through, a grey-green fill in the shade,
+## Hell's lava in its pools. Its art: EARTH_RETURN_ART (stand-ins).
+const BLIGHT_PALETTE := {
+	"name": "The Blighted Frontier",
+	"water": Color(0.66, 0.24, 0.07),      # Hell's lava, welling through the earth
+	"water_edge": Color(1.0, 0.72, 0.2),   # its glowing crust
+	"ground": Color(0.09, 0.10, 0.07),
+	"floor_a": Color(0.25, 0.27, 0.16),
+	"floor_b": Color(0.19, 0.21, 0.12),
+	"wall_a": Color(0.36, 0.31, 0.26),
+	"wall_b": Color(0.25, 0.22, 0.19),
+	"cliff": Color(0.34, 0.26, 0.20),
+	"step": Color(0.42, 0.36, 0.32),
+	"accent": Color(0.40, 0.30, 0.16),     # leaf gone to rust
+	"ambient": Color(0.44, 0.44, 0.40),    # a grey-green fill
+	"sun": Color(1.0, 0.86, 0.72),         # the sun through smoke
+	"sun_energy": 1.1,
+	"trail": Color(0.30, 0.20, 0.15),      # the blight's dark earth
+}
+
 ## A frozen cave: the mountains' frost in the gloom (dimmer than the
 ## snowfields, brighter than a rock cave — the ice holds the light).
 const ICE_CAVE_PALETTE := {
@@ -364,8 +386,9 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		interior_kind = "labyrinth"  # The Labyrinth: the Inflamed Minotaur (boss room off the second world's caves)
 	else:
 		# Act 2's later places (the Underworld, 2026-11-09): the Brimstone
-		# Rift, the Citadel of Dis, the Ashen Stair and their sealed rooms.
-		for k in ACT2_KINDS + ACT3_KINDS:
+		# Rift, the Citadel of Dis, the Ashen Stair and their sealed rooms;
+		# Act 3's in Heaven and Act 4's on the corrupted Earth.
+		for k in ACT2_KINDS + ACT3_KINDS + ACT4_KINDS:
 			if interior_id.begins_with(k):
 				interior_kind = k
 				break
@@ -375,12 +398,12 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 	match interior_kind:
 		"sewer":
 			fog_reveal_radius = 4
-		"forest", "mountains", "rift", "ascent", "garden", "spire", "causeway":
+		"forest", "mountains", "rift", "ascent", "garden", "spire", "causeway", "hamlet", "vale", "riven":
 			fog_reveal_radius = 9   # open, bright country: the view runs far
 		"dojo":
 			fog_reveal_radius = 64  # a lit hall: nothing to explore, nothing hidden
 		"ratking", "boneyard", "hellgate", "labyrinth", "thanatoshall", "crucible", "throne", "breach", \
-				"altar", "font", "belfry", "rent":
+				"altar", "font", "belfry", "rent", "green", "hellmouth", "reliquary", "confluence":
 			fog_reveal_radius = 64  # a boss arena: the whole room is in view from the gate
 		_:
 			fog_reveal_radius = FOG_REVEAL_RADIUS
@@ -463,6 +486,27 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 			_prune_dead_ends()        # no one-tile spurs of bank leading nowhere
 		"rent":
 			_generate_rent_layout()
+		"hamlet":
+			_generate_hamlet_layout()   # the Gilded Garden's plots as a village's hedged crofts
+		"green":
+			_generate_green_layout()
+		"vale":
+			_generate_rift_layout()   # the Brimstone Rift's canyon: Hell's lava through Earth's valley
+			_prune_dead_ends()
+			_blight_lava_banks()
+		"hellmouth":
+			_generate_hellmouth_layout()
+		"basilica":
+			_generate_basilica_layout()
+		"reliquary":
+			_generate_reliquary_layout()
+		"riven":
+			_generate_mountain_layout()   # the Mountain Pass's terraces, the climb to the Confluence
+			_place_ascent_lava()
+			_prune_dead_ends()
+			_blight_riven()
+		"confluence":
+			_generate_confluence_layout()
 		_:
 			_generate_overworld_layout()
 	_generate_elevation()
@@ -537,6 +581,18 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		elif interior_kind == "causeway":
 			# The far landing: the Rent, where Heaven's floor is torn open.
 			_place_boss_door("deep", "east", "rent", "rent", "The Rent", Color(0.9, 0.8, 1.0), Color(0.75, 0.55, 1.0))
+		elif interior_kind == "hamlet":
+			# The far croft: the Blighted Green.
+			_place_boss_door("deep", "east", "green", "green", "The Blighted Green", Color(0.85, 1.0, 0.7), Color(1.0, 0.55, 0.2))
+		elif interior_kind == "vale":
+			# The far landing: the Hellmouth, where Hell broke through.
+			_place_boss_door("deep", "east", "hellmouth", "hellmouth", "The Hellmouth", Color(1.0, 0.7, 0.5), Color(1.0, 0.4, 0.12))
+		elif interior_kind == "basilica":
+			# The choir's apse: the Fallen Reliquary.
+			_place_boss_door("deep", "east", "reliquary", "reliquary", "The Fallen Reliquary", Color(1.0, 0.92, 0.7), Color(1.0, 0.85, 0.5))
+		elif interior_kind == "riven":
+			# The top of the Heights: the Confluence, where the final battle will stand.
+			confluence_door_cell = _place_summit_door("confluence", "confluence", "The Confluence", Color(1.0, 0.85, 0.8), Color(0.9, 0.6, 1.0))
 	_place_chests()
 	_place_fountains()
 	_place_shrine()
@@ -699,6 +755,52 @@ func _set_world_size() -> void:
 			GRID_H = RN_SIZE.y
 			player_start = Vector2i(RN_FLOOR.position.x + 1, RN_FLOOR.get_center().y)
 			return
+		"hamlet":
+			# The Gilded Garden's shape: the lane in west, the far croft east.
+			GRID_W = 64 + world_level * 2
+			GRID_H = 40 + world_level
+			player_start = Vector2i(2, GRID_H / 2)
+			return
+		"green":
+			GRID_W = FN_SIZE.x
+			GRID_H = FN_SIZE.y
+			player_start = Vector2i(FN_FLOOR.position.x + 1, FN_FLOOR.get_center().y)
+			return
+		"vale":
+			# The Rift's canyon: entered from the west, its far landing east.
+			GRID_W = 60 + world_level * 2
+			GRID_H = 34 + world_level
+			player_start = Vector2i(3, GRID_H / 2)
+			return
+		"hellmouth":
+			GRID_W = CR_SIZE.x
+			GRID_H = CR_SIZE.y
+			player_start = Vector2i(CR_FLOOR.position.x + 1, CR_FLOOR.get_center().y)
+			return
+		"basilica":
+			# The Sanctum's cross, fallen: its door west, the reliquary's apse east.
+			GRID_W = 56 + world_level * 2
+			GRID_H = 34 + world_level
+			player_start = Vector2i(2, GRID_H / 2)
+			return
+		"reliquary":
+			GRID_W = AL_SIZE.x
+			GRID_H = AL_SIZE.y
+			player_start = Vector2i(AL_CENTER.x - AL_RADIUS + 1, AL_CENTER.y)
+			return
+		"riven":
+			# The Mountain Pass's shape: the foot south-west, the top north-east.
+			GRID_W = 62 + world_level * 2
+			GRID_H = 44 + world_level
+			player_start = Vector2i(4, GRID_H - 6)
+			return
+		"confluence":
+			# Entered from the south (up the Heights).
+			GRID_W = CF_SIZE.x
+			GRID_H = CF_SIZE.y
+			player_start = Vector2i(CF_FLOOR.get_center().x, CF_FLOOR.end.y - 2)
+			exit_nudge = Vector3(0, 0, 1)
+			return
 	if interior_kind == "cave" or interior_kind == "graveyard" or interior_kind == "icecave":
 		GRID_W = 36 + world_level * 2
 		GRID_H = 26 + world_level
@@ -779,15 +881,19 @@ func _get_graveyard_palette() -> Dictionary:
 ## Which world's art a world wears (designer, 2026-11-05: "build out Hell"):
 ## World 2 is the Underworld — Act 2, Hell, below Hell's Gate — so it wears
 ## the hell art first painted for World 4 (cursed earth, lava, volcanoes and
-## demon idols); World 4 (Act 4, the corrupted Earth) takes the Amber
-## Wastes' desert in exchange. Gameplay keys on world_level; only the look
-## follows this.
+## demon idols). World 4 is Act 4, the Earth returned to (2026-11-09): it
+## wears World 1's own Earth, corrupted — EARTH_RETURN_ART over the Verdant
+## Frontier's packs (earth_return_land). It had worn the Amber Wastes'
+## desert as a placeholder; that look (WORLD_PALETTES[2], the art_world() ==
+## 2 branches, _build_desert_site, PROP_ROLES "desert") is worn by no world
+## now and kept on the shelf (its door, shrine and sand stand in for Heaven's
+## in HEAVEN_ART). Gameplay keys on world_level; only the look follows this.
 func art_world() -> int:
 	match world_level:
 		2:
 			return 4
 		4:
-			return 2
+			return 1
 	return world_level
 
 func get_palette() -> Dictionary:
@@ -811,6 +917,8 @@ func get_palette() -> Dictionary:
 		return WORLD_PALETTES[4]   # the Underworld's own light, whichever world boots it (the Boss Simulator)
 	if act3_place():
 		return WORLD_PALETTES[3]   # Heaven's tarnished light, whichever world boots it (the Boss Simulator)
+	if earth_return_land():
+		return BLIGHT_PALETTE   # Act 4's sickened light, whichever world boots it (the Boss Simulator)
 	return WORLD_PALETTES.get(art_world(), WORLD_PALETTES[1])
 
 ## Act 2's later places (2026-11-09): the Brimstone Rift and the Crucible, the
@@ -911,6 +1019,158 @@ func _make_heaven_piece(slot: String, scale_mul: float = 1.0) -> Sprite3D:
 		sprite.modulate = heaven_art("stone_tint")
 	return sprite
 
+## Act 4's places (the Earth returned to, World 4; designer 2026-11-09:
+## "go ahead and build Act 4" — places & enemies only): the Forsaken Hamlet
+## and its Blighted Green, the Smouldering Vale and the Hellmouth, the
+## Shattered Basilica and its Fallen Reliquary, and the Riven Heights up to
+## the Confluence, where the final battle will stand (its boss [TBD]). The
+## sealed rooms are GUARDIAN_ROOMS.
+const ACT4_KINDS := ["hamlet", "green", "vale", "hellmouth", "basilica", "reliquary", "riven", "confluence"]
+
+func act4_place() -> bool:
+	return interior_kind in ACT4_KINDS
+
+## The corrupted Earth's ground: World 4's surface and the Act 4 places.
+## (World 4's caves and buildings keep the caves' and halls' own look.)
+func earth_return_land() -> bool:
+	return act4_place() or (interior_kind == "" and world_level == 4)
+
+## Act 4's band: everything met on the corrupted Earth — World 4's surface,
+## caves and buildings and the Act 4 places — stands at least here, above
+## Heaven's (cherubs 33, djinn 35), whatever its type's own band
+## (Enemy.band_floor). passive_power_scale tops out near band 17, so for
+## most of the host this moves the XP anchor more than the numbers; the
+## Earth's low-band creatures (a skeleton's 7) grow to the cap.
+const ACT4_BAND := 38
+
+func spawn_band_floor() -> int:
+	if world_level == 4 or act4_place():
+		return ACT4_BAND
+	return 0
+
+# ============================================
+# THE EARTH RETURNED TO — STAND-IN UNTIL THE DESIGNER'S ACT 4 BOARDS
+# (designer, 2026-11-09: build Act 4 with the closest purchased-pack pieces,
+# routed through one swap-in table, "exactly like Act 3's"). Every art
+# choice for Act 4 — World 4's surface and the Act 4 places — is read from
+# this one table (earth_art), so his boards swap in here slot by slot.
+# The look: the familiar Act 1 Earth (World 1's Verdant Frontier: the
+# designer's grass, cobbled-earth cliffs, trees and ruins), corrupted —
+# Hell bleeding through it (the Underworld's dark cracked earth on its roads
+# and round its tears, lava welling up, the cursed land's and hell's
+# growth) and Heaven fallen on it (Act 3's stand-ins: pale columns, crystal,
+# gilded rock, luminous growth). Where each shows is the tears
+# (blight_tears, _plane_at). docs/STORY.md section 4 (Act 4) lists the
+# slots for the designer.
+# ============================================
+const EARTH_RETURN_ART := {
+	# Earth's ground: the designer's Verdant Frontier grass (World 1's). Its
+	# rock, where a place is walled (the Vale's canyon, the Basilica's walls,
+	# the Heights' cliffs, the sealed rooms; World 4's fields end in trees):
+	# the designer's Greenwood stone, mossy cobble over a mossy rock face —
+	# Act 1's own (the Frontier's bright cobbled earth read as a slab).
+	"floor": GROUND_TEX + "/field_grass.png",
+	"wall": GROUND_TEX + "/forest_wall.png",
+	"cliff": GROUND_TEX + "/forest_cliff.png",
+	# The blight: the Underworld's dark cracked earth — on Earth's roads
+	# (the enemy came back along them), round Hell's tears, along the lava.
+	"blight": GROUND_TEX + "/cursed_dark.png",
+	# Where Hell broke clean through (the Hellmouth's crater floor): the
+	# Underworld's cursed earth.
+	"hell_floor": GROUND_TEX + "/cursed_floor.png",
+	# Hell's fire welling up through the Earth (pools, the Vale's river, the
+	# wells): the cave pack's lava, as the Underworld's.
+	"lava": CP_TEX + "/water_lava.png",
+	# Heaven fallen onto Earth (the Shattered Basilica, the Fallen
+	# Reliquary): Heaven's own stand-ins (HEAVEN_ART "floor" and "trail") —
+	# the barrow land's pale cobbles, gold walks.
+	"heaven_floor": GROUND_TEX + "/undead_cobble.png",
+	"heaven_trail": GROUND_TEX + "/desert_sand.png",
+	# Prop families by plane (PROP_ROLES): Earth's own ("field"), Hell's
+	# ("cursed": the cursed land and hell), Heaven's ("heaven": Act 3's
+	# glowing growth). Each place's ground is one plane, its tears another.
+	"plane_earth": "field",
+	"plane_hell": "cursed",
+	"plane_heaven": "heaven",
+	# Pale-gold cast over the barrow pack's dark stone (as Heaven's).
+	"stone_tint": Color(1.7, 1.55, 1.2),
+	# A tear of Hell in Earth's ground: these stand at its heart, on the
+	# rock beside it — the designer's vein arches, skull fences, horned idol
+	# and vein-wrapped ruins.
+	"tear_hell": [["hell_arch", 0], ["hell_arch", 1], ["hell_fence", 0], ["hell_idol", 0], ["cursed_ruin", 2], ["cursed_ruin", 6]],
+	# A tear of Heaven: a fallen piece of it — great pale crystals, gilded
+	# rock, the barrow pack's broken columns and arches (pale-tinted).
+	"tear_heaven": [["glow_crystal", 9], ["glow_crystal", 4], ["undead_ruin", 4], ["glow_gold", 0], ["glow_crystal", 0], ["undead_ruin", 3]],
+	# Site entrances on World 4's surface: [role, variant, scale, tinted].
+	"site_hamlet": ["field_ruin", 0, 1.0, false],     # the Verdant Frontier's ruined tower, its door
+	"site_vale": ["cursed_ruin", 1, 1.0, false],      # a stone arch bound in Hell's veins
+	"site_basilica": ["desert_door", 0, 1.0, false],  # Heaven's gilded eye door (HEAVEN_ART's Sanctum), fallen to Earth
+	"site_riven": ["field_ruin", 1, 1.0, false],      # a stair of ruined stone going up
+	"site_cave": ["cursed_cave", 0, 1.0, false],      # a mound over a dark cave mouth, Hell's growth on it
+	"site_building": ["forest_ruin", 0, 1.0, false],  # an overgrown ring of ruined walls, its way in
+	# The way back up to the Rent, where the hero arrives: Heaven's broken
+	# colonnade (HEAVEN_ART's Causeway), fallen through the tear.
+	"arrival_ruin": ["undead_ruin", 4, 1.1, true],
+	# The Hamlet's ruined cottages, standing in its crofts on 2x2 blocks: the
+	# Verdant Frontier's overgrown tower and stair, the Greenwood's ring of
+	# ruined walls [role, variant, scale] (no pack draws a village house in
+	# ruins).
+	"cottage": [["field_ruin", 0, 1.0], ["forest_ruin", 1, 1.5], ["field_ruin", 1, 1.4], ["forest_ruin", 0, 0.8]],
+	# Bridges over the Vale's lava: the cursed land pack's vein bridges.
+	"bridge_h": "cursed_bridge_h",
+	"bridge_v": "cursed_bridge_v",
+	# Columns (the Basilica, the Reliquary, the Confluence's dais): the
+	# designer's sandstone pillar on its steps (HEAVEN_ART's column).
+	"column": ["forest_ruin", 2, 1.3, false],
+	# The Reliquary's relic: the glowing-cave pack's totem (HEAVEN_ART's altar).
+	"relic": ["waypoint_totem", 0, 0.55, false],
+	# Fires (braziers): the designer's hell fire.
+	"brazier": "hell_fire",
+}
+
+func earth_art(slot: String):
+	return EARTH_RETURN_ART.get(slot)
+
+## A prop sprite for an EARTH_RETURN_ART piece [role, variant, scale, tinted].
+func _make_earth_piece(slot: String, scale_mul: float = 1.0) -> Sprite3D:
+	var spec: Array = earth_art(slot)
+	var sprite := _make_prop_sprite(spec[0], float(spec[2]) * scale_mul, int(spec[1]))
+	if sprite and bool(spec[3]):
+		sprite.modulate = earth_art("stone_tint")
+	return sprite
+
+## Where reality is torn on Act 4's ground: [{"c": Vector2i, "r": float,
+## "plane": "hell" | "heaven"}], laid by each layout. Inside a tear the
+## ground's props are that plane's; a hell tear's ground is the blight.
+var blight_tears: Array = []
+## Set while _add_prop_decos lays one plane's share (_plane_at).
+var _plane_override := ""
+
+## The plane the ground at (x, z) belongs to: "earth", "hell" or "heaven" —
+## a tear's (its edge ragged), or the place's own.
+func _plane_at(x: int, z: int) -> String:
+	for t in blight_tears:
+		var c: Vector2i = t["c"]
+		var d := Vector2(x - c.x, z - c.y).length()
+		if d <= float(t["r"]) + (_tile_noise(x, z, 307) - 0.5) * 1.6:
+			return t["plane"]
+	if _hell_ground.has(Vector2i(x, z)):
+		return "hell"
+	match interior_kind:
+		"hellmouth":
+			return "hell"
+		"basilica", "reliquary":
+			return "heaven"
+	return "earth"
+
+## A hell tear's ground: the blight (the trail sheet) on its open floor.
+func _blight_tear_ground() -> void:
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			if grid[x][z] == Tile.FLOOR and not water[x][z] and not step_tiles.has(Vector2i(x, z)) \
+					and _plane_at(x, z) == "hell":
+				trail[x][z] = true
+
 ## Ground sheets per location flavour. Craftpix top-down tileset fills
 ## (assets/textures/craftpix/, cut by tools/extract_craftpix_tiles.py), the
 ## closest pack for each place. Every sheet is a 4x4 grid of 32px variants sampled triplanar (see
@@ -923,6 +1183,15 @@ const GROUND_TEX := "res://assets/textures/ground"
 func floor_texture_path() -> String:
 	if heaven_land():
 		return heaven_art("floor")   # stand-in until the designer's Heaven boards (HEAVEN_ART)
+	if earth_return_land():
+		# Stand-ins until the designer's Act 4 boards (EARTH_RETURN_ART): Earth's
+		# grass; Heaven's paving where it fell; Hell's earth where it broke through.
+		match interior_kind:
+			"basilica", "reliquary":
+				return earth_art("heaven_floor")
+			"hellmouth":
+				return earth_art("hell_floor")
+		return earth_art("floor")
 	if act2_place():
 		return GROUND_TEX + "/cursed_floor.png"   # the Underworld's cursed earth (the designer's, 2026-10-29)
 	match interior_kind:
@@ -962,6 +1231,10 @@ func far_floor_texture_path() -> String:
 func trail_texture_path() -> String:
 	if heaven_land():
 		return heaven_art("trail")   # stand-in (HEAVEN_ART)
+	if earth_return_land():
+		if interior_kind in ["basilica", "reliquary"]:
+			return earth_art("heaven_trail")   # Heaven's gold runners (EARTH_RETURN_ART stand-in)
+		return earth_art("blight")   # the blight on Earth's roads and round Hell's tears (stand-in)
 	if act2_place():
 		return GROUND_TEX + "/cursed_dark.png"   # dark cracked earth: the Stair's steps, the Citadel's paved halls
 	match interior_kind:
@@ -988,6 +1261,8 @@ func trail_texture_path() -> String:
 func wall_texture_path() -> String:
 	if heaven_land():
 		return heaven_art("wall")   # stand-in (HEAVEN_ART)
+	if earth_return_land():
+		return earth_art("wall")   # Earth's cobbled earth (EARTH_RETURN_ART stand-in)
 	if act2_place():
 		return GROUND_TEX + "/cursed_wall.png"   # the designer's woven veins, as the Underworld's
 	match interior_kind:
@@ -1021,6 +1296,8 @@ func water_texture_path() -> String:
 		return heaven_art("abyss")   # the gulf under Heaven's broken floor (HEAVEN_ART stand-in)
 	if heaven_land():
 		return heaven_art("water")   # the sickened pools (HEAVEN_ART stand-in)
+	if earth_return_land():
+		return earth_art("lava")   # Hell's fire welling up through the Earth (EARTH_RETURN_ART stand-in)
 	if act2_place():
 		return CP_TEX + "/water_lava.png"   # lava no one wades (cave pack), as in the Burning Caves and the Labyrinth
 	match interior_kind:
@@ -1056,6 +1333,11 @@ func water_texture_path() -> String:
 func _prop_biome() -> String:
 	if heaven_land():
 		return heaven_art("biome")   # Heaven's stand-in growth (HEAVEN_ART)
+	if earth_return_land():
+		# Act 4: the plane being laid (_add_prop_decos splits by _plane_at),
+		# or the place's own (EARTH_RETURN_ART stand-ins).
+		var plane := _plane_override if _plane_override != "" else _plane_at(-99, -99)
+		return earth_art("plane_" + plane)
 	if act2_place():
 		return "cursed"   # the designer's cursed land and hell, as the Underworld's surface
 	match interior_kind:
@@ -1231,6 +1513,21 @@ func _prop_variants(base: String) -> Array:
 ## hash (one MultiMesh per variant). A biome with no pack art for the
 ## family simply goes without it.
 func _add_prop_decos(items: Array, base: String) -> void:
+	if earth_return_land() and _plane_override == "" and not items.is_empty():
+		# Act 4: each prop takes the plane of the ground it stands on — Earth's
+		# own, or a tear's of Hell or Heaven (_plane_at).
+		var by_plane := {}
+		for it in items:
+			var p: Vector3 = it["pos"]
+			var plane := _plane_at(int(floor(p.x)), int(floor(p.z)))
+			if not by_plane.has(plane):
+				by_plane[plane] = []
+			by_plane[plane].append(it)
+		for plane in by_plane:
+			_plane_override = plane
+			_add_prop_decos(by_plane[plane], base)
+		_plane_override = ""
+		return
 	var variants := _prop_variants(base)
 	if items.is_empty() or variants.is_empty():
 		return
@@ -1297,6 +1594,14 @@ func get_location_name() -> String:
 		"belfry": return "The Belfry"
 		"causeway": return "The Sundered Causeway"
 		"rent": return "The Rent"
+		"hamlet": return "The Forsaken Hamlet"
+		"green": return "The Blighted Green"
+		"vale": return "The Smouldering Vale"
+		"hellmouth": return "The Hellmouth"
+		"basilica": return "The Shattered Basilica"
+		"reliquary": return "The Fallen Reliquary"
+		"riven": return "The Riven Heights"
+		"confluence": return "The Confluence"
 	var pal = get_palette()
 	return "World %d — %s" % [world_level, pal.get("name", "")]
 
@@ -1343,7 +1648,8 @@ static func is_boss_room(id: String) -> bool:
 ## elite rooms, 2026-11-09): the room opens when the last of them falls.
 ## The Crucible (two ifrits), the Throne of Dis (the court of Dis) and the
 ## Breach (the wardens of the way up).
-const GUARDIAN_ROOMS := ["crucible", "throne", "breach", "altar", "font", "belfry", "rent"]
+const GUARDIAN_ROOMS := ["crucible", "throne", "breach", "altar", "font", "belfry", "rent",
+	"green", "hellmouth", "reliquary", "confluence"]
 
 static func is_guardian_room(id: String) -> bool:
 	for key in GUARDIAN_ROOMS:
@@ -1957,6 +2263,9 @@ func _generate_overworld_layout() -> void:
 		_place_lava_pools()  # Hell (the Underworld, World 2): molten pools in the open ground
 	elif world_level == 3:
 		_place_lava_pools()  # Heaven (World 3): its holy pools, sickened (HEAVEN_ART's water)
+	elif world_level == 4:
+		_place_lava_pools()  # the Earth returned to (World 4): Hell's lava welling up through it
+		_place_blight_tears()
 
 func _connect_rooms(a: Rect2i, b: Rect2i) -> void:
 	## Carves a 2-wide L-shaped corridor between the centers of two rooms.
@@ -5101,6 +5410,930 @@ func _place_rent_descent() -> void:
 	_place_exit_site(rent_lip, "descend", "descend", "The Rent", "[Shift] Descend", Vector3(0.7, 0, 0), Color(0.85, 0.7, 1.0))
 
 # ============================================
+# ACT 4 — THE EARTH RETURNED TO (World 4; designer, 2026-11-09: "go ahead
+# and build Act 4" — places & enemies only: the story, quests, dialogue and
+# the FINAL BOSS stay [TBD], STORY.md section 4). The enemy leaked back to
+# Earth: the normal plane, Hell and Heaven all at once. The Earth's own
+# creatures gone monstrous (the Act 1 roster) with the Underworld's and
+# Heaven's hosts among them through tears in reality, every one at Act 4's
+# band (ACT4_BAND). Four lean places on its surface, each with a sealed room
+# held by guardians of all three planes (GUARDIAN_ROOMS):
+#  - the Forsaken Hamlet (hamlet): Act 1's countryside torn — the Gilded
+#    Garden's plots as hedged crofts with their cottages in ruins, a lava
+#    pond where the green was; its far croft opens on the Blighted Green
+#    (green), a hedged green round a well torn open to Hell.
+#  - the Smouldering Vale (vale): Hell bleeding through Earth's valley — the
+#    Brimstone Rift's canyon, a river of lava through grass gone to blight
+#    along its banks, the cursed land's vein bridges; its far landing opens
+#    on the Hellmouth (hellmouth), a crater where Hell broke clean through.
+#  - the Shattered Basilica (basilica): Heaven fallen onto Earth — the
+#    Defiled Sanctum's cross lying broken in Earth's ground, a third of its
+#    columns down, Earth's growth through its floor, its fonts welling
+#    lava; its apse opens on the Fallen Reliquary (reliquary).
+#  - the Riven Heights (riven): the approach to the final battle — the
+#    Mountain Pass's terraces, lava on the ledges and Heaven's crystal on the
+#    heights; at the top the Confluence (confluence), where the three planes
+#    meet and the final boss will stand. THE FINAL BOSS IS [TBD]: its slot
+#    on the dais stands empty (confluence_boss_cell) and a guard gauntlet of
+#    all three planes holds the chamber for now.
+# Every piece of art is EARTH_RETURN_ART's stand-in until the designer's
+# Act 4 boards.
+# ============================================
+
+## Act 4's host by tier (the generic tables of World 4's surface, caves and
+## halls, rolled per enemy; _act4_roll): the Earth's own creatures gone
+## monstrous — Greenwood beasts, the Graveyard's dead, the mountains' — with
+## the Underworld's and Heaven's among them. (No mock-ups: the Pit Fiend,
+## Granite Colossus and Corrupted Archangel stay out.)
+const ACT4_TRASH := [Enemy.EnemyType.WOLF, Enemy.EnemyType.BUGBEAR, Enemy.EnemyType.MINI_BEAR,
+	Enemy.EnemyType.SKELETON, Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.CRYPT_CRAWLER, Enemy.EnemyType.WEREGOAT,
+	Enemy.EnemyType.SPECTER, Enemy.EnemyType.SUCCUBUS, Enemy.EnemyType.MAGMA_SPIDER, Enemy.EnemyType.MIND_EATER,
+	Enemy.EnemyType.CHERUB, Enemy.EnemyType.CHERUB]
+const ACT4_MID := [Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.VAMPIRE, Enemy.EnemyType.INFECTED_HUNTER,
+	Enemy.EnemyType.SABERTOOTH, Enemy.EnemyType.GIANT_BEAVER, Enemy.EnemyType.DEMON]
+const ACT4_HEAVY := [Enemy.EnemyType.LARGE_BEAR, Enemy.EnemyType.TREANT, Enemy.EnemyType.ICE_TROLL,
+	Enemy.EnemyType.GRAVE_TITAN, Enemy.EnemyType.DEMON]
+const ACT4_RANGED := [Enemy.EnemyType.ASH_HARPY, Enemy.EnemyType.GIANT_HAWK, Enemy.EnemyType.CHERUB]
+## World 4's caves: the Fire Goblin warband (Act 1's caves) with the cave
+## dwellers gone wrong and the Underworld's in among them.
+const ACT4_CAVE_TRASH := [Enemy.EnemyType.FIRE_GOBLIN_SOLDIER, Enemy.EnemyType.FIRE_GOBLIN_SOLDIER,
+	Enemy.EnemyType.CRYPT_CRAWLER, Enemy.EnemyType.MAGMA_SPIDER, Enemy.EnemyType.SPECTER]
+const ACT4_CAVE_MID := [Enemy.EnemyType.ARMORED_TROLL, Enemy.EnemyType.DEMON, Enemy.EnemyType.FIRE_GOBLIN_SOLDIER]
+const ACT4_CAVE_HEAVY := [Enemy.EnemyType.ICE_TROLL, Enemy.EnemyType.ARMORED_TROLL]
+
+## A tier's pick (_define_spawn_zones keys the tiers WOLF / WEREWOLF /
+## LARGE_BEAR / ASH_HARPY on World 4) rolled from its Act 4 pool.
+func _act4_roll(picked) -> int:
+	var cave := interior_kind == "cave"
+	var pool: Array
+	match picked:
+		Enemy.EnemyType.WOLF:
+			pool = ACT4_CAVE_TRASH if cave else ACT4_TRASH
+		Enemy.EnemyType.WEREWOLF:
+			pool = ACT4_CAVE_MID if cave else ACT4_MID
+		Enemy.EnemyType.LARGE_BEAR:
+			pool = ACT4_CAVE_HEAVY if cave else ACT4_HEAVY
+		Enemy.EnemyType.ASH_HARPY:
+			pool = [Enemy.EnemyType.FIRE_GOBLIN_MAGE] if cave else ACT4_RANGED
+		_:
+			return picked
+	return pool[_rng.randi_range(0, pool.size() - 1)]
+
+## The pools World 4's surface wells with (_place_lava_pools): Hell's tears.
+var lava_pool_centres: Array = []
+## Act 4's ground within reach of Hell (the Vale's lava, the Heights' pools):
+## its props are Hell's (_plane_at).
+var _hell_ground: Dictionary = {}
+
+## World 4's tears: one of Hell round every pool that welled up, and a few
+## of Heaven in field rooms well clear of them (and of the start); then the
+## blight on the hell tears' ground. Picked with the layout's dice.
+func _place_blight_tears() -> void:
+	blight_tears.clear()
+	for c in lava_pool_centres:
+		blight_tears.append({"c": c, "r": 4.0, "plane": "hell"})
+	var cands: Array = []
+	for room in rooms:
+		if room["kind"] != "field":
+			continue
+		var c: Vector2i = (room["rect"] as Rect2i).get_center()
+		if (c - player_start).length() < 12.0:
+			continue
+		var clear := true
+		for t in blight_tears:
+			if (c - (t["c"] as Vector2i)).length() < 9.0:
+				clear = false
+		if clear:
+			cands.append(c)
+	for i in range(cands.size() - 1, 0, -1):
+		var j := _rng.randi_range(0, i)
+		var tmp = cands[i]
+		cands[i] = cands[j]
+		cands[j] = tmp
+	var heaven := 0
+	for c in cands:
+		if heaven >= 4:
+			break
+		var near := false
+		for t in blight_tears:
+			if t["plane"] == "heaven" and (c - (t["c"] as Vector2i)).length() < 12.0:
+				near = true
+		if near:
+			continue
+		blight_tears.append({"c": c, "r": 3.5, "plane": "heaven"})
+		heaven += 1
+	_blight_tear_ground()
+	print("[DUNGEON] The Blighted Frontier: %d tears of Hell, %d of Heaven" % [lava_pool_centres.size(), heaven])
+
+## World 4's tears dressed: by each hell tear's pool a piece of Hell (a vein
+## arch, a skull fence, the horned idol, a vein-wrapped ruin) standing on
+## the ground as an obstacle, bones and pustules over its blight, the lava's
+## glow; at each heaven tear a great crystal and a pale broken column or
+## two (obstacles), a cold light. Never on a road, a reserved tile or where
+## it would cut a way through (_claim_obstacle). `glow`: the lava's glow too
+## (a place that lights its lava with _dress_lava passes false).
+func _dress_blight_tears(glow: bool = true) -> void:
+	var hell_pieces: Array = earth_art("tear_hell")
+	var heaven_pieces: Array = earth_art("tear_heaven")
+	var tint: Color = earth_art("stone_tint")
+	var cover: Array = []
+	var placed := 0
+	for ti in range(blight_tears.size()):
+		var t: Dictionary = blight_tears[ti]
+		var c: Vector2i = t["c"]
+		var hell: bool = t["plane"] == "hell"
+		var pieces: Array = hell_pieces if hell else heaven_pieces
+		var want := 2 if hell else 3
+		var made := 0
+		var cells: Array = []
+		var reach := 2 if not hell else 4
+		for dx in range(-reach, reach + 1):
+			for dz in range(-reach, reach + 1):
+				cells.append(c + Vector2i(dx, dz))
+		cells.sort_custom(func(a: Vector2i, b: Vector2i):
+			var da: int = (a - c).length_squared()
+			var db: int = (b - c).length_squared()
+			if da != db:
+				return da < db
+			return a.x * 1000 + a.y < b.x * 1000 + b.y)
+		for q in cells:
+			if made >= want:
+				break
+			if not is_floor(q) or is_water(q) or _reserved.has(q) or trail[q.x][q.y] and not hell:
+				continue
+			if hell and not _touches_lava(q):
+				continue
+			var too_close := false
+			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				if obstacle_tiles.has(q + d):
+					too_close = true
+			if too_close or not _claim_obstacle(q):
+				continue
+			var spec: Array = pieces[(ti * 3 + made) % pieces.size()]
+			var sprite := _make_prop_sprite(spec[0], 0.8 if hell else 0.9, int(spec[1]))
+			if sprite == null:
+				obstacle_tiles.erase(q)
+				continue
+			if spec[0] == "undead_ruin":
+				sprite.modulate = tint
+			sprite.position = grid_manager.grid_to_world(q) + Vector3(0, CameraView.SPRITE_LIFT, 0.2)
+			_visuals_root.add_child(sprite)
+			_reserved[q] = true
+			made += 1
+			placed += 1
+		if not hell:
+			var cold := OmniLight3D.new()
+			cold.light_color = Color(0.9, 0.85, 1.0)
+			cold.light_energy = 1.0
+			cold.omni_range = 4.5
+			cold.position = grid_manager.grid_to_world(c) + Vector3(0, 1.0, 0)
+			_visuals_root.add_child(cold)
+	# The blight's litter: bones and pustules over a hell tear's dark ground.
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			if not trail[x][z] or _reserved.has(Vector2i(x, z)) or _plane_at(x, z) != "hell":
+				continue
+			var n := _tile_noise(x, z, 811)
+			if n < 0.16:
+				cover.append({"pos": Vector3(x + 0.5 + (_tile_noise(x, z, 813) - 0.5) * 0.4, 0, z + 0.5),
+					"scale": 0.8 + _tile_noise(x, z, 817) * 0.3, "color": Color.WHITE})
+	_add_prop_decos(cover.slice(0, cover.size() / 2), "bones")
+	_add_prop_decos(cover.slice(cover.size() / 2), "berry")
+	if glow:
+		_place_lava_glow()
+	print("[DUNGEON] %s: %d pieces of Hell and Heaven at the tears" % [get_location_name(), placed])
+
+func _touches_lava(q: Vector2i) -> bool:
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
+			Vector2i(2, 0), Vector2i(-2, 0), Vector2i(0, 2), Vector2i(0, -2)]:
+		if _is_lava(q + d):
+			return true
+	return false
+
+## On the rock of a cliff-walled Act 4 place (the Vale, the Basilica, the
+## Heights, the sealed rooms), where a tear meets it: the tear's plane's
+## pieces along the wall edge that faces the ground from the north (never
+## on the camera side), spaced. `planes`: which tears dress their rock.
+func _place_tear_landmarks(planes: Array = ["hell", "heaven"]) -> void:
+	var site_tiles = _structure_tiles()
+	var tint: Color = earth_art("stone_tint")
+	var placed: Array = []
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			if grid[x][z] != Tile.WALL or water[x][z] or site_tiles.has(Vector2i(x, z)) or not _has_adjacent_floor(x, z):
+				continue
+			if _is_floor_at(x, z - 1) or _is_floor_at(x, z - 2):
+				continue
+			var plane := _plane_at(x, z)
+			if not plane in planes:
+				continue
+			if _tile_noise(x, z, 821) > 0.3:
+				continue
+			var too_close := false
+			for p in placed:
+				if absi(p.x - x) < 5 and absi(p.y - z) < 5:
+					too_close = true
+					break
+			if too_close:
+				continue
+			var pieces: Array = earth_art("tear_" + plane)
+			var spec: Array = pieces[int(_tile_noise(x, z, 823) * pieces.size()) % pieces.size()]
+			var sprite := _make_prop_sprite(spec[0], 0.85, int(spec[1]))
+			if sprite == null:
+				continue
+			if spec[0] == "undead_ruin":
+				sprite.modulate = tint
+			sprite.position = Vector3(x + 0.5, _max_adjacent_floor_elevation(x, z) * ELEV_STEP + CameraView.SPRITE_LIFT, z + 0.5)
+			_visuals_root.add_child(sprite)
+			placed.append(Vector2i(x, z))
+	print("[DUNGEON] %s: %d pieces of Hell and Heaven on the rock" % [get_location_name(), placed.size()])
+
+## A sealed Act 4 room's walls: EARTH_RETURN_ART's columns on its pillars
+## and, along the wall edges facing in from the north, east or west, the
+## pieces of the plane the wall stands in — Earth's rocks and ruins,
+## Hell's, Heaven's (spaced).
+func _dress_act4_walls(pillars: Array, salt: int, share: float = 0.3) -> void:
+	var tint: Color = earth_art("stone_tint")
+	var placed := 0
+	for c in pillars:
+		var column := _make_earth_piece("column")
+		if column:
+			column.position = grid_manager.grid_to_world(c) + Vector3(0, CameraView.SPRITE_LIFT, 0.3)
+			_visuals_root.add_child(column)
+			placed += 1
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			if grid[x][z] != Tile.WALL or water[x][z] or not _has_adjacent_floor(x, z) or _is_floor_at(x, z - 1):
+				continue
+			var pos := Vector2i(x, z)
+			if pos in pillars or (pos - player_start).length() < 2.5:
+				continue
+			var n := _tile_noise(x, z, salt)
+			if n >= share:
+				continue
+			var sprite: Sprite3D = null
+			match _plane_at(x, z):
+				"hell":
+					sprite = _make_prop_sprite("hell_rock" if n < share * 0.5 else "cursed_rock", 0.85, int(n * 1000))
+				"heaven":
+					if n < share * 0.4:
+						sprite = _make_prop_sprite("undead_ruin", 0.45, [0, 2, 3][int(n * 1000) % 3])
+						if sprite:
+							sprite.modulate = tint
+					else:
+						sprite = _make_prop_sprite("glow_crystal" if n < share * 0.7 else "glow_gold", 0.85, int(n * 1000))
+				_:
+					sprite = _make_prop_sprite("field_ruin" if n < share * 0.3 else "field_rock", 0.7, int(n * 1000) % 5)
+			if sprite:
+				sprite.position = grid_manager.grid_to_world(pos) + Vector3(0, CameraView.SPRITE_LIFT, 0.3)
+				_visuals_root.add_child(sprite)
+				placed += 1
+	print("[DUNGEON] %s walls dressed: %d columns, rocks, ruins and crystals" % [get_location_name(), placed])
+
+## A cold light over a heaven tear (the plane fallen onto the Earth).
+func _light_heaven_tears() -> void:
+	for t in blight_tears:
+		if t["plane"] != "heaven":
+			continue
+		var glow := OmniLight3D.new()
+		glow.light_color = Color(0.9, 0.85, 1.0)
+		glow.light_energy = 1.0
+		glow.omni_range = 4.5
+		glow.position = grid_manager.grid_to_world(t["c"]) + Vector3(0, 1.0, 0)
+		_visuals_root.add_child(glow)
+
+## The four ways in on World 4's surface, raised blocks picked by position
+## without the layout's dice (as Act 2's and Act 3's): the Riven Heights in
+## the free field room farthest east (the far edge: the approach to the
+## final battle), the Basilica nearest two-thirds of the way across, the
+## Vale nearest two-fifths, the Hamlet nearest a fifth (by the arrival).
+## Then the way back up to the Rent, where the hero arrives.
+func _place_act4_sites(candidates: Array) -> void:
+	if world_level != 4 or interior_kind != "":
+		return
+	var specs := [
+		["riven", "riven_0", "The Riven Heights", 1.0],
+		["basilica", "basilica_0", "The Shattered Basilica", 0.66],
+		["vale", "vale_0", "The Smouldering Vale", 0.42],
+		["hamlet", "hamlet_0", "The Forsaken Hamlet", 0.2],
+	]
+	var free: Array = []
+	for i in range(rooms.size()):
+		var r: Rect2i = rooms[i]["rect"]
+		if rooms[i]["kind"] == "field" and rooms[i]["elev"] == 0 and r.size.x >= 6 and r.size.y >= 5:
+			free.append(i)
+	for spec in specs:
+		var want_x: float = float(GRID_W) * float(spec[3])
+		var order: Array = free.duplicate()
+		order.sort_custom(func(a, b):
+			var da := absf(float(rooms[a]["rect"].get_center().x) - want_x)
+			var db := absf(float(rooms[b]["rect"].get_center().x) - want_x)
+			if da != db:
+				return da < db
+			return a < b)
+		for room_idx in order:
+			if _place_block_site(room_idx, spec[0], spec[1], spec[2]):
+				free.erase(room_idx)
+				candidates.erase(room_idx)
+				break
+	_place_earth_arrival()
+
+## Where the hero comes down out of the Rent (main arrives them here,
+## return_from "rent_up"): a tile in the start field, south-east of the
+## Transport Portal, under Heaven's broken colonnade fallen through the
+## tear. Shift there goes back up to the Rent (main._try_interact_site,
+## kind "rent_up").
+const EARTH_ARRIVAL_ID := "rent_up"
+var earth_arrival_cell := Vector2i(-1, -1)
+
+func _place_earth_arrival() -> void:
+	var start: Rect2i = rooms[0]["rect"]
+	var cell := Vector2i(start.end.x - 2, mini(GRID_H / 2 + 3, start.end.y - 2))
+	if not is_floor(cell):
+		cell = pick_free_cell_near(cell, 3)
+	if cell.x < 0:
+		return
+	earth_arrival_cell = cell
+	# The colonnade stands on the tile behind (north of) the way up, which
+	# it blocks, so the hero arriving stands before it, not in it.
+	var behind := _can_block_tile(cell + Vector2i(0, -1))
+	_place_exit_site(cell, EARTH_ARRIVAL_ID, EARTH_ARRIVAL_ID, "The Rent", "[Shift] Ascend",
+		Vector3(0, 0, -0.95 if behind else -0.55), Color(0.9, 0.8, 1.0), earth_art("arrival_ruin"))
+	if behind:
+		obstacle_tiles[cell + Vector2i(0, -1)] = true
+	_reserve_area(cell, 1)
+
+## World 4's sites (STAND-INS until the designer's Act 4 boards): the piece
+## EARTH_RETURN_ART names for the kind ("site_<kind>") on the footprint's
+## south edge, over the way in; on the Act 4 places' raised blocks, their
+## plane heaped behind it (Earth's rocks, Hell's cones, Heaven's crystal);
+## a light at the door in the plane's colour.
+func _build_earth_site(root: Node3D, kind: String, fp_w: int, fp_d: int) -> void:
+	var door_x := 0.5 if fp_w % 2 == 0 else 0.0
+	var heap: Array = []
+	var light := Color(1.0, 0.85, 0.65)
+	match kind:
+		"hamlet":
+			heap = [["field_tree", 0, 0.8], ["field_bush", 0, 1.0], ["field_tree_small", 0, 0.9]]
+		"vale":
+			heap = [["hell_spire", 2, 0.7], ["hell_rock", 0, 0.9], ["hell_spire", 3, 0.65]]
+			light = Color(1.0, 0.45, 0.15)
+		"basilica":
+			heap = [["glow_gold", 0, 0.9], ["glow_crystal", 0, 1.0], ["glow_crystal", 4, 0.85]]
+			light = Color(1.0, 0.88, 0.6)
+		"riven":
+			heap = [["field_rock", 0, 1.1], ["glow_crystal", 9, 0.8], ["hell_spire", 1, 0.7]]
+			light = Color(0.9, 0.7, 1.0)
+	if kind in SITE_BLOCK_KINDS:
+		var back_z := -fp_d / 2.0 + 0.55
+		var xs := [-fp_w * 0.34, 0.05, fp_w * 0.35]
+		for i in range(heap.size()):
+			var piece := _make_prop_sprite(heap[i][0], heap[i][2], heap[i][1])
+			if piece:
+				piece.position = Vector3(xs[i], CameraView.SPRITE_LIFT, back_z - (0.3 if i == 1 else 0.0))
+				root.add_child(piece)
+	var sprite := _make_earth_piece("site_" + kind)
+	if sprite:
+		sprite.position = Vector3(door_x, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.05)
+		root.add_child(sprite)
+	var glow = OmniLight3D.new()
+	glow.light_color = light
+	glow.light_energy = 0.7
+	glow.omni_range = 3.5
+	glow.position = Vector3(door_x, 0.5, fp_d / 2.0)
+	root.add_child(glow)
+
+# ---- The Forsaken Hamlet ----
+## Its ruined cottages: [{"cell": the block's north-west tile, "k": variant}],
+## each a 2x2 block of rock in a croft (drawn by its ruin, no hedge on it).
+var hamlet_cottages: Array = []
+var hamlet_cottage_tiles: Dictionary = {}
+
+func _generate_hamlet_layout() -> void:
+	_generate_garden_layout()   # the plots, walks, the pool at the heart, the grove
+	blight_tears.clear()
+	hamlet_cottages.clear()
+	hamlet_cottage_tiles.clear()
+	# Its lanes are Earth's grass, not the garden's gold walks: the blight
+	# lies only where Hell has broken through (_blight_tear_ground below).
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			trail[x][z] = false
+	# A cottage in each croft, in ruins: a 2x2 block in the croft, a tile
+	# clear of its hedge, kept only where it cuts no one's way.
+	var reach := _floor_reach(player_start).size()
+	for room in rooms:
+		if room.get("part", "") != "bed":
+			continue
+		var r: Rect2i = room["rect"]
+		if r.size.x < 6 or r.size.y < 5:
+			continue
+		for _try in range(6):
+			var at := Vector2i(_rng.randi_range(r.position.x + 1, r.end.x - 3), _rng.randi_range(r.position.y + 1, r.end.y - 3))
+			var block: Array = [at, at + Vector2i(1, 0), at + Vector2i(0, 1), at + Vector2i(1, 1)]
+			var ok := true
+			for q in block:
+				ok = ok and is_floor(q) and not is_water(q)
+			if not ok:
+				continue
+			for q in block:
+				grid[q.x][q.y] = Tile.WALL
+			var now := _floor_reach(player_start).size()
+			if now != reach - 4:
+				for q in block:
+					grid[q.x][q.y] = Tile.FLOOR
+				continue
+			reach = now
+			for q in block:
+				hamlet_cottage_tiles[q] = true
+			hamlet_cottages.append({"cell": at, "k": hamlet_cottages.size()})
+			break
+	# Where the green was: its pond welled up as lava, the blight round it
+	# (a tear of Hell); another in the far croft; Heaven fallen in a croft
+	# or two (crystal and pale stone among the cottages).
+	for room in rooms:
+		var c: Vector2i = (room["rect"] as Rect2i).get_center()
+		match room.get("part", ""):
+			"plaza":
+				blight_tears.append({"c": c, "r": 5.5, "plane": "hell"})
+			"grove":
+				blight_tears.append({"c": c, "r": 4.5, "plane": "hell"})
+	var crofts: Array = []
+	for room in rooms:
+		if room.get("part", "") == "bed":
+			crofts.append((room["rect"] as Rect2i).get_center())
+	for k in range(mini(2, crofts.size())):
+		var i := _rng.randi_range(0, crofts.size() - 1)
+		blight_tears.append({"c": crofts[i], "r": 3.5, "plane": "heaven"})
+		crofts.remove_at(i)
+	_blight_tear_ground()
+
+## The Hamlet's dwellers (Earth's own, corrupted, with the invaders): the
+## Graveyard's dead and the Greenwood's beasts in the crofts with a succubus
+## or a cherub; wolves, hawks, specters and harpies on the lanes; werewolves,
+## vampires, demons and cherubs round the lava pond; a Large Bear gone
+## monstrous with a werewolf, a demon and a cherub in the far croft, at the
+## Blighted Green's gate.
+func _define_hamlet_spawn_zones() -> void:
+	_zones_from_rooms(Callable(self, "_hamlet_dwellers"), "Forsaken Hamlet")
+
+func _hamlet_dwellers(room: Dictionary) -> Array:
+	match room.get("part", ""):
+		"bed":
+			if _rng.randf() >= 0.7:
+				return []
+			var n := 3 if (room["rect"] as Rect2i).get_area() > 40 else 2
+			return _roll([Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.SKELETON, Enemy.EnemyType.WOLF, Enemy.EnemyType.MINI_BEAR,
+				Enemy.EnemyType.BUGBEAR, Enemy.EnemyType.SUCCUBUS, Enemy.EnemyType.CHERUB], n)
+		"walk":
+			if _rng.randf() >= 0.5:
+				return []
+			return _roll([Enemy.EnemyType.WOLF, Enemy.EnemyType.GIANT_HAWK, Enemy.EnemyType.SPECTER, Enemy.EnemyType.ASH_HARPY,
+				Enemy.EnemyType.CRYPT_CRAWLER], 2)
+		"plaza":
+			return _roll([Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.VAMPIRE, Enemy.EnemyType.DEMON, Enemy.EnemyType.CHERUB], 4)
+		"grove":
+			return [Enemy.EnemyType.LARGE_BEAR, Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.DEMON, Enemy.EnemyType.CHERUB]
+	return []
+
+func _build_hamlet_decorations() -> void:
+	## The cottages' ruins on their blocks; the lava's glow and vents; a cold
+	## light over Heaven's crofts; then the crofts and lanes take the open
+	## ground's scatter, each prop in its plane.
+	var cottages: Array = earth_art("cottage")
+	for h in hamlet_cottages:
+		var at: Vector2i = h["cell"]
+		var spec: Array = cottages[int(h["k"]) % cottages.size()]
+		var ruin := _make_prop_sprite(spec[0], float(spec[2]), int(spec[1]))
+		if ruin:
+			ruin.position = Vector3(at.x + 1.0, CameraView.SPRITE_LIFT, at.y + 1.75)
+			_visuals_root.add_child(ruin)
+	_dress_lava()
+	_dress_blight_tears(false)
+
+# ---- The Blighted Green: a hedged green round a well torn open to Hell ----
+func _generate_green_layout() -> void:
+	_generate_font_layout()   # the hedged court, its basin at the heart, the cross of walks
+	blight_tears.clear()
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			trail[x][z] = false
+	var c := font_basin
+	blight_tears.append({"c": c, "r": 6.0, "plane": "hell"})
+	blight_tears.append({"c": Vector2i(FN_FLOOR.end.x - 5, FN_FLOOR.position.y + 3), "r": 3.5, "plane": "heaven"})
+	_blight_tear_ground()
+	# Its keepers, all three planes: a Large Bear gone monstrous at the well,
+	# a werewolf and a vampire (the Earth's own), a demon and a succubus out
+	# of the well, two cherubs fallen from Heaven.
+	guardian_placements = [
+		{"type": Enemy.EnemyType.LARGE_BEAR, "cell": c + Vector2i(-5, 0)},
+		{"type": Enemy.EnemyType.WEREWOLF, "cell": c + Vector2i(0, -6)},
+		{"type": Enemy.EnemyType.VAMPIRE, "cell": c + Vector2i(0, 6)},
+		{"type": Enemy.EnemyType.DEMON, "cell": c + Vector2i(5, -2)},
+		{"type": Enemy.EnemyType.SUCCUBUS, "cell": c + Vector2i(5, 2)},
+		{"type": Enemy.EnemyType.CHERUB, "cell": c + Vector2i(10, -4)},
+		{"type": Enemy.EnemyType.CHERUB, "cell": c + Vector2i(10, 4)},
+	]
+
+func _build_green_decorations() -> void:
+	for g in guardian_placements:
+		_reserve_area(g["cell"], 0)
+	_dress_lava()
+	_dress_blight_tears(false)
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.5, 0.2)
+	light.light_energy = 1.4
+	light.omni_range = 7.0
+	light.position = grid_manager.grid_to_world(font_basin) + Vector3(0, 1.0, 0)
+	_visuals_root.add_child(light)
+
+# ---- The Smouldering Vale ----
+
+## The Vale's banks within reach of its lava: Hell's ground (its props are
+## Hell's, _plane_at) and, a step or two from the lava, the blight. A
+## tear of Heaven on a bank or two, clear of the lava.
+func _blight_lava_banks() -> void:
+	blight_tears.clear()
+	_hell_ground.clear()
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			if _is_lava(Vector2i(x, z)):
+				continue
+			var near := 99
+			for dx in range(-3, 4):
+				for dz in range(-3, 4):
+					if _is_lava(Vector2i(x + dx, z + dz)):
+						near = mini(near, maxi(absi(dx), absi(dz)))
+			if near <= 3:
+				_hell_ground[Vector2i(x, z)] = true
+			if near <= 2 and grid[x][z] == Tile.FLOOR and not bridge_cells.has(Vector2i(x, z)):
+				trail[x][z] = true
+	var banks: Array = []
+	for room in rooms:
+		if room["kind"] != "chamber" or room.get("isle", false):
+			continue
+		for q in room.get("cells", []):
+			if not _hell_ground.has(q) and _rng.randf() < 0.05:
+				banks.append(q)
+	for k in range(mini(2, banks.size())):
+		var i := _rng.randi_range(0, banks.size() - 1)
+		var c: Vector2i = banks[i]
+		var far := true
+		for t in blight_tears:
+			far = far and (c - (t["c"] as Vector2i)).length() > 14.0
+		if far:
+			blight_tears.append({"c": c, "r": 3.0, "plane": "heaven"})
+		banks.remove_at(i)
+
+## The Vale's creatures (Hell bleeding through the Earth): demons, succubi,
+## specters, magma spiders and ash harpies with the Earth's wolves and
+## hunters and Heaven's cherubs on the banks; magma spiders nesting on the
+## islands, cherubs or harpies over them; at the far landing, the
+## Hellmouth's gate, an ifrit, a demon, a treant burning, a harpy and a
+## cherub.
+func _define_vale_spawn_zones() -> void:
+	_zones_from_rooms(Callable(self, "_vale_dwellers"), "Smouldering Vale")
+
+func _vale_dwellers(room: Dictionary) -> Array:
+	if room["kind"] == "deep":
+		return [Enemy.EnemyType.IFRIT, Enemy.EnemyType.DEMON, Enemy.EnemyType.TREANT, Enemy.EnemyType.ASH_HARPY, Enemy.EnemyType.CHERUB]
+	if room.get("isle", false):
+		var isle := [Enemy.EnemyType.MAGMA_SPIDER, Enemy.EnemyType.MAGMA_SPIDER]
+		if _rng.randf() < 0.5:
+			isle.append(Enemy.EnemyType.CHERUB if _rng.randf() < 0.5 else Enemy.EnemyType.ASH_HARPY)
+		return isle
+	if _rng.randf() >= 0.8:
+		return []
+	var bank := [Enemy.EnemyType.DEMON, Enemy.EnemyType.SUCCUBUS, Enemy.EnemyType.SPECTER, Enemy.EnemyType.MAGMA_SPIDER,
+		Enemy.EnemyType.WOLF, Enemy.EnemyType.INFECTED_HUNTER, Enemy.EnemyType.ASH_HARPY, Enemy.EnemyType.CHERUB]
+	return _roll(bank, clampi(2 + room.get("cells", []).size() / 45, 2, 4))
+
+func _build_vale_decorations() -> void:
+	## The vein bridges over the lava, its glow and vents, a cold light over
+	## Heaven's tears; then the banks take the open ground's scatter, Hell's
+	## growth by the lava and Earth's beyond it.
+	_lay_bridge_sprites()
+	_dress_lava()
+	_light_heaven_tears()
+
+# ---- The Hellmouth: a crater where Hell broke through ----
+func _generate_hellmouth_layout() -> void:
+	_generate_crucible_layout()   # a lake of lava, an island at its heart, two bridges, lava in the corners
+	blight_tears.clear()
+	var c := crucible_isle
+	blight_tears.append({"c": Vector2i(CR_FLOOR.end.x - 3, c.y), "r": 3.5, "plane": "heaven"})
+	blight_tears.append({"c": Vector2i(CR_FLOOR.position.x + 2, c.y), "r": 3.0, "plane": "earth"})
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			trail[x][z] = grid[x][z] == Tile.FLOOR and not water[x][z] and _plane_at(x, z) == "hell" \
+				and _touches_lava(Vector2i(x, z))
+	# Its keepers (Hell foremost): two ifrits north and south of the lake, a
+	# Fire Mage of the Greenwood on the island (its totem by it), two demons
+	# at the bridgeheads, two cherubs fallen in from Heaven by the far wall.
+	guardian_placements = [
+		{"type": Enemy.EnemyType.IFRIT, "cell": Vector2i(c.x, CR_FLOOR.position.y + 2)},
+		{"type": Enemy.EnemyType.IFRIT, "cell": Vector2i(c.x, CR_FLOOR.end.y - 3)},
+		{"type": Enemy.EnemyType.FIRE_MAGE, "cell": c},
+		{"type": Enemy.EnemyType.DEMON, "cell": c + Vector2i(-7, -1)},
+		{"type": Enemy.EnemyType.DEMON, "cell": c + Vector2i(7, 1)},
+		{"type": Enemy.EnemyType.CHERUB, "cell": Vector2i(CR_FLOOR.end.x - 3, c.y - 5)},
+		{"type": Enemy.EnemyType.CHERUB, "cell": Vector2i(CR_FLOOR.end.x - 3, c.y + 5)},
+	]
+
+func _build_hellmouth_decorations() -> void:
+	for g in guardian_placements:
+		_reserve_area(g["cell"], 1)
+	_reserve_area(crucible_isle, 1)
+	_dress_hell_walls(0.3, 851)
+	_place_tear_landmarks(["heaven"])
+	_lay_bridge_sprites()
+	_dress_lava()
+	_scatter_hell_bones(0.05, 857)
+	_light_heaven_tears()
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(1.0, 0.4, 0.12)
+	glow.light_energy = 1.5
+	glow.omni_range = 7.0
+	glow.position = grid_manager.grid_to_world(crucible_isle) + Vector3(0, 1.0, 0)
+	_visuals_root.add_child(glow)
+
+# ---- The Shattered Basilica ----
+func _generate_basilica_layout() -> void:
+	_generate_sanctum_layout()   # the cross: narthex, nave and chapels, crossing, transepts, choir, apse
+	blight_tears.clear()
+	# Fallen: a third of its columns lie down (open floor again).
+	for p in sanctum_pillars.duplicate():
+		if _rng.randf() < 0.33:
+			grid[p.x][p.y] = Tile.FLOOR
+			sanctum_pillars.erase(p)
+	# The Earth grows through its floor in two chapels and the north apse;
+	# Hell wells up through the crossing's fonts.
+	var chapels: Array = []
+	for room in rooms:
+		var c: Vector2i = (room["rect"] as Rect2i).get_center()
+		match room.get("part", ""):
+			"chapel":
+				chapels.append(c)
+			"crossing":
+				blight_tears.append({"c": c, "r": 5.0, "plane": "hell"})
+	for k in range(mini(2, chapels.size())):
+		var i := _rng.randi_range(0, chapels.size() - 1)
+		blight_tears.append({"c": chapels[i], "r": 3.0, "plane": "earth"})
+		chapels.remove_at(i)
+	blight_tears.append({"c": Vector2i(int(GRID_W * 0.56), 5), "r": 4.0, "plane": "earth"})
+
+## The Basilica's dwellers (Heaven foremost, fallen): cherubs, specters and
+## the Earth's wolves and dead in the nave; mind eaters, cherubs and the
+## Graveyard's dead in the chapels; demons, cherubs, harpies and a werewolf
+## under the broken dome; cherubs, a succubus and a vampire in the
+## transepts; a djinn with a white manticore and two cherubs in the apse,
+## at the Reliquary's door.
+func _define_basilica_spawn_zones() -> void:
+	_zones_from_rooms(Callable(self, "_basilica_dwellers"), "Shattered Basilica")
+
+func _basilica_dwellers(room: Dictionary) -> Array:
+	match room.get("part", ""):
+		"nave":
+			return _roll([Enemy.EnemyType.CHERUB, Enemy.EnemyType.CHERUB, Enemy.EnemyType.SPECTER, Enemy.EnemyType.WOLF,
+				Enemy.EnemyType.SKELETON], 3)
+		"chapel":
+			if _rng.randf() >= 0.6:
+				return []
+			return _roll([Enemy.EnemyType.MIND_EATER, Enemy.EnemyType.CHERUB, Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.CRYPT_CRAWLER], 2)
+		"crossing":
+			return _roll([Enemy.EnemyType.DEMON, Enemy.EnemyType.CHERUB, Enemy.EnemyType.ASH_HARPY, Enemy.EnemyType.WEREWOLF], 4)
+		"transept":
+			return _roll([Enemy.EnemyType.CHERUB, Enemy.EnemyType.SUCCUBUS, Enemy.EnemyType.VAMPIRE, Enemy.EnemyType.GIANT_HAWK], 2)
+		"choir":
+			return _roll([Enemy.EnemyType.CHERUB, Enemy.EnemyType.DEMON, Enemy.EnemyType.WEREGOAT], 3)
+		"apse":
+			return [Enemy.EnemyType.DJINN, Enemy.EnemyType.WHITE_MANTICORE, Enemy.EnemyType.CHERUB, Enemy.EnemyType.CHERUB]
+	return []
+
+func _build_basilica_decorations() -> void:
+	## Its standing columns, the plane's pieces along its walls (Earth's
+	## where it grows through, Hell's at the crossing), Hell's braziers,
+	## the lava's glow; then the runner is kept clear and the rest takes
+	## the scatter, each prop in its plane.
+	_dress_act4_walls(sanctum_pillars, 801, 0.28)
+	_place_braziers(8, 7, earth_art("brazier"))
+	_dress_lava()
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if grid[x][z] == Tile.FLOOR and trail[x][z]:
+				_reserved[Vector2i(x, z)] = true
+
+# ---- The Fallen Reliquary: Heaven's altar fallen to Earth ----
+func _generate_reliquary_layout() -> void:
+	_generate_altar_layout()   # the round sanctuary, its ring of columns, its fonts, the runner
+	blight_tears.clear()
+	var c := AL_CENTER
+	for sz in [-1, 1]:
+		blight_tears.append({"c": c + Vector2i(6, sz * 6), "r": 2.5, "plane": "hell"})
+	blight_tears.append({"c": c + Vector2i(-7, 0), "r": 3.0, "plane": "earth"})
+	# Its keepers (Heaven foremost): a djinn on the relic and a second at
+	# the back, two cherubs either side of the altar; the mountains' fliers
+	# (a wyvern, a white manticore) drawn to the fallen height; a mind eater
+	# out of the fonts' fire.
+	guardian_placements = [
+		{"type": Enemy.EnemyType.DJINN, "cell": c},
+		{"type": Enemy.EnemyType.DJINN, "cell": c + Vector2i(7, 0)},
+		{"type": Enemy.EnemyType.CHERUB, "cell": c + Vector2i(0, -3)},
+		{"type": Enemy.EnemyType.CHERUB, "cell": c + Vector2i(0, 3)},
+		{"type": Enemy.EnemyType.WYVERN, "cell": c + Vector2i(3, -6)},
+		{"type": Enemy.EnemyType.WHITE_MANTICORE, "cell": c + Vector2i(3, 6)},
+		{"type": Enemy.EnemyType.MIND_EATER, "cell": c + Vector2i(4, 0)},
+	]
+
+func _build_reliquary_decorations() -> void:
+	for g in guardian_placements:
+		_reserve_area(g["cell"], 0)
+	_reserve_area(altar_cell, 1)
+	_dress_act4_walls(altar_pillars, 811, 0.4)
+	var relic := _make_earth_piece("relic")
+	if relic and _claim_obstacle(altar_cell + Vector2i(1, 0)):   # the relic stands in the way
+		relic.position = grid_manager.grid_to_world(altar_cell + Vector2i(1, 0)) + Vector3(0, CameraView.SPRITE_LIFT, -0.1)
+		_visuals_root.add_child(relic)
+	_dress_lava()
+	_place_braziers(4, 8, earth_art("brazier"))
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.9, 0.6)
+	light.light_energy = 1.5
+	light.omni_range = 7.0
+	light.position = grid_manager.grid_to_world(altar_cell) + Vector3(0, 1.2, 0)
+	_visuals_root.add_child(light)
+
+# ---- The Riven Heights: the approach to the final battle ----
+var confluence_door_cell := Vector2i(-1, -1)
+
+## The Heights' tears: Hell round every lava pool on its ledges (the
+## blight on its ground), Heaven's crystal fallen on the highest ledges.
+func _blight_riven() -> void:
+	blight_tears.clear()
+	_hell_ground.clear()
+	var seen := {}
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			var c := Vector2i(x, z)
+			if not _is_lava(c) or seen.has(c):
+				continue
+			seen[c] = true
+			blight_tears.append({"c": c, "r": 3.5, "plane": "hell"})
+			for dx in range(-3, 4):
+				for dz in range(-3, 4):
+					seen[c + Vector2i(dx, dz)] = true
+	var high: Array = []
+	for room in rooms:
+		if int(room["elev"]) >= MOUNTAIN_TIER_STEP * 2 and room["kind"] != "deep":
+			high.append((room["rect"] as Rect2i).get_center())
+	for k in range(mini(2, high.size())):
+		var i := _rng.randi_range(0, high.size() - 1)
+		blight_tears.append({"c": high[i], "r": 3.5, "plane": "heaven"})
+		high.remove_at(i)
+	_blight_tear_ground()
+
+## The Heights' creatures, all three planes: the Earth's wolves, bugbears,
+## weregoats and sabertooths with demons and succubi on the low terraces;
+## mind eaters, specters, cherubs, snow wraiths and hunters keeping the
+## ledges; ash harpies, rocs and cherubs riding the heights (fliers cross
+## the cliffs). At the top, before the Confluence: an ice troll and a roc.
+func _define_riven_spawn_zones() -> void:
+	var low := [Enemy.EnemyType.WOLF, Enemy.EnemyType.BUGBEAR, Enemy.EnemyType.WEREGOAT, Enemy.EnemyType.SABERTOOTH,
+		Enemy.EnemyType.DEMON, Enemy.EnemyType.SUCCUBUS]
+	var perch := [Enemy.EnemyType.MIND_EATER, Enemy.EnemyType.SPECTER, Enemy.EnemyType.CHERUB, Enemy.EnemyType.SNOW_WRAITH,
+		Enemy.EnemyType.INFECTED_HUNTER]
+	var sky := [Enemy.EnemyType.ASH_HARPY, Enemy.EnemyType.ROC, Enemy.EnemyType.CHERUB]
+	for room in rooms:
+		var rect: Rect2i = room["rect"]
+		var kind: String = room["kind"]
+		if kind in ["start", "exit"]:
+			continue
+		var high: bool = int(room["elev"]) >= MOUNTAIN_TIER_STEP or room.get("outcrop", false)
+		# Act 4 is lean (STORY.md): fewer bands on its climb than on the Spire's.
+		if kind != "deep" and _rng.randf() >= (0.7 if high else 0.5):
+			continue
+		var n := clampi(2 + rect.get_area() / 45, 2, 4)
+		var points: Array = []
+		var types: Array = []
+		for _i in range(n * 3):
+			if points.size() >= n:
+				break
+			var cell := _pick_free_cell(rect, points)
+			if cell.x < 0 or step_tiles.has(cell) or is_water(cell):
+				continue
+			points.append(cell)
+			var e: int = elevation[cell.x][cell.y]
+			if e >= MOUNTAIN_TIER_STEP * 2 and _rng.randf() < 0.35:
+				types.append(sky[_rng.randi_range(0, sky.size() - 1)])
+			elif e >= MOUNTAIN_TIER_STEP or room.get("outcrop", false):
+				types.append(perch[_rng.randi_range(0, perch.size() - 1)])
+			else:
+				types.append(low[_rng.randi_range(0, low.size() - 1)])
+		if points.is_empty():
+			continue
+		if kind == "deep":
+			types[0] = Enemy.EnemyType.ICE_TROLL
+			if types.size() > 1:
+				types[1] = Enemy.EnemyType.ROC
+		spawn_zones.append({"trigger_rect": rect.grow(2), "spawn_points": points, "enemy_types": types, "spawned": false})
+	_ensure_zone_types([Enemy.EnemyType.CHERUB, Enemy.EnemyType.ASH_HARPY, Enemy.EnemyType.DEMON, Enemy.EnemyType.WEREGOAT],
+		[Enemy.EnemyType.WOLF, Enemy.EnemyType.BUGBEAR, Enemy.EnemyType.SPECTER, Enemy.EnemyType.SUCCUBUS])
+	for z in spawn_zones:
+		for p in z["spawn_points"]:
+			_reserved[p] = true
+	print("[DUNGEON] Defined %d Riven Heights spawn zones" % spawn_zones.size())
+
+func _build_riven_decorations() -> void:
+	## The lava's glow and vents on its ledges, Hell's pieces by it, Heaven's
+	## crystal fallen on the heights; then the ledges take the scatter, each
+	## prop in its plane.
+	_dress_lava()
+	_dress_blight_tears(false)
+
+# ---- The Confluence: where the final battle will stand ----
+# FINAL BOSS: [TBD] (STORY.md section 4, Act 4: "the architect of the
+# cross-realm war"). The dais at the chamber's north end is its place
+# (confluence_boss_cell) and stands EMPTY: no boss is invented here. Until
+# the designer names it, a guard gauntlet of all three planes holds the
+# chamber, in three ranks from the stair to the dais, and the room opens
+# when the last of them falls (GUARDIAN_ROOMS), as Act 2's and Act 3's do.
+const CF_SIZE := Vector2i(37, 31)
+const CF_FLOOR := Rect2i(2, 3, 33, 26)   # x 2..34, z 3..28
+## Where the final boss will stand — [TBD], empty until the designer names it.
+var confluence_boss_cell := Vector2i(-1, -1)
+var confluence_pillars: Array = []
+
+func _generate_confluence_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	blight_tears.clear()
+	confluence_pillars.clear()
+	guardian_placements.clear()
+	_carve_rect(CF_FLOOR)
+	var cx := CF_FLOOR.get_center().x
+	# The way in from the south (the top of the Heights).
+	for z in range(player_start.y, GRID_H - 1):
+		grid[cx][z] = Tile.FLOOR
+	rooms.append({"rect": CF_FLOOR, "kind": "boss", "elev": 0})
+	confluence_boss_cell = Vector2i(cx, CF_FLOOR.position.y + 4)
+	# The dais: a ring of six columns round the empty place.
+	for i in range(6):
+		var a := (i + 0.5) * TAU / 6.0 + PI * 0.5
+		var p := confluence_boss_cell + Vector2i(roundi(cos(a) * 4.0), roundi(sin(a) * 3.0))
+		if p.y <= confluence_boss_cell.y + 1 or absi(p.x - cx) > 1:
+			grid[p.x][p.y] = Tile.WALL
+			confluence_pillars.append(p)
+	# The three planes meet here: Hell's fire in fissures down the west
+	# side, Heaven fallen along the east, the Earth's ground between.
+	for t in range(8):
+		var z := CF_FLOOR.position.y + 7 + t * 2
+		for k in range(2 + (t % 2)):
+			_make_lava(Vector2i(CF_FLOOR.position.x + 1 + k + (t % 3), z))
+	for corner in [CF_FLOOR.position, Vector2i(CF_FLOOR.end.x - 2, CF_FLOOR.position.y)]:
+		for dx in range(2):
+			for dz in range(2):
+				_make_lava(corner + Vector2i(dx, dz))
+	blight_tears.append({"c": Vector2i(CF_FLOOR.position.x + 4, CF_FLOOR.get_center().y + 2), "r": 7.0, "plane": "hell"})
+	blight_tears.append({"c": Vector2i(CF_FLOOR.end.x - 5, CF_FLOOR.get_center().y + 2), "r": 7.0, "plane": "heaven"})
+	_blight_tear_ground()
+	# The gauntlet: three ranks between the stair and the dais — the Earth's
+	# (a Large Bear, an ice troll, a werewolf), Hell's (an ifrit, two
+	# demons), Heaven's (two djinn and a cherub) before the empty place.
+	var r1 := CF_FLOOR.end.y - 7
+	var r2 := CF_FLOOR.get_center().y + 1
+	var r3 := confluence_boss_cell.y + 5
+	guardian_placements = [
+		{"type": Enemy.EnemyType.LARGE_BEAR, "cell": Vector2i(cx, r1)},
+		{"type": Enemy.EnemyType.ICE_TROLL, "cell": Vector2i(cx - 5, r1 + 1)},
+		{"type": Enemy.EnemyType.WEREWOLF, "cell": Vector2i(cx + 5, r1 + 1)},
+		{"type": Enemy.EnemyType.IFRIT, "cell": Vector2i(cx - 7, r2)},
+		{"type": Enemy.EnemyType.DEMON, "cell": Vector2i(cx - 2, r2)},
+		{"type": Enemy.EnemyType.DEMON, "cell": Vector2i(cx + 3, r2)},
+		{"type": Enemy.EnemyType.DJINN, "cell": Vector2i(cx - 4, r3)},
+		{"type": Enemy.EnemyType.DJINN, "cell": Vector2i(cx + 4, r3)},
+		{"type": Enemy.EnemyType.CHERUB, "cell": Vector2i(cx + 9, r3 - 1)},
+	]
+	_enforce_border_walls()
+	_sink_unreached()
+
+func _build_confluence_decorations() -> void:
+	## The dais: its columns, Hell's braziers either side of the empty place,
+	## a light on it; the planes' pieces along the walls; the lava's glow.
+	for g in guardian_placements:
+		_reserve_area(g["cell"], 0)
+	_reserve_area(confluence_boss_cell, 4)   # the dais: kept bare for the final boss ([TBD])
+	_dress_act4_walls(confluence_pillars, 861, 0.35)
+	_place_braziers(6, 7, earth_art("brazier"))
+	_dress_lava()
+	_dress_blight_tears(false)
+	var light := OmniLight3D.new()
+	light.light_color = Color(0.95, 0.75, 1.0)
+	light.light_energy = 1.6
+	light.omni_range = 6.0
+	light.position = grid_manager.grid_to_world(confluence_boss_cell) + Vector3(0, 1.2, 0)
+	_visuals_root.add_child(light)
+
+# ============================================
 # BUILDING INTERIOR LAYOUT
 # A central hall with rooms partitioned off either side, joined by doorways.
 # ============================================
@@ -5560,7 +6793,7 @@ func _carve_corridor_v(x: int, from_z: int, to_z: int) -> void:
 # ============================================
 
 func _generate_elevation() -> void:
-	if interior_kind == "mountains" or interior_kind == "ascent" or interior_kind == "spire":
+	if interior_kind == "mountains" or interior_kind == "ascent" or interior_kind == "spire" or interior_kind == "riven":
 		return  # the layout terraced it (_generate_mountain_layout)
 	elevation.clear()
 	for x in range(GRID_W):
@@ -5575,7 +6808,7 @@ func _generate_elevation() -> void:
 		return  # Sewers are flat; channels are carved into the floor, not raised
 	if interior_kind == "boneyard" or interior_kind == "hellgate" or interior_kind == "labyrinth" \
 			or interior_kind == "trolllair" or interior_kind == "thanatoshall" or interior_kind == "closet" \
-			or act2_place() or act3_place():
+			or act2_place() or act3_place() or act4_place():
 		return  # a walled graveyard square / the gate hall / the maze / the Rift's banks, the Citadel's courts: flat
 	if interior_kind == "ratking":
 		# The lair's three cliffs: the walkable top rows behind each cliff
@@ -5689,7 +6922,7 @@ func can_step(from: Vector2i, to: Vector2i) -> bool:
 func _detect_cliffs() -> void:
 	# The Mountain Pass: its south-facing cliffs are rock faces (walls), so
 	# its floor alone need not show a cliff — but its walkers need the route.
-	has_cliffs = interior_kind == "mountains" or interior_kind == "ascent" or interior_kind == "spire"
+	has_cliffs = interior_kind == "mountains" or interior_kind == "ascent" or interior_kind == "spire" or interior_kind == "riven"
 	if has_cliffs:
 		return
 	for x in range(GRID_W):
@@ -5912,6 +7145,8 @@ func _neighbor_differs(x: int, z: int, nx: int, nz: int, t: int) -> bool:
 ## tools/cut_ground_boards.py: a row per terrain and tile variant, a column
 ## per edge mask, the edges painted), or "" for the runtime atlas.
 func ground_atlas_path() -> String:
+	if earth_return_land():
+		return ""   # Act 4: Earth's grass with the blight and lava (EARTH_RETURN_ART), composed at runtime
 	if interior_kind == "forest":
 		return GROUND_TEX + "/forest_atlas.png"
 	if interior_kind == "cave":
@@ -6158,6 +7393,11 @@ func _natural_boundary() -> bool:
 		return true    # the Gilded Garden: its edges and hedges are overgrowth, not rock
 	if heaven_land():
 		return false   # Heaven's pale stone all round (HEAVEN_ART's wall and cliff)
+	if earth_return_land():
+		# Act 4: World 4's fields and the Hamlet (its hedges) end in Earth's
+		# trees, rocks and bushes; the Vale, the Basilica, the Heights and the
+		# sealed rooms in Earth's cobbled-earth cliffs.
+		return interior_kind in ["", "hamlet", "green"]
 	if interior_kind in ["cave", "sewer", "building", "library", "dojo", "graveyard", "ratking", "boneyard", "hellgate", "labyrinth"]:
 		return false
 	if interior_kind == "forest":
@@ -6189,6 +7429,8 @@ func _build_walls() -> void:
 				_place_hell_landmarks()   # the Underworld's skyline, on the Rift's and the Stair's rock too
 			elif heaven_land() and interior_kind in ["", "spire", "causeway"]:
 				_place_heaven_landmarks()   # Heaven's skyline (HEAVEN_ART stand-ins)
+			elif earth_return_land() and interior_kind in ["vale", "basilica", "riven"]:
+				_place_tear_landmarks()   # Hell's and Heaven's pieces on the rock by their tears (EARTH_RETURN_ART)
 		_build_site_blocks()
 		return
 	var items: Array = []
@@ -6243,6 +7485,8 @@ var _wall_atlas_cache: Dictionary = {}
 func cliff_strip_path() -> String:
 	if heaven_land():
 		return heaven_art("cliff")   # stand-in (HEAVEN_ART)
+	if earth_return_land():
+		return earth_art("cliff")   # Earth's grass-lipped cliff (EARTH_RETURN_ART stand-in)
 	if act2_place():
 		return GROUND_TEX + "/cursed_cliff.png"   # the Underworld's veined cliff under its earth lip
 	match interior_kind:
@@ -6524,8 +7768,8 @@ func _build_boundary_props() -> void:
 		for z in range(GRID_H):
 			if grid[x][z] != Tile.WALL or site_tiles.has(Vector2i(x, z)):
 				continue
-			if heaven_land() and water[x][z]:
-				continue   # the garden's sickened pools stay open water, not overgrowth
+			if (heaven_land() or earth_return_land()) and water[x][z]:
+				continue   # the garden's sickened pools, Act 4's lava, stay open, not overgrowth
 			var edge := _has_adjacent_floor(x, z)
 			var back := not edge and _near_floor(x, z, 2)
 			if not edge and not back:
@@ -6571,7 +7815,7 @@ func _build_boundary_props() -> void:
 ## A building's walls and roof cover its footprint already; the forest
 ## trail's is filled with woods (_build_forest_entrance).
 const SITE_BLOCK_KINDS := ["cave", "sewer", "mountains", "graveyard", "closet", "library", "rift", "citadel", "ascent",
-	"sanctum", "garden", "spire", "causeway"]
+	"sanctum", "garden", "spire", "causeway", "hamlet", "vale", "basilica", "riven"]
 
 ## Every block-kind site's footprint drawn as the land's cliff: rock (or
 ## earth) on top, the cliff face along its south edge, the entrance art on
@@ -6659,7 +7903,8 @@ func _strip_frame_w(path: String) -> int:
 
 ## Emberfall's pools: a few in the open ground (flagged water, drawn with
 ## the world's water: lava once, the designer's dark water since 2026-10-29).
-## Called by the overworld generator for World 4.
+## Called by the overworld generator for Worlds 2, 3 and 4 (World 4 keeps
+## each pool's centre: its tears of Hell, _place_blight_tears).
 func _place_lava_pools() -> void:
 	# Pools are blocked tiles flagged water: nobody wades lava. They sit in
 	# open ground (never on a road, never touching the edge, never in the
@@ -6697,6 +7942,7 @@ func _place_lava_pools() -> void:
 				grid[p.x][p.y] = Tile.WALL
 				water[p.x][p.y] = true
 		made += 1
+		lava_pool_centres.append(Vector2i(cx, cz))
 	# A floor tile a pool walled in (a gap left inside its ring) is lava too:
 	# the ground stays one piece, or no site could be placed on it.
 	var seen := {player_start: true}
@@ -6713,7 +7959,7 @@ func _place_lava_pools() -> void:
 			if grid[x][z] == Tile.FLOOR and not seen.has(Vector2i(x, z)):
 				grid[x][z] = Tile.WALL
 				water[x][z] = true
-	print("[DUNGEON] The Underworld: %d lava pools" % made)
+	print("[DUNGEON] %s: %d pools" % [get_location_name(), made])
 
 func _has_adjacent_floor(x: int, z: int) -> bool:
 	for dx in [-1, 0, 1]:
@@ -6884,6 +8130,24 @@ func _build_decorations() -> void:
 		"rent":
 			_build_rent_decorations()
 			return
+		"hamlet":
+			_build_hamlet_decorations()   # then the crofts' and lanes' scatter, by plane
+		"green":
+			_build_green_decorations()   # then the green's scatter
+		"vale":
+			_build_vale_decorations()   # then the banks' scatter, by plane
+		"hellmouth":
+			_build_hellmouth_decorations()
+			return
+		"basilica":
+			_build_basilica_decorations()   # then the scatter, by plane
+		"reliquary":
+			_build_reliquary_decorations()
+			return
+		"riven":
+			_build_riven_decorations()   # then the ledges' scatter, by plane
+		"confluence":
+			_build_confluence_decorations()   # then the chamber's scatter, by plane
 	var pal = get_palette()
 	var _deco_trees: Array = []
 	var _deco_stumps: Array = []
@@ -7005,6 +8269,8 @@ func _build_decorations() -> void:
 	_add_prop_decos(_deco_pebbles, "pebble")
 	_add_prop_decos(_deco_bones, "bones")
 
+	if interior_kind == "" and earth_return_land():
+		_dress_blight_tears()   # Hell's and Heaven's pieces at their tears (EARTH_RETURN_ART)
 	if interior_kind == "":
 		_place_signposts(pal)
 		_place_crows(meadow_cells)
@@ -7045,6 +8311,8 @@ func _place_signposts(pal: Dictionary) -> void:
 					branches += 1
 			if branches < 3:
 				continue
+			if earth_return_land() and _plane_at(x, z) != "earth":
+				continue   # Act 4: no signpost in a tear of Hell or Heaven
 			# Plant the post on a grass tile beside the fork.
 			for d in dirs:
 				var side := Vector2i(x + d.x, z + d.y)
@@ -8199,7 +9467,34 @@ func _claim_obstacle(pos: Vector2i) -> bool:
 	## _can_block_tile). Returns whether it was claimed.
 	if not _can_block_tile(pos):
 		return false
+	if has_cliffs and act4_place() and not _level_ring(pos):
+		return false   # the Riven Heights: never by a step or a ledge's lip, where it could cut the way up
 	obstacle_tiles[pos] = true
+	return true
+
+## On terraced ground: `pos` is no step, and every floor tile round it
+## stands on its level and is no step either (_can_block_tile's ring test
+## does not know the climbing rule; Act 4's Heights keep to this).
+func _level_ring(pos: Vector2i) -> bool:
+	if step_tiles.has(pos):
+		return false
+	for dx in [-1, 0, 1]:
+		for dz in [-1, 0, 1]:
+			var n := pos + Vector2i(dx, dz)
+			if is_floor(n) and (step_tiles.has(n) or elevation[n.x][n.y] != elevation[pos.x][pos.y]):
+				return false
+	# Nor may it leave a neighbour a cul-de-sac (one way on) on a ledge.
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var n: Vector2i = pos + d
+		if not is_floor(n) or obstacle_tiles.has(n):
+			continue
+		var ways := 0
+		for d2 in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var m: Vector2i = n + d2
+			if m != pos and is_floor(m) and not obstacle_tiles.has(m) and can_step(n, m):
+				ways += 1
+		if ways <= 1:
+			return false
 	return true
 
 func get_obstacle_tiles() -> Array[Vector2i]:
@@ -8523,6 +9818,10 @@ func _place_sites() -> void:
 		# Heaven has no caves (designer, 2026-11-09: World 3's Ice Caves gave
 		# way to the Act 3 places, _place_act3_sites): its two ruins only.
 		site_total = 2
+	if world_level == 4:
+		# Act 4 is lean (STORY.md): two caves and a ruined hall beside its four
+		# places (_place_act4_sites).
+		site_total = 3
 	var cave_count = 0
 	var building_count = 0
 	var sewer_count = 0
@@ -8604,6 +9903,7 @@ func _place_sites() -> void:
 	_place_closet_site(candidates)
 	_place_act2_sites(candidates)
 	_place_act3_sites(candidates)
+	_place_act4_sites(candidates)
 	_place_hidden_graveyard(candidates)
 	_place_library_site(candidates)
 	print("[DUNGEON] Placed %d enterable sites" % site_nodes.size())
@@ -8811,6 +10111,8 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 	var ruin_site := interior_kind == "" and art_world() in [2, 4] and kind in ["building", "cave"]
 	if interior_kind == "" and world_level == 3 and heaven_art("site_" + kind) != null:
 		_build_heaven_site(site_root, kind, fp_w, fp_d)   # Heaven's stand-ins (HEAVEN_ART)
+	elif interior_kind == "" and world_level == 4 and earth_art("site_" + kind) != null:
+		_build_earth_site(site_root, kind, fp_w, fp_d)   # Act 4's stand-ins (EARTH_RETURN_ART)
 	elif ruin_site and art_world() == 4:
 		_build_cursed_site(site_root, kind, fp_w, fp_d, fx + fz)
 	elif ruin_site:
@@ -9253,6 +10555,8 @@ func _structure_tiles() -> Dictionary:
 	var tiles := _all_site_footprint_tiles()
 	for c in waypoint_block_tiles:
 		tiles[c] = true
+	for c in hamlet_cottage_tiles:
+		tiles[c] = true   # the Hamlet's cottages: their ruins stand there, not a hedge
 	return tiles
 
 func _all_site_footprint_tiles() -> Dictionary:
@@ -9591,6 +10895,18 @@ func _define_spawn_zones() -> void:
 		"causeway":
 			_define_causeway_spawn_zones()
 			return
+		"hamlet":
+			_define_hamlet_spawn_zones()
+			return
+		"vale":
+			_define_vale_spawn_zones()
+			return
+		"basilica":
+			_define_basilica_spawn_zones()
+			return
+		"riven":
+			_define_riven_spawn_zones()
+			return
 
 	if interior_kind == "trolllair":
 		_define_troll_lair_spawn_zones()
@@ -9638,9 +10954,24 @@ func _define_spawn_zones() -> void:
 		mid_melee = Enemy.EnemyType.CHERUB
 		heavy = Enemy.EnemyType.DEMON
 		ranged = Enemy.EnemyType.ASH_HARPY
+	# The Earth returned to (World 4, Act 4; its surface, caves and halls):
+	# all three planes at once (STORY.md section 4) — the Earth's own
+	# creatures gone monstrous with the Underworld's and Heaven's broken in
+	# among them. Each tier rolls its own pool per enemy (ACT4_POOLS); a
+	# cave keeps its Fire Goblin warband and shaman, the corrupted cave
+	# dwellers among them. The deep rooms and the arena: an elite of each
+	# plane.
+	var earth_return := world_level == 4 and interior_kind in ["", "cave", "building"]
+	if earth_return:
+		base_melee = Enemy.EnemyType.WOLF          # each tier a key of ACT4_POOLS, rolled per enemy
+		mid_melee = Enemy.EnemyType.WEREWOLF
+		heavy = Enemy.EnemyType.LARGE_BEAR
+		ranged = Enemy.EnemyType.ASH_HARPY
 	var deep_lords := [Enemy.EnemyType.IFRIT, Enemy.EnemyType.INFLAMED_MINOTAUR, Enemy.EnemyType.DJINN]
 	if heaven:
 		deep_lords = [Enemy.EnemyType.DJINN]
+	if earth_return:
+		deep_lords = [Enemy.EnemyType.IFRIT, Enemy.EnemyType.DJINN, Enemy.EnemyType.TREANT]
 	var deep_lord_i := 0
 	var shaman_placed := false
 
@@ -9681,10 +11012,15 @@ func _define_spawn_zones() -> void:
 				picked = UNDERWORLD_TRASH[_rng.randi_range(0, UNDERWORLD_TRASH.size() - 1)]
 			elif heaven and picked == base_melee:
 				picked = HEAVEN_TRASH[_rng.randi_range(0, HEAVEN_TRASH.size() - 1)]
+			elif earth_return:
+				picked = _act4_roll(picked)
 			types.append(picked)
 		# Deep cave chambers are guarded by an elite-grade enemy
 		if kind == "deep" and types.size() > 0:
-			types[0] = Enemy.EnemyType.DJINN if heaven else (heavy if world_level < 3 else Enemy.EnemyType.ELITE)
+			if earth_return:
+				types[0] = deep_lords[deep_lord_i % deep_lords.size()]
+			else:
+				types[0] = Enemy.EnemyType.DJINN if heaven else (heavy if world_level < 3 else Enemy.EnemyType.ELITE)
 		# Act 2+ overworld deep rooms hold the lords of the deep — the
 		# Ferryman's Toll targets — one per room, cycling through the three.
 		if kind == "deep" and interior_kind == "" and world_level >= 2 and types.size() > 0:
@@ -9814,7 +11150,12 @@ func _define_arena_zone(rect: Rect2i, mid_melee, heavy, ranged) -> void:
 	var c = rect.get_center()
 	var boss_points: Array = []
 	var boss_types: Array = []
-	if world_level >= 4:
+	if world_level == 4:
+		# The corrupted Earth's arena: an elite of each plane — a Large Bear
+		# gone monstrous, an ifrit, a djinn — with a demon and a cherub.
+		boss_points = [c + Vector2i(0, -2), c + Vector2i(2, 1), c + Vector2i(-2, 1), c + Vector2i(0, 3), c + Vector2i(3, -2)]
+		boss_types = [Enemy.EnemyType.LARGE_BEAR, Enemy.EnemyType.IFRIT, Enemy.EnemyType.DJINN, Enemy.EnemyType.DEMON, Enemy.EnemyType.CHERUB]
+	elif world_level >= 4:
 		boss_points = [c + Vector2i(0, -2), c + Vector2i(2, 0), c + Vector2i(0, 2), c + Vector2i(3, -1)]
 		boss_types = [Enemy.EnemyType.BOSS, Enemy.EnemyType.ELITE, heavy, ranged]
 	elif world_level == 2:

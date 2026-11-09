@@ -32,6 +32,10 @@ const BOSS_ROOMS := [
 	["font", "The Sickened Font", "Heaven — two djinn round a fountain gone to bog (off the Gilded Garden)"],
 	["belfry", "The Belfry", "Heaven — the keepers of the bell frame (top of the Silent Spire)"],
 	["rent", "The Rent", "Heaven — the wardens of the way down (off the Sundered Causeway)"],
+	["green", "The Blighted Green", "Earth returned — keepers of all three planes round a burning well (off the Forsaken Hamlet)"],
+	["hellmouth", "The Hellmouth", "Earth returned — two ifrits and a fire mage where Hell broke through (off the Smouldering Vale)"],
+	["reliquary", "The Fallen Reliquary", "Earth returned — two djinn and the mountains' fliers at Heaven's fallen altar (off the Shattered Basilica)"],
+	["confluence", "The Confluence", "Earth returned — the final chamber: boss [TBD], a guard gauntlet for now (top of the Riven Heights)"],
 ]
 
 # card_id lists grouped by the character whose kit they belong to, matching

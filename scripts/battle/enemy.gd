@@ -58,9 +58,20 @@ enum EnemyType { MINION, ELITE, BOSS, WERERAT, SKELETON, ARMORED_TROLL, ARCHER_R
 
 ## Intended player level for this type (EnemyDefs "intended_level") — the
 ## anchor for the level-gap XP falloff (PlayerStats.get_xp_multiplier) and
-## passive_power_scale. 0 = no band (mock-ups, XP-less enemies).
+## passive_power_scale. 0 = no band (mock-ups, XP-less enemies). Raised to
+## `band_floor` where the ground sets one (Act 4: every creature met on the
+## corrupted Earth stands at Act 4's band, DungeonManager.spawn_band_floor).
 func get_intended_level() -> int:
-	return int(EnemyDefs.DEFS.get(EnemyType.keys()[enemy_type], {}).get("intended_level", 0))
+	var band := int(EnemyDefs.DEFS.get(EnemyType.keys()[enemy_type], {}).get("intended_level", 0))
+	if band > 0 and band_floor > band:
+		return band_floor
+	return band
+
+## The lowest band this enemy stands at, set by the spawner before
+## initialize() from where it is met (0: its type's own band). Act 4's
+## ground raises its whole host — the Earth's corrupted creatures, the
+## Underworld's and Heaven's — above Act 3's (DungeonManager.ACT4_BAND).
+var band_floor: int = 0
 
 ## Rebalance multipliers for the 15-point passive rework. The hand-tuned base
 ## stats were set against the old FLAT passives, whose values sat around the
