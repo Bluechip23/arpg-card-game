@@ -341,6 +341,11 @@ func _rebuild_table() -> void:
 #               bottom = anchor + (0, spread.y)
 #   node        passive circle diameter
 #   archetypes  archetype name -> {anchor: triangle centre, label: "above" | "below"}
+## Brad's board: the two left triangles (Berserker over The Ancient) share
+## one column, and the two right ones (Warden over The Fallen) another, so
+## each side lines up (designer, 2026-11-09).
+const BOARD_LEFT_X := 790.0
+const BOARD_RIGHT_X := 1065.0
 const PASSIVE_BOARDS := {
 	"Brad": {
 		"texture": "res://assets/textures/ui/brad_passive_board.webp",
@@ -351,13 +356,13 @@ const PASSIVE_BOARDS := {
 		"archetypes": {
 			# Top left: the berserker's axe and his victims; the triangle sits
 			# below the victims' heads, at the centre's top-left.
-			"Berserker": {"anchor": Vector2(805, 362), "label": "above"},
+			"Berserker": {"anchor": Vector2(BOARD_LEFT_X, 362), "label": "above"},
 			# Top right: the gold knight's shield bash; below his victim.
-			"Warden": {"anchor": Vector2(1085, 362), "label": "above"},
+			"Warden": {"anchor": Vector2(BOARD_RIGHT_X, 362), "label": "above"},
 			# Bottom left: the vine-bound foe; right of him.
-			"The Ancient": {"anchor": Vector2(772, 612), "label": "below"},
+			"The Ancient": {"anchor": Vector2(BOARD_LEFT_X, 612), "label": "below"},
 			# Bottom right: the dark knight's black smoke; left of his foes.
-			"The Fallen": {"anchor": Vector2(1045, 612), "label": "below"},
+			"The Fallen": {"anchor": Vector2(BOARD_RIGHT_X, 612), "label": "below"},
 		},
 	},
 }
