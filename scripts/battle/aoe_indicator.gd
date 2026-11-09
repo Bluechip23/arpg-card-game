@@ -16,6 +16,14 @@ var _built_key: Array = []  # what the current surfaces were built from (see _bu
 ## Stores the mouse world position (XZ plane), updated from main.gd
 var mouse_world_pos: Vector3 = Vector3.ZERO
 
+## A point-placed burst (Fireball, Poison Bomb…) wears a green dot on its
+## centre tile: the card's target point, though it hits a whole area — what
+## a "targets an empty tile" passive (Jeremy's Seance) reads (designer,
+## 2026-11-08). Lines and cones from the hero have no centre and no dot.
+const CENTER_DOT_COLOR := Color(0.2, 0.95, 0.3, 0.95)
+const CENTER_DOT_RADIUS := 0.17   # tiles: a dot inside the centre tile
+var _center_dot: MeshInstance3D
+
 func _ready() -> void:
 	_mesh_instance = MeshInstance3D.new()
 	_mesh_instance.mesh = _mesh
@@ -27,6 +35,25 @@ func _ready() -> void:
 	_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_material.no_depth_test = true
 	_mesh_instance.material_override = _material
+	_center_dot = MeshInstance3D.new()
+	_center_dot.name = "CenterDot"
+	var disc := CylinderMesh.new()
+	disc.top_radius = CENTER_DOT_RADIUS
+	disc.bottom_radius = CENTER_DOT_RADIUS
+	disc.height = 0.01
+	disc.radial_segments = 24
+	disc.rings = 1
+	_center_dot.mesh = disc
+	_center_dot.position = Vector3(0, 0.04, 0)
+	var dot_mat := StandardMaterial3D.new()
+	dot_mat.albedo_color = CENTER_DOT_COLOR
+	dot_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dot_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	dot_mat.no_depth_test = true
+	dot_mat.render_priority = 1   # over the area's shading
+	_center_dot.material_override = dot_mat
+	_center_dot.visible = false
+	add_child(_center_dot)
 	# Start hidden so the indicator doesn't flash at origin (0,0,0) / upper-left
 	visible = false
 
@@ -113,6 +140,14 @@ func update_indicator(new_shape: String, new_range: float) -> void:
 	shape = new_shape
 	aoe_range = new_range
 	_rebuild_mesh()
+
+## Show the centre-tile dot (point-placed circles only).
+func set_center_dot(on: bool) -> void:
+	if _center_dot:
+		_center_dot.visible = on
+
+func has_center_dot() -> bool:
+	return _center_dot != null and _center_dot.visible
 
 func show_indicator() -> void:
 	# Only show if position has been set (not at origin/upper-left)

@@ -273,6 +273,7 @@ var _card_confirm_panel: PanelContainer = null
 var _card_confirm_label: Label = null
 var _pending_card_target = null           # target captured while the dialog is up
 var _pending_card: Card = null
+var _pending_card_aim = null              # a point card's tile, locked at the aiming click
 var _card_play_confirmed: bool = false    # bypass flag: dialog already answered
 # Co-op defeat: a player at 0 HP is "downed" but the fight continues; only when
 # BOTH are downed is it a defeat. A downed player can be revived by healing.
@@ -652,6 +653,8 @@ func _ready() -> void:
 	enemy_spawner.all_enemies_defeated.connect(_on_all_enemies_defeated)
 	enemy_spawner.loot_dropped.connect(_on_loot_dropped)
 	enemy_spawner.enemy_spawned.connect(_on_enemy_spawned_connect_debuffs)
+	# The hero pause: the clock waits while the hero's drawn action plays.
+	_wire_hero_pause(player)
 	
 	# Test UI
 	
@@ -738,6 +741,7 @@ func _ready() -> void:
 				p2_inv.equipment_changed.connect(_on_equipment_changed)   # the shared Block button follows both shields
 			_p2_player.tile_reached.connect(_on_player_tile_reached.bind(_p2_player))
 			_wire_marvolo_hooks(_p2_player)
+			_wire_hero_pause(_p2_player)
 			_p2_player.move_completed.connect(_on_player_move_completed)
 			# Enemies target the nearest living player; defeat needs both downed.
 			enemy_spawner.players = [_p1_player, _p2_player]
@@ -854,6 +858,24 @@ func _on_enemy_swing_started(_enemy: Enemy, seconds: float) -> void:
 	if tempo_manager:
 		tempo_manager.hold_for(seconds + TempoManager.SWING_HOLD_BEAT)
 
+## The hero pause (designer, 2026-11-08: "add a pause for the character
+## animations so they are cleaner"): every drawn action a hero plays — the
+## attack (auto attack, Attack cards, Flash Cut), the block (button and
+## cards), the spell cast every Spell card plays — holds the tick clock for
+## its whole drawn length plus a beat, as an enemy's swing does, so the
+## next tick (and the next action restarting the figure) waits for it.
+## The co-op partner's figure is wired the same way. Under the swing hold's
+## switch ("Pause for animations" in Settings; hold_for does nothing when
+## it is off, and the sim turns it off). A hit wait's own hold (_after_hit)
+## is the same length, and holds take the longest, so nothing doubles.
+func _wire_hero_pause(hero: Player) -> void:
+	if hero and not hero.action_started.is_connected(_on_hero_action_started):
+		hero.action_started.connect(_on_hero_action_started)
+
+func _on_hero_action_started(_hero: Player, seconds: float) -> void:
+	if tempo_manager:
+		tempo_manager.hold_for(seconds + TempoManager.SWING_HOLD_BEAT)
+
 func _on_tick_speed_changed(speed: float) -> void:
 	tempo_manager.tick_speed = speed
 	TempoManager.remember_tick_speed(speed)  # survives every scene change
@@ -959,6 +981,10 @@ func _process(delta: float) -> void:
 	# Feed mouse world position to AOE indicator for cone/line direction
 	if aoe_indicator and aoe_indicator.visible:
 		var mouse_world := get_mouse_world_position()
+		# Co-op "Play now?" is up: the aim was locked at the click, so the
+		# shape stays on that tile while the mouse goes to the buttons.
+		if _pending_card_aim is Vector3 and _card_confirm_panel and _card_confirm_panel.visible:
+			mouse_world = _pending_card_aim
 		aoe_indicator.set_mouse_world_position(mouse_world)
 		# Point-placed circles follow the cursor; everything else (lines,
 		# cones, self-centred bursts) stays anchored on the player, who may
@@ -4223,6 +4249,16 @@ func _on_sandbox_add_card(card_id: String) -> void:
 	if card == null:
 		add_battle_log("Sandbox: couldn't create '%s'." % card_id, Color(1.0, 0.5, 0.4))
 		return
+	# An Engrave card (Fireball, Cover…) plays only from an item's card slot,
+	# and a copy dropped straight into the hand has none — it could never be
+	# played. The sandbox's copy comes engraved in a bare stand-in slot (no
+	# item stats, no riders) so it can be tried from the hand.
+	if card.requires_engraving and card.slotted_in_item == null:
+		var holder := ItemData.new()
+		holder.item_name = "Sandbox slot"
+		holder.card_slots = 1
+		holder.slotted_cards.append(card)
+		card.slotted_in_item = holder
 	deck_manager.hand.append(card)
 	deck_manager.hand_updated.emit()
 	add_battle_log("Sandbox: added %s to hand." % card.card_name, Color(0.5, 1.0, 0.6))
@@ -4253,6 +4289,7 @@ func _on_sandbox_add_ally(char_name: String) -> void:
 	if _p2_player:
 		_p2_player.tile_reached.connect(_on_player_tile_reached.bind(_p2_player))
 		_wire_marvolo_hooks(_p2_player)
+		_wire_hero_pause(_p2_player)
 		_p2_player.move_completed.connect(_on_player_move_completed)
 		enemy_spawner.players = [_p1_player, _p2_player]
 		# Cover reactions: each partner can mitigate the other's damage.
@@ -4415,6 +4452,10 @@ func _show_card_confirm_dialog(card: Card, target) -> void:
 	_ensure_card_confirm_dialog()
 	_pending_card = card
 	_pending_card_target = target
+	# The aim is locked at the click: moving the mouse to the buttons must
+	# not drag the target along (designer, 2026-11-08). The indicator stays
+	# on this tile (_process) and Play Now / Lock In fire at it.
+	_pending_card_aim = _last_aim_world if "point" in card.target_types and _last_aim_world is Vector3 else null
 	var tname := ""
 	if target is Enemy and is_instance_valid(target):
 		tname = " on %s" % target.enemy_name
@@ -4437,10 +4478,12 @@ func _hide_card_confirm_dialog() -> void:
 		_card_confirm_panel.visible = false
 	_pending_card = null
 	_pending_card_target = null
+	_pending_card_aim = null
 
 func _on_card_play_now() -> void:
 	var card := _pending_card
 	var target = _pending_card_target
+	var aim = _pending_card_aim
 	_hide_card_confirm_dialog()
 	if card == null:
 		return
@@ -4451,6 +4494,8 @@ func _on_card_play_now() -> void:
 		add_battle_log("%s is no longer in hand." % card.card_name, Color(1.0, 0.6, 0.3))
 		return
 	selected_card_index = idx
+	if aim is Vector3:
+		_last_aim_world = aim   # the tile clicked, wherever the mouse went since
 	_card_play_confirmed = true
 	play_selected_card(target)
 	_card_play_confirmed = false
@@ -4461,6 +4506,7 @@ func _on_card_lock_in() -> void:
 	## them together.
 	var card := _pending_card
 	var target = _pending_card_target
+	var aim = _pending_card_aim
 	_hide_card_confirm_dialog()
 	if card == null:
 		return
@@ -4468,10 +4514,12 @@ func _on_card_lock_in() -> void:
 		if e["card"] == card:
 			add_battle_log("%s is already locked in." % card.card_name, Color(1.0, 0.6, 0.3))
 			return
-	_locked_cards.append({"card": card, "target": target, "owner": _active_index})
+	_locked_cards.append({"card": card, "target": target, "owner": _active_index, "aim": aim})
 	selected_card_index = -1
 	if range_indicator:
 		range_indicator.hide_range()
+	if aoe_indicator:
+		aoe_indicator.hide_indicator()
 	update_card_highlights()
 	_ensure_play_cards_button()
 	_play_cards_button.text = "▶ Play Cards (%d)" % _locked_cards.size()
@@ -4531,6 +4579,8 @@ func _on_play_cards_pressed() -> void:
 			add_battle_log("%s is no longer in hand — skipped." % card.card_name, Color(1.0, 0.6, 0.3))
 			continue
 		selected_card_index = idx
+		if e.get("aim") is Vector3:
+			_last_aim_world = e["aim"]   # each card fires at the tile it was locked on
 		_card_play_confirmed = true
 		play_selected_card(target)
 		_card_play_confirmed = false
@@ -8628,6 +8678,8 @@ func select_card(index: int) -> void:
 		card.aoe_range = _peshtigo_radius()
 	if card.is_aoe and aoe_indicator:
 		aoe_indicator.update_indicator(card.aoe_shape, card.aoe_range)
+		# The green centre dot marks a point burst's target tile.
+		aoe_indicator.set_center_dot(_aoe_follows_cursor(card))
 		# Only a circle that lands where you click sits at the cursor. Lines
 		# and cones (Charge, Snowball's Chance, the piercing arrows) always
 		# start from the player and merely aim at the cursor.
@@ -9018,6 +9070,10 @@ func play_selected_card(target) -> void:
 				"harnessed_power_applied": harnessed_power_applied,
 				"harnessed_mult": hp_mult,
 				"aim_world": _last_aim_world,
+				# Was the aimed (centre) tile empty as the card was played?
+				# Seance judges its "empty tile" here, not after the card has
+				# killed or moved what stood on it.
+				"aim_empty": _aim_tile_empty(card, _last_aim_world),
 				"is_ranged_attack": is_ranged_attack,
 				"half_tempo": result["half_tempo"],
 				"mana_spent": result.get("mana_spent", 0),
@@ -9064,6 +9120,8 @@ func play_selected_card(target) -> void:
 			if s_ui and is_instance_valid(s_ui):
 				s_ui.show_sticky_counter(card.consecutive_uses, card.sticky)
 	else:
+		if str(result.get("reason", "")) != "":
+			add_battle_log(str(result["reason"]), Color(1.0, 0.6, 0.4))
 		# Refused for mana: the sign over the hero's head (designer, 2026-11-01).
 		var p_stats := player.get_stats()
 		if p_stats and not p_stats.has_mana(card.get_burden_mana_cost() if card.has_method("get_burden_mana_cost") else card.mana_cost) \
@@ -9286,7 +9344,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 					if target is Node3D and is_instance_valid(target) and player.has_method("face_toward"):
 						player.face_toward(target.position)
 			else:
-				_play_card_animation(card, target)
+				_play_card_animation(card, target, data.get("aim_world", null))
 			_after_hit(wait, func() -> void: _land_queued_entry(entry), _swing_time(swing, target))
 			return
 
@@ -9345,7 +9403,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	# The action happens NOW — play the character's animation at resolution
 	# rather than back when the card was played and the wind-up began.
 	if not data.get("anim_played", false):
-		_play_card_animation(card, target)
+		_play_card_animation(card, target, data.get("aim_world", null))
 
 	# Harnessed Power (Jeremy): scale everything this card produces.
 	if data.get("harnessed_power_applied", false):
@@ -9481,7 +9539,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	progression_triggers._trigger_skill_tree_on_card_play(card, target)
 	progression_triggers._trigger_skill_tree_stephen_on_card_play(card)
 	progression_triggers._trigger_skill_tree_cory_on_card_play(card)
-	progression_triggers._trigger_skill_tree_jeremy_on_card_play(card, target, data.get("aim_world", null))
+	progression_triggers._trigger_skill_tree_jeremy_on_card_play(card, target, data.get("aim_world", null), data.get("aim_empty", null))
 	# Undo temporary card modifications (tighten, high ground, harnessed power)
 	_undo_card_temp_mods(card, data)
 
@@ -11366,6 +11424,9 @@ func _on_custom_ring_fired(ring: ItemData, kind: String, value: int) -> void:
 					# vanished at the next cycle).
 					cp_card.erase_tempo = 10
 					cp_card.erase_tempo_remaining = 10
+					# A conjured copy is played from the hand: Fireball's Engrave
+					# would leave it unplayable (it sits in no item slot).
+					cp_card.requires_engraving = false
 					deck_manager.add_card_to_hand(cp_card)
 			add_battle_log("By your powers combined! Heal 15, draw 3, Fireball and Rise arrive (10 tempo).", Color(0.3, 0.8, 1.0))
 		"cyclops_strengthen":
@@ -12272,6 +12333,20 @@ func _ranged_card_max_range(card: Card, in_play: bool = false) -> int:
 	max_range += _helm_range_bonus(card)
 	return max_range
 
+## A point card's aimed tile, empty of every unit right now? null when the
+## card has no point aim (the play-time reading Seance takes).
+func _aim_tile_empty(card: Card, aim):
+	if not (aim is Vector3) or not ("point" in card.target_types) or grid_manager == null:
+		return null
+	return _cell_is_empty_for_summon(grid_manager.world_to_grid(aim))
+
+## Whether an aimed tile lies within `reach` tiles of the active hero, as
+## the range ring draws it: straight-line distance, half a tile of give
+## (the same measure _is_target_in_card_range applies to a creature).
+func _point_in_card_reach(at: Vector3, reach: int) -> bool:
+	var d := Vector2(at.x - player.position.x, at.z - player.position.z).length() / grid_manager.grid_size
+	return d <= float(reach) + 0.5
+
 func _is_target_in_card_range(card: Card, target) -> bool:
 	if not target or not target is Node3D:
 		return true
@@ -12354,11 +12429,13 @@ func _facing_dir_toward(target) -> CharacterAnimator.Direction:
 ## tall. Spells are cast from here, not from the feet.
 const CAST_MIDSECTION := Vector3(0, 0, -0.45)
 
-func _card_aim_point(card: Card, target):
+func _card_aim_point(card: Card, target, aim_world = null):
 	if target is Node3D and is_instance_valid(target) and target != player:
 		return (target as Node3D).position
 	if "point" in card.target_types:
-		var at := get_mouse_world_position()
+		# The tile the card was aimed at when played; the cursor only for a
+		# play that carries none.
+		var at: Vector3 = aim_world if aim_world is Vector3 else get_mouse_world_position()
 		if Vector2(at.x - player.position.x, at.z - player.position.z).length() > 0.05:
 			return at
 	return null
@@ -12368,7 +12445,7 @@ func _card_aim_point(card: Card, target):
 func _card_swing(card: Card) -> String:
 	return SpriteFigure.DRAWN_SPELL if card.school == Card.CardSchool.SPELL else card.get_animation_action()
 
-func _play_card_animation(card: Card, target) -> void:
+func _play_card_animation(card: Card, target, aim_world = null) -> void:
 	if not player or not player.has_method("play_animation"):
 		return
 	# Face where the card goes: the creature it is cast at, or, for a card
@@ -12376,7 +12453,7 @@ func _play_card_animation(card: Card, target) -> void:
 	# the aimed spot — a point click passes the CASTER as the target, so
 	# reading `target` alone left those casts facing south. A card on the
 	# hero himself (Block, a heal) keeps the way he faces.
-	var aim = _card_aim_point(card, target)
+	var aim = _card_aim_point(card, target, aim_world)
 	var dir: CharacterAnimator.Direction = player.get_facing() if player.has_method("get_facing") else CharacterAnimator.Direction.SOUTH
 	if aim != null:
 		var to_aim: Vector3 = aim - player.position
@@ -14145,14 +14222,18 @@ func _input(event: InputEvent) -> void:
 					# A card that LANDS at the clicked tile (Blink, a circle burst,
 					# a ranged point effect) has its range as a hard cap; aim-only
 					# point cards — lines, cones — take any click.
-					var pc_dist: int = grid_manager.get_distance_in_cells(player.position, grid_manager.snap_to_grid(mouse_pos))
 					var pc_capped: bool = card.card_id == "blink" \
 							or (card.is_ranged and card.range_modifier < Card.INFINITE_RANGE \
 								and (not card.is_aoe or _aoe_follows_cursor(card)))
-					# The helm / 20/20 range ("+3 range on all ranged offensive
-					# cards") counts here as the range ring shows it.
-					var pc_reach: int = card.get_effective_range() + _helm_range_bonus(card)
-					if pc_capped and pc_dist > pc_reach:
+					# The reach is the range ring's (select_card): straight-line
+					# tiles, and every bonus the ring counts (helm / 20/20, sphere
+					# Range, high ground, Scouted) — the same test a click on an
+					# enemy passes (_is_target_in_card_range). Counted in steps
+					# (dx + dy) a tile well inside the ring was refused "Out of
+					# range" on a diagonal (the dojo's far dummy, 8 tiles off).
+					var pc_reach: int = _ranged_card_max_range(card) if card.is_ranged \
+							else card.get_effective_range() + _helm_range_bonus(card)
+					if pc_capped and not _point_in_card_reach(grid_manager.snap_to_grid(mouse_pos), pc_reach):
 						add_battle_log("Out of range! %s reaches %d spaces." % [card.card_name, pc_reach], Color(1.0, 0.4, 0.4))
 					else:
 						play_selected_card(player)

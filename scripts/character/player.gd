@@ -7,6 +7,10 @@ const LevelUpFX = preload("res://scripts/effects/level_up_fx.gd")
 
 signal move_completed
 signal tile_reached  # Emitted each time the player reaches a single tile
+## A drawn action began (the attack, block, spell cast...: SpriteFigure
+## last_action_time): it runs `seconds`, and Main holds the tick clock that
+## long so it plays out before the next tick (the hero pause, 2026-11-08).
+signal action_started(hero: Player, seconds: float)
 
 @export var move_speed: float = 5.0  # Units per second (1 unit = 1 grid cell)
 
@@ -149,6 +153,10 @@ func _setup_figure(data: CharacterData) -> void:
 func play_animation(action: String, direction: CharacterAnimator.Direction = CharacterAnimator.Direction.SOUTH, spell: bool = false) -> void:
 	if _figure:
 		_figure.play_action(action, direction, spell)
+		# A drawn action (attack, block, spell cast...): Main holds the tick
+		# clock while it plays, as it does for an enemy's swing.
+		if _figure.last_action_time > 0.0:
+			action_started.emit(self, _figure.last_action_time)
 
 ## The way the figure faces now (CharacterAnimator.Direction).
 func get_facing() -> CharacterAnimator.Direction:

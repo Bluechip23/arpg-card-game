@@ -62,6 +62,10 @@ static func load_preferred_tick_speed() -> float:
 ## tiers the swing is shorter than the tick and zips by. On by default;
 ## the Settings tab turns it off, and then ticks resolve as they always
 ## did. Kept for the session and in the settings file like the tick speed.
+## The heroes' drawn actions hold it too (designer, 2026-11-08: the attack,
+## block and spell cast play out before the next tick — Player
+## action_started -> Main), under the same switch, which Settings shows as
+## "Pause for animations"; the sim turns it off (tests/sim/sim_runner.gd).
 const SWING_HOLD_BEAT := 0.1
 static var preferred_swing_hold: int = -1   # -1 unread, 0 off, 1 on
 
@@ -134,11 +138,16 @@ func initialize(p_stats: PlayerStats) -> void:
 	print("[TEMPO] Initialized (ticked). Cycle every %d tempo, tick speed %.2fs" % [tempo_threshold, tick_speed])
 
 func _process(delta: float) -> void:
-	if not _ticking or _pending_ticks <= 0 or menu_hold:
-		return
 	if _hold_timer > 0.0:
-		# An enemy's swing is playing: the clock waits for it (hold_for).
-		_hold_timer -= delta
+		# A swing is playing (an enemy's, or a hero's drawn action): the
+		# clock waits for it (hold_for). The hold runs down in real time
+		# like the animation it waits for — also while nothing is queued or
+		# a menu is open — so a hold left by a free swing or a block between
+		# cards never delays a later card after its animation has ended.
+		_hold_timer = maxf(0.0, _hold_timer - delta)
+		if _ticking and _pending_ticks > 0:
+			return
+	if not _ticking or _pending_ticks <= 0 or menu_hold:
 		return
 
 	_tick_timer -= delta
