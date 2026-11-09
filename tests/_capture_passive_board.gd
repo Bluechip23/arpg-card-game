@@ -79,6 +79,10 @@ func _process(_delta: float) -> bool:
 		ui._rebuild_table()
 	if _frames == 150:
 		_shot("jeremy_board")
+		ui.set_skill_tree(SkillTreeData.create_ryan_tree())
+		ui._rebuild_table()
+	if _frames == 165:
+		_shot("ryan_board")
 		quit()
 		return true
 	return false

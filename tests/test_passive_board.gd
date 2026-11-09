@@ -4,7 +4,9 @@ extends SceneTree
 ## hero's painting, and each archetype's three passives sit as an upside-down
 ## triangle beside its corner scene — Brad: Berserker top left, Warden top
 ## right, The Ancient bottom left, The Fallen bottom right; Cory: Atrophist,
-## Monk, Lurker, Druid; Jeremy: Abjurer, Evocation, Poltergeist, Shepherd. First passive top-left, second top-right, the final
+## Monk, Lurker, Druid; Jeremy: Abjurer, Evocation, Poltergeist, Shepherd;
+## Ryan: Light Foot, Apothecary, Shadow Blade, Relentless Blade (his narrow
+## gap puts the bottom pair's names beside them, toward their scenes). First passive top-left, second top-right, the final
 ## unlock at the bottom point; each side's two triangles share their columns.
 ## Investing still works through the board's circles (stage gates included),
 ## and a hero without a board keeps the lane table.
@@ -46,7 +48,18 @@ func _check_board(ui: SkillTreeUI, hero: String, painting: String, expect: Dicti
 	_check(absf(art_rect.size.x / art_rect.size.y - 1774.0 / 887.0) < 0.01, "%s: the painting keeps its aspect" % hero)
 	_check(ui._board_view.get_node_or_null("BoardInfo") != null, "%s: the centre holds the points / stage info" % hero)
 
+	# Left / right is judged against the middle of the four triangles (a
+	# board's gap need not be centred on the painting); top / bottom against
+	# the painting's middle.
 	var mid: Vector2 = art_rect.get_center()
+	var xs: Array[float] = []
+	for arch in expect:
+		for stage in range(3):
+			var b := _circle(ui, arch, stage)
+			if b:
+				xs.append(b.get_global_rect().get_center().x)
+	if not xs.is_empty():
+		mid.x = (xs.min() + xs.max()) * 0.5
 	var all_rects: Array[Rect2] = []
 	var corners := {}
 	for arch in expect:
@@ -184,6 +197,24 @@ func _run() -> void:
 		"Shepherd": {"left": false, "top": false, "ids": ["i_heal_you", "whispers_of_the_flock", "blood_libation"]},
 	}
 	_check_board(ui, "Jeremy", "jeremy_passive_board.webp", jeremy, [["Abjurer", "Poltergeist"], ["Evocation", "Shepherd"]])
+
+	# --- Ryan's board ---
+	ui.set_skill_tree(SkillTreeData.create_ryan_tree())
+	await process_frame
+	await process_frame
+	var ryan := {
+		"Light Foot": {"left": true, "top": true, "ids": ["quick_step", "ladder_work", "let's_dance"]},
+		"Apothecary": {"left": false, "top": true, "ids": ["stimulant", "pop_rocks", "mad_scientist"]},
+		"Shadow Blade": {"left": true, "top": false, "ids": ["now_you_see_me", "surprise_opener", "eye_scrape"]},
+		"Relentless Blade": {"left": false, "top": false, "ids": ["keep_them_guessing", "from_the_hip", "nimble_assault"]},
+	}
+	_check_board(ui, "Ryan", "ryan_passive_board.webp", ryan, [["Light Foot", "Shadow Blade"], ["Apothecary", "Relentless Blade"]])
+	var sb_lbl: Label = ui._board_view.get_node("Triangle_ShadowBlade/ArchetypeLabel")
+	var rb_lbl: Label = ui._board_view.get_node("Triangle_RelentlessBlade/ArchetypeLabel")
+	_check(sb_lbl.get_global_rect().end.x <= _circle(ui, "Shadow Blade", 0).get_global_rect().position.x,
+		"Shadow Blade's name sits left of its triangle")
+	_check(rb_lbl.get_global_rect().position.x >= _circle(ui, "Relentless Blade", 1).get_global_rect().end.x,
+		"Relentless Blade's name sits right of its triangle")
 
 	# --- A hero without a board keeps the lane table ---
 	ui.set_skill_tree(SkillTreeData.create_stephen_tree())

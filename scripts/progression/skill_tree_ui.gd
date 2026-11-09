@@ -353,6 +353,10 @@ const CORY_RIGHT_X := 1022.0
 ## columns sit where the lower scenes leave room.
 const JEREMY_LEFT_X := 787.0
 const JEREMY_RIGHT_X := 1057.0
+## Ryan's board: the alchemist's bench closes the gap's top right, so his
+## columns sit closer together.
+const RYAN_LEFT_X := 715.0
+const RYAN_RIGHT_X := 935.0
 const PASSIVE_BOARDS := {
 	"Brad": {
 		"texture": "res://assets/textures/ui/brad_passive_board.webp",
@@ -402,6 +406,22 @@ const PASSIVE_BOARDS := {
 			"Evocation": {"anchor": Vector2(JEREMY_RIGHT_X, 355), "label": "above"},
 			"Poltergeist": {"anchor": Vector2(JEREMY_LEFT_X, 552), "label": "below"},
 			"Shepherd": {"anchor": Vector2(JEREMY_RIGHT_X, 552), "label": "below"},
+		},
+	},
+	# Ryan (designer's board, 2026-11-09): TL acrobat throwing shuriken
+	# (Light Foot), TR alchemist at his bench (Apothecary), BL purple shadow
+	# (Shadow Blade), BR twin bloody blades (Relentless Blade).
+	"Ryan": {
+		"texture": "res://assets/textures/ui/ryan_passive_board.webp",
+		"size": Vector2(1774, 887),
+		"info": Rect2(735, 98, 295, 138),
+		"spread": Vector2(55, 42),
+		"node": 52.0,
+		"archetypes": {
+			"Light Foot": {"anchor": Vector2(RYAN_LEFT_X, 372), "label": "above"},
+			"Apothecary": {"anchor": Vector2(RYAN_RIGHT_X, 372), "label": "above"},
+			"Shadow Blade": {"anchor": Vector2(RYAN_LEFT_X, 568), "label": "left"},
+			"Relentless Blade": {"anchor": Vector2(RYAN_RIGHT_X, 568), "label": "right"},
 		},
 	},
 }
@@ -632,8 +652,23 @@ func _build_board_triangle(board: Dictionary, lane: Dictionary, lanes: Array, k:
 	var tsize: Vector2 = title.get_combined_minimum_size()
 	var anchor: Vector2 = off + Vector2(spec["anchor"]) * k
 	var tw: float = maxf(tsize.x, sp.x * 2.0 * k + node_d)
+	var side: String = spec.get("label", "above")
+	if (side == "left" or side == "right") and centres.size() >= 2:
+		# Beside the top pair, on the outer side (a narrow board's gap has no
+		# room under the bottom point).
+		var gap: float = node_d * 0.5 + 6.0
+		var row_y: float = centres[0].y - tsize.y * 0.5
+		if side == "left":
+			title.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			title.position = Vector2(centres[0].x - gap - tsize.x, row_y)
+		else:
+			title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			title.position = Vector2(centres[1].x + gap, row_y)
+		title.size = tsize
+		tri.add_child(title)
+		return
 	var ty: float
-	if spec.get("label", "above") == "below":
+	if side == "below":
 		ty = bottom_edge + 1.0
 	else:
 		ty = (centres[0].y if not centres.is_empty() else anchor.y) - node_d * 0.5 - tsize.y - 2.0
