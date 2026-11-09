@@ -30,6 +30,7 @@ var _tab_bar: HBoxContainer = null
 
 # Stat allocation state (spends the banked level-up pool on PlayerStats)
 var _stat_alloc_panel: PanelContainer = null
+var _stat_alloc_backdrop: Control = null   # the training-ground painting behind it
 var _stat_points_remaining: int = 0
 var _stat_allocations: Dictionary = {}
 var _stat_alloc_btn: Button = null  # "Stat Points: N" in the tab bar
@@ -597,10 +598,53 @@ func _open_stat_allocation() -> void:
 
 	_stat_alloc_panel.add_child(vbox)
 
-	_stat_alloc_panel.anchors_preset = Control.PRESET_CENTER
 	_stat_alloc_panel.custom_minimum_size = Vector2(300, 350)
 
-	add_child(_stat_alloc_panel)
+	# The designer's training-ground painting (2026-11-09) fills the screen
+	# behind the level-up allocation; the box sits in its empty middle.
+	_stat_alloc_backdrop = Control.new()
+	_stat_alloc_backdrop.name = "StatAllocBackdrop"
+	_stat_alloc_backdrop.top_level = true
+	_stat_alloc_backdrop.z_index = 10
+	_stat_alloc_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP   # the panel behind waits
+	add_child(_stat_alloc_backdrop)
+	var board := TextureRect.new()
+	board.name = "AllocBoard"
+	board.texture = load(STAT_ALLOC_BOARD)
+	board.set_anchors_preset(Control.PRESET_FULL_RECT)
+	board.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	board.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	board.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_stat_alloc_backdrop.add_child(board)
+	_stat_alloc_backdrop.add_child(_stat_alloc_panel)
+	_fit_stat_alloc()
+	_fit_stat_alloc.call_deferred()
+	if not get_viewport().size_changed.is_connected(_fit_stat_alloc):
+		get_viewport().size_changed.connect(_fit_stat_alloc)
+
+const STAT_ALLOC_BOARD := "res://assets/textures/ui/stat_allocation_board.webp"
+## The painting's size and its empty middle, in its own pixels: the box goes
+## between the archers and the sword ring.
+const STAT_ALLOC_BOARD_SIZE := Vector2(1774, 887)
+const STAT_ALLOC_BOARD_SPACE := Rect2(500, 175, 730, 570)
+const STAT_ALLOC_SCALE := 1.4   # the box drawn larger on the painting, as far as the space allows
+
+## Cover the screen with the painting and set the allocation box in its
+## empty middle (centred; scaled to the space).
+func _fit_stat_alloc() -> void:
+	if not is_instance_valid(_stat_alloc_backdrop) or not is_instance_valid(_stat_alloc_panel):
+		return
+	var screen: Vector2 = get_viewport().get_visible_rect().size
+	_stat_alloc_backdrop.position = Vector2.ZERO
+	_stat_alloc_backdrop.size = screen
+	var k: float = maxf(screen.x / STAT_ALLOC_BOARD_SIZE.x, screen.y / STAT_ALLOC_BOARD_SIZE.y)
+	var off: Vector2 = (screen - STAT_ALLOC_BOARD_SIZE * k) * 0.5
+	var space := Rect2(off + STAT_ALLOC_BOARD_SPACE.position * k, STAT_ALLOC_BOARD_SPACE.size * k)
+	var need: Vector2 = _stat_alloc_panel.get_combined_minimum_size()
+	_stat_alloc_panel.size = need
+	var f: float = minf(STAT_ALLOC_SCALE, minf(space.size.x / need.x, space.size.y / need.y))
+	_stat_alloc_panel.scale = Vector2(f, f)
+	_stat_alloc_panel.position = space.position + (space.size - need * f) * 0.5
 
 func _stat_base_value(stat_name: String) -> int:
 	## The character's CURRENT value for a stat (before this popup's pending
@@ -709,6 +753,9 @@ func _close_stat_alloc_panel() -> void:
 	if is_instance_valid(_stat_alloc_panel):
 		_stat_alloc_panel.queue_free()
 	_stat_alloc_panel = null
+	if is_instance_valid(_stat_alloc_backdrop):
+		_stat_alloc_backdrop.queue_free()
+	_stat_alloc_backdrop = null
 
 func _scroll_to_current_level() -> void:
 	# Lane view: everything fits on screen — always show from the top.

@@ -293,26 +293,14 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 
 	_alloc_overlay = ColorRect.new()
 	_alloc_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_alloc_overlay.color = Color(0.0, 0.03, 0.02, 1.0)
+	_alloc_overlay.color = Color(0.0, 0.03, 0.02, 0.78)
 	add_child(_alloc_overlay)
-	# The designer's training-ground painting (2026-11-09) fills the screen;
-	# the allocation box sits in its empty middle.
-	var board := TextureRect.new()
-	board.name = "AllocBoard"
-	board.texture = load(ALLOC_BOARD)
-	board.set_anchors_preset(Control.PRESET_FULL_RECT)
-	board.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	board.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	board.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_alloc_overlay.add_child(board)
 
-	var center := Control.new()
-	center.name = "AllocFrame"
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_alloc_overlay.add_child(center)
 
 	var panel := PanelContainer.new()
-	panel.name = "AllocPanel"
 	var style := EmeraldTheme.panel_box(EmeraldTheme.PANEL_BG_SOLID, EmeraldTheme.PALETTE["btn_hover_border"], 2, 8, 22.0)
 	style.content_margin_left = 26
 	style.content_margin_right = 26
@@ -349,9 +337,7 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 	var rows_scroll := ScrollContainer.new()
 	rows_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	var vp_h := get_viewport_rect().size.y
-	# Tall enough for the six stat rows (no empty band under them), less on a
-	# short window.
-	rows_scroll.custom_minimum_size = Vector2(420, clampf(vp_h - 340.0, 180.0, 6.0 * 44.0))
+	rows_scroll.custom_minimum_size = Vector2(420, clampf(vp_h - 340.0, 180.0, 420.0))
 	vb.add_child(rows_scroll)
 	var rows_vb := VBoxContainer.new()
 	rows_vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -458,8 +444,6 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 	btn_row.add_child(_alloc_confirm_btn)
 
 	_alloc_refresh()
-	_alloc_overlay.resized.connect(_fit_alloc_panel)
-	_fit_alloc_panel.call_deferred()
 
 ## The large note on a stat (ALLOC_NOTE_FONT text in a panel beside the
 ## rows), opened by its name button; another click, Esc, or leaving the
@@ -566,34 +550,6 @@ func _tutorial_box_icon(checked: bool) -> ImageTexture:
 					if q.x >= 2 and q.y >= 2 and q.x < N - 2 and q.y < N - 2:
 						img.set_pixel(q.x, q.y, TUTORIAL_BOX_YELLOW)
 	return ImageTexture.create_from_image(img)
-
-const ALLOC_BOARD := "res://assets/textures/ui/stat_allocation_board.webp"
-## The painting's empty middle, in its own pixels (1774x887): the box goes
-## here, between the archers and the sword ring.
-const ALLOC_BOARD_SIZE := Vector2(1774, 887)
-const ALLOC_BOARD_SPACE := Rect2(500, 175, 730, 570)
-
-## Fit the allocation box into the painting's empty middle as the painting
-## is drawn now (it covers the screen, so it may be cropped): centred in it,
-## and scaled down if the box is taller or wider than the space.
-func _fit_alloc_panel() -> void:
-	if _alloc_overlay == null or not is_instance_valid(_alloc_overlay):
-		return
-	var frame: Control = _alloc_overlay.get_node_or_null("AllocFrame")
-	var panel: Control = frame.get_node_or_null("AllocPanel") if frame else null
-	if panel == null:
-		return
-	var screen: Vector2 = _alloc_overlay.size
-	var k: float = maxf(screen.x / ALLOC_BOARD_SIZE.x, screen.y / ALLOC_BOARD_SIZE.y)
-	var off: Vector2 = (screen - ALLOC_BOARD_SIZE * k) * 0.5
-	var space := Rect2(off + ALLOC_BOARD_SPACE.position * k, ALLOC_BOARD_SPACE.size * k)
-	frame.position = space.position
-	frame.size = space.size
-	var need: Vector2 = panel.get_combined_minimum_size()
-	panel.size = need
-	var f: float = minf(1.0, minf(space.size.x / need.x, space.size.y / need.y))
-	panel.scale = Vector2(f, f)
-	panel.position = (space.size - need * f) * 0.5
 
 func _alloc_tutorial_on() -> bool:
 	return _alloc_tutorial != null and is_instance_valid(_alloc_tutorial) and _alloc_tutorial.button_pressed

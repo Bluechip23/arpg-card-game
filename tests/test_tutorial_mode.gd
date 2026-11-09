@@ -49,14 +49,6 @@ func _test_allocation_box() -> void:
 	cs._show_stat_allocation(c, func(): fired[0] = true)
 	_check(cs._alloc_tutorial != null, "the allocation screen has a Tutorial box")
 	_check(cs._alloc_tutorial.get_theme_stylebox("normal") is StyleBoxEmpty, "the box sits on no grey panel, just its yellow outline")
-	await process_frame
-	await process_frame
-	var frame: Control = cs._alloc_overlay.get_node_or_null("AllocFrame")
-	var apanel: Control = frame.get_node_or_null("AllocPanel") if frame else null
-	_check(cs._alloc_overlay.get_node_or_null("AllocBoard") != null, "the training-ground painting fills the screen")
-	if apanel:
-		var r := Rect2(apanel.global_position, apanel.size * apanel.scale)
-		_check(frame.get_global_rect().grow(1.0).encloses(r), "the box sits in the painting's empty middle")
 	_check(cs._alloc_confirm_btn.disabled, "Confirm waits for all 8 points while the box is clear")
 	cs._alloc_tutorial.button_pressed = true
 	_check(not cs._alloc_confirm_btn.disabled, "ticked, Confirm goes through without spending")
