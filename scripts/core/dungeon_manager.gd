@@ -304,6 +304,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		interior_kind = "cave"
 	elif interior_id.begins_with("building"):
 		interior_kind = "building"
+	elif interior_id.begins_with("library"):
+		interior_kind = "library"  # the Ruined Library (Act 1, Part 2: Cemetery / Library)
 	elif interior_id.begins_with("sewer"):
 		interior_kind = "sewer"
 	elif interior_id.begins_with("forest"):
@@ -367,6 +369,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 			_generate_cave_layout()
 		"building":
 			_generate_building_layout()
+		"library":
+			_generate_library_layout()
 		"sewer":
 			_generate_sewer_layout()
 		"forest":
@@ -405,6 +409,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		_place_cave_webs()  # spiked spiderwebs strung across the tunnels
 	if interior_kind == "building":
 		_place_wall_dart_shooters()  # dart shooters set into the walls
+	if interior_kind == "library":
+		_place_library_desks()  # the reading rooms' desks (obstacles, reserved first)
 	if interior_kind == "":
 		_place_waypoints()
 		_place_sites()
@@ -518,6 +524,13 @@ func _set_world_size() -> void:
 		GRID_H = 26 + world_level
 		player_start = Vector2i(3, GRID_H / 2)
 		return
+	if interior_kind == "library":
+		# The Ruined Library: a nave west to east, wings of stacks and reading
+		# rooms either side, the archive across its east end. Entered from the west.
+		GRID_W = 50 + world_level * 2
+		GRID_H = 32 + world_level
+		player_start = Vector2i(2, GRID_H / 2)
+		return
 	if interior_kind == "building":
 		GRID_W = 28 + world_level
 		GRID_H = 18 + world_level / 2
@@ -604,6 +617,8 @@ func get_palette() -> Dictionary:
 		return _get_graveyard_palette()
 	if interior_kind == "building" or interior_kind == "dojo":
 		return BUILDING_PALETTE
+	if interior_kind == "library":
+		return _get_library_palette()
 	if interior_kind == "sewer" or interior_kind == "ratking":
 		return SEWER_PALETTE
 	if interior_kind == "forest":
@@ -629,7 +644,7 @@ func floor_texture_path() -> String:
 			return GROUND_TEX + "/undead_floor.png"   # the designer's barrow land (2026-10-29)
 		"sewer", "ratking":
 			return CP_TEX + "/floor_glowing_cave.png"  # wet stone (glowing-cave pack; the plain cave fill went black under the sewer's dim light)
-		"building", "dojo":
+		"building", "dojo", "library":
 			return CP_TEX + "/floor_undead.png"  # grey flagstones (undead pack's cracked stone)
 		"cave":
 			return GROUND_TEX + ("/cave_floor_glow.png" if cave_glows() else "/cave_floor.png")   # the designer's (2026-10-29)
@@ -664,7 +679,7 @@ func trail_texture_path() -> String:
 	match interior_kind:
 		"forest":
 			return GROUND_TEX + "/forest_dirt.png"   # the designer's cobbled dirt (2026-10-29)
-		"cave", "sewer", "building", "ratking", "hellgate", "labyrinth":
+		"cave", "sewer", "building", "library", "ratking", "hellgate", "labyrinth":
 			return CP_TEX + "/floor_dirt_forest.png"  # trodden dark earth
 		"boneyard", "closet", "thanatoshall":
 			return GROUND_TEX + "/undead_cobble.png"   # the designer's barrow land (2026-10-29)
@@ -690,7 +705,7 @@ func wall_texture_path() -> String:
 			return GROUND_TEX + "/undead_wall.png"   # the designer's barrow land (2026-10-29)
 		"sewer", "ratking":
 			return CP_TEX + "/wall_cave.png"  # dark cave rock
-		"building":
+		"building", "library":
 			return CP_TEX + "/wall_undead.png"  # grey barrow stone
 		"cave":
 			return GROUND_TEX + ("/cave_wall_glow.png" if cave_glows() else "/cave_wall.png")   # the designer's (2026-10-29)
@@ -754,6 +769,8 @@ func _prop_biome() -> String:
 			return "cave"
 		"building":
 			return "goods"
+		"library":
+			return "library"
 		"sewer", "ratking":
 			return "sewer"
 		"boneyard", "closet", "thanatoshall":
@@ -820,6 +837,11 @@ const PROP_ROLES := {
 		"crystal": ["winter_crystal"], "pebble": ["winter_pebble"], "rock": ["wallrock_snow"], "bones": ["undead_bones"],
 		"wallrock": ["wallrock_snow"]},
 	"goods": {"crate": ["goods_crate", "goods_sack"], "barrel": ["goods_barrel", "goods_rack", "goods_table"]},
+	# The Ruined Library: the designer's tall case of books and scrolls (no
+	# Craftpix pack draws a bookcase) for its stacks and walls, the barrow
+	# pack's bones and the cave's cobwebs for its abandonment.
+	"library": {"shelf": ["town_scroll_case"], "bones": ["undead_bones"], "web": ["cave_web"],
+		"rubble": ["undead_rock"]},
 	"sewer": {"bones": ["undead_bones"], "reeds": ["forest_reeds"], "rubble": ["cave_pebble", "cave_rock"],
 		"wallrock": ["wallrock_dark"]},
 }
@@ -927,6 +949,8 @@ func get_location_name() -> String:
 		return ("Burning Cave %d" if hell_cave() else "Cave %d") % (int(interior_id.get_slice("_", 1)) + 1)
 	if interior_kind == "building":
 		return "Building %d" % (int(interior_id.get_slice("_", 1)) + 1)
+	if interior_kind == "library":
+		return "Ruined Library"
 	if interior_kind == "sewer":
 		return "Sewers"
 	if interior_kind == "forest":
@@ -2750,6 +2774,327 @@ func _generate_building_layout() -> void:
 				trail[x][mid_z + dz] = true
 
 # ============================================
+# THE RUINED LIBRARY (Act 1, Part 2 "Cemetery / Library" — STORY.md §4;
+# interior_kind "library", id "library_0"; entered from World 1's overworld,
+# in the field room nearest the Old Graveyard). An abandoned library gone to
+# the dead. A nave runs west to east from the door, its walls lined with
+# bookcases; either side of it a wing of three bays — stacks (rows of cases
+# with narrow aisles between) and a reading room (desks, their candles still
+# burning) — opening off the nave and onto each other; across the east end
+# the archive, the deepest chamber, behind an arch: ruined pillars, the
+# runner leading to the dais where the Spirit Collectors keep what they have
+# gathered. Its story beats are [TBD] (STORY.md).
+# Art: the undead pack's flagstones and grey stone, as buildings; the
+# designer's tall case of books and scrolls (town_scroll_case — no Craftpix
+# pack draws a bookcase) for every case; the designer's desk with its candle,
+# quill and papers (town_contract_desk) for the reading desks; the barrow
+# pack's ruined pillars, stones and bones and the cave's cobwebs for the ruin.
+# ============================================
+const LIB_ARCHIVE_W := 12   # the archive's floor, columns at the east end
+const LIB_WING_X0 := 7      # the wings' first column (the vestibule is west of it)
+
+## Wall tiles that are free-standing bookcases (the stacks' rows).
+var library_shelf_tiles: Dictionary = {}
+## The archive's pillars (wall tiles under a ruined pillar).
+var library_pillars: Array = []
+## The reading desks (obstacle tiles).
+var library_desks: Array = []
+## Where the archive's master waits (east end of the archive, on the runner).
+var library_dais := Vector2i(-1, -1)
+
+var _library_palette: Dictionary = {}
+
+func _get_library_palette() -> Dictionary:
+	## The buildings' warm stone, dimmer: the candles and sconces do the work.
+	if _library_palette.is_empty():
+		_library_palette = BUILDING_PALETTE.duplicate(true)
+		_library_palette["name"] = "Ruined Library"
+		_library_palette["ambient"] = Color(0.34, 0.31, 0.28)
+		_library_palette["sun"] = Color(0.85, 0.80, 0.72)
+		_library_palette["sun_energy"] = 0.45
+		_library_palette["torch"] = Color(1.0, 0.70, 0.38)
+	return _library_palette
+
+func _generate_library_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	library_shelf_tiles.clear()
+	library_pillars.clear()
+	library_desks.clear()
+	var mid := GRID_H / 2
+	var arch_x0 := GRID_W - 1 - LIB_ARCHIVE_W   # the archive's first column
+	var wing_x1 := arch_x0 - 2                   # the wings' and nave's last column (the archive wall at arch_x0 - 1)
+	# The nave, door to archive, and the two wings either side of its walls.
+	_carve_rect(Rect2i(1, mid - 1, wing_x1, 3))
+	_carve_rect(Rect2i(LIB_WING_X0, 1, wing_x1 - LIB_WING_X0 + 1, mid - 3))
+	_carve_rect(Rect2i(LIB_WING_X0, mid + 3, wing_x1 - LIB_WING_X0 + 1, GRID_H - 4 - mid))
+	rooms.append({"rect": Rect2i(1, mid - 1, 5, 3), "kind": "start", "elev": 0})
+	rooms.append({"rect": Rect2i(LIB_WING_X0, mid - 1, wing_x1 - LIB_WING_X0 + 1, 3), "kind": "hall", "elev": 0, "lib": "nave"})
+	# Each wing: three bays of uneven width, the widest a reading room.
+	for north in [true, false]:
+		var z0: int = 1 if north else mid + 3
+		var z1: int = mid - 3 if north else GRID_H - 2
+		var near: int = z1 if north else z0           # the row against the nave wall
+		var far: int = z0 if north else z1
+		var wall_row: int = mid - 2 if north else mid + 2
+		var total := wing_x1 - LIB_WING_X0 + 1 - 2    # floor columns once two partitions stand
+		var w0 := _rng.randi_range(8, 11)
+		var w1 := _rng.randi_range(8, 11)
+		var widths := [w0, w1, total - w0 - w1]
+		var reading := 0
+		for i in range(3):
+			if widths[i] > widths[reading]:
+				reading = i
+		var x := LIB_WING_X0
+		for i in range(3):
+			var w: int = widths[i]
+			var bay := Rect2i(x, z0, w, z1 - z0 + 1)
+			# A doorway (2 wide) through the nave wall into the bay.
+			var door := _rng.randi_range(x + 1, x + w - 3)
+			grid[door][wall_row] = Tile.FLOOR
+			grid[door + 1][wall_row] = Tile.FLOOR
+			if i < 2:
+				# The partition to the next bay, open on the two rows by the
+				# nave and the two at the far wall: the bays loop.
+				var px := x + w
+				for z in range(z0, z1 + 1):
+					var by_nave: bool = absi(z - near) <= 1
+					var by_far: bool = absi(z - far) <= 1
+					if not by_nave and not by_far:
+						grid[px][z] = Tile.WALL
+			var lib := "reading" if i == reading else "stacks"
+			if lib == "stacks":
+				_library_stack_rows(bay, near, far)
+			rooms.append({"rect": bay, "kind": "room", "elev": 0, "lib": lib, "near": near, "far": far})
+			x += w + 1
+	# The archive: through an arch at the nave's end, the full depth of the
+	# building but its top and bottom rows; two pairs of ruined pillars, the
+	# dais at the far end.
+	for dz in range(-1, 2):
+		grid[arch_x0 - 1][mid + dz] = Tile.FLOOR
+	var archive := Rect2i(arch_x0, 2, LIB_ARCHIVE_W, GRID_H - 4)
+	_carve_rect(archive)
+	for px in [arch_x0 + 3, arch_x0 + 7]:
+		for pz in [mid - 5, mid + 5]:
+			grid[px][pz] = Tile.WALL
+			library_pillars.append(Vector2i(px, pz))
+	# Two short runs of cases across its north and south ends.
+	for zz in [mid - 10, mid + 10]:
+		if zz <= archive.position.y + 1 or zz >= archive.end.y - 2:
+			continue
+		for xx in range(arch_x0 + 2, arch_x0 + 10):
+			if xx == arch_x0 + 5 or xx == arch_x0 + 6:
+				continue
+			grid[xx][zz] = Tile.WALL
+			library_shelf_tiles[Vector2i(xx, zz)] = true
+	library_dais = Vector2i(GRID_W - 4, mid)
+	rooms.append({"rect": archive, "kind": "deep", "elev": 0, "lib": "archive"})
+	# The worn runner down the nave, through the arch, up to the dais.
+	for xx in range(1, library_dais.x + 1):
+		for dz in range(-1, 2):
+			if grid[xx][mid + dz] == Tile.FLOOR:
+				trail[xx][mid + dz] = true
+	_enforce_border_walls()
+
+## The stacks: rows of bookcases (wall tiles) across a bay, one case deep,
+## two-tile aisles between them; a walkway at either end of every row and a
+## gap through the middle of a long one. The two rows by the nave stay clear.
+func _library_stack_rows(bay: Rect2i, near: int, far: int) -> void:
+	var step := 1 if near > far else -1
+	var z := far + 2 * step
+	while (z + 3 * step - near) * step <= 0:
+		var xa := bay.position.x + 1
+		var xb := bay.end.x - 2
+		var gap_a := -1
+		if xb - xa + 1 >= 8:
+			gap_a = (xa + xb) / 2
+		for xx in range(xa, xb + 1):
+			if gap_a >= 0 and (xx == gap_a or xx == gap_a + 1):
+				continue
+			grid[xx][z] = Tile.WALL
+			library_shelf_tiles[Vector2i(xx, z)] = true
+		z += 3 * step
+
+## The reading rooms' desks, in rows away from the nave, two tiles apart
+## (each an obstacle; one that would cut a path is left out), and the
+## archive's lectern behind the dais.
+func _place_library_desks() -> void:
+	for room in rooms:
+		if room.get("lib", "") != "reading":
+			continue
+		var bay: Rect2i = room["rect"]
+		var near: int = room["near"]
+		var far: int = room["far"]
+		var step := 1 if near > far else -1
+		var z := far + 2 * step
+		while (z + 3 * step - near) * step <= 0:
+			for x in range(bay.position.x + 2, bay.end.x - 2, 3):
+				_library_desk(Vector2i(x, z))
+			z += 3 * step
+	# A desk at the near end of every stack, its candle lighting the aisles.
+	for room in rooms:
+		if room.get("lib", "") != "stacks":
+			continue
+		var bay: Rect2i = room["rect"]
+		var near: int = room["near"]
+		var far: int = room["far"]
+		var into := -1 if near > far else 1
+		_library_desk(Vector2i(bay.get_center().x, near + 2 * into))
+	_library_desk(library_dais + Vector2i(2, 0))
+
+func _library_desk(c: Vector2i) -> void:
+	if _reserved.has(c) or not _claim_obstacle(c):
+		return
+	library_desks.append(c)
+	_reserved[c] = true
+
+## The library's dwellers (STORY.md 5.4, Graveyard): screechers heard in
+## the dark between the cases, crypt crawlers webbing the stacks, a zombie
+## at the near desks; past the middle the consumed and the spirit
+## collectors' own; in the archive two Spirit Collectors at the dais (every
+## Release Soul strengthens each living collector) with the Consumed and a
+## crawler. Levels 8–10, the Old Graveyard's band.
+func _define_library_spawn_zones() -> void:
+	var shallow := [Enemy.EnemyType.SCREECHER, Enemy.EnemyType.SCREECHER,
+		Enemy.EnemyType.CRYPT_CRAWLER, Enemy.EnemyType.ZOMBIE]
+	var deeper := [Enemy.EnemyType.CONSUMED, Enemy.EnemyType.CRYPT_CRAWLER,
+		Enemy.EnemyType.SCREECHER, Enemy.EnemyType.SPIRIT_COLLECTOR]
+	for room in rooms:
+		var rect: Rect2i = room["rect"]
+		var kind: String = room["kind"]
+		var points: Array = []
+		var types: Array = []
+		if kind == "start":
+			continue
+		elif kind == "deep":
+			var want := [
+				[library_dais + Vector2i(0, -2), Enemy.EnemyType.SPIRIT_COLLECTOR],
+				[library_dais + Vector2i(0, 2), Enemy.EnemyType.SPIRIT_COLLECTOR],
+				[library_dais + Vector2i(-4, 0), Enemy.EnemyType.CONSUMED],
+				[library_dais + Vector2i(-5, -4), Enemy.EnemyType.CRYPT_CRAWLER],
+				[library_dais + Vector2i(-5, 4), Enemy.EnemyType.SCREECHER],
+			]
+			for w in want:
+				var c := _library_free_cell(w[0], points)
+				if c.x >= 0:
+					points.append(c)
+					types.append(w[1])
+		elif kind == "hall":
+			# Two screechers drifting down the nave, half way along.
+			for dx in [0, 4]:
+				var c := _library_free_cell(rect.get_center() + Vector2i(dx, 0), points)
+				if c.x >= 0:
+					points.append(c)
+					types.append(Enemy.EnemyType.SCREECHER)
+		else:
+			if _rng.randf() >= 0.85:
+				continue
+			var depth := float(rect.get_center().x) / float(GRID_W)
+			var pool: Array = deeper if depth > 0.45 else shallow
+			var n := clampi(2 + rect.get_area() / 60, 2, 4)
+			for _i in range(n):
+				var c := _pick_free_cell(rect, points)
+				if c.x < 0:
+					continue
+				points.append(c)
+				types.append(pool[_rng.randi_range(0, pool.size() - 1)])
+		if points.is_empty():
+			continue
+		spawn_zones.append({"trigger_rect": rect.grow(1), "spawn_points": points, "enemy_types": types, "spawned": false})
+	for z in spawn_zones:
+		for p in z["spawn_points"]:
+			_reserved[p] = true
+	print("[DUNGEON] Defined %d library spawn zones" % spawn_zones.size())
+
+## `c` if it is open floor nobody has taken, else the nearest such tile.
+func _library_free_cell(c: Vector2i, avoid: Array) -> Vector2i:
+	for r in range(0, 4):
+		for dx in range(-r, r + 1):
+			for dz in range(-r, r + 1):
+				if maxi(absi(dx), absi(dz)) != r:
+					continue
+				var n := c + Vector2i(dx, dz)
+				if is_floor(n) and not _reserved.has(n) and not is_obstacle(n) and not (n in avoid):
+					return n
+	return Vector2i(-1, -1)
+
+func _build_library_decorations() -> void:
+	var pal := get_palette()
+	var shelves: Array = []
+	var webs: Array = []
+	var bones: Array = []
+	var rubble: Array = []
+	for x in range(0, GRID_W):
+		for z in range(0, GRID_H - 1):
+			var c := Vector2i(x, z)
+			if grid[x][z] == Tile.WALL:
+				if library_pillars.has(c):
+					continue
+				# Every free-standing case, and a case against every wall
+				# that faces the camera across a floor (a few fallen: a gap
+				# with a stone or a web in it).
+				var stack := library_shelf_tiles.has(c)
+				if not stack and not _is_floor_at(x, z + 1):
+					continue
+				var n := _tile_noise(x, z, 977)
+				if not stack and n < 0.1:
+					rubble.append({"pos": Vector3(x + 0.5, 0, z + 0.9), "scale": 0.8, "color": Color.WHITE})
+					continue
+				shelves.append({"pos": Vector3(x + 0.5, 0, z + 0.8), "scale": 0.8,
+						"color": Color(1, 1, 1).lerp(Color(0.72, 0.66, 0.6), _tile_noise(x, z, 979))})
+				continue
+			if _reserved.has(c) or trail[x][z] or is_obstacle(c):
+				continue
+			var m := _tile_noise(x, z, 983)
+			var walls := 0
+			for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, -1)]:
+				if not _is_floor_at(x + d.x, z + d.y):
+					walls += 1
+			if walls >= 2 and m < 0.45:
+				webs.append({"pos": Vector3(x + 0.5, 0, z + 0.4), "scale": 0.75, "color": Color.WHITE})
+			elif m > 0.96:
+				bones.append({"pos": Vector3(x + 0.5, 0, z + 0.5), "scale": 0.7, "color": Color.WHITE})
+	_add_prop_decos(shelves, "shelf")
+	_add_prop_decos(webs, "web")
+	_add_prop_decos(bones, "bones")
+	_add_prop_decos(rubble, "rubble")
+	# The archive's pillars: the barrow pack's ruined column.
+	for c in library_pillars:
+		var pillar := _make_prop_sprite("undead_ruin", 1.0, 0)
+		if pillar:
+			pillar.position = grid_manager.grid_to_world(c) + Vector3(0, CameraView.SPRITE_LIFT, 0.3)
+			_visuals_root.add_child(pillar)
+	# The reading desks; most of their candles still burn.
+	var candles := 0
+	for c in library_desks:
+		var desk := _make_prop_sprite("town_contract_desk", 0.85)
+		if desk == null:
+			continue
+		desk.position = grid_manager.grid_to_world(c) + Vector3(0, CameraView.SPRITE_LIFT, 0.3)
+		_visuals_root.add_child(desk)
+		if _tile_noise(c.x, c.y, 991) < 0.85 or c == library_dais + Vector2i(2, 0):
+			var flame := TorchFlicker.new()
+			flame.light_color = pal.get("torch", Color(1.0, 0.7, 0.4))
+			flame.light_energy = 1.5
+			flame.omni_range = 5.0
+			flame.omni_attenuation = 2.0
+			flame.shadow_enabled = false
+			flame.position = desk.position + Vector3(-0.3, 0.9, 0.1)
+			_visuals_root.add_child(flame)
+			candles += 1
+	# No wall sconces: the buildings' and sewers' are modelled brackets (no
+	# pack draws a torch), so the light here is the desks' painted candles.
+	# A cold glow over the dais, where the collected souls are kept.
+	var glow := OmniLight3D.new()
+	glow.light_color = Color(0.55, 0.85, 1.0)
+	glow.light_energy = 1.2
+	glow.omni_range = 5.5
+	glow.position = grid_manager.grid_to_world(library_dais) + Vector3(0, 1.4, 0)
+	_visuals_root.add_child(glow)
+	print("[DUNGEON] Library dressed: %d cases, %d desks (%d candles lit), %d pillars, %d webs" % [
+		shelves.size(), library_desks.size(), candles, library_pillars.size(), webs.size()])
+
+# ============================================
 # SHARED CARVING HELPERS
 # ============================================
 
@@ -2828,8 +3173,8 @@ func _generate_elevation() -> void:
 			col.append(0)
 		elevation.append(col)
 
-	if interior_kind == "building" or interior_kind == "dojo":
-		return  # Buildings and the dojo are flat inside
+	if interior_kind == "building" or interior_kind == "dojo" or interior_kind == "library":
+		return  # Buildings, the library and the dojo are flat inside
 	if interior_kind == "sewer":
 		return  # Sewers are flat; channels are carved into the floor, not raised
 	if interior_kind == "boneyard" or interior_kind == "hellgate" or interior_kind == "labyrinth" \
@@ -3408,7 +3753,7 @@ func _sheet_image(path: String) -> Image:
 ## bushes (the way the packs' fields and forests read). Caves, sewers, the
 ## hellscape and the barrows keep their packs' rock and vein masses.
 func _natural_boundary() -> bool:
-	if interior_kind in ["cave", "sewer", "building", "dojo", "graveyard", "ratking", "boneyard", "hellgate", "labyrinth"]:
+	if interior_kind in ["cave", "sewer", "building", "library", "dojo", "graveyard", "ratking", "boneyard", "hellgate", "labyrinth"]:
 		return false
 	if interior_kind == "forest":
 		return true
@@ -3429,7 +3774,7 @@ func _build_walls() -> void:
 	## than rooms cut into a void. Man-made interiors keep their crisp box
 	## walls.
 	var pal = get_palette()
-	var is_building = interior_kind == "building" or interior_kind == "dojo"
+	var is_building = interior_kind in ["building", "dojo", "library"]
 	if not is_building:
 		if _natural_boundary():
 			_build_boundary_props()
@@ -3814,7 +4159,7 @@ func _build_boundary_props() -> void:
 ## covering the spaces that are unreachable"; the designs come later).
 ## A building's walls and roof cover its footprint already; the forest
 ## trail's is filled with woods (_build_forest_entrance).
-const SITE_BLOCK_KINDS := ["cave", "sewer", "mountains", "graveyard", "closet"]
+const SITE_BLOCK_KINDS := ["cave", "sewer", "mountains", "graveyard", "closet", "library"]
 
 ## Every block-kind site's footprint drawn as the land's cliff: rock (or
 ## earth) on top, the cliff face along its south edge, the entrance art on
@@ -4072,6 +4417,9 @@ func _build_decorations() -> void:
 		return
 	if interior_kind == "dojo":
 		return  # bare boards: the dummies are the furniture
+	if interior_kind == "library":
+		_build_library_decorations()
+		return
 	if interior_kind == "ratking":
 		_build_rat_king_decorations()
 		return
@@ -5805,6 +6153,7 @@ func _place_sites() -> void:
 	_place_mountain_site(candidates)
 	_place_closet_site(candidates)
 	_place_hidden_graveyard(candidates)
+	_place_library_site(candidates)
 	print("[DUNGEON] Placed %d enterable sites" % site_nodes.size())
 
 ## The Mountain Pass (Act 1, Mountains habitat; 2026-11-05): World 1's
@@ -5883,6 +6232,44 @@ func _place_hidden_graveyard(candidates: Array) -> void:
 	_create_site("graveyard", "graveyard_0", "Old Graveyard", footprint, entrance, fx, fz, fp_w, fp_d)
 	var site: Dictionary = site_nodes[site_nodes.size() - 1]
 	site["hidden"] = not _opened_chests_ref.get(_site_found_key("graveyard_0"), false)
+
+## The Ruined Library (Act 1, Part 2: Cemetery / Library): World 1's
+## library, in the free field room nearest the Old Graveyard — the same part
+## of the story, the same corner of the map. Picked without the layout's
+## dice, after every other site, so the rest of the world keeps its layout.
+func _place_library_site(candidates: Array) -> void:
+	if world_level != 1 or interior_kind != "":
+		return
+	var gy := get_site_by_id("graveyard_0")
+	var anchor: Vector2i = site_nodes[gy]["grid_pos"] if gy >= 0 else Vector2i(GRID_W - 1, 0)
+	# Any flat field room the ruin fits in (a smaller one than the other
+	# sites need: the world's big rooms are all taken by then).
+	var order: Array = []
+	for room_idx in range(rooms.size()):
+		var r: Dictionary = rooms[room_idx]
+		if r["kind"] == "field" and r["elev"] == 0 and r["rect"].size.x >= 5 and r["rect"].size.y >= 5:
+			order.append(room_idx)
+	order.sort_custom(func(a, b):
+		var ca: Vector2i = rooms[a]["rect"].get_center()
+		var cb: Vector2i = rooms[b]["rect"].get_center()
+		return absi(ca.x - anchor.x) + absi(ca.y - anchor.y) < absi(cb.x - anchor.x) + absi(cb.y - anchor.y))
+	for room_idx in order:
+		var rect: Rect2i = rooms[room_idx]["rect"]
+		var fp_w := 3
+		var fp_d := 3
+		var fx = clampi(rect.get_center().x - fp_w / 2, rect.position.x + 1, rect.end.x - fp_w - 1)
+		var fz = rect.position.y + 1
+		var footprint: Array = []
+		for x in range(fx, fx + fp_w):
+			for z in range(fz, fz + fp_d):
+				footprint.append(Vector2i(x, z))
+		var entrance = Vector2i(fx + fp_w / 2, fz + fp_d)
+		if not is_floor(entrance) or _reserved.has(entrance) or not _try_block_footprint(footprint):
+			continue
+		candidates.erase(room_idx)
+		rooms[room_idx]["kind"] = "site"
+		_create_site("library", "library_0", "Ruined Library", footprint, entrance, fx, fz, fp_w, fp_d)
+		return
 
 func _site_found_key(site_id: String) -> String:
 	return "world_%d_site_%s_found" % [world_level, site_id]
@@ -5989,6 +6376,8 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 			_build_mountain_entrance(site_root, fp_w, fp_d)
 		"closet":
 			_build_closet_entrance(site_root, fp_w, fp_d)
+		"library":
+			_build_library_entrance(site_root, fp_w, fp_d)
 		_:
 			_build_cave_entrance(site_root, fp_w, fp_d)
 	# Its walls, pillars and lintels stay under the sprites, so the player at
@@ -6166,6 +6555,29 @@ func _build_graveyard_gate(root: Node3D, fp_w: int, fp_d: int) -> void:
 		var gx := -fp_w * 0.5 + 0.3 + k * (fp_w - 0.6) / 2.0
 		grave.position = Vector3(gx, CameraView.SPRITE_LIFT, -fp_d / 2.0 + 0.3)
 		root.add_child(grave)
+
+func _build_library_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
+	## The Ruined Library's door: the barrow pack's broken arch on the
+	## block's face, the pack's dark stone archway in it, a fallen column to
+	## one side and candlelight leaking out.
+	var arch := _make_prop_sprite("undead_ruin", 1.35, 1)
+	if arch:
+		arch.position = Vector3(0, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.45)
+		root.add_child(arch)
+	var door := _make_prop_sprite("gate_small", 1.1)
+	if door:
+		door.position = Vector3(0, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.2)
+		root.add_child(door)
+	var fallen := _make_prop_sprite("undead_ruin", 0.6, 3)
+	if fallen:
+		fallen.position = Vector3(fp_w * 0.42, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.1)
+		root.add_child(fallen)
+	var glow = OmniLight3D.new()
+	glow.light_color = Color(1.0, 0.72, 0.4)
+	glow.light_energy = 0.8
+	glow.omni_range = 3.0
+	glow.position = Vector3(0, 0.5, fp_d / 2.0)
+	root.add_child(glow)
 
 func _build_cave_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 	## A cave mouth built from the cave pack: big rock clusters piled into a
@@ -6683,6 +7095,10 @@ func _define_spawn_zones() -> void:
 		_define_graveyard_spawn_zones()
 		return
 
+	if interior_kind == "library":
+		_define_library_spawn_zones()
+		return
+
 	# Enemy tiers scale with world level
 	var base_melee = Enemy.EnemyType.WERERAT if world_level <= 2 else Enemy.EnemyType.SKELETON
 	var mid_melee = Enemy.EnemyType.SKELETON if world_level <= 2 else Enemy.EnemyType.ARMORED_TROLL
@@ -6794,15 +7210,25 @@ func _pick_enemy_type(depth: float, kind: String, base_melee, mid_melee, heavy, 
 
 func _define_graveyard_spawn_zones() -> void:
 	## The dead of the Old Graveyard: shamblers near the gate, the hunters of
-	## the night deeper in, and a Necromancer holding the deepest crypt.
+	## the night deeper in (the Consumed among them), a Grave Titan in the
+	## last crypt before the deepest, and a Necromancer holding the deepest.
 	var shallow := [Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.TREASURE_BUNNY, Enemy.EnemyType.SKELETON, Enemy.EnemyType.SCREECHER]
-	var deep := [Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.VAMPIRE, Enemy.EnemyType.CRYPT_CRAWLER, Enemy.EnemyType.ZOMBIE]
-	for room in rooms:
+	var deep := [Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.VAMPIRE, Enemy.EnemyType.CRYPT_CRAWLER, Enemy.EnemyType.ZOMBIE,
+		Enemy.EnemyType.CONSUMED]
+	# The Grave Titan's crypt: the easternmost chamber short of the deepest
+	# (band 12, the top of the graveyard's, beside the Boneyard's dragon).
+	var titan_room := -1
+	for i in range(rooms.size()):
+		if rooms[i]["kind"] == "chamber" and (titan_room < 0
+				or (rooms[i]["rect"] as Rect2i).get_center().x > (rooms[titan_room]["rect"] as Rect2i).get_center().x):
+			titan_room = i
+	for ri in range(rooms.size()):
+		var room: Dictionary = rooms[ri]
 		var rect: Rect2i = room["rect"]
 		var kind: String = room["kind"]
 		if kind in ["start", "exit"]:
 			continue
-		if kind != "deep" and _rng.randf() >= 0.85:
+		if kind != "deep" and _rng.randf() >= 0.85 and ri != titan_room:
 			continue
 		var depth = float(rect.get_center().x) / float(GRID_W)
 		var count = clampi(2 + rect.get_area() / 36, 2, 5)
@@ -6817,6 +7243,8 @@ func _define_graveyard_spawn_zones() -> void:
 			types.append(pool[_rng.randi_range(0, pool.size() - 1)])
 		if kind == "deep" and types.size() > 0:
 			types[0] = Enemy.EnemyType.NECROMANCER
+		if ri == titan_room and types.size() > 0:
+			types[0] = Enemy.EnemyType.GRAVE_TITAN
 		if points.is_empty():
 			continue
 		spawn_zones.append({
@@ -6825,10 +7253,35 @@ func _define_graveyard_spawn_zones() -> void:
 			"enemy_types": types,
 			"spawned": false,
 		})
+	_ensure_zone_types([Enemy.EnemyType.CONSUMED, Enemy.EnemyType.CRYPT_CRAWLER, Enemy.EnemyType.WEREWOLF, Enemy.EnemyType.VAMPIRE],
+		[Enemy.EnemyType.ZOMBIE, Enemy.EnemyType.SCREECHER])
 	for zone in spawn_zones:
 		for p in zone["spawn_points"]:
 			_reserved[p] = true
 	print("[DUNGEON] Defined %d graveyard spawn zones" % spawn_zones.size())
+
+## Every type in `want` is met on this map: one missing from every zone
+## takes the slot of a `from` type that appears more than once (the latest
+## zone first, so the deeper rooms carry it). No dice: the tables stay as
+## the layout seed made them otherwise.
+func _ensure_zone_types(want: Array, from: Array) -> void:
+	for t in want:
+		var counts := {}
+		for z in spawn_zones:
+			for e in z["enemy_types"]:
+				counts[e] = counts.get(e, 0) + 1
+		if counts.get(t, 0) > 0:
+			continue
+		var placed := false
+		for zi in range(spawn_zones.size() - 1, -1, -1):
+			var types: Array = spawn_zones[zi]["enemy_types"]
+			for si in range(types.size() - 1, -1, -1):
+				if types[si] in from and counts.get(types[si], 0) > 1:
+					types[si] = t
+					placed = true
+					break
+			if placed:
+				break
 
 func _define_arena_zone(rect: Rect2i, mid_melee, heavy, ranged) -> void:
 	var c = rect.get_center()
@@ -6962,21 +7415,65 @@ func _define_rat_king_guard_zone(rect: Rect2i) -> void:
 # Woodland beasts: packs of coyotes/wolves and bears across the clearings (bears
 # matter because of the bear traps), hawks favouring the hills, and tougher
 # elites deeper in. The deep clearing is guarded by a Large Bear.
+# The elite clearings (2026-11-09): the Hydra holds the widest clearing, and
+# each of the five Elemental Mages leads the woodland pack of one more —
+# Spark, Air, Fire, Ice, then Earth, west to east by their level bands
+# (13–17), each raising its element's totem in the fight.
 # ============================================
+
+const FOREST_MAGES := [Enemy.EnemyType.SPARK_MAGE, Enemy.EnemyType.AIR_MAGE, Enemy.EnemyType.FIRE_MAGE,
+	Enemy.EnemyType.ICE_MAGE, Enemy.EnemyType.EARTH_MAGE]
+
+## The Greenwood's elite clearings: room index -> the type that leads it.
+## Picked from the layout alone (no dice), so the rest of the woods keep
+## their rolls: the Hydra the widest clearing (flat ground first, then the
+## eastmost), the mages the rest west to east; any mage left over joins the
+## deep clearing (the returned "deep" list).
+func _forest_heads() -> Dictionary:
+	var clearings: Array = []
+	for i in range(rooms.size()):
+		if rooms[i]["kind"] == "clearing":
+			clearings.append(i)
+	var heads := {}
+	var hydra := -1
+	for i in clearings:
+		if hydra < 0:
+			hydra = i
+			continue
+		var a: Dictionary = rooms[i]
+		var b: Dictionary = rooms[hydra]
+		var ka := [int(a.get("radius", 0)), 0 if a.get("hill", false) else 1, (a["rect"] as Rect2i).get_center().x]
+		var kb := [int(b.get("radius", 0)), 0 if b.get("hill", false) else 1, (b["rect"] as Rect2i).get_center().x]
+		if ka > kb:
+			hydra = i
+	if hydra >= 0:
+		heads[hydra] = Enemy.EnemyType.HYDRA
+		clearings.erase(hydra)
+	clearings.sort_custom(func(a, b): return (rooms[a]["rect"] as Rect2i).get_center().x < (rooms[b]["rect"] as Rect2i).get_center().x)
+	var left: Array = []
+	for m in range(FOREST_MAGES.size()):
+		if m < clearings.size():
+			heads[clearings[m]] = FOREST_MAGES[m]
+		else:
+			left.append(FOREST_MAGES[m])
+	heads["deep"] = left
+	return heads
 
 func _define_forest_spawn_zones() -> void:
 	var minions = [Enemy.EnemyType.COYOTE, Enemy.EnemyType.WOLF, Enemy.EnemyType.MINI_BEAR,
 		Enemy.EnemyType.BUGBEAR, Enemy.EnemyType.GIANT_HAWK]
 	var elites = [Enemy.EnemyType.LARGE_BEAR, Enemy.EnemyType.GIANT_BEAVER,
 		Enemy.EnemyType.INFECTED_HUNTER, Enemy.EnemyType.TREANT]
+	var heads := _forest_heads()
 
-	for room in rooms:
+	for ri in range(rooms.size()):
+		var room: Dictionary = rooms[ri]
 		var rect: Rect2i = room["rect"]
 		var kind: String = room["kind"]
 		if kind in ["start", "exit"]:
 			continue
 		var zone_chance = 1.0 if kind == "deep" else 0.75
-		if _rng.randf() >= zone_chance:
+		if _rng.randf() >= zone_chance and not heads.has(ri):
 			continue
 		var count = clampi(2 + rect.get_area() / 40, 2, 5)
 		var points: Array = []
@@ -6994,6 +7491,12 @@ func _define_forest_spawn_zones() -> void:
 				types.append(minions[_rng.randi_range(0, minions.size() - 1)])
 		if kind == "deep" and types.size() > 0:
 			types[0] = Enemy.EnemyType.LARGE_BEAR
+			var extra: Array = heads.get("deep", [])
+			for k in range(extra.size()):
+				if k + 1 < types.size():
+					types[k + 1] = extra[k]
+		if heads.has(ri) and types.size() > 0:
+			types[0] = heads[ri]
 		if points.is_empty():
 			continue
 		spawn_zones.append({
@@ -7058,6 +7561,13 @@ func _define_mountain_spawn_zones() -> void:
 			"enemy_types": types,
 			"spawned": false,
 		})
+	# The whole roster is met on the Pass (STORY.md 5.4): one the dice left
+	# out takes the place of a kin that came up twice — a sabertooth a
+	# weregoat's on the snowfields, a flier another flier's, and so on.
+	var walkers := [Enemy.EnemyType.WEREGOAT, Enemy.EnemyType.SABERTOOTH]
+	_ensure_zone_types(walkers, walkers)
+	_ensure_zone_types(fliers, fliers)
+	_ensure_zone_types(perch, perch)
 	for z in spawn_zones:
 		for p in z["spawn_points"]:
 			_reserved[p] = true
