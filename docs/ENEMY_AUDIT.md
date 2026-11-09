@@ -227,14 +227,14 @@ so they are not counted.
 | White Manticore | Elite | 23 | 75/15/15 → 109/22/20 | 3 / 2 | 10/35/10 | Mountains | nowhere | built, unplaced |
 | Sabertooth | Minion | — | — | - | - | Mountains | - | mock-up |
 | Cerberus | Boss | 10 | 250/50/25 → 275/55/27 | 6 / 3 | 30/40/15 | Underworld | Hell's Gate (boss room 3) | built |
-| Succubus | Elite | — | — | - | - | Underworld | - | mock-up |
-| Demon | Elite | — | — | - | - | Underworld | - | mock-up |
-| Ifrit | Elite | 28 | 225/0/45 → 326/0/59 | 5 / 4 | 20/15/15 | Underworld | World 2+ overworld deep rooms (deep lords, cycling) | built |
-| Mind Eater | Elite | — | — | - | - | Underworld | - | mock-up |
-| Specter | Minion | — | — | - | - | Underworld | - | mock-up |
-| Magma Spider | Elite | — | — | - | - | Underworld | - | mock-up |
+| Succubus | Elite | — | — | - | - | Underworld | Underworld surface + Burning Caves (trash roll); Brimstone Rift banks; Citadel of Dis courts/halls; Ashen Stair low terraces; Throne of Dis (2); the Breach (1) | built (row stale: Trash, band 27 — see 0.2) |
+| Demon | Elite | — | — | - | - | Underworld | Underworld surface (mid tier, arena pair) + Burning Caves; Thanatos Closet; Rift banks + far landing; Citadel (incl. inner court); Ashen Stair; Throne of Dis (2); the Breach (2) | built (row stale: Mid-tier, band 28 — see 0.2) |
+| Ifrit | Elite | 28 | 225/0/45 → 326/0/59 | 5 / 4 | 20/15/15 | Underworld | World 2+ overworld deep rooms (deep lords, cycling) + the arena; the Crucible (2); Citadel inner court; Throne of Dis (enthroned); top of the Ashen Stair; the Breach (2) | built |
+| Mind Eater | Elite | — | — | - | - | Underworld | Underworld surface + caves; Thanatos Closet; Rift banks; Citadel halls + inner court; Ashen Stair ledges; Throne of Dis (2); the Breach (1) | built (row stale: Trash, band 27 — see 0.2) |
+| Specter | Minion | — | — | - | - | Underworld | Underworld surface + caves; Thanatos Closet; Rift banks; Citadel; Ashen Stair | built (row stale: Trash, band 26 — see 0.2) |
+| Magma Spider | Elite | — | — | - | - | Underworld | Underworld surface + caves; Brimstone Rift islands (nests) + far landing; Ashen Stair ledges | built (row stale: Trash, band 26 — see 0.2) |
 | Pit Fiend | Boss | — | — | - | - | Underworld | - | mock-up |
-| Ash Harpy | Minion | — | — | - | - | Underworld | - | mock-up |
+| Ash Harpy | Minion | — | — | - | - | Underworld | Underworld surface (ranged tier, arena) + caves; Rift banks + far landing; Citadel courts; Ashen Stair heights; the Breach (2) | built (row stale: Trash, band 26 — see 0.2) |
 | Inflamed Minotaur | Boss | 9 | 350/100/35 → 368/105/36 | 6 / 5 | 15/50/25 | Underworld | the Labyrinth (boss room 4); ALSO World 2+ overworld deep rooms (deep lords) | built |
 | Cherub | Minion | — | — | - | - | Heavens | - | mock-up |
 | Djinn | Elite | 35 | 180/0/35 → 261/0/46 | 8 / 3 | 15/15/15 | Heavens | World 2+ overworld deep rooms (deep lords) | built |
