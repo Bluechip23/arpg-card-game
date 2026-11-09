@@ -347,7 +347,7 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 	elif interior_id.begins_with("thanatoshall"):
 		interior_kind = "thanatoshall"  # Thanatos's Hall: the boss room at the Closet's bottom
 	elif interior_id.begins_with("icecave"):
-		interior_kind = "icecave"  # a frozen cave (off the Mountain Pass, and Frostreach's caves)
+		interior_kind = "icecave"  # a frozen cave (off the Mountain Pass)
 	elif interior_id.begins_with("trolllair"):
 		interior_kind = "trolllair"  # the Ice Troll Lair (off the Mountain Pass): its vault of gold
 	elif interior_id.begins_with("graveyard"):
