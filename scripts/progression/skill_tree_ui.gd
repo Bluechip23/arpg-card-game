@@ -349,6 +349,10 @@ const BOARD_RIGHT_X := 1065.0
 ## Cory's board: the same rule, his centre a little narrower.
 const CORY_LEFT_X := 752.0
 const CORY_RIGHT_X := 1022.0
+## Jeremy's board: the painting's gap narrows towards the bottom, so his
+## columns sit where the lower scenes leave room.
+const JEREMY_LEFT_X := 787.0
+const JEREMY_RIGHT_X := 1057.0
 const PASSIVE_BOARDS := {
 	"Brad": {
 		"texture": "res://assets/textures/ui/brad_passive_board.webp",
@@ -382,6 +386,22 @@ const PASSIVE_BOARDS := {
 			"Monk": {"anchor": Vector2(CORY_RIGHT_X, 380), "label": "above"},
 			"Lurker": {"anchor": Vector2(CORY_LEFT_X, 625), "label": "below"},
 			"Druid": {"anchor": Vector2(CORY_RIGHT_X, 625), "label": "below"},
+		},
+	},
+	# Jeremy (designer's board, 2026-11-09): TL lightning sphere shocking a
+	# knight (Abjurer), TR arcane surge (Evocation), BL ghost (Poltergeist),
+	# BR blood circle with golden spirit allies (Shepherd).
+	"Jeremy": {
+		"texture": "res://assets/textures/ui/jeremy_passive_board.webp",
+		"size": Vector2(1774, 887),
+		"info": Rect2(735, 98, 295, 138),
+		"spread": Vector2(66, 48),
+		"node": 60.0,
+		"archetypes": {
+			"Abjurer": {"anchor": Vector2(JEREMY_LEFT_X, 355), "label": "above"},
+			"Evocation": {"anchor": Vector2(JEREMY_RIGHT_X, 355), "label": "above"},
+			"Poltergeist": {"anchor": Vector2(JEREMY_LEFT_X, 552), "label": "below"},
+			"Shepherd": {"anchor": Vector2(JEREMY_RIGHT_X, 552), "label": "below"},
 		},
 	},
 }

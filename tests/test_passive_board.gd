@@ -4,7 +4,7 @@ extends SceneTree
 ## hero's painting, and each archetype's three passives sit as an upside-down
 ## triangle beside its corner scene — Brad: Berserker top left, Warden top
 ## right, The Ancient bottom left, The Fallen bottom right; Cory: Atrophist,
-## Monk, Lurker, Druid. First passive top-left, second top-right, the final
+## Monk, Lurker, Druid; Jeremy: Abjurer, Evocation, Poltergeist, Shepherd. First passive top-left, second top-right, the final
 ## unlock at the bottom point; each side's two triangles share their columns.
 ## Investing still works through the board's circles (stage gates included),
 ## and a hero without a board keeps the lane table.
@@ -173,12 +173,24 @@ func _run() -> void:
 	}
 	_check_board(ui, "Cory", "cory_passive_board.webp", cory, [["Atrophist", "Lurker"], ["Monk", "Druid"]])
 
-	# --- A hero without a board keeps the lane table ---
+	# --- Jeremy's board ---
 	ui.set_skill_tree(SkillTreeData.create_jeremy_tree())
 	await process_frame
-	_check(SkillTreeUI.board_for(ui.skill_tree).is_empty(), "Jeremy has no board (yet)")
-	_check(not ui._board_view.visible, "Jeremy's tab hides the board")
-	_check(ui.scroll_container.visible and ui.table_container.get_child_count() > 0, "Jeremy gets the lane table")
+	await process_frame
+	var jeremy := {
+		"Abjurer": {"left": true, "top": true, "ids": ["a_mage's_favor", "kinetic_armor", "fresh_start"]},
+		"Evocation": {"left": false, "top": true, "ids": ["arcane_overflow", "harnessed_power", "mana_surge"]},
+		"Poltergeist": {"left": true, "top": false, "ids": ["tricks_of_death", "seance", "haunted_rebuke"]},
+		"Shepherd": {"left": false, "top": false, "ids": ["i_heal_you", "whispers_of_the_flock", "blood_libation"]},
+	}
+	_check_board(ui, "Jeremy", "jeremy_passive_board.webp", jeremy, [["Abjurer", "Poltergeist"], ["Evocation", "Shepherd"]])
+
+	# --- A hero without a board keeps the lane table ---
+	ui.set_skill_tree(SkillTreeData.create_stephen_tree())
+	await process_frame
+	_check(SkillTreeUI.board_for(ui.skill_tree).is_empty(), "Stephen has no board (yet)")
+	_check(not ui._board_view.visible, "Stephen's tab hides the board")
+	_check(ui.scroll_container.visible and ui.table_container.get_child_count() > 0, "Stephen gets the lane table")
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
