@@ -409,9 +409,10 @@ const DRAWN_ALIAS := {"attack_slash": "basic_attack", "block": "basic_block"}
 ## bursting on the cast's blow frame; the card resolves on that frame too,
 ## as an attack does on its swing's (Main._card_swing).
 const DRAWN_SPELL := "spell_cast"
-## Seconds a frame of a hero's drawn spell cast: 0.05 played at 80% speed
-## (designer, 2026-11-08: "a little too quick, slow it down by .8").
-const SPELL_CAST_T := 0.0625
+## Seconds a frame of a hero's drawn spell cast, before ACTION_SLOW: 0.125
+## (designer, 2026-11-09: "still needs to be slower by quite a bit" — twice
+## the 0.0625 of 2026-11-08, so a cast runs about 2.3 s on screen).
+const SPELL_CAST_T := 0.125
 
 
 ## The drawn action `action` plays as ("" when none).
