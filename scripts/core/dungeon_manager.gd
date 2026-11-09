@@ -82,19 +82,26 @@ const WORLD_PALETTES := {
 		"trail": Color(0.45, 0.34, 0.20),
 	},
 	3: {
-		"name": "Frostreach",
-		"ground": Color(0.16, 0.18, 0.21),
-		"floor_a": Color(0.55, 0.58, 0.63),
-		"floor_b": Color(0.44, 0.48, 0.55),
-		"wall_a": Color(0.34, 0.38, 0.46),
-		"wall_b": Color(0.25, 0.29, 0.37),
-		"cliff": Color(0.30, 0.33, 0.41),
-		"step": Color(0.50, 0.54, 0.61),
-		"accent": Color(0.62, 0.70, 0.78),
-		"ambient": Color(0.42, 0.46, 0.54),
-		"sun": Color(0.88, 0.93, 1.0),
-		"sun_energy": 1.1,
-		"trail": Color(0.40, 0.38, 0.36),
+		# Act 3, Heaven (designer, 2026-11-09: "Make World 3 the Heaven"; was
+		# Frostreach, whose snow now lives only on World 1's Mountain Pass —
+		# FROST_PALETTE): "what was once pure is now gloomy and sickened". A
+		# pale-gold light gone wan over pale stone, a sickly green-grey fill
+		# in the shade, its pools turned to bog. Its art: HEAVEN_ART (stand-ins).
+		"name": "The Tarnished Heavens",
+		"water": Color(0.24, 0.30, 0.16),      # the sickened pools
+		"water_edge": Color(0.58, 0.56, 0.36), # their tarnished rim
+		"ground": Color(0.16, 0.15, 0.12),
+		"floor_a": Color(0.74, 0.70, 0.58),
+		"floor_b": Color(0.62, 0.58, 0.47),
+		"wall_a": Color(0.52, 0.48, 0.40),
+		"wall_b": Color(0.40, 0.37, 0.31),
+		"cliff": Color(0.46, 0.42, 0.34),
+		"step": Color(0.66, 0.62, 0.50),
+		"accent": Color(0.78, 0.66, 0.34),     # tarnished gold
+		"ambient": Color(0.52, 0.52, 0.50),    # a wan grey fill
+		"sun": Color(1.0, 0.94, 0.80),         # pale gold, gone wan
+		"sun_energy": 1.0,
+		"trail": Color(0.70, 0.60, 0.38),
 	},
 	4: {
 		"name": "The Underworld",   # Hell: World 2 wears it (art_world); was Emberfall
@@ -147,7 +154,26 @@ const CAVE_PALETTE := {
 	"water_edge": Color(0.12, 0.15, 0.17),
 }
 
-## A frozen cave: Frostreach's frost in the gloom (dimmer than the
+## The Mountain Pass's snow and frost (the winter pack's light): World 3
+## wore it as Frostreach until it became Heaven (2026-11-09); the snowy
+## mountains and their caves stay in World 1.
+const FROST_PALETTE := {
+	"name": "Frostreach",
+	"ground": Color(0.16, 0.18, 0.21),
+	"floor_a": Color(0.55, 0.58, 0.63),
+	"floor_b": Color(0.44, 0.48, 0.55),
+	"wall_a": Color(0.34, 0.38, 0.46),
+	"wall_b": Color(0.25, 0.29, 0.37),
+	"cliff": Color(0.30, 0.33, 0.41),
+	"step": Color(0.50, 0.54, 0.61),
+	"accent": Color(0.62, 0.70, 0.78),
+	"ambient": Color(0.42, 0.46, 0.54),
+	"sun": Color(0.88, 0.93, 1.0),
+	"sun_energy": 1.1,
+	"trail": Color(0.40, 0.38, 0.36),
+}
+
+## A frozen cave: the mountains' frost in the gloom (dimmer than the
 ## snowfields, brighter than a rock cave — the ice holds the light).
 const ICE_CAVE_PALETTE := {
 	"name": "Ice Cave",
@@ -339,7 +365,7 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 	else:
 		# Act 2's later places (the Underworld, 2026-11-09): the Brimstone
 		# Rift, the Citadel of Dis, the Ashen Stair and their sealed rooms.
-		for k in ACT2_KINDS:
+		for k in ACT2_KINDS + ACT3_KINDS:
 			if interior_id.begins_with(k):
 				interior_kind = k
 				break
@@ -349,11 +375,12 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 	match interior_kind:
 		"sewer":
 			fog_reveal_radius = 4
-		"forest", "mountains", "rift", "ascent":
+		"forest", "mountains", "rift", "ascent", "garden", "spire", "causeway":
 			fog_reveal_radius = 9   # open, bright country: the view runs far
 		"dojo":
 			fog_reveal_radius = 64  # a lit hall: nothing to explore, nothing hidden
-		"ratking", "boneyard", "hellgate", "labyrinth", "thanatoshall", "crucible", "throne", "breach":
+		"ratking", "boneyard", "hellgate", "labyrinth", "thanatoshall", "crucible", "throne", "breach", \
+				"altar", "font", "belfry", "rent":
 			fog_reveal_radius = 64  # a boss arena: the whole room is in view from the gate
 		_:
 			fog_reveal_radius = FOG_REVEAL_RADIUS
@@ -418,6 +445,24 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 			_prune_dead_ends()
 		"breach":
 			_generate_breach_layout()
+		"sanctum":
+			_generate_sanctum_layout()
+		"altar":
+			_generate_altar_layout()
+		"garden":
+			_generate_garden_layout()
+		"font":
+			_generate_font_layout()
+		"spire":
+			_generate_mountain_layout()   # the Mountain Pass's terraces, a climb up Heaven's tower
+			_prune_dead_ends()
+		"belfry":
+			_generate_belfry_layout()
+		"causeway":
+			_generate_rift_layout()   # the Brimstone Rift's canyon, a gulf for its river
+			_prune_dead_ends()        # no one-tile spurs of bank leading nowhere
+		"rent":
+			_generate_rent_layout()
 		_:
 			_generate_overworld_layout()
 	_generate_elevation()
@@ -450,6 +495,8 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 				_place_hell_descent()
 			elif interior_kind == "breach":
 				_place_breach_ascent()
+			elif interior_kind == "rent":
+				_place_rent_descent()
 	else:
 		_place_exit_site()
 		if interior_kind == "sewer":
@@ -478,6 +525,18 @@ func initialize(gm: GridManager, parent: Node3D, level: int = 1, interior: Strin
 		elif interior_kind == "ascent":
 			# The top of the Ashen Stair: the Breach, the way up out of the Underworld.
 			_place_breach_door()
+		elif interior_kind == "sanctum":
+			# The choir's apse: the Desecrated Altar.
+			_place_boss_door("deep", "east", "altar", "altar", "The Desecrated Altar", Color(1.0, 0.92, 0.7), Color(1.0, 0.85, 0.5))
+		elif interior_kind == "garden":
+			# The far grove: the Sickened Font.
+			_place_boss_door("deep", "east", "font", "font", "The Sickened Font", Color(0.9, 1.0, 0.75), Color(0.75, 1.0, 0.5))
+		elif interior_kind == "spire":
+			# The top of the Spire: the Belfry.
+			belfry_door_cell = _place_summit_door("belfry", "belfry", "The Belfry", Color(1.0, 0.92, 0.75), Color(1.0, 0.85, 0.55))
+		elif interior_kind == "causeway":
+			# The far landing: the Rent, where Heaven's floor is torn open.
+			_place_boss_door("deep", "east", "rent", "rent", "The Rent", Color(0.9, 0.8, 1.0), Color(0.75, 0.55, 1.0))
 	_place_chests()
 	_place_fountains()
 	_place_shrine()
@@ -594,6 +653,52 @@ func _set_world_size() -> void:
 			player_start = Vector2i(BR_FLOOR.get_center().x, BR_FLOOR.end.y - 2)
 			exit_nudge = Vector3(0, 0, 1)
 			return
+		"sanctum":
+			# A cruciform temple, its door west, the altar's apse east.
+			GRID_W = 56 + world_level * 2
+			GRID_H = 34 + world_level
+			player_start = Vector2i(2, GRID_H / 2)
+			return
+		"altar":
+			GRID_W = AL_SIZE.x
+			GRID_H = AL_SIZE.y
+			player_start = Vector2i(AL_CENTER.x - AL_RADIUS + 1, AL_CENTER.y)
+			return
+		"garden":
+			# A wide formal garden, its gate west, the grove east.
+			GRID_W = 64 + world_level * 2
+			GRID_H = 40 + world_level
+			player_start = Vector2i(2, GRID_H / 2)
+			return
+		"font":
+			GRID_W = FN_SIZE.x
+			GRID_H = FN_SIZE.y
+			player_start = Vector2i(FN_FLOOR.position.x + 1, FN_FLOOR.get_center().y)
+			return
+		"spire":
+			# The Mountain Pass's shape: the foot south-west, the top north-east.
+			GRID_W = 62 + world_level * 2
+			GRID_H = 44 + world_level
+			player_start = Vector2i(4, GRID_H - 6)
+			return
+		"belfry":
+			# Entered from the south (up the Spire).
+			GRID_W = BF_SIZE.x
+			GRID_H = BF_SIZE.y
+			player_start = Vector2i(BF_FLOOR.get_center().x, BF_FLOOR.end.y - 2)
+			exit_nudge = Vector3(0, 0, 1)
+			return
+		"causeway":
+			# The Rift's canyon: entered from the west, its far landing east.
+			GRID_W = 60 + world_level * 2
+			GRID_H = 34 + world_level
+			player_start = Vector2i(3, GRID_H / 2)
+			return
+		"rent":
+			GRID_W = RN_SIZE.x
+			GRID_H = RN_SIZE.y
+			player_start = Vector2i(RN_FLOOR.position.x + 1, RN_FLOOR.get_center().y)
+			return
 	if interior_kind == "cave" or interior_kind == "graveyard" or interior_kind == "icecave":
 		GRID_W = 36 + world_level * 2
 		GRID_H = 26 + world_level
@@ -699,11 +804,13 @@ func get_palette() -> Dictionary:
 	if interior_kind == "forest":
 		return FOREST_PALETTE
 	if interior_kind == "mountains":
-		return WORLD_PALETTES[3]   # Frostreach's snow and frost (the winter pack)
+		return FROST_PALETTE   # the snow and frost of the winter pack (World 3 wore it as Frostreach until 2026-11-09)
 	if interior_kind == "icecave" or interior_kind == "trolllair":
 		return ICE_CAVE_PALETTE
 	if act2_place():
 		return WORLD_PALETTES[4]   # the Underworld's own light, whichever world boots it (the Boss Simulator)
+	if act3_place():
+		return WORLD_PALETTES[3]   # Heaven's tarnished light, whichever world boots it (the Boss Simulator)
 	return WORLD_PALETTES.get(art_world(), WORLD_PALETTES[1])
 
 ## Act 2's later places (2026-11-09): the Brimstone Rift and the Crucible, the
@@ -715,6 +822,95 @@ const ACT2_KINDS := ["rift", "crucible", "citadel", "throne", "ascent", "breach"
 func act2_place() -> bool:
 	return interior_kind in ACT2_KINDS
 
+## Act 3's places (the corrupted Heaven, World 3; designer 2026-11-09:
+## "places & enemies only"): the Defiled Sanctum and its Desecrated Altar,
+## the Gilded Garden and its Sickened Font, the Silent Spire and its
+## Belfry, and at Heaven's far edge the Sundered Causeway and the Rent, the
+## way down to the next world. The sealed rooms are GUARDIAN_ROOMS.
+const ACT3_KINDS := ["sanctum", "altar", "garden", "font", "spire", "belfry", "causeway", "rent"]
+
+func act3_place() -> bool:
+	return interior_kind in ACT3_KINDS
+
+## Heaven's ground: World 3's surface and the Act 3 places.
+func heaven_land() -> bool:
+	return act3_place() or (interior_kind == "" and world_level == 3)
+
+# ============================================
+# HEAVEN'S ART — STAND-IN UNTIL THE DESIGNER'S HEAVEN BOARDS
+# (designer, 2026-11-09: "You'll send boards"). Every art choice for the
+# corrupted Heaven — World 3's surface and the Act 3 places — is read from
+# this one table (heaven_art), so his boards swap in here slot by slot and
+# nothing else changes. Until then each slot is the closest purchased-pack
+# (or already-cut) piece, never art of our own: pale stone, tarnished gold,
+# the glowing-cave pack's luminous growth ("Heaven-adjacent luminous
+# zones", docs/ASSET_PACKS.md) for what grew sick in the holy ground, and
+# the Underworld's own marks where its host has broken in. docs/STORY.md
+# section 4 (Act 3) lists the slots for the designer.
+# ============================================
+const HEAVEN_ART := {
+	# Ground: the barrow land's pale worn cobbles — Heaven's paving, cracked.
+	"floor": GROUND_TEX + "/undead_cobble.png",
+	# Roads and paved ways (a temple's aisles, a garden's walks): the
+	# designer's sand tracks, gold under the tarnished light.
+	"trail": GROUND_TEX + "/desert_sand.png",
+	# Walls and the land's edge (cliff autotile): the glowing-cave pack's
+	# dusk-violet rock for the stone above, the undead pack's dark rock face
+	# for the drop — the gloom round Heaven's pale ground.
+	"wall": CP_TEX + "/wall_glowing_cave.png",
+	"cliff": CP_TEX + "/cliff_undead.png",
+	# The holy pools, sickened: the cave pack's murky dark water.
+	"water": CP_TEX + "/water_cave.png",
+	# The gulf under Heaven's broken floor (the Causeway's, the Rent): the
+	# designer's dark cursed water, the deepest dark any ground sheet has.
+	"abyss": GROUND_TEX + "/cursed_water.png",
+	# Prop families (PROP_ROLES "heaven"): the glowing-cave pack's growth,
+	# the rock pack's pale limestone, the barrow land's bones and ruins.
+	"biome": "heaven",
+	# Pale-gold cast over stand-in stone (ruins, columns, arches) so the
+	# barrow pack's dark stone reads as Heaven's.
+	"stone_tint": Color(1.7, 1.55, 1.2),
+	# The land's skyline on its edge (_place_heaven_landmarks): broken
+	# columns and arches of the barrow pack, great crystals, gilded rock.
+	"landmarks": [["undead_ruin", 3], ["undead_ruin", 4], ["undead_ruin", 1], ["undead_ruin", 0],
+		["glow_crystal", 0], ["glow_crystal", 4], ["glow_gold", 1], ["wallrock_pale", 0]],
+	# Site entrances on World 3's surface: [role, variant, scale, stone-tinted].
+	"site_building": ["undead_ruin", 1, 1.0, true],   # a broken stone arch
+	"site_sanctum": ["desert_door", 0, 1.0, false],   # the desert pack's gilded eye-crowned door between pillars
+	"site_garden": ["forest_ruin", 0, 1.0, false],    # a ring of ruined walls, overgrown
+	"site_spire": ["desert_ruin", 1, 1.0, false],     # a shrine over a stair going up
+	"site_causeway": ["undead_ruin", 4, 1.0, true],   # a broken colonnade at the land's edge
+	# The way back down to the Breach, where the hero arrives: the
+	# Underworld's own vein arch (the Breach's gate, seen from above).
+	"arrival_arch": ["hell_arch", 0, 1.0, false],
+	# Bridges over the gulf: the cursed land pack's vein bridges — the
+	# Underworld's growth reaching across Heaven.
+	"bridge_h": "cursed_bridge_h",
+	"bridge_v": "cursed_bridge_v",
+	# Columns (the Sanctum's nave, the sealed rooms): the designer's
+	# sandstone pillar on its steps, overgrown (the Greenwood's ruin),
+	# standing on each pillar tile.
+	"column": ["forest_ruin", 2, 1.3, false],
+	# The altar the Desecrated Altar's djinn keeps: the glowing-cave pack's
+	# totem (its eye dark-ringed, its fins rune-cut), the nearest thing any
+	# pack draws to a holy relic.
+	"altar": ["waypoint_totem", 0, 0.55, false],
+	# Fires on the walls (braziers): the designer's hell fire — the
+	# invaders' fire; no pack draws a holy flame.
+	"brazier": "hell_fire",
+}
+
+func heaven_art(slot: String):
+	return HEAVEN_ART.get(slot)
+
+## A prop sprite for a HEAVEN_ART piece [role, variant, scale, tinted].
+func _make_heaven_piece(slot: String, scale_mul: float = 1.0) -> Sprite3D:
+	var spec: Array = heaven_art(slot)
+	var sprite := _make_prop_sprite(spec[0], float(spec[2]) * scale_mul, int(spec[1]))
+	if sprite and bool(spec[3]):
+		sprite.modulate = heaven_art("stone_tint")
+	return sprite
+
 ## Ground sheets per location flavour. Craftpix top-down tileset fills
 ## (assets/textures/craftpix/, cut by tools/extract_craftpix_tiles.py), the
 ## closest pack for each place. Every sheet is a 4x4 grid of 32px variants sampled triplanar (see
@@ -725,6 +921,8 @@ const CP_TEX := "res://assets/textures/craftpix"
 const GROUND_TEX := "res://assets/textures/ground"
 
 func floor_texture_path() -> String:
+	if heaven_land():
+		return heaven_art("floor")   # stand-in until the designer's Heaven boards (HEAVEN_ART)
 	if act2_place():
 		return GROUND_TEX + "/cursed_floor.png"   # the Underworld's cursed earth (the designer's, 2026-10-29)
 	match interior_kind:
@@ -749,8 +947,6 @@ func floor_texture_path() -> String:
 			return GROUND_TEX + "/undead_floor.png"
 		2:  # Amber Wastes — the designer's olive scrub (2026-10-29; was the desert pack's)
 			return GROUND_TEX + "/desert_floor.png"
-		3:  # Frostreach — snowfield (winter pack drifts over flat snow)
-			return CP_TEX + "/floor_winter.png"
 	return GROUND_TEX + "/field_grass.png"   # the designer's grass tiles (2026-10-29; was the grassland pack's)
 
 
@@ -764,6 +960,8 @@ func far_floor_texture_path() -> String:
 
 ## Worn dirt trails / roads through the floor sheet above.
 func trail_texture_path() -> String:
+	if heaven_land():
+		return heaven_art("trail")   # stand-in (HEAVEN_ART)
 	if act2_place():
 		return GROUND_TEX + "/cursed_dark.png"   # dark cracked earth: the Stair's steps, the Citadel's paved halls
 	match interior_kind:
@@ -779,8 +977,6 @@ func trail_texture_path() -> String:
 		return GROUND_TEX + "/field_dirt.png"   # the designer's dirt (2026-10-29)
 	if art_world() == 2:
 		return GROUND_TEX + "/desert_sand.png"  # the designer's sand tracks through the scrub
-	if art_world() == 3:
-		return CP_TEX + "/floor_undead_sand.png"  # trodden grey slush through the snow
 	if art_world() == 4:
 		return GROUND_TEX + "/cursed_dark.png"  # the designer's dark cracked earth (2026-10-29)
 	if art_world() == 5:
@@ -790,6 +986,8 @@ func trail_texture_path() -> String:
 
 ## Cliff faces / rock walls: the matching pack's cobbled cliff fill.
 func wall_texture_path() -> String:
+	if heaven_land():
+		return heaven_art("wall")   # stand-in (HEAVEN_ART)
 	if act2_place():
 		return GROUND_TEX + "/cursed_wall.png"   # the designer's woven veins, as the Underworld's
 	match interior_kind:
@@ -814,13 +1012,15 @@ func wall_texture_path() -> String:
 			return GROUND_TEX + "/undead_wall.png"   # the designer's dark spikes (2026-10-29)
 		2:
 			return GROUND_TEX + "/desert_wall.png"   # the designer's cliff rock
-		3:
-			return CP_TEX + "/wall_undead.png"  # the winter pack has no cliff; grey barrow stone under the frost palette
 	return GROUND_TEX + "/field_wall.png"   # the designer's cobbled earth (2026-10-29)
 
 
 ## Still water: the pack's water colour under its foam overlay.
 func water_texture_path() -> String:
+	if interior_kind in ["causeway", "rent"]:
+		return heaven_art("abyss")   # the gulf under Heaven's broken floor (HEAVEN_ART stand-in)
+	if heaven_land():
+		return heaven_art("water")   # the sickened pools (HEAVEN_ART stand-in)
 	if act2_place():
 		return CP_TEX + "/water_lava.png"   # lava no one wades (cave pack), as in the Burning Caves and the Labyrinth
 	match interior_kind:
@@ -845,8 +1045,6 @@ func water_texture_path() -> String:
 			return GROUND_TEX + "/undead_water.png"   # the designer's green bog (2026-10-29)
 		2:
 			return GROUND_TEX + "/desert_water.png"
-		3:
-			return CP_TEX + "/water_winter.png"  # frozen over
 	return GROUND_TEX + "/field_water.png"   # the designer's (2026-10-29)
 
 
@@ -856,6 +1054,8 @@ func water_texture_path() -> String:
 ## rock, bush ...); biome prefixes: field (World 1), forest, cave, undead
 ## (World 5), cursed (World 4), goods (buildings).
 func _prop_biome() -> String:
+	if heaven_land():
+		return heaven_art("biome")   # Heaven's stand-in growth (HEAVEN_ART)
 	if act2_place():
 		return "cursed"   # the designer's cursed land and hell, as the Underworld's surface
 	match interior_kind:
@@ -880,8 +1080,6 @@ func _prop_biome() -> String:
 	match art_world():
 		2:
 			return "desert"
-		3:
-			return "winter"
 		4:
 			return "cursed"
 		5:
@@ -932,6 +1130,17 @@ const PROP_ROLES := {
 	"ice": {"stalagmite": ["winter_crystal"], "stalactite": ["cave_stalactite"], "shroom": ["winter_shroom"],
 		"crystal": ["winter_crystal"], "pebble": ["winter_pebble"], "rock": ["wallrock_snow"], "bones": ["undead_bones"],
 		"wallrock": ["wallrock_snow"]},
+	# The corrupted Heaven (World 3 and the Act 3 places) — STAND-INS until
+	# the designer's Heaven boards (HEAVEN_ART "biome"): the glowing-cave
+	# pack's luminous growth for what grew sick in the holy ground (pale
+	# pink and violet crystals, gold-flecked dark rock, glowing ferns,
+	# flowers, leaves and fungi), the rock pack's pale limestone, the barrow
+	# land's bones.
+	"heaven": {"tree": ["glow_bush", "glow_crystal"], "stump": ["glow_gold"], "rock": ["wallrock_pale", "glow_gold"],
+		"bush": ["glow_bush"], "berry": ["glow_flower"], "fern": ["glow_fern"], "flower": ["glow_flower"],
+		"tuft": ["glow_fern"], "shroom": ["glow_shroom"], "pebble": ["forest_pebble"], "bones": ["undead_bones"],
+		"reeds": ["glow_fern"], "crystal": ["glow_crystal", "glow_teal"], "stalagmite": ["glow_crystal"],
+		"wallrock": ["wallrock_pale"]},
 	"goods": {"crate": ["goods_crate", "goods_sack"], "barrel": ["goods_barrel", "goods_rack", "goods_table"]},
 	# The Ruined Library: the designer's tall case of books and scrolls (no
 	# Craftpix pack draws a bookcase) for its stacks and walls, the barrow
@@ -1080,6 +1289,14 @@ func get_location_name() -> String:
 		"throne": return "Throne of Dis"
 		"ascent": return "The Ashen Stair"
 		"breach": return "The Breach"
+		"sanctum": return "The Defiled Sanctum"
+		"altar": return "The Desecrated Altar"
+		"garden": return "The Gilded Garden"
+		"font": return "The Sickened Font"
+		"spire": return "The Silent Spire"
+		"belfry": return "The Belfry"
+		"causeway": return "The Sundered Causeway"
+		"rent": return "The Rent"
 	var pal = get_palette()
 	return "World %d — %s" % [world_level, pal.get("name", "")]
 
@@ -1126,7 +1343,7 @@ static func is_boss_room(id: String) -> bool:
 ## elite rooms, 2026-11-09): the room opens when the last of them falls.
 ## The Crucible (two ifrits), the Throne of Dis (the court of Dis) and the
 ## Breach (the wardens of the way up).
-const GUARDIAN_ROOMS := ["crucible", "throne", "breach"]
+const GUARDIAN_ROOMS := ["crucible", "throne", "breach", "altar", "font", "belfry", "rent"]
 
 static func is_guardian_room(id: String) -> bool:
 	for key in GUARDIAN_ROOMS:
@@ -1738,6 +1955,8 @@ func _generate_overworld_layout() -> void:
 				trail[x][z] = false
 	if art_world() == 4:
 		_place_lava_pools()  # Hell (the Underworld, World 2): molten pools in the open ground
+	elif world_level == 3:
+		_place_lava_pools()  # Heaven (World 3): its holy pools, sickened (HEAVEN_ART's water)
 
 func _connect_rooms(a: Rect2i, b: Rect2i) -> void:
 	## Carves a 2-wide L-shaped corridor between the centers of two rooms.
@@ -3291,6 +3510,8 @@ func _lay_bridge_sprites() -> void:
 		var cells: Array = b["cells"]
 		var horizontal: bool = b["horizontal"]
 		var role := "cursed_bridge_h" if horizontal else "cursed_bridge_v"
+		if heaven_land():
+			role = heaven_art("bridge_h" if horizontal else "bridge_v")   # stand-in (HEAVEN_ART)
 		if not CraftpixProps.has(role):
 			continue
 		var v: Dictionary = CraftpixProps.PROPS[role]["variants"][k % CraftpixProps.PROPS[role]["variants"].size()]
@@ -3652,7 +3873,7 @@ func _dress_fortress_walls(pillars: Array, salt: int) -> void:
 
 ## Braziers: the designer's hell fire on the floor tile in front of a wall,
 ## each with a real flickering light; `want` of them, spaced.
-func _place_braziers(want: int, min_gap: int) -> void:
+func _place_braziers(want: int, min_gap: int, role: String = "hell_fire") -> void:
 	var edges: Array = []
 	for x in range(1, GRID_W - 1):
 		for z in range(1, GRID_H - 1):
@@ -3664,7 +3885,7 @@ func _place_braziers(want: int, min_gap: int) -> void:
 	var made := 0
 	for e in _spaced_sample(edges, want, min_gap):
 		var c: Vector2i = e["pos"]
-		var fire := _make_prop_sprite("hell_fire", 1.0)
+		var fire := _make_prop_sprite(role, 1.0)
 		if fire == null:
 			continue
 		var root := Node3D.new()
@@ -3852,6 +4073,16 @@ func _prune_dead_ends() -> void:
 ## with rock (not lava) behind it and open ground in front — the eastmost
 ## such tile on the summit, or failing that a terrace lower.
 func _place_breach_door() -> void:
+	breach_door_cell = _place_summit_door("breach", "breach", "The Breach",
+		Color(1.0, 0.92, 0.75), Color(1.0, 0.85, 0.55))
+
+## The door into a sealed room at the top of a terraced climb (the Ashen
+## Stair's Breach, the Silent Spire's Belfry): on the highest ledge with
+## rock (not lava or water) behind it and open ground in front — the
+## eastmost such tile on the summit, or failing that a terrace lower. Its
+## cell, or (-1, -1) when none is found.
+func _place_summit_door(target_id: String, room_key: String, display_name: String,
+		tint: Color, glow_color: Color) -> Vector2i:
 	var cell := Vector2i(-1, -1)
 	for lvl in [MOUNTAIN_TIER_STEP * (MOUNTAIN_TIERS - 1), MOUNTAIN_TIER_STEP * 2, MOUNTAIN_TIER_STEP]:
 		for x in range(3, GRID_W - 3):
@@ -3869,11 +4100,9 @@ func _place_breach_door() -> void:
 					cell = c
 		if cell.x >= 0:
 			break
-	if cell.x < 0:
-		return
-	breach_door_cell = cell
-	_build_boss_door_site(cell, Vector3(0, 0, -0.6), "breach", "breach", "The Breach",
-		Color(1.0, 0.92, 0.75), Color(1.0, 0.85, 0.55))
+	if cell.x >= 0:
+		_build_boss_door_site(cell, Vector3(0, 0, -0.6), target_id, room_key, display_name, tint, glow_color)
+	return cell
 
 var breach_door_cell := Vector2i(-1, -1)
 
@@ -4013,6 +4242,863 @@ func _place_breach_ascent() -> void:
 	if get_site_by_id("ascend") >= 0:
 		return
 	_place_exit_site(breach_gate_cell, "ascend", "ascend", "The Breach", "[Shift] Ascend", Vector3(0, 0, -0.8), Color(1.0, 0.92, 0.75))
+
+# ============================================
+# ACT 3 — THE CORRUPTED HEAVEN (World 3; designer, 2026-11-09: "Make World
+# 3 the Heaven" — "places & enemies only": the story round them stays
+# [TBD], STORY.md section 4). Heaven's host gone sick and the Underworld's
+# broken in among it: cherubs and djinn (the Heavens roster in code) with
+# demons, succubi, specters, ash harpies and mind eaters. Four places on its
+# surface, each with a sealed room held by guardians (GUARDIAN_ROOMS):
+#  - the Defiled Sanctum (sanctum): a cruciform temple — narthex, a
+#    pillared nave between side chapels, a domed crossing with its fonts
+#    gone to bog, transepts ending in apses, the choir — whose apse opens on
+#    the Desecrated Altar (altar), a round sanctuary, a djinn on its altar.
+#  - the Gilded Garden (garden): a formal garden overrun — hedged beds (the
+#    hedges and the edge are overgrowth, the natural boundary) between gold
+#    walks, the great fountain sickened at its heart; its far grove opens on
+#    the Sickened Font (font), two djinn keeping a bog that was a fountain.
+#  - the Silent Spire (spire): the Mountain Pass's terraces (one level a
+#    step; fliers cross the cliffs) as a climb up Heaven's tower, its top
+#    the Belfry (belfry), entered from the stair below.
+#  - the Sundered Causeway (causeway): Heaven's far edge, the Brimstone
+#    Rift's canyon with a gulf for its river — banks and islands of pale
+#    stone, the Underworld's vein bridges across — its far landing the Rent
+#    (rent), where Heaven's floor is torn open. When the Rent's wardens
+#    fall the way down to the next world opens, as the Breach led up here.
+# Every piece of art is HEAVEN_ART's stand-in until the designer's boards.
+# ============================================
+
+## The four ways in on Heaven's surface (World 3), picked by position
+## without the layout's dice: the Causeway in the free field room farthest
+## east (Heaven's far edge), the Spire nearest three-quarters of the way
+## across, the Garden nearest half, the Sanctum nearest a fifth (by the
+## arrival). Then the way back down to the Breach, where the hero arrives.
+## A raised block needs less room than a building: any flat field room at
+## least six by five will do (World 3's lattice runs narrow).
+func _place_act3_sites(candidates: Array) -> void:
+	if world_level != 3 or interior_kind != "":
+		return
+	var specs := [
+		["causeway", "causeway_0", "The Sundered Causeway", 1.0],
+		["spire", "spire_0", "The Silent Spire", 0.74],
+		["garden", "garden_0", "The Gilded Garden", 0.48],
+		["sanctum", "sanctum_0", "The Defiled Sanctum", 0.2],
+	]
+	var free: Array = []
+	for i in range(rooms.size()):
+		var r: Rect2i = rooms[i]["rect"]
+		if rooms[i]["kind"] == "field" and rooms[i]["elev"] == 0 and r.size.x >= 6 and r.size.y >= 5:
+			free.append(i)
+	for spec in specs:
+		var want_x: float = float(GRID_W) * float(spec[3])
+		var order: Array = free.duplicate()
+		order.sort_custom(func(a, b):
+			var da := absf(float(rooms[a]["rect"].get_center().x) - want_x)
+			var db := absf(float(rooms[b]["rect"].get_center().x) - want_x)
+			if da != db:
+				return da < db
+			return a < b)
+		for room_idx in order:
+			if _place_block_site(room_idx, spec[0], spec[1], spec[2]):
+				free.erase(room_idx)
+				candidates.erase(room_idx)
+				break
+	_place_heaven_arrival()
+
+## Where the hero comes up out of the Breach (main arrives them here,
+## return_from "breach_down"): a tile in the start field, south-east of the
+## Transport Portal, under the Underworld's vein arch. Shift there goes back
+## down to the Breach (main._try_interact_site, kind "breach_down").
+const HEAVEN_ARRIVAL_ID := "breach_down"
+var heaven_arrival_cell := Vector2i(-1, -1)
+
+func _place_heaven_arrival() -> void:
+	var start: Rect2i = rooms[0]["rect"]
+	var cell := Vector2i(start.end.x - 2, mini(GRID_H / 2 + 3, start.end.y - 2))
+	if not is_floor(cell):
+		cell = pick_free_cell_near(cell, 3)
+	if cell.x < 0:
+		return
+	heaven_arrival_cell = cell
+	_place_exit_site(cell, HEAVEN_ARRIVAL_ID, HEAVEN_ARRIVAL_ID, "The Breach", "[Shift] Descend",
+		Vector3(0, 0, -0.55), Color(1.0, 0.85, 0.7), heaven_art("arrival_arch"))
+	_reserve_area(cell, 1)
+
+## Heaven's skyline on the edge of its rock (World 3's surface, the Spire,
+## the Causeway): HEAVEN_ART's landmarks — broken columns and arches,
+## great crystals, gilded rock — spaced along the wall tiles that face the
+## ground from the north (never on the camera side).
+func _place_heaven_landmarks() -> void:
+	var site_tiles = _structure_tiles()
+	var stills: Array = heaven_art("landmarks")
+	var tint: Color = heaven_art("stone_tint")
+	var placed: Array = []
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if grid[x][z] != Tile.WALL or site_tiles.has(Vector2i(x, z)) or not _has_adjacent_floor(x, z) or is_water(Vector2i(x, z)):
+				continue
+			if _is_floor_at(x, z - 1) or _is_floor_at(x, z - 2):
+				continue
+			if _tile_noise(x, z, 271) > 0.2:
+				continue
+			var too_close := false
+			for p in placed:
+				if absi(p.x - x) < 6 and absi(p.y - z) < 6:
+					too_close = true
+					break
+			if too_close:
+				continue
+			var still: Array = stills[int(_tile_noise(x, z, 277) * stills.size()) % stills.size()]
+			var piece := _make_prop_sprite(still[0], 1.0, still[1])
+			if piece == null:
+				continue
+			if still[0] in ["undead_ruin"]:
+				piece.modulate = tint
+			piece.position = Vector3(x + 0.5, _max_adjacent_floor_elevation(x, z) * ELEV_STEP + CameraView.SPRITE_LIFT, z + 0.5)
+			_visuals_root.add_child(piece)
+			placed.append(Vector2i(x, z))
+	print("[DUNGEON] %s: %d columns, arches and crystals on the edge" % [get_location_name(), placed.size()])
+
+## A sealed Heaven room's walls: HEAVEN_ART's columns on its pillars and,
+## along the wall edges that face into the room from the north, east or
+## west, broken stone, gilded rock and pale crystal (spaced).
+func _dress_heaven_walls(pillars: Array, salt: int, share: float = 0.3) -> void:
+	var tint: Color = heaven_art("stone_tint")
+	var placed := 0
+	for c in pillars:
+		var column := _make_heaven_piece("column")
+		if column:
+			column.position = grid_manager.grid_to_world(c) + Vector3(0, CameraView.SPRITE_LIFT, 0.3)
+			_visuals_root.add_child(column)
+			placed += 1
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			if grid[x][z] != Tile.WALL or water[x][z] or not _has_adjacent_floor(x, z) or _is_floor_at(x, z - 1):
+				continue
+			var pos := Vector2i(x, z)
+			if pos in pillars or (pos - player_start).length() < 2.5:
+				continue
+			var n := _tile_noise(x, z, salt)
+			if n >= share:
+				continue
+			var sprite: Sprite3D = null
+			if n < share * 0.4:
+				sprite = _make_prop_sprite("undead_ruin", 0.45, [0, 2, 3][int(n * 1000) % 3])
+				if sprite:
+					sprite.modulate = tint
+			elif n < share * 0.7:
+				sprite = _make_prop_sprite("glow_crystal", 0.85, int(n * 1000))
+			else:
+				sprite = _make_prop_sprite("glow_gold", 0.8, int(n * 1000))
+			if sprite:
+				sprite.position = grid_manager.grid_to_world(pos) + Vector3(0, CameraView.SPRITE_LIFT, 0.3)
+				_visuals_root.add_child(sprite)
+				placed += 1
+	print("[DUNGEON] %s walls dressed: %d columns, ruins and crystals" % [get_location_name(), placed])
+
+## A pale glow over the sickened water every few tiles (as lava glows, but
+## cold), so the pools read in the gloom.
+func _dress_heaven_pools(color: Color = Color(0.7, 0.85, 0.45)) -> void:
+	var lit: Array = []
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			if not is_water(Vector2i(x, z)) or is_floor(Vector2i(x, z)):
+				continue
+			var near := false
+			for p in lit:
+				if absi(p.x - x) < 5 and absi(p.y - z) < 5:
+					near = true
+					break
+			if near:
+				continue
+			var glow := OmniLight3D.new()
+			glow.light_color = color
+			glow.light_energy = 0.6
+			glow.omni_range = 3.5
+			glow.position = Vector3(x + 0.5, 0.6, z + 0.5)
+			_visuals_root.add_child(glow)
+			lit.append(Vector2i(x, z))
+
+## Spawn zones from a room list: `pick` (room) -> Array of enemy types (may
+## be empty to skip the room); spawn points picked inside each room's rect
+## (or its own cells).
+func _zones_from_rooms(pick: Callable, label: String) -> void:
+	for room in rooms:
+		var kind: String = room["kind"]
+		if kind in ["start", "exit", "boss"]:
+			continue
+		var types: Array = pick.call(room)
+		if types.is_empty():
+			continue
+		var rect: Rect2i = room["rect"]
+		var cells: Array = room.get("cells", [])
+		var points: Array = []
+		var kept: Array = []
+		for t in types:
+			var cell := Vector2i(-1, -1)
+			if cells.is_empty():
+				for _try in range(3):
+					var q := _pick_free_cell(rect, points)
+					if q.x >= 0 and not step_tiles.has(q) and not is_water(q):
+						cell = q
+						break
+			else:
+				for _try in range(24):
+					var q: Vector2i = cells[_rng.randi_range(0, cells.size() - 1)]
+					if is_floor(q) and not is_water(q) and not _reserved.has(q) and not (q in points):
+						cell = q
+						break
+			if cell.x < 0:
+				continue
+			points.append(cell)
+			kept.append(t)
+		if points.is_empty():
+			continue
+		spawn_zones.append({"trigger_rect": rect.grow(2 if has_cliffs else 1), "spawn_points": points, "enemy_types": kept, "spawned": false})
+	for z in spawn_zones:
+		for p in z["spawn_points"]:
+			_reserved[p] = true
+	print("[DUNGEON] Defined %d %s spawn zones" % [spawn_zones.size(), label])
+
+func _roll(pool: Array, n: int) -> Array:
+	var out: Array = []
+	for _i in range(n):
+		out.append(pool[_rng.randi_range(0, pool.size() - 1)])
+	return out
+
+## A floor tile no walk from the start reaches becomes rock (or stays the
+## water it is): the place is one piece.
+func _sink_unreached() -> void:
+	var reach := _floor_reach(player_start)
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if grid[x][z] == Tile.FLOOR and not reach.has(Vector2i(x, z)):
+				grid[x][z] = Tile.WALL
+				water[x][z] = false
+
+func _make_pool(cells: Array) -> void:
+	for p in cells:
+		_make_lava(p)   # flagged water no one wades (the sickened pools, the gulf)
+
+# ---- The Defiled Sanctum ----
+var sanctum_pillars: Array = []
+
+func _generate_sanctum_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	sanctum_pillars.clear()
+	var mid := GRID_H / 2
+	var cx := int(GRID_W * 0.56)
+	var nave_x1 := cx - 8                      # last column of the nave
+	var narthex := Rect2i(1, mid - 3, 6, 7)
+	var nave := Rect2i(7, mid - 3, nave_x1 - 6, 7)
+	var choir := Rect2i(cx + 6, mid - 3, GRID_W - 16 - cx, 7)
+	var apse_c := Vector2i(GRID_W - 8, mid)
+	for r in [narthex, nave, choir]:
+		_carve_rect(r)
+	# Side chapels north and south of the nave, through its two-thick walls.
+	var chapels: Array = []
+	var cw := 5
+	var x := nave.position.x + 1
+	while x + cw <= nave.end.x:
+		for north in [true, false]:
+			var chapel := Rect2i(x, mid - 10, cw, 5) if north else Rect2i(x, mid + 6, cw, 5)
+			_carve_rect(chapel)
+			var dx := x + 1 + _rng.randi_range(0, cw - 3)
+			for k in range(2):
+				for z in ([mid - 5, mid - 4] if north else [mid + 4, mid + 5]):
+					grid[dx + k][z] = Tile.FLOOR
+			chapels.append(chapel)
+		x += cw + 1
+	# The crossing: a domed rotunda, its fonts gone to bog in the four
+	# diagonals, a ring of columns round the middle.
+	var cross_c := Vector2i(cx, mid)
+	_carve_circle(cross_c, 6)
+	for d in [Vector2i(-1, 0), Vector2i(1, 0)]:
+		for k in range(1, 4):
+			for dz in range(-1, 2):
+				grid[cross_c.x + d.x * (5 + k)][mid + dz] = Tile.FLOOR
+	# The transepts north and south, each ending in a round apse.
+	var n_apse := Vector2i(cx, 5)
+	var s_apse := Vector2i(cx, GRID_H - 6)
+	_carve_rect(Rect2i(cx - 2, n_apse.y, 5, mid - n_apse.y))
+	_carve_rect(Rect2i(cx - 2, mid, 5, s_apse.y - mid))
+	_carve_circle(n_apse, 3)
+	_carve_circle(s_apse, 3)
+	# The choir's apse at the east end: the deepest, the Altar's door.
+	_carve_circle(apse_c, 5)
+	# Columns: two rows down the nave and the choir, a ring in the crossing.
+	for px in range(nave.position.x + 2, nave.end.x - 1, 3):
+		for pz in [mid - 2, mid + 2]:
+			grid[px][pz] = Tile.WALL
+			sanctum_pillars.append(Vector2i(px, pz))
+	for px in range(choir.position.x + 1, choir.end.x - 1, 3):
+		for pz in [mid - 2, mid + 2]:
+			grid[px][pz] = Tile.WALL
+			sanctum_pillars.append(Vector2i(px, pz))
+	for i in range(8):
+		var a := (i + 0.5) * TAU / 8.0
+		var p := cross_c + Vector2i(roundi(cos(a) * 4.0), roundi(sin(a) * 4.0))
+		if grid[p.x][p.y] == Tile.FLOOR and not (p in sanctum_pillars):
+			grid[p.x][p.y] = Tile.WALL
+			sanctum_pillars.append(p)
+	# The crossing's fonts (two tiles a side in the diagonals, inside the
+	# ring) and a basin in each transept apse: sickened water.
+	for d in [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]:
+		var b: Vector2i = cross_c + d * 2
+		_make_pool([b, b + Vector2i(d.x, 0), b + Vector2i(0, d.y)])
+	for a in [n_apse, s_apse]:
+		_make_pool([a, a + Vector2i(1, 0), a + Vector2i(0, 1), a + Vector2i(1, 1)])
+	# The paved runner from the door to the altar.
+	for rx in range(1, apse_c.x + 4):
+		if grid[rx][mid] == Tile.FLOOR and not water[rx][mid]:
+			trail[rx][mid] = true
+	_enforce_border_walls()
+	_sink_unreached()
+	rooms.append({"rect": narthex, "kind": "start", "elev": 0})
+	rooms.append({"rect": nave, "kind": "room", "elev": 0, "part": "nave"})
+	for c in chapels:
+		rooms.append({"rect": c, "kind": "chamber", "elev": 0, "part": "chapel"})
+	rooms.append({"rect": _circle_rect(cross_c, 6), "kind": "chamber", "elev": 0, "part": "crossing"})
+	rooms.append({"rect": Rect2i(cx - 3, n_apse.y - 3, 7, mid - 6 - n_apse.y + 3), "kind": "chamber", "elev": 0, "part": "transept"})
+	rooms.append({"rect": Rect2i(cx - 3, mid + 7, 7, s_apse.y + 4 - (mid + 7)), "kind": "chamber", "elev": 0, "part": "transept"})
+	rooms.append({"rect": choir, "kind": "room", "elev": 0, "part": "choir"})
+	rooms.append({"rect": _circle_rect(apse_c, 5), "kind": "deep", "elev": 0, "part": "apse"})
+
+## The Sanctum's dwellers: cherubs gone wrong, specters and succubi in the
+## nave; mind eaters and succubi in the chapels; demons, harpies and
+## cherubs under the dome and in the transepts; a djinn in the choir's apse
+## before the Altar's door.
+func _define_sanctum_spawn_zones() -> void:
+	_zones_from_rooms(Callable(self, "_sanctum_dwellers"), "Defiled Sanctum")
+
+func _sanctum_dwellers(room: Dictionary) -> Array:
+	match room.get("part", ""):
+		"nave":
+			return _roll([Enemy.EnemyType.CHERUB, Enemy.EnemyType.CHERUB, Enemy.EnemyType.SPECTER, Enemy.EnemyType.SUCCUBUS], 3)
+		"chapel":
+			if _rng.randf() >= 0.6:
+				return []
+			return _roll([Enemy.EnemyType.MIND_EATER, Enemy.EnemyType.SUCCUBUS, Enemy.EnemyType.SPECTER, Enemy.EnemyType.CHERUB], 2)
+		"crossing":
+			return _roll([Enemy.EnemyType.DEMON, Enemy.EnemyType.ASH_HARPY, Enemy.EnemyType.CHERUB, Enemy.EnemyType.SUCCUBUS], 4)
+		"transept":
+			return _roll([Enemy.EnemyType.DEMON, Enemy.EnemyType.CHERUB, Enemy.EnemyType.MIND_EATER, Enemy.EnemyType.SPECTER], 2)
+		"choir":
+			return _roll([Enemy.EnemyType.DEMON, Enemy.EnemyType.CHERUB, Enemy.EnemyType.MIND_EATER], 3)
+		"apse":
+			return [Enemy.EnemyType.DJINN, Enemy.EnemyType.DEMON, Enemy.EnemyType.CHERUB, Enemy.EnemyType.CHERUB]
+	return []
+
+func _build_sanctum_decorations() -> void:
+	## Columns on the pillars, broken stone and crystal along the walls,
+	## braziers (stand-in fire), the fonts' cold glow; then the runner is
+	## kept clear and the rest takes the open ground's scatter.
+	_dress_heaven_walls(sanctum_pillars, 701, 0.28)
+	_place_braziers(10, 7, heaven_art("brazier"))
+	_dress_heaven_pools()
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if grid[x][z] == Tile.FLOOR and trail[x][z]:
+				_reserved[Vector2i(x, z)] = true
+
+# ---- The Desecrated Altar: a round sanctuary, a djinn on the altar ----
+const AL_SIZE := Vector2i(29, 25)
+const AL_CENTER := Vector2i(15, 12)
+const AL_RADIUS := 10
+var altar_cell := Vector2i(-1, -1)
+var altar_pillars: Array = []
+
+func _generate_altar_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	altar_pillars.clear()
+	guardian_placements.clear()
+	_carve_circle(AL_CENTER, AL_RADIUS)
+	grid[player_start.x - 1][player_start.y] = Tile.FLOOR   # the threshold the door stands on
+	rooms.append({"rect": _circle_rect(AL_CENTER, AL_RADIUS), "kind": "boss", "elev": 0})
+	altar_cell = AL_CENTER
+	# A ring of eight columns round the altar.
+	for i in range(8):
+		var a := (i + 0.5) * TAU / 8.0
+		var p := AL_CENTER + Vector2i(roundi(cos(a) * 6.0), roundi(sin(a) * 6.0))
+		grid[p.x][p.y] = Tile.WALL
+		altar_pillars.append(p)
+	# Its fonts gone to bog, against the wall north-east and south-east.
+	for sz in [-1, 1]:
+		var b := AL_CENTER + Vector2i(6, sz * 6)
+		_make_pool([b, b + Vector2i(1, 0), b + Vector2i(0, sz), b + Vector2i(-1, 0)])
+	# The runner from the door to the altar.
+	for x in range(1, AL_CENTER.x):
+		if grid[x][AL_CENTER.y] == Tile.FLOOR:
+			trail[x][AL_CENTER.y] = true
+	var c := AL_CENTER
+	# Who keeps it: a djinn on the altar, two cherubs either side of it, two
+	# succubi between the columns beyond, a mind eater at the back.
+	guardian_placements = [
+		{"type": Enemy.EnemyType.DJINN, "cell": c},
+		{"type": Enemy.EnemyType.CHERUB, "cell": c + Vector2i(0, -3)},
+		{"type": Enemy.EnemyType.CHERUB, "cell": c + Vector2i(0, 3)},
+		{"type": Enemy.EnemyType.SUCCUBUS, "cell": c + Vector2i(4, -2)},
+		{"type": Enemy.EnemyType.SUCCUBUS, "cell": c + Vector2i(4, 2)},
+		{"type": Enemy.EnemyType.MIND_EATER, "cell": c + Vector2i(7, 0)},
+	]
+	_enforce_border_walls()
+	_sink_unreached()
+
+func _build_altar_decorations() -> void:
+	## Columns round the altar, broken stone and crystal on the walls, the
+	## gilded rock heaped behind the altar (stand-in), a wan light over it.
+	for g in guardian_placements:
+		_reserve_area(g["cell"], 0)
+	_reserve_area(altar_cell, 1)
+	_dress_heaven_walls(altar_pillars, 711, 0.4)
+	var relic := _make_heaven_piece("altar")
+	if relic and _claim_obstacle(altar_cell + Vector2i(1, 0)):   # the altar stands in the way
+		relic.position = grid_manager.grid_to_world(altar_cell + Vector2i(1, 0)) + Vector3(0, CameraView.SPRITE_LIFT, -0.1)
+		_visuals_root.add_child(relic)
+	_dress_heaven_pools()
+	_place_braziers(4, 8, heaven_art("brazier"))
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.9, 0.6)
+	light.light_energy = 1.5
+	light.omni_range = 7.0
+	light.position = grid_manager.grid_to_world(altar_cell) + Vector3(0, 1.2, 0)
+	_visuals_root.add_child(light)
+
+# ---- The Gilded Garden ----
+var garden_basin := Vector2i(-1, -1)
+
+func _generate_garden_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	var mid := GRID_H / 2
+	var entry := Rect2i(1, mid - 3, 6, 7)
+	var grove := Rect2i(GRID_W - 12, mid - 6, 10, 13)
+	var gx0 := 8
+	var gx1 := GRID_W - 13                  # last column of the beds' field
+	var gz0 := 2
+	var gz1 := GRID_H - 3
+	_carve_rect(entry)
+	_carve_rect(grove)
+	_carve_rect(Rect2i(gx0 - 2, gz0, gx1 - gx0 + 5, gz1 - gz0 + 1))
+	# The beds: a grid of hedged plots, walks three wide between them.
+	var cols := 4
+	var rows_n := 3
+	var walk := 3
+	var bw := (gx1 - gx0 + 1 - walk * (cols - 1)) / cols
+	var bh := (gz1 - gz0 + 1 - walk * (rows_n - 1)) / rows_n
+	var beds: Array = []
+	for c in range(cols):
+		for r in range(rows_n):
+			var rect := Rect2i(gx0 + c * (bw + walk), gz0 + r * (bh + walk), bw, bh)
+			beds.append({"rect": rect, "col": c, "row": r})
+	# The heart of the garden: the middle beds give way to an open plaza
+	# round the great fountain, gone to bog.
+	var plaza := Rect2i()
+	var bed_rooms: Array = []
+	for b in beds:
+		var rect: Rect2i = b["rect"]
+		if b["row"] == 1 and (b["col"] == 1 or b["col"] == 2):
+			plaza = rect if plaza.size.x == 0 else plaza.merge(rect)
+			continue
+		# The hedge round the bed: its rim, gaps two wide on two sides.
+		for x in range(rect.position.x, rect.end.x):
+			for z in range(rect.position.y, rect.end.y):
+				var rim := x == rect.position.x or x == rect.end.x - 1 or z == rect.position.y or z == rect.end.y - 1
+				if rim:
+					grid[x][z] = Tile.WALL
+		var sides := [0, 1, 2, 3]
+		for i in range(sides.size() - 1, 0, -1):
+			var j := _rng.randi_range(0, i)
+			var tmp = sides[i]
+			sides[i] = sides[j]
+			sides[j] = tmp
+		for side in sides.slice(0, 2):
+			var gap: Array = []
+			match side:
+				0:
+					var gx := _rng.randi_range(rect.position.x + 1, rect.end.x - 3)
+					gap = [Vector2i(gx, rect.position.y), Vector2i(gx + 1, rect.position.y)]
+				1:
+					var gx := _rng.randi_range(rect.position.x + 1, rect.end.x - 3)
+					gap = [Vector2i(gx, rect.end.y - 1), Vector2i(gx + 1, rect.end.y - 1)]
+				2:
+					var gz := _rng.randi_range(rect.position.y + 1, rect.end.y - 3)
+					gap = [Vector2i(rect.position.x, gz), Vector2i(rect.position.x, gz + 1)]
+				3:
+					var gz := _rng.randi_range(rect.position.y + 1, rect.end.y - 3)
+					gap = [Vector2i(rect.end.x - 1, gz), Vector2i(rect.end.x - 1, gz + 1)]
+			for g in gap:
+				grid[g.x][g.y] = Tile.FLOOR
+		# Overgrowth inside: a clump of thicket in the bed (never at a gap).
+		if rect.size.x >= 7 and rect.size.y >= 6 and _rng.randf() < 0.6:
+			var tc := rect.get_center() + Vector2i(_rng.randi_range(-1, 1), _rng.randi_range(-1, 0))
+			for d in [Vector2i.ZERO, Vector2i(1, 0), Vector2i(0, 1)]:
+				grid[tc.x + d.x][tc.y + d.y] = Tile.WALL
+		bed_rooms.append(rect.grow(-1))
+	# The great fountain: a round basin in the plaza, a walk all round it.
+	garden_basin = plaza.get_center()
+	var basin: Array = []
+	for bx in range(garden_basin.x - 3, garden_basin.x + 4):
+		for bz in range(garden_basin.y - 3, garden_basin.y + 4):
+			var dx := bx - garden_basin.x
+			var dz := bz - garden_basin.y
+			if dx * dx + dz * dz <= 10:
+				basin.append(Vector2i(bx, bz))
+	_make_pool(basin)
+	# The walks are gold: everything open that is not inside a bed.
+	for x in range(1, GRID_W - 1):
+		for z in range(1, GRID_H - 1):
+			if grid[x][z] != Tile.FLOOR:
+				continue
+			var inside := false
+			for r in bed_rooms:
+				if (r as Rect2i).has_point(Vector2i(x, z)):
+					inside = true
+					break
+			if not inside and not entry.has_point(Vector2i(x, z)) and not grove.has_point(Vector2i(x, z)):
+				trail[x][z] = true
+	# Sickened pools in the grove's corners.
+	for corner in [grove.position + Vector2i(1, 1), Vector2i(grove.end.x - 3, grove.position.y + 1),
+			Vector2i(grove.position.x + 1, grove.end.y - 3), grove.end - Vector2i(3, 3)]:
+		_make_pool([corner, corner + Vector2i(1, 0), corner + Vector2i(0, 1), corner + Vector2i(1, 1)])
+	_enforce_border_walls()
+	_sink_unreached()
+	rooms.append({"rect": entry, "kind": "start", "elev": 0})
+	for r in bed_rooms:
+		rooms.append({"rect": r, "kind": "chamber", "elev": 0, "part": "bed"})
+	rooms.append({"rect": plaza, "kind": "room", "elev": 0, "part": "plaza"})
+	# The walks themselves, a band at a time west to east, as open ground
+	# (their own cells: the gold walks, not the beds).
+	var band := 12
+	for bx in range(gx0 - 2, gx1 + 3, band):
+		var rect := Rect2i(bx, gz0, mini(band, gx1 + 3 - bx), gz1 - gz0 + 1)
+		var cells: Array = []
+		for x in range(rect.position.x, rect.end.x):
+			for z in range(rect.position.y, rect.end.y):
+				if grid[x][z] == Tile.FLOOR and trail[x][z] and not water[x][z] and not plaza.has_point(Vector2i(x, z)):
+					cells.append(Vector2i(x, z))
+		if cells.size() >= 10:
+			rooms.append({"rect": rect, "kind": "field", "elev": 0, "part": "walk", "cells": cells})
+	rooms.append({"rect": grove, "kind": "deep", "elev": 0, "part": "grove"})
+
+## The Garden's dwellers: cherubs, succubi, specters and mind eaters in
+## the beds; ash harpies over the walks; demons and cherubs round the
+## fountain; a djinn in the far grove before the Font's door.
+func _define_garden_spawn_zones() -> void:
+	_zones_from_rooms(Callable(self, "_garden_dwellers"), "Gilded Garden")
+
+func _garden_dwellers(room: Dictionary) -> Array:
+	match room.get("part", ""):
+		"bed":
+			if _rng.randf() >= 0.7:
+				return []
+			var n := 3 if (room["rect"] as Rect2i).get_area() > 40 else 2
+			return _roll([Enemy.EnemyType.CHERUB, Enemy.EnemyType.CHERUB, Enemy.EnemyType.SUCCUBUS, Enemy.EnemyType.SPECTER, Enemy.EnemyType.MIND_EATER], n)
+		"walk":
+			if _rng.randf() >= 0.5:
+				return []
+			return _roll([Enemy.EnemyType.ASH_HARPY, Enemy.EnemyType.CHERUB, Enemy.EnemyType.SPECTER], 2)
+		"plaza":
+			return _roll([Enemy.EnemyType.DEMON, Enemy.EnemyType.CHERUB, Enemy.EnemyType.ASH_HARPY, Enemy.EnemyType.SUCCUBUS], 4)
+		"grove":
+			return [Enemy.EnemyType.DJINN, Enemy.EnemyType.CHERUB, Enemy.EnemyType.CHERUB, Enemy.EnemyType.MIND_EATER]
+	return []
+
+func _build_garden_decorations() -> void:
+	## The fountain's and the pools' cold glow; then the walks are kept
+	## clear and the beds take the open ground's overgrowth (heaven biome).
+	_dress_heaven_pools()
+	var light := OmniLight3D.new()
+	light.light_color = Color(0.85, 0.95, 0.6)
+	light.light_energy = 1.2
+	light.omni_range = 6.0
+	light.position = grid_manager.grid_to_world(garden_basin) + Vector3(0, 1.0, 0)
+	_visuals_root.add_child(light)
+
+# ---- The Sickened Font: two djinn round a fountain gone to bog ----
+const FN_SIZE := Vector2i(31, 25)
+const FN_FLOOR := Rect2i(2, 2, 27, 21)   # x 2..28, z 2..22
+var font_basin := Vector2i(-1, -1)
+
+func _generate_font_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	guardian_placements.clear()
+	_carve_rect(FN_FLOOR)
+	for x in range(1, player_start.x + 1):
+		grid[x][player_start.y] = Tile.FLOOR
+	rooms.append({"rect": FN_FLOOR, "kind": "boss", "elev": 0})
+	var c := FN_FLOOR.get_center()
+	font_basin = c
+	# The fountain: a round basin of bog at the heart of the court.
+	var basin: Array = []
+	for x in range(c.x - 4, c.x + 5):
+		for z in range(c.y - 4, c.y + 5):
+			var dx := x - c.x
+			var dz := z - c.y
+			if dx * dx + dz * dz <= 10:
+				basin.append(Vector2i(x, z))
+	_make_pool(basin)
+	# Four hedged beds in the corners of the court (overgrowth).
+	for corner in [FN_FLOOR.position + Vector2i(2, 2), Vector2i(FN_FLOOR.end.x - 7, FN_FLOOR.position.y + 2),
+			Vector2i(FN_FLOOR.position.x + 2, FN_FLOOR.end.y - 6), FN_FLOOR.end - Vector2i(7, 6)]:
+		for dx in range(5):
+			for dz in range(4):
+				grid[corner.x + dx][corner.y + dz] = Tile.WALL
+	# Gold walks: the cross through the court.
+	for x in range(1, FN_FLOOR.end.x):
+		if grid[x][c.y] == Tile.FLOOR and not water[x][c.y]:
+			trail[x][c.y] = true
+	for z in range(FN_FLOOR.position.y, FN_FLOOR.end.y):
+		if grid[c.x][z] == Tile.FLOOR and not water[c.x][z]:
+			trail[c.x][z] = true
+	# Its keepers: two djinn north and south of the fountain, two cherubs
+	# east and west of it, a succubus and a mind eater by the far wall.
+	guardian_placements = [
+		{"type": Enemy.EnemyType.DJINN, "cell": c + Vector2i(0, -6)},
+		{"type": Enemy.EnemyType.DJINN, "cell": c + Vector2i(0, 6)},
+		{"type": Enemy.EnemyType.CHERUB, "cell": c + Vector2i(-5, 0)},
+		{"type": Enemy.EnemyType.CHERUB, "cell": c + Vector2i(5, 0)},
+		{"type": Enemy.EnemyType.SUCCUBUS, "cell": c + Vector2i(10, -3)},
+		{"type": Enemy.EnemyType.MIND_EATER, "cell": c + Vector2i(10, 3)},
+	]
+	_enforce_border_walls()
+	_sink_unreached()
+
+func _build_font_decorations() -> void:
+	for g in guardian_placements:
+		_reserve_area(g["cell"], 0)
+	_dress_heaven_pools()
+	var light := OmniLight3D.new()
+	light.light_color = Color(0.85, 0.95, 0.6)
+	light.light_energy = 1.4
+	light.omni_range = 7.0
+	light.position = grid_manager.grid_to_world(font_basin) + Vector3(0, 1.0, 0)
+	_visuals_root.add_child(light)
+	for x in range(GRID_W):
+		for z in range(GRID_H):
+			if grid[x][z] == Tile.FLOOR and trail[x][z]:
+				_reserved[Vector2i(x, z)] = true
+
+# ---- The Silent Spire ----
+var belfry_door_cell := Vector2i(-1, -1)
+
+## The Spire's dwellers: demons, succubi and specters on the low terraces;
+## mind eaters, specters and cherubs keeping the ledges (the cherubs fly
+## over the cliffs); ash harpies and cherubs riding the heights. At the
+## top, a djinn and a harpy.
+func _define_spire_spawn_zones() -> void:
+	var low := [Enemy.EnemyType.DEMON, Enemy.EnemyType.SUCCUBUS, Enemy.EnemyType.SPECTER, Enemy.EnemyType.SUCCUBUS]
+	var perch := [Enemy.EnemyType.MIND_EATER, Enemy.EnemyType.CHERUB, Enemy.EnemyType.SPECTER]
+	for room in rooms:
+		var rect: Rect2i = room["rect"]
+		var kind: String = room["kind"]
+		if kind in ["start", "exit"]:
+			continue
+		var high: bool = int(room["elev"]) >= MOUNTAIN_TIER_STEP or room.get("outcrop", false)
+		if kind != "deep" and _rng.randf() >= (0.85 if high else 0.65):
+			continue
+		var n := clampi(2 + rect.get_area() / 45, 2, 4)
+		var points: Array = []
+		var types: Array = []
+		for _i in range(n * 3):
+			if points.size() >= n:
+				break
+			var cell := _pick_free_cell(rect, points)
+			if cell.x < 0 or step_tiles.has(cell) or is_water(cell):
+				continue
+			points.append(cell)
+			var e: int = elevation[cell.x][cell.y]
+			if e >= MOUNTAIN_TIER_STEP * 2 and _rng.randf() < 0.3:
+				types.append(Enemy.EnemyType.ASH_HARPY)
+			elif e >= MOUNTAIN_TIER_STEP or room.get("outcrop", false):
+				types.append(perch[_rng.randi_range(0, perch.size() - 1)])
+			else:
+				types.append(low[_rng.randi_range(0, low.size() - 1)])
+		if points.is_empty():
+			continue
+		if kind == "deep":
+			types[0] = Enemy.EnemyType.DJINN
+			if types.size() > 1:
+				types[1] = Enemy.EnemyType.ASH_HARPY
+		spawn_zones.append({"trigger_rect": rect.grow(2), "spawn_points": points, "enemy_types": types, "spawned": false})
+	_ensure_zone_types([Enemy.EnemyType.CHERUB, Enemy.EnemyType.ASH_HARPY, Enemy.EnemyType.MIND_EATER], [Enemy.EnemyType.SUCCUBUS, Enemy.EnemyType.SPECTER, Enemy.EnemyType.DEMON])
+	for z in spawn_zones:
+		for p in z["spawn_points"]:
+			_reserved[p] = true
+	print("[DUNGEON] Defined %d Silent Spire spawn zones" % spawn_zones.size())
+
+# ---- The Belfry: the top of the Spire ----
+const BF_SIZE := Vector2i(29, 25)
+const BF_FLOOR := Rect2i(2, 3, 25, 20)   # x 2..26, z 3..22
+var belfry_cell := Vector2i(-1, -1)
+var belfry_pillars: Array = []
+
+func _generate_belfry_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	belfry_pillars.clear()
+	guardian_placements.clear()
+	_carve_rect(BF_FLOOR)
+	var cx := BF_FLOOR.get_center().x
+	# The way in from the south (the stair below).
+	for z in range(player_start.y, GRID_H - 1):
+		grid[cx][z] = Tile.FLOOR
+	rooms.append({"rect": BF_FLOOR, "kind": "boss", "elev": 0})
+	belfry_cell = Vector2i(cx, BF_FLOOR.position.y + 8)
+	# The bell frame: four great piers (two by two) round where the bells
+	# hung, and the corners of the tower cut back.
+	for d in [Vector2i(-4, -4), Vector2i(3, -4), Vector2i(-4, 3), Vector2i(3, 3)]:
+		for dx in range(2):
+			for dz in range(2):
+				var p: Vector2i = belfry_cell + d + Vector2i(dx, dz)
+				grid[p.x][p.y] = Tile.WALL
+				belfry_pillars.append(p)
+	for corner in [BF_FLOOR.position, Vector2i(BF_FLOOR.end.x - 2, BF_FLOOR.position.y),
+			Vector2i(BF_FLOOR.position.x, BF_FLOOR.end.y - 2), BF_FLOOR.end - Vector2i(2, 2)]:
+		for dx in range(2):
+			for dz in range(2):
+				grid[corner.x + dx][corner.y + dz] = Tile.WALL
+	var b := belfry_cell
+	# Its keepers: a djinn under the bell frame, a demon and a mind eater
+	# before it, two cherubs and two ash harpies in the open corners.
+	guardian_placements = [
+		{"type": Enemy.EnemyType.DJINN, "cell": b},
+		{"type": Enemy.EnemyType.DEMON, "cell": b + Vector2i(-2, 6)},
+		{"type": Enemy.EnemyType.MIND_EATER, "cell": b + Vector2i(2, 6)},
+		{"type": Enemy.EnemyType.CHERUB, "cell": b + Vector2i(-7, 0)},
+		{"type": Enemy.EnemyType.CHERUB, "cell": b + Vector2i(7, 0)},
+		{"type": Enemy.EnemyType.ASH_HARPY, "cell": b + Vector2i(-9, -3)},
+		{"type": Enemy.EnemyType.ASH_HARPY, "cell": b + Vector2i(9, -3)},
+	]
+	_enforce_border_walls()
+	_sink_unreached()
+
+func _build_belfry_decorations() -> void:
+	for g in guardian_placements:
+		_reserve_area(g["cell"], 0)
+	_reserve_area(belfry_cell, 1)
+	_dress_heaven_walls(belfry_pillars, 721, 0.35)
+	_place_braziers(4, 8, heaven_art("brazier"))
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.9, 0.65)
+	light.light_energy = 1.4
+	light.omni_range = 7.0
+	light.position = grid_manager.grid_to_world(belfry_cell) + Vector3(0, 1.2, 0)
+	_visuals_root.add_child(light)
+
+# ---- The Sundered Causeway ----
+
+## The Causeway's dwellers: demons, succubi, specters, mind eaters and
+## cherubs on the banks with ash harpies over them; cherubs and harpies on
+## the islands (winged, they cross the gulf); a djinn, demons and a harpy
+## at the far landing, at the Rent.
+func _define_causeway_spawn_zones() -> void:
+	_zones_from_rooms(Callable(self, "_causeway_dwellers"), "Sundered Causeway")
+
+func _causeway_dwellers(room: Dictionary) -> Array:
+	if room["kind"] == "deep":
+		return [Enemy.EnemyType.DJINN, Enemy.EnemyType.DEMON, Enemy.EnemyType.DEMON, Enemy.EnemyType.ASH_HARPY, Enemy.EnemyType.CHERUB]
+	if room.get("isle", false):
+		var isle := [Enemy.EnemyType.CHERUB, Enemy.EnemyType.CHERUB]
+		if _rng.randf() < 0.5:
+			isle.append(Enemy.EnemyType.ASH_HARPY)
+		return isle
+	if _rng.randf() >= 0.8:
+		return []
+	var bank := [Enemy.EnemyType.DEMON, Enemy.EnemyType.SUCCUBUS, Enemy.EnemyType.SPECTER, Enemy.EnemyType.MIND_EATER,
+		Enemy.EnemyType.CHERUB, Enemy.EnemyType.ASH_HARPY]
+	return _roll(bank, clampi(2 + room.get("cells", []).size() / 45, 2, 4))
+
+func _build_causeway_decorations() -> void:
+	## The Underworld's vein bridges over the gulf (stand-in, HEAVEN_ART);
+	## then the banks take the open ground's scatter.
+	_lay_bridge_sprites()
+
+# ---- The Rent: Heaven's floor torn open, the way down ----
+const RN_SIZE := Vector2i(35, 23)
+const RN_FLOOR := Rect2i(2, 2, 31, 19)   # x 2..32, z 2..20
+var rent_cells: Array = []
+var rent_lip := Vector2i(-1, -1)
+var rent_pillars: Array = []
+
+func _generate_rent_layout() -> void:
+	_init_grid_walls()
+	rooms.clear()
+	rent_cells.clear()
+	rent_pillars.clear()
+	guardian_placements.clear()
+	_carve_rect(RN_FLOOR)
+	var mid := RN_FLOOR.get_center().y
+	for x in range(1, player_start.x + 1):
+		grid[x][mid] = Tile.FLOOR
+	rooms.append({"rect": RN_FLOOR, "kind": "boss", "elev": 0})
+	# The tear: a jagged gulf down the east part of the floor, open ground
+	# round both its ends.
+	var tx := RN_FLOOR.end.x - 9
+	for z in range(RN_FLOOR.position.y + 4, RN_FLOOR.end.y - 4):
+		var off := roundi(1.2 * sin(z * 0.9)) + (1 if z % 3 == 0 else 0)
+		var w := 2 if absi(z - mid) > 4 else 3
+		for k in range(w):
+			var p := Vector2i(tx + off + k - 1, z)
+			rent_cells.append(p)
+	_make_pool(rent_cells)
+	rent_lip = Vector2i(tx - 3, mid)
+	while not is_floor(rent_lip + Vector2i(1, 0)) or is_water(rent_lip + Vector2i(1, 0)):
+		rent_lip.x -= 1
+	rent_lip.x += 1
+	if is_water(rent_lip) or not is_floor(rent_lip):
+		rent_lip.x -= 1
+	# Broken columns down the long walls.
+	for x in range(RN_FLOOR.position.x + 4, tx - 3, 4):
+		for z in [RN_FLOOR.position.y + 1, RN_FLOOR.end.y - 2]:
+			grid[x][z] = Tile.WALL
+			rent_pillars.append(Vector2i(x, z))
+	# The runner from the door to the lip.
+	for x in range(1, rent_lip.x + 1):
+		if grid[x][mid] == Tile.FLOOR:
+			trail[x][mid] = true
+	var l := rent_lip
+	# Its wardens (the strongest band Heaven's host and the invaders make):
+	# two djinn at the lip, two demons before them, a mind eater, two
+	# cherubs and an ash harpy over the gulf's ends.
+	guardian_placements = [
+		{"type": Enemy.EnemyType.DJINN, "cell": l + Vector2i(-1, -4)},
+		{"type": Enemy.EnemyType.DJINN, "cell": l + Vector2i(-1, 4)},
+		{"type": Enemy.EnemyType.DEMON, "cell": l + Vector2i(-5, -2)},
+		{"type": Enemy.EnemyType.DEMON, "cell": l + Vector2i(-5, 2)},
+		{"type": Enemy.EnemyType.MIND_EATER, "cell": l + Vector2i(-2, 0)},
+		{"type": Enemy.EnemyType.CHERUB, "cell": l + Vector2i(-8, -5)},
+		{"type": Enemy.EnemyType.CHERUB, "cell": l + Vector2i(-8, 5)},
+		{"type": Enemy.EnemyType.ASH_HARPY, "cell": Vector2i(tx + 4, mid)},
+	]
+	_enforce_border_walls()
+	_sink_unreached()
+
+func _build_rent_decorations() -> void:
+	for g in guardian_placements:
+		_reserve_area(g["cell"], 0)
+	_reserve_area(rent_lip, 1)
+	_dress_heaven_walls(rent_pillars, 731, 0.35)
+	_place_braziers(4, 8, heaven_art("brazier"))
+	_dress_heaven_pools(Color(0.75, 0.55, 1.0))
+	var light := OmniLight3D.new()
+	light.light_color = Color(0.8, 0.6, 1.0)
+	light.light_energy = 1.4
+	light.omni_range = 6.0
+	light.position = grid_manager.grid_to_world(rent_lip) + Vector3(1.5, 1.0, 0)
+	_visuals_root.add_child(light)
+
+## The way down, once the wardens have fallen: a site at the Rent's lip.
+## Shift there goes down to the next world (main._try_interact_site, kind
+## "descend"), as the Breach led up to this one.
+func _place_rent_descent() -> void:
+	if get_site_by_id("descend") >= 0:
+		return
+	_place_exit_site(rent_lip, "descend", "descend", "The Rent", "[Shift] Descend", Vector3(0.7, 0, 0), Color(0.85, 0.7, 1.0))
 
 # ============================================
 # BUILDING INTERIOR LAYOUT
@@ -4474,7 +5560,7 @@ func _carve_corridor_v(x: int, from_z: int, to_z: int) -> void:
 # ============================================
 
 func _generate_elevation() -> void:
-	if interior_kind == "mountains" or interior_kind == "ascent":
+	if interior_kind == "mountains" or interior_kind == "ascent" or interior_kind == "spire":
 		return  # the layout terraced it (_generate_mountain_layout)
 	elevation.clear()
 	for x in range(GRID_W):
@@ -4489,7 +5575,7 @@ func _generate_elevation() -> void:
 		return  # Sewers are flat; channels are carved into the floor, not raised
 	if interior_kind == "boneyard" or interior_kind == "hellgate" or interior_kind == "labyrinth" \
 			or interior_kind == "trolllair" or interior_kind == "thanatoshall" or interior_kind == "closet" \
-			or act2_place():
+			or act2_place() or act3_place():
 		return  # a walled graveyard square / the gate hall / the maze / the Rift's banks, the Citadel's courts: flat
 	if interior_kind == "ratking":
 		# The lair's three cliffs: the walkable top rows behind each cliff
@@ -4603,7 +5689,7 @@ func can_step(from: Vector2i, to: Vector2i) -> bool:
 func _detect_cliffs() -> void:
 	# The Mountain Pass: its south-facing cliffs are rock faces (walls), so
 	# its floor alone need not show a cliff — but its walkers need the route.
-	has_cliffs = interior_kind == "mountains" or interior_kind == "ascent"
+	has_cliffs = interior_kind == "mountains" or interior_kind == "ascent" or interior_kind == "spire"
 	if has_cliffs:
 		return
 	for x in range(GRID_W):
@@ -5068,13 +6154,17 @@ func _sheet_image(path: String) -> Image:
 func _natural_boundary() -> bool:
 	if act2_place():
 		return false   # the Underworld's veined cliffs all round
+	if interior_kind in ["garden", "font"]:
+		return true    # the Gilded Garden: its edges and hedges are overgrowth, not rock
+	if heaven_land():
+		return false   # Heaven's pale stone all round (HEAVEN_ART's wall and cliff)
 	if interior_kind in ["cave", "sewer", "building", "library", "dojo", "graveyard", "ratking", "boneyard", "hellgate", "labyrinth"]:
 		return false
 	if interior_kind == "forest":
 		return true
 	if interior_kind in ["mountains", "icecave", "trolllair", "closet", "thanatoshall"]:
 		return false   # rock all round
-	return art_world() in [1, 2, 3]
+	return art_world() in [1, 2]   # (World 3 is Heaven since 2026-11-09: heaven_land above)
 
 func _build_walls() -> void:
 	## Rock walls drawn the way the packs draw cliffs: a flat autotiled mesh
@@ -5097,6 +6187,8 @@ func _build_walls() -> void:
 			_build_cliff_walls()
 			if (art_world() == 4 and interior_kind == "") or interior_kind in ["rift", "ascent"]:
 				_place_hell_landmarks()   # the Underworld's skyline, on the Rift's and the Stair's rock too
+			elif heaven_land() and interior_kind in ["", "spire", "causeway"]:
+				_place_heaven_landmarks()   # Heaven's skyline (HEAVEN_ART stand-ins)
 		_build_site_blocks()
 		return
 	var items: Array = []
@@ -5149,6 +6241,8 @@ var _wall_atlas_cache: Dictionary = {}
 
 ## The cliff strip for this location (see tools/extract_craftpix_cliffs.py).
 func cliff_strip_path() -> String:
+	if heaven_land():
+		return heaven_art("cliff")   # stand-in (HEAVEN_ART)
 	if act2_place():
 		return GROUND_TEX + "/cursed_cliff.png"   # the Underworld's veined cliff under its earth lip
 	match interior_kind:
@@ -5169,8 +6263,6 @@ func cliff_strip_path() -> String:
 			return GROUND_TEX + "/undead_cliff.png"   # the designer's spikes under an earth lip (2026-10-29)
 		2:
 			return GROUND_TEX + "/desert_cliff.png"   # the designer's sand-topped cliff, 32 px cells
-		3:
-			return CP_TEX + "/cliff_undead.png"  # grey barrow rock under the frost palette
 	return GROUND_TEX + "/field_cliff.png"   # the designer's grass over cobbled earth (2026-10-29)
 
 
@@ -5432,6 +6524,8 @@ func _build_boundary_props() -> void:
 		for z in range(GRID_H):
 			if grid[x][z] != Tile.WALL or site_tiles.has(Vector2i(x, z)):
 				continue
+			if heaven_land() and water[x][z]:
+				continue   # the garden's sickened pools stay open water, not overgrowth
 			var edge := _has_adjacent_floor(x, z)
 			var back := not edge and _near_floor(x, z, 2)
 			if not edge and not back:
@@ -5476,7 +6570,8 @@ func _build_boundary_props() -> void:
 ## covering the spaces that are unreachable"; the designs come later).
 ## A building's walls and roof cover its footprint already; the forest
 ## trail's is filled with woods (_build_forest_entrance).
-const SITE_BLOCK_KINDS := ["cave", "sewer", "mountains", "graveyard", "closet", "library", "rift", "citadel", "ascent"]
+const SITE_BLOCK_KINDS := ["cave", "sewer", "mountains", "graveyard", "closet", "library", "rift", "citadel", "ascent",
+	"sanctum", "garden", "spire", "causeway"]
 
 ## Every block-kind site's footprint drawn as the land's cliff: rock (or
 ## earth) on top, the cliff face along its south edge, the entrance art on
@@ -5772,6 +6867,23 @@ func _build_decorations() -> void:
 			return
 		"ascent":
 			_dress_lava()   # then the open ground's scatter below, in the cursed biome
+		"sanctum":
+			_build_sanctum_decorations()   # then the open ground's scatter, in Heaven's biome
+		"altar":
+			_build_altar_decorations()
+			return
+		"garden":
+			_build_garden_decorations()   # then the beds' overgrowth
+		"font":
+			_build_font_decorations()   # then the court's overgrowth
+		"belfry":
+			_build_belfry_decorations()
+			return
+		"causeway":
+			_build_causeway_decorations()   # then the banks' scatter
+		"rent":
+			_build_rent_decorations()
+			return
 	var pal = get_palette()
 	var _deco_trees: Array = []
 	var _deco_stumps: Array = []
@@ -7407,6 +8519,10 @@ func _place_sites() -> void:
 	var site_total = 2 + (world_level - 1)
 	if world_level == 1:
 		site_total += 2
+	if world_level == 3:
+		# Heaven has no caves (designer, 2026-11-09: World 3's Ice Caves gave
+		# way to the Act 3 places, _place_act3_sites): its two ruins only.
+		site_total = 2
 	var cave_count = 0
 	var building_count = 0
 	var sewer_count = 0
@@ -7435,6 +8551,8 @@ func _place_sites() -> void:
 			kind = "sewer"
 		elif world_level == 1 and s == 1:
 			kind = "forest"
+		elif world_level == 3:
+			kind = "building"
 		elif cave_count <= building_count:
 			# Caves and buildings take turns by what has been placed, so a
 			# room that could not take one (its way in a lava pool) leaves
@@ -7476,9 +8594,8 @@ func _place_sites() -> void:
 				display_name = "Building"
 				building_count += 1
 			_:
-				# Frostreach's caves are frozen (designer, 2026-11-05).
-				id = ("icecave_%d" if world_level == 3 else "cave_%d") % cave_count
-				display_name = "Ice Cave" if world_level == 3 else "Cave"
+				id = "cave_%d" % cave_count
+				display_name = "Cave"
 				cave_count += 1
 
 		_create_site(kind, id, display_name, footprint, entrance, fx, fz, fp_w, fp_d)
@@ -7486,6 +8603,7 @@ func _place_sites() -> void:
 	_place_mountain_site(candidates)
 	_place_closet_site(candidates)
 	_place_act2_sites(candidates)
+	_place_act3_sites(candidates)
 	_place_hidden_graveyard(candidates)
 	_place_library_site(candidates)
 	print("[DUNGEON] Placed %d enterable sites" % site_nodes.size())
@@ -7690,9 +8808,9 @@ func _create_site(kind: String, id: String, display_name: String, footprint: Arr
 	ground.position = Vector3(0, 0.006, 0)
 	site_root.add_child(ground)
 
-	var ruin_site := interior_kind == "" and art_world() in [2, 3, 4] and kind in ["building", "cave"]
-	if ruin_site and art_world() == 3:
-		_build_winter_site(site_root, kind, fp_w, fp_d)
+	var ruin_site := interior_kind == "" and art_world() in [2, 4] and kind in ["building", "cave"]
+	if interior_kind == "" and world_level == 3 and heaven_art("site_" + kind) != null:
+		_build_heaven_site(site_root, kind, fp_w, fp_d)   # Heaven's stand-ins (HEAVEN_ART)
 	elif ruin_site and art_world() == 4:
 		_build_cursed_site(site_root, kind, fp_w, fp_d, fx + fz)
 	elif ruin_site:
@@ -7793,15 +8911,32 @@ func _build_desert_site(root: Node3D, kind: String, fp_w: int, fp_d: int, salt: 
 		root.add_child(sprite)
 
 
-## Frostreach's sites (the designer's snowbound stone, 2026-10-29): a
-## building is the stone hut with its dark doorway, a cave the snowy arch.
-## Feet on the footprint's south edge.
-func _build_winter_site(root: Node3D, kind: String, fp_w: int, fp_d: int) -> void:
-	var sprite := _make_prop_sprite("winter_hut" if kind == "building" else "winter_ruin", 1.0, 0)
+## Heaven's sites (World 3; STAND-INS until the designer's Heaven boards):
+## the piece HEAVEN_ART names for the kind ("site_<kind>") on the
+## footprint's south edge, over the way in; on the Act 3 places' raised
+## blocks, gilded rock and pale crystal heaped behind it; a wan gold light
+## at the door. (World 3's caves became the Act 3 places, 2026-11-09; the
+## snowbound hut and arch of Frostreach went with them.)
+func _build_heaven_site(root: Node3D, kind: String, fp_w: int, fp_d: int) -> void:
 	var door_x := 0.5 if fp_w % 2 == 0 else 0.0
+	if kind in SITE_BLOCK_KINDS:
+		var back_z := -fp_d / 2.0 + 0.55
+		for spec in [[-fp_w * 0.34, back_z, 0.9, "glow_gold", 0], [0.05, back_z - 0.3, 1.0, "glow_crystal", 0],
+				[fp_w * 0.35, back_z, 0.85, "glow_crystal", 4]]:
+			var heap := _make_prop_sprite(spec[3], spec[2], spec[4])
+			if heap:
+				heap.position = Vector3(spec[0], CameraView.SPRITE_LIFT, spec[1])
+				root.add_child(heap)
+	var sprite := _make_heaven_piece("site_" + kind)
 	if sprite:
 		sprite.position = Vector3(door_x, CameraView.SPRITE_LIFT, fp_d / 2.0 - 0.05)
 		root.add_child(sprite)
+	var glow = OmniLight3D.new()
+	glow.light_color = Color(1.0, 0.88, 0.6)
+	glow.light_energy = 0.7
+	glow.omni_range = 3.5
+	glow.position = Vector3(door_x, 0.5, fp_d / 2.0)
+	root.add_child(glow)
 
 
 ## Emberfall's sites (the designer's vein-wrapped ruins, 2026-10-29): a
@@ -8050,7 +9185,7 @@ func _build_forest_entrance(root: Node3D, fp_w: int, fp_d: int) -> void:
 
 func _place_exit_site(at: Vector2i = Vector2i(-9999, -9999), id: String = "exit", kind: String = "exit",
 		text: String = "Exit", prompt: String = "[Shift] Leave", nudge: Vector3 = Vector3.ZERO,
-		tint: Color = Color(0.8, 0.9, 1.0)) -> void:
+		tint: Color = Color(0.8, 0.9, 1.0), piece: Array = []) -> void:
 	## Inside an interior: a glowing doorway (the pack archway) at the entry
 	## tile, back the way the player came — or, with `at` / `kind`, another
 	## threshold such as Hell's Door once it is broken. With no `nudge` the
@@ -8065,8 +9200,12 @@ func _place_exit_site(at: Vector2i = Vector2i(-9999, -9999), id: String = "exit"
 	world_pos += nudge  # Sit just behind the tile so the player isn't on it
 	site_root.position = world_pos
 
-	var portal := _make_prop_sprite("gate_small", 1.3)  # the pack archway, lit from below
-	portal.modulate = tint
+	var portal: Sprite3D
+	if piece.is_empty():
+		portal = _make_prop_sprite("gate_small", 1.3)  # the pack archway, lit from below
+		portal.modulate = tint
+	else:
+		portal = _make_prop_sprite(piece[0], float(piece[2]), int(piece[1]))   # a HEAVEN_ART piece [role, variant, scale, tinted]
 	site_root.add_child(portal)
 	var glow = OmniLight3D.new()
 	glow.light_color = tint
@@ -8440,6 +9579,18 @@ func _define_spawn_zones() -> void:
 		"ascent":
 			_define_ascent_spawn_zones()
 			return
+		"sanctum":
+			_define_sanctum_spawn_zones()
+			return
+		"garden":
+			_define_garden_spawn_zones()
+			return
+		"spire":
+			_define_spire_spawn_zones()
+			return
+		"causeway":
+			_define_causeway_spawn_zones()
+			return
 
 	if interior_kind == "trolllair":
 		_define_troll_lair_spawn_zones()
@@ -8475,7 +9626,21 @@ func _define_spawn_zones() -> void:
 		mid_melee = Enemy.EnemyType.DEMON
 		heavy = Enemy.EnemyType.IFRIT
 		ranged = Enemy.EnemyType.ASH_HARPY
+	# Heaven (World 3, Act 3; its surface and its ruins): the Heavens host
+	# gone sick and the Underworld's broken in among it (STORY.md 5.4,
+	# Heavens): cherubs with specters, succubi and mind eaters the rank and
+	# file (rolled per enemy, HEAVEN_TRASH), cherubs again the mid tier,
+	# demons the heavies, ash harpies at range; a djinn holds each deep room
+	# (its elite: the lords of Heaven's deep) and the arena.
+	var heaven := world_level == 3 and interior_kind in ["", "building"]
+	if heaven:
+		base_melee = Enemy.EnemyType.CHERUB
+		mid_melee = Enemy.EnemyType.CHERUB
+		heavy = Enemy.EnemyType.DEMON
+		ranged = Enemy.EnemyType.ASH_HARPY
 	var deep_lords := [Enemy.EnemyType.IFRIT, Enemy.EnemyType.INFLAMED_MINOTAUR, Enemy.EnemyType.DJINN]
+	if heaven:
+		deep_lords = [Enemy.EnemyType.DJINN]
 	var deep_lord_i := 0
 	var shaman_placed := false
 
@@ -8514,10 +9679,12 @@ func _define_spawn_zones() -> void:
 			var picked = _pick_enemy_type(depth, kind, base_melee, mid_melee, heavy, ranged)
 			if underworld and picked == base_melee:
 				picked = UNDERWORLD_TRASH[_rng.randi_range(0, UNDERWORLD_TRASH.size() - 1)]
+			elif heaven and picked == base_melee:
+				picked = HEAVEN_TRASH[_rng.randi_range(0, HEAVEN_TRASH.size() - 1)]
 			types.append(picked)
 		# Deep cave chambers are guarded by an elite-grade enemy
 		if kind == "deep" and types.size() > 0:
-			types[0] = heavy if world_level < 3 else Enemy.EnemyType.ELITE
+			types[0] = Enemy.EnemyType.DJINN if heaven else (heavy if world_level < 3 else Enemy.EnemyType.ELITE)
 		# Act 2+ overworld deep rooms hold the lords of the deep — the
 		# Ferryman's Toll targets — one per room, cycling through the three.
 		if kind == "deep" and interior_kind == "" and world_level >= 2 and types.size() > 0:
@@ -8547,6 +9714,12 @@ func _define_spawn_zones() -> void:
 ## a mock-up with no moves yet and stays out.)
 const UNDERWORLD_TRASH := [Enemy.EnemyType.SUCCUBUS, Enemy.EnemyType.MAGMA_SPIDER,
 	Enemy.EnemyType.MIND_EATER, Enemy.EnemyType.SPECTER]
+
+## Heaven's rank and file (World 3): its cherubs, and the Underworld's
+## specters, succubi and mind eaters among them. (The Corrupted Archangel is
+## a mock-up with no moves yet and stays out.)
+const HEAVEN_TRASH := [Enemy.EnemyType.CHERUB, Enemy.EnemyType.CHERUB, Enemy.EnemyType.CHERUB, Enemy.EnemyType.SPECTER,
+	Enemy.EnemyType.SUCCUBUS, Enemy.EnemyType.MIND_EATER]
 
 func _pick_enemy_type(depth: float, kind: String, base_melee, mid_melee, heavy, ranged):
 	## Weighted pick; deeper rooms and cave chambers skew tougher.
@@ -8648,6 +9821,10 @@ func _define_arena_zone(rect: Rect2i, mid_melee, heavy, ranged) -> void:
 		# The Underworld's arena: an ifrit, two demons and a harpy overhead.
 		boss_points = [c + Vector2i(0, -2), c + Vector2i(2, 1), c + Vector2i(-2, 1), c + Vector2i(1, 3)]
 		boss_types = [Enemy.EnemyType.IFRIT, Enemy.EnemyType.DEMON, Enemy.EnemyType.DEMON, ranged]
+	elif world_level == 3:
+		# Heaven's arena: a djinn, two demons, a cherub and a harpy overhead.
+		boss_points = [c + Vector2i(0, -2), c + Vector2i(2, 1), c + Vector2i(-2, 1), c + Vector2i(0, 3), c + Vector2i(3, -2)]
+		boss_types = [Enemy.EnemyType.DJINN, Enemy.EnemyType.DEMON, Enemy.EnemyType.DEMON, Enemy.EnemyType.CHERUB, ranged]
 	elif world_level >= 2:
 		boss_points = [c + Vector2i(0, -2), c + Vector2i(2, 1), c + Vector2i(1, 3)]
 		boss_types = [Enemy.EnemyType.ELITE, heavy, ranged]

@@ -14576,9 +14576,17 @@ func _try_interact_site() -> bool:
 			_exit_interior()
 	elif site["kind"] == "descend" or site["kind"] == "ascend":
 		# Through Hell's broken door down to the next world — or up through
-		# the Breach, out of the Underworld, to the one after it.
+		# the Breach, out of the Underworld, to the one after it (arriving
+		# where the way back down stands), or down through the Rent, out of
+		# Heaven, to the one after that.
 		_deliver_follower()
-		_travel_to_world(current_world_level + 1)
+		var arrive := DungeonManager.HEAVEN_ARRIVAL_ID if site["kind"] == "ascend" and current_world_level == 2 else ""
+		_travel_to_world(current_world_level + 1, arrive)
+	elif site["kind"] == DungeonManager.HEAVEN_ARRIVAL_ID:
+		# Heaven's way back down: into the Breach at the top of the Ashen
+		# Stair, at its gate (leaving it returns to the Stair, as ever).
+		_deliver_follower()
+		_travel_to_world(current_world_level - 1, "ascend", "breach", "ascent_0")
 	else:
 		_enter_interior(site["id"], site["display_name"])
 	return true
@@ -17116,7 +17124,11 @@ func _travel_to_town() -> void:
 	get_tree().root.add_child(town_scene)
 	queue_free()
 
-func _travel_to_world(level: int) -> void:
+## `arrive_at`: the site id the hero arrives at (as returning from an
+## interior does) instead of the world's start; `interior` / `parent`: an
+## interior of that world to arrive in (Heaven's way back down lands in the
+## Breach, whose way out leads to the Ashen Stair).
+func _travel_to_world(level: int, arrive_at: String = "", interior: String = "", parent: String = "") -> void:
 	print("[MAIN] Traveling to World %d!" % level)
 	var saved_quest_state := quest_manager.save_state() if quest_manager else {}
 	var saved_progression := _save_player_progression()
@@ -17125,6 +17137,9 @@ func _travel_to_world(level: int) -> void:
 	main_scene.player2_character = player2_character
 	main_scene.is_multiplayer = is_multiplayer
 	main_scene.current_world_level = level
+	main_scene.current_interior_id = interior
+	main_scene.parent_interior_id = parent
+	main_scene.return_from_interior_id = arrive_at
 	main_scene.discovered_waypoints = discovered_waypoints
 	main_scene.quest_state = saved_quest_state
 	main_scene.player_progression = saved_progression
@@ -17253,7 +17268,9 @@ func _setup_boss_room() -> void:
 		"hellgate": _setup_hellgate()
 		"labyrinth": _setup_labyrinth()
 		"thanatoshall": _setup_thanatos_hall()
-		"crucible", "throne", "breach": _setup_guardian_room()
+		_:
+			if DungeonManager.is_guardian_room(current_interior_id):
+				_setup_guardian_room()   # Act 2's and Act 3's sealed rooms
 
 # ---- The Labyrinth: the Inflamed Minotaur ----
 # The bull waits in the open court at the heart of the maze (see
@@ -17380,6 +17397,15 @@ const GUARDIAN_ROOM_LOGS := {
 		"The Throne of Dis stands empty — its court is fallen."],
 	"breach": ["The Breach. The way back down seals; its wardens bar the way up.",
 		"The Breach stands open — its wardens are fallen."],
+	# Act 3, the corrupted Heaven (2026-11-09).
+	"altar": ["The Desecrated Altar. The doors close; a djinn turns on the altar.",
+		"The Desecrated Altar is still — its keepers are fallen."],
+	"font": ["The Sickened Font. The hedges close behind you; its keepers rise from the bog.",
+		"The Sickened Font lies quiet — its keepers are fallen."],
+	"belfry": ["The Belfry. The stair seals below you; something waits where the bells hung.",
+		"The Belfry stands empty — its keepers are fallen."],
+	"rent": ["The Rent. The way back seals; its wardens stand at the tear.",
+		"The Rent lies open — its wardens are fallen."],
 }
 
 func _setup_guardian_room() -> void:
@@ -17501,13 +17527,15 @@ func _open_boss_room_exit() -> void:
 	if DungeonManager.boss_room_key(current_interior_id) == "breach" and dungeon_manager.get_site_by_id("ascend") < 0:
 		dungeon_manager._place_breach_ascent()
 		add_battle_log("The Breach's wardens are fallen. The way up lies open — and the way back down.", Color(1.0, 0.92, 0.75))
+	if DungeonManager.boss_room_key(current_interior_id) == "rent" and dungeon_manager.get_site_by_id("descend") < 0:
+		dungeon_manager._place_rent_descent()
+		add_battle_log("The Rent's wardens are fallen. The way down lies open — and the way back.", Color(0.9, 0.8, 1.0))
 	if dungeon_manager.get_site_by_id("exit") >= 0:
 		return
 	dungeon_manager._place_exit_site()
 	if DungeonManager.boss_room_key(current_interior_id) == "labyrinth":
 		add_battle_log("The Minotaur falls. The passages open — the way out lies back the way you came.", Color(1.0, 0.8, 0.5))
-	elif DungeonManager.boss_room_key(current_interior_id) != "hellgate" \
-			and DungeonManager.boss_room_key(current_interior_id) != "breach":
+	elif not DungeonManager.boss_room_key(current_interior_id) in ["hellgate", "breach", "rent"]:
 		add_battle_log("The way out opens.", Color(0.7, 1.0, 0.7))
 
 # ---- The Boneyard: the Bone Dragon, twelve gravestones, three grave diggers ----

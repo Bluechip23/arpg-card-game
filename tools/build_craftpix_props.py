@@ -31,6 +31,7 @@ U = "tileset_undead_land/Objects_separately"
 X = "tileset_cursed_land/Objects_separetely"
 D = "tileset_desert/Objects_separately"
 W = "tileset_winter/Objects_separately"  # sub-folders by cell size
+GC = "tileset_glowing_cave/Objects_separately"
 T = "treasure_32x32"
 A = "armor_weapons_icons"
 R = "rocks_stones"  # free rocks & stones top-down pack (8 styles x 5 sizes)
@@ -144,6 +145,21 @@ ROLES = {
     # "hell_pustule": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Pustules_shadow1_{i}.png" for i in range(1, 4)]
     # "hell_veins": dropped 2026-10-29 (World 4 is the designer's cursed set); was [f"{X}/Veins_shadow1_{i}.png" for i in range(1, 5)]
     # "hell_fetus": dropped 2026-10-29 (World 4 is the designer's cursed set); was [f"{X}/Fetus_shadow1_{i}.png" for i in range(1, 4)]
+    # --- Act 3, the corrupted Heaven (World 3; 2026-11-09): STAND-INS until
+    # the designer's Heaven boards. The glowing-cave pack's luminous growth
+    # ("Heaven-adjacent luminous zones", docs/ASSET_PACKS.md) dresses the
+    # sickened holy ground: gold-flecked rock (the gilding gone dark), pale
+    # pink and violet crystals, glowing ferns, flowers, leaves and fungi.
+    # DungeonManager.HEAVEN_ART names which role stands in for what.
+    "glow_gold": {"scale": 1.0, "src": [f"{GC}/Crystal2_{i}.png" for i in range(1, 5)]},
+    "glow_crystal": {"scale": 1.0, "src": [f"{GC}/Crystal1_{i}.png" for i in range(1, 5)]
+                     + [f"{GC}/Crystal3_{i}.png" for i in range(1, 5)] + [f"{GC}/Rock_crystal_{i}.png" for i in (1, 2)]},
+    "glow_teal": {"scale": 1.0, "src": [f"{GC}/Crystal4_{i}.png" for i in range(1, 5)]},
+    "glow_shroom": {"scale": 1.0, "src": [f"{GC}/Mushroom2_{i}.png" for i in range(1, 4)]
+                    + [f"{GC}/Mushroom4_{i}.png" for i in range(1, 4)] + [f"{GC}/Mushroom6_{i}.png" for i in range(1, 4)]},
+    "glow_fern": {"scale": 1.0, "src": [f"{GC}/Plant1_{i}.png" for i in range(1, 4)] + [f"{GC}/Plant2_{i}.png" for i in range(1, 4)]},
+    "glow_flower": {"scale": 1.0, "src": [f"{GC}/Plant3_{i}.png" for i in range(1, 5)]},
+    "glow_bush": {"scale": 1.0, "src": [f"{GC}/Plant4_{i}.png" for i in range(1, 4)] + [f"{GC}/Plant5_{i}.png" for i in range(1, 4)]},
 }
 
 # Frame strips for the animated landmarks (AnimatedSprite3D via
