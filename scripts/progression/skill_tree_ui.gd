@@ -35,6 +35,9 @@ var _stat_points_remaining: int = 0
 var _stat_allocations: Dictionary = {}
 var _stat_alloc_btn: Button = null  # "Stat Points: N" in the tab bar
 
+# Painted passive board (heroes with one in PASSIVE_BOARDS)
+var _board_view: Control = null   # the board's rect under the tab bar (clips the painting)
+
 # Style constants
 # Emerald Sanctum, the menus' look: emerald glass, gold frame, mint text.
 const COLOR_BG := EmeraldTheme.PANEL_BG_SOLID
@@ -196,6 +199,8 @@ func _switch_to_tab(tab: Tab) -> void:
 		# Hide skill tree content, show sphere grid
 		panel.visible = false
 		scroll_container.visible = false
+		if is_instance_valid(_board_view):
+			_board_view.visible = false
 		_close_stat_alloc_panel()
 		_update_title()
 		if _sphere_grid_ui:
@@ -274,6 +279,16 @@ func _rebuild_table() -> void:
 	for child in table_container.get_children():
 		child.queue_free()
 
+	# A hero with a painted board gets the board instead of the lane table.
+	var board := board_for(skill_tree)
+	if not board.is_empty():
+		scroll_container.visible = false
+		_rebuild_board(board)
+		return
+	if is_instance_valid(_board_view):
+		_board_view.visible = false
+	scroll_container.visible = _current_tab == Tab.SKILL_TREE
+
 	table_container.add_theme_constant_override("separation", 18)
 
 	# Points header
@@ -304,6 +319,283 @@ func _rebuild_table() -> void:
 		table_container.add_child(_build_stage_header(lanes, stage_count))
 	for lane in lanes:
 		table_container.add_child(_build_lane_row(lane, lanes))
+
+# ============================================
+# PAINTED PASSIVE BOARD (heroes with a board)
+# ============================================
+# The designer's per-hero passive paintings (2026-11-09): the painting fills
+# the Passives tab, one archetype scene per corner, and each archetype's
+# passives sit as an upside-down triangle beside its scene, on the side
+# toward the painting's empty centre — the first passive top-left, the
+# second top-right, the final unlock at the bottom point. The centre holds
+# the points and the stage gates. A hero without a board keeps the lane
+# table. Every position below is in the painting's own pixels.
+#
+# Per hero (SkillTreeData.character_name):
+#   texture     the painting
+#   size        its pixel size
+#   info        the empty-centre rect for the points / stage gates / hint
+#   spread      half the gap between a triangle's top two passives (x) and
+#               half its height (y): top-left = anchor - spread,
+#               top-right = anchor + (spread.x, -spread.y),
+#               bottom = anchor + (0, spread.y)
+#   node        passive circle diameter
+#   archetypes  archetype name -> {anchor: triangle centre, label: "above" | "below"}
+const PASSIVE_BOARDS := {
+	"Brad": {
+		"texture": "res://assets/textures/ui/brad_passive_board.webp",
+		"size": Vector2(1774, 887),
+		"info": Rect2(735, 98, 295, 138),
+		"spread": Vector2(80, 55),
+		"node": 72.0,
+		"archetypes": {
+			# Top left: the berserker's axe and his victims; the triangle sits
+			# below the victims' heads, at the centre's top-left.
+			"Berserker": {"anchor": Vector2(805, 362), "label": "above"},
+			# Top right: the gold knight's shield bash; below his victim.
+			"Warden": {"anchor": Vector2(1085, 362), "label": "above"},
+			# Bottom left: the vine-bound foe; right of him.
+			"The Ancient": {"anchor": Vector2(772, 612), "label": "below"},
+			# Bottom right: the dark knight's black smoke; left of his foes.
+			"The Fallen": {"anchor": Vector2(1045, 612), "label": "below"},
+		},
+	},
+}
+## How far "cover" may enlarge the painting past "contain" (the gilt frame
+## crops a little; the corner scenes and the centre always show).
+const BOARD_MAX_COVER := 1.06
+## The board's rect on the screen: the panel under the tab bar.
+const BOARD_MARGIN_SIDE := 16.0
+const BOARD_MARGIN_TOP := 76.0
+const BOARD_MARGIN_BOTTOM := 16.0
+
+## The board definition for this tree's hero, or {} (lane table) — also {}
+## when the board doesn't place every archetype the tree has.
+static func board_for(tree: SkillTreeData) -> Dictionary:
+	if tree == null or not PASSIVE_BOARDS.has(tree.character_name):
+		return {}
+	var board: Dictionary = PASSIVE_BOARDS[tree.character_name]
+	var lanes: Array = tree.get_archetype_lanes()
+	if lanes.is_empty():
+		return {}
+	for lane in lanes:
+		if not board["archetypes"].has(lane["name"]) or lane["passives"].size() > 3:
+			return {}
+	return board
+
+## Where the 0-based `stage`'s passive sits in a triangle, in painting pixels:
+## stage 0 top-left, stage 1 top-right, stage 2 the bottom point.
+static func board_slot(board: Dictionary, archetype: String, stage: int) -> Vector2:
+	var anchor: Vector2 = board["archetypes"][archetype]["anchor"]
+	var sp: Vector2 = board["spread"]
+	match stage:
+		0: return anchor + Vector2(-sp.x, -sp.y)
+		1: return anchor + Vector2(sp.x, -sp.y)
+	return anchor + Vector2(0, sp.y)
+
+## The board's screen rect and the painting's scale / offset inside it.
+func _board_geometry(board: Dictionary) -> Dictionary:
+	var screen: Vector2 = get_viewport().get_visible_rect().size
+	var rect := Rect2(BOARD_MARGIN_SIDE, BOARD_MARGIN_TOP,
+		maxf(1.0, screen.x - BOARD_MARGIN_SIDE * 2.0),
+		maxf(1.0, screen.y - BOARD_MARGIN_TOP - BOARD_MARGIN_BOTTOM))
+	var bsize: Vector2 = board["size"]
+	var contain: float = minf(rect.size.x / bsize.x, rect.size.y / bsize.y)
+	var cover: float = maxf(rect.size.x / bsize.x, rect.size.y / bsize.y)
+	var k: float = minf(cover, contain * BOARD_MAX_COVER)
+	var off: Vector2 = (rect.size - bsize * k) * 0.5   # inside the rect
+	return {"rect": rect, "k": k, "off": off}
+
+func _ensure_board_view() -> void:
+	if is_instance_valid(_board_view):
+		return
+	_board_view = Control.new()
+	_board_view.name = "PassiveBoardView"
+	_board_view.clip_contents = true
+	_board_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_board_view.theme = EmeraldTheme.get_theme()
+	add_child(_board_view)
+	# Drawn where the lane table would be: over the panel, under nothing else
+	# (the title, tab bar and close button sit above the board's rect).
+	move_child(_board_view, scroll_container.get_index())
+	get_viewport().size_changed.connect(_on_board_viewport_resized)
+
+func _on_board_viewport_resized() -> void:
+	if visible and _current_tab == Tab.SKILL_TREE and is_instance_valid(_board_view) and _board_view.visible:
+		_rebuild_table()
+
+## A label set on the painting: outlined so it reads over any part of it.
+func _board_label(text: String, font_size: int, color: Color) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", font_size)
+	l.add_theme_color_override("font_color", color)
+	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	l.add_theme_constant_override("outline_size", maxi(3, font_size / 4))
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return l
+
+## A font size that follows the painting's scale (0.7 ≈ a 1280x720 window).
+static func _board_font(base: float, k: float, lowest: int) -> int:
+	return maxi(lowest, roundi(base * k / 0.7))
+
+func _rebuild_board(board: Dictionary) -> void:
+	_ensure_board_view()
+	_board_view.visible = _current_tab == Tab.SKILL_TREE
+	for child in _board_view.get_children():
+		_board_view.remove_child(child)
+		child.queue_free()
+	var geo := _board_geometry(board)
+	var rect: Rect2 = geo["rect"]
+	var k: float = geo["k"]
+	var off: Vector2 = geo["off"]
+	_board_view.position = rect.position
+	_board_view.size = rect.size
+
+	var art := TextureRect.new()
+	art.name = "PassiveBoard"
+	art.texture = load(board["texture"])
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_SCALE
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	art.position = off
+	art.size = Vector2(board["size"]) * k
+	_board_view.add_child(art)
+
+	var lanes: Array = skill_tree.get_archetype_lanes()
+	_build_board_info(board, lanes, k, off)
+	for lane in lanes:
+		_build_board_triangle(board, lane, lanes, k, off)
+
+## The empty centre: points to spend, the stage gates, how it works.
+func _build_board_info(board: Dictionary, lanes: Array, k: float, off: Vector2) -> void:
+	var info_rect: Rect2 = board["info"]
+	var info := PanelContainer.new()
+	info.name = "BoardInfo"
+	var st := StyleBoxFlat.new()
+	st.bg_color = Color(0.01, 0.05, 0.045, 0.62)
+	st.border_color = Color(COLOR_BORDER, 0.55)
+	st.set_border_width_all(1)
+	st.set_corner_radius_all(8)
+	st.content_margin_left = 8.0
+	st.content_margin_right = 8.0
+	st.content_margin_top = 4.0
+	st.content_margin_bottom = 4.0
+	info.add_theme_stylebox_override("panel", st)
+	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	info.position = off + info_rect.position * k
+	info.size = info_rect.size * k
+	var vb := VBoxContainer.new()
+	vb.alignment = BoxContainer.ALIGNMENT_CENTER
+	vb.add_theme_constant_override("separation", 2)
+	info.add_child(vb)
+
+	var pool: int = player_stats.unspent_passive_points if player_stats else 0
+	var pts := _board_label("Passive Points: %d" % pool, _board_font(18, k, 12), COLOR_AUTO_TEXT if pool > 0 else COLOR_DIM)
+	pts.name = "PointsLabel"
+	vb.add_child(pts)
+
+	var stage_count := 0
+	for lane in lanes:
+		stage_count = maxi(stage_count, lane["passives"].size())
+	# One line per later stage, named by where its passives sit in the triangles.
+	var where := ["top left", "top right", "bottom"]
+	var gates: Array[String] = []
+	for stage in range(1, stage_count):
+		if SkillTreeData.is_stage_unlocked(lanes, stage, player_stats):
+			gates.append("Stage %d (%s): open ✓" % [stage + 1, where[stage]])
+		else:
+			gates.append("Stage %d (%s): %d/%d in Stage %d" % [stage + 1, where[stage],
+				SkillTreeData.stage_points(lanes, stage - 1, player_stats),
+				SkillTreeData.stage_unlock_cost(stage), stage])
+	var gate_lbl := _board_label("\n".join(gates), _board_font(11, k, 9), COLOR_COUNT)
+	gate_lbl.name = "StageGates"
+	vb.add_child(gate_lbl)
+
+	var hint := _board_label("Click a circle: +1 point (max %d). Hover it for details." % [
+		SkillTreeData.PASSIVE_MAX_LEVEL], _board_font(10, k, 8), COLOR_DIM)
+	hint.name = "Hint"
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vb.add_child(hint)
+	_board_view.add_child(info)
+
+## One archetype's upside-down triangle: its passives (the same circles as
+## the lane table, at the board's scale) with their names, faint connectors
+## along the unlock chain, and the archetype's name on the outer edge.
+func _build_board_triangle(board: Dictionary, lane: Dictionary, lanes: Array, k: float, off: Vector2) -> void:
+	var arch: String = lane["name"]
+	var lane_color: Color = lane["color"]
+	var spec: Dictionary = board["archetypes"][arch]
+	var sp: Vector2 = board["spread"]
+	var node_d: float = float(board["node"]) * k
+	var name_w: float = sp.x * 2.0 * 0.7 * k   # names wrap within the triangle's width
+	var count_font := _board_font(12, k, 10)
+	var name_font := _board_font(11, k, 9)
+
+	var tri := Control.new()
+	tri.name = "Triangle_" + arch.replace(" ", "")
+	tri.set_meta("archetype", arch)
+	tri.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_board_view.add_child(tri)
+
+	var passives: Array = lane["passives"]
+	var centres: Array[Vector2] = []
+	for stage in range(passives.size()):
+		centres.append(off + board_slot(board, arch, stage) * k)
+
+	# Connectors 1 -> 2 -> 3: a stage opens off the one before it. Lit in the
+	# archetype's colour once the later stage is open, faint grey before.
+	for stage in range(1, centres.size()):
+		var a: Vector2 = centres[stage - 1]
+		var b: Vector2 = centres[stage]
+		var dir := (b - a).normalized()
+		var line := Line2D.new()
+		line.name = "Connector_%d" % stage
+		var open := SkillTreeData.is_stage_unlocked(lanes, stage, player_stats)
+		line.default_color = Color(lane_color.r, lane_color.g, lane_color.b, 0.55) if open else Color(0.75, 0.75, 0.8, 0.25)
+		line.width = maxf(2.0, 4.0 * k)
+		line.add_point(a + dir * node_d * 0.55)
+		line.add_point(b - dir * node_d * 0.55)
+		tri.add_child(line)
+
+	var bottom_edge := 0.0
+	for stage in range(passives.size()):
+		var opt: SkillTreeData.SkillOption = passives[stage]
+		var box := _build_passive_node(lane, stage, lanes, node_d, count_font)
+		box.name = "Passive_%d" % stage
+		box.add_theme_constant_override("separation", 0)
+		var stage_open := SkillTreeData.is_stage_unlocked(lanes, stage, player_stats)
+		var nm := _board_label(opt.name, name_font, lane_color.lightened(0.3) if stage_open else COLOR_DIM)
+		nm.name = "NameLabel"
+		nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		nm.custom_minimum_size = Vector2(name_w, 0)
+		box.add_child(nm)
+		box.move_child(nm, 1)   # under the circle, above the "x / 15"
+		var rank: Label = box.get_node("RankLabel")
+		rank.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+		rank.add_theme_constant_override("outline_size", 3)
+		var w: float = maxf(name_w, node_d)
+		tri.add_child(box)
+		box.position = centres[stage] - Vector2(w * 0.5, node_d * 0.5)
+		box.size = Vector2(w, 0)
+		bottom_edge = maxf(bottom_edge, box.position.y + box.get_combined_minimum_size().y)
+
+	# The archetype's name and invested points, on the triangle's outer edge
+	# (toward its scene): above the top pair, or under the bottom point.
+	var title := _board_label("%s  ·  %d pts" % [arch, _lane_points(lane)], _board_font(16, k, 12), lane_color.lightened(0.15))
+	title.name = "ArchetypeLabel"
+	var tsize: Vector2 = title.get_combined_minimum_size()
+	var anchor: Vector2 = off + Vector2(spec["anchor"]) * k
+	var tw: float = maxf(tsize.x, sp.x * 2.0 * k + node_d)
+	var ty: float
+	if spec.get("label", "above") == "below":
+		ty = bottom_edge + 1.0
+	else:
+		ty = (centres[0].y if not centres.is_empty() else anchor.y) - node_d * 0.5 - tsize.y - 2.0
+	title.position = Vector2(anchor.x - tw * 0.5, ty)
+	title.size = Vector2(tw, tsize.y)
+	tri.add_child(title)
 
 ## Total points invested in a lane (shown on its name plate).
 func _lane_points(lane: Dictionary) -> int:
@@ -437,7 +729,10 @@ func _passive_tooltip(opt: SkillTreeData.SkillOption, lane: Dictionary, stage: i
 	lines.append("Click to invest 1 passive point.")
 	return "\n".join(lines)
 
-func _build_passive_node(lane: Dictionary, stage: int, lanes: Array) -> Control:
+## One passive's circle and its "x / 15" readout. `node_size` and
+## `count_font` let the painted board draw it at the board's scale; the lane
+## table uses the defaults.
+func _build_passive_node(lane: Dictionary, stage: int, lanes: Array, node_size: float = NODE_SIZE, count_font: int = 12) -> Control:
 	var opt: SkillTreeData.SkillOption = lane["passives"][stage]
 	var level: int = player_stats.get_passive_level(opt.passive_id) if player_stats else 0
 	var maxed: bool = level >= SkillTreeData.PASSIVE_MAX_LEVEL
@@ -449,11 +744,13 @@ func _build_passive_node(lane: Dictionary, stage: int, lanes: Array) -> Control:
 	box.alignment = BoxContainer.ALIGNMENT_BEGIN
 
 	var btn = IconTooltipButton.new()  # its tooltip shows the passive's icon large
-	btn.custom_minimum_size = Vector2(NODE_SIZE, NODE_SIZE)
+	btn.name = "PassiveButton"
+	btn.custom_minimum_size = Vector2(node_size, node_size)
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	btn.focus_mode = Control.FOCUS_NONE
 
 	var style = StyleBoxFlat.new()
-	style.set_corner_radius_all(int(NODE_SIZE / 2.0))
+	style.set_corner_radius_all(int(node_size / 2.0))
 	style.set_border_width_all(3)
 	if not stage_unlocked:
 		style.bg_color = COLOR_NODE_LOCKED
@@ -472,6 +769,9 @@ func _build_passive_node(lane: Dictionary, stage: int, lanes: Array) -> Control:
 	hover.bg_color = style.bg_color.lightened(0.12)
 	btn.add_theme_stylebox_override("hover", hover)
 	btn.add_theme_stylebox_override("pressed", hover)
+	# A locked circle is a disabled button: keep it round (the theme's
+	# disabled box is square).
+	btn.add_theme_stylebox_override("disabled", style)
 
 	# Pack icon inside the circle (initials only when no art resolves). A
 	# locked stage shows the same icon dimmed and unclickable — no padlock.
@@ -482,7 +782,7 @@ func _build_passive_node(lane: Dictionary, stage: int, lanes: Array) -> Control:
 		btn.icon = art
 		btn.expand_icon = true
 		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		btn.add_theme_constant_override("icon_max_width", NODE_SIZE - 14)
+		btn.add_theme_constant_override("icon_max_width", int(node_size * (NODE_SIZE - 14.0) / NODE_SIZE))
 		btn.text = ""
 		if not stage_unlocked:
 			btn.self_modulate = Color(0.45, 0.45, 0.5, 0.75)
@@ -507,13 +807,16 @@ func _build_passive_node(lane: Dictionary, stage: int, lanes: Array) -> Control:
 	box.add_child(btn)
 
 	var count = Label.new()
+	count.name = "RankLabel"
 	# The gate lives in the stage header; a locked circle just says so.
 	count.text = ("%d / %d" % [level, SkillTreeData.PASSIVE_MAX_LEVEL]) if stage_unlocked else "locked"
-	count.add_theme_font_size_override("font_size", 12)
+	count.add_theme_font_size_override("font_size", count_font)
 	count.add_theme_color_override("font_color", (COLOR_MAXED if maxed else COLOR_COUNT) if stage_unlocked else COLOR_COUNT_DIM)
 	count.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	count.custom_minimum_size = Vector2(NODE_SIZE, 0)
+	count.custom_minimum_size = Vector2(node_size, 0)
 	box.add_child(count)
+	box.set_meta("passive_id", opt.passive_id)
+	box.set_meta("stage", stage)
 	return box
 
 func _on_passive_node_pressed(passive_id: String, stage: int) -> void:
