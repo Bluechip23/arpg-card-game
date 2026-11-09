@@ -28,6 +28,10 @@ const BOSS_ROOMS := [
 	["crucible", "The Crucible", "Underworld — two ifrits round a lava lake (off the Brimstone Rift)"],
 	["throne", "Throne of Dis", "Underworld — the court of Dis (off the Citadel of Dis)"],
 	["breach", "The Breach", "Underworld — the wardens of the way up (off the Ashen Stair)"],
+	["altar", "The Desecrated Altar", "Heaven — a djinn on the altar and its keepers (off the Defiled Sanctum)"],
+	["font", "The Sickened Font", "Heaven — two djinn round a fountain gone to bog (off the Gilded Garden)"],
+	["belfry", "The Belfry", "Heaven — the keepers of the bell frame (top of the Silent Spire)"],
+	["rent", "The Rent", "Heaven — the wardens of the way down (off the Sundered Causeway)"],
 ]
 
 # card_id lists grouped by the character whose kit they belong to, matching

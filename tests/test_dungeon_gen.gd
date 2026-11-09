@@ -162,7 +162,11 @@ func _validate(dm: DungeonManager, cfg: Dictionary) -> void:
 				buildings += 1
 			elif s["kind"] == "sewer":
 				sewers += 1
-		if caves == 0 or buildings == 0:
+		# World 3 is Heaven (2026-11-09): no caves, its Act 3 places instead.
+		if cfg["level"] == 3:
+			if caves != 0 or buildings == 0 or dm.get_site_by_id("causeway_0") < 0:
+				_fail(cfg, "expected Heaven's ruins and places and no caves, got %d caves / %d buildings" % [caves, buildings])
+		elif caves == 0 or buildings == 0:
 			_fail(cfg, "expected at least 1 cave and 1 building, got %d/%d" % [caves, buildings])
 		# World 1 opens by descending into the sewers — there must be a grate.
 		if cfg["level"] == 1 and sewers == 0:

@@ -168,6 +168,9 @@ code was altered in this pass to match; "Built" means the enemy or action did no
    *Act 1 placed (2026-11-09):* the Mountains roster on the Mountain Pass and its caves, the Grave Titan and the
    Consumed in the Old Graveyard, the Spirit Collectors in the new Ruined Library, the Hydra and the five Elemental
    Mages in the Greenwood (see Section 1's roster table, "Where it spawns"). The Granite Colossus stays out (no moves).
+   *Heavens placed (2026-11-09):* World 3 is the corrupted Heaven — the Cherub (its rank and file) and the Djinn
+   (its elite) on its surface and in Act 3's four places and their sealed rooms, with the Underworld's demons,
+   succubi, specters, ash harpies and mind eaters as invaders. The Corrupted Archangel stays out (no kit).
 
 ---
 
@@ -230,18 +233,18 @@ so they are not counted.
 | White Manticore | Elite | 23 | 75/15/15 → 109/22/20 | 3 / 2 | 10/35/10 | Mountains | the Mountain Pass's heights | built |
 | Sabertooth | Mid-tier | 21 | — | - | - | Mountains | the Mountain Pass's snowfields (always at least one; 2026-11-09), the Ice Caves | built |
 | Cerberus | Boss | 10 | 250/50/25 → 275/55/27 | 6 / 3 | 30/40/15 | Underworld | Hell's Gate (boss room 3) | built |
-| Succubus | Elite | — | — | - | - | Underworld | Underworld surface + Burning Caves (trash roll); Brimstone Rift banks; Citadel of Dis courts/halls; Ashen Stair low terraces; Throne of Dis (2); the Breach (1) | built (row stale: Trash, band 27 — see 0.2) |
-| Demon | Elite | — | — | - | - | Underworld | Underworld surface (mid tier, arena pair) + Burning Caves; Thanatos Closet; Rift banks + far landing; Citadel (incl. inner court); Ashen Stair; Throne of Dis (2); the Breach (2) | built (row stale: Mid-tier, band 28 — see 0.2) |
+| Succubus | Elite | — | — | - | - | Underworld | Underworld surface + Burning Caves (trash roll); Brimstone Rift banks; Citadel of Dis courts/halls; Ashen Stair low terraces; Throne of Dis (2); the Breach (1); **Heaven (World 3, 2026-11-09)**: surface (trash roll), Sanctum nave/chapels, Garden beds, Spire low terraces, Causeway banks; Desecrated Altar (2), Sickened Font (1) | built (row stale: Trash, band 27 — see 0.2) |
+| Demon | Elite | — | — | - | - | Underworld | Underworld surface (mid tier, arena pair) + Burning Caves; Thanatos Closet; Rift banks + far landing; Citadel (incl. inner court); Ashen Stair; Throne of Dis (2); the Breach (2); **Heaven (World 3, 2026-11-09)**: surface (heavy tier, arena pair), Sanctum crossing/transepts/choir/apse, Garden fountain plaza, Spire low terraces, Causeway banks + far landing; the Belfry (1), the Rent (2) | built (row stale: Mid-tier, band 28 — see 0.2) |
 | Ifrit | Elite | 28 | 225/0/45 → 326/0/59 | 5 / 4 | 20/15/15 | Underworld | World 2+ overworld deep rooms (deep lords, cycling) + the arena; the Crucible (2); Citadel inner court; Throne of Dis (enthroned); top of the Ashen Stair; the Breach (2) | built |
-| Mind Eater | Elite | — | — | - | - | Underworld | Underworld surface + caves; Thanatos Closet; Rift banks; Citadel halls + inner court; Ashen Stair ledges; Throne of Dis (2); the Breach (1) | built (row stale: Trash, band 27 — see 0.2) |
-| Specter | Minion | — | — | - | - | Underworld | Underworld surface + caves; Thanatos Closet; Rift banks; Citadel; Ashen Stair | built (row stale: Trash, band 26 — see 0.2) |
+| Mind Eater | Elite | — | — | - | - | Underworld | Underworld surface + caves; Thanatos Closet; Rift banks; Citadel halls + inner court; Ashen Stair ledges; Throne of Dis (2); the Breach (1); **Heaven (World 3, 2026-11-09)**: surface (trash roll), Sanctum chapels/transepts/choir, Garden beds + grove, Spire ledges, Causeway banks; Desecrated Altar, Sickened Font, Belfry, Rent (1 each) | built (row stale: Trash, band 27 — see 0.2) |
+| Specter | Minion | — | — | - | - | Underworld | Underworld surface + caves; Thanatos Closet; Rift banks; Citadel; Ashen Stair; **Heaven (World 3, 2026-11-09)**: surface (trash roll), Sanctum, Garden beds + walks, Spire terraces + ledges, Causeway banks | built (row stale: Trash, band 26 — see 0.2) |
 | Magma Spider | Elite | — | — | - | - | Underworld | Underworld surface + caves; Brimstone Rift islands (nests) + far landing; Ashen Stair ledges | built (row stale: Trash, band 26 — see 0.2) |
 | Pit Fiend | Boss | — | — | - | - | Underworld | - | mock-up |
-| Ash Harpy | Minion | — | — | - | - | Underworld | Underworld surface (ranged tier, arena) + caves; Rift banks + far landing; Citadel courts; Ashen Stair heights; the Breach (2) | built (row stale: Trash, band 26 — see 0.2) |
+| Ash Harpy | Minion | — | — | - | - | Underworld | Underworld surface (ranged tier, arena) + caves; Rift banks + far landing; Citadel courts; Ashen Stair heights; the Breach (2); **Heaven (World 3, 2026-11-09)**: surface (ranged tier, arena), Sanctum crossing, Garden walks + fountain, Spire heights, Causeway banks + islands + far landing; the Belfry (2), the Rent (1) | built (row stale: Trash, band 26 — see 0.2) |
 | Inflamed Minotaur | Boss | 9 | 350/100/35 → 368/105/36 | 6 / 5 | 15/50/25 | Underworld | the Labyrinth (boss room 4); ALSO World 2+ overworld deep rooms (deep lords) | built |
-| Cherub | Minion | — | — | - | - | Heavens | - | mock-up |
-| Djinn | Elite | 35 | 180/0/35 → 261/0/46 | 8 / 3 | 15/15/15 | Heavens | World 2+ overworld deep rooms (deep lords) | built |
-| Corrupted Archangel | Boss | — | — | - | - | Heavens | - | mock-up |
+| Cherub | Minion | — | — | - | - | Heavens | **Heaven (World 3, 2026-11-09)**: its rank and file — surface (trash roll + mid tier, arena), every Act 3 place (Sanctum nave/crossing/apse, Garden beds/walks/grove, Spire ledges/heights, Causeway banks + the islands); two in each sealed room (Desecrated Altar, Sickened Font, Belfry, Rent) | built (row stale: Trash, band 33, Love's Arrow — see 0.2) |
+| Djinn | Elite | 35 | 180/0/35 → 261/0/46 | 8 / 3 | 15/15/15 | Heavens | World 2+ overworld deep rooms (deep lords); **Heaven (World 3, 2026-11-09)**: its arena and ruins' deep rooms; the Sanctum's apse, the Garden's grove, the Spire's top, the Causeway's far landing; the Desecrated Altar (1, on the altar), the Sickened Font (2), the Belfry (1), the Rent (2) | built |
+| Corrupted Archangel | Boss | — | — | - | - | Heavens | - (no kit: kept out of Heaven, 2026-11-09) | mock-up |
 | Ring Wraith | Elite | — | 100/0/15 → 100/0/15 | 5 / 4 | - | (The Precious) | ring shadow-world summon | built |
 | Training Dummy | Minion | — | 500/0/0 → 500/0/0 | - | - | Dojo | dojo | structure-like |
 | Rat Nest | Minion | — | 15/0/0 → 15/0/0 | - | - | Sewer | Rat King's Lair | structure |
