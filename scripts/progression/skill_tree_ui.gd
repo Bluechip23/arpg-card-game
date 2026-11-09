@@ -346,6 +346,9 @@ func _rebuild_table() -> void:
 ## each side lines up (designer, 2026-11-09).
 const BOARD_LEFT_X := 790.0
 const BOARD_RIGHT_X := 1065.0
+## Cory's board: the same rule, his centre a little narrower.
+const CORY_LEFT_X := 752.0
+const CORY_RIGHT_X := 1022.0
 const PASSIVE_BOARDS := {
 	"Brad": {
 		"texture": "res://assets/textures/ui/brad_passive_board.webp",
@@ -363,6 +366,22 @@ const PASSIVE_BOARDS := {
 			"The Ancient": {"anchor": Vector2(BOARD_LEFT_X, 612), "label": "below"},
 			# Bottom right: the dark knight's black smoke; left of his foes.
 			"The Fallen": {"anchor": Vector2(BOARD_RIGHT_X, 612), "label": "below"},
+		},
+	},
+	# Cory (designer's board, 2026-11-09): top left the purple withering strike
+	# (Atrophist), top right the monk's blue palm (Monk), bottom left the
+	# knife in the dark (Lurker), bottom right the antlered druid (Druid).
+	"Cory": {
+		"texture": "res://assets/textures/ui/cory_passive_board.webp",
+		"size": Vector2(1774, 887),
+		"info": Rect2(735, 98, 295, 138),
+		"spread": Vector2(68, 55),
+		"node": 64.0,
+		"archetypes": {
+			"Atrophist": {"anchor": Vector2(CORY_LEFT_X, 380), "label": "above"},
+			"Monk": {"anchor": Vector2(CORY_RIGHT_X, 380), "label": "above"},
+			"Lurker": {"anchor": Vector2(CORY_LEFT_X, 625), "label": "below"},
+			"Druid": {"anchor": Vector2(CORY_RIGHT_X, 625), "label": "below"},
 		},
 	},
 }

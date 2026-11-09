@@ -1,12 +1,13 @@
 extends SceneTree
 
-## Brad's painted passive board (designer, 2026-11-09): the Passives tab shows
-## his painting, and each archetype's three passives sit as an upside-down
-## triangle beside its corner scene — Berserker top left, Warden top right,
-## The Ancient bottom left, The Fallen bottom right; first passive top-left,
-## second top-right, the final unlock at the bottom point. Investing still
-## works through the board's circles (stage gates included), and a hero
-## without a board keeps the lane table.
+## Painted passive boards (designer, 2026-11-09): the Passives tab shows the
+## hero's painting, and each archetype's three passives sit as an upside-down
+## triangle beside its corner scene — Brad: Berserker top left, Warden top
+## right, The Ancient bottom left, The Fallen bottom right; Cory: Atrophist,
+## Monk, Lurker, Druid. First passive top-left, second top-right, the final
+## unlock at the bottom point; each side's two triangles share their columns.
+## Investing still works through the board's circles (stage gates included),
+## and a hero without a board keeps the lane table.
 ## Run: godot --headless --path . --script tests/test_passive_board.gd
 
 var failures := 0
@@ -27,6 +28,74 @@ func _circle(ui: SkillTreeUI, arch: String, stage: int) -> Button:
 	if tri == null:
 		return null
 	return tri.get_node_or_null("Passive_%d/PassiveButton" % stage) as Button
+
+## The board for `hero`: its painting, the four triangles in their quarters
+## with the passives in order, no circles overlapping, and each column pair
+## (top triangle over bottom triangle) lined up.
+func _check_board(ui: SkillTreeUI, hero: String, painting: String, expect: Dictionary, columns: Array) -> void:
+	_check(not SkillTreeUI.board_for(ui.skill_tree).is_empty(), "%s has a passive board" % hero)
+	_check(is_instance_valid(ui._board_view) and ui._board_view.visible, "%s: the Passives tab shows the board" % hero)
+	_check(not ui.scroll_container.visible, "%s: the lane table is hidden behind it" % hero)
+	var art: TextureRect = ui._board_view.get_node_or_null("PassiveBoard")
+	_check(art != null and art.texture != null and art.texture.resource_path.ends_with(painting),
+		"%s: the board is %s" % [hero, painting])
+	var view_rect: Rect2 = ui._board_view.get_global_rect()
+	var art_rect: Rect2 = art.get_global_rect() if art else Rect2()
+	_check(art_rect.size.x >= view_rect.size.x - 1.0 or art_rect.size.y >= view_rect.size.y - 1.0,
+		"%s: the painting fills the panel along one side at least" % hero)
+	_check(absf(art_rect.size.x / art_rect.size.y - 1774.0 / 887.0) < 0.01, "%s: the painting keeps its aspect" % hero)
+	_check(ui._board_view.get_node_or_null("BoardInfo") != null, "%s: the centre holds the points / stage info" % hero)
+
+	var mid: Vector2 = art_rect.get_center()
+	var all_rects: Array[Rect2] = []
+	var corners := {}
+	for arch in expect:
+		var want: Dictionary = expect[arch]
+		var tri: Node = ui._board_view.get_node_or_null("Triangle_" + arch.replace(" ", ""))
+		_check(tri != null, "%s has a triangle" % arch)
+		if tri == null:
+			continue
+		var c: Array[Vector2] = []
+		for stage in range(3):
+			var box: Node = tri.get_node_or_null("Passive_%d" % stage)
+			var btn := _circle(ui, arch, stage)
+			_check(box != null and btn != null, "%s passive %d is on the board" % [arch, stage + 1])
+			if box == null or btn == null:
+				c.append(Vector2.ZERO)
+				continue
+			_check(str(box.get_meta("passive_id", "")) == want["ids"][stage],
+				"%s passive %d is %s" % [arch, stage + 1, want["ids"][stage]])
+			_check(btn.tooltip_text != "", "%s passive %d keeps its hover text" % [arch, stage + 1])
+			var r := btn.get_global_rect()
+			c.append(r.get_center())
+			all_rects.append(r)
+			_check(view_rect.encloses(r), "%s passive %d is inside the board" % [arch, stage + 1])
+		corners[arch] = c
+		# Upside-down triangle: 1 top-left, 2 top-right, 3 the bottom point.
+		_check(c[0].x < c[1].x and absf(c[0].y - c[1].y) < 1.0, "%s: passive 1 top-left, passive 2 top-right" % arch)
+		_check(c[2].y > c[0].y + 20.0 and c[2].x > c[0].x and c[2].x < c[1].x,
+			"%s: the final passive is the bottom point between them" % arch)
+		var side_ok := true
+		var height_ok := true
+		for p in c:
+			side_ok = side_ok and ((p.x < mid.x) == want["left"])
+			height_ok = height_ok and ((p.y < mid.y) == want["top"])
+		_check(side_ok and height_ok, "%s sits in the %s %s quarter" % [arch,
+			"top" if want["top"] else "bottom", "left" if want["left"] else "right"])
+		var lbl: Label = tri.get_node_or_null("ArchetypeLabel")
+		_check(lbl != null and lbl.text.begins_with(arch), "%s is labelled by its triangle" % arch)
+	var overlap := false
+	for i in range(all_rects.size()):
+		for j in range(i + 1, all_rects.size()):
+			if all_rects[i].intersects(all_rects[j]):
+				overlap = true
+	_check(all_rects.size() == 12 and not overlap, "%s: 12 circles, none overlapping" % hero)
+	for pair in columns:
+		if corners.has(pair[0]) and corners.has(pair[1]):
+			var a: Array = corners[pair[0]]
+			var b: Array = corners[pair[1]]
+			_check(absf(a[0].x - b[0].x) < 1.0 and absf(a[1].x - b[1].x) < 1.0,
+				"%s lines up over %s" % [pair[0], pair[1]])
 
 func _run() -> void:
 	print("=== Passive board ===")
@@ -51,70 +120,13 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 
-	# --- The board replaces the lane table for Brad ---
-	_check(not SkillTreeUI.board_for(ui.skill_tree).is_empty(), "Brad has a passive board")
-	_check(is_instance_valid(ui._board_view) and ui._board_view.visible, "the Passives tab shows the board")
-	_check(not ui.scroll_container.visible, "the lane table is hidden behind it")
-	var art: TextureRect = ui._board_view.get_node_or_null("PassiveBoard")
-	_check(art != null and art.texture != null and art.texture.resource_path.ends_with("brad_passive_board.webp"),
-		"the board is Brad's painting")
-	var view_rect: Rect2 = ui._board_view.get_global_rect()
-	var art_rect: Rect2 = art.get_global_rect() if art else Rect2()
-	_check(art_rect.size.x >= view_rect.size.x - 1.0 or art_rect.size.y >= view_rect.size.y - 1.0,
-		"the painting fills the panel along one side at least")
-	_check(absf(art_rect.size.x / art_rect.size.y - 1774.0 / 887.0) < 0.01, "the painting keeps its aspect")
-	_check(ui._board_view.get_node_or_null("BoardInfo") != null, "the centre holds the points / stage info")
-
-	# --- Four triangles, each with its three passives in order ---
-	var expect := {
+	var brad := {
 		"Berserker": {"left": true, "top": true, "ids": ["enraged_will", "directed_strength", "life_steal"]},
 		"Warden": {"left": false, "top": true, "ids": ["in_the_trenches", "the_way_of_the_plate", "pristine_armor"]},
 		"The Ancient": {"left": true, "top": false, "ids": ["stone_skin", "ancestral_aid", "vines_codependence"]},
 		"The Fallen": {"left": false, "top": false, "ids": ["point_to_prove", "redemption", "solemn_independence"]},
 	}
-	var mid: Vector2 = art_rect.get_center()
-	var all_rects: Array[Rect2] = []
-	for arch in expect:
-		var want: Dictionary = expect[arch]
-		var tri: Node = ui._board_view.get_node_or_null("Triangle_" + arch.replace(" ", ""))
-		_check(tri != null, "%s has a triangle" % arch)
-		if tri == null:
-			continue
-		var c: Array[Vector2] = []
-		for stage in range(3):
-			var box: Node = tri.get_node_or_null("Passive_%d" % stage)
-			var btn := _circle(ui, arch, stage)
-			_check(box != null and btn != null, "%s passive %d is on the board" % [arch, stage + 1])
-			if box == null or btn == null:
-				c.append(Vector2.ZERO)
-				continue
-			_check(str(box.get_meta("passive_id", "")) == want["ids"][stage],
-				"%s passive %d is %s" % [arch, stage + 1, want["ids"][stage]])
-			_check(btn.tooltip_text != "", "%s passive %d keeps its hover text" % [arch, stage + 1])
-			var r := btn.get_global_rect()
-			c.append(r.get_center())
-			all_rects.append(r)
-			_check(view_rect.encloses(r), "%s passive %d is inside the board" % [arch, stage + 1])
-		# Upside-down triangle: 1 top-left, 2 top-right, 3 the bottom point.
-		_check(c[0].x < c[1].x and absf(c[0].y - c[1].y) < 1.0, "%s: passive 1 top-left, passive 2 top-right" % arch)
-		_check(c[2].y > c[0].y + 20.0 and c[2].x > c[0].x and c[2].x < c[1].x,
-			"%s: the final passive is the bottom point between them" % arch)
-		# The triangle's quadrant of the painting.
-		var side_ok := true
-		var height_ok := true
-		for p in c:
-			side_ok = side_ok and ((p.x < mid.x) == want["left"])
-			height_ok = height_ok and ((p.y < mid.y) == want["top"])
-		_check(side_ok and height_ok, "%s sits in the %s %s quarter" % [arch,
-			"top" if want["top"] else "bottom", "left" if want["left"] else "right"])
-		var lbl: Label = tri.get_node_or_null("ArchetypeLabel")
-		_check(lbl != null and lbl.text.begins_with(arch), "%s is labelled by its triangle" % arch)
-	var overlap := false
-	for i in range(all_rects.size()):
-		for j in range(i + 1, all_rects.size()):
-			if all_rects[i].intersects(all_rects[j]):
-				overlap = true
-	_check(all_rects.size() == 12 and not overlap, "12 circles, none overlapping")
+	_check_board(ui, "Brad", "brad_passive_board.webp", brad, [["Berserker", "The Ancient"], ["Warden", "The Fallen"]])
 
 	# --- States: stage 1 open, later stages locked with nothing invested ---
 	_check(not _circle(ui, "Berserker", 0).disabled, "first passives are open")
@@ -149,12 +161,24 @@ func _run() -> void:
 	await process_frame
 	_check(ui._board_view.visible and not ui.scroll_container.visible, "and comes back on Passives")
 
-	# --- A hero without a board keeps the lane table ---
+	# --- Cory's board ---
 	ui.set_skill_tree(SkillTreeData.create_cory_tree())
 	await process_frame
-	_check(SkillTreeUI.board_for(ui.skill_tree).is_empty(), "Cory has no board (yet)")
-	_check(not ui._board_view.visible, "Cory's tab hides the board")
-	_check(ui.scroll_container.visible and ui.table_container.get_child_count() > 0, "Cory gets the lane table")
+	await process_frame
+	var cory := {
+		"Atrophist": {"left": true, "top": true, "ids": ["wither", "territorial_death", "death_as_lifeblood"]},
+		"Monk": {"left": false, "top": true, "ids": ["energy_barrier", "expel_negativity", "self_reliance"]},
+		"Lurker": {"left": true, "top": false, "ids": ["prey_on_the_weak", "eat", "serial_killer"]},
+		"Druid": {"left": false, "top": false, "ids": ["budding", "circle_of_life", "regrowth"]},
+	}
+	_check_board(ui, "Cory", "cory_passive_board.webp", cory, [["Atrophist", "Lurker"], ["Monk", "Druid"]])
+
+	# --- A hero without a board keeps the lane table ---
+	ui.set_skill_tree(SkillTreeData.create_jeremy_tree())
+	await process_frame
+	_check(SkillTreeUI.board_for(ui.skill_tree).is_empty(), "Jeremy has no board (yet)")
+	_check(not ui._board_view.visible, "Jeremy's tab hides the board")
+	_check(ui.scroll_container.visible and ui.table_container.get_child_count() > 0, "Jeremy gets the lane table")
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
