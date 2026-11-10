@@ -357,6 +357,9 @@ const JEREMY_RIGHT_X := 1057.0
 ## columns sit closer together.
 const RYAN_LEFT_X := 715.0
 const RYAN_RIGHT_X := 935.0
+## Stephen's board: the tightest gap of the five, narrowest at the bottom.
+const STEPHEN_LEFT_X := 755.0
+const STEPHEN_RIGHT_X := 965.0
 const PASSIVE_BOARDS := {
 	"Brad": {
 		"texture": "res://assets/textures/ui/brad_passive_board.webp",
@@ -422,6 +425,22 @@ const PASSIVE_BOARDS := {
 			"Apothecary": {"anchor": Vector2(RYAN_RIGHT_X, 372), "label": "above"},
 			"Shadow Blade": {"anchor": Vector2(RYAN_LEFT_X, 568), "label": "left"},
 			"Relentless Blade": {"anchor": Vector2(RYAN_RIGHT_X, 568), "label": "right"},
+		},
+	},
+	# Stephen (designer's board, 2026-11-10): TL lookout over the marching
+	# army (Sentinel), TR hooded figure driving down the great sword
+	# (Avenger), BL twin-sword brawl (The Apex), BR the archer (Ranger).
+	"Stephen": {
+		"texture": "res://assets/textures/ui/stephen_passive_board.webp",
+		"size": Vector2(1774, 887),
+		"info": Rect2(705, 22, 270, 118),
+		"spread": Vector2(55, 40),
+		"node": 52.0,
+		"archetypes": {
+			"Sentinel": {"anchor": Vector2(STEPHEN_LEFT_X, 332), "label": "above"},
+			"Avenger": {"anchor": Vector2(STEPHEN_RIGHT_X, 332), "label": "above"},
+			"The Apex": {"anchor": Vector2(STEPHEN_LEFT_X, 532), "label": "below"},
+			"Ranger": {"anchor": Vector2(STEPHEN_RIGHT_X, 532), "label": "right"},
 		},
 	},
 }
@@ -633,13 +652,19 @@ func _build_board_triangle(board: Dictionary, lane: Dictionary, lanes: Array, k:
 		var nm := _board_label(opt.name, name_font, lane_color.lightened(0.3) if stage_open else COLOR_DIM)
 		nm.name = "NameLabel"
 		nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		nm.custom_minimum_size = Vector2(name_w, 0)
+		# Never narrower than the longest word, so no name breaks mid-word.
+		var font: Font = nm.get_theme_font("font")
+		var word_w := 0.0
+		for word in opt.name.split(" ", false):
+			word_w = maxf(word_w, font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, name_font).x)
+		var this_w: float = maxf(name_w, word_w + 4.0)
+		nm.custom_minimum_size = Vector2(this_w, 0)
 		box.add_child(nm)
 		box.move_child(nm, 1)   # under the circle, above the "x / 15"
 		var rank: Label = box.get_node("RankLabel")
 		rank.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
 		rank.add_theme_constant_override("outline_size", 3)
-		var w: float = maxf(name_w, node_d)
+		var w: float = maxf(this_w, node_d)
 		tri.add_child(box)
 		box.position = centres[stage] - Vector2(w * 0.5, node_d * 0.5)
 		box.size = Vector2(w, 0)

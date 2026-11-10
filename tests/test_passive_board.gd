@@ -6,7 +6,8 @@ extends SceneTree
 ## right, The Ancient bottom left, The Fallen bottom right; Cory: Atrophist,
 ## Monk, Lurker, Druid; Jeremy: Abjurer, Evocation, Poltergeist, Shepherd;
 ## Ryan: Light Foot, Apothecary, Shadow Blade, Relentless Blade (his narrow
-## gap puts the bottom pair's names beside them, toward their scenes). First passive top-left, second top-right, the final
+## gap puts the bottom pair's names beside them, toward their scenes);
+## Stephen: Sentinel, Avenger, The Apex, Ranger. No name breaks mid-word. First passive top-left, second top-right, the final
 ## unlock at the bottom point; each side's two triangles share their columns.
 ## Investing still works through the board's circles (stage gates included),
 ## and a hero without a board keeps the lane table.
@@ -216,12 +217,38 @@ func _run() -> void:
 	_check(rb_lbl.get_global_rect().position.x >= _circle(ui, "Relentless Blade", 1).get_global_rect().end.x,
 		"Relentless Blade's name sits right of its triangle")
 
-	# --- A hero without a board keeps the lane table ---
+	# --- Stephen's board ---
 	ui.set_skill_tree(SkillTreeData.create_stephen_tree())
 	await process_frame
-	_check(SkillTreeUI.board_for(ui.skill_tree).is_empty(), "Stephen has no board (yet)")
-	_check(not ui._board_view.visible, "Stephen's tab hides the board")
-	_check(ui.scroll_container.visible and ui.table_container.get_child_count() > 0, "Stephen gets the lane table")
+	await process_frame
+	var stephen := {
+		"Sentinel": {"left": true, "top": true, "ids": ["clean_exchange", "exposed_blind_spot", "lethal_resourcefulness"]},
+		"Avenger": {"left": false, "top": true, "ids": ["patience_is_a_virtue", "swing_for_the_fences", "dominate"]},
+		"The Apex": {"left": true, "top": false, "ids": ["deadly", "easy_target", "skilled_momentum"]},
+		"Ranger": {"left": false, "top": false, "ids": ["eagle_eye", "scouted", "elemental_conclusion"]},
+	}
+	_check_board(ui, "Stephen", "stephen_passive_board.webp", stephen, [["Sentinel", "The Apex"], ["Avenger", "Ranger"]])
+	# The longest word of every name fits its label's width.
+	var broken := []
+	for nm in ui._board_view.find_children("NameLabel", "Label", true, false):
+		var f: Font = nm.get_theme_font("font")
+		var fs: int = nm.get_theme_font_size("font_size")
+		for word in str(nm.text).split(" ", false):
+			if f.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > nm.size.x + 0.5:
+				broken.append(word)
+	_check(broken.is_empty(), "no passive name breaks mid-word %s" % [broken])
+
+	# --- Every hero now has a board ---
+	for t in [SkillTreeData.create_brad_tree(), SkillTreeData.create_cory_tree(), SkillTreeData.create_jeremy_tree(),
+			SkillTreeData.create_ryan_tree(), SkillTreeData.create_stephen_tree()]:
+		_check(not SkillTreeUI.board_for(t).is_empty(), "%s has a board" % t.character_name)
+
+	# --- A hero without a board keeps the lane table ---
+	ui.set_skill_tree(SkillTreeData.create_placeholder_tree("Nobody"))
+	await process_frame
+	_check(SkillTreeUI.board_for(ui.skill_tree).is_empty(), "a hero with no painting has no board")
+	_check(not ui._board_view.visible, "its tab hides the board")
+	_check(ui.scroll_container.visible, "and shows the lane table")
 
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
