@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "acro_medic"
 card_name = "Acro-medic"
-description = "Blink to a spot beside the target ally and heal them for 10."
+description = "Blink to a free spot beside the target ally and heal them for 10."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 70

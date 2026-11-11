@@ -1,0 +1,53 @@
+# New cards, batch C — melee and movement (sheet rows of 2026-11-11)
+
+Logic lives in `scripts/cards/new_cards_c.gd` (`NewCardsC`); tests in
+`tests/test_new_cards_c.gd`. The shared files only call in:
+`Card._execute_card` (one match branch -> `NewCardsC.execute`),
+`main._resolve_queued_card` (`NewCardsC.before_execute`, just ahead of the executor),
+`main._apply_card_world_effects_inner` (one match branch -> `NewCardsC.world_effects`),
+`main._is_target_in_card_range` (Lunge's and Grapple Chain's reach),
+`main.play_selected_card` (Back Pedal's tempo rider), the ally click in
+`main._input` (Acro-medic's refusal) and `main.SUMMON_ALLY_CARDS`.
+
+No new art: every card resolves with the moves and effects already in the game
+(the instant reposition Charge and Roll use, `Player.blink_to`, `Enemy.knock_dir`).
+
+- **Lunge** (`lunge`) — Common · 80 mana, 5 tempo (resolves tick 5) · range melee, after a walk of up to 3 tiles · targets enemy · slots: Swift / Dagger / Spear · sheet: Offensive, Melee
+  - Card text: Move up to 3 tiles to a free tile beside an enemy and deal 9 damage. Counts as a displacement.
+  - Code: plain Offensive (neither attack nor spell: no Strengthen, no Empower, no Blind miss, Disarm does not block it). Targeting: `main._is_target_in_card_range` -> `NewCardsC.lunge_in_reach`: the click is allowed when `lunge_landing_cell` finds a tile — a breadth-first walk of at most 3 steps from the hero, stepping as the hero walks (4 directions), through no wall, cliff face or unit, to the nearest of the enemy's 8 neighbours (fewest steps, then the squarest on the enemy); the hero's own tile when already adjacent. Line of sight to the enemy is still required. At resolve `before_execute` finds the landing again on the board as it is then, puts the hero there at once (as Charge and Roll do, plus `move_completed`) and fires `progression_triggers._trigger_skill_tree_on_displacement()` (Now You See Me) when a tile was actually moved. Then `execute` -> `_execute_slash`: 9 through the physical pipeline (STR, crit, on-hit riders).
+  - Mismatch / open question: when no landing tile exists the play is **refused at the click** (nothing spent). If the board changes during the 5-tick wind-up so that none exists at resolve, the hero does not move and **the damage is lost** (the card is spent). No step, no displacement: a Lunge from an adjacent tile does not count as one. Root does not stop the walk (as it does not stop Charge or Roll). The walk is instant, with no walking animation. Melee reach bonuses (Spartan Spear, Dragon Skull) do not lengthen it.
+
+- **Grapple Chain** (`grapple_chain`) — Rare · 75 mana, 5 tempo (resolves tick 1) · range melee, Reach 2 · targets enemy · slots: Spear · sheet: Offensive, melee
+  - Card text: Reach 2. Deal 6 damage and pull the enemy 1 tile toward you. If it ends adjacent, it is Slowed 1.
+  - Code: plain Offensive. Reach 2 = `NewCardsC.melee_reach_bonus` adds 1.0 to the 1.5-tile melee measure in `_is_target_in_card_range` (2.5 tiles: two tiles straight, or a knight's offset), stacking with the item reach bonuses. `execute` -> `_execute_slash`: 6 physical. `world_effects` -> `_grapple_pull`: if the enemy is not already adjacent and the tile one step toward the hero (sign of each axis, diagonals allowed) is empty, `Enemy.knock_dir(dir, 1)` moves it; if it then stands on one of the hero's 8 neighbours, `apply_debuff("slow", 1)` — one Slow stack, 5 tempo ("Trip it for 5 tempo": Tripped was folded into Slow).
+  - Mismatch / open question: `Card.has_reach` exists but is not exported and no card sets it, so the reach is added by id. An enemy hooked while already adjacent is not pulled and is still Slowed (it "ends adjacent"). A wall or unit in the way stops the pull, and then there is no Slow. A killed enemy is neither pulled nor Slowed. The pull is not registered as a displacement (the only displacement hook is the caster's own, Now You See Me).
+
+- **Back Pedal** (`back_pedal`) — Common · 50 mana, 0 tempo · targets self · slots: Swift / Buckler / Wand · sheet: Utility, self
+  - Card text: Step up to 2 tiles directly away from the nearest enemy and gain Steady. If your next action is a ranged offensive card, it costs 2 less tempo.
+  - Code: `execute` applies `Buff.create_steady("Back Pedal")` (its own play costs 0 tempo, so it does not spend it). `world_effects` -> `_back_pedal_step`: the nearest visible enemy (`main._get_nearest_enemy`), the direction away from it rounded to the nearest of the 8 grid directions, then up to 2 steps, stopping short of a wall, a cliff face or a unit; no enemy on the field = no step. It also marks the hero (`META_BACK_PEDAL`). The rider: `main.play_selected_card` takes `NewCardsC.back_pedal_tempo_cut` (2) off a ranged offensive card's tempo before Steady is asked, and any card played clears the mark (`back_pedal_spent`).
+  - Mismatch / open question: Steady already makes the next card (or basic attack) cost no tempo, so the "-2 tempo" only shows on a ranged offensive card of 2 tempo or less: the cut makes it free on its own, main's "no tempo cost" branch runs before `consume_steady`, and **Steady is left standing for the action after it**. A dearer ranged offensive card is simply made free by Steady. The rider belongs to the Steady action: it stands only while a Steady buff does (a basic attack that spends Steady ends it) and ends with the next card played, whatever it is. Walking does not spend Steady, nor the rider. If the designer meant the discount to outlive Steady (the next ranged offensive card whenever it comes), that is a one-line change in `back_pedal_tempo_cut`. The step is not counted as a displacement (only Lunge's row says so). The card face does not show the cut on the cards in hand.
+
+- **Deliberate Arch** (`deliberate_arch`) — Rare (sheet rarity blank) · 80 mana, 5 tempo (resolves tick 3) · range melee · targets all_nearby · slots: Hammer / Sword / Axe · sheet: Offensive
+  - Card text: 18 damage to every adjacent enemy. Glut 10.
+  - Code: plain Offensive, played with no click target. `execute` rolls 18 through the physical pipeline once (`_roll_hit_damage`: STR, one crit roll for the whole swing; attack-only Strengthen passes it by) into `last_damage_dealt`; `world_effects` deals it to every enemy within 1.5 tiles of the hero (the 8 neighbours, the sweep Sweeping Disarm makes) and runs the Misery spread; on-hit riders land through main's world-effects wrapper. `glut_tempo = 10`: main's generic Glut locks card play for 10 tempo once it resolves.
+  - Mismatch / open question: the sheet's mana reads "8"; taken as **80** (every other new row is in real units, and 8 would be nearly free). The sheet's name is "Delibarate Arch"; the card is named Deliberate Arch. Rarity is blank on the sheet (Rare here).
+
+- **Harvest** (`harvest`) — Rare · 60 mana, 5 tempo (resolves tick 1) · range melee · targets enemy · slots: Axe · sheet: Attack, melee
+  - Card text: 6 damage. Shuffle your discard pile into your draw pile and draw 1.
+  - Code: an Attack (`_execute_slash`: 6 physical, Strengthen, crit, life steal, Disarm blocks it). Then `_harvest_reshuffle`: every card in the discard pile except the Harvest being played goes into the draw pile, `shuffle_draw_pile()` (a real shuffle: `deck_shuffled` fires), and `draw_card()` once. With an empty discard pile it only draws.
+  - Mismatch / open question: the sheet says "shuffle your discard pile **into your hand**"; read as a slip for the **draw pile** (a discard pile does not fit a hand). The played Harvest stays in the discard pile rather than joining its own shuffle. The shuffle does not use `DeckManager.shuffle_discard_into_draw`, so a thin discard pile does **not** add a Heavy Greedy Cheese — say if a card-made reshuffle should pay that tax too.
+
+- **Momentous Slam** (`momentous_slam`) — Common · 40 mana, 5 tempo (resolves tick 1) · range melee · targets enemy · slots: Buckler / Bulwark · sheet: Attack
+  - Card text: Deal 3 damage + 1 per 10 weight you carry.
+  - Code: an Attack. `carry_weight_bonus` = `PlayerStats.current_carry_load / 10` (integer division: 47 carried is +4), added to the base for this play, then `_execute_slash` (STR, Strengthen, crit on the sum).
+  - Mismatch / open question: "carry weight" is read as the weight carried right now (`current_carry_load`), not the carry capacity. The sheet's name is "Momentus Slam".
+
+- **Bastion Battle** (`bastion_battle`) — Rare · 25 mana, 3 tempo (resolves tick 1) · range melee · targets enemy · slots: Buckler · sheet: Offensive
+  - Card text: Deal 5 damage. +10 if you have more armor than the enemy. Disarm 2 if the enemy has no armor.
+  - Code: plain Offensive. `_bastion_battle` reads both armors **before the hit**: `+10` to the base when `PlayerStats.current_armor > enemy.current_armor` (strictly more), then `_execute_slash`; if the enemy had 0 armor before the hit, `apply_debuff("disarm_attacks", 2)` — the stack form of Disarm, 2 stacks of 5 tempo = 10 tempo (Disarm Amp adds once).
+  - Mismatch / open question: "no armor" is judged before the hit, so the card's own damage stripping a thin armor does not earn the Disarm. "Disarm 2" is read as 2 stacks (10 tempo), not 2 tempo.
+
+- **Acro-medic** (`acro_medic`) — Rare · 70 mana, 1 tempo (resolves tick 1) · range 5 · targets ally · slots: Pocket / Swift · sheet: Utility, Ally 5
+  - Card text: Blink to a free spot beside the target ally and heal them for 10.
+  - Code: the ally click (`main._input`) refuses it through `NewCardsC.acro_medic_can_play` when the pick is yourself or no tile beside the ally is free, and through the usual range check beyond 5. Allies are the co-op partner, the dojo's allies and — it is in `SUMMON_ALLY_CARDS` — summons. At resolve `before_execute` picks `acro_medic_landing_cell` (the empty one of the ally's 8 neighbours nearest the caster that `blink_check` allows; the caster's own tile when already adjacent), `Player.blink_to`s there and fires the displacement trigger, as Blink does. `execute` -> `_execute_heal_with_poison_check`: 10 through the Heal card's path (a hero is healed on their own stats with their healing bonuses, a summon by the caster's `get_effective_heal_amount`). `heal_amount = 10`, so `is_heal_card()` is true and Poisoned Blood turns it into damage.
+  - Mismatch / open question: with no landing at resolve (the ally got boxed in during the tick) there is no blink and no heal; the card is spent. Already adjacent: no blink (and no displacement), the heal lands. It cannot be played on yourself. The summon heal goes through the same code as Heal's but is not covered by a test here.

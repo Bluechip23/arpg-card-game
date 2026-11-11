@@ -4655,7 +4655,7 @@ func _all_players() -> Array:
 ## picked (Cryonics, Friendship, Lady Luck, Provider, Swap…): a summon pick
 ## for those is refused. Whether summons should count as their "ally" is
 ## FLAGGED (docs/audit/validation.md, pass2.md).
-const SUMMON_ALLY_CARDS := ["heal", "healing_tonic", "gulped_potion", "fortify_alliance", "shepherds_mark"]
+const SUMMON_ALLY_CARDS := ["heal", "healing_tonic", "gulped_potion", "fortify_alliance", "shepherds_mark", "acro_medic"]
 
 func _all_allies() -> Array:
 	var out: Array = []
@@ -8986,6 +8986,9 @@ func play_selected_card(target) -> void:
 
 	if debuff_mgr:
 		tempo_cost += debuff_mgr.get_tempo_increase()
+	# Back Pedal: its Steady action costs 2 less tempo as a ranged offensive card.
+	tempo_cost = maxi(0, tempo_cost - NewCardsC.back_pedal_tempo_cut(player, card))
+	resolve_tick = mini(resolve_tick, tempo_cost)
 
 	# Tighten String: +3 tempo, +6 damage, +6 range, Keen (+20% crit, one roll)
 	var tighten_applied = false
@@ -9026,6 +9029,7 @@ func play_selected_card(target) -> void:
 	var result := deck_manager.play_card(selected_card_index, target, player, true)
 
 	if result["played"]:
+		NewCardsC.back_pedal_spent(player)  # the action Back Pedal's rider waited for
 		# Tighten String: "next 3 ranged attacks PLAYED" — the charge is spent
 		# here, at play. Spent at resolve, attacks queued before the first one
 		# resolved were all strung (4 shots off 3 charges, the count went -1).
@@ -9439,6 +9443,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	# before the effect, so a card that re-prices itself (Consecutive Snap)
 	# keeps its own new cost.
 	progression_triggers.end_from_the_hip_discount()
+	NewCardsC.before_execute(self, card, target)  # Lunge's walk, Acro-medic's blink: the move comes first
 	# Execute the card's effect (damage, block, heal, etc.)
 	deck_manager.execute_deferred_card(card, target, player)
 	# Clean Exchange's flat block: a separate "gain X block" on top of whatever
@@ -12371,7 +12376,9 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 		# Melee: must be adjacent (within ~1.5 tiles), Reach adds 1 square.
 		# Dragon Skull's "+1 range on ANY offensive card" extends melee reach too
 		# (the 20/20 and Monocle parts of the helper are ranged-gated internally).
-		var melee_range = 1.5
+		if card.card_id == "lunge":
+			return NewCardsC.lunge_in_reach(self, target)  # a free walk of 3 tiles to a square beside it
+		var melee_range = 1.5 + NewCardsC.melee_reach_bonus(card)  # Grapple Chain: Reach 2
 		if card.has_reach:
 			melee_range += 1.0
 		# Spartan Spear: Reach while a shield is up.
@@ -13607,6 +13614,9 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 			_apply_misery_spread(landing_enemies)
 			print("[MAIN] Heroic Leap: jumped %d/%d tiles to %s, hit %d enemies for %d damage" % [actual_leap, leap_distance, leap_target, landing_enemies.size(), leap_damage])
 
+		"grapple_chain", "back_pedal", "deliberate_arch":
+			NewCardsC.world_effects(self, card, target)  # the pull, the step, the swing around the hero
+
 		"surrounding_ice":
 			# AOE circle around player - uses the pre-rolled per-enemy outcomes
 			# so Loaded Die / House Money chance boosts actually apply.
@@ -14177,7 +14187,9 @@ func _input(event: InputEvent) -> void:
 						var tgt_summon := _summon_at_position(mouse_pos)
 						if tgt_summon:
 							tgt = tgt_summon
-					if not (tgt is Player) and not (card.card_id in SUMMON_ALLY_CARDS):
+					if card.card_id == "acro_medic" and not NewCardsC.acro_medic_can_play(self, tgt):
+						pass  # refused, the reason logged: yourself, or no free spot beside the ally
+					elif not (tgt is Player) and not (card.card_id in SUMMON_ALLY_CARDS):
 						# Resolves on a hero's stats; a summon pick used to land on
 						# the caster instead. Refuse it, nothing spent.
 						add_battle_log("%s must target a hero, not a summon." % card.card_name, Color(1.0, 0.6, 0.4))
