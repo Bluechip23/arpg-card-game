@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "stoked_pride"
 card_name = "Stoked Pride"
-description = "Mark an ally. When they are attacked, a lion is summoned to their defense and takes the damage instead."
+description = "Mark an ally. When an enemy next attacks them, a lion (30 health) is summoned beside them and takes the damage instead. While it lives within 2 squares of them, it keeps taking the attacks aimed at them."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 100

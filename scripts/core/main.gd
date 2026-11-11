@@ -5527,9 +5527,14 @@ func show_full_card_picker(prompt: String, candidates: Array, pick_count: int, o
 
 	var chosen: Array = []
 	var confirm := Button.new()
+	# A negative pick_count asks for ANY number, up to that many (Flames of
+	# Alexandria): Confirm is always live.
+	var any_number: bool = pick_count < 0
+	if any_number:
+		pick_count = -pick_count
 	var refresh_confirm := func():
 		confirm.text = "Confirm (%d/%d)" % [chosen.size(), pick_count]
-		confirm.disabled = chosen.size() != pick_count
+		confirm.disabled = not any_number and chosen.size() != pick_count
 	for c in candidates:
 		var holder := Control.new()
 		holder.custom_minimum_size = Vector2(Card_UI_W, Card_UI_H)
@@ -5847,6 +5852,7 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 		if tdm:
 			tdm.tick_temp_mods(amount)
 	_update_smoke_zones(amount)
+	NewCardsE.on_tempo(self, amount)  # batch E clocks: the Ward, fog, crates, lions
 	# Bone-arrow skeletons sprint at whatever their quiver's kill left behind.
 	_update_skeletons(amount)
 	# Spirit bows stalk and shoot; budded turrets just shoot.
@@ -6153,6 +6159,7 @@ func _on_enemy_movement_completed(enemy: Enemy) -> void:
 	# Forest hazards: an enemy can blunder into a bear trap or tripwire too.
 	if dungeon_manager and is_instance_valid(enemy) and not enemy.is_dead:
 		_trigger_terrain_traps_for(grid_manager.world_to_grid(enemy.position), enemy, false)
+		NewCardsE.on_enemy_move_end(self, enemy)  # Thickened Nature's fog roots
 
 	_update_enemy_melee_state(enemy, true)
 	progression_triggers.refresh_solemn()
@@ -6312,6 +6319,7 @@ func _on_all_enemies_defeated() -> void:
 	_clear_wolves()
 	_clear_specters()
 	_smoke_zones.clear()
+	NewCardsE.on_battle_end(self)  # The Ledger closes, the fog lifts
 	# Bone-arrow skeletons and Draupnir duplicates deliberately survive the
 	# wave — "lives until killed": one cumulative journey, no battle resets.
 	_clear_spirit_bows()
@@ -9087,6 +9095,7 @@ func play_selected_card(target) -> void:
 			},
 		}
 		_pending_resolve_queue.append(resolve_entry)
+		NewCardsE.on_card_played(self, card, resolve_entry["data"])  # the Candle's charge
 
 		# Dex proc: halve tempo cost and resolve tick (both rounded down)
 		if result["half_tempo"]:
@@ -9445,6 +9454,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	progression_triggers.end_from_the_hip_discount()
 	NewCardsC.before_execute(self, card, target)  # Lunge's walk, Acro-medic's blink: the move comes first
 	# Execute the card's effect (damage, block, heal, etc.)
+	var nce_snap: Dictionary = NewCardsE.pre_card(self, card, data)  # The Ledger / the Candle
 	deck_manager.execute_deferred_card(card, target, player)
 	# Clean Exchange's flat block: a separate "gain X block" on top of whatever
 	# the card did, granted once, whatever card it rode in on.
@@ -9531,6 +9541,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 				progression_triggers._trigger_skill_tree_on_crit(target, maxi(1, buff_mgr.crit_hits))
 
 	_resolving_aim = null
+	NewCardsE.post_card(self, card, data, nce_snap)  # The Ledger banks / pays out; the Candle burns
 	# The play is over: undo the folded bonus, disarm the passives, close
 	# the scope and drop the hit-source flags.
 	if passive_bonus > 0:
@@ -12577,6 +12588,10 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 
 	# Weapon riders that watch every resolved card (weapons pass 1).
 	_weapon_post_card_effects(card, target)
+
+	# New sheet cards, batch E (scripts/cards/new_cards_e.gd).
+	if NewCardsE.world_effects(self, card, target, mouse_pos):
+		return
 
 	# Slotted-item riders that need the world (ranged pass 1).
 	_ranged_on_self_world_effects(card, target)

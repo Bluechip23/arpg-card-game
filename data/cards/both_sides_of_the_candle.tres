@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "both_sides_of_the_candle"
 card_name = "Both Sides of the Candle"
-description = "The target's next 5 attacks cost 2 less tempo. Each applies 8 Burn and deals 10% of the attacker's own max health to themselves."
+description = "The target's next 5 attack cards cost 2 less tempo. Each applies 8 Burn to the enemies it hits and deals 10% of the attacker's own max health to themselves, past armor."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 150

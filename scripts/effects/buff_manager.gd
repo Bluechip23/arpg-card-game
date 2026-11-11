@@ -492,6 +492,9 @@ func sync_flag_buffs() -> void:
 		"Your next chance roll is +%d%%" % (int(owner_stats.next_odds_boost) if has_stats else 0),
 		Color(0.61, 0.35, 0.71), -1, 1)
 
+	# New sheet cards, batch E (Ward of Hallow Glass, The Ledger, the Candle, Stoked Pride).
+	NewCardsE.sync_badges(self)
+
 func _get_generic(key: String) -> Buff:
 	for b in buffs:
 		if b.buff_type == Buff.BuffType.GENERIC and b.custom_icon_key == key:

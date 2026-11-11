@@ -29,6 +29,9 @@ var attack_accum: int = 0  # tempo banked toward the next attack
 var glide_speed: float = 4.0  # world units per second between cells
 var summoner: Node3D = null   # the player who called it up: summons walk their way
 var debuff_manager: DebuffManager = null  # enemy debuffs on it (made on first use)
+## Brace (Inspiring Whistle): its next `brace_hits` hits deal `brace_percent`% less.
+var brace_percent: int = 0
+var brace_hits: int = 0
 
 ## Enemy debuffs land on summons too (designer, 2026-10-28) and do to them
 ## what they do to a hero — except these, which act on a hand of cards, mana
@@ -172,6 +175,8 @@ func take_damage(amount: int, from_status := false) -> void:
 	amount = PlayerStats.apply_cover(self, amount)
 	if amount <= 0:
 		return
+	if not from_status:
+		amount = NewCardsE.summon_brace(self, amount)  # Inspiring Whistle
 	amount = _absorb(amount)
 	var before: int = health
 	health -= amount
@@ -195,7 +200,7 @@ func die() -> void:
 ## Summons don't carry the players' buff / debuff managers; each kind lists
 ## what it does have (a specter's time left, Shepherd's Mark, a burrow...).
 func get_status_effects() -> Array:
-	return _debuff_badges()
+	return _debuff_badges() + NewCardsE.summon_badges(self)
 
 ## Its armor for the tab: [now, cap] (cap 0 when it has no cap).
 func get_armor_display() -> Array:

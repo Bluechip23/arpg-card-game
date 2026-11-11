@@ -6324,6 +6324,9 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 		if player_stats_ref and "last_attacker" in player_stats_ref:
 			player_stats_ref.last_attacker = self
 		if player_stats_ref and effective_damage > 0:
+			# Stoked Pride: a lion takes the blow in the marked ally's place.
+			if NewCardsE.stoked_pride_intercept(get_parent(), self, player_node, effective_damage):
+				return
 			# The blow is coming: reactions that shield against it (Magic
 			# Barrier) raise their armor now, before the damage math.
 			attacking_player.emit(self, player_node)

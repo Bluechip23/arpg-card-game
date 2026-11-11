@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "flames_of_alexandria"
 card_name = "Flames of Alexandria"
-description = "Discard your hand, shuffle your discard pile into your draw pile, then draw 10. Discard any number of them: deal 3 fire damage in a cone in front of you for each, and apply 1 Burn to yourself."
+description = "Discard your hand, shuffle your discard pile into your draw pile, then draw 10 (up to your hand size). Discard any number of the cards drawn: for each, deal 3 fire damage in a cone in front of you and apply 1 Burn to yourself."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 200
