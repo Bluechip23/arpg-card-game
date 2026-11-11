@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "pocket_shiv"
 card_name = "Pocket Shiv"
-description = "Instant: when you discard a card from your hand, gain 10 mana and deal 5 damage to an enemy in melee range."
+description = "Instant: when you discard another card from your hand, gain 10 mana and deal 5 damage to the nearest enemy in melee range."
 card_type = 3
 card_type_name = "Instant"
 mana_cost = 0

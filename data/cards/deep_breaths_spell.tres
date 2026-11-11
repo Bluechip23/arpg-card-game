@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "deep_breaths_spell"
 card_name = "Deep Breaths"
-description = "Jail every Instant in your hand, draw pile and discard pile. Gain 10 temp HP for each. When they return, each grants 10 armor, on top of its own effect, the next time it triggers."
+description = "Jail every instant card in your hand, draw pile and discard pile for 20 tempo. Gain 10 temp HP for each. Each grants 10 armor, on top of its own effect, the next time it triggers."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 100

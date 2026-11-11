@@ -6,12 +6,12 @@
 script = ExtResource("1_card")
 card_id = "spiteful_sting"
 card_name = "Spiteful Sting"
-description = "Instant: when an enemy within 1 square damages you, apply 4 Poison to the attacker and draw a card."
+description = "Instant: when an enemy within 1 square hits you, apply 4 Poison to it and draw a card."
 card_type = 3
 card_type_name = "Instant"
 mana_cost = 0
 tempo_cost = 0
 target_types = ["self"]
-reaction_trigger = "on_damage_taken"
+reaction_trigger = "on_melee_hit_taken"
 slot_labels = [10]
 keywords = ["reaction", "attack", "offensive"]

@@ -594,6 +594,7 @@ func handle_overflow() -> void:
 ## call: it logs each adjustment and records a percent-mana price on the
 ## card. Anything else (a preview, the simulator) asks quietly.
 func compute_play_cost(card: Card, index: int, target = null, debuff_mgr = null, commit: bool = false) -> Dictionary:
+	NewCardsB.price_foresight(card, player_stats)  # 20 mana, 2 less per Brain point held
 	var mana_cost = card.get_burden_mana_cost()  # Burden: +10 mana per prior play
 	# Heavy Greedy Cheese's own price scales with the mana pool.
 	if card.card_id == GREEDY_CHEESE_ID:

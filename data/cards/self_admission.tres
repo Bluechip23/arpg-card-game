@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "self_admission"
 card_name = "Self Admission"
-description = "Jail a card for 20 tempo. When it returns to your hand, gain Strengthen 5, heal 20, gain 20 mana, and that card costs 1 less tempo."
+description = "Jail a card from your hand for 20 tempo. When it is next in your hand: Strengthen 5, heal 20, gain 20 mana, and it costs 1 less tempo until played."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 10
