@@ -184,7 +184,7 @@ const FRAMES := {
 		"ink": Color(0.96, 0.94, 0.9),
 		"ink_dark": false,
 		"top": 28.3, "title_h": 22.9, "art_h": 52.9, "type_h": 21.5, "desc_top": 10.0,
-		"title_left": 35.0, "title_right": 31.0, "name_w": 80,
+		"title_left": 33.0, "title_right": 27.0, "name_w": 70,
 	},
 	# Enchantments: green cracked-emerald stone in gilt and gold thorns,
 	# jewelled chains off the drop's ring, white text above a hooded figure

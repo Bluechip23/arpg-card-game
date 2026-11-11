@@ -8,6 +8,8 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
 **249 cards, 33 with something to look at.** The flagged cards are listed first, then every card by type.
 
 
+**The sheet's 41 new cards of 2026-11-11** (Stoked Pride through Flames of Alexandria) are written up in the same form, with their open questions, in [`docs/new_cards/`](new_cards/) — `A.md` auras and maintains, `B.md` instants / jail / deck order, `C.md` melee and movement, `D.md` attacks and small offensive cards, `E.md` big spells, zones and summons. They are not yet folded into the lists below.
+
 ## Cards whose code and text disagree
 
 - **A Snowball's Chance** (`snowballs_chance`): 'Searing fire' is flavour only: the fire line deals untyped/physical damage (take_damage(dmg, true) without DamageTypes.FIRE) and no Burn is applied.
