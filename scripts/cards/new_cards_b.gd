@@ -263,6 +263,7 @@ static func jail_card(dm, card, tempo: int) -> void:
 	card.clear_temp_mods()
 	card.jail(tempo)
 	dm.jail_pile.append(card)
+	NewCardsA.on_card_jailed(dm, card)  # Warden's Hound
 
 ## Hand listener (runs ahead of main's own): Self Admission's payoff lands when
 ## the card it jailed is next in the hand, and Foresight's price follows the

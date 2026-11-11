@@ -185,6 +185,7 @@ static func _internal_sickness(card: Card, target, stats: PlayerStats, deck, buf
 		deck.discard_pile.erase(card)
 		card.jail(SICKNESS_JAIL)
 		deck.jail_pile.append(card)
+		NewCardsA.on_card_jailed(deck, card)  # Warden's Hound
 	for _i in range(SICKNESS_DRAW):
 		deck.draw_card()
 	deck.hand_updated.emit()

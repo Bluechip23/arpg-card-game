@@ -203,7 +203,7 @@ func _test_patience(stats, pt, _dummy: Enemy) -> void:
 	ce.execute(null, stats, dm, 0, 0, bm)
 	# Endured Tolerance is its own Resilient instance (it never merges with
 	# another source's), so it is read from the list, not by type.
-	var et_list := bm.get_buffs(Buff.BuffType.RESILIENT)
+	var et_list: Array = bm.get_buffs(Buff.BuffType.RESILIENT)
 	var r: Buff = et_list[0] if not et_list.is_empty() else null
 	_check(r != null and r.value == 30 and r.duration == 5, "played: 30%% resistance to all damage for 5 tempo (%s)" % (str([r.value, r.duration]) if r else "none"))
 	Card.create_endured_tolerance(30).execute(null, stats, dm, 0, 0, bm)
