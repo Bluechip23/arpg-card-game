@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "lodestone_field"
 card_name = "Lodestone Field"
-description = "Maintain: enemies within 2 squares are Slowed 1 at the start of each cycle, and Shock on them does not decay while they stand in the field."
+description = "Maintain: enemies within 2 squares of you are Slowed 1 at the start of each cycle, and Shock on them does not decay while they stand in the field."
 card_type = 5
 card_type_name = "Power"
 mana_cost = 100

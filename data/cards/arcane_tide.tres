@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "arcane_tide"
 card_name = "Arcane Tide"
-description = "Grant an ally Attune 3."
+description = "Grant an ally Attune 3 (+3 damage on their next 3 offensive spells)."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 30

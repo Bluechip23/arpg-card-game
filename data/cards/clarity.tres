@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "clarity"
 card_name = "Clarity"
-description = "Focused for 2 cycles and Attune 2."
+description = "Focused for 2 cycles (+10 mana at each cycle start) and Attune 2 (+2 damage on your next 3 offensive spells)."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 10

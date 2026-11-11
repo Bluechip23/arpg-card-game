@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "war_shout"
 card_name = "War Shout"
-description = "You and all allies within 3 squares gain Strengthen 3."
+description = "You and all allies within 3 squares gain Strengthen 3 for 3 attacks."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 30

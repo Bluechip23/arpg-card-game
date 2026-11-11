@@ -5853,6 +5853,7 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	_update_spirit_bows(amount)
 	# Elemental Weaver: refresh the pollination flag enemies read while ticking.
 	_update_element_pollination()
+	NewCardsA.tick(self)  # The Wolf's Howl / Lodestone Field follow where everyone stands
 	# Reaction Rod: keep Grounding's Shock discount current on the card face.
 	_update_grounding_discount()
 	# Crops: catch an ally who ended up standing on a bushel (P2 movement
@@ -7635,6 +7636,7 @@ func _cycle_status_start(cp) -> void:
 func _process_maintained_card_effects() -> void:
 	## Process ongoing effects from maintained Power cards each tempo cycle.
 	_burn_flame_zones()
+	NewCardsA.cycle(self)  # Spirit Armor, Ember Heart, Lodestone Field
 	var maintained_result := deck_manager.process_maintained_cards()
 	var stats := player.get_stats()
 	if maintained_result["total_heal"] > 0 and stats:
@@ -11089,6 +11091,7 @@ func _sync_maintained_passives() -> void:
 		elif c.card_id == "forever_armor":
 			forever = true
 	stats.maintained_thorns = 5 if barbed else 0
+	NewCardsA.tick(self)  # The Wolf's Howl starts / ends with its maintain
 	stats.set_maintained_unerring_cap(6 if forever else 0)
 	var survivors: Array = []
 	for z in _flame_zones:
@@ -13704,6 +13707,9 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 					if htl_bm:
 						htl_bm.apply_buff(Buff.create_might(2, 15, "Hold the Line"))
 			add_battle_log("Hold the Line! All allies +5 armor, +2 DET, +2 STR for 15 tempo", Color(0.3, 0.7, 1.0))
+
+		"war_shout":
+			NewCardsA.war_shout(self, card)
 
 		"swap":
 			# Swap positions between player and target

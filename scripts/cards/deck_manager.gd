@@ -988,11 +988,13 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		# its stated tempo before returning to the discard pile.
 		card.jail_time_remaining = card.jail_on_play
 		jail_pile.append(card)
+		NewCardsA.on_card_jailed(self, card)
 		print("[DECK] %s jailed for %d tempo after play." % [card.card_name, card.jail_on_play])
 	elif card.is_slotted() and int(card.get_on_self_bonus().get("jail_tempo", 0)) > 0:
 		# The Rapid Recurve: cards fired from it are jailed after every play.
 		card.jail_time_remaining = int(card.get_on_self_bonus().get("jail_tempo", 0))
 		jail_pile.append(card)
+		NewCardsA.on_card_jailed(self, card)
 		print("[DECK] %s jailed for %d tempo by %s." % [card.card_name, card.jail_time_remaining, card.slotted_in_item.item_name])
 	else:
 		discard_pile.append(card)
@@ -1193,6 +1195,7 @@ func jail_burden_card(index: int) -> bool:
 	hand.remove_at(index)
 	card.jail_burden()  # resets plays + arms the 30-tempo jail timer
 	jail_pile.append(card)
+	NewCardsA.on_card_jailed(self, card)
 	hand_updated.emit()
 	print("[DECK] %s jailed to shed its burden" % card.card_name)
 	return true
@@ -1500,6 +1503,7 @@ func trigger_one_reaction_jailed(trigger_type: String, jail_tempo: int) -> Card:
 			hand.remove_at(i)
 			card.jail_time_remaining = jail_tempo
 			jail_pile.append(card)
+			NewCardsA.on_card_jailed(self, card)
 			reaction_triggered.emit(card)
 			hand_updated.emit()
 			print("[DECK] Reaction triggered: %s (jailed %d tempo)" % [card.card_name, jail_tempo])

@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "ember_heart"
 card_name = "Ember Heart"
-description = "Maintain: each cycle, 2 stacks of your Burn are transferred to a random enemy within 4 squares. Each stack deals 3 damage as it transfers."
+description = "Maintain: each cycle, 2 stacks of the Burn on you are transferred to a random enemy within 4 squares. Each stack deals 3 damage as it transfers."
 card_type = 5
 card_type_name = "Power"
 mana_cost = 90

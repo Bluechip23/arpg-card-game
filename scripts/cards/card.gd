@@ -2508,6 +2508,9 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			_execute_barbed_exterior(player_stats, buff_mgr)
 		"forever_armor":
 			_execute_forever_armor(player_stats, buff_mgr)
+		"the_wolfs_howl", "spirit_armor", "ember_heart", "lodestone_field", "wardens_hound", \
+		"war_shout", "stone_wheel", "arcane_tide", "clarity":
+			NewCardsA.execute(self, target, player_stats, deck_manager, buff_mgr)
 		"composed_response":
 			_execute_composed_response(deck_manager)
 		"composed_reaction":
