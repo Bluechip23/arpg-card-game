@@ -2897,7 +2897,20 @@ func is_offensive() -> bool:
 func is_attack() -> bool:
 	if has_keyword("attack"):
 		return true
+	# A sheet row tagged plain "Offensive" (no attack, no spell) is neither
+	# shape: attack procs, Disarm and Silence all pass it by.
+	if has_keyword("offensive"):
+		return false
 	return card_type == CardType.ATTACK and school != CardSchool.SPELL
+
+## Offensive, but not only an attack or only a spell (designer, 2026-11-11):
+## a plain "Offensive" row (neither shape), or a card tagged attack and
+## spell at once (If Pigs Could Fly). These wear the Offensive card frame.
+func is_mixed_offensive() -> bool:
+	if not is_offensive() or card_type == CardType.REACTION:
+		return false
+	var spell: bool = school == CardSchool.SPELL
+	return is_attack() == spell
 
 ## The cards an enemy, a curse or a drawback forces on the player: Lightly
 ## Dazed (Armored Troll), Minor Wounds (Reckless Strike's price), Paralysis

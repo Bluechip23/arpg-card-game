@@ -120,6 +120,34 @@ func _run() -> void:
 		"an offensive spell wears the Spell frame, not the Attack one")
 	sp.queue_free()
 
+	# An offensive card that is not only an attack or only a spell wears the
+	# Offensive frame (2026-11-11): attack-and-spell cards, and the sheet's
+	# plain "Offensive" rows. One-shape cards keep their own frame.
+	var pig := _face("if_pigs_could_fly")
+	await process_frame
+	var pa: TextureRect = pig.get_node_or_null("Panel/FrameArt")
+	_check(pig.get_card().is_attack() and pig.get_card().school == Card.CardSchool.SPELL and pig.get_card().is_mixed_offensive(),
+		"If Pigs Could Fly is an attack and a spell at once")
+	_check(pa != null and pa.texture != null and pa.texture.resource_path.ends_with("frame_offensive.png"),
+		"an attack-and-spell card wears the Offensive frame")
+	_check(pig.type_label.text == "Offensive", "its type line says Offensive (%s)" % pig.type_label.text)
+	_check(absf(pig._mana_badge.position.x + pig._mana_badge.size.x * 0.5 - CardUI.FRAMES["offensive"]["mana_at"].x) < 0.5,
+		"its mana sits on the frame's drop")
+	pig.queue_free()
+	var plain := Card.new()
+	plain.card_id = "test_plain_offensive"
+	plain.card_type = Card.CardType.ATTACK
+	plain.keywords = ["offensive", "melee"]
+	_check(plain.is_offensive() and not plain.is_attack() and plain.school != Card.CardSchool.SPELL and plain.is_mixed_offensive(),
+		"a plain Offensive row is offensive, and neither an attack nor a spell")
+	_check(CardUI.frame_for(plain) == CardUI.FRAMES["offensive"], "…and wears the Offensive frame")
+	_check(CardUI.frame_for(Card.create_by_id("slash")) == CardUI.FRAMES["attack"]
+		and not Card.create_by_id("slash").is_mixed_offensive(), "an Attack keeps the Attack frame")
+	_check(CardUI.frame_for(Card.create_by_id("fireball")) == CardUI.FRAMES["spell"]
+		and not Card.create_by_id("fireball").is_mixed_offensive(), "an offensive spell keeps the Spell frame")
+	_check(CardUI.frame_for(Card.create_by_id("peshtigos_kiss")) == CardUI.FRAMES["maintain"],
+		"an upkeep still outranks it (Peshtigo's Kiss)")
+
 	# Enchantments wear the Enchantment frame (2026-11-08): every one in the
 	# data, with white text on the green stone and the logo in the type
 	# bar's middle (the board's ruby painted out under it), the long type

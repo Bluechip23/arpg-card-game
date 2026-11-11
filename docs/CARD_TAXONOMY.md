@@ -28,7 +28,7 @@ unless it carries the rider.
 | Word on the sheet / in a passive | What it means | In code |
 |---|---|---|
 | **Offensive** | The card carries the offensive rider. Every Attack is offensive; a Spell, Utility or Instant is offensive only when tagged. | `Card.is_offensive()` — `card_type == ATTACK or has_keyword("offensive")` |
-| **Attack** | The Attack shape under Offensive. Not a spell. | `Card.is_attack()` — tagged `attack`, or an Attack-type card that is not a spell |
+| **Attack** | The Attack shape under Offensive. Not a spell. | `Card.is_attack()` — tagged `attack`, or an Attack-type card that is not a spell and not tagged plain `offensive` |
 | **Spell** | The Spell shape — under Offensive (Fireball), Defensive (none yet) or Utility (Lady Luck). Silence stops it in every role. | `school == CardSchool.SPELL` ⇔ tagged `spell` |
 | **Defensive** | The Defense type, or the `defense` tag on an instant / utility (Vengeful Shield). | `card_type == DEFENSE or has_keyword("defense")` |
 | **Utility** | The Utility type, or the `utility` tag on an instant (Healthy Bliss). | `card_type == UTILITY or has_keyword("utility")` |
@@ -95,6 +95,23 @@ Settled on the follow-up questions (designer, 2026-10-30):
 - **Scouted**'s auto-crit stays with the next *attack*.
 
 Spells also have their own card frame (the Spell frame), never the Attack one.
+
+## Offensive without one shape (designer, 2026-11-11)
+
+Some offensive cards are **not only an attack or only a spell**: a sheet row
+tagged plain "Offensive" (Bastion Battle, Lunge, Static Sting — neither
+shape), or a card tagged attack *and* spell (If Pigs Could Fly). They wear
+the **Offensive frame** and their type line reads "Offensive"
+(`Card.is_mixed_offensive()`, `CardUI.FRAMES["offensive"]`).
+
+A plain Offensive card is stored as `card_type == ATTACK`, `school ==
+PHYSICAL`, with the `offensive` keyword and **no** `attack` keyword.
+`is_attack()` is false for it, so attack procs, Disarm, Strengthen and the
+DEX counter pass it by; it is not a spell either, so Silence and Attune do
+too. Everything worded "offensive" still reads it.
+
+**Attune** is Strengthen's twin for spells: +X damage on the next offensive
+spell cards. An attack never touches it, as a spell never touches Strengthen.
 
 Open questions for the designer are tracked in `docs/CARD_REFERENCE.md`
 (the per-card "Mismatch" lines).
