@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "berserkers_tithe"
 card_name = "Berserker's Tithe"
-description = "12 damage. Glut 10. If this kills an enemy, it goes to your draw pile and its tempo is halved; if not, it goes to your discard and its tempo is doubled. The tempo change lasts 40 tempo."
+description = "12 damage. Glut 10. If this kills an enemy, it is shuffled into your draw pile and its tempo is halved; if not, it goes to your discard and its tempo is doubled. The tempo change lasts 40 tempo."
 mana_cost = 0
 damage = 12
 tempo_cost = 6

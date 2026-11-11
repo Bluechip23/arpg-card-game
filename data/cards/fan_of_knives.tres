@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "fan_of_knives"
 card_name = "Fan of Knives"
-description = "Discard up to 5 cards. For each, deal 4 damage to a random enemy within range 2."
+description = "Discard up to 5 cards. Each card discarded deals 4 damage to a random enemy within range 2."
 mana_cost = 65
 damage = 4
 tempo_cost = 8

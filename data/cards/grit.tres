@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "grit"
 card_name = "Grit"
-description = "Gain 2 armor per 10% of health you are missing. If you are below 30% health, gain 2 Bolster."
+description = "Gain 2 armor per 10% of health you are missing. If you are below 30% health, gain Bolster 2."
 card_type = 1
 card_type_name = "Defense"
 mana_cost = 30

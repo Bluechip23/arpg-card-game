@@ -12720,6 +12720,9 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 					fp_copy.set_meta("fire_punch_copy", true)
 					deck_manager.add_card_to_hand(fp_copy)
 
+		"berserkers_tithe", "fan_of_knives", "spine_release":
+			NewCardsD.world_effects(self, card, target)  # sheet batch D
+
 		"crack_of_mintaka":
 			var cm_target = target
 			var cm_lv3: bool = card.granted_by_item != null and card.granted_by_item.item_level >= 3
@@ -13795,6 +13798,7 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 	# damage still delivers the +15 it carried.
 	# Empower's mark is spent once the play (and this damage) has resolved.
 	card.draw_empowered = false
+	NewCardsD.end_feint(card)  # Feint's rider is spent with the play, like Empower's
 	Card.elixir_poison_heals = false
 	PlayerStats.heal_to_damage = false
 	var pm_t = card.premeditated_target

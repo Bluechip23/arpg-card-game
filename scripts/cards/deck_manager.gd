@@ -1248,6 +1248,7 @@ func _process_erase_timers() -> void:
 func tick_temp_mods(amount: int) -> void:
 	_process_temp_mods(amount)
 	_process_hatch_timers(amount)
+	NewCardsD.tick_tithe(self, amount)  # Berserker's Tithe: its 40-tempo clock, in every pile
 
 func _process_hatch_timers(amount: int) -> void:
 	## Rat King's Infest: the fuse (Card.hatch_tempo, 5 on the sheet) counts
