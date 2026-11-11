@@ -153,7 +153,7 @@ empowered off hand in the game.
 
 Cory is for players who win by *arranging* the fight rather than out-statting it. Displacement
 and lockdown cards are his bread and butter: **Round 'Em Up** (drag enemies toward a point),
-**Push**, **Swap**, **Trip** (−4 movement), **Choke** (silence), **Sweeping Disarm**,
+**Push**, **Swap**, **Trip** (Slowed 2), **Choke** (silence), **Sweeping Disarm**,
 **Vines** (root + damage each cycle it holds). His passives then punish enemies for existing inside
 the arrangement: entering or leaving melee range re-applies a random debuff they already have
 (*Territorial Death*, on a rank-scaled 15→1 tempo cooldown), debuffs he applies carry +1
