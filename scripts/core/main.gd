@@ -5253,12 +5253,12 @@ const RELEASE_TENSION_DEBUFFS := [
 	["stun", "stun_tempo", "is_stunned"], ["silence", "silenced_tempo", "is_silenced"],
 	["disarm", "disarmed_tempo", "is_disarmed"], ["mark", "marked_tempo", "is_marked"],
 	["frozen", "frozen_tempo", "is_frozen"], ["root", "rooted_tempo", ""],
-	["tripped", "tripped_tempo", ""], ["curse", "cursed_tempo", ""],
+	["curse", "cursed_tempo", ""],
 	# "any debuff": every kind Enemy.apply_debuff can put on, these two included.
 	["polymorph", "polymorph_tempo", ""], ["narashimha", "narashimha_tempo", ""],
 ]
 const RT_TIMED_FIELDS := ["stun_tempo", "silenced_tempo", "disarmed_tempo", "marked_tempo",
-	"frozen_tempo", "rooted_tempo", "tripped_tempo", "cursed_tempo",
+	"frozen_tempo", "rooted_tempo", "cursed_tempo",
 	"polymorph_tempo", "narashimha_tempo"]
 
 func _show_release_tension_picker(card: Card, enemy) -> void:
@@ -8240,7 +8240,7 @@ const MISERY_KINDS := [
 	["disarmed", "disarmed_tempo", true], ["root", "rooted_tempo", true],
 	["cursed", "cursed_tempo", true],
 	["stun", "stun_tempo", false], ["silenced", "silenced_tempo", false],
-	["marked", "marked_tempo", false], ["trip", "tripped_tempo", false],
+	["marked", "marked_tempo", false],
 ]
 
 func _apply_misery_spread(hit_enemies: Array) -> void:
@@ -8985,13 +8985,13 @@ func play_selected_card(target) -> void:
 	if debuff_mgr:
 		tempo_cost += debuff_mgr.get_tempo_increase()
 
-	# Tighten String: +3 tempo, +6 damage, +6 range, Enlightened (+10% crit)
+	# Tighten String: +3 tempo, +6 damage, +6 range, Keen (+20% crit, one roll)
 	var tighten_applied = false
 	if buff_mgr and buff_mgr.tighten_string_charges > 0 and is_ranged_attack:
 		tempo_cost += 3
 		card.bonus_damage += 6
 		card.range_modifier += 6
-		buff_mgr.apply_buff(Buff.create_enlightened(20, 1, "Tighten String"))
+		buff_mgr.apply_buff(Buff.create_keen_rolls(20, 1, "Tighten String"))
 		tighten_applied = true
 
 	# High Ground: +4 damage, +2 range when shooting from elevated position (pillar or terrain elevation)

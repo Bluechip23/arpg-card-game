@@ -410,7 +410,7 @@ func _build_grid() -> void:
 	# nodes by angle.
 	var amp_types := [
 		[NodeType.COMBAT_BONUS, "Haste Amp +1", "Haste you gain lasts 1 extra movement"],
-		[NodeType.COMBAT_BONUS, "Enlight Amp +10%", "Enlightened you gain grants +10% more crit chance (20% total)"],
+		[NodeType.COMBAT_BONUS, "Keen Amp +10%", "Keen you gain grants +10% more crit chance"],
 		[NodeType.COMBAT_BONUS, "Brace Amp +10%", "Brace you gain blocks 10 more percentage points of damage"],
 		[NodeType.COMBAT_BONUS, "Blessed Draw +1", "Blessed you gain draws 1 extra card per cycle"],
 		[NodeType.COMBAT_BONUS, "Blessed Amp +1", "Blessed you gain lasts 1 extra cycle"],

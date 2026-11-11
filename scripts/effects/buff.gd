@@ -9,7 +9,7 @@ enum BuffType {
 	REGEN,
 	BLESSED,
 	FORTIFY,
-	ENLIGHTENED,
+	ENLIGHTENED_RETIRED,  # retired 2026-11-11: rolled into KEEN; slot kept for enum-order compat
 	STRENGTHEN,
 	BOLSTER,
 	HASTE,
@@ -32,7 +32,8 @@ enum BuffType {
 	ELIXIR,
 	GENERIC,
 	KEEN,
-	MIGHT
+	MIGHT,
+	ATTUNE
 }
 
 var buff_type: BuffType
@@ -88,11 +89,6 @@ func _set_name_and_description() -> void:
 		BuffType.FORTIFY:
 			buff_name = "Fortify"
 			description = "Armor does not decay (Regen mark %d)" % value
-		BuffType.ENLIGHTENED:
-			buff_name = "Enlightened"
-			# Each application is its own instance; only the highest % counts
-			# and spends a charge per crit roll (attacks and spells alike).
-			description = "%d%% crit chance for your next %d crit rolls. Separate Enlightened never add up: the highest %% applies and is spent first" % [value, charges]
 		BuffType.STRENGTHEN:
 			buff_name = "Strengthen"
 			var st_what := "offensive card" if offensive_reach else "attack"
@@ -164,7 +160,17 @@ func _set_name_and_description() -> void:
 			description = "Your next %d poison ticks heal you instead of dealing damage" % stacks
 		BuffType.KEEN:
 			buff_name = "Keen"
-			description = "+%d%% crit chance for %d tempo" % [value, duration]
+			# Two forms (Enlightened was rolled into Keen, 2026-11-11): on the
+			# clock ("for N tempo"), or by the roll ("next N crit rolls").
+			# Each rolls-form application is its own instance; only the
+			# highest % counts and spends a charge per crit roll.
+			if charges > 0:
+				description = "+%d%% crit chance for your next %d crit rolls. Separate by-the-roll Keen never add up: the highest %% applies and is spent first" % [value, charges]
+			else:
+				description = "+%d%% crit chance for %d tempo" % [value, duration]
+		BuffType.ATTUNE:
+			buff_name = "Attune"
+			description = "+%d damage on your next %d offensive spells" % [value, charges]
 		BuffType.MIGHT:
 			buff_name = "Might"
 			description = "+%d STR for %d tempo" % [value, duration]
@@ -199,10 +205,15 @@ func is_charge_based() -> bool:
 	# A timed Strengthen (no charges, a clock) ticks down like any timed buff.
 	if buff_type == BuffType.STRENGTHEN and charges < 0 and duration > 0:
 		return false
+	# Keen by the roll (the old Enlightened) spends charges; Keen on the
+	# clock ticks down.
+	if buff_type == BuffType.KEEN:
+		return duration < 0
 	match buff_type:
-		BuffType.ENLIGHTENED, BuffType.STRENGTHEN, BuffType.BOLSTER, BuffType.BRACE, BuffType.STEADY, \
+		BuffType.STRENGTHEN, BuffType.BOLSTER, BuffType.BRACE, BuffType.STEADY, \
 		BuffType.LIFE_STEAL, BuffType.ARMOR_BREAK, BuffType.REPELLED_BLOCK, \
-		BuffType.DEMONIC_RAGE, BuffType.BLESSED, BuffType.HASTE, BuffType.POISONED_BLOOD:
+		BuffType.DEMONIC_RAGE, BuffType.BLESSED, BuffType.HASTE, BuffType.POISONED_BLOOD, \
+		BuffType.ATTUNE:
 			return true
 	return false
 
@@ -220,7 +231,6 @@ func get_icon_color() -> Color:
 		BuffType.REGEN: return Color(0.4, 1.0, 0.4)
 		BuffType.BLESSED: return Color(1.0, 0.9, 0.5)
 		BuffType.FORTIFY: return Color(0.6, 0.6, 0.8)
-		BuffType.ENLIGHTENED: return Color(1.0, 1.0, 0.6)
 		BuffType.STRENGTHEN: return Color(1.0, 0.5, 0.3)
 		BuffType.BOLSTER: return Color(0.5, 0.7, 1.0)
 		BuffType.HASTE: return Color(0.5, 1.0, 1.0)
@@ -242,6 +252,7 @@ func get_icon_color() -> Color:
 		BuffType.ELIXIR: return Color(0.3, 0.9, 0.5)
 		BuffType.KEEN: return Color(1.0, 0.9, 0.3)
 		BuffType.MIGHT: return Color(1.0, 0.4, 0.2)
+		BuffType.ATTUNE: return Color(0.45, 0.7, 1.0)
 		BuffType.GENERIC: return custom_color
 	return Color.WHITE
 
@@ -290,8 +301,10 @@ static func create_fortify(duration: int = 15, source: String = "") -> Buff:
 	buff.source_name = source
 	return buff
 
-static func create_enlightened(crit_chance: int = 25, attacks: int = 3, source: String = "") -> Buff:
-	var buff = Buff.new(BuffType.ENLIGHTENED, crit_chance, -1, attacks)
+## Keen by the roll (what Enlightened was): +X% crit on the next N crit
+## rolls, a charge spent per roll. 100 is a guaranteed crit.
+static func create_keen_rolls(crit_chance: int = 25, rolls: int = 3, source: String = "") -> Buff:
+	var buff = Buff.new(BuffType.KEEN, crit_chance, -1, rolls)
 	buff.source_name = source
 	return buff
 
@@ -348,9 +361,20 @@ static func create_resilient(percent_reduction: int = 15, tempo: int = 15, sourc
 	buff._set_name_and_description()  # description branches on the type gate
 	return buff
 
-## Ragnarok (Hide of Garmr): timed flat crit chance. Stacks value.
+## Keen on the clock (Ragnarok, Stone Wheel): flat crit chance for N tempo.
+## Timed Keen stacks its value and keeps the longer timer.
 static func create_keen(crit_percent: int, tempo: int = 10, source: String = "") -> Buff:
 	var buff = Buff.new(BuffType.KEEN, crit_percent, tempo)
+	buff.source_name = source
+	return buff
+
+## Attune (designer, 2026-11-11): Strengthen's twin for spells. +X damage on
+## the next N offensive spell cards; an attack neither gains nor spends it,
+## just as a spell never touches Strengthen. Re-applying adds the value and
+## keeps the higher count (BuffManager._is_stackable).
+const ATTUNE_DEFAULT_SPELLS := 3
+static func create_attune(extra_damage: int = 3, spells: int = ATTUNE_DEFAULT_SPELLS, source: String = "") -> Buff:
+	var buff = Buff.new(BuffType.ATTUNE, extra_damage, -1, spells)
 	buff.source_name = source
 	return buff
 

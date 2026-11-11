@@ -535,13 +535,13 @@ func _test_lady_luck() -> void:
 	print("-- Lady Luck --")
 	_fresh()
 	_resolve(Card.create_by_id("lady_luck"), main.player)
-	var en = bm.get_buff(Buff.BuffType.ENLIGHTENED)
+	var en = bm.get_buff(Buff.BuffType.KEEN)
 	_check(en != null and en.value == 30 and en.charges == 5, "Lady Luck: the blessed ally gets +30% crit for 5 attacks")
 	var dog = main._dojo_allies[0]
 	_fresh()
 	_resolve(Card.create_by_id("lady_luck"), dog)
-	_check(dog.get_buff_manager().has_buff(Buff.BuffType.ENLIGHTENED) and not bm.has_buff(Buff.BuffType.ENLIGHTENED), "…aimed at an ally, the ally is blessed")
-	dog.get_buff_manager().remove_buff(Buff.BuffType.ENLIGHTENED)
+	_check(dog.get_buff_manager().has_buff(Buff.BuffType.KEEN) and not bm.has_buff(Buff.BuffType.KEEN), "…aimed at an ally, the ally is blessed")
+	dog.get_buff_manager().remove_buff(Buff.BuffType.KEEN)
 
 func _test_last_breath() -> void:
 	print("-- Last Breath --")

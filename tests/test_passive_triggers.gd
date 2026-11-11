@@ -47,7 +47,7 @@ func _run() -> void:
 	_test_haunted_rebuke(stats, pt, dummy)
 	_test_expel_and_territorial(stats, pt, dummy)
 	_test_heal_gating(stats, pt)
-	_test_enlightened()
+	_test_keen()
 	_test_tooltip()
 
 	print("=== %d failure(s) ===" % failures)
@@ -279,16 +279,16 @@ func _test_heal_gating(stats, pt) -> void:
 	_check(stats.st_redemption_crit == 15, "…and arms Redemption too")
 	stats.st_redemption_crit = 0
 
-func _test_enlightened() -> void:
-	print("-- Enlightened keeps the surer crit --")
+func _test_keen() -> void:
+	print("-- Keen keeps the surer crit --")
 	var bm = main.player.get_buff_manager()
 	for b in bm.buffs.duplicate():
 		bm.remove_buff(b.buff_type)
-	bm.apply_buff(Buff.create_enlightened(10, 1, "Redemption"))
-	bm.apply_buff(Buff.create_enlightened(100, 1, "Scouted"))
-	_check(bm.get_buff(Buff.BuffType.ENLIGHTENED).value == 100, "a 100% Enlightened overrides a lingering 10%")
-	bm.apply_buff(Buff.create_enlightened(10, 1, "Redemption"))
-	_check(bm.get_buff(Buff.BuffType.ENLIGHTENED).value == 100, "…and a weaker one never lowers it")
+	bm.apply_buff(Buff.create_keen_rolls(10, 1, "Redemption"))
+	bm.apply_buff(Buff.create_keen_rolls(100, 1, "Scouted"))
+	_check(bm.get_buff(Buff.BuffType.KEEN).value == 100, "a 100% Keen overrides a lingering 10%")
+	bm.apply_buff(Buff.create_keen_rolls(10, 1, "Redemption"))
+	_check(bm.get_buff(Buff.BuffType.KEEN).value == 100, "…and a weaker one never lowers it")
 
 func _test_tooltip() -> void:
 	print("-- Mad Scientist tooltip --")

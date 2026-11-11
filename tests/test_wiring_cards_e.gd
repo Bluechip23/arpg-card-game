@@ -723,7 +723,7 @@ func _test_tight() -> void:
 		var hp0: int = e.current_health
 		var ts := Card.create_by_id("thrown_stone")
 		var reach0: int = ts.get_effective_range()
-		var en_before: bool = bm.has_buff(Buff.BuffType.ENLIGHTENED)
+		var en_before: bool = bm.has_buff(Buff.BuffType.KEEN)
 		_play(ts, e)
 		var dealt: int = hp0 - e.current_health
 		var t := _finish()
@@ -742,7 +742,7 @@ func _test_tight() -> void:
 	_t0 = tm.global_tempo
 	main.play_selected_card(e)
 	_check(ts2.get_effective_range() == reach + 6, "+6 range on the charged shot")
-	var en = bm.get_buff(Buff.BuffType.ENLIGHTENED)
+	var en = bm.get_buff(Buff.BuffType.KEEN)
 	_check(en != null and en.value == 20, "+20% crit on the charged shot")
 	_finish()
 	# "Next 3 ranged attacks PLAYED": four shots queued back to back (none
@@ -829,9 +829,9 @@ func _test_tower_trick_tricks_trip() -> void:
 	print("-- Trip --")
 	_fresh()
 	var te: Enemy = _field([Vector2i(1, 0)])[0]
-	var trr := _play(Card.create_by_id("trip"), te, null, func(): return {"trip": te.tripped_tempo})
+	var trr := _play(Card.create_by_id("trip"), te, null, func(): return {"slow": te.slow_stacks})
 	_check(_hit(_lost(te), _phys(5), te), "5 damage (%d)" % _lost(te))
-	_check(trr["snap"].get("trip") == 10 and Enemy.TRIP_MOVE_PENALTY == 4, "movement -4 for 10 tempo (%s)" % str(trr["snap"].get("trip")))
+	_check(trr["snap"].get("slow") == 2 and not te.has_debuff_type("trip"), "Slowed 2, no Tripped debuff (%s)" % str(trr["snap"].get("slow")))
 	_finish()
 
 # ---------------------------------------------------------------- Try This / Turtles / 20/20
@@ -891,15 +891,15 @@ func _test_understanding_vengeful_vined() -> void:
 	var e: Enemy = _field([Vector2i(1, 0)])[0]
 	_play(Card.create_by_id("understanding"), main.player)
 	_finish()
-	_check(not bm.has_buff(Buff.BuffType.ENLIGHTENED), "no crit before the delay")
+	_check(not bm.has_buff(Buff.BuffType.KEEN), "no crit before the delay")
 	_tempo(8)
-	_check(not bm.has_buff(Buff.BuffType.ENLIGHTENED), "still waiting at 9 tempo")
+	_check(not bm.has_buff(Buff.BuffType.KEEN), "still waiting at 9 tempo")
 	_tempo(1)
-	_check(bm.has_buff(Buff.BuffType.ENLIGHTENED), "armed after 10 tempo")
+	_check(bm.has_buff(Buff.BuffType.KEEN), "armed after 10 tempo")
 	_play(Card.create_by_id("slice"), e)
 	_check(_lost(e) == Card.crit_multiply(_phys(15), stats, e), "the next damaging card auto-crits (%d)" % _lost(e))
 	_finish()
-	_check(not bm.has_buff(Buff.BuffType.ENLIGHTENED), "only that one")
+	_check(not bm.has_buff(Buff.BuffType.KEEN), "only that one")
 
 	print("-- Vengeful Shield --")
 	_fresh()

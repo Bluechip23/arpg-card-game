@@ -19,7 +19,7 @@ var owner_node: Node3D
 var debuff_manager = null  # DebuffManager - untyped to avoid circular dependency
 var approach_armor_per_move: int = 0
 var approach_tempo_remaining: int = 0
-var understanding_tempo: int = 0  # Delayed crit: when reaches 0, apply ENLIGHTENED
+var understanding_tempo: int = 0  # Delayed crit: when reaches 0, apply a guaranteed Keen roll
 var enchanted_quiver_charges: int = 0  # Next N ranged attacks create a free arrow card
 var tighten_string_charges: int = 0  # Next N ranged attacks: +3 tempo, +6 dmg, +6 range, +20% crit
 var last_crit_hit: bool = false      # Set true when roll_crit succeeds, cleared after checking
@@ -59,11 +59,12 @@ func apply_buff(buff: Buff) -> void:
 		buff.value = fort_regen.value if fort_regen else 0
 		buff._set_name_and_description()
 
-	# Enlightened never merges: every application is its own instance with its
-	# own % and charges, and the highest % pays out first (see
-	# _top_enlightened). Merging used to keep the best of both — a 100%x1 on a
-	# 30%x5 became five guaranteed crits.
-	if buff.buff_type == Buff.BuffType.ENLIGHTENED:
+	# Keen by the roll (the old Enlightened) never merges: every application
+	# is its own instance with its own % and charges, and the highest % pays
+	# out first (see _top_keen_rolls). Merging used to keep the best of both —
+	# a 100%x1 on a 30%x5 became five guaranteed crits. Keen on the clock
+	# stacks with other timed Keen below.
+	if buff.buff_type == Buff.BuffType.KEEN and buff.is_charge_based():
 		buffs.append(buff)
 		print("[BUFF] Applied: %s %d%% for %s" % [buff.buff_name, buff.value, buff.get_duration_display()])
 		buff_applied.emit(buff)
@@ -73,17 +74,22 @@ func apply_buff(buff: Buff) -> void:
 	# Resilient merges only with an instance guarding the same damage type: a
 	# typed one and an untyped one (or two different types) live side by side,
 	# so a stronger all-damage Resilient never inherits Harden's physical gate.
+	# A clock-extending Resilient (Endured Tolerance) is its own instance too:
+	# it merges only with its own copies, so it never lends its growing clock
+	# to another source's stronger % (Succumb's 20%) nor takes that % over.
 	if buff.buff_type == Buff.BuffType.RESILIENT:
-		var same_type = _resilient_of_type(buff.damage_type)
-		if same_type:
+		var same_type = _resilient_merge_partner(buff)
+		if same_type and buff.extends_on_reapply:
+			# Another copy: more time; the % follows the card's current rank.
+			same_type.value = maxi(same_type.value, buff.value)
+			same_type.duration += buff.duration
+			same_type._set_name_and_description()
+			print("[BUFF] %s extended (%d tempo)" % [buff.source_name, same_type.duration])
+		elif same_type:
 			# A stronger resistance replaces a weaker one (a 2% Smithed
 			# Excellence must not cap Stone Hide's 10%); the longer clock stays.
 			same_type.value = maxi(same_type.value, buff.value)
-			if buff.extends_on_reapply and same_type.extends_on_reapply \
-					and same_type.source_name == buff.source_name:
-				same_type.duration += buff.duration  # another copy: more time, same %
-			else:
-				same_type.duration = maxi(same_type.duration, buff.duration)
+			same_type.duration = maxi(same_type.duration, buff.duration)
 			same_type._set_name_and_description()
 			print("[BUFF] %s refreshed (value: %d)" % [buff.buff_name, same_type.value])
 		else:
@@ -96,6 +102,8 @@ func apply_buff(buff: Buff) -> void:
 	# Check if buff already exists (refresh or stack). An offensive-reach
 	# Strengthen (Circle of Life) and an attacks-only one live side by side.
 	var existing = get_buff(buff.buff_type)
+	if buff.buff_type == Buff.BuffType.KEEN:
+		existing = _timed_keen()
 	if buff.buff_type == Buff.BuffType.STRENGTHEN:
 		existing = null
 		for sb in get_buffs(Buff.BuffType.STRENGTHEN):
@@ -154,8 +162,8 @@ func apply_buff(buff: Buff) -> void:
 	buffs_changed.emit()
 
 ## Sphere-grid amp nodes strengthen matching buffs at application time, so the
-## badge, description, and mechanics all agree. Enlightened's crit amp lives in
-## get_enlightened_crit_chance instead (its value field is the auto-crit flag).
+## badge, description, and mechanics all agree. Keen's crit amp lives in
+## get_keen_crit_chance instead (a value of 100 is the auto-crit flag).
 func _amp_incoming_buff(buff: Buff) -> void:
 	if owner_stats == null:
 		return
@@ -197,7 +205,7 @@ func _amp_incoming_buff(buff: Buff) -> void:
 func _is_stackable(type: Buff.BuffType) -> bool:
 	match type:
 		Buff.BuffType.THORNS, Buff.BuffType.REGEN, Buff.BuffType.STRENGTHEN, Buff.BuffType.BOLSTER, \
-		Buff.BuffType.KEEN, Buff.BuffType.MIGHT:
+		Buff.BuffType.KEEN, Buff.BuffType.MIGHT, Buff.BuffType.ATTUNE:
 			return true
 	return false
 
@@ -213,7 +221,7 @@ func _recompute_might() -> void:
 			total += buff.value
 	owner_stats.temp_strength_bonus = total
 
-## Removes every instance of the type — Enlightened and Resilient can hold
+## Removes every instance of the type — Keen and Resilient can hold
 ## several at once, and "lose the buff" means all of them. To drop one spent
 ## instance use remove_buff_instance.
 func remove_buff(type: Buff.BuffType) -> void:
@@ -236,13 +244,14 @@ func remove_buff_instance(buff: Buff) -> void:
 	buffs_changed.emit()
 	print("[BUFF] Removed: %s" % buff.buff_name)
 
-## The single buff of a type. For Enlightened, which keeps separate instances,
-## it is the one in charge (_top_enlightened) — the one that pays out and
-## spends its charges. Resilient instances are read by type through
-## get_resilient_percent / get_buffs.
+## The single buff of a type. For Keen, which keeps separate by-the-roll
+## instances, it is the one in charge (_top_keen_rolls) — the one that pays
+## out and spends its charges — or, with none, the timed Keen. Resilient
+## instances are read by type through get_resilient_percent / get_buffs.
 func get_buff(type: Buff.BuffType) -> Buff:
-	if type == Buff.BuffType.ENLIGHTENED:
-		return _top_enlightened()
+	if type == Buff.BuffType.KEEN:
+		var top_keen := _top_keen_rolls()
+		return top_keen if top_keen else _timed_keen()
 	for buff in buffs:
 		if buff.buff_type == type:
 			return buff
@@ -256,22 +265,44 @@ func get_buffs(type: Buff.BuffType) -> Array[Buff]:
 			out.append(buff)
 	return out
 
-## The Enlightened instance with the highest crit %; on a tie, the one with
-## fewer charges left, so the stack about to run out is used up first.
-func _top_enlightened() -> Buff:
+## The by-the-roll Keen instance with the highest crit %; on a tie, the one
+## with fewer charges left, so the stack about to run out is used up first.
+func _top_keen_rolls() -> Buff:
 	var top: Buff = null
 	for buff in buffs:
-		if buff.buff_type != Buff.BuffType.ENLIGHTENED:
+		if buff.buff_type != Buff.BuffType.KEEN or not buff.is_charge_based():
 			continue
 		if top == null or buff.value > top.value \
 				or (buff.value == top.value and buff.charges < top.charges):
 			top = buff
 	return top
 
+## The Keen on the clock (timed applications stack into one).
+func _timed_keen() -> Buff:
+	for buff in buffs:
+		if buff.buff_type == Buff.BuffType.KEEN and not buff.is_charge_based():
+			return buff
+	return null
+
 ## The Resilient instance guarding exactly this damage type (-1 = all types).
+## Clock-extending instances (Endured Tolerance) are skipped: they stand apart.
 func _resilient_of_type(damage_type: int) -> Buff:
 	for buff in buffs:
-		if buff.buff_type == Buff.BuffType.RESILIENT and buff.damage_type == damage_type:
+		if buff.buff_type == Buff.BuffType.RESILIENT and buff.damage_type == damage_type \
+				and not buff.extends_on_reapply:
+			return buff
+	return null
+
+## The live Resilient an incoming one folds into, or null when it stands on
+## its own. Ordinary ones pair by damage type; a clock-extending one pairs
+## only with a clock-extending one from the same source and of the same type.
+func _resilient_merge_partner(incoming: Buff) -> Buff:
+	if not incoming.extends_on_reapply:
+		return _resilient_of_type(incoming.damage_type)
+	for buff in buffs:
+		if buff.buff_type == Buff.BuffType.RESILIENT and buff.extends_on_reapply \
+				and buff.damage_type == incoming.damage_type \
+				and buff.source_name == incoming.source_name:
 			return buff
 	return null
 
@@ -346,7 +377,7 @@ func advance_time(amount: int) -> void:
 		understanding_tempo -= amount
 		if understanding_tempo <= 0:
 			understanding_tempo = 0
-			apply_buff(Buff.create_enlightened(100, 1, "Understanding"))
+			apply_buff(Buff.create_keen_rolls(100, 1, "Understanding"))
 			print("[BUFF] Understanding ready! Next attack will auto-crit")
 
 	var expired: Array[Buff] = []
@@ -626,23 +657,48 @@ func consume_strengthen() -> int:
 		strengthened_hits += 1
 	return bonus
 
-func get_enlightened_crit_chance() -> int:
-	# Enlightened grants the crit % of its highest live instance (most sources
-	# grant 10; rank-scaled sources like Brad's Redemption pass 1..15). The
-	# instances never add up — a weaker one waits its turn until the stronger
-	# one's charges are spent.
-	var enlightened = _top_enlightened()
-	if enlightened == null:
+func get_attune_bonus() -> int:
+	var attune = get_buff(Buff.BuffType.ATTUNE)
+	return attune.value if attune else 0
+
+## Attune: "+X damage on your next N offensive spells". Called once when an
+## offensive spell card starts resolving (Card._execute_card); returns the
+## bonus for that whole play and spends a charge.
+func consume_attune() -> int:
+	var attune = get_buff(Buff.BuffType.ATTUNE)
+	if attune == null:
+		return 0
+	var bonus: int = attune.value
+	if attune.use_charge():
+		remove_buff_instance(attune)
+	else:
+		attune._set_name_and_description()
+		buffs_changed.emit()
+	return bonus
+
+func get_keen_crit_chance() -> int:
+	# Keen's whole crit %: the timed Keen (stacked) plus the highest live
+	# by-the-roll instance (most sources grant 10; rank-scaled ones pass their
+	# own). By-the-roll instances never add up — a weaker one waits its turn
+	# until the stronger one's charges are spent.
+	var timed = _timed_keen()
+	var rolls = _top_keen_rolls()
+	if timed == null and rolls == null:
 		return 0
 	# Understanding's delayed auto-crit stores value 100 — a guaranteed crit
 	# source stays guaranteed; everything else is the buff's % plus the
-	# sphere-grid Enlight Amp.
-	if enlightened.value >= 100:
+	# sphere-grid Keen Amp (once, however many Keen are up).
+	if rolls and rolls.value >= 100:
 		return 100
 	var amp := 0
-	if owner_stats and "sphere_enlightened_amp" in owner_stats:
-		amp = int(owner_stats.sphere_enlightened_amp)
-	return maxi(1, enlightened.value) + amp
+	if owner_stats and "sphere_keen_amp" in owner_stats:
+		amp = int(owner_stats.sphere_keen_amp)
+	var total := amp
+	if timed:
+		total += timed.value
+	if rolls:
+		total += maxi(1, rolls.value)
+	return total
 
 func roll_crit(base_crit_chance: int = 0) -> bool:
 	# Include the character's innate base crit chance (default 5%)
@@ -669,7 +725,7 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	if owner_stats and "st_exposed_blind_spot_crit" in owner_stats and owner_stats.st_pre_attack_is_attack:
 		ebs_crit = float(owner_stats.st_exposed_blind_spot_crit)
 	# Redemption (Brad): armed by a heal he performed, spent on this roll —
-	# its own number on top of any Enlightened, never merged into it.
+	# its own number on top of any Keen, never merged into it.
 	var rd_crit = 0
 	if owner_stats and "st_redemption_crit" in owner_stats and owner_stats.st_pre_attack_is_offensive:
 		rd_crit = owner_stats.st_redemption_crit
@@ -677,12 +733,7 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	var hand_crit = 0
 	if owner_stats and owner_stats.has_method("get_hand_size_crit_bonus"):
 		hand_crit = owner_stats.get_hand_size_crit_bonus()
-	# Keen (Ragnarok): timed flat crit chance.
-	var keen_crit = 0
-	var keen_buff = get_buff(Buff.BuffType.KEEN)
-	if keen_buff:
-		keen_crit = keen_buff.value
-	var total_chance: float = float(innate_crit + base_crit_chance + get_enlightened_crit_chance() + int(sphere_crit) + rd_crit + hand_crit + keen_crit) + ebs_crit
+	var total_chance: float = float(innate_crit + base_crit_chance + get_keen_crit_chance() + int(sphere_crit) + rd_crit + hand_crit) + ebs_crit
 	# Scouted (Stephen): the scouted ATTACK auto-crits (armed for attacks only).
 	if owner_stats and "st_scouted_crit_active" in owner_stats and owner_stats.st_scouted_crit_active:
 		total_chance += 100.0
@@ -700,16 +751,17 @@ func roll_crit(base_crit_chance: int = 0) -> bool:
 	if rd_crit > 0 and owner_stats:
 		owner_stats.st_redemption_crit = 0
 
-	# Enlightened is "+X% crit for the next Y rolls": every crit roll spends a
-	# charge, crit or not. (Consuming only on successful crits let the buff
-	# outlast its stated count ~3x.) Only the instance that paid out — the
-	# highest % — spends; the others keep their charges for later.
-	var enlightened = _top_enlightened()
-	if enlightened:
-		if enlightened.use_charge():
-			remove_buff_instance(enlightened)
+	# Keen by the roll is "+X% crit for the next Y rolls": every crit roll
+	# spends a charge, crit or not. (Consuming only on successful crits let
+	# the buff outlast its stated count ~3x.) Only the instance that paid out
+	# — the highest % — spends; the others keep their charges for later, and
+	# Keen on the clock spends nothing.
+	var keen_rolls = _top_keen_rolls()
+	if keen_rolls:
+		if keen_rolls.use_charge():
+			remove_buff_instance(keen_rolls)
 		else:
-			enlightened._set_name_and_description()
+			keen_rolls._set_name_and_description()
 			buffs_changed.emit()
 
 	if is_crit:

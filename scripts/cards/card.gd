@@ -756,7 +756,7 @@ static func count_debuff_kinds(enemy) -> int:
 	for field in ["burn_stacks", "cold_stacks", "poison_stacks", "shock_stacks",
 			"bleed_stacks", "vulnerable_stacks", "weaken_stacks", "slow_stacks",
 			"choke_dot_stacks", "disarmed_attacks", "stun_tempo", "silenced_tempo",
-			"rooted_tempo", "tripped_tempo", "frozen_tempo", "disarmed_tempo", "marked_tempo"]:
+			"rooted_tempo", "frozen_tempo", "disarmed_tempo", "marked_tempo"]:
 		if field in enemy and int(enemy.get(field)) > 0:
 			kinds += 1
 	return kinds
@@ -1215,8 +1215,9 @@ static func get_keyword_definitions() -> Dictionary:
 		"regen": "Heal X per cycle. Loses 1 per cycle.",
 		"blessed": "Draw X extra card(s) per cycle for Y cycles.",
 		"fortify": "Your armor doesn't decay.",
-		"enlightened": "+X% crit chance on your next Y crit rolls.",
 		"strengthen": "+X damage on your next Y attacks.",
+		"attune": "+X damage on your next Y offensive spells.",
+		"keen": "+X% crit chance, for Y tempo or for your next Y crit rolls.",
 		"bolster": "+X armor the next Y times you gain armor.",
 		"haste": "+X free tiles on each of your next Y moves.",
 		"engrave": "Only joins your deck while slotted in an item.",
@@ -1409,6 +1410,17 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		player_stats.active_spell_power_bonus += player_stats.pending_spell_power_bonus
 		player_stats.pending_spell_power_bonus = 0
 		_spell_power_taken = true
+	# Attune: the caster's next offensive spells deal +X. The bonus rides the
+	# same per-play pool as the Wizard Hat's, so every damage path the spell
+	# has (card-side rolls and main's world effects) reads it, and it ends
+	# with the play.
+	var attune_mgr: BuffManager = Card.caster_buff_manager if Card.caster_buff_manager else buff_mgr
+	if school == CardSchool.SPELL and is_offensive() and player_stats and attune_mgr \
+			and attune_mgr.has_buff(Buff.BuffType.ATTUNE):
+		var attune_bonus: int = attune_mgr.consume_attune()
+		player_stats.active_spell_power_bonus += attune_bonus
+		_spell_power_taken = true
+		print("[CARD] Attune: %s deals +%d" % [card_name, attune_bonus])
 
 	# Premeditated: the first card to target an exposed-by-Premeditated enemy
 	# carries +15 onto its hit; main pays it out directly if the card deals none.
@@ -1966,7 +1978,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		"gift_from_the_gods":
 			if buff_mgr:
 				var gift_stacks := 4 if (granted_by_item and granted_by_item.item_level >= 3) else 3
-				buff_mgr.apply_buff(Buff.new(Buff.BuffType.ENLIGHTENED, 10, -1, gift_stacks))
+				buff_mgr.apply_buff(Buff.create_keen_rolls(10, gift_stacks, "Gift from the Gods"))
 				if granted_by_item and granted_by_item.item_level >= 3 and player_stats:
 					var gift_dm = deck_manager.debuff_manager if deck_manager and "debuff_manager" in deck_manager else null
 					if gift_dm:
@@ -1974,7 +1986,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 						gift_list.shuffle()
 						for i in range(mini(3, gift_list.size())):
 							gift_dm.remove_debuff(gift_list[i].debuff_type)
-				print("[CARD] Gift from the Gods: %d Enlightened" % gift_stacks)
+				print("[CARD] Gift from the Gods: Keen 10%% for %d rolls" % gift_stacks)
 		"chain_lightning", "ice_grenade", "fire_punch", "poison_bomb", "crack_of_mintaka", "poof_and_weave":
 			# World-scale belt cards — resolved in main._apply_card_world_effects.
 			pass
@@ -3275,10 +3287,10 @@ func _execute_hope_this_works(target, player_stats: PlayerStats, buff_mgr: BuffM
 		print("[CARD] Hope This Works... it didn't work")
 
 func _execute_lady_luck(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Bless an ally: Enlightened for 5 attacks (flat +30% crit while it holds).
+	# Bless an ally: Keen for 5 crit rolls (flat +30% crit while it holds).
 	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_enlightened(30, 5, "Lady Luck"))
-	print("[CARD] Lady Luck! Enlightened: +30% crit chance for 5 attacks")
+		buff_mgr.apply_buff(Buff.create_keen_rolls(30, 5, "Lady Luck"))
+	print("[CARD] Lady Luck! Keen: +30% crit chance for 5 attacks")
 
 func _execute_if_pigs_could_fly(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	var total_damage := _roll_hit_damage(15, player_stats, buff_mgr, true, target)
@@ -3445,7 +3457,7 @@ func _execute_enchanted_quiver(player_stats: PlayerStats, deck_manager = null, b
 	print("[CARD] Enchanted Quiver! Next 3 ranged attacks create free arrow cards")
 
 func _execute_tighten_string(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, Enlightened (+20% crit)
+	# Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, Keen (+20% crit, one roll)
 	if buff_mgr:
 		buff_mgr.tighten_string_charges = 3
 	print("[CARD] Tighten String! Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, +20% crit")
@@ -3549,14 +3561,18 @@ func _execute_bottomless_quiver(_player_stats: PlayerStats) -> void:
 func _execute_round_em_up(target, _player_stats: PlayerStats) -> void:
 	print("[CARD] Round 'Em Up! Enemies near target point displaced inward")
 
+## Trip: Slow stacks it leaves on the enemy (a stack is 5 tempo).
+const TRIP_SLOW_STACKS := 2
+
 func _execute_trip(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	var total_damage := _roll_hit_damage(5, player_stats, buff_mgr, false, target)
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
 	if target and target.has_method("apply_debuff"):
-		target.apply_debuff("trip", 10)  # movement -4 for 10 tempo
+		# Tripped was folded into Slow (designer, 2026-11-11): 2 stacks = 10 tempo.
+		target.apply_debuff("slow", TRIP_SLOW_STACKS)
 	last_damage_dealt = total_damage
-	print("[CARD] Trip! %d damage, enemy movement -4 for 10 tempo" % total_damage)
+	print("[CARD] Trip! %d damage, Slowed %d" % [total_damage, TRIP_SLOW_STACKS])
 
 func _execute_choke(target, player_stats: PlayerStats) -> void:
 	if target and target.has_method("apply_debuff"):

@@ -49,7 +49,7 @@ COMBAT_GROUPS = [
     ("Life steal %", r"^Life Steal \+"), ("Resist %", r"^Resist \+"), ("Range", r"^Range \+"),
     ("Armor (once)", r"^Armor \+"), ("Unerring cap", r"^Unerring \+"), ("Armor / cycle", r"^Arm/Cyc \+"),
     ("Debuff amp: Vulnerable %", r"^Vuln Amp"), ("Debuff amp: Weaken %", r"^Weaken Amp"),
-    ("Buff amp (self-buffs)", r"^(Haste|Enlight|Brace|Blessed|Strength|Bolster|Cleanse|Resil) (Amp|Draw)"),
+    ("Buff amp (self-buffs)", r"^(Haste|Keen|Enlight|Brace|Blessed|Strength|Bolster|Cleanse|Resil) (Amp|Draw)"),
     ("Debuff amp (hex arc)", r"^(Bleed|Stun|Disarm|Silence|Burn|Poison|Curse|Shatter|Shock|Slow|Root)"),
 ]
 
