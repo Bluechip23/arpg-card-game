@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "inspiring_whistle"
+card_name = "Inspiring Whistle"
+description = "Your summons move up to 3 tiles toward an enemy you choose and gain Brace 30% for 2 hits (doubled for a summon within its range). With no summons, draw a card instead."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 100
+tempo_cost = 5
+resolve_tick = 3
+target_types = ["self"]
+slot_labels = [14, 8, 9]
+keywords = ["utility", "self"]

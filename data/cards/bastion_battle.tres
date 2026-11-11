@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "bastion_battle"
+card_name = "Bastion Battle"
+description = "Deal 5 damage. +10 if you have more armor than the enemy. Disarm 2 if the enemy has no armor."
+card_type_name = "Offensive"
+mana_cost = 25
+damage = 5
+tempo_cost = 3
+base_damage = 5
+slot_labels = [5]
+keywords = ["offensive", "melee", "enemy"]

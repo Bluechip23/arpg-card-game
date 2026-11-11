@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "ward_of_hallow_glass"
+card_name = "Ward of Hallow Glass"
+description = "Gain armor equal to 6 plus half your INT. For 10 tempo, while you have armor, your offensive spells cost 1 less tempo."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 70
+block = 6
+tempo_cost = 6
+resolve_tick = 2
+base_block = 6
+target_types = ["self"]
+slot_labels = [13, 5, 14, 3]
+school = 1
+keywords = ["defense", "spell"]

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "lodestone_field"
+card_name = "Lodestone Field"
+description = "Maintain: enemies within 2 squares are Slowed 1 at the start of each cycle, and Shock on them does not decay while they stand in the field."
+card_type = 5
+card_type_name = "Power"
+mana_cost = 100
+tempo_cost = 5
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 2.0
+target_types = ["self"]
+maintain_cost = 100
+slot_labels = [11, 3]
+school = 1
+keywords = ["power", "spell"]

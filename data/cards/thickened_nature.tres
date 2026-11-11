@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "thickened_nature"
+card_name = "Thickened Nature"
+description = "Create a dense fog 3 squares across for 15 tempo. Enemies inside are Slowed 1, and one that ends a move inside is Rooted 5."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 120
+tempo_cost = 5
+resolve_tick = 5
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 1.5
+is_ranged = true
+range_modifier = 3
+target_types = ["point"]
+slot_labels = [14, 16, 5, 6]
+keywords = ["utility", "point", "ranged"]

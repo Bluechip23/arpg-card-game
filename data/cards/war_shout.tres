@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "war_shout"
+card_name = "War Shout"
+description = "You and all allies within 3 squares gain Strengthen 3."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 30
+tempo_cost = 3
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 3.0
+target_types = ["self"]
+slot_labels = [9, 6, 13]
+keywords = ["utility", "self"]

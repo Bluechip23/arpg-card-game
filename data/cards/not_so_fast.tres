@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "not_so_fast"
+card_name = "Not So Fast"
+description = "Instant: when an ally within 6 squares takes damage, swap places with them and deal 6 damage to all enemies around both where you left and where you land."
+card_type = 3
+card_type_name = "Instant"
+mana_cost = 0
+damage = 6
+tempo_cost = 0
+base_damage = 6
+target_types = ["ally"]
+reaction_trigger = "on_ally_damage_taken"
+slot_labels = [4, 14, 2]
+keywords = ["reaction", "attack", "offensive"]

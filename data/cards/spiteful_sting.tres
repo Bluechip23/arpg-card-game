@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "spiteful_sting"
+card_name = "Spiteful Sting"
+description = "Instant: when an enemy within 1 square damages you, apply 4 Poison to the attacker and draw a card."
+card_type = 3
+card_type_name = "Instant"
+mana_cost = 0
+tempo_cost = 0
+target_types = ["self"]
+reaction_trigger = "on_damage_taken"
+slot_labels = [10]
+keywords = ["reaction", "attack", "offensive"]

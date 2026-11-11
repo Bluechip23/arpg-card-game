@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "static_sting"
+card_name = "Static Sting"
+description = "Deal 2 damage and apply 2 Shock. If the target already had Shock, the charge arcs: 1 Shock to the nearest other enemy within 2."
+card_type_name = "Offensive"
+mana_cost = 30
+damage = 2
+tempo_cost = 2
+base_damage = 2
+is_ranged = true
+damage_type = 2
+slot_labels = [14, 7, 10, 1]
+keywords = ["offensive", "ranged", "enemy"]
+element = "yellow"

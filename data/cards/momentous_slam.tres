@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "momentous_slam"
+card_name = "Momentous Slam"
+description = "Deal 3 damage + 1 per 10 carry weight."
+mana_cost = 40
+damage = 3
+tempo_cost = 5
+base_damage = 3
+slot_labels = [5, 13]
+keywords = ["attack", "offensive", "melee"]

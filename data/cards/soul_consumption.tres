@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "soul_consumption"
+card_name = "Soul Consumption"
+description = "Instant: when you kill an enemy, deal 6 damage to the nearest other enemy within 3 squares and draw a card."
+card_type = 3
+card_type_name = "Instant"
+mana_cost = 0
+damage = 6
+tempo_cost = 0
+base_damage = 6
+target_types = ["self"]
+reaction_trigger = "on_enemy_killed"
+slot_labels = [14, 3, 10]
+school = 1
+keywords = ["reaction", "spell"]

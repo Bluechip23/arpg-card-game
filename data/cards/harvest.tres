@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "harvest"
+card_name = "Harvest"
+description = "6 damage. Shuffle your discard pile into your draw pile and draw 1."
+mana_cost = 60
+damage = 6
+tempo_cost = 5
+base_damage = 6
+slot_labels = [9]
+keywords = ["attack", "offensive", "melee"]

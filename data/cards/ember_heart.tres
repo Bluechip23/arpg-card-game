@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "ember_heart"
+card_name = "Ember Heart"
+description = "Maintain: each cycle, 2 stacks of your Burn are transferred to a random enemy within 4 squares. Each stack deals 3 damage as it transfers."
+card_type = 5
+card_type_name = "Power"
+mana_cost = 90
+tempo_cost = 1
+target_types = ["self"]
+maintain_cost = 90
+slot_labels = [14, 16, 11]
+keywords = ["power"]

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "foresight"
+card_name = "Foresight"
+description = "Look at the top 3 cards of your draw pile. Put one in your hand and one on the bottom. Costs 2 less mana per Brain point you hold."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 20
+tempo_cost = 0
+target_types = ["self"]
+slot_labels = [3, 7, 6]
+keywords = ["utility", "self"]

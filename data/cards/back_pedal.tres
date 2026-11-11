@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "back_pedal"
+card_name = "Back Pedal"
+description = "Step 2 tiles directly away from the nearest enemy and gain Steady. If your next action is a ranged offensive card, it costs 2 less tempo."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 50
+tempo_cost = 0
+target_types = ["self"]
+slot_labels = [4, 5, 14]
+keywords = ["utility", "self"]

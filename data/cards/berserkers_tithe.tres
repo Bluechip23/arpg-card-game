@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "berserkers_tithe"
+card_name = "Berserker's Tithe"
+description = "12 damage. Glut 10. If this kills an enemy, it goes to your draw pile and its tempo is halved; if not, it goes to your discard and its tempo is doubled. The tempo change lasts 40 tempo."
+mana_cost = 0
+damage = 12
+tempo_cost = 6
+base_damage = 12
+slot_labels = [9, 1]
+keywords = ["attack", "offensive", "conditional"]
+conditional_range = true
+glut_tempo = 10

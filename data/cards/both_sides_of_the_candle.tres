@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "both_sides_of_the_candle"
+card_name = "Both Sides of the Candle"
+description = "The target's next 5 attacks cost 2 less tempo. Each applies 8 Burn and deals 10% of the attacker's own max health to themselves."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 150
+tempo_cost = 0
+is_ranged = true
+range_modifier = 1
+target_types = ["self", "ally"]
+slot_labels = [10, 12, 6]
+keywords = ["utility", "ally", "ranged"]
