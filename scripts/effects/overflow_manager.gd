@@ -157,6 +157,7 @@ func _process_jailed(card: Card, effect: OverflowEffect) -> void:
 	card.jail_time_remaining = 15
 	if deck_manager:
 		deck_manager.jail_pile.append(card)
+		NewCardsA.on_card_jailed(deck_manager, card)  # Warden's Hound
 
 	print("[OVERFLOW] Jailed: %s for 15 tempo" % card.card_name)
 	

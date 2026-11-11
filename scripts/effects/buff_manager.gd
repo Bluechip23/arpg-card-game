@@ -107,7 +107,8 @@ func apply_buff(buff: Buff) -> void:
 	if buff.buff_type == Buff.BuffType.STRENGTHEN:
 		existing = null
 		for sb in get_buffs(Buff.BuffType.STRENGTHEN):
-			if sb.offensive_reach == buff.offensive_reach:
+			# The Wolf's Howl's aura instance never takes a merge (NewCardsA).
+			if sb.offensive_reach == buff.offensive_reach and not sb.has_meta(NewCardsA.HOWL_META):
 				existing = sb
 				break
 	if buff.buff_type == Buff.BuffType.INVISIBLE and existing == null:

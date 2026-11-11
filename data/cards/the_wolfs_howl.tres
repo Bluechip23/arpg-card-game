@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "the_wolfs_howl"
 card_name = "The Wolf's Howl"
-description = "Maintain: allies within 2 squares of you have Strengthen 5."
+description = "Maintain: you and allies within 2 squares of you have Strengthen 5 (attacks +5) while they stand in the howl."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 180

@@ -1974,7 +1974,8 @@ func _tick_status_durations() -> void:
 				LightningFX.arc(get_parent(), position, arc_target.position)
 			arc_target._dot_hit("Shock arc", arc, "from " + enemy_name)
 			print("[%s] Shock arcs %d damage to %s" % [enemy_name, arc, arc_target.enemy_name])
-		shock_stacks -= 1
+		if not NewCardsA.holds_shock(self):  # Lodestone Field: no decay inside it
+			shock_stacks -= 1
 		if shock_stacks <= 0:
 			print("[%s] Shock expired" % enemy_name)
 			debuff_expired.emit(self, "shock")
