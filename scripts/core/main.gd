@@ -588,6 +588,7 @@ func _ready() -> void:
 	player2_ui.init(self)
 	add_child(player2_ui)
 
+	NewCardsB.connect_main(self)  # sheet batch B; ahead of _on_hand_updated on purpose
 	deck_manager.hand_updated.connect(_on_hand_updated)
 	deck_manager.deck_shuffled.connect(_on_deck_shuffled)
 	deck_manager.greedy_cheese_added.connect(func(_c): add_battle_log(
@@ -6213,6 +6214,7 @@ func _on_enemy_attacking_player(_enemy: Enemy, victim = null) -> void:
 func _on_enemy_attacked_player(enemy: Enemy, victim = null) -> void:
 	if victim != null and victim != player:
 		return  # "when an enemy attacks you": not the partner, not a dojo ally
+	NewCardsB.on_enemy_attacked_player(self, enemy)  # Spiteful Sting
 	_note_axe_hit_streak()
 	progression_triggers._trigger_skill_tree_brad_on_attacked(enemy)
 	progression_triggers._trigger_skill_tree_stephen_on_attacked(enemy)
@@ -6898,6 +6900,7 @@ func _on_brain_peek_pressed() -> void:
 
 func _on_brain_points_changed(_current: int, _max_points: int) -> void:
 	_update_brain_button()
+	NewCardsB.refresh_foresight(self, true)  # Foresight: 2 less mana per Brain point held
 
 func _update_brain_button() -> void:
 	if not _brain_button:
@@ -13708,14 +13711,10 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 		"swap":
 			# Swap positions between player and target
 			if target and target is Node3D:
-				var player_pos := player.position
-				var target_pos = target.position
-				player.position = target_pos
-				player.target_position = target_pos
-				target.position = player_pos
-				target.target_position = player_pos
-				print("[MAIN] Swap: swapped positions with %s" % target.name)
-				progression_triggers._trigger_skill_tree_on_displacement()
+				NewCardsB.swap_positions(self, player, target)  # shared with Not So Fast
+
+		"deep_breaths_spell", "self_admission", "reverse_reverse", "foresight":
+			NewCardsB.world_effect(self, card, target)
 
 		"defensive_awareness":
 			# Gain 3 armor per enemy within 2 spaces of the player
@@ -14205,6 +14204,12 @@ func _input(event: InputEvent) -> void:
 							func(picks: Array):
 								card.picked_cards = picks
 								play_selected_card(tgt))
+					elif card.card_id == "self_admission":
+						show_hand_card_picker("Self Admission — jail which card?",
+							func(chosen):
+								card.picked_card = chosen
+								play_selected_card(tgt),
+							card)
 					elif card.card_id == "reposition":
 						# Let the player choose which card to discard, then play.
 						show_hand_card_picker("Reposition — discard which card?",
@@ -16085,6 +16090,7 @@ func _cover_mitigation(victim_ref, amount: int) -> int:
 			# enemies never act inside the damage call).
 			if covers[i].tempo_cost > 0 and tempo_manager:
 				tempo_manager.call_deferred("add_tempo", covers[i].tempo_cost)
+	NewCardsB.on_ally_hit(self, victim)  # Not So Fast
 	if soaked > 0:
 		add_battle_log("Cover! %d damage soaked." % mini(soaked, amount), Color(0.5, 0.85, 1.0))
 		call_deferred("_refresh_unit_tracker")
@@ -16201,6 +16207,8 @@ func _fire_instant_site_effect(card: Card, ctx: Dictionary) -> void:
 				if attacker and is_instance_valid(attacker) and attacker.has_method("knockback"):
 					attacker.knockback(victim.position, 1)
 				add_battle_log("Psionic Flow guards: 8 restored, attacker shoved!", Color(0.6, 0.7, 1.0))
+		"soul_consumption", "not_so_fast", "spiteful_sting", "pocket_shiv":
+			NewCardsB.instant_site_effect(self, card, ctx)
 		_:
 			pass  # execute() carries the whole effect (Feed into the Pain, Preemptive Answer, Tight Rope…)
 

@@ -11,6 +11,7 @@ card_type = 2
 card_type_name = "Utility"
 mana_cost = 50
 tempo_cost = 3
+resolve_tick = 1
 target_types = ["self"]
 slot_labels = [7]
 keywords = ["utility"]

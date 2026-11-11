@@ -1443,6 +1443,8 @@ func get_effect_draw_count() -> int:
 			return 2
 		"reload", "prepare":
 			return 3
+		"reverse_reverse":
+			return 1
 	return 0
 
 func execute(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
@@ -2550,6 +2552,9 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		"internal_combustion", "god_of_thunder", "patience", "succumb", "adrenaline_shot", "vines", "release_tension", "roll", "misery_loves_company", "cryonics", "friendship", "worms_armageddon":
 			pass  # Effect applied in main._apply_card_world_effects (needs world access)
+		"soul_consumption", "not_so_fast", "spiteful_sting", "pocket_shiv", \
+		"deep_breaths_spell", "self_admission", "reverse_reverse", "foresight":
+			pass  # sheet batch B: resolved by main through NewCardsB
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
 
