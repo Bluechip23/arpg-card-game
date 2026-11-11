@@ -2278,6 +2278,9 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			_execute_charge(target, player_stats, buff_mgr)
 		"heroic_leap":
 			_execute_heroic_leap(target, player_stats, buff_mgr)
+		"lunge", "grapple_chain", "back_pedal", "deliberate_arch", "harvest", "momentous_slam", "bastion_battle", "acro_medic":
+			# The sheet's 2026-11-11 melee and movement rows (scripts/cards/new_cards_c.gd).
+			NewCardsC.execute(self, target, player_stats, deck_manager, damage_reduction_pct, self_damage_percent, buff_mgr)
 		"morphine":
 			_execute_morphine(player_stats, buff_mgr)
 		"turtle_up":

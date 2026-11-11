@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "lunge"
 card_name = "Lunge"
-description = "Move up to 3 tiles towards an enemy and deal 9 damage. Counts as a displacement."
+description = "Move up to 3 tiles to a free tile beside an enemy and deal 9 damage. Counts as a displacement."
 card_type_name = "Offensive"
 mana_cost = 80
 damage = 9
