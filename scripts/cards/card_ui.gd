@@ -417,6 +417,7 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 	else:
 		_build_tempo_bars(card)
 
+	NewCardsD.place_face_ticker(self, card)  # Berserker's Tithe: tempo-effect countdown
 	_update_visual_instant()
 
 func _ready() -> void:

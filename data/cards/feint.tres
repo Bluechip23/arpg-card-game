@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "feint"
 card_name = "Feint"
-description = "Apply 2 Vulnerable to an enemy. A random attack card in your hand gains +2 tempo and +5 damage."
+description = "Apply 2 Vulnerable to an enemy. A random attack card in your hand gains +2 tempo and +5 damage until it is played or leaves your hand."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 60

@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "spine_release"
 card_name = "Spine Release"
-description = "Spend all your Thorns and deal that damage, split equally, to the enemies in the full circle around you."
+description = "Spend all your Thorns and deal that damage, split equally, among the enemies in the 8 tiles around you."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 70

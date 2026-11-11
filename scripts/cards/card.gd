@@ -735,6 +735,7 @@ func clear_timed_mods() -> void:
 
 ## The card left the hand (played, discarded, drawn afresh): everything ends.
 func clear_temp_mods() -> void:
+	NewCardsD.end_feint(self)  # Feint's +5 damage / +2 tempo end with the hand
 	untimed_tempo_reduction = 0
 	untimed_flat_block = 0
 	clear_timed_mods()
@@ -2553,6 +2554,8 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		"internal_combustion", "god_of_thunder", "patience", "succumb", "adrenaline_shot", "vines", "release_tension", "roll", "misery_loves_company", "cryonics", "friendship", "worms_armageddon":
 			pass  # Effect applied in main._apply_card_world_effects (needs world access)
+		"berserkers_tithe", "internal_sickness", "fan_of_knives", "static_sting", "feint", "cadence", "grit", "spine_release":
+			NewCardsD.execute(self, target, player_stats, deck_manager, buff_mgr, damage_reduction_pct, self_damage_percent)  # sheet batch D
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
 
