@@ -1942,6 +1942,8 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		"block":
 			_execute_block(player_stats, is_empowered, buff_mgr)
+		"ward_of_hallow_glass":
+			NewCardsE.execute_ward(self, player_stats, buff_mgr, is_empowered)
 		"exposing_strike":
 			# Starter: the Attack's hit, then 1 Vulnerable on the target.
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)

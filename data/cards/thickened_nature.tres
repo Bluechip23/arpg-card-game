@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "thickened_nature"
 card_name = "Thickened Nature"
-description = "Create a dense fog 3 squares across for 15 tempo. Enemies inside are Slowed 1, and one that ends a move inside is Rooted 5."
+description = "Create a dense fog 3 squares across for 15 tempo. Enemies inside are held Slowed 1, and one that ends a move inside is Rooted 5."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 120

@@ -441,7 +441,9 @@ func greedy_tax(card) -> Dictionary:
 	for c in hand:
 		if c != card and c.card_id == GREEDY_CHEESE_ID:
 			n += 1
-	return {"mana": n * GREEDY_CHEESE_MANA, "tempo": n * GREEDY_CHEESE_TEMPO}
+	# (Batch E tempo cuts — Ward of Hallow Glass, Both Sides of the Candle —
+	# ride the same number, so the hand face and the play both show them.)
+	return {"mana": n * GREEDY_CHEESE_MANA, "tempo": n * GREEDY_CHEESE_TEMPO - NewCardsE.tempo_cut(card, player_stats)}
 
 func draw_card() -> Card:
 	# Lost in the Labyrinth (the Inflamed Minotaur's curse): no draw of any
