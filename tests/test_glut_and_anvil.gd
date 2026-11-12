@@ -69,21 +69,21 @@ func _run() -> void:
 	bare.execute(dummy, stats, main.deck_manager, 0.0, 0.0, null)
 	var bare_total: int = 5000 - dummy.current_health
 	_check(bare_total == 4 * stats.get_effective_physical_damage(3), "bare, it deals 3 (scaled) four times: %d" % bare_total)
-	# With the Anvil in hand: +1 per 50 weight carried and +1 per 10 mana above 40, on every wave.
+	# With the Anvil in hand: +1 per 50 weight carried and +1 per tempo above 4, on every wave.
 	inv.equipped_weapons.append(anvil)
 	stats.current_carry_load = 230
 	dummy.current_health = 5000
 	var held := Card.create_by_id("crash_from_the_sea")
 	held.execute(dummy, stats, main.deck_manager, 0.0, 0.0, null)
-	var per_wave: int = stats.get_effective_physical_damage(3 + 4 + 12)
+	var per_wave: int = stats.get_effective_physical_damage(3 + 4 + 6)
 	_check(5000 - dummy.current_health == 4 * per_wave,
-		"with the Anvil at 230 weight: +4 for the weight and +12 for 160 mana, on each of the 4 waves (%d, want %d)" % [5000 - dummy.current_health, 4 * per_wave])
+		"with the Anvil at 230 weight: +4 for the weight and +6 for its 10 tempo, on each of the 4 waves (%d, want %d)" % [5000 - dummy.current_health, 4 * per_wave])
 	_check(held.bonus_damage == 0, "the bonus does not stick to the card")
 	dummy.current_health = 5000
 	var cheap := Card.create_by_id("slash")
 	cheap.execute(dummy, stats, main.deck_manager, 0.0, 0.0, null)
 	_check(5000 - dummy.current_health == stats.get_effective_physical_damage(10 + 4),
-		"a 20-mana offensive card gets the weight's +4 and nothing for mana (%d)" % (5000 - dummy.current_health))
+		"a 3-tempo offensive card gets the weight's +4 and nothing for tempo (%d)" % (5000 - dummy.current_health))
 	inv.equipped_weapons.erase(anvil)
 	_done()
 

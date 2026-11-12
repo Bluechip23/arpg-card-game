@@ -1874,7 +1874,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 					_gauntlet_bonus_applied += bs_bonus
 					print("[CARD] %s: +%d damage (%.0f%% of %d mana)" % [bs_w.item_name, bs_bonus, bs_w.spell_damage_per_mana_percent, bs_cost])
 		# Anvil of the Burdened: offensive cards hit harder for the weight
-		# carried and for every mana they cost past the threshold.
+		# carried and for every tempo they cost past the threshold.
 		if is_offensive() and (base_damage > 0 or damage > 0) \
 				and player_stats.inventory and "equipped_weapons" in player_stats.inventory:
 			for ab_w in player_stats.inventory.equipped_weapons:
@@ -1883,11 +1883,11 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 				var ab_bonus := 0
 				if ab_w.offensive_damage_per_carry_weight > 0:
 					ab_bonus += int(player_stats.current_carry_load / ab_w.offensive_damage_per_carry_weight)
-				if ab_w.mana_damage_step > 0:
-					ab_bonus += maxi(0, int((get_burden_mana_cost() - ab_w.mana_damage_over) / ab_w.mana_damage_step))
+				if ab_w.tempo_damage_over > 0:
+					ab_bonus += maxi(0, get_burden_tempo_cost() - ab_w.tempo_damage_over)
 				if ab_bonus > 0:
 					_gauntlet_bonus_applied += ab_bonus
-					print("[CARD] %s: +%d damage (weight %d, %d mana)" % [ab_w.item_name, ab_bonus, player_stats.current_carry_load, get_burden_mana_cost()])
+					print("[CARD] %s: +%d damage (weight %d, %d tempo)" % [ab_w.item_name, ab_bonus, player_stats.current_carry_load, get_burden_tempo_cost()])
 		# Purge Wrath: the armed percent lands on this attack, then clears.
 		if is_attack() and player_stats.pending_wrath_flat > 0:
 			_gauntlet_bonus_applied += player_stats.pending_wrath_flat

@@ -8,7 +8,7 @@ Generated from the item factories in `item_data.gd` and the code that handles ea
 **189 items, 9 with something to look at.** The flagged items are listed first, then every item by type and rarity.
 
 
-**Added 2026-11-12 — Anvil of the Burdened** (`anvil_of_the_burdened`, Weapon / Hammer, Legendary): +6 STR, +5 INT, -10 DEX, -10 AGI · 150 weight · 3 slots (2 bonus, 1 plain) · grants crash_from_the_sea. Code: `Card._execute_card` adds, for every damaging offensive card while the Anvil is among the equipped weapons, `current_carry_load / 50` plus `(mana cost - 40) / 10` (never below 0; the cost is the card's Burden-adjusted mana cost) to the play's damage. On-self: `on_self_tempo_penalty = 3`, `on_self_armor_any = 5`. Crash from the Sea is a plain Offensive melee card (160 mana, 10 tempo): four separate 3-damage rolls, so the Anvil's bonus rides each. Open question: "mana spent over 4" is read in sheet units — +1 per 10 mana above 40.
+**Added 2026-11-12 — Anvil of the Burdened** (`anvil_of_the_burdened`, Weapon / Hammer, Legendary): +6 STR, +5 INT, -10 DEX, -10 AGI · 150 weight · 3 slots (2 bonus, 1 plain) · grants crash_from_the_sea. Code: `Card._execute_card` adds, for every damaging offensive card while the Anvil is among the equipped weapons, `current_carry_load / 50` plus the card's tempo cost above 4 (never below 0; the Burden-adjusted cost, before the Anvil's own +3 on-self tempo) to the play's damage. On-self: `on_self_tempo_penalty = 3`, `on_self_armor_any = 5`. Crash from the Sea is a plain Offensive melee card (160 mana, 10 tempo): four separate 3-damage rolls, so the Anvil's bonus rides each.
 
 ## Items whose code and text disagree
 
