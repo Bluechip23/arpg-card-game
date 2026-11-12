@@ -429,7 +429,7 @@ const CARD_RARITIES := {
 	"cupids_lead_arrow": Rarity.LEGENDARY, "curse_of_the_living": Rarity.LEGENDARY,
 	"death_vortex": Rarity.LEGENDARY, "deep_breaths": Rarity.LEGENDARY,
 	"defensive_sacrifice": Rarity.LEGENDARY, "detonova": Rarity.LEGENDARY,
-	"donate_cleats": Rarity.LEGENDARY, "earth_rattle": Rarity.LEGENDARY, "pole_vault": Rarity.LEGENDARY, "whirling_dash": Rarity.LEGENDARY, "crash_from_the_sea": Rarity.LEGENDARY,
+	"donate_cleats": Rarity.LEGENDARY, "earth_rattle": Rarity.LEGENDARY, "pole_vault": Rarity.LEGENDARY, "whirling_dash": Rarity.LEGENDARY, "redline": Rarity.LEGENDARY, "crash_from_the_sea": Rarity.LEGENDARY,
 	"element_pollination": Rarity.LEGENDARY, "escape_and_bewilder": Rarity.LEGENDARY,
 	"feed_into_the_pain": Rarity.LEGENDARY, "grounding": Rarity.LEGENDARY,
 	"healing_tonic": Rarity.LEGENDARY, "hemotoxins": Rarity.LEGENDARY, "huck": Rarity.LEGENDARY,
@@ -483,7 +483,7 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"clang_up": true, "negotiate": true, "detonova": true, "mind_mend": true,
 	"deep_breaths": true, "vined_encasing": true, "adimantium_wall": true,
 	"preemptive_answer": true, "ragnarok": true,
-	"hard_helmet": true, "slice": true, "death_vortex": true, "earth_rattle": true, "pole_vault": true, "whirling_dash": true, "crash_from_the_sea": true,
+	"hard_helmet": true, "slice": true, "death_vortex": true, "earth_rattle": true, "pole_vault": true, "whirling_dash": true, "redline": true, "crash_from_the_sea": true,
 	"feed_into_the_pain": true, "psionic_flow": true, "purge_wrath": true,
 	"sanguine_the_penguin": true, "wrath_of_the_sea": true, "monk_of_the_night": true,
 	"improvised_ammo": true, "cupids_golden_arrow": true, "cupids_lead_arrow": true,
@@ -2307,6 +2307,8 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			_execute_charge(target, player_stats, buff_mgr)
 		"pole_vault":
 			_execute_block(player_stats, is_empowered, buff_mgr)
+		"redline":
+			pass  # Feverfang: main arms the charges (FeverfangCards.play_redline)
 		"heroic_leap":
 			_execute_heroic_leap(target, player_stats, buff_mgr)
 		"lunge", "grapple_chain", "back_pedal", "deliberate_arch", "harvest", "momentous_slam", "bastion_battle", "acro_medic":
@@ -4863,6 +4865,7 @@ const CARD_IDS: Array[String] = [
 	"earth_rattle",
 	"pole_vault",
 	"whirling_dash",
+	"redline",
 	"crash_from_the_sea",
 	"feed_into_the_pain",
 	"psionic_flow",

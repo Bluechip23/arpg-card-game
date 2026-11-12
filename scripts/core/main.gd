@@ -9547,6 +9547,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 
 	_resolving_aim = null
 	NewCardsE.post_card(self, card, data, nce_snap)  # The Ledger banks / pays out; the Candle burns
+	FeverfangCards.after_card(self, card)  # Redline: an offensive card draws 2
 	# The play is over: undo the folded bonus, disarm the passives, close
 	# the scope and drop the hit-source flags.
 	if passive_bonus > 0:
@@ -12024,6 +12025,7 @@ func _shield_on_cycle_passives() -> void:
 func _on_overdraw_processed(_card: Card) -> void:
 	if not player or not player.get_inventory():
 		return
+	FeverfangCards.on_overdraw(self)  # Feverfang: 6 to a random enemy in melee range
 	var stats := player.get_stats()
 	var buff_mgr := player.get_buff_manager()
 	for shield in player.get_inventory().get_equipped_shields():
@@ -13716,6 +13718,8 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 			print("[MAIN] Round 'Em Up: pulled %d enemies toward %s" % [nearby.size(), center])
 		"pole_vault", "whirling_dash":
 			YariCards.world_effects(self, card, mouse_pos)
+		"redline":
+			FeverfangCards.play_redline(self)
 		"blink":
 			var blink_pos := grid_manager.snap_to_grid(mouse_pos)
 			var blink_cell := grid_manager.world_to_grid(blink_pos)

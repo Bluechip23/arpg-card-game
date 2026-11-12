@@ -98,6 +98,7 @@ func _run() -> void:
 	inv.equipped_weapons.erase(anvil)
 	stats.current_carry_load = 0
 	_test_yari(stats, inv, dummy)
+	_test_feverfang(stats, inv, dummy)
 	_done()
 
 func _cell_pos(off: Vector2i) -> Vector3:
@@ -200,3 +201,56 @@ func _test_yari(stats: PlayerStats, inv, dummy) -> void:
 func _done() -> void:
 	print("=== %d failure(s) ===" % failures)
 	quit(1 if failures > 0 else 0)
+
+func _test_feverfang(stats: PlayerStats, inv, dummy) -> void:
+	print("-- Feverfang --")
+	var fang: ItemData = ItemData.create("feverfang")
+	_check(fang != null and fang.rarity == ItemData.Rarity.LEGENDARY and fang.weapon_subtype == ItemData.WeaponSubtype.DAGGER
+		and fang.weight == 15, "a Legendary dagger, weight 15")
+	_check(fang.card_slots == 0 and fang.vanilla_slots == 2, "no bonus slots, 2 plain")
+	_check(fang.agility_bonus == 6 and fang.dexterity_bonus == 6 and fang.hand_size_bonus == -2, "+6 AGI, +6 DEX, -2 hand size")
+	_check(fang.granted_card_ids == ["redline"] and fang.overdraw_melee_damage == 6, "grants Redline; Overdraw deals 6")
+	var dm = main.deck_manager
+	inv.equipped_weapons.append(fang)
+	# Overdraw: 6 to a random enemy in melee range, none when nobody is close.
+	_put(dummy, Vector2i(1, 0))
+	dummy.current_health = 5000
+	dummy.current_armor = 0
+	main._on_overdraw_processed(null)
+	_check(5000 - dummy.current_health == 6, "an overdraw deals 6 to an enemy in melee range (%d)" % (5000 - dummy.current_health))
+	_put(dummy, Vector2i(4, 0))
+	dummy.current_health = 5000
+	main._on_overdraw_processed(null)
+	_check(dummy.current_health == 5000, "with no enemy in melee range nothing is hit")
+	# Through the real draw: a full hand overflows and the fang bites.
+	_put(dummy, Vector2i(1, 0))
+	dm.hand.clear()
+	while dm.hand.size() < dm.get_hand_cap():
+		dm.hand.append(Card.create_by_id("block"))
+	dm.draw_pile.append(Card.create_by_id("slash"))
+	dm.draw_card()
+	_check(5000 - dummy.current_health == 6, "a real draw into a full hand sets it off (%d)" % (5000 - dummy.current_health))
+
+	# Redline: 5 charges; an offensive card draws 2, another card spends a charge and draws none.
+	inv.equipped_weapons.erase(fang)
+	dm.hand.clear()
+	dm.draw_pile.clear()
+	for _i in range(12):
+		dm.draw_pile.append(Card.create_by_id("block"))
+	var redline := Card.create_by_id("redline")
+	_check(redline.card_type == Card.CardType.UTILITY and Card.DROP_EXCLUDED_CARD_IDS.has("redline"), "Redline is a Utility card that never drops")
+	FeverfangCards.play_redline(main)
+	FeverfangCards.after_card(main, redline)
+	_check(int(stats.get_meta(FeverfangCards.REDLINE_META, 0)) == 5, "Redline itself does not spend a charge")
+	FeverfangCards.after_card(main, Card.create_by_id("slash"))
+	_check(dm.hand.size() == 2 and int(stats.get_meta(FeverfangCards.REDLINE_META, 0)) == 4, "an offensive card draws 2 (%d in hand, 4 left)" % dm.hand.size())
+	FeverfangCards.after_card(main, Card.create_by_id("block"))
+	_check(dm.hand.size() == 2 and int(stats.get_meta(FeverfangCards.REDLINE_META, 0)) == 3, "a non-offensive card draws nothing and still spends one of the 5")
+	FeverfangCards.after_card(main, Card.create_by_id("fireball"))
+	_check(dm.hand.size() == 4, "an offensive spell draws 2 as well")
+	FeverfangCards.after_card(main, Card.create_by_id("slash"))
+	FeverfangCards.after_card(main, Card.create_by_id("slash"))
+	_check(not stats.has_meta(FeverfangCards.REDLINE_META), "after 5 cards Redline is over")
+	var held: int = dm.hand.size()
+	FeverfangCards.after_card(main, Card.create_by_id("slash"))
+	_check(dm.hand.size() == held, "a 6th card draws nothing")

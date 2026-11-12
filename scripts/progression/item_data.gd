@@ -339,6 +339,7 @@ var granted_cards_built: bool = false
 # Overdraw riders — they fire when a draw overflows a full hand.
 @export var overdraw_heal: int = 0               # heal X (Castle Wall 5)
 @export var overdraw_regen: int = 0              # gain X Regen (Treebeards Branch 3)
+@export var overdraw_melee_damage: int = 0       # deal X to a random enemy in melee range (Feverfang 6; any weapon, not only shields)
 @export var overdraw_peak: int = 0               # reveal the next X draw-pile cards (Delfins 4)
 @export var overdraw_card_id: String = ""        # conjure this card into the manifest zone (Slotted Rope Half Sleeve: cinquedea)
 @export var overdraw_card_max: int = 0           # ...up to X held there at once (5)
@@ -1181,6 +1182,7 @@ const ITEM_IDS: Array[String] = [
 	"hammer_of_ajax",
 	"anvil_of_the_burdened",
 	"yari_of_the_spider_monkey",
+	"feverfang",
 	"laurentius_lost_spear",
 	"mauls_sabre",
 	"fallens_wrath",
