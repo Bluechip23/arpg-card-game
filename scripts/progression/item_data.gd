@@ -529,6 +529,12 @@ var vitality_stacks: int = 0    # Nine Ruins: current Vitality
 @export var discard_gain_block: int = 0            # discarding a card grants X block (Abjurers Cane 3)
 @export var range_bonus_all_cards: int = 0         # +X range on ALL cards (Wand of Deliverance 2)
 @export var spell_mana_surcharge_percent: float = 0.0   # offensive SPELL cards cost X% more mana (Blast Stick 10)
+## Anvil of the Burdened: offensive cards deal +1 damage per this much weight
+## carried, and +1 per `mana_damage_step` mana the card costs above
+## `mana_damage_over` (0 = off).
+@export var offensive_damage_per_carry_weight: int = 0
+@export var mana_damage_over: int = 0
+@export var mana_damage_step: int = 0
 @export var spell_damage_per_mana_percent: float = 0.0  # offensive SPELL cards deal +X% of their FINAL (surcharged) mana cost as damage (Blast Stick 20)
 @export var elemental_charge_damage: int = 0       # applying Burn/Shock/Cold deals +X damage per stack applied (Elemental Weaver 1)
 @export var burn_backlash_self: int = 0            # applying Burn to an enemy burns YOU X — per occasion, not per stack (Phoenix Feather 1)
@@ -1171,6 +1177,7 @@ const ITEM_IDS: Array[String] = [
 	"axes_axe",
 	"bessy",
 	"hammer_of_ajax",
+	"anvil_of_the_burdened",
 	"laurentius_lost_spear",
 	"mauls_sabre",
 	"fallens_wrath",

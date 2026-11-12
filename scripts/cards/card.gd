@@ -429,7 +429,7 @@ const CARD_RARITIES := {
 	"cupids_lead_arrow": Rarity.LEGENDARY, "curse_of_the_living": Rarity.LEGENDARY,
 	"death_vortex": Rarity.LEGENDARY, "deep_breaths": Rarity.LEGENDARY,
 	"defensive_sacrifice": Rarity.LEGENDARY, "detonova": Rarity.LEGENDARY,
-	"donate_cleats": Rarity.LEGENDARY, "earth_rattle": Rarity.LEGENDARY,
+	"donate_cleats": Rarity.LEGENDARY, "earth_rattle": Rarity.LEGENDARY, "crash_from_the_sea": Rarity.LEGENDARY,
 	"element_pollination": Rarity.LEGENDARY, "escape_and_bewilder": Rarity.LEGENDARY,
 	"feed_into_the_pain": Rarity.LEGENDARY, "grounding": Rarity.LEGENDARY,
 	"healing_tonic": Rarity.LEGENDARY, "hemotoxins": Rarity.LEGENDARY, "huck": Rarity.LEGENDARY,
@@ -483,7 +483,7 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"clang_up": true, "negotiate": true, "detonova": true, "mind_mend": true,
 	"deep_breaths": true, "vined_encasing": true, "adimantium_wall": true,
 	"preemptive_answer": true, "ragnarok": true,
-	"hard_helmet": true, "slice": true, "death_vortex": true, "earth_rattle": true,
+	"hard_helmet": true, "slice": true, "death_vortex": true, "earth_rattle": true, "crash_from_the_sea": true,
 	"feed_into_the_pain": true, "psionic_flow": true, "purge_wrath": true,
 	"sanguine_the_penguin": true, "wrath_of_the_sea": true, "monk_of_the_night": true,
 	"improvised_ammo": true, "cupids_golden_arrow": true, "cupids_lead_arrow": true,
@@ -1873,6 +1873,21 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 				if bs_bonus > 0:
 					_gauntlet_bonus_applied += bs_bonus
 					print("[CARD] %s: +%d damage (%.0f%% of %d mana)" % [bs_w.item_name, bs_bonus, bs_w.spell_damage_per_mana_percent, bs_cost])
+		# Anvil of the Burdened: offensive cards hit harder for the weight
+		# carried and for every mana they cost past the threshold.
+		if is_offensive() and (base_damage > 0 or damage > 0) \
+				and player_stats.inventory and "equipped_weapons" in player_stats.inventory:
+			for ab_w in player_stats.inventory.equipped_weapons:
+				if ab_w == null:
+					continue
+				var ab_bonus := 0
+				if ab_w.offensive_damage_per_carry_weight > 0:
+					ab_bonus += int(player_stats.current_carry_load / ab_w.offensive_damage_per_carry_weight)
+				if ab_w.mana_damage_step > 0:
+					ab_bonus += maxi(0, int((get_burden_mana_cost() - ab_w.mana_damage_over) / ab_w.mana_damage_step))
+				if ab_bonus > 0:
+					_gauntlet_bonus_applied += ab_bonus
+					print("[CARD] %s: +%d damage (weight %d, %d mana)" % [ab_w.item_name, ab_bonus, player_stats.current_carry_load, get_burden_mana_cost()])
 		# Purge Wrath: the armed percent lands on this attack, then clears.
 		if is_attack() and player_stats.pending_wrath_flat > 0:
 			_gauntlet_bonus_applied += player_stats.pending_wrath_flat
@@ -2311,6 +2326,18 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			_execute_worst_that_could_happen(target, player_stats, buff_mgr)
 		"oops":
 			_execute_oops(target, player_stats, buff_mgr)
+		"crash_from_the_sea":
+			# Anvil of the Burdened: 3 damage, 4 times — each wave its own
+			# roll, so the Anvil's bonus rides every one.
+			last_damage_dealt = 0
+			for _wave in range(CRASH_WAVES):
+				if target == null or not is_instance_valid(target) or not target.has_method("take_damage") \
+						or ("is_dead" in target and target.is_dead):
+					break
+				var wave_dmg := _roll_hit_damage(base_damage, player_stats, buff_mgr, false, target, false, damage_reduction_pct)
+				target.take_damage(wave_dmg, true, damage_type)
+				last_damage_dealt += wave_dmg
+			print("[CARD] Crash from the Sea! %d total" % last_damage_dealt)
 		"house_money":
 			_execute_house_money(player_stats)
 		"hope_this_works":
@@ -3357,6 +3384,8 @@ func _execute_worst_that_could_happen(target, player_stats: PlayerStats, buff_mg
 			target.apply_debuff("stun", 5)
 		print("[CARD] What's the worst? Target stunned! Dealt %d" % total_damage)
 	last_damage_dealt = total_damage
+
+const CRASH_WAVES := 4
 
 func _execute_oops(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	# Strengthen and crit ride the FIRST hit, matching the face preview.
@@ -4821,6 +4850,7 @@ const CARD_IDS: Array[String] = [
 	"slice",
 	"death_vortex",
 	"earth_rattle",
+	"crash_from_the_sea",
 	"feed_into_the_pain",
 	"psionic_flow",
 	"purge_wrath",

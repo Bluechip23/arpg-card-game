@@ -5769,6 +5769,7 @@ func _clear_locked_markers() -> void:
 #endregion
 #region TEMPO TICK DISPATCHER
 func _on_tempo_advanced(global_total: int, amount: int) -> void:
+	_process_glut_countdown(amount)
 	if deck_manager:
 		_check_volatile_mixture_in_hand()
 	# Brad's War Rack: its cooldown and the drawn weapon's return clock.
@@ -7523,8 +7524,6 @@ func _on_tempo_threshold_reached(times: int) -> void:
 			if end_bm:
 				end_bm.process_turn_end()
 
-		_process_glut_countdown()
-
 	# Sphere grid passive triggers for tempo cycle
 	progression_triggers._trigger_sphere_passives("on_cycle", {})
 	progression_triggers._trigger_sphere_passives("on_tempo_cycle", {})
@@ -8348,9 +8347,12 @@ func _process_pending_absorb_essences(amount: int = 5) -> void:
 		else:
 			print("[MAIN] Absorb Essence: %d tempo until Energy Ball" % ae.tempo_remaining)
 
-func _process_glut_countdown() -> void:
-	if glut_tempo_remaining > 0:
-		glut_tempo_remaining -= 5
+## Glut counts down with every tempo (designer, 2026-11-12), so "Glut 10"
+## is 10 tempo whenever in the cycle it lands. It once fell 5 per cycle
+## start, which cut a Glut short by up to 4 tempo.
+func _process_glut_countdown(amount: int = 1) -> void:
+	if glut_tempo_remaining > 0 and amount > 0:
+		glut_tempo_remaining -= amount
 		if glut_tempo_remaining <= 0:
 			glut_tempo_remaining = 0
 			add_battle_log("Glut expired! You can play cards again.", Color(0.4, 1.0, 0.5))
@@ -9664,9 +9666,15 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 
 	# Glut: apply card lockout
 	if card.glut_tempo > 0:
-		glut_tempo_remaining = card.glut_tempo
+		# The Glut is the full printed tempo AFTER this play: the ticks the
+		# card still has to run (it resolves before its last tick) are added
+		# on, since the Glut counts down with every tempo.
+		var glut_play_left: int = 0
+		if tempo_manager:
+			glut_play_left = tempo_manager._owner_busy_ticks(0) + (1 if tempo_manager.resolving_in_tick else 0)
+		glut_tempo_remaining = card.glut_tempo + maxi(0, glut_play_left)
 		add_battle_log("Glutted for %d tempo! Cannot play cards." % card.glut_tempo, Color(1.0, 0.4, 0.4))
-		print("[MAIN] Glut activated: %d tempo lockout" % card.glut_tempo)
+		print("[MAIN] Glut activated: %d tempo lockout (%d with the play's own %d ticks left)" % [card.glut_tempo, glut_tempo_remaining, glut_play_left])
 		progression_triggers._trigger_skill_tree_stephen_on_glut(card.glut_tempo)
 
 	# Queue entry already removed above — no further cleanup needed

@@ -199,8 +199,14 @@ func _recompute_pending() -> void:
 	_pending_ticks = m
 
 ## Process a single tick of tempo
+## True while a tick's cards are resolving, before that tick's
+## tempo_advanced goes out: a clock started by a resolving card (Glut) will
+## still be charged this very tick.
+var resolving_in_tick: bool = false
+
 func _process_one_tick() -> void:
 	# Advance global state by 1
+	resolving_in_tick = true
 	global_tempo += 1
 	current_tempo += 1
 
@@ -224,6 +230,7 @@ func _process_one_tick() -> void:
 					entry["card"].card_name, entry["ticks_elapsed"], entry["total_ticks"]])
 				card_resolved.emit(entry["card"])
 
+	resolving_in_tick = false
 	# Clean up finished cards (all ticks elapsed and no delay remaining)
 	_active_cards = _active_cards.filter(func(e): return e["ticks_elapsed"] < e["total_ticks"] or e["delay"] > 0)
 	_recompute_pending()
