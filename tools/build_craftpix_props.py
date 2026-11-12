@@ -31,6 +31,7 @@ U = "tileset_undead_land/Objects_separately"
 X = "tileset_cursed_land/Objects_separetely"
 D = "tileset_desert/Objects_separately"
 W = "tileset_winter/Objects_separately"  # sub-folders by cell size
+GC = "tileset_glowing_cave/Objects_separately"
 T = "treasure_32x32"
 A = "armor_weapons_icons"
 R = "rocks_stones"  # free rocks & stones top-down pack (8 styles x 5 sizes)
@@ -144,6 +145,21 @@ ROLES = {
     # "hell_pustule": the designer's since 2026-10-29 (DESIGNER below); was [f"{X}/Pustules_shadow1_{i}.png" for i in range(1, 4)]
     # "hell_veins": dropped 2026-10-29 (World 4 is the designer's cursed set); was [f"{X}/Veins_shadow1_{i}.png" for i in range(1, 5)]
     # "hell_fetus": dropped 2026-10-29 (World 4 is the designer's cursed set); was [f"{X}/Fetus_shadow1_{i}.png" for i in range(1, 4)]
+    # --- Act 3, the corrupted Heaven (World 3; 2026-11-09): STAND-INS until
+    # the designer's Heaven boards. The glowing-cave pack's luminous growth
+    # ("Heaven-adjacent luminous zones", docs/ASSET_PACKS.md) dresses the
+    # sickened holy ground: gold-flecked rock (the gilding gone dark), pale
+    # pink and violet crystals, glowing ferns, flowers, leaves and fungi.
+    # DungeonManager.HEAVEN_ART names which role stands in for what.
+    "glow_gold": {"scale": 1.0, "src": [f"{GC}/Crystal2_{i}.png" for i in range(1, 5)]},
+    "glow_crystal": {"scale": 1.0, "src": [f"{GC}/Crystal1_{i}.png" for i in range(1, 5)]
+                     + [f"{GC}/Crystal3_{i}.png" for i in range(1, 5)] + [f"{GC}/Rock_crystal_{i}.png" for i in (1, 2)]},
+    "glow_teal": {"scale": 1.0, "src": [f"{GC}/Crystal4_{i}.png" for i in range(1, 5)]},
+    "glow_shroom": {"scale": 1.0, "src": [f"{GC}/Mushroom2_{i}.png" for i in range(1, 4)]
+                    + [f"{GC}/Mushroom4_{i}.png" for i in range(1, 4)] + [f"{GC}/Mushroom6_{i}.png" for i in range(1, 4)]},
+    "glow_fern": {"scale": 1.0, "src": [f"{GC}/Plant1_{i}.png" for i in range(1, 4)] + [f"{GC}/Plant2_{i}.png" for i in range(1, 4)]},
+    "glow_flower": {"scale": 1.0, "src": [f"{GC}/Plant3_{i}.png" for i in range(1, 5)]},
+    "glow_bush": {"scale": 1.0, "src": [f"{GC}/Plant4_{i}.png" for i in range(1, 4)] + [f"{GC}/Plant5_{i}.png" for i in range(1, 4)]},
 }
 
 # Frame strips for the animated landmarks (AnimatedSprite3D via
@@ -200,6 +216,11 @@ CELLS = {
     # Glowing-cave totem, 12 animation frames (uncropped so they line up):
     # the waypoint / transport-portal marker.
     "waypoint_totem": {"scale": 1.0, "crop": False, "cells": [("tileset_glowing_cave/Totem_animation.png", c * 96, r * 88, 96, 88) for r in range(2) for c in range(6)]},
+    # The cursed land pack's red vein bridges (bridges.png, boxes found by
+    # connected components, 2026-11-09): the Brimstone Rift's bridges over
+    # the lava, east-west and north-south.
+    "cursed_bridge_h": {"scale": 1.0, "cells": [("tileset_cursed_land/bridges.png", 288, 177, 97, 63), ("tileset_cursed_land/bridges.png", 385, 178, 95, 61)]},
+    "cursed_bridge_v": {"scale": 1.0, "cells": [("tileset_cursed_land/bridges.png", 546, 0, 65, 98), ("tileset_cursed_land/bridges.png", 610, 0, 62, 98)]},
 }
 
 

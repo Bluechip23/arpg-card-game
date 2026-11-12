@@ -25,6 +25,17 @@ const BOSS_ROOMS := [
 	["hellgate", "Hell's Gate", "Caves — Cerberus and Hell's Door (break the door)"],
 	["labyrinth", "The Labyrinth", "Underworld — the Inflamed Minotaur, Lost in the Labyrinth"],
 	["thanatoshall", "Thanatos's Hall", "Underworld — Thanatos (first pass)"],
+	["crucible", "The Crucible", "Underworld — two ifrits round a lava lake (off the Brimstone Rift)"],
+	["throne", "Throne of Dis", "Underworld — the court of Dis (off the Citadel of Dis)"],
+	["breach", "The Breach", "Underworld — the wardens of the way up (off the Ashen Stair)"],
+	["altar", "The Desecrated Altar", "Heaven — a djinn on the altar and its keepers (off the Defiled Sanctum)"],
+	["font", "The Sickened Font", "Heaven — two djinn round a fountain gone to bog (off the Gilded Garden)"],
+	["belfry", "The Belfry", "Heaven — the keepers of the bell frame (top of the Silent Spire)"],
+	["rent", "The Rent", "Heaven — the wardens of the way down (off the Sundered Causeway)"],
+	["green", "The Blighted Green", "Earth returned — keepers of all three planes round a burning well (off the Forsaken Hamlet)"],
+	["hellmouth", "The Hellmouth", "Earth returned — two ifrits and a fire mage where Hell broke through (off the Smouldering Vale)"],
+	["reliquary", "The Fallen Reliquary", "Earth returned — two djinn and the mountains' fliers at Heaven's fallen altar (off the Shattered Basilica)"],
+	["confluence", "The Confluence", "Earth returned — the final chamber: boss [TBD], a guard gauntlet for now (top of the Riven Heights)"],
 ]
 
 # card_id lists grouped by the character whose kit they belong to, matching

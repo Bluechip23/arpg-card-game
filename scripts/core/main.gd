@@ -6266,7 +6266,11 @@ func _on_enemy_killed(enemy: Enemy) -> void:
 
 	# A boss room opens the moment its boss falls: the way out appears, and
 	# the character remembers the room as cleared.
-	if boss_room_mode and enemy.enemy_type == _boss_room_boss_type():
+	# A guardian room (Act 2's sealed rooms) opens when the last of its
+	# guardians falls.
+	var guardians_fallen := boss_room_mode and DungeonManager.is_guardian_room(current_interior_id) \
+		and _guardians_fallen(enemy)
+	if boss_room_mode and (enemy.enemy_type == _boss_room_boss_type() or guardians_fallen):
 		# A sandbox kill is practice: the character's record is untouched.
 		if current_character and not sandbox_mode:
 			current_character.mark_boss_defeated(DungeonManager.boss_room_key(current_interior_id))
@@ -14570,10 +14574,29 @@ func _try_interact_site() -> bool:
 			_travel_to_town()  # the dojo's door opens onto the town plaza
 		else:
 			_exit_interior()
-	elif site["kind"] == "descend":
-		# Through Hell's broken door: down to the next world.
+	elif site["kind"] == "descend" or site["kind"] == "ascend":
+		# Through Hell's broken door down to the next world — or up through
+		# the Breach, out of the Underworld, to the one after it (arriving
+		# where the way back down stands), or down through the Rent, out of
+		# Heaven, to the one after that (arriving where the way back up
+		# stands).
 		_deliver_follower()
-		_travel_to_world(current_world_level + 1)
+		var arrive := ""
+		if site["kind"] == "ascend" and current_world_level == 2:
+			arrive = DungeonManager.HEAVEN_ARRIVAL_ID
+		elif site["kind"] == "descend" and current_world_level == 3:
+			arrive = DungeonManager.EARTH_ARRIVAL_ID
+		_travel_to_world(current_world_level + 1, arrive)
+	elif site["kind"] == DungeonManager.HEAVEN_ARRIVAL_ID:
+		# Heaven's way back down: into the Breach at the top of the Ashen
+		# Stair, at its gate (leaving it returns to the Stair, as ever).
+		_deliver_follower()
+		_travel_to_world(current_world_level - 1, "ascend", "breach", "ascent_0")
+	elif site["kind"] == DungeonManager.EARTH_ARRIVAL_ID:
+		# The Earth's way back up: into the Rent at the end of the Sundered
+		# Causeway, at its lip (leaving it returns to the Causeway).
+		_deliver_follower()
+		_travel_to_world(current_world_level - 1, "descend", "rent", "causeway_0")
 	else:
 		_enter_interior(site["id"], site["display_name"])
 	return true
@@ -14668,6 +14691,9 @@ func _apply_world_ambience() -> void:
 	# A frozen cave (the Ice Caves, the Ice Troll Lair): the ice holds some
 	# light, but the hero still carries a torch.
 	var in_ice := current_interior_id.begins_with("icecave") or current_interior_id.begins_with("trolllair")
+	# The Ruined Library: dim as the crypts, lit by its desk candles and a
+	# few sconces; the hero carries a torch through the stacks.
+	var in_library := current_interior_id.begins_with("library")
 
 	var world_env := get_node_or_null("WorldEnvironment") as WorldEnvironment
 	if world_env and world_env.environment:
@@ -14675,6 +14701,8 @@ func _apply_world_ambience() -> void:
 		env.ambient_light_color = pal.get("ambient", Color(0.3, 0.3, 0.35))
 		if in_ice:
 			env.ambient_light_energy = 0.45  # ice glows faintly in the dark
+		elif in_library:
+			env.ambient_light_energy = 0.3  # candlelight between the cases
 		elif in_cave:
 			env.ambient_light_energy = 0.14  # darker even than the sewers
 		elif in_sewer:
@@ -14698,6 +14726,8 @@ func _apply_world_ambience() -> void:
 		var energy: float = pal.get("sun_energy", 1.2)
 		if in_ice:
 			energy = 0.3
+		elif in_library:
+			energy = 0.2
 		elif in_cave:
 			energy = 0.16
 		elif in_sewer:
@@ -14713,7 +14743,7 @@ func _apply_world_ambience() -> void:
 		sun.light_energy = energy
 
 	# Underground (sewers and caves), each player carries their own pool of light.
-	_ensure_player_torch(in_sewer or in_cave or in_ice)
+	_ensure_player_torch(in_sewer or in_cave or in_ice or in_library)
 
 func _ensure_player_torch(enable: bool) -> void:
 	## Gives each player a warm point light (the "lit circle" around the
@@ -17104,7 +17134,11 @@ func _travel_to_town() -> void:
 	get_tree().root.add_child(town_scene)
 	queue_free()
 
-func _travel_to_world(level: int) -> void:
+## `arrive_at`: the site id the hero arrives at (as returning from an
+## interior does) instead of the world's start; `interior` / `parent`: an
+## interior of that world to arrive in (Heaven's way back down lands in the
+## Breach, whose way out leads to the Ashen Stair).
+func _travel_to_world(level: int, arrive_at: String = "", interior: String = "", parent: String = "") -> void:
 	print("[MAIN] Traveling to World %d!" % level)
 	var saved_quest_state := quest_manager.save_state() if quest_manager else {}
 	var saved_progression := _save_player_progression()
@@ -17113,6 +17147,9 @@ func _travel_to_world(level: int) -> void:
 	main_scene.player2_character = player2_character
 	main_scene.is_multiplayer = is_multiplayer
 	main_scene.current_world_level = level
+	main_scene.current_interior_id = interior
+	main_scene.parent_interior_id = parent
+	main_scene.return_from_interior_id = arrive_at
 	main_scene.discovered_waypoints = discovered_waypoints
 	main_scene.quest_state = saved_quest_state
 	main_scene.player_progression = saved_progression
@@ -17241,6 +17278,9 @@ func _setup_boss_room() -> void:
 		"hellgate": _setup_hellgate()
 		"labyrinth": _setup_labyrinth()
 		"thanatoshall": _setup_thanatos_hall()
+		_:
+			if DungeonManager.is_guardian_room(current_interior_id):
+				_setup_guardian_room()   # Act 2's and Act 3's sealed rooms
 
 # ---- The Labyrinth: the Inflamed Minotaur ----
 # The bull waits in the open court at the heart of the maze (see
@@ -17355,6 +17395,65 @@ func _apply_labyrinth_statics(dm) -> bool:
 	Card.labyrinth_next_card = next
 	return lost
 
+# ---- Act 2's guardian rooms: the Crucible, the Throne of Dis, the Breach ----
+# Sealed rooms held by a band rather than one boss (DungeonManager.
+# GUARDIAN_ROOMS): the layout says who stands where (guardian_placements);
+# the room opens when the last of them falls (a demon's mimics and any
+# structure do not count). At the Breach that also opens the way up.
+const GUARDIAN_ROOM_LOGS := {
+	"crucible": ["The Crucible. The door seals behind you; two ifrits rise from the fire.",
+		"The Crucible's fires sink — its ifrits are gone."],
+	"throne": ["The Throne of Dis. The doors close; the court of Dis turns to look.",
+		"The Throne of Dis stands empty — its court is fallen."],
+	"breach": ["The Breach. The way back down seals; its wardens bar the way up.",
+		"The Breach stands open — its wardens are fallen."],
+	# Act 3, the corrupted Heaven (2026-11-09).
+	"altar": ["The Desecrated Altar. The doors close; a djinn turns on the altar.",
+		"The Desecrated Altar is still — its keepers are fallen."],
+	"font": ["The Sickened Font. The hedges close behind you; its keepers rise from the bog.",
+		"The Sickened Font lies quiet — its keepers are fallen."],
+	"belfry": ["The Belfry. The stair seals below you; something waits where the bells hung.",
+		"The Belfry stands empty — its keepers are fallen."],
+	"rent": ["The Rent. The way back seals; its wardens stand at the tear.",
+		"The Rent lies open — its wardens are fallen."],
+	# Act 4, the Earth returned to (2026-11-09).
+	"green": ["The Blighted Green. The hedges close behind you; its keepers turn from the burning well.",
+		"The Blighted Green lies quiet — its keepers are fallen."],
+	"hellmouth": ["The Hellmouth. The way back seals; Hell's keepers rise from the fire.",
+		"The Hellmouth's fires sink — its keepers are fallen."],
+	"reliquary": ["The Fallen Reliquary. The doors close; a djinn turns on the relic.",
+		"The Fallen Reliquary is still — its keepers are fallen."],
+	# The Confluence's final boss is [TBD] (STORY.md section 4): its guard
+	# holds the chamber until the designer names it.
+	"confluence": ["The Confluence. The stair seals below you; its guard stands before the empty dais.",
+		"The Confluence lies quiet — its guard is fallen. The dais stands empty."],
+}
+
+func _setup_guardian_room() -> void:
+	var key := DungeonManager.boss_room_key(current_interior_id)
+	var logs: Array = GUARDIAN_ROOM_LOGS.get(key, ["", ""])
+	if _boss_cleared(key):
+		add_battle_log(logs[1], Color(1.0, 0.75, 0.55))
+		return
+	for g in dungeon_manager.guardian_placements:
+		_spawn_lair_unit(g["type"], g["cell"])
+	_sync_dungeon_blocked_tiles()
+	_sync_occupied_tiles()
+	_update_enemy_count()
+	_refresh_unit_tracker()
+	add_battle_log(logs[0], Color(1.0, 0.65, 0.45))
+
+## Whether `dying` was the last guardian standing (mimics and structures
+## aside).
+func _guardians_fallen(dying: Enemy) -> bool:
+	if dying.is_mimic or dying.is_structure:
+		return false
+	for e in enemy_spawner.get_living_enemies():
+		if e == dying or e.is_mimic or e.is_structure:
+			continue
+		return false
+	return true
+
 # ---- Hell's Gate: Cerberus and the door ----
 # The objective is the door (150 HP; seals itself for 10 tempo at 75/50/33%),
 # not the hound. When it breaks, the way down opens where it stood and the
@@ -17446,12 +17545,18 @@ func _open_boss_room_exit() -> void:
 	if DungeonManager.boss_room_key(current_interior_id) == "hellgate":
 		dungeon_manager._place_hell_descent()
 		add_battle_log("Hell's Door breaks. The way down lies open — and the way back.", Color(1.0, 0.7, 0.5))
+	if DungeonManager.boss_room_key(current_interior_id) == "breach" and dungeon_manager.get_site_by_id("ascend") < 0:
+		dungeon_manager._place_breach_ascent()
+		add_battle_log("The Breach's wardens are fallen. The way up lies open — and the way back down.", Color(1.0, 0.92, 0.75))
+	if DungeonManager.boss_room_key(current_interior_id) == "rent" and dungeon_manager.get_site_by_id("descend") < 0:
+		dungeon_manager._place_rent_descent()
+		add_battle_log("The Rent's wardens are fallen. The way down lies open — and the way back.", Color(0.9, 0.8, 1.0))
 	if dungeon_manager.get_site_by_id("exit") >= 0:
 		return
 	dungeon_manager._place_exit_site()
 	if DungeonManager.boss_room_key(current_interior_id) == "labyrinth":
 		add_battle_log("The Minotaur falls. The passages open — the way out lies back the way you came.", Color(1.0, 0.8, 0.5))
-	elif DungeonManager.boss_room_key(current_interior_id) != "hellgate":
+	elif not DungeonManager.boss_room_key(current_interior_id) in ["hellgate", "breach", "rent"]:
 		add_battle_log("The way out opens.", Color(0.7, 1.0, 0.7))
 
 # ---- The Boneyard: the Bone Dragon, twelve gravestones, three grave diggers ----

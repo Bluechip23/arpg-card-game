@@ -3,8 +3,9 @@ extends SceneTree
 ## Hell — the Underworld, World 2 (Act 2; designer, 2026-11-05: "build out
 ## Hell"):
 ##  - World 2 wears the hell art (cursed earth, lava pools, the volcanoes and
-##    idols on its skyline: DungeonManager.art_world) and World 4 the desert
-##    it gave up; its name is The Underworld.
+##    idols on its skyline: DungeonManager.art_world); its name is The
+##    Underworld. (World 4 took the desert in exchange until it became Act 4's
+##    Earth returned to, 2026-11-09.)
 ##  - Its surface and caves are the demons': succubi, magma spiders, mind
 ##    eaters, specters, demons, ash harpies, ifrits; the deep rooms keep the
 ##    lords of the deep (the Ferryman's Toll); the arena an ifrit and demons.
@@ -96,10 +97,12 @@ func _test_surface() -> void:
 	_check(seen.size() >= 5, "a mixed host (%d kinds)" % seen.size())
 
 func _test_world4() -> void:
-	print("-- World 4 took the desert --")
+	# World 4 wore the Amber Wastes' desert until it became Act 4's Earth
+	# returned to (2026-11-09; tests/test_act4_return.gd).
+	print("-- World 4 is the Earth returned to --")
 	var dm := _build("", 4)
-	_check(dm.art_world() == 2 and dm.get_palette()["name"] == "Amber Wastes" and dm.floor_texture_path().ends_with("desert_floor.png"),
-		"World 4 wears the Amber Wastes")
+	_check(dm.art_world() == 1 and dm.get_palette()["name"] == "The Blighted Frontier" and dm.floor_texture_path().ends_with("field_grass.png"),
+		"World 4 wears World 1's Earth, corrupted")
 
 func _test_caves() -> void:
 	print("-- the Burning Caves --")

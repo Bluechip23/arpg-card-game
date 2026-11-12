@@ -94,18 +94,19 @@ billboard.
 | Folder | Key sheets | Contents | Candidate use | Status |
 |---|---|---|---|---|
 | `tileset_cave/` | `ground_source` 1088×128 · `Objects_source` 976×416 · `Objects_animated*_source` · `water_n_lava_coasts_source` 384×768 · `lava_detilazation_source` · `bubbles_source` · `spots_source` · 259 separate props | Dark cave floor & wall pieces, stalagmites (grey / black), coloured crystal clusters (blue, green, red, orange, yellow), glowing mushrooms, giant spider & webs, **animated volcano vents / lava, water rocks**, iron gates, and a 6-frame animated **demon head / hands / tail** emerging from the ground | **The Caves** (Act 1 Part 3, already built as mesh stand-ins) — cave crystal tile variant (ART_TODO #7), decoration sprites (ART_TODO #6); lava + demon fixtures for the **Act 2 Hell** threshold | **in game**: cave floor + cave walls (`floor_cave`, `wall_cave`) |
-| `tileset_glowing_cave/` | `Ground` 304×384 · `Objects` 560×288 · `Details` 160×592 · `Water_coasts` 288×480 · `Shinies_animation` 480×192 · `Totem_animation` 576×176 · `Wisp1..3` · 60 separate props | Bioluminescent cave: teal / violet fungi, glowing eggs & pods, coiled crystal serpent, lizard, hanging vines, **animated wisps and glowing totem**, sparkle overlay | Deeper cave biome / Heaven-adjacent luminous zones; the wisps double as ambient critters (`sewer_critter.gd` pattern) | staged |
-| `tileset_cursed_land/` | `Ground` 720×560 · `Objects` 784×704 · `Water_coasts` 416×960 · `bridges` 672×304 · `details` · `spots` · 138 separate props | Flesh-and-vein hellscape: eye-plants, jaw plants, meat flowers, pustules, tentacle plants, fetus pods, bone piles, veins, cursed rocks, ruins, flesh bridges | **Act 2 — Hell** ground & set dressing (hell basalt tile variant, ART_TODO #7) | **in game**: World 4 Emberfall floor (`floor_cursed`) |
+| `tileset_glowing_cave/` | `Ground` 304×384 · `Objects` 560×288 · `Details` 160×592 · `Water_coasts` 288×480 · `Shinies_animation` 480×192 · `Totem_animation` 576×176 · `Wisp1..3` · 60 separate props | Bioluminescent cave: teal / violet fungi, glowing eggs & pods, coiled crystal serpent, lizard, hanging vines, **animated wisps and glowing totem**, sparkle overlay | Deeper cave biome / Heaven-adjacent luminous zones; the wisps double as ambient critters (`sewer_critter.gd` pattern) | **in game (stand-ins)**: the corrupted Heaven's growth (World 3 and Act 3's places, 2026-11-09, until the designer's Heaven boards) — the separate props cut to `glow_gold`, `glow_crystal`, `glow_teal`, `glow_shroom`, `glow_fern`, `glow_flower`, `glow_bush` (`tools/build_craftpix_props.py`); its rock fill `wall_glowing_cave` is Heaven's wall cap; a totem frame (`waypoint_totem`) the Desecrated Altar's relic |
+| `tileset_cursed_land/` | `Ground` 720×560 · `Objects` 784×704 · `Water_coasts` 416×960 · `bridges` 672×304 · `details` · `spots` · 138 separate props | Flesh-and-vein hellscape: eye-plants, jaw plants, meat flowers, pustules, tentacle plants, fetus pods, bone piles, veins, cursed rocks, ruins, flesh bridges | **Act 2 — Hell** ground & set dressing (hell basalt tile variant, ART_TODO #7) | **in game**: World 4 Emberfall floor (`floor_cursed`); `bridges.png`'s red vein bridges are the Brimstone Rift's and the Crucible's bridges over the lava (`cursed_bridge_h` / `cursed_bridge_v`, cut by `tools/build_craftpix_props.py` CELLS, 2026-11-09) |
 | `tileset_undead_land/` | `Ground_rocks` 496×592 · `Objects` 768×704 · `Water_coasts` 1056×256 · `Details` 576×176 · `Animation1..6` · 240 separate props | Graveyard / barrow land: crowned giant skeleton half-buried (3 poses), iron fences & gates, dead trees (**Animation1 = 6-frame swaying dead tree**, others: candles, ghostfire, bones), skull piles, ribcages, rocks, candles, grave markers | **Graveyard / Cemetery** (Act 1 Part 2 `[TBD]` in STORY.md) — graveyard soil + headstones (ART_TODO #7); Lich / Zombie / Ghost habitat | **in game**: World 5 Umbral Expanse floor (`floor_undead`) |
 | `tileset_forest/` | `Ground_grass` 304×368 · `Objects` 816×272 · `Water_coasts` 238×768 · `Water_lilis` 240×192 · `spots_lianas` 336×544 · 89 separate props | Temperate forest: 14 tree types incl. climbable-looking canopies, bushes, stones (beige / brown / light), ruins (grass / orange), broken trees, mushrooms, reeds, lily pads, lianas | **The Greenwood** (Act 1 Part 3, built) — replaces generated billboard trees / shrubs / mushrooms / logs / reeds, climbable tree variant; forest ruins for quest sites | **in game**: Greenwood floor + trails (`floor_grass_forest`, `floor_dirt_forest`) |
-| `tileset_desert/` | `Ground_grass` 480×176 · `Objects` 768×368 · `Objects_trees` 800×528 · `Objects_animated` 672×512 · `Water_coasts` 224×768 · `sand` (dune strokes overlay) · `details` · 268 separate props | Sand and dry scrub with sandstone cliffs; palms, round trees, dead curved trees, cacti, sandstone mesas and rocks, bones and skulls, sand ruins, pyramids and gates, oasis trees with waterfalls (animated) | **in game**: World 2 Amber Wastes — scrub floor, sand trails, sandstone walls, oasis water, all props (`desert_*` roles) |
-| `tileset_winter/` | `Snow` 224×384 (drift + sparkle overlays, no solid tile) · `Ice` 384×448 (semi-transparent crack overlay) · `Objects` 576×1008 · `details` · `spots` · 122 separate props in 16/32/64/128/512 folders | Snow-laden pines and firs, ice trees, ice and crystal flowers, crystal clusters, frost mushrooms, snowmen, stones, frozen ruins, idols | **in game**: World 3 Frostreach — snow floor and frozen water are composed from the overlays over a flat colour; slush trails and grey stone walls borrow the barrow pack; all props (`winter_*` roles) |
+| `tileset_desert/` | `Ground_grass` 480×176 · `Objects` 768×368 · `Objects_trees` 800×528 · `Objects_animated` 672×512 · `Water_coasts` 224×768 · `sand` (dune strokes overlay) · `details` · 268 separate props | Sand and dry scrub with sandstone cliffs; palms, round trees, dead curved trees, cacti, sandstone mesas and rocks, bones and skulls, sand ruins, pyramids and gates, oasis trees with waterfalls (animated) | **in game**: the Amber Wastes — scrub floor, sand trails, sandstone walls, oasis water, all props (`desert_*` roles) — worn by World 4 as a placeholder until it became Act 4's Earth (2026-11-09), and **worn by no world now** (kept on the shelf: `WORLD_PALETTES[2]`, the `art_world() == 2` branches); its sand, gilded door and stair shrine stand in for Heaven's (`HEAVEN_ART`) and the Shattered Basilica's door (`EARTH_RETURN_ART`) |
+| `tileset_winter/` | `Snow` 224×384 (drift + sparkle overlays, no solid tile) · `Ice` 384×448 (semi-transparent crack overlay) · `Objects` 576×1008 · `details` · `spots` · 122 separate props in 16/32/64/128/512 folders | Snow-laden pines and firs, ice trees, ice and crystal flowers, crystal clusters, frost mushrooms, snowmen, stones, frozen ruins, idols | **in game**: the Mountain Pass, its Ice Caves and the Ice Troll Lair (World 1; World 3 wore it as Frostreach until it became Heaven, 2026-11-09) — snow floor and frozen water are composed from the overlays over a flat colour; slush trails and grey stone walls borrow the barrow pack; all props (`winter_*` roles) |
 | `tileset_grassland/` | `ground_grasss` 336×256 · `Trees_rocks` 256×544 · `Water_coasts` 272×576 · `Details` 192×224 · 76 separate props | Open glades: 5 trees (incl. fruit tree), 19 bushes, 11 flowers, rock outcrops, and **overgrown stone ruins / walls / arches** | World 1 overworld around Town | **in game**: World 1 floor + trails (`floor_grass_field`, `floor_dirt_field`) |
 
 ## Integration notes
 
-- **Outdoor boundaries.** The fields, the Greenwood, the Amber Wastes and
-  Frostreach have no drawn walls: the ground runs on under the blocked
+- **Outdoor boundaries.** The fields (World 1's and World 4's), the
+  Greenwood, the Forsaken Hamlet and its Blighted Green, and Heaven's Gilded
+  Garden have no drawn walls: the ground runs on under the blocked
   tiles (plain variants, three tiles deep) and the edge of the walkable
   land is a line of the zone's trees, rocks and bushes
   (`DungeonManager._build_boundary_props`: one big prop per edge tile, a
@@ -113,6 +114,44 @@ billboard.
   the camera-side edge so nothing leans over the walkable ground). Caves,
   sewers, Hell and the barrows keep their packs' rock and vein masses
   through the cliff autotile below.
+- **Heaven (World 3, Act 3) — stand-ins until the designer's Heaven boards**
+  (2026-11-09: "You'll send boards"). No pack draws Heaven, so every slot is
+  the closest purchased piece, routed through one table,
+  `DungeonManager.HEAVEN_ART` (`heaven_art()`), so the boards swap in there:
+  ground — the barrow land's pale cobbles (`undead_cobble`); walks, runners
+  and steps — the designer's desert sand (`desert_sand`); walls and the
+  land's edge — the glowing-cave rock fill (`wall_glowing_cave`) over the
+  undead pack's rock face (`cliff_undead`); the sickened pools — the cave
+  pack's murky water (`water_cave`); the gulf (the Sundered Causeway, the
+  Rent) — the designer's dark cursed water (`cursed_water`); decorations —
+  the glowing-cave growth (`glow_*`), pale limestone (`wallrock_pale`), the
+  forest pebbles and barrow bones; skyline — the barrow land's columns and
+  arches (pale-tinted), great crystals, gilded rock; columns — the
+  Greenwood's sandstone pillar (`forest_ruin` 2); site entrances — the
+  desert's gilded eye door and stair shrine, the Greenwood's overgrown ring
+  of walls, the barrow land's arch and colonnade; the way back down to the
+  Breach — the hell vein arch; bridges — the cursed land's vein bridges;
+  braziers — the hell fire. STORY.md section 4 (Act 3) lists the slots.
+- **The Earth returned to (World 4, Act 4) — stand-ins until the designer's
+  Act 4 boards** (2026-11-09: build Act 4 with the closest pack pieces, routed
+  through one table "exactly like Act 3's"). Every slot is read from
+  `DungeonManager.EARTH_RETURN_ART` (`earth_art()`), so the boards swap in
+  there: the familiar Act 1 Earth — the Verdant Frontier's grass
+  (`field_grass`), its trees, rocks and ruins, the Greenwood's mossy cobble
+  and rock face for walled places (`forest_wall`, `forest_cliff`) — torn by
+  Hell (the cursed land's dark earth as the blight, `cursed_dark`; its
+  cursed earth in the Hellmouth, `cursed_floor`; the cave pack's lava; the
+  cursed land and hell props; vein arches, skull fences, the horned idol and
+  vein-wrapped ruins at the tears; the vein bridges) and by Heaven fallen on
+  it (Act 3's stand-ins: the barrow cobbles and gold sand in the Basilica,
+  great glowing-cave crystals, gilded rock and growth, the barrow land's pale
+  columns and colonnade). Props take the plane of the ground they stand on
+  (`blight_tears`, `_plane_at`). Site doors: the Frontier's ruined tower and
+  stair (`field_ruin`), a vein-bound arch (`cursed_ruin`), the desert's eye
+  door, the cursed mound (`cursed_cave`), the Greenwood's ring of walls
+  (`forest_ruin`); the Hamlet's ruined cottages are the Frontier's and the
+  Greenwood's ruins (no pack draws a village house in ruins). STORY.md
+  section 4 (Act 4) lists the slots.
 - **Emberfall (World 4).** Hell is the cursed-land pack plus the cave pack's
   volcanic and demonic pieces: the flesh ground and vein masses (cliff
   autotile) from the cursed pack; `hell_spire` (red stone pillars, black
@@ -148,7 +187,7 @@ billboard.
   wall tile from four such quads: the biome's ground sheet as the plateau
   cap with painted outlines on floor-facing sides, and the strip along
   south-facing edges. Field, forest, cave (sewers too), desert, cursed and
-  undead have strips; Frostreach borrows the undead rock under its snow
+  undead have strips; the Mountain Pass borrows the undead rock under its snow
   cap. The forest and desert packs only round single-row ledges, so their
   face ends carry a small mid-face seam.
 - **Props.** `tools/build_craftpix_props.py` crops the packs' separate prop

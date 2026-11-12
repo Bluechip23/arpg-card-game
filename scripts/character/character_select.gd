@@ -391,8 +391,9 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 	# Tutorial (designer, 2026-11-07): ticked, the stats are not allocated
 	# here — they fade out, Olorin teaches each one as he goes, and the points
 	# wait for the first level-up, when he explains spending them.
-	# Centred in the dialog and drawn light grey with a dark tick, so it
-	# stands out against the dark panel (designer, 2026-11-08).
+	# Centred in the dialog; the box itself outlined in yellow so it stands
+	# out against the dark panel (designer, 2026-11-09: no grey panel, just
+	# the checkbox outlined in yellow).
 	var tut_row := CenterContainer.new()
 	tut_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vb.add_child(tut_row)
@@ -403,20 +404,12 @@ func _show_stat_allocation(character: CharacterData, on_confirm: Callable) -> vo
 	_alloc_tutorial.add_theme_icon_override("unchecked", _tutorial_box_icon(false))
 	_alloc_tutorial.add_theme_icon_override("checked", _tutorial_box_icon(true))
 	_alloc_tutorial.add_theme_constant_override("h_separation", 10)
-	var tut_bg := StyleBoxFlat.new()
-	tut_bg.bg_color = TUTORIAL_BOX_GREY
-	tut_bg.set_corner_radius_all(6)
-	tut_bg.set_content_margin_all(8)
-	tut_bg.content_margin_left = 12
-	tut_bg.content_margin_right = 16
-	var tut_hover := tut_bg.duplicate()
-	tut_hover.bg_color = TUTORIAL_BOX_GREY.lightened(0.15)
-	for st in ["normal", "pressed", "focus"]:
-		_alloc_tutorial.add_theme_stylebox_override(st, tut_bg)
-	_alloc_tutorial.add_theme_stylebox_override("hover", tut_hover)
-	_alloc_tutorial.add_theme_stylebox_override("hover_pressed", tut_hover)
-	for fc in ["font_color", "font_pressed_color", "font_hover_color", "font_hover_pressed_color", "font_focus_color"]:
-		_alloc_tutorial.add_theme_color_override(fc, TUTORIAL_TICK_DARK)
+	for st in ["normal", "pressed", "focus", "hover", "hover_pressed"]:
+		_alloc_tutorial.add_theme_stylebox_override(st, StyleBoxEmpty.new())
+	for fc in ["font_color", "font_pressed_color", "font_focus_color"]:
+		_alloc_tutorial.add_theme_color_override(fc, EmeraldTheme.GOLD)
+	for fc in ["font_hover_color", "font_hover_pressed_color"]:
+		_alloc_tutorial.add_theme_color_override(fc, EmeraldTheme.GOLD.lightened(0.2))
 	_alloc_tutorial.toggled.connect(func(_on: bool): _alloc_refresh())
 	tut_row.add_child(_alloc_tutorial)
 	var tut_note := Label.new()
@@ -529,21 +522,20 @@ func _alloc_refresh() -> void:
 		for b in _alloc_rows.find_children("*", "BaseButton", true, false):
 			b.disabled = on
 
-const TUTORIAL_BOX_GREY := Color(0.82, 0.82, 0.84)
-const TUTORIAL_TICK_DARK := Color(0.1, 0.12, 0.14)
+const TUTORIAL_BOX_YELLOW := Color(1.0, 0.85, 0.25)
 
-## The Tutorial checkbox's box: a large light-grey square with a dark border;
-## ticked, a thick dark check mark.
+## The Tutorial checkbox's box: a clear square outlined in yellow; ticked,
+## a thick yellow check mark inside it.
 func _tutorial_box_icon(checked: bool) -> ImageTexture:
 	const N := 28
 	var img := Image.create(N, N, false, Image.FORMAT_RGBA8)
-	img.fill(Color.WHITE)
+	img.fill(Color(0, 0, 0, 0))
 	for i in range(N):
 		for t in range(2):
-			img.set_pixel(i, t, TUTORIAL_TICK_DARK)
-			img.set_pixel(i, N - 1 - t, TUTORIAL_TICK_DARK)
-			img.set_pixel(t, i, TUTORIAL_TICK_DARK)
-			img.set_pixel(N - 1 - t, i, TUTORIAL_TICK_DARK)
+			img.set_pixel(i, t, TUTORIAL_BOX_YELLOW)
+			img.set_pixel(i, N - 1 - t, TUTORIAL_BOX_YELLOW)
+			img.set_pixel(t, i, TUTORIAL_BOX_YELLOW)
+			img.set_pixel(N - 1 - t, i, TUTORIAL_BOX_YELLOW)
 	if checked:
 		# Two strokes of the tick, 3 px thick: down-right, then up-right.
 		var pts: Array = []
@@ -556,7 +548,7 @@ func _tutorial_box_icon(checked: bool) -> ImageTexture:
 				for dy in range(-1, 2):
 					var q: Vector2i = p + Vector2i(dx, dy)
 					if q.x >= 2 and q.y >= 2 and q.x < N - 2 and q.y < N - 2:
-						img.set_pixel(q.x, q.y, TUTORIAL_TICK_DARK)
+						img.set_pixel(q.x, q.y, TUTORIAL_BOX_YELLOW)
 	return ImageTexture.create_from_image(img)
 
 func _alloc_tutorial_on() -> bool:

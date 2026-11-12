@@ -2,7 +2,9 @@ extends SceneTree
 
 ## The Mountain Pass's caves (designer, 2026-11-05):
 ##  - The Mountain Pass opens on an Ice Cave and the Ice Troll Lair, each a
-##    cave mouth in a cliff; Frostreach's (World 3's) caves are Ice Caves too.
+##    cave mouth in a cliff. (World 3, once Frostreach, had Ice Caves too;
+##    since 2026-11-09 it is Heaven and its caves gave way to the Act 3
+##    places — the Ice Caves live on the Mountain Pass alone.)
 ##  - The Ice Troll Lair: one den with five ice trolls and a few trash
 ##    enemies (snow wraiths); in its corner a vault walled by rock and ice
 ##    high mountains (no walking on them, no blinking across) with a single one-tile way in, holding a legendary chest and
@@ -25,7 +27,7 @@ func _initialize() -> void:
 func _run() -> void:
 	_test_mountain_doors()
 	_test_ice_cave()
-	_test_frostreach_caves()
+	_test_heaven_has_no_ice_caves()
 	_test_lair_layout()
 	_test_gold_piles()
 	await _test_in_game()
@@ -73,16 +75,16 @@ func _test_ice_cave() -> void:
 			n += 1
 	_check(n > 0 and ok, "the mountain's creatures live in it (%d)" % n)
 
-func _test_frostreach_caves() -> void:
-	print("-- Frostreach's caves --")
+func _test_heaven_has_no_ice_caves() -> void:
+	print("-- World 3 (Heaven) has no Ice Caves --")
 	var dm := _build("", 3)
 	var caves := 0
-	var icy := true
 	for s in dm.site_nodes:
-		if s["kind"] == "cave":
+		if s["kind"] == "cave" or String(s["id"]).begins_with("icecave"):
 			caves += 1
-			icy = icy and String(s["id"]).begins_with("icecave")
-	_check(caves > 0 and icy, "World 3's caves are Ice Caves (%d)" % caves)
+	_check(caves == 0, "World 3's caves gave way to Heaven's places (%d caves)" % caves)
+	var mtn := _build("mountains_0", 1)
+	_check(mtn.get_site_by_id("icecave_0") >= 0, "the Ice Cave still opens off the Mountain Pass")
 
 func _test_lair_layout() -> void:
 	print("-- the Ice Troll Lair --")
