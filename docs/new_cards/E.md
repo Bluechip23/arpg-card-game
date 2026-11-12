@@ -62,5 +62,5 @@ Candle's charges, the Pride mark and lion) are metadata on their
 
 ## Designer rulings, 2026-11-12 (these replace the entries above where they differ)
 
-- Flames of Alexandria is an **offensive spell**; its per-card damage is read while the play is open, so Attune counts. It draws **until the hand is full, 10 cards at most** (no overdraw under 10; a hand size above 10 still draws 10).
+- Flames of Alexandria is an **offensive spell**; its per-card damage is read while the play is open, so Attune counts. It **draws 10 and overdraws** (designer, second ruling the same day): with a hand size under 10 the draws past a full hand are overdraws; a hand size of 10 or more takes all 10.
 - The Ledger is a **Maintain** (130 upkeep): it stands while maintained, and dropping it loses the bank. It no longer ends when the enemies fall.

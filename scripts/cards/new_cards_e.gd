@@ -429,14 +429,12 @@ static func _play_flames(main, card: Card, mouse_pos: Vector3) -> void:
 	if own >= 0:
 		dm.discard_pile.remove_at(own)
 	dm.shuffle_discard_into_draw()
-	# 3. Draw until the hand is full, 10 cards at most (designer, 2026-11-12):
-	# a hand size under 10 fills up with no overdraw; a hand size over 10
-	# still draws only 10.
+	# 3. Draw 10 (designer, 2026-11-12: "please make it overdraw"): ordinary
+	# draws, so with a hand size under 10 the draws past a full hand are
+	# overdraws and set off whatever answers one; a hand size of 10 or more
+	# simply takes all 10.
 	var drawn: Array = []
-	var cap: int = dm.get_hand_cap()
 	for _i in range(FLAMES_DRAW):
-		if dm.hand.size() >= cap:
-			break
 		var d = dm.draw_card()
 		if d != null and d in dm.hand:
 			drawn.append(d)

@@ -412,7 +412,7 @@ func _test_flames() -> void:
 	# (The two may be drawn straight back: they are shuffled into the draw pile.)
 	_check(discards[0] == 2, "the hand held before is discarded, as true discards (on-discard effects fire): %d" % discards[0])
 	var expect_draw: int = mini(mini(10, cap), 11)
-	_check(dm.hand.size() == expect_draw, "then the hand is drawn full, 10 at most (%d for hand size %d): hand %d" % [expect_draw, cap, dm.hand.size()])
+	_check(dm.hand.size() == expect_draw, "then 10 are drawn, the ones past a full hand overdrawing (%d kept for hand size %d): hand %d" % [expect_draw, cap, dm.hand.size()])
 	_check(dm.hand.size() + dm.draw_pile.size() == 11, "the discard pile was shuffled into the draw pile first (11 cards between pile and hand: %d)" % (dm.hand.size() + dm.draw_pile.size()))
 	_check(dm.discard_pile.size() == 1 and dm.discard_pile[0] == flames, "only Flames itself rests in the discard pile")
 	_check(_lost(front) == 0, "nothing burns before the choice")
