@@ -13714,6 +13714,8 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 				enemy.position = new_pos
 				enemy.target_position = new_pos
 			print("[MAIN] Round 'Em Up: pulled %d enemies toward %s" % [nearby.size(), center])
+		"pole_vault", "whirling_dash":
+			YariCards.world_effects(self, card, mouse_pos)
 		"blink":
 			var blink_pos := grid_manager.snap_to_grid(mouse_pos)
 			var blink_cell := grid_manager.world_to_grid(blink_pos)
@@ -14272,7 +14274,7 @@ func _input(event: InputEvent) -> void:
 					# A card that LANDS at the clicked tile (Blink, a circle burst,
 					# a ranged point effect) has its range as a hard cap; aim-only
 					# point cards — lines, cones — take any click.
-					var pc_capped: bool = card.card_id == "blink" \
+					var pc_capped: bool = card.card_id == "blink" or YariCards.point_reach(card) > 0 \
 							or (card.is_ranged and card.range_modifier < Card.INFINITE_RANGE \
 								and (not card.is_aoe or _aoe_follows_cursor(card)))
 					# The reach is the range ring's (select_card): straight-line
@@ -14283,6 +14285,8 @@ func _input(event: InputEvent) -> void:
 					# range" on a diagonal (the dojo's far dummy, 8 tiles off).
 					var pc_reach: int = _ranged_card_max_range(card) if card.is_ranged \
 							else card.get_effective_range() + _helm_range_bonus(card)
+					if YariCards.point_reach(card) > 0:
+						pc_reach = YariCards.point_reach(card)  # Pole Vault / Whirling Dash: 3 spaces
 					if pc_capped and not _point_in_card_reach(grid_manager.snap_to_grid(mouse_pos), pc_reach):
 						add_battle_log("Out of range! %s reaches %d spaces." % [card.card_name, pc_reach], Color(1.0, 0.4, 0.4))
 					else:

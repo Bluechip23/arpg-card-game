@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_yari"]
+
+[resource]
+script = ExtResource("1_yari")
+item_name = "Yari of the Spider Monkey"
+rarity = 2
+weight = 35
+agility_bonus = 5
+determination_bonus = 7
+weapon_subtype = 4
+granted_card_ids = Array[String](["pole_vault", "whirling_dash"])
+card_slots = 0
+vanilla_slots = 3
+sidestep_bonus_armor = 3
+displacement_next_offensive_percent = 50.0
+description = "+5 AGI, +7 DET. 3 plain card slots. Your block from flash points grants 3 more armor. After a displacement, your next offensive card deals 50% more damage. Grants Pole Vault: blink up to 3 spaces and gain 10 armor (10 mana, 1 tempo) — and Whirling Dash: blink up to 3 spaces, 6 damage to each enemy passed through; pass through more than one and a copy (Erase 1) returns to your hand (95 mana, 2 tempo)."

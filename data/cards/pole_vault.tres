@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "pole_vault"
+card_name = "Pole Vault"
+description = "Blink up to 3 spaces and gain 10 armor."
+card_type = 1
+card_type_name = "Defense"
+mana_cost = 10
+block = 10
+tempo_cost = 1
+base_block = 10
+target_types = ["point"]
+keywords = ["defense", "point"]

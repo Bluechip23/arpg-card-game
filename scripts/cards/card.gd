@@ -429,7 +429,7 @@ const CARD_RARITIES := {
 	"cupids_lead_arrow": Rarity.LEGENDARY, "curse_of_the_living": Rarity.LEGENDARY,
 	"death_vortex": Rarity.LEGENDARY, "deep_breaths": Rarity.LEGENDARY,
 	"defensive_sacrifice": Rarity.LEGENDARY, "detonova": Rarity.LEGENDARY,
-	"donate_cleats": Rarity.LEGENDARY, "earth_rattle": Rarity.LEGENDARY, "crash_from_the_sea": Rarity.LEGENDARY,
+	"donate_cleats": Rarity.LEGENDARY, "earth_rattle": Rarity.LEGENDARY, "pole_vault": Rarity.LEGENDARY, "whirling_dash": Rarity.LEGENDARY, "crash_from_the_sea": Rarity.LEGENDARY,
 	"element_pollination": Rarity.LEGENDARY, "escape_and_bewilder": Rarity.LEGENDARY,
 	"feed_into_the_pain": Rarity.LEGENDARY, "grounding": Rarity.LEGENDARY,
 	"healing_tonic": Rarity.LEGENDARY, "hemotoxins": Rarity.LEGENDARY, "huck": Rarity.LEGENDARY,
@@ -483,7 +483,7 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"clang_up": true, "negotiate": true, "detonova": true, "mind_mend": true,
 	"deep_breaths": true, "vined_encasing": true, "adimantium_wall": true,
 	"preemptive_answer": true, "ragnarok": true,
-	"hard_helmet": true, "slice": true, "death_vortex": true, "earth_rattle": true, "crash_from_the_sea": true,
+	"hard_helmet": true, "slice": true, "death_vortex": true, "earth_rattle": true, "pole_vault": true, "whirling_dash": true, "crash_from_the_sea": true,
 	"feed_into_the_pain": true, "psionic_flow": true, "purge_wrath": true,
 	"sanguine_the_penguin": true, "wrath_of_the_sea": true, "monk_of_the_night": true,
 	"improvised_ammo": true, "cupids_golden_arrow": true, "cupids_lead_arrow": true,
@@ -1873,6 +1873,12 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 				if bs_bonus > 0:
 					_gauntlet_bonus_applied += bs_bonus
 					print("[CARD] %s: +%d damage (%.0f%% of %d mana)" % [bs_w.item_name, bs_bonus, bs_w.spell_damage_per_mana_percent, bs_cost])
+		# Yari of the Spider Monkey: after a displacement the next damaging
+		# offensive card deals +50% — the whole hit, like Megingjord's double.
+		var _disp_mult: float = YariCards.take_displacement_bonus(self, player_stats)
+		if _disp_mult > 1.0:
+			PlayerStats.hit_multiplier *= _disp_mult
+			print("[CARD] Displacement bonus: x%.2f on %s" % [_disp_mult, card_name])
 		# Anvil of the Burdened: offensive cards hit harder for the weight
 		# carried and for every tempo they cost past the threshold.
 		if is_offensive() and (base_damage > 0 or damage > 0) \
@@ -1884,6 +1890,9 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 				if ab_w.offensive_damage_per_carry_weight > 0:
 					ab_bonus += int(player_stats.current_carry_load / ab_w.offensive_damage_per_carry_weight)
 				if ab_w.tempo_damage_over > 0:
+					# The tempo the play really costs: get_burden_tempo_cost
+					# already carries an on-self tempo penalty, so the Anvil's
+					# own +3 on a card slotted in it counts.
 					ab_bonus += maxi(0, get_burden_tempo_cost() - ab_w.tempo_damage_over)
 				if ab_bonus > 0:
 					_gauntlet_bonus_applied += ab_bonus
@@ -2294,8 +2303,10 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			_execute_poke(target, player_stats, buff_mgr)
 		"armor_break":
 			_execute_armor_break(player_stats, buff_mgr)
-		"charge":
+		"charge", "whirling_dash":
 			_execute_charge(target, player_stats, buff_mgr)
+		"pole_vault":
+			_execute_block(player_stats, is_empowered, buff_mgr)
 		"heroic_leap":
 			_execute_heroic_leap(target, player_stats, buff_mgr)
 		"lunge", "grapple_chain", "back_pedal", "deliberate_arch", "harvest", "momentous_slam", "bastion_battle", "acro_medic":
@@ -4850,6 +4861,8 @@ const CARD_IDS: Array[String] = [
 	"slice",
 	"death_vortex",
 	"earth_rattle",
+	"pole_vault",
+	"whirling_dash",
 	"crash_from_the_sea",
 	"feed_into_the_pain",
 	"psionic_flow",
