@@ -66,6 +66,10 @@ const HOVER_GROW: float = 4.0
 # or plaque cut from that web. Both are cut by tools/cut_sphere_grid_art.py.
 const ART_DIR := "res://assets/textures/sphere_grid/"
 const BACKDROP_PATH := ART_DIR + "backdrop.webp"
+# The painting sits back a little so the nodes read first (designer,
+# 2026-11-12: "slightly transparent... maybe like 90%"): it is drawn at
+# this opacity over the panel's dark ground.
+const BACKDROP_ALPHA: float = 0.9
 # The painted web's centre (its green gem) and its width on the painting:
 # the backdrop is laid so the grid's centre sits on the gem, and the grid's
 # opening zoom fits it inside the dark middle, as the painting has it.
@@ -441,7 +445,7 @@ func _on_grid_draw() -> void:
 
 	# The painting behind everything (it stays put while the grid pans).
 	if _backdrop_tex:
-		grid_canvas.draw_texture_rect(_backdrop_tex, _backdrop_rect(), false)
+		grid_canvas.draw_texture_rect(_backdrop_tex, _backdrop_rect(), false, Color(1, 1, 1, BACKDROP_ALPHA))
 
 	var all_nodes = sphere_grid.get_all_nodes()
 

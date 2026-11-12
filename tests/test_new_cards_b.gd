@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Sheet batch B (docs/new_cards/B.md): the instants (Soul Consumption, Not So
-## Fast, Spiteful Sting, Pocket Shiv), the jail cards (Deep Breaths, Self
+## Fast, Spiteful Sting, Pocket Shiv), the jail cards (Slow and Steady Wins, Self
 ## Admission) and the deck-order cards (Reverse Reverse, Foresight).
 ## Every card runs through the real Main in the dojo: hand-played cards go
 ## through play_selected_card and the tempo queue, instants fire from their
@@ -288,10 +288,10 @@ func _test_data() -> void:
 	_check(_c("soul_consumption").school == Card.CardSchool.SPELL, "soul_consumption is a spell instant")
 	_check(_c("not_so_fast").is_attack() and _c("spiteful_sting").is_attack() and _c("pocket_shiv").is_attack(),
 		"the other three instants are attacks")
-	var db := _c("deep_breaths_spell")
-	_check(db.card_name == "Deep Breaths" and db.mana_cost == 100 and db.tempo_cost == 6 and db.resolve_tick == 4,
-		"deep_breaths_spell: 100 mana, 6 tempo, resolves on 4")
-	_check(not ("Instant" in db.description), "deep_breaths_spell does not read as an instant to Lethal Recall")
+	var db := _c("slow_and_steady_wins")
+	_check(db.card_name == "Slow and Steady Wins" and db.mana_cost == 100 and db.tempo_cost == 6 and db.resolve_tick == 4,
+		"slow_and_steady_wins: 100 mana, 6 tempo, resolves on 4")
+	_check(not ("Instant" in db.description), "slow_and_steady_wins does not read as an instant to Lethal Recall")
 	_check(_c("deep_breaths").card_id == "deep_breaths" and _c("deep_breaths").heal_amount > 0,
 		"the item's Deep Breaths (heal) is left alone")
 	var rr := _c("reverse_reverse")
@@ -322,6 +322,20 @@ func _test_soul_consumption() -> void:
 	_check(_lost(foes[1]) == 0, "an enemy 4 squares from the kill is untouched")
 	_check(dm.hand.has(drawn), "and a card is drawn")
 	_check(main._last_played_card == sc, "Lethal Recall remembers it as the last instant")
+
+	# Kill credit: only the players' kills feed it.
+	_fresh()
+	var witness: Enemy = _field([Vector2i(2, 0)])[0]
+	var own_death := _rat(Vector2i(1, 0), 5)
+	var sc_k := _c("soul_consumption")
+	dm.hand.append(sc_k)
+	own_death.take_damage(999, false)
+	_check(own_death.is_dead and not own_death.kill_credit_player and dm.hand.has(sc_k) and _lost(witness) == 0,
+		"an enemy that dies to something else (not your blow) does not set it off")
+	var dot_death := _rat(Vector2i(1, 0), 5)
+	dot_death._dot_hit("Poison", 999)
+	_check(dot_death.is_dead and dot_death.kill_credit_player and not dm.hand.has(sc_k),
+		"a kill by your damage-over-time is your kill")
 
 	# The chain: its 6 kills the next rat, and the second copy answers THAT death.
 	_fresh()
@@ -515,7 +529,7 @@ func _test_pocket_shiv() -> void:
 # ---------------------------------------------------------------- jail
 
 func _test_deep_breaths() -> void:
-	print("-- Deep Breaths (deep_breaths_spell) --")
+	print("-- Slow and Steady Wins (slow_and_steady_wins) --")
 	_fresh()
 	var foes := _field([Vector2i(1, 0)])
 	var in_hand := _c("spider_senses")
@@ -530,7 +544,7 @@ func _test_deep_breaths() -> void:
 	dm.draw_pile.append(plain_d)
 	dm.discard_pile.append(in_discard)
 	dm.discard_pile.append(plain_x)
-	var db := _c("deep_breaths_spell")
+	var db := _c("slow_and_steady_wins")
 	var r := _play(db, main.player, func():
 		return {"jail": dm.jail_pile.duplicate(), "times": dm.jail_pile.map(func(c): return c.jail_time_remaining),
 			"temp": stats.current_temp_health})
@@ -566,7 +580,7 @@ func _test_deep_breaths() -> void:
 	# Nothing to jail: no temp HP.
 	_fresh()
 	dm.hand.append(_c("block"))
-	_play(_c("deep_breaths_spell"), main.player)
+	_play(_c("slow_and_steady_wins"), main.player)
 	_finish()
 	_check(dm.jail_pile.is_empty() and stats.current_temp_health == 0, "no instants anywhere: nothing jailed, no temp HP")
 

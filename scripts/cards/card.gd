@@ -257,7 +257,7 @@ const CARD_SLOT_LABELS := {
 	"not_so_fast": [CardKeyword.SWIFT, CardKeyword.WAND, CardKeyword.POCKET],
 	"spiteful_sting": [CardKeyword.DAGGER],
 	"pocket_shiv": [CardKeyword.DAGGER, CardKeyword.POCKET, CardKeyword.SWIFT],
-	"deep_breaths_spell": [CardKeyword.GEM, CardKeyword.CROWN],
+	"slow_and_steady_wins": [CardKeyword.GEM, CardKeyword.CROWN],
 	"self_admission": [CardKeyword.FIST, CardKeyword.GEM, CardKeyword.CROWN],
 	"reverse_reverse": [CardKeyword.FIST],
 	"foresight": [CardKeyword.GEM, CardKeyword.FIST, CardKeyword.CROWN],
@@ -373,7 +373,7 @@ const CARD_RARITIES := {
 	"not_so_fast": Rarity.RARE,
 	"spiteful_sting": Rarity.COMMON,
 	"pocket_shiv": Rarity.COMMON,
-	"deep_breaths_spell": Rarity.LEGENDARY,
+	"slow_and_steady_wins": Rarity.LEGENDARY,
 	"self_admission": Rarity.RARE,
 	"reverse_reverse": Rarity.RARE,
 	"foresight": Rarity.RARE,
@@ -2564,7 +2564,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		"berserkers_tithe", "internal_sickness", "fan_of_knives", "static_sting", "feint", "cadence", "grit", "spine_release":
 			NewCardsD.execute(self, target, player_stats, deck_manager, buff_mgr, damage_reduction_pct, self_damage_percent)  # sheet batch D
 		"soul_consumption", "not_so_fast", "spiteful_sting", "pocket_shiv", \
-		"deep_breaths_spell", "self_admission", "reverse_reverse", "foresight":
+		"slow_and_steady_wins", "self_admission", "reverse_reverse", "foresight":
 			pass  # sheet batch B: resolved by main through NewCardsB
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
@@ -4762,7 +4762,7 @@ const CARD_IDS: Array[String] = [
 	"not_so_fast",
 	"spiteful_sting",
 	"pocket_shiv",
-	"deep_breaths_spell",
+	"slow_and_steady_wins",
 	"self_admission",
 	"reverse_reverse",
 	"foresight",

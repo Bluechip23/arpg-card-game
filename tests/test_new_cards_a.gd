@@ -51,6 +51,7 @@ func _run() -> void:
 	_test_lodestone_field()
 	_test_wardens_hound()
 	_test_war_shout()
+	_test_summons_share()
 	_test_stone_wheel()
 	_test_arcane_tide()
 	_test_clarity()
@@ -373,7 +374,7 @@ func _test_wardens_hound() -> void:
 	var keen := _timed_keen(bm)
 	var thorns := bm.get_buff(Buff.BuffType.THORNS)
 	_check(dm.jail_pile.has(jb), "the card is jailed")
-	_check(keen != null and keen.value == 2 and keen.duration == 10, "jailing a card grants Keen 2%% for 10 tempo (%s)" % (("%d%% / %d" % [keen.value, keen.duration]) if keen else "none"))
+	_check(keen != null and keen.value == 20 and keen.duration == 10, "jailing a card grants Keen 20%% for 10 tempo (%s)" % (("%d%% / %d" % [keen.value, keen.duration]) if keen else "none"))
 	_check(thorns != null and thorns.value == 5, "and 5 Thorns (%d)" % (thorns.value if thorns else 0))
 	# A Burden card jailed from hand.
 	var burden := Card.create_by_id("block")
@@ -383,13 +384,13 @@ func _test_wardens_hound() -> void:
 	_check(dm.jail_burden_card(dm.hand.find(burden)), "a Burden card is jailed from hand")
 	keen = _timed_keen(bm)
 	thorns = bm.get_buff(Buff.BuffType.THORNS)
-	_check(keen != null and keen.value == 4, "a second jailing stacks Keen to 4%% (%d)" % (keen.value if keen else 0))
+	_check(keen != null and keen.value == 40, "a second jailing stacks Keen to 40%% (%d)" % (keen.value if keen else 0))
 	_check(thorns != null and thorns.value == 10, "and Thorns to 10 (%d)" % (thorns.value if thorns else 0))
 	# The Jailed overflow.
 	var oj := Card.create_by_id("block")
 	dm.overflow_manager._process_jailed(oj, OverflowEffect.new(OverflowEffect.OverflowType.JAILED, "Jailed", 0, 3))
 	keen = _timed_keen(bm)
-	_check(dm.jail_pile.has(oj) and keen != null and keen.value == 6, "a card jailed by overflow counts too (Keen %d%%)" % (keen.value if keen else 0))
+	_check(dm.jail_pile.has(oj) and keen != null and keen.value == 60, "a card jailed by overflow counts too (Keen %d%%)" % (keen.value if keen else 0))
 
 func _test_war_shout() -> void:
 	print("-- War Shout --")
@@ -406,6 +407,50 @@ func _test_war_shout() -> void:
 	_check(theirs != null and theirs.value == 3 and theirs.charges == 3, "an ally 3 squares away gains Strengthen 3 for 3 attacks")
 	_check(far.get_buff_manager().get_buff(Buff.BuffType.STRENGTHEN) == null, "an ally 4 squares away gains nothing")
 	_check(dm.maintained_cards.is_empty(), "War Shout is not maintained")
+
+## A skeleton summon standing at `off` from the player.
+func _summon_at(off: Vector2i) -> Summon:
+	var sk: Summon = load("res://scripts/battle/summoned_skeleton.gd").new()
+	main.add_child(sk)
+	sk.setup(gm, gm.grid_to_world(_pc() + off), 10, "card_skeleton")
+	main._skeletons.append(sk)
+	return sk
+
+## The ally buffs and auras reach summons (designer, 2026-11-12).
+func _test_summons_share() -> void:
+	print("-- Summons share the ally buffs and auras --")
+	_fresh()
+	var near: Summon = _summon_at(Vector2i(0, -2))
+	var far: Summon = _summon_at(Vector2i(0, -6))
+	_play(Card.create_by_id("war_shout"), main.player)
+	_check(near.strengthen_bonus == 3 and near.strengthen_hits == 3, "War Shout: a summon within 3 has Strengthen 3 for 3 attacks")
+	_check(far.strengthen_hits == 0, "…one 6 squares away has none")
+	_check(near.outgoing_damage(6) == 9 and near.strengthen_hits == 2, "its attack deals +3 and spends a hit (%d left)" % near.strengthen_hits)
+	near.outgoing_damage(6)
+	near.outgoing_damage(6)
+	_check(near.outgoing_damage(6) == 6 and near.strengthen_bonus == 0, "after 3 attacks it is spent")
+	_check(near.outgoing_damage(0) == 0, "a summon with no attack gains nothing")
+	# The Wolf's Howl: +5 while inside, gone the tempo it stands outside.
+	dm.maintained_cards.append(Card.create_by_id("the_wolfs_howl"))
+	NewCardsA.tick(main)
+	_check(near.aura_strengthen == 5 and far.aura_strengthen == 0, "The Wolf's Howl: +5 for the summon within 2, none for the far one")
+	_check(near.outgoing_damage(6) == 11, "its attacks deal +5 in the aura (%d)" % near.outgoing_damage(6))
+	dm.maintained_cards.clear()
+	NewCardsA.tick(main)
+	_check(near.aura_strengthen == 0, "dropping the maintain ends it")
+	# Spirit Armor: 2 armor a cycle, taken before health, capped.
+	dm.maintained_cards.append(Card.create_by_id("spirit_armor"))
+	NewCardsA.cycle(main)
+	_check(near.granted_armor == 2 and far.granted_armor == 0, "Spirit Armor: +2 armor to the summon within 5 (%d), none past it" % near.granted_armor)
+	near.take_damage(3)
+	_check(near.granted_armor == 0 and near.health == 9, "the armor soaks the hit before its health (%d hp)" % near.health)
+	for _i in range(8):
+		NewCardsA.cycle(main)
+	_check(near.granted_armor == Summon.GRANTED_ARMOR_CAP, "it holds at most %d (%d)" % [Summon.GRANTED_ARMOR_CAP, near.granted_armor])
+	dm.maintained_cards.clear()
+	for sk in [near, far]:
+		main._skeletons.erase(sk)
+		sk.queue_free()
 
 func _test_stone_wheel() -> void:
 	print("-- Stone Wheel --")

@@ -47,7 +47,7 @@ Shared notes for the whole batch:
 
 ### Utility (4)
 
-- **Deep Breaths** (`deep_breaths_spell`) — Legendary · 100 mana, 6 tempo (resolves on 4) · targets self · slots: Gem, Crown · sheet: Utility, spell
+- **Slow and Steady Wins** (`slow_and_steady_wins`) — Legendary · 100 mana, 6 tempo (resolves on 4) · targets self · slots: Gem, Crown · sheet: Utility, spell
   - Card text: Jail every instant card in your hand, draw pile and discard pile for 20 tempo. Gain 10 temp HP for each. Each grants 10 armor, on top of its own effect, the next time it triggers.
   - Code: `main._apply_card_world_effects_inner` → `NewCardsB.world_effect` → `_deep_breaths`: every REACTION card in hand, draw pile and discard pile goes to the jail pile through `Card.jail(20)`, marked with the meta `deep_breaths_armor`; `add_temp_health(10 × jailed, 20)`. They come back the way every jailed card does (`DeckManager.process_turn`, 5 off per cycle, released to the discard pile). On `reaction_triggered`, a marked card grants `add_armor(10)` once and loses the mark. The item-granted `deep_breaths` (Trench of Tranquility, heal) is untouched.
   - **Mismatch / open question:** (1) **The sheet gives no jail length — 20 tempo is a guess** (Self Admission's and Meister of Faustmesser's number). (2) The sheet gives no length for the temp HP either: it lasts 20 tempo, as long as the jail. (3) Instants already in jail, and maintained cards, are not touched or counted. (4) The description says "instant card" in lower case on purpose: Lethal Recall treats any card whose text contains "Instant" as an instant.
@@ -73,3 +73,9 @@ Shared notes for the whole batch:
 - `scripts/cards/deck_manager.gd`: first line of `compute_play_cost` (Foresight's price).
 - `scripts/cards/card.gd`: `get_effect_draw_count` (Reverse Reverse = 1); a `pass` arm in `_execute_card` for the eight ids (main resolves them).
 - No jail choke point was added: both jail cards go through `Card.jail()` and `DeckManager.jail_pile` (`NewCardsB.jail_card`), like the existing jails.
+
+## Designer rulings, 2026-11-12 (these replace the entries above where they differ)
+
+- Deep Breaths is renamed **Slow and Steady Wins** (id `slow_and_steady_wins`); Trench of Tranquility's Deep Breaths is untouched.
+- Soul Consumption fires only on **your** kills: `Enemy.kill_credit_player` (the players' blow or their damage-over-time tick; not a self-destruct or another enemy's blow). Co-op does not yet tell which player made the kill.
+- Self Admission: there is no "fight" — the −1 tempo rides the card until it is next played.

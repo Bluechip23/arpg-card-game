@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1_card")
-card_id = "deep_breaths_spell"
-card_name = "Deep Breaths"
+card_id = "slow_and_steady_wins"
+card_name = "Slow and Steady Wins"
 description = "Jail every instant card in your hand, draw pile and discard pile for 20 tempo. Gain 10 temp HP for each. Each grants 10 armor, on top of its own effect, the next time it triggers."
 card_type = 2
 card_type_name = "Utility"

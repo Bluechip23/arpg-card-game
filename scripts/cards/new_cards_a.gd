@@ -14,9 +14,11 @@ extends RefCounted
 ##   Enemy._tick_status_durations  -> holds_shock()
 ##
 ## "Allies" here are the heroes on the board (the party and the dojo's
-## practice allies, main._all_allies()), the caster included. Summons carry no
-## Strengthen, Keen, Attune or armor pool of their own, so these buffs have
-## nothing to land on there (the same line main.SUMMON_ALLY_CARDS draws).
+## practice allies, main._all_allies()), the caster included — and the
+## summons (designer, 2026-11-12: "the ally buffs and auras should reach
+## summons"). A summon has no buff manager, so War Shout, The Wolf's Howl
+## and Spirit Armor land on the few numbers Summon carries for them
+## (gain_strengthen, aura_strengthen, gain_granted_armor).
 
 const HOWL_RADIUS := 2
 const HOWL_STRENGTHEN := 5
@@ -29,7 +31,7 @@ const EMBER_HEART_STACKS := 2
 const EMBER_HEART_DAMAGE_PER_STACK := 3
 const LODESTONE_RADIUS := 2
 const LODESTONE_SLOW := 1
-const WARDEN_KEEN_PCT := 2
+const WARDEN_KEEN_PCT := 20   # designer, 2026-11-12: "20 (20% crit) Keen"
 const WARDEN_KEEN_TEMPO := 10
 const WARDEN_THORNS := 5
 const WAR_SHOUT_RADIUS := 3
@@ -70,6 +72,15 @@ static func allies_within(main, center_node, squares: float) -> Array:
 			continue
 		if ally == center_node or within(main.grid_manager, center_node.position, ally.position, squares):
 			out.append(ally)
+	return out
+
+## The living summons within `squares` of `center_node`.
+static func summons_within(main, center_node, squares: float) -> Array:
+	var out: Array = []
+	for s in main._all_summons():
+		if is_instance_valid(s) and s is Summon and not s.is_dead \
+				and within(main.grid_manager, center_node.position, s.position, squares):
+			out.append(s)
 	return out
 
 static func enemies_within(main, center_node, squares: float) -> Array:
@@ -141,6 +152,9 @@ static func war_shout(main, _card) -> void:
 		if bm:
 			bm.apply_buff(Buff.create_strengthen(WAR_SHOUT_STRENGTHEN, WAR_SHOUT_ATTACKS, "War Shout"))
 			n += 1
+	for s in summons_within(main, caster, WAR_SHOUT_RADIUS):
+		s.gain_strengthen(WAR_SHOUT_STRENGTHEN, WAR_SHOUT_ATTACKS)
+		n += 1
 	main.add_battle_log("War Shout! %d %s gain Strengthen %d for %d attacks" % [
 		n, "ally" if n == 1 else "allies", WAR_SHOUT_STRENGTHEN, WAR_SHOUT_ATTACKS], Color(1.0, 0.7, 0.3))
 
@@ -185,6 +199,16 @@ static func _sync_wolfs_howl(main) -> void:
 			aura.duration = HOWL_REFRESH_TEMPO  # never runs out while they stand in it
 		elif aura != null:
 			bm.remove_buff_instance(aura)
+	# Summons in the howl: +5 on every attack while they stand in it.
+	for s in main._all_summons():
+		if not (is_instance_valid(s) and s is Summon):
+			continue
+		var s_inside := false
+		for h in howlers:
+			if within(main.grid_manager, h.position, s.position, HOWL_RADIUS):
+				s_inside = true
+				break
+		s.aura_strengthen = HOWL_STRENGTHEN if s_inside else 0
 
 static func howl_aura_of(bm) -> Buff:
 	for b in bm.buffs:
@@ -223,6 +247,13 @@ static func cycle(main) -> void:
 static func _spirit_armor(main, caster) -> void:
 	for ally in allies_within(main, caster, SPIRIT_ARMOR_RADIUS):
 		ally.get_stats().add_armor(SPIRIT_ARMOR_PER_CYCLE)
+	# A summon holds it as granted armor (at most Summon.GRANTED_ARMOR_CAP);
+	# a Battle Turtle takes it into its own armor first.
+	for s in summons_within(main, caster, SPIRIT_ARMOR_RADIUS):
+		var left: int = SPIRIT_ARMOR_PER_CYCLE
+		if s.has_method("gain_armor"):
+			left -= s.gain_armor(left)
+		s.gain_granted_armor(left)
 	print("[NEW-A] Spirit Armor: +%d armor to allies within %d" % [SPIRIT_ARMOR_PER_CYCLE, SPIRIT_ARMOR_RADIUS])
 
 ## Ember Heart: up to 2 stacks of the Burn the maintainer carries move onto
@@ -276,7 +307,7 @@ static func holds_shock(enemy) -> bool:
 ## Warden's Hound: called wherever a card of this deck is sent to jail
 ## (jail-on-play, a Rapid Recurve shot, a Burden jailed from hand, a reaction
 ## jailed on its cooldown, the Jailed overflow). While the Hound is maintained
-## its owner gains Keen +2% on the clock (10 tempo, stacking) and 5 Thorns.
+## its owner gains Keen +20% on the clock (10 tempo, stacking) and 5 Thorns.
 static func on_card_jailed(deck, _card) -> void:
 	if deck == null:
 		return

@@ -13747,7 +13747,7 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 			if target and target is Node3D:
 				NewCardsB.swap_positions(self, player, target)  # shared with Not So Fast
 
-		"deep_breaths_spell", "self_admission", "reverse_reverse", "foresight":
+		"slow_and_steady_wins", "self_admission", "reverse_reverse", "foresight":
 			NewCardsB.world_effect(self, card, target)
 
 		"defensive_awareness":

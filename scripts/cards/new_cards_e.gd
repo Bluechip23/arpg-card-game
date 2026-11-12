@@ -164,6 +164,7 @@ static func pre_card(main, card: Card, data: Dictionary) -> Dictionary:
 	if main.player == null or main.enemy_spawner == null or not card.is_offensive():
 		return snap
 	var stats = main.player.get_stats()
+	refresh_ledger(main)
 	if not bool(_meta(stats, LEDGER_ON, false)) and not data.get("nce_candle", false):
 		return snap
 	for e in main.enemy_spawner.get_living_enemies():
@@ -227,22 +228,45 @@ static func on_tempo(main, amount: int) -> void:
 		if ward > 0:
 			st.set_meta(WARD_TEMPO, maxi(0, ward - amount))
 			_sync(p)
+	refresh_ledger(main)
 	_tick_fogs(main, amount)
 	_tick_crates(main, amount)
 	_lead_lions(main)
 
 
-## main._on_all_enemies_defeated: the fight is over. The Ledger lasts "the
-## rest of the fight"; the fog lifts with the other zones. Crates, marks
-## and lions stay (one continuous journey).
-static func on_battle_end(main) -> void:
-	for p in main._all_allies():
-		if is_instance_valid(p) and p.has_method("get_stats") and p.get_stats():
-			var st = p.get_stats()
+## The Ledger is a Maintain (designer, 2026-11-12): it stands while the card
+## sits in its player's maintained pile. Dropping the maintain closes the
+## book and the bank is lost.
+static func refresh_ledger(main) -> void:
+	for p in main._all_players():
+		if not is_instance_valid(p) or not p.has_method("get_stats") or p.get_stats() == null:
+			continue
+		var st = p.get_stats()
+		var deck = main._deck_for_player(p)
+		var held := false
+		if deck != null:
+			for c in deck.maintained_cards:
+				if c and c.card_id == "the_ledger":
+					held = true
+					break
+		var was: bool = bool(_meta(st, LEDGER_ON, false))
+		if held == was:
+			continue
+		if held:
+			st.set_meta(LEDGER_ON, true)
+			if not st.has_meta(LEDGER_BANK):
+				st.set_meta(LEDGER_BANK, 0.0)
+		else:
 			for k in [LEDGER_ON, LEDGER_BANK]:
 				if st.has_meta(k):
 					st.remove_meta(k)
-			_sync(p)
+		_sync(p)
+
+
+## main._on_all_enemies_defeated: the fog lifts with the other zones. The
+## Ledger (a Maintain), crates, marks and lions stay: one continuous world,
+## everything on the tempo.
+static func on_battle_end(main) -> void:
 	clear_fogs(main)
 
 
@@ -278,10 +302,7 @@ static func _play_ledger(main) -> void:
 	var stats = main.player.get_stats()
 	if stats == null:
 		return
-	stats.set_meta(LEDGER_ON, true)
-	if not stats.has_meta(LEDGER_BANK):
-		stats.set_meta(LEDGER_BANK, 0.0)
-	_sync(main.player)
+	refresh_ledger(main)  # it is in the maintained pile by now
 	main.add_battle_log("The Ledger opens: your offensive cards' hits bank 10% of their damage.", Color(0.85, 0.7, 0.3))
 
 
@@ -408,18 +429,27 @@ static func _play_flames(main, card: Card, mouse_pos: Vector3) -> void:
 	if own >= 0:
 		dm.discard_pile.remove_at(own)
 	dm.shuffle_discard_into_draw()
-	# 3. Draw 10, as Balance of Alnilam draws its 10: ordinary draws, so the
-	# hand cap holds and the draws past it are overdraws.
+	# 3. Draw until the hand is full, 10 cards at most (designer, 2026-11-12):
+	# a hand size under 10 fills up with no overdraw; a hand size over 10
+	# still draws only 10.
 	var drawn: Array = []
+	var cap: int = dm.get_hand_cap()
 	for _i in range(FLAMES_DRAW):
+		if dm.hand.size() >= cap:
+			break
 		var d = dm.draw_card()
 		if d != null and d in dm.hand:
 			drawn.append(d)
 	if own >= 0:
 		dm.discard_pile.append(card)
 	dm.hand_updated.emit()
-	# 4. Choose any number of them to burn.
-	var finish := func(picks: Array): flames_finish(main, caster, dm, card, picks, dir)
+	# 4. Choose any number of them to burn. The damage per card is read now,
+	# while the spell's play is open: it is an offensive spell (designer,
+	# 2026-11-12), so Attune and the other per-play spell bonuses count, and
+	# they end with the play — before the picker is answered.
+	var cast_stats = caster.get_stats()
+	var per_hit: int = cast_stats.get_effective_spell_damage(FLAMES_DAMAGE) if cast_stats else FLAMES_DAMAGE
+	var finish := func(picks: Array): flames_finish(main, caster, dm, card, picks, dir, per_hit)
 	if drawn.is_empty():
 		finish.call([])
 		return
@@ -429,7 +459,7 @@ static func _play_flames(main, card: Card, mouse_pos: Vector3) -> void:
 
 ## The chosen cards burn: for each, 3 fire damage (INT-scaled, a hit of its
 ## own) to every enemy in the cone and 1 Burn on the caster.
-static func flames_finish(main, caster, dm, card: Card, picks: Array, dir: Vector3) -> void:
+static func flames_finish(main, caster, dm, card: Card, picks: Array, dir: Vector3, per_hit: int = -1) -> void:
 	if not is_instance_valid(main) or not is_instance_valid(caster):
 		return
 	var n := 0
@@ -442,7 +472,8 @@ static func flames_finish(main, caster, dm, card: Card, picks: Array, dir: Vecto
 	var stats = caster.get_stats()
 	var length: float = card.aoe_range * main.grid_manager.grid_size
 	SearingFireFX.play(main, caster.position + main.CAST_MIDSECTION, dir, card.aoe_range)
-	var per_hit: int = stats.get_effective_spell_damage(FLAMES_DAMAGE) if stats else FLAMES_DAMAGE
+	if per_hit < 0:
+		per_hit = stats.get_effective_spell_damage(FLAMES_DAMAGE) if stats else FLAMES_DAMAGE
 	var burned: Array = []
 	if main.enemy_spawner:
 		burned = main.enemy_spawner.get_enemies_in_cone(caster.position, dir, length, FLAMES_HALF_ANGLE)
