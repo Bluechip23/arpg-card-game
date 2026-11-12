@@ -49,7 +49,7 @@ Unerring cap	5	+9	49 (Unerring +2), 57 (Unerring +1), 79 (Unerring +2), 95 (Uner
 Armor / cycle	2	+2	54 (Arm/Cyc +1), 94 (Arm/Cyc +1)
 Debuff amp: Vulnerable %	2	+30	72 (Vuln Amp +15%), 101 (Vuln Amp +15%)
 Debuff amp: Weaken %	1	+25	76 (Weaken Amp +25%)
-Buff amp (self-buffs)	9	9 distinct amps	134 (Haste Amp +1), 135 (Enlight Amp +10%), 136 (Brace Amp +10%), 137 (Blessed Draw +1), 138 (Blessed Amp +1), 139 (Strength Amp +5), 140 (Bolster Amp +5), 141 (Cleanse Amp +1), 142 (Resil Amp +10%)
+Buff amp (self-buffs)	9	9 distinct amps	134 (Haste Amp +1), 135 (Keen Amp +10%), 136 (Brace Amp +10%), 137 (Blessed Draw +1), 138 (Blessed Amp +1), 139 (Strength Amp +5), 140 (Bolster Amp +5), 141 (Cleanse Amp +1), 142 (Resil Amp +10%)
 Debuff amp (hex arc)	12	12 distinct amps	143 (Bleed Amp +1), 144 (Stun Amp +1), 145 (Disarm Amp +1), 146 (Silence Amp +1), 147 (Burn Amp +1), 148 (Poison Amp +5), 149 (Curse Amp +10%), 150 (Curse Pain +10%), 151 (Shatter +5), 152 (Shock Amp +1), 153 (Slow Amp +1), 154 (Root Amp +1)
 
 Nodes per ring	Count	Radius (px)	Node ids
@@ -202,7 +202,7 @@ Id	Ring	Type	Label	Effect	Stat gate	Keystone id	Constellations	Connected to
 132	6	Keystone	Arcane Blood	Keystone: damage is split evenly between health and mana. If mana runs dry, health takes the rest — and death still comes only at 0 HP.		mana_blood		97, 98, 131, 133
 133	6	Keystone	Willspring	Keystone: Determination now answers to your mana instead of your health — your stats swing as mana drains, not HP.		det_mana		98, 99, 100, 132, 154
 134	7	Combat bonus	Haste Amp +1	Haste you gain lasts 1 extra movement				100, 101
-135	7	Combat bonus	Enlight Amp +10%	Enlightened you gain grants +10% more crit chance (20% total)				104, 105
+135	7	Combat bonus	Keen Amp +10%	Keen you gain grants +10% more crit chance				104, 105
 136	7	Combat bonus	Brace Amp +10%	Brace you gain blocks 10 more percentage points of damage				108, 109
 137	7	Combat bonus	Blessed Draw +1	Blessed you gain draws 1 extra card per cycle				111, 112
 138	7	Combat bonus	Blessed Amp +1	Blessed you gain lasts 1 extra cycle				115, 116

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "grapple_chain"
+card_name = "Grapple Chain"
+description = "Reach 2. Deal 6 damage and pull the enemy 1 tile toward you. If it ends adjacent, it is Slowed 1."
+card_type_name = "Offensive"
+mana_cost = 75
+damage = 6
+tempo_cost = 5
+base_damage = 6
+slot_labels = [12]
+keywords = ["offensive", "melee", "enemy"]

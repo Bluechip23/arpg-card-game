@@ -210,8 +210,6 @@ var vulnerable_clock: int = 0
 var weaken_stacks: int = 0       # Weaken: deals -30% damage while a stack remains; stacks fall on their own clock
 var weaken_clock: int = 0
 var rooted_tempo: int = 0        # Rooted (Gravity Gauntlets): cannot move, can still attack/cast; applications add up
-var tripped_tempo: int = 0       # Tripped (Trip): move actions cover TRIP_MOVE_PENALTY fewer tiles
-const TRIP_MOVE_PENALTY := 4
 # sheet: "Disarm — skips its next attack for 5 tempo per stack". The old
 # attack-skip counter is gone: a "disarm_attacks" application now adds
 # DISARM_TEMPO_PER_STACK tempo of ordinary Disarm per stack. The field stays
@@ -1737,11 +1735,11 @@ func _tick_timed_statuses(amount: int) -> void:
 		return
 	_clear_exposed_if_armored()
 	# Every timer counted down below must be on this list, or a lone status
-	# of that kind never runs out (a Trip once lasted until something else
+	# of that kind never runs out (one once lasted until something else
 	# timed landed on the enemy).
 	var any := taunt_tempo > 0 or fear_tempo > 0 or exposed_cooldown_tempo > 0 \
 		or disarmed_tempo > 0 or marked_tempo > 0 or silenced_tempo > 0 \
-		or frozen_tempo > 0 or stun_tempo > 0 or tripped_tempo > 0 \
+		or frozen_tempo > 0 or stun_tempo > 0 \
 		or rooted_tempo > 0 or narashimha_tempo > 0 or cursed_tempo > 0 \
 		or not phys_defense_groups.is_empty() or hidden_tempo > 0 or _screecher_visible_tempo > 0 \
 		or slow_stacks > 0 or vulnerable_stacks > 0 or weaken_stacks > 0
@@ -1857,13 +1855,6 @@ func _tick_timed_statuses(amount: int) -> void:
 			rooted_tempo = 0
 			print("[%s] Root released" % enemy_name)
 			debuff_expired.emit(self, "root")
-
-	if tripped_tempo > 0:
-		tripped_tempo -= amount
-		if tripped_tempo <= 0:
-			tripped_tempo = 0
-			print("[%s] Back on its feet" % enemy_name)
-			debuff_expired.emit(self, "trip")
 
 	if narashimha_tempo > 0:
 		narashimha_tempo -= amount
@@ -1994,7 +1985,8 @@ func _tick_status_durations() -> void:
 				LightningFX.arc(get_parent(), position, arc_target.position)
 			arc_target._dot_hit("Shock arc", arc, "from " + enemy_name)
 			print("[%s] Shock arcs %d damage to %s" % [enemy_name, arc, arc_target.enemy_name])
-		shock_stacks -= 1
+		if not NewCardsA.holds_shock(self):  # Lodestone Field: no decay inside it
+			shock_stacks -= 1
 		if shock_stacks <= 0:
 			print("[%s] Shock expired" % enemy_name)
 			debuff_expired.emit(self, "shock")
@@ -2057,7 +2049,7 @@ static func debuff_key_for_effect(effect_name: String) -> String:
 		"Slow": "slow", "Cursed": "cursed", "Disarm": "disarmed", "Marked": "marked",
 		"Silenced": "silenced", "Choke": "choke_dot", "Stun": "stun", "Polymorph": "polymorph",
 		"Frozen": "cold", "Burn": "burn", "Cold": "cold", "Poison": "poison", "Shock": "shock",
-		"Bleed": "bleed", "Vulnerable": "vulnerable", "Weaken": "weaken", "Rooted": "root", "Tripped": "trip",
+		"Bleed": "bleed", "Vulnerable": "vulnerable", "Weaken": "weaken", "Rooted": "root",
 		"Disarmed": "disarm_attacks", "Narashimha": "narashimha",
 	}
 	return str(KEYS.get(effect_name, ""))
@@ -5652,7 +5644,7 @@ const MIMIC_COPIED_FIELDS: Array[String] = [
 	"shock_stacks", "bleed_stacks", "vulnerable_stacks", "weaken_stacks", "slow_stacks",
 	"choke_dot_stacks", "choke_dot_damage", "stun_tempo", "is_stunned", "frozen_tempo", "is_frozen",
 	"disarmed_tempo", "is_disarmed", "disarmed_attacks", "marked_tempo", "is_marked",
-	"silenced_tempo", "is_silenced", "cursed_tempo", "rooted_tempo", "tripped_tempo",
+	"silenced_tempo", "is_silenced", "cursed_tempo", "rooted_tempo",
 	"polymorph_tempo", "taunt_tempo", "taunt_target", "fear_tempo", "fear_source",
 	"wear_down_attacks", "attack_reduction", "narashimha_tempo", "phys_defense_groups",
 	"slow_clock", "vulnerable_clock", "weaken_clock",
@@ -6343,6 +6335,9 @@ func _deal_damage_to_player(player_node: Node3D, base_damage: int, attack_name: 
 		if player_stats_ref and "last_attacker" in player_stats_ref:
 			player_stats_ref.last_attacker = self
 		if player_stats_ref and effective_damage > 0:
+			# Stoked Pride: a lion takes the blow in the marked ally's place.
+			if NewCardsE.stoked_pride_intercept(get_parent(), self, player_node, effective_damage):
+				return
 			# The blow is coming: reactions that shield against it (Magic
 			# Barrier) raise their armor now, before the damage math.
 			attacking_player.emit(self, player_node)
@@ -6878,12 +6873,6 @@ func move_towards_target(pos: Vector3, stop_within: int = 0) -> void:
 	var tiles = int(move_distance)
 	if tiles < 1:
 		tiles = 1
-	# Tripped: movement -4 while it lasts; nothing left means no step at all.
-	if tripped_tempo > 0:
-		tiles -= TRIP_MOVE_PENALTY
-		if tiles < 1:
-			print("[%s] Tripped - cannot move!" % enemy_name)
-			return
 	# Slowed no longer trims tiles — it taxes the move action's tempo instead
 	# (see _check_and_fire_actions), matching the player's Slowed.
 
@@ -7614,7 +7603,6 @@ func has_debuff_type(debuff_name: String) -> bool:
 		"vulnerable": return vulnerable_stacks > 0
 		"weaken": return weaken_stacks > 0
 		"root": return rooted_tempo > 0
-		"trip": return tripped_tempo > 0
 		"cursed": return cursed_tempo > 0
 		"disarm_attacks": return is_disarmed and disarmed_tempo > 0  # it IS the timed disarm now
 		"narashimha": return narashimha_tempo > 0
@@ -7707,10 +7695,6 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 		"weaken":
 			weaken_stacks += value
 			print("[%s] Weakened! Stacks: %d (-30%% damage dealt)" % [enemy_name, weaken_stacks])
-		"trip":
-			# value is the duration in raw tempo; movement -TRIP_MOVE_PENALTY
-			tripped_tempo = max(tripped_tempo, value)
-			print("[%s] Tripped! Movement -%d for %d tempo" % [enemy_name, TRIP_MOVE_PENALTY, tripped_tempo])
 		"root":
 			# value is the hold in raw tempo; can attack and cast, cannot move.
 			# sheet: timers add — a second Root lengthens the first.
@@ -8071,8 +8055,6 @@ func get_active_effects() -> Array[Dictionary]:
 		effects.append({"name": "Exposed Defense", "color": Color(0.9, 0.75, 0.3), "stacks": get_phys_defense_debuff_stacks()})
 	if slow_stacks > 0:
 		effects.append({"name": "Slow", "color": Color(0.4, 0.6, 1.0), "stacks": slow_stacks})
-	if tripped_tempo > 0:
-		effects.append({"name": "Tripped", "color": Color(0.5, 0.7, 1.0), "stacks": tripped_tempo})
 	if cursed_tempo > 0:
 		effects.append({"name": "Cursed", "color": Color(0.3, 0.0, 0.3), "stacks": cursed_tempo})
 	if is_disarmed and disarmed_tempo > 0:
@@ -8298,9 +8280,6 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 		"Rooted":
 			desc = "Cannot move. More Root adds to the timer."
 			remaining = "Remaining: %d tempo" % rooted_tempo
-		"Tripped":
-			desc = "Its moves cover %d fewer tiles." % TRIP_MOVE_PENALTY
-			remaining = "Remaining: %d tempo" % tripped_tempo
 		_:
 			desc = ""
 			remaining = ""

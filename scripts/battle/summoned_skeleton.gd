@@ -73,6 +73,13 @@ func setup(gm: GridManager, spawn_pos: Vector3, hp: int, summon_kind := "skeleto
 			unerring_cap = int(summoner_int / 2)
 			unerring_armor = unerring_cap
 			from_card = true
+		"pride_lion":
+			# Stoked Pride's lion (NewCardsE): no attack, and it does not march
+			# with the summoner — it keeps to the ally it guards.
+			display_name = "Lion"
+			base_attack = 0
+			move_steps = 0
+			from_card = true
 		_:
 			display_name = "Skeleton"
 	max_health = maxi(1, hp)
@@ -89,6 +96,8 @@ func _build_visuals() -> void:
 			_build_figure("shadow_hound")    # the designer's board (2026-10-28)
 		"battle_turtle":
 			_build_figure("battle_turtle")   # the designer's board (2026-10-28)
+		"pride_lion":
+			_build_figure("sabertooth")      # the packs' big cat: they hold no lion (docs/new_cards/E.md)
 		_:
 			_build_figure("summon_skeleton") # the designer's summon skeleton board (2026-10-27)
 	_build_health_label(1.7, Color(0.85, 0.9, 0.8))

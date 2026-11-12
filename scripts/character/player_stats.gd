@@ -304,7 +304,7 @@ var sphere_vulnerable_amp: float = 0.0     # Extra percentage points on YOUR Vul
 var sphere_weaken_amp: float = 0.0         # Extra percentage points on YOUR Weaken's damage reduction (25.0 → enemies deal -55% instead of -30%)
 # Buff amps: sphere-grid bonuses to the buffs YOU gain (playstyle amplification).
 var sphere_haste_amp: int = 0              # +charges (movements) on Haste applications
-var sphere_enlightened_amp: float = 0.0    # +percentage points on Enlightened's crit chance (10% base)
+var sphere_keen_amp: float = 0.0           # +percentage points on Keen's crit chance (the old Enlight Amp)
 var sphere_brace_amp: int = 0              # +percentage points on Brace's damage reduction
 var sphere_blessed_draw_amp: int = 0       # +cards per cycle on Blessed
 var sphere_blessed_amp: int = 0            # +charges (cycles) on Blessed applications
@@ -578,7 +578,7 @@ var st_ancestral_cycle_counter: int = 0  # Ancestral Aid: counts cycles toward t
 var st_pre_attack_damaged: bool = false  # Surprise Opener: had the target taken ANY damage before this strike?
 var st_itt_charges: int = 2            # In the Trenches: shared charge pool (2 max)
 var st_itt_spent: Array = []           # In the Trenches: global tempo each spent charge was used (each returns 10 later)
-var st_redemption_crit: int = 0        # Redemption: crit % armed for the next attack roll (on top of Enlightened)
+var st_redemption_crit: int = 0        # Redemption: crit % armed for the next attack roll (on top of Keen)
 
 # Stephen passive tracking
 var st_consecutive_attacks: int = 0   # Skilled Momentum: tracks consecutive attack cards played
@@ -939,7 +939,7 @@ func save_progression() -> Dictionary:
 		"sphere_vulnerable_amp": sphere_vulnerable_amp,
 		"sphere_weaken_amp": sphere_weaken_amp,
 		"sphere_haste_amp": sphere_haste_amp,
-		"sphere_enlightened_amp": sphere_enlightened_amp,
+		"sphere_keen_amp": sphere_keen_amp,
 		"sphere_brace_amp": sphere_brace_amp,
 		"sphere_blessed_draw_amp": sphere_blessed_draw_amp,
 		"sphere_blessed_amp": sphere_blessed_amp,
@@ -1049,7 +1049,8 @@ func restore_progression(data: Dictionary) -> void:
 	sphere_vulnerable_amp = data.get("sphere_vulnerable_amp", sphere_vulnerable_amp)
 	sphere_weaken_amp = data.get("sphere_weaken_amp", sphere_weaken_amp)
 	sphere_haste_amp = data.get("sphere_haste_amp", sphere_haste_amp)
-	sphere_enlightened_amp = data.get("sphere_enlightened_amp", sphere_enlightened_amp)
+	# Saves from before Enlightened was rolled into Keen carry the old key.
+	sphere_keen_amp = data.get("sphere_keen_amp", data.get("sphere_enlightened_amp", sphere_keen_amp))
 	sphere_brace_amp = data.get("sphere_brace_amp", sphere_brace_amp)
 	sphere_blessed_draw_amp = data.get("sphere_blessed_draw_amp", sphere_blessed_draw_amp)
 	sphere_blessed_amp = data.get("sphere_blessed_amp", sphere_blessed_amp)
@@ -2553,7 +2554,7 @@ func apply_sphere_grid_combat_bonus(label: String, _description: String) -> void
 	## Applies a neutral combat bonus from a sphere grid node.
 	## Parses labels like "Block +2", "Thorns +1", "Damage +3", "Heal +2", "Crit +5%", "Armor +3",
 	## "Regen +1", "Arm/Cyc +1", "Life Steal +3%", "Resist +3%", "Range +1",
-	## "Vuln Amp +25%", "Weaken Amp +25%", "Haste Amp +1", "Enlight Amp +10%",
+	## "Vuln Amp +25%", "Weaken Amp +25%", "Haste Amp +1", "Keen Amp +10%",
 	## "Brace Amp +10%", "Blessed Draw +1", "Blessed Amp +1", "Strength Amp +5",
 	## "Bolster Amp +5", "Cleanse Amp +1", "Resil Amp +10%", and the debuff amps
 	## "Bleed/Stun/Disarm/Silence/Burn/Shock/Slow/Root Amp +N", "Poison Amp +5",
@@ -2602,8 +2603,8 @@ func apply_sphere_grid_combat_bonus(label: String, _description: String) -> void
 			sphere_weaken_amp += float(value)
 		"haste amp":
 			sphere_haste_amp += value
-		"enlight amp":
-			sphere_enlightened_amp += float(value)
+		"keen amp", "enlight amp":
+			sphere_keen_amp += float(value)
 		"brace amp":
 			sphere_brace_amp += value
 		"blessed draw":

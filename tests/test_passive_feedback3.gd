@@ -201,11 +201,13 @@ func _test_patience(stats, pt, _dummy: Enemy) -> void:
 	# Played: 30% resistance to all damage for 5 tempo; a second copy adds 5.
 	bm.buffs.clear()
 	ce.execute(null, stats, dm, 0, 0, bm)
-	var r: Buff = bm._resilient_of_type(DamageTypes.ALL)
+	# Endured Tolerance is its own Resilient instance (it never merges with
+	# another source's), so it is read from the list, not by type.
+	var et_list: Array = bm.get_buffs(Buff.BuffType.RESILIENT)
+	var r: Buff = et_list[0] if not et_list.is_empty() else null
 	_check(r != null and r.value == 30 and r.duration == 5, "played: 30%% resistance to all damage for 5 tempo (%s)" % (str([r.value, r.duration]) if r else "none"))
 	Card.create_endured_tolerance(30).execute(null, stats, dm, 0, 0, bm)
-	r = bm._resilient_of_type(DamageTypes.ALL)
-	_check(r.value == 30 and r.duration == 10, "a second copy adds 5 tempo and keeps the %% (%d%%, %d tempo)" % [r.value, r.duration])
+	_check(bm.get_buffs(Buff.BuffType.RESILIENT).size() == 1 and r.value == 30 and r.duration == 10, "a second copy adds 5 tempo and keeps the %% (%d%%, %d tempo)" % [r.value, r.duration])
 	_check(bm.get_resilient_percent(DamageTypes.Type.PHYSICAL) == 30 and bm.get_resilient_percent(DamageTypes.Type.FIRE) == 30,
 		"it covers every damage type")
 	bm.buffs.clear()

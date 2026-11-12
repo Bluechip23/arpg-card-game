@@ -919,9 +919,9 @@
 <ellipse cx="756" cy="136" rx="39" ry="22" fill="#F8DCD2" stroke="#C0623F" stroke-width="2"/>
 <text x="756" y="139" font-size="9" text-anchor="middle">Haste Amp +1</text>
 </g>
-<g><title>Enlightened you gain grants +10% more crit chance (20% total)</title>
+<g><title>Keen you gain grants +10% more crit chance</title>
 <ellipse cx="1155" cy="281" rx="39" ry="22" fill="#F8DCD2" stroke="#C0623F" stroke-width="2"/>
-<text x="1155" y="284" font-size="9" text-anchor="middle">Enlight Amp +10%</text>
+<text x="1155" y="284" font-size="9" text-anchor="middle">Keen Amp +10%</text>
 </g>
 <g><title>Brace you gain blocks 10 more percentage points of damage</title>
 <ellipse cx="1367" cy="648" rx="39" ry="22" fill="#F8DCD2" stroke="#C0623F" stroke-width="2"/>

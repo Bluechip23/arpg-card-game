@@ -588,6 +588,7 @@ func _ready() -> void:
 	player2_ui.init(self)
 	add_child(player2_ui)
 
+	NewCardsB.connect_main(self)  # sheet batch B; ahead of _on_hand_updated on purpose
 	deck_manager.hand_updated.connect(_on_hand_updated)
 	deck_manager.deck_shuffled.connect(_on_deck_shuffled)
 	deck_manager.greedy_cheese_added.connect(func(_c): add_battle_log(
@@ -4655,7 +4656,7 @@ func _all_players() -> Array:
 ## picked (Cryonics, Friendship, Lady Luck, Provider, Swap…): a summon pick
 ## for those is refused. Whether summons should count as their "ally" is
 ## FLAGGED (docs/audit/validation.md, pass2.md).
-const SUMMON_ALLY_CARDS := ["heal", "healing_tonic", "gulped_potion", "fortify_alliance", "shepherds_mark"]
+const SUMMON_ALLY_CARDS := ["heal", "healing_tonic", "gulped_potion", "fortify_alliance", "shepherds_mark", "acro_medic"]
 
 func _all_allies() -> Array:
 	var out: Array = []
@@ -5253,12 +5254,12 @@ const RELEASE_TENSION_DEBUFFS := [
 	["stun", "stun_tempo", "is_stunned"], ["silence", "silenced_tempo", "is_silenced"],
 	["disarm", "disarmed_tempo", "is_disarmed"], ["mark", "marked_tempo", "is_marked"],
 	["frozen", "frozen_tempo", "is_frozen"], ["root", "rooted_tempo", ""],
-	["tripped", "tripped_tempo", ""], ["curse", "cursed_tempo", ""],
+	["curse", "cursed_tempo", ""],
 	# "any debuff": every kind Enemy.apply_debuff can put on, these two included.
 	["polymorph", "polymorph_tempo", ""], ["narashimha", "narashimha_tempo", ""],
 ]
 const RT_TIMED_FIELDS := ["stun_tempo", "silenced_tempo", "disarmed_tempo", "marked_tempo",
-	"frozen_tempo", "rooted_tempo", "tripped_tempo", "cursed_tempo",
+	"frozen_tempo", "rooted_tempo", "cursed_tempo",
 	"polymorph_tempo", "narashimha_tempo"]
 
 func _show_release_tension_picker(card: Card, enemy) -> void:
@@ -5527,9 +5528,14 @@ func show_full_card_picker(prompt: String, candidates: Array, pick_count: int, o
 
 	var chosen: Array = []
 	var confirm := Button.new()
+	# A negative pick_count asks for ANY number, up to that many (Flames of
+	# Alexandria): Confirm is always live.
+	var any_number: bool = pick_count < 0
+	if any_number:
+		pick_count = -pick_count
 	var refresh_confirm := func():
 		confirm.text = "Confirm (%d/%d)" % [chosen.size(), pick_count]
-		confirm.disabled = chosen.size() != pick_count
+		confirm.disabled = not any_number and chosen.size() != pick_count
 	for c in candidates:
 		var holder := Control.new()
 		holder.custom_minimum_size = Vector2(Card_UI_W, Card_UI_H)
@@ -5847,12 +5853,14 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 		if tdm:
 			tdm.tick_temp_mods(amount)
 	_update_smoke_zones(amount)
+	NewCardsE.on_tempo(self, amount)  # batch E clocks: the Ward, fog, crates, lions
 	# Bone-arrow skeletons sprint at whatever their quiver's kill left behind.
 	_update_skeletons(amount)
 	# Spirit bows stalk and shoot; budded turrets just shoot.
 	_update_spirit_bows(amount)
 	# Elemental Weaver: refresh the pollination flag enemies read while ticking.
 	_update_element_pollination()
+	NewCardsA.tick(self)  # The Wolf's Howl / Lodestone Field follow where everyone stands
 	# Reaction Rod: keep Grounding's Shock discount current on the card face.
 	_update_grounding_discount()
 	# Crops: catch an ally who ended up standing on a bushel (P2 movement
@@ -6152,6 +6160,7 @@ func _on_enemy_movement_completed(enemy: Enemy) -> void:
 	# Forest hazards: an enemy can blunder into a bear trap or tripwire too.
 	if dungeon_manager and is_instance_valid(enemy) and not enemy.is_dead:
 		_trigger_terrain_traps_for(grid_manager.world_to_grid(enemy.position), enemy, false)
+		NewCardsE.on_enemy_move_end(self, enemy)  # Thickened Nature's fog roots
 
 	_update_enemy_melee_state(enemy, true)
 	progression_triggers.refresh_solemn()
@@ -6213,6 +6222,7 @@ func _on_enemy_attacking_player(_enemy: Enemy, victim = null) -> void:
 func _on_enemy_attacked_player(enemy: Enemy, victim = null) -> void:
 	if victim != null and victim != player:
 		return  # "when an enemy attacks you": not the partner, not a dojo ally
+	NewCardsB.on_enemy_attacked_player(self, enemy)  # Spiteful Sting
 	_note_axe_hit_streak()
 	progression_triggers._trigger_skill_tree_brad_on_attacked(enemy)
 	progression_triggers._trigger_skill_tree_stephen_on_attacked(enemy)
@@ -6315,6 +6325,7 @@ func _on_all_enemies_defeated() -> void:
 	_clear_wolves()
 	_clear_specters()
 	_smoke_zones.clear()
+	NewCardsE.on_battle_end(self)  # The Ledger closes, the fog lifts
 	# Bone-arrow skeletons and Draupnir duplicates deliberately survive the
 	# wave — "lives until killed": one cumulative journey, no battle resets.
 	_clear_spirit_bows()
@@ -6902,6 +6913,7 @@ func _on_brain_peek_pressed() -> void:
 
 func _on_brain_points_changed(_current: int, _max_points: int) -> void:
 	_update_brain_button()
+	NewCardsB.refresh_foresight(self, true)  # Foresight: 2 less mana per Brain point held
 
 func _update_brain_button() -> void:
 	if not _brain_button:
@@ -7639,6 +7651,7 @@ func _cycle_status_start(cp) -> void:
 func _process_maintained_card_effects() -> void:
 	## Process ongoing effects from maintained Power cards each tempo cycle.
 	_burn_flame_zones()
+	NewCardsA.cycle(self)  # Spirit Armor, Ember Heart, Lodestone Field
 	var maintained_result := deck_manager.process_maintained_cards()
 	var stats := player.get_stats()
 	if maintained_result["total_heal"] > 0 and stats:
@@ -8244,7 +8257,7 @@ const MISERY_KINDS := [
 	["disarmed", "disarmed_tempo", true], ["root", "rooted_tempo", true],
 	["cursed", "cursed_tempo", true],
 	["stun", "stun_tempo", false], ["silenced", "silenced_tempo", false],
-	["marked", "marked_tempo", false], ["trip", "tripped_tempo", false],
+	["marked", "marked_tempo", false],
 ]
 
 func _apply_misery_spread(hit_enemies: Array) -> void:
@@ -8988,14 +9001,17 @@ func play_selected_card(target) -> void:
 
 	if debuff_mgr:
 		tempo_cost += debuff_mgr.get_tempo_increase()
+	# Back Pedal: its Steady action costs 2 less tempo as a ranged offensive card.
+	tempo_cost = maxi(0, tempo_cost - NewCardsC.back_pedal_tempo_cut(player, card))
+	resolve_tick = mini(resolve_tick, tempo_cost)
 
-	# Tighten String: +3 tempo, +6 damage, +6 range, Enlightened (+10% crit)
+	# Tighten String: +3 tempo, +6 damage, +6 range, Keen (+20% crit, one roll)
 	var tighten_applied = false
 	if buff_mgr and buff_mgr.tighten_string_charges > 0 and is_ranged_attack:
 		tempo_cost += 3
 		card.bonus_damage += 6
 		card.range_modifier += 6
-		buff_mgr.apply_buff(Buff.create_enlightened(20, 1, "Tighten String"))
+		buff_mgr.apply_buff(Buff.create_keen_rolls(20, 1, "Tighten String"))
 		tighten_applied = true
 
 	# High Ground: +4 damage, +2 range when shooting from elevated position (pillar or terrain elevation)
@@ -9028,6 +9044,7 @@ func play_selected_card(target) -> void:
 	var result := deck_manager.play_card(selected_card_index, target, player, true)
 
 	if result["played"]:
+		NewCardsC.back_pedal_spent(player)  # the action Back Pedal's rider waited for
 		# Tighten String: "next 3 ranged attacks PLAYED" — the charge is spent
 		# here, at play. Spent at resolve, attacks queued before the first one
 		# resolved were all strung (4 shots off 3 charges, the count went -1).
@@ -9085,6 +9102,7 @@ func play_selected_card(target) -> void:
 			},
 		}
 		_pending_resolve_queue.append(resolve_entry)
+		NewCardsE.on_card_played(self, card, resolve_entry["data"])  # the Candle's charge
 
 		# Dex proc: halve tempo cost and resolve tick (both rounded down)
 		if result["half_tempo"]:
@@ -9441,7 +9459,9 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	# before the effect, so a card that re-prices itself (Consecutive Snap)
 	# keeps its own new cost.
 	progression_triggers.end_from_the_hip_discount()
+	NewCardsC.before_execute(self, card, target)  # Lunge's walk, Acro-medic's blink: the move comes first
 	# Execute the card's effect (damage, block, heal, etc.)
+	var nce_snap: Dictionary = NewCardsE.pre_card(self, card, data)  # The Ledger / the Candle
 	deck_manager.execute_deferred_card(card, target, player)
 	# Clean Exchange's flat block: a separate "gain X block" on top of whatever
 	# the card did, granted once, whatever card it rode in on.
@@ -9528,6 +9548,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 				progression_triggers._trigger_skill_tree_on_crit(target, maxi(1, buff_mgr.crit_hits))
 
 	_resolving_aim = null
+	NewCardsE.post_card(self, card, data, nce_snap)  # The Ledger banks / pays out; the Candle burns
 	# The play is over: undo the folded bonus, disarm the passives, close
 	# the scope and drop the hit-source flags.
 	if passive_bonus > 0:
@@ -11093,6 +11114,7 @@ func _sync_maintained_passives() -> void:
 		elif c.card_id == "forever_armor":
 			forever = true
 	stats.maintained_thorns = 5 if barbed else 0
+	NewCardsA.tick(self)  # The Wolf's Howl starts / ends with its maintain
 	stats.set_maintained_unerring_cap(6 if forever else 0)
 	var survivors: Array = []
 	for z in _flame_zones:
@@ -12372,7 +12394,9 @@ func _is_target_in_card_range(card: Card, target) -> bool:
 		# Melee: must be adjacent (within ~1.5 tiles), Reach adds 1 square.
 		# Dragon Skull's "+1 range on ANY offensive card" extends melee reach too
 		# (the 20/20 and Monocle parts of the helper are ranged-gated internally).
-		var melee_range = 1.5
+		if card.card_id == "lunge":
+			return NewCardsC.lunge_in_reach(self, target)  # a free walk of 3 tiles to a square beside it
+		var melee_range = 1.5 + NewCardsC.melee_reach_bonus(card)  # Grapple Chain: Reach 2
 		if card.has_reach:
 			melee_range += 1.0
 		# Spartan Spear: Reach while a shield is up.
@@ -12572,6 +12596,10 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 	# Weapon riders that watch every resolved card (weapons pass 1).
 	_weapon_post_card_effects(card, target)
 
+	# New sheet cards, batch E (scripts/cards/new_cards_e.gd).
+	if NewCardsE.world_effects(self, card, target, mouse_pos):
+		return
+
 	# Slotted-item riders that need the world (ranged pass 1).
 	_ranged_on_self_world_effects(card, target)
 
@@ -12723,6 +12751,9 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 					fp_copy.erase_tempo_remaining = 5  # start the Erase 5 fuse full
 					fp_copy.set_meta("fire_punch_copy", true)
 					deck_manager.add_card_to_hand(fp_copy)
+
+		"berserkers_tithe", "fan_of_knives", "spine_release":
+			NewCardsD.world_effects(self, card, target)  # sheet batch D
 
 		"crack_of_mintaka":
 			var cm_target = target
@@ -13605,6 +13636,9 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 			_apply_misery_spread(landing_enemies)
 			print("[MAIN] Heroic Leap: jumped %d/%d tiles to %s, hit %d enemies for %d damage" % [actual_leap, leap_distance, leap_target, landing_enemies.size(), leap_damage])
 
+		"grapple_chain", "back_pedal", "deliberate_arch":
+			NewCardsC.world_effects(self, card, target)  # the pull, the step, the swing around the hero
+
 		"surrounding_ice":
 			# AOE circle around player - uses the pre-rolled per-enemy outcomes
 			# so Loaded Die / House Money chance boosts actually apply.
@@ -13709,17 +13743,16 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 						htl_bm.apply_buff(Buff.create_might(2, 15, "Hold the Line"))
 			add_battle_log("Hold the Line! All allies +5 armor, +2 DET, +2 STR for 15 tempo", Color(0.3, 0.7, 1.0))
 
+		"war_shout":
+			NewCardsA.war_shout(self, card)
+
 		"swap":
 			# Swap positions between player and target
 			if target and target is Node3D:
-				var player_pos := player.position
-				var target_pos = target.position
-				player.position = target_pos
-				player.target_position = target_pos
-				target.position = player_pos
-				target.target_position = player_pos
-				print("[MAIN] Swap: swapped positions with %s" % target.name)
-				progression_triggers._trigger_skill_tree_on_displacement()
+				NewCardsB.swap_positions(self, player, target)  # shared with Not So Fast
+
+		"deep_breaths_spell", "self_admission", "reverse_reverse", "foresight":
+			NewCardsB.world_effect(self, card, target)
 
 		"defensive_awareness":
 			# Gain 3 armor per enemy within 2 spaces of the player
@@ -13799,6 +13832,7 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 	# damage still delivers the +15 it carried.
 	# Empower's mark is spent once the play (and this damage) has resolved.
 	card.draw_empowered = false
+	NewCardsD.end_feint(card)  # Feint's rider is spent with the play, like Empower's
 	Card.elixir_poison_heals = false
 	PlayerStats.heal_to_damage = false
 	var pm_t = card.premeditated_target
@@ -14171,7 +14205,9 @@ func _input(event: InputEvent) -> void:
 						var tgt_summon := _summon_at_position(mouse_pos)
 						if tgt_summon:
 							tgt = tgt_summon
-					if not (tgt is Player) and not (card.card_id in SUMMON_ALLY_CARDS):
+					if card.card_id == "acro_medic" and not NewCardsC.acro_medic_can_play(self, tgt):
+						pass  # refused, the reason logged: yourself, or no free spot beside the ally
+					elif not (tgt is Player) and not (card.card_id in SUMMON_ALLY_CARDS):
 						# Resolves on a hero's stats; a summon pick used to land on
 						# the caster instead. Refuse it, nothing spent.
 						add_battle_log("%s must target a hero, not a summon." % card.card_name, Color(1.0, 0.6, 0.4))
@@ -14209,6 +14245,12 @@ func _input(event: InputEvent) -> void:
 							func(picks: Array):
 								card.picked_cards = picks
 								play_selected_card(tgt))
+					elif card.card_id == "self_admission":
+						show_hand_card_picker("Self Admission — jail which card?",
+							func(chosen):
+								card.picked_card = chosen
+								play_selected_card(tgt),
+							card)
 					elif card.card_id == "reposition":
 						# Let the player choose which card to discard, then play.
 						show_hand_card_picker("Reposition — discard which card?",
@@ -16115,6 +16157,7 @@ func _cover_mitigation(victim_ref, amount: int) -> int:
 			# enemies never act inside the damage call).
 			if covers[i].tempo_cost > 0 and tempo_manager:
 				tempo_manager.call_deferred("add_tempo", covers[i].tempo_cost)
+	NewCardsB.on_ally_hit(self, victim)  # Not So Fast
 	if soaked > 0:
 		add_battle_log("Cover! %d damage soaked." % mini(soaked, amount), Color(0.5, 0.85, 1.0))
 		call_deferred("_refresh_unit_tracker")
@@ -16231,6 +16274,8 @@ func _fire_instant_site_effect(card: Card, ctx: Dictionary) -> void:
 				if attacker and is_instance_valid(attacker) and attacker.has_method("knockback"):
 					attacker.knockback(victim.position, 1)
 				add_battle_log("Psionic Flow guards: 8 restored, attacker shoved!", Color(0.6, 0.7, 1.0))
+		"soul_consumption", "not_so_fast", "spiteful_sting", "pocket_shiv":
+			NewCardsB.instant_site_effect(self, card, ctx)
 		_:
 			pass  # execute() carries the whole effect (Feed into the Pain, Preemptive Answer, Tight Rope…)
 

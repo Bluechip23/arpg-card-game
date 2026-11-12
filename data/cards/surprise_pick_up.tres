@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "surprise_pick_up"
+card_name = "Surprise Pick Up"
+description = "A crate lands on the tile. The first ally to stand on it for 5 tempo chooses: gain 20 temp HP, mana, armor, Thorns and Keen 20% (10 tempo) — or draw 3 cards, gain Blessed 2 for 3 cycles and restore all their Brain and Flash points. Jail 40."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 250
+tempo_cost = 6
+resolve_tick = 6
+is_ranged = true
+target_types = ["point"]
+jail_on_play = 40
+slot_labels = [14, 13]
+keywords = ["utility", "point", "ranged"]

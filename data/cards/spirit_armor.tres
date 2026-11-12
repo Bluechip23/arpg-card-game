@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "spirit_armor"
+card_name = "Spirit Armor"
+description = "Maintain: every cycle, you and all allies within 5 squares of you gain 2 armor."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 90
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 5.0
+target_types = ["self"]
+maintain_cost = 90
+auto_maintain = true
+slot_labels = [14, 5, 13, 12]
+keywords = ["utility"]

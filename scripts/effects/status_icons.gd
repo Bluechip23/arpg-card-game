@@ -85,7 +85,7 @@ static func _draw(img: Image, key: String) -> bool:
 			PixelRaster.disc(img, 8, 12, 4, skin)                        # bicep bump
 			PixelRaster.rect(img, 14, 7, 4, 10, skin)                    # forearm raised
 			PixelRaster.disc(img, 16, 6, 3, skin)                        # fist
-		"enlightened":
+		"keen", "enlightened":
 			# A crit sparkle: four-point star.
 			var gold := Color(1.0, 0.95, 0.5)
 			PixelRaster.tri(img, Vector2(12, 2), Vector2(9, 12), Vector2(15, 12), gold)

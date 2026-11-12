@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "internal_sickness"
+card_name = "Internal Sickness"
+description = "Deal 10 damage. If this kills an enemy, draw 2 and Jail this card for 15 tempo."
+card_type_name = "Offensive"
+mana_cost = 80
+damage = 10
+tempo_cost = 1
+base_damage = 10
+is_ranged = true
+slot_labels = [10, 14, 9]
+keywords = ["offensive", "ranged", "enemy"]

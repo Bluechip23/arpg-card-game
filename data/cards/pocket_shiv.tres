@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "pocket_shiv"
+card_name = "Pocket Shiv"
+description = "Instant: when you discard another card from your hand, gain 10 mana and deal 5 damage to the nearest enemy in melee range."
+card_type = 3
+card_type_name = "Instant"
+mana_cost = 0
+damage = 5
+tempo_cost = 0
+base_damage = 5
+target_types = ["self"]
+reaction_trigger = "on_card_discarded"
+slot_labels = [10, 2, 4]
+keywords = ["reaction", "attack", "offensive"]

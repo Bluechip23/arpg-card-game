@@ -6,7 +6,7 @@
 script = ExtResource("1_sr78u")
 card_id = "gift_from_the_gods"
 card_name = "Gift from the Gods"
-description = "Gain 3 Enlightened (10% crit chance)."
+description = "Gain Keen: +10% crit chance on your next 3 crit rolls."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 40

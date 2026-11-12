@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "stoked_pride"
+card_name = "Stoked Pride"
+description = "Mark an ally. When an enemy next attacks them, a lion (30 health) is summoned beside them and takes the damage instead. While it lives within 2 squares of them, it keeps taking the attacks aimed at them."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 100
+tempo_cost = 5
+resolve_tick = 4
+is_ranged = true
+range_modifier = 1
+target_types = ["ally"]
+keywords = ["utility", "ally", "ranged"]

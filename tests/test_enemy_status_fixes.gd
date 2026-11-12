@@ -1,8 +1,8 @@
 extends SceneTree
 
 ## Enemy status fixes from the status-effects audit (docs/STATUS_EFFECTS_AUDIT.md §1):
-##  - A lone Trip runs out on its own timer (it once waited for some other
-##    timed status to land before it ever ticked).
+##  - Trip leaves Slow (Tripped was folded into it), which runs out on its
+##    own stack clock.
 ##  - Exposed ends when the enemy gains armor again (Roar, the Earth Mage's
 ##    hardening, any armor set directly), and returns on the next break.
 ##  - Mark keeps the longer timer: a "+1" rider never cuts it to 1.
@@ -69,18 +69,18 @@ func _clear_player_debuffs() -> void:
 		dm.remove_debuff(d.debuff_type)
 
 func _test_trip() -> void:
-	print("--- Tripped wears off on its own ---")
+	# Tripped is gone (folded into Slow, 2026-11-11): the Trip card's Slow
+	# runs out on its own stack clock, one stack per 5 tempo.
+	print("--- Trip's Slow wears off on its own ---")
 	var e := _spawn(Enemy.EnemyType.DUMMY, Vector2i(6, 0))
-	e.apply_debuff("trip", 5)
-	_check(e.tripped_tempo == 5 and e.has_debuff_type("trip"), "a lone Trip lands for 5 tempo")
-	e._tick_timed_statuses(4)
-	_check(e.tripped_tempo == 1, "4 tempo later 1 is left (%d)" % e.tripped_tempo)
-	e._tick_timed_statuses(1)
-	_check(e.tripped_tempo == 0 and not e.has_debuff_type("trip"), "at 5 tempo the Trip is gone")
-	e.apply_debuff("trip", 3)
-	var tip: Dictionary = e.get_effect_tooltip("Tripped")
-	_check(str(tip["desc"]) == "Its moves cover 4 fewer tiles.", "the badge explains itself (%s)" % tip["desc"])
-	_check(str(tip["remaining"]) == "Remaining: 3 tempo", "…and shows the tempo left (%s)" % tip["remaining"])
+	Card.create_by_id("trip").execute(e, null, null, 0.0, 0.0, null)
+	_check(e.slow_stacks == 2 and e.has_debuff_type("slow") and not e.has_debuff_type("trip"),
+		"Trip lands Slowed 2 and no Tripped (%d)" % e.slow_stacks)
+	e._tick_timed_statuses(5)
+	_check(e.slow_stacks == 1, "5 tempo later 1 stack is left (%d)" % e.slow_stacks)
+	e._tick_timed_statuses(5)
+	_check(e.slow_stacks == 0 and not e.has_debuff_type("slow"), "at 10 tempo the Slow is gone")
+	_check(str(e.get_effect_tooltip("Tripped").get("desc", "")) == "", "no Tripped badge text is left")
 	_drop(e)
 
 func _test_exposed() -> void:

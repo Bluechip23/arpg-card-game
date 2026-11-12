@@ -229,6 +229,36 @@ FRAMES = {
         "numbers": [(82, 155, 212, 260), (772, 160, 848, 255)],
         "squeeze": [(400, 620, 130), (620, 720, 26), (720, 880, 9)],
     },
+    # The Offensive cards (2026-11-11): cracked ruby crystal round dark
+    # leather, a ruby diamond at the head, one centred type word, and a
+    # knight, a fire mage and an archer attacking together in the rules box.
+    # For offensive cards that are not only an attack or only a spell: the
+    # plain "Offensive" rows and the attack-and-spell cards. Its blood drop
+    # is covered by the standard mana drop, as on the Attack board; its
+    # brass, gold-sand hourglass is the standard style and stays. The art
+    # runs edge to edge of its window (no dark sides to blend from), so the
+    # window is filled with the board's own dark leather (art_fill).
+    # No logo of its own: the game sets it in the type bar's middle, as on
+    # the Spell board. The same shape as the Attack board, squeezed alike.
+    "offensive": {
+        "src": "assets/sprites/paintings/card_offensive_board.webp",
+        "card": (24, 72, 915, 1535),
+        "dots": [(410, 183), (490, 183), (570, 183)],
+        "dot_r": 28,
+        "bands": [
+            (345, 143, 632, 223),
+            (258, 262, 694, 342),
+            (296, 928, 650, 1002),
+        ],
+        "art": (62, 376, 882, 906),
+        "art_fill": (75, 1020, 300, 1090),
+        "art_keep": [],
+        "text": (118, 1098, 445, 1238),
+        "drop": {"at": (42, 34), "scale": 1.07},
+        "text_light": True,
+        "numbers": [(84, 162, 212, 262), (776, 168, 844, 264)],
+        "squeeze": (400, 880, 264),
+    },
 }
 
 
@@ -294,7 +324,14 @@ def blank(cfg):
 
     # The sample art: the whole window, row by row from its dark sides ...
     src = rgb.copy()
-    rgb = row_fill(rgb, box_mask(shape, cfg["art"]))
+    if "art_fill" in cfg:
+        # No dark sides to blend from: the window takes the mean colour of a
+        # plain patch of the board's own panel.
+        fx0, fy0, fx1, fy1 = cfg["art_fill"]
+        ax0, ay0, ax1, ay1 = cfg["art"]
+        rgb[ay0:ay1, ax0:ax1] = rgb[fy0:fy1, fx0:fx1].reshape(-1, 3).mean(axis=0).astype(np.uint8)
+    else:
+        rgb = row_fill(rgb, box_mask(shape, cfg["art"]))
     # ... then the ornament put back: its pixels inside its diamond that are
     # not the art's reds.
     r_, g_ = src[..., 0].astype(int), src[..., 1].astype(int)

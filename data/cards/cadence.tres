@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "cadence"
+card_name = "Cadence"
+description = "Advance your attack-speed counter by 5. If that triggers the proc, also gain Haste 1 for your next move."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 10
+tempo_cost = 1
+target_types = ["self"]
+slot_labels = [10, 1, 7, 4]
+keywords = ["utility", "self"]

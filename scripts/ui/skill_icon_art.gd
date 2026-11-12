@@ -22,7 +22,7 @@ const DIR := "res://assets/textures/craftpix/icons/"
 const STATUS := {
 	# Buffs
 	"thorns": "rpg_61", "focused": "rpg_47", "regen": "rpg_62",
-	"blessed": "game_65", "fortify": "game_12", "enlightened": "pack_17",
+	"blessed": "game_65", "fortify": "game_12",
 	"strengthen": "rpg_42", "bolster": "pack_38", "haste": "game_37",
 	"cleanse": "game_82", "smith": "rpg_64", "steady": "pack_27",
 	"brace": "game_51", "resilient": "pack_24", "life_steal": "game_70",
@@ -30,7 +30,7 @@ const STATUS := {
 	"armor_break": "rpg_67", "shield_ready": "pack_75",
 	"repelled_block": "rpg_68", "shield_of_growth": "rpg_28",
 	"demonic_rage": "rpg_52", "poisoned_blood": "game_1", "elixir": "rpg_74",
-	"keen": "game_18", "might": "rpg_90", "raged_circulation": "game_32",
+	"keen": "game_18", "attune": "pack_60", "might": "rpg_90", "raged_circulation": "game_32",
 	"understanding": "game_5", "approach": "pack_62",
 	"enchanted_quiver": "game_68", "tighten_string": "pack_28",
 	"loaded_die": "game_88", "taunt": "rpg_33", "tree": "rpg_63",
@@ -172,7 +172,7 @@ const CARDS := {
 	"life_swap": "game_32", "raged_circulation": "game_32", "self_infliction": "rpg_21",
 	"feed_into_the_pain": "rpg_21", "exacerbate_wounds": "rpg_21",
 	"demonic_rage": "rpg_52", "might": "rpg_90", "strengthen": "rpg_42",
-	"empower": "game_64", "keen": "game_18", "enlightened": "pack_17",
+	"empower": "game_64", "keen": "game_18",
 	"understanding": "game_5", "meditate": "pack_79", "serene_center": "pack_79",
 	"monk_of_the_night": "pack_79", "clear_mind": "rpg_47", "deep_breaths": "pack_41",
 	"premeditated": "rpg_47", "preemptive_answer": "rpg_47", "anticipation": "rpg_16",

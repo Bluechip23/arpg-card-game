@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "arcane_tide"
+card_name = "Arcane Tide"
+description = "Grant an ally Attune 3 (+3 damage on their next 3 offensive spells)."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 30
+tempo_cost = 2
+is_ranged = true
+target_types = ["self", "ally"]
+slot_labels = [3, 14, 8]
+school = 1
+keywords = ["utility", "spell", "ally", "ranged"]

@@ -3,7 +3,7 @@ extends SceneTree
 ## Brad and Cory passives after the design pass on the audit: In the Trenches
 ## charges return one by one, The Way of the Plate really refunds tempo, a
 ## tied Ancestral Aid hand does nothing, Redemption arms only on Brad's own
-## heals and adds to Enlightened, Life Steal covers passive hits and the auto
+## heals and adds to Keen, Life Steal covers passive hits and the auto
 ## attack, Solemn Independence is a hit modifier that blocks every ally heal,
 ## Self Reliance cuts a card's cost instead of refunding mana, Eat is a hit
 ## modifier on direct hits only, and Territorial Death fires when Cory walks.
@@ -113,7 +113,7 @@ func _test_ancestral_tie(stats, pt) -> void:
 	stats.skill_tree_passives.erase("ancestral_aid")
 
 func _test_redemption(stats, pt) -> void:
-	print("-- Redemption: Brad's own heals, on top of Enlightened --")
+	print("-- Redemption: Brad's own heals, on top of Keen --")
 	_grant(stats, "redemption")
 	var bm = main.player.get_buff_manager()
 	for b in bm.buffs.duplicate():
@@ -131,25 +131,25 @@ func _test_redemption(stats, pt) -> void:
 	stats.heal(5)
 	_check(not stats.last_heal_from_ally, "his own heal does not")
 	_check(stats.st_redemption_crit == 15, "…and arms 15% for the next attack")
-	bm.apply_buff(Buff.create_enlightened(10, 3, "Elsewhere"))
-	_check(bm.get_buff(Buff.BuffType.ENLIGHTENED).value == 10 and stats.st_redemption_crit == 15,
-		"it sits beside an Enlightened buff instead of merging into it")
+	bm.apply_buff(Buff.create_keen_rolls(10, 3, "Elsewhere"))
+	_check(bm.get_buff(Buff.BuffType.KEEN).value == 10 and stats.st_redemption_crit == 15,
+		"it sits beside an Keen buff instead of merging into it")
 	var crits := 0
 	stats.st_pre_attack_is_offensive = true  # an offensive card's roll
 	for _i in range(40):
 		stats.st_redemption_crit = 90
-		bm.remove_buff(Buff.BuffType.ENLIGHTENED)
-		bm.apply_buff(Buff.create_enlightened(10, 3, "Elsewhere"))
+		bm.remove_buff(Buff.BuffType.KEEN)
+		bm.apply_buff(Buff.create_keen_rolls(10, 3, "Elsewhere"))
 		if bm.roll_crit():
 			crits += 1
-	_check(crits == 40, "10%% Enlightened + 90%% Redemption always crits (%d/40)" % crits)
+	_check(crits == 40, "10%% Keen + 90%% Redemption always crits (%d/40)" % crits)
 	_check(stats.st_redemption_crit == 0, "the roll spends it")
 	stats.st_redemption_crit = 15
 	stats.st_pre_attack_is_offensive = false
 	bm.roll_crit()
 	_check(stats.st_redemption_crit == 15, "a non-offensive card's roll neither uses nor spends it")
 	stats.st_redemption_crit = 0
-	bm.remove_buff(Buff.BuffType.ENLIGHTENED)
+	bm.remove_buff(Buff.BuffType.KEEN)
 	stats.skill_tree_passives.erase("redemption")
 
 func _test_life_steal(stats, pt, dummy: Enemy) -> void:

@@ -132,9 +132,11 @@ func _run() -> void:
 
 	print("-- Trip --")
 	if dummy:
-		dummy.apply_debuff("trip", 10)
-		_check(dummy.tripped_tempo == 10 and dummy.has_debuff_type("trip"), "Trip: movement -4 for 10 tempo")
-		dummy.tripped_tempo = 0
+		# Tripped was folded into Slow: the card leaves Slowed 2 (10 tempo).
+		dummy.slow_stacks = 0
+		Card.create_by_id("trip").execute(dummy, stats, dm, 0.0, 0.0, null)
+		_check(dummy.slow_stacks == 2 and not ("tripped_tempo" in dummy), "Trip: Slowed 2, no Tripped debuff")
+		dummy.slow_stacks = 0
 
 	print("-- Empower marks attack cards as they are drawn --")
 	dm.hand.clear()
@@ -175,7 +177,7 @@ func _run() -> void:
 	_check(trip_emp.last_damage_dealt >= trip_plain.last_damage_dealt + 3, "Trip gains Empower's +3 (%d vs %d)" % [trip_emp.last_damage_dealt, trip_plain.last_damage_dealt])
 	_check(trip_emp.bonus_damage == 0, "the +3 does not stick to the card")
 	if dummy:
-		dummy.tripped_tempo = 0
+		dummy.slow_stacks = 0
 
 	print("-- Parry: 10% physical, one attack --")
 	bm.remove_buff(Buff.BuffType.BRACE)

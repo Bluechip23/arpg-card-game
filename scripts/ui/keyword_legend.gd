@@ -45,7 +45,6 @@ func _build_legend() -> void:
 	_add_keyword("Hexed", "A random card costs +X mana until played.", Color(0.6, 0.0, 0.6))
 	_add_keyword("Locked", "A random card can't be played.", Color(0.3, 0.3, 0.3))
 	_add_keyword("Rooted", "Can't move for X tempo.", Color(0.4, 0.25, 0.1))
-	_add_keyword("Tripped", "Moves 4 fewer tiles per move (no step if that leaves none)", Color(0.5, 0.7, 1.0))
 	_add_keyword("Clumsy", "30% chance to discard a random card when you play one. Each stack lasts 5 tempo.", Color(0.9, 0.6, 0.2))
 	_add_keyword("Vulnerable", "Take 30% more damage. Each stack lasts 5 tempo.", Color(1.0, 0.3, 0.3))
 	_add_keyword("Blind", "Attacks have an 80% chance to miss. Each stack lasts 5 tempo.", Color(0.85, 0.85, 0.4))
@@ -61,7 +60,6 @@ func _build_legend() -> void:
 	_add_keyword("Regen", "Heal X per cycle. Loses 1 per cycle.", Color(0.4, 1.0, 0.4))
 	_add_keyword("Blessed", "Draw X extra card(s) per cycle for Y cycles.", Color(1.0, 0.9, 0.5))
 	_add_keyword("Fortify", "Your armor doesn't decay.", Color(0.6, 0.6, 0.8))
-	_add_keyword("Enlightened", "+X% crit chance on your next Y crit rolls.", Color(1.0, 1.0, 0.6))
 	_add_keyword("Strengthen", "+X damage on your next Y attacks.", Color(1.0, 0.5, 0.3))
 	_add_keyword("Bolster", "+X armor the next Y times you gain armor.", Color(0.5, 0.7, 1.0))
 	_add_keyword("Haste", "+X free tiles on each of your next Y moves.", Color(0.5, 1.0, 1.0))
@@ -75,7 +73,8 @@ func _build_legend() -> void:
 	_add_keyword("Morphine", "Gain temporary health. When it ends, lose it and take 2 damage.", Color(1.0, 0.6, 0.8))
 	_add_keyword("Wear Down", "Each of your attacks lowers the target's attack by 1 for X tempo.", Color(0.9, 0.6, 0.3))
 	_add_keyword("Armor Break", "Your next attack deals double damage to armor.", Color(0.8, 0.6, 0.2))
-	_add_keyword("Keen", "+X% crit chance for Y tempo", Color(1.0, 0.9, 0.3))
+	_add_keyword("Attune", "+X damage on your next Y offensive spells (Strengthen is for attacks)", Color(0.45, 0.7, 1.0))
+	_add_keyword("Keen", "+X% crit chance, for Y tempo or for your next Y crit rolls", Color(1.0, 0.9, 0.3))
 	_add_keyword("Might", "+X STR for Y tempo (damage, not carry weight)", Color(1.0, 0.4, 0.2))
 
 	# Overflow Section

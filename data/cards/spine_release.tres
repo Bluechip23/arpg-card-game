@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "spine_release"
+card_name = "Spine Release"
+description = "Spend all your Thorns and deal that damage, split equally, among the enemies in the 8 tiles around you."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 70
+tempo_cost = 2
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 1.5
+target_types = ["all_nearby"]
+slot_labels = [13]
+school = 1
+keywords = ["utility", "spell", "no_target"]

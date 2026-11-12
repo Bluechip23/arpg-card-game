@@ -805,8 +805,8 @@ func _t_gift_from_the_gods() -> void:
 	_reset()
 	var r := _play(Card.create_by_id("gift_from_the_gods"), main.player)
 	_check(r["played"] and r["mana"] == 40, "Gift from the Gods costs 40 mana (%s)" % _cost_str(r))
-	var en: Buff = bm.get_buff(Buff.BuffType.ENLIGHTENED)
-	_check(en != null and en.value == 10 and en.charges == 3, "Gain 3 Enlightened (10% crit chance)")
+	var en: Buff = bm.get_buff(Buff.BuffType.KEEN)
+	_check(en != null and en.value == 10 and en.charges == 3, "Gain 3 Keen (10% crit chance)")
 
 func _t_gift_from_the_phoenix() -> void:
 	print("-- Gift from the Phoenix --")

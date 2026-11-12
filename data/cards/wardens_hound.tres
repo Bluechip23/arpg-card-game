@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "wardens_hound"
+card_name = "Warden's Hound"
+description = "Maintain: when you Jail a card, gain Keen 2% for 10 tempo and 5 Thorns."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 60
+tempo_cost = 0
+target_types = ["self"]
+maintain_cost = 60
+auto_maintain = true
+slot_labels = [9, 6]
+keywords = ["utility"]

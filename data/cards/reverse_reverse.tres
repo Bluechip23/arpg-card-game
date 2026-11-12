@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "reverse_reverse"
+card_name = "Reverse Reverse"
+description = "Draw 1, then put a card from your hand on top of your draw pile."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 50
+tempo_cost = 3
+resolve_tick = 1
+target_types = ["self"]
+slot_labels = [7]
+keywords = ["utility"]

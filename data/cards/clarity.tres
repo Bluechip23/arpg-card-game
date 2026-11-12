@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "clarity"
+card_name = "Clarity"
+description = "Focused for 2 cycles (+10 mana at each cycle start) and Attune 2 (+2 damage on your next 3 offensive spells)."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 10
+tempo_cost = 3
+resolve_tick = 3
+target_types = ["self"]
+slot_labels = [6, 14, 16]
+keywords = ["utility"]

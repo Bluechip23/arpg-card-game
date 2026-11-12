@@ -243,6 +243,46 @@ const CARD_SLOT_LABELS := {
 	"skeleton_army": [CardKeyword.STAFF, CardKeyword.GEM, CardKeyword.CROWN],
 	"turtle_power": [CardKeyword.STAFF, CardKeyword.GEM, CardKeyword.CROWN],
 	"summon_shadow_hound": [CardKeyword.WAND, CardKeyword.GEM, CardKeyword.STAFF, CardKeyword.DAGGER, CardKeyword.SWORD],
+	# The sheet's 2026-11-11 rows.
+	"the_wolfs_howl": [CardKeyword.SWORD, CardKeyword.CROWN],
+	"spirit_armor": [CardKeyword.WAND, CardKeyword.BUCKLER, CardKeyword.BULWARK, CardKeyword.SPEAR],
+	"ember_heart": [CardKeyword.WAND, CardKeyword.STAFF, CardKeyword.HAMMER],
+	"lodestone_field": [CardKeyword.HAMMER, CardKeyword.GEM],
+	"wardens_hound": [CardKeyword.AXE, CardKeyword.CROWN],
+	"war_shout": [CardKeyword.AXE, CardKeyword.CROWN, CardKeyword.BULWARK],
+	"stone_wheel": [CardKeyword.SWORD, CardKeyword.WAND],
+	"arcane_tide": [CardKeyword.GEM, CardKeyword.WAND, CardKeyword.SWORD],
+	"clarity": [CardKeyword.CROWN, CardKeyword.WAND, CardKeyword.STAFF],
+	"soul_consumption": [CardKeyword.WAND, CardKeyword.GEM, CardKeyword.DAGGER],
+	"not_so_fast": [CardKeyword.SWIFT, CardKeyword.WAND, CardKeyword.POCKET],
+	"spiteful_sting": [CardKeyword.DAGGER],
+	"pocket_shiv": [CardKeyword.DAGGER, CardKeyword.POCKET, CardKeyword.SWIFT],
+	"deep_breaths_spell": [CardKeyword.GEM, CardKeyword.CROWN],
+	"self_admission": [CardKeyword.FIST, CardKeyword.GEM, CardKeyword.CROWN],
+	"reverse_reverse": [CardKeyword.FIST],
+	"foresight": [CardKeyword.GEM, CardKeyword.FIST, CardKeyword.CROWN],
+	"lunge": [CardKeyword.SWIFT, CardKeyword.DAGGER, CardKeyword.SPEAR],
+	"grapple_chain": [CardKeyword.SPEAR],
+	"back_pedal": [CardKeyword.SWIFT, CardKeyword.BUCKLER, CardKeyword.WAND],
+	"deliberate_arch": [CardKeyword.HAMMER, CardKeyword.SWORD, CardKeyword.AXE],
+	"harvest": [CardKeyword.AXE],
+	"momentous_slam": [CardKeyword.BUCKLER, CardKeyword.BULWARK],
+	"bastion_battle": [CardKeyword.BUCKLER],
+	"acro_medic": [CardKeyword.POCKET, CardKeyword.SWIFT],
+	"berserkers_tithe": [CardKeyword.AXE, CardKeyword.ARROW],
+	"internal_sickness": [CardKeyword.DAGGER, CardKeyword.WAND, CardKeyword.AXE],
+	"fan_of_knives": [CardKeyword.DAGGER, CardKeyword.POCKET],
+	"static_sting": [CardKeyword.WAND, CardKeyword.FIST, CardKeyword.DAGGER, CardKeyword.ARROW],
+	"cadence": [CardKeyword.DAGGER, CardKeyword.ARROW, CardKeyword.FIST, CardKeyword.SWIFT],
+	"grit": [CardKeyword.BULWARK, CardKeyword.BUCKLER],
+	"spine_release": [CardKeyword.BULWARK],
+	"ward_of_hallow_glass": [CardKeyword.BULWARK, CardKeyword.BUCKLER, CardKeyword.WAND, CardKeyword.GEM],
+	"the_ledger": [CardKeyword.WAND, CardKeyword.STAFF, CardKeyword.CROWN, CardKeyword.GEM],
+	"both_sides_of_the_candle": [CardKeyword.DAGGER, CardKeyword.SPEAR, CardKeyword.CROWN],
+	"thickened_nature": [CardKeyword.WAND, CardKeyword.STAFF, CardKeyword.BUCKLER, CardKeyword.CROWN],
+	"flames_of_alexandria": [CardKeyword.STAFF],
+	"surprise_pick_up": [CardKeyword.WAND, CardKeyword.BULWARK],
+	"inspiring_whistle": [CardKeyword.WAND, CardKeyword.SWORD, CardKeyword.AXE],
 }
 
 ## Engrave cards from the sheet: they exist only inside an item slot.
@@ -319,6 +359,48 @@ const CARD_RARITIES := {
 	"summon_skeleton": Rarity.COMMON, "summon_battle_turtle": Rarity.RARE,
 	"skeleton_army": Rarity.LEGENDARY, "turtle_power": Rarity.LEGENDARY,
 	"summon_shadow_hound": Rarity.RARE,
+	# The sheet's 2026-11-11 rows.
+	"the_wolfs_howl": Rarity.RARE,
+	"spirit_armor": Rarity.RARE,
+	"ember_heart": Rarity.LEGENDARY,
+	"lodestone_field": Rarity.LEGENDARY,
+	"wardens_hound": Rarity.LEGENDARY,
+	"war_shout": Rarity.COMMON,
+	"stone_wheel": Rarity.COMMON,
+	"arcane_tide": Rarity.COMMON,
+	"clarity": Rarity.COMMON,
+	"soul_consumption": Rarity.LEGENDARY,
+	"not_so_fast": Rarity.RARE,
+	"spiteful_sting": Rarity.COMMON,
+	"pocket_shiv": Rarity.COMMON,
+	"deep_breaths_spell": Rarity.LEGENDARY,
+	"self_admission": Rarity.RARE,
+	"reverse_reverse": Rarity.RARE,
+	"foresight": Rarity.RARE,
+	"lunge": Rarity.COMMON,
+	"grapple_chain": Rarity.RARE,
+	"back_pedal": Rarity.COMMON,
+	"deliberate_arch": Rarity.RARE,
+	"harvest": Rarity.RARE,
+	"momentous_slam": Rarity.COMMON,
+	"bastion_battle": Rarity.RARE,
+	"acro_medic": Rarity.RARE,
+	"berserkers_tithe": Rarity.LEGENDARY,
+	"internal_sickness": Rarity.LEGENDARY,
+	"fan_of_knives": Rarity.RARE,
+	"static_sting": Rarity.RARE,
+	"feint": Rarity.COMMON,
+	"cadence": Rarity.RARE,
+	"grit": Rarity.RARE,
+	"spine_release": Rarity.RARE,
+	"ward_of_hallow_glass": Rarity.LEGENDARY,
+	"the_ledger": Rarity.MYTHIC,
+	"both_sides_of_the_candle": Rarity.MYTHIC,
+	"thickened_nature": Rarity.RARE,
+	"flames_of_alexandria": Rarity.LEGENDARY,
+	"surprise_pick_up": Rarity.RARE,
+	"inspiring_whistle": Rarity.RARE,
+	"stoked_pride": Rarity.RARE,
 	"cover": Rarity.LEGENDARY, "enchanted_quiver": Rarity.LEGENDARY, "fireball": Rarity.LEGENDARY,
 	"fountain_of_life": Rarity.LEGENDARY, "gift_from_the_phoenix": Rarity.LEGENDARY,
 	"halo": Rarity.LEGENDARY, "harness_lightning": Rarity.LEGENDARY,
@@ -653,6 +735,7 @@ func clear_timed_mods() -> void:
 
 ## The card left the hand (played, discarded, drawn afresh): everything ends.
 func clear_temp_mods() -> void:
+	NewCardsD.end_feint(self)  # Feint's +5 damage / +2 tempo end with the hand
 	untimed_tempo_reduction = 0
 	untimed_flat_block = 0
 	clear_timed_mods()
@@ -756,7 +839,7 @@ static func count_debuff_kinds(enemy) -> int:
 	for field in ["burn_stacks", "cold_stacks", "poison_stacks", "shock_stacks",
 			"bleed_stacks", "vulnerable_stacks", "weaken_stacks", "slow_stacks",
 			"choke_dot_stacks", "disarmed_attacks", "stun_tempo", "silenced_tempo",
-			"rooted_tempo", "tripped_tempo", "frozen_tempo", "disarmed_tempo", "marked_tempo"]:
+			"rooted_tempo", "frozen_tempo", "disarmed_tempo", "marked_tempo"]:
 		if field in enemy and int(enemy.get(field)) > 0:
 			kinds += 1
 	return kinds
@@ -1215,8 +1298,9 @@ static func get_keyword_definitions() -> Dictionary:
 		"regen": "Heal X per cycle. Loses 1 per cycle.",
 		"blessed": "Draw X extra card(s) per cycle for Y cycles.",
 		"fortify": "Your armor doesn't decay.",
-		"enlightened": "+X% crit chance on your next Y crit rolls.",
 		"strengthen": "+X damage on your next Y attacks.",
+		"attune": "+X damage on your next Y offensive spells.",
+		"keen": "+X% crit chance, for Y tempo or for your next Y crit rolls.",
 		"bolster": "+X armor the next Y times you gain armor.",
 		"haste": "+X free tiles on each of your next Y moves.",
 		"engrave": "Only joins your deck while slotted in an item.",
@@ -1360,6 +1444,8 @@ func get_effect_draw_count() -> int:
 			return 2
 		"reload", "prepare":
 			return 3
+		"reverse_reverse":
+			return 1
 	return 0
 
 func execute(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
@@ -1409,6 +1495,17 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		player_stats.active_spell_power_bonus += player_stats.pending_spell_power_bonus
 		player_stats.pending_spell_power_bonus = 0
 		_spell_power_taken = true
+	# Attune: the caster's next offensive spells deal +X. The bonus rides the
+	# same per-play pool as the Wizard Hat's, so every damage path the spell
+	# has (card-side rolls and main's world effects) reads it, and it ends
+	# with the play.
+	var attune_mgr: BuffManager = Card.caster_buff_manager if Card.caster_buff_manager else buff_mgr
+	if school == CardSchool.SPELL and is_offensive() and player_stats and attune_mgr \
+			and attune_mgr.has_buff(Buff.BuffType.ATTUNE):
+		var attune_bonus: int = attune_mgr.consume_attune()
+		player_stats.active_spell_power_bonus += attune_bonus
+		_spell_power_taken = true
+		print("[CARD] Attune: %s deals +%d" % [card_name, attune_bonus])
 
 	# Premeditated: the first card to target an exposed-by-Premeditated enemy
 	# carries +15 onto its hit; main pays it out directly if the card deals none.
@@ -1848,6 +1945,8 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		"block":
 			_execute_block(player_stats, is_empowered, buff_mgr)
+		"ward_of_hallow_glass":
+			NewCardsE.execute_ward(self, player_stats, buff_mgr, is_empowered)
 		"exposing_strike":
 			# Starter: the Attack's hit, then 1 Vulnerable on the target.
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
@@ -1966,7 +2065,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		"gift_from_the_gods":
 			if buff_mgr:
 				var gift_stacks := 4 if (granted_by_item and granted_by_item.item_level >= 3) else 3
-				buff_mgr.apply_buff(Buff.new(Buff.BuffType.ENLIGHTENED, 10, -1, gift_stacks))
+				buff_mgr.apply_buff(Buff.create_keen_rolls(10, gift_stacks, "Gift from the Gods"))
 				if granted_by_item and granted_by_item.item_level >= 3 and player_stats:
 					var gift_dm = deck_manager.debuff_manager if deck_manager and "debuff_manager" in deck_manager else null
 					if gift_dm:
@@ -1974,7 +2073,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 						gift_list.shuffle()
 						for i in range(mini(3, gift_list.size())):
 							gift_dm.remove_debuff(gift_list[i].debuff_type)
-				print("[CARD] Gift from the Gods: %d Enlightened" % gift_stacks)
+				print("[CARD] Gift from the Gods: Keen 10%% for %d rolls" % gift_stacks)
 		"chain_lightning", "ice_grenade", "fire_punch", "poison_bomb", "crack_of_mintaka", "poof_and_weave":
 			# World-scale belt cards — resolved in main._apply_card_world_effects.
 			pass
@@ -2184,6 +2283,9 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			_execute_charge(target, player_stats, buff_mgr)
 		"heroic_leap":
 			_execute_heroic_leap(target, player_stats, buff_mgr)
+		"lunge", "grapple_chain", "back_pedal", "deliberate_arch", "harvest", "momentous_slam", "bastion_battle", "acro_medic":
+			# The sheet's 2026-11-11 melee and movement rows (scripts/cards/new_cards_c.gd).
+			NewCardsC.execute(self, target, player_stats, deck_manager, damage_reduction_pct, self_damage_percent, buff_mgr)
 		"morphine":
 			_execute_morphine(player_stats, buff_mgr)
 		"turtle_up":
@@ -2414,6 +2516,9 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			_execute_barbed_exterior(player_stats, buff_mgr)
 		"forever_armor":
 			_execute_forever_armor(player_stats, buff_mgr)
+		"the_wolfs_howl", "spirit_armor", "ember_heart", "lodestone_field", "wardens_hound", \
+		"war_shout", "stone_wheel", "arcane_tide", "clarity":
+			NewCardsA.execute(self, target, player_stats, deck_manager, buff_mgr)
 		"composed_response":
 			_execute_composed_response(deck_manager)
 		"composed_reaction":
@@ -2456,6 +2561,11 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		"internal_combustion", "god_of_thunder", "patience", "succumb", "adrenaline_shot", "vines", "release_tension", "roll", "misery_loves_company", "cryonics", "friendship", "worms_armageddon":
 			pass  # Effect applied in main._apply_card_world_effects (needs world access)
+		"berserkers_tithe", "internal_sickness", "fan_of_knives", "static_sting", "feint", "cadence", "grit", "spine_release":
+			NewCardsD.execute(self, target, player_stats, deck_manager, buff_mgr, damage_reduction_pct, self_damage_percent)  # sheet batch D
+		"soul_consumption", "not_so_fast", "spiteful_sting", "pocket_shiv", \
+		"deep_breaths_spell", "self_admission", "reverse_reverse", "foresight":
+			pass  # sheet batch B: resolved by main through NewCardsB
 		_:
 			print("[CARD] Unknown card: %s" % card_id)
 
@@ -2885,7 +2995,20 @@ func is_offensive() -> bool:
 func is_attack() -> bool:
 	if has_keyword("attack"):
 		return true
+	# A sheet row tagged plain "Offensive" (no attack, no spell) is neither
+	# shape: attack procs, Disarm and Silence all pass it by.
+	if has_keyword("offensive"):
+		return false
 	return card_type == CardType.ATTACK and school != CardSchool.SPELL
+
+## Offensive, but not only an attack or only a spell (designer, 2026-11-11):
+## a plain "Offensive" row (neither shape), or a card tagged attack and
+## spell at once (If Pigs Could Fly). These wear the Offensive card frame.
+func is_mixed_offensive() -> bool:
+	if not is_offensive() or card_type == CardType.REACTION:
+		return false
+	var spell: bool = school == CardSchool.SPELL
+	return is_attack() == spell
 
 ## The cards an enemy, a curse or a drawback forces on the player: Lightly
 ## Dazed (Armored Troll), Minor Wounds (Reckless Strike's price), Paralysis
@@ -3275,10 +3398,10 @@ func _execute_hope_this_works(target, player_stats: PlayerStats, buff_mgr: BuffM
 		print("[CARD] Hope This Works... it didn't work")
 
 func _execute_lady_luck(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Bless an ally: Enlightened for 5 attacks (flat +30% crit while it holds).
+	# Bless an ally: Keen for 5 crit rolls (flat +30% crit while it holds).
 	if buff_mgr:
-		buff_mgr.apply_buff(Buff.create_enlightened(30, 5, "Lady Luck"))
-	print("[CARD] Lady Luck! Enlightened: +30% crit chance for 5 attacks")
+		buff_mgr.apply_buff(Buff.create_keen_rolls(30, 5, "Lady Luck"))
+	print("[CARD] Lady Luck! Keen: +30% crit chance for 5 attacks")
 
 func _execute_if_pigs_could_fly(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	var total_damage := _roll_hit_damage(15, player_stats, buff_mgr, true, target)
@@ -3445,7 +3568,7 @@ func _execute_enchanted_quiver(player_stats: PlayerStats, deck_manager = null, b
 	print("[CARD] Enchanted Quiver! Next 3 ranged attacks create free arrow cards")
 
 func _execute_tighten_string(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	# Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, Enlightened (+20% crit)
+	# Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, Keen (+20% crit, one roll)
 	if buff_mgr:
 		buff_mgr.tighten_string_charges = 3
 	print("[CARD] Tighten String! Next 3 ranged attacks: +3 tempo, +6 damage, +6 range, +20% crit")
@@ -3549,14 +3672,18 @@ func _execute_bottomless_quiver(_player_stats: PlayerStats) -> void:
 func _execute_round_em_up(target, _player_stats: PlayerStats) -> void:
 	print("[CARD] Round 'Em Up! Enemies near target point displaced inward")
 
+## Trip: Slow stacks it leaves on the enemy (a stack is 5 tempo).
+const TRIP_SLOW_STACKS := 2
+
 func _execute_trip(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	var total_damage := _roll_hit_damage(5, player_stats, buff_mgr, false, target)
 	if target and target.has_method("take_damage"):
 		target.take_damage(total_damage, true, damage_type)
 	if target and target.has_method("apply_debuff"):
-		target.apply_debuff("trip", 10)  # movement -4 for 10 tempo
+		# Tripped was folded into Slow (designer, 2026-11-11): 2 stacks = 10 tempo.
+		target.apply_debuff("slow", TRIP_SLOW_STACKS)
 	last_damage_dealt = total_damage
-	print("[CARD] Trip! %d damage, enemy movement -4 for 10 tempo" % total_damage)
+	print("[CARD] Trip! %d damage, Slowed %d" % [total_damage, TRIP_SLOW_STACKS])
 
 func _execute_choke(target, player_stats: PlayerStats) -> void:
 	if target and target.has_method("apply_debuff"):
@@ -4622,6 +4749,47 @@ const CARD_IDS: Array[String] = [
 	"skeleton_army",
 	"turtle_power",
 	"summon_shadow_hound",
+	"the_wolfs_howl",
+	"spirit_armor",
+	"ember_heart",
+	"lodestone_field",
+	"wardens_hound",
+	"war_shout",
+	"stone_wheel",
+	"arcane_tide",
+	"clarity",
+	"soul_consumption",
+	"not_so_fast",
+	"spiteful_sting",
+	"pocket_shiv",
+	"deep_breaths_spell",
+	"self_admission",
+	"reverse_reverse",
+	"foresight",
+	"lunge",
+	"grapple_chain",
+	"back_pedal",
+	"deliberate_arch",
+	"harvest",
+	"momentous_slam",
+	"bastion_battle",
+	"acro_medic",
+	"berserkers_tithe",
+	"internal_sickness",
+	"fan_of_knives",
+	"static_sting",
+	"feint",
+	"cadence",
+	"grit",
+	"spine_release",
+	"ward_of_hallow_glass",
+	"the_ledger",
+	"both_sides_of_the_candle",
+	"thickened_nature",
+	"flames_of_alexandria",
+	"surprise_pick_up",
+	"inspiring_whistle",
+	"stoked_pride",
 	"protection_from_alnitak",
 	"balance_of_alnilam",
 	"crack_of_mintaka",

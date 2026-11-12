@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "the_wolfs_howl"
+card_name = "The Wolf's Howl"
+description = "Maintain: you and allies within 2 squares of you have Strengthen 5 (attacks +5) while they stand in the howl."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 180
+tempo_cost = 5
+resolve_tick = 5
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 2.0
+target_types = ["self"]
+maintain_cost = 180
+auto_maintain = true
+slot_labels = [8, 6]
+keywords = ["utility"]

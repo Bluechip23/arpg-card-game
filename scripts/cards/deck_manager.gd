@@ -441,7 +441,9 @@ func greedy_tax(card) -> Dictionary:
 	for c in hand:
 		if c != card and c.card_id == GREEDY_CHEESE_ID:
 			n += 1
-	return {"mana": n * GREEDY_CHEESE_MANA, "tempo": n * GREEDY_CHEESE_TEMPO}
+	# (Batch E tempo cuts — Ward of Hallow Glass, Both Sides of the Candle —
+	# ride the same number, so the hand face and the play both show them.)
+	return {"mana": n * GREEDY_CHEESE_MANA, "tempo": n * GREEDY_CHEESE_TEMPO - NewCardsE.tempo_cut(card, player_stats)}
 
 func draw_card() -> Card:
 	# Lost in the Labyrinth (the Inflamed Minotaur's curse): no draw of any
@@ -592,6 +594,7 @@ func handle_overflow() -> void:
 ## call: it logs each adjustment and records a percent-mana price on the
 ## card. Anything else (a preview, the simulator) asks quietly.
 func compute_play_cost(card: Card, index: int, target = null, debuff_mgr = null, commit: bool = false) -> Dictionary:
+	NewCardsB.price_foresight(card, player_stats)  # 20 mana, 2 less per Brain point held
 	var mana_cost = card.get_burden_mana_cost()  # Burden: +10 mana per prior play
 	# Heavy Greedy Cheese's own price scales with the mana pool.
 	if card.card_id == GREEDY_CHEESE_ID:
@@ -988,11 +991,13 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		# its stated tempo before returning to the discard pile.
 		card.jail_time_remaining = card.jail_on_play
 		jail_pile.append(card)
+		NewCardsA.on_card_jailed(self, card)
 		print("[DECK] %s jailed for %d tempo after play." % [card.card_name, card.jail_on_play])
 	elif card.is_slotted() and int(card.get_on_self_bonus().get("jail_tempo", 0)) > 0:
 		# The Rapid Recurve: cards fired from it are jailed after every play.
 		card.jail_time_remaining = int(card.get_on_self_bonus().get("jail_tempo", 0))
 		jail_pile.append(card)
+		NewCardsA.on_card_jailed(self, card)
 		print("[DECK] %s jailed for %d tempo by %s." % [card.card_name, card.jail_time_remaining, card.slotted_in_item.item_name])
 	else:
 		discard_pile.append(card)
@@ -1193,6 +1198,7 @@ func jail_burden_card(index: int) -> bool:
 	hand.remove_at(index)
 	card.jail_burden()  # resets plays + arms the 30-tempo jail timer
 	jail_pile.append(card)
+	NewCardsA.on_card_jailed(self, card)
 	hand_updated.emit()
 	print("[DECK] %s jailed to shed its burden" % card.card_name)
 	return true
@@ -1248,6 +1254,7 @@ func _process_erase_timers() -> void:
 func tick_temp_mods(amount: int) -> void:
 	_process_temp_mods(amount)
 	_process_hatch_timers(amount)
+	NewCardsD.tick_tithe(self, amount)  # Berserker's Tithe: its 40-tempo clock, in every pile
 
 func _process_hatch_timers(amount: int) -> void:
 	## Rat King's Infest: the fuse (Card.hatch_tempo, 5 on the sheet) counts
@@ -1500,6 +1507,7 @@ func trigger_one_reaction_jailed(trigger_type: String, jail_tempo: int) -> Card:
 			hand.remove_at(i)
 			card.jail_time_remaining = jail_tempo
 			jail_pile.append(card)
+			NewCardsA.on_card_jailed(self, card)
 			reaction_triggered.emit(card)
 			hand_updated.emit()
 			print("[DECK] Reaction triggered: %s (jailed %d tempo)" % [card.card_name, jail_tempo])

@@ -39,7 +39,7 @@ func _initialize() -> void:
 
 	# --- Buff amps: label parsing ---
 	stats.apply_sphere_grid_combat_bonus("Haste Amp +1", "")
-	stats.apply_sphere_grid_combat_bonus("Enlight Amp +10%", "")
+	stats.apply_sphere_grid_combat_bonus("Keen Amp +10%", "")
 	stats.apply_sphere_grid_combat_bonus("Brace Amp +10%", "")
 	stats.apply_sphere_grid_combat_bonus("Blessed Draw +1", "")
 	stats.apply_sphere_grid_combat_bonus("Blessed Amp +1", "")
@@ -48,7 +48,7 @@ func _initialize() -> void:
 	stats.apply_sphere_grid_combat_bonus("Cleanse Amp +1", "")
 	stats.apply_sphere_grid_combat_bonus("Resil Amp +10%", "")
 	_check(stats.sphere_haste_amp == 1, "Haste Amp parses")
-	_check(absf(stats.sphere_enlightened_amp - 10.0) < 0.001, "Enlight Amp parses")
+	_check(absf(stats.sphere_keen_amp - 10.0) < 0.001, "Keen Amp parses")
 	_check(stats.sphere_brace_amp == 10, "Brace Amp parses")
 	_check(stats.sphere_blessed_draw_amp == 1, "Blessed Draw parses")
 	_check(stats.sphere_blessed_amp == 1, "Blessed Amp parses")
@@ -67,8 +67,8 @@ func _initialize() -> void:
 	_check(blessed.value == 2 and blessed.charges == 4, "Blessed arrives with +1 draw and +1 cycle")
 	bm.apply_buff(Buff.create_brace(10, 1, "Test"))
 	_check(bm.get_buff(Buff.BuffType.BRACE).value == 20, "Brace 10% arrives as 20%")
-	bm.apply_buff(Buff.create_enlightened(25, 3, "Test"))
-	_check(bm.get_enlightened_crit_chance() == 35, "Enlightened 25% grants 35% with the amp")
+	bm.apply_buff(Buff.create_keen_rolls(25, 3, "Test"))
+	_check(bm.get_keen_crit_chance() == 35, "Keen 25% grants 35% with the amp")
 	bm.apply_buff(Buff.create_strengthen(3, 3, "Test"))
 	_check(bm.get_buff(Buff.BuffType.STRENGTHEN).value == 8, "Strengthen 3 arrives as 8")
 	bm.apply_buff(Buff.create_bolster(2, 3, "Test"))
@@ -94,7 +94,7 @@ func _initialize() -> void:
 			amp_labels.append(node.label)
 	_check(amp_labels.count("Vuln Amp +15%") == 2, "grid holds two Vuln Amp nodes")
 	_check(amp_labels.count("Weaken Amp +25%") == 1, "grid holds one Weaken Amp node")
-	for lbl in ["Haste Amp +1", "Enlight Amp +10%", "Brace Amp +10%", "Blessed Draw +1",
+	for lbl in ["Haste Amp +1", "Keen Amp +10%", "Brace Amp +10%", "Blessed Draw +1",
 			"Blessed Amp +1", "Strength Amp +5", "Bolster Amp +5", "Cleanse Amp +1", "Resil Amp +10%"]:
 		_check(amp_labels.count(lbl) == 1, "grid holds the '%s' node" % lbl)
 	# Hex arc: the debuff amps.
@@ -138,7 +138,7 @@ func _initialize() -> void:
 	fresh2.restore_progression(saved2)
 	_check(fresh2.sphere_haste_amp == 1 and fresh2.sphere_brace_amp == 10 \
 		and fresh2.sphere_blessed_draw_amp == 1 and fresh2.sphere_blessed_amp == 1 \
-		and absf(fresh2.sphere_enlightened_amp - 10.0) < 0.001,
+		and absf(fresh2.sphere_keen_amp - 10.0) < 0.001,
 		"buff amps survive save/restore")
 	fresh2.free()
 

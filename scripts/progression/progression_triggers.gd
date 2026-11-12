@@ -1251,7 +1251,7 @@ func _trigger_skill_tree_brad_on_heal_ally(_ally_name: String) -> void:
 
 func _redemption_arm(stats: PlayerStats) -> void:
 	## Arms its own crit number for the next attack roll (BuffManager.roll_crit
-	## adds it on top of Enlightened rather than merging the two).
+	## adds it on top of Keen rather than merging the two).
 	if stats.has_skill_tree_passive("redemption"):
 		var rd_crit: int = PassiveScaling.value("redemption", "crit_chance", stats.get_passive_level("redemption"))
 		stats.st_redemption_crit = rd_crit
@@ -1396,7 +1396,7 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target, isolation_ref = n
 	if stats.has_skill_tree_passive("scouted") and card.is_attack() and target and target is Enemy:
 		var enemy_id = target.get_instance_id()
 		if stats.st_scouted_bonus_active:
-			# Consume on any target: auto-crit handled via Enlightened buff applied when bonus activated
+			# Consume on any target: auto-crit handled via a Keen roll applied when bonus activated
 			stats.st_scouted_bonus_active = false
 			stats.st_scouted_target_id = enemy_id
 			stats.st_scouted_hits = 1  # This hit counts as the first of a new streak
@@ -1409,7 +1409,7 @@ func _trigger_skill_tree_stephen_on_attack(card: Card, target, isolation_ref = n
 				# Auto-crit on the next ATTACK (designer, 2026-10-30: attacks
 				# only) — rolled from st_scouted_crit_active in
 				# BuffManager.roll_crit, which only an attack arms; a spell's
-				# roll neither gains nor spends it (a generic Enlightened did).
+				# roll neither gains nor spends it (a generic Keen roll did).
 				var sc_range: int = PassiveScaling.value("scouted", "range", stats.get_passive_level("scouted"))
 				main.add_battle_log("Scouted: 3 hits! +%d range and auto-crit on your next attack — any target!" % sc_range, Color(0.4, 0.9, 0.4))
 		else:
@@ -1484,7 +1484,7 @@ func _serial_killer_ambush(stats, target) -> void:
 		target.invisible_to_players.erase(main.player)
 		var buff_mgr = main.player.get_buff_manager()
 		if buff_mgr:
-			buff_mgr.apply_buff(Buff.create_enlightened(100, 1, "Serial Killer"))
+			buff_mgr.apply_buff(Buff.create_keen_rolls(100, 1, "Serial Killer"))
 		main.add_battle_log("Serial Killer: ambush! Guaranteed crit — %s can see you now." % target.enemy_name, Color(0.3, 0.7, 1.0))
 
 func _deadly_isolated(target) -> bool:

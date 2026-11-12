@@ -20,7 +20,7 @@ OUT = "/tmp/export/arpg_status_effects.xlsx"
 
 CATEGORIES = {
     # Buffs
-    "STRENGTHEN": "Offense", "ENLIGHTENED": "Offense", "LIFE_STEAL": "Offense",
+    "STRENGTHEN": "Offense", "KEEN": "Offense", "ATTUNE": "Offense", "LIFE_STEAL": "Offense",
     "WEAR_DOWN": "Offense", "ARMOR_BREAK": "Offense",
     "FORTIFY": "Defense", "BOLSTER": "Defense", "SMITH": "Defense",
     "BRACE": "Defense", "RESILIENT": "Defense", "THORNS": "Defense",

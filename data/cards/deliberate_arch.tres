@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "deliberate_arch"
+card_name = "Deliberate Arch"
+description = "18 damage to every adjacent enemy. Glut 10."
+card_type_name = "Offensive"
+mana_cost = 80
+damage = 18
+tempo_cost = 5
+resolve_tick = 3
+base_damage = 18
+is_aoe = true
+aoe_shape = "circle"
+aoe_range = 1.5
+target_types = ["all_nearby"]
+slot_labels = [11, 8, 9]
+keywords = ["offensive", "melee", "aoe"]
+glut_tempo = 10

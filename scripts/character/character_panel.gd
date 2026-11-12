@@ -74,7 +74,7 @@ func set_sandbox_stat_edit(on: bool) -> void:
 # Which combat stat each buff/debuff influences (for colouring + hover highlight).
 # A buff contributes a "good" mark, a debuff a "bad" mark; net decides the colour.
 const BUFF_AFFECTS := {
-	"Strengthen": ["attack"], "Enlightened": ["crit"], "Haste": ["movement"],
+	"Strengthen": ["attack"], "Attune": ["attack"], "Keen": ["crit"], "Haste": ["movement"],
 	"Smith": ["armor"], "Bolster": ["armor"], "Shield Ready": ["armor"],
 	"Shield of Growth": ["armor"], "Fortify": ["armor"], "Regen": ["hp_regen"],
 	"Focused": ["mana_regen"], "Blessed": ["draw"], "Brace": ["damage_taken"],

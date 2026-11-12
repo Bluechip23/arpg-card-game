@@ -752,7 +752,7 @@ func _t_serial_killer() -> void:
 		e.take_damage(1, true)
 		_check(main.player in e.invisible_to_players, "Serial Killer r%d: dropping below %d%% makes Cory invisible to it" % [r, roundi(thr * 100)])
 		pt.arm_pre_attack_passives(Card.create_by_id("slash"), e)
-		var en = main.player.get_buff_manager().get_buff(Buff.BuffType.ENLIGHTENED)
+		var en = main.player.get_buff_manager().get_buff(Buff.BuffType.KEEN)
 		pt.clear_pre_attack_passives()
 		_check(not (main.player in e.invisible_to_players) and en != null and en.value == 100, "Serial Killer r%d: attacking it reveals him with an auto-crit" % r)
 		e.take_damage(1, true)
@@ -1359,7 +1359,7 @@ func _t_eye_scrape() -> void:
 	stats.st_eye_scrape_last_tempo = -1000
 	var e: Enemy = dummies[0]
 	_put(e, Vector2i(3, 0))
-	bm2.apply_buff(Buff.create_enlightened(100, 3, "test"))
+	bm2.apply_buff(Buff.create_keen_rolls(100, 3, "test"))
 	var ms := Card.create_by_id("multishot")
 	_resolve(ms, e)
 	_check(bm2.get_buff(Buff.BuffType.INVISIBLE) != null, "Eye Scrape: a Multishot critting on all 3 hits counts 3 critical strikes (rank 13: every 3rd)")

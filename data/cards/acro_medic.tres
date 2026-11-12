@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "acro_medic"
+card_name = "Acro-medic"
+description = "Blink to a free spot beside the target ally and heal them for 10."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 70
+heal_amount = 10
+tempo_cost = 1
+is_ranged = true
+target_types = ["ally"]
+slot_labels = [2, 4]
+keywords = ["utility", "ally", "ranged"]

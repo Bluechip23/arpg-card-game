@@ -165,6 +165,27 @@ const FRAMES := {
 		"top": 27.5, "title_h": 24.0, "art_h": 51.0, "type_h": 24.0, "desc_top": 9.0,
 		"title_left": 40.1, "title_right": 19.9, "name_w": 62,
 	},
+	# Offensive cards that are not only an attack or only a spell (designer,
+	# 2026-11-11): cracked ruby crystal round dark leather, a knight, a fire
+	# mage and an archer attacking together in the rules box. The standard
+	# drop set over its blood drop, its own hourglass, the logo in the type
+	# bar's middle. Squeezed like the Attack board.
+	"offensive": {
+		"tex": "res://assets/textures/cards/frame_offensive.png",
+		"rect": Rect2(-4.0, -12.1, 158.4, 244.9),
+		"mana_at": Vector2(18.7, 24.2),
+		"tempo_at": Vector2(132.3, 24.2),
+		"dots_y": 18.7,
+		"dots_span": Vector2(38.0, 118.8),  # between the drop and the hourglass
+		"logo_at": Vector2(75.1, 114.0),
+		"desc_box": Vector2(60.0, 40.0),
+		"desc_right": 60.0,
+		"desc_full": Vector2(115.7, 56.2),
+		"ink": Color(0.96, 0.94, 0.9),
+		"ink_dark": false,
+		"top": 28.3, "title_h": 22.9, "art_h": 52.9, "type_h": 21.5, "desc_top": 10.0,
+		"title_left": 33.0, "title_right": 27.0, "name_w": 70,
+	},
 	# Enchantments: green cracked-emerald stone in gilt and gold thorns,
 	# jewelled chains off the drop's ring, white text above a hooded figure
 	# reaching for a ruby on an altar. Its own drop and hourglass; its type
@@ -224,6 +245,11 @@ static func frame_for(card: Card) -> Dictionary:
 	# upkeep (the Maintain ruling, "whatever its type") outranks it.
 	if card.card_type == Card.CardType.ENCHANTMENT:
 		return FRAMES["enchantment"]
+	# An offensive card that is not only an attack or only a spell wears the
+	# Offensive frame (designer, 2026-11-11): the sheet's plain "Offensive"
+	# rows, and the cards tagged attack and spell at once.
+	if card.is_mixed_offensive():
+		return FRAMES["offensive"]
 	# Spells are their own family (designer, 2026-10-30): an offensive spell
 	# is stored as an Attack-type card, but it wears the Spell frame, never
 	# the Attack one — and so does a utility spell.
@@ -251,6 +277,9 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 
 	if type_label:
 		type_label.text = card.card_type_name
+		# Not only an attack or only a spell: the type line says so.
+		if card.is_mixed_offensive():
+			type_label.text = "Offensive"
 		match card.card_type:
 			Card.CardType.ATTACK:
 				type_label.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
@@ -388,6 +417,7 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 	else:
 		_build_tempo_bars(card)
 
+	NewCardsD.place_face_ticker(self, card)  # Berserker's Tithe: tempo-effect countdown
 	_update_visual_instant()
 
 func _ready() -> void:

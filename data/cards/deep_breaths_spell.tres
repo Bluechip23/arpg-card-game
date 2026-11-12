@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "deep_breaths_spell"
+card_name = "Deep Breaths"
+description = "Jail every instant card in your hand, draw pile and discard pile for 20 tempo. Gain 10 temp HP for each. Each grants 10 armor, on top of its own effect, the next time it triggers."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 100
+tempo_cost = 6
+resolve_tick = 4
+target_types = ["self"]
+slot_labels = [3, 6]
+school = 1
+keywords = ["utility", "spell"]
