@@ -15,4 +15,4 @@ granted_card_ids = Array[String](["redline"])
 card_slots = 0
 vanilla_slots = 2
 overdraw_melee_damage = 6
-description = "+6 AGI, +6 DEX, -2 hand size. 2 plain card slots. Overdraw: deal 6 damage to a random enemy in melee range. Grants Redline: your next 5 cards each draw 2 cards if they are offensive (30 mana, 1 tempo)."
+description = "+6 AGI, +6 DEX, -2 hand size. 2 plain card slots. Overdraw: deal 6 damage to a random enemy in melee range (it can crit). Grants Redline: your next 5 cards each draw 2 cards if they are offensive (30 mana, 1 tempo)."

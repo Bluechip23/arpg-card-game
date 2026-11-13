@@ -216,8 +216,22 @@ func _test_feverfang(stats: PlayerStats, inv, dummy) -> void:
 	_put(dummy, Vector2i(1, 0))
 	dummy.current_health = 5000
 	dummy.current_armor = 0
+	var fbm: BuffManager = main.player.get_buff_manager()
+	var crit6: int = Card.crit_multiply(6, stats, dummy)
 	main._on_overdraw_processed(null)
-	_check(5000 - dummy.current_health == 6, "an overdraw deals 6 to an enemy in melee range (%d)" % (5000 - dummy.current_health))
+	_check(5000 - dummy.current_health in [6, crit6], "an overdraw deals a flat 6 to an enemy in melee range (%d)" % (5000 - dummy.current_health))
+	# It can crit: Keen counts, the hit is 6 x the hero's crit damage, and
+	# Strengthen is neither added nor spent.
+	fbm.apply_buff(Buff.create_strengthen(9, 2, "test"))
+	fbm.apply_buff(Buff.create_keen_rolls(100, 1, "test"))
+	dummy.current_health = 5000
+	main._on_overdraw_processed(null)
+	var crit_want: int = Card.crit_multiply(6, stats, dummy)
+	_check(crit_want > 6 and 5000 - dummy.current_health == crit_want, "with Keen it crits: 6 x crit damage = %d (%d)" % [crit_want, 5000 - dummy.current_health])
+	_check(not fbm.has_buff(Buff.BuffType.KEEN), "the by-the-roll Keen is spent by the roll")
+	var st: Buff = fbm.get_buff(Buff.BuffType.STRENGTHEN)
+	_check(st != null and st.charges == 2, "Strengthen is not spent (it is not an attack)")
+	fbm.remove_buff(Buff.BuffType.STRENGTHEN)
 	_put(dummy, Vector2i(4, 0))
 	dummy.current_health = 5000
 	main._on_overdraw_processed(null)
@@ -229,7 +243,7 @@ func _test_feverfang(stats: PlayerStats, inv, dummy) -> void:
 		dm.hand.append(Card.create_by_id("block"))
 	dm.draw_pile.append(Card.create_by_id("slash"))
 	dm.draw_card()
-	_check(5000 - dummy.current_health == 6, "a real draw into a full hand sets it off (%d)" % (5000 - dummy.current_health))
+	_check(5000 - dummy.current_health in [6, crit6], "a real draw into a full hand sets it off (%d)" % (5000 - dummy.current_health))
 
 	# Redline: 5 charges; an offensive card draws 2, another card spends a charge and draws none.
 	inv.equipped_weapons.erase(fang)

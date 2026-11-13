@@ -14,8 +14,11 @@ const REDLINE_DRAW := 2
 const MELEE_REACH := 1.5   # tiles: the 8 neighbours
 
 ## A draw overflowed a full hand: each equipped weapon with the rider deals
-## its damage (flat, like the other Overdraw riders) to one random enemy in
-## melee range.
+## its damage to one random enemy in melee range. The number is flat (no
+## STR, no Strengthen: it is not an attack and spends no Strengthen charge),
+## but it can crit (designer, 2026-11-13): it rolls the hero's crit chance —
+## Keen included, a by-the-roll Keen spending a charge as on any crit roll —
+## and a crit multiplies it by the hero's crit damage.
 static func on_overdraw(main) -> void:
 	var player = main.player
 	if player == null or player.get_inventory() == null or main.enemy_spawner == null:
@@ -31,8 +34,14 @@ static func on_overdraw(main) -> void:
 		if near.is_empty():
 			continue
 		var victim = near[randi() % near.size()]
-		victim.take_damage(w.overdraw_melee_damage, true)
-		main.add_battle_log("%s: overdraw — %d damage to %s" % [w.item_name, w.overdraw_melee_damage, victim.enemy_name], Color(1.0, 0.5, 0.4))
+		var dmg: int = w.overdraw_melee_damage
+		var stats = player.get_stats()
+		var bm = player.get_buff_manager() if player.has_method("get_buff_manager") else null
+		var crit: bool = bm != null and bm.roll_crit()
+		if crit:
+			dmg = Card.crit_multiply(dmg, stats, victim)
+		victim.take_damage(dmg, true)
+		main.add_battle_log("%s: overdraw — %d damage to %s%s" % [w.item_name, dmg, victim.enemy_name, " (crit!)" if crit else ""], Color(1.0, 0.5, 0.4))
 
 ## Redline: the next 5 cards played each spend a charge; an offensive one
 ## draws 2 as it resolves.
