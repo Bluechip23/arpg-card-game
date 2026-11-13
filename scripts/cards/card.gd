@@ -281,13 +281,14 @@ const CARD_SLOT_LABELS := {
 	"both_sides_of_the_candle": [CardKeyword.DAGGER, CardKeyword.SPEAR, CardKeyword.CROWN],
 	"thickened_nature": [CardKeyword.WAND, CardKeyword.STAFF, CardKeyword.BUCKLER, CardKeyword.CROWN],
 	"flames_of_alexandria": [CardKeyword.STAFF],
+	"pandora_panic": [CardKeyword.FIST],  # sheet row of 2026-11-13: Gauntlets
 	"surprise_pick_up": [CardKeyword.WAND, CardKeyword.BULWARK],
 	"inspiring_whistle": [CardKeyword.WAND, CardKeyword.SWORD, CardKeyword.AXE],
 }
 
 ## Engrave cards from the sheet: they exist only inside an item slot.
 const CARD_ENGRAVED := {
-	"shield_slam": true, "succumb": true, "cover": true, "absorb_essence": true, "fireball": true, "vengeful_shield": true, "shield_ready": true,
+	"shield_slam": true, "succumb": true, "cover": true, "absorb_essence": true, "fireball": true, "vengeful_shield": true, "shield_ready": true, "pandora_panic": true,
 }
 
 static func gold_value_of(cid: String) -> int:
@@ -398,6 +399,7 @@ const CARD_RARITIES := {
 	"both_sides_of_the_candle": Rarity.MYTHIC,
 	"thickened_nature": Rarity.RARE,
 	"flames_of_alexandria": Rarity.LEGENDARY,
+	"pandora_panic": Rarity.MYTHIC,
 	"surprise_pick_up": Rarity.RARE,
 	"inspiring_whistle": Rarity.RARE,
 	"stoked_pride": Rarity.RARE,
@@ -2018,6 +2020,12 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			_execute_discard(deck_manager)
 		"draw":
 			_execute_draw(deck_manager)
+		"pandora_panic":
+			# Draw 20: ordinary draws, so everything past a full hand overdraws.
+			if deck_manager:
+				for _pp in range(PANDORA_PANIC_DRAWS):
+					deck_manager.draw_card()
+			print("[CARD] Pandora Panic! Drew %d" % PANDORA_PANIC_DRAWS)
 		"fleet_etching":
 			if buff_mgr:
 				buff_mgr.apply_buff(Buff.create_haste(1, 2, card_name))
@@ -3444,6 +3452,7 @@ func _execute_worst_that_could_happen(target, player_stats: PlayerStats, buff_mg
 	last_damage_dealt = total_damage
 
 const CRASH_WAVES := 4
+const PANDORA_PANIC_DRAWS := 20
 ## Soften (The Tenderizer). The row gives the Stun no length: 5 tempo, one cycle.
 const SOFTEN_STUN_TEMPO := 5
 const SOFTEN_VULNERABLE := 2
@@ -4877,6 +4886,7 @@ const CARD_IDS: Array[String] = [
 	"both_sides_of_the_candle",
 	"thickened_nature",
 	"flames_of_alexandria",
+	"pandora_panic",
 	"surprise_pick_up",
 	"inspiring_whistle",
 	"stoked_pride",

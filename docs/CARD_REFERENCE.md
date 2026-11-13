@@ -10,6 +10,8 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
 
 **The sheet's 41 new cards of 2026-11-11** (Stoked Pride through Flames of Alexandria) are written up in the same form, with their open questions, in [`docs/new_cards/`](new_cards/) — `A.md` auras and maintains, `B.md` instants / jail / deck order, `C.md` melee and movement, `D.md` attacks and small offensive cards, `E.md` big spells, zones and summons. They are not yet folded into the lists below.
 
+**Added 2026-11-13 — Pandora Panic** (`pandora_panic`) — Mythic · 75 mana, 10 tempo (resolves on tick 1) · targets self · slots: Fist (gauntlets) — Engrave · sheet: Utility. Card text: Draw 20 cards. Jail 40. Engrave. Code: `Card._execute_card` calls `deck_manager.draw_card()` 20 times — ordinary draws, so the hand fills to its size and every draw past that is an overdraw (Overdraw riders fire; with no overflow mode active the overdrawn card stays on the draw pile, as on any overdraw). `jail_on_play = 40`; `requires_engraving` (it exists only slotted in gauntlets).
+
 ## Cards whose code and text disagree
 
 - **A Snowball's Chance** (`snowballs_chance`): 'Searing fire' is flavour only: the fire line deals untyped/physical damage (take_damage(dmg, true) without DamageTypes.FIRE) and no Burn is applied.

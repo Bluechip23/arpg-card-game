@@ -101,6 +101,7 @@ func _run() -> void:
 	_test_feverfang(stats, inv, dummy)
 	_test_cleaver(stats, inv, dummy)
 	_test_tenderizer(stats, inv, dummy)
+	_test_pandora(stats)
 	_done()
 
 func _cell_pos(off: Vector2i) -> Vector3:
@@ -398,3 +399,28 @@ func _test_tenderizer(stats: PlayerStats, inv, dummy) -> void:
 	Card.close_play_scope(stats)
 	_check(5000 - dummy.current_health == plain, "a clean enemy that just acted takes the plain hit (%d)" % (5000 - dummy.current_health))
 	inv.equipped_weapons.erase(tz)
+
+func _test_pandora(stats: PlayerStats) -> void:
+	print("-- Pandora Panic --")
+	var pp := Card.create_by_id("pandora_panic")
+	_check(pp.card_type == Card.CardType.UTILITY and pp.get_rarity() == Card.Rarity.MYTHIC, "a Mythic Utility card")
+	_check(pp.mana_cost == 75 and pp.tempo_cost == 10 and pp.resolve_tick == 1, "75 mana, 10 tempo, resolves on the first")
+	_check(pp.slot_labels == [Card.CardKeyword.FIST], "it slots in gauntlets")
+	_check(pp.requires_engraving and pp.jail_on_play == 40, "Engrave, Jail 40")
+	var dm = main.deck_manager
+	dm.hand.clear()
+	dm.discard_pile.clear()
+	dm.draw_pile.clear()
+	for _i in range(30):
+		dm.draw_pile.append(Card.create_by_id("block"))
+	var overdraws := [0]
+	var on_over := func(_c): overdraws[0] += 1
+	main.overflow_manager.overdraw_processed.connect(on_over)
+	pp.execute(main.player, stats, dm, 0.0, 0.0, null)
+	main.overflow_manager.overdraw_processed.disconnect(on_over)
+	var cap: int = dm.get_hand_cap()
+	_check(dm.hand.size() == mini(cap, 20), "the hand fills to its size (%d of %d)" % [dm.hand.size(), cap])
+	_check(overdraws[0] == 20 - mini(cap, 20), "every draw past a full hand is an overdraw: %d of the 20" % overdraws[0])
+	_check(dm.draw_pile.size() == 30 - mini(cap, 20), "an overdrawn card stays on the pile, as on any overdraw (%d left of 30)" % dm.draw_pile.size())
+	dm.hand.clear()
+	dm.draw_pile.clear()
