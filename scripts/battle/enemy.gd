@@ -108,6 +108,10 @@ var last_hit_direct: bool = false  # ...and from the player's own action (card, 
 ## for a self-destruct, a fallen master or another enemy's blow. "When you
 ## kill an enemy" effects read it (Soul Consumption).
 var kill_credit_player: bool = false
+## Tempo since this enemy last carried out an action (an attack, a move, a
+## cast): it climbs every tempo and returns to 0 when an action lands. A
+## stunned or frozen enemy sits idle. The Tenderizer reads it.
+var idle_tempo: int = 0
 var _dot_tick_in_flight: bool = false
 var killed_by_player: bool = false  # the killing blow was the player's (from_player) — not a self-destruct, a fallen master, or an enemy's own blow
 var next_action_tempo_tax: int = 0      # Haunted Rebuke: the next action (sync or async) winds up this much longer
@@ -1599,6 +1603,7 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 	if is_dead:
 		return
 	_last_seen_target = player_node
+	idle_tempo += amount
 
 	_cycle_accumulator += amount
 
@@ -2202,6 +2207,8 @@ func _execute_now(action: Dictionary, player_node: Node3D) -> bool:
 	var prev_commit := _committed_action
 	_committed_action = "" if MOVEMENT_ACTIONS.has(nm) else nm
 	var ok := _execute_action(nm, _move_target_for(player_node))
+	if ok:
+		idle_tempo = 0  # it acted: no longer sitting idle
 	_committed_action = prev_commit
 	action_finished.emit(self)
 	return ok

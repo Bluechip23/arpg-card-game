@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "soften"
+card_name = "Soften"
+description = "Deal 1 damage, Stun the target for 5 tempo and apply 2 Vulnerable."
+card_type_name = "Offensive"
+mana_cost = 40
+damage = 1
+tempo_cost = 3
+base_damage = 1
+keywords = ["offensive", "melee", "enemy"]

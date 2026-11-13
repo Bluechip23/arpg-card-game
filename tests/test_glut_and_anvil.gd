@@ -100,6 +100,7 @@ func _run() -> void:
 	_test_yari(stats, inv, dummy)
 	_test_feverfang(stats, inv, dummy)
 	_test_cleaver(stats, inv, dummy)
+	_test_tenderizer(stats, inv, dummy)
 	_done()
 
 func _cell_pos(off: Vector2i) -> Vector3:
@@ -329,3 +330,71 @@ func _test_cleaver(stats: PlayerStats, inv, dummy) -> void:
 	_check(stats.current_attack_counter == 47, "3 tempo of Glut tick the attack-speed counter 3 times, and no more once it ends (%d)" % stats.current_attack_counter)
 	inv.equipped_weapons.erase(cleaver)
 	stats.current_attack_counter = c0
+
+func _test_tenderizer(stats: PlayerStats, inv, dummy) -> void:
+	print("-- The Tenderizer --")
+	var tz: ItemData = ItemData.create("the_tenderizer")
+	_check(tz != null and tz.item_name == "The Tenderizer" and tz.rarity == ItemData.Rarity.MYTHIC
+		and tz.weapon_subtype == ItemData.WeaponSubtype.HAMMER and tz.weight == 45, "a Mythic hammer, weight 45")
+	_check(tz.card_slots == 0 and tz.vanilla_slots == 3, "no bonus slots, 3 plain")
+	_check(tz.health_bonus == 50 and tz.unerring_cap_bonus == 10 and tz.strength_bonus == 3 and tz.wisdom_bonus == 3,
+		"+50 health, +10 unerring armor, +3 STR, +3 WIS")
+	_check(tz.granted_card_ids == ["soften"] and tz.has_appearance_art(), "grants Soften and wears the designer's painting")
+	var soften := Card.create_by_id("soften")
+	_check(soften.is_offensive() and not soften.is_attack() and soften.school != Card.CardSchool.SPELL and soften.damage == 1
+		and Card.DROP_EXCLUDED_CARD_IDS.has("soften"), "Soften is a plain Offensive card dealing 1, and never drops")
+	_put(dummy, Vector2i(1, 0))
+	var wipe := func() -> void:
+		dummy.current_health = 5000
+		dummy.current_armor = 0
+		dummy.vulnerable_stacks = 0
+		dummy.stun_tempo = 0
+		dummy.is_stunned = false
+		dummy.slow_stacks = 0
+		dummy.idle_tempo = 0
+	# Soften bare: 1 (scaled), then Stun and 2 Vulnerable.
+	wipe.call()
+	soften.execute(dummy, stats, main.deck_manager, 0.0, 0.0, null)
+	_check(5000 - dummy.current_health == stats.get_effective_physical_damage(1), "Soften deals 1 (scaled %d), before its own Vulnerable" % (5000 - dummy.current_health))
+	_check(dummy.is_stunned and dummy.stun_tempo >= 5 and dummy.vulnerable_stacks == 2, "it Stuns for 5 tempo and applies 2 Vulnerable")
+
+	# Idle: the count climbs each tempo and an action clears it.
+	wipe.call()
+	dummy.on_tempo_advanced(6, main.player)
+	_check(dummy.idle_tempo == 6, "an enemy that does nothing for 6 tempo has sat idle 6 (%d)" % dummy.idle_tempo)
+
+	inv.equipped_weapons.append(tz)
+	var plain: int = stats.get_effective_physical_damage(10)
+	# +1 damage per 2 idle tempo.
+	wipe.call()
+	dummy.idle_tempo = 7
+	Card.play_scope_open = true
+	Card.create_by_id("slash").execute(dummy, stats, main.deck_manager, 0.0, 0.0, null)
+	Card.close_play_scope(stats)
+	_check(5000 - dummy.current_health == stats.get_effective_physical_damage(10 + 3), "idle 7 tempo: +3 damage (%d vs %d plain)" % [5000 - dummy.current_health, plain])
+	# +3% per different debuff, on the whole hit; stacks of one kind count once.
+	wipe.call()
+	dummy.slow_stacks = 4
+	dummy.apply_debuff("burn", 1)
+	dummy.apply_debuff("poison", 1)
+	var kinds: int = Card.count_debuff_kinds(dummy)
+	_check(kinds == 3, "Slow x4, Burn and Poison are 3 kinds (%d)" % kinds)
+	var big := Card.create_by_id("slash")
+	big.damage = 100
+	big.base_damage = 100
+	var big_plain: int = stats.get_effective_physical_damage(100)
+	Card.play_scope_open = true
+	big.execute(dummy, stats, main.deck_manager, 0.0, 0.0, null)
+	Card.close_play_scope(stats)
+	var dealt: int = 5000 - dummy.current_health
+	_check(absi(dealt - roundi(big_plain * 1.09)) <= 1 and dealt > big_plain, "3 kinds: +9%% on the whole hit (%d vs %d plain)" % [dealt, big_plain])
+	_check(is_equal_approx(PlayerStats.hit_multiplier, 1.0), "the amplification ends with the play")
+	# No debuffs, not idle: nothing added.
+	wipe.call()
+	dummy.burn_stacks = 0
+	dummy.poison_stacks = 0
+	Card.play_scope_open = true
+	Card.create_by_id("slash").execute(dummy, stats, main.deck_manager, 0.0, 0.0, null)
+	Card.close_play_scope(stats)
+	_check(5000 - dummy.current_health == plain, "a clean enemy that just acted takes the plain hit (%d)" % (5000 - dummy.current_health))
+	inv.equipped_weapons.erase(tz)
