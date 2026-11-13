@@ -8352,6 +8352,15 @@ func _process_pending_absorb_essences(amount: int = 5) -> void:
 ## start, which cut a Glut short by up to 4 tempo.
 func _process_glut_countdown(amount: int = 1) -> void:
 	if glut_tempo_remaining > 0 and amount > 0:
+		# Glutton's Cleaver: each tempo of the Glut also ticks the
+		# attack-speed counter (a counter tick, not a real attack).
+		var gc_inv = player.get_inventory() if player else null
+		if gc_inv and "equipped_weapons" in gc_inv and player.get_stats():
+			for gc_w in gc_inv.equipped_weapons:
+				if gc_w != null and gc_w.glut_ticks_attack_counter:
+					for _gc_i in range(mini(amount, glut_tempo_remaining)):
+						player.get_stats().register_attack(false)
+					break
 		glut_tempo_remaining -= amount
 		if glut_tempo_remaining <= 0:
 			glut_tempo_remaining = 0

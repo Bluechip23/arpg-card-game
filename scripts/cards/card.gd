@@ -1873,6 +1873,22 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 				if bs_bonus > 0:
 					_gauntlet_bonus_applied += bs_bonus
 					print("[CARD] %s: +%d damage (%.0f%% of %d mana)" % [bs_w.item_name, bs_bonus, bs_w.spell_damage_per_mana_percent, bs_cost])
+		# Glutton's Cleaver (on-self): a damaging card slotted in it bites
+		# harder for every other card in hand — and bites its wielder too.
+		if slotted_in_item and slotted_in_item.on_self_hand_damage_per_card > 0 \
+				and (base_damage > 0 or damage > 0) and deck_manager and "hand" in deck_manager \
+				and not slotted_in_item.is_vanilla_slot(self):
+			var gc_cards := 0
+			for gc_c in deck_manager.hand:
+				if gc_c != self:
+					gc_cards += 1
+			if gc_cards > 0:
+				_gauntlet_bonus_applied += gc_cards * slotted_in_item.on_self_hand_damage_per_card
+				var gc_self: int = gc_cards * slotted_in_item.on_self_hand_self_damage_per_card
+				if gc_self > 0:
+					player_stats.take_direct_damage(gc_self)
+				print("[CARD] %s: %d cards in hand — +%d damage, %d to yourself" % [slotted_in_item.item_name, gc_cards,
+					gc_cards * slotted_in_item.on_self_hand_damage_per_card, gc_self])
 		# Yari of the Spider Monkey: after a displacement the next damaging
 		# offensive card deals +50% — the whole hit, like Megingjord's double.
 		var _disp_mult: float = YariCards.take_displacement_bonus(self, player_stats)

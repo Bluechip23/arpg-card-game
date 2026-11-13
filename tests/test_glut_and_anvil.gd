@@ -99,6 +99,7 @@ func _run() -> void:
 	stats.current_carry_load = 0
 	_test_yari(stats, inv, dummy)
 	_test_feverfang(stats, inv, dummy)
+	_test_cleaver(stats, inv, dummy)
 	_done()
 
 func _cell_pos(off: Vector2i) -> Vector3:
@@ -268,3 +269,63 @@ func _test_feverfang(stats: PlayerStats, inv, dummy) -> void:
 	var held: int = dm.hand.size()
 	FeverfangCards.after_card(main, Card.create_by_id("slash"))
 	_check(dm.hand.size() == held, "a 6th card draws nothing")
+
+func _test_cleaver(stats: PlayerStats, inv, dummy) -> void:
+	print("-- Glutton's Cleaver --")
+	var cleaver: ItemData = ItemData.create("gluttons_cleaver")
+	_check(cleaver != null and cleaver.rarity == ItemData.Rarity.MYTHIC and cleaver.weapon_subtype == ItemData.WeaponSubtype.AXE
+		and cleaver.weight == 85, "a Mythic axe, weight 85")
+	_check(cleaver.card_slots == 3 and cleaver.vanilla_slots == 0 and cleaver.granted_card_ids.is_empty(), "3 bonus slots, no plain slot, no granted card")
+	_check(cleaver.dexterity_bonus == 7 and cleaver.determination_bonus == 7 and cleaver.wisdom_bonus == -6
+		and cleaver.intelligence_bonus == -5 and cleaver.agility_bonus == -8 and cleaver.health_bonus == -50,
+		"+7 DEX, +7 DET, -6 WIS, -5 INT, -8 AGI, -50 health")
+	_check(cleaver.has_appearance_art() and cleaver.get_appearance_texture() != null, "it wears the designer's painting")
+	var dm = main.deck_manager
+	# On-self: +3 damage and 1 to yourself per other card in hand.
+	var strike := Card.create_by_id("savage_strike")
+	_check(cleaver.slot_card(strike), "an axe card slots into it")
+	if strike.slotted_in_item != cleaver:
+		return
+	_put(dummy, Vector2i(1, 0))
+	dm.hand.clear()
+	dummy.current_health = 5000
+	stats.current_health = stats.max_health
+	strike.execute(dummy, stats, dm, 0.0, 0.0, null)
+	var lone: int = 5000 - dummy.current_health
+	_check(lone == stats.get_effective_physical_damage(strike.base_damage) and stats.current_health == stats.max_health,
+		"an empty hand: no extra damage, no self-damage (%d)" % lone)
+	dm.hand.clear()
+	dm.hand.append(strike)
+	for _i in range(4):
+		dm.hand.append(Card.create_by_id("block"))
+	dummy.current_health = 5000
+	var hp: int = stats.current_health
+	strike.execute(dummy, stats, dm, 0.0, 0.0, null)
+	_check(5000 - dummy.current_health == stats.get_effective_physical_damage(strike.base_damage + 12),
+		"4 other cards in hand: +12 damage (%d)" % (5000 - dummy.current_health))
+	_check(hp - stats.current_health == 4, "and 4 damage to yourself (%d)" % (hp - stats.current_health))
+	_check(strike.bonus_damage == 0, "the bonus does not stick to the card")
+	# A card that deals no damage costs nothing.
+	hp = stats.current_health
+	var guard := Card.create_by_id("block")
+	guard.slotted_in_item = cleaver
+	guard.execute(main.player, stats, dm, 0.0, 0.0, null)
+	_check(stats.current_health == hp, "a card that deals no damage does not bite you")
+	guard.slotted_in_item = null
+	cleaver.unslot_card(0)
+	dm.hand.clear()
+
+	# Glut ticks the attack-speed counter, one per tempo, only while held.
+	var tm = main.tempo_manager
+	main.glut_tempo_remaining = 3
+	var c0: int = stats.current_attack_counter
+	tm._process_one_tick()
+	_check(stats.current_attack_counter == c0, "without the Cleaver a Glut tick leaves the attack counter alone")
+	inv.equipped_weapons.append(cleaver)
+	stats.current_attack_counter = 50
+	main.glut_tempo_remaining = 3
+	for _i in range(5):
+		tm._process_one_tick()
+	_check(stats.current_attack_counter == 47, "3 tempo of Glut tick the attack-speed counter 3 times, and no more once it ends (%d)" % stats.current_attack_counter)
+	inv.equipped_weapons.erase(cleaver)
+	stats.current_attack_counter = c0
