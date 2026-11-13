@@ -51,3 +51,7 @@ No new art: every card resolves with the moves and effects already in the game
   - Card text: Blink to a free spot beside the target ally and heal them for 10.
   - Code: the ally click (`main._input`) refuses it through `NewCardsC.acro_medic_can_play` when the pick is yourself or no tile beside the ally is free, and through the usual range check beyond 5. Allies are the co-op partner, the dojo's allies and — it is in `SUMMON_ALLY_CARDS` — summons. At resolve `before_execute` picks `acro_medic_landing_cell` (the empty one of the ally's 8 neighbours nearest the caster that `blink_check` allows; the caster's own tile when already adjacent), `Player.blink_to`s there and fires the displacement trigger, as Blink does. `execute` -> `_execute_heal_with_poison_check`: 10 through the Heal card's path (a hero is healed on their own stats with their healing bonuses, a summon by the caster's `get_effective_heal_amount`). `heal_amount = 10`, so `is_heal_card()` is true and Poisoned Blood turns it into damage.
   - Mismatch / open question: with no landing at resolve (the ally got boxed in during the tick) there is no blink and no heal; the card is spent. Already adjacent: no blink (and no displacement), the heal lands. It cannot be played on yourself. The summon heal goes through the same code as Heal's but is not covered by a test here.
+
+## Designer rulings, 2026-11-12 (these replace the entries above where they differ)
+
+- Harvest: "into your draw pile" is confirmed.

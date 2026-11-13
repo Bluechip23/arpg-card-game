@@ -47,3 +47,7 @@ end of main's world effects (→ `NewCardsD.end_feint`),
   - Card text: Spend all your Thorns and deal that damage, split equally, among the enemies in the 8 tiles around you.
   - Code: `NewCardsD._spine_release` (world effects): total = the summed value of the THORNS buff(s); the buff is removed and the total is split by integer division among the living enemies on the 8 adjacent tiles, the remainder going one point each to the nearest (straight neighbours before corners). Flat `take_damage` — no INT scaling, no crit. With no Thorns or no adjacent enemy nothing is spent (mana and tempo still are). A utility spell: Silence blocks it, it is not offensive.
   - Mismatch / open question: Barbed Exterior's maintained thorns and the sphere grid's thorns "never wear down" and are not spent or dealt. No dedicated visual — it plays the generic utility cast animation.
+
+## Designer rulings, 2026-11-12 (these replace the entries above where they differ)
+
+- Spine Release is **Defense and offensive** (a Defense-type spell with the offensive rider). Its damage is still the Thorns' flat number.

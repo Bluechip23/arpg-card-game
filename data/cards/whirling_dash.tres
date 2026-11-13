@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "whirling_dash"
+card_name = "Whirling Dash"
+description = "Blink up to 3 spaces. Deal 6 damage to each enemy you pass through. If you pass through more than one, add a copy of Whirling Dash with Erase 1 to your hand."
+mana_cost = 95
+damage = 6
+tempo_cost = 2
+base_damage = 6
+target_types = ["point"]
+keywords = ["attack", "offensive", "point"]

@@ -74,3 +74,8 @@ Shared across the batch:
   - Card text: Focused for 2 cycles (+10 mana at each cycle start) and Attune 2 (+2 damage on your next 3 offensive spells).
   - Code: `NewCardsA.execute`: a Focused buff on an 11-tempo clock and `Buff.create_attune(2)`. Focused pays +10 mana at a cycle start (`BuffManager.process_turn_start`); nothing else applies Focused today, so there was no duration convention to copy. A buff's clock ticks before that tempo's cycle start runs, and 11 tempo is the one length that always meets exactly two cycle starts wherever in the cycle the card resolves (10 would miss the second when it resolves on a boundary) — tested at all five cycle offsets.
   - Mismatch / open question: the Focused badge therefore reads "11 tempo" when applied, not 10. If Focused should be counted in cycles outright (like Blessed's charges) that is a change to the buff itself.
+
+## Designer rulings, 2026-11-12 (these replace the entries above where they differ)
+
+- Warden's Hound: "2 keen" is **Keen 20% for 10 tempo**.
+- The ally buffs and auras reach **summons**: War Shout (Strengthen 3 for 3 attacks), The Wolf's Howl (+5 on every attack while in the aura) and Spirit Armor (2 armor a cycle; a summon holds at most 10 granted armor — the cap is a guess, a Battle Turtle fills its own armor first). They ride `Summon.gain_strengthen` / `aura_strengthen` / `gain_granted_armor`; a summon with no attack gains no Strengthen.

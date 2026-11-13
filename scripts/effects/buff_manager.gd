@@ -494,6 +494,7 @@ func sync_flag_buffs() -> void:
 
 	# New sheet cards, batch E (Ward of Hallow Glass, The Ledger, the Candle, Stoked Pride).
 	NewCardsE.sync_badges(self)
+	FeverfangCards.sync_badge(self)
 
 func _get_generic(key: String) -> Buff:
 	for b in buffs:

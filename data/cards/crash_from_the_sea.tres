@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "crash_from_the_sea"
+card_name = "Crash from the Sea"
+description = "Deal 3 damage 4 times."
+card_type_name = "Offensive"
+mana_cost = 160
+damage = 3
+tempo_cost = 10
+base_damage = 3
+keywords = ["offensive", "melee", "enemy"]

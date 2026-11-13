@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_fever"]
+
+[resource]
+script = ExtResource("1_fever")
+item_name = "Feverfang"
+rarity = 2
+weight = 15
+dexterity_bonus = 6
+agility_bonus = 6
+hand_size_bonus = -2
+weapon_subtype = 5
+granted_card_ids = Array[String](["redline"])
+card_slots = 0
+vanilla_slots = 2
+overdraw_melee_damage = 6
+description = "+6 AGI, +6 DEX, -2 hand size. 2 plain card slots. Overdraw: deal 6 damage to a random enemy in melee range (it can crit). Grants Redline: your next 5 cards each draw 2 cards if they are offensive (30 mana, 1 tempo)."

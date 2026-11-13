@@ -339,6 +339,7 @@ var granted_cards_built: bool = false
 # Overdraw riders — they fire when a draw overflows a full hand.
 @export var overdraw_heal: int = 0               # heal X (Castle Wall 5)
 @export var overdraw_regen: int = 0              # gain X Regen (Treebeards Branch 3)
+@export var overdraw_melee_damage: int = 0       # deal X to a random enemy in melee range (Feverfang 6; any weapon, not only shields)
 @export var overdraw_peak: int = 0               # reveal the next X draw-pile cards (Delfins 4)
 @export var overdraw_card_id: String = ""        # conjure this card into the manifest zone (Slotted Rope Half Sleeve: cinquedea)
 @export var overdraw_card_max: int = 0           # ...up to X held there at once (5)
@@ -529,6 +530,14 @@ var vitality_stacks: int = 0    # Nine Ruins: current Vitality
 @export var discard_gain_block: int = 0            # discarding a card grants X block (Abjurers Cane 3)
 @export var range_bonus_all_cards: int = 0         # +X range on ALL cards (Wand of Deliverance 2)
 @export var spell_mana_surcharge_percent: float = 0.0   # offensive SPELL cards cost X% more mana (Blast Stick 10)
+## Anvil of the Burdened: offensive cards deal +1 damage per this much weight
+## carried, and +1 per tempo the card costs above `tempo_damage_over`
+## (0 = off).
+## Yari of the Spider Monkey: after the wielder is displaced, their next
+## damaging offensive card deals +X%.
+@export var displacement_next_offensive_percent: float = 0.0
+@export var offensive_damage_per_carry_weight: int = 0
+@export var tempo_damage_over: int = 0
 @export var spell_damage_per_mana_percent: float = 0.0  # offensive SPELL cards deal +X% of their FINAL (surcharged) mana cost as damage (Blast Stick 20)
 @export var elemental_charge_damage: int = 0       # applying Burn/Shock/Cold deals +X damage per stack applied (Elemental Weaver 1)
 @export var burn_backlash_self: int = 0            # applying Burn to an enemy burns YOU X — per occasion, not per stack (Phoenix Feather 1)
@@ -1171,6 +1180,9 @@ const ITEM_IDS: Array[String] = [
 	"axes_axe",
 	"bessy",
 	"hammer_of_ajax",
+	"anvil_of_the_burdened",
+	"yari_of_the_spider_monkey",
+	"feverfang",
 	"laurentius_lost_spear",
 	"mauls_sabre",
 	"fallens_wrath",

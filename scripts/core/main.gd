@@ -5769,6 +5769,7 @@ func _clear_locked_markers() -> void:
 #endregion
 #region TEMPO TICK DISPATCHER
 func _on_tempo_advanced(global_total: int, amount: int) -> void:
+	_process_glut_countdown(amount)
 	if deck_manager:
 		_check_volatile_mixture_in_hand()
 	# Brad's War Rack: its cooldown and the drawn weapon's return clock.
@@ -7527,8 +7528,6 @@ func _on_tempo_threshold_reached(times: int) -> void:
 			if end_bm:
 				end_bm.process_turn_end()
 
-		_process_glut_countdown()
-
 	# Sphere grid passive triggers for tempo cycle
 	progression_triggers._trigger_sphere_passives("on_cycle", {})
 	progression_triggers._trigger_sphere_passives("on_tempo_cycle", {})
@@ -8352,9 +8351,12 @@ func _process_pending_absorb_essences(amount: int = 5) -> void:
 		else:
 			print("[MAIN] Absorb Essence: %d tempo until Energy Ball" % ae.tempo_remaining)
 
-func _process_glut_countdown() -> void:
-	if glut_tempo_remaining > 0:
-		glut_tempo_remaining -= 5
+## Glut counts down with every tempo (designer, 2026-11-12), so "Glut 10"
+## is 10 tempo whenever in the cycle it lands. It once fell 5 per cycle
+## start, which cut a Glut short by up to 4 tempo.
+func _process_glut_countdown(amount: int = 1) -> void:
+	if glut_tempo_remaining > 0 and amount > 0:
+		glut_tempo_remaining -= amount
 		if glut_tempo_remaining <= 0:
 			glut_tempo_remaining = 0
 			add_battle_log("Glut expired! You can play cards again.", Color(0.4, 1.0, 0.5))
@@ -9549,6 +9551,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 
 	_resolving_aim = null
 	NewCardsE.post_card(self, card, data, nce_snap)  # The Ledger banks / pays out; the Candle burns
+	FeverfangCards.after_card(self, card)  # Redline: an offensive card draws 2
 	# The play is over: undo the folded bonus, disarm the passives, close
 	# the scope and drop the hit-source flags.
 	if passive_bonus > 0:
@@ -9668,9 +9671,15 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 
 	# Glut: apply card lockout
 	if card.glut_tempo > 0:
-		glut_tempo_remaining = card.glut_tempo
+		# The Glut is the full printed tempo AFTER this play: the ticks the
+		# card still has to run (it resolves before its last tick) are added
+		# on, since the Glut counts down with every tempo.
+		var glut_play_left: int = 0
+		if tempo_manager:
+			glut_play_left = tempo_manager._owner_busy_ticks(0) + (1 if tempo_manager.resolving_in_tick else 0)
+		glut_tempo_remaining = card.glut_tempo + maxi(0, glut_play_left)
 		add_battle_log("Glutted for %d tempo! Cannot play cards." % card.glut_tempo, Color(1.0, 0.4, 0.4))
-		print("[MAIN] Glut activated: %d tempo lockout" % card.glut_tempo)
+		print("[MAIN] Glut activated: %d tempo lockout (%d with the play's own %d ticks left)" % [card.glut_tempo, glut_tempo_remaining, glut_play_left])
 		progression_triggers._trigger_skill_tree_stephen_on_glut(card.glut_tempo)
 
 	# Queue entry already removed above — no further cleanup needed
@@ -12020,6 +12029,7 @@ func _shield_on_cycle_passives() -> void:
 func _on_overdraw_processed(_card: Card) -> void:
 	if not player or not player.get_inventory():
 		return
+	FeverfangCards.on_overdraw(self)  # Feverfang: 6 to a random enemy in melee range
 	var stats := player.get_stats()
 	var buff_mgr := player.get_buff_manager()
 	for shield in player.get_inventory().get_equipped_shields():
@@ -13710,6 +13720,10 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 				enemy.position = new_pos
 				enemy.target_position = new_pos
 			print("[MAIN] Round 'Em Up: pulled %d enemies toward %s" % [nearby.size(), center])
+		"pole_vault", "whirling_dash":
+			YariCards.world_effects(self, card, mouse_pos)
+		"redline":
+			FeverfangCards.play_redline(self)
 		"blink":
 			var blink_pos := grid_manager.snap_to_grid(mouse_pos)
 			var blink_cell := grid_manager.world_to_grid(blink_pos)
@@ -13751,7 +13765,7 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 			if target and target is Node3D:
 				NewCardsB.swap_positions(self, player, target)  # shared with Not So Fast
 
-		"deep_breaths_spell", "self_admission", "reverse_reverse", "foresight":
+		"slow_and_steady_wins", "self_admission", "reverse_reverse", "foresight":
 			NewCardsB.world_effect(self, card, target)
 
 		"defensive_awareness":
@@ -14268,7 +14282,7 @@ func _input(event: InputEvent) -> void:
 					# A card that LANDS at the clicked tile (Blink, a circle burst,
 					# a ranged point effect) has its range as a hard cap; aim-only
 					# point cards — lines, cones — take any click.
-					var pc_capped: bool = card.card_id == "blink" \
+					var pc_capped: bool = card.card_id == "blink" or YariCards.point_reach(card) > 0 \
 							or (card.is_ranged and card.range_modifier < Card.INFINITE_RANGE \
 								and (not card.is_aoe or _aoe_follows_cursor(card)))
 					# The reach is the range ring's (select_card): straight-line
@@ -14279,6 +14293,8 @@ func _input(event: InputEvent) -> void:
 					# range" on a diagonal (the dojo's far dummy, 8 tiles off).
 					var pc_reach: int = _ranged_card_max_range(card) if card.is_ranged \
 							else card.get_effective_range() + _helm_range_bonus(card)
+					if YariCards.point_reach(card) > 0:
+						pc_reach = YariCards.point_reach(card)  # Pole Vault / Whirling Dash: 3 spaces
 					if pc_capped and not _point_in_card_reach(grid_manager.snap_to_grid(mouse_pos), pc_reach):
 						add_battle_log("Out of range! %s reaches %d spaces." % [card.card_name, pc_reach], Color(1.0, 0.4, 0.4))
 					else:

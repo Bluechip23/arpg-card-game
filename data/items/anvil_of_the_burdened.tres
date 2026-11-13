@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_anvil"]
+
+[resource]
+script = ExtResource("1_anvil")
+item_name = "Anvil of the Burdened"
+rarity = 2
+weight = 150
+strength_bonus = 6
+intelligence_bonus = 5
+dexterity_bonus = -10
+agility_bonus = -10
+weapon_subtype = 7
+granted_card_ids = Array[String](["crash_from_the_sea"])
+card_slots = 2
+vanilla_slots = 1
+on_self_armor_any = 5
+on_self_tempo_penalty = 3
+offensive_damage_per_carry_weight = 50
+tempo_damage_over = 4
+description = "+6 STR, +5 INT, -10 DEX, -10 AGI. 3 card slots (2 bonus, 1 plain). Your offensive cards deal +1 damage for every 50 weight you carry, and +1 for every tempo they cost above 4. On-self: any card costs 3 more tempo and gains you 5 armor. Grants Crash from the Sea: deal 3 damage 4 times (160 mana, 10 tempo)."

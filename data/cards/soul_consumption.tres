@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "soul_consumption"
 card_name = "Soul Consumption"
-description = "Instant: when an enemy dies, deal 6 damage to the nearest other enemy within 3 squares of it and draw a card."
+description = "Instant: when you kill an enemy, deal 6 damage to the nearest other enemy within 3 squares of it and draw a card."
 card_type = 3
 card_type_name = "Instant"
 mana_cost = 0

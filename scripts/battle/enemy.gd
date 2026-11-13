@@ -112,6 +112,14 @@ var player_hit_modifier: Callable       # (enemy, amount) -> amount: skill-tree 
 var has_been_damaged: bool = false      # any damage from any source has landed (Surprise Opener's first-source check)
 var last_hit_from_player: bool = false  # the most recent hit was the player's own (card, gauntlet skill, auto attack), not a tick or summon
 var last_hit_direct: bool = false  # ...and from the player's own action (card, skill, auto attack), not a summon or zone tick
+## Kill credit (designer, 2026-11-12: "have the game track that"): true when
+## the blow that felled it was the players' side's — a card, an attack, a
+## summon's hit passed as from_player, or a damage-over-time tick (Poison,
+## Burn, Bleed, Shock, Choke: only the players put those on an enemy). False
+## for a self-destruct, a fallen master or another enemy's blow. "When you
+## kill an enemy" effects read it (Soul Consumption).
+var kill_credit_player: bool = false
+var _dot_tick_in_flight: bool = false
 var killed_by_player: bool = false  # the killing blow was the player's (from_player) — not a self-destruct, a fallen master, or an enemy's own blow
 var next_action_tempo_tax: int = 0      # Haunted Rebuke: the next action (sync or async) winds up this much longer
 var bonus_damage_next_hit: int = 0    # Applied on the next take_damage call, then cleared
@@ -7017,6 +7025,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		current_health = 0
 		print("[%s] The mimic collapses — it was never real" % enemy_name)
 		update_health_display()
+		kill_credit_player = from_player or _dot_tick_in_flight
 		killed_by_player = from_player
 		die()
 		return false
@@ -7314,6 +7323,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 			update_health_display()
 			print("[%s] Refilled to %d" % [enemy_name, max_health])
 		else:
+			kill_credit_player = from_player or _dot_tick_in_flight
 			killed_by_player = from_player  # whose blow felled it (Axe's Axe banks only your kills)
 			die()
 
@@ -7351,7 +7361,9 @@ func _dot_hit(kind: String, amount: int, note: String = "") -> void:
 		return
 	var hp_before := current_health
 	var armor_before := current_armor
+	_dot_tick_in_flight = true
 	take_damage(amount, false)
+	_dot_tick_in_flight = false
 	var to_hp := maxi(0, hp_before - current_health)
 	var to_armor := maxi(0, armor_before - current_armor)
 	var bits: Array[String] = []

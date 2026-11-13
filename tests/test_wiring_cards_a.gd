@@ -528,7 +528,7 @@ func _test_blade_barrage() -> void:
 	var res := _play(Card.create_by_id("blade_barrage"), d1, others)
 	_costs("blade_barrage", res, 40, 5)
 	_check(1000 - d1.current_health == _phys(20), "blade_barrage: X*10 with X = the attack cards in hand (2; a spell is not one) (%d)" % (1000 - d1.current_health))
-	_check(main.glut_tempo_remaining == 15, "blade_barrage: Glut 15 tempo")
+	_check(main.glut_tempo_remaining - tm._pending_ticks == 15, "blade_barrage: Glut 15 tempo once the play has run out (%d now, %d ticks of the play left)" % [main.glut_tempo_remaining, tm._pending_ticks])
 	_drain()
 	var blocked := Card.create_by_id("block")
 	dm.hand.clear()
@@ -734,7 +734,7 @@ func _test_collect_arrows() -> void:
 	var res := _play(ca, main.player)
 	_costs("collect_arrows", res, 30, 4)
 	_check(dm.hand.has(a1) and dm.hand.has(a3) and not dm.hand.has(a2), "collect_arrows: the two chosen attack cards come back to hand")
-	_check(main.glut_tempo_remaining == 15, "collect_arrows: Glut 15 tempo")
+	_check(main.glut_tempo_remaining - tm._pending_ticks == 15, "collect_arrows: Glut 15 tempo once the play has run out (%d now, %d ticks of the play left)" % [main.glut_tempo_remaining, tm._pending_ticks])
 	_drain()
 	main.glut_tempo_remaining = 0
 	# Unpicked (the fallback): the two most recent ATTACK cards — a spell is not one.

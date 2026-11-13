@@ -1045,6 +1045,7 @@ func _trigger_skill_tree_on_displacement() -> void:
 	var stats = main.player.get_stats()
 	if not stats:
 		return
+	YariCards.on_displacement(main)  # Yari of the Spider Monkey: +50% on the next offensive card
 
 	# Now You See Me: displacement → invisibility (rank-scaled tempo cooldown 15..1)
 	if stats.has_skill_tree_passive("now_you_see_me"):

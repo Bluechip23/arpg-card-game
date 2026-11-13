@@ -6,7 +6,7 @@ extends RefCounted
 ## behaviour lives in this file. See docs/new_cards/B.md.
 ##
 ##   Instants   Soul Consumption, Not So Fast, Spiteful Sting, Pocket Shiv
-##   Jail       Deep Breaths (deep_breaths_spell), Self Admission
+##   Jail       Slow and Steady Wins (slow_and_steady_wins), Self Admission
 ##   Deck order Reverse Reverse, Foresight
 ##
 ## `main` is the Main scene throughout. Like every other instant site in
@@ -24,7 +24,7 @@ const MELEE_RADIUS := 1.5        # "within 1 square" / "surrounding": the 8 neig
 const STING_POISON := 4
 const SHIV_MANA := 10
 
-## The sheet gives Deep Breaths no jail length; Self Admission's 20 is used.
+## The sheet gives Slow and Steady Wins no jail length; Self Admission's 20 is used.
 const DEEP_BREATHS_JAIL := 20
 const DEEP_BREATHS_TEMP_HP := 10
 ## ...and no length for the temp HP either: it lasts as long as the jail.
@@ -78,11 +78,14 @@ static func _nearest_enemy(main, pos: Vector3, radius: float, skip = null):
 ## Soul Consumption: an enemy died. Every copy in hand fires, one after the
 ## other: a kill made by one copy's 6 damage comes back through here, and the
 ## next copy answers THAT death (from where that enemy fell) — the chain.
-## "When you kill": like every other on-kill effect in the game, any enemy
-## death counts — kills are not attributed to a killer.
+## "When you kill": the enemy's kill credit decides (Enemy.kill_credit_player
+## — the players' blow or their damage-over-time; not a self-destruct, a
+## fallen master's minion or another enemy's blow).
 static func on_enemy_killed(main, enemy) -> void:
 	var dm = main.deck_manager
 	if dm == null or main.player == null:
+		return
+	if is_instance_valid(enemy) and "kill_credit_player" in enemy and not enemy.kill_credit_player:
 		return
 	var origin: Vector3 = enemy.position if is_instance_valid(enemy) else main.player.position
 	var fired := false
@@ -158,7 +161,7 @@ static func _fire_pocket_shivs(main) -> void:
 	if not fired.is_empty():
 		main._refresh_unit_tracker()
 
-## Deep Breaths' rider: an instant it jailed grants 10 armor the next time it
+## Slow and Steady Wins' rider: an instant it jailed grants 10 armor the next time it
 ## triggers, on top of its own effect.
 static func _on_reaction_triggered(main, card) -> void:
 	if card == null or not card.has_meta(DEEP_BREATHS_META):
@@ -167,7 +170,7 @@ static func _on_reaction_triggered(main, card) -> void:
 	var stats = main.player.get_stats() if main.player else null
 	if stats:
 		stats.add_armor(DEEP_BREATHS_ARMOR)
-		main.add_battle_log("Deep Breaths: %s grants +%d armor" % [card.card_name, DEEP_BREATHS_ARMOR], LOG_COLOR)
+		main.add_battle_log("Slow and Steady Wins: %s grants +%d armor" % [card.card_name, DEEP_BREATHS_ARMOR], LOG_COLOR)
 
 ## The trigger-site half of this batch's instants (Main._fire_instant_site_effect),
 ## so Lethal Recall replays them too. A replay has no trigger context and
@@ -326,7 +329,7 @@ static func refresh_foresight(main, redraw: bool) -> void:
 ## Main._apply_card_world_effects_inner: the four hand-played cards.
 static func world_effect(main, card, _target) -> void:
 	match card.card_id:
-		"deep_breaths_spell":
+		"slow_and_steady_wins":
 			_deep_breaths(main)
 		"self_admission":
 			_self_admission(main, card)
@@ -356,7 +359,7 @@ static func _deep_breaths(main) -> void:
 	if jailed > 0 and stats:
 		stats.add_temp_health(DEEP_BREATHS_TEMP_HP * jailed, DEEP_BREATHS_TEMP_HP_TEMPO)
 	dm.hand_updated.emit()
-	main.add_battle_log("Deep Breaths: %d instant%s jailed for %d tempo, +%d temp HP" % [
+	main.add_battle_log("Slow and Steady Wins: %d instant%s jailed for %d tempo, +%d temp HP" % [
 		jailed, "" if jailed == 1 else "s", DEEP_BREATHS_JAIL, DEEP_BREATHS_TEMP_HP * jailed], LOG_COLOR)
 
 static func _self_admission(main, card) -> void:

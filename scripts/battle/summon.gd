@@ -32,6 +32,18 @@ var debuff_manager: DebuffManager = null  # enemy debuffs on it (made on first u
 ## Brace (Inspiring Whistle): its next `brace_hits` hits deal `brace_percent`% less.
 var brace_percent: int = 0
 var brace_hits: int = 0
+## Ally buffs and auras reach summons (designer, 2026-11-12). A summon has no
+## buff manager, so it carries the few numbers those cards give:
+##  - granted_armor: armor from an ally's card (Spirit Armor), soaked before
+##    its own armor and health, never above GRANTED_ARMOR_CAP;
+##  - strengthen_bonus / strengthen_hits: +X on its next N attacks (War Shout);
+##  - aura_strengthen: +X on every attack while it stands in an aura (The
+##    Wolf's Howl; NewCardsA sets it every tempo).
+const GRANTED_ARMOR_CAP := 10
+var granted_armor: int = 0
+var strengthen_bonus: int = 0
+var strengthen_hits: int = 0
+var aura_strengthen: int = 0
 
 ## Enemy debuffs land on summons too (designer, 2026-10-28) and do to them
 ## what they do to a hero — except these, which act on a hand of cards, mana
@@ -103,7 +115,10 @@ func _build_health_label(height: float, color: Color, font_size: int = 24) -> vo
 	add_child(_health_label)
 
 func _health_label_text() -> String:
-	return "%s %d/%d" % [display_name, max(health, 0), max_health]
+	var t := "%s %d/%d" % [display_name, max(health, 0), max_health]
+	if granted_armor > 0:
+		t += "  +%d" % granted_armor  # armor an ally gave it
+	return t
 
 func _update_health_label() -> void:
 	if _health_label:
@@ -177,6 +192,10 @@ func take_damage(amount: int, from_status := false) -> void:
 		return
 	if not from_status:
 		amount = NewCardsE.summon_brace(self, amount)  # Inspiring Whistle
+	if granted_armor > 0:
+		var soaked: int = mini(granted_armor, amount)
+		granted_armor -= soaked
+		amount -= soaked
 	amount = _absorb(amount)
 	var before: int = health
 	health -= amount
@@ -200,11 +219,54 @@ func die() -> void:
 ## Summons don't carry the players' buff / debuff managers; each kind lists
 ## what it does have (a specter's time left, Shepherd's Mark, a burrow...).
 func get_status_effects() -> Array:
-	return _debuff_badges() + NewCardsE.summon_badges(self)
+	return _debuff_badges() + _ally_buff_badges() + NewCardsE.summon_badges(self)
 
 ## Its armor for the tab: [now, cap] (cap 0 when it has no cap).
 func get_armor_display() -> Array:
-	return [0, 0]
+	return [granted_armor, GRANTED_ARMOR_CAP if granted_armor > 0 else 0]
+
+## Armor an ally's card gives it (Spirit Armor). Returns what it gained.
+func gain_granted_armor(amount: int) -> int:
+	if amount <= 0 or is_dead:
+		return 0
+	var gained: int = mini(amount, GRANTED_ARMOR_CAP - granted_armor)
+	if gained <= 0:
+		return 0
+	granted_armor += gained
+	_update_health_label()
+	return gained
+
+## Strengthen from an ally's card: the damage adds, the higher count stays
+## (as on a hero).
+func gain_strengthen(bonus: int, hits: int) -> void:
+	if is_dead or bonus <= 0 or hits <= 0:
+		return
+	strengthen_bonus += bonus
+	strengthen_hits = maxi(strengthen_hits, hits)
+
+## The Strengthen one of its attacks takes: the aura's, plus the carded one
+## (which spends a hit).
+func _take_strengthen() -> int:
+	var bonus: int = aura_strengthen
+	if strengthen_hits > 0:
+		bonus += strengthen_bonus
+		strengthen_hits -= 1
+		if strengthen_hits <= 0:
+			strengthen_bonus = 0
+	return bonus
+
+func _ally_buff_badges() -> Array:
+	var out: Array = []
+	if aura_strengthen > 0:
+		out.append({"name": "Strengthen", "color": Color(1.0, 0.5, 0.3), "stacks": aura_strengthen,
+			"desc": "+%d damage on every attack while it stands in The Wolf's Howl" % aura_strengthen})
+	if strengthen_hits > 0:
+		out.append({"name": "Strengthen", "color": Color(1.0, 0.5, 0.3), "stacks": strengthen_hits,
+			"desc": "+%d damage on its next %d attacks" % [strengthen_bonus, strengthen_hits]})
+	if granted_armor > 0:
+		out.append({"name": "Armor", "color": Color(0.6, 0.7, 0.9), "stacks": granted_armor,
+			"desc": "%d armor from an ally, taken before its health (at most %d)" % [granted_armor, GRANTED_ARMOR_CAP]})
+	return out
 
 ## Its picture for the tab (the current pose of its sprite), or null.
 func get_portrait_texture() -> Texture2D:
@@ -249,7 +311,12 @@ func move_cost_mult() -> int:
 ## Weakened / Cursed cut it; Cursed hurts it for a fifth of the blow and Burn
 ## flares on it as it strikes (as on a hero).
 func outgoing_damage(base: int) -> int:
-	if debuff_manager == null or base <= 0:
+	if base <= 0:
+		return base
+	# Strengthen from an ally (War Shout, The Wolf's Howl) rides the blow; a
+	# summon with no attack of its own (a turtle, the lion) gains nothing.
+	base += _take_strengthen()
+	if debuff_manager == null:
 		return base
 	if debuff_manager.roll_blind_miss():
 		return 0

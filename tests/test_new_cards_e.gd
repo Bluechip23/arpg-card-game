@@ -325,8 +325,17 @@ func _test_ledger() -> void:
 	_finish()
 	_check(stats.current_health - 300 == want and want > 0, "a Defense card heals for the whole bank: %d (%d)" % [want, stats.current_health - 300])
 	_check(is_equal_approx(float(stats.get_meta(NewCardsE.LEDGER_BANK, -1.0)), 0.0), "…and empties it")
+	# A Maintain: it outlasts the enemies, and ends when the maintain is dropped.
+	_check(dm.maintained_cards.any(func(c): return c.card_id == "the_ledger"), "The Ledger sits in the maintained pile")
 	main._on_all_enemies_defeated()
-	_check(not stats.has_meta(NewCardsE.LEDGER_ON) and _badge("the_ledger") == null, "the fight's end closes the Ledger")
+	NewCardsE.refresh_ledger(main)
+	_check(bool(stats.get_meta(NewCardsE.LEDGER_ON, false)), "the enemies' defeat does not close it")
+	for mc in dm.maintained_cards.duplicate():
+		if mc.card_id == "the_ledger":
+			dm.maintained_cards.erase(mc)
+	NewCardsE.refresh_ledger(main)
+	_check(not stats.has_meta(NewCardsE.LEDGER_ON) and not stats.has_meta(NewCardsE.LEDGER_BANK) and _badge("the_ledger") == null,
+		"dropping the maintain closes the book and the bank is lost")
 
 # ---------------------------------------------------------------- Both Sides of the Candle
 
@@ -386,7 +395,7 @@ func _test_flames() -> void:
 		e.max_health = 5000
 		e.current_health = 5000
 	var flames := Card.create_by_id("flames_of_alexandria")
-	_check(not flames.is_offensive() and flames.school == Card.CardSchool.SPELL, "a utility spell by its tags")
+	_check(flames.is_offensive() and not flames.is_attack() and flames.school == Card.CardSchool.SPELL, "an offensive spell")
 	var held_a := Card.create_by_id("slice")
 	var held_b := Card.create_by_id("block")
 	dm.hand.append_array([held_a, held_b])
@@ -403,7 +412,7 @@ func _test_flames() -> void:
 	# (The two may be drawn straight back: they are shuffled into the draw pile.)
 	_check(discards[0] == 2, "the hand held before is discarded, as true discards (on-discard effects fire): %d" % discards[0])
 	var expect_draw: int = mini(mini(10, cap), 11)
-	_check(dm.hand.size() == expect_draw, "then %d cards are drawn (10, held to the hand size %d): hand %d" % [expect_draw, cap, dm.hand.size()])
+	_check(dm.hand.size() == expect_draw, "then 10 are drawn, the ones past a full hand overdrawing (%d kept for hand size %d): hand %d" % [expect_draw, cap, dm.hand.size()])
 	_check(dm.hand.size() + dm.draw_pile.size() == 11, "the discard pile was shuffled into the draw pile first (11 cards between pile and hand: %d)" % (dm.hand.size() + dm.draw_pile.size()))
 	_check(dm.discard_pile.size() == 1 and dm.discard_pile[0] == flames, "only Flames itself rests in the discard pile")
 	_check(_lost(front) == 0, "nothing burns before the choice")

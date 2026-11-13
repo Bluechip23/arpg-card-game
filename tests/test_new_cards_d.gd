@@ -252,7 +252,7 @@ func _test_taxonomy() -> void:
 	var f := Card.create_by_id("fan_of_knives")
 	_check(f.is_attack() and f.get_effective_range() == 2, "Fan of Knives: an attack reaching 2")
 	var s := Card.create_by_id("spine_release")
-	_check(s.school == Card.CardSchool.SPELL and not s.is_offensive(), "Spine Release: a utility spell, not offensive")
+	_check(s.school == Card.CardSchool.SPELL and s.is_offensive() and s.card_type == Card.CardType.DEFENSE and not s.is_attack(), "Spine Release: a Defense spell that is also offensive")
 	var fe := Card.create_by_id("feint")
 	_check(fe.card_type == Card.CardType.UTILITY and not fe.is_offensive(), "Feint: a utility")
 
