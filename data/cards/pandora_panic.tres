@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "pandora_panic"
+card_name = "Pandora Panic"
+description = "Draw 20 cards. Jail 40. Engrave."
+card_type = 2
+card_type_name = "Utility"
+mana_cost = 75
+tempo_cost = 10
+target_types = ["self"]
+jail_on_play = 40
+slot_labels = [7]
+keywords = ["utility"]
+requires_engraving = true

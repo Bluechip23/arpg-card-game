@@ -533,6 +533,18 @@ var vitality_stacks: int = 0    # Nine Ruins: current Vitality
 ## Anvil of the Burdened: offensive cards deal +1 damage per this much weight
 ## carried, and +1 per tempo the card costs above `tempo_damage_over`
 ## (0 = off).
+## The Tenderizer: an offensive card aimed at an enemy deals +X% damage for
+## every kind of debuff that enemy carries, and +1 damage for every
+## `idle_tempo_per_damage` tempo the enemy has sat idle (0 = off).
+@export var debuff_kind_damage_percent: float = 0.0
+@export var idle_tempo_per_damage: int = 0
+## Glutton's Cleaver. On-self (a card in one of its bonus slots): a damaging
+## card deals +X damage per OTHER card in hand, and the wielder takes Y
+## damage per card, straight off health. And while the wielder is Glutted,
+## each tempo of the Glut also ticks the attack-speed counter.
+@export var on_self_hand_damage_per_card: int = 0
+@export var on_self_hand_self_damage_per_card: int = 0
+@export var glut_ticks_attack_counter: bool = false
 ## Yari of the Spider Monkey: after the wielder is displaced, their next
 ## damaging offensive card deals +X%.
 @export var displacement_next_offensive_percent: float = 0.0
@@ -1183,6 +1195,8 @@ const ITEM_IDS: Array[String] = [
 	"anvil_of_the_burdened",
 	"yari_of_the_spider_monkey",
 	"feverfang",
+	"gluttons_cleaver",
+	"the_tenderizer",
 	"laurentius_lost_spear",
 	"mauls_sabre",
 	"fallens_wrath",

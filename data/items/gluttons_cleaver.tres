@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_glut"]
+
+[resource]
+script = ExtResource("1_glut")
+item_name = "Glutton's Cleaver"
+rarity = 3
+weight = 85
+dexterity_bonus = 7
+determination_bonus = 7
+wisdom_bonus = -6
+intelligence_bonus = -5
+agility_bonus = -8
+health_bonus = -50
+weapon_subtype = 6
+card_slots = 3
+vanilla_slots = 0
+on_self_hand_damage_per_card = 3
+on_self_hand_self_damage_per_card = 1
+glut_ticks_attack_counter = true
+description = "+7 DEX, +7 DET, -6 WIS, -5 INT, -8 AGI, -50 health. 3 card slots. While you are Glutted, each tempo of the Glut also ticks your attack-speed counter. On-self: a card that deals damage deals +3 damage for each other card in your hand, and you take 1 damage for each."
+appearance = "A heavy single-bitted axe whose blade is a snarling beast's head, fangs bared and bloodied along the edge; a clawed paw grips the back of the head through a torn red cloth, the haft is wrapped in oxblood leather, and a horned skull with a glowing eye caps the pommel."
+appearance_icon = "res://assets/items/mythic/gluttons_cleaver.png"

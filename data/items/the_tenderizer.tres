@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_tender"]
+
+[resource]
+script = ExtResource("1_tender")
+item_name = "The Tenderizer"
+rarity = 3
+weight = 45
+strength_bonus = 3
+wisdom_bonus = 3
+health_bonus = 50
+unerring_cap_bonus = 10
+weapon_subtype = 7
+granted_card_ids = Array[String](["soften"])
+card_slots = 0
+vanilla_slots = 3
+debuff_kind_damage_percent = 3.0
+idle_tempo_per_damage = 2
+description = "+50 health, +10 unerring armor cap, +3 STR, +3 WIS. 3 plain card slots. Your offensive cards deal 3% more damage for each different debuff on their target, and +1 damage for every 2 tempo that enemy has sat idle. Grants Soften: deal 1 damage, Stun the target for 5 tempo and apply 2 Vulnerable (40 mana, 3 tempo)."
+appearance = "A great studded war hammer of pitted iron bound in riveted bronze, hung with mail and torn red cloth; a candle burns in a shrine above a clock face set where the head meets the haft, the grip is wound in red leather, and an hourglass of gold sand forms the pommel."
+appearance_icon = "res://assets/items/mythic/the_tenderizer.png"
