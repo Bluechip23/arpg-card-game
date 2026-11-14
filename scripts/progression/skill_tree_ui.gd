@@ -34,6 +34,7 @@ var _stat_alloc_backdrop: Control = null   # the training-ground painting behind
 var _stat_points_remaining: int = 0
 var _stat_allocations: Dictionary = {}
 var _stat_alloc_btn: Button = null  # "Stat Points: N" in the tab bar
+var _passive_pts_btn: Button = null  # "Passive Points: N" under the title, in the Stat Points' look
 
 # Painted passive board (heroes with one in PASSIVE_BOARDS)
 var _board_view: Control = null   # the board's rect under the tab bar (clips the painting)
@@ -135,6 +136,25 @@ func _build_tab_bar() -> void:
 	_tab_bar.add_child(_stat_alloc_btn)
 
 	add_child(_tab_bar)
+
+	# The passive points to spend, right under the "PASSIVE TREE" title, in
+	# the Stat Points' format (designer, 2026-11-14). Spent by clicking the
+	# circles, so it is a readout: it takes no clicks.
+	_passive_pts_btn = Button.new()
+	_passive_pts_btn.name = "PassivePoints"
+	_passive_pts_btn.text = "Passive Points: 0"
+	_passive_pts_btn.add_theme_font_size_override("font_size", 14)
+	_passive_pts_btn.add_theme_color_override("font_color", COLOR_AUTO_TEXT)
+	_passive_pts_btn.focus_mode = Control.FOCUS_NONE
+	_passive_pts_btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_passive_pts_btn.anchor_left = 0.5
+	_passive_pts_btn.anchor_right = 0.5
+	_passive_pts_btn.offset_left = -95.0
+	_passive_pts_btn.offset_right = 95.0
+	_passive_pts_btn.offset_top = 40.0
+	_passive_pts_btn.offset_bottom = 70.0
+	_passive_pts_btn.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	add_child(_passive_pts_btn)
 
 func _make_tab_button(text: String, active: bool) -> Button:
 	var btn = Button.new()
@@ -239,12 +259,11 @@ func _apply_styles() -> void:
 func _update_title() -> void:
 	match _current_tab:
 		Tab.SKILL_TREE:
-			if character_name != "":
-				title_label.text = "%s - PASSIVES" % character_name.to_upper()
-			else:
-				title_label.text = "PASSIVES"
+			title_label.text = "PASSIVE TREE"
 		Tab.SPHERE_GRID:
 			title_label.text = "SPHERE GRID"
+	if _passive_pts_btn:
+		_passive_pts_btn.visible = _current_tab == Tab.SKILL_TREE
 
 # ============================================
 # TABLE BUILDING
@@ -291,15 +310,7 @@ func _rebuild_table() -> void:
 
 	table_container.add_theme_constant_override("separation", 18)
 
-	# Points header
-	var pool: int = player_stats.unspent_passive_points if player_stats else 0
-	var pts_label = Label.new()
-	pts_label.text = "Passive Points: %d" % pool
-	pts_label.add_theme_font_size_override("font_size", 18)
-	pts_label.add_theme_color_override("font_color", COLOR_AUTO_TEXT if pool > 0 else COLOR_DIM)
-	pts_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	table_container.add_child(pts_label)
-
+	# (The points to spend sit under the title: _passive_pts_btn.)
 	var hint = Label.new()
 	hint.text = "Click a circle to invest a point (max %d per passive). Hover a circle to see what it does now and what the next point adds. Each stage's whole column opens once %d points sit in the previous stage — from any archetypes." % [
 		SkillTreeData.PASSIVE_MAX_LEVEL, SkillTreeData.STAGE_GATE_POINTS]
@@ -330,14 +341,14 @@ func _rebuild_table() -> void:
 # second top-right, the final unlock at the bottom point. The circles carry
 # no names (hover tells) and wear their "x / 15" over their foot; each
 # archetype's name sits in the outer corner of its scene (designer,
-# 2026-11-14). The centre holds the points and the stage gates. A hero
-# without a board keeps the lane table. Every position below is in the
-# painting's own pixels.
+# 2026-11-14). The points to spend sit under the title, not on the
+# painting (2026-11-14: the centre box is gone; a locked circle's hover
+# names its gate). A hero without a board keeps the lane table. Every
+# position below is in the painting's own pixels.
 #
 # Per hero (SkillTreeData.character_name):
 #   texture     the painting
 #   size        its pixel size
-#   info        the empty-centre rect for the points / stage gates / hint
 #   spread      half the gap between a triangle's top two passives (x) and
 #               half its height (y): top-left = anchor - spread,
 #               top-right = anchor + (spread.x, -spread.y),
@@ -367,7 +378,6 @@ const PASSIVE_BOARDS := {
 	"Brad": {
 		"texture": "res://assets/textures/ui/brad_passive_board.webp",
 		"size": Vector2(1774, 887),
-		"info": Rect2(735, 98, 295, 138),
 		"spread": Vector2(80, 55),
 		"node": 72.0,
 		"archetypes": {
@@ -388,7 +398,6 @@ const PASSIVE_BOARDS := {
 	"Cory": {
 		"texture": "res://assets/textures/ui/cory_passive_board.webp",
 		"size": Vector2(1774, 887),
-		"info": Rect2(735, 98, 295, 138),
 		"spread": Vector2(68, 55),
 		"node": 64.0,
 		"archetypes": {
@@ -404,7 +413,6 @@ const PASSIVE_BOARDS := {
 	"Jeremy": {
 		"texture": "res://assets/textures/ui/jeremy_passive_board.webp",
 		"size": Vector2(1774, 887),
-		"info": Rect2(735, 98, 295, 138),
 		"spread": Vector2(66, 48),
 		"node": 60.0,
 		"archetypes": {
@@ -420,7 +428,6 @@ const PASSIVE_BOARDS := {
 	"Ryan": {
 		"texture": "res://assets/textures/ui/ryan_passive_board.webp",
 		"size": Vector2(1774, 887),
-		"info": Rect2(735, 98, 295, 138),
 		"spread": Vector2(55, 42),
 		"node": 52.0,
 		"archetypes": {
@@ -436,7 +443,6 @@ const PASSIVE_BOARDS := {
 	"Stephen": {
 		"texture": "res://assets/textures/ui/stephen_passive_board.webp",
 		"size": Vector2(1774, 887),
-		"info": Rect2(705, 22, 270, 118),
 		"spread": Vector2(55, 40),
 		"node": 52.0,
 		"archetypes": {
@@ -556,61 +562,8 @@ func _rebuild_board(board: Dictionary) -> void:
 	_board_view.add_child(art)
 
 	var lanes: Array = skill_tree.get_archetype_lanes()
-	_build_board_info(board, lanes, k, off)
 	for lane in lanes:
 		_build_board_triangle(board, lane, lanes, k, off)
-
-## The empty centre: points to spend, the stage gates, how it works.
-func _build_board_info(board: Dictionary, lanes: Array, k: float, off: Vector2) -> void:
-	var info_rect: Rect2 = board["info"]
-	var info := PanelContainer.new()
-	info.name = "BoardInfo"
-	var st := StyleBoxFlat.new()
-	st.bg_color = Color(0.01, 0.05, 0.045, 0.62)
-	st.border_color = Color(COLOR_BORDER, 0.55)
-	st.set_border_width_all(1)
-	st.set_corner_radius_all(8)
-	st.content_margin_left = 8.0
-	st.content_margin_right = 8.0
-	st.content_margin_top = 4.0
-	st.content_margin_bottom = 4.0
-	info.add_theme_stylebox_override("panel", st)
-	info.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	info.position = off + info_rect.position * k
-	info.size = info_rect.size * k
-	var vb := VBoxContainer.new()
-	vb.alignment = BoxContainer.ALIGNMENT_CENTER
-	vb.add_theme_constant_override("separation", 2)
-	info.add_child(vb)
-
-	var pool: int = player_stats.unspent_passive_points if player_stats else 0
-	var pts := _board_label("Passive Points: %d" % pool, _board_font(18, k, 12), COLOR_AUTO_TEXT if pool > 0 else COLOR_DIM)
-	pts.name = "PointsLabel"
-	vb.add_child(pts)
-
-	var stage_count := 0
-	for lane in lanes:
-		stage_count = maxi(stage_count, lane["passives"].size())
-	# One line per later stage, named by where its passives sit in the triangles.
-	var where := ["top left", "top right", "bottom"]
-	var gates: Array[String] = []
-	for stage in range(1, stage_count):
-		if SkillTreeData.is_stage_unlocked(lanes, stage, player_stats):
-			gates.append("Stage %d (%s): open ✓" % [stage + 1, where[stage]])
-		else:
-			gates.append("Stage %d (%s): %d/%d in Stage %d" % [stage + 1, where[stage],
-				SkillTreeData.stage_points(lanes, stage - 1, player_stats),
-				SkillTreeData.stage_unlock_cost(stage), stage])
-	var gate_lbl := _board_label("\n".join(gates), _board_font(11, k, 9), COLOR_COUNT)
-	gate_lbl.name = "StageGates"
-	vb.add_child(gate_lbl)
-
-	var hint := _board_label("Click a circle: +1 point (max %d). Hover it for details." % [
-		SkillTreeData.PASSIVE_MAX_LEVEL], _board_font(10, k, 8), COLOR_DIM)
-	hint.name = "Hint"
-	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	vb.add_child(hint)
-	_board_view.add_child(info)
 
 ## One archetype's upside-down triangle: its passives (the same circles as
 ## the lane table, at the board's scale, each with its "x / 15" over its
@@ -935,6 +888,10 @@ func _refresh_stat_alloc_button() -> void:
 	var pool: int = player_stats.unspent_stat_points if player_stats else 0
 	_stat_alloc_btn.text = "Stat Points: %d" % pool
 	_stat_alloc_btn.disabled = pool <= 0
+	if _passive_pts_btn:
+		var pp: int = player_stats.unspent_passive_points if player_stats else 0
+		_passive_pts_btn.text = "Passive Points: %d" % pp
+		_passive_pts_btn.disabled = pp <= 0
 
 func _open_stat_allocation() -> void:
 	_close_stat_alloc_panel()

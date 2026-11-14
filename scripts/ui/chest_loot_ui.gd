@@ -338,12 +338,17 @@ func _on_chest_pick_up_item(item: ItemData) -> void:
 		main._start_mythic_reveal(item, main.player)
 		return
 	var inv = main.player.get_inventory()
-	if inv.store_item(item):
+	var from_starter: bool = bool(main._chest_modal_contents.get("starter", false)) if main._chest_modal_contents is Dictionary else false
+	var stored: bool = inv.store_item(item)
+	if stored:
 		main.add_battle_log("Picked up %s!" % item.item_name, Color(1.0, 0.85, 0.3))
 		main.dungeon_manager.remove_chest_item(_current_chest_idx)
 	else:
 		main.add_battle_log("Inventory full! Could not pick up %s." % item.item_name, Color(1.0, 0.4, 0.4))
 	_close_chest_modal()
+	# The first gear: Olorin explains on-self, item cards and item effects.
+	if stored and from_starter and main.olorin:
+		main.olorin.show_first_item_lesson(item)
 
 func _on_chest_take_card(card: Card) -> void:
 	var inv = main.player.get_inventory()

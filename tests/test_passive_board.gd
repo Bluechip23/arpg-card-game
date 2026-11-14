@@ -47,7 +47,8 @@ func _check_board(ui: SkillTreeUI, hero: String, painting: String, expect: Dicti
 	_check(art_rect.size.x >= view_rect.size.x - 1.0 or art_rect.size.y >= view_rect.size.y - 1.0,
 		"%s: the painting fills the panel along one side at least" % hero)
 	_check(absf(art_rect.size.x / art_rect.size.y - 1774.0 / 887.0) < 0.01, "%s: the painting keeps its aspect" % hero)
-	_check(ui._board_view.get_node_or_null("BoardInfo") != null, "%s: the centre holds the points / stage info" % hero)
+	_check(ui._board_view.get_node_or_null("BoardInfo") == null, "%s: no points box on the painting" % hero)
+	_check(ui.title_label.text == "PASSIVE TREE", "%s: the title reads PASSIVE TREE, no hero name (%s)" % [hero, ui.title_label.text])
 
 	# Left / right is judged against the middle of the four triangles (a
 	# board's gap need not be centred on the painting); top / bottom against
@@ -186,13 +187,20 @@ func _run() -> void:
 	_circle(ui, "The Fallen", 1).pressed.emit()
 	await process_frame
 	_check(st.get_passive_level("redemption") == 1, "a newly opened second passive takes a point")
-	var pts: Label = ui._board_view.find_child("PointsLabel", true, false)
-	_check(pts != null and pts.text == "Passive Points: %d" % st.unspent_passive_points, "the centre shows the points left")
+	var pts: Button = ui._passive_pts_btn
+	_check(pts != null and pts.visible and pts.text == "Passive Points: %d" % st.unspent_passive_points,
+		"the points left read under the title, like Stat Points (%s)" % (pts.text if pts else "none"))
+	var tr: Rect2 = ui.title_label.get_global_rect()
+	var pr: Rect2 = pts.get_global_rect()
+	_check(pr.position.y >= tr.position.y + tr.size.y * 0.5 and absf(pr.get_center().x - tr.get_center().x) < 2.0,
+		"...right below the title, centred")
+	_check(pts.get_theme_font_size("font_size") == ui._stat_alloc_btn.get_theme_font_size("font_size"), "in the Stat Points' format")
 
 	# --- Tabs still switch ---
 	ui._switch_to_tab(SkillTreeUI.Tab.SPHERE_GRID)
 	await process_frame
 	_check(not ui._board_view.visible, "the board hides on the Sphere Grid tab")
+	_check(not ui._passive_pts_btn.visible, "and so do the passive points")
 	ui._switch_to_tab(SkillTreeUI.Tab.SKILL_TREE)
 	await process_frame
 	_check(ui._board_view.visible and not ui.scroll_container.visible, "and comes back on Passives")
