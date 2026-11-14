@@ -106,7 +106,8 @@ const RULES := {
 }
 
 ## Rider keys that only parameterise another rider.
-const PARAMS := ["range_requires_ranged", "strengthen_attacks", "missing_health_step", "resist_all_tempo"]
+const PARAMS := ["range_requires_ranged", "strengthen_attacks", "missing_health_step", "resist_all_tempo",
+	"conjure_count", "conjure_cap"]
 
 ## Keys whose neutral value is not 0 / false / "".
 const NEUTRAL_ONE := ["damage_multiplier", "mana_multiplier", "overdrive_multiplier"]
@@ -177,7 +178,10 @@ static func describe(osb: Dictionary, card = null) -> Array:
 			shown = str(v)
 		var say: String = rule["say"]
 		var text: String = say % shown if say.contains("%s") else say
-		if key == "mana_reduction" and int(v) > 0:
+		if key == "conjure_on_play_id":
+			var cj := Card.create_by_id(str(v))
+			text = "adds %d %s to your hand" % [maxi(1, int(osb.get("conjure_count", 0))), cj.card_name if cj else str(v)]
+		elif key == "mana_reduction" and int(v) > 0:
 			text = "-%s mana cost" % shown
 		elif key == "mana_reduction" and int(v) < 0:
 			text = "+%d mana cost" % -int(v)

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Card" format=3]
+
+[ext_resource type="Script" path="res://scripts/cards/card.gd" id="1_card"]
+
+[resource]
+script = ExtResource("1_card")
+card_id = "wraiths_piercer"
+card_name = "Wraiths Piercer"
+description = "Deal 5 damage and apply 5 Poison. Linger. Erase 5, or erased when played."
+mana_cost = 40
+damage = 5
+tempo_cost = 1
+base_damage = 5
+is_ranged = true
+erase_tempo = 5
+erase_tempo_remaining = 5
+erase_on_play = true
+linger = true
+shop_excluded = true
+keywords = ["attack", "offensive", "ranged", "enemy"]

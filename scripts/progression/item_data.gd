@@ -506,6 +506,12 @@ var vitality_stacks: int = 0    # Nine Ruins: current Vitality
 @export var on_self_mana_to_life: bool = false  # half a slotted card's mana cost is paid as LIFE instead (Bow of Arash)
 @export var on_self_kill_summon_skeleton: bool = false  # a kill with a slotted card raises a skeleton at 50% of the victim's max health (Sack of Bone Arrows)
 @export var on_self_conjure_on_play_id: String = ""     # playing a slotted card puts a copy of this card into the hand (Belthronding: close_is_favored)
+@export var on_self_conjure_count: int = 0      # ...this many copies per play (0 = 1; Blueringed Skitter 2)
+@export var on_self_conjure_cap: int = 0        # ...never more than this many held at once (0 = no cap; Belthronding 3)
+## Blueringed Skitter: whenever its wielder erases a card (any erase: on
+## play, an Erase timer running out), they shift X spaces — the next X tiles
+## of movement are free, the Shadow Cowl's shift.
+@export var erase_shift_tiles: int = 0
 @export var on_self_crit_bud_bow: bool = false  # a crit with a slotted card buds a spirit-bow turret; also arms the per-bow-instance damage/crit stacking (Bow of Budding Blasts)
 
 # Ranged passive riders (not on-self — always on while equipped)
@@ -1074,6 +1080,8 @@ func get_on_self_bonus() -> Dictionary:
 		"mana_to_life": on_self_mana_to_life,
 		"kill_summon_skeleton": on_self_kill_summon_skeleton,
 		"conjure_on_play_id": on_self_conjure_on_play_id,
+		"conjure_count": on_self_conjure_count,
+		"conjure_cap": on_self_conjure_cap,
 		"crit_bud_bow": on_self_crit_bud_bow,
 		"fortify": on_self_fortify,
 		"knockback": on_self_knockback,
@@ -1208,6 +1216,7 @@ const ITEM_IDS: Array[String] = [
 	"feverfang",
 	"gluttons_cleaver",
 	"the_tenderizer",
+	"blueringed_skitter",
 	"laurentius_lost_spear",
 	"mauls_sabre",
 	"fallens_wrath",

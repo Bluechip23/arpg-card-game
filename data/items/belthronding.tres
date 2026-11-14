@@ -21,6 +21,7 @@ granted_card_ids = Array[String](["balistic_arrow"])
 card_slots = 2
 vanilla_slots = 2
 on_self_conjure_on_play_id = "close_is_favored"
+on_self_conjure_cap = 3
 ally_damage_share_percent = 10.0
 ally_damage_share_radius = 3
 description = "+10 STR, +20 health, +8 DEX. 4 card slots (2 bonus, 2 plain). On-self: playing any card puts a copy of Close is Favored into your hand, up to 3 held at once (Instant: an enemy entering melee range takes 13 damage; erased). When an ally deals damage within 3 squares of you, you take 10% of it as well. Grants Balistic Arrow: 30 damage — hitting an enemy does not stop this arrow (75 mana, 5 tempo)."

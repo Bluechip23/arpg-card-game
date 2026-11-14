@@ -13,6 +13,11 @@ signal overflow_triggered(mode: String, card: Card)
 signal on_draw_triggered(card: Card)
 signal reaction_triggered(card: Card)
 signal card_erased(card: Card)
+## Every card erased, by any route — on play (erase_on_play), its Erase timer,
+## a hatch, a brood discard, an erasing instant. card_erased drives the hand's
+## disintegrate animation and log; this one is for riders that count erasures
+## (the Blueringed Skitter's shift). Emit through note_erased().
+signal erase_counted(card: Card)
 # A card reached the discard pile by some means other than being played —
 # forced discards, on-draw dumps, triggered instants, jail releases, expiring
 # enchantments. Ryan's Ladder Work counts these toward his opening strike.
@@ -577,6 +582,13 @@ func attempt_draw() -> void:
 	else:
 		draw_card()
 
+## A card left the game by erasure: the hand's erase animation and log
+## (card_erased, unless `announce` is false) and the erase counters.
+func note_erased(card: Card, announce: bool = true) -> void:
+	if announce:
+		card_erased.emit(card)
+	erase_counted.emit(card)
+
 func release_draw_reservation(card: Card) -> void:
 	## Frees the hand slots held for a queued card (on resolve or cancel).
 	reserved_draw_slots = maxi(0, reserved_draw_slots - card.get_effect_draw_count())
@@ -1002,6 +1014,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 	elif card.erase_on_play:
 		# Erased — removed from the deck entirely the moment it's played (not discarded).
 		card_discarded.emit(card)
+		erase_counted.emit(card)  # the play animation stands in for the disintegrate
 		print("[DECK] %s erased after play." % card.card_name)
 	elif card.jail_on_play > 0:
 		# Jail-on-play (e.g. Meister of Faustmesser): the card sits in jail for
@@ -1258,7 +1271,7 @@ func _process_erase_timers() -> void:
 				if peaked_card == card:
 					peaked_card = null
 			pile.remove_at(i)
-			card_erased.emit(card)
+			note_erased(card)
 			changed = true
 			print("[DECK] Erased '%s' from %s (Erase: %d tempo expired)" % [card.card_name, pile_info["name"], card.erase_tempo])
 	# Also runs the claims sweep: a hex riding an erased card left the game.
@@ -1292,7 +1305,7 @@ func _process_hatch_timers(amount: int) -> void:
 		return
 	hand_updated.emit()
 	for card in hatched:
-		card_erased.emit(card)
+		note_erased(card)
 		print("[DECK] %s hatches!" % card.card_name)
 		if card.hatch_handler.is_valid():
 			card.hatch_handler.call()
@@ -1442,7 +1455,7 @@ func discard_card_from_hand(card: Card) -> bool:
 		card_discarded.emit(card)
 		true_discards_this_cycle += 1
 		non_play_discard.emit(card)
-		card_erased.emit(card)
+		note_erased(card)
 		hand_updated.emit()
 		print("[DECK] %s discarded — the brood is gone" % card.card_name)
 		return true

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Cut the mythics that came on their own painted boards (2026-11-13: the
-Glutton's Cleaver, The Tenderizer) onto the 128px canvas the others use.
+Glutton's Cleaver, The Tenderizer; 2026-11-14: the Blueringed Skitter) onto the 128px canvas the others use.
 
 Unlike the five mythic sheets (tools/cut_mythic_art.py), these boards' ground
 is a smoky dark wash, not a flat panel, so a flood fill by colour will not
@@ -34,6 +34,8 @@ LARGE_FIT = 368
 BOARDS = {
     "gluttons_cleaver": {"box": (520, 20, 1110, 900), "pockets": [(352, 232, 450, 400)]},
     "the_tenderizer": {"box": (60, 80, 964, 1520), "pockets": []},
+    # 2026-11-14: a wavy dagger in purple smoke and green wisps on black.
+    "blueringed_skitter": {"box": (30, 10, 1240, 1245), "pockets": [], "dark_key": (22, 70)},
 }
 
 
@@ -59,6 +61,22 @@ def cut(slug, cfg):
         fg &= ~(pocket & (crop.max(axis=2) < 46))
     alpha = cv2.GaussianBlur(fg.astype(np.float32), (0, 0), 1.2)
     alpha = np.where(nd.binary_erosion(fg, iterations=2), 1.0, alpha)
+    # A board painted on black with a smoky haze: the piece itself (its lit
+    # silhouette, holes filled, the largest part) stays solid; everything
+    # around it fades by how dark it is (lo and below gone, hi and above
+    # kept), so the wisps glow on transparency instead of a muddy cloud.
+    if cfg.get("dark_key"):
+        lo, hi = cfg["dark_key"]
+        bright = crop.max(axis=2).astype(np.float32)
+        lit = nd.binary_closing(bright > cfg.get("solid_lit", 70), iterations=4)
+        lit = nd.binary_fill_holes(lit)
+        lab, n = nd.label(lit)
+        solid = np.zeros_like(lit)
+        if n > 0:
+            sizes = nd.sum(lit, lab, range(1, n + 1))
+            solid = nd.binary_erosion(lab == (int(np.argmax(sizes)) + 1), iterations=1)
+        glow = np.clip((bright - lo) / float(hi - lo), 0.0, 1.0)
+        alpha = np.where(solid, alpha, alpha * glow)
     ys, xs = np.nonzero(alpha > 0.05)
     piece = np.dstack([crop, (alpha * 255).astype(np.uint8)])[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
     img = Image.fromarray(piece, "RGBA")

@@ -102,6 +102,7 @@ func _run() -> void:
 	_test_cleaver(stats, inv, dummy)
 	_test_tenderizer(stats, inv, dummy)
 	_test_pandora(stats)
+	_test_skitter(stats, inv, dummy)
 	_done()
 
 func _cell_pos(off: Vector2i) -> Vector3:
@@ -348,6 +349,79 @@ func _test_cleaver(stats: PlayerStats, inv, dummy) -> void:
 	_check(stats.current_attack_counter == 47, "3 tempo of Glut tick the attack-speed counter 3 times, and no more once it ends (%d)" % stats.current_attack_counter)
 	inv.equipped_weapons.erase(cleaver)
 	stats.current_attack_counter = c0
+
+func _test_skitter(stats: PlayerStats, inv, dummy) -> void:
+	print("-- Blueringed Skitter --")
+	var sk: ItemData = ItemData.create("blueringed_skitter")
+	_check(sk != null and sk.rarity == ItemData.Rarity.MYTHIC and sk.weapon_subtype == ItemData.WeaponSubtype.DAGGER
+		and sk.weight == 25, "a Mythic dagger, weight 25")
+	_check(sk.card_slots == 3 and sk.vanilla_slots == 0 and sk.granted_card_ids.is_empty(), "3 bonus slots, no plain slot, no granted card")
+	_check(sk.dexterity_bonus == 4 and sk.agility_bonus == 6 and sk.wisdom_bonus == 2 and sk.intelligence_bonus == 2,
+		"+4 DEX, +6 AGI, +2 WIS, +2 INT")
+	_check(sk.has_appearance_art() and sk.get_appearance_large_texture() != null, "it wears the designer's painting, close-up too")
+	var wp := Card.create_by_id("wraiths_piercer")
+	_check(wp.mana_cost == 40 and wp.tempo_cost == 1 and wp.is_attack() and wp.is_ranged and wp.get_effective_range() == 5,
+		"Wraiths Piercer: 40 mana, 1 tempo, a ranged-5 attack (range %d)" % wp.get_effective_range())
+	_check(wp.linger and wp.erase_on_play and wp.erase_tempo == 5 and wp.erase_tempo_remaining == 5,
+		"it Lingers, erases on play, and Erase 5")
+	_check(Card.DROP_EXCLUDED_CARD_IDS.has("wraiths_piercer"), "it never drops on its own")
+	_put(dummy, Vector2i(2, 0))
+	dummy.current_health = 5000
+	dummy.poison_stacks = 0
+	wp.execute(dummy, stats, main.deck_manager, 0.0, 0.0, null)
+	_check(5000 - dummy.current_health > 0 and dummy.poison_stacks == 5,
+		"it hits (%d) and applies 5 Poison (%d)" % [5000 - dummy.current_health, dummy.poison_stacks])
+
+	# On-self: a slotted card's play adds 2 Piercers — past a full hand (Linger).
+	var dm = main.deck_manager
+	var knife := Card.create_by_id("dagger_throw")
+	_check(sk.slot_card(knife), "a dagger card slots into it")
+	dm.hand.clear()
+	while dm.hand.size() < dm.get_hand_cap():
+		dm.hand.append(Card.create_by_id("block"))
+	main._ranged_on_self_world_effects(knife, dummy)
+	var piercers: Array = dm.hand.filter(func(c): return c.card_id == "wraiths_piercer")
+	_check(piercers.size() == 2 and dm.hand.size() == dm.get_hand_cap() + 2,
+		"playing a slotted card adds 2 Wraiths Piercers, even to a full hand (%d)" % piercers.size())
+	main._ranged_on_self_world_effects(knife, dummy)
+	_check(dm.hand.filter(func(c): return c.card_id == "wraiths_piercer").size() == 4, "no cap: 2 more on the next play")
+	var plain := Card.create_by_id("dagger_throw")
+	main._ranged_on_self_world_effects(plain, dummy)
+	_check(dm.hand.filter(func(c): return c.card_id == "wraiths_piercer").size() == 4, "an unslotted card adds none")
+	# Belthronding keeps its 1 a play, 3 at most.
+	var bel: ItemData = ItemData.create("belthronding")
+	var arrow := Card.create_by_id("quick_arrow")
+	arrow.slotted_in_item = bel
+	dm.hand.clear()
+	for _i in range(4):
+		main._ranged_on_self_world_effects(arrow, dummy)
+	_check(dm.hand.filter(func(c): return c.card_id == "close_is_favored").size() == 3, "Belthronding still conjures 1 a play, never past 3")
+	arrow.slotted_in_item = null
+	sk.unslot_card(0)
+
+	# Whenever you erase a card, shift 1: only while the Skitter is held.
+	stats.free_move_tiles = 0
+	dm.note_erased(Card.create_by_id("block"), false)
+	_check(stats.free_move_tiles == 0, "without the Skitter an erase is no shift")
+	inv.equipped_weapons.append(sk)
+	dm.note_erased(Card.create_by_id("block"), false)
+	_check(stats.free_move_tiles == 1, "with it, an erase shifts 1 (%d)" % stats.free_move_tiles)
+	# Played: the Piercer erases on play — a shift.
+	dm.hand.clear()
+	dm.hand.append(Card.create_by_id("wraiths_piercer"))
+	stats.current_mana = stats.max_mana
+	var res: Dictionary = dm.play_card(0, dummy, main.player, true)
+	_check(res.get("played", false) and stats.free_move_tiles == 2 and not dm.discard_pile.any(func(c): return c.card_id == "wraiths_piercer"),
+		"playing a Piercer erases it and shifts 1 (%d)" % stats.free_move_tiles)
+	dm.release_draw_reservation(dm.in_flight.back() if not dm.in_flight.is_empty() else wp)
+	# Its Erase 5 running out in the hand — a shift too.
+	dm.hand.clear()
+	dm.hand.append(Card.create_by_id("wraiths_piercer"))
+	dm._process_erase_timers()
+	_check(dm.hand.is_empty() and stats.free_move_tiles == 3, "Erase 5 running out in the hand shifts 1 (%d)" % stats.free_move_tiles)
+	inv.equipped_weapons.erase(sk)
+	stats.free_move_tiles = 0
+	dm.hand.clear()
 
 func _test_tenderizer(stats: PlayerStats, inv, dummy) -> void:
 	print("-- The Tenderizer --")

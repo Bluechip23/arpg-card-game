@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/progression/item_data.gd" id="1_skitter"]
+
+[resource]
+script = ExtResource("1_skitter")
+item_name = "Blueringed Skitter"
+rarity = 3
+weight = 25
+dexterity_bonus = 4
+agility_bonus = 6
+wisdom_bonus = 2
+intelligence_bonus = 2
+weapon_subtype = 5
+card_slots = 3
+vanilla_slots = 0
+on_self_conjure_on_play_id = "wraiths_piercer"
+on_self_conjure_count = 2
+erase_shift_tiles = 1
+description = "+4 DEX, +6 AGI, +2 WIS, +2 INT. 3 card slots. On-self: add 2 Wraiths Piercer to your hand (40 mana, 1 tempo, ranged 5: 5 damage and 5 Poison; Linger; Erase 5, or erased when played). Whenever you erase a card, shift 1 space."
+appearance_icon = "res://assets/items/mythic/blueringed_skitter.png"
