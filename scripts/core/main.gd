@@ -760,6 +760,7 @@ func _ready() -> void:
 			_p2_deck_manager.reaction_triggered.connect(_animate_card_instant)
 			_p2_deck_manager.reaction_triggered.connect(_arm_lethal_recall)
 			_p2_deck_manager.card_erased.connect(_animate_card_erase)
+			_p2_deck_manager.erase_counted.connect(_on_erase_counted.bind(_p2_deck_manager))
 		if _p2_player and _p2_player.get_inventory():
 			_p2_player.get_inventory().ring_triggered.connect(_on_ring_triggered_visual.bind(_p2_player))
 			_setup_co_op_defeat()
@@ -3820,6 +3821,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().shepherds_mark_triggered.connect(_on_shepherds_mark_triggered)
 	deck_manager.on_draw_triggered.connect(_on_card_on_draw_triggered)
 	deck_manager.card_erased.connect(_on_card_erased)
+	deck_manager.erase_counted.connect(_on_erase_counted.bind(deck_manager))
 	# Ring procs pop a ring icon over the owner's head (like the heal heart).
 	if player.get_inventory():
 		player.get_inventory().ring_triggered.connect(_on_ring_triggered_visual.bind(player))
@@ -4299,6 +4301,7 @@ func _on_sandbox_add_ally(char_name: String) -> void:
 		_p2_deck_manager.reaction_triggered.connect(_animate_card_instant)
 		_p2_deck_manager.reaction_triggered.connect(_arm_lethal_recall)
 		_p2_deck_manager.card_erased.connect(_animate_card_erase)
+		_p2_deck_manager.erase_counted.connect(_on_erase_counted.bind(_p2_deck_manager))
 	if _p2_player and _p2_player.get_inventory():
 		_p2_player.get_inventory().ring_triggered.connect(_on_ring_triggered_visual.bind(_p2_player))
 	_setup_co_op_defeat()
@@ -6211,7 +6214,7 @@ func _on_enemy_attacking_player(_enemy: Enemy, victim = null) -> void:
 		if rc.erase_on_play:
 			# Consumed, not discarded — trigger_reactions parked it in the discard pile.
 			deck_manager.discard_pile.erase(rc)
-			deck_manager.card_erased.emit(rc)
+			deck_manager.note_erased(rc)
 	_on_hand_updated()
 
 func _on_enemy_attacked_player(enemy: Enemy, victim = null) -> void:
@@ -11308,7 +11311,7 @@ func _fire_melee_range_reactions(adj: Enemy) -> void:
 		if card.erase_on_play:
 			# Erased, not discarded — trigger_reactions parked it in the discard pile.
 			deck_manager.discard_pile.erase(card)
-			deck_manager.card_erased.emit(card)
+			deck_manager.note_erased(card)
 
 ## Colored slots (Mauls Sabre): the red slot's discard is a cost the player
 ## pays on their own terms — one picker per card owed, chained. The picker
@@ -11366,21 +11369,33 @@ func _ranged_on_self_world_effects(card: Card, target) -> void:
 	if card.slotted_in_item == null:
 		return
 	var osb := card.get_on_self_bonus()
-	# Belthronding: playing a slotted card loads the close-range trap.
-	# Balance ruling: at most 3 copies may wait in the hand at once — the
-	# stockpiled punishment nova is capped, not endless.
+	# Conjure: playing a slotted card puts copies of a card into the hand —
+	# Belthronding's close-range trap (balance ruling: at most 3 wait in the
+	# hand at once, the stockpiled punishment nova is capped), the Blueringed
+	# Skitter's 2 Wraiths Piercers (Linger: past a full hand too).
 	var conjure_id: String = str(osb.get("conjure_on_play_id", ""))
 	if conjure_id != "" and deck_manager:
+		var cap: int = int(osb.get("conjure_cap", 0))
 		var held := 0
 		for hc in deck_manager.hand:
 			if hc.card_id == conjure_id:
 				held += 1
-		if held < 3:
-			var trap := deck_manager._create_card_from_id(conjure_id)
-			if trap:
-				trap.shop_excluded = true
-				deck_manager.add_card_to_hand(trap)
-				add_battle_log("Close is Favored waits in your hand. (%d/3)" % (held + 1), Color(0.85, 0.75, 0.5))
+		var added := 0
+		for _ci in range(maxi(1, int(osb.get("conjure_count", 0)))):
+			if cap > 0 and held >= cap:
+				break
+			var conj := deck_manager._create_card_from_id(conjure_id)
+			if conj == null:
+				break
+			conj.shop_excluded = true
+			var before: int = deck_manager.hand.size()
+			deck_manager.add_card_to_hand(conj)
+			if deck_manager.hand.size() > before:
+				held += 1
+				added += 1
+		if added > 0:
+			add_battle_log("%s: %d %s to your hand%s" % [card.slotted_in_item.item_name, added,
+				deck_manager.hand.back().card_name, (" (%d/%d)" % [held, cap]) if cap > 0 else ""], Color(0.85, 0.75, 0.5))
 	# The Rapid Recurve: the card fires a SECOND, fully separate shot — its
 	# own crit roll, its own ailments, its own Strengthen charge — by
 	# re-executing the card against the target. World effects don't re-run
@@ -16341,6 +16356,18 @@ func _on_card_erased(card: Card) -> void:
 	add_battle_log("%s erased from deck!" % card.card_name, Color(0.7, 0.7, 0.7))
 	update_deck_info()
 	_on_hand_updated()
+
+## Any erasure: the Blueringed Skitter lets its wielder shift — the next
+## tiles of movement are free (the Shadow Cowl's shift). `dm` says whose
+## deck the card left (co-op: the shift goes to that hero).
+func _on_erase_counted(_card: Card, dm) -> void:
+	var who = _p2_player if (dm != null and dm == _p2_deck_manager and _p2_player) else (_p1_player if _p1_player else player)
+	if who == null or who.get_inventory() == null or who.get_stats() == null:
+		return
+	for w in who.get_inventory().equipped_weapons:
+		if w != null and w.erase_shift_tiles > 0:
+			who.get_stats().free_move_tiles += w.erase_shift_tiles
+			add_battle_log("%s: an erased card — shift %d" % [w.item_name, w.erase_shift_tiles], Color(0.45, 0.6, 1.0))
 
 func _on_shepherds_mark_triggered() -> void:
 	# The 8-HP cost is paid inside PlayerStats._pay_whispers_cost() (routed to the

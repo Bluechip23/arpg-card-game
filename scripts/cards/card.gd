@@ -431,7 +431,7 @@ const CARD_RARITIES := {
 	"cupids_lead_arrow": Rarity.LEGENDARY, "curse_of_the_living": Rarity.LEGENDARY,
 	"death_vortex": Rarity.LEGENDARY, "deep_breaths": Rarity.LEGENDARY,
 	"defensive_sacrifice": Rarity.LEGENDARY, "detonova": Rarity.LEGENDARY,
-	"donate_cleats": Rarity.LEGENDARY, "earth_rattle": Rarity.LEGENDARY, "pole_vault": Rarity.LEGENDARY, "whirling_dash": Rarity.LEGENDARY, "redline": Rarity.LEGENDARY, "soften": Rarity.MYTHIC, "crash_from_the_sea": Rarity.LEGENDARY,
+	"donate_cleats": Rarity.LEGENDARY, "earth_rattle": Rarity.LEGENDARY, "pole_vault": Rarity.LEGENDARY, "whirling_dash": Rarity.LEGENDARY, "redline": Rarity.LEGENDARY, "soften": Rarity.MYTHIC, "wraiths_piercer": Rarity.MYTHIC, "crash_from_the_sea": Rarity.LEGENDARY,
 	"element_pollination": Rarity.LEGENDARY, "escape_and_bewilder": Rarity.LEGENDARY,
 	"feed_into_the_pain": Rarity.LEGENDARY, "grounding": Rarity.LEGENDARY,
 	"healing_tonic": Rarity.LEGENDARY, "hemotoxins": Rarity.LEGENDARY, "huck": Rarity.LEGENDARY,
@@ -485,7 +485,7 @@ const DROP_EXCLUDED_CARD_IDS := {
 	"clang_up": true, "negotiate": true, "detonova": true, "mind_mend": true,
 	"deep_breaths": true, "vined_encasing": true, "adimantium_wall": true,
 	"preemptive_answer": true, "ragnarok": true,
-	"hard_helmet": true, "slice": true, "death_vortex": true, "earth_rattle": true, "pole_vault": true, "whirling_dash": true, "redline": true, "soften": true, "crash_from_the_sea": true,
+	"hard_helmet": true, "slice": true, "death_vortex": true, "earth_rattle": true, "pole_vault": true, "whirling_dash": true, "redline": true, "soften": true, "wraiths_piercer": true, "crash_from_the_sea": true,
 	"feed_into_the_pain": true, "psionic_flow": true, "purge_wrath": true,
 	"sanguine_the_penguin": true, "wrath_of_the_sea": true, "monk_of_the_night": true,
 	"improvised_ammo": true, "cupids_golden_arrow": true, "cupids_lead_arrow": true,
@@ -1187,7 +1187,7 @@ func get_animation_action() -> String:
 		# overhead gather reads as the pull.
 		"round_em_up": return "absorb_essence"
 		# Thrown weapons use the overarm throw instead of a melee slash.
-		"dagger_throw": return "dagger_throw"
+		"dagger_throw", "wraiths_piercer": return "dagger_throw"
 		"thrown_stone": return "thrown_stone"
 		# Reuse the standard defense pose (overrides their card type)
 		"defensive_awareness", "energy_barrier", "endured_tolerance": return "block"
@@ -2362,6 +2362,17 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			print("[CARD] Soften! %d damage, Stun %d, Vulnerable %d" % [soften_dmg, SOFTEN_STUN_TEMPO, SOFTEN_VULNERABLE])
 		"redline":
 			pass  # Feverfang: main arms the charges (FeverfangCards.play_redline)
+		"wraiths_piercer":
+			# Blueringed Skitter's conjure: a thrown attack, then the Poison
+			# (Linger and the erasing are the card's own flags).
+			var wp_dmg := _roll_hit_damage(base_damage, player_stats, buff_mgr, false, target, is_empowered, damage_reduction_pct)
+			if target and target.has_method("take_damage"):
+				target.take_damage(wp_dmg, true, damage_type)
+			last_damage_dealt = wp_dmg
+			_cursed_self_damage(wp_dmg, self_damage_percent, player_stats, false)
+			if target and is_instance_valid(target) and target.has_method("apply_debuff"):
+				target.apply_debuff("poison", WRAITHS_PIERCER_POISON)
+			print("[CARD] Wraiths Piercer! %d damage, %d Poison" % [wp_dmg, WRAITHS_PIERCER_POISON])
 		"heroic_leap":
 			_execute_heroic_leap(target, player_stats, buff_mgr)
 		"lunge", "grapple_chain", "back_pedal", "deliberate_arch", "harvest", "momentous_slam", "bastion_battle", "acro_medic":
@@ -3455,6 +3466,7 @@ const CRASH_WAVES := 4
 const PANDORA_PANIC_DRAWS := 20
 ## Soften (The Tenderizer). The row gives the Stun no length: 5 tempo, one cycle.
 const SOFTEN_STUN_TEMPO := 5
+const WRAITHS_PIERCER_POISON := 5
 const SOFTEN_VULNERABLE := 2
 
 func _execute_oops(target, player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
@@ -4925,6 +4937,7 @@ const CARD_IDS: Array[String] = [
 	"whirling_dash",
 	"redline",
 	"soften",
+	"wraiths_piercer",
 	"crash_from_the_sea",
 	"feed_into_the_pain",
 	"psionic_flow",

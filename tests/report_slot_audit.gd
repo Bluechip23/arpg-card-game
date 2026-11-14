@@ -42,7 +42,8 @@ const RIDER_WANTS := {
 	"on_self_mana_to_life": "any", "on_self_conjure_on_play_id": "any", "on_self_thorns": "any",
 }
 ## riders that are only a parameter of another rider (never alone)
-const RIDER_PARAMS := ["on_self_range_requires_ranged", "on_self_strengthen_attacks", "on_self_missing_health_step", "on_self_resist_all_tempo"]
+const RIDER_PARAMS := ["on_self_range_requires_ranged", "on_self_strengthen_attacks", "on_self_missing_health_step", "on_self_resist_all_tempo",
+	"on_self_conjure_count", "on_self_conjure_cap"]
 
 var _blank: ItemData
 
