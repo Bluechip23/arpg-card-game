@@ -272,6 +272,23 @@ func _test_feverfang(stats: PlayerStats, inv, dummy) -> void:
 	FeverfangCards.after_card(main, Card.create_by_id("slash"))
 	_check(dm.hand.size() == held, "a 6th card draws nothing")
 
+	# Redline's draws reshuffle mid-queue: a card still winding up (in flight)
+	# sits in the discard but must not be reshuffled and drawn back into the
+	# hand while it is queued — a replay would queue the same card twice.
+	dm.hand.clear()
+	dm.draw_pile.clear()
+	dm.discard_pile.clear()
+	var queued := Card.create_by_id("slash")
+	var spent := Card.create_by_id("block")
+	dm.discard_pile.append(queued)
+	dm.discard_pile.append(spent)
+	dm.in_flight.append(queued)
+	dm.draw_card()
+	_check(dm.hand.has(spent) and not dm.hand.has(queued) and dm.discard_pile.has(queued),
+		"a reshuffle leaves a queued card in the discard (hand %d, discard %d)" % [dm.hand.size(), dm.discard_pile.size()])
+	dm.release_draw_reservation(queued)
+	_check(not dm.in_flight.has(queued), "resolving (or cancelling) the card releases it to the next reshuffle")
+
 func _test_cleaver(stats: PlayerStats, inv, dummy) -> void:
 	print("-- Glutton's Cleaver --")
 	var cleaver: ItemData = ItemData.create("gluttons_cleaver")

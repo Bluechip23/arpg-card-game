@@ -126,7 +126,7 @@ func _test_roster() -> void:
 	var mythic_names := ["Sabre Tooth", "Poseidons Trident", "Sword of Theseus", "Umbral Eclipse"]
 	for nm in mythic_names:
 		var m = ItemData.create_by_name(nm)
-		_check(m.rarity == ItemData.Rarity.MYTHIC and m.appearance != "" and m.appearance_icon != "",
+		_check(m.rarity == ItemData.Rarity.MYTHIC and m.appearance_icon != "",
 			"%s is a mythic with appearance + icon" % nm)
 	# weapon_damage was deliberately removed from Bessy — the stat is inert
 	# (no combat path reads it; see the note in create_bessy).

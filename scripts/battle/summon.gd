@@ -325,11 +325,8 @@ func outgoing_damage(base: int) -> int:
 	if cut > 0.0:
 		dmg = maxi(1, floori(base * (1.0 - cut)))
 	var backlash: float = debuff_manager.get_self_damage_percent()
-	var burn: int = debuff_manager.on_attack()
 	if backlash > 0.0:
 		take_damage(maxi(1, floori(dmg * backlash)), true)
-	if burn > 0 and not is_dead:
-		take_damage(burn, true)
 	return dmg
 
 ## Its debuffs as Allies-tab badges.

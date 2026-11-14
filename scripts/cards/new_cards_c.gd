@@ -95,16 +95,14 @@ static func carry_weight_bonus(player_stats: PlayerStats) -> int:
 static func _harvest_reshuffle(card: Card, deck_manager) -> void:
 	if deck_manager == null:
 		return
-	var own: bool = card in deck_manager.discard_pile
-	if own:
-		deck_manager.discard_pile.erase(card)
-	var moved: int = deck_manager.discard_pile.size()
+	# Harvest itself and any card still queued (in flight) stay in the discard.
+	var held: Array = deck_manager.discard_pile.filter(func(c): return c == card or c in deck_manager.in_flight)
+	var going: Array = deck_manager.discard_pile.filter(func(c): return not (c in held))
+	var moved: int = going.size()
 	if moved > 0:
-		deck_manager.draw_pile.append_array(deck_manager.discard_pile)
-		deck_manager.discard_pile.clear()
+		deck_manager.draw_pile.append_array(going)
+		deck_manager.discard_pile.assign(held)
 		deck_manager.shuffle_draw_pile()
-	if own:
-		deck_manager.discard_pile.append(card)
 	deck_manager.draw_card()
 	print("[CARD] Harvest: %d card(s) shuffled back into the draw pile, drew 1" % moved)
 

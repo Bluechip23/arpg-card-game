@@ -1,10 +1,9 @@
 extends SceneTree
 
-## Verifies every mythic describes what it LOOKS like and ships the matching
-## art the inventory shows — in its storage cell, in its equipment slot and
-## in its detail panel, stored or equipped — and the hand holds: the
-## appearance text, the icon path, the file behind that path, and that the
-## texture loads at the size it is drawn at (the designer's painted art at
+## Verifies every mythic ships the art the inventory shows — in its storage
+## cell, in its equipment slot and in its detail panel (where a click opens it
+## full size), stored or equipped: the icon path, the file behind that path,
+## and that the texture loads at the size it is drawn at (the designer's painted art at
 ## 128px, the generated icons at 32px).
 ## Run: godot --headless --path . --script tests/test_mythic_appearance.gd
 
@@ -43,12 +42,10 @@ func _mythics() -> Array[ItemData]:
 	return ItemData.get_items_of_rarity(ItemData.Rarity.MYTHIC)
 
 func _test_every_mythic_has_an_appearance() -> void:
-	print("-- Appearance text --")
+	print("-- Appearance icon --")
 	var mythics = _mythics()
 	_check(mythics.size() >= 36, "found %d mythics" % mythics.size())
 	for item in mythics:
-		_check(item.appearance.strip_edges() != "",
-			"%s describes its appearance" % item.item_name)
 		_check(item.appearance_icon.begins_with(ItemData.APPEARANCE_ICON_DIR),
 			"%s points at an icon (%s)" % [item.item_name, item.appearance_icon])
 		_check(FileAccess.file_exists(item.appearance_icon),
@@ -184,6 +181,22 @@ func _test_inventory_shows_art() -> void:
 	panel._show_detail_panel(mythic, mythic.item_type, -1, mi)
 	_check(panel._detail_panel != null and _find_texture_rect(panel._detail_panel, tex) != null,
 		"a stored mythic's detail panel shows its art")
+	# Clicking the art opens it up close: the 384px cut, in its own window.
+	var art: TextureRect = _find_texture_rect(panel._detail_panel, tex)
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	art.gui_input.emit(click)
+	var big := mythic.get_appearance_large_texture()
+	_check(big != null and big != tex and big.get_size() == Vector2(384, 384),
+		"Hermes Boots have a 384px close-up (%s)" % (big.get_size() if big else Vector2.ZERO))
+	_check(panel._art_viewer != null and _find_texture_rect(panel._art_viewer, big) != null,
+		"clicking the detail panel's art opens the close-up")
+	panel._art_viewer.gui_input.emit(click)
+	_check(panel._art_viewer == null, "a click closes it again")
+	for m in _mythics():
+		var lt := m.get_appearance_large_texture()
+		_check(lt != null and lt.get_size() == Vector2(384, 384), "%s has its close-up" % m.item_name)
 	panel._close_detail_panel()
 
 	_check(inv.equip_from_storage(inv.stored_items.find(mythic), 0), "Hermes Boots equip")
@@ -206,9 +219,6 @@ func _test_non_mythics_fall_back() -> void:
 	for item in ItemData.get_all_items():
 		if item.rarity == ItemData.Rarity.MYTHIC:
 			continue
-		if item.appearance == "" and not item.has_appearance_art():
+		if not item.has_appearance_art():
 			without += 1
-		else:
-			_check(item.has_appearance_art(),
-				"%s describes an appearance, so it must ship art" % item.item_name)
 	_check(without > 0, "%d non-mythic items fall back to the silhouette" % without)

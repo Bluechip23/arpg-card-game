@@ -136,7 +136,7 @@ func _set_name_and_description() -> void:
 			description = "Cannot play spell cards (%d tempo left)" % duration
 		DebuffType.BURN:
 			debuff_name = "Burn"
-			description = "Burn damage doubles each cycle (1, 2, 4, 8...); attacking also triggers the current burn damage"
+			description = "Takes burn damage once per cycle, doubling each cycle (1, 2, 4, 8...)"
 		DebuffType.POISON:
 			debuff_name = "Poison"
 			description = "Take %d damage per cycle, lose 1 poison each cycle" % value

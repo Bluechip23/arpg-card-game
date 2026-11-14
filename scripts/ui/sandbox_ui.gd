@@ -38,9 +38,11 @@ const BOSS_ROOMS := [
 	["confluence", "The Confluence", "Earth returned — the final chamber: boss [TBD], a guard gauntlet for now (top of the Riven Heights)"],
 ]
 
-# card_id lists grouped by the character whose kit they belong to, matching
-# the canonical cards-and-passives spreadsheet (each character owns their full
-# kit; Core / Shared holds only the neutral cards everyone can find).
+# The sandbox's card pool: card_id lists grouped by the character whose kit
+# they belong to, matching the canonical cards-and-passives spreadsheet (each
+# character owns their full kit; Core / Shared holds only the neutral cards
+# everyone can find). The Add Card list shows them by card type instead
+# (CARD_TYPE_ORDER, card_category).
 const CARD_GROUPS := {
 	"Brad": ["approach", "armor_break", "armor_patch", "armored_discipline", "charge", "cover", "down_but_not_out", "give_in", "harden", "heavy_swing", "heroic_leap", "hold_the_line", "hunker_down", "internal_combustion", "life_steal", "life_swap", "living_armor", "morphine", "parry", "poke", "roar", "roll", "savage_strike", "shed_weight", "shield_slam", "smith_thy_soul", "succumb", "taunt", "the_lights_favor", "tower_shield", "turtle_up", "wear_down"],
 	"Ryan": ["adrenaline_shot", "anticipation", "blade_barrage", "bloodlust", "elixir", "exacerbate_wounds", "gargle_and_spit", "item_mastery", "lethal_recall", "patience", "poisoned_blood", "premeditated", "preparation", "raged_circulation", "reposition", "shadows", "shuriken", "shuriken_pouch", "understanding", "volatile_mixture"],
@@ -51,7 +53,31 @@ const CARD_GROUPS := {
 	"Summons": ["summon_skeleton", "skeleton_army", "summon_battle_turtle", "turtle_power", "summon_shadow_hound"],  # designer, 2026-10-27
 	"New (Nov 11)": ["pandora_panic", "the_wolfs_howl", "spirit_armor", "ember_heart", "lodestone_field", "wardens_hound", "war_shout", "stone_wheel", "arcane_tide", "clarity", "soul_consumption", "not_so_fast", "spiteful_sting", "pocket_shiv", "slow_and_steady_wins", "self_admission", "reverse_reverse", "foresight", "lunge", "grapple_chain", "back_pedal", "deliberate_arch", "harvest", "momentous_slam", "bastion_battle", "acro_medic", "berserkers_tithe", "internal_sickness", "fan_of_knives", "static_sting", "feint", "cadence", "grit", "spine_release", "ward_of_hallow_glass", "the_ledger", "both_sides_of_the_candle", "thickened_nature", "flames_of_alexandria", "surprise_pick_up", "inspiring_whistle", "stoked_pride"],  # the sheet's 2026-11-11 rows
 }
-const CARD_GROUP_ORDER := ["Brad", "Ryan", "Stephen", "Cory", "Jeremy", "Core / Shared", "Summons", "New (Nov 11)"]
+
+# The Add Card dropdown (designer, 2026-11-14): cards by type, each card in
+# exactly one. "Other" keeps the Enchantments and Unplayables reachable.
+const CARD_TYPE_ORDER := ["Spell", "Offensive", "Attack", "Defensive", "Utility", "Instant", "Maintain", "Other"]
+
+## The one Add Card group a card falls in. A card can wear several tags
+## (docs/CARD_TAXONOMY.md); the designer's precedence decides: Instant,
+## Maintain, Defensive and Utility always win over Spell, Attack and
+## Offensive, and Spell or Attack win over plain Offensive.
+static func card_category(c: Card) -> String:
+	if c.card_type == Card.CardType.REACTION:
+		return "Instant"
+	if c.card_type == Card.CardType.POWER or c.maintain_cost > 0 or c.auto_maintain:
+		return "Maintain"
+	if c.card_type == Card.CardType.DEFENSE or c.has_keyword("defense"):
+		return "Defensive"
+	if c.card_type == Card.CardType.UTILITY or c.has_keyword("utility"):
+		return "Utility"
+	if c.school == Card.CardSchool.SPELL:
+		return "Spell"
+	if c.is_attack():
+		return "Attack"
+	if c.is_offensive():
+		return "Offensive"
+	return "Other"
 
 # Enemy types grouped by realm/habitat (per STORY.md section 5).
 var _enemy_groups: Dictionary = {}
@@ -107,6 +133,11 @@ const CHARACTER_ORDER := ["Brad", "Ryan", "Stephen", "Cory", "Jeremy"]
 
 # Cached skill trees per character (built lazily for the passive picker).
 var _trees: Dictionary = {}
+# The card pool sorted into CARD_TYPE_ORDER (built lazily): type -> [card_id].
+var _cards_by_type: Dictionary = {}
+# The shared dropdown lists card types on the Card tab and characters on the
+# Passive tab; each tab keeps its own pick.
+var _tab_pick: Array[int] = [0, 0]
 
 
 func _ready() -> void:
@@ -256,11 +287,13 @@ func _build_ui() -> void:
 	_tab_passive_btn.pressed.connect(func(): _set_tab(1))
 	tab_row.add_child(_tab_passive_btn)
 
-	# One shared player/character dropdown drives whichever tab is active.
+	# One shared dropdown drives whichever tab is active: card types on the
+	# Card tab, characters on the Passive tab (filled by _fill_dropdown).
 	_char_dd = OptionButton.new()
-	for g in CARD_GROUP_ORDER:
-		_char_dd.add_item(g)
-	_char_dd.item_selected.connect(func(_i): _refresh_active_tab())
+	_fill_dropdown()
+	_char_dd.item_selected.connect(func(i):
+		_tab_pick[_active_tab] = i
+		_refresh_active_tab())
 	vbox.add_child(_char_dd)
 
 	# Add Card list.
@@ -567,6 +600,7 @@ func _set_tab(tab: int) -> void:
 	## Switch between the Add Card and Add Passive tabs (they share the player
 	## dropdown and the list slot).
 	_active_tab = tab
+	_fill_dropdown()
 	if _tab_card_btn:
 		_tab_card_btn.button_pressed = (tab == 0)
 		_tab_card_btn.add_theme_color_override("font_color",
@@ -584,6 +618,15 @@ func _set_tab(tab: int) -> void:
 	_refresh_active_tab()
 
 
+func _fill_dropdown() -> void:
+	if not _char_dd:
+		return
+	_char_dd.clear()
+	for g in (CARD_TYPE_ORDER if _active_tab == 0 else CHARACTER_ORDER):
+		_char_dd.add_item(g)
+	_char_dd.select(_tab_pick[_active_tab])
+
+
 func _refresh_active_tab() -> void:
 	if _active_tab == 0:
 		_refresh_card_list()
@@ -596,10 +639,9 @@ func _refresh_passive_list() -> void:
 		return
 	for c in _passive_list.get_children():
 		c.queue_free()
-	var char_name: String = CARD_GROUP_ORDER[_char_dd.selected] if _char_dd else "Brad"
+	var char_name: String = CHARACTER_ORDER[_char_dd.selected] if _char_dd else "Brad"
 	var tree := _tree_for(char_name)
 	if tree == null:
-		# e.g. "Core / Shared" — not a character with a passive tree.
 		var note := Label.new()
 		note.text = "No passives for %s." % char_name
 		note.add_theme_font_size_override("font_size", 12)
@@ -637,8 +679,8 @@ func _refresh_card_list() -> void:
 		return
 	for c in _card_list.get_children():
 		c.queue_free()
-	var group: String = CARD_GROUP_ORDER[_char_dd.selected]
-	for card_id in CARD_GROUPS[group]:
+	var group: String = CARD_TYPE_ORDER[_char_dd.selected]
+	for card_id in _cards_of_type(group):
 		var btn := Button.new()
 		btn.clip_text = true  # long names never widen the panel
 		btn.text = _pretty(card_id)
@@ -646,6 +688,24 @@ func _refresh_card_list() -> void:
 		btn.add_theme_font_size_override("font_size", 12)
 		btn.pressed.connect(func(): add_card_requested.emit(card_id))
 		_card_list.add_child(btn)
+
+
+## The pool's cards of one Add Card type, alphabetical by name.
+func _cards_of_type(type_name: String) -> Array:
+	if _cards_by_type.is_empty():
+		for t in CARD_TYPE_ORDER:
+			_cards_by_type[t] = []
+		for owner in CARD_GROUPS:
+			for cid in CARD_GROUPS[owner]:
+				var c := Card.create_by_id(cid)
+				if c == null:
+					continue
+				var cat := card_category(c)
+				if not _cards_by_type[cat].has(cid):
+					_cards_by_type[cat].append(cid)
+		for t in _cards_by_type:
+			_cards_by_type[t].sort_custom(func(a, b): return _pretty(a) < _pretty(b))
+	return _cards_by_type.get(type_name, [])
 
 
 func _refresh_enemy_list() -> void:

@@ -19,5 +19,4 @@ card_slots = 2
 vanilla_slots = 2
 burn_backlash_self = 1
 description = "+25 health, +4 WIS. 4 card slots (2 bonus, 2 plain). Applying Burn to an enemy burns you 1 — once per play, not per stack. Grants From the Ashes: purge ALL your Burn; every enemy within 3 squares takes 5 damage per stack purged, you heal 5 per stack and gain Regen equal to half of it (80 mana, 2 tempo)."
-appearance = "A red wand shaped like a single long feather, with a phoenix head at the pommel."
 appearance_icon = "res://assets/items/mythic/wand_of_the_phoenix_feather.png"

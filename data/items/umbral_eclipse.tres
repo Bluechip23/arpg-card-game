@@ -23,5 +23,4 @@ vanilla_slots = 3
 armor_gain_melee_damage = 5
 insight_flash_restore = 2
 description = "+8 WIS, +8 AGI, +3 STR, +15 mana. Gaining armor deals 5 damage to an enemy in melee range. Insight draws restore 2 flash points. Grants Monk of the Night (Maintain): attack cards grant 10% of their damage as block (50 mana, 4 tempo)."
-appearance = "A double-sided hammer — a head on both ends of the shaft — with the full lunar cycle inlaid along the handle and a full moon on both hammer faces."
 appearance_icon = "res://assets/items/mythic/umbral_eclipse.png"

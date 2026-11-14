@@ -57,8 +57,7 @@ Ordered roughly by how often a player would hit them.
     arrow turns it straight back (enemy.gd:7232).
 13. **Stun Amp:** the Element Pollination stun skips it (enemy.gd:7396); it is added to the Sewer Cobra's self-stun on
     exposure; and every sphere amp is read from player 1 regardless of who applied the status (enemy.gd:6763-6769).
-14. **Burn (enemy) tooltip** says "attacking while burning also triggers the current burn damage" — that is the
-    player's rule; enemies have no such trigger (enemy.gd:7896).
+14. ~~**Burn (enemy) tooltip**~~ fixed 2026-11-14: the on-attack Burn trigger was removed for players too; Burn only ticks per cycle.
 15. **Brace (enemy)** charges are spent by every `take_damage`, including DoT ticks and self-damage (enemy.gd:6822).
 16. **Thorns (enemy)** always hit `main.player`, not the attacker (wrong in co-op) (enemy.gd:3796-3803).
 17. **Strengthen (enemy):** Cerberus's Swipe ignores it (enemy.gd:3681).

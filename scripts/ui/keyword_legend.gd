@@ -32,7 +32,7 @@ func _build_legend() -> void:
 	_add_keyword("Stun", "Can't act. Only Wait passes time.", Color(1.0, 1.0, 0.0))
 	_add_keyword("Disarm", "Can't play attack cards or auto attack for X tempo.", Color(0.6, 0.3, 0.1))
 	_add_keyword("Silence", "Can't play spell cards for X tempo.", Color(0.5, 0.0, 0.8))
-	_add_keyword("Burn", "Damage doubles each cycle (1, 2, 4...). Attacking while burning also deals it.", Color(1.0, 0.5, 0.0))
+	_add_keyword("Burn", "Damage once per cycle, doubling each cycle (1, 2, 4...).", Color(1.0, 0.5, 0.0))
 	_add_keyword("Poison", "Take X damage per cycle. Loses 1 per cycle.", Color(0.2, 0.8, 0.2))
 	_add_keyword("Cursed", "Deal 20% less damage, and take 20% of the damage you deal.", Color(0.3, 0.0, 0.3))
 	_add_keyword("Frozen", "Can't play cards, auto attack or block.", Color(0.5, 0.8, 1.0))

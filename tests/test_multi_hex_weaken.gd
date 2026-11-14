@@ -81,9 +81,6 @@ func _initialize() -> void:
 	# --- Weakened: -30% damage, a stack is 5 tempo (attacks burn nothing) ---
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.WEAKENED, 2))
 	_check(is_equal_approx(dm.get_damage_reduction_percent(), 0.3), "Weakened reduces damage 30%")
-	dm.on_attack()
-	_check(dm.has_debuff(Debuff.DebuffType.WEAKENED)
-		and dm.get_debuff(Debuff.DebuffType.WEAKENED).value == 2, "an attack burns no stack")
 	dm.advance_time(5)
 	_check(dm.has_debuff(Debuff.DebuffType.WEAKENED)
 		and dm.get_debuff(Debuff.DebuffType.WEAKENED).value == 1, "5 tempo sheds 1 stack")

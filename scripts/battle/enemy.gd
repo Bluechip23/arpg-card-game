@@ -8276,7 +8276,7 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			desc = "Cannot act at all."
 			remaining = "Remaining: %d tempo" % frozen_tempo
 		"Burn":
-			desc = "Burn damage doubles each cycle (1, 2, 4, 8...); attacking while burning also triggers the current burn damage."
+			desc = "Takes burn damage once per cycle, doubling each cycle (1, 2, 4, 8...)."
 			remaining = "Stacks: %d" % burn_stacks
 		"Cold":
 			desc = "At 5 stacks it becomes Frozen for 1 cycle; thaws 3 stacks per cycle."

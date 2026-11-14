@@ -57,7 +57,7 @@ func _build_children() -> void:
 	for c in get_children():
 		c.queue_free()
 
-	# An item that carries its own art (the mythics — see ItemData.appearance)
+	# An item that carries its own art (the mythics — see ItemData.appearance_icon)
 	# shows that art here while it is equipped. Everything else falls back to
 	# the shadowed silhouette of its slot type (the equipped item's own type
 	# when filled, e.g. a quiver sitting in a weapon slot shows a quiver
@@ -243,8 +243,6 @@ func _build_item_tooltip() -> String:
 	if item.item_type == ItemData.ItemType.WEAPON:
 		type_line = ItemData.get_weapon_subtype_name(item.weapon_subtype)
 	var lines: Array[String] = [item.item_name, "%s %s" % [item.get_rarity_name(), type_line]]
-	if item.appearance != "":
-		lines.append(item.appearance)
 	if item.description != "":
 		lines.append(item.description)
 	lines.append("Drag to move • Click for details")

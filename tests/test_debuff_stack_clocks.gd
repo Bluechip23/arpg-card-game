@@ -134,12 +134,9 @@ func _test_no_burn_on_use() -> void:
 	_check(dm.modify_incoming_damage(10) == 13, "...and again on the second hit")
 	_check(dm.get_debuff(Debuff.DebuffType.VULNERABLE).value == 1, "hits do not burn Vulnerable")
 
-	# Weakened: -30% dealt, on_attack burns nothing.
+	# Weakened: -30% dealt.
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.WEAKENED, 1))
 	_check(absf(dm.get_damage_reduction_percent() - 0.3) < 0.001, "Weakened reduces dealt damage 30%")
-	dm.on_attack()
-	dm.on_attack()
-	_check(dm.get_debuff(Debuff.DebuffType.WEAKENED).value == 1, "attacks do not burn Weakened")
 
 	# Slowed: 3 tempo per tile, moving burns nothing.
 	var tm := TempoManager.new()

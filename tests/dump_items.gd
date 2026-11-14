@@ -19,7 +19,7 @@ func _initialize() -> void:
 				continue
 			var v = item.get(pn)
 			var d = blank.get(pn)
-			if typeof(v) in [TYPE_INT, TYPE_FLOAT, TYPE_BOOL, TYPE_STRING] and v != d and pn not in ["description", "item_name", "level_2_description", "level_3_description", "appearance", "appearance_icon"]:
+			if typeof(v) in [TYPE_INT, TYPE_FLOAT, TYPE_BOOL, TYPE_STRING] and v != d and pn not in ["description", "item_name", "level_2_description", "level_3_description", "appearance_icon"]:
 				fields[pn] = v
 			elif typeof(v) in [TYPE_ARRAY, TYPE_DICTIONARY] and not v.is_empty() and pn not in ["slotted_cards", "ring_counters"]:
 				fields[pn] = str(v)

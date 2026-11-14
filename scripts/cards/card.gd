@@ -1320,7 +1320,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"stun": "Can't act. Only Wait passes time.",
 		"disarm": "Can't play attack cards or auto attack for X tempo.",
 		"silence": "Can't play spell cards for X tempo.",
-		"burn": "Damage doubles each cycle (1, 2, 4...). Attacking while burning also deals it.",
+		"burn": "Damage once per cycle, doubling each cycle (1, 2, 4...).",
 		"poison": "Take X damage per cycle. Loses 1 per cycle.",
 		"cursed": "Deal 20% less damage, and take 20% of the damage you deal.",
 		"frozen": "Can't play cards, auto attack or block.",
