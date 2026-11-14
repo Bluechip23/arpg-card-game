@@ -65,7 +65,7 @@ func _test_roster() -> void:
 	_check(by_rarity[ItemData.Rarity.MYTHIC] == 4, "4 mythic chests")
 	for chest in chests:
 		if chest.rarity == ItemData.Rarity.MYTHIC:
-			_check(chest.appearance != "" and chest.appearance_icon != "",
+			_check(chest.appearance_icon != "",
 				"%s ships appearance + icon" % chest.item_name)
 
 func _test_weights_and_stats() -> void:

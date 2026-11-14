@@ -96,8 +96,30 @@ func _check_board(ui: SkillTreeUI, hero: String, painting: String, expect: Dicti
 			height_ok = height_ok and ((p.y < mid.y) == want["top"])
 		_check(side_ok and height_ok, "%s sits in the %s %s quarter" % [arch,
 			"top" if want["top"] else "bottom", "left" if want["left"] else "right"])
+		# The archetype's name: just the name (no points), in the outer corner
+		# of its quarter — further out than its triangle, inside the board.
 		var lbl: Label = tri.get_node_or_null("ArchetypeLabel")
-		_check(lbl != null and lbl.text.begins_with(arch), "%s is labelled by its triangle" % arch)
+		_check(lbl != null and lbl.text == arch, "%s is labelled with its name alone" % arch)
+		if lbl:
+			var lr := lbl.get_global_rect()
+			var outer_x: bool = (lr.end.x <= c[0].x) if want["left"] else (lr.position.x >= c[1].x)
+			var outer_y: bool = (lr.end.y <= c[0].y) if want["top"] else (lr.position.y >= c[2].y)
+			_check(outer_x and outer_y and view_rect.encloses(lr),
+				"%s's name sits in its scene's outer corner" % arch)
+		# No name under the circles; the rank rides on the circle's foot.
+		for stage in range(3):
+			var box: Control = tri.get_node_or_null("Passive_%d" % stage)
+			if box == null:
+				continue
+			_check(box.find_children("NameLabel", "", true, false).is_empty(), "%s passive %d carries no name" % [arch, stage + 1])
+			var btn: Control = box.get_node("PassiveButton")
+			var rank: Label = btn.get_node_or_null("RankLabel")
+			_check(rank != null, "%s passive %d wears its rank on the circle" % [arch, stage + 1])
+			if rank:
+				var br := btn.get_global_rect()
+				var rr := rank.get_global_rect()
+				_check(rr.position.y < br.end.y and rr.end.y > br.end.y and absf(rr.get_center().x - br.get_center().x) < 1.5,
+					"%s passive %d: the rank straddles the circle's foot" % [arch, stage + 1])
 	var overlap := false
 	for i in range(all_rects.size()):
 		for j in range(i + 1, all_rects.size()):
@@ -153,7 +175,7 @@ func _run() -> void:
 	_circle(ui, "Berserker", 0).pressed.emit()
 	await process_frame
 	_check(st.get_passive_level("enraged_will") == 1 and st.unspent_passive_points == 6, "clicking a circle invests a point")
-	var rank: Label = _circle(ui, "Berserker", 0).get_parent().get_node("RankLabel")
+	var rank: Label = _circle(ui, "Berserker", 0).get_node("RankLabel")
 	_check(rank.text == "1 / %d" % SkillTreeData.PASSIVE_MAX_LEVEL, "the board redraws with the new rank")
 	# Four more across other paths' first passives open stage 2 everywhere.
 	for arch in ["Warden", "The Ancient", "The Fallen", "Warden"]:
@@ -210,12 +232,6 @@ func _run() -> void:
 		"Relentless Blade": {"left": false, "top": false, "ids": ["keep_them_guessing", "from_the_hip", "nimble_assault"]},
 	}
 	_check_board(ui, "Ryan", "ryan_passive_board.webp", ryan, [["Light Foot", "Shadow Blade"], ["Apothecary", "Relentless Blade"]])
-	var sb_lbl: Label = ui._board_view.get_node("Triangle_ShadowBlade/ArchetypeLabel")
-	var rb_lbl: Label = ui._board_view.get_node("Triangle_RelentlessBlade/ArchetypeLabel")
-	_check(sb_lbl.get_global_rect().end.x <= _circle(ui, "Shadow Blade", 0).get_global_rect().position.x,
-		"Shadow Blade's name sits left of its triangle")
-	_check(rb_lbl.get_global_rect().position.x >= _circle(ui, "Relentless Blade", 1).get_global_rect().end.x,
-		"Relentless Blade's name sits right of its triangle")
 
 	# --- Stephen's board ---
 	ui.set_skill_tree(SkillTreeData.create_stephen_tree())
@@ -228,15 +244,8 @@ func _run() -> void:
 		"Ranger": {"left": false, "top": false, "ids": ["eagle_eye", "scouted", "elemental_conclusion"]},
 	}
 	_check_board(ui, "Stephen", "stephen_passive_board.webp", stephen, [["Sentinel", "The Apex"], ["Avenger", "Ranger"]])
-	# The longest word of every name fits its label's width.
-	var broken := []
-	for nm in ui._board_view.find_children("NameLabel", "Label", true, false):
-		var f: Font = nm.get_theme_font("font")
-		var fs: int = nm.get_theme_font_size("font_size")
-		for word in str(nm.text).split(" ", false):
-			if f.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > nm.size.x + 0.5:
-				broken.append(word)
-	_check(broken.is_empty(), "no passive name breaks mid-word %s" % [broken])
+	_check(ui._board_view.find_children("*", "Label", true, false).all(func(l): return not str(l.text).contains(" pts")),
+		"no points counter on the archetype names")
 
 	# --- Every hero now has a board ---
 	for t in [SkillTreeData.create_brad_tree(), SkillTreeData.create_cory_tree(), SkillTreeData.create_jeremy_tree(),

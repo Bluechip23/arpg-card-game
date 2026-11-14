@@ -69,8 +69,8 @@ only spells trigger spell procs, and both trigger offensive ones. So the
 raw `card_type == ATTACK` — true for an offensive spell too — is never the
 test for an attack proc: use `is_attack()`. Brought in line on this ruling:
 "on attack" sphere passives (spells have "on spell cast"), the DEX proc's
-spend and Flurry Form, Blind's miss, Staggered's surcharge, Burn's on-attack
-tick, the Sneakers streak, the Life Steal buff and every attack-lifesteal
+spend and Flurry Form, Blind's miss, Staggered's surcharge (Burn's on-attack
+tick is gone: Burn only ticks per cycle, 2026-11-14), the Sneakers streak, the Life Steal buff and every attack-lifesteal
 (sphere nodes, Hannibals Mask, Coffin Lid, Vitality, Resourceful
 Replenish), Boot Holsters and the on-self "attack" rider, Armor Chopper,
 Deadeye Form, the ranged-attack bonus, Fallen's Wrath / Purge Wrath and

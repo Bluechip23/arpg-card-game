@@ -54,6 +54,13 @@ var brain_peek_depth: int = 0
 # not be stolen by a tempo draw — otherwise the effect resolves into a full
 # hand and silently does nothing.
 var reserved_draw_slots: int = 0
+# Cards played but still winding up toward their resolve tick. play_card has
+# already put them in the discard pile, but they are not done: a reshuffle
+# leaves them there, or a draw effect (Redline's 2 per offensive card) would
+# pull a still-queued card back into the hand and a replay would queue the
+# same card twice, jamming the resolve queue. Released with the draw
+# reservation, on resolve or cancel.
+var in_flight: Array[Card] = []
 var fire_spells_this_turn: int = 0  # Fireball synergy: fire spells cast since the cycle started
 
 func connect_player_stats(stats) -> void:
@@ -194,6 +201,7 @@ func restore_deck_state(state: Dictionary) -> void:
 	jail_pile.clear()
 	maintained_cards.clear()
 	peaked_card = null
+	in_flight.clear()
 	var live: Dictionary = state.get("live", {})
 	if not live.is_empty():
 		draw_pile.assign(live.get("draw_pile", []))
@@ -327,6 +335,7 @@ func initialize_deck(character: CharacterData) -> void:
 	maintained_cards.clear()
 	peaked_card = null
 	reserved_draw_slots = 0
+	in_flight.clear()
 	
 	# Create default starter deck based on character
 	_create_default_deck(character)
@@ -399,10 +408,20 @@ func shuffle_discard_into_draw() -> void:
 		return
 	# Heavy Greedy Cheese: a reshuffle of a thin discard pile (a skin-and-bones
 	# deck, or a hand hoarding the rest of it) leaves a Cheese in the discard.
-	var greedy := discard_pile.size() < GREEDY_CHEESE_DISCARD_MIN
+	# Cards still in flight (queued, not yet resolved) stay in the discard.
+	var held: Array[Card] = []
+	var going: Array[Card] = []
+	for c in discard_pile:
+		if c in in_flight:
+			held.append(c)
+		else:
+			going.append(c)
+	if going.is_empty():
+		return
+	var greedy := going.size() < GREEDY_CHEESE_DISCARD_MIN
 
-	draw_pile.append_array(discard_pile)
-	discard_pile.clear()
+	draw_pile.append_array(going)
+	discard_pile.assign(held)
 	shuffle_draw_pile()
 	if greedy:
 		var cheese := _create_card_from_id(GREEDY_CHEESE_ID)
@@ -561,6 +580,7 @@ func attempt_draw() -> void:
 func release_draw_reservation(card: Card) -> void:
 	## Frees the hand slots held for a queued card (on resolve or cancel).
 	reserved_draw_slots = maxi(0, reserved_draw_slots - card.get_effect_draw_count())
+	in_flight.erase(card)
 
 func handle_overflow() -> void:
 	# Default overflow does NOTHING: with no active overflow effect the player
@@ -955,9 +975,6 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 				card.execute(target, player_stats, self, damage_reduction_pct, self_damage_percent, buff_mgr)
 				print("[DECK] Free hand echo: %s strikes twice!" % card.card_name)
 
-		if debuff_mgr and card.is_attack():
-			debuff_mgr.on_attack()
-
 		if inventory:
 			inventory.on_card_played(card)
 
@@ -1021,6 +1038,8 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 	# it resolves (released in execute_deferred_card / on cancel).
 	if defer_execution:
 		reserved_draw_slots += card.get_effect_draw_count()
+		if not card in in_flight:
+			in_flight.append(card)
 
 	print("[DECK] Played: %s (cost %d mana) | Hand: %d/%d" % [card.card_name, mana_cost, hand.size(), get_hand_cap()])
 
@@ -1090,9 +1109,6 @@ func execute_deferred_card(card: Card, target, player_node = null) -> void:
 	if ally_cast:
 		effect_stats._ally_cast = false
 		Card.caster_buff_manager = null
-
-	if debuff_mgr and card.is_attack():
-		debuff_mgr.on_attack()
 
 	if inventory:
 		inventory.on_card_played(card)

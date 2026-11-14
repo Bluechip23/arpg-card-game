@@ -640,22 +640,23 @@ var ring_counters: Dictionary = {}
 # ============================================
 # APPEARANCE (mythics)
 # ============================================
-# A mythic is a thing you can picture, not just a stat line: `appearance`
-# describes what it LOOKS like, and `appearance_icon` points at its picture
-# (assets/items/mythic/): the designer's painting, cut at 128px by
-# tools/cut_mythic_art.py (every mythic, since 2026-10-31). The inventory
-# shows it in the item's storage cell, in its equipment slot (in place of the
-# generic slot silhouette) and atop its detail panel, which also prints the
-# description; a held mythic weapon shows it in hand.
-@export var appearance: String = ""
+# A mythic is a thing you can picture, not just a stat line: `appearance_icon`
+# points at its picture (assets/items/mythic/): the designer's painting, cut
+# at 128px by tools/cut_mythic_art.py (every mythic, since 2026-10-31). The
+# inventory shows it in the item's storage cell, in its equipment slot (in
+# place of the generic slot silhouette) and atop its detail panel, where a
+# click opens it full size. (The written appearance text was dropped,
+# designer 2026-11-14: the picture speaks for itself.)
 @export var appearance_icon: String = ""
 
 ## Where the mythics' own art lives; every `appearance_icon` in data/items
 ## points under it (test_mythic_appearance checks that).
 const APPEARANCE_ICON_DIR := "res://assets/items/mythic/"
+## The close-ups the detail panel opens when its art is clicked: the same
+## painting cut at 384px (tools/cut_mythic_art.py --large), same file name.
+const APPEARANCE_LARGE_DIR := "res://assets/items/mythic/large/"
 
 
-## Give an item its appearance text and the icon of the same slug.
 func has_appearance_art() -> bool:
 	return appearance_icon != "" and ResourceLoader.exists(appearance_icon)
 
@@ -664,6 +665,16 @@ func get_appearance_texture() -> Texture2D:
 	if not has_appearance_art():
 		return null
 	return load(appearance_icon) as Texture2D
+
+## The item's close-up art (the large cut), or its icon art when no close-up
+## was cut; null when it has no art at all.
+func get_appearance_large_texture() -> Texture2D:
+	if not has_appearance_art():
+		return null
+	var large := APPEARANCE_LARGE_DIR + appearance_icon.get_file()
+	if ResourceLoader.exists(large):
+		return load(large) as Texture2D
+	return get_appearance_texture()
 
 #endregion
 #region RARITY & FORGE LEVEL HELPERS

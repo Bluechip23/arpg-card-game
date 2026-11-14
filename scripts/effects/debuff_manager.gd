@@ -600,17 +600,8 @@ func on_movement(tiles_moved: int) -> int:
 		return damage
 	return 0
 
-func on_attack() -> int:
-	# Weakened no longer burns here: the attack was reduced and the stacks
-	# fall on their own clock. Only Burn reacts to an attack.
-	var burn = get_debuff(Debuff.DebuffType.BURN)
-	if burn:
-		# Burn on-attack uses the current burn_damage_next value
-		if owner_stats:
-			owner_stats.take_damage(burn_damage_next)
-		print("[DEBUFF] Burn triggered on attack: %d damage" % burn_damage_next)
-		return burn_damage_next
-	return 0
+# (No on-attack hook: attacking neither burns Weakened nor sets off Burn.
+# Burn only ticks once per cycle — designer, 2026-11-14.)
 
 # ============================================
 # DISPLAY

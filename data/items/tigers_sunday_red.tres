@@ -23,5 +23,4 @@ on_self_offensive_heal_percent = 3.0
 ranged_range_bonus = 1
 hp_diff_damage_divisor = 4
 description = "+15 health, +5 AGI, +5 DEX. +1 range on ranged offensive cards. Bonus damage of X%, where X is the difference between your health % and the enemy's, divided by 4 (never below 0). On-self: offensive cards heal you 3% of your max health."
-appearance = "Red Polo."
 appearance_icon = "res://assets/items/mythic/tigers_sunday_red.png"

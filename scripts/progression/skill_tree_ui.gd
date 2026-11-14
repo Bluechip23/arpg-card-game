@@ -327,9 +327,12 @@ func _rebuild_table() -> void:
 # the Passives tab, one archetype scene per corner, and each archetype's
 # passives sit as an upside-down triangle beside its scene, on the side
 # toward the painting's empty centre — the first passive top-left, the
-# second top-right, the final unlock at the bottom point. The centre holds
-# the points and the stage gates. A hero without a board keeps the lane
-# table. Every position below is in the painting's own pixels.
+# second top-right, the final unlock at the bottom point. The circles carry
+# no names (hover tells) and wear their "x / 15" over their foot; each
+# archetype's name sits in the outer corner of its scene (designer,
+# 2026-11-14). The centre holds the points and the stage gates. A hero
+# without a board keeps the lane table. Every position below is in the
+# painting's own pixels.
 #
 # Per hero (SkillTreeData.character_name):
 #   texture     the painting
@@ -339,8 +342,8 @@ func _rebuild_table() -> void:
 #               half its height (y): top-left = anchor - spread,
 #               top-right = anchor + (spread.x, -spread.y),
 #               bottom = anchor + (0, spread.y)
-#   node        passive circle diameter
-#   archetypes  archetype name -> {anchor: triangle centre, label: "above" | "below"}
+#   node        passive circle diameter (drawn BOARD_NODE_SCALE times larger)
+#   archetypes  archetype name -> {anchor: triangle centre}
 ## Brad's board: the two left triangles (Berserker over The Ancient) share
 ## one column, and the two right ones (Warden over The Fallen) another, so
 ## each side lines up (designer, 2026-11-09).
@@ -370,13 +373,13 @@ const PASSIVE_BOARDS := {
 		"archetypes": {
 			# Top left: the berserker's axe and his victims; the triangle sits
 			# below the victims' heads, at the centre's top-left.
-			"Berserker": {"anchor": Vector2(BOARD_LEFT_X, 362), "label": "above"},
+			"Berserker": {"anchor": Vector2(BOARD_LEFT_X, 362)},
 			# Top right: the gold knight's shield bash; below his victim.
-			"Warden": {"anchor": Vector2(BOARD_RIGHT_X, 362), "label": "above"},
+			"Warden": {"anchor": Vector2(BOARD_RIGHT_X, 362)},
 			# Bottom left: the vine-bound foe; right of him.
-			"The Ancient": {"anchor": Vector2(BOARD_LEFT_X, 612), "label": "below"},
+			"The Ancient": {"anchor": Vector2(BOARD_LEFT_X, 612)},
 			# Bottom right: the dark knight's black smoke; left of his foes.
-			"The Fallen": {"anchor": Vector2(BOARD_RIGHT_X, 612), "label": "below"},
+			"The Fallen": {"anchor": Vector2(BOARD_RIGHT_X, 612)},
 		},
 	},
 	# Cory (designer's board, 2026-11-09): top left the purple withering strike
@@ -389,10 +392,10 @@ const PASSIVE_BOARDS := {
 		"spread": Vector2(68, 55),
 		"node": 64.0,
 		"archetypes": {
-			"Atrophist": {"anchor": Vector2(CORY_LEFT_X, 380), "label": "above"},
-			"Monk": {"anchor": Vector2(CORY_RIGHT_X, 380), "label": "above"},
-			"Lurker": {"anchor": Vector2(CORY_LEFT_X, 625), "label": "below"},
-			"Druid": {"anchor": Vector2(CORY_RIGHT_X, 625), "label": "below"},
+			"Atrophist": {"anchor": Vector2(CORY_LEFT_X, 380)},
+			"Monk": {"anchor": Vector2(CORY_RIGHT_X, 380)},
+			"Lurker": {"anchor": Vector2(CORY_LEFT_X, 625)},
+			"Druid": {"anchor": Vector2(CORY_RIGHT_X, 625)},
 		},
 	},
 	# Jeremy (designer's board, 2026-11-09): TL lightning sphere shocking a
@@ -405,10 +408,10 @@ const PASSIVE_BOARDS := {
 		"spread": Vector2(66, 48),
 		"node": 60.0,
 		"archetypes": {
-			"Abjurer": {"anchor": Vector2(JEREMY_LEFT_X, 355), "label": "above"},
-			"Evocation": {"anchor": Vector2(JEREMY_RIGHT_X, 355), "label": "above"},
-			"Poltergeist": {"anchor": Vector2(JEREMY_LEFT_X, 552), "label": "below"},
-			"Shepherd": {"anchor": Vector2(JEREMY_RIGHT_X, 552), "label": "below"},
+			"Abjurer": {"anchor": Vector2(JEREMY_LEFT_X, 355)},
+			"Evocation": {"anchor": Vector2(JEREMY_RIGHT_X, 355)},
+			"Poltergeist": {"anchor": Vector2(JEREMY_LEFT_X, 552)},
+			"Shepherd": {"anchor": Vector2(JEREMY_RIGHT_X, 552)},
 		},
 	},
 	# Ryan (designer's board, 2026-11-09): TL acrobat throwing shuriken
@@ -421,10 +424,10 @@ const PASSIVE_BOARDS := {
 		"spread": Vector2(55, 42),
 		"node": 52.0,
 		"archetypes": {
-			"Light Foot": {"anchor": Vector2(RYAN_LEFT_X, 372), "label": "above"},
-			"Apothecary": {"anchor": Vector2(RYAN_RIGHT_X, 372), "label": "above"},
-			"Shadow Blade": {"anchor": Vector2(RYAN_LEFT_X, 568), "label": "left"},
-			"Relentless Blade": {"anchor": Vector2(RYAN_RIGHT_X, 568), "label": "right"},
+			"Light Foot": {"anchor": Vector2(RYAN_LEFT_X, 372)},
+			"Apothecary": {"anchor": Vector2(RYAN_RIGHT_X, 372)},
+			"Shadow Blade": {"anchor": Vector2(RYAN_LEFT_X, 568)},
+			"Relentless Blade": {"anchor": Vector2(RYAN_RIGHT_X, 568)},
 		},
 	},
 	# Stephen (designer's board, 2026-11-10): TL lookout over the marching
@@ -437,13 +440,19 @@ const PASSIVE_BOARDS := {
 		"spread": Vector2(55, 40),
 		"node": 52.0,
 		"archetypes": {
-			"Sentinel": {"anchor": Vector2(STEPHEN_LEFT_X, 332), "label": "above"},
-			"Avenger": {"anchor": Vector2(STEPHEN_RIGHT_X, 332), "label": "above"},
-			"The Apex": {"anchor": Vector2(STEPHEN_LEFT_X, 532), "label": "below"},
-			"Ranger": {"anchor": Vector2(STEPHEN_RIGHT_X, 532), "label": "right"},
+			"Sentinel": {"anchor": Vector2(STEPHEN_LEFT_X, 332)},
+			"Avenger": {"anchor": Vector2(STEPHEN_RIGHT_X, 332)},
+			"The Apex": {"anchor": Vector2(STEPHEN_LEFT_X, 532)},
+			"Ranger": {"anchor": Vector2(STEPHEN_RIGHT_X, 532)},
 		},
 	},
 }
+## The circles are drawn this much larger than each board's "node" (the
+## designer, 2026-11-14: bigger passive art, now the names are gone).
+const BOARD_NODE_SCALE := 1.3
+## How far in from the painting's edge an archetype's corner name sits, in
+## painting pixels: inside the gilt frame and its corner ornaments.
+const BOARD_CORNER_INSET := Vector2(70, 52)
 ## How far "cover" may enlarge the painting past "contain" (the gilt frame
 ## crops a little; the corner scenes and the centre always show).
 const BOARD_MAX_COVER := 1.06
@@ -604,17 +613,15 @@ func _build_board_info(board: Dictionary, lanes: Array, k: float, off: Vector2) 
 	_board_view.add_child(info)
 
 ## One archetype's upside-down triangle: its passives (the same circles as
-## the lane table, at the board's scale) with their names, faint connectors
-## along the unlock chain, and the archetype's name on the outer edge.
+## the lane table, at the board's scale, each with its "x / 15" over its
+## foot), faint connectors along the unlock chain, and the archetype's name
+## in the outer corner of its scene.
 func _build_board_triangle(board: Dictionary, lane: Dictionary, lanes: Array, k: float, off: Vector2) -> void:
 	var arch: String = lane["name"]
 	var lane_color: Color = lane["color"]
 	var spec: Dictionary = board["archetypes"][arch]
-	var sp: Vector2 = board["spread"]
-	var node_d: float = float(board["node"]) * k
-	var name_w: float = sp.x * 2.0 * 0.7 * k   # names wrap within the triangle's width
-	var count_font := _board_font(12, k, 10)
-	var name_font := _board_font(11, k, 9)
+	var node_d: float = float(board["node"]) * BOARD_NODE_SCALE * k
+	var count_font := _board_font(11, k, 9)
 
 	var tri := Control.new()
 	tri.name = "Triangle_" + arch.replace(" ", "")
@@ -642,63 +649,49 @@ func _build_board_triangle(board: Dictionary, lane: Dictionary, lanes: Array, k:
 		line.add_point(b - dir * node_d * 0.55)
 		tri.add_child(line)
 
-	var bottom_edge := 0.0
 	for stage in range(passives.size()):
-		var opt: SkillTreeData.SkillOption = passives[stage]
 		var box := _build_passive_node(lane, stage, lanes, node_d, count_font)
 		box.name = "Passive_%d" % stage
-		box.add_theme_constant_override("separation", 0)
-		var stage_open := SkillTreeData.is_stage_unlocked(lanes, stage, player_stats)
-		var nm := _board_label(opt.name, name_font, lane_color.lightened(0.3) if stage_open else COLOR_DIM)
-		nm.name = "NameLabel"
-		nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		# Never narrower than the longest word, so no name breaks mid-word.
-		var font: Font = nm.get_theme_font("font")
-		var word_w := 0.0
-		for word in opt.name.split(" ", false):
-			word_w = maxf(word_w, font.get_string_size(word, HORIZONTAL_ALIGNMENT_LEFT, -1, name_font).x)
-		var this_w: float = maxf(name_w, word_w + 4.0)
-		nm.custom_minimum_size = Vector2(this_w, 0)
-		box.add_child(nm)
-		box.move_child(nm, 1)   # under the circle, above the "x / 15"
+		# The rank rides on the circle: a small plate over its foot, so it
+		# reads as part of the passive, not a caption under it.
+		var btn: Control = box.get_node("PassiveButton")
 		var rank: Label = box.get_node("RankLabel")
+		box.remove_child(rank)
+		btn.add_child(rank)
+		rank.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		rank.custom_minimum_size = Vector2.ZERO
 		rank.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
 		rank.add_theme_constant_override("outline_size", 3)
-		var w: float = maxf(this_w, node_d)
+		var plate := StyleBoxFlat.new()
+		plate.bg_color = Color(0.02, 0.03, 0.04, 0.78)
+		plate.set_corner_radius_all(int(count_font * 0.6))
+		plate.content_margin_left = 4.0
+		plate.content_margin_right = 4.0
+		rank.add_theme_stylebox_override("normal", plate)
+		var rsize: Vector2 = rank.get_combined_minimum_size()
+		rank.size = rsize
+		rank.position = Vector2((node_d - rsize.x) * 0.5, node_d - rsize.y * 0.5)
 		tri.add_child(box)
-		box.position = centres[stage] - Vector2(w * 0.5, node_d * 0.5)
-		box.size = Vector2(w, 0)
-		bottom_edge = maxf(bottom_edge, box.position.y + box.get_combined_minimum_size().y)
+		box.position = centres[stage] - Vector2(node_d, node_d) * 0.5
+		box.size = Vector2(node_d, node_d)
 
-	# The archetype's name and invested points, on the triangle's outer edge
-	# (toward its scene): above the top pair, or under the bottom point.
-	var title := _board_label("%s  ·  %d pts" % [arch, _lane_points(lane)], _board_font(16, k, 12), lane_color.lightened(0.15))
+	# The archetype's name in its scene's outer corner: the quarter of the
+	# painting its triangle sits in, inside the frame (and inside the view,
+	# when "cover" crops the painting's edge).
+	var title := _board_label(arch, _board_font(22, k, 14), lane_color.lightened(0.15))
 	title.name = "ArchetypeLabel"
 	var tsize: Vector2 = title.get_combined_minimum_size()
-	var anchor: Vector2 = off + Vector2(spec["anchor"]) * k
-	var tw: float = maxf(tsize.x, sp.x * 2.0 * k + node_d)
-	var side: String = spec.get("label", "above")
-	if (side == "left" or side == "right") and centres.size() >= 2:
-		# Beside the top pair, on the outer side (a narrow board's gap has no
-		# room under the bottom point).
-		var gap: float = node_d * 0.5 + 6.0
-		var row_y: float = centres[0].y - tsize.y * 0.5
-		if side == "left":
-			title.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-			title.position = Vector2(centres[0].x - gap - tsize.x, row_y)
-		else:
-			title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-			title.position = Vector2(centres[1].x + gap, row_y)
-		title.size = tsize
-		tri.add_child(title)
-		return
-	var ty: float
-	if side == "below":
-		ty = bottom_edge + 1.0
-	else:
-		ty = (centres[0].y if not centres.is_empty() else anchor.y) - node_d * 0.5 - tsize.y - 2.0
-	title.position = Vector2(anchor.x - tw * 0.5, ty)
-	title.size = Vector2(tw, tsize.y)
+	var bsize: Vector2 = board["size"]
+	var anchor: Vector2 = spec["anchor"]
+	var left: bool = anchor.x < bsize.x * 0.5
+	var top: bool = anchor.y < bsize.y * 0.5
+	var shown := Rect2(off, bsize * k).intersection(Rect2(Vector2.ZERO, _board_view.size))
+	var inset: Vector2 = BOARD_CORNER_INSET * k
+	var x: float = shown.position.x + inset.x if left else shown.end.x - inset.x - tsize.x
+	var y: float = shown.position.y + inset.y if top else shown.end.y - inset.y - tsize.y
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if left else HORIZONTAL_ALIGNMENT_RIGHT
+	title.position = Vector2(x, y)
+	title.size = tsize
 	tri.add_child(title)
 
 ## Total points invested in a lane (shown on its name plate).

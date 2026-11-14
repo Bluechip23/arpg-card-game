@@ -40,5 +40,4 @@ slot_effects = [{
 }]
 duelist_shield = true
 description = "+7 DEX, +7 AGI, +4 STR. Two colored slots. Blue slot: its card applies 1 Weaken on hit. Red slot: its card applies 1 Vulnerable on hit. Play them back to back in either order and gain 10 armor. Fully blocking an attack Weakens that enemy 2 — or deals 5 damage if it is already Weakened. Every crit you land applies 1 Weaken, and a crit into an already-Weakened target lands 2 Vulnerable first."
-appearance = "A steel shield shaped like an S, swelling slightly fatter through the center."
 appearance_icon = "res://assets/items/mythic/crooked_dueling_shield.png"

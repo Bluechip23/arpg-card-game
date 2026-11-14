@@ -26,8 +26,13 @@ The Bladed Doughnut, the last of them, came on its own panel on 2026-10-31
 
 Output: assets/items/mythic/<slug>.png (CANVAS x CANVAS RGBA)
 Run: python3 tools/cut_mythic_art.py   (Pillow, numpy)
+
+With --large it writes only the close-up cut instead: the same piece on a
+LARGE_CANVAS square in assets/items/mythic/large/<slug>.png, the picture the
+inventory's detail panel opens when its art is clicked (designer, 2026-11-14).
 """
 import os
+import sys
 from collections import deque
 
 import numpy as np
@@ -37,6 +42,9 @@ SRC = "assets/sprites/paintings/mythic_%s"   # .jpg or .webp
 OUT = "assets/items/mythic/%s.png"
 CANVAS = 128
 FIT = 122          # the piece's longer side on the canvas (a little margin)
+LARGE_OUT = "assets/items/mythic/large/%s.png"
+LARGE_CANVAS = 384  # about the boxed sheets' own panel size, so the close-up is near native
+LARGE_FIT = 368
 BG_TOL = 7         # max per-channel distance from the panel colour that is still panel (noise is ~4;
                    # the art's dark outlines sit only ~10 off it, so keep this tight)
 EDGE_TOL = 20      # ...pixels between BG_TOL and this, touching the panel, fade out
@@ -268,6 +276,10 @@ def cut(sheet: Image.Image, box, fix=None, tols=None, no_holes=False) -> Image.I
 
 
 def main() -> None:
+    global CANVAS, FIT, OUT
+    if "--large" in sys.argv:
+        CANVAS, FIT, OUT = LARGE_CANVAS, LARGE_FIT, LARGE_OUT
+        os.makedirs(os.path.dirname(OUT), exist_ok=True)
     for sheet_name, pieces in PIECES.items():
         path = next(SRC % sheet_name + ext for ext in (".jpg", ".webp", ".png")
                     if os.path.exists(SRC % sheet_name + ext))

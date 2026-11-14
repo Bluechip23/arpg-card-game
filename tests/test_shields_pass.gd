@@ -164,7 +164,7 @@ func _test_roster() -> void:
 	for nm in ["Delfins Deterministic Round Shield", "Steve Rodgers Bastion of Reverberation",
 			"Presence of Mind", "Crooked Dueling Shield"]:
 		var m = ItemData.create_by_name(nm)
-		_check(m.appearance != "" and m.appearance_icon != "",
+		_check(m.appearance_icon != "",
 			"%s is a mythic with appearance + icon" % nm)
 	var sb = ItemData.create("sword_breaker")
 	_check(sb.dexterity_bonus == 3 and sb.determination_bonus == 3

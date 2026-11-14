@@ -26,5 +26,4 @@ slot_effects = [{}, {}, {}, {}]
 feral_weapon = true
 feral_change_damage = 4
 description = "+5 WIS, +10 INT. Two-handed. Four elemental slots — red (Burn), blue (Cold), yellow (Shock), green (Poison) — plus 1 plain slot. Playing a slotted card converts every other slotted card in your hand to its element; converted cards revert when they leave the hand. Each conversion deals 4 damage to a random enemy within 4 squares."
-appearance = "A great white staff crowned by a tiger's open mouth, a purple orb glowing between its fangs."
 appearance_icon = "res://assets/items/mythic/feral_evocation.png"

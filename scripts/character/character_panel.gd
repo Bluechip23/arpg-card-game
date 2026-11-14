@@ -36,6 +36,7 @@ var _detail_pinned: bool = false  # clicked open: stays until Close / another cl
 var _detail_item_type: ItemData.ItemType = ItemData.ItemType.HELM
 var _detail_slot_index: int = -1
 var _detail_storage_index: int = -1  # >= 0 means stored item, -1 means equipped
+var _art_viewer: Control = null  # a mythic's art, full size (clicked in the detail panel)
 
 # Card slot management panel state
 var _card_slot_panel: PanelContainer = null
@@ -1329,11 +1330,19 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 	scroll.add_child(vbox)
 
 	# A mythic shows its own art at the top, stored or equipped: the same
-	# picture its inventory cell and equipment slot display.
+	# picture its inventory cell and equipment slot display. Clicking it
+	# opens the picture up close (designer, 2026-11-14).
 	if item.has_appearance_art():
 		var art_holder = CenterContainer.new()
-		art_holder.add_child(EquipmentSlotCellScript.make_pixel_art_rect(
-			item.get_appearance_texture(), Vector2(96, 96) * DETAIL_BOX_SCALE))
+		var art_rect := EquipmentSlotCellScript.make_pixel_art_rect(
+			item.get_appearance_texture(), Vector2(96, 96) * DETAIL_BOX_SCALE)
+		art_rect.mouse_filter = Control.MOUSE_FILTER_STOP
+		art_rect.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		art_rect.tooltip_text = "Click to view up close"
+		art_rect.gui_input.connect(func(event: InputEvent) -> void:
+			if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+				_open_art_viewer(item))
+		art_holder.add_child(art_rect)
 		vbox.add_child(art_holder)
 
 	# Item name (colored by type)
@@ -1378,16 +1387,6 @@ func _show_detail_panel(item: ItemData, item_type: ItemData.ItemType, slot_index
 		effect_lbl.add_theme_color_override("font_color", Color(0.7, 0.9, 1.0))
 		effect_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		vbox.add_child(effect_lbl)
-
-	# What the thing actually looks like (mythics carry this).
-	if item.appearance != "":
-		vbox.add_child(_make_separator())
-		var look_lbl = Label.new()
-		look_lbl.text = item.appearance
-		look_lbl.add_theme_font_size_override("font_size", _detail_font(12))
-		look_lbl.add_theme_color_override("font_color", item.get_rarity_color())
-		look_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		vbox.add_child(look_lbl)
 
 	# Description
 	if item.description != "":
@@ -1617,7 +1616,89 @@ func _on_destroy_stored_item(btn: Button) -> void:
 	_close_detail_panel()
 	update_display()
 
+## A mythic's art, big: the close-up cut in a window over a dimmed screen.
+## A click anywhere or Esc closes it.
+func _open_art_viewer(item: ItemData) -> void:
+	_close_art_viewer()
+	var tex: Texture2D = item.get_appearance_large_texture()
+	if tex == null:
+		return
+	var overlay := Control.new()
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.7)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(dim)
+	overlay.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed:
+			_close_art_viewer()
+			overlay.accept_event())
+
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(center)
+	var frame := PanelContainer.new()
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style = SplitBorderStyleBoxScript.new(Color(0.1, 0.1, 0.15, 1.0),
+		_get_item_type_color(item.item_type), item.get_rarity_color(), 3, 8)
+	style.content_margin_left = 18.0
+	style.content_margin_right = 18.0
+	style.content_margin_top = 14.0
+	style.content_margin_bottom = 14.0
+	frame.add_theme_stylebox_override("panel", style)
+	center.add_child(frame)
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 8)
+	vb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_child(vb)
+
+	var title := Label.new()
+	title.text = item.item_name
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", _detail_font(20))
+	title.add_theme_color_override("font_color", item.get_rarity_color())
+	vb.add_child(title)
+
+	# As big as the screen comfortably allows, never past the cut's own
+	# size by more than half again.
+	var view_h: float = get_viewport().get_visible_rect().size.y if is_inside_tree() else 720.0
+	var side: float = clampf(view_h * 0.62, 192.0, tex.get_size().y * 1.5)
+	var pic := TextureRect.new()
+	pic.texture = tex
+	pic.custom_minimum_size = Vector2(side, side)
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	pic.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vb.add_child(pic)
+
+	var hint := Label.new()
+	hint.text = "Click anywhere or press Esc to close"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_font_size_override("font_size", _detail_font(11))
+	hint.add_theme_color_override("font_color", Color(0.6, 0.6, 0.7))
+	vb.add_child(hint)
+
+	add_child(overlay)
+	_art_viewer = overlay
+
+func _close_art_viewer() -> void:
+	if _art_viewer and is_instance_valid(_art_viewer):
+		_art_viewer.queue_free()
+	_art_viewer = null
+
+func _input(event: InputEvent) -> void:
+	# Esc closes the art viewer before anything else hears it (the panel itself).
+	if _art_viewer and is_instance_valid(_art_viewer) and event is InputEventKey \
+			and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
+		_close_art_viewer()
+		get_viewport().set_input_as_handled()
+
 func _close_detail_panel() -> void:
+	_close_art_viewer()
 	if _detail_panel and is_instance_valid(_detail_panel):
 		_detail_panel.queue_free()
 	_detail_panel = null

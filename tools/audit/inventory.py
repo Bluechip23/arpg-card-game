@@ -183,7 +183,7 @@ def items():
         g = lambda k: (re.search(r'^%s = (.+)$' % k, t, re.M) or [None, ""])[1].strip().strip('"')
         fields = [k for k in re.findall(r"^(\w+) = ", t, re.M)
                   if k not in ("script", "item_name", "rarity", "weight", "description", "item_type",
-                               "weapon_subtype", "vanilla_slots", "appearance")]
+                               "weapon_subtype", "vanilla_slots")]
         out.append({"id": os.path.basename(p)[:-5], "name": g("item_name"), "special_id": g("special_id"),
                     "file": p, "fields": fields, "description": g("description")})
     return out

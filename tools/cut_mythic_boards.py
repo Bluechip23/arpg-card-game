@@ -11,7 +11,13 @@ piece: only there are dark pixels dropped.
 
 Output: assets/items/mythic/<slug>.png (128x128 RGBA)
 Run: python3 tools/cut_mythic_boards.py   (Pillow, numpy, opencv, scipy)
+
+With --large it writes only the close-up cut, on a LARGE_CANVAS square in
+assets/items/mythic/large/<slug>.png (see tools/cut_mythic_art.py).
 """
+import os
+import sys
+
 import cv2
 import numpy as np
 from PIL import Image
@@ -21,6 +27,9 @@ SRC = "assets/sprites/paintings/mythic_%s.webp"
 OUT = "assets/items/mythic/%s.png"
 CANVAS = 128
 FIT = 122
+LARGE_OUT = "assets/items/mythic/large/%s.png"
+LARGE_CANVAS = 384
+LARGE_FIT = 368
 # slug -> the box round the piece (x0, y0, x1, y1) and its dark pockets.
 BOARDS = {
     "gluttons_cleaver": {"box": (520, 20, 1110, 900), "pockets": [(352, 232, 450, 400)]},
@@ -62,6 +71,10 @@ def cut(slug, cfg):
 
 
 def main():
+    global CANVAS, FIT, OUT
+    if "--large" in sys.argv:
+        CANVAS, FIT, OUT = LARGE_CANVAS, LARGE_FIT, LARGE_OUT
+        os.makedirs(os.path.dirname(OUT), exist_ok=True)
     for slug, cfg in BOARDS.items():
         cut(slug, cfg)
 

@@ -41,10 +41,42 @@ func _initialize() -> void:
 	sb._set_tab(0)
 	_check(sb._card_list.get_child_count() > 0, "shared dropdown still drives the card list")
 
-	# "Core / Shared" has no passive tree — Passive tab shows a friendly note.
-	sb._char_dd.select(sb.CARD_GROUP_ORDER.size() - 1)  # "Core / Shared"
+	# The Card tab's dropdown lists card types; the Passive tab's, characters.
+	sb._set_tab(0)
+	_check(sb._char_dd.item_count == sb.CARD_TYPE_ORDER.size() and sb._char_dd.get_item_text(0) == "Spell",
+		"the Card tab's dropdown lists card types, Spell first")
 	sb._set_tab(1)
-	_check(sb._passive_list.get_child_count() >= 1, "Core / Shared shows a no-passives note, not a crash")
+	_check(sb._char_dd.item_count == sb.CHARACTER_ORDER.size() and sb._char_dd.get_item_text(0) == "Brad",
+		"the Passive tab's dropdown lists the characters")
+	sb._set_tab(0)
+
+	# Every pool card sits in exactly one type, by the designer's precedence.
+	var placed := {}
+	for t in sb.CARD_TYPE_ORDER:
+		for cid in sb._cards_of_type(t):
+			placed[cid] = placed.get(cid, 0) + 1
+	var pool := {}
+	for owner in sb.CARD_GROUPS:
+		for cid in sb.CARD_GROUPS[owner]:
+			pool[cid] = true
+	_check(placed.size() == pool.size() and placed.values().all(func(n): return n == 1),
+		"every pool card is listed under exactly one type (%d of %d)" % [placed.size(), pool.size()])
+	var cat := func(cid): return sb.card_category(Card.create_by_id(cid))
+	_check(cat.call("fireball") == "Spell", "Fireball (an offensive spell) is a Spell")
+	_check(cat.call("slash") == "Attack", "Slash is an Attack")
+	_check(cat.call("block") == "Defensive", "Block is Defensive")
+	_check(cat.call("healthy_bliss") == "Instant", "Healthy Bliss (an instant utility spell) is an Instant")
+	_check(cat.call("halo") == "Maintain", "Halo is a Maintain")
+	var spells_ok := true
+	for cid in sb._cards_of_type("Spell") + sb._cards_of_type("Attack") + sb._cards_of_type("Offensive"):
+		var c := Card.create_by_id(cid)
+		if c.card_type in [Card.CardType.REACTION, Card.CardType.POWER, Card.CardType.DEFENSE, Card.CardType.UTILITY] \
+				or c.maintain_cost > 0 or c.has_keyword("utility") or c.has_keyword("defense"):
+			spells_ok = false
+	_check(spells_ok, "no Instant, Maintain, Defensive or Utility card is listed as Spell, Attack or Offensive")
+	for cid in sb._cards_of_type("Offensive"):
+		var c := Card.create_by_id(cid)
+		_check(c.school != Card.CardSchool.SPELL and not c.is_attack(), "%s (Offensive) is neither a spell nor an attack" % cid)
 
 	# Every card id in every group must resolve to a real card, and no card may
 	# appear in two groups (ownership per the cards-and-passives spreadsheet).

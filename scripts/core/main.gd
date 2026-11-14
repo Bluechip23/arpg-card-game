@@ -2745,7 +2745,7 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 			if not is_instance_valid(target) or (target is Enemy and target.is_dead):
 				return
 			if _blind_misses("Attack", target):
-				_basic_attack_whiff(stats, buff_mgr, debuff_mgr, not basic_attack_proc)
+				_basic_attack_whiff(stats, buff_mgr, not basic_attack_proc)
 				return
 			target.take_damage(damage, true)
 			progression_triggers.brad_life_steal(damage)
@@ -2761,8 +2761,6 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 					progression_triggers.brad_life_steal(damage)
 					_basic_attack_armor_shred(target)
 					add_battle_log("Free hand echo! The strike lands twice.", Color(1.0, 0.9, 0.4))
-			if debuff_mgr:
-				debuff_mgr.on_attack()
 			add_battle_log("Attack: %d damage to %s (Steady!)" % [damage, target.enemy_name], Color(0.4, 1.0, 0.5))
 			print("[MAIN] Basic Attack (Steady): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
 			_ring_note_big_hit(damage)
@@ -2779,7 +2777,7 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 			if not is_instance_valid(target) or (target is Enemy and target.is_dead):
 				return
 			if _blind_misses("Attack", target):
-				_basic_attack_whiff(stats, buff_mgr, debuff_mgr, false)
+				_basic_attack_whiff(stats, buff_mgr, false)
 				return
 			target.take_damage(damage, true)
 			progression_triggers.brad_life_steal(damage)
@@ -2788,8 +2786,6 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 				buff_mgr.last_crit_hit = false
 				progression_triggers._trigger_skill_tree_on_crit(target)
 			# Proc-bonus attack: don't count towards next cycle
-			if debuff_mgr:
-				debuff_mgr.on_attack()
 			add_battle_log("Attack: %d damage to %s (Proc!)" % [damage, target.enemy_name], Color(1.0, 0.3, 0.3))
 			print("[MAIN] Basic Attack (Dex Proc): dealt %d damage to %s — no tempo" % [damage, target.enemy_name])
 			_ring_note_big_hit(damage)
@@ -2869,16 +2865,14 @@ func _after_hit(seconds: float, land: Callable, total: float = 0.0) -> void:
 			land.call())
 
 ## A blinded swing that missed: like a blinded Attack card it still counts
-## as an attack swung (the DEX counter, Burn's on-attack sting) and keeps
+## as an attack swung (the DEX counter) and keeps
 ## the tempo it cost — it only loses the hit and everything riding the hit
 ## (crit triggers, life steal, armor shred, the free-hand echo).
-func _basic_attack_whiff(stats, buff_mgr, debuff_mgr, counts_for_cycle: bool) -> void:
+func _basic_attack_whiff(stats, buff_mgr, counts_for_cycle: bool) -> void:
 	if buff_mgr:
 		buff_mgr.last_crit_hit = false
 	if stats and counts_for_cycle:
 		stats.register_attack()
-	if debuff_mgr:
-		debuff_mgr.on_attack()
 	PlayerStats.hit_source_offensive = false
 	PlayerStats.hit_source_direct = false
 
@@ -9392,7 +9386,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		# Blind rolls when the swing lands, as an Attack card's does when it
 		# executes; the wind-up's tempo is already spent.
 		if _blind_misses("Attack", target):
-			_basic_attack_whiff(player.get_stats(), player.get_buff_manager(), player.get_debuff_manager(),
+			_basic_attack_whiff(player.get_stats(), player.get_buff_manager(),
 				not data.get("basic_attack_proc", false))
 			return
 		PlayerStats.hit_source_offensive = true  # the auto attack is offensive
@@ -9419,9 +9413,6 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 				progression_triggers.brad_life_steal(damage)
 				_basic_attack_armor_shred(target)
 				add_battle_log("Free hand echo! The strike lands twice.", Color(1.0, 0.9, 0.4))
-
-		if ba_debuff_mgr:
-			ba_debuff_mgr.on_attack()
 
 		var target_name = ""
 		if target is Enemy and is_instance_valid(target):
@@ -15079,10 +15070,6 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 	if buff_mgr and buff_mgr.last_crit_hit:
 		buff_mgr.last_crit_hit = false
 		progression_triggers._trigger_skill_tree_on_crit(target, maxi(1, buff_mgr.crit_hits))
-
-	# Notify debuffs of attack
-	if debuff_mgr and card.is_attack():
-		debuff_mgr.on_attack()
 
 	# Apply tempo. A Quiver / Manifest play IS a card play, so Weighted both
 	# taxes it and burns a stack for it — read the surcharge first, then burn,

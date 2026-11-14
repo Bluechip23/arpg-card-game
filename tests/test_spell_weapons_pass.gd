@@ -146,7 +146,7 @@ func _test_roster() -> void:
 	# Mythics carry their appearance art.
 	for nm in ["Wand of the Phoenix Feather", "Circe's Wand of Cauldron Stirring", "Reaper Scythe", "Feral Evocation"]:
 		var myth = ItemData.create_by_name(nm)
-		_check(myth != null and myth.appearance != "" and myth.appearance_icon != "", "%s has an appearance" % nm)
+		_check(myth != null and myth.appearance_icon != "", "%s has an appearance" % nm)
 
 func _test_two_handers() -> void:
 	print("-- Staffs demand both hands; wands, tomes and orbs share --")

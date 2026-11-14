@@ -15,5 +15,4 @@ strength_bonus = 15
 weapon_subtype = 3
 on_kill_card_id = "sprinkle"
 description = "+15 STR. On Kill: add a Sprinkle to your hand (0 mana, 0 tempo, 25 damage)."
-appearance = "A ring of fried dough gone wrong. The outer rim is hammered steel filed into eight razor teeth, and the pink glaze poured over the top never quite dries. The sprinkles are slivers of bone."
 appearance_icon = "res://assets/items/mythic/bladed_doughnut.png"
