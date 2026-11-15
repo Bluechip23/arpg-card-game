@@ -81,6 +81,8 @@ FITTED = {
     "stone_patch": ("card_art_stone_patch.webp", (0, 100, 1448, 1000)),
     "life_from_resource": ("card_art_life_from_resource.webp", (0, 0, 1448, 960)),
     "lemon_drop": ("card_art_lemon_drop.webp", (0, 30, 1448, 1086)),
+    "brawn_gem": ("card_art_brawn_gem.webp", (0, 20, 1448, 1000)),
+    "feather_foot": ("card_art_feather_foot.webp", (0, 0, 1448, 1010)),
 }
 FIT_ASPECT = 2.3    # the Attack frame's art window, about the widest
 FIT_FEATHER = 0.08  # the fitted picture's sides fade into the fill over this much of its width

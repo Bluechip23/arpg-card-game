@@ -117,6 +117,8 @@ const CARD_PAINTINGS := {
 	"stone_patch": "stone_patch",
 	"life_from_resource": "life_from_resource",
 	"lemon_drop": "lemon_drop",
+	"brawn_gem": "brawn_gem",
+	"feather_foot": "feather_foot",
 }
 
 # ---------------------------------------------------------------------------
