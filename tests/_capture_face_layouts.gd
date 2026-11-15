@@ -1,10 +1,10 @@
 extends SceneTree
 ## Dev helper: the card face under a few CardUI.face_layout settings, one row
 ## of cards per setting, saved as one picture (2x).
-## Run: xvfb-run -a godot --path . --script tests/_capture_face_layouts.gd -- /tmp/out.png
+## Run: xvfb-run -a godot --path . --script tests/_capture_face_layouts.gd -- /tmp/out.png '[["label", {layout}], ...]' id1,id2,id3
 var _frames := 0
 var _out := "/tmp/face_layouts.png"
-const IDS := ["berserkers_tithe", "exacerbate_wounds", "oops"]
+var IDS := ["berserkers_tithe", "exacerbate_wounds", "oops"]
 ## [label, layout]
 var VARIANTS := [
 	["As now", {}],
@@ -14,6 +14,8 @@ func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		_out = args[0]
+	if args.size() > 2:
+		IDS = args[2].split(",")
 	if args.size() > 1:
 		VARIANTS = []
 		var parsed = JSON.parse_string(args[1])

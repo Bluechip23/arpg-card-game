@@ -913,6 +913,11 @@ func _place_text_wash() -> void:
 	if host == null or desc_label == null or not is_instance_valid(desc_label):
 		return
 	var w: Panel = host.get_node_or_null("TextWash")
+	if _laid_out() and face_layout.has("text_fade"):
+		if w:
+			w.visible = false
+		_place_text_fade(host)
+		return
 	if _frame.is_empty() or text_wash_alpha <= 0.0 or desc_label.get_parsed_text().strip_edges() == "":
 		if w:
 			w.visible = false
@@ -936,6 +941,96 @@ func _place_text_wash() -> void:
 	w.position = xf.origin - Vector2(pad, pad)
 	w.size = Vector2(desc_label.size.x, text_h) + Vector2(pad, pad) * 2.0
 	w.visible = true
+
+## face_layout.text_fade: no box behind the rules text. The frame's corner
+## picture darkens toward the panel's own dark where the text lies over it,
+## fading out softly round the text (no edge), so the text reads and the
+## stone round it keeps its look. {"fade": how dark (0-1), "feather": how
+## far the fade runs off the text (card px), "lines": true to follow each
+## line of text, false for the text's whole block}.
+const TEXT_FADE_SHADER := """
+shader_type canvas_item;
+render_mode blend_mul;
+uniform vec4 rects[16];
+uniform int count = 0;
+uniform float feather = 8.0;
+uniform float strength = 0.8;
+uniform vec3 tint = vec3(0.10, 0.07, 0.06);
+uniform vec2 px_size = vec2(100.0, 100.0);
+void fragment() {
+	vec2 p = UV * px_size;
+	float m = 0.0;
+	for (int i = 0; i < count; i++) {
+		vec4 r = rects[i];
+		vec2 c = r.xy + r.zw * 0.5;
+		vec2 q = abs(p - c) - r.zw * 0.5;
+		float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
+		m = max(m, 1.0 - smoothstep(0.0, feather, d));
+	}
+	COLOR = vec4(mix(vec3(1.0), tint, m * strength), 1.0);
+}
+"""
+static var _text_fade_shader: Shader = null
+
+func _place_text_fade(host: Control) -> void:
+	var f: ColorRect = host.get_node_or_null("TextFade")
+	var plain: String = desc_label.get_parsed_text().strip_edges()
+	if plain == "":
+		if f:
+			f.visible = false
+		return
+	if _text_fade_shader == null:
+		_text_fade_shader = Shader.new()
+		_text_fade_shader.code = TEXT_FADE_SHADER
+	if f == null:
+		f = ColorRect.new()
+		f.name = "TextFade"
+		f.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var mat := ShaderMaterial.new()
+		mat.shader = _text_fade_shader
+		f.material = mat
+		host.add_child(f)
+		host.move_child(f, 1)   # over the frame, under the text
+	var spec: Dictionary = face_layout["text_fade"]
+	var feather: float = float(spec.get("feather", 8.0))
+	var xf: Transform2D = host.get_global_transform().affine_inverse() * desc_label.get_global_transform()
+	var origin: Vector2 = xf.origin
+	var text_w: float = desc_label.size.x
+	var rects: Array[Vector4] = []
+	if spec.get("lines", false):
+		# Each line's own length, as the label breaks them.
+		var font: Font = desc_label.get_theme_font("normal_font")
+		var fs: int = desc_label.get_theme_font_size("normal_font_size")
+		var para := TextParagraph.new()
+		para.width = text_w
+		para.break_flags = TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE
+		para.add_string(plain, font, fs)
+		var line_h: float = float(desc_label.get_content_height()) / maxf(1.0, float(para.get_line_count()))
+		var y := 0.0
+		for i in mini(para.get_line_count(), 16):
+			var sz: Vector2 = para.get_line_size(i)
+			rects.append(Vector4(origin.x, origin.y + y, sz.x, line_h))
+			y += line_h
+	else:
+		var text_h: float = minf(float(desc_label.get_content_height()), desc_label.size.y)
+		rects.append(Vector4(origin.x, origin.y, text_w, text_h))
+	# The node covers the text and its feather; the rects in its own pixels.
+	var pad := feather + 2.0
+	var bounds := Rect2(origin - Vector2(pad, pad), Vector2(text_w, desc_label.size.y) + Vector2(pad, pad) * 2.0)
+	f.position = bounds.position
+	f.size = bounds.size
+	var local: Array[Vector4] = []
+	for r in rects:
+		local.append(Vector4(r.x - bounds.position.x, r.y - bounds.position.y, r.z, r.w))
+	while local.size() < 16:
+		local.append(Vector4.ZERO)
+	var mat: ShaderMaterial = f.material
+	mat.set_shader_parameter("rects", local)
+	mat.set_shader_parameter("count", rects.size())
+	mat.set_shader_parameter("feather", feather)
+	mat.set_shader_parameter("strength", float(spec.get("fade", 0.8)))
+	mat.set_shader_parameter("px_size", bounds.size)
+	f.visible = true
 
 func _fit_size(font: Font, plain: String, box: Vector2, top: int = DESC_FONT_MAX) -> int:
 	var fs := top
