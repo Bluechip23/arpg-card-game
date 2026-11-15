@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Cut the designer's painted card art out of its sources.
 
-Sources: assets/sprites/paintings/card_art_*.webp (.gdignore'd source art).
+Sources: assets/sprites/paintings/card_art_*.webp / .jpg (.gdignore'd source art).
 
 Boards (BOARDS): a row of square paintings, each in a thin black panel
 border; the box is the painting just inside that border (measured: the black
@@ -15,6 +15,8 @@ band about twice as wide as it is tall round the faces and the point of
 impact (the box), then shrunk to WIDTH wide.
   2026-11-15: Berserker's Tithe, Momentous Slam, Fan of Knives, Down Town,
   Premeditated.
+  The same day: Exacerbate Wounds, Blade Barrage, Exposed Artery, Heavy
+  Swing, Oops.
 
 The card's art window is wider than it is tall (about 2.3:1 on the Attack
 frame), so CardUI shows these "covered": scaled to the window's width and
@@ -53,6 +55,16 @@ SINGLES = {
     "down_town": ("card_art_down_town.webp", (0, 120, 1536, 850)),
     # Both faces and the knife at the throat.
     "premeditated": ("card_art_premeditated.webp", (0, 80, 1536, 810)),
+    # Both faces and the shuriken in the chest (the cut shin falls below).
+    "exacerbate_wounds": ("card_art_exacerbate_wounds.webp", (0, 0, 1536, 730)),
+    # Both faces, the knives in the chest and the thrower's hand.
+    "blade_barrage": ("card_art_blade_barrage.webp", (0, 40, 1536, 770)),
+    # The axeman's face and the kneeling man bleeding (the axe head is cut).
+    "exposed_artery": ("card_art_exposed_artery.webp", (0, 60, 1536, 790)),
+    # The roar, the hammer head and the shield buckling under it.
+    "heavy_swing": ("card_art_heavy_swing.webp", (0, 90, 1536, 820)),
+    # The punch thrown and the rake in the face; the tines are below.
+    "oops": ("card_art_oops.jpg", (0, 0, 1000, 475)),
 }
 
 

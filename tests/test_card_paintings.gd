@@ -31,7 +31,7 @@ func _art(ui: CardUI) -> TextureRect:
 
 func _run() -> void:
 	print("=== Painted card art ===")
-	for id in ["basic_attack", "block", "berserkers_tithe", "momentous_slam", "fan_of_knives", "down_town", "premeditated"]:
+	for id in ["basic_attack", "block", "berserkers_tithe", "momentous_slam", "fan_of_knives", "down_town", "premeditated", "exacerbate_wounds", "blade_barrage", "exposed_artery", "heavy_swing", "oops"]:
 		var ui := _face(id)
 		await process_frame
 		var art := _art(ui)

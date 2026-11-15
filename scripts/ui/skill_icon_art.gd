@@ -106,6 +106,11 @@ const CARD_PAINTINGS := {
 	"fan_of_knives": "fan_of_knives",
 	"down_town": "down_town",
 	"premeditated": "premeditated",
+	"exacerbate_wounds": "exacerbate_wounds",
+	"blade_barrage": "blade_barrage",
+	"exposed_artery": "exposed_artery",
+	"heavy_swing": "heavy_swing",
+	"oops": "oops",
 }
 
 # ---------------------------------------------------------------------------
