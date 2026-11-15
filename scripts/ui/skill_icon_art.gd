@@ -101,6 +101,11 @@ const CARD_ART_DIR := "res://assets/textures/cards/art/"
 const CARD_PAINTINGS := {
 	"basic_attack": "basic_attack",
 	"block": "block",
+	"berserkers_tithe": "berserkers_tithe",
+	"momentous_slam": "momentous_slam",
+	"fan_of_knives": "fan_of_knives",
+	"down_town": "down_town",
+	"premeditated": "premeditated",
 }
 
 # ---------------------------------------------------------------------------

@@ -1,18 +1,24 @@
 #!/usr/bin/env python3
-"""Cut the designer's painted card art out of its boards.
+"""Cut the designer's painted card art out of its sources.
 
-Sources: assets/sprites/paintings/card_art_*_board.webp (.gdignore'd source
-art). Each board is a row of square paintings, each in a thin black panel
-border; PANELS gives each painting's box on its board, just inside that
-border (measured: the black columns and rows run to mean luminance < 12).
+Sources: assets/sprites/paintings/card_art_*.webp (.gdignore'd source art).
 
-The first board (2026-11-15): Basic Attack (a sword through a straw-and-wood
-target) and Block (a sword turned on a lion-crest shield).
+Boards (BOARDS): a row of square paintings, each in a thin black panel
+border; the box is the painting just inside that border (measured: the black
+columns and rows run to mean luminance < 12). Each is centre-cropped square
+and shrunk to SIZE x SIZE.
+  2026-11-15: Basic Attack (a sword through a target) and Block (a sword
+  turned on a lion-crest shield).
 
-Each painting is shrunk to SIZE x SIZE. The card's art window is wider than
-it is tall, so CardUI shows these "covered": scaled to the window's width
-and cropped top and bottom about the middle, where both paintings put their
-point of impact.
+Single paintings (SINGLES): one landscape painting per card, cropped to a
+band about twice as wide as it is tall round the faces and the point of
+impact (the box), then shrunk to WIDTH wide.
+  2026-11-15: Berserker's Tithe, Momentous Slam, Fan of Knives, Down Town,
+  Premeditated.
+
+The card's art window is wider than it is tall (about 2.3:1 on the Attack
+frame), so CardUI shows these "covered": scaled to the window's width and
+cropped about the middle. The boxes below put the action in that middle.
 
 Output: assets/textures/cards/art/<card_id>.png, which
 scripts/ui/skill_icon_art.gd maps in CARD_PAINTINGS.
@@ -24,20 +30,35 @@ from PIL import Image
 
 SRC = "assets/sprites/paintings/%s"
 OUT = "assets/textures/cards/art/%s.png"
-SIZE = 384   # about four times the art window's width: sharp on the hovered and close-up card
+SIZE = 384    # boards' squares: about four times the art window's width
+WIDTH = 512   # singles' width: sharp on the hovered and close-up card
 
 # board -> {card_id: (left, top, right, bottom)}
-PANELS = {
+BOARDS = {
     "card_art_attack_block_board.webp": {
         "basic_attack": (9, 8, 873, 879),
         "block": (903, 8, 1768, 879),
     },
 }
 
+# card_id -> (source, (left, top, right, bottom))
+SINGLES = {
+    # The whole of the berserker's roaring head down to the bloodied blade.
+    "berserkers_tithe": ("card_art_berserkers_tithe.webp", (0, 70, 1536, 800)),
+    # Up high enough to keep the struck man's helmet; down to the charger's fist.
+    "momentous_slam": ("card_art_momentous_slam.webp", (0, 0, 1448, 690)),
+    # The thrower's face and all four knives.
+    "fan_of_knives": ("card_art_fan_of_knives.webp", (0, 130, 1536, 860)),
+    # The archer's draw, the castle and the rider thrown from his horse.
+    "down_town": ("card_art_down_town.webp", (0, 120, 1536, 850)),
+    # Both faces and the knife at the throat.
+    "premeditated": ("card_art_premeditated.webp", (0, 80, 1536, 810)),
+}
+
 
 def main() -> None:
     os.makedirs(os.path.dirname(OUT % "x"), exist_ok=True)
-    for board, cuts in PANELS.items():
+    for board, cuts in BOARDS.items():
         src = Image.open(SRC % board).convert("RGB")
         for card_id, box in cuts.items():
             piece = src.crop(box)
@@ -48,6 +69,11 @@ def main() -> None:
             piece = piece.crop((l, t, l + side, t + side)).resize((SIZE, SIZE), Image.LANCZOS)
             piece.save(OUT % card_id, optimize=True)
             print("wrote", OUT % card_id)
+    for card_id, (source, box) in SINGLES.items():
+        piece = Image.open(SRC % source).convert("RGB").crop(box)
+        h = round(piece.height * WIDTH / piece.width)
+        piece.resize((WIDTH, h), Image.LANCZOS).save(OUT % card_id, optimize=True)
+        print("wrote", OUT % card_id, (WIDTH, h))
 
 
 if __name__ == "__main__":
