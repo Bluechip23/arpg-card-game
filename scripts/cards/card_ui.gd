@@ -1543,9 +1543,10 @@ func _style_painted_frame() -> void:
 		desc_label.custom_minimum_size = Vector2(0.1, 10)
 		desc_label.add_theme_color_override("default_color", _frame["ink"])
 		if not _frame["ink_dark"]:
-			# Light text on the dark stone: a dark rim keeps it off the texture.
+			# Light text on the dark stone: a dark rim keeps it off the texture
+			# (face_layout.text_outline: its width, 0 for none).
 			desc_label.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.06))
-			desc_label.add_theme_constant_override("outline_size", 3)
+			desc_label.add_theme_constant_override("outline_size", int(face_layout.get("text_outline", 3)) if _laid_out() else 3)
 	_place_framed_costs()
 	_place_framed_logo()
 	_fit_name()   # this frame's name bar may be narrower
