@@ -93,6 +93,17 @@ const PASSIVE_POOLS := {
 const PASSIVE_POOL_DEFAULT := ["rpg_47", "game_5", "pack_17", "game_88", "rpg_41", "pack_38"]
 
 # ---------------------------------------------------------------------------
+# Painted card art (Card.card_id): the designer's full paintings, cut by
+# tools/cut_card_art.py. A card listed here shows its painting in the card
+# face's art window; everywhere an icon is wanted it keeps its CARDS icon.
+# ---------------------------------------------------------------------------
+const CARD_ART_DIR := "res://assets/textures/cards/art/"
+const CARD_PAINTINGS := {
+	"basic_attack": "basic_attack",
+	"block": "block",
+}
+
+# ---------------------------------------------------------------------------
 # Cards (Card.card_id).
 # ---------------------------------------------------------------------------
 const CARDS := {
@@ -249,6 +260,23 @@ static func card(c) -> Texture2D:
 	if CARDS.has(cid):
 		return texture(CARDS[cid])
 	return texture(_pick(_card_pool(c), cid))
+
+
+static func card_painting(c) -> Texture2D:
+	## The designer's painting for a card's art window, or null when it has
+	## none yet (the face then falls back to card()'s icon).
+	if c == null:
+		return null
+	var cid: String = str(c.get("card_id"))
+	if not CARD_PAINTINGS.has(cid):
+		return null
+	var key := "card_art:" + cid
+	if _cache.has(key):
+		return _cache[key]
+	var path: String = CARD_ART_DIR + str(CARD_PAINTINGS[cid]) + ".png"
+	var tex: Texture2D = load(path) as Texture2D if ResourceLoader.exists(path) else null
+	_cache[key] = tex
+	return tex
 
 
 static func _card_pool(c) -> Array:

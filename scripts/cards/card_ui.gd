@@ -68,6 +68,7 @@ const FRAMES := {
 		"ink_dark": true,
 		"top": 13.1, "title_h": 22.8, "art_h": 66.4, "type_h": 18.7, "desc_top": 4.2,
 		"title_left": 21.0, "title_right": 15.9, "name_w": 86,
+		"art_margins": [2, 0.5, 1, 0.5],   # the painted window inside the art box (left, top, right, bottom)
 	},
 	# Every card with an upkeep: amethyst-shot stone, white text beside the
 	# mind-mage in the corner.
@@ -84,6 +85,7 @@ const FRAMES := {
 		"ink_dark": false,
 		"top": 18.9, "title_h": 22.4, "art_h": 65.0, "type_h": 18.3, "desc_top": 4.1,
 		"title_left": 21.0, "title_right": 16.1, "name_w": 86,
+		"art_margins": [0.5, 0.5, 1.5, 1.5],   # the painted window inside the art box (left, top, right, bottom)
 	},
 	# Defense cards: a stone wall veined with blue lightning, white text left
 	# of the knight catching arrows on his shield.
@@ -101,6 +103,7 @@ const FRAMES := {
 		"ink_dark": false,
 		"top": 24.0, "title_h": 21.3, "art_h": 62.0, "type_h": 17.4, "desc_top": 3.9,
 		"title_left": 21.4, "title_right": 16.7, "name_w": 85,
+		"art_margins": [3.5, 0.5, 5, 2],   # the painted window inside the art box (left, top, right, bottom)
 	},
 	# Utility cards: green scale-work wound with ivy. No type bar of its
 	# own: a taller art window, the logo set where the window meets the
@@ -144,6 +147,7 @@ const FRAMES := {
 		"ink_dark": false,
 		"top": 26.8, "title_h": 24.1, "art_h": 51.2, "type_h": 24.1, "desc_top": 9.0,
 		"title_left": 37.1, "title_right": 20.1, "name_w": 67,
+		"art_margins": [9.5, 0.5, 0.5, 0.5],   # the painted window inside the art box (left, top, right, bottom)
 	},
 	# Spell cards: blackened stone veined with molten red, a fire comet
 	# round the top-left, a wizard calling down meteors in the rules box. The
@@ -164,6 +168,7 @@ const FRAMES := {
 		"ink_dark": false,
 		"top": 27.5, "title_h": 24.0, "art_h": 51.0, "type_h": 24.0, "desc_top": 9.0,
 		"title_left": 40.1, "title_right": 19.9, "name_w": 62,
+		"art_margins": [8.5, 0.5, 1, 1],   # the painted window inside the art box (left, top, right, bottom)
 	},
 	# Offensive cards that are not only an attack or only a spell (designer,
 	# 2026-11-11): cracked ruby crystal round dark leather, a knight, a fire
@@ -208,6 +213,7 @@ const FRAMES := {
 		"ink_dark": false,
 		"top": 34.6, "title_h": 19.1, "art_h": 39.4, "type_h": 20.9, "desc_top": 8.0,
 		"title_left": 30.4, "title_right": 21.0, "name_w": 72,
+		"art_margins": [11.5, 2.5, 7, 0.5],   # the painted window inside the art box (left, top, right, bottom)
 	},
 }
 ## How strongly the rules box is washed over its corner picture (0 = the
@@ -1238,7 +1244,15 @@ func _style_painted_frame() -> void:
 		name_label.add_theme_color_override("font_outline_color", Color(0.1, 0.06, 0.02))
 		name_label.add_theme_constant_override("outline_size", 4)
 	if art_box:
-		art_box.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+		# Inset to the painted window's inner rim (measured off each board),
+		# so a painting in the window stops at the rim instead of over it.
+		var ab := StyleBoxEmpty.new()
+		var am: Array = _frame.get("art_margins", [0, 0, 0, 0])
+		ab.content_margin_left = am[0]
+		ab.content_margin_top = am[1]
+		ab.content_margin_right = am[2]
+		ab.content_margin_bottom = am[3]
+		art_box.add_theme_stylebox_override("panel", ab)
 		art_box.custom_minimum_size = Vector2(0, _frame.get("art_h", 64.0))
 		_set_card_art()
 	if type_bar:
@@ -1357,7 +1371,10 @@ func _set_card_art() -> void:
 	## resolves.
 	if art_box == null:
 		return
-	var tex: Texture2D = SkillIconArt.card(_card) if _card else null
+	## A designer painting (SkillIconArt.CARD_PAINTINGS) fills the window,
+	## cropped top and bottom; an icon sits centred at its own shape.
+	var painting: Texture2D = SkillIconArt.card_painting(_card) if _card else null
+	var tex: Texture2D = painting if painting else (SkillIconArt.card(_card) if _card else null)
 	var label := art_box.get_node_or_null("ArtLabel")
 	if tex == null:
 		if _art_rect:
@@ -1373,6 +1390,7 @@ func _set_card_art() -> void:
 		_art_rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 		_art_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		art_box.add_child(_art_rect)
+	_art_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED if painting else TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_art_rect.texture = tex
 	_art_rect.visible = true
 	if label:
