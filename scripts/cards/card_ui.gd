@@ -868,6 +868,8 @@ const NAME_FONT_MAX := 13
 const NAME_FONT_MIN := 9
 const NAME_WIDTH := 86               # the name's share of the title bar beside the cost
 
+var _desc_over_picture := false   # the rules text spread over the corner picture
+
 func _fit_description() -> void:
 	if not desc_label:
 		return
@@ -887,11 +889,13 @@ func _fit_description() -> void:
 		box.x *= _kx
 		fs = _fit_size(font, plain, box)
 		var right: float = _frame["desc_right"] * _kx
+		_desc_over_picture = false
 		if font.get_multiline_string_size(plain, HORIZONTAL_ALIGNMENT_LEFT, box.x, fs).y > box.y:
 			var full: Vector2 = _frame.get("desc_full", FRAMED_DESC_FULL)
 			full.x *= _kx
 			fs = _fit_size(font, plain, full, FRAMED_DESC_FULL_MAX)
 			right = 4.0
+			_desc_over_picture = true
 		if desc_panel:
 			var st := desc_panel.get_theme_stylebox("panel")
 			if st:
@@ -947,7 +951,8 @@ func _place_text_wash() -> void:
 ## fading out softly round the text (no edge), so the text reads and the
 ## stone round it keeps its look. {"fade": how dark (0-1), "feather": how
 ## far the fade runs off the text (card px), "lines": true to follow each
-## line of text, false for the text's whole block}.
+## line of text, false for the text's whole block; "mode": "picture" fades
+## the whole corner picture instead, and only when the text runs over it}.
 const TEXT_FADE_SHADER := """
 shader_type canvas_item;
 render_mode blend_mul;
@@ -997,6 +1002,27 @@ func _place_text_fade(host: Control) -> void:
 	var origin: Vector2 = xf.origin
 	var text_w: float = desc_label.size.x
 	var rects: Array[Vector4] = []
+	if spec.get("mode", "") == "picture":
+		# The whole corner picture fades, but only when the text runs over
+		# it: a text that fits beside the picture leaves it at full strength.
+		if not _desc_over_picture:
+			f.visible = false
+			return
+		var pxf: Transform2D = host.get_global_transform().affine_inverse() * desc_panel.get_global_transform()
+		var box := Rect2(pxf.origin, desc_panel.size)
+		f.position = box.position
+		f.size = box.size
+		var mat0: ShaderMaterial = f.material
+		var inner: Array[Vector4] = [Vector4(feather, feather, box.size.x - feather * 2.0, box.size.y - feather * 2.0)]
+		while inner.size() < 16:
+			inner.append(Vector4.ZERO)
+		mat0.set_shader_parameter("rects", inner)
+		mat0.set_shader_parameter("count", 1)
+		mat0.set_shader_parameter("feather", feather)
+		mat0.set_shader_parameter("strength", float(spec.get("fade", 0.6)))
+		mat0.set_shader_parameter("px_size", box.size)
+		f.visible = true
+		return
 	if spec.get("lines", false):
 		# Each line's own length, as the label breaks them.
 		var font: Font = desc_label.get_theme_font("normal_font")
