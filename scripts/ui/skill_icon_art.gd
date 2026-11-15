@@ -93,6 +93,46 @@ const PASSIVE_POOLS := {
 const PASSIVE_POOL_DEFAULT := ["rpg_47", "game_5", "pack_17", "game_88", "rpg_41", "pack_38"]
 
 # ---------------------------------------------------------------------------
+# Painted card art (Card.card_id): the designer's full paintings, cut by
+# tools/cut_card_art.py. A card listed here shows its painting in the card
+# face's art window; everywhere an icon is wanted it keeps its CARDS icon.
+# ---------------------------------------------------------------------------
+const CARD_ART_DIR := "res://assets/textures/cards/art/"
+const CARD_PAINTINGS := {
+	"basic_attack": "basic_attack",
+	"block": "block",
+	"berserkers_tithe": "berserkers_tithe",
+	"momentous_slam": "momentous_slam",
+	"fan_of_knives": "fan_of_knives",
+	"down_town": "down_town",
+	"premeditated": "premeditated",
+	"exacerbate_wounds": "exacerbate_wounds",
+	"blade_barrage": "blade_barrage",
+	"exposed_artery": "exposed_artery",
+	"heavy_swing": "heavy_swing",
+	"oops": "oops",
+	"poke": "poke",
+	"savage_strike": "savage_strike",
+	"savage_strike_copy": "savage_strike",   # the copy it makes wears its art
+	"reckless_strike": "reckless_strike",
+	"shield_slam": "shield_slam",
+	"specific_strike": "specific_strike",
+	"sweeping_disarm": "sweeping_disarm",
+	"trip": "trip",
+	"worst_that_could_happen": "worst_that_could_happen",
+	"charge": "charge",
+	"harvest": "harvest",
+	# The Enchantment gems (designer, 2026-11-15), fitted whole.
+	"enchantment_attack": "brawn_gem",
+	"enchantment_defense": "stone_patch",
+	"enchantment_mana_regen": "energy_gem",
+	"enchantment_movement": "feather_foot",
+	"life_from_resource": "life_from_resource",
+	"lemon_drop": "lemon_drop",
+	"fumbleitis": "fumbleitis",
+}
+
+# ---------------------------------------------------------------------------
 # Cards (Card.card_id).
 # ---------------------------------------------------------------------------
 const CARDS := {
@@ -249,6 +289,23 @@ static func card(c) -> Texture2D:
 	if CARDS.has(cid):
 		return texture(CARDS[cid])
 	return texture(_pick(_card_pool(c), cid))
+
+
+static func card_painting(c) -> Texture2D:
+	## The designer's painting for a card's art window, or null when it has
+	## none yet (the face then falls back to card()'s icon).
+	if c == null:
+		return null
+	var cid: String = str(c.get("card_id"))
+	if not CARD_PAINTINGS.has(cid):
+		return null
+	var key := "card_art:" + cid
+	if _cache.has(key):
+		return _cache[key]
+	var path: String = CARD_ART_DIR + str(CARD_PAINTINGS[cid]) + ".png"
+	var tex: Texture2D = load(path) as Texture2D if ResourceLoader.exists(path) else null
+	_cache[key] = tex
+	return tex
 
 
 static func _card_pool(c) -> Array:

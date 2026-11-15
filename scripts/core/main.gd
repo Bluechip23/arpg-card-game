@@ -3070,7 +3070,7 @@ func _setup_hand_card_preview() -> void:
 	ui.add_child(hand_card_preview)
 	# Hug the compact content: no wider than the card below it unless the
 	# text itself needs more (the container grows to fit).
-	hand_card_preview.custom_minimum_size = Vector2(150, 0)
+	hand_card_preview.custom_minimum_size = Vector2(CardUI.CARD_W, 0)
 	var preview_style := StyleBoxFlat.new()
 	preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.98)
 	preview_style.border_width_left = 2
@@ -5582,7 +5582,7 @@ func show_full_card_picker(prompt: String, candidates: Array, pick_count: int, o
 			on_cancel.call())
 	btns.add_child(cancel)
 
-const Card_UI_W := 150.0  # CardUI.CARD_W — the picker lays faces out at full size
+const Card_UI_W := CardUI.CARD_W  # the picker lays faces out at full size
 const Card_UI_H := 210.0  # CardUI.CARD_H
 
 var _ds_prompt_active: bool = false  # Defensive Sacrifice: one prompt at a time
@@ -6183,6 +6183,7 @@ func _update_enemy_melee_state(enemy: Enemy, enemy_moved: bool) -> void:
 		progression_triggers._trigger_skill_tree_cory_on_enemy_leave_melee(enemy)
 
 func _on_enemy_damaged(damage: int, enemy: Enemy) -> void:
+	_lemon_drop_on_hit(damage, enemy)
 	progression_triggers._trigger_skill_tree_cory_on_enemy_damaged(enemy, damage)
 	# Reaper's Taking (Reaper Scythe): an enemy dropping below a quarter within
 	# 5 squares pulls the reaper to them — edge-detected on the crossing hit.
@@ -7130,7 +7131,7 @@ func _on_hand_updated() -> void:
 		if i < deck_manager.hand.size():
 			new_card_set[deck_manager.hand[i].get_instance_id()] = true
 
-	var card_width: float = 150.0
+	var card_width: float = CardUI.CARD_W
 	var card_height: float = 210.0
 	var container_width: float = hand_container.size.x
 	if container_width <= 0:
@@ -7453,6 +7454,7 @@ func _handle_on_discard_effect(card: Card) -> void:
 				add_battle_log("%s discarded! Lost %d cards!" % [card.card_name, cards_to_discard], Color(1.0, 0.5, 0.3))
 
 func _on_card_drawn_sphere_passive(card: Card) -> void:
+	_gems_on_draw(card)
 	if card.card_id == "volatile_mixture" and tempo_manager:
 		card.set_meta("vm_in_hand_since", tempo_manager.get_global_tempo())
 	progression_triggers._trigger_sphere_passives("on_draw", {"card": card})
@@ -7750,6 +7752,59 @@ func _recalculate_enchantment_bonuses() -> void:
 		stats.enchantment_mana_regen_bonus = mana_regen_bonus
 		stats.enchantment_movement_bonus = movement_bonus
 		print("[MAIN] Enchantment bonuses updated — DMG: +%d, BLK: +%d, MOVE: +%d, MANA REGEN: +%.1f" % [damage_bonus, block_bonus, movement_bonus, mana_regen_bonus])
+
+## The Enchantment gems that answer a draw while they sit in the hand
+## (designer, 2026-11-15). Every copy answers.
+##   Life from Resource: heal the drawn card's tempo cost.
+##   Fumbleitis: discard a random card from the hand — any card, the one
+##   just drawn and the Fumbleitis itself included (designer, 2026-11-15).
+##   A Fumbleitis does not answer its own draw. Its own discards never set it
+##   off again (a passive that draws on a discard would otherwise chain it
+##   through the deck).
+var _fumbling := false
+
+func _count_in_hand(cid: String, except: Card = null) -> int:
+	var n := 0
+	for c in deck_manager.hand:
+		if c != except and c.card_id == cid:
+			n += 1
+	return n
+
+func _gems_on_draw(card: Card) -> void:
+	if deck_manager == null or player == null or card == null:
+		return
+	var stats := player.get_stats()
+	var lfr := _count_in_hand("life_from_resource", card)
+	if lfr > 0 and stats and card.tempo_cost > 0:
+		var amount := card.tempo_cost * lfr
+		stats.heal(amount)
+		add_battle_log("Life from Resource: +%d health (%s)" % [amount, card.card_name], Color(0.4, 1.0, 0.5))
+	if _fumbling:
+		return
+	var fumbles := _count_in_hand("fumbleitis", card)
+	if fumbles <= 0:
+		return
+	_fumbling = true
+	for _i in range(fumbles):
+		if deck_manager.hand.is_empty():
+			break
+		var lost: Card = deck_manager.hand[randi() % deck_manager.hand.size()]
+		if deck_manager.discard_card_from_hand(lost):
+			add_battle_log("Fumbleitis: dropped %s" % lost.card_name, Color(0.9, 0.7, 0.3))
+	_fumbling = false
+
+## Lemon Drop (designer, 2026-11-15): while it is in the hand, an offensive
+## card's hit (attacks and offensive spells alike) or the auto attack that
+## gets past the target's armor to its health applies 1 Poison. Each copy
+## adds 1. (The enemy's damaged signal carries the health damage, after armor.)
+func _lemon_drop_on_hit(damage: int, enemy: Enemy) -> void:
+	if damage <= 0 or not PlayerStats.hit_source_offensive or not PlayerStats.hit_source_direct:
+		return
+	if enemy == null or not is_instance_valid(enemy) or enemy.is_dead or deck_manager == null:
+		return
+	var drops := _count_in_hand("lemon_drop")
+	if drops > 0:
+		enemy.apply_debuff("poison", drops)
 
 func _apply_in_hand_debuffs() -> void:
 	var debuff_mgr = player.get_buff_manager().debuff_manager if player.get_buff_manager() else null

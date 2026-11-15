@@ -9,6 +9,9 @@ extends SceneTree
 ## its stone); a Defense card the Defensive frame; a Utility card the Utility
 ## frame (the logo where its art meets its rules box); an Attack the Attack
 ## frame; an Enchantment the Enchantment frame.
+## The face as laid out (designer, 2026-11-15): each frame drawn from its bare
+## cut in bands, the drop and hourglass drawn over it, the name centred, and
+## no box behind the rules text (the corner picture fades instead).
 ## Run: godot --headless --path . --script tests/test_card_frames.gd
 
 var failures := 0
@@ -37,33 +40,35 @@ func _run() -> void:
 	var art: TextureRect = inst.get_node_or_null("Panel/FrameArt")
 	_check(art != null and art.texture != null and art.texture.resource_path.ends_with("frame_instant.png"),
 		"an Instant wears the painted Instant frame")
-	_check(art != null and art.get_index() == 0, "the frame is drawn behind the face")
+	var bands: Control = inst.get_node_or_null("Panel/FrameBands")
+	_check(bands != null and bands.get_index() == 0 and bands.get_child_count() > 1,
+		"the frame is drawn behind the face, in bands from its bare cut")
 	_check(inst.get_theme_stylebox("panel") is StyleBoxEmpty, "no drawn border round it")
 	_check(inst.title_bar.get_theme_stylebox("panel") is StyleBoxEmpty, "its title bar is bare, the painting shows")
 	_check(inst.desc_panel.get_theme_stylebox("panel") is StyleBoxEmpty, "its rules box is bare")
-	# A translucent wash sits behind the rules text only (designer,
-	# 2026-11-08): the picture fades where the text is, the rest of the box
-	# and the frame's foot keep their colour.
+	# No box behind the rules text (designer, 2026-11-15): the corner picture
+	# fades where a long text runs over it; a short one leaves it be.
 	await process_frame
 	await process_frame
 	var wash_node: Panel = inst.get_node_or_null("Panel/TextWash")
-	var wash_sb = wash_node.get_theme_stylebox("panel") if wash_node else null
-	_check(wash_node != null and wash_node.visible and wash_sb is StyleBoxFlat and wash_sb.bg_color.a > 0.0 and wash_sb.bg_color.a < 1.0,
-		"a translucent wash sits behind the text")
-	if wash_node:
-		var host: Control = inst.get_node("Panel")
-		var xf: Transform2D = host.get_global_transform().affine_inverse() * inst.desc_label.get_global_transform()
-		var text_bottom: float = xf.origin.y + inst.desc_label.get_content_height()
-		var box_bottom: float = (host.get_global_transform().affine_inverse() * inst.desc_panel.get_global_transform()).origin.y + inst.desc_panel.size.y
-		_check(wash_node.position.y + wash_node.size.y <= text_bottom + 4.0 and wash_node.position.y + wash_node.size.y < box_bottom,
-			"it ends with the text, short of the box's foot (%.0f vs box %.0f)" % [wash_node.position.y + wash_node.size.y, box_bottom])
-	var icons_hidden := true
+	_check(wash_node == null or not wash_node.visible, "no box behind the text")
+	var fade_node: Control = inst.get_node_or_null("Panel/TextFade")
+	_check(fade_node == null or not fade_node.visible, "a short text leaves the corner picture at full strength")
+	var long_inst := _face("composed_reaction")
+	await process_frame
+	await process_frame
+	var lf: Control = long_inst.get_node_or_null("Panel/TextFade")
+	_check(lf != null and lf.visible, "a text over the corner picture fades it")
+	long_inst.queue_free()
+	var icons_shown := true
 	for c in inst._mana_badge.get_children() + inst._tempo_badge.get_children():
-		if c is TextureRect and c.visible:
-			icons_hidden = false
-	_check(icons_hidden, "the costs are written on the painted drop and hourglass")
-	_check(absf(inst._mana_badge.position.x + inst._mana_badge.size.x * 0.5 - CardUI.FRAMES["instant"]["mana_at"].x) < 0.5,
-		"the mana sits on the drop")
+		if c is TextureRect and not c.visible:
+			icons_shown = false
+	_check(icons_shown, "the drop and hourglass are drawn over the bare frame")
+	var drop: Rect2 = CardUI.FRAMES["instant"]["bare"]["drop"]
+	_check((inst._mana_badge.position + inst._mana_badge.size * 0.5).distance_to(inst._mp(drop.get_center())) < 0.5,
+		"the drop sits where the painting had it")
+	_check(inst._mana_badge.size.x < drop.size.x, "smaller than the painted one")
 	_check(inst.get_node_or_null("Panel/FrameLogo") != null, "the logo sits on the frame's ring spot")
 	_check(inst.desc_label.get_theme_color("default_color").v < 0.3, "the rules text is ink on the parchment")
 	inst.set_selected(true)
@@ -108,7 +113,7 @@ func _run() -> void:
 	await process_frame
 	var aa: TextureRect = atk.get_node_or_null("Panel/FrameArt")
 	_check(aa != null and aa.texture.resource_path.ends_with("frame_attack.png"), "an Attack wears the Attack frame")
-	_check(atk.title_bar.get_theme_stylebox("panel").content_margin_left >= 37.0, "its name starts right of the axe head")
+	_check(atk.name_label.horizontal_alignment == HORIZONTAL_ALIGNMENT_CENTER, "its name is centred in the bar (it may run onto the axe)")
 	atk.queue_free()
 
 	# A spell is not an attack: Fireball (an offensive spell, stored as an
@@ -131,8 +136,8 @@ func _run() -> void:
 	_check(pa != null and pa.texture != null and pa.texture.resource_path.ends_with("frame_offensive.png"),
 		"an attack-and-spell card wears the Offensive frame")
 	_check(pig.type_label.text == "Offensive", "its type line says Offensive (%s)" % pig.type_label.text)
-	_check(absf(pig._mana_badge.position.x + pig._mana_badge.size.x * 0.5 - CardUI.FRAMES["offensive"]["mana_at"].x) < 0.5,
-		"its mana sits on the frame's drop")
+	_check((pig._mana_badge.position + pig._mana_badge.size * 0.5).distance_to(pig._mp(CardUI.FRAMES["offensive"]["bare"]["drop"].get_center())) < 0.5,
+		"its drop sits where the painting had it")
 	pig.queue_free()
 	var plain := Card.new()
 	plain.card_id = "test_plain_offensive"
@@ -170,7 +175,7 @@ func _run() -> void:
 		_check(ea != null and ea.texture.resource_path.ends_with("frame_enchantment.png"), "an Enchantment's face shows the Enchantment frame")
 		_check(e.desc_label.get_theme_color("default_color").v > 0.8, "its rules text is white on the stone")
 		var el: Control = e.get_node_or_null("Panel/FrameLogo")
-		_check(el != null and absf(el.position.y + el.size.y * 0.5 - CardUI.FRAMES["enchantment"]["logo_at"].y) <= 1.0, "its logo sits in the type bar's middle")
+		_check(el != null and absf(el.position.y + el.size.y * 0.5 - e._my(CardUI.FRAMES["enchantment"]["logo_at"].y)) <= 1.0, "its logo sits in the type bar's middle")
 		var tf: Font = e.type_label.get_theme_font("font")
 		var tw: float = tf.get_string_size(e.type_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, e.type_label.get_theme_font_size("font_size")).x
 		_check(e.type_label.text == "Enchantment" and 16.0 + tw <= CardUI.FRAMES["enchantment"]["logo_at"].x - CardUI.FRAMED_LOGO_RING,

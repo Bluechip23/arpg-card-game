@@ -827,21 +827,30 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Card text: Instant: when you are attacked (melee, ranged or spell), gain 5 armor and deal 5 damage to an enemy in melee range (nothing if none is there).
   - Code: card_id kept as 'composed_reaction' for saves; renamed Whirling Weapon. REACTION with reaction_trigger='on_damage_taken', linger=true. main._on_player_damage_taken calls deck_manager.trigger_reactions('on_damage_taken') (card leaves hand to discard), executes it (_execute_composed_reaction: add_armor(block=5)), then main deals card.damage=5 flat damage to the nearest enemy within radius 1.5 of the player (melee reach), nothing if none. Created by Composed Response overflow (main._on_overcharge_triggered).
 
-### Enchantment (4)
+### Enchantment (7)
 
-- **Enchantment: Attack** (`enchantment_attack`) — Common · 0 mana, 0 tempo · range — · targets — · slots: Gem · sheet: Enchantment
-  - Card text: Cards deal +3 damage while this is in your hand. Discards after 2 cycles.
+- **Brawn Gem** (`enchantment_attack`, was Enchantment: Attack) — Common · 0 mana, 0 tempo · range — · targets — · slots: Gem · sheet: Enchantment
+  - Card text: Cards deal +3 damage while this is in your hand. Discards after 10 tempo.
   - Code: Unplayable ENCHANTMENT with in_hand_buff 'damage_3'. main._recalculate_enchantment_bonuses (main.gd:7445) sets stats.enchantment_damage_bonus += 3 while the card is in hand; player_stats.gd:1536/1554 add that to every get_effective_physical_damage / get_effective_spell_damage result. _process_enchantment_cycles (main.gd:7480) discards it after 2 cycles in hand.
   - **Mismatch:** Minor: the +3 applies to everything that goes through the effective-damage pipeline (basic attacks, INT-scaled ticks, etc.), not only to 'cards'.
-- **Enchantment: Defense** (`enchantment_defense`) — Common · 0 mana, 0 tempo · range — · targets — · slots: Gem · sheet: Enchantment
-  - Card text: Gain +3 block from cards and effects while this is in your hand. Discards after 2 cycles.
+- **Stone Patch** (`enchantment_defense`, was Enchantment: Defense) — Common · 0 mana, 0 tempo · range — · targets — · slots: Gem · sheet: Enchantment
+  - Card text: Gain +3 block from cards and effects while this is in your hand. Discards after 10 tempo.
   - Code: ENCHANTMENT, unplayable (play_card rejects it). in_hand_buff='block_3': main's hand scan (main.gd:7445) sets stats.enchantment_block_bonus=3 while it is in hand, and PlayerStats.add_armor adds enchantment_block_bonus to every armor grant. main.gd:7483 counts cycles_in_hand and discards it after 2 cycles (counter resets on draw). No execute branch needed.
-- **Enchantment: Mana Regen** (`enchantment_mana_regen`) — Common · 0 mana, 0 tempo · range — · targets — · slots: Gem · sheet: Enchantment
+- **Energy Gem** (`enchantment_mana_regen`, was Enchantment: Mana Regen) — Common · 0 mana, 0 tempo · range — · targets — · slots: Gem · sheet: Enchantment
   - Card text: Gain +1 mana regen while this is in your hand. Discards after 2 cycles.
   - Code: No execute branch (never played). in_hand_buff 'mana_regen_1': main sets stats.enchantment_mana_regen_bonus += 10.0 (1 mana as the card counts it) while the card is in hand. main._process_enchantment_cycles increments cycles_in_hand each cycle and moves the card to the discard pile at >= 2 cycles.
-- **Enchantment: Movement** (`enchantment_movement`) — Common · 0 mana, 0 tempo · range — · targets — · slots: Gem · sheet: Enchantment
-  - Card text: While this is in your hand, each Flash refresh gives 5 more tiles of flash movement. Discards after 2 cycles.
-  - Code: Unplayable enchantment (DeckManager.play_card rejects ENCHANTMENT). in_hand_buff='movement_1': main._apply_in_hand_buffs sets stats.enchantment_movement_bonus = 1 per copy; PlayerStats.get_max_flash_points adds enchantment_movement_bonus * 5 * FLASH_COST_MOVE, i.e. 5 free moves of flash per refresh. main._process_enchantment_cycles discards it after cycles_in_hand >= 2.
+- **Feather Foot** (`enchantment_movement`, was Enchantment: Movement) — Legendary · 0 mana, 0 tempo · range — · targets — · slots: Gem · sheet: Enchantment
+  - Card text: Gain +1 movement per Tempo while this is in your hand. Discards after 10 tempo.
+  - Code: Unplayable enchantment (DeckManager.play_card rejects ENCHANTMENT). in_hand_buff='movement_1': main._apply_in_hand_buffs sets stats.enchantment_movement_bonus = 1 per copy; PlayerStats.get_max_flash_points adds enchantment_movement_bonus * 5 * FLASH_COST_MOVE, i.e. 5 free moves of flash per refresh. main._process_enchantment_cycles discards it after cycles_in_hand >= 2. "+1 movement per Tempo" is this old wording for the same bonus: 5 free moves of flash per 5-tempo refresh.
+- **Life from Resource** (`life_from_resource`) — Mythic · 0 mana, 0 tempo · range — · targets — · slots: Gem · sheet: Enchantment
+  - Card text: When you draw a card, heal its tempo cost. This card will discard after 10 tempo.
+  - Code: Unplayable ENCHANTMENT. main._gems_on_draw (on DeckManager.card_drawn: every draw, a conjured card put in as drawn included) heals the drawn card's printed tempo_cost per copy in hand. Faded by _process_enchantment_cycles after 2 cycles (10 tempo).
+- **Lemon Drop** (`lemon_drop`) — Common · 0 mana, 0 tempo · range — · targets — · slots: Gem · sheet: Enchantment
+  - Card text: Offensive cards that aren't blocked by armor apply 1 poison. This card will discard after 10 tempo.
+  - Code: Unplayable ENCHANTMENT. main._lemon_drop_on_hit (on Enemy.damaged, which carries the health damage after armor): while PlayerStats.hit_source_offensive and hit_source_direct are set — an offensive card's hits (attacks and offensive spells, designer 2026-11-15) or the auto attack — a hit that reaches health applies 1 Poison per copy in hand. Faded after 2 cycles (10 tempo).
+- **Fumbleitis** (`fumbleitis`) — Rare · 0 mana, 0 tempo · range — · targets — · slots: Gem · sheet: Enchantment
+  - Card text: When you draw a card, discard a different one from your hand. This card will discard after 10 tempo.
+  - Code: Unplayable ENCHANTMENT. main._gems_on_draw: per copy in hand, a random card from the whole hand is discarded — the drawn card and the Fumbleitis itself included (designer, 2026-11-15; DeckManager.discard_card_from_hand: a non-play discard). A freshly drawn Fumbleitis does not answer its own draw; its own discards never set it off again (_fumbling). Faded after 2 cycles (10 tempo).
 
 ### Unplayable (3)
 

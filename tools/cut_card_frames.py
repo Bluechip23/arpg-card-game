@@ -21,6 +21,9 @@ at CARD_SCALE texels a card pixel (mipmapped, shrunk smoothly in game) —
 and, from the first board, dot_gold.png / dot_dark.png, the tempo dots.
 CardUI.FRAMES says where on the card each frame sits (its card rect).
 Run: python3 tools/cut_card_frames.py
+     python3 tools/cut_card_frames.py --bare [type ...]   (frame_<type>_bare.png:
+     no drop or hourglass painted on; the card face draws them, any size;
+     every type when none is named)
 """
 import os
 
@@ -36,6 +39,7 @@ CARD_SCALE = 2        # texels a card pixel in the saved frame
 
 FRAMES = {
     "instant": {
+        "bare_fill": {"drop": "below"},   # the feathers carry up
         "src": "assets/sprites/paintings/card_instant_board.webp",
         # The card's own rectangle on the board (x0, y0, x1, y1): the frame
         # body's outer edge (measured: where the black ground meets the plain
@@ -171,6 +175,9 @@ FRAMES = {
         "hourglass": {"at": (717, 82), "scale": 1.12},
         "numbers": [(96, 192, 207, 270), (776, 168, 836, 254)],
         "squeeze": (420, 860, 197),
+        # Bare (no badges): under the drop the axe handle carries straight
+        # up from below.
+        "bare_fill": {"drop": "below"},
     },
     # The Spell cards (2026-10-30): blackened stone veined with molten red, a
     # fire comet curling round the top-left corner, a book of runes at the
@@ -179,6 +186,7 @@ FRAMES = {
     # hourglass are set on it, and the game puts its logo in the type bar's
     # middle (designer). The same shape as the Attack board, squeezed alike.
     "spell": {
+        "bare_fill": {"drop": "below"},   # the comet's tail carries up
         "src": "assets/sprites/paintings/card_spell_board.webp",
         "card": (76, 88, 910, 1500),
         "dots": [(431, 197), (507, 197), (583, 197)],
@@ -210,6 +218,7 @@ FRAMES = {
     # pendants least, the thorn hooks more, the plain stretch above the
     # type bar most — 315 rows in all. Rules text white.
     "enchantment": {
+        "bare_fill": {"grow": 10},
         "src": "assets/sprites/paintings/card_enchantment_board.webp",
         "card": (22, 40, 910, 1598),
         "dots": [(405, 183), (480, 183), (552, 183)],
@@ -241,6 +250,7 @@ FRAMES = {
     # No logo of its own: the game sets it in the type bar's middle, as on
     # the Spell board. The same shape as the Attack board, squeezed alike.
     "offensive": {
+        "bare_fill": {"grow": 12},   # its own hourglass is broader than the standard
         "src": "assets/sprites/paintings/card_offensive_board.webp",
         "card": (24, 72, 915, 1535),
         "dots": [(410, 183), (490, 183), (570, 183)],
@@ -300,6 +310,20 @@ def box_mask(shape, box):
 BADGE_SRC = "assets/sprites/paintings/card_instant_board.webp"
 
 
+def badge_crop(kind, spec):
+    """The standard badge as set on a board: its crop scaled by spec, its
+    matte, and the board box it lands in."""
+    from cut_card_badges import DROP_BOX, HOURGLASS_BOX, drop_mask, hourglass_mask
+    board = np.asarray(Image.open(BADGE_SRC).convert("RGB"))
+    x0, y0, x1, y1 = HOURGLASS_BOX if kind == "hourglass" else DROP_BOX
+    crop = board[y0:y1, x0:x1].copy()
+    mask = (hourglass_mask(crop) if kind == "hourglass" else drop_mask(crop)).astype(np.float32)
+    k = spec["scale"]
+    size = (round(crop.shape[1] * k), round(crop.shape[0] * k))
+    mask = cv2.resize(mask, size, interpolation=cv2.INTER_LINEAR)
+    return mask, spec["at"], size
+
+
 def paste_badge(rgb, kind, spec):
     from cut_card_badges import DROP_BOX, HOURGLASS_BOX, drop_mask, hourglass_mask
     board = np.asarray(Image.open(BADGE_SRC).convert("RGB"))
@@ -317,7 +341,108 @@ def paste_badge(rgb, kind, spec):
     return out.clip(0, 255).astype(np.uint8)
 
 
-def blank(cfg):
+# The boards whose drop or hourglass is their own painting, not the standard
+# one set over it: where the standard badge lies over it (found by matching
+# it against the board, 2026-11-15), for the bare cut.
+OWN_BADGES = {
+    "instant": {"drop": {"at": (40, 20), "scale": 1.0}, "hourglass": {"at": (835, 75), "scale": 1.0}},
+    "maintain": {"drop": {"at": (40, 2), "scale": 1.02}, "hourglass": {"at": (832, 45), "scale": 1.06}},
+    "defensive": {"drop": {"at": (54, 6), "scale": 1.04}},
+    "enchantment": {"drop": {"at": (43, 10), "scale": 1.18}, "hourglass": {"at": (716, 70), "scale": 1.2}},
+    "offensive": {"hourglass": {"at": (718, 76), "scale": 1.18}},
+}
+
+
+def badge_spec(cfg, kind):
+    if kind in cfg:
+        return cfg[kind]
+    for name, c in FRAMES.items():
+        if c is cfg:
+            return OWN_BADGES[name][kind]
+    raise KeyError(kind)
+
+
+def fill_spec(cfg):
+    """How the bare cut fills the badges' spot: under the drop the bars
+    carry in from the right and the left border up from below ("below": all
+    of it up from below, where an ornament runs up the side: the axe handle,
+    the comet's tail, the feathers); under the hourglass the bars carry in
+    from the left and the right border up from below. grow: texels taken
+    round each badge (more where the board's own badge is bigger)."""
+    x0, _, x1, _ = cfg["card"]
+    spec = {"drop": "right", "hourglass": "left", "grow": 6,
+            "border_x": round(x1 - 6 * (x1 - x0) / CARD_W),
+            "border_lx": round(x0 + 6 * (x1 - x0) / CARD_W)}
+    spec.update(cfg.get("bare_fill", {}))
+    return spec
+
+
+def badge_mask(cfg, shape, grow=6):
+    """Where the standard drop and hourglass sit on the board (the board's
+    own badges lie under them), grown a few texels to take their rims."""
+    m = np.zeros(shape, bool)
+    for kind in ("drop", "hourglass"):
+        mk, (ax, ay), (w, h) = badge_crop(kind, badge_spec(cfg, kind))
+        m[ay:ay + h, ax:ax + w] |= mk > 0.3
+    return nd.binary_dilation(m, iterations=grow)
+
+
+def extend_fill(arr, mask, direction):
+    """Fill the masked runs by carrying the pixels just outside them straight
+    across: from the left (or right) along each row, or up from below along each column
+    (the frame's bars and borders run straight, so they carry through)."""
+    out = arr.copy()
+    if direction == "below":
+        out = np.ascontiguousarray(np.flip(np.swapaxes(out, 0, 1), axis=1))
+        mask = np.flip(mask.T, axis=1)
+    elif direction == "right":
+        out = np.ascontiguousarray(np.flip(out, axis=1))
+        mask = np.flip(mask, axis=1)
+    h, w = mask.shape
+    for y in range(h):
+        xs = np.nonzero(mask[y])[0]
+        if xs.size == 0:
+            continue
+        runs = np.split(xs, np.nonzero(np.diff(xs) > 1)[0] + 1)
+        for run in runs:
+            x0, x1 = run[0], run[-1]
+            if x0 == 0:
+                continue
+            out[y, x0:x1 + 1] = out[y, max(0, x0 - 2):x0].mean(axis=0)
+    if direction == "below":
+        out = np.swapaxes(np.flip(out, axis=1), 0, 1)
+    elif direction == "right":
+        out = np.flip(out, axis=1)
+    return np.ascontiguousarray(out)
+
+
+def bare_fill(rgba, cfg):
+    """frame_<type>_bare: the drop's and hourglass's spot filled per
+    cfg["bare_fill"] (see extend_fill), colour and alpha alike."""
+    spec = fill_spec(cfg)
+    shape = rgba.shape[:2]
+    out = rgba
+    for kind in ("drop", "hourglass"):
+        mk, (ax, ay), (w, h) = badge_crop(kind, badge_spec(cfg, kind))
+        m = np.zeros(shape, bool)
+        m[ay:ay + h, ax:ax + w] = mk > 0.3
+        m = nd.binary_dilation(m, iterations=spec["grow"])
+        if spec[kind] == "left":
+            border = m.copy()
+            border[:, :spec["border_x"]] = False
+            out = extend_fill(out, m & ~border, "left")
+            out = extend_fill(out, border, "below")
+        elif spec[kind] == "right":
+            border = m.copy()
+            border[:, spec["border_lx"]:] = False
+            out = extend_fill(out, m & ~border, "right")
+            out = extend_fill(out, border, "below")
+        else:
+            out = extend_fill(out, m, spec[kind])
+    return out
+
+
+def blank(cfg, bare=False):
     rgb = np.asarray(Image.open(cfg["src"]).convert("RGB")).copy()
     shape = rgb.shape[:2]
     yy, xx = np.mgrid[0:shape[0], 0:shape[1]]
@@ -378,9 +503,10 @@ def blank(cfg):
     tx = nd.binary_dilation(tx, iterations=8 if cfg.get("text_light") else 4) & box_mask(shape, cfg["text"])
     rgb = cv2.inpaint(rgb, tx.astype(np.uint8) * 255, 7, cv2.INPAINT_TELEA)
 
-    for kind in ("drop", "hourglass"):
-        if kind in cfg:
-            rgb = paste_badge(rgb, kind, cfg[kind])
+    if not bare:
+        for kind in ("drop", "hourglass"):
+            if kind in cfg:
+                rgb = paste_badge(rgb, kind, cfg[kind])
 
     # The cost numbers: white glyphs with a thick black rim.
     num = np.zeros(shape, bool)
@@ -447,7 +573,51 @@ def cut_dots(cfg, k):
         shrink(rgba, k).save(os.path.join(OUT_DIR, name + ".png"))
 
 
+def badge_rects(cfg, name, kx, ky):
+    """Each badge's art box in card pixels (as CardUI.FRAMES[...]["drop"] /
+    ["glass"]): where assets/ui/mana_drop.png / sand_timer.png's art lands
+    on this frame at full size."""
+    x0, y0 = cfg["card"][0], cfg["card"][1]
+    out = {}
+    for kind in ("drop", "hourglass"):
+        mk, (ax, ay), _ = badge_crop(kind, badge_spec(cfg, kind))
+        ys, xs = np.nonzero(mk > 0.5)
+        bx0, by0, bx1, by1 = ax + xs.min(), ay + ys.min(), ax + xs.max() + 1, ay + ys.max() + 1
+        out[kind] = ((bx0 - x0) * kx / CARD_SCALE, (by0 - y0) * ky / CARD_SCALE,
+                     (bx1 - bx0) * kx / CARD_SCALE, (by1 - by0) * ky / CARD_SCALE)
+    return out
+
+
+def bare(name):
+    """frame_<name>_bare.png: the frame with no drop or hourglass painted on
+    it (the card face draws its own, at any size). Only for a board both of
+    badge is found (the standard one set over it, or OWN_BADGES)."""
+    cfg = FRAMES[name]
+    src = np.asarray(Image.open(cfg["src"]).convert("RGB"))
+    x0, y0, x1, y1 = cfg["card"]
+    removed = sum((sy1 - sy0) - new_h for sy0, sy1, new_h in squeeze_bands(cfg))
+    kx = CARD_W * CARD_SCALE / float(x1 - x0)
+    ky = CARD_H * CARD_SCALE / float(y1 - removed - y0)
+    rgb = blank(cfg, bare=True)
+    alpha = ground_alpha(src, cfg["card"])
+    # The badges' spot: the frame round it carried through, its edge and
+    # the black ground off the card likewise.
+    rgba = np.dstack([rgb, (alpha * 255).astype(np.uint8)]).astype(np.float32)
+    rgba = bare_fill(rgba, cfg).clip(0, 255).astype(np.uint8)
+    for band in reversed(squeeze_bands(cfg)):
+        rgba = squeeze_rows(rgba, *band)
+    out = shrink2(rgba, kx, ky)
+    out.save(os.path.join(OUT_DIR, "frame_%s_bare.png" % name))
+    for kind, r in badge_rects(cfg, name, kx, ky).items():
+        print("frame_%s_bare: %s art at Rect2(%.1f, %.1f, %.1f, %.1f)" % ((name, kind) + r))
+
+
 def main():
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "--bare":
+        for name in (sys.argv[2:] or list(FRAMES)):
+            bare(name)
+        return
     os.makedirs(OUT_DIR, exist_ok=True)
     first = True
     for name, cfg in FRAMES.items():
