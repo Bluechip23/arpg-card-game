@@ -68,6 +68,16 @@ SINGLES = {
     "heavy_swing": ("card_art_heavy_swing.webp", (0, 90, 1536, 820)),
     # The punch thrown and the rake in the face; the tines are below.
     "oops": ("card_art_oops.jpg", (0, 0, 1000, 475)),
+    # 2026-11-15: the knight's helm, the jabbing finger and the struck face.
+    "poke": ("card_art_poke.webp", (0, 0, 1536, 730)),
+    # The axe raised, the roar and the blade in the shoulder.
+    "savage_strike": ("card_art_savage_strike.webp", (0, 0, 1536, 730)),
+    # The sword overhead, the roar and the spear through the chest.
+    "reckless_strike": ("card_art_reckless_strike.jpg", (0, 0, 1264, 601)),
+    # Both faces and the shield breaking.
+    "shield_slam": ("card_art_shield_slam.webp", (0, 0, 1536, 730)),
+    # The lunge, the rapier and the knight's thrown-back face.
+    "specific_strike": ("card_art_specific_strike.webp", (0, 0, 1536, 730)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

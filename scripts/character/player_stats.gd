@@ -53,10 +53,6 @@ static var hit_source_offensive: bool = false
 ## fire spots) land outside it. Cory's Eat reads this: "a card, a gauntlet
 ## skill, or auto attack... keeping things like DoT out of it".
 static var hit_source_direct: bool = false
-## The hit comes from an ATTACK (the Attack shape, is_attack(), or the auto
-## attack), not a spell: main sets it beside hit_source_offensive. Lemon
-## Drop reads it ("attacks that aren't blocked by armor apply 1 poison").
-static var hit_source_attack: bool = false
 ## The caster whose card is healing an ALLY right now (deck_manager sets it
 ## around an ally-targeted play): Blood Libation boosts the heals Jeremy
 ## performs on others with HIS stacks, not the receiver's.

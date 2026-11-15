@@ -2767,7 +2767,6 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 			_ring_note_big_hit(damage)
 			_belthronding_share(player.position, damage, player)
 			PlayerStats.hit_source_offensive = false
-			PlayerStats.hit_source_attack = false
 			PlayerStats.hit_source_direct = false
 		_after_hit(_hit_wait("basic_attack", target), land, _swing_time("basic_attack", target))
 	elif tempo_cost <= 0:
@@ -2793,14 +2792,12 @@ func _execute_basic_attack(target: Enemy, free: bool = false) -> void:
 			_ring_note_big_hit(damage)
 			_belthronding_share(player.position, damage, player)
 			PlayerStats.hit_source_offensive = false
-			PlayerStats.hit_source_attack = false
 			PlayerStats.hit_source_direct = false
 		_after_hit(_hit_wait("basic_attack", target), land, _swing_time("basic_attack", target))
 	else:
 		# Queue basic attack through the ticked tempo system (the resolve
 		# raises the hit-source flags again when the swing lands).
 		PlayerStats.hit_source_offensive = false
-		PlayerStats.hit_source_attack = false
 		PlayerStats.hit_source_direct = false
 		# Damage resolves on tick 1; remaining ticks are cooldown.
 		# The swing rides the ticker as an Attack card (no separate "Basic
@@ -2878,7 +2875,6 @@ func _basic_attack_whiff(stats, buff_mgr, counts_for_cycle: bool) -> void:
 	if stats and counts_for_cycle:
 		stats.register_attack()
 	PlayerStats.hit_source_offensive = false
-	PlayerStats.hit_source_attack = false
 	PlayerStats.hit_source_direct = false
 
 #endregion
@@ -3415,7 +3411,6 @@ func _fire_gauntlet_skill(gauntlet: ItemData, target) -> void:
 		_pending_gauntlet_skill = null
 		return
 	PlayerStats.hit_source_offensive = false  # a skill is not an offensive card
-	PlayerStats.hit_source_attack = false
 	PlayerStats.hit_source_direct = true      # ...but it is the player's own action (Eat)
 	var inventory := player.get_inventory()
 	var skill_used: bool = inventory != null and inventory.use_gauntlet_skill(gauntlet, target)
@@ -7761,9 +7756,11 @@ func _recalculate_enchantment_bonuses() -> void:
 ## The Enchantment gems that answer a draw while they sit in the hand
 ## (designer, 2026-11-15). Every copy answers.
 ##   Life from Resource: heal the drawn card's tempo cost.
-##   Fumbleitis: discard a different card from the hand — not the one drawn,
-##   and not a Fumbleitis. Its own discards never set it off again (a passive
-##   that draws on a discard would otherwise chain it through the deck).
+##   Fumbleitis: discard a random card from the hand — any card, the one
+##   just drawn and the Fumbleitis itself included (designer, 2026-11-15).
+##   A Fumbleitis does not answer its own draw. Its own discards never set it
+##   off again (a passive that draws on a discard would otherwise chain it
+##   through the deck).
 var _fumbling := false
 
 func _count_in_hand(cid: String, except: Card = null) -> int:
@@ -7782,30 +7779,26 @@ func _gems_on_draw(card: Card) -> void:
 		var amount := card.tempo_cost * lfr
 		stats.heal(amount)
 		add_battle_log("Life from Resource: +%d health (%s)" % [amount, card.card_name], Color(0.4, 1.0, 0.5))
-	if _fumbling or card.card_id == "fumbleitis":
+	if _fumbling:
 		return
 	var fumbles := _count_in_hand("fumbleitis", card)
 	if fumbles <= 0:
 		return
 	_fumbling = true
 	for _i in range(fumbles):
-		var pool: Array[Card] = []
-		for c in deck_manager.hand:
-			if c != card and c.card_id != "fumbleitis":
-				pool.append(c)
-		if pool.is_empty():
+		if deck_manager.hand.is_empty():
 			break
-		var lost: Card = pool[randi() % pool.size()]
+		var lost: Card = deck_manager.hand[randi() % deck_manager.hand.size()]
 		if deck_manager.discard_card_from_hand(lost):
 			add_battle_log("Fumbleitis: dropped %s" % lost.card_name, Color(0.9, 0.7, 0.3))
 	_fumbling = false
 
-## Lemon Drop (designer, 2026-11-15): while it is in the hand, an attack — an
-## attack card's hits or the auto attack, not a spell — that gets past the
-## target's armor to its health applies 1 Poison. Each copy adds 1. (The
-## enemy's damaged signal carries the health damage, after armor.)
+## Lemon Drop (designer, 2026-11-15): while it is in the hand, an offensive
+## card's hit (attacks and offensive spells alike) or the auto attack that
+## gets past the target's armor to its health applies 1 Poison. Each copy
+## adds 1. (The enemy's damaged signal carries the health damage, after armor.)
 func _lemon_drop_on_hit(damage: int, enemy: Enemy) -> void:
-	if damage <= 0 or not PlayerStats.hit_source_attack or not PlayerStats.hit_source_direct:
+	if damage <= 0 or not PlayerStats.hit_source_offensive or not PlayerStats.hit_source_direct:
 		return
 	if enemy == null or not is_instance_valid(enemy) or enemy.is_dead or deck_manager == null:
 		return
@@ -9455,7 +9448,6 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 				not data.get("basic_attack_proc", false))
 			return
 		PlayerStats.hit_source_offensive = true  # the auto attack is offensive
-		PlayerStats.hit_source_attack = true  # an attack (the auto attack / an attack card's hits)
 		PlayerStats.hit_source_direct = true     # ...and the player's own action
 		target.take_damage(damage, true)
 		progression_triggers.brad_life_steal(damage)
@@ -9487,7 +9479,6 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 		print("[MAIN] Basic Attack resolved: dealt %d damage to %s" % [damage, target_name])
 		_belthronding_share(player.position, damage, player)
 		PlayerStats.hit_source_offensive = false
-		PlayerStats.hit_source_attack = false
 		PlayerStats.hit_source_direct = false
 		return
 
@@ -9502,7 +9493,6 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	# Solemn Independence reads whether this hit comes from an offensive card;
 	# Eat reads that it is the player's own action (not a summon or a tick).
 	PlayerStats.hit_source_offensive = card.is_offensive()
-	PlayerStats.hit_source_attack = card.is_attack()
 	PlayerStats.hit_source_direct = true
 	# The play scope: the slotted item's riders (Megingjörð, Blue Robe, Thick
 	# Steel) and the armed passives cover the card's executor AND its world
@@ -9628,7 +9618,6 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	Card.close_play_scope(player.get_stats())
 	PlayerStats.harnessed_mult = 1.0
 	PlayerStats.hit_source_offensive = false
-	PlayerStats.hit_source_attack = false
 	PlayerStats.hit_source_direct = false
 	# Skill tree card-play triggers run AFTER the world effects: Seance's
 	# specter lands where Jeremy ends up (after a leap), and Lethal
@@ -15131,7 +15120,6 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 	var damage_reduction := debuff_mgr.get_damage_reduction_percent() if debuff_mgr else 0.0
 	var self_damage := debuff_mgr.get_self_damage_percent() if debuff_mgr else 0.0
 	PlayerStats.hit_source_offensive = card.is_offensive()
-	PlayerStats.hit_source_attack = card.is_attack()
 	PlayerStats.hit_source_direct = true
 	Card.play_scope_open = true
 	progression_triggers.arm_pre_attack_passives(card, target)
@@ -15167,7 +15155,6 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 	progression_triggers.clear_pre_attack_passives()
 	Card.close_play_scope(stats)
 	PlayerStats.hit_source_offensive = false
-	PlayerStats.hit_source_attack = false
 	PlayerStats.hit_source_direct = false
 	# A Manifest play is a card play: the per-character card-play passives
 	# (The Way of the Plate, Self Reliance, Budding...) see it too.

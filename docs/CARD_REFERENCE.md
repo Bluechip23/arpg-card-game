@@ -846,11 +846,11 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Card text: When you draw a card, heal its tempo cost. This card will discard after 10 tempo.
   - Code: Unplayable ENCHANTMENT. main._gems_on_draw (on DeckManager.card_drawn: every draw, a conjured card put in as drawn included) heals the drawn card's printed tempo_cost per copy in hand. Faded by _process_enchantment_cycles after 2 cycles (10 tempo).
 - **Lemon Drop** (`lemon_drop`) — Common · 0 mana, 0 tempo · range — · targets — · slots: Gem · sheet: Enchantment
-  - Card text: Attacks that aren't blocked by armor apply 1 poison. This card will discard after 10 tempo.
-  - Code: Unplayable ENCHANTMENT. main._lemon_drop_on_hit (on Enemy.damaged, which carries the health damage after armor): while PlayerStats.hit_source_attack is set — an attack card's hits (is_attack(), never a spell) or the auto attack — a hit that reaches health applies 1 Poison per copy in hand. Faded after 2 cycles (10 tempo).
+  - Card text: Offensive cards that aren't blocked by armor apply 1 poison. This card will discard after 10 tempo.
+  - Code: Unplayable ENCHANTMENT. main._lemon_drop_on_hit (on Enemy.damaged, which carries the health damage after armor): while PlayerStats.hit_source_offensive and hit_source_direct are set — an offensive card's hits (attacks and offensive spells, designer 2026-11-15) or the auto attack — a hit that reaches health applies 1 Poison per copy in hand. Faded after 2 cycles (10 tempo).
 - **Fumbleitis** (`fumbleitis`) — Rare · 0 mana, 0 tempo · range — · targets — · slots: Gem · sheet: Enchantment
   - Card text: When you draw a card, discard a different one from your hand. This card will discard after 10 tempo.
-  - Code: Unplayable ENCHANTMENT. main._gems_on_draw: per copy in hand, a random card other than the one drawn and other than a Fumbleitis is discarded (DeckManager.discard_card_from_hand: a non-play discard). Its own discards never set it off again (_fumbling), and drawing a Fumbleitis does not fire it. Faded after 2 cycles (10 tempo).
+  - Code: Unplayable ENCHANTMENT. main._gems_on_draw: per copy in hand, a random card from the whole hand is discarded — the drawn card and the Fumbleitis itself included (designer, 2026-11-15; DeckManager.discard_card_from_hand: a non-play discard). A freshly drawn Fumbleitis does not answer its own draw; its own discards never set it off again (_fumbling). Faded after 2 cycles (10 tempo).
 
 ### Unplayable (3)
 

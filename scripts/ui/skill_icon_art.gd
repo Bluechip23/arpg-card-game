@@ -111,6 +111,12 @@ const CARD_PAINTINGS := {
 	"exposed_artery": "exposed_artery",
 	"heavy_swing": "heavy_swing",
 	"oops": "oops",
+	"poke": "poke",
+	"savage_strike": "savage_strike",
+	"savage_strike_copy": "savage_strike",   # the copy it makes wears its art
+	"reckless_strike": "reckless_strike",
+	"shield_slam": "shield_slam",
+	"specific_strike": "specific_strike",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",

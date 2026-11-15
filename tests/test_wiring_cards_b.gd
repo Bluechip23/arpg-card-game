@@ -516,27 +516,30 @@ func _t_gems() -> void:
 	main._process_enchantment_cycles()
 	_check(_count(dm.hand, "life_from_resource") == 0, "Life from Resource fades after 10 tempo")
 
-	# Fumbleitis: a draw discards a different card (never the drawn one,
-	# never itself); drawing a Fumbleitis does not fire it.
-	_reset()
-	var fum := Card.create_by_id("fumbleitis")
-	var a := Card.create_by_id("block")
-	var b := Card.create_by_id("heal")
-	dm.hand.append_array([fum, a, b])
-	var d0: int = dm.discard_pile.size()
-	var c := Card.create_by_id("slash")
-	dm.draw_pile.append(c)
-	dm.draw_card()
-	_check(dm.hand.has(c) and dm.hand.has(fum), "the drawn card and the Fumbleitis stay")
-	_check(int(dm.hand.has(a)) + int(dm.hand.has(b)) == 1 and dm.discard_pile.size() == d0 + 1, "one other card is discarded")
-	var fum2 := Card.create_by_id("fumbleitis")
-	dm.draw_pile.append(fum2)
-	var before: int = dm.hand.size()
-	dm.draw_card()
-	_check(dm.hand.size() == before + 1, "drawing a Fumbleitis discards nothing")
+	# Fumbleitis: a draw discards one random card from the hand — any card,
+	# the drawn one and the Fumbleitis itself included.
+	var seen := {}
+	for _trial in range(60):
+		_reset()
+		var fum := Card.create_by_id("fumbleitis")
+		var a := Card.create_by_id("block")
+		dm.hand.append_array([fum, a])
+		var d0: int = dm.discard_pile.size()
+		var c := Card.create_by_id("slash")
+		dm.draw_pile.append(c)
+		dm.draw_card()
+		if dm.hand.size() != 2 or dm.discard_pile.size() != d0 + 1:
+			seen["wrong"] = true
+		for k in [["fumbleitis", fum], ["other", a], ["drawn", c]]:
+			if dm.discard_pile.has(k[1]):
+				seen[k[0]] = true
+	_check(not seen.has("wrong"), "each draw discards exactly one card")
+	_check(seen.has("fumbleitis") and seen.has("other") and seen.has("drawn"),
+		"it may discard itself, another card or the card just drawn (%s)" % str(seen.keys()))
 
-	# Lemon Drop: an attack that reaches health poisons; one the armor stops
-	# does not; a hit outside an attack does not.
+	# Lemon Drop: an offensive card that reaches health poisons — an attack or
+	# an offensive spell; one the armor stops does not; a hit outside a card
+	# does not.
 	_reset()
 	dm.hand.append(Card.create_by_id("lemon_drop"))
 	var armored := _spawn(Vector2i(1, 0))
@@ -550,7 +553,21 @@ func _t_gems() -> void:
 	_play(Card.create_by_id("slash"), bare)
 	_check(bare.poison_stacks == 1, "an attack that reaches health applies 1 poison (%d)" % bare.poison_stacks)
 	bare.take_damage(5, true)
-	_check(bare.poison_stacks == 1, "a hit outside an attack applies none")
+	_check(bare.poison_stacks == 1, "a hit outside a card applies none")
+	_reset()
+	dm.hand.append(Card.create_by_id("lemon_drop"))
+	var spelled := _spawn(Vector2i(2, 0))
+	var bolt := Card.create_by_id("fireball")
+	var lstaff := ItemData.new()   # Fireball plays only from an item
+	lstaff.item_name = "Test Staff"
+	lstaff.card_slots = 1
+	if not lstaff.slot_card(bolt):
+		bolt.slotted_in_item = lstaff
+	_check(bolt.is_offensive() and not bolt.is_attack(), "Fireball is an offensive spell")
+	main.mouse_override = Vector2(3, 3)
+	_play(bolt, main.player, _player_cell() + Vector2i(2, 0))   # a point card: aimed at the tile
+	_check(_lost(spelled) > 0, "the Fireball lands (%d)" % _lost(spelled))
+	_check(spelled.poison_stacks >= 1, "an offensive spell that reaches health applies poison too (%d)" % spelled.poison_stacks)
 
 func _count(cards: Array, cid: String) -> int:
 	var n := 0
