@@ -1471,6 +1471,7 @@ func arm_basic_attack_roll(target) -> void:
 	stats.st_pre_attack_is_offensive = true
 	stats.st_pre_attack_armed = true
 	PlayerStats.hit_source_offensive = true
+	PlayerStats.hit_source_attack = true  # an attack (the auto attack / an attack card's hits)
 	PlayerStats.hit_source_direct = true
 	stats.st_deadly_crit_active = stats.has_skill_tree_passive("deadly") and _deadly_isolated(target)
 	_serial_killer_ambush(stats, target)

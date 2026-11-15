@@ -364,6 +364,7 @@ static func _throw_knives(main, card: Card, knives: int, bonus: int) -> void:
 	var held_bonus: int = card.bonus_damage
 	card.bonus_damage = bonus
 	PlayerStats.hit_source_offensive = true
+	PlayerStats.hit_source_attack = true  # an attack (the auto attack / an attack card's hits)
 	PlayerStats.hit_source_direct = true
 	for _i in range(knives):
 		var pool: Array = []
@@ -385,6 +386,7 @@ static func _throw_knives(main, card: Card, knives: int, bonus: int) -> void:
 		hits += 1
 	card.bonus_damage = held_bonus
 	PlayerStats.hit_source_offensive = false
+	PlayerStats.hit_source_attack = false
 	PlayerStats.hit_source_direct = false
 	card.last_damage_dealt = total
 	if total > 0:

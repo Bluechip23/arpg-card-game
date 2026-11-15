@@ -48,6 +48,7 @@ func _run() -> void:
 	_t_empower()
 	_t_enchanted_quiver()
 	_t_enchantments()
+	_t_gems()
 	_t_endured_tolerance()
 	_t_energy_ball()
 	_t_energy_barrier()
@@ -442,7 +443,7 @@ func _t_enchantments() -> void:
 	var ea := Card.create_by_id("enchantment_attack")
 	dm.hand.append(ea)
 	main._recalculate_enchantment_bonuses()
-	_check(stats.enchantment_damage_bonus == 3, "Enchantment: Attack in hand -> +3 damage")
+	_check(stats.enchantment_damage_bonus == 3, "Brawn Gem in hand -> +3 damage")
 	var r := _play(Card.create_by_id("slash"), en)
 	_check(_lost(en) == base_dmg + 3, "a card deals +3 while it is in hand (%d vs %d)" % [_lost(en), base_dmg])
 	var res: Dictionary = dm.play_card(dm.hand.find(ea), null, main.player)
@@ -450,7 +451,7 @@ func _t_enchantments() -> void:
 	main._process_enchantment_cycles()
 	_check(dm.hand.has(ea), "still in hand after 1 cycle")
 	main._process_enchantment_cycles()
-	_check(not dm.hand.has(ea) and dm.discard_pile.has(ea), "Enchantment: Attack discards after 2 cycles")
+	_check(not dm.hand.has(ea) and dm.discard_pile.has(ea), "Brawn Gem discards after 2 cycles")
 	main._recalculate_enchantment_bonuses()
 	_check(stats.enchantment_damage_bonus == 0, "the bonus leaves with it")
 
@@ -481,11 +482,82 @@ func _t_enchantments() -> void:
 	var mv := Card.create_by_id("enchantment_movement")
 	dm.hand.append(mv)
 	main._recalculate_enchantment_bonuses()
-	_check(stats.get_max_flash_points() - flash0 == 5 * PlayerStats.FLASH_COST_MOVE, "Enchantment: Movement -> 5 more tiles of flash per refresh (%d points)" % (stats.get_max_flash_points() - flash0))
+	_check(stats.get_max_flash_points() - flash0 == 5 * PlayerStats.FLASH_COST_MOVE, "Feather Foot -> 5 more tiles of flash per refresh (%d points)" % (stats.get_max_flash_points() - flash0))
 	main._process_enchantment_cycles()
 	main._process_enchantment_cycles()
-	_check(dm.discard_pile.has(mv), "Enchantment: Movement discards after 2 cycles")
+	_check(dm.discard_pile.has(mv), "Feather Foot discards after 2 cycles")
 	main._recalculate_enchantment_bonuses()
+
+## The Enchantment gems (designer, 2026-11-15): the four renamed, and Life
+## from Resource, Lemon Drop and Fumbleitis.
+func _t_gems() -> void:
+	print("-- Enchantment gems --")
+	_reset()
+	var names := {"enchantment_attack": "Brawn Gem", "enchantment_defense": "Stone Patch",
+		"enchantment_mana_regen": "Energy Gem", "enchantment_movement": "Feather Foot"}
+	for cid in names:
+		_check(Card.create_by_id(cid).card_name == names[cid], "%s is %s" % [cid, names[cid]])
+	_check(Card.create_by_id("enchantment_movement").get_rarity() == Card.Rarity.LEGENDARY, "Feather Foot is Legendary")
+	for cid in ["life_from_resource", "lemon_drop", "fumbleitis"]:
+		var g := Card.create_by_id(cid)
+		_check(g != null and g.card_type == Card.CardType.ENCHANTMENT and Card.CARD_IDS.has(cid), "%s is an Enchantment in the catalogue" % cid)
+
+	# Life from Resource: a draw heals the drawn card's tempo cost.
+	_reset()
+	dm.hand.append(Card.create_by_id("life_from_resource"))
+	stats.current_health = 300
+	var drawn := Card.create_by_id("slash")
+	dm.draw_pile.append(drawn)
+	dm.draw_card()
+	# A heal like any other: healing bonuses still apply on top of the tempo.
+	_check(stats.current_health >= 300 + drawn.tempo_cost and stats.current_health <= 300 + drawn.tempo_cost * 2,
+		"Life from Resource heals the drawn card's tempo (%d -> %d, tempo %d)" % [300, stats.current_health, drawn.tempo_cost])
+	main._process_enchantment_cycles()
+	main._process_enchantment_cycles()
+	_check(_count(dm.hand, "life_from_resource") == 0, "Life from Resource fades after 10 tempo")
+
+	# Fumbleitis: a draw discards a different card (never the drawn one,
+	# never itself); drawing a Fumbleitis does not fire it.
+	_reset()
+	var fum := Card.create_by_id("fumbleitis")
+	var a := Card.create_by_id("block")
+	var b := Card.create_by_id("heal")
+	dm.hand.append_array([fum, a, b])
+	var d0: int = dm.discard_pile.size()
+	var c := Card.create_by_id("slash")
+	dm.draw_pile.append(c)
+	dm.draw_card()
+	_check(dm.hand.has(c) and dm.hand.has(fum), "the drawn card and the Fumbleitis stay")
+	_check(int(dm.hand.has(a)) + int(dm.hand.has(b)) == 1 and dm.discard_pile.size() == d0 + 1, "one other card is discarded")
+	var fum2 := Card.create_by_id("fumbleitis")
+	dm.draw_pile.append(fum2)
+	var before: int = dm.hand.size()
+	dm.draw_card()
+	_check(dm.hand.size() == before + 1, "drawing a Fumbleitis discards nothing")
+
+	# Lemon Drop: an attack that reaches health poisons; one the armor stops
+	# does not; a hit outside an attack does not.
+	_reset()
+	dm.hand.append(Card.create_by_id("lemon_drop"))
+	var armored := _spawn(Vector2i(1, 0))
+	armored.current_armor = 500
+	armored.max_armor = 500
+	_play(Card.create_by_id("slash"), armored)
+	_check(armored.poison_stacks == 0, "an attack the armor stops applies no poison")
+	_reset()
+	dm.hand.append(Card.create_by_id("lemon_drop"))
+	var bare := _spawn(Vector2i(1, 0))
+	_play(Card.create_by_id("slash"), bare)
+	_check(bare.poison_stacks == 1, "an attack that reaches health applies 1 poison (%d)" % bare.poison_stacks)
+	bare.take_damage(5, true)
+	_check(bare.poison_stacks == 1, "a hit outside an attack applies none")
+
+func _count(cards: Array, cid: String) -> int:
+	var n := 0
+	for card in cards:
+		if card.card_id == cid:
+			n += 1
+	return n
 
 func _t_endured_tolerance() -> void:
 	print("-- Endured Tolerance --")

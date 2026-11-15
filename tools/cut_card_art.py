@@ -77,7 +77,7 @@ SINGLES = {
 # (no cards with these ids yet; the art waits for them).
 FITTED = {
     "energy_gem": ("card_art_energy_gem.png", (0, 0, 230, 327)),
-    "fumbilities": ("card_art_fumbilities.png", (0, 0, 322, 355)),
+    "fumbleitis": ("card_art_fumbleitis.png", (0, 0, 322, 355)),
     "stone_patch": ("card_art_stone_patch.webp", (0, 100, 1448, 1000)),
     "life_from_resource": ("card_art_life_from_resource.webp", (0, 0, 1448, 960)),
     "lemon_drop": ("card_art_lemon_drop.webp", (0, 30, 1448, 1086)),

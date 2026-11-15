@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dhaixnm8bv8be"
-path="res://.godot/imported/fumbilities.png-8ba0294bb019d6f06099ff05a8a46549.ctex"
+uid="uid://b00gcnqo46j0b"
+path="res://.godot/imported/fumbleitis.png-ad6b62bbe40bb6848717c701e65ff35e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/textures/cards/art/fumbilities.png"
-dest_files=["res://.godot/imported/fumbilities.png-8ba0294bb019d6f06099ff05a8a46549.ctex"]
+source_file="res://assets/textures/cards/art/fumbleitis.png"
+dest_files=["res://.godot/imported/fumbleitis.png-ad6b62bbe40bb6848717c701e65ff35e.ctex"]
 
 [params]
 

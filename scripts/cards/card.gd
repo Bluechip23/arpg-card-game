@@ -117,6 +117,9 @@ const CARD_SLOT_LABELS := {
 	"enchantment_defense": [CardKeyword.GEM],
 	"enchantment_mana_regen": [CardKeyword.GEM],
 	"enchantment_movement": [CardKeyword.GEM],
+	"life_from_resource": [CardKeyword.GEM],
+	"lemon_drop": [CardKeyword.GEM],
+	"fumbleitis": [CardKeyword.GEM],
 	"energy_ball": [],
 	"energy_barrier": [],
 	"endured_tolerance": [],
@@ -320,7 +323,7 @@ const CARD_RARITIES := {
 	"down_but_not_out": Rarity.COMMON, "down_town": Rarity.COMMON, "draw": Rarity.COMMON,
 	"elixir": Rarity.COMMON, "empower": Rarity.COMMON, "enchantment_attack": Rarity.COMMON,
 	"enchantment_defense": Rarity.COMMON, "enchantment_mana_regen": Rarity.COMMON,
-	"enchantment_movement": Rarity.COMMON, "energy_ball": Rarity.COMMON,
+	"energy_ball": Rarity.COMMON,
 	"energy_barrier": Rarity.COMMON, "exacerbate_wounds": Rarity.COMMON,
 	"endured_tolerance": Rarity.COMMON,
 	"fortify_alliance": Rarity.COMMON, "friendship": Rarity.COMMON, "gain_mana": Rarity.COMMON,
@@ -356,6 +359,10 @@ const CARD_RARITIES := {
 	"tower_shield": Rarity.RARE, "vines": Rarity.RARE, "worst_that_could_happen": Rarity.RARE,
 	# --- Legendary (26) ---
 	"absorb_essence": Rarity.LEGENDARY, "bottomless_quiver": Rarity.LEGENDARY,
+	# Gems (designer, 2026-11-15): the Enchantment gems by their sheet
+	# rarity — Feather Foot (was Movement) is Legendary now.
+	"enchantment_movement": Rarity.LEGENDARY, "life_from_resource": Rarity.MYTHIC,
+	"lemon_drop": Rarity.COMMON, "fumbleitis": Rarity.RARE,
 	# Summons (designer, 2026-10-27).
 	"summon_skeleton": Rarity.COMMON, "summon_battle_turtle": Rarity.RARE,
 	"skeleton_army": Rarity.LEGENDARY, "turtle_power": Rarity.LEGENDARY,
@@ -4811,6 +4818,9 @@ const CARD_IDS: Array[String] = [
 	"enchantment_attack",
 	"enchantment_movement",
 	"enchantment_mana_regen",
+	"life_from_resource",
+	"lemon_drop",
+	"fumbleitis",
 	"healthy_habit",
 	"anticipation",
 	"prepare",
