@@ -10801,11 +10801,17 @@ func _generate_chest_contents(chest_index: int, starter: bool = false, legendary
 		contents["gold"] = gold * 4
 		return contents
 	if starter:
-		# Act-1 starter chest: a card AND a common item, guaranteed.
-		var commons = ItemData.get_items_of_rarity(ItemData.Rarity.COMMON)
+		# Act-1 starter chest: a card AND a common item, guaranteed. The item
+		# always carries an on-self effect, any one (designer, 2026-11-14), so
+		# the first gear teaches what a slotted card gains (Olorin's lesson
+		# when it is picked up: main.olorin.show_first_item_lesson).
+		var commons = ItemData.get_items_of_rarity(ItemData.Rarity.COMMON).filter(starter_item_ok)
+		if commons.is_empty():
+			commons = ItemData.get_items_of_rarity(ItemData.Rarity.COMMON)
 		if not commons.is_empty():
 			contents["item"] = commons[rng.randi() % commons.size()]
 		contents["card"] = _get_random_card(rng)
+		contents["starter"] = true
 	elif rng.randf() < 0.5:
 		contents["item"] = _get_random_item(rng)
 	elif rng.randf() < DropRates.PACK_CHANCE_OF_CARD_DROP:
@@ -10816,6 +10822,10 @@ func _generate_chest_contents(chest_index: int, starter: bool = false, legendary
 		contents["card"] = _get_random_card(rng)
 
 	return contents
+
+## A starter-chest item: one with bonus slots and an on-self effect.
+static func starter_item_ok(item: ItemData) -> bool:
+	return item != null and item.card_slots > 0 and not OnSelfRules.describe(item.get_on_self_bonus()).is_empty()
 
 # Act-1 mythic cap: set by main once this character's act-1 mythic has
 # dropped — act-1 chests then stop offering mythics entirely.

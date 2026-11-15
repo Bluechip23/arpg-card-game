@@ -161,6 +161,23 @@ const LESSONS := [
 			"\"Now go. The grass has been restless for days, and I would know why.\"",
 		]},
 	]},
+	# The starter chest's item (designer, 2026-11-14): what on-self means,
+	# plain slots, items that provide cards, and items' own standing effects.
+	# show_first_item_lesson puts the item's name and its own on-self ahead.
+	{"id": "first_item", "title": "Your First Gear — slots, on-self, item cards and item effects", "beats": [
+		{"title": "Your First Gear", "focus": "icons", "paragraphs": [
+			"\"Gear does its work in three ways. Learn them now and every item you find will read plainly.\"",
+			"\"First, CARD SLOTS. Open your character — the figure at the top right — and you will see squares carved into most gear. Drag a card onto one and it stays in your deck, but now it is bound to that item.\"",
+		]},
+		{"title": "On-Self", "paragraphs": [
+			"\"Second, ON-SELF. An item's on-self effect belongs to the cards slotted in it. Every time you play a bound card, the on-self rides along with it: more damage, armor, a Bleed, a longer reach — whatever the item promises. The same card unslotted gains nothing.\"",
+			"\"Some on-selfs ask for a kind of card — an attack, a utility — and pass the others by. The gold squares give the on-self; a cream square is a PLAIN slot, where a card joins your deck all the same but the item lends it nothing.\"",
+		]},
+		{"title": "What Items Give", "paragraphs": [
+			"\"Third, the item itself. Some items PROVIDE cards of their own: while you wear one, its cards join your deck, and when you take it off they leave with it.\"",
+			"\"And some carry an EFFECT that is always at work while worn, whatever you slot — armor that regrows, a blow when your hand overflows, a bonus to every spell. Read an item's text to the end; that is where such gifts are written.\"",
+		]},
+	]},
 	{"id": "first_level_up", "title": "Your First Level — the sphere grid and stats", "beats": [
 		{"title": "Your First Level", "paragraphs": [
 			"\"Feel that? You have grown. Every level heals you fully, fills your mana, and adds a little to your health.\"",
@@ -227,6 +244,28 @@ static func lesson_title(id: String, beat: int = 0) -> String:
 		if l["id"] == id:
 			return l["beats"][beat]["title"]
 	return ""
+
+## The starter chest's item is picked up: the first-gear lesson as a short
+## tour, its On-Self beat opened with the item's own on-self so the rule has
+## an example in hand.
+func show_first_item_lesson(item: ItemData) -> bool:
+	for i in range(LESSONS.size()):
+		if LESSONS[i]["id"] != "first_item":
+			continue
+		var focus := {}
+		if main and "hud_icon_bar" in main and main.hud_icon_bar:
+			focus["icons"] = [main.hud_icon_bar]
+		var steps: Array = lesson_steps(i, focus)
+		if item != null:
+			var bits: Array[String] = []
+			for r in OnSelfRules.describe(item.get_on_self_bonus()):
+				var kind: String = str(r["wants"])
+				bits.append(str(r["text"]) + ("" if kind == "any" else " (on %s)" % OnSelfRules.KIND_TEXT.get(kind, kind)))
+			steps[0]["paragraphs"].insert(0, "\"A %s — your first gear. Look past its stats.\"" % item.item_name)
+			if not bits.is_empty():
+				steps[1]["paragraphs"].insert(1, "\"Your %s's on-self reads: %s. Slot a card in it, and that is what the card gains each time you play it.\"" % [item.item_name, "; ".join(bits)])
+		return show_tour("first_item", steps)
+	return false
 
 func show_combat_intro() -> void:
 	show_tutorial("combat_intro", lesson_title("combat_intro"), lesson_paragraphs("combat_intro"))

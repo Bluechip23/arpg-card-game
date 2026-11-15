@@ -88,4 +88,4 @@ func _run() -> void:
 		for beat in lesson["beats"]:
 			expected += beat["paragraphs"].size()
 	_check(labels > expected, "every lesson's paragraphs are laid out (%d labels for %d paragraphs)" % [labels, expected])
-	_check(OlorinTutorial.LESSONS.size() == 7, "seven lessons are listed (the first level-up joined them, 2026-11-07)")
+	_check(OlorinTutorial.LESSONS.size() == 8, "eight lessons are listed (the first level-up joined them, 2026-11-07; the first gear, 2026-11-14)")
