@@ -1,6 +1,6 @@
 extends SceneTree
 ## Dev helper: the card face under a few CardUI.face_layout settings, one row
-## of cards per setting, saved as one picture (2x).
+## of cards per setting (null for the game's own), saved as one picture (2x).
 ## Run: xvfb-run -a godot --path . --script tests/_capture_face_layouts.gd -- /tmp/out.png '[["label", {layout}], ...]' id1,id2,id3
 var _frames := 0
 var _out := "/tmp/face_layouts.png"
@@ -40,7 +40,7 @@ func _build() -> void:
 		holder.scale = Vector2(2, 2)
 		holder.position = Vector2(0, y + 16)
 		get_root().add_child(holder)
-		CardUI.face_layout = v[1]
+		CardUI.face_layout = CardUI.FACE_LAYOUT if v[1] == null else v[1]   # null: the game's own
 		var x := 14.0
 		for id in IDS:
 			var card: Card = Card.create_by_id(str(id))
@@ -48,7 +48,7 @@ func _build() -> void:
 			holder.add_child(ui)
 			ui.setup(card, 0)
 			ui.position = Vector2(x, 14)
-			x += float(v[1].get("width", 150.0)) + 22.0
+			x += CardUI.CARD_W + 22.0
 		y += 490.0
 
 func _process(_delta: float) -> bool:

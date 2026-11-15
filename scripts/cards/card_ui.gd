@@ -31,7 +31,12 @@ var _base_rotation: float = 0.0  # Fan rotation angle
 var _hover_tween: Tween = null
 var _is_animating_out: bool = false  # True while play/discard animation runs
 
-const CARD_W: float = 150.0
+## The card's width. The painted frames were measured on a 150-wide card
+## (FRAME_W, every frame coordinate below); the face is laid out wider
+## (designer, 2026-11-15) and the frame stretches across, the drop and the
+## hourglass keeping their shape.
+const CARD_W: float = 160.0
+const FRAME_W: float = 150.0
 
 ## Installed by the battle scene: Callable(card) -> {damage/block/heal:int}
 ## with the holder's stat-adjusted values, used to print effective numbers on
@@ -45,6 +50,11 @@ const TWEEN_DURATION: float = 0.12
 # MtG-style frame colour per card type (border, title/type bars, art tint).
 var _type_color: Color = Color(0.45, 0.45, 0.55)
 
+## Each frame's "bare" cut (cut_card_frames.py --bare, 2026-11-15): the frame
+## with no drop or hourglass painted on, which the face draws over it at its
+## own size (FACE_LAYOUT). drop / glass: each badge's art where the painting
+## had it; *_band: the plain insides of the tempo strip, the name bar, the
+## art window and the type bar (card y), which FACE_LAYOUT resizes.
 ## The designer's painted frames (tools/cut_card_frames.py, 2026-10-30),
 ## picked by frame_for(). Each says where its texture sits over the 150x210
 ## card ("rect": the board's card rectangle maps onto the card, its drop,
@@ -69,6 +79,15 @@ const FRAMES := {
 		"top": 13.1, "title_h": 22.8, "art_h": 66.4, "type_h": 18.7, "desc_top": 4.2,
 		"title_left": 21.0, "title_right": 15.9, "name_w": 86,
 		"art_margins": [2, 0.5, 1, 0.5],   # the painted window inside the art box (left, top, right, bottom)
+		"bare": {
+			"tex": "res://assets/textures/cards/frame_instant_bare.png",
+			"drop": Rect2(1.9, -13.3, 24.5, 39.8),
+			"glass": Rect2(124.4, -5.5, 23.9, 35.8),
+			"dots_band": Vector2(5, 11.5),
+			"title_band": Vector2(14.5, 29.5),
+			"art_band": Vector2(38, 100),
+			"type_band": Vector2(108, 117),
+		},
 	},
 	# Every card with an upkeep: amethyst-shot stone, white text beside the
 	# mind-mage in the corner.
@@ -86,6 +105,15 @@ const FRAMES := {
 		"top": 18.9, "title_h": 22.4, "art_h": 65.0, "type_h": 18.3, "desc_top": 4.1,
 		"title_left": 21.0, "title_right": 16.1, "name_w": 86,
 		"art_margins": [0.5, 0.5, 1.5, 1.5],   # the painted window inside the art box (left, top, right, bottom)
+		"bare": {
+			"tex": "res://assets/textures/cards/frame_maintain_bare.png",
+			"drop": Rect2(2.3, -9.5, 24.8, 39.4),
+			"glass": Rect2(123.5, -3.9, 25.2, 37.1),
+			"dots_band": Vector2(7, 16),
+			"title_band": Vector2(19.5, 35),
+			"art_band": Vector2(43.5, 107),
+			"type_band": Vector2(114.5, 125),
+		},
 	},
 	# Defense cards: a stone wall veined with blue lightning, white text left
 	# of the knight catching arrows on his shield.
@@ -104,6 +132,15 @@ const FRAMES := {
 		"top": 24.0, "title_h": 21.3, "art_h": 62.0, "type_h": 17.4, "desc_top": 3.9,
 		"title_left": 21.4, "title_right": 16.7, "name_w": 85,
 		"art_margins": [3.5, 0.5, 5, 2],   # the painted window inside the art box (left, top, right, bottom)
+		"bare": {
+			"tex": "res://assets/textures/cards/frame_defensive_bare.png",
+			"drop": Rect2(5.9, -2.1, 24.8, 38.1),
+			"glass": Rect2(122.3, 4.9, 23.5, 33.4),
+			"dots_band": Vector2(12, 20.5),
+			"title_band": Vector2(24.5, 38.5),
+			"art_band": Vector2(46, 104),
+			"type_band": Vector2(111, 120.5),
+		},
 	},
 	# Utility cards: green scale-work wound with ivy. No type bar of its
 	# own: a taller art window, the logo set where the window meets the
@@ -125,6 +162,14 @@ const FRAMES := {
 		# type line; the rules box takes the rest.
 		"top": 21.2, "title_h": 21.7, "art_h": 83.8, "type_h": 18.7, "desc_top": 3.9,
 		"title_left": 21.2, "title_right": 16.1, "name_w": 86,
+		"bare": {
+			"tex": "res://assets/textures/cards/frame_utility_bare.png",
+			"drop": Rect2(4.5, -1.7, 26.1, 40.7),
+			"glass": Rect2(121.1, 0.9, 25.2, 36.0),
+			"dots_band": Vector2(6.5, 19.5),
+			"title_band": Vector2(23, 39.5),
+			"art_band": Vector2(46, 126),
+		},
 	},
 	# Attack cards: blood-red iron and steel spikes, a bloodied great-axe down
 	# the left, white text beside a roaring berserker. Its emblem painted out
@@ -148,19 +193,14 @@ const FRAMES := {
 		"top": 26.8, "title_h": 24.1, "art_h": 51.2, "type_h": 24.1, "desc_top": 9.0,
 		"title_left": 37.1, "title_right": 20.1, "name_w": 67,
 		"art_margins": [9.5, 0.5, 0.5, 0.5],   # the painted window inside the art box (left, top, right, bottom)
-		# The frame with no drop or hourglass painted on (cut_card_frames.py
-		# --bare attack), for face_layout: the badges drawn over it at any
-		# size, its bands resized. drop / glass: each badge's art on the
-		# painted frame; *_band: the plain insides of the tempo strip, the
-		# name bar, the art window and the type bar (card y).
 		"bare": {
 			"tex": "res://assets/textures/cards/frame_attack_bare.png",
 			"drop": Rect2(2.0, -3.6, 28.3, 44.7),
 			"glass": Rect2(118.5, -0.7, 30.8, 45.1),
 			"dots_band": Vector2(8.5, 23.5),
-			"title_band": Vector2(28.0, 44.5),
-			"art_band": Vector2(55.0, 99.0),
-			"type_band": Vector2(109.5, 123.0),
+			"title_band": Vector2(28, 44.5),
+			"art_band": Vector2(55, 99),
+			"type_band": Vector2(109.5, 123),
 		},
 	},
 	# Spell cards: blackened stone veined with molten red, a fire comet
@@ -183,6 +223,15 @@ const FRAMES := {
 		"top": 27.5, "title_h": 24.0, "art_h": 51.0, "type_h": 24.0, "desc_top": 9.0,
 		"title_left": 40.1, "title_right": 19.9, "name_w": 62,
 		"art_margins": [8.5, 0.5, 1, 1],   # the painted window inside the art box (left, top, right, bottom)
+		"bare": {
+			"tex": "res://assets/textures/cards/frame_spell_bare.png",
+			"drop": Rect2(0.5, -3.4, 28.4, 44.6),
+			"glass": Rect2(116.4, 0.5, 30.9, 44.9),
+			"dots_band": Vector2(12.5, 25),
+			"title_band": Vector2(28.5, 47),
+			"art_band": Vector2(53, 102),
+			"type_band": Vector2(109.5, 123.5),
+		},
 	},
 	# Offensive cards that are not only an attack or only a spell (designer,
 	# 2026-11-11): cracked ruby crystal round dark leather, a knight, a fire
@@ -204,6 +253,15 @@ const FRAMES := {
 		"ink_dark": false,
 		"top": 28.3, "title_h": 22.9, "art_h": 52.9, "type_h": 21.5, "desc_top": 10.0,
 		"title_left": 33.0, "title_right": 27.0, "name_w": 70,
+		"bare": {
+			"tex": "res://assets/textures/cards/frame_offensive_bare.png",
+			"drop": Rect2(4.7, -4.4, 28.3, 44.8),
+			"glass": Rect2(117.8, 1.7, 30.6, 44.3),
+			"dots_band": Vector2(7, 26.5),
+			"title_band": Vector2(31, 47.5),
+			"art_band": Vector2(52.5, 103.5),
+			"type_band": Vector2(108.5, 122.5),
+		},
 	},
 	# Enchantments: green cracked-emerald stone in gilt and gold thorns,
 	# jewelled chains off the drop's ring, white text above a hooded figure
@@ -228,6 +286,15 @@ const FRAMES := {
 		"top": 34.6, "title_h": 19.1, "art_h": 39.4, "type_h": 20.9, "desc_top": 8.0,
 		"title_left": 30.4, "title_right": 21.0, "name_w": 72,
 		"art_margins": [11.5, 2.5, 7, 0.5],   # the painted window inside the art box (left, top, right, bottom)
+		"bare": {
+			"tex": "res://assets/textures/cards/frame_enchantment_bare.png",
+			"drop": Rect2(5.4, -2.9, 31.4, 49.5),
+			"glass": Rect2(118.2, 6.1, 31.2, 45.3),
+			"dots_band": Vector2(16.5, 32),
+			"title_band": Vector2(36.5, 52),
+			"art_band": Vector2(57.5, 92),
+			"type_band": Vector2(99, 111),
+		},
 	},
 }
 ## How strongly the rules box is washed over its corner picture (0 = the
@@ -246,18 +313,27 @@ const UPKEEP_RIGHT := 124.0                     # the upkeep's right edge, short
 const FRAMED_DESC_FULL := Vector2(116, 78)
 const FRAMED_DESC_FULL_MAX := 9   # ... no bigger than this, so it covers as little of the picture as it can
 
-## The face's layout under test (designer, 2026-11-15). Empty = the frames
-## as cut. On a frame with a "bare" cut it takes:
-##   width     the card's width (150 as cut); the frame stretches across,
-##             the drop and hourglass keep their shape
+## The face's layout (designer, 2026-11-15: "C" with the "T1" fade). On a
+## frame with a "bare" cut it takes:
 ##   badge     the drop's and hourglass's size (1 = as painted)
 ##   dots_k    the tempo strip's inside, this much of its height (the rest
-##             goes to the name bar)
-##   type_k    the type bar's inside likewise (the rest to the art window)
+##             goes to the name bar); never thinner than DOTS_BAND_MIN
+##   type_k    the type bar's inside likewise (the rest to the art window);
+##             never thinner than TYPE_BAND_MIN
 ##   title_left  the name's left margin (it may run onto the axe)
 ##   title_rows  2: a long name wraps onto a second row, centred, smaller
 ##             if it must, instead of ending in "..."
-static var face_layout := {}
+##   text_outline  the rules text's dark rim (0: none)
+##   text_fade  the corner picture under the rules text (see _place_text_fade)
+## Set face_layout to {} for the frames as cut (dev comparisons only).
+const FACE_LAYOUT := {
+	"badge": 0.85, "type_k": 0.7, "dots_k": 0.6,
+	"title_rows": 2, "title_left": 26, "text_outline": 0,
+	"text_fade": {"mode": "picture", "fade": 0.55, "feather": 5},
+}
+const DOTS_BAND_MIN := 7.0    # the tempo dots are 8 across
+const TYPE_BAND_MIN := 10.0   # the type words are 9
+static var face_layout: Dictionary = FACE_LAYOUT
 
 var _kx := 1.0
 var _ysegs: Array = []   # [[y0, y1, new_height], ...] down the card, base card px
@@ -284,24 +360,29 @@ func _mp(p: Vector2) -> Vector2:
 	return Vector2(p.x * _kx, _my(p.y))
 
 func _build_layout() -> void:
-	_kx = 1.0
+	_kx = CARD_W / FRAME_W
 	_ysegs = []
 	if not _laid_out():
 		return
 	var b: Dictionary = _frame["bare"]
-	_kx = float(face_layout.get("width", CARD_W)) / CARD_W
 	var dots: Vector2 = b["dots_band"]
 	var title: Vector2 = b["title_band"]
 	var art: Vector2 = b["art_band"]
-	var typ: Vector2 = b["type_band"]
-	var dots_h: float = (dots.y - dots.x) * float(face_layout.get("dots_k", 1.0))
-	var type_h: float = (typ.y - typ.x) * float(face_layout.get("type_k", 1.0))
+	var dots_h: float = _thinned(dots, float(face_layout.get("dots_k", 1.0)), DOTS_BAND_MIN)
 	_ysegs = [
 		[dots.x, dots.y, dots_h],
 		[title.x, title.y, (title.y - title.x) + (dots.y - dots.x) - dots_h],
-		[art.x, art.y, (art.y - art.x) + (typ.y - typ.x) - type_h],
-		[typ.x, typ.y, type_h],
 	]
+	if b.has("type_band"):   # the Utility frame has no type bar of its own
+		var typ: Vector2 = b["type_band"]
+		var type_h: float = _thinned(typ, float(face_layout.get("type_k", 1.0)), TYPE_BAND_MIN)
+		_ysegs.append([art.x, art.y, (art.y - art.x) + (typ.y - typ.x) - type_h])
+		_ysegs.append([typ.x, typ.y, type_h])
+
+## A band's inside at k its height, but no thinner than floor (nor than it was).
+static func _thinned(band: Vector2, k: float, floor_h: float) -> float:
+	var h := band.y - band.x
+	return maxf(h * k, minf(h, floor_h))
 
 ## The frame drawn in bands, each stretched to its laid-out height.
 func _draw_frame_bands(host: Control) -> void:
@@ -975,7 +1056,31 @@ void fragment() {
 	COLOR = vec4(mix(vec3(1.0), tint, m * strength), 1.0);
 }
 """
+## The same over parchment (the Instant frame): the picture fades toward the
+## parchment's own colour instead of darkening.
+const TEXT_FADE_LIGHT_SHADER := """
+shader_type canvas_item;
+uniform vec4 rects[16];
+uniform int count = 0;
+uniform float feather = 8.0;
+uniform float strength = 0.8;
+uniform vec3 tint = vec3(0.93, 0.87, 0.72);
+uniform vec2 px_size = vec2(100.0, 100.0);
+void fragment() {
+	vec2 p = UV * px_size;
+	float m = 0.0;
+	for (int i = 0; i < count; i++) {
+		vec4 r = rects[i];
+		vec2 c = r.xy + r.zw * 0.5;
+		vec2 q = abs(p - c) - r.zw * 0.5;
+		float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0);
+		m = max(m, 1.0 - smoothstep(0.0, feather, d));
+	}
+	COLOR = vec4(tint, m * strength);
+}
+"""
 static var _text_fade_shader: Shader = null
+static var _text_fade_light_shader: Shader = null
 
 func _place_text_fade(host: Control) -> void:
 	var f: ColorRect = host.get_node_or_null("TextFade")
@@ -987,15 +1092,16 @@ func _place_text_fade(host: Control) -> void:
 	if _text_fade_shader == null:
 		_text_fade_shader = Shader.new()
 		_text_fade_shader.code = TEXT_FADE_SHADER
+		_text_fade_light_shader = Shader.new()
+		_text_fade_light_shader.code = TEXT_FADE_LIGHT_SHADER
 	if f == null:
 		f = ColorRect.new()
 		f.name = "TextFade"
 		f.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var mat := ShaderMaterial.new()
-		mat.shader = _text_fade_shader
-		f.material = mat
+		f.material = ShaderMaterial.new()
 		host.add_child(f)
 		host.move_child(f, 1)   # over the frame, under the text
+	(f.material as ShaderMaterial).shader = _text_fade_light_shader if _frame.get("ink_dark", false) else _text_fade_shader
 	var spec: Dictionary = face_layout["text_fade"]
 	var feather: float = float(spec.get("feather", 8.0))
 	var xf: Transform2D = host.get_global_transform().affine_inverse() * desc_label.get_global_transform()
@@ -1088,7 +1194,7 @@ func _fit_name_rows(font: Font) -> void:
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	var tb := title_bar.get_theme_stylebox("panel")
-	var w: float = CARD_W * _kx - 26.0 * _kx - tb.content_margin_left - tb.content_margin_right
+	var w: float = CARD_W - 26.0 * _kx - tb.content_margin_left - tb.content_margin_right
 	var h: float = title_bar.custom_minimum_size.y - tb.content_margin_bottom
 	var fs := NAME_FONT_MAX
 	# One row, down to 11; then two rows, down to the floor.
@@ -1497,16 +1603,14 @@ func _style_painted_frame() -> void:
 		host.move_child(_frame_art, 0)
 	_frame_art.texture = load(_frame["tex"])
 	var r: Rect2 = _frame["rect"]
-	_frame_art.position = r.position
-	_frame_art.size = r.size
 	_build_layout()
+	_frame_art.position = Vector2(r.position.x * _kx, r.position.y)
+	_frame_art.size = Vector2(r.size.x * _kx, r.size.y)
 	var bands: Node = host.get_node_or_null("FrameBands")
 	if _laid_out():
 		_frame_art.visible = false
 		_draw_frame_bands(host)
-		custom_minimum_size = Vector2(CARD_W * _kx, CARD_H)
-		size = custom_minimum_size
-		pivot_offset = Vector2(CARD_W * _kx * 0.5, CARD_H)
+
 	else:
 		_frame_art.visible = true
 		if bands:
@@ -1620,7 +1724,7 @@ func _place_upkeep(upkeep: int) -> void:
 	l.text = "%dM" % upkeep
 	l.tooltip_text = "Upkeep: %d mana to maintain" % upkeep
 	l.size = Vector2(30, 12)
-	l.position = Vector2(UPKEEP_RIGHT - 30.0, float(_frame["dots_y"]) - 6.0)
+	l.position = Vector2(UPKEEP_RIGHT * _kx - 30.0, _my(float(_frame["dots_y"])) - 6.0)
 
 
 ## The costs written straight onto the painted drop and hourglass.

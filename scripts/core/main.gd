@@ -3070,7 +3070,7 @@ func _setup_hand_card_preview() -> void:
 	ui.add_child(hand_card_preview)
 	# Hug the compact content: no wider than the card below it unless the
 	# text itself needs more (the container grows to fit).
-	hand_card_preview.custom_minimum_size = Vector2(150, 0)
+	hand_card_preview.custom_minimum_size = Vector2(CardUI.CARD_W, 0)
 	var preview_style := StyleBoxFlat.new()
 	preview_style.bg_color = Color(0.15, 0.15, 0.2, 0.98)
 	preview_style.border_width_left = 2
@@ -5582,7 +5582,7 @@ func show_full_card_picker(prompt: String, candidates: Array, pick_count: int, o
 			on_cancel.call())
 	btns.add_child(cancel)
 
-const Card_UI_W := 150.0  # CardUI.CARD_W — the picker lays faces out at full size
+const Card_UI_W := CardUI.CARD_W  # the picker lays faces out at full size
 const Card_UI_H := 210.0  # CardUI.CARD_H
 
 var _ds_prompt_active: bool = false  # Defensive Sacrifice: one prompt at a time
@@ -7130,7 +7130,7 @@ func _on_hand_updated() -> void:
 		if i < deck_manager.hand.size():
 			new_card_set[deck_manager.hand[i].get_instance_id()] = true
 
-	var card_width: float = 150.0
+	var card_width: float = CardUI.CARD_W
 	var card_height: float = 210.0
 	var container_width: float = hand_container.size.x
 	if container_width <= 0:
