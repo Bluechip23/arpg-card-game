@@ -117,6 +117,11 @@ const CARD_PAINTINGS := {
 	"reckless_strike": "reckless_strike",
 	"shield_slam": "shield_slam",
 	"specific_strike": "specific_strike",
+	"sweeping_disarm": "sweeping_disarm",
+	"trip": "trip",
+	"worst_that_could_happen": "worst_that_could_happen",
+	"charge": "charge",
+	"harvest": "harvest",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",

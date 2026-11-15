@@ -78,6 +78,16 @@ SINGLES = {
     "shield_slam": ("card_art_shield_slam.webp", (0, 0, 1536, 730)),
     # The lunge, the rapier and the knight's thrown-back face.
     "specific_strike": ("card_art_specific_strike.webp", (0, 0, 1536, 730)),
+    # 2026-11-15: the spin, the roar and the swords flying from the hands.
+    "sweeping_disarm": ("card_art_sweeping_disarm.webp", (0, 80, 1448, 770)),
+    # Both faces, the whip down to the ankle it wraps.
+    "trip": ("card_art_trip.webp", (0, 90, 1536, 820)),
+    # The shrug: the face, the open hand and the hammer head.
+    "worst_that_could_happen": ("card_art_worst_that_could_happen.webp", (0, 0, 1536, 730)),
+    # The horned charger and the shield wall braced for him.
+    "charge": ("card_art_charge.webp", (0, 0, 1536, 730)),
+    # The scythe, the reaper's face and the soul pulled from the soldier.
+    "harvest": ("card_art_harvest.webp", (0, 110, 1536, 840)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
