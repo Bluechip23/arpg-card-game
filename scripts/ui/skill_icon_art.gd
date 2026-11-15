@@ -111,6 +111,12 @@ const CARD_PAINTINGS := {
 	"exposed_artery": "exposed_artery",
 	"heavy_swing": "heavy_swing",
 	"oops": "oops",
+	# Fitted whole (the art is in; no cards with these ids yet, 2026-11-15).
+	"energy_gem": "energy_gem",
+	"fumbilities": "fumbilities",
+	"stone_patch": "stone_patch",
+	"life_from_resource": "life_from_resource",
+	"lemon_drop": "lemon_drop",
 }
 
 # ---------------------------------------------------------------------------

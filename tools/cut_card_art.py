@@ -18,6 +18,9 @@ impact (the box), then shrunk to WIDTH wide.
   The same day: Exacerbate Wounds, Blade Barrage, Exposed Artery, Heavy
   Swing, Oops.
 
+Fitted paintings (FITTED): one object to be seen whole, fitted to the
+window's height with its own ground carried out to the sides.
+
 The card's art window is wider than it is tall (about 2.3:1 on the Attack
 frame), so CardUI shows these "covered": scaled to the window's width and
 cropped about the middle. The boxes below put the action in that middle.
@@ -67,6 +70,63 @@ SINGLES = {
     "oops": ("card_art_oops.jpg", (0, 0, 1000, 475)),
 }
 
+# card_id -> (source, box): a single object to be seen whole (a gem, a
+# stone, a necklace). The box is fitted to the window's height, centred,
+# and the sides carry the painting's own edge colour outward, darkening a
+# little, so its dark ground runs on to the window's edges. 2026-11-15
+# (no cards with these ids yet; the art waits for them).
+FITTED = {
+    "energy_gem": ("card_art_energy_gem.png", (0, 0, 230, 327)),
+    "fumbilities": ("card_art_fumbilities.png", (0, 0, 322, 355)),
+    "stone_patch": ("card_art_stone_patch.webp", (0, 100, 1448, 1000)),
+    "life_from_resource": ("card_art_life_from_resource.webp", (0, 0, 1448, 960)),
+    "lemon_drop": ("card_art_lemon_drop.webp", (0, 30, 1448, 1086)),
+}
+FIT_ASPECT = 2.3    # the Attack frame's art window, about the widest
+FIT_FEATHER = 0.08  # the fitted picture's sides fade into the fill over this much of its width
+
+
+def fitted(source, box):
+    piece = Image.open(SRC % source).convert("RGB").crop(box)
+    h = round(WIDTH / FIT_ASPECT)
+    w_in = round(piece.width * h / piece.height)
+    if w_in > WIDTH:   # already wider than the window: shrink to its width
+        w_in, h_in = WIDTH, round(piece.height * WIDTH / piece.width)
+    else:
+        h_in = h
+    inner = piece.resize((w_in, h_in), Image.LANCZOS)
+    # The fill: each side carries the picture's own edge colour outward,
+    # row by row (smoothed down the rows), darkening a little toward the
+    # window's edges, so the seam matches and the ground runs on.
+    import numpy as np
+    a = np.asarray(inner).astype(np.float32)
+    k = max(2, w_in // 40)
+    left = a[:, :k].mean(axis=1)
+    right = a[:, -k:].mean(axis=1)
+    from scipy.ndimage import gaussian_filter1d
+    left = gaussian_filter1d(left, h_in * 0.06, axis=0)
+    right = gaussian_filter1d(right, h_in * 0.06, axis=0)
+    x0 = (WIDTH - w_in) // 2
+    canvas = np.zeros((h, WIDTH, 3), np.float32)
+    top = (h - h_in) // 2
+    for x in range(WIDTH):
+        if x < x0 + w_in // 2:
+            col, t = left, (x0 - x) / max(1, x0)
+        else:
+            col, t = right, (x - (x0 + w_in)) / max(1, WIDTH - x0 - w_in)
+        dim = 1.0 - 0.35 * min(1.0, max(0.0, t))
+        canvas[top:top + h_in, x] = col * dim
+    back = Image.fromarray(canvas.clip(0, 255).astype(np.uint8))
+    # The picture over it, its sides feathered in.
+    mask = Image.new("L", (w_in, h_in), 255)
+    fw = max(1, round(w_in * FIT_FEATHER))
+    for x in range(fw):
+        a = round(255 * (x + 1) / (fw + 1))
+        for xx in (x, w_in - 1 - x):
+            mask.paste(a, (xx, 0, xx + 1, h_in))
+    back.paste(inner, ((WIDTH - w_in) // 2, (h - h_in) // 2), mask)
+    return back
+
 
 def main() -> None:
     os.makedirs(os.path.dirname(OUT % "x"), exist_ok=True)
@@ -86,6 +146,9 @@ def main() -> None:
         h = round(piece.height * WIDTH / piece.width)
         piece.resize((WIDTH, h), Image.LANCZOS).save(OUT % card_id, optimize=True)
         print("wrote", OUT % card_id, (WIDTH, h))
+    for card_id, (source, box) in FITTED.items():
+        fitted(source, box).save(OUT % card_id, optimize=True)
+        print("wrote", OUT % card_id, "(fitted)")
 
 
 if __name__ == "__main__":
