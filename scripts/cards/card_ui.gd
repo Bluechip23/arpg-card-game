@@ -148,6 +148,20 @@ const FRAMES := {
 		"top": 26.8, "title_h": 24.1, "art_h": 51.2, "type_h": 24.1, "desc_top": 9.0,
 		"title_left": 37.1, "title_right": 20.1, "name_w": 67,
 		"art_margins": [9.5, 0.5, 0.5, 0.5],   # the painted window inside the art box (left, top, right, bottom)
+		# The frame with no drop or hourglass painted on (cut_card_frames.py
+		# --bare attack), for face_layout: the badges drawn over it at any
+		# size, its bands resized. drop / glass: each badge's art on the
+		# painted frame; *_band: the plain insides of the tempo strip, the
+		# name bar, the art window and the type bar (card y).
+		"bare": {
+			"tex": "res://assets/textures/cards/frame_attack_bare.png",
+			"drop": Rect2(2.0, -3.6, 28.3, 44.7),
+			"glass": Rect2(118.5, -0.7, 30.8, 45.1),
+			"dots_band": Vector2(8.5, 23.5),
+			"title_band": Vector2(28.0, 44.5),
+			"art_band": Vector2(55.0, 99.0),
+			"type_band": Vector2(109.5, 123.0),
+		},
 	},
 	# Spell cards: blackened stone veined with molten red, a fire comet
 	# round the top-left, a wizard calling down meteors in the rules box. The
@@ -231,6 +245,112 @@ const UPKEEP_RIGHT := 124.0                     # the upkeep's right edge, short
 ## takes the box's whole width (over the picture), this tall.
 const FRAMED_DESC_FULL := Vector2(116, 78)
 const FRAMED_DESC_FULL_MAX := 9   # ... no bigger than this, so it covers as little of the picture as it can
+
+## The face's layout under test (designer, 2026-11-15). Empty = the frames
+## as cut. On a frame with a "bare" cut it takes:
+##   width     the card's width (150 as cut); the frame stretches across,
+##             the drop and hourglass keep their shape
+##   badge     the drop's and hourglass's size (1 = as painted)
+##   dots_k    the tempo strip's inside, this much of its height (the rest
+##             goes to the name bar)
+##   type_k    the type bar's inside likewise (the rest to the art window)
+##   title_left  the name's left margin (it may run onto the axe)
+##   title_rows  2: a long name wraps onto a second row, centred, smaller
+##             if it must, instead of ending in "..."
+static var face_layout := {}
+
+var _kx := 1.0
+var _ysegs: Array = []   # [[y0, y1, new_height], ...] down the card, base card px
+
+func _laid_out() -> bool:
+	return not face_layout.is_empty() and _frame.has("bare")
+
+## A base-card y on the laid-out face.
+func _my(y: float) -> float:
+	var shift := 0.0
+	for seg in _ysegs:
+		var y0: float = seg[0]
+		var y1: float = seg[1]
+		var n: float = seg[2]
+		if y <= y0:
+			break
+		if y < y1:
+			return y0 + shift + (y - y0) * n / (y1 - y0)
+		shift += n - (y1 - y0)
+	return y + shift
+
+## A base-card point on the laid-out face (x stretches with the width).
+func _mp(p: Vector2) -> Vector2:
+	return Vector2(p.x * _kx, _my(p.y))
+
+func _build_layout() -> void:
+	_kx = 1.0
+	_ysegs = []
+	if not _laid_out():
+		return
+	var b: Dictionary = _frame["bare"]
+	_kx = float(face_layout.get("width", CARD_W)) / CARD_W
+	var dots: Vector2 = b["dots_band"]
+	var title: Vector2 = b["title_band"]
+	var art: Vector2 = b["art_band"]
+	var typ: Vector2 = b["type_band"]
+	var dots_h: float = (dots.y - dots.x) * float(face_layout.get("dots_k", 1.0))
+	var type_h: float = (typ.y - typ.x) * float(face_layout.get("type_k", 1.0))
+	_ysegs = [
+		[dots.x, dots.y, dots_h],
+		[title.x, title.y, (title.y - title.x) + (dots.y - dots.x) - dots_h],
+		[art.x, art.y, (art.y - art.x) + (typ.y - typ.x) - type_h],
+		[typ.x, typ.y, type_h],
+	]
+
+## The frame drawn in bands, each stretched to its laid-out height.
+func _draw_frame_bands(host: Control) -> void:
+	var holder: Control = host.get_node_or_null("FrameBands")
+	if holder == null:
+		holder = Control.new()
+		holder.name = "FrameBands"
+		holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		host.add_child(holder)
+		host.move_child(holder, 0)
+	for c in holder.get_children():
+		c.queue_free()
+	var tex: Texture2D = load(_frame["bare"]["tex"])
+	var r: Rect2 = _frame["rect"]
+	var ty := float(tex.get_height()) / r.size.y
+	var cuts: Array = [r.position.y]
+	for seg in _ysegs:
+		cuts.append(seg[0])
+		cuts.append(seg[1])
+	cuts.append(r.end.y)
+	for i in range(cuts.size() - 1):
+		var a: float = cuts[i]
+		var bb: float = cuts[i + 1]
+		if bb <= a:
+			continue
+		var at := AtlasTexture.new()
+		at.atlas = tex
+		at.region = Rect2(0, (a - r.position.y) * ty, tex.get_width(), (bb - a) * ty)
+		var tr := TextureRect.new()
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tr.texture = at
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_SCALE
+		tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		tr.position = Vector2(r.position.x * _kx, _my(a))
+		tr.size = Vector2(r.size.x * _kx, _my(bb) - _my(a))
+		holder.add_child(tr)
+
+## A badge texture cropped to its art (the png's clear margin dropped).
+static var _badge_art := {}
+static func _badge_atlas(path: String) -> Texture2D:
+	if _badge_art.has(path):
+		return _badge_art[path]
+	var tex: Texture2D = load(path)
+	var at := AtlasTexture.new()
+	at.atlas = tex
+	at.region = Rect2(tex.get_image().get_used_rect())
+	_badge_art[path] = at
+	return at
 
 ## The painted frame a card wears: Maintain for any card with an upkeep
 ## (whatever its type), Instant for the instants, Enchantment for the
@@ -764,10 +884,13 @@ func _fit_description() -> void:
 		# The frame's box beside its corner picture; a text that cannot fit
 		# there even at the smallest size spreads over the box's whole width.
 		var box: Vector2 = _frame["desc_box"]
+		box.x *= _kx
 		fs = _fit_size(font, plain, box)
-		var right: float = _frame["desc_right"]
+		var right: float = _frame["desc_right"] * _kx
 		if font.get_multiline_string_size(plain, HORIZONTAL_ALIGNMENT_LEFT, box.x, fs).y > box.y:
-			fs = _fit_size(font, plain, _frame.get("desc_full", FRAMED_DESC_FULL), FRAMED_DESC_FULL_MAX)
+			var full: Vector2 = _frame.get("desc_full", FRAMED_DESC_FULL)
+			full.x *= _kx
+			fs = _fit_size(font, plain, full, FRAMED_DESC_FULL_MAX)
 			right = 4.0
 		if desc_panel:
 			var st := desc_panel.get_theme_stylebox("panel")
@@ -827,9 +950,41 @@ func _fit_name() -> void:
 	if font == null:
 		return
 	var fs := NAME_FONT_MAX
+	if _laid_out() and int(face_layout.get("title_rows", 1)) >= 2:
+		_fit_name_rows(font)
+		return
 	while fs > NAME_FONT_MIN and font.get_string_size(name_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > _frame.get("name_w", NAME_WIDTH):
 		fs -= 1
 	name_label.add_theme_font_size_override("font_size", fs)
+
+## The name centred in its bar, on one row if it fits at a readable size,
+## else wrapped onto two, as large as both rows allow.
+const NAME_ROWS_MIN := 8
+func _fit_name_rows(font: Font) -> void:
+	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	name_label.max_lines_visible = 2
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	var tb := title_bar.get_theme_stylebox("panel")
+	var w: float = CARD_W * _kx - 26.0 * _kx - tb.content_margin_left - tb.content_margin_right
+	var h: float = title_bar.custom_minimum_size.y - tb.content_margin_bottom
+	var fs := NAME_FONT_MAX
+	# One row, down to 11; then two rows, down to the floor.
+	while fs > 11 and font.get_string_size(name_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > w:
+		fs -= 1
+	if font.get_string_size(name_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > w:
+		fs = NAME_FONT_MAX
+		while fs > NAME_ROWS_MIN and _rows_h(font, w, fs) > h + 1.0:
+			fs -= 1
+	name_label.add_theme_constant_override("line_spacing", NAME_ROWS_TIGHT)
+	name_label.add_theme_font_size_override("font_size", fs)
+
+const NAME_ROWS_TIGHT := -3   # the two rows drawn this much closer
+func _rows_h(font: Font, w: float, fs: int) -> float:
+	var full: float = font.get_multiline_string_size(name_label.text, HORIZONTAL_ALIGNMENT_CENTER, w, fs).y
+	var rows := roundi(full / font.get_height(fs))
+	return full + (rows - 1) * NAME_ROWS_TIGHT
 
 func update_chance_display() -> void:
 	# Called when RNG re-rolls happen - update the description colors
@@ -1223,13 +1378,25 @@ func _style_painted_frame() -> void:
 	var r: Rect2 = _frame["rect"]
 	_frame_art.position = r.position
 	_frame_art.size = r.size
+	_build_layout()
+	var bands: Node = host.get_node_or_null("FrameBands")
+	if _laid_out():
+		_frame_art.visible = false
+		_draw_frame_bands(host)
+		custom_minimum_size = Vector2(CARD_W * _kx, CARD_H)
+		size = custom_minimum_size
+		pivot_offset = Vector2(CARD_W * _kx * 0.5, CARD_H)
+	else:
+		_frame_art.visible = true
+		if bands:
+			bands.queue_free()
 	# The sections stacked onto the painted bars (card pixels): name bar
 	# 14-36, art window 36-100, type bar 100-118, parchment from 118.
 	var vbox: VBoxContainer = host.get_node_or_null("VBox")
 	if vbox:
-		vbox.offset_left = 14.0
-		vbox.offset_right = -12.0
-		vbox.offset_top = _frame.get("top", 14.0)
+		vbox.offset_left = 14.0 * _kx
+		vbox.offset_right = -12.0 * _kx
+		vbox.offset_top = _my(_frame.get("top", 14.0))
 		vbox.offset_bottom = -8.0
 		vbox.add_theme_constant_override("separation", 0)
 	if title_bar:
@@ -1237,8 +1404,13 @@ func _style_painted_frame() -> void:
 		tb.content_margin_left = _frame.get("title_left", 21.0)
 		tb.content_margin_right = _frame.get("title_right", 16.0)
 		tb.content_margin_bottom = 3
+		if _laid_out():
+			tb.content_margin_left = float(face_layout.get("title_left", tb.content_margin_left)) * _kx
+			tb.content_margin_right = _frame.get("title_right", 16.0) * _kx
+			tb.content_margin_bottom = 1
 		title_bar.add_theme_stylebox_override("panel", tb)
-		title_bar.custom_minimum_size = Vector2(0, _frame.get("title_h", 22.0))
+		var t0: float = _frame.get("top", 14.0)
+		title_bar.custom_minimum_size = Vector2(0, _my(t0 + _frame.get("title_h", 22.0)) - _my(t0))
 	if name_label:
 		name_label.add_theme_color_override("font_color", FRAMED_NAME)
 		name_label.add_theme_color_override("font_outline_color", Color(0.1, 0.06, 0.02))
@@ -1248,23 +1420,25 @@ func _style_painted_frame() -> void:
 		# so a painting in the window stops at the rim instead of over it.
 		var ab := StyleBoxEmpty.new()
 		var am: Array = _frame.get("art_margins", [0, 0, 0, 0])
-		ab.content_margin_left = am[0]
+		ab.content_margin_left = am[0] * _kx
 		ab.content_margin_top = am[1]
-		ab.content_margin_right = am[2]
+		ab.content_margin_right = am[2] * _kx
 		ab.content_margin_bottom = am[3]
 		art_box.add_theme_stylebox_override("panel", ab)
-		art_box.custom_minimum_size = Vector2(0, _frame.get("art_h", 64.0))
+		var a0: float = _frame.get("top", 14.0) + _frame.get("title_h", 22.0)
+		art_box.custom_minimum_size = Vector2(0, _my(a0 + _frame.get("art_h", 64.0)) - _my(a0))
 		_set_card_art()
 	if type_bar:
 		var tp := StyleBoxEmpty.new()
 		tp.content_margin_left = 2
 		tp.content_margin_right = 3
 		type_bar.add_theme_stylebox_override("panel", tp)
-		type_bar.custom_minimum_size = Vector2(0, _frame.get("type_h", 18.0))
+		var y0: float = _frame.get("top", 14.0) + _frame.get("title_h", 22.0) + _frame.get("art_h", 64.0)
+		type_bar.custom_minimum_size = Vector2(0, _my(y0 + _frame.get("type_h", 18.0)) - _my(y0))
 	if desc_panel:
 		var box := StyleBoxEmpty.new()
 		box.content_margin_left = 3.5
-		box.content_margin_right = _frame["desc_right"]
+		box.content_margin_right = _frame["desc_right"] * _kx
 		box.content_margin_top = _frame.get("desc_top", 4.0)
 		desc_panel.add_theme_stylebox_override("panel", box)
 	if desc_panel:
@@ -1297,7 +1471,7 @@ func _fit_type_word() -> void:
 	if font == null:
 		return
 	# The bar's text starts at the VBox's left edge (14) plus its margin (2).
-	var room: float = float(_frame["logo_at"].x) - FRAMED_LOGO_RING - 16.0
+	var room: float = float(_frame["logo_at"].x) * _kx - FRAMED_LOGO_RING - 14.0 * _kx - 2.0
 	var fs := TYPE_FONT_MAX
 	while fs > TYPE_FONT_MIN and font.get_string_size(type_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
 		fs -= 1
@@ -1330,6 +1504,9 @@ func _place_upkeep(upkeep: int) -> void:
 ## The costs written straight onto the painted drop and hourglass.
 func _place_framed_costs() -> void:
 	_ensure_cost_badges()
+	if _laid_out():
+		_place_laid_out_badges()
+		return
 	for pair in [[_mana_badge, _mana_num, _frame["mana_at"]], [_tempo_badge, _tempo_num, _frame["tempo_at"]]]:
 		var badge: Control = pair[0]
 		var num: Label = pair[1]
@@ -1341,6 +1518,36 @@ func _place_framed_costs() -> void:
 		var at: Vector2 = pair[2]
 		badge.position = at - badge.size * 0.5
 		num.offset_top = 0.0
+
+
+## face_layout: the drop and hourglass drawn over the bare frame at
+## face_layout.badge their painted size, about the painted one's middle, the
+## numbers where the painting puts them on each.
+func _place_laid_out_badges() -> void:
+	var k: float = float(face_layout.get("badge", 1.0))
+	var b: Dictionary = _frame["bare"]
+	for spec in [[_mana_badge, _mana_num, b["drop"], _frame["mana_at"], "res://assets/ui/mana_drop.png"],
+			[_tempo_badge, _tempo_num, b["glass"], _frame["tempo_at"], "res://assets/ui/sand_timer.png"]]:
+		var badge: Control = spec[0]
+		var num: Label = spec[1]
+		if badge == null:
+			continue
+		var art: Rect2 = spec[2]
+		var c: Vector2 = art.get_center()
+		var c2: Vector2 = _mp(c)
+		badge.size = art.size * k
+		badge.position = c2 - badge.size * 0.5
+		for ch in badge.get_children():
+			if ch is TextureRect:
+				ch.visible = true
+				ch.texture = _badge_atlas(spec[4])
+				ch.stretch_mode = TextureRect.STRETCH_SCALE
+		var d: Vector2 = (Vector2(spec[3]) - c) * k
+		num.offset_left = d.x
+		num.offset_right = d.x
+		num.offset_top = d.y
+		num.offset_bottom = d.y
+		num.add_theme_font_size_override("font_size", maxi(9, roundi(13.0 * k)))
 
 
 ## The logo on the painted frame's ring spot (the frame's own was painted
@@ -1360,7 +1567,7 @@ func _place_framed_logo() -> void:
 	seal.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	seal.stretch_mode = TextureRect.STRETCH_SCALE
 	seal.size = Vector2(ls, ls)
-	seal.position = (Vector2(_frame["logo_at"]) - Vector2(ls, ls) * 0.5).round()
+	seal.position = (_mp(Vector2(_frame["logo_at"])) - Vector2(ls, ls) * 0.5).round()
 	seal.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	host.add_child(seal)
 
@@ -1429,12 +1636,12 @@ func _build_tempo_bars(card: Card, tempo_override: int = -1, resolve_override: i
 	if not _frame.is_empty():
 		# On the painted frame's dot strip (the Panel sits at the card's
 		# corner), between its ends: a long row shrinks its dots to fit.
-		var span: Vector2 = _frame.get("dots_span", Vector2(34, 118))
+		var span: Vector2 = _frame.get("dots_span", Vector2(34, 118)) * _kx
 		var sep := 3.0
 		if effective_tempo * dot_px + (effective_tempo - 1) * sep > span.y - span.x:
 			sep = 2.0
 			dot_px = floorf((span.y - span.x - (effective_tempo - 1) * sep) / maxf(1.0, effective_tempo))
-		bar_container.position = Vector2(span.x, float(_frame["dots_y"]) - dot_px * 0.5)
+		bar_container.position = Vector2(span.x, _my(float(_frame["dots_y"])) - dot_px * 0.5)
 		bar_container.size = Vector2(span.y - span.x, dot_px)
 		bar_container.add_theme_constant_override("separation", int(sep))
 	host.add_child(bar_container)
