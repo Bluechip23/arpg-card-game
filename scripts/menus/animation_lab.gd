@@ -1,18 +1,20 @@
 class_name AnimationLab
 extends "res://scripts/shared/lab_menu_base.gd"
 
-## Animation Lab — a development workbench for authoring card/passive animations.
+## Animation Lab — a development workbench for authoring card animations.
 ##
-## Shows a character in a viewport "box" with a scrollable list of every card
-## and passive on the side. Selecting an entry makes the character perform that
-## entry's animation, so animations can be iterated on here instead of having
-## to reproduce situations in a real battle.
+## Shows a character in a viewport "box" with a scrollable list on the side:
+## the hero's own drawn actions, every card grouped by type (the sandbox's
+## Spell / Offensive / Attack / Defensive / Utility / Instant / Maintain), and
+## the systemic effects. Selecting an entry makes the character perform it,
+## so animations can be iterated on here instead of having to reproduce
+## situations in a real battle.
 ##
-## Characters render through SpriteFigure — the same Mana Seed billboard
-## sprites battle uses — so the lab previews exactly what ships. Cards play the
-## action returned by Card.get_animation_action(); as per-card animations are
-## authored there (and in SpriteFigure.play_action), this lab picks them up
-## automatically.
+## Characters render through SpriteFigure — the same billboard figure battle
+## uses — so the lab previews what ships. Cards play exactly what battle
+## plays (main._play_card_animation): Card.get_animation_action(), and a
+## Spell card the hero's drawn cast. (Passives have no animations and are not
+## listed, designer 2026-11-15.)
 
 const TitleMenuScene := "res://scenes/menus/title_menu.tscn"
 
@@ -30,6 +32,7 @@ var _current_dir: int = CharacterAnimator.Direction.SOUTH
 var _current_action: String = ""
 var _current_armor: bool = false
 var _current_heal: bool = false
+var _current_spell: bool = false
 
 
 func _ready() -> void:
@@ -79,7 +82,7 @@ func _build_ui() -> void:
 	top_bar.add_child(title)
 
 	_status_label = Label.new()
-	_status_label.text = "Select a card or passive to preview its animation."
+	_status_label.text = "Select an action or a card to preview its animation."
 	_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_status_label.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
@@ -107,7 +110,7 @@ func _build_ui() -> void:
 	body.add_child(_glass_panel(right, false))
 
 	_filter_edit = LineEdit.new()
-	_filter_edit.placeholder_text = "Filter cards / passives..."
+	_filter_edit.placeholder_text = "Filter actions / cards..."
 	_filter_edit.clear_button_enabled = true
 	_filter_edit.text_changed.connect(_on_filter_changed)
 	right.add_child(_filter_edit)
@@ -209,8 +212,7 @@ func _build_viewport() -> void:
 	replay.pressed.connect(_on_replay)
 	controls.add_child(replay)
 
-	# --- Character selector (Jeremy/Ryan are paper dolls with real attack
-	# poses; Brad/Cory/Stephen are NPC sheets with the overlay weapon swing) ---
+	# --- Character selector: each hero's own drawn board and actions ---
 	var char_row := HBoxContainer.new()
 	char_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	char_row.add_theme_constant_override("separation", 6)
@@ -232,21 +234,30 @@ func _build_viewport() -> void:
 # =============================================================
 
 func _populate_list() -> void:
-	_add_section_header("CARDS")
-	for entry in _collect_cards():
-		_add_entry(entry["label"], entry["action"], entry["search"], entry.get("armor", false), entry.get("heal", false))
+	# The hero's own drawn actions — what the Attack and Block buttons and the
+	# auto attack play in battle, and the cast every Spell card plays.
+	_add_section_header("HERO ACTIONS")
+	_add_entry("Basic Attack", "basic_attack", "basic attack auto swing")
+	_add_entry("Block", "basic_block", "basic block shield guard", true)
+	_add_entry("Spell Cast", "spell_cast", "spell cast", false, false, true)
+
+	# Cards by type, in the sandbox's groups and precedence (SandboxUI).
+	var groups := _collect_cards()
+	for type_name in SandboxUI.CARD_TYPE_ORDER:
+		var entries: Array = groups.get(type_name, [])
+		if entries.is_empty():
+			continue
+		_add_section_header("%s CARDS" % type_name.to_upper())
+		for entry in entries:
+			_add_entry(entry["label"], entry["action"], entry["search"], entry["armor"], entry["heal"], entry["spell"])
 
 	_add_section_header("SYSTEMIC")
 	# Feedback driven by game events rather than cards (previewable here).
 	_add_entry("Level Up", "level_up", "level up levelup mist swirl")
 	_add_entry("Mythic Reveal", "mythic_reveal", "mythic reveal loot glow present gift ribbon icon")
 
-	_add_section_header("PASSIVES")
-	for entry in _collect_passives():
-		_add_entry(entry["label"], entry["action"], entry["search"])
 
-
-func _add_entry(label: String, action: String, search: String, grants_armor: bool = false, grants_heal: bool = false) -> void:
+func _add_entry(label: String, action: String, search: String, grants_armor: bool = false, grants_heal: bool = false, spell: bool = false) -> void:
 	var btn := Button.new()
 	btn.text = label
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -254,72 +265,35 @@ func _add_entry(label: String, action: String, search: String, grants_armor: boo
 	btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	btn.clip_text = true
 	_style_list_button(btn)
-	btn.pressed.connect(_on_entry_selected.bind(label, action, grants_armor, grants_heal))
+	btn.pressed.connect(_on_entry_selected.bind(label, action, grants_armor, grants_heal, spell))
 	_list_vbox.add_child(btn)
 	_entry_buttons.append({"button": btn, "search": search.to_lower()})
 
 
-## Returns every catalogue card (the rank-scaled generated ones excepted),
-## sorted by display name.
-func _collect_cards() -> Array:
-	var out: Array = []
+## Every catalogue card (the rank-scaled generated ones excepted), as
+## type -> entries sorted by name; the type is SandboxUI.card_category.
+func _collect_cards() -> Dictionary:
+	var out: Dictionary = {}
 	for card in Card.get_all_cards(false):
-		var type_name: String = Card.CardType.keys()[card.card_type].capitalize()
-		out.append({
-			"label": "%s  (%s)" % [card.card_name, type_name],
+		if card == null:
+			continue
+		var type_name: String = SandboxUI.card_category(card)
+		var spell: bool = card.school == Card.CardSchool.SPELL
+		if not out.has(type_name):
+			out[type_name] = []
+		out[type_name].append({
+			"label": card.card_name,
 			"action": card.get_animation_action(),
-			"search": "%s %s" % [card.card_name, card.card_id],
+			"search": "%s %s %s%s" % [card.card_name, card.card_id, type_name, " spell" if spell else ""],
 			# So the lab previews the systemic armour/heal icons, which in
 			# battle are driven by real stat changes rather than the animation.
 			"armor": card.base_block > 0 or card.block > 0,
 			"heal": card.heal_amount > 0,
+			# A Spell card plays the hero's drawn cast, as in battle.
+			"spell": spell,
 		})
-	out.sort_custom(func(a, b): return a["label"] < b["label"])
-	return out
-
-
-## Collects passives from the skill trees and the sphere grid. Passives have no
-## bespoke animations yet — selecting one resets the figure to idle — but listing
-## them here is the hook for authoring those animations later.
-func _collect_passives() -> Array:
-	var out: Array = []
-	var seen := {}
-
-	var trees := [
-		SkillTreeData.create_brad_tree(),
-		SkillTreeData.create_stephen_tree(),
-		SkillTreeData.create_ryan_tree(),
-		SkillTreeData.create_cory_tree(),
-		SkillTreeData.create_jeremy_tree(),
-	]
-	for tree in trees:
-		for row in tree.rows:
-			for opt in row.options:
-				if opt.option_type == SkillTreeData.OptionType.PASSIVE:
-					var key: String = opt.name if opt.name != "" else opt.passive_id
-					if key == "" or seen.has(key):
-						continue
-					seen[key] = true
-					out.append({
-						"label": key,
-						"action": "passive:%s" % opt.passive_id,
-						"search": "%s %s %s" % [key, opt.passive_id, opt.description],
-					})
-
-	var grid := SphereGrid.new()
-	for node in grid.get_all_nodes():
-		if node.node_type == SphereGrid.NodeType.PASSIVE:
-			var desc: String = node.description
-			if desc == "" or seen.has(desc):
-				continue
-			seen[desc] = true
-			out.append({
-				"label": desc,
-				"action": "passive_grid:%d" % node.id,
-				"search": desc,
-			})
-
-	out.sort_custom(func(a, b): return a["label"] < b["label"])
+	for type_name in out:
+		out[type_name].sort_custom(func(a, b): return a["label"] < b["label"])
 	return out
 
 
@@ -327,13 +301,14 @@ func _collect_passives() -> Array:
 # CALLBACKS
 # =============================================================
 
-func _on_entry_selected(label: String, action: String, grants_armor: bool = false, grants_heal: bool = false) -> void:
+func _on_entry_selected(label: String, action: String, grants_armor: bool = false, grants_heal: bool = false, spell: bool = false) -> void:
 	_current_action = action
 	_current_armor = grants_armor
 	_current_heal = grants_heal
+	_current_spell = spell
 	_play_current()
 	if action != "mythic_reveal":  # the reveal preview writes its own status line
-		_status_label.text = "%s  →  action: \"%s\"" % [label, action]
+		_status_label.text = "%s  →  action: \"%s\"%s" % [label, action, "  (spell: the hero's cast)" if spell else ""]
 
 
 func _on_replay() -> void:
@@ -364,7 +339,7 @@ func _play_current() -> void:
 	if _current_action == "mythic_reveal":
 		_play_mythic_reveal()
 		return
-	_figure.play_action(_current_action, _current_dir)
+	_figure.play_action(_current_action, _current_dir, _current_spell)
 	# Preview the systemic overhead icons (battle drives these from real stat changes).
 	if _current_armor:
 		_figure.pop_armor_icon()
