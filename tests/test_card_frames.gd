@@ -194,10 +194,14 @@ func _run() -> void:
 	tagged.school = Card.CardSchool.SPELL
 	_check(CardUI.frame_for(tagged) == CardUI.FRAMES["enchantment"], "an enchantment tagged spell still wears the Enchantment frame")
 
-	# Short type words keep their size on every other frame.
+	# The type words are sized to the thin type strip (designer, 2026-11-16):
+	# their capitals fit inside it, centred on it.
 	var sl := _face("slash")
 	await process_frame
-	_check(sl.type_label.get_theme_font_size("font_size") == 9, "a short type word keeps its size")
+	await process_frame
+	var sfs: int = sl.type_label.get_theme_font_size("font_size")
+	_check(sfs * CardUI.CAP_HEIGHT_EM <= sl._type_band_h(), "the type word's capitals fit the type strip (size %d, strip %.1f)" % [sfs, sl._type_band_h()])
+	_check(sl.range_label.get_theme_font_size("font_size") <= sfs, "the range word is no bigger")
 	sl.queue_free()
 
 	print("=== %d failure(s) ===" % failures)

@@ -112,7 +112,7 @@ const FRAMES := {
 			"dots_band": Vector2(7, 16),
 			"title_band": Vector2(19.5, 35),
 			"art_band": Vector2(43.5, 107),
-			"type_band": Vector2(114.5, 125),
+			"type_band": Vector2(111, 121),   # measured off the bare cut (2026-11-16)
 		},
 	},
 	# Defense cards: a stone wall veined with blue lightning, white text left
@@ -1719,9 +1719,54 @@ func _fit_type_word() -> void:
 	# The bar's text starts at the VBox's left edge (14) plus its margin (2).
 	var room: float = float(_frame["logo_at"].x) * _kx - FRAMED_LOGO_RING - 14.0 * _kx - 2.0
 	var fs := TYPE_FONT_MAX
+	if _type_band_h() > 0.0:
+		fs = clampi(floori((_type_band_h() - TYPE_CAP_INSET) / CAP_HEIGHT_EM), TYPE_BAND_FONT_MIN, TYPE_FONT_MAX)
 	while fs > TYPE_FONT_MIN and font.get_string_size(type_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
 		fs -= 1
 	type_label.add_theme_font_size_override("font_size", fs)
+	_set_type_line_on_band(fs)
+
+## The type line's words on the laid-out type bar's dark strip (designer,
+## 2026-11-16): the strip is only TYPE_BAND_MIN or so tall, so the type word
+## and the range word are sized to it and their capitals centred on it. The
+## bar's container stays as tall as it was (the frame's rims above and
+## below are part of it); the words are shifted after it lays them out.
+const CAP_HEIGHT_EM := 0.72     # the face's capitals, as a share of its size
+const TYPE_CAP_INSET := 0.5     # the capitals this much short of the strip's height
+const TYPE_BAND_FONT_MIN := 6
+
+func _type_band_h() -> float:
+	if not _laid_out() or not _frame["bare"].has("type_band") or _ysegs.size() < 4:
+		return 0.0
+	return float(_ysegs[3][2])
+
+func _set_type_line_on_band(fs: int) -> void:
+	if _type_band_h() <= 0.0 or type_bar == null:
+		return
+	if range_label:
+		range_label.add_theme_font_size_override("font_size", mini(8, fs))
+	for l in [type_label, range_label]:
+		if l:
+			l.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	if not type_bar.sort_children.is_connected(_shift_type_line):
+		type_bar.sort_children.connect(_shift_type_line)
+	type_bar.queue_sort()
+
+func _shift_type_line() -> void:
+	var h := _type_band_h()
+	if h <= 0.0 or type_label == null:
+		return
+	var hbox: Control = type_label.get_parent()
+	var vbox: Control = type_bar.get_parent()
+	if hbox == null or vbox == null:
+		return
+	var band_c: float = _my(float(_frame["bare"]["type_band"].x)) + h * 0.5
+	var font: Font = type_label.get_theme_font("font")
+	var fs: int = type_label.get_theme_font_size("font_size")
+	var cap: float = CAP_HEIGHT_EM * fs
+	var cap_c: float = vbox.position.y + type_bar.position.y + hbox.position.y + type_label.position.y \
+		+ font.get_ascent(fs) - cap * 0.5
+	hbox.position.y += band_c - cap_c
 
 
 ## The upkeep on the Maintain frame's top strip, right of the tempo dots.
