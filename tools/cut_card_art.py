@@ -189,6 +189,16 @@ SINGLES = {
     "healthy_bliss": ("card_art_healthy_bliss.webp", (0, 40, 1536, 848)),
     # The phoenix spread over the burning man and the foes he scorches.
     "gift_from_the_phoenix": ("card_art_gift_from_the_phoenix.webp", (0, 40, 1536, 848)),
+    # The burning man's scream and the foes caught in the embers.
+    "ember_heart": ("card_art_ember_heart.webp", (0, 30, 1448, 792)),
+    # Her face, the knife and the cut palm with the red magic rising.
+    "cultish_wounds": ("card_art_cultish_wounds.webp", (0, 80, 1448, 842)),
+    # The scream and the molten metal poured on his chest.
+    "armored_discipline": ("card_art_armored_discipline.webp", (0, 60, 1536, 868)),
+    # A tall painting: the well's bucket and water, the sword, shield, potion and staff.
+    "fountain_of_life": ("card_art_fountain_of_life.webp", (0, 420, 1199, 1051)),
+    # The swordsman's glare and the two snarling wolves.
+    "the_wolfs_howl": ("card_art_the_wolfs_howl.webp", (0, 30, 1536, 838)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

@@ -172,6 +172,11 @@ const CARD_PAINTINGS := {
 	"magic_barrier": "magic_barrier",
 	"healthy_bliss": "healthy_bliss",
 	"gift_from_the_phoenix": "gift_from_the_phoenix",
+	"ember_heart": "ember_heart",
+	"cultish_wounds": "cultish_wounds",
+	"armored_discipline": "armored_discipline",
+	"fountain_of_life": "fountain_of_life",
+	"the_wolfs_howl": "the_wolfs_howl",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",
