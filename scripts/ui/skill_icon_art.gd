@@ -148,6 +148,11 @@ const CARD_PAINTINGS := {
 	"best_offense": "best_offense",
 	"bob_and_weave": "bob_and_weave",
 	"defensive_awareness": "defensive_awareness",
+	"down_but_not_out": "down_but_not_out",
+	"energy_barrier": "energy_barrier",
+	"harden": "harden",
+	"hunker_down": "hunker_down",
+	"repelled_block": "repelled_block",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",

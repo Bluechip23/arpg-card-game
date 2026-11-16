@@ -138,6 +138,16 @@ SINGLES = {
     # The knight, his shield and the foes round him; the painted title
     # (above y 130) left out the same way.
     "defensive_awareness": ("card_art_defensive_awareness.webp", (0, 135, 1199, 766)),
+    # The grimace, the glowing hand and the arrow pulled from the thigh.
+    "down_but_not_out": ("card_art_down_but_not_out.webp", (0, 0, 1536, 808)),
+    # The mage's face and outspread hands in the sphere, arrows sparking off it.
+    "energy_barrier": ("card_art_energy_barrier.webp", (0, 40, 1536, 848)),
+    # Both faces and the blade stopped on the bare forearm.
+    "harden": ("card_art_harden.webp", (0, 0, 1536, 808)),
+    # The eyes over the shield rim, the sword, and the foes either side.
+    "hunker_down": ("card_art_hunker_down.webp", (0, 0, 1536, 808)),
+    # The braced shield, the shock rings and the brute thrown back.
+    "repelled_block": ("card_art_repelled_block.webp", (0, 60, 1536, 868)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
