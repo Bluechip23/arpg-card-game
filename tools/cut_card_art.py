@@ -160,6 +160,9 @@ SINGLES = {
     "tower_shield": ("card_art_tower_shield.jpg", (0, 60, 976, 574)),
     # The hands pulling the helm down, and the glare beneath it.
     "turtle_up": ("card_art_turtle_up.webp", (0, 190, 1195, 819)),
+    # The glowing draught poured and the turtle roaring under it (the monk's
+    # face is above: the painting cannot fit both).
+    "summon_battle_turtle": ("card_art_summon_battle_turtle.webp", (0, 420, 1254, 1080)),
     # The masks, all five.
     "turtle_power": ("card_art_turtle_power.webp", (0, 0, 1774, 887)),
     # The plumed helm, the beckoning hand and the brutes coming on.
@@ -183,9 +186,6 @@ FITTED = {
     "feather_foot": ("card_art_feather_foot.webp", (0, 0, 1448, 1010)),
     # 2026-11-16: the bandage with the shield set in it.
     "armor_patch": ("card_art_armor_patch.webp", (60, 150, 1476, 870)),
-    # 2026-11-16: zoomed out (designer) to show the monk pouring as well as
-    # the turtle roaring under it; the library's dark carries out the sides.
-    "summon_battle_turtle": ("card_art_summon_battle_turtle.webp", (170, 170, 1254, 1090)),
 }
 FIT_ASPECT = 1.9    # the Attack frame's art window, about the widest (2026-11-16: taller)
 FIT_FEATHER = 0.08  # the fitted picture's sides fade into the fill over this much of its width
