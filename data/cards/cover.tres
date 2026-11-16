@@ -6,7 +6,7 @@
 script = ExtResource("1_tjs3x")
 card_id = "cover"
 card_name = "Cover"
-description = "Instant: When you or an ally (summons included) within 2 spaces takes damage, reduce it by the number of cards in your hand (Cover included)."
+description = "When you or an ally (summons included) within 2 spaces takes damage, reduce it by the number of cards in your hand (Cover included)."
 card_type = 3
 card_type_name = "Instant"
 mana_cost = 0

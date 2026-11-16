@@ -6,7 +6,7 @@
 script = ExtResource("1_5ubpu")
 card_id = "vengeful_shield"
 card_name = "Vengeful Shield"
-description = "Instant. When taking damage that exposes the player, stun an enemy within melee range for 5 tempo and gain 5 armor."
+description = "When taking damage that exposes the player, stun an enemy within melee range for 5 tempo and gain 5 armor."
 card_type = 3
 card_type_name = "Instant"
 mana_cost = 0

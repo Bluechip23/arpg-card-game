@@ -673,10 +673,21 @@ func _test_mage_shield() -> void:
 func _test_magic_barrier() -> void:
 	print("-- Magic Barrier --")
 	_fresh()
+	# Designer, 2026-11-16: spending 30+ mana at once fires it for armor.
+	# (This run never idles, so a spend left by an earlier card is cleared.)
+	main._magic_barrier_due = false
 	var mb := Card.create_by_id("magic_barrier")
 	dm.hand.append(mb)
 	main._on_enemy_attacking_player(A, main.player)
-	_check(stats.current_armor == 8 and not dm.hand.has(mb), "Magic Barrier: an incoming attack fires it for 8 armor")
+	_check(dm.hand.has(mb), "Magic Barrier: an incoming attack no longer fires it")
+	stats.spend_mana(20)
+	main._fire_magic_barriers()   # (deferred in play; run it now)
+	_check(dm.hand.has(mb), "…nor does spending 20 mana")
+	stats.current_mana = 500
+	stats.current_armor = 0
+	stats.spend_mana(30)
+	main._fire_magic_barriers()
+	_check(not dm.hand.has(mb) and stats.current_armor == 8, "…spending 30 fires it for 8 armor (%d)" % stats.current_armor)
 	_check(not dm.discard_pile.has(mb), "…and it is consumed (erased)")
 
 func _test_mana_surge() -> void:

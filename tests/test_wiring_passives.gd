@@ -873,8 +873,8 @@ func _t_mages_favor() -> void:
 		pt._trigger_skill_tree_jeremy_on_rng_reroll()
 		var mb := _hand_has("magic_barrier")
 		var armor: int = _v("a_mage's_favor", "armor", r)
-		_check(mb != null and mb.block == armor and mb.card_type == Card.CardType.REACTION and mb.reaction_trigger == "on_incoming_attack" and mb.mana_cost == 0 and mb.tempo_cost == 0,
-			"A Mage's Favor r%d: a reroll batch that changed an outcome adds one 0m/0t Magic Barrier instant (%d armor) that fires on an incoming attack" % [r, armor])
+		_check(mb != null and mb.block == armor and mb.card_type == Card.CardType.REACTION and mb.reaction_trigger == "on_spend_30_mana" and mb.mana_cost == 0 and mb.tempo_cost == 0,
+			"A Mage's Favor r%d: a reroll batch that changed an outcome adds one 0m/0t Magic Barrier instant (%d armor) that fires on a 30+ mana spend" % [r, armor])
 		_check(dm.hand.size() == 1, "A Mage's Favor r%d: one per batch" % r)
 		if mb:
 			mb.execute(null, stats, dm, 0.0, 0.0, main.player.get_buff_manager())

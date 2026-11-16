@@ -6,7 +6,7 @@
 script = ExtResource("1_ngghu")
 card_id = "death_vortex"
 card_name = "Death Vortex"
-description = "Instant: after you are hit 5 times, spin — 15 damage to all adjacent enemies. If the Vortex kills, it returns to your hand."
+description = "After you are hit 5 times, spin — 15 damage to all adjacent enemies. If the Vortex kills, it returns to your hand."
 card_type = 3
 card_type_name = "Instant"
 mana_cost = 0

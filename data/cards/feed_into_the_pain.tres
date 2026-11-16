@@ -6,7 +6,7 @@
 script = ExtResource("1_47av7")
 card_id = "feed_into_the_pain"
 card_name = "Feed into the Pain"
-description = "Instant: when you take damage below 30% health, gain Strengthen 20 for 4 attacks and 25 temp HP for 5 tempo."
+description = "When you take damage below 30% health, gain Strengthen 20 for 4 attacks and 25 temp HP for 5 tempo."
 card_type = 3
 card_type_name = "Instant"
 mana_cost = 0

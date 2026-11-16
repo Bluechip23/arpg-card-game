@@ -6,7 +6,7 @@
 script = ExtResource("1_7dayr")
 card_id = "reapers_taking"
 card_name = "Reaper's Taking"
-description = "Instant: when an enemy within 5 squares drops below 25% health, teleport to them and deal 20 damage."
+description = "When an enemy within 5 squares drops below 25% health, teleport to them and deal 20 damage."
 card_type = 3
 card_type_name = "Instant"
 mana_cost = 0

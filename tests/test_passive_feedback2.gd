@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Jeremy and Ryan passives after the design pass: Arcane Overflow primes
 ## when a spell's wind-up begins and is spent once at play; I Heal You
-## reaches every ally within 3 cells; Magic Barrier goes up before the hit;
+## reaches every ally within 3 cells; Magic Barrier answers a 30+ mana spend;
 ## Harnessed Power scales damage, armor and healing at resolve; Whispers'
 ## cooldown runs from the grant and marks summons; Seance raises a real
 ## summon that answers its killer; Kinetic Armor is strictly more than;
@@ -128,21 +128,19 @@ func _test_i_heal_you(stats, pt) -> void:
 	stats.skill_tree_passives.erase("i_heal_you")
 
 func _test_mages_favor(stats, pt, dummy: Enemy) -> void:
-	print("-- A Mage's Favor: the barrier is up before the blow --")
+	print("-- A Mage's Favor: the barrier answers a big spend (designer, 2026-11-16) --")
 	var dm = main.deck_manager
 	dm.hand.clear()
 	var barrier := Card.create_magic_barrier(10)
-	_check(barrier.reaction_trigger == "on_incoming_attack", "Magic Barrier reacts to the incoming attack")
+	_check(barrier.reaction_trigger == "on_spend_30_mana", "Magic Barrier reacts to spending 30+ mana")
 	dm.hand.append(barrier)
+	main._magic_barrier_due = false
+	stats.current_mana = 300
 	stats.current_armor = 0
-	stats.current_health = 50
-	var gm = main.grid_manager
-	dummy.position = gm.grid_to_world(gm.world_to_grid(main.player.position) + Vector2i(1, 0))
-	dummy.target_position = dummy.position
-	dummy.attack_damage = 6
-	dummy._deal_damage_to_player(main.player, 6, "Attack")
-	_check(not (barrier in dm.hand), "the barrier left the hand as the enemy swung")
-	_check(stats.current_health == 50, "…and its 10 armor ate the 6 damage before it landed (hp %d, armor %d)" % [stats.current_health, stats.current_armor])
+	stats.spend_mana(40)
+	main._fire_magic_barriers()
+	_check(not (barrier in dm.hand), "the barrier fired on the 40-mana spend")
+	_check(stats.current_armor == 10, "…for its 10 armor (%d)" % stats.current_armor)
 	stats.current_armor = 0
 
 func _test_harnessed(stats, pt, dummy: Enemy) -> void:

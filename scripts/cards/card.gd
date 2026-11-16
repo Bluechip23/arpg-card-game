@@ -4612,10 +4612,12 @@ static func create_mana_surge(damage_amount: int = 5) -> Card:
 	card.base_damage = damage_amount
 	return card
 
+## Magic Barrier (designer, 2026-11-16): an instant that fires when you spend
+## 30 or more mana at once (it used to fire on an incoming attack) for
+## `armor` (A Mage's Favor's rank, 2..16).
 static func create_magic_barrier(armor: int = 8) -> Card:
 	var card := create_by_id("magic_barrier")
-	# armor comes from A Mage's Favor's rank (2..16)
-	card.description = "Gain %d armor. Instant." % armor
+	card.description = "When you spend 30 or more mana at once, gain %d armor." % armor
 	card.block = armor
 	card.base_block = armor
 	return card
