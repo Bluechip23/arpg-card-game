@@ -148,6 +148,17 @@ SINGLES = {
     "hunker_down": ("card_art_hunker_down.webp", (0, 0, 1536, 808)),
     # The braced shield, the shock rings and the brute thrown back.
     "repelled_block": ("card_art_repelled_block.webp", (0, 60, 1536, 868)),
+    # The snarl, the glowing gauntlet and the sword sparking off the shield.
+    "shield_of_growth": ("card_art_shield_of_growth.webp", (0, 80, 1448, 842)),
+    # Tall paintings from here: a strip across the face and the action.
+    # Her face and the blade sparking on the shield's rim.
+    "shield_ready": ("card_art_shield_ready.webp", (0, 160, 1194, 788)),
+    # The raised hands, the red-and-blue vortex and her upturned face.
+    "smith_thy_soul": ("card_art_smith_thy_soul.webp", (0, 30, 1195, 659)),
+    # The tower shield on his back, arrows in it, climbing the slope.
+    "tower_shield": ("card_art_tower_shield.jpg", (0, 60, 976, 574)),
+    # The hands pulling the helm down, and the glare beneath it.
+    "turtle_up": ("card_art_turtle_up.webp", (0, 190, 1195, 819)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

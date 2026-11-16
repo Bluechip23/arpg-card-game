@@ -153,6 +153,11 @@ const CARD_PAINTINGS := {
 	"harden": "harden",
 	"hunker_down": "hunker_down",
 	"repelled_block": "repelled_block",
+	"shield_of_growth": "shield_of_growth",
+	"shield_ready": "shield_ready",
+	"smith_thy_soul": "smith_thy_soul",
+	"tower_shield": "tower_shield",
+	"turtle_up": "turtle_up",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",
