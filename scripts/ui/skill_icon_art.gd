@@ -127,6 +127,12 @@ const CARD_PAINTINGS := {
 	"sky_attack": "sky_attack",
 	"shuriken": "shuriken",
 	"consecutive_snap": "consecutive_snap",
+	"dagger_throw": "dagger_throw",
+	"exhausted_assault": "exhausted_assault",
+	"last_breath": "last_breath",
+	"quick_arrow": "quick_arrow",
+	"quick_shot": "quick_arrow",   # the same painting (designer, 2026-11-16)
+	"thrown_stone": "thrown_stone",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",

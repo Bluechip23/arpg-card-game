@@ -316,8 +316,9 @@ const FRAMED_DESC_FULL_MAX := 9   # ... no bigger than this, so it covers as lit
 ## The face's layout (designer, 2026-11-15: "C" with the "T1" fade). On a
 ## frame with a "bare" cut it takes:
 ##   badge     the drop's and hourglass's size (1 = as painted)
-##   dots_k    the tempo strip's inside, this much of its height (the rest
-##             goes to the name bar); never thinner than DOTS_BAND_MIN
+##   dots_k    the tempo strip's inside, this much of its height; never
+##             thinner than DOTS_BAND_MIN. The name bar takes what thinning
+##             it to dots_title_k gave; the art window takes the rest
 ##   type_k    the type bar's inside likewise (the rest to the art window);
 ##             never thinner than TYPE_BAND_MIN
 ##   title_left  the name's left margin (it may run onto the axe)
@@ -327,12 +328,13 @@ const FRAMED_DESC_FULL_MAX := 9   # ... no bigger than this, so it covers as lit
 ##   text_fade  the corner picture under the rules text (see _place_text_fade)
 ## Set face_layout to {} for the frames as cut (dev comparisons only).
 const FACE_LAYOUT := {
-	"badge": 0.85, "type_k": 0.7, "dots_k": 0.6,
+	# 2026-11-16: the type bar and tempo strip thinner again, the art taller.
+	"badge": 0.85, "type_k": 0.4, "dots_k": 0.45, "dots_title_k": 0.6,
 	"title_rows": 2, "title_left": 26, "text_outline": 0,
 	"text_fade": {"mode": "picture", "fade": 0.55, "feather": 5},
 }
-const DOTS_BAND_MIN := 7.0    # the tempo dots are 8 across
-const TYPE_BAND_MIN := 10.0   # the type words are 9
+const DOTS_BAND_MIN := 6.0    # the tempo dots shrink to the strip (FRAMED_DOT at most)
+const TYPE_BAND_MIN := 6.0    # the type words ride over the bar's rims
 static var face_layout: Dictionary = FACE_LAYOUT
 
 var _kx := 1.0
@@ -369,20 +371,29 @@ func _build_layout() -> void:
 	var title: Vector2 = b["title_band"]
 	var art: Vector2 = b["art_band"]
 	var dots_h: float = _thinned(dots, float(face_layout.get("dots_k", 1.0)), DOTS_BAND_MIN)
+	var dots_mid: float = maxf(dots_h, _thinned(dots, float(face_layout.get("dots_title_k", 1.0)), DOTS_BAND_MIN))
+	var to_title: float = (dots.y - dots.x) - dots_mid
+	var to_art: float = dots_mid - dots_h
 	_ysegs = [
 		[dots.x, dots.y, dots_h],
-		[title.x, title.y, (title.y - title.x) + (dots.y - dots.x) - dots_h],
+		[title.x, title.y, (title.y - title.x) + to_title],
 	]
 	if b.has("type_band"):   # the Utility frame has no type bar of its own
 		var typ: Vector2 = b["type_band"]
 		var type_h: float = _thinned(typ, float(face_layout.get("type_k", 1.0)), TYPE_BAND_MIN)
-		_ysegs.append([art.x, art.y, (art.y - art.x) + (typ.y - typ.x) - type_h])
+		_ysegs.append([art.x, art.y, (art.y - art.x) + to_art + (typ.y - typ.x) - type_h])
 		_ysegs.append([typ.x, typ.y, type_h])
+	else:
+		_ysegs.append([art.x, art.y, (art.y - art.x) + to_art])
 
 ## A band's inside at k its height, but no thinner than floor (nor than it was).
 static func _thinned(band: Vector2, k: float, floor_h: float) -> float:
 	var h := band.y - band.x
 	return maxf(h * k, minf(h, floor_h))
+
+## The tempo strip's laid-out height (the dots fit inside it).
+func _dots_strip_h() -> float:
+	return float(_ysegs[0][2]) if not _ysegs.is_empty() else FRAMED_DOT
 
 ## The frame drawn in bands, each stretched to its laid-out height.
 func _draw_frame_bands(host: Control) -> void:
@@ -1863,6 +1874,8 @@ func _build_tempo_bars(card: Card, tempo_override: int = -1, resolve_override: i
 		# On the painted frame's dot strip (the Panel sits at the card's
 		# corner), between its ends: a long row shrinks its dots to fit.
 		var span: Vector2 = _frame.get("dots_span", Vector2(34, 118)) * _kx
+		if _laid_out():
+			dot_px = minf(dot_px, _dots_strip_h() + 1.0)
 		var sep := 3.0
 		if effective_tempo * dot_px + (effective_tempo - 1) * sep > span.y - span.x:
 			sep = 2.0

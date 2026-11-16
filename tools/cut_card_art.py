@@ -98,6 +98,16 @@ SINGLES = {
     "shuriken": ("card_art_shuriken.webp", (0, 130, 1536, 860)),
     # The hooded snapper, the purple slashes and the struck faces.
     "consecutive_snap": ("card_art_consecutive_snap.webp", (0, 80, 1536, 810)),
+    # 2026-11-16: the thrower's face, the outflung hand, the dagger and its mark.
+    "dagger_throw": ("card_art_dagger_throw.webp", (0, 100, 1536, 830)),
+    # The fallen fighter, the spirit lunging from him and the brute beyond.
+    "exhausted_assault": ("card_art_exhausted_assault.webp", (0, 80, 1536, 888)),
+    # The archer, eyes closed, the bow drawn and glowing.
+    "last_breath": ("card_art_last_breath.webp", (0, 60, 1448, 750)),
+    # The loosed arrow and the charging brute (Quick Arrow and Quick Shot).
+    "quick_arrow": ("card_art_quick_arrow.webp", (0, 30, 1536, 760)),
+    # The throw, the stone in the face and the second one struck.
+    "thrown_stone": ("card_art_thrown_stone.webp", (0, 40, 1672, 835)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
@@ -114,7 +124,7 @@ FITTED = {
     "brawn_gem": ("card_art_brawn_gem.webp", (0, 20, 1448, 1000)),
     "feather_foot": ("card_art_feather_foot.webp", (0, 0, 1448, 1010)),
 }
-FIT_ASPECT = 2.3    # the Attack frame's art window, about the widest
+FIT_ASPECT = 1.9    # the Attack frame's art window, about the widest (2026-11-16: taller)
 FIT_FEATHER = 0.08  # the fitted picture's sides fade into the fill over this much of its width
 
 
@@ -160,6 +170,22 @@ def fitted(source, box):
     return back
 
 
+def grow_to_aspect(box, size):
+    """A single's box made as tall as FIT_ASPECT asks (the art window grew
+    taller on 2026-11-16): grown evenly about its middle, kept inside the
+    painting (shifted, not cut, at an edge). The boxes above were placed for
+    the old, wider window; the action stays at their middle."""
+    l, t, r, b = box
+    want = round((r - l) / FIT_ASPECT)
+    if b - t >= want:
+        return box
+    want = min(want, size[1])
+    mid = (t + b) / 2.0
+    t = round(mid - want / 2.0)
+    t = max(0, min(t, size[1] - want))
+    return (l, t, r, t + want)
+
+
 def main() -> None:
     os.makedirs(os.path.dirname(OUT % "x"), exist_ok=True)
     for board, cuts in BOARDS.items():
@@ -174,7 +200,8 @@ def main() -> None:
             piece.save(OUT % card_id, optimize=True)
             print("wrote", OUT % card_id)
     for card_id, (source, box) in SINGLES.items():
-        piece = Image.open(SRC % source).convert("RGB").crop(box)
+        src = Image.open(SRC % source).convert("RGB")
+        piece = src.crop(grow_to_aspect(box, src.size))
         h = round(piece.height * WIDTH / piece.width)
         piece.resize((WIDTH, h), Image.LANCZOS).save(OUT % card_id, optimize=True)
         print("wrote", OUT % card_id, (WIDTH, h))
