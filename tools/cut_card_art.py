@@ -126,6 +126,18 @@ SINGLES = {
     "fortify_alliance": ("card_art_fortify_alliance.webp", (0, 120, 1448, 882)),
     # The face, the shield turning the sword, the attacker's helm.
     "parry": ("card_art_parry.jpg", (0, 0, 1264, 665)),
+    # The raised sword, the shield wall and the cavalry coming on.
+    "hold_the_line": ("card_art_hold_the_line.webp", (0, 40, 1448, 802)),
+    # The roar and the soldiers blown off their feet.
+    "roar": ("card_art_roar.webp", (0, 80, 1536, 888)),
+    # The two-shield knight braced.
+    "best_offense": ("card_art_best_offense.webp", (0, 30, 1536, 838)),
+    # The duck under the swing. The board's painted title sits above y 110:
+    # the box starts below it, so the title is left out.
+    "bob_and_weave": ("card_art_bob_and_weave.webp", (0, 115, 1536, 923)),
+    # The knight, his shield and the foes round him; the painted title
+    # (above y 130) left out the same way.
+    "defensive_awareness": ("card_art_defensive_awareness.webp", (0, 135, 1199, 766)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

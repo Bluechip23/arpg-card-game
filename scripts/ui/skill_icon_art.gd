@@ -143,6 +143,11 @@ const CARD_PAINTINGS := {
 	"living_armor": "living_armor",
 	"fortify_alliance": "fortify_alliance",
 	"parry": "parry",
+	"hold_the_line": "hold_the_line",
+	"roar": "roar",
+	"best_offense": "best_offense",
+	"bob_and_weave": "bob_and_weave",
+	"defensive_awareness": "defensive_awareness",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",
