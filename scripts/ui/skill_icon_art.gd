@@ -122,6 +122,11 @@ const CARD_PAINTINGS := {
 	"worst_that_could_happen": "worst_that_could_happen",
 	"charge": "charge",
 	"harvest": "harvest",
+	"heroic_leap": "heroic_leap",
+	"sky_fall": "sky_fall",
+	"sky_attack": "sky_attack",
+	"shuriken": "shuriken",
+	"consecutive_snap": "consecutive_snap",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",

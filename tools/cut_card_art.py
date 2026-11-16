@@ -88,6 +88,16 @@ SINGLES = {
     "charge": ("card_art_charge.webp", (0, 0, 1536, 730)),
     # The scythe, the reaper's face and the soul pulled from the soldier.
     "harvest": ("card_art_harvest.webp", (0, 110, 1536, 840)),
+    # 2026-11-16: the hammer high over the leaper's roar, the soldiers below.
+    "heroic_leap": ("card_art_heroic_leap.webp", (0, 0, 1536, 690)),
+    # A tall painting: the archer's face and drawing hand, the bow rising.
+    "sky_fall": ("card_art_sky_fall.jpg", (0, 300, 896, 727)),
+    # The archer above, the arrow drawn on the crowd below.
+    "sky_attack": ("card_art_sky_attack.webp", (0, 60, 1536, 790)),
+    # The masked eyes and the star held up to them.
+    "shuriken": ("card_art_shuriken.webp", (0, 130, 1536, 860)),
+    # The hooded snapper, the purple slashes and the struck faces.
+    "consecutive_snap": ("card_art_consecutive_snap.webp", (0, 80, 1536, 810)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
