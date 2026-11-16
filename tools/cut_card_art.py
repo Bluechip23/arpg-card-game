@@ -108,6 +108,16 @@ SINGLES = {
     "quick_arrow": ("card_art_quick_arrow.webp", (0, 30, 1536, 760)),
     # The throw, the stone in the face and the second one struck.
     "thrown_stone": ("card_art_thrown_stone.webp", (0, 40, 1672, 835)),
+    # The archer's draw and the arrow bending through both soldiers.
+    "trick_shot": ("card_art_trick_shot.webp", (0, 60, 1448, 822)),
+    # The three-arrow draw and the brute charging in.
+    "multishot": ("card_art_multishot.webp", (0, 120, 1448, 882)),
+    # The glowing arrow through the near man, the second and on to the third.
+    "spirit_arrow": ("card_art_spirit_arrow.webp", (0, 40, 1448, 802)),
+    # The winged pig, fuse lit, flying at the army.
+    "if_pigs_could_fly": ("card_art_if_pigs_could_fly.webp", (0, 60, 1448, 822)),
+    # The wall of fire and the burning soldier reaching out.
+    "peshtigos_kiss": ("card_art_peshtigos_kiss.webp", (0, 40, 1672, 920)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
