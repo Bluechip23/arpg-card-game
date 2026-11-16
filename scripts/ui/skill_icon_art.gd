@@ -158,6 +158,10 @@ const CARD_PAINTINGS := {
 	"smith_thy_soul": "smith_thy_soul",
 	"tower_shield": "tower_shield",
 	"turtle_up": "turtle_up",
+	"summon_battle_turtle": "summon_battle_turtle",
+	"turtle_power": "turtle_power",
+	"taunt": "taunt",
+	"grit": "grit",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",

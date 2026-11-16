@@ -160,6 +160,15 @@ SINGLES = {
     "tower_shield": ("card_art_tower_shield.jpg", (0, 60, 976, 574)),
     # The hands pulling the helm down, and the glare beneath it.
     "turtle_up": ("card_art_turtle_up.webp", (0, 190, 1195, 819)),
+    # The glowing draught poured and the turtle roaring under it (the monk's
+    # face is above: the painting cannot fit both).
+    "summon_battle_turtle": ("card_art_summon_battle_turtle.webp", (0, 420, 1254, 1080)),
+    # The masks, all five.
+    "turtle_power": ("card_art_turtle_power.webp", (0, 0, 1774, 887)),
+    # The plumed helm, the beckoning hand and the brutes coming on.
+    "taunt": ("card_art_taunt.webp", (0, 0, 1536, 808)),
+    # The bloodied, glaring face.
+    "grit": ("card_art_grit.webp", (0, 0, 1536, 808)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
