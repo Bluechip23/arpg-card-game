@@ -169,6 +169,8 @@ SINGLES = {
     "taunt": ("card_art_taunt.webp", (0, 0, 1536, 808)),
     # The bloodied, glaring face.
     "grit": ("card_art_grit.webp", (0, 0, 1536, 808)),
+    # Two scenes side by side (designer): the throw, then the shiv driven in.
+    "pocket_shiv": ("card_art_pocket_shiv.webp", (0, 60, 1536, 868)),
     # Her face, the shield taking the axe, the wounded man behind her.
     "cover": ("card_art_cover.webp", (0, 120, 1448, 882)),
     # The backbend under the spear, her face turned up to it.
@@ -177,6 +179,16 @@ SINGLES = {
     "not_so_fast": ("card_art_not_so_fast.webp", (0, 40, 1536, 848)),
     # The grin, the green eyes and the poisoned hand.
     "spiteful_sting": ("card_art_spiteful_sting.webp", (0, 40, 1536, 848)),
+    # The snarl behind the spiked shield and the attacker thrown back.
+    "vengeful_shield": ("card_art_vengeful_shield.webp", (0, 120, 1448, 882)),
+    # The axeman's soul torn out and drawn to the sorceress's hand.
+    "soul_consumption": ("card_art_soul_consumption.webp", (0, 60, 1448, 822)),
+    # The hooded mage's ward and the brute's axe sparking off it.
+    "magic_barrier": ("card_art_magic_barrier.webp", (0, 0, 1536, 808)),
+    # The healer's raised arms and the faces lifted in the red light.
+    "healthy_bliss": ("card_art_healthy_bliss.webp", (0, 40, 1536, 848)),
+    # The phoenix spread over the burning man and the foes he scorches.
+    "gift_from_the_phoenix": ("card_art_gift_from_the_phoenix.webp", (0, 40, 1536, 848)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
@@ -194,9 +206,6 @@ FITTED = {
     "feather_foot": ("card_art_feather_foot.webp", (0, 0, 1448, 1010)),
     # 2026-11-16: the bandage with the shield set in it.
     "armor_patch": ("card_art_armor_patch.webp", (60, 150, 1476, 870)),
-    # A two-panel board: the right panel only (past its dividing line), seen
-    # whole so the snarl, the shiv driven in and the brute's cry all show.
-    "pocket_shiv": ("card_art_pocket_shiv.webp", (850, 60, 1536, 770)),
 }
 FIT_ASPECT = 1.9    # the Attack frame's art window, about the widest (2026-11-16: taller)
 FIT_FEATHER = 0.08  # the fitted picture's sides fade into the fill over this much of its width

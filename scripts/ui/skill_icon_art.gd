@@ -167,6 +167,11 @@ const CARD_PAINTINGS := {
 	"not_so_fast": "not_so_fast",
 	"spiteful_sting": "spiteful_sting",
 	"pocket_shiv": "pocket_shiv",
+	"vengeful_shield": "vengeful_shield",
+	"soul_consumption": "soul_consumption",
+	"magic_barrier": "magic_barrier",
+	"healthy_bliss": "healthy_bliss",
+	"gift_from_the_phoenix": "gift_from_the_phoenix",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",
