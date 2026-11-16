@@ -138,6 +138,11 @@ const CARD_PAINTINGS := {
 	"spirit_arrow": "spirit_arrow",
 	"if_pigs_could_fly": "if_pigs_could_fly",
 	"peshtigos_kiss": "peshtigos_kiss",
+	"approach": "approach",
+	"armor_patch": "armor_patch",
+	"living_armor": "living_armor",
+	"fortify_alliance": "fortify_alliance",
+	"parry": "parry",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",

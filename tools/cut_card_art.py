@@ -118,6 +118,14 @@ SINGLES = {
     "if_pigs_could_fly": ("card_art_if_pigs_could_fly.webp", (0, 60, 1448, 822)),
     # The wall of fire and the burning soldier reaching out.
     "peshtigos_kiss": ("card_art_peshtigos_kiss.webp", (0, 40, 1672, 920)),
+    # 2026-11-16: the knight's face, the hand and the wall of stone flung out.
+    "approach": ("card_art_approach.webp", (0, 60, 1448, 822)),
+    # The knight's upturned face and the glowing vine-veined armour.
+    "living_armor": ("card_art_living_armor.webp", (0, 0, 1448, 762)),
+    # The healed ally, the knight's face and the shield taking the skeleton's blow.
+    "fortify_alliance": ("card_art_fortify_alliance.webp", (0, 120, 1448, 882)),
+    # The face, the shield turning the sword, the attacker's helm.
+    "parry": ("card_art_parry.jpg", (0, 0, 1264, 665)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
@@ -133,6 +141,8 @@ FITTED = {
     "lemon_drop": ("card_art_lemon_drop.webp", (0, 30, 1448, 1086)),
     "brawn_gem": ("card_art_brawn_gem.webp", (0, 20, 1448, 1000)),
     "feather_foot": ("card_art_feather_foot.webp", (0, 0, 1448, 1010)),
+    # 2026-11-16: the bandage with the shield set in it.
+    "armor_patch": ("card_art_armor_patch.webp", (60, 150, 1476, 870)),
 }
 FIT_ASPECT = 1.9    # the Attack frame's art window, about the widest (2026-11-16: taller)
 FIT_FEATHER = 0.08  # the fitted picture's sides fade into the fill over this much of its width
