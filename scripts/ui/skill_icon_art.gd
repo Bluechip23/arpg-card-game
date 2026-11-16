@@ -162,6 +162,11 @@ const CARD_PAINTINGS := {
 	"turtle_power": "turtle_power",
 	"taunt": "taunt",
 	"grit": "grit",
+	"cover": "cover",
+	"spider_senses": "spider_senses",
+	"not_so_fast": "not_so_fast",
+	"spiteful_sting": "spiteful_sting",
+	"pocket_shiv": "pocket_shiv",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",
