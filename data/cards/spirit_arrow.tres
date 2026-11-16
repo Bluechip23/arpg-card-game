@@ -17,4 +17,4 @@ aoe_range = 100.0
 is_ranged = true
 target_types = ["point"]
 slot_labels = [14, 16, 1]
-keywords = ["attack", "offensive", "ranged"]
+keywords = ["offensive", "ranged"]

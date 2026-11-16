@@ -449,10 +449,14 @@ static func _badge_atlas(path: String) -> Texture2D:
 ## enchantments, Spell for every spell;
 ## then by type — Instant, Defense, Utility — and the Attack shape
 ## (is_attack(), never an offensive spell); {} for the drawn frame.
+## Cards with an upkeep that wear their own type's frame, not the Maintain
+## one (designer, 2026-11-16): the upkeep sits on the frame's top strip.
+const UPKEEP_IN_OWN_FRAME := {"peshtigos_kiss": true}
+
 static func frame_for(card: Card) -> Dictionary:
 	if card == null:
 		return {}
-	if card.maintain_cost > 0:
+	if card.maintain_cost > 0 and not UPKEEP_IN_OWN_FRAME.has(card.card_id):
 		return FRAMES["maintain"]
 	# An instant is an instant first, spell or not (Healthy Bliss).
 	if card.card_type == Card.CardType.REACTION:
@@ -586,6 +590,11 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 			if type_label:
 				type_label.text = "Maintain"
 				type_label.add_theme_color_override("font_color", MAINTAIN_WORD)
+			_place_upkeep(card.maintain_cost)
+		elif card.maintain_cost > 0 and not _frame.is_empty():
+			# An upkeep card in its own frame (UPKEEP_IN_OWN_FRAME): the
+			# upkeep on the top strip as the Maintain frame has it.
+			cost_label.visible = false
 			_place_upkeep(card.maintain_cost)
 
 	_pending_mana = str(display_mana)
@@ -1876,6 +1885,8 @@ func _build_tempo_bars(card: Card, tempo_override: int = -1, resolve_override: i
 		var span: Vector2 = _frame.get("dots_span", Vector2(34, 118)) * _kx
 		if _laid_out():
 			dot_px = minf(dot_px, _dots_strip_h() + 1.0)
+		if _card and UPKEEP_IN_OWN_FRAME.has(_card.card_id) and _card.maintain_cost > 0:
+			span.y = minf(span.y, (UPKEEP_RIGHT - 24.0) * _kx)   # the upkeep sits at the strip's end
 		var sep := 3.0
 		if effective_tempo * dot_px + (effective_tempo - 1) * sep > span.y - span.x:
 			sep = 2.0
