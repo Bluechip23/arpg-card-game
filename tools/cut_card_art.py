@@ -153,7 +153,8 @@ SINGLES = {
     # Tall paintings from here: a strip across the face and the action.
     # Her face and the blade sparking on the shield's rim.
     "shield_ready": ("card_art_shield_ready.webp", (0, 160, 1194, 788)),
-    # The raised hands, the red-and-blue vortex and her upturned face.
+    # The raised hands, the red-and-blue vortex, her upturned face and the
+    # glowing armour (replaced 2026-11-16).
     "smith_thy_soul": ("card_art_smith_thy_soul.webp", (0, 30, 1195, 659)),
     # The tower shield on his back, arrows in it, climbing the slope.
     "tower_shield": ("card_art_tower_shield.jpg", (0, 60, 976, 574)),
