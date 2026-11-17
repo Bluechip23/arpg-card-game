@@ -226,9 +226,8 @@ SINGLES = {
     "bastion_battle": ("card_art_bastion_battle.webp", (0, 0, 1440, 720)),
     # The grinning thief, the knife and the shopkeeper unaware.
     "internal_sickness": ("card_art_internal_sickness.webp", (0, 160, 1448, 922)),
-    # The jabbing finger, the spark and the wool socks (designer: slid up to
-    # show them; the shocked man's face may lose its top).
-    "static_sting": ("card_art_static_sting.webp", (0, 200, 1448, 962)),
+    # The jabbing finger, the spark and the shocked faces.
+    "static_sting": ("card_art_static_sting.webp", (0, 0, 1448, 762)),
     # The spear lunge and the brute bracing with his axe.
     "lunge": ("card_art_lunge.webp", (0, 40, 1672, 920)),
     # The scream and the thorned vines wrapping him.
