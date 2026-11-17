@@ -187,6 +187,9 @@ const CARD_PAINTINGS := {
 	"grapple_chain": "grapple_chain",
 	"summon_skeleton": "summon_skeleton",
 	"skeleton_army": "skeleton_army",
+	"summon_shadow_hound": "summon_shadow_hound",
+	"deliberate_arch": "deliberate_arch",
+	"bastion_battle": "bastion_battle",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",

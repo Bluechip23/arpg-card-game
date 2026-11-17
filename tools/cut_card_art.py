@@ -220,6 +220,12 @@ SINGLES = {
     "summon_skeleton": ("card_art_summon_skeleton.webp", (0, 40, 1536, 848)),
     # The skeleton family's portrait by the lake.
     "skeleton_army": ("card_art_skeleton_army.webp", (0, 40, 1448, 802)),
+    # Her face, the glowing hands and the dog healing under them.
+    "summon_shadow_hound": ("card_art_summon_shadow_hound.webp", (0, 120, 1448, 882)),
+    # The shout, the arms flung wide and the purple arcs hurling the dead.
+    "deliberate_arch": ("card_art_deliberate_arch.webp", (0, 0, 1774, 887)),
+    # The snarl, the shield slam and the foe flung back with his gear.
+    "bastion_battle": ("card_art_bastion_battle.webp", (0, 0, 1440, 720)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
