@@ -333,6 +333,8 @@ const FACE_LAYOUT := {
 	"title_rows": 2, "title_left": 26, "text_outline": 0,
 	"text_fade": {"mode": "picture", "fade": 0.55, "feather": 5},
 }
+const TITLE_BAR_H := 23.0      # the name bar: two rows of NAME_DOUBLE_SIZE
+const TITLE_BAND_MIN := 6.0    # ...its plain inside never thinner than this
 const DOTS_BAND_MIN := 6.0    # the tempo dots shrink to the strip (FRAMED_DOT at most)
 const TYPE_BAND_MIN := 6.0    # the type words ride over the bar's rims
 static var face_layout: Dictionary = FACE_LAYOUT
@@ -374,9 +376,14 @@ func _build_layout() -> void:
 	var dots_mid: float = maxf(dots_h, _thinned(dots, float(face_layout.get("dots_title_k", 1.0)), DOTS_BAND_MIN))
 	var to_title: float = (dots.y - dots.x) - dots_mid
 	var to_art: float = dots_mid - dots_h
+	# The name bar thinned to TITLE_BAR_H (designer, 2026-11-17): what it
+	# gives up goes to the art window.
+	var bar_now: float = float(_frame.get("title_h", 22.0)) + to_title
+	var title_cut: float = clampf(bar_now - TITLE_BAR_H, 0.0, (title.y - title.x) + to_title - TITLE_BAND_MIN)
+	to_art += title_cut
 	_ysegs = [
 		[dots.x, dots.y, dots_h],
-		[title.x, title.y, (title.y - title.x) + to_title],
+		[title.x, title.y, (title.y - title.x) + to_title - title_cut],
 	]
 	if b.has("type_band"):   # the Utility frame has no type bar of its own
 		var typ: Vector2 = b["type_band"]
@@ -1204,9 +1211,14 @@ func _fit_name() -> void:
 		fs -= 1
 	name_label.add_theme_font_size_override("font_size", fs)
 
-## The name centred in its bar, on one row if it fits at a readable size,
-## else wrapped onto two, as large as both rows allow.
-const NAME_ROWS_MIN := 8
+## The name centred in its bar (designer, 2026-11-17): one row at
+## NAME_SINGLE_SIZE (down to NAME_SINGLE_MIN for a near fit), else two rows at
+## NAME_DOUBLE_SIZE — the single size scaled by the old 11/13 the face used
+## between one row and two — smaller only if two rows still overflow.
+const NAME_SINGLE_SIZE := 11
+const NAME_SINGLE_MIN := 10
+const NAME_DOUBLE_SIZE := 9    # roundi(11 * 11 / 13.0)
+const NAME_ROWS_MIN := 7
 func _fit_name_rows(font: Font) -> void:
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
@@ -1216,18 +1228,17 @@ func _fit_name_rows(font: Font) -> void:
 	var tb := title_bar.get_theme_stylebox("panel")
 	var w: float = CARD_W - 26.0 * _kx - tb.content_margin_left - tb.content_margin_right
 	var h: float = title_bar.custom_minimum_size.y - tb.content_margin_bottom
-	var fs := NAME_FONT_MAX
-	# One row, down to 11; then two rows, down to the floor.
-	while fs > 11 and font.get_string_size(name_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > w:
+	var fs := NAME_SINGLE_SIZE
+	while fs > NAME_SINGLE_MIN and font.get_string_size(name_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > w:
 		fs -= 1
 	if font.get_string_size(name_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > w:
-		fs = NAME_FONT_MAX
+		fs = NAME_DOUBLE_SIZE
 		while fs > NAME_ROWS_MIN and _rows_h(font, w, fs) > h + 1.0:
 			fs -= 1
 	name_label.add_theme_constant_override("line_spacing", NAME_ROWS_TIGHT)
 	name_label.add_theme_font_size_override("font_size", fs)
 
-const NAME_ROWS_TIGHT := -3   # the two rows drawn this much closer
+const NAME_ROWS_TIGHT := -4   # the two rows drawn this much closer
 func _rows_h(font: Font, w: float, fs: int) -> float:
 	var full: float = font.get_multiline_string_size(name_label.text, HORIZONTAL_ALIGNMENT_CENTER, w, fs).y
 	var rows := roundi(full / font.get_height(fs))
