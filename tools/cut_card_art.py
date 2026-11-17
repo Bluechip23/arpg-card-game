@@ -226,6 +226,9 @@ SINGLES = {
     "bastion_battle": ("card_art_bastion_battle.webp", (0, 0, 1440, 720)),
     # The grinning thief, the knife and the shopkeeper unaware.
     "internal_sickness": ("card_art_internal_sickness.webp", (0, 160, 1448, 922)),
+    # The jabbing finger, the spark and the wool socks (designer: slid up to
+    # show them; the shocked man's face may lose its top).
+    "static_sting": ("card_art_static_sting.webp", (0, 200, 1448, 962)),
     # The spear lunge and the brute bracing with his axe.
     "lunge": ("card_art_lunge.webp", (0, 40, 1672, 920)),
     # The scream and the thorned vines wrapping him.
@@ -252,9 +255,6 @@ FITTED = {
     # 2026-11-17: her face, the glowing hands and the dog's whole head
     # (designer) — a wide crop fitted to the window's height.
     "summon_shadow_hound": ("card_art_summon_shadow_hound.webp", (80, 100, 1448, 1040)),
-    # The jabbing finger, the spark, the shocked faces and the wool socks
-    # (designer: show them) — the painting whole, fitted to the window.
-    "static_sting": ("card_art_static_sting.webp", (200, 20, 1448, 1086), 2.1),   # the Offensive window
 }
 FIT_ASPECT = 1.9    # the Attack frame's art window, about the widest (2026-11-16: taller)
 FIT_FEATHER = 0.08  # the fitted picture's sides fade into the fill over this much of its width
