@@ -210,6 +210,16 @@ SINGLES = {
     "forever_armor": ("card_art_forever_armor.webp", (0, 100, 524, 376)),
     # The red halo and its rays.
     "halo": ("card_art_halo.webp", (0, 140, 530, 419)),
+    # The hound's snarl over the fallen man and the warden's blade above.
+    "wardens_hound": ("card_art_wardens_hound.webp", (0, 230, 747, 623)),
+    # The two spires, her glowing eyes and the lightning through the dead.
+    "lodestone_field": ("card_art_lodestone_field.webp", (0, 40, 1536, 848)),
+    # The chain drawn taut and the hooked ghoul pulled in.
+    "grapple_chain": ("card_art_grapple_chain.webp", (0, 120, 1536, 928)),
+    # The necromancer, the risen corpse with its knife and the grieving man.
+    "summon_skeleton": ("card_art_summon_skeleton.webp", (0, 40, 1536, 848)),
+    # The skeleton family's portrait by the lake.
+    "skeleton_army": ("card_art_skeleton_army.webp", (0, 40, 1448, 802)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

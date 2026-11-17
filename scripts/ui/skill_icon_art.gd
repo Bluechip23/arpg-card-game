@@ -182,6 +182,11 @@ const CARD_PAINTINGS := {
 	"barbed_exterior": "barbed_exterior",
 	"forever_armor": "forever_armor",
 	"halo": "halo",
+	"wardens_hound": "wardens_hound",
+	"lodestone_field": "lodestone_field",
+	"grapple_chain": "grapple_chain",
+	"summon_skeleton": "summon_skeleton",
+	"skeleton_army": "skeleton_army",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",
