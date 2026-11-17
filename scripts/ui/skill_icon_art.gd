@@ -195,6 +195,11 @@ const CARD_PAINTINGS := {
 	"lunge": "lunge",
 	"vines": "vines",
 	"mana_surge": "mana_surge",
+	"spark": "spark",
+	"harness_lightning": "harness_lightning",
+	"spine_release": "spine_release",
+	"flames_of_alexandria": "flames_of_alexandria",
+	"arcane_tide": "arcane_tide",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",

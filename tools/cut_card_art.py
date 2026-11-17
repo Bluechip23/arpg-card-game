@@ -234,6 +234,16 @@ SINGLES = {
     "vines": ("card_art_vines.webp", (0, 0, 1448, 762)),
     # The skeleton's lightning and the man it strikes.
     "mana_surge": ("card_art_mana_surge.webp", (0, 60, 1447, 822)),
+    # The glowing drop falling from the glass to the blue-eyed upturned face.
+    "spark": ("card_art_spark.webp", (0, 40, 1447, 802)),
+    # The glowing eyes and the orbs circling him.
+    "harness_lightning": ("card_art_harness_lightning.webp", (0, 40, 1448, 802)),
+    # The scream and the thorns bursting out into the soldiers.
+    "spine_release": ("card_art_spine_release.jpg", (0, 40, 1195, 669)),
+    # The burning library, its statues, banners and the armillary sphere.
+    "flames_of_alexandria": ("card_art_flames_of_alexandria.webp", (0, 220, 1448, 982)),
+    # The glare, the staff's gem and the green magic in the open hand.
+    "arcane_tide": ("card_art_arcane_tide.webp", (0, 40, 1448, 802)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
