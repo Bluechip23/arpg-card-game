@@ -220,12 +220,20 @@ SINGLES = {
     "summon_skeleton": ("card_art_summon_skeleton.webp", (0, 40, 1536, 848)),
     # The skeleton family's portrait by the lake.
     "skeleton_army": ("card_art_skeleton_army.webp", (0, 40, 1448, 802)),
-    # Her face, the glowing hands and the dog healing under them.
-    "summon_shadow_hound": ("card_art_summon_shadow_hound.webp", (0, 120, 1448, 882)),
     # The shout, the arms flung wide and the purple arcs hurling the dead.
     "deliberate_arch": ("card_art_deliberate_arch.webp", (0, 0, 1774, 887)),
     # The snarl, the shield slam and the foe flung back with his gear.
     "bastion_battle": ("card_art_bastion_battle.webp", (0, 0, 1440, 720)),
+    # The grinning thief, the knife and the shopkeeper unaware.
+    "internal_sickness": ("card_art_internal_sickness.webp", (0, 160, 1448, 922)),
+    # The jabbing finger, the spark and the shocked faces.
+    "static_sting": ("card_art_static_sting.webp", (0, 0, 1448, 762)),
+    # The spear lunge and the brute bracing with his axe.
+    "lunge": ("card_art_lunge.webp", (0, 40, 1672, 920)),
+    # The scream and the thorned vines wrapping him.
+    "vines": ("card_art_vines.webp", (0, 0, 1448, 762)),
+    # The skeleton's lightning and the man it strikes.
+    "mana_surge": ("card_art_mana_surge.webp", (0, 60, 1447, 822)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
@@ -243,6 +251,9 @@ FITTED = {
     "feather_foot": ("card_art_feather_foot.webp", (0, 0, 1448, 1010)),
     # 2026-11-16: the bandage with the shield set in it.
     "armor_patch": ("card_art_armor_patch.webp", (60, 150, 1476, 870)),
+    # 2026-11-17: her face, the glowing hands and the dog's whole head
+    # (designer) — a wide crop fitted to the window's height.
+    "summon_shadow_hound": ("card_art_summon_shadow_hound.webp", (80, 100, 1448, 1040)),
 }
 FIT_ASPECT = 1.9    # the Attack frame's art window, about the widest (2026-11-16: taller)
 FIT_FEATHER = 0.08  # the fitted picture's sides fade into the fill over this much of its width

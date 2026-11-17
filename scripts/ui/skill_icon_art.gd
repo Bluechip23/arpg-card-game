@@ -190,6 +190,11 @@ const CARD_PAINTINGS := {
 	"summon_shadow_hound": "summon_shadow_hound",
 	"deliberate_arch": "deliberate_arch",
 	"bastion_battle": "bastion_battle",
+	"internal_sickness": "internal_sickness",
+	"static_sting": "static_sting",
+	"lunge": "lunge",
+	"vines": "vines",
+	"mana_surge": "mana_surge",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",
