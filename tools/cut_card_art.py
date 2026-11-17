@@ -199,6 +199,17 @@ SINGLES = {
     "fountain_of_life": ("card_art_fountain_of_life.webp", (0, 420, 1199, 1051)),
     # The swordsman's glare and the two snarling wolves.
     "the_wolfs_howl": ("card_art_the_wolfs_howl.webp", (0, 30, 1536, 838)),
+    # 2026-11-17: the caster's raised arms, the spirit shields and the warded soldiers.
+    "spirit_armor": ("card_art_spirit_armor.webp", (0, 60, 1448, 822)),
+    # The goblin's ear, the sketched tally and the fight he is recording.
+    "the_ledger": ("card_art_the_ledger.webp", (0, 160, 1448, 922)),
+    # His face and the thorns tearing through him.
+    "barbed_exterior": ("card_art_barbed_exterior.jpg", (0, 0, 1264, 665)),
+    # Small tall paintings: a strip across the subject.
+    # The bowed face over the glowing sword hilt.
+    "forever_armor": ("card_art_forever_armor.webp", (0, 100, 524, 376)),
+    # The red halo and its rays.
+    "halo": ("card_art_halo.webp", (0, 140, 530, 419)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

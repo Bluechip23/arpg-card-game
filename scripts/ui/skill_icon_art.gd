@@ -177,6 +177,11 @@ const CARD_PAINTINGS := {
 	"armored_discipline": "armored_discipline",
 	"fountain_of_life": "fountain_of_life",
 	"the_wolfs_howl": "the_wolfs_howl",
+	"spirit_armor": "spirit_armor",
+	"the_ledger": "the_ledger",
+	"barbed_exterior": "barbed_exterior",
+	"forever_armor": "forever_armor",
+	"halo": "halo",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",
