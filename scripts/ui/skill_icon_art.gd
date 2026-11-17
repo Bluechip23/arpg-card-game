@@ -200,6 +200,11 @@ const CARD_PAINTINGS := {
 	"spine_release": "spine_release",
 	"flames_of_alexandria": "flames_of_alexandria",
 	"arcane_tide": "arcane_tide",
+	"ward_of_hallow_glass": "ward_of_hallow_glass",
+	"surrounding_ice": "surrounding_ice",
+	"internal_combustion": "internal_combustion",
+	"absorb_essence": "absorb_essence",
+	"choke": "choke",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",

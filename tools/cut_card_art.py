@@ -244,6 +244,16 @@ SINGLES = {
     "flames_of_alexandria": ("card_art_flames_of_alexandria.webp", (0, 220, 1448, 982)),
     # The glare, the staff's gem and the green magic in the open hand.
     "arcane_tide": ("card_art_arcane_tide.webp", (0, 40, 1448, 802)),
+    # Her face and the glass shield conjured beside her.
+    "ward_of_hallow_glass": ("card_art_ward_of_hallow_glass.webp", (0, 40, 1448, 802)),
+    # Her glowing hands and the ice spikes hurling the soldiers.
+    "surrounding_ice": ("card_art_surrounding_ice.webp", (0, 40, 1448, 802)),
+    # The swordsman's glare and the knight burning from within.
+    "internal_combustion": ("card_art_internal_combustion.webp", (0, 0, 1448, 762)),
+    # The floating caster and the light drawn from the army.
+    "absorb_essence": ("card_art_absorb_essence.webp", (0, 0, 1672, 880)),
+    # The hooded reach and the goblin clutching his throat.
+    "choke": ("card_art_choke.webp", (0, 40, 1672, 920)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
