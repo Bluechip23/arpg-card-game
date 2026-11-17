@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "not_so_fast"
 card_name = "Not So Fast"
-description = "Instant: when an ally within 6 squares is hit, swap places with them and deal 6 damage to every enemy next to where you left or where you land."
+description = "When an ally within 6 squares is hit, swap places with them and deal 6 damage to every enemy next to where you left or where you land."
 card_type = 3
 card_type_name = "Instant"
 mana_cost = 0

@@ -6,7 +6,7 @@
 script = ExtResource("1_rtk5v")
 card_id = "healthy_bliss"
 card_name = "Healthy Bliss"
-description = "Instant: Once this has been in your hand for 20 tempo, automatically heal all allies for 10 health."
+description = "Once this has been in your hand for 20 tempo, automatically heal all allies for 10 health."
 card_type = 3
 card_type_name = "Instant"
 mana_cost = 0

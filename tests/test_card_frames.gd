@@ -78,7 +78,7 @@ func _run() -> void:
 	_check(inst.get_theme_stylebox("panel") is StyleBoxEmpty, "and comes off again")
 
 	# Every card with an upkeep wears the Maintain frame, whatever its type.
-	for id in ["armored_discipline", "forever_armor", "peshtigos_kiss"]:
+	for id in ["armored_discipline", "forever_armor"]:
 		var m := _face(id)
 		await process_frame
 		var ma: TextureRect = m.get_node_or_null("Panel/FrameArt")
@@ -150,8 +150,14 @@ func _run() -> void:
 		and not Card.create_by_id("slash").is_mixed_offensive(), "an Attack keeps the Attack frame")
 	_check(CardUI.frame_for(Card.create_by_id("fireball")) == CardUI.FRAMES["spell"]
 		and not Card.create_by_id("fireball").is_mixed_offensive(), "an offensive spell keeps the Spell frame")
-	_check(CardUI.frame_for(Card.create_by_id("peshtigos_kiss")) == CardUI.FRAMES["maintain"],
-		"an upkeep still outranks it (Peshtigo's Kiss)")
+	_check(CardUI.frame_for(Card.create_by_id("armored_discipline")) == CardUI.FRAMES["maintain"],
+		"an upkeep still outranks it (Armored Discipline)")
+	var pk := Card.create_by_id("peshtigos_kiss")
+	_check(CardUI.frame_for(pk) == CardUI.FRAMES["spell"] and pk.maintain_cost > 0 and not pk.is_attack(),
+		"Peshtigo's Kiss is a spell in the Spell frame, its upkeep kept (designer, 2026-11-16)")
+	var sa := Card.create_by_id("spirit_arrow")
+	_check(CardUI.frame_for(sa) == CardUI.FRAMES["offensive"] and not sa.is_attack(),
+		"Spirit Arrow is plain Offensive (designer, 2026-11-16)")
 
 	# Enchantments wear the Enchantment frame (2026-11-08): every one in the
 	# data, with white text on the green stone and the logo in the type
@@ -188,10 +194,14 @@ func _run() -> void:
 	tagged.school = Card.CardSchool.SPELL
 	_check(CardUI.frame_for(tagged) == CardUI.FRAMES["enchantment"], "an enchantment tagged spell still wears the Enchantment frame")
 
-	# Short type words keep their size on every other frame.
+	# The type words are sized to the thin type strip (designer, 2026-11-16):
+	# their capitals fit inside it, centred on it.
 	var sl := _face("slash")
 	await process_frame
-	_check(sl.type_label.get_theme_font_size("font_size") == 9, "a short type word keeps its size")
+	await process_frame
+	var sfs: int = sl.type_label.get_theme_font_size("font_size")
+	_check(sfs * CardUI.CAP_HEIGHT_EM <= sl._type_band_h(), "the type word's capitals fit the type strip (size %d, strip %.1f)" % [sfs, sl._type_band_h()])
+	_check(sl.range_label.get_theme_font_size("font_size") <= sfs, "the range word is no bigger")
 	sl.queue_free()
 
 	print("=== %d failure(s) ===" % failures)

@@ -112,7 +112,7 @@ const FRAMES := {
 			"dots_band": Vector2(7, 16),
 			"title_band": Vector2(19.5, 35),
 			"art_band": Vector2(43.5, 107),
-			"type_band": Vector2(114.5, 125),
+			"type_band": Vector2(111, 121),   # measured off the bare cut (2026-11-16)
 		},
 	},
 	# Defense cards: a stone wall veined with blue lightning, white text left
@@ -316,8 +316,9 @@ const FRAMED_DESC_FULL_MAX := 9   # ... no bigger than this, so it covers as lit
 ## The face's layout (designer, 2026-11-15: "C" with the "T1" fade). On a
 ## frame with a "bare" cut it takes:
 ##   badge     the drop's and hourglass's size (1 = as painted)
-##   dots_k    the tempo strip's inside, this much of its height (the rest
-##             goes to the name bar); never thinner than DOTS_BAND_MIN
+##   dots_k    the tempo strip's inside, this much of its height; never
+##             thinner than DOTS_BAND_MIN. The name bar takes what thinning
+##             it to dots_title_k gave; the art window takes the rest
 ##   type_k    the type bar's inside likewise (the rest to the art window);
 ##             never thinner than TYPE_BAND_MIN
 ##   title_left  the name's left margin (it may run onto the axe)
@@ -327,12 +328,13 @@ const FRAMED_DESC_FULL_MAX := 9   # ... no bigger than this, so it covers as lit
 ##   text_fade  the corner picture under the rules text (see _place_text_fade)
 ## Set face_layout to {} for the frames as cut (dev comparisons only).
 const FACE_LAYOUT := {
-	"badge": 0.85, "type_k": 0.7, "dots_k": 0.6,
+	# 2026-11-16: the type bar and tempo strip thinner again, the art taller.
+	"badge": 0.85, "type_k": 0.4, "dots_k": 0.45, "dots_title_k": 0.6,
 	"title_rows": 2, "title_left": 26, "text_outline": 0,
 	"text_fade": {"mode": "picture", "fade": 0.55, "feather": 5},
 }
-const DOTS_BAND_MIN := 7.0    # the tempo dots are 8 across
-const TYPE_BAND_MIN := 10.0   # the type words are 9
+const DOTS_BAND_MIN := 6.0    # the tempo dots shrink to the strip (FRAMED_DOT at most)
+const TYPE_BAND_MIN := 6.0    # the type words ride over the bar's rims
 static var face_layout: Dictionary = FACE_LAYOUT
 
 var _kx := 1.0
@@ -369,20 +371,29 @@ func _build_layout() -> void:
 	var title: Vector2 = b["title_band"]
 	var art: Vector2 = b["art_band"]
 	var dots_h: float = _thinned(dots, float(face_layout.get("dots_k", 1.0)), DOTS_BAND_MIN)
+	var dots_mid: float = maxf(dots_h, _thinned(dots, float(face_layout.get("dots_title_k", 1.0)), DOTS_BAND_MIN))
+	var to_title: float = (dots.y - dots.x) - dots_mid
+	var to_art: float = dots_mid - dots_h
 	_ysegs = [
 		[dots.x, dots.y, dots_h],
-		[title.x, title.y, (title.y - title.x) + (dots.y - dots.x) - dots_h],
+		[title.x, title.y, (title.y - title.x) + to_title],
 	]
 	if b.has("type_band"):   # the Utility frame has no type bar of its own
 		var typ: Vector2 = b["type_band"]
 		var type_h: float = _thinned(typ, float(face_layout.get("type_k", 1.0)), TYPE_BAND_MIN)
-		_ysegs.append([art.x, art.y, (art.y - art.x) + (typ.y - typ.x) - type_h])
+		_ysegs.append([art.x, art.y, (art.y - art.x) + to_art + (typ.y - typ.x) - type_h])
 		_ysegs.append([typ.x, typ.y, type_h])
+	else:
+		_ysegs.append([art.x, art.y, (art.y - art.x) + to_art])
 
 ## A band's inside at k its height, but no thinner than floor (nor than it was).
 static func _thinned(band: Vector2, k: float, floor_h: float) -> float:
 	var h := band.y - band.x
 	return maxf(h * k, minf(h, floor_h))
+
+## The tempo strip's laid-out height (the dots fit inside it).
+func _dots_strip_h() -> float:
+	return float(_ysegs[0][2]) if not _ysegs.is_empty() else FRAMED_DOT
 
 ## The frame drawn in bands, each stretched to its laid-out height.
 func _draw_frame_bands(host: Control) -> void:
@@ -438,10 +449,14 @@ static func _badge_atlas(path: String) -> Texture2D:
 ## enchantments, Spell for every spell;
 ## then by type — Instant, Defense, Utility — and the Attack shape
 ## (is_attack(), never an offensive spell); {} for the drawn frame.
+## Cards with an upkeep that wear their own type's frame, not the Maintain
+## one (designer, 2026-11-16): the upkeep sits on the frame's top strip.
+const UPKEEP_IN_OWN_FRAME := {"peshtigos_kiss": true}
+
 static func frame_for(card: Card) -> Dictionary:
 	if card == null:
 		return {}
-	if card.maintain_cost > 0:
+	if card.maintain_cost > 0 and not UPKEEP_IN_OWN_FRAME.has(card.card_id):
 		return FRAMES["maintain"]
 	# An instant is an instant first, spell or not (Healthy Bliss).
 	if card.card_type == Card.CardType.REACTION:
@@ -575,6 +590,11 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 			if type_label:
 				type_label.text = "Maintain"
 				type_label.add_theme_color_override("font_color", MAINTAIN_WORD)
+			_place_upkeep(card.maintain_cost)
+		elif card.maintain_cost > 0 and not _frame.is_empty():
+			# An upkeep card in its own frame (UPKEEP_IN_OWN_FRAME): the
+			# upkeep on the top strip as the Maintain frame has it.
+			cost_label.visible = false
 			_place_upkeep(card.maintain_cost)
 
 	_pending_mana = str(display_mana)
@@ -1699,9 +1719,54 @@ func _fit_type_word() -> void:
 	# The bar's text starts at the VBox's left edge (14) plus its margin (2).
 	var room: float = float(_frame["logo_at"].x) * _kx - FRAMED_LOGO_RING - 14.0 * _kx - 2.0
 	var fs := TYPE_FONT_MAX
+	if _type_band_h() > 0.0:
+		fs = clampi(floori((_type_band_h() - TYPE_CAP_INSET) / CAP_HEIGHT_EM), TYPE_BAND_FONT_MIN, TYPE_FONT_MAX)
 	while fs > TYPE_FONT_MIN and font.get_string_size(type_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x > room:
 		fs -= 1
 	type_label.add_theme_font_size_override("font_size", fs)
+	_set_type_line_on_band(fs)
+
+## The type line's words on the laid-out type bar's dark strip (designer,
+## 2026-11-16): the strip is only TYPE_BAND_MIN or so tall, so the type word
+## and the range word are sized to it and their capitals centred on it. The
+## bar's container stays as tall as it was (the frame's rims above and
+## below are part of it); the words are shifted after it lays them out.
+const CAP_HEIGHT_EM := 0.72     # the face's capitals, as a share of its size
+const TYPE_CAP_INSET := 0.5     # the capitals this much short of the strip's height
+const TYPE_BAND_FONT_MIN := 6
+
+func _type_band_h() -> float:
+	if not _laid_out() or not _frame["bare"].has("type_band") or _ysegs.size() < 4:
+		return 0.0
+	return float(_ysegs[3][2])
+
+func _set_type_line_on_band(fs: int) -> void:
+	if _type_band_h() <= 0.0 or type_bar == null:
+		return
+	if range_label:
+		range_label.add_theme_font_size_override("font_size", mini(8, fs))
+	for l in [type_label, range_label]:
+		if l:
+			l.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	if not type_bar.sort_children.is_connected(_shift_type_line):
+		type_bar.sort_children.connect(_shift_type_line)
+	type_bar.queue_sort()
+
+func _shift_type_line() -> void:
+	var h := _type_band_h()
+	if h <= 0.0 or type_label == null:
+		return
+	var hbox: Control = type_label.get_parent()
+	var vbox: Control = type_bar.get_parent()
+	if hbox == null or vbox == null:
+		return
+	var band_c: float = _my(float(_frame["bare"]["type_band"].x)) + h * 0.5
+	var font: Font = type_label.get_theme_font("font")
+	var fs: int = type_label.get_theme_font_size("font_size")
+	var cap: float = CAP_HEIGHT_EM * fs
+	var cap_c: float = vbox.position.y + type_bar.position.y + hbox.position.y + type_label.position.y \
+		+ font.get_ascent(fs) - cap * 0.5
+	hbox.position.y += band_c - cap_c
 
 
 ## The upkeep on the Maintain frame's top strip, right of the tempo dots.
@@ -1863,6 +1928,10 @@ func _build_tempo_bars(card: Card, tempo_override: int = -1, resolve_override: i
 		# On the painted frame's dot strip (the Panel sits at the card's
 		# corner), between its ends: a long row shrinks its dots to fit.
 		var span: Vector2 = _frame.get("dots_span", Vector2(34, 118)) * _kx
+		if _laid_out():
+			dot_px = minf(dot_px, _dots_strip_h() + 1.0)
+		if _card and UPKEEP_IN_OWN_FRAME.has(_card.card_id) and _card.maintain_cost > 0:
+			span.y = minf(span.y, (UPKEEP_RIGHT - 24.0) * _kx)   # the upkeep sits at the strip's end
 		var sep := 3.0
 		if effective_tempo * dot_px + (effective_tempo - 1) * sep > span.y - span.x:
 			sep = 2.0

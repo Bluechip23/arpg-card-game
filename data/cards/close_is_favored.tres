@@ -6,7 +6,7 @@
 script = ExtResource("1_siiuh")
 card_id = "close_is_favored"
 card_name = "Close is Favored"
-description = "Instant: when an enemy gets within melee range, deal 13 damage to it. This card is erased."
+description = "When an enemy gets within melee range, deal 13 damage to it. This card is erased."
 card_type = 3
 card_type_name = "Instant"
 mana_cost = 0

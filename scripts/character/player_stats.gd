@@ -14,6 +14,7 @@ signal xp_changed(current_xp: int, xp_to_next: int)
 signal leveled_up(new_level: int)
 signal damage_taken(amount: int)
 signal health_damage_taken(amount: int)  # Emitted with the HP-only portion of damage (after armor absorbs)
+signal mana_spent(amount: int)  # a successful spend_mana (Magic Barrier fires on a big one)
 signal mana_gained(amount: int, is_regen: bool)  # Emitted when mana is gained (for Energy Barrier tracking)
 signal maintained_cards_broken  # Emitted when mana hits 0, all maintained cards should be discarded
 signal healed(amount: int)
@@ -2409,6 +2410,8 @@ func get_equipment_lifesteal() -> float:
 func spend_mana(amount: int) -> bool:
 	if current_mana >= amount:
 		_spend_temp_mana_first(amount)
+		if amount > 0:
+			mana_spent.emit(amount)
 		return true
 	return false
 

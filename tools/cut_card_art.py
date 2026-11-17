@@ -88,6 +88,172 @@ SINGLES = {
     "charge": ("card_art_charge.webp", (0, 0, 1536, 730)),
     # The scythe, the reaper's face and the soul pulled from the soldier.
     "harvest": ("card_art_harvest.webp", (0, 110, 1536, 840)),
+    # 2026-11-16: the hammer high over the leaper's roar, the soldiers below.
+    "heroic_leap": ("card_art_heroic_leap.webp", (0, 0, 1536, 690)),
+    # A tall painting: the archer's face and drawing hand, the bow rising.
+    "sky_fall": ("card_art_sky_fall.jpg", (0, 300, 896, 727)),
+    # The archer above, the arrow drawn on the crowd below.
+    "sky_attack": ("card_art_sky_attack.webp", (0, 60, 1536, 790)),
+    # The masked eyes and the star held up to them.
+    "shuriken": ("card_art_shuriken.webp", (0, 130, 1536, 860)),
+    # The hooded snapper, the purple slashes and the struck faces.
+    "consecutive_snap": ("card_art_consecutive_snap.webp", (0, 80, 1536, 810)),
+    # 2026-11-16: the thrower's face, the outflung hand, the dagger and its mark.
+    "dagger_throw": ("card_art_dagger_throw.webp", (0, 100, 1536, 830)),
+    # The fallen fighter, the spirit lunging from him and the brute beyond.
+    "exhausted_assault": ("card_art_exhausted_assault.webp", (0, 80, 1536, 888)),
+    # The archer, eyes closed, the bow drawn and glowing.
+    "last_breath": ("card_art_last_breath.webp", (0, 60, 1448, 750)),
+    # The loosed arrow and the charging brute (Quick Arrow and Quick Shot).
+    "quick_arrow": ("card_art_quick_arrow.webp", (0, 30, 1536, 760)),
+    # The throw, the stone in the face and the second one struck.
+    "thrown_stone": ("card_art_thrown_stone.webp", (0, 40, 1672, 835)),
+    # The archer's draw and the arrow bending through both soldiers.
+    "trick_shot": ("card_art_trick_shot.webp", (0, 60, 1448, 822)),
+    # The three-arrow draw and the brute charging in.
+    "multishot": ("card_art_multishot.webp", (0, 120, 1448, 882)),
+    # The glowing arrow through the near man, the second and on to the third.
+    "spirit_arrow": ("card_art_spirit_arrow.webp", (0, 40, 1448, 802)),
+    # The winged pig, fuse lit, flying at the army.
+    "if_pigs_could_fly": ("card_art_if_pigs_could_fly.webp", (0, 60, 1448, 822)),
+    # The wall of fire and the burning soldier reaching out.
+    "peshtigos_kiss": ("card_art_peshtigos_kiss.webp", (0, 40, 1672, 920)),
+    # 2026-11-16: the knight's face, the hand and the wall of stone flung out.
+    "approach": ("card_art_approach.webp", (0, 60, 1448, 822)),
+    # The knight's upturned face and the glowing vine-veined armour.
+    "living_armor": ("card_art_living_armor.webp", (0, 0, 1448, 762)),
+    # The healed ally, the knight's face and the shield taking the skeleton's blow.
+    "fortify_alliance": ("card_art_fortify_alliance.webp", (0, 120, 1448, 882)),
+    # The face, the shield turning the sword, the attacker's helm.
+    "parry": ("card_art_parry.jpg", (0, 0, 1264, 665)),
+    # The raised sword, the shield wall and the cavalry coming on.
+    "hold_the_line": ("card_art_hold_the_line.webp", (0, 40, 1448, 802)),
+    # The roar and the soldiers blown off their feet.
+    "roar": ("card_art_roar.webp", (0, 80, 1536, 888)),
+    # The two-shield knight braced.
+    "best_offense": ("card_art_best_offense.webp", (0, 30, 1536, 838)),
+    # The duck under the swing. The board's painted title sits above y 110:
+    # the box starts below it, so the title is left out.
+    "bob_and_weave": ("card_art_bob_and_weave.webp", (0, 115, 1536, 923)),
+    # The knight, his shield and the foes round him; the painted title
+    # (above y 130) left out the same way.
+    "defensive_awareness": ("card_art_defensive_awareness.webp", (0, 135, 1199, 766)),
+    # The grimace, the glowing hand and the arrow pulled from the thigh.
+    "down_but_not_out": ("card_art_down_but_not_out.webp", (0, 0, 1536, 808)),
+    # The mage's face and outspread hands in the sphere, arrows sparking off it.
+    "energy_barrier": ("card_art_energy_barrier.webp", (0, 40, 1536, 848)),
+    # Both faces and the blade stopped on the bare forearm.
+    "harden": ("card_art_harden.webp", (0, 0, 1536, 808)),
+    # The eyes over the shield rim, the sword, and the foes either side.
+    "hunker_down": ("card_art_hunker_down.webp", (0, 0, 1536, 808)),
+    # The braced shield, the shock rings and the brute thrown back.
+    "repelled_block": ("card_art_repelled_block.webp", (0, 60, 1536, 868)),
+    # The snarl, the glowing gauntlet and the sword sparking off the shield.
+    "shield_of_growth": ("card_art_shield_of_growth.webp", (0, 80, 1448, 842)),
+    # Tall paintings from here: a strip across the face and the action.
+    # Her face and the blade sparking on the shield's rim.
+    "shield_ready": ("card_art_shield_ready.webp", (0, 160, 1194, 788)),
+    # The raised hands, the red-and-blue vortex, her upturned face and the
+    # glowing armour (replaced 2026-11-16).
+    "smith_thy_soul": ("card_art_smith_thy_soul.webp", (0, 30, 1195, 659)),
+    # The tower shield on his back, arrows in it, climbing the slope.
+    "tower_shield": ("card_art_tower_shield.jpg", (0, 60, 976, 574)),
+    # The hands pulling the helm down, and the glare beneath it.
+    "turtle_up": ("card_art_turtle_up.webp", (0, 190, 1195, 819)),
+    # The glowing draught poured and the turtle roaring under it (the monk's
+    # face is above: the painting cannot fit both).
+    "summon_battle_turtle": ("card_art_summon_battle_turtle.webp", (0, 420, 1254, 1080)),
+    # The masks, all five.
+    "turtle_power": ("card_art_turtle_power.webp", (0, 0, 1774, 887)),
+    # The plumed helm, the beckoning hand and the brutes coming on.
+    "taunt": ("card_art_taunt.webp", (0, 0, 1536, 808)),
+    # The bloodied, glaring face.
+    "grit": ("card_art_grit.webp", (0, 0, 1536, 808)),
+    # Two scenes side by side (designer): the throw, then the shiv driven in.
+    "pocket_shiv": ("card_art_pocket_shiv.webp", (0, 60, 1536, 868)),
+    # Her face, the shield taking the axe, the wounded man behind her.
+    "cover": ("card_art_cover.webp", (0, 120, 1448, 882)),
+    # The backbend under the spear, her face turned up to it.
+    "spider_senses": ("card_art_spider_senses.webp", (0, 120, 1448, 882)),
+    # The lightning palm, her shout and the brute convulsing.
+    "not_so_fast": ("card_art_not_so_fast.webp", (0, 40, 1536, 848)),
+    # The grin, the green eyes and the poisoned hand.
+    "spiteful_sting": ("card_art_spiteful_sting.webp", (0, 40, 1536, 848)),
+    # The snarl behind the spiked shield and the attacker thrown back.
+    "vengeful_shield": ("card_art_vengeful_shield.webp", (0, 120, 1448, 882)),
+    # The axeman's soul torn out and drawn to the sorceress's hand.
+    "soul_consumption": ("card_art_soul_consumption.webp", (0, 60, 1448, 822)),
+    # The hooded mage's ward and the brute's axe sparking off it.
+    "magic_barrier": ("card_art_magic_barrier.webp", (0, 0, 1536, 808)),
+    # The healer's raised arms and the faces lifted in the red light.
+    "healthy_bliss": ("card_art_healthy_bliss.webp", (0, 40, 1536, 848)),
+    # The phoenix spread over the burning man and the foes he scorches.
+    "gift_from_the_phoenix": ("card_art_gift_from_the_phoenix.webp", (0, 40, 1536, 848)),
+    # The burning man's scream and the foes caught in the embers.
+    "ember_heart": ("card_art_ember_heart.webp", (0, 30, 1448, 792)),
+    # Her face, the knife and the cut palm with the red magic rising.
+    "cultish_wounds": ("card_art_cultish_wounds.webp", (0, 80, 1448, 842)),
+    # The scream and the molten metal poured on his chest.
+    "armored_discipline": ("card_art_armored_discipline.webp", (0, 60, 1536, 868)),
+    # A tall painting: the well's bucket and water, the sword, shield, potion and staff.
+    "fountain_of_life": ("card_art_fountain_of_life.webp", (0, 420, 1199, 1051)),
+    # The swordsman's glare and the two snarling wolves.
+    "the_wolfs_howl": ("card_art_the_wolfs_howl.webp", (0, 30, 1536, 838)),
+    # 2026-11-17: the caster's raised arms, the spirit shields and the warded soldiers.
+    "spirit_armor": ("card_art_spirit_armor.webp", (0, 60, 1448, 822)),
+    # The goblin's ear, the sketched tally and the fight he is recording.
+    "the_ledger": ("card_art_the_ledger.webp", (0, 160, 1448, 922)),
+    # His face and the thorns tearing through him.
+    "barbed_exterior": ("card_art_barbed_exterior.jpg", (0, 0, 1264, 665)),
+    # Small tall paintings: a strip across the subject.
+    # The bowed face over the glowing sword hilt.
+    "forever_armor": ("card_art_forever_armor.webp", (0, 100, 524, 376)),
+    # The red halo and its rays.
+    "halo": ("card_art_halo.webp", (0, 140, 530, 419)),
+    # The hound's snarl over the fallen man and the warden's blade above.
+    "wardens_hound": ("card_art_wardens_hound.webp", (0, 230, 747, 623)),
+    # The two spires, her glowing eyes and the lightning through the dead.
+    "lodestone_field": ("card_art_lodestone_field.webp", (0, 40, 1536, 848)),
+    # The chain drawn taut and the hooked ghoul pulled in.
+    "grapple_chain": ("card_art_grapple_chain.webp", (0, 120, 1536, 928)),
+    # The necromancer, the risen corpse with its knife and the grieving man.
+    "summon_skeleton": ("card_art_summon_skeleton.webp", (0, 40, 1536, 848)),
+    # The skeleton family's portrait by the lake.
+    "skeleton_army": ("card_art_skeleton_army.webp", (0, 40, 1448, 802)),
+    # The shout, the arms flung wide and the purple arcs hurling the dead.
+    "deliberate_arch": ("card_art_deliberate_arch.webp", (0, 0, 1774, 887)),
+    # The snarl, the shield slam and the foe flung back with his gear.
+    "bastion_battle": ("card_art_bastion_battle.webp", (0, 0, 1440, 720)),
+    # The grinning thief, the knife and the shopkeeper unaware.
+    "internal_sickness": ("card_art_internal_sickness.webp", (0, 160, 1448, 922)),
+    # The jabbing finger, the spark and the shocked faces.
+    "static_sting": ("card_art_static_sting.webp", (0, 0, 1448, 762)),
+    # The spear lunge and the brute bracing with his axe.
+    "lunge": ("card_art_lunge.webp", (0, 40, 1672, 920)),
+    # The scream and the thorned vines wrapping him.
+    "vines": ("card_art_vines.webp", (0, 0, 1448, 762)),
+    # The skeleton's lightning and the man it strikes.
+    "mana_surge": ("card_art_mana_surge.webp", (0, 60, 1447, 822)),
+    # The glowing drop falling from the glass to the blue-eyed upturned face.
+    "spark": ("card_art_spark.webp", (0, 40, 1447, 802)),
+    # The glowing eyes and the orbs circling him.
+    "harness_lightning": ("card_art_harness_lightning.webp", (0, 40, 1448, 802)),
+    # The scream and the thorns bursting out into the soldiers.
+    "spine_release": ("card_art_spine_release.jpg", (0, 40, 1195, 669)),
+    # The burning library, its statues, banners and the armillary sphere.
+    "flames_of_alexandria": ("card_art_flames_of_alexandria.webp", (0, 220, 1448, 982)),
+    # The glare, the staff's gem and the green magic in the open hand.
+    "arcane_tide": ("card_art_arcane_tide.webp", (0, 40, 1448, 802)),
+    # Her face and the glass shield conjured beside her.
+    "ward_of_hallow_glass": ("card_art_ward_of_hallow_glass.webp", (0, 40, 1448, 802)),
+    # Her glowing hands and the ice spikes hurling the soldiers.
+    "surrounding_ice": ("card_art_surrounding_ice.webp", (0, 40, 1448, 802)),
+    # The swordsman's glare and the knight burning from within.
+    "internal_combustion": ("card_art_internal_combustion.webp", (0, 0, 1448, 762)),
+    # The floating caster and the light drawn from the army.
+    "absorb_essence": ("card_art_absorb_essence.webp", (0, 0, 1672, 880)),
+    # The hooded reach and the goblin clutching his throat.
+    "choke": ("card_art_choke.webp", (0, 40, 1672, 920)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
@@ -103,14 +269,19 @@ FITTED = {
     "lemon_drop": ("card_art_lemon_drop.webp", (0, 30, 1448, 1086)),
     "brawn_gem": ("card_art_brawn_gem.webp", (0, 20, 1448, 1000)),
     "feather_foot": ("card_art_feather_foot.webp", (0, 0, 1448, 1010)),
+    # 2026-11-16: the bandage with the shield set in it.
+    "armor_patch": ("card_art_armor_patch.webp", (60, 150, 1476, 870)),
+    # 2026-11-17: her face, the glowing hands and the dog's whole head
+    # (designer) — a wide crop fitted to the window's height.
+    "summon_shadow_hound": ("card_art_summon_shadow_hound.webp", (80, 100, 1448, 1040)),
 }
-FIT_ASPECT = 2.3    # the Attack frame's art window, about the widest
+FIT_ASPECT = 1.9    # the Attack frame's art window, about the widest (2026-11-16: taller)
 FIT_FEATHER = 0.08  # the fitted picture's sides fade into the fill over this much of its width
 
 
-def fitted(source, box):
+def fitted(source, box, aspect=None):
     piece = Image.open(SRC % source).convert("RGB").crop(box)
-    h = round(WIDTH / FIT_ASPECT)
+    h = round(WIDTH / (aspect or FIT_ASPECT))
     w_in = round(piece.width * h / piece.height)
     if w_in > WIDTH:   # already wider than the window: shrink to its width
         w_in, h_in = WIDTH, round(piece.height * WIDTH / piece.width)
@@ -150,6 +321,22 @@ def fitted(source, box):
     return back
 
 
+def grow_to_aspect(box, size):
+    """A single's box made as tall as FIT_ASPECT asks (the art window grew
+    taller on 2026-11-16): grown evenly about its middle, kept inside the
+    painting (shifted, not cut, at an edge). The boxes above were placed for
+    the old, wider window; the action stays at their middle."""
+    l, t, r, b = box
+    want = round((r - l) / FIT_ASPECT)
+    if b - t >= want:
+        return box
+    want = min(want, size[1])
+    mid = (t + b) / 2.0
+    t = round(mid - want / 2.0)
+    t = max(0, min(t, size[1] - want))
+    return (l, t, r, t + want)
+
+
 def main() -> None:
     os.makedirs(os.path.dirname(OUT % "x"), exist_ok=True)
     for board, cuts in BOARDS.items():
@@ -164,12 +351,16 @@ def main() -> None:
             piece.save(OUT % card_id, optimize=True)
             print("wrote", OUT % card_id)
     for card_id, (source, box) in SINGLES.items():
-        piece = Image.open(SRC % source).convert("RGB").crop(box)
+        src = Image.open(SRC % source).convert("RGB")
+        piece = src.crop(grow_to_aspect(box, src.size))
         h = round(piece.height * WIDTH / piece.width)
         piece.resize((WIDTH, h), Image.LANCZOS).save(OUT % card_id, optimize=True)
         print("wrote", OUT % card_id, (WIDTH, h))
-    for card_id, (source, box) in FITTED.items():
-        fitted(source, box).save(OUT % card_id, optimize=True)
+    for card_id, spec in FITTED.items():
+        # (source, box) or (source, box, aspect): an aspect for a card whose
+        # frame's art window is wider than FIT_ASPECT, so the window does not
+        # trim the fitted painting's top and bottom.
+        fitted(*spec).save(OUT % card_id, optimize=True)
         print("wrote", OUT % card_id, "(fitted)")
 
 

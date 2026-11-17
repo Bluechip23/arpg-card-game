@@ -3818,6 +3818,7 @@ func select_character(character: CharacterData) -> void:
 	player.get_stats().health_damage_taken.connect(_on_player_health_damage_taken)
 	player.get_stats().healed.connect(_on_player_healed)
 	player.get_stats().mana_gained.connect(_on_player_mana_gained)
+	player.get_stats().mana_spent.connect(_on_player_mana_spent)
 	player.get_stats().shepherds_mark_triggered.connect(_on_shepherds_mark_triggered)
 	deck_manager.on_draw_triggered.connect(_on_card_on_draw_triggered)
 	deck_manager.card_erased.connect(_on_card_erased)
@@ -6204,8 +6205,35 @@ func _on_enemy_damaged(damage: int, enemy: Enemy) -> void:
 		_fire_instant_site_effect(rt_card, {"target": enemy})
 		_reapers_taking_firing = false
 
+## Magic Barrier (designer, 2026-11-16): spending 30 or more mana at once
+## fires every Magic Barrier in the hand, each for its armor. Fired
+## after the spend's own call returns, so a card play that pays mana is not
+## interrupted mid-play.
+const MAGIC_BARRIER_SPEND := 30
+
+var _magic_barrier_due := false
+
+func _on_player_mana_spent(amount: int) -> void:
+	if amount >= MAGIC_BARRIER_SPEND:
+		_magic_barrier_due = true
+		_fire_magic_barriers.call_deferred()
+
+func _fire_magic_barriers() -> void:
+	if not _magic_barrier_due or deck_manager == null or player == null:
+		return
+	_magic_barrier_due = false
+	var fired := deck_manager.trigger_reactions("on_spend_30_mana")
+	for rc in fired:
+		rc.execute(null, player.get_stats(), deck_manager, 0.0, 0.0, player.get_buff_manager())
+		add_battle_log("%s! +%d armor (instant)" % [rc.card_name, rc.block], Color(0.6, 0.8, 1.0))
+		if rc.erase_on_play:
+			deck_manager.discard_pile.erase(rc)
+			deck_manager.note_erased(rc)
+	if not fired.is_empty():
+		_on_hand_updated()
+
 ## An enemy is about to land a hit: instants that shield against it
-## (Magic Barrier) fire now so their armor is up before the damage math.
+## fire now so their armor is up before the damage math.
 func _on_enemy_attacking_player(_enemy: Enemy, victim = null) -> void:
 	if deck_manager == null or (victim != null and victim != player):
 		return  # a partner or a dojo ally being hit is not "you"

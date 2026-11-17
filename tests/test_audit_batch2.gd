@@ -28,8 +28,10 @@ func _initialize() -> void:
 	# --- C7: reaction cards say Instant so Lethal Recall recognizes them ---
 	var ss = Card.create_by_id("spider_senses")
 	var vs = Card.create_by_id("vengeful_shield")
-	_check(ss.description.begins_with("Instant."), "Spider Senses description starts with 'Instant.'")
-	_check(vs.description.begins_with("Instant."), "Vengeful Shield description starts with 'Instant.'")
+	# Instants no longer say so in their text (designer, 2026-11-16): the
+	# type line and the Instant frame already do.
+	_check(not ss.description.begins_with("Instant"), "Spider Senses' text does not repeat 'Instant'")
+	_check(not vs.description.begins_with("Instant"), "Vengeful Shield's text does not repeat 'Instant'")
 
 	# --- B2: Burden escalates cost per play, jail resets it ---
 	var prov = Card.create_by_id("provider")
