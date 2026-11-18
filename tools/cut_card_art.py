@@ -274,6 +274,16 @@ SINGLES = {
     "bottomless_quiver": ("card_art_bottomless_quiver.webp", (0, 80, 1536, 888)),
     # The boy's grin, the case of arrows and the warrior pondering them.
     "collect_arrows": ("card_art_collect_arrows.webp", (0, 40, 1536, 848)),
+    # The grimace and the soiled cloth held over the bin.
+    "discard": ("card_art_discard.webp", (0, 40, 1536, 848)),
+    # The goggled alchemist and the snake biting the glowing arm.
+    "elixir": ("card_art_elixir.webp", (0, 100, 1448, 862)),
+    # The caster's shout, the ice shard and the glowing arrow.
+    "enchanted_quiver": ("card_art_enchanted_quiver.webp", (0, 0, 1672, 880)),
+    # The jailer on the balcony over the prisoners (Self Admission: a card jailed).
+    "self_admission": ("card_art_self_admission.webp", (0, 0, 1672, 880)),
+    # The lit bomb in one hand, the knife in the other.
+    "reverse_reverse": ("card_art_reverse_reverse.webp", (0, 30, 1672, 910)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

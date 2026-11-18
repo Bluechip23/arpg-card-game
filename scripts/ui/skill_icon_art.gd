@@ -215,6 +215,11 @@ const CARD_PAINTINGS := {
 	"minor_wounds": "minor_wounds",
 	"bottomless_quiver": "bottomless_quiver",
 	"collect_arrows": "collect_arrows",
+	"discard": "discard",
+	"elixir": "elixir",
+	"enchanted_quiver": "enchanted_quiver",
+	"self_admission": "self_admission",
+	"reverse_reverse": "reverse_reverse",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",

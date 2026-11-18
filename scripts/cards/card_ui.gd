@@ -460,9 +460,16 @@ static func _badge_atlas(path: String) -> Texture2D:
 ## one (designer, 2026-11-16): the upkeep sits on the frame's top strip.
 const UPKEEP_IN_OWN_FRAME := {"peshtigos_kiss": true}
 
+## Cards that wear another type's frame than their own (designer): Petey the
+## Pet Rock is an Unplayable card (it is never played) worn in the Utility
+## frame, 2026-11-18.
+const FRAME_OVERRIDE := {"petey_the_pet_rock": "utility"}
+
 static func frame_for(card: Card) -> Dictionary:
 	if card == null:
 		return {}
+	if FRAME_OVERRIDE.has(card.card_id):
+		return FRAMES[FRAME_OVERRIDE[card.card_id]]
 	if card.maintain_cost > 0 and not UPKEEP_IN_OWN_FRAME.has(card.card_id):
 		return FRAMES["maintain"]
 	# An instant is an instant first, spell or not (Healthy Bliss).
@@ -531,6 +538,11 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 			Card.CardType.ENCHANTMENT:
 				type_label.add_theme_color_override("font_color", Color(0.2, 0.9, 0.8))
 				_type_color = Color(0.18, 0.58, 0.55)
+		# A card worn in another type's frame (FRAME_OVERRIDE) takes that
+		# type's colours too.
+		if FRAME_OVERRIDE.get(card.card_id, "") == "utility":
+			type_label.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
+			_type_color = Color(0.25, 0.6, 0.32)
 		_frame = frame_for(card)
 		_style_frame()
 

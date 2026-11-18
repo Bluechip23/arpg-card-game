@@ -155,6 +155,9 @@ func _run() -> void:
 	var pk := Card.create_by_id("peshtigos_kiss")
 	_check(CardUI.frame_for(pk) == CardUI.FRAMES["spell"] and pk.maintain_cost > 0 and not pk.is_attack(),
 		"Peshtigo's Kiss is a spell in the Spell frame, its upkeep kept (designer, 2026-11-16)")
+	var petey := Card.create_by_id("petey_the_pet_rock")
+	_check(CardUI.frame_for(petey) == CardUI.FRAMES["utility"] and petey.card_type == Card.CardType.UNPLAYABLE,
+		"Petey the Pet Rock wears the Utility frame, still Unplayable (designer, 2026-11-18)")
 	var sa := Card.create_by_id("spirit_arrow")
 	_check(CardUI.frame_for(sa) == CardUI.FRAMES["offensive"] and not sa.is_attack(),
 		"Spirit Arrow is plain Offensive (designer, 2026-11-16)")
