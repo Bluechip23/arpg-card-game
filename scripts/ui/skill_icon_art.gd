@@ -225,6 +225,11 @@ const CARD_PAINTINGS := {
 	"pandora_panic": "pandora_panic",
 	"swap": "swap",
 	"adrenaline_shot": "adrenaline_shot",
+	"heal": "heal",
+	"stone_wheel": "stone_wheel",
+	"gulped_potion": "gulped_potion",
+	"gargle_and_spit": "gargle_and_spit",
+	"raged_circulation": "raged_circulation",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",

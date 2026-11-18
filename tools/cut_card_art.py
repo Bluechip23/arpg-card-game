@@ -294,6 +294,14 @@ SINGLES = {
     "swap": ("card_art_swap.webp", (0, 30, 1671, 910)),
     # The smirk and the syringe dripping red.
     "adrenaline_shot": ("card_art_adrenaline_shot.webp", (0, 0, 1672, 880)),
+    # The glare, the blade on the grindstone and the sparks.
+    "stone_wheel": ("card_art_stone_wheel.webp", (0, 100, 1448, 862)),
+    # The three glasses poured into the swirling beaker.
+    "gulped_potion": ("card_art_gulped_potion.webp", (0, 60, 1448, 822)),
+    # The head thrown back and the purple spray.
+    "gargle_and_spit": ("card_art_gargle_and_spit.webp", (0, 0, 1536, 808)),
+    # The roar, the red eyes and the burning veins.
+    "raged_circulation": ("card_art_raged_circulation.webp", (0, 40, 1536, 848)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
@@ -311,6 +319,8 @@ FITTED = {
     "feather_foot": ("card_art_feather_foot.webp", (0, 0, 1448, 1010)),
     # 2026-11-16: the bandage with the shield set in it.
     "armor_patch": ("card_art_armor_patch.webp", (60, 150, 1476, 870)),
+    # 2026-11-18: the field-medic's bag, seen whole.
+    "heal": ("card_art_heal.webp", (60, 60, 1536, 1000)),
     # 2026-11-17: her face, the glowing hands and the dog's whole head
     # (designer) — a wide crop fitted to the window's height.
     "summon_shadow_hound": ("card_art_summon_shadow_hound.webp", (80, 100, 1448, 1040)),
