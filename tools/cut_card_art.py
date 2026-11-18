@@ -321,6 +321,16 @@ SINGLES = {
     "roll": ("card_art_roll.webp", (0, 60, 1536, 868)),
     # The shadow on the crate and the goblins puzzling over it.
     "surprise_pick_up": ("card_art_surprise_pick_up.webp", (0, 60, 1536, 868)),
+    # The goblin's fright and the shapes lost in the fog.
+    "thickened_nature": ("card_art_thickened_nature.webp", (0, 0, 1448, 762)),
+    # The archer behind the crates and the goblins charging.
+    "barricade": ("card_art_barricade.webp", (0, 60, 1536, 868)),
+    # The druid's reach and the ground rising up.
+    "rise": ("card_art_rise.webp", (0, 40, 1448, 802)),
+    # The hooded dash and the purple after-image.
+    "blink": ("card_art_blink.webp", (0, 80, 1536, 888)),
+    # The goggled alchemist, the bubbling flask and the goblins round him.
+    "volatile_mixture": ("card_art_volatile_mixture.webp", (0, 60, 1448, 822)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

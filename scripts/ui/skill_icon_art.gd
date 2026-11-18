@@ -239,6 +239,11 @@ const CARD_PAINTINGS := {
 	"round_em_up": "round_em_up",
 	"roll": "roll",
 	"surprise_pick_up": "surprise_pick_up",
+	"thickened_nature": "thickened_nature",
+	"barricade": "barricade",
+	"rise": "rise",
+	"blink": "blink",
+	"volatile_mixture": "volatile_mixture",
 	"provider": "heal",   # the Heal bag again (designer, 2026-11-18)
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
