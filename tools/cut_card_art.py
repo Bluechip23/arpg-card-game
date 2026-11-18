@@ -321,6 +321,26 @@ SINGLES = {
     "roll": ("card_art_roll.webp", (0, 60, 1536, 868)),
     # The shadow on the crate and the goblins puzzling over it.
     "surprise_pick_up": ("card_art_surprise_pick_up.webp", (0, 60, 1536, 868)),
+    # The goblin's fright and the shapes lost in the fog.
+    "thickened_nature": ("card_art_thickened_nature.webp", (0, 0, 1448, 762)),
+    # The archer behind the crates and the goblins charging.
+    "barricade": ("card_art_barricade.webp", (0, 60, 1536, 868)),
+    # The druid's reach and the ground rising up.
+    "rise": ("card_art_rise.webp", (0, 40, 1448, 802)),
+    # The hooded dash and the purple after-image.
+    "blink": ("card_art_blink.webp", (0, 80, 1536, 888)),
+    # The goggled alchemist, the bubbling flask and the goblins round him.
+    "volatile_mixture": ("card_art_volatile_mixture.webp", (0, 60, 1448, 822)),
+    # The spirit lion's roar and the orc thrown back.
+    "stoked_pride": ("card_art_stoked_pride.webp", (0, 40, 1536, 848)),
+    # The target sigil in the misty glade.
+    "mark": ("card_art_mark.webp", (0, 80, 1536, 888)),
+    # The two strategists and the hand moving a piece on the map.
+    "anticipation": ("card_art_anticipation.webp", (0, 40, 1536, 848)),
+    # The hammer blow and the armour flying off the startled man.
+    "armor_break": ("card_art_armor_break.webp", (0, 40, 1536, 848)),
+    # The red-eyed, bloody grin.
+    "bloodlust": ("card_art_bloodlust.webp", (0, 40, 1536, 848)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
