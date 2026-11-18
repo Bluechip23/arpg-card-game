@@ -230,6 +230,11 @@ const CARD_PAINTINGS := {
 	"gulped_potion": "gulped_potion",
 	"gargle_and_spit": "gargle_and_spit",
 	"raged_circulation": "raged_circulation",
+	"both_sides_of_the_candle": "both_sides_of_the_candle",
+	"hope_this_works": "hope_this_works",
+	"lady_luck": "lady_luck",
+	"try_this": "try_this",
+	"provider": "heal",   # the Heal bag again (designer, 2026-11-18)
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",

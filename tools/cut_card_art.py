@@ -302,6 +302,14 @@ SINGLES = {
     "gargle_and_spit": ("card_art_gargle_and_spit.webp", (0, 0, 1536, 808)),
     # The roar, the red eyes and the burning veins.
     "raged_circulation": ("card_art_raged_circulation.webp", (0, 40, 1536, 848)),
+    # Her leap, the scream and the two flaming blades.
+    "both_sides_of_the_candle": ("card_art_both_sides_of_the_candle.webp", (0, 30, 1536, 838)),
+    # Her smile, the flipped coin and his open hand.
+    "hope_this_works": ("card_art_hope_this_works.webp", (0, 40, 1536, 848)),
+    # The hilt and the four-leaf clover tied to the blade.
+    "lady_luck": ("card_art_lady_luck.webp", (0, 60, 1448, 822)),
+    # The potion poured from the ledge onto the fighter and the orc beyond.
+    "try_this": ("card_art_try_this.webp", (0, 160, 1448, 922)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
