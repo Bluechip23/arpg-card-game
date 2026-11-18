@@ -341,6 +341,14 @@ SINGLES = {
     "armor_break": ("card_art_armor_break.webp", (0, 40, 1536, 848)),
     # The red-eyed, bloody grin.
     "bloodlust": ("card_art_bloodlust.webp", (0, 40, 1536, 848)),
+    # Her calm upturned face and the sabres circling her.
+    "composed_response": ("card_art_composed_response.webp", (0, 0, 1448, 762)),
+    # The bulging pouches and the puzzled giant.
+    "deep_pockets": ("card_art_deep_pockets.webp", (0, 120, 1448, 882)),
+    # The smirk and the whetstone on the blade.
+    "empower": ("card_art_empower.webp", (0, 120, 1536, 928)),
+    # The belt traded for the glowing blue potion (Short Term Fix).
+    "give_in": ("card_art_give_in.webp", (0, 80, 1536, 888)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
@@ -360,6 +368,8 @@ FITTED = {
     "armor_patch": ("card_art_armor_patch.webp", (60, 150, 1476, 870)),
     # 2026-11-18: the field-medic's bag, seen whole.
     "heal": ("card_art_heal.webp", (60, 60, 1536, 1000)),
+    # The mana drop with the caster inside it, seen whole on its black (Energy).
+    "gain_mana": ("card_art_gain_mana.webp", (230, 0, 1090, 1199)),
     # 2026-11-17: her face, the glowing hands and the dog's whole head
     # (designer) — a wide crop fitted to the window's height.
     "summon_shadow_hound": ("card_art_summon_shadow_hound.webp", (80, 100, 1448, 1040)),

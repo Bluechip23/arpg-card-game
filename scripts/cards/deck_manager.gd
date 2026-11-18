@@ -499,9 +499,10 @@ func draw_card() -> Card:
 	if card.has_meta("feral_color"):
 		card.remove_meta("feral_color")
 
-	# Empower: the next attack cards drawn carry +3 damage until played.
+	# Empower: the next offensive cards drawn (attacks and offensive spells,
+	# designer 2026-11-18) carry +3 damage until played.
 	card.draw_empowered = false
-	if card.is_attack() and player_stats \
+	if card.is_offensive() and player_stats \
 			and player_stats.is_empowered() and player_stats.consume_empower():
 		card.draw_empowered = true
 

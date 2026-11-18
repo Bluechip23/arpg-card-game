@@ -397,19 +397,27 @@ func _t_empower() -> void:
 	var blk := Card.create_by_id("block")
 	dm.draw_pile.append(blk)
 	dm.draw_card()
-	_check(not blk.draw_empowered and stats.empowered_cards_remaining == 2, "a non-attack drawn spends no charge")
+	_check(not blk.draw_empowered and stats.empowered_cards_remaining == 2, "a non-offensive card drawn spends no charge")
 	var s1 := Card.create_by_id("slash")
 	var s2 := Card.create_by_id("slash")
 	var s3 := Card.create_by_id("slash")
 	for s in [s1, s2, s3]:
 		dm.draw_pile.append(s)
 		dm.draw_card()
-	_check(s1.draw_empowered and s2.draw_empowered and not s3.draw_empowered, "the next 2 attack cards drawn are empowered, the third is not")
+	_check(s1.draw_empowered and s2.draw_empowered and not s3.draw_empowered, "the next 2 offensive cards drawn are empowered, the third is not")
 	var e1 := _spawn(Vector2i(1, 0))
 	var e2 := _spawn(Vector2i(-1, 0))
 	_play(s1, e1)
 	_play(s3, e2)
 	_check(_lost(e1) - _lost(e2) == 3, "an empowered attack deals +3 damage (%d vs %d)" % [_lost(e1), _lost(e2)])
+	# Offensive cards, not only attacks (designer, 2026-11-18): a spell too.
+	_reset()
+	stats.empowered_cards_remaining = 1
+	var sp := Card.create_by_id("energy_ball")
+	_check(sp.is_offensive() and not sp.is_attack(), "Energy Ball is an offensive spell")
+	dm.draw_pile.append(sp)
+	dm.draw_card()
+	_check(sp.draw_empowered, "an offensive spell drawn is empowered")
 
 func _t_enchanted_quiver() -> void:
 	print("-- Enchanted Quiver --")

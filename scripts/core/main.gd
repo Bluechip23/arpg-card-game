@@ -8943,7 +8943,7 @@ func _card_player_damage(card: Card, extra_flat: int = 0) -> int:
 		total = stats.get_effective_physical_damage(total)
 
 	# Standing buffs.
-	if card.draw_empowered and card.is_attack():
+	if card.draw_empowered and card.is_offensive():
 		total += stats.empower_damage_bonus
 	if buff_mgr:
 		total += buff_mgr.get_strengthen_bonus()

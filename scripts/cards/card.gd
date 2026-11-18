@@ -1458,7 +1458,7 @@ func get_effect_draw_count() -> int:
 	return 0
 
 func execute(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
-	# Empower: an attack drawn under Empower carries +3 into bonus_damage for
+	# Empower: an offensive card drawn under Empower carries +3 into bonus_damage for
 	# the whole resolution, so every damage path (hard-coded ones like Trip
 	# included) picks it up. main reads draw_empowered for the damage it deals
 	# in world effects and clears the mark once they resolve.
@@ -1473,7 +1473,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		PlayerStats.heal_to_damage = true
 		print("[CARD] Poisoned Blood: %s heals as damage" % card_name)
 	var empower_added := 0
-	if draw_empowered and is_attack() and player_stats:
+	if draw_empowered and is_offensive() and player_stats:
 		empower_added = player_stats.empower_damage_bonus
 		bonus_damage += empower_added
 	_execute_card(target, player_stats, deck_manager, damage_reduction_pct, self_damage_percent, buff_mgr)

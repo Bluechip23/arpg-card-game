@@ -479,7 +479,7 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Card text: Poison cards now heal instead: for 25 tempo, the poison your cards apply heals its target instead.
   - Code: execute() -> _execute_elixir: player_stats.elixir_tempo = max(elixir_tempo, ELIXIR_TEMPO = 25), ticking down per tempo in PlayerStats.process_tempo, plus buff bar sync. Card.execute sets the static Card.elixir_poison_heals for every play made while the caster's window is open (main clears it when the play resolves); during that play Enemy.apply_debuff('poison') regenerates the enemy by the stacks instead, and DebuffManager.apply_debuff turns POISON on a player into heal(max(1, value)). Self, 10 mana/2 tempo.
 - **Empower** (`empower`) — Common · 10 mana, 2 tempo · range melee · targets self · slots: Arrow · sheet: Utility, self
-  - Card text: Next 2 attack cards drawn gain +3 damage
+  - Card text: Next 2 offensive cards drawn gain +3 damage
   - Code: execute() -> _execute_empower -> player_stats.apply_empower(2). DeckManager.draw_card: each ATTACK card drawn while Empower is up spends a charge (consume_empower) and is marked draw_empowered (the mark resets on every draw). When a marked card is played, Card.execute adds empower_damage_bonus (3) to bonus_damage for the whole resolution, so every attack's damage path picks it up (Trip, Thrown Stone, Shuriken and other hard-coded helpers included); main's world-effect damage reads the mark too and clears it once the play resolves. Non-attack draws and defense cards are untouched. Self, melee. Ruling: attacks only (is_attack) — an offensive spell drawn is not empowered.
 - **Enchanted Quiver** (`enchanted_quiver`) — Legendary · 40 mana, 5 tempo · range melee · targets self · slots: Arrow · sheet: Utility
   - Card text: Next 3 ranged attacks create a free 0-cost Quick Arrow (4 damage) in your hand.
@@ -509,7 +509,7 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
 - **Gift from the Gods** (`gift_from_the_gods`) — Mythic · 40 mana, 4 tempo · range melee · targets self · slots: deck only · not on the sheet (item kit / token)
   - Card text: Gain Keen: +10% crit chance on your next 3 crit rolls.
   - Code: execute() 'gift_from_the_gods': buff_mgr.apply_buff(Buff.create_keen_rolls(10, 3)) — +10% crit with 3 charges; BuffManager.roll_crit spends one charge per attack roll (crit or not). Lv3 granting item: 4 stacks and removes 3 random debuffs.
-- **Give In** (`give_in`) — Common · 0 mana, 2 tempo · range melee · targets self · slots: deck only · sheet: Utility, self
+- **Short Term Fix** (`give_in`, was Give In) — Common · 0 mana, 2 tempo · range melee · targets self · slots: deck only · sheet: Utility, self
   - Card text: Immediately gain 3 mana. The next time you would draw from Tempo being triggered, you don't.
   - Code: execute() -> _execute_give_in: player_stats.gain_mana(30) and deck_manager.skip_next_tempo_draw=true; DrawTimer.process_tempo consumes that flag to skip the next tempo-triggered draw. Self, melee.
 - **Gulped Potion** (`gulped_potion`) — Common · 10 mana, 3 tempo · range 3 · targets self, ally · slots: Pocket · sheet: Utility, ally, ranged 3

@@ -249,6 +249,11 @@ const CARD_PAINTINGS := {
 	"anticipation": "anticipation",
 	"armor_break": "armor_break",
 	"bloodlust": "bloodlust",
+	"composed_response": "composed_response",
+	"deep_pockets": "deep_pockets",
+	"empower": "empower",
+	"gain_mana": "gain_mana",
+	"give_in": "give_in",
 	"provider": "heal",   # the Heal bag again (designer, 2026-11-18)
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
