@@ -308,9 +308,9 @@ SINGLES = {
     "try_this": ("card_art_try_this.webp", (0, 40, 1536, 848)),
     # The hilt and the four-leaf clover tied to the blade.
     "lady_luck": ("card_art_lady_luck.webp", (0, 230, 1448, 992)),
-    # The potion poured from the ledge onto the fighter and the orc beyond
-    # (designer: Hope This Works).
-    "hope_this_works": ("card_art_hope_this_works.webp", (0, 160, 1448, 922)),
+    # The pourer on the ledge covering their eyes (designer: must show), the
+    # potion and the fighter below (designer: Hope This Works).
+    "hope_this_works": ("card_art_hope_this_works.webp", (0, 0, 1448, 900)),
     # Her face, the outthrust palm and the brute blown back.
     "push": ("card_art_push.webp", (0, 60, 1536, 868)),
     # The monk's upturned calm and the light flowing into the goblin.
