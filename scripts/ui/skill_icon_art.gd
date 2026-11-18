@@ -205,6 +205,11 @@ const CARD_PAINTINGS := {
 	"internal_combustion": "internal_combustion",
 	"absorb_essence": "absorb_essence",
 	"choke": "choke",
+	"god_of_thunder": "god_of_thunder",
+	"fireball": "fireball",
+	"energy_ball": "energy_ball",
+	"worms_armageddon": "worms_armageddon",
+	"snowballs_chance": "snowballs_chance",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",

@@ -254,6 +254,16 @@ SINGLES = {
     "absorb_essence": ("card_art_absorb_essence.webp", (0, 0, 1672, 880)),
     # The hooded reach and the goblin clutching his throat.
     "choke": ("card_art_choke.webp", (0, 40, 1672, 920)),
+    # The hammer, her roar and the bolt into the giant.
+    "god_of_thunder": ("card_art_god_of_thunder.webp", (0, 40, 1672, 920)),
+    # The burning caster's face, his hands and the fire swirling round him.
+    "fireball": ("card_art_fireball.webp", (0, 80, 1448, 842)),
+    # The glowing eyes and the orb held between her hands.
+    "energy_ball": ("card_art_energy_ball.webp", (0, 0, 1672, 880)),
+    # The flaming worm, jaws open, coiled round its burning rock.
+    "worms_armageddon": ("card_art_worms_armageddon.webp", (0, 0, 1671, 880)),
+    # The fire-breath, the melting snowman and the horde behind.
+    "snowballs_chance": ("card_art_snowballs_chance.webp", (0, 80, 1448, 842)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
