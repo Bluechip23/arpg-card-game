@@ -220,6 +220,11 @@ const CARD_PAINTINGS := {
 	"enchanted_quiver": "enchanted_quiver",
 	"self_admission": "self_admission",
 	"reverse_reverse": "reverse_reverse",
+	"clarity": "clarity",
+	"succumb": "succumb",
+	"pandora_panic": "pandora_panic",
+	"swap": "swap",
+	"adrenaline_shot": "adrenaline_shot",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",

@@ -284,6 +284,16 @@ SINGLES = {
     "self_admission": ("card_art_self_admission.webp", (0, 0, 1672, 880)),
     # The lit bomb in one hand, the knife in the other.
     "reverse_reverse": ("card_art_reverse_reverse.webp", (0, 30, 1672, 910)),
+    # The outstretched arms among the flowers and the glowing butterflies.
+    "clarity": ("card_art_clarity.webp", (0, 30, 1672, 910)),
+    # The blissful grin and the imp whispering at his ear.
+    "succumb": ("card_art_succumb.webp", (0, 0, 1671, 880)),
+    # Her scream, the box flung open and the horrors pouring out.
+    "pandora_panic": ("card_art_pandora_panic.webp", (0, 0, 1672, 880)),
+    # The two caught mid-swap in the swirl of light.
+    "swap": ("card_art_swap.webp", (0, 30, 1671, 910)),
+    # The smirk and the syringe dripping red.
+    "adrenaline_shot": ("card_art_adrenaline_shot.webp", (0, 0, 1672, 880)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
