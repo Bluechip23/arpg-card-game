@@ -264,6 +264,16 @@ SINGLES = {
     "worms_armageddon": ("card_art_worms_armageddon.webp", (0, 0, 1671, 880)),
     # The fire-breath, the melting snowman and the horde behind.
     "snowballs_chance": ("card_art_snowballs_chance.webp", (0, 80, 1448, 842)),
+    # 2026-11-18: the man leaning on his rock, watching the sunset.
+    "petey_the_pet_rock": ("card_art_petey_the_pet_rock.webp", (0, 60, 1671, 940)),
+    # The dazed face and the stars circling his head.
+    "lightly_dazed": ("card_art_lightly_dazed.webp", (0, 0, 1312, 690)),
+    # The grimace and the hand clutching the cut arm.
+    "minor_wounds": ("card_art_minor_wounds.webp", (0, 0, 1536, 808)),
+    # The elephant stepping into the glowing quiver.
+    "bottomless_quiver": ("card_art_bottomless_quiver.webp", (0, 80, 1536, 888)),
+    # The boy's grin, the case of arrows and the warrior pondering them.
+    "collect_arrows": ("card_art_collect_arrows.webp", (0, 40, 1536, 848)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

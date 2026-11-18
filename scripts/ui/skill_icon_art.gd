@@ -210,6 +210,11 @@ const CARD_PAINTINGS := {
 	"energy_ball": "energy_ball",
 	"worms_armageddon": "worms_armageddon",
 	"snowballs_chance": "snowballs_chance",
+	"petey_the_pet_rock": "petey_the_pet_rock",
+	"lightly_dazed": "lightly_dazed",
+	"minor_wounds": "minor_wounds",
+	"bottomless_quiver": "bottomless_quiver",
+	"collect_arrows": "collect_arrows",
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
 	"enchantment_defense": "stone_patch",
