@@ -158,6 +158,9 @@ func _run() -> void:
 	var petey := Card.create_by_id("petey_the_pet_rock")
 	_check(CardUI.frame_for(petey) == CardUI.FRAMES["utility"] and petey.card_type == Card.CardType.UNPLAYABLE,
 		"Petey the Pet Rock wears the Utility frame, still Unplayable (designer, 2026-11-18)")
+	for us_id in ["lady_luck", "hope_this_works", "provider"]:
+		_check(CardUI.frame_for(Card.create_by_id(us_id)) == CardUI.FRAMES["utility"],
+			"%s, a utility spell, wears the Utility frame (designer, 2026-11-18)" % us_id)
 	var sa := Card.create_by_id("spirit_arrow")
 	_check(CardUI.frame_for(sa) == CardUI.FRAMES["offensive"] and not sa.is_attack(),
 		"Spirit Arrow is plain Offensive (designer, 2026-11-16)")

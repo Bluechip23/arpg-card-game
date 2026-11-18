@@ -460,10 +460,14 @@ static func _badge_atlas(path: String) -> Texture2D:
 ## one (designer, 2026-11-16): the upkeep sits on the frame's top strip.
 const UPKEEP_IN_OWN_FRAME := {"peshtigos_kiss": true}
 
-## Cards that wear another type's frame than their own (designer): Petey the
-## Pet Rock is an Unplayable card (it is never played) worn in the Utility
-## frame, 2026-11-18.
-const FRAME_OVERRIDE := {"petey_the_pet_rock": "utility"}
+## Cards that wear another frame than their type and tags give (designer,
+## 2026-11-18): Petey the Pet Rock is an Unplayable card (never played) worn
+## in the Utility frame; Lady Luck, Hope This Works and Provider are utility
+## spells worn in the Utility frame, not the Spell one.
+const FRAME_OVERRIDE := {
+	"petey_the_pet_rock": "utility",
+	"lady_luck": "utility", "hope_this_works": "utility", "provider": "utility",
+}
 
 static func frame_for(card: Card) -> Dictionary:
 	if card == null:

@@ -234,6 +234,11 @@ const CARD_PAINTINGS := {
 	"hope_this_works": "hope_this_works",
 	"lady_luck": "lady_luck",
 	"try_this": "try_this",
+	"push": "push",
+	"release_tension": "release_tension",
+	"round_em_up": "round_em_up",
+	"roll": "roll",
+	"surprise_pick_up": "surprise_pick_up",
 	"provider": "heal",   # the Heal bag again (designer, 2026-11-18)
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
