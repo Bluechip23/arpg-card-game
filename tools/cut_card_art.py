@@ -254,6 +254,73 @@ SINGLES = {
     "absorb_essence": ("card_art_absorb_essence.webp", (0, 0, 1672, 880)),
     # The hooded reach and the goblin clutching his throat.
     "choke": ("card_art_choke.webp", (0, 40, 1672, 920)),
+    # The hammer, her roar and the bolt into the giant.
+    "god_of_thunder": ("card_art_god_of_thunder.webp", (0, 40, 1672, 920)),
+    # The burning caster's face, his hands and the fire swirling round him.
+    "fireball": ("card_art_fireball.webp", (0, 80, 1448, 842)),
+    # The glowing eyes and the orb held between her hands.
+    "energy_ball": ("card_art_energy_ball.webp", (0, 0, 1672, 880)),
+    # The flaming worm, jaws open, coiled round its burning rock.
+    "worms_armageddon": ("card_art_worms_armageddon.webp", (0, 0, 1671, 880)),
+    # The fire-breath, the melting snowman and the horde behind.
+    "snowballs_chance": ("card_art_snowballs_chance.webp", (0, 80, 1448, 842)),
+    # 2026-11-18: the man leaning on his rock, watching the sunset.
+    "petey_the_pet_rock": ("card_art_petey_the_pet_rock.webp", (0, 60, 1671, 940)),
+    # The dazed face and the stars circling his head.
+    "lightly_dazed": ("card_art_lightly_dazed.webp", (0, 0, 1312, 690)),
+    # The grimace and the hand clutching the cut arm.
+    "minor_wounds": ("card_art_minor_wounds.webp", (0, 0, 1536, 808)),
+    # The elephant stepping into the glowing quiver.
+    "bottomless_quiver": ("card_art_bottomless_quiver.webp", (0, 80, 1536, 888)),
+    # The boy's grin, the case of arrows and the warrior pondering them.
+    "collect_arrows": ("card_art_collect_arrows.webp", (0, 40, 1536, 848)),
+    # The grimace and the soiled cloth held over the bin.
+    "discard": ("card_art_discard.webp", (0, 40, 1536, 848)),
+    # The goggled alchemist and the snake biting the glowing arm.
+    "elixir": ("card_art_elixir.webp", (0, 100, 1448, 862)),
+    # The caster's shout, the ice shard and the glowing arrow.
+    "enchanted_quiver": ("card_art_enchanted_quiver.webp", (0, 0, 1672, 880)),
+    # The jailer on the balcony over the prisoners (Self Admission: a card jailed).
+    "self_admission": ("card_art_self_admission.webp", (0, 0, 1672, 880)),
+    # The lit bomb in one hand, the knife in the other.
+    "reverse_reverse": ("card_art_reverse_reverse.webp", (0, 30, 1672, 910)),
+    # The outstretched arms among the flowers and the glowing butterflies.
+    "clarity": ("card_art_clarity.webp", (0, 30, 1672, 910)),
+    # The blissful grin and the imp whispering at his ear.
+    "succumb": ("card_art_succumb.webp", (0, 0, 1671, 880)),
+    # Her scream, the box flung open and the horrors pouring out.
+    "pandora_panic": ("card_art_pandora_panic.webp", (0, 0, 1672, 880)),
+    # The two caught mid-swap in the swirl of light.
+    "swap": ("card_art_swap.webp", (0, 30, 1671, 910)),
+    # The smirk and the syringe dripping red.
+    "adrenaline_shot": ("card_art_adrenaline_shot.webp", (0, 0, 1672, 880)),
+    # The glare, the blade on the grindstone and the sparks.
+    "stone_wheel": ("card_art_stone_wheel.webp", (0, 100, 1448, 862)),
+    # The three glasses poured into the swirling beaker.
+    "gulped_potion": ("card_art_gulped_potion.webp", (0, 60, 1448, 822)),
+    # The head thrown back and the purple spray.
+    "gargle_and_spit": ("card_art_gargle_and_spit.webp", (0, 0, 1536, 808)),
+    # The roar, the red eyes and the burning veins.
+    "raged_circulation": ("card_art_raged_circulation.webp", (0, 40, 1536, 848)),
+    # Her leap, the scream and the two flaming blades.
+    "both_sides_of_the_candle": ("card_art_both_sides_of_the_candle.webp", (0, 30, 1536, 838)),
+    # Her smile, the flipped coin and his open hand (designer: Try This!).
+    "try_this": ("card_art_try_this.webp", (0, 40, 1536, 848)),
+    # The hilt and the four-leaf clover tied to the blade.
+    "lady_luck": ("card_art_lady_luck.webp", (0, 230, 1448, 992)),
+    # The pourer on the ledge covering their eyes (designer: must show), the
+    # potion and the fighter below (designer: Hope This Works).
+    "hope_this_works": ("card_art_hope_this_works.webp", (0, 0, 1448, 900)),
+    # Her face, the outthrust palm and the brute blown back.
+    "push": ("card_art_push.webp", (0, 60, 1536, 868)),
+    # The monk's upturned calm and the light flowing into the goblin.
+    "release_tension": ("card_art_release_tension.webp", (0, 80, 1536, 888)),
+    # The purple vortex pulling the foes in.
+    "round_em_up": ("card_art_round_em_up.webp", (0, 40, 1536, 848)),
+    # The roar inside the rolling cage and the fleeing goblin.
+    "roll": ("card_art_roll.webp", (0, 60, 1536, 868)),
+    # The shadow on the crate and the goblins puzzling over it.
+    "surprise_pick_up": ("card_art_surprise_pick_up.webp", (0, 60, 1536, 868)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
@@ -271,6 +338,8 @@ FITTED = {
     "feather_foot": ("card_art_feather_foot.webp", (0, 0, 1448, 1010)),
     # 2026-11-16: the bandage with the shield set in it.
     "armor_patch": ("card_art_armor_patch.webp", (60, 150, 1476, 870)),
+    # 2026-11-18: the field-medic's bag, seen whole.
+    "heal": ("card_art_heal.webp", (60, 60, 1536, 1000)),
     # 2026-11-17: her face, the glowing hands and the dog's whole head
     # (designer) — a wide crop fitted to the window's height.
     "summon_shadow_hound": ("card_art_summon_shadow_hound.webp", (80, 100, 1448, 1040)),
