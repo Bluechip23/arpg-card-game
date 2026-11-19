@@ -254,6 +254,11 @@ const CARD_PAINTINGS := {
 	"empower": "empower",
 	"gain_mana": "gain_mana",
 	"give_in": "give_in",
+	"healing_potion": "healing_potion",
+	"healthy_habit": "healthy_habit",
+	"item_mastery": "item_mastery",
+	"lethal_recall": "lethal_recall",
+	"life_steal": "life_steal",
 	"provider": "heal",   # the Heal bag again (designer, 2026-11-18)
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",

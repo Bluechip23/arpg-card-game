@@ -6,7 +6,7 @@
 script = ExtResource("1_40nji")
 card_id = "life_steal"
 card_name = "Life Steal"
-description = "Heal for the amount of damage done by your next attack."
+description = "Heal for the amount of damage done by the next card you play that deals damage."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 10

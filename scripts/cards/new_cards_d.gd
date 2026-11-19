@@ -389,6 +389,7 @@ static func _throw_knives(main, card: Card, knives: int, bonus: int) -> void:
 	card.last_damage_dealt = total
 	if total > 0:
 		card.apply_life_steal_for(total, stats, buff_mgr, main.deck_manager)  # an attack's life steal
+		main._settle_life_steal(total)  # the knives land after the play: the Life Steal buff here
 	if hits < knives:
 		main.add_battle_log("Fan of Knives: %d knife(s) found no enemy within %d." % [knives - hits, card.get_effective_range()], Color(1.0, 0.6, 0.3))
 	if hits > 0:

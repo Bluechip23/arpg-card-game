@@ -125,9 +125,9 @@ func _set_name_and_description() -> void:
 			buff_name = "Life Steal"
 			# value 0 = legacy full-damage heal; value > 0 = percentage of damage
 			if value > 0:
-				description = "Next attack heals you for %d%% of damage dealt" % value
+				description = "The next card you play that deals damage heals you for %d%% of it" % value
 			else:
-				description = "Next attack heals you for damage dealt"
+				description = "The next card you play that deals damage heals you for all of it"
 		BuffType.MORPHINE:
 			buff_name = "Morphine"
 			description = "%d temp HP. When it expires, the remaining temp HP is lost and you take 2 damage" % value
@@ -387,7 +387,7 @@ static func create_might(str_bonus: int, tempo: int = 10, source: String = "") -
 	return buff
 
 static func create_life_steal(source: String = "") -> Buff:
-	var buff = Buff.new(BuffType.LIFE_STEAL, 0, -1, 1)  # 1 charge - next attack
+	var buff = Buff.new(BuffType.LIFE_STEAL, 0, -1, 1)  # 1 charge - the next card that deals damage
 	buff.source_name = source
 	return buff
 

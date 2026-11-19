@@ -1030,6 +1030,28 @@ func _fit_description() -> void:
 		if not desc_label.resized.is_connected(_place_text_wash):
 			desc_label.resized.connect(_place_text_wash)
 		_place_text_wash.call_deferred()
+		_shrink_desc_to_box.call_deferred()
+
+## The fit above measures the text with the font's own line breaking; the
+## label can break it onto one more line than that. Once laid out, a text
+## that still overflows its rules box steps down until it fits (or reaches
+## the smallest size), so it never runs off the card's foot.
+func _shrink_desc_to_box() -> void:
+	if desc_label == null or desc_panel == null or not is_instance_valid(desc_label) or _frame.is_empty():
+		return
+	var st := desc_panel.get_theme_stylebox("panel")
+	var avail: float = desc_panel.size.y - (st.content_margin_top if st else 0.0)
+	if avail <= 0.0:
+		return
+	var fs: int = desc_label.get_theme_font_size("normal_font_size")
+	var shrunk := false
+	while fs > DESC_FONT_MIN and float(desc_label.get_content_height()) > avail:
+		fs -= 1
+		desc_label.add_theme_font_size_override("normal_font_size", fs)
+		desc_label.add_theme_font_size_override("bold_font_size", fs)
+		shrunk = true
+	if shrunk:
+		_place_text_wash.call_deferred()
 
 ## A translucent wash behind the rules text only, fading the frame's corner
 ## picture where the text sits so the text reads first (designer,

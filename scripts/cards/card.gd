@@ -3148,6 +3148,10 @@ func is_negative_card() -> bool:
 # itself, and one nested inside another card's scope restores the outer
 # card's riders when it finishes.
 static var play_scope_open: bool = false
+## Damage the card being played has dealt to enemies so far, health and armor
+## together (main adds every hit while the play scope is open; the Life Steal
+## buff heals it when the play ends).
+static var play_damage_dealt: int = 0
 static var _exec_depth: int = 0
 static var _scope_snapshot: Dictionary = {}
 
@@ -3273,7 +3277,7 @@ func _execute_taunt(_target, _player_stats: PlayerStats) -> void:
 func _execute_life_steal(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if buff_mgr:
 		buff_mgr.apply_buff(Buff.create_life_steal("Life Steal"))
-	print("[CARD] Life Steal active! Next hit heals for damage dealt")
+	print("[CARD] Life Steal active! The next card that deals damage heals for it")
 
 func _execute_roar(_target, _player_stats: PlayerStats) -> void:
 	# Knockback applied via world effects in main.gd (needs enemy_spawner)
@@ -5046,9 +5050,8 @@ func is_world_resolved(target) -> bool:
 func apply_life_steal_for(dealt: int, player_stats: PlayerStats, buff_mgr: BuffManager, deck_manager = null) -> void:
 	if dealt <= 0:
 		return
-	# Life Steal: if an attack dealt damage and we have life steal buff, heal for damage dealt
-	if buff_mgr and buff_mgr.has_life_steal():
-		buff_mgr.consume_life_steal(dealt)
+	# (The Life Steal card's buff is not spent here: it answers any card that
+	# deals damage, spells included — main._settle_life_steal, at the play's end.)
 
 	# Life Steal passive (Brad): all ATTACKS (not spells) heal for 1%..8%
 	# (rank-scaled) of damage dealt.

@@ -349,6 +349,12 @@ SINGLES = {
     "empower": ("card_art_empower.webp", (0, 120, 1536, 928)),
     # The belt traded for the glowing blue potion (Short Term Fix).
     "give_in": ("card_art_give_in.webp", (0, 80, 1536, 888)),
+    # The hooded mage with his vials, the smoothie blended behind.
+    "healthy_habit": ("card_art_healthy_habit.webp", (0, 40, 1536, 848)),
+    # The handspring, the vanish and the strike through the after-image.
+    "lethal_recall": ("card_art_lethal_recall.webp", (0, 120, 1448, 882)),
+    # The jeweled fangs on the apothecary's table.
+    "life_steal": ("card_art_life_steal.webp", (0, 160, 1448, 922)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
@@ -370,6 +376,10 @@ FITTED = {
     "heal": ("card_art_heal.webp", (60, 60, 1536, 1000)),
     # The mana drop with the caster inside it, seen whole on its black (Energy).
     "gain_mana": ("card_art_gain_mana.webp", (230, 0, 1090, 1199)),
+    # The red potion with its cross tag, seen whole.
+    "healing_potion": ("card_art_healing_potion.png", (240, 130, 784, 870)),
+    # The golem of weapons, crowned head to claws, fitted to the window.
+    "item_mastery": ("card_art_item_mastery.webp", (0, 0, 1312, 900)),
     # 2026-11-17: her face, the glowing hands and the dog's whole head
     # (designer) — a wide crop fitted to the window's height.
     "summon_shadow_hound": ("card_art_summon_shadow_hound.webp", (80, 100, 1448, 1040)),
