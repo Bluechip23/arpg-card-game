@@ -391,10 +391,10 @@ SINGLES = {
     "foresight": ("card_art_foresight.webp", (0, 120, 1448, 882)),
     # The archer's draw and the troll lunging.
     "back_pedal": ("card_art_back_pedal.webp", (0, 0, 1672, 880)),
-    # The roar and the beasts charging round him.
-    "inspiring_whistle": ("card_art_inspiring_whistle.webp", (0, 40, 1672, 920)),
-    # The war horn raised to his lips.
-    "war_shout": ("card_art_war_shout.webp", (0, 0, 1672, 880)),
+    # The war horn raised to his lips (designer: Inspiring Whistle).
+    "inspiring_whistle": ("card_art_inspiring_whistle.webp", (0, 0, 1672, 880)),
+    # The roar and the beasts charging round him (designer: War Shout).
+    "war_shout": ("card_art_war_shout.webp", (0, 40, 1672, 920)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

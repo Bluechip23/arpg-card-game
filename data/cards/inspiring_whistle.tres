@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "inspiring_whistle"
 card_name = "Inspiring Whistle"
-description = "Choose an enemy (or click elsewhere for the nearest). Your summons move up to 3 tiles toward it and gain Brace 30% for 2 hits, doubled for a summon with it in reach. With no summons, draw a card instead."
+description = "Choose an enemy (or the nearest). Your summons move up to 3 tiles toward it and gain Brace 30% for 2 hits (doubled if it's in reach). No summons: draw a card."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 100
