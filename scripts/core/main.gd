@@ -11893,7 +11893,7 @@ func _update_smoke_zones(amount: int) -> void:
 				p.get_stats().aura_crit_bonus = 10.0
 				var bm = p.get_buff_manager()
 				if bm:
-					bm.apply_buff(Buff.create_invisible(2, "smoke bomb"))
+					bm.apply_buff(Buff.create_invisible(2, "Smoke Bomb"))
 		if zone["tempo"] > 0:
 			survivors.append(zone)
 	_smoke_zones = survivors

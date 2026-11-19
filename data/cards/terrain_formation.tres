@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_htc5i")
 card_id = "terrain_formation"
-card_name = "Terrain formation"
+card_name = "Terrain Formation"
 description = "Create a hill you can walk on. The hill lasts 5 tempo."
 card_type = 2
 card_type_name = "Utility"

@@ -487,7 +487,7 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
 - **Energy** (`gain_mana`) — Common · 0 mana, 1 tempo · range melee · targets self · slots: Gem · sheet: Utility, self
   - Card text: Gain 2 mana
   - Code: execute() -> _execute_gain_mana: player_stats.gain_mana(20) (2 mana as the card counts it). Self target, 0 mana / 1 tempo.
-- **Escape and bewilder** (`escape_and_bewilder`) — Legendary · 50 mana, 2 tempo · range melee · targets point · slots: deck only · not on the sheet (item kit / token)
+- **Escape and Bewilder** (`escape_and_bewilder`) — Legendary · 50 mana, 2 tempo · range melee · targets point · slots: deck only · not on the sheet (item kit / token)
   - Card text: Blink up to 5 spaces. Enemies within 3 of the space you left are stunned for 3 tempo.
   - Code: execute() branch is 'pass'; main._apply_card_world_effects 'escape_and_bewilder': blinks the player to the clicked tile if within 5 grid cells and not a blocked tile, then every living enemy within 3 cells of the ORIGINAL tile gets apply_debuff('stun', 3) (3 tempo). 50 mana / 2 tempo, point target.
 - **Fleet Etching** (`fleet_etching`) — Common · 0 mana, 2 tempo · range melee · targets self · slots: Swift — Engrave · not on the sheet (item kit / token)
@@ -687,7 +687,7 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
 - **Swap** (`swap`) — Common · 20 mana, 3 tempo · range 7 · targets enemy, ally · slots: Swift · sheet: Utility, Ally, enemy, range 7
   - Card text: Switch positions with an enemy or ally.
   - Code: _execute_swap only prints; main 'swap': exchanges player.position/target_position with the target Node3D (enemy or ally) and fires displacement triggers. is_ranged + range_modifier 2 -> range 7, targets enemy/ally, 20 mana, 3 tempo.
-- **Terrain formation** (`terrain_formation`) — Legendary · 25 mana, 3 tempo · range melee · targets point · slots: deck only · not on the sheet (item kit / token)
+- **Terrain Formation** (`terrain_formation`) — Legendary · 25 mana, 3 tempo · range melee · targets point · slots: deck only · not on the sheet (item kit / token)
   - Card text: Create a hill you can walk on. The hill lasts 5 tempo.
   - Code: execute() pass branch (card.gd:1690). main 'terrain_formation' (main.gd:11316): dungeon_manager.build_high_ground(clicked cell, 1, 1) raises a 1x1 walkable hill at the mouse cell (works under units), then schedule_delayed_effect(5, remove_high_ground) removes it after 5 tempo; logs failure if no ground there. Point target with no range limit, 25 mana / 3 tempo.
 - **The Light's Favor** (`the_lights_favor`) — Common · 20 mana, 0 tempo · range 4 · targets self, ally · slots: Pocket / Wand / Gem / Staff · sheet: Utility, allies, ranged 4
@@ -715,10 +715,10 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
 - **Wear Down** (`wear_down`) — Common · 0 mana, 1 tempo · range melee · targets self · slots: Hammer · sheet: Utility, self
   - Card text: Decrease enemy attack by 1 per consecutive hit. Lasts 15 tempo.
   - Code: _execute_wear_down: Buff.create_wear_down(15) on the player (15 tempo). While that buff is held, execute() applies target.apply_wear_down(15) before every ATTACK card resolves (card.gd ~1685); on each player hit an enemy with wear_down_tempo>0 gains attack_reduction += 1 (enemy.gd:4683), subtracted from its attack damage; the reduction resets when the enemy's wear-down timer (refreshed to 15 per attack) expires. Self, 0 mana, 1 tempo. Ruling: 'each attack' is the Attack shape, not spells.
-- **shift** (`shift`) — Legendary · 0 mana, 0 tempo · range melee · targets point · slots: deck only · not on the sheet (item kit / token)
+- **Shift** (`shift`) — Legendary · 0 mana, 0 tempo · range melee · targets point · slots: deck only · not on the sheet (item kit / token)
   - Card text: Move up to 2 spaces for free.
   - Code: execute() `pass`; main 'shift': snaps the mouse point, refuses if farther than 2 cells or a blocked tile, else player.blink_to(pos). 0 mana, 0 tempo, point target.
-- **smoke bomb** (`smoke_bomb`) — Mythic · 30 mana, 2 tempo · range melee · targets point · slots: deck only · not on the sheet (item kit / token)
+- **Smoke Bomb** (`smoke_bomb`) — Mythic · 30 mana, 2 tempo · range melee · targets point · slots: deck only · not on the sheet (item kit / token)
   - Card text: A puff of smoke (2-square radius): allies inside are invisible and gain 10% crit chance while they stay in it. Lasts 8 tempo. Jailed for 20 tempo after play.
   - Code: execute() branch is 'pass'; main._apply_card_world_effects 'smoke_bomb' appends a smoke zone {position, tempo 8} at the clicked tile. Each tempo tick _update_smoke_zones re-applies to every ally within 2 cells: aura_crit_bonus = 10 and a 2-tempo INVISIBLE buff (both lapse when they leave). jail_on_play = 20 sends the card to jail for 20 tempo. Point target, 30 mana / 2 tempo.
 - **Wish** (`djinn_wish`) — Basic · 60 mana, 0 tempo · range melee · targets self · slots: deck only · not on the sheet (enemy curse card)

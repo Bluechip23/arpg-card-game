@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_itsxu")
 card_id = "escape_and_bewilder"
-card_name = "Escape and bewilder"
+card_name = "Escape and Bewilder"
 description = "Blink up to 5 spaces. Enemies within 3 of the space you left are stunned for 3 tempo."
 card_type = 2
 card_type_name = "Utility"
