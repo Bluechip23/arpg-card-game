@@ -411,6 +411,12 @@ SINGLES = {
     "communal_donation": ("card_art_communal_donation.jpg", (0, 0, 1365, 718)),
     # The blood shield thrown round the screaming ally against the shieldman.
     "shepherds_mark": ("card_art_shepherds_mark.jpg", (0, 80, 1195, 709)),
+    # The thief slammed into the cracking mirror, his reflections behind.
+    "mirror_mirror": ("card_art_mirror_mirror.webp", (0, 0, 1672, 880)),
+    # The monk drawing the gloom from the goblin and the orc with their signs.
+    "misery_loves_company": ("card_art_misery_loves_company.webp", (0, 0, 1671, 880)),
+    # The knight's hand pouring green light into the wounded mage.
+    "acro_medic": ("card_art_acro_medic.webp", (0, 0, 1672, 880)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
@@ -438,6 +444,11 @@ FITTED = {
     "biscuit": ("card_art_biscuit.webp", (160, 60, 1536, 960)),
     # The d20 showing 20, seen whole.
     "loaded_die": ("card_art_loaded_die.webp", (260, 0, 1280, 960)),
+    # The leather pouch spilling its shuriken, seen whole.
+    "shuriken_pouch": ("card_art_shuriken_pouch.webp", (40, 40, 1536, 900)),
+    # A tall painting fitted to the window: her grin and slash below, the
+    # troll's scream in the top corner.
+    "feint": ("card_art_feint.webp", (0, 0, 1122, 880)),
     # The golem of weapons, crowned head to claws, fitted to the window.
     "item_mastery": ("card_art_item_mastery.webp", (0, 0, 1312, 900)),
     # 2026-11-17: her face, the glowing hands and the dog's whole head

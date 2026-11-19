@@ -289,6 +289,11 @@ const CARD_PAINTINGS := {
 	"meditate": "meditate",
 	"communal_donation": "communal_donation",
 	"shepherds_mark": "shepherds_mark",
+	"mirror_mirror": "mirror_mirror",
+	"misery_loves_company": "misery_loves_company",
+	"shuriken_pouch": "shuriken_pouch",
+	"acro_medic": "acro_medic",
+	"feint": "feint",
 	"provider": "heal",   # the Heal bag again (designer, 2026-11-18)
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",

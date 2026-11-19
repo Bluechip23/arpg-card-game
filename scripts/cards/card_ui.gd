@@ -461,8 +461,9 @@ static func _badge_atlas(path: String) -> Texture2D:
 const UPKEEP_IN_OWN_FRAME := {"peshtigos_kiss": true}
 
 ## Cards whose reach is not shown on the type line (designer, 2026-11-19):
-## Inspiring Whistle picks any enemy (range 99), which reads as "Ranged +99".
-const HIDE_RANGE := {"inspiring_whistle": true}
+## Inspiring Whistle and Communal Donation reach anywhere (range 99), which
+## reads as "Ranged +99".
+const HIDE_RANGE := {"inspiring_whistle": true, "communal_donation": true}
 
 ## Cards that wear another frame than their type and tags give (designer,
 ## 2026-11-18): Petey the Pet Rock is an Unplayable card (never played) worn
