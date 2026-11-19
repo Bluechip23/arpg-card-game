@@ -284,6 +284,11 @@ const CARD_PAINTINGS := {
 	"house_money": "house_money",
 	"deep_breaths": "deep_breaths",
 	"demonic_rage": "demonic_rage",
+	"cryonics": "cryonics",
+	"friendship": "friendship",
+	"meditate": "meditate",
+	"communal_donation": "communal_donation",
+	"shepherds_mark": "shepherds_mark",
 	"provider": "heal",   # the Heal bag again (designer, 2026-11-18)
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",

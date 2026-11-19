@@ -401,6 +401,16 @@ SINGLES = {
     "deep_breaths": ("card_art_deep_breaths.webp", (0, 0, 1536, 808)),
     # The grin and the crystal heart crushed in her bleeding hand.
     "demonic_rage": ("card_art_demonic_rage.webp", (0, 60, 1448, 822)),
+    # The ally encased in ice, the orc and the leaping fighter beyond.
+    "cryonics": ("card_art_cryonics.webp", (0, 0, 1672, 880)),
+    # The laughing high five and its burst of light.
+    "friendship": ("card_art_friendship.webp", (0, 0, 1536, 808)),
+    # The floating monk in his ring of glowing runes.
+    "meditate": ("card_art_meditate.webp", (0, 0, 1536, 808)),
+    # The cleric's blood streaming out to the wounded allies.
+    "communal_donation": ("card_art_communal_donation.jpg", (0, 0, 1365, 718)),
+    # The blood shield thrown round the screaming ally against the shieldman.
+    "shepherds_mark": ("card_art_shepherds_mark.jpg", (0, 80, 1195, 709)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
