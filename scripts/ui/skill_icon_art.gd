@@ -269,6 +269,11 @@ const CARD_PAINTINGS := {
 	"reposition": "reposition",
 	"risk_it": "risk_it",
 	"self_infliction": "self_infliction",
+	"shadows": "shadows",
+	"shed_weight": "shed_weight",
+	"tighten_string": "tighten_string",
+	"understanding": "understanding",
+	"wear_down": "wear_down",
 	"provider": "heal",   # the Heal bag again (designer, 2026-11-18)
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",

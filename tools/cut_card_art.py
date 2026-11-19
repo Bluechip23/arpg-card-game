@@ -375,6 +375,16 @@ SINGLES = {
     "risk_it": ("card_art_risk_it.webp", (0, 60, 1536, 868)),
     # The hooded cutter bleeding onto the open book, foes closing in.
     "self_infliction": ("card_art_self_infliction.webp", (0, 80, 1536, 888)),
+    # A very wide board: the fading after-images and the baffled goblin.
+    "shadows": ("card_art_shadows.webp", (780, 0, 2000, 667)),
+    # The star jump, arms flung up.
+    "shed_weight": ("card_art_shed_weight.webp", (0, 0, 1448, 762)),
+    # The bow bent to string it.
+    "tighten_string": ("card_art_tighten_string.webp", (0, 40, 1536, 848)),
+    # The apple and the training ground watched from the ridge.
+    "understanding": ("card_art_understanding.webp", (0, 60, 1672, 940)),
+    # The grin and the fist driven into the orc.
+    "wear_down": ("card_art_wear_down.webp", (0, 60, 1536, 868)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
