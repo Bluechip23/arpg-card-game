@@ -6,7 +6,7 @@
 script = ExtResource("1_yc2gn")
 card_id = "empower"
 card_name = "Empower"
-description = "Next 2 attack cards drawn gain +3 damage"
+description = "Next 2 offensive cards drawn gain +3 damage"
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 10

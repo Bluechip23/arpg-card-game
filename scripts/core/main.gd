@@ -6185,6 +6185,8 @@ func _update_enemy_melee_state(enemy: Enemy, enemy_moved: bool) -> void:
 
 func _on_enemy_damaged(damage: int, enemy: Enemy) -> void:
 	_lemon_drop_on_hit(damage, enemy)
+	if Card.play_scope_open and enemy != null and is_instance_valid(enemy):
+		Card.play_damage_dealt += enemy.last_hit_total
 	progression_triggers._trigger_skill_tree_cory_on_enemy_damaged(enemy, damage)
 	# Reaper's Taking (Reaper Scythe): an enemy dropping below a quarter within
 	# 5 squares pulls the reaper to them — edge-detected on the crossing hit.
@@ -7781,6 +7783,18 @@ func _recalculate_enchantment_bonuses() -> void:
 		stats.enchantment_movement_bonus = movement_bonus
 		print("[MAIN] Enchantment bonuses updated — DMG: +%d, BLK: +%d, MOVE: +%d, MANA REGEN: +%.1f" % [damage_bonus, block_bonus, movement_bonus, mana_regen_bonus])
 
+## Life Steal (designer, 2026-11-19): "heal for the amount of damage done on
+## the next source of damage done by a card played" — any card that deals
+## damage, attack or spell, and all it dealt (every hit, health and armor
+## together). Spent only by a play that dealt damage.
+func _settle_life_steal(dealt: int) -> void:
+	Card.play_damage_dealt = 0
+	if dealt <= 0 or player == null:
+		return
+	var bm := player.get_buff_manager()
+	if bm and bm.has_life_steal():
+		bm.consume_life_steal(dealt)
+
 ## The Enchantment gems that answer a draw while they sit in the hand
 ## (designer, 2026-11-15). Every copy answers.
 ##   Life from Resource: heal the drawn card's tempo cost.
@@ -8943,7 +8957,7 @@ func _card_player_damage(card: Card, extra_flat: int = 0) -> int:
 		total = stats.get_effective_physical_damage(total)
 
 	# Standing buffs.
-	if card.draw_empowered and card.is_attack():
+	if card.draw_empowered and card.is_offensive():
 		total += stats.empower_damage_bonus
 	if buff_mgr:
 		total += buff_mgr.get_strengthen_bonus()
@@ -9526,6 +9540,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	# Steel) and the armed passives cover the card's executor AND its world
 	# effects (AoE splashes, chains, armor granted there). Closed at the end.
 	Card.play_scope_open = true
+	Card.play_damage_dealt = 0
 	progression_triggers.arm_pre_attack_passives(card, target)
 	# Bonus-damage passives (Deadly, Eagle Eye, Swing for the Fences) ride the
 	# card's own damage, folded in before it executes, so every enemy an AoE
@@ -9643,6 +9658,7 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 	if passive_bonus > 0:
 		card.bonus_damage -= passive_bonus
 	progression_triggers.clear_pre_attack_passives()
+	_settle_life_steal(Card.play_damage_dealt)
 	Card.close_play_scope(player.get_stats())
 	PlayerStats.harnessed_mult = 1.0
 	PlayerStats.hit_source_offensive = false
@@ -11877,7 +11893,7 @@ func _update_smoke_zones(amount: int) -> void:
 				p.get_stats().aura_crit_bonus = 10.0
 				var bm = p.get_buff_manager()
 				if bm:
-					bm.apply_buff(Buff.create_invisible(2, "smoke bomb"))
+					bm.apply_buff(Buff.create_invisible(2, "Smoke Bomb"))
 		if zone["tempo"] > 0:
 			survivors.append(zone)
 	_smoke_zones = survivors
@@ -15150,6 +15166,7 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 	PlayerStats.hit_source_offensive = card.is_offensive()
 	PlayerStats.hit_source_direct = true
 	Card.play_scope_open = true
+	Card.play_damage_dealt = 0
 	progression_triggers.arm_pre_attack_passives(card, target)
 	if buff_mgr:
 		buff_mgr.crit_hits = 0
@@ -15181,6 +15198,7 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 	# Apply card world effects
 	_apply_card_world_effects(card, target)
 	progression_triggers.clear_pre_attack_passives()
+	_settle_life_steal(Card.play_damage_dealt)
 	Card.close_play_scope(stats)
 	PlayerStats.hit_source_offensive = false
 	PlayerStats.hit_source_direct = false

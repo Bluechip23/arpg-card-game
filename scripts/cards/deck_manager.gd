@@ -499,9 +499,10 @@ func draw_card() -> Card:
 	if card.has_meta("feral_color"):
 		card.remove_meta("feral_color")
 
-	# Empower: the next attack cards drawn carry +3 damage until played.
+	# Empower: the next offensive cards drawn (attacks and offensive spells,
+	# designer 2026-11-18) carry +3 damage until played.
 	card.draw_empowered = false
-	if card.is_attack() and player_stats \
+	if card.is_offensive() and player_stats \
 			and player_stats.is_empowered() and player_stats.consume_empower():
 		card.draw_empowered = true
 
@@ -626,7 +627,7 @@ func handle_overflow() -> void:
 ## call: it logs each adjustment and records a percent-mana price on the
 ## card. Anything else (a preview, the simulator) asks quietly.
 func compute_play_cost(card: Card, index: int, target = null, debuff_mgr = null, commit: bool = false) -> Dictionary:
-	NewCardsB.price_foresight(card, player_stats)  # 20 mana, 2 less per Brain point held
+	NewCardsB.price_foresight(card, player_stats)  # 60 mana, 2 less per Brain point held
 	var mana_cost = card.get_burden_mana_cost()  # Burden: +10 mana per prior play
 	# Heavy Greedy Cheese's own price scales with the mana pool.
 	if card.card_id == GREEDY_CHEESE_ID:

@@ -107,6 +107,7 @@ var max_armor: int = 0
 var current_armor: int = 0
 var is_exposed: bool = false          # True once armor has been broken to 0
 var exposed_cooldown_tempo: int = 0   # raw tempo before a break can Expose this enemy again (designer: 10 after every Exposed)
+var last_hit_total: int = 0   # the last hit's damage to health and armor together
 var last_player_hit_damage: int = 0   # Raw damage of the player's most recent hit (for on-expose passives)
 var player_hit_modifier: Callable       # (enemy, amount) -> amount: skill-tree % mods on the player's direct hits (set by main)
 var has_been_damaged: bool = false      # any damage from any source has landed (Surprise Opener's first-source check)
@@ -7173,6 +7174,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		current_health -= amount
 		current_health = max(0, current_health)
 
+	last_hit_total = amount + armor_hit   # health and armor alike (Life Steal reads it)
 	damaged.emit(amount)
 	update_health_display()
 

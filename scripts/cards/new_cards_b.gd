@@ -35,7 +35,7 @@ const DEEP_BREATHS_META := "deep_breaths_armor"
 const SELF_ADMISSION_JAIL := 20
 const SELF_ADMISSION_META := "self_admission_payoffs"
 
-const FORESIGHT_BASE_MANA := 20
+const FORESIGHT_BASE_MANA := 60   # designer, 2026-11-19 (was 20)
 const FORESIGHT_PER_BRAIN := 2
 
 const LOG_COLOR := Color(0.75, 0.8, 1.0)

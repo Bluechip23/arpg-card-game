@@ -460,6 +460,11 @@ static func _badge_atlas(path: String) -> Texture2D:
 ## one (designer, 2026-11-16): the upkeep sits on the frame's top strip.
 const UPKEEP_IN_OWN_FRAME := {"peshtigos_kiss": true}
 
+## Cards whose reach is not shown on the type line (designer, 2026-11-19):
+## Inspiring Whistle and Communal Donation reach anywhere (range 99), which
+## reads as "Ranged +99".
+const HIDE_RANGE := {"inspiring_whistle": true, "communal_donation": true}
+
 ## Cards that wear another frame than their type and tags give (designer,
 ## 2026-11-18): Petey the Pet Rock is an Unplayable card (never played) worn
 ## in the Utility frame; Lady Luck, Hope This Works and Provider are utility
@@ -555,7 +560,7 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 		# range labels remains centred on the bar.
 		range_label.visible = true
 		range_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		if card.is_ranged or card.conditional_range:
+		if (card.is_ranged or card.conditional_range) and not HIDE_RANGE.has(card.card_id):
 			# Conditional cards show the keyword alone (the legend explains the reach).
 			range_label.text = card.get_range_display()
 			range_label.add_theme_color_override("font_color", Color(0.3, 0.8, 0.9))
@@ -1029,6 +1034,28 @@ func _fit_description() -> void:
 	if not _frame.is_empty():
 		if not desc_label.resized.is_connected(_place_text_wash):
 			desc_label.resized.connect(_place_text_wash)
+		_place_text_wash.call_deferred()
+		_shrink_desc_to_box.call_deferred()
+
+## The fit above measures the text with the font's own line breaking; the
+## label can break it onto one more line than that. Once laid out, a text
+## that still overflows its rules box steps down until it fits (or reaches
+## the smallest size), so it never runs off the card's foot.
+func _shrink_desc_to_box() -> void:
+	if desc_label == null or desc_panel == null or not is_instance_valid(desc_label) or _frame.is_empty():
+		return
+	var st := desc_panel.get_theme_stylebox("panel")
+	var avail: float = desc_panel.size.y - (st.content_margin_top if st else 0.0)
+	if avail <= 0.0:
+		return
+	var fs: int = desc_label.get_theme_font_size("normal_font_size")
+	var shrunk := false
+	while fs > DESC_FONT_MIN and float(desc_label.get_content_height()) > avail:
+		fs -= 1
+		desc_label.add_theme_font_size_override("normal_font_size", fs)
+		desc_label.add_theme_font_size_override("bold_font_size", fs)
+		shrunk = true
+	if shrunk:
 		_place_text_wash.call_deferred()
 
 ## A translucent wash behind the rules text only, fading the frame's corner

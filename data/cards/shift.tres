@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_ayj07")
 card_id = "shift"
-card_name = "shift"
+card_name = "Shift"
 description = "Move up to 2 spaces for free."
 card_type = 2
 card_type_name = "Utility"

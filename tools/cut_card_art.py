@@ -341,6 +341,82 @@ SINGLES = {
     "armor_break": ("card_art_armor_break.webp", (0, 40, 1536, 848)),
     # The red-eyed, bloody grin.
     "bloodlust": ("card_art_bloodlust.webp", (0, 40, 1536, 848)),
+    # Her calm upturned face and the sabres circling her.
+    "composed_response": ("card_art_composed_response.webp", (0, 0, 1448, 762)),
+    # The bulging pouches and the puzzled giant.
+    "deep_pockets": ("card_art_deep_pockets.webp", (0, 120, 1448, 882)),
+    # The smirk and the whetstone on the blade.
+    "empower": ("card_art_empower.webp", (0, 120, 1536, 928)),
+    # The belt traded for the glowing blue potion (Short Term Fix).
+    "give_in": ("card_art_give_in.webp", (0, 80, 1536, 888)),
+    # The hooded mage with his vials, the smoothie blended behind.
+    "healthy_habit": ("card_art_healthy_habit.webp", (0, 40, 1536, 848)),
+    # The handspring, the vanish and the strike through the after-image.
+    "lethal_recall": ("card_art_lethal_recall.webp", (180, 160, 1448, 827)),   # slid left: the speared one central
+    # The jeweled fangs on the apothecary's table.
+    "life_steal": ("card_art_life_steal.webp", (0, 160, 1448, 922)),
+    # The hooded glare and the fans of knives in both hands.
+    "meister_of_faustmesser": ("card_art_meister_of_faustmesser.webp", (0, 80, 1448, 842)),
+    # His upturned face, the blue flame and the red-and-blue drip in his arm.
+    "life_swap": ("card_art_life_swap.webp", (0, 40, 1448, 802)),
+    # The two capsules, one spilling its powder.
+    "morphine": ("card_art_morphine.webp", (0, 160, 1536, 968)),
+    # The goblin's snake spitting venom into the holy cauldron.
+    "poisoned_blood": ("card_art_poisoned_blood.webp", (0, 40, 1536, 848)),
+    # The man pointing at himself in the mirror.
+    "preparation": ("card_art_preparation.webp", (0, 40, 1536, 848)),
+    # The two commanders rallying the army below the castle.
+    "prepare": ("card_art_prepare.webp", (0, 0, 1672, 880)),
+    # Her aim down the triple-loaded crossbow.
+    "reload": ("card_art_reload.webp", (0, 80, 1536, 888)),
+    # A six-panel strip: its last two panels, the "?" and the peek (the punchline).
+    "reposition": ("card_art_reposition.webp", (516, 512, 1536, 1024)),
+    # The baker sliding the biscuits into the oven (Risk It: the Biscuit).
+    "risk_it": ("card_art_risk_it.webp", (0, 60, 1536, 868)),
+    # The hooded cutter bleeding onto the open book, foes closing in.
+    "self_infliction": ("card_art_self_infliction.webp", (0, 80, 1536, 888)),
+    # A very wide board: the fading after-images and the baffled goblin.
+    "shadows": ("card_art_shadows.webp", (780, 0, 2000, 667)),
+    # The star jump, arms flung up.
+    "shed_weight": ("card_art_shed_weight.webp", (0, 0, 1448, 762)),
+    # The bow bent to string it.
+    "tighten_string": ("card_art_tighten_string.webp", (0, 40, 1536, 848)),
+    # The apple and the training ground watched from the ridge.
+    "understanding": ("card_art_understanding.webp", (0, 60, 1672, 940)),
+    # The grin and the fist driven into the orc.
+    "wear_down": ("card_art_wear_down.webp", (0, 60, 1536, 868)),
+    # Her shout and the kick bursting the straw dummy.
+    "cadence": ("card_art_cadence.webp", (0, 40, 1448, 802)),
+    # The two goblins at cards, one sneaking a stack of coins.
+    "foresight": ("card_art_foresight.webp", (0, 120, 1448, 882)),
+    # The archer's draw and the troll lunging.
+    "back_pedal": ("card_art_back_pedal.webp", (0, 0, 1672, 880)),
+    # The war horn raised to his lips (designer: Inspiring Whistle).
+    "inspiring_whistle": ("card_art_inspiring_whistle.webp", (0, 0, 1672, 880)),
+    # The roar and the beasts charging round him (designer: War Shout).
+    "war_shout": ("card_art_war_shout.webp", (0, 40, 1672, 920)),
+    # The goblin banker counting notes, feet on the desk.
+    "house_money": ("card_art_house_money.webp", (0, 40, 1448, 802)),
+    # The puffed cheeks, the arms flung out and the swirling air.
+    "deep_breaths": ("card_art_deep_breaths.webp", (0, 0, 1536, 808)),
+    # The grin and the crystal heart crushed in her bleeding hand.
+    "demonic_rage": ("card_art_demonic_rage.webp", (0, 60, 1448, 822)),
+    # The ally encased in ice, the orc and the leaping fighter beyond.
+    "cryonics": ("card_art_cryonics.webp", (0, 0, 1672, 880)),
+    # The laughing high five and its burst of light.
+    "friendship": ("card_art_friendship.webp", (0, 0, 1536, 808)),
+    # The floating monk in his ring of glowing runes.
+    "meditate": ("card_art_meditate.webp", (0, 0, 1536, 808)),
+    # The cleric's blood streaming out to the wounded allies.
+    "communal_donation": ("card_art_communal_donation.jpg", (0, 0, 1365, 718)),
+    # The blood shield thrown round the screaming ally against the shieldman.
+    "shepherds_mark": ("card_art_shepherds_mark.jpg", (0, 80, 1195, 709)),
+    # The thief slammed into the cracking mirror, his reflections behind.
+    "mirror_mirror": ("card_art_mirror_mirror.webp", (0, 0, 1672, 880)),
+    # The monk drawing the gloom from the goblin and the orc with their signs.
+    "misery_loves_company": ("card_art_misery_loves_company.webp", (0, 0, 1671, 880)),
+    # The knight's hand pouring green light into the wounded mage.
+    "acro_medic": ("card_art_acro_medic.webp", (0, 0, 1672, 880)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
@@ -360,6 +436,21 @@ FITTED = {
     "armor_patch": ("card_art_armor_patch.webp", (60, 150, 1476, 870)),
     # 2026-11-18: the field-medic's bag, seen whole.
     "heal": ("card_art_heal.webp", (60, 60, 1536, 1000)),
+    # The mana drop with the caster inside it, seen whole on its black (Energy).
+    "gain_mana": ("card_art_gain_mana.webp", (230, 0, 1090, 1199)),
+    # The red potion with its cross tag, seen whole.
+    "healing_potion": ("card_art_healing_potion.png", (240, 130, 784, 870)),
+    # The buttered biscuit and the jam, seen whole.
+    "biscuit": ("card_art_biscuit.webp", (160, 60, 1536, 960)),
+    # The d20 showing 20, seen whole.
+    "loaded_die": ("card_art_loaded_die.webp", (260, 0, 1280, 960)),
+    # The leather pouch spilling its shuriken, seen whole.
+    "shuriken_pouch": ("card_art_shuriken_pouch.webp", (40, 40, 1536, 900)),
+    # A tall painting fitted to the window: her grin and slash below, the
+    # troll's scream in the top corner.
+    "feint": ("card_art_feint.webp", (0, 0, 1122, 880)),
+    # The golem of weapons, crowned head to claws, fitted to the window.
+    "item_mastery": ("card_art_item_mastery.webp", (0, 0, 1312, 900)),
     # 2026-11-17: her face, the glowing hands and the dog's whole head
     # (designer) — a wide crop fitted to the window's height.
     "summon_shadow_hound": ("card_art_summon_shadow_hound.webp", (80, 100, 1448, 1040)),

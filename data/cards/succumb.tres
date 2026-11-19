@@ -6,7 +6,7 @@
 script = ExtResource("1_myiia")
 card_id = "succumb"
 card_name = "Succumb"
-description = "For 20 tempo, gain fortify, blessed 2, strengthen 5, and Resilient 20%. After 10 tempo, take 10 damage. After 10 additional tempo, take 10 more damage and become cuffed, drained, and disarmed for 10 tempo."
+description = "For 20 tempo: fortify, blessed 2, strengthen 5, Resilient 20%. Take 10 damage at 10 tempo and again at 20; then cuffed, drained and disarmed for 10 tempo."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 0

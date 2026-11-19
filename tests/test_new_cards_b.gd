@@ -300,7 +300,7 @@ func _test_data() -> void:
 	var sa := _c("self_admission")
 	_check(sa.mana_cost == 10 and sa.tempo_cost == 0, "self_admission: 10 mana, 0 tempo")
 	var fs := _c("foresight")
-	_check(fs.mana_cost == 20 and fs.tempo_cost == 0, "foresight: 20 mana, 0 tempo")
+	_check(fs.mana_cost == 60 and fs.tempo_cost == 0, "foresight: 60 mana, 0 tempo")
 
 # ---------------------------------------------------------------- instants
 
@@ -697,27 +697,28 @@ func _test_reverse_reverse() -> void:
 
 func _test_foresight() -> void:
 	print("-- Foresight --")
-	# The price: 20, 2 less per Brain point held, never below 0.
+	# The price: 60 (designer, 2026-11-19), 2 less per Brain point held, never below 0.
 	_fresh()
 	var fs := _c("foresight")
 	dm.hand.append(fs)
 	dm.hand_updated.emit()
-	_check(fs.mana_cost == 20, "no Brain points: 20 mana on the card")
+	_check(fs.mana_cost == 60, "no Brain points: 60 mana on the card")
 	stats.current_brain_points = 3
 	stats.brain_points_changed.emit(3, stats.get_max_brain_points())
-	_check(fs.mana_cost == 14, "3 Brain points: the card in hand shows 14 (%d)" % fs.mana_cost)
+	_check(fs.mana_cost == 54, "3 Brain points: the card in hand shows 54 (%d)" % fs.mana_cost)
 	dm.draw_pile.append(_c("block"))
 	var r := _play(fs, main.player)
 	_finish()
-	_check(r["played"] and r["mana"] == 14, "…and 14 is what it charges (%d)" % r["mana"])
+	_check(r["played"] and r["mana"] == 54, "…and 54 is what it charges (%d)" % r["mana"])
 	_fresh()
 	var free := _c("foresight")
 	stats.current_brain_points = 15
 	dm.draw_pile.append(_c("block"))
 	var rf := _play(free, main.player)
 	_finish()
-	_check(rf["played"] and rf["mana"] == 0 and free.mana_cost == 0, "15 Brain points: free, never below 0 (%d)" % rf["mana"])
+	_check(rf["played"] and rf["mana"] == 30 and free.mana_cost == 30, "15 Brain points: 30 (%d)" % rf["mana"])
 	_check(stats.current_brain_points == 15, "the Brain points are held, not spent")
+	_check(NewCardsB.foresight_cost(null) == 60, "the price never drops below 0 (the floor is kept for any pool)")
 
 	# The look: one to the hand, one to the bottom, one stays on top.
 	_fresh()
@@ -729,7 +730,7 @@ func _test_foresight() -> void:
 		dm.draw_pile.append(c)  # c1 is the top
 	var f2 := _c("foresight")
 	var r2 := _play(f2, main.player)
-	_check(r2["played"] and r2["mana"] == 20, "costs 20 mana with no Brain points (%d)" % r2["mana"])
+	_check(r2["played"] and r2["mana"] == 60, "costs 60 mana with no Brain points (%d)" % r2["mana"])
 	_check(_full_count() == 3, "shows the top 3 cards (%d)" % _full_count())
 	_check(dm.draw_pile.size() == 4, "nothing moves until a card is picked")
 	_check(_full_pick(1), "pick the second card for the hand")

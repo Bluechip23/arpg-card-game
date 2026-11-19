@@ -1458,7 +1458,7 @@ func get_effect_draw_count() -> int:
 	return 0
 
 func execute(target, player_stats: PlayerStats = null, deck_manager = null, damage_reduction_pct: float = 0.0, self_damage_percent: float = 0.0, buff_mgr: BuffManager = null) -> void:
-	# Empower: an attack drawn under Empower carries +3 into bonus_damage for
+	# Empower: an offensive card drawn under Empower carries +3 into bonus_damage for
 	# the whole resolution, so every damage path (hard-coded ones like Trip
 	# included) picks it up. main reads draw_empowered for the damage it deals
 	# in world effects and clears the mark once they resolve.
@@ -1473,7 +1473,7 @@ func execute(target, player_stats: PlayerStats = null, deck_manager = null, dama
 		PlayerStats.heal_to_damage = true
 		print("[CARD] Poisoned Blood: %s heals as damage" % card_name)
 	var empower_added := 0
-	if draw_empowered and is_attack() and player_stats:
+	if draw_empowered and is_offensive() and player_stats:
 		empower_added = player_stats.empower_damage_bonus
 		bonus_damage += empower_added
 	_execute_card(target, player_stats, deck_manager, damage_reduction_pct, self_damage_percent, buff_mgr)
@@ -3148,6 +3148,10 @@ func is_negative_card() -> bool:
 # itself, and one nested inside another card's scope restores the outer
 # card's riders when it finishes.
 static var play_scope_open: bool = false
+## Damage the card being played has dealt to enemies so far, health and armor
+## together (main adds every hit while the play scope is open; the Life Steal
+## buff heals it when the play ends).
+static var play_damage_dealt: int = 0
 static var _exec_depth: int = 0
 static var _scope_snapshot: Dictionary = {}
 
@@ -3273,7 +3277,7 @@ func _execute_taunt(_target, _player_stats: PlayerStats) -> void:
 func _execute_life_steal(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
 	if buff_mgr:
 		buff_mgr.apply_buff(Buff.create_life_steal("Life Steal"))
-	print("[CARD] Life Steal active! Next hit heals for damage dealt")
+	print("[CARD] Life Steal active! The next card that deals damage heals for it")
 
 func _execute_roar(_target, _player_stats: PlayerStats) -> void:
 	# Knockback applied via world effects in main.gd (needs enemy_spawner)
@@ -4017,15 +4021,34 @@ func _execute_fountain_of_life(player_stats: PlayerStats, buff_mgr: BuffManager 
 	# On play, we just log activation.
 	if player_stats:
 		print("[CARD] Fountain of Life activated! Reserving %d mana. Deal 2 damage to self and draw a card each cycle." % maintain_cost)
+## Self Infliction (designer, 2026-11-19): deal yourself 80% of your
+## remaining health — health and temp HP together — past armor (temp HP takes
+## it first). For every 10% of your base max health that dealt, gain 1
+## Determination, 1 Attune and 1 Strengthen: at full health that is 8 of each,
+## at half 4, at 200% (a pile of temp HP) 16.
+const SELF_INFLICTION_PART := 0.8
+const SELF_INFLICTION_DET_TEMPO := 10     # the Determination lasts as the card's old surge did
 func _execute_self_infliction(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	if player_stats:
-		var self_damage := floori(player_stats.current_health * 0.8)
-		player_stats.take_direct_damage(self_damage)
-		# A surge, not a permanent stat: +5 DET and +5 STR (Might) for 10 tempo.
-		player_stats.add_temp_determination(5, 10)
-		if buff_mgr:
-			buff_mgr.apply_buff(Buff.create_might(5, 10, "Self Infliction"))
-		print("[CARD] Self Infliction: dealt %d damage to self (80%% of %d HP). +5 DET, +5 STR for 10 tempo" % [self_damage, player_stats.current_health + self_damage])
+	if player_stats == null:
+		return
+	var remaining: int = player_stats.current_health + player_stats.current_temp_health
+	var self_damage := floori(remaining * SELF_INFLICTION_PART)
+	if self_damage <= 0:
+		return
+	var from_temp: int = mini(player_stats.current_temp_health, self_damage)
+	if from_temp > 0:
+		player_stats.current_temp_health -= from_temp
+		player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
+	player_stats.take_direct_damage(self_damage - from_temp)
+	var step: float = maxf(1.0, player_stats.max_health * 0.1)   # 10% of max health (temp HP not counted)
+	var stacks := floori(self_damage / step + 0.0001)
+	if stacks <= 0:
+		return
+	player_stats.add_temp_determination(stacks, SELF_INFLICTION_DET_TEMPO)
+	if buff_mgr:
+		buff_mgr.apply_buff(Buff.create_strengthen(stacks, 3, "Self Infliction"))
+		buff_mgr.apply_buff(Buff.create_attune(stacks, Buff.ATTUNE_DEFAULT_SPELLS, "Self Infliction"))
+	print("[CARD] Self Infliction: %d damage to self (80%% of %d); +%d Determination, Attune %d, Strengthen %d" % [self_damage, remaining, stacks, stacks, stacks])
 
 func _execute_bob_and_weave(player_stats: PlayerStats, deck_manager, buff_mgr: BuffManager = null) -> void:
 	if player_stats:
@@ -5046,9 +5069,8 @@ func is_world_resolved(target) -> bool:
 func apply_life_steal_for(dealt: int, player_stats: PlayerStats, buff_mgr: BuffManager, deck_manager = null) -> void:
 	if dealt <= 0:
 		return
-	# Life Steal: if an attack dealt damage and we have life steal buff, heal for damage dealt
-	if buff_mgr and buff_mgr.has_life_steal():
-		buff_mgr.consume_life_steal(dealt)
+	# (The Life Steal card's buff is not spent here: it answers any card that
+	# deals damage, spells included — main._settle_life_steal, at the play's end.)
 
 	# Life Steal passive (Brad): all ATTACKS (not spells) heal for 1%..8%
 	# (rank-scaled) of damage dealt.

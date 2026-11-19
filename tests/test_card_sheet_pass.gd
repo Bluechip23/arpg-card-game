@@ -209,7 +209,7 @@ func _run() -> void:
 	var det0: int = stats.get_temp_determination_bonus()
 	Card.create_by_id("self_infliction").execute(null, stats, dm, 0.0, 0.0, bm)
 	_check(stats.base_strength == str0, "no permanent STR")
-	_check(stats.get_temp_determination_bonus() == det0 + 5, "+5 DET on a timer")
+	_check(stats.get_temp_determination_bonus() == det0 + 8, "+8 DET on a timer at full health (designer, 2026-11-19)")
 	stats.current_health = stats.max_health
 
 	print("-- Bloodlust: Strengthen on the clock --")

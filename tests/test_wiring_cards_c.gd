@@ -615,6 +615,19 @@ func _test_life_steal() -> void:
 	var dealt: int = _lost(A, hp)
 	_check(dealt > 0 and stats.current_health == 300 + stats.get_effective_heal_amount(dealt), "…the next attack heals for the damage it did (+INT, the heal pipeline) (%d → hp %d)" % [dealt, stats.current_health])
 	_check(not bm.has_buff(Buff.BuffType.LIFE_STEAL), "…once")
+	# Any card that deals damage (designer, 2026-11-19): a spell spends it too,
+	# and a card that deals none leaves it armed.
+	_fresh()
+	_beside(A)
+	stats.current_health = 300
+	_resolve(Card.create_by_id("life_steal"), main.player)
+	_resolve(Card.create_by_id("block"), main.player)
+	_check(bm.has_buff(Buff.BuffType.LIFE_STEAL), "…a card that deals no damage leaves it armed")
+	hp = A.current_health
+	_resolve(Card.create_by_id("mana_surge"), A)
+	dealt = _lost(A, hp)
+	_check(dealt > 0 and stats.current_health > 300 and not bm.has_buff(Buff.BuffType.LIFE_STEAL),
+		"…a damaging spell spends it and heals (%d dealt → hp %d)" % [dealt, stats.current_health])
 
 func _test_life_swap() -> void:
 	print("-- Life Swap --")

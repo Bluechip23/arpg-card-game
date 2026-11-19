@@ -862,15 +862,31 @@ func _t_savage_strike_copy() -> void:
 	_check(not (held in dm.hand), "Erase 20: erased after 20 tempo in hand")
 
 func _t_self_infliction() -> void:
+	# Designer, 2026-11-19: 80% of remaining health (temp HP included) dealt
+	# to self; 1 Determination, Attune and Strengthen per 10% of max health
+	# dealt — 8 at full health, 4 at half, 16 at 200%.
 	print("-- Self Infliction --")
-	stats.current_health = 400
-	var c := Card.create_by_id("self_infliction")
-	var r := _play(c, main.player)
-	_check(_cost_ok(r, 20, 3), _cost_msg("Self Infliction", r, 20, 3))
-	_check(stats.current_health == 80, "Self Infliction: 80%% of remaining health dealt to self (400 -> %d)" % stats.current_health)
-	var might = bm.get_buff(Buff.BuffType.MIGHT)
-	_check(might != null and might.value == 5 and might.duration <= 10 and might.duration > 0, "…+5 strength for 10 tempo")
-	_check(stats.get_temp_determination_bonus() == 5 and stats._temp_det_buffs.any(func(b): return int(b["amount"]) == 5 and int(b["tempo"]) <= 10 and int(b["tempo"]) > 0), "…+5 determination for 10 tempo")
+	for case in [[1.0, 0, 8], [0.5, 0, 4], [1.0, 1.0, 16]]:
+		bm.remove_buff(Buff.BuffType.STRENGTHEN)
+		bm.remove_buff(Buff.BuffType.ATTUNE)
+		stats._temp_det_buffs.clear()
+		stats.current_health = int(stats.max_health * case[0])
+		stats.current_temp_health = int(stats.max_health * case[1])
+		stats.temp_health_tempo_remaining = 20 if case[1] > 0 else 0
+		var before: int = stats.current_health + stats.current_temp_health
+		var c := Card.create_by_id("self_infliction")
+		var r := _play(c, main.player)
+		if case[0] == 1.0 and case[1] == 0:
+			_check(_cost_ok(r, 20, 3), _cost_msg("Self Infliction", r, 20, 3))
+		var after: int = stats.current_health + stats.current_temp_health
+		var n: int = case[2]
+		_check(before - after == floori(before * 0.8), "Self Infliction at %d%%: 80%% of remaining health dealt (%d -> %d)" % [int((case[0] + case[1]) * 100), before, after])
+		var st = bm.get_buff(Buff.BuffType.STRENGTHEN)
+		var at = bm.get_buff(Buff.BuffType.ATTUNE)
+		_check(stats.get_temp_determination_bonus() == n and st != null and st.value == n and at != null and at.value == n,
+			"…+%d Determination, Attune and Strengthen (DET %d, STR %s, ATT %s)" % [n, stats.get_temp_determination_bonus(), str(st.value if st else 0), str(at.value if at else 0)])
+	stats.current_temp_health = 0
+	stats.current_health = stats.max_health
 
 func _t_serene_center() -> void:
 	print("-- Serene Center --")
