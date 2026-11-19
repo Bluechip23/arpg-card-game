@@ -6,7 +6,7 @@
 script = ExtResource("1_ogcy3")
 card_id = "composed_response"
 card_name = "Composed Response"
-description = "Gain Overflow 5: each overflow creates a Whirling Weapon in your hand — a reaction that, when you are attacked (melee, ranged or spell), gains 5 armor and deals 5 damage to an enemy in melee range."
+description = "Gain Overflow 5: each overflow adds a Whirling Weapon to your hand. When you're attacked, it gains 5 armor and deals 5 damage to an adjacent enemy."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 30

@@ -352,9 +352,19 @@ SINGLES = {
     # The hooded mage with his vials, the smoothie blended behind.
     "healthy_habit": ("card_art_healthy_habit.webp", (0, 40, 1536, 848)),
     # The handspring, the vanish and the strike through the after-image.
-    "lethal_recall": ("card_art_lethal_recall.webp", (0, 120, 1448, 882)),
+    "lethal_recall": ("card_art_lethal_recall.webp", (180, 160, 1448, 827)),   # slid left: the speared one central
     # The jeweled fangs on the apothecary's table.
     "life_steal": ("card_art_life_steal.webp", (0, 160, 1448, 922)),
+    # The hooded glare and the fans of knives in both hands.
+    "meister_of_faustmesser": ("card_art_meister_of_faustmesser.webp", (0, 80, 1448, 842)),
+    # His upturned face, the blue flame and the red-and-blue drip in his arm.
+    "life_swap": ("card_art_life_swap.webp", (0, 40, 1448, 802)),
+    # The two capsules, one spilling its powder.
+    "morphine": ("card_art_morphine.webp", (0, 160, 1536, 968)),
+    # The goblin's snake spitting venom into the holy cauldron.
+    "poisoned_blood": ("card_art_poisoned_blood.webp", (0, 40, 1536, 848)),
+    # The man pointing at himself in the mirror.
+    "preparation": ("card_art_preparation.webp", (0, 40, 1536, 848)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

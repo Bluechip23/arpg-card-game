@@ -259,6 +259,11 @@ const CARD_PAINTINGS := {
 	"item_mastery": "item_mastery",
 	"lethal_recall": "lethal_recall",
 	"life_steal": "life_steal",
+	"meister_of_faustmesser": "meister_of_faustmesser",
+	"life_swap": "life_swap",
+	"morphine": "morphine",
+	"poisoned_blood": "poisoned_blood",
+	"preparation": "preparation",
 	"provider": "heal",   # the Heal bag again (designer, 2026-11-18)
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",
