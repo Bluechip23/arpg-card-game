@@ -395,6 +395,12 @@ SINGLES = {
     "inspiring_whistle": ("card_art_inspiring_whistle.webp", (0, 0, 1672, 880)),
     # The roar and the beasts charging round him (designer: War Shout).
     "war_shout": ("card_art_war_shout.webp", (0, 40, 1672, 920)),
+    # The goblin banker counting notes, feet on the desk.
+    "house_money": ("card_art_house_money.webp", (0, 40, 1448, 802)),
+    # The puffed cheeks, the arms flung out and the swirling air.
+    "deep_breaths": ("card_art_deep_breaths.webp", (0, 0, 1536, 808)),
+    # The grin and the crystal heart crushed in her bleeding hand.
+    "demonic_rage": ("card_art_demonic_rage.webp", (0, 60, 1448, 822)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
@@ -418,6 +424,10 @@ FITTED = {
     "gain_mana": ("card_art_gain_mana.webp", (230, 0, 1090, 1199)),
     # The red potion with its cross tag, seen whole.
     "healing_potion": ("card_art_healing_potion.png", (240, 130, 784, 870)),
+    # The buttered biscuit and the jam, seen whole.
+    "biscuit": ("card_art_biscuit.webp", (160, 60, 1536, 960)),
+    # The d20 showing 20, seen whole.
+    "loaded_die": ("card_art_loaded_die.webp", (260, 0, 1280, 960)),
     # The golem of weapons, crowned head to claws, fitted to the window.
     "item_mastery": ("card_art_item_mastery.webp", (0, 0, 1312, 900)),
     # 2026-11-17: her face, the glowing hands and the dog's whole head

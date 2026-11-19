@@ -279,6 +279,11 @@ const CARD_PAINTINGS := {
 	"back_pedal": "back_pedal",
 	"inspiring_whistle": "inspiring_whistle",
 	"war_shout": "war_shout",
+	"biscuit": "biscuit",
+	"loaded_die": "loaded_die",
+	"house_money": "house_money",
+	"deep_breaths": "deep_breaths",
+	"demonic_rage": "demonic_rage",
 	"provider": "heal",   # the Heal bag again (designer, 2026-11-18)
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",

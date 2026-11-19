@@ -460,6 +460,10 @@ static func _badge_atlas(path: String) -> Texture2D:
 ## one (designer, 2026-11-16): the upkeep sits on the frame's top strip.
 const UPKEEP_IN_OWN_FRAME := {"peshtigos_kiss": true}
 
+## Cards whose reach is not shown on the type line (designer, 2026-11-19):
+## Inspiring Whistle picks any enemy (range 99), which reads as "Ranged +99".
+const HIDE_RANGE := {"inspiring_whistle": true}
+
 ## Cards that wear another frame than their type and tags give (designer,
 ## 2026-11-18): Petey the Pet Rock is an Unplayable card (never played) worn
 ## in the Utility frame; Lady Luck, Hope This Works and Provider are utility
@@ -555,7 +559,7 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 		# range labels remains centred on the bar.
 		range_label.visible = true
 		range_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		if card.is_ranged or card.conditional_range:
+		if (card.is_ranged or card.conditional_range) and not HIDE_RANGE.has(card.card_id):
 			# Conditional cards show the keyword alone (the legend explains the reach).
 			range_label.text = card.get_range_display()
 			range_label.add_theme_color_override("font_color", Color(0.3, 0.8, 0.9))
