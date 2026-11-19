@@ -365,6 +365,16 @@ SINGLES = {
     "poisoned_blood": ("card_art_poisoned_blood.webp", (0, 40, 1536, 848)),
     # The man pointing at himself in the mirror.
     "preparation": ("card_art_preparation.webp", (0, 40, 1536, 848)),
+    # The two commanders rallying the army below the castle.
+    "prepare": ("card_art_prepare.webp", (0, 0, 1672, 880)),
+    # Her aim down the triple-loaded crossbow.
+    "reload": ("card_art_reload.webp", (0, 80, 1536, 888)),
+    # A six-panel strip: its last two panels, the "?" and the peek (the punchline).
+    "reposition": ("card_art_reposition.webp", (516, 512, 1536, 1024)),
+    # The baker sliding the biscuits into the oven (Risk It: the Biscuit).
+    "risk_it": ("card_art_risk_it.webp", (0, 60, 1536, 868)),
+    # The hooded cutter bleeding onto the open book, foes closing in.
+    "self_infliction": ("card_art_self_infliction.webp", (0, 80, 1536, 888)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

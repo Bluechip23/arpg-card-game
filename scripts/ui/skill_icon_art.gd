@@ -264,6 +264,11 @@ const CARD_PAINTINGS := {
 	"morphine": "morphine",
 	"poisoned_blood": "poisoned_blood",
 	"preparation": "preparation",
+	"prepare": "prepare",
+	"reload": "reload",
+	"reposition": "reposition",
+	"risk_it": "risk_it",
+	"self_infliction": "self_infliction",
 	"provider": "heal",   # the Heal bag again (designer, 2026-11-18)
 	# The Enchantment gems (designer, 2026-11-15), fitted whole.
 	"enchantment_attack": "brawn_gem",

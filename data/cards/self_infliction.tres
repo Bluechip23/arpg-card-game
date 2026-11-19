@@ -6,7 +6,7 @@
 script = ExtResource("1_h1igv")
 card_id = "self_infliction"
 card_name = "Self Infliction"
-description = "Deal 80% remaining health in damage to self. Gain 5 determination and 5 strength for 10 tempo."
+description = "Deal 80% of remaining health in damage. Gain 1 determination, 1 attune and 1 strengthen for each 10% of your base max health done."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 20

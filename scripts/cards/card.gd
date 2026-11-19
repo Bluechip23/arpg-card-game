@@ -4021,15 +4021,34 @@ func _execute_fountain_of_life(player_stats: PlayerStats, buff_mgr: BuffManager 
 	# On play, we just log activation.
 	if player_stats:
 		print("[CARD] Fountain of Life activated! Reserving %d mana. Deal 2 damage to self and draw a card each cycle." % maintain_cost)
+## Self Infliction (designer, 2026-11-19): deal yourself 80% of your
+## remaining health — health and temp HP together — past armor (temp HP takes
+## it first). For every 10% of your base max health that dealt, gain 1
+## Determination, 1 Attune and 1 Strengthen: at full health that is 8 of each,
+## at half 4, at 200% (a pile of temp HP) 16.
+const SELF_INFLICTION_PART := 0.8
+const SELF_INFLICTION_DET_TEMPO := 10     # the Determination lasts as the card's old surge did
 func _execute_self_infliction(player_stats: PlayerStats, buff_mgr: BuffManager = null) -> void:
-	if player_stats:
-		var self_damage := floori(player_stats.current_health * 0.8)
-		player_stats.take_direct_damage(self_damage)
-		# A surge, not a permanent stat: +5 DET and +5 STR (Might) for 10 tempo.
-		player_stats.add_temp_determination(5, 10)
-		if buff_mgr:
-			buff_mgr.apply_buff(Buff.create_might(5, 10, "Self Infliction"))
-		print("[CARD] Self Infliction: dealt %d damage to self (80%% of %d HP). +5 DET, +5 STR for 10 tempo" % [self_damage, player_stats.current_health + self_damage])
+	if player_stats == null:
+		return
+	var remaining: int = player_stats.current_health + player_stats.current_temp_health
+	var self_damage := floori(remaining * SELF_INFLICTION_PART)
+	if self_damage <= 0:
+		return
+	var from_temp: int = mini(player_stats.current_temp_health, self_damage)
+	if from_temp > 0:
+		player_stats.current_temp_health -= from_temp
+		player_stats.health_changed.emit(player_stats.current_health, player_stats.max_health)
+	player_stats.take_direct_damage(self_damage - from_temp)
+	var step: float = maxf(1.0, player_stats.max_health * 0.1)   # 10% of max health (temp HP not counted)
+	var stacks := floori(self_damage / step + 0.0001)
+	if stacks <= 0:
+		return
+	player_stats.add_temp_determination(stacks, SELF_INFLICTION_DET_TEMPO)
+	if buff_mgr:
+		buff_mgr.apply_buff(Buff.create_strengthen(stacks, 3, "Self Infliction"))
+		buff_mgr.apply_buff(Buff.create_attune(stacks, Buff.ATTUNE_DEFAULT_SPELLS, "Self Infliction"))
+	print("[CARD] Self Infliction: %d damage to self (80%% of %d); +%d Determination, Attune %d, Strengthen %d" % [self_damage, remaining, stacks, stacks, stacks])
 
 func _execute_bob_and_weave(player_stats: PlayerStats, deck_manager, buff_mgr: BuffManager = null) -> void:
 	if player_stats:

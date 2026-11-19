@@ -661,8 +661,8 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Card text: Pick a point. Enemies near it are displaced towards it. Pull diameter 5.
   - Code: _execute_round_em_up only prints. main 'round_em_up': snaps the mouse position to the grid, gets enemies within card.aoe_range = 2.5 cells (pull diameter 5), moves each 1 cell toward the point (snapped). Ranged 5, point target, is_aoe circle 2.5. 20 mana/3 tempo. Re-audit: its range (5) is a hard cap on the clicked tile.
 - **Self Infliction** (`self_infliction`) — Legendary · 20 mana, 3 tempo · range melee · targets self · slots: Axe / Dagger / Sword · sheet: Utility, self
-  - Card text: Deal 80% remaining health in damage to self. Gain 5 determination and 5 strength for 10 tempo.
-  - Code: _execute_self_infliction: take_direct_damage(floor(current_health*0.8)) (armor-ignoring), then add_temp_determination(5, 10) and Buff.create_might(5, 10) — +5 DET and +5 STR for 10 tempo (no longer permanent). Self, 20 mana, 3 tempo.
+  - Card text: Deal 80% of remaining health in damage. Gain 1 determination, 1 attune and 1 strengthen for each 10% of your base max health done.
+  - Code: _execute_self_infliction (designer, 2026-11-19): self-damage = floor(80% of health + temp HP), temp HP taking it first, the rest straight to health past armor. Stacks = floor(damage / 10% of max health): that many temp Determination (10 tempo), Strengthen (3 attacks) and Attune (3 spells) — 8 at full health, 4 at half, 16 at 200% (temp HP).
 - **Serene Center** (`serene_center`) — Legendary · 30 mana, 4 tempo · range melee · targets self · slots: deck only · not on the sheet (item kit / token)
   - Card text: Set your health to half of your maximum plus half of any temporary health (which is consumed), and your mana to half of its maximum — whether that raises or lowers them.
   - Code: execute() 'serene_center': current_health = min(max_health, max(1, floor((max_health + current_temp_health)/2))), temp health cleared, current_mana = floor(max_mana/2); raises or lowers both. Self, 30 mana, 4 tempo.
