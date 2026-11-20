@@ -355,17 +355,33 @@ func _my(y: float) -> float:
 		if y <= y0:
 			break
 		if y < y1:
-			return y0 + shift + (y - y0) * n / (y1 - y0)
+			return y0 + shift + (y - y0) * n / (y1 - y0) + _y_off
 		shift += n - (y1 - y0)
-	return y + shift
+	return y + shift + _y_off
 
 ## A base-card point on the laid-out face (x stretches with the width).
 func _mp(p: Vector2) -> Vector2:
 	return Vector2(p.x * _kx, _my(p.y))
 
+var _y_off := 0.0          # the laid-out face's shift up (the top border cut away)
+var _dots_h := 0.0         # the tempo strip's laid-out height
+var _type_h := 0.0         # the type bar's laid-out height (0: no type bar)
+var _rules_gain := 0.0     # how much taller the rules box is than as painted
+
+## The frame's border above the tempo strip is cut away (designer,
+## 2026-11-20): the strip is the card's top, keeping this much of its rim.
+## The height freed goes ART_SHARE to the art window, the rest to the rules box.
+const TOP_RIM := 1.5
+const ART_SHARE := 0.5
+const RULES_END := CARD_H - 12.0   # the rules box's stretch stops short of the foot's ornaments
+
 func _build_layout() -> void:
 	_kx = CARD_W / FRAME_W
 	_ysegs = []
+	_y_off = 0.0
+	_dots_h = 0.0
+	_type_h = 0.0
+	_rules_gain = 0.0
 	if not _laid_out():
 		return
 	var b: Dictionary = _frame["bare"]
@@ -381,17 +397,31 @@ func _build_layout() -> void:
 	var bar_now: float = float(_frame.get("title_h", 22.0)) + to_title
 	var title_cut: float = clampf(bar_now - TITLE_BAR_H, 0.0, (title.y - title.x) + to_title - TITLE_BAND_MIN)
 	to_art += title_cut
+	# Everything above the tempo strip's rim (the border and the ornaments
+	# over the card's top) is dropped: the strip's rim lands on the card's top.
+	var r: Rect2 = _frame["rect"]
+	var cut_to: float = maxf(0.0, dots.x - TOP_RIM)
+	var freed: float = cut_to
+	var to_rules: float = freed * (1.0 - ART_SHARE)
+	to_art += freed * ART_SHARE
+	_y_off = -r.position.y
+	_dots_h = dots_h
 	_ysegs = [
+		[r.position.y, cut_to, 0.0],
 		[dots.x, dots.y, dots_h],
 		[title.x, title.y, (title.y - title.x) + to_title - title_cut],
 	]
+	var rules_from: float = art.y
 	if b.has("type_band"):   # the Utility frame has no type bar of its own
 		var typ: Vector2 = b["type_band"]
-		var type_h: float = _thinned(typ, float(face_layout.get("type_k", 1.0)), TYPE_BAND_MIN)
-		_ysegs.append([art.x, art.y, (art.y - art.x) + to_art + (typ.y - typ.x) - type_h])
-		_ysegs.append([typ.x, typ.y, type_h])
+		_type_h = _thinned(typ, float(face_layout.get("type_k", 1.0)), TYPE_BAND_MIN)
+		_ysegs.append([art.x, art.y, (art.y - art.x) + to_art + (typ.y - typ.x) - _type_h])
+		_ysegs.append([typ.x, typ.y, _type_h])
+		rules_from = typ.y
 	else:
 		_ysegs.append([art.x, art.y, (art.y - art.x) + to_art])
+	_ysegs.append([rules_from, RULES_END, (RULES_END - rules_from) + to_rules])
+	_rules_gain = to_rules
 
 ## A band's inside at k its height, but no thinner than floor (nor than it was).
 static func _thinned(band: Vector2, k: float, floor_h: float) -> float:
@@ -400,7 +430,7 @@ static func _thinned(band: Vector2, k: float, floor_h: float) -> float:
 
 ## The tempo strip's laid-out height (the dots fit inside it).
 func _dots_strip_h() -> float:
-	return float(_ysegs[0][2]) if not _ysegs.is_empty() else FRAMED_DOT
+	return _dots_h if _dots_h > 0.0 else FRAMED_DOT
 
 ## The frame drawn in bands, each stretched to its laid-out height.
 func _draw_frame_bands(host: Control) -> void:
@@ -1016,12 +1046,14 @@ func _fit_description() -> void:
 		# there even at the smallest size spreads over the box's whole width.
 		var box: Vector2 = _frame["desc_box"]
 		box.x *= _kx
+		box.y += _rules_gain
 		fs = _fit_size(font, plain, box)
 		var right: float = _frame["desc_right"] * _kx
 		_desc_over_picture = false
 		if font.get_multiline_string_size(plain, HORIZONTAL_ALIGNMENT_LEFT, box.x, fs).y > box.y:
 			var full: Vector2 = _frame.get("desc_full", FRAMED_DESC_FULL)
 			full.x *= _kx
+			full.y += _rules_gain
 			fs = _fit_size(font, plain, full, FRAMED_DESC_FULL_MAX)
 			right = 4.0
 			_desc_over_picture = true
@@ -1790,9 +1822,9 @@ const TYPE_CAP_INSET := 0.5     # the capitals this much short of the strip's he
 const TYPE_BAND_FONT_MIN := 6
 
 func _type_band_h() -> float:
-	if not _laid_out() or not _frame["bare"].has("type_band") or _ysegs.size() < 4:
+	if not _laid_out() or not _frame["bare"].has("type_band"):
 		return 0.0
-	return float(_ysegs[3][2])
+	return _type_h
 
 func _set_type_line_on_band(fs: int) -> void:
 	if _type_band_h() <= 0.0 or type_bar == null:
