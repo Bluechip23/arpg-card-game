@@ -1450,11 +1450,20 @@ func _head_offset() -> float:
 		h = maxf(0.5, float(_enemy_figure.portrait_extent().y))
 	return h + 0.12
 
+## Status badges: centre this far above the health bar's centre (the bar's
+## half height + the badge radius + a hair), and the band they take, which
+## lifts the hover text above them while any are up.
+const STATUS_BADGE_RADIUS := 0.1
+const STATUS_BADGE_SPACING := 0.215
+const STATUS_ROW_LIFT := 0.045 + STATUS_BADGE_RADIUS + 0.02
+const STATUS_ROW_BAND := 0.24
+var _status_row_shown: bool = false
+
 func _layout_head_up() -> void:
 	## Stack the head-up elements upward from the top of the sprite: tempo
 	## bar nearest the head, armor bar above it (armored kinds only), health
-	## bar on top; then the hover-only action word (only while there is one)
-	## and name, then the status badges. Billboards sit at the sprite lift;
+	## bar on top with the status badges sitting on it; then the hover-only
+	## health number, action word (only while there is one) and name. Billboards sit at the sprite lift;
 	## an offset north of the feet reads as "above" on screen. Gaps are in
 	## tiles, so the whole stack zooms with the sprite.
 	const Y := 0.5
@@ -1474,6 +1483,14 @@ func _layout_head_up() -> void:
 		_health_bar_bg.position = Vector3(0, Y, z)
 	if _health_bar_fg:
 		_health_bar_fg.position = Vector3(_health_bar_fg.position.x, Y + 0.01, z)
+	# The buff / debuff badges ride directly on top of the health bar
+	# (designer, 2026-11-20), so each enemy's statuses read as part of its
+	# bar; the hover text (health number, action, name) stacks above them.
+	_status_z = z - STATUS_ROW_LIFT
+	if _status_container:
+		_status_container.position = Vector3(0, Y, _status_z)
+	if _status_row_shown:
+		z -= STATUS_ROW_BAND
 	if health_label:
 		health_label.position = Vector3(0, Y + 0.03, z)
 	if _action_label and _action_label.text != "":
@@ -1482,10 +1499,6 @@ func _layout_head_up() -> void:
 	z -= 0.24
 	if name_label:
 		name_label.position = Vector3(0, Y, z)
-	z -= 0.28
-	_status_z = z
-	if _status_container:
-		_status_container.position = Vector3(0, Y, z)
 
 func _setup_health_bar() -> void:
 	## Always-on health bar (dark red track, green fill); the exact numbers
@@ -8154,6 +8167,10 @@ func _update_status_indicators() -> void:
 	_status_nodes.clear()
 
 	var effects := get_active_effects()
+	# The hover text moves up over the badge row while there is one.
+	if _status_row_shown != (not effects.is_empty()):
+		_status_row_shown = not effects.is_empty()
+		_layout_head_up()
 	if effects.is_empty():
 		return
 
@@ -8161,8 +8178,8 @@ func _update_status_indicators() -> void:
 	var has_overflow := effects.size() > MAX_VISIBLE_STATUS
 	var total_slots = show_count + (1 if has_overflow else 0)
 
-	var circle_size: float = 0.08
-	var spacing: float = 0.2
+	var circle_size: float = STATUS_BADGE_RADIUS
+	var spacing: float = STATUS_BADGE_SPACING
 	var start_x: float = -(total_slots - 1) * spacing / 2.0
 
 	for i in range(show_count):
@@ -8179,7 +8196,7 @@ func _update_status_indicators() -> void:
 		plus_label.font_size = 20
 		plus_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		plus_label.modulate = Color(1, 1, 1)
-		plus_label.position = Vector3(start_x + show_count * spacing, 0, 0)
+		plus_label.position = Vector3(start_x + show_count * spacing, -0.5, 0)  # ground height: see the stack counts
 		_status_container.add_child(plus_label)
 		_status_nodes.append({"node": plus_label})
 
@@ -8307,9 +8324,10 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 	return {"desc": desc, "remaining": remaining, "color": color}
 
 func _create_status_circle(eff_name: String, color: Color, stacks: int, radius: float) -> Node3D:
-	## A small colored circle above the enemy's head with the effect's glyph on
-	## it and a stack count. A small full sphere reads as a round dot from any
-	## camera angle (no billboard edge-on issue).
+	## One status badge on the health bar: the effect's icon (the packs'
+	## square skill icons, or a procedural glyph on a coloured dot) with its
+	## stack count tagged on the bottom-right corner. The dot is a small full
+	## sphere, so it reads as round from any camera angle.
 	var root := Node3D.new()
 
 	# Small round dot (unshaded so it reads as a flat coloured circle).
@@ -8326,7 +8344,8 @@ func _create_status_circle(eff_name: String, color: Color, stacks: int, radius: 
 	dot.material_override = mat
 	root.add_child(dot)
 
-	# Glyph on top, sized to sit inside the small circle.
+	# The icon over it, centred and as wide as the dot: a pack icon (opaque)
+	# covers the dot and is the badge; a procedural glyph sits on its colour.
 	var tex := StatusIcons.get_icon(eff_name)
 	if tex:
 		var sp := Sprite3D.new()
@@ -8336,23 +8355,27 @@ func _create_status_circle(eff_name: String, color: Color, stacks: int, radius: 
 		sp.no_depth_test = true
 		sp.render_priority = 21
 		sp.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-		sp.pixel_size = (radius * 1.7) / float(maxi(tex.get_width(), 1))
-		sp.position = Vector3(0, 0, radius + 0.005)
+		sp.pixel_size = (radius * 2.0) / float(maxi(tex.get_width(), 1))
+		sp.position = Vector3.ZERO
 		root.add_child(sp)
 
 	# Stack count (small, bottom-right)
 	if stacks > 1:
 		var label := Label3D.new()
 		label.text = str(stacks)
-		label.font_size = 22
-		label.pixel_size = 0.005
+		# Sized in tiles off the badge, so the count stays a corner tag on
+		# its badge at every zoom instead of covering it.
+		_world_text(label, radius * 2.1)
 		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		label.no_depth_test = true
 		label.render_priority = 22
 		label.modulate = Color(1, 1, 1)
 		label.outline_modulate = Color(0, 0, 0)
-		label.outline_size = 6
-		label.position = Vector3(radius * 0.9, -radius * 0.9, radius + 0.01)
+		label.outline_size = 8
+		# Bottom-right of the badge. The crisp-text overlay lifts a label by
+		# its world height (WorldLabelOverlay), which floated the counts off
+		# their badges; at ground height (the row sits at y 0.5) it stays put.
+		label.position = Vector3(radius * 0.85, -0.5, radius * 0.55)
 		root.add_child(label)
 
 	return root

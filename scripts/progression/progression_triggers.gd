@@ -10,6 +10,14 @@ var main  # Reference to the Main scene node
 func init(main_ref) -> void:
 	main = main_ref
 
+func _hero() -> Player:
+	## The hero the progression screen is showing: sphere nodes, constellations
+	## and stat allocations land on them (Player 2 in co-op when their tab is
+	## up), not on whoever holds the controls.
+	if main.has_method("progression_player"):
+		return main.progression_player()
+	return main.player
+
 func _on_sphere_grid_node_unlocked(node_id: int) -> void:
 	## Called when the player unlocks a node on the sphere grid.
 	## Applies the node's effect to the character immediately.
@@ -21,7 +29,7 @@ func _on_sphere_grid_node_unlocked(node_id: int) -> void:
 
 func _apply_sphere_grid_node(node) -> void:
 	## Applies a single sphere grid node's effect to the character.
-	var stats = main.player.get_stats()
+	var stats = _hero().get_stats()
 	if not stats:
 		return
 
@@ -133,14 +141,14 @@ func _apply_sphere_grid_node(node) -> void:
 				main.add_battle_log("Sphere Grid: %s" % node.description, Color(0.9, 0.5, 0.2))
 
 		SphereGrid.NodeType.CULLING_STONE:
-			var inventory = main.player.get_inventory()
+			var inventory = _hero().get_inventory()
 			if inventory:
 				inventory.culling_stones += 1
 				main.add_battle_log("Sphere Grid: Obtained Culling Stone!", Color(0.8, 0.5, 1.0))
 
 		SphereGrid.NodeType.FEATHER:
 			# Retired node type (old saves): pays out as a Culling Stone.
-			var inventory = main.player.get_inventory()
+			var inventory = _hero().get_inventory()
 			if inventory:
 				inventory.culling_stones += 1
 				main.add_battle_log("Sphere Grid: Obtained Culling Stone!", Color(0.8, 0.5, 1.0))
@@ -347,7 +355,7 @@ func _on_constellation_completed(constellation_id: String) -> void:
 
 func _on_constellation_replaced(old_id: String, _new_id: String) -> void:
 	## Called when a constellation is replaced by a new one. Removes old bonuses.
-	var stats = main.player.get_stats()
+	var stats = _hero().get_stats()
 	if not stats:
 		return
 
@@ -421,7 +429,7 @@ func ensure_constellation_passives() -> void:
 
 func _apply_constellation_bonus(constellation_id: String) -> void:
 	## Applies the permanent bonus from a completed constellation.
-	var stats = main.player.get_stats()
+	var stats = _hero().get_stats()
 	if not stats:
 		return
 
@@ -535,7 +543,7 @@ func _apply_constellation_bonus(constellation_id: String) -> void:
 
 func _on_skill_tree_stats_allocated(allocations: Dictionary) -> void:
 	## Spend banked level-up stat points on the player's base stats.
-	var stats = main.player.get_stats()
+	var stats = _hero().get_stats()
 	if not stats:
 		return
 	if not stats.apply_stat_allocation(allocations):

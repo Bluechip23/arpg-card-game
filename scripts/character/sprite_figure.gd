@@ -51,7 +51,7 @@ const ROSTER := {
 			# draws it facing away and turns to thrust it at the target: the
 			# board's side rows turn round mid-cast, mapped by the thrust.)
 			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/brad_cast.png",
-				"frames": 8, "rows": [0, 1, 2, 3], "t": SPELL_CAST_T, "hit": 7},
+				"frames": 8, "rows": [0, 1, 2, 3], "t": SPELL_CAST_T, "blend": SPELL_CAST_BLEND, "hit": 7},
 		}},
 	"Cory": {"board": "res://assets/sprites/generated/heroes/cory.png", "walk_rows": [0, 1, 2, 3],      # the hooded monk
 		"actions": {
@@ -62,7 +62,7 @@ const ROSTER := {
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/cory_block.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.065},
 			# The spell card cast: a runic circle, a swirl, the card rises in a
 			# red aura and a grinning shadow-face appears (frame 8).
-			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/cory_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": SPELL_CAST_T, "hit": 8},
+			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/cory_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": SPELL_CAST_T, "blend": SPELL_CAST_BLEND, "hit": 8},
 		}},
 	"Stephen": {"board": "res://assets/sprites/generated/heroes/stephen.png", "walk_rows": [0, 1, 2, 3],  # the apex hunter, bow and axe on his back
 		"actions": {
@@ -73,7 +73,7 @@ const ROSTER := {
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/stephen_block.png", "frames": 7, "rows": [0, 1, 2, 3], "t": 0.065},
 			# The spell card cast: purple energy and a spectral bear surge, and
 			# the claws are released (frame 7).
-			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/stephen_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": SPELL_CAST_T, "hit": 7},
+			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/stephen_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": SPELL_CAST_T, "blend": SPELL_CAST_BLEND, "hit": 7},
 		}},
 	"Jeremy": {"board": "res://assets/sprites/generated/heroes/jeremy.png", "walk_rows": [0, 1, 2, 3],  # the cloaked skeleton
 		"actions": {
@@ -83,7 +83,7 @@ const ROSTER := {
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/jeremy_block.png", "frames": 8, "rows": [0, 1, 2, 3], "t": 0.06, "hold": 0.5, "reverse": 0.035},
 			# The spell card cast: spirit swirls, ghostly skulls rise behind
 			# him and one howls (frame 7), then fades.
-			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/jeremy_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": SPELL_CAST_T, "hit": 7},
+			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/jeremy_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": SPELL_CAST_T, "blend": SPELL_CAST_BLEND, "hit": 7},
 		}},
 	"Ryan": {"board": "res://assets/sprites/generated/heroes/ryan.png", "walk_rows": [0, 1, 2, 3],      # the rogue outlaw
 		"actions": {
@@ -94,7 +94,7 @@ const ROSTER := {
 			"basic_block": {"sheet": "res://assets/sprites/generated/heroes/ryan_block.png", "frames": 15, "rows": [0, 1, 2, 3], "t": 0.045},
 			# The spell card cast (the alchemist): the card becomes a flask set
 			# down in a ring, lifted, thrown up and bursting overhead (frame 8).
-			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/ryan_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": SPELL_CAST_T, "hit": 8},
+			"spell_cast": {"sheet": "res://assets/sprites/generated/heroes/ryan_cast.png", "frames": 8, "rows": [0, 1, 2, 3], "t": SPELL_CAST_T, "blend": SPELL_CAST_BLEND, "hit": 8},
 		}},
 	# The dojo's ally training dummies wear the NPC-pack dog sheet (same
 	# 32px cell and S,E,N,W row order as the humanoid NPC sheets).
@@ -172,6 +172,9 @@ var _body_walk_frames := 4
 var _walk_rows: Array = []         # board rows with a drawn walk cycle (the rest step their pose)
 var _actions: Dictionary = {}      # drawn actions: name -> {tex, cell, frames, rows, t, hold, reverse}
 var _action_sprite: Sprite3D = null  # draws them, the body hidden meanwhile
+var _action_ghost: Sprite3D = null   # the frame before, fading out over the new one (BLEND)
+var _ghost_left := 0.0               # seconds the ghost has still to fade
+var _ghost_total := 0.0
 var _body_offset := Vector2.ZERO   # the board body's offset with its feet on the ground
 var _hand_scale := 1.0             # held items ride this much higher on a taller hero
 var _shadow_scale := 1.0           # the contact shadow grows with a bigger hero
@@ -217,6 +220,8 @@ func setup(character_name: String) -> void:
 	_walk_rows = []
 	_actions = {}
 	_action_sprite = null
+	_action_ghost = null
+	_ghost_left = 0.0
 	var cfg: Dictionary = ROSTER.get(character_name, ROSTER["Brad"])
 	_rig = Node3D.new()
 	_rig.name = "Rig"
@@ -395,6 +400,15 @@ func _load_actions(actions: Dictionary) -> void:
 	_action_sprite.texture_filter = _npc_sprite.texture_filter
 	_action_sprite.alpha_cut = _npc_sprite.alpha_cut
 	_action_sprite.visible = false
+	# The cross-fade's ghost: blended (no alpha cut) so it can fade, drawn
+	# over the solid new frame.
+	_action_ghost = _make_sprite(64, 0.0, 0.01)
+	_action_ghost.pixel_size = _npc_sprite.pixel_size
+	_action_ghost.texture_filter = _npc_sprite.texture_filter
+	_action_ghost.alpha_cut = SpriteBase3D.ALPHA_CUT_DISABLED
+	_action_ghost.render_priority = 1
+	_action_ghost.no_depth_test = false
+	_action_ghost.visible = false
 
 
 ## The standard poses many cards share (Card.get_animation_action: an
@@ -413,6 +427,11 @@ const DRAWN_SPELL := "spell_cast"
 ## (designer, 2026-11-09: "still needs to be slower by quite a bit" — twice
 ## the 0.0625 of 2026-11-08, so a cast runs about 2.3 s on screen).
 const SPELL_CAST_T := 0.125
+## A spell cast's frames cross-fade (designer, 2026-11-20: "still feels a bit
+## choppy"): each frame fades in over this share of its time, from the one
+## before, so the slow cast flows from pose to pose; its timing and its blow
+## frame are unchanged.
+const SPELL_CAST_BLEND := 0.55
 
 
 ## The drawn action `action` plays as ("" when none).
@@ -932,7 +951,10 @@ func _hide_weapon() -> void:
 
 func _apply_modulate(c: Color) -> void:
 	for s in _sprites:
-		s.modulate = c
+		if s != _action_ghost:
+			s.modulate = c
+	if _action_ghost and _ghost_left > 0.0:
+		_action_ghost.modulate = Color(c.r, c.g, c.b, _action_ghost.modulate.a)
 
 
 func _process(delta: float) -> void:
@@ -955,6 +977,12 @@ func _process(delta: float) -> void:
 			if not _walking and not _attacking:
 				_play("idle")
 				return
+	if _ghost_left > 0.0:
+		_ghost_left -= delta
+		if _ghost_left <= 0.0:
+			_end_ghost()
+		else:
+			_fade_ghost()
 	if _frames.is_empty():
 		return
 	_clock += delta
@@ -1006,16 +1034,45 @@ func _apply_frame() -> void:
 
 ## Show a drawn action's frame (and hide the body), or put the body back.
 ## True when `f` is a drawn action's frame.
+## The cross-fade ghost's opacity: what is left of its fade, eased out.
+func _fade_ghost() -> void:
+	if _action_ghost == null:
+		return
+	var k := clampf(_ghost_left / _ghost_total, 0.0, 1.0) if _ghost_total > 0.0 else 0.0
+	var c := _action_sprite.modulate if _action_sprite else _base_modulate
+	c.a = _base_modulate.a * k * k
+	_action_ghost.modulate = c
+
+func _end_ghost() -> void:
+	_ghost_left = 0.0
+	if _action_ghost:
+		_action_ghost.visible = false
+
 func _apply_drawn_action(f: Dictionary) -> bool:
 	if not f.has("act"):
 		if _action_sprite and _action_sprite.visible:
 			_action_sprite.visible = false
 			_npc_sprite.visible = true
+		_end_ghost()
 		return false
 	var a: Dictionary = _actions[f["act"]]
 	var cell: int = a["cell"]
+	var region := Rect2(f["col"] * cell, f["row"] * cell, cell, cell)
+	# A drawn action that blends (the spell casts, BLEND): the frame shown
+	# until now stays over the new one and fades, so a slow cast flows from
+	# pose to pose instead of snapping.
+	var blend: float = float(a.get("blend", 0.0))
+	if _action_ghost and blend > 0.0 and _action_sprite.visible and _action_sprite.texture == a["tex"] \
+			and _action_sprite.region_rect != region:
+		_action_ghost.texture = _action_sprite.texture
+		_action_ghost.region_rect = _action_sprite.region_rect
+		_action_ghost.offset = _action_sprite.offset
+		_ghost_total = maxf(0.01, float(f["t"]) * blend)
+		_ghost_left = _ghost_total
+		_action_ghost.visible = true
+		_fade_ghost()
 	_action_sprite.texture = a["tex"]
-	_action_sprite.region_rect = Rect2(f["col"] * cell, f["row"] * cell, cell, cell)
+	_action_sprite.region_rect = region
 	# Uncentred: offset.y is the cell's bottom edge, ACTION_FLOOR below the feet.
 	_action_sprite.offset = Vector2(-cell * 0.5, -float(cell) / ACTION_FLOOR)
 	_action_sprite.visible = true

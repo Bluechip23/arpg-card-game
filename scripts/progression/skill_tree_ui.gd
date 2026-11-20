@@ -6,6 +6,9 @@ extends CanvasLayer
 
 signal closed
 signal stats_allocated(allocations: Dictionary)  # stat name -> points spent from the banked pool
+## Co-op: the player asked to see the other hero's passives and sphere grid
+## (the hero buttons in the tab bar, or TAB). Main rebinds the screen.
+signal hero_switch_requested(index: int)
 
 @onready var panel: PanelContainer = $Panel
 @onready var close_button: Button = $CloseButton
@@ -33,7 +36,10 @@ var _stat_alloc_panel: PanelContainer = null
 var _stat_alloc_backdrop: Control = null   # the training-ground painting behind it
 var _stat_points_remaining: int = 0
 var _stat_allocations: Dictionary = {}
-var _stat_alloc_btn: Button = null  # "Stat Points: N" in the tab bar
+var _stat_alloc_btn: Button = null  # "Stats" in the tab bar (always open; shows banked points inside)
+var _hero_btns: Array[Button] = []  # co-op: one per hero, whose progression is shown
+var _hero_index := 0
+var _hero_names: Array = []  # co-op: both heroes' names (set_heroes)
 var _passive_pts_btn: Button = null  # "Passive Points: N" under the title, in the Stat Points' look
 
 # Painted passive board (heroes with one in PASSIVE_BOARDS)
@@ -95,6 +101,13 @@ func hide_panel() -> void:
 	if _sphere_grid_ui:
 		_sphere_grid_ui.hide_panel()
 
+## Redraw the open tab (main rebound the screen to another hero).
+func refresh_current_tab() -> void:
+	_close_stat_alloc_panel()
+	_refresh_stat_alloc_button()
+	if visible:
+		_switch_to_tab(_current_tab)
+
 func toggle_panel() -> void:
 	if visible:
 		hide_panel()
@@ -127,15 +140,39 @@ func _build_tab_bar() -> void:
 	_tab_btn_sphere_grid.pressed.connect(_on_tab_sphere_grid)
 	_tab_bar.add_child(_tab_btn_sphere_grid)
 
-	# Banked level-up stat points (+3 per level) are spent from here.
+	# The hero's stats, and the banked level-up stat points (+3 per level)
+	# spent from here. Always open (designer, 2026-11-20): "Stats".
 	_stat_alloc_btn = Button.new()
-	_stat_alloc_btn.text = "Stat Points: 0"
+	_stat_alloc_btn.text = "Stats"
 	_stat_alloc_btn.add_theme_font_size_override("font_size", 14)
 	_stat_alloc_btn.add_theme_color_override("font_color", COLOR_AUTO_TEXT)
 	_stat_alloc_btn.pressed.connect(_open_stat_allocation)
 	_tab_bar.add_child(_stat_alloc_btn)
 
 	add_child(_tab_bar)
+
+	# Co-op: whose passives, Stats and sphere grid are shown (set_heroes);
+	# TAB switches too. Their own group at the right (clear of the centred
+	# points readout), under Close. Hidden with one hero.
+	var hero_bar := HBoxContainer.new()
+	hero_bar.name = "HeroTabs"
+	hero_bar.add_theme_constant_override("separation", 4)
+	hero_bar.alignment = BoxContainer.ALIGNMENT_END
+	hero_bar.anchor_left = 1.0
+	hero_bar.anchor_right = 1.0
+	hero_bar.offset_left = -320.0
+	hero_bar.offset_right = -16.0
+	hero_bar.offset_top = 40.0
+	hero_bar.offset_bottom = 72.0
+	hero_bar.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	for i in 2:
+		var hb := _make_tab_button("", false)
+		hb.custom_minimum_size = Vector2(130, 28)
+		hb.visible = false
+		hb.pressed.connect(func() -> void: hero_switch_requested.emit(i))
+		hero_bar.add_child(hb)
+		_hero_btns.append(hb)
+	add_child(hero_bar)
 
 	# The passive points to spend, right under the "PASSIVE TREE" title, in
 	# the Stat Points' format (designer, 2026-11-14). Spent by clicking the
@@ -155,6 +192,20 @@ func _build_tab_bar() -> void:
 	_passive_pts_btn.offset_bottom = 70.0
 	_passive_pts_btn.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	add_child(_passive_pts_btn)
+
+## Co-op: the heroes' names for the switch (empty / one name: no switch),
+## and which one the screen is showing.
+func set_heroes(names: Array, showing: int) -> void:
+	_hero_index = showing
+	_hero_names = names
+	var coop := names.size() >= 2
+	for i in _hero_btns.size():
+		var hb: Button = _hero_btns[i]
+		hb.visible = coop
+		if coop:
+			hb.text = "P%d: %s" % [i + 1, names[i]]
+			hb.tooltip_text = "Show %s's passives and sphere grid (TAB)" % names[i]
+			_apply_tab_style(hb, i == showing)
 
 func _make_tab_button(text: String, active: bool) -> Button:
 	var btn = Button.new()
@@ -886,8 +937,11 @@ func _refresh_stat_alloc_button() -> void:
 	if not _stat_alloc_btn:
 		return
 	var pool: int = player_stats.unspent_stat_points if player_stats else 0
-	_stat_alloc_btn.text = "Stat Points: %d" % pool
-	_stat_alloc_btn.disabled = pool <= 0
+	_stat_alloc_btn.text = "Stats"
+	_stat_alloc_btn.disabled = false
+	# Points waiting: the button glows gold.
+	_stat_alloc_btn.add_theme_color_override("font_color", COLOR_CHOSEN_TEXT if pool > 0 else COLOR_AUTO_TEXT)
+	_stat_alloc_btn.tooltip_text = "%d stat point(s) to spend" % pool if pool > 0 else "Your stats"
 	if _passive_pts_btn:
 		var pp: int = player_stats.unspent_passive_points if player_stats else 0
 		_passive_pts_btn.text = "Passive Points: %d" % pp
@@ -896,7 +950,7 @@ func _refresh_stat_alloc_button() -> void:
 func _open_stat_allocation() -> void:
 	_close_stat_alloc_panel()
 	var pool: int = player_stats.unspent_stat_points if player_stats else 0
-	if pool <= 0:
+	if player_stats == null:
 		return
 
 	_stat_points_remaining = pool
@@ -929,7 +983,10 @@ func _open_stat_allocation() -> void:
 	vbox.add_theme_constant_override("separation", 8)
 
 	var popup_title = Label.new()
-	popup_title.text = "Allocate %d Stat Points" % _stat_points_remaining
+	var whose := "Stats"
+	if _hero_names.size() >= 2 and _hero_index < _hero_names.size():
+		whose = "%s's Stats" % _hero_names[_hero_index]
+	popup_title.text = whose if pool <= 0 else "%s — %d point(s) to spend" % [whose, pool]
 	popup_title.add_theme_font_size_override("font_size", 16)
 	popup_title.add_theme_color_override("font_color", COLOR_AUTO_TEXT)
 	popup_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -952,10 +1009,20 @@ func _open_stat_allocation() -> void:
 	confirm_btn.add_theme_font_size_override("font_size", 14)
 	confirm_btn.pressed.connect(_on_stat_alloc_confirm)
 	vbox.add_child(confirm_btn)
+	if pool <= 0:
+		# Nothing banked: the stats to read, no +/- to press.
+		remaining_label.visible = false
+		for row in vbox.get_children():
+			if row is HBoxContainer:
+				for b in row.get_children():
+					if b is Button:
+						b.visible = false
+		confirm_btn.text = "Close"
 
 	_stat_alloc_panel.add_child(vbox)
 
-	_stat_alloc_panel.custom_minimum_size = Vector2(300, 350)
+	# Read-only (nothing banked): the box hugs the six stats and Close.
+	_stat_alloc_panel.custom_minimum_size = Vector2(300, 350 if pool > 0 else 0)
 
 	# The designer's training-ground painting (2026-11-09) fills the screen
 	# behind the level-up allocation; the box sits in its empty middle.
@@ -1126,6 +1193,10 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_L:
 			hide_panel()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_TAB and _hero_btns.size() > 1 and _hero_btns[1].visible:
+			if not is_instance_valid(_stat_alloc_panel):
+				hero_switch_requested.emit(1 - _hero_index)
 			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_ESCAPE:
 			if is_instance_valid(_stat_alloc_panel):
