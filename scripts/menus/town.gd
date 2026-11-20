@@ -342,7 +342,7 @@ func _ready() -> void:
 	_camera_focus = player.position + Vector3(3, 0, 0)
 	_camera_pan = Vector3.ZERO
 	_update_camera()
-	# The window can grow (WindowScaler): keep the texel scale whole.
+	# The window can be resized: keep the texel scale whole.
 	get_viewport().size_changed.connect(_update_camera, CONNECT_DEFERRED)
 
 	# The top-right menu bar (character, level, quests, help, deck).
@@ -360,11 +360,14 @@ func _update_camera() -> void:
 	# treatment as the world camera in main).
 	_camera_yaw = CameraView.YAW
 	_camera_pitch = CameraView.PITCH
-	var upp := CameraView.units_per_pixel(_camera_distance)
+	# The 3D renders at the screen's real pixels (canvas_items stretch only
+	# scales the UI), so frame for that height and the window's scale.
+	var screen := CameraView.screen_scale(get_viewport())
+	var upp := CameraView.units_per_pixel(_camera_distance, screen)
 	var focus := _camera_focus + _camera_pan
 	focus.x = snappedf(focus.x, upp)
 	focus.z = snappedf(focus.z, upp)
-	CameraView.apply(camera, focus, _camera_distance, get_viewport().get_visible_rect().size.y)
+	CameraView.apply(camera, focus, _camera_distance, get_viewport().get_visible_rect().size.y * screen, screen)
 
 
 func _pan_camera(delta: Vector3) -> void:
@@ -543,7 +546,9 @@ func _input(event: InputEvent) -> void:
 		else:
 			_camera_panning = false
 	if event is InputEventMouseMotion and _camera_panning:
-		var upp := CameraView.units_per_pixel(_camera_distance)
+		# Drag is in UI pixels; the camera moves in real screen pixels.
+		var screen := CameraView.screen_scale(get_viewport())
+		var upp := CameraView.units_per_pixel(_camera_distance, screen) * screen
 		_pan_camera(Vector3(-event.relative.x * upp, 0, -event.relative.y * upp))
 	if event is InputEventKey and event.pressed and not event.echo and not _modal_open and not vendor_open and not _stash_open:
 		match event.keycode:

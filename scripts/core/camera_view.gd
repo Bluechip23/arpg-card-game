@@ -79,26 +79,45 @@ static func offset(distance: float = 30.0) -> Vector3:
 	)
 
 
-## Orthographic frame height in world units for a texel scale and a
-## viewport height in pixels: `scale` screen pixels per texel, exactly.
-static func ortho_size(scale: float, viewport_height: float) -> float:
+## How many times the 1280×720 base size `vp`'s window is drawn: 1.5 on a
+## 1080p screen, 2 at 1440p. The UI (cards, HUD) scales by exactly this; the
+## world follows it to the nearest whole pixel (texel_pixels).
+static func screen_scale(vp: Viewport) -> float:
+	if vp == null:
+		return 1.0
+	var s := vp.get_final_transform().get_scale().y
+	return s if s > 0.0 else 1.0
+
+
+## Screen pixels one texel covers at zoom step `scale` on a screen drawn
+## `screen` times the base size: the zoom grows with the window, rounded to a
+## whole number so a texel never straddles a pixel (zoom 2 is 2 px at 720p,
+## 3 px at 1080p, 4 px at 1440p).
+static func texel_pixels(scale: float, screen: float = 1.0) -> float:
 	var s := clampf(roundf(scale), ZOOM_MIN, ZOOM_MAX)
-	return maxf(1.0, viewport_height) / (s * TEXELS_PER_UNIT)
+	return maxf(1.0, roundf(s * screen))
 
 
-## World units per screen pixel at a texel scale.
-static func units_per_pixel(scale: float) -> float:
-	return 1.0 / (clampf(roundf(scale), ZOOM_MIN, ZOOM_MAX) * TEXELS_PER_UNIT)
+## Orthographic frame height in world units for a zoom step and a render
+## target `viewport_height` real screen pixels tall: texel_pixels exactly.
+static func ortho_size(scale: float, viewport_height: float, screen: float = 1.0) -> float:
+	return maxf(1.0, viewport_height) / (texel_pixels(scale, screen) * TEXELS_PER_UNIT)
 
 
-## Place `camera` on the fixed view looking at `focus`, framed for `scale`
-## screen pixels per texel in a viewport `viewport_height` pixels tall.
-static func apply(camera: Camera3D, focus: Vector3, scale: float, viewport_height: float) -> void:
+## World units per real screen pixel at a zoom step.
+static func units_per_pixel(scale: float, screen: float = 1.0) -> float:
+	return 1.0 / (texel_pixels(scale, screen) * TEXELS_PER_UNIT)
+
+
+## Place `camera` on the fixed view looking at `focus`, framed for zoom step
+## `scale` in a render target `viewport_height` real screen pixels tall on a
+## screen drawn `screen` times the base size.
+static func apply(camera: Camera3D, focus: Vector3, scale: float, viewport_height: float, screen: float = 1.0) -> void:
 	# Near-vertical view: the world up vector is parallel to the view, so
 	# frame with north (-Z) as the camera's up instead.
 	camera.look_at_from_position(focus + offset(), focus, Vector3(0, 0, -1))
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = ortho_size(scale, viewport_height)
+	camera.size = ortho_size(scale, viewport_height, screen)
 	camera.near = 0.05
 	camera.far = 200.0
 

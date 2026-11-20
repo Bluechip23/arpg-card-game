@@ -8,6 +8,11 @@ extends Node
 const WRAP_WIDTH := 46  # characters per tooltip line
 
 func _ready() -> void:
+	# Headless runs (the test suite) have a 64×64 window, which the project's
+	# fractional stretch would draw at 0.05×. Integer stretch keeps them at
+	# 1×, as they always were, so a test's coordinates are UI coordinates.
+	if DisplayServer.get_name() == "headless":
+		get_window().content_scale_stretch = Window.CONTENT_SCALE_STRETCH_INTEGER
 	# Style tooltips via the engine DEFAULT theme: tooltip popups are separate
 	# embedded Windows that don't inherit the root window's theme, but every
 	# control and window falls back to ThemeDB's default theme.
