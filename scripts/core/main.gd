@@ -681,6 +681,12 @@ func _ready() -> void:
 	# allocations signal; passive spends are caught when the panel closes).
 	skill_tree_ui.stats_allocated.connect(func(_a): _refresh_hud_notifications())
 	skill_tree_ui.closed.connect(_refresh_hud_notifications)
+	# Co-op: the screen's P1/P2 tabs swap which hero it shows; closed, it goes
+	# back to Player 1 (saves and scene carries read P1 off it).
+	skill_tree_ui.hero_switch_requested.connect(_bind_progression)
+	skill_tree_ui.visibility_changed.connect(func():
+		if not skill_tree_ui.visible and _progression_index != 0:
+			_bind_progression(0))
 
 	_setup_action_buttons()
 	_setup_tick_bar()
@@ -3600,8 +3606,7 @@ func _setup_hud_icon_bar() -> void:
 	hud_icon_bar.level_pressed.connect(func():
 		if _dojo_blocks_progression():
 			return
-		skill_tree_ui.toggle_panel()
-		_refresh_hud_notifications())
+		_open_progression_screen())
 	hud_icon_bar.quest_pressed.connect(_on_hud_quest_pressed)
 	hud_icon_bar.help_pressed.connect(_on_hud_help_pressed)
 	hud_icon_bar.deck_pressed.connect(_deck_panels.toggle)
@@ -3897,20 +3902,7 @@ func select_character(character: CharacterData) -> void:
 
 	# Initialize character skill tree (use character-specific tree if available).
 	# Keyed off the preset identity so a renamed character keeps their tree.
-	var skill_tree: SkillTreeData
-	var tree_base := character.get_base_character()
-	if tree_base == "Brad":
-		skill_tree = SkillTreeData.create_brad_tree()
-	elif tree_base == "Stephen":
-		skill_tree = SkillTreeData.create_stephen_tree()
-	elif tree_base == "Ryan":
-		skill_tree = SkillTreeData.create_ryan_tree()
-	elif tree_base == "Cory":
-		skill_tree = SkillTreeData.create_cory_tree()
-	elif tree_base == "Jeremy":
-		skill_tree = SkillTreeData.create_jeremy_tree()
-	else:
-		skill_tree = SkillTreeData.create_placeholder_tree(character.character_name, 20, character.archetypes)
+	var skill_tree := _create_skill_tree_for(character)
 
 	skill_tree_ui.set_skill_tree(skill_tree)
 	skill_tree_ui.set_player_level(player.get_stats().current_level)
@@ -6739,13 +6731,120 @@ func _olorin_first_level_up() -> void:
 	olorin.show_first_level_up()
 
 func _on_ally_leveled_up(new_level: int) -> void:
-	## The co-op partner leveled up: flourish + log. (Sphere/skill-tree rewards
-	## stay tied to Player 1's progression UIs.)
+	## The co-op partner leveled up: flourish + log, and their own sphere
+	## rewards (Player 2 has their own grid and spheres on the progression
+	## screen; their stat and passive points bank on their PlayerStats).
 	if _p2_player and is_instance_valid(_p2_player):
 		_p2_player.show_level_up()
+	var p2set := _progression_set(1)
+	if not p2set.is_empty():
+		for reward in SphereInventory.get_level_rewards(new_level):
+			p2set["inventory"].add_sphere(reward[0], reward[1])
+		if _progression_index == 1:
+			skill_tree_ui.set_player_level(new_level)
 	var ally_name: String = player2_character.character_name if player2_character else "Your ally"
 	add_battle_log("%s reached level %d!" % [ally_name, new_level], Color(1.0, 0.85, 0.4))
 	print("[MAIN] Ally leveled up to %d" % new_level)
+
+#endregion
+#region CO-OP PROGRESSION SCREEN
+# ============================================
+# Each hero has their own passive tree, sphere grid and spheres. The one
+# progression screen shows one hero at a time; its P1/P2 tabs (or TAB) swap
+# which hero it is bound to. Player 1's data stays on the screen's own
+# fields whenever it is closed, so saves and scene carries see P1.
+# ============================================
+
+var _progression_index: int = 0
+var _progression_sets: Dictionary = {}  # hero index -> {tree, grid, inventory}
+
+func _create_skill_tree_for(character: CharacterData) -> SkillTreeData:
+	## The hero's own passive tree, keyed off the preset identity so a renamed
+	## character keeps their tree.
+	match character.get_base_character():
+		"Brad":
+			return SkillTreeData.create_brad_tree()
+		"Stephen":
+			return SkillTreeData.create_stephen_tree()
+		"Ryan":
+			return SkillTreeData.create_ryan_tree()
+		"Cory":
+			return SkillTreeData.create_cory_tree()
+		"Jeremy":
+			return SkillTreeData.create_jeremy_tree()
+	return SkillTreeData.create_placeholder_tree(character.character_name, 20, character.archetypes)
+
+func progression_player() -> Player:
+	## The hero the progression screen is showing (sphere nodes, constellations
+	## and stat allocations land on them).
+	if _progression_index == 1 and _p2_player and is_instance_valid(_p2_player):
+		return _p2_player
+	if _p1_player and is_instance_valid(_p1_player):
+		return _p1_player
+	return player
+
+func _progression_coop() -> bool:
+	return is_multiplayer and player2_character != null \
+		and _p2_player != null and is_instance_valid(_p2_player)
+
+func _progression_set(idx: int) -> Dictionary:
+	## Player 1's set is whatever the screen holds while bound to P1; Player
+	## 2's is built on first use (a fresh tree for their character, a fresh
+	## grid, and the spheres their levels so far have earned).
+	if idx == 0:
+		if _progression_index == 0:
+			return {"tree": skill_tree_ui.skill_tree, "grid": sphere_grid_ui.sphere_grid, "inventory": sphere_inventory}
+		return _progression_sets.get(0, {})
+	if not _progression_coop():
+		return {}
+	if not _progression_sets.has(1):
+		var grid := SphereGrid.new()
+		grid.constellation_completed.connect(progression_triggers._on_constellation_completed)
+		grid.constellation_replaced.connect(progression_triggers._on_constellation_replaced)
+		var inv := SphereInventory.new()
+		inv.name = "P2SphereInventory"
+		add_child(inv)
+		var level: int = _p2_player.get_stats().current_level if _p2_player.get_stats() else 1
+		for lv in range(1, level + 1):
+			for reward in SphereInventory.get_level_rewards(lv):
+				inv.add_sphere(reward[0], reward[1])
+		_progression_sets[1] = {"tree": _create_skill_tree_for(player2_character), "grid": grid, "inventory": inv}
+	return _progression_sets[1]
+
+func _bind_progression(idx: int) -> void:
+	## Point the progression screen (passive tree, Stats, sphere grid) at hero
+	## `idx`. Outside co-op it stays on Player 1.
+	if idx == 1 and not _progression_coop():
+		idx = 0
+	if idx != _progression_index:
+		if _progression_index == 0:
+			_progression_sets[0] = _progression_set(0)
+		var dest := _progression_set(idx)
+		if dest.is_empty():
+			return
+		_progression_index = idx
+		var hero := progression_player()
+		var stats := hero.get_stats() if hero else null
+		skill_tree_ui.player_stats = stats
+		skill_tree_ui.sphere_inventory = dest["inventory"]
+		skill_tree_ui.set_skill_tree(dest["tree"])
+		skill_tree_ui.set_player_level(stats.current_level if stats else 1)
+		sphere_grid_ui.bind_hero(dest["grid"], dest["inventory"], stats)
+		skill_tree_ui.refresh_current_tab()
+	if _progression_coop():
+		skill_tree_ui.set_heroes([starting_character.character_name if starting_character else "Player 1",
+			player2_character.character_name], _progression_index)
+	else:
+		skill_tree_ui.set_heroes([], 0)
+
+func _open_progression_screen() -> void:
+	## L / the level button: in co-op the screen opens on the hero you control.
+	if skill_tree_ui.visible:
+		skill_tree_ui.hide_panel()
+		_refresh_hud_notifications()
+		return
+	_bind_progression(_active_index if _progression_coop() else 0)
+	skill_tree_ui.show_panel()
 
 #endregion
 #region SPHERE GRID → CHARACTER SYNC
@@ -14193,7 +14292,7 @@ func _input(event: InputEvent) -> void:
 		# Level progress panel toggle (skill tree + sphere grid tabs)
 		if event.keycode == KEY_L:
 			if not _dojo_blocks_progression():
-				skill_tree_ui.toggle_panel()
+				_open_progression_screen()
 			return
 
 		# Burden relief: J jails the selected Burden card from hand (1m + 1t),
@@ -17245,6 +17344,7 @@ func _save_player_progression(return_stolen: bool = true) -> Dictionary:
 	## Capture all persistent player state before a world transition.
 	## `return_stolen` off (a save from the ? menu, the game carries on): the
 	## harpies keep the cards they carry, and the snapshot holds them in hand.
+	_bind_progression(0)  # the screen holds Player 1's tree and grid again
 	var stats := player.get_stats()
 	var progression := {}
 	if stats:

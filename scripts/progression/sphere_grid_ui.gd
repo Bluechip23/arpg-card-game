@@ -156,9 +156,24 @@ func _on_canvas_resized() -> void:
 		grid_canvas.queue_redraw()
 
 func connect_sphere_inventory(inv: SphereInventory) -> void:
+	if sphere_inventory and sphere_inventory != inv \
+			and sphere_inventory.spheres_changed.is_connected(_update_points_label):
+		sphere_inventory.spheres_changed.disconnect(_update_points_label)
 	sphere_inventory = inv
-	sphere_inventory.spheres_changed.connect(_update_points_label)
+	if not sphere_inventory.spheres_changed.is_connected(_update_points_label):
+		sphere_inventory.spheres_changed.connect(_update_points_label)
 	_update_points_label()
+
+## Co-op: show another hero's grid (each hero has their own grid, spheres and
+## stat gates). Redraws in place when the panel is open.
+func bind_hero(grid: SphereGrid, inv: SphereInventory, stats) -> void:
+	sphere_grid = grid
+	player_stats = stats
+	connect_sphere_inventory(inv)
+	_close_detail_popup()
+	if visible:
+		_refresh_constellation_list()
+		grid_canvas.queue_redraw()
 
 func _apply_styles() -> void:
 	# Panel background
