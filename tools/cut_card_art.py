@@ -417,6 +417,16 @@ SINGLES = {
     "misery_loves_company": ("card_art_misery_loves_company.webp", (0, 0, 1671, 880)),
     # The knight's hand pouring green light into the wounded mage.
     "acro_medic": ("card_art_acro_medic.webp", (0, 0, 1672, 880)),
+    # 2026-11-20, item cards: the old seer's new spectacles, the hawk's head.
+    "twenty_twenty": ("card_art_twenty_twenty.webp", (0, 80, 1086, 652)),
+    # The smith's grin, his arm turning to liquid metal in the basin.
+    "adimantium_wall": ("card_art_adimantium_wall.webp", (0, 90, 1536, 898)),
+    # The arrow through three trunks, the orc it is flying at.
+    "balistic_arrow": ("card_art_balistic_arrow.webp", (0, 30, 1672, 910)),
+    # The star-woman's face and the two stars in her hands.
+    "balance_of_alnilam": ("card_art_balance_of_alnilam.webp", (0, 0, 1672, 880)),
+    # The thorn-armoured fighter facing the orc.
+    "bark_up": ("card_art_bark_up.webp", (0, 60, 1448, 822)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
