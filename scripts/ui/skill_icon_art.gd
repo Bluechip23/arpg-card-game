@@ -306,6 +306,11 @@ const CARD_PAINTINGS := {
 	"life_from_resource": "life_from_resource",
 	"lemon_drop": "lemon_drop",
 	"fumbleitis": "fumbleitis",
+	"twenty_twenty": "twenty_twenty",
+	"adimantium_wall": "adimantium_wall",
+	"balistic_arrow": "balistic_arrow",
+	"balance_of_alnilam": "balance_of_alnilam",
+	"bark_up": "bark_up",
 }
 
 # ---------------------------------------------------------------------------
