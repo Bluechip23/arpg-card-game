@@ -446,6 +446,9 @@ FITTED = {
     "loaded_die": ("card_art_loaded_die.webp", (260, 0, 1280, 960)),
     # The leather pouch spilling its shuriken, seen whole.
     "shuriken_pouch": ("card_art_shuriken_pouch.webp", (40, 40, 1536, 900)),
+    # 2026-11-20: the crossed sword and staff on the rune circle, seen whole
+    # (Slash and Exposing Strike, the starting strikes).
+    "starter_strike": ("card_art_starter_strike.webp", (0, 0, 1536, 1024)),
     # A tall painting fitted to the window: her grin and slash below, the
     # troll's scream in the top corner.
     "feint": ("card_art_feint.webp", (0, 0, 1122, 880)),

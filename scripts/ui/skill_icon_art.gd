@@ -101,6 +101,9 @@ const CARD_ART_DIR := "res://assets/textures/cards/art/"
 const CARD_PAINTINGS := {
 	"basic_attack": "basic_attack",
 	"block": "block",
+	"braced_draw": "block",   # the starting block that draws wears Block's art (designer, 2026-11-20)
+	"slash": "starter_strike",   # the starting strikes (designer, 2026-11-20)
+	"exposing_strike": "starter_strike",
 	"berserkers_tithe": "berserkers_tithe",
 	"momentous_slam": "momentous_slam",
 	"fan_of_knives": "fan_of_knives",
