@@ -474,7 +474,6 @@ func _setup_world_viewport() -> void:
 	svc.stretch_shrink = WORLD_SHRINK
 	svc.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	svc.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	svc.set_anchors_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(svc)
 	var sv := SubViewport.new()
 	sv.name = "WorldViewport"
@@ -484,8 +483,11 @@ func _setup_world_viewport() -> void:
 	svc.add_child(sv)
 	_world_viewport = sv
 	_world_container = svc
-	# The window can grow (WindowScaler): re-frame the camera so a texel
-	# stays a whole number of pixels without waiting for the player to move.
+	# The UI stretches with the window (fractional canvas_items), but the
+	# world must not: it renders at the screen's real pixels instead
+	# (_fit_world_viewport) and the camera re-frames whenever that changes.
+	_fit_world_viewport()
+	get_viewport().size_changed.connect(_fit_world_viewport)
 	svc.resized.connect(_update_camera, CONNECT_DEFERRED)
 	# The scene camera moves into the SubViewport; the root viewport is left
 	# without an active 3D camera so the world only renders low-res.
@@ -523,10 +525,30 @@ func get_world_camera() -> Camera3D:
 	return get_viewport().get_camera_3d()
 
 
-## Ratio between the world viewport's pixels and root-viewport pixels.
+## Size the world render to the screen's real pixels. The root viewport is
+## the 1280×720-based UI space, drawn `s` times bigger; the world container
+## sits on a layer scaled by 1/s and is s times the UI size, so one world
+## pixel lands on exactly one screen pixel at any window size.
+func _fit_world_viewport() -> void:
+	if _world_container == null:
+		return
+	# Per axis: with the expanding aspect the two scales can differ by a hair.
+	var s := get_viewport().get_final_transform().get_scale()
+	if s.x <= 0.0 or s.y <= 0.0:
+		s = Vector2.ONE
+	var layer := _world_container.get_parent() as CanvasLayer
+	if layer:
+		layer.scale = Vector2.ONE / s
+	_world_container.position = Vector2.ZERO
+	_world_container.size = (get_viewport().get_visible_rect().size * s).round()
+
+
+## Ratio between the world viewport's pixels and root-viewport (UI) pixels:
+## the screen scale, since the world renders at real screen pixels.
 func _world_scale_ratio() -> Vector2:
-	if _world_viewport and _world_container and _world_container.size.x > 0.0 and _world_container.size.y > 0.0:
-		return Vector2(_world_viewport.size) / _world_container.size
+	var ui := get_viewport().get_visible_rect().size
+	if _world_viewport and _world_viewport.size.x > 0 and ui.x > 0.0 and ui.y > 0.0:
+		return Vector2(_world_viewport.size) / ui
 	return Vector2.ONE
 
 
@@ -926,11 +948,12 @@ func _update_camera() -> void:
 	var focus := _camera_focus + _camera_pan
 	# Snap the view to whole screen pixels so sprites and tiles never
 	# straddle a pixel boundary (no shimmer as the camera follows).
-	var upp := CameraView.units_per_pixel(_camera_distance)
+	var screen := CameraView.screen_scale(get_viewport())
+	var upp := CameraView.units_per_pixel(_camera_distance, screen)
 	focus.x = snappedf(focus.x, upp)
 	focus.z = snappedf(focus.z, upp)
 	var vh: float = float(_world_viewport.size.y) if _world_viewport and _world_viewport.size.y > 0 else 720.0
-	CameraView.apply(camera, focus, _camera_distance, vh)
+	CameraView.apply(camera, focus, _camera_distance, vh, screen)
 
 var _minimap_refresh_accum: float = 0.0
 # The head-up prompt pass (chest / waypoint / site / tree / fountain / shrine /
@@ -1221,7 +1244,7 @@ func _update_status_icon_hover() -> void:
 			var wp: Vector3 = t["pos"]
 			if cam.is_position_behind(wp):
 				continue
-			var sp: Vector2 = cam.unproject_position(wp)
+			var sp: Vector2 = world_to_screen(wp)
 			var d: float = sp.distance_to(mouse)
 			if d < best_d:
 				best_d = d
@@ -14671,7 +14694,7 @@ func _input(event: InputEvent) -> void:
 		# Screen pixels -> world units at the current zoom, north-up: drag
 		# right scrolls the world right (the view moves with the hand).
 		var ratio := _world_scale_ratio()
-		var upp: float = CameraView.units_per_pixel(_camera_distance) * ratio.y
+		var upp: float = CameraView.units_per_pixel(_camera_distance, CameraView.screen_scale(get_viewport())) * ratio.y
 		var d: Vector2 = event.relative
 		_pan_camera(Vector3(-d.x * upp, 0, -d.y * upp))
 

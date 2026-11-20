@@ -20,15 +20,16 @@ conforms to them.
   else hard-codes an angle. The top-down packs are 2D art: a tile is 32
   texels, a figure stands on its tile and extends north. This camera shows
   them exactly as drawn.
-- **Whole-pixel texel scale.** Zoom is a texel scale of 1–4 screen pixels
-  per texel (mouse wheel, `<` / `>`), never a distance; the orthographic
-  size is derived from the viewport height so a texel always covers an
-  integer number of pixels. The world viewport renders at full resolution.
-  The window stretch is integer-scaled with an expanding aspect, so a big
-  window shows more world rather than a fractionally scaled one. The
-  `WindowScaler` autoload (`scripts/core/window_scaler.gd`) grows the base
-  size to window ÷ scale, so no window size is letterboxed: 1080p is 1× with
-  a 1920×1080 view, 1440p is 2× with 1280×720.
+- **Whole-pixel texel scale.** Zoom is a step of 1–5 (mouse wheel, `<` /
+  `>`), never a distance. The window stretch is fractional `canvas_items`
+  with an expanding aspect, so the UI (cards, HUD, dialogs) grows with the
+  screen: 1.5× at 1080p, 2× at 1440p. The world grows with it but only by
+  whole pixels: a texel covers `round(zoom × screen scale)` real screen
+  pixels (`CameraView.texel_pixels`; zoom 2 is 2 px at 720p, 3 px at 1080p,
+  4 px at 1440p, 2 px at 1366×768). The world renders at the screen's real
+  pixels — town's 3D does by itself under `canvas_items`, battle's
+  `WorldViewport` is sized to it by `main._fit_world_viewport` — and the
+  orthographic size is derived from that real height.
 - **Depth is sorting.** The one degree of tilt puts anything further south
   0.017 units nearer the camera, so billboards y-sort by row for free. Every
   billboard sprite is lifted `CameraView.SPRITE_LIFT` (0.3) off the ground,
@@ -48,7 +49,8 @@ conforms to them.
   Pixel art is scaled by the camera's whole-number texel scale (§0), never
   by a viewport downscale — the old 640×360 world put every texel on 1.4
   screen pixels and the pack art read as mush.
-- UI renders outside the viewport at window resolution (1280×720 base).
+- UI renders outside the viewport at window resolution (1280×720 base,
+  stretched to the window).
   So does **world text**: every `Label3D` is mirrored by a full-resolution
   `Label` in `WorldLabelOverlay` that follows its screen position each
   frame (the Label3D itself is hidden from the cameras with `layers = 0`
