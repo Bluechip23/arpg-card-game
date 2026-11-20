@@ -52,7 +52,7 @@ func _run() -> void:
 	var sb := atk.art_box.get_theme_stylebox("panel")
 	_check(sb != null and sb.content_margin_left >= 9.0, "the Attack window is inset past the axe handle")
 
-	var slash := _face("slash")
+	var slash := _face("mage_shield")   # (no painting yet)
 	await process_frame
 	var sart := _art(slash)
 	_check(sart != null and sart.stretch_mode == TextureRect.STRETCH_KEEP_ASPECT_CENTERED,
