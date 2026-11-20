@@ -484,6 +484,9 @@ func _setup_world_viewport() -> void:
 	svc.add_child(sv)
 	_world_viewport = sv
 	_world_container = svc
+	# The window can grow (WindowScaler): re-frame the camera so a texel
+	# stays a whole number of pixels without waiting for the player to move.
+	svc.resized.connect(_update_camera, CONNECT_DEFERRED)
 	# The scene camera moves into the SubViewport; the root viewport is left
 	# without an active 3D camera so the world only renders low-res.
 	cam.get_parent().remove_child(cam)

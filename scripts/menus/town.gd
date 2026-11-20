@@ -342,6 +342,8 @@ func _ready() -> void:
 	_camera_focus = player.position + Vector3(3, 0, 0)
 	_camera_pan = Vector3.ZERO
 	_update_camera()
+	# The window can grow (WindowScaler): keep the texel scale whole.
+	get_viewport().size_changed.connect(_update_camera, CONNECT_DEFERRED)
 
 	# The top-right menu bar (character, level, quests, help, deck).
 	_setup_town_hud()

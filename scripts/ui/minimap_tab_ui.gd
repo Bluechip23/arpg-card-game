@@ -118,13 +118,14 @@ func _setup_tab_menu() -> void:
 	main._tab_menu_panel = PanelContainer.new()
 	main._tab_menu_panel.name = "TabMenuPanel"
 	main.window_layer().add_child(main._tab_menu_panel)
-	# Explicitly center on 1280x720 screen
+	# Centred on the screen, whatever size the window has grown to.
 	var tab_w = 750.0
 	var tab_h = 550.0
-	main._tab_menu_panel.offset_left = (1280.0 - tab_w) / 2.0
-	main._tab_menu_panel.offset_top = (720.0 - tab_h) / 2.0
-	main._tab_menu_panel.offset_right = (1280.0 + tab_w) / 2.0
-	main._tab_menu_panel.offset_bottom = (720.0 + tab_h) / 2.0
+	main._tab_menu_panel.set_anchors_preset(Control.PRESET_CENTER)
+	main._tab_menu_panel.offset_left = -tab_w / 2.0
+	main._tab_menu_panel.offset_top = -tab_h / 2.0
+	main._tab_menu_panel.offset_right = tab_w / 2.0
+	main._tab_menu_panel.offset_bottom = tab_h / 2.0
 	main._tab_menu_panel.custom_minimum_size = Vector2(tab_w, tab_h)
 	main._tab_menu_panel.visible = false
 	main._tab_menu_panel.z_index = 100  # Sit on top of cards and other UI
