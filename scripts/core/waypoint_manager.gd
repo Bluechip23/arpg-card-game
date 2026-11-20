@@ -81,13 +81,14 @@ func _open_waypoint_menu() -> void:
 	main._waypoint_menu_panel = PanelContainer.new()
 	main._waypoint_menu_panel.name = "WaypointMenu"
 	ui.add_child(main._waypoint_menu_panel)
-	# Explicitly center on 1280x720 screen
+	# Centred on the screen, whatever size the window has grown to.
 	var wp_w = 350.0
 	var wp_h = 300.0
-	main._waypoint_menu_panel.offset_left = (1280.0 - wp_w) / 2.0
-	main._waypoint_menu_panel.offset_top = (720.0 - wp_h) / 2.0
-	main._waypoint_menu_panel.offset_right = (1280.0 + wp_w) / 2.0
-	main._waypoint_menu_panel.offset_bottom = (720.0 + wp_h) / 2.0
+	main._waypoint_menu_panel.set_anchors_preset(Control.PRESET_CENTER)
+	main._waypoint_menu_panel.offset_left = -wp_w / 2.0
+	main._waypoint_menu_panel.offset_top = -wp_h / 2.0
+	main._waypoint_menu_panel.offset_right = wp_w / 2.0
+	main._waypoint_menu_panel.offset_bottom = wp_h / 2.0
 	main._waypoint_menu_panel.custom_minimum_size = Vector2(wp_w, wp_h)
 	main._waypoint_menu_panel.z_index = 100  # Sit on top of cards and other UI
 

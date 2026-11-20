@@ -25,7 +25,10 @@ conforms to them.
   size is derived from the viewport height so a texel always covers an
   integer number of pixels. The world viewport renders at full resolution.
   The window stretch is integer-scaled with an expanding aspect, so a big
-  window shows more world rather than a fractionally scaled one.
+  window shows more world rather than a fractionally scaled one. The
+  `WindowScaler` autoload (`scripts/core/window_scaler.gd`) grows the base
+  size to window ÷ scale, so no window size is letterboxed: 1080p is 1× with
+  a 1920×1080 view, 1440p is 2× with 1280×720.
 - **Depth is sorting.** The one degree of tilt puts anything further south
   0.017 units nearer the camera, so billboards y-sort by row for free. Every
   billboard sprite is lifted `CameraView.SPRITE_LIFT` (0.3) off the ground,

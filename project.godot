@@ -22,6 +22,7 @@ config/features=PackedStringArray("4.6", "Forward Plus")
 
 UiTheme="*res://scripts/ui/ui_theme.gd"
 Palette="*res://resources/palette/palette.gd"
+WindowScaler="*res://scripts/core/window_scaler.gd"
 
 [display]
 
