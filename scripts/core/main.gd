@@ -9528,7 +9528,12 @@ func _resolve_queued_card(resolved_card: Card) -> void:
 						player.face_toward(target.position)
 			else:
 				_play_card_animation(card, target, data.get("aim_world", null))
-			_after_hit(wait, func() -> void: _land_queued_entry(entry), _swing_time(swing, target))
+			# A thrown spell's hit lands where its missile does (designer,
+			# 2026-11-20: the spells should "land correctly"): Fireball is
+			# thrown on the cast's blow frame and the card resolves at the
+			# blast, not as it leaves his hand.
+			var flight := _launch_spell_missile(card, target, data, wait)
+			_after_hit(wait + flight, func() -> void: _land_queued_entry(entry), _swing_time(swing, target) + flight)
 			return
 
 	# --- Basic attack resolution: deal damage directly ---
@@ -12648,6 +12653,23 @@ func _card_aim_point(card: Card, target, aim_world = null):
 			return at
 	return null
 
+## A thrown spell's missile, launched `wait` seconds on (the cast's blow
+## frame); returns the seconds it flies, which the card's resolution waits
+## for. 0 for a card with no missile.
+func _launch_spell_missile(card: Card, target, data: Dictionary, wait: float) -> float:
+	if card.card_id != "fireball":
+		return 0.0
+	var aim = _card_aim_point(card, target, data.get("aim_world", null))
+	if aim == null:
+		return 0.0
+	var from: Vector3 = player.position + CAST_MIDSECTION
+	var to: Vector3 = (aim as Vector3) + CAST_MIDSECTION
+	card.set_meta("missile_thrown", true)   # the world effect does not throw a second
+	get_tree().create_timer(wait).timeout.connect(func() -> void:
+		if is_instance_valid(player):
+			FireballFX.play(self, from, to))
+	return FireballFX.impact_time(from, to)
+
 ## The drawn action a card's blow lands in (the hit wait): a Spell card's
 ## is the hero's spell cast, any other card's its own animation.
 func _card_swing(card: Card) -> String:
@@ -13093,7 +13115,10 @@ func _apply_card_world_effects_inner(card: Card, target) -> void:
 			var center = _point_aim(target, mouse_pos)
 			# The designer's fireball: ember, flight, blast — thrown from the
 			# caster's midsection at the target's, so it reads as a cast.
-			FireballFX.play(self, player.position + CAST_MIDSECTION, center + CAST_MIDSECTION)
+			if card.has_meta("missile_thrown"):
+				card.remove_meta("missile_thrown")
+			else:
+				FireballFX.play(self, player.position + CAST_MIDSECTION, center + CAST_MIDSECTION)
 			var fb_dmg := card.last_damage_dealt
 			var fb_hit := enemy_spawner.get_enemies_in_radius(center, card.aoe_range if card.aoe_range > 0 else 2.0)
 			for en in fb_hit:

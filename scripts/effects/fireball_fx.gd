@@ -24,6 +24,18 @@ const FADE_TIME := 0.15
 var _sprite: Sprite3D = null
 
 
+## Seconds from the throw to the blast (the ember, then the flight): a hit
+## should land then, not at the throw.
+static func impact_time(from: Vector3, to: Vector3) -> float:
+	var flat := Vector3(to.x - from.x, 0, to.z - from.z)
+	var dir := flat.normalized() if flat.length() > 0.01 else Vector3.RIGHT
+	var start := Vector3(from.x, 0, from.z) + dir * HAND
+	var end := Vector3(to.x, 0, to.z)
+	# (+ half a blast stage: the blast's first frame is shown a frame after
+	# the flight ends, and the hit should come with it, never before.)
+	return EMBER_TIME + clampf(start.distance_to(end) / SPEED, MIN_FLIGHT, MAX_FLIGHT) + BLAST_TIME * 0.5
+
+
 ## Throw one from `from` (the caster's midsection) to `to` (the aimed point) under
 ## `world` (the node the field lives in).
 static func play(world: Node, from: Vector3, to: Vector3) -> FireballFX:
