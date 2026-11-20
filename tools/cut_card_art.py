@@ -427,6 +427,16 @@ SINGLES = {
     "balance_of_alnilam": ("card_art_balance_of_alnilam.webp", (0, 0, 1672, 880)),
     # The thorn-armoured fighter facing the orc.
     "bark_up": ("card_art_bark_up.webp", (0, 60, 1448, 822)),
+    # The shield's ring through the five foes, the eagle's head kept.
+    "bouncing_shield": ("card_art_bouncing_shield.webp", (0, 0, 1671, 880)),
+    # The caster's face, the bolt from her hand and the men it jumps between.
+    "chain_lightning": ("card_art_chain_lightning.webp", (0, 60, 1448, 822)),
+    # The thrower's reach, the dagger in flight and the goblin it is for.
+    "cinquedea": ("card_art_cinquedea.webp", (0, 20, 1672, 900)),
+    # The monk's raised hand and the smoke drawn off his other.
+    "clear_mind": ("card_art_clear_mind.webp", (0, 0, 1671, 880)),
+    # The archer's face, his bow, and the shadow fist in the closer foe's face.
+    "close_is_favored": ("card_art_close_is_favored.webp", (0, 60, 1448, 822)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
