@@ -5525,6 +5525,8 @@ func show_full_card_picker(prompt: String, candidates: Array, pick_count: int, o
 	scroll.add_child(grid)
 
 	var chosen: Array = []
+	var badges := {}   # card -> its check badge
+	var glows := {}    # card -> the glow behind it
 	var confirm := Button.new()
 	# A negative pick_count asks for ANY number, up to that many (Flames of
 	# Alexandria): Confirm is always live.
@@ -5538,22 +5540,69 @@ func show_full_card_picker(prompt: String, candidates: Array, pick_count: int, o
 		var holder := Control.new()
 		holder.custom_minimum_size = Vector2(Card_UI_W, Card_UI_H)
 		grid.add_child(holder)
+		# The selected card's glow, drawn behind the face (a shadow drawn over
+		# it would wash the card out).
+		var glow := Panel.new()
+		glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		glow.set_anchors_preset(Control.PRESET_FULL_RECT)
+		var glow_style := StyleBoxFlat.new()
+		glow_style.bg_color = Color(1.0, 0.8, 0.2, 0.9)
+		glow_style.set_corner_radius_all(8)
+		glow_style.shadow_color = Color(1.0, 0.75, 0.15, 0.75)
+		glow_style.shadow_size = 14
+		glow_style.set_expand_margin_all(4)
+		glow.add_theme_stylebox_override("panel", glow_style)
+		glow.visible = false
+		holder.add_child(glow)
+		glows[c] = glow
 		var face := CardUIScene.instantiate()
 		holder.add_child(face)
 		face.setup(c, -1)
 		face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		# The pick button lies over the face. Not flat: a flat button draws no
+		# box, so the selection never showed. Selected: a thick gold border
+		# with a glow, a light gold wash and a numbered check in the corner;
+		# hovered: a faint outline.
 		var pick := Button.new()
 		pick.toggle_mode = true
-		pick.flat = true
+		pick.focus_mode = Control.FOCUS_NONE
 		pick.set_anchors_preset(Control.PRESET_FULL_RECT)
+		pick.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+		pick.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+		pick.add_theme_stylebox_override("disabled", StyleBoxEmpty.new())
+		var hover_style := StyleBoxFlat.new()
+		hover_style.bg_color = Color(1.0, 1.0, 1.0, 0.06)
+		hover_style.set_border_width_all(2)
+		hover_style.border_color = Color(1.0, 0.9, 0.55, 0.55)
+		hover_style.set_corner_radius_all(6)
+		pick.add_theme_stylebox_override("hover", hover_style)
 		var sel_style := StyleBoxFlat.new()
-		sel_style.bg_color = Color(0.3, 0.9, 0.5, 0.18)
-		sel_style.set_border_width_all(3)
-		sel_style.border_color = Color(0.4, 1.0, 0.6)
-		sel_style.set_corner_radius_all(6)
+		sel_style.bg_color = Color(1.0, 0.85, 0.3, 0.07)
+		sel_style.set_border_width_all(5)
+		sel_style.border_color = Color(1.0, 0.84, 0.2)
+		sel_style.set_corner_radius_all(8)
+		sel_style.set_expand_margin_all(4)
 		pick.add_theme_stylebox_override("pressed", sel_style)
 		pick.add_theme_stylebox_override("hover_pressed", sel_style)
 		holder.add_child(pick)
+		var badge := Label.new()
+		badge.name = "PickBadge"
+		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		badge.size = Vector2(30, 30)
+		badge.position = Vector2(Card_UI_W - 24, Card_UI_H - 26)
+		badge.add_theme_font_size_override("font_size", 16)
+		badge.add_theme_color_override("font_color", Color(0.12, 0.08, 0.02))
+		var badge_bg := StyleBoxFlat.new()
+		badge_bg.bg_color = Color(1.0, 0.84, 0.2)
+		badge_bg.set_corner_radius_all(15)
+		badge_bg.set_border_width_all(2)
+		badge_bg.border_color = Color(0.35, 0.22, 0.02)
+		badge.add_theme_stylebox_override("normal", badge_bg)
+		badge.visible = false
+		holder.add_child(badge)
+		badges[c] = badge
 		pick.toggled.connect(func(on: bool):
 			if on:
 				if chosen.size() >= pick_count:
@@ -5562,6 +5611,13 @@ func show_full_card_picker(prompt: String, candidates: Array, pick_count: int, o
 				chosen.append(c)
 			else:
 				chosen.erase(c)
+			# Each pick shows its order (1, 2...) on its check.
+			for bc in badges:
+				var bl: Label = badges[bc]
+				var at: int = chosen.find(bc)
+				bl.visible = at >= 0
+				glows[bc].visible = at >= 0
+				bl.text = "✓" if pick_count == 1 else str(at + 1)
 			refresh_confirm.call())
 
 	var btns := HBoxContainer.new()
