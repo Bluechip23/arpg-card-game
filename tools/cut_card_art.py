@@ -451,8 +451,10 @@ SINGLES = {
     "defensive_sacrifice": ("card_art_defensive_sacrifice.webp", (0, 0, 1671, 880)),
     # The pierced knight's face and the sun bursting from his breastplate.
     "detonova": ("card_art_detonova.webp", (0, 30, 1670, 910)),
-    # The tossed cleats and the handstanding ally, toes wiggling.
-    "donate_cleats": ("card_art_donate_cleats.webp", (0, 0, 1672, 880)),
+    # The tossed cleats and the handstanding ally, toes wiggling. Cut to the
+    # Utility window's shape (about 1.47:1) and right of centre, so the
+    # raised feet and the sock with the hole in it stay in (2026-11-21).
+    "donate_cleats": ("card_art_donate_cleats.webp", (380, 0, 1672, 880)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

@@ -374,6 +374,18 @@ var _rules_gain := 0.0     # how much taller the rules box is than as painted
 const TOP_RIM := 1.5
 const ART_SHARE := 0.5
 const RULES_END := CARD_H - 12.0   # the rules box's stretch stops short of the foot's ornaments
+## How far each frame's laid-out foot sat below the card's bottom edge (card
+## px, measured 2026-11-21: the solid rim's last row): the Spell board's foot
+## hung 8 px low, which made spell cards read as bigger than the rest. The
+## rules band gives it back, so every frame's rim ends on the card's edge.
+const FOOT_LIFT := {"spell": 8.0, "offensive": 1.0, "enchantment": 1.0}
+
+## The FRAMES key of the frame this card wears ("" for the drawn frame).
+func _frame_key() -> String:
+	for k in FRAMES:
+		if FRAMES[k] == _frame:
+			return k
+	return ""
 
 func _build_layout() -> void:
 	_kx = CARD_W / FRAME_W
@@ -420,8 +432,11 @@ func _build_layout() -> void:
 		rules_from = typ.y
 	else:
 		_ysegs.append([art.x, art.y, (art.y - art.x) + to_art])
-	_ysegs.append([rules_from, RULES_END, (RULES_END - rules_from) + to_rules])
-	_rules_gain = to_rules
+	# A frame whose foot hangs lower than the others' is lifted onto the
+	# card's bottom edge (FOOT_LIFT), so every card stands the same size.
+	var lift: float = float(FOOT_LIFT.get(_frame_key(), 0.0))
+	_ysegs.append([rules_from, RULES_END, (RULES_END - rules_from) + to_rules - lift])
+	_rules_gain = to_rules - lift
 
 ## A band's inside at k its height, but no thinner than floor (nor than it was).
 static func _thinned(band: Vector2, k: float, floor_h: float) -> float:
@@ -431,6 +446,8 @@ static func _thinned(band: Vector2, k: float, floor_h: float) -> float:
 ## The tempo strip's laid-out height (the dots fit inside it).
 func _dots_strip_h() -> float:
 	return _dots_h if _dots_h > 0.0 else FRAMED_DOT
+
+const SEAM_OVERLAP := 1.0   # card px each frame strip runs under the next
 
 ## The frame drawn in bands, each stretched to its laid-out height.
 func _draw_frame_bands(host: Control) -> void:
@@ -466,7 +483,11 @@ func _draw_frame_bands(host: Control) -> void:
 		tr.stretch_mode = TextureRect.STRETCH_SCALE
 		tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		tr.position = Vector2(r.position.x * _kx, _my(a))
-		tr.size = Vector2(r.size.x * _kx, _my(bb) - _my(a))
+		# Each strip reaches a hair into the next (drawn over it): strips
+		# meeting on a fractional pixel left a see-through seam across the
+		# card where the rules band meets the foot.
+		var overlap := SEAM_OVERLAP if i < cuts.size() - 2 else 0.0
+		tr.size = Vector2(r.size.x * _kx, _my(bb) - _my(a) + overlap)
 		holder.add_child(tr)
 
 ## A badge texture cropped to its art (the png's clear margin dropped).
@@ -498,10 +519,12 @@ const HIDE_RANGE := {"inspiring_whistle": true, "communal_donation": true}
 ## Cards that wear another frame than their type and tags give (designer,
 ## 2026-11-18): Petey the Pet Rock is an Unplayable card (never played) worn
 ## in the Utility frame; Lady Luck, Hope This Works and Provider are utility
-## spells worn in the Utility frame, not the Spell one.
+## spells worn in the Utility frame, not the Spell one; so are Clear Mind and
+## Crops (2026-11-21).
 const FRAME_OVERRIDE := {
 	"petey_the_pet_rock": "utility",
 	"lady_luck": "utility", "hope_this_works": "utility", "provider": "utility",
+	"clear_mind": "utility", "crops": "utility",
 }
 
 static func frame_for(card: Card) -> Dictionary:

@@ -161,6 +161,28 @@ func _run() -> void:
 	for us_id in ["lady_luck", "hope_this_works", "provider"]:
 		_check(CardUI.frame_for(Card.create_by_id(us_id)) == CardUI.FRAMES["utility"],
 			"%s, a utility spell, wears the Utility frame (designer, 2026-11-18)" % us_id)
+	for us_id in ["clear_mind", "crops"]:
+		_check(CardUI.frame_for(Card.create_by_id(us_id)) == CardUI.FRAMES["utility"],
+			"%s wears the Utility frame (designer, 2026-11-21)" % us_id)
+	# Every frame stands the same size (designer, 2026-11-21): the Spell
+	# board's foot hung 8 px below the card's edge and is lifted onto it;
+	# each strip of a laid-out frame runs under the next (no seam).
+	var spell_ui: CardUI = (load("res://scenes/cards/card_ui.tscn") as PackedScene).instantiate()
+	get_root().add_child(spell_ui)
+	spell_ui.setup(Card.create_by_id("chain_lightning"), 0)
+	var lift_seg: Array = spell_ui._ysegs[spell_ui._ysegs.size() - 1]
+	_check(is_equal_approx(lift_seg[1], CardUI.RULES_END)
+		and is_equal_approx(spell_ui._my(CardUI.RULES_END) - spell_ui._my(lift_seg[0]),
+			(CardUI.RULES_END - lift_seg[0]) + spell_ui._rules_gain)
+		and CardUI.FOOT_LIFT.get("spell", 0.0) == 8.0,
+		"the Spell frame's foot is lifted 8 px onto the card's edge")
+	var strips: Array = spell_ui.get_node("Panel/FrameBands").get_children().filter(func(c): return not c.is_queued_for_deletion())
+	var gapless := strips.size() > 2
+	for k in range(strips.size() - 1):
+		if strips[k].position.y + strips[k].size.y < strips[k + 1].position.y + 0.5:
+			gapless = false
+	_check(gapless, "the frame's strips overlap (no see-through seam)")
+	spell_ui.queue_free()
 	var sa := Card.create_by_id("spirit_arrow")
 	_check(CardUI.frame_for(sa) == CardUI.FRAMES["offensive"] and not sa.is_attack(),
 		"Spirit Arrow is plain Offensive (designer, 2026-11-16)")
