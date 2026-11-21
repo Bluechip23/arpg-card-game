@@ -466,6 +466,17 @@ SINGLES = {
     "fire_punch": ("card_art_fire_punch.webp", (100, 20, 1448, 847)),
     # The bloodied warrior, hammer on his shoulder, beckoning the enemy on.
     "feed_into_the_pain": ("card_art_feed_into_the_pain.webp", (0, 0, 1448, 888)),
+    # The chick hatching in flame on the dead phoenix, its head below.
+    "from_the_ashes": ("card_art_from_the_ashes.webp", (0, 0, 1448, 985)),
+    # The god's face, the beam from his hand and the staff it charges, the
+    # wielder's face below (a portrait painting: the band across its middle).
+    "gift_from_the_gods": ("card_art_gift_from_the_gods.jpg", (0, 40, 896, 650)),
+    # The archer's shoulder, her bow and Cupid's arrow in the smitten orc.
+    "cupids_golden_arrow": ("card_art_cupids_golden_arrow.webp", (0, 0, 1448, 888)),
+    # The lightning gathering on the spire, the church below.
+    "grounding": ("card_art_grounding.webp", (0, 100, 1448, 862)),
+    # The miner's helmet, lamp lit, on the stone.
+    "hard_helmet": ("card_art_hard_helmet.webp", (0, 40, 1448, 928)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

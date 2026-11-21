@@ -330,6 +330,11 @@ const CARD_PAINTINGS := {
 	"element_pollination": "element_pollination",
 	"fire_punch": "fire_punch",
 	"feed_into_the_pain": "feed_into_the_pain",
+	"from_the_ashes": "from_the_ashes",
+	"gift_from_the_gods": "gift_from_the_gods",
+	"cupids_golden_arrow": "cupids_golden_arrow",
+	"grounding": "grounding",
+	"hard_helmet": "hard_helmet",
 }
 
 # ---------------------------------------------------------------------------
