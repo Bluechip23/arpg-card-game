@@ -345,6 +345,11 @@ const CARD_PAINTINGS := {
 	"m_for_mini": "m_for_mini",
 	"mend": "mend",
 	"mind_mend": "mind_mend",
+	"monk_of_the_night": "monk_of_the_night",
+	"negotiate": "negotiate",
+	"neither_man_nor_beast": "neither_man_nor_beast",
+	"out_of_guesses": "out_of_guesses",
+	"mind_over_matter": "mind_over_matter",
 }
 
 # ---------------------------------------------------------------------------

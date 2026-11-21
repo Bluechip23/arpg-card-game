@@ -497,6 +497,16 @@ SINGLES = {
     "mend": ("card_art_mend.webp", (0, 0, 1672, 941)),
     # The mage clutching his head in the mana storm.
     "mind_mend": ("card_art_mind_mend.webp", (0, 30, 1448, 918)),
+    # The monk's hammer landing, armour plates forming on his arm.
+    "monk_of_the_night": ("card_art_monk_of_the_night.webp", (0, 0, 1448, 888)),
+    # The suited man's face and his knife (portrait: from the brow down).
+    "negotiate": ("card_art_negotiate.webp", (0, 120, 1199, 935)),
+    # The bear-woman's roar, her claws in the knight (portrait).
+    "neither_man_nor_beast": ("card_art_neither_man_nor_beast.webp", (0, 170, 1122, 860)),
+    # The shrugging man and the goblins round him.
+    "out_of_guesses": ("card_art_out_of_guesses.webp", (0, 0, 1536, 1024)),
+    # The monk's flying kick in the ogre's face.
+    "mind_over_matter": ("card_art_mind_over_matter.webp", (0, 0, 1536, 942)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
