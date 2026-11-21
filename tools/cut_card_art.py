@@ -462,6 +462,10 @@ SINGLES = {
     "escape_and_bewilder": ("card_art_escape_and_bewilder.webp", (0, 0, 1448, 985)),
     # The blower, her dandelion, the burning, frozen and sparking seeds, the bee.
     "element_pollination": ("card_art_element_pollination.webp", (0, 0, 1672, 880)),
+    # The flaming fist in the screaming soldier's chest, the puncher's face.
+    "fire_punch": ("card_art_fire_punch.webp", (100, 20, 1448, 847)),
+    # The bloodied warrior, hammer on his shoulder, beckoning the enemy on.
+    "feed_into_the_pain": ("card_art_feed_into_the_pain.webp", (0, 0, 1448, 888)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

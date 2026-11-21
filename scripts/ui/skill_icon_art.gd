@@ -328,6 +328,8 @@ const CARD_PAINTINGS := {
 	"earth_rattle": "earth_rattle",
 	"escape_and_bewilder": "escape_and_bewilder",
 	"element_pollination": "element_pollination",
+	"fire_punch": "fire_punch",
+	"feed_into_the_pain": "feed_into_the_pain",
 }
 
 # ---------------------------------------------------------------------------
