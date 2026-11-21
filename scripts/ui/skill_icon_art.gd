@@ -311,6 +311,20 @@ const CARD_PAINTINGS := {
 	"balistic_arrow": "balistic_arrow",
 	"balance_of_alnilam": "balance_of_alnilam",
 	"bark_up": "bark_up",
+	"bouncing_shield": "bouncing_shield",
+	"chain_lightning": "chain_lightning",
+	"cinquedea": "cinquedea",
+	"clang_up": "block",   # Clang Up wears Block's art (designer, 2026-11-20)
+	"clear_mind": "clear_mind",
+	"close_is_favored": "close_is_favored",
+	"crack_of_mintaka": "crack_of_mintaka",
+	"crash_from_the_sea": "crash_from_the_sea",
+	"crops": "crops",
+	"curse_of_the_living": "curse_of_the_living",
+	"death_vortex": "death_vortex",
+	"defensive_sacrifice": "defensive_sacrifice",
+	"detonova": "detonova",
+	"donate_cleats": "donate_cleats",
 }
 
 # ---------------------------------------------------------------------------
