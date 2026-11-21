@@ -487,6 +487,16 @@ SINGLES = {
     "ice_grenade": ("card_art_ice_grenade.webp", (0, 0, 1448, 888)),
     # The dynamite-belted watermelon, its fuse lit.
     "improvised_ammo": ("card_art_improvised_ammo.webp", (0, 60, 1448, 948)),
+    # The archer on the rocks and the man fleeing her arrow.
+    "cupids_lead_arrow": ("card_art_cupids_lead_arrow.webp", (0, 0, 1536, 942)),
+    # The goblin's fist in the monster's face.
+    "its_alive": ("card_art_its_alive.webp", (0, 60, 1448, 1000)),
+    # The wizard's W belt and the M he flings at the orc.
+    "m_for_mini": ("card_art_m_for_mini.webp", (0, 0, 1672, 880)),
+    # The greaves' green rings round the party they restore.
+    "mend": ("card_art_mend.webp", (0, 0, 1672, 941)),
+    # The mage clutching his head in the mana storm.
+    "mind_mend": ("card_art_mind_mend.webp", (0, 30, 1448, 918)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

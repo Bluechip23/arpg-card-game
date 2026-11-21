@@ -340,6 +340,11 @@ const CARD_PAINTINGS := {
 	"huck": "huck",
 	"ice_grenade": "ice_grenade",
 	"improvised_ammo": "improvised_ammo",
+	"cupids_lead_arrow": "cupids_lead_arrow",
+	"its_alive": "its_alive",
+	"m_for_mini": "m_for_mini",
+	"mend": "mend",
+	"mind_mend": "mind_mend",
 }
 
 # ---------------------------------------------------------------------------
