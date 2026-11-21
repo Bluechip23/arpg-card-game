@@ -455,6 +455,13 @@ SINGLES = {
     # Utility window's shape (about 1.47:1) and right of centre, so the
     # raised feet and the sock with the hole in it stay in (2026-11-21).
     "donate_cleats": ("card_art_donate_cleats.webp", (380, 0, 1672, 880)),
+    # The hammer driven into the ridge and the burning crack down to the soldiers.
+    "earth_rattle": ("card_art_earth_rattle.webp", (0, 0, 1250, 767)),   # to the window's shape (~1.63:1)
+    # The three pantsed soldiers and the trickster waving from the ridge, to
+    # the Utility window's shape.
+    "escape_and_bewilder": ("card_art_escape_and_bewilder.webp", (0, 0, 1448, 985)),
+    # The blower, her dandelion, the burning, frozen and sparking seeds, the bee.
+    "element_pollination": ("card_art_element_pollination.webp", (0, 0, 1672, 880)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
