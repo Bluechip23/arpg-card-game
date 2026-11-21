@@ -443,6 +443,16 @@ SINGLES = {
     "crash_from_the_sea": ("card_art_crash_from_the_sea.webp", (0, 0, 1672, 880)),
     # The picker's smile, her basket and the bramble of berries.
     "crops": ("card_art_crops.webp", (0, 0, 1670, 880)),
+    # The coffin-bearer drinking the potion, its light running into the fallen ally.
+    "curse_of_the_living": ("card_art_curse_of_the_living.webp", (0, 0, 1672, 880)),
+    # The red berserker's roar and the axe's ring of blood round him.
+    "death_vortex": ("card_art_death_vortex.webp", (0, 20, 1670, 900)),
+    # The wizard's staff and ward catching the axe.
+    "defensive_sacrifice": ("card_art_defensive_sacrifice.webp", (0, 0, 1671, 880)),
+    # The pierced knight's face and the sun bursting from his breastplate.
+    "detonova": ("card_art_detonova.webp", (0, 30, 1670, 910)),
+    # The tossed cleats and the handstanding ally, toes wiggling.
+    "donate_cleats": ("card_art_donate_cleats.webp", (0, 0, 1672, 880)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

@@ -320,6 +320,11 @@ const CARD_PAINTINGS := {
 	"crack_of_mintaka": "crack_of_mintaka",
 	"crash_from_the_sea": "crash_from_the_sea",
 	"crops": "crops",
+	"curse_of_the_living": "curse_of_the_living",
+	"death_vortex": "death_vortex",
+	"defensive_sacrifice": "defensive_sacrifice",
+	"detonova": "detonova",
+	"donate_cleats": "donate_cleats",
 }
 
 # ---------------------------------------------------------------------------
