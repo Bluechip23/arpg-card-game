@@ -477,6 +477,16 @@ SINGLES = {
     "grounding": ("card_art_grounding.webp", (0, 100, 1448, 862)),
     # The miner's helmet, lamp lit, on the stone.
     "hard_helmet": ("card_art_hard_helmet.webp", (0, 40, 1448, 928)),
+    # The green tonic's bottle, stopper to foot (a square painting: its middle band).
+    "healing_tonic": ("card_art_healing_tonic.webp", (0, 30, 1254, 900)),
+    # The goblin bled into the still, the alchemist at the snake.
+    "hemotoxins": ("card_art_hemotoxins.webp", (0, 120, 1448, 888)),
+    # The wall shoved over onto the orcs.
+    "huck": ("card_art_huck.webp", (0, 60, 1672, 940)),
+    # The frost-breathing thrower and her two ice grenades.
+    "ice_grenade": ("card_art_ice_grenade.webp", (0, 0, 1448, 888)),
+    # The dynamite-belted watermelon, its fuse lit.
+    "improvised_ammo": ("card_art_improvised_ammo.webp", (0, 60, 1448, 948)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

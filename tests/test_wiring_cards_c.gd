@@ -450,7 +450,17 @@ func _test_improvised_ammo() -> void:
 	dm.discard_card_from_hand(ia)
 	_check(_lost(A, hp) == 4, "…discarded: 4 damage to the nearest enemy (%d)" % _lost(A, hp))
 	_check(is_equal_approx(stats.improvised_ammo_crit_bonus - bonus0, 10.0), "…and Improvised Ammo gains +10% crit")
-	_check(PlayerStats.EQUIPMENT_SAVE_FIELDS.has("improvised_ammo_crit_bonus"), "…permanently (saved with the character)")
+	var ia2 := Card.create_by_id("improvised_ammo")
+	dm.hand.append(ia2)
+	dm.discard_card_from_hand(ia2)
+	_check(is_equal_approx(stats.improvised_ammo_crit_bonus - bonus0, 20.0), "…which stacks with a second discard")
+	_check(PlayerStats.EQUIPMENT_SAVE_FIELDS.has("improvised_ammo_crit_bonus"), "…banked until played (saved with the character)")
+	# The next play spends it (designer, 2026-11-21: no longer permanent).
+	_fresh()
+	_beside(A)
+	_resolve(Card.create_by_id("improvised_ammo"), A)
+	_check(is_zero_approx(stats.improvised_ammo_crit_bonus), "…and the next Improvised Ammo played spends the bonus")
+	_check(is_zero_approx(stats.temp_on_self_crit_bonus), "…the play's crit boost is cleared after it")
 	stats.improvised_ammo_crit_bonus = bonus0
 
 func _test_infest() -> void:

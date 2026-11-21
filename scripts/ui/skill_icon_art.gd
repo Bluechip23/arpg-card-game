@@ -335,6 +335,11 @@ const CARD_PAINTINGS := {
 	"cupids_golden_arrow": "cupids_golden_arrow",
 	"grounding": "grounding",
 	"hard_helmet": "hard_helmet",
+	"healing_tonic": "healing_tonic",
+	"hemotoxins": "hemotoxins",
+	"huck": "huck",
+	"ice_grenade": "ice_grenade",
+	"improvised_ammo": "improvised_ammo",
 }
 
 # ---------------------------------------------------------------------------

@@ -7613,11 +7613,12 @@ func _handle_on_discard_effect(card: Card) -> void:
 	match card.on_discard_effect:
 		"improvised_ammo_blast":
 			# Wrist Rocket: the discarded shell pops for 4 on the nearest enemy
-			# and banks +10% crit for Improvised Ammo (stacks, battle-scoped).
+			# and banks +10% crit for Improvised Ammo's next play (stacks until
+			# then; the play spends it).
 			var ia_stats := player.get_stats() if player else null
 			if ia_stats:
 				ia_stats.improvised_ammo_crit_bonus += 10.0
-				add_battle_log("Improvised Ammo sharpens: +%.0f%% crit, forever." % ia_stats.improvised_ammo_crit_bonus, Color(0.8, 0.7, 0.5))
+				add_battle_log("Improvised Ammo sharpens: +%.0f%% crit on its next play." % ia_stats.improvised_ammo_crit_bonus, Color(0.8, 0.7, 0.5))
 			if enemy_spawner and player:
 				var ia_near := _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
 				if ia_near:

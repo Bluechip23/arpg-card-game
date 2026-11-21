@@ -1812,10 +1812,13 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			player_stats.temp_on_self_crit_bonus += 5.0 * bud_n
 			print("[CARD] On-Self: +%d damage / +%d%% crit from %d bow(s)" % [2 * bud_n, 5 * bud_n, bud_n])
 
-	# Wrist Rocket: crit chance banked by discarded Improvised Ammo copies.
+	# Wrist Rocket: crit chance banked by discarded Improvised Ammo copies,
+	# spent on the next play (designer, 2026-11-21: stacks until then, no
+	# longer permanent).
 	if card_id == "improvised_ammo" and player_stats and player_stats.improvised_ammo_crit_bonus > 0.0:
 		_temp_crit_applied += player_stats.improvised_ammo_crit_bonus
 		player_stats.temp_on_self_crit_bonus += player_stats.improvised_ammo_crit_bonus
+		player_stats.improvised_ammo_crit_bonus = 0.0
 
 	# Feathered Hat: an armed guaranteed crit is spent by the next ranged
 	# offensive card — any damaging ranged card, whatever item it's slotted in.
