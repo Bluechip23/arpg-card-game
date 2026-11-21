@@ -437,6 +437,12 @@ SINGLES = {
     "clear_mind": ("card_art_clear_mind.webp", (0, 0, 1671, 880)),
     # The archer's face, his bow, and the shadow fist in the closer foe's face.
     "close_is_favored": ("card_art_close_is_favored.webp", (0, 60, 1448, 822)),
+    # 2026-11-21: the star-giant's face and the belt's three stars pulled taut.
+    "crack_of_mintaka": ("card_art_crack_of_mintaka.webp", (0, 0, 1671, 880)),
+    # The anvil swung on its rope out of the wave at the ghoul.
+    "crash_from_the_sea": ("card_art_crash_from_the_sea.webp", (0, 0, 1672, 880)),
+    # The picker's smile, her basket and the bramble of berries.
+    "crops": ("card_art_crops.webp", (0, 0, 1670, 880)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

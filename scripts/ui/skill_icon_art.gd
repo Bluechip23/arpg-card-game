@@ -317,6 +317,9 @@ const CARD_PAINTINGS := {
 	"clang_up": "block",   # Clang Up wears Block's art (designer, 2026-11-20)
 	"clear_mind": "clear_mind",
 	"close_is_favored": "close_is_favored",
+	"crack_of_mintaka": "crack_of_mintaka",
+	"crash_from_the_sea": "crash_from_the_sea",
+	"crops": "crops",
 }
 
 # ---------------------------------------------------------------------------
