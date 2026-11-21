@@ -451,8 +451,21 @@ SINGLES = {
     "defensive_sacrifice": ("card_art_defensive_sacrifice.webp", (0, 0, 1671, 880)),
     # The pierced knight's face and the sun bursting from his breastplate.
     "detonova": ("card_art_detonova.webp", (0, 30, 1670, 910)),
-    # The tossed cleats and the handstanding ally, toes wiggling.
-    "donate_cleats": ("card_art_donate_cleats.webp", (0, 0, 1672, 880)),
+    # The tossed cleats and the handstanding ally, toes wiggling. Cut to the
+    # Utility window's shape (about 1.47:1) and right of centre, so the
+    # raised feet and the sock with the hole in it stay in (2026-11-21).
+    "donate_cleats": ("card_art_donate_cleats.webp", (380, 0, 1672, 880)),
+    # The hammer driven into the ridge and the burning crack down to the soldiers.
+    "earth_rattle": ("card_art_earth_rattle.webp", (0, 0, 1250, 767)),   # to the window's shape (~1.63:1)
+    # The three pantsed soldiers and the trickster waving from the ridge, to
+    # the Utility window's shape.
+    "escape_and_bewilder": ("card_art_escape_and_bewilder.webp", (0, 0, 1448, 985)),
+    # The blower, her dandelion, the burning, frozen and sparking seeds, the bee.
+    "element_pollination": ("card_art_element_pollination.webp", (0, 0, 1672, 880)),
+    # The flaming fist in the screaming soldier's chest, the puncher's face.
+    "fire_punch": ("card_art_fire_punch.webp", (100, 20, 1448, 847)),
+    # The bloodied warrior, hammer on his shoulder, beckoning the enemy on.
+    "feed_into_the_pain": ("card_art_feed_into_the_pain.webp", (0, 0, 1448, 888)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
