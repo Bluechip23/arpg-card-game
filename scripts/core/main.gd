@@ -16401,7 +16401,7 @@ func _on_player_damage_taken(_amount: int) -> void:
 			for card in pa_triggered:
 				card.execute(null, tr_stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
 			if pa_triggered.size() > 0:
-				add_battle_log("Preemptive Answer! Debuffs purged, healed 20.", Color(0.9, 0.9, 0.6))
+				add_battle_log("Preemptive Answer! Debuffs purged; the next 3 are negated.", Color(0.9, 0.9, 0.6))
 				_refresh_unit_tracker()
 		# Hammer of Ajax: taking a hit below 30% health feeds the pain.
 		if pct < 0.3 and deck_manager:

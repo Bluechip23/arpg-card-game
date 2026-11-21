@@ -21,14 +21,25 @@ var burn_damage_next: int = 1
 ## Debuff types that never land on this carrier (a summon has no hand, mana
 ## or spells: Hexed, Locked, Drain... mean nothing to it). See Summon.
 var ignored_types: Array = []
+## Debuffs still to be negated as they land (Preemptive Answer: the next 3).
+## Each one that would land is dropped and spends one.
+var negate_next: int = 0
+signal debuff_negated(debuff: Debuff)
 
 func initialize(stats = null, owner: Node3D = null) -> void:
 	owner_stats = stats
 	owner_node = owner
 	debuffs.clear()
+	negate_next = 0
 
 func apply_debuff(debuff: Debuff) -> void:
 	if debuff.debuff_type in ignored_types:
+		return
+	# Preemptive Answer: the next debuffs to land are negated.
+	if negate_next > 0:
+		negate_next -= 1
+		print("[DEBUFF] Negated %s (%d negation(s) left)" % [Debuff.DebuffType.keys()[debuff.debuff_type], negate_next])
+		debuff_negated.emit(debuff)
 		return
 	# Elixir: poison from a card played under Elixir heals instead.
 	if debuff.debuff_type == Debuff.DebuffType.POISON and Card.elixir_poison_heals and owner_stats:

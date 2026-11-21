@@ -330,8 +330,15 @@ func _t_preemptive_answer() -> void:
 	stats.healed.disconnect(cb)
 	_check(not (c in dm.hand), "Preemptive Answer fires on the hit that drops you to 25%")
 	_check(dbm.debuffs.size() == n0 - 3, "Preemptive Answer purges 3 debuffs (%d -> %d)" % [n0, dbm.debuffs.size()])
-	_check(heals.size() == 1 and heals[0] == stats.get_effective_heal_amount(20),
-		"Preemptive Answer heals 20 (+heal power) (%s)" % str(heals))
+	_check(heals.is_empty(), "Preemptive Answer no longer heals (%s)" % str(heals))
+	_check(dbm.negate_next == 3, "…and the next 3 debuffs are negated")
+	var n1: int = dbm.debuffs.size()
+	for t in [Debuff.DebuffType.STUN, Debuff.DebuffType.SILENCE, Debuff.DebuffType.CUFFED]:
+		dbm.apply_debuff(Debuff.create(t, 1, 20))
+	_check(dbm.debuffs.size() == n1 and dbm.negate_next == 0, "…3 debuffs are negated as they land")
+	dbm.apply_debuff(Debuff.create(Debuff.DebuffType.STUN, 1, 20))
+	_check(dbm.debuffs.size() == n1 + 1, "…and the 4th lands")
+	dbm.debuffs.clear()
 
 func _t_premeditated() -> void:
 	print("-- Premeditated --")

@@ -507,6 +507,16 @@ SINGLES = {
     "out_of_guesses": ("card_art_out_of_guesses.webp", (0, 0, 1536, 1024)),
     # The monk's flying kick in the ogre's face.
     "mind_over_matter": ("card_art_mind_over_matter.webp", (0, 0, 1536, 942)),
+    # The orc and the soldiers choking in the green cloud.
+    "poison_bomb": ("card_art_poison_bomb.webp", (0, 120, 1448, 1000)),
+    # The masked vaulter high on his spear over the soldiers (portrait).
+    "pole_vault": ("card_art_pole_vault.webp", (0, 60, 1122, 750)),
+    # The man staring at his new trotters, snout and pig's ears.
+    "polymorph": ("card_art_polymorph.webp", (0, 0, 1536, 942)),
+    # The masked shadow and the swirl between his hands.
+    "poof_and_weave": ("card_art_poof_and_weave.webp", (0, 0, 1536, 942)),
+    # The paladin's shield and sword in the golden wards.
+    "preemptive_answer": ("card_art_preemptive_answer.webp", (0, 0, 1536, 942)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

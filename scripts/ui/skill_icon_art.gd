@@ -350,6 +350,11 @@ const CARD_PAINTINGS := {
 	"neither_man_nor_beast": "neither_man_nor_beast",
 	"out_of_guesses": "out_of_guesses",
 	"mind_over_matter": "mind_over_matter",
+	"poison_bomb": "poison_bomb",
+	"pole_vault": "pole_vault",
+	"polymorph": "polymorph",
+	"poof_and_weave": "poof_and_weave",
+	"preemptive_answer": "preemptive_answer",
 }
 
 # ---------------------------------------------------------------------------

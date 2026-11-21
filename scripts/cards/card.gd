@@ -2196,6 +2196,8 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			block -= wall_lv3_bonus
 		"preemptive_answer":
 			# Divine Resistance instant: fired by the below-25%-health trigger.
+			# Purges 3 debuffs and negates the next 3 to land (designer,
+			# 2026-11-21: was "heal 20").
 			if player_stats:
 				var pa_dm = deck_manager.debuff_manager if deck_manager and "debuff_manager" in deck_manager else null
 				if pa_dm:
@@ -2203,8 +2205,8 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 					pa_list.shuffle()
 					for i in range(mini(3, pa_list.size())):
 						pa_dm.remove_debuff(pa_list[i].debuff_type)
-				player_stats.heal(20)
-				print("[CARD] Preemptive Answer: purged up to 3 debuffs, healed 20")
+					pa_dm.negate_next += 3
+				print("[CARD] Preemptive Answer: purged up to 3 debuffs, the next 3 negated")
 		"ragnarok":
 			# Hide of Garmr: free the jail. Lv.3 heals 15 and grants 7 STR per card.
 			if deck_manager:
