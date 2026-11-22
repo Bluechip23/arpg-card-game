@@ -365,6 +365,11 @@ const CARD_PAINTINGS := {
 	"resourceful_replenish": "resourceful_replenish",
 	"reverberate_regrowth": "reverberate_regrowth",
 	"slice": "slice",
+	"sanguine_the_penguin": "sanguine_the_penguin",
+	"shift": "shift",
+	"serene_center": "serene_center",
+	"shiv": "shiv",
+	"smoke_bomb": "smoke_bomb",
 }
 
 # ---------------------------------------------------------------------------

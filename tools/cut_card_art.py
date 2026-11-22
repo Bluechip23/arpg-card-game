@@ -535,6 +535,12 @@ SINGLES = {
     "reverberate_regrowth": ("card_art_reverberate_regrowth.webp", (0, 0, 1672, 880)),
     # The short sword's thrust into the straw dummy's target (Slice).
     "slice": ("card_art_slice.webp", (0, 0, 1536, 942)),
+    # The earth on the scales, the woman holding them (the Equator).
+    "serene_center": ("card_art_serene_center.webp", (0, 0, 1536, 1024)),
+    # The diving penguin's goggled face and beak.
+    "sanguine_the_penguin": ("card_art_sanguine_the_penguin.webp", (200, 380, 1250, 1000)),
+    # The hooded knives in the smoke behind the orc.
+    "smoke_bomb": ("card_art_smoke_bomb.webp", (0, 0, 1536, 790)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
@@ -543,6 +549,9 @@ SINGLES = {
 # little, so its dark ground runs on to the window's edges. 2026-11-15
 # (no cards with these ids yet; the art waits for them).
 FITTED = {
+    # 2026-11-22: the rag-wrapped knife, tip to ring (Shiv).
+    "shiv": ("card_art_shiv.webp", (0, 0, 1536, 1024)),
+
     "energy_gem": ("card_art_energy_gem.png", (0, 0, 230, 327)),
     "fumbleitis": ("card_art_fumbleitis.png", (0, 0, 322, 355)),
     "stone_patch": ("card_art_stone_patch.webp", (0, 100, 1448, 1000)),
@@ -588,6 +597,8 @@ FIT_FEATHER = 0.08  # the fitted picture's sides fade into the fill over this mu
 # (the wizard's W belt, the M, the orc).
 LETTERBOXED = {
     "m_for_mini": ("card_art_m_for_mini.webp", (0, 0, 1672, 941), 1.47),
+    # The iron Shift key, seen whole.
+    "shift": ("card_art_shift.webp", (0, 0, 1774, 887), 1.47),
 }
 
 
