@@ -375,6 +375,11 @@ const CARD_PAINTINGS := {
 	"song_of_a_swords_sing": "song_of_a_swords_sing",
 	"spirit_bow": "spirit_bow",
 	"splinter": "splinter",
+	"switch_kick": "switch_kick",
+	"stone_encase": "stone_encase",
+	"stance_switch": "stance_switch",
+	"terrain_formation": "terrain_formation",
+	"territorial_mark": "territorial_mark",
 }
 
 # ---------------------------------------------------------------------------

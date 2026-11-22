@@ -547,6 +547,16 @@ SINGLES = {
     "spirit_bow": ("card_art_spirit_bow.webp", (0, 0, 1536, 1024)),
     # The weeping troll and the splinter in his thumb.
     "splinter": ("card_art_splinter.webp", (0, 0, 1536, 942)),
+    # The high kick landing on the brute's jaw.
+    "switch_kick": ("card_art_switch_kick.webp", (0, 20, 1448, 908)),
+    # The wizard turning to stone, the dragon over him (portrait).
+    "stone_encase": ("card_art_stone_encase.webp", (0, 0, 1199, 730)),
+    # The bare-knuckle fighter squared up to the goblin's blade.
+    "stance_switch": ("card_art_stance_switch.webp", (0, 0, 1672, 941)),
+    # The hillside heaving up under the runner's hand.
+    "terrain_formation": ("card_art_terrain_formation.webp", (0, 0, 1448, 888)),
+    # The arrow flying down its glistening blue smoke.
+    "territorial_mark": ("card_art_territorial_mark.webp", (0, 0, 1672, 941)),
     # The hooded knives in the smoke behind the orc.
     "smoke_bomb": ("card_art_smoke_bomb.webp", (0, 0, 1536, 790)),
 }
