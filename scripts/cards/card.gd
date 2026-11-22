@@ -1103,8 +1103,15 @@ func get_effective_range() -> int:
 		return 0
 	return 5 + range_modifier
 
+## Cards whose type line shows the reach itself ("Ranged 3"), not the
+## change from the base 5 ("Ranged -2"): their text names the range
+## (designer, 2026-11-22: Splinter).
+const RANGE_SHOWN_ABSOLUTE := {"splinter": true}
+
 func get_range_display() -> String:
 	# Returns display string for card range keyword
+	if is_ranged and not conditional_range and RANGE_SHOWN_ABSOLUTE.has(card_id):
+		return "Ranged %d" % get_effective_range()
 	if conditional_range:
 		# Just the keyword: a "(Melee)" / "(Ranged)" suffix crowds the T&O seal
 		# on the card's type bar. The legend explains how it resolves.
