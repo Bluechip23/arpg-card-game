@@ -370,6 +370,11 @@ const CARD_PAINTINGS := {
 	"serene_center": "serene_center",
 	"shiv": "shiv",
 	"smoke_bomb": "smoke_bomb",
+	"return_cut": "return_cut",
+	"soften": "soften",
+	"song_of_a_swords_sing": "song_of_a_swords_sing",
+	"spirit_bow": "spirit_bow",
+	"splinter": "splinter",
 }
 
 # ---------------------------------------------------------------------------

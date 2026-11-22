@@ -539,6 +539,14 @@ SINGLES = {
     "serene_center": ("card_art_serene_center.webp", (0, 0, 1536, 1024)),
     # The diving penguin's goggled face and beak.
     "sanguine_the_penguin": ("card_art_sanguine_the_penguin.webp", (200, 380, 1250, 1000)),
+    # The uppercut under the ogre's jaw (Return Cut).
+    "return_cut": ("card_art_return_cut.webp", (0, 0, 1448, 900)),
+    # The shield-piper's tune and the goblin's sword gone limp.
+    "song_of_a_swords_sing": ("card_art_song_of_a_swords_sing.webp", (0, 80, 1448, 980)),
+    # The walking bow stalking the goblin at his chest of gold.
+    "spirit_bow": ("card_art_spirit_bow.webp", (0, 0, 1536, 1024)),
+    # The weeping troll and the splinter in his thumb.
+    "splinter": ("card_art_splinter.webp", (0, 0, 1536, 942)),
     # The hooded knives in the smoke behind the orc.
     "smoke_bomb": ("card_art_smoke_bomb.webp", (0, 0, 1536, 790)),
 }
@@ -549,6 +557,8 @@ SINGLES = {
 # little, so its dark ground runs on to the window's edges. 2026-11-15
 # (no cards with these ids yet; the art waits for them).
 FITTED = {
+    # 2026-11-22: the armoured chef, hat to mallet and meat (Soften).
+    "soften": ("card_art_soften.webp", (120, 60, 1330, 1000), 1.75),
     # 2026-11-22: the rag-wrapped knife, tip to ring (Shiv).
     "shiv": ("card_art_shiv.webp", (0, 0, 1536, 1024)),
 
