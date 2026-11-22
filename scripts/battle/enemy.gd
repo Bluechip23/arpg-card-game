@@ -215,8 +215,14 @@ var burn_damage_next: int = 1  # Burn damage doubles each cycle (1, 2, 4, 8...)
 var cold_damage_next: int = 1  # Element Pollination: Cold's doubling tick while the Weaver maintain is up
 var polymorph_tempo: int = 0   # Polymorph (Circe's Wand): cycles left as a pig — walk and basic melee only
 var poison_stacks: int = 0     # Poison: take X damage per cycle, lose 1 per cycle
-var shock_stacks: int = 0      # Shock: take X damage per cycle AND arc X to the nearest enemy within 2 squares, lose 1 per cycle
+var shock_stacks: int = 0      # Shock: take X damage per cycle, lose 1 per cycle (and, with shock_arcs on, arc X to the nearest enemy within 2 squares)
 const SHOCK_ARC_RANGE := 2
+## Shock's arc to a second enemy, switched OFF (designer, 2026-11-22): Shock
+## is now the stack that Shock cards feed on (appliers like Spark, pay-offs
+## like God of Thunder), not splash damage. The arc itself is kept whole
+## behind this switch — set it true to bring back "arcs the same damage to
+## the nearest other enemy within SHOCK_ARC_RANGE".
+static var shock_arcs: bool = false
 var bleed_stacks: int = 0      # Bleed: 1 damage per tile moved; each damage removes a stack
 var vulnerable_stacks: int = 0   # Vulnerable: every player hit lands +30% while a stack remains; stacks fall on their own clock
 var vulnerable_clock: int = 0
@@ -1995,18 +2001,19 @@ func _tick_status_durations() -> void:
 			print("[%s] Cold thawed" % enemy_name)
 			debuff_expired.emit(self, "cold")
 
-	# Shock: deal current stacks damage to itself AND arc the same to the
-	# nearest other living enemy within SHOCK_ARC_RANGE squares, then lose 1
-	# stack. The arc is plain damage — it does not spread the Shock itself.
+	# Shock: deal current stacks damage to itself, then lose 1 stack. With
+	# shock_arcs on (off since 2026-11-22) it also arcs the same to the
+	# nearest other living enemy within SHOCK_ARC_RANGE squares — plain
+	# damage, it does not spread the Shock itself.
 	if shock_stacks > 0:
 		var arc: int = shock_stacks
 		# The designer's blue lightning: a crackle over the shocked body,
-		# and an arc to the enemy the damage jumps to.
+		# and (shock_arcs) an arc to the enemy the damage jumps to.
 		if is_inside_tree() and get_parent():
 			LightningFX.crackle(get_parent(), position)
 		_dot_hit("Shock", arc)
 		print("[%s] Shock deals %d damage" % [enemy_name, arc])
-		var arc_target: Enemy = _nearest_other_enemy(SHOCK_ARC_RANGE)
+		var arc_target: Enemy = _nearest_other_enemy(SHOCK_ARC_RANGE) if shock_arcs else null
 		if arc_target:
 			if is_inside_tree() and get_parent():
 				LightningFX.arc(get_parent(), position, arc_target.position)
@@ -3271,7 +3278,8 @@ func _sibling_enemies() -> Array:
 	return out
 
 ## The closest OTHER living enemy within `range_cells` squares (grid distance),
-## or null. Ties go to whichever the scene lists first. Shock's arc uses it.
+## or null. Ties go to whichever the scene lists first. Shock's arc (shock_arcs) and
+## Static Sting use it.
 func _nearest_other_enemy(range_cells: int) -> Enemy:
 	var best: Enemy = null
 	var best_dist: int = range_cells + 1
@@ -8304,7 +8312,10 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			desc = "Takes %d damage per cycle, loses 1 poison each cycle." % poison_stacks
 			remaining = "Stacks: %d" % poison_stacks
 		"Shock":
-			desc = "Takes %d damage each cycle and arcs the same to the nearest enemy within 2 squares; loses 1 per cycle." % shock_stacks
+			if shock_arcs:
+				desc = "Takes %d damage each cycle and arcs the same to the nearest enemy within 2 squares; loses 1 per cycle." % shock_stacks
+			else:
+				desc = "Takes %d damage each cycle; loses 1 per cycle." % shock_stacks
 			remaining = "Stacks: %d" % shock_stacks
 		"Bleed":
 			desc = "Takes damage per tile moved; each damage removes a stack."

@@ -293,8 +293,8 @@ static func _lodestone_slow(main, caster) -> void:
 		e.apply_debuff("slow", LODESTONE_SLOW)
 
 ## Lodestone Field's other half, read by Enemy._tick_status_durations: Shock
-## on an enemy standing in a field still deals its damage and arcs, but does
-## not lose its stack that cycle.
+## on an enemy standing in a field still deals its damage (and arcs, when Enemy.shock_arcs
+## is on), but does not lose its stack that cycle.
 static func holds_shock(enemy) -> bool:
 	for p in lodestone_casters:
 		if is_instance_valid(p) and is_instance_valid(enemy) \

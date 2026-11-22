@@ -168,7 +168,8 @@ Suggested: *"Stacks fall one every 5 tempo."*
 - Silence / Cuffed / Rooted defaults: the code default is 15 tempo, not the sheet's 5 / 10 / 5; every live source
   passes its own timer, so this only matters for future sources.
 - Slow, Disarm and Shock (enemy) Notes columns are out of date: the Slow tooltip now says "+2 tempo per move", Disarm
-  is additive (Wither extends it), and Shock does arc.
+  is additive (Wither extends it), and Shock does arc. *(2026-11-22: the enemy Shock arc is switched off —
+  `Enemy.shock_arcs` — Shock now only hurts its carrier; the player-side Shocked still arcs to allies.)*
 - Disarmed (attacks): Disarm Amp applies once per application.
 - Marked, Vulnerable (enemy): apply to any player hit (spells and AoE included), not only attacks.
 - Silenced (enemy): badge says "cannot cast spells" and leaves out ranged specials and the dropped action.

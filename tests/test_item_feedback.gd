@@ -547,14 +547,21 @@ func _test_play_scope(stats, dm, bm, dummies: Array) -> void:
 	_place(gm, a, pcell + Vector2i(2, 0))   # back where the Fireball splash checks below expect them
 	_place(gm, b, pcell + Vector2i(3, 0))
 	# Shock: the designer's blue lightning — a crackle over the shocked enemy
-	# each tick, an arc to the enemy the damage jumps to.
+	# each tick. The arc to the enemy beside it is switched off
+	# (Enemy.shock_arcs, 2026-11-22) and drawn again when it is switched on.
 	_reset_dummy(a)
 	_reset_dummy(b)
 	a.shock_stacks = 2
 	a._tick_status_durations()
 	_check(main.find_children("ShockCrackle*", "LightningFX", false, false).size() >= 1, "a Shock tick crackles over the enemy")
+	_check(main.find_children("ShockArc*", "LightningFX", false, false).is_empty() and b.current_health == 1000,
+		"...and leaves the enemy beside it alone")
+	Enemy.shock_arcs = true
+	a.shock_stacks = 2
+	a._tick_status_durations()
+	Enemy.shock_arcs = false
 	_check(main.find_children("ShockArc*", "LightningFX", false, false).size() >= 1 and b.current_health < 1000,
-		"...and arcs to the enemy beside it")
+		"with the arc switched back on it jumps to the enemy beside it")
 	# God of Thunder: the absorbed Shock jumps to the target as blue arcs,
 	# then the gold bolt strikes it.
 	for n in main.find_children("Shock*", "LightningFX", false, false):
