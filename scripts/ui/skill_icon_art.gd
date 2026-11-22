@@ -380,6 +380,11 @@ const CARD_PAINTINGS := {
 	"stance_switch": "stance_switch",
 	"terrain_formation": "terrain_formation",
 	"territorial_mark": "territorial_mark",
+	"the_nibelung_curse": "the_nibelung_curse",
+	"tight_rope": "tight_rope",
+	"tricks_of_alberich": "tricks_of_alberich",
+	"vined_encasing": "vined_encasing",
+	"whirling_dash": "whirling_dash",
 }
 
 # ---------------------------------------------------------------------------

@@ -557,6 +557,16 @@ SINGLES = {
     "terrain_formation": ("card_art_terrain_formation.webp", (0, 0, 1448, 888)),
     # The arrow flying down its glistening blue smoke.
     "territorial_mark": ("card_art_territorial_mark.webp", (0, 0, 1672, 941)),
+    # The caster's wand drawing the ghoul's life out (The Nibelung Curse).
+    "the_nibelung_curse": ("card_art_the_nibelung_curse.webp", (0, 0, 1672, 941)),
+    # The rope-walker ducking the arrows over the falls.
+    "tight_rope": ("card_art_tight_rope.webp", (0, 0, 1672, 941)),
+    # The dwarf's roar, arms wide, the orcs closing in (Alberich).
+    "tricks_of_alberich": ("card_art_tricks_of_alberich.webp", (0, 0, 1672, 941)),
+    # The vine beast in its glass house, the crowd at the rail.
+    "vined_encasing": ("card_art_vined_encasing.webp", (0, 0, 1671, 941)),
+    # The spearman's spinning dash.
+    "whirling_dash": ("card_art_whirling_dash.webp", (180, 170, 1448, 820)),
     # The hooded knives in the smoke behind the orc.
     "smoke_bomb": ("card_art_smoke_bomb.webp", (0, 0, 1536, 790)),
 }
