@@ -1105,8 +1105,8 @@ func get_effective_range() -> int:
 
 ## Cards whose type line shows the reach itself ("Ranged 3"), not the
 ## change from the base 5 ("Ranged -2"): their text names the range
-## (designer, 2026-11-22: Splinter).
-const RANGE_SHOWN_ABSOLUTE := {"splinter": true}
+## (designer, 2026-11-22: Splinter, Territorial Mark).
+const RANGE_SHOWN_ABSOLUTE := {"splinter": true, "territorial_mark": true}
 
 func get_range_display() -> String:
 	# Returns display string for card range keyword
