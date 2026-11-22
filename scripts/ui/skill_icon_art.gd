@@ -385,6 +385,10 @@ const CARD_PAINTINGS := {
 	"tricks_of_alberich": "tricks_of_alberich",
 	"vined_encasing": "vined_encasing",
 	"whirling_dash": "whirling_dash",
+	"sprinkle": "sprinkle",
+	"wraiths_piercer": "wraiths_piercer",
+	"wrath_of_the_sea": "wrath_of_the_sea",
+	"sprinkle_bomb": "sprinkle_bomb",
 }
 
 # ---------------------------------------------------------------------------

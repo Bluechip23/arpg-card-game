@@ -567,6 +567,14 @@ SINGLES = {
     "vined_encasing": ("card_art_vined_encasing.webp", (0, 0, 1671, 941)),
     # The spearman's spinning dash.
     "whirling_dash": ("card_art_whirling_dash.webp", (180, 170, 1448, 820)),
+    # The baker's grin, the shaker and the sprinkles raining on the cake.
+    "sprinkle": ("card_art_sprinkle.webp", (0, 60, 1448, 948)),
+    # The blue-ringed octopus on the diver's helmet, its swarm behind.
+    "wraiths_piercer": ("card_art_wraiths_piercer.webp", (0, 60, 1448, 948)),
+    # The trident-bearer leaping from the wave onto the horde.
+    "wrath_of_the_sea": ("card_art_wrath_of_the_sea.webp", (0, 0, 1672, 941)),
+    # The sprinkle dynamite, its fuse lit.
+    "sprinkle_bomb": ("card_art_sprinkle_bomb.webp", (0, 120, 1448, 1008)),
     # The hooded knives in the smoke behind the orc.
     "smoke_bomb": ("card_art_smoke_bomb.webp", (0, 0, 1536, 790)),
 }
