@@ -360,6 +360,11 @@ const CARD_PAINTINGS := {
 	"purge_wrath": "purge_wrath",
 	"ragnarok": "ragnarok",
 	"rain_of_arrows": "rain_of_arrows",
+	"reapers_taking": "reapers_taking",
+	"redline": "redline",
+	"resourceful_replenish": "resourceful_replenish",
+	"reverberate_regrowth": "reverberate_regrowth",
+	"slice": "slice",
 }
 
 # ---------------------------------------------------------------------------

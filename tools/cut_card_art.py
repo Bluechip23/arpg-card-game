@@ -491,8 +491,6 @@ SINGLES = {
     "cupids_lead_arrow": ("card_art_cupids_lead_arrow.webp", (0, 0, 1536, 942)),
     # The goblin's fist in the monster's face.
     "its_alive": ("card_art_its_alive.webp", (0, 60, 1448, 1000)),
-    # The wizard's W belt and the M he flings at the orc.
-    "m_for_mini": ("card_art_m_for_mini.webp", (0, 0, 1672, 880)),
     # The greaves' green rings round the party they restore.
     "mend": ("card_art_mend.webp", (0, 0, 1672, 941)),
     # The mage clutching his head in the mana storm.
@@ -527,6 +525,16 @@ SINGLES = {
     "ragnarok": ("card_art_ragnarok.webp", (0, 120, 1448, 1008)),
     # The wall's archers and their rain on the orcs below.
     "rain_of_arrows": ("card_art_rain_of_arrows.webp", (0, 60, 1448, 948)),
+    # 2026-11-22: the reaper reaching for the fallen knight.
+    "reapers_taking": ("card_art_reapers_taking.webp", (0, 0, 1536, 942)),
+    # The rogue's lunge, a fanged blade in each hand.
+    "redline": ("card_art_redline.webp", (0, 0, 1536, 942)),
+    # The cook stitching his drum, the man turning on the spit, the sandwich.
+    "resourceful_replenish": ("card_art_resourceful_replenish.webp", (0, 0, 1536, 942)),
+    # The knight's armour flying back onto him, the goblins baffled.
+    "reverberate_regrowth": ("card_art_reverberate_regrowth.webp", (0, 0, 1672, 880)),
+    # The short sword's thrust into the straw dummy's target (Slice).
+    "slice": ("card_art_slice.webp", (0, 0, 1536, 942)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
@@ -570,6 +578,43 @@ FITTED = {
 }
 FIT_ASPECT = 1.9    # the Attack frame's art window, about the widest (2026-11-16: taller)
 FIT_FEATHER = 0.08  # the fitted picture's sides fade into the fill over this much of its width
+
+
+# Wide paintings seen whole in a taller window (card_id -> (source, box,
+# aspect)): the painting at the window's full width, the bands above and
+# below filled with a blurred, darkened copy of itself.
+# 2026-11-22: M for Mini moved from the Attack frame to the Utility one,
+# whose window is taller; the designer wants the whole scene, as before
+# (the wizard's W belt, the M, the orc).
+LETTERBOXED = {
+    "m_for_mini": ("card_art_m_for_mini.webp", (0, 0, 1672, 941), 1.47),
+}
+
+
+def letterboxed(source, box, aspect):
+    from PIL import ImageFilter, ImageEnhance
+    piece = Image.open(SRC % source).convert("RGB").crop(box)
+    h = round(WIDTH / aspect)
+    inner = piece.resize((WIDTH, round(piece.height * WIDTH / piece.width)), Image.LANCZOS)
+    if inner.height >= h:
+        t = (inner.height - h) // 2
+        return inner.crop((0, t, WIDTH, t + h))
+    # The fill: the painting scaled to cover the window, blurred and darkened.
+    cw = round(piece.width * h / piece.height)
+    back = piece.resize((cw, h), Image.LANCZOS)
+    l = (cw - WIDTH) // 2
+    back = back.crop((l, 0, l + WIDTH, h)).filter(ImageFilter.GaussianBlur(14))
+    back = ImageEnhance.Brightness(back).enhance(0.55)
+    top = (h - inner.height) // 2
+    # The picture over it, its top and bottom edges feathered in.
+    mask = Image.new("L", inner.size, 255)
+    fh = max(1, round(inner.height * 0.06))
+    for y in range(fh):
+        a = round(255 * (y + 1) / (fh + 1))
+        for yy in (y, inner.height - 1 - y):
+            mask.paste(a, (0, yy, WIDTH, yy + 1))
+    back.paste(inner, (0, top), mask)
+    return back
 
 
 def fitted(source, box, aspect=None):
@@ -655,6 +700,9 @@ def main() -> None:
         # trim the fitted painting's top and bottom.
         fitted(*spec).save(OUT % card_id, optimize=True)
         print("wrote", OUT % card_id, "(fitted)")
+    for card_id, spec in LETTERBOXED.items():
+        letterboxed(*spec).save(OUT % card_id, optimize=True)
+        print("wrote", OUT % card_id, "(letterboxed)")
 
 
 if __name__ == "__main__":
