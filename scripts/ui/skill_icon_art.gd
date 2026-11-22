@@ -355,6 +355,11 @@ const CARD_PAINTINGS := {
 	"polymorph": "polymorph",
 	"poof_and_weave": "poof_and_weave",
 	"preemptive_answer": "preemptive_answer",
+	"protection_from_alnitak": "protection_from_alnitak",
+	"psionic_flow": "psionic_flow",
+	"purge_wrath": "purge_wrath",
+	"ragnarok": "ragnarok",
+	"rain_of_arrows": "rain_of_arrows",
 }
 
 # ---------------------------------------------------------------------------

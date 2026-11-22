@@ -684,6 +684,9 @@ func _test_m_for_mini() -> void:
 	_beside(A)
 	_resolve(Card.create_by_id("m_for_mini"), A)
 	_check(A.vulnerable_stacks == 2 and A.weaken_stacks == 2, "M for Mini: 2 Vulnerable and 2 Weaken (%d, %d)" % [A.vulnerable_stacks, A.weaken_stacks])
+	var mm := Card.create_by_id("m_for_mini")
+	_check(mm.card_type == Card.CardType.UTILITY and not mm.is_offensive() and mm.target_types.has("enemy"),
+		"M for Mini is a Utility card aimed at an enemy (designer, 2026-11-21)")
 
 func _test_mage_shield() -> void:
 	print("-- Mage Shield --")

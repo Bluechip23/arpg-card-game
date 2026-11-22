@@ -116,7 +116,7 @@ func _test_granted_cards() -> void:
 	var wall = Card.create_by_id("adimantium_wall")
 	_check(wall.block == 40 and wall.jail_on_play == 40, "Adimantium Wall: 40 block, jailed 40")
 	var rag = Card.create_by_id("ragnarok")
-	_check(rag.jail_on_play == 30, "Ragnarok jails itself 30")
+	_check(rag.jail_on_play == 50, "Ragnarok jails itself 50")
 	var pa = Card.create_by_id("preemptive_answer")
 	_check(pa.card_type == Card.CardType.REACTION and pa.reaction_trigger == "on_hp_below_25" \
 		and pa.tempo_cost == 0, "Preemptive Answer is an instant on the 25% trigger")

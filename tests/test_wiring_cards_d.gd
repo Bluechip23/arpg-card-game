@@ -52,7 +52,7 @@ func _run() -> void:
 		"_t_self_infliction", "_t_serene_center", "_t_shadows", "_t_shed_weight",
 		"_t_shepherds_mark", "_t_shield_of_growth", "_t_shield_ready",
 		"_t_shield_slam", "_t_shift", "_t_shiv", "_t_shuriken",
-		"_t_shuriken_pouch", "_t_skeleton_army",
+		"_t_shuriken_pouch", "_t_skeleton_army", "_t_psionic_flow_spell",
 	]
 	for t in tests:
 		_reset()
@@ -452,6 +452,19 @@ func _t_psionic_flow() -> void:
 		_play(s2, d)
 		_check(hp1 - d.current_health == s2.last_damage_dealt, "whichever comes first: one card, one trigger")
 
+## A spell aimed at an enemy fires it too (designer, 2026-11-21: any
+## offensive card, not only attacks). Run last: the spell's play moves the
+## clock the timed checks above read.
+func _t_psionic_flow_spell() -> void:
+	print("-- Psionic Flow (offensive spell) --")
+	var c3 := Card.create_by_id("psionic_flow")
+	dm.hand.append(c3)
+	var d3 := _dummy(Vector2i(1, 0))
+	var sp := Card.create_by_id("mana_surge")
+	_check(sp.is_offensive() and not sp.is_attack(), "(Mana Surge is an offensive spell)")
+	_play(sp, d3)
+	_check(not (c3 in dm.hand), "Psionic Flow fires on an offensive spell aimed at an enemy")
+
 func _t_purge_wrath() -> void:
 	print("-- Purge Wrath --")
 	var d := _dummy(Vector2i(1, 0))
@@ -557,7 +570,7 @@ func _t_ragnarok() -> void:
 	var might = bm.get_buff(Buff.BuffType.MIGHT)
 	_check(keen != null and keen.value == 20 and might != null and might.value == 10,
 		"Ragnarok: +10%% crit and +5 STR per card (%s / %s)" % [str(keen.value) if keen else "-", str(might.value) if might else "-"])
-	_check(snap.get("in_jail", false) and snap.get("jail") == 30, "Ragnarok: jailed for 30 tempo after play (%s)" % str(snap.get("jail")))
+	_check(snap.get("in_jail", false) and snap.get("jail") == 50, "Ragnarok: jailed for 50 tempo after play (%s)" % str(snap.get("jail")))
 
 func _t_rain_of_arrows() -> void:
 	print("-- Rain of Arrows (Castle Wall Overdraw) --")

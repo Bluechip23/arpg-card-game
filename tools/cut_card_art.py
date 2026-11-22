@@ -517,6 +517,16 @@ SINGLES = {
     "poof_and_weave": ("card_art_poof_and_weave.webp", (0, 0, 1536, 942)),
     # The paladin's shield and sword in the golden wards.
     "preemptive_answer": ("card_art_preemptive_answer.webp", (0, 0, 1536, 942)),
+    # The star-giant's belt and the dome of light over the party.
+    "protection_from_alnitak": ("card_art_protection_from_alnitak.webp", (0, 0, 1672, 880)),
+    # The thrower and his spear on its purple wake, the orc it hurls back.
+    "psionic_flow": ("card_art_psionic_flow.webp", (0, 0, 1536, 942)),
+    # The wrath-wreathed warrior's roar and the slash across the ogre.
+    "purge_wrath": ("card_art_purge_wrath.webp", (0, 0, 1536, 942)),
+    # Garmr and the wolf snarling face to face before the burning gate.
+    "ragnarok": ("card_art_ragnarok.webp", (0, 120, 1448, 1008)),
+    # The wall's archers and their rain on the orcs below.
+    "rain_of_arrows": ("card_art_rain_of_arrows.webp", (0, 60, 1448, 948)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a

@@ -10451,8 +10451,9 @@ func _weapon_post_card_effects(card: Card, target) -> void:
 			_fire_instant_site_effect(hh_card, {"target": target})
 
 	# Psionic Flow, attack mode: the strike hits harder and shoves ("when you
-	# play an attack" — not a spell).
-	if card.is_attack() and target and is_instance_valid(target) and target is Enemy:
+	# play an offensive card targeting an enemy" — spells too, designer
+	# 2026-11-21; it was attacks only).
+	if card.is_offensive() and target and is_instance_valid(target) and target is Enemy:
 		var pf := deck_manager.trigger_reactions("psionic_flow")
 		for pf_card in pf:
 			_fire_instant_site_effect(pf_card, {"target": target, "mode": "attack"})
