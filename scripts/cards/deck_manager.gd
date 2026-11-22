@@ -626,6 +626,17 @@ func handle_overflow() -> void:
 ## weapons, Grounding, percent-mana cards). `commit` is play_card's own
 ## call: it logs each adjustment and records a percent-mana price on the
 ## card. Anything else (a preview, the simulator) asks quietly.
+## Every item the wearer has on (all slots).
+func _equipped_items_all() -> Array:
+	var out: Array = []
+	if inventory == null:
+		return out
+	for key in ["equipped_helms", "equipped_chests", "equipped_rings", "equipped_belts",
+			"equipped_boots", "equipped_gauntlets", "equipped_weapons"]:
+		if key in inventory:
+			out.append_array(inventory.get(key))
+	return out
+
 func compute_play_cost(card: Card, index: int, target = null, debuff_mgr = null, commit: bool = false) -> Dictionary:
 	NewCardsB.price_foresight(card, player_stats)  # 60 mana, 2 less per Brain point held
 	var mana_cost = card.get_burden_mana_cost()  # Burden: +10 mana per prior play
@@ -751,6 +762,20 @@ func compute_play_cost(card: Card, index: int, target = null, debuff_mgr = null,
 		mana_cost -= arash_life_cost
 		if arash_life_cost > 0:
 			if commit: print("[DECK] Bow of Arash: %d of %s's cost is paid in life" % [arash_life_cost, card.card_name])
+	# Boots of the Balancer: Maintain cards cost 20% less, and half of what
+	# is left is paid in health (a true cost, like the Arash half).
+	if mana_cost > 0 and card.maintain_cost > 0 and inventory and "equipped_boots" in inventory:
+		for bal in _equipped_items_all():
+			if bal == null or bal.maintain_discount_percent <= 0.0 and bal.maintain_health_share <= 0.0:
+				continue
+			if bal.maintain_discount_percent > 0.0:
+				mana_cost = floori(mana_cost * (1.0 - bal.maintain_discount_percent / 100.0))
+			if bal.maintain_health_share > 0.0:
+				var bal_life := floori(mana_cost * bal.maintain_health_share)
+				mana_cost -= bal_life
+				arash_life_cost += bal_life
+			if commit: print("[DECK] %s: %s costs -%.0f%%, %.0f%% of it in health" % [bal.item_name, card.card_name, bal.maintain_discount_percent, bal.maintain_health_share * 100.0])
+			break
 	# Exhausted Assault: "While you have zero mana, this card costs 0 mana" —
 	# after every surcharge (Staggered, Hex…), or it could never be played.
 	if card.card_id == "exhausted_assault" and player_stats and player_stats.current_mana <= 0:

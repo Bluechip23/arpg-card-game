@@ -6,10 +6,10 @@
 script = ExtResource("1_458bn")
 card_id = "tight_rope"
 card_name = "Tight Rope"
-description = "When a hit puts you below 20% health, gain 20 temp health for 5 tempo and +15 damage on your next attack."
+description = "When you take damage and are within 10% of half health, gain 20 temp health and 15 Strengthen."
 card_type = 3
 card_type_name = "Instant"
 mana_cost = 0
 tempo_cost = 0
 target_types = ["self"]
-reaction_trigger = "on_health_below_20"
+reaction_trigger = "on_hit_balanced"

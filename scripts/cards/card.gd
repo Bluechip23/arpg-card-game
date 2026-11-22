@@ -1698,6 +1698,10 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		# Boots of the Balancer: armor scaling with the wearer's missing health.
 		if on_self.get("armor_per_missing_health10", 0) > 0 and player_stats:
 			var missing_pct := (1.0 - player_stats.get_health_percent()) * 100.0
+			# "...up to 50% health": missing health past the cap counts no more.
+			var bal_cap: int = int(on_self.get("missing_health_cap", 0))
+			if bal_cap > 0:
+				missing_pct = minf(missing_pct, float(bal_cap))
 			var bal_step: int = maxi(1, int(on_self.get("missing_health_step", 10)))
 			var bal_armor: int = int(on_self["armor_per_missing_health10"]) * int(missing_pct / bal_step)
 			if bal_armor > 0:
@@ -2085,7 +2089,8 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			# Knife Toed Boots: a cheap melee jab. Same physical path as Slash.
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		"tight_rope":
-			# Boots of the Balancer instant: fired by the below-20%-health trigger.
+			# Boots of the Balancer instant: fired by a hit that leaves you within
+			# 10% of half health (40-60%; designer, 2026-11-22).
 			if player_stats:
 				player_stats.add_temp_health(20, 5)
 			if buff_mgr:

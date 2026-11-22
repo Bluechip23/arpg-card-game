@@ -259,7 +259,13 @@ var granted_cards_built: bool = false
 @export var on_self_flash_regen: int = 0           # restore X flash points when a slotted card is played (Hermes Boots 1)
 @export var on_self_int_damage_percent: float = 0.0  # +X% of INT as bonus damage on slotted cards (Caster Boots 10)
 @export var on_self_armor_per_missing_health10: int = 0  # armor per missing-health step on slotted play (Boots of the Balancer 5)
-@export var on_self_missing_health_step: int = 10        # % of missing health per armor grant (Balancer Lv3 tightens to 6)
+@export var on_self_missing_health_step: int = 10        # % of missing health per armor grant
+@export var on_self_missing_health_cap: int = 0          # missing health counted no further than this % (0: no cap). Balancer 50 (2026-11-22)
+## Boots of the Balancer (designer, 2026-11-22): Maintain cards (any card
+## with an upkeep) cost this % less to play, and this share of what is left
+## is paid in health instead of mana.
+@export var maintain_discount_percent: float = 0.0
+@export var maintain_health_share: float = 0.0
 @export var on_self_instant_damage_nearest: int = 0  # slotted instant → X damage to nearest enemy within 3 (Boot Holsters 10)
 @export var on_self_attack_tempo_reduction: int = 0  # slotted attack costs X less tempo (Boot Holsters 1)
 @export var on_self_invisible_tempo: int = 0       # slotted card → become invisible X tempo (Houdinis Slippers 5)
@@ -1031,6 +1037,7 @@ func get_on_self_bonus() -> Dictionary:
 		"int_damage_percent": on_self_int_damage_percent,
 		"armor_per_missing_health10": on_self_armor_per_missing_health10,
 		"missing_health_step": on_self_missing_health_step,
+		"missing_health_cap": on_self_missing_health_cap,
 		"instant_damage_nearest": on_self_instant_damage_nearest,
 		"attack_tempo_reduction": on_self_attack_tempo_reduction,
 		"invisible_tempo": on_self_invisible_tempo,

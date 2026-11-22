@@ -818,8 +818,8 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Card text: When you take damage, gain 5 armor.
   - Code: Reaction 'on_damage_taken'. main._on_player_damage_taken (main.gd:14127) fires it whenever the player takes damage; execute() -> _execute_spider_senses (card.gd:4900): player_stats.add_armor(5). Self.
 - **Tight Rope** (`tight_rope`) — Mythic · 0 mana, 0 tempo · range melee · targets self · slots: deck only · not on the sheet (item kit / token)
-  - Card text: When a hit puts you below 20% health, gain 20 temp health for 5 tempo and +15 damage on your next attack.
-  - Code: REACTION with reaction_trigger 'on_health_below_20'. main._on_player_damage_taken fires trigger_reactions('on_health_below_20') only when the hit moved health from >= 20% to < 20%; execute() 'tight_rope' then does player_stats.add_temp_health(20, 5) and applies Strengthen 15 for 1 attack. 0 mana / 0 tempo.
+  - Card text: When you take damage and are within 10% of half health, gain 20 temp health and 15 Strengthen.
+  - Code: REACTION with reaction_trigger 'on_hit_balanced' (2026-11-22). main._on_player_damage_taken fires trigger_reactions('on_hit_balanced') on any hit that leaves health at 40%-60%; execute() 'tight_rope' then does player_stats.add_temp_health(20, 5) and applies Strengthen 15 for 1 attack. 0 mana / 0 tempo.
 - **Vengeful Shield** (`vengeful_shield`) — Legendary · 0 mana, 0 tempo · range melee · targets self · slots: Buckler — Engrave · sheet: Reaction, Defense
   - Card text: When taking damage that exposes the player, stun an enemy within melee range for 5 tempo and gain 5 armor.
   - Code: Reaction 'on_exposed': main._on_player_health_damage_taken (main.gd ~6805) fires it whenever damage reaches health (hp_amount > 0); execute() -> _execute_vengeful_shield adds 5 armor; _fire_instant_site_effect 'vengeful_shield' calls _stun_nearest_enemy(1.5) -> enemy.apply_stun() (default 5 tempo) on the closest living enemy within 1.5 tiles. BLOCK_AMOUNT_OVERRIDES pins the display at 5.

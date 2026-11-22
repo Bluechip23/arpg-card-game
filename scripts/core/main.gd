@@ -16395,6 +16395,15 @@ func _on_player_damage_taken(_amount: int) -> void:
 				card.execute(null, tr_stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
 			if low_triggered.size() > 0:
 				_refresh_unit_tracker()
+		# Tight Rope (Boots of the Balancer, designer 2026-11-22): any hit that
+		# leaves you within 10% of half health (40%-60%) walks the rope.
+		if pct >= 0.4 and pct <= 0.6:
+			var bal_triggered := deck_manager.trigger_reactions("on_hit_balanced")
+			for card in bal_triggered:
+				card.execute(null, tr_stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
+			if bal_triggered.size() > 0:
+				add_battle_log("Tight Rope! +20 temp health, Strengthen 15.", Color(0.9, 0.8, 0.5))
+				_refresh_unit_tracker()
 		# Preemptive Answer (Divine Resistance): fires on the hit that dropped
 		# the player to 25% health or below.
 		if pct <= 0.25 and prev_pct > 0.25:
