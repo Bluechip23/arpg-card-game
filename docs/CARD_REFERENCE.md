@@ -664,7 +664,7 @@ Costs are the code's raw numbers (the sheet writes mana in tens). Range is the b
   - Card text: Deal 80% of remaining health in damage. Gain 1 determination, 1 attune and 1 strengthen for each 10% of your base max health done.
   - Code: _execute_self_infliction (designer, 2026-11-19): self-damage = floor(80% of health + temp HP), temp HP taking it first, the rest straight to health past armor. Stacks = floor(damage / 10% of max health): that many temp Determination (10 tempo), Strengthen (3 attacks) and Attune (3 spells) — 8 at full health, 4 at half, 16 at 200% (temp HP).
 - **Serene Center** (`serene_center`) — Legendary · 30 mana, 4 tempo · range melee · targets self · slots: deck only · not on the sheet (item kit / token)
-  - Card text: Set your health to half of your maximum plus half of any temporary health (which is consumed), and your mana to half of its maximum — whether that raises or lowers them.
+  - Card text: Set health and mana to 50% of their current maxes. (Hover: Any temporary health is used up: half of it is added to the health you are set to. Raises or lowers both.)
   - Code: execute() 'serene_center': current_health = min(max_health, max(1, floor((max_health + current_temp_health)/2))), temp health cleared, current_mana = floor(max_mana/2); raises or lowers both. Self, 30 mana, 4 tempo.
 - **Shadows** (`shadows`) — Legendary · 10 mana, 4 tempo · range melee · targets self · slots: Pocket / Wand / Swift · sheet: Utility, self
   - Card text: Go invisible for 10 tempo.
