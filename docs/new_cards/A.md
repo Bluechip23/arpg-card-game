@@ -29,9 +29,9 @@ Shared across the batch:
 - **Ember Heart** — `ember_heart`
   - Rarity: Legendary. Cost: 90 mana (maintained: 90 reserved), 1 tempo. Targets: self. Slots: Wand, Staff, Hammer.
   - Sheet text: Each cycle, 2 stacks of your burn are transferred to a random enemy within 4 squares. Each stack dealing 3 damage upon transfer.
-  - Card text: Maintain: each cycle, 2 stacks of the Burn on you are transferred to a random enemy within 4 squares. Each stack deals 3 damage as it transfers.
-  - Code: POWER, maintained. `NewCardsA.cycle` → `_ember_heart`: if the maintainer carries Burn (the player debuff) and a living enemy stands within 4 squares, min(2, stacks) leave the maintainer (the Burn is removed at 0), one random enemy in reach gains that many Burn stacks (`apply_debuff("burn", n)`) and takes 3 damage per stack moved, as separate 3-damage instances through `Enemy._dot_hit` (flat, armor soaks it first, not a hit: no on-hit riders). No Burn or no enemy in reach: nothing moves. It runs before the cycle's own status ticks, so the stacks leave before the maintainer's Burn bites that cycle.
-  - Mismatch / open question: "your burn" is read as Burn stacks on yourself, per the brief. All moved stacks go to ONE random enemy (not one enemy per stack). The 3 per stack is flat (no INT, no crit). The maintainer's Burn doubling counter is not reset by a partial transfer.
+  - Card text: Maintain: every 2 tempo, 1 stack of the Burn on you is transferred to a random enemy within 4 squares, dealing 1 damage as it transfers. (designer, 2026-11-24; the sheet text above is the earlier version.)
+  - Code: POWER, maintained. `NewCardsA.tempo` (called by main on every tempo advance, before the heroes' debuff clocks) keeps a 2-tempo clock on the maintained card → `_ember_heart`: if the maintainer carries Burn (the player debuff) and a living enemy stands within 4 squares, 1 stack leaves the maintainer (the Burn is removed at 0), one random enemy in reach gains 1 Burn (`apply_debuff("burn", 1)`) and takes 1 damage through `Enemy._dot_hit` (flat, armor soaks it first, not a hit: no on-hit riders). No Burn or no enemy in reach: nothing moves. It runs before the maintainer's own Burn tick on the same tempo.
+  - Mismatch / open question: "your burn" is read as Burn stacks on yourself, per the brief. The 1 damage is flat (no INT, no crit).
 
 - **Lodestone Field** — `lodestone_field`
   - Rarity: Legendary. Cost: 100 mana (maintained: 100 reserved), 5 tempo, resolves on tick 1. Targets: self. Slots: Hammer, Gem. Spell.

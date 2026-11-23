@@ -5856,6 +5856,7 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 	if progression_triggers:
 		progression_triggers._trigger_skill_tree_on_tempo(amount)
 	_update_passive_display_ui()
+	NewCardsA.tempo(self, amount)  # Ember Heart: its 2-tempo transfer, before the heroes' own Burn ticks
 	for tick_p in _all_players():
 		if not is_instance_valid(tick_p):
 			continue
@@ -7865,7 +7866,7 @@ func _cycle_status_start(cp) -> void:
 func _process_maintained_card_effects() -> void:
 	## Process ongoing effects from maintained Power cards each tempo cycle.
 	_burn_flame_zones()
-	NewCardsA.cycle(self)  # Spirit Armor, Ember Heart, Lodestone Field
+	NewCardsA.cycle(self)  # Spirit Armor, Lodestone Field
 	var maintained_result := deck_manager.process_maintained_cards()
 	var stats := player.get_stats()
 	if maintained_result["total_heal"] > 0 and stats:

@@ -276,39 +276,49 @@ func _test_ember_heart() -> void:
 	var r := _play(eh, main.player)
 	_check(_costs(r, 90, 1), "Ember Heart costs 90 mana / 1 tempo (%s)" % _cost_str(r))
 	_check(dm.maintained_cards.has(eh) and stats.maintained_mana == 90, "it is maintained, reserving 90 mana")
-	# Exact numbers: one cycle pass of the maintain.
+	# Exact numbers: one 2-tempo pass of the maintain.
 	var e: Enemy = _field([Vector2i(0, -4)])[0]
 	dbm.apply_debuff(Debuff.create(Debuff.DebuffType.BURN, 5, 15))
-	NewCardsA.cycle(main)
+	eh.set_meta(NewCardsA.EMBER_HEART_CLOCK, 0)
+	NewCardsA.tempo(main, 1)
+	_check(dbm.get_debuff(Debuff.DebuffType.BURN).value == 5 and _lost(e) == 0, "1 tempo: nothing yet")
+	NewCardsA.tempo(main, 1)
 	var burn = dbm.get_debuff(Debuff.DebuffType.BURN)
-	_check(burn != null and burn.value == 3, "2 of the caster's 5 Burn leave (%d left)" % (burn.value if burn else 0))
-	_check(e.burn_stacks == 2, "the enemy 4 squares away takes the 2 Burn (%d)" % e.burn_stacks)
-	_check(_lost(e) == 6, "each stack deals 3 as it lands: 6 (%d)" % _lost(e))
-	# A single stack moves alone and the Burn is gone.
-	burn.value = 1
+	_check(burn != null and burn.value == 4, "2 tempo: 1 of the caster's 5 Burn leaves (%d left)" % (burn.value if burn else 0))
+	_check(e.burn_stacks == 1, "the enemy 4 squares away takes the 1 Burn (%d)" % e.burn_stacks)
+	_check(_lost(e) == 1, "the stack deals 1 as it lands (%d)" % _lost(e))
+	NewCardsA.tempo(main, 4)
+	_check(burn.value == 2 and e.burn_stacks == 3 and _lost(e) == 3, "4 more tempo: two more transfers (%d left, %d on the enemy, %d lost)" % [burn.value, e.burn_stacks, _lost(e)])
+	# The cycle no longer moves anything.
 	NewCardsA.cycle(main)
+	_check(burn.value == 2 and _lost(e) == 3, "the 5-tempo cycle moves nothing")
+	# The last stack moves and the Burn is gone.
+	burn.value = 1
+	NewCardsA.tempo(main, 2)
 	_check(dbm.get_debuff(Debuff.DebuffType.BURN) == null, "a lone stack transfers and the caster's Burn ends")
-	_check(e.burn_stacks == 3 and _lost(e) == 9, "the enemy has 3 Burn and took 3 more (%d Burn, %d lost)" % [e.burn_stacks, _lost(e)])
+	_check(e.burn_stacks == 4 and _lost(e) == 4, "the enemy has 4 Burn and took 1 more (%d Burn, %d lost)" % [e.burn_stacks, _lost(e)])
 	# Nobody in reach: the Burn stays.
 	e = _field([Vector2i(0, -5)])[0]
 	dbm.apply_debuff(Debuff.create(Debuff.DebuffType.BURN, 4, 15))
-	NewCardsA.cycle(main)
+	NewCardsA.tempo(main, 2)
 	_check(dbm.get_debuff(Debuff.DebuffType.BURN).value == 4 and _lost(e) == 0 and e.burn_stacks == 0, "with no enemy within 4 nothing transfers")
-	# The real cycle: the caster's own Burn ticks every 2 tempo (5 stacks a
-	# tick) on the way there, and the cycle moves 2 of what is left.
+	# Real tempo: the transfer runs before the caster's own Burn tick on the
+	# same tempo (30 -> 29 by Ember Heart, then the tick uses 5).
 	dbm.clear_all_debuffs()
 	e = _field([Vector2i(1, 0)])[0]
+	eh.set_meta(NewCardsA.EMBER_HEART_CLOCK, 0)
 	dbm.apply_debuff(Debuff.create(Debuff.DebuffType.BURN, 30, 15))
-	_to_next_cycle()
+	tm.add_tempo(2)
+	_drain()
 	burn = dbm.get_debuff(Debuff.DebuffType.BURN)
-	_check(burn != null and burn.value < 30 and (30 - 2 - burn.value) % 5 == 0, "over a real cycle: 2 transferred, on top of the caster's own 5-stack ticks (%d left)" % (burn.value if burn else 0))
-	_check(_lost(e) >= 6, "the enemy took the transfer's 6 (lost %d)" % _lost(e))
+	_check(burn != null and burn.value == 24, "over 2 real tempo: 1 transferred, then the caster's Burn ticks 5 off (%d left)" % (burn.value if burn else 0))
+	_check(_lost(e) >= 1, "the enemy took the transfer's 1 (lost %d)" % _lost(e))
 	# No maintain, no transfer.
 	dm.dismiss_maintained_card(dm.maintained_cards.find(eh))
 	dbm.clear_all_debuffs()
 	e = _field([Vector2i(1, 0)])[0]
 	dbm.apply_debuff(Debuff.create(Debuff.DebuffType.BURN, 5, 15))
-	NewCardsA.cycle(main)
+	NewCardsA.tempo(main, 2)
 	_check(dbm.get_debuff(Debuff.DebuffType.BURN).value == 5 and _lost(e) == 0, "without the maintain the Burn stays put")
 	dbm.clear_all_debuffs()
 
