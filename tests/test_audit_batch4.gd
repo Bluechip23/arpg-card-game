@@ -24,13 +24,14 @@ func _initialize() -> void:
 		Card.create_by_id("cultish_wounds"),
 		Card.create_by_id("fountain_of_life"),
 	]
-	var num_maintain := RegEx.create_from_string("^Maintain (\\d+)M:")
+	# 2026-11-23: the Maintain frame's type line and top strip show the
+	# upkeep, so the text no longer repeats "Maintain XM:".
+	var num_maintain := RegEx.create_from_string("^Maintain")
+	var reserves := {"halo": 30, "armored_discipline": 50, "cultish_wounds": 20, "fountain_of_life": 30}
 	for card in maintain_cards:
-		var m := num_maintain.search(card.description)
-		_check(m != null, "%s description starts with 'Maintain XM:'" % card.card_name)
-		if m:
-			_check(card.maintain_cost == int(m.get_string(1)) * 10,
-				"%s reserve (%d) matches its face (%sM)" % [card.card_name, card.maintain_cost, m.get_string(1)])
+		_check(num_maintain.search(card.description) == null, "%s text no longer repeats the upkeep" % card.card_name)
+		_check(card.maintain_cost == int(reserves[card.card_id]),
+			"%s reserves %d" % [card.card_name, card.maintain_cost])
 
 	# --- D1: Halo's face now scales the right number (the heal, not the cost) ---
 	var halo = Card.create_by_id("halo")

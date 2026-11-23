@@ -54,7 +54,7 @@ func _run() -> void:
 	_check(wash_node == null or not wash_node.visible, "no box behind the text")
 	var fade_node: Control = inst.get_node_or_null("Panel/TextFade")
 	_check(fade_node == null or not fade_node.visible, "a short text leaves the corner picture at full strength")
-	var long_inst := _face("composed_reaction")
+	var long_inst := _face("psionic_flow")
 	await process_frame
 	await process_frame
 	var lf: Control = long_inst.get_node_or_null("Panel/TextFade")
@@ -241,7 +241,7 @@ func _run() -> void:
 	print("=== %d failure(s) ===" % failures)
 	# A rules text too long for the box beside the corner picture spreads over
 	# the whole box (the washed box carries the margin, 2026-11-08).
-	var long_face := _face("enchantment_defense")
+	var long_face := _face("flames_of_alexandria")
 	await process_frame
 	await process_frame
 	var lst = long_face.desc_panel.get_theme_stylebox("panel")
