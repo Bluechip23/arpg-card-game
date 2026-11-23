@@ -29,7 +29,8 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 [color=yellow]Cycles (every 5 tempo):[/color]
 - Every 5 global tempo completes one cycle
 - Mana regeneration fires once per cycle
-- Burn, Poison, Drain, Shock, Regen and Smith tick once per cycle
+- Drain, Shock, Regen and Smith tick once per cycle
+- Burn and Poison tick every 2 tempo: Poison deals its stacks and loses 1 (and cuts healing 25%); Burn deals its stacks + 3, 2 more to armor, and uses up 5 (each stack lowers resistances 0.5%)
 - Timed buffs and debuffs (Stun, Disarm, Root...) count down on raw tempo, so a 3-tempo stun lasts 3 tempo
 - Stack debuffs (Slow, Vulnerable, Weakened, Blind, Clumsy, Brittle...) lose one stack every 5 tempo on their own clock
 - The auto draw is its own timer: one card every 25 tempo (5 cycles)

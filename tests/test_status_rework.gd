@@ -66,11 +66,11 @@ func _initialize() -> void:
 	stats.elixir_stacks = 1
 	stats.current_health = 5
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.POISON, 2, 15))
-	dm.process_turn_start()
+	dm.process_dot_tick()
 	_check(stats.current_health > 5, "Elixir healed the poison tick (heal bonuses may scale it)")
 	_check(stats.elixir_stacks == 0, "Elixir stack burned")
 	var hp_after_heal = stats.current_health
-	dm.process_turn_start()
+	dm.process_dot_tick()
 	_check(stats.current_health < hp_after_heal, "Poison hurts again once Elixir is spent")
 	dm.clear_all_debuffs()
 

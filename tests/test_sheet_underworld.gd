@@ -108,7 +108,7 @@ func _test_fight() -> void:
 	sp.take_damage(3, false)
 	_check(sp.current_health == hp0 - 3, "clock damage (from_player false) lands")
 	sp.poison_stacks = 2
-	sp._tick_status_durations()
+	sp._tick_burn_poison()
 	_check(sp.current_health == hp0 - 5, "a poison tick lands while hidden")
 	_check(main.enemy_spawner.get_enemy_at_position(sp.position) == null, "cannot be picked at its square")
 	_check(main._get_nearest_enemy() != sp, "the auto-aim skips it")

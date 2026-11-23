@@ -5869,9 +5869,14 @@ func _on_tempo_advanced(global_total: int, amount: int) -> void:
 		if tick_stats:
 			tick_stats.advance_status_tempo(amount)
 	# Summons' debuff timers (stun, root, the stack clocks) run on raw tempo too.
-	for tick_s in _all_summon_nodes():
+	for tick_s in _all_summon_nodes().duplicate():
 		if is_instance_valid(tick_s) and tick_s.get("debuff_manager") != null:
-			tick_s.debuff_manager.advance_time(amount)
+			# Burn and Poison tick in here (every 2 tempo); a summon has no
+			# stats behind its manager, so the damage comes back to land.
+			var tick_dot: int = tick_s.debuff_manager.advance_time(amount)
+			if tick_dot > 0 and tick_s.get("is_dead") != true:
+				tick_s.take_damage(tick_dot, true)
+				add_battle_log("%s suffers %d from its afflictions." % [tick_s.display_name, tick_dot], Color(0.85, 0.55, 0.45))
 	# Gauntlet skill circles and passive boxes show tempo-granular recharge
 	# progress, so they refresh on every tempo step, not just at cycle
 	# boundaries. The auto attack's damage readout rides along so stat
@@ -11984,7 +11989,7 @@ func _wire_marvolo_hooks(p: Player) -> void:
 
 ## Damage-over-time ticks on a player go to the battle log (the enemy side
 ## logs its own in Enemy._dot_hit): a number with no swing behind it is
-## explained ("Burn: you take 4 (8 next cycle)").
+## explained ("Burn: you take 9 (last tick)").
 func _wire_dot_log(p: Player) -> void:
 	if p == null or not is_instance_valid(p) or p.get_debuff_manager() == null:
 		return

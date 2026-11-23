@@ -16,8 +16,10 @@ var debuffs: Array[Debuff] = []
 var owner_stats = null  # PlayerStats - untyped to avoid circular dependency
 var owner_node: Node3D
 
-# For Burn - damage doubles each cycle
-var burn_damage_next: int = 1
+## Tempo banked toward the next Burn / Poison tick (Debuff.DOT_TICK_TEMPO).
+## Runs only while either is on the carrier, so the first tick lands that
+## many tempo after the first stack.
+var _dot_clock: int = 0
 ## Debuff types that never land on this carrier (a summon has no hand, mana
 ## or spells: Hexed, Locked, Drain... mean nothing to it). See Summon.
 var ignored_types: Array = []
@@ -26,6 +28,9 @@ func initialize(stats = null, owner: Node3D = null) -> void:
 	owner_stats = stats
 	owner_node = owner
 	debuffs.clear()
+	if not debuffs_changed.is_connected(_sync_owner_riders):
+		debuffs_changed.connect(_sync_owner_riders)
+	_sync_owner_riders()
 
 func apply_debuff(debuff: Debuff) -> void:
 	if debuff.debuff_type in ignored_types:
@@ -33,16 +38,16 @@ func apply_debuff(debuff: Debuff) -> void:
 	# Elixir: poison from a card played under Elixir heals instead.
 	if debuff.debuff_type == Debuff.DebuffType.POISON and Card.elixir_poison_heals and owner_stats:
 		var ex_heal: int = maxi(1, debuff.value)
-		owner_stats.heal(ex_heal)
+		_heal_uncut(ex_heal)
 		print("[DEBUFF] Elixir: %d poison became %d healing" % [debuff.value, ex_heal])
 		return
-	# Stack-driven debuffs never expire by the shared timer. Burn, Bleed and
-	# Weighted burn their stacks by what they react to (cycles, movement, card
-	# plays); the stack-clocked types (Debuff.is_stack_clocked) shed one stack
+	# Stack-driven debuffs never expire by the shared timer. Burn, Poison,
+	# Bleed and Weighted burn their stacks by what they react to (their
+	# 2-tempo tick, movement, card plays); the stack-clocked types (Debuff.is_stack_clocked) shed one stack
 	# per 5 tempo of their own clock — whatever duration the caller passed.
 	# A clock-timed Slowed/Staggered (Approach, Tower Shield) keeps its duration.
 	match debuff.debuff_type:
-		Debuff.DebuffType.BURN, Debuff.DebuffType.BLEED, Debuff.DebuffType.WEIGHTED:
+		Debuff.DebuffType.BURN, Debuff.DebuffType.POISON, Debuff.DebuffType.BLEED, Debuff.DebuffType.WEIGHTED:
 			debuff.duration = -1
 		_:
 			if debuff.uses_stack_clock():
@@ -99,9 +104,6 @@ func apply_debuff(debuff: Debuff) -> void:
 			if claim_deck:
 				claim_deck.assign_hexed_locked_cards(self)
 
-		# Reset burn damage tracker when burn is first applied
-		if debuff.debuff_type == Debuff.DebuffType.BURN:
-			burn_damage_next = 1
 
 		print("[DEBUFF] Applied: %s for %d tempo" % [debuff.debuff_name, debuff.duration])
 	
@@ -169,41 +171,6 @@ func process_turn_start() -> Dictionary:
 		"pull_tiles": 0
 	}
 
-	# Burn: damage doubles each cycle (1, 2, 4, 8...); each stack is one cycle
-	# of burning, so "apply 5 burn" actually burns longer than "apply 1 burn"
-	# (previously stacks were cosmetic and only the doubling counter mattered).
-	var burn = get_debuff(Debuff.DebuffType.BURN)
-	if burn:
-		result["damage_taken"] += burn_damage_next
-		dot_ticked.emit("Burn", burn_damage_next, "%d next cycle" % (burn_damage_next * 2) if burn.value > 1 else "last tick")
-		print("[DEBUFF] Burn deals %d damage (doubles next cycle)" % burn_damage_next)
-		burn_damage_next *= 2
-		burn.value -= 1
-		burn._set_name_and_description()
-		if burn.value <= 0:
-			remove_debuff(Debuff.DebuffType.BURN)
-			burn_damage_next = 1
-			print("[DEBUFF] Burn expired (0 stacks)")
-
-	# Poison: deal value damage, then lose 1 poison. Elixir flips a tick to
-	# healing and burns one Elixir stack per converted tick.
-	var poison = get_debuff(Debuff.DebuffType.POISON)
-	if poison:
-		if owner_stats and "elixir_stacks" in owner_stats and owner_stats.elixir_stacks > 0:
-			owner_stats.heal(poison.value)
-			owner_stats.elixir_stacks -= 1
-			dot_ticked.emit("Elixir", poison.value, "Poison turned to healing")
-			print("[DEBUFF] Elixir: Poison healed %d instead! (%d stack(s) left)" % [poison.value, owner_stats.elixir_stacks])
-		else:
-			result["damage_taken"] += poison.value
-			dot_ticked.emit("Poison", poison.value, "%d next cycle" % (poison.value - 1) if poison.value > 1 else "last tick")
-			print("[DEBUFF] Poison deals %d damage" % poison.value)
-		poison.value -= 1
-		poison._set_name_and_description()
-		if poison.value <= 0:
-			remove_debuff(Debuff.DebuffType.POISON)
-			print("[DEBUFF] Poison expired (0 stacks)")
-
 	# Drain: lose 10 mana, then lose 1 drain stack
 	var drain = get_debuff(Debuff.DebuffType.DRAIN)
 	if drain:
@@ -247,13 +214,109 @@ func process_turn_end() -> void:
 	# durations like "3 tempo" work. Kept so main.gd's cycle hook stays wired.
 	pass
 
+## One Burn / Poison tick (see Debuff's notes). Returns {"damage_taken"};
+## a carrier with stats takes it here, a summon's is landed by main.
+func process_dot_tick() -> Dictionary:
+	var result := {"damage_taken": 0}
+	# Burn: stacks + 3, and 2 more that lands on armor (on health when there
+	# is none) — armor soaks a tick like any hit, so it is one sum. Then 5
+	# stacks are used up.
+	var burn_damage := 0
+	var burn = get_debuff(Debuff.DebuffType.BURN)
+	if burn:
+		burn_damage = Debuff.burn_tick_damage(burn.value)
+		var burn_left: int = maxi(0, burn.value - Debuff.BURN_STACKS_PER_TICK)
+		dot_ticked.emit("Burn", burn_damage, "%d Burn left" % burn_left if burn_left > 0 else "last tick")
+		print("[DEBUFF] Burn deals %d damage (%d Burn left)" % [burn_damage, burn_left])
+		burn.value = burn_left
+		burn._set_name_and_description()
+		if burn.value <= 0:
+			remove_debuff(Debuff.DebuffType.BURN)
+			print("[DEBUFF] Burn expired (0 stacks)")
+
+	# Poison: deal value damage, then lose 1 poison. Elixir flips a tick to
+	# healing and burns one Elixir stack per converted tick.
+	var poison_damage := 0
+	var poison = get_debuff(Debuff.DebuffType.POISON)
+	if poison:
+		if owner_stats and "elixir_stacks" in owner_stats and owner_stats.elixir_stacks > 0:
+			_heal_uncut(poison.value)
+			owner_stats.elixir_stacks -= 1
+			dot_ticked.emit("Elixir", poison.value, "Poison turned to healing")
+			print("[DEBUFF] Elixir: Poison healed %d instead! (%d stack(s) left)" % [poison.value, owner_stats.elixir_stacks])
+		else:
+			poison_damage = poison.value
+			dot_ticked.emit("Poison", poison.value, "%d next tick" % (poison.value - 1) if poison.value > 1 else "last tick")
+			print("[DEBUFF] Poison deals %d damage" % poison.value)
+		poison.value -= 1
+		poison._set_name_and_description()
+		if poison.value <= 0:
+			remove_debuff(Debuff.DebuffType.POISON)
+			print("[DEBUFF] Poison expired (0 stacks)")
+	debuffs_changed.emit()
+
+	result["damage_taken"] = burn_damage + poison_damage
+	if owner_stats:
+		# The Burn tick is not raised by its own resistance drop: Burn deals
+		# what it says. (No Vulnerable modifier either — attacks only.)
+		if burn_damage > 0:
+			var drop: float = owner_stats.burn_resist_drop
+			owner_stats.burn_resist_drop = 0.0
+			owner_stats.take_damage(burn_damage)
+			owner_stats.burn_resist_drop = drop
+		if poison_damage > 0:
+			owner_stats.take_damage(poison_damage)
+	return result
+
+## Burn's and Poison's standing riders, kept on the carrier's stats where
+## take_damage and heal read them: Burn lowers every resistance by
+## Debuff.BURN_RESIST_PER_STACK percent per stack; Poison cuts healing by
+## Debuff.POISON_HEAL_CUT (PlayerStats.heal drops the cut while the carrier's
+## poison is being turned to healing — Elixir stacks).
+func _sync_owner_riders() -> void:
+	if owner_stats == null or not ("burn_resist_drop" in owner_stats):
+		return
+	var burn = get_debuff(Debuff.DebuffType.BURN)
+	owner_stats.burn_resist_drop = burn.value * Debuff.BURN_RESIST_PER_STACK if burn else 0.0
+	owner_stats.poison_heal_cut = Debuff.POISON_HEAL_CUT if has_debuff(Debuff.DebuffType.POISON) else 0.0
+
+## A heal that poison became (Elixir): it carries none of Poison's healing cut.
+func _heal_uncut(amount: int) -> void:
+	var cut: float = owner_stats.poison_heal_cut
+	owner_stats.poison_heal_cut = 0.0
+	owner_stats.heal(amount)
+	owner_stats.poison_heal_cut = cut
+
 ## Advance timed debuff durations — and the stack-clocked debuffs' own
 ## clocks — by raw tempo. Called on every tempo advance (any amount), so
 ## stun/frozen/etc handle durations not divisible by 5 and a stack applied at
 ## tempo 3 falls at tempo 8.
-func advance_time(amount: int) -> void:
+## Returns the Burn / Poison damage that ticked on a carrier WITHOUT stats
+## (a summon: main lands it); a carrier with stats has already taken its own.
+func advance_time(amount: int) -> int:
 	if amount <= 0 or debuffs.is_empty():
-		return
+		_dot_clock = 0
+		return 0
+	# Burn and Poison tick on their own 2-tempo clock. A downed carrier's
+	# stacks wait for it to stand.
+	var dot_unlanded := 0
+	if has_debuff(Debuff.DebuffType.BURN) or has_debuff(Debuff.DebuffType.POISON):
+		if owner_stats == null or owner_stats.current_health > 0:
+			_dot_clock += amount
+		while _dot_clock >= Debuff.DOT_TICK_TEMPO:
+			_dot_clock -= Debuff.DOT_TICK_TEMPO
+			var dot: Dictionary = process_dot_tick()
+			if owner_stats == null:
+				dot_unlanded += int(dot["damage_taken"])
+			if not (has_debuff(Debuff.DebuffType.BURN) or has_debuff(Debuff.DebuffType.POISON)):
+				_dot_clock = 0
+				break
+			if owner_stats and owner_stats.current_health <= 0:
+				break
+	else:
+		_dot_clock = 0
+	if debuffs.is_empty():
+		return dot_unlanded
 	var expired: Array[Debuff] = []
 	for debuff in debuffs:
 		# The negative-card rule: a hex or lock's clock keeps running while
@@ -264,9 +327,6 @@ func advance_time(amount: int) -> void:
 			expired.append(debuff)
 
 	for debuff in expired:
-		# Reset burn damage tracker when burn expires
-		if debuff.debuff_type == Debuff.DebuffType.BURN:
-			burn_damage_next = 1
 		debuffs.erase(debuff)
 		# Natural expiry only — a purge goes through remove_debuff and never
 		# fires this. Marvolo's Misunderstanding detonates off it.
@@ -284,6 +344,7 @@ func advance_time(amount: int) -> void:
 				break
 	if shed_any:
 		debuffs_changed.emit()
+	return dot_unlanded
 
 func process_armor_decay(base_decay: int) -> int:
 	# Returns total armor decay including Brittle (a flat extra 2 while any stacks remain)
@@ -601,7 +662,8 @@ func on_movement(tiles_moved: int) -> int:
 	return 0
 
 # (No on-attack hook: attacking neither burns Weakened nor sets off Burn.
-# Burn only ticks once per cycle — designer, 2026-11-14.)
+# Burn only ticks on its clock — designer, 2026-11-14; every 2 tempo since
+# 2026-11-23.)
 
 # ============================================
 # DISPLAY

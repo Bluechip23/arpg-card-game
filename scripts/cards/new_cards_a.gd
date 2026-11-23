@@ -219,8 +219,8 @@ static func howl_aura_of(bm) -> Buff:
 # ---------------------------------------------------------------- every cycle
 
 ## The per-cycle maintains, run at the cycle start with Halo's heal (before
-## the cycle's own status ticks, so Ember Heart moves Burn off its bearer
-## before that Burn bites).
+## the cycle's own status ticks). Burn ticks every 2 tempo since 2026-11-23,
+## so Ember Heart only moves what Burn its bearer still carries at the cycle.
 static func cycle(main) -> void:
 	if main == null or main.player == null or main.deck_manager == null:
 		return
@@ -274,7 +274,6 @@ static func _ember_heart(main, caster) -> void:
 	burn.value -= moved
 	if burn.value <= 0:
 		dm.remove_debuff(Debuff.DebuffType.BURN)
-		dm.burn_damage_next = 1
 	else:
 		burn._set_name_and_description()
 		dm.debuffs_changed.emit()

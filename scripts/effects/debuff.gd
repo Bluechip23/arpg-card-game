@@ -3,6 +3,29 @@ extends RefCounted
 
 ## Represents a debuff/status effect on a character
 
+## Burn and Poison (designer, 2026-11-23), the same on enemies and players.
+## Both tick every DOT_TICK_TEMPO tempo, counted from when the first stack
+## lands.
+##  - Poison: deals its stacks, then loses 1 (20, 19, 18...). While poisoned
+##    the carrier's healing is cut by POISON_HEAL_CUT — unless its poison is
+##    being turned to healing (Elixir), which carries none of the cut.
+##  - Burn: deals its stacks + BURN_FLAT_DAMAGE, and BURN_ARMOR_DAMAGE more
+##    that lands on armor (on health when there is none), then
+##    BURN_STACKS_PER_TICK stacks are used up. Each stack lowers every
+##    resistance of the carrier by BURN_RESIST_PER_STACK percent.
+const DOT_TICK_TEMPO := 2
+const BURN_FLAT_DAMAGE := 3
+const BURN_ARMOR_DAMAGE := 2
+const BURN_STACKS_PER_TICK := 5
+const BURN_RESIST_PER_STACK := 0.5
+const POISON_HEAL_CUT := 0.25
+
+## What one Burn tick deals at `stacks`. Armor soaks it like any hit, so the
+## armor share needs no route of its own: it is on armor while armor stands
+## and on health when it does not.
+static func burn_tick_damage(stacks: int) -> int:
+	return stacks + BURN_FLAT_DAMAGE + BURN_ARMOR_DAMAGE if stacks > 0 else 0
+
 enum DebuffType {
 	BLEED,
 	STUN,
@@ -136,10 +159,10 @@ func _set_name_and_description() -> void:
 			description = "Cannot play spell cards (%d tempo left)" % duration
 		DebuffType.BURN:
 			debuff_name = "Burn"
-			description = "Takes burn damage once per cycle, doubling each cycle (1, 2, 4, 8...)"
+			description = "Every 2 tempo: take %d damage (Burn + 3, and 2 to armor), then 5 Burn is used up. Resistances lowered %s%%" % [burn_tick_damage(value), str(value * BURN_RESIST_PER_STACK)]
 		DebuffType.POISON:
 			debuff_name = "Poison"
-			description = "Take %d damage per cycle, lose 1 poison each cycle" % value
+			description = "Every 2 tempo: take %d damage, then lose 1 Poison. Healing reduced 25%%" % value
 		DebuffType.CURSED:
 			debuff_name = "Cursed"
 			description = "Deal 20% less damage and deal 20% damage to self"

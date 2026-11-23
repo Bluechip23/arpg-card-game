@@ -210,11 +210,11 @@ var is_frozen: bool = false    # Cannot act when frozen
 var frozen_tempo: int = 0      # Remaining tempo for frozen
 var is_stunned: bool = false   # Cannot act when stunned
 var stun_tempo: int = 0        # Remaining tempo cycles for stun
-var burn_stacks: int = 0       # Burn damage tracker (doubles each cycle)
-var burn_damage_next: int = 1  # Burn damage doubles each cycle (1, 2, 4, 8...)
+var burn_stacks: int = 0       # Burn: every 2 tempo take stacks + 3 (+2 to armor), then 5 stacks are used; each stack is -0.5% to every resistance (Debuff's Burn and Poison notes)
+var _dot_clock: int = 0        # tempo banked toward the next Burn / Poison tick (Debuff.DOT_TICK_TEMPO); runs only while either is on
 var cold_damage_next: int = 1  # Element Pollination: Cold's doubling tick while the Weaver maintain is up
 var polymorph_tempo: int = 0   # Polymorph (Circe's Wand): cycles left as a pig — walk and basic melee only
-var poison_stacks: int = 0     # Poison: take X damage per cycle, lose 1 per cycle
+var poison_stacks: int = 0     # Poison: every 2 tempo take X damage and lose 1; healing is cut 25% while poisoned
 var shock_stacks: int = 0      # Shock: take X damage per cycle, lose 1 per cycle (and, with shock_arcs on, arc X to the nearest enemy within 2 squares)
 const SHOCK_ARC_RANGE := 2
 ## Shock's arc to a second enemy, switched OFF (designer, 2026-11-22): Shock
@@ -1638,6 +1638,18 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 
 	_cycle_accumulator += amount
 
+	# Burn and Poison tick on their own 2-tempo clock, counted from when the
+	# first stack lands.
+	if burn_stacks > 0 or poison_stacks > 0:
+		_dot_clock += amount
+		while _dot_clock >= Debuff.DOT_TICK_TEMPO and not is_dead:
+			_dot_clock -= Debuff.DOT_TICK_TEMPO
+			_tick_burn_poison()
+			if burn_stacks <= 0 and poison_stacks <= 0:
+				break
+	if burn_stacks <= 0 and poison_stacks <= 0:
+		_dot_clock = 0
+
 	# Tree form (Cupids Bow): counted in raw tempo, not cycles. The tree keeps
 	# every buff and debuff it had, cannot act, and regenerates 3 health on
 	# each of its first 3 tempo.
@@ -1918,57 +1930,45 @@ func _tick_stack_clock(key: String, stack_field: String, clock: int, amount: int
 		return 0
 	return clock
 
-func _tick_status_durations() -> void:
-	# Choke: "deal 2 damage at the next cycle" — every stack (one per use)
-	# lands this cycle, so a 2nd/3rd Sticky use isn't a cycle or two late.
-	if choke_dot_stacks > 0:
-		var choke_hits := choke_dot_stacks
-		choke_dot_stacks = 0
-		for i in choke_hits:
-			_dot_hit("Choke", choke_dot_damage)
-		print("[%s] Choke deals %d x%d damage" % [enemy_name, choke_dot_damage, choke_hits])
-		debuff_expired.emit(self, "choke")
-
-	# Burn: deal doubling damage each cycle (1, 2, 4, 8...)
+## One Burn / Poison tick (every Debuff.DOT_TICK_TEMPO tempo, off _dot_clock
+## in process_tempo — not the 5-tempo cycle the other stacks tick on).
+func _tick_burn_poison() -> void:
+	# Burn: stacks + 3, and 2 more that lands on armor (on health when there
+	# is none) — armor soaks a tick like any hit, so it is one hit of
+	# Debuff.burn_tick_damage. Then 5 stacks are used up.
 	if burn_stacks > 0:
+		var burn_hit: int = Debuff.burn_tick_damage(burn_stacks)
+		var burn_left: int = maxi(0, burn_stacks - Debuff.BURN_STACKS_PER_TICK)
 		# A small flame flares over the head and the tick's number floats
 		# above it, so a burn is seen working (not just a tiny yellow 1).
 		if is_inside_tree() and get_parent():
 			FireTileSprite.burst(get_parent(), position + Vector3(0, BURN_FLAME_Y, 0))
 		_burn_number_pending = true
-		_dot_hit("Burn", burn_damage_next, "%d next cycle" % (burn_damage_next * 2) if burn_stacks > 1 else "last tick")
+		_burn_tick_in_flight = true  # the tick is not raised by its own resistance drop
+		_dot_hit("Burn", burn_hit, "%d Burn left" % burn_left if burn_left > 0 else "last tick")
+		_burn_tick_in_flight = false
 		_burn_number_pending = false
-		print("[%s] Burn deals %d damage (doubles next cycle)" % [enemy_name, burn_damage_next])
+		print("[%s] Burn deals %d damage (%d Burn left)" % [enemy_name, burn_hit, burn_left])
 		# Element Pollination: the flames jump — burn splashes nearby enemies
 		# like Shock while the Elemental Weaver's maintain is up.
 		if Card.element_pollination_active:
 			for pol_e in _sibling_enemies():
 				if pol_e != self and position.distance_to(pol_e.position) <= 2.5:
-					pol_e._dot_hit("Burn splash", burn_damage_next)
-					print("[%s] Element Pollination: burn splashes %d to %s" % [enemy_name, burn_damage_next, pol_e.enemy_name])
-		# Burn Amp (sphere node): a flat extra hit lands after the normal tick,
-		# outside the doubling.
+					pol_e._dot_hit("Burn splash", burn_hit)
+					print("[%s] Element Pollination: burn splashes %d to %s" % [enemy_name, burn_hit, pol_e.enemy_name])
+		# Burn Amp (sphere node): a flat extra hit lands after the normal tick.
 		var burn_extra := int(_player_sphere_amp("sphere_burn_amp"))
 		if burn_extra > 0 and not is_dead:
 			_dot_hit("Burn Amp", burn_extra)
 			print("[%s] Burn Amp adds %d damage" % [enemy_name, burn_extra])
-		burn_damage_next *= 2
-		burn_stacks -= 1
+		burn_stacks = burn_left
 		if burn_stacks <= 0:
-			burn_damage_next = 1
 			print("[%s] Burn expired" % enemy_name)
 			debuff_expired.emit(self, "burn")
 
-	# Polymorph: the pig wears off one cycle at a time
-	if polymorph_tempo > 0:
-		polymorph_tempo -= 1
-		if polymorph_tempo <= 0:
-			print("[%s] Polymorph wears off" % enemy_name)
-			debuff_expired.emit(self, "polymorph")
-
-	# Poison: deal current stacks damage, then lose 1 stack per cycle
-	if poison_stacks > 0:
-		_dot_hit("Poison", poison_stacks, "%d next cycle" % (poison_stacks - 1) if poison_stacks > 1 else "last tick")
+	# Poison: deal current stacks damage, then lose 1 stack (20, 19, 18...).
+	if poison_stacks > 0 and not is_dead:
+		_dot_hit("Poison", poison_stacks, "%d next tick" % (poison_stacks - 1) if poison_stacks > 1 else "last tick")
 		print("[%s] Poison deals %d damage" % [enemy_name, poison_stacks])
 		# Poison Amp (sphere node): each tick has a stacks% chance of a bonus
 		# damage instance — more stacks, more likely the venom spikes.
@@ -1981,6 +1981,33 @@ func _tick_status_durations() -> void:
 			print("[%s] Poison expired" % enemy_name)
 			debuff_expired.emit(self, "poison")
 
+	_update_status_indicators()
+
+## Burn on this enemy: every stack lowers each of its resistances by
+## Debuff.BURN_RESIST_PER_STACK percent (below 0 is a vulnerability).
+## The Burn tick itself is not raised by it: Burn deals what it says.
+var _burn_tick_in_flight: bool = false
+func get_burn_resist_drop() -> float:
+	return 0.0 if _burn_tick_in_flight else burn_stacks * Debuff.BURN_RESIST_PER_STACK
+
+func _tick_status_durations() -> void:
+	# Choke: "deal 2 damage at the next cycle" — every stack (one per use)
+	# lands this cycle, so a 2nd/3rd Sticky use isn't a cycle or two late.
+	if choke_dot_stacks > 0:
+		var choke_hits := choke_dot_stacks
+		choke_dot_stacks = 0
+		for i in choke_hits:
+			_dot_hit("Choke", choke_dot_damage)
+		print("[%s] Choke deals %d x%d damage" % [enemy_name, choke_dot_damage, choke_hits])
+		debuff_expired.emit(self, "choke")
+
+	# Polymorph: the pig wears off one cycle at a time
+	if polymorph_tempo > 0:
+		polymorph_tempo -= 1
+		if polymorph_tempo <= 0:
+			print("[%s] Polymorph wears off" % enemy_name)
+			debuff_expired.emit(self, "polymorph")
+
 	# Bleed no longer clots by time — stacks fall as the wound bleeds (1 damage
 	# per tile moved, 1 stack per damage; see the tile-step in _physics_process).
 	# Timed statuses (stun, frozen, root, curse...) tick per raw tempo in
@@ -1990,7 +2017,7 @@ func _tick_status_durations() -> void:
 	# combo window that has to be fed, not a slow ratchet toward Frozen at 5.
 	if cold_stacks > 0:
 		# Element Pollination: the frost bites — Cold ticks doubling damage
-		# like Burn while the Elemental Weaver's maintain is up.
+		# (1, 2, 4...) while the Elemental Weaver's maintain is up.
 		if Card.element_pollination_active:
 			_dot_hit("Cold bite", cold_damage_next)
 			print("[%s] Element Pollination: cold bites for %d (doubles next cycle)" % [enemy_name, cold_damage_next])
@@ -5677,7 +5704,7 @@ const MIMIC_CAP: int = 2
 # Everything the sheet means by "all health, debuffs, buffs etc carry over":
 # the status counters a mimic copies from its original the moment it appears.
 const MIMIC_COPIED_FIELDS: Array[String] = [
-	"poison_stacks", "burn_stacks", "burn_damage_next", "cold_stacks", "cold_damage_next",
+	"poison_stacks", "burn_stacks", "cold_stacks", "cold_damage_next",
 	"shock_stacks", "bleed_stacks", "vulnerable_stacks", "weaken_stacks", "slow_stacks",
 	"choke_dot_stacks", "choke_dot_damage", "stun_tempo", "is_stunned", "frozen_tempo", "is_frozen",
 	"disarmed_tempo", "is_disarmed", "disarmed_attacks", "marked_tempo", "is_marked",
@@ -6510,6 +6537,9 @@ func _regenerate(amount: int) -> void:
 	var heal_ceiling = max_health
 	if narashimha_tempo > 0 and narashimha_heal_cap >= 0:
 		heal_ceiling = min(heal_ceiling, narashimha_heal_cap)
+	# Poison: every heal on a poisoned enemy is cut by a quarter.
+	if poison_stacks > 0:
+		amount = floori(amount * (1.0 - Debuff.POISON_HEAL_CUT))
 	var healed = min(amount, heal_ceiling - current_health)
 	if healed <= 0:
 		return
@@ -7001,6 +7031,7 @@ func preview_player_hit(amount: int, damage_type: int = DamageTypes.Type.PHYSICA
 		var type_resist: float = float(damage_resistances.get(damage_type, 0.0))
 		if damage_type == DamageTypes.Type.PHYSICAL and not phys_defense_groups.is_empty():
 			type_resist -= get_phys_defense_debuff_percent()
+		type_resist -= get_burn_resist_drop()
 		if type_resist != 0.0:
 			amount = floori(amount * (100.0 - minf(type_resist, 90.0)) / 100.0)
 	if player_hit_modifier.is_valid():
@@ -7069,6 +7100,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		var type_resist: float = float(damage_resistances.get(damage_type, 0.0))
 		if damage_type == DamageTypes.Type.PHYSICAL and not phys_defense_groups.is_empty():
 			type_resist -= get_phys_defense_debuff_percent()  # lowered defense: below 0 is a vulnerability
+		type_resist -= get_burn_resist_drop()  # Burn: -0.5% to every resistance per stack
 		if type_resist != 0.0:
 			# Negative resist = vulnerability: the hit lands harder (Treant vs fire).
 			# Percent math before the divide keeps 100 * 115% at exactly 115.
@@ -8303,13 +8335,13 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			desc = "Cannot act at all."
 			remaining = "Remaining: %d tempo" % frozen_tempo
 		"Burn":
-			desc = "Takes burn damage once per cycle, doubling each cycle (1, 2, 4, 8...)."
+			desc = "Every 2 tempo: takes %d damage (Burn + 3, and 2 to armor), then 5 Burn is used up. Its resistances are lowered %s%%." % [Debuff.burn_tick_damage(burn_stacks), str(get_burn_resist_drop())]
 			remaining = "Stacks: %d" % burn_stacks
 		"Cold":
 			desc = "At 5 stacks it becomes Frozen for 1 cycle; thaws 3 stacks per cycle."
 			remaining = "Stacks: %d of 5" % cold_stacks
 		"Poison":
-			desc = "Takes %d damage per cycle, loses 1 poison each cycle." % poison_stacks
+			desc = "Every 2 tempo: takes %d damage, then loses 1 Poison. Its healing is reduced 25%%." % poison_stacks
 			remaining = "Stacks: %d" % poison_stacks
 		"Shock":
 			if shock_arcs:
