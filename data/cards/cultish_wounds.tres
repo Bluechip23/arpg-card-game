@@ -6,7 +6,7 @@
 script = ExtResource("1_vnbd6")
 card_id = "cultish_wounds"
 card_name = "Cultish Wounds"
-description = "Maintain 2M: Deal 1 damage to self ignoring armor. Repeat every 5 tempo."
+description = "Every 5 tempo, take 1 damage, ignoring armor."
 card_type = 5
 card_type_name = "Power"
 mana_cost = 20

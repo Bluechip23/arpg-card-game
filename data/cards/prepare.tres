@@ -6,7 +6,7 @@
 script = ExtResource("1_o43bu")
 card_id = "prepare"
 card_name = "Prepare"
-description = "Draw 3 cards. Erase: 1"
+description = "Draw 3 cards. Erase 1"
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 30

@@ -6,7 +6,7 @@
 script = ExtResource("1_o3mwx")
 card_id = "curse_of_the_living"
 card_name = "Curse of the Living"
-description = "Maintain: every heal you take is halved, and each ally is healed for half of what remains (rounded up)."
+description = "Every heal you take is halved, and each ally is healed for half of what remains (rounded up)."
 card_type = 5
 card_type_name = "Power"
 mana_cost = 65

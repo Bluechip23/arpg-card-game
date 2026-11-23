@@ -6,7 +6,7 @@
 script = ExtResource("1_pgkj3")
 card_id = "territorial_mark"
 card_name = "Territorial Mark"
-description = "Costs 35 health. Deal 15 damage at range 10. The arrow's path — and 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside are Weakened until they leave."
+description = "Costs 35 health. Deal 15 damage. The arrow's path — and 2 squares either side of it — glistens with blue smoke for 25 tempo; enemies inside are Weakened until they leave."
 mana_cost = 45
 health_cost = 35
 damage = 15

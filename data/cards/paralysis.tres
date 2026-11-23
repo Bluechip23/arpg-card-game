@@ -6,7 +6,7 @@
 script = ExtResource("1_070ne")
 card_id = "paralysis"
 card_name = "Paralysis"
-description = "Webbed! You cannot move while this is in your hand. Play (10 mana, 5 tempo) to tear the webbing free."
+description = "Webbed! You cannot move while this is in your hand. Play it to tear free."
 card_type = 2
 card_type_name = "Curse"
 mana_cost = 10

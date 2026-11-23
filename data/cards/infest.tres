@@ -6,7 +6,7 @@
 script = ExtResource("1_8uu7y")
 card_id = "infest"
 card_name = "Infest"
-description = "A rat brood squirming in your pack. In 5 tempo, if it is still in your hand, it hatches into 2 Wererats. Play (50 mana, 0 tempo) to erase it, or discard it."
+description = "A rat brood squirming in your pack. In 5 tempo, if it is still in your hand, it hatches into 2 Wererats. Play it to erase it, or discard it."
 card_type = 2
 card_type_name = "Curse"
 mana_cost = 50

@@ -6,7 +6,7 @@
 script = ExtResource("1_27mdw")
 card_id = "healing_potion"
 card_name = "Healing Potion"
-description = "Heal 5. "
+description = "Heal 5."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 10

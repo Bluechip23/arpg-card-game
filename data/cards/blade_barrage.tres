@@ -6,7 +6,7 @@
 script = ExtResource("1_1pbb7")
 card_id = "blade_barrage"
 card_name = "Blade Barrage"
-description = "Deal X*10 damage where X = the number of attack cards in your hand. Glut: 15 tempo."
+description = "Deal 10 damage per attack card in your hand. Glut 15."
 mana_cost = 40
 tempo_cost = 5
 slot_labels = [8, 10]

@@ -6,7 +6,7 @@
 script = ExtResource("1_uiw6e")
 card_id = "shuriken"
 card_name = "Shuriken"
-description = "Deal 3 damage to a random enemy within range. Free."
+description = "Deal 3 damage to a random enemy within range."
 mana_cost = 0
 damage = 3
 tempo_cost = 0
