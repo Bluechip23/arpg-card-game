@@ -225,7 +225,7 @@ func _test_enemy_burn_resist() -> void:
 func _test_player_poison() -> void:
 	print("--- Poison on a player: the same clock, and healing cut 25% ---")
 	var p := _unit(Vector2i(0, 0))
-	p.stats.intelligence = 0  # no flat heal bonus: heals read as written
+	p.stats.base_intelligence = 0  # no flat heal bonus: heals read as written
 	p.dm.apply_debuff(Debuff.create(Debuff.DebuffType.POISON, 20, 15))
 	p.dm.advance_time(2)
 	_check(p.hp() == 480, "2 tempo: 20 damage (%d)" % (500 - p.hp()))
@@ -267,7 +267,7 @@ func _test_player_burn() -> void:
 func _test_elixir() -> void:
 	print("--- Poison turned to healing carries none of the cut ---")
 	var p := _unit(Vector2i(0, 0))
-	p.stats.intelligence = 0  # no flat heal bonus: heals read as written
+	p.stats.base_intelligence = 0  # no flat heal bonus: heals read as written
 	p.dm.apply_debuff(Debuff.create(Debuff.DebuffType.POISON, 10, 15))
 	p.stats.elixir_stacks = 1
 	p.stats.current_health = 100

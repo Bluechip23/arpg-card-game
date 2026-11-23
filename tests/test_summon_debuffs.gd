@@ -3,7 +3,7 @@ extends SceneTree
 ## Enemy debuffs land on summons too (designer, 2026-10-28), and do to them
 ## what they do to a hero: Stun / Root / Frozen hold them in place, Stun /
 ## Disarm / Frozen stop their attacks, Slowed makes moves cost more, Poison /
-## Burn tick each cycle, Bleed hurts per tile walked, Vulnerable sharpens hits
+## Burn tick every 2 tempo, Bleed hurts per tile walked, Vulnerable sharpens hits
 ## on them, Weakened / Cursed blunt their blows, Blind makes them miss. The
 ## card-only debuffs (Hexed, Locked, Drain...) never land on a summon. The
 ## Allies tab shows them as badges.
@@ -85,11 +85,11 @@ func _run() -> void:
 	main._update_skeletons(1)
 	_check(sk.get_destination_cell() == c0 + Vector2i(1, 0), "a step after 3")
 
-	# Poison ticks on the cycle; Bleed per tile walked.
+	# Poison ticks every 2 tempo; Bleed per tile walked.
 	sk = _fresh(main, at)
 	sk.get_debuff_manager().apply_debuff(Debuff.create(D.POISON, 3, 15))
-	main._cycle_summon_debuffs()
-	_check(sk.health == 7, "Poison 3: 3 damage at the cycle (%d HP)" % sk.health)
+	main._on_tempo_advanced(0, 2)  # Poison and Burn tick every 2 tempo, off the raw tempo step
+	_check(sk.health == 7, "Poison 3: 3 damage at its 2-tempo tick (%d HP)" % sk.health)
 	_check(sk.debuff_manager.get_debuff(D.POISON).value == 2, "and it drops to 2")
 	sk.get_debuff_manager().apply_debuff(Debuff.create(D.BLEED, 5, -1))
 	var hp_b: int = sk.health

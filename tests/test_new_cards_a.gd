@@ -294,13 +294,14 @@ func _test_ember_heart() -> void:
 	dbm.apply_debuff(Debuff.create(Debuff.DebuffType.BURN, 4, 15))
 	NewCardsA.cycle(main)
 	_check(dbm.get_debuff(Debuff.DebuffType.BURN).value == 4 and _lost(e) == 0 and e.burn_stacks == 0, "with no enemy within 4 nothing transfers")
-	# The real cycle: the transfer runs before the caster's own Burn tick.
+	# The real cycle: the caster's own Burn ticks every 2 tempo (5 stacks a
+	# tick) on the way there, and the cycle moves 2 of what is left.
 	dbm.clear_all_debuffs()
 	e = _field([Vector2i(1, 0)])[0]
-	dbm.apply_debuff(Debuff.create(Debuff.DebuffType.BURN, 5, 15))
+	dbm.apply_debuff(Debuff.create(Debuff.DebuffType.BURN, 30, 15))
 	_to_next_cycle()
 	burn = dbm.get_debuff(Debuff.DebuffType.BURN)
-	_check(burn != null and burn.value == 2, "over a real cycle: 2 transferred, then the caster's Burn ticks 1 off (%d left)" % (burn.value if burn else 0))
+	_check(burn != null and burn.value < 30 and (30 - 2 - burn.value) % 5 == 0, "over a real cycle: 2 transferred, on top of the caster's own 5-stack ticks (%d left)" % (burn.value if burn else 0))
 	_check(_lost(e) >= 6, "the enemy took the transfer's 6 (lost %d)" % _lost(e))
 	# No maintain, no transfer.
 	dm.dismiss_maintained_card(dm.maintained_cards.find(eh))

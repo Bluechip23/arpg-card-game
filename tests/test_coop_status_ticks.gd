@@ -107,7 +107,8 @@ func _test_cycle_effects(p1: Player, p2: Player) -> void:
 	_check(s2.healing_boost_percent == 0.0, "the partner's Raged Circulation expires on time")
 	_check(s1.current_temp_health == 10, "the active player's temp HP is still up (one cycle left)")
 
-	# Poison on the partner ticks for the stack count and loses a stack.
+	# Poison on the partner ticks every 2 tempo for the stack count and loses
+	# a stack each time: twice over a 5-tempo cycle (4, then 3).
 	_reset(p1)
 	_reset(p2)
 	p2.get_debuff_manager().apply_debuff(Debuff.create(Debuff.DebuffType.POISON, 4, 1000))
@@ -115,8 +116,8 @@ func _test_cycle_effects(p1: Player, p2: Player) -> void:
 	var p1_before: int = s1.current_health
 	_one_cycle()
 	var poison = p2.get_debuff_manager().get_debuff(Debuff.DebuffType.POISON)
-	_check(hp_before - s2.current_health == 4, "the partner's Poison ticks for 4 (%d -> %d)" % [hp_before, s2.current_health])
-	_check(poison != null and poison.value == 3, "the partner's Poison loses a stack")
+	_check(hp_before - s2.current_health == 7, "the partner's Poison ticks for 4, then 3 (%d -> %d)" % [hp_before, s2.current_health])
+	_check(poison != null and poison.value == 2, "the partner's Poison loses a stack per tick")
 	_check(s1.current_health == p1_before, "the partner's Poison never touches the active player")
 
 	# Blessed: the extra draw lands in the partner's own hand.
