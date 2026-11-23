@@ -6,7 +6,7 @@
 script = ExtResource("1_um0kr")
 card_id = "improvised_ammo"
 card_name = "Improvised Ammo"
-description = "Deal 8 damage and apply 3 Weaken. If discarded: deal 4 damage to the nearest enemy and Improvised Ammo permanently gains +10% crit chance."
+description = "Deal 8 damage and apply 3 Weaken. If discarded: deal 4 damage to the nearest enemy and Improvised Ammo gains +10% crit chance the next time it is played (this can stack)."
 mana_cost = 45
 damage = 8
 tempo_cost = 0

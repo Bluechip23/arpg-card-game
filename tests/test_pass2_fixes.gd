@@ -241,23 +241,26 @@ func _t_summon_steps() -> void:
 	main._clear_spirit_bows()
 
 func _t_threshold_triggers() -> void:
-	print("-- Tight Rope: 'When a hit puts you below 20% health' --")
+	print("-- Tight Rope: 'when you take damage within 10% of half health' (2026-11-22) --")
 	_reset()
 	stats.max_health = 100
-	stats.current_health = 15
-	stats.current_armor = 50
+	stats.current_health = 30
+	stats.current_armor = 0
 	var tr := Card.create_by_id("tight_rope")
 	dm.hand.append(tr)
-	stats.take_damage(10, pdm, bm)
-	_check(stats.current_health == 15 and bm.get_buff(Buff.BuffType.STRENGTHEN) == null,
-		"already below 20%%, a hit the armor soaks fires nothing")
+	stats.take_damage(5, pdm, bm)
+	_check(dm.hand.has(tr) and bm.get_buff(Buff.BuffType.STRENGTHEN) == null,
+		"a hit that leaves you at 25%% fires nothing")
 	_reset()
 	stats.max_health = 100
-	stats.current_health = 25
-	dm.hand.append(Card.create_by_id("tight_rope"))
-	stats.take_damage(10, pdm, bm)
-	_check(stats.current_health == 15 and bm.get_buff(Buff.BuffType.STRENGTHEN) != null,
-		"the hit that crosses 20%% fires it")
+	stats.current_health = 90
+	stats.current_armor = 0
+	dm.hand.append(tr)
+	stats.take_damage(5, pdm, bm)
+	_check(dm.hand.has(tr), "a hit that leaves you at 85%% fires nothing")
+	stats.take_damage(30, pdm, bm)
+	_check(not dm.hand.has(tr) and bm.get_buff(Buff.BuffType.STRENGTHEN) != null,
+		"a hit that leaves you at 55%% fires it")
 	for b in bm.buffs.duplicate():
 		bm.remove_buff(b.buff_type)
 

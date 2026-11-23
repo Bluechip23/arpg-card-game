@@ -1103,8 +1103,15 @@ func get_effective_range() -> int:
 		return 0
 	return 5 + range_modifier
 
+## Cards whose type line shows the reach itself ("Ranged 3"), not the
+## change from the base 5 ("Ranged -2"): their text names the range
+## (designer, 2026-11-22: Splinter, Territorial Mark).
+const RANGE_SHOWN_ABSOLUTE := {"splinter": true, "territorial_mark": true}
+
 func get_range_display() -> String:
 	# Returns display string for card range keyword
+	if is_ranged and not conditional_range and RANGE_SHOWN_ABSOLUTE.has(card_id):
+		return "Ranged %d" % get_effective_range()
 	if conditional_range:
 		# Just the keyword: a "(Melee)" / "(Ranged)" suffix crowds the T&O seal
 		# on the card's type bar. The legend explains how it resolves.
@@ -1691,6 +1698,10 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		# Boots of the Balancer: armor scaling with the wearer's missing health.
 		if on_self.get("armor_per_missing_health10", 0) > 0 and player_stats:
 			var missing_pct := (1.0 - player_stats.get_health_percent()) * 100.0
+			# "...up to 50% health": missing health past the cap counts no more.
+			var bal_cap: int = int(on_self.get("missing_health_cap", 0))
+			if bal_cap > 0:
+				missing_pct = minf(missing_pct, float(bal_cap))
 			var bal_step: int = maxi(1, int(on_self.get("missing_health_step", 10)))
 			var bal_armor: int = int(on_self["armor_per_missing_health10"]) * int(missing_pct / bal_step)
 			if bal_armor > 0:
@@ -1812,10 +1823,13 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			player_stats.temp_on_self_crit_bonus += 5.0 * bud_n
 			print("[CARD] On-Self: +%d damage / +%d%% crit from %d bow(s)" % [2 * bud_n, 5 * bud_n, bud_n])
 
-	# Wrist Rocket: crit chance banked by discarded Improvised Ammo copies.
+	# Wrist Rocket: crit chance banked by discarded Improvised Ammo copies,
+	# spent on the next play (designer, 2026-11-21: stacks until then, no
+	# longer permanent).
 	if card_id == "improvised_ammo" and player_stats and player_stats.improvised_ammo_crit_bonus > 0.0:
 		_temp_crit_applied += player_stats.improvised_ammo_crit_bonus
 		player_stats.temp_on_self_crit_bonus += player_stats.improvised_ammo_crit_bonus
+		player_stats.improvised_ammo_crit_bonus = 0.0
 
 	# Feathered Hat: an armed guaranteed crit is spent by the next ranged
 	# offensive card — any damaging ranged card, whatever item it's slotted in.
@@ -2075,7 +2089,8 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			# Knife Toed Boots: a cheap melee jab. Same physical path as Slash.
 			_execute_slash(target, is_empowered, player_stats, damage_reduction_pct, self_damage_percent, buff_mgr)
 		"tight_rope":
-			# Boots of the Balancer instant: fired by the below-20%-health trigger.
+			# Boots of the Balancer instant: fired by a hit that leaves you within
+			# 10% of half health (40-60%; designer, 2026-11-22).
 			if player_stats:
 				player_stats.add_temp_health(20, 5)
 			if buff_mgr:
@@ -2193,6 +2208,8 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 			block -= wall_lv3_bonus
 		"preemptive_answer":
 			# Divine Resistance instant: fired by the below-25%-health trigger.
+			# Purges 3 debuffs and negates the next 3 to land (designer,
+			# 2026-11-21: was "heal 20").
 			if player_stats:
 				var pa_dm = deck_manager.debuff_manager if deck_manager and "debuff_manager" in deck_manager else null
 				if pa_dm:
@@ -2200,8 +2217,8 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 					pa_list.shuffle()
 					for i in range(mini(3, pa_list.size())):
 						pa_dm.remove_debuff(pa_list[i].debuff_type)
-				player_stats.heal(20)
-				print("[CARD] Preemptive Answer: purged up to 3 debuffs, healed 20")
+					pa_dm.negate_next += 3
+				print("[CARD] Preemptive Answer: purged up to 3 debuffs, the next 3 negated")
 		"ragnarok":
 			# Hide of Garmr: free the jail. Lv.3 heals 15 and grants 7 STR per card.
 			if deck_manager:

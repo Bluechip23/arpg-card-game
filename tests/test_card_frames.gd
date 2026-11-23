@@ -183,6 +183,12 @@ func _run() -> void:
 			gapless = false
 	_check(gapless, "the frame's strips overlap (no see-through seam)")
 	spell_ui.queue_free()
+	_check(Card.create_by_id("splinter").get_range_display() == "Ranged 3",
+		"Splinter's type line shows its reach: Ranged 3 (designer, 2026-11-22)")
+	_check(Card.create_by_id("territorial_mark").get_range_display() == "Ranged 10",
+		"Territorial Mark's type line shows its reach: Ranged 10")
+	_check(Card.create_by_id("dagger_throw").get_range_display().begins_with("Ranged -"),
+		"other short-range cards keep the change from the base (Ranged -N)")
 	var sa := Card.create_by_id("spirit_arrow")
 	_check(CardUI.frame_for(sa) == CardUI.FRAMES["offensive"] and not sa.is_attack(),
 		"Spirit Arrow is plain Offensive (designer, 2026-11-16)")
