@@ -5,8 +5,8 @@ extends SceneTree
 ##  - "A stack is 5 tempo": Slow, Vulnerable and Weaken fall one stack per
 ##    5 tempo on their own clocks and are never burned by moves, hits or
 ##    attacks; applying more adds stacks while the clock keeps running.
-##  - Shock ticks itself AND arcs the same damage to the nearest other enemy
-##    within 2 squares.
+##  - Shock ticks itself only; the arc to the nearest other enemy within 2
+##    squares is kept behind Enemy.shock_arcs (off since 2026-11-22).
 ##  - Cold thaws 3 stacks per cycle (Frozen at 5 unchanged).
 ##  - Disarm, Root and Curse timers add; "disarm_attacks" is 5 tempo of
 ##    Disarm per stack.
@@ -226,7 +226,7 @@ func _test_weaken() -> void:
 	_free_all([e, p])
 
 func _test_shock_arc() -> void:
-	print("--- Shock: ticks itself and arcs to the nearest enemy within 2 ---")
+	print("--- Shock: ticks itself; the arc to the nearest enemy within 2 is switched off ---")
 	var p := _unit(Vector2i(0, 0))
 	var a := _enemy(Enemy.EnemyType.MINION, Vector2i(5, 5))
 	var near := _enemy(Enemy.EnemyType.MINION, Vector2i(6, 5))   # 1 away: the arc target
@@ -238,6 +238,17 @@ func _test_shock_arc() -> void:
 	var hp_near: int = near.current_health
 	var hp_mid: int = mid.current_health
 	var hp_far: int = far.current_health
+	# As shipped: Shock hurts only the enemy carrying it.
+	_check(not Enemy.shock_arcs, "the arc is off by default")
+	a._tick_status_durations()
+	_check(hp_a - a.current_health == 3, "the tick deals its stacks (3) to itself")
+	_check(near.current_health == hp_near and mid.current_health == hp_mid and far.current_health == hp_far,
+		"…and no other enemy is hurt")
+	_check(a.shock_stacks == 2, "then it loses a stack")
+	# The kept arc, switched back on.
+	Enemy.shock_arcs = true
+	a.shock_stacks = 3
+	hp_a = a.current_health
 	a._tick_status_durations()
 	_check(hp_a - a.current_health == 3, "the tick deals its stacks (3) to itself")
 	_check(hp_near - near.current_health == 3, "…and arcs 3 to the nearest enemy")
@@ -252,6 +263,7 @@ func _test_shock_arc() -> void:
 	hp_far = far.current_health
 	a._tick_status_durations()
 	_check(hp_a - a.current_health == 2 and far.current_health == hp_far, "no enemy within 2: the tick only hurts itself")
+	Enemy.shock_arcs = false
 	_free_all([a, far, p])
 
 func _test_cold_thaw() -> void:
