@@ -213,10 +213,10 @@ const INFO := {
 		"cerberus_roar": {"text": "Used when his thorns are spent: he gains 25 armor and 25 Thorns.", "kw": ["thorns"]},
 	},
 	"ICE_TROLL": {
-		"ice_club": {"text": "Melee: {a} damage + 1 Cold and 1 Brittle. If the blow Freezes you, Clobber fires at once.",
-				"kw": ["cold", "brittle", "frozen"]},
-		"clobber": {"text": "Melee: {s:50} damage + 1 Cold and 1 Brittle. It also fires instantly whenever an Ice Troll blow Freezes you.",
-				"kw": ["cold", "brittle", "frozen"]},
+		"ice_club": {"text": "Melee: {a} damage + 3 Cold and 1 Brittle. If the blow brings you to 9 Cold, Clobber fires at once.",
+				"kw": ["cold", "brittle"]},
+		"clobber": {"text": "Melee: {s:50} damage + 3 Cold and 1 Brittle. It also fires instantly whenever an Ice Troll blow brings you to 9 Cold.",
+				"kw": ["cold", "brittle"]},
 	},
 	"WHITE_MANTICORE": {
 		"manticore_bite": {"text": "Melee: {a} damage."},
@@ -243,7 +243,7 @@ const INFO := {
 		"sunken_bite": {"text": "Melee: 10 damage + 8 Bleed; it can crit too (1.5x and 6 more Bleed).", "kw": ["bleed"]},
 	},
 	"SNOW_WRAITH": {
-		"snowball": {"text": "Ranged, up to 5 squares: no damage — Slowed for 3 tempo + 2 Cold. Thrown first; Ice Blast once you are slowed.", "kw": ["slowed", "cold"]},
+		"snowball": {"text": "Ranged, up to 5 squares: no damage — Slowed for 3 tempo + 5 Cold. Thrown first; Ice Blast once you are slowed.", "kw": ["slowed", "cold"]},
 		"ice_blast": {"text": "Ranged, up to 5 squares: {a} ice damage, +3 if you have armor; Slowed for 3 tempo.", "kw": ["slowed"]},
 	},
 	"DEMON": {

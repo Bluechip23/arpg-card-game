@@ -999,7 +999,7 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 				{"name": "ice_club", "tempo_cost": 4},
 				# Clobber (designer, 2026-11-08): "a 10 tempo cost if queued up
 				# or an auto trigger against a frozen enemy" — queued here, and
-				# it still auto-triggers when a blow freezes (_ice_troll_strike).
+				# it still auto-triggers when a blow brings the target to 9 Cold (_ice_troll_strike).
 				{"name": "clobber",  "tempo_cost": 10},
 				{"name": "move",     "tempo_cost": 3},
 			]
@@ -1305,8 +1305,8 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WEREGOAT: "Hoof Punch (4 tempo): 6 damage.\nCharge (8 tempo): runs up to 8 squares along the line that crosses the most of your units — 8 damage to everything in its path, and everything within 1 square of where it lands is Stunned for 3 tempo.\nMove (5 tempo): 2 spaces.",
 		EnemyType.WYVERN: "Flying: ignores your high-ground bonus. Resists 25% physical / 35% fire / 25% lightning.\nBite (5 tempo): 25 damage.\nTalon Grab (8 tempo, then 2-cycle cooldown): flies above its target (reach 3), 25 damage, and drags them to an unoccupied space 8 squares away.\nMove (4 tempo): 6 spaces.",
 		EnemyType.ROC: "15 armor. Flying: ignores your high-ground bonus. It always moves AWAY from you: it dives, then keeps its distance until the dive is ready again.\nDive Bomb (5 tempo, from up to 6 squares): 8 damage; the Roc lands beside you.\nEye Scrape (3 tempo, Async): if you have stayed in melee reach for more than 3 tempo it claws your eyes — 2 Weakened.\nMove away (1 tempo): 1 space.",
-		EnemyType.ICE_TROLL: "Every attack adds a stack of frost (Cold, 5 tempo) AND a stack of Brittle (5 tempo). Resists 35% physical / 15% fire / 15% lightning.\nClub (4 tempo): 13 damage.\nClobber (10 tempo): 50 damage. It also triggers instantly whenever an Ice Troll attack FREEZES its target.\nMove (3 tempo): 3 spaces.",
-		EnemyType.SNOW_WRAITH: "Range 5.\nSnowball (8 tempo): Slowed for 3 tempo + 2 Cold.\nIce Blast (5 tempo): 5 ice damage, +3 if you have armor; Slowed for 3 tempo.\nMove (5 tempo): 3 spaces.",
+		EnemyType.ICE_TROLL: "Every attack adds 3 frost (Cold) AND a stack of Brittle (5 tempo); the hit that brings you to 9 Cold fires Clobber at once. Resists 35% physical / 15% fire / 15% lightning.\nClub (4 tempo): 13 damage.\nClobber (10 tempo): 50 damage. It also triggers instantly whenever an Ice Troll attack brings its target to 9 Cold.\nMove (3 tempo): 3 spaces.",
+		EnemyType.SNOW_WRAITH: "Range 5.\nSnowball (8 tempo): Slowed for 3 tempo + 5 Cold.\nIce Blast (5 tempo): 5 ice damage, +3 if you have armor; Slowed for 3 tempo.\nMove (5 tempo): 3 spaces.",
 		EnemyType.GRANITE_COLOSSUS: "350 health under 250 armor; resists 65% physical / 50% fire / 50% lightning.\nMove (5 tempo): 3 spaces.\n[Its attacks are still TBD on the design sheet — it only stands.]",
 		EnemyType.WHITE_MANTICORE: "Flying: ignores your high-ground bonus. Resists 10% physical / 35% fire / 10% lightning.\nBite (3 tempo): 15 damage.\nStinger (5 tempo, then 5-tempo cooldown): 25 damage + 3 Clumsy (3 stacks of 5 tempo = 3 cycles) + 8 Poison.\nMove (2 tempo): 3 spaces.",
 		EnemyType.SABERTOOTH: "35% to crit: a crit deals 1.5x and inflicts 6 Bleed.\nTrack (10 tempo, Async): marks the nearest of your units — +15 Strengthen against it, and the tiger must hunt it.\nBite and Claw (5 tempo): bites for 6, then claws for 3 — two separate attacks (each rolls its own crit and spends its own Strengthen).\nSunken Bite (15 tempo, Async): 10 damage + 8 Bleed.\nMove (2 tempo): 2 spaces.",
@@ -4939,19 +4939,29 @@ func _try_clobber(target_node: Node3D) -> bool:
 	turn_completed.emit()
 	return true
 
+## Ice Troll (designer, 2026-11-25): every hit adds ICE_TROLL_COLD Cold, and
+## the hit that brings its target to ICE_TROLL_CLOBBER_COLD Cold fires Clobber
+## at once. (It used to fire on the freeze, while Cold froze at 5.)
+const ICE_TROLL_COLD := 3
+const ICE_TROLL_CLOBBER_COLD := 9
+
 func _ice_troll_strike(target_node: Node3D, dmg: int, label: String) -> void:
-	## Every Ice Troll attack adds a stack of frost (Cold) and Brittle. If the
-	## blow FREEZES the target (Cold reaching 5), Clobber (50) auto-triggers.
+	## Every Ice Troll attack adds 3 frost (Cold) and a stack of Brittle. If
+	## the blow carries the target's Cold from under 9 to 9 or more, Clobber
+	## (50) auto-triggers. Clobber's own Cold never sets off another.
 	_deal_damage_to_player(target_node, dmg, label)
 	var dm = target_node.get_debuff_manager() if target_node.has_method("get_debuff_manager") else null
 	if not dm:
 		return
-	var was_frozen: bool = dm.has_debuff(Debuff.DebuffType.FROZEN)
-	# sheet: Cold's timer is 5 tempo; Brittle is a 5-tempo stack on its own clock.
-	dm.apply_debuff(Debuff.create(Debuff.DebuffType.COLD, 1, 5))
+	var cold_before = dm.get_debuff(Debuff.DebuffType.COLD)
+	var had: int = cold_before.value if cold_before else 0
+	# Brittle is a 5-tempo stack on its own clock; Cold has no timer.
+	dm.apply_debuff(Debuff.create(Debuff.DebuffType.COLD, ICE_TROLL_COLD))
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.BRITTLE, 1))
-	if label != "Clobber" and not was_frozen and dm.has_debuff(Debuff.DebuffType.FROZEN):
-		print("[%s] The freeze leaves them wide open — CLOBBER!" % enemy_name)
+	var cold_after = dm.get_debuff(Debuff.DebuffType.COLD)
+	var has: int = cold_after.value if cold_after else 0
+	if label != "Clobber" and had < ICE_TROLL_CLOBBER_COLD and has >= ICE_TROLL_CLOBBER_COLD:
+		print("[%s] %d Cold leaves them wide open — CLOBBER!" % [enemy_name, has])
 		_ice_troll_strike(target_node, maxi(1, roundi(50 * _pps_dmg)), "Clobber")
 
 ## --- White Manticore ---
@@ -5601,13 +5611,15 @@ func _choose_snow_wraith_action(distance: int) -> void:
 		slowed = dm != null and dm.is_slowed()
 	chosen_action = _get_action("ice_blast") if slowed else _get_action("snowball")
 
-## Snowball (sheet, 8): no damage; Slowed for 3 tempo + 2 Cold.
+## Snowball (sheet, 8): no damage; Slowed for 3 tempo + 5 Cold (the sheet's 2,
+## raised by the designer 2026-11-25 with Cold's threshold at 10).
+const SNOWBALL_COLD := 5
 func _try_snowball(target_node: Node3D) -> bool:
 	if is_silenced or not _in_attack_range(target_node):
 		return _try_move(target_node)
 	_apply_player_debuff(target_node, Debuff.create_timed(Debuff.DebuffType.SLOWED, 3, enemy_name))
-	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.COLD, 2, 5))  # sheet: Cold's timer is 5 tempo
-	print("[%s] Snowball: Slowed 3 tempo + 2 Cold" % enemy_name)
+	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.COLD, SNOWBALL_COLD))
+	print("[%s] Snowball: Slowed 3 tempo + %d Cold" % [enemy_name, SNOWBALL_COLD])
 	_throw_at(target_node, "snowball")   # the snowball flies from her hand to the target
 	turn_completed.emit()
 	return true

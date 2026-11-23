@@ -473,3 +473,12 @@ These are the gaps the data points at, not decisions:
    that is a bug; if it was meant to be always-on, the "starts charged" wording is misleading.
 9. **Loot tiers**: Cerberus falls to the default tier; Rat King / Bone Dragon / Hydra tier labels and loot do not
    agree with each other or with their rooms.
+
+## 2026-11-25: Cold numbers after the Cold rework
+
+Cold no longer freezes at 5 (see `docs/STATUS_EFFECTS_AUDIT.md`, 2026-11-24), so the designer re-set the two enemies
+that apply it; rows above that say "1 Cold", "2 Cold" or "on freeze" predate this:
+
+- **Ice Troll**: every hit applies 3 Cold (was 1). Clobber auto-fires on the hit that brings the target from under 9
+  Cold to 9 or more (was: on the freeze). Clobber's own 3 Cold never sets off another.
+- **Snow Wraith**: Snowball applies 5 Cold (was 2).
