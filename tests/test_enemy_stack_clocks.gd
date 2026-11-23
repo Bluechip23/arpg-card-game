@@ -7,7 +7,8 @@ extends SceneTree
 ##    attacks; applying more adds stacks while the clock keeps running.
 ##  - Shock ticks itself only; the arc to the nearest other enemy within 2
 ##    squares is kept behind Enemy.shock_arcs (off since 2026-11-22).
-##  - Cold thaws 3 stacks per cycle (Frozen at 5 unchanged).
+##  - Cold: +1 tempo on offensive actions per 10 stacks; performing one deals
+##    half the stacks and sheds 10. No freeze, no thaw.
 ##  - Disarm, Root and Curse timers add; "disarm_attacks" is 5 tempo of
 ##    Disarm per stack.
 ##  - Wear Down lasts 2 enemy attacks, refreshed by every player hit.
@@ -267,17 +268,28 @@ func _test_shock_arc() -> void:
 	_free_all([a, far, p])
 
 func _test_cold_thaw() -> void:
-	print("--- Cold: thaws 3 per cycle, Frozen at 5 ---")
+	print("--- Cold: +1 tempo per 10 on offensive actions; attacking deals half and sheds 10 ---")
 	var p := _unit(Vector2i(0, 0))
 	var e := _enemy(Enemy.EnemyType.MINION, Vector2i(5, 5))
-	e.apply_debuff("cold", 4)
-	_check(e.cold_stacks == 4 and not e.is_frozen, "4 Cold: not yet frozen")
+	e.apply_debuff("cold", 9)
+	_check(e.cold_stacks == 9 and not e.is_frozen, "9 Cold: stacks add, nothing freezes")
 	e._tick_status_durations()
-	_check(e.cold_stacks == 1, "one cycle thaws 3 stacks (4 -> 1)")
 	e._tick_status_durations()
-	_check(e.cold_stacks == 0 and not e.has_debuff_type("cold"), "the next cycle clears the last one")
-	e.apply_debuff("cold", 5)
-	_check(e.is_frozen and e.cold_stacks == 0 and e.frozen_tempo == 5, "5 Cold still freezes for 5 tempo")
+	_check(e.cold_stacks == 9, "the cycle no longer thaws it")
+	var attack := {"name": "attack", "tempo_cost": 3}
+	var base: int = e._effective_cost(attack)
+	e.apply_debuff("cold", 16)
+	_check(e._effective_cost(attack) == base + 2, "25 Cold: an attack costs +2 tempo")
+	_check(e._effective_cost(MOVE) == Enemy.windup_of(MOVE), "…a move costs what it did")
+	var hp: int = e.current_health
+	e._cold_offense()
+	_check(hp - e.current_health == 12 and e.cold_stacks == 15, "performing an attack: 12 damage (25 / 2), 10 shed (%d, %d left)" % [hp - e.current_health, e.cold_stacks])
+	e._cold_offense()
+	_check(hp - e.current_health == 12 + 7 and e.cold_stacks == 5, "again: 7 (15 / 2), 5 left")
+	e._cold_offense()
+	_check(hp - e.current_health == 12 + 7 + 2 and e.cold_stacks == 0 and not e.has_debuff_type("cold"), "the last 5: 2 damage and the Cold is shed")
+	_check(Enemy.is_offensive_action("attack") and Enemy.is_offensive_action("fire_bolt"), "attacks and bolts are offensive")
+	_check(not Enemy.is_offensive_action("move") and not Enemy.is_offensive_action("treant_heal"), "moving and healing are not")
 	_free_all([e, p])
 
 func _test_additive_timers() -> void:

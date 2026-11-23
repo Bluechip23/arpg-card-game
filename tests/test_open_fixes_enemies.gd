@@ -335,12 +335,13 @@ func _test_ice_troll() -> void:
 	t._execute_action("clobber", main.player)
 	_check(hp0 - _hp() == _scaled(t, 50), "a queued Clobber deals 50 (band-scaled %d): %d" % [_scaled(t, 50), hp0 - _hp()])
 	_check(_pdm().has_debuff(Debuff.DebuffType.COLD) and _pdm().has_debuff(Debuff.DebuffType.BRITTLE), "…and, like every Ice Troll attack, adds Cold and Brittle")
-	# The auto trigger stays.
+	# Cold no longer freezes (2026-11-24), so a Club on 4 Cold is just a Club:
+	# the freeze that auto-triggered Clobber has no source.
 	_reset_hp()
 	_pdm().apply_debuff(Debuff.create(Debuff.DebuffType.COLD, 4, 5))
 	hp0 = _hp()
 	t._try_ice_club(main.player)
-	_check(hp0 - _hp() == t.attack_damage + _scaled(t, 50), "a freezing Club still triggers Clobber at once")
+	_check(hp0 - _hp() == t.attack_damage and not _pdm().has_debuff(Debuff.DebuffType.FROZEN), "a Club on 4 Cold no longer freezes, so no Clobber follows")
 	_despawn(t)
 	_reset_hp()
 

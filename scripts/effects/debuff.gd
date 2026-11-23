@@ -20,6 +20,22 @@ const BURN_STACKS_PER_TICK := 5
 const BURN_RESIST_PER_STACK := 0.5
 const POISON_HEAL_CUT := 0.25
 
+## Cold (designer, 2026-11-24), the same on enemies and players. It no longer
+## builds to Frozen. Every COLD_STACKS_PER_TEMPO stacks make the carrier's
+## offensive abilities cost 1 more tempo; and each time the carrier performs
+## one it takes its stacks / 2 (rounded down) in damage and sheds
+## COLD_SHED_PER_OFFENSE stacks. Nothing else wears Cold off: no timer, no thaw.
+const COLD_STACKS_PER_TEMPO := 10
+const COLD_SHED_PER_OFFENSE := 10
+
+## The extra tempo `stacks` of Cold put on an offensive ability.
+static func cold_tempo_tax(stacks: int) -> int:
+	return maxi(0, stacks) / COLD_STACKS_PER_TEMPO
+
+## What the carrier takes for performing an offensive ability at `stacks`.
+static func cold_offense_damage(stacks: int) -> int:
+	return maxi(0, stacks) / 2
+
 ## What one Burn tick deals at `stacks`. Armor soaks it like any hit, so the
 ## armor share needs no route of its own: it is on armor while armor stands
 ## and on health when it does not.
@@ -72,7 +88,8 @@ const WEAKENED_REDUCTION := 30     # % less damage dealt while Weakened (matches
 ## The sheet's "a stack is 5 tempo" rule: every stack-clocked debuff sheds one
 ## stack each STACK_TEMPO of its OWN clock (see advance_time), never by use.
 const STACK_TEMPO := 5
-## Cold's default timer on the player (the sheet: 5 tempo).
+## Cold's old default timer on the player (the sheet: 5 tempo). Unused since
+## 2026-11-24: Cold is stack-driven and never ends on a timer.
 const COLD_TEMPO := 5
 ## What create()/new() hand a debuff that names no duration.
 const DEFAULT_DURATION := 15
@@ -218,7 +235,7 @@ func _set_name_and_description() -> void:
 			description = "Armor decays an extra 2 per cycle (%s)" % _stacks_left_text()
 		DebuffType.COLD:
 			debuff_name = "Cold"
-			description = "At 5 stacks, become Frozen for 1 cycle. Current: %d stack(s) (%d tempo left)" % [value, duration]
+			description = "Offensive cards cost +%d tempo (1 per 10 Cold). Playing one deals you %d damage (half your Cold) and sheds 10 Cold" % [cold_tempo_tax(value), cold_offense_damage(value)]
 		DebuffType.BLIND:
 			debuff_name = "Blind"
 			description = "%d%% chance for your attacks to miss: attack cards, the auto attack and Flash Cut (%s)" % [BLIND_MISS, _stacks_left_text()]

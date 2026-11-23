@@ -9293,6 +9293,8 @@ func play_selected_card(target) -> void:
 
 	if debuff_mgr:
 		tempo_cost += debuff_mgr.get_tempo_increase()
+		if card.is_offensive():
+			tempo_cost += debuff_mgr.get_offensive_tempo_increase()  # Cold: +1 tempo per 10 stacks
 	# Back Pedal: its Steady action costs 2 less tempo as a ranged offensive card.
 	tempo_cost = maxi(0, tempo_cost - NewCardsC.back_pedal_tempo_cut(player, card))
 	resolve_tick = mini(resolve_tick, tempo_cost)
@@ -15404,7 +15406,9 @@ func play_quiver_card(card: Card, index: int, target) -> void:
 	var tempo_cost = card.get_burden_tempo_cost()
 	if debuff_mgr:
 		tempo_cost += debuff_mgr.get_tempo_increase()
-		debuff_mgr.on_card_played(card.is_attack())
+		if card.is_offensive():
+			tempo_cost += debuff_mgr.get_offensive_tempo_increase()  # Cold: +1 tempo per 10 stacks
+		debuff_mgr.on_card_played(card.is_attack(), card.is_offensive())
 	tempo_manager.add_card_tempo(tempo_cost)
 
 	# Apply card world effects

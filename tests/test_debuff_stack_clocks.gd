@@ -228,21 +228,35 @@ func _test_additive_timers() -> void:
 	dm.free()
 	pair[0].free()
 
-## Cold's default timer is 5 tempo; stacking keeps the longer timer, Frozen at 5.
+## Cold (designer, 2026-11-24): stacks add, no timer, no Frozen at 5. Every
+## 10 stacks is +1 tempo on offensive cards; playing one deals half the
+## stacks and sheds 10.
 func _test_cold_default() -> void:
 	print("-- Cold --")
 	var pair := _mk()
 	var dm: DebuffManager = pair[1]
-	var cold = Debuff.create(Debuff.DebuffType.COLD, 2)
-	_check(cold.duration == Debuff.COLD_TEMPO and "5 tempo left" in cold.description, "Cold defaults to a 5-tempo timer")
-	_check(Debuff.create(Debuff.DebuffType.COLD, 2, 30).duration == 30, "an explicit Cold timer stands")
-	dm.apply_debuff(cold)
-	dm.advance_time(2)
-	dm.apply_debuff(Debuff.create(Debuff.DebuffType.COLD, 2, 5))
+	var stats = dm.owner_stats
+	dm.apply_debuff(Debuff.create(Debuff.DebuffType.COLD, 2))
+	dm.advance_time(30)
+	dm.apply_debuff(Debuff.create(Debuff.DebuffType.COLD, 3, 5))
 	var c = dm.get_debuff(Debuff.DebuffType.COLD)
-	_check(c.value == 4 and c.duration == 5, "Cold stacks add (4) and keep the longer timer (5)")
-	dm.apply_debuff(Debuff.create(Debuff.DebuffType.COLD, 1, 5))
-	_check(not dm.has_debuff(Debuff.DebuffType.COLD) and dm.has_debuff(Debuff.DebuffType.FROZEN), "5 Cold becomes Frozen")
+	_check(c != null and c.value == 5, "Cold stacks add (5) and no timer ends it")
+	_check(not dm.has_debuff(Debuff.DebuffType.FROZEN), "5 Cold no longer becomes Frozen")
+	_check(dm.get_offensive_tempo_increase() == 0, "under 10 Cold: no tempo tax")
+	dm.apply_debuff(Debuff.create(Debuff.DebuffType.COLD, 20))
+	_check(dm.get_offensive_tempo_increase() == 2, "25 Cold: offensive cards cost +2 tempo")
+	var hp0: int = stats.current_health
+	var armor0: int = stats.current_armor
+	dm.on_card_played(false, false)
+	_check(stats.current_health == hp0 and dm.get_debuff(Debuff.DebuffType.COLD).value == 25, "a card that is not offensive leaves it be")
+	dm.on_card_played(true, true)
+	var took: int = (hp0 - stats.current_health) + (armor0 - stats.current_armor)
+	# 12 (25 / 2) goes through the ordinary damage pipeline, like a DoT tick:
+	# this character's own mitigation takes a little off it.
+	_check(took > 0 and took <= 12 and dm.get_debuff(Debuff.DebuffType.COLD).value == 15, "an offensive card: the 12 (25 / 2) lands and 10 are shed (%d taken, %d left)" % [took, dm.get_debuff(Debuff.DebuffType.COLD).value])
+	dm.on_card_played(true, true)
+	dm.on_card_played(true, true)
+	_check(not dm.has_debuff(Debuff.DebuffType.COLD), "two more shed the rest")
 	dm.free()
 	pair[0].free()
 

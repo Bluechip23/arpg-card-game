@@ -204,8 +204,8 @@ var is_silenced: bool = false  # Cannot cast spells/ranged special attacks when 
 var silenced_tempo: int = 0    # Remaining tempo cycles for silence
 var choke_dot_stacks: int = 0  # Choke: take choke_dot_damage per stack at the next cycle, then clear
 var choke_dot_damage: int = 3  # Set at cast (Choke sets a flat 2)
-var cold_stacks: int = 0       # Cold stacks - at 5, becomes frozen; thaws COLD_THAW_PER_CYCLE per cycle
-const COLD_THAW_PER_CYCLE := 3
+var cold_stacks: int = 0       # Cold: +1 tempo on offensive actions per 10 stacks; performing one deals it stacks / 2 and sheds 10 (Debuff's Cold notes). No freeze at 5, no thaw
+const COLD_THAW_PER_CYCLE := 3  # the old per-cycle thaw; unused since 2026-11-24
 var is_frozen: bool = false    # Cannot act when frozen
 var frozen_tempo: int = 0      # Remaining tempo for frozen
 var is_stunned: bool = false   # Cannot act when stunned
@@ -408,6 +408,21 @@ var next_melee_tempo_tax: int = 0
 # Inebriate) — mirrors how the same debuffs treat the player's moves.
 ## Bugbear's First Strike: +8 damage while it has not been hit yet.
 const BUGBEAR_FIRST_STRIKE := 8
+
+## The actions that are NOT offensive abilities: moving, healing, hiding,
+## raising help, readying itself. Everything else an enemy does is one —
+## Cold taxes it and bites the enemy for performing it (is_offensive_action).
+const NON_OFFENSIVE_ACTIONS := {
+	"move": true, "hydra_move": true, "goblin_move": true, "scurry": true,
+	"scurry_away": true, "get_into_range": true, "flee": true, "roc_retreat": true,
+	"fire_bounce": true, "seek_nest": true, "dig_walk": true, "track": true,
+	"nest_heal": true, "hydra_heal": true, "treant_heal": true, "sear_wounds": true,
+	"repair": true, "cerberus_roar": true, "vanish": true, "specter_vanish": true,
+	"summon_skeleton": true, "raise_totem": true, "mimic": true,
+}
+
+static func is_offensive_action(action_name: String) -> bool:
+	return action_name != "" and not NON_OFFENSIVE_ACTIONS.has(action_name)
 
 const MOVEMENT_ACTIONS := {
 	"move": true, "hydra_move": true, "goblin_move": true, "scurry": true,
@@ -2013,8 +2028,9 @@ func _tick_status_durations() -> void:
 	# Timed statuses (stun, frozen, root, curse...) tick per raw tempo in
 	# _tick_timed_statuses, not here.
 
-	# Cold: thaws COLD_THAW_PER_CYCLE stacks per cycle (sheet: 3) so it's a
-	# combo window that has to be fed, not a slow ratchet toward Frozen at 5.
+	# Cold no longer thaws by the cycle (designer, 2026-11-24): it is shed
+	# only when the enemy performs an offensive ability (_cold_offense). The
+	# cycle keeps Element Pollination's bite.
 	if cold_stacks > 0:
 		# Element Pollination: the frost bites — Cold ticks doubling damage
 		# (1, 2, 4...) while the Elemental Weaver's maintain is up.
@@ -2022,11 +2038,6 @@ func _tick_status_durations() -> void:
 			_dot_hit("Cold bite", cold_damage_next)
 			print("[%s] Element Pollination: cold bites for %d (doubles next cycle)" % [enemy_name, cold_damage_next])
 			cold_damage_next *= 2
-		cold_stacks = maxi(0, cold_stacks - COLD_THAW_PER_CYCLE)
-		if cold_stacks <= 0:
-			cold_damage_next = 1
-			print("[%s] Cold thawed" % enemy_name)
-			debuff_expired.emit(self, "cold")
 
 	# Shock: deal current stacks damage to itself, then lose 1 stack. With
 	# shock_arcs on (off since 2026-11-22) it also arcs the same to the
@@ -2204,6 +2215,9 @@ func _effective_cost(action: Dictionary) -> int:
 		cost += next_melee_tempo_tax
 	if slow_stacks > 0 and MOVEMENT_ACTIONS.has(str(action["name"])):
 		cost += Debuff.SLOWED_TEMPO_PER_TILE + int(_player_sphere_amp("sphere_slow_amp")) - 1
+	# Cold: +1 tempo on an offensive action per 10 stacks.
+	if cold_stacks > 0 and is_offensive_action(str(action["name"])):
+		cost += Debuff.cold_tempo_tax(cold_stacks)
 	# Screecher (sheet): Drift is 4 spaces / 2 tempo unseen, 2 spaces / 5 tempo
 	# while its Screech has given it away — the table holds the unseen cost.
 	if enemy_type == EnemyType.SCREECHER and _screecher_visible_tempo > 0 and MOVEMENT_ACTIONS.has(str(action["name"])):
@@ -2268,9 +2282,27 @@ func _execute_now(action: Dictionary, player_node: Node3D) -> bool:
 	var ok := _execute_action(nm, _move_target_for(player_node))
 	if ok:
 		idle_tempo = 0  # it acted: no longer sitting idle
+		if is_offensive_action(nm):
+			_cold_offense()
 	_committed_action = prev_commit
 	action_finished.emit(self)
 	return ok
+
+## Cold bites an enemy for performing an offensive ability: half its stacks
+## (rounded down) in damage, then Debuff.COLD_SHED_PER_OFFENSE stacks are shed.
+func _cold_offense() -> void:
+	if cold_stacks <= 0 or is_dead:
+		return
+	var bite: int = Debuff.cold_offense_damage(cold_stacks)
+	var left: int = maxi(0, cold_stacks - Debuff.COLD_SHED_PER_OFFENSE)
+	cold_stacks = left
+	if left <= 0:
+		cold_damage_next = 1
+	_dot_hit("Cold", bite, "%d Cold left" % left if left > 0 else "the Cold is shed")
+	print("[%s] Cold: %d damage for attacking, %d Cold left" % [enemy_name, bite, left])
+	if left <= 0:
+		debuff_expired.emit(self, "cold")
+	_update_status_indicators()
 
 func _begin_channel(action: Dictionary, kind: String) -> void:
 	_channel_action = action
@@ -7737,15 +7769,8 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			print("[%s] Burning! Stacks: %d" % [enemy_name, burn_stacks])
 		"cold":
 			cold_stacks += value
-			print("[%s] Cold applied! Stacks: %d/5" % [enemy_name, cold_stacks])
-			if cold_stacks >= 5:
-				cold_stacks = 0
-				cold_damage_next = 1  # Element Pollination's doubling tick restarts with the freeze
-				is_frozen = true
-				frozen_tempo = max(frozen_tempo, 5)  # Frozen for 5 tempo (one cycle)
-				# Reset every action clock so frozen delays their next action
-				_reset_action_clocks()
-				print("[%s] FROZEN! Cold reached 5 stacks!" % enemy_name)
+			# No freeze at 5 any more (designer, 2026-11-24): see Debuff's Cold notes.
+			print("[%s] Cold applied! Stacks: %d" % [enemy_name, cold_stacks])
 		"poison":
 			poison_stacks += value
 			print("[%s] Poisoned! Stacks: %d" % [enemy_name, poison_stacks])
@@ -8338,8 +8363,8 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			desc = "Every 2 tempo: takes %d damage (Burn + 3, and 2 to armor), then 5 Burn is used up. Its resistances are lowered %s%%." % [Debuff.burn_tick_damage(burn_stacks), str(get_burn_resist_drop())]
 			remaining = "Stacks: %d" % burn_stacks
 		"Cold":
-			desc = "At 5 stacks it becomes Frozen for 1 cycle; thaws 3 stacks per cycle."
-			remaining = "Stacks: %d of 5" % cold_stacks
+			desc = "Its offensive abilities cost +%d tempo (1 per 10 Cold). Each one it performs deals it %d damage (half its Cold) and sheds 10 Cold." % [Debuff.cold_tempo_tax(cold_stacks), Debuff.cold_offense_damage(cold_stacks)]
+			remaining = "Stacks: %d" % cold_stacks
 		"Poison":
 			desc = "Every 2 tempo: takes %d damage, then loses 1 Poison. Its healing is reduced 25%%." % poison_stacks
 			remaining = "Stacks: %d" % poison_stacks

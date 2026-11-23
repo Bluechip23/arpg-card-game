@@ -346,17 +346,18 @@ func _test_ice_troll() -> void:
 	_check(hp0 - _hp() == t.attack_damage, "Ice Troll: Club deals 13 (band-scaled %d)" % t.attack_damage)
 	var cold = _pdm().get_debuff(Debuff.DebuffType.COLD)
 	var brittle = _pdm().get_debuff(Debuff.DebuffType.BRITTLE)
-	_check(cold != null and cold.value == 1 and cold.duration == 5, "Ice Troll: every attack adds a stack of Cold (5 tempo)")
+	_check(cold != null and cold.value == 1, "Ice Troll: every attack adds a stack of Cold")
 	_check(brittle != null and brittle.value == 1, "Ice Troll: …and a stack of Brittle")
 	_check(t._get_action("ice_club")["tempo_cost"] == 4, "Ice Troll: Club is 4 tempo")
-	# Four Cold already: the club's stack freezes them, and Clobber follows.
+	# Four Cold already: the fifth no longer freezes (2026-11-24), so no
+	# Clobber follows the club.
 	_reset_hp()
 	_pdm().apply_debuff(Debuff.create(Debuff.DebuffType.COLD, 4, 5))
 	hp0 = _hp()
 	t._try_ice_club(main.player)
-	var clobber := maxi(1, roundi(50 * t._pps_dmg))
-	_check(_pdm().has_debuff(Debuff.DebuffType.FROZEN), "Ice Troll: the fifth Cold freezes")
-	_check(hp0 - _hp() == t.attack_damage + clobber, "Ice Troll: a freezing club triggers Clobber (50, band-scaled %d): %d in all" % [clobber, hp0 - _hp()])
+	cold = _pdm().get_debuff(Debuff.DebuffType.COLD)
+	_check(not _pdm().has_debuff(Debuff.DebuffType.FROZEN) and cold != null and cold.value == 5, "Ice Troll: the fifth Cold stacks, it does not freeze")
+	_check(hp0 - _hp() == t.attack_damage, "Ice Troll: so the club is just the club (%d)" % (hp0 - _hp()))
 	_reset_hp()
 	_despawn(t)
 

@@ -1346,7 +1346,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"blind": "Attacks have an 80% chance to miss. Each stack lasts 5 tempo.",
 		"exposed": "Armor broken. Can't be Exposed again for 10 tempo.",
 		"brittle": "Armor decays 2 extra per cycle. Each stack lasts 5 tempo.",
-		"cold": "At 5 stacks, Frozen for 1 cycle. Each stack lasts 5 tempo.",
+		"cold": "Offensive abilities cost 1 more tempo per 10 Cold. Performing one deals half your Cold in damage and sheds 10 Cold.",
 		# Overflow
 		"jailed": "Can't be played for 15 tempo.",
 		"manifest": "Becomes a token in the manifest zone. Click it to use it.",

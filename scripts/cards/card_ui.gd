@@ -705,7 +705,8 @@ func setup(card: Card, index: int, debuff_mgr: DebuffManager = null, dex_proc_ac
 		tint = Color(0.65, 0.65, 0.68)
 	elif is_hexed:
 		tint = Color(0.82, 0.6, 1.0)
-	elif debuff_mgr and debuff_mgr.get_tempo_increase() > 0:
+	elif debuff_mgr and (debuff_mgr.get_tempo_increase() > 0 \
+			or (card.is_offensive() and debuff_mgr.get_offensive_tempo_increase() > 0)):
 		tint = Color(0.72, 0.72, 0.76)
 	elif debuff_mgr and card.is_attack() and debuff_mgr.get_attack_mana_increase() > 0:
 		tint = Color(0.78, 0.78, 0.8)

@@ -231,3 +231,14 @@ The designer's new rules, the same on enemies and players (numbers in `scripts/e
   carrier by 0.5% (below 0 it takes more); the Burn tick itself is not raised by its own drop. The old doubling
   (1, 2, 4, 8...) is gone.
 - Entries above that describe Burn doubling or Poison ticking per cycle predate this.
+
+## 2026-11-24: Cold rework
+
+Cold no longer builds to Frozen at 5 stacks, on enemies or players (numbers in `scripts/effects/debuff.gd`):
+
+- Every 10 stacks make the carrier's offensive abilities cost 1 more tempo (an enemy's offensive actions —
+  `Enemy.is_offensive_action`; a player's offensive cards — `Card.is_offensive()`).
+- Performing one deals the carrier half its stacks (rounded down) and sheds 10 stacks.
+- Nothing else wears it off: the 3-per-cycle thaw on enemies and the 5-tempo timer on players are gone.
+- Left without a source: Frozen itself, the "Shatter +5" sphere node, the Ice Troll's Clobber-on-freeze, and the
+  Deep chill constellation's freeze (it now just applies 5 Cold).

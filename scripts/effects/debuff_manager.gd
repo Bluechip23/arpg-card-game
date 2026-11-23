@@ -47,7 +47,8 @@ func apply_debuff(debuff: Debuff) -> void:
 	# per 5 tempo of their own clock — whatever duration the caller passed.
 	# A clock-timed Slowed/Staggered (Approach, Tower Shield) keeps its duration.
 	match debuff.debuff_type:
-		Debuff.DebuffType.BURN, Debuff.DebuffType.POISON, Debuff.DebuffType.BLEED, Debuff.DebuffType.WEIGHTED:
+		Debuff.DebuffType.BURN, Debuff.DebuffType.POISON, Debuff.DebuffType.BLEED, Debuff.DebuffType.WEIGHTED, \
+		Debuff.DebuffType.COLD:  # Cold sheds only when its carrier performs an offensive ability
 			debuff.duration = -1
 		_:
 			if debuff.uses_stack_clock():
@@ -107,18 +108,9 @@ func apply_debuff(debuff: Debuff) -> void:
 
 		print("[DEBUFF] Applied: %s for %d tempo" % [debuff.debuff_name, debuff.duration])
 	
-	# Cold -> Frozen conversion: at 5 stacks, become Frozen for 1 cycle.
-	# Stacks are the summed VALUE (a Cold-3 application counts 3), matching
-	# the displayed count and the enemy-side conversion.
-	if debuff.debuff_type == Debuff.DebuffType.COLD:
-		var cold = get_debuff(Debuff.DebuffType.COLD)
-		if cold and cold.value >= 5:
-			remove_debuff(Debuff.DebuffType.COLD)
-			var frozen = Debuff.create(Debuff.DebuffType.FROZEN, 0, 5)
-			frozen.source_name = "Cold"
-			apply_debuff(frozen)
-			print("[DEBUFF] Cold reached 5 stacks! Enemy is now Frozen!")
-			return
+	# (Cold no longer turns to Frozen at 5 stacks — designer, 2026-11-24. It
+	# taxes and bites offensive cards instead: get_offensive_tempo_increase,
+	# on_card_played.)
 
 	debuff_applied.emit(debuff)
 	debuffs_changed.emit()
@@ -436,10 +428,39 @@ func get_tempo_increase() -> int:
 	# Fixed surcharge while any stacks remain; stacks burn per card played.
 	return Debuff.WEIGHTED_TEMPO if has_debuff(Debuff.DebuffType.WEIGHTED) else 0
 
+## Cold: +1 tempo on OFFENSIVE cards per Debuff.COLD_STACKS_PER_TEMPO stacks
+## (Card.is_offensive). Read before on_card_played sheds the stacks.
+func get_offensive_tempo_increase() -> int:
+	var cold = get_debuff(Debuff.DebuffType.COLD)
+	return Debuff.cold_tempo_tax(cold.value) if cold else 0
+
+## Cold bites its carrier for performing an offensive ability: half its
+## stacks (rounded down) in damage, then Debuff.COLD_SHED_PER_OFFENSE stacks
+## are shed.
+func _cold_offense() -> void:
+	var cold = get_debuff(Debuff.DebuffType.COLD)
+	if cold == null or cold.value <= 0:
+		return
+	var bite: int = Debuff.cold_offense_damage(cold.value)
+	var left: int = maxi(0, cold.value - Debuff.COLD_SHED_PER_OFFENSE)
+	print("[DEBUFF] Cold: %d damage for an offensive card, %d Cold left" % [bite, left])
+	cold.value = left
+	cold._set_name_and_description()
+	if left <= 0:
+		remove_debuff(Debuff.DebuffType.COLD)
+	else:
+		debuffs_changed.emit()
+	if bite > 0:
+		dot_ticked.emit("Cold", bite, "%d Cold left" % left if left > 0 else "the Cold is shed")
+		if owner_stats:
+			owner_stats.take_damage(bite)
+
 ## Stack bookkeeping when a card is successfully played: only Weighted still
 ## burns per card. Staggered and Clumsy hold for their stacks' 5-tempo clocks
 ## no matter how many cards are played (the sheet's stack model).
-func on_card_played(_is_attack_card: bool) -> void:
+func on_card_played(_is_attack_card: bool, is_offensive: bool = false) -> void:
+	if is_offensive:
+		_cold_offense()
 	var weighted = get_debuff(Debuff.DebuffType.WEIGHTED)
 	if weighted == null or weighted.clock_timed:
 		return

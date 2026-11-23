@@ -2436,11 +2436,12 @@ func _trigger_sphere_passives(trigger: String, context: Dictionary = {}) -> void
 					stats.apply_life_steal(ce_heal)
 					main.add_battle_log("Crimson Edge: lifesteal %d" % ce_heal, Color(0.8, 0.1, 0.2))
 			"freeze_enemy":
-				# Deep chill: 5 cold stacks freeze the struck enemy outright.
+				# Deep chill: 5 Cold on the struck enemy. (It froze outright while
+				# Cold turned to Frozen at 5 — no longer, since 2026-11-24.)
 				var fz = context.get("target", null)
 				if fz and is_instance_valid(fz) and fz.has_method("apply_debuff"):
 					fz.apply_debuff("cold", 5)
-					main.add_battle_log("Deep chill: enemy frozen!", Color(0.5, 0.8, 1.0))
+					main.add_battle_log("Deep chill: 5 Cold!", Color(0.5, 0.8, 1.0))
 			"shadow_strike":
 				# Crits hit harder — add 50% of the crit damage to the target.
 				var ss_card = context.get("card", null)

@@ -51,7 +51,7 @@ func _build_legend() -> void:
 	_add_keyword("Exposed", "Armor broken. Can't be Exposed again for 10 tempo.", Color(0.9, 0.7, 0.5))
 	_add_keyword("Brittle", "Armor decays 2 extra per cycle. Each stack lasts 5 tempo.", Color(0.7, 0.7, 0.6))
 	_add_keyword("Weakened", "Deal 30% less damage. Each stack lasts 5 tempo.", Color(0.5, 0.5, 0.8))
-	_add_keyword("Cold", "At 5 stacks, Frozen for 1 cycle. Each stack lasts 5 tempo.", Color(0.4, 0.7, 1.0))
+	_add_keyword("Cold", "Offensive abilities cost 1 more tempo per 10 Cold. Performing one deals half your Cold in damage and sheds 10 Cold.", Color(0.4, 0.7, 1.0))
 
 	# Buffs Section
 	_add_section_header("BUFFS")
