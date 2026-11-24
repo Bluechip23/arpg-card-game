@@ -54,7 +54,7 @@ func _run() -> void:
 	_check(wash_node == null or not wash_node.visible, "no box behind the text")
 	var fade_node: Control = inst.get_node_or_null("Panel/TextFade")
 	_check(fade_node == null or not fade_node.visible, "a short text leaves the corner picture at full strength")
-	var long_inst := _face("composed_reaction")
+	var long_inst := _face("psionic_flow")
 	await process_frame
 	await process_frame
 	var lf: Control = long_inst.get_node_or_null("Panel/TextFade")
@@ -183,6 +183,12 @@ func _run() -> void:
 			gapless = false
 	_check(gapless, "the frame's strips overlap (no see-through seam)")
 	spell_ui.queue_free()
+	_check(Card.create_by_id("splinter").get_range_display() == "Ranged 3",
+		"Splinter's type line shows its reach: Ranged 3 (designer, 2026-11-22)")
+	_check(Card.create_by_id("territorial_mark").get_range_display() == "Ranged 10",
+		"Territorial Mark's type line shows its reach: Ranged 10")
+	_check(Card.create_by_id("dagger_throw").get_range_display().begins_with("Ranged -"),
+		"other short-range cards keep the change from the base (Ranged -N)")
 	var sa := Card.create_by_id("spirit_arrow")
 	_check(CardUI.frame_for(sa) == CardUI.FRAMES["offensive"] and not sa.is_attack(),
 		"Spirit Arrow is plain Offensive (designer, 2026-11-16)")
@@ -235,7 +241,7 @@ func _run() -> void:
 	print("=== %d failure(s) ===" % failures)
 	# A rules text too long for the box beside the corner picture spreads over
 	# the whole box (the washed box carries the margin, 2026-11-08).
-	var long_face := _face("enchantment_defense")
+	var long_face := _face("flames_of_alexandria")
 	await process_frame
 	await process_frame
 	var lst = long_face.desc_panel.get_theme_stylebox("panel")

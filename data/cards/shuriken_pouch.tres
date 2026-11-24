@@ -6,7 +6,7 @@
 script = ExtResource("1_ov52m")
 card_id = "shuriken_pouch"
 card_name = "Shuriken Pouch"
-description = "Manifest 3: Overflow cards become Shuriken. Each Shuriken deals 3 damage to a random enemy (free, ranged, counts as attack)."
+description = "Manifest 3: Overflow cards become Shuriken (3 damage to a random enemy)."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 30

@@ -6,7 +6,7 @@
 script = ExtResource("1_dg0iq")
 card_id = "enchantment_mana_regen"
 card_name = "Energy Gem"
-description = "Gain +1 mana regen while this is in your hand. Discards after 2 cycles."
+description = "Gain +1 mana regen. Discards after 2 cycles."
 card_type = 6
 card_type_name = "Enchantment"
 mana_cost = 0

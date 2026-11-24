@@ -6,7 +6,7 @@
 script = ExtResource("1_sj7lb")
 card_id = "enchantment_movement"
 card_name = "Feather Foot"
-description = "Gain +1 movement per Tempo while this is in your hand. Discards after 10 tempo."
+description = "Gain +1 movement per Tempo. Discards after 10 tempo."
 card_type = 6
 card_type_name = "Enchantment"
 mana_cost = 0

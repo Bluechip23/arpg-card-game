@@ -6,7 +6,7 @@
 script = ExtResource("1_l12gw")
 card_id = "reverberate_regrowth"
 card_name = "Reverberate Regrowth"
-description = "Maintain: when your armor is broken through, the armor that hit ate comes back 5 tempo later."
+description = "When your armor is broken through, the armor that hit ate comes back 5 tempo later."
 card_type = 5
 card_type_name = "Power"
 mana_cost = 55

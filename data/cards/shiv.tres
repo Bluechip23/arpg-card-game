@@ -6,7 +6,7 @@
 script = ExtResource("1_7p077")
 card_id = "shiv"
 card_name = "Shiv"
-description = "Melee. 2 damage."
+description = "2 damage."
 mana_cost = 5
 damage = 2
 tempo_cost = 1

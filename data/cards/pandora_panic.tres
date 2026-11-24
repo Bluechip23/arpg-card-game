@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "pandora_panic"
 card_name = "Pandora Panic"
-description = "Draw 20 cards. Jail 40. Engrave."
+description = "Draw 20 cards. Jailed 40. Engrave."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 75

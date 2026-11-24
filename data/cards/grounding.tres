@@ -6,7 +6,7 @@
 script = ExtResource("1_susbi")
 card_id = "grounding"
 card_name = "Grounding"
-description = "Absorb every Shock within 10 squares of you — enemies, allies and yourself — and deal 10 damage to each enemy in that radius, shocked or not. Costs 5 less mana per Shock absorbed."
+description = "Absorb every Shock within 10 squares of you — enemies, allies and yourself — and deal 10 damage to each enemy in that radius. Costs 5 less mana per Shock absorbed."
 card_type_name = "Spell"
 mana_cost = 200
 tempo_cost = 10

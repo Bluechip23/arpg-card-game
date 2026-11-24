@@ -6,7 +6,7 @@
 script = ExtResource("1_gjmp1")
 card_id = "psionic_flow"
 card_name = "Psionic Flow"
-description = "When an ally takes damage within 3 squares, restore 8 to them and push the attacker back 1 — or when you play an attack, deal +8 damage and push the target back 1. Whichever comes first."
+description = "When an ally takes damage within 3 squares, restore 8 to them and push the attacker back 1 — or when you play an offensive card targeting an enemy, deal +8 damage and push the target back 1. Whichever comes first."
 card_type = 3
 card_type_name = "Instant"
 mana_cost = 0

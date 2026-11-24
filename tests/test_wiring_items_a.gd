@@ -624,18 +624,32 @@ func _test_boots_of_speed() -> void:
 	_check(stats.movement_flash_tempo_threshold == 0, "Boots of Speed: the threshold leaves with them")
 
 func _test_boots_of_the_balancer() -> void:
-	print("-- Boots of the Balancer: 5 armor per 10% missing health --")
+	print("-- Boots of the Balancer: 3 armor per 10% missing health, up to 50%; Maintain cards cheaper (2026-11-22) --")
 	_strip()
 	var boots := _equip("boots_of_the_balancer")
+	var block_armor: int = Card.create_by_id("block").block
 	stats.current_armor = 0
 	stats.current_health = int(stats.max_health * 0.55)  # 45% missing -> 4 steps
 	var missing_steps: int = int((1.0 - stats.get_health_percent()) * 100.0 / 10)
-	_slot(Card.create_by_id("block"), boots).execute(main.player, stats, dm, 0.0, 0.0, bm)
-	var block_armor: int = Card.create_by_id("block").block
-	_check(stats.current_armor - block_armor == 5 * missing_steps, "Boots of the Balancer: +%d armor at %d steps missing (%d)" % [5 * missing_steps, missing_steps, stats.current_armor - block_armor])
+	var bal_block := _slot(Card.create_by_id("block"), boots)
+	bal_block.execute(main.player, stats, dm, 0.0, 0.0, bm)
+	_check(stats.current_armor - block_armor == 3 * missing_steps, "Boots of the Balancer: +%d armor at %d steps missing (%d)" % [3 * missing_steps, missing_steps, stats.current_armor - block_armor])
+	stats.current_armor = 0
+	stats.current_health = int(stats.max_health * 0.1)  # 90% missing -> capped at 50% -> 5 steps
+	bal_block.execute(main.player, stats, dm, 0.0, 0.0, bm)
+	_check(stats.current_armor - block_armor == 15, "…counted only up to 50%% missing: +15 at 90%% missing (%d)" % (stats.current_armor - block_armor))
 	stats.current_armor = 0
 	stats.current_health = stats.max_health
+	# Maintain cards: 20% cheaper, half of that paid in health. Others untouched.
+	var sb := Card.create_by_id("spirit_bow")
+	var sb_cost := _cost(sb)
+	var sb_full: int = floori(sb.mana_cost * 0.8)
+	_check(int(sb_cost["arash_life"]) == floori(sb_full * 0.5) and int(sb_cost["mana"]) == sb_full - floori(sb_full * 0.5),
+		"a Maintain card (Spirit Bow %d) costs %d mana + %d health" % [sb.mana_cost, int(sb_cost["mana"]), int(sb_cost["arash_life"])])
+	var fb := Card.create_by_id("fireball")
+	_check(int(_cost(fb)["arash_life"]) == 0 and int(_cost(fb)["mana"]) == fb.mana_cost, "a card without upkeep costs as before")
 	_unequip(boots)
+	_check(int(_cost(sb)["mana"]) == sb.mana_cost and int(_cost(sb)["arash_life"]) == 0, "without the boots, full mana")
 
 func _test_bow_of_arash() -> void:
 	print("-- Bow of Arash: +2 ranged range, half the mana paid in life --")

@@ -3639,7 +3639,7 @@ func _refresh_quest_log() -> void:
 		child.queue_free()
 	if quest_manager == null:
 		return
-	var active = quest_manager.get_active_quests()
+	var active = quest_manager.get_log_quests()   # unlocked only (all in test mode)
 	var completed = quest_manager.get_completed_quests()
 	if active.size() > 0:
 		_quest_log_list.add_child(_quest_header("Active Quests", Color(1.0, 0.85, 0.3)))

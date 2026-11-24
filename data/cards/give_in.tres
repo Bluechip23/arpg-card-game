@@ -6,7 +6,7 @@
 script = ExtResource("1_k6m2q")
 card_id = "give_in"
 card_name = "Short Term Fix"
-description = "Immediately gain 3 mana. The next time you would draw from Tempo being triggered, you don't."
+description = "Gain 3 mana. The next time you would draw from Tempo being triggered, you don't."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 0

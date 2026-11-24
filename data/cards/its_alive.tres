@@ -6,7 +6,7 @@
 script = ExtResource("1_s18kp")
 card_id = "its_alive"
 card_name = "ITS ALIVE!!!!!"
-description = "Resurrect a nearby corpse into Frankensteins Monster — a summon that fights for you."
+description = "Resurrect a nearby corpse into Frankenstein's Monster."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 20

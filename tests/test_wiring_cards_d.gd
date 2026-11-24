@@ -52,7 +52,7 @@ func _run() -> void:
 		"_t_self_infliction", "_t_serene_center", "_t_shadows", "_t_shed_weight",
 		"_t_shepherds_mark", "_t_shield_of_growth", "_t_shield_ready",
 		"_t_shield_slam", "_t_shift", "_t_shiv", "_t_shuriken",
-		"_t_shuriken_pouch", "_t_skeleton_army",
+		"_t_shuriken_pouch", "_t_skeleton_army", "_t_psionic_flow_spell",
 	]
 	for t in tests:
 		_reset()
@@ -330,8 +330,15 @@ func _t_preemptive_answer() -> void:
 	stats.healed.disconnect(cb)
 	_check(not (c in dm.hand), "Preemptive Answer fires on the hit that drops you to 25%")
 	_check(dbm.debuffs.size() == n0 - 3, "Preemptive Answer purges 3 debuffs (%d -> %d)" % [n0, dbm.debuffs.size()])
-	_check(heals.size() == 1 and heals[0] == stats.get_effective_heal_amount(20),
-		"Preemptive Answer heals 20 (+heal power) (%s)" % str(heals))
+	_check(heals.is_empty(), "Preemptive Answer no longer heals (%s)" % str(heals))
+	_check(dbm.negate_next == 3, "…and the next 3 debuffs are negated")
+	var n1: int = dbm.debuffs.size()
+	for t in [Debuff.DebuffType.STUN, Debuff.DebuffType.SILENCE, Debuff.DebuffType.CUFFED]:
+		dbm.apply_debuff(Debuff.create(t, 1, 20))
+	_check(dbm.debuffs.size() == n1 and dbm.negate_next == 0, "…3 debuffs are negated as they land")
+	dbm.apply_debuff(Debuff.create(Debuff.DebuffType.STUN, 1, 20))
+	_check(dbm.debuffs.size() == n1 + 1, "…and the 4th lands")
+	dbm.debuffs.clear()
 
 func _t_premeditated() -> void:
 	print("-- Premeditated --")
@@ -445,6 +452,19 @@ func _t_psionic_flow() -> void:
 		_play(s2, d)
 		_check(hp1 - d.current_health == s2.last_damage_dealt, "whichever comes first: one card, one trigger")
 
+## A spell aimed at an enemy fires it too (designer, 2026-11-21: any
+## offensive card, not only attacks). Run last: the spell's play moves the
+## clock the timed checks above read.
+func _t_psionic_flow_spell() -> void:
+	print("-- Psionic Flow (offensive spell) --")
+	var c3 := Card.create_by_id("psionic_flow")
+	dm.hand.append(c3)
+	var d3 := _dummy(Vector2i(1, 0))
+	var sp := Card.create_by_id("mana_surge")
+	_check(sp.is_offensive() and not sp.is_attack(), "(Mana Surge is an offensive spell)")
+	_play(sp, d3)
+	_check(not (c3 in dm.hand), "Psionic Flow fires on an offensive spell aimed at an enemy")
+
 func _t_purge_wrath() -> void:
 	print("-- Purge Wrath --")
 	var d := _dummy(Vector2i(1, 0))
@@ -550,7 +570,7 @@ func _t_ragnarok() -> void:
 	var might = bm.get_buff(Buff.BuffType.MIGHT)
 	_check(keen != null and keen.value == 20 and might != null and might.value == 10,
 		"Ragnarok: +10%% crit and +5 STR per card (%s / %s)" % [str(keen.value) if keen else "-", str(might.value) if might else "-"])
-	_check(snap.get("in_jail", false) and snap.get("jail") == 30, "Ragnarok: jailed for 30 tempo after play (%s)" % str(snap.get("jail")))
+	_check(snap.get("in_jail", false) and snap.get("jail") == 50, "Ragnarok: jailed for 50 tempo after play (%s)" % str(snap.get("jail")))
 
 func _t_rain_of_arrows() -> void:
 	print("-- Rain of Arrows (Castle Wall Overdraw) --")

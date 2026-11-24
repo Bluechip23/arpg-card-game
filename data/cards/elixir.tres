@@ -6,7 +6,7 @@
 script = ExtResource("1_gw4hk")
 card_id = "elixir"
 card_name = "Elixir"
-description = "Poison cards now heal instead: for 25 tempo, the poison your cards apply heals its target instead."
+description = "For 25 tempo, the poison your cards apply heals instead."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 10

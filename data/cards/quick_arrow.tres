@@ -6,7 +6,7 @@
 script = ExtResource("1_dg4c8")
 card_id = "quick_arrow"
 card_name = "Quick Arrow"
-description = "A free ranged attack created by Enchanted Quiver. Deal 4 damage."
+description = "Deal 4 damage."
 mana_cost = 0
 damage = 4
 tempo_cost = 2

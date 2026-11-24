@@ -466,6 +466,117 @@ SINGLES = {
     "fire_punch": ("card_art_fire_punch.webp", (100, 20, 1448, 847)),
     # The bloodied warrior, hammer on his shoulder, beckoning the enemy on.
     "feed_into_the_pain": ("card_art_feed_into_the_pain.webp", (0, 0, 1448, 888)),
+    # The chick hatching in flame on the dead phoenix, its head below.
+    "from_the_ashes": ("card_art_from_the_ashes.webp", (0, 0, 1448, 985)),
+    # The god's face, the beam from his hand and the staff it charges, the
+    # wielder's face below (a portrait painting: the band across its middle).
+    "gift_from_the_gods": ("card_art_gift_from_the_gods.jpg", (0, 40, 896, 650)),
+    # The archer's shoulder, her bow and Cupid's arrow in the smitten orc.
+    "cupids_golden_arrow": ("card_art_cupids_golden_arrow.webp", (0, 0, 1448, 888)),
+    # The lightning gathering on the spire, the church below.
+    "grounding": ("card_art_grounding.webp", (0, 100, 1448, 862)),
+    # The miner's helmet, lamp lit, on the stone.
+    "hard_helmet": ("card_art_hard_helmet.webp", (0, 40, 1448, 928)),
+    # The green tonic's bottle, stopper to foot (a square painting: its middle band).
+    "healing_tonic": ("card_art_healing_tonic.webp", (0, 30, 1254, 900)),
+    # The goblin bled into the still, the alchemist at the snake.
+    "hemotoxins": ("card_art_hemotoxins.webp", (0, 120, 1448, 888)),
+    # The wall shoved over onto the orcs.
+    "huck": ("card_art_huck.webp", (0, 60, 1672, 940)),
+    # The frost-breathing thrower and her two ice grenades.
+    "ice_grenade": ("card_art_ice_grenade.webp", (0, 0, 1448, 888)),
+    # The dynamite-belted watermelon, its fuse lit.
+    "improvised_ammo": ("card_art_improvised_ammo.webp", (0, 60, 1448, 948)),
+    # The archer on the rocks and the man fleeing her arrow.
+    "cupids_lead_arrow": ("card_art_cupids_lead_arrow.webp", (0, 0, 1536, 942)),
+    # The goblin's fist in the monster's face.
+    "its_alive": ("card_art_its_alive.webp", (0, 60, 1448, 1000)),
+    # The greaves' green rings round the party they restore.
+    "mend": ("card_art_mend.webp", (0, 0, 1672, 941)),
+    # The mage clutching his head in the mana storm.
+    "mind_mend": ("card_art_mind_mend.webp", (0, 30, 1448, 918)),
+    # The monk's hammer landing, armour plates forming on his arm.
+    "monk_of_the_night": ("card_art_monk_of_the_night.webp", (0, 0, 1448, 888)),
+    # The suited man's face and his knife (portrait: from the brow down).
+    "negotiate": ("card_art_negotiate.webp", (0, 120, 1199, 935)),
+    # The bear-woman's roar, her claws in the knight (portrait).
+    "neither_man_nor_beast": ("card_art_neither_man_nor_beast.webp", (0, 170, 1122, 860)),
+    # The shrugging man and the goblins round him.
+    "out_of_guesses": ("card_art_out_of_guesses.webp", (0, 0, 1536, 1024)),
+    # The monk's flying kick in the ogre's face.
+    "mind_over_matter": ("card_art_mind_over_matter.webp", (0, 0, 1536, 942)),
+    # The orc and the soldiers choking in the green cloud.
+    "poison_bomb": ("card_art_poison_bomb.webp", (0, 120, 1448, 1000)),
+    # The masked vaulter high on his spear over the soldiers (portrait).
+    "pole_vault": ("card_art_pole_vault.webp", (0, 60, 1122, 750)),
+    # The man staring at his new trotters, snout and pig's ears.
+    "polymorph": ("card_art_polymorph.webp", (0, 0, 1536, 942)),
+    # The masked shadow and the swirl between his hands.
+    "poof_and_weave": ("card_art_poof_and_weave.webp", (0, 0, 1536, 942)),
+    # The paladin's shield and sword in the golden wards.
+    "preemptive_answer": ("card_art_preemptive_answer.webp", (0, 0, 1536, 942)),
+    # The star-giant's belt and the dome of light over the party.
+    "protection_from_alnitak": ("card_art_protection_from_alnitak.webp", (0, 0, 1672, 880)),
+    # The thrower and his spear on its purple wake, the orc it hurls back.
+    "psionic_flow": ("card_art_psionic_flow.webp", (0, 0, 1536, 942)),
+    # The wrath-wreathed warrior's roar and the slash across the ogre.
+    "purge_wrath": ("card_art_purge_wrath.webp", (0, 0, 1536, 942)),
+    # Garmr and the wolf snarling face to face before the burning gate.
+    "ragnarok": ("card_art_ragnarok.webp", (0, 120, 1448, 1008)),
+    # The wall's archers and their rain on the orcs below.
+    "rain_of_arrows": ("card_art_rain_of_arrows.webp", (0, 60, 1448, 948)),
+    # 2026-11-22: the reaper reaching for the fallen knight.
+    "reapers_taking": ("card_art_reapers_taking.webp", (0, 0, 1536, 942)),
+    # The rogue's lunge, a fanged blade in each hand.
+    "redline": ("card_art_redline.webp", (0, 0, 1536, 942)),
+    # The cook stitching his drum, the man turning on the spit, the sandwich.
+    "resourceful_replenish": ("card_art_resourceful_replenish.webp", (0, 0, 1536, 942)),
+    # The knight's armour flying back onto him, the goblins baffled.
+    "reverberate_regrowth": ("card_art_reverberate_regrowth.webp", (0, 0, 1672, 880)),
+    # The short sword's thrust into the straw dummy's target (Slice).
+    "slice": ("card_art_slice.webp", (0, 0, 1536, 942)),
+    # The earth on the scales, the woman holding them (the Equator).
+    "serene_center": ("card_art_serene_center.webp", (0, 0, 1536, 1024)),
+    # The diving penguin's goggled face and beak.
+    "sanguine_the_penguin": ("card_art_sanguine_the_penguin.webp", (200, 380, 1250, 1000)),
+    # The uppercut under the ogre's jaw (Return Cut).
+    "return_cut": ("card_art_return_cut.webp", (0, 0, 1448, 900)),
+    # The shield-piper's tune and the goblin's sword gone limp.
+    "song_of_a_swords_sing": ("card_art_song_of_a_swords_sing.webp", (0, 80, 1448, 980)),
+    # The walking bow stalking the goblin at his chest of gold.
+    "spirit_bow": ("card_art_spirit_bow.webp", (0, 0, 1536, 1024)),
+    # The weeping troll and the splinter in his thumb.
+    "splinter": ("card_art_splinter.webp", (0, 0, 1536, 942)),
+    # The high kick landing on the brute's jaw.
+    "switch_kick": ("card_art_switch_kick.webp", (0, 20, 1448, 908)),
+    # The wizard turning to stone, the dragon over him (portrait).
+    "stone_encase": ("card_art_stone_encase.webp", (0, 0, 1199, 730)),
+    # The bare-knuckle fighter squared up to the goblin's blade.
+    "stance_switch": ("card_art_stance_switch.webp", (0, 0, 1672, 941)),
+    # The hillside heaving up under the runner's hand.
+    "terrain_formation": ("card_art_terrain_formation.webp", (0, 0, 1448, 888)),
+    # The arrow flying down its glistening blue smoke.
+    "territorial_mark": ("card_art_territorial_mark.webp", (0, 0, 1672, 941)),
+    # The caster's wand drawing the ghoul's life out (The Nibelung Curse).
+    "the_nibelung_curse": ("card_art_the_nibelung_curse.webp", (0, 0, 1672, 941)),
+    # The rope-walker ducking the arrows over the falls.
+    "tight_rope": ("card_art_tight_rope.webp", (0, 0, 1672, 941)),
+    # The dwarf's roar, arms wide, the orcs closing in (Alberich).
+    "tricks_of_alberich": ("card_art_tricks_of_alberich.webp", (0, 0, 1672, 941)),
+    # The vine beast in its glass house, the crowd at the rail.
+    "vined_encasing": ("card_art_vined_encasing.webp", (0, 0, 1671, 941)),
+    # The spearman's spinning dash.
+    "whirling_dash": ("card_art_whirling_dash.webp", (180, 170, 1448, 820)),
+    # The baker's grin, the shaker and the sprinkles raining on the cake.
+    "sprinkle": ("card_art_sprinkle.webp", (0, 60, 1448, 948)),
+    # The blue-ringed octopus on the diver's helmet, its swarm behind.
+    "wraiths_piercer": ("card_art_wraiths_piercer.webp", (0, 60, 1448, 948)),
+    # The trident-bearer leaping from the wave onto the horde.
+    "wrath_of_the_sea": ("card_art_wrath_of_the_sea.webp", (0, 0, 1672, 941)),
+    # The sprinkle dynamite, its fuse lit.
+    "sprinkle_bomb": ("card_art_sprinkle_bomb.webp", (0, 120, 1448, 1008)),
+    # The hooded knives in the smoke behind the orc.
+    "smoke_bomb": ("card_art_smoke_bomb.webp", (0, 0, 1536, 790)),
 }
 
 # card_id -> (source, box): a single object to be seen whole (a gem, a
@@ -474,6 +585,11 @@ SINGLES = {
 # little, so its dark ground runs on to the window's edges. 2026-11-15
 # (no cards with these ids yet; the art waits for them).
 FITTED = {
+    # 2026-11-22: the armoured chef, hat to mallet and meat (Soften).
+    "soften": ("card_art_soften.webp", (120, 60, 1330, 1000), 1.75),
+    # 2026-11-22: the rag-wrapped knife, tip to ring (Shiv).
+    "shiv": ("card_art_shiv.webp", (0, 0, 1536, 1024)),
+
     "energy_gem": ("card_art_energy_gem.png", (0, 0, 230, 327)),
     "fumbleitis": ("card_art_fumbleitis.png", (0, 0, 322, 355)),
     "stone_patch": ("card_art_stone_patch.webp", (0, 100, 1448, 1000)),
@@ -509,6 +625,45 @@ FITTED = {
 }
 FIT_ASPECT = 1.9    # the Attack frame's art window, about the widest (2026-11-16: taller)
 FIT_FEATHER = 0.08  # the fitted picture's sides fade into the fill over this much of its width
+
+
+# Wide paintings seen whole in a taller window (card_id -> (source, box,
+# aspect)): the painting at the window's full width, the bands above and
+# below filled with a blurred, darkened copy of itself.
+# 2026-11-22: M for Mini moved from the Attack frame to the Utility one,
+# whose window is taller; the designer wants the whole scene, as before
+# (the wizard's W belt, the M, the orc).
+LETTERBOXED = {
+    "m_for_mini": ("card_art_m_for_mini.webp", (0, 0, 1672, 941), 1.47),
+    # The iron Shift key, seen whole.
+    "shift": ("card_art_shift.webp", (0, 0, 1774, 887), 1.47),
+}
+
+
+def letterboxed(source, box, aspect):
+    from PIL import ImageFilter, ImageEnhance
+    piece = Image.open(SRC % source).convert("RGB").crop(box)
+    h = round(WIDTH / aspect)
+    inner = piece.resize((WIDTH, round(piece.height * WIDTH / piece.width)), Image.LANCZOS)
+    if inner.height >= h:
+        t = (inner.height - h) // 2
+        return inner.crop((0, t, WIDTH, t + h))
+    # The fill: the painting scaled to cover the window, blurred and darkened.
+    cw = round(piece.width * h / piece.height)
+    back = piece.resize((cw, h), Image.LANCZOS)
+    l = (cw - WIDTH) // 2
+    back = back.crop((l, 0, l + WIDTH, h)).filter(ImageFilter.GaussianBlur(14))
+    back = ImageEnhance.Brightness(back).enhance(0.55)
+    top = (h - inner.height) // 2
+    # The picture over it, its top and bottom edges feathered in.
+    mask = Image.new("L", inner.size, 255)
+    fh = max(1, round(inner.height * 0.06))
+    for y in range(fh):
+        a = round(255 * (y + 1) / (fh + 1))
+        for yy in (y, inner.height - 1 - y):
+            mask.paste(a, (0, yy, WIDTH, yy + 1))
+    back.paste(inner, (0, top), mask)
+    return back
 
 
 def fitted(source, box, aspect=None):
@@ -594,6 +749,9 @@ def main() -> None:
         # trim the fitted painting's top and bottom.
         fitted(*spec).save(OUT % card_id, optimize=True)
         print("wrote", OUT % card_id, "(fitted)")
+    for card_id, spec in LETTERBOXED.items():
+        letterboxed(*spec).save(OUT % card_id, optimize=True)
+        print("wrote", OUT % card_id, "(letterboxed)")
 
 
 if __name__ == "__main__":

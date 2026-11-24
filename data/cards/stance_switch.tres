@@ -6,6 +6,6 @@
 script = ExtResource("1_prk5m")
 card_id = "stance_switch"
 card_name = "Stance Switch"
-description = "Remove 10 armor from the enemy and apply 2 Vulnerable. No armor? Just apply 2 Vulnerable."
+description = "Remove 10 armor from the enemy and apply 2 Vulnerable."
 mana_cost = 10
 tempo_cost = 2

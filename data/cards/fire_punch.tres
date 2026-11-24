@@ -6,6 +6,6 @@
 script = ExtResource("1_u0opq")
 card_id = "fire_punch"
 card_name = "Fire Punch"
-description = "Melee: 0 base damage (+STR scaling). Leaves a path of fire behind the target. Puts a copy with Erase 5 in your hand (the copy does not copy itself)."
+description = "0 base damage (+STR scaling). Leaves a path of fire behind the target. Puts a copy with Erase 5 in your hand (the copy does not copy itself)."
 mana_cost = 5
 tempo_cost = 1

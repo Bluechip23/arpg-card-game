@@ -139,6 +139,10 @@ var completed_quests: Array[Quest] = []
 var available_quests: Dictionary = {}  # quest_id -> Quest (defined, not yet accepted)
 var flags: Dictionary = {}             # story flags set by turned-in quests (saved)
 var world_level: int = 1               # gates min_world offers; set by the scene that owns us
+## Test mode (the sandbox takes every quest at once): the quest log lists
+## them all, unlocked or not. Saved with the quest state, so it follows the
+## character out of the arena. Real play leaves it false.
+var log_shows_all: bool = false
 
 func _ready() -> void:
 	_define_quests()
@@ -286,6 +290,28 @@ func get_active_quests() -> Array[Quest]:
 
 func get_completed_quests() -> Array[Quest]:
 	return completed_quests
+
+func is_unlocked(quest: Quest) -> bool:
+	## Has the story reached this quest: its prerequisites turned in and its
+	## world arrived at. (A hidden quest is unlocked by the world accepting it.)
+	if quest.min_world > world_level:
+		return false
+	for pre in quest.prerequisites:
+		if not is_quest_turned_in(pre):
+			return false
+	return true
+
+func get_log_quests() -> Array[Quest]:
+	## The active quests the quest log lists: only unlocked ones (designer,
+	## 2026-11-23) — a quest held before its time stays out of the log until
+	## the story reaches it. Test mode (log_shows_all) lists every one.
+	if log_shows_all:
+		return active_quests
+	var out: Array[Quest] = []
+	for quest in active_quests:
+		if is_unlocked(quest):
+			out.append(quest)
+	return out
 
 func get_quest(quest_id: String) -> Quest:
 	for q in active_quests:
@@ -509,6 +535,8 @@ func get_turnable_quests_for(giver_name: String) -> Array[Quest]:
 # ============================================
 func save_state() -> Dictionary:
 	var state: Dictionary = {"accepted_ids": [], "completed_ids": [], "progress": {}, "chosen": {}, "flags": flags.duplicate()}
+	if log_shows_all:
+		state["log_shows_all"] = true
 	for quest in active_quests:
 		state["accepted_ids"].append(quest.id)
 		var counts: Array = []
@@ -535,6 +563,7 @@ func load_state(state: Dictionary) -> void:
 	var chosen: Dictionary = state.get("chosen", {})
 	for f in state.get("flags", {}):
 		flags[str(f)] = bool(state["flags"][f])
+	log_shows_all = bool(state.get("log_shows_all", false))
 
 	# Accept everything that was accepted or finished so nothing resurfaces
 	# as a fresh "!" on its giver.

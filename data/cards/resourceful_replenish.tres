@@ -6,7 +6,7 @@
 script = ExtResource("1_0o6fa")
 card_id = "resourceful_replenish"
 card_name = "Resourceful Replenish"
-description = "Maintain: your attacks heal you for 5% of the damage dealt."
+description = "Your attacks heal you for 5% of the damage dealt."
 card_type = 5
 card_type_name = "Power"
 mana_cost = 20

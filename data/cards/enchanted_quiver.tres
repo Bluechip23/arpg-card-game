@@ -6,7 +6,7 @@
 script = ExtResource("1_iyw0q")
 card_id = "enchanted_quiver"
 card_name = "Enchanted Quiver"
-description = "Next 3 ranged attacks create a free 0-cost Quick Arrow (4 damage) in your hand."
+description = "Next 3 ranged attacks create a free Quick Arrow (4 damage) in your hand."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 40

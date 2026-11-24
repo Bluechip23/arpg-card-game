@@ -6,7 +6,7 @@
 script = ExtResource("1_rudg7")
 card_id = "halo"
 card_name = "Halo"
-description = "Maintain 3M: Every cycle, heal all allies for 3 HP in an AOE with a radius of 3 squares"
+description = "Every cycle, heal all allies for 3 HP in an AOE with a radius of 3 squares"
 card_type = 5
 card_type_name = "Power"
 mana_cost = 30
