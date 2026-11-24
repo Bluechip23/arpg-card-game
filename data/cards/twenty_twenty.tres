@@ -6,7 +6,7 @@
 script = ExtResource("1_nwd4e")
 card_id = "twenty_twenty"
 card_name = "20/20"
-description = "Maintain: gain +3 range on all ranged offensive cards."
+description = "Gain +3 range on all ranged offensive cards."
 card_type = 5
 card_type_name = "Power"
 mana_cost = 25

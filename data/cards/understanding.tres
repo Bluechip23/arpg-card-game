@@ -6,7 +6,7 @@
 script = ExtResource("1_mtig2")
 card_id = "understanding"
 card_name = "Understanding"
-description = "After a 10 tempo delay, your next damaging card auto-crits."
+description = "After 10 tempo, your next damaging card auto-crits."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 50

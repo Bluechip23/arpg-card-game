@@ -6,7 +6,7 @@
 script = ExtResource("1_4h3k5")
 card_id = "lemon_drop"
 card_name = "Lemon Drop"
-description = "Offensive cards that aren't blocked by armor apply 1 poison. This card will discard after 10 tempo."
+description = "Offensive cards that aren't blocked by armor apply 1 poison. Discards after 10 tempo."
 card_type = 6
 card_type_name = "Enchantment"
 mana_cost = 0

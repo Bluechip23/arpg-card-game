@@ -6,7 +6,7 @@
 script = ExtResource("1_aoy2m")
 card_id = "chain_lightning"
 card_name = "Chain Lightning"
-description = "Deal 10 damage, then bounce to nearby enemies, losing 2 damage per bounce until it reaches zero."
+description = "Deal 10 damage, then bounce to nearby enemies, losing 2 damage per bounce."
 card_type_name = "Spell"
 mana_cost = 50
 damage = 10

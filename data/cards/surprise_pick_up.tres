@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "surprise_pick_up"
 card_name = "Surprise Pick Up"
-description = "A crate lands. The first ally on it for 5 tempo picks: 20 temp HP, mana, armor, Thorns and Keen 20% (10 tempo), or draw 3, Blessed 2 (3 cycles), full Brain and Flash. Jail 40."
+description = "A crate lands. The first ally on it for 5 tempo picks: 20 temp HP, mana, armor, Thorns and Keen 20% (10 tempo), or draw 3, Blessed 2 (3 cycles), full Brain and Flash. Jailed 40."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 250

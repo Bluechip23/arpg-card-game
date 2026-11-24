@@ -6,7 +6,7 @@
 script = ExtResource("1_agch4")
 card_id = "mind_mend"
 card_name = "Mind Mend"
-description = "Restore 60 mana. Costs 15 HEALTH instead of mana."
+description = "Restore 60 mana. Costs 15 health."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 0

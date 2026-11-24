@@ -6,7 +6,7 @@
 script = ExtResource("1_il5fv")
 card_id = "house_money"
 card_name = "House Money"
-description = "Your next odds will automatically trigger."
+description = "Your next odds trigger."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 40

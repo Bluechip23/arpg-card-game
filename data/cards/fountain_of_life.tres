@@ -6,7 +6,7 @@
 script = ExtResource("1_ipbvr")
 card_id = "fountain_of_life"
 card_name = "Fountain of Health"
-description = "Maintain 3M: Every cycle, deal 2 damage to self and draw a card."
+description = "Every cycle, deal 2 damage to self and draw a card."
 card_type = 5
 card_type_name = "Power"
 mana_cost = 30

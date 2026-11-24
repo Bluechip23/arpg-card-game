@@ -6,7 +6,7 @@
 script = ExtResource("1_4h3k5")
 card_id = "enchantment_attack"
 card_name = "Brawn Gem"
-description = "Cards deal +3 damage while this is in your hand. Discards after 10 tempo."
+description = "Cards deal +3 damage. Discards after 10 tempo."
 card_type = 6
 card_type_name = "Enchantment"
 mana_cost = 0

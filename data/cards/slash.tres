@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1_xm00l")
-description = "10 damage. Conditional."
+description = "10 damage."
 mana_cost = 20
 damage = 10
 tempo_cost = 3
