@@ -3888,7 +3888,7 @@ func _try_fire_wall(target_node: Node3D) -> bool:
 	var tiles: Array = [center, center + perp, center - perp]
 	var main := get_parent()
 	if main and main.has_method("register_fire_wall"):
-		main.register_fire_wall(tiles, attack_damage, 3)
+		main.register_fire_wall(tiles, attack_damage, 3, 6, -1, null, 0, "wall")   # his own wall art
 	print("[%s] Raises a wall of fire!" % enemy_name)
 	turn_completed.emit()
 	return true

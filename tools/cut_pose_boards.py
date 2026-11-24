@@ -2537,6 +2537,94 @@ BOARDS = {
             "right": (705, 585, 1135, 1158),
         },
     },
+    "fire_goblin_shaman_fire_wall": {
+        # 2026-11-24: the Fire Goblin Shaman's Fire Wall — fire_goblin_shaman_fire_wall_board.webp,
+        # four unlabelled rows on black (his front, his back, facing left,
+        # facing right), eight frames a row: the stance, a hand reached out
+        # and raised, flames kindled at his feet, risen, a blaze about him,
+        # fallen, the last embers. Frames 2-8 are Cast.png, played for his
+        # Fire Wall, the fire about him kept; the stance is the height
+        # reference. The wall itself is its own sprite
+        # (fire_goblin_shaman_wall). His robe's folds are as black as the
+        # backdrop: kept by a model matte a frame.
+        "into": "fire_goblin_shaman",
+        "actions": {
+            "src": "fire_goblin_shaman_fire_wall_board.webp",
+            "matte_union": True,   # tools/make_mattes.py fire_goblin_shaman_fire_wall --actions
+            "levels": (6, 35, 10),
+            "fill_holes": 6,
+            "open_dark": True,
+            "keep_share": 0.004,   # the loose flames
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (8, 0, 188, 250),
+                    "reach": (188, 0, 368, 250),
+                    "raise": (368, 0, 546, 250),
+                    "kindle": (546, 0, 726, 250),
+                    "rise": (726, 0, 908, 250),
+                    "blaze": (908, 0, 1093, 250),
+                    "fall": (1093, 0, 1275, 250),
+                    "embers": (1275, 0, 1445, 250),
+                },
+                "back": {
+                    "stance": (8, 256, 188, 506),
+                    "reach": (188, 256, 366, 506),
+                    "raise": (366, 256, 538, 506),
+                    "kindle": (538, 256, 720, 506),
+                    "rise": (720, 256, 902, 506),
+                    "blaze": (902, 256, 1088, 506),
+                    "fall": (1088, 256, 1271, 506),
+                    "embers": (1271, 256, 1445, 506),
+                },
+                "left": {
+                    "stance": (20, 508, 194, 757),
+                    "reach": (194, 508, 372, 757),
+                    "raise": (372, 508, 538, 757),
+                    "kindle": (538, 508, 718, 757),
+                    "rise": (718, 508, 899, 757),
+                    "blaze": (899, 508, 1082, 757),
+                    "fall": (1082, 508, 1270, 757),
+                    "embers": (1270, 508, 1445, 757),
+                },
+                "right": {
+                    "stance": (5, 780, 179, 1026),
+                    "reach": (179, 780, 360, 1026),
+                    "raise": (360, 780, 542, 1026),
+                    "kindle": (542, 780, 732, 1026),
+                    "rise": (732, 780, 914, 1026),
+                    "blaze": (914, 780, 1097, 1026),
+                    "fall": (1097, 780, 1278, 1026),
+                    "embers": (1278, 780, 1445, 1026),
+                },
+            },
+            "sheets": {
+                "Cast": ["reach", "raise", "kindle", "rise", "blaze", "fall", "embers"],
+            },
+        },
+    },
+    "fire_goblin_shaman_wall": {
+        # 2026-11-24: the wall he raises — fire_goblin_shaman_fire_wall_strip.webp
+        # (cut out, transparent), eight panels: a bed of burning rock with
+        # flames kindling, rising, a full sheet of fire (two frames), dying
+        # under black smoke. Wall.png in his folder: one a tile of his Fire
+        # Wall (FireWallSprite: it rises, burns on the two full frames and
+        # dies out when the wall goes). 1.25 tiles wide with its soft
+        # edges (the flames themselves about a tile), so the tiles of a
+        # wall run together.
+        "into": "fire_goblin_shaman",
+        "strip": {
+            "src": "fire_goblin_shaman_fire_wall_strip.webp",
+            "sheet": "Wall",
+            "width_tiles": 1.25,
+            "width_of": "max",
+            "align": "board",
+            "keep_alpha": True,
+            "frames": [(5, 162, 245, 408), (255, 162, 495, 408), (505, 162, 745, 408), (755, 162, 995, 408), (1005, 162, 1245, 408), (1255, 162, 1495, 408), (1505, 162, 1745, 408), (1755, 162, 1995, 408)],
+        },
+    },
     "coyote": {
         # 2026-10-26: the Coyote — a lean brown-grey coyote — four poses on
         # black. Its "NORTH" pose shows the face and "SOUTH" its back;
