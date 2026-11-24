@@ -4657,6 +4657,140 @@ BOARDS = {
             "left": (702, 170, 1112, 808),
             "right": (1112, 170, 1532, 808),
         },
+        # 2026-11-24: the designer's Dive Bomb board — roc_dive_bomb_board.webp,
+        # four labelled rows on black (NORTH (FRONT), SOUTH (BACK), WEST
+        # (LEFT), EAST (RIGHT)), eight frames a row: perched, the wings
+        # spread, raised high, lifting off, the swoop, the dive with the
+        # wings swept back, the landing with talons out and wings flared,
+        # perched. Dive.png, played for its Dive Bomb: it is carried from
+        # where it took off to the square beside its prey through the
+        # airborne frames (SpriteEnemyFigure.leap_from). Wings touch the
+        # frame beside them, so each row is parted at the narrowest contact
+        # (`split`), and every frame keeps its height above the ground
+        # (`keep_ground`): the airborne frames stay in the air.
+        "actions": {
+            "src": "roc_dive_bomb_board.webp",
+            "matte_union": True,   # its darkest feathers are painted as black as the backdrop: kept by a model matte a frame (tools/make_mattes.py roc --actions)
+            "levels": (6, 35, 10),
+            "fill_holes": 6,
+            "open_dark": True,
+            "keep_share": 0.02,
+            "glow": False,
+            "split": True,
+            "isolate_floor": 14,
+            "keep_ground": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (135, 8, 291, 254),
+                    "spread": (291, 8, 464, 254),
+                    "raise": (464, 8, 627, 254),
+                    "lift": (627, 8, 807, 254),
+                    "swoop": (807, 8, 969, 254),
+                    "dive": (969, 8, 1126, 254),
+                    "land": (1126, 8, 1295, 254),
+                    "stance2": (1295, 8, 1440, 254),
+                },
+                "back": {
+                    "stance": (135, 256, 288, 510),
+                    "spread": (288, 256, 465, 510),
+                    "raise": (465, 256, 629, 510),
+                    "lift": (629, 256, 808, 510),
+                    "swoop": (808, 256, 970, 510),
+                    "dive": (970, 256, 1126, 510),
+                    "land": (1126, 256, 1294, 510),
+                    "stance2": (1294, 256, 1440, 510),
+                },
+                "left": {
+                    "stance": (135, 512, 305, 762),
+                    "spread": (305, 512, 464, 762),
+                    "raise": (464, 512, 619, 762),
+                    "lift": (619, 512, 785, 762),
+                    "swoop": (785, 512, 954, 762),
+                    "dive": (954, 512, 1125, 762),
+                    "land": (1125, 512, 1298, 762),
+                    "stance2": (1298, 512, 1444, 762),
+                },
+                "right": {
+                    "stance": (135, 764, 297, 1006),
+                    "spread": (297, 764, 469, 1006),
+                    "raise": (469, 764, 633, 1006),
+                    "lift": (633, 764, 795, 1006),
+                    "swoop": (795, 764, 959, 1006),
+                    "dive": (959, 764, 1126, 1006),
+                    "land": (1126, 764, 1290, 1006),
+                    "stance2": (1290, 764, 1444, 1006),
+                },
+            },
+            "sheets": {
+                "Dive": ["spread", "raise", "lift", "swoop", "dive", "land"],
+            },
+        },
+    },
+    "roc_scrape": {
+        # 2026-11-24: the Roc's Eye Scrape — roc_eye_scrape_board.webp, four
+        # unlabelled rows on black (its front, its back, facing left, facing
+        # right), eight frames a row: perched, hunched, the ruff bristling,
+        # reared up tall, leaning in, the strike with its beak agape,
+        # drawing back, perched. Attack.png, played for its Eye Scrape; the
+        # perch is the height reference, matched to each facing's Idle.
+        "into": "roc",
+        "actions": {
+            "src": "roc_eye_scrape_board.webp",
+            "matte_union": True,   # as its dive board: its darkest feathers kept by a model matte a frame (tools/make_mattes.py roc_scrape --actions)
+            "levels": (6, 35, 10),
+            "fill_holes": 6,
+            "open_dark": True,
+            "keep_share": 0.02,
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (20, 2, 205, 220),
+                    "hunch": (205, 2, 409, 220),
+                    "bristle": (409, 2, 626, 220),
+                    "rear": (626, 2, 833, 220),
+                    "lean": (833, 2, 1041, 220),
+                    "scrape": (1041, 2, 1265, 220),
+                    "draw": (1265, 2, 1475, 220),
+                    "stance2": (1475, 2, 1650, 220),
+                },
+                "back": {
+                    "stance": (20, 226, 205, 464),
+                    "hunch": (205, 226, 409, 464),
+                    "bristle": (409, 226, 626, 464),
+                    "rear": (626, 226, 833, 464),
+                    "lean": (833, 226, 1041, 464),
+                    "scrape": (1041, 226, 1265, 464),
+                    "draw": (1265, 226, 1475, 464),
+                    "stance2": (1475, 226, 1650, 464),
+                },
+                "left": {
+                    "stance": (10, 466, 205, 680),
+                    "hunch": (205, 466, 416, 680),
+                    "bristle": (416, 466, 631, 680),
+                    "rear": (631, 466, 826, 680),
+                    "lean": (826, 466, 1032, 680),
+                    "scrape": (1032, 466, 1260, 680),
+                    "draw": (1260, 466, 1470, 680),
+                    "stance2": (1470, 466, 1660, 680),
+                },
+                "right": {
+                    "stance": (10, 684, 205, 905),
+                    "hunch": (205, 684, 414, 905),
+                    "bristle": (414, 684, 625, 905),
+                    "rear": (625, 684, 827, 905),
+                    "lean": (827, 684, 1043, 905),
+                    "scrape": (1043, 684, 1264, 905),
+                    "draw": (1264, 684, 1470, 905),
+                    "stance2": (1470, 684, 1665, 905),
+                },
+            },
+            "sheets": {
+                "Attack": ["hunch", "bristle", "rear", "lean", "scrape", "draw"],
+            },
+        },
     },
     "giant_hawk": {
         # 2026-10-25: the Giant Hawk — midnight black, flecked brown, a sharp
@@ -5559,6 +5693,19 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
                     raise ValueError("matte %s is %s, box %s" % (action_matte_path(kind, d, pose), matte.shape, rgb.shape[:2]))
                 if act.get("isolate") and (d, pose) not in act.get("isolate_skip", ()):
                     matte &= ~others(d, box)
+                if act.get("split"):
+                    # The model also sees the wing of the frame beside it
+                    # (the Roc's dive): what the split gave another frame is
+                    # not this one's, nor is a piece none of its own pixels
+                    # touch.
+                    key = (act["src"][d] if isinstance(act["src"], dict) else act["src"], box[1], box[3])
+                    reg, lab, X0, row = split_cache[key]
+                    part_lab = lab[:, box[0] - X0:box[2] - X0]
+                    j = row.index(box)
+                    matte &= (part_lab == j) | (part_lab < 0)
+                    mn, mlab = cv2.connectedComponents(matte.astype(np.uint8), connectivity=8)
+                    own = np.unique(mlab[part_lab == j])
+                    matte &= np.isin(mlab, own[own > 0])
             img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
                                   act.get("keep_share", 0.0), act.get("fill_holes", False), act.get("levels"),
                                   act.get("glow", True), act.get("open_dark", False), act.get("shadow_lum", 0.0),

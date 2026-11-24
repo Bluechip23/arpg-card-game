@@ -126,13 +126,16 @@ def main() -> None:
                      or cfg.get("actions", {}).get("matte_union")]
     for kind in names:
         cfg = boards.BOARDS[kind]
-        board = Image.open(boards.SRC % cfg["src"])
-        if board.mode == "RGBA":   # a board that came cut out: judged as drawn, on white
+        # An entry packed into another kind's folder (the Roc's Eye Scrape)
+        # has action frames only: no pose board of its own.
+        board = Image.open(boards.SRC % cfg["src"]) if "src" in cfg else None
+        if board is not None and board.mode == "RGBA":   # a board that came cut out: judged as drawn, on white
             white = Image.new("RGBA", board.size, (255, 255, 255, 255))
             white.alpha_composite(board)
             board = white
-        board = board.convert("RGB")
-        for d in (() if actions_only else cfg.get("matte", ())):
+        if board is not None:
+            board = board.convert("RGB")
+        for d in (() if actions_only or board is None else cfg.get("matte", ())):
             # "Walk:left" names a pose of another animation (its own matte file).
             anim, dd = d.split(":") if ":" in d else ("Idle", d)
             x0, y0, x1, y1 = cfg[anim][dd]
