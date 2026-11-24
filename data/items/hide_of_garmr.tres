@@ -15,7 +15,7 @@ level_3_overrides = {
 "dexterity_bonus": 9,
 "strength_bonus": 9
 }
-level_3_description = "+26 health, +9 AGI, +9 DEX, +9 STR. When there is a death of any kind within 2 squares of you (your own summons included), gain a stack: each stack grants +5% crit damage. At 5 stacks, purge them all and take 10% of your current health as damage. Grants Ragnarok: release all jailed cards into your hand — for each, heal 15 and gain 10% crit chance and 7 STR for 10 tempo; jailed 30 tempo after play (45 mana, 5 tempo)."
+level_3_description = "+26 health, +9 AGI, +9 DEX, +9 STR. When there is a death of any kind within 2 squares of you (your own summons included), gain a stack: each stack grants +5% crit damage. At 5 stacks, purge them all and take 10% of your current health as damage. Grants Ragnarok: release all jailed cards into your hand — for each, heal 15 and gain 10% crit chance and 7 STR for 10 tempo; jailed 50 tempo after play (45 mana, 5 tempo)."
 weight = 80
 strength_bonus = 8
 dexterity_bonus = 8
@@ -23,5 +23,5 @@ agility_bonus = 8
 health_bonus = 25
 granted_card_ids = Array[String](["ragnarok"])
 vanilla_slots = 2
-description = "+25 health, +8 AGI, +8 DEX, +8 STR. Grants Ragnarok: release all jailed cards into your hand — for each, heal 10 and gain 10% crit chance and 5 STR for 10 tempo; jailed 30 tempo after play (45 mana, 5 tempo)."
+description = "+25 health, +8 AGI, +8 DEX, +8 STR. Grants Ragnarok: release all jailed cards into your hand — for each, heal 10 and gain 10% crit chance and 5 STR for 10 tempo; jailed 50 tempo after play (45 mana, 5 tempo)."
 appearance_icon = "res://assets/items/mythic/hide_of_garmr.png"

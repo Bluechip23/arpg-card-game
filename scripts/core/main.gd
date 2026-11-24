@@ -7645,11 +7645,12 @@ func _handle_on_discard_effect(card: Card) -> void:
 	match card.on_discard_effect:
 		"improvised_ammo_blast":
 			# Wrist Rocket: the discarded shell pops for 4 on the nearest enemy
-			# and banks +10% crit for Improvised Ammo (stacks, battle-scoped).
+			# and banks +10% crit for Improvised Ammo's next play (stacks until
+			# then; the play spends it).
 			var ia_stats := player.get_stats() if player else null
 			if ia_stats:
 				ia_stats.improvised_ammo_crit_bonus += 10.0
-				add_battle_log("Improvised Ammo sharpens: +%.0f%% crit, forever." % ia_stats.improvised_ammo_crit_bonus, Color(0.8, 0.7, 0.5))
+				add_battle_log("Improvised Ammo sharpens: +%.0f%% crit on its next play." % ia_stats.improvised_ammo_crit_bonus, Color(0.8, 0.7, 0.5))
 			if enemy_spawner and player:
 				var ia_near := _nearest_enemy_to(player.position, enemy_spawner.get_living_enemies())
 				if ia_near:
@@ -10484,8 +10485,9 @@ func _weapon_post_card_effects(card: Card, target) -> void:
 			_fire_instant_site_effect(hh_card, {"target": target})
 
 	# Psionic Flow, attack mode: the strike hits harder and shoves ("when you
-	# play an attack" — not a spell).
-	if card.is_attack() and target and is_instance_valid(target) and target is Enemy:
+	# play an offensive card targeting an enemy" — spells too, designer
+	# 2026-11-21; it was attacks only).
+	if card.is_offensive() and target and is_instance_valid(target) and target is Enemy:
 		var pf := deck_manager.trigger_reactions("psionic_flow")
 		for pf_card in pf:
 			_fire_instant_site_effect(pf_card, {"target": target, "mode": "attack"})
@@ -14788,6 +14790,8 @@ func _setup_dungeon() -> void:
 		elif sandbox_mode:
 			# Sandbox boots straight into battle: take every offer so the
 			# quest log has something to show. Real play accepts via Olorin.
+			# (Test mode: the log lists them all, locked or not.)
+			quest_manager.log_shows_all = true
 			for quest_id in quest_manager.available_quests.keys():
 				quest_manager.accept_quest(quest_id)
 	quest_manager.world_level = current_world_level
@@ -16429,6 +16433,15 @@ func _on_player_damage_taken(_amount: int) -> void:
 				card.execute(null, tr_stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
 			if low_triggered.size() > 0:
 				_refresh_unit_tracker()
+		# Tight Rope (Boots of the Balancer, designer 2026-11-22): any hit that
+		# leaves you within 10% of half health (40%-60%) walks the rope.
+		if pct >= 0.4 and pct <= 0.6:
+			var bal_triggered := deck_manager.trigger_reactions("on_hit_balanced")
+			for card in bal_triggered:
+				card.execute(null, tr_stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
+			if bal_triggered.size() > 0:
+				add_battle_log("Tight Rope! +20 temp health, Strengthen 15.", Color(0.9, 0.8, 0.5))
+				_refresh_unit_tracker()
 		# Preemptive Answer (Divine Resistance): fires on the hit that dropped
 		# the player to 25% health or below.
 		if pct <= 0.25 and prev_pct > 0.25:
@@ -16436,7 +16449,7 @@ func _on_player_damage_taken(_amount: int) -> void:
 			for card in pa_triggered:
 				card.execute(null, tr_stats, deck_manager, 0.0, 0.0, player.get_buff_manager())
 			if pa_triggered.size() > 0:
-				add_battle_log("Preemptive Answer! Debuffs purged, healed 20.", Color(0.9, 0.9, 0.6))
+				add_battle_log("Preemptive Answer! Debuffs purged; the next 3 are negated.", Color(0.9, 0.9, 0.6))
 				_refresh_unit_tracker()
 		# Hammer of Ajax: taking a hit below 30% health feeds the pain.
 		if pct < 0.3 and deck_manager:

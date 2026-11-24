@@ -444,7 +444,7 @@ var last_exposed_armor: int = 0                   # armor the most recent armor-
 var exposed_cooldown_tempo: int = 0               # raw tempo before a break can Expose this player again (each co-op player has their own)
 var pending_armor_returns: Array = []             # Reverberate Regrowth: one {"armor", "tempo"} per break, each owed back on its own 5-tempo timer
 # Ranged pass
-var improvised_ammo_crit_bonus: float = 0.0       # Wrist Rocket: +% crit on Improvised Ammo, banked by discards; cumulative — never resets
+var improvised_ammo_crit_bonus: float = 0.0       # Wrist Rocket: +% crit on Improvised Ammo's next play, banked by discards (stacks); the play spends it
 var bow_instance_count: int = 0                   # Bow of Budding Blasts: living bow summons (main keeps this current)
 # Ring pass
 var invulnerable_tempo: int = 0                   # Marvolo Gaunt: raw tempo of full damage immunity (ticks in process_tempo)

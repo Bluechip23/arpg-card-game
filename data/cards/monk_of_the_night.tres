@@ -6,7 +6,7 @@
 script = ExtResource("1_xekau")
 card_id = "monk_of_the_night"
 card_name = "Monk of the Night"
-description = "Maintain: your attack cards grant 10% of their damage as block."
+description = "Your attack cards grant 10% of their damage as block."
 card_type = 5
 card_type_name = "Power"
 mana_cost = 50

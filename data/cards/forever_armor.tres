@@ -6,7 +6,7 @@
 script = ExtResource("1_jlbpp")
 card_id = "forever_armor"
 card_name = "Forever Armor"
-description = "Maintain: gain 6 max unerring armor."
+description = "Gain 6 max unerring armor."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 20

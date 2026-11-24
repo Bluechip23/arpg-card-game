@@ -6,7 +6,7 @@
 script = ExtResource("1_2fqdo")
 card_id = "down_town"
 card_name = "Down Town"
-description = "Shoot a very long range shot of +7 range. Deal normal auto weapon damage."
+description = "A long-range shot for your weapon's damage."
 mana_cost = 30
 damage = 3
 tempo_cost = 5

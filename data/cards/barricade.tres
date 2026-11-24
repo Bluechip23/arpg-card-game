@@ -6,7 +6,7 @@
 script = ExtResource("1_ot07d")
 card_id = "barricade"
 card_name = "Barricade"
-description = "Create a barricade of land that is 3 tiles wide in front of you."
+description = "Create a 3-tile-wide barricade in front of you."
 card_type = 2
 card_type_name = "Utility"
 mana_cost = 30

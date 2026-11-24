@@ -6,7 +6,7 @@
 script = ExtResource("1_2t1c3")
 card_id = "composed_reaction"
 card_name = "Whirling Weapon"
-description = "When you are attacked (melee, ranged or spell), gain 5 armor and deal 5 damage to an enemy in melee range (nothing if none is there)."
+description = "When you are attacked, gain 5 armor and deal 5 damage to an adjacent enemy."
 card_type = 3
 card_type_name = "Instant"
 mana_cost = 0

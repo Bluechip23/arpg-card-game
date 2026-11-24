@@ -6,7 +6,7 @@
 script = ExtResource("1_card")
 card_id = "internal_sickness"
 card_name = "Internal Sickness"
-description = "Deal 10 damage. If this kills an enemy, draw 2 and Jail this card for 15 tempo."
+description = "Deal 10 damage. On kill: draw 2 and Jailed 15."
 card_type_name = "Offensive"
 mana_cost = 80
 damage = 10

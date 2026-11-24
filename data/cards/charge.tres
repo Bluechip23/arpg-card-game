@@ -6,7 +6,7 @@
 script = ExtResource("1_7dpdc")
 card_id = "charge"
 card_name = "Charge"
-description = "Charge forward, deal 8 damage to all enemies hit and knock them back. Aim in any direction — no target needed."
+description = "Charge forward, deal 8 damage to all enemies hit and knock them back. Aim in any direction."
 mana_cost = 20
 damage = 8
 resolve_tick = 3

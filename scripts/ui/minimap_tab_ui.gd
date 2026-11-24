@@ -376,7 +376,8 @@ func _refresh_quest_log() -> void:
 		return
 
 	# Active quests
-	var active = main.quest_manager.get_active_quests()
+	# Only quests the story has unlocked (all of them in test mode).
+	var active = main.quest_manager.get_log_quests()
 	if active.size() > 0:
 		var header = Label.new()
 		header.text = "Active Quests"

@@ -106,7 +106,7 @@ const RULES := {
 }
 
 ## Rider keys that only parameterise another rider.
-const PARAMS := ["range_requires_ranged", "strengthen_attacks", "missing_health_step", "resist_all_tempo",
+const PARAMS := ["range_requires_ranged", "strengthen_attacks", "missing_health_step", "missing_health_cap", "resist_all_tempo",
 	"conjure_count", "conjure_cap"]
 
 ## Keys whose neutral value is not 0 / false / "".

@@ -6,7 +6,7 @@
 script = ExtResource("1_be0ou")
 card_id = "basic_attack"
 card_name = "Basic Attack"
-description = "A basic attack with your weapon. 10 damage."
+description = "10 damage."
 mana_cost = 0
 damage = 10
 tempo_cost = 5

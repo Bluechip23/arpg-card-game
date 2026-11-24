@@ -2392,6 +2392,9 @@ func _on_card_cell_clicked(card: Card, card_index: int) -> void:
 	_pending_card_index = card_index
 	_show_card_confirm_modal(card)
 
+const CardUIScene = preload("res://scenes/cards/card_ui.tscn")
+const CARD_POPUP_FACE_SCALE := 1.5   # the card in the inventory's card window, over its hand size
+
 func _show_card_confirm_modal(card: Card) -> void:
 	_dismiss_card_confirm_modal()
 
@@ -2427,91 +2430,24 @@ func _show_card_confirm_modal(card: Card) -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
 
-	# Card info section
-	var info_panel = PanelContainer.new()
-	var info_style = StyleBoxFlat.new()
-	info_style.bg_color = Color(0.15, 0.15, 0.2, 0.9)
-	info_style.corner_radius_top_left = 4
-	info_style.corner_radius_top_right = 4
-	info_style.corner_radius_bottom_left = 4
-	info_style.corner_radius_bottom_right = 4
-	info_style.content_margin_left = 10
-	info_style.content_margin_right = 10
-	info_style.content_margin_top = 8
-	info_style.content_margin_bottom = 8
-	info_panel.add_theme_stylebox_override("panel", info_style)
-	vbox.add_child(info_panel)
+	# The card itself, as it looks in hand (designer, 2026-11-23; was its
+	# type, cost and rules typed out as lines of text). The face is built
+	# once the popup is in the tree — it lays itself out on setup.
+	var face_holder := Control.new()
+	face_holder.name = "CardFace"
+	face_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# (+14: some frames' foot ornaments hang below the card's own box.)
+	face_holder.custom_minimum_size = Vector2(CardUI.CARD_W, CardUI.CARD_H) * CARD_POPUP_FACE_SCALE + Vector2(0, 14)
+	face_holder.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	vbox.add_child(face_holder)
 
-	var info_vbox = VBoxContainer.new()
-	info_vbox.add_theme_constant_override("separation", 4)
-	info_panel.add_child(info_vbox)
-
-	# Card type
-	var type_label = Label.new()
-	type_label.text = card.card_type_name
-	type_label.add_theme_font_size_override("font_size", 11)
-	type_label.add_theme_color_override("font_color", Color(0.7, 0.85, 1.0))
-	type_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	info_vbox.add_child(type_label)
-
-	# Rarity
+	# Rarity (the face does not spell it out)
 	var rarity_label = Label.new()
 	rarity_label.text = "Rarity: %s" % card.get_rarity_name()
 	rarity_label.add_theme_font_size_override("font_size", 11)
 	rarity_label.add_theme_color_override("font_color", card.get_rarity_color())
 	rarity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	info_vbox.add_child(rarity_label)
-
-	# Mana / Tempo cost
-	var cost_label = Label.new()
-	cost_label.text = "%d Mana / %d Tempo" % [card.mana_cost, card.tempo_cost]
-	cost_label.add_theme_font_size_override("font_size", 11)
-	cost_label.add_theme_color_override("font_color", Color(0.5, 0.8, 1.0))
-	cost_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	info_vbox.add_child(cost_label)
-
-	# Description
-	var desc_label = Label.new()
-	desc_label.text = card.description
-	desc_label.add_theme_font_size_override("font_size", 10)
-	desc_label.add_theme_color_override("font_color", Color(0.9, 0.9, 0.9))
-	desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc_label.custom_minimum_size.x = 260
-	info_vbox.add_child(desc_label)
-
-	# Keywords / special properties
-	var keywords := []
-	if card.is_ranged:
-		keywords.append(card.get_range_display())
-	if card.is_aoe:
-		keywords.append("AOE (%s)" % card.aoe_shape if card.aoe_shape != "" else "AOE")
-	if card.has_burden:
-		keywords.append("Burden")
-	if card.sticky > 0:
-		keywords.append("Sticky %d" % card.sticky)
-	if card.glut_tempo > 0:
-		keywords.append("Glut %d" % card.glut_tempo)
-	if card.erase_tempo > 0:
-		keywords.append("Erase %d" % card.erase_tempo)
-	if card.delay_tempo > 0:
-		keywords.append("Delay %d" % card.delay_tempo)
-	if card.maintain_cost > 0:
-		keywords.append("Maintain %d" % card.maintain_cost)
-	if card.has_reach:
-		keywords.append("Reach")
-	if card.card_keyword != Card.CardKeyword.NONE:
-		keywords.append(Card.CardKeyword.keys()[card.card_keyword].capitalize())
-
-	if keywords.size() > 0:
-		var kw_label = Label.new()
-		kw_label.text = " | ".join(keywords)
-		kw_label.add_theme_font_size_override("font_size", 10)
-		kw_label.add_theme_color_override("font_color", Color(1.0, 0.7, 0.3))
-		kw_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		kw_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		kw_label.custom_minimum_size.x = 260
-		info_vbox.add_child(kw_label)
+	vbox.add_child(rarity_label)
 
 	# Warning text
 	var warning = Label.new()
@@ -2567,8 +2503,23 @@ func _show_card_confirm_modal(card: Card) -> void:
 
 	panel.add_child(_card_confirm_popup)
 
+	var face: CardUI = CardUIScene.instantiate()
+	face.scale = Vector2.ONE * CARD_POPUP_FACE_SCALE
+	face_holder.add_child(face)
+	face.setup(card, 0)
+	# A hand card scales about its bottom centre (the fan); this one grows
+	# from its corner to fill the holder, and takes no clicks or hover lift.
+	face.pivot_offset = Vector2.ZERO
+	face.position = Vector2.ZERO
+	for n in face.find_children("*", "Control", true, false):
+		n.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var kb = face.get_node_or_null("Panel/KeybindBadge")
+	if kb:
+		kb.visible = false
+
 	# Keyword rules text in a second small window beside the card, so the
-	# words listed above ("Burden", "Sticky 2"...) are explained right here.
+	# card's keywords ("Burden", "Sticky 2"...) are explained right here.
 	_card_keyword_window = KeywordWindow.for_card(card)
 	if _card_keyword_window:
 		panel.add_child(_card_keyword_window)
@@ -2577,6 +2528,7 @@ func _show_card_confirm_modal(card: Card) -> void:
 	# Center on panel
 	await get_tree().process_frame
 	if is_instance_valid(_card_confirm_popup) and is_instance_valid(panel):
+		_card_confirm_popup.reset_size()   # hug the card: the wrapped lines first measure tall
 		_card_confirm_popup.position = (panel.size - _card_confirm_popup.size) / 2
 
 func _on_card_destroy_pressed(btn: Button) -> void:
