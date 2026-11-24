@@ -3859,6 +3859,7 @@ func _try_ember(target_node: Node3D) -> bool:
 	if _in_attack_range(target_node):
 		_deal_damage_to_player(target_node, attack_damage, "Ember")
 		_apply_burn_to_player(target_node, 1)
+		_throw_at(target_node, "ember")   # the ember flies from its hand to the target
 		turn_completed.emit()
 		return true
 	return _try_move(target_node)

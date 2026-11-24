@@ -2421,6 +2421,105 @@ BOARDS = {
             "right": (787, 612, 1122, 1134),
         },
     },
+    "fire_goblin_mage_ember": {
+        # 2026-11-24: the Goblin Fire Mage's Ember — fire_goblin_mage_ember_board.webp,
+        # four unlabelled rows on black (its front, its back, facing left,
+        # facing right), eight frames a row: the stance, a hand raised, a
+        # ball of fire forming in it, grown, the arm thrown out as the ember
+        # leaves it, the ember away, the last sparks, the stance. Frames 2-7
+        # are Cast.png, played for its Ember. The ember painted in flight
+        # (the sixth frame, the seventh's spark) is cleared (`bg_boxes`): the
+        # flying ember is its own sprite (fire_goblin_mage_ember_ball). Its
+        # robe is as black as the backdrop: kept by a model matte a frame.
+        "into": "fire_goblin_mage",
+        "actions": {
+            "src": "fire_goblin_mage_ember_board.webp",
+            "matte_union": True,   # tools/make_mattes.py fire_goblin_mage_ember --actions
+            "levels": (6, 35, 10),
+            "fill_holes": 6,
+            "open_dark": True,
+            "keep_share": 0.03,   # the fire in its hands
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            "bg_boxes": {
+                ("front", "away"): [(5, 52, 53, 80)],
+                ("back", "away"): [(153, 38, 191, 64)],
+                ("left", "away"): [(10, 58, 53, 83)],
+                ("left", "spent"): [(26, 57, 41, 75)],
+                ("right", "away"): [(141, 50, 179, 73)],
+                ("right", "spent"): [(124, 51, 139, 69)],
+            },
+            "frames": {
+                "front": {
+                    "stance": (20, 30, 195, 232),
+                    "raise": (195, 30, 370, 232),
+                    "form": (370, 30, 548, 232),
+                    "grow": (548, 30, 720, 232),
+                    "launch": (720, 30, 903, 232),
+                    "away": (903, 30, 1097, 232),
+                    "spent": (1097, 30, 1278, 232),
+                    "stance2": (1278, 30, 1445, 232),
+                },
+                "back": {
+                    "stance": (15, 290, 188, 489),
+                    "raise": (188, 290, 370, 489),
+                    "form": (370, 290, 543, 489),
+                    "grow": (543, 290, 728, 489),
+                    "launch": (728, 290, 917, 489),
+                    "away": (917, 290, 1108, 489),
+                    "spent": (1108, 290, 1275, 489),
+                    "stance2": (1275, 290, 1445, 489),
+                },
+                "left": {
+                    "stance": (25, 552, 190, 767),
+                    "raise": (190, 552, 368, 767),
+                    "form": (368, 552, 543, 767),
+                    "grow": (543, 552, 713, 767),
+                    "launch": (713, 552, 893, 767),
+                    "away": (893, 552, 1085, 767),
+                    "spent": (1085, 552, 1280, 767),
+                    "stance2": (1280, 552, 1440, 767),
+                },
+                "right": {
+                    "stance": (25, 823, 186, 1035),
+                    "raise": (186, 823, 361, 1035),
+                    "form": (361, 823, 546, 1035),
+                    "grow": (546, 823, 735, 1035),
+                    "launch": (735, 823, 925, 1035),
+                    "away": (925, 823, 1112, 1035),
+                    "spent": (1112, 823, 1276, 1035),
+                    "stance2": (1276, 823, 1440, 1035),
+                },
+            },
+            "sheets": {
+                "Cast": ["raise", "form", "grow", "launch", "away", "spent"],
+            },
+        },
+    },
+    "fire_goblin_mage_ember_ball": {
+        # 2026-11-24: the ember in flight — the lower strip of
+        # fire_goblin_mage_ember_strip.webp (cut out, transparent; its upper
+        # row is the cast seen from the front again, unused: the four-way
+        # board has it), eight panels of a ball of fire flying right, a
+        # spark growing to a ball with a trail of flame. Ember.png in its
+        # folder; its Ember sends it from its hand to the target
+        # (SpriteEnemyFigure.throw_projectile, ThrownSprite), mirrored when
+        # it flies left. The last three frames come round twice more, so a
+        # long flight keeps the full ball (the strip loops) rather than
+        # starting again from the spark. The full ball and its trail 0.7
+        # tiles long.
+        "into": "fire_goblin_mage",
+        "strip": {
+            "src": "fire_goblin_mage_ember_strip.webp",
+            "sheet": "Ember",
+            "width_tiles": 0.7,
+            "width_of": "max",
+            "align": "board",
+            "keep_alpha": True,
+            "frames": [(5, 490, 245, 630), (255, 490, 495, 630), (505, 490, 745, 630), (755, 490, 995, 630), (1005, 490, 1245, 630), (1255, 490, 1495, 630), (1505, 490, 1745, 630), (1755, 490, 1998, 630), (1255, 490, 1495, 630), (1505, 490, 1745, 630), (1755, 490, 1998, 630), (1255, 490, 1495, 630), (1505, 490, 1745, 630), (1755, 490, 1998, 630)],
+        },
+    },
     "fire_goblin_shaman": {
         # 2026-10-28: the Fire Goblin Shaman — a goblin in a tattered,
         # rune-hemmed crimson robe, a skull and fangs at his throat, a
@@ -5760,6 +5859,8 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
                     raise ValueError("matte %s is %s, box %s" % (action_matte_path(kind, d, pose), matte.shape, rgb.shape[:2]))
                 if act.get("isolate") and (d, pose) not in act.get("isolate_skip", ()):
                     matte &= ~others(d, box)
+                for bx0, by0, bx1, by1 in act.get("bg_boxes", {}).get((d, pose), ()):
+                    matte[by0:by1, bx0:bx1] = False   # what a bg box clears, the model may not keep
                 if act.get("split"):
                     # The model also sees the wing of the frame beside it
                     # (the Roc's dive): what the split gave another frame is
