@@ -971,7 +971,7 @@ func play_card(index: int, target, player_node = null, defer_execution: bool = f
 		# into the hand, which is a new stay, not the old claim.
 		debuff_mgr.release_card_claims(card)
 		# Weighted burns a stack on every card (Staggered/Clumsy ride the clock).
-		debuff_mgr.on_card_played(card.is_attack())
+		debuff_mgr.on_card_played(card.is_attack(), card.is_offensive())  # Cold bites an offensive card
 
 	var damage_reduction_pct = 0.0
 	var self_damage_percent = 0.0

@@ -204,17 +204,17 @@ var is_silenced: bool = false  # Cannot cast spells/ranged special attacks when 
 var silenced_tempo: int = 0    # Remaining tempo cycles for silence
 var choke_dot_stacks: int = 0  # Choke: take choke_dot_damage per stack at the next cycle, then clear
 var choke_dot_damage: int = 3  # Set at cast (Choke sets a flat 2)
-var cold_stacks: int = 0       # Cold stacks - at 5, becomes frozen; thaws COLD_THAW_PER_CYCLE per cycle
-const COLD_THAW_PER_CYCLE := 3
+var cold_stacks: int = 0       # Cold: +1 tempo on offensive actions per 10 stacks; performing one deals it stacks / 2 and sheds 10 (Debuff's Cold notes). No freeze at 5, no thaw
+const COLD_THAW_PER_CYCLE := 3  # the old per-cycle thaw; unused since 2026-11-24
 var is_frozen: bool = false    # Cannot act when frozen
 var frozen_tempo: int = 0      # Remaining tempo for frozen
 var is_stunned: bool = false   # Cannot act when stunned
 var stun_tempo: int = 0        # Remaining tempo cycles for stun
-var burn_stacks: int = 0       # Burn damage tracker (doubles each cycle)
-var burn_damage_next: int = 1  # Burn damage doubles each cycle (1, 2, 4, 8...)
+var burn_stacks: int = 0       # Burn: every 2 tempo take stacks + 3 (+2 to armor), then 5 stacks are used; each stack is -0.5% to every resistance (Debuff's Burn and Poison notes)
+var _dot_clock: int = 0        # tempo banked toward the next Burn / Poison tick (Debuff.DOT_TICK_TEMPO); runs only while either is on
 var cold_damage_next: int = 1  # Element Pollination: Cold's doubling tick while the Weaver maintain is up
 var polymorph_tempo: int = 0   # Polymorph (Circe's Wand): cycles left as a pig — walk and basic melee only
-var poison_stacks: int = 0     # Poison: take X damage per cycle, lose 1 per cycle
+var poison_stacks: int = 0     # Poison: every 2 tempo take X damage and lose 1; healing is cut 25% while poisoned
 var shock_stacks: int = 0      # Shock: take X damage per cycle, lose 1 per cycle (and, with shock_arcs on, arc X to the nearest enemy within 2 squares)
 const SHOCK_ARC_RANGE := 2
 ## Shock's arc to a second enemy, switched OFF (designer, 2026-11-22): Shock
@@ -408,6 +408,21 @@ var next_melee_tempo_tax: int = 0
 # Inebriate) — mirrors how the same debuffs treat the player's moves.
 ## Bugbear's First Strike: +8 damage while it has not been hit yet.
 const BUGBEAR_FIRST_STRIKE := 8
+
+## The actions that are NOT offensive abilities: moving, healing, hiding,
+## raising help, readying itself. Everything else an enemy does is one —
+## Cold taxes it and bites the enemy for performing it (is_offensive_action).
+const NON_OFFENSIVE_ACTIONS := {
+	"move": true, "hydra_move": true, "goblin_move": true, "scurry": true,
+	"scurry_away": true, "get_into_range": true, "flee": true, "roc_retreat": true,
+	"fire_bounce": true, "seek_nest": true, "dig_walk": true, "track": true,
+	"nest_heal": true, "hydra_heal": true, "treant_heal": true, "sear_wounds": true,
+	"repair": true, "cerberus_roar": true, "vanish": true, "specter_vanish": true,
+	"summon_skeleton": true, "raise_totem": true, "mimic": true,
+}
+
+static func is_offensive_action(action_name: String) -> bool:
+	return action_name != "" and not NON_OFFENSIVE_ACTIONS.has(action_name)
 
 const MOVEMENT_ACTIONS := {
 	"move": true, "hydra_move": true, "goblin_move": true, "scurry": true,
@@ -984,7 +999,7 @@ static func actions_for_type(type: EnemyType) -> Array[Dictionary]:
 				{"name": "ice_club", "tempo_cost": 4},
 				# Clobber (designer, 2026-11-08): "a 10 tempo cost if queued up
 				# or an auto trigger against a frozen enemy" — queued here, and
-				# it still auto-triggers when a blow freezes (_ice_troll_strike).
+				# it still auto-triggers when a blow brings the target to 9 Cold (_ice_troll_strike).
 				{"name": "clobber",  "tempo_cost": 10},
 				{"name": "move",     "tempo_cost": 3},
 			]
@@ -1290,8 +1305,8 @@ static func get_all_enemy_data() -> Array:
 		EnemyType.WEREGOAT: "Hoof Punch (4 tempo): 6 damage.\nCharge (8 tempo): runs up to 8 squares along the line that crosses the most of your units — 8 damage to everything in its path, and everything within 1 square of where it lands is Stunned for 3 tempo.\nMove (5 tempo): 2 spaces.",
 		EnemyType.WYVERN: "Flying: ignores your high-ground bonus. Resists 25% physical / 35% fire / 25% lightning.\nBite (5 tempo): 25 damage.\nTalon Grab (8 tempo, then 2-cycle cooldown): flies above its target (reach 3), 25 damage, and drags them to an unoccupied space 8 squares away.\nMove (4 tempo): 6 spaces.",
 		EnemyType.ROC: "15 armor. Flying: ignores your high-ground bonus. It always moves AWAY from you: it dives, then keeps its distance until the dive is ready again.\nDive Bomb (5 tempo, from up to 6 squares): 8 damage; the Roc lands beside you.\nEye Scrape (3 tempo, Async): if you have stayed in melee reach for more than 3 tempo it claws your eyes — 2 Weakened.\nMove away (1 tempo): 1 space.",
-		EnemyType.ICE_TROLL: "Every attack adds a stack of frost (Cold, 5 tempo) AND a stack of Brittle (5 tempo). Resists 35% physical / 15% fire / 15% lightning.\nClub (4 tempo): 13 damage.\nClobber (10 tempo): 50 damage. It also triggers instantly whenever an Ice Troll attack FREEZES its target.\nMove (3 tempo): 3 spaces.",
-		EnemyType.SNOW_WRAITH: "Range 5.\nSnowball (8 tempo): Slowed for 3 tempo + 2 Cold.\nIce Blast (5 tempo): 5 ice damage, +3 if you have armor; Slowed for 3 tempo.\nMove (5 tempo): 3 spaces.",
+		EnemyType.ICE_TROLL: "Every attack adds 3 frost (Cold) AND a stack of Brittle (5 tempo); the hit that brings you to 9 Cold fires Clobber at once. Resists 35% physical / 15% fire / 15% lightning.\nClub (4 tempo): 13 damage.\nClobber (10 tempo): 50 damage. It also triggers instantly whenever an Ice Troll attack brings its target to 9 Cold.\nMove (3 tempo): 3 spaces.",
+		EnemyType.SNOW_WRAITH: "Range 5.\nSnowball (8 tempo): Slowed for 3 tempo + 5 Cold.\nIce Blast (5 tempo): 5 ice damage, +3 if you have armor; Slowed for 3 tempo.\nMove (5 tempo): 3 spaces.",
 		EnemyType.GRANITE_COLOSSUS: "350 health under 250 armor; resists 65% physical / 50% fire / 50% lightning.\nMove (5 tempo): 3 spaces.\n[Its attacks are still TBD on the design sheet — it only stands.]",
 		EnemyType.WHITE_MANTICORE: "Flying: ignores your high-ground bonus. Resists 10% physical / 35% fire / 10% lightning.\nBite (3 tempo): 15 damage.\nStinger (5 tempo, then 5-tempo cooldown): 25 damage + 3 Clumsy (3 stacks of 5 tempo = 3 cycles) + 8 Poison.\nMove (2 tempo): 3 spaces.",
 		EnemyType.SABERTOOTH: "35% to crit: a crit deals 1.5x and inflicts 6 Bleed.\nTrack (10 tempo, Async): marks the nearest of your units — +15 Strengthen against it, and the tiger must hunt it.\nBite and Claw (5 tempo): bites for 6, then claws for 3 — two separate attacks (each rolls its own crit and spends its own Strengthen).\nSunken Bite (15 tempo, Async): 10 damage + 8 Bleed.\nMove (2 tempo): 2 spaces.",
@@ -1638,6 +1653,18 @@ func on_tempo_advanced(amount: int, player_node: Node3D) -> void:
 
 	_cycle_accumulator += amount
 
+	# Burn and Poison tick on their own 2-tempo clock, counted from when the
+	# first stack lands.
+	if burn_stacks > 0 or poison_stacks > 0:
+		_dot_clock += amount
+		while _dot_clock >= Debuff.DOT_TICK_TEMPO and not is_dead:
+			_dot_clock -= Debuff.DOT_TICK_TEMPO
+			_tick_burn_poison()
+			if burn_stacks <= 0 and poison_stacks <= 0:
+				break
+	if burn_stacks <= 0 and poison_stacks <= 0:
+		_dot_clock = 0
+
 	# Tree form (Cupids Bow): counted in raw tempo, not cycles. The tree keeps
 	# every buff and debuff it had, cannot act, and regenerates 3 health on
 	# each of its first 3 tempo.
@@ -1918,57 +1945,45 @@ func _tick_stack_clock(key: String, stack_field: String, clock: int, amount: int
 		return 0
 	return clock
 
-func _tick_status_durations() -> void:
-	# Choke: "deal 2 damage at the next cycle" — every stack (one per use)
-	# lands this cycle, so a 2nd/3rd Sticky use isn't a cycle or two late.
-	if choke_dot_stacks > 0:
-		var choke_hits := choke_dot_stacks
-		choke_dot_stacks = 0
-		for i in choke_hits:
-			_dot_hit("Choke", choke_dot_damage)
-		print("[%s] Choke deals %d x%d damage" % [enemy_name, choke_dot_damage, choke_hits])
-		debuff_expired.emit(self, "choke")
-
-	# Burn: deal doubling damage each cycle (1, 2, 4, 8...)
+## One Burn / Poison tick (every Debuff.DOT_TICK_TEMPO tempo, off _dot_clock
+## in process_tempo — not the 5-tempo cycle the other stacks tick on).
+func _tick_burn_poison() -> void:
+	# Burn: stacks + 3, and 2 more that lands on armor (on health when there
+	# is none) — armor soaks a tick like any hit, so it is one hit of
+	# Debuff.burn_tick_damage. Then 5 stacks are used up.
 	if burn_stacks > 0:
+		var burn_hit: int = Debuff.burn_tick_damage(burn_stacks)
+		var burn_left: int = maxi(0, burn_stacks - Debuff.BURN_STACKS_PER_TICK)
 		# A small flame flares over the head and the tick's number floats
 		# above it, so a burn is seen working (not just a tiny yellow 1).
 		if is_inside_tree() and get_parent():
 			FireTileSprite.burst(get_parent(), position + Vector3(0, BURN_FLAME_Y, 0))
 		_burn_number_pending = true
-		_dot_hit("Burn", burn_damage_next, "%d next cycle" % (burn_damage_next * 2) if burn_stacks > 1 else "last tick")
+		_burn_tick_in_flight = true  # the tick is not raised by its own resistance drop
+		_dot_hit("Burn", burn_hit, "%d Burn left" % burn_left if burn_left > 0 else "last tick")
+		_burn_tick_in_flight = false
 		_burn_number_pending = false
-		print("[%s] Burn deals %d damage (doubles next cycle)" % [enemy_name, burn_damage_next])
+		print("[%s] Burn deals %d damage (%d Burn left)" % [enemy_name, burn_hit, burn_left])
 		# Element Pollination: the flames jump — burn splashes nearby enemies
-		# like Shock while the Elemental Weaver's maintain is up.
+		# while the Elemental Weaver's maintain is up.
 		if Card.element_pollination_active:
 			for pol_e in _sibling_enemies():
 				if pol_e != self and position.distance_to(pol_e.position) <= 2.5:
-					pol_e._dot_hit("Burn splash", burn_damage_next)
-					print("[%s] Element Pollination: burn splashes %d to %s" % [enemy_name, burn_damage_next, pol_e.enemy_name])
-		# Burn Amp (sphere node): a flat extra hit lands after the normal tick,
-		# outside the doubling.
+					pol_e._dot_hit("Burn splash", burn_hit)
+					print("[%s] Element Pollination: burn splashes %d to %s" % [enemy_name, burn_hit, pol_e.enemy_name])
+		# Burn Amp (sphere node): a flat extra hit lands after the normal tick.
 		var burn_extra := int(_player_sphere_amp("sphere_burn_amp"))
 		if burn_extra > 0 and not is_dead:
 			_dot_hit("Burn Amp", burn_extra)
 			print("[%s] Burn Amp adds %d damage" % [enemy_name, burn_extra])
-		burn_damage_next *= 2
-		burn_stacks -= 1
+		burn_stacks = burn_left
 		if burn_stacks <= 0:
-			burn_damage_next = 1
 			print("[%s] Burn expired" % enemy_name)
 			debuff_expired.emit(self, "burn")
 
-	# Polymorph: the pig wears off one cycle at a time
-	if polymorph_tempo > 0:
-		polymorph_tempo -= 1
-		if polymorph_tempo <= 0:
-			print("[%s] Polymorph wears off" % enemy_name)
-			debuff_expired.emit(self, "polymorph")
-
-	# Poison: deal current stacks damage, then lose 1 stack per cycle
-	if poison_stacks > 0:
-		_dot_hit("Poison", poison_stacks, "%d next cycle" % (poison_stacks - 1) if poison_stacks > 1 else "last tick")
+	# Poison: deal current stacks damage, then lose 1 stack (20, 19, 18...).
+	if poison_stacks > 0 and not is_dead:
+		_dot_hit("Poison", poison_stacks, "%d next tick" % (poison_stacks - 1) if poison_stacks > 1 else "last tick")
 		print("[%s] Poison deals %d damage" % [enemy_name, poison_stacks])
 		# Poison Amp (sphere node): each tick has a stacks% chance of a bonus
 		# damage instance — more stacks, more likely the venom spikes.
@@ -1981,25 +1996,48 @@ func _tick_status_durations() -> void:
 			print("[%s] Poison expired" % enemy_name)
 			debuff_expired.emit(self, "poison")
 
+	_update_status_indicators()
+
+## Burn on this enemy: every stack lowers each of its resistances by
+## Debuff.BURN_RESIST_PER_STACK percent (below 0 is a vulnerability).
+## The Burn tick itself is not raised by it: Burn deals what it says.
+var _burn_tick_in_flight: bool = false
+func get_burn_resist_drop() -> float:
+	return 0.0 if _burn_tick_in_flight else burn_stacks * Debuff.BURN_RESIST_PER_STACK
+
+func _tick_status_durations() -> void:
+	# Choke: "deal 2 damage at the next cycle" — every stack (one per use)
+	# lands this cycle, so a 2nd/3rd Sticky use isn't a cycle or two late.
+	if choke_dot_stacks > 0:
+		var choke_hits := choke_dot_stacks
+		choke_dot_stacks = 0
+		for i in choke_hits:
+			_dot_hit("Choke", choke_dot_damage)
+		print("[%s] Choke deals %d x%d damage" % [enemy_name, choke_dot_damage, choke_hits])
+		debuff_expired.emit(self, "choke")
+
+	# Polymorph: the pig wears off one cycle at a time
+	if polymorph_tempo > 0:
+		polymorph_tempo -= 1
+		if polymorph_tempo <= 0:
+			print("[%s] Polymorph wears off" % enemy_name)
+			debuff_expired.emit(self, "polymorph")
+
 	# Bleed no longer clots by time — stacks fall as the wound bleeds (1 damage
 	# per tile moved, 1 stack per damage; see the tile-step in _physics_process).
 	# Timed statuses (stun, frozen, root, curse...) tick per raw tempo in
 	# _tick_timed_statuses, not here.
 
-	# Cold: thaws COLD_THAW_PER_CYCLE stacks per cycle (sheet: 3) so it's a
-	# combo window that has to be fed, not a slow ratchet toward Frozen at 5.
+	# Cold no longer thaws by the cycle (designer, 2026-11-24): it is shed
+	# only when the enemy performs an offensive ability (_cold_offense). The
+	# cycle keeps Element Pollination's bite.
 	if cold_stacks > 0:
 		# Element Pollination: the frost bites — Cold ticks doubling damage
-		# like Burn while the Elemental Weaver's maintain is up.
+		# (1, 2, 4...) while the Elemental Weaver's maintain is up.
 		if Card.element_pollination_active:
 			_dot_hit("Cold bite", cold_damage_next)
 			print("[%s] Element Pollination: cold bites for %d (doubles next cycle)" % [enemy_name, cold_damage_next])
 			cold_damage_next *= 2
-		cold_stacks = maxi(0, cold_stacks - COLD_THAW_PER_CYCLE)
-		if cold_stacks <= 0:
-			cold_damage_next = 1
-			print("[%s] Cold thawed" % enemy_name)
-			debuff_expired.emit(self, "cold")
 
 	# Shock: deal current stacks damage to itself, then lose 1 stack. With
 	# shock_arcs on (off since 2026-11-22) it also arcs the same to the
@@ -2177,6 +2215,9 @@ func _effective_cost(action: Dictionary) -> int:
 		cost += next_melee_tempo_tax
 	if slow_stacks > 0 and MOVEMENT_ACTIONS.has(str(action["name"])):
 		cost += Debuff.SLOWED_TEMPO_PER_TILE + int(_player_sphere_amp("sphere_slow_amp")) - 1
+	# Cold: +1 tempo on an offensive action per 10 stacks.
+	if cold_stacks > 0 and is_offensive_action(str(action["name"])):
+		cost += Debuff.cold_tempo_tax(cold_stacks)
 	# Screecher (sheet): Drift is 4 spaces / 2 tempo unseen, 2 spaces / 5 tempo
 	# while its Screech has given it away — the table holds the unseen cost.
 	if enemy_type == EnemyType.SCREECHER and _screecher_visible_tempo > 0 and MOVEMENT_ACTIONS.has(str(action["name"])):
@@ -2241,9 +2282,27 @@ func _execute_now(action: Dictionary, player_node: Node3D) -> bool:
 	var ok := _execute_action(nm, _move_target_for(player_node))
 	if ok:
 		idle_tempo = 0  # it acted: no longer sitting idle
+		if is_offensive_action(nm):
+			_cold_offense()
 	_committed_action = prev_commit
 	action_finished.emit(self)
 	return ok
+
+## Cold bites an enemy for performing an offensive ability: half its stacks
+## (rounded down) in damage, then Debuff.COLD_SHED_PER_OFFENSE stacks are shed.
+func _cold_offense() -> void:
+	if cold_stacks <= 0 or is_dead:
+		return
+	var bite: int = Debuff.cold_offense_damage(cold_stacks)
+	var left: int = maxi(0, cold_stacks - Debuff.COLD_SHED_PER_OFFENSE)
+	cold_stacks = left
+	if left <= 0:
+		cold_damage_next = 1
+	_dot_hit("Cold", bite, "%d Cold left" % left if left > 0 else "the Cold is shed")
+	print("[%s] Cold: %d damage for attacking, %d Cold left" % [enemy_name, bite, left])
+	if left <= 0:
+		debuff_expired.emit(self, "cold")
+	_update_status_indicators()
 
 func _begin_channel(action: Dictionary, kind: String) -> void:
 	_channel_action = action
@@ -4880,19 +4939,29 @@ func _try_clobber(target_node: Node3D) -> bool:
 	turn_completed.emit()
 	return true
 
+## Ice Troll (designer, 2026-11-25): every hit adds ICE_TROLL_COLD Cold, and
+## the hit that brings its target to ICE_TROLL_CLOBBER_COLD Cold fires Clobber
+## at once. (It used to fire on the freeze, while Cold froze at 5.)
+const ICE_TROLL_COLD := 3
+const ICE_TROLL_CLOBBER_COLD := 9
+
 func _ice_troll_strike(target_node: Node3D, dmg: int, label: String) -> void:
-	## Every Ice Troll attack adds a stack of frost (Cold) and Brittle. If the
-	## blow FREEZES the target (Cold reaching 5), Clobber (50) auto-triggers.
+	## Every Ice Troll attack adds 3 frost (Cold) and a stack of Brittle. If
+	## the blow carries the target's Cold from under 9 to 9 or more, Clobber
+	## (50) auto-triggers. Clobber's own Cold never sets off another.
 	_deal_damage_to_player(target_node, dmg, label)
 	var dm = target_node.get_debuff_manager() if target_node.has_method("get_debuff_manager") else null
 	if not dm:
 		return
-	var was_frozen: bool = dm.has_debuff(Debuff.DebuffType.FROZEN)
-	# sheet: Cold's timer is 5 tempo; Brittle is a 5-tempo stack on its own clock.
-	dm.apply_debuff(Debuff.create(Debuff.DebuffType.COLD, 1, 5))
+	var cold_before = dm.get_debuff(Debuff.DebuffType.COLD)
+	var had: int = cold_before.value if cold_before else 0
+	# Brittle is a 5-tempo stack on its own clock; Cold has no timer.
+	dm.apply_debuff(Debuff.create(Debuff.DebuffType.COLD, ICE_TROLL_COLD))
 	dm.apply_debuff(Debuff.create(Debuff.DebuffType.BRITTLE, 1))
-	if label != "Clobber" and not was_frozen and dm.has_debuff(Debuff.DebuffType.FROZEN):
-		print("[%s] The freeze leaves them wide open — CLOBBER!" % enemy_name)
+	var cold_after = dm.get_debuff(Debuff.DebuffType.COLD)
+	var has: int = cold_after.value if cold_after else 0
+	if label != "Clobber" and had < ICE_TROLL_CLOBBER_COLD and has >= ICE_TROLL_CLOBBER_COLD:
+		print("[%s] %d Cold leaves them wide open — CLOBBER!" % [enemy_name, has])
 		_ice_troll_strike(target_node, maxi(1, roundi(50 * _pps_dmg)), "Clobber")
 
 ## --- White Manticore ---
@@ -5542,13 +5611,15 @@ func _choose_snow_wraith_action(distance: int) -> void:
 		slowed = dm != null and dm.is_slowed()
 	chosen_action = _get_action("ice_blast") if slowed else _get_action("snowball")
 
-## Snowball (sheet, 8): no damage; Slowed for 3 tempo + 2 Cold.
+## Snowball (sheet, 8): no damage; Slowed for 3 tempo + 5 Cold (the sheet's 2,
+## raised by the designer 2026-11-25 with Cold's threshold at 10).
+const SNOWBALL_COLD := 5
 func _try_snowball(target_node: Node3D) -> bool:
 	if is_silenced or not _in_attack_range(target_node):
 		return _try_move(target_node)
 	_apply_player_debuff(target_node, Debuff.create_timed(Debuff.DebuffType.SLOWED, 3, enemy_name))
-	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.COLD, 2, 5))  # sheet: Cold's timer is 5 tempo
-	print("[%s] Snowball: Slowed 3 tempo + 2 Cold" % enemy_name)
+	_apply_player_debuff(target_node, Debuff.create(Debuff.DebuffType.COLD, SNOWBALL_COLD))
+	print("[%s] Snowball: Slowed 3 tempo + %d Cold" % [enemy_name, SNOWBALL_COLD])
 	_throw_at(target_node, "snowball")   # the snowball flies from her hand to the target
 	turn_completed.emit()
 	return true
@@ -5677,7 +5748,7 @@ const MIMIC_CAP: int = 2
 # Everything the sheet means by "all health, debuffs, buffs etc carry over":
 # the status counters a mimic copies from its original the moment it appears.
 const MIMIC_COPIED_FIELDS: Array[String] = [
-	"poison_stacks", "burn_stacks", "burn_damage_next", "cold_stacks", "cold_damage_next",
+	"poison_stacks", "burn_stacks", "cold_stacks", "cold_damage_next",
 	"shock_stacks", "bleed_stacks", "vulnerable_stacks", "weaken_stacks", "slow_stacks",
 	"choke_dot_stacks", "choke_dot_damage", "stun_tempo", "is_stunned", "frozen_tempo", "is_frozen",
 	"disarmed_tempo", "is_disarmed", "disarmed_attacks", "marked_tempo", "is_marked",
@@ -6510,6 +6581,9 @@ func _regenerate(amount: int) -> void:
 	var heal_ceiling = max_health
 	if narashimha_tempo > 0 and narashimha_heal_cap >= 0:
 		heal_ceiling = min(heal_ceiling, narashimha_heal_cap)
+	# Poison: every heal on a poisoned enemy is cut by a quarter.
+	if poison_stacks > 0:
+		amount = floori(amount * (1.0 - Debuff.POISON_HEAL_CUT))
 	var healed = min(amount, heal_ceiling - current_health)
 	if healed <= 0:
 		return
@@ -7001,6 +7075,7 @@ func preview_player_hit(amount: int, damage_type: int = DamageTypes.Type.PHYSICA
 		var type_resist: float = float(damage_resistances.get(damage_type, 0.0))
 		if damage_type == DamageTypes.Type.PHYSICAL and not phys_defense_groups.is_empty():
 			type_resist -= get_phys_defense_debuff_percent()
+		type_resist -= get_burn_resist_drop()
 		if type_resist != 0.0:
 			amount = floori(amount * (100.0 - minf(type_resist, 90.0)) / 100.0)
 	if player_hit_modifier.is_valid():
@@ -7069,6 +7144,7 @@ func take_damage(amount: int, from_player: bool = false, damage_type: int = Dama
 		var type_resist: float = float(damage_resistances.get(damage_type, 0.0))
 		if damage_type == DamageTypes.Type.PHYSICAL and not phys_defense_groups.is_empty():
 			type_resist -= get_phys_defense_debuff_percent()  # lowered defense: below 0 is a vulnerability
+		type_resist -= get_burn_resist_drop()  # Burn: -0.5% to every resistance per stack
 		if type_resist != 0.0:
 			# Negative resist = vulnerability: the hit lands harder (Treant vs fire).
 			# Percent math before the divide keeps 100 * 115% at exactly 115.
@@ -7705,15 +7781,8 @@ func apply_debuff(debuff_name: String, value: int) -> void:
 			print("[%s] Burning! Stacks: %d" % [enemy_name, burn_stacks])
 		"cold":
 			cold_stacks += value
-			print("[%s] Cold applied! Stacks: %d/5" % [enemy_name, cold_stacks])
-			if cold_stacks >= 5:
-				cold_stacks = 0
-				cold_damage_next = 1  # Element Pollination's doubling tick restarts with the freeze
-				is_frozen = true
-				frozen_tempo = max(frozen_tempo, 5)  # Frozen for 5 tempo (one cycle)
-				# Reset every action clock so frozen delays their next action
-				_reset_action_clocks()
-				print("[%s] FROZEN! Cold reached 5 stacks!" % enemy_name)
+			# No freeze at 5 any more (designer, 2026-11-24): see Debuff's Cold notes.
+			print("[%s] Cold applied! Stacks: %d" % [enemy_name, cold_stacks])
 		"poison":
 			poison_stacks += value
 			print("[%s] Poisoned! Stacks: %d" % [enemy_name, poison_stacks])
@@ -8303,19 +8372,19 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			desc = "Cannot act at all."
 			remaining = "Remaining: %d tempo" % frozen_tempo
 		"Burn":
-			desc = "Takes burn damage once per cycle, doubling each cycle (1, 2, 4, 8...)."
+			desc = "Every 2 tempo: takes %d damage (Burn + 3, and 2 to armor), then 5 Burn is used up. Its resistances are lowered %s%%." % [Debuff.burn_tick_damage(burn_stacks), str(get_burn_resist_drop())]
 			remaining = "Stacks: %d" % burn_stacks
 		"Cold":
-			desc = "At 5 stacks it becomes Frozen for 1 cycle; thaws 3 stacks per cycle."
-			remaining = "Stacks: %d of 5" % cold_stacks
+			desc = "Its offensive abilities cost +%d tempo (1 per 10 Cold). Each one it performs deals it %d damage (half its Cold) and sheds 10 Cold." % [Debuff.cold_tempo_tax(cold_stacks), Debuff.cold_offense_damage(cold_stacks)]
+			remaining = "Stacks: %d" % cold_stacks
 		"Poison":
-			desc = "Takes %d damage per cycle, loses 1 poison each cycle." % poison_stacks
+			desc = "Every 2 tempo: takes %d damage, then loses 1 Poison. Its healing is reduced 25%%." % poison_stacks
 			remaining = "Stacks: %d" % poison_stacks
 		"Shock":
 			if shock_arcs:
-				desc = "Takes %d damage each cycle and arcs the same to the nearest enemy within 2 squares; loses 1 per cycle." % shock_stacks
+				desc = "Amplifies your Shock cards: they can be cheaper, faster and more devastating against it. Takes %d damage each cycle and arcs the same to the nearest enemy within 2 squares; loses 1 per cycle." % shock_stacks
 			else:
-				desc = "Takes %d damage each cycle; loses 1 per cycle." % shock_stacks
+				desc = "Amplifies your Shock cards: they can be cheaper, faster and more devastating against it. Takes %d damage each cycle; loses 1 per cycle." % shock_stacks
 			remaining = "Stacks: %d" % shock_stacks
 		"Bleed":
 			desc = "Takes damage per tile moved; each damage removes a stack."

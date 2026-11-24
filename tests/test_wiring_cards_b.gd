@@ -359,8 +359,8 @@ func _t_element_pollination() -> void:
 	var a := _spawn(Vector2i(3, 0))
 	var b := _spawn(Vector2i(4, 0))
 	a.apply_debuff("burn", 1)
-	a._tick_status_durations()
-	_check(_lost(b) == 1, "Burn splashes its tick onto a nearby enemy (%d)" % _lost(b))
+	a._tick_burn_poison()
+	_check(_lost(b) == 6, "Burn splashes its tick (1 + 3 + 2) onto a nearby enemy (%d)" % _lost(b))
 	var hp_b: int = b.current_health
 	b.apply_debuff("cold", 2)
 	b._tick_status_durations()

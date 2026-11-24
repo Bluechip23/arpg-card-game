@@ -301,6 +301,10 @@ var sphere_bonus_regen: int = 0       # Health regenerated per tempo cycle
 var sphere_bonus_armor_per_cycle: int = 0  # Armor gained per tempo cycle
 var sphere_bonus_life_steal: float = 0.0   # Percentage of damage healed (e.g. 2.0 = 2%)
 var sphere_bonus_resistance: float = 0.0   # Flat damage reduction percentage (e.g. 3.0 = 3%)
+# Burn's and Poison's standing riders, kept current by this character's
+# DebuffManager (_sync_owner_riders) — never saved.
+var burn_resist_drop: float = 0.0          # Burn on you: -0.5% to every resistance per stack (below 0 = you take more)
+var poison_heal_cut: float = 0.0           # Poison on you: this share of every heal is lost (0.25)
 var sphere_vulnerable_amp: float = 0.0     # Extra percentage points on YOUR Vulnerable's damage amp (25.0 → enemies take +55% instead of +30%)
 var sphere_weaken_amp: float = 0.0         # Extra percentage points on YOUR Weaken's damage reduction (25.0 → enemies deal -55% instead of -30%)
 # Buff amps: sphere-grid bonuses to the buffs YOU gain (playstyle amplification).
@@ -1876,8 +1880,9 @@ func take_damage(amount: int, debuff_mgr = null, buff_mgr = null, damage_type: i
 		# Smithed Excellence: extra physical resist while you have block up.
 		if current_armor > 0 and equipment_block_physical_resist > 0.0:
 			type_resist += equipment_block_physical_resist
-	if type_resist > 0.0:
-		remaining = floori(remaining * (1.0 - min(type_resist, 100.0) / 100.0))
+	type_resist -= burn_resist_drop  # Burn: every resistance lowered; below 0 the hit lands harder
+	if type_resist != 0.0:
+		remaining = floori(remaining * (100.0 - minf(type_resist, 100.0)) / 100.0)
 
 	# Flat all-damage resistance from the sphere grid ("Resist +X%") plus any
 	# equipment resistance (e.g. Thick Steel Helm): percent reduction on all damage.
@@ -2264,6 +2269,10 @@ func heal(amount: int, from_ally: bool = false, sanguine_applied: bool = false) 
 		amount = kept
 		print("[STATS] Curse of the Living: heal halved to %d, %d to each ally" % [kept, curse_share])
 	var boosted_amount := get_effective_heal_amount(amount)
+	# Poison: a quarter of every heal is lost — unless this character's poison
+	# is being turned to healing (Elixir), which carries none of the cut.
+	if poison_heal_cut > 0.0 and elixir_stacks <= 0 and boosted_amount > 0:
+		boosted_amount = floori(boosted_amount * (1.0 - poison_heal_cut))
 	var old_health_pct := get_health_percent()
 
 	# (Blood Libation's 5-stack burst damage resolves inside

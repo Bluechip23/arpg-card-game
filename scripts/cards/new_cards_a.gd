@@ -27,8 +27,10 @@ const HOWL_REFRESH_TEMPO := 5              # the aura buff's clock, re-set every
 const SPIRIT_ARMOR_RADIUS := 5
 const SPIRIT_ARMOR_PER_CYCLE := 2
 const EMBER_HEART_RADIUS := 4
-const EMBER_HEART_STACKS := 2
-const EMBER_HEART_DAMAGE_PER_STACK := 3
+const EMBER_HEART_STACKS := 1
+const EMBER_HEART_DAMAGE_PER_STACK := 1
+const EMBER_HEART_TEMPO := 2            # one transfer every 2 tempo (designer, 2026-11-24), on the card's own clock
+const EMBER_HEART_CLOCK := "ember_heart_clock"
 const LODESTONE_RADIUS := 2
 const LODESTONE_SLOW := 1
 const WARDEN_KEEN_PCT := 20   # designer, 2026-11-12: "20 (20% crit) Keen"
@@ -219,8 +221,8 @@ static func howl_aura_of(bm) -> Buff:
 # ---------------------------------------------------------------- every cycle
 
 ## The per-cycle maintains, run at the cycle start with Halo's heal (before
-## the cycle's own status ticks, so Ember Heart moves Burn off its bearer
-## before that Burn bites).
+## the cycle's own status ticks). Ember Heart is not one of them any more:
+## it runs every 2 tempo off tempo() below.
 static func cycle(main) -> void:
 	if main == null or main.player == null or main.deck_manager == null:
 		return
@@ -237,8 +239,6 @@ static func cycle(main) -> void:
 			match c.card_id:
 				"spirit_armor":
 					_spirit_armor(main, p)
-				"ember_heart":
-					_ember_heart(main, p)
 				"lodestone_field":
 					_lodestone_slow(main, p)
 
@@ -256,9 +256,32 @@ static func _spirit_armor(main, caster) -> void:
 		s.gain_granted_armor(left)
 	print("[NEW-A] Spirit Armor: +%d armor to allies within %d" % [SPIRIT_ARMOR_PER_CYCLE, SPIRIT_ARMOR_RADIUS])
 
-## Ember Heart: up to 2 stacks of the Burn the maintainer carries move onto
-## one random enemy within 4 squares; each stack moved deals 3 damage to
-## that enemy as it lands. With no enemy in reach (or no Burn) nothing moves.
+## The raw-tempo maintains: main calls this on every tempo advance, BEFORE
+## the heroes' own debuff clocks, so Ember Heart's stack leaves before the
+## maintainer's Burn bites on the same tempo. Each maintained Ember Heart
+## keeps its own clock (from the moment it is maintained) and fires once per
+## EMBER_HEART_TEMPO.
+static func tempo(main, amount: int) -> void:
+	if main == null or main.deck_manager == null or amount <= 0:
+		return
+	for p in main._all_players():
+		if not is_instance_valid(p):
+			continue
+		var deck = main._deck_for_player(p)
+		if deck == null:
+			continue
+		for c in deck.maintained_cards.duplicate():
+			if c == null or c.card_id != "ember_heart":
+				continue
+			var clock: int = int(c.get_meta(EMBER_HEART_CLOCK, 0)) + amount
+			while clock >= EMBER_HEART_TEMPO:
+				clock -= EMBER_HEART_TEMPO
+				_ember_heart(main, p)
+			c.set_meta(EMBER_HEART_CLOCK, clock)
+
+## Ember Heart: 1 stack of the Burn the maintainer carries moves onto one
+## random enemy within 4 squares and deals 1 damage to that enemy as it
+## lands. With no enemy in reach (or no Burn) nothing moves.
 static func _ember_heart(main, caster) -> void:
 	var dm = caster.get_debuff_manager() if caster.has_method("get_debuff_manager") else null
 	if dm == null:
@@ -274,7 +297,6 @@ static func _ember_heart(main, caster) -> void:
 	burn.value -= moved
 	if burn.value <= 0:
 		dm.remove_debuff(Debuff.DebuffType.BURN)
-		dm.burn_damage_next = 1
 	else:
 		burn._set_name_and_description()
 		dm.debuffs_changed.emit()

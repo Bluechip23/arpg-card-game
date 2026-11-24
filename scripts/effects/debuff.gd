@@ -3,6 +3,45 @@ extends RefCounted
 
 ## Represents a debuff/status effect on a character
 
+## Burn and Poison (designer, 2026-11-23), the same on enemies and players.
+## Both tick every DOT_TICK_TEMPO tempo, counted from when the first stack
+## lands.
+##  - Poison: deals its stacks, then loses 1 (20, 19, 18...). While poisoned
+##    the carrier's healing is cut by POISON_HEAL_CUT — unless its poison is
+##    being turned to healing (Elixir), which carries none of the cut.
+##  - Burn: deals its stacks + BURN_FLAT_DAMAGE, and BURN_ARMOR_DAMAGE more
+##    that lands on armor (on health when there is none), then
+##    BURN_STACKS_PER_TICK stacks are used up. Each stack lowers every
+##    resistance of the carrier by BURN_RESIST_PER_STACK percent.
+const DOT_TICK_TEMPO := 2
+const BURN_FLAT_DAMAGE := 3
+const BURN_ARMOR_DAMAGE := 2
+const BURN_STACKS_PER_TICK := 5
+const BURN_RESIST_PER_STACK := 0.5
+const POISON_HEAL_CUT := 0.25
+
+## Cold (designer, 2026-11-24), the same on enemies and players. It no longer
+## builds to Frozen. Every COLD_STACKS_PER_TEMPO stacks make the carrier's
+## offensive abilities cost 1 more tempo; and each time the carrier performs
+## one it takes its stacks / 2 (rounded down) in damage and sheds
+## COLD_SHED_PER_OFFENSE stacks. Nothing else wears Cold off: no timer, no thaw.
+const COLD_STACKS_PER_TEMPO := 10
+const COLD_SHED_PER_OFFENSE := 10
+
+## The extra tempo `stacks` of Cold put on an offensive ability.
+static func cold_tempo_tax(stacks: int) -> int:
+	return maxi(0, stacks) / COLD_STACKS_PER_TEMPO
+
+## What the carrier takes for performing an offensive ability at `stacks`.
+static func cold_offense_damage(stacks: int) -> int:
+	return maxi(0, stacks) / 2
+
+## What one Burn tick deals at `stacks`. Armor soaks it like any hit, so the
+## armor share needs no route of its own: it is on armor while armor stands
+## and on health when it does not.
+static func burn_tick_damage(stacks: int) -> int:
+	return stacks + BURN_FLAT_DAMAGE + BURN_ARMOR_DAMAGE if stacks > 0 else 0
+
 enum DebuffType {
 	BLEED,
 	STUN,
@@ -49,7 +88,8 @@ const WEAKENED_REDUCTION := 30     # % less damage dealt while Weakened (matches
 ## The sheet's "a stack is 5 tempo" rule: every stack-clocked debuff sheds one
 ## stack each STACK_TEMPO of its OWN clock (see advance_time), never by use.
 const STACK_TEMPO := 5
-## Cold's default timer on the player (the sheet: 5 tempo).
+## Cold's old default timer on the player (the sheet: 5 tempo). Unused since
+## 2026-11-24: Cold is stack-driven and never ends on a timer.
 const COLD_TEMPO := 5
 ## What create()/new() hand a debuff that names no duration.
 const DEFAULT_DURATION := 15
@@ -136,10 +176,10 @@ func _set_name_and_description() -> void:
 			description = "Cannot play spell cards (%d tempo left)" % duration
 		DebuffType.BURN:
 			debuff_name = "Burn"
-			description = "Takes burn damage once per cycle, doubling each cycle (1, 2, 4, 8...)"
+			description = "Every 2 tempo: take %d damage (Burn + 3, and 2 to armor), then 5 Burn is used up. Resistances lowered %s%%" % [burn_tick_damage(value), str(value * BURN_RESIST_PER_STACK)]
 		DebuffType.POISON:
 			debuff_name = "Poison"
-			description = "Take %d damage per cycle, lose 1 poison each cycle" % value
+			description = "Every 2 tempo: take %d damage, then lose 1 Poison. Healing reduced 25%%" % value
 		DebuffType.CURSED:
 			debuff_name = "Cursed"
 			description = "Deal 20% less damage and deal 20% damage to self"
@@ -151,7 +191,7 @@ func _set_name_and_description() -> void:
 			description = "Cannot draw cards"
 		DebuffType.SHOCKED:
 			debuff_name = "Shocked"
-			description = "Arc %d damage to nearby allies per cycle (a shocked enemy takes it itself), lose 1 per cycle" % value
+			description = "Arc %d damage to nearby allies per cycle, lose 1 per cycle" % value
 		DebuffType.SLOWED:
 			debuff_name = "Slowed"
 			if clock_timed:
@@ -195,7 +235,7 @@ func _set_name_and_description() -> void:
 			description = "Armor decays an extra 2 per cycle (%s)" % _stacks_left_text()
 		DebuffType.COLD:
 			debuff_name = "Cold"
-			description = "At 5 stacks, become Frozen for 1 cycle. Current: %d stack(s) (%d tempo left)" % [value, duration]
+			description = "Offensive cards cost +%d tempo (1 per 10 Cold). Playing one deals you %d damage (half your Cold) and sheds 10 Cold" % [cold_tempo_tax(value), cold_offense_damage(value)]
 		DebuffType.BLIND:
 			debuff_name = "Blind"
 			description = "%d%% chance for your attacks to miss: attack cards, the auto attack and Flash Cut (%s)" % [BLIND_MISS, _stacks_left_text()]

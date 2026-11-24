@@ -1334,12 +1334,13 @@ static func get_keyword_definitions() -> Dictionary:
 		"stun": "Can't act. Only Wait passes time.",
 		"disarm": "Can't play attack cards or auto attack for X tempo.",
 		"silence": "Can't play spell cards for X tempo.",
-		"burn": "Damage once per cycle, doubling each cycle (1, 2, 4...).",
-		"poison": "Take X damage per cycle. Loses 1 per cycle.",
+		"burn": "Every 2 tempo: deals Burn + 3 damage, and 2 more to armor, then 5 Burn is used up. Each Burn lowers resistances 0.5%.",
+		"poison": "Every 2 tempo: deals X damage, then loses 1. Healing is reduced 25% while poisoned.",
 		"cursed": "Deal 20% less damage, and take 20% of the damage you deal.",
 		"frozen": "Can't play cards, auto attack or block.",
 		"cuffed": "Can't draw cards.",
-		"shocked": "Each cycle, deals X damage to nearby allies (a shocked enemy takes it). Loses 1 per cycle.",
+		"shock": "Shock is an amplifier for the other cards in your hand, making your abilities potentially cheaper, faster and more devastating. A shocked enemy also takes its Shock in damage each cycle and loses 1.",
+		"shocked": "On you: each cycle, deals X damage to your nearby allies. Loses 1 per cycle.",
 		"slowed": "Moving costs 3 tempo per tile. Each stack lasts 5 tempo.",
 		"staggered": "Attack cards cost +15 mana. Each stack lasts 5 tempo.",
 		"drain": "Lose 10 mana per cycle. Loses 1 per cycle.",
@@ -1353,7 +1354,7 @@ static func get_keyword_definitions() -> Dictionary:
 		"blind": "Attacks have an 80% chance to miss. Each stack lasts 5 tempo.",
 		"exposed": "Armor broken. Can't be Exposed again for 10 tempo.",
 		"brittle": "Armor decays 2 extra per cycle. Each stack lasts 5 tempo.",
-		"cold": "At 5 stacks, Frozen for 1 cycle. Each stack lasts 5 tempo.",
+		"cold": "Offensive abilities cost 1 more tempo per 10 Cold. Performing one deals half your Cold in damage and sheds 10 Cold.",
 		# Overflow
 		"jailed": "Can't be played for 15 tempo.",
 		"manifest": "Becomes a token in the manifest zone. Click it to use it.",
@@ -2252,7 +2253,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		"element_pollination":
 			# Maintain: the elemental cross-pollination is read live off the
 			# maintained pile (Card.element_pollination_active); nothing on activation.
-			print("[CARD] Element Pollination maintained: Burn splashes, Shock freezes at 5, Cold ticks doubling damage")
+			print("[CARD] Element Pollination maintained: Burn splashes, Shock stuns at 5, Cold ticks doubling damage")
 		"feed_into_the_pain":
 			# Hammer of Ajax instant: fired by taking damage below 30% health.
 			if buff_mgr:

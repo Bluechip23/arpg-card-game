@@ -218,3 +218,27 @@ Suggested: *"Stacks fall one every 5 tempo."*
 - Display: buff descriptions with counts are not refreshed after a charge or tick (the hover's "Remaining" line is);
   charge-based GENERIC badges show "Remaining: ∞".
 - Hydra's +40 health on the 4th hit ignores the Narashimha heal cap (enemy.gd:6847).
+
+## 2026-11-23: Burn and Poison rework
+
+The designer's new rules, the same on enemies and players (numbers in `scripts/effects/debuff.gd`):
+
+- Both tick every 2 tempo on their own clock, counted from when the first stack lands — no longer on the 5-tempo cycle.
+- **Poison** deals its stacks, then loses 1 (20, 19, 18...). While poisoned, healing is cut 25%. Poison turned to healing
+  (Elixir) heals in full and the cut is off while Elixir stacks are up. Player Poison no longer ends on a 15-tempo timer.
+- **Burn** deals its stacks + 3, and 2 more that lands on armor (on health when there is none) — armor soaks the tick
+  like any hit, so it is one hit of stacks + 5. Then 5 stacks are used up. Each stack lowers every resistance of the
+  carrier by 0.5% (below 0 it takes more); the Burn tick itself is not raised by its own drop. The old doubling
+  (1, 2, 4, 8...) is gone.
+- Entries above that describe Burn doubling or Poison ticking per cycle predate this.
+
+## 2026-11-24: Cold rework
+
+Cold no longer builds to Frozen at 5 stacks, on enemies or players (numbers in `scripts/effects/debuff.gd`):
+
+- Every 10 stacks make the carrier's offensive abilities cost 1 more tempo (an enemy's offensive actions —
+  `Enemy.is_offensive_action`; a player's offensive cards — `Card.is_offensive()`).
+- Performing one deals the carrier half its stacks (rounded down) and sheds 10 stacks.
+- Nothing else wears it off: the 3-per-cycle thaw on enemies and the 5-tempo timer on players are gone.
+- Left without a source: Frozen itself, the "Shatter +5" sphere node, the Ice Troll's Clobber-on-freeze, and the
+  Deep chill constellation's freeze (it now just applies 5 Cold).

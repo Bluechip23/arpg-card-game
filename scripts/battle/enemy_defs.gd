@@ -596,7 +596,7 @@ const DEFS := {
 		"figure_kind": "ice_troll",
 		"health": 150,
 		"armor": 55,
-		"damage": 13,        # Club; Clobber (auto on freeze) deals 50
+		"damage": 13,        # Club; Clobber (auto at 9 Cold) deals 50
 		"range": 1.5,
 		"move": 3.0,       # 3 spaces / 3 tempo
 		"aggro": 12.0,

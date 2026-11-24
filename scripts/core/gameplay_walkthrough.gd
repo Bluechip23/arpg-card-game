@@ -29,11 +29,37 @@ The tempo system replaces traditional turn-based combat with a fluid action econ
 [color=yellow]Cycles (every 5 tempo):[/color]
 - Every 5 global tempo completes one cycle
 - Mana regeneration fires once per cycle
-- Burn, Poison, Drain, Shock, Regen and Smith tick once per cycle
+- Drain, Shock, Regen and Smith tick once per cycle
+- Burn and Poison tick every 2 tempo, counted from when the first stack lands
 - Timed buffs and debuffs (Stun, Disarm, Root...) count down on raw tempo, so a 3-tempo stun lasts 3 tempo
 - Stack debuffs (Slow, Vulnerable, Weakened, Blind, Clumsy, Brittle...) lose one stack every 5 tempo on their own clock
 - The auto draw is its own timer: one card every 25 tempo (5 cycles)
 - Armor decays by 2 per cycle (modified by Fortify, Stalwart, Brittle)
+
+[font_size=18][color=cyan]━━━ ELEMENTS ━━━[/color][/font_size]
+
+The four element effects work the same on enemies and on you.
+
+[color=orange]Burn — relentless pressure[/color]
+- Every 2 tempo: deals Burn + 3 damage, and 2 more that lands on armor (on health when there is none)
+- Each tick uses up 5 Burn, so keep it fed
+- Each Burn lowers every resistance of the target by 0.5%
+
+[color=green]Poison[/color]
+- Every 2 tempo: deals its stacks in damage, then loses 1 (20, 19, 18...)
+- Healing on a poisoned target is reduced by 25%
+- Poison turned to healing (Elixir) heals in full and carries none of that cut
+
+[color=aqua]Cold — control[/color]
+- Every 10 Cold makes the target's offensive abilities cost 1 more tempo
+- Performing an offensive ability deals the target half its Cold (rounded down) and sheds 10 Cold
+- Cold does not freeze, and nothing else wears it off
+
+[color=yellow]Shock — the amplifier[/color]
+- Shock is used as an amplifier for the other cards in your hand, making your abilities potentially cheaper, faster and more devastating
+- Some cards put Shock on enemies (Static Sting); others cash it in (God of Thunder, Grounding)
+- A shocked enemy also takes its Shock in damage each cycle and loses 1 stack; it no longer arcs to other enemies
+- Shocked on YOU arcs that damage to your nearby allies instead
 
 [font_size=18][color=cyan]━━━ STAT SYSTEM ━━━[/color][/font_size]
 
