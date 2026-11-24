@@ -37,6 +37,9 @@ var _stat_alloc_backdrop: Control = null   # the training-ground painting behind
 var _stat_points_remaining: int = 0
 var _stat_allocations: Dictionary = {}
 var _stat_alloc_btn: Button = null  # "Stats" in the tab bar (always open; shows banked points inside)
+var _stat_info_window: PanelContainer = null  # what a stat does (its name clicked in the Stats tab)
+var _stat_info_key := ""                      # the stat it explains ("STR"...)
+var _hero_bar: HBoxContainer = null
 var _hero_btns: Array[Button] = []  # co-op: one per hero, whose progression is shown
 var _hero_index := 0
 var _hero_names: Array = []  # co-op: both heroes' names (set_heroes)
@@ -142,11 +145,10 @@ func _build_tab_bar() -> void:
 
 	# The hero's stats, and the banked level-up stat points (+3 per level)
 	# spent from here. Always open (designer, 2026-11-20): "Stats".
-	_stat_alloc_btn = Button.new()
-	_stat_alloc_btn.text = "Stats"
-	_stat_alloc_btn.add_theme_font_size_override("font_size", 14)
-	_stat_alloc_btn.add_theme_color_override("font_color", COLOR_AUTO_TEXT)
-	_stat_alloc_btn.pressed.connect(_open_stat_allocation)
+	# A tab like the other two (designer, 2026-11-23): Passives and Sphere
+	# Grid stay in reach above the Stats painting.
+	_stat_alloc_btn = _make_tab_button("Stats", false)
+	_stat_alloc_btn.pressed.connect(_on_tab_stats)
 	_tab_bar.add_child(_stat_alloc_btn)
 
 	add_child(_tab_bar)
@@ -155,6 +157,7 @@ func _build_tab_bar() -> void:
 	# TAB switches too. Their own group at the right (clear of the centred
 	# points readout), under Close. Hidden with one hero.
 	var hero_bar := HBoxContainer.new()
+	_hero_bar = hero_bar
 	hero_bar.name = "HeroTabs"
 	hero_bar.add_theme_constant_override("separation", 4)
 	hero_bar.alignment = BoxContainer.ALIGNMENT_END
@@ -247,15 +250,31 @@ func _apply_tab_style(btn: Button, active: bool) -> void:
 func _on_tab_skill_tree() -> void:
 	_switch_to_tab(Tab.SKILL_TREE)
 
+func _on_tab_stats() -> void:
+	if not is_instance_valid(_stat_alloc_panel):
+		_open_stat_allocation()
+
+func _stats_open() -> bool:
+	return is_instance_valid(_stat_alloc_panel)
+
+## Which tab reads as open: Stats while its painting is up, else the board
+## under it.
+func _refresh_tab_styles() -> void:
+	var stats := _stats_open()
+	_apply_tab_style(_tab_btn_skill_tree, not stats and _current_tab == Tab.SKILL_TREE)
+	_apply_tab_style(_tab_btn_sphere_grid, not stats and _current_tab == Tab.SPHERE_GRID)
+	if _stat_alloc_btn:
+		_apply_tab_style(_stat_alloc_btn, stats)
+		_refresh_stat_alloc_button()
+
 func _on_tab_sphere_grid() -> void:
 	_switch_to_tab(Tab.SPHERE_GRID)
 
 func _switch_to_tab(tab: Tab) -> void:
 	_current_tab = tab
-
-	# Update tab button styles
-	_apply_tab_style(_tab_btn_skill_tree, tab == Tab.SKILL_TREE)
-	_apply_tab_style(_tab_btn_sphere_grid, tab == Tab.SPHERE_GRID)
+	# Leaving the Stats tab for either board closes it (unconfirmed points
+	# stay banked).
+	_close_stat_alloc_panel()
 
 	if tab == Tab.SKILL_TREE:
 		# Show skill tree content, hide sphere grid
@@ -272,7 +291,6 @@ func _switch_to_tab(tab: Tab) -> void:
 		scroll_container.visible = false
 		if is_instance_valid(_board_view):
 			_board_view.visible = false
-		_close_stat_alloc_panel()
 		_update_title()
 		if _sphere_grid_ui:
 			_sphere_grid_ui.show_panel()
@@ -939,8 +957,9 @@ func _refresh_stat_alloc_button() -> void:
 	var pool: int = player_stats.unspent_stat_points if player_stats else 0
 	_stat_alloc_btn.text = "Stats"
 	_stat_alloc_btn.disabled = false
-	# Points waiting: the button glows gold.
-	_stat_alloc_btn.add_theme_color_override("font_color", COLOR_CHOSEN_TEXT if pool > 0 else COLOR_AUTO_TEXT)
+	# Points waiting: the tab's name glows green; else it reads as a tab.
+	var idle: Color = COLOR_TITLE if _stats_open() else COLOR_DIM
+	_stat_alloc_btn.add_theme_color_override("font_color", COLOR_CHOSEN_TEXT if pool > 0 else idle)
 	_stat_alloc_btn.tooltip_text = "%d stat point(s) to spend" % pool if pool > 0 else "Your stats"
 	if _passive_pts_btn:
 		var pp: int = player_stats.unspent_passive_points if player_stats else 0
@@ -1015,7 +1034,7 @@ func _open_stat_allocation() -> void:
 		for row in vbox.get_children():
 			if row is HBoxContainer:
 				for b in row.get_children():
-					if b is Button:
+					if b is Button and not b.has_meta("stat_key"):
 						b.visible = false
 		confirm_btn.text = "Close"
 
@@ -1041,6 +1060,13 @@ func _open_stat_allocation() -> void:
 	board.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_stat_alloc_backdrop.add_child(board)
 	_stat_alloc_backdrop.add_child(_stat_alloc_panel)
+	# The tabs, the hero switch and Close stay in reach over the painting:
+	# drawn above it and, later in the tree, first to the mouse.
+	for top in [_tab_bar, _hero_bar, close_button]:
+		if is_instance_valid(top):
+			top.z_index = 11
+			move_child(top, -1)
+	_refresh_tab_styles()
 	_fit_stat_alloc()
 	_fit_stat_alloc.call_deferred()
 	if not get_viewport().size_changed.is_connected(_fit_stat_alloc):
@@ -1069,6 +1095,7 @@ func _fit_stat_alloc() -> void:
 	var f: float = minf(STAT_ALLOC_SCALE, minf(space.size.x / need.x, space.size.y / need.y))
 	_stat_alloc_panel.scale = Vector2(f, f)
 	_stat_alloc_panel.position = space.position + (space.size - need * f) * 0.5
+	_fit_stat_info()
 
 func _stat_base_value(stat_name: String) -> int:
 	## The character's CURRENT value for a stat (before this popup's pending
@@ -1083,11 +1110,24 @@ func _build_stat_alloc_row(stat_name: String) -> HBoxContainer:
 	var hbox = HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 8)
 
-	var label = Label.new()
+	# The stat's name is a button: clicked, a small window says what the
+	# stat does (designer, 2026-11-23).
+	var key: String = STAT_KEY_OF[stat_name]
+	var label := Button.new()
+	label.name = "Name_" + stat_name
+	label.set_meta("stat_key", key)
 	label.text = stat_name.capitalize()
+	label.flat = true
+	label.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	label.focus_mode = Control.FOCUS_NONE
+	label.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	label.tooltip_text = "What does %s do?" % stat_name.capitalize()
 	label.custom_minimum_size.x = 110
 	label.add_theme_font_size_override("font_size", 13)
 	label.add_theme_color_override("font_color", COLOR_TEXT)
+	label.add_theme_color_override("font_hover_color", COLOR_TITLE)
+	label.add_theme_color_override("font_pressed_color", COLOR_TITLE)
+	label.pressed.connect(_toggle_stat_info.bind(key))
 	hbox.add_child(label)
 
 	var minus_btn = Button.new()
@@ -1112,6 +1152,90 @@ func _build_stat_alloc_row(stat_name: String) -> HBoxContainer:
 	hbox.add_child(plus_btn)
 
 	return hbox
+
+const STAT_KEY_OF := {
+	"strength": "STR", "dexterity": "DEX", "intelligence": "INT",
+	"wisdom": "WIS", "agility": "AGI", "determination": "DET",
+}
+const STAT_INFO_WIDTH := 280.0
+
+## The small "what this stat does" window, beside the Stats box. Clicking the
+## same name again (or its Close) shuts it; another name swaps it.
+func _toggle_stat_info(key: String) -> void:
+	var same := is_instance_valid(_stat_info_window) and _stat_info_key == key
+	_close_stat_info()
+	if same or not is_instance_valid(_stat_alloc_backdrop):
+		return
+	_stat_info_key = key
+	_stat_info_window = PanelContainer.new()
+	_stat_info_window.name = "StatInfoWindow"
+	_stat_info_window.theme = EmeraldTheme.get_theme()
+	_stat_info_window.z_index = 12
+	var style := StyleBoxFlat.new()
+	style.bg_color = EmeraldTheme.PANEL_BG_SOLID
+	style.set_border_width_all(2)
+	style.border_color = COLOR_BORDER
+	style.set_corner_radius_all(8)
+	style.set_content_margin_all(12.0)
+	_stat_info_window.add_theme_stylebox_override("panel", style)
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 6)
+	_stat_info_window.add_child(vbox)
+	var title := Label.new()
+	title.text = CharacterData.stat_full_name(key)
+	title.add_theme_font_size_override("font_size", 16)
+	title.add_theme_color_override("font_color", COLOR_TITLE)
+	vbox.add_child(title)
+	# STAT_INFO opens "Strength — ..."; the title already names the stat.
+	var text: String = CharacterData.stat_description(key)
+	var lead: String = title.text + " — "
+	if text.begins_with(lead):
+		text = text.substr(lead.length())
+		text = text.left(1).to_upper() + text.substr(1)
+	var body := Label.new()
+	body.name = "Body"
+	body.text = text
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.custom_minimum_size.x = STAT_INFO_WIDTH
+	body.add_theme_font_size_override("font_size", 13)
+	body.add_theme_color_override("font_color", COLOR_TEXT)
+	vbox.add_child(body)
+	var close := Button.new()
+	close.text = "Close"
+	close.focus_mode = Control.FOCUS_NONE
+	close.size_flags_horizontal = Control.SIZE_SHRINK_END
+	close.add_theme_font_size_override("font_size", 12)
+	close.pressed.connect(_close_stat_info)
+	vbox.add_child(close)
+	_stat_alloc_backdrop.add_child(_stat_info_window)
+	_fit_stat_info()
+	_fit_stat_info.call_deferred()   # once the wrapped text knows its height
+
+func _close_stat_info() -> void:
+	if is_instance_valid(_stat_info_window):
+		_stat_info_window.queue_free()
+	_stat_info_window = null
+	_stat_info_key = ""
+
+## Beside the Stats box (right, else left, else over it), level with its
+## top and kept on screen.
+func _fit_stat_info() -> void:
+	if not is_instance_valid(_stat_info_window) or not is_instance_valid(_stat_alloc_panel):
+		return
+	var screen: Vector2 = get_viewport().get_visible_rect().size
+	var f: float = _stat_alloc_panel.scale.x
+	var need: Vector2 = _stat_info_window.get_combined_minimum_size()
+	_stat_info_window.size = need
+	_stat_info_window.scale = Vector2(f, f)
+	var box := Rect2(_stat_alloc_panel.position, _stat_alloc_panel.size * f)
+	var gap := 12.0
+	var x: float = box.end.x + gap
+	if x + need.x * f > screen.x - gap:
+		x = box.position.x - gap - need.x * f
+	if x < gap:
+		x = (screen.x - need.x * f) * 0.5
+	var y: float = clampf(box.position.y, gap, maxf(gap, screen.y - gap - need.y * f))
+	_stat_info_window.position = Vector2(x, y)
 
 func _on_stat_alloc_change(stat_name: String, delta: int) -> void:
 	var current = _stat_allocations.get(stat_name, 0)
@@ -1174,12 +1298,15 @@ func _on_stat_alloc_confirm() -> void:
 	_refresh_stat_alloc_button()
 
 func _close_stat_alloc_panel() -> void:
+	_close_stat_info()
 	if is_instance_valid(_stat_alloc_panel):
 		_stat_alloc_panel.queue_free()
 	_stat_alloc_panel = null
 	if is_instance_valid(_stat_alloc_backdrop):
 		_stat_alloc_backdrop.queue_free()
 	_stat_alloc_backdrop = null
+	if _tab_btn_skill_tree:
+		_refresh_tab_styles()
 
 func _scroll_to_current_level() -> void:
 	# Lane view: everything fits on screen — always show from the top.
@@ -1199,7 +1326,9 @@ func _input(event: InputEvent) -> void:
 				hero_switch_requested.emit(1 - _hero_index)
 			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_ESCAPE:
-			if is_instance_valid(_stat_alloc_panel):
+			if is_instance_valid(_stat_info_window):
+				_close_stat_info()
+			elif is_instance_valid(_stat_alloc_panel):
 				_close_stat_alloc_panel()
 			else:
 				hide_panel()

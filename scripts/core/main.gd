@@ -14782,6 +14782,8 @@ func _setup_dungeon() -> void:
 		elif sandbox_mode:
 			# Sandbox boots straight into battle: take every offer so the
 			# quest log has something to show. Real play accepts via Olorin.
+			# (Test mode: the log lists them all, locked or not.)
+			quest_manager.log_shows_all = true
 			for quest_id in quest_manager.available_quests.keys():
 				quest_manager.accept_quest(quest_id)
 	quest_manager.world_level = current_world_level
