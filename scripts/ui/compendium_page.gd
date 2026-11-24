@@ -26,6 +26,15 @@ var _enemies_scroll: ScrollContainer
 
 # Hover popup
 var _hover_popup: PanelContainer = null
+var _hover_entry: Control = null   # the tile the popup is about (null: none hovered)
+
+# Card tiles still waiting for their face (built as they scroll into view).
+const CardUIScene = preload("res://scenes/cards/card_ui.tscn")
+const CARD_TILE_SCALE := 1.2       # the card in the Cards tab, over its hand size
+const CARD_TILE_PAD := Vector2(0, 12)   # some frames' foot ornaments hang below the card's box
+const CARD_FACES_PER_FRAME := 3    # a face costs tens of ms: a few a frame keeps scrolling smooth
+const CARD_FACE_REACH := 320.0     # build this far past the scroll's edges, ahead of the eye
+var _card_tiles_pending: Array = []
 
 # Data
 var _all_cards: Array = []
@@ -154,6 +163,7 @@ func _on_cards_search_changed(new_text: String) -> void:
 	_populate_cards(new_text)
 
 func _populate_cards(filter: String) -> void:
+	_card_tiles_pending.clear()
 	for child in _cards_container.get_children():
 		child.queue_free()
 
@@ -207,11 +217,10 @@ func _populate_cards(filter: String) -> void:
 		var sep = HSeparator.new()
 		_cards_container.add_child(sep)
 
-		# Card grid (flow container)
-		var grid = GridContainer.new()
-		grid.columns = 4
-		grid.add_theme_constant_override("h_separation", 8)
-		grid.add_theme_constant_override("v_separation", 8)
+		# The cards themselves, as many across as the window holds.
+		var grid = HFlowContainer.new()
+		grid.add_theme_constant_override("h_separation", 10)
+		grid.add_theme_constant_override("v_separation", 10)
 		_cards_container.add_child(grid)
 
 		for card in cards:
@@ -223,42 +232,88 @@ func _populate_cards(filter: String) -> void:
 		spacer.custom_minimum_size = Vector2(0, 12)
 		_cards_container.add_child(spacer)
 
-func _create_card_entry(card: Card, type_color: Color) -> PanelContainer:
-	var panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(220, 80)
+## A card's tile: the card itself (designer, 2026-11-24; was a box with its
+## name, type and cost typed out). The face is built when the tile scrolls
+## into view (_build_visible_card_faces) — 300 at once would stall the page —
+## and until then the tile shows the card's name on a plain plate.
+func _create_card_entry(card: Card, type_color: Color) -> Control:
+	var tile := Control.new()
+	tile.custom_minimum_size = Vector2(CardUI.CARD_W, CardUI.CARD_H) * CARD_TILE_SCALE + CARD_TILE_PAD
+	tile.set_meta("card", card)
 
-	_style_tile(panel)
-
-	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 2)
-	panel.add_child(vbox)
-
-	var name_lbl = Label.new()
+	var plate := PanelContainer.new()
+	plate.name = "Plate"
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.position = Vector2.ZERO
+	plate.size = Vector2(CardUI.CARD_W, CardUI.CARD_H) * CARD_TILE_SCALE
+	_style_tile(plate)
+	var name_lbl := Label.new()
 	name_lbl.text = card.card_name
+	name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	name_lbl.add_theme_font_size_override("font_size", 14)
-	name_lbl.add_theme_color_override("font_color", EmeraldTheme.GOLD)
-	vbox.add_child(name_lbl)
+	name_lbl.add_theme_color_override("font_color", type_color)
+	name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.add_child(name_lbl)
+	tile.add_child(plate)
 
-	var type_lbl = Label.new()
-	type_lbl.text = card.card_type_name
-	type_lbl.add_theme_font_size_override("font_size", 13)
-	type_lbl.add_theme_color_override("font_color", type_color)
-	vbox.add_child(type_lbl)
+	# Hover: the details box. PASS, so the wheel still scrolls the list.
+	tile.mouse_filter = Control.MOUSE_FILTER_PASS
+	tile.mouse_entered.connect(_on_card_entry_hovered.bind(card, tile))
+	tile.mouse_exited.connect(_on_hover_exited)
+	_card_tiles_pending.append(tile)
+	return tile
 
-	var cost_lbl = Label.new()
-	cost_lbl.text = "%dM / %dT" % [card.mana_cost, card.tempo_cost]
-	cost_lbl.add_theme_font_size_override("font_size", 13)
-	cost_lbl.add_theme_color_override("font_color", EmeraldTheme.TEXT_DIM)
-	vbox.add_child(cost_lbl)
+## Give a tile its card face (the tile must be in the tree: the face lays
+## itself out on setup).
+func _build_card_face(tile: Control) -> void:
+	var card: Card = tile.get_meta("card")
+	var face: CardUI = CardUIScene.instantiate()
+	face.scale = Vector2.ONE * CARD_TILE_SCALE
+	tile.add_child(face)
+	face.setup(card, 0)
+	# A hand card scales about its bottom centre (the fan); this one grows
+	# from its corner to fill the tile, and takes no clicks or hover lift.
+	face.pivot_offset = Vector2.ZERO
+	face.position = Vector2.ZERO
+	for n in face.find_children("*", "Control", true, false):
+		n.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var kb = face.get_node_or_null("Panel/KeybindBadge")
+	if kb:
+		kb.visible = false
+	var plate = tile.get_node_or_null("Plate")
+	if plate:
+		plate.queue_free()
 
-	# Make it respond to hover
-	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	panel.mouse_entered.connect(_on_card_entry_hovered.bind(card, panel))
-	panel.mouse_exited.connect(_on_hover_exited)
+## Faces for the tiles in (or about to scroll into) view, a few a frame.
+func _build_visible_card_faces() -> void:
+	if _card_tiles_pending.is_empty() or _cards_scroll == null or not _cards_scroll.is_visible_in_tree():
+		return
+	var view: Rect2 = _cards_scroll.get_global_rect().grow(CARD_FACE_REACH)
+	var built := 0
+	var i := 0
+	while i < _card_tiles_pending.size() and built < CARD_FACES_PER_FRAME:
+		var tile = _card_tiles_pending[i]
+		if not is_instance_valid(tile) or tile.is_queued_for_deletion():
+			_card_tiles_pending.remove_at(i)
+			continue
+		if tile.is_inside_tree() and view.intersects(tile.get_global_rect()):
+			_card_tiles_pending.remove_at(i)
+			_build_card_face(tile)
+			built += 1
+			continue
+		i += 1
 
-	return panel
+func _process(_delta: float) -> void:
+	_build_visible_card_faces()
+	# The details box keeps to the screen as its text settles (wrapped rules
+	# and keyword lines find their height over a few frames).
+	if _hover_popup and _hover_popup.visible:
+		_place_hover_popup()
 
-func _on_card_entry_hovered(card: Card, entry: PanelContainer) -> void:
+func _on_card_entry_hovered(card: Card, entry: Control) -> void:
 	_clear_hover_popup()
 
 	var vbox = VBoxContainer.new()
@@ -531,6 +586,12 @@ func _create_item_entry(item: ItemData, type_color: Color) -> PanelContainer:
 	icon_label.add_theme_color_override("font_color", Color(EmeraldTheme.TEXT, 0.8))
 	_centre_in(icon_label)
 	portrait.add_child(icon_label)
+	# A mythic shows its own picture (designer, 2026-11-24): the painting its
+	# inventory cell wears, in place of the letter.
+	if item.has_appearance_art():
+		icon_label.visible = false
+		portrait.color = Color(0, 0, 0, 0.35)
+		portrait.add_child(_item_picture(item.get_appearance_texture()))
 
 	var info_vbox = VBoxContainer.new()
 	info_vbox.add_theme_constant_override("separation", 1)
@@ -554,12 +615,35 @@ func _create_item_entry(item: ItemData, type_color: Color) -> PanelContainer:
 
 	return panel
 
+## An item's art filling its parent box, aspect kept.
+static func _item_picture(tex: Texture2D) -> TextureRect:
+	var pic := TextureRect.new()
+	pic.name = "Art"
+	pic.texture = tex
+	pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pic.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	return pic
+
+const ITEM_POPUP_ART := Vector2(192, 192)   # a mythic's close-up atop its details
+
 func _on_item_entry_hovered(item: ItemData, entry: PanelContainer) -> void:
 	_clear_hover_popup()
 
 	var vbox = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 3)
 	_hover_popup.add_child(vbox)
+
+	# A mythic's close-up painting heads its details.
+	if item.has_appearance_art():
+		var art_box := Control.new()
+		art_box.name = "ArtBox"
+		art_box.custom_minimum_size = ITEM_POPUP_ART
+		art_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		art_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		art_box.add_child(_item_picture(item.get_appearance_large_texture()))
+		vbox.add_child(art_box)
 
 	var name_lbl = Label.new()
 	name_lbl.text = item.item_name
@@ -954,23 +1038,46 @@ func _clear_hover_popup() -> void:
 		child.queue_free()
 	_hover_popup.size = Vector2.ZERO
 
+const POPUP_GAP := 10.0      # between the tile and its details box
+const SCREEN_MARGIN := 6.0
+
 func _show_hover_popup(entry: Control) -> void:
-	# Position popup to the right of the entry, or left if not enough space
+	_hover_entry = entry
 	await get_tree().process_frame  # Wait for layout
-	var entry_rect = entry.get_global_rect()
-	var popup_x = entry_rect.position.x + entry_rect.size.x + 10
-	var popup_y = entry_rect.position.y
-
-	# Clamp to screen bounds
-	var viewport_size = get_viewport_rect().size
-	if popup_x + _hover_popup.size.x > viewport_size.x:
-		popup_x = entry_rect.position.x - _hover_popup.size.x - 10
-	popup_y = clamp(popup_y, 4.0, viewport_size.y - _hover_popup.size.y - 4.0)
-
-	_hover_popup.global_position = Vector2(popup_x, popup_y)
+	if _hover_entry != entry or not is_instance_valid(entry):
+		return   # the mouse moved on meanwhile
+	_place_hover_popup()
 	_hover_popup.visible = true
 
+## Beside the hovered tile (right if there is room, else left, else against
+## the right edge), level with its top, and always wholly on screen: pushed
+## up from the bottom edge, and shrunk if it is taller than the screen.
+## Called every frame the box shows, so it follows its text's final height.
+func _place_hover_popup() -> void:
+	if _hover_entry == null or not is_instance_valid(_hover_entry):
+		return
+	var vp: Vector2 = get_viewport_rect().size
+	var entry_rect: Rect2 = _hover_entry.get_global_rect()
+	_hover_popup.scale = Vector2.ONE
+	_hover_popup.reset_size()
+	var sz: Vector2 = _hover_popup.size
+	var fit: float = minf(1.0, (vp.y - 2.0 * SCREEN_MARGIN) / maxf(1.0, sz.y))
+	_hover_popup.scale = Vector2(fit, fit)
+	var w: float = sz.x * fit
+	var h: float = sz.y * fit
+	var x: float
+	if vp.x - entry_rect.end.x - POPUP_GAP - SCREEN_MARGIN >= w:
+		x = entry_rect.end.x + POPUP_GAP
+	elif entry_rect.position.x - POPUP_GAP - SCREEN_MARGIN >= w:
+		x = entry_rect.position.x - POPUP_GAP - w
+	else:
+		x = vp.x - SCREEN_MARGIN - w
+	x = clampf(x, SCREEN_MARGIN, maxf(SCREEN_MARGIN, vp.x - SCREEN_MARGIN - w))
+	var y: float = clampf(entry_rect.position.y, SCREEN_MARGIN, maxf(SCREEN_MARGIN, vp.y - SCREEN_MARGIN - h))
+	_hover_popup.global_position = Vector2(x, y)
+
 func _on_hover_exited() -> void:
+	_hover_entry = null
 	_hover_popup.visible = false
 
 func _add_detail_line(parent: VBoxContainer, text: String, color: Color) -> void:
