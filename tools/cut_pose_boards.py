@@ -474,6 +474,73 @@ BOARDS = {
             "right": (130, 428, 690, 715),
             "left": (750, 428, 1300, 715),
         },
+        # 2026-11-24: the designer's attack board — consumed_attack_board.webp,
+        # a grid of 24 panels on black, six a row, one view (its head to the
+        # right, as its right Idle): the crouch, an arm lifted and reared
+        # back as its tongue lolls out, the claw raked down (arcs behind
+        # it), the arm drawn in and the tongue reeled back, and a last row
+        # at rest. Frames 3-18 are Attack.png, the left row their mirror;
+        # the first is the height reference. Its tongue hangs below its
+        # feet: each frame stands on its own feet (`ground_cols`: the lowest
+        # paint in the left of its panel, where no tongue reaches), the
+        # tongue kept below the line.
+        "actions": {
+            "src": "consumed_attack_board.webp",
+            "matte_union": True,   # the shadow under its belly is as black as the backdrop: kept by a model matte a frame (tools/make_mattes.py consumed --actions)
+            "levels": (14, 44, 18),   # above the soft shadow painted under its belly (the matte keeps its own dark paint)
+            "fill_holes": 4,
+            "open_dark": True,
+            "keep_share": 0.002,   # the drool, the claw's arcs
+            "glow": False,
+            "keep_ground": True,
+            "ground_cols": (0.0, 0.6),
+            "match": "stance",
+            "frames": {
+                "right": {
+                    "stance": (4, 4, 198, 325),
+                    "f02": (204, 4, 397, 325),
+                    "f03": (403, 4, 597, 325),
+                    "f04": (603, 4, 796, 325),
+                    "f05": (802, 4, 995, 325),
+                    "f06": (1001, 4, 1195, 325),
+                    "f07": (4, 331, 198, 653),
+                    "f08": (204, 331, 397, 653),
+                    "f09": (403, 331, 597, 653),
+                    "f10": (603, 331, 796, 653),
+                    "f11": (802, 331, 995, 653),
+                    "f12": (1001, 331, 1195, 653),
+                    "f13": (4, 659, 198, 981),
+                    "f14": (204, 659, 397, 981),
+                    "f15": (403, 659, 597, 981),
+                    "f16": (603, 659, 796, 981),
+                    "f17": (802, 659, 995, 981),
+                    "f18": (1001, 659, 1195, 981),
+                },
+                "left": {
+                    "stance": ("mirror", (4, 4, 198, 325)),
+                    "f02": ("mirror", (204, 4, 397, 325)),
+                    "f03": ("mirror", (403, 4, 597, 325)),
+                    "f04": ("mirror", (603, 4, 796, 325)),
+                    "f05": ("mirror", (802, 4, 995, 325)),
+                    "f06": ("mirror", (1001, 4, 1195, 325)),
+                    "f07": ("mirror", (4, 331, 198, 653)),
+                    "f08": ("mirror", (204, 331, 397, 653)),
+                    "f09": ("mirror", (403, 331, 597, 653)),
+                    "f10": ("mirror", (603, 331, 796, 653)),
+                    "f11": ("mirror", (802, 331, 995, 653)),
+                    "f12": ("mirror", (1001, 331, 1195, 653)),
+                    "f13": ("mirror", (4, 659, 198, 981)),
+                    "f14": ("mirror", (204, 659, 397, 981)),
+                    "f15": ("mirror", (403, 659, 597, 981)),
+                    "f16": ("mirror", (603, 659, 796, 981)),
+                    "f17": ("mirror", (802, 659, 995, 981)),
+                    "f18": ("mirror", (1001, 659, 1195, 981)),
+                },
+            },
+            "sheets": {
+                "Attack": ["f03", "f04", "f05", "f06", "f07", "f08", "f09", "f10", "f11", "f12", "f13", "f14", "f15", "f16", "f17", "f18"],
+            },
+        },
     },
     "granite_colossus": {
         # 2026-11-06: 3.5 tiles (was 2.6) — the designer: "the granite colossus should take up 4 squares"
@@ -5709,13 +5776,27 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
             img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
                                   act.get("keep_share", 0.0), act.get("fill_holes", False), act.get("levels"),
                                   act.get("glow", True), act.get("open_dark", False), act.get("shadow_lum", 0.0),
-                                  matte, open_flat=act.get("open_flat"), soft_mask=_glow_mask(rgb, act, pose))
+                                  matte, open_flat=act.get("open_flat"), soft_mask=_glow_mask(rgb, act, pose),
+                                  trim=not act.get("ground_cols"))
+            if act.get("ground_cols"):
+                # `ground_cols` (from, to: shares of the box's width): the
+                # frame stands on the lowest paint in those columns (its
+                # feet); what hangs lower elsewhere (the Consumed's tongue)
+                # is kept below that line (act["_drops"], as `keep_ground`).
+                al = np.asarray(img)[..., 3]
+                ys, xs = np.nonzero(al > 0)
+                c0, c1 = (int(round(f * al.shape[1])) for f in act["ground_cols"])
+                line = int(np.nonzero((al[:, c0:c1] >= 128).any(axis=1))[0].max())
+                bottom = int(np.nonzero((al >= 128).any(axis=1))[0].max())
+                img = img.crop((int(xs.min()), int(ys.min()), int(xs.max()) + 1, bottom + 1))
+                act.setdefault("_drops", {})[(d, pose)] = max(0, bottom - line)
+                act.setdefault("_air", {})[(d, pose)] = 0
             for side, px in act.get("edge_fade", {}).get((d, pose), ()):
                 img = _fade_edge(img, side, px)
             out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
         for pose, other in again:
             out[d][pose] = out[d][other]
-        if act.get("keep_ground"):
+        if act.get("keep_ground") and not act.get("ground_cols"):
             # A jump (the Magma Spider's Fire Bounce): every frame keeps its
             # height above the ground line — the match pose's lowest solid
             # row — instead of standing on it: an airborne frame is padded
