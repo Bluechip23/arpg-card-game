@@ -33,7 +33,7 @@ func _first_tile(tab: int) -> Control:
 	var containers := [_page._cards_container, _page._items_container, _page._enemies_container]
 	var box: Node = containers[tab]
 	for child in box.get_children():
-		if child is GridContainer and child.get_child_count() > 0:
+		if (child is GridContainer or child is FlowContainer) and child.get_child_count() > 0:
 			return child.get_child(0)
 	return null
 
