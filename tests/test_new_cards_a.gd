@@ -344,7 +344,7 @@ func _test_lodestone_field() -> void:
 	near._tick_status_durations()
 	far._tick_status_durations()
 	_check(near.shock_stacks == n0, "Shock on the enemy in the field does not decay (%d of %d)" % [near.shock_stacks, n0])
-	_check(_lost(near) - lost0 >= n0, "it still deals its damage (%d)" % (_lost(near) - lost0))
+	_check(_lost(near) - lost0 == 0, "Shock deals no damage of its own (%d)" % (_lost(near) - lost0))
 	_check(far.shock_stacks == f0 - 1, "Shock outside the field loses its stack (%d of %d)" % [far.shock_stacks, f0])
 	# Over a real cycle.
 	es = _field([Vector2i(1, 0)])

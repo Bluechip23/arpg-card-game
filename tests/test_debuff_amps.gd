@@ -100,12 +100,18 @@ func _initialize() -> void:
 	# Hex arc: the debuff amps.
 	for lbl in ["Bleed Amp +1", "Stun Amp +1", "Disarm Amp +1", "Silence Amp +1",
 			"Burn Amp +1", "Poison Amp +5", "Curse Amp +10%", "Curse Pain +10%",
-			"Shatter +5", "Shock Amp +1", "Slow Amp +1", "Root Amp +1"]:
+			"Shock Amp +1", "Slow Amp +1", "Root Amp +1"]:
 		var found := 0
 		for node in grid.get_all_nodes():
 			if node.label == lbl:
 				found += 1
 		_check(found == 1, "grid holds the '%s' node" % lbl)
+	# Shatter is gone (2026-11-24: nothing freezes); its slot is a bare link.
+	var shatter_nodes := 0
+	for node in grid.get_all_nodes():
+		if node.label.begins_with("Shatter"):
+			shatter_nodes += 1
+	_check(shatter_nodes == 0, "the grid holds no Shatter node")
 	# Both arcs hang off Ring 6 so they're pathable.
 	for nid in range(134, 155):
 		_check(not grid.get_connections_for(nid).is_empty(), "amp node %d is connected" % nid)
@@ -129,7 +135,7 @@ func _initialize() -> void:
 		and stats.sphere_curse_amp == 10 and stats.sphere_curse_pain_amp == 10 \
 		and stats.sphere_shatter_amp == 5 and stats.sphere_shock_amp == 1 \
 		and stats.sphere_slow_amp == 1 and stats.sphere_root_amp == 1,
-		"all twelve debuff amps parse")
+		"all twelve debuff amp labels parse (Shatter's too, for old saves)")
 
 	# --- Buff amps survive save/restore ---
 	var saved2 = stats.save_progression()

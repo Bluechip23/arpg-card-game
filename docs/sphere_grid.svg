@@ -985,7 +985,7 @@
 </g>
 <g><title>Enemies take 5 damage when your Frozen thaws</title>
 <ellipse cx="80" cy="937" rx="39" ry="22" fill="#F8DCD2" stroke="#C0623F" stroke-width="2"/>
-<text x="80" y="940" font-size="9" text-anchor="middle">Shatter +5</text>
+<text x="80" y="940" font-size="9" text-anchor="middle">·</text>
 </g>
 <g><title>Shock you apply lands 1 additional stack</title>
 <ellipse cx="80" cy="575" rx="39" ry="22" fill="#F8DCD2" stroke="#C0623F" stroke-width="2"/>

@@ -215,7 +215,7 @@ var _dot_clock: int = 0        # tempo banked toward the next Burn / Poison tick
 var cold_damage_next: int = 1  # Element Pollination: Cold's doubling tick while the Weaver maintain is up
 var polymorph_tempo: int = 0   # Polymorph (Circe's Wand): cycles left as a pig — walk and basic melee only
 var poison_stacks: int = 0     # Poison: every 2 tempo take X damage and lose 1; healing is cut 25% while poisoned
-var shock_stacks: int = 0      # Shock: take X damage per cycle, lose 1 per cycle (and, with shock_arcs on, arc X to the nearest enemy within 2 squares)
+var shock_stacks: int = 0      # Shock: the stack Shock cards feed on; loses 1 per cycle. Its damage is dormant (shock_ticks_damage, shock_arcs)
 const SHOCK_ARC_RANGE := 2
 ## Shock's arc to a second enemy, switched OFF (designer, 2026-11-22): Shock
 ## is now the stack that Shock cards feed on (appliers like Spark, pay-offs
@@ -223,6 +223,11 @@ const SHOCK_ARC_RANGE := 2
 ## behind this switch — set it true to bring back "arcs the same damage to
 ## the nearest other enemy within SHOCK_ARC_RANGE".
 static var shock_arcs: bool = false
+## Shock's own per-cycle damage on the enemy carrying it, also switched OFF
+## (designer, 2026-11-24: "not sure I want it to do that"). Dormant, not
+## removed — set it true and a shocked enemy takes its stacks each cycle
+## again (and, with shock_arcs, arcs them). The stacks still fall by 1 a cycle.
+static var shock_ticks_damage: bool = false
 var bleed_stacks: int = 0      # Bleed: 1 damage per tile moved; each damage removes a stack
 var vulnerable_stacks: int = 0   # Vulnerable: every player hit lands +30% while a stack remains; stacks fall on their own clock
 var vulnerable_clock: int = 0
@@ -2039,24 +2044,26 @@ func _tick_status_durations() -> void:
 			print("[%s] Element Pollination: cold bites for %d (doubles next cycle)" % [enemy_name, cold_damage_next])
 			cold_damage_next *= 2
 
-	# Shock: deal current stacks damage to itself, then lose 1 stack. With
-	# shock_arcs on (off since 2026-11-22) it also arcs the same to the
-	# nearest other living enemy within SHOCK_ARC_RANGE squares — plain
-	# damage, it does not spread the Shock itself.
+	# Shock: lose 1 stack a cycle. Its damage is dormant: with
+	# shock_ticks_damage on (off since 2026-11-24) it first deals its stacks
+	# to the carrier, and with shock_arcs on as well (off since 2026-11-22)
+	# arcs the same to the nearest other living enemy within SHOCK_ARC_RANGE
+	# squares — plain damage, it does not spread the Shock itself.
 	if shock_stacks > 0:
-		var arc: int = shock_stacks
-		# The designer's blue lightning: a crackle over the shocked body,
-		# and (shock_arcs) an arc to the enemy the damage jumps to.
-		if is_inside_tree() and get_parent():
-			LightningFX.crackle(get_parent(), position)
-		_dot_hit("Shock", arc)
-		print("[%s] Shock deals %d damage" % [enemy_name, arc])
-		var arc_target: Enemy = _nearest_other_enemy(SHOCK_ARC_RANGE) if shock_arcs else null
-		if arc_target:
+		if shock_ticks_damage:
+			var arc: int = shock_stacks
+			# The designer's blue lightning: a crackle over the shocked body,
+			# and (shock_arcs) an arc to the enemy the damage jumps to.
 			if is_inside_tree() and get_parent():
-				LightningFX.arc(get_parent(), position, arc_target.position)
-			arc_target._dot_hit("Shock arc", arc, "from " + enemy_name)
-			print("[%s] Shock arcs %d damage to %s" % [enemy_name, arc, arc_target.enemy_name])
+				LightningFX.crackle(get_parent(), position)
+			_dot_hit("Shock", arc)
+			print("[%s] Shock deals %d damage" % [enemy_name, arc])
+			var arc_target: Enemy = _nearest_other_enemy(SHOCK_ARC_RANGE) if shock_arcs else null
+			if arc_target:
+				if is_inside_tree() and get_parent():
+					LightningFX.arc(get_parent(), position, arc_target.position)
+				arc_target._dot_hit("Shock arc", arc, "from " + enemy_name)
+				print("[%s] Shock arcs %d damage to %s" % [enemy_name, arc, arc_target.enemy_name])
 		if not NewCardsA.holds_shock(self):  # Lodestone Field: no decay inside it
 			shock_stacks -= 1
 		if shock_stacks <= 0:
@@ -8381,10 +8388,9 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			desc = "Every 2 tempo: takes %d damage, then loses 1 Poison. Its healing is reduced 25%%." % poison_stacks
 			remaining = "Stacks: %d" % poison_stacks
 		"Shock":
-			if shock_arcs:
-				desc = "Amplifies your Shock cards: they can be cheaper, faster and more devastating against it. Takes %d damage each cycle and arcs the same to the nearest enemy within 2 squares; loses 1 per cycle." % shock_stacks
-			else:
-				desc = "Amplifies your Shock cards: they can be cheaper, faster and more devastating against it. Takes %d damage each cycle; loses 1 per cycle." % shock_stacks
+			desc = "Amplifies your Shock cards: they can be cheaper, faster and more devastating against it. Loses 1 per cycle."
+			if shock_ticks_damage:
+				desc += " Takes %d damage each cycle%s." % [shock_stacks, " and arcs the same to the nearest enemy within 2 squares" if shock_arcs else ""]
 			remaining = "Stacks: %d" % shock_stacks
 		"Bleed":
 			desc = "Takes damage per tile moved; each damage removes a stack."
