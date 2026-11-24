@@ -193,6 +193,7 @@ const CardUIScene = preload("res://scenes/cards/card_ui.tscn")
 # in Godot's global class cache (avoids "Could not find type" on first run).
 const SandboxUIScript = preload("res://scripts/ui/sandbox_ui.gd")
 const FireTileSpriteScript = preload("res://scripts/effects/fire_tile_sprite.gd")  # fire-tile VFX (preloaded: no class-cache dependency)
+const FireWallSpriteScript = preload("res://scripts/effects/fire_wall_sprite.gd")  # the Shaman's own wall strip
 const HudIconBarScript = preload("res://scripts/ui/hud_icon_bar.gd")
 const EnemyInspectUIScript = preload("res://scripts/ui/enemy_inspect_ui.gd")
 const HandSlotsScript = preload("res://scripts/cards/hand_slots.gd")
@@ -6458,15 +6459,16 @@ func _on_all_enemies_defeated() -> void:
 # ============================================
 
 func register_fire_wall(tiles: Array, damage: int, burn: int, moves: int = 6,
-		tempo: int = -1, heal_source: Node = null, heal_amount: int = 0) -> Dictionary:
+		tempo: int = -1, heal_source: Node = null, heal_amount: int = 0, style: String = "") -> Dictionary:
 	## Lays a fire hazard on the given grid cells that burns the player when
 	## they walk into it. Expires after `moves` player moves, or — when
 	## `tempo` >= 0 — after that much raw tempo (Ifrit breath, Minotaur wake).
 	## A `heal_source` enemy heals `heal_amount` every time the fire burns a
-	## player (the Inflamed Minotaur feeds on his own wake).
+	## player (the Inflamed Minotaur feeds on his own wake). `style` "wall":
+	## the Fire Goblin Shaman's own wall art (FireWallSprite), else the pack flame.
 	var visuals: Array = []
 	for cell in tiles:
-		var v := _spawn_fire_wall_visual(cell)
+		var v := _spawn_fire_wall_visual(cell, style)
 		if v:
 			visuals.append(v)
 	var wall := {"tiles": tiles, "damage": damage, "burn": burn, "moves_left": moves,
@@ -6478,7 +6480,17 @@ func register_fire_wall(tiles: Array, damage: int, burn: int, moves: int = 6,
 		add_battle_log("A wall of fire erupts!", Color(1.0, 0.5, 0.2))
 	return wall
 
-func _spawn_fire_wall_visual(cell: Vector2i) -> Node3D:
+## A fire hazard's tile is spent: the Shaman's wall dies out under its smoke,
+## the pack flame just goes.
+func _end_fire_wall_visual(v) -> void:
+	if not is_instance_valid(v):
+		return
+	if v.has_method("die_out"):
+		v.die_out()
+	else:
+		v.queue_free()
+
+func _spawn_fire_wall_visual(cell: Vector2i, style: String = "") -> Node3D:
 	## A tongue of flame on the tile (the demons pack's fire sheet — see
 	## FireTileSprite), replacing the old emissive orange box.
 	if not grid_manager:
@@ -6486,7 +6498,9 @@ func _spawn_fire_wall_visual(cell: Vector2i) -> Node3D:
 	var pos := grid_manager.grid_to_world(cell)
 	if dungeon_manager:
 		pos.y = dungeon_manager.get_elevation_world_y(cell)
-	var flame: Node3D = FireTileSpriteScript.make(pos)
+	var flame: Node3D = FireWallSpriteScript.make(pos) if style == "wall" else null
+	if flame == null:
+		flame = FireTileSpriteScript.make(pos)
 	add_child(flame)
 	return flame
 
@@ -6509,8 +6523,7 @@ func _check_fire_walls(player_cell: Vector2i, stepper: Player = null) -> void:
 			survivors.append(wall)
 		else:
 			for v in wall["visuals"]:
-				if is_instance_valid(v):
-					v.queue_free()
+				_end_fire_wall_visual(v)
 	_fire_walls = survivors
 
 func _tick_fire_walls(amount: int) -> void:
@@ -6530,8 +6543,7 @@ func _tick_fire_walls(amount: int) -> void:
 			survivors.append(wall)
 		else:
 			for v in wall["visuals"]:
-				if is_instance_valid(v):
-					v.queue_free()
+				_end_fire_wall_visual(v)
 	_fire_walls = survivors
 
 ## Rage of the bear: enraged (sub-half-health) Large Bears feed on the bleed

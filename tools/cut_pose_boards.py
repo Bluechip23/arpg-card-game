@@ -474,6 +474,73 @@ BOARDS = {
             "right": (130, 428, 690, 715),
             "left": (750, 428, 1300, 715),
         },
+        # 2026-11-24: the designer's attack board — consumed_attack_board.webp,
+        # a grid of 24 panels on black, six a row, one view (its head to the
+        # right, as its right Idle): the crouch, an arm lifted and reared
+        # back as its tongue lolls out, the claw raked down (arcs behind
+        # it), the arm drawn in and the tongue reeled back, and a last row
+        # at rest. Frames 3-18 are Attack.png, the left row their mirror;
+        # the first is the height reference. Its tongue hangs below its
+        # feet: each frame stands on its own feet (`ground_cols`: the lowest
+        # paint in the left of its panel, where no tongue reaches), the
+        # tongue kept below the line.
+        "actions": {
+            "src": "consumed_attack_board.webp",
+            "matte_union": True,   # the shadow under its belly is as black as the backdrop: kept by a model matte a frame (tools/make_mattes.py consumed --actions)
+            "levels": (14, 44, 18),   # above the soft shadow painted under its belly (the matte keeps its own dark paint)
+            "fill_holes": 4,
+            "open_dark": True,
+            "keep_share": 0.002,   # the drool, the claw's arcs
+            "glow": False,
+            "keep_ground": True,
+            "ground_cols": (0.0, 0.6),
+            "match": "stance",
+            "frames": {
+                "right": {
+                    "stance": (4, 4, 198, 325),
+                    "f02": (204, 4, 397, 325),
+                    "f03": (403, 4, 597, 325),
+                    "f04": (603, 4, 796, 325),
+                    "f05": (802, 4, 995, 325),
+                    "f06": (1001, 4, 1195, 325),
+                    "f07": (4, 331, 198, 653),
+                    "f08": (204, 331, 397, 653),
+                    "f09": (403, 331, 597, 653),
+                    "f10": (603, 331, 796, 653),
+                    "f11": (802, 331, 995, 653),
+                    "f12": (1001, 331, 1195, 653),
+                    "f13": (4, 659, 198, 981),
+                    "f14": (204, 659, 397, 981),
+                    "f15": (403, 659, 597, 981),
+                    "f16": (603, 659, 796, 981),
+                    "f17": (802, 659, 995, 981),
+                    "f18": (1001, 659, 1195, 981),
+                },
+                "left": {
+                    "stance": ("mirror", (4, 4, 198, 325)),
+                    "f02": ("mirror", (204, 4, 397, 325)),
+                    "f03": ("mirror", (403, 4, 597, 325)),
+                    "f04": ("mirror", (603, 4, 796, 325)),
+                    "f05": ("mirror", (802, 4, 995, 325)),
+                    "f06": ("mirror", (1001, 4, 1195, 325)),
+                    "f07": ("mirror", (4, 331, 198, 653)),
+                    "f08": ("mirror", (204, 331, 397, 653)),
+                    "f09": ("mirror", (403, 331, 597, 653)),
+                    "f10": ("mirror", (603, 331, 796, 653)),
+                    "f11": ("mirror", (802, 331, 995, 653)),
+                    "f12": ("mirror", (1001, 331, 1195, 653)),
+                    "f13": ("mirror", (4, 659, 198, 981)),
+                    "f14": ("mirror", (204, 659, 397, 981)),
+                    "f15": ("mirror", (403, 659, 597, 981)),
+                    "f16": ("mirror", (603, 659, 796, 981)),
+                    "f17": ("mirror", (802, 659, 995, 981)),
+                    "f18": ("mirror", (1001, 659, 1195, 981)),
+                },
+            },
+            "sheets": {
+                "Attack": ["f03", "f04", "f05", "f06", "f07", "f08", "f09", "f10", "f11", "f12", "f13", "f14", "f15", "f16", "f17", "f18"],
+            },
+        },
     },
     "granite_colossus": {
         # 2026-11-06: 3.5 tiles (was 2.6) — the designer: "the granite colossus should take up 4 squares"
@@ -2354,6 +2421,105 @@ BOARDS = {
             "right": (787, 612, 1122, 1134),
         },
     },
+    "fire_goblin_mage_ember": {
+        # 2026-11-24: the Goblin Fire Mage's Ember — fire_goblin_mage_ember_board.webp,
+        # four unlabelled rows on black (its front, its back, facing left,
+        # facing right), eight frames a row: the stance, a hand raised, a
+        # ball of fire forming in it, grown, the arm thrown out as the ember
+        # leaves it, the ember away, the last sparks, the stance. Frames 2-7
+        # are Cast.png, played for its Ember. The ember painted in flight
+        # (the sixth frame, the seventh's spark) is cleared (`bg_boxes`): the
+        # flying ember is its own sprite (fire_goblin_mage_ember_ball). Its
+        # robe is as black as the backdrop: kept by a model matte a frame.
+        "into": "fire_goblin_mage",
+        "actions": {
+            "src": "fire_goblin_mage_ember_board.webp",
+            "matte_union": True,   # tools/make_mattes.py fire_goblin_mage_ember --actions
+            "levels": (6, 35, 10),
+            "fill_holes": 6,
+            "open_dark": True,
+            "keep_share": 0.03,   # the fire in its hands
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            "bg_boxes": {
+                ("front", "away"): [(5, 52, 53, 80)],
+                ("back", "away"): [(153, 38, 191, 64)],
+                ("left", "away"): [(10, 58, 53, 83)],
+                ("left", "spent"): [(26, 57, 41, 75)],
+                ("right", "away"): [(141, 50, 179, 73)],
+                ("right", "spent"): [(124, 51, 139, 69)],
+            },
+            "frames": {
+                "front": {
+                    "stance": (20, 30, 195, 232),
+                    "raise": (195, 30, 370, 232),
+                    "form": (370, 30, 548, 232),
+                    "grow": (548, 30, 720, 232),
+                    "launch": (720, 30, 903, 232),
+                    "away": (903, 30, 1097, 232),
+                    "spent": (1097, 30, 1278, 232),
+                    "stance2": (1278, 30, 1445, 232),
+                },
+                "back": {
+                    "stance": (15, 290, 188, 489),
+                    "raise": (188, 290, 370, 489),
+                    "form": (370, 290, 543, 489),
+                    "grow": (543, 290, 728, 489),
+                    "launch": (728, 290, 917, 489),
+                    "away": (917, 290, 1108, 489),
+                    "spent": (1108, 290, 1275, 489),
+                    "stance2": (1275, 290, 1445, 489),
+                },
+                "left": {
+                    "stance": (25, 552, 190, 767),
+                    "raise": (190, 552, 368, 767),
+                    "form": (368, 552, 543, 767),
+                    "grow": (543, 552, 713, 767),
+                    "launch": (713, 552, 893, 767),
+                    "away": (893, 552, 1085, 767),
+                    "spent": (1085, 552, 1280, 767),
+                    "stance2": (1280, 552, 1440, 767),
+                },
+                "right": {
+                    "stance": (25, 823, 186, 1035),
+                    "raise": (186, 823, 361, 1035),
+                    "form": (361, 823, 546, 1035),
+                    "grow": (546, 823, 735, 1035),
+                    "launch": (735, 823, 925, 1035),
+                    "away": (925, 823, 1112, 1035),
+                    "spent": (1112, 823, 1276, 1035),
+                    "stance2": (1276, 823, 1440, 1035),
+                },
+            },
+            "sheets": {
+                "Cast": ["raise", "form", "grow", "launch", "away", "spent"],
+            },
+        },
+    },
+    "fire_goblin_mage_ember_ball": {
+        # 2026-11-24: the ember in flight — the lower strip of
+        # fire_goblin_mage_ember_strip.webp (cut out, transparent; its upper
+        # row is the cast seen from the front again, unused: the four-way
+        # board has it), eight panels of a ball of fire flying right, a
+        # spark growing to a ball with a trail of flame. Ember.png in its
+        # folder; its Ember sends it from its hand to the target
+        # (SpriteEnemyFigure.throw_projectile, ThrownSprite), mirrored when
+        # it flies left. The last three frames come round twice more, so a
+        # long flight keeps the full ball (the strip loops) rather than
+        # starting again from the spark. The full ball and its trail 0.7
+        # tiles long.
+        "into": "fire_goblin_mage",
+        "strip": {
+            "src": "fire_goblin_mage_ember_strip.webp",
+            "sheet": "Ember",
+            "width_tiles": 0.7,
+            "width_of": "max",
+            "align": "board",
+            "keep_alpha": True,
+            "frames": [(5, 490, 245, 630), (255, 490, 495, 630), (505, 490, 745, 630), (755, 490, 995, 630), (1005, 490, 1245, 630), (1255, 490, 1495, 630), (1505, 490, 1745, 630), (1755, 490, 1998, 630), (1255, 490, 1495, 630), (1505, 490, 1745, 630), (1755, 490, 1998, 630), (1255, 490, 1495, 630), (1505, 490, 1745, 630), (1755, 490, 1998, 630)],
+        },
+    },
     "fire_goblin_shaman": {
         # 2026-10-28: the Fire Goblin Shaman — a goblin in a tattered,
         # rune-hemmed crimson robe, a skull and fangs at his throat, a
@@ -2369,6 +2535,94 @@ BOARDS = {
             "back": (715, 0, 1150, 568),
             "left": (115, 585, 535, 1158),
             "right": (705, 585, 1135, 1158),
+        },
+    },
+    "fire_goblin_shaman_fire_wall": {
+        # 2026-11-24: the Fire Goblin Shaman's Fire Wall — fire_goblin_shaman_fire_wall_board.webp,
+        # four unlabelled rows on black (his front, his back, facing left,
+        # facing right), eight frames a row: the stance, a hand reached out
+        # and raised, flames kindled at his feet, risen, a blaze about him,
+        # fallen, the last embers. Frames 2-8 are Cast.png, played for his
+        # Fire Wall, the fire about him kept; the stance is the height
+        # reference. The wall itself is its own sprite
+        # (fire_goblin_shaman_wall). His robe's folds are as black as the
+        # backdrop: kept by a model matte a frame.
+        "into": "fire_goblin_shaman",
+        "actions": {
+            "src": "fire_goblin_shaman_fire_wall_board.webp",
+            "matte_union": True,   # tools/make_mattes.py fire_goblin_shaman_fire_wall --actions
+            "levels": (6, 35, 10),
+            "fill_holes": 6,
+            "open_dark": True,
+            "keep_share": 0.004,   # the loose flames
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (8, 0, 188, 250),
+                    "reach": (188, 0, 368, 250),
+                    "raise": (368, 0, 546, 250),
+                    "kindle": (546, 0, 726, 250),
+                    "rise": (726, 0, 908, 250),
+                    "blaze": (908, 0, 1093, 250),
+                    "fall": (1093, 0, 1275, 250),
+                    "embers": (1275, 0, 1445, 250),
+                },
+                "back": {
+                    "stance": (8, 256, 188, 506),
+                    "reach": (188, 256, 366, 506),
+                    "raise": (366, 256, 538, 506),
+                    "kindle": (538, 256, 720, 506),
+                    "rise": (720, 256, 902, 506),
+                    "blaze": (902, 256, 1088, 506),
+                    "fall": (1088, 256, 1271, 506),
+                    "embers": (1271, 256, 1445, 506),
+                },
+                "left": {
+                    "stance": (20, 508, 194, 757),
+                    "reach": (194, 508, 372, 757),
+                    "raise": (372, 508, 538, 757),
+                    "kindle": (538, 508, 718, 757),
+                    "rise": (718, 508, 899, 757),
+                    "blaze": (899, 508, 1082, 757),
+                    "fall": (1082, 508, 1270, 757),
+                    "embers": (1270, 508, 1445, 757),
+                },
+                "right": {
+                    "stance": (5, 780, 179, 1026),
+                    "reach": (179, 780, 360, 1026),
+                    "raise": (360, 780, 542, 1026),
+                    "kindle": (542, 780, 732, 1026),
+                    "rise": (732, 780, 914, 1026),
+                    "blaze": (914, 780, 1097, 1026),
+                    "fall": (1097, 780, 1278, 1026),
+                    "embers": (1278, 780, 1445, 1026),
+                },
+            },
+            "sheets": {
+                "Cast": ["reach", "raise", "kindle", "rise", "blaze", "fall", "embers"],
+            },
+        },
+    },
+    "fire_goblin_shaman_wall": {
+        # 2026-11-24: the wall he raises — fire_goblin_shaman_fire_wall_strip.webp
+        # (cut out, transparent), eight panels: a bed of burning rock with
+        # flames kindling, rising, a full sheet of fire (two frames), dying
+        # under black smoke. Wall.png in his folder: one a tile of his Fire
+        # Wall (FireWallSprite: it rises, burns on the two full frames and
+        # dies out when the wall goes). 1.25 tiles wide with its soft
+        # edges (the flames themselves about a tile), so the tiles of a
+        # wall run together.
+        "into": "fire_goblin_shaman",
+        "strip": {
+            "src": "fire_goblin_shaman_fire_wall_strip.webp",
+            "sheet": "Wall",
+            "width_tiles": 1.25,
+            "width_of": "max",
+            "align": "board",
+            "keep_alpha": True,
+            "frames": [(5, 162, 245, 408), (255, 162, 495, 408), (505, 162, 745, 408), (755, 162, 995, 408), (1005, 162, 1245, 408), (1255, 162, 1495, 408), (1505, 162, 1745, 408), (1755, 162, 1995, 408)],
         },
     },
     "coyote": {
@@ -4657,6 +4911,140 @@ BOARDS = {
             "left": (702, 170, 1112, 808),
             "right": (1112, 170, 1532, 808),
         },
+        # 2026-11-24: the designer's Dive Bomb board — roc_dive_bomb_board.webp,
+        # four labelled rows on black (NORTH (FRONT), SOUTH (BACK), WEST
+        # (LEFT), EAST (RIGHT)), eight frames a row: perched, the wings
+        # spread, raised high, lifting off, the swoop, the dive with the
+        # wings swept back, the landing with talons out and wings flared,
+        # perched. Dive.png, played for its Dive Bomb: it is carried from
+        # where it took off to the square beside its prey through the
+        # airborne frames (SpriteEnemyFigure.leap_from). Wings touch the
+        # frame beside them, so each row is parted at the narrowest contact
+        # (`split`), and every frame keeps its height above the ground
+        # (`keep_ground`): the airborne frames stay in the air.
+        "actions": {
+            "src": "roc_dive_bomb_board.webp",
+            "matte_union": True,   # its darkest feathers are painted as black as the backdrop: kept by a model matte a frame (tools/make_mattes.py roc --actions)
+            "levels": (6, 35, 10),
+            "fill_holes": 6,
+            "open_dark": True,
+            "keep_share": 0.02,
+            "glow": False,
+            "split": True,
+            "isolate_floor": 14,
+            "keep_ground": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (135, 8, 291, 254),
+                    "spread": (291, 8, 464, 254),
+                    "raise": (464, 8, 627, 254),
+                    "lift": (627, 8, 807, 254),
+                    "swoop": (807, 8, 969, 254),
+                    "dive": (969, 8, 1126, 254),
+                    "land": (1126, 8, 1295, 254),
+                    "stance2": (1295, 8, 1440, 254),
+                },
+                "back": {
+                    "stance": (135, 256, 288, 510),
+                    "spread": (288, 256, 465, 510),
+                    "raise": (465, 256, 629, 510),
+                    "lift": (629, 256, 808, 510),
+                    "swoop": (808, 256, 970, 510),
+                    "dive": (970, 256, 1126, 510),
+                    "land": (1126, 256, 1294, 510),
+                    "stance2": (1294, 256, 1440, 510),
+                },
+                "left": {
+                    "stance": (135, 512, 305, 762),
+                    "spread": (305, 512, 464, 762),
+                    "raise": (464, 512, 619, 762),
+                    "lift": (619, 512, 785, 762),
+                    "swoop": (785, 512, 954, 762),
+                    "dive": (954, 512, 1125, 762),
+                    "land": (1125, 512, 1298, 762),
+                    "stance2": (1298, 512, 1444, 762),
+                },
+                "right": {
+                    "stance": (135, 764, 297, 1006),
+                    "spread": (297, 764, 469, 1006),
+                    "raise": (469, 764, 633, 1006),
+                    "lift": (633, 764, 795, 1006),
+                    "swoop": (795, 764, 959, 1006),
+                    "dive": (959, 764, 1126, 1006),
+                    "land": (1126, 764, 1290, 1006),
+                    "stance2": (1290, 764, 1444, 1006),
+                },
+            },
+            "sheets": {
+                "Dive": ["spread", "raise", "lift", "swoop", "dive", "land"],
+            },
+        },
+    },
+    "roc_scrape": {
+        # 2026-11-24: the Roc's Eye Scrape — roc_eye_scrape_board.webp, four
+        # unlabelled rows on black (its front, its back, facing left, facing
+        # right), eight frames a row: perched, hunched, the ruff bristling,
+        # reared up tall, leaning in, the strike with its beak agape,
+        # drawing back, perched. Attack.png, played for its Eye Scrape; the
+        # perch is the height reference, matched to each facing's Idle.
+        "into": "roc",
+        "actions": {
+            "src": "roc_eye_scrape_board.webp",
+            "matte_union": True,   # as its dive board: its darkest feathers kept by a model matte a frame (tools/make_mattes.py roc_scrape --actions)
+            "levels": (6, 35, 10),
+            "fill_holes": 6,
+            "open_dark": True,
+            "keep_share": 0.02,
+            "glow": False,
+            "isolate": True,
+            "match": "stance",
+            "frames": {
+                "front": {
+                    "stance": (20, 2, 205, 220),
+                    "hunch": (205, 2, 409, 220),
+                    "bristle": (409, 2, 626, 220),
+                    "rear": (626, 2, 833, 220),
+                    "lean": (833, 2, 1041, 220),
+                    "scrape": (1041, 2, 1265, 220),
+                    "draw": (1265, 2, 1475, 220),
+                    "stance2": (1475, 2, 1650, 220),
+                },
+                "back": {
+                    "stance": (20, 226, 205, 464),
+                    "hunch": (205, 226, 409, 464),
+                    "bristle": (409, 226, 626, 464),
+                    "rear": (626, 226, 833, 464),
+                    "lean": (833, 226, 1041, 464),
+                    "scrape": (1041, 226, 1265, 464),
+                    "draw": (1265, 226, 1475, 464),
+                    "stance2": (1475, 226, 1650, 464),
+                },
+                "left": {
+                    "stance": (10, 466, 205, 680),
+                    "hunch": (205, 466, 416, 680),
+                    "bristle": (416, 466, 631, 680),
+                    "rear": (631, 466, 826, 680),
+                    "lean": (826, 466, 1032, 680),
+                    "scrape": (1032, 466, 1260, 680),
+                    "draw": (1260, 466, 1470, 680),
+                    "stance2": (1470, 466, 1660, 680),
+                },
+                "right": {
+                    "stance": (10, 684, 205, 905),
+                    "hunch": (205, 684, 414, 905),
+                    "bristle": (414, 684, 625, 905),
+                    "rear": (625, 684, 827, 905),
+                    "lean": (827, 684, 1043, 905),
+                    "scrape": (1043, 684, 1264, 905),
+                    "draw": (1264, 684, 1470, 905),
+                    "stance2": (1470, 684, 1665, 905),
+                },
+            },
+            "sheets": {
+                "Attack": ["hunch", "bristle", "rear", "lean", "scrape", "draw"],
+            },
+        },
     },
     "giant_hawk": {
         # 2026-10-25: the Giant Hawk — midnight black, flecked brown, a sharp
@@ -5559,16 +5947,45 @@ def cut_action_frames(cfg: dict, kind: str = "") -> dict:
                     raise ValueError("matte %s is %s, box %s" % (action_matte_path(kind, d, pose), matte.shape, rgb.shape[:2]))
                 if act.get("isolate") and (d, pose) not in act.get("isolate_skip", ()):
                     matte &= ~others(d, box)
+                for bx0, by0, bx1, by1 in act.get("bg_boxes", {}).get((d, pose), ()):
+                    matte[by0:by1, bx0:bx1] = False   # what a bg box clears, the model may not keep
+                if act.get("split"):
+                    # The model also sees the wing of the frame beside it
+                    # (the Roc's dive): what the split gave another frame is
+                    # not this one's, nor is a piece none of its own pixels
+                    # touch.
+                    key = (act["src"][d] if isinstance(act["src"], dict) else act["src"], box[1], box[3])
+                    reg, lab, X0, row = split_cache[key]
+                    part_lab = lab[:, box[0] - X0:box[2] - X0]
+                    j = row.index(box)
+                    matte &= (part_lab == j) | (part_lab < 0)
+                    mn, mlab = cv2.connectedComponents(matte.astype(np.uint8), connectivity=8)
+                    own = np.unique(mlab[part_lab == j])
+                    matte &= np.isin(mlab, own[own > 0])
             img = _cut_black_glow(rgb, act.get("bg_boxes", {}).get((d, pose), ()), act.get("shadow_band", 0.0),
                                   act.get("keep_share", 0.0), act.get("fill_holes", False), act.get("levels"),
                                   act.get("glow", True), act.get("open_dark", False), act.get("shadow_lum", 0.0),
-                                  matte, open_flat=act.get("open_flat"), soft_mask=_glow_mask(rgb, act, pose))
+                                  matte, open_flat=act.get("open_flat"), soft_mask=_glow_mask(rgb, act, pose),
+                                  trim=not act.get("ground_cols"))
+            if act.get("ground_cols"):
+                # `ground_cols` (from, to: shares of the box's width): the
+                # frame stands on the lowest paint in those columns (its
+                # feet); what hangs lower elsewhere (the Consumed's tongue)
+                # is kept below that line (act["_drops"], as `keep_ground`).
+                al = np.asarray(img)[..., 3]
+                ys, xs = np.nonzero(al > 0)
+                c0, c1 = (int(round(f * al.shape[1])) for f in act["ground_cols"])
+                line = int(np.nonzero((al[:, c0:c1] >= 128).any(axis=1))[0].max())
+                bottom = int(np.nonzero((al >= 128).any(axis=1))[0].max())
+                img = img.crop((int(xs.min()), int(ys.min()), int(xs.max()) + 1, bottom + 1))
+                act.setdefault("_drops", {})[(d, pose)] = max(0, bottom - line)
+                act.setdefault("_air", {})[(d, pose)] = 0
             for side, px in act.get("edge_fade", {}).get((d, pose), ()):
                 img = _fade_edge(img, side, px)
             out[d][pose] = img.transpose(Image.FLIP_LEFT_RIGHT) if mirror else img
         for pose, other in again:
             out[d][pose] = out[d][other]
-        if act.get("keep_ground"):
+        if act.get("keep_ground") and not act.get("ground_cols"):
             # A jump (the Magma Spider's Fire Bounce): every frame keeps its
             # height above the ground line — the match pose's lowest solid
             # row — instead of standing on it: an airborne frame is padded

@@ -3866,6 +3866,7 @@ func _try_ember(target_node: Node3D) -> bool:
 	if _in_attack_range(target_node):
 		_deal_damage_to_player(target_node, attack_damage, "Ember")
 		_apply_burn_to_player(target_node, 1)
+		_throw_at(target_node, "ember")   # the ember flies from its hand to the target
 		turn_completed.emit()
 		return true
 	return _try_move(target_node)
@@ -3894,7 +3895,7 @@ func _try_fire_wall(target_node: Node3D) -> bool:
 	var tiles: Array = [center, center + perp, center - perp]
 	var main := get_parent()
 	if main and main.has_method("register_fire_wall"):
-		main.register_fire_wall(tiles, attack_damage, 3)
+		main.register_fire_wall(tiles, attack_damage, 3, 6, -1, null, 0, "wall")   # his own wall art
 	print("[%s] Raises a wall of fire!" % enemy_name)
 	turn_completed.emit()
 	return true
@@ -5471,18 +5472,38 @@ func _choose_roc_action(distance: int) -> void:
 ## TODO(sheet): the sheet gives no damage — first-pass attack_damage (8).
 func _try_dive_bomb(target_node: Node3D) -> bool:
 	if is_disarmed or not is_instance_valid(target_node) or _cells_between(self, target_node) > ROC_DIVE_SQUARES:
+		_dive_called_off()
 		return _try_roc_retreat(target_node)
 	if _cells_between(self, target_node) > 1:
 		if rooted_tempo > 0:
+			_dive_called_off()
 			return false
 		var perch := _free_cell_near(target_node.position, 1)
 		if grid_manager and grid_manager.world_to_grid(perch) == grid_manager.world_to_grid(target_node.position):
+			_dive_called_off()
 			return _try_roc_retreat(target_node)  # nowhere to land beside them
+		var take_off := global_position
+		if _enemy_figure:
+			# It spreads its wings facing its prey (the board's dive goes
+			# forward), then lifts off.
+			var way: Vector3 = perch - position
+			_enemy_figure.set_facing_from_velocity(Vector3(way.x, 0, way.z))
+			_enemy_figure.play_action("dive_bomb")   # restart, facing the dive
 		_land_at(perch)
+		# On the board it lands at once; the figure is carried there through
+		# the board's airborne frames.
+		if _enemy_figure and _enemy_figure.has_method("leap_from"):
+			_enemy_figure.leap_from(take_off, "dive_bomb")
 	_deal_damage_to_player(target_node, attack_damage, "Dive Bomb")
 	_dive_cooldown = ROC_DIVE_COOLDOWN
 	turn_completed.emit()
 	return true
+
+## The dive will not happen after all: the wings it began to spread (the
+## Dive sheet, played as the action starts) are folded again.
+func _dive_called_off() -> void:
+	if _enemy_figure and _enemy_figure.has_method("cancel_swing"):
+		_enemy_figure.cancel_swing()
 
 ## Eye Scrape (sheet, Async 3): only lands if a player unit has been in melee
 ## reach for more than 3 tempo — 2 Weakened on whoever is crowding it (the
