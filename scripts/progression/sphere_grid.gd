@@ -429,7 +429,7 @@ func _build_grid() -> void:
 		_connect_nodes(134 + k, 100 + nearest)
 		_connect_nodes(134 + k, 100 + ((nearest + 1) % 34))
 
-	# === Hex arc: 12 debuff-amp nodes at radius 700 (ids 143-154) ===
+	# === Hex arc: 11 debuff-amp nodes and one bare link at radius 700 (ids 143-154) ===
 	# Amplification for the debuffs YOU apply to enemies. Offset half a step
 	# from the buff-amp arc so the two arcs interleave; each hangs off its two
 	# nearest Ring 6 nodes by angle.
@@ -442,7 +442,10 @@ func _build_grid() -> void:
 		[NodeType.COMBAT_BONUS, "Poison Amp +5", "Poison you apply: each tick has a stacks% chance to spike for 5 bonus damage"],
 		[NodeType.COMBAT_BONUS, "Curse Amp +10%", "Cursed enemies deal 30% less damage instead of 20%"],
 		[NodeType.COMBAT_BONUS, "Curse Pain +10%", "Cursed enemies deal 30% of their damage to themselves instead of 20%"],
-		[NodeType.COMBAT_BONUS, "Shatter +5", "Enemies take 5 damage when your Frozen thaws"],
+		# Was "Shatter +5" (damage when your Frozen thaws): removed by the
+		# designer 2026-11-24, since nothing freezes any more. The slot stays
+		# as a bare link so ids 152-154 and their Ring 6 links do not move.
+		[NodeType.NULL_NODE, "·", "A bare link in the web. It offers nothing but the path onward."],
 		[NodeType.COMBAT_BONUS, "Shock Amp +1", "Shock you apply lands 1 additional stack"],
 		[NodeType.COMBAT_BONUS, "Slow Amp +1", "Slows you apply make movement cost 4 tempo instead of 3"],
 		[NodeType.COMBAT_BONUS, "Root Amp +1", "Roots you apply last 1 additional tempo"],

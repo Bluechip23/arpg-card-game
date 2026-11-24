@@ -50,7 +50,9 @@ func _run() -> void:
 		e.apply_debuff("poison", 3)
 		e.apply_debuff("shock", 1)
 		e._tick_burn_poison()       # Burn and Poison: their own 2-tempo tick
+		Enemy.shock_ticks_damage = true  # Shock's own damage is dormant; switched on it is logged
 		e._tick_status_durations()  # Shock: the 5-tempo cycle
+		Enemy.shock_ticks_damage = false
 		var b := _logged("Burn: %s takes 7" % e.enemy_name)   # 2 Burn + 3, and 2 more
 		_check(b != "" and b.contains("last tick"), "enemy Burn tick logged with what comes next (%s)" % b)
 		var p := _logged("Poison: %s takes 3" % e.enemy_name)

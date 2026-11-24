@@ -9,7 +9,7 @@ Max mana	7	+95 max Mana	12, 14, 16, 24, 26, 28, 126
 Combat bonus	54	see breakdown below	40, 42, 44, 46, 48, 49, 50, 52, 54, 56, 57, 61, 68, 72, 73, 75, 76, 77, 79, 82, 84, 86, 90, 92, 94, 95, 98, 99, 100, 101, 116, 121, 124, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154
 Keystone	17	17 keystones, max 3 attached at once	85, 89, 103, 104, 106, 107, 110, 112, 114, 118, 127, 128, 129, 130, 131, 132, 133
 Culling stone	5	5 culling stones	53, 67, 69, 91, 125
-Null (path only)	22		31, 32, 33, 34, 35, 36, 37, 41, 45, 58, 60, 62, 65, 78, 80, 83, 87, 108, 111, 115, 119, 122
+Null (path only)	23		31, 32, 33, 34, 35, 36, 37, 41, 45, 58, 60, 62, 65, 78, 80, 83, 87, 108, 111, 115, 119, 122, 151
 Triggered passive	0		
 Retrospective	0		
 Feather (retired)	0		
@@ -50,7 +50,7 @@ Armor / cycle	2	+2	54 (Arm/Cyc +1), 94 (Arm/Cyc +1)
 Debuff amp: Vulnerable %	2	+30	72 (Vuln Amp +15%), 101 (Vuln Amp +15%)
 Debuff amp: Weaken %	1	+25	76 (Weaken Amp +25%)
 Buff amp (self-buffs)	9	9 distinct amps	134 (Haste Amp +1), 135 (Keen Amp +10%), 136 (Brace Amp +10%), 137 (Blessed Draw +1), 138 (Blessed Amp +1), 139 (Strength Amp +5), 140 (Bolster Amp +5), 141 (Cleanse Amp +1), 142 (Resil Amp +10%)
-Debuff amp (hex arc)	12	12 distinct amps	143 (Bleed Amp +1), 144 (Stun Amp +1), 145 (Disarm Amp +1), 146 (Silence Amp +1), 147 (Burn Amp +1), 148 (Poison Amp +5), 149 (Curse Amp +10%), 150 (Curse Pain +10%), 151 (Shatter +5), 152 (Shock Amp +1), 153 (Slow Amp +1), 154 (Root Amp +1)
+Debuff amp (hex arc)	11	11 distinct amps	143 (Bleed Amp +1), 144 (Stun Amp +1), 145 (Disarm Amp +1), 146 (Silence Amp +1), 147 (Burn Amp +1), 148 (Poison Amp +5), 149 (Curse Amp +10%), 150 (Curse Pain +10%), 152 (Shock Amp +1), 153 (Slow Amp +1), 154 (Root Amp +1)
 
 Nodes per ring	Count	Radius (px)	Node ids
 Ring 0 (Origin)	1	0	0
@@ -218,7 +218,7 @@ Id	Ring	Type	Label	Effect	Stat gate	Keystone id	Constellations	Connected to
 148	8	Combat bonus	Poison Amp +5	Poison you apply: each tick has a stacks% chance to spike for 5 bonus damage				116, 117
 149	8	Combat bonus	Curse Amp +10%	Cursed enemies deal 30% less damage instead of 20%				118, 119
 150	8	Combat bonus	Curse Pain +10%	Cursed enemies deal 30% of their damage to themselves instead of 20%				121, 122
-151	8	Combat bonus	Shatter +5	Enemies take 5 damage when your Frozen thaws				124, 125
+151	8	Null (path only)	·	A bare link in the web. It offers nothing but the path onward. (Was Shatter +5 until 2026-11-24.)				124, 125
 152	8	Combat bonus	Shock Amp +1	Shock you apply lands 1 additional stack				127, 128
 153	8	Combat bonus	Slow Amp +1	Slows you apply make movement cost 4 tempo instead of 3				130, 131
 154	8	Combat bonus	Root Amp +1	Roots you apply last 1 additional tempo				100, 133
