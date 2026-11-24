@@ -191,7 +191,7 @@ func _set_name_and_description() -> void:
 			description = "Cannot draw cards"
 		DebuffType.SHOCKED:
 			debuff_name = "Shocked"
-			description = "Arc %d damage to nearby allies per cycle (a shocked enemy takes it itself), lose 1 per cycle" % value
+			description = "Arc %d damage to nearby allies per cycle, lose 1 per cycle" % value
 		DebuffType.SLOWED:
 			debuff_name = "Slowed"
 			if clock_timed:

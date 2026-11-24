@@ -1965,7 +1965,7 @@ func _tick_burn_poison() -> void:
 		_burn_number_pending = false
 		print("[%s] Burn deals %d damage (%d Burn left)" % [enemy_name, burn_hit, burn_left])
 		# Element Pollination: the flames jump — burn splashes nearby enemies
-		# like Shock while the Elemental Weaver's maintain is up.
+		# while the Elemental Weaver's maintain is up.
 		if Card.element_pollination_active:
 			for pol_e in _sibling_enemies():
 				if pol_e != self and position.distance_to(pol_e.position) <= 2.5:
@@ -8382,9 +8382,9 @@ func get_effect_tooltip(eff_name: String) -> Dictionary:
 			remaining = "Stacks: %d" % poison_stacks
 		"Shock":
 			if shock_arcs:
-				desc = "Takes %d damage each cycle and arcs the same to the nearest enemy within 2 squares; loses 1 per cycle." % shock_stacks
+				desc = "Amplifies your Shock cards: they can be cheaper, faster and more devastating against it. Takes %d damage each cycle and arcs the same to the nearest enemy within 2 squares; loses 1 per cycle." % shock_stacks
 			else:
-				desc = "Takes %d damage each cycle; loses 1 per cycle." % shock_stacks
+				desc = "Amplifies your Shock cards: they can be cheaper, faster and more devastating against it. Takes %d damage each cycle; loses 1 per cycle." % shock_stacks
 			remaining = "Stacks: %d" % shock_stacks
 		"Bleed":
 			desc = "Takes damage per tile moved; each damage removes a stack."

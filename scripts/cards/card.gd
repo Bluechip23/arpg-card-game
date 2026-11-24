@@ -1332,7 +1332,8 @@ static func get_keyword_definitions() -> Dictionary:
 		"cursed": "Deal 20% less damage, and take 20% of the damage you deal.",
 		"frozen": "Can't play cards, auto attack or block.",
 		"cuffed": "Can't draw cards.",
-		"shocked": "Each cycle, deals X damage to nearby allies (a shocked enemy takes it). Loses 1 per cycle.",
+		"shock": "Shock is an amplifier for the other cards in your hand, making your abilities potentially cheaper, faster and more devastating. A shocked enemy also takes its Shock in damage each cycle and loses 1.",
+		"shocked": "On you: each cycle, deals X damage to your nearby allies. Loses 1 per cycle.",
 		"slowed": "Moving costs 3 tempo per tile. Each stack lasts 5 tempo.",
 		"staggered": "Attack cards cost +15 mana. Each stack lasts 5 tempo.",
 		"drain": "Lose 10 mana per cycle. Loses 1 per cycle.",
@@ -2235,7 +2236,7 @@ func _execute_card(target, player_stats: PlayerStats = null, deck_manager = null
 		"element_pollination":
 			# Maintain: the elemental cross-pollination is read live off the
 			# maintained pile (Card.element_pollination_active); nothing on activation.
-			print("[CARD] Element Pollination maintained: Burn splashes, Shock freezes at 5, Cold ticks doubling damage")
+			print("[CARD] Element Pollination maintained: Burn splashes, Shock stuns at 5, Cold ticks doubling damage")
 		"feed_into_the_pain":
 			# Hammer of Ajax instant: fired by taking damage below 30% health.
 			if buff_mgr:

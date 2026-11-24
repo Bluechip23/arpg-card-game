@@ -6,7 +6,7 @@
 script = ExtResource("1_dhb5v")
 card_id = "element_pollination"
 card_name = "Element Pollination"
-description = "Maintain: your Burn also splashes nearby enemies like Shock, your Shock stuns for 5 tempo at 5 stacks, and your Cold ticks doubling damage — on top of their normal effects."
+description = "Maintain: your Burn also splashes nearby enemies, your Shock stuns for 5 tempo at 5 stacks, and your Cold ticks doubling damage — on top of their normal effects."
 card_type = 5
 card_type_name = "Power"
 mana_cost = 60
